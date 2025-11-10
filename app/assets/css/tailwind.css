@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========================================
+   壓克力泡泡效果 - 統一樣式系統
+   ======================================== */
+
+/* 基礎 Glass 類別 - 使用 CSS 變量來允許自定義 */
+.glass {
+	--glass-bg: rgba(255, 255, 255, 0.3);
+	--glass-blur: 12px;
+	--glass-border-width: 2px;
+	--glass-border-color: rgba(255, 255, 255, 0.8);
+	--glass-shadow-outer-1: 0 8px 32px rgba(0, 0, 0, 0.2);
+	--glass-shadow-outer-2: 0 4px 16px rgba(0, 0, 0, 0.15);
+	--glass-shadow-inner-top: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+	--glass-shadow-inner-bottom: inset 0 -1px 4px rgba(0, 0, 0, 0.2);
+	--glass-shadow-inner-highlight: inset 0 2px 8px rgba(255, 255, 255, 0.2);
+
+	background: var(--glass-bg);
+	backdrop-filter: blur(var(--glass-blur));
+	-webkit-backdrop-filter: blur(var(--glass-blur));
+	border: var(--glass-border-width) solid var(--glass-border-color);
+	box-shadow:
+		var(--glass-shadow-outer-1), var(--glass-shadow-outer-2), var(--glass-shadow-inner-top), var(--glass-shadow-inner-bottom),
+		var(--glass-shadow-inner-highlight);
+	transition: all 0.3s ease;
+	position: relative;
+	overflow: hidden;
+}
+
+/* Glass 光澤效果偽元素 */
+.glass::before {
+	content: "";
+	position: absolute;
+	top: -50%;
+	left: -50%;
+	width: 200%;
+	height: 200%;
+	background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+	transform: rotate(45deg);
+	pointer-events: none;
+	z-index: 0;
+}
+
+/* 確保內容在光澤效果之上 */
+.glass > * {
+	position: relative;
+	z-index: 1;
+}
+
+/* ========================================
+   Glass 變體
+   ======================================== */
+
+/* Glass Bubble - 小型壓克力泡泡（用於圖示容器） */
+.glass-bubble {
+	--glass-bg: rgba(255, 255, 255, 0.15);
+	--glass-blur: 12px;
+	--glass-border-width: 1px;
+	--glass-border-color: rgba(255, 255, 255, 0.3);
+	--glass-shadow-outer-1: 0 8px 32px rgba(0, 0, 0, 0.2);
+	--glass-shadow-outer-2: 0 4px 16px rgba(0, 0, 0, 0.15);
+	--glass-shadow-inner-top: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+	--glass-shadow-inner-bottom: inset 0 -1px 4px rgba(0, 0, 0, 0.2);
+	--glass-shadow-inner-highlight: inset 0 2px 8px rgba(255, 255, 255, 0.2);
+}
+
+/* Glass Card - 大型壓克力卡片（用於表單容器） */
+.glass-card {
+	--glass-bg: linear-gradient(-35deg, #7dc1cb 0%, rgba(0, 97, 145, 0.7) 100%);
+	--glass-blur: 16px;
+	--glass-border-width: 2px;
+	--glass-border-color: rgba(255, 255, 255, 0.8);
+	--glass-shadow-outer-1: 0 12px 48px rgba(0, 0, 0, 0.3);
+	--glass-shadow-outer-2: 0 6px 24px rgba(0, 0, 0, 0.25);
+	--glass-shadow-inner-top: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+	--glass-shadow-inner-bottom: inset 0 -1px 6px rgba(0, 0, 0, 0.25);
+	--glass-shadow-inner-highlight: inset 0 4px 12px rgba(255, 255, 255, 0.25);
+	/* 注意：glass-card 使用漸層背景，需要覆蓋基礎的 background */
+	background: var(--glass-bg);
+}
