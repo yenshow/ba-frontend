@@ -21,26 +21,17 @@
 						<!-- 室內/室外切換 -->
 						<div class="flex flex-col gap-2">
 							<button
+								v-for="type in ['outdoor', 'indoor'] as const"
+								:key="type"
 								type="button"
-								@click="toggleRoomType('outdoor')"
-								:aria-pressed="selectedRoomType === 'outdoor'"
+								@click="toggleRoomType(type)"
+								:aria-pressed="selectedRoomType === type"
 								:class="[
 									'p-3 whitespace-nowrap rounded-2xl text-white font-light transition-all text-lg 2xl:text-2xl',
-									selectedRoomType === 'outdoor' ? 'bg-white/10 border-2 border-white' : 'bg-transparent border-2 border-white/30'
+									selectedRoomType === type ? 'bg-white/10 border-2 border-white' : 'bg-transparent border-2 border-white/30'
 								]"
 							>
-								室外
-							</button>
-							<button
-								type="button"
-								@click="toggleRoomType('indoor')"
-								:aria-pressed="selectedRoomType === 'indoor'"
-								:class="[
-									'p-3 whitespace-nowrap rounded-2xl text-white font-light transition-all text-lg 2xl:text-2xl',
-									selectedRoomType === 'indoor' ? 'bg-white/10 border-2 border-white' : 'bg-transparent border-2 border-white/30'
-								]"
-							>
-								室內
+								{{ type === "outdoor" ? "室外" : "室內" }}
 							</button>
 						</div>
 					</div>
@@ -51,19 +42,35 @@
 						<!-- 分類點 -->
 						<template v-for="(category, index) in filteredCategories" :key="category.id">
 							<div
-								class="category-dot"
-								role="button"
-								tabindex="0"
-								:data-status="isCategoryNormal(category.id) ? 'normal' : 'abnormal'"
-								:title="`${category.name}：${isCategoryNormal(category.id) ? '正常' : '異常'}`"
-								:aria-label="`${category.name}：${isCategoryNormal(category.id) ? '正常' : '異常'}`"
+								class="category-dot-wrapper"
 								:style="{
 									left: `${category.location.x}%`,
 									top: `${category.location.y}%`
 								}"
-								:class="{ 'is-active': selectedCategory === category.id }"
-								@click="selectCategoryByIndex(index)"
-							></div>
+							>
+								<div
+									class="category-dot"
+									role="button"
+									tabindex="0"
+									:data-status="isCategoryNormal(category.id) ? 'normal' : 'abnormal'"
+									:title="`${category.name}：${isCategoryNormal(category.id) ? '正常' : '異常'}`"
+									:aria-label="`${category.name}：${isCategoryNormal(category.id) ? '正常' : '異常'}`"
+									:class="{ 'is-active': selectedCategory === category.id }"
+									@click="selectCategoryByIndex(index)"
+									@mouseenter="showTooltip(category.id, $event)"
+									@mouseleave="hideTooltip"
+									@focus="showTooltip(category.id, $event)"
+									@blur="hideTooltip"
+								></div>
+								<!-- 對話框提示 -->
+								<CategoryTooltip
+									:show="hoveredCategoryId === category.id"
+									:category-name="category.name"
+									:is-normal="isCategoryNormal(category.id)"
+									:floor-name="selectedFloorName"
+									:room-names="getCategoryRoomNames(category)"
+								/>
+							</div>
 						</template>
 					</div>
 				</div>
@@ -81,6 +88,7 @@
 import type { Floor, Room, RoomCategory, ControlPoint } from "~/types/system";
 import FloorSelector from "~/components/lighting/FloorSelector.vue";
 import StatusCenter from "~/components/lighting/StatusCenter.vue";
+import CategoryTooltip from "~/components/lighting/CategoryTooltip.vue";
 
 definePageMeta({
 	layout: "default"
@@ -155,15 +163,48 @@ const selectedFloor = ref("1F");
 const selectedCategory = ref("");
 const selectedRoomType = ref<"indoor" | "outdoor" | null>(null);
 
+// 對話框提示相關
+const hoveredCategoryId = ref<string>("");
+
+// 統一優化：創建 roomsById Map（避免重複創建）
+const roomsById = computed(() => {
+	return new Map(rooms.value.map((room) => [room.id, room]));
+});
+
+// 統一優化：創建 floorsById Map（避免重複查找）
+const floorsById = computed(() => {
+	return new Map(floors.value.map((floor) => [floor.id, floor]));
+});
+
+// 統一優化：創建 controlsByRoomId Map（用於快速查找）
+const controlsByRoomId = computed(() => {
+	const map = new Map<string, ControlPoint[]>();
+	controls.value.forEach((control) => {
+		if (control.roomId) {
+			const existing = map.get(control.roomId);
+			if (existing) {
+				existing.push(control);
+			} else {
+				map.set(control.roomId, [control]);
+			}
+		}
+	});
+	return map;
+});
+
+// 統一優化：創建 categoriesById Map（用於快速查找分類）
+const categoriesById = computed(() => {
+	return new Map(categories.value.map((category) => [category.id, category]));
+});
+
 // 選中的樓層名稱
 const selectedFloorName = computed(() => {
-	const floor = floors.value.find((f) => f.id === selectedFloor.value);
-	return floor?.name || "";
+	return floorsById.value.get(selectedFloor.value)?.name || "";
 });
 
 // 過濾分類（根據樓層與室內/室外類型）
 const filteredCategories = computed(() => {
-	const roomsById = new Map(rooms.value.map((room) => [room.id, room]));
+	const roomsMap = roomsById.value;
 
 	return categories.value.filter((category) => {
 		if (category.floorId !== selectedFloor.value) return false;
@@ -171,14 +212,14 @@ const filteredCategories = computed(() => {
 		if (!selectedRoomType.value) return true;
 
 		// 判斷該分類是否至少包含一個符合目前室內/室外選擇的房間
-		return category.roomIds.some((roomId) => roomsById.get(roomId)?.type === selectedRoomType.value);
+		return category.roomIds.some((roomId) => roomsMap.get(roomId)?.type === selectedRoomType.value);
 	});
 });
 
-// 當前選中的分類（合併邏輯，避免重複查找）
+// 當前選中的分類（使用 Map 查找，提升性能）
 const currentCategory = computed(() => {
 	if (!selectedCategory.value) return null;
-	return categories.value.find((c) => c.id === selectedCategory.value) || null;
+	return categoriesById.value.get(selectedCategory.value) || null;
 });
 
 const currentCategoryName = computed(() => {
@@ -190,27 +231,43 @@ const currentCategoryName = computed(() => {
 });
 
 // 當前選中分類下所有房間的控制點（用於 StatusCenter）
-// 狀態中心顯示當前分類下所有房間的控制點，而不是只顯示選中房間的控制點
 const currentCategoryControls = computed(() => {
 	if (!currentCategory.value) return [];
-	// 獲取當前分類下的所有房間 ID
+
 	const categoryRoomIds = currentCategory.value.roomIds;
-	// 過濾出這些房間的所有控制點
-	const roomsById = new Map(rooms.value.map((room) => [room.id, room]));
-	return controls.value.filter((control) => {
-		if (!categoryRoomIds.includes(control.roomId || "")) return false;
-		if (!selectedRoomType.value) return true;
-		const controlRoom = roomsById.get(control.roomId || "");
-		return controlRoom?.type === selectedRoomType.value;
+	const roomsMap = roomsById.value;
+	const controlsMap = controlsByRoomId.value;
+	const result: ControlPoint[] = [];
+
+	categoryRoomIds.forEach((roomId) => {
+		const room = roomsMap.get(roomId);
+		// 如果選擇了室內/室外類型，檢查房間類型是否匹配
+		if (selectedRoomType.value && room?.type !== selectedRoomType.value) return;
+
+		const roomControls = controlsMap.get(roomId) || [];
+		result.push(...roomControls);
 	});
+
+	return result;
 });
 
 const categoryStatusMap = computed<Record<string, "normal" | "abnormal">>(() => {
 	const statusMap: Record<string, "normal" | "abnormal"> = {};
+	const controlsMap = controlsByRoomId.value;
+
 	for (const category of categories.value) {
 		const categoryRoomIds = category.roomIds;
-		const categoryControls = controls.value.filter((control) => categoryRoomIds.includes(control.roomId || ""));
-		const hasAbnormal = categoryControls.some((control) => control.status !== "normal");
+		let hasAbnormal = false;
+
+		// 使用 Map 查找替代 filter，提升性能
+		for (const roomId of categoryRoomIds) {
+			const roomControls = controlsMap.get(roomId) || [];
+			if (roomControls.some((control) => control.status !== "normal")) {
+				hasAbnormal = true;
+				break; // 找到異常就跳出
+			}
+		}
+
 		statusMap[category.id] = hasAbnormal ? "abnormal" : "normal";
 	}
 	return statusMap;
@@ -243,16 +300,11 @@ const handleFloorSelected = (floorId: string) => {
 	// 可以在這裡載入該樓層的照明數據
 };
 
-// 選中分類的通用邏輯
-const selectCategory = (categoryId: string) => {
-	selectedCategory.value = categoryId;
-};
-
 // 通過索引選中分類（點擊黃點時使用）
 const selectCategoryByIndex = (index: number) => {
 	const category = filteredCategories.value[index];
 	if (category) {
-		selectCategory(category.id);
+		selectedCategory.value = category.id;
 	}
 };
 
@@ -261,9 +313,14 @@ const toggleRoomType = (type: "indoor" | "outdoor") => {
 	selectedRoomType.value = selectedRoomType.value === type ? null : type;
 };
 
+// 統一優化：創建 controlsById Map（用於快速查找控制點）
+const controlsById = computed(() => {
+	return new Map(controls.value.map((control) => [control.id, control]));
+});
+
 // 處理照明控制點切換
 const handleControlToggle = (controlId: string, isRunning: boolean) => {
-	const control = controls.value.find((c) => c.id === controlId);
+	const control = controlsById.value.get(controlId);
 	if (control) {
 		control.isRunning = isRunning;
 		console.log("照明控制點運轉狀態更新:", controlId, isRunning);
@@ -271,19 +328,67 @@ const handleControlToggle = (controlId: string, isRunning: boolean) => {
 	}
 };
 
+// 獲取房間名稱（使用 Map 查找，提升性能）
+const getRoomName = (roomId: string) => {
+	return roomsById.value.get(roomId)?.name || roomId;
+};
+
+// 獲取分類下的所有房間名稱列表（使用 computed 優化性能）
+const categoryRoomNamesMap = computed(() => {
+	const map = new Map<string, string[]>();
+	const roomsMap = roomsById.value;
+
+	categories.value.forEach((category) => {
+		const roomNames = category.roomIds.map((roomId) => roomsMap.get(roomId)?.name).filter((name): name is string => !!name);
+		map.set(category.id, roomNames);
+	});
+	return map;
+});
+
+// 獲取分類下的所有房間名稱列表
+const getCategoryRoomNames = (category: RoomCategory) => {
+	return categoryRoomNamesMap.value.get(category.id) || [];
+};
+
+// 對話框顯示/隱藏延遲控制
+let tooltipTimeout: ReturnType<typeof setTimeout> | null = null;
+const TOOLTIP_DELAY = 200; // 延遲 200ms 顯示
+
+// 清理 tooltip 延遲
+const clearTooltipTimeout = () => {
+	if (tooltipTimeout) {
+		clearTimeout(tooltipTimeout);
+		tooltipTimeout = null;
+	}
+};
+
+// 顯示對話框提示
+const showTooltip = (categoryId: string, event: MouseEvent | FocusEvent) => {
+	clearTooltipTimeout();
+	// 鍵盤焦點立即顯示，滑鼠懸停延遲顯示
+	if (event.type === "focus") {
+		hoveredCategoryId.value = categoryId;
+	} else {
+		tooltipTimeout = setTimeout(() => {
+			hoveredCategoryId.value = categoryId;
+			tooltipTimeout = null;
+		}, TOOLTIP_DELAY);
+	}
+};
+
+// 隱藏對話框提示
+const hideTooltip = () => {
+	clearTooltipTimeout();
+	hoveredCategoryId.value = "";
+};
+
 // 初始化：自動選中第一個分類
 watch(
 	() => filteredCategories.value,
 	(newCategories) => {
 		// 若目前選中的分類不存在於新的清單中，改選第一個或清空
-		const hasSelected = newCategories.some((category) => category.id === selectedCategory.value);
-
-		if (!hasSelected) {
-			if (newCategories.length > 0) {
-				selectCategory(newCategories[0].id);
-			} else {
-				selectedCategory.value = "";
-			}
+		if (!newCategories.some((category) => category.id === selectedCategory.value)) {
+			selectedCategory.value = newCategories[0]?.id || "";
 		}
 	},
 	{ immediate: true }
@@ -291,6 +396,11 @@ watch(
 </script>
 
 <style scoped>
+.category-dot-wrapper {
+	position: absolute;
+	z-index: 10;
+}
+
 .category-dot {
 	position: absolute;
 	width: 48px;
@@ -304,7 +414,6 @@ watch(
 	cursor: pointer;
 	backdrop-filter: blur(3px);
 	transition:
-		transform 0.2s ease,
 		box-shadow 0.2s ease,
 		border-color 0.2s ease,
 		background 0.2s ease;
@@ -357,7 +466,6 @@ watch(
 }
 
 .category-dot.is-active {
-	transform: translate(-50%, -50%) scale(1.12);
 	border-color: #ffffff;
 	box-shadow: 0 0 20px rgba(255, 255, 255, 0.65);
 }

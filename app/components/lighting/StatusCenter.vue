@@ -1,7 +1,7 @@
 <template>
 	<div class="relative bg-white/30 rounded-2xl overflow-hidden border-2 border-white/80 px-2 xl:px-3 2xl:px-4 py-4 xl:py-6 2xl:py-8">
 		<h3 class="text-white text-center text-xl lg:text-2xl xl:text-3xl tracking-[12px] ms-[12px] mb-4 xl:mb-6 2xl:mb-8">
-			{{ displayCategoryName || "狀態中心" }}
+			{{ categoryName || "狀態中心" }}
 		</h3>
 
 		<div class="grid grid-cols-2 gap-x-2 gap-y-4 xl:gap-y-5 2xl:gap-y-6">
@@ -60,7 +60,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
 import type { ControlPoint } from "~/types/system";
 
 interface Props {
@@ -68,15 +67,13 @@ interface Props {
 	categoryName?: string;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
 	categoryName: ""
 });
 
 const emit = defineEmits<{
 	toggle: [controlId: string, isRunning: boolean];
 }>();
-
-const displayCategoryName = computed(() => props.categoryName);
 
 const getHealthLabel = (status: ControlPoint["status"]) => {
 	return status === "normal" ? "正常" : "異常";

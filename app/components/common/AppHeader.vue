@@ -20,9 +20,54 @@
 				<button class="transition-colors opacity-80 hover:opacity-100">
 					<img src="/layout/alert-log.png" alt="警示紀錄" class="w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 object-contain" />
 				</button>
-				<button class="transition-colors opacity-80 hover:opacity-100">
-					<img src="/layout/more-functions.png" alt="更多功能" class="w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 object-contain" />
-				</button>
+				<div class="relative flex items-center" ref="moreMenuRef">
+					<button @click.stop="toggleMoreMenu" class="transition-colors opacity-80 hover:opacity-100">
+						<img src="/layout/more-functions.png" alt="更多功能" class="w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 object-contain" />
+					</button>
+
+					<Transition
+						enter-active-class="transition ease-out duration-100"
+						enter-from-class="transform opacity-0 scale-95"
+						enter-to-class="transform opacity-100 scale-100"
+						leave-active-class="transition ease-in duration-75"
+						leave-from-class="transform opacity-100 scale-100"
+						leave-to-class="transform opacity-0 scale-95"
+					>
+						<div
+							v-if="isMoreMenuOpen"
+							@click.stop
+							class="absolute right-0 top-full mt-2 w-72 xl:w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-3 z-50"
+						>
+							<div class="px-5 mb-2">
+								<p class="text-xs font-semibold text-gray-400 tracking-widest uppercase">快速導覽</p>
+							</div>
+							<div class="max-h-72 overflow-y-auto px-1">
+								<div v-if="primaryModules.length" class="pb-2">
+									<p class="px-4 pb-1 text-xs font-semibold text-gray-500">主要系統</p>
+									<ul class="space-y-1">
+										<li v-for="module in primaryModules" :key="module.id">
+											<NuxtLink :to="module.route" @click="closeMoreMenu" class="flex flex-col px-4 py-2 rounded-md transition-colors hover:bg-gray-100">
+												<span class="text-sm font-medium text-gray-900">{{ module.name }}</span>
+												<span class="text-xs text-gray-500 leading-snug">{{ module.description }}</span>
+											</NuxtLink>
+										</li>
+									</ul>
+								</div>
+								<div v-if="extendedModules.length" class="pt-2 border-t border-gray-100">
+									<p class="px-4 pb-1 text-xs font-semibold text-gray-500">擴充功能</p>
+									<ul class="space-y-1">
+										<li v-for="module in extendedModules" :key="module.id">
+											<NuxtLink :to="module.route" @click="closeMoreMenu" class="flex flex-col px-4 py-2 rounded-md transition-colors hover:bg-gray-100">
+												<span class="text-sm font-medium text-gray-900">{{ module.name }}</span>
+												<span class="text-xs text-gray-500 leading-snug">{{ module.description }}</span>
+											</NuxtLink>
+										</li>
+									</ul>
+								</div>
+							</div>
+						</div>
+					</Transition>
+				</div>
 				<div class="w-[1.5px] h-8 xl:h-12 2xl:h-14 bg-black/30"></div>
 
 				<!-- User Info Dropdown -->
@@ -40,7 +85,7 @@
 						leave-from-class="transform opacity-100 scale-100"
 						leave-to-class="transform opacity-0 scale-95"
 					>
-						<div v-if="isUserMenuOpen" @click.stop class="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+						<div v-if="isUserMenuOpen" @click.stop class="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
 							<!-- User Info Section (if logged in) -->
 							<div v-if="isLoggedIn" class="px-4 py-3 border-b border-gray-100">
 								<p class="text-sm font-semibold text-gray-900">{{ userInfo.name }}</p>
@@ -178,6 +223,10 @@
 const isUserMenuOpen = ref(false);
 const userMenuRef = ref<HTMLElement | null>(null);
 
+// 更多功能選單狀態
+const isMoreMenuOpen = ref(false);
+const moreMenuRef = ref<HTMLElement | null>(null);
+
 // 登入狀態（模擬數據，之後可從 store 或 API 獲取）
 const isLoggedIn = ref(false);
 const userInfo = ref({
@@ -185,20 +234,36 @@ const userInfo = ref({
 	email: "zhang.san@example.com"
 });
 
-const { getModuleByRoute } = useSystem();
+const { getModuleByRoute, getModulesByCategory } = useSystem();
 const route = useRoute();
 
 const currentModule = computed(() => getModuleByRoute(route.path));
 const currentModuleName = computed(() => currentModule.value?.name ?? "");
+const primaryModules = computed(() => getModulesByCategory("primary"));
+const extendedModules = computed(() => getModulesByCategory("extended"));
+
+const closeUserMenu = () => {
+	isUserMenuOpen.value = false;
+};
+
+const closeMoreMenu = () => {
+	isMoreMenuOpen.value = false;
+};
 
 // 切換用戶選單
 const toggleUserMenu = () => {
 	isUserMenuOpen.value = !isUserMenuOpen.value;
+	if (isUserMenuOpen.value) {
+		closeMoreMenu();
+	}
 };
 
-// 關閉用戶選單
-const closeUserMenu = () => {
-	isUserMenuOpen.value = false;
+// 切換更多功能選單
+const toggleMoreMenu = () => {
+	isMoreMenuOpen.value = !isMoreMenuOpen.value;
+	if (isMoreMenuOpen.value) {
+		closeUserMenu();
+	}
 };
 
 // 處理選單項目點擊
@@ -226,6 +291,7 @@ const handleMenuItemClick = (action: string) => {
 			break;
 	}
 	closeUserMenu();
+	closeMoreMenu();
 };
 
 // 處理登出
@@ -238,8 +304,12 @@ const handleLogout = () => {
 
 // 點擊外部關閉選單
 const handleClickOutside = (event: MouseEvent) => {
-	if (userMenuRef.value && !userMenuRef.value.contains(event.target as Node)) {
+	const target = event.target as Node;
+	if (userMenuRef.value && !userMenuRef.value.contains(target)) {
 		closeUserMenu();
+	}
+	if (moreMenuRef.value && !moreMenuRef.value.contains(target)) {
+		closeMoreMenu();
 	}
 };
 
@@ -251,6 +321,14 @@ onMounted(() => {
 onUnmounted(() => {
 	document.removeEventListener("click", handleClickOutside);
 });
+
+watch(
+	() => route.path,
+	() => {
+		closeUserMenu();
+		closeMoreMenu();
+	}
+);
 </script>
 
 <style scoped>

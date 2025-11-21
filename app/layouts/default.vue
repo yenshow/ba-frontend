@@ -1,7 +1,7 @@
 <template>
 	<div class="min-h-screen bg-ba-gradient">
 		<AppHeader />
-		<main class="px-4 xl:px-8 2xl:px-12 py-2 xl:py-4 2xl:py-6">
+		<main class="p-4 xl:p-8 2xl:p-12">
 			<slot />
 		</main>
 	</div>
