@@ -25,7 +25,7 @@
 			<div class="flex flex-col space-y-4 xl:space-y-5 2xl:space-y-6">
 				<div v-for="metric in leftColumnMetrics" :key="metric.label" class="flex items-center space-x-2 2xl:space-x-4">
 					<div class="w-16 h-16 xl:w-14 xl:h-14 2xl:w-16 2xl:h-16">
-						<img :src="getMetricIcon(metric.label)" :alt="metric.label" class="w-full h-full object-contain" />
+						<NuxtImg :src="getMetricIcon(metric.label)" :alt="metric.label" class="w-full h-full object-contain" width="64" height="64" />
 					</div>
 					<div class="flex flex-col text-white min-w-0 flex-1">
 						<span class="text-lg 2xl:text-xl font-light tracking-wide whitespace-nowrap">{{ metric.label }}</span>
@@ -37,7 +37,7 @@
 			<div class="flex flex-col space-y-4 xl:space-y-5 2xl:space-y-6">
 				<div v-for="metric in rightColumnMetrics" :key="metric.label" class="flex items-center space-x-2 2xl:space-x-4">
 					<div class="w-16 h-16 xl:w-14 xl:h-14 2xl:w-16 2xl:h-16">
-						<img :src="getMetricIcon(metric.label)" :alt="metric.label" class="w-full h-full object-contain" />
+						<NuxtImg :src="getMetricIcon(metric.label)" :alt="metric.label" class="w-full h-full object-contain" width="64" height="64" />
 					</div>
 					<div class="flex flex-col text-white min-w-0 flex-1">
 						<span class="text-lg 2xl:text-xl font-light tracking-wide whitespace-nowrap">{{ metric.label }}</span>

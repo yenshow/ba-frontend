@@ -3,7 +3,7 @@
 		<div class="flex justify-between items-end h-[64px] xl:h-[88px] 2xl:h-[96px] pb-2 xl:pb-3 2xl:pb-4 px-8 xl:px-12 2xl:px-16">
 			<!-- Logo -->
 			<div class="h-[56px] xl:h-[64px] 2xl:h-[72px]">
-				<img src="/layout/logo.png" alt="YENSHOW" class="h-full object-contain" />
+				<NuxtImg src="/layout/logo.png" alt="YENSHOW" class="h-full object-contain" width="full" height="72" loading="eager" preload />
 			</div>
 
 			<!-- System Title -->
@@ -18,11 +18,11 @@
 			<!-- Right Icons -->
 			<div class="flex items-center space-x-4 xl:space-x-6 2xl:space-x-8">
 				<button class="transition-colors opacity-80 hover:opacity-100">
-					<img src="/layout/alert-log.png" alt="警示紀錄" class="w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 object-contain" />
+					<NuxtImg src="/layout/alert-log.png" alt="警示紀錄" class="w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 object-contain" width="56" height="56" />
 				</button>
 				<div class="relative flex items-center" ref="moreMenuRef">
 					<button @click.stop="toggleMoreMenu" class="transition-colors opacity-80 hover:opacity-100">
-						<img src="/layout/more-functions.png" alt="更多功能" class="w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 object-contain" />
+						<NuxtImg src="/layout/more-functions.png" alt="更多功能" class="w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 object-contain" width="56" height="56" />
 					</button>
 
 					<Transition
@@ -73,7 +73,7 @@
 				<!-- User Info Dropdown -->
 				<div class="relative flex items-center" ref="userMenuRef">
 					<button @click.stop="toggleUserMenu" class="transition-colors opacity-80 hover:opacity-100">
-						<img src="/layout/user-info.png" alt="用戶資訊" class="w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 object-contain" />
+						<NuxtImg src="/layout/user-info.png" alt="用戶資訊" class="w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 object-contain" width="56" height="56" />
 					</button>
 
 					<!-- Dropdown Menu -->
@@ -210,7 +210,7 @@
 
 				<button class="transition-colors opacity-80 hover:opacity-100">
 					<NuxtLink to="/">
-						<img src="/layout/home.png" alt="首頁" class="w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 object-contain" />
+						<NuxtImg src="/layout/home.png" alt="首頁" class="w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 object-contain" width="56" height="56" />
 					</NuxtLink>
 				</button>
 			</div>
@@ -337,14 +337,13 @@ watch(
 	display: inline-flex;
 	align-items: center;
 	padding: 0.75rem 2.6rem;
-	background: linear-gradient(140deg, rgba(0, 186, 194, 0.2), rgba(0, 71, 78, 0.88));
-	border: 1.5px solid rgba(34, 227, 236, 0.48);
+	background: rgba(0, 186, 194, 0.8);
 	box-shadow:
 		0 0 22px rgba(19, 168, 175, 0.42),
 		inset 0 0 18px rgba(255, 255, 255, 0.08);
 	clip-path: polygon(22px 0, calc(100% - 22px) 0, 100% 50%, calc(100% - 22px) 100%, 22px 100%, 0 50%);
 	overflow: hidden;
-	color: #e5fbff;
+	color: #ffffff;
 	text-transform: uppercase;
 }
 
@@ -352,7 +351,6 @@ watch(
 	content: "";
 	position: absolute;
 	inset: 4px;
-	border: 1px solid rgba(255, 255, 255, 0.22);
 	clip-path: inherit;
 	opacity: 0.45;
 }

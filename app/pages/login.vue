@@ -6,7 +6,17 @@
 				<!-- Left Side - Hero Illustration -->
 				<div class="col-span-1 xl:col-span-2 hidden lg:flex flex-col justify-center items-center space-y-8 -translate-y-16">
 					<!-- Hero Image/Illustration -->
-					<img src="/login_heroPic.png" alt="BA System" class="w-full h-full object-contain" />
+					<NuxtImg
+						src="/login_heroPic.png"
+						alt="BA System"
+						class="image-blur-load w-full h-full object-contain"
+						:class="{ 'image-loaded': isHeroLoaded }"
+						width="800"
+						height="600"
+						sizes="lg:800px"
+						loading="eager"
+						@load="isHeroLoaded = true"
+					/>
 				</div>
 
 				<!-- Right Side - Login Form -->
@@ -178,6 +188,9 @@ const formData = ref({
 const showPassword = ref(false);
 const isLoading = ref(false);
 
+// 登入頁插圖載入狀態
+const isHeroLoaded = ref(false);
+
 const handleLogin = async () => {
 	isLoading.value = true;
 
@@ -217,5 +230,22 @@ button[type="submit"]:active {
 .relative:has(input:focus) {
 	color: #7dc1cb;
 	transition: color 0.2s;
+}
+
+/* 圖片模糊載入效果 */
+.image-blur-load {
+	transition:
+		filter 0.6s ease-in-out,
+		opacity 0.6s ease-in-out,
+		transform 0.6s ease-in-out;
+	filter: blur(20px);
+	opacity: 0.6;
+	transform: scale(1.05);
+}
+
+.image-blur-load.image-loaded {
+	filter: blur(0);
+	opacity: 1;
+	transform: scale(1);
 }
 </style>

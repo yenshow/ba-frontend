@@ -1,12 +1,20 @@
 <template>
-	<Transition name="tooltip">
-		<div
-			v-if="show"
-			ref="tooltipRef"
-			class="category-tooltip"
-			:class="tooltipPositionClass"
-			:style="tooltipStyle"
-		>
+	<div
+		v-if="show"
+		ref="tooltipRef"
+		class="category-tooltip"
+		:class="[tooltipPositionClass, { 'tooltip-compact': !isExpanded, 'tooltip-expanded': isExpanded }]"
+		:style="tooltipStyle"
+	>
+		<!-- 簡短模式：只顯示名稱和狀態 -->
+		<div v-show="!isExpanded" class="tooltip-compact-content">
+			<span class="tooltip-title-compact">{{ categoryName }}</span>
+			<span :class="['tooltip-status-compact', isNormal ? 'status-normal' : 'status-abnormal']">
+				{{ isNormal ? "正常" : "異常" }}
+			</span>
+		</div>
+		<!-- 完整模式：顯示所有資訊 -->
+		<div v-show="isExpanded" class="tooltip-full-content">
 			<div class="tooltip-header">
 				<span class="tooltip-title">{{ categoryName }}</span>
 				<span :class="['tooltip-status', isNormal ? 'status-normal' : 'status-abnormal']">
@@ -31,10 +39,10 @@
 					<span class="tooltip-empty">暫無區域</span>
 				</div>
 			</div>
-			<!-- 對話框箭頭 -->
-			<div class="tooltip-arrow" :class="arrowPositionClass"></div>
 		</div>
-	</Transition>
+		<!-- 對話框箭頭（兩種模式都顯示） -->
+		<div class="tooltip-arrow" :class="arrowPositionClass"></div>
+	</div>
 </template>
 
 <script setup lang="ts">
@@ -46,32 +54,30 @@ interface Props {
 	isNormal: boolean;
 	floorName: string;
 	roomNames: string[];
+	isHovered?: boolean; // 外部傳入的 hover 狀態
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+	isHovered: false
+});
 
 const tooltipRef = ref<HTMLElement | null>(null);
 const tooltipPosition = ref<"top" | "bottom">("top");
 const tooltipOffset = ref({ x: 0, y: 0 });
 
-// 計算對話框位置類別
-const tooltipPositionClass = computed(() => {
-	return `tooltip-${tooltipPosition.value}`;
-});
+// 直接使用 props.isHovered 作為展開狀態
+const isExpanded = computed(() => props.isHovered);
 
-// 計算箭頭位置類別
-const arrowPositionClass = computed(() => {
-	return `arrow-${tooltipPosition.value}`;
-});
+// 計算對話框位置和箭頭類別
+const tooltipPositionClass = computed(() => `tooltip-${tooltipPosition.value}`);
+const arrowPositionClass = computed(() => `arrow-${tooltipPosition.value}`);
 
 // 計算對話框樣式
 const tooltipStyle = computed(() => {
-	if (tooltipOffset.value.x === 0 && tooltipOffset.value.y === 0) {
-		return {};
-	}
-	// 合併原有的 translateX(-50%) 和偏移量
+	const { x, y } = tooltipOffset.value;
+	if (x === 0 && y === 0) return {};
 	return {
-		transform: `translate(calc(-50% + ${tooltipOffset.value.x}px), ${tooltipOffset.value.y}px)`,
+		transform: `translate(calc(-50% + ${x}px), ${y}px)`
 	};
 });
 
@@ -85,7 +91,6 @@ const adjustTooltipPosition = () => {
 		const tooltip = tooltipRef.value;
 		const rect = tooltip.getBoundingClientRect();
 		const viewportWidth = window.innerWidth;
-		const viewportHeight = window.innerHeight;
 		const margin = 12;
 
 		// 重置偏移
@@ -98,7 +103,13 @@ const adjustTooltipPosition = () => {
 			tooltipOffset.value.x = viewportWidth - margin - rect.right;
 		}
 
-		// 檢查垂直邊界（上方空間不足時，改為下方顯示）
+		// 簡短模式：固定在上方，不需要垂直調整
+		if (!props.isHovered) {
+			tooltipPosition.value = "top";
+			return;
+		}
+
+		// 完整模式：檢查垂直邊界
 		if (rect.top < margin) {
 			tooltipPosition.value = "bottom";
 			tooltipOffset.value.y = margin - rect.top + 60; // 60px 是點的高度加上間距
@@ -108,36 +119,26 @@ const adjustTooltipPosition = () => {
 	});
 };
 
-// 監聽顯示狀態變化
-watch(
-	() => props.show,
-	(newVal) => {
-		if (newVal) {
-			nextTick(() => {
-				adjustTooltipPosition();
-			});
-		}
-	}
-);
-
-// 監聽視窗大小變化
-let resizeObserver: ResizeObserver | null = null;
-
-onMounted(() => {
-	if (typeof window !== "undefined") {
-		window.addEventListener("resize", adjustTooltipPosition);
-		window.addEventListener("scroll", adjustTooltipPosition, true);
+// 監聽顯示狀態和展開狀態變化
+watch([() => props.show, () => props.isHovered], () => {
+	if (props.show) {
+		nextTick(() => {
+			adjustTooltipPosition();
+		});
 	}
 });
 
+// 監聽視窗大小和滾動變化
+onMounted(() => {
+	if (typeof window === "undefined") return;
+	window.addEventListener("resize", adjustTooltipPosition);
+	window.addEventListener("scroll", adjustTooltipPosition, true);
+});
+
 onUnmounted(() => {
-	if (typeof window !== "undefined") {
-		window.removeEventListener("resize", adjustTooltipPosition);
-		window.removeEventListener("scroll", adjustTooltipPosition, true);
-	}
-	if (resizeObserver) {
-		resizeObserver.disconnect();
-	}
+	if (typeof window === "undefined") return;
+	window.removeEventListener("resize", adjustTooltipPosition);
+	window.removeEventListener("scroll", adjustTooltipPosition, true);
 });
 </script>
 
@@ -146,17 +147,30 @@ onUnmounted(() => {
 .category-tooltip {
 	position: absolute;
 	left: 50%;
-	min-width: 240px;
-	max-width: 320px;
 	background: rgba(15, 23, 42, 0.95);
 	backdrop-filter: blur(12px);
 	border: 1px solid rgba(255, 255, 255, 0.2);
 	border-radius: 12px;
-	padding: 16px;
 	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-	z-index: 1000;
-	pointer-events: none;
 	transform-origin: center bottom;
+}
+
+.category-tooltip.tooltip-compact {
+	min-width: auto;
+	max-width: none;
+	padding: 8px 12px;
+	white-space: nowrap;
+	z-index: 5;
+	opacity: 0.9;
+	pointer-events: auto;
+}
+
+.category-tooltip.tooltip-expanded {
+	min-width: 240px;
+	max-width: 320px;
+	padding: 16px;
+	z-index: 1000;
+	pointer-events: auto;
 }
 
 .category-tooltip.tooltip-top {
@@ -175,12 +189,12 @@ onUnmounted(() => {
 	transform: translateX(-50%);
 	width: 0;
 	height: 0;
+	border-left: 8px solid transparent;
+	border-right: 8px solid transparent;
 }
 
 .tooltip-arrow.arrow-top {
 	bottom: -8px;
-	border-left: 8px solid transparent;
-	border-right: 8px solid transparent;
 	border-top: 8px solid rgba(15, 23, 42, 0.95);
 }
 
@@ -199,8 +213,6 @@ onUnmounted(() => {
 
 .tooltip-arrow.arrow-bottom {
 	top: -8px;
-	border-left: 8px solid transparent;
-	border-right: 8px solid transparent;
 	border-bottom: 8px solid rgba(15, 23, 42, 0.95);
 }
 
@@ -302,55 +314,29 @@ onUnmounted(() => {
 	font-style: italic;
 }
 
-/* 對話框動畫 */
-.tooltip-enter-active,
-.tooltip-leave-active {
-	transition: all 0.2s ease;
+/* 簡短模式樣式 */
+.tooltip-compact-content {
+	display: flex;
+	align-items: center;
+	gap: 8px;
 }
 
-.tooltip-top.tooltip-enter-from {
-	opacity: 0;
-	transform: translateX(-50%) translateY(4px);
+.tooltip-title-compact {
+	font-size: 14px;
+	font-weight: 600;
+	color: #ffffff;
 }
 
-.tooltip-top.tooltip-enter-to {
-	opacity: 1;
-	transform: translateX(-50%) translateY(0);
-}
-
-.tooltip-top.tooltip-leave-from {
-	opacity: 1;
-	transform: translateX(-50%) translateY(0);
-}
-
-.tooltip-top.tooltip-leave-to {
-	opacity: 0;
-	transform: translateX(-50%) translateY(4px);
-}
-
-.tooltip-bottom.tooltip-enter-from {
-	opacity: 0;
-	transform: translateX(-50%) translateY(-4px);
-}
-
-.tooltip-bottom.tooltip-enter-to {
-	opacity: 1;
-	transform: translateX(-50%) translateY(0);
-}
-
-.tooltip-bottom.tooltip-leave-from {
-	opacity: 1;
-	transform: translateX(-50%) translateY(0);
-}
-
-.tooltip-bottom.tooltip-leave-to {
-	opacity: 0;
-	transform: translateX(-50%) translateY(-4px);
+.tooltip-status-compact {
+	padding: 2px 8px;
+	border-radius: 4px;
+	font-size: 12px;
+	font-weight: 500;
 }
 
 /* 響應式設計 */
 @media (min-width: 1280px) {
-	.category-tooltip {
+	.category-tooltip.tooltip-expanded {
 		min-width: 280px;
 		max-width: 360px;
 		padding: 20px;
@@ -367,7 +353,7 @@ onUnmounted(() => {
 }
 
 @media (min-width: 1536px) {
-	.category-tooltip {
+	.category-tooltip.tooltip-expanded {
 		min-width: 320px;
 		max-width: 400px;
 		padding: 24px;
@@ -383,4 +369,3 @@ onUnmounted(() => {
 	}
 }
 </style>
-

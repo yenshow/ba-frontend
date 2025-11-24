@@ -37,8 +37,16 @@
 					</div>
 
 					<!-- 中央樓層平面圖 -->
-					<div class="relative w-full h-[600px] 2xl:h-[780px] overflow-hidden">
-						<img src="/lighting/lighting_heroPic.jpg" alt="樓層平面圖" class="w-full h-full object-contain" />
+					<div class="relative w-full h-[600px] 2xl:h-[780px]">
+						<NuxtImg
+							src="/lighting/lighting_heroPic.jpg"
+							alt="樓層平面圖"
+							class="image-blur-load w-full h-full object-contain"
+							:class="{ 'image-loaded': isFloorPlanLoaded }"
+							width="auto"
+							height="full"
+							@load="isFloorPlanLoaded = true"
+						/>
 						<!-- 分類點 -->
 						<template v-for="(category, index) in filteredCategories" :key="category.id">
 							<div
@@ -57,18 +65,19 @@
 									:aria-label="`${category.name}：${isCategoryNormal(category.id) ? '正常' : '異常'}`"
 									:class="{ 'is-active': selectedCategory === category.id }"
 									@click="selectCategoryByIndex(index)"
-									@mouseenter="showTooltip(category.id, $event)"
-									@mouseleave="hideTooltip"
-									@focus="showTooltip(category.id, $event)"
-									@blur="hideTooltip"
+									@mouseenter="hoveredCategoryId = category.id"
+									@mouseleave="hoveredCategoryId = ''"
+									@focus="hoveredCategoryId = category.id"
+									@blur="hoveredCategoryId = ''"
 								></div>
-								<!-- 對話框提示 -->
+								<!-- 整合的 tooltip：常駐簡短訊息，hover 顯示完整資訊 -->
 								<CategoryTooltip
-									:show="hoveredCategoryId === category.id"
+									:show="true"
 									:category-name="category.name"
 									:is-normal="isCategoryNormal(category.id)"
 									:floor-name="selectedFloorName"
 									:room-names="getCategoryRoomNames(category)"
+									:is-hovered="hoveredCategoryId === category.id"
 								/>
 							</div>
 						</template>
@@ -93,6 +102,9 @@ import CategoryTooltip from "~/components/lighting/CategoryTooltip.vue";
 definePageMeta({
 	layout: "default"
 });
+
+// 樓層平面圖載入狀態
+const isFloorPlanLoaded = ref(false);
 
 // 樓層數據（範例）
 const floors = ref<Floor[]>([
@@ -163,7 +175,7 @@ const selectedFloor = ref("1F");
 const selectedCategory = ref("");
 const selectedRoomType = ref<"indoor" | "outdoor" | null>(null);
 
-// 對話框提示相關
+// Tooltip hover 狀態
 const hoveredCategoryId = ref<string>("");
 
 // 統一優化：創建 roomsById Map（避免重複創建）
@@ -350,38 +362,6 @@ const getCategoryRoomNames = (category: RoomCategory) => {
 	return categoryRoomNamesMap.value.get(category.id) || [];
 };
 
-// 對話框顯示/隱藏延遲控制
-let tooltipTimeout: ReturnType<typeof setTimeout> | null = null;
-const TOOLTIP_DELAY = 200; // 延遲 200ms 顯示
-
-// 清理 tooltip 延遲
-const clearTooltipTimeout = () => {
-	if (tooltipTimeout) {
-		clearTimeout(tooltipTimeout);
-		tooltipTimeout = null;
-	}
-};
-
-// 顯示對話框提示
-const showTooltip = (categoryId: string, event: MouseEvent | FocusEvent) => {
-	clearTooltipTimeout();
-	// 鍵盤焦點立即顯示，滑鼠懸停延遲顯示
-	if (event.type === "focus") {
-		hoveredCategoryId.value = categoryId;
-	} else {
-		tooltipTimeout = setTimeout(() => {
-			hoveredCategoryId.value = categoryId;
-			tooltipTimeout = null;
-		}, TOOLTIP_DELAY);
-	}
-};
-
-// 隱藏對話框提示
-const hideTooltip = () => {
-	clearTooltipTimeout();
-	hoveredCategoryId.value = "";
-};
-
 // 初始化：自動選中第一個分類
 watch(
 	() => filteredCategories.value,
@@ -396,6 +376,20 @@ watch(
 </script>
 
 <style scoped>
+.image-blur-load {
+	transition:
+		filter 0.6s ease-in-out,
+		opacity 0.6s ease-in-out,
+		transform 0.6s ease-in-out;
+	filter: blur(20px);
+	opacity: 0.6;
+}
+
+.image-blur-load.image-loaded {
+	filter: blur(0);
+	opacity: 1;
+}
+
 .category-dot-wrapper {
 	position: absolute;
 	z-index: 10;

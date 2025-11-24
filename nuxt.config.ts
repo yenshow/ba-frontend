@@ -14,7 +14,11 @@ export default defineNuxtConfig({
 				{ name: "viewport", content: "width=device-width, initial-scale=1" },
 				{ name: "description", content: "樓宇自動化監控與管理系統" }
 			],
-			link: [{ rel: "icon", type: "image/x-icon", href: "/favicon.ico" }]
+			link: [
+				{ rel: "icon", type: "image/x-icon", href: "/favicon.ico" },
+				// 預載入關鍵圖片
+				{ rel: "preload", as: "image", href: "/layout/logo.png", fetchpriority: "high" }
+			]
 		}
 	},
 
@@ -31,5 +35,32 @@ export default defineNuxtConfig({
 	devServer: {
 		host: "0.0.0.0", // 監聽所有網路介面，允許區域網路存取
 		port: 3000 // 預設端口，可根據需要修改
+	},
+
+	// Nuxt Image 配置
+	image: {
+		// 啟用現代圖片格式（WebP、AVIF）
+		format: ["webp", "avif", "jpg", "png"],
+		// 圖片品質設定
+		quality: 80,
+		// 響應式圖片尺寸
+		screens: {
+			xs: 320,
+			sm: 640,
+			md: 768,
+			lg: 1024,
+			xl: 1280,
+			xxl: 1536
+		},
+		// 預設提供者設定
+		providers: {
+			// 使用內建提供者處理本地圖片
+			ipx: {}
+		},
+		// 預設圖片設定
+		defaults: {
+			loading: "lazy",
+			format: "webp"
+		}
 	}
 });

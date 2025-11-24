@@ -10,7 +10,7 @@
 			<!-- Background Circle -->
 			<div class="absolute inset-0 w-full h-full rounded-full border-4 border-white flex flex-col items-center justify-center overflow-hidden z-10 space-y-2">
 				<!-- 溫度圖標 -->
-				<img src="/layout/temperature-icon.png" alt="溫度" class="w-16 xl:h-16 2xl:w-20 2xl:h-20" />
+				<NuxtImg src="/layout/temperature-icon.png" alt="溫度" class="w-16 xl:h-16 2xl:w-20 2xl:h-20" width="80" height="80" />
 
 				<!-- 位置資訊 -->
 				<div class="text-sm 2xl:text-base font-light text-white/80 tracking-widest px-2 text-center leading-tight -translate-y-2 2xl:-translate-y-3">
@@ -28,7 +28,7 @@
 		<div class="flex flex-col space-y-4 xl:space-y-5 2xl:space-y-6 w-full">
 			<div v-for="(metric, index) in data.metrics" :key="index" class="flex items-center space-x-2 2xl:space-x-4">
 				<div class="w-16 h-16 xl:w-14 xl:h-14 2xl:w-16 2xl:h-16">
-					<img :src="getMetricIcon(metric.icon)" :alt="metric.label" class="w-full h-full object-contain" />
+					<NuxtImg :src="getMetricIcon(metric.icon)" :alt="metric.label" class="w-full h-full object-contain" width="64" height="64" />
 				</div>
 				<div class="flex flex-col text-white">
 					<span class="text-lg 2xl:text-xl font-light tracking-wide whitespace-nowrap">{{ metric.label }}</span>

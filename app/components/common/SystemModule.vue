@@ -2,7 +2,7 @@
 	<div class="relative">
 		<!-- 左側切換按鈕 -->
 		<button
-			v-if="canNavigatePrevious"
+			v-if="canNavigatePrevious && !isLoading"
 			class="absolute left-0 top-1/2 -translate-y-1/2 z-10 rounded-full flex items-center justify-center text-white border-2 border-white/80 transition-all hover:bg-white/10 w-12 h-12 xl:w-14 xl:h-14 2xl:w-20 2xl:h-20 -translate-x-8 xl:-translate-x-12 2xl:-translate-x-20"
 			@click="previousPage"
 		>
@@ -11,8 +11,34 @@
 			</svg>
 		</button>
 
+		<!-- 骨架屏 -->
+		<div v-if="isLoading" class="grid grid-cols-4 gap-y-2 xl:gap-y-3 2xl:gap-y-4 gap-x-4 xl:gap-x-6 2xl:gap-x-8 p-2 xl:p-3 2xl:p-4">
+			<div
+				v-for="n in 8"
+				:key="`skeleton-${n}`"
+				class="aspect-square overflow-hidden border-2 border-white/30 rounded-xl"
+				style="
+					box-shadow:
+						inset -7px 7px 7px rgba(255, 255, 255, 0.15),
+						inset 7px -7px 10px rgba(0, 0, 0, 0.15);
+				"
+			>
+				<div class="flex flex-col items-center justify-center h-full animate-pulse">
+					<!-- Icon 骨架 -->
+					<div class="flex items-center justify-center">
+						<div class="w-24 h-24 2xl:w-28 2xl:h-28 bg-white/20 rounded-lg"></div>
+					</div>
+
+					<!-- Label 骨架 -->
+					<div class="mt-2 xl:mt-3 2xl:mt-4">
+						<div class="h-6 xl:h-7 2xl:h-8 w-32 bg-white/20 rounded"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		<!-- 模組網格 -->
-		<div class="grid grid-cols-4 gap-y-2 xl:gap-y-3 2xl:gap-y-4 gap-x-4 xl:gap-x-6 2xl:gap-x-8 p-2 xl:p-3 2xl:p-4">
+		<div v-else class="grid grid-cols-4 gap-y-2 xl:gap-y-3 2xl:gap-y-4 gap-x-4 xl:gap-x-6 2xl:gap-x-8 p-2 xl:p-3 2xl:p-4">
 			<NuxtLink
 				v-for="module in currentModules"
 				:key="module.id"
@@ -44,7 +70,7 @@
 
 		<!-- 右側切換按鈕 -->
 		<button
-			v-if="canNavigateNext"
+			v-if="canNavigateNext && !isLoading"
 			class="absolute right-0 top-1/2 -translate-y-1/2 z-10 rounded-full flex items-center justify-center text-white border-2 border-white/80 transition-all hover:bg-white/10 w-12 h-12 xl:w-14 xl:h-14 2xl:w-20 2xl:h-20 translate-x-8 xl:translate-x-12 2xl:translate-x-20"
 			@click="nextPage"
 		>
@@ -62,6 +88,7 @@ const { getAllModules } = useSystem();
 const systemModules = computed(() => getAllModules());
 
 const currentPage = ref(0);
+const isLoading = ref(true);
 
 // 追蹤視窗寬度以實現響應式
 // 在 SSR 和 CSR 初期都使用相同的初始值，避免 hydration mismatch
@@ -111,6 +138,11 @@ onMounted(() => {
 	};
 
 	window.addEventListener("resize", handleResize);
+
+	// 模擬載入時間，確保骨架屏至少顯示一小段時間以提供更好的 UX
+	setTimeout(() => {
+		isLoading.value = false;
+	}, 300);
 });
 
 onUnmounted(() => {

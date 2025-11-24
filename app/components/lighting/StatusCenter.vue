@@ -9,7 +9,7 @@
 			<div v-for="control in controls" :key="control.id" class="flex items-center rounded-xl p-2 xl:p-3 2xl:p-4 border-2 border-white">
 				<!-- 左側圖示 -->
 				<div>
-					<img src="/lighting/light-bulb.png" alt="燈泡圖示" class="w-12 h-12 lg:w-16 lg:h-16 2xl:w-24 2xl:h-24" />
+					<NuxtImg src="/lighting/light-bulb.png" alt="燈泡圖示" class="w-12 h-12 lg:w-16 lg:h-16 2xl:w-24 2xl:h-24" width="96" height="96" />
 				</div>
 
 				<!-- 右側內容區域 -->
