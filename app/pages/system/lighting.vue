@@ -25,7 +25,7 @@
 									type="button"
 									@click="isEditMode = !isEditMode"
 									:class="[
-										'p-3 whitespace-nowrap rounded-2xl text-white font-light transition-all text-xs 2xl:text-lg w-full',
+										'p-3 whitespace-nowrap rounded-2xl text-white font-light transition-all text-xs 2xl:text-lg',
 										isEditMode ? 'bg-white/10 border-2 border-white' : 'bg-transparent border-2 border-white/30'
 									]"
 								>
@@ -39,6 +39,9 @@
 										:editing="isEditMode"
 										:selected-category-id="selectedCategory"
 										@select="handleSelectCategory"
+										@add="openCreateCategory"
+										@edit="handleEditCategory"
+										@delete="handleDeleteCategory"
 										@drag-start="handleCategoryDragStart"
 										@drag-end="handleCategoryDragEnd"
 									/>
@@ -73,7 +76,7 @@
 						@dragover.prevent
 					>
 						<NuxtImg
-							src="/lighting/show.png"
+							:src="floorPlanImage"
 							alt="樓層平面圖"
 							class="image-blur-load w-full h-full object-contain pointer-events-none"
 							:class="{ 'image-loaded': isFloorPlanLoaded }"
@@ -129,6 +132,7 @@
 			</aside>
 		</div>
 	</div>
+	<CategoryEditDialog v-model="showCategoryDialog" :category="editingCategory" @save="handleSaveCategory" />
 </template>
 
 <script setup lang="ts">
@@ -138,6 +142,8 @@ import FloorSelector from "~/components/lighting/FloorSelector.vue";
 import StatusCenter from "~/components/lighting/StatusCenter.vue";
 import CategoryTooltip from "~/components/lighting/CategoryTooltip.vue";
 import CategoryList from "~/components/lighting/CategoryList.vue";
+import CategoryEditDialog from "~/components/lighting/CategoryEditDialog.vue";
+import type { LightingCategory } from "~/types/lighting";
 
 definePageMeta({
 	layout: "default"
@@ -190,7 +196,7 @@ const rooms = ref<Room[]>([
 ]);
 
 // 房間分類數據（範例）- 黃點對應到這些分類
-const categories = ref<RoomCategory[]>([
+const categories = ref<LightingCategory[]>([
 	{
 		id: "category-1",
 		name: "健身房",
@@ -220,6 +226,8 @@ const isEditMode = ref(false);
 const floorPlanRef = ref<HTMLElement | null>(null);
 const draggingCategoryId = ref<string>("");
 const isFloorPlanLoaded = ref(false);
+const showCategoryDialog = ref(false);
+const editingCategory = ref<LightingCategory | null>(null);
 
 // 統一優化：創建 roomsById Map（避免重複創建）
 const roomsById = computed(() => {
@@ -255,6 +263,14 @@ const categoriesById = computed(() => {
 // 選中的樓層名稱
 const selectedFloorName = computed(() => {
 	return floorsById.value.get(selectedFloor.value)?.name || "";
+});
+
+const floorPlanImage = computed(() => {
+	const mapping: Record<string, string> = {
+		"1F": "/lighting/lighting_heroPic.jpg",
+		"2F": "/lighting/show.png"
+	};
+	return mapping[selectedFloor.value] || "/lighting/show.png";
 });
 
 // 過濾分類（根據樓層與室內/室外類型）
@@ -407,12 +423,89 @@ const categoryRoomNamesMap = computed(() => {
 });
 
 // 獲取分類下的所有房間名稱列表
-const getCategoryRoomNames = (category: RoomCategory) => {
+const getCategoryRoomNames = (category: LightingCategory) => {
 	return categoryRoomNamesMap.value.get(category.id) || [];
 };
 
+const createEmptyCategory = (): LightingCategory => ({
+	id: "",
+	name: "",
+	floorId: selectedFloor.value,
+	location: { x: 50, y: 50 },
+	roomIds: [],
+	modbus: {
+		host: "",
+		port: 502,
+		unitId: 1,
+		address: 0,
+		length: 1
+	}
+});
+
+const openCreateCategory = () => {
+	if (!isEditMode.value) return;
+	editingCategory.value = createEmptyCategory();
+	showCategoryDialog.value = true;
+};
+
+// 編輯模式：編輯與刪除
+const handleEditCategory = (category: LightingCategory) => {
+	if (!isEditMode.value) return;
+	editingCategory.value = {
+		...category,
+		location: { ...category.location },
+		roomIds: [...category.roomIds],
+		modbus: category.modbus
+			? { ...category.modbus }
+			: {
+					host: "",
+					port: 502,
+					unitId: 1,
+					address: 0,
+					length: 1
+				}
+	};
+	showCategoryDialog.value = true;
+};
+
+const handleSaveCategory = (payload: LightingCategory) => {
+	const normalized: LightingCategory = {
+		...payload,
+		id: payload.id || `category-${Date.now()}`,
+		floorId: payload.floorId || selectedFloor.value,
+		location: { ...payload.location },
+		roomIds: [...payload.roomIds],
+		modbus: payload.modbus ? { ...payload.modbus } : undefined
+	};
+
+	const index = categories.value.findIndex((c) => c.id === normalized.id);
+	if (index > -1) {
+		categories.value.splice(index, 1, normalized);
+	} else {
+		categories.value.push(normalized);
+	}
+
+	saveCategoriesToStorage();
+	showCategoryDialog.value = false;
+	editingCategory.value = null;
+};
+
+const handleDeleteCategory = (categoryId: string) => {
+	if (!isEditMode.value) return;
+	if (!confirm("確定要刪除這個分類點嗎？")) return;
+
+	const index = categories.value.findIndex((c) => c.id === categoryId);
+	if (index > -1) {
+		categories.value.splice(index, 1);
+		if (selectedCategory.value === categoryId) {
+			selectedCategory.value = "";
+		}
+		saveCategoriesToStorage();
+	}
+};
+
 // 拖曳處理：從列表拖到圖片（創建新實例）
-const handleCategoryDragStart = (event: DragEvent, category: RoomCategory) => {
+const handleCategoryDragStart = (event: DragEvent, category: LightingCategory) => {
 	// 使用臨時 ID，表示這是從列表拖來的新實例
 	const tempId = `temp-${Date.now()}`;
 	event.dataTransfer!.effectAllowed = "copy";
@@ -427,7 +520,7 @@ const handleCategoryDragEnd = () => {
 };
 
 // 拖曳處理：在圖片上拖曳分類點
-const handleDotDragStart = (event: DragEvent, category: RoomCategory) => {
+const handleDotDragStart = (event: DragEvent, category: LightingCategory) => {
 	if (!isEditMode.value) return;
 	draggingCategoryId.value = category.id;
 	event.dataTransfer!.effectAllowed = "move";
@@ -457,12 +550,13 @@ const handleDrop = (event: DragEvent) => {
 	if (sourceCategoryId && categoryName) {
 		// 從列表拖來，創建新實例（基於模板分類）
 		const templateCategory = categories.value.find((c) => c.id === sourceCategoryId);
-		const newCategory: RoomCategory = {
+		const newCategory: LightingCategory = {
 			id: `category-${Date.now()}`,
 			name: `${categoryName} (複製)`,
 			floorId: selectedFloor.value,
 			location: { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) },
-			roomIds: templateCategory ? [...templateCategory.roomIds] : []
+			roomIds: templateCategory ? [...templateCategory.roomIds] : [],
+			modbus: templateCategory?.modbus ? { ...templateCategory.modbus } : undefined
 		};
 		categories.value.push(newCategory);
 		selectedCategory.value = newCategory.id;
@@ -495,9 +589,9 @@ const loadCategoriesFromStorage = () => {
 	try {
 		const saved = localStorage.getItem("lighting-categories");
 		if (saved) {
-			const parsed = JSON.parse(saved);
+			const parsed = JSON.parse(saved) as LightingCategory[];
 			// 只載入當前樓層的分類點
-			const floorCategories = parsed.filter((c: RoomCategory) => c.floorId === selectedFloor.value);
+			const floorCategories = parsed.filter((c: LightingCategory) => c.floorId === selectedFloor.value);
 			if (floorCategories.length > 0) {
 				categories.value = parsed;
 			}

@@ -85,6 +85,52 @@ const isFetching = ref(false);
 const AUTO_REFRESH_INTERVAL = 2000;
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
+type AQIBreakpoint = {
+	concentrationRange: [number, number];
+	indexRange: [number, number];
+};
+
+const PM25_BREAKPOINTS: AQIBreakpoint[] = [
+	{ concentrationRange: [0, 12], indexRange: [0, 50] },
+	{ concentrationRange: [12.1, 35.4], indexRange: [51, 100] },
+	{ concentrationRange: [35.5, 55.4], indexRange: [101, 150] },
+	{ concentrationRange: [55.5, 150.4], indexRange: [151, 200] },
+	{ concentrationRange: [150.5, 250.4], indexRange: [201, 300] },
+	{ concentrationRange: [250.5, 350.4], indexRange: [301, 400] },
+	{ concentrationRange: [350.5, 500.4], indexRange: [401, 500] }
+];
+
+const PM10_BREAKPOINTS: AQIBreakpoint[] = [
+	{ concentrationRange: [0, 54], indexRange: [0, 50] },
+	{ concentrationRange: [55, 154], indexRange: [51, 100] },
+	{ concentrationRange: [155, 254], indexRange: [101, 150] },
+	{ concentrationRange: [255, 354], indexRange: [151, 200] },
+	{ concentrationRange: [355, 424], indexRange: [201, 300] },
+	{ concentrationRange: [425, 504], indexRange: [301, 400] },
+	{ concentrationRange: [505, 604], indexRange: [401, 500] }
+];
+
+const calculatePollutantAQI = (value: number | null, breakpoints: AQIBreakpoint[]): number | null => {
+	if (value === null) {
+		return null;
+	}
+
+	const targetBreakpoint =
+		breakpoints.find((breakpoint) => {
+			const [cLow, cHigh] = breakpoint.concentrationRange;
+			return value >= cLow && value <= cHigh;
+		}) ?? breakpoints[breakpoints.length - 1];
+
+	const [cLow, cHigh] = targetBreakpoint.concentrationRange;
+	const [iLow, iHigh] = targetBreakpoint.indexRange;
+
+	const clampedValue = Math.min(Math.max(value, cLow), cHigh);
+	const index =
+		((iHigh - iLow) / (cHigh - cLow)) * (clampedValue - cLow) + iLow;
+
+	return Math.round(index);
+};
+
 const transformSensorData = (raw: number[]) => {
 	if (raw.length < 7) {
 		return;
@@ -152,24 +198,16 @@ const toFixedNumber = (value: number | null, fractionDigits = 0) => {
 };
 
 const aqiScore = computed(() => {
-	const normalizedValues: number[] = [];
+	const pollutantAQIs = [
+		calculatePollutantAQI(sensorData.pm25, PM25_BREAKPOINTS),
+		calculatePollutantAQI(sensorData.pm10, PM10_BREAKPOINTS)
+	].filter((value): value is number => value !== null);
 
-	if (sensorData.pm25 !== null) {
-		normalizedValues.push(Math.min(sensorData.pm25 / 35, 1));
-	}
-	if (sensorData.pm10 !== null) {
-		normalizedValues.push(Math.min(sensorData.pm10 / 50, 1));
-	}
-	if (sensorData.co2 !== null) {
-		normalizedValues.push(Math.min(sensorData.co2 / 1000, 1));
-	}
-
-	if (!normalizedValues.length) {
+	if (!pollutantAQIs.length) {
 		return 0;
 	}
 
-	const average = normalizedValues.reduce((sum, value) => sum + value, 0) / normalizedValues.length;
-	return Math.round(average * 100);
+	return Math.max(...pollutantAQIs);
 });
 
 const aqiData = computed(() => ({

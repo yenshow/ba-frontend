@@ -60,8 +60,8 @@ const temperatureColor = computed(() => {
 	const temp = props.data.temperature;
 	if (temp <= 20) return "#3B82F6"; // 藍色 - 冷
 	if (temp <= 28) return "#10B981"; // 綠色 - 舒適
-	if (temp <= 35) return "#F59E0B"; // 橙色 - 溫暖
-	return "#EF4444"; // 紅色 - 炎熱
+	if (temp <= 30) return "#F59E0B"; // 橙色 - 溫暖
+	return "#EF4444"; // 紅色 - 警示
 });
 
 // 圓心座標和半徑計算

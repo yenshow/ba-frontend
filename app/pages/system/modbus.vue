@@ -206,7 +206,7 @@ const diDoDeviceConfig: DeviceConfig = {
 
 const form = reactive({
 	address: 0,
-	length: 20
+	length: 10
 });
 
 const health = ref<ModbusHealth | null>(null);
