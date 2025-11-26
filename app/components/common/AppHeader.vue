@@ -17,14 +17,13 @@
 
 			<!-- Right Icons -->
 			<div class="flex items-center space-x-4 xl:space-x-6 2xl:space-x-8">
-				<button class="transition-colors opacity-80 hover:opacity-100">
+				<button :class="['icon-button', { 'icon-button-active': isAlertLogActive }]">
 					<NuxtImg src="/layout/alert-log.png" alt="警示紀錄" class="w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 object-contain" width="56" height="56" />
 				</button>
 				<div class="relative flex items-center" ref="moreMenuRef">
-					<button @click.stop="toggleMoreMenu" class="transition-colors opacity-80 hover:opacity-100">
+					<button @click.stop="toggleMoreMenu" :class="['icon-button', { 'icon-button-active': isMoreMenuOpen }]">
 						<NuxtImg src="/layout/more-functions.png" alt="更多功能" class="w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 object-contain" width="56" height="56" />
 					</button>
-
 					<Transition
 						enter-active-class="transition ease-out duration-100"
 						enter-from-class="transform opacity-0 scale-95"
@@ -36,30 +35,31 @@
 						<div
 							v-if="isMoreMenuOpen"
 							@click.stop
-							class="absolute right-0 top-full mt-2 w-72 xl:w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-3 z-50"
+							class="absolute right-0 top-full mt-2 w-48 h-[540px] 2xl:h-[600px] bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 flex flex-col overflow-hidden"
 						>
-							<div class="px-5 mb-2">
-								<p class="text-xs font-semibold text-gray-400 tracking-widest uppercase">快速導覽</p>
-							</div>
-							<div class="max-h-72 overflow-y-auto px-1">
+							<div class="flex-1 overflow-y-auto">
 								<div v-if="primaryModules.length" class="pb-2">
-									<p class="px-4 pb-1 text-xs font-semibold text-gray-500">主要系統</p>
-									<ul class="space-y-1">
+									<p class="px-4 py-2 text-sm 2xl:text-base text-gray-500">主要系統</p>
+									<ul class="space-y-0.5">
 										<li v-for="module in primaryModules" :key="module.id">
-											<NuxtLink :to="module.route" @click="closeMoreMenu" class="flex flex-col px-4 py-2 rounded-md transition-colors hover:bg-gray-100">
-												<span class="text-sm font-medium text-gray-900">{{ module.name }}</span>
-												<span class="text-xs text-gray-500 leading-snug">{{ module.description }}</span>
+											<NuxtLink :to="module.route" @click="closeMoreMenu" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-100 transition-colors">
+												<div class="w-8 h-8 flex items-center justify-center flex-shrink-0">
+													<NuxtImg :src="`/system/${module.icon}.png`" :alt="module.name" class="w-8 h-8 object-contain icon-dark" width="200" height="200" />
+												</div>
+												<span class="text-sm 2xl:text-base text-gray-700">{{ module.name }}</span>
 											</NuxtLink>
 										</li>
 									</ul>
 								</div>
 								<div v-if="extendedModules.length" class="pt-2 border-t border-gray-100">
-									<p class="px-4 pb-1 text-xs font-semibold text-gray-500">擴充功能</p>
-									<ul class="space-y-1">
+									<p class="px-4 py-2 text-sm 2xl:text-base text-gray-500">擴充功能</p>
+									<ul class="space-y-0.5">
 										<li v-for="module in extendedModules" :key="module.id">
-											<NuxtLink :to="module.route" @click="closeMoreMenu" class="flex flex-col px-4 py-2 rounded-md transition-colors hover:bg-gray-100">
-												<span class="text-sm font-medium text-gray-900">{{ module.name }}</span>
-												<span class="text-xs text-gray-500 leading-snug">{{ module.description }}</span>
+											<NuxtLink :to="module.route" @click="closeMoreMenu" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-100 transition-colors">
+												<div class="w-8 h-8 flex items-center justify-center flex-shrink-0">
+													<NuxtImg :src="`/system/${module.icon}.png`" :alt="module.name" class="w-8 h-8 object-contain icon-dark" width="200" height="200" />
+												</div>
+												<span class="text-sm 2xl:text-base text-gray-700">{{ module.name }}</span>
 											</NuxtLink>
 										</li>
 									</ul>
@@ -72,7 +72,7 @@
 
 				<!-- User Info Dropdown -->
 				<div class="relative flex items-center" ref="userMenuRef">
-					<button @click.stop="toggleUserMenu" class="transition-colors opacity-80 hover:opacity-100">
+					<button @click.stop="toggleUserMenu" :class="['icon-button', { 'icon-button-active': isUserMenuOpen }]">
 						<NuxtImg src="/layout/user-info.png" alt="用戶資訊" class="w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 object-contain" width="56" height="56" />
 					</button>
 
@@ -85,11 +85,11 @@
 						leave-from-class="transform opacity-100 scale-100"
 						leave-to-class="transform opacity-0 scale-95"
 					>
-						<div v-if="isUserMenuOpen" @click.stop class="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+						<div v-if="isUserMenuOpen" @click.stop class="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
 							<!-- User Info Section (if logged in) -->
 							<div v-if="isLoggedIn" class="px-4 py-3 border-b border-gray-100">
-								<p class="text-sm font-semibold text-gray-900">{{ userInfo.name }}</p>
-								<p class="text-xs text-gray-500 mt-1">{{ userInfo.email }}</p>
+								<p class="text-sm 2xl:text-base font-semibold text-gray-900">{{ userInfo.name }}</p>
+								<p class="text-xs 2xl:text-sm text-gray-500 mt-1">{{ userInfo.email }}</p>
 							</div>
 
 							<!-- Menu Items -->
@@ -99,9 +99,9 @@
 									v-if="!isLoggedIn"
 									to="/login"
 									@click="closeUserMenu"
-									class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+									class="flex items-center gap-3 px-4 py-2 text-sm 2xl:text-base text-gray-700 hover:bg-gray-100 transition-colors"
 								>
-									<svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path
 											stroke-linecap="round"
 											stroke-linejoin="round"
@@ -117,9 +117,9 @@
 									v-if="isLoggedIn"
 									href="#"
 									@click.prevent="handleMenuItemClick('profile')"
-									class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+									class="flex items-center gap-3 px-4 py-2 text-sm 2xl:text-base text-gray-700 hover:bg-gray-100 transition-colors"
 								>
-									<svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path
 											stroke-linecap="round"
 											stroke-linejoin="round"
@@ -135,9 +135,9 @@
 									v-if="isLoggedIn"
 									href="#"
 									@click.prevent="handleMenuItemClick('settings')"
-									class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+									class="flex items-center gap-3 px-4 py-2 text-sm 2xl:text-base text-gray-700 hover:bg-gray-100 transition-colors"
 								>
-									<svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path
 											stroke-linecap="round"
 											stroke-linejoin="round"
@@ -156,9 +156,9 @@
 								<a
 									href="#"
 									@click.prevent="handleMenuItemClick('language')"
-									class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+									class="flex items-center gap-3 px-4 py-2 text-sm 2xl:text-base text-gray-700 hover:bg-gray-100 transition-colors"
 								>
-									<svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path
 											stroke-linecap="round"
 											stroke-linejoin="round"
@@ -173,9 +173,9 @@
 								<a
 									href="#"
 									@click.prevent="handleMenuItemClick('theme')"
-									class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+									class="flex items-center gap-3 px-4 py-2 text-sm 2xl:text-base text-gray-700 hover:bg-gray-100 transition-colors"
 								>
-									<svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path
 											stroke-linecap="round"
 											stroke-linejoin="round"
@@ -191,9 +191,9 @@
 									v-if="isLoggedIn"
 									href="#"
 									@click.prevent="handleMenuItemClick('logout')"
-									class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors border-t border-gray-100 mt-1"
+									class="flex items-center gap-3 px-4 py-2 text-sm 2xl:text-base text-red-600 hover:bg-red-50 transition-colors border-t border-gray-100 mt-1"
 								>
-									<svg class="w-5 h-5 mr-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<svg class="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path
 											stroke-linecap="round"
 											stroke-linejoin="round"
@@ -208,7 +208,7 @@
 					</Transition>
 				</div>
 
-				<button class="transition-colors opacity-80 hover:opacity-100">
+				<button class="icon-button">
 					<NuxtLink to="/">
 						<NuxtImg src="/layout/home.png" alt="首頁" class="w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 object-contain" width="56" height="56" />
 					</NuxtLink>
@@ -241,6 +241,9 @@ const currentModule = computed(() => getModuleByRoute(route.path));
 const currentModuleName = computed(() => currentModule.value?.name ?? "");
 const primaryModules = computed(() => getModulesByCategory("primary"));
 const extendedModules = computed(() => getModulesByCategory("extended"));
+
+// Active 狀態判斷
+const isAlertLogActive = computed(() => route.path === "/system/alert-log");
 
 const closeUserMenu = () => {
 	isUserMenuOpen.value = false;
@@ -344,7 +347,6 @@ watch(
 	clip-path: polygon(22px 0, calc(100% - 22px) 0, 100% 50%, calc(100% - 22px) 100%, 22px 100%, 0 50%);
 	overflow: hidden;
 	color: #ffffff;
-	text-transform: uppercase;
 }
 
 .system-title::before {
@@ -375,5 +377,27 @@ watch(
 	100% {
 		transform: translateX(290%) skewX(-15deg);
 	}
+}
+
+.icon-button {
+	transition: all 0.2s ease;
+	opacity: 0.8;
+	border-radius: 8px;
+	padding: 4px;
+}
+
+.icon-button:hover {
+	opacity: 1;
+}
+
+.icon-button-active {
+	opacity: 1;
+	box-shadow:
+		0 4px 12px rgba(0, 0, 0, 0.15),
+		0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.icon-dark {
+	filter: brightness(0.65);
 }
 </style>

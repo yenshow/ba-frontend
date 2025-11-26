@@ -316,3 +316,13 @@ definePageMeta({
 5. **一致性** - 統一的設計風格和佈局
 
 通過這個架構，可以輕鬆地添加新的系統模組，同時保持代碼的一致性和可維護性。
+
+## Modbus 即時資料整合
+
+- 在 `config/system-modules.ts` 新增 `Modbus 資料` 模組，路由為 `/system/modbus`。
+- 前端透過 `useModbus` composable 讀取後端 API，環境變數 `NUXT_PUBLIC_MODBUS_API` 決定 base URL（預設 `http://localhost:4000/api/modbus`）。
+- `pages/system/modbus.vue` 提供離散輸入與 Holding Registers 的查詢、重新整理與錯誤提示，可當成 BA 系統的資料檢視模板。
+- 開發流程：
+  1. 在 `ba-backend` 啟動 `npm run dev` 並確認健康檢查 OK。
+  2. 在 `ba-frontend` 複製 `env.example` 為 `.env`，必要時修改 `NUXT_PUBLIC_MODBUS_API`。
+  3. 執行 `npm run dev`，於首頁選擇「Modbus 資料」模組即可看到即時數據。

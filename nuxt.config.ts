@@ -14,11 +14,7 @@ export default defineNuxtConfig({
 				{ name: "viewport", content: "width=device-width, initial-scale=1" },
 				{ name: "description", content: "樓宇自動化監控與管理系統" }
 			],
-			link: [
-				{ rel: "icon", type: "image/x-icon", href: "/favicon.ico" },
-				// 預載入關鍵圖片
-				{ rel: "preload", as: "image", href: "/layout/logo.png", fetchpriority: "high" }
-			]
+			link: [{ rel: "icon", type: "image/x-icon", href: "/favicon.ico" }]
 		}
 	},
 
@@ -61,6 +57,13 @@ export default defineNuxtConfig({
 		defaults: {
 			loading: "lazy",
 			format: "webp"
+		}
+	},
+
+	runtimeConfig: {
+		public: {
+			modbusApiBase: process.env.NUXT_PUBLIC_MODBUS_API || "http://localhost:4000/api/modbus",
+			modbusRequestTimeout: Number(process.env.NUXT_PUBLIC_MODBUS_TIMEOUT ?? 5000)
 		}
 	}
 });

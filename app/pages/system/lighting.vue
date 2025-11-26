@@ -12,12 +12,40 @@
 				<div class="bg-white/30 rounded-2xl overflow-hidden flex border-2 border-white/80 p-4 xl:p-6 2xl:p-8">
 					<!-- 樓層選擇 -->
 					<div class="flex flex-col justify-between z-10 text-center text-white py-4">
-						<!-- 樓層顯示 -->
-						<div class="py-4 w-[60px] 2xl:w-[100px]">
-							<span class="inline-flex pb-1 border-b-2 border-white/70 text-2xl xl:text-3xl 2xl:text-5xl tracking-widest">
-								{{ selectedFloorName }}
-							</span>
+						<div class="space-y-4">
+							<!-- 樓層顯示 -->
+							<div class="py-4 w-[60px] 2xl:w-[100px]">
+								<span class="inline-flex pb-1 border-b-2 border-white/70 text-2xl xl:text-3xl 2xl:text-5xl tracking-widest">
+									{{ selectedFloorName }}
+								</span>
+							</div>
+							<!-- 編輯模式切換按鈕與下拉選單 -->
+							<div class="relative">
+								<button
+									type="button"
+									@click="isEditMode = !isEditMode"
+									:class="[
+										'p-3 whitespace-nowrap rounded-2xl text-white font-light transition-all text-xs 2xl:text-lg w-full',
+										isEditMode ? 'bg-white/10 border-2 border-white' : 'bg-transparent border-2 border-white/30'
+									]"
+								>
+									{{ isEditMode ? "完成編輯" : "編輯定位" }}
+								</button>
+								<!-- 分類點列表下拉選單 -->
+								<Transition name="dropdown">
+									<CategoryList
+										v-if="isEditMode"
+										:categories="filteredCategories"
+										:editing="isEditMode"
+										:selected-category-id="selectedCategory"
+										@select="handleSelectCategory"
+										@drag-start="handleCategoryDragStart"
+										@drag-end="handleCategoryDragEnd"
+									/>
+								</Transition>
+							</div>
 						</div>
+
 						<!-- 室內/室外切換 -->
 						<div class="flex flex-col gap-2">
 							<button
@@ -37,11 +65,17 @@
 					</div>
 
 					<!-- 中央樓層平面圖 -->
-					<div class="relative w-full h-[600px] 2xl:h-[780px]">
+					<div
+						ref="floorPlanRef"
+						class="relative w-full h-[600px] 2xl:h-[780px] p-4"
+						:class="{ 'cursor-crosshair': isEditMode && !draggingCategoryId }"
+						@drop="handleDrop"
+						@dragover.prevent
+					>
 						<NuxtImg
-							src="/lighting/lighting_heroPic.jpg"
+							src="/lighting/show.png"
 							alt="樓層平面圖"
-							class="image-blur-load w-full h-full object-contain"
+							class="image-blur-load w-full h-full object-contain pointer-events-none"
 							:class="{ 'image-loaded': isFloorPlanLoaded }"
 							width="auto"
 							height="full"
@@ -51,24 +85,28 @@
 						<template v-for="(category, index) in filteredCategories" :key="category.id">
 							<div
 								class="category-dot-wrapper"
+								:class="{ 'is-dragging': draggingCategoryId === category.id }"
 								:style="{
 									left: `${category.location.x}%`,
 									top: `${category.location.y}%`
 								}"
+								:draggable="isEditMode"
+								@dragstart="handleDotDragStart($event, category)"
+								@dragend="handleDotDragEnd"
 							>
 								<div
 									class="category-dot"
+									:class="[{ 'is-active': selectedCategory === category.id }, { 'is-editing': isEditMode }]"
 									role="button"
 									tabindex="0"
 									:data-status="isCategoryNormal(category.id) ? 'normal' : 'abnormal'"
 									:title="`${category.name}：${isCategoryNormal(category.id) ? '正常' : '異常'}`"
 									:aria-label="`${category.name}：${isCategoryNormal(category.id) ? '正常' : '異常'}`"
-									:class="{ 'is-active': selectedCategory === category.id }"
-									@click="selectCategoryByIndex(index)"
-									@mouseenter="hoveredCategoryId = category.id"
-									@mouseleave="hoveredCategoryId = ''"
-									@focus="hoveredCategoryId = category.id"
-									@blur="hoveredCategoryId = ''"
+									@click.stop="!isEditMode && selectCategoryByIndex(index)"
+									@mouseenter="!isEditMode && (hoveredCategoryId = category.id)"
+									@mouseleave="!isEditMode && (hoveredCategoryId = '')"
+									@focus="!isEditMode && (hoveredCategoryId = category.id)"
+									@blur="!isEditMode && (hoveredCategoryId = '')"
 								></div>
 								<!-- 整合的 tooltip：常駐簡短訊息，hover 顯示完整資訊 -->
 								<CategoryTooltip
@@ -94,17 +132,16 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from "vue";
 import type { Floor, Room, RoomCategory, ControlPoint } from "~/types/system";
 import FloorSelector from "~/components/lighting/FloorSelector.vue";
 import StatusCenter from "~/components/lighting/StatusCenter.vue";
 import CategoryTooltip from "~/components/lighting/CategoryTooltip.vue";
+import CategoryList from "~/components/lighting/CategoryList.vue";
 
 definePageMeta({
 	layout: "default"
 });
-
-// 樓層平面圖載入狀態
-const isFloorPlanLoaded = ref(false);
 
 // 樓層數據（範例）
 const floors = ref<Floor[]>([
@@ -177,6 +214,12 @@ const selectedRoomType = ref<"indoor" | "outdoor" | null>(null);
 
 // Tooltip hover 狀態
 const hoveredCategoryId = ref<string>("");
+
+// 編輯模式相關
+const isEditMode = ref(false);
+const floorPlanRef = ref<HTMLElement | null>(null);
+const draggingCategoryId = ref<string>("");
+const isFloorPlanLoaded = ref(false);
 
 // 統一優化：創建 roomsById Map（避免重複創建）
 const roomsById = computed(() => {
@@ -309,7 +352,13 @@ const handleFloorSelected = (floorId: string) => {
 	console.log("選中樓層:", floorId);
 	// 重置選中的分類
 	selectedCategory.value = "";
-	// 可以在這裡載入該樓層的照明數據
+	// 載入該樓層的分類點數據
+	loadCategoriesFromStorage();
+};
+
+// 選中分類
+const handleSelectCategory = (categoryId: string) => {
+	selectedCategory.value = categoryId;
 };
 
 // 通過索引選中分類（點擊黃點時使用）
@@ -362,6 +411,102 @@ const getCategoryRoomNames = (category: RoomCategory) => {
 	return categoryRoomNamesMap.value.get(category.id) || [];
 };
 
+// 拖曳處理：從列表拖到圖片（創建新實例）
+const handleCategoryDragStart = (event: DragEvent, category: RoomCategory) => {
+	// 使用臨時 ID，表示這是從列表拖來的新實例
+	const tempId = `temp-${Date.now()}`;
+	event.dataTransfer!.effectAllowed = "copy";
+	event.dataTransfer!.setData("categoryId", tempId);
+	event.dataTransfer!.setData("categoryName", category.name);
+	event.dataTransfer!.setData("sourceCategoryId", category.id); // 保存原始分類 ID 作為模板
+	draggingCategoryId.value = tempId;
+};
+
+const handleCategoryDragEnd = () => {
+	draggingCategoryId.value = "";
+};
+
+// 拖曳處理：在圖片上拖曳分類點
+const handleDotDragStart = (event: DragEvent, category: RoomCategory) => {
+	if (!isEditMode.value) return;
+	draggingCategoryId.value = category.id;
+	event.dataTransfer!.effectAllowed = "move";
+	event.dataTransfer!.setData("categoryId", category.id);
+};
+
+const handleDotDragEnd = () => {
+	draggingCategoryId.value = "";
+};
+
+// 處理拖放
+const handleDrop = (event: DragEvent) => {
+	if (!isEditMode.value || !floorPlanRef.value) return;
+
+	event.preventDefault();
+	const categoryId = event.dataTransfer?.getData("categoryId");
+	const categoryName = event.dataTransfer?.getData("categoryName");
+	const sourceCategoryId = event.dataTransfer?.getData("sourceCategoryId");
+
+	if (!categoryId) return;
+
+	const rect = floorPlanRef.value.getBoundingClientRect();
+	const x = ((event.clientX - rect.left) / rect.width) * 100;
+	const y = ((event.clientY - rect.top) / rect.height) * 100;
+
+	// 檢查是從列表拖來的新分類點（有 sourceCategoryId）還是調整現有位置
+	if (sourceCategoryId && categoryName) {
+		// 從列表拖來，創建新實例（基於模板分類）
+		const templateCategory = categories.value.find((c) => c.id === sourceCategoryId);
+		const newCategory: RoomCategory = {
+			id: `category-${Date.now()}`,
+			name: `${categoryName} (複製)`,
+			floorId: selectedFloor.value,
+			location: { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) },
+			roomIds: templateCategory ? [...templateCategory.roomIds] : []
+		};
+		categories.value.push(newCategory);
+		selectedCategory.value = newCategory.id;
+		saveCategoriesToStorage();
+	} else {
+		// 調整現有分類點位置
+		const category = categories.value.find((c) => c.id === categoryId);
+		if (category) {
+			category.location = { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
+			saveCategoriesToStorage();
+		}
+	}
+
+	draggingCategoryId.value = "";
+};
+
+// 保存分類點數據到本地存儲
+const saveCategoriesToStorage = () => {
+	if (typeof window === "undefined") return;
+	try {
+		localStorage.setItem("lighting-categories", JSON.stringify(categories.value));
+	} catch (error) {
+		console.error("保存分類點數據失敗:", error);
+	}
+};
+
+// 從本地存儲載入分類點數據
+const loadCategoriesFromStorage = () => {
+	if (typeof window === "undefined") return;
+	try {
+		const saved = localStorage.getItem("lighting-categories");
+		if (saved) {
+			const parsed = JSON.parse(saved);
+			// 只載入當前樓層的分類點
+			const floorCategories = parsed.filter((c: RoomCategory) => c.floorId === selectedFloor.value);
+			if (floorCategories.length > 0) {
+				categories.value = parsed;
+			}
+		}
+	} catch (error) {
+		console.error("載入分類點數據失敗:", error);
+	}
+};
+
 // 初始化：自動選中第一個分類
 watch(
 	() => filteredCategories.value,
@@ -373,6 +518,11 @@ watch(
 	},
 	{ immediate: true }
 );
+
+// 初始化：載入保存的分類點數據
+onMounted(() => {
+	loadCategoriesFromStorage();
+});
 </script>
 
 <style scoped>
@@ -433,7 +583,6 @@ watch(
 .category-dot[data-status="normal"] {
 	background: rgba(28, 200, 138, 0.28);
 	border-color: rgba(28, 200, 138, 0.6);
-	box-shadow: 0 0 14px rgba(28, 200, 138, 0.55);
 }
 
 .category-dot[data-status="normal"]::before {
@@ -447,7 +596,6 @@ watch(
 .category-dot[data-status="abnormal"] {
 	background: rgba(245, 101, 101, 0.32);
 	border-color: rgba(245, 101, 101, 0.72);
-	box-shadow: 0 0 18px rgba(245, 101, 101, 0.78);
 	animation: dot-alert 1.6s ease-in-out infinite;
 }
 
@@ -459,14 +607,22 @@ watch(
 	content: "!";
 }
 
-.category-dot.is-active {
-	border-color: #ffffff;
-	box-shadow: 0 0 20px rgba(255, 255, 255, 0.65);
-}
-
 .category-dot:focus-visible {
 	outline: 2px solid #ffffff;
 	outline-offset: 2px;
+}
+
+.category-dot.is-editing {
+	cursor: move;
+}
+
+.category-dot-wrapper.is-dragging {
+	opacity: 0.5;
+	z-index: 100;
+}
+
+.category-dot-wrapper[draggable="true"] {
+	cursor: move;
 }
 
 @keyframes dot-alert {
@@ -477,5 +633,31 @@ watch(
 	50% {
 		box-shadow: 0 0 28px rgba(245, 101, 101, 0.95);
 	}
+}
+
+/* 下拉選單動畫 */
+.dropdown-enter-active,
+.dropdown-leave-active {
+	transition: all 0.2s ease;
+}
+
+.dropdown-enter-from {
+	opacity: 0;
+	transform: translateY(-8px);
+}
+
+.dropdown-enter-to {
+	opacity: 1;
+	transform: translateY(0);
+}
+
+.dropdown-leave-from {
+	opacity: 1;
+	transform: translateY(0);
+}
+
+.dropdown-leave-to {
+	opacity: 0;
+	transform: translateY(-8px);
 }
 </style>

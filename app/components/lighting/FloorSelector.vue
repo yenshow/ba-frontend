@@ -1,13 +1,13 @@
 <template>
-	<h3 class="text-white text-center text-xl xl:text-2xl 2xl:text-3xl my-2 xl:my-3 2xl:my-4 tracking-[12px] ms-[12px]">樓層</h3>
+	<h3 class="text-white text-center text-xl xl:text-2xl 2xl:text-3xl my-2 2xl:my-4 tracking-[12px] ms-[12px]">樓層</h3>
 	<div class="grid grid-cols-2 gap-y-2 xl:gap-y-3 2xl:gap-y-4 gap-x-4 xl:gap-x-6 2xl:gap-x-8">
 		<button
 			v-for="floor in sortedFloors"
 			:key="floor.id"
 			@click="selectFloor(floor.id)"
 			:class="[
-				'text-left text-lg xl:text-xl 2xl:text-2xl transition-all rounded-lg',
-				selectedFloorId === floor.id ? ' text-white' : 'text-white/40 hover:text-white'
+				'text-center text-lg xl:text-xl 2xl:text-2xl transition-all rounded-lg',
+				selectedFloorId === floor.id ? ' text-white bg-white/30' : 'text-white/40 hover:text-white'
 			]"
 		>
 			{{ floor.name }}

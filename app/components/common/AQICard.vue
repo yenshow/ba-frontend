@@ -21,23 +21,10 @@
 
 		<!-- Metrics List - 兩列布局 -->
 		<div class="grid grid-cols-2 w-full">
-			<!-- 左列：PM2.5, PM10, PM1 -->
-			<div class="flex flex-col space-y-4 xl:space-y-5 2xl:space-y-6">
-				<div v-for="metric in leftColumnMetrics" :key="metric.label" class="flex items-center space-x-2 2xl:space-x-4">
+			<div v-for="(column, columnIndex) in metricsColumns" :key="columnIndex" class="flex flex-col space-y-4 xl:space-y-5 2xl:space-y-6">
+				<div v-for="metric in column" :key="`${metric.label}-${metric.unit}`" class="flex items-center space-x-2 2xl:space-x-4">
 					<div class="w-16 h-16 xl:w-14 xl:h-14 2xl:w-16 2xl:h-16">
-						<NuxtImg :src="getMetricIcon(metric.label)" :alt="metric.label" class="w-full h-full object-contain" width="64" height="64" />
-					</div>
-					<div class="flex flex-col text-white min-w-0 flex-1">
-						<span class="text-lg 2xl:text-xl font-light tracking-wide whitespace-nowrap">{{ metric.label }}</span>
-						<span class="text-base 2xl:text-lg font-light tracking-wide whitespace-nowrap">{{ metric.value }} {{ metric.unit }}</span>
-					</div>
-				</div>
-			</div>
-			<!-- 右列：CO, SO2, NO2 -->
-			<div class="flex flex-col space-y-4 xl:space-y-5 2xl:space-y-6">
-				<div v-for="metric in rightColumnMetrics" :key="metric.label" class="flex items-center space-x-2 2xl:space-x-4">
-					<div class="w-16 h-16 xl:w-14 xl:h-14 2xl:w-16 2xl:h-16">
-						<NuxtImg :src="getMetricIcon(metric.label)" :alt="metric.label" class="w-full h-full object-contain" width="64" height="64" />
+						<NuxtImg :src="getMetricIcon(metric)" :alt="metric.label" class="w-full h-full object-contain" width="64" height="64" />
 					</div>
 					<div class="flex flex-col text-white min-w-0 flex-1">
 						<span class="text-lg 2xl:text-xl font-light tracking-wide whitespace-nowrap">{{ metric.label }}</span>
@@ -57,34 +44,43 @@ interface AQIData {
 		label: string;
 		value: number;
 		unit: string;
+		icon?: string;
 	}>;
 }
+
+type AQIMetric = AQIData["metrics"][number];
 
 const props = defineProps<{
 	aqi: AQIData;
 }>();
 
-// 將指標分為兩列：左列（PM2.5, PM10, PM1）和右列（CO, SO2, NO2）
-const leftColumnMetrics = computed(() => {
-	const leftLabels = ["PM2.5", "PM10", "PM1"];
-	return props.aqi.metrics.filter((m) => leftLabels.includes(m.label)).sort((a, b) => leftLabels.indexOf(a.label) - leftLabels.indexOf(b.label));
+const metricsColumns = computed(() => {
+	const metrics = props.aqi.metrics ?? [];
+	const half = Math.ceil(metrics.length / 2);
+	return [metrics.slice(0, half), metrics.slice(half)];
 });
 
-const rightColumnMetrics = computed(() => {
-	const rightLabels = ["CO", "SO2", "NO2"];
-	return props.aqi.metrics.filter((m) => rightLabels.includes(m.label)).sort((a, b) => rightLabels.indexOf(a.label) - rightLabels.indexOf(b.label));
-});
+const iconMap: Record<string, string> = {
+	"PM2.5": "/layout/pm2.5.png",
+	PM10: "/layout/pm10.png",
+	PM1: "/layout/pm1.png",
+	CO: "/layout/co.png",
+	"CO₂": "/layout/co.png",
+	SO2: "/layout/so2.png",
+	NO2: "/layout/no2.png",
+	HCHO: "/layout/no2.png",
+	TVOC: "/layout/so2.png",
+	濕度: "/layout/humidity.png"
+};
 
-const getMetricIcon = (label: string) => {
-	const iconMap: Record<string, string> = {
-		"PM2.5": "/layout/pm2.5.png",
-		CO: "/layout/co.png",
-		PM10: "/layout/pm10.png",
-		SO2: "/layout/so2.png",
-		PM1: "/layout/pm1.png",
-		NO2: "/layout/no2.png"
-	};
-	return iconMap[label] || "/layout/pm2.5.png";
+const getMetricIcon = (metric: AQIMetric) => {
+	if (metric.icon && iconMap[metric.icon]) {
+		return iconMap[metric.icon];
+	}
+	if (iconMap[metric.label]) {
+		return iconMap[metric.label];
+	}
+	return "/layout/pm2.5.png";
 };
 
 // 計算弧形指示器的顏色
