@@ -26,7 +26,7 @@ export const systemModules: SystemModule[] = [
 	{ id: 10, name: "電梯系統", icon: "elevator", route: "/system/elevator", category: "primary", description: "電梯系統監控與管理" },
 	{ id: 11, name: "全區點位圖", icon: "all-points", route: "/system/all-points", category: "extended", description: "全區設備點位圖" },
 	{ id: 12, name: "緊急求救系統", icon: "emergency", route: "/system/emergency", category: "extended", description: "緊急求救與通報系統" },
-	{ id: 13, name: "使用者管理", icon: "user-management", route: "/system/user-management", category: "extended", description: "使用者帳號與權限管理" },
+	{ id: 13, name: "使用者管理", icon: "user-management", route: "/system/users", category: "extended", description: "使用者帳號與權限管理" },
 	{ id: 14, name: "機電維護", icon: "maintenance", route: "/system/maintenance", category: "extended", description: "機電設備維護管理" },
 	{ id: 15, name: "設備運轉可靠度", icon: "reliability", route: "/system/reliability", category: "extended", description: "設備運轉可靠度分析" },
 	{ id: 16, name: "設施管理系統", icon: "facility-management", route: "/system/facility-management", category: "extended", description: "設施管理與維護" },

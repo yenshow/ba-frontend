@@ -31,11 +31,15 @@ const deviceConfigToParams = (deviceConfig: DeviceConfig): QueryParams => {
 export const useModbusApi = () => {
 	const config = useRuntimeConfig();
 	const fetcher = useRequestFetch();
+	const { adjustApiBase } = useApiBase();
 	const timeout = Number(config.public.modbusRequestTimeout || 5000);
+
+	// 基於統一的 apiBase 構建 Modbus API URL
+	const modbusApiBase = adjustApiBase(`${config.public.apiBase}/modbus`, "Modbus API");
 
 	const request = async <T>(path: string, params?: QueryParams) => {
 		const query = buildQuery(params);
-		const url = `${config.public.modbusApiBase}${path}${query}`;
+		const url = `${modbusApiBase}${path}${query}`;
 
 		try {
 			return await fetcher<T>(url, {
@@ -45,9 +49,7 @@ export const useModbusApi = () => {
 				}
 			});
 		} catch (error) {
-			// 捕獲連接錯誤，避免未處理的異常導致 ECONNRESET
 			if (error instanceof Error) {
-				// 重新拋出錯誤，讓調用方處理
 				throw new Error(`Modbus API 請求失敗: ${error.message}`);
 			}
 			throw error;
@@ -56,7 +58,7 @@ export const useModbusApi = () => {
 
 	const requestWithBody = async <T>(path: string, body: Record<string, unknown>, params?: QueryParams) => {
 		const query = buildQuery(params);
-		const url = `${config.public.modbusApiBase}${path}${query}`;
+		const url = `${modbusApiBase}${path}${query}`;
 
 		try {
 			return await fetcher<T>(url, {
@@ -69,9 +71,7 @@ export const useModbusApi = () => {
 				body
 			});
 		} catch (error) {
-			// 捕獲連接錯誤，避免未處理的異常導致 ECONNRESET
 			if (error instanceof Error) {
-				// 重新拋出錯誤，讓調用方處理
 				throw new Error(`Modbus API 請求失敗: ${error.message}`);
 			}
 			throw error;

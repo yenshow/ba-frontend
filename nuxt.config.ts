@@ -62,7 +62,7 @@ export default defineNuxtConfig({
 
 	runtimeConfig: {
 		public: {
-			modbusApiBase: process.env.NUXT_PUBLIC_MODBUS_API || "http://localhost:4000/api/modbus",
+			apiBase: process.env.NUXT_PUBLIC_API_BASE || "http://localhost:4000/api",
 			modbusRequestTimeout: Number(process.env.NUXT_PUBLIC_MODBUS_TIMEOUT ?? 5000)
 		}
 	}

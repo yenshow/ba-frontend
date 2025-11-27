@@ -111,16 +111,16 @@
 								</div>
 							</div>
 
-							<!-- Forgot Password -->
-							<div class="flex justify-end">
-								<NuxtLink to="/forgot-password" class="text-sm text-white/60 hover:text-[#7DC1CB] transition-colors"> 忘記密碼？ </NuxtLink>
+							<!-- Error Message -->
+							<div v-if="errorMessage" class="p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm">
+								{{ errorMessage }}
 							</div>
 
 							<!-- Login Button -->
 							<button
 								type="submit"
 								:disabled="isLoading"
-								class="w-full py-4 bg-gradient-to-r from-[#7DC1CB] to-[#5AABB5] text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 disabled:cursor-not-allowed"
+								class="w-full py-4 bg-gradient-to-r from-[#7DC1CB] to-[#5AABB5] text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								<span v-if="!isLoading" class="flex items-center justify-center space-x-2">
 									<span class="text-lg">登入</span>
@@ -176,8 +176,22 @@
 
 <script setup lang="ts">
 definePageMeta({
-	layout: false,
-	middleware: [] // Add auth middleware if needed
+	layout: false
+});
+
+const { login, isAuthenticated } = useAuth();
+const router = useRouter();
+const route = useRoute();
+const toast = useToast();
+
+// 如果已經登入，自動重定向（等待插件初始化完成）
+onMounted(async () => {
+	// 等待下一個 tick 確保認證狀態已恢復
+	await nextTick();
+	if (isAuthenticated.value) {
+		const redirectPath = (route.query.redirect as string) || "/";
+		router.push(redirectPath);
+	}
 });
 
 const formData = ref({
@@ -187,28 +201,36 @@ const formData = ref({
 
 const showPassword = ref(false);
 const isLoading = ref(false);
+const errorMessage = ref<string | null>(null);
 
 // 登入頁插圖載入狀態
 const isHeroLoaded = ref(false);
 
 const handleLogin = async () => {
+	if (!formData.value.account || !formData.value.password) {
+		errorMessage.value = "請輸入帳號和密碼";
+		return;
+	}
+
 	isLoading.value = true;
+	errorMessage.value = null;
 
 	try {
-		// TODO: 實作登入邏輯
-		// const response = await $fetch('/api/auth/login', {
-		//   method: 'POST',
-		//   body: formData.value
-		// })
+		await login({
+			username: formData.value.account,
+			password: formData.value.password
+		});
 
-		// 模擬 API 請求
-		await new Promise((resolve) => setTimeout(resolve, 1500));
-
-		// 登入成功後跳轉
-		navigateTo("/");
+		toast.success("登入成功");
+		
+		// 登入成功後跳轉 - 檢查 redirect query 參數
+		const redirectPath = (route.query.redirect as string) || "/";
+		await router.push(redirectPath);
 	} catch (error) {
 		console.error("登入失敗:", error);
-		// TODO: 顯示錯誤訊息
+		const errorMsg = error instanceof Error ? error.message : "登入失敗，請檢查帳號密碼";
+		errorMessage.value = errorMsg;
+		toast.error(errorMsg);
 	} finally {
 		isLoading.value = false;
 	}

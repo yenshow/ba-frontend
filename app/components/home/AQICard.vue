@@ -10,12 +10,12 @@
 			<!-- Background Circle -->
 			<div class="absolute inset-0 w-full h-full rounded-full border-4 border-white flex flex-col items-center justify-center overflow-hidden z-10 space-y-2">
 				<!-- AQI 標題 -->
-				<div class="text-5xl 2xl:text-6xl font-extralight text-white tracking-widest">AQI</div>
+				<div class="text-5xl 2xl:text-6xl font-light text-white tracking-widest">AQI</div>
 				<!-- 位置資訊 -->
 				<div class="text-sm 2xl:text-base font-light text-white/80 tracking-widest">{{ aqi.location }}</div>
 				<div class="h-0.5 w-4/5 mx-auto bg-white/20"></div>
 				<!-- AQI 數值（底部） -->
-				<div class="text-4xl 2xl:text-5xl font-extralight text-white z-10">{{ aqi.value }}</div>
+				<div class="text-4xl 2xl:text-5xl font-light z-10 transition-colors duration-500" :style="{ color: arcColor }">{{ aqi.value }}</div>
 			</div>
 		</div>
 
@@ -83,12 +83,52 @@ const getMetricIcon = (metric: AQIMetric) => {
 	return "/layout/pm2.5.png";
 };
 
-// 計算弧形指示器的顏色
+// 顏色插值函數
+const interpolateColor = (startColor: string, endColor: string, factor: number): string => {
+	const start = parseInt(startColor.slice(1), 16);
+	const end = parseInt(endColor.slice(1), 16);
+
+	const r1 = (start >> 16) & 0xff;
+	const g1 = (start >> 8) & 0xff;
+	const b1 = start & 0xff;
+
+	const r2 = (end >> 16) & 0xff;
+	const g2 = (end >> 8) & 0xff;
+	const b2 = end & 0xff;
+
+	const r = Math.round(r1 + (r2 - r1) * factor);
+	const g = Math.round(g1 + (g2 - g1) * factor);
+	const b = Math.round(b1 + (b2 - b1) * factor);
+
+	return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+};
+
+// 計算弧形指示器的顏色（精準的線性插值）
 const arcColor = computed(() => {
 	const value = props.aqi.value;
-	if (value < 10) return "#00FFBE";
-	if (value <= 50) return "#FFFFFF";
-	if (value <= 100) return "#FFC800";
+
+	// 定義顏色分段點
+	if (value < 0) return "#00FFBE";
+	if (value <= 10) {
+		// 0-10: 青綠色到白色
+		const factor = value / 10;
+		return interpolateColor("#00FFBE", "#FFFFFF", factor);
+	}
+	if (value <= 50) {
+		// 10-50: 白色保持
+		return "#FFFFFF";
+	}
+	if (value <= 100) {
+		// 50-100: 白色到黃色
+		const factor = (value - 50) / 50;
+		return interpolateColor("#FFFFFF", "#FFC800", factor);
+	}
+	if (value <= 150) {
+		// 100-150: 黃色到紅色
+		const factor = (value - 100) / 50;
+		return interpolateColor("#FFC800", "#E23C00", factor);
+	}
+	// > 150: 保持紅色
 	return "#E23C00";
 });
 
@@ -104,11 +144,13 @@ const arcStartAngle = -135;
 const arcEndAngle = 135;
 const arcAngleRange = arcEndAngle - arcStartAngle; // 270 度
 
-// 根據 AQI 值計算弧長百分比（0-100%，最大值 150）
+// 根據 AQI 值計算弧長百分比（0-100%，最大值 500，更精準的響應）
 const arcPercentage = computed(() => {
 	const value = props.aqi.value;
-	const maxValue = 150;
-	return Math.min((value / maxValue) * 100, 100);
+	const maxValue = 500; // 使用標準 AQI 最大值
+	const percentage = Math.min((value / maxValue) * 100, 100);
+	// 確保最小值為 0，避免負數
+	return Math.max(percentage, 0);
 });
 
 // 計算動態弧形的 path

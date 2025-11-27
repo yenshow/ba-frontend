@@ -18,7 +18,7 @@
 				</div>
 				<div class="h-0.5 w-4/5 mx-auto bg-white/20 -translate-y-2 2xl:-translate-y-3"></div>
 				<!-- 溫度數值 -->
-				<div class="text-4xl 2xl:text-5xl font-extralight text-white -translate-y-2 2xl:-translate-y-3">
+				<div class="text-4xl 2xl:text-5xl font-light -translate-y-2 2xl:-translate-y-3 transition-colors duration-500" :style="{ color: temperatureColor }">
 					{{ data.temperature }}
 				</div>
 			</div>
@@ -55,13 +55,52 @@ const props = defineProps<{
 	data: EnvironmentData;
 }>();
 
-// 計算溫度指示器的顏色
+// 顏色插值函數
+const interpolateColor = (startColor: string, endColor: string, factor: number): string => {
+	const start = parseInt(startColor.slice(1), 16);
+	const end = parseInt(endColor.slice(1), 16);
+
+	const r1 = (start >> 16) & 0xff;
+	const g1 = (start >> 8) & 0xff;
+	const b1 = start & 0xff;
+
+	const r2 = (end >> 16) & 0xff;
+	const g2 = (end >> 8) & 0xff;
+	const b2 = end & 0xff;
+
+	const r = Math.round(r1 + (r2 - r1) * factor);
+	const g = Math.round(g1 + (g2 - g1) * factor);
+	const b = Math.round(b1 + (b2 - b1) * factor);
+
+	return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+};
+
+// 計算溫度指示器的顏色（精準的線性插值）
 const temperatureColor = computed(() => {
 	const temp = props.data.temperature;
-	if (temp <= 20) return "#3B82F6"; // 藍色 - 冷
-	if (temp <= 28) return "#10B981"; // 綠色 - 舒適
-	if (temp <= 30) return "#F59E0B"; // 橙色 - 溫暖
-	return "#EF4444"; // 紅色 - 警示
+
+	if (temp <= 0) return "#3B82F6"; // 藍色 - 極冷
+	if (temp <= 20) {
+		// 0-20°C: 藍色保持
+		return "#3B82F6";
+	}
+	if (temp <= 28) {
+		// 20-28°C: 藍色到綠色
+		const factor = (temp - 20) / 8;
+		return interpolateColor("#3B82F6", "#10B981", factor);
+	}
+	if (temp <= 30) {
+		// 28-30°C: 綠色到橙色
+		const factor = (temp - 28) / 2;
+		return interpolateColor("#10B981", "#F59E0B", factor);
+	}
+	if (temp <= 50) {
+		// 30-50°C: 橙色到紅色（警示）
+		const factor = (temp - 30) / 20;
+		return interpolateColor("#F59E0B", "#EF4444", factor);
+	}
+	// > 50°C: 保持深紅色
+	return "#DC2626"; // 更深的紅色表示極高溫
 });
 
 // 圓心座標和半徑計算
@@ -76,11 +115,13 @@ const arcStartAngle = -135;
 const arcEndAngle = 135;
 const arcAngleRange = arcEndAngle - arcStartAngle; // 270 度
 
-// 根據溫度值計算弧長百分比（0-100%，最大值 50°C）
+// 根據溫度值計算弧長百分比（0-100%，最大值 50°C，更精準的響應）
 const temperaturePercentage = computed(() => {
 	const temp = props.data.temperature;
 	const maxTemp = 50;
-	return Math.min((temp / maxTemp) * 100, 100);
+	const percentage = Math.min((temp / maxTemp) * 100, 100);
+	// 確保最小值為 0，避免負數
+	return Math.max(percentage, 0);
 });
 
 // 計算動態弧形的 path

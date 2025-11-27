@@ -17,9 +17,11 @@
 
 			<!-- Right Icons -->
 			<div class="flex items-center space-x-4 xl:space-x-6 2xl:space-x-8">
+				<!-- 警示紀錄 -->
 				<button :class="['icon-button', { 'icon-button-active': isAlertLogActive }]">
 					<NuxtImg src="/layout/alert-log.png" alt="警示紀錄" class="w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 object-contain" width="56" height="56" />
 				</button>
+				<!-- 更多功能 -->
 				<div class="relative flex items-center" ref="moreMenuRef">
 					<button @click.stop="toggleMoreMenu" :class="['icon-button', { 'icon-button-active': isMoreMenuOpen }]">
 						<NuxtImg src="/layout/more-functions.png" alt="更多功能" class="w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 object-contain" width="56" height="56" />
@@ -70,7 +72,7 @@
 				</div>
 				<div class="w-[1.5px] h-8 xl:h-12 2xl:h-14 bg-black/30"></div>
 
-				<!-- User Info Dropdown -->
+				<!-- 用戶資訊 -->
 				<div class="relative flex items-center" ref="userMenuRef">
 					<button @click.stop="toggleUserMenu" :class="['icon-button', { 'icon-button-active': isUserMenuOpen }]">
 						<NuxtImg src="/layout/user-info.png" alt="用戶資訊" class="w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 object-contain" width="56" height="56" />
@@ -85,19 +87,19 @@
 						leave-from-class="transform opacity-100 scale-100"
 						leave-to-class="transform opacity-0 scale-95"
 					>
-						<div v-if="isUserMenuOpen" @click.stop class="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-							<!-- User Info Section (if logged in) -->
-							<div v-if="isLoggedIn" class="px-4 py-3 border-b border-gray-100">
-								<p class="text-sm 2xl:text-base font-semibold text-gray-900">{{ userInfo.name }}</p>
-								<p class="text-xs 2xl:text-sm text-gray-500 mt-1">{{ userInfo.email }}</p>
+						<div v-if="isUserMenuOpen" @click.stop class="absolute right-0 top-full mt-2 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+							<!-- User Info Section -->
+							<div class="py-2 flex justify-around border-b border-gray-100">
+								<p class="text-base 2xl:text-lg font-semibold text-gray-700">{{ userInfo.name }}</p>
+								<p class="text-sm 2xl:text-base text-gray-500">{{ userInfo.role }}</p>
 							</div>
 
 							<!-- Menu Items -->
 							<div class="py-1">
-								<!-- Login (if not logged in) -->
+								<!-- User Management (Admin only) -->
 								<NuxtLink
-									v-if="!isLoggedIn"
-									to="/login"
+									v-if="isAdmin"
+									to="/system/users"
 									@click="closeUserMenu"
 									class="flex items-center gap-3 px-4 py-2 text-sm 2xl:text-base text-gray-700 hover:bg-gray-100 transition-colors"
 								>
@@ -106,68 +108,11 @@
 											stroke-linecap="round"
 											stroke-linejoin="round"
 											stroke-width="2"
-											d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
+											d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
 										/>
 									</svg>
-									登入
+									用戶管理
 								</NuxtLink>
-
-								<!-- Profile (if logged in) -->
-								<a
-									v-if="isLoggedIn"
-									href="#"
-									@click.prevent="handleMenuItemClick('profile')"
-									class="flex items-center gap-3 px-4 py-2 text-sm 2xl:text-base text-gray-700 hover:bg-gray-100 transition-colors"
-								>
-									<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-										/>
-									</svg>
-									個人資料
-								</a>
-
-								<!-- Account Settings (if logged in) -->
-								<a
-									v-if="isLoggedIn"
-									href="#"
-									@click.prevent="handleMenuItemClick('settings')"
-									class="flex items-center gap-3 px-4 py-2 text-sm 2xl:text-base text-gray-700 hover:bg-gray-100 transition-colors"
-								>
-									<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-										/>
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-									</svg>
-									帳號設定
-								</a>
-
-								<!-- Divider (if logged in) -->
-								<div v-if="isLoggedIn" class="border-t border-gray-100 my-1"></div>
-
-								<!-- Language -->
-								<a
-									href="#"
-									@click.prevent="handleMenuItemClick('language')"
-									class="flex items-center gap-3 px-4 py-2 text-sm 2xl:text-base text-gray-700 hover:bg-gray-100 transition-colors"
-								>
-									<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
-										/>
-									</svg>
-									語言設定
-								</a>
 
 								<!-- Theme -->
 								<a
@@ -186,9 +131,8 @@
 									主題設定
 								</a>
 
-								<!-- Logout (if logged in) -->
+								<!-- Logout -->
 								<a
-									v-if="isLoggedIn"
 									href="#"
 									@click.prevent="handleMenuItemClick('logout')"
 									class="flex items-center gap-3 px-4 py-2 text-sm 2xl:text-base text-red-600 hover:bg-red-50 transition-colors border-t border-gray-100 mt-1"
@@ -208,6 +152,7 @@
 					</Transition>
 				</div>
 
+				<!-- 首頁 -->
 				<button class="icon-button">
 					<NuxtLink to="/">
 						<NuxtImg src="/layout/home.png" alt="首頁" class="w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 object-contain" width="56" height="56" />
@@ -227,12 +172,19 @@ const userMenuRef = ref<HTMLElement | null>(null);
 const isMoreMenuOpen = ref(false);
 const moreMenuRef = ref<HTMLElement | null>(null);
 
-// 登入狀態（模擬數據，之後可從 store 或 API 獲取）
-const isLoggedIn = ref(false);
-const userInfo = ref({
-	name: "張三",
-	email: "zhang.san@example.com"
-});
+// 認證狀態
+const { user, isAdmin, logout: authLogout } = useAuth();
+
+const roleLabels: Record<string, string> = {
+	admin: "管理員",
+	operator: "操作員",
+	viewer: "檢視者"
+};
+
+const userInfo = computed(() => ({
+	name: user.value?.username || "",
+	role: user.value?.role ? roleLabels[user.value.role] || user.value.role : ""
+}));
 
 const { getModuleByRoute, getModulesByCategory } = useSystem();
 const route = useRoute();
@@ -272,18 +224,6 @@ const toggleMoreMenu = () => {
 // 處理選單項目點擊
 const handleMenuItemClick = (action: string) => {
 	switch (action) {
-		case "profile":
-			// 跳轉到個人資料頁面
-			navigateTo("/profile");
-			break;
-		case "settings":
-			// 跳轉到帳號設定頁面
-			navigateTo("/settings");
-			break;
-		case "language":
-			// 打開語言設定（可以顯示語言選擇器）
-			console.log("語言設定");
-			break;
 		case "theme":
 			// 切換主題
 			console.log("主題設定");
@@ -298,11 +238,9 @@ const handleMenuItemClick = (action: string) => {
 };
 
 // 處理登出
-const handleLogout = () => {
-	// 這裡可以清除 token、session 等
-	isLoggedIn.value = false;
-	// 可選：跳轉到登入頁
-	// navigateTo("/login");
+const handleLogout = async () => {
+	authLogout();
+	await navigateTo("/login");
 };
 
 // 點擊外部關閉選單

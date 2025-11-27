@@ -147,6 +147,7 @@ import type { LightingCategory } from "~/types/lighting";
 
 definePageMeta({
 	layout: "default"
+	// 認證由全局中間件處理
 });
 
 // 樓層數據（範例）
