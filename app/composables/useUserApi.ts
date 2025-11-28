@@ -65,66 +65,66 @@ export const useUserApi = () => {
 				});
 			}
 
-			// 處理 CORS 錯誤（後端可能沒收到請求）
+			// 處理網路連線錯誤（優先判斷，因為這些錯誤最常見）
+			const errorMessage = error?.message || "";
+			const isNetworkError =
+				errorMessage.includes("ERR_ADDRESS_UNREACHABLE") ||
+				errorMessage.includes("ERR_CONNECTION_REFUSED") ||
+				errorMessage.includes("ERR_NETWORK") ||
+				errorMessage.includes("Failed to fetch") ||
+				errorMessage.includes("NetworkError") ||
+				errorMessage.includes("ECONNREFUSED") ||
+				errorMessage.includes("ENOTFOUND") ||
+				error?.code === "ECONNREFUSED" ||
+				error?.code === "ENOTFOUND" ||
+				(error?.statusCode === undefined && error?.status === undefined && errorMessage.includes("<no response>"));
+
+			if (isNetworkError) {
+				// 提取目標地址以便診斷
+				const targetHost = url.match(/https?:\/\/([^\/:]+)/)?.[1] || "未知";
+				throw new Error(
+					`無法連接到後端伺服器 (${targetHost})\n\n` +
+						`請確認：\n` +
+						`1. 後端服務是否正常運行（檢查後端裝置）\n` +
+						`2. 後端地址是否正確：${url}\n` +
+						`3. 前端和後端是否在同一網路或可以互相訪問\n` +
+						`4. 防火牆是否阻擋了連接（端口 4000）\n\n` +
+						`提示：檢查前端環境變數 NUXT_PUBLIC_API_BASE 是否指向正確的後端地址`
+				);
+			}
+
+			// 處理請求超時
+			if (errorMessage.includes("timeout") || error?.name === "TimeoutError") {
+				throw new Error(`請求超時 (${url})，請檢查網路連線或稍後再試`);
+			}
+
+			// 處理 CORS 錯誤（只有在明確是 CORS 錯誤時才顯示）
 			if (
-				error?.message?.includes("CORS") ||
-				error?.message?.includes("cross-origin") ||
-				error?.message?.includes("Access-Control") ||
-				error?.statusCode === 0 || // CORS 錯誤通常沒有狀態碼
-				(error?.statusCode === undefined && error?.status === undefined && error?.message?.includes("fetch"))
+				errorMessage.includes("CORS") ||
+				errorMessage.includes("cross-origin") ||
+				errorMessage.includes("Access-Control") ||
+				(error?.statusCode === 0 && !isNetworkError) // CORS 錯誤通常沒有狀態碼，但不是網路錯誤
 			) {
 				const errorMsg =
-					`CORS 錯誤：無法連接到後端 API (${url})\n` +
+					`CORS 錯誤：無法連接到後端 API (${url})\n\n` +
 					`可能原因：\n` +
 					`1. 後端 CORS 設定未包含前端來源\n` +
-					`2. 後端地址不正確或無法訪問\n` +
-					`3. 網路連線問題\n\n` +
+					`2. 後端地址不正確或無法訪問\n\n` +
 					`請檢查：\n` +
-					`- 後端 CORS_ORIGINS 環境變數是否包含前端地址\n` +
+					`- 後端 CORS_ORIGINS 環境變數是否包含前端地址：http://192.168.10.124:3000\n` +
 					`- 後端是否正常運行\n` +
 					`- 前端 NUXT_PUBLIC_API_BASE 環境變數是否正確`;
 				throw new Error(errorMsg);
 			}
 
-			// 處理請求超時
-			if (error?.message?.includes("timeout") || error?.name === "TimeoutError") {
-				throw new Error(`請求超時 (${url})，請檢查網路連線或稍後再試`);
-			}
-
-			// 處理網路錯誤（無法連接到伺服器）
-			if (
-				error?.message?.includes("fetch") ||
-				error?.code === "ECONNREFUSED" ||
-				error?.code === "ENOTFOUND" ||
-				error?.message?.includes("Failed to fetch") ||
-				error?.message?.includes("NetworkError")
-			) {
-				throw new Error(
-					`無法連接到後端伺服器 (${url})\n` +
-						`請確認：\n` +
-						`1. 後端服務是否正常運行\n` +
-						`2. 後端地址是否正確（檢查 NUXT_PUBLIC_API_BASE 環境變數）\n` +
-						`3. 網路連線是否正常`
-				);
-			}
-
 			// 提取後端返回的錯誤訊息（從多個可能的來源）
 			// 後端錯誤格式可能是：{ error: true, message: "...", details: "..." }
-			const backendErrorMsg = 
-				error?.data?.message || 
-				error?.data?.details || 
-				error?.data?.error?.message ||
-				error?.message || 
-				"";
+			const backendErrorMsg = error?.data?.message || error?.data?.details || error?.data?.error?.message || error?.message || "";
 			const statusCode = error?.statusCode || error?.status;
-			
+
 			// 檢查是否為登入相關錯誤（從錯誤訊息中判斷）
-			const isLoginError = (msg: string) => 
-				msg.includes("用戶名") || 
-				msg.includes("密碼") || 
-				msg.includes("帳號") ||
-				msg.includes("username") ||
-				msg.includes("password");
+			const isLoginError = (msg: string) =>
+				msg.includes("用戶名") || msg.includes("密碼") || msg.includes("帳號") || msg.includes("username") || msg.includes("password");
 
 			// 處理 400 Bad Request - 通常用於登入失敗等業務邏輯錯誤
 			if (statusCode === 400) {
@@ -183,7 +183,7 @@ export const useUserApi = () => {
 				if (url.includes("/login") && isLoginError(backendErrorMsg)) {
 					throw new Error("用戶名或密碼錯誤");
 				}
-				
+
 				const errorMessage = backendErrorMsg || error?.statusText || "Internal Server Error";
 				throw new Error(`伺服器錯誤 (500): ${errorMessage}。請檢查後端服務是否正常運行，或聯繫系統管理員。`);
 			}
