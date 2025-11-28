@@ -31,11 +31,10 @@ const deviceConfigToParams = (deviceConfig: DeviceConfig): QueryParams => {
 export const useModbusApi = () => {
 	const config = useRuntimeConfig();
 	const fetcher = useRequestFetch();
-	const { adjustApiBase } = useApiBase();
 	const timeout = Number(config.public.modbusRequestTimeout || 5000);
 
 	// 基於統一的 apiBase 構建 Modbus API URL
-	const modbusApiBase = adjustApiBase(`${config.public.apiBase}/modbus`, "Modbus API");
+	const modbusApiBase = `${config.public.apiBase || "http://localhost:4000/api"}/modbus`;
 
 	const request = async <T>(path: string, params?: QueryParams) => {
 		const query = buildQuery(params);
@@ -44,11 +43,22 @@ export const useModbusApi = () => {
 		try {
 			return await fetcher<T>(url, {
 				timeout,
+				credentials: "include", // 配合後端 CORS credentials: true 設定
 				headers: {
 					Accept: "application/json"
 				}
 			});
-		} catch (error) {
+		} catch (error: any) {
+			// 處理 CORS 錯誤
+			if (
+				error?.message?.includes("CORS") ||
+				error?.message?.includes("cross-origin") ||
+				error?.statusCode === 0 ||
+				(error?.statusCode === undefined && error?.status === undefined)
+			) {
+				throw new Error(`Modbus API CORS 錯誤: ${url}\n` + `請檢查後端 CORS_ORIGINS 設定是否包含前端地址`);
+			}
+
 			if (error instanceof Error) {
 				throw new Error(`Modbus API 請求失敗: ${error.message}`);
 			}
@@ -64,13 +74,24 @@ export const useModbusApi = () => {
 			return await fetcher<T>(url, {
 				method: "PUT",
 				timeout,
+				credentials: "include", // 配合後端 CORS credentials: true 設定
 				headers: {
 					Accept: "application/json",
 					"Content-Type": "application/json"
 				},
 				body
 			});
-		} catch (error) {
+		} catch (error: any) {
+			// 處理 CORS 錯誤
+			if (
+				error?.message?.includes("CORS") ||
+				error?.message?.includes("cross-origin") ||
+				error?.statusCode === 0 ||
+				(error?.statusCode === undefined && error?.status === undefined)
+			) {
+				throw new Error(`Modbus API CORS 錯誤: ${url}\n` + `請檢查後端 CORS_ORIGINS 設定是否包含前端地址`);
+			}
+
 			if (error instanceof Error) {
 				throw new Error(`Modbus API 請求失敗: ${error.message}`);
 			}

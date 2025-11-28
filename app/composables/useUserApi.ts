@@ -4,10 +4,9 @@ import type { User, LoginCredentials, RegisterData, LoginResponse } from "~/type
 export const useUserApi = () => {
 	const config = useRuntimeConfig();
 	const fetcher = useRequestFetch();
-	const { adjustApiBase } = useApiBase();
 
-	// 獲取並調整 API base URL
-	const apiBase = adjustApiBase(config.public.apiBase || "http://localhost:4000/api", "User API");
+	// 使用環境變數配置的 API base URL
+	const apiBase = config.public.apiBase || "http://localhost:4000/api";
 
 	// 取得認證 headers
 	const getAuthHeaders = (): HeadersInit => {
@@ -44,6 +43,7 @@ export const useUserApi = () => {
 			const response = await fetcher<T>(url, {
 				...options,
 				headers,
+				credentials: "include", // 配合後端 CORS credentials: true 設定
 				timeout
 			} as any);
 			return response;
@@ -55,13 +55,40 @@ export const useUserApi = () => {
 					statusCode: error?.statusCode || error?.status,
 					statusText: error?.statusText,
 					message: error?.message,
-					data: error?.data
+					data: error?.data,
+					// 診斷資訊
+					diagnostics: {
+						requestUrl: url,
+						apiBase: apiBase,
+						timestamp: new Date().toISOString()
+					}
 				});
+			}
+
+			// 處理 CORS 錯誤（後端可能沒收到請求）
+			if (
+				error?.message?.includes("CORS") ||
+				error?.message?.includes("cross-origin") ||
+				error?.message?.includes("Access-Control") ||
+				error?.statusCode === 0 || // CORS 錯誤通常沒有狀態碼
+				(error?.statusCode === undefined && error?.status === undefined && error?.message?.includes("fetch"))
+			) {
+				const errorMsg =
+					`CORS 錯誤：無法連接到後端 API (${url})\n` +
+					`可能原因：\n` +
+					`1. 後端 CORS 設定未包含前端來源\n` +
+					`2. 後端地址不正確或無法訪問\n` +
+					`3. 網路連線問題\n\n` +
+					`請檢查：\n` +
+					`- 後端 CORS_ORIGINS 環境變數是否包含前端地址\n` +
+					`- 後端是否正常運行\n` +
+					`- 前端 NUXT_PUBLIC_API_BASE 環境變數是否正確`;
+				throw new Error(errorMsg);
 			}
 
 			// 處理請求超時
 			if (error?.message?.includes("timeout") || error?.name === "TimeoutError") {
-				throw new Error("請求超時，請檢查網路連線或稍後再試");
+				throw new Error(`請求超時 (${url})，請檢查網路連線或稍後再試`);
 			}
 
 			// 處理網路錯誤（無法連接到伺服器）
@@ -72,7 +99,13 @@ export const useUserApi = () => {
 				error?.message?.includes("Failed to fetch") ||
 				error?.message?.includes("NetworkError")
 			) {
-				throw new Error("無法連接到伺服器，請確認後端 API 是否正常運行");
+				throw new Error(
+					`無法連接到後端伺服器 (${url})\n` +
+						`請確認：\n` +
+						`1. 後端服務是否正常運行\n` +
+						`2. 後端地址是否正確（檢查 NUXT_PUBLIC_API_BASE 環境變數）\n` +
+						`3. 網路連線是否正常`
+				);
 			}
 
 			// 處理 401 Unauthorized - Token 過期
