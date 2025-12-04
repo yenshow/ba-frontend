@@ -2,11 +2,6 @@
 	<div>
 		<!-- 照明系統頁面內容 - 自定義排版 -->
 		<div class="flex justify-center gap-4 xl:gap-6 2xl:gap-8">
-			<!-- 左側邊欄 -->
-			<aside>
-				<FloorSelector v-model="selectedFloor" :floors="floors" @floor-selected="handleFloorSelected" />
-			</aside>
-
 			<!-- 主要內容 -->
 			<section class="flex-[1.3] relative">
 				<div class="bg-white/30 rounded-2xl overflow-hidden flex border-2 border-white/80 p-4 xl:p-6 2xl:p-8">
@@ -106,20 +101,9 @@
 									:title="`${category.name}：${isCategoryNormal(category.id) ? '正常' : '異常'}`"
 									:aria-label="`${category.name}：${isCategoryNormal(category.id) ? '正常' : '異常'}`"
 									@click.stop="!isEditMode && selectCategoryByIndex(index)"
-									@mouseenter="!isEditMode && (hoveredCategoryId = category.id)"
-									@mouseleave="!isEditMode && (hoveredCategoryId = '')"
-									@focus="!isEditMode && (hoveredCategoryId = category.id)"
-									@blur="!isEditMode && (hoveredCategoryId = '')"
 								></div>
-								<!-- 整合的 tooltip：常駐簡短訊息，hover 顯示完整資訊 -->
-								<CategoryTooltip
-									:show="true"
-									:category-name="category.name"
-									:is-normal="isCategoryNormal(category.id)"
-									:floor-name="selectedFloorName"
-									:room-names="getCategoryRoomNames(category)"
-									:is-hovered="hoveredCategoryId === category.id"
-								/>
+								<!-- Tooltip：顯示分類點名稱和狀態 -->
+								<CategoryTooltip :show="true" :category-name="category.name" :is-normal="isCategoryNormal(category.id)" />
 							</div>
 						</template>
 					</div>
@@ -128,7 +112,14 @@
 
 			<!-- 右側狀態中心 -->
 			<aside class="flex-[0.7]">
-				<StatusCenter class="h-full" :controls="currentCategoryControls" :category-name="currentCategoryName" @toggle="handleControlToggle" />
+				<StatusCenter
+					:floors="floors"
+					:categories="categories"
+					:category-statuses="categoryStatuses"
+					:selected-floor="selectedFloor"
+					@toggle="handleCategoryToggle"
+					@floor-selected="handleFloorSelected"
+				/>
 			</aside>
 		</div>
 	</div>
@@ -136,14 +127,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
-import type { Floor, Room, RoomCategory, ControlPoint } from "~/types/system";
-import FloorSelector from "~/components/lighting/FloorSelector.vue";
+import { onMounted, onBeforeUnmount } from "vue";
+import type { Floor, Room } from "~/types/system";
 import StatusCenter from "~/components/lighting/StatusCenter.vue";
 import CategoryTooltip from "~/components/lighting/CategoryTooltip.vue";
 import CategoryList from "~/components/lighting/CategoryList.vue";
 import CategoryEditDialog from "~/components/lighting/CategoryEditDialog.vue";
 import type { LightingCategory } from "~/types/lighting";
+import { useModbusApi } from "~/composables/useModbus";
 
 definePageMeta({
 	layout: "default"
@@ -219,9 +210,6 @@ const selectedFloor = ref("1F");
 const selectedCategory = ref("");
 const selectedRoomType = ref<"indoor" | "outdoor" | null>(null);
 
-// Tooltip hover 狀態
-const hoveredCategoryId = ref<string>("");
-
 // 編輯模式相關
 const isEditMode = ref(false);
 const floorPlanRef = ref<HTMLElement | null>(null);
@@ -238,22 +226,6 @@ const roomsById = computed(() => {
 // 統一優化：創建 floorsById Map（避免重複查找）
 const floorsById = computed(() => {
 	return new Map(floors.value.map((floor) => [floor.id, floor]));
-});
-
-// 統一優化：創建 controlsByRoomId Map（用於快速查找）
-const controlsByRoomId = computed(() => {
-	const map = new Map<string, ControlPoint[]>();
-	controls.value.forEach((control) => {
-		if (control.roomId) {
-			const existing = map.get(control.roomId);
-			if (existing) {
-				existing.push(control);
-			} else {
-				map.set(control.roomId, [control]);
-			}
-		}
-	});
-	return map;
 });
 
 // 統一優化：創建 categoriesById Map（用於快速查找分類）
@@ -288,89 +260,23 @@ const filteredCategories = computed(() => {
 	});
 });
 
-// 當前選中的分類（使用 Map 查找，提升性能）
-const currentCategory = computed(() => {
-	if (!selectedCategory.value) return null;
-	return categoriesById.value.get(selectedCategory.value) || null;
-});
-
-const currentCategoryName = computed(() => {
-	if (currentCategory.value) {
-		return currentCategory.value.name;
-	}
-	if (!selectedRoomType.value) return "";
-	return selectedRoomType.value === "indoor" ? "室內空間" : "室外空間";
-});
-
-// 當前選中分類下所有房間的控制點（用於 StatusCenter）
-const currentCategoryControls = computed(() => {
-	if (!currentCategory.value) return [];
-
-	const categoryRoomIds = currentCategory.value.roomIds;
-	const roomsMap = roomsById.value;
-	const controlsMap = controlsByRoomId.value;
-	const result: ControlPoint[] = [];
-
-	categoryRoomIds.forEach((roomId) => {
-		const room = roomsMap.get(roomId);
-		// 如果選擇了室內/室外類型，檢查房間類型是否匹配
-		if (selectedRoomType.value && room?.type !== selectedRoomType.value) return;
-
-		const roomControls = controlsMap.get(roomId) || [];
-		result.push(...roomControls);
-	});
-
-	return result;
-});
-
-const categoryStatusMap = computed<Record<string, "normal" | "abnormal">>(() => {
-	const statusMap: Record<string, "normal" | "abnormal"> = {};
-	const controlsMap = controlsByRoomId.value;
-
-	for (const category of categories.value) {
-		const categoryRoomIds = category.roomIds;
-		let hasAbnormal = false;
-
-		// 使用 Map 查找替代 filter，提升性能
-		for (const roomId of categoryRoomIds) {
-			const roomControls = controlsMap.get(roomId) || [];
-			if (roomControls.some((control) => control.status !== "normal")) {
-				hasAbnormal = true;
-				break; // 找到異常就跳出
-			}
-		}
-
-		statusMap[category.id] = hasAbnormal ? "abnormal" : "normal";
-	}
-	return statusMap;
-});
-
+// 判斷分類點是否正常（基於 categoryStatuses）
 const isCategoryNormal = (categoryId: string) => {
-	return categoryStatusMap.value[categoryId] !== "abnormal";
+	const status = categoryStatuses.value[categoryId];
+	return !status || status.status === "normal";
 };
-
-// 照明控制點數據（範例）- 這些對應到 StatusCenter 的燈泡狀態
-// 每個房間（A區、B區等）對應一個或多個控制點
-// 控制點名稱對應房間的完整名稱，用於在狀態中心顯示
-const controls = ref<ControlPoint[]>([
-	// 健身房的房間控制點
-	{ id: "control-1", name: "A區 - 桌球室", status: "normal", isRunning: true, location: { x: 30, y: 25 }, roomId: "room-1" },
-	{ id: "control-2", name: "B區 - 遊戲室", status: "normal", isRunning: true, location: { x: 50, y: 30 }, roomId: "room-2" },
-	{ id: "control-3", name: "C區 - 跑步機", status: "warning", isRunning: false, location: { x: 70, y: 40 }, roomId: "room-3" },
-	{ id: "control-4", name: "D區 - 休息區", status: "normal", isRunning: true, location: { x: 45, y: 60 }, roomId: "room-4" },
-	{ id: "control-5", name: "E區 - 廁所", status: "normal", isRunning: true, location: { x: 65, y: 70 }, roomId: "room-5" },
-	// 管委會的房間控制點
-	{ id: "control-6", name: "A區 - 會議室", status: "normal", isRunning: true, location: { x: 30, y: 25 }, roomId: "room-6" },
-	{ id: "control-7", name: "B區 - 辦公室", status: "normal", isRunning: true, location: { x: 50, y: 30 }, roomId: "room-7" }
-]);
 
 // 處理樓層選擇
 const handleFloorSelected = (floorId: string) => {
 	console.log("選中樓層:", floorId);
+	// 更新選中的樓層
+	selectedFloor.value = floorId;
 	// 重置選中的分類
 	selectedCategory.value = "";
 	// 載入該樓層的分類點數據
 	loadCategoriesFromStorage();
+	// 重新初始化狀態
+	initializeCategoryStatuses();
 };
 
 // 選中分類
@@ -391,41 +297,150 @@ const toggleRoomType = (type: "indoor" | "outdoor") => {
 	selectedRoomType.value = selectedRoomType.value === type ? null : type;
 };
 
-// 統一優化：創建 controlsById Map（用於快速查找控制點）
-const controlsById = computed(() => {
-	return new Map(controls.value.map((control) => [control.id, control]));
-});
+// 分類點狀態管理（每個分類點對應一個開關狀態）
+const categoryStatuses = ref<Record<string, { isRunning: boolean; status: "normal" | "warning" | "error" }>>({});
 
-// 處理照明控制點切換
-const handleControlToggle = (controlId: string, isRunning: boolean) => {
-	const control = controlsById.value.get(controlId);
-	if (control) {
-		control.isRunning = isRunning;
-		console.log("照明控制點運轉狀態更新:", controlId, isRunning);
-		// 可以在這裡調用 API 更新照明狀態
+// 判斷分類點是否需要 Modbus 串接（2F 需要，1F 為假資料）
+const needsModbusConnection = (floorId: string): boolean => {
+	return floorId === "2F";
+};
+
+// 初始化分類點狀態
+const initializeCategoryStatuses = () => {
+	categories.value.forEach((category) => {
+		if (!categoryStatuses.value[category.id]) {
+			// 1F 使用假資料，設置一些預設狀態
+			if (category.floorId === "1F") {
+				categoryStatuses.value[category.id] = {
+					isRunning: false,
+					status: "normal"
+				};
+			} else {
+				// 2F 等其他樓層初始狀態
+				categoryStatuses.value[category.id] = {
+					isRunning: false,
+					status: "normal"
+				};
+			}
+		}
+	});
+};
+
+const modbusApi = useModbusApi();
+
+// 自動刷新間隔（毫秒）
+const AUTO_REFRESH_INTERVAL = 2000;
+let refreshTimer: ReturnType<typeof setInterval> | null = null;
+
+// 從 Modbus 讀取分類點狀態（僅對 2F 的分類點）
+const loadCategoryStatus = async (category: LightingCategory) => {
+	// 只對 2F 的分類點進行 Modbus 讀取
+	if (!needsModbusConnection(category.floorId) || !category.modbus) return;
+
+	try {
+		// 讀取 Modbus Coil 狀態
+		const response = await modbusApi.getCoils(
+			category.modbus.address,
+			1, // 只讀取一個位址
+			{
+				host: category.modbus.host,
+				port: category.modbus.port,
+				unitId: category.modbus.unitId
+			}
+		);
+
+		// 更新狀態
+		if (response.data && response.data.length > 0) {
+			const isRunning = response.data[0];
+			if (!categoryStatuses.value[category.id]) {
+				categoryStatuses.value[category.id] = {
+					isRunning: false,
+					status: "normal"
+				};
+			}
+			categoryStatuses.value[category.id].isRunning = isRunning;
+			categoryStatuses.value[category.id].status = "normal"; // 讀取成功，標記為正常
+		}
+	} catch (error) {
+		console.error(`讀取分類點 ${category.name} 狀態失敗:`, error);
+		// 如果讀取失敗，標記為異常
+		if (categoryStatuses.value[category.id]) {
+			categoryStatuses.value[category.id].status = "error";
+		}
 	}
 };
 
-// 獲取房間名稱（使用 Map 查找，提升性能）
-const getRoomName = (roomId: string) => {
-	return roomsById.value.get(roomId)?.name || roomId;
+// 載入所有分類點的狀態（僅對 2F 的分類點進行 Modbus 讀取）
+const loadAllCategoryStatuses = async (options?: { silent?: boolean }) => {
+	// 只對 2F 的分類點進行 Modbus 讀取
+	const categoriesNeedingModbus = categories.value.filter((c) => needsModbusConnection(c.floorId) && c.modbus);
+	if (categoriesNeedingModbus.length === 0) return;
+
+	// 並行讀取所有需要 Modbus 的分類點狀態
+	await Promise.all(categoriesNeedingModbus.map((category) => loadCategoryStatus(category)));
 };
 
-// 獲取分類下的所有房間名稱列表（使用 computed 優化性能）
-const categoryRoomNamesMap = computed(() => {
-	const map = new Map<string, string[]>();
-	const roomsMap = roomsById.value;
+// 處理分類點開關切換
+const handleCategoryToggle = async (categoryId: string, isRunning: boolean) => {
+	const category = categories.value.find((c) => c.id === categoryId);
+	if (!category) {
+		console.warn("分類點不存在:", categoryId);
+		return;
+	}
 
-	categories.value.forEach((category) => {
-		const roomNames = category.roomIds.map((roomId) => roomsMap.get(roomId)?.name).filter((name): name is string => !!name);
-		map.set(category.id, roomNames);
-	});
-	return map;
-});
+	// 更新本地狀態（樂觀更新）
+	if (categoryStatuses.value[categoryId]) {
+		categoryStatuses.value[categoryId].isRunning = !isRunning;
+	}
 
-// 獲取分類下的所有房間名稱列表
-const getCategoryRoomNames = (category: LightingCategory) => {
-	return categoryRoomNamesMap.value.get(category.id) || [];
+	// 1F 為假資料，只更新本地狀態，不進行 Modbus 操作
+	if (!needsModbusConnection(category.floorId)) {
+		return;
+	}
+
+	// 2F 需要實際 Modbus 串接
+	if (!category.modbus) {
+		console.warn("分類點未配置 Modbus:", categoryId);
+		// 回滾狀態
+		if (categoryStatuses.value[categoryId]) {
+			categoryStatuses.value[categoryId].isRunning = isRunning;
+		}
+		return;
+	}
+
+	try {
+		// 調用 Modbus API 控制開關
+		await modbusApi.writeCoil(category.modbus.address, !isRunning, {
+			host: category.modbus.host,
+			port: category.modbus.port,
+			unitId: category.modbus.unitId
+		});
+
+		// 寫入成功後，重新讀取狀態以確保同步
+		await loadCategoryStatus(category);
+	} catch (error) {
+		console.error("更新分類點開關狀態失敗:", error);
+		// 回滾狀態
+		if (categoryStatuses.value[categoryId]) {
+			categoryStatuses.value[categoryId].isRunning = isRunning;
+			categoryStatuses.value[categoryId].status = "error";
+		}
+	}
+};
+
+// 啟動自動刷新
+const startAutoRefresh = () => {
+	if (refreshTimer) return;
+	refreshTimer = setInterval(() => {
+		loadAllCategoryStatuses({ silent: true });
+	}, AUTO_REFRESH_INTERVAL);
+};
+
+// 停止自動刷新
+const stopAutoRefresh = () => {
+	if (!refreshTimer) return;
+	clearInterval(refreshTimer);
+	refreshTimer = null;
 };
 
 const createEmptyCategory = (): LightingCategory => ({
@@ -484,6 +499,14 @@ const handleSaveCategory = (payload: LightingCategory) => {
 		categories.value.splice(index, 1, normalized);
 	} else {
 		categories.value.push(normalized);
+	}
+
+	// 初始化新分類點的狀態
+	if (!categoryStatuses.value[normalized.id]) {
+		categoryStatuses.value[normalized.id] = {
+			isRunning: false,
+			status: "normal"
+		};
 	}
 
 	saveCategoriesToStorage();
@@ -595,6 +618,8 @@ const loadCategoriesFromStorage = () => {
 			const floorCategories = parsed.filter((c: LightingCategory) => c.floorId === selectedFloor.value);
 			if (floorCategories.length > 0) {
 				categories.value = parsed;
+				// 載入後初始化狀態
+				initializeCategoryStatuses();
 			}
 		}
 	} catch (error) {
@@ -615,8 +640,18 @@ watch(
 );
 
 // 初始化：載入保存的分類點數據
-onMounted(() => {
+onMounted(async () => {
 	loadCategoriesFromStorage();
+	initializeCategoryStatuses();
+	// 載入所有分類點的狀態
+	await loadAllCategoryStatuses();
+	// 啟動自動刷新
+	startAutoRefresh();
+});
+
+// 清理：停止自動刷新
+onBeforeUnmount(() => {
+	stopAutoRefresh();
 });
 </script>
 
