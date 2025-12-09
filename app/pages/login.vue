@@ -12,7 +12,7 @@
 						class="image-blur-load w-full h-full object-contain"
 						:class="{ 'image-loaded': isHeroLoaded }"
 						width="800"
-						height="600"
+						height="750"
 						sizes="lg:800px"
 						loading="eager"
 						@load="isHeroLoaded = true"
@@ -222,7 +222,7 @@ const handleLogin = async () => {
 		});
 
 		toast.success("登入成功");
-		
+
 		// 登入成功後跳轉 - 檢查 redirect query 參數
 		const redirectPath = (route.query.redirect as string) || "/";
 		await router.push(redirectPath);

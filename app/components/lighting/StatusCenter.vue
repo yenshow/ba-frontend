@@ -153,10 +153,32 @@ const isCategoryNormal = (categoryId: string): boolean => {
 };
 
 const isCategoryDisabled = (category: LightingCategory): boolean => {
+	// 1F 為假資料，不禁用
 	if (category.floorId === "1F") {
 		return false;
 	}
-	return !category.modbus;
+	
+	// 如果沒有 Modbus 配置，禁用
+	if (!category.modbus) {
+		return true;
+	}
+	
+	// 如果有 points 配置，檢查是否有可寫入的點位
+	if (category.modbus.points && category.modbus.points.length > 0) {
+		const hasWritePoints = category.modbus.points.some(
+			(p) => p.method === "writeCoil" || p.method === "writeCoils"
+		);
+		return !hasWritePoints;
+	}
+	
+	// 向後兼容：檢查舊格式
+	if (category.modbus.deviceId) {
+		// 如果有設備 ID 但沒有點位配置，禁用
+		return !category.modbus.doAddresses && !category.modbus.doAddress && !category.modbus.address;
+	}
+	
+	// 如果沒有設備配置，禁用
+	return !category.modbus.host || !category.modbus.port;
 };
 
 const handleToggle = (categoryId: string, isRunning: boolean) => {

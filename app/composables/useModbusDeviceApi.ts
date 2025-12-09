@@ -1,5 +1,5 @@
 import { useRequestFetch } from "#app";
-import type { ModbusDevice, CreateModbusDeviceData, UpdateModbusDeviceData, ModbusDeviceType } from "~/types/modbus";
+import type { ModbusDevice, CreateModbusDeviceData, UpdateModbusDeviceData, ModbusDeviceType, ModbusDeviceModel, CreateModbusDeviceModelData, UpdateModbusDeviceModelData } from "~/types/modbus";
 
 export const useModbusDeviceApi = () => {
 	const config = useRuntimeConfig();
@@ -190,14 +190,47 @@ export const useModbusDeviceApi = () => {
 			});
 		},
 
-		// 取得所有設備類型
+		// 取得所有設備類型（僅供讀取，用於設備型號管理選擇類型）
 		getDeviceTypes: () => {
 			return request<{ device_types: ModbusDeviceType[] }>("/modbus/device-types");
 		},
 
-		// 取得單一設備類型
+		// 取得單一設備類型（僅供讀取）
 		getDeviceType: (id: number) => {
 			return request<{ device_type: ModbusDeviceType }>(`/modbus/device-types/${id}`);
+		},
+
+		// 取得所有設備型號
+		getDeviceModels: () => {
+			return request<{ device_models: ModbusDeviceModel[] }>("/modbus/device-models");
+		},
+
+		// 取得單一設備型號
+		getDeviceModel: (id: number) => {
+			return request<{ device_model: ModbusDeviceModel }>(`/modbus/device-models/${id}`);
+		},
+
+		// 建立設備型號（管理員）
+		createDeviceModel: (data: CreateModbusDeviceModelData) => {
+			return request<{ message: string; device_model: ModbusDeviceModel }>("/modbus/device-models", {
+				method: "POST",
+				body: JSON.stringify(data)
+			});
+		},
+
+		// 更新設備型號（管理員）
+		updateDeviceModel: (id: number, data: UpdateModbusDeviceModelData) => {
+			return request<{ message: string; device_model: ModbusDeviceModel }>(`/modbus/device-models/${id}`, {
+				method: "PUT",
+				body: JSON.stringify(data)
+			});
+		},
+
+		// 刪除設備型號（管理員）
+		deleteDeviceModel: (id: number) => {
+			return request<{ message: string }>(`/modbus/device-models/${id}`, {
+				method: "DELETE"
+			});
 		}
 	};
 };

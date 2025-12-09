@@ -4,7 +4,17 @@
 		<div class="relative w-full aspect-square max-w-[200px] 2xl:max-w-[240px]">
 			<!-- SVG 弧形指示器 -->
 			<svg class="absolute inset-0 w-full h-full transform -rotate-90 z-20" viewBox="0 0 240 240" style="overflow: visible">
-				<path :d="arcPath" fill="none" :stroke="arcColor" stroke-width="12" stroke-linecap="round" class="transition-all duration-500 ease-out" />
+				<path
+					:d="fullArcPath"
+					fill="none"
+					:stroke="arcColor"
+					stroke-width="12"
+					stroke-linecap="round"
+					:stroke-dasharray="arcLength"
+					:stroke-dashoffset="arcDashOffset"
+					class="transition-all duration-500 ease-out"
+					style="opacity: isDataReady ? 1 : 0"
+				/>
 			</svg>
 
 			<!-- Background Circle -->
@@ -111,17 +121,33 @@ const arcPercentage = computed(() => {
 	return Math.min((value / maxValue) * 100, 100);
 });
 
-// 計算動態弧形的 path
-const arcPath = computed(() => {
-	const percentage = arcPercentage.value;
-	const currentAngleRange = (arcAngleRange * percentage) / 100;
+// 計算完整的弧形 path（用於 stroke-dasharray）
+const fullArcPath = computed(() => {
 	const startAngleRad = (arcStartAngle * Math.PI) / 180;
-	const endAngleRad = ((arcStartAngle + currentAngleRange) * Math.PI) / 180;
+	const endAngleRad = (arcEndAngle * Math.PI) / 180;
 	const startX = centerX + radius * Math.cos(startAngleRad);
 	const startY = centerY + radius * Math.sin(startAngleRad);
 	const endX = centerX + radius * Math.cos(endAngleRad);
 	const endY = centerY + radius * Math.sin(endAngleRad);
-	const largeArcFlag = currentAngleRange > 180 ? 1 : 0;
-	return `M ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endX} ${endY}`;
+	return `M ${startX} ${startY} A ${radius} ${radius} 0 1 1 ${endX} ${endY}`;
+});
+
+// 計算完整弧形的長度（用於 stroke-dasharray）
+const arcLength = computed(() => {
+	// 270 度的圓弧長度 = 2 * π * radius * (270 / 360)
+	return 2 * Math.PI * radius * (arcAngleRange / 360);
+});
+
+// 計算 stroke-dashoffset（控制顯示的弧長）
+const arcDashOffset = computed(() => {
+	const percentage = arcPercentage.value;
+	// 當 percentage 為 0 時，offset 等於總長度（完全不顯示）
+	// 當 percentage 為 100 時，offset 為 0（完全顯示）
+	return arcLength.value * (1 - percentage / 100);
+});
+
+// 檢查資料是否已準備好（避免初始渲染時的動畫問題）
+const isDataReady = computed(() => {
+	return props.aqi.value >= 0;
 });
 </script>

@@ -5,7 +5,15 @@
 				<h1 class="text-3xl 2xl:text-4xl font-semibold text-white">Modbus 設備管理</h1>
 				<p class="text-base 2xl:text-xl text-white/80">管理 Modbus 設備配置與配對</p>
 			</div>
-			<div class="flex items-center">
+			<div class="flex items-center gap-3 2xl:gap-4">
+				<button
+					v-if="isAdmin"
+					type="button"
+					class="rounded-xl bg-blue-500/80 px-4 2xl:px-6 py-2 2xl:py-3 text-sm 2xl:text-base text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-blue-500/40"
+					@click="showDeviceModelDialog = true"
+				>
+					設備型號管理
+				</button>
 				<button
 					v-if="isAdmin"
 					type="button"
@@ -21,18 +29,16 @@
 		<section class="rounded-2xl bg-white/15 p-6 2xl:p-8 border border-white/20">
 			<!-- 骨架屏：載入中時顯示 -->
 			<template v-if="isLoading">
-				<table class="w-full">
+				<table class="w-full text-center">
 					<thead>
 						<tr class="border-b border-white/20">
-							<th :class="tableHeaderClass">ID</th>
 							<th :class="tableHeaderClass">設備名稱</th>
+							<th :class="tableHeaderClass">設備型號</th>
 							<th :class="tableHeaderClass">主機位址</th>
 							<th :class="tableHeaderClass">端口</th>
-							<th :class="tableHeaderClass">Unit ID</th>
 							<th :class="tableHeaderClass">狀態</th>
 							<th :class="tableHeaderClass">
-								<label class="flex flex-col gap-1">
-									<span>建立時間</span>
+								<label>
 									<select v-model="dateSortOrder" :class="sortSelectClass" @change="handleSortChange">
 										<option value="desc">由新到舊</option>
 										<option value="asc">由舊到新</option>
@@ -45,16 +51,13 @@
 					<tbody>
 						<tr v-for="n in 5" :key="`skeleton-${n}`" class="border-b border-white/10">
 							<td :class="tableCellClass">
-								<div class="h-4 2xl:h-5 w-8 2xl:w-10 bg-white/20 rounded animate-pulse"></div>
-							</td>
-							<td :class="tableCellClass">
 								<div class="h-4 2xl:h-5 w-20 2xl:w-24 bg-white/20 rounded animate-pulse"></div>
 							</td>
 							<td :class="tableCellClass">
-								<div class="h-4 2xl:h-5 w-32 2xl:w-40 bg-white/20 rounded animate-pulse"></div>
+								<div class="h-4 2xl:h-5 w-24 2xl:w-28 bg-white/20 rounded animate-pulse"></div>
 							</td>
 							<td :class="tableCellClass">
-								<div class="h-4 2xl:h-5 w-16 2xl:w-20 bg-white/20 rounded animate-pulse"></div>
+								<div class="h-4 2xl:h-5 w-32 2xl:w-40 bg-white/20 rounded animate-pulse"></div>
 							</td>
 							<td :class="tableCellClass">
 								<div class="h-4 2xl:h-5 w-16 2xl:w-20 bg-white/20 rounded animate-pulse"></div>
@@ -80,11 +83,10 @@
 				<table class="w-full text-center">
 					<thead>
 						<tr class="border-b border-white/20">
-							<th :class="tableHeaderClass">ID</th>
 							<th :class="tableHeaderClass">設備名稱</th>
+							<th :class="tableHeaderClass">設備型號</th>
 							<th :class="tableHeaderClass">主機位址</th>
 							<th :class="tableHeaderClass">端口</th>
-							<th :class="tableHeaderClass">Unit ID</th>
 							<th :class="tableHeaderClass">狀態</th>
 							<th :class="tableHeaderClass">
 								<label>
@@ -99,11 +101,13 @@
 					</thead>
 					<tbody>
 						<tr v-for="device in devices" :key="device.id" class="border-b border-white/10 hover:bg-white/5 text-base 2xl:text-lg text-white">
-							<td :class="tableCellClass">{{ device.id }}</td>
 							<td :class="tableCellClass">{{ device.name }}</td>
+							<td :class="tableCellClass">
+								<span v-if="device.model_name" class="text-white/90">{{ device.model_name }}</span>
+								<span v-else class="text-white/50">-</span>
+							</td>
 							<td :class="tableCellClass">{{ device.host }}</td>
 							<td :class="tableCellClass">{{ device.port }}</td>
-							<td :class="tableCellClass">{{ device.unitId }}</td>
 							<td :class="tableCellClass">
 								<span :class="[getStatusBadgeClass(device.status), 'px-2 2xl:px-3 py-1 2xl:py-1.5 rounded']">
 									{{ statusLabels[device.status] }}
@@ -167,14 +171,28 @@
 			:is-admin="isAdmin"
 			:is-submitting="isSubmitting"
 			:error-message="errorMessage"
+			:refresh-device-types="refreshDeviceTypes"
 			@submit="handleSubmit"
 			@close="closeDialog"
+		/>
+
+		<!-- 設備型號管理對話框 -->
+		<DeviceModelDialog
+			v-model="showDeviceModelDialog"
+			@close="showDeviceModelDialog = false"
+			@refresh="
+				() => {
+					loadDevices();
+					refreshDeviceTypes = !refreshDeviceTypes;
+				}
+			"
 		/>
 	</div>
 </template>
 
 <script setup lang="ts">
 import type { ModbusDevice, CreateModbusDeviceData, UpdateModbusDeviceData } from "~/types/modbus";
+import DeviceModelDialog from "~/components/modbus/DeviceModelDialog.vue";
 
 definePageMeta({
 	layout: "default",
@@ -189,6 +207,8 @@ const devices = ref<ModbusDevice[]>([]);
 const isLoading = ref(true);
 const errorMessage = ref<string | null>(null);
 const showCreateDialog = ref(false);
+const showDeviceModelDialog = ref(false);
+const refreshDeviceTypes = ref(false);
 
 const showDialog = computed({
 	get: () => showCreateDialog.value || !!editingDevice.value,
