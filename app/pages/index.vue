@@ -36,7 +36,7 @@ import EnvironmentCard from "~/components/common/EnvironmentCard.vue";
 import BuildingCard from "~/components/common/BuildingCard.vue";
 import SystemModule from "~/components/common/SystemModule.vue";
 import { useModbusApi } from "~/composables/useModbus";
-import type { DeviceConfig } from "~/types/modbus";
+import type { ModbusDeviceConfig } from "~/types/modbus";
 
 definePageMeta({
 	layout: "default"
@@ -45,7 +45,7 @@ definePageMeta({
 const modbusApi = useModbusApi();
 
 // 感測器設備配置：與系統感測頁共用同一 Modbus 讀取邏輯
-const sensorDeviceConfig: DeviceConfig = {
+const sensorDeviceConfig: ModbusDeviceConfig = {
 	host: "192.168.2.204",
 	port: 5020,
 	unitId: 1
@@ -125,8 +125,7 @@ const calculatePollutantAQI = (value: number | null, breakpoints: AQIBreakpoint[
 	const [iLow, iHigh] = targetBreakpoint.indexRange;
 
 	const clampedValue = Math.min(Math.max(value, cLow), cHigh);
-	const index =
-		((iHigh - iLow) / (cHigh - cLow)) * (clampedValue - cLow) + iLow;
+	const index = ((iHigh - iLow) / (cHigh - cLow)) * (clampedValue - cLow) + iLow;
 
 	return Math.round(index);
 };
@@ -198,10 +197,9 @@ const toFixedNumber = (value: number | null, fractionDigits = 0) => {
 };
 
 const aqiScore = computed(() => {
-	const pollutantAQIs = [
-		calculatePollutantAQI(sensorData.pm25, PM25_BREAKPOINTS),
-		calculatePollutantAQI(sensorData.pm10, PM10_BREAKPOINTS)
-	].filter((value): value is number => value !== null);
+	const pollutantAQIs = [calculatePollutantAQI(sensorData.pm25, PM25_BREAKPOINTS), calculatePollutantAQI(sensorData.pm10, PM10_BREAKPOINTS)].filter(
+		(value): value is number => value !== null
+	);
 
 	if (!pollutantAQIs.length) {
 		return 0;

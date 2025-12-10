@@ -203,7 +203,7 @@
 
 <script setup lang="ts">
 import { useModbusApi } from "~/composables/useModbus";
-import type { ModbusHealth, DeviceConfig } from "~/types/modbus";
+import type { ModbusHealth, ModbusDeviceConfig } from "~/types/modbus";
 
 definePageMeta({
 	layout: "default"
@@ -212,7 +212,7 @@ definePageMeta({
 const modbusApi = useModbusApi();
 
 // 感測器設備配置：192.168.2.204:5020, Unit ID: 1
-const sensorDeviceConfig: DeviceConfig = {
+const sensorDeviceConfig: ModbusDeviceConfig = {
 	host: "192.168.2.204",
 	port: 5020,
 	unitId: 1
@@ -253,9 +253,7 @@ const hostLabel = computed(() => {
 	if (!health.value) return "-";
 	return `${health.value.host}:${health.value.port}`;
 });
-const healthStatus = computed(() =>
-	health.value ? (health.value.isOpen ? "Modbus TCP 連線中" : "待連線") : "尚未取得"
-);
+const healthStatus = computed(() => (health.value ? (health.value.isOpen ? "Modbus TCP 連線中" : "待連線") : "尚未取得"));
 
 // 轉換原始資料為感測器數值
 const transformSensorData = (raw: number[]) => {
@@ -415,4 +413,3 @@ onBeforeUnmount(() => {
 	color: #fff;
 }
 </style>
-

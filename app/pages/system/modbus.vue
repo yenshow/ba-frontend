@@ -189,7 +189,7 @@
 
 <script setup lang="ts">
 import { useModbusApi } from "~/composables/useModbus";
-import type { ModbusHealth, DeviceConfig } from "~/types/modbus";
+import type { ModbusHealth, ModbusDeviceConfig } from "~/types/modbus";
 
 definePageMeta({
 	layout: "default"
@@ -198,7 +198,7 @@ definePageMeta({
 const modbusApi = useModbusApi();
 
 // DI 和 DO 的設備配置：192.168.2.205:502, Unit ID: 205
-const diDoDeviceConfig: DeviceConfig = {
+const diDoDeviceConfig: ModbusDeviceConfig = {
 	host: "192.168.2.205",
 	port: 502,
 	unitId: 205

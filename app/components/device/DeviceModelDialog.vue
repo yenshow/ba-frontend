@@ -8,7 +8,7 @@
 			>
 				<div class="w-full max-w-2xl 2xl:max-w-3xl max-h-[90vh] rounded-3xl p-7 2xl:p-8 flex flex-col gap-4 2xl:gap-6 overflow-hidden dialog-panel-bg">
 					<header class="flex items-center justify-between">
-						<h3 class="text-lg 2xl:text-xl text-white font-semibold tracking-[4px]">設備型號管理</h3>
+						<h3 class="text-lg 2xl:text-xl text-white font-semibold tracking-[4px]">{{ deviceTypeName }} - 設備型號管理</h3>
 						<button
 							type="button"
 							class="text-[1.75rem] leading-none text-white bg-transparent border-none cursor-pointer transition-opacity hover:opacity-70"
@@ -40,7 +40,6 @@
 										<div class="flex items-center gap-3">
 											<h4 class="text-base 2xl:text-lg font-medium text-white">{{ model.name }}</h4>
 											<span class="px-2 py-1 text-xs 2xl:text-sm rounded bg-white/20 text-white/80">{{ model.type_name || "類型" }}</span>
-											<span class="px-2 py-1 text-xs 2xl:text-sm rounded bg-blue-500/20 text-blue-200">端口: {{ model.port }}</span>
 										</div>
 										<p v-if="model.description" class="text-sm 2xl:text-base text-white/60 mt-1">{{ model.description }}</p>
 									</div>
@@ -112,17 +111,10 @@
 									</label>
 									<label class="flex flex-col gap-2 2xl:gap-2.5 text-sm 2xl:text-base text-white/80">
 										<span>類型 *</span>
-										<select v-model.number="formData.type_id" required class="form-input form-select">
-											<option :value="0" disabled>請選擇設備類型</option>
-											<option v-for="deviceType in deviceTypes" :key="deviceType.id" :value="deviceType.id">
-												{{ deviceType.name }}
-											</option>
+										<select v-model.number="formData.type_id" required class="form-input form-select" :disabled="true">
+											<option :value="currentDeviceTypeId">{{ deviceTypeName }}</option>
 										</select>
-										<p v-if="deviceTypes.length === 0" class="text-xs text-white/60 mt-1">載入設備類型中...</p>
-									</label>
-									<label class="flex flex-col gap-2 2xl:gap-2.5 text-sm 2xl:text-base text-white/80">
-										<span>端口 *</span>
-										<input v-model.number="formData.port" type="number" required min="1" max="65535" class="form-input" placeholder="例如：502" />
+										<p class="text-xs text-white/60 mt-1">類型已固定為 {{ deviceTypeName }}</p>
 									</label>
 									<label class="flex flex-col gap-2 2xl:gap-2.5 text-sm 2xl:text-base text-white/80">
 										<span>備註</span>
@@ -149,10 +141,11 @@
 </template>
 
 <script setup lang="ts">
-import type { ModbusDeviceModel, ModbusDeviceType, CreateModbusDeviceModelData, UpdateModbusDeviceModelData } from "~/types/modbus";
+import type { DeviceModel, DeviceTypeCode, CreateDeviceModelData, UpdateDeviceModelData } from "~/types/device";
 
 interface Props {
 	modelValue: boolean;
+	deviceTypeCode: DeviceTypeCode;
 }
 
 interface Emits {
@@ -164,43 +157,48 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
-const modbusDeviceApi = useModbusDeviceApi();
+const deviceApi = useDeviceApi();
 const toast = useToast();
 
-const deviceModels = ref<ModbusDeviceModel[]>([]);
-const deviceTypes = ref<ModbusDeviceType[]>([]);
+// 設備類型名稱映射
+const deviceTypeNameMap: Record<DeviceTypeCode, string> = {
+	camera: "影像設備",
+	controller: "控制器",
+	sensor: "感測器",
+	tablet: "平板",
+	network: "網路裝置"
+};
+
+const deviceTypeName = computed(() => deviceTypeNameMap[props.deviceTypeCode] || "設備");
+
+const deviceModels = ref<DeviceModel[]>([]);
 const isLoading = ref(false);
 const errorMessage = ref<string | null>(null);
 const showForm = ref(false);
-const editingModel = ref<ModbusDeviceModel | null>(null);
+const editingModel = ref<DeviceModel | null>(null);
 const isSubmitting = ref(false);
 const formErrorMessage = ref<string | null>(null);
+const currentDeviceTypeId = ref<number | null>(null);
 
 const formData = reactive({
 	name: "",
 	type_id: 0,
-	port: 502,
 	description: ""
 });
 
 const resetForm = () => {
 	formData.name = "";
-	formData.type_id = deviceTypes.value.length > 0 ? deviceTypes.value[0].id : 0;
-	formData.port = 502;
+	formData.type_id = currentDeviceTypeId.value || 0;
 	formData.description = "";
 	formErrorMessage.value = null;
 };
 
-// 載入設備類型列表
-const loadDeviceTypes = async () => {
-	if (deviceTypes.value.length > 0) return;
-
+// 載入設備類型 ID
+const loadDeviceType = async () => {
 	try {
-		const result = await modbusDeviceApi.getDeviceTypes();
-		deviceTypes.value = result.device_types;
-		if (formData.type_id === 0 && deviceTypes.value.length > 0) {
-			formData.type_id = deviceTypes.value[0].id;
-		}
+		const result = await deviceApi.getDeviceTypeByCode(props.deviceTypeCode);
+		currentDeviceTypeId.value = result.device_type.id;
+		formData.type_id = result.device_type.id;
 	} catch (error) {
 		console.error("載入設備類型失敗:", error);
 	}
@@ -211,7 +209,9 @@ const loadDeviceModels = async () => {
 	errorMessage.value = null;
 
 	try {
-		const result = await modbusDeviceApi.getDeviceModels();
+		const result = await deviceApi.getDeviceModels({
+			type_code: props.deviceTypeCode
+		});
 		deviceModels.value = result.device_models;
 	} catch (error: any) {
 		// 如果是 404，表示後端 API 尚未實作
@@ -229,22 +229,21 @@ const loadDeviceModels = async () => {
 	}
 };
 
-const editDeviceModel = (model: ModbusDeviceModel) => {
+const editDeviceModel = (model: DeviceModel) => {
 	editingModel.value = model;
 	formData.name = model.name;
 	formData.type_id = model.type_id;
-	formData.port = model.port;
 	formData.description = model.description || "";
 	showForm.value = true;
 };
 
-const confirmDelete = async (model: ModbusDeviceModel) => {
+const confirmDelete = async (model: DeviceModel) => {
 	if (!confirm(`確定要刪除設備型號 "${model.name}" 嗎？此操作無法復原。`)) {
 		return;
 	}
 
 	try {
-		await modbusDeviceApi.deleteDeviceModel(model.id);
+		await deviceApi.deleteDeviceModel(model.id);
 		toast.success(`設備型號 "${model.name}" 已刪除`);
 		await loadDeviceModels();
 		emit("refresh");
@@ -267,10 +266,10 @@ const handleFormSubmit = async () => {
 
 	try {
 		if (editingModel.value) {
-			await modbusDeviceApi.updateDeviceModel(editingModel.value.id, formData);
+			await deviceApi.updateDeviceModel(editingModel.value.id, formData);
 			toast.success("設備型號更新成功");
 		} else {
-			await modbusDeviceApi.createDeviceModel(formData);
+			await deviceApi.createDeviceModel(formData);
 			toast.success("設備型號建立成功");
 		}
 
@@ -296,7 +295,7 @@ watch(
 	() => props.modelValue,
 	(isOpen) => {
 		if (isOpen) {
-			loadDeviceTypes();
+			loadDeviceType();
 			loadDeviceModels();
 		} else {
 			deviceModels.value = [];
@@ -324,15 +323,18 @@ watch(
 	background: rgba(255, 255, 255, 0.1);
 	padding: 0.65rem 0.85rem;
 	color: #f7fbff;
-	transition:
-		border-color 0.2s ease,
-		background 0.2s ease;
+	transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .form-input:focus {
 	border-color: #5be7f1;
 	background: rgba(255, 255, 255, 0.18);
 	outline: none;
+}
+
+.form-input:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
 }
 
 .form-select {

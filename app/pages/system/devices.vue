@@ -2,31 +2,54 @@
 	<div class="space-y-6 2xl:space-y-8">
 		<header class="flex flex-wrap items-end justify-between gap-4 2xl:gap-6">
 			<div class="space-y-2 2xl:space-y-4">
-				<h1 class="text-3xl 2xl:text-4xl font-semibold text-white">Modbus 設備管理</h1>
-				<p class="text-base 2xl:text-xl text-white/80">管理 Modbus 設備配置與配對</p>
-			</div>
-			<div class="flex items-center gap-3 2xl:gap-4">
-				<button
-					v-if="isAdmin"
-					type="button"
-					class="rounded-xl bg-blue-500/80 px-4 2xl:px-6 py-2 2xl:py-3 text-sm 2xl:text-base text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-blue-500/40"
-					@click="showDeviceModelDialog = true"
-				>
-					設備型號管理
-				</button>
-				<button
-					v-if="isAdmin"
-					type="button"
-					class="rounded-xl bg-emerald-500/80 px-4 2xl:px-6 py-2 2xl:py-3 text-sm 2xl:text-base text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-500/40"
-					@click="showCreateDialog = true"
-				>
-					新增設備
-				</button>
+				<h1 class="text-3xl 2xl:text-4xl font-semibold text-white">設備管理</h1>
+				<p class="text-base 2xl:text-xl text-white/80">管理各類型設備配置與配對</p>
 			</div>
 		</header>
 
+		<!-- Tab 切換 -->
+		<div class="rounded-2xl bg-white/15 p-1 border border-white/20">
+			<div class="flex gap-2 overflow-x-auto">
+				<button
+					v-for="tab in deviceTabs"
+					:key="tab.code"
+					type="button"
+					:class="[
+						'px-4 2xl:px-6 py-2 2xl:py-3 text-sm 2xl:text-base font-medium rounded-xl transition-all whitespace-nowrap',
+						activeTab === tab.code ? 'bg-blue-500/80 text-white shadow-lg' : 'text-white/70 hover:text-white hover:bg-white/10'
+					]"
+					@click="switchTab(tab.code)"
+				>
+					{{ tab.name }}
+				</button>
+			</div>
+		</div>
+
 		<!-- 設備列表 -->
 		<section class="rounded-2xl bg-white/15 p-6 2xl:p-8 border border-white/20">
+			<!-- Tab 標題和操作按鈕 -->
+			<div class="flex flex-wrap items-center justify-between gap-4 2xl:gap-6 mb-6">
+				<h2 class="text-xl 2xl:text-2xl font-semibold text-white">{{ currentTabName }}管理</h2>
+				<div class="flex items-center gap-3 2xl:gap-4">
+					<button
+						v-if="isAdmin"
+						type="button"
+						class="rounded-xl bg-blue-500/80 px-4 2xl:px-6 py-2 2xl:py-3 text-sm 2xl:text-base text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-blue-500/40"
+						@click="showDeviceModelDialog = true"
+					>
+						設備型號管理
+					</button>
+					<button
+						v-if="isAdmin"
+						type="button"
+						class="rounded-xl bg-emerald-500/80 px-4 2xl:px-6 py-2 2xl:py-3 text-sm 2xl:text-base text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-500/40"
+						@click="showCreateDialog = true"
+					>
+						新增設備
+					</button>
+				</div>
+			</div>
+
 			<!-- 骨架屏：載入中時顯示 -->
 			<template v-if="isLoading">
 				<table class="w-full text-center">
@@ -34,8 +57,7 @@
 						<tr class="border-b border-white/20">
 							<th :class="tableHeaderClass">設備名稱</th>
 							<th :class="tableHeaderClass">設備型號</th>
-							<th :class="tableHeaderClass">主機位址</th>
-							<th :class="tableHeaderClass">端口</th>
+							<th :class="tableHeaderClass">配置資訊</th>
 							<th :class="tableHeaderClass">狀態</th>
 							<th :class="tableHeaderClass">
 								<label>
@@ -60,9 +82,6 @@
 								<div class="h-4 2xl:h-5 w-32 2xl:w-40 bg-white/20 rounded animate-pulse"></div>
 							</td>
 							<td :class="tableCellClass">
-								<div class="h-4 2xl:h-5 w-16 2xl:w-20 bg-white/20 rounded animate-pulse"></div>
-							</td>
-							<td :class="tableCellClass">
 								<div class="h-6 2xl:h-7 w-16 2xl:w-20 bg-white/20 rounded animate-pulse"></div>
 							</td>
 							<td :class="tableCellClass">
@@ -85,8 +104,7 @@
 						<tr class="border-b border-white/20">
 							<th :class="tableHeaderClass">設備名稱</th>
 							<th :class="tableHeaderClass">設備型號</th>
-							<th :class="tableHeaderClass">主機位址</th>
-							<th :class="tableHeaderClass">端口</th>
+							<th :class="tableHeaderClass">配置資訊</th>
 							<th :class="tableHeaderClass">狀態</th>
 							<th :class="tableHeaderClass">
 								<label>
@@ -106,8 +124,9 @@
 								<span v-if="device.model_name" class="text-white/90">{{ device.model_name }}</span>
 								<span v-else class="text-white/50">-</span>
 							</td>
-							<td :class="tableCellClass">{{ device.host }}</td>
-							<td :class="tableCellClass">{{ device.port }}</td>
+							<td :class="tableCellClass">
+								<span class="text-white/80 text-sm 2xl:text-base">{{ formatDeviceConfig(device.config) }}</span>
+							</td>
 							<td :class="tableCellClass">
 								<span :class="[getStatusBadgeClass(device.status), 'px-2 2xl:px-3 py-1 2xl:py-1.5 rounded']">
 									{{ statusLabels[device.status] }}
@@ -136,7 +155,7 @@
 			<template v-else>
 				<div class="text-center py-8 text-white/60">
 					<p class="text-lg 2xl:text-xl">尚無設備資料</p>
-					<p v-if="isAdmin" class="text-sm 2xl:text-base mt-2">點擊「新增設備」開始建立 Modbus 設備</p>
+					<p v-if="isAdmin" class="text-sm 2xl:text-base mt-2">點擊「新增設備」開始建立 {{ currentTabName }}</p>
 				</div>
 			</template>
 
@@ -165,9 +184,10 @@
 		</section>
 
 		<!-- 建立/編輯設備對話框 -->
-		<ModbusDeviceDialog
+		<DeviceDialog
 			v-model="showDialog"
 			:editing-device="editingDevice"
+			:device-type-code="activeTab"
 			:is-admin="isAdmin"
 			:is-submitting="isSubmitting"
 			:error-message="errorMessage"
@@ -179,6 +199,7 @@
 		<!-- 設備型號管理對話框 -->
 		<DeviceModelDialog
 			v-model="showDeviceModelDialog"
+			:device-type-code="activeTab"
 			@close="showDeviceModelDialog = false"
 			@refresh="
 				() => {
@@ -191,8 +212,8 @@
 </template>
 
 <script setup lang="ts">
-import type { ModbusDevice, CreateModbusDeviceData, UpdateModbusDeviceData } from "~/types/modbus";
-import DeviceModelDialog from "~/components/modbus/DeviceModelDialog.vue";
+import type { Device, CreateDeviceData, UpdateDeviceData, DeviceTypeCode, DeviceConfig } from "~/types/device";
+import DeviceModelDialog from "~/components/device/DeviceModelDialog.vue";
 
 definePageMeta({
 	layout: "default",
@@ -200,10 +221,22 @@ definePageMeta({
 });
 
 const { isAdmin } = useAuth();
-const modbusDeviceApi = useModbusDeviceApi();
+const deviceApi = useDeviceApi();
 const toast = useToast();
 
-const devices = ref<ModbusDevice[]>([]);
+// Tab 配置
+const deviceTabs = [
+	{ name: "影像設備", code: "camera" as DeviceTypeCode },
+	{ name: "控制器", code: "controller" as DeviceTypeCode },
+	{ name: "感測器", code: "sensor" as DeviceTypeCode },
+	{ name: "平板", code: "tablet" as DeviceTypeCode },
+	{ name: "網路裝置", code: "network" as DeviceTypeCode }
+];
+
+const activeTab = ref<DeviceTypeCode>("camera");
+const currentTabName = computed(() => deviceTabs.find((tab) => tab.code === activeTab.value)?.name || "");
+
+const devices = ref<Device[]>([]);
 const isLoading = ref(true);
 const errorMessage = ref<string | null>(null);
 const showCreateDialog = ref(false);
@@ -219,7 +252,7 @@ const showDialog = computed({
 		}
 	}
 });
-const editingDevice = ref<ModbusDevice | null>(null);
+const editingDevice = ref<Device | null>(null);
 const isSubmitting = ref(false);
 
 // 常數配置
@@ -250,6 +283,27 @@ const formatDate = (dateString?: string) => {
 	return new Date(dateString).toLocaleDateString("zh-TW");
 };
 
+const formatDeviceConfig = (config: DeviceConfig): string => {
+	if (!config) return "-";
+	switch (config.type) {
+		case "controller":
+			return `${config.host}:${config.port}`;
+		case "camera":
+			return config.ip_address || config.rtsp_url || "-";
+		case "sensor":
+			if (config.protocol === "modbus") {
+				return `${config.host}:${config.port}`;
+			}
+			return config.connection_string || config.api_endpoint || "-";
+		case "tablet":
+			return config.ip_address || config.mac_address || "-";
+		case "network":
+			return config.ip_address || "-";
+		default:
+			return "-";
+	}
+};
+
 const getStatusBadgeClass = (status: string) => {
 	const classes = {
 		active: "bg-emerald-500/20 text-emerald-200",
@@ -268,6 +322,12 @@ const handleError = (error: unknown, defaultMessage: string) => {
 	return errorMsg;
 };
 
+const switchTab = (tabCode: DeviceTypeCode) => {
+	activeTab.value = tabCode;
+	offset.value = 0;
+	loadDevices();
+};
+
 const loadDevices = async () => {
 	isLoading.value = true;
 	errorMessage.value = null;
@@ -275,7 +335,8 @@ const loadDevices = async () => {
 	const startTime = Date.now();
 
 	try {
-		const result = await modbusDeviceApi.getDevices({
+		const result = await deviceApi.getDevices({
+			type_code: activeTab.value,
 			limit,
 			offset: offset.value,
 			orderBy: "created_at",
@@ -298,7 +359,7 @@ const loadDevices = async () => {
 	}
 };
 
-const editDevice = (device: ModbusDevice) => {
+const editDevice = (device: Device) => {
 	editingDevice.value = device;
 	showCreateDialog.value = true;
 };
@@ -309,17 +370,17 @@ const closeDialog = () => {
 	errorMessage.value = null;
 };
 
-const handleSubmit = async (data: CreateModbusDeviceData | UpdateModbusDeviceData) => {
+const handleSubmit = async (data: CreateDeviceData | UpdateDeviceData) => {
 	isSubmitting.value = true;
 	errorMessage.value = null;
 
 	try {
 		if (editingDevice.value) {
 			// 更新設備
-			await modbusDeviceApi.updateDevice(editingDevice.value.id, data as UpdateModbusDeviceData);
+			await deviceApi.updateDevice(editingDevice.value.id, data as UpdateDeviceData);
 		} else {
 			// 建立設備
-			await modbusDeviceApi.createDevice(data as CreateModbusDeviceData);
+			await deviceApi.createDevice(data as CreateDeviceData);
 		}
 
 		const wasEditing = !!editingDevice.value;
@@ -333,13 +394,13 @@ const handleSubmit = async (data: CreateModbusDeviceData | UpdateModbusDeviceDat
 	}
 };
 
-const confirmDeleteDevice = async (device: ModbusDevice) => {
+const confirmDeleteDevice = async (device: Device) => {
 	if (!confirm(`確定要刪除設備 "${device.name}" 嗎？此操作無法復原。`)) {
 		return;
 	}
 
 	try {
-		await modbusDeviceApi.deleteDevice(device.id);
+		await deviceApi.deleteDevice(device.id);
 		await loadDevices();
 		toast.success(`設備 "${device.name}" 已刪除`);
 	} catch (error) {
@@ -366,6 +427,11 @@ const handleSortChange = () => {
 	offset.value = 0;
 	loadDevices();
 };
+
+// 監聽 tab 切換
+watch(activeTab, () => {
+	loadDevices();
+});
 
 onMounted(() => {
 	loadDevices();

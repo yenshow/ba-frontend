@@ -6,7 +6,7 @@ export interface ModbusHealth {
 	lastConnectedAt: string | null;
 }
 
-export interface DeviceConfig {
+export interface ModbusDeviceConfig {
 	host: string;
 	port: number;
 	unitId: number;
@@ -16,7 +16,7 @@ export interface ModbusDataResponse<T = number | boolean> {
 	address: number;
 	length: number;
 	data: T[];
-	device?: DeviceConfig;
+	device?: ModbusDeviceConfig;
 }
 
 export interface ModbusDevice {
@@ -92,4 +92,3 @@ export interface UpdateModbusDeviceModelData {
 	port?: number;
 	description?: string;
 }
-

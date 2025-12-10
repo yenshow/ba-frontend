@@ -1,7 +1,7 @@
 import { useRequestFetch } from "#app";
-import type { ModbusDataResponse, ModbusHealth, DeviceConfig } from "~/types/modbus";
+import type { ModbusDataResponse, ModbusHealth, ModbusDeviceConfig } from "~/types/modbus";
 
-export type { DeviceConfig };
+export type { ModbusDeviceConfig as DeviceConfig };
 
 type QueryParams = Record<string, string | number | boolean | undefined>;
 
@@ -20,7 +20,7 @@ const buildQuery = (params?: QueryParams): string => {
 };
 
 // 將設備配置轉換為查詢參數
-const deviceConfigToParams = (deviceConfig: DeviceConfig): QueryParams => {
+const deviceConfigToParams = (deviceConfig: ModbusDeviceConfig): QueryParams => {
 	return {
 		host: deviceConfig.host,
 		port: deviceConfig.port,
@@ -100,33 +100,33 @@ export const useModbusApi = () => {
 	};
 
 	return {
-		getHealth: (deviceConfig: DeviceConfig) => {
+		getHealth: (deviceConfig: ModbusDeviceConfig) => {
 			const params = deviceConfigToParams(deviceConfig);
 			return request<ModbusHealth>("/health", params);
 		},
-		getDiscreteInputs: (address: number, length: number, deviceConfig: DeviceConfig) => {
+		getDiscreteInputs: (address: number, length: number, deviceConfig: ModbusDeviceConfig) => {
 			const params = { address, length, ...deviceConfigToParams(deviceConfig) };
 			return request<ModbusDataResponse<boolean>>("/discrete-inputs", params);
 		},
-		getCoils: (address: number, length: number, deviceConfig: DeviceConfig) => {
+		getCoils: (address: number, length: number, deviceConfig: ModbusDeviceConfig) => {
 			const params = { address, length, ...deviceConfigToParams(deviceConfig) };
 			return request<ModbusDataResponse<boolean>>("/coils", params);
 		},
-		getHoldingRegisters: (address: number, length: number, deviceConfig: DeviceConfig) => {
+		getHoldingRegisters: (address: number, length: number, deviceConfig: ModbusDeviceConfig) => {
 			const params = { address, length, ...deviceConfigToParams(deviceConfig) };
 			return request<ModbusDataResponse<number>>("/holding-registers", params);
 		},
-		getInputRegisters: (address: number, length: number, deviceConfig: DeviceConfig) => {
+		getInputRegisters: (address: number, length: number, deviceConfig: ModbusDeviceConfig) => {
 			const params = { address, length, ...deviceConfigToParams(deviceConfig) };
 			return request<ModbusDataResponse<number>>("/input-registers", params);
 		},
-		writeCoil: (address: number, value: boolean, deviceConfig: DeviceConfig) => {
+		writeCoil: (address: number, value: boolean, deviceConfig: ModbusDeviceConfig) => {
 			const params = deviceConfigToParams(deviceConfig);
-			return requestWithBody<{ address: number; value: boolean; success: boolean; device: DeviceConfig }>("/coils", { address, value }, params);
+			return requestWithBody<{ address: number; value: boolean; success: boolean; device: ModbusDeviceConfig }>("/coils", { address, value }, params);
 		},
-		writeCoils: (address: number, values: boolean[], deviceConfig: DeviceConfig) => {
+		writeCoils: (address: number, values: boolean[], deviceConfig: ModbusDeviceConfig) => {
 			const params = deviceConfigToParams(deviceConfig);
-			return requestWithBody<{ address: number; values: boolean[]; success: boolean; device: DeviceConfig }>("/coils", { address, values }, params);
+			return requestWithBody<{ address: number; values: boolean[]; success: boolean; device: ModbusDeviceConfig }>("/coils", { address, values }, params);
 		}
 	};
 };

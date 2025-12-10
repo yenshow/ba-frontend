@@ -17,9 +17,9 @@
 
 			<!-- Right Icons -->
 			<div class="flex items-center space-x-4 xl:space-x-6 2xl:space-x-8">
-				<!-- Modbus 設備管理 -->
-				<button :class="['icon-button', { 'icon-button-active': isModbusDevicesActive }]">
-					<NuxtLink to="/system/modbus-devices">
+				<!-- 設備管理 -->
+				<button :class="['icon-button', { 'icon-button-active': isDevicesActive }]">
+					<NuxtLink to="/system/devices">
 						<NuxtImg src="/layout/modbus.png" alt="設備管理" class="w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 object-contain" width="56" height="56" />
 					</NuxtLink>
 				</button>
@@ -201,7 +201,7 @@ const primaryModules = computed(() => getModulesByCategory("primary"));
 const extendedModules = computed(() => getModulesByCategory("extended"));
 
 // Active 狀態判斷
-const isModbusDevicesActive = computed(() => route.path === "/system/modbus-devices");
+const isDevicesActive = computed(() => route.path === "/system/devices");
 const isAlertLogActive = computed(() => route.path === "/system/alert-log");
 
 const closeUserMenu = () => {
