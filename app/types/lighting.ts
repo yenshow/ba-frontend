@@ -1,19 +1,17 @@
 import type { RoomCategory } from "~/types/system";
 
-// Modbus API 方法類型
-export type ModbusMethod =
-	| "getCoils" // 讀取 DO (Coils)
-	| "writeCoil" // 寫入單一 DO (Coil)
-	| "writeCoils" // 寫入多個 DO (Coils)
-	| "getDiscreteInputs" // 讀取 DI (Discrete Inputs)
-	| "getHoldingRegisters" // 讀取 Holding Registers
-	| "getInputRegisters"; // 讀取 Input Registers
+// 點位類型
+export type ModbusPointType = "DI" | "DO";
 
 // 點位配置介面
 export interface ModbusPointConfig {
+	id?: string; // 唯一 ID（用於 UI）
 	address: number; // 點位地址
-	method: ModbusMethod; // API 方法
+	type: ModbusPointType; // 點位類型：DI (數位輸入) 或 DO (數位輸出)
 	note?: string; // 備註
+
+	// 向後兼容：保留 method 欄位（舊格式）
+	method?: string;
 }
 
 export interface CategoryModbusConfig {

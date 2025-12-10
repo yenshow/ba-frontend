@@ -100,11 +100,13 @@ interface Props {
 	floors: Floor[];
 	categories: LightingCategory[];
 	categoryStatuses?: Record<string, { isRunning: boolean; status: "normal" | "warning" | "error" }>;
+	categoryDisabledMap?: Record<string, boolean>;
 	selectedFloor?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	categoryStatuses: () => ({}),
+	categoryDisabledMap: () => ({}),
 	selectedFloor: ""
 });
 
@@ -119,66 +121,70 @@ const statusLabels: Record<"normal" | "warning" | "error", string> = {
 	error: "異常"
 };
 
-const displayedFloors = computed(() => {
-	const floorsWithCategories = props.floors.filter((floor) => {
-		return getFloorCategories(floor.id).length > 0;
+// 按樓層分組分類點（緩存計算結果）
+const categoriesByFloor = computed(() => {
+	const map = new Map<string, LightingCategory[]>();
+	props.categories.forEach((category) => {
+		if (!map.has(category.floorId)) {
+			map.set(category.floorId, []);
+		}
+		map.get(category.floorId)!.push(category);
 	});
-	return floorsWithCategories.sort((a, b) => a.level - b.level);
+	return map;
 });
 
 // 獲取指定樓層的分類點
 const getFloorCategories = (floorId: string): LightingCategory[] => {
-	return props.categories.filter((category) => category.floorId === floorId);
+	return categoriesByFloor.value.get(floorId) || [];
 };
 
+// 顯示的樓層（只顯示有分類點的樓層）
+const displayedFloors = computed(() => {
+	return props.floors
+		.filter((floor) => getFloorCategories(floor.id).length > 0)
+		.sort((a, b) => a.level - b.level);
+});
+
+// 所有分類點的狀態 Map（包含格式化後的標籤）
+const categoryStatusMap = computed(() => {
+	const map: Record<string, { isRunning: boolean; status: "normal" | "warning" | "error"; healthLabel: string }> = {};
+	props.categories.forEach((category) => {
+		const status = props.categoryStatuses[category.id];
+		if (status) {
+			map[category.id] = {
+				isRunning: status.isRunning,
+				status: status.status,
+				healthLabel: statusLabels[status.status]
+			};
+		} else {
+			map[category.id] = {
+				isRunning: false,
+				status: "normal",
+				healthLabel: "正常"
+			};
+		}
+	});
+	return map;
+});
+
+// 取得分類點狀態（從緩存的 Map 中取得）
 const getCategoryStatus = (categoryId: string) => {
-	const status = props.categoryStatuses[categoryId];
-	if (status) {
-		return {
-			isRunning: status.isRunning,
-			status: status.status,
-			healthLabel: statusLabels[status.status]
-		};
-	}
-	return {
+	return categoryStatusMap.value[categoryId] || {
 		isRunning: false,
 		status: "normal" as const,
 		healthLabel: "正常"
 	};
 };
 
+// 判斷分類點是否正常
 const isCategoryNormal = (categoryId: string): boolean => {
-	const status = props.categoryStatuses[categoryId];
+	const status = categoryStatusMap.value[categoryId];
 	return !status || status.status === "normal";
 };
 
 const isCategoryDisabled = (category: LightingCategory): boolean => {
-	// 1F 為假資料，不禁用
-	if (category.floorId === "1F") {
-		return false;
-	}
-	
-	// 如果沒有 Modbus 配置，禁用
-	if (!category.modbus) {
-		return true;
-	}
-	
-	// 如果有 points 配置，檢查是否有可寫入的點位
-	if (category.modbus.points && category.modbus.points.length > 0) {
-		const hasWritePoints = category.modbus.points.some(
-			(p) => p.method === "writeCoil" || p.method === "writeCoils"
-		);
-		return !hasWritePoints;
-	}
-	
-	// 向後兼容：檢查舊格式
-	if (category.modbus.deviceId) {
-		// 如果有設備 ID 但沒有點位配置，禁用
-		return !category.modbus.doAddresses && !category.modbus.doAddress && !category.modbus.address;
-	}
-	
-	// 如果沒有設備配置，禁用
-	return !category.modbus.host || !category.modbus.port;
+	// 從父組件傳入的禁用狀態 Map 中取得
+	return props.categoryDisabledMap[category.id] ?? false;
 };
 
 const handleToggle = (categoryId: string, isRunning: boolean) => {

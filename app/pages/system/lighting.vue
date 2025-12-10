@@ -43,23 +43,6 @@
 								</Transition>
 							</div>
 						</div>
-
-						<!-- 室內/室外切換 -->
-						<div class="flex flex-col gap-2">
-							<button
-								v-for="type in ['outdoor', 'indoor'] as const"
-								:key="type"
-								type="button"
-								@click="toggleRoomType(type)"
-								:aria-pressed="selectedRoomType === type"
-								:class="[
-									'p-3 whitespace-nowrap rounded-2xl text-white font-light transition-all text-lg 2xl:text-2xl',
-									selectedRoomType === type ? 'bg-white/10 border-2 border-white' : 'bg-transparent border-2 border-white/30'
-								]"
-							>
-								{{ type === "outdoor" ? "室外" : "室內" }}
-							</button>
-						</div>
 					</div>
 
 					<!-- 中央樓層平面圖 -->
@@ -116,6 +99,7 @@
 					:floors="floors"
 					:categories="categories"
 					:category-statuses="categoryStatuses"
+					:category-disabled-map="categoryDisabledMap"
 					:selected-floor="selectedFloor"
 					@toggle="handleCategoryToggle"
 					@floor-selected="handleFloorSelected"
@@ -128,12 +112,12 @@
 
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount } from "vue";
-import type { Floor, Room } from "~/types/system";
+import type { Floor } from "~/types/system";
 import StatusCenter from "~/components/lighting/StatusCenter.vue";
 import CategoryTooltip from "~/components/lighting/CategoryTooltip.vue";
 import CategoryList from "~/components/lighting/CategoryList.vue";
 import CategoryEditDialog from "~/components/lighting/CategoryEditDialog.vue";
-import type { LightingCategory } from "~/types/lighting";
+import type { LightingCategory, CategoryModbusConfig } from "~/types/lighting";
 import { useModbusApi } from "~/composables/useModbus";
 import { useModbusDeviceApi } from "~/composables/useModbusDeviceApi";
 import type { ModbusDevice } from "~/types/modbus";
@@ -143,7 +127,7 @@ definePageMeta({
 	// 認證由全局中間件處理
 });
 
-// 樓層數據（範例）
+// 樓層數據
 const floors = ref<Floor[]>([
 	{ id: "B3F", name: "B3F", level: -3 },
 	{ id: "B2F", name: "B2F", level: -2 },
@@ -177,40 +161,12 @@ const floors = ref<Floor[]>([
 	{ id: "R3F", name: "R3F", level: 27 }
 ]);
 
-// 房間數據（範例）
-const rooms = ref<Room[]>([
-	{ id: "room-1", name: "A區 - 桌球室", floorId: "1F", area: "A區", type: "indoor" },
-	{ id: "room-2", name: "B區 - 遊戲室", floorId: "1F", area: "B區", type: "indoor" },
-	{ id: "room-3", name: "C區 - 跑步機", floorId: "1F", area: "C區", type: "indoor" },
-	{ id: "room-4", name: "D區 - 休息區", floorId: "1F", area: "D區", type: "indoor" },
-	{ id: "room-5", name: "E區 - 廁所", floorId: "1F", area: "E區", type: "indoor" },
-	// 管委會的房間
-	{ id: "room-6", name: "A區 - 會議室", floorId: "1F", area: "A區", type: "indoor" },
-	{ id: "room-7", name: "B區 - 辦公室", floorId: "1F", area: "B區", type: "indoor" }
-]);
-
-// 房間分類數據（範例）- 黃點對應到這些分類
-const categories = ref<LightingCategory[]>([
-	{
-		id: "category-1",
-		name: "健身房",
-		floorId: "1F",
-		location: { x: 50, y: 40 },
-		roomIds: ["room-1", "room-2", "room-3", "room-4", "room-5"]
-	},
-	{
-		id: "category-2",
-		name: "管委會",
-		floorId: "1F",
-		location: { x: 70, y: 60 },
-		roomIds: ["room-6", "room-7"]
-	}
-]);
+// 分類點數據（從 localStorage 載入）
+const categories = ref<LightingCategory[]>([]);
 
 // 選中的樓層與分類
 const selectedFloor = ref("1F");
 const selectedCategory = ref("");
-const selectedRoomType = ref<"indoor" | "outdoor" | null>(null);
 
 // 編輯模式相關
 const isEditMode = ref(false);
@@ -220,19 +176,9 @@ const isFloorPlanLoaded = ref(false);
 const showCategoryDialog = ref(false);
 const editingCategory = ref<LightingCategory | null>(null);
 
-// 統一優化：創建 roomsById Map（避免重複創建）
-const roomsById = computed(() => {
-	return new Map(rooms.value.map((room) => [room.id, room]));
-});
-
-// 統一優化：創建 floorsById Map（避免重複查找）
+// 創建 floorsById Map（避免重複查找）
 const floorsById = computed(() => {
 	return new Map(floors.value.map((floor) => [floor.id, floor]));
-});
-
-// 統一優化：創建 categoriesById Map（用於快速查找分類）
-const categoriesById = computed(() => {
-	return new Map(categories.value.map((category) => [category.id, category]));
 });
 
 // 選中的樓層名稱
@@ -261,16 +207,40 @@ const isCategoryNormal = (categoryId: string) => {
 	return !status || status.status === "normal";
 };
 
+// 計算分類點禁用狀態 Map（用於 StatusCenter）
+const categoryDisabledMap = computed(() => {
+	const map: Record<string, boolean> = {};
+	categories.value.forEach((category) => {
+		// 如果沒有 Modbus 配置，允許控制（用於範例資料，如 1F）
+		if (!category.modbus) {
+			map[category.id] = false;
+			return;
+		}
+
+		// 如果有 points 配置，檢查是否有 DO 類型的點位（只有 DO 可以控制）
+		if (category.modbus.points && category.modbus.points.length > 0) {
+			map[category.id] = filterDoPoints(category.modbus.points).length === 0;
+			return;
+		}
+
+		// 向後兼容：檢查舊格式
+		if (category.modbus.deviceId) {
+			// 如果有設備 ID 但沒有點位配置，允許控制（可能是範例資料）
+			map[category.id] = !category.modbus.doAddresses && !category.modbus.doAddress && !category.modbus.address;
+			return;
+		}
+
+		// 如果沒有設備配置，允許控制（可能是範例資料）
+		map[category.id] = false;
+	});
+	return map;
+});
+
 // 處理樓層選擇
 const handleFloorSelected = (floorId: string) => {
-	console.log("選中樓層:", floorId);
-	// 更新選中的樓層
 	selectedFloor.value = floorId;
-	// 重置選中的分類
 	selectedCategory.value = "";
-	// 載入該樓層的分類點數據
 	loadCategoriesFromStorage();
-	// 重新初始化狀態
 	initializeCategoryStatuses();
 };
 
@@ -287,17 +257,70 @@ const selectCategoryByIndex = (index: number) => {
 	}
 };
 
-// 切換室內/室外篩選
-const toggleRoomType = (type: "indoor" | "outdoor") => {
-	selectedRoomType.value = selectedRoomType.value === type ? null : type;
-};
-
 // 分類點狀態管理（每個分類點對應一個開關狀態）
 const categoryStatuses = ref<Record<string, { isRunning: boolean; status: "normal" | "warning" | "error" }>>({});
 
-// 判斷分類點是否需要 Modbus 串接（2F 需要，1F 為假資料）
-const needsModbusConnection = (floorId: string): boolean => {
-	return floorId === "2F";
+// 確保分類點狀態物件存在
+const ensureCategoryStatus = (categoryId: string, defaultStatus: "normal" | "error" = "normal") => {
+	if (!categoryStatuses.value[categoryId]) {
+		categoryStatuses.value[categoryId] = {
+			isRunning: false,
+			status: defaultStatus
+		};
+	}
+	return categoryStatuses.value[categoryId];
+};
+
+// 回滾分類點狀態
+const rollbackCategoryStatus = (categoryId: string, isRunning: boolean) => {
+	if (categoryStatuses.value[categoryId]) {
+		categoryStatuses.value[categoryId].isRunning = isRunning;
+	}
+};
+
+// 過濾 DO 點位（新格式和向後兼容）
+const filterDoPoints = (points: any[] | undefined) => {
+	if (!points || points.length === 0) return [];
+	return points.filter((p) => {
+		if (p.type === "DO") return true;
+		// 向後兼容：從 method 推斷
+		if (p.method === "writeCoil" || p.method === "writeCoils" || p.method === "getCoils") return true;
+		return false;
+	});
+};
+
+// 過濾 DI 點位（新格式和向後兼容）
+const filterDiPoints = (points: any[] | undefined) => {
+	if (!points || points.length === 0) return [];
+	return points.filter((p) => {
+		if (p.type === "DI") return true;
+		// 向後兼容：從 method 推斷
+		if (p.method === "getDiscreteInputs") return true;
+		return false;
+	});
+};
+
+// 從舊格式提取 DO 地址陣列
+const extractDoAddresses = (modbus: CategoryModbusConfig): number[] => {
+	if (modbus.doAddresses && modbus.doAddresses.length > 0) {
+		return modbus.doAddresses;
+	}
+	if (modbus.doAddress !== undefined) {
+		const start = modbus.doAddress;
+		const length = modbus.doLength ?? 1;
+		return Array.from({ length }, (_, i) => start + i);
+	}
+	if (modbus.address !== undefined) {
+		const start = modbus.address;
+		const length = modbus.length ?? 1;
+		return Array.from({ length }, (_, i) => start + i);
+	}
+	return [];
+};
+
+// 判斷分類點是否需要 Modbus 串接（有 modbus 配置的都需要）
+const needsModbusConnection = (category: LightingCategory): boolean => {
+	return !!category.modbus;
 };
 
 // 初始化分類點狀態
@@ -374,101 +397,52 @@ const getCategoryDeviceConfig = async (category: LightingCategory): Promise<{ ho
 const AUTO_REFRESH_INTERVAL = 2000;
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
-// 從 Modbus 讀取分類點狀態（僅對 2F 的分類點）
+// 從 Modbus 讀取分類點狀態
 const loadCategoryStatus = async (category: LightingCategory) => {
-	// 只對 2F 的分類點進行 Modbus 讀取
-	if (!needsModbusConnection(category.floorId) || !category.modbus) return;
+	if (!needsModbusConnection(category) || !category.modbus) return;
 
 	try {
 		// 取得設備配置
 		const deviceConfig = await getCategoryDeviceConfig(category);
-		if (!deviceConfig) {
-			console.warn(`分類點 ${category.name} 缺少有效的設備配置`);
-			return;
-		}
+		if (!deviceConfig) return;
 
 		// 使用新的 points 配置
 		if (category.modbus.points && category.modbus.points.length > 0) {
-			// 找出所有讀取類型的點位（getCoils, getDiscreteInputs 等）
-			const readPoints = category.modbus.points.filter(
-				(p) => p.method === "getCoils" || p.method === "getDiscreteInputs" || p.method === "getHoldingRegisters" || p.method === "getInputRegisters"
-			);
+			const doPoints = filterDoPoints(category.modbus.points);
 
-			if (readPoints.length === 0) {
-				console.warn(`分類點 ${category.name} 沒有可讀取的點位配置`);
-				// 初始化狀態為關閉
-				if (!categoryStatuses.value[category.id]) {
-					categoryStatuses.value[category.id] = {
-						isRunning: false,
-						status: "normal"
-					};
-				}
-				return;
-			}
-
-			// 優先使用 getCoils 的點位來判斷狀態（用於開關顯示）
-			const coilPoints = readPoints.filter((p) => p.method === "getCoils");
-			if (coilPoints.length > 0) {
-				// 讀取第一個 getCoils 點位的狀態
-				const firstPoint = coilPoints[0];
+			if (doPoints.length > 0) {
+				// 讀取第一個 DO 點位的狀態（使用 getCoils）
+				const firstPoint = doPoints[0];
 				const response = await modbusApi.getCoils(firstPoint.address, 1, deviceConfig);
 
 				if (response.data && response.data.length > 0) {
-					const isRunning = response.data[0];
-					if (!categoryStatuses.value[category.id]) {
-						categoryStatuses.value[category.id] = {
-							isRunning: false,
-							status: "normal"
-						};
-					}
-					categoryStatuses.value[category.id].isRunning = isRunning;
-					categoryStatuses.value[category.id].status = "normal";
+					const status = ensureCategoryStatus(category.id);
+					status.isRunning = response.data[0];
+					status.status = "normal";
 				}
 			} else {
-				// 如果沒有 getCoils，嘗試讀取其他類型的點位（僅用於狀態顯示，不影響開關）
-				const firstPoint = readPoints[0];
-				try {
-					let response;
-					if (firstPoint.method === "getDiscreteInputs") {
-						response = await modbusApi.getDiscreteInputs(firstPoint.address, 1, deviceConfig);
-					} else if (firstPoint.method === "getHoldingRegisters") {
-						response = await modbusApi.getHoldingRegisters(firstPoint.address, 1, deviceConfig);
-					} else if (firstPoint.method === "getInputRegisters") {
-						response = await modbusApi.getInputRegisters(firstPoint.address, 1, deviceConfig);
-					}
+				// 如果沒有 DO 點位，嘗試讀取 DI 點位（僅用於狀態顯示，不影響開關）
+				const diPoints = filterDiPoints(category.modbus.points);
 
-					if (response && response.data && response.data.length > 0) {
-						if (!categoryStatuses.value[category.id]) {
-							categoryStatuses.value[category.id] = {
-								isRunning: false,
-								status: "normal"
-							};
+				if (diPoints.length > 0) {
+					const firstPoint = diPoints[0];
+					try {
+						const response = await modbusApi.getDiscreteInputs(firstPoint.address, 1, deviceConfig);
+						if (response?.data?.length > 0) {
+							// 對於 DI 類型，不更新 isRunning，只更新狀態
+							ensureCategoryStatus(category.id).status = "normal";
 						}
-						// 對於非 Coil 類型，不更新 isRunning，只更新狀態
-						categoryStatuses.value[category.id].status = "normal";
+					} catch (error) {
+						console.error(`讀取 DI 點位 ${firstPoint.address} 失敗:`, error);
 					}
-				} catch (error) {
-					console.error(`讀取點位 ${firstPoint.address} (${firstPoint.method}) 失敗:`, error);
+				} else {
+					// 完全沒有可讀取的點位配置，初始化狀態為關閉
+					ensureCategoryStatus(category.id);
 				}
 			}
 		} else {
 			// 向後兼容：使用舊格式
-			let doAddresses: number[] = [];
-			if (category.modbus.doAddresses && category.modbus.doAddresses.length > 0) {
-				doAddresses = category.modbus.doAddresses;
-			} else if (category.modbus.doAddress !== undefined) {
-				const start = category.modbus.doAddress;
-				const length = category.modbus.doLength ?? 1;
-				for (let i = 0; i < length; i++) {
-					doAddresses.push(start + i);
-				}
-			} else if (category.modbus.address !== undefined) {
-				const start = category.modbus.address;
-				const length = category.modbus.length ?? 1;
-				for (let i = 0; i < length; i++) {
-					doAddresses.push(start + i);
-				}
-			}
+			const doAddresses = extractDoAddresses(category.modbus);
 
 			if (doAddresses.length > 0) {
 				const minAddress = Math.min(...doAddresses);
@@ -479,155 +453,85 @@ const loadCategoryStatus = async (category: LightingCategory) => {
 				if (response.data && response.data.length > 0) {
 					const firstAddressIndex = doAddresses[0] - minAddress;
 					const isRunning = response.data[firstAddressIndex] ?? false;
-
-					if (!categoryStatuses.value[category.id]) {
-						categoryStatuses.value[category.id] = {
-							isRunning: false,
-							status: "normal"
-						};
-					}
-					categoryStatuses.value[category.id].isRunning = isRunning;
-					categoryStatuses.value[category.id].status = "normal";
+					const status = ensureCategoryStatus(category.id);
+					status.isRunning = isRunning;
+					status.status = "normal";
 				}
 			}
 		}
 	} catch (error) {
-		console.error(`讀取分類點 ${category.name} 狀態失敗:`, error);
-		// 確保狀態物件存在
-		if (!categoryStatuses.value[category.id]) {
-			categoryStatuses.value[category.id] = {
-				isRunning: false,
-				status: "error"
-			};
-		} else {
-			categoryStatuses.value[category.id].status = "error";
-		}
+		ensureCategoryStatus(category.id, "error").status = "error";
 	}
 };
 
-// 載入所有分類點的狀態（僅對 2F 的分類點進行 Modbus 讀取）
+// 載入所有分類點的狀態
 const loadAllCategoryStatuses = async (options?: { silent?: boolean }) => {
-	// 只對 2F 的分類點進行 Modbus 讀取
-	const categoriesNeedingModbus = categories.value.filter((c) => needsModbusConnection(c.floorId) && c.modbus);
+	const categoriesNeedingModbus = categories.value.filter(needsModbusConnection);
 	if (categoriesNeedingModbus.length === 0) return;
 
-	// 並行讀取所有需要 Modbus 的分類點狀態
 	await Promise.all(categoriesNeedingModbus.map((category) => loadCategoryStatus(category)));
 };
 
 // 處理分類點開關切換
-const handleCategoryToggle = async (categoryId: string, isRunning: boolean) => {
+// isRunning 參數是 StatusCenter 傳來的切換後的值（已經做了 !isRunning）
+const handleCategoryToggle = async (categoryId: string, targetValue: boolean) => {
 	const category = categories.value.find((c) => c.id === categoryId);
-	if (!category) {
-		console.warn("分類點不存在:", categoryId);
-		return;
-	}
+	if (!category) return;
+
+	// 取得當前狀態
+	const currentStatus = categoryStatuses.value[categoryId];
+	const currentValue = currentStatus?.isRunning ?? false;
 
 	// 更新本地狀態（樂觀更新）
 	if (categoryStatuses.value[categoryId]) {
-		categoryStatuses.value[categoryId].isRunning = !isRunning;
+		categoryStatuses.value[categoryId].isRunning = targetValue;
 	}
 
-	// 1F 為假資料，只更新本地狀態，不進行 Modbus 操作
-	if (!needsModbusConnection(category.floorId)) {
+	// 如果沒有 Modbus 配置，只更新本地狀態
+	if (!needsModbusConnection(category)) {
 		return;
 	}
 
-	// 2F 需要實際 Modbus 串接
 	if (!category.modbus) {
-		console.warn("分類點未配置 Modbus:", categoryId);
-		// 回滾狀態
-		if (categoryStatuses.value[categoryId]) {
-			categoryStatuses.value[categoryId].isRunning = isRunning;
-		}
+		rollbackCategoryStatus(categoryId, currentValue);
 		return;
 	}
 
 	try {
-		// 取得設備配置
 		const deviceConfig = await getCategoryDeviceConfig(category);
 		if (!deviceConfig) {
-			console.warn(`分類點 ${category.name} 缺少有效的設備配置`);
-			// 回滾狀態
-			if (categoryStatuses.value[categoryId]) {
-				categoryStatuses.value[categoryId].isRunning = isRunning;
-			}
+			rollbackCategoryStatus(categoryId, currentValue);
 			return;
 		}
 
 		// 使用新的 points 配置
 		if (category.modbus.points && category.modbus.points.length > 0) {
-			// 找出所有寫入類型的點位（writeCoil, writeCoils）
-			const writePoints = category.modbus.points.filter((p) => p.method === "writeCoil" || p.method === "writeCoils");
+			const doPoints = filterDoPoints(category.modbus.points);
 
-			if (writePoints.length === 0) {
-				console.warn(`分類點 ${category.name} 沒有可寫入的點位配置`);
-				// 回滾狀態
-				if (categoryStatuses.value[categoryId]) {
-					categoryStatuses.value[categoryId].isRunning = isRunning;
-				}
+			if (doPoints.length === 0) {
+				rollbackCategoryStatus(categoryId, currentValue);
 				return;
 			}
 
-			// 執行所有寫入操作
-			await Promise.all(
-				writePoints.map(async (point) => {
-					if (point.method === "writeCoil") {
-						await modbusApi.writeCoil(point.address, !isRunning, deviceConfig);
-					} else if (point.method === "writeCoils") {
-						// writeCoils 需要多個值，這裡使用單一值
-						await modbusApi.writeCoils(point.address, [!isRunning], deviceConfig);
-					}
-				})
-			);
+			// 執行所有 DO 點位的寫入操作（統一使用 writeCoil）
+			await Promise.all(doPoints.map((point) => modbusApi.writeCoil(point.address, targetValue, deviceConfig)));
 		} else {
 			// 向後兼容：使用舊格式
-			let doAddresses: number[] = [];
-			if (category.modbus.doAddresses && category.modbus.doAddresses.length > 0) {
-				doAddresses = category.modbus.doAddresses;
-			} else if (category.modbus.doAddress !== undefined) {
-				const start = category.modbus.doAddress;
-				const length = category.modbus.doLength ?? 1;
-				for (let i = 0; i < length; i++) {
-					doAddresses.push(start + i);
-				}
-			} else if (category.modbus.address !== undefined) {
-				const start = category.modbus.address;
-				const length = category.modbus.length ?? 1;
-				for (let i = 0; i < length; i++) {
-					doAddresses.push(start + i);
-				}
-			}
+			const doAddresses = extractDoAddresses(category.modbus);
 
 			if (doAddresses.length > 0) {
-				const minAddress = Math.min(...doAddresses);
-				const maxAddress = Math.max(...doAddresses);
-				const isContinuous = doAddresses.length === maxAddress - minAddress + 1 && doAddresses.every((addr, idx) => addr === minAddress + idx);
-
-				if (isContinuous) {
-					const values = new Array(doAddresses.length).fill(!isRunning);
-					await modbusApi.writeCoils(minAddress, values, deviceConfig);
-				} else {
-					await Promise.all(doAddresses.map((address) => modbusApi.writeCoil(address, !isRunning, deviceConfig)));
-				}
+				// 統一使用 writeCoil 寫入每個點位（與 modbus.vue 一致）
+				// targetValue 已經是切換後的值，直接寫入
+				await Promise.all(doAddresses.map((address) => modbusApi.writeCoil(address, targetValue, deviceConfig)));
 			}
 		}
 
 		// 寫入成功後，重新讀取狀態以確保同步
 		await loadCategoryStatus(category);
 	} catch (error) {
-		console.error("更新分類點開關狀態失敗:", error);
 		// 回滾狀態並標記為錯誤
-		if (categoryStatuses.value[categoryId]) {
-			categoryStatuses.value[categoryId].isRunning = isRunning;
-			categoryStatuses.value[categoryId].status = "error";
-		} else {
-			// 如果狀態不存在，創建一個
-			categoryStatuses.value[categoryId] = {
-				isRunning: isRunning,
-				status: "error"
-			};
-		}
+		rollbackCategoryStatus(categoryId, currentValue);
+		ensureCategoryStatus(categoryId, "error").status = "error";
 	}
 };
 
@@ -646,22 +550,22 @@ const stopAutoRefresh = () => {
 	refreshTimer = null;
 };
 
+// 創建預設 Modbus 配置
+const createDefaultModbusConfig = () => ({
+	deviceId: 0,
+	points: [],
+	host: "",
+	port: 502,
+	unitId: 1
+});
+
 const createEmptyCategory = (): LightingCategory => ({
 	id: "",
 	name: "",
 	floorId: selectedFloor.value,
 	location: { x: 50, y: 50 },
-	roomIds: [], // 保留空陣列以向後兼容類型定義
-	modbus: {
-		deviceId: 0,
-		points: [],
-		// 向後兼容欄位
-		host: "",
-		port: 502,
-		unitId: 1,
-		address: 0,
-		length: 1
-	}
+	roomIds: [],
+	modbus: createDefaultModbusConfig()
 });
 
 const openCreateCategory = () => {
@@ -676,18 +580,8 @@ const handleEditCategory = (category: LightingCategory) => {
 	editingCategory.value = {
 		...category,
 		location: { ...category.location },
-		roomIds: [], // 移除 Room IDs，保留空陣列以向後兼容
-		modbus: category.modbus
-			? { ...category.modbus }
-			: {
-					deviceId: 0,
-					points: [],
-					host: "",
-					port: 502,
-					unitId: 1,
-					address: 0,
-					length: 1
-				}
+		roomIds: [],
+		modbus: category.modbus ? { ...category.modbus } : createDefaultModbusConfig()
 	};
 	showCategoryDialog.value = true;
 };
@@ -821,14 +715,8 @@ const loadCategoriesFromStorage = () => {
 	try {
 		const saved = localStorage.getItem("lighting-categories");
 		if (saved) {
-			const parsed = JSON.parse(saved) as LightingCategory[];
-			// 只載入當前樓層的分類點
-			const floorCategories = parsed.filter((c: LightingCategory) => c.floorId === selectedFloor.value);
-			if (floorCategories.length > 0) {
-				categories.value = parsed;
-				// 載入後初始化狀態
-				initializeCategoryStatuses();
-			}
+			categories.value = JSON.parse(saved) as LightingCategory[];
+			initializeCategoryStatuses();
 		}
 	} catch (error) {
 		console.error("載入分類點數據失敗:", error);
