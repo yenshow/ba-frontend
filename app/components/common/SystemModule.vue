@@ -17,11 +17,9 @@
 				v-for="n in 8"
 				:key="`skeleton-${n}`"
 				class="aspect-square overflow-hidden border-2 border-white/30 rounded-xl"
-				style="
-					box-shadow:
-						inset -7px 7px 7px rgba(255, 255, 255, 0.15),
-						inset 7px -7px 10px rgba(0, 0, 0, 0.15);
-				"
+				:style="{
+					boxShadow: 'inset -7px 7px 7px rgba(255, 255, 255, 0.15), inset 7px -7px 10px rgba(0, 0, 0, 0.15)'
+				}"
 			>
 				<div class="flex flex-col items-center justify-center h-full animate-pulse">
 					<!-- Icon 骨架 -->
@@ -44,11 +42,9 @@
 				:key="module.id"
 				:to="module.route"
 				class="group aspect-square overflow-hidden border-2 border-white/80 rounded-xl cursor-pointer transition-all hover:bg-white/5"
-				style="
-					box-shadow:
-						inset -7px 7px 7px rgba(255, 255, 255, 0.25),
-						inset 7px -7px 10px rgba(0, 0, 0, 0.25);
-				"
+				:style="{
+					boxShadow: 'inset -7px 7px 7px rgba(255, 255, 255, 0.25), inset 7px -7px 10px rgba(0, 0, 0, 0.25)'
+				}"
 			>
 				<div class="flex flex-col items-center justify-center h-full">
 					<!-- Icon -->

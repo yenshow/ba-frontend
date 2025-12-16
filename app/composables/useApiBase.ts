@@ -29,6 +29,10 @@ export const useApiBase = () => {
 		const url = `${apiBase}${path}`;
 		const headers: Record<string, string> = {
 			...(getAuthHeaders() as Record<string, string>),
+			// 禁用瀏覽器快取，確保取得最新資料
+			// 注意：只使用標準的 Cache-Control 和 Pragma，避免 CORS 問題
+			"Cache-Control": "no-cache, no-store, must-revalidate",
+			Pragma: "no-cache",
 			...(options.headers as Record<string, string>)
 		};
 
@@ -100,10 +104,11 @@ export const useApiBase = () => {
 					const toast = useToast();
 					toast.warning("登入已過期，請重新登入");
 					const router = useRouter();
+					const currentPath = router.currentRoute.value?.fullPath || "/";
 					await router.push({
 						path: "/login",
 						query: {
-							redirect: router.currentRoute.value.fullPath
+							redirect: currentPath
 						}
 					});
 				}
@@ -120,6 +125,11 @@ export const useApiBase = () => {
 
 			if (statusCode === 500) {
 				throw new Error(`伺服器錯誤 (500): ${backendErrorMsg || "Internal Server Error"}`);
+			}
+
+			if (statusCode === 503) {
+				// 503 Service Unavailable - 通常表示設備離線或服務暫時不可用
+				throw new Error(`服務不可用 (503): ${backendErrorMsg || "設備離線或服務暫時不可用"}`);
 			}
 
 			if (error instanceof Error) {

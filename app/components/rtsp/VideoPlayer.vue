@@ -85,6 +85,57 @@ const getFullHlsUrl = (relativeUrl: string): string => {
 	return `${baseUrl}${relativeUrl}`;
 };
 
+// 驗證 HLS URL 是否可訪問
+const checkHlsUrlAvailable = async (url: string, maxRetries = 30, delay = 1000): Promise<boolean> => {
+	for (let i = 0; i < maxRetries; i++) {
+		try {
+			// 先嘗試 HEAD 請求（更輕量）
+			let response = await fetch(url, {
+				method: "HEAD",
+				mode: "cors",
+				cache: "no-cache"
+			});
+			
+			// 如果 HEAD 失敗，嘗試 GET 請求（某些服務器可能不支持 HEAD）
+			if (!response.ok && response.status === 405) {
+				response = await fetch(url, {
+					method: "GET",
+					mode: "cors",
+					cache: "no-cache",
+					headers: {
+						Range: "bytes=0-0" // 只請求第一個字節，減少帶寬
+					}
+				});
+			}
+			
+			if (response.ok) {
+				console.log(`HLS URL 驗證成功 (嘗試 ${i + 1}/${maxRetries}):`, url);
+				return true;
+			}
+			
+			// 如果是 404，繼續重試（文件可能還在生成中）
+			if (response.status === 404) {
+				console.log(`HLS URL 尚未就緒 (嘗試 ${i + 1}/${maxRetries}): 404 Not Found`);
+			} else {
+				console.warn(`HLS URL 驗證失敗 (嘗試 ${i + 1}/${maxRetries}): HTTP ${response.status}`);
+			}
+		} catch (err) {
+			// 網路錯誤，繼續重試
+			if (i < maxRetries - 1) {
+				console.log(`HLS URL 驗證失敗 (嘗試 ${i + 1}/${maxRetries}):`, err instanceof Error ? err.message : String(err));
+			} else {
+				console.error(`HLS URL 驗證最終失敗:`, err);
+			}
+		}
+		
+		if (i < maxRetries - 1) {
+			await new Promise((resolve) => setTimeout(resolve, delay));
+		}
+	}
+	console.warn(`HLS URL 在 ${maxRetries} 次嘗試後仍不可訪問:`, url);
+	return false;
+};
+
 // 等待 video 元素渲染
 const waitForVideoElement = async (maxAttempts = 20, delay = 100): Promise<boolean> => {
 	for (let i = 0; i < maxAttempts; i++) {
@@ -139,8 +190,12 @@ const startStream = async () => {
 			}
 
 			console.log("video 元素已準備好，等待 HLS 文件生成...");
-			// 等待一小段時間讓 HLS 文件生成（低延遲模式，只需等待 1-2 秒）
-			await new Promise((resolve) => setTimeout(resolve, 1500));
+			// 驗證 HLS URL 是否可訪問（最多等待 30 秒，每次間隔 1 秒）
+			const urlAvailable = await checkHlsUrlAvailable(fullHlsUrl, 30, 1000);
+			if (!urlAvailable) {
+				console.warn("HLS URL 在等待後仍不可訪問，但繼續嘗試初始化播放器");
+				error.value = "HLS 串流文件尚未就緒，請稍候或檢查後端服務";
+			}
 
 			// 初始化 HLS 播放器
 			await initHlsPlayer();
@@ -165,10 +220,16 @@ const startStream = async () => {
 	try {
 		const streamInfo = await rtspApi.startStream(props.rtspUrl);
 		streamId.value = streamInfo.streamId;
-		hlsUrl.value = getFullHlsUrl(streamInfo.hlsUrl);
+		const fullHlsUrl = getFullHlsUrl(streamInfo.hlsUrl);
+		hlsUrl.value = fullHlsUrl;
 
-		// 等待一小段時間讓 HLS 文件生成
-		await new Promise((resolve) => setTimeout(resolve, 2000));
+		// 驗證 HLS URL 是否可訪問（最多等待 30 秒，每次間隔 1 秒）
+		console.log("等待 HLS 文件生成...");
+		const urlAvailable = await checkHlsUrlAvailable(fullHlsUrl, 30, 1000);
+		if (!urlAvailable) {
+			console.warn("HLS URL 在等待後仍不可訪問，但繼續嘗試初始化播放器");
+			error.value = "HLS 串流文件尚未就緒，請稍候或檢查後端服務";
+		}
 
 		// 初始化 HLS 播放器
 		await initHlsPlayer();
@@ -218,57 +279,17 @@ const initHlsPlayer = async () => {
 	const Hls = HlsModule.default;
 
 	// 檢查瀏覽器是否原生支持 HLS
-	if (videoElement.value.canPlayType("application/vnd.apple.mpegurl")) {
-		// Safari 原生支持
-		console.log("使用 Safari 原生 HLS 支持，URL:", hlsUrl.value);
-		videoElement.value.src = hlsUrl.value;
-		videoElement.value.addEventListener("loadedmetadata", () => {
-			console.log("視頻元數據已加載");
-			isPlaying.value = true;
-			// 確保 video 元素仍然存在且已附加到 DOM
-			if (videoElement.value && videoElement.value.parentElement) {
-				// 使用 setTimeout 確保播放請求在 DOM 更新後執行
-				setTimeout(() => {
-					if (videoElement.value && videoElement.value.parentElement) {
-						videoElement.value.play().catch((err) => {
-							if (err.name !== "AbortError") {
-								console.warn("自動播放被阻止，需要用戶手動點擊:", err);
-							}
-						});
-					}
-				}, 100);
-			}
-		});
-		videoElement.value.addEventListener("error", (e) => {
-			console.error("視頻加載錯誤:", e);
-			const videoError = videoElement.value?.error;
-			if (videoError) {
-				let errorMessage = "視頻加載失敗";
-				switch (videoError.code) {
-					case videoError.MEDIA_ERR_ABORTED:
-						errorMessage = "視頻加載被中止";
-						break;
-					case videoError.MEDIA_ERR_NETWORK:
-						errorMessage = "網路錯誤，無法加載視頻";
-						break;
-					case videoError.MEDIA_ERR_DECODE:
-						errorMessage = "視頻解碼錯誤";
-						break;
-					case videoError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-						errorMessage = "視頻格式不支持或 HLS URL 無效";
-						break;
-				}
-				console.error("視頻錯誤詳情:", {
-					code: videoError.code,
-					message: videoError.message,
-					errorMessage
-				});
-				error.value = errorMessage;
-			} else {
-				error.value = "視頻加載失敗，請檢查 HLS URL 或稍後重試";
-			}
-		});
-	} else if (Hls.isSupported()) {
+	const useNativeHls = videoElement.value.canPlayType("application/vnd.apple.mpegurl");
+	const useHlsJs = Hls.isSupported();
+
+	// 使用 hls.js 設置播放器（定義在外部以便在錯誤處理中調用）
+	const setupHlsJsPlayer = () => {
+		if (!videoElement.value || !hlsUrl.value) {
+			console.warn("無法設置 hls.js 播放器: video 元素或 URL 不存在");
+			return;
+		}
+
+		console.log("使用 hls.js 播放器，URL:", hlsUrl.value);
 		// 使用 hls.js 支持其他瀏覽器，配置為低延遲模式
 		hls.value = new Hls({
 			enableWorker: true,
@@ -308,13 +329,36 @@ const initHlsPlayer = async () => {
 			}
 		});
 
+		// 追蹤重試次數
+		let retryCount = 0;
+		const maxRetries = 10;
+		
 		hls.value.on(Hls.Events.ERROR, (event: any, data: any) => {
 			console.error("HLS 錯誤:", data);
 			if (data.fatal) {
 				switch (data.type) {
 					case Hls.ErrorTypes.NETWORK_ERROR:
-						console.error("網路錯誤，嘗試恢復...");
-						hls.value?.startLoad();
+						// 如果是 manifest 加載錯誤（404），可能是文件尚未生成
+						if (data.details === "manifestLoadError" || data.response?.code === 404) {
+							if (retryCount < maxRetries) {
+								retryCount++;
+								console.log(`HLS manifest 尚未就緒，等待後重試 (${retryCount}/${maxRetries})...`);
+								// 等待一段時間後重試
+								setTimeout(() => {
+									if (hls.value && hlsUrl.value) {
+										hls.value.loadSource(hlsUrl.value);
+										hls.value.startLoad();
+									}
+								}, 2000); // 等待 2 秒後重試
+							} else {
+								console.error("HLS manifest 在多次重試後仍不可訪問");
+								error.value = "HLS 串流文件尚未就緒，請檢查後端服務或稍後重試";
+								hls.value?.destroy();
+							}
+						} else {
+							console.error("網路錯誤，嘗試恢復...");
+							hls.value?.startLoad();
+						}
 						break;
 					case Hls.ErrorTypes.MEDIA_ERROR:
 						console.error("媒體錯誤，嘗試恢復...");
@@ -326,8 +370,109 @@ const initHlsPlayer = async () => {
 						hls.value?.destroy();
 						break;
 				}
+			} else {
+				// 非致命錯誤，記錄但不中斷播放
+				console.warn("HLS 非致命錯誤:", data);
 			}
 		});
+		
+		// 當 manifest 成功加載時，重置重試計數
+		hls.value.on(Hls.Events.MANIFEST_PARSED, () => {
+			retryCount = 0; // 重置重試計數
+		});
+	};
+
+	if (useNativeHls) {
+		// Safari 原生支持 - 先驗證 URL 是否可訪問
+		console.log("檢測到 Safari 原生 HLS 支持，驗證 URL:", hlsUrl.value);
+		const urlAvailable = await checkHlsUrlAvailable(hlsUrl.value, 30, 1000);
+		
+		if (!urlAvailable) {
+			console.warn("HLS URL 驗證失敗，嘗試使用 hls.js 作為備用方案");
+			// 如果 URL 不可訪問，嘗試使用 hls.js（它可能有更好的錯誤處理）
+			if (useHlsJs) {
+				// 回退到 hls.js
+				setupHlsJsPlayer();
+				return;
+			} else {
+				error.value = "HLS URL 不可訪問，且瀏覽器不支持 hls.js";
+				return;
+			}
+		}
+
+		// URL 可訪問，使用 Safari 原生支持
+		console.log("使用 Safari 原生 HLS 支持，URL:", hlsUrl.value);
+		
+		// 設置錯誤處理器（在設置 src 之前）
+		const errorHandler = (e: Event) => {
+			console.error("視頻加載錯誤:", e);
+			const videoError = videoElement.value?.error;
+			if (videoError) {
+				let errorMessage = "視頻加載失敗";
+				switch (videoError.code) {
+					case videoError.MEDIA_ERR_ABORTED:
+						errorMessage = "視頻加載被中止";
+						break;
+					case videoError.MEDIA_ERR_NETWORK:
+						errorMessage = "網路錯誤，無法加載視頻";
+						break;
+					case videoError.MEDIA_ERR_DECODE:
+						errorMessage = "視頻解碼錯誤";
+						break;
+					case videoError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+						errorMessage = "視頻格式不支持，嘗試使用 hls.js...";
+						// 如果原生支持失敗，嘗試使用 hls.js
+						if (useHlsJs && videoElement.value) {
+							console.log("Safari 原生 HLS 失敗，回退到 hls.js");
+							// 清理原生 HLS 設置
+							videoElement.value.removeEventListener("error", errorHandler);
+							videoElement.value.removeEventListener("loadedmetadata", loadedHandler);
+							videoElement.value.src = ""; // 清空 src
+							videoElement.value.load(); // 重置視頻元素
+							// 等待一下再設置 hls.js
+							setTimeout(() => {
+								if (videoElement.value && hlsUrl.value) {
+									setupHlsJsPlayer();
+								}
+							}, 100);
+							return;
+						}
+						break;
+				}
+				console.error("視頻錯誤詳情:", {
+					code: videoError.code,
+					message: videoError.message,
+					errorMessage
+				});
+				error.value = errorMessage;
+			} else {
+				error.value = "視頻加載失敗，請檢查 HLS URL 或稍後重試";
+			}
+		};
+
+		const loadedHandler = () => {
+			console.log("視頻元數據已加載");
+			isPlaying.value = true;
+			// 確保 video 元素仍然存在且已附加到 DOM
+			if (videoElement.value && videoElement.value.parentElement) {
+				// 使用 setTimeout 確保播放請求在 DOM 更新後執行
+				setTimeout(() => {
+					if (videoElement.value && videoElement.value.parentElement) {
+						videoElement.value.play().catch((err) => {
+							if (err.name !== "AbortError") {
+								console.warn("自動播放被阻止，需要用戶手動點擊:", err);
+							}
+						});
+					}
+				}, 100);
+			}
+		};
+
+		videoElement.value.addEventListener("loadedmetadata", loadedHandler);
+		videoElement.value.addEventListener("error", errorHandler);
+		videoElement.value.src = hlsUrl.value;
+	} else if (useHlsJs) {
+		setupHlsJsPlayer();
 	} else {
 		error.value = "您的瀏覽器不支援 HLS 播放";
 	}

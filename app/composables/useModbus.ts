@@ -49,12 +49,20 @@ export const useModbusApi = () => {
 				}
 			});
 		} catch (error: any) {
+			// 優先檢查 HTTP 狀態碼
+			const statusCode = error?.statusCode || error?.status;
+			
+			// 處理 503 Service Unavailable（設備離線）
+			if (statusCode === 503) {
+				throw new Error(`感測器離線: ${url}`);
+			}
+			
 			// 處理 CORS 錯誤
 			if (
 				error?.message?.includes("CORS") ||
 				error?.message?.includes("cross-origin") ||
-				error?.statusCode === 0 ||
-				(error?.statusCode === undefined && error?.status === undefined)
+				statusCode === 0 ||
+				(statusCode === undefined && error?.status === undefined)
 			) {
 				throw new Error(`Modbus API CORS 錯誤: ${url}\n` + `請檢查後端 CORS_ORIGINS 設定是否包含前端地址`);
 			}
@@ -82,12 +90,20 @@ export const useModbusApi = () => {
 				body
 			});
 		} catch (error: any) {
+			// 優先檢查 HTTP 狀態碼
+			const statusCode = error?.statusCode || error?.status;
+			
+			// 處理 503 Service Unavailable（設備離線）
+			if (statusCode === 503) {
+				throw new Error(`感測器離線: ${url}`);
+			}
+			
 			// 處理 CORS 錯誤
 			if (
 				error?.message?.includes("CORS") ||
 				error?.message?.includes("cross-origin") ||
-				error?.statusCode === 0 ||
-				(error?.statusCode === undefined && error?.status === undefined)
+				statusCode === 0 ||
+				(statusCode === undefined && error?.status === undefined)
 			) {
 				throw new Error(`Modbus API CORS 錯誤: ${url}\n` + `請檢查後端 CORS_ORIGINS 設定是否包含前端地址`);
 			}

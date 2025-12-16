@@ -9,10 +9,10 @@
 			<div class="flex items-center gap-3">
 				<button
 					type="button"
-					@click="handleFloorClick(floor.id)"
+					@click="handleFloorClick(floor.id || floor.name)"
 					:class="[
 						'rounded-full p-2 border-2 transition-all cursor-pointer',
-						props.selectedFloor === floor.id ? 'bg-white text-black/50' : 'text-white bg-transparent'
+						props.selectedFloor === (floor.id || floor.name) ? 'bg-white text-black/50' : 'text-white bg-transparent'
 					]"
 				>
 					<h4 class="text-lg xl:text-xl 2xl:text-2xl p-2 font-semibold tracking-wider">
@@ -20,11 +20,11 @@
 					</h4>
 				</button>
 
-				<!-- 該樓層的分類點（區域）- 兩列布局 -->
-				<div v-if="getFloorCategories(floor.id).length > 0" class="grid grid-cols-2 gap-x-2 gap-y-4 xl:gap-y-5 2xl:gap-y-6">
+				<!-- 該樓層的區域（點位）- 兩列布局 -->
+				<div v-if="getFloorAreas(floor).length > 0" class="grid grid-cols-2 gap-x-2 gap-y-4 xl:gap-y-5 2xl:gap-y-6">
 					<div
-						v-for="category in getFloorCategories(floor.id)"
-						:key="category.id"
+						v-for="(area, areaIndex) in getFloorAreas(floor)"
+						:key="getAreaId(floor, area, areaIndex)"
 						class="flex items-center rounded-xl py-2 xl:py-3 2xl:py-4 pe-2 xl:pe-3 2xl:pe-4 border-2 border-white"
 					>
 						<!-- 左側圖示 -->
@@ -35,36 +35,49 @@
 						<!-- 右側內容區域 -->
 						<div class="flex flex-col gap-2">
 							<!-- 名稱 -->
-							<h4 class="text-white text-lg xl:text-xl 2xl:text-2xl whitespace-nowrap">{{ category.name }}</h4>
+							<h4 class="text-white text-lg xl:text-xl 2xl:text-2xl whitespace-nowrap">{{ area.name }}</h4>
 							<div class="flex items-center gap-2">
 								<div class="space-y-2">
 									<!-- 運轉中標籤 -->
 									<div class="border border-white rounded p-1 bg-white/10">
 										<span class="ps-2 text-sm 2xl:text-base tracking-[6px] whitespace-nowrap text-white">
-											{{ getCategoryStatus(category.id).isRunning ? "運轉中" : "已關閉" }}
+											{{ getAreaStatus(getAreaId(floor, area, areaIndex)).isRunning ? "運轉中" : "已關閉" }}
 										</span>
 									</div>
 
 									<!-- 正常狀態（綠色圓點 + 文字） -->
 									<div class="flex items-center justify-center gap-2 border border-white rounded p-1 bg-white/10">
-										<div :class="['w-5 h-5 rounded-full border border-white', isCategoryNormal(category.id) ? 'bg-green-300' : 'bg-red-500']"></div>
-										<span class="text-white text-sm 2xl:text-base">{{ getCategoryStatus(category.id).healthLabel }}</span>
+										<div :class="['w-5 h-5 rounded-full border border-white', isAreaNormal(getAreaId(floor, area, areaIndex)) ? 'bg-green-300' : 'bg-red-500']"></div>
+										<span class="text-white text-sm 2xl:text-base">{{ getAreaStatus(getAreaId(floor, area, areaIndex)).healthLabel }}</span>
 									</div>
 								</div>
 								<!-- 切換開關 -->
-								<div class="flex justify-center">
-									<label class="relative inline-flex items-center cursor-pointer">
+								<div class="flex justify-center relative">
+									<!-- Loading 指示器（當正在處理切換時顯示） -->
+									<div
+										v-if="props.areaToggling.has(getAreaId(floor, area, areaIndex))"
+										class="absolute inset-0 flex items-center justify-center z-20 pointer-events-none"
+									>
+										<div class="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+									</div>
+									<label
+										class="relative inline-flex items-center"
+										:class="{
+											'cursor-not-allowed': isAreaDisabled(getAreaId(floor, area, areaIndex)),
+											'cursor-pointer': !isAreaDisabled(getAreaId(floor, area, areaIndex))
+										}"
+									>
 										<input
 											type="checkbox"
-											:checked="getCategoryStatus(category.id).isRunning"
+											:checked="getAreaStatus(getAreaId(floor, area, areaIndex)).isRunning"
 											class="sr-only peer"
-											:disabled="isCategoryDisabled(category)"
-											@change="handleToggle(category.id, getCategoryStatus(category.id).isRunning)"
+											:disabled="isAreaDisabled(getAreaId(floor, area, areaIndex))"
+											@change="handleToggle(getAreaId(floor, area, areaIndex), getAreaStatus(getAreaId(floor, area, areaIndex)).isRunning)"
 										/>
 										<div
 											:class="[
 												'w-8 h-16 2xl:w-10 2xl:h-20 border-2 border-white bg-transparent peer-focus:outline-none rounded-full peer peer-checked:after:-translate-y-full after:content-[\'\'] after:absolute after:bottom-0 after:left-0 after:bg-white after:rounded-full after:w-8 after:h-8 2xl:after:w-10 2xl:after:h-10 after:transition-all peer-checked:bg-[#00d1ff]',
-												isCategoryDisabled(category) ? 'opacity-50 cursor-not-allowed' : ''
+												isAreaDisabled(getAreaId(floor, area, areaIndex)) ? 'opacity-50' : ''
 											]"
 										>
 											<!-- ON 文字 -->
@@ -93,25 +106,26 @@
 </template>
 
 <script setup lang="ts">
-import type { Floor } from "~/types/system";
-import type { LightingCategory } from "~/types/lighting";
+import type { LightingFloor, LightingArea } from "~/types/lighting";
 
 interface Props {
-	floors: Floor[];
-	categories: LightingCategory[];
-	categoryStatuses?: Record<string, { isRunning: boolean; status: "normal" | "warning" | "error" }>;
-	categoryDisabledMap?: Record<string, boolean>;
+	floors: LightingFloor[];
+	areaStatuses?: Record<string, { isRunning: boolean; status: "normal" | "warning" | "error" }>;
+	areaDisabledMap?: Record<string, boolean>;
+	areaToggling?: Set<string>; // 正在處理切換操作的區域
 	selectedFloor?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-	categoryStatuses: () => ({}),
-	categoryDisabledMap: () => ({}),
+	floors: () => [],
+	areaStatuses: () => ({}),
+	areaDisabledMap: () => ({}),
+	areaToggling: () => new Set(),
 	selectedFloor: ""
 });
 
 const emit = defineEmits<{
-	toggle: [categoryId: string, isRunning: boolean];
+	toggle: [areaId: string, isRunning: boolean];
 	"floor-selected": [floorId: string];
 }>();
 
@@ -121,74 +135,70 @@ const statusLabels: Record<"normal" | "warning" | "error", string> = {
 	error: "異常"
 };
 
-// 按樓層分組分類點（緩存計算結果）
-const categoriesByFloor = computed(() => {
-	const map = new Map<string, LightingCategory[]>();
-	props.categories.forEach((category) => {
-		if (!map.has(category.floorId)) {
-			map.set(category.floorId, []);
-		}
-		map.get(category.floorId)!.push(category);
-	});
-	return map;
-});
-
-// 獲取指定樓層的分類點
-const getFloorCategories = (floorId: string): LightingCategory[] => {
-	return categoriesByFloor.value.get(floorId) || [];
+// 生成區域 ID（與 lighting.vue 中的邏輯一致）
+const getAreaId = (floor: LightingFloor, area: LightingArea, areaIndex: number): string => {
+	return area.id || `area-${floor.id || floor.name}-${areaIndex}`;
 };
 
-// 顯示的樓層（只顯示有分類點的樓層）
+// 獲取指定樓層的區域
+const getFloorAreas = (floor: LightingFloor): LightingArea[] => {
+	return floor.areas || [];
+};
+
+// 顯示的樓層（只顯示有區域的樓層）
 const displayedFloors = computed(() => {
-	return props.floors
-		.filter((floor) => getFloorCategories(floor.id).length > 0)
-		.sort((a, b) => a.level - b.level);
+	if (!props.floors || !Array.isArray(props.floors)) {
+		return [];
+	}
+	
+	// 過濾出有區域的樓層
+	const floorsWithAreas = props.floors.filter((floor) => {
+		return getFloorAreas(floor).length > 0;
+		});
+	
+	// 如果沒有有區域的樓層，返回所有樓層（用於顯示空狀態）
+	const floorsToShow = floorsWithAreas.length > 0 ? floorsWithAreas : props.floors;
+	
+	// 排序：1F 在前面，2F 在後面（按樓層名稱的自然排序）
+	return floorsToShow.sort((a, b) => {
+		const nameA = a.name || "";
+		const nameB = b.name || "";
+		// 提取數字部分進行比較（例如 "1F" -> 1, "2F" -> 2）
+		const numA = parseInt(nameA.match(/\d+/)?.[0] || "999") || 999;
+		const numB = parseInt(nameB.match(/\d+/)?.[0] || "999") || 999;
+		return numA - numB;
+	});
 });
 
-// 所有分類點的狀態 Map（包含格式化後的標籤）
-const categoryStatusMap = computed(() => {
-	const map: Record<string, { isRunning: boolean; status: "normal" | "warning" | "error"; healthLabel: string }> = {};
-	props.categories.forEach((category) => {
-		const status = props.categoryStatuses[category.id];
+// 取得區域狀態
+const getAreaStatus = (areaId: string) => {
+	const status = props.areaStatuses[areaId];
 		if (status) {
-			map[category.id] = {
+		return {
 				isRunning: status.isRunning,
 				status: status.status,
 				healthLabel: statusLabels[status.status]
 			};
-		} else {
-			map[category.id] = {
-				isRunning: false,
-				status: "normal",
-				healthLabel: "正常"
-			};
-		}
-	});
-	return map;
-});
-
-// 取得分類點狀態（從緩存的 Map 中取得）
-const getCategoryStatus = (categoryId: string) => {
-	return categoryStatusMap.value[categoryId] || {
+	}
+	return {
 		isRunning: false,
 		status: "normal" as const,
 		healthLabel: "正常"
 	};
 };
 
-// 判斷分類點是否正常
-const isCategoryNormal = (categoryId: string): boolean => {
-	const status = categoryStatusMap.value[categoryId];
+// 判斷區域是否正常
+const isAreaNormal = (areaId: string): boolean => {
+	const status = props.areaStatuses[areaId];
 	return !status || status.status === "normal";
 };
 
-const isCategoryDisabled = (category: LightingCategory): boolean => {
-	// 從父組件傳入的禁用狀態 Map 中取得
-	return props.categoryDisabledMap[category.id] ?? false;
+const isAreaDisabled = (areaId: string): boolean => {
+	return props.areaDisabledMap[areaId] ?? false;
 };
 
-const handleToggle = (categoryId: string, isRunning: boolean) => {
-	emit("toggle", categoryId, !isRunning);
+const handleToggle = (areaId: string, isRunning: boolean) => {
+	emit("toggle", areaId, !isRunning);
 };
 
 const handleFloorClick = (floorId: string) => {

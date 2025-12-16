@@ -1,5 +1,5 @@
-// 設備類型代碼
-export type DeviceTypeCode = "camera" | "controller" | "sensor" | "tablet" | "network";
+// 設備類型代碼（從後端動態讀取，這裡僅作為類型參考）
+export type DeviceTypeCode = "camera" | "controller" | "sensor" | "tablet" | "network" | "modbus" | "di_do" | string;
 
 // 設備狀態
 export type DeviceStatus = "active" | "inactive" | "error";
@@ -19,6 +19,7 @@ export interface DeviceModel {
 	id: number;
 	name: string;
 	type_id: number;
+	port: number; // 端口號（預設 502）
 	description?: string;
 	// 根據設備類型，可能包含不同的配置欄位
 	config?: Record<string, any>;
@@ -38,7 +39,8 @@ export interface ControllerDeviceConfig extends DeviceConfigBase {
 	type: "controller";
 	host: string;
 	port: number;
-	unitId: number;
+	// unitId 由後端自動生成，前端不應提供（但在讀取時可能包含）
+	unitId?: number;
 }
 
 // 影像設備配置
@@ -57,7 +59,8 @@ export interface SensorDeviceConfig extends DeviceConfigBase {
 	protocol: "modbus" | "http" | "mqtt";
 	host?: string;
 	port?: number;
-	unitId?: number; // Modbus 專用
+	// unitId 由後端自動生成（僅 Modbus 協議），前端不應提供（但在讀取時可能包含）
+	unitId?: number;
 	connection_string?: string; // 其他協議用
 	api_endpoint?: string; // HTTP 專用
 }
@@ -87,7 +90,7 @@ export interface Device {
 	id: number;
 	name: string;
 	type_id: number;
-	model_id?: number;
+	model_id: number; // 必填：設備型號 ID
 	description?: string;
 	status: DeviceStatus;
 	config: DeviceConfig; // JSON 格式儲存，根據 type_id 解析
@@ -103,7 +106,7 @@ export interface Device {
 export interface CreateDeviceData {
 	name: string;
 	type_id: number;
-	model_id?: number;
+	model_id: number; // 必填：設備型號 ID
 	description?: string;
 	status?: DeviceStatus;
 	config: DeviceConfig;
@@ -113,7 +116,7 @@ export interface CreateDeviceData {
 export interface UpdateDeviceData {
 	name?: string;
 	type_id?: number;
-	model_id?: number;
+	model_id?: number; // 可選，但如果提供則必須是有效的 ID（不能為 0 或 null）
 	description?: string;
 	status?: DeviceStatus;
 	config?: Partial<DeviceConfig>;
@@ -123,6 +126,7 @@ export interface UpdateDeviceData {
 export interface CreateDeviceModelData {
 	name: string;
 	type_id: number;
+	port?: number; // 端口號（預設 502）
 	description?: string;
 	config?: Record<string, any>;
 }
@@ -131,6 +135,7 @@ export interface CreateDeviceModelData {
 export interface UpdateDeviceModelData {
 	name?: string;
 	type_id?: number;
+	port?: number; // 端口號
 	description?: string;
 	config?: Record<string, any>;
 }

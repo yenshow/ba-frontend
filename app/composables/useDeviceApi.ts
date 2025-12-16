@@ -87,11 +87,35 @@ export const useDeviceApi = () => {
 			return request<{ device_type: DeviceType }>(`/devices/types/code/${code}`);
 		},
 
+		// 建立設備類型（管理員）
+		createDeviceType: (data: { name: string; code: string; description?: string }) => {
+			return request<{ message: string; device_type: DeviceType }>("/devices/types", {
+				method: "POST",
+				body: JSON.stringify(data)
+			});
+		},
+
+		// 更新設備類型（管理員）
+		updateDeviceType: (id: number, data: { name?: string; code?: string; description?: string }) => {
+			return request<{ message: string; device_type: DeviceType }>(`/devices/types/${id}`, {
+				method: "PUT",
+				body: JSON.stringify(data)
+			});
+		},
+
+		// 刪除設備類型（管理員）
+		deleteDeviceType: (id: number) => {
+			return request<{ message: string }>(`/devices/types/${id}`, {
+				method: "DELETE"
+			});
+		},
+
 		// 取得所有設備型號（支援按類型篩選）
-		getDeviceModels: (params?: { type_id?: number; type_code?: DeviceTypeCode }) => {
+		getDeviceModels: (params?: { type_id?: number; type_code?: DeviceTypeCode; _t?: string }) => {
 			const query = new URLSearchParams();
 			if (params?.type_id) query.append("type_id", String(params.type_id));
 			if (params?.type_code) query.append("type_code", params.type_code);
+			if (params?._t) query.append("_t", params._t); // 時間戳用於強制刷新
 
 			const queryString = query.toString();
 			return request<{ device_models: DeviceModel[] }>(`/devices/models${queryString ? `?${queryString}` : ""}`);

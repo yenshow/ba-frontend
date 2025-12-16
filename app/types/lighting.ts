@@ -37,3 +37,37 @@ export interface CategoryModbusConfig {
 export type LightingCategory = RoomCategory & {
 	modbus?: CategoryModbusConfig;
 };
+
+// ========== 新的樓層管理結構 ==========
+
+/**
+ * 照明區域（原分類點）
+ */
+export interface LightingArea {
+	id?: string; // 區域 ID（新建時可選）
+	name: string; // 區域名稱（原分類名稱）
+	location: { x: number; y: number }; // 位置座標（百分比）
+	description?: string; // 描述
+	deviceId?: number; // 關聯設備 ID
+	modbus?: CategoryModbusConfig; // Modbus 配置
+}
+
+/**
+ * 照明樓層
+ */
+export interface LightingFloor {
+	id?: string; // 樓層 ID（新建時可選）
+	name: string; // 樓層名稱（如：1F、2F）
+	imageUrl?: string; // 示意圖 URL
+	areas: LightingArea[]; // 區域列表
+	description?: string; // 樓層描述
+}
+
+/**
+ * 樓層管理表單資料（只包含基本資訊，區域編輯在 FloorManagementDialog 中處理）
+ */
+export interface LightingFloorFormData {
+	name: string;
+	imageUrl?: string;
+	description?: string;
+}

@@ -3,7 +3,12 @@
  * 提供系統模組相關的共用邏輯
  */
 
-import { systemModules, getSystemModulesByCategory, getSystemModuleById, getSystemModuleByRoute } from "~/config/system-modules";
+import {
+	systemModules,
+	getSystemModulesByCategory,
+	getSystemModuleById,
+	getSystemModuleByRoute
+} from "~/config/system-modules";
 import type { SystemModule } from "~/types/system";
 
 /**
@@ -13,7 +18,9 @@ export const useSystem = () => {
 	/**
 	 * 根據分類獲取系統模組
 	 */
-	const getModulesByCategory = (category: "primary" | "extended" | "all" = "all"): SystemModule[] => {
+	const getModulesByCategory = (
+		category: "primary" | "extended" | "all" = "all"
+	): SystemModule[] => {
 		return getSystemModulesByCategory(category);
 	};
 

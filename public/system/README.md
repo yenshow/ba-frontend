@@ -22,6 +22,9 @@
 | 空調系統     | `hvac.png`         | 空調系統模組     | 8       |
 | 環境品質系統 | `environment.png`  | 環境品質系統模組 | 9       |
 | 電梯系統     | `elevator.png`     | 電梯系統模組     | 10      |
+| 車輛進出管理 | `vehicle-access.png` | 車輛進出管理模組 | 4       |
+| 人流統計管理 | `people-counting.png` | 人流統計管理模組 | 5       |
+| 設備管理     | `equipment-management.png` | 設備管理模組     | 8       |
 
 #### 備用圖標（可擴充使用）
 
@@ -135,6 +138,12 @@ const moduleName = "區域平面圖";
 - 避免使用特殊字元
 
 ## 📝 修改記錄
+
+### 2025-01-XX
+
+- ✅ 新增三個系統模組圖標：車輛進出管理、人流統計管理、設備管理
+- ✅ 重命名圖標檔名為英文：`vehicle-access.png`、`people-counting.png`、`equipment-management.png`
+- ✅ 更新系統模組配置排序
 
 ### 2025-10-28
 

@@ -1,9 +1,15 @@
 <template>
-	<div class="flex flex-row justify-center items-center gap-4 xl:gap-6 2xl:gap-8 h-full py-4 xl:py-6 2xl:py-8 pl-12 xl:pl-8 2xl:pl-12">
+	<div
+		class="flex h-full flex-row items-center justify-center gap-4 py-4 pl-12 xl:gap-6 xl:py-6 xl:pl-8 2xl:gap-8 2xl:py-8 2xl:pl-12"
+	>
 		<!-- AQI Gauge -->
-		<div class="relative w-full aspect-square max-w-[200px] 2xl:max-w-[240px]">
+		<div class="relative aspect-square w-full max-w-[200px] 2xl:max-w-[240px]">
 			<!-- SVG 弧形指示器 -->
-			<svg class="absolute inset-0 w-full h-full transform -rotate-90 z-20" viewBox="0 0 240 240" style="overflow: visible">
+			<svg
+				class="absolute inset-0 z-20 h-full w-full -rotate-90 transform"
+				viewBox="0 0 240 240"
+				style="overflow: visible"
+			>
 				<path
 					:d="fullArcPath"
 					fill="none"
@@ -13,32 +19,54 @@
 					:stroke-dasharray="arcLength"
 					:stroke-dashoffset="arcDashOffset"
 					class="transition-all duration-500 ease-out"
-					style="opacity: isDataReady ? 1 : 0"
+					:style="{ opacity: isDataReady ? 1 : 0 }"
 				/>
 			</svg>
 
 			<!-- Background Circle -->
-			<div class="absolute inset-0 w-full h-full rounded-full border-4 border-white flex flex-col items-center justify-center overflow-hidden z-10 space-y-2">
+			<div
+				class="absolute inset-0 z-10 flex h-full w-full flex-col items-center justify-center space-y-2 overflow-hidden rounded-full border-4 border-white"
+			>
 				<!-- AQI 標題 -->
-				<div class="text-5xl 2xl:text-6xl font-light text-white tracking-widest">AQI</div>
+				<div class="text-5xl font-light tracking-widest text-white 2xl:text-6xl">AQI</div>
 				<!-- 位置資訊 -->
-				<div class="text-sm 2xl:text-base font-light text-white/80 tracking-widest">{{ aqi.location }}</div>
-				<div class="h-0.5 w-4/5 mx-auto bg-white/20"></div>
+				<div class="text-sm font-light tracking-widest text-white/80 2xl:text-base">
+					{{ aqi.location }}
+				</div>
+				<div class="mx-auto h-0.5 w-4/5 bg-white/20"></div>
 				<!-- AQI 數值（底部） -->
-				<div class="text-4xl 2xl:text-5xl font-light text-white z-10">{{ aqi.value }}</div>
+				<div class="z-10 text-4xl font-light text-white 2xl:text-5xl">{{ aqi.value }}</div>
 			</div>
 		</div>
 
 		<!-- Metrics List - 兩列布局 -->
-		<div class="grid grid-cols-2 w-full">
-			<div v-for="(column, columnIndex) in metricsColumns" :key="columnIndex" class="flex flex-col space-y-4 xl:space-y-5 2xl:space-y-6">
-				<div v-for="metric in column" :key="`${metric.label}-${metric.unit}`" class="flex items-center space-x-2 2xl:space-x-4">
-					<div class="w-16 h-16 xl:w-14 xl:h-14 2xl:w-16 2xl:h-16">
-						<NuxtImg :src="getMetricIcon(metric)" :alt="metric.label" class="w-full h-full object-contain" width="64" height="64" />
+		<div class="grid w-full grid-cols-2">
+			<div
+				v-for="(column, columnIndex) in metricsColumns"
+				:key="columnIndex"
+				class="flex flex-col space-y-4 xl:space-y-5 2xl:space-y-6"
+			>
+				<div
+					v-for="metric in column"
+					:key="`${metric.label}-${metric.unit}`"
+					class="flex items-center space-x-2 2xl:space-x-4"
+				>
+					<div class="h-16 w-16 xl:h-14 xl:w-14 2xl:h-16 2xl:w-16">
+						<NuxtImg
+							:src="getMetricIcon(metric)"
+							:alt="metric.label"
+							class="h-full w-full object-contain"
+							width="64"
+							height="64"
+						/>
 					</div>
-					<div class="flex flex-col text-white min-w-0 flex-1">
-						<span class="text-lg 2xl:text-xl font-light tracking-wide whitespace-nowrap">{{ metric.label }}</span>
-						<span class="text-base 2xl:text-lg font-light tracking-wide whitespace-nowrap">{{ metric.value }} {{ metric.unit }}</span>
+					<div class="flex min-w-0 flex-1 flex-col text-white">
+						<span class="whitespace-nowrap text-lg font-light tracking-wide 2xl:text-xl">{{
+							metric.label
+						}}</span>
+						<span class="whitespace-nowrap text-base font-light tracking-wide 2xl:text-lg"
+							>{{ metric.value }} {{ metric.unit }}</span
+						>
 					</div>
 				</div>
 			</div>
@@ -71,16 +99,11 @@ const metricsColumns = computed(() => {
 });
 
 const iconMap: Record<string, string> = {
-	"PM2.5": "/layout/pm2.5.png",
-	PM10: "/layout/pm10.png",
-	PM1: "/layout/pm1.png",
-	CO: "/layout/co.png",
-	"CO₂": "/layout/co.png",
-	SO2: "/layout/so2.png",
-	NO2: "/layout/no2.png",
-	HCHO: "/layout/no2.png",
-	TVOC: "/layout/so2.png",
-	濕度: "/layout/humidity.png"
+	"PM2.5": "/environment/pm2.5.png",
+	PM10: "/environment/pm10.png",
+	"CO₂": "/environment/CO2.png",
+	HCHO: "/environment/HCHO.png",
+	TVOC: "/environment/TVOC.png"
 };
 
 const getMetricIcon = (metric: AQIMetric) => {

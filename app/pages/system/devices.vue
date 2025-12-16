@@ -1,40 +1,53 @@
 <template>
 	<div class="space-y-6 2xl:space-y-8">
-		<header class="flex flex-wrap items-end justify-between gap-4 2xl:gap-6">
-			<div class="space-y-2 2xl:space-y-4">
-				<h1 class="text-3xl 2xl:text-4xl font-semibold text-white">設備管理</h1>
-				<p class="text-base 2xl:text-xl text-white/80">管理各類型設備配置與配對</p>
-			</div>
+		<div class="flex items-center justify-between">
+			<header class="flex flex-col gap-2">
+				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">設備管理</h1>
+				<p class="text-base text-white/80 2xl:text-xl">管理各類型設備配置與配對</p>
 		</header>
 
 		<!-- Tab 切換 -->
-		<div class="rounded-2xl bg-white/15 p-1 border border-white/20">
+			<div class="rounded-2xl border border-white/20 bg-white/15 p-1">
 			<div class="flex gap-2 overflow-x-auto">
 				<button
 					v-for="tab in deviceTabs"
 					:key="tab.code"
 					type="button"
 					:class="[
-						'px-4 2xl:px-6 py-2 2xl:py-3 text-sm 2xl:text-base font-medium rounded-xl transition-all whitespace-nowrap',
-						activeTab === tab.code ? 'bg-blue-500/80 text-white shadow-lg' : 'text-white/70 hover:text-white hover:bg-white/10'
+							'whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium transition-all 2xl:px-6 2xl:py-3 2xl:text-base',
+							activeTab === tab.code
+								? 'bg-blue-500/80 text-white shadow-lg'
+								: 'text-white/70 hover:bg-white/10 hover:text-white'
 					]"
 					@click="switchTab(tab.code)"
 				>
 					{{ tab.name }}
 				</button>
 			</div>
+			</div>
+
+			<button
+				v-if="isAdmin"
+				type="button"
+				class="rounded-xl bg-purple-500/80 px-4 py-2 text-sm text-white hover:bg-purple-400 disabled:cursor-not-allowed disabled:bg-purple-500/40 2xl:px-6 2xl:py-3 2xl:text-base"
+				@click="showDeviceTypeDialog = true"
+			>
+				設備類型管理
+			</button>
 		</div>
 
 		<!-- 設備列表 -->
-		<section class="rounded-2xl bg-white/15 p-6 2xl:p-8 border border-white/20">
+		<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
 			<!-- Tab 標題和操作按鈕 -->
-			<div class="flex flex-wrap items-center justify-between gap-4 2xl:gap-6 mb-6">
-				<h2 class="text-xl 2xl:text-2xl font-semibold text-white">{{ currentTabName }}管理</h2>
+			<div class="mb-6 flex flex-wrap items-center justify-between gap-4 2xl:gap-6">
+				<h2 class="text-xl font-semibold text-white 2xl:text-2xl">
+					{{ currentTabName ? `${currentTabName}管理` : "設備管理" }}
+				</h2>
 				<div class="flex items-center gap-3 2xl:gap-4">
 					<button
 						v-if="isAdmin"
 						type="button"
-						class="rounded-xl bg-blue-500/80 px-4 2xl:px-6 py-2 2xl:py-3 text-sm 2xl:text-base text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-blue-500/40"
+						class="rounded-xl bg-blue-500/80 px-4 py-2 text-sm text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-blue-500/40 2xl:px-6 2xl:py-3 2xl:text-base"
 						@click="showDeviceModelDialog = true"
 					>
 						設備型號管理
@@ -42,7 +55,7 @@
 					<button
 						v-if="isAdmin"
 						type="button"
-						class="rounded-xl bg-emerald-500/80 px-4 2xl:px-6 py-2 2xl:py-3 text-sm 2xl:text-base text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-500/40"
+						class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-500/40 2xl:px-6 2xl:py-3 2xl:text-base"
 						@click="showCreateDialog = true"
 					>
 						新增設備
@@ -61,7 +74,11 @@
 							<th :class="tableHeaderClass">狀態</th>
 							<th :class="tableHeaderClass">
 								<label>
-									<select v-model="dateSortOrder" :class="sortSelectClass" @change="handleSortChange">
+									<select
+										v-model="dateSortOrder"
+										:class="sortSelectClass"
+										@change="handleSortChange"
+									>
 										<option value="desc">由新到舊</option>
 										<option value="asc">由舊到新</option>
 									</select>
@@ -73,24 +90,24 @@
 					<tbody>
 						<tr v-for="n in 5" :key="`skeleton-${n}`" class="border-b border-white/10">
 							<td :class="tableCellClass">
-								<div class="h-4 2xl:h-5 w-20 2xl:w-24 bg-white/20 rounded animate-pulse"></div>
+								<div class="h-4 w-20 animate-pulse rounded bg-white/20 2xl:h-5 2xl:w-24"></div>
 							</td>
 							<td :class="tableCellClass">
-								<div class="h-4 2xl:h-5 w-24 2xl:w-28 bg-white/20 rounded animate-pulse"></div>
+								<div class="h-4 w-24 animate-pulse rounded bg-white/20 2xl:h-5 2xl:w-28"></div>
 							</td>
 							<td :class="tableCellClass">
-								<div class="h-4 2xl:h-5 w-32 2xl:w-40 bg-white/20 rounded animate-pulse"></div>
+								<div class="h-4 w-32 animate-pulse rounded bg-white/20 2xl:h-5 2xl:w-40"></div>
 							</td>
 							<td :class="tableCellClass">
-								<div class="h-6 2xl:h-7 w-16 2xl:w-20 bg-white/20 rounded animate-pulse"></div>
+								<div class="h-6 w-16 animate-pulse rounded bg-white/20 2xl:h-7 2xl:w-20"></div>
 							</td>
 							<td :class="tableCellClass">
-								<div class="h-4 2xl:h-5 w-32 2xl:w-40 bg-white/20 rounded animate-pulse"></div>
+								<div class="h-4 w-32 animate-pulse rounded bg-white/20 2xl:h-5 2xl:w-40"></div>
 							</td>
 							<td v-if="isAdmin" :class="tableCellClass">
 								<div class="flex gap-2 2xl:gap-3">
-									<div class="h-6 2xl:h-7 w-12 2xl:w-16 bg-white/20 rounded animate-pulse"></div>
-									<div class="h-6 2xl:h-7 w-12 2xl:w-16 bg-white/20 rounded animate-pulse"></div>
+									<div class="h-6 w-12 animate-pulse rounded bg-white/20 2xl:h-7 2xl:w-16"></div>
+									<div class="h-6 w-12 animate-pulse rounded bg-white/20 2xl:h-7 2xl:w-16"></div>
 								</div>
 							</td>
 						</tr>
@@ -108,7 +125,11 @@
 							<th :class="tableHeaderClass">狀態</th>
 							<th :class="tableHeaderClass">
 								<label>
-									<select v-model="dateSortOrder" :class="sortSelectClass" @change="handleSortChange">
+									<select
+										v-model="dateSortOrder"
+										:class="sortSelectClass"
+										@change="handleSortChange"
+									>
 										<option value="desc">由新到舊</option>
 										<option value="asc">由舊到新</option>
 									</select>
@@ -118,29 +139,46 @@
 						</tr>
 					</thead>
 					<tbody>
-						<tr v-for="device in devices" :key="device.id" class="border-b border-white/10 hover:bg-white/5 text-base 2xl:text-lg text-white">
+						<tr
+							v-for="device in devices"
+							:key="device.id"
+							class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
+						>
 							<td :class="tableCellClass">{{ device.name }}</td>
 							<td :class="tableCellClass">
 								<span v-if="device.model_name" class="text-white/90">{{ device.model_name }}</span>
 								<span v-else class="text-white/50">-</span>
 							</td>
 							<td :class="tableCellClass">
-								<span class="text-white/80 text-sm 2xl:text-base">{{ formatDeviceConfig(device.config) }}</span>
+								<span class="text-sm text-white/80 2xl:text-base">{{
+									formatDeviceConfig(device.config)
+								}}</span>
 							</td>
 							<td :class="tableCellClass">
-								<span :class="[getStatusBadgeClass(device.status), 'px-2 2xl:px-3 py-1 2xl:py-1.5 rounded']">
+								<span
+									:class="[
+										getStatusBadgeClass(device.status),
+										'rounded px-2 py-1 2xl:px-3 2xl:py-1.5'
+									]"
+								>
 									{{ statusLabels[device.status] }}
 								</span>
 							</td>
-							<td :class="[tableCellClass, 'text-white/70']">{{ formatDate(device.created_at) }}</td>
+							<td :class="[tableCellClass, 'text-white/70']">
+								{{ formatDate(device.created_at) }}
+							</td>
 							<td v-if="isAdmin" :class="tableCellClass">
 								<div class="flex gap-2 2xl:gap-3">
-									<button type="button" class="px-3 2xl:px-4 py-1 2xl:py-2 rounded bg-blue-500/80 text-white hover:bg-blue-400" @click="editDevice(device)">
+									<button
+										type="button"
+										class="rounded bg-blue-500/80 px-3 py-1 text-white hover:bg-blue-400 2xl:px-4 2xl:py-2"
+										@click="editDevice(device)"
+									>
 										編輯
 									</button>
 									<button
 										type="button"
-										class="px-3 2xl:px-4 py-1 2xl:py-2 rounded bg-red-500/80 text-white hover:bg-red-400"
+										class="rounded bg-red-500/80 px-3 py-1 text-white hover:bg-red-400 2xl:px-4 2xl:py-2"
 										@click="confirmDeleteDevice(device)"
 									>
 										刪除
@@ -153,19 +191,26 @@
 			</template>
 			<!-- 無數據提示 -->
 			<template v-else>
-				<div class="text-center py-8 text-white/60">
+				<div class="py-8 text-center text-white/60">
 					<p class="text-lg 2xl:text-xl">尚無設備資料</p>
-					<p v-if="isAdmin" class="text-sm 2xl:text-base mt-2">點擊「新增設備」開始建立 {{ currentTabName }}</p>
+					<p v-if="isAdmin" class="mt-2 text-sm 2xl:text-base">
+						點擊「新增設備」開始建立 {{ currentTabName }}
+					</p>
 				</div>
 			</template>
 
 			<!-- 分頁：只在有數據且總數超過每頁限制時顯示 -->
-			<div v-if="!isLoading && devices.length > 0 && total > limit" class="mt-4 2xl:mt-6 flex items-center justify-between text-white/80">
-				<div class="text-sm 2xl:text-base">顯示 {{ offset + 1 }}-{{ Math.min(offset + limit, total) }} / 共 {{ total }} 筆</div>
+			<div
+				v-if="!isLoading && devices.length > 0 && total > limit"
+				class="mt-4 flex items-center justify-between text-white/80 2xl:mt-6"
+			>
+				<div class="text-sm 2xl:text-base">
+					顯示 {{ offset + 1 }}-{{ Math.min(offset + limit, total) }} / 共 {{ total }} 筆
+				</div>
 				<div class="flex gap-2 2xl:gap-3">
 					<button
 						type="button"
-						class="px-3 2xl:px-4 py-1 2xl:py-2 rounded text-sm 2xl:text-base bg-white/10 hover:bg-white/20 disabled:opacity-50"
+						class="rounded bg-white/10 px-3 py-1 text-sm hover:bg-white/20 disabled:opacity-50 2xl:px-4 2xl:py-2 2xl:text-base"
 						:disabled="offset === 0"
 						@click="previousPage"
 					>
@@ -173,7 +218,7 @@
 					</button>
 					<button
 						type="button"
-						class="px-3 2xl:px-4 py-1 2xl:py-2 rounded text-sm 2xl:text-base bg-white/10 hover:bg-white/20 disabled:opacity-50"
+						class="rounded bg-white/10 px-3 py-1 text-sm hover:bg-white/20 disabled:opacity-50 2xl:px-4 2xl:py-2 2xl:text-base"
 						:disabled="offset + limit >= total"
 						@click="nextPage"
 					>
@@ -203,7 +248,21 @@
 			@close="showDeviceModelDialog = false"
 			@refresh="
 				() => {
+					// 設備型號變更後，刷新設備列表和設備型號選擇
 					loadDevices();
+					refreshDeviceTypes = !refreshDeviceTypes; // 觸發 DeviceDialog 刷新設備型號列表
+				}
+			"
+		/>
+
+		<!-- 設備類型管理對話框 -->
+		<DeviceTypeDialog
+			v-model="showDeviceTypeDialog"
+			@close="showDeviceTypeDialog = false"
+			@refresh="
+				() => {
+					clearDeviceTypesCache(); // 清除快取
+					loadDeviceTypes(true); // 強制刷新
 					refreshDeviceTypes = !refreshDeviceTypes;
 				}
 			"
@@ -212,8 +271,16 @@
 </template>
 
 <script setup lang="ts">
-import type { Device, CreateDeviceData, UpdateDeviceData, DeviceTypeCode, DeviceConfig } from "~/types/device";
+import type {
+	Device,
+	CreateDeviceData,
+	UpdateDeviceData,
+	DeviceTypeCode,
+	DeviceConfig,
+	DeviceType
+} from "~/types/device";
 import DeviceModelDialog from "~/components/device/DeviceModelDialog.vue";
+import DeviceTypeDialog from "~/components/device/DeviceTypeDialog.vue";
 
 definePageMeta({
 	layout: "default",
@@ -223,29 +290,39 @@ definePageMeta({
 const { isAdmin } = useAuth();
 const deviceApi = useDeviceApi();
 const toast = useToast();
+const { loadDeviceTypes: loadDeviceTypesCached, clearCache: clearDeviceTypesCache } =
+	useDeviceTypesCache();
 
-// Tab 配置
-const deviceTabs = [
-	{ name: "影像設備", code: "camera" as DeviceTypeCode },
-	{ name: "控制器", code: "controller" as DeviceTypeCode },
-	{ name: "感測器", code: "sensor" as DeviceTypeCode },
-	{ name: "平板", code: "tablet" as DeviceTypeCode },
-	{ name: "網路裝置", code: "network" as DeviceTypeCode }
-];
+// 從後端動態讀取的設備類型
+const deviceTypes = ref<DeviceType[]>([]);
+const deviceTabs = computed(() => {
+	return deviceTypes.value.map(type => ({
+		name: type.name,
+		code: type.code as DeviceTypeCode
+	}));
+});
 
-const activeTab = ref<DeviceTypeCode>("camera");
-const currentTabName = computed(() => deviceTabs.find((tab) => tab.code === activeTab.value)?.name || "");
+const activeTab = ref<DeviceTypeCode | null>(null);
+const currentTabName = computed(() => {
+	const tab = deviceTabs.value.find(tab => tab.code === activeTab.value);
+	return tab?.name || "";
+});
 
 const devices = ref<Device[]>([]);
 const isLoading = ref(true);
 const errorMessage = ref<string | null>(null);
 const showCreateDialog = ref(false);
 const showDeviceModelDialog = ref(false);
+const showDeviceTypeDialog = ref(false);
 const refreshDeviceTypes = ref(false);
+
+// 請求去重和防抖
+const loadingDevicesMap = ref<Map<DeviceTypeCode, boolean>>(new Map());
+let loadDevicesTimer: ReturnType<typeof setTimeout> | null = null;
 
 const showDialog = computed({
 	get: () => showCreateDialog.value || !!editingDevice.value,
-	set: (val) => {
+	set: val => {
 		if (!val) {
 			showCreateDialog.value = false;
 			editingDevice.value = null;
@@ -323,12 +400,43 @@ const handleError = (error: unknown, defaultMessage: string) => {
 };
 
 const switchTab = (tabCode: DeviceTypeCode) => {
+	if (activeTab.value === tabCode) return; // 如果已經是當前 tab，不執行
 	activeTab.value = tabCode;
 	offset.value = 0;
-	loadDevices();
+	// 不需要手動調用 loadDevices，watch 會自動處理
 };
 
-const loadDevices = async () => {
+// 載入設備類型（使用共享快取）
+const loadDeviceTypes = async (force = false) => {
+	try {
+		const types = await loadDeviceTypesCached(force);
+		deviceTypes.value = types;
+		// 如果還沒有選中的標籤，選擇第一個
+		if (!activeTab.value && deviceTypes.value.length > 0) {
+			activeTab.value = deviceTypes.value[0].code as DeviceTypeCode;
+		}
+	} catch (error) {
+		handleError(error, "載入設備類型失敗");
+	}
+};
+
+const loadDevices = async (skipDebounce = false) => {
+	if (!activeTab.value) return;
+
+	const tabCode = activeTab.value;
+
+	// 請求去重：如果該 tab 正在載入，跳過
+	if (loadingDevicesMap.value.get(tabCode)) {
+		return;
+	}
+
+	// 防抖：如果不是立即執行，清除之前的計時器並設置新的
+	if (!skipDebounce && loadDevicesTimer) {
+		clearTimeout(loadDevicesTimer);
+	}
+
+	const executeLoad = async () => {
+		loadingDevicesMap.value.set(tabCode, true);
 	isLoading.value = true;
 	errorMessage.value = null;
 
@@ -336,7 +444,7 @@ const loadDevices = async () => {
 
 	try {
 		const result = await deviceApi.getDevices({
-			type_code: activeTab.value,
+				type_code: tabCode,
 			limit,
 			offset: offset.value,
 			orderBy: "created_at",
@@ -347,7 +455,7 @@ const loadDevices = async () => {
 		const remainingDelay = Math.max(0, MIN_LOADING_DELAY - elapsed);
 
 		if (remainingDelay > 0) {
-			await new Promise((resolve) => setTimeout(resolve, remainingDelay));
+				await new Promise(resolve => setTimeout(resolve, remainingDelay));
 		}
 
 		devices.value = result.devices;
@@ -356,6 +464,14 @@ const loadDevices = async () => {
 		handleError(error, "載入設備列表失敗");
 	} finally {
 		isLoading.value = false;
+			loadingDevicesMap.value.delete(tabCode);
+		}
+	};
+
+	if (skipDebounce) {
+		await executeLoad();
+	} else {
+		loadDevicesTimer = setTimeout(executeLoad, 300); // 300ms 防抖
 	}
 };
 
@@ -385,7 +501,7 @@ const handleSubmit = async (data: CreateDeviceData | UpdateDeviceData) => {
 
 		const wasEditing = !!editingDevice.value;
 		closeDialog();
-		await loadDevices();
+		await loadDevices(true); // 立即執行，不使用防抖
 		toast.success(wasEditing ? "設備更新成功" : "設備建立成功");
 	} catch (error) {
 		handleError(error, "操作失敗");
@@ -401,7 +517,7 @@ const confirmDeleteDevice = async (device: Device) => {
 
 	try {
 		await deviceApi.deleteDevice(device.id);
-		await loadDevices();
+		await loadDevices(true); // 立即執行，不使用防抖
 		toast.success(`設備 "${device.name}" 已刪除`);
 	} catch (error) {
 		const errorMsg = handleError(error, "刪除設備失敗");
@@ -412,29 +528,38 @@ const confirmDeleteDevice = async (device: Device) => {
 const previousPage = () => {
 	if (offset.value > 0) {
 		offset.value -= limit;
-		loadDevices();
+		loadDevices(true); // 立即執行，不使用防抖
 	}
 };
 
 const nextPage = () => {
 	if (offset.value + limit < total.value) {
 		offset.value += limit;
-		loadDevices();
+		loadDevices(true); // 立即執行，不使用防抖
 	}
 };
 
 const handleSortChange = () => {
 	offset.value = 0;
-	loadDevices();
+	loadDevices(true); // 立即執行，不使用防抖
 };
 
-// 監聽 tab 切換
-watch(activeTab, () => {
+// 監聽 tab 切換（使用 immediate: false 避免初始觸發）
+watch(activeTab, (newTab, oldTab) => {
+	// 只有在 tab 真正改變時才載入（不是初始設置）
+	if (newTab && oldTab !== null && newTab !== oldTab) {
+		offset.value = 0; // 重置分頁
 	loadDevices();
+	}
 });
 
-onMounted(() => {
-	loadDevices();
+onMounted(async () => {
+	await loadDeviceTypes();
+	// 設備類型載入後會自動設置第一個 tab，watch 會處理載入設備
+	// 但如果沒有觸發 watch，手動載入一次
+	if (activeTab.value) {
+		loadDevices(true); // 立即執行，不使用防抖
+	}
 });
 </script>
 

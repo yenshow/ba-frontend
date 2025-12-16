@@ -1,15 +1,17 @@
 <template>
-	<div class="min-h-screen flex items-center justify-center bg-login-gradient">
+	<div class="bg-login-gradient flex min-h-screen items-center justify-center">
 		<!-- Main Container -->
 		<div class="container">
-			<div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-12 items-center">
+			<div class="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 xl:grid-cols-3">
 				<!-- Left Side - Hero Illustration -->
-				<div class="col-span-1 xl:col-span-2 hidden lg:flex flex-col justify-center items-center space-y-8 -translate-y-16">
+				<div
+					class="col-span-1 hidden -translate-y-16 flex-col items-center justify-center space-y-8 lg:flex xl:col-span-2"
+				>
 					<!-- Hero Image/Illustration -->
 					<NuxtImg
 						src="/login_heroPic.png"
 						alt="BA System"
-						class="image-blur-load w-full h-full object-contain"
+						class="image-blur-load h-full w-full object-contain"
 						:class="{ 'image-loaded': isHeroLoaded }"
 						width="800"
 						height="750"
@@ -24,9 +26,16 @@
 					<!-- Login Card -->
 					<div class="glass glass-card rounded-3xl p-8">
 						<!-- Welcome Header -->
-						<div class="text-center mb-4">
-							<div class="w-24 h-24 mx-auto mb-2 rounded-full bg-white/30 flex items-center justify-center">
-								<svg class="w-20 h-20 text-white" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24">
+						<div class="mb-4 text-center">
+							<div
+								class="mx-auto mb-2 flex h-24 w-24 items-center justify-center rounded-full bg-white/30"
+							>
+								<svg
+									class="h-20 w-20 text-white"
+									fill="currentColor"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
 									<path
 										stroke-linecap="round"
 										stroke-linejoin="round"
@@ -42,10 +51,15 @@
 						<form @submit.prevent="handleLogin" class="space-y-4">
 							<!-- Account Input -->
 							<div>
-								<label class="block text-white/80 text-md mb-2">帳號</label>
+								<label class="text-md mb-2 block text-white/80">帳號</label>
 								<div class="relative">
-									<div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-										<svg class="w-5 h-5 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+										<svg
+											class="h-5 w-5 text-white/80"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
 											<path
 												stroke-linecap="round"
 												stroke-linejoin="round"
@@ -58,7 +72,7 @@
 										v-model="formData.account"
 										type="text"
 										placeholder="請輸入帳號"
-										class="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-[#7DC1CB] focus:ring-2 focus:ring-[#7DC1CB]/30 focus:bg-white/15 transition-all duration-200"
+										class="w-full rounded-xl border border-white/20 bg-white/10 py-3.5 pl-12 pr-4 text-white placeholder-white/40 transition-all duration-200 focus:border-[#7DC1CB] focus:bg-white/15 focus:outline-none focus:ring-2 focus:ring-[#7DC1CB]/30"
 										required
 									/>
 								</div>
@@ -66,10 +80,15 @@
 
 							<!-- Password Input -->
 							<div>
-								<label class="block text-white/80 text-sm mb-2">密碼</label>
+								<label class="mb-2 block text-sm text-white/80">密碼</label>
 								<div class="relative">
-									<div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-										<svg class="w-5 h-5 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+										<svg
+											class="h-5 w-5 text-white/80"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
 											<path
 												stroke-linecap="round"
 												stroke-linejoin="round"
@@ -82,16 +101,27 @@
 										v-model="formData.password"
 										:type="showPassword ? 'text' : 'password'"
 										placeholder="請輸入密碼"
-										class="w-full pl-12 pr-12 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-[#7DC1CB] focus:ring-2 focus:ring-[#7DC1CB]/30 focus:bg-white/15 transition-all duration-200"
+										class="w-full rounded-xl border border-white/20 bg-white/10 py-3.5 pl-12 pr-12 text-white placeholder-white/40 transition-all duration-200 focus:border-[#7DC1CB] focus:bg-white/15 focus:outline-none focus:ring-2 focus:ring-[#7DC1CB]/30"
 										required
 									/>
 									<button
 										type="button"
 										@click="showPassword = !showPassword"
-										class="absolute inset-y-0 right-0 pr-4 flex items-center text-white/40 hover:text-white/80 transition-colors"
+										class="absolute inset-y-0 right-0 flex items-center pr-4 text-white/40 transition-colors hover:text-white/80"
 									>
-										<svg v-if="!showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+										<svg
+											v-if="!showPassword"
+											class="h-5 w-5"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+											/>
 											<path
 												stroke-linecap="round"
 												stroke-linejoin="round"
@@ -99,7 +129,13 @@
 												d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
 											/>
 										</svg>
-										<svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<svg
+											v-else
+											class="h-5 w-5"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
 											<path
 												stroke-linecap="round"
 												stroke-linejoin="round"
@@ -112,7 +148,10 @@
 							</div>
 
 							<!-- Error Message -->
-							<div v-if="errorMessage" class="p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm">
+							<div
+								v-if="errorMessage"
+								class="rounded-lg border border-red-500/50 bg-red-500/20 p-3 text-sm text-red-200"
+							>
 								{{ errorMessage }}
 							</div>
 
@@ -120,11 +159,11 @@
 							<button
 								type="submit"
 								:disabled="isLoading"
-								class="w-full py-4 bg-gradient-to-r from-[#7DC1CB] to-[#5AABB5] text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50"
+								class="w-full rounded-xl bg-gradient-to-r from-[#7DC1CB] to-[#5AABB5] py-4 font-bold text-white shadow-lg transition-all duration-200 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								<span v-if="!isLoading" class="flex items-center justify-center space-x-2">
 									<span class="text-lg">登入</span>
-									<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path
 											stroke-linecap="round"
 											stroke-linejoin="round"
@@ -134,8 +173,15 @@
 									</svg>
 								</span>
 								<span v-else class="flex items-center justify-center space-x-2">
-									<svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-										<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+									<svg class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
+										<circle
+											class="opacity-25"
+											cx="12"
+											cy="12"
+											r="10"
+											stroke="currentColor"
+											stroke-width="4"
+										></circle>
 										<path
 											class="opacity-75"
 											fill="currentColor"
@@ -149,22 +195,27 @@
 
 						<!-- Divider -->
 						<div class="my-8 flex items-center">
-							<div class="flex-1 h-px bg-white/10"></div>
-							<span class="px-4 text-white/40 text-md">或</span>
-							<div class="flex-1 h-px bg-white/10"></div>
+							<div class="h-px flex-1 bg-white/10"></div>
+							<span class="text-md px-4 text-white/40">或</span>
+							<div class="h-px flex-1 bg-white/10"></div>
 						</div>
 
 						<!-- Contact Link -->
 						<div class="text-center">
-							<p class="text-white/60 text-md">
+							<p class="text-md text-white/60">
 								遇到問題？
-								<NuxtLink to="/" class="text-[#ffffffe6] hover:text-[#ffffff] font-bold transition-colors"> 聯絡管理員 </NuxtLink>
+								<NuxtLink
+									to="/"
+									class="font-bold text-[#ffffffe6] transition-colors hover:text-[#ffffff]"
+								>
+									聯絡管理員
+								</NuxtLink>
 							</p>
 						</div>
 					</div>
 
 					<!-- Version Info -->
-					<div class="text-center mt-8 text-white/40">
+					<div class="mt-8 text-center text-white/40">
 						<p class="text-xl">BA System v1.2.0</p>
 						<p class="text-sm">© 2025 YENSHOW Technology</p>
 					</div>

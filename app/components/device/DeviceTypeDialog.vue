@@ -10,7 +10,7 @@
 				>
 					<header class="flex items-center justify-between pr-7 2xl:pr-8">
 						<h3 class="text-lg font-semibold tracking-[4px] text-white 2xl:text-xl">
-							{{ deviceTypeName }} - 設備型號管理
+							設備類型管理
 						</h3>
 						<button
 							type="button"
@@ -32,41 +32,37 @@
 								></div>
 							</div>
 						</template>
-						<template v-else-if="deviceModels.length > 0">
+						<template v-else-if="deviceTypes.length > 0">
 							<div class="space-y-3">
 								<div
-									v-for="model in deviceModels"
-									:key="model.id"
+									v-for="type in deviceTypes"
+									:key="type.id"
 									class="flex items-center justify-between rounded-lg border border-white/20 bg-white/10 p-4 transition-colors hover:bg-white/15"
 								>
 									<div class="flex-1">
 										<div class="flex items-center gap-3">
-											<h4 class="text-base font-medium text-white 2xl:text-lg">{{ model.name }}</h4>
+											<h4 class="text-base font-medium text-white 2xl:text-lg">{{ type.name }}</h4>
 											<span
 												class="rounded bg-white/20 px-2 py-1 text-xs text-white/80 2xl:text-sm"
-												>{{ model.type_name || "類型" }}</span
-											>
-											<span
-												class="rounded bg-blue-500/30 px-2 py-1 text-xs text-blue-200 2xl:text-sm"
-												>Port : {{ model.port || 502 }}</span
+												>{{ type.code }}</span
 											>
 										</div>
-										<p v-if="model.description" class="mt-1 text-sm text-white/60 2xl:text-base">
-											{{ model.description }}
+										<p v-if="type.description" class="mt-1 text-sm text-white/60 2xl:text-base">
+											{{ type.description }}
 										</p>
 									</div>
 									<div class="flex gap-2 2xl:gap-3">
 										<button
 											type="button"
 											class="btn-list-edit"
-											@click="editDeviceModel(model)"
+											@click="editDeviceType(type)"
 										>
 											編輯
 										</button>
 										<button
 											type="button"
 											class="btn-list-delete"
-											@click="confirmDelete(model)"
+											@click="confirmDelete(type)"
 										>
 											刪除
 										</button>
@@ -76,16 +72,17 @@
 						</template>
 						<template v-else>
 							<div class="py-8 text-center text-white/60">
-								<p class="text-base 2xl:text-lg">尚無設備型號</p>
-								<p class="mt-2 text-sm 2xl:text-base">點擊「新增型號」開始建立</p>
+								<p class="text-base 2xl:text-lg">尚無設備類型</p>
+								<p class="mt-2 text-sm 2xl:text-base">點擊「新增類型」開始建立</p>
 							</div>
 						</template>
 					</div>
+
 					<p v-if="errorMessage" class="text-sm text-rose-300 pr-7 2xl:text-base 2xl:pr-8">{{ errorMessage }}</p>
 					<footer class="flex items-center gap-3 border-t border-white/20 pt-4 pr-7 2xl:gap-4 2xl:pr-8">
 						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
 						<div class="flex-1"></div>
-						<button type="button" class="btn-primary" @click="showForm = true">新增型號</button>
+						<button type="button" class="btn-primary" @click="showForm = true">新增類型</button>
 					</footer>
 				</div>
 
@@ -99,7 +96,7 @@
 						>
 							<header class="flex items-center justify-between pr-7 2xl:pr-8">
 								<h3 class="text-lg font-semibold tracking-[4px] text-white 2xl:text-xl">
-									{{ editingModel ? "編輯設備型號" : "新增設備型號" }}
+									{{ editingType ? "編輯設備類型" : "新增設備類型" }}
 								</h3>
 								<button
 									type="button"
@@ -112,72 +109,60 @@
 							</header>
 
 							<form
-								@submit.prevent="handleFormSubmit"
+								@submit.prevent="handleSubmit"
 								class="flex flex-1 flex-col gap-4 overflow-y-auto pb-4 pr-7 2xl:gap-6 2xl:pb-6 2xl:pr-8"
 							>
-								<label
-									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-								>
-									<span>型號名稱 *</span>
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<span>類型名稱 *</span>
 										<input
 											v-model="formData.name"
 											type="text"
 											required
 											class="form-input"
-											placeholder="例如：DI / DO"
+											placeholder="例如：Modbus 控制器"
 										/>
 									</label>
-									<label
-										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-									>
-										<span>類型 *</span>
-										<select
-											v-model.number="formData.type_id"
-											required
-											class="form-input form-select"
-											:disabled="true"
-										>
-											<option :value="currentDeviceTypeId">{{ deviceTypeName }}</option>
-										</select>
-										<p class="mt-1 text-xs text-white/60">類型已固定為 {{ deviceTypeName }}</p>
-									</label>
-									<label
-										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-									>
-										<span>端口號 *</span>
+									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+										<span>類型代碼 *</span>
 										<input
-											v-model.number="formData.port"
-											type="number"
+											v-model="formData.code"
+											type="text"
 											required
-											min="1"
-											max="65535"
+											:disabled="!!editingType"
 											class="form-input"
-											placeholder="例如：502"
+											placeholder="例如：modbus"
 										/>
-										<p class="mt-1 text-xs text-white/60">Modbus TCP 標準端口為 502</p>
+										<p v-if="editingType" class="mt-1 text-xs text-white/60">
+											類型代碼無法修改
+										</p>
 									</label>
-									<label
-										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-									>
-										<span>備註</span>
+									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+										<span>描述</span>
 										<textarea
 											v-model="formData.description"
-											class="form-input"
 											rows="3"
-											placeholder="設備型號描述或備註"
+											class="form-input"
+											placeholder="設備類型的詳細描述（選填）"
 										></textarea>
 									</label>
 
-								<p v-if="formErrorMessage" class="text-sm text-rose-300 2xl:text-base">
-									{{ formErrorMessage }}
+								<p v-if="errorMessage" class="text-sm text-rose-300 2xl:text-base">
+									{{ errorMessage }}
 								</p>
 							</form>
 
 							<footer class="flex items-center gap-3 pr-7 2xl:gap-4 2xl:pr-8">
-								<button type="button" class="btn-secondary" @click="closeForm">取消</button>
+								<button
+									type="button"
+									class="btn-secondary"
+									@click="closeForm"
+									:disabled="isSubmitting"
+								>
+									取消
+								</button>
 								<div class="flex-1"></div>
-								<button type="button" class="btn-primary" :disabled="isSubmitting" @click="handleFormSubmit">
-									{{ isSubmitting ? "處理中..." : editingModel ? "更新" : "建立" }}
+								<button type="button" class="btn-primary" :disabled="isSubmitting" @click="handleSubmit">
+									{{ isSubmitting ? "處理中..." : editingType ? "更新" : "建立" }}
 								</button>
 							</footer>
 						</div>
@@ -189,177 +174,116 @@
 </template>
 
 <script setup lang="ts">
-import type {
-	DeviceModel,
-	DeviceTypeCode,
-	CreateDeviceModelData,
-	UpdateDeviceModelData
-} from "~/types/device";
+import type { DeviceType } from "~/types/device";
 
-interface Props {
+const props = defineProps<{
 	modelValue: boolean;
-	deviceTypeCode: DeviceTypeCode;
-}
+}>();
 
-interface Emits {
-	(e: "update:modelValue", value: boolean): void;
-	(e: "close"): void;
-	(e: "refresh"): void;
-}
-
-const props = defineProps<Props>();
-const emit = defineEmits<Emits>();
+const emit = defineEmits<{
+	"update:modelValue": [value: boolean];
+	close: [];
+	refresh: [];
+}>();
 
 const deviceApi = useDeviceApi();
 const toast = useToast();
+const { loadDeviceTypes: loadDeviceTypesCached, clearCache: clearDeviceTypesCache } =
+	useDeviceTypesCache();
 
-const deviceTypeNameMap: Record<DeviceTypeCode, string> = {
-	camera: "影像設備",
-	controller: "控制器",
-	sensor: "感測器",
-	tablet: "平板",
-	network: "網路裝置"
-};
-
-const deviceTypeName = computed(() => deviceTypeNameMap[props.deviceTypeCode] || "設備");
-
-const deviceModels = ref<DeviceModel[]>([]);
+const deviceTypes = ref<DeviceType[]>([]);
 const isLoading = ref(false);
 const errorMessage = ref<string | null>(null);
 const showForm = ref(false);
-const editingModel = ref<DeviceModel | null>(null);
+const editingType = ref<DeviceType | null>(null);
 const isSubmitting = ref(false);
-const formErrorMessage = ref<string | null>(null);
-const currentDeviceTypeId = ref<number | null>(null);
 
-const formData = reactive({ name: "", type_id: 0, port: 502, description: "" });
-
-const resetForm = () => {
-	formData.name = "";
-	formData.type_id = currentDeviceTypeId.value || 0;
-	formData.port = 502;
-	formData.description = "";
-	formErrorMessage.value = null;
-};
-
-const loadDeviceType = async () => {
-	try {
-		const result = await deviceApi.getDeviceTypeByCode(props.deviceTypeCode);
-		currentDeviceTypeId.value = result.device_type.id;
-		formData.type_id = result.device_type.id;
-	} catch (error) {
-		console.error("載入設備類型失敗:", error);
-	}
-};
-
-const handleError = (
-	error: unknown,
-	defaultMsg: string,
-	target: "errorMessage" | "formErrorMessage" = "errorMessage"
-) => {
-	const errorMsg = error instanceof Error ? error.message : defaultMsg;
-	if (target === "errorMessage") {
-		errorMessage.value = errorMsg;
-	} else {
-		formErrorMessage.value = errorMsg;
-	}
-	toast.error(errorMsg);
-};
-
-const loadDeviceModels = async (force = false) => {
-	isLoading.value = true;
-	errorMessage.value = null;
-	try {
-		// 強制刷新時添加時間戳以繞過瀏覽器快取
-		const params: { type_code: DeviceTypeCode; _t?: string } = { type_code: props.deviceTypeCode };
-		if (force) {
-			params._t = String(Date.now());
-		}
-		const result = await deviceApi.getDeviceModels(params);
-		deviceModels.value = result.device_models;
-	} catch (error: any) {
-		if (error?.statusCode === 404 || error?.status === 404) {
-			errorMessage.value = "設備型號 API 尚未實作，請先完成後端實作";
-			deviceModels.value = [];
-			console.warn("設備型號 API 尚未實作，請參考後端實作指南");
-		} else {
-			handleError(error, "載入設備型號失敗");
-		}
-	} finally {
-		isLoading.value = false;
-	}
-};
-
-const editDeviceModel = (model: DeviceModel) => {
-	editingModel.value = model;
-	formData.name = model.name;
-	formData.type_id = model.type_id;
-	formData.port = model.port || 502;
-	formData.description = model.description || "";
-	showForm.value = true;
-};
-
-const confirmDelete = async (model: DeviceModel) => {
-	if (!confirm(`確定要刪除設備型號 "${model.name}" 嗎？此操作無法復原。`)) {
-		return;
-	}
-	try {
-		await deviceApi.deleteDeviceModel(model.id);
-		toast.success(`設備型號 "${model.name}" 已刪除`);
-		await loadDeviceModels(true); // 強制刷新
-		emit("refresh");
-	} catch (error) {
-		handleError(error, "刪除設備型號失敗");
-	}
-};
-
-const closeForm = () => {
-	showForm.value = false;
-	editingModel.value = null;
-	resetForm();
-};
-
-const handleFormSubmit = async () => {
-	isSubmitting.value = true;
-	formErrorMessage.value = null;
-	try {
-		if (editingModel.value) {
-			await deviceApi.updateDeviceModel(editingModel.value.id, formData);
-			toast.success("設備型號更新成功");
-		} else {
-			await deviceApi.createDeviceModel(formData);
-			toast.success("設備型號建立成功");
-		}
-		closeForm();
-		await loadDeviceModels(true); // 強制刷新
-		emit("refresh");
-	} catch (error) {
-		handleError(error, "操作失敗", "formErrorMessage");
-	} finally {
-		isSubmitting.value = false;
-	}
-};
+const formData = ref({ name: "", code: "", description: "" });
 
 const handleClose = () => {
 	emit("update:modelValue", false);
 	emit("close");
 };
 
+const handleError = (error: unknown, defaultMsg: string) => {
+	const errorMsg = error instanceof Error ? error.message : defaultMsg;
+	errorMessage.value = errorMsg;
+	toast.error(errorMsg);
+};
+
+const loadDeviceTypes = async (force = false) => {
+	isLoading.value = true;
+	errorMessage.value = null;
+	try {
+		deviceTypes.value = await loadDeviceTypesCached(force);
+	} catch (error) {
+		handleError(error, "載入設備類型失敗");
+	} finally {
+		isLoading.value = false;
+	}
+};
+
+const editDeviceType = (type: DeviceType) => {
+	editingType.value = type;
+	formData.value = { name: type.name, code: type.code, description: type.description || "" };
+	showForm.value = true;
+};
+
+const confirmDelete = async (type: DeviceType) => {
+	if (
+		!confirm(`確定要刪除設備類型 "${type.name}" 嗎？\n\n注意：如果仍有設備使用此類型，將無法刪除。`)
+	) {
+		return;
+	}
+	try {
+		await deviceApi.deleteDeviceType(type.id);
+		await loadDeviceTypes();
+		toast.success(`設備類型 "${type.name}" 已刪除`);
+		emit("refresh");
+	} catch (error) {
+		handleError(error, "刪除設備類型失敗");
+	}
+};
+
+const closeForm = () => {
+	showForm.value = false;
+	editingType.value = null;
+	formData.value = { name: "", code: "", description: "" };
+	errorMessage.value = null;
+};
+
+const handleSubmit = async () => {
+	isSubmitting.value = true;
+	errorMessage.value = null;
+	try {
+		if (editingType.value) {
+			await deviceApi.updateDeviceType(editingType.value.id, {
+				name: formData.value.name,
+				description: formData.value.description || undefined
+			});
+			toast.success("設備類型更新成功");
+		} else {
+			await deviceApi.createDeviceType({
+				name: formData.value.name,
+				code: formData.value.code,
+				description: formData.value.description || undefined
+			});
+			toast.success("設備類型建立成功");
+		}
+		closeForm();
+		clearDeviceTypesCache(); // 清除前端快取
+		await loadDeviceTypes(true); // 強制刷新（force = true）
+		emit("refresh");
+	} catch (error) {
+		handleError(error, "操作失敗");
+	} finally {
+		isSubmitting.value = false;
+	}
+};
+
 watch(
 	() => props.modelValue,
-	isOpen => {
-		if (isOpen) {
-			loadDeviceType();
-			loadDeviceModels(true); // 每次打開對話框時強制刷新，確保取得最新資料
-		} else {
-			deviceModels.value = [];
-			errorMessage.value = null;
-			showForm.value = false;
-			editingModel.value = null;
-			resetForm();
-		}
-	},
-	{ immediate: true }
+	newVal => newVal && loadDeviceTypes()
 );
 </script>
 
@@ -391,6 +315,10 @@ watch(
 .form-input:disabled {
 	opacity: 0.6;
 	cursor: not-allowed;
+}
+
+.form-input::placeholder {
+	color: rgba(255, 255, 255, 0.5);
 }
 
 .form-select {
@@ -438,6 +366,11 @@ watch(
 .btn-secondary:hover:not(:disabled) {
 	background: rgba(255, 255, 255, 0.12);
 	border-color: rgba(91, 231, 241, 0.7);
+}
+
+.btn-secondary:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
 }
 
 .btn-list-edit,
