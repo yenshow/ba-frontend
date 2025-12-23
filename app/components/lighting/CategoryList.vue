@@ -1,40 +1,42 @@
 <template>
 	<div
-		class="absolute top-full left-0 mt-2 w-[76px] 2xl:w-[100px] rounded-2xl overflow-hidden border-2 border-white/80 p-2 2xl:p-3 z-50 max-h-[400px] overflow-y-auto space-y-2 2xl:space-y-3"
+		class="absolute left-0 top-full z-50 mt-2 max-h-[400px] w-[76px] space-y-2 overflow-hidden overflow-y-auto rounded-2xl border-2 border-white/80 p-2 2xl:w-[100px] 2xl:space-y-3 2xl:p-3"
 	>
-		<h3 class="text-white text-sm 2xl:text-base tracking-[2px] 2xl:tracking-[4px] ps-[2px] 2xl:ps-[4px]">分類點</h3>
+		<h3
+			class="ps-[2px] text-sm tracking-[2px] text-white 2xl:ps-[4px] 2xl:text-base 2xl:tracking-[4px]"
+		>
+			分類點
+		</h3>
 		<div class="space-y-1.5 2xl:space-y-2">
 			<div
 				v-for="category in categories"
 				:key="category.id"
 				:class="[
-					'flex flex-col items-center justify-center gap-1 p-1.5 2xl:p-2 rounded-lg border-2 cursor-pointer transition-all text-center',
-					editing ? 'border-white/40 bg-white/10 hover:bg-white/20' : 'border-white/20 bg-white/5'
+					'flex flex-col items-center justify-center gap-1 rounded-lg border-2 p-1.5 text-center transition-all 2xl:p-2',
+					editing
+						? 'cursor-move border-white/40 bg-white/10 hover:bg-white/20'
+						: 'cursor-pointer border-white/20 bg-white/5',
+					!category.location && editing ? 'border-yellow-400/60 bg-yellow-400/10' : ''
 				]"
+				:draggable="editing"
 				@click="!editing && $emit('select', category.id)"
-				:title="category.name"
+				@dragstart="handleDragStart($event, category)"
+				@dragend="handleDragEnd"
+				:title="category.location ? category.name : `${category.name} (未定位)`"
 			>
-				<span class="text-white text-xs 2xl:text-sm leading-tight line-clamp-3">{{ category.name }}</span>
-				<div v-if="editing" class="flex items-center gap-1">
-					<button
-						type="button"
-						class="p-0.5 rounded hover:bg-red-500/30 text-white/70 hover:text-red-200 transition-colors"
-						@click.stop="$emit('delete', category.id)"
-						:title="`刪除 ${category.name}`"
-					>
-						<span class="sr-only">刪除 {{ category.name }}</span>
-						<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-							/>
-						</svg>
-					</button>
+				<span class="line-clamp-3 text-xs leading-tight text-white 2xl:text-sm">{{
+					category.name
+				}}</span>
+				<div v-if="!category.location && editing" class="text-[10px] text-yellow-400 2xl:text-xs">
+					未定位
 				</div>
 			</div>
-			<div v-if="categories.length === 0" class="text-center text-white/50 py-4 text-[10px] 2xl:text-xs">暫無</div>
+			<div
+				v-if="categories.length === 0"
+				class="py-4 text-center text-[10px] text-white/50 2xl:text-xs"
+			>
+				暫無
+			</div>
 		</div>
 	</div>
 </template>
@@ -55,6 +57,18 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
 	select: [categoryId: string];
-	delete: [categoryId: string];
+	dragstart: [event: DragEvent, category: RoomCategory];
+	dragend: [event: DragEvent];
 }>();
+
+const handleDragStart = (event: DragEvent, category: RoomCategory) => {
+	emit("dragstart", event, category);
+	event.dataTransfer!.effectAllowed = "move";
+	event.dataTransfer!.setData("areaId", category.id);
+	event.dataTransfer!.setData("fromCategoryList", "true");
+};
+
+const handleDragEnd = (event: DragEvent) => {
+	emit("dragend", event);
+};
 </script>

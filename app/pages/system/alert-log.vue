@@ -7,43 +7,62 @@
 			</header>
 
 			<!-- 篩選器 -->
-			<div class="flex items-center gap-3 2xl:gap-4">
-				<!-- 狀態篩選 -->
+			<div class="flex flex-wrap items-center gap-3 2xl:gap-4">
+				<!-- 1. 狀態篩選 -->
 				<select
-					v-model="filterResolved"
+					v-model="filterStatus"
 					@change="loadAlerts"
 					class="select-filter rounded-xl border border-white/20 bg-white/15 px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 2xl:px-6 2xl:py-3 2xl:text-base"
 				>
-					<option :value="undefined">全部狀態</option>
-					<option :value="false">未解決</option>
-					<option :value="true">已解決</option>
+					<option value="all">全部狀態</option>
+					<option value="active">未解決</option>
+					<option value="resolved">已解決</option>
+					<option value="ignored">已忽視</option>
 				</select>
 
-				<!-- 嚴重程度篩選 -->
+				<!-- 2. 系統來源篩選 -->
 				<select
-					v-model="filterSeverity"
+					v-model="filterSource"
 					@change="loadAlerts"
 					class="select-filter rounded-xl border border-white/20 bg-white/15 px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 2xl:px-6 2xl:py-3 2xl:text-base"
 				>
-					<option value="">全部嚴重程度</option>
-					<option value="info">資訊</option>
-					<option value="warning">警告</option>
-					<option value="error">錯誤</option>
-					<option value="critical">嚴重</option>
+					<option value="">全部系統</option>
+					<option value="device">設備系統</option>
+					<option value="environment">環境系統</option>
+					<option value="lighting">照明系統</option>
 				</select>
 
-				<!-- 類型篩選 -->
+				<!-- 3. 設備類型篩選（僅適用於設備系統） -->
 				<select
-					v-model="filterType"
+					v-if="!filterSource || filterSource === 'device'"
+					v-model="filterDeviceType"
 					@change="loadAlerts"
 					class="select-filter rounded-xl border border-white/20 bg-white/15 px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 2xl:px-6 2xl:py-3 2xl:text-base"
 				>
-					<option value="">全部類型</option>
-					<option value="offline">離線</option>
-					<option value="error">錯誤</option>
-					<option value="threshold">閾值</option>
-					<option value="maintenance">維護</option>
+					<option value="">全部設備</option>
+					<option value="camera">攝影機</option>
+					<option value="sensor">感測器</option>
+					<option value="controller">控制器</option>
+					<option value="tablet">平板</option>
+					<option value="network">網路裝置</option>
 				</select>
+
+				<!-- 4. 時間範圍篩選 -->
+				<div class="flex items-center gap-2">
+					<input
+						v-model="filterStartDate"
+						type="date"
+						@change="loadAlerts"
+						class="select-filter rounded-xl border border-white/20 bg-white/15 px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 2xl:px-6 2xl:py-3 2xl:text-base"
+					/>
+					<span class="text-white/70">~</span>
+					<input
+						v-model="filterEndDate"
+						type="date"
+						@change="loadAlerts"
+						class="select-filter rounded-xl border border-white/20 bg-white/15 px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 2xl:px-6 2xl:py-3 2xl:text-base"
+					/>
+				</div>
 
 				<!-- 刷新按鈕 -->
 				<button
@@ -102,6 +121,12 @@
 						<div class="flex items-start justify-between gap-4">
 							<div class="flex-1">
 								<div class="mb-2 flex items-center gap-3">
+									<!-- 系統來源標籤 -->
+									<span
+										class="inline-block rounded-full bg-blue-500/80 px-3 py-1 text-xs font-semibold text-white 2xl:px-4 2xl:py-1.5 2xl:text-sm"
+									>
+										{{ getSourceLabel(alert.source) }}
+									</span>
 									<span
 										:class="[
 											'inline-block rounded-full px-3 py-1 text-xs font-semibold 2xl:px-4 2xl:py-1.5 2xl:text-sm',
@@ -119,19 +144,44 @@
 										{{ getTypeLabel(alert.alert_type) }}
 									</span>
 									<span
-										v-if="alert.resolved"
+										v-if="alert.alert_count && alert.alert_count > 1"
+										class="inline-block rounded-full bg-blue-500/80 px-3 py-1 text-xs font-semibold text-white 2xl:px-4 2xl:py-1.5 2xl:text-sm"
+									>
+										{{ alert.alert_count }} 次
+									</span>
+									<span
+										v-if="alert.status === 'resolved' || alert.resolved"
 										class="inline-block rounded-full bg-green-500/80 px-3 py-1 text-xs font-semibold text-white 2xl:px-4 2xl:py-1.5 2xl:text-sm"
 									>
 										已解決
+									</span>
+									<span
+										v-if="alert.status === 'ignored' || alert.ignored"
+										class="inline-block rounded-full bg-gray-500/80 px-3 py-1 text-xs font-semibold text-white 2xl:px-4 2xl:py-1.5 2xl:text-sm"
+									>
+										已忽視
 									</span>
 								</div>
 
 								<p class="mb-2 text-base text-white 2xl:text-lg">{{ alert.message }}</p>
 
 								<div class="flex flex-wrap items-center gap-4 text-sm text-white/70 2xl:text-base">
-									<div>
+									<!-- 顯示來源資訊 -->
+									<div v-if="alert.source === 'device'">
 										<span class="font-medium">設備：</span>
-										<span>{{ alert.device_name || `ID: ${alert.device_id}` }}</span>
+										<span>{{ alert.device_name || alert.metadata?.device_name || `ID: ${alert.source_id}` }}</span>
+									</div>
+									<div v-else-if="alert.source === 'environment'">
+										<span class="font-medium">位置：</span>
+										<span>{{ alert.metadata?.location_name || `ID: ${alert.source_id}` }}</span>
+									</div>
+									<div v-else-if="alert.source === 'lighting'">
+										<span class="font-medium">區域：</span>
+										<span>{{ alert.metadata?.area_name || `ID: ${alert.source_id}` }}</span>
+									</div>
+									<div v-else>
+										<span class="font-medium">來源：</span>
+										<span>{{ getSourceLabel(alert.source) }} #{{ alert.source_id }}</span>
 									</div>
 									<div v-if="alert.device_type_name">
 										<span class="font-medium">類型：</span>
@@ -141,13 +191,21 @@
 										<span class="font-medium">時間：</span>
 										<span>{{ formatDateTime(alert.created_at) }}</span>
 									</div>
-									<div v-if="alert.resolved && alert.resolved_at">
+									<div v-if="(alert.status === 'resolved' || alert.resolved) && alert.resolved_at">
 										<span class="font-medium">解決時間：</span>
 										<span>{{ formatDateTime(alert.resolved_at) }}</span>
 									</div>
-									<div v-if="alert.resolved && alert.resolved_by_username">
+									<div v-if="(alert.status === 'resolved' || alert.resolved) && alert.resolved_by_username">
 										<span class="font-medium">解決者：</span>
 										<span>{{ alert.resolved_by_username }}</span>
+									</div>
+									<div v-if="(alert.status === 'ignored' || alert.ignored) && alert.ignored_at">
+										<span class="font-medium">忽視時間：</span>
+										<span>{{ formatDateTime(alert.ignored_at) }}</span>
+									</div>
+									<div v-if="(alert.status === 'ignored' || alert.ignored) && alert.ignored_by_username">
+										<span class="font-medium">忽視者：</span>
+										<span>{{ alert.ignored_by_username }}</span>
 									</div>
 								</div>
 							</div>
@@ -155,16 +213,16 @@
 							<!-- 操作按鈕 -->
 							<div class="flex flex-col gap-2">
 								<button
-									v-if="!alert.resolved"
+									v-if="alert.status === 'active' && !alert.resolved && !alert.ignored"
 									type="button"
-									@click="handleResolve(alert.id)"
+									@click="handleResolve(alert)"
 									:disabled="isResolving"
 									class="rounded-lg bg-green-500/80 px-3 py-1.5 text-xs text-white hover:bg-green-400 disabled:cursor-not-allowed disabled:bg-green-500/40 2xl:px-4 2xl:py-2 2xl:text-sm"
 								>
 									標記已解決
 								</button>
 								<button
-									v-if="alert.resolved && isAdmin"
+									v-if="(alert.status === 'resolved' || alert.resolved) && isAdmin && !alert.ignored"
 									type="button"
 									@click="handleUnresolve(alert.id)"
 									:disabled="isResolving"
@@ -173,13 +231,13 @@
 									標記未解決
 								</button>
 								<button
-									v-if="isAdmin"
+									v-if="alert.status === 'active' && !alert.resolved && !alert.ignored"
 									type="button"
-									@click="handleDelete(alert.id)"
-									:disabled="isDeleting"
-									class="rounded-lg bg-red-500/80 px-3 py-1.5 text-xs text-white hover:bg-red-400 disabled:cursor-not-allowed disabled:bg-red-500/40 2xl:px-4 2xl:py-2 2xl:text-sm"
+									@click="handleIgnore(alert)"
+									:disabled="isIgnoring"
+									class="rounded-lg bg-gray-500/80 px-3 py-1.5 text-xs text-white hover:bg-gray-400 disabled:cursor-not-allowed disabled:bg-gray-500/40 2xl:px-4 2xl:py-2 2xl:text-sm"
 								>
-									刪除
+									忽視
 								</button>
 							</div>
 						</div>
@@ -218,8 +276,15 @@
 <script setup lang="ts">
 import { useAlertApi } from "~/composables/useAlertApi";
 import { useToast } from "~/composables/useToast";
-import type { Alert } from "~/types/alert";
+import type { Alert, AlertStatus, AlertSource } from "~/types/alert";
 import { useAuth } from "~/composables/useAuth";
+import {
+	getSourceLabel,
+	getTypeLabel,
+	getSeverityLabel,
+	getSeverityBadgeClass,
+	getTypeBadgeClass
+} from "~/utils/alertUtils";
 
 definePageMeta({
 	layout: "default"
@@ -233,14 +298,16 @@ const { isAdmin } = useAuth();
 const alerts = ref<Alert[]>([]);
 const isLoading = ref(false);
 const isResolving = ref(false);
-const isDeleting = ref(false);
+const isIgnoring = ref(false);
 const totalAlerts = ref(0);
 const unresolvedCount = ref(0);
 
 // 篩選條件
-const filterResolved = ref<boolean | undefined>(undefined);
-const filterSeverity = ref<string>("");
-const filterType = ref<string>("");
+const filterStatus = ref<string>("all"); // all, active, resolved, ignored
+const filterSource = ref<string>(""); // 系統來源篩選
+const filterDeviceType = ref<string>("");
+const filterStartDate = ref<string>("");
+const filterEndDate = ref<string>("");
 
 // 分頁
 const limit = ref(20);
@@ -250,10 +317,23 @@ const offset = ref(0);
 const loadAlerts = async () => {
 	isLoading.value = true;
 	try {
+		// 根據 filterStatus 設置 status 篩選
+		let status: AlertStatus | undefined = undefined;
+		
+		if (filterStatus.value === "active") {
+			status = "active";
+		} else if (filterStatus.value === "resolved") {
+			status = "resolved";
+		} else if (filterStatus.value === "ignored") {
+			status = "ignored";
+		}
+		
 		const result = await alertApi.getAlerts({
-			resolved: filterResolved.value,
-			severity: filterSeverity.value || undefined,
-			alert_type: filterType.value || undefined,
+			status,
+			source: filterSource.value as AlertSource | undefined,
+			device_type_code: filterDeviceType.value || undefined,
+			start_date: filterStartDate.value || undefined,
+			end_date: filterEndDate.value || undefined,
 			limit: limit.value,
 			offset: offset.value,
 			orderBy: "created_at",
@@ -274,18 +354,30 @@ const loadAlerts = async () => {
 // 載入未解決警示數量
 const loadUnresolvedCount = async () => {
 	try {
-		const result = await alertApi.getUnresolvedAlertCount();
+		const result = await alertApi.getUnresolvedAlertCount({
+			source: filterSource.value || undefined
+		});
 		unresolvedCount.value = result.count;
 	} catch (error) {
 		console.error("[alert-log] 載入未解決警示數量失敗", error);
 	}
 };
 
+// 取得來源 ID（向後兼容）
+const getSourceId = (alert: Alert): number => {
+	// 如果是設備系統，使用 device_id（向後兼容）
+	if (alert.source === "device" && alert.device_id) {
+		return alert.device_id;
+	}
+	return alert.source_id;
+};
+
 // 標記為已解決
-const handleResolve = async (id: number) => {
+const handleResolve = async (alert: Alert) => {
 	isResolving.value = true;
 	try {
-		await alertApi.resolveAlert(id);
+		const sourceId = getSourceId(alert);
+		await alertApi.resolveAlert(sourceId, alert.alert_type, alert.source);
 		toast.success("警示已標記為已解決", 3000);
 		await loadAlerts();
 		await loadUnresolvedCount();
@@ -315,24 +407,25 @@ const handleUnresolve = async (id: number) => {
 	}
 };
 
-// 刪除警示
-const handleDelete = async (id: number) => {
-	if (!confirm("確定要刪除此警示嗎？")) {
+// 忽視警示
+const handleIgnore = async (alert: Alert) => {
+	if (!confirm("確定要忽視此警示嗎？忽視後將不再顯示此來源的相同類型警示。")) {
 		return;
 	}
 
-	isDeleting.value = true;
+	isIgnoring.value = true;
 	try {
-		await alertApi.deleteAlert(id);
-		toast.success("警示已刪除", 3000);
+		const sourceId = getSourceId(alert);
+		await alertApi.ignoreAlert(sourceId, alert.alert_type, alert.source);
+		toast.success("警示已忽視", 3000);
 		await loadAlerts();
 		await loadUnresolvedCount();
 	} catch (error) {
-		console.error("[alert-log] 刪除警示失敗", error);
-		const errorMsg = error instanceof Error ? error.message : "刪除失敗";
+		console.error("[alert-log] 忽視警示失敗", error);
+		const errorMsg = error instanceof Error ? error.message : "忽視失敗";
 		toast.error(errorMsg, 5000);
 	} finally {
-		isDeleting.value = false;
+		isIgnoring.value = false;
 	}
 };
 
@@ -365,58 +458,22 @@ const formatDateTime = (dateString: string | null) => {
 	});
 };
 
-// 取得嚴重程度標籤
-const getSeverityLabel = (severity: string) => {
-	const labels: Record<string, string> = {
-		info: "資訊",
-		warning: "警告",
-		error: "錯誤",
-		critical: "嚴重"
-	};
-	return labels[severity] || severity;
-};
-
-// 取得類型標籤
-const getTypeLabel = (type: string) => {
-	const labels: Record<string, string> = {
-		offline: "離線",
-		error: "錯誤",
-		threshold: "閾值",
-		maintenance: "維護"
-	};
-	return labels[type] || type;
-};
-
-// 取得嚴重程度徽章樣式
-const getSeverityBadgeClass = (severity: string) => {
-	const classes: Record<string, string> = {
-		info: "bg-blue-500/80 text-white",
-		warning: "bg-yellow-500/80 text-white",
-		error: "bg-orange-500/80 text-white",
-		critical: "bg-red-500/80 text-white"
-	};
-	return classes[severity] || "bg-gray-500/80 text-white";
-};
-
-// 取得類型徽章樣式
-const getTypeBadgeClass = (type: string) => {
-	const classes: Record<string, string> = {
-		offline: "bg-gray-500/80 text-white",
-		error: "bg-red-500/80 text-white",
-		threshold: "bg-purple-500/80 text-white",
-		maintenance: "bg-blue-500/80 text-white"
-	};
-	return classes[type] || "bg-gray-500/80 text-white";
-};
+// 標籤和樣式函數已移至 ~/utils/alertUtils.ts
 
 // 取得警示卡片樣式
 const getAlertCardClass = (alert: Alert) => {
-	if (alert.resolved) {
+	// 使用 status 或向後兼容的 resolved/ignored
+	const isResolved = alert.status === "resolved" || alert.resolved;
+	const isIgnored = alert.status === "ignored" || alert.ignored;
+
+	if (isResolved) {
 		return "border-green-500/30 bg-green-500/5";
+	}
+	if (isIgnored) {
+		return "border-gray-500/30 bg-gray-500/5";
 	}
 
 	const severityClasses: Record<string, string> = {
-		info: "border-blue-500/30 bg-blue-500/5",
 		warning: "border-yellow-500/30 bg-yellow-500/5",
 		error: "border-orange-500/30 bg-orange-500/5",
 		critical: "border-red-500/30 bg-red-500/5"
@@ -448,4 +505,3 @@ onMounted(async () => {
 	color: white;
 }
 </style>
-

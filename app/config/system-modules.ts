@@ -28,7 +28,6 @@ export const systemModules: SystemModule[] = [
 	{ id: 11, name: "電力系統", icon: "power", route: "/system/power", category: "primary", description: "電力系統監控與管理" },
 	{ id: 12, name: "空調系統", icon: "hvac", route: "/system/hvac", category: "primary", description: "空調系統控制與監控" },
 	{ id: 13, name: "電梯系統", icon: "elevator", route: "/system/elevator", category: "primary", description: "電梯系統監控與管理" },
-	{ id: 14, name: "環境感測器", icon: "environment", route: "/system/sensors", category: "primary", description: "PM2.5、溫濕度等環境感測器即時監控" },
 	
 	// 擴充系統模組
 	{ id: 15, name: "全區點位圖", icon: "all-points", route: "/system/all-points", category: "extended", description: "全區設備點位圖" },
@@ -44,8 +43,7 @@ export const systemModules: SystemModule[] = [
 	{ id: 25, name: "電視牆模組", icon: "video-wall", route: "/system/video-wall", category: "extended", description: "電視牆顯示控制" },
 	{ id: 26, name: "多媒體伺服器", icon: "multimedia-server", route: "/system/multimedia-server", category: "extended", description: "多媒體伺服器管理" },
 	{ id: 27, name: "警示紀錄", icon: "alert-log", route: "/system/alert-log", category: "extended", description: "系統警示與紀錄查詢" },
-	{ id: 28, name: "資訊平台", icon: "info-platform", route: "/system/info-platform", category: "extended", description: "資訊發布平台" },
-	{ id: 29, name: "Modbus 資料", icon: "info-platform", route: "/system/modbus", category: "extended", description: "即時讀取 Modbus TCP 資料" }
+	{ id: 28, name: "資訊平台", icon: "info-platform", route: "/system/info-platform", category: "extended", description: "資訊發布平台" }
 ];
 
 /**

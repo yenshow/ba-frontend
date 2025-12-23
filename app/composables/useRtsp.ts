@@ -13,6 +13,7 @@ export const useRtspApi = () => {
 	 */
 	const startStream = async (rtspUrl: string): Promise<RTSPStreamInfo> => {
 		try {
+			console.log(`[RTSP API] 啟動串流，URL: ${rtspUrl.replace(/:[^:@]+@/, ':****@')}`); // 隱藏密碼
 			const response = await fetcher<RTSPStartResponse>(`${rtspApiBase}/start`, {
 				method: "POST",
 				headers: {
@@ -24,13 +25,18 @@ export const useRtspApi = () => {
 			});
 
 			if (response.error) {
-				throw new Error(response.message || "啟動串流失敗");
+				const errorMsg = response.message || "啟動串流失敗";
+				console.error(`[RTSP API] 啟動串流失敗: ${errorMsg}`);
+				throw new Error(errorMsg);
 			}
 
+			console.log(`[RTSP API] 串流啟動成功，Stream ID: ${response.data.streamId}, HLS URL: ${response.data.hlsUrl}`);
 			return response.data;
 		} catch (error) {
 			if (error instanceof Error) {
-				throw new Error(`RTSP API 請求失敗: ${error.message}`);
+				const errorMsg = `RTSP API 請求失敗: ${error.message}`;
+				console.error(`[RTSP API] ${errorMsg}`);
+				throw new Error(errorMsg);
 			}
 			throw error;
 		}

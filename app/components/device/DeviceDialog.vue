@@ -47,9 +47,7 @@
 							>
 								<option :value="0" disabled>請選擇設備型號</option>
 								<option v-if="isLoadingDeviceModels" value="" disabled>載入中...</option>
-								<option v-else-if="deviceModels.length === 0" value="" disabled>
-									無可用設備型號
-								</option>
+								<option v-else-if="deviceModels.length === 0" value="" disabled>無可用設備型號</option>
 								<option v-for="model in deviceModels" :key="model.id" :value="model.id">
 									{{ model.name }}
 								</option>
@@ -82,9 +80,9 @@
 									min="1"
 									max="65535"
 									class="form-input"
-									placeholder="例如：502（可選，未提供時會從設備型號繼承）"
+									placeholder="例如：502"
+									:disabled="isControllerPortInherited"
 								/>
-								<p class="mt-1 text-xs text-white/60">未提供時會自動從設備型號繼承端口</p>
 							</label>
 						</template>
 
@@ -122,12 +120,7 @@
 							</label>
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 								<span>使用者名稱</span>
-								<input
-									v-model="cameraConfig.username"
-									type="text"
-									class="form-input"
-									placeholder="選填"
-								/>
+								<input v-model="cameraConfig.username" type="text" class="form-input" placeholder="選填" />
 							</label>
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 								<span>密碼</span>
@@ -144,7 +137,7 @@
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 								<span>通訊協定 *</span>
 								<select v-model="sensorConfig.protocol" required class="form-input form-select">
-									<option value="modbus">Modbus</option>
+									<option value="modbus">Modbus / TCP</option>
 									<option value="http">HTTP</option>
 									<option value="mqtt">MQTT</option>
 								</select>
@@ -171,6 +164,7 @@
 										max="65535"
 										class="form-input"
 										placeholder="例如：5020"
+										:disabled="isSensorPortInherited"
 									/>
 								</label>
 							</template>
@@ -316,12 +310,7 @@
 					<footer class="flex items-center gap-3 pr-7 2xl:gap-4 2xl:pr-8">
 						<button type="button" class="btn-secondary" @click="handleClose">取消</button>
 						<div class="flex-1"></div>
-						<button
-							type="button"
-							class="btn-primary"
-							:disabled="isSubmitting"
-							@click="handleSubmit"
-						>
+						<button type="button" class="btn-primary" :disabled="isSubmitting" @click="handleSubmit">
 							{{ isSubmitting ? "處理中..." : editingDevice ? "更新" : "建立" }}
 						</button>
 					</footer>
@@ -443,9 +432,7 @@ const loadDeviceModels = async (force = false) => {
 	// 2. 當前載入的類型與目標類型不一致
 	// 3. 還沒有載入過資料
 	const needsReload =
-		force ||
-		currentLoadedTypeCode.value !== props.deviceTypeCode ||
-		deviceModels.value.length === 0;
+		force || currentLoadedTypeCode.value !== props.deviceTypeCode || deviceModels.value.length === 0;
 
 	if (!needsReload) return;
 
@@ -470,18 +457,37 @@ const loadDeviceModels = async (force = false) => {
 	}
 };
 
-const onModelChange = () => {
-	// 當選擇型號時，從型號繼承 port
-	if (localFormData.model_id && deviceModels.value.length > 0) {
-		const selectedModel = deviceModels.value.find(m => m.id === localFormData.model_id);
-		if (selectedModel && selectedModel.port) {
-			// 如果是控制器類型，更新 controllerConfig.port
-			if (props.deviceTypeCode === "controller" || props.deviceTypeCode === "modbus") {
-				controllerConfig.port = selectedModel.port;
-			}
-		}
+// 獲取當前選中的設備型號
+const selectedDeviceModel = computed(() => {
+	if (!localFormData.model_id || deviceModels.value.length === 0) return null;
+	return deviceModels.value.find(m => m.id === localFormData.model_id) || null;
+});
+
+// 從選中的型號繼承 port
+const inheritPortFromModel = () => {
+	const model = selectedDeviceModel.value;
+	if (!model?.port) return;
+
+	if (props.deviceTypeCode === "controller") {
+		controllerConfig.port = model.port;
+	} else if (props.deviceTypeCode === "sensor" && sensorConfig.protocol === "modbus") {
+		sensorConfig.port = model.port;
 	}
 };
+
+const onModelChange = () => {
+	inheritPortFromModel();
+};
+
+// 監聽感測器協議變化，當切換到 modbus 時，如果已選擇型號則繼承 port
+watch(
+	() => sensorConfig.protocol,
+	newProtocol => {
+		if (newProtocol === "modbus") {
+			inheritPortFromModel();
+		}
+	}
+);
 
 // 監聽設備類型變化，切換類型時重新載入設備型號
 // loadDeviceModels 會自動檢測類型不匹配並重新載入，無需強制刷新
@@ -537,6 +543,20 @@ const resetForm = () => {
 
 const displayErrorMessage = computed(() => {
 	return localErrorMessage.value || props.errorMessage;
+});
+
+// 判斷控制器的 port 是否繼承自型號
+const isControllerPortInherited = computed(() => {
+	return props.deviceTypeCode === "controller" && !!selectedDeviceModel.value?.port;
+});
+
+// 判斷感測器的 port 是否繼承自型號（僅當協議為 modbus 時）
+const isSensorPortInherited = computed(() => {
+	return (
+		props.deviceTypeCode === "sensor" &&
+		sensorConfig.protocol === "modbus" &&
+		!!selectedDeviceModel.value?.port
+	);
 });
 
 const loadConfigFromDevice = (device: Device) => {
@@ -681,6 +701,11 @@ const handleSubmit = () => {
 	border-color: #5be7f1;
 	background: rgba(255, 255, 255, 0.18);
 	outline: none;
+}
+
+.form-input:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
 }
 
 .form-select {

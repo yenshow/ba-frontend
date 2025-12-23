@@ -46,7 +46,7 @@ export type LightingCategory = RoomCategory & {
 export interface LightingArea {
 	id?: string; // 區域 ID（新建時可選）
 	name: string; // 區域名稱（原分類名稱）
-	location: { x: number; y: number }; // 位置座標（百分比）
+	location?: { x: number; y: number }; // 位置座標（百分比，未定位時為 undefined）
 	description?: string; // 描述
 	deviceId?: number; // 關聯設備 ID
 	modbus?: CategoryModbusConfig; // Modbus 配置

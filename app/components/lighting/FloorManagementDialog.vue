@@ -42,7 +42,7 @@
 									<div
 										class="flex cursor-pointer items-center justify-between p-4 transition-colors hover:bg-white/10"
 										@click="toggleFloor(floor.id || floor.name)"
-								>
+									>
 										<div class="flex flex-1 items-center gap-4">
 											<!-- 展開/收起圖標 -->
 											<svg
@@ -63,23 +63,20 @@
 											<div
 												class="flex h-16 min-w-[80px] items-center justify-center rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 shadow-lg"
 											>
-												<h4
-													v-if="floor.name"
-													class="text-xl font-bold tracking-wider text-white 2xl:text-2xl"
-												>
-												{{ floor.name }}
-											</h4>
+												<h4 v-if="floor.name" class="text-xl font-bold tracking-wider text-white 2xl:text-2xl">
+													{{ floor.name }}
+												</h4>
 												<span v-else class="text-sm text-white/60 2xl:text-base">未命名</span>
-										</div>
-										
-										<div class="flex-1">
+											</div>
+
+											<div class="flex-1">
 												<div class="flex items-center gap-3">
 													<span
 														class="rounded-full bg-white/25 px-3 py-1 text-sm font-medium text-white 2xl:text-base"
 													>
 														{{ floor.areas?.length || 0 }} 個點位
-												</span>
-											</div>
+													</span>
+												</div>
 											</div>
 										</div>
 										<div class="ml-4 flex gap-2 2xl:gap-3" @click.stop>
@@ -121,8 +118,7 @@
 												<input
 													:ref="
 														el => {
-															if (el)
-																fileInputRefs.set(floor.id || floor.name, el as HTMLInputElement);
+															if (el) fileInputRefs.set(floor.id || floor.name, el as HTMLInputElement);
 														}
 													"
 													type="file"
@@ -138,9 +134,9 @@
 													@click.stop="viewFloorImage(floor.imageUrl)"
 												>
 													查看示意圖
-										</button>
-										<button
-											type="button"
+												</button>
+												<button
+													type="button"
 													class="btn-secondary text-sm 2xl:text-base"
 													@click.stop="triggerFloorImageInput(floor.id || floor.name)"
 												>
@@ -153,12 +149,7 @@
 													@click.stop="removeFloorImage(floor)"
 													title="移除圖片"
 												>
-													<svg
-														class="h-5 w-5"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
+													<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 														<path
 															stroke-linecap="round"
 															stroke-linejoin="round"
@@ -192,10 +183,10 @@
 												<div
 													v-for="(area, areaIndex) in floor.areas"
 													:key="area.id || `area-${areaIndex}`"
-													class="flex items-end gap-2 rounded border border-white/10 bg-white/5 p-2"
+													class="flex min-w-0 items-end gap-2 rounded border border-white/10 bg-white/5 p-2"
 												>
 													<label
-														class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+														class="flex flex-[2] flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 													>
 														<span>點位名稱 *</span>
 														<input
@@ -208,80 +199,81 @@
 														/>
 													</label>
 													<label
-														class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+														class="flex flex-[2] flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 													>
 														<span>控制器</span>
 														<select
 															v-model.number="area.deviceId"
-															class="form-input-small form-select"
+															class="form-input-small form-select min-w-0"
 															@change="handleDeviceChange(floor, area, areaIndex)"
 															:disabled="isLoadingDevices"
 														>
 															<option :value="0">請選擇控制器</option>
 															<option v-if="isLoadingDevices" value="" disabled>載入中...</option>
-															<option v-else-if="devices.length === 0" value="" disabled>
-																尚無可用控制器
-															</option>
+															<option v-else-if="devices.length === 0" value="" disabled>尚無可用控制器</option>
 															<option v-for="device in devices" :key="device.id" :value="device.id">
 																{{ device.name }}
 															</option>
 														</select>
 													</label>
-													<label
-														v-if="area.deviceId && area.modbus?.points?.[0]"
-														class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-													>
-														<span>類型 *</span>
-														<select
-															v-model="area.modbus.points[0].type"
-															class="form-input-small form-select"
-															required
-															@change="handleTypeChange(floor, area, areaIndex)"
+													<template v-if="area.deviceId && area.modbus?.points?.[0]">
+														<label
+															class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 														>
-															<option value="DO">DO</option>
-															<option value="DI">DI</option>
-														</select>
-													</label>
-													<label
-														v-if="area.deviceId && area.modbus?.points?.[0]"
-														class="flex w-24 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-													>
-														<span>地址 *</span>
-														<div class="flex flex-col gap-1">
-															<input
-																v-model.number="area.modbus.points[0].address"
-																type="number"
-																min="0"
-																placeholder="地址"
+															<span>類型 *</span>
+															<select
+																v-model="area.modbus.points[0].type"
+																class="form-input-small form-select w-full"
 																required
-																:class="[
-																	'form-input-small',
-																	getAddressError(floor, area.deviceId, area.modbus.points[0].type, area.modbus.points[0].address, areaIndex) 
-																		? 'border-rose-400 focus:border-rose-400' 
-																		: ''
-																]"
-																@blur="handleAreaChange(floor)"
-															/>
-															<span 
-																v-if="getAddressError(floor, area.deviceId, area.modbus.points[0].type, area.modbus.points[0].address, areaIndex)"
-																class="text-xs text-rose-400"
+																@change="handleTypeChange(floor, area, areaIndex)"
 															>
-																{{ getAddressError(floor, area.deviceId, area.modbus.points[0].type, area.modbus.points[0].address, areaIndex) }}
-															</span>
-														</div>
-													</label>
+																<option value="DO">DO</option>
+																<option value="DI">DI</option>
+															</select>
+														</label>
+														<label
+															class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+														>
+															<span>地址 *</span>
+															<div class="relative w-full">
+																<input
+																	v-model.number="area.modbus.points[0].address"
+																	type="number"
+																	min="0"
+																	placeholder="地址"
+																	required
+																	class="form-input-small w-full transition-all"
+																	:class="
+																		checkAddressDuplicate(floor, area, areaIndex)
+																			? 'animate-pulse border-2 border-rose-500 bg-rose-500/20 pr-10 shadow-[0_0_0_3px_rgba(244,63,94,0.2)] focus:border-rose-500 focus:bg-rose-500/25 focus:shadow-[0_0_0_3px_rgba(244,63,94,0.3)]'
+																			: ''
+																	"
+																	title="此地址已被使用"
+																	@blur="handleAreaChange(floor)"
+																/>
+																<div
+																	v-if="checkAddressDuplicate(floor, area, areaIndex)"
+																	class="pointer-events-none absolute right-9 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-rose-500"
+																	title="此地址已被使用"
+																>
+																	<svg class="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+																		<path
+																			fill-rule="evenodd"
+																			d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+																			clip-rule="evenodd"
+																		/>
+																	</svg>
+																</div>
+															</div>
+														</label>
+													</template>
 													<button
 														type="button"
-														class="p-2 text-rose-400 transition-colors hover:text-rose-300"
+														class="ml-auto flex-shrink-0 p-2 text-rose-400 transition-colors hover:text-rose-300"
 														@click="removeArea(floor, areaIndex)"
 														title="刪除點位"
 													>
-														<svg
-															class="h-5 w-5"
-															fill="none"
-															stroke="currentColor"
-															viewBox="0 0 24 24"
-														>
+														<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 															<path
 																stroke-linecap="round"
 																stroke-linejoin="round"
@@ -289,13 +281,10 @@
 																d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
 															/>
 														</svg>
-										</button>
-									</div>
+													</button>
+												</div>
 											</div>
-											<p
-												v-if="devices.length === 0 && !isLoadingDevices"
-												class="mt-1 text-xs text-amber-300"
-											>
+											<p v-if="devices.length === 0 && !isLoadingDevices" class="mt-1 text-xs text-amber-300">
 												請先在「設備管理」中建立控制器設備
 											</p>
 										</div>
@@ -314,15 +303,13 @@
 					<p v-if="errorMessage" class="pr-7 text-base text-rose-300 2xl:pr-8 2xl:text-lg">
 						{{ errorMessage }}
 					</p>
-					<footer
-						class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8"
-					>
+					<footer class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8">
 						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
 						<div class="flex-1"></div>
 						<button
 							type="button"
 							class="btn-primary"
-							:class="{ 'opacity-50 cursor-not-allowed': !hasUnsavedChanges }"
+							:class="{ 'cursor-not-allowed opacity-50': !hasUnsavedChanges }"
 							:disabled="!hasUnsavedChanges"
 							@click="saveAllChanges"
 						>
@@ -373,25 +360,25 @@ const hasUnsavedChanges = computed(() => pendingChanges.value.size > 0);
 // 合併 props.floors 和 pendingChanges，用於顯示（包含待保存的變更）
 const mergedFloors = computed(() => {
 	const floorsMap = new Map<string, LightingFloor>();
-	
+
 	// 先添加所有 props.floors
 	props.floors.forEach(floor => {
 		const floorId = floor.id || floor.name;
 		floorsMap.set(floorId, { ...floor });
 	});
-	
+
 	// 然後用 pendingChanges 覆蓋（待保存的變更優先）
 	pendingChanges.value.forEach((floor, floorId) => {
 		floorsMap.set(floorId, { ...floor });
 	});
-	
+
 	return Array.from(floorsMap.values());
 });
 
 // 排序樓層：1F 在前面，2F 在後面（按樓層名稱的自然排序）
 const sortedFloors = computed(() => {
 	if (!mergedFloors.value || mergedFloors.value.length === 0) return [];
-	
+
 	return [...mergedFloors.value].sort((a, b) => {
 		const nameA = a.name || "";
 		const nameB = b.name || "";
@@ -467,31 +454,21 @@ const filterEmptyAreas = (floor: LightingFloor): LightingFloor => {
 
 // 驗證樓層是否有地址重複
 const validateFloorAddresses = (floor: LightingFloor): string | null => {
-	const addressMap = new Map<string, Set<number>>();
-	
 	for (let i = 0; i < floor.areas.length; i++) {
 		const area = floor.areas[i];
 		if (!area.deviceId || !area.modbus?.points?.[0]) continue;
-		
+
 		const deviceId = area.deviceId;
 		const type = area.modbus.points[0].type;
 		const address = area.modbus.points[0].address;
-		
+
 		if (address === undefined) continue;
-		
-		const key = `${deviceId}-${type}`;
-		if (!addressMap.has(key)) {
-			addressMap.set(key, new Set());
-		}
-		
-		const addresses = addressMap.get(key)!;
-		if (addresses.has(address)) {
+
+		if (isAddressDuplicate(floor, deviceId, type, address, i)) {
 			return `點位「${area.name || `點位 ${i + 1}`}」的地址 ${address} 與其他點位重複（設備 ${deviceId}，類型 ${type}）`;
 		}
-		
-		addresses.add(address);
 	}
-	
+
 	return null;
 };
 
@@ -603,17 +580,17 @@ const processFloorImageFile = (floor: LightingFloor, file: File) => {
 
 	// 讀取檔案並轉換為 base64
 	const reader = new FileReader();
-		reader.onload = e => {
-			const result = e.target?.result as string;
-			if (result) {
-				const updatedFloor = {
-					...floor,
-					imageUrl: result
-				};
-				queueSave(updatedFloor);
-				errorMessage.value = "";
-			}
-		};
+	reader.onload = e => {
+		const result = e.target?.result as string;
+		if (result) {
+			const updatedFloor = {
+				...floor,
+				imageUrl: result
+			};
+			queueSave(updatedFloor);
+			errorMessage.value = "";
+		}
+	};
 	reader.onerror = () => {
 		errorMessage.value = "讀取檔案失敗，請稍後再試";
 	};
@@ -650,14 +627,29 @@ const isAddressDuplicate = (
 	return floor.areas.some((area, index) => {
 		// 排除自己
 		if (excludeAreaIndex !== undefined && index === excludeAreaIndex) return false;
-		
+
 		// 檢查設備ID和類型是否相同
 		if (area.deviceId !== deviceId) return false;
 		if (area.modbus?.points?.[0]?.type !== type) return false;
-		
+
 		// 檢查地址是否相同
 		return area.modbus?.points?.[0]?.address === address;
 	});
+};
+
+// 檢查地址是否重複（簡化版本，用於模板）
+const checkAddressDuplicate = (
+	floor: LightingFloor,
+	area: LightingArea,
+	areaIndex: number
+): boolean => {
+	return isAddressDuplicate(
+		floor,
+		area.deviceId,
+		area.modbus?.points?.[0]?.type,
+		area.modbus?.points?.[0]?.address,
+		areaIndex
+	);
 };
 
 // 計算下一個可用地址（N+1，基於同一設備同一類型的最大地址）
@@ -670,13 +662,14 @@ const getNextAvailableAddress = (
 
 	// 找出同一設備同一類型的所有地址
 	const addresses = floor.areas
-		.filter(area => 
-			area.deviceId === deviceId && 
-			area.modbus?.points?.[0]?.type === type &&
-			area.modbus?.points?.[0]?.address !== undefined
+		.filter(
+			area =>
+				area.deviceId === deviceId &&
+				area.modbus?.points?.[0]?.type === type &&
+				area.modbus?.points?.[0]?.address !== undefined
 		)
 		.map(area => area.modbus!.points![0].address)
-		.filter(addr => typeof addr === 'number' && addr >= 0);
+		.filter(addr => typeof addr === "number" && addr >= 0);
 
 	// 如果沒有地址，從 1 開始
 	if (addresses.length === 0) return 1;
@@ -689,8 +682,8 @@ const getNextAvailableAddress = (
 // 新增點位（每個點位就是一個區域）
 const addPoint = (floor: LightingFloor) => {
 	const newArea: LightingArea = {
-		name: "",
-		location: { x: 50, y: 50 }
+		name: ""
+		// 不設定 location，讓用戶透過 CategoryList 拖曳到地圖上
 	};
 
 	const updatedFloor = {
@@ -736,37 +729,22 @@ const handleDeviceChange = (floor: LightingFloor, area: LightingArea, areaIndex:
 	const deviceId = area.deviceId;
 
 	if (deviceId && deviceId > 0) {
+		const currentType = area.modbus?.points?.[0]?.type || "DO";
+		const currentAddress = area.modbus?.points?.[0]?.address;
+
 		if (!area.modbus) {
-			// 新增點位時，自動填入 N+1 地址
-			const nextAddress = getNextAvailableAddress(floor, deviceId, "DO");
-			area.modbus = {
-				deviceId: deviceId,
-				points: [
-					{
-						address: nextAddress,
-						type: "DO"
-					}
-				]
-			};
+			area.modbus = { deviceId, points: [] };
 		} else {
 			area.modbus.deviceId = deviceId;
-			// 確保至少有一個點位
-			if (!area.modbus.points || area.modbus.points.length === 0) {
-				const nextAddress = getNextAvailableAddress(floor, deviceId, "DO");
-				area.modbus.points = [
-					{
-						address: nextAddress,
-						type: "DO"
-					}
-				];
-			} else {
-				// 如果地址為 0 或未設置，自動填入 N+1
-				const currentAddress = area.modbus.points[0]?.address;
-				if (!currentAddress || currentAddress === 0) {
-					const nextAddress = getNextAvailableAddress(floor, deviceId, area.modbus.points[0]?.type || "DO");
-					area.modbus.points[0].address = nextAddress;
-				}
-			}
+		}
+
+		// 確保至少有一個點位
+		if (!area.modbus.points || area.modbus.points.length === 0) {
+			const nextAddress = getNextAvailableAddress(floor, deviceId, currentType);
+			area.modbus.points = [{ address: nextAddress, type: currentType }];
+		} else if (!currentAddress || currentAddress === 0) {
+			// 如果地址為 0 或未設置，自動填入 N+1
+			area.modbus.points[0].address = getNextAvailableAddress(floor, deviceId, currentType);
 		}
 	} else {
 		area.deviceId = undefined;
@@ -781,32 +759,15 @@ const handleTypeChange = (floor: LightingFloor, area: LightingArea, areaIndex: n
 	if (area.deviceId && area.modbus?.points?.[0]) {
 		const type = area.modbus.points[0].type;
 		const currentAddress = area.modbus.points[0].address;
-		
+
 		// 如果當前地址在該類型下重複，自動填入 N+1
 		if (isAddressDuplicate(floor, area.deviceId, type, currentAddress, areaIndex)) {
 			const nextAddress = getNextAvailableAddress(floor, area.deviceId, type);
 			area.modbus.points[0].address = nextAddress;
 		}
 	}
-	
-	handleAreaChange(floor);
-};
 
-// 檢查地址是否重複並返回錯誤訊息
-const getAddressError = (
-	floor: LightingFloor,
-	deviceId: number | undefined,
-	type: string | undefined,
-	address: number | undefined,
-	areaIndex: number
-): string => {
-	if (!deviceId || !type || address === undefined) return "";
-	
-	if (isAddressDuplicate(floor, deviceId, type, address, areaIndex)) {
-		return "此地址已被使用";
-	}
-	
-	return "";
+	handleAreaChange(floor);
 };
 
 // 查看樓層示意圖（另開顯示）

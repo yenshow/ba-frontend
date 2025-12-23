@@ -9,6 +9,11 @@ import type {
 	DeviceTypeCode
 } from "~/types/device";
 
+// 全局設備類型快取
+const deviceTypesCache = ref<DeviceType[] | null>(null);
+const isLoadingDeviceTypesCache = ref(false);
+let loadDeviceTypesPromise: Promise<{ device_types: DeviceType[] }> | null = null;
+
 export const useDeviceApi = () => {
 	const { request } = useApiBase();
 
@@ -72,10 +77,54 @@ export const useDeviceApi = () => {
 			});
 		},
 
-		// 取得所有設備類型
-		getDeviceTypes: () => {
-			return request<{ device_types: DeviceType[] }>("/devices/types");
+		// 取得所有設備類型（帶快取）
+		getDeviceTypes: async (force = false): Promise<DeviceType[]> => {
+			// 如果有快取且不是強制刷新，直接返回
+			if (!force && deviceTypesCache.value !== null) {
+				return deviceTypesCache.value;
+			}
+
+			// 如果正在載入，等待現有的請求完成
+			if (isLoadingDeviceTypesCache.value && loadDeviceTypesPromise) {
+				const result = await loadDeviceTypesPromise;
+				return result.device_types;
+			}
+
+			// 開始新的載入
+			isLoadingDeviceTypesCache.value = true;
+			// 如果強制刷新，清除快取
+			if (force) {
+				deviceTypesCache.value = null;
+			}
+			// 發送新請求（強制刷新時會繞過瀏覽器快取，因為 useApiBase 已設置 no-cache headers）
+			loadDeviceTypesPromise = request<{ device_types: DeviceType[] }>("/devices/types");
+
+			try {
+				const result = await loadDeviceTypesPromise;
+				deviceTypesCache.value = result.device_types;
+				return result.device_types;
+			} catch (error) {
+				// 載入失敗時清除快取
+				deviceTypesCache.value = null;
+				throw error;
+			} finally {
+				isLoadingDeviceTypesCache.value = false;
+				loadDeviceTypesPromise = null;
+			}
 		},
+
+		// 清除設備類型快取
+		clearDeviceTypesCache: () => {
+			deviceTypesCache.value = null;
+		},
+
+		// 取得快取的設備類型
+		getCachedDeviceTypes: (): DeviceType[] | null => {
+			return deviceTypesCache.value;
+		},
+
+		// 設備類型載入狀態
+		isLoadingDeviceTypes: readonly(isLoadingDeviceTypesCache),
 
 		// 取得單一設備類型
 		getDeviceType: (id: number) => {

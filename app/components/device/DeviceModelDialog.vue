@@ -6,7 +6,7 @@
 				class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
 			>
 				<div
-					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-2xl flex-col gap-4 overflow-hidden rounded-3xl pl-7 pr-0 pt-7 pb-7 2xl:max-w-3xl 2xl:gap-6 2xl:pl-8 2xl:pr-0 2xl:pt-8 2xl:pb-8"
+					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-2xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:max-w-3xl 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
 				>
 					<header class="flex items-center justify-between pr-7 2xl:pr-8">
 						<h3 class="text-lg font-semibold tracking-[4px] text-white 2xl:text-xl">
@@ -42,12 +42,10 @@
 									<div class="flex-1">
 										<div class="flex items-center gap-3">
 											<h4 class="text-base font-medium text-white 2xl:text-lg">{{ model.name }}</h4>
-											<span
-												class="rounded bg-white/20 px-2 py-1 text-xs text-white/80 2xl:text-sm"
-												>{{ model.type_name || "類型" }}</span
-											>
-											<span
-												class="rounded bg-blue-500/30 px-2 py-1 text-xs text-blue-200 2xl:text-sm"
+											<span class="rounded bg-white/20 px-2 py-1 text-xs text-white/80 2xl:text-sm">{{
+												model.type_name || "類型"
+											}}</span>
+											<span class="rounded bg-blue-500/30 px-2 py-1 text-xs text-blue-200 2xl:text-sm"
 												>Port : {{ model.port || 502 }}</span
 											>
 										</div>
@@ -56,20 +54,8 @@
 										</p>
 									</div>
 									<div class="flex gap-2 2xl:gap-3">
-										<button
-											type="button"
-											class="btn-list-edit"
-											@click="editDeviceModel(model)"
-										>
-											編輯
-										</button>
-										<button
-											type="button"
-											class="btn-list-delete"
-											@click="confirmDelete(model)"
-										>
-											刪除
-										</button>
+										<button type="button" class="btn-list-edit" @click="editDeviceModel(model)">編輯</button>
+										<button type="button" class="btn-list-delete" @click="confirmDelete(model)">刪除</button>
 									</div>
 								</div>
 							</div>
@@ -81,8 +67,10 @@
 							</div>
 						</template>
 					</div>
-					<p v-if="errorMessage" class="text-sm text-rose-300 pr-7 2xl:text-base 2xl:pr-8">{{ errorMessage }}</p>
-					<footer class="flex items-center gap-3 border-t border-white/20 pt-4 pr-7 2xl:gap-4 2xl:pr-8">
+					<p v-if="errorMessage" class="pr-7 text-sm text-rose-300 2xl:pr-8 2xl:text-base">
+						{{ errorMessage }}
+					</p>
+					<footer class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8">
 						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
 						<div class="flex-1"></div>
 						<button type="button" class="btn-primary" @click="showForm = true">新增型號</button>
@@ -95,7 +83,7 @@
 						class="fixed inset-0 z-[2001] flex items-center justify-center bg-[rgba(5,24,40,0.9)] backdrop-blur-[10px]"
 					>
 						<div
-							class="dialog-panel-bg flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-hidden rounded-3xl pl-7 pr-0 pt-7 pb-7 2xl:max-w-lg 2xl:gap-6 2xl:pl-8 2xl:pr-0 2xl:pt-8 2xl:pb-8"
+							class="dialog-panel-bg flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:max-w-lg 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
 						>
 							<header class="flex items-center justify-between pr-7 2xl:pr-8">
 								<h3 class="text-lg font-semibold tracking-[4px] text-white 2xl:text-xl">
@@ -115,58 +103,133 @@
 								@submit.prevent="handleFormSubmit"
 								class="flex flex-1 flex-col gap-4 overflow-y-auto pb-4 pr-7 2xl:gap-6 2xl:pb-6 2xl:pr-8"
 							>
-								<label
-									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-								>
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>型號名稱 *</span>
-										<input
-											v-model="formData.name"
-											type="text"
-											required
-											class="form-input"
-											placeholder="例如：DI / DO"
-										/>
-									</label>
-									<label
-										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+									<input
+										v-model="formData.name"
+										type="text"
+										required
+										class="form-input"
+										placeholder="例如：DI / DO"
+									/>
+								</label>
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<span>類型 *</span>
+									<select
+										v-model.number="formData.type_id"
+										required
+										class="form-input form-select"
+										:disabled="true"
 									>
-										<span>類型 *</span>
-										<select
-											v-model.number="formData.type_id"
-											required
-											class="form-input form-select"
-											:disabled="true"
+										<option :value="currentDeviceTypeId">{{ deviceTypeName }}</option>
+									</select>
+									<p class="mt-1 text-xs text-white/60">類型已固定為 {{ deviceTypeName }}</p>
+								</label>
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<span>端口號 *</span>
+									<input
+										v-model.number="formData.port"
+										type="number"
+										required
+										min="1"
+										max="65535"
+										class="form-input"
+										placeholder="例如：502"
+									/>
+									<p class="mt-1 text-xs text-white/60">Modbus TCP 標準端口為 502</p>
+								</label>
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<span>備註</span>
+									<textarea
+										v-model="formData.description"
+										class="form-input"
+										rows="3"
+										placeholder="設備型號描述或備註"
+									></textarea>
+								</label>
+
+								<!-- 感測器參數配置（僅當設備類型為 sensor 時顯示） -->
+								<template v-if="deviceTypeCode === 'sensor'">
+									<div class="border-t border-white/10 pt-4">
+										<div class="mb-3 flex items-center justify-between">
+											<h4 class="text-base font-medium text-white 2xl:text-lg">感測器參數配置</h4>
+											<button
+												type="button"
+												class="btn-secondary text-xs 2xl:text-sm"
+												@click="addSensorParameter"
+											>
+												新增參數
+											</button>
+										</div>
+
+										<div
+											v-if="sensorParameters.length === 0"
+											class="py-2 text-center text-xs text-white/50 2xl:text-sm"
 										>
-											<option :value="currentDeviceTypeId">{{ deviceTypeName }}</option>
-										</select>
-										<p class="mt-1 text-xs text-white/60">類型已固定為 {{ deviceTypeName }}</p>
-									</label>
-									<label
-										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-									>
-										<span>端口號 *</span>
-										<input
-											v-model.number="formData.port"
-											type="number"
-											required
-											min="1"
-											max="65535"
-											class="form-input"
-											placeholder="例如：502"
-										/>
-										<p class="mt-1 text-xs text-white/60">Modbus TCP 標準端口為 502</p>
-									</label>
-									<label
-										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-									>
-										<span>備註</span>
-										<textarea
-											v-model="formData.description"
-											class="form-input"
-											rows="3"
-											placeholder="設備型號描述或備註"
-										></textarea>
-									</label>
+											尚無參數配置，請新增參數
+										</div>
+
+										<div v-else class="space-y-3">
+											<div
+												v-for="(param, index) in sensorParameters"
+												:key="index"
+												class="bg-white/3 rounded border border-white/5 p-3"
+											>
+												<div class="mb-2 flex items-center justify-between">
+													<span class="text-sm font-medium text-white">參數 {{ index + 1 }}</span>
+													<button
+														type="button"
+														class="p-1 text-rose-400 transition-colors hover:text-rose-300"
+														@click="removeSensorParameter(index)"
+														title="刪除參數"
+													>
+														<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+															/>
+														</svg>
+													</button>
+												</div>
+
+												<div class="space-y-3">
+													<label class="flex flex-col gap-1 text-xs text-white/80 2xl:text-sm">
+														<span>參數類型 *</span>
+														<select v-model="param.type" class="form-input form-select" required>
+															<option v-for="option in parameterTypes" :key="option.value" :value="option.value">
+																{{ option.label }}
+															</option>
+														</select>
+													</label>
+
+													<label class="flex flex-col gap-1 text-xs text-white/80 2xl:text-sm">
+														<span>Modbus 地址 *</span>
+														<input
+															v-model.number="param.modbusConfig.address"
+															type="number"
+															min="0"
+															required
+															class="form-input"
+															placeholder="0"
+														/>
+													</label>
+
+													<label class="flex flex-col gap-1 text-xs text-white/80 2xl:text-sm">
+														<span>轉換公式</span>
+														<input
+															v-model="param.modbusConfig.transform"
+															type="text"
+															class="form-input"
+															placeholder="例如: - 1, / 10, * 2, + 5"
+														/>
+													</label>
+												</div>
+											</div>
+										</div>
+									</div>
+								</template>
 
 								<p v-if="formErrorMessage" class="text-sm text-rose-300 2xl:text-base">
 									{{ formErrorMessage }}
@@ -176,7 +239,12 @@
 							<footer class="flex items-center gap-3 pr-7 2xl:gap-4 2xl:pr-8">
 								<button type="button" class="btn-secondary" @click="closeForm">取消</button>
 								<div class="flex-1"></div>
-								<button type="button" class="btn-primary" :disabled="isSubmitting" @click="handleFormSubmit">
+								<button
+									type="button"
+									class="btn-primary"
+									:disabled="isSubmitting"
+									@click="handleFormSubmit"
+								>
 									{{ isSubmitting ? "處理中..." : editingModel ? "更新" : "建立" }}
 								</button>
 							</footer>
@@ -193,8 +261,11 @@ import type {
 	DeviceModel,
 	DeviceTypeCode,
 	CreateDeviceModelData,
-	UpdateDeviceModelData
+	UpdateDeviceModelData,
+	SensorDeviceModelConfig,
+	SensorParameterDefinition
 } from "~/types/device";
+import type { SensorParameterType } from "~/types/environment";
 
 interface Props {
 	modelValue: boolean;
@@ -232,14 +303,54 @@ const isSubmitting = ref(false);
 const formErrorMessage = ref<string | null>(null);
 const currentDeviceTypeId = ref<number | null>(null);
 
-const formData = reactive({ name: "", type_id: 0, port: 502, description: "" });
+const formData = reactive({
+	name: "",
+	type_id: 0,
+	port: 502,
+	description: "",
+	config: {} as SensorDeviceModelConfig | Record<string, any>
+});
+
+// 感測器參數配置（僅當設備類型為 sensor 時使用）
+const sensorParameters = ref<SensorParameterDefinition[]>([]);
 
 const resetForm = () => {
 	formData.name = "";
 	formData.type_id = currentDeviceTypeId.value || 0;
 	formData.port = 502;
 	formData.description = "";
+	formData.config = {};
+	sensorParameters.value = [];
 	formErrorMessage.value = null;
+};
+
+// 參數類型選項
+const parameterTypes: { value: SensorParameterType; label: string }[] = [
+	{ value: "pm25", label: "PM2.5" },
+	{ value: "pm10", label: "PM10" },
+	{ value: "tvoc", label: "TVOC" },
+	{ value: "hcho", label: "HCHO" },
+	{ value: "humidity", label: "濕度" },
+	{ value: "temperature", label: "溫度" },
+	{ value: "co2", label: "CO2" },
+	{ value: "noise", label: "噪音值" },
+	{ value: "wind", label: "風速" }
+];
+
+// 新增參數配置
+const addSensorParameter = () => {
+	sensorParameters.value.push({
+		type: "pm25",
+		modbusConfig: {
+			address: 0,
+			transform: ""
+		}
+	});
+};
+
+// 刪除參數配置
+const removeSensorParameter = (index: number) => {
+	sensorParameters.value.splice(index, 1);
 };
 
 const loadDeviceType = async () => {
@@ -296,6 +407,16 @@ const editDeviceModel = (model: DeviceModel) => {
 	formData.type_id = model.type_id;
 	formData.port = model.port || 502;
 	formData.description = model.description || "";
+
+	// 載入感測器參數配置（如果是感測器型號）
+	if (props.deviceTypeCode === "sensor" && model.config) {
+		const config = model.config as SensorDeviceModelConfig;
+		// 直接使用配置，後端已經不返回 length 欄位
+		sensorParameters.value = config.sensorParameters ? [...config.sensorParameters] : [];
+	} else {
+		sensorParameters.value = [];
+	}
+
 	showForm.value = true;
 };
 
@@ -322,12 +443,29 @@ const closeForm = () => {
 const handleFormSubmit = async () => {
 	isSubmitting.value = true;
 	formErrorMessage.value = null;
+
 	try {
+		// 準備提交資料
+		const submitData: CreateDeviceModelData | UpdateDeviceModelData = {
+			name: formData.name,
+			type_id: formData.type_id,
+			port: formData.port,
+			description: formData.description || undefined
+		};
+
+		// 如果是感測器型號，包含參數配置
+		if (props.deviceTypeCode === "sensor") {
+			const sensorConfig: SensorDeviceModelConfig = {
+				sensorParameters: sensorParameters.value.length > 0 ? sensorParameters.value : undefined
+			};
+			submitData.config = sensorConfig;
+		}
+
 		if (editingModel.value) {
-			await deviceApi.updateDeviceModel(editingModel.value.id, formData);
+			await deviceApi.updateDeviceModel(editingModel.value.id, submitData);
 			toast.success("設備型號更新成功");
 		} else {
-			await deviceApi.createDeviceModel(formData);
+			await deviceApi.createDeviceModel(submitData as CreateDeviceModelData);
 			toast.success("設備型號建立成功");
 		}
 		closeForm();

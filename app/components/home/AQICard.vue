@@ -101,16 +101,12 @@ const metricsColumns = computed(() => {
 });
 
 const iconMap: Record<string, string> = {
-	"PM2.5": "/layout/pm2.5.png",
-	PM10: "/layout/pm10.png",
-	PM1: "/layout/pm1.png",
-	CO: "/layout/co.png",
-	"CO₂": "/layout/co.png",
-	SO2: "/layout/so2.png",
-	NO2: "/layout/no2.png",
-	HCHO: "/layout/no2.png",
-	TVOC: "/layout/so2.png",
-	濕度: "/layout/humidity.png"
+	"PM2.5": "/environment/PM2.5.png",
+	PM10: "/environment/PM10.png",
+	temperature: "/environment/temperature.png",
+	humidity: "/environment/humidity.png",
+	wind: "/environment/wind-speed.png",
+	noise: "/environment/noise.png"
 };
 
 const getMetricIcon = (metric: AQIMetric) => {
@@ -120,7 +116,7 @@ const getMetricIcon = (metric: AQIMetric) => {
 	if (iconMap[metric.label]) {
 		return iconMap[metric.label];
 	}
-	return "/layout/pm2.5.png";
+	return "/environment/PM2.5.png";
 };
 
 // 顏色插值函數

@@ -1,9 +1,15 @@
 <template>
-	<div class="flex flex-row justify-center items-center gap-4 xl:gap-6 2xl:gap-8 h-full py-4 xl:py-6 2xl:py-8 pl-12 xl:pl-0">
+	<div
+		class="flex h-full flex-row items-center justify-center gap-4 py-4 pl-12 xl:gap-6 xl:py-6 xl:pl-0 2xl:gap-8 2xl:py-8"
+	>
 		<!-- Temperature Gauge -->
-		<div class="relative w-full aspect-square max-w-[200px] 2xl:max-w-[240px]">
+		<div class="relative aspect-square w-full max-w-[200px] 2xl:max-w-[240px]">
 			<!-- SVG 弧形指示器 -->
-			<svg class="absolute inset-0 w-full h-full transform -rotate-90 z-20" viewBox="0 0 240 240" style="overflow: visible">
+			<svg
+				class="absolute inset-0 z-20 h-full w-full -rotate-90 transform"
+				viewBox="0 0 240 240"
+				style="overflow: visible"
+			>
 				<path
 					:d="fullArcPath"
 					fill="none"
@@ -13,36 +19,60 @@
 					:stroke-dasharray="arcLength"
 					:stroke-dashoffset="arcDashOffset"
 					class="transition-all duration-500 ease-out"
-					style="opacity: isDataReady ? 1 : 0"
+					:style="{ opacity: isDataReady ? 1 : 0 }"
 				/>
 			</svg>
 
 			<!-- Background Circle -->
-			<div class="absolute inset-0 w-full h-full rounded-full border-4 border-white flex flex-col items-center justify-center overflow-hidden z-10 space-y-2">
+			<div
+				class="absolute inset-0 z-10 flex h-full w-full flex-col items-center justify-center space-y-2 overflow-hidden rounded-full border-4 border-white"
+			>
 				<!-- 溫度圖標 -->
-				<NuxtImg src="/layout/temperature-icon.png" alt="溫度" class="w-16 xl:h-16 2xl:w-20 2xl:h-20" width="80" height="80" />
+				<NuxtImg
+					src="/environment/temperature-icon.png"
+					alt="溫度"
+					class="w-16 xl:h-16 2xl:h-20 2xl:w-20"
+					width="80"
+					height="80"
+				/>
 
 				<!-- 位置資訊 -->
-				<div class="text-sm 2xl:text-base font-light text-white/80 tracking-widest px-2 text-center leading-tight -translate-y-2 2xl:-translate-y-3">
+				<div
+					class="-translate-y-2 px-2 text-center text-sm font-light leading-tight tracking-widest text-white/80 2xl:-translate-y-3 2xl:text-base"
+				>
 					{{ data.location }}
 				</div>
-				<div class="h-0.5 w-4/5 mx-auto bg-white/20 -translate-y-2 2xl:-translate-y-3"></div>
+				<div class="mx-auto h-0.5 w-4/5 -translate-y-2 bg-white/20 2xl:-translate-y-3"></div>
 				<!-- 溫度數值 -->
-				<div class="text-4xl 2xl:text-5xl font-extralight text-white -translate-y-2 2xl:-translate-y-3">
+				<div class="-translate-y-2 text-4xl font-extralight text-white 2xl:-translate-y-3 2xl:text-5xl">
 					{{ data.temperature }}
 				</div>
 			</div>
 		</div>
 
 		<!-- Metrics List -->
-		<div class="flex flex-col space-y-4 xl:space-y-5 2xl:space-y-6 w-full">
-			<div v-for="(metric, index) in data.metrics" :key="index" class="flex items-center space-x-2 2xl:space-x-4">
-				<div class="w-16 h-16 xl:w-14 xl:h-14 2xl:w-16 2xl:h-16">
-					<NuxtImg :src="getMetricIcon(metric.icon)" :alt="metric.label" class="w-full h-full object-contain" width="64" height="64" />
+		<div class="flex w-full flex-col space-y-4 xl:space-y-5 2xl:space-y-6">
+			<div
+				v-for="(metric, index) in data.metrics"
+				:key="index"
+				class="flex items-center space-x-2 2xl:space-x-4"
+			>
+				<div class="h-16 w-16 xl:h-14 xl:w-14 2xl:h-16 2xl:w-16">
+					<NuxtImg
+						:src="getMetricIcon(metric.icon)"
+						:alt="metric.label"
+						class="h-full w-full object-contain"
+						width="64"
+						height="64"
+					/>
 				</div>
 				<div class="flex flex-col text-white">
-					<span class="text-lg 2xl:text-xl font-light tracking-wide whitespace-nowrap">{{ metric.label }}</span>
-					<span class="text-base 2xl:text-lg font-light tracking-wide whitespace-nowrap">{{ metric.value }} {{ metric.unit }}</span>
+					<span class="whitespace-nowrap text-lg font-light tracking-wide 2xl:text-xl">{{
+						metric.label
+					}}</span>
+					<span class="whitespace-nowrap text-base font-light tracking-wide 2xl:text-lg"
+						>{{ metric.value }} {{ metric.unit }}</span
+					>
 				</div>
 			</div>
 		</div>
@@ -65,13 +95,52 @@ const props = defineProps<{
 	data: EnvironmentData;
 }>();
 
-// 計算溫度指示器的顏色
+// 顏色插值函數（用於平滑的顏色過渡）
+const interpolateColor = (startColor: string, endColor: string, factor: number): string => {
+	const start = parseInt(startColor.slice(1), 16);
+	const end = parseInt(endColor.slice(1), 16);
+
+	const r1 = (start >> 16) & 0xff;
+	const g1 = (start >> 8) & 0xff;
+	const b1 = start & 0xff;
+
+	const r2 = (end >> 16) & 0xff;
+	const g2 = (end >> 8) & 0xff;
+	const b2 = end & 0xff;
+
+	const r = Math.round(r1 + (r2 - r1) * factor);
+	const g = Math.round(g1 + (g2 - g1) * factor);
+	const b = Math.round(b1 + (b2 - b1) * factor);
+
+	return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+};
+
+// 計算溫度指示器的顏色（精準的線性插值）
 const temperatureColor = computed(() => {
 	const temp = props.data.temperature;
-	if (temp <= 20) return "#3B82F6"; // 藍色 - 冷
-	if (temp <= 28) return "#10B981"; // 綠色 - 舒適
-	if (temp <= 30) return "#F59E0B"; // 橙色 - 溫暖
-	return "#EF4444"; // 紅色 - 警示
+
+	if (temp <= 0) return "#3B82F6"; // 藍色 - 極冷
+	if (temp <= 20) {
+		// 0-20°C: 藍色保持
+		return "#3B82F6";
+	}
+	if (temp <= 28) {
+		// 20-28°C: 藍色到綠色
+		const factor = (temp - 20) / 8;
+		return interpolateColor("#3B82F6", "#10B981", factor);
+	}
+	if (temp <= 30) {
+		// 28-30°C: 綠色到橙色
+		const factor = (temp - 28) / 2;
+		return interpolateColor("#10B981", "#F59E0B", factor);
+	}
+	if (temp <= 50) {
+		// 30-50°C: 橙色到紅色（警示）
+		const factor = (temp - 30) / 20;
+		return interpolateColor("#F59E0B", "#EF4444", factor);
+	}
+	// > 50°C: 保持深紅色
+	return "#DC2626"; // 更深的紅色表示極高溫
 });
 
 // 圓心座標和半徑計算
@@ -125,10 +194,12 @@ const isDataReady = computed(() => {
 
 const getMetricIcon = (iconName: string) => {
 	const iconMap: Record<string, string> = {
-		temperature: "/layout/temperature.png",
-		humidity: "/layout/humidity.png",
-		wind: "/layout/wind-speed.png"
+		temperature: "/environment/temperature.png",
+		humidity: "/environment/humidity.png",
+		wind: "/environment/wind-speed.png",
+		"CO₂": "/environment/CO2.png",
+		"PM2.5": "/environment/PM2.5.png"
 	};
-	return iconMap[iconName] || "/layout/temperature.png";
+	return iconMap[iconName] || "/environment/temperature.png";
 };
 </script>

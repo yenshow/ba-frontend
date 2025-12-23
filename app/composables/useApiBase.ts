@@ -12,8 +12,31 @@ export const useApiBase = () => {
 	const apiBase = config.public.apiBase || "http://localhost:4000/api";
 
 	// 取得認證 headers
+	// 注意：此函數可能在非 Vue 上下文中調用（如定時器回調），
+	// 因此需要安全地獲取 cookie
 	const getAuthHeaders = (): HeadersInit => {
-		const token = useCookie("auth_token").value;
+		let token: string | null = null;
+		
+		// 嘗試獲取 cookie
+		try {
+			// 優先嘗試使用 Nuxt composable（在 Vue 上下文中）
+			const cookie = useCookie("auth_token");
+			token = cookie.value;
+		} catch (error) {
+			// 如果無法使用 composable（如在定時器回調中），直接讀取 cookie
+			if (process.client && typeof document !== 'undefined') {
+				const cookies = document.cookie.split(';');
+				const authCookie = cookies.find(cookie => cookie.trim().startsWith('auth_token='));
+				if (authCookie) {
+					token = decodeURIComponent(authCookie.split('=')[1]?.trim() || '');
+					// 如果 token 為空字符串，設為 null
+					if (token === '') {
+						token = null;
+					}
+				}
+			}
+		}
+		
 		const headers: HeadersInit = {
 			"Content-Type": "application/json",
 			Accept: "application/json"

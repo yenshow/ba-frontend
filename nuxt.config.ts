@@ -63,7 +63,10 @@ export default defineNuxtConfig({
 	runtimeConfig: {
 		public: {
 			apiBase: process.env.NUXT_PUBLIC_API_BASE || "http://localhost:4000/api",
-			modbusRequestTimeout: Number(process.env.NUXT_PUBLIC_MODBUS_TIMEOUT ?? 5000)
+			modbusRequestTimeout: Number(process.env.NUXT_PUBLIC_MODBUS_TIMEOUT ?? 5000),
+			// MediaMTX 服務 URL（HLS 和 WebRTC）
+			mediamtxHlsUrl: process.env.NUXT_PUBLIC_MEDIAMTX_HLS_URL || "http://localhost:8888",
+			mediamtxWebrtcUrl: process.env.NUXT_PUBLIC_MEDIAMTX_WEBRTC_URL || "http://localhost:8889"
 		}
 	}
 });

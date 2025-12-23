@@ -14,6 +14,28 @@ export interface DeviceType {
 	updated_at?: string;
 }
 
+// 感測器參數的 Modbus 配置（定義在設備型號中）
+export interface SensorParameterModbusConfig {
+	address: number; // Modbus 地址（必填）
+	// length 已移除：後端預設為 1，前端不需要設定
+	transform?: string; // 轉換公式（如：value / 10, value - 1）
+}
+
+// 設備型號中的感測器參數配置定義
+export interface SensorParameterDefinition {
+	type: string; // 參數類型（pm25, pm10, tvoc, hcho, humidity, temperature, co2, noise, wind）
+	modbusConfig: SensorParameterModbusConfig; // Modbus 配置
+}
+
+// 重新導出給 environment.ts 使用
+export type { SensorParameterModbusConfig, SensorParameterDefinition };
+
+// 設備型號配置（根據設備類型有不同的結構）
+export interface SensorDeviceModelConfig {
+	// 感測器型號的參數配置列表
+	sensorParameters?: SensorParameterDefinition[];
+}
+
 // 設備型號
 export interface DeviceModel {
 	id: number;
@@ -22,7 +44,8 @@ export interface DeviceModel {
 	port: number; // 端口號（預設 502）
 	description?: string;
 	// 根據設備類型，可能包含不同的配置欄位
-	config?: Record<string, any>;
+	// 對於感測器類型，config 應符合 SensorDeviceModelConfig 結構
+	config?: Record<string, any> | SensorDeviceModelConfig;
 	type_name?: string;
 	type_code?: string;
 	created_at?: string;

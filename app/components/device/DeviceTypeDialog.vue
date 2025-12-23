@@ -188,8 +188,6 @@ const emit = defineEmits<{
 
 const deviceApi = useDeviceApi();
 const toast = useToast();
-const { loadDeviceTypes: loadDeviceTypesCached, clearCache: clearDeviceTypesCache } =
-	useDeviceTypesCache();
 
 const deviceTypes = ref<DeviceType[]>([]);
 const isLoading = ref(false);
@@ -215,7 +213,7 @@ const loadDeviceTypes = async (force = false) => {
 	isLoading.value = true;
 	errorMessage.value = null;
 	try {
-		deviceTypes.value = await loadDeviceTypesCached(force);
+		deviceTypes.value = await deviceApi.getDeviceTypes(force);
 	} catch (error) {
 		handleError(error, "載入設備類型失敗");
 	} finally {
@@ -271,7 +269,7 @@ const handleSubmit = async () => {
 			toast.success("設備類型建立成功");
 		}
 		closeForm();
-		clearDeviceTypesCache(); // 清除前端快取
+		deviceApi.clearDeviceTypesCache(); // 清除前端快取
 		await loadDeviceTypes(true); // 強制刷新（force = true）
 		emit("refresh");
 	} catch (error) {

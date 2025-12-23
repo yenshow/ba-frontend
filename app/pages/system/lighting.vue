@@ -3,7 +3,7 @@
 		<!-- 照明系統頁面內容 - 自定義排版 -->
 		<div class="flex justify-center gap-4 xl:gap-6 2xl:gap-8">
 			<!-- 主要內容 -->
-			<section class="relative flex-[1.3]">
+			<section class="relative flex-[1.2] 2xl:flex-[1.3]" ref="leftSectionRef">
 				<div
 					class="flex overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 xl:p-6 2xl:p-8"
 				>
@@ -19,37 +19,43 @@
 								</span>
 							</div>
 							<!-- 樓層管理按鈕 -->
-							<button
-								type="button"
-								@click="showFloorManagementDialog = true"
-								:class="[
-									'whitespace-nowrap rounded-2xl p-3 text-xs font-light text-white transition-all 2xl:text-lg',
-									'border-2 border-white/30 bg-transparent hover:bg-white/10'
-								]"
-								title="樓層管理"
-							>
-								樓層管理
-							</button>
-							<!-- 編輯模式切換按鈕與下拉選單 -->
-							<div class="relative">
+							<Transition name="fade-in">
 								<button
+									v-if="!isInitialLoading"
 									type="button"
-									@click="isEditMode = !isEditMode"
+									@click="handleOpenFloorDialog"
 									:class="[
 										'whitespace-nowrap rounded-2xl p-3 text-xs font-light text-white transition-all 2xl:text-lg',
-										isEditMode
-											? 'border-2 border-white bg-white/10'
-											: 'border-2 border-white/30 bg-transparent'
+										'border-2 border-white/30 bg-transparent hover:bg-white/10'
 									]"
+									title="樓層管理"
 								>
-									{{ isEditMode ? "完成編輯" : "編輯定位" }}
+									樓層管理
 								</button>
+							</Transition>
+							<!-- 編輯模式切換按鈕與下拉選單 -->
+							<div class="relative">
+								<Transition name="fade-in">
+									<button
+										v-if="!isInitialLoading"
+										type="button"
+										@click="handleToggleEditMode"
+										:class="[
+											'whitespace-nowrap rounded-2xl p-3 text-xs font-light text-white transition-all 2xl:text-lg',
+											isEditMode
+												? 'border-2 border-white bg-white/10'
+												: 'border-2 border-white/30 bg-transparent'
+										]"
+									>
+										{{ isEditMode ? "完成編輯" : "編輯定位" }}
+									</button>
+								</Transition>
 								<!-- 區域列表下拉選單 -->
 								<Transition name="dropdown">
 									<CategoryList
 										v-if="isEditMode"
 										:categories="
-											currentFloorAreas.map((area, index) => ({
+											allFloorAreas.map((area, index) => ({
 												id: getAreaId(selectedFloorData || ({} as LightingFloor), area, index),
 												name: area.name,
 												floorId: selectedFloor || '',
@@ -61,7 +67,8 @@
 										:editing="isEditMode"
 										:selected-category-id="selectedCategory"
 										@select="handleSelectCategory"
-										@delete="handleDeleteCategory"
+										@dragstart="handleCategoryListDragStart"
+										@dragend="handleDragEnd"
 									/>
 								</Transition>
 							</div>
@@ -85,54 +92,41 @@
 							height="full"
 							@load="isFloorPlanLoaded = true"
 						/>
-						<!-- 區域點位 -->
-						<template
-							v-for="(area, index) in currentFloorAreas"
-							:key="getAreaId(selectedFloorData || ({} as LightingFloor), area, index)"
-						>
+						<!-- 區域點位（只顯示已定位的） -->
+						<template v-for="area in currentFloorAreas" :key="getAreaIdForDisplay(area)">
 							<div
+								v-if="selectedFloorData && area.location"
 								class="category-dot-wrapper"
 								:class="{
-									'is-dragging':
-										draggingCategoryId ===
-										getAreaId(selectedFloorData || ({} as LightingFloor), area, index)
+									'is-dragging': draggingCategoryId === getAreaIdForDisplay(area)
 								}"
 								:style="{
 									left: `${area.location.x}%`,
 									top: `${area.location.y}%`
 								}"
 								:draggable="isEditMode"
-								@dragstart="handleDotDragStart($event, area, index)"
-								@dragend="handleDotDragEnd"
+								@dragstart="
+									handleDotDragStart($event, area, findAreaOriginalIndex(selectedFloorData, area))
+								"
+								@dragend="handleDragEnd"
 							>
 								<div
 									class="category-dot"
 									:class="[
-										{
-											'is-active':
-												selectedCategory ===
-												getAreaId(selectedFloorData || ({} as LightingFloor), area, index)
-										},
+										{ 'is-active': selectedCategory === getAreaIdForDisplay(area) },
 										{ 'is-editing': isEditMode }
 									]"
 									role="button"
 									tabindex="0"
-									:data-status="
-										isAreaNormal(getAreaId(selectedFloorData || ({} as LightingFloor), area, index))
-											? 'normal'
-											: 'abnormal'
-									"
-									:title="`${area.name}：${isAreaNormal(getAreaId(selectedFloorData || ({} as LightingFloor), area, index)) ? '正常' : '異常'}`"
-									:aria-label="`${area.name}：${isAreaNormal(getAreaId(selectedFloorData || ({} as LightingFloor), area, index)) ? '正常' : '異常'}`"
-									@click.stop="!isEditMode && selectAreaByIndex(index)"
+									:data-status="isAreaNormal(getAreaIdForDisplay(area)) ? 'normal' : 'abnormal'"
+									:title="`${area.name}：${isAreaNormal(getAreaIdForDisplay(area)) ? '正常' : '異常'}`"
+									:aria-label="`${area.name}：${isAreaNormal(getAreaIdForDisplay(area)) ? '正常' : '異常'}`"
+									@click.stop="!isEditMode && selectAreaByArea(area)"
 								></div>
-								<!-- Tooltip：顯示區域名稱和狀態 -->
 								<CategoryTooltip
 									:show="true"
 									:category-name="area.name"
-									:is-normal="
-										isAreaNormal(getAreaId(selectedFloorData || ({} as LightingFloor), area, index))
-									"
+									:is-normal="isAreaNormal(getAreaIdForDisplay(area))"
 								/>
 							</div>
 						</template>
@@ -141,7 +135,10 @@
 			</section>
 
 			<!-- 右側狀態中心 -->
-			<aside class="flex-[0.7]">
+			<aside
+				class="flex-[0.8] overflow-y-auto 2xl:flex-[0.7]"
+				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
+			>
 				<StatusCenter
 					:floors="lightingFloors"
 					:area-statuses="areaStatuses"
@@ -163,15 +160,16 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, watch } from "vue";
+import { onMounted, onBeforeUnmount, watch, nextTick } from "vue";
 import StatusCenter from "~/components/lighting/StatusCenter.vue";
 import CategoryTooltip from "~/components/lighting/CategoryTooltip.vue";
 import CategoryList from "~/components/lighting/CategoryList.vue";
 import FloorManagementDialog from "~/components/lighting/FloorManagementDialog.vue";
 import type { CategoryModbusConfig, LightingFloor, LightingArea } from "~/types/lighting";
-import { useModbusApi } from "~/composables/useModbus";
 import { useDeviceApi } from "~/composables/useDeviceApi";
+import { useApiBase } from "~/composables/useApiBase";
 import type { Device, ControllerDeviceConfig } from "~/types/device";
+import type { ModbusDataResponse, ModbusDeviceConfig } from "~/types/modbus";
 
 definePageMeta({
 	layout: "default"
@@ -179,6 +177,29 @@ definePageMeta({
 });
 
 const lightingApi = useLightingApi();
+
+// 左側區域參考與高度（用於使右側 StatusCenter 同高）
+const leftSectionRef = ref<HTMLElement | null>(null);
+const leftSectionHeight = ref<number | null>(null);
+
+// ResizeObserver 監聽左側高度
+let leftSectionResizeObserver: ResizeObserver | null = null;
+
+const updateLeftSectionHeight = () => {
+	if (leftSectionRef.value) {
+		leftSectionHeight.value = leftSectionRef.value.offsetHeight;
+	}
+};
+
+const initLeftSectionObserver = () => {
+	if (typeof ResizeObserver === "undefined" || !leftSectionRef.value) return;
+	leftSectionResizeObserver = new ResizeObserver(entries => {
+		if (entries.length) {
+			leftSectionHeight.value = entries[0].contentRect.height;
+		}
+	});
+	leftSectionResizeObserver.observe(leftSectionRef.value);
+};
 
 // 生成區域 ID（統一的 ID 生成邏輯）
 const getAreaId = (floor: LightingFloor, area: LightingArea, areaIndex: number): string => {
@@ -188,6 +209,7 @@ const getAreaId = (floor: LightingFloor, area: LightingArea, areaIndex: number):
 // 樓層數據（從 API 載入）
 const lightingFloors = ref<LightingFloor[]>([]);
 const isLoadingFloors = ref(false);
+const isInitialLoading = ref(true); // 追蹤初始載入狀態
 
 // 選中的樓層與分類
 const selectedFloor = ref<string>("");
@@ -221,8 +243,27 @@ const floorPlanImage = computed(() => {
 	return selectedFloorData.value?.imageUrl;
 });
 
-// 當前選中樓層的區域列表
+// 檢查 location 是否有效
+const isValidLocation = (location: { x: number; y: number } | undefined | null): boolean => {
+	return (
+		location !== undefined &&
+		location !== null &&
+		typeof location.x === "number" &&
+		typeof location.y === "number" &&
+		!isNaN(location.x) &&
+		!isNaN(location.y)
+	);
+};
+
+// 當前選中樓層的區域列表（過濾掉未定位的點位，只有定位的點位才會顯示在地圖上）
 const currentFloorAreas = computed(() => {
+	if (!selectedFloor.value) return [];
+	const floor = selectedFloorData.value;
+	return (floor?.areas || []).filter(area => isValidLocation(area.location));
+});
+
+// 所有區域列表（包含未定位的，用於 CategoryList）
+const allFloorAreas = computed(() => {
 	if (!selectedFloor.value) return [];
 	const floor = selectedFloorData.value;
 	return floor?.areas || [];
@@ -285,11 +326,30 @@ const handleSelectCategory = (areaId: string) => {
 	selectedCategory.value = areaId;
 };
 
-// 通過索引選中區域（點擊黃點時使用）
-const selectAreaByIndex = (index: number) => {
+// 找到區域在原始樓層區域列表中的索引
+const findAreaOriginalIndex = (floor: LightingFloor, targetArea: LightingArea): number => {
+	return floor.areas.findIndex(area => {
+		if (area.id && targetArea.id) return area.id === targetArea.id;
+		return area === targetArea;
+	});
+};
+
+// 獲取區域的 ID（用於模板，避免重複計算）
+const getAreaIdForDisplay = (area: LightingArea): string => {
 	const floor = selectedFloorData.value;
-	if (floor && floor.areas[index]) {
-		selectedCategory.value = getAreaId(floor, floor.areas[index], index);
+	if (!floor) return "";
+	const originalIndex = findAreaOriginalIndex(floor, area);
+	return originalIndex !== -1 ? getAreaId(floor, area, originalIndex) : "";
+};
+
+// 直接通過區域選中
+const selectAreaByArea = (area: LightingArea) => {
+	const floor = selectedFloorData.value;
+	if (floor && area) {
+		const originalIndex = findAreaOriginalIndex(floor, area);
+		if (originalIndex !== -1) {
+			selectedCategory.value = getAreaId(floor, area, originalIndex);
+		}
 	}
 };
 
@@ -329,8 +389,7 @@ const filterDoPoints = (points: any[] | undefined) => {
 	return points.filter(p => {
 		if (p.type === "DO") return true;
 		// 向後兼容：從 method 推斷
-		if (p.method === "writeCoil" || p.method === "writeCoils" || p.method === "getCoils")
-			return true;
+		if (p.method === "writeCoil" || p.method === "writeCoils" || p.method === "getCoils") return true;
 		return false;
 	});
 };
@@ -411,8 +470,56 @@ const initializeAreaStatuses = () => {
 	});
 };
 
-const modbusApi = useModbusApi();
 const deviceApi = useDeviceApi();
+const { request } = useApiBase();
+
+// 構建 Modbus API 查詢參數
+const buildModbusQueryParams = (
+	deviceConfig: ModbusDeviceConfig,
+	address: number,
+	length: number
+): string => {
+	const params = new URLSearchParams({
+		host: deviceConfig.host,
+		port: String(deviceConfig.port),
+		unitId: String(deviceConfig.unitId),
+		address: String(address),
+		length: String(length)
+	});
+	return params.toString();
+};
+
+// 讀取 Coils
+const getCoils = async (address: number, length: number, deviceConfig: ModbusDeviceConfig) => {
+	const queryParams = buildModbusQueryParams(deviceConfig, address, length);
+	return request<ModbusDataResponse<boolean>>(`/modbus/coils?${queryParams}`);
+};
+
+// 讀取 Discrete Inputs
+const getDiscreteInputs = async (
+	address: number,
+	length: number,
+	deviceConfig: ModbusDeviceConfig
+) => {
+	const queryParams = buildModbusQueryParams(deviceConfig, address, length);
+	return request<ModbusDataResponse<boolean>>(`/modbus/discrete-inputs?${queryParams}`);
+};
+
+// 寫入 Coil
+const writeCoil = async (address: number, value: boolean, deviceConfig: ModbusDeviceConfig) => {
+	const queryParams = new URLSearchParams({
+		host: deviceConfig.host,
+		port: String(deviceConfig.port),
+		unitId: String(deviceConfig.unitId)
+	});
+	return request<{ address: number; value: boolean; success: boolean; device: ModbusDeviceConfig }>(
+		`/modbus/coils?${queryParams.toString()}`,
+		{
+			method: "PUT",
+			body: JSON.stringify({ address, value })
+		}
+	);
+};
 
 // 設備快取（避免重複載入）
 const deviceCache = ref<Map<number, Device>>(new Map());
@@ -550,8 +657,8 @@ const processBatchRequests = async (requests: BatchRequest[]) => {
 		try {
 			const requestPromise =
 				firstReq.type === "coil"
-					? modbusApi.getCoils(firstReq.address, 1, firstReq.deviceConfig)
-					: modbusApi.getDiscreteInputs(firstReq.address, 1, firstReq.deviceConfig);
+					? getCoils(firstReq.address, 1, firstReq.deviceConfig)
+					: getDiscreteInputs(firstReq.address, 1, firstReq.deviceConfig);
 
 			// 更新緩存（同時追蹤正在進行的請求）
 			requestCache.set(requestKey, { timestamp: now, promise: requestPromise });
@@ -784,28 +891,20 @@ const executeToggle = async (areaId: string, targetValue: boolean) => {
 			}
 
 			// 執行所有 DO 點位的寫入操作（統一使用 writeCoil）
-			await Promise.all(
-				doPoints.map(point => modbusApi.writeCoil(point.address, targetValue, deviceConfig))
-			);
+			await Promise.all(doPoints.map(point => writeCoil(point.address, targetValue, deviceConfig)));
 		} else {
 			// 向後兼容：使用舊格式
 			const doAddresses = extractDoAddresses(targetArea.modbus);
 
 			if (doAddresses.length > 0) {
 				// 統一使用 writeCoil 寫入每個點位
-				await Promise.all(
-					doAddresses.map(address => modbusApi.writeCoil(address, targetValue, deviceConfig))
-				);
+				await Promise.all(doAddresses.map(address => writeCoil(address, targetValue, deviceConfig)));
 			}
 		}
 
 		// 寫入成功後，稍等一下再重新讀取狀態（避免與設備響應時間衝突）
 		setTimeout(async () => {
-			const readRequests = await collectAreaReadRequests(
-				targetFloor!,
-				targetArea!,
-				targetAreaIndex
-			);
+			const readRequests = await collectAreaReadRequests(targetFloor!, targetArea!, targetAreaIndex);
 			if (readRequests.length > 0) {
 				await processBatchRequests(readRequests);
 			}
@@ -914,17 +1013,31 @@ const handleDeleteCategory = async (areaId: string) => {
 	}
 };
 
-
 // 拖曳處理：在圖片上拖曳區域
 const handleDotDragStart = (event: DragEvent, area: LightingArea, areaIndex: number) => {
 	if (!isEditMode.value || !selectedFloorData.value) return;
 	const areaId = getAreaId(selectedFloorData.value, area, areaIndex);
+	startDrag(event, areaId);
+};
+
+// 處理從 CategoryList 開始的拖曳
+const handleCategoryListDragStart = (event: DragEvent, category: any) => {
+	if (!isEditMode.value || !selectedFloorData.value) return;
+	startDrag(event, category.id, true);
+};
+
+// 統一的拖曳開始處理
+const startDrag = (event: DragEvent, areaId: string, fromCategoryList = false) => {
 	draggingCategoryId.value = areaId;
 	event.dataTransfer!.effectAllowed = "move";
 	event.dataTransfer!.setData("areaId", areaId);
+	if (fromCategoryList) {
+		event.dataTransfer!.setData("fromCategoryList", "true");
+	}
 };
 
-const handleDotDragEnd = () => {
+// 統一的拖曳結束處理
+const handleDragEnd = () => {
 	draggingCategoryId.value = "";
 };
 
@@ -934,7 +1047,6 @@ const handleDrop = async (event: DragEvent) => {
 
 	event.preventDefault();
 	const areaId = event.dataTransfer?.getData("areaId");
-
 	if (!areaId) return;
 
 	const rect = floorPlanRef.value.getBoundingClientRect();
@@ -956,7 +1068,7 @@ const handleDrop = async (event: DragEvent) => {
 
 	if (!targetFloor) return;
 
-	// 更新區域位置
+	// 更新區域位置（如果是從 CategoryList 拖曳過來的未定位點位，現在設定位置）
 	const updatedAreas = targetFloor.areas.map((area, index) => {
 		if (index === targetAreaIndex) {
 			return { ...area, location: { x, y } };
@@ -1060,14 +1172,18 @@ watch(
 watch(
 	() => currentFloorAreas.value,
 	newAreas => {
-		// 若目前選中的區域不存在於新的清單中，改選第一個或清空
-		if (selectedFloorData.value) {
-			const currentAreaId = newAreas.find(
-				(area, index) => getAreaId(selectedFloorData.value!, area, index) === selectedCategory.value
-			);
-			if (!currentAreaId && newAreas.length > 0) {
-				selectedCategory.value = getAreaId(selectedFloorData.value, newAreas[0], 0);
-			} else if (newAreas.length === 0) {
+		if (!selectedFloorData.value) return;
+
+		// 檢查當前選中的區域是否還存在於新清單中
+		const currentAreaExists = newAreas.some(
+			area => getAreaIdForDisplay(area) === selectedCategory.value
+		);
+
+		if (!currentAreaExists) {
+			// 如果不存在，選中第一個或清空
+			if (newAreas.length > 0) {
+				selectedCategory.value = getAreaIdForDisplay(newAreas[0]);
+			} else {
 				selectedCategory.value = "";
 			}
 		}
@@ -1076,6 +1192,26 @@ watch(
 );
 
 // ========== 樓層管理功能 ==========
+
+// 處理打開樓層管理對話框
+const handleOpenFloorDialog = async () => {
+	// 如果還沒有載入樓層數據，先載入
+	if (lightingFloors.value.length === 0) {
+		await loadFloorsFromAPI();
+	}
+	// 打開對話框
+	showFloorManagementDialog.value = true;
+};
+
+// 處理編輯模式切換
+const handleToggleEditMode = () => {
+	// 如果切換到編輯模式，確保數據已載入
+	if (!isEditMode.value && lightingFloors.value.length === 0) {
+		loadFloorsFromAPI();
+	}
+	// 切換編輯模式
+	isEditMode.value = !isEditMode.value;
+};
 
 // 從 API 載入樓層列表
 const loadFloorsFromAPI = async () => {
@@ -1180,15 +1316,27 @@ const handleDeleteFloor = async (floorId: string) => {
 
 // 初始化：載入樓層數據
 onMounted(async () => {
-	// 載入樓層列表（會自動選擇 1F 或第一個樓層）
-	await loadFloorsFromAPI();
+	// 初始化左側 ResizeObserver
+	initLeftSectionObserver();
+	try {
+		// 載入樓層列表（會自動選擇 1F 或第一個樓層）
+		await loadFloorsFromAPI();
 
-	// 初始化區域狀態（從樓層的 areas）
-	initializeAreaStatuses();
+		// 初始化區域狀態（從樓層的 areas）
 
-	// 立即從後端載入所有樓層的區域實際狀態（不預設為 OFF）
-	// 這樣 StatusCenter 也能正確顯示所有樓層的狀態
-	await loadAllAreaStatuses({ loadAllFloors: true });
+		// 同步右側高度
+		nextTick(() => {
+			updateLeftSectionHeight();
+		});
+		initializeAreaStatuses();
+
+		// 立即從後端載入所有樓層的區域實際狀態（不預設為 OFF）
+		// 這樣 StatusCenter 也能正確顯示所有樓層的狀態
+		await loadAllAreaStatuses({ loadAllFloors: true });
+	} finally {
+		// 初始載入完成，顯示按鈕（使用淡入動畫）
+		isInitialLoading.value = false;
+	}
 
 	// 啟動自動刷新
 	startAutoRefresh();
@@ -1201,10 +1349,32 @@ onMounted(async () => {
 onBeforeUnmount(() => {
 	stopAutoRefresh();
 	document.removeEventListener("visibilitychange", handleVisibilityChange);
+	if (leftSectionResizeObserver && leftSectionRef.value) {
+		leftSectionResizeObserver.unobserve(leftSectionRef.value);
+		leftSectionResizeObserver.disconnect();
+		leftSectionResizeObserver = null;
+	}
 });
 </script>
 
 <style scoped>
+/* 按鈕進場動畫 */
+.fade-in-enter-active {
+	transition:
+		opacity 0.4s ease-in,
+		transform 0.4s ease-out;
+}
+
+.fade-in-enter-from {
+	opacity: 0;
+	transform: translateY(-10px);
+}
+
+.fade-in-enter-to {
+	opacity: 1;
+	transform: translateY(0);
+}
+
 .image-blur-load {
 	transition:
 		filter 0.6s ease-in-out,

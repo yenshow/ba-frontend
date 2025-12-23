@@ -99,11 +99,19 @@ const metricsColumns = computed(() => {
 });
 
 const iconMap: Record<string, string> = {
-	"PM2.5": "/environment/pm2.5.png",
-	PM10: "/environment/pm10.png",
+	"PM2.5": "/environment/PM2.5.png",
+	PM10: "/environment/PM10.png",
+	CO2: "/environment/CO2.png",
 	"CO₂": "/environment/CO2.png",
 	HCHO: "/environment/HCHO.png",
-	TVOC: "/environment/TVOC.png"
+	TVOC: "/environment/TVOC.png",
+	temperature: "/environment/temperature.png",
+	濕度: "/environment/humidity.png",
+	humidity: "/environment/humidity.png",
+	wind: "/environment/wind-speed.png",
+	風速: "/environment/wind-speed.png",
+	noise: "/environment/noise.png",
+	噪音: "/environment/noise.png"
 };
 
 const getMetricIcon = (metric: AQIMetric) => {
@@ -113,16 +121,16 @@ const getMetricIcon = (metric: AQIMetric) => {
 	if (iconMap[metric.label]) {
 		return iconMap[metric.label];
 	}
-	return "/layout/pm2.5.png";
+	return "/environment/PM2.5.png";
 };
 
 // 計算弧形指示器的顏色
 const arcColor = computed(() => {
 	const value = props.aqi.value;
-	if (value < 10) return "#00FFBE";
-	if (value <= 50) return "#FFFFFF";
-	if (value <= 100) return "#FFC800";
-	return "#E23C00";
+	if (value < 10) return "#001Eff";
+	if (value <= 50) return "#00ffb4";
+	if (value <= 100) return "#FFC701";
+	return "#FF0000";
 });
 
 // 圓心座標和半徑計算

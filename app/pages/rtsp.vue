@@ -1,24 +1,27 @@
 <template>
 	<div class="container mx-auto p-6">
-		<h1 class="text-3xl font-bold mb-6">RTSP 串流播放</h1>
+		<h1 class="text-3xl font-bold mb-6">RTSP 串流測試</h1>
 
 		<div class="bg-white rounded-lg shadow-lg p-6 mb-6">
 			<div class="mb-4">
-				<label for="rtsp-url" class="block text-sm font-medium text-gray-700 mb-2"> RTSP URL </label>
+				<label for="rtsp-url" class="block text-sm font-medium text-gray-700 mb-2">
+					RTSP URL
+					<span class="text-xs text-gray-500 ml-2">(格式: rtsp://username:password@ip:port/path)</span>
+				</label>
 				<div class="flex gap-2">
 					<input
 						id="rtsp-url"
 						v-model="rtspUrl"
 						type="text"
-						placeholder="rtsp://admin:password@192.168.1.100:554/stream"
-						class="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+						placeholder="rtsp://admin:password@192.168.1.100:554/Streaming/Channels/101"
+						class="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
 					/>
 					<button
 						@click="handleStart"
 						:disabled="loading || !rtspUrl"
 						class="px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
 					>
-						啟動串流
+						{{ loading ? "啟動中..." : "啟動串流" }}
 					</button>
 					<button
 						v-if="currentStreamId"
@@ -31,9 +34,45 @@
 				</div>
 			</div>
 
-			<div v-if="currentStreamId" class="text-sm text-gray-600">
-				<p>串流 ID: {{ currentStreamId }}</p>
-				<p v-if="hlsUrl">HLS URL: {{ hlsUrl }}</p>
+			<!-- 串流資訊顯示 -->
+			<div v-if="currentStreamId" class="mt-4 p-4 bg-gray-50 rounded-md">
+				<h3 class="text-sm font-semibold text-gray-700 mb-2">串流資訊</h3>
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+					<div>
+						<span class="font-medium text-gray-600">串流 ID:</span>
+						<span class="ml-2 font-mono text-gray-800">{{ currentStreamId.substring(0, 16) }}...</span>
+					</div>
+					<div v-if="hlsUrl">
+						<span class="font-medium text-gray-600">HLS URL:</span>
+						<span class="ml-2 font-mono text-blue-600 break-all">{{ hlsUrl }}</span>
+					</div>
+					<div v-if="webrtcUrl">
+						<span class="font-medium text-gray-600">WebRTC URL:</span>
+						<span class="ml-2 font-mono text-green-600 break-all">{{ webrtcUrl }}</span>
+						<span class="ml-2 text-xs text-gray-500">(低延遲選項)</span>
+					</div>
+					<div v-if="streamStatus">
+						<span class="font-medium text-gray-600">狀態:</span>
+						<span
+							:class="[
+								'ml-2 px-2 py-1 rounded text-xs',
+								streamStatus === 'running' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+							]"
+						>
+							{{ streamStatus === "running" ? "運行中" : "已停止" }}
+						</span>
+					</div>
+					<div v-if="streamStartedAt">
+						<span class="font-medium text-gray-600">啟動時間:</span>
+						<span class="ml-2 text-gray-800">{{ formatTime(streamStartedAt) }}</span>
+					</div>
+				</div>
+			</div>
+
+			<!-- 錯誤訊息顯示 -->
+			<div v-if="errorMessage" class="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
+				<h3 class="text-sm font-semibold text-red-700 mb-2">錯誤訊息</h3>
+				<p class="text-sm text-red-600 whitespace-pre-line">{{ errorMessage }}</p>
 			</div>
 		</div>
 
@@ -94,9 +133,13 @@ const rtspApi = useRtspApi();
 const rtspUrl = ref("rtsp://admin:Aa83124007@192.168.2.103:554/Streaming/Channels/101");
 const currentStreamId = ref("");
 const hlsUrl = ref("");
+const webrtcUrl = ref("");
 const loading = ref(false);
 const streams = ref<any[]>([]);
 const videoPlayerRef = ref<any>(null);
+const errorMessage = ref<string>("");
+const streamStatus = ref<string>("");
+const streamStartedAt = ref<string>("");
 
 // 載入所有串流狀態
 const loadStreams = async () => {
@@ -107,38 +150,61 @@ const loadStreams = async () => {
 	}
 };
 
+// 格式化時間
+const formatTime = (dateString: string) => {
+	if (!dateString) return "";
+	return new Date(dateString).toLocaleString("zh-TW");
+};
+
 // 啟動串流
 const handleStart = async () => {
 	if (!rtspUrl.value) {
+		errorMessage.value = "請輸入 RTSP URL";
+		return;
+	}
+
+	// 驗證 RTSP URL 格式
+	if (!rtspUrl.value.startsWith("rtsp://")) {
+		errorMessage.value = "RTSP URL 格式不正確，必須以 rtsp:// 開頭";
 		return;
 	}
 
 	loading.value = true;
+	errorMessage.value = "";
+	currentStreamId.value = "";
+	hlsUrl.value = "";
+	streamStatus.value = "";
+	streamStartedAt.value = "";
+
 	try {
+		console.log("[RTSP Test] 開始啟動串流:", rtspUrl.value.replace(/:[^:@]+@/, ":****@"));
+		
 		const streamInfo = await rtspApi.startStream(rtspUrl.value);
 		currentStreamId.value = streamInfo.streamId;
 		hlsUrl.value = streamInfo.hlsUrl;
+		webrtcUrl.value = streamInfo.webrtcUrl || "";
+		streamStatus.value = streamInfo.status;
+		streamStartedAt.value = streamInfo.startedAt || new Date().toISOString();
 
-		// 等待 HLS 文件生成和 props 更新（低延遲模式，減少等待時間）
-		await new Promise((resolve) => setTimeout(resolve, 2000));
+		console.log("[RTSP Test] 串流啟動成功:", {
+			streamId: streamInfo.streamId,
+			hlsUrl: streamInfo.hlsUrl,
+			webrtcUrl: streamInfo.webrtcUrl,
+			status: streamInfo.status
+		});
 
 		// 使用 nextTick 確保 props 已更新到子組件
 		await nextTick();
-
-		// 啟動視頻播放器（傳入已啟動的串流信息）
-		// 注意：由於我們已經設置了 hlsUrl prop，watch 會自動觸發初始化
-		// 但為了確保，我們還是手動調用一次
-		if (videoPlayerRef.value) {
-			// 再次等待確保 DOM 更新完成
-			await new Promise((resolve) => setTimeout(resolve, 500));
-			await videoPlayerRef.value.startStream();
-		}
+		// VideoPlayer 組件會自動偵測 hlsUrl 變化並立即初始化（無需額外等待）
 
 		// 重新載入串流列表
 		await loadStreams();
+		
+		console.log("[RTSP Test] 串流初始化完成");
 	} catch (error) {
-		console.error("啟動串流失敗:", error);
-		alert(error instanceof Error ? error.message : "啟動串流失敗");
+		const errorMsg = error instanceof Error ? error.message : "啟動串流失敗";
+		console.error("[RTSP Test] 啟動串流失敗:", error);
+		errorMessage.value = `啟動串流失敗: ${errorMsg}\n\n請檢查：\n1. RTSP URL 是否正確\n2. 攝影機是否可以訪問\n3. 帳號密碼是否正確\n4. MediaMTX 服務是否正常運行（預設端口 9997）\n5. 後端服務是否正常運行`;
 	} finally {
 		loading.value = false;
 	}
@@ -151,21 +217,32 @@ const handleStop = async () => {
 	}
 
 	loading.value = true;
-	try {
-		await rtspApi.stopStream(currentStreamId.value);
-		currentStreamId.value = "";
-		hlsUrl.value = "";
+	errorMessage.value = "";
 
+	try {
+		console.log("[RTSP Test] 停止串流:", currentStreamId.value);
+		await rtspApi.stopStream(currentStreamId.value);
+		
 		// 停止視頻播放器
 		if (videoPlayerRef.value) {
 			await videoPlayerRef.value.stopStream();
 		}
 
+		// 清除狀態
+		currentStreamId.value = "";
+		hlsUrl.value = "";
+		webrtcUrl.value = "";
+		streamStatus.value = "";
+		streamStartedAt.value = "";
+
 		// 重新載入串流列表
 		await loadStreams();
+		
+		console.log("[RTSP Test] 串流已停止");
 	} catch (error) {
-		console.error("停止串流失敗:", error);
-		alert(error instanceof Error ? error.message : "停止串流失敗");
+		const errorMsg = error instanceof Error ? error.message : "停止串流失敗";
+		console.error("[RTSP Test] 停止串流失敗:", error);
+		errorMessage.value = `停止串流失敗: ${errorMsg}`;
 	} finally {
 		loading.value = false;
 	}

@@ -261,7 +261,7 @@
 			@close="showDeviceTypeDialog = false"
 			@refresh="
 				() => {
-					clearDeviceTypesCache(); // 清除快取
+					deviceApi.clearDeviceTypesCache(); // 清除快取
 					loadDeviceTypes(true); // 強制刷新
 					refreshDeviceTypes = !refreshDeviceTypes;
 				}
@@ -290,8 +290,6 @@ definePageMeta({
 const { isAdmin } = useAuth();
 const deviceApi = useDeviceApi();
 const toast = useToast();
-const { loadDeviceTypes: loadDeviceTypesCached, clearCache: clearDeviceTypesCache } =
-	useDeviceTypesCache();
 
 // 從後端動態讀取的設備類型
 const deviceTypes = ref<DeviceType[]>([]);
@@ -409,7 +407,7 @@ const switchTab = (tabCode: DeviceTypeCode) => {
 // 載入設備類型（使用共享快取）
 const loadDeviceTypes = async (force = false) => {
 	try {
-		const types = await loadDeviceTypesCached(force);
+		const types = await deviceApi.getDeviceTypes(force);
 		deviceTypes.value = types;
 		// 如果還沒有選中的標籤，選擇第一個
 		if (!activeTab.value && deviceTypes.value.length > 0) {
