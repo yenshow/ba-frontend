@@ -13,16 +13,16 @@ export const useAlertMonitor = () => {
 
 	// 已處理的警示 ID 集合（用於避免重複通知）
 	const processedAlertIds = ref<Set<number>>(new Set());
-	
+
 	// 上次檢查時間
 	const lastCheckTime = ref<Date | null>(null);
-	
+
 	// 輪詢間隔（毫秒）
 	const POLLING_INTERVAL = 10000; // 10 秒
-	
+
 	// 輪詢計時器
 	let pollingTimer: ReturnType<typeof setInterval> | null = null;
-	
+
 	// 是否正在檢查
 	const isChecking = ref(false);
 
@@ -50,10 +50,10 @@ export const useAlertMonitor = () => {
 			if (lastCheckTime.value) {
 				const newAlerts = result.alerts.filter(alert => {
 					// 使用 latest_created_at 或 created_at 來判斷是否為新警報
-					const alertTime = alert.latest_created_at 
-						? new Date(alert.latest_created_at) 
+					const alertTime = alert.latest_created_at
+						? new Date(alert.latest_created_at)
 						: new Date(alert.created_at);
-					
+
 					return alertTime > lastCheckTime.value! && !processedAlertIds.value.has(alert.id);
 				});
 
@@ -146,4 +146,3 @@ export const useAlertMonitor = () => {
 		isChecking: readonly(isChecking)
 	};
 };
-

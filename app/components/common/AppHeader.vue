@@ -82,52 +82,31 @@
 							class="absolute right-0 top-full z-50 mt-2 flex h-[540px] w-48 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white py-2 shadow-lg 2xl:h-[600px]"
 						>
 							<div class="flex-1 overflow-y-auto">
-								<div v-if="primaryModules.length" class="pb-2">
-									<p class="px-4 py-2 text-sm text-gray-500 2xl:text-base">主要系統</p>
-									<ul class="space-y-0.5">
-										<li v-for="module in primaryModules" :key="module.id">
-											<NuxtLink
-												:to="module.route"
-												@click="closeMoreMenu"
-												class="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-gray-100"
-											>
-												<div class="flex h-8 w-8 flex-shrink-0 items-center justify-center">
-													<NuxtImg
-														:src="`/system/${module.icon}.png`"
-														:alt="module.name"
-														class="icon-dark h-8 w-8 object-contain"
-														width="200"
-														height="200"
-													/>
-												</div>
-												<span class="text-sm text-gray-700 2xl:text-base">{{ module.name }}</span>
-											</NuxtLink>
-										</li>
-									</ul>
-								</div>
-								<div v-if="extendedModules.length" class="border-t border-gray-100 pt-2">
-									<p class="px-4 py-2 text-sm text-gray-500 2xl:text-base">擴充功能</p>
-									<ul class="space-y-0.5">
-										<li v-for="module in extendedModules" :key="module.id">
-											<NuxtLink
-												:to="module.route"
-												@click="closeMoreMenu"
-												class="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-gray-100"
-											>
-												<div class="flex h-8 w-8 flex-shrink-0 items-center justify-center">
-													<NuxtImg
-														:src="`/system/${module.icon}.png`"
-														:alt="module.name"
-														class="icon-dark h-8 w-8 object-contain"
-														width="200"
-														height="200"
-													/>
-												</div>
-												<span class="text-sm text-gray-700 2xl:text-base">{{ module.name }}</span>
-											</NuxtLink>
-										</li>
-									</ul>
-								</div>
+								<template v-for="(categoryGroup, index) in categoryGroups" :key="categoryGroup.category">
+									<div v-if="categoryGroup.modules.length" :class="{ 'border-t border-gray-100 pt-2': index > 0 }">
+										<p class="px-4 py-2 text-sm text-gray-500 2xl:text-base">{{ categoryGroup.label }}</p>
+										<ul class="space-y-0.5">
+											<li v-for="module in categoryGroup.modules" :key="module.id">
+												<NuxtLink
+													:to="module.route"
+													@click="closeMoreMenu"
+													class="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-gray-100"
+												>
+													<div class="flex h-8 w-8 flex-shrink-0 items-center justify-center">
+														<NuxtImg
+															:src="`/system/${module.icon}.png`"
+															:alt="module.name"
+															class="icon-dark h-8 w-8 object-contain"
+															width="200"
+															height="200"
+														/>
+													</div>
+													<span class="text-sm text-gray-700 2xl:text-base">{{ module.name }}</span>
+												</NuxtLink>
+											</li>
+										</ul>
+									</div>
+								</template>
 							</div>
 						</div>
 					</Transition>
@@ -298,8 +277,44 @@ const route = useRoute();
 
 const currentModule = computed(() => getModuleByRoute(route.path));
 const currentModuleName = computed(() => currentModule.value?.name ?? "");
-const primaryModules = computed(() => getModulesByCategory("primary"));
-const extendedModules = computed(() => getModulesByCategory("extended"));
+
+// 分類標籤對應
+const categoryLabels: Record<string, string> = {
+	core: "核心基礎",
+	"construction-monitoring": "工地監控",
+	infrastructure: "基礎設施",
+	security: "安全相關",
+	visualization: "視覺化",
+	maintenance: "維護管理",
+	business: "業務管理",
+	multimedia: "多媒體"
+};
+
+// 分類順序（按優先級排列）
+const categoryOrder = [
+	"core",
+	"construction-monitoring",
+	"infrastructure",
+	"security",
+	"visualization",
+	"maintenance",
+	"business",
+	"multimedia"
+] as const;
+
+// 按分類分組的模組
+const categoryGroups = computed(() => {
+	return categoryOrder
+		.map((category) => {
+			const modules = getModulesByCategory(category);
+			return {
+				category,
+				label: categoryLabels[category] || category,
+				modules
+			};
+		})
+		.filter((group) => group.modules.length > 0);
+});
 
 // Active 狀態判斷
 const isDevicesActive = computed(() => route.path === "/system/devices");

@@ -11,12 +11,15 @@
 				style="overflow: visible"
 			>
 				<path
-					:d="arcPath"
+					:d="fullArcPath"
 					fill="none"
 					:stroke="arcColor"
 					stroke-width="12"
 					stroke-linecap="round"
+					:stroke-dasharray="arcLength"
+					:stroke-dashoffset="arcDashOffset"
 					class="transition-all duration-500 ease-out"
+					:style="{ opacity: isDataReady ? 1 : 0 }"
 				/>
 			</svg>
 
@@ -32,12 +35,7 @@
 				</div>
 				<div class="mx-auto h-0.5 w-4/5 bg-white/20"></div>
 				<!-- AQI 數值（底部） -->
-				<div
-					class="z-10 text-4xl font-light transition-colors duration-500 2xl:text-5xl"
-					:style="{ color: arcColor }"
-				>
-					{{ aqi.value }}
-				</div>
+				<div class="z-10 text-4xl font-light text-white 2xl:text-5xl">{{ aqi.value }}</div>
 			</div>
 		</div>
 
@@ -103,10 +101,17 @@ const metricsColumns = computed(() => {
 const iconMap: Record<string, string> = {
 	"PM2.5": "/environment/PM2.5.png",
 	PM10: "/environment/PM10.png",
+	CO2: "/environment/CO2.png",
+	"CO₂": "/environment/CO2.png",
+	HCHO: "/environment/HCHO.png",
+	TVOC: "/environment/TVOC.png",
 	temperature: "/environment/temperature.png",
+	濕度: "/environment/humidity.png",
 	humidity: "/environment/humidity.png",
 	wind: "/environment/wind-speed.png",
-	noise: "/environment/noise.png"
+	風速: "/environment/wind-speed.png",
+	noise: "/environment/noise.png",
+	噪音: "/environment/noise.png"
 };
 
 const getMetricIcon = (metric: AQIMetric) => {
@@ -119,53 +124,13 @@ const getMetricIcon = (metric: AQIMetric) => {
 	return "/environment/PM2.5.png";
 };
 
-// 顏色插值函數
-const interpolateColor = (startColor: string, endColor: string, factor: number): string => {
-	const start = parseInt(startColor.slice(1), 16);
-	const end = parseInt(endColor.slice(1), 16);
-
-	const r1 = (start >> 16) & 0xff;
-	const g1 = (start >> 8) & 0xff;
-	const b1 = start & 0xff;
-
-	const r2 = (end >> 16) & 0xff;
-	const g2 = (end >> 8) & 0xff;
-	const b2 = end & 0xff;
-
-	const r = Math.round(r1 + (r2 - r1) * factor);
-	const g = Math.round(g1 + (g2 - g1) * factor);
-	const b = Math.round(b1 + (b2 - b1) * factor);
-
-	return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
-};
-
-// 計算弧形指示器的顏色（精準的線性插值）
+// 計算弧形指示器的顏色
 const arcColor = computed(() => {
 	const value = props.aqi.value;
-
-	// 定義顏色分段點
-	if (value < 0) return "#00FFBE";
-	if (value <= 10) {
-		// 0-10: 青綠色到白色
-		const factor = value / 10;
-		return interpolateColor("#00FFBE", "#FFFFFF", factor);
-	}
-	if (value <= 50) {
-		// 10-50: 白色保持
-		return "#FFFFFF";
-	}
-	if (value <= 100) {
-		// 50-100: 白色到黃色
-		const factor = (value - 50) / 50;
-		return interpolateColor("#FFFFFF", "#FFC800", factor);
-	}
-	if (value <= 150) {
-		// 100-150: 黃色到紅色
-		const factor = (value - 100) / 50;
-		return interpolateColor("#FFC800", "#E23C00", factor);
-	}
-	// > 150: 保持紅色
-	return "#E23C00";
+	if (value < 10) return "#001Eff";
+	if (value <= 50) return "#00ffb4";
+	if (value <= 100) return "#FFC701";
+	return "#FF0000";
 });
 
 // 圓心座標和半徑計算
@@ -180,26 +145,40 @@ const arcStartAngle = -135;
 const arcEndAngle = 135;
 const arcAngleRange = arcEndAngle - arcStartAngle; // 270 度
 
-// 根據 AQI 值計算弧長百分比（0-100%，最大值 500，更精準的響應）
+// 根據 AQI 值計算弧長百分比（0-100%，最大值 150）
 const arcPercentage = computed(() => {
 	const value = props.aqi.value;
-	const maxValue = 500; // 使用標準 AQI 最大值
-	const percentage = Math.min((value / maxValue) * 100, 100);
-	// 確保最小值為 0，避免負數
-	return Math.max(percentage, 0);
+	const maxValue = 150;
+	return Math.min((value / maxValue) * 100, 100);
 });
 
-// 計算動態弧形的 path
-const arcPath = computed(() => {
-	const percentage = arcPercentage.value;
-	const currentAngleRange = (arcAngleRange * percentage) / 100;
+// 計算完整的弧形 path（用於 stroke-dasharray）
+const fullArcPath = computed(() => {
 	const startAngleRad = (arcStartAngle * Math.PI) / 180;
-	const endAngleRad = ((arcStartAngle + currentAngleRange) * Math.PI) / 180;
+	const endAngleRad = (arcEndAngle * Math.PI) / 180;
 	const startX = centerX + radius * Math.cos(startAngleRad);
 	const startY = centerY + radius * Math.sin(startAngleRad);
 	const endX = centerX + radius * Math.cos(endAngleRad);
 	const endY = centerY + radius * Math.sin(endAngleRad);
-	const largeArcFlag = currentAngleRange > 180 ? 1 : 0;
-	return `M ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endX} ${endY}`;
+	return `M ${startX} ${startY} A ${radius} ${radius} 0 1 1 ${endX} ${endY}`;
+});
+
+// 計算完整弧形的長度（用於 stroke-dasharray）
+const arcLength = computed(() => {
+	// 270 度的圓弧長度 = 2 * π * radius * (270 / 360)
+	return 2 * Math.PI * radius * (arcAngleRange / 360);
+});
+
+// 計算 stroke-dashoffset（控制顯示的弧長）
+const arcDashOffset = computed(() => {
+	const percentage = arcPercentage.value;
+	// 當 percentage 為 0 時，offset 等於總長度（完全不顯示）
+	// 當 percentage 為 100 時，offset 為 0（完全顯示）
+	return arcLength.value * (1 - percentage / 100);
+});
+
+// 檢查資料是否已準備好（避免初始渲染時的動畫問題）
+const isDataReady = computed(() => {
+	return props.aqi.value >= 0;
 });
 </script>

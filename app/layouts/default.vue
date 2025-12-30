@@ -19,7 +19,7 @@ const { startMonitoring, stopMonitoring } = useAlertMonitor();
 // 當用戶登入時啟動警示監聽
 watch(
 	() => user.value,
-	(newUser) => {
+	newUser => {
 		if (newUser) {
 			// 用戶已登入，啟動監聽
 			startMonitoring();

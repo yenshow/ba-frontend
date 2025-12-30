@@ -5,7 +5,7 @@
 			<video
 				ref="videoElement"
 				:key="`video-${streamId || props.streamId || 'default'}`"
-				class="h-full w-full object-contain"
+				class="h-full w-full"
 				autoplay
 				muted
 				playsinline
@@ -13,7 +13,6 @@
 				preload="metadata"
 				disablePictureInPicture
 				controlsList="nodownload nofullscreen noremoteplayback"
-				style="transform: translateZ(0); -webkit-transform: translateZ(0)"
 			>
 				您的瀏覽器不支援視頻播放
 			</video>
@@ -106,20 +105,6 @@ const HLS_PLAYER_CONFIG = {
 	levelLoadingTimeOut: 1000 // 級別加載超時 1 秒
 };
 
-// 錯誤訊息模板
-const ERROR_MESSAGES = {
-	HLS_NOT_READY: (hlsUrl: string, streamId: string) => `HLS 串流文件生成失敗
-
-可能原因：
-1. MediaMTX 服務未正常運行（請檢查 MediaMTX 服務狀態）
-2. RTSP URL 無法連接（請確認攝影機可訪問且路徑正確）
-3. 攝影機帳號密碼錯誤
-4. 網路連線問題
-
-HLS URL: ${hlsUrl}
-Stream ID: ${streamId}`
-};
-
 // 構建完整的 HLS URL
 // MediaMTX 提供的 HLS URL 可能是完整 URL 或相對路徑
 const getFullHlsUrl = (url: string): string => {
@@ -133,51 +118,6 @@ const getFullHlsUrl = (url: string): string => {
 	// 移除開頭的斜線（如果有的話）
 	const cleanUrl = url.startsWith("/") ? url.substring(1) : url;
 	return `${mediamtxHlsBase}/${cleanUrl}`;
-};
-
-// 驗證 HLS URL 是否可訪問（優化：快速檢查，減少等待時間）
-// MediaMTX 需要時間生成 HLS 文件，特別是第一個片段
-const checkHlsUrlAvailable = async (
-	url: string,
-	maxRetries = 8, // 適中的重試次數（平衡等待時間和成功率）
-	delay = 300 // 減少延遲，加快響應（MediaMTX 配置優化後生成更快）
-): Promise<boolean> => {
-	for (let i = 0; i < maxRetries; i++) {
-		try {
-			const response = await fetch(url, {
-				method: "GET", // 使用 GET 請求以獲取完整響應
-				mode: "cors",
-				cache: "no-cache",
-				credentials: "omit"
-			});
-
-			if (response.ok) {
-				const contentType = response.headers.get("Content-Type");
-				// 檢查是否為 HLS 播放列表（主播放列表或媒體播放列表）
-				if (
-					contentType?.includes("application/vnd.apple.mpegurl") ||
-					contentType?.includes("application/x-mpegURL") ||
-					contentType?.includes("text/plain")
-				) {
-					// 驗證內容是否包含 HLS 標記
-					const text = await response.text();
-					if (text.includes("#EXTM3U") || text.includes("#EXT-X")) {
-						return true;
-					}
-				}
-			}
-		} catch (err) {
-			// 只在最後一次失敗時記錄
-			if (i === maxRetries - 1) {
-				console.error("HLS URL 驗證失敗:", err);
-			}
-		}
-
-		if (i < maxRetries - 1) {
-			await new Promise(resolve => setTimeout(resolve, delay));
-		}
-	}
-	return false;
 };
 
 // 自動播放（實時流：立即播放）
@@ -211,18 +151,9 @@ const startStream = async () => {
 		loading.value = true;
 
 		try {
+			// 對於外部提供的 hlsUrl，跳過 URL 檢查，直接讓 HLS.js 處理（它有自己的重試機制）
+			// MediaMTX 可能需要時間生成文件，HLS.js 會自動重試
 			await nextTick();
-			if (!videoElement.value?.parentElement) {
-				await waitForVideoElement(3, 50);
-			}
-
-			// 驗證 HLS URL（優化後減少等待時間）
-			const urlAvailable = await checkHlsUrlAvailable(fullHlsUrl, 8, 300);
-			if (!urlAvailable) {
-				error.value = ERROR_MESSAGES.HLS_NOT_READY(fullHlsUrl, streamId.value);
-				return;
-			}
-
 			await initHlsPlayer();
 		} catch (err) {
 			error.value = err instanceof Error ? err.message : "初始化播放器失敗";
@@ -247,13 +178,8 @@ const startStream = async () => {
 		const fullHlsUrl = getFullHlsUrl(streamInfo.hlsUrl);
 		hlsUrl.value = fullHlsUrl;
 
-		// 驗證 HLS URL（優化後減少等待時間）
-		const urlAvailable = await checkHlsUrlAvailable(fullHlsUrl, 8, 300);
-		if (!urlAvailable) {
-			error.value = ERROR_MESSAGES.HLS_NOT_READY(fullHlsUrl, streamInfo.streamId);
-			return;
-		}
-
+		// 跳過 URL 檢查，直接讓 HLS.js 處理（它有自己的重試機制）
+		// MediaMTX 可能需要時間生成文件，HLS.js 會自動重試
 		await initHlsPlayer();
 	} catch (err) {
 		error.value = err instanceof Error ? err.message : "啟動串流失敗";
@@ -262,12 +188,13 @@ const startStream = async () => {
 	}
 };
 
-// 初始化 HLS 播放器（優化：減少檢查和等待）
+// 初始化 HLS 播放器
 const initHlsPlayer = async () => {
 	if (!process.client || !hlsUrl.value || !videoElement.value) return;
 
+	// 等待 video 元素完全掛載
 	if (!videoElement.value.parentElement) {
-		await new Promise(resolve => setTimeout(resolve, 50));
+		await waitForVideoElement(3, 50);
 		if (!videoElement.value?.parentElement) return;
 	}
 
@@ -374,16 +301,8 @@ const initHlsPlayer = async () => {
 	};
 
 	if (useNativeHls) {
-		// Safari 原生支持 - 驗證 HLS URL（優化後減少等待時間）
-		const urlAvailable = await checkHlsUrlAvailable(hlsUrl.value, 8, 300);
-
-		if (!urlAvailable && useHlsJs) {
-			setupHlsJsPlayer();
-			return;
-		} else if (!urlAvailable) {
-			error.value = "HLS URL 不可訪問，且瀏覽器不支持 hls.js";
-			return;
-		}
+		// Safari 原生支持 - 對於外部提供的 hlsUrl，跳過檢查，直接設置 src
+		// MediaMTX 可能需要時間，瀏覽器會自動重試
 
 		// 設置錯誤處理器
 		const errorHandler = (e: Event) => {
@@ -522,10 +441,9 @@ defineExpose({
 .video-player-container {
 	width: 100%;
 	height: 100%;
-	min-height: 400px;
 	background-color: #000;
-	border-radius: 8px;
 	overflow: hidden;
+	position: relative;
 }
 
 /* 啟用 GPU 硬體加速（解碼和渲染） */
@@ -535,5 +453,7 @@ video {
 	will-change: contents;
 	-webkit-backface-visibility: hidden;
 	backface-visibility: hidden;
+	object-fit: cover;
+	display: block;
 }
 </style>

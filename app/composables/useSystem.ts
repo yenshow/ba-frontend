@@ -19,7 +19,7 @@ export const useSystem = () => {
 	 * 根據分類獲取系統模組
 	 */
 	const getModulesByCategory = (
-		category: "primary" | "extended" | "all" = "all"
+		category: SystemModule["category"] | "all" = "all"
 	): SystemModule[] => {
 		return getSystemModulesByCategory(category);
 	};

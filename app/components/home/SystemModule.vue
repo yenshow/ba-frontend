@@ -3,64 +3,79 @@
 		<!-- 左側切換按鈕 -->
 		<button
 			v-if="canNavigatePrevious && !isLoading"
-			class="absolute left-0 top-1/2 -translate-y-1/2 z-10 rounded-full flex items-center justify-center text-white border-2 border-white/80 transition-all hover:bg-white/10 w-12 h-12 xl:w-14 xl:h-14 2xl:w-20 2xl:h-20 -translate-x-8 xl:-translate-x-12 2xl:-translate-x-20"
+			class="absolute left-0 top-1/2 z-10 flex h-12 w-12 -translate-x-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white/80 text-white transition-all hover:bg-white/10 xl:h-14 xl:w-14 xl:-translate-x-12 2xl:h-20 2xl:w-20 2xl:-translate-x-20"
 			@click="previousPage"
 		>
-			<svg class="w-8 h-8 xl:w-10 xl:h-10 2xl:w-12 2xl:h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<svg
+				class="h-8 w-8 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12"
+				fill="none"
+				stroke="currentColor"
+				viewBox="0 0 24 24"
+			>
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M15 19l-7-7 7-7" />
 			</svg>
 		</button>
 
 		<!-- 骨架屏 -->
-		<div v-if="isLoading" class="grid grid-cols-4 gap-y-2 xl:gap-y-3 2xl:gap-y-4 gap-x-4 xl:gap-x-6 2xl:gap-x-8 p-2 xl:p-3 2xl:p-4">
+		<div
+			v-if="isLoading"
+			class="grid grid-cols-4 gap-x-4 gap-y-2 p-2 xl:gap-x-6 xl:gap-y-3 xl:p-3 2xl:gap-x-8 2xl:gap-y-4 2xl:p-4"
+		>
 			<div
 				v-for="n in 8"
 				:key="`skeleton-${n}`"
-				class="aspect-square overflow-hidden border-2 border-white/30 rounded-xl"
-				style="
-					box-shadow:
-						inset -7px 7px 7px rgba(255, 255, 255, 0.15),
-						inset 7px -7px 10px rgba(0, 0, 0, 0.15);
-				"
+				class="aspect-square overflow-hidden rounded-xl border-2 border-white/30"
+				:style="{
+					boxShadow:
+						'inset -7px 7px 7px rgba(255, 255, 255, 0.15), inset 7px -7px 10px rgba(0, 0, 0, 0.15)'
+				}"
 			>
-				<div class="flex flex-col items-center justify-center h-full animate-pulse">
+				<div class="flex h-full animate-pulse flex-col items-center justify-center">
 					<!-- Icon 骨架 -->
 					<div class="flex items-center justify-center">
-						<div class="w-24 h-24 2xl:w-28 2xl:h-28 bg-white/20 rounded-lg"></div>
+						<div class="h-24 w-24 rounded-lg bg-white/20 2xl:h-28 2xl:w-28"></div>
 					</div>
 
 					<!-- Label 骨架 -->
 					<div class="mt-2 xl:mt-3 2xl:mt-4">
-						<div class="h-6 xl:h-7 2xl:h-8 w-32 bg-white/20 rounded"></div>
+						<div class="h-6 w-32 rounded bg-white/20 xl:h-7 2xl:h-8"></div>
 					</div>
 				</div>
 			</div>
 		</div>
 
 		<!-- 模組網格 -->
-		<div v-else class="grid grid-cols-4 gap-y-2 xl:gap-y-3 2xl:gap-y-4 gap-x-4 xl:gap-x-6 2xl:gap-x-8 p-2 xl:p-3 2xl:p-4">
+		<div
+			v-else
+			class="grid grid-cols-4 gap-x-4 gap-y-2 px-2 py-4 xl:gap-x-6 xl:gap-y-3 xl:px-3 xl:py-6 2xl:gap-x-8 2xl:gap-y-4 2xl:px-4 2xl:py-8"
+		>
 			<NuxtLink
 				v-for="module in currentModules"
 				:key="module.id"
 				:to="module.route"
-				class="group aspect-square overflow-hidden border-2 border-white/80 rounded-xl cursor-pointer transition-all hover:bg-white/5"
-				style="
-					box-shadow:
-						inset -7px 7px 7px rgba(255, 255, 255, 0.25),
-						inset 7px -7px 10px rgba(0, 0, 0, 0.25);
-				"
+				class="group aspect-square cursor-pointer overflow-hidden rounded-xl border-2 border-white/80 transition-all hover:bg-white/5"
+				:style="{
+					boxShadow:
+						'inset -7px 7px 7px rgba(255, 255, 255, 0.25), inset 7px -7px 10px rgba(0, 0, 0, 0.25)'
+				}"
 			>
-				<div class="flex flex-col items-center justify-center h-full">
+				<div class="flex h-full flex-col items-center justify-center">
 					<!-- Icon -->
 					<div class="flex items-center justify-center">
-						<div class="w-24 h-24 2xl:w-28 2xl:h-28 flex items-center justify-center">
-							<img :src="`/system/${module.icon}.png`" :alt="module.name" class="w-full h-full object-contain" />
+						<div class="flex h-24 w-24 items-center justify-center 2xl:h-28 2xl:w-28">
+							<img
+								:src="`/system/${module.icon}.png`"
+								:alt="module.name"
+								class="h-full w-full object-contain"
+							/>
 						</div>
 					</div>
 
 					<!-- Label -->
 					<div class="mt-2 xl:mt-3 2xl:mt-4">
-						<h3 class="text-white text-lg xl:text-xl 2xl:text-2xl tracking-[6px] ms-[6px] whitespace-nowrap">
+						<h3
+							class="ms-[6px] whitespace-nowrap text-lg tracking-[6px] text-white xl:text-xl 2xl:text-2xl"
+						>
 							{{ module.name }}
 						</h3>
 					</div>
@@ -71,10 +86,15 @@
 		<!-- 右側切換按鈕 -->
 		<button
 			v-if="canNavigateNext && !isLoading"
-			class="absolute right-0 top-1/2 -translate-y-1/2 z-10 rounded-full flex items-center justify-center text-white border-2 border-white/80 transition-all hover:bg-white/10 w-12 h-12 xl:w-14 xl:h-14 2xl:w-20 2xl:h-20 translate-x-8 xl:translate-x-12 2xl:translate-x-20"
+			class="absolute right-0 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 translate-x-8 items-center justify-center rounded-full border-2 border-white/80 text-white transition-all hover:bg-white/10 xl:h-14 xl:w-14 xl:translate-x-12 2xl:h-20 2xl:w-20 2xl:translate-x-20"
 			@click="nextPage"
 		>
-			<svg class="w-8 h-8 xl:w-10 xl:h-10 2xl:w-12 2xl:h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<svg
+				class="h-8 w-8 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12"
+				fill="none"
+				stroke="currentColor"
+				viewBox="0 0 24 24"
+			>
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 5l7 7-7 7" />
 			</svg>
 		</button>
@@ -115,7 +135,9 @@ const currentModules = computed(() => {
 
 const canNavigatePrevious = computed(() => currentPage.value > 0);
 
-const canNavigateNext = computed(() => (currentPage.value + 1) * modulesPerPage.value < systemModules.value.length);
+const canNavigateNext = computed(
+	() => (currentPage.value + 1) * modulesPerPage.value < systemModules.value.length
+);
 
 // 監聽視窗大小變化，重置頁面以避免顯示空頁面
 let handleResize: (() => void) | null = null;

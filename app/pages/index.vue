@@ -33,10 +33,10 @@
 </template>
 
 <script setup lang="ts">
-import AQICard from "~/components/common/AQICard.vue";
-import EnvironmentCard from "~/components/common/EnvironmentCard.vue";
-import BuildingCard from "~/components/common/BuildingCard.vue";
-import SystemModule from "~/components/common/SystemModule.vue";
+import AQICard from "~/components/home/AQICard.vue";
+import EnvironmentCard from "~/components/home/EnvironmentCard.vue";
+import BuildingCard from "~/components/home/BuildingCard.vue";
+import SystemModule from "~/components/home/SystemModule.vue";
 import { useDeviceApi } from "~/composables/useDeviceApi";
 import { useApiBase } from "~/composables/useApiBase";
 import type { ModbusDeviceConfig, ModbusDataResponse } from "~/types/modbus";
