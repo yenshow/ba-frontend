@@ -1,8 +1,8 @@
 // 警報系統來源
 export type AlertSource = "device" | "environment" | "lighting" | "hvac" | "fire" | "security";
 
-// 警報狀態
-export type AlertStatus = "pending" | "active" | "resolved" | "ignored";
+// 警報狀態（移除 pending，只保留 active, resolved, ignored）
+export type AlertStatus = "active" | "resolved" | "ignored";
 
 // 警報類型
 export type AlertType = "offline" | "error" | "threshold";
@@ -15,12 +15,11 @@ export interface Alert {
 	// 多系統來源支持
 	source: AlertSource;
 	source_id: number;
-	source_type?: string;
 	// 向後兼容（設備系統）
 	device_id?: number;
 	device_name?: string;
 	device_type_name?: string;
-	device_type_code?: string;
+	device_type_code?: string; // 保留用於顯示，但不再用於篩選
 	// 警報資訊
 	alert_type: AlertType;
 	severity: AlertSeverity;
@@ -38,11 +37,11 @@ export interface Alert {
 	ignored_at?: string | null;
 	ignored_by?: number | null;
 	ignored_by_username?: string | null;
-	// 額外資訊
-	metadata?: Record<string, any>;
-	alert_count?: number;
-	latest_created_at?: string;
+	// 時間戳
 	created_at: string;
+	updated_at: string;
+	// 統計欄位（僅在列表查詢時存在）
+	alert_count?: number; // 合併的警報數量（後端 GROUP BY 查詢返回）
 }
 
 export interface AlertListResponse {
@@ -52,17 +51,15 @@ export interface AlertListResponse {
 	offset: number;
 }
 
-export interface CreateAlertData {
-	// 多系統來源支持
-	source?: AlertSource;
-	source_id?: number;
-	source_type?: string;
-	// 向後兼容
-	device_id?: number;
-	alert_type: AlertType;
-	severity?: AlertSeverity;
-	message: string;
-	metadata?: Record<string, any>;
+export interface AlertHistoryItem {
+	id: number;
+	alert_id: number;
+	old_status: "active" | "resolved" | "ignored" | null;
+	new_status: "active" | "resolved" | "ignored";
+	changed_by: number | null;
+	changed_by_username: string | null;
+	changed_at: string; // ISO 8601
+	reason: string | null;
 }
 
 export interface AlertFilters {
@@ -71,7 +68,6 @@ export interface AlertFilters {
 	source_id?: number;
 	// 向後兼容
 	device_id?: number;
-	device_type_code?: string;
 	alert_type?: AlertType;
 	severity?: AlertSeverity;
 	// 狀態篩選（新）
@@ -82,6 +78,8 @@ export interface AlertFilters {
 	// 時間範圍
 	start_date?: string;
 	end_date?: string;
+	// 增量查詢（只獲取更新時間在此之後的警報）
+	updated_after?: string;
 	// 分頁
 	limit?: number;
 	offset?: number;

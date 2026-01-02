@@ -414,10 +414,51 @@ const selectLocation = (location: EnvironmentLocation) => {
 
 const isFetching = ref(false);
 const isSensorOffline = ref(false);
-const lastOfflineAlertTime = ref<number | null>(null);
 const AUTO_REFRESH_INTERVAL = 5000;
-const OFFLINE_ALERT_INTERVAL = 30000;
+// 驗證提示間隔（用於配置驗證提示，非警報通知）
+const VALIDATION_ALERT_INTERVAL = 30000;
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
+let lastValidationAlertTime: number | null = null;
+
+// ========== 錯誤追蹤共用函數 ==========
+
+/**
+ * 判斷是否為離線錯誤
+ */
+const isOfflineError = (errorMessage: string): boolean => {
+	return (
+		errorMessage.includes("503") ||
+		errorMessage.includes("服務不可用") ||
+		errorMessage.includes("設備離線")
+	);
+};
+
+/**
+ * 報告環境位置錯誤（靜默處理，不影響主要流程）
+ */
+const reportLocationError = async (
+	locationId: string | number | undefined,
+	errorMessage: string
+) => {
+	if (!locationId) return;
+	try {
+		await environmentApi.reportError(locationId, errorMessage);
+	} catch (error) {
+		console.warn("[environment] 報告錯誤失敗:", error);
+	}
+};
+
+/**
+ * 清除環境位置錯誤狀態（靜默處理，不影響主要流程）
+ */
+const clearLocationError = async (locationId: string | number | undefined) => {
+	if (!locationId) return;
+	try {
+		await environmentApi.clearError(locationId);
+	} catch (error) {
+		console.warn("[environment] 清除錯誤失敗:", error);
+	}
+};
 
 type AQIBreakpoint = {
 	concentrationRange: [number, number];
@@ -777,10 +818,10 @@ const loadSensorData = async () => {
 			// 只在第一次或間隔一定時間後顯示提示，避免重複提示
 			const now = Date.now();
 			const shouldShowAlert =
-				!lastOfflineAlertTime.value || now - lastOfflineAlertTime.value >= OFFLINE_ALERT_INTERVAL;
+				!lastValidationAlertTime || now - lastValidationAlertTime >= VALIDATION_ALERT_INTERVAL;
 
 			if (shouldShowAlert) {
-				lastOfflineAlertTime.value = now;
+				lastValidationAlertTime = now;
 				toast.warning(validation.message, 8000);
 			}
 			return;
@@ -788,18 +829,13 @@ const loadSensorData = async () => {
 
 		const enabledParams = currentLocationData.value!.parameters.filter(param => param.enabled);
 
-		console.log("[environment] 載入感測器資料:", {
-			location: currentLocationData.value!.name,
-			enabledParamsCount: enabledParams.length,
-			enabledParams: enabledParams.map(p => ({
-				type: p.type,
-				address: getParameterModbusConfig(p.type)?.address
-			})),
-			modelConfigParams: deviceModelConfig.value!.sensorParameters!.map(p => ({
-				type: p.type,
-				address: p.modbusConfig?.address
-			}))
-		});
+		// 只在開發模式輸出載入日誌
+		if (process.dev) {
+			console.log("[environment] 載入感測器資料:", {
+				location: currentLocationData.value!.name,
+				enabledParamsCount: enabledParams.length
+			});
+		}
 
 		// 建立參數到地址的映射（用於批量讀取優化）
 		const paramAddressMap = new Map<
@@ -836,9 +872,12 @@ const loadSensorData = async () => {
 			const startAddress = addresses[0];
 			const length = addresses.length;
 
-			console.log(
-				`[environment] 使用批量讀取優化: 地址 ${startAddress} 到 ${startAddress + length - 1} (共 ${length} 個)`
-			);
+			// 只在開發模式輸出優化日誌
+			if (process.dev) {
+				console.log(
+					`[environment] 使用批量讀取優化: 地址 ${startAddress} 到 ${startAddress + length - 1} (共 ${length} 個)`
+				);
+			}
 
 			try {
 				const response = await readModbusRegisterBatch(config, startAddress, length);
@@ -856,11 +895,14 @@ const loadSensorData = async () => {
 					const rawValue = response.data[idx];
 					const transformedValue = applyTransform(rawValue, paramData.modbusConfig.transform);
 
-					console.log(`[environment] 批量讀取參數 ${getParameterDisplayName(paramData.type)} 成功:`, {
-						address: addr,
-						rawValue,
-						transformedValue
-					});
+					// 只在開發模式輸出成功日誌
+					if (process.dev) {
+						console.log(`[environment] 批量讀取參數 ${getParameterDisplayName(paramData.type)} 成功:`, {
+							address: addr,
+							rawValue,
+							transformedValue
+						});
+					}
 
 					return {
 						param: paramData,
@@ -878,23 +920,12 @@ const loadSensorData = async () => {
 					});
 				});
 			} catch (error) {
-				console.warn(`[environment] 批量讀取失敗，回退到單個讀取:`, error);
-				// 批量讀取失敗時，回退到單個讀取
-				results = await Promise.all(
-					Array.from(paramAddressMap.values()).map(async paramData => {
-						const value = await readParameterValue(
-							config,
-							paramData.modbusConfig.address,
-							paramData.modbusConfig.transform
-						);
-
-						return {
-							param: paramData,
-							value,
-							success: value !== null
-						};
-					})
-				);
+				// 標記所有參數為失敗
+				results = Array.from(paramAddressMap.values()).map(paramData => ({
+					param: paramData,
+					value: null,
+					success: false
+				}));
 
 				// 添加沒有配置的參數
 				paramsWithoutConfig.forEach(param => {
@@ -914,7 +945,8 @@ const loadSensorData = async () => {
 					paramData.modbusConfig.transform
 				);
 
-				if (value !== null) {
+				// 只在開發模式輸出成功日誌
+				if (value !== null && process.dev) {
 					console.log(`[environment] 讀取參數 ${getParameterDisplayName(paramData.type)} 成功:`, {
 						address: paramData.modbusConfig.address,
 						value
@@ -954,12 +986,14 @@ const loadSensorData = async () => {
 			}
 		});
 
-		console.log("[environment] 感測器資料更新完成:", {
-			successCount,
-			failCount,
-			total: enabledParams.length,
-			data: sensorData
-		});
+		// 只在開發模式或失敗時輸出日誌
+		if (process.dev || failCount > 0) {
+			console.log("[environment] 感測器資料更新完成:", {
+				successCount,
+				failCount,
+				total: enabledParams.length
+			});
+		}
 
 		// 如果有成功讀取的資料，自動儲存到後端
 		// 注意：必須使用實際的資料庫 ID（location.id），而不是 getLocationId 的結果
@@ -987,47 +1021,40 @@ const loadSensorData = async () => {
 			}
 		}
 
-		// 如果所有參數讀取都失敗，顯示錯誤提示
+		// 如果所有參數讀取都失敗，記錄錯誤（不顯示 Toast，統一由警報監聽器處理）
 		if (successCount === 0 && failCount > 0) {
-			const now = Date.now();
-			const shouldShowAlert =
-				!lastOfflineAlertTime.value || now - lastOfflineAlertTime.value >= OFFLINE_ALERT_INTERVAL;
-
-			if (shouldShowAlert) {
-				lastOfflineAlertTime.value = now;
-				toast.error("無法讀取感測器資料，請檢查設備連線狀態", 8000);
-			}
+			await reportLocationError(
+				currentLocationData.value?.id,
+				"無法讀取感測器資料，請檢查設備連線狀態"
+			);
 		}
 
-		if (isSensorOffline.value) {
+		// 如果感測器恢復連線，清除錯誤狀態
+		if (isSensorOffline.value && successCount > 0) {
 			isSensorOffline.value = false;
 			toast.success("感測器已恢復連線", 5000);
-			lastOfflineAlertTime.value = null;
+			await clearLocationError(currentLocationData.value?.id);
 		}
 	} catch (error: any) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
-		const isOfflineError =
-			errorMessage.includes("503") ||
-			errorMessage.includes("服務不可用") ||
-			errorMessage.includes("設備離線");
+		const isOffline = isOfflineError(errorMessage);
 
-		if (isOfflineError) {
-			const now = Date.now();
-			const shouldShowAlert =
-				!isSensorOffline.value ||
-				lastOfflineAlertTime.value === null ||
-				now - lastOfflineAlertTime.value >= OFFLINE_ALERT_INTERVAL;
+		// 更新離線狀態
+		if (isOffline && !isSensorOffline.value) {
+			isSensorOffline.value = true;
+		}
 
-			if (shouldShowAlert) {
-				isSensorOffline.value = true;
-				lastOfflineAlertTime.value = now;
-				toast.warning("感測器離線，無法讀取資料", 8000);
+		// 記錄錯誤（統一由 useErrorHandler 處理通知）
+		// 離線錯誤總是記錄，非離線錯誤只在感測器在線時記錄（避免重複）
+		if (isOffline || !isSensorOffline.value) {
+			// 錯誤已由 useErrorHandler 統一處理，這裡只記錄到後端（開發模式才輸出 console）
+			if (process.dev && !isOffline) {
+				console.warn("[environment] 讀取感測器資料失敗");
 			}
-		} else {
-			if (!isSensorOffline.value) {
-				console.error("[environment] 讀取感測器資料失敗", error);
-				toast.error(errorMessage, 5000);
-			}
+			await reportLocationError(
+				currentLocationData.value?.id,
+				errorMessage || (isOffline ? "感測器離線，無法讀取資料" : "讀取感測器資料失敗")
+			);
 		}
 	} finally {
 		isFetching.value = false;
@@ -1069,7 +1096,10 @@ const readParameterValue = async (
 		const rawValue = response.data[0];
 		return applyTransform(rawValue, transform);
 	} catch (error) {
-		console.warn(`[environment] 讀取地址 ${address} 失敗:`, error);
+		// 錯誤已由 useErrorHandler 統一處理，這裡只記錄（開發模式）
+		if (process.dev) {
+			console.warn(`[environment] 讀取地址 ${address} 失敗`);
+		}
 		return null;
 	}
 };
@@ -1108,23 +1138,73 @@ const readLocationSensorParameters = async (
 const loadLocationSensorDataForOverview = async (location: EnvironmentLocation) => {
 	if (!location.deviceId) return;
 
-	const result = await loadDeviceAndModelConfig(location.deviceId);
-	if (!result) return;
+	try {
+		const result = await loadDeviceAndModelConfig(location.deviceId);
+		if (!result) return;
 
-	const { device, modelConfig } = result;
-	if (!modelConfig?.sensorParameters) return;
+		const { device, modelConfig } = result;
+		if (!modelConfig?.sensorParameters) return;
 
-	const config = device.config as SensorDeviceConfig;
-	if (config.protocol !== "modbus" || !config.host || !config.port) return;
+		const config = device.config as SensorDeviceConfig;
+		if (config.protocol !== "modbus" || !config.host || !config.port) return;
 
-	const modbusConfig: ModbusDeviceConfig = {
-		host: config.host,
-		port: config.port,
-		unitId: config.unitId || 1
-	};
+		const modbusConfig: ModbusDeviceConfig = {
+			host: config.host,
+			port: config.port,
+			unitId: config.unitId || 1
+		};
 
-	const locationId = getLocationId(location);
-	await readLocationSensorParameters(location, modelConfig, modbusConfig, locationId);
+		const locationId = getLocationId(location);
+		const enabledParams = location.parameters.filter(param => param.enabled);
+
+		// 讀取參數資料
+		const readPromises = enabledParams.map(async param => {
+			const paramDef = modelConfig.sensorParameters?.find(p => p.type === param.type);
+			if (!paramDef?.modbusConfig?.address) {
+				return { type: param.type, value: null, success: false };
+			}
+
+			try {
+				const value = await readParameterValue(
+					modbusConfig,
+					paramDef.modbusConfig.address,
+					paramDef.modbusConfig.transform
+				);
+				return { type: param.type, value, success: value !== null };
+			} catch (error) {
+				return { type: param.type, value: null, success: false };
+			}
+		});
+
+		const results = await Promise.all(readPromises);
+		let successCount = 0;
+		let failCount = 0;
+
+		results.forEach(({ type, value, success }) => {
+			updateSensorData(type, value, locationId);
+			if (success) {
+				successCount++;
+			} else {
+				failCount++;
+			}
+		});
+
+		// 如果所有參數讀取都失敗，記錄錯誤
+		if (successCount === 0 && failCount > 0) {
+			await reportLocationError(location.id, "無法讀取感測器資料，請檢查設備連線狀態");
+		} else if (successCount > 0) {
+			// 如果成功讀取，清除錯誤狀態
+			await clearLocationError(location.id);
+		}
+	} catch (error: any) {
+		// 總覽面板的錯誤處理（靜默處理，避免影響主要流程）
+		const errorMessage = error instanceof Error ? error.message : String(error);
+
+		// 只記錄離線錯誤，其他錯誤靜默處理
+		if (isOfflineError(errorMessage)) {
+			await reportLocationError(location.id, errorMessage || "感測器離線，無法讀取資料");
+		}
+	}
 };
 
 // 遍歷所有地點並執行回調（共用函數）

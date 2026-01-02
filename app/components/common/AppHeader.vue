@@ -32,7 +32,7 @@
 			<div class="flex items-center space-x-4 xl:space-x-6 2xl:space-x-8">
 				<!-- 設備管理 -->
 				<button :class="['icon-button', { 'icon-button-active': isDevicesActive }]">
-					<NuxtLink to="/system/devices">
+					<NuxtLink to="/core/equipment-management">
 						<img
 							src="/layout/devices.svg"
 							alt="設備管理"
@@ -44,13 +44,20 @@
 					</NuxtLink>
 				</button>
 				<!-- 警示紀錄 -->
-				<button :class="['icon-button', { 'icon-button-active': isAlertLogActive }]">
-					<NuxtLink to="/system/alert-log">
+				<button :class="['icon-button relative', { 'icon-button-active': isAlertLogActive }]">
+					<NuxtLink to="/core/alert-log">
 						<img
 							:src="isDark ? '/layout/alert-logo-white.png' : '/layout/alert-log.png'"
 							alt="警示紀錄"
 							class="h-8 w-8 xl:h-12 xl:w-12 2xl:h-14 2xl:w-14"
 						/>
+						<!-- 未解決警報數量徽章 -->
+						<span
+							v-if="unresolvedAlertCount > 0"
+							class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white xl:h-6 xl:w-6 xl:text-sm 2xl:h-7 2xl:w-7 2xl:text-base"
+						>
+							{{ unresolvedAlertCount > 99 ? "99+" : unresolvedAlertCount }}
+						</span>
 					</NuxtLink>
 				</button>
 				<!-- 更多功能 -->
@@ -158,7 +165,7 @@
 								<!-- User Management (Admin only) -->
 								<NuxtLink
 									v-if="isAdmin"
-									to="/system/users"
+									to="/core/users"
 									@click="closeUserMenu"
 									class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 2xl:text-base"
 								>
@@ -317,8 +324,30 @@ const categoryGroups = computed(() => {
 });
 
 // Active 狀態判斷
-const isDevicesActive = computed(() => route.path === "/system/devices");
-const isAlertLogActive = computed(() => route.path === "/system/alert-log");
+const isDevicesActive = computed(() => route.path === "/core/equipment-management");
+const isAlertLogActive = computed(() => route.path === "/core/alert-log");
+
+// 未解決警報數量
+const unresolvedAlertCount = ref(0);
+const alertApi = useAlertApi();
+
+// 載入未解決警報數量
+const loadUnresolvedAlertCount = async () => {
+	try {
+		const result = await alertApi.getUnresolvedAlertCount();
+		unresolvedAlertCount.value = result.count || 0;
+	} catch (error) {
+		// 查詢失敗時重置為 0，避免顯示舊的緩存值
+		unresolvedAlertCount.value = 0;
+		// 靜默處理錯誤，避免影響頁面
+		if (process.dev) {
+			console.warn("[AppHeader] 載入未解決警報數量失敗", error);
+		}
+	}
+};
+
+// 定期更新未解決警報數量
+let alertCountTimer: ReturnType<typeof setInterval> | null = null;
 
 const closeUserMenu = () => {
 	isUserMenuOpen.value = false;
@@ -383,10 +412,21 @@ const handleClickOutside = (event: MouseEvent) => {
 // 監聽點擊事件
 onMounted(() => {
 	document.addEventListener("click", handleClickOutside);
+	
+	// 載入未解決警報數量
+	if (user.value) {
+		loadUnresolvedAlertCount();
+		// 每 30 秒更新一次
+		alertCountTimer = setInterval(loadUnresolvedAlertCount, 30000);
+	}
 });
 
 onUnmounted(() => {
 	document.removeEventListener("click", handleClickOutside);
+	if (alertCountTimer) {
+		clearInterval(alertCountTimer);
+		alertCountTimer = null;
+	}
 });
 
 watch(
@@ -394,7 +434,32 @@ watch(
 	() => {
 		closeUserMenu();
 		closeMoreMenu();
+		// 當路由變化到警示紀錄頁面時，更新數量
+		if (route.path === "/core/alert-log") {
+			loadUnresolvedAlertCount();
+		}
 	}
+);
+
+// 監聽用戶登入狀態
+watch(
+	() => user.value,
+	(newUser) => {
+		if (newUser) {
+			loadUnresolvedAlertCount();
+			// 每 30 秒更新一次
+			if (!alertCountTimer) {
+				alertCountTimer = setInterval(loadUnresolvedAlertCount, 30000);
+			}
+		} else {
+			unresolvedAlertCount.value = 0;
+			if (alertCountTimer) {
+				clearInterval(alertCountTimer);
+				alertCountTimer = null;
+			}
+		}
+	},
+	{ immediate: true }
 );
 </script>
 

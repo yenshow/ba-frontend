@@ -1,9 +1,9 @@
 import type {
 	Alert,
 	AlertListResponse,
-	CreateAlertData,
 	AlertFilters,
-	UnresolvedAlertCountResponse
+	UnresolvedAlertCountResponse,
+	AlertHistoryItem
 } from "~/types/alert";
 import { useApiBase } from "~/composables/useApiBase";
 
@@ -11,64 +11,27 @@ export const useAlertApi = () => {
 	const { request } = useApiBase();
 
 	/**
+	 * 構建查詢參數的通用函數
+	 */
+	const buildQueryParams = (filters?: Record<string, unknown>): URLSearchParams => {
+		const queryParams = new URLSearchParams();
+		if (filters) {
+			for (const [key, value] of Object.entries(filters)) {
+				if (value !== undefined && value !== null && value !== "") {
+					queryParams.append(key, typeof value === "string" ? value : String(value));
+				}
+			}
+		}
+		return queryParams;
+	};
+
+	/**
 	 * 取得警示列表
 	 */
 	const getAlerts = async (filters?: AlertFilters): Promise<AlertListResponse> => {
-		const queryParams = new URLSearchParams();
-
-		// 多系統來源篩選
-		if (filters?.source) {
-			queryParams.append("source", filters.source);
-		}
-		if (filters?.source_id) {
-			queryParams.append("source_id", String(filters.source_id));
-		}
-		// 向後兼容
-		if (filters?.device_id) {
-			queryParams.append("device_id", String(filters.device_id));
-		}
-		if (filters?.device_type_code) {
-			queryParams.append("device_type_code", filters.device_type_code);
-		}
-		if (filters?.alert_type) {
-			queryParams.append("alert_type", filters.alert_type);
-		}
-		if (filters?.severity) {
-			queryParams.append("severity", filters.severity);
-		}
-		// 狀態篩選（新）
-		if (filters?.status) {
-			queryParams.append("status", filters.status);
-		}
-		// 向後兼容（舊的狀態篩選）
-		if (filters?.resolved !== undefined) {
-			queryParams.append("resolved", String(filters.resolved));
-		}
-		if (filters?.ignored !== undefined) {
-			queryParams.append("ignored", String(filters.ignored));
-		}
-		if (filters?.start_date) {
-			queryParams.append("start_date", filters.start_date);
-		}
-		if (filters?.end_date) {
-			queryParams.append("end_date", filters.end_date);
-		}
-		if (filters?.limit) {
-			queryParams.append("limit", String(filters.limit));
-		}
-		if (filters?.offset) {
-			queryParams.append("offset", String(filters.offset));
-		}
-		if (filters?.orderBy) {
-			queryParams.append("orderBy", filters.orderBy);
-		}
-		if (filters?.order) {
-			queryParams.append("order", filters.order);
-		}
-
+		const queryParams = buildQueryParams(filters as Record<string, unknown>);
 		const queryString = queryParams.toString();
 		const path = queryString ? `/alerts?${queryString}` : "/alerts";
-
 		return await request<AlertListResponse>(path);
 	};
 
@@ -80,36 +43,27 @@ export const useAlertApi = () => {
 	};
 
 	/**
-	 * 創建警示
+	 * 取得警報歷史記錄
 	 */
-	const createAlert = async (data: CreateAlertData): Promise<{ alert: Alert }> => {
-		return await request<{ alert: Alert }>("/alerts", {
-			method: "POST",
-			body: JSON.stringify(data)
-		});
+	const getAlertHistory = async (id: number): Promise<{ history: AlertHistoryItem[] }> => {
+		return await request<{ history: AlertHistoryItem[] }>(`/alerts/${id}/history`);
 	};
 
 	/**
-	 * 標記警示為已解決
+	 * 構建帶查詢參數的路徑
 	 */
-	const resolveAlert = async (sourceId: number, alertType: string, source?: string): Promise<{ success: boolean; message: string; count: number }> => {
-		const queryParams = new URLSearchParams();
-		if (source) {
-			queryParams.append("source", source);
+	const buildPathWithQuery = (basePath: string, params?: Record<string, string>): string => {
+		if (!params || Object.keys(params).length === 0) {
+			return basePath;
 		}
+		const queryParams = buildQueryParams(params);
 		const queryString = queryParams.toString();
-		const path = queryString ? `/alerts/${sourceId}/${alertType}/resolve?${queryString}` : `/alerts/${sourceId}/${alertType}/resolve`;
-		
-		return await request<{ success: boolean; message: string; count: number }>(
-			path,
-			{
-				method: "PUT"
-			}
-		);
+		return queryString ? `${basePath}?${queryString}` : basePath;
 	};
 
 	/**
-	 * 標記警示為未解決（管理員）
+	 * 標記警示為未解決（管理員專屬）
+	 * 注意：警報由系統自動解決，此功能僅用於處理系統誤判或特殊情況
 	 */
 	const unresolveAlert = async (id: number): Promise<{ alert: Alert }> => {
 		return await request<{ alert: Alert }>(`/alerts/${id}/unresolve`, {
@@ -118,65 +72,44 @@ export const useAlertApi = () => {
 	};
 
 	/**
+	 * 忽視/取消忽視警示的通用方法
+	 */
+	const toggleIgnoreAlert = async (sourceId: number, alertType: string, action: "ignore" | "unignore", source?: string): Promise<{ success: boolean; message: string; count: number }> => {
+		const path = buildPathWithQuery(`/alerts/${sourceId}/${alertType}/${action}`, source ? { source } : undefined);
+		return await request<{ success: boolean; message: string; count: number }>(path, { method: "POST" });
+	};
+
+	/**
 	 * 忽視警示（不再顯示相同來源和類型的警示）
 	 */
 	const ignoreAlert = async (sourceId: number, alertType: string, source?: string): Promise<{ success: boolean; message: string; count: number }> => {
-		const queryParams = new URLSearchParams();
-		if (source) {
-			queryParams.append("source", source);
-		}
-		const queryString = queryParams.toString();
-		const path = queryString ? `/alerts/${sourceId}/${alertType}/ignore?${queryString}` : `/alerts/${sourceId}/${alertType}/ignore`;
-		
-		return await request<{ success: boolean; message: string; count: number }>(
-			path,
-			{
-				method: "POST"
-			}
-		);
+		return toggleIgnoreAlert(sourceId, alertType, "ignore", source);
+	};
+
+	/**
+	 * 取消忽視警示（恢復顯示相同來源和類型的警示）
+	 */
+	const unignoreAlert = async (sourceId: number, alertType: string, source?: string): Promise<{ success: boolean; message: string; count: number }> => {
+		return toggleIgnoreAlert(sourceId, alertType, "unignore", source);
 	};
 
 	/**
 	 * 取得未解決的警示數量
 	 */
-	const getUnresolvedAlertCount = async (filters?: {
-		source?: string;
-		source_id?: number;
-		device_id?: number;
-		alert_type?: string;
-		severity?: string;
-	}): Promise<UnresolvedAlertCountResponse> => {
-		const queryParams = new URLSearchParams();
-
-		if (filters?.source) {
-			queryParams.append("source", filters.source);
-		}
-		if (filters?.source_id) {
-			queryParams.append("source_id", String(filters.source_id));
-		}
-		if (filters?.device_id) {
-			queryParams.append("device_id", String(filters.device_id));
-		}
-		if (filters?.alert_type) {
-			queryParams.append("alert_type", filters.alert_type);
-		}
-		if (filters?.severity) {
-			queryParams.append("severity", filters.severity);
-		}
-
+	const getUnresolvedAlertCount = async (filters?: Pick<AlertFilters, "source" | "source_id" | "device_id" | "alert_type" | "severity">): Promise<UnresolvedAlertCountResponse> => {
+		const queryParams = buildQueryParams(filters as Record<string, unknown>);
 		const queryString = queryParams.toString();
 		const path = queryString ? `/alerts/unresolved/count?${queryString}` : "/alerts/unresolved/count";
-
 		return await request<UnresolvedAlertCountResponse>(path);
 	};
 
 	return {
 		getAlerts,
 		getAlertById,
-		createAlert,
-		resolveAlert,
+		getAlertHistory,
 		unresolveAlert,
 		ignoreAlert,
+		unignoreAlert,
 		getUnresolvedAlertCount
 	};
 };

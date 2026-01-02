@@ -290,6 +290,7 @@ definePageMeta({
 const { isAdmin } = useAuth();
 const deviceApi = useDeviceApi();
 const toast = useToast();
+const { handleError: handleApiError } = useErrorHandler();
 
 // 從後端動態讀取的設備類型
 const deviceTypes = ref<DeviceType[]>([]);
@@ -388,12 +389,10 @@ const getStatusBadgeClass = (status: string) => {
 	return classes[status as keyof typeof classes] || classes.inactive;
 };
 
-// 業務邏輯函數
+// 業務邏輯函數：統一錯誤處理（同時更新頁面錯誤訊息）
 const handleError = (error: unknown, defaultMessage: string) => {
-	console.error(defaultMessage, error);
-	const errorMsg = error instanceof Error ? error.message : defaultMessage;
-	errorMessage.value = errorMsg;
-	toast.error(errorMsg);
+	const errorMsg = handleApiError(error, defaultMessage);
+	errorMessage.value = errorMsg || defaultMessage;
 	return errorMsg;
 };
 

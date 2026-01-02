@@ -1,4 +1,6 @@
 import { useRequestFetch } from "#app";
+import { useAuth } from "~/composables/useAuth";
+import { useToast } from "~/composables/useToast";
 
 /**
  * 共用的 API 基礎 composable
@@ -16,7 +18,7 @@ export const useApiBase = () => {
 	// 因此需要安全地獲取 cookie
 	const getAuthHeaders = (): HeadersInit => {
 		let token: string | null = null;
-		
+
 		// 嘗試獲取 cookie
 		try {
 			// 優先嘗試使用 Nuxt composable（在 Vue 上下文中）
@@ -24,19 +26,19 @@ export const useApiBase = () => {
 			token = cookie.value;
 		} catch (error) {
 			// 如果無法使用 composable（如在定時器回調中），直接讀取 cookie
-			if (process.client && typeof document !== 'undefined') {
-				const cookies = document.cookie.split(';');
-				const authCookie = cookies.find(cookie => cookie.trim().startsWith('auth_token='));
+			if (process.client && typeof document !== "undefined") {
+				const cookies = document.cookie.split(";");
+				const authCookie = cookies.find(cookie => cookie.trim().startsWith("auth_token="));
 				if (authCookie) {
-					token = decodeURIComponent(authCookie.split('=')[1]?.trim() || '');
+					token = decodeURIComponent(authCookie.split("=")[1]?.trim() || "");
 					// 如果 token 為空字符串，設為 null
-					if (token === '') {
+					if (token === "") {
 						token = null;
 					}
 				}
 			}
 		}
-		
+
 		const headers: HeadersInit = {
 			"Content-Type": "application/json",
 			Accept: "application/json"
@@ -71,51 +73,18 @@ export const useApiBase = () => {
 			} as any);
 			return response;
 		} catch (error: any) {
-			// 處理網路連線錯誤
-			const errorMessage = error?.message || "";
-			const isNetworkError =
-				errorMessage.includes("ERR_ADDRESS_UNREACHABLE") ||
-				errorMessage.includes("ERR_CONNECTION_REFUSED") ||
-				errorMessage.includes("ERR_NETWORK") ||
-				errorMessage.includes("Failed to fetch") ||
-				errorMessage.includes("NetworkError") ||
-				errorMessage.includes("ECONNREFUSED") ||
-				errorMessage.includes("ENOTFOUND") ||
-				error?.code === "ECONNREFUSED" ||
-				error?.code === "ENOTFOUND" ||
-				(error?.statusCode === undefined && error?.status === undefined && errorMessage.includes("<no response>"));
-
-			if (isNetworkError) {
-				const targetHost = url.match(/https?:\/\/([^\/:]+)/)?.[1] || "未知";
-				throw new Error(
-					`無法連接到後端伺服器 (${targetHost})\n\n` +
-						`請確認：\n` +
-						`1. 後端服務是否正常運行\n` +
-						`2. 後端地址是否正確：${url}\n` +
-						`3. 前端和後端是否在同一網路或可以互相訪問`
-				);
-			}
-
-			// 處理請求超時
-			if (errorMessage.includes("timeout") || error?.name === "TimeoutError") {
-				throw new Error(`請求超時 (${url})，請檢查網路連線或稍後再試`);
-			}
-
-			// 處理 CORS 錯誤
-			if (
-				errorMessage.includes("CORS") ||
-				errorMessage.includes("cross-origin") ||
-				errorMessage.includes("Access-Control") ||
-				(error?.statusCode === 0 && !isNetworkError)
-			) {
-				throw new Error(`CORS 錯誤：無法連接到後端 API (${url})\n\n` + `請檢查後端 CORS_ORIGINS 環境變數是否包含前端地址`);
-			}
-
-			// 提取後端返回的錯誤訊息
-			const backendErrorMsg = error?.data?.message || error?.data?.details || error?.data?.error?.message || error?.message || "";
+			// 先提取後端返回的錯誤訊息和狀態碼（優先處理 HTTP 狀態碼）
+			const backendErrorMsg =
+				error?.data?.message ||
+				error?.data?.details ||
+				error?.data?.error?.message ||
+				error?.message ||
+				"";
 			const statusCode = error?.statusCode || error?.status;
 
-			// 處理各種 HTTP 狀態碼
+			// 如果有 HTTP 狀態碼，優先處理狀態碼錯誤（而不是網路錯誤）
+			// 這樣可以正確處理 503 等服務錯誤，而不是誤判為後端連接錯誤
+			if (statusCode !== undefined && statusCode !== null) {
 			if (statusCode === 400) {
 				throw new Error(backendErrorMsg || "請求參數錯誤");
 			}
@@ -152,14 +121,79 @@ export const useApiBase = () => {
 
 			if (statusCode === 503) {
 				// 503 Service Unavailable - 通常表示設備離線或服務暫時不可用
-				throw new Error(`服務不可用 (503): ${backendErrorMsg || "設備離線或服務暫時不可用"}`);
+					// 使用後端返回的詳細錯誤訊息（如 "連接超時: 無法在 10000ms 內連接到..."）
+					throw new Error(backendErrorMsg || "設備離線或服務暫時不可用");
+				}
+
+				// 其他狀態碼
+				throw new Error(`API 請求失敗 (${statusCode}): ${backendErrorMsg || error?.message || "Unknown error"}`);
 			}
 
+			// 如果沒有狀態碼，先檢查是否為設備連接錯誤（優先於網路錯誤判斷）
+			const errorMessage = error?.message || "";
+			
+			// 檢查是否為設備連接錯誤（Modbus 設備連接超時等）
+			// 通過檢查錯誤訊息中是否包含 IP:Port 格式來判斷
+			const isDeviceConnectionError =
+				errorMessage.includes("連接超時") ||
+				errorMessage.includes("無法在") && errorMessage.match(/\d+\.\d+\.\d+\.\d+:\d+/) ||
+				errorMessage.includes("連接被拒絕") ||
+				errorMessage.includes("無法到達設備") ||
+				errorMessage.includes("連接已斷開") ||
+				(errorMessage.includes("連接到") && errorMessage.match(/\d+\.\d+\.\d+\.\d+:\d+/));
+
+			if (isDeviceConnectionError) {
+				// 這是設備連接錯誤，不是後端連接錯誤
+				// 使用原始錯誤訊息或提供更友好的訊息
+				throw new Error(backendErrorMsg || errorMessage || "設備連接失敗，請檢查設備狀態");
+			}
+
+			// 如果沒有狀態碼，再處理網路錯誤（真正的後端連接錯誤）
+			const isNetworkError =
+				errorMessage.includes("ERR_ADDRESS_UNREACHABLE") ||
+				errorMessage.includes("ERR_CONNECTION_REFUSED") ||
+				errorMessage.includes("ERR_NETWORK") ||
+				errorMessage.includes("Failed to fetch") ||
+				errorMessage.includes("NetworkError") ||
+				errorMessage.includes("ECONNREFUSED") ||
+				errorMessage.includes("ENOTFOUND") ||
+				error?.code === "ECONNREFUSED" ||
+				error?.code === "ENOTFOUND" ||
+				(error?.statusCode === undefined &&
+					error?.status === undefined &&
+					errorMessage.includes("<no response>"));
+
+			if (isNetworkError) {
+				const targetHost = url.match(/https?:\/\/([^\/:]+)/)?.[1] || "未知";
+				throw new Error(
+					`無法連接到後端伺服器 (${targetHost})\n\n` +
+						`請確認：\n` +
+						`1. 後端服務是否正常運行\n` +
+						`2. 後端地址是否正確：${url}\n` +
+						`3. 前端和後端是否在同一網路或可以互相訪問`
+				);
+			}
+
+			// 處理請求超時（沒有狀態碼的情況）
+			if (errorMessage.includes("timeout") || error?.name === "TimeoutError") {
+				throw new Error(`請求超時 (${url})，請檢查網路連線或稍後再試`);
+			}
+
+			// 處理 CORS 錯誤
+			if (
+				errorMessage.includes("CORS") ||
+				errorMessage.includes("cross-origin") ||
+				errorMessage.includes("Access-Control") ||
+				(error?.statusCode === 0 && !isNetworkError)
+			) {
+				throw new Error(
+					`CORS 錯誤：無法連接到後端 API (${url})\n\n` +
+						`請檢查後端 CORS_ORIGINS 環境變數是否包含前端地址`
+				);
+			}
+
+			// 如果以上都不匹配，處理其他錯誤
 			if (error instanceof Error) {
-				const statusCode = (error as any)?.statusCode || (error as any)?.status;
-				if (statusCode) {
-					throw new Error(`API 請求失敗 (${statusCode}): ${error.message}`);
-				}
 				throw new Error(`API 請求失敗: ${error.message}`);
 			}
 			throw error;

@@ -66,7 +66,7 @@
 - ✅ 資料表：`devices`、`device_types`、`device_models`
 - ✅ API 端點：`/api/devices/*`、`/api/devices/types/*`、`/api/devices/models/*`
 - ✅ Composable：`useDeviceApi.ts`
-- ✅ 頁面：`/system/equipment-management`
+- ✅ 頁面：`/core/equipment-management`（`app/pages/core/equipment-management.vue`）
 - ✅ 組件：`DeviceDialog.vue`、`DeviceTypeDialog.vue`、`DeviceModelDialog.vue`
 
 **功能特性：**
@@ -88,7 +88,7 @@
 - ✅ 資料表：`users`
 - ✅ API 端點：`/api/users/*`
 - ✅ Composable：`useUserApi.ts`
-- ✅ 頁面：`/system/users`
+- ✅ 頁面：`/core/users`（`app/pages/core/users.vue`）
 - ✅ 認證：`useAuth.ts`、`auth.global.ts`
 
 **功能特性：**
@@ -108,7 +108,7 @@
 
 - ✅ API 端點：`/api/alerts/*`
 - ✅ Composable：`useAlertApi.ts`、`useAlertMonitor.ts`
-- ✅ 頁面：`/system/alert-log`
+- ✅ 頁面：`/core/alert-log`（`app/pages/core/alert-log.vue`）
 - ✅ 工具：`alertUtils.ts`
 
 **功能特性：**
@@ -130,7 +130,7 @@
 - ✅ 資料表：`lighting_categories`（照明分類點）
 - ✅ API 端點：`/api/lighting/floors/*`、`/api/lighting/categories/*`
 - ✅ Composable：`useLightingApi.ts`
-- ✅ 頁面：`/system/lighting`
+- ✅ 頁面：`/infrastructure/lighting`（`app/pages/infrastructure/lighting.vue`）
 - ✅ 組件：
   - `CategoryList.vue`（分類列表）
   - `CategoryTooltip.vue`（分類提示）
@@ -162,7 +162,7 @@
   - `/api/environment/floors/*`（樓層管理）
   - `/api/environment/readings/*`（感測器讀數）
 - ✅ Composable：`useEnvironmentApi.ts`
-- ✅ 頁面：`/system/environment`
+- ✅ 頁面：`/construction-monitoring/environment`（`app/pages/construction-monitoring/environment.vue`）
 - ✅ 組件：
   - `EnvironmentGauge.vue`（儀表顯示）
   - `EnvironmentParamCard.vue`（參數卡片）
@@ -226,7 +226,7 @@
 - **優先順序：** P0（工地管理核心功能）
 - **規劃資料表：** `people_counting_logs`、`people_counting_zones`
 - **說明：** 人流統計與管理，工地人員進出監控
-- **頁面：** `/system/people-counting`（已有）
+- **頁面：** `/construction-monitoring/people-counting`（`app/pages/construction-monitoring/people-counting.vue`，已有）
 
 ---
 
@@ -245,7 +245,7 @@
 - **優先順序：** P1（整合 RTSP 串流系統）
 - **規劃資料表：** `surveillance_cameras`、`surveillance_recordings`
 - **說明：** 與 RTSP 系統整合，攝影機配置與錄影管理
-- **頁面：** `/system/surveillance`（已有）
+- **頁面：** `/construction-monitoring/surveillance`（`app/pages/construction-monitoring/surveillance.vue`，已有）
 - **已知問題：**
   - ⚠️ 與設備管理系統尚未完全整合
   - ⚠️ RTSP URL 需要手動輸入

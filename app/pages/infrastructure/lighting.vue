@@ -609,12 +609,64 @@ interface BatchRequest {
 	areaId: string;
 }
 
+// ========== 錯誤追蹤共用函數 ==========
+
+/**
+ * 根據 areaId 查找對應的 area 物件（用於獲取資料庫 ID）
+ */
+const findAreaById = (areaId: string): { area: LightingArea; floor: LightingFloor } | null => {
+	for (const floor of lightingFloors.value) {
+		for (let i = 0; i < floor.areas.length; i++) {
+			const area = floor.areas[i];
+			const computedAreaId = getAreaId(floor, area, i);
+			if (computedAreaId === areaId && area.id) {
+				return { area, floor };
+			}
+		}
+	}
+	return null;
+};
+
+/**
+ * 報告照明區域錯誤（靜默處理，不影響主要流程）
+ */
+const reportAreaError = async (areaId: string, errorMessage: string) => {
+	const found = findAreaById(areaId);
+	if (!found?.area.id) return;
+	
+	try {
+		await lightingApi.reportError(found.area.id, errorMessage);
+	} catch (error) {
+		console.warn("[lighting] 報告錯誤失敗:", error);
+	}
+};
+
+/**
+ * 清除照明區域錯誤狀態（靜默處理，不影響主要流程）
+ */
+const clearAreaError = async (areaId: string) => {
+	const found = findAreaById(areaId);
+	if (!found?.area.id) return;
+	
+	try {
+		await lightingApi.clearError(found.area.id);
+	} catch (error) {
+		console.warn("[lighting] 清除錯誤失敗:", error);
+	}
+};
+
 // 更新區域狀態的共用函數
-const updateAreaStatuses = (areaIds: string[], value: boolean) => {
+const updateAreaStatuses = async (areaIds: string[], value: boolean) => {
 	for (const areaId of areaIds) {
 		const status = ensureAreaStatus(areaId);
+		const wasError = status.status === "error";
 		status.isRunning = value;
 		status.status = "normal";
+
+		// 如果區域從錯誤狀態恢復正常，清除錯誤狀態
+		if (wasError && status.status === "normal") {
+			await clearAreaError(areaId);
+		}
 	}
 };
 
@@ -667,13 +719,16 @@ const processBatchRequests = async (requests: BatchRequest[]) => {
 
 			// 處理響應
 			if (response?.data?.[0] !== undefined) {
-				updateAreaStatuses(areaIds, response.data[0]);
+				await updateAreaStatuses(areaIds, response.data[0]);
 			}
 		} catch (error) {
 			// 請求失敗，標記為錯誤並清除緩存
 			requestCache.delete(requestKey);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			
 			for (const areaId of areaIds) {
 				ensureAreaStatus(areaId).status = "error";
+				await reportAreaError(areaId, errorMessage || "無法讀取照明設備資料");
 			}
 		}
 	}

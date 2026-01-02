@@ -17,7 +17,7 @@
 
 ### 主要組件
 
-- **頁面**: `app/pages/system/environment.vue`
+- **頁面**: `app/pages/construction-monitoring/environment.vue`
 - **儀表組件**: `app/components/environment/EnvironmentGauge.vue`
 - **參數卡片**: `app/components/environment/EnvironmentParamCard.vue`
 - **總覽卡片**: `app/components/environment/OverviewLocationCard.vue`

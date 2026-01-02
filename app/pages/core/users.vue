@@ -233,6 +233,7 @@ definePageMeta({
 const { user: currentUser, isAdmin } = useAuth();
 const userApi = useUserApi();
 const toast = useToast();
+const { handleError: handleApiError } = useErrorHandler();
 
 const users = ref<User[]>([]);
 const isLoading = ref(true); // 初始為 true，避免首次載入時出現空容器
@@ -301,12 +302,10 @@ const getStatusBadgeClass = (status: string) => {
 	return classes[status as keyof typeof classes] || classes.inactive;
 };
 
-// 業務邏輯函數
+// 業務邏輯函數：統一錯誤處理（同時更新頁面錯誤訊息）
 const handleError = (error: unknown, defaultMessage: string) => {
-	console.error(defaultMessage, error);
-	const errorMsg = error instanceof Error ? error.message : defaultMessage;
-	errorMessage.value = errorMsg;
-	toast.error(errorMsg);
+	const errorMsg = handleApiError(error, defaultMessage);
+	errorMessage.value = errorMsg || defaultMessage;
 	return errorMsg;
 };
 

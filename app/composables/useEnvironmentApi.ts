@@ -1,4 +1,5 @@
 import type { EnvironmentFloor, EnvironmentLocation, SensorReading } from "~/types/environment";
+import { useApiBase } from "~/composables/useApiBase";
 
 export interface CreateEnvironmentFloorData {
 	name: string;
@@ -94,7 +95,26 @@ export const useEnvironmentApi = () => {
 			return request<{ readings: SensorReading[] }>(
 				`/environment/readings/${locationId}${queryString ? `?${queryString}` : ""}`
 			);
+		},
+
+		// ========== 錯誤追蹤 API ==========
+
+		// 記錄環境位置錯誤
+		reportError: (locationId: string | number, errorMessage?: string) => {
+			return request<{ success: boolean; alertCreated: boolean }>(
+				`/environment/locations/${locationId}/errors`,
+				{
+					method: "POST",
+					body: JSON.stringify({ errorMessage: errorMessage || "無法讀取感測器資料" })
+				}
+			);
+		},
+
+		// 清除環境位置錯誤
+		clearError: (locationId: string | number) => {
+			return request<{ success: boolean }>(`/environment/locations/${locationId}/errors`, {
+				method: "DELETE"
+			});
 		}
 	};
 };
-

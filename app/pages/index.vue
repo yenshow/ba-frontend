@@ -49,6 +49,7 @@ definePageMeta({
 const deviceApi = useDeviceApi();
 const { request } = useApiBase();
 const toast = useToast();
+const { handleError } = useErrorHandler();
 
 // 感測器設備（從設備 API 讀取）
 const sensorDevice = ref<Device | null>(null);
@@ -190,9 +191,7 @@ const loadSensorDevice = async () => {
 			toast.warning("未找到啟用的感測器設備", 5000);
 		}
 	} catch (error) {
-		console.error("[index] 載入感測器設備失敗", error);
-		const errorMsg = error instanceof Error ? error.message : "載入感測器設備失敗";
-		toast.error(errorMsg, 5000);
+		handleError(error, "載入感測器設備失敗");
 	}
 };
 
@@ -256,9 +255,9 @@ const loadSensorData = async () => {
 			}
 		} else {
 			// 其他錯誤（CORS、網路等）- 只在感測器在線時顯示，避免重複提示
+			// 使用統一錯誤處理（會自動去重和優先級判斷）
 			if (!isSensorOffline.value) {
-				console.error("[index] 讀取感測器資料失敗", error);
-				toast.error(errorMessage, 5000);
+				handleError(error, "讀取感測器資料失敗");
 			}
 		}
 	} finally {

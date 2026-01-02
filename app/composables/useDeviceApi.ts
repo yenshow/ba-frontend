@@ -8,6 +8,7 @@ import type {
 	UpdateDeviceModelData,
 	DeviceTypeCode
 } from "~/types/device";
+import { useApiBase } from "~/composables/useApiBase";
 
 // 全局設備類型快取
 const deviceTypesCache = ref<DeviceType[] | null>(null);
@@ -54,7 +55,9 @@ export const useDeviceApi = () => {
 			}
 
 			const queryString = query.toString();
-			return request<{ devices: Device[]; total: number; limit: number; offset: number }>(`/devices${queryString ? `?${queryString}` : ""}`);
+			return request<{ devices: Device[]; total: number; limit: number; offset: number }>(
+				`/devices${queryString ? `?${queryString}` : ""}`
+			);
 		},
 
 		// 取得單一設備
@@ -167,7 +170,9 @@ export const useDeviceApi = () => {
 			if (params?._t) query.append("_t", params._t); // 時間戳用於強制刷新
 
 			const queryString = query.toString();
-			return request<{ device_models: DeviceModel[] }>(`/devices/models${queryString ? `?${queryString}` : ""}`);
+			return request<{ device_models: DeviceModel[] }>(
+				`/devices/models${queryString ? `?${queryString}` : ""}`
+			);
 		},
 
 		// 取得單一設備型號

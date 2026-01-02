@@ -44,6 +44,9 @@
 					<!-- Message -->
 					<div class="flex-1 text-sm font-medium">
 						{{ toast.message }}
+						<span v-if="toast.count && toast.count > 1" class="ml-2 inline-flex items-center justify-center rounded-full bg-white/30 px-2 py-0.5 text-xs font-bold">
+							{{ toast.count }}
+						</span>
 					</div>
 
 					<!-- Close Button -->

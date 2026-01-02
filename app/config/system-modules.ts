@@ -21,223 +21,183 @@ import type { SystemModule } from "~/types/system";
 const isModuleEnabled = (module: SystemModule): boolean => module.enabled !== false;
 
 /**
- * 系統模組列表（按新分類重新組織）
+ * 系統模組列表（按分類組織，id 按順序編號）
  */
 export const systemModules: SystemModule[] = [
 	// ========== 核心基礎系統 ==========
 	{ 
-		id: 8, 
+		id: 1, 
 		name: "設備管理", 
 		icon: "equipment-management", 
-		route: "/system/equipment-management", 
+		route: "/core/equipment-management", 
 		category: "core", 
-		description: "設備管理系統",
-		priority: "P0",
-		status: "completed"
+		description: "設備管理系統"
 	},
 	{ 
-		id: 17, 
+		id: 2, 
 		name: "使用者管理", 
 		icon: "user-management", 
-		route: "/system/users", 
+		route: "/core/users", 
 		category: "core", 
-		description: "使用者帳號與權限管理",
-		priority: "P0",
-		status: "completed"
+		description: "使用者帳號與權限管理"
 	},
 	{ 
-		id: 27, 
+		id: 3, 
 		name: "警示紀錄", 
 		icon: "alert-log", 
-		route: "/system/alert-log", 
+		route: "/core/alert-log", 
 		category: "core", 
-		description: "系統警示與紀錄查詢",
-		priority: "P0",
-		status: "completed"
+		description: "系統警示與紀錄查詢"
 	},
 
 	// ========== 工地監控系統 ==========
 	{ 
-		id: 3, 
+		id: 4, 
 		name: "環境品質系統", 
 		icon: "environment", 
-		route: "/system/environment", 
+		route: "/construction-monitoring/environment", 
 		category: "construction-monitoring", 
-		description: "環境品質監測與管理",
-		priority: "P0",
-		status: "completed"
+		description: "環境品質監測與管理"
 	},
 	{ 
 		id: 5, 
 		name: "人流統計管理", 
 		icon: "people-counting", 
-		route: "/system/people-counting", 
+		route: "/construction-monitoring/people-counting", 
 		category: "construction-monitoring", 
-		description: "人流統計與管理",
-		priority: "P0",
-		status: "in-progress"
+		description: "人流統計與管理"
 	},
 	{ 
-		id: 4, 
+		id: 6, 
 		name: "車輛進出管理", 
 		icon: "vehicle-access", 
-		route: "/system/vehicle-access", 
+		route: "/construction-monitoring/vehicle-access", 
 		category: "construction-monitoring", 
-		description: "車輛進出管理系統",
-		priority: "P0",
-		status: "planned"
+		description: "車輛進出管理系統"
 	},
 	{ 
-		id: 2, 
+		id: 7, 
 		name: "影像監視系統", 
 		icon: "surveillance", 
-		route: "/system/surveillance", 
+		route: "/construction-monitoring/surveillance", 
 		category: "construction-monitoring", 
-		description: "影像監視與錄影管理（整合 RTSP）",
-		priority: "P1",
-		status: "in-progress"
+		description: "影像監視與錄影管理（整合 RTSP）"
 	},
 
 	// ========== 基礎設施系統 ==========
 	{ 
-		id: 6, 
+		id: 8, 
 		name: "照明系統", 
 		icon: "lighting", 
-		route: "/system/lighting", 
+		route: "/infrastructure/lighting", 
 		category: "infrastructure", 
-		description: "照明設備控制與監控",
-		priority: "P0",
-		status: "completed"
+		description: "照明設備控制與監控"
 	},
 	{ 
-		id: 12, 
+		id: 9, 
 		name: "空調系統", 
 		icon: "hvac", 
-		route: "/system/hvac", 
+		route: "/infrastructure/hvac", 
 		category: "infrastructure", 
-		description: "空調系統控制與監控",
-		priority: "P0",
-		status: "planned"
+		description: "空調系統控制與監控"
+	},
+	{ 
+		id: 10, 
+		name: "電力系統", 
+		icon: "power",
+		route: "/infrastructure/power", 
+		category: "infrastructure", 
+		description: "電力系統監控與管理"
 	},
 	{ 
 		id: 11, 
-		name: "電力系統", 
-		icon: "power", 
-		route: "/system/power", 
-		category: "infrastructure", 
-		description: "電力系統監控與管理",
-		priority: "P0",
-		status: "planned"
-	},
-	{ 
-		id: 13, 
 		name: "電梯系統", 
 		icon: "elevator", 
-		route: "/system/elevator", 
+		route: "/infrastructure/elevator", 
 		category: "infrastructure", 
-		description: "電梯系統監控與管理",
-		priority: "P2",
-		status: "planned"
+		description: "電梯系統監控與管理"
 	},
 	{ 
-		id: 7, 
+		id: 12, 
 		name: "衛生排水系統", 
 		icon: "drainage", 
-		route: "/system/drainage", 
+		route: "/infrastructure/drainage", 
 		category: "infrastructure", 
-		description: "衛生與排水系統管理",
-		priority: "P2",
-		status: "planned"
+		description: "衛生與排水系統管理"
 	},
 
 	// ========== 安全相關系統 ==========
 	{ 
-		id: 9, 
+		id: 13, 
 		name: "消防系統", 
 		icon: "fire", 
-		route: "/system/fire", 
+		route: "/security/fire", 
 		category: "security", 
-		description: "消防設備監控與管理",
-		priority: "P0",
-		status: "planned"
+		description: "消防設備監控與管理"
 	},
 	{ 
-		id: 10, 
+		id: 14, 
 		name: "門禁保全系統", 
 		icon: "security", 
-		route: "/system/security", 
+		route: "/security/access-control", 
 		category: "security", 
-		description: "門禁與保全系統管理",
-		priority: "P0",
-		status: "planned"
+		description: "門禁與保全系統管理"
 	},
 	{ 
-		id: 16, 
+		id: 15, 
 		name: "緊急求救系統", 
 		icon: "emergency", 
-		route: "/system/emergency", 
+		route: "/security/emergency", 
 		category: "security", 
-		description: "緊急求救與通報系統",
-		priority: "P1",
-		status: "planned"
+		description: "緊急求救與通報系統"
 	},
 
 	// ========== 視覺化系統（整合：區域平面圖 + 全區點位圖）==========
 	{ 
-		id: 1, 
+		id: 16, 
 		name: "空間視覺化系統", 
 		icon: "map", 
-		route: "/system/visualization", 
+		route: "/visualization/map", 
 		category: "visualization", 
-		description: "整合區域平面圖與全區點位圖",
-		priority: "P1",
-		status: "planned"
+		description: "整合區域平面圖與全區點位圖"
 	},
 
 	// ========== 維護管理系統（整合：機電維護 + 可靠度 + 設施管理）==========
 	{ 
-		id: 18, 
+		id: 17, 
 		name: "設備維護管理系統", 
 		icon: "maintenance", 
-		route: "/system/maintenance", 
+		route: "/maintenance/equipment", 
 		category: "maintenance", 
-		description: "整合機電維護、設備運轉可靠度、設施管理",
-		priority: "P2",
-		status: "planned"
+		description: "整合機電維護、設備運轉可靠度、設施管理"
 	},
 
 	// ========== 業務管理系統 ==========
 	{ 
-		id: 22, 
+		id: 18, 
 		name: "訪客系統", 
 		icon: "visitor", 
-		route: "/system/visitor", 
+		route: "/business/visitor", 
 		category: "business", 
-		description: "訪客登記與管理",
-		priority: "P3",
-		status: "planned"
+		description: "訪客登記與管理"
 	},
 	{ 
-		id: 21, 
+		id: 19, 
 		name: "寄物管理", 
-		icon: "locker-management", 
-		route: "/system/locker-management", 
+		icon: "locker-management",
+		route: "/business/locker-management", 
 		category: "business", 
-		description: "寄物櫃管理系統",
-		priority: "P3",
-		status: "planned"
+		description: "寄物櫃管理系統"
 	},
 
 	// ========== 多媒體系統（整合：電視牆 + 多媒體 + 資訊平台）==========
 	{ 
-		id: 25, 
+		id: 20, 
 		name: "多媒體資訊系統", 
 		icon: "video-wall", 
-		route: "/system/multimedia", 
+		route: "/multimedia/info", 
 		category: "multimedia", 
-		description: "整合電視牆模組、多媒體伺服器、資訊平台",
-		priority: "P3",
-		status: "planned"
+		description: "整合電視牆模組、多媒體伺服器、資訊平台"
 	}
 ];
 
@@ -252,32 +212,6 @@ export function getSystemModulesByCategory(
 		return enabledModules;
 	}
 	return enabledModules.filter((module) => module.category === category);
-}
-
-/**
- * 根據優先級獲取系統模組
- */
-export function getSystemModulesByPriority(
-	priority: SystemModule["priority"] | "all" = "all"
-): SystemModule[] {
-	const enabledModules = systemModules.filter(isModuleEnabled);
-	if (priority === "all") {
-		return enabledModules;
-	}
-	return enabledModules.filter((module) => module.priority === priority);
-}
-
-/**
- * 根據狀態獲取系統模組
- */
-export function getSystemModulesByStatus(
-	status: SystemModule["status"] | "all" = "all"
-): SystemModule[] {
-	const enabledModules = systemModules.filter(isModuleEnabled);
-	if (status === "all") {
-		return enabledModules;
-	}
-	return enabledModules.filter((module) => module.status === status);
 }
 
 /**

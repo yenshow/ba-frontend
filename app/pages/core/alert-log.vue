@@ -32,22 +32,7 @@
 					<option value="lighting">照明系統</option>
 				</select>
 
-				<!-- 3. 設備類型篩選（僅適用於設備系統） -->
-				<select
-					v-if="!filterSource || filterSource === 'device'"
-					v-model="filterDeviceType"
-					@change="loadAlerts"
-					class="select-filter rounded-xl border border-white/20 bg-white/15 px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 2xl:px-6 2xl:py-3 2xl:text-base"
-				>
-					<option value="">全部設備</option>
-					<option value="camera">攝影機</option>
-					<option value="sensor">感測器</option>
-					<option value="controller">控制器</option>
-					<option value="tablet">平板</option>
-					<option value="network">網路裝置</option>
-				</select>
-
-				<!-- 4. 時間範圍篩選 -->
+				<!-- 3. 時間範圍篩選 -->
 				<div class="flex items-center gap-2">
 					<input
 						v-model="filterStartDate"
@@ -73,6 +58,16 @@
 				>
 					刷新
 				</button>
+
+				<!-- 匯出按鈕 -->
+				<button
+					type="button"
+					@click="handleExport"
+					:disabled="isLoading || alerts.length === 0"
+					class="rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
+				>
+					匯出 CSV
+				</button>
 			</div>
 		</div>
 
@@ -82,12 +77,12 @@
 			<div class="mb-6 flex flex-wrap items-center justify-between gap-4 2xl:gap-6">
 				<div class="flex items-center gap-4 2xl:gap-6">
 					<div class="text-white">
-						<span class="text-sm 2xl:text-base text-white/70">總計：</span>
-						<span class="text-lg 2xl:text-xl font-semibold">{{ totalAlerts }}</span>
+						<span class="text-sm text-white/70 2xl:text-base">總計：</span>
+						<span class="text-lg font-semibold 2xl:text-xl">{{ totalAlerts }}</span>
 					</div>
 					<div class="text-white">
-						<span class="text-sm 2xl:text-base text-white/70">未解決：</span>
-						<span class="text-lg 2xl:text-xl font-semibold text-yellow-400">{{ unresolvedCount }}</span>
+						<span class="text-sm text-white/70 2xl:text-base">未解決：</span>
+						<span class="text-lg font-semibold text-yellow-400 2xl:text-xl">{{ unresolvedCount }}</span>
 					</div>
 				</div>
 			</div>
@@ -113,10 +108,7 @@
 					<div
 						v-for="alert in alerts"
 						:key="alert.id"
-						:class="[
-							'rounded-xl border-2 p-4 transition-all 2xl:p-6',
-							getAlertCardClass(alert)
-						]"
+						:class="['rounded-xl border-2 p-4 transition-all 2xl:p-6', getAlertCardClass(alert)]"
 					>
 						<div class="flex items-start justify-between gap-4">
 							<div class="flex-1">
@@ -144,19 +136,13 @@
 										{{ getTypeLabel(alert.alert_type) }}
 									</span>
 									<span
-										v-if="alert.alert_count && alert.alert_count > 1"
-										class="inline-block rounded-full bg-blue-500/80 px-3 py-1 text-xs font-semibold text-white 2xl:px-4 2xl:py-1.5 2xl:text-sm"
-									>
-										{{ alert.alert_count }} 次
-									</span>
-									<span
-										v-if="alert.status === 'resolved' || alert.resolved"
+										v-if="isAlertResolved(alert)"
 										class="inline-block rounded-full bg-green-500/80 px-3 py-1 text-xs font-semibold text-white 2xl:px-4 2xl:py-1.5 2xl:text-sm"
 									>
 										已解決
 									</span>
 									<span
-										v-if="alert.status === 'ignored' || alert.ignored"
+										v-if="isAlertIgnored(alert)"
 										class="inline-block rounded-full bg-gray-500/80 px-3 py-1 text-xs font-semibold text-white 2xl:px-4 2xl:py-1.5 2xl:text-sm"
 									>
 										已忽視
@@ -169,15 +155,7 @@
 									<!-- 顯示來源資訊 -->
 									<div v-if="alert.source === 'device'">
 										<span class="font-medium">設備：</span>
-										<span>{{ alert.device_name || alert.metadata?.device_name || `ID: ${alert.source_id}` }}</span>
-									</div>
-									<div v-else-if="alert.source === 'environment'">
-										<span class="font-medium">位置：</span>
-										<span>{{ alert.metadata?.location_name || `ID: ${alert.source_id}` }}</span>
-									</div>
-									<div v-else-if="alert.source === 'lighting'">
-										<span class="font-medium">區域：</span>
-										<span>{{ alert.metadata?.area_name || `ID: ${alert.source_id}` }}</span>
+										<span>{{ alert.device_name || `ID: ${alert.source_id}` }}</span>
 									</div>
 									<div v-else>
 										<span class="font-medium">來源：</span>
@@ -188,22 +166,30 @@
 										<span>{{ alert.device_type_name }}</span>
 									</div>
 									<div>
-										<span class="font-medium">時間：</span>
+										<span class="font-medium">創建時間：</span>
 										<span>{{ formatDateTime(alert.created_at) }}</span>
 									</div>
-									<div v-if="(alert.status === 'resolved' || alert.resolved) && alert.resolved_at">
+									<div>
+										<span class="font-medium">更新時間：</span>
+										<span>{{ formatDateTime(alert.updated_at) }}</span>
+									</div>
+									<div v-if="isAlertResolved(alert) && alert.resolved_at">
 										<span class="font-medium">解決時間：</span>
 										<span>{{ formatDateTime(alert.resolved_at) }}</span>
 									</div>
-									<div v-if="(alert.status === 'resolved' || alert.resolved) && alert.resolved_by_username">
+									<div v-if="isAlertResolved(alert) && alert.resolved_by_username">
 										<span class="font-medium">解決者：</span>
 										<span>{{ alert.resolved_by_username }}</span>
 									</div>
-									<div v-if="(alert.status === 'ignored' || alert.ignored) && alert.ignored_at">
+									<div v-else-if="isAlertResolved(alert) && !alert.resolved_by_username">
+										<span class="font-medium">解決方式：</span>
+										<span class="text-green-400">系統自動解決</span>
+									</div>
+									<div v-if="isAlertIgnored(alert) && alert.ignored_at">
 										<span class="font-medium">忽視時間：</span>
 										<span>{{ formatDateTime(alert.ignored_at) }}</span>
 									</div>
-									<div v-if="(alert.status === 'ignored' || alert.ignored) && alert.ignored_by_username">
+									<div v-if="isAlertIgnored(alert) && alert.ignored_by_username">
 										<span class="font-medium">忽視者：</span>
 										<span>{{ alert.ignored_by_username }}</span>
 									</div>
@@ -212,32 +198,36 @@
 
 							<!-- 操作按鈕 -->
 							<div class="flex flex-col gap-2">
+								<!-- 注意：警報由系統自動解決，不提供手動解決功能 -->
 								<button
-									v-if="alert.status === 'active' && !alert.resolved && !alert.ignored"
-									type="button"
-									@click="handleResolve(alert)"
-									:disabled="isResolving"
-									class="rounded-lg bg-green-500/80 px-3 py-1.5 text-xs text-white hover:bg-green-400 disabled:cursor-not-allowed disabled:bg-green-500/40 2xl:px-4 2xl:py-2 2xl:text-sm"
-								>
-									標記已解決
-								</button>
-								<button
-									v-if="(alert.status === 'resolved' || alert.resolved) && isAdmin && !alert.ignored"
+									v-if="isAlertResolved(alert) && isAdmin && !isAlertIgnored(alert)"
 									type="button"
 									@click="handleUnresolve(alert.id)"
 									:disabled="isResolving"
 									class="rounded-lg bg-yellow-500/80 px-3 py-1.5 text-xs text-white hover:bg-yellow-400 disabled:cursor-not-allowed disabled:bg-yellow-500/40 2xl:px-4 2xl:py-2 2xl:text-sm"
+									title="將已解決的警報重新激活（僅限管理員，用於處理系統誤判）"
 								>
 									標記未解決
 								</button>
 								<button
-									v-if="alert.status === 'active' && !alert.resolved && !alert.ignored"
+									v-if="alert.status === 'active' && !isAlertResolved(alert) && !isAlertIgnored(alert) && isAdmin"
 									type="button"
 									@click="handleIgnore(alert)"
 									:disabled="isIgnoring"
 									class="rounded-lg bg-gray-500/80 px-3 py-1.5 text-xs text-white hover:bg-gray-400 disabled:cursor-not-allowed disabled:bg-gray-500/40 2xl:px-4 2xl:py-2 2xl:text-sm"
+									title="忽視此警報（僅限管理員）"
 								>
 									忽視
+								</button>
+								<button
+									v-if="isAlertIgnored(alert) && isAdmin"
+									type="button"
+									@click="handleUnignore(alert)"
+									:disabled="isIgnoring"
+									class="rounded-lg bg-blue-500/80 px-3 py-1.5 text-xs text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-blue-500/40 2xl:px-4 2xl:py-2 2xl:text-sm"
+									title="取消忽視此警報（僅限管理員）"
+								>
+									取消忽視
 								</button>
 							</div>
 						</div>
@@ -274,7 +264,6 @@
 </template>
 
 <script setup lang="ts">
-import { useAlertApi } from "~/composables/useAlertApi";
 import { useToast } from "~/composables/useToast";
 import type { Alert, AlertStatus, AlertSource } from "~/types/alert";
 import { useAuth } from "~/composables/useAuth";
@@ -293,11 +282,13 @@ definePageMeta({
 const alertApi = useAlertApi();
 const toast = useToast();
 const { isAdmin } = useAuth();
+const { removeAlertToast } = useAlertMonitor();
+const { handleError: handleApiError } = useErrorHandler();
 
 // 狀態
 const alerts = ref<Alert[]>([]);
 const isLoading = ref(false);
-const isResolving = ref(false);
+const isResolving = ref(false); // 用於 unresolve 操作
 const isIgnoring = ref(false);
 const totalAlerts = ref(0);
 const unresolvedCount = ref(0);
@@ -305,7 +296,6 @@ const unresolvedCount = ref(0);
 // 篩選條件
 const filterStatus = ref<string>("all"); // all, active, resolved, ignored
 const filterSource = ref<string>(""); // 系統來源篩選
-const filterDeviceType = ref<string>("");
 const filterStartDate = ref<string>("");
 const filterEndDate = ref<string>("");
 
@@ -317,21 +307,9 @@ const offset = ref(0);
 const loadAlerts = async () => {
 	isLoading.value = true;
 	try {
-		// 根據 filterStatus 設置 status 篩選
-		let status: AlertStatus | undefined = undefined;
-		
-		if (filterStatus.value === "active") {
-			status = "active";
-		} else if (filterStatus.value === "resolved") {
-			status = "resolved";
-		} else if (filterStatus.value === "ignored") {
-			status = "ignored";
-		}
-		
 		const result = await alertApi.getAlerts({
-			status,
+			status: getFilterStatus(),
 			source: filterSource.value as AlertSource | undefined,
-			device_type_code: filterDeviceType.value || undefined,
 			start_date: filterStartDate.value || undefined,
 			end_date: filterEndDate.value || undefined,
 			limit: limit.value,
@@ -343,9 +321,7 @@ const loadAlerts = async () => {
 		alerts.value = result.alerts;
 		totalAlerts.value = result.total;
 	} catch (error) {
-		console.error("[alert-log] 載入警示列表失敗", error);
-		const errorMsg = error instanceof Error ? error.message : "載入警示列表失敗";
-		toast.error(errorMsg, 5000);
+		handleApiError(error, "載入警示列表失敗");
 	} finally {
 		isLoading.value = false;
 	}
@@ -359,73 +335,189 @@ const loadUnresolvedCount = async () => {
 		});
 		unresolvedCount.value = result.count;
 	} catch (error) {
-		console.error("[alert-log] 載入未解決警示數量失敗", error);
+		// 靜默處理，避免影響主要功能
+		if (process.dev) {
+			console.warn("[alert-log] 載入未解決警示數量失敗", error);
+		}
 	}
 };
 
-// 取得來源 ID（向後兼容）
-const getSourceId = (alert: Alert): number => {
-	// 如果是設備系統，使用 device_id（向後兼容）
-	if (alert.source === "device" && alert.device_id) {
-		return alert.device_id;
-	}
-	return alert.source_id;
+
+// 共用函數：處理警報操作後的重新載入
+const reloadAfterAction = async () => {
+	await Promise.all([loadAlerts(), loadUnresolvedCount()]);
 };
 
-// 標記為已解決
-const handleResolve = async (alert: Alert) => {
-	isResolving.value = true;
-	try {
-		const sourceId = getSourceId(alert);
-		await alertApi.resolveAlert(sourceId, alert.alert_type, alert.source);
-		toast.success("警示已標記為已解決", 3000);
-		await loadAlerts();
-		await loadUnresolvedCount();
-	} catch (error) {
-		console.error("[alert-log] 標記警示為已解決失敗", error);
-		const errorMsg = error instanceof Error ? error.message : "操作失敗";
-		toast.error(errorMsg, 5000);
-	} finally {
-		isResolving.value = false;
-	}
-};
-
-// 標記為未解決
+// 標記為未解決（管理員專屬，用於處理系統誤判）
 const handleUnresolve = async (id: number) => {
 	isResolving.value = true;
 	try {
 		await alertApi.unresolveAlert(id);
 		toast.success("警示已標記為未解決", 3000);
-		await loadAlerts();
-		await loadUnresolvedCount();
+		await reloadAfterAction();
 	} catch (error) {
-		console.error("[alert-log] 標記警示為未解決失敗", error);
-		const errorMsg = error instanceof Error ? error.message : "操作失敗";
-		toast.error(errorMsg, 5000);
+		handleApiError(error, "標記警示為未解決失敗");
 	} finally {
 		isResolving.value = false;
 	}
 };
 
-// 忽視警示
-const handleIgnore = async (alert: Alert) => {
-	if (!confirm("確定要忽視此警示嗎？忽視後將不再顯示此來源的相同類型警示。")) {
+/**
+ * 處理忽視/取消忽視操作的通用函數
+ */
+const handleIgnoreAction = async (
+	alert: Alert,
+	action: "ignore" | "unignore",
+	confirmMessage: string,
+	successMessage: string,
+	errorMessage: string
+) => {
+	if (!confirm(confirmMessage)) {
 		return;
 	}
 
 	isIgnoring.value = true;
 	try {
-		const sourceId = getSourceId(alert);
-		await alertApi.ignoreAlert(sourceId, alert.alert_type, alert.source);
-		toast.success("警示已忽視", 3000);
-		await loadAlerts();
-		await loadUnresolvedCount();
+		if (action === "ignore") {
+			await alertApi.ignoreAlert(alert.source_id, alert.alert_type, alert.source);
+			removeAlertToast(alert.id);
+		} else {
+			await alertApi.unignoreAlert(alert.source_id, alert.alert_type, alert.source);
+		}
+		toast.success(successMessage, 3000);
+		await reloadAfterAction();
 	} catch (error) {
-		console.error("[alert-log] 忽視警示失敗", error);
-		const errorMsg = error instanceof Error ? error.message : "忽視失敗";
-		toast.error(errorMsg, 5000);
+		handleApiError(error, errorMessage);
 	} finally {
 		isIgnoring.value = false;
+	}
+};
+
+// 忽視警示（僅限管理員）
+const handleIgnore = (alert: Alert) => {
+	return handleIgnoreAction(
+		alert,
+		"ignore",
+		"確定要忽視此警示嗎？忽視後將不再顯示此來源的相同類型警示。",
+		"警示已忽視",
+		"忽視警示失敗"
+	);
+};
+
+// 取消忽視警示（僅限管理員）
+const handleUnignore = (alert: Alert) => {
+	return handleIgnoreAction(
+		alert,
+		"unignore",
+		"確定要取消忽視此警示嗎？取消後將恢復顯示此來源的相同類型警示。",
+		"已取消忽視警示",
+		"取消忽視警示失敗"
+	);
+};
+
+// 獲取當前篩選條件對應的狀態
+const getFilterStatus = (): AlertStatus | undefined => {
+	return filterStatus.value !== "all" ? (filterStatus.value as AlertStatus) : undefined;
+};
+
+// 匯出警示為 CSV
+const handleExport = async () => {
+	try {
+		// 獲取所有符合當前篩選條件的警示（不分頁）
+		const result = await alertApi.getAlerts({
+			status: getFilterStatus(),
+			source: filterSource.value as AlertSource | undefined,
+			start_date: filterStartDate.value || undefined,
+			end_date: filterEndDate.value || undefined,
+			limit: 10000, // 最大限制
+			offset: 0,
+			orderBy: "created_at",
+			order: "desc"
+		});
+
+		// 構建 CSV 內容
+		const headers = [
+			"ID",
+			"系統來源",
+			"來源ID",
+			"警報類型",
+			"嚴重程度",
+			"狀態",
+			"訊息",
+			"創建時間",
+			"更新時間",
+			"解決時間",
+			"解決者",
+			"忽視時間",
+			"忽視者",
+			"設備名稱",
+			"設備類型"
+		];
+
+		// 狀態標籤映射
+		const statusLabels: Record<string, string> = {
+			active: "未解決",
+			resolved: "已解決",
+			ignored: "已忽視"
+		};
+
+		const rows = result.alerts.map(alert => {
+			return [
+				alert.id,
+				getSourceLabel(alert.source),
+				alert.source_id,
+				getTypeLabel(alert.alert_type),
+				getSeverityLabel(alert.severity),
+				statusLabels[alert.status] || alert.status,
+				alert.message,
+				formatDateTime(alert.created_at),
+				formatDateTime(alert.updated_at),
+				alert.resolved_at ? formatDateTime(alert.resolved_at) : "",
+				alert.resolved_by_username || "",
+				alert.ignored_at ? formatDateTime(alert.ignored_at) : "",
+				alert.ignored_by_username || "",
+				alert.device_name || "",
+				alert.device_type_name || ""
+			];
+		});
+
+		// 轉換為 CSV 格式（處理包含逗號的內容）
+		const escapeCSV = (value: unknown): string => {
+			if (value === null || value === undefined) return "";
+			const str = String(value);
+			if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+				return `"${str.replace(/"/g, '""')}"`;
+			}
+			return str;
+		};
+
+		const csvContent = [
+			headers.map(escapeCSV).join(","),
+			...rows.map(row => row.map(escapeCSV).join(","))
+		].join("\n");
+
+		// 添加 BOM 以支持 Excel 正確顯示中文
+		const BOM = "\uFEFF";
+		const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement("a");
+		link.href = url;
+
+		// 生成檔案名稱（包含日期範圍）
+		const dateStr =
+			filterStartDate.value && filterEndDate.value
+				? `${filterStartDate.value}_${filterEndDate.value}`
+				: new Date().toISOString().split("T")[0];
+		link.download = `警示紀錄_${dateStr}.csv`;
+
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+		URL.revokeObjectURL(url);
+
+		toast.success(`已匯出 ${result.alerts.length} 筆警示紀錄`, 3000);
+	} catch (error) {
+		handleApiError(error, "匯出警示失敗");
 	}
 };
 
@@ -460,16 +552,21 @@ const formatDateTime = (dateString: string | null) => {
 
 // 標籤和樣式函數已移至 ~/utils/alertUtils.ts
 
+// 檢查警報狀態（共用函數，避免重複邏輯）
+const isAlertResolved = (alert: Alert): boolean => {
+	return alert.status === "resolved" || alert.resolved === true;
+};
+
+const isAlertIgnored = (alert: Alert): boolean => {
+	return alert.status === "ignored" || alert.ignored === true;
+};
+
 // 取得警示卡片樣式
 const getAlertCardClass = (alert: Alert) => {
-	// 使用 status 或向後兼容的 resolved/ignored
-	const isResolved = alert.status === "resolved" || alert.resolved;
-	const isIgnored = alert.status === "ignored" || alert.ignored;
-
-	if (isResolved) {
+	if (isAlertResolved(alert)) {
 		return "border-green-500/30 bg-green-500/5";
 	}
-	if (isIgnored) {
+	if (isAlertIgnored(alert)) {
 		return "border-gray-500/30 bg-gray-500/5";
 	}
 

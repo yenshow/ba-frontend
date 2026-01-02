@@ -10,8 +10,6 @@ export interface SystemModule {
 	category: "core" | "construction-monitoring" | "infrastructure" | "security" | "visualization" | "maintenance" | "business" | "multimedia";
 	description?: string;
 	enabled?: boolean;
-	priority?: "P0" | "P1" | "P2" | "P3"; // 優先級
-	status?: "completed" | "in-progress" | "planned"; // 狀態
 }
 
 export interface SystemPageConfig {

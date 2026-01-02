@@ -1,201 +1,45 @@
-import { useRequestFetch } from "#app";
 import type { User, LoginCredentials, RegisterData, LoginResponse } from "~/types/user";
+import { useApiBase } from "~/composables/useApiBase";
 
 export const useUserApi = () => {
-	const config = useRuntimeConfig();
-	const fetcher = useRequestFetch();
+	const { request: baseRequest } = useApiBase();
 
-	// 使用環境變數配置的 API base URL
-	const apiBase = config.public.apiBase || "http://localhost:4000/api";
-
-	// 取得認證 headers
-	const getAuthHeaders = (): HeadersInit => {
-		const token = useCookie("auth_token").value;
-		const headers: HeadersInit = {
-			"Content-Type": "application/json",
-			Accept: "application/json"
-		};
-		if (token) {
-			headers.Authorization = `Bearer ${token}`;
-		}
-		return headers;
-	};
-
+	/**
+	 * 包裝請求函數，處理登入相關的特殊錯誤
+	 * 統一顯示「用戶名或密碼錯誤」以提供更好的用戶體驗
+	 */
 	const request = async <T>(path: string, options: RequestInit = {}) => {
-		const url = `${apiBase}${path}`;
-		const headers: Record<string, string> = {
-			...(getAuthHeaders() as Record<string, string>),
-			...(options.headers as Record<string, string>)
-		};
-
-		// 設置超時時間（10秒）
-		const timeout = 10000;
-
-		// 開發模式下記錄請求詳情
-		if (process.dev && process.client) {
-			console.log(`[User API] ${options.method || "GET"} ${url}`, {
-				headers: { ...headers, Authorization: headers.Authorization ? "Bearer ***" : undefined },
-				body: options.body
-			});
-		}
-
 		try {
-			const response = await fetcher<T>(url, {
-				...options,
-				headers,
-				credentials: "include", // 配合後端 CORS credentials: true 設定
-				timeout
-			} as any);
-			return response;
+			return await baseRequest<T>(path, options);
 		} catch (error: any) {
-			// 開發模式下記錄完整錯誤資訊
-			if (process.dev && process.client) {
-				console.error(`[User API] 請求失敗: ${url}`, {
+			// 開發模式下記錄登入相關請求的詳細資訊
+			if (process.dev && process.client && path.includes("/login")) {
+				console.error(`[User API] 登入請求失敗: ${path}`, {
 					error,
 					statusCode: error?.statusCode || error?.status,
-					statusText: error?.statusText,
-					message: error?.message,
-					data: error?.data,
-					// 診斷資訊
-					diagnostics: {
-						requestUrl: url,
-						apiBase: apiBase,
-						timestamp: new Date().toISOString()
-					}
+					message: error?.message
 				});
 			}
 
-			// 處理網路連線錯誤（優先判斷，因為這些錯誤最常見）
+			// 處理登入相關錯誤：統一顯示友好的錯誤訊息
+			if (path.includes("/login")) {
 			const errorMessage = error?.message || "";
-			const isNetworkError =
-				errorMessage.includes("ERR_ADDRESS_UNREACHABLE") ||
-				errorMessage.includes("ERR_CONNECTION_REFUSED") ||
-				errorMessage.includes("ERR_NETWORK") ||
-				errorMessage.includes("Failed to fetch") ||
-				errorMessage.includes("NetworkError") ||
-				errorMessage.includes("ECONNREFUSED") ||
-				errorMessage.includes("ENOTFOUND") ||
-				error?.code === "ECONNREFUSED" ||
-				error?.code === "ENOTFOUND" ||
-				(error?.statusCode === undefined && error?.status === undefined && errorMessage.includes("<no response>"));
+				const isLoginError =
+					errorMessage.includes("用戶名") ||
+					errorMessage.includes("密碼") ||
+					errorMessage.includes("帳號") ||
+					errorMessage.includes("username") ||
+					errorMessage.includes("password") ||
+					errorMessage.includes("登入失敗") ||
+					errorMessage.includes("認證失敗");
 
-			if (isNetworkError) {
-				// 提取目標地址以便診斷
-				const targetHost = url.match(/https?:\/\/([^\/:]+)/)?.[1] || "未知";
-				throw new Error(
-					`無法連接到後端伺服器 (${targetHost})\n\n` +
-						`請確認：\n` +
-						`1. 後端服務是否正常運行（檢查後端裝置）\n` +
-						`2. 後端地址是否正確：${url}\n` +
-						`3. 前端和後端是否在同一網路或可以互相訪問\n` +
-						`4. 防火牆是否阻擋了連接（端口 4000）\n\n` +
-						`提示：檢查前端環境變數 NUXT_PUBLIC_API_BASE 是否指向正確的後端地址`
-				);
-			}
-
-			// 處理請求超時
-			if (errorMessage.includes("timeout") || error?.name === "TimeoutError") {
-				throw new Error(`請求超時 (${url})，請檢查網路連線或稍後再試`);
-			}
-
-			// 處理 CORS 錯誤（只有在明確是 CORS 錯誤時才顯示）
-			if (
-				errorMessage.includes("CORS") ||
-				errorMessage.includes("cross-origin") ||
-				errorMessage.includes("Access-Control") ||
-				(error?.statusCode === 0 && !isNetworkError) // CORS 錯誤通常沒有狀態碼，但不是網路錯誤
-			) {
-				const errorMsg =
-					`CORS 錯誤：無法連接到後端 API (${url})\n\n` +
-					`可能原因：\n` +
-					`1. 後端 CORS 設定未包含前端來源\n` +
-					`2. 後端地址不正確或無法訪問\n\n` +
-					`請檢查：\n` +
-					`- 後端 CORS_ORIGINS 環境變數是否包含前端地址：http://192.168.10.124:3000\n` +
-					`- 後端是否正常運行\n` +
-					`- 前端 NUXT_PUBLIC_API_BASE 環境變數是否正確`;
-				throw new Error(errorMsg);
-			}
-
-			// 提取後端返回的錯誤訊息（從多個可能的來源）
-			// 後端錯誤格式可能是：{ error: true, message: "...", details: "..." }
-			const backendErrorMsg = error?.data?.message || error?.data?.details || error?.data?.error?.message || error?.message || "";
-			const statusCode = error?.statusCode || error?.status;
-
-			// 檢查是否為登入相關錯誤（從錯誤訊息中判斷）
-			const isLoginError = (msg: string) =>
-				msg.includes("用戶名") || msg.includes("密碼") || msg.includes("帳號") || msg.includes("username") || msg.includes("password");
-
-			// 處理 400 Bad Request - 通常用於登入失敗等業務邏輯錯誤
-			if (statusCode === 400) {
-				// 如果是登入相關的錯誤，顯示更友好的訊息
-				if (url.includes("/login") && isLoginError(backendErrorMsg)) {
+				// 如果是登入相關錯誤，統一顯示友好訊息
+				if (isLoginError) {
 					throw new Error("用戶名或密碼錯誤");
 				}
-				throw new Error(backendErrorMsg || "請求參數錯誤");
-			}
-
-			// 處理 401 Unauthorized - Token 過期或認證失敗
-			if (statusCode === 401) {
-				// 如果是登入請求，可能是帳號密碼錯誤（後端可能用 401 表示登入失敗）
-				if (url.includes("/login")) {
-					if (isLoginError(backendErrorMsg)) {
-						throw new Error("用戶名或密碼錯誤");
-					}
-					throw new Error(backendErrorMsg || "登入失敗，請檢查帳號密碼");
 				}
 
-				// 其他 401 錯誤（Token 過期）
-				const { logout } = useAuth();
-				logout();
-
-				// 只在客戶端顯示提示並重定向
-				if (process.client) {
-					const toast = useToast();
-					toast.warning("登入已過期，請重新登入");
-
-					const router = useRouter();
-					await router.push({
-						path: "/login",
-						query: {
-							redirect: router.currentRoute.value.fullPath
-						}
-					});
-				}
-
-				throw new Error("登入已過期，請重新登入");
-			}
-
-			// 處理 403 Forbidden - 權限不足
-			if (statusCode === 403) {
-				throw new Error(backendErrorMsg || "權限不足，無法執行此操作");
-			}
-
-			// 處理 404 Not Found
-			if (statusCode === 404) {
-				throw new Error(backendErrorMsg || "請求的資源不存在");
-			}
-
-			// 處理 500 Internal Server Error - 服務器錯誤
-			if (statusCode === 500) {
-				// 檢查是否為業務邏輯錯誤（如登入失敗）被誤判為 500
-				// 後端可能將登入失敗錯誤當作 500 處理，但錯誤訊息是"用戶名或密碼錯誤"
-				if (url.includes("/login") && isLoginError(backendErrorMsg)) {
-					throw new Error("用戶名或密碼錯誤");
-				}
-
-				const errorMessage = backendErrorMsg || error?.statusText || "Internal Server Error";
-				throw new Error(`伺服器錯誤 (500): ${errorMessage}。請檢查後端服務是否正常運行，或聯繫系統管理員。`);
-			}
-
-			if (error instanceof Error) {
-				// 如果有狀態碼，包含在錯誤訊息中
-				const statusCode = (error as any)?.statusCode || (error as any)?.status;
-				if (statusCode) {
-					throw new Error(`API 請求失敗 (${statusCode}): ${error.message}`);
-				}
-				throw new Error(`API 請求失敗: ${error.message}`);
-			}
+			// 其他錯誤直接拋出（由 useApiBase 處理）
 			throw error;
 		}
 	};
@@ -223,7 +67,14 @@ export const useUserApi = () => {
 		},
 
 		// 取得用戶列表（管理員）
-		getUsers: (params?: { role?: string; status?: string; limit?: number; offset?: number; orderBy?: string; order?: "asc" | "desc" }) => {
+		getUsers: (params?: {
+			role?: string;
+			status?: string;
+			limit?: number;
+			offset?: number;
+			orderBy?: string;
+			order?: "asc" | "desc";
+		}) => {
 			const query = new URLSearchParams();
 			if (params?.role) query.append("role", params.role);
 			if (params?.status) query.append("status", params.status);
@@ -242,7 +93,9 @@ export const useUserApi = () => {
 			}
 
 			const queryString = query.toString();
-			return request<{ users: User[]; total: number; limit: number; offset: number }>(`/users${queryString ? `?${queryString}` : ""}`);
+			return request<{ users: User[]; total: number; limit: number; offset: number }>(
+				`/users${queryString ? `?${queryString}` : ""}`
+			);
 		},
 
 		// 更新用戶

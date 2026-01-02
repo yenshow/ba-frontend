@@ -234,6 +234,7 @@ const { login, isAuthenticated } = useAuth();
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
+const { handleError } = useErrorHandler();
 
 // 如果已經登入，自動重定向（等待插件初始化完成）
 onMounted(async () => {
@@ -278,10 +279,8 @@ const handleLogin = async () => {
 		const redirectPath = (route.query.redirect as string) || "/";
 		await router.push(redirectPath);
 	} catch (error) {
-		console.error("登入失敗:", error);
-		const errorMsg = error instanceof Error ? error.message : "登入失敗，請檢查帳號密碼";
-		errorMessage.value = errorMsg;
-		toast.error(errorMsg);
+		const errorMsg = handleError(error, "登入失敗，請檢查帳號密碼");
+		errorMessage.value = errorMsg || "登入失敗，請檢查帳號密碼";
 	} finally {
 		isLoading.value = false;
 	}

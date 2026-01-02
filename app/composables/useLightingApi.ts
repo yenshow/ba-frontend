@@ -1,4 +1,5 @@
 import type { LightingFloor, LightingArea } from "~/types/lighting";
+import { useApiBase } from "~/composables/useApiBase";
 
 export interface CreateLightingFloorData {
 	name: string;
@@ -51,7 +52,26 @@ export const useLightingApi = () => {
 			return request<{ message: string }>(`/lighting/floors/${id}`, {
 				method: "DELETE"
 			});
+		},
+
+		// ========== 錯誤追蹤 API ==========
+
+		// 記錄照明區域錯誤
+		reportError: (areaId: string | number, errorMessage?: string) => {
+			return request<{ success: boolean; alertCreated: boolean }>(
+				`/lighting/areas/${areaId}/errors`,
+				{
+					method: "POST",
+					body: JSON.stringify({ errorMessage: errorMessage || "無法讀取照明設備資料" })
+				}
+			);
+		},
+
+		// 清除照明區域錯誤
+		clearError: (areaId: string | number) => {
+			return request<{ success: boolean }>(`/lighting/areas/${areaId}/errors`, {
+				method: "DELETE"
+			});
 		}
 	};
 };
-
