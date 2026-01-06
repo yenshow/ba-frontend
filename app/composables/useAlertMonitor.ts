@@ -1,18 +1,26 @@
 import { useAlertApi } from "../composables/useAlertApi";
 import { useToast } from "../composables/useToast";
 import { useErrorHandler, ErrorPriority } from "../composables/useErrorHandler";
-import type { Alert } from "../types/alert";
+import {
+	useWebSocket,
+	type AlertNewEvent,
+	type AlertUpdatedEvent,
+	type AlertCountEvent
+} from "../composables/useWebSocket";
+import type { Alert, AlertFilters, AlertSource } from "../types/alert";
 import { getSourceLabel } from "../utils/alertUtils";
 
 /**
  * 警示監聽器
  * 用於監聽新的警示並顯示通知
- * 整合優先級判斷和動態輪詢間隔
+ * 整合 WebSocket 即時推送和輪詢後備機制
+ * 參考後端設計：ba-backend/docs/WEBSOCKET_STRATEGY_AND_IMPLEMENTATION.md
  */
 export const useAlertMonitor = () => {
 	const alertApi = useAlertApi();
 	const toast = useToast();
 	const { currentPriority, handleError } = useErrorHandler();
+	const { isConnected, connect, disconnect, on, off, cleanup } = useWebSocket();
 
 	// 活躍的警報 Toast ID 映射（警報 ID -> Toast ID，用於持續顯示）
 	const activeAlertToasts = ref<Map<number, string>>(new Map());
@@ -31,6 +39,31 @@ export const useAlertMonitor = () => {
 
 	// 是否正在檢查
 	const isChecking = ref(false);
+
+	// 未解決警報數量（整合自 useAlertCount）
+	const unresolvedAlertCount = ref(0);
+	const isLoadingCount = ref(false);
+
+	// WebSocket 模式標記（是否使用 WebSocket，可通過配置控制）
+	const useWebSocketMode = computed(() => {
+		const config = useRuntimeConfig();
+		return config.public.websocketEnabled !== false;
+	});
+
+	// 未解決警報數量的 WebSocket 事件處理函數
+	let handleAlertCount: ((data: AlertCountEvent) => void) | null = null;
+
+	// 未解決警報數量的輪詢計時器
+	let countPollingTimer: ReturnType<typeof setInterval> | null = null;
+
+	// 未解決警報數量的 WebSocket 連接狀態監聽器
+	let countWebsocketWatcher: ReturnType<typeof watch> | null = null;
+
+	// 是否已設置 WebSocket 監聽器
+	let websocketListenersSetup = false;
+
+	// WebSocket 連接狀態監聽器（用於清理）
+	let websocketStatusWatcher: ReturnType<typeof watch> | null = null;
 
 	/**
 	 * 判斷警報類型對應的優先級
@@ -54,8 +87,10 @@ export const useAlertMonitor = () => {
 		const alertPriority = getAlertPriority(alert);
 		// 如果當前有更高優先級的錯誤，忽略低優先級警報
 		// 特殊規則：連線錯誤時，不處理數值錯誤
-		return currentPriority.value <= alertPriority && 
-		       !(currentPriority.value >= ErrorPriority.HIGH && alertPriority <= ErrorPriority.MEDIUM);
+		return (
+			currentPriority.value <= alertPriority &&
+			!(currentPriority.value >= ErrorPriority.HIGH && alertPriority <= ErrorPriority.MEDIUM)
+		);
 	};
 
 	/**
@@ -71,7 +106,7 @@ export const useAlertMonitor = () => {
 		try {
 			// 使用增量查詢優化：只獲取更新時間在最後檢查時間之後的警報
 			// 如果沒有上次檢查時間，獲取所有 active 警報
-			const filters: any = {
+			const filters: AlertFilters = {
 				status: "active",
 				limit: 50,
 				offset: 0,
@@ -94,7 +129,7 @@ export const useAlertMonitor = () => {
 				// 優先級過濾：如果有連線錯誤，忽略數值錯誤
 				if (!shouldProcessAlert(alert)) {
 					continue;
-					}
+				}
 
 				currentActiveAlertIds.add(alert.id);
 
@@ -132,7 +167,7 @@ export const useAlertMonitor = () => {
 		// 根據嚴重程度選擇 Toast 類型
 		const toastType: "warning" | "error" = alert.severity === "warning" ? "warning" : "error";
 		// 持久顯示時 duration 為 0，非持久顯示時根據嚴重程度設置
-		const duration = persistent ? 0 : (alert.severity === "critical" ? 10000 : 5000);
+		const duration = persistent ? 0 : alert.severity === "critical" ? 10000 : 5000;
 
 		// 構建通知訊息
 		const sourceLabel = getSourceLabel(alert.source);
@@ -147,35 +182,188 @@ export const useAlertMonitor = () => {
 		}
 	};
 
-
 	/**
-	 * 動態計算輪詢間隔
-	 * 根據錯誤優先級和網路狀況調整
+	 * 處理新警報事件（WebSocket）
 	 */
-	const getPollingInterval = (): number => {
-		// 離線時延長間隔
-		if (typeof navigator !== "undefined" && !navigator.onLine) {
-			return 60000; // 1 分鐘
-		}
-
-		// 高優先級錯誤時延長間隔（減少後端負擔）
-		if (currentPriority.value >= ErrorPriority.HIGH) {
-			return 60000; // 1 分鐘
-		}
-
-		// 正常情況
-		return BASE_POLLING_INTERVAL; // 30 秒
-	};
-
-	/**
-	 * 開始監聽
-	 */
-	const startMonitoring = () => {
-		// 只在客戶端執行
-		if (!process.client) {
+	const handleAlertNew = (alert: AlertNewEvent) => {
+		// 優先級過濾：如果有連線錯誤，忽略數值錯誤
+		if (!shouldProcessAlert(alert)) {
 			return;
 		}
 
+		// 如果這個警報還沒有顯示 Toast，顯示它
+		if (!activeAlertToasts.value.has(alert.id)) {
+			showAlertNotification(alert, true);
+		}
+	};
+
+	/**
+	 * 處理警報更新事件（WebSocket）
+	 */
+	const handleAlertUpdated = (data: AlertUpdatedEvent) => {
+		const { alert, oldStatus, newStatus } = data;
+
+		// 如果從 active 變為 resolved/ignored，移除 Toast
+		if (oldStatus === "active" && (newStatus === "resolved" || newStatus === "ignored")) {
+			removeAlertToast(alert.id);
+		}
+
+		// 如果從 resolved/ignored 變為 active，顯示 Toast
+		if ((oldStatus === "resolved" || oldStatus === "ignored") && newStatus === "active") {
+			if (shouldProcessAlert(alert)) {
+				showAlertNotification(alert, true);
+			}
+		}
+	};
+
+	/**
+	 * 載入未解決警報數量
+	 */
+	const loadUnresolvedAlertCount = async (filters?: { source?: AlertSource }) => {
+		if (isLoadingCount.value) return;
+
+		isLoadingCount.value = true;
+		try {
+			const result = await alertApi.getUnresolvedAlertCount(filters);
+			unresolvedAlertCount.value = result.count || 0;
+		} catch (error) {
+			unresolvedAlertCount.value = 0;
+			if (process.dev) {
+				console.warn("[AlertMonitor] 載入未解決警報數量失敗", error);
+			}
+		} finally {
+			isLoadingCount.value = false;
+		}
+	};
+
+	/**
+	 * 處理警報數量變化事件（WebSocket）
+	 */
+	const handleAlertCountEvent = (data: AlertCountEvent) => {
+		unresolvedAlertCount.value = data.count || 0;
+		if (process.dev) {
+			console.log("[AlertMonitor] 未解決警報數量變化:", data.count);
+		}
+	};
+
+	/**
+	 * 停止未解決警報數量的輪詢
+	 */
+	const stopCountPolling = () => {
+		if (countPollingTimer) {
+			clearInterval(countPollingTimer);
+			countPollingTimer = null;
+		}
+	};
+
+	/**
+	 * 啟動未解決警報數量的輪詢（作為後備方案）
+	 */
+	const startCountPolling = () => {
+		stopCountPolling();
+		countPollingTimer = setInterval(() => {
+			void loadUnresolvedAlertCount();
+		}, 30000); // 30 秒
+	};
+
+	/**
+	 * 開始監聽未解決警報數量（自動切換 WebSocket 和輪詢）
+	 */
+	const startAlertCountMonitoring = () => {
+		// 清理現有的監聽器
+		stopAlertCountMonitoring();
+
+		// 設置 WebSocket 事件處理函數
+		handleAlertCount = handleAlertCountEvent;
+
+		// 監聽 WebSocket 連接狀態
+		countWebsocketWatcher = watch(
+			isConnected,
+			connected => {
+				if (connected) {
+					// WebSocket 連接成功，使用即時更新
+					if (handleAlertCount) {
+						on("alert:count", handleAlertCount);
+					}
+					stopCountPolling();
+				} else {
+					// WebSocket 斷線，使用輪詢作為後備
+					if (handleAlertCount) {
+						off("alert:count", handleAlertCount);
+					}
+					startCountPolling();
+				}
+			},
+			{ immediate: true }
+		);
+	};
+
+	/**
+	 * 停止監聽未解決警報數量（清理所有監聽器和計時器）
+	 */
+	const stopAlertCountMonitoring = () => {
+		// 清理 WebSocket 狀態監聽器
+		if (countWebsocketWatcher) {
+			countWebsocketWatcher();
+			countWebsocketWatcher = null;
+		}
+
+		// 移除 WebSocket 事件監聽器
+		if (handleAlertCount) {
+			off("alert:count", handleAlertCount);
+			handleAlertCount = null;
+		}
+
+		// 停止輪詢
+		stopCountPolling();
+	};
+
+	/**
+	 * 設置 WebSocket 事件監聽器
+	 */
+	const setupWebSocketListeners = () => {
+		if (websocketListenersSetup || !process.client) {
+			return;
+		}
+
+		// 監聽新警報
+		on("alert:new", handleAlertNew);
+
+		// 監聽警報更新
+		on("alert:updated", handleAlertUpdated);
+
+		// 注意：alert:count 事件由 startAlertCountMonitoring 單獨處理
+
+		websocketListenersSetup = true;
+
+		if (process.dev) {
+			console.log("[AlertMonitor] WebSocket 事件監聽器已設置");
+		}
+	};
+
+	/**
+	 * 移除 WebSocket 事件監聽器
+	 */
+	const removeWebSocketListeners = () => {
+		if (!websocketListenersSetup) {
+			return;
+		}
+
+		off("alert:new", handleAlertNew);
+		off("alert:updated", handleAlertUpdated);
+		// 注意：alert:count 事件由 stopAlertCountMonitoring 處理
+
+		websocketListenersSetup = false;
+
+		if (process.dev) {
+			console.log("[AlertMonitor] WebSocket 事件監聽器已移除");
+		}
+	};
+
+	/**
+	 * 啟動輪詢（作為後備方案）
+	 */
+	const startPolling = () => {
 		// 防止多實例運行
 		if (pollingTimer) {
 			return;
@@ -206,6 +394,104 @@ export const useAlertMonitor = () => {
 		// 監聽頁面可見性變化
 		visibilityChangeHandler = poll;
 		document.addEventListener("visibilitychange", visibilityChangeHandler);
+
+		if (process.dev) {
+			console.log("[AlertMonitor] 輪詢模式已啟動（後備方案）");
+		}
+	};
+
+	/**
+	 * 停止輪詢
+	 */
+	const stopPolling = () => {
+		if (pollingTimer) {
+			clearTimeout(pollingTimer);
+			pollingTimer = null;
+		}
+
+		// 移除頁面可見性監聽器
+		if (process.client && visibilityChangeHandler) {
+			document.removeEventListener("visibilitychange", visibilityChangeHandler);
+			visibilityChangeHandler = null;
+		}
+
+		if (process.dev) {
+			console.log("[AlertMonitor] 輪詢模式已停止");
+		}
+	};
+
+	/**
+	 * 動態計算輪詢間隔
+	 * 根據錯誤優先級和網路狀況調整
+	 */
+	const getPollingInterval = (): number => {
+		// 離線時延長間隔
+		if (typeof navigator !== "undefined" && !navigator.onLine) {
+			return 60000; // 1 分鐘
+		}
+
+		// 高優先級錯誤時延長間隔（減少後端負擔）
+		if (currentPriority.value >= ErrorPriority.HIGH) {
+			return 60000; // 1 分鐘
+		}
+
+		// 正常情況
+		return BASE_POLLING_INTERVAL; // 30 秒
+	};
+
+	/**
+	 * 開始監聽
+	 * 智能監聽：WebSocket 優先，斷線時自動切換到輪詢
+	 */
+	const startMonitoring = () => {
+		// 只在客戶端執行
+		if (!process.client) {
+			return;
+		}
+
+		// 防止多實例運行
+		if (pollingTimer || websocketListenersSetup) {
+			return;
+		}
+
+		// 1. 初始載入：使用 REST API 獲取當前警報列表
+		void checkNewAlerts();
+
+		// 2. 如果啟用 WebSocket 模式，嘗試建立連接
+		if (useWebSocketMode.value) {
+			// 建立 WebSocket 連接
+			connect();
+
+			// 清理現有的狀態監聽器（如果存在）
+			if (websocketStatusWatcher) {
+				websocketStatusWatcher();
+				websocketStatusWatcher = null;
+			}
+
+			// 設置事件監聽器（連接成功後會自動設置）
+			// 使用 watch 監聽連接狀態變化
+			websocketStatusWatcher = watch(
+				isConnected,
+				connected => {
+					if (connected) {
+						// WebSocket 連接成功
+						setupWebSocketListeners();
+						stopPolling(); // 停止輪詢，使用 WebSocket
+					} else {
+						// WebSocket 斷線
+						removeWebSocketListeners();
+						// 如果沒有輪詢在運行，啟動輪詢作為後備
+						if (!pollingTimer) {
+							startPolling();
+						}
+					}
+				},
+				{ immediate: true }
+			);
+		} else {
+			// 直接使用輪詢模式
+			startPolling();
+		}
 	};
 
 	/**
@@ -222,17 +508,25 @@ export const useAlertMonitor = () => {
 	 * 停止監聽
 	 */
 	const stopMonitoring = () => {
-		if (pollingTimer) {
-			clearTimeout(pollingTimer);
-			pollingTimer = null;
+		// 停止輪詢
+		stopPolling();
+
+		// 停止未解決警報數量監聽
+		stopAlertCountMonitoring();
+
+		// 清理 WebSocket 狀態監聽器
+		if (websocketStatusWatcher) {
+			websocketStatusWatcher();
+			websocketStatusWatcher = null;
 		}
 
-		// 移除頁面可見性監聽器
-		if (process.client && visibilityChangeHandler) {
-			document.removeEventListener("visibilitychange", visibilityChangeHandler);
-			visibilityChangeHandler = null;
-		}
+		// 移除 WebSocket 監聽器
+		removeWebSocketListeners();
 
+		// 斷開 WebSocket 連接
+		disconnect();
+
+		// 清除所有 Toast
 		clearAllToasts();
 	};
 
@@ -256,11 +550,21 @@ export const useAlertMonitor = () => {
 	};
 
 	return {
+		// 警報監聽功能
 		startMonitoring,
 		stopMonitoring,
 		reset,
 		checkNewAlerts,
 		removeAlertToast,
-		isChecking: readonly(isChecking)
+		isChecking: readonly(isChecking),
+		// WebSocket 狀態（用於調試或 UI 顯示）
+		isWebSocketConnected: readonly(isConnected),
+		useWebSocketMode: readonly(useWebSocketMode),
+		// 未解決警報數量功能（整合自 useAlertCount）
+		unresolvedAlertCount: readonly(unresolvedAlertCount),
+		isLoadingCount: readonly(isLoadingCount),
+		loadUnresolvedAlertCount,
+		startAlertCountMonitoring,
+		stopAlertCountMonitoring
 	};
 };

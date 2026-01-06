@@ -95,6 +95,7 @@
 										<ul class="space-y-0.5">
 											<li v-for="module in categoryGroup.modules" :key="module.id">
 												<NuxtLink
+													v-if="module.route"
 													:to="module.route"
 													@click="closeMoreMenu"
 													class="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-gray-100"
@@ -110,6 +111,21 @@
 													</div>
 													<span class="text-sm text-gray-700 2xl:text-base">{{ module.name }}</span>
 												</NuxtLink>
+												<div
+													v-else
+													class="flex items-center gap-3 px-4 py-2 text-gray-400 cursor-not-allowed"
+												>
+													<div class="flex h-8 w-8 flex-shrink-0 items-center justify-center">
+														<NuxtImg
+															:src="`/system/${module.icon}.png`"
+															:alt="module.name"
+															class="icon-dark h-8 w-8 object-contain opacity-50"
+															width="200"
+															height="200"
+														/>
+													</div>
+													<span class="text-sm 2xl:text-base">{{ module.name }}</span>
+												</div>
 											</li>
 										</ul>
 									</div>
@@ -279,7 +295,7 @@ const userInfo = computed(() => ({
 	role: user.value?.role ? roleLabels[user.value.role] || user.value.role : ""
 }));
 
-const { getModuleByRoute, getModulesByCategory } = useSystem();
+import { getModuleByRoute, getModulesByCategory } from "~/utils/systemUtils";
 const route = useRoute();
 
 const currentModule = computed(() => getModuleByRoute(route.path));
@@ -327,27 +343,13 @@ const categoryGroups = computed(() => {
 const isDevicesActive = computed(() => route.path === "/core/equipment-management");
 const isAlertLogActive = computed(() => route.path === "/core/alert-log");
 
-// 未解決警報數量
-const unresolvedAlertCount = ref(0);
-const alertApi = useAlertApi();
-
-// 載入未解決警報數量
-const loadUnresolvedAlertCount = async () => {
-	try {
-		const result = await alertApi.getUnresolvedAlertCount();
-		unresolvedAlertCount.value = result.count || 0;
-	} catch (error) {
-		// 查詢失敗時重置為 0，避免顯示舊的緩存值
-		unresolvedAlertCount.value = 0;
-		// 靜默處理錯誤，避免影響頁面
-		if (process.dev) {
-			console.warn("[AppHeader] 載入未解決警報數量失敗", error);
-		}
-	}
-};
-
-// 定期更新未解決警報數量
-let alertCountTimer: ReturnType<typeof setInterval> | null = null;
+// 未解決警報數量（整合到 useAlertMonitor）
+const { 
+	unresolvedAlertCount, 
+	loadUnresolvedAlertCount, 
+	startAlertCountMonitoring: startAlertCountUpdate, 
+	stopAlertCountMonitoring: stopAlertCountUpdate 
+} = useAlertMonitor();
 
 const closeUserMenu = () => {
 	isUserMenuOpen.value = false;
@@ -412,21 +414,11 @@ const handleClickOutside = (event: MouseEvent) => {
 // 監聽點擊事件
 onMounted(() => {
 	document.addEventListener("click", handleClickOutside);
-	
-	// 載入未解決警報數量
-	if (user.value) {
-		loadUnresolvedAlertCount();
-		// 每 30 秒更新一次
-		alertCountTimer = setInterval(loadUnresolvedAlertCount, 30000);
-	}
 });
 
 onUnmounted(() => {
 	document.removeEventListener("click", handleClickOutside);
-	if (alertCountTimer) {
-		clearInterval(alertCountTimer);
-		alertCountTimer = null;
-	}
+	stopAlertCountUpdate();
 });
 
 watch(
@@ -436,7 +428,7 @@ watch(
 		closeMoreMenu();
 		// 當路由變化到警示紀錄頁面時，更新數量
 		if (route.path === "/core/alert-log") {
-			loadUnresolvedAlertCount();
+			void loadUnresolvedAlertCount();
 		}
 	}
 );
@@ -446,17 +438,12 @@ watch(
 	() => user.value,
 	(newUser) => {
 		if (newUser) {
-			loadUnresolvedAlertCount();
-			// 每 30 秒更新一次
-			if (!alertCountTimer) {
-				alertCountTimer = setInterval(loadUnresolvedAlertCount, 30000);
-			}
+			// 初始載入未解決警報數量
+			void loadUnresolvedAlertCount();
+			// 開始監聽（自動設置 WebSocket 和輪詢後備）
+			startAlertCountUpdate();
 		} else {
-			unresolvedAlertCount.value = 0;
-			if (alertCountTimer) {
-				clearInterval(alertCountTimer);
-				alertCountTimer = null;
-			}
+			stopAlertCountUpdate();
 		}
 	},
 	{ immediate: true }

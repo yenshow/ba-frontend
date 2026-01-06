@@ -23,49 +23,43 @@
 					</header>
 
 					<div class="flex-1 overflow-y-auto pr-7 2xl:pr-8">
-						<template v-if="isLoading">
-							<div class="space-y-3">
-								<div
-									v-for="n in 3"
-									:key="`skeleton-${n}`"
-									class="h-20 animate-pulse rounded-lg bg-white/10"
-								></div>
-							</div>
-						</template>
-						<template v-else-if="deviceModels.length > 0">
-							<div class="space-y-3">
-								<div
-									v-for="model in deviceModels"
-									:key="model.id"
-									class="flex items-center justify-between rounded-lg border border-white/20 bg-white/10 p-4 transition-colors hover:bg-white/15"
-								>
-									<div class="flex-1">
-										<div class="flex items-center gap-3">
-											<h4 class="text-base font-medium text-white 2xl:text-lg">{{ model.name }}</h4>
-											<span class="rounded bg-white/20 px-2 py-1 text-xs text-white/80 2xl:text-sm">{{
-												model.type_name || "類型"
-											}}</span>
-											<span class="rounded bg-blue-500/30 px-2 py-1 text-xs text-blue-200 2xl:text-sm"
-												>Port : {{ model.port || 502 }}</span
-											>
+						<div class="min-h-[200px]">
+							<Transition name="fade" mode="out-in">
+								<div v-if="deviceModels.length > 0" :key="`models-${deviceModels.length}`">
+									<div class="space-y-3">
+										<div
+											v-for="model in deviceModels"
+											:key="model.id"
+											class="flex items-center justify-between rounded-lg border border-white/20 bg-white/10 p-4 transition-colors hover:bg-white/15"
+										>
+											<div class="flex-1">
+												<div class="flex items-center gap-3">
+													<h4 class="text-base font-medium text-white 2xl:text-lg">{{ model.name }}</h4>
+													<span class="rounded bg-white/20 px-2 py-1 text-xs text-white/80 2xl:text-sm">{{
+														model.type_name || "類型"
+													}}</span>
+													<span class="rounded bg-blue-500/30 px-2 py-1 text-xs text-blue-200 2xl:text-sm"
+														>Port : {{ model.port || 502 }}</span
+													>
+												</div>
+												<p v-if="model.description" class="mt-1 text-sm text-white/60 2xl:text-base">
+													{{ model.description }}
+												</p>
+											</div>
+											<div class="flex gap-2 2xl:gap-3">
+												<button type="button" class="btn-list-edit" @click="editDeviceModel(model)">編輯</button>
+												<button type="button" class="btn-list-delete" @click="confirmDelete(model)">刪除</button>
+											</div>
 										</div>
-										<p v-if="model.description" class="mt-1 text-sm text-white/60 2xl:text-base">
-											{{ model.description }}
-										</p>
-									</div>
-									<div class="flex gap-2 2xl:gap-3">
-										<button type="button" class="btn-list-edit" @click="editDeviceModel(model)">編輯</button>
-										<button type="button" class="btn-list-delete" @click="confirmDelete(model)">刪除</button>
 									</div>
 								</div>
-							</div>
-						</template>
-						<template v-else>
-							<div class="py-8 text-center text-white/60">
-								<p class="text-base 2xl:text-lg">尚無設備型號</p>
-								<p class="mt-2 text-sm 2xl:text-base">點擊「新增型號」開始建立</p>
-							</div>
-						</template>
+								<!-- 空狀態 -->
+								<div v-else key="empty" class="py-8 text-center text-white/60">
+									<p class="text-base 2xl:text-lg">尚無設備型號</p>
+									<p class="mt-2 text-sm 2xl:text-base">點擊「新增型號」開始建立</p>
+								</div>
+							</Transition>
+						</div>
 					</div>
 					<p v-if="errorMessage" class="pr-7 text-sm text-rose-300 2xl:pr-8 2xl:text-base">
 						{{ errorMessage }}

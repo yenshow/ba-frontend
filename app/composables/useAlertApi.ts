@@ -6,32 +6,16 @@ import type {
 	AlertHistoryItem
 } from "~/types/alert";
 import { useApiBase } from "~/composables/useApiBase";
+import { buildPathWithQuery } from "~/utils/apiUtils";
 
 export const useAlertApi = () => {
 	const { request } = useApiBase();
 
 	/**
-	 * 構建查詢參數的通用函數
-	 */
-	const buildQueryParams = (filters?: Record<string, unknown>): URLSearchParams => {
-		const queryParams = new URLSearchParams();
-		if (filters) {
-			for (const [key, value] of Object.entries(filters)) {
-				if (value !== undefined && value !== null && value !== "") {
-					queryParams.append(key, typeof value === "string" ? value : String(value));
-				}
-			}
-		}
-		return queryParams;
-	};
-
-	/**
 	 * 取得警示列表
 	 */
 	const getAlerts = async (filters?: AlertFilters): Promise<AlertListResponse> => {
-		const queryParams = buildQueryParams(filters as Record<string, unknown>);
-		const queryString = queryParams.toString();
-		const path = queryString ? `/alerts?${queryString}` : "/alerts";
+		const path = buildPathWithQuery("/alerts", filters as Record<string, unknown>);
 		return await request<AlertListResponse>(path);
 	};
 
@@ -47,18 +31,6 @@ export const useAlertApi = () => {
 	 */
 	const getAlertHistory = async (id: number): Promise<{ history: AlertHistoryItem[] }> => {
 		return await request<{ history: AlertHistoryItem[] }>(`/alerts/${id}/history`);
-	};
-
-	/**
-	 * 構建帶查詢參數的路徑
-	 */
-	const buildPathWithQuery = (basePath: string, params?: Record<string, string>): string => {
-		if (!params || Object.keys(params).length === 0) {
-			return basePath;
-		}
-		const queryParams = buildQueryParams(params);
-		const queryString = queryParams.toString();
-		return queryString ? `${basePath}?${queryString}` : basePath;
 	};
 
 	/**
@@ -97,9 +69,7 @@ export const useAlertApi = () => {
 	 * 取得未解決的警示數量
 	 */
 	const getUnresolvedAlertCount = async (filters?: Pick<AlertFilters, "source" | "source_id" | "device_id" | "alert_type" | "severity">): Promise<UnresolvedAlertCountResponse> => {
-		const queryParams = buildQueryParams(filters as Record<string, unknown>);
-		const queryString = queryParams.toString();
-		const path = queryString ? `/alerts/unresolved/count?${queryString}` : "/alerts/unresolved/count";
+		const path = buildPathWithQuery("/alerts/unresolved/count", filters as Record<string, unknown>);
 		return await request<UnresolvedAlertCountResponse>(path);
 	};
 

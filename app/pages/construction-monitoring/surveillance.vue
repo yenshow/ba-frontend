@@ -25,65 +25,60 @@
 					</div>
 
 					<!-- 監控網格區域 -->
-					<div class="flex-1">
-						<!-- 載入狀態 -->
-						<div v-if="isLoadingCameras" class="flex h-full items-center justify-center">
-							<div class="text-center text-white">
-								<div class="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-white"></div>
-								<p>載入攝影機列表...</p>
+					<div class="flex-1 min-h-[400px]">
+						<Transition name="fade" mode="out-in">
+							<!-- 錯誤狀態 -->
+							<div v-if="loadError" key="error" class="flex h-full items-center justify-center">
+								<div class="rounded-lg bg-red-50/90 p-6 text-center dark:bg-red-900/30">
+									<p class="text-red-600 dark:text-red-400">{{ loadError }}</p>
+									<button
+										@click="loadCameras"
+										class="mt-4 rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600"
+									>
+										重試
+									</button>
+								</div>
 							</div>
-						</div>
 
-						<!-- 錯誤狀態 -->
-						<div v-else-if="loadError" class="flex h-full items-center justify-center">
-							<div class="rounded-lg bg-red-50/90 p-6 text-center dark:bg-red-900/30">
-								<p class="text-red-600 dark:text-red-400">{{ loadError }}</p>
-								<button
-									@click="loadCameras"
-									class="mt-4 rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600"
-								>
-									重試
-								</button>
+							<!-- 監控網格 -->
+							<div v-else-if="monitorViews.length > 0" key="grid">
+								<SurveillanceCameraGrid
+									:cameras="cameras"
+									:views="monitorViews"
+									:layout="gridLayout"
+									@start-stream="handleStartStream"
+									@stop-stream="handleStopStream"
+									@remove="handleRemoveView"
+								/>
 							</div>
-						</div>
 
-						<!-- 監控網格 -->
-						<div v-else-if="monitorViews.length > 0">
-							<SurveillanceCameraGrid
-								:cameras="cameras"
-								:views="monitorViews"
-								:layout="gridLayout"
-								@start-stream="handleStartStream"
-								@stop-stream="handleStopStream"
-								@remove="handleRemoveView"
-							/>
-						</div>
-
-						<!-- 提示：如何新增攝影機到監控畫面 -->
-						<div
-							v-else
-							class="flex h-full min-h-[680px] items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
-						>
-							<div>
-								<svg
-									class="mx-auto mb-4 h-16 w-16 text-white/60"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-									/>
-								</svg>
-								<p class="text-xl font-medium text-white/90 xl:text-2xl 2xl:text-3xl">尚未選擇攝影機</p>
-								<p class="mt-2 text-sm text-white/70 xl:text-base">
-									請從右側列表點選攝影機以加入到監控畫面
-								</p>
+							<!-- 提示：如何新增攝影機到監控畫面 -->
+							<div
+								v-else
+								key="empty"
+								class="flex h-full min-h-[680px] items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
+							>
+								<div>
+									<svg
+										class="mx-auto mb-4 h-16 w-16 text-white/60"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+										/>
+									</svg>
+									<p class="text-xl font-medium text-white/90 xl:text-2xl 2xl:text-3xl">尚未選擇攝影機</p>
+									<p class="mt-2 text-sm text-white/70 xl:text-base">
+										請從右側列表點選攝影機以加入到監控畫面
+									</p>
+								</div>
 							</div>
-						</div>
+						</Transition>
 					</div>
 				</div>
 			</section>

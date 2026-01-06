@@ -1,5 +1,6 @@
 import type { User, LoginCredentials, RegisterData, LoginResponse } from "~/types/user";
 import { useApiBase } from "~/composables/useApiBase";
+import { buildPaginationParams, buildPathWithQuery, mergeQueryParams } from "~/utils/apiUtils";
 
 export const useUserApi = () => {
 	const { request: baseRequest } = useApiBase();
@@ -75,27 +76,25 @@ export const useUserApi = () => {
 			orderBy?: string;
 			order?: "asc" | "desc";
 		}) => {
-			const query = new URLSearchParams();
-			if (params?.role) query.append("role", params.role);
-			if (params?.status) query.append("status", params.status);
-			// 參數驗證和默認值由後端統一處理
-			if (params?.limit !== undefined && params?.limit !== null) {
-				query.append("limit", String(params.limit));
-			}
-			if (params?.offset !== undefined && params?.offset !== null) {
-				query.append("offset", String(params.offset));
-			}
-			if (params?.orderBy) {
-				query.append("orderBy", params.orderBy);
-			}
-			if (params?.order) {
-				query.append("order", params.order);
-			}
 
-			const queryString = query.toString();
-			return request<{ users: User[]; total: number; limit: number; offset: number }>(
-				`/users${queryString ? `?${queryString}` : ""}`
-			);
+			// 構建篩選參數
+			const filterParams: Record<string, unknown> = {};
+			if (params?.role) filterParams.role = params.role;
+			if (params?.status) filterParams.status = params.status;
+
+			// 構建分頁參數
+			const paginationParams = buildPaginationParams({
+				limit: params?.limit,
+				offset: params?.offset,
+				orderBy: params?.orderBy,
+				order: params?.order
+			});
+
+			// 合併參數
+			const allParams = mergeQueryParams(filterParams, paginationParams);
+
+			const path = buildPathWithQuery("/users", allParams);
+			return request<{ users: User[]; total: number; limit: number; offset: number }>(path);
 		},
 
 		// 更新用戶

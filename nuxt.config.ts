@@ -66,7 +66,10 @@ export default defineNuxtConfig({
 			modbusRequestTimeout: Number(process.env.NUXT_PUBLIC_MODBUS_TIMEOUT ?? 5000),
 			// MediaMTX 服務 URL（HLS 和 WebRTC）
 			mediamtxHlsUrl: process.env.NUXT_PUBLIC_MEDIAMTX_HLS_URL || "http://localhost:8888",
-			mediamtxWebrtcUrl: process.env.NUXT_PUBLIC_MEDIAMTX_WEBRTC_URL || "http://localhost:8889"
+			mediamtxWebrtcUrl: process.env.NUXT_PUBLIC_MEDIAMTX_WEBRTC_URL || "http://localhost:8889",
+			// WebSocket 配置（可選，預設從 apiBase 推導）
+			websocketUrl: process.env.NUXT_PUBLIC_WEBSOCKET_URL || undefined,
+			websocketEnabled: process.env.NUXT_PUBLIC_WEBSOCKET_ENABLED !== "false"
 		}
 	}
 });

@@ -84,6 +84,7 @@
 						@dragover.prevent
 					>
 						<NuxtImg
+							v-if="floorPlanImage"
 							:src="floorPlanImage"
 							alt="樓層平面圖"
 							class="image-blur-load pointer-events-none h-full w-full object-contain"
@@ -92,6 +93,9 @@
 							height="full"
 							@load="isFloorPlanLoaded = true"
 						/>
+						<div v-else class="flex h-full w-full items-center justify-center text-white/50">
+							<span>尚未設定樓層平面圖</span>
+						</div>
 						<!-- 區域點位（只顯示已定位的） -->
 						<template v-for="area in currentFloorAreas" :key="getAreaIdForDisplay(area)">
 							<div
@@ -523,6 +527,31 @@ const writeCoil = async (address: number, value: boolean, deviceConfig: ModbusDe
 
 // 設備快取（避免重複載入）
 const deviceCache = ref<Map<number, Device>>(new Map());
+// 設備配置快取（避免重複提取配置）
+const deviceConfigCache = ref<Map<number, { host: string; port: number; unitId: number }>>(
+	new Map()
+);
+
+// 從設備對象提取 Modbus 配置
+const extractDeviceConfig = (
+	device: Device
+): { host: string; port: number; unitId: number } | null => {
+	const config = device.config as ControllerDeviceConfig;
+	if (
+		config &&
+		config.type === "controller" &&
+		config.host &&
+		config.port &&
+		config.unitId !== undefined
+	) {
+		return {
+			host: config.host,
+			port: config.port,
+			unitId: config.unitId
+		};
+	}
+	return null;
+};
 
 // 載入設備資訊（如果尚未載入）
 const loadDeviceInfo = async (deviceId: number): Promise<Device | null> => {
@@ -534,6 +563,13 @@ const loadDeviceInfo = async (deviceId: number): Promise<Device | null> => {
 		const result = await deviceApi.getDevice(deviceId);
 		const device = result.device;
 		deviceCache.value.set(deviceId, device);
+
+		// 同時快取設備配置
+		const config = extractDeviceConfig(device);
+		if (config) {
+			deviceConfigCache.value.set(deviceId, config);
+		}
+
 		return device;
 	} catch (error) {
 		console.error(`載入設備 ${deviceId} 失敗:`, error);
@@ -541,7 +577,28 @@ const loadDeviceInfo = async (deviceId: number): Promise<Device | null> => {
 	}
 };
 
-// 取得區域的設備配置
+// 批量預載入所有需要的設備資訊（優化：在載入樓層數據後立即預載入，避免在讀取狀態時才逐一請求）
+const preloadDeviceInfos = async () => {
+	// 收集所有需要的設備 ID（去重）
+	const deviceIds = new Set<number>();
+	lightingFloors.value.forEach(floor => {
+		floor.areas.forEach(area => {
+			if (area.modbus?.deviceId) {
+				deviceIds.add(area.modbus.deviceId);
+			}
+		});
+	});
+
+	// 過濾掉已經快取的設備
+	const uncachedDeviceIds = Array.from(deviceIds).filter(id => !deviceCache.value.has(id));
+
+	if (uncachedDeviceIds.length === 0) return;
+
+	// 並行載入所有設備資訊
+	await Promise.allSettled(uncachedDeviceIds.map(deviceId => loadDeviceInfo(deviceId)));
+};
+
+// 取得區域的設備配置（優化：使用快取，避免重複提取）
 const getAreaDeviceConfig = async (
 	area: LightingArea
 ): Promise<{ host: string; port: number; unitId: number } | null> => {
@@ -549,27 +606,17 @@ const getAreaDeviceConfig = async (
 
 	// 如果使用新格式（有 deviceId）
 	if (area.modbus.deviceId) {
+		// 先檢查配置快取
+		if (deviceConfigCache.value.has(area.modbus.deviceId)) {
+			return deviceConfigCache.value.get(area.modbus.deviceId)!;
+		}
+
+		// 如果沒有快取，載入設備資訊（會自動快取配置）
 		const device = await loadDeviceInfo(area.modbus.deviceId);
 		if (!device) return null;
 
-		// 從 config 中提取 Modbus 配置
-		const config = device.config as ControllerDeviceConfig;
-		if (
-			config &&
-			config.type === "controller" &&
-			config.host &&
-			config.port &&
-			config.unitId !== undefined
-		) {
-			return {
-				host: config.host,
-				port: config.port,
-				unitId: config.unitId
-			};
-		}
-
-		// 如果 config 格式不正確，返回 null
-		return null;
+		// 從快取中獲取配置
+		return deviceConfigCache.value.get(area.modbus.deviceId) || null;
 	}
 
 	// 向後兼容：使用舊格式
@@ -609,18 +656,23 @@ interface BatchRequest {
 	areaId: string;
 }
 
-// ========== 錯誤追蹤共用函數 ==========
+// ========== 共用工具函數 ==========
 
 /**
- * 根據 areaId 查找對應的 area 物件（用於獲取資料庫 ID）
+ * 根據 areaId 查找對應的 area 物件和索引（統一查找邏輯）
  */
-const findAreaById = (areaId: string): { area: LightingArea; floor: LightingFloor } | null => {
+const findAreaById = (
+	areaId: string,
+	requireDbId = false
+): { area: LightingArea; floor: LightingFloor; areaIndex: number } | null => {
 	for (const floor of lightingFloors.value) {
 		for (let i = 0; i < floor.areas.length; i++) {
 			const area = floor.areas[i];
 			const computedAreaId = getAreaId(floor, area, i);
-			if (computedAreaId === areaId && area.id) {
-				return { area, floor };
+			if (computedAreaId === areaId) {
+				// 如果需要資料庫 ID，則檢查 area.id 是否存在
+				if (requireDbId && !area.id) continue;
+				return { area, floor, areaIndex: i };
 			}
 		}
 	}
@@ -631,9 +683,9 @@ const findAreaById = (areaId: string): { area: LightingArea; floor: LightingFloo
  * 報告照明區域錯誤（靜默處理，不影響主要流程）
  */
 const reportAreaError = async (areaId: string, errorMessage: string) => {
-	const found = findAreaById(areaId);
+	const found = findAreaById(areaId, true);
 	if (!found?.area.id) return;
-	
+
 	try {
 		await lightingApi.reportError(found.area.id, errorMessage);
 	} catch (error) {
@@ -645,9 +697,9 @@ const reportAreaError = async (areaId: string, errorMessage: string) => {
  * 清除照明區域錯誤狀態（靜默處理，不影響主要流程）
  */
 const clearAreaError = async (areaId: string) => {
-	const found = findAreaById(areaId);
+	const found = findAreaById(areaId, true);
 	if (!found?.area.id) return;
-	
+
 	try {
 		await lightingApi.clearError(found.area.id);
 	} catch (error) {
@@ -725,7 +777,7 @@ const processBatchRequests = async (requests: BatchRequest[]) => {
 			// 請求失敗，標記為錯誤並清除緩存
 			requestCache.delete(requestKey);
 			const errorMessage = error instanceof Error ? error.message : String(error);
-			
+
 			for (const areaId of areaIds) {
 				ensureAreaStatus(areaId).status = "error";
 				await reportAreaError(areaId, errorMessage || "無法讀取照明設備資料");
@@ -741,6 +793,47 @@ const processBatchRequests = async (requests: BatchRequest[]) => {
 	}
 };
 
+// 提取區域的讀取點位配置（共用邏輯）
+const extractReadPoint = (
+	modbus: CategoryModbusConfig
+): { address: number; type: "coil" | "discrete" } | null => {
+	// 使用新的 points 配置
+	if (modbus.points && modbus.points.length > 0) {
+		// 優先讀取 DI 點位來顯示按鈕狀態（DI 反映實際設備狀態）
+		const diPoints = filterDiPoints(modbus.points);
+		if (diPoints.length > 0) {
+			return { address: diPoints[0].address, type: "discrete" };
+		}
+		// 如果沒有 DI 點位，才使用 DO 點位
+		const doPoints = filterDoPoints(modbus.points);
+		if (doPoints.length > 0) {
+			return { address: doPoints[0].address, type: "coil" };
+		}
+	} else {
+		// 向後兼容：使用舊格式
+		const diAddresses = extractDiAddresses(modbus);
+		if (diAddresses.length > 0) {
+			return { address: Math.min(...diAddresses), type: "discrete" };
+		}
+		const doAddresses = extractDoAddresses(modbus);
+		if (doAddresses.length > 0) {
+			return { address: Math.min(...doAddresses), type: "coil" };
+		}
+	}
+	return null;
+};
+
+// 提取區域的寫入點位配置（共用邏輯）
+const extractWritePoints = (modbus: CategoryModbusConfig): number[] => {
+	if (modbus.points && modbus.points.length > 0) {
+		const doPoints = filterDoPoints(modbus.points);
+		return doPoints.map(p => p.address);
+	} else {
+		// 向後兼容：使用舊格式
+		return extractDoAddresses(modbus);
+	}
+};
+
 // 收集區域的讀取請求（用於批量處理）
 const collectAreaReadRequests = async (
 	floor: LightingFloor,
@@ -753,63 +846,18 @@ const collectAreaReadRequests = async (
 	if (!deviceConfig) return [];
 
 	const areaId = getAreaId(floor, area, areaIndex);
-	const requests: BatchRequest[] = [];
+	const readPoint = extractReadPoint(area.modbus);
 
-	// 使用新的 points 配置
-	if (area.modbus.points && area.modbus.points.length > 0) {
-		// 優先讀取 DI 點位來顯示按鈕狀態（DI 反映實際設備狀態）
-		const diPoints = filterDiPoints(area.modbus.points);
+	if (!readPoint) return [];
 
-		if (diPoints.length > 0) {
-			// 讀取第一個 DI 點位的狀態（用於顯示按鈕狀態）
-			const firstPoint = diPoints[0];
-			requests.push({
-				deviceConfig: deviceConfig as { host: string; port: number; unitId: number },
-				address: firstPoint.address,
-				type: "discrete",
-				areaId: areaId
-			});
-		} else {
-			// 如果沒有 DI 點位，才使用 DO 點位（向後兼容）
-			const doPoints = filterDoPoints(area.modbus.points);
-			if (doPoints.length > 0) {
-				const firstPoint = doPoints[0];
-				requests.push({
-					deviceConfig: deviceConfig as { host: string; port: number; unitId: number },
-					address: firstPoint.address,
-					type: "coil",
-					areaId: areaId
-				});
-			}
+	return [
+		{
+			deviceConfig: deviceConfig as { host: string; port: number; unitId: number },
+			address: readPoint.address,
+			type: readPoint.type,
+			areaId: areaId
 		}
-	} else {
-		// 向後兼容：使用舊格式
-		// 優先讀取 DI 地址來顯示按鈕狀態
-		const diAddresses = extractDiAddresses(area.modbus);
-		if (diAddresses.length > 0) {
-			const minAddress = Math.min(...diAddresses);
-			requests.push({
-				deviceConfig: deviceConfig as { host: string; port: number; unitId: number },
-				address: minAddress,
-				type: "discrete",
-				areaId: areaId
-			});
-		} else {
-			// 如果沒有 DI 配置，才使用 DO 地址（向後兼容）
-			const doAddresses = extractDoAddresses(area.modbus);
-			if (doAddresses.length > 0) {
-				const minAddress = Math.min(...doAddresses);
-				requests.push({
-					deviceConfig: deviceConfig as { host: string; port: number; unitId: number },
-					address: minAddress,
-					type: "coil",
-					areaId: areaId
-				});
-			}
-		}
-	}
-
-	return requests;
+	];
 };
 
 // 載入所有區域的狀態（優化：批量讀取，減少請求數）
@@ -836,7 +884,21 @@ const loadAllAreaStatuses = async (options?: { silent?: boolean; loadAllFloors?:
 
 	if (areasNeedingModbus.length === 0) return;
 
-	// 收集所有讀取請求
+	// 優化：批量預載入所有需要的設備配置（避免在 collectAreaReadRequests 中逐一請求）
+	const deviceIds = new Set<number>();
+	areasNeedingModbus.forEach(({ area }) => {
+		if (area.modbus?.deviceId) {
+			deviceIds.add(area.modbus.deviceId);
+		}
+	});
+	if (deviceIds.size > 0) {
+		const uncachedDeviceIds = Array.from(deviceIds).filter(id => !deviceCache.value.has(id));
+		if (uncachedDeviceIds.length > 0) {
+			await Promise.allSettled(uncachedDeviceIds.map(deviceId => loadDeviceInfo(deviceId)));
+		}
+	}
+
+	// 收集所有讀取請求（現在設備配置已經預載入，不會再有異步等待）
 	const allRequests: BatchRequest[] = [];
 	const results = await Promise.allSettled(
 		areasNeedingModbus.map(({ floor, area, areaIndex }) =>
@@ -881,22 +943,10 @@ const handleAreaToggle = async (areaId: string, targetValue: boolean) => {
 
 // 執行實際的切換操作
 const executeToggle = async (areaId: string, targetValue: boolean) => {
-	// 從所有樓層的 areas 中查找
-	let targetArea: LightingArea | null = null;
-	let targetFloor: LightingFloor | null = null;
-	let targetAreaIndex = -1;
+	const found = findAreaById(areaId);
+	if (!found) return;
 
-	for (const floor of lightingFloors.value) {
-		const index = floor.areas.findIndex((area, idx) => getAreaId(floor, area, idx) === areaId);
-		if (index !== -1) {
-			targetArea = floor.areas[index];
-			targetFloor = floor;
-			targetAreaIndex = index;
-			break;
-		}
-	}
-
-	if (!targetArea || !targetFloor) return;
+	const { area: targetArea, floor: targetFloor, areaIndex: targetAreaIndex } = found;
 
 	// 如果正在處理，忽略
 	if (areaToggling.value.has(areaId)) {
@@ -917,13 +967,7 @@ const executeToggle = async (areaId: string, targetValue: boolean) => {
 		}
 
 		// 如果沒有 Modbus 配置，只更新本地狀態
-		if (!needsModbusConnection(targetArea)) {
-			areaToggling.value.delete(areaId);
-			return;
-		}
-
-		if (!targetArea.modbus) {
-			rollbackAreaStatus(areaId, currentValue);
+		if (!needsModbusConnection(targetArea) || !targetArea.modbus) {
 			areaToggling.value.delete(areaId);
 			return;
 		}
@@ -935,31 +979,20 @@ const executeToggle = async (areaId: string, targetValue: boolean) => {
 			return;
 		}
 
-		// 使用新的 points 配置
-		if (targetArea.modbus.points && targetArea.modbus.points.length > 0) {
-			const doPoints = filterDoPoints(targetArea.modbus.points);
-
-			if (doPoints.length === 0) {
-				rollbackAreaStatus(areaId, currentValue);
-				areaToggling.value.delete(areaId);
-				return;
-			}
-
-			// 執行所有 DO 點位的寫入操作（統一使用 writeCoil）
-			await Promise.all(doPoints.map(point => writeCoil(point.address, targetValue, deviceConfig)));
-		} else {
-			// 向後兼容：使用舊格式
-			const doAddresses = extractDoAddresses(targetArea.modbus);
-
-			if (doAddresses.length > 0) {
-				// 統一使用 writeCoil 寫入每個點位
-				await Promise.all(doAddresses.map(address => writeCoil(address, targetValue, deviceConfig)));
-			}
+		// 提取寫入點位（統一處理新舊格式）
+		const writeAddresses = extractWritePoints(targetArea.modbus);
+		if (writeAddresses.length === 0) {
+			rollbackAreaStatus(areaId, currentValue);
+			areaToggling.value.delete(areaId);
+			return;
 		}
+
+		// 執行所有 DO 點位的寫入操作（統一使用 writeCoil）
+		await Promise.all(writeAddresses.map(address => writeCoil(address, targetValue, deviceConfig)));
 
 		// 寫入成功後，稍等一下再重新讀取狀態（避免與設備響應時間衝突）
 		setTimeout(async () => {
-			const readRequests = await collectAreaReadRequests(targetFloor!, targetArea!, targetAreaIndex);
+			const readRequests = await collectAreaReadRequests(targetFloor, targetArea, targetAreaIndex);
 			if (readRequests.length > 0) {
 				await processBatchRequests(readRequests);
 			}
@@ -1020,22 +1053,12 @@ const handleDeleteCategory = async (areaId: string) => {
 	if (!confirm("確定要刪除這個點位嗎？")) return;
 
 	try {
-		// 找到要刪除的區域所屬的樓層
-		let targetFloor: LightingFloor | null = null;
-		let targetAreaIndex = -1;
-
-		for (const floor of lightingFloors.value) {
-			const index = floor.areas.findIndex((area, idx) => getAreaId(floor, area, idx) === areaId);
-			if (index !== -1) {
-				targetFloor = floor;
-				targetAreaIndex = index;
-				break;
-			}
-		}
-
-		if (!targetFloor) {
+		const found = findAreaById(areaId);
+		if (!found) {
 			throw new Error("找不到要刪除的點位");
 		}
+
+		const { floor: targetFloor, areaIndex: targetAreaIndex } = found;
 
 		// 從樓層的 areas 中移除該區域
 		const updatedAreas = targetFloor.areas.filter((_, index) => index !== targetAreaIndex);
@@ -1048,7 +1071,7 @@ const handleDeleteCategory = async (areaId: string) => {
 		});
 
 		// 更新本地資料
-		const index = lightingFloors.value.findIndex(f => f.id === targetFloor!.id);
+		const index = lightingFloors.value.findIndex(f => f.id === targetFloor.id);
 		if (index > -1) {
 			lightingFloors.value[index] = result.floor;
 		}
@@ -1104,24 +1127,14 @@ const handleDrop = async (event: DragEvent) => {
 	const areaId = event.dataTransfer?.getData("areaId");
 	if (!areaId) return;
 
+	const found = findAreaById(areaId);
+	if (!found) return;
+
+	const { floor: targetFloor, areaIndex: targetAreaIndex } = found;
+
 	const rect = floorPlanRef.value.getBoundingClientRect();
 	const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
 	const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
-
-	// 找到要更新的區域所屬的樓層
-	let targetFloor: LightingFloor | null = null;
-	let targetAreaIndex = -1;
-
-	for (const floor of lightingFloors.value) {
-		const index = floor.areas.findIndex((area, idx) => getAreaId(floor, area, idx) === areaId);
-		if (index !== -1) {
-			targetFloor = floor;
-			targetAreaIndex = index;
-			break;
-		}
-	}
-
-	if (!targetFloor) return;
 
 	// 更新區域位置（如果是從 CategoryList 拖曳過來的未定位點位，現在設定位置）
 	const updatedAreas = targetFloor.areas.map((area, index) => {
@@ -1140,7 +1153,7 @@ const handleDrop = async (event: DragEvent) => {
 		});
 
 		// 更新本地資料
-		const index = lightingFloors.value.findIndex(f => f.id === targetFloor!.id);
+		const index = lightingFloors.value.findIndex(f => f.id === targetFloor.id);
 		if (index > -1) {
 			lightingFloors.value[index] = result.floor;
 		}
@@ -1214,10 +1227,13 @@ const saveBatchPositions = async (
 // 監聽樓層資料變化，重新初始化狀態
 watch(
 	() => lightingFloors.value,
-	() => {
+	async () => {
 		// 當樓層資料變化時，重新初始化區域狀態
 		initializeAreaStatuses();
+		// 優化：批量預載入所有需要的設備資訊
+		await preloadDeviceInfos();
 		// 重新載入所有樓層的狀態（用於 StatusCenter）
+		// 注意：loadAllAreaStatuses 內部已經會批量預載入設備配置，這裡不需要重複
 		void loadAllAreaStatuses({ loadAllFloors: true });
 	},
 	{ deep: true }
@@ -1289,6 +1305,9 @@ const loadFloorsFromAPI = async () => {
 				selectedFloor.value = lightingFloors.value[0].id || lightingFloors.value[0].name;
 			}
 		}
+
+		// 優化：批量預載入所有需要的設備資訊，避免在讀取狀態時才逐一請求
+		await preloadDeviceInfos();
 	} catch (error) {
 		console.error("載入樓層列表失敗:", error);
 		const toast = useToast();
@@ -1378,14 +1397,15 @@ onMounted(async () => {
 		await loadFloorsFromAPI();
 
 		// 初始化區域狀態（從樓層的 areas）
+		initializeAreaStatuses();
 
 		// 同步右側高度
 		nextTick(() => {
 			updateLeftSectionHeight();
 		});
-		initializeAreaStatuses();
 
 		// 立即從後端載入所有樓層的區域實際狀態（不預設為 OFF）
+		// 注意：loadAllAreaStatuses 內部已經會批量預載入設備配置，避免重複請求
 		// 這樣 StatusCenter 也能正確顯示所有樓層的狀態
 		await loadAllAreaStatuses({ loadAllFloors: true });
 	} finally {

@@ -17,40 +17,34 @@ export const useToast = () => {
 
 	const showToast = (type: ToastType, message: string, duration = 3000, options?: { count?: number; persistent?: boolean }) => {
 		const { count, persistent = false } = options || {};
-		
-		// 如果是持久顯示的警報，檢查是否已存在相同的 Toast
+		const now = Date.now();
+
+		// 持久顯示的 Toast：檢查是否已存在相同的 Toast，如果存在則更新疊加數量
 		if (persistent) {
 			const existingToast = toasts.value.find(
 				t => t.message === message && t.type === type && t.persistent
 			);
-			
+
 			if (existingToast) {
-				// 更新疊加數量
-				if (count !== undefined) {
-					existingToast.count = count;
-				} else {
-					existingToast.count = (existingToast.count || 1) + 1;
-				}
+				existingToast.count = count !== undefined ? count : (existingToast.count || 1) + 1;
 				return existingToast.id;
 			}
 		} else {
-			// 非持久顯示的 Toast，檢查是否在 5 秒內顯示過相同訊息
-		const now = Date.now();
-		const lastShown = recentToasts.get(message);
-		if (lastShown && now - lastShown < 5000) {
-			// 5 秒內不重複顯示相同訊息
-			return;
-		}
+			// 非持久顯示的 Toast：檢查是否在 5 秒內顯示過相同訊息
+			const lastShown = recentToasts.get(message);
+			if (lastShown && now - lastShown < 5000) {
+				return; // 5 秒內不重複顯示
+			}
 
-		// 記錄此次顯示時間
-		recentToasts.set(message, now);
+			// 記錄此次顯示時間
+			recentToasts.set(message, now);
 
-		// 清理過期記錄（只在記錄過多時清理，保留最近 1 分鐘）
-		if (recentToasts.size > 100) {
-			const oneMinuteAgo = now - 60000;
-			for (const [msg, timestamp] of recentToasts.entries()) {
-				if (timestamp < oneMinuteAgo) {
-					recentToasts.delete(msg);
+			// 清理過期記錄（只在記錄過多時清理，保留最近 1 分鐘）
+			if (recentToasts.size > 100) {
+				const oneMinuteAgo = now - 60000;
+				for (const [msg, timestamp] of recentToasts.entries()) {
+					if (timestamp < oneMinuteAgo) {
+						recentToasts.delete(msg);
 					}
 				}
 			}

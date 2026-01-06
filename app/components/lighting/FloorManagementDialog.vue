@@ -21,257 +21,63 @@
 					</header>
 
 					<div class="flex-1 overflow-y-auto pr-7 2xl:pr-8">
-						<template v-if="isLoading">
-							<div class="space-y-3">
-								<div
-									v-for="n in 3"
-									:key="`skeleton-${n}`"
-									class="h-20 animate-pulse rounded-lg bg-white/10"
-								></div>
-							</div>
-						</template>
-						<template v-else-if="floors.length > 0">
-							<div class="space-y-3">
-								<div
-									v-for="floor in sortedFloors"
-									:key="floor.id || floor.name"
-									class="overflow-hidden rounded-lg border border-white/20 bg-white/10 transition-all"
-									:class="{ 'bg-white/15': expandedFloors.has(floor.id || floor.name) }"
-								>
-									<!-- 樓層標題列（可點擊展開） -->
-									<div
-										class="flex cursor-pointer items-center justify-between p-4 transition-colors hover:bg-white/10"
-										@click="toggleFloor(floor.id || floor.name)"
-									>
-										<div class="flex flex-1 items-center gap-4">
-											<!-- 展開/收起圖標 -->
-											<svg
-												class="h-5 w-5 text-white/70 transition-transform"
-												:class="{ 'rotate-90': expandedFloors.has(floor.id || floor.name) }"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
-											>
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M9 5l7 7-7 7"
-												/>
-											</svg>
-											<!-- 樓層名稱 -->
-											<div
-												class="flex h-16 min-w-[80px] items-center justify-center rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 shadow-lg"
-											>
-												<h4 v-if="floor.name" class="text-xl font-bold tracking-wider text-white 2xl:text-2xl">
-													{{ floor.name }}
-												</h4>
-												<span v-else class="text-sm text-white/60 2xl:text-base">未命名</span>
-											</div>
-
-											<div class="flex-1">
-												<div class="flex items-center gap-3">
-													<span
-														class="rounded-full bg-white/25 px-3 py-1 text-sm font-medium text-white 2xl:text-base"
-													>
-														{{ floor.areas?.length || 0 }} 個點位
-													</span>
-												</div>
-											</div>
-										</div>
-										<div class="ml-4 flex gap-2 2xl:gap-3" @click.stop>
-											<button
-												type="button"
-												class="p-2 text-rose-400 transition-colors hover:text-rose-300"
-												@click.stop="handleDeleteFloor(floor.id || floor.name)"
-												title="刪除樓層"
-											>
-												<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-													/>
-												</svg>
-											</button>
-										</div>
-									</div>
-
-									<!-- 展開內容 -->
-									<Transition name="expand">
+						<div class="min-h-[200px]">
+							<Transition name="fade" mode="out-in">
+								<div v-if="floors.length > 0" :key="`floors-${floors.length}`">
+									<div class="space-y-3">
 										<div
-											v-if="expandedFloors.has(floor.id || floor.name)"
-											class="space-y-3 border-t border-white/10 p-4"
+											v-for="floor in sortedFloors"
+											:key="floor.id || floor.name"
+											class="overflow-hidden rounded-lg border border-white/20 bg-white/10 transition-all"
+											:class="{ 'bg-white/15': expandedFloors.has(floor.id || floor.name) }"
 										>
-											<!-- 樓層基本資訊 -->
-											<div class="flex items-center gap-3 border-b border-white/10 pb-3">
-												<span class="text-base font-medium 2xl:text-lg">樓層名稱</span>
-												<input
-													:value="floor.name"
-													type="text"
-													required
-													class="form-input-small flex-1"
-													placeholder="例如：1F、2F"
-													@input="updateFloorName(floor, ($event.target as HTMLInputElement).value)"
-												/>
-												<input
-													:ref="
-														el => {
-															if (el) fileInputRefs.set(floor.id || floor.name, el as HTMLInputElement);
-														}
-													"
-													type="file"
-													accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
-													class="hidden"
-													:data-floor-id="floor.id || floor.name"
-													@change="handleFloorImageChange"
-												/>
-												<button
-													v-if="floor.imageUrl"
-													type="button"
-													class="btn-secondary text-sm 2xl:text-base"
-													@click.stop="viewFloorImage(floor.imageUrl)"
-												>
-													查看示意圖
-												</button>
-												<button
-													type="button"
-													class="btn-secondary text-sm 2xl:text-base"
-													@click.stop="triggerFloorImageInput(floor.id || floor.name)"
-												>
-													{{ floor.imageUrl ? "更換" : "上傳" }}示意圖
-												</button>
-												<button
-													v-if="floor.imageUrl"
-													type="button"
-													class="p-2 text-rose-400 transition-colors hover:text-rose-300"
-													@click.stop="removeFloorImage(floor)"
-													title="移除圖片"
-												>
-													<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<!-- 樓層標題列（可點擊展開） -->
+											<div
+												class="flex cursor-pointer items-center justify-between p-4 transition-colors hover:bg-white/10"
+												@click="toggleFloor(floor.id || floor.name)"
+											>
+												<div class="flex flex-1 items-center gap-4">
+													<!-- 展開/收起圖標 -->
+													<svg
+														class="h-5 w-5 text-white/70 transition-transform"
+														:class="{ 'rotate-90': expandedFloors.has(floor.id || floor.name) }"
+														fill="none"
+														stroke="currentColor"
+														viewBox="0 0 24 24"
+													>
 														<path
 															stroke-linecap="round"
 															stroke-linejoin="round"
 															stroke-width="2"
-															d="M6 18L18 6M6 6l12 12"
+															d="M9 5l7 7-7 7"
 														/>
 													</svg>
-												</button>
-											</div>
-
-											<!-- 點位列表 -->
-											<div class="flex items-center justify-between">
-												<span class="text-base font-medium 2xl:text-lg">點位列表</span>
-												<button
-													type="button"
-													class="btn-secondary text-sm 2xl:text-base"
-													@click="addPoint(floor)"
-												>
-													新增點位
-												</button>
-											</div>
-
-											<!-- 點位項目 -->
-											<div
-												v-if="!floor.areas || floor.areas.length === 0"
-												class="py-4 text-center text-sm text-white/60 2xl:text-base"
-											>
-												尚無點位，請新增點位
-											</div>
-											<div v-else class="space-y-2">
-												<div
-													v-for="(area, areaIndex) in floor.areas"
-													:key="area.id || `area-${areaIndex}`"
-													class="flex min-w-0 items-end gap-2 rounded border border-white/10 bg-white/5 p-2"
-												>
-													<label
-														class="flex flex-[2] flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+													<!-- 樓層名稱 -->
+													<div
+														class="flex h-16 min-w-[80px] items-center justify-center rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 shadow-lg"
 													>
-														<span>點位名稱 *</span>
-														<input
-															v-model="area.name"
-															type="text"
-															required
-															class="form-input-small"
-															placeholder="例如：主燈開關"
-															@blur="handleAreaChange(floor)"
-														/>
-													</label>
-													<label
-														class="flex flex-[2] flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-													>
-														<span>控制器</span>
-														<select
-															v-model.number="area.deviceId"
-															class="form-input-small form-select min-w-0"
-															@change="handleDeviceChange(floor, area, areaIndex)"
-															:disabled="isLoadingDevices"
-														>
-															<option :value="0">請選擇控制器</option>
-															<option v-if="isLoadingDevices" value="" disabled>載入中...</option>
-															<option v-else-if="devices.length === 0" value="" disabled>尚無可用控制器</option>
-															<option v-for="device in devices" :key="device.id" :value="device.id">
-																{{ device.name }}
-															</option>
-														</select>
-													</label>
-													<template v-if="area.deviceId && area.modbus?.points?.[0]">
-														<label
-															class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-														>
-															<span>類型 *</span>
-															<select
-																v-model="area.modbus.points[0].type"
-																class="form-input-small form-select w-full"
-																required
-																@change="handleTypeChange(floor, area, areaIndex)"
+														<h4 v-if="floor.name" class="text-xl font-bold tracking-wider text-white 2xl:text-2xl">
+															{{ floor.name }}
+														</h4>
+														<span v-else class="text-sm text-white/60 2xl:text-base">未命名</span>
+													</div>
+
+													<div class="flex-1">
+														<div class="flex items-center gap-3">
+															<span
+																class="rounded-full bg-white/25 px-3 py-1 text-sm font-medium text-white 2xl:text-base"
 															>
-																<option value="DO">DO</option>
-																<option value="DI">DI</option>
-															</select>
-														</label>
-														<label
-															class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-														>
-															<span>地址 *</span>
-															<div class="relative w-full">
-																<input
-																	v-model.number="area.modbus.points[0].address"
-																	type="number"
-																	min="0"
-																	placeholder="地址"
-																	required
-																	class="form-input-small w-full transition-all"
-																	:class="
-																		checkAddressDuplicate(floor, area, areaIndex)
-																			? 'animate-pulse border-2 border-rose-500 bg-rose-500/20 pr-10 shadow-[0_0_0_3px_rgba(244,63,94,0.2)] focus:border-rose-500 focus:bg-rose-500/25 focus:shadow-[0_0_0_3px_rgba(244,63,94,0.3)]'
-																			: ''
-																	"
-																	title="此地址已被使用"
-																	@blur="handleAreaChange(floor)"
-																/>
-																<div
-																	v-if="checkAddressDuplicate(floor, area, areaIndex)"
-																	class="pointer-events-none absolute right-9 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-rose-500"
-																	title="此地址已被使用"
-																>
-																	<svg class="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-																		<path
-																			fill-rule="evenodd"
-																			d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-																			clip-rule="evenodd"
-																		/>
-																	</svg>
-																</div>
-															</div>
-														</label>
-													</template>
+																{{ floor.areas?.length || 0 }} 個點位
+															</span>
+														</div>
+													</div>
+												</div>
+												<div class="ml-4 flex gap-2 2xl:gap-3" @click.stop>
 													<button
 														type="button"
-														class="ml-auto flex-shrink-0 p-2 text-rose-400 transition-colors hover:text-rose-300"
-														@click="removeArea(floor, areaIndex)"
-														title="刪除點位"
+														class="p-2 text-rose-400 transition-colors hover:text-rose-300"
+														@click.stop="handleDeleteFloor(floor.id || floor.name)"
+														title="刪除樓層"
 													>
 														<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 															<path
@@ -284,20 +90,208 @@
 													</button>
 												</div>
 											</div>
-											<p v-if="devices.length === 0 && !isLoadingDevices" class="mt-1 text-xs text-amber-300">
-												請先在「設備管理」中建立控制器設備
-											</p>
-										</div>
-									</Transition>
+
+											<!-- 展開內容 -->
+											<Transition name="expand">
+												<div
+													v-if="expandedFloors.has(floor.id || floor.name)"
+													class="space-y-3 border-t border-white/10 p-4"
+												>
+													<!-- 樓層基本資訊 -->
+													<div class="flex items-center gap-3 border-b border-white/10 pb-3">
+														<span class="text-base font-medium 2xl:text-lg">樓層名稱</span>
+														<input
+															:value="floor.name"
+															type="text"
+															required
+															class="form-input-small flex-1"
+															placeholder="例如：1F、2F"
+															@input="updateFloorName(floor, ($event.target as HTMLInputElement).value)"
+														/>
+														<input
+															:ref="
+																el => {
+																	if (el) fileInputRefs.set(floor.id || floor.name, el as HTMLInputElement);
+																}
+															"
+															type="file"
+															accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+															class="hidden"
+															:data-floor-id="floor.id || floor.name"
+															@change="handleFloorImageChange"
+														/>
+														<button
+															v-if="floor.imageUrl"
+															type="button"
+															class="btn-secondary text-sm 2xl:text-base"
+															@click.stop="viewFloorImage(floor.imageUrl)"
+														>
+															查看示意圖
+														</button>
+														<button
+															type="button"
+															class="btn-secondary text-sm 2xl:text-base"
+															@click.stop="triggerFloorImageInput(floor.id || floor.name)"
+														>
+															{{ floor.imageUrl ? "更換" : "上傳" }}示意圖
+														</button>
+														<button
+															v-if="floor.imageUrl"
+															type="button"
+															class="p-2 text-rose-400 transition-colors hover:text-rose-300"
+															@click.stop="removeFloorImage(floor)"
+															title="移除圖片"
+														>
+															<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path
+																	stroke-linecap="round"
+																	stroke-linejoin="round"
+																	stroke-width="2"
+																	d="M6 18L18 6M6 6l12 12"
+																/>
+															</svg>
+														</button>
+													</div>
+
+												<!-- 點位列表 -->
+												<div class="flex items-center justify-between">
+													<span class="text-base font-medium 2xl:text-lg">點位列表</span>
+													<button
+														type="button"
+														class="btn-secondary text-sm 2xl:text-base"
+														@click="addPoint(floor)"
+													>
+														新增點位
+													</button>
+												</div>
+
+												<!-- 點位項目 -->
+												<div
+													v-if="!floor.areas || floor.areas.length === 0"
+													class="py-4 text-center text-sm text-white/60 2xl:text-base"
+												>
+													尚無點位，請新增點位
+												</div>
+												<div v-else class="space-y-2">
+													<div
+														v-for="(area, areaIndex) in floor.areas"
+														:key="area.id || `area-${areaIndex}`"
+														class="flex min-w-0 items-end gap-2 rounded border border-white/10 bg-white/5 p-2"
+													>
+														<label
+															class="flex flex-[2] flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+														>
+															<span>點位名稱 *</span>
+															<input
+																v-model="area.name"
+																type="text"
+																required
+																class="form-input-small"
+																placeholder="例如：主燈開關"
+																@blur="handleAreaChange(floor)"
+															/>
+														</label>
+														<label
+															class="flex flex-[2] flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+														>
+															<span>控制器</span>
+															<select
+																v-model.number="area.deviceId"
+																class="form-input-small form-select min-w-0"
+																@change="handleDeviceChange(floor, area, areaIndex)"
+																:disabled="isLoadingDevices"
+															>
+																<option :value="0">請選擇控制器</option>
+																<option v-if="isLoadingDevices" value="" disabled>載入中...</option>
+																<option v-else-if="devices.length === 0" value="" disabled>尚無可用控制器</option>
+																<option v-for="device in devices" :key="device.id" :value="device.id">
+																	{{ device.name }}
+																</option>
+															</select>
+														</label>
+														<template v-if="area.deviceId && area.modbus?.points?.[0]">
+															<label
+																class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+															>
+																<span>類型 *</span>
+																<select
+																	v-model="area.modbus.points[0].type"
+																	class="form-input-small form-select w-full"
+																	required
+																	@change="handleTypeChange(floor, area, areaIndex)"
+																>
+																	<option value="DO">DO</option>
+																	<option value="DI">DI</option>
+																</select>
+															</label>
+															<label
+																class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+															>
+																<span>地址 *</span>
+																<div class="relative w-full">
+																	<input
+																		v-model.number="area.modbus.points[0].address"
+																		type="number"
+																		min="0"
+																		placeholder="地址"
+																		required
+																		class="form-input-small w-full transition-all"
+																		:class="
+																			checkAddressDuplicate(floor, area, areaIndex)
+																				? 'animate-pulse border-2 border-rose-500 bg-rose-500/20 pr-10 shadow-[0_0_0_3px_rgba(244,63,94,0.2)] focus:border-rose-500 focus:bg-rose-500/25 focus:shadow-[0_0_0_3px_rgba(244,63,94,0.3)]'
+																				: ''
+																		"
+																		title="此地址已被使用"
+																		@blur="handleAreaChange(floor)"
+																	/>
+																	<div
+																		v-if="checkAddressDuplicate(floor, area, areaIndex)"
+																		class="pointer-events-none absolute right-9 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-rose-500"
+																		title="此地址已被使用"
+																	>
+																		<svg class="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+																			<path
+																				fill-rule="evenodd"
+																				d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+																				clip-rule="evenodd"
+																			/>
+																		</svg>
+																	</div>
+																</div>
+															</label>
+														</template>
+														<button
+															type="button"
+															class="ml-auto flex-shrink-0 p-2 text-rose-400 transition-colors hover:text-rose-300"
+															@click="removeArea(floor, areaIndex)"
+															title="刪除點位"
+														>
+															<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path
+																	stroke-linecap="round"
+																	stroke-linejoin="round"
+																	stroke-width="2"
+																	d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+																/>
+															</svg>
+														</button>
+													</div>
+												</div>
+												<p v-if="devices.length === 0 && !isLoadingDevices" class="mt-1 text-xs text-amber-300">
+													請先在「設備管理」中建立控制器設備
+												</p>
+											</div>
+										</Transition>
+									</div>
 								</div>
 							</div>
-						</template>
-						<template v-else>
-							<div class="py-8 text-center text-white/60">
-								<p class="text-base 2xl:text-lg">尚無樓層資料</p>
-								<p class="mt-2 text-sm 2xl:text-base">點擊「新增樓層」開始建立</p>
-							</div>
-						</template>
+								<!-- 空狀態 -->
+								<div v-else key="empty" class="py-8 text-center text-white/60">
+									<p class="text-base 2xl:text-lg">尚無樓層資料</p>
+									<p class="mt-2 text-sm 2xl:text-base">點擊「新增樓層」開始建立</p>
+								</div>
+							</Transition>
+						</div>
 					</div>
 
 					<p v-if="errorMessage" class="pr-7 text-base text-rose-300 2xl:pr-8 2xl:text-lg">

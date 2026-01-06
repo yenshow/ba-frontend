@@ -39,7 +39,11 @@ export interface Alert {
 	ignored_by_username?: string | null;
 	// 時間戳
 	created_at: string;
-	updated_at: string;
+	updated_at: string | null; // 可能為 null（新創建的警報可能還沒有更新）
+	// 來源名稱（統一欄位，適用於所有來源類型）
+	source_name?: string | null; // 設備名稱、環境位置名稱、照明區域名稱等
+	environment_floor_name?: string | null; // 環境位置樓層名稱（僅適用於環境來源）
+	lighting_floor_name?: string | null; // 照明區域樓層名稱（僅適用於照明來源）
 	// 統計欄位（僅在列表查詢時存在）
 	alert_count?: number; // 合併的警報數量（後端 GROUP BY 查詢返回）
 }

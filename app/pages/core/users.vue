@@ -19,136 +19,76 @@
 
 		<!-- 用戶列表 -->
 		<section class="rounded-2xl bg-white/15 p-6 2xl:p-8 border border-white/20">
-			<!-- 骨架屏：載入中時顯示 -->
-			<template v-if="isLoading">
-				<table class="w-full">
-					<thead>
-						<tr class="border-b border-white/20">
-							<th :class="tableHeaderClass">ID</th>
-							<th :class="tableHeaderClass">用戶名</th>
-							<th :class="tableHeaderClass">Email</th>
-							<th :class="tableHeaderClass">角色</th>
-							<th :class="tableHeaderClass">狀態</th>
-							<th :class="tableHeaderClass">
-								<label class="flex flex-col gap-1">
-									<span>建立時間</span>
-									<select v-model="dateSortOrder" :class="sortSelectClass" @change="handleSortChange">
-										<option value="desc">由新到舊</option>
-										<option value="asc">由舊到新</option>
-									</select>
-								</label>
-							</th>
-							<th v-if="isAdmin" :class="tableHeaderClass">操作</th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr v-for="n in 5" :key="`skeleton-${n}`" class="border-b border-white/10">
-							<td :class="tableCellClass">
-								<div class="h-4 2xl:h-5 w-8 2xl:w-10 bg-white/20 rounded animate-pulse"></div>
-							</td>
-							<td :class="tableCellClass">
-								<div class="h-4 2xl:h-5 w-20 2xl:w-24 bg-white/20 rounded animate-pulse"></div>
-							</td>
-							<td :class="tableCellClass">
-								<div class="h-4 2xl:h-5 w-32 2xl:w-40 bg-white/20 rounded animate-pulse"></div>
-							</td>
-							<td :class="tableCellClass">
-								<div class="h-6 2xl:h-7 w-16 2xl:w-20 bg-white/20 rounded animate-pulse"></div>
-							</td>
-							<td :class="tableCellClass">
-								<div class="h-6 2xl:h-7 w-16 2xl:w-20 bg-white/20 rounded animate-pulse"></div>
-							</td>
-							<td :class="tableCellClass">
-								<div class="h-4 2xl:h-5 w-32 2xl:w-40 bg-white/20 rounded animate-pulse"></div>
-							</td>
-							<td v-if="isAdmin" :class="tableCellClass">
-								<div class="flex gap-2 2xl:gap-3">
-									<div class="h-6 2xl:h-7 w-12 2xl:w-16 bg-white/20 rounded animate-pulse"></div>
-									<div class="h-6 2xl:h-7 w-12 2xl:w-16 bg-white/20 rounded animate-pulse"></div>
-								</div>
-							</td>
-						</tr>
-					</tbody>
-				</table>
-			</template>
-			<!-- 用戶列表表格：有數據時顯示 -->
-			<template v-else-if="users.length > 0">
-				<table class="w-full text-center">
-					<thead>
-						<tr class="border-b border-white/20">
-							<th :class="tableHeaderClass">ID</th>
-							<th :class="tableHeaderClass">用戶名</th>
-							<th :class="tableHeaderClass">Email</th>
-							<th :class="tableHeaderClass">角色</th>
-							<th :class="tableHeaderClass">狀態</th>
-							<th :class="tableHeaderClass">
-								<label>
-									<select v-model="dateSortOrder" :class="sortSelectClass" @change="handleSortChange">
-										<option value="desc">由新到舊</option>
-										<option value="asc">由舊到新</option>
-									</select>
-								</label>
-							</th>
-							<th v-if="isAdmin" :class="tableHeaderClass">操作</th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr v-for="user in users" :key="user.id" class="border-b border-white/10 hover:bg-white/5 text-base 2xl:text-lg text-white">
-							<td :class="tableCellClass">{{ user.id }}</td>
-							<td :class="tableCellClass">{{ user.username }}</td>
-							<td :class="tableCellClass">{{ user.email }}</td>
-							<td :class="tableCellClass">
-								<span :class="[getRoleBadgeClass(user.role), 'px-2 2xl:px-3 py-1 2xl:py-1.5 rounded']">
-									{{ roleLabels[user.role] }}
-								</span>
-							</td>
-							<td :class="tableCellClass">
-								<span :class="[getStatusBadgeClass(user.status), 'px-2 2xl:px-3 py-1 2xl:py-1.5 rounded']">
-									{{ statusLabels[user.status] }}
-								</span>
-							</td>
-							<td :class="[tableCellClass, 'text-white/70']">{{ formatDate(user.created_at) }}</td>
-							<td v-if="isAdmin" :class="tableCellClass">
-								<div class="flex gap-2 2xl:gap-3">
-									<button type="button" class="px-3 2xl:px-4 py-1 2xl:py-2 rounded bg-blue-500/80 text-white hover:bg-blue-400" @click="editUser(user)">
-										編輯
-									</button>
-									<button
-										v-if="user.id !== currentUser?.id"
-										type="button"
-										class="px-3 2xl:px-4 py-1 2xl:py-2 rounded bg-red-500/80 text-white hover:bg-red-400"
-										@click="confirmDeleteUser(user)"
-									>
-										刪除
-									</button>
-								</div>
-							</td>
-						</tr>
-					</tbody>
-				</table>
-			</template>
+			<!-- 用戶列表表格：使用過渡動畫 -->
+			<div class="min-h-[500px]">
+				<Transition name="fade" mode="out-in">
+					<div v-if="users.length > 0" :key="`users-${offset}-${users.length}`">
+					<table class="w-full text-center">
+						<thead>
+							<tr class="border-b border-white/20">
+								<th :class="tableHeaderClass">ID</th>
+								<th :class="tableHeaderClass">用戶名</th>
+								<th :class="tableHeaderClass">Email</th>
+								<th :class="tableHeaderClass">角色</th>
+								<th :class="tableHeaderClass">狀態</th>
+								<th :class="tableHeaderClass">
+									<label>
+										<select v-model="dateSortOrder" :class="sortSelectClass" @change="handleSortChange">
+											<option value="desc">由新到舊</option>
+											<option value="asc">由舊到新</option>
+										</select>
+									</label>
+								</th>
+								<th v-if="isAdmin" :class="tableHeaderClass">操作</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr v-for="user in users" :key="user.id" class="border-b border-white/10 hover:bg-white/5 text-base 2xl:text-lg text-white">
+								<td :class="tableCellClass">{{ user.id }}</td>
+								<td :class="tableCellClass">{{ user.username }}</td>
+								<td :class="tableCellClass">{{ user.email }}</td>
+								<td :class="tableCellClass">
+									<span :class="[getRoleBadgeClass(user.role), 'px-2 2xl:px-3 py-1 2xl:py-1.5 rounded']">
+										{{ roleLabels[user.role] }}
+									</span>
+								</td>
+								<td :class="tableCellClass">
+									<span :class="[getStatusBadgeClass(user.status), 'px-2 2xl:px-3 py-1 2xl:py-1.5 rounded']">
+										{{ statusLabels[user.status] }}
+									</span>
+								</td>
+								<td :class="[tableCellClass, 'text-white/70']">{{ formatDate(user.created_at) }}</td>
+								<td v-if="isAdmin" :class="tableCellClass">
+									<div class="flex gap-2 2xl:gap-3">
+										<button type="button" class="px-3 2xl:px-4 py-1 2xl:py-2 rounded bg-blue-500/80 text-white hover:bg-blue-400" @click="editUser(user)">
+											編輯
+										</button>
+										<button
+											v-if="user.id !== currentUser?.id"
+											type="button"
+											class="px-3 2xl:px-4 py-1 2xl:py-2 rounded bg-red-500/80 text-white hover:bg-red-400"
+											@click="confirmDeleteUser(user)"
+										>
+											刪除
+										</button>
+									</div>
+								</td>
+							</tr>
+						</tbody>
+					</table>
 
-			<!-- 分頁：只在有數據且總數超過每頁限制時顯示 -->
-			<div v-if="!isLoading && users.length > 0 && total > limit" class="mt-4 2xl:mt-6 flex items-center justify-between text-white/80">
-				<div class="text-sm 2xl:text-base">顯示 {{ offset + 1 }}-{{ Math.min(offset + limit, total) }} / 共 {{ total }} 筆</div>
-				<div class="flex gap-2 2xl:gap-3">
-					<button
-						type="button"
-						class="px-3 2xl:px-4 py-1 2xl:py-2 rounded text-sm 2xl:text-base bg-white/10 hover:bg-white/20 disabled:opacity-50"
-						:disabled="offset === 0"
-						@click="previousPage"
-					>
-						上一頁
-					</button>
-					<button
-						type="button"
-						class="px-3 2xl:px-4 py-1 2xl:py-2 rounded text-sm 2xl:text-base bg-white/10 hover:bg-white/20 disabled:opacity-50"
-						:disabled="offset + limit >= total"
-						@click="nextPage"
-					>
-						下一頁
-					</button>
-				</div>
+					<!-- 分頁：只在有數據且總數超過每頁限制時顯示 -->
+					<Pagination
+						v-if="total > limit"
+						:total="total"
+						:offset="offset"
+						:limit="limit"
+						:disabled="isLoading"
+						@previous="previousPage"
+						@next="nextPage"
+					/>
+					</div>
+				</Transition>
 			</div>
 		</section>
 
@@ -224,6 +164,7 @@
 
 <script setup lang="ts">
 import type { User } from "~/types/user";
+import Pagination from "~/components/common/Pagination.vue";
 
 definePageMeta({
 	layout: "default",

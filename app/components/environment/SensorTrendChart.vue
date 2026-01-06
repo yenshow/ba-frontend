@@ -203,64 +203,66 @@ const loadHistoricalData = async () => {
 			.filter(item => item.value !== null); // 過濾掉 null 值
 
 		// 根據時間範圍聚合資料
-		let aggregatedData: Array<{ label: string; value: number }> = [];
+		let aggregatedData: Array<{ label: string; value: number; timestamp: Date }> = [];
 
 		switch (selectedPeriod.value) {
 			case "day":
 				// 按小時聚合（取每小時最後一個值）
-				const hourlyMap = new Map<string, number>();
+				const hourlyMap = new Map<string, { value: number; timestamp: Date }>();
 				rawData.forEach(item => {
 					const hourKey = `${item.timestamp.getHours().toString().padStart(2, "0")}:00`;
-					hourlyMap.set(hourKey, item.value!);
+					// 建立該小時的標準時間戳（只保留小時，分鐘秒歸零）
+					const hourTimestamp = new Date(item.timestamp);
+					hourTimestamp.setMinutes(0, 0, 0);
+					hourlyMap.set(hourKey, { value: item.value!, timestamp: hourTimestamp });
 				});
 				aggregatedData = Array.from(hourlyMap.entries())
-					.sort(([a], [b]) => a.localeCompare(b))
-					.map(([label, value]) => ({ label, value }));
+					.sort(([, a], [, b]) => a.timestamp.getTime() - b.timestamp.getTime())
+					.map(([label, data]) => ({ label, value: data.value, timestamp: data.timestamp }));
 				break;
 
 			case "week":
 				// 按日聚合（取每日最後一個值）
-				const dailyMap = new Map<string, number>();
+				const dailyMap = new Map<string, { value: number; timestamp: Date }>();
 				rawData.forEach(item => {
 					const dayKey = `${item.timestamp.getMonth() + 1}/${item.timestamp.getDate()}`;
-					dailyMap.set(dayKey, item.value!);
+					// 建立該日的標準時間戳（只保留日期，時間歸零）
+					const dayTimestamp = new Date(item.timestamp);
+					dayTimestamp.setHours(0, 0, 0, 0);
+					dailyMap.set(dayKey, { value: item.value!, timestamp: dayTimestamp });
 				});
 				aggregatedData = Array.from(dailyMap.entries())
-					.sort(([a], [b]) => {
-						// 排序：月份/日期
-						const [aMonth, aDay] = a.split("/").map(Number);
-						const [bMonth, bDay] = b.split("/").map(Number);
-						return aMonth - bMonth || aDay - bDay;
-					})
-					.map(([label, value]) => ({ label, value }));
+					.sort(([, a], [, b]) => a.timestamp.getTime() - b.timestamp.getTime())
+					.map(([label, data]) => ({ label, value: data.value, timestamp: data.timestamp }));
 				break;
 
 			case "month":
 				// 按日顯示
-				const monthDailyMap = new Map<string, number>();
+				const monthDailyMap = new Map<string, { value: number; timestamp: Date }>();
 				rawData.forEach(item => {
 					const dayKey = `${item.timestamp.getMonth() + 1}/${item.timestamp.getDate()}`;
-					monthDailyMap.set(dayKey, item.value!);
+					// 建立該日的標準時間戳（只保留日期，時間歸零）
+					const dayTimestamp = new Date(item.timestamp);
+					dayTimestamp.setHours(0, 0, 0, 0);
+					monthDailyMap.set(dayKey, { value: item.value!, timestamp: dayTimestamp });
 				});
 				aggregatedData = Array.from(monthDailyMap.entries())
-					.sort(([a], [b]) => {
-						const [aMonth, aDay] = a.split("/").map(Number);
-						const [bMonth, bDay] = b.split("/").map(Number);
-						return aMonth - bMonth || aDay - bDay;
-					})
-					.map(([label, value]) => ({ label, value }));
+					.sort(([, a], [, b]) => a.timestamp.getTime() - b.timestamp.getTime())
+					.map(([label, data]) => ({ label, value: data.value, timestamp: data.timestamp }));
 				break;
 
 			case "year":
 				// 按月顯示
-				const monthlyMap = new Map<string, number>();
+				const monthlyMap = new Map<string, { value: number; timestamp: Date }>();
 				rawData.forEach(item => {
 					const monthKey = `${item.timestamp.getFullYear()}/${item.timestamp.getMonth() + 1}`;
-					monthlyMap.set(monthKey, item.value!);
+					// 建立該月的標準時間戳（只保留年月，日期和時間歸零）
+					const monthTimestamp = new Date(item.timestamp.getFullYear(), item.timestamp.getMonth(), 1);
+					monthlyMap.set(monthKey, { value: item.value!, timestamp: monthTimestamp });
 				});
 				aggregatedData = Array.from(monthlyMap.entries())
-					.sort(([a], [b]) => a.localeCompare(b))
-					.map(([label, value]) => ({ label, value }));
+					.sort(([, a], [, b]) => a.timestamp.getTime() - b.timestamp.getTime())
+					.map(([label, data]) => ({ label, value: data.value, timestamp: data.timestamp }));
 				break;
 		}
 

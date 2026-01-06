@@ -181,13 +181,15 @@ import LocationManagementDialog from "~/components/environment/LocationManagemen
 import { useDeviceApi } from "~/composables/useDeviceApi";
 import { useApiBase } from "~/composables/useApiBase";
 import { useEnvironmentApi } from "~/composables/useEnvironmentApi";
+import { useWebSocket } from "~/composables/useWebSocket";
+import type { EnvironmentReadingNewEvent } from "~/composables/useWebSocket";
 import {
 	getParameterDisplayName,
 	getParameterUnit,
 	getParameterIcon,
 	getParameterFractionDigits,
 	cleanFloor
-} from "~/composables/useSensorParameter";
+} from "~/utils/sensorUtils";
 import type { ModbusDeviceConfig, ModbusDataResponse } from "~/types/modbus";
 import type {
 	Device,
@@ -210,6 +212,7 @@ const deviceApi = useDeviceApi();
 const environmentApi = useEnvironmentApi();
 const { request } = useApiBase();
 const toast = useToast();
+const { isConnected, on, off } = useWebSocket();
 
 // 環境樓層和地點資料
 const environmentFloors = ref<EnvironmentFloor[]>([]);
@@ -405,9 +408,39 @@ const getLocationId = (location: EnvironmentLocation): string => {
 	return location.id || `${floorName || "unknown"}-${location.name}`;
 };
 
+// 處理環境讀數新事件
+const handleEnvironmentReadingNew = (event: EnvironmentReadingNewEvent) => {
+	const { locationId, reading } = event;
+	const locationIdStr = String(locationId);
+
+	// 更新當前選中地點的資料
+	if (currentLocationData.value?.id === locationIdStr) {
+		Object.keys(reading).forEach(key => {
+			if (key in sensorData) {
+				(sensorData as any)[key] = reading[key];
+			}
+		});
+	}
+
+	// 更新總覽面板的資料
+	const existingData =
+		allLocationsSensorData.value.get(locationIdStr) || createEmptySensorReadings();
+	Object.keys(reading).forEach(key => {
+		if (key in existingData) {
+			(existingData as any)[key] = reading[key];
+		}
+	});
+	allLocationsSensorData.value.set(locationIdStr, existingData);
+
+	if (process.dev) {
+		console.log("[Environment] 收到新讀數:", locationId, reading);
+	}
+};
+
 // 選擇地點
 const selectLocation = (location: EnvironmentLocation) => {
 	selectedLocationId.value = getLocationId(location);
+
 	// 載入該地點的感測器資料
 	void loadLocationSensorData(location);
 };
@@ -1066,6 +1099,9 @@ const startAutoRefresh = () => {
 		return;
 	}
 
+	// 如果 WebSocket 已連接，延長輪詢間隔（作為後備）
+	const interval = isConnected.value ? AUTO_REFRESH_INTERVAL * 6 : AUTO_REFRESH_INTERVAL; // WebSocket 連接時 30 秒，否則 5 秒
+
 	refreshTimer = setInterval(() => {
 		// 只有當有選中地點且有感測器設備時才讀取資料
 		if (selectedLocationId.value && sensorDevice.value && sensorDeviceConfig.value) {
@@ -1082,7 +1118,7 @@ const startAutoRefresh = () => {
 				}
 			}
 		});
-	}, AUTO_REFRESH_INTERVAL);
+	}, interval);
 };
 
 // 讀取單個參數的資料（共用函數）
@@ -1343,6 +1379,27 @@ const getLocationDisplayData = (location: EnvironmentLocation) => {
 	};
 };
 
+// 監聽 WebSocket 連接狀態
+watch(
+	isConnected,
+	connected => {
+		if (connected) {
+			// 設置事件監聽器
+			on("environment:reading:new", handleEnvironmentReadingNew);
+		} else {
+			// 移除事件監聽器
+			off("environment:reading:new", handleEnvironmentReadingNew);
+		}
+
+		// 重新啟動自動刷新（根據連接狀態調整間隔）
+		stopAutoRefresh();
+		startAutoRefresh();
+	},
+	{ immediate: true }
+);
+
+// 注意：環境感測器讀數現在會自動推送給所有客戶端，不需要房間訂閱
+
 onMounted(async () => {
 	// 初始化左側 ResizeObserver
 	initLeftSectionObserver();
@@ -1372,6 +1429,10 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
 	stopAutoRefresh();
+
+	// 移除 WebSocket 監聽器
+	off("environment:reading:new", handleEnvironmentReadingNew);
+
 	// 釋放 ResizeObserver
 	if (leftSectionResizeObserver && leftSectionRef.value) {
 		leftSectionResizeObserver.unobserve(leftSectionRef.value);

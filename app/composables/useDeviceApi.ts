@@ -9,6 +9,7 @@ import type {
 	DeviceTypeCode
 } from "~/types/device";
 import { useApiBase } from "~/composables/useApiBase";
+import { buildPaginationParams, buildPathWithQuery, mergeQueryParams } from "~/utils/apiUtils";
 
 // 全局設備類型快取
 const deviceTypesCache = ref<DeviceType[] | null>(null);
@@ -37,27 +38,25 @@ export const useDeviceApi = () => {
 			orderBy?: string;
 			order?: "asc" | "desc";
 		}) => {
-			const query = new URLSearchParams();
-			if (params?.type_id) query.append("type_id", String(params.type_id));
-			if (params?.type_code) query.append("type_code", params.type_code);
-			if (params?.status) query.append("status", params.status);
-			if (params?.limit !== undefined && params?.limit !== null) {
-				query.append("limit", String(params.limit));
-			}
-			if (params?.offset !== undefined && params?.offset !== null) {
-				query.append("offset", String(params.offset));
-			}
-			if (params?.orderBy) {
-				query.append("orderBy", params.orderBy);
-			}
-			if (params?.order) {
-				query.append("order", params.order);
-			}
+			// 構建篩選參數
+			const filterParams: Record<string, unknown> = {};
+			if (params?.type_id) filterParams.type_id = params.type_id;
+			if (params?.type_code) filterParams.type_code = params.type_code;
+			if (params?.status) filterParams.status = params.status;
 
-			const queryString = query.toString();
-			return request<{ devices: Device[]; total: number; limit: number; offset: number }>(
-				`/devices${queryString ? `?${queryString}` : ""}`
-			);
+			// 構建分頁參數
+			const paginationParams = buildPaginationParams({
+				limit: params?.limit,
+				offset: params?.offset,
+				orderBy: params?.orderBy,
+				order: params?.order
+			});
+
+			// 合併參數
+			const allParams = mergeQueryParams(filterParams, paginationParams);
+
+			const path = buildPathWithQuery("/devices", allParams);
+			return request<{ devices: Device[]; total: number; limit: number; offset: number }>(path);
 		},
 
 		// 取得單一設備
@@ -164,15 +163,13 @@ export const useDeviceApi = () => {
 
 		// 取得所有設備型號（支援按類型篩選）
 		getDeviceModels: (params?: { type_id?: number; type_code?: DeviceTypeCode; _t?: string }) => {
-			const query = new URLSearchParams();
-			if (params?.type_id) query.append("type_id", String(params.type_id));
-			if (params?.type_code) query.append("type_code", params.type_code);
-			if (params?._t) query.append("_t", params._t); // 時間戳用於強制刷新
+			const filterParams: Record<string, unknown> = {};
+			if (params?.type_id) filterParams.type_id = params.type_id;
+			if (params?.type_code) filterParams.type_code = params.type_code;
+			if (params?._t) filterParams._t = params._t; // 時間戳用於強制刷新
 
-			const queryString = query.toString();
-			return request<{ device_models: DeviceModel[] }>(
-				`/devices/models${queryString ? `?${queryString}` : ""}`
-			);
+			const path = buildPathWithQuery("/devices/models", filterParams);
+			return request<{ device_models: DeviceModel[] }>(path);
 		},
 
 		// 取得單一設備型號

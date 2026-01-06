@@ -1,6 +1,7 @@
 import { useRequestFetch } from "#app";
 import { useAuth } from "~/composables/useAuth";
 import { useToast } from "~/composables/useToast";
+import { isDeviceApiRequest } from "~/utils/errorUtils";
 
 /**
  * 共用的 API 基礎 composable
@@ -93,8 +94,6 @@ export const useApiBase = () => {
 				const { logout } = useAuth();
 				logout();
 				if (process.client) {
-					const toast = useToast();
-					toast.warning("登入已過期，請重新登入");
 					const router = useRouter();
 					const currentPath = router.currentRoute.value?.fullPath || "/";
 					await router.push({
@@ -104,6 +103,7 @@ export const useApiBase = () => {
 						}
 					});
 				}
+				// 使用統一的錯誤訊息，讓 useErrorHandler 處理 Toast 顯示
 				throw new Error("登入已過期，請重新登入");
 			}
 
@@ -131,24 +131,20 @@ export const useApiBase = () => {
 
 			// 如果沒有狀態碼，先檢查是否為設備連接錯誤（優先於網路錯誤判斷）
 			const errorMessage = error?.message || "";
+			const isDeviceRequest = isDeviceApiRequest(path);
 			
 			// 檢查是否為設備連接錯誤（Modbus 設備連接超時等）
-			// 通過檢查錯誤訊息中是否包含 IP:Port 格式來判斷
-			const isDeviceConnectionError =
+			const hasDeviceErrorKeywords =
 				errorMessage.includes("連接超時") ||
-				errorMessage.includes("無法在") && errorMessage.match(/\d+\.\d+\.\d+\.\d+:\d+/) ||
 				errorMessage.includes("連接被拒絕") ||
 				errorMessage.includes("無法到達設備") ||
 				errorMessage.includes("連接已斷開") ||
-				(errorMessage.includes("連接到") && errorMessage.match(/\d+\.\d+\.\d+\.\d+:\d+/));
+				errorMessage.includes("設備連接失敗") ||
+				errorMessage.includes("設備離線") ||
+				(errorMessage.includes("連接到") && errorMessage.match(/\d+\.\d+\.\d+\.\d+:\d+/)) ||
+				(errorMessage.includes("無法在") && errorMessage.match(/\d+\.\d+\.\d+\.\d+:\d+/));
 
-			if (isDeviceConnectionError) {
-				// 這是設備連接錯誤，不是後端連接錯誤
-				// 使用原始錯誤訊息或提供更友好的訊息
-				throw new Error(backendErrorMsg || errorMessage || "設備連接失敗，請檢查設備狀態");
-			}
-
-			// 如果沒有狀態碼，再處理網路錯誤（真正的後端連接錯誤）
+			// 檢查是否為真正的網路錯誤（後端連接錯誤）
 			const isNetworkError =
 				errorMessage.includes("ERR_ADDRESS_UNREACHABLE") ||
 				errorMessage.includes("ERR_CONNECTION_REFUSED") ||
@@ -162,6 +158,14 @@ export const useApiBase = () => {
 				(error?.statusCode === undefined &&
 					error?.status === undefined &&
 					errorMessage.includes("<no response>"));
+
+			// 如果是設備 API 請求，優先判斷為設備連接錯誤
+			if (isDeviceRequest) {
+				// 有設備錯誤關鍵字，或包含「無法連接到後端伺服器」但沒有明確的網路錯誤標誌
+				if (hasDeviceErrorKeywords || (errorMessage.includes("無法連接到後端伺服器") && !isNetworkError)) {
+					throw new Error(backendErrorMsg || errorMessage || "設備連接失敗，請檢查設備狀態");
+				}
+			}
 
 			if (isNetworkError) {
 				const targetHost = url.match(/https?:\/\/([^\/:]+)/)?.[1] || "未知";

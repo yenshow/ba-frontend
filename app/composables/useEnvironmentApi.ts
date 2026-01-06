@@ -1,5 +1,8 @@
 import type { EnvironmentFloor, EnvironmentLocation, SensorReading } from "~/types/environment";
 import { useApiBase } from "~/composables/useApiBase";
+import { buildPathWithQuery } from "~/utils/apiUtils";
+import { useFloorApiFactory } from "~/composables/useFloorApiFactory";
+import { useErrorTrackingApiFactory } from "~/composables/useErrorTrackingApiFactory";
 
 export interface CreateEnvironmentFloorData {
 	name: string;
@@ -36,43 +39,34 @@ export interface GetReadingsOptions {
 export const useEnvironmentApi = () => {
 	const { request } = useApiBase();
 
+	// 使用通用 Factory 創建樓層 CRUD API
+	const floorApi = useFloorApiFactory<EnvironmentFloor>("/environment");
+
+	// 使用通用 Factory 創建錯誤追蹤 API
+	const errorTrackingApi = useErrorTrackingApiFactory(
+		"/environment/locations",
+		"無法讀取感測器資料"
+	);
+
 	return {
 		// ========== 樓層管理 API ==========
 		// 注意：位置（locations）統一通過樓層的 locations 來管理
 		// 所有操作都通過樓層管理 API 進行
 
 		// 取得樓層列表
-		getFloors: () => {
-			return request<{ floors: EnvironmentFloor[] }>("/environment/floors");
-		},
+		getFloors: floorApi.getFloors,
 
 		// 取得單一樓層
-		getFloor: (id: string) => {
-			return request<{ floor: EnvironmentFloor }>(`/environment/floors/${id}`);
-		},
+		getFloor: floorApi.getFloor,
 
 		// 建立樓層
-		createFloor: (data: CreateEnvironmentFloorData) => {
-			return request<{ message: string; floor: EnvironmentFloor }>("/environment/floors", {
-				method: "POST",
-				body: JSON.stringify(data)
-			});
-		},
+		createFloor: floorApi.createFloor<CreateEnvironmentFloorData>,
 
 		// 更新樓層
-		updateFloor: (id: string, data: UpdateEnvironmentFloorData) => {
-			return request<{ message: string; floor: EnvironmentFloor }>(`/environment/floors/${id}`, {
-				method: "PUT",
-				body: JSON.stringify(data)
-			});
-		},
+		updateFloor: floorApi.updateFloor<UpdateEnvironmentFloorData>,
 
 		// 刪除樓層
-		deleteFloor: (id: string) => {
-			return request<{ message: string }>(`/environment/floors/${id}`, {
-				method: "DELETE"
-			});
-		},
+		deleteFloor: floorApi.deleteFloor,
 
 		// ========== 感測器讀數 API ==========
 
@@ -86,35 +80,21 @@ export const useEnvironmentApi = () => {
 
 		// 取得歷史讀數
 		getReadings: (locationId: string, options?: GetReadingsOptions) => {
-			const params = new URLSearchParams();
-			if (options?.startTime) params.append("startTime", options.startTime);
-			if (options?.endTime) params.append("endTime", options.endTime);
-			if (options?.limit) params.append("limit", String(options.limit));
+			const params: Record<string, unknown> = {};
+			if (options?.startTime) params.startTime = options.startTime;
+			if (options?.endTime) params.endTime = options.endTime;
+			if (options?.limit) params.limit = options.limit;
 
-			const queryString = params.toString();
-			return request<{ readings: SensorReading[] }>(
-				`/environment/readings/${locationId}${queryString ? `?${queryString}` : ""}`
-			);
+			const path = buildPathWithQuery(`/environment/readings/${locationId}`, params);
+			return request<{ readings: SensorReading[] }>(path);
 		},
 
 		// ========== 錯誤追蹤 API ==========
 
 		// 記錄環境位置錯誤
-		reportError: (locationId: string | number, errorMessage?: string) => {
-			return request<{ success: boolean; alertCreated: boolean }>(
-				`/environment/locations/${locationId}/errors`,
-				{
-					method: "POST",
-					body: JSON.stringify({ errorMessage: errorMessage || "無法讀取感測器資料" })
-				}
-			);
-		},
+		reportError: errorTrackingApi.reportError,
 
 		// 清除環境位置錯誤
-		clearError: (locationId: string | number) => {
-			return request<{ success: boolean }>(`/environment/locations/${locationId}/errors`, {
-				method: "DELETE"
-			});
-		}
+		clearError: errorTrackingApi.clearError
 	};
 };

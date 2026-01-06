@@ -1,10 +1,19 @@
 import type { RTSPStreamInfo, RTSPStartResponse, RTSPStatusResponse, RTSPStopResponse } from "~/types/rtsp";
+import { useApiBase } from "~/composables/useApiBase";
 
 export const useRtspApi = () => {
-	const config = useRuntimeConfig();
-	const fetcher = useRequestFetch();
-	const apiBase = config.public.apiBase || "http://localhost:4000/api";
-	const rtspApiBase = `${apiBase}/rtsp`;
+	const { request } = useApiBase();
+
+	/**
+	 * 處理 RTSP API 的特殊回應格式（包含 error 欄位）
+	 */
+	const handleRtspResponse = <T>(response: any, errorMessage: string): T => {
+		// RTSP API 使用特殊的回應格式，包含 error 欄位
+		if (response?.error) {
+			throw new Error(response.message || errorMessage);
+		}
+		return response?.data || response;
+	};
 
 	/**
 	 * 啟動 RTSP 串流
@@ -12,34 +21,22 @@ export const useRtspApi = () => {
 	 * @returns Promise<RTSPStreamInfo>
 	 */
 	const startStream = async (rtspUrl: string): Promise<RTSPStreamInfo> => {
-		try {
+		if (process.dev) {
 			console.log(`[RTSP API] 啟動串流，URL: ${rtspUrl.replace(/:[^:@]+@/, ':****@')}`); // 隱藏密碼
-			const response = await fetcher<RTSPStartResponse>(`${rtspApiBase}/start`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Accept: "application/json"
-				},
-				body: JSON.stringify({ rtspUrl }),
-				credentials: "include"
-			});
-
-			if (response.error) {
-				const errorMsg = response.message || "啟動串流失敗";
-				console.error(`[RTSP API] 啟動串流失敗: ${errorMsg}`);
-				throw new Error(errorMsg);
-			}
-
-			console.log(`[RTSP API] 串流啟動成功，Stream ID: ${response.data.streamId}, HLS URL: ${response.data.hlsUrl}`);
-			return response.data;
-		} catch (error) {
-			if (error instanceof Error) {
-				const errorMsg = `RTSP API 請求失敗: ${error.message}`;
-				console.error(`[RTSP API] ${errorMsg}`);
-				throw new Error(errorMsg);
-			}
-			throw error;
 		}
+		
+		const response = await request<RTSPStartResponse>("/rtsp/start", {
+			method: "POST",
+			body: JSON.stringify({ rtspUrl })
+		});
+
+		const streamInfo = handleRtspResponse<RTSPStreamInfo>(response, "啟動串流失敗");
+		
+		if (process.dev) {
+			console.log(`[RTSP API] 串流啟動成功，Stream ID: ${streamInfo.streamId}, HLS URL: ${streamInfo.hlsUrl}`);
+		}
+		
+		return streamInfo;
 	};
 
 	/**
@@ -48,26 +45,11 @@ export const useRtspApi = () => {
 	 * @returns Promise<{ success: boolean; message: string }>
 	 */
 	const stopStream = async (streamId: string): Promise<{ success: boolean; message: string }> => {
-		try {
-			const response = await fetcher<RTSPStopResponse>(`${rtspApiBase}/stop/${streamId}`, {
-				method: "POST",
-				headers: {
-					Accept: "application/json"
-				},
-				credentials: "include"
-			});
+		const response = await request<RTSPStopResponse>(`/rtsp/stop/${streamId}`, {
+			method: "POST"
+		});
 
-			if (response.error) {
-				throw new Error(response.message || "停止串流失敗");
-			}
-
-			return response.data;
-		} catch (error) {
-			if (error instanceof Error) {
-				throw new Error(`RTSP API 請求失敗: ${error.message}`);
-			}
-			throw error;
-		}
+		return handleRtspResponse<{ success: boolean; message: string }>(response, "停止串流失敗");
 	};
 
 	/**
@@ -75,25 +57,10 @@ export const useRtspApi = () => {
 	 * @returns Promise<RTSPStreamInfo[]>
 	 */
 	const getAllStreamStatus = async (): Promise<RTSPStreamInfo[]> => {
-		try {
-			const response = await fetcher<RTSPStatusResponse>(`${rtspApiBase}/status`, {
-				headers: {
-					Accept: "application/json"
-				},
-				credentials: "include"
-			});
+		const response = await request<RTSPStatusResponse>("/rtsp/status");
 
-			if (response.error) {
-				throw new Error(response.message || "獲取串流狀態失敗");
-			}
-
-			return Array.isArray(response.data) ? response.data : [response.data];
-		} catch (error) {
-			if (error instanceof Error) {
-				throw new Error(`RTSP API 請求失敗: ${error.message}`);
-			}
-			throw error;
-		}
+		const data = handleRtspResponse<RTSPStreamInfo | RTSPStreamInfo[]>(response, "獲取串流狀態失敗");
+		return Array.isArray(data) ? data : [data];
 	};
 
 	/**
@@ -103,24 +70,13 @@ export const useRtspApi = () => {
 	 */
 	const getStreamStatus = async (streamId: string): Promise<RTSPStreamInfo | null> => {
 		try {
-			const response = await fetcher<RTSPStatusResponse>(`${rtspApiBase}/status/${streamId}`, {
-				headers: {
-					Accept: "application/json"
-				},
-				credentials: "include"
-			});
-
-			if (response.error) {
-				if (response.message?.includes("不存在")) {
-					return null;
-				}
-				throw new Error(response.message || "獲取串流狀態失敗");
-			}
-
-			return Array.isArray(response.data) ? response.data[0] : response.data;
+			const response = await request<RTSPStatusResponse>(`/rtsp/status/${streamId}`);
+			const data = handleRtspResponse<RTSPStreamInfo | RTSPStreamInfo[]>(response, "獲取串流狀態失敗");
+			return Array.isArray(data) ? data[0] : data;
 		} catch (error) {
-			if (error instanceof Error) {
-				throw new Error(`RTSP API 請求失敗: ${error.message}`);
+			// 如果錯誤訊息包含「不存在」，返回 null 而不是拋出錯誤
+			if (error instanceof Error && error.message.includes("不存在")) {
+				return null;
 			}
 			throw error;
 		}

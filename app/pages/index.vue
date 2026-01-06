@@ -39,6 +39,7 @@ import BuildingCard from "~/components/home/BuildingCard.vue";
 import SystemModule from "~/components/home/SystemModule.vue";
 import { useDeviceApi } from "~/composables/useDeviceApi";
 import { useApiBase } from "~/composables/useApiBase";
+import { isDeviceConnectionError } from "~/utils/errorUtils";
 import type { ModbusDeviceConfig, ModbusDataResponse } from "~/types/modbus";
 import type { Device, SensorDeviceConfig } from "~/types/device";
 
@@ -235,13 +236,10 @@ const loadSensorData = async () => {
 		}
 	} catch (error: any) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
-		const isOfflineError =
-			errorMessage.includes("503") ||
-			errorMessage.includes("服務不可用") ||
-			errorMessage.includes("設備離線");
-
-		if (isOfflineError) {
-			// 設備離線 - 使用防抖機制避免重複提示
+		
+		// 檢查是否為設備連接相關的錯誤
+		if (isDeviceConnectionError(errorMessage)) {
+			// 設備連接錯誤 - 使用防抖機制避免重複提示
 			const now = Date.now();
 			const shouldShowAlert =
 				!isSensorOffline.value ||
@@ -254,7 +252,7 @@ const loadSensorData = async () => {
 				toast.warning("感測器離線，無法讀取資料", 8000);
 			}
 		} else {
-			// 其他錯誤（CORS、網路等）- 只在感測器在線時顯示，避免重複提示
+			// 其他錯誤（真正的後端連接錯誤、CORS 等）- 只在感測器在線時顯示，避免重複提示
 			// 使用統一錯誤處理（會自動去重和優先級判斷）
 			if (!isSensorOffline.value) {
 				handleError(error, "讀取感測器資料失敗");

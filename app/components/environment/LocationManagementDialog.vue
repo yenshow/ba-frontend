@@ -21,259 +21,259 @@
 					</header>
 
 					<div class="flex-1 overflow-y-auto pr-7 2xl:pr-8">
-						<template v-if="isLoading">
-							<div class="space-y-3">
-								<div
-									v-for="n in 3"
-									:key="`skeleton-${n}`"
-									class="h-20 animate-pulse rounded-lg bg-white/10"
-								></div>
-							</div>
-						</template>
-						<template v-else-if="floors.length > 0">
-							<div class="space-y-3">
-								<div
-									v-for="floor in sortedFloors"
-									:key="floor.id || floor.name"
-									class="overflow-hidden rounded-lg border border-white/20 bg-white/10 transition-all"
-									:class="{ 'bg-white/15': expandedFloors.has(floor.id || floor.name) }"
-								>
-									<!-- 樓層標題列（可點擊展開） -->
-									<div
-										class="flex cursor-pointer items-center justify-between p-4 transition-colors hover:bg-white/10"
-										@click="toggleFloor(floor.id || floor.name)"
-									>
-										<div class="flex flex-1 items-center gap-4">
-											<!-- 展開/收起圖標 -->
-											<svg
-												class="h-5 w-5 text-white/70 transition-transform"
-												:class="{ 'rotate-90': expandedFloors.has(floor.id || floor.name) }"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
-											>
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M9 5l7 7-7 7"
-												/>
-											</svg>
-											<!-- 樓層名稱 -->
-											<div
-												class="flex h-16 min-w-[80px] items-center justify-center rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 shadow-lg"
-											>
-												<h4 v-if="floor.name" class="text-xl font-bold tracking-wider text-white 2xl:text-2xl">
-													{{ floor.name }}
-												</h4>
-												<span v-else class="text-sm text-white/60 2xl:text-base">未命名</span>
-											</div>
-
-											<div class="flex-1">
-												<div class="flex items-center gap-3">
-													<span
-														class="rounded-full bg-white/25 px-3 py-1 text-sm font-medium text-white 2xl:text-base"
-													>
-														{{ floor.locations?.length || 0 }} 個地點
-													</span>
-												</div>
-											</div>
-										</div>
-										<div class="ml-4 flex gap-2 2xl:gap-3" @click.stop>
-											<button
-												type="button"
-												class="p-2 text-rose-400 transition-colors hover:text-rose-300"
-												@click.stop="handleDeleteFloor(floor.id || floor.name)"
-												title="刪除樓層"
-											>
-												<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-													/>
-												</svg>
-											</button>
-										</div>
-									</div>
-
-									<!-- 展開內容 -->
-									<Transition name="expand">
+						<div class="min-h-[200px]">
+							<Transition name="fade" mode="out-in">
+								<div v-if="floors.length > 0" :key="`floors-${floors.length}`">
+									<div class="space-y-3">
 										<div
-											v-if="expandedFloors.has(floor.id || floor.name)"
-											class="space-y-3 border-t border-white/10 p-4"
+											v-for="floor in sortedFloors"
+											:key="floor.id || floor.name"
+											class="overflow-hidden rounded-lg border border-white/20 bg-white/10 transition-all"
+											:class="{ 'bg-white/15': expandedFloors.has(floor.id || floor.name) }"
 										>
-											<!-- 樓層基本資訊 -->
-											<div class="flex items-center gap-3 border-b border-white/10 pb-3">
-												<span class="text-base font-medium 2xl:text-lg">樓層名稱</span>
-												<input
-													:value="floor.name"
-													type="text"
-													required
-													class="form-input-small flex-1"
-													placeholder="例如：1F、2F"
-													@input="updateFloorName(floor, ($event.target as HTMLInputElement).value)"
-												/>
-											</div>
-
-											<!-- 地點列表 -->
-											<div class="flex items-center justify-between">
-												<span class="text-base font-medium 2xl:text-lg">地點列表</span>
-												<button
-													type="button"
-													class="btn-secondary text-sm 2xl:text-base"
-													@click="addLocation(floor)"
-												>
-													新增地點
-												</button>
-											</div>
-
-											<!-- 地點項目 -->
+											<!-- 樓層標題列（可點擊展開） -->
 											<div
-												v-if="!floor.locations || floor.locations.length === 0"
-												class="py-4 text-center text-sm text-white/60 2xl:text-base"
+												class="flex cursor-pointer items-center justify-between p-4 transition-colors hover:bg-white/10"
+												@click="toggleFloor(floor.id || floor.name)"
 											>
-												尚無地點，請新增地點
-											</div>
-											<div v-else class="space-y-3">
-												<div
-													v-for="(location, locationIndex) in floor.locations"
-													:key="location.id || `location-${locationIndex}`"
-													class="rounded border border-white/10 bg-white/5 p-4"
-												>
-													<div class="mb-3 flex items-center justify-between">
-														<h5 class="text-base font-semibold text-white 2xl:text-lg">
-															地點 {{ locationIndex + 1 }}
-														</h5>
-														<button
-															type="button"
-															class="p-2 text-rose-400 transition-colors hover:text-rose-300"
-															@click="removeLocation(floor, locationIndex)"
-															title="刪除地點"
+												<div class="flex flex-1 items-center gap-4">
+													<!-- 展開/收起圖標 -->
+													<svg
+														class="h-5 w-5 text-white/70 transition-transform"
+														:class="{ 'rotate-90': expandedFloors.has(floor.id || floor.name) }"
+														fill="none"
+														stroke="currentColor"
+														viewBox="0 0 24 24"
+													>
+														<path
+															stroke-linecap="round"
+															stroke-linejoin="round"
+															stroke-width="2"
+															d="M9 5l7 7-7 7"
+														/>
+													</svg>
+													<!-- 樓層名稱 -->
+													<div
+														class="flex h-16 min-w-[80px] items-center justify-center rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 shadow-lg"
+													>
+														<h4
+															v-if="floor.name"
+															class="text-xl font-bold tracking-wider text-white 2xl:text-2xl"
 														>
-															<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																<path
-																	stroke-linecap="round"
-																	stroke-linejoin="round"
-																	stroke-width="2"
-																	d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-																/>
-															</svg>
-														</button>
+															{{ floor.name }}
+														</h4>
+														<span v-else class="text-sm text-white/60 2xl:text-base">未命名</span>
 													</div>
 
-													<div class="space-y-3">
-														<!-- 地點名稱 -->
-														<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-															<span>地點名稱 *</span>
-															<input
-																v-model="location.name"
-																type="text"
-																required
-																class="form-input-small"
-																placeholder="例如：管理中心、展廳"
-																@blur="handleLocationChange(floor)"
-															/>
-														</label>
-
-														<!-- 感測器設備 -->
-														<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-															<span>感測器設備</span>
-															<select
-																v-model.number="location.deviceId"
-																class="form-input-small form-select"
-																@change="handleDeviceChange(floor, location, locationIndex)"
-																:disabled="isLoadingDevices"
+													<div class="flex-1">
+														<div class="flex items-center gap-3">
+															<span
+																class="rounded-full bg-white/25 px-3 py-1 text-sm font-medium text-white 2xl:text-base"
 															>
-																<option :value="0">請選擇感測器</option>
-																<option v-if="isLoadingDevices" value="" disabled>載入中...</option>
-																<option v-else-if="devices.length === 0" value="" disabled>尚無可用感測器</option>
-																<option v-for="device in devices" :key="device.id" :value="device.id">
-																	{{ device.name }}
-																</option>
-															</select>
-														</label>
-
-														<!-- 感測器參數列表（從設備型號讀取） -->
-														<div class="border-t border-white/10 pt-3">
-															<div class="mb-3">
-																<span class="text-sm font-medium text-white/80 2xl:text-base">感測器參數</span>
-															</div>
-
-															<!-- 未選擇設備時的提示 -->
-															<div
-																v-if="!location.deviceId"
-																class="py-2 text-center text-xs text-amber-300 2xl:text-sm"
-															>
-																請先選擇感測器設備以顯示可用參數
-															</div>
-
-															<!-- 已選擇設備，顯示可用參數列表 -->
-															<template v-else>
-																<div
-																	v-if="getAvailableParameters(location).length === 0"
-																	class="py-2 text-center text-xs text-white/50 2xl:text-sm"
-																>
-																	<p>此設備型號尚未配置參數</p>
-																	<p class="mt-1 text-xs">請在「設備型號管理」中設定參數配置</p>
-																</div>
-																<div v-else class="grid grid-cols-2 gap-2">
-																	<label
-																		v-for="paramDef in getAvailableParameters(location)"
-																		:key="paramDef.type"
-																		class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
-																		:class="{
-																			'border-cyan-400/50 bg-cyan-500/20': isParameterEnabled(
-																				location,
-																				paramDef.type as SensorParameterType
-																			)
-																		}"
-																	>
-																		<input
-																			type="checkbox"
-																			:checked="isParameterEnabled(location, paramDef.type as SensorParameterType)"
-																			@change="
-																				toggleParameter(
-																					floor,
-																					location,
-																					locationIndex,
-																					paramDef.type as SensorParameterType
-																				)
-																			"
-																			class="h-4 w-4 cursor-pointer accent-cyan-400"
-																		/>
-																		<span class="text-xs text-white/90 2xl:text-sm">
-																			{{ getParameterDisplayName(paramDef.type as SensorParameterType) }}
-																		</span>
-																		<span
-																			v-if="paramDef.modbusConfig"
-																			class="ml-auto text-xs text-white/50"
-																			title="Modbus 地址: {{ paramDef.modbusConfig.address }}"
-																		>
-																			Addr: {{ paramDef.modbusConfig.address }}
-																		</span>
-																	</label>
-																</div>
-															</template>
+																{{ floor.locations?.length || 0 }} 個地點
+															</span>
 														</div>
 													</div>
 												</div>
+												<div class="ml-4 flex gap-2 2xl:gap-3" @click.stop>
+													<button
+														type="button"
+														class="p-2 text-rose-400 transition-colors hover:text-rose-300"
+														@click.stop="handleDeleteFloor(floor.id || floor.name)"
+														title="刪除樓層"
+													>
+														<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+															/>
+														</svg>
+													</button>
+												</div>
 											</div>
-											<p v-if="devices.length === 0 && !isLoadingDevices" class="mt-1 text-xs text-amber-300">
-												請先在「設備管理」中建立感測器設備
-											</p>
+
+											<!-- 展開內容 -->
+											<Transition name="expand">
+												<div
+													v-if="expandedFloors.has(floor.id || floor.name)"
+													class="space-y-3 border-t border-white/10 p-4"
+												>
+													<!-- 樓層基本資訊 -->
+													<div class="flex items-center gap-3 border-b border-white/10 pb-3">
+														<span class="text-base font-medium 2xl:text-lg">樓層名稱</span>
+														<input
+															:value="floor.name"
+															type="text"
+															required
+															class="form-input-small flex-1"
+															placeholder="例如：1F、2F"
+															@input="updateFloorName(floor, ($event.target as HTMLInputElement).value)"
+														/>
+													</div>
+
+													<!-- 地點列表 -->
+													<div class="flex items-center justify-between">
+														<span class="text-base font-medium 2xl:text-lg">地點列表</span>
+														<button
+															type="button"
+															class="btn-secondary text-sm 2xl:text-base"
+															@click="addLocation(floor)"
+														>
+															新增地點
+														</button>
+													</div>
+
+													<!-- 地點項目 -->
+													<div
+														v-if="!floor.locations || floor.locations.length === 0"
+														class="py-4 text-center text-sm text-white/60 2xl:text-base"
+													>
+														尚無地點，請新增地點
+													</div>
+													<div v-else class="space-y-3">
+														<div
+															v-for="(location, locationIndex) in floor.locations"
+															:key="location.id || `location-${locationIndex}`"
+															class="rounded border border-white/10 bg-white/5 p-4"
+														>
+															<div class="mb-3 flex items-center justify-between">
+																<h5 class="text-base font-semibold text-white 2xl:text-lg">
+																	地點 {{ locationIndex + 1 }}
+																</h5>
+																<button
+																	type="button"
+																	class="p-2 text-rose-400 transition-colors hover:text-rose-300"
+																	@click="removeLocation(floor, locationIndex)"
+																	title="刪除地點"
+																>
+																	<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																		<path
+																			stroke-linecap="round"
+																			stroke-linejoin="round"
+																			stroke-width="2"
+																			d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+																		/>
+																	</svg>
+																</button>
+															</div>
+
+															<div class="space-y-3">
+																<!-- 地點名稱 -->
+																<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+																	<span>地點名稱 *</span>
+																	<input
+																		v-model="location.name"
+																		type="text"
+																		required
+																		class="form-input-small"
+																		placeholder="例如：管理中心、展廳"
+																		@blur="handleLocationChange(floor)"
+																	/>
+																</label>
+
+																<!-- 感測器設備 -->
+																<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+																	<span>感測器設備</span>
+																	<select
+																		v-model.number="location.deviceId"
+																		class="form-input-small form-select"
+																		@change="handleDeviceChange(floor, location, locationIndex)"
+																		:disabled="isLoadingDevices"
+																	>
+																		<option :value="0">請選擇感測器</option>
+																		<option v-if="isLoadingDevices" value="" disabled>載入中...</option>
+																		<option v-else-if="devices.length === 0" value="" disabled>尚無可用感測器</option>
+																		<option v-for="device in devices" :key="device.id" :value="device.id">
+																			{{ device.name }}
+																		</option>
+																	</select>
+																</label>
+
+																<!-- 感測器參數列表（從設備型號讀取） -->
+																<div class="border-t border-white/10 pt-3">
+																	<div class="mb-3">
+																		<span class="text-sm font-medium text-white/80 2xl:text-base">感測器參數</span>
+																	</div>
+
+																	<!-- 未選擇設備時的提示 -->
+																	<div
+																		v-if="!location.deviceId"
+																		class="py-2 text-center text-xs text-amber-300 2xl:text-sm"
+																	>
+																		請先選擇感測器設備以顯示可用參數
+																	</div>
+
+																	<!-- 已選擇設備，顯示可用參數列表 -->
+																	<template v-else>
+																		<div
+																			v-if="getAvailableParameters(location).length === 0"
+																			class="py-2 text-center text-xs text-white/50 2xl:text-sm"
+																		>
+																			<p>此設備型號尚未配置參數</p>
+																			<p class="mt-1 text-xs">請在「設備型號管理」中設定參數配置</p>
+																		</div>
+																		<div v-else class="grid grid-cols-2 gap-2">
+																			<label
+																				v-for="paramDef in getAvailableParameters(location)"
+																				:key="paramDef.type"
+																				class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
+																				:class="{
+																					'border-cyan-400/50 bg-cyan-500/20': isParameterEnabled(
+																						location,
+																						paramDef.type as SensorParameterType
+																					)
+																				}"
+																			>
+																				<input
+																					type="checkbox"
+																					:checked="isParameterEnabled(location, paramDef.type as SensorParameterType)"
+																					@change="
+																						toggleParameter(
+																							floor,
+																							location,
+																							locationIndex,
+																							paramDef.type as SensorParameterType
+																						)
+																					"
+																					class="h-4 w-4 cursor-pointer accent-cyan-400"
+																				/>
+																				<span class="text-xs text-white/90 2xl:text-sm">
+																					{{ getParameterDisplayName(paramDef.type as SensorParameterType) }}
+																				</span>
+																				<span
+																					v-if="paramDef.modbusConfig"
+																					class="ml-auto text-xs text-white/50"
+																					title="Modbus 地址: {{ paramDef.modbusConfig.address }}"
+																				>
+																					Addr: {{ paramDef.modbusConfig.address }}
+																				</span>
+																			</label>
+																		</div>
+																	</template>
+																</div>
+															</div>
+														</div>
+													</div>
+													<p
+														v-if="devices.length === 0 && !isLoadingDevices"
+														class="mt-1 text-xs text-amber-300"
+													>
+														請先在「設備管理」中建立感測器設備
+													</p>
+												</div>
+											</Transition>
 										</div>
-									</Transition>
+									</div>
 								</div>
-							</div>
-						</template>
-						<template v-else>
-							<div class="py-8 text-center text-white/60">
-								<p class="text-base 2xl:text-lg">尚無樓層資料</p>
-								<p class="mt-2 text-sm 2xl:text-base">點擊「新增樓層」開始建立</p>
-							</div>
-						</template>
+								<!-- 空狀態 -->
+								<div v-else key="empty" class="py-8 text-center text-white/60">
+									<p class="text-base 2xl:text-lg">尚無樓層資料</p>
+									<p class="mt-2 text-sm 2xl:text-base">點擊「新增樓層」開始建立</p>
+								</div>
+							</Transition>
+						</div>
 					</div>
 
 					<p v-if="errorMessage" class="pr-7 text-base text-rose-300 2xl:pr-8 2xl:text-lg">
@@ -308,7 +308,7 @@ import type {
 } from "~/types/environment";
 import type { Device, SensorDeviceModelConfig, SensorParameterDefinition } from "~/types/device";
 import { useDeviceApi } from "~/composables/useDeviceApi";
-import { getParameterDisplayName, cleanFloor } from "~/composables/useSensorParameter";
+import { getParameterDisplayName, cleanFloor } from "~/utils/sensorUtils";
 
 interface Props {
 	modelValue: boolean;

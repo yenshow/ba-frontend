@@ -23,59 +23,53 @@
 					</header>
 
 					<div class="flex-1 overflow-y-auto pr-7 2xl:pr-8">
-						<template v-if="isLoading">
-							<div class="space-y-3">
-								<div
-									v-for="n in 3"
-									:key="`skeleton-${n}`"
-									class="h-20 animate-pulse rounded-lg bg-white/10"
-								></div>
-							</div>
-						</template>
-						<template v-else-if="deviceTypes.length > 0">
-							<div class="space-y-3">
-								<div
-									v-for="type in deviceTypes"
-									:key="type.id"
-									class="flex items-center justify-between rounded-lg border border-white/20 bg-white/10 p-4 transition-colors hover:bg-white/15"
-								>
-									<div class="flex-1">
-										<div class="flex items-center gap-3">
-											<h4 class="text-base font-medium text-white 2xl:text-lg">{{ type.name }}</h4>
-											<span
-												class="rounded bg-white/20 px-2 py-1 text-xs text-white/80 2xl:text-sm"
-												>{{ type.code }}</span
-											>
+						<div class="min-h-[200px]">
+							<Transition name="fade" mode="out-in">
+								<div v-if="deviceTypes.length > 0" :key="`types-${deviceTypes.length}`">
+									<div class="space-y-3">
+										<div
+											v-for="type in deviceTypes"
+											:key="type.id"
+											class="flex items-center justify-between rounded-lg border border-white/20 bg-white/10 p-4 transition-colors hover:bg-white/15"
+										>
+											<div class="flex-1">
+												<div class="flex items-center gap-3">
+													<h4 class="text-base font-medium text-white 2xl:text-lg">{{ type.name }}</h4>
+													<span
+														class="rounded bg-white/20 px-2 py-1 text-xs text-white/80 2xl:text-sm"
+														>{{ type.code }}</span
+													>
+												</div>
+												<p v-if="type.description" class="mt-1 text-sm text-white/60 2xl:text-base">
+													{{ type.description }}
+												</p>
+											</div>
+											<div class="flex gap-2 2xl:gap-3">
+												<button
+													type="button"
+													class="btn-list-edit"
+													@click="editDeviceType(type)"
+												>
+													編輯
+												</button>
+												<button
+													type="button"
+													class="btn-list-delete"
+													@click="confirmDelete(type)"
+												>
+													刪除
+												</button>
+											</div>
 										</div>
-										<p v-if="type.description" class="mt-1 text-sm text-white/60 2xl:text-base">
-											{{ type.description }}
-										</p>
-									</div>
-									<div class="flex gap-2 2xl:gap-3">
-										<button
-											type="button"
-											class="btn-list-edit"
-											@click="editDeviceType(type)"
-										>
-											編輯
-										</button>
-										<button
-											type="button"
-											class="btn-list-delete"
-											@click="confirmDelete(type)"
-										>
-											刪除
-										</button>
 									</div>
 								</div>
-							</div>
-						</template>
-						<template v-else>
-							<div class="py-8 text-center text-white/60">
-								<p class="text-base 2xl:text-lg">尚無設備類型</p>
-								<p class="mt-2 text-sm 2xl:text-base">點擊「新增類型」開始建立</p>
-							</div>
-						</template>
+								<!-- 空狀態 -->
+								<div v-else key="empty" class="py-8 text-center text-white/60">
+									<p class="text-base 2xl:text-lg">尚無設備類型</p>
+									<p class="mt-2 text-sm 2xl:text-base">點擊「新增類型」開始建立</p>
+								</div>
+							</Transition>
+						</div>
 					</div>
 
 					<p v-if="errorMessage" class="text-sm text-rose-300 pr-7 2xl:text-base 2xl:pr-8">{{ errorMessage }}</p>

@@ -1,11 +1,11 @@
 <template>
-	<div class="flex flex-col items-center justify-center h-full min-h-0">
+	<div class="flex h-full min-h-0 flex-col items-center justify-center">
 		<!-- Building image -->
-		<div class="mx-6 xl:mx-8 2xl:mx-12 my-2 xl:my-3 2xl:my-4 overflow-hidden relative">
+		<div class="relative mx-6 my-2 overflow-hidden xl:mx-8 xl:my-3 2xl:mx-12 2xl:my-4">
 			<NuxtImg
 				src="/layout/modern-business-building.jpg"
 				alt="建築物圖片"
-				class="image-blur-load w-full h-full rounded-3xl object-contain"
+				class="image-blur-load h-full w-full rounded-3xl object-contain"
 				:class="{ 'image-loaded': isBuildingLoaded }"
 				width="full"
 				height="full"
@@ -14,11 +14,11 @@
 		</div>
 
 		<!-- Building Info Overlay at Bottom -->
-		<div class="translate-x-[6%] w-full relative">
+		<div class="relative w-full translate-x-[6%]">
 			<NuxtImg
 				src="/layout/building-name.png"
 				alt="建築名稱"
-				class="image-blur-load w-full h-auto object-contain max-h-[80px] xl:max-h-[96px] 2xl:max-h-[112px]"
+				class="image-blur-load h-auto max-h-[80px] w-full object-contain xl:max-h-[96px] 2xl:max-h-[112px]"
 				:class="{ 'image-loaded': isNameLoaded }"
 				width="full"
 				height="112"
@@ -40,12 +40,10 @@ const isNameLoaded = ref(false);
 		opacity 0.5s ease-in-out;
 	filter: blur(20px);
 	opacity: 0.7;
-	transform: scale(1.05);
 }
 
 .image-blur-load.image-loaded {
 	filter: blur(0);
 	opacity: 1;
-	transform: scale(1);
 }
 </style>

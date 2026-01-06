@@ -23,8 +23,8 @@
 	-webkit-backdrop-filter: blur(var(--glass-blur));
 	border: var(--glass-border-width) solid var(--glass-border-color);
 	box-shadow:
-		var(--glass-shadow-outer-1), var(--glass-shadow-outer-2), var(--glass-shadow-inner-top), var(--glass-shadow-inner-bottom),
-		var(--glass-shadow-inner-highlight);
+		var(--glass-shadow-outer-1), var(--glass-shadow-outer-2), var(--glass-shadow-inner-top),
+		var(--glass-shadow-inner-bottom), var(--glass-shadow-inner-highlight);
 	transition: all 0.3s ease;
 	position: relative;
 	overflow: hidden;
@@ -80,4 +80,63 @@
 	--glass-shadow-inner-highlight: inset 0 4px 12px rgba(255, 255, 255, 0.25);
 	/* 注意：glass-card 使用漸層背景，需要覆蓋基礎的 background */
 	background: var(--glass-bg);
+}
+
+/* ========================================
+   篩選器通用樣式
+   ======================================== */
+
+/* 篩選器輸入框樣式 */
+.select-filter {
+	border-radius: 0.75rem;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	background-color: rgba(255, 255, 255, 0.15);
+	padding: 0.5rem 1rem;
+	font-size: 0.875rem;
+	color: white;
+	outline: none;
+}
+
+.select-filter:focus {
+	outline: 2px solid rgba(59, 130, 246, 0.5);
+	outline-offset: 2px;
+}
+
+@media (min-width: 1536px) {
+	.select-filter {
+		padding: 0.75rem 1.5rem;
+		font-size: 1rem;
+	}
+}
+
+.select-filter option {
+	background-color: #1e293b;
+	color: white;
+	padding: 0.5rem;
+}
+
+/* ========================================
+   過渡動畫 - 統一樣式系統
+   ======================================== */
+
+/* Fade 淡入淡出動畫 - 通用內容切換 */
+.fade-enter-active,
+.fade-leave-active {
+	transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+	opacity: 0;
+}
+
+/* Dialog Fade 對話框淡入淡出動畫 - 用於彈窗 */
+.dialog-fade-enter-active,
+.dialog-fade-leave-active {
+	transition: opacity 0.2s ease;
+}
+
+.dialog-fade-enter-from,
+.dialog-fade-leave-to {
+	opacity: 0;
 }

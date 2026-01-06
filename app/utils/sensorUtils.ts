@@ -74,7 +74,7 @@ export const getParameterFractionDigits = (type: SensorParameterType): number =>
  */
 export const cleanParameters = (parameters: any[]): SensorParameter[] => {
 	if (!Array.isArray(parameters)) return [];
-	
+
 	return parameters
 		.filter(p => p && p.type)
 		.map(p => {
@@ -90,7 +90,7 @@ export const cleanParameters = (parameters: any[]): SensorParameter[] => {
 				// 如果沒有 enabled 欄位，預設為 false
 				enabled = false;
 			}
-			
+
 			return {
 				type: p.type as SensorParameterType,
 				enabled
