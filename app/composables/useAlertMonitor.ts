@@ -7,8 +7,8 @@ import {
 	type AlertUpdatedEvent,
 	type AlertCountEvent
 } from "../composables/useWebSocket";
-import type { Alert, AlertFilters, AlertSource } from "../types/alert";
-import { getSourceLabel } from "../utils/alertUtils";
+import type { Alert, AlertFilters, AlertSource, AlertSeverity } from "../types/alert";
+import { getSourceLabel, getSeverityLabel } from "../utils/alertUtils";
 
 /**
  * 警示監聽器
@@ -25,11 +25,17 @@ export const useAlertMonitor = () => {
 	// 活躍的警報 Toast ID 映射（警報 ID -> Toast ID，用於持續顯示）
 	const activeAlertToasts = ref<Map<number, string>>(new Map());
 
+	// 警報嚴重程度映射（用於優先級管理）
+	const alertSeverities = ref<Map<number, AlertSeverity>>(new Map());
+
 	// 上次檢查時間（用於增量查詢）
 	const lastCheckTime = ref<Date | null>(null);
 
 	// 基礎輪詢間隔（毫秒）
 	const BASE_POLLING_INTERVAL = 30000; // 30 秒
+
+	// Toast 最大顯示數量（中優先級優化）
+	const MAX_ALERT_TOASTS = 8; // 最大顯示 8 個警報 Toast
 
 	// 輪詢計時器
 	let pollingTimer: ReturnType<typeof setTimeout> | null = null;
@@ -133,9 +139,16 @@ export const useAlertMonitor = () => {
 
 				currentActiveAlertIds.add(alert.id);
 
-				// 如果這個警報還沒有顯示 Toast，顯示它
-				if (!activeAlertToasts.value.has(alert.id)) {
-					showAlertNotification(alert, true);
+				// 檢查是否已有 Toast
+				const existingToastId = activeAlertToasts.value.get(alert.id);
+				if (existingToastId) {
+					// 更新現有 Toast 的內容（severity 可能升級、message 可能變化）
+					updateAlertToastContent(existingToastId, alert);
+					// 更新嚴重程度映射（severity 可能升級）
+					alertSeverities.value.set(alert.id, alert.severity);
+				} else {
+					// 如果這個警報還沒有顯示 Toast，顯示它
+					showAlertNotification(alert);
 				}
 			}
 
@@ -159,26 +172,121 @@ export const useAlertMonitor = () => {
 	};
 
 	/**
-	 * 顯示警示通知
+	 * 構建警報 Toast 的類型和訊息（詳細格式）
 	 * @param alert - 警報物件
-	 * @param persistent - 是否持久顯示（直到用戶處理）
+	 * @returns Toast 類型和訊息
 	 */
-	const showAlertNotification = (alert: Alert, persistent = false) => {
-		// 根據嚴重程度選擇 Toast 類型
+	const buildAlertToastContent = (alert: Alert): { type: "warning" | "error"; message: string } => {
 		const toastType: "warning" | "error" = alert.severity === "warning" ? "warning" : "error";
-		// 持久顯示時 duration 為 0，非持久顯示時根據嚴重程度設置
-		const duration = persistent ? 0 : alert.severity === "critical" ? 10000 : 5000;
-
-		// 構建通知訊息
 		const sourceLabel = getSourceLabel(alert.source);
-		const message = `${sourceLabel}: ${alert.message}`;
+		const severityLabel = getSeverityLabel(alert.severity);
 
-		// 顯示 Toast
-		const toastId = toast.showToast(toastType, message, duration, { persistent });
+		// 構建位置資訊
+		let locationInfo = "";
+		if (alert.source_name) {
+			locationInfo = alert.source_name;
+			// 如果有樓層資訊，添加到位置資訊中
+			if (alert.source === "environment" && alert.environment_floor_name) {
+				locationInfo = `${alert.environment_floor_name} - ${locationInfo}`;
+			} else if (alert.source === "lighting" && alert.lighting_floor_name) {
+				locationInfo = `${alert.lighting_floor_name} - ${locationInfo}`;
+			}
+		} else if (alert.device_name) {
+			locationInfo = alert.device_name;
+		}
 
-		// 如果是持久顯示，記錄 Toast ID
-		if (persistent && toastId) {
+		// 格式化時間（HH:mm）
+		const timeStr = new Date(alert.created_at).toLocaleTimeString("zh-TW", {
+			hour: "2-digit",
+			minute: "2-digit",
+			hour12: false
+		});
+
+		// 構建詳細訊息格式：[嚴重程度] 來源系統 - 位置\n詳細訊息\n時間
+		let message = `[${severityLabel}] ${sourceLabel}系統`;
+		if (locationInfo) {
+			message += ` - ${locationInfo}`;
+		}
+		message += `\n${alert.message}`;
+		message += `\n${timeStr}`;
+
+		return { type: toastType, message };
+	};
+
+	/**
+	 * 更新現有警報 Toast 的內容
+	 * @param toastId - Toast ID
+	 * @param alert - 警報物件
+	 */
+	const updateAlertToastContent = (toastId: string, alert: Alert) => {
+		const { type, message } = buildAlertToastContent(alert);
+		toast.updateToast(toastId, { message, type });
+	};
+
+	/**
+	 * 查找優先級最低的 Toast（用於替換）
+	 * @returns 優先級最低的 alertId，如果沒有則返回 undefined
+	 */
+	const findLowestPriorityToast = (): number | undefined => {
+		// 優先移除 warning 級別的 Toast
+		for (const alertId of activeAlertToasts.value.keys()) {
+			const severity = alertSeverities.value.get(alertId);
+			if (severity === "warning") {
+				return alertId;
+			}
+		}
+		// 如果沒有 warning，移除 error 級別（critical 和 error 都映射為 error 類型）
+		for (const alertId of activeAlertToasts.value.keys()) {
+			const severity = alertSeverities.value.get(alertId);
+			if (severity === "error") {
+				return alertId;
+			}
+		}
+		// 如果都沒有，返回第一個（FIFO）
+		const firstEntry = activeAlertToasts.value.entries().next();
+		return firstEntry.done ? undefined : firstEntry.value[0];
+	};
+
+	/**
+	 * 顯示警示通知（警報 Toast 永遠是持久顯示）
+	 * @param alert - 警報物件
+	 */
+	const showAlertNotification = (alert: Alert) => {
+		// 檢查數量限制
+		const currentToastCount = activeAlertToasts.value.size;
+		if (currentToastCount >= MAX_ALERT_TOASTS) {
+			// critical 級別警報可以替換低優先級警報
+			if (alert.severity === "critical") {
+				const lowestPriorityAlertId = findLowestPriorityToast();
+				if (lowestPriorityAlertId) {
+					removeAlertToast(lowestPriorityAlertId);
+				} else {
+					if (process.dev) {
+						console.warn(`[AlertMonitor] 無法顯示警報 ${alert.id}，已達上限且無法替換`);
+					}
+					return;
+				}
+			} else {
+				// 非 critical 警報，如果已達上限則跳過顯示
+				if (process.dev) {
+					console.log(
+						`[AlertMonitor] 跳過顯示警報 ${alert.id}，已達上限 (${currentToastCount}/${MAX_ALERT_TOASTS})`
+					);
+				}
+				return;
+			}
+		}
+
+		const { type: toastType, message } = buildAlertToastContent(alert);
+
+		// 警報 Toast 永遠是持久顯示（duration = 0）
+		const toastId = toast.showToast(toastType, message, 0, {
+			alertId: alert.id
+		});
+
+		if (toastId) {
 			activeAlertToasts.value.set(alert.id, toastId);
+			alertSeverities.value.set(alert.id, alert.severity);
 		}
 	};
 
@@ -193,7 +301,7 @@ export const useAlertMonitor = () => {
 
 		// 如果這個警報還沒有顯示 Toast，顯示它
 		if (!activeAlertToasts.value.has(alert.id)) {
-			showAlertNotification(alert, true);
+			showAlertNotification(alert);
 		}
 	};
 
@@ -211,7 +319,21 @@ export const useAlertMonitor = () => {
 		// 如果從 resolved/ignored 變為 active，顯示 Toast
 		if ((oldStatus === "resolved" || oldStatus === "ignored") && newStatus === "active") {
 			if (shouldProcessAlert(alert)) {
-				showAlertNotification(alert, true);
+				showAlertNotification(alert);
+			}
+		}
+
+		// 處理 active -> active 的內容更新（severity 升級、message 變化）
+		if (oldStatus === "active" && newStatus === "active") {
+			const existingToastId = activeAlertToasts.value.get(alert.id);
+			if (existingToastId) {
+				// 更新現有 Toast 的內容
+				updateAlertToastContent(existingToastId, alert);
+				// 更新嚴重程度映射（severity 可能升級）
+				alertSeverities.value.set(alert.id, alert.severity);
+			} else if (shouldProcessAlert(alert)) {
+				// 如果沒有現有的 Toast，但應該處理此警報，則顯示新的 Toast
+				showAlertNotification(alert);
 			}
 		}
 	};
@@ -502,6 +624,7 @@ export const useAlertMonitor = () => {
 			toast.removeToast(toastId);
 		}
 		activeAlertToasts.value.clear();
+		alertSeverities.value.clear();
 	};
 
 	/**
@@ -546,6 +669,7 @@ export const useAlertMonitor = () => {
 		if (toastId) {
 			toast.removeToast(toastId);
 			activeAlertToasts.value.delete(alertId);
+			alertSeverities.value.delete(alertId);
 		}
 	};
 

@@ -39,7 +39,7 @@ export interface Alert {
 	ignored_by_username?: string | null;
 	// 時間戳
 	created_at: string;
-	updated_at: string | null; // 可能為 null（新創建的警報可能還沒有更新）
+	updated_at: string; // 永遠不會為 null（資料庫設置為 NOT NULL DEFAULT CURRENT_TIMESTAMP）
 	// 來源名稱（統一欄位，適用於所有來源類型）
 	source_name?: string | null; // 設備名稱、環境位置名稱、照明區域名稱等
 	environment_floor_name?: string | null; // 環境位置樓層名稱（僅適用於環境來源）

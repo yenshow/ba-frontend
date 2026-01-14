@@ -63,3 +63,21 @@ export const getTypeBadgeClass = (type: AlertType | string): string => {
 	return classes[type] || "bg-gray-500/80 text-white";
 };
 
+/**
+ * 檢查警報是否已解決
+ * @param alert - 警報對象
+ * @returns 是否已解決
+ */
+export const isAlertResolved = (alert: { status?: string; resolved?: boolean }): boolean => {
+	return alert.status === "resolved" || alert.resolved === true;
+};
+
+/**
+ * 檢查警報是否已忽視
+ * @param alert - 警報對象
+ * @returns 是否已忽視
+ */
+export const isAlertIgnored = (alert: { status?: string; ignored?: boolean }): boolean => {
+	return alert.status === "ignored" || alert.ignored === true;
+};
+

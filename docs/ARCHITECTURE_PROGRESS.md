@@ -1,7 +1,7 @@
 # 系統架構進度報告
 
 **最後更新：** 2025-01-22  
-**文件版本：** 2.0  
+**文件版本：** 2.1  
 **專案定位：** BA系統 - 工地管理版本
 
 ---
@@ -15,19 +15,19 @@
 | 類別             | 總數 | 已完成 | 進行中 | 未開始 | 完成率 |
 | ---------------- | ---- | ------ | ------ | ------ | ------ |
 | **核心基礎系統** | 3    | 3      | 0      | 0      | 100%   |
-| **工地監控系統** | 4    | 1      | 0      | 3      | 25%    |
+| **工地監控系統** | 4    | 2      | 1      | 1      | 50%    |
 | **基礎設施系統** | 6    | 1      | 0      | 5      | 16.7%  |
 | **安全相關系統** | 4    | 0      | 0      | 4      | 0%     |
 | **視覺化系統**   | 1    | 0      | 0      | 1      | 0%     |
 | **維護管理系統** | 1    | 0      | 0      | 1      | 0%     |
 | **業務管理系統** | 2    | 0      | 0      | 2      | 0%     |
 | **多媒體系統**   | 1    | 0      | 0      | 1      | 0%     |
-| **總計**         | 22   | 5      | 0      | 17     | 22.7%  |
+| **總計**         | 22   | 6      | 1      | 15     | 27.3%  |
 
 ### 進度分布
 
 ```
-已完成：   ████░░░░░░░░░░░░░░░░░░  22.7%  (5/22)
+已完成：   █████░░░░░░░░░░░░░░░░  27.3%  (6/22)
 ```
 
 ---
@@ -53,7 +53,7 @@
 
 ---
 
-## ✅ 已完成系統（5 個）
+## ✅ 已完成系統（6 個）
 
 ### 核心基礎系統（3 個）✅
 
@@ -149,7 +149,7 @@
 
 ---
 
-### 工地監控系統（1 個）✅
+### 工地監控系統（2 個）✅
 
 #### 5. 環境品質系統 ⭐
 
@@ -195,6 +195,38 @@
 
 ---
 
+#### 6. 影像監視系統 ⭐
+
+**狀態：** ✅ 前端完整實作
+
+**實作內容：**
+
+- ✅ Composable：`useSurveillanceApi.ts`、`useStreamStatus.ts`
+- ✅ 頁面：`/construction-monitoring/surveillance`（`app/pages/construction-monitoring/surveillance.vue`）
+- ✅ 組件：
+  - `SurveillanceCameraGrid.vue`（監控網格）
+  - `SurveillanceControlPanel.vue`（控制面板）
+  - `SurveillanceCameraCard.vue`（攝影機卡片）
+  - `VideoPlayer.vue`（影片播放器）
+
+**功能特性：**
+
+- 攝影機設備管理（整合設備管理系統）
+- RTSP 串流整合（自動生成 RTSP URL）
+- 串流狀態管理（統一狀態管理）
+- 監控畫面管理（多畫面網格布局）
+- 批量操作（全部啟動/停止）
+- WebSocket 即時同步
+- 串流控制（啟動/停止/狀態查詢）
+
+**系統整合：**
+
+- ✅ 已整合設備管理系統（自動獲取攝影機設備）
+- ✅ 已整合 RTSP 串流系統（自動生成 RTSP URL）
+- ✅ 已整合 WebSocket 系統（即時狀態同步）
+
+---
+
 ## 🔄 系統整合說明
 
 ### 已整合的系統（減少 6 個）
@@ -218,15 +250,18 @@
 
 ## 🚧 規劃中系統
 
-### 工地監控系統（3 個待實作）
+### 工地監控系統（2 個待實作）
 
 #### 1. 人流統計管理
 
-- **狀態：** ⏳ 部分實作（已有頁面框架）
+- **狀態：** ⏳ 前端完整實作（後端 API 待實作）
 - **優先順序：** P0（工地管理核心功能）
-- **規劃資料表：** `people_counting_logs`、`people_counting_zones`
+- **實作內容：**
+  - ✅ 頁面：`/construction-monitoring/people-counting`（`app/pages/construction-monitoring/people-counting.vue`）
+  - ✅ Composable：`usePeopleCountingApi.ts`
+  - ⚠️ 目前使用模擬資料（mock data），後端 API 待實作
+- **規劃資料表：** `people_counting_logs`、`people_counting_zones`、`people_counting_sites`、`people_counting_units`
 - **說明：** 人流統計與管理，工地人員進出監控
-- **頁面：** `/construction-monitoring/people-counting`（`app/pages/construction-monitoring/people-counting.vue`，已有）
 
 ---
 
@@ -236,20 +271,6 @@
 - **優先順序：** P0（工地管理核心功能）
 - **規劃資料表：** `vehicle_access_logs`、`vehicle_registrations`
 - **說明：** 車輛進出記錄與管理，工地車輛監控
-
----
-
-#### 3. 影像監視系統
-
-- **狀態：** ⏳ 部分實作（已有頁面框架，RTSP 基礎功能）
-- **優先順序：** P1（整合 RTSP 串流系統）
-- **規劃資料表：** `surveillance_cameras`、`surveillance_recordings`
-- **說明：** 與 RTSP 系統整合，攝影機配置與錄影管理
-- **頁面：** `/construction-monitoring/surveillance`（`app/pages/construction-monitoring/surveillance.vue`，已有）
-- **已知問題：**
-  - ⚠️ 與設備管理系統尚未完全整合
-  - ⚠️ RTSP URL 需要手動輸入
-  - ⚠️ 缺少設備與串流的關聯
 
 ---
 
@@ -397,9 +418,9 @@
 根據 BA系統 - 工地管理版本的優先順序：
 
 1. **環境品質系統** ✅ **已完成**
-2. **人流統計管理** ⏳ **進行中**（已有頁面框架）
-3. **車輛進出管理** ⏳ **待實作**
-4. **影像監視系統** ⏳ **進行中**（已有頁面框架，需整合 RTSP）
+2. **影像監視系統** ✅ **已完成**（前端完整實作，已整合 RTSP 和設備管理系統）
+3. **人流統計管理** ⏳ **進行中**（前端完整實作，後端 API 待實作）
+4. **車輛進出管理** ⏳ **待實作**
 5. **全區點位圖** ⏳ **待實作**（整合至空間視覺化系統）
 
 ---
@@ -440,26 +461,25 @@
 
 ### ✅ 需要（Must Have）- 工地管理版本核心功能
 
-**已完成（5）：**
+**已完成（6）：**
 
 - ✅ 設備管理系統
 - ✅ 使用者管理系統
 - ✅ 警示紀錄系統
 - ✅ 照明系統
 - ✅ 環境品質系統
+- ✅ 影像監視系統
 
-**待實作（10）：**
+**待實作（9）：**
 
-1. **環境品質系統** ✅ 已完成
-2. **人流統計管理** ⏳ 進行中（Phase 3）
-3. **車輛進出管理** ⏳ 待實作（Phase 3）
-4. **影像監視系統** ⏳ 進行中（Phase 3）
-5. **全區點位圖** ⏳ 待實作（Phase 3，整合至空間視覺化系統）
-6. **空調系統（HVAC）** - 基礎設施（Phase 4）
-7. **電力系統** - 基礎設施（Phase 4）
-8. **消防系統** - 法規要求 🔥（Phase 5）
-9. **門禁保全系統** - 法規要求 🔥（Phase 5）
-10. **緊急求救系統** - 安全相關（Phase 5）
+1. **人流統計管理** ⏳ 進行中（Phase 3，前端完整實作，後端 API 待實作）
+2. **車輛進出管理** ⏳ 待實作（Phase 3）
+3. **全區點位圖** ⏳ 待實作（Phase 3，整合至空間視覺化系統）
+4. **空調系統（HVAC）** - 基礎設施（Phase 4）
+5. **電力系統** - 基礎設施（Phase 4）
+6. **消防系統** - 法規要求 🔥（Phase 5）
+7. **門禁保全系統** - 法規要求 🔥（Phase 5）
+8. **緊急求救系統** - 安全相關（Phase 5）
 
 ---
 
@@ -557,25 +577,27 @@ CREATE TABLE {system_name}_{entity_name} (
 4. **`useEnvironmentApi.ts`** - 環境品質系統 API
 5. **`useUserApi.ts`** - 使用者管理 API
 6. **`useAlertApi.ts`** - 警示系統 API
-7. **`useRtspApi.ts`** - RTSP 串流 API（待整合至影像監視系統）
+7. **`useRtspApi.ts`** - RTSP 串流 API
+8. **`useSurveillanceApi.ts`** - 影像監視系統 API（已整合 RTSP 和設備管理）
+9. **`useStreamStatus.ts`** - 串流狀態統一管理
+10. **`usePeopleCountingApi.ts`** - 人流統計 API（目前使用模擬資料）
 
 ---
 
 ## 📝 已知問題與改進建議
 
-### 1. RTSP 系統整合
+### 1. 人流統計管理系統後端 API
 
 **問題：**
 
-- RTSP 系統與設備管理系統分離
-- 需要手動輸入 RTSP URL
-- 缺少設備與串流的關聯
+- 前端頁面和 Composable 已完成，但後端 API 尚未實作
+- 目前使用模擬資料（mock data）
 
 **建議：**
 
-- 整合設備管理與 RTSP 串流
-- 自動從設備配置生成 RTSP URL
-- 在設備列表增加「啟動串流」功能
+- 實作後端 API 端點
+- 建立資料表：`people_counting_sites`、`people_counting_units`、`people_counting_personnel`、`people_counting_logs`
+- 移除模擬資料，連接實際 API
 
 ---
 
@@ -604,19 +626,17 @@ CREATE TABLE {system_name}_{entity_name} (
 ### 短期目標（1-2 個月）- Phase 3：工地管理核心功能
 
 1. **完成環境品質系統** ✅ **已完成**
-2. **完成人流統計管理**
-   - 完善頁面功能
-   - 建立資料表與 API
-   - 實作即時統計功能
-3. **實作車輛進出管理**
+2. **完成影像監視系統** ✅ **已完成**（前端完整實作，已整合 RTSP 和設備管理系統）
+3. **完成人流統計管理**
+   - ✅ 前端頁面和 Composable 已完成
+   - ⏳ 建立資料表與後端 API
+   - ⏳ 移除模擬資料，連接實際 API
+   - ⏳ 實作即時統計功能
+4. **實作車輛進出管理**
    - 建立 `vehicle_access_logs`、`vehicle_registrations` 資料表
    - 建立 `/api/vehicle-access/*` API 路由
    - 建立 `useVehicleAccessApi` composable
    - 建立車輛進出管理頁面
-4. **完成影像監視系統**
-   - 整合 RTSP 系統
-   - 整合設備管理系統
-   - 實作攝影機配置與錄影管理
 5. **實作全區點位圖**（整合至空間視覺化系統）
    - 建立 `device_points` 資料表
    - 建立 `/api/visualization/points/*` API 路由

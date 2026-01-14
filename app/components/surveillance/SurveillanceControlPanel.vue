@@ -1,5 +1,7 @@
 <template>
-	<div class="flex flex-wrap items-center justify-between gap-4 rounded-lg border-2 border-white/30 bg-white/10 p-4 backdrop-blur-sm">
+	<div
+		class="flex flex-wrap items-center justify-between gap-4 rounded-lg border-2 border-white/30 bg-white/10 p-4 backdrop-blur-sm"
+	>
 		<!-- 左側：布局選擇 -->
 		<div class="flex items-center gap-2">
 			<span class="text-sm font-medium text-white xl:text-base 2xl:text-lg">畫面布局：</span>
@@ -8,10 +10,10 @@
 					v-for="layoutOption in layoutOptions"
 					:key="layoutOption.value"
 					:class="[
-						'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors backdrop-blur-sm xl:text-base 2xl:text-lg',
+						'rounded-lg px-3 py-1.5 text-sm font-medium backdrop-blur-sm transition-colors xl:text-base 2xl:text-lg',
 						modelValue === layoutOption.value
-							? 'bg-white/30 border-2 border-white/50 text-white'
-							: 'bg-white/10 border-2 border-white/30 text-white/80 hover:bg-white/15 hover:border-white/40'
+							? 'border-2 border-white/50 bg-white/30 text-white'
+							: 'border-2 border-white/30 bg-white/10 text-white/80 hover:border-white/40 hover:bg-white/15'
 					]"
 					@click="$emit('update:modelValue', layoutOption.value)"
 				>
@@ -41,20 +43,20 @@
 			<button
 				v-if="canStartAll"
 				@click="$emit('startAll')"
-				class="rounded-lg border-2 border-green-400/50 bg-green-500/30 px-4 py-2 text-xs font-medium text-white backdrop-blur-sm transition-all hover:bg-green-500/40 hover:border-green-400/70 xl:text-sm 2xl:text-lg"
+				class="rounded-lg border-2 border-green-400/50 bg-green-500/30 px-4 py-2 text-xs font-medium text-white backdrop-blur-sm transition-all hover:border-green-400/70 hover:bg-green-500/40 xl:text-sm 2xl:text-lg"
 			>
 				全部啟動
 			</button>
 			<button
 				v-if="canStopAll"
 				@click="$emit('stopAll')"
-				class="rounded-lg border-2 border-red-400/50 bg-red-500/30 px-4 py-2 text-xs font-medium text-white backdrop-blur-sm transition-all hover:bg-red-500/40 hover:border-red-400/70 xl:text-sm 2xl:text-lg"
+				class="rounded-lg border-2 border-red-400/50 bg-red-500/30 px-4 py-2 text-xs font-medium text-white backdrop-blur-sm transition-all hover:border-red-400/70 hover:bg-red-500/40 xl:text-sm 2xl:text-lg"
 			>
 				全部停止
 			</button>
 			<button
 				@click="$emit('refresh')"
-				class="rounded-lg border-2 border-white/30 bg-white/10 px-4 py-2 text-xs font-medium text-white backdrop-blur-sm transition-all hover:bg-white/15 hover:border-white/40 xl:text-sm 2xl:text-lg"
+				class="rounded-lg border-2 border-white/30 bg-white/10 px-4 py-2 text-xs font-medium text-white backdrop-blur-sm transition-all hover:border-white/40 hover:bg-white/15 xl:text-sm 2xl:text-lg"
 			>
 				刷新狀態
 			</button>
@@ -93,4 +95,3 @@ const layoutOptions = [
 	{ value: "9" as GridLayout, label: "9 畫面" }
 ];
 </script>
-

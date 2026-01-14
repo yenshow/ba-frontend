@@ -5,9 +5,13 @@
 				<div
 					v-for="toast in toasts"
 					:key="toast.id"
-					:class="toastClasses[toast.type]"
-					class="animate-slide-in flex min-w-[300px] max-w-md items-start gap-3 rounded-lg border p-4 shadow-lg backdrop-blur-sm"
+					:class="[
+						toastClasses[toast.type],
+						{ 'cursor-pointer hover:opacity-90': toast.alertId },
+						'animate-slide-in flex min-w-[300px] max-w-md items-start gap-3 rounded-lg border p-4 shadow-lg backdrop-blur-sm transition-opacity'
+					]"
 					role="alert"
+					@click="handleToastClick(toast)"
 				>
 					<!-- Icon -->
 					<div class="mt-0.5 flex-shrink-0">
@@ -52,7 +56,7 @@
 					</div>
 
 					<!-- Message -->
-					<div class="flex-1 text-sm font-medium">
+					<div class="flex-1 whitespace-pre-line text-sm font-medium">
 						{{ toast.message }}
 						<span
 							v-if="toast.count && toast.count > 1"
@@ -64,7 +68,7 @@
 
 					<!-- Close Button -->
 					<button
-						@click="removeToast(toast.id)"
+						@click.stop="removeToast(toast.id)"
 						class="flex-shrink-0 text-current opacity-60 transition-opacity hover:opacity-100"
 						aria-label="關閉"
 					>
@@ -83,13 +87,28 @@
 </template>
 
 <script setup lang="ts">
+import type { Toast } from "~/composables/useToast";
+
 const { toasts, removeToast } = useToast();
+const { removeAlertToast } = useAlertMonitor();
 
 const toastClasses = {
 	success: "bg-emerald-500/90 text-white border-emerald-400/50",
 	error: "bg-red-500/90 text-white border-red-400/50",
 	warning: "bg-yellow-500/90 text-white border-yellow-400/50",
 	info: "bg-blue-500/90 text-white border-blue-400/50"
+};
+
+/**
+ * 處理 Toast 點擊事件（跳轉到警報詳情）
+ */
+const handleToastClick = (toast: Toast) => {
+	if (toast.alertId) {
+		// 移除警報 Toast（從 useAlertMonitor 中移除，會自動清理相關狀態）
+		removeAlertToast(toast.alertId);
+		// 跳轉到警報詳情頁面
+		navigateTo(`/core/alert-log?alertId=${toast.alertId}`);
+	}
 };
 </script>
 

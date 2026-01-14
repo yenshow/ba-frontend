@@ -70,6 +70,7 @@
 							<div
 								v-for="alert in alerts"
 								:key="alert.id"
+								:id="`alert-${alert.id}`"
 								:class="['rounded-xl border-2 p-4 transition-all 2xl:p-6', getAlertCardClass(alert)]"
 							>
 								<div class="flex items-start justify-between gap-4">
@@ -186,7 +187,7 @@
 													<div class="min-w-0 flex-1">
 														<div class="text-xs text-white/60 2xl:text-sm">更新時間</div>
 														<div class="mt-0.5 text-sm text-white 2xl:text-base">
-															{{ formatDateTime(alert.updated_at) }}
+															{{ formatUpdatedAt(alert) }}
 														</div>
 													</div>
 												</div>
@@ -322,6 +323,8 @@ import {
 	getSeverityBadgeClass,
 	getTypeBadgeClass
 } from "~/utils/alertUtils";
+import { getTodayDateRangeUTC, formatDateTime } from "~/utils/dateUtils";
+import { isAlertResolved, isAlertIgnored } from "~/utils/alertUtils";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue";
 import Pagination from "~/components/common/Pagination.vue";
@@ -529,7 +532,12 @@ const matchesFilters = (alert: Alert): boolean => {
 	if (filterSource.value && alert.source !== filterSource.value) return false;
 
 	if (filterStartDate.value || filterEndDate.value) {
+		// 按天限制邏輯：Toast 觸發的警報應該是當下的情況
+		// - alert:new → created_at 應該是今天
+		// - alert:updated (active → active) → created_at 應該是今天（因為按天限制，同一天才會更新）
+		// 所以使用 created_at 進行篩選即可
 		const alertTime = new Date(alert.created_at).getTime();
+
 		if (filterStartDate.value) {
 			const startTime = new Date(filterStartDate.value).getTime();
 			if (alertTime < startTime) return false;
@@ -545,8 +553,22 @@ const matchesFilters = (alert: Alert): boolean => {
 
 // 處理新警報事件（WebSocket）
 const handleAlertNew = (alert: AlertNewEvent) => {
-	if (alerts.value.find(a => a.id === alert.id) || !matchesFilters(alert)) return;
+	// 檢查是否已存在
+	if (alerts.value.find(a => a.id === alert.id)) return;
 
+	// 檢查是否符合篩選條件
+	if (!matchesFilters(alert)) {
+		// 如果是 active 警報但不在時間範圍內，記錄警告（開發模式）
+		if (alert.status === "active" && process.dev) {
+			console.warn(
+				`[AlertLog] 新警報 ${alert.id} 不在當前時間範圍內，` +
+					`創建時間: ${alert.created_at}, 更新時間: ${alert.updated_at}`
+			);
+		}
+		return;
+	}
+
+	// 正常添加到列表
 	if (offset.value === 0) {
 		alerts.value.unshift(alert);
 	}
@@ -690,17 +712,18 @@ const goToNextPage = () => {
 	}
 };
 
-// 格式化日期時間
-const formatDateTime = (dateString: string | null) => {
-	if (!dateString) return "-";
-	return new Date(dateString).toLocaleString("zh-TW", {
-		year: "numeric",
-		month: "2-digit",
-		day: "2-digit",
-		hour: "2-digit",
-		minute: "2-digit",
-		hour12: false
-	});
+// 格式化更新時間（智能顯示：如果與創建時間相同，顯示提示）
+const formatUpdatedAt = (alert: Alert) => {
+	const updatedAt = formatDateTime(alert.updated_at);
+	const createdAt = new Date(alert.created_at).getTime();
+	const updatedAtTime = new Date(alert.updated_at).getTime();
+	const diffMs = updatedAtTime - createdAt;
+
+	// 如果差異小於 1 秒，視為相同（創建時兩者相同或極其接近）
+	if (diffMs < 1000) {
+		return `${updatedAt}（與創建時間相同）`;
+	}
+	return updatedAt;
 };
 
 // Badge 基礎樣式類
@@ -714,13 +737,6 @@ const getSourceDisplayName = (alert: Alert): string =>
 // 獲取樓層名稱
 const getFloorName = (alert: Alert): string =>
 	alert.environment_floor_name || alert.lighting_floor_name || "";
-
-// 檢查警報狀態
-const isAlertResolved = (alert: Alert): boolean =>
-	alert.status === "resolved" || alert.resolved === true;
-
-const isAlertIgnored = (alert: Alert): boolean =>
-	alert.status === "ignored" || alert.ignored === true;
 
 // 取得警示卡片樣式
 const getAlertCardClass = (alert: Alert) => {
@@ -746,14 +762,9 @@ watch([filterStatus, filterSource, filterStartDate, filterEndDate], () => {
 	loadAlerts();
 });
 
-// 初始化時間範圍為「今天」
+// 初始化時間範圍為「今天」（使用統一的時間工具）
 const initializeTimeRange = () => {
-	const now = new Date();
-	const start = new Date(now);
-	start.setHours(0, 0, 0, 0);
-	const end = new Date(now);
-	end.setHours(23, 59, 59, 999);
-
+	const { start, end } = getTodayDateRangeUTC();
 	timeRange.value = {
 		startDate: start.toISOString(),
 		endDate: end.toISOString(),
@@ -761,6 +772,66 @@ const initializeTimeRange = () => {
 	};
 	filterStartDate.value = start.toISOString();
 	filterEndDate.value = end.toISOString();
+};
+
+// 滾動並高亮顯示指定警報
+const scrollToAlert = async (alertId: number) => {
+	await nextTick();
+	const alertElement = document.getElementById(`alert-${alertId}`);
+	if (alertElement) {
+		alertElement.scrollIntoView({ behavior: "smooth", block: "center" });
+		alertElement.classList.add("ring-2", "ring-blue-500", "ring-offset-2");
+		setTimeout(() => {
+			alertElement.classList.remove("ring-2", "ring-blue-500", "ring-offset-2");
+		}, 3000);
+	}
+};
+
+// 處理 alertId 查詢參數（用於從 Toast 跳轉）
+const handleAlertIdQuery = async () => {
+	const route = useRoute();
+	const alertIdParam = route.query.alertId;
+	
+	if (!alertIdParam) return;
+	
+	const alertId = Number(alertIdParam);
+	if (isNaN(alertId)) return;
+	
+	await nextTick();
+	
+	// 檢查警報是否在當前列表中
+	const alert = alerts.value.find(a => a.id === alertId);
+	
+	if (alert) {
+		await scrollToAlert(alertId);
+		return;
+	}
+	
+	// 如果警報不在列表中，嘗試載入該警報並調整篩選條件
+	try {
+		const result = await alertApi.getAlertById(alertId);
+		const targetAlert = result.alert;
+		const alertDate = new Date(targetAlert.created_at);
+		const { start, end } = getTodayDateRangeUTC();
+		
+		// 如果警報不在今天，調整時間範圍
+		if (alertDate < start || alertDate >= end) {
+			timeRange.value = {
+				startDate: new Date(alertDate.getTime() - 24 * 60 * 60 * 1000).toISOString(),
+				endDate: new Date(alertDate.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+				preset: "custom"
+			};
+			filterStartDate.value = timeRange.value.startDate;
+			filterEndDate.value = timeRange.value.endDate;
+			await loadAlerts(true);
+		}
+		
+		await scrollToAlert(alertId);
+	} catch (error) {
+		if (process.dev) {
+			console.warn(`[alert-log] 無法載入警報 ${alertId}`, error);
+		}
+	}
 };
 
 // 初始化
@@ -772,6 +843,9 @@ onMounted(async () => {
 	void loadUnresolvedCount();
 	on("alert:new", handleAlertNew);
 	on("alert:updated", handleAlertUpdated);
+	
+	// 處理 alertId 查詢參數
+	await handleAlertIdQuery();
 });
 
 // 組件卸載時清理

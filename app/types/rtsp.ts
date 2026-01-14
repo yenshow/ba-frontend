@@ -2,7 +2,6 @@ export interface RTSPStreamInfo {
 	streamId: string;
 	rtspUrl: string;
 	hlsUrl: string;
-	webrtcUrl?: string; // MediaMTX 提供的 WebRTC URL（低延遲選項）
 	status: "running" | "stopped" | "unknown";
 	startedAt: string;
 }
@@ -27,6 +26,19 @@ export interface RTSPStopResponse {
 		success: boolean;
 		message: string;
 	};
+	message: string;
+	timestamp: string;
+}
+
+export interface RTSPRefreshData {
+	hlsUrl: string;
+	timestamp: number;
+	serverTime: number;
+}
+
+export interface RTSPRefreshResponse {
+	error: boolean;
+	data: RTSPRefreshData;
 	message: string;
 	timestamp: string;
 }

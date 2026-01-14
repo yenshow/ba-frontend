@@ -5,6 +5,7 @@
 			<div
 				v-for="(view, index) in displayViews"
 				:key="`view-${view.deviceId}-${view.position}-${index}`"
+				:ref="(el: HTMLElement | null) => setViewRef(el, index)"
 				:class="[
 					'relative overflow-hidden rounded-lg border-2 bg-black',
 					isSelected(view.deviceId)
@@ -13,9 +14,9 @@
 				]"
 				:style="{ aspectRatio: '16/9' }"
 			>
-				<!-- 視頻播放器 -->
-				<div v-if="getStreamUrlForView(view)" class="absolute inset-0">
-					<RtspVideoPlayer
+				<!-- 視頻播放器（只在可見時才渲染） -->
+				<div v-if="getStreamUrlForView(view) && isViewVisible(index)" class="absolute inset-0">
+					<SurveillanceVideoPlayer
 						:key="`player-${view.deviceId}-${view.position}-${getStreamUrlForView(view)}`"
 						:hls-url="getStreamUrlForView(view) || ''"
 						:stream-id="view.streamId || getStreamId(view.deviceId) || ''"
@@ -116,7 +117,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount } from "vue";
+import { onBeforeUnmount, onMounted, ref, nextTick, watch } from "vue";
 import type { SurveillanceCamera, MonitorView, GridLayout } from "~/types/surveillance";
 
 interface Props {
@@ -133,7 +134,66 @@ const emit = defineEmits<{
 	remove: [deviceId: number];
 }>();
 
-const surveillanceApi = useSurveillanceApi();
+// 使用統一的串流狀態管理
+const streamStatus = useStreamStatus();
+
+// 懶加載：追蹤每個視圖的可見性
+const viewRefs = ref<(HTMLElement | null)[]>([]);
+const visibleViews = ref<Set<number>>(new Set());
+let intersectionObserver: IntersectionObserver | null = null;
+
+// 設置視圖引用
+const setViewRef = (el: HTMLElement | null, index: number) => {
+	if (el) {
+		viewRefs.value[index] = el;
+	}
+};
+
+// 檢查視圖是否可見
+const isViewVisible = (index: number): boolean => {
+	return visibleViews.value.has(index);
+};
+
+// 初始化 Intersection Observer
+const initIntersectionObserver = () => {
+	if (typeof IntersectionObserver === "undefined") {
+		// 如果瀏覽器不支援，所有視圖都視為可見
+		displayViews.value.forEach((_, index) => {
+			visibleViews.value.add(index);
+		});
+		return;
+	}
+
+	intersectionObserver = new IntersectionObserver(
+		entries => {
+			entries.forEach(entry => {
+				const index = parseInt(entry.target.getAttribute("data-view-index") || "-1");
+				if (index >= 0) {
+					if (entry.isIntersecting) {
+						visibleViews.value.add(index);
+					} else {
+						// 可選：離開視窗時移除（節省資源）
+						// visibleViews.value.delete(index);
+					}
+				}
+			});
+		},
+		{
+			threshold: 0.1, // 當 10% 可見時觸發
+			rootMargin: "50px" // 提前 50px 開始載入
+		}
+	);
+
+	// 觀察所有視圖
+	nextTick(() => {
+		viewRefs.value.forEach((el, index) => {
+			if (el) {
+				el.setAttribute("data-view-index", index.toString());
+				intersectionObserver?.observe(el);
+			}
+		});
+	});
+};
 
 // 計算網格類別
 const gridClass = computed(() => {
@@ -173,155 +233,10 @@ const cameraMap = computed(() => {
 	return map;
 });
 
-// 設備 ID 到串流狀態的映射
-const streamStatusMap = ref<
-	Map<
-		number,
-		{ hlsUrl?: string; streamId?: string; status: string; isLoading: boolean; error?: string }
-	>
->(new Map());
+// 從統一的狀態管理獲取串流狀態（只讀）
+const streamStatusMap = computed(() => streamStatus.streamStatusMap.value);
 
-// 防抖和請求去重（性能優化）
-let updateStreamStatusesTimer: ReturnType<typeof setTimeout> | null = null;
-const pendingStatusRequests = new Set<number>(); // 追蹤正在進行的請求
-const UPDATE_DEBOUNCE_MS = 300; // 300ms 防抖
-
-// 更新串流狀態（優化版本：防抖 + 去重 + 狀態檢查）
-const updateStreamStatuses = async () => {
-	// 清除之前的定時器
-	if (updateStreamStatusesTimer) {
-		clearTimeout(updateStreamStatusesTimer);
-	}
-
-	// 防抖：延遲執行，避免頻繁調用
-	updateStreamStatusesTimer = setTimeout(async () => {
-		const deviceIds = props.views.map(v => v.deviceId);
-
-		// 只處理需要檢查的設備（過濾掉正在請求中的）
-		const deviceIdsToCheck = deviceIds.filter(id => !pendingStatusRequests.has(id));
-
-		for (const deviceId of deviceIdsToCheck) {
-			const camera = cameraMap.value.get(deviceId);
-			if (!camera) {
-				// 如果攝影機不存在，移除狀態
-				streamStatusMap.value.delete(deviceId);
-				continue;
-			}
-
-			// 如果已經有串流資訊，直接使用（避免重複請求）
-			if (camera.streamInfo?.status === "running" && camera.streamInfo.hlsUrl) {
-				const existingStatus = streamStatusMap.value.get(deviceId);
-				// 只有當狀態不同時才更新，避免不必要的響應式觸發
-				if (!existingStatus || existingStatus.hlsUrl !== camera.streamInfo.hlsUrl) {
-					streamStatusMap.value.set(deviceId, {
-						hlsUrl: camera.streamInfo.hlsUrl,
-						streamId: camera.streamInfo.streamId,
-						status: "running",
-						isLoading: false
-					});
-				}
-				continue;
-			}
-
-			// 如果設備未啟用，跳過
-			if (camera.status !== "active") {
-				const existingStatus = streamStatusMap.value.get(deviceId);
-				// 只有狀態不同時才更新
-				if (
-					!existingStatus ||
-					existingStatus.status !== "stopped" ||
-					existingStatus.error !== "設備未啟用"
-				) {
-					streamStatusMap.value.set(deviceId, {
-						status: "stopped",
-						isLoading: false,
-						error: "設備未啟用"
-					});
-				}
-				continue;
-			}
-
-			// 標記為正在請求中，避免重複請求
-			pendingStatusRequests.add(deviceId);
-
-			// 檢查串流狀態（異步，不阻塞）
-			surveillanceApi
-				.getCameraStreamStatus(deviceId)
-				.then(status => {
-					const existingStatus = streamStatusMap.value.get(deviceId);
-
-					if (status && status.status === "running" && status.hlsUrl) {
-						// 只有狀態不同時才更新
-						if (
-							!existingStatus ||
-							existingStatus.hlsUrl !== status.hlsUrl ||
-							existingStatus.status !== "running"
-						) {
-							streamStatusMap.value.set(deviceId, {
-								hlsUrl: status.hlsUrl,
-								streamId: status.streamId,
-								status: "running",
-								isLoading: false
-							});
-						}
-					} else {
-						const newStatus = status?.status || "stopped";
-						// 只有狀態不同時才更新
-						if (
-							!existingStatus ||
-							existingStatus.status !== newStatus ||
-							existingStatus.error !== status?.error
-						) {
-							streamStatusMap.value.set(deviceId, {
-								status: newStatus,
-								isLoading: false,
-								error: status?.error
-							});
-						}
-					}
-				})
-				.catch(error => {
-					const existingStatus = streamStatusMap.value.get(deviceId);
-					const errorMsg = error instanceof Error ? error.message : "未知錯誤";
-					// 只有錯誤不同時才更新
-					if (!existingStatus || existingStatus.error !== errorMsg) {
-						streamStatusMap.value.set(deviceId, {
-							status: "error",
-							isLoading: false,
-							error: errorMsg
-						});
-					}
-				})
-				.finally(() => {
-					pendingStatusRequests.delete(deviceId);
-				});
-		}
-	}, UPDATE_DEBOUNCE_MS);
-};
-
-// 優化 watch：只在關鍵屬性變化時觸發，而不是 deep watch
-watch(
-	() => props.views.length,
-	() => {
-		updateStreamStatuses();
-	}
-);
-
-watch(
-	() => props.views.map(v => `${v.deviceId}-${v.position}`).join(","),
-	() => {
-		updateStreamStatuses();
-	},
-	{ immediate: true }
-);
-
-// 優化 cameras watch：只在串流資訊變化時觸發
-watch(
-	() => props.cameras.map(c => `${c.id}:${c.streamInfo?.status}:${c.streamInfo?.hlsUrl}`).join(","),
-	() => {
-		updateStreamStatuses();
-	}
-);
+// 串流狀態現在由統一的狀態管理自動更新，不需要手動更新
 
 // 獲取設備
 const getCamera = (deviceId: number): SurveillanceCamera | undefined => {
@@ -350,20 +265,20 @@ const getStreamUrlForView = (view: MonitorView): string | undefined => {
 
 // 獲取串流 URL（僅用於非測試串流）
 const getStreamUrl = (deviceId: number): string | undefined => {
-	const status = streamStatusMap.value.get(deviceId);
+	const status = streamStatus.getStreamStatus(deviceId);
 	return status?.hlsUrl;
 };
 
 // 獲取串流 ID
 const getStreamId = (deviceId: number): string | undefined => {
-	const status = streamStatusMap.value.get(deviceId);
+	const status = streamStatus.getStreamStatus(deviceId);
 	return status?.streamId;
 };
 
-// 是否載入中
+// 是否載入中（簡化為檢查是否有狀態）
 const isLoading = (deviceId: number): boolean => {
-	const status = streamStatusMap.value.get(deviceId);
-	return status?.isLoading || false;
+	const status = streamStatus.getStreamStatus(deviceId);
+	return status?.status === "loading" || false;
 };
 
 // 是否已選擇（用於邊框高亮）
@@ -374,7 +289,7 @@ const isSelected = (deviceId: number): boolean => {
 
 // 獲取狀態訊息
 const getStatusMessage = (deviceId: number): string => {
-	const status = streamStatusMap.value.get(deviceId);
+	const status = streamStatus.getStreamStatus(deviceId);
 	if (status?.error) {
 		return status.error;
 	}
@@ -388,55 +303,52 @@ const getStatusMessage = (deviceId: number): string => {
 	return "點擊啟動串流";
 };
 
-// 啟動串流
-const handleStartStream = async (deviceId: number) => {
-	const currentStatus = streamStatusMap.value.get(deviceId);
-	if (currentStatus) {
-		currentStatus.isLoading = true;
-	}
-
-	try {
-		const streamInfo = await surveillanceApi.startCameraStream(deviceId);
-		streamStatusMap.value.set(deviceId, {
-			hlsUrl: streamInfo.hlsUrl,
-			streamId: streamInfo.streamId,
-			status: "running",
-			isLoading: false
-		});
+// 啟動串流（簡化：只 emit 事件，交由父組件處理）
+const handleStartStream = (deviceId: number) => {
 		emit("startStream", deviceId);
-	} catch (error) {
-		streamStatusMap.value.set(deviceId, {
-			status: "error",
-			isLoading: false,
-			error: error instanceof Error ? error.message : "啟動失敗"
-		});
-	}
 };
 
-// 停止串流
-const handleStopStream = async (deviceId: number) => {
-	try {
-		await surveillanceApi.stopCameraStream(deviceId);
-		streamStatusMap.value.set(deviceId, {
-			status: "stopped",
-			isLoading: false
-		});
+// 停止串流（簡化：只 emit 事件，交由父組件處理）
+const handleStopStream = (deviceId: number) => {
 		emit("stopStream", deviceId);
-	} catch (error) {
-		console.error("停止串流失敗:", error);
-	}
 };
 
-// 清理定時器和請求
-onBeforeUnmount(() => {
-	if (updateStreamStatusesTimer) {
-		clearTimeout(updateStreamStatusesTimer);
+// 監聽視圖變化，更新 Intersection Observer
+watch(
+	() => displayViews.value.length,
+	() => {
+		nextTick(() => {
+			// 清理舊的觀察
+			if (intersectionObserver) {
+				viewRefs.value.forEach(el => {
+					if (el) {
+						intersectionObserver?.unobserve(el);
 	}
-	pendingStatusRequests.clear();
+				});
+			}
+
+			// 重新初始化
+			visibleViews.value.clear();
+			initIntersectionObserver();
+		});
+	},
+	{ immediate: true }
+);
+
+// 清理
+onBeforeUnmount(() => {
+	// 清理 Intersection Observer
+	if (intersectionObserver) {
+		intersectionObserver.disconnect();
+		intersectionObserver = null;
+	}
+	visibleViews.value.clear();
 });
 
-// 暴露方法給父組件
-defineExpose({
-	updateStreamStatuses
+// 初始化
+onMounted(() => {
+	initIntersectionObserver();
 });
+
+// 不再需要暴露更新方法，狀態由統一的狀態管理自動更新
 </script>

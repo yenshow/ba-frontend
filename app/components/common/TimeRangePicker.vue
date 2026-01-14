@@ -85,6 +85,9 @@
 </template>
 
 <script setup lang="ts">
+// 使用統一的時間工具函數（UTC）
+import { getTimeRangeUTC, formatDateInput as formatDateInputUtil, formatDateLocal } from "~/utils/dateUtils";
+
 interface TimeRangePreset {
 	value: string;
 	label: string;
@@ -110,13 +113,8 @@ const selectedPreset = ref(props.modelValue.preset || "today");
 const customStartDate = ref("");
 const customEndDate = ref("");
 
-// 輔助函數：補零
-const padZero = (n: number): string => String(n).padStart(2, "0");
-
-// 格式化日期（用於顯示）
-const formatDateRange = (date: Date): string => {
-	return `${date.getFullYear()}/${padZero(date.getMonth() + 1)}/${padZero(date.getDate())}`;
-};
+// 使用統一的格式化函數
+const formatDateInput = formatDateInputUtil;
 
 // 計算顯示值
 const displayValue = computed(() => {
@@ -131,72 +129,16 @@ const displayValue = computed(() => {
 	}
 
 	// 自訂選項時，只顯示日期
-	return `${formatDateRange(new Date(props.modelValue.startDate))} - ${formatDateRange(new Date(props.modelValue.endDate))}`;
+	return `${formatDateLocal(new Date(props.modelValue.startDate))} - ${formatDateLocal(new Date(props.modelValue.endDate))}`;
 });
-
-// 獲取時間範圍
-const getTimeRange = (preset: string): { start: Date; end: Date } => {
-	const now = new Date();
-	const end = new Date(now);
-	let start = new Date(now);
-
-	switch (preset) {
-		case "past_hour":
-			start = new Date(now.getTime() - 60 * 60 * 1000);
-			break;
-		case "today":
-			start.setHours(0, 0, 0, 0);
-			end.setHours(23, 59, 59, 999);
-			break;
-		case "yesterday":
-			start.setDate(start.getDate() - 1);
-			start.setHours(0, 0, 0, 0);
-			end.setDate(end.getDate() - 1);
-			end.setHours(23, 59, 59, 999);
-			break;
-		case "this_week":
-			const dayOfWeek = start.getDay();
-			const diff = start.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-			start.setDate(diff);
-			start.setHours(0, 0, 0, 0);
-			end.setHours(23, 59, 59, 999);
-			break;
-		case "last_week":
-			const lastWeekDayOfWeek = start.getDay();
-			const lastWeekDiff = start.getDate() - lastWeekDayOfWeek - 6 + (lastWeekDayOfWeek === 0 ? -6 : 1);
-			start.setDate(lastWeekDiff);
-			start.setHours(0, 0, 0, 0);
-			end.setDate(lastWeekDiff + 6);
-			end.setHours(23, 59, 59, 999);
-			break;
-		case "last_7_days":
-			start.setDate(start.getDate() - 7);
-			start.setHours(0, 0, 0, 0);
-			end.setHours(23, 59, 59, 999);
-			break;
-		case "last_30_days":
-			start.setDate(start.getDate() - 30);
-			start.setHours(0, 0, 0, 0);
-			end.setHours(23, 59, 59, 999);
-			break;
-		default:
-			return { start: new Date(), end: new Date() };
-	}
-
-	return { start, end };
-};
-
-// 格式化為 date 格式 (YYYY-MM-DD)
-const formatDateLocal = (date: Date): string => {
-	return `${date.getFullYear()}-${padZero(date.getMonth() + 1)}-${padZero(date.getDate())}`;
-};
 
 // 選擇預設選項
 const selectPreset = (preset: string) => {
 	selectedPreset.value = preset;
 
 	if (preset !== "custom") {
-		const { start, end } = getTimeRange(preset);
+		// 使用統一的 UTC 時間範圍計算
+		const { start, end } = getTimeRangeUTC(preset);
 		emit("update:modelValue", {
 			startDate: start.toISOString(),
 			endDate: end.toISOString(),
@@ -207,8 +149,8 @@ const selectPreset = (preset: string) => {
 		// 自訂模式，保持下拉選單開啟
 		if (!customStartDate.value || !customEndDate.value) {
 			const today = new Date();
-			customStartDate.value = formatDateLocal(today);
-			customEndDate.value = formatDateLocal(today);
+			customStartDate.value = formatDateInput(today);
+			customEndDate.value = formatDateInput(today);
 		}
 	}
 };
@@ -216,14 +158,14 @@ const selectPreset = (preset: string) => {
 // 套用自訂時間範圍
 const applyCustomRange = () => {
 	if (customStartDate.value && customEndDate.value) {
-		const start = new Date(customStartDate.value);
-		start.setHours(0, 0, 0, 0);
-		const end = new Date(customEndDate.value);
-		end.setHours(23, 59, 59, 999);
+		// 使用 UTC 時間處理自訂日期
+		const startDate = new Date(customStartDate.value + "T00:00:00Z");
+		const endDate = new Date(customEndDate.value + "T00:00:00Z");
+		endDate.setUTCDate(endDate.getUTCDate() + 1); // 結束時間為下一天的開始（不包含）
 
 		emit("update:modelValue", {
-			startDate: start.toISOString(),
-			endDate: end.toISOString(),
+			startDate: startDate.toISOString(),
+			endDate: endDate.toISOString(),
 			preset: "custom"
 		});
 		showDropdown.value = false;

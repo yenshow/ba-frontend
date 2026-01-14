@@ -18,7 +18,6 @@ export interface CameraStreamStatus {
 	streamId?: string;
 	status: "running" | "stopped" | "error" | "loading";
 	hlsUrl?: string;
-	webrtcUrl?: string;
 	error?: string;
 }
 

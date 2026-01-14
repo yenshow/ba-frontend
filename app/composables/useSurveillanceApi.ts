@@ -192,8 +192,7 @@ export const useSurveillanceApi = () => {
 				deviceId,
 				streamId: stream.streamId,
 				status: stream.status === "running" ? "running" : "stopped",
-				hlsUrl: stream.hlsUrl,
-				webrtcUrl: stream.webrtcUrl
+				hlsUrl: stream.hlsUrl
 			};
 		} catch (error) {
 			console.error(`[Surveillance API] 獲取攝影機串流狀態失敗 (設備 ID: ${deviceId}):`, error);

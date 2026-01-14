@@ -23,7 +23,7 @@
 		<Transition name="fade">
 			<div
 				v-if="showDropdown"
-				class="absolute top-full z-50 mt-2 w-64 rounded-lg border border-white/20 bg-slate-800 p-2 shadow-lg"
+				class="absolute top-full z-50 mt-2 w-[125px] rounded-lg border border-white/20 bg-slate-800 p-2 shadow-lg"
 			>
 				<div class="space-y-1">
 					<button
@@ -32,7 +32,7 @@
 						type="button"
 						@click="selectOption(option.value)"
 						:class="[
-							'w-full rounded px-3 py-2 text-left text-sm text-white transition-colors',
+							'w-full rounded px-3 py-2 text-center text-sm text-white transition-colors',
 							isSelected(option.value) ? 'bg-blue-500/80 text-white' : 'hover:bg-white/10'
 						]"
 					>

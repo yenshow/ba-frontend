@@ -25,7 +25,7 @@
 					</div>
 
 					<!-- 監控網格區域 -->
-					<div class="flex-1 min-h-[400px]">
+					<div class="min-h-[400px] flex-1">
 						<Transition name="fade" mode="out-in">
 							<!-- 錯誤狀態 -->
 							<div v-if="loadError" key="error" class="flex h-full items-center justify-center">
@@ -43,8 +43,8 @@
 							<!-- 監控網格 -->
 							<div v-else-if="monitorViews.length > 0" key="grid">
 								<SurveillanceCameraGrid
-									:cameras="cameras"
-									:views="monitorViews"
+									:cameras="cameras as SurveillanceCamera[]"
+									:views="monitorViews as MonitorView[]"
 									:layout="gridLayout"
 									@start-stream="handleStartStream"
 									@stop-stream="handleStopStream"
@@ -247,12 +247,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, watch, nextTick } from "vue";
-import type { SurveillanceCamera, MonitorView, GridLayout } from "~/types/surveillance";
+import { onMounted, onBeforeUnmount, watch } from "vue";
+import type { GridLayout, SurveillanceCamera, MonitorView } from "~/types/surveillance";
 
-const surveillanceApi = useSurveillanceApi();
-const rtspApi = useRtspApi();
 const toast = useToast();
+const { connect, isConnected } = useWebSocket();
+
+// 使用統一的串流狀態管理
+const streamStatus = useStreamStatus();
 
 // 左側區域參考與高度（用於使右側同高）
 const leftSectionRef = ref<HTMLElement | null>(null);
@@ -280,28 +282,31 @@ const initLeftSectionObserver = () => {
 	leftSectionResizeObserver.observe(leftSectionRef.value);
 };
 
-// 狀態管理
-const cameras = ref<SurveillanceCamera[]>([]);
-const isLoadingCameras = ref(false);
+// 狀態管理（使用統一的串流狀態管理）
 const loadError = ref<string | null>(null);
 const searchQuery = ref("");
 
-// 監控畫面管理
+// 從統一的狀態管理獲取狀態（只讀）
+const cameras = computed(() => streamStatus.cameras.value);
+const monitorViews = computed(() => streamStatus.monitorViews.value);
+
+// 布局管理
 const gridLayout = ref<GridLayout>("1");
-const monitorViews = ref<MonitorView[]>([]);
-const selectedCameraIds = ref<number[]>([]);
+const selectedCameraIds = computed(() => monitorViews.value.map(view => view.deviceId));
 
 // 側邊欄收縮狀態
 const isSidebarCollapsed = ref(false);
 
-// RTSP 測試功能（從 rtsp.vue 轉移）
+// RTSP 測試功能（使用統一狀態管理）
 const testRtspUrl = ref("rtsp://admin:Aa83124007@192.168.2.103:554/Streaming/Channels/101");
-const testStreamId = ref("");
-const testHlsUrl = ref("");
-const testWebrtcUrl = ref("");
 const testLoading = ref(false);
-const testStreamStatus = ref<string>("");
 const testErrorMessage = ref<string>("");
+
+// 從統一狀態管理獲取測試串流狀態
+const testStream = computed(() => streamStatus.testStream.value);
+const testStreamId = computed(() => testStream.value?.streamId || "");
+const testHlsUrl = computed(() => testStream.value?.hlsUrl || "");
+const testStreamStatus = computed(() => testStream.value?.status || "");
 
 // 計算屬性
 const filteredCameras = computed(() => {
@@ -329,20 +334,16 @@ const canStopAll = computed(() => {
 	return cameras.value.some(camera => camera.isStreaming);
 });
 
-// 載入攝影機列表
+// 載入攝影機列表（使用統一狀態管理的方法）
 const loadCameras = async () => {
-	isLoadingCameras.value = true;
 	loadError.value = null;
 
 	try {
-		cameras.value = await surveillanceApi.getCamerasWithStreamInfo();
-		console.log("[Surveillance] 載入攝影機成功:", cameras.value.length);
+		await streamStatus.loadCameras();
 	} catch (error) {
 		console.error("[Surveillance] 載入攝影機失敗:", error);
 		loadError.value = error instanceof Error ? error.message : "載入攝影機列表失敗";
 		toast.error("載入攝影機列表失敗");
-	} finally {
-		isLoadingCameras.value = false;
 	}
 };
 
@@ -354,7 +355,7 @@ const refreshStatus = async () => {
 			return;
 		}
 
-		cameras.value = await surveillanceApi.getCamerasWithStreamInfo();
+		await streamStatus.loadCameras();
 		toast.success("狀態已刷新");
 	} catch (error) {
 		console.error("[Surveillance] 刷新狀態失敗:", error);
@@ -362,13 +363,13 @@ const refreshStatus = async () => {
 	}
 };
 
-// 處理攝影機選擇
+// 處理攝影機選擇（使用統一狀態管理）
 const handleCameraSelect = (deviceId: number) => {
 	// 檢查是否已經在監控畫面中
-	const existingIndex = monitorViews.value.findIndex(view => view.deviceId === deviceId);
-	if (existingIndex >= 0) {
-		monitorViews.value.splice(existingIndex, 1);
-		reorderMonitorViewPositions();
+	const existing = monitorViews.value.find(v => v.deviceId === deviceId && !v.isTestStream);
+	if (existing) {
+		// 移除
+		streamStatus.removeMonitorView(deviceId);
 	} else {
 		// 檢查是否已達到最大數量
 		const maxViews = parseInt(gridLayout.value);
@@ -378,65 +379,40 @@ const handleCameraSelect = (deviceId: number) => {
 		}
 
 		// 添加到監控畫面
-		monitorViews.value.push({
-			deviceId,
-			position: monitorViews.value.length
-		});
+		streamStatus.addMonitorView(deviceId);
 	}
-
-	// 更新選擇狀態
-	updateSelectedCameraIds();
 };
 
-// 重新排列監控畫面的位置索引
-const reorderMonitorViewPositions = () => {
-	monitorViews.value.forEach((view, idx) => {
-		view.position = idx;
-	});
-};
-
-// 更新選擇狀態
-const updateSelectedCameraIds = () => {
-	selectedCameraIds.value = monitorViews.value.map(view => view.deviceId);
-};
-
-// 處理移除畫面
+// 處理移除畫面（使用統一狀態管理）
 const handleRemoveView = (deviceId: number) => {
-	const index = monitorViews.value.findIndex(view => view.deviceId === deviceId);
-	if (index >= 0) {
-		monitorViews.value.splice(index, 1);
-		reorderMonitorViewPositions();
-		updateSelectedCameraIds();
-	}
+	streamStatus.removeMonitorView(deviceId);
 };
 
-// 處理啟動串流
+// 處理啟動串流（使用統一狀態管理，WebSocket 會自動更新狀態）
 const handleStartStream = async (deviceId: number) => {
 	try {
-		await surveillanceApi.startCameraStream(deviceId);
-		// 刷新攝影機列表以更新串流狀態
-		await loadCameras();
+		await streamStatus.startStream(deviceId);
 		toast.success("串流啟動成功");
+		// ✅ 不需要 loadCameras()，WebSocket 事件已自動更新狀態
 	} catch (error) {
 		console.error("[Surveillance] 啟動串流失敗:", error);
 		toast.error(error instanceof Error ? error.message : "啟動串流失敗");
 	}
 };
 
-// 處理停止串流
+// 處理停止串流（使用統一狀態管理，WebSocket 會自動更新狀態）
 const handleStopStream = async (deviceId: number) => {
 	try {
-		await surveillanceApi.stopCameraStream(deviceId);
-		// 刷新攝影機列表以更新串流狀態
-		await loadCameras();
+		await streamStatus.stopStream(deviceId);
 		toast.success("串流已停止");
+		// ✅ 不需要 loadCameras()，WebSocket 事件已自動更新狀態
 	} catch (error) {
 		console.error("[Surveillance] 停止串流失敗:", error);
 		toast.error(error instanceof Error ? error.message : "停止串流失敗");
 	}
 };
 
-// 全部啟動
+// 全部啟動（使用統一狀態管理的批量操作方法）
 const handleStartAll = async () => {
 	const camerasToStart = cameras.value.filter(
 		camera => camera.status === "active" && !camera.isStreaming
@@ -448,17 +424,17 @@ const handleStartAll = async () => {
 	}
 
 	try {
-		const promises = camerasToStart.map(camera => surveillanceApi.startCameraStream(camera.id));
-		await Promise.allSettled(promises);
-		await loadCameras();
+		const cameraIds = camerasToStart.map(c => c.id);
+		await streamStatus.startAllStreams(cameraIds);
 		toast.success(`已啟動 ${camerasToStart.length} 個串流`);
+		// ✅ 不需要 loadCameras()，WebSocket 事件已自動更新狀態
 	} catch (error) {
 		console.error("[Surveillance] 批量啟動串流失敗:", error);
 		toast.error("批量啟動串流時發生錯誤");
 	}
 };
 
-// 全部停止
+// 全部停止（使用統一狀態管理的批量操作方法）
 const handleStopAll = async () => {
 	const camerasToStop = cameras.value.filter(camera => camera.isStreaming);
 
@@ -468,10 +444,10 @@ const handleStopAll = async () => {
 	}
 
 	try {
-		const promises = camerasToStop.map(camera => surveillanceApi.stopCameraStream(camera.id));
-		await Promise.allSettled(promises);
-		await loadCameras();
+		const cameraIds = camerasToStop.map(c => c.id);
+		await streamStatus.stopAllStreams(cameraIds);
 		toast.success(`已停止 ${camerasToStop.length} 個串流`);
+		// ✅ 不需要 loadCameras()，WebSocket 事件已自動更新狀態
 	} catch (error) {
 		console.error("[Surveillance] 批量停止串流失敗:", error);
 		toast.error("批量停止串流時發生錯誤");
@@ -482,13 +458,16 @@ const handleStopAll = async () => {
 watch(gridLayout, newLayout => {
 	const maxViews = parseInt(newLayout);
 	if (monitorViews.value.length > maxViews) {
-		monitorViews.value = monitorViews.value.slice(0, maxViews);
-		updateSelectedCameraIds();
+		// 移除超出數量的視圖
+		const viewsToRemove = monitorViews.value.slice(maxViews);
+		viewsToRemove.forEach(view => {
+			streamStatus.removeMonitorView(view.deviceId);
+		});
 	}
 	// ResizeObserver 會自動監聽尺寸變化，無需手動更新
 });
 
-// RTSP 測試功能處理
+// RTSP 測試功能處理（使用統一狀態管理）
 const handleTestStart = async () => {
 	if (!testRtspUrl.value) {
 		testErrorMessage.value = "請輸入 RTSP URL";
@@ -503,65 +482,31 @@ const handleTestStart = async () => {
 
 	testLoading.value = true;
 	testErrorMessage.value = "";
-	testStreamId.value = "";
-	testHlsUrl.value = "";
-	testWebrtcUrl.value = "";
-	testStreamStatus.value = "";
 
 	try {
-		console.log("[RTSP Test] 開始啟動測試串流:", testRtspUrl.value.replace(/:[^:@]+@/, ":****@"));
-
-		const streamInfo = await rtspApi.startStream(testRtspUrl.value);
-		testStreamId.value = streamInfo.streamId;
-		testHlsUrl.value = streamInfo.hlsUrl;
-		testWebrtcUrl.value = streamInfo.webrtcUrl || "";
-		testStreamStatus.value = streamInfo.status;
-
-		console.log("[RTSP Test] 測試串流啟動成功:", {
-			streamId: streamInfo.streamId,
-			hlsUrl: streamInfo.hlsUrl,
-			webrtcUrl: streamInfo.webrtcUrl,
-			status: streamInfo.status
-		});
+		const streamInfo = await streamStatus.startTestStream(testRtspUrl.value);
 
 		// 將測試串流加入到監控畫面（如果尚未加入）
-		const existingTestViewIndex = monitorViews.value.findIndex(
-			view => view.isTestStream && view.streamId === streamInfo.streamId
-		);
+		const existingTestView = monitorViews.value.find(v => v.isTestStream);
 
-		if (existingTestViewIndex === -1) {
+		if (!existingTestView) {
 			// 檢查是否已達到最大數量
 			const maxViews = parseInt(gridLayout.value);
 			if (monitorViews.value.length >= maxViews) {
 				toast.warning(`最多只能顯示 ${maxViews} 個畫面，請先移除其他畫面`);
 			} else {
 				// 添加到監控畫面（使用特殊的 deviceId: -1 表示測試串流）
-				monitorViews.value.push({
+				// hlsUrl 和 streamId 會通過 syncMonitorViewsWithStreamStatus 自動同步
+				streamStatus.addMonitorView({
 					deviceId: -1, // 測試串流使用 -1 作為設備 ID
 					position: monitorViews.value.length,
-					hlsUrl: streamInfo.hlsUrl,
-					streamId: streamInfo.streamId,
 					isTestStream: true
 				});
-				updateSelectedCameraIds();
 				toast.success("測試串流已加入到監控畫面");
 			}
 		} else {
-			// 如果已存在，更新 HLS URL
-			monitorViews.value[existingTestViewIndex].hlsUrl = streamInfo.hlsUrl;
-			monitorViews.value[existingTestViewIndex].streamId = streamInfo.streamId;
 			toast.success("測試串流已更新");
 		}
-
-		// 使用 nextTick 確保 props 已更新到子組件
-		await nextTick();
-
-		// 異步刷新攝影機列表（不阻塞視頻播放器初始化）
-		loadCameras().catch(error => {
-			console.error("[Surveillance] 刷新攝影機列表失敗:", error);
-		});
-
-		console.log("[RTSP Test] 測試串流初始化完成");
 	} catch (error) {
 		const errorMsg = error instanceof Error ? error.message : "啟動串流失敗";
 		console.error("[RTSP Test] 啟動測試串流失敗:", error);
@@ -573,7 +518,7 @@ const handleTestStart = async () => {
 };
 
 const handleTestStop = async () => {
-	if (!testStreamId.value) {
+	if (!testStream.value) {
 		return;
 	}
 
@@ -581,29 +526,7 @@ const handleTestStop = async () => {
 	testErrorMessage.value = "";
 
 	try {
-		console.log("[RTSP Test] 停止測試串流:", testStreamId.value);
-		await rtspApi.stopStream(testStreamId.value);
-
-		// 從監控畫面中移除測試串流
-		const testViewIndex = monitorViews.value.findIndex(
-			view => view.isTestStream && view.streamId === testStreamId.value
-		);
-		if (testViewIndex >= 0) {
-			monitorViews.value.splice(testViewIndex, 1);
-			reorderMonitorViewPositions();
-			updateSelectedCameraIds();
-		}
-
-		// 清除狀態
-		testStreamId.value = "";
-		testHlsUrl.value = "";
-		testWebrtcUrl.value = "";
-		testStreamStatus.value = "";
-
-		// 刷新攝影機列表
-		await loadCameras();
-
-		console.log("[RTSP Test] 測試串流已停止並從監控畫面移除");
+		await streamStatus.stopTestStream();
 		toast.success("測試串流已停止");
 	} catch (error) {
 		const errorMsg = error instanceof Error ? error.message : "停止串流失敗";
@@ -615,11 +538,17 @@ const handleTestStop = async () => {
 	}
 };
 
-// 定期刷新狀態的定時器
+// 定期刷新狀態的定時器（已優化：使用 WebSocket 後改為 60 秒，僅作為備用）
 let refreshInterval: ReturnType<typeof setInterval> | null = null;
+
+// ✅ 移除手動狀態同步邏輯：monitorViews 現在由 useStreamStatus 統一管理，自動同步
+// ✅ 移除測試串流 WebSocket 事件處理：已整合到 useStreamStatus 中
 
 // 清理函數
 onBeforeUnmount(() => {
+	// 清理統一的狀態管理
+	streamStatus.cleanup();
+
 	if (refreshInterval) {
 		clearInterval(refreshInterval);
 		refreshInterval = null;
@@ -633,8 +562,24 @@ onBeforeUnmount(() => {
 
 // 初始化
 onMounted(async () => {
+	// 清除所有 HLS 實例緩存，確保重新整理後使用新實例（避免播放舊內容）
+	if (process.client) {
+		try {
+			const { hlsInstanceManager } = await import("~/utils/hlsInstanceManager");
+			hlsInstanceManager.clearAll();
+		} catch (err) {
+			console.warn("[Surveillance] 清除 HLS 實例緩存失敗:", err);
+		}
+	}
+
 	// 初始化左側 ResizeObserver
 	initLeftSectionObserver();
+
+	// 建立 WebSocket 連接
+	connect();
+
+	// 初始化統一的狀態管理（會自動設置 WebSocket 事件監聽器，包括測試串流）
+	streamStatus.init();
 
 	try {
 		await loadCameras();
@@ -643,12 +588,13 @@ onMounted(async () => {
 		console.error("初始化失敗:", error);
 	}
 
-	// 定期刷新狀態（每 30 秒，但只在有監控畫面時才刷新）
+	// 定期刷新狀態（已優化：使用 WebSocket 後改為 60 秒，僅作為備用機制）
+	// 只在有監控畫面時才刷新，且 WebSocket 未連接時才使用
 	refreshInterval = setInterval(() => {
-		if (monitorViews.value.length > 0) {
+		if (monitorViews.value.length > 0 && !isConnected.value) {
 			refreshStatus();
 		}
-	}, 30000);
+	}, 60000); // 從 30 秒改為 60 秒
 });
 </script>
 

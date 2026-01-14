@@ -94,7 +94,6 @@ export interface RtspStreamStartedEvent {
 	streamId: string;
 	rtspUrl: string;
 	hlsUrl: string;
-	webrtcUrl?: string;
 	timestamp: string;
 }
 

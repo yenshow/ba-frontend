@@ -102,7 +102,7 @@ export const useErrorHandler = () => {
 		// 但如果錯誤訊息包含設備相關的 URL（如 /modbus/），則可能是設備連接錯誤，不應判斷為 CRITICAL
 		const isDeviceApiError = message.includes("/modbus/") || message.includes("/device/");
 		const hasDeviceIp = message.match(/\d+\.\d+\.\d+\.\d+:\d+/);
-		
+
 		if (
 			ERROR_KEYWORDS.CRITICAL.some(keyword => {
 				if (keyword === "econnrefused" || keyword === "enotfound") {
@@ -156,10 +156,7 @@ export const useErrorHandler = () => {
 		}
 
 		// 特殊規則：連線錯誤時，不處理數值錯誤
-		if (
-			currentPriority.value >= ErrorPriority.HIGH &&
-			errorPriority <= ErrorPriority.MEDIUM
-		) {
+		if (currentPriority.value >= ErrorPriority.HIGH && errorPriority <= ErrorPriority.MEDIUM) {
 			return false;
 		}
 
@@ -181,7 +178,9 @@ export const useErrorHandler = () => {
 	/**
 	 * 根據優先級獲取 Toast 配置
 	 */
-	const getToastConfig = (priority: ErrorPriority): { type: "error" | "warning" | "info"; duration: number } => {
+	const getToastConfig = (
+		priority: ErrorPriority
+	): { type: "error" | "warning" | "info"; duration: number } => {
 		if (priority >= ErrorPriority.CRITICAL) {
 			return { type: "error", duration: 10000 };
 		}
@@ -200,10 +199,7 @@ export const useErrorHandler = () => {
 	 * @param defaultMessage - 默認錯誤訊息
 	 * @returns 處理後的錯誤訊息，如果被忽略則返回 null
 	 */
-	const handleError = (
-		error: unknown,
-		defaultMessage: string
-	): string | null => {
+	const handleError = (error: unknown, defaultMessage: string): string | null => {
 		const errorMsg = error instanceof Error ? error.message : defaultMessage;
 		const errorObj = error instanceof Error ? error : new Error(errorMsg);
 		const errorPriority = getErrorPriority(errorObj);

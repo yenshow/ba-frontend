@@ -218,6 +218,7 @@ import type {
 import DeviceModelDialog from "~/components/device/DeviceModelDialog.vue";
 import DeviceTypeDialog from "~/components/device/DeviceTypeDialog.vue";
 import Pagination from "~/components/common/Pagination.vue";
+import { formatDate } from "~/utils/dateUtils";
 
 definePageMeta({
 	layout: "default",
@@ -289,11 +290,6 @@ const tableCellClass = "py-3 2xl:py-4 px-4 2xl:px-6";
 const sortSelectClass =
 	"rounded-lg border border-white/40 bg-white/10 px-2 2xl:px-3 py-1 2xl:py-2 text-sm 2xl:text-base text-white focus:border-white focus:outline-none";
 
-// 工具函數
-const formatDate = (dateString?: string) => {
-	if (!dateString) return "-";
-	return new Date(dateString).toLocaleDateString("zh-TW");
-};
 
 const formatDeviceConfig = (config: DeviceConfig): string => {
 	if (!config) return "-";

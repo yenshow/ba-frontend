@@ -165,6 +165,7 @@
 <script setup lang="ts">
 import type { User } from "~/types/user";
 import Pagination from "~/components/common/Pagination.vue";
+import { formatDate } from "~/utils/dateUtils";
 
 definePageMeta({
 	layout: "default",
@@ -219,11 +220,6 @@ const formData = reactive({
 	status: "active" as "active" | "inactive" | "suspended"
 });
 
-// 工具函數
-const formatDate = (dateString?: string) => {
-	if (!dateString) return "-";
-	return new Date(dateString).toLocaleDateString("zh-TW");
-};
 
 const getRoleBadgeClass = (role: string) => {
 	const classes = {

@@ -1,4 +1,4 @@
-import type { RTSPStreamInfo, RTSPStartResponse, RTSPStatusResponse, RTSPStopResponse } from "~/types/rtsp";
+import type { RTSPStreamInfo, RTSPStartResponse, RTSPStatusResponse, RTSPStopResponse, RTSPRefreshResponse, RTSPRefreshData } from "~/types/rtsp";
 import { useApiBase } from "~/composables/useApiBase";
 
 export const useRtspApi = () => {
@@ -82,10 +82,35 @@ export const useRtspApi = () => {
 		}
 	};
 
+	/**
+	 * 獲取最新的 HLS URL（帶時間戳，防止緩存）
+	 * 用於前端頁面重新載入或刷新時獲取最新的播放 URL
+	 * @param streamId - 串流 ID
+	 * @returns Promise<RTSPRefreshData>
+	 */
+	const refreshHlsUrl = async (streamId: string): Promise<RTSPRefreshData> => {
+		if (process.dev) {
+			console.log(`[RTSP API] 刷新 HLS URL，Stream ID: ${streamId}`);
+		}
+		
+		const response = await request<RTSPRefreshResponse>(`/rtsp/refresh/${streamId}`, {
+			method: "GET"
+		});
+
+		const refreshData = handleRtspResponse<RTSPRefreshData>(response, "獲取最新 URL 失敗");
+		
+		if (process.dev) {
+			console.log(`[RTSP API] HLS URL 刷新成功，新 URL: ${refreshData.hlsUrl}`);
+		}
+		
+		return refreshData;
+	};
+
 	return {
 		startStream,
 		stopStream,
 		getAllStreamStatus,
-		getStreamStatus
+		getStreamStatus,
+		refreshHlsUrl
 	};
 };
