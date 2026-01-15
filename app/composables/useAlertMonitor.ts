@@ -188,8 +188,6 @@ export const useAlertMonitor = () => {
 			// 如果有樓層資訊，添加到位置資訊中
 			if (alert.source === "environment" && alert.environment_floor_name) {
 				locationInfo = `${alert.environment_floor_name} - ${locationInfo}`;
-			} else if (alert.source === "lighting" && alert.lighting_floor_name) {
-				locationInfo = `${alert.lighting_floor_name} - ${locationInfo}`;
 			}
 		} else if (alert.device_name) {
 			locationInfo = alert.device_name;

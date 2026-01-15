@@ -30,7 +30,7 @@ export default defineNuxtConfig({
 	// 開發伺服器配置 - 開放區域網路存取
 	devServer: {
 		host: "0.0.0.0", // 監聽所有網路介面，允許區域網路存取
-		port: 3000 // 預設端口，可根據需要修改
+		port: 3001 // B 版本端口，避免與 A 版本衝突
 	},
 
 	// Nuxt Image 配置

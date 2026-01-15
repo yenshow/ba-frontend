@@ -241,7 +241,7 @@ onMounted(async () => {
 	// 等待下一個 tick 確保認證狀態已恢復
 	await nextTick();
 	if (isAuthenticated.value) {
-		const redirectPath = (route.query.redirect as string) || "/";
+			const redirectPath = (route.query.redirect as string) || "/construction-monitoring/environment";
 		router.push(redirectPath);
 	}
 });
@@ -275,8 +275,8 @@ const handleLogin = async () => {
 
 		toast.success("登入成功");
 
-		// 登入成功後跳轉 - 檢查 redirect query 參數
-		const redirectPath = (route.query.redirect as string) || "/";
+		// 登入成功後跳轉 - 檢查 redirect query 參數，如果沒有則跳轉到環境品質系統
+		const redirectPath = (route.query.redirect as string) || "/construction-monitoring/environment";
 		await router.push(redirectPath);
 	} catch (error) {
 		const errorMsg = handleError(error, "登入失敗，請檢查帳號密碼");

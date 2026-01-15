@@ -32,7 +32,7 @@ export interface SensorParameter {
 }
 
 /**
- * 環境監測位置（類似 LightingArea，但不需要 location 座標）
+ * 環境監測位置（不需要 location 座標）
  * 注意：floor 欄位已移除，樓層資訊應從父層級 EnvironmentFloor.name 取得
  */
 export interface EnvironmentLocation {
@@ -45,7 +45,7 @@ export interface EnvironmentLocation {
 }
 
 /**
- * 環境監測樓層（類似 LightingFloor）
+ * 環境監測樓層
  */
 export interface EnvironmentFloor {
 	id?: string;

@@ -158,9 +158,9 @@ interface EnvironmentFloor {
 - ✅ Location 通過 `Floor.locations` 陣列屬於某個 Floor
 - ✅ 樓層資訊從父層級（Floor）取得，使用 `getLocationFloor()` helper function
 
-**對比照明系統**：
+**設計說明**：
 
-- ✅ 與 `LightingArea` 設計一致（沒有 `floor` 欄位）
+- ✅ 環境監測位置沒有 `floor` 欄位（樓層資訊從父層級取得）
 - ✅ Area 通過 `Floor.areas` 陣列屬於某個 Floor
 - ✅ 需要顯示樓層時，從父層級取得
 

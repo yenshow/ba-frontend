@@ -8,9 +8,24 @@
 
 			<!-- 篩選器 -->
 			<div class="flex flex-wrap items-center gap-3 2xl:gap-4">
-				<FilterDropdown v-model="filterStatus" :options="statusOptions" placeholder="全部狀態" />
+				<!-- FilterDropdown 已移除 - 方案 B 工地管理系統將有特別的設計 -->
+				<select
+					v-model="filterStatus"
+					class="select-filter w-[125px] cursor-pointer text-center"
+				>
+					<option v-for="option in statusOptions" :key="option.value" :value="option.value">
+						{{ option.label }}
+					</option>
+				</select>
 
-				<FilterDropdown v-model="filterSource" :options="sourceOptions" placeholder="全部系統" />
+				<select
+					v-model="filterSource"
+					class="select-filter w-[125px] cursor-pointer text-center"
+				>
+					<option v-for="option in sourceOptions" :key="option.value" :value="option.value">
+						{{ option.label }}
+					</option>
+				</select>
 
 				<TimeRangePicker v-model="timeRange" :presets="timeRangePresets" />
 
@@ -325,7 +340,7 @@ import {
 } from "~/utils/alertUtils";
 import { getTodayDateRangeUTC, formatDateTime } from "~/utils/dateUtils";
 import { isAlertResolved, isAlertIgnored } from "~/utils/alertUtils";
-import FilterDropdown from "~/components/common/FilterDropdown.vue";
+// FilterDropdown 已移除 - 方案 B 工地管理系統將有特別的設計
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue";
 import Pagination from "~/components/common/Pagination.vue";
 
@@ -365,8 +380,7 @@ const statusOptions = [
 const sourceOptions = [
 	{ value: "", label: "全部系統" },
 	{ value: "device", label: "設備系統" },
-	{ value: "environment", label: "環境系統" },
-	{ value: "lighting", label: "照明系統" }
+	{ value: "environment", label: "環境系統" }
 ];
 
 // 時間範圍
@@ -736,7 +750,7 @@ const getSourceDisplayName = (alert: Alert): string =>
 
 // 獲取樓層名稱
 const getFloorName = (alert: Alert): string =>
-	alert.environment_floor_name || alert.lighting_floor_name || "";
+	alert.environment_floor_name || "";
 
 // 取得警示卡片樣式
 const getAlertCardClass = (alert: Alert) => {

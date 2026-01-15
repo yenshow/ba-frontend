@@ -1,59 +1,103 @@
 <template>
-	<!-- Main Content -->
-	<div class="grid grid-cols-1 gap-4 xl:grid-cols-3 2xl:gap-8">
-		<!-- Left Column -->
-		<div class="col-span-2 space-y-4 2xl:space-y-8">
-			<!-- Data Cards Section -->
-			<div class="overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30">
-				<div class="grid h-full grid-cols-1 xl:grid-cols-12">
-					<!-- AQI Card -->
-					<AQICard class="col-span-1 xl:col-span-7" :aqi="aqiData" />
+	<div class="min-h-screen">
+		<!-- 頂部橫幅（紅色警告區域） -->
+		<SafetyBanner />
 
-					<!-- Environmental Card -->
-					<EnvironmentCard class="col-span-1 xl:col-span-5" :data="environmentData" />
+		<!-- 頂部區域（品牌與時間） -->
+		<HomeHeader />
+
+		<!-- 主要內容區域 -->
+		<div
+			class="grid grid-cols-1 gap-4 px-4 py-4 xl:grid-cols-12 xl:gap-6 xl:px-8 xl:py-6 2xl:px-12 2xl:py-8"
+		>
+			<!-- 左側欄 - 環境監測數據 -->
+			<div class="col-span-1 xl:col-span-4">
+				<EnvironmentDashboard
+					v-if="selectedLocation"
+					:location="selectedLocation"
+					:sensor-data="sensorData"
+					:device-model-config="deviceModelConfig"
+				/>
+				<div v-else class="rounded-2xl border-2 border-white/30 bg-white/10 p-8 text-center">
+					<p class="text-white/60">請選擇地點以顯示環境監測數據</p>
 				</div>
 			</div>
 
-			<!-- System Modules Section -->
-			<div
-				class="overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 px-8 xl:px-12 2xl:px-24"
-			>
-				<SystemModule />
+			<!-- 中間區域 - 人員統計（預留空間） -->
+			<div class="col-span-1 xl:col-span-4">
+				<div class="rounded-2xl border-2 border-white/30 bg-white/10 p-8">
+					<h2 class="mb-4 text-xl font-semibold text-white xl:text-2xl 2xl:text-3xl">人員統計</h2>
+					<p class="text-white/60">人員統計功能開發中...</p>
+				</div>
 			</div>
-		</div>
 
-		<!-- Right Column -->
-		<div class="col-span-1 grid grid-rows-12">
-			<div class="row-span-12 overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30">
-				<!-- Building Image Card -->
-				<BuildingCard />
+			<!-- 右側欄 - 人員進出記錄（預留空間） -->
+			<div class="col-span-1 xl:col-span-4">
+				<div class="rounded-2xl border-2 border-white/30 bg-white/10 p-8">
+					<h2 class="mb-4 text-xl font-semibold text-white xl:text-2xl 2xl:text-3xl">進出記錄</h2>
+					<p class="text-white/60">進出記錄功能開發中...</p>
+				</div>
 			</div>
 		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
-import AQICard from "~/components/home/AQICard.vue";
-import EnvironmentCard from "~/components/home/EnvironmentCard.vue";
-import BuildingCard from "~/components/home/BuildingCard.vue";
-import SystemModule from "~/components/home/SystemModule.vue";
+import SafetyBanner from "~/components/home/SafetyBanner.vue";
+import HomeHeader from "~/components/home/HomeHeader.vue";
+import EnvironmentDashboard from "~/components/home/EnvironmentDashboard.vue";
+import { useEnvironmentApi } from "~/composables/useEnvironmentApi";
 import { useDeviceApi } from "~/composables/useDeviceApi";
 import { useApiBase } from "~/composables/useApiBase";
-import { isDeviceConnectionError } from "~/utils/errorUtils";
+import type {
+	EnvironmentFloor,
+	EnvironmentLocation,
+	SensorParameterType
+} from "~/types/environment";
+import type {
+	Device,
+	SensorDeviceConfig,
+	SensorDeviceModelConfig,
+	SensorParameterDefinition
+} from "~/types/device";
 import type { ModbusDeviceConfig, ModbusDataResponse } from "~/types/modbus";
-import type { Device, SensorDeviceConfig } from "~/types/device";
+// 工具函數已由 EnvironmentDashboard 組件內部使用，這裡不需要導入
+import { isDeviceConnectionError } from "~/utils/errorUtils";
+import { cleanFloor } from "~/utils/sensorUtils";
 
 definePageMeta({
 	layout: "default"
 });
 
+const environmentApi = useEnvironmentApi();
 const deviceApi = useDeviceApi();
 const { request } = useApiBase();
-const toast = useToast();
 const { handleError } = useErrorHandler();
 
-// 感測器設備（從設備 API 讀取）
+// 環境樓層和地點資料
+const environmentFloors = ref<EnvironmentFloor[]>([]);
+const isLoadingFloors = ref(false);
+const selectedLocationId = ref<string>("");
+
+// 獲取地點 ID（與 environment.vue 保持一致）
+const getLocationId = (location: EnvironmentLocation, floor: EnvironmentFloor): string => {
+	return location.id || `${floor.name}-${location.name}`;
+};
+
+// 獲取地點所屬的樓層
+const getLocationFloor = (location: EnvironmentLocation): EnvironmentFloor | null => {
+	for (const floor of environmentFloors.value) {
+		if (floor.locations.some(loc => loc.id === location.id || loc.name === location.name)) {
+			return floor;
+		}
+	}
+	return null;
+};
+
+// 感測器設備和配置
 const sensorDevice = ref<Device | null>(null);
+const deviceModelConfig = ref<SensorDeviceModelConfig | null>(null);
+
 const sensorDeviceConfig = computed<ModbusDeviceConfig | null>(() => {
 	if (!sensorDevice.value || sensorDevice.value.type_code !== "sensor") {
 		return null;
@@ -64,7 +108,6 @@ const sensorDeviceConfig = computed<ModbusDeviceConfig | null>(() => {
 		return null;
 	}
 
-	// 從 config 中讀取 unitId（如果存在），否則使用預設值 1
 	const unitId = config.unitId || 1;
 
 	return {
@@ -74,16 +117,21 @@ const sensorDeviceConfig = computed<ModbusDeviceConfig | null>(() => {
 	};
 });
 
-const SENSOR_ADDRESSES = {
-	PM25: 0,
-	PM10: 1,
-	TVOC: 2,
-	HCHO: 3,
-	HUMIDITY: 4,
-	TEMPERATURE: 5,
-	CO2: 6
-} as const;
+// 當前選中的地點
+const selectedLocation = computed<EnvironmentLocation | null>(() => {
+	if (!selectedLocationId.value) return null;
 
+	for (const floor of environmentFloors.value) {
+		const location = floor.locations.find(loc => {
+			const locationId = getLocationId(loc, floor);
+			return locationId === selectedLocationId.value;
+		});
+		if (location) return location;
+	}
+	return null;
+});
+
+// 感測器資料
 type SensorReadings = {
 	pm25: number | null;
 	pm10: number | null;
@@ -92,6 +140,8 @@ type SensorReadings = {
 	humidity: number | null;
 	temperature: number | null;
 	co2: number | null;
+	noise: number | null;
+	wind: number | null;
 };
 
 const sensorData = reactive<SensorReadings>({
@@ -101,284 +151,277 @@ const sensorData = reactive<SensorReadings>({
 	hcho: null,
 	humidity: null,
 	temperature: null,
-	co2: null
+	co2: null,
+	noise: null,
+	wind: null
 });
 
-const isFetching = ref(false);
-const isSensorOffline = ref(false); // 追蹤感測器離線狀態
-const lastOfflineAlertTime = ref<number | null>(null); // 記錄上次警報時間
-const AUTO_REFRESH_INTERVAL = 5000; // 調整為 5 秒，減少後端負擔
-const OFFLINE_ALERT_INTERVAL = 30000; // 每 30 秒最多顯示一次離線警報
-let refreshTimer: ReturnType<typeof setInterval> | null = null;
+// 從設備型號配置中取得參數的 Modbus 配置
+const getParameterModbusConfig = (
+	paramType: SensorParameterType
+): SensorParameterDefinition["modbusConfig"] | null => {
+	if (!deviceModelConfig.value?.sensorParameters) return null;
 
-// 噪音值和風速（從感測器讀取）
-const noiseValue = ref<number | null>(null);
-const windSpeed = ref<number | null>(null);
-
-type AQIBreakpoint = {
-	concentrationRange: [number, number];
-	indexRange: [number, number];
+	const paramDef = deviceModelConfig.value.sensorParameters.find(p => p.type === paramType);
+	return paramDef?.modbusConfig || null;
 };
 
-const PM25_BREAKPOINTS: AQIBreakpoint[] = [
-	{ concentrationRange: [0, 12], indexRange: [0, 50] },
-	{ concentrationRange: [12.1, 35.4], indexRange: [51, 100] },
-	{ concentrationRange: [35.5, 55.4], indexRange: [101, 150] },
-	{ concentrationRange: [55.5, 150.4], indexRange: [151, 200] },
-	{ concentrationRange: [150.5, 250.4], indexRange: [201, 300] },
-	{ concentrationRange: [250.5, 350.4], indexRange: [301, 400] },
-	{ concentrationRange: [350.5, 500.4], indexRange: [401, 500] }
-];
-
-const PM10_BREAKPOINTS: AQIBreakpoint[] = [
-	{ concentrationRange: [0, 54], indexRange: [0, 50] },
-	{ concentrationRange: [55, 154], indexRange: [51, 100] },
-	{ concentrationRange: [155, 254], indexRange: [101, 150] },
-	{ concentrationRange: [255, 354], indexRange: [151, 200] },
-	{ concentrationRange: [355, 424], indexRange: [201, 300] },
-	{ concentrationRange: [425, 504], indexRange: [301, 400] },
-	{ concentrationRange: [505, 604], indexRange: [401, 500] }
-];
-
-const calculatePollutantAQI = (
-	value: number | null,
-	breakpoints: AQIBreakpoint[]
-): number | null => {
-	if (value === null) {
-		return null;
-	}
-
-	const targetBreakpoint =
-		breakpoints.find(breakpoint => {
-			const [cLow, cHigh] = breakpoint.concentrationRange;
-			return value >= cLow && value <= cHigh;
-		}) ?? breakpoints[breakpoints.length - 1];
-
-	const [cLow, cHigh] = targetBreakpoint.concentrationRange;
-	const [iLow, iHigh] = targetBreakpoint.indexRange;
-
-	const clampedValue = Math.min(Math.max(value, cLow), cHigh);
-	const index = ((iHigh - iLow) / (cHigh - cLow)) * (clampedValue - cLow) + iLow;
-
-	return Math.round(index);
-};
-
-const transformSensorData = (raw: number[]) => {
-	if (raw.length < 7) return;
-
-	sensorData.pm25 = raw[SENSOR_ADDRESSES.PM25] - 1;
-	sensorData.pm10 = raw[SENSOR_ADDRESSES.PM10] - 1;
-	sensorData.tvoc = Number((raw[SENSOR_ADDRESSES.TVOC] / 1000).toFixed(3));
-	sensorData.hcho = raw[SENSOR_ADDRESSES.HCHO];
-	sensorData.humidity = Number((raw[SENSOR_ADDRESSES.HUMIDITY] / 10).toFixed(1));
-	sensorData.temperature = Number((raw[SENSOR_ADDRESSES.TEMPERATURE] / 10).toFixed(1));
-	sensorData.co2 = raw[SENSOR_ADDRESSES.CO2];
-};
-
-// 載入感測器設備配置
-const loadSensorDevice = async () => {
+// 載入環境樓層（參考 environment.vue 的邏輯）
+const loadFloors = async () => {
+	if (isLoadingFloors.value) return;
+	isLoadingFloors.value = true;
 	try {
-		// 從設備 API 讀取第一個啟用的感測器設備
-		const result = await deviceApi.getDevices({
-			type_code: "sensor",
-			status: "active",
-			limit: 1
+		const result = await environmentApi.getFloors();
+		// 清理並標準化參數格式並依樓層排序（B1F < 1F < 2F ...）
+		const sortedFloors = (result.floors || []).map(cleanFloor).sort((a, b) => {
+			const parseNum = (name: string) => {
+				if (name.toUpperCase().startsWith("B")) {
+					return -parseInt(name.match(/\d+/)?.[0] || "0", 10);
+				}
+				return parseInt(name.match(/\d+/)?.[0] || "999", 10);
+			};
+			return parseNum(a.name) - parseNum(b.name);
 		});
+		environmentFloors.value = sortedFloors;
 
-		if (result.devices.length > 0) {
-			sensorDevice.value = result.devices[0];
-		} else {
-			console.warn("[index] 未找到啟用的感測器設備");
-			toast.warning("未找到啟用的感測器設備", 5000);
+		// 優先選擇「測試工地管理」，如果沒有則選擇第一個地點
+		if (environmentFloors.value.length > 0) {
+			let foundLocation = false;
+
+			// 先嘗試找「測試工地管理」
+			for (const floor of environmentFloors.value) {
+				const testSite = floor.locations.find(
+					loc => loc.name === "測試工地管理" || loc.name.includes("測試工地管理")
+				);
+				if (testSite) {
+					selectedLocationId.value = getLocationId(testSite, floor);
+					foundLocation = true;
+					break;
+				}
+			}
+
+			// 如果沒找到「測試工地管理」，選擇第一個地點
+			if (!foundLocation) {
+				for (const floor of environmentFloors.value) {
+					if (floor.locations && floor.locations.length > 0) {
+						selectedLocationId.value = getLocationId(floor.locations[0], floor);
+						foundLocation = true;
+						break;
+					}
+				}
+			}
 		}
 	} catch (error) {
-		handleError(error, "載入感測器設備失敗");
+		handleError(error, "載入環境樓層失敗");
+	} finally {
+		isLoadingFloors.value = false;
 	}
 };
 
-const loadSensorData = async () => {
-	if (isFetching.value) {
+// 載入地點的感測器設備
+const loadLocationSensorDevice = async (location: EnvironmentLocation) => {
+	if (!location.deviceId) {
+		sensorDevice.value = null;
+		deviceModelConfig.value = null;
 		return;
 	}
-
-	// 如果沒有感測器設備配置，先載入
-	if (!sensorDevice.value) {
-		await loadSensorDevice();
-	}
-
-	// 如果仍然沒有配置，無法讀取資料
-	if (!sensorDeviceConfig.value) {
-		return;
-	}
-
-	isFetching.value = true;
 
 	try {
-		const config = sensorDeviceConfig.value;
-		const queryParams = new URLSearchParams({
-			host: config.host,
-			port: String(config.port),
-			unitId: String(config.unitId),
-			address: "0",
-			length: "7"
-		});
+		const result = await deviceApi.getDevice(location.deviceId);
+		const device = result.device;
 
-		const response = await request<ModbusDataResponse<number>>(
-			`/modbus/holding-registers?${queryParams.toString()}`
-		);
-		transformSensorData(response.data);
-
-		// 感測器恢復連線
-		if (isSensorOffline.value) {
-			isSensorOffline.value = false;
-			toast.success("感測器已恢復連線", 5000);
-			lastOfflineAlertTime.value = null;
+		if (!device || device.type_code !== "sensor") {
+			sensorDevice.value = null;
+			deviceModelConfig.value = null;
+			return;
 		}
-	} catch (error: any) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		
-		// 檢查是否為設備連接相關的錯誤
-		if (isDeviceConnectionError(errorMessage)) {
-			// 設備連接錯誤 - 使用防抖機制避免重複提示
-			const now = Date.now();
-			const shouldShowAlert =
-				!isSensorOffline.value ||
-				lastOfflineAlertTime.value === null ||
-				now - lastOfflineAlertTime.value >= OFFLINE_ALERT_INTERVAL;
 
-			if (shouldShowAlert) {
-				isSensorOffline.value = true;
-				lastOfflineAlertTime.value = now;
-				toast.warning("感測器離線，無法讀取資料", 8000);
+		// 嘗試從設備 API 返回的 model 中取得配置
+		const deviceWithModel = device as any;
+		if (deviceWithModel.model?.config) {
+			const modelConfig = deviceWithModel.model.config as SensorDeviceModelConfig | undefined;
+			if (modelConfig?.sensorParameters) {
+				sensorDevice.value = device;
+				deviceModelConfig.value = modelConfig || null;
+				return;
+			}
+		}
+
+		// 如果設備 API 沒有返回 model.config，則單獨取得型號資訊
+		if (device.model_id) {
+			try {
+				const modelResult = await deviceApi.getDeviceModel(device.model_id);
+				const modelConfig = modelResult.device_model.config as SensorDeviceModelConfig | undefined;
+				sensorDevice.value = device;
+				deviceModelConfig.value = modelConfig || null;
+			} catch (error) {
+				console.warn("[index] 載入設備型號配置失敗:", error);
+				sensorDevice.value = device;
+				deviceModelConfig.value = null;
 			}
 		} else {
-			// 其他錯誤（真正的後端連接錯誤、CORS 等）- 只在感測器在線時顯示，避免重複提示
-			// 使用統一錯誤處理（會自動去重和優先級判斷）
-			if (!isSensorOffline.value) {
-				handleError(error, "讀取感測器資料失敗");
-			}
+			sensorDevice.value = device;
+			deviceModelConfig.value = null;
 		}
-	} finally {
-		isFetching.value = false;
+	} catch (error) {
+		console.error("[index] 載入設備失敗:", error);
+		sensorDevice.value = null;
+		deviceModelConfig.value = null;
 	}
 };
 
-const startAutoRefresh = () => {
-	if (refreshTimer) {
+// 讀取 Modbus 寄存器
+const readModbusRegister = async (
+	modbusConfig: ModbusDeviceConfig,
+	address: number,
+	length: number = 1
+): Promise<ModbusDataResponse<number>> => {
+	const queryParams = new URLSearchParams({
+		host: modbusConfig.host,
+		port: String(modbusConfig.port),
+		unitId: String(modbusConfig.unitId),
+		address: String(address),
+		length: String(length)
+	});
+
+	return await request<ModbusDataResponse<number>>(
+		`/modbus/holding-registers?${queryParams.toString()}`
+	);
+};
+
+// 應用轉換公式（參考 environment.vue 的實現）
+// 統一使用簡化格式：直接填入運算符和數值，例如 "-1", "/ 10", "* 2", "+ 5"
+const applyTransform = (value: number, transform?: string): number => {
+	if (!transform || !transform.trim()) return value;
+
+	try {
+		const trimmed = transform.trim();
+		let formula = "";
+
+		// 檢查是否以運算符開頭（+、-、*、/）
+		if (/^[\+\-\*\/]/.test(trimmed)) {
+			// 確保運算符和數值之間有空格（對於減號需要特別處理）
+			if (trimmed.startsWith("-")) {
+				// "-1" → "value - 1", "- 1" → "value - 1"
+				const numPart = trimmed.substring(1).trim();
+				formula = `${value} - ${numPart}`;
+			} else {
+				// "/ 10" → "value / 10", "* 2" → "value * 2", "+ 5" → "value + 5"
+				formula = `${value} ${trimmed}`;
+			}
+		} else {
+			// 如果不是以運算符開頭，可能是純數值（假設是減法）
+			if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+				// 純數字：假設為減法操作，例如 "1" → "value - 1"
+				formula = `${value} - ${trimmed}`;
+			} else {
+				// 其他情況，可能是複雜表達式，將 value 替換為實際數值
+				formula = trimmed.replace(/value/gi, String(value));
+			}
+		}
+
+		// 使用 Function 構造函數安全地執行公式（僅允許數學運算）
+		// 注意：生產環境可能需要更嚴格的驗證
+		const result = Function(`"use strict"; return (${formula})`)();
+		return typeof result === "number" && !isNaN(result) ? result : value;
+	} catch (error) {
+		console.warn("[index] 轉換公式執行失敗:", transform, error);
+		return value;
+	}
+};
+
+// 載入感測器資料（需要確保設備配置已載入）
+const loadSensorData = async () => {
+	if (!selectedLocation.value || !sensorDeviceConfig.value || !deviceModelConfig.value) {
 		return;
 	}
 
+	try {
+		const enabledParams = selectedLocation.value.parameters.filter(param => param.enabled);
+		if (enabledParams.length === 0) {
+			return;
+		}
+
+		// 讀取所有啟用的參數
+		for (const param of enabledParams) {
+			const modbusConfig = getParameterModbusConfig(param.type);
+			if (!modbusConfig || modbusConfig.address === undefined) {
+				continue;
+			}
+
+			try {
+				const response = await readModbusRegister(sensorDeviceConfig.value, modbusConfig.address, 1);
+				const rawValue = response.data[0];
+				const transformedValue = applyTransform(rawValue, modbusConfig.transform);
+				(sensorData as any)[param.type] = transformedValue;
+			} catch (error: any) {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				if (isDeviceConnectionError(errorMessage)) {
+					// 設備連接錯誤，靜默處理
+					(sensorData as any)[param.type] = null;
+				}
+			}
+		}
+	} catch (error) {
+		// 錯誤已由 useErrorHandler 統一處理
+		console.error("[index] 載入感測器資料失敗:", error);
+	}
+};
+
+// 自動刷新
+const AUTO_REFRESH_INTERVAL = 5000;
+let refreshTimer: ReturnType<typeof setInterval> | null = null;
+
+const startAutoRefresh = () => {
+	if (refreshTimer) return;
 	refreshTimer = setInterval(() => {
 		void loadSensorData();
 	}, AUTO_REFRESH_INTERVAL);
 };
 
 const stopAutoRefresh = () => {
-	if (!refreshTimer) {
-		return;
+	if (refreshTimer) {
+		clearInterval(refreshTimer);
+		refreshTimer = null;
 	}
-
-	clearInterval(refreshTimer);
-	refreshTimer = null;
 };
 
+// 監聽地點變化
+watch(
+	() => selectedLocationId.value,
+	async newLocationId => {
+		if (!newLocationId) return;
+
+		const location = selectedLocation.value;
+		if (location) {
+			// 先載入設備配置
+			await loadLocationSensorDevice(location);
+			// 等待配置載入完成後再載入數據
+			await nextTick();
+			await loadSensorData();
+		}
+	}
+);
+
 onMounted(async () => {
-	// 先載入感測器設備配置
-	await loadSensorDevice();
-	// 然後載入感測器資料
-	void loadSensorData();
-	startAutoRefresh();
+	// 先載入樓層資料
+	await loadFloors();
+
+	// 等待 selectedLocation 更新
+	await nextTick();
+
+	if (selectedLocation.value) {
+		// 先載入設備配置
+		await loadLocationSensorDevice(selectedLocation.value);
+		// 等待配置載入完成後再載入數據
+		await nextTick();
+		await loadSensorData();
+		// 啟動自動刷新
+		startAutoRefresh();
+	}
 });
 
 onBeforeUnmount(() => {
 	stopAutoRefresh();
 });
-
-const toFixedNumber = (value: number | null, fractionDigits = 0) => {
-	if (value === null || Number.isNaN(value)) {
-		return 0;
-	}
-	return Number(value.toFixed(fractionDigits));
-};
-
-const aqiScore = computed(() => {
-	const pollutantAQIs = [
-		calculatePollutantAQI(sensorData.pm25, PM25_BREAKPOINTS),
-		calculatePollutantAQI(sensorData.pm10, PM10_BREAKPOINTS)
-	].filter((value): value is number => value !== null);
-
-	if (!pollutantAQIs.length) {
-		return 0;
-	}
-
-	return Math.max(...pollutantAQIs);
-});
-
-const aqiData = computed(() => ({
-	value: aqiScore.value,
-	location: "1F 室外",
-	metrics: [
-		{
-			label: "PM2.5",
-			value: toFixedNumber(sensorData.pm25),
-			unit: "µg/m³",
-			icon: "PM2.5"
-		},
-		{
-			label: "PM10",
-			value: toFixedNumber(sensorData.pm10),
-			unit: "µg/m³",
-			icon: "PM10"
-		},
-		{
-			label: "溫度",
-			value: toFixedNumber(sensorData.temperature, 1),
-			unit: "°C",
-			icon: "temperature"
-		},
-		{
-			label: "濕度",
-			value: toFixedNumber(sensorData.humidity, 1),
-			unit: "%",
-			icon: "humidity"
-		},
-		{
-			label: "風速",
-			value: toFixedNumber(windSpeed.value, 1),
-			unit: "m/s",
-			icon: "wind"
-		},
-		{
-			label: "噪音",
-			value: toFixedNumber(noiseValue.value),
-			unit: "dB",
-			icon: "noise"
-		}
-	]
-}));
-
-const environmentData = computed(() => ({
-	temperature: toFixedNumber(sensorData.temperature, 1),
-	location: "1F 室內",
-	metrics: [
-		{
-			label: "濕度",
-			value: toFixedNumber(sensorData.humidity, 1),
-			unit: "%",
-			icon: "humidity"
-		},
-		{
-			label: "CO₂",
-			value: toFixedNumber(sensorData.co2),
-			unit: "ppm",
-			icon: "CO2"
-		},
-		{
-			label: "PM2.5",
-			value: toFixedNumber(sensorData.pm25),
-			unit: "µg/m³",
-			icon: "PM2.5"
-		}
-	]
-}));
 </script>

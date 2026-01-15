@@ -5,9 +5,9 @@ import {
 	type DeviceStatusChangedEvent,
 	type MonitoringDeviceStatusEvent,
 	type MonitoringDeviceStatusBatchEvent
-} from "../composables/useWebSocket";
-import { useWebSocketMonitor } from "../composables/useWebSocketMonitor";
-import type { Device, DeviceTypeCode } from "../types/device";
+} from "~/composables/useWebSocket";
+import { useWebSocketMonitor } from "~/composables/useWebSocketMonitor";
+import type { Device, DeviceTypeCode } from "~/types/device";
 
 /**
  * 設備監聽器

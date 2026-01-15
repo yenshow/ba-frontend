@@ -2,7 +2,7 @@
 
 本文檔說明 `app/composables` 資料夾中所有 composable 檔案的功能、用途與整合重構內容。
 
-**目前共有 20 個 composables**（已從 23 個整合減少 3 個，新增 2 個 Factory Functions，並將 1 個工具 composable 移至 utils）
+**目前共有 19 個 composables**（方案 B - 工地管理系統，已移除照明系統相關 composable）
 
 ## 目錄
 
@@ -43,7 +43,7 @@
 - `updateFloor(id, data)`: 更新樓層
 - `deleteFloor(id)`: 刪除樓層
 
-**已整合**：`useEnvironmentApi`、`useLightingApi`
+**已整合**：`useEnvironmentApi`
 
 ### `useErrorTrackingApiFactory.ts` - 錯誤追蹤 Factory
 
@@ -54,7 +54,7 @@
 - `reportError(resourceId, errorMessage?)`: 記錄錯誤
 - `clearError(resourceId)`: 清除錯誤
 
-**已整合**：`useEnvironmentApi`、`useLightingApi`
+**已整合**：`useEnvironmentApi`
 
 ---
 
@@ -127,9 +127,9 @@ WebSocket 連接管理（單例模式）：自動重連、監聽多種事件類�
 
 環境監控 API：樓層管理（CRUD）、感測器讀數管理、錯誤追蹤。
 
-### `useLightingApi.ts`
+~~### `useLightingApi.ts`~~ **已移除**
 
-照明系統 API：樓層管理（CRUD）、錯誤追蹤。
+~~照明系統 API：樓層管理（CRUD）、錯誤追蹤。~~
 
 ### `useSurveillanceApi.ts`
 
@@ -199,7 +199,7 @@ Toast 通知管理：支援 success/error/warning/info、去重機制（5 秒）
 
 **整合結果**：
 
-- `useEnvironmentApi` 和 `useLightingApi` 使用 Factory Functions
+- `useEnvironmentApi` 使用 Factory Functions
 - 減少約 50-60 行重複程式碼
 
 #### 第四階段：進一步精簡優化（減少 1 個 composable，整合 1 個）
@@ -336,7 +336,7 @@ useApiBase (基礎)
   ├── useUserApi
   ├── useDeviceApi
   ├── useEnvironmentApi
-  ├── useLightingApi
+  ~~├── useLightingApi~~ (已移除)
   └── useRtsp (已整合統一錯誤處理)
 
 apiUtils (工具函數，位於 app/utils/)
@@ -346,12 +346,10 @@ apiUtils (工具函數，位於 app/utils/)
   └── useUserApi
 
 useFloorApiFactory (工具)
-  ├── useEnvironmentApi
-  └── useLightingApi
+  └── useEnvironmentApi
 
 useErrorTrackingApiFactory (工具)
-  ├── useEnvironmentApi
-  └── useLightingApi
+  └── useEnvironmentApi
 
 useWebSocket (基礎)
   ├── useAlertMonitor

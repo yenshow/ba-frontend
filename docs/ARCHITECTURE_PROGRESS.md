@@ -74,7 +74,7 @@
 - 設備 CRUD 操作
 - 設備類型管理
 - 設備型號管理
-- 支援多種設備類型（sensor、camera、lighting、modbus 等）
+- 支援多種設備類型（sensor、camera、modbus、di_do 等）
 - 設備配置（JSONB 格式）
 
 ---
@@ -119,33 +119,18 @@
 
 ---
 
-### 基礎設施系統（1 個）✅
+### 基礎設施系統（0 個）✅
 
-#### 4. 照明系統 ⭐
+~~#### 4. 照明系統 ⭐~~ **已移除**
 
-**狀態：** ✅ 完整實作
+**移除原因：** 工地管理系統不需要照明系統功能
 
-**實作內容：**
-
-- ✅ 資料表：`lighting_categories`（照明分類點）
-- ✅ API 端點：`/api/lighting/floors/*`、`/api/lighting/categories/*`
-- ✅ Composable：`useLightingApi.ts`
-- ✅ 頁面：`/infrastructure/lighting`（`app/pages/infrastructure/lighting.vue`）
-- ✅ 組件：
-  - `CategoryList.vue`（分類列表）
-  - `CategoryTooltip.vue`（分類提示）
-  - `FloorManagementDialog.vue`（樓層管理）
-  - `StatusCenter.vue`（狀態中心）
-
-**功能特性：**
-
-- 樓層管理（Floor）
-- 區域管理（Area）
-- 分類點管理（Category）
-- Modbus 配置
-- 設備關聯
-- 位置座標（location_x, location_y）
-- 編輯模式（拖曳定位）
+**已移除內容：**
+- ❌ 資料表：`lighting_categories`（照明分類點）
+- ❌ API 端點：`/api/lighting/floors/*`、`/api/lighting/categories/*`
+- ❌ Composable：`useLightingApi.ts`
+- ❌ 頁面：`/infrastructure/lighting`（`app/pages/infrastructure/lighting.vue`）
+- ❌ 組件：`CategoryList.vue`、`CategoryTooltip.vue`、`FloorManagementDialog.vue`、`StatusCenter.vue`
 
 ---
 
@@ -516,20 +501,20 @@
 - 格式：`{system_name}_{entity_name}`
 - 使用小寫字母和底線
 - 實體名稱使用複數
-- 範例：`lighting_categories`、`hvac_zones`、`fire_alarms`
+- 範例：`hvac_zones`、`fire_alarms`
 
 #### API 路由命名
 
 - 格式：`/api/{system-name}/{entity-name}`
 - 使用小寫字母和連字號
 - 實體名稱使用複數
-- 範例：`/api/lighting/categories`、`/api/hvac/zones`
+- 範例：`/api/hvac/zones`
 
 #### Composable 命名
 
 - 格式：`use{SystemName}Api`
 - 使用 PascalCase
-- 範例：`useLightingApi`、`useHvacApi`
+- 範例：`useHvacApi`
 
 ### 資料表設計模式
 
@@ -573,7 +558,7 @@ CREATE TABLE {system_name}_{entity_name} (
 
 1. **`useApiBase.ts`** - API 請求基礎封裝
 2. **`useDeviceApi.ts`** - 設備管理 API
-3. **`useLightingApi.ts`** - 照明系統 API
+~~3. **`useLightingApi.ts`** - 照明系統 API~~ **已移除**
 4. **`useEnvironmentApi.ts`** - 環境品質系統 API
 5. **`useUserApi.ts`** - 使用者管理 API
 6. **`useAlertApi.ts`** - 警示系統 API

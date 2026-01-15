@@ -4,8 +4,8 @@ export default defineNuxtRouteMiddleware((to, from) => {
 
 	// 檢查是否為管理員
 	if (!isAdmin.value) {
-		// 權限不足，重定向到首頁
-		return navigateTo("/");
+		// 權限不足，重定向到環境品質系統
+		return navigateTo("/construction-monitoring/environment");
 	}
 });
 

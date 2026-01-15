@@ -2,15 +2,9 @@
  * 系統模組配置
  * 集中管理所有系統模組的配置
  * 
- * 分類說明：
+ * 方案 B - 工地管理系統分類說明：
  * - core: 核心基礎系統（設備、使用者、警示）
  * - construction-monitoring: 工地監控系統（環境、人流、車輛、影像）
- * - infrastructure: 基礎設施系統（照明、空調、電力、電梯、衛生排水）
- * - security: 安全相關系統（消防、門禁、緊急求救）
- * - visualization: 視覺化系統（整合：區域平面圖 + 全區點位圖）
- * - maintenance: 維護管理系統（整合：機電維護 + 可靠度 + 設施管理）
- * - business: 業務管理系統（訪客、寄物）
- * - multimedia: 多媒體系統（整合：電視牆 + 多媒體 + 資訊平台）
  */
 
 import type { SystemModule } from "~/types/system";
@@ -84,121 +78,6 @@ export const systemModules: SystemModule[] = [
 		description: "影像監視與錄影管理（整合 RTSP）"
 	},
 
-	// ========== 基礎設施系統 ==========
-	{ 
-		id: 8, 
-		name: "照明系統", 
-		icon: "lighting", 
-		route: "/infrastructure/lighting", 
-		category: "infrastructure", 
-		description: "照明設備控制與監控"
-	},
-	{ 
-		id: 9, 
-		name: "空調系統", 
-		icon: "hvac", 
-		route: "/infrastructure/hvac", 
-		category: "infrastructure", 
-		description: "空調系統控制與監控"
-	},
-	{ 
-		id: 10, 
-		name: "電力系統", 
-		icon: "power",
-		route: "/infrastructure/power", 
-		category: "infrastructure", 
-		description: "電力系統監控與管理"
-	},
-	{ 
-		id: 11, 
-		name: "電梯系統", 
-		icon: "elevator", 
-		route: "/infrastructure/elevator", 
-		category: "infrastructure", 
-		description: "電梯系統監控與管理"
-	},
-	{ 
-		id: 12, 
-		name: "衛生排水系統", 
-		icon: "drainage", 
-		route: "/infrastructure/drainage", 
-		category: "infrastructure", 
-		description: "衛生與排水系統管理"
-	},
-
-	// ========== 安全相關系統 ==========
-	{ 
-		id: 13, 
-		name: "消防系統", 
-		icon: "fire", 
-		route: "/security/fire", 
-		category: "security", 
-		description: "消防設備監控與管理"
-	},
-	{ 
-		id: 14, 
-		name: "門禁保全系統", 
-		icon: "security", 
-		route: "/security/access-control", 
-		category: "security", 
-		description: "門禁與保全系統管理"
-	},
-	{ 
-		id: 15, 
-		name: "緊急求救系統", 
-		icon: "emergency", 
-		route: "/security/emergency", 
-		category: "security", 
-		description: "緊急求救與通報系統"
-	},
-
-	// ========== 視覺化系統（整合：區域平面圖 + 全區點位圖）==========
-	{ 
-		id: 16, 
-		name: "空間視覺化系統", 
-		icon: "map", 
-		route: "/visualization/map", 
-		category: "visualization", 
-		description: "整合區域平面圖與全區點位圖"
-	},
-
-	// ========== 維護管理系統（整合：機電維護 + 可靠度 + 設施管理）==========
-	{ 
-		id: 17, 
-		name: "設備維護管理系統", 
-		icon: "maintenance", 
-		route: "/maintenance/equipment", 
-		category: "maintenance", 
-		description: "整合機電維護、設備運轉可靠度、設施管理"
-	},
-
-	// ========== 業務管理系統 ==========
-	{ 
-		id: 18, 
-		name: "訪客系統", 
-		icon: "visitor", 
-		route: "/business/visitor", 
-		category: "business", 
-		description: "訪客登記與管理"
-	},
-	{ 
-		id: 19, 
-		name: "寄物管理", 
-		icon: "locker-management",
-		route: "/business/locker-management", 
-		category: "business", 
-		description: "寄物櫃管理系統"
-	},
-
-	// ========== 多媒體系統（整合：電視牆 + 多媒體 + 資訊平台）==========
-	{ 
-		id: 20, 
-		name: "多媒體資訊系統", 
-		icon: "video-wall", 
-		route: "/multimedia/info", 
-		category: "multimedia", 
-		description: "整合電視牆模組、多媒體伺服器、資訊平台"
-	}
 ];
 
 /**

@@ -1,4 +1,5 @@
 // 設備類型代碼（從後端動態讀取，這裡僅作為類型參考）
+// 注意：di_do 是通用的數位輸入/輸出設備類型，不是照明系統專用
 export type DeviceTypeCode = "camera" | "controller" | "sensor" | "tablet" | "network" | "modbus" | "di_do" | string;
 
 // 設備狀態
