@@ -70,7 +70,7 @@
 															<span
 																class="rounded-full bg-white/25 px-3 py-1 text-sm font-medium text-white 2xl:text-base"
 															>
-																{{ floor.locations?.length || 0 }} 個地點
+																{{ floor.locations?.length ? "1 個地點" : "0 個地點" }}
 															</span>
 														</div>
 													</div>
@@ -113,50 +113,11 @@
 														/>
 													</div>
 
-													<!-- 地點列表 -->
-													<div class="flex items-center justify-between">
-														<span class="text-base font-medium 2xl:text-lg">地點列表</span>
-														<button
-															type="button"
-															class="btn-secondary text-sm 2xl:text-base"
-															@click="addLocation(floor)"
-														>
-															新增地點
-														</button>
-													</div>
-
-													<!-- 地點項目 -->
-													<div
-														v-if="!floor.locations || floor.locations.length === 0"
-														class="py-4 text-center text-sm text-white/60 2xl:text-base"
-													>
-														尚無地點，請新增地點
-													</div>
-													<div v-else class="space-y-3">
-														<div
-															v-for="(location, locationIndex) in floor.locations"
-															:key="location.id || `location-${locationIndex}`"
-															class="rounded border border-white/10 bg-white/5 p-4"
-														>
-															<div class="mb-3 flex items-center justify-between">
-																<h5 class="text-base font-semibold text-white 2xl:text-lg">
-																	地點 {{ locationIndex + 1 }}
-																</h5>
-																<button
-																	type="button"
-																	class="p-2 text-rose-400 transition-colors hover:text-rose-300"
-																	@click="removeLocation(floor, locationIndex)"
-																	title="刪除地點"
-																>
-																	<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																		<path
-																			stroke-linecap="round"
-																			stroke-linejoin="round"
-																			stroke-width="2"
-																			d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-																		/>
-																	</svg>
-																</button>
+													<!-- 地點資訊 -->
+													<div class="space-y-3">
+														<div class="rounded border border-white/10 bg-white/5 p-4">
+															<div class="mb-3">
+																<h5 class="text-base font-semibold text-white 2xl:text-lg">地點</h5>
 															</div>
 
 															<div class="space-y-3">
@@ -164,11 +125,12 @@
 																<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 																	<span>地點名稱 *</span>
 																	<input
-																		v-model="location.name"
+																		:value="getLocation(floor)?.name || ''"
 																		type="text"
 																		required
 																		class="form-input-small"
 																		placeholder="例如：管理中心、展廳"
+																		@input="handleLocationNameInput(floor, ($event.target as HTMLInputElement).value)"
 																		@blur="handleLocationChange(floor)"
 																	/>
 																</label>
@@ -177,9 +139,9 @@
 																<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 																	<span>感測器設備</span>
 																	<select
-																		v-model.number="location.deviceId"
+																		:value="getLocation(floor)?.deviceId || 0"
 																		class="form-input-small form-select"
-																		@change="handleDeviceChange(floor, location, locationIndex)"
+																		@change="handleDeviceChange(floor, getOrCreateLocation(floor), Number(($event.target as HTMLSelectElement).value))"
 																		:disabled="isLoadingDevices"
 																	>
 																		<option :value="0">請選擇感測器</option>
@@ -199,7 +161,7 @@
 
 																	<!-- 未選擇設備時的提示 -->
 																	<div
-																		v-if="!location.deviceId"
+																		v-if="!getLocation(floor)?.deviceId"
 																		class="py-2 text-center text-xs text-amber-300 2xl:text-sm"
 																	>
 																		請先選擇感測器設備以顯示可用參數
@@ -208,32 +170,36 @@
 																	<!-- 已選擇設備，顯示可用參數列表 -->
 																	<template v-else>
 																		<div
-																			v-if="getAvailableParameters(location).length === 0"
+																			v-if="getLocation(floor) && getAvailableParameters(getLocation(floor)!).length === 0"
 																			class="py-2 text-center text-xs text-white/50 2xl:text-sm"
 																		>
 																			<p>此設備型號尚未配置參數</p>
 																			<p class="mt-1 text-xs">請在「設備型號管理」中設定參數配置</p>
 																		</div>
-																		<div v-else class="grid grid-cols-2 gap-2">
+																		<div v-else-if="getLocation(floor)" class="grid grid-cols-2 gap-2">
 																			<label
-																				v-for="paramDef in getAvailableParameters(location)"
+																				v-for="paramDef in getAvailableParameters(getLocation(floor)!)"
 																				:key="paramDef.type"
 																				class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
 																				:class="{
-																					'border-cyan-400/50 bg-cyan-500/20': isParameterEnabled(
-																						location,
+																					'border-cyan-400/50 bg-cyan-500/20': getLocation(floor) && isParameterEnabled(
+																						getLocation(floor)!,
 																						paramDef.type as SensorParameterType
 																					)
 																				}"
 																			>
 																				<input
 																					type="checkbox"
-																					:checked="isParameterEnabled(location, paramDef.type as SensorParameterType)"
+																					:checked="
+																						getLocation(floor) && isParameterEnabled(
+																							getLocation(floor)!,
+																							paramDef.type as SensorParameterType
+																						)
+																					"
 																					@change="
 																						toggleParameter(
 																							floor,
-																							location,
-																							locationIndex,
+																							getOrCreateLocation(floor),
 																							paramDef.type as SensorParameterType
 																						)
 																					"
@@ -307,7 +273,7 @@ import type {
 	SensorParameterType
 } from "~/types/environment";
 import type { Device, SensorDeviceModelConfig, SensorParameterDefinition } from "~/types/device";
-import { useDeviceApi } from "~/composables/useDeviceApi";
+import { useDeviceApi } from "~/composables/systems/useDeviceApi";
 import { getParameterDisplayName, cleanFloor } from "~/utils/sensorUtils";
 
 interface Props {
@@ -326,7 +292,6 @@ const emit = defineEmits<Emits>();
 
 const deviceApi = useDeviceApi();
 
-const isLoading = ref(false);
 const errorMessage = ref("");
 const expandedFloors = ref<Set<string>>(new Set());
 const devices = ref<Device[]>([]);
@@ -340,19 +305,32 @@ const hasUnsavedChanges = computed(() => pendingChanges.value.size > 0);
 
 // cleanLocation 和 cleanFloor 已從 composable 導入
 
+// 限制樓層只有一個地點的輔助函數
+const ensureSingleLocation = (floor: EnvironmentFloor): EnvironmentFloor => {
+	if (floor.locations && floor.locations.length > 1) {
+		return { ...floor, locations: [floor.locations[0]] };
+	}
+	return floor;
+};
+
 // 合併 props.floors 和 pendingChanges，用於顯示
+// 簡化邏輯：優先使用已保存的數據，只添加新建立的待保存樓層
 const mergedFloors = computed(() => {
 	const floorsMap = new Map<string, EnvironmentFloor>();
 
-	// 清理並合併 props.floors
+	// 優先使用 props.floors（已保存的數據）
 	props.floors.forEach(floor => {
-		const floorId = floor.id || floor.name;
-		floorsMap.set(floorId, cleanFloor(floor));
+		if (floor.id) {
+			floorsMap.set(floor.id, ensureSingleLocation(cleanFloor(floor)));
+		}
 	});
 
-	// 合併 pendingChanges（已經在前端創建，應該格式正確）
+	// 只添加沒有 id 的待保存樓層（新建立的）
 	pendingChanges.value.forEach((floor, floorId) => {
-		floorsMap.set(floorId, { ...floor });
+		// 如果樓層沒有 id 且不在 floorsMap 中，才添加
+		if (!floor.id && !floorsMap.has(floorId)) {
+			floorsMap.set(floorId, ensureSingleLocation({ ...floor }));
+		}
 	});
 
 	return Array.from(floorsMap.values());
@@ -470,13 +448,12 @@ const initializeLocationParameterDefinitions = async () => {
 		}
 	});
 
-	// 收集所有有設備 ID 的地點（從 mergedFloors 中收集，包含待保存的變更）
+	// 收集所有有設備 ID 的地點（每個樓層只有一個地點）
 	const deviceIds = new Set<number>();
 	for (const floor of mergedFloors.value) {
-		for (const location of floor.locations || []) {
-			if (location.deviceId && location.deviceId > 0) {
-				deviceIds.add(location.deviceId);
-			}
+		const location = floor.locations?.[0];
+		if (location?.deviceId && location.deviceId > 0) {
+			deviceIds.add(location.deviceId);
 		}
 	}
 
@@ -512,6 +489,33 @@ watch(
 	}
 );
 
+// 取得地點（不修改狀態，僅用於讀取）
+const getLocation = (floor: EnvironmentFloor): EnvironmentLocation | null => {
+	if (!floor.locations || floor.locations.length === 0) {
+		return null;
+	}
+	return floor.locations[0];
+};
+
+// 取得或創建地點（確保每個樓層只有一個地點）
+// 注意：此函數會修改狀態，應避免在模板中直接調用
+const getOrCreateLocation = (floor: EnvironmentFloor): EnvironmentLocation => {
+	if (!floor.locations || floor.locations.length === 0) {
+		const newLocation: EnvironmentLocation = {
+			name: "",
+			parameters: []
+		};
+		const updatedFloor = {
+			...floor,
+			locations: [newLocation]
+		};
+		const floorId = floor.id || floor.name;
+		pendingChanges.value.set(floorId, updatedFloor);
+		return newLocation;
+	}
+	return floor.locations[0];
+};
+
 // 切換樓層展開/收起
 const toggleFloor = async (floorId: string) => {
 	if (expandedFloors.value.has(floorId)) {
@@ -519,31 +523,26 @@ const toggleFloor = async (floorId: string) => {
 	} else {
 		expandedFloors.value.add(floorId);
 
-		// 展開樓層時，為該樓層中有設備 ID 的地點載入參數定義
+		// 展開樓層時，確保有一個地點
 		const floor = mergedFloors.value.find(f => (f.id || f.name) === floorId);
 		if (floor) {
-			const deviceIds = new Set<number>();
-			for (const location of floor.locations || []) {
-				if (location.deviceId && location.deviceId > 0) {
-					deviceIds.add(location.deviceId);
-				}
-			}
+			// 確保樓層有一個地點
+			const location = getOrCreateLocation(floor);
 
-			// 為尚未載入的設備載入參數定義
-			const loadPromises = Array.from(deviceIds)
-				.filter(deviceId => !deviceParameterDefinitions.value.has(deviceId))
-				.map(async deviceId => {
+			// 為該樓層中有設備 ID 的地點載入參數定義
+			if (location.deviceId && location.deviceId > 0) {
+				// 為尚未載入的設備載入參數定義
+				if (!deviceParameterDefinitions.value.has(location.deviceId)) {
 					try {
-						const paramDefinitions = await getDeviceParameterDefinitions(deviceId);
+						const paramDefinitions = await getDeviceParameterDefinitions(location.deviceId);
 						if (paramDefinitions.length > 0) {
-							deviceParameterDefinitions.value.set(deviceId, paramDefinitions);
+							deviceParameterDefinitions.value.set(location.deviceId, paramDefinitions);
 						}
 					} catch (error) {
-						console.error(`載入設備 ${deviceId} 的參數定義失敗:`, error);
+						console.error(`載入設備 ${location.deviceId} 的參數定義失敗:`, error);
 					}
-				});
-
-			await Promise.all(loadPromises);
+				}
+			}
 		}
 	}
 };
@@ -564,14 +563,13 @@ const queueSave = (floor: EnvironmentFloor) => {
 	pendingChanges.value.set(floor.id || floor.name, { ...floor });
 };
 
-// 過濾掉名稱為空的地點
+// 過濾掉名稱為空的地點（但保留至少一個空地點，如果樓層是新創建的）
 const filterEmptyLocations = (floor: EnvironmentFloor): EnvironmentFloor => {
-	return {
-		...floor,
-		locations: (floor.locations || []).filter(
-			location => location.name && location.name.trim().length > 0
-		)
-	};
+	// 過濾掉名稱為空的地點
+	const validLocations = (floor.locations || []).filter(
+		loc => loc.name && loc.name.trim().length > 0
+	);
+	return { ...floor, locations: validLocations };
 };
 
 // 保存所有待保存的變更
@@ -580,14 +578,17 @@ const saveAllChanges = async () => {
 
 	errorMessage.value = "";
 
-	for (const [floorId, floor] of pendingChanges.value.entries()) {
-		const filteredFloor = filterEmptyLocations(floor);
-		if (filteredFloor.locations.length > 0 || !floor.id) {
-			emit("save", filteredFloor);
-		}
-	}
-
+	// 先複製待保存的樓層列表，然後立即清除 pendingChanges
+	// 避免在保存過程中重複顯示
+	const floorsToSave = Array.from(pendingChanges.value.values());
 	pendingChanges.value.clear();
+
+	// 逐一保存
+	for (const floor of floorsToSave) {
+		const filteredFloor = filterEmptyLocations(floor);
+		// 允許建立空樓層（沒有地點的樓層），也允許建立有地點的樓層
+		emit("save", filteredFloor);
+	}
 };
 
 // 追蹤新創建的樓層
@@ -595,14 +596,29 @@ const newFloorName = ref<string>("");
 
 // 新增樓層
 const addNewFloor = () => {
-	const tempName = `${props.floors.length + 1}F`;
+	// 生成不重複的臨時名稱
+	let tempName = `${props.floors.length + 1}F`;
+	let counter = 1;
+	// 確保名稱不重複
+	while (props.floors.some(f => f.name.trim() === tempName.trim())) {
+		tempName = `${props.floors.length + 1 + counter}F`;
+		counter++;
+	}
+
 	newFloorName.value = tempName;
 
+	// 新樓層自動創建一個空地點
 	const newFloor: EnvironmentFloor = {
 		name: tempName,
-		locations: []
+		locations: [
+			{
+				name: "",
+				parameters: []
+			}
+		]
 	};
 
+	// 直接觸發保存以創建新樓層（統一為照明系統流程）
 	emit("save", newFloor);
 };
 
@@ -611,6 +627,7 @@ watch(
 	() => props.floors,
 	newFloors => {
 		if (newFloorName.value) {
+			// 查找名稱匹配的樓層（可能是新建立的，也可能是合併後的）
 			const newFloor = newFloors.find(f => f.name === newFloorName.value);
 			if (newFloor) {
 				expandedFloors.value.add(newFloor.id || newFloor.name);
@@ -638,58 +655,39 @@ const handleDeleteFloor = (floorId: string) => {
 	}
 };
 
-// 新增地點
-const addLocation = (floor: EnvironmentFloor) => {
-	const newLocation: EnvironmentLocation = {
-		name: "",
-		parameters: []
-	};
-
+// 處理地點名稱輸入（即時更新，但不觸發保存）
+const handleLocationNameInput = (floor: EnvironmentFloor, value: string) => {
+	const location = getOrCreateLocation(floor);
 	const updatedFloor = {
 		...floor,
-		locations: [...(floor.locations || []), newLocation]
+		locations: [
+			{
+				...location,
+				name: value
+			}
+		]
 	};
-
-	const floorId = floor.id || floor.name;
-	pendingChanges.value.set(floorId, updatedFloor);
-};
-
-// 刪除地點
-const removeLocation = (floor: EnvironmentFloor, locationIndex: number) => {
-	if (!confirm("確定要刪除此地點嗎？")) return;
-
-	const updatedLocations = [...(floor.locations || [])];
-	updatedLocations.splice(locationIndex, 1);
-
-	const updatedFloor = {
-		...floor,
-		locations: updatedLocations
-	};
-
 	queueSave(updatedFloor);
 };
 
 // 處理地點變更
 const handleLocationChange = (floor: EnvironmentFloor) => {
+	const location = getOrCreateLocation(floor);
 	const updatedFloor = {
 		...floor,
-		locations: floor.locations.map(location => ({
-			...location,
-			name: location.name?.trim() || ""
-		}))
+		locations: [
+			{
+				...location,
+				name: location.name?.trim() || ""
+			}
+		]
 	};
 
 	queueSave(updatedFloor);
 };
 
 // 處理設備選擇變更
-const handleDeviceChange = async (
-	floor: EnvironmentFloor,
-	location: EnvironmentLocation,
-	locationIndex: number
-) => {
-	const deviceId = location.deviceId;
-
+const handleDeviceChange = async (floor: EnvironmentFloor, location: EnvironmentLocation, deviceId: number) => {
 	if (deviceId && deviceId > 0) {
 		// 載入設備的參數定義
 		const paramDefinitions = await getDeviceParameterDefinitions(deviceId);
@@ -697,32 +695,16 @@ const handleDeviceChange = async (
 
 		// 保留現有參數中在新設備型號中也存在的參數
 		const availableTypes = new Set(paramDefinitions.map(p => p.type));
-		const updatedLocations = [...(floor.locations || [])];
-		updatedLocations[locationIndex] = {
+		const updatedLocation = {
 			...location,
+			deviceId,
 			parameters: location.parameters.filter(param => availableTypes.has(param.type))
 		};
 
-		const updatedFloor = {
-			...floor,
-			locations: updatedLocations
-		};
-
-		queueSave(updatedFloor);
+		queueSave({ ...floor, locations: [updatedLocation] });
 	} else {
 		// 如果取消選擇設備，清空參數
-		const updatedLocations = [...(floor.locations || [])];
-		updatedLocations[locationIndex] = {
-			...location,
-			parameters: []
-		};
-
-		const updatedFloor = {
-			...floor,
-			locations: updatedLocations
-		};
-
-		queueSave(updatedFloor);
+		queueSave({ ...floor, locations: [{ ...location, deviceId: 0, parameters: [] }] });
 	}
 };
 
@@ -730,41 +712,14 @@ const handleDeviceChange = async (
 const toggleParameter = (
 	floor: EnvironmentFloor,
 	location: EnvironmentLocation,
-	locationIndex: number,
 	paramType: SensorParameterType
 ) => {
-	const updatedLocations = [...(floor.locations || [])];
 	const currentParam = location.parameters.find(p => p.type === paramType);
+	const newParameters: SensorParameter[] = currentParam
+		? location.parameters.map(p => (p.type === paramType ? { ...p, enabled: !p.enabled } : p))
+		: [...location.parameters, { type: paramType, enabled: true }];
 
-	let newParameters: SensorParameter[];
-
-	if (currentParam) {
-		// 如果參數已存在，切換啟用狀態
-		newParameters = location.parameters.map(p =>
-			p.type === paramType ? { ...p, enabled: !p.enabled } : p
-		);
-	} else {
-		// 如果參數不存在，新增並啟用
-		newParameters = [
-			...location.parameters,
-			{
-				type: paramType,
-				enabled: true
-			}
-		];
-	}
-
-	updatedLocations[locationIndex] = {
-		...location,
-		parameters: newParameters
-	};
-
-	const updatedFloor = {
-		...floor,
-		locations: updatedLocations
-	};
-
-	queueSave(updatedFloor);
+	queueSave({ ...floor, locations: [{ ...location, parameters: newParameters }] });
 };
 </script>
 

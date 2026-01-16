@@ -56,7 +56,10 @@
 													<div
 														class="flex h-16 min-w-[80px] items-center justify-center rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 shadow-lg"
 													>
-														<h4 v-if="floor.name" class="text-xl font-bold tracking-wider text-white 2xl:text-2xl">
+														<h4
+															v-if="floor.name"
+															class="text-xl font-bold tracking-wider text-white 2xl:text-2xl"
+														>
 															{{ floor.name }}
 														</h4>
 														<span v-else class="text-sm text-white/60 2xl:text-base">未命名</span>
@@ -153,138 +156,141 @@
 														</button>
 													</div>
 
-												<!-- 點位列表 -->
-												<div class="flex items-center justify-between">
-													<span class="text-base font-medium 2xl:text-lg">點位列表</span>
-													<button
-														type="button"
-														class="btn-secondary text-sm 2xl:text-base"
-														@click="addPoint(floor)"
-													>
-														新增點位
-													</button>
-												</div>
-
-												<!-- 點位項目 -->
-												<div
-													v-if="!floor.areas || floor.areas.length === 0"
-													class="py-4 text-center text-sm text-white/60 2xl:text-base"
-												>
-													尚無點位，請新增點位
-												</div>
-												<div v-else class="space-y-2">
-													<div
-														v-for="(area, areaIndex) in floor.areas"
-														:key="area.id || `area-${areaIndex}`"
-														class="flex min-w-0 items-end gap-2 rounded border border-white/10 bg-white/5 p-2"
-													>
-														<label
-															class="flex flex-[2] flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-														>
-															<span>點位名稱 *</span>
-															<input
-																v-model="area.name"
-																type="text"
-																required
-																class="form-input-small"
-																placeholder="例如：主燈開關"
-																@blur="handleAreaChange(floor)"
-															/>
-														</label>
-														<label
-															class="flex flex-[2] flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-														>
-															<span>控制器</span>
-															<select
-																v-model.number="area.deviceId"
-																class="form-input-small form-select min-w-0"
-																@change="handleDeviceChange(floor, area, areaIndex)"
-																:disabled="isLoadingDevices"
-															>
-																<option :value="0">請選擇控制器</option>
-																<option v-if="isLoadingDevices" value="" disabled>載入中...</option>
-																<option v-else-if="devices.length === 0" value="" disabled>尚無可用控制器</option>
-																<option v-for="device in devices" :key="device.id" :value="device.id">
-																	{{ device.name }}
-																</option>
-															</select>
-														</label>
-														<template v-if="area.deviceId && area.modbus?.points?.[0]">
-															<label
-																class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-															>
-																<span>類型 *</span>
-																<select
-																	v-model="area.modbus.points[0].type"
-																	class="form-input-small form-select w-full"
-																	required
-																	@change="handleTypeChange(floor, area, areaIndex)"
-																>
-																	<option value="DO">DO</option>
-																	<option value="DI">DI</option>
-																</select>
-															</label>
-															<label
-																class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-															>
-																<span>地址 *</span>
-																<div class="relative w-full">
-																	<input
-																		v-model.number="area.modbus.points[0].address"
-																		type="number"
-																		min="0"
-																		placeholder="地址"
-																		required
-																		class="form-input-small w-full transition-all"
-																		:class="
-																			checkAddressDuplicate(floor, area, areaIndex)
-																				? 'animate-pulse border-2 border-rose-500 bg-rose-500/20 pr-10 shadow-[0_0_0_3px_rgba(244,63,94,0.2)] focus:border-rose-500 focus:bg-rose-500/25 focus:shadow-[0_0_0_3px_rgba(244,63,94,0.3)]'
-																				: ''
-																		"
-																		title="此地址已被使用"
-																		@blur="handleAreaChange(floor)"
-																	/>
-																	<div
-																		v-if="checkAddressDuplicate(floor, area, areaIndex)"
-																		class="pointer-events-none absolute right-9 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-rose-500"
-																		title="此地址已被使用"
-																	>
-																		<svg class="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-																			<path
-																				fill-rule="evenodd"
-																				d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-																				clip-rule="evenodd"
-																			/>
-																		</svg>
-																	</div>
-																</div>
-															</label>
-														</template>
+													<!-- 點位列表 -->
+													<div class="flex items-center justify-between">
+														<span class="text-base font-medium 2xl:text-lg">點位列表</span>
 														<button
 															type="button"
-															class="ml-auto flex-shrink-0 p-2 text-rose-400 transition-colors hover:text-rose-300"
-															@click="removeArea(floor, areaIndex)"
-															title="刪除點位"
+															class="btn-secondary text-sm 2xl:text-base"
+															@click="addPoint(floor)"
 														>
-															<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																<path
-																	stroke-linecap="round"
-																	stroke-linejoin="round"
-																	stroke-width="2"
-																	d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-																/>
-															</svg>
+															新增點位
 														</button>
 													</div>
+
+													<!-- 點位項目 -->
+													<div
+														v-if="!floor.areas || floor.areas.length === 0"
+														class="py-4 text-center text-sm text-white/60 2xl:text-base"
+													>
+														尚無點位，請新增點位
+													</div>
+													<div v-else class="space-y-2">
+														<div
+															v-for="(area, areaIndex) in floor.areas"
+															:key="area.id || `area-${areaIndex}`"
+															class="flex min-w-0 items-end gap-2 rounded border border-white/10 bg-white/5 p-2"
+														>
+															<label
+																class="flex flex-[2] flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+															>
+																<span>點位名稱 *</span>
+																<input
+																	v-model="area.name"
+																	type="text"
+																	required
+																	class="form-input-small"
+																	placeholder="例如：主燈開關"
+																	@blur="handleAreaChange(floor)"
+																/>
+															</label>
+															<label
+																class="flex flex-[2] flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+															>
+																<span>控制器</span>
+																<select
+																	v-model.number="area.deviceId"
+																	class="form-input-small form-select min-w-0"
+																	@change="handleDeviceChange(floor, area, areaIndex)"
+																	:disabled="isLoadingDevices"
+																>
+																	<option :value="0">請選擇控制器</option>
+																	<option v-if="isLoadingDevices" value="" disabled>載入中...</option>
+																	<option v-else-if="devices.length === 0" value="" disabled>尚無可用控制器</option>
+																	<option v-for="device in devices" :key="device.id" :value="device.id">
+																		{{ device.name }}
+																	</option>
+																</select>
+															</label>
+															<template v-if="area.deviceId && area.modbus?.points?.[0]">
+																<label
+																	class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+																>
+																	<span>類型 *</span>
+																	<select
+																		v-model="area.modbus.points[0].type"
+																		class="form-input-small form-select w-full"
+																		required
+																		@change="handleTypeChange(floor, area, areaIndex)"
+																	>
+																		<option value="DO">DO</option>
+																		<option value="DI">DI</option>
+																	</select>
+																</label>
+																<label
+																	class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+																>
+																	<span>地址 *</span>
+																	<div class="relative w-full">
+																		<input
+																			v-model.number="area.modbus.points[0].address"
+																			type="number"
+																			min="0"
+																			placeholder="地址"
+																			required
+																			class="form-input-small w-full transition-all"
+																			:class="
+																				checkAddressDuplicate(floor, area, areaIndex)
+																					? 'animate-pulse border-2 border-rose-500 bg-rose-500/20 pr-10 shadow-[0_0_0_3px_rgba(244,63,94,0.2)] focus:border-rose-500 focus:bg-rose-500/25 focus:shadow-[0_0_0_3px_rgba(244,63,94,0.3)]'
+																					: ''
+																			"
+																			title="此地址已被使用"
+																			@blur="handleAreaChange(floor)"
+																		/>
+																		<div
+																			v-if="checkAddressDuplicate(floor, area, areaIndex)"
+																			class="pointer-events-none absolute right-9 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-rose-500"
+																			title="此地址已被使用"
+																		>
+																			<svg class="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+																				<path
+																					fill-rule="evenodd"
+																					d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+																					clip-rule="evenodd"
+																				/>
+																			</svg>
+																		</div>
+																	</div>
+																</label>
+															</template>
+															<button
+																type="button"
+																class="ml-auto flex-shrink-0 p-2 text-rose-400 transition-colors hover:text-rose-300"
+																@click="removeArea(floor, areaIndex)"
+																title="刪除點位"
+															>
+																<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+																	/>
+																</svg>
+															</button>
+														</div>
+													</div>
+													<p
+														v-if="devices.length === 0 && !isLoadingDevices"
+														class="mt-1 text-xs text-amber-300"
+													>
+														請先在「設備管理」中建立控制器設備
+													</p>
 												</div>
-												<p v-if="devices.length === 0 && !isLoadingDevices" class="mt-1 text-xs text-amber-300">
-													請先在「設備管理」中建立控制器設備
-												</p>
-											</div>
-										</Transition>
+											</Transition>
+										</div>
 									</div>
 								</div>
-							</div>
 								<!-- 空狀態 -->
 								<div v-else key="empty" class="py-8 text-center text-white/60">
 									<p class="text-base 2xl:text-lg">尚無樓層資料</p>
@@ -320,7 +326,7 @@
 <script setup lang="ts">
 import type { LightingFloor, LightingArea } from "~/types/lighting";
 import type { Device, ControllerDeviceConfig } from "~/types/device";
-import { useDeviceApi } from "~/composables/useDeviceApi";
+import { useDeviceApi } from "~/composables/systems/useDeviceApi";
 
 interface Props {
 	modelValue: boolean;
@@ -498,7 +504,15 @@ const newFloorName = ref<string>("");
 
 // 新增樓層
 const addNewFloor = () => {
-	const tempName = `${props.floors.length + 1}F`;
+	// 生成不重複的臨時名稱
+	let tempName = `${props.floors.length + 1}F`;
+	let counter = 1;
+	// 確保名稱不重複
+	while (props.floors.some(f => f.name.trim() === tempName.trim())) {
+		tempName = `${props.floors.length + 1 + counter}F`;
+		counter++;
+	}
+
 	newFloorName.value = tempName;
 
 	const newFloor: LightingFloor = {

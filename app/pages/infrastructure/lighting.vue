@@ -13,7 +13,7 @@
 							<!-- 樓層顯示 -->
 							<div class="w-[60px] py-4 2xl:w-[100px]">
 								<span
-									class="inline-flex border-b-2 border-white/70 pb-1 text-2xl tracking-widest xl:text-3xl 2xl:text-5xl"
+									class="inline-flex text-nowrap border-b-2 border-white/70 pb-1 text-2xl tracking-widest xl:text-3xl 2xl:text-5xl"
 								>
 									{{ selectedFloorName }}
 								</span>
@@ -170,8 +170,13 @@ import CategoryTooltip from "~/components/lighting/CategoryTooltip.vue";
 import CategoryList from "~/components/lighting/CategoryList.vue";
 import FloorManagementDialog from "~/components/lighting/FloorManagementDialog.vue";
 import type { CategoryModbusConfig, LightingFloor, LightingArea } from "~/types/lighting";
-import { useDeviceApi } from "~/composables/useDeviceApi";
-import { useApiBase } from "~/composables/useApiBase";
+import { useLightingApi } from "~/composables/systems/useLightingApi";
+import { useDeviceApi } from "~/composables/systems/useDeviceApi";
+import { useApiBase } from "~/composables/core/useApiBase";
+import { useToast } from "~/composables/core/useToast";
+import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import { usePolling } from "~/composables/monitoring/usePolling";
+import { useFloorManagement } from "~/composables/systems/useFloorManagement";
 import type { Device, ControllerDeviceConfig } from "~/types/device";
 import type { ModbusDataResponse, ModbusDeviceConfig } from "~/types/modbus";
 
@@ -209,6 +214,11 @@ const initLeftSectionObserver = () => {
 const getAreaId = (floor: LightingFloor, area: LightingArea, areaIndex: number): string => {
 	return area.id || `area-${floor.id || floor.name}-${areaIndex}`;
 };
+
+// Toast 通知（統一在頂層定義）
+const toast = useToast();
+// 錯誤處理（統一在頂層定義）
+const { handleError } = useErrorHandler();
 
 // 樓層數據（從 API 載入）
 const lightingFloors = ref<LightingFloor[]>([]);
@@ -493,20 +503,24 @@ const buildModbusQueryParams = (
 	return params.toString();
 };
 
-// 讀取 Coils
+// 讀取 Coils（使用較短的超時時間，快速失敗）
 const getCoils = async (address: number, length: number, deviceConfig: ModbusDeviceConfig) => {
 	const queryParams = buildModbusQueryParams(deviceConfig, address, length);
-	return request<ModbusDataResponse<boolean>>(`/modbus/coils?${queryParams}`);
+	return request<ModbusDataResponse<boolean>>(`/modbus/coils?${queryParams}`, {
+		timeout: MODBUS_TIMEOUT
+	} as any);
 };
 
-// 讀取 Discrete Inputs
+// 讀取 Discrete Inputs（使用較短的超時時間，快速失敗）
 const getDiscreteInputs = async (
 	address: number,
 	length: number,
 	deviceConfig: ModbusDeviceConfig
 ) => {
 	const queryParams = buildModbusQueryParams(deviceConfig, address, length);
-	return request<ModbusDataResponse<boolean>>(`/modbus/discrete-inputs?${queryParams}`);
+	return request<ModbusDataResponse<boolean>>(`/modbus/discrete-inputs?${queryParams}`, {
+		timeout: MODBUS_TIMEOUT
+	} as any);
 };
 
 // 寫入 Coil
@@ -572,7 +586,7 @@ const loadDeviceInfo = async (deviceId: number): Promise<Device | null> => {
 
 		return device;
 	} catch (error) {
-		console.error(`載入設備 ${deviceId} 失敗:`, error);
+		handleError(error, `載入設備 ${deviceId} 失敗`);
 		return null;
 	}
 };
@@ -631,9 +645,8 @@ const getAreaDeviceConfig = async (
 	return null;
 };
 
-// 自動刷新間隔（毫秒）- 優化：從 2 秒改為 5 秒，減少請求頻率
-const AUTO_REFRESH_INTERVAL = 5000;
-let refreshTimer: ReturnType<typeof setInterval> | null = null;
+// Modbus 請求超時時間（3 秒，快速失敗）
+const MODBUS_TIMEOUT = 3000;
 
 // 請求去重：記錄最近發送的請求，避免重複請求（同時追蹤正在進行的請求）
 const requestCache = new Map<string, { timestamp: number; promise?: Promise<any> }>();
@@ -684,12 +697,15 @@ const findAreaById = (
  */
 const reportAreaError = async (areaId: string, errorMessage: string) => {
 	const found = findAreaById(areaId, true);
-	if (!found?.area.id) return;
+	if (!found?.area.systemId) return;
 
 	try {
-		await lightingApi.reportError(found.area.id, errorMessage);
+		await lightingApi.reportError(found.area.systemId, errorMessage);
 	} catch (error) {
-		console.warn("[lighting] 報告錯誤失敗:", error);
+		// 靜默處理，不影響主要流程
+		if (process.dev) {
+			console.warn("[lighting] 報告錯誤失敗:", error);
+		}
 	}
 };
 
@@ -698,12 +714,15 @@ const reportAreaError = async (areaId: string, errorMessage: string) => {
  */
 const clearAreaError = async (areaId: string) => {
 	const found = findAreaById(areaId, true);
-	if (!found?.area.id) return;
+	if (!found?.area.systemId) return;
 
 	try {
-		await lightingApi.clearError(found.area.id);
+		await lightingApi.clearError(found.area.systemId);
 	} catch (error) {
-		console.warn("[lighting] 清除錯誤失敗:", error);
+		// 靜默處理，不影響主要流程
+		if (process.dev) {
+			console.warn("[lighting] 清除錯誤失敗:", error);
+		}
 	}
 };
 
@@ -722,11 +741,23 @@ const updateAreaStatuses = async (areaIds: string[], value: boolean) => {
 	}
 };
 
-// 批量讀取請求處理（優化：智能合併相同設備和地址的請求）
+// 記錄失敗的設備（快速失敗機制，避免重複請求離線設備）
+// 使用 Map 同時存儲時間戳，避免使用 Set + Map 兩個數據結構
+const failedDevices = new Map<string, number>();
+const FAILED_DEVICE_TTL = 30000; // 30 秒後重試失敗的設備
+
+// 批量讀取請求處理（優化：智能合併相同設備和地址的請求，並發處理）
 const processBatchRequests = async (requests: BatchRequest[]) => {
 	if (requests.length === 0) return;
 
 	const now = Date.now();
+
+	// 清理過期的失敗設備記錄
+	for (const [deviceKey, timestamp] of failedDevices.entries()) {
+		if (now - timestamp > FAILED_DEVICE_TTL) {
+			failedDevices.delete(deviceKey);
+		}
+	}
 
 	// 按請求鍵分組（相同設備、類型、地址的請求合併）
 	const grouped = new Map<string, BatchRequest[]>();
@@ -738,52 +769,78 @@ const processBatchRequests = async (requests: BatchRequest[]) => {
 		grouped.get(key)!.push(req);
 	}
 
-	// 處理每組請求
-	for (const [requestKey, groupRequests] of grouped.entries()) {
-		const firstReq = groupRequests[0];
-		const areaIds = groupRequests.map(req => req.areaId);
+	// 處理每組請求（並發處理，避免順序阻塞）
+	await Promise.allSettled(
+		Array.from(grouped.entries()).map(async ([requestKey, groupRequests]) => {
+			const firstReq = groupRequests[0];
+			const areaIds = groupRequests.map(req => req.areaId);
 
-		// 檢查緩存或正在進行的請求
-		const cached = requestCache.get(requestKey);
-		if (cached?.promise && now - cached.timestamp < REQUEST_CACHE_TTL) {
-			try {
-				const response = await cached.promise;
-				if (response?.data?.[0] !== undefined) {
-					updateAreaStatuses(areaIds, response.data[0]);
+			// 檢查設備是否在失敗列表中（快速失敗）
+			if (failedDevices.has(requestKey)) {
+				areaIds.forEach(areaId => {
+					ensureAreaStatus(areaId).status = "error";
+				});
+				return;
+			}
+
+			// 檢查緩存或正在進行的請求
+			const cached = requestCache.get(requestKey);
+			if (cached?.promise && now - cached.timestamp < REQUEST_CACHE_TTL) {
+				try {
+					const response = await cached.promise;
+					if (response?.data?.[0] !== undefined) {
+						await updateAreaStatuses(areaIds, response.data[0]);
+					}
+					return;
+				} catch (error) {
+					// 緩存請求失敗，繼續執行新請求
 				}
-				continue;
+			}
+
+			// 發送新請求
+			try {
+				const requestPromise =
+					firstReq.type === "coil"
+						? getCoils(firstReq.address, 1, firstReq.deviceConfig)
+						: getDiscreteInputs(firstReq.address, 1, firstReq.deviceConfig);
+
+				// 更新緩存（同時追蹤正在進行的請求）
+				requestCache.set(requestKey, { timestamp: now, promise: requestPromise });
+
+				const response = await requestPromise;
+
+				// 處理響應
+				if (response?.data?.[0] !== undefined) {
+					await updateAreaStatuses(areaIds, response.data[0]);
+				}
+
+				// 請求成功，從失敗列表中移除（設備已恢復）
+				failedDevices.delete(requestKey);
 			} catch (error) {
-				// 緩存請求失敗，繼續執行新請求
+				// 請求失敗，標記為錯誤並清除緩存
+				requestCache.delete(requestKey);
+				const errorMessage = error instanceof Error ? error.message : String(error);
+
+				// 如果是 503 錯誤（設備離線），添加到失敗列表（快速失敗）
+				if (
+					errorMessage.includes("503") ||
+					errorMessage.includes("Service Unavailable") ||
+					errorMessage.includes("設備離線")
+				) {
+					failedDevices.set(requestKey, now);
+				}
+
+				// 標記所有相關區域為錯誤狀態
+				areaIds.forEach(areaId => {
+					ensureAreaStatus(areaId).status = "error";
+				});
+				// 並行報告錯誤（不阻塞）
+				await Promise.allSettled(
+					areaIds.map(areaId => reportAreaError(areaId, errorMessage || "無法讀取照明設備資料"))
+				);
 			}
-		}
-
-		// 發送新請求
-		try {
-			const requestPromise =
-				firstReq.type === "coil"
-					? getCoils(firstReq.address, 1, firstReq.deviceConfig)
-					: getDiscreteInputs(firstReq.address, 1, firstReq.deviceConfig);
-
-			// 更新緩存（同時追蹤正在進行的請求）
-			requestCache.set(requestKey, { timestamp: now, promise: requestPromise });
-
-			const response = await requestPromise;
-
-			// 處理響應
-			if (response?.data?.[0] !== undefined) {
-				await updateAreaStatuses(areaIds, response.data[0]);
-			}
-		} catch (error) {
-			// 請求失敗，標記為錯誤並清除緩存
-			requestCache.delete(requestKey);
-			const errorMessage = error instanceof Error ? error.message : String(error);
-
-			for (const areaId of areaIds) {
-				ensureAreaStatus(areaId).status = "error";
-				await reportAreaError(areaId, errorMessage || "無法讀取照明設備資料");
-			}
-		}
-	}
+		})
+	);
 
 	// 清理過期緩存
 	for (const [key, value] of requestCache.entries()) {
@@ -1004,35 +1061,34 @@ const executeToggle = async (areaId: string, targetValue: boolean) => {
 		ensureAreaStatus(areaId, "error").status = "error";
 		areaToggling.value.delete(areaId);
 
-		const toast = useToast();
-		toast.error(
-			`控制 ${targetArea.name} 失敗: ${error instanceof Error ? error.message : "未知錯誤"}`
-		);
+		handleError(error, `控制 ${targetArea.name} 失敗`);
 	}
 };
 
-// 啟動自動刷新
-const startAutoRefresh = () => {
-	if (refreshTimer) return;
-
-	// 立即載入一次
-	void loadAllAreaStatuses({ silent: true });
-
-	// 設置定時器
-	refreshTimer = setInterval(() => {
+// 使用 usePolling 統一管理輪詢（支持頁面可見性檢查）
+const { start: startPolling, stop: stopPolling } = usePolling({
+	callback: async () => {
 		// 只有在頁面可見時才載入（優化：使用 Page Visibility API）
 		if (document.visibilityState === "visible") {
-			void loadAllAreaStatuses({ silent: true });
+			await loadAllAreaStatuses({ silent: true });
 		}
-	}, AUTO_REFRESH_INTERVAL);
+	},
+	interval: 5000, // 每 5 秒執行一次
+	immediate: true, // 立即執行一次
+	enabled: () => document.visibilityState === "visible", // 只在頁面可見時執行
+	onError: err => {
+		handleError(err, "載入區域狀態失敗");
+	}
+});
+
+// 啟動自動刷新
+const startAutoRefresh = () => {
+	startPolling();
 };
 
 // 停止自動刷新
 const stopAutoRefresh = () => {
-	if (!refreshTimer) return;
-	clearInterval(refreshTimer);
-	refreshTimer = null;
-
+	stopPolling();
 	// 清理請求緩存
 	requestCache.clear();
 };
@@ -1041,9 +1097,7 @@ const stopAutoRefresh = () => {
 const handleVisibilityChange = () => {
 	if (document.visibilityState === "visible") {
 		// 頁面可見時，立即載入一次狀態
-		if (refreshTimer) {
-			void loadAllAreaStatuses({ silent: true });
-		}
+		void loadAllAreaStatuses({ silent: true });
 	}
 };
 
@@ -1082,12 +1136,9 @@ const handleDeleteCategory = async (areaId: string) => {
 		}
 		delete areaStatuses.value[areaId];
 
-		const toast = useToast();
 		toast.success("點位已刪除");
 	} catch (error) {
-		console.error("刪除點位失敗:", error);
-		const toast = useToast();
-		toast.error("刪除點位失敗，請稍後再試");
+		handleError(error, "刪除點位失敗");
 	}
 };
 
@@ -1158,9 +1209,7 @@ const handleDrop = async (event: DragEvent) => {
 			lightingFloors.value[index] = result.floor;
 		}
 	} catch (error) {
-		console.error("更新點位位置失敗:", error);
-		const toast = useToast();
-		toast.error("更新位置失敗，請稍後再試");
+		handleError(error, "更新位置失敗");
 	}
 
 	draggingCategoryId.value = "";
@@ -1219,8 +1268,8 @@ const saveBatchPositions = async (
 			}
 		}
 	} catch (error) {
-		console.error("批次更新位置失敗:", error);
-		throw error;
+		handleError(error, "批次更新位置失敗");
+		throw error; // 重新拋出以便調用者處理
 	}
 };
 
@@ -1309,83 +1358,48 @@ const loadFloorsFromAPI = async () => {
 		// 優化：批量預載入所有需要的設備資訊，避免在讀取狀態時才逐一請求
 		await preloadDeviceInfos();
 	} catch (error) {
-		console.error("載入樓層列表失敗:", error);
-		const toast = useToast();
-		toast.error("載入樓層列表失敗，請稍後再試");
+		handleError(error, "載入樓層列表失敗");
 	} finally {
 		isLoadingFloors.value = false;
 	}
 };
 
+// 使用樓層管理 composable
+const { handleSaveFloor: baseHandleSaveFloor, handleDeleteFloor: baseHandleDeleteFloor } =
+	useFloorManagement<LightingFloor>();
+
 // 處理儲存樓層
 const handleSaveFloor = async (floor: LightingFloor) => {
-	try {
-		if (floor.id) {
-			// 更新現有樓層
-			const result = await lightingApi.updateFloor(floor.id, {
-				name: floor.name,
-				imageUrl: floor.imageUrl,
-				areas: floor.areas
-			});
-
-			// 更新本地資料
-			const index = lightingFloors.value.findIndex(f => f.id === floor.id);
-			if (index > -1) {
-				lightingFloors.value[index] = result.floor;
+	await baseHandleSaveFloor(
+		floor,
+		lightingFloors,
+		async (f: LightingFloor) => {
+			return f.id
+				? await lightingApi.updateFloor(f.id, {
+						name: f.name,
+						imageUrl: f.imageUrl,
+						areas: f.areas
+					})
+				: await lightingApi.createFloor({
+						name: f.name,
+						imageUrl: f.imageUrl,
+						areas: f.areas
+					});
+		},
+		{
+			selectedFloorRef: selectedFloor,
+			onAfterSave: () => {
+				initializeAreaStatuses();
 			}
-		} else {
-			// 建立新樓層
-			const result = await lightingApi.createFloor({
-				name: floor.name,
-				imageUrl: floor.imageUrl,
-				areas: floor.areas
-			});
-
-			// 添加到本地資料
-			lightingFloors.value.push(result.floor);
 		}
-
-		// 樓層資料已更新，區域會自動從 lightingFloors 的 areas 獲取
-		// 重新初始化狀態以反映新的區域
-		initializeAreaStatuses();
-
-		const toast = useToast();
-		toast.success("樓層儲存成功");
-	} catch (error) {
-		console.error("儲存樓層失敗:", error);
-		const toast = useToast();
-		toast.error("儲存樓層失敗，請稍後再試");
-	}
+	);
 };
 
 // 處理刪除樓層
 const handleDeleteFloor = async (floorId: string) => {
-	try {
-		await lightingApi.deleteFloor(floorId);
-
-		// 從本地資料移除
-		const index = lightingFloors.value.findIndex(f => f.id === floorId);
-		if (index > -1) {
-			const deletedFloor = lightingFloors.value[index];
-			lightingFloors.value.splice(index, 1);
-
-			// 如果刪除的是當前選中的樓層，切換到第一個樓層
-			if (selectedFloor.value === floorId && lightingFloors.value.length > 0) {
-				selectedFloor.value = lightingFloors.value[0].id || lightingFloors.value[0].name;
-			} else if (lightingFloors.value.length === 0) {
-				selectedFloor.value = "";
-			}
-
-			// 樓層已刪除，區域會自動從 lightingFloors 的 areas 中移除
-		}
-
-		const toast = useToast();
-		toast.success("樓層刪除成功");
-	} catch (error) {
-		console.error("刪除樓層失敗:", error);
-		const toast = useToast();
-		toast.error("刪除樓層失敗，請稍後再試");
-	}
+	await baseHandleDeleteFloor(floorId, lightingFloors, lightingApi.deleteFloor, {
+		selectedFloorRef: selectedFloor
+	});
 };
 
 // 初始化：載入樓層數據

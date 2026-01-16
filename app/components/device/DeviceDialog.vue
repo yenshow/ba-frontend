@@ -321,6 +321,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDeviceApi } from "~/composables/systems/useDeviceApi";
 import type {
 	Device,
 	CreateDeviceData,

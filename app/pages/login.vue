@@ -54,12 +54,7 @@
 								<label class="text-md mb-2 block text-white/80">帳號</label>
 								<div class="relative">
 									<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-										<svg
-											class="h-5 w-5 text-white/80"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-										>
+										<svg class="h-5 w-5 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path
 												stroke-linecap="round"
 												stroke-linejoin="round"
@@ -83,12 +78,7 @@
 								<label class="mb-2 block text-sm text-white/80">密碼</label>
 								<div class="relative">
 									<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-										<svg
-											class="h-5 w-5 text-white/80"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-										>
+										<svg class="h-5 w-5 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path
 												stroke-linecap="round"
 												stroke-linejoin="round"
@@ -129,13 +119,7 @@
 												d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
 											/>
 										</svg>
-										<svg
-											v-else
-											class="h-5 w-5"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-										>
+										<svg v-else class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path
 												stroke-linecap="round"
 												stroke-linejoin="round"
@@ -204,10 +188,7 @@
 						<div class="text-center">
 							<p class="text-md text-white/60">
 								遇到問題？
-								<NuxtLink
-									to="/"
-									class="font-bold text-[#ffffffe6] transition-colors hover:text-[#ffffff]"
-								>
+								<NuxtLink to="/" class="font-bold text-[#ffffffe6] transition-colors hover:text-[#ffffff]">
 									聯絡管理員
 								</NuxtLink>
 							</p>
@@ -226,6 +207,10 @@
 </template>
 
 <script setup lang="ts">
+import { useAuth } from "~/composables/core/useAuth";
+import { useToast } from "~/composables/core/useToast";
+import { useErrorHandler } from "~/composables/core/useErrorHandler";
+
 definePageMeta({
 	layout: false
 });

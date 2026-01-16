@@ -187,7 +187,7 @@
 													<div class="min-w-0 flex-1">
 														<div class="text-xs text-white/60 2xl:text-sm">更新時間</div>
 														<div class="mt-0.5 text-sm text-white 2xl:text-base">
-															{{ formatUpdatedAt(alert) }}
+															{{ formatDateTime(alert.updated_at) }}
 														</div>
 													</div>
 												</div>
@@ -308,14 +308,14 @@
 </template>
 
 <script setup lang="ts">
-import { useToast } from "~/composables/useToast";
+import { useToast } from "~/composables/core/useToast";
 import type { Alert, AlertStatus, AlertSource } from "~/types/alert";
-import { useAuth } from "~/composables/useAuth";
-import {
-	useWebSocket,
-	type AlertNewEvent,
-	type AlertUpdatedEvent
-} from "~/composables/useWebSocket";
+import { useAuth } from "~/composables/core/useAuth";
+import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
+import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import { useAlertApi } from "~/composables/systems/useAlertApi";
+import { useWebSocket } from "~/composables/websocket/useWebSocket";
+import type { AlertNewEvent, AlertUpdatedEvent } from "~/composables/websocket/useWebSocket";
 import {
 	getSourceLabel,
 	getTypeLabel,
@@ -328,6 +328,18 @@ import { isAlertResolved, isAlertIgnored } from "~/utils/alertUtils";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue";
 import Pagination from "~/components/common/Pagination.vue";
+import { useDataLoader } from "~/composables/monitoring/useDataLoader";
+
+/**
+ * 開發模式日誌輔助函數（統一處理）
+ */
+const devLog = {
+	warn: (msg: string, ...args: unknown[]) => {
+		if (process.dev) {
+			console.warn(msg, ...args);
+		}
+	}
+};
 
 definePageMeta({
 	layout: "default"
@@ -341,10 +353,7 @@ const { handleError: handleApiError } = useErrorHandler();
 const { on, off } = useWebSocket();
 
 // 狀態
-const alerts = ref<Alert[]>([]);
-const isLoading = ref(false);
 const isIgnoring = ref(false);
-const totalAlerts = ref(0);
 const unresolvedCount = ref(0);
 
 // 篩選條件
@@ -398,77 +407,56 @@ watch(
 	{ deep: true }
 );
 
-// 分頁
-const limit = ref(10);
-const offset = ref(0);
-
-// 載入警示列表（帶防抖和請求去重）
-let isLoadingAlerts = false;
-let loadAlertsTimer: ReturnType<typeof setTimeout> | null = null;
-
-const executeLoadAlerts = async () => {
-	if (isLoadingAlerts) return;
-
-	isLoadingAlerts = true;
-	isLoading.value = true;
-	try {
+// 使用 useDataLoader 統一管理數據載入
+const {
+	data: alerts,
+	total: totalAlerts,
+	offset,
+	isLoading,
+	load,
+	nextPage,
+	prevPage,
+	resetPage
+} = useDataLoader<Alert, Record<string, never>>({
+	fetcher: async params => {
 		const result = await alertApi.getAlerts({
 			status: getFilterStatus(),
 			source: filterSource.value as AlertSource | undefined,
 			start_date: filterStartDate.value || undefined,
 			end_date: filterEndDate.value || undefined,
-			limit: limit.value,
-			offset: offset.value,
+			limit: params.limit as number,
+			offset: params.offset as number,
 			orderBy: "created_at",
 			order: "desc"
 		});
-
-		alerts.value = result.alerts;
-		totalAlerts.value = result.total;
-		isLoading.value = false;
-	} catch (error) {
-		isLoading.value = false;
-		handleApiError(error, "載入警示列表失敗");
-	} finally {
-		isLoadingAlerts = false;
+		return { items: result.alerts, total: result.total };
+	},
+	debounce: 150,
+	pageSize: 10,
+	onError: err => {
+		handleApiError(err, "載入警示列表失敗");
 	}
-};
+});
 
-const loadAlerts = async (skipDebounce = false) => {
-	if (loadAlertsTimer) {
-		clearTimeout(loadAlertsTimer);
-		loadAlertsTimer = null;
-	}
+const limit = 10;
 
-	if (skipDebounce) {
-		await executeLoadAlerts();
-		loadUnresolvedCount();
-	} else {
-		loadAlertsTimer = setTimeout(() => {
-			executeLoadAlerts().then(() => {
-				loadUnresolvedCount();
-			});
-		}, 150);
-	}
-};
-
-// 載入未解決警示數量
+// 載入未解決警示數量（根據時間範圍篩選）
 const loadUnresolvedCount = async () => {
 	try {
 		const result = await alertApi.getUnresolvedAlertCount({
-			source: (filterSource.value as AlertSource) || undefined
+			source: (filterSource.value as AlertSource) || undefined,
+			start_date: filterStartDate.value || undefined,
+			end_date: filterEndDate.value || undefined
 		});
 		unresolvedCount.value = result.count;
 	} catch (error) {
-		if (process.dev) {
-			console.warn("[alert-log] 載入未解決警示數量失敗", error);
-		}
+		devLog.warn("[alert-log] 載入未解決警示數量失敗", error);
 	}
 };
 
 // 處理警報操作後的重新載入
 const reloadAfterAction = async () => {
-	await loadAlerts(true);
+	load({}, true); // 立即執行
 	loadUnresolvedCount();
 };
 
@@ -572,7 +560,7 @@ const handleAlertNew = (alert: AlertNewEvent) => {
 	if (offset.value === 0) {
 		alerts.value.unshift(alert);
 	}
-	totalAlerts.value++;
+	totalAlerts.value += 1;
 
 	if (alert.status === "active") {
 		unresolvedCount.value++;
@@ -593,7 +581,7 @@ const handleAlertUpdated = (data: AlertUpdatedEvent) => {
 		}
 	} else if (matches && offset.value === 0) {
 		alerts.value.unshift(alert);
-		totalAlerts.value++;
+		totalAlerts.value += 1;
 	}
 
 	if (oldStatus === "active" && (newStatus === "resolved" || newStatus === "ignored")) {
@@ -699,31 +687,11 @@ const handleExport = async () => {
 
 // 分頁
 const goToPreviousPage = () => {
-	if (offset.value > 0) {
-		offset.value = Math.max(0, offset.value - limit.value);
-		void loadAlerts(true);
-	}
+	prevPage({});
 };
 
 const goToNextPage = () => {
-	if (offset.value + limit.value < totalAlerts.value) {
-		offset.value += limit.value;
-		void loadAlerts(true);
-	}
-};
-
-// 格式化更新時間（智能顯示：如果與創建時間相同，顯示提示）
-const formatUpdatedAt = (alert: Alert) => {
-	const updatedAt = formatDateTime(alert.updated_at);
-	const createdAt = new Date(alert.created_at).getTime();
-	const updatedAtTime = new Date(alert.updated_at).getTime();
-	const diffMs = updatedAtTime - createdAt;
-
-	// 如果差異小於 1 秒，視為相同（創建時兩者相同或極其接近）
-	if (diffMs < 1000) {
-		return `${updatedAt}（與創建時間相同）`;
-	}
-	return updatedAt;
+	nextPage({});
 };
 
 // Badge 基礎樣式類
@@ -735,8 +703,7 @@ const getSourceDisplayName = (alert: Alert): string =>
 	alert.source_name || `${getSourceLabel(alert.source)} #${alert.source_id}`;
 
 // 獲取樓層名稱
-const getFloorName = (alert: Alert): string =>
-	alert.environment_floor_name || alert.lighting_floor_name || "";
+const getFloorName = (alert: Alert): string => alert.floor_name || "";
 
 // 取得警示卡片樣式
 const getAlertCardClass = (alert: Alert) => {
@@ -758,8 +725,9 @@ const getAlertCardClass = (alert: Alert) => {
 
 // 監聽篩選條件變化
 watch([filterStatus, filterSource, filterStartDate, filterEndDate], () => {
-	offset.value = 0;
-	loadAlerts();
+	resetPage();
+	load({});
+	loadUnresolvedCount();
 });
 
 // 初始化時間範圍為「今天」（使用統一的時間工具）
@@ -791,29 +759,29 @@ const scrollToAlert = async (alertId: number) => {
 const handleAlertIdQuery = async () => {
 	const route = useRoute();
 	const alertIdParam = route.query.alertId;
-	
+
 	if (!alertIdParam) return;
-	
+
 	const alertId = Number(alertIdParam);
 	if (isNaN(alertId)) return;
-	
+
 	await nextTick();
-	
+
 	// 檢查警報是否在當前列表中
 	const alert = alerts.value.find(a => a.id === alertId);
-	
+
 	if (alert) {
 		await scrollToAlert(alertId);
 		return;
 	}
-	
+
 	// 如果警報不在列表中，嘗試載入該警報並調整篩選條件
 	try {
 		const result = await alertApi.getAlertById(alertId);
 		const targetAlert = result.alert;
 		const alertDate = new Date(targetAlert.created_at);
 		const { start, end } = getTodayDateRangeUTC();
-		
+
 		// 如果警報不在今天，調整時間範圍
 		if (alertDate < start || alertDate >= end) {
 			timeRange.value = {
@@ -823,9 +791,9 @@ const handleAlertIdQuery = async () => {
 			};
 			filterStartDate.value = timeRange.value.startDate;
 			filterEndDate.value = timeRange.value.endDate;
-			await loadAlerts(true);
+			load({}, true); // 立即執行
 		}
-		
+
 		await scrollToAlert(alertId);
 	} catch (error) {
 		if (process.dev) {
@@ -839,21 +807,17 @@ onMounted(async () => {
 	// 初始化時間範圍
 	initializeTimeRange();
 
-	await loadAlerts(true);
+	load({}, true); // 立即執行
 	void loadUnresolvedCount();
 	on("alert:new", handleAlertNew);
 	on("alert:updated", handleAlertUpdated);
-	
+
 	// 處理 alertId 查詢參數
 	await handleAlertIdQuery();
 });
 
 // 組件卸載時清理
 onUnmounted(() => {
-	if (loadAlertsTimer) {
-		clearTimeout(loadAlertsTimer);
-		loadAlertsTimer = null;
-	}
 	off("alert:new", handleAlertNew);
 	off("alert:updated", handleAlertUpdated);
 });

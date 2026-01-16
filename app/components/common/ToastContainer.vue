@@ -87,7 +87,9 @@
 </template>
 
 <script setup lang="ts">
-import type { Toast } from "~/composables/useToast";
+import type { Toast } from "~/composables/core/useToast";
+import { useToast } from "~/composables/core/useToast";
+import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 
 const { toasts, removeToast } = useToast();
 const { removeAlertToast } = useAlertMonitor();

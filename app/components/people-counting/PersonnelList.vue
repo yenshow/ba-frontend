@@ -1,8 +1,6 @@
 <template>
 	<div class="space-y-3">
-		<h3 class="text-lg font-semibold text-white xl:text-xl 2xl:text-2xl">
-			{{ unitName ? `${unitName} 人員名單` : "人員名單" }}
-		</h3>
+		<h3 class="text-lg font-semibold text-white xl:text-xl 2xl:text-2xl">人員名單</h3>
 
 		<div v-if="personnel.length === 0" class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center">
 			<p class="text-sm text-white/60 xl:text-base">尚無人員資料</p>
@@ -12,7 +10,12 @@
 			<div
 				v-for="person in personnel"
 				:key="person.id"
-				class="flex items-center gap-3 rounded-lg border-2 border-white/30 bg-white/10 p-3 backdrop-blur-sm transition-all hover:border-white/50 hover:bg-white/15"
+				class="flex items-center gap-3 rounded-lg border-2 border-white/30 p-3 backdrop-blur-sm transition-all hover:border-white/50"
+				:class="[
+					person.isInside || person.isPresent
+						? 'bg-white/15 opacity-100'
+						: 'bg-white/5 opacity-50'
+				]"
 			>
 				<!-- 照片 -->
 				<div class="flex-shrink-0">
@@ -20,8 +23,8 @@
 						class="h-12 w-12 overflow-hidden rounded-full bg-white/10 xl:h-14 xl:w-14 2xl:h-16 2xl:w-16"
 					>
 						<img
-							v-if="person.photoUrl"
-							:src="person.photoUrl"
+							v-if="person.photoUrl || person.photo"
+							:src="person.photoUrl || person.photo"
 							:alt="person.name"
 							class="h-full w-full object-cover"
 						/>
@@ -45,28 +48,21 @@
 
 				<!-- 資訊 -->
 				<div class="min-w-0 flex-1">
-					<div class="flex items-center gap-2">
-						<div class="font-medium text-white xl:text-base 2xl:text-lg">{{ person.name }}</div>
-						<span
-							v-if="person.isInside"
-							class="rounded-full bg-green-500/30 px-2 py-0.5 text-xs text-green-200 xl:text-sm"
-						>
-							在場
-						</span>
-					</div>
-					<div v-if="person.title" class="mt-0.5 text-sm text-white/70 xl:text-base">
-						{{ person.title }}
-					</div>
+					<div class="font-medium text-white xl:text-base 2xl:text-lg">{{ person.name }}</div>
 					<div class="mt-1 space-y-0.5 text-xs text-white/60 xl:text-sm">
-						<div v-if="person.lastEntryTime">
-							<span>進場：</span>
-							<span>{{ person.lastEntryTime }}</span>
+						<div v-if="person.lastEntryDate || person.entryTime">
+							<span>最近進場：</span>
+							<span>{{ person.lastEntryDate || person.entryTime }}</span>
 						</div>
-						<div v-if="person.lastExitTime">
-							<span>出場：</span>
-							<span>{{ person.lastExitTime }}</span>
+						<div v-if="person.entryTime">
+							<span>進場時間：</span>
+							<span>{{ person.entryTime }}</span>
 						</div>
-						<div v-if="!person.lastEntryTime && !person.lastExitTime" class="text-white/40">
+						<div v-if="person.exitTime || person.lastExitTime">
+							<span>離場時間：</span>
+							<span>{{ person.exitTime || person.lastExitTime }}</span>
+						</div>
+						<div v-if="!person.entryTime && !person.exitTime && !person.lastEntryTime && !person.lastExitTime" class="text-white/40">
 							尚無進出場記錄
 						</div>
 					</div>
@@ -81,7 +77,6 @@ import type { PeopleCountingPersonnel } from "~/types/peopleCounting";
 
 interface Props {
 	personnel: PeopleCountingPersonnel[];
-	unitName?: string;
 }
 
 defineProps<Props>();

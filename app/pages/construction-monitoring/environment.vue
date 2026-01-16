@@ -178,11 +178,16 @@ import EnvironmentGauge from "~/components/environment/EnvironmentGauge.vue";
 import EnvironmentParamCard from "~/components/environment/EnvironmentParamCard.vue";
 import OverviewLocationCard from "~/components/environment/OverviewLocationCard.vue";
 import LocationManagementDialog from "~/components/environment/LocationManagementDialog.vue";
-import { useDeviceApi } from "~/composables/useDeviceApi";
-import { useApiBase } from "~/composables/useApiBase";
-import { useEnvironmentApi } from "~/composables/useEnvironmentApi";
-import { useWebSocket } from "~/composables/useWebSocket";
-import type { EnvironmentReadingNewEvent } from "~/composables/useWebSocket";
+import { useDeviceApi } from "~/composables/systems/useDeviceApi";
+import { useApiBase } from "~/composables/core/useApiBase";
+import { useEnvironmentApi } from "~/composables/systems/useEnvironmentApi";
+import { useWebSocket } from "~/composables/websocket/useWebSocket";
+import { useToast } from "~/composables/core/useToast";
+import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import { usePolling } from "~/composables/monitoring/usePolling";
+import { useFloorManagement } from "~/composables/systems/useFloorManagement";
+import { useAlertRules } from "~/composables/monitoring/useAlertRules";
+import type { EnvironmentReadingNewEvent } from "~/composables/websocket/useWebSocket";
 import {
 	getParameterDisplayName,
 	getParameterUnit,
@@ -213,6 +218,12 @@ const environmentApi = useEnvironmentApi();
 const { request } = useApiBase();
 const toast = useToast();
 const { isConnected, on, off } = useWebSocket();
+const { handleError } = useErrorHandler();
+const { getRules, getStatusText: getStatusTextFromRules } = useAlertRules();
+
+// 警報規則緩存
+const alertRules = ref<any[]>([]);
+const rulesLoaded = ref(false);
 
 // 環境樓層和地點資料
 const environmentFloors = ref<EnvironmentFloor[]>([]);
@@ -224,6 +235,11 @@ const selectedLocationId = ref<string>("");
 const sensorDevice = ref<Device | null>(null);
 // 設備型號配置快取
 const deviceModelConfig = ref<SensorDeviceModelConfig | null>(null);
+// 設備型號配置全局緩存（key: deviceId, value: { device, modelConfig, timestamp }）
+const deviceModelConfigCache = ref<Map<number, { device: Device; modelConfig: SensorDeviceModelConfig | null; timestamp: number }>>(new Map());
+const CONFIG_CACHE_TTL = 5 * 60 * 1000; // 5 分鐘緩存時間
+// 共享配置緩存（key: `${host}:${port}`, value: modelConfig）
+const sharedConfigCache = ref<Map<string, SensorDeviceModelConfig | null>>(new Map());
 
 const sensorDeviceConfig = computed<ModbusDeviceConfig | null>(() => {
 	if (!sensorDevice.value || sensorDevice.value.type_code !== "sensor") {
@@ -447,11 +463,42 @@ const selectLocation = (location: EnvironmentLocation) => {
 
 const isFetching = ref(false);
 const isSensorOffline = ref(false);
-const AUTO_REFRESH_INTERVAL = 5000;
 // 驗證提示間隔（用於配置驗證提示，非警報通知）
 const VALIDATION_ALERT_INTERVAL = 30000;
-let refreshTimer: ReturnType<typeof setInterval> | null = null;
 let lastValidationAlertTime: number | null = null;
+// 總覽面板載入狀態追蹤（key: locationId, value: 是否正在載入）
+const overviewLoadingMap = ref<Map<string, boolean>>(new Map());
+
+// 動態計算輪詢間隔：WebSocket 連接時 30 秒，否則 5 秒
+const pollingInterval = computed(() => {
+	return isConnected.value ? 30000 : 5000;
+});
+
+// 使用 usePolling 統一管理輪詢（支持動態間隔時間）
+const { start: startPolling, stop: stopPolling } = usePolling({
+	callback: async () => {
+		// 只有當有選中地點且有感測器設備時才讀取資料
+		if (selectedLocationId.value && sensorDevice.value && sensorDeviceConfig.value) {
+			await loadSensorData();
+		}
+
+		// 為所有有設備的地點讀取資料（用於總覽面板）
+		forEachLocation((location, floor) => {
+			if (location.deviceId) {
+				const locationId = getLocationId(location);
+				// 如果不是當前選中地點，也讀取資料
+				if (locationId !== selectedLocationId.value) {
+					void loadLocationSensorDataForOverview(location);
+				}
+			}
+		});
+	},
+	interval: pollingInterval, // 使用響應式間隔時間
+	immediate: false, // 不在啟動時立即執行
+	onError: (err) => {
+		handleError(err, "載入感測器資料失敗");
+	}
+});
 
 // ========== 錯誤追蹤共用函數 ==========
 
@@ -468,14 +515,15 @@ const isOfflineError = (errorMessage: string): boolean => {
 
 /**
  * 報告環境位置錯誤（靜默處理，不影響主要流程）
+ * @param location - 環境位置物件，需要包含 systemId
  */
 const reportLocationError = async (
-	locationId: string | number | undefined,
+	location: EnvironmentLocation | undefined,
 	errorMessage: string
 ) => {
-	if (!locationId) return;
+	if (!location?.systemId) return;
 	try {
-		await environmentApi.reportError(locationId, errorMessage);
+		await environmentApi.reportError(location.systemId, errorMessage);
 	} catch (error) {
 		console.warn("[environment] 報告錯誤失敗:", error);
 	}
@@ -483,11 +531,12 @@ const reportLocationError = async (
 
 /**
  * 清除環境位置錯誤狀態（靜默處理，不影響主要流程）
+ * @param location - 環境位置物件，需要包含 systemId
  */
-const clearLocationError = async (locationId: string | number | undefined) => {
-	if (!locationId) return;
+const clearLocationError = async (location: EnvironmentLocation | undefined) => {
+	if (!location?.systemId) return;
 	try {
-		await environmentApi.clearError(locationId);
+		await environmentApi.clearError(location.systemId);
 	} catch (error) {
 		console.warn("[environment] 清除錯誤失敗:", error);
 	}
@@ -583,27 +632,89 @@ const applyTransform = (value: number, transform?: string): number => {
 };
 
 // 更新感測器資料（統一函數，支援當前地點和總覽地點）
+// location 參數用於獲取資料庫 ID，如果沒有提供則使用 locationId
 const updateSensorData = (
 	type: SensorParameter["type"],
 	value: number | null,
-	locationId?: string
+	locationId?: string,
+	location?: EnvironmentLocation
 ) => {
-	// 更新當前選中地點的資料
-	sensorData[type] = value;
+	// 調試：輸出更新資訊（包括 null 值，用於追蹤問題）
+	if (process.dev) {
+		console.log(`[environment] updateSensorData:`, {
+			type,
+			value,
+			locationId,
+			locationName: location?.name,
+			currentLocationId: currentLocationData.value?.id,
+			isCurrentLocation: location?.id === currentLocationData.value?.id,
+			willUpdateSensorData:
+				location?.id === currentLocationData.value?.id ||
+				(!location?.id &&
+					locationId === getLocationId(currentLocationData.value || ({} as EnvironmentLocation)))
+		});
+	}
+
+	// 只有當更新的是當前選中地點的資料時，才更新 sensorData
+	// 避免更新其他地點（總覽面板）時覆蓋當前地點的資料
+	const isCurrentLocation =
+		location?.id === currentLocationData.value?.id ||
+		(!location?.id &&
+			locationId === getLocationId(currentLocationData.value || ({} as EnvironmentLocation)));
+	if (isCurrentLocation) {
+		sensorData[type] = value;
+	}
 
 	// 如果指定了 locationId，同時更新總覽資料
 	if (locationId) {
-		if (!allLocationsSensorData.value.has(locationId)) {
-			allLocationsSensorData.value.set(locationId, createEmptySensorReadings());
+		// 優先使用資料庫 ID 作為 key，確保與 WebSocket 事件一致
+		// 如果提供了 location 物件，使用其資料庫 ID；否則使用傳入的 locationId
+		const key = location?.id || locationId;
+
+		if (!allLocationsSensorData.value.has(key)) {
+			allLocationsSensorData.value.set(key, createEmptySensorReadings());
 		}
-		const locationData = allLocationsSensorData.value.get(locationId)!;
+		const locationData = allLocationsSensorData.value.get(key)!;
 		locationData[type] = value;
+
+		// 如果使用了資料庫 ID 作為 key，同時也更新合成 ID 的對應（向後兼容）
+		// 這樣可以確保無論使用哪種 ID 都能找到資料
+		if (location?.id && locationId !== location.id) {
+			if (!allLocationsSensorData.value.has(locationId)) {
+				allLocationsSensorData.value.set(locationId, createEmptySensorReadings());
+			}
+			const syntheticData = allLocationsSensorData.value.get(locationId)!;
+			syntheticData[type] = value;
+		}
 	}
 };
 
 // 取得特定地點的感測器資料
+// 支援資料庫 ID 和合成 ID 兩種查找方式
 const getLocationSensorData = (locationId: string): SensorReadings | null => {
-	return allLocationsSensorData.value.get(locationId) || null;
+	// 先嘗試直接查找
+	let data = allLocationsSensorData.value.get(locationId);
+	if (data) return data;
+
+	// 如果找不到，可能是因為 key 不一致，嘗試在所有地點中查找匹配的 ID
+	for (const floor of environmentFloors.value) {
+		for (const location of floor.locations) {
+			const dbId = location.id;
+			const syntheticId = getLocationId(location);
+			if (dbId === locationId || syntheticId === locationId) {
+				// 使用資料庫 ID 查找
+				if (dbId) {
+					data = allLocationsSensorData.value.get(dbId);
+					if (data) return data;
+				}
+				// 使用合成 ID 查找
+				data = allLocationsSensorData.value.get(syntheticId);
+				if (data) return data;
+			}
+		}
+	}
+
+	return null;
 };
 
 // cleanLocation 和 cleanFloor 已從 composable 導入
@@ -636,17 +747,28 @@ const loadFloorsFromAPI = async () => {
 			}
 		}
 	} catch (error) {
-		console.error("載入樓層列表失敗:", error);
-		toast.error("載入樓層列表失敗，請稍後再試");
+		handleError(error, "載入樓層列表失敗");
 	} finally {
 		isLoadingFloors.value = false;
 	}
 };
 
-// 載入設備和型號配置（共用函數）
+// 載入設備和型號配置（共用函數，帶緩存）
 const loadDeviceAndModelConfig = async (
-	deviceId: number
+	deviceId: number,
+	useCache = true
 ): Promise<{ device: Device; modelConfig: SensorDeviceModelConfig | null } | null> => {
+	// 檢查緩存
+	if (useCache) {
+		const cached = deviceModelConfigCache.value.get(deviceId);
+		if (cached && Date.now() - cached.timestamp < CONFIG_CACHE_TTL) {
+			if (process.dev) {
+				console.log(`[environment] 使用緩存的設備配置: deviceId=${deviceId}`);
+			}
+			return { device: cached.device, modelConfig: cached.modelConfig };
+		}
+	}
+
 	try {
 		const result = await deviceApi.getDevice(deviceId);
 		const device = result.device;
@@ -655,30 +777,38 @@ const loadDeviceAndModelConfig = async (
 			return null;
 		}
 
+		let modelConfig: SensorDeviceModelConfig | null = null;
+
 		// 方法1: 先嘗試從設備 API 返回的 model 中取得配置（後端應該已經包含）
 		const deviceWithModel = device as any;
 		if (deviceWithModel.model?.config) {
-			const modelConfig = deviceWithModel.model.config as SensorDeviceModelConfig | undefined;
-			if (modelConfig?.sensorParameters) {
-				return { device, modelConfig: modelConfig || null };
+			const config = deviceWithModel.model.config as SensorDeviceModelConfig | undefined;
+			if (config?.sensorParameters) {
+				modelConfig = config || null;
 			}
 		}
 
 		// 方法2: 如果設備 API 沒有返回 model.config，則單獨取得型號資訊
-		if (device.model_id) {
+		if (!modelConfig && device.model_id) {
 			try {
 				const modelResult = await deviceApi.getDeviceModel(device.model_id);
-				const modelConfig = modelResult.device_model.config as SensorDeviceModelConfig | undefined;
-				return { device, modelConfig: modelConfig || null };
+				modelConfig = modelResult.device_model.config as SensorDeviceModelConfig | undefined || null;
 			} catch (error) {
 				console.warn("[environment] 載入設備型號配置失敗:", error);
-				return { device, modelConfig: null };
+				modelConfig = null;
 			}
 		}
 
-		return { device, modelConfig: null };
+		// 更新緩存
+		deviceModelConfigCache.value.set(deviceId, {
+			device,
+			modelConfig,
+			timestamp: Date.now()
+		});
+
+		return { device, modelConfig };
 	} catch (error) {
-		console.error("[environment] 載入設備失敗:", error);
+		handleError(error, "載入設備失敗");
 		return null;
 	}
 };
@@ -712,6 +842,9 @@ watch(
 	() => selectedLocationId.value,
 	() => {
 		clearSensorData();
+		// 清除配置緩存，確保載入最新配置
+		deviceModelConfigCache.value.clear();
+		sharedConfigCache.value.clear();
 	}
 );
 
@@ -762,8 +895,153 @@ const readModbusRegisterBatch = async (
 	return request<ModbusDataResponse<number>>(`/modbus/holding-registers?${queryParams.toString()}`);
 };
 
+// ========== 共用工具函數 ==========
+
+// 將地址陣列分組為連續區塊
+type AddressGroup = { start: number; length: number; addresses: number[] };
+const groupConsecutiveAddresses = (addresses: number[]): AddressGroup[] => {
+	if (addresses.length === 0) return [];
+
+	const sorted = [...addresses].sort((a, b) => a - b);
+	const groups: AddressGroup[] = [];
+	let currentGroup: number[] = [];
+
+	for (let i = 0; i < sorted.length; i++) {
+		if (currentGroup.length === 0) {
+			currentGroup.push(sorted[i]);
+		} else {
+			const lastAddr = currentGroup[currentGroup.length - 1];
+			if (sorted[i] === lastAddr + 1) {
+				currentGroup.push(sorted[i]);
+			} else {
+				groups.push({
+					start: currentGroup[0],
+					length: currentGroup.length,
+					addresses: [...currentGroup]
+				});
+				currentGroup = [sorted[i]];
+			}
+		}
+	}
+
+	if (currentGroup.length > 0) {
+		groups.push({
+			start: currentGroup[0],
+			length: currentGroup.length,
+			addresses: [...currentGroup]
+		});
+	}
+
+	return groups;
+};
+
+// 參數配置類型定義
+type ParameterWithModbusConfig = {
+	type: SensorParameterType;
+	modbusConfig: { address: number; transform?: string };
+};
+
+// 查找參數的 Modbus 配置（支援共享配置）
+const findParameterModbusConfig = (
+	paramType: SensorParameterType,
+	modelConfig: SensorDeviceModelConfig | null,
+	sharedModelConfig: SensorDeviceModelConfig | null
+): { address: number; transform?: string } | null => {
+	// 先從當前地點的設備型號配置中查找
+	let paramDef = modelConfig?.sensorParameters?.find(p => p.type === paramType);
+	
+	// 如果當前配置中沒有，且找到了共享配置，則從共享配置中查找
+	if (!paramDef?.modbusConfig?.address && sharedModelConfig?.sensorParameters) {
+		paramDef = sharedModelConfig.sensorParameters.find(p => p.type === paramType);
+	}
+	
+	return paramDef?.modbusConfig?.address !== undefined 
+		? { address: paramDef.modbusConfig.address, transform: paramDef.modbusConfig.transform }
+		: null;
+};
+
+// 批量讀取參數值（共用函數）
+const readParametersBatch = async (
+	modbusConfig: ModbusDeviceConfig,
+	paramAddressMap: Map<number, ParameterWithModbusConfig>
+): Promise<Array<{ type: SensorParameterType; value: number | null; success: boolean }>> => {
+	const addresses = Array.from(paramAddressMap.keys()).sort((a, b) => a - b);
+	if (addresses.length === 0) return [];
+
+	const addressGroups = groupConsecutiveAddresses(addresses);
+	const readPromises: Promise<Array<{ type: SensorParameterType; value: number | null; success: boolean }>>[] = [];
+
+	for (const group of addressGroups) {
+		if (group.length > 1) {
+			// 連續組：使用批量讀取
+			readPromises.push(
+				readModbusRegisterBatch(modbusConfig, group.start, group.length)
+					.then(response => {
+						return group.addresses.map((addr, idx) => {
+							const paramData = paramAddressMap.get(addr);
+							if (!paramData) {
+								return { type: "pm25" as SensorParameterType, value: null, success: false };
+							}
+
+							const rawValue = response.data[idx];
+							const transformedValue = applyTransform(rawValue, paramData.modbusConfig.transform);
+
+							return {
+								type: paramData.type,
+								value: transformedValue,
+								success: true
+							};
+						});
+					})
+					.catch(() => {
+						// 批量讀取失敗，回退到單個讀取
+						return Promise.all(
+							group.addresses.map(addr => {
+								const paramData = paramAddressMap.get(addr);
+								if (!paramData) {
+									return Promise.resolve({ type: "pm25" as SensorParameterType, value: null, success: false });
+								}
+								return readParameterValue(
+									modbusConfig,
+									paramData.modbusConfig.address,
+									paramData.modbusConfig.transform
+								).then(value => ({
+									type: paramData.type,
+									value,
+									success: value !== null
+								}));
+							})
+						);
+					})
+			);
+		} else {
+			// 單個地址：使用單個讀取
+			const addr = group.addresses[0];
+			const paramData = paramAddressMap.get(addr);
+			if (paramData) {
+				readPromises.push(
+					readParameterValue(
+						modbusConfig,
+						paramData.modbusConfig.address,
+						paramData.modbusConfig.transform
+					).then(value => [
+						{
+							type: paramData.type,
+							value,
+							success: value !== null
+						}
+					])
+				);
+			}
+		}
+	}
+
+	const nestedResults = await Promise.all(readPromises);
+	return nestedResults.flat();
+};
+
 // 驗證配置完整性（完全依賴資料庫配置）
-const validateConfiguration = (): { valid: boolean; message: string } => {
+const validateConfiguration = (): { valid: boolean; message: string; missingParams?: string[] } => {
 	if (!currentLocationData.value) {
 		return {
 			valid: false,
@@ -815,7 +1093,8 @@ const validateConfiguration = (): { valid: boolean; message: string } => {
 	if (missingConfigs.length > 0) {
 		return {
 			valid: false,
-			message: `以下參數缺少 Modbus 配置：${missingConfigs.join("、")}，請在「設備型號管理」中設定`
+			message: `以下參數缺少 Modbus 配置：${missingConfigs.join("、")}，請在「設備型號管理」中設定`,
+			missingParams: missingConfigs
 		};
 	}
 
@@ -855,7 +1134,15 @@ const loadSensorData = async () => {
 
 			if (shouldShowAlert) {
 				lastValidationAlertTime = now;
-				toast.warning(validation.message, 8000);
+				// 如果有缺少的參數，提供更詳細的提示
+				if (validation.missingParams && validation.missingParams.length > 0) {
+					toast.warning(
+						`${validation.message}\n缺少的參數：${validation.missingParams.join("、")}`,
+						10000
+					);
+				} else {
+					toast.warning(validation.message, 8000);
+				}
 			}
 			return;
 		}
@@ -871,12 +1158,7 @@ const loadSensorData = async () => {
 		}
 
 		// 建立參數到地址的映射（用於批量讀取優化）
-		const paramAddressMap = new Map<
-			number,
-			(typeof enabledParams)[0] & {
-				modbusConfig: NonNullable<ReturnType<typeof getParameterModbusConfig>>;
-			}
-		>();
+		const paramAddressMap = new Map<number, { param: (typeof enabledParams)[0]; modbusConfig: NonNullable<ReturnType<typeof getParameterModbusConfig>> }>();
 		const paramsWithoutConfig: typeof enabledParams = [];
 
 		for (const param of enabledParams) {
@@ -888,133 +1170,64 @@ const loadSensorData = async () => {
 				paramsWithoutConfig.push(param);
 				continue;
 			}
-			paramAddressMap.set(modbusConfig.address, { ...param, modbusConfig });
+			paramAddressMap.set(modbusConfig.address, { param, modbusConfig });
 		}
 
-		const addresses = Array.from(paramAddressMap.keys()).sort((a, b) => a - b);
+		// 使用共用函數進行批量讀取
+		const paramAddressMapForBatch = new Map<number, ParameterWithModbusConfig>();
+		const paramTypeToAddressMap = new Map<SensorParameterType, number>(); // 用於結果映射
+		for (const [addr, paramData] of paramAddressMap.entries()) {
+			paramAddressMapForBatch.set(addr, {
+				type: paramData.param.type,
+				modbusConfig: paramData.modbusConfig
+			});
+			paramTypeToAddressMap.set(paramData.param.type, addr);
+		}
 
-		// 檢查地址是否連續（用於批量讀取優化）
-		const isConsecutive =
-			addresses.length > 1 &&
-			addresses.every((addr, idx) => idx === 0 || addr === addresses[idx - 1] + 1);
-
-		let results: Array<{ param: (typeof enabledParams)[0]; value: number | null; success: boolean }>;
-
-		if (isConsecutive && addresses.length > 1) {
-			// 優化路徑：批量讀取連續地址
-			const startAddress = addresses[0];
-			const length = addresses.length;
-
-			// 只在開發模式輸出優化日誌
-			if (process.dev) {
-				console.log(
-					`[environment] 使用批量讀取優化: 地址 ${startAddress} 到 ${startAddress + length - 1} (共 ${length} 個)`
-				);
-			}
-
-			try {
-				const response = await readModbusRegisterBatch(config, startAddress, length);
-
-				results = addresses.map((addr, idx) => {
-					const paramData = paramAddressMap.get(addr);
-					if (!paramData) {
-						return {
-							param: enabledParams[0], // fallback
-							value: null,
-							success: false
-						};
-					}
-
-					const rawValue = response.data[idx];
-					const transformedValue = applyTransform(rawValue, paramData.modbusConfig.transform);
-
-					// 只在開發模式輸出成功日誌
-					if (process.dev) {
-						console.log(`[environment] 批量讀取參數 ${getParameterDisplayName(paramData.type)} 成功:`, {
-							address: addr,
-							rawValue,
-							transformedValue
-						});
-					}
-
-					return {
-						param: paramData,
-						value: transformedValue,
-						success: true
-					};
-				});
-
-				// 添加沒有配置的參數（標記為失敗）
-				paramsWithoutConfig.forEach(param => {
-					results.push({
-						param,
-						value: null,
-						success: false
-					});
-				});
-			} catch (error) {
-				// 標記所有參數為失敗
-				results = Array.from(paramAddressMap.values()).map(paramData => ({
-					param: paramData,
-					value: null,
-					success: false
-				}));
-
-				// 添加沒有配置的參數
-				paramsWithoutConfig.forEach(param => {
-					results.push({
-						param,
-						value: null,
-						success: false
-					});
-				});
-			}
-		} else {
-			// 標準路徑：非連續地址或單個地址，使用並行讀取
-			const readPromises = Array.from(paramAddressMap.values()).map(async paramData => {
-				const value = await readParameterValue(
-					config,
-					paramData.modbusConfig.address,
-					paramData.modbusConfig.transform
-				);
-
-				// 只在開發模式輸出成功日誌
-				if (value !== null && process.dev) {
-					console.log(`[environment] 讀取參數 ${getParameterDisplayName(paramData.type)} 成功:`, {
-						address: paramData.modbusConfig.address,
-						value
-					});
-				}
-
+		const batchResults = await readParametersBatch(config, paramAddressMapForBatch);
+		
+		// 將結果轉換為原始格式
+		const results: Array<{ param: (typeof enabledParams)[0]; value: number | null; success: boolean }> = 
+			batchResults.map(result => {
+				const addr = paramTypeToAddressMap.get(result.type);
+				const paramData = addr ? paramAddressMap.get(addr) : null;
 				return {
-					param: paramData,
-					value,
-					success: value !== null
+					param: paramData?.param || enabledParams[0],
+					value: result.value,
+					success: result.success
 				};
 			});
 
-			results = await Promise.all(readPromises);
-
-			// 添加沒有配置的參數
-			paramsWithoutConfig.forEach(param => {
-				results.push({
-					param,
-					value: null,
-					success: false
-				});
+		// 添加沒有配置的參數
+		paramsWithoutConfig.forEach(param => {
+			results.push({
+				param,
+				value: null,
+				success: false
 			});
-		}
+		});
 
 		// 更新感測器資料
+		// 使用資料庫 ID 作為 key，確保與 WebSocket 事件一致
 		const locationId = getLocationId(currentLocationData.value!);
+		const location = currentLocationData.value!;
 		let successCount = 0;
 		let failCount = 0;
 		results.forEach(result => {
 			if (result.success) {
-				updateSensorData(result.param.type, result.value, locationId);
+				// 調試：輸出每個成功讀取的參數資訊
+				if (process.dev) {
+					console.log(`[environment] 更新參數 ${getParameterDisplayName(result.param.type)}:`, {
+						type: result.param.type,
+						value: result.value,
+						locationId,
+						locationName: location.name
+					});
+				}
+				updateSensorData(result.param.type, result.value, locationId, location);
 				successCount++;
 			} else {
-				updateSensorData(result.param.type, null, locationId);
+				updateSensorData(result.param.type, null, locationId, location);
 				failCount++;
 			}
 		});
@@ -1056,17 +1269,14 @@ const loadSensorData = async () => {
 
 		// 如果所有參數讀取都失敗，記錄錯誤（不顯示 Toast，統一由警報監聽器處理）
 		if (successCount === 0 && failCount > 0) {
-			await reportLocationError(
-				currentLocationData.value?.id,
-				"無法讀取感測器資料，請檢查設備連線狀態"
-			);
+			await reportLocationError(currentLocationData.value, "無法讀取感測器資料，請檢查設備連線狀態");
 		}
 
 		// 如果感測器恢復連線，清除錯誤狀態
 		if (isSensorOffline.value && successCount > 0) {
 			isSensorOffline.value = false;
 			toast.success("感測器已恢復連線", 5000);
-			await clearLocationError(currentLocationData.value?.id);
+			await clearLocationError(currentLocationData.value);
 		}
 	} catch (error: any) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1085,7 +1295,7 @@ const loadSensorData = async () => {
 				console.warn("[environment] 讀取感測器資料失敗");
 			}
 			await reportLocationError(
-				currentLocationData.value?.id,
+				currentLocationData.value,
 				errorMessage || (isOffline ? "感測器離線，無法讀取資料" : "讀取感測器資料失敗")
 			);
 		}
@@ -1095,30 +1305,7 @@ const loadSensorData = async () => {
 };
 
 const startAutoRefresh = () => {
-	if (refreshTimer) {
-		return;
-	}
-
-	// 如果 WebSocket 已連接，延長輪詢間隔（作為後備）
-	const interval = isConnected.value ? AUTO_REFRESH_INTERVAL * 6 : AUTO_REFRESH_INTERVAL; // WebSocket 連接時 30 秒，否則 5 秒
-
-	refreshTimer = setInterval(() => {
-		// 只有當有選中地點且有感測器設備時才讀取資料
-		if (selectedLocationId.value && sensorDevice.value && sensorDeviceConfig.value) {
-			void loadSensorData();
-		}
-
-		// 為所有有設備的地點讀取資料（用於總覽面板）
-		forEachLocation((location, floor) => {
-			if (location.deviceId) {
-				const locationId = getLocationId(location);
-				// 如果不是當前選中地點，也讀取資料
-				if (locationId !== selectedLocationId.value) {
-					void loadLocationSensorDataForOverview(location);
-				}
-			}
-		});
-	}, interval);
+	startPolling();
 };
 
 // 讀取單個參數的資料（共用函數）
@@ -1166,13 +1353,91 @@ const readLocationSensorParameters = async (
 
 	const results = await Promise.all(readPromises);
 	results.forEach(({ type, value }) => {
-		updateSensorData(type, value, locationId);
+		// 傳入 location 物件，讓 updateSensorData 使用資料庫 ID 作為 key
+		updateSensorData(type, value, locationId, location);
 	});
+};
+
+// 查找使用相同設備（相同 host/port）的其他地點，並獲取它們的設備型號配置
+// 用於補充當前地點缺少的參數配置（帶緩存）
+const findSharedDeviceModelConfig = async (
+	currentLocation: EnvironmentLocation,
+	currentDevice: Device
+): Promise<SensorDeviceModelConfig | null> => {
+	const currentConfig = currentDevice.config as SensorDeviceConfig;
+	if (currentConfig.protocol !== "modbus" || !currentConfig.host || !currentConfig.port) {
+		return null;
+	}
+
+	// 檢查共享配置緩存
+	const cacheKey = `${currentConfig.host}:${currentConfig.port}`;
+	const cachedConfig = sharedConfigCache.value.get(cacheKey);
+	if (cachedConfig !== undefined) {
+		if (process.dev) {
+			console.log(`[environment] 使用緩存的共享配置: ${cacheKey}`);
+		}
+		return cachedConfig;
+	}
+
+	// 遍歷所有地點，查找使用相同設備（相同 host/port）的地點
+	for (const floor of environmentFloors.value) {
+		for (const otherLocation of floor.locations) {
+			// 跳過當前地點
+			if (
+				otherLocation.id === currentLocation.id ||
+				otherLocation.deviceId === currentLocation.deviceId
+			) {
+				continue;
+			}
+
+			if (!otherLocation.deviceId) continue;
+
+			try {
+				const result = await loadDeviceAndModelConfig(otherLocation.deviceId);
+				if (!result) continue;
+
+				const { device, modelConfig } = result;
+				const otherConfig = device.config as SensorDeviceConfig;
+
+				// 檢查是否使用相同的設備（相同的 host 和 port）
+				if (
+					otherConfig.protocol === "modbus" &&
+					otherConfig.host === currentConfig.host &&
+					otherConfig.port === currentConfig.port
+				) {
+					// 找到使用相同設備的地點，返回其設備型號配置並緩存
+					if (process.dev) {
+						console.log(
+							`[environment] 找到 ${currentLocation.name} 與 ${otherLocation.name} 使用相同設備，共享設備型號配置`
+						);
+					}
+					sharedConfigCache.value.set(cacheKey, modelConfig);
+					return modelConfig;
+				}
+			} catch (error) {
+				// 靜默處理錯誤，繼續查找
+				continue;
+			}
+		}
+	}
+
+	// 如果找不到，緩存 null 值（避免重複查找）
+	sharedConfigCache.value.set(cacheKey, null);
+	return null;
 };
 
 // 為總覽面板載入地點的感測器資料（不切換當前選中地點）
 const loadLocationSensorDataForOverview = async (location: EnvironmentLocation) => {
 	if (!location.deviceId) return;
+
+	const locationId = getLocationId(location);
+	// 如果正在載入，跳過
+	if (overviewLoadingMap.value.get(locationId)) {
+		return;
+	}
+
+	// 標記為載入中
+	overviewLoadingMap.value.set(locationId, true);
 
 	try {
 		const result = await loadDeviceAndModelConfig(location.deviceId);
@@ -1190,34 +1455,95 @@ const loadLocationSensorDataForOverview = async (location: EnvironmentLocation) 
 			unitId: config.unitId || 1
 		};
 
+		// 使用資料庫 ID 作為 key，確保與 WebSocket 事件一致
 		const locationId = getLocationId(location);
 		const enabledParams = location.parameters.filter(param => param.enabled);
 
-		// 讀取參數資料
-		const readPromises = enabledParams.map(async param => {
-			const paramDef = modelConfig.sensorParameters?.find(p => p.type === param.type);
-			if (!paramDef?.modbusConfig?.address) {
-				return { type: param.type, value: null, success: false };
-			}
+		// 調試：輸出啟用的參數列表
+		if (process.dev) {
+			console.log(`[environment] 總覽面板載入 ${location.name} 的資料:`, {
+				locationId,
+				locationDbId: location.id,
+				enabledParams: enabledParams.map(p => ({ type: p.type, name: getParameterDisplayName(p.type) }))
+			});
+		}
 
-			try {
-				const value = await readParameterValue(
-					modbusConfig,
-					paramDef.modbusConfig.address,
-					paramDef.modbusConfig.transform
+		// 如果當前設備型號配置缺少某些參數，嘗試從使用相同設備的其他地點獲取配置
+		let sharedModelConfig: SensorDeviceModelConfig | null = null;
+		const missingParams = enabledParams.filter(
+			param =>
+				!modelConfig.sensorParameters?.find(p => p.type === param.type && p.modbusConfig?.address)
+		);
+
+		if (missingParams.length > 0) {
+			if (process.dev) {
+				console.log(
+					`[environment] ${location.name} 缺少以下參數的 Modbus 配置:`,
+					missingParams.map(p => getParameterDisplayName(p.type))
 				);
-				return { type: param.type, value, success: value !== null };
-			} catch (error) {
-				return { type: param.type, value: null, success: false };
 			}
-		});
+			sharedModelConfig = await findSharedDeviceModelConfig(location, device);
+		}
 
-		const results = await Promise.all(readPromises);
+		// 優化：使用批量讀取邏輯（與主視圖相同的優化）
+		const paramAddressMap = new Map<
+			number,
+			(typeof enabledParams)[0] & {
+				modbusConfig: { address: number; transform?: string };
+			}
+		>();
+		const paramsWithoutConfig: typeof enabledParams = [];
+
+		for (const param of enabledParams) {
+			const modbusConfig = findParameterModbusConfig(param.type, modelConfig, sharedModelConfig);
+			
+			if (!modbusConfig) {
+				if (process.dev) {
+					console.warn(
+						`[environment] ${location.name} 的參數 ${getParameterDisplayName(param.type)} 缺少 Modbus 配置`
+					);
+				}
+				paramsWithoutConfig.push(param);
+				continue;
+			}
+
+			if (process.dev && sharedModelConfig && !modelConfig?.sensorParameters?.find(p => p.type === param.type && p.modbusConfig?.address)) {
+				console.log(
+					`[environment] ${location.name} 的參數 ${getParameterDisplayName(param.type)} 使用共享設備型號配置 (address: ${modbusConfig.address})`
+				);
+			}
+
+			paramAddressMap.set(modbusConfig.address, {
+				...param,
+				modbusConfig
+			});
+		}
+
+		// 使用共用函數進行批量讀取
+		const paramAddressMapForBatch = new Map<number, ParameterWithModbusConfig>();
+		for (const [addr, paramData] of paramAddressMap.entries()) {
+			paramAddressMapForBatch.set(addr, {
+				type: paramData.type,
+				modbusConfig: paramData.modbusConfig
+			});
+		}
+
+		const results = await readParametersBatch(modbusConfig, paramAddressMapForBatch);
+
+		// 添加沒有配置的參數
+		paramsWithoutConfig.forEach(param => {
+			results.push({
+				type: param.type,
+				value: null,
+				success: false
+			});
+		});
 		let successCount = 0;
 		let failCount = 0;
 
 		results.forEach(({ type, value, success }) => {
-			updateSensorData(type, value, locationId);
+			// 傳入 location 物件，讓 updateSensorData 使用資料庫 ID 作為 key
+			updateSensorData(type, value, locationId, location);
 			if (success) {
 				successCount++;
 			} else {
@@ -1227,10 +1553,10 @@ const loadLocationSensorDataForOverview = async (location: EnvironmentLocation) 
 
 		// 如果所有參數讀取都失敗，記錄錯誤
 		if (successCount === 0 && failCount > 0) {
-			await reportLocationError(location.id, "無法讀取感測器資料，請檢查設備連線狀態");
+			await reportLocationError(location, "無法讀取感測器資料，請檢查設備連線狀態");
 		} else if (successCount > 0) {
 			// 如果成功讀取，清除錯誤狀態
-			await clearLocationError(location.id);
+			await clearLocationError(location);
 		}
 	} catch (error: any) {
 		// 總覽面板的錯誤處理（靜默處理，避免影響主要流程）
@@ -1238,8 +1564,11 @@ const loadLocationSensorDataForOverview = async (location: EnvironmentLocation) 
 
 		// 只記錄離線錯誤，其他錯誤靜默處理
 		if (isOfflineError(errorMessage)) {
-			await reportLocationError(location.id, errorMessage || "感測器離線，無法讀取資料");
+			await reportLocationError(location, errorMessage || "感測器離線，無法讀取資料");
 		}
+	} finally {
+		// 清除載入狀態
+		overviewLoadingMap.value.set(locationId, false);
 	}
 };
 
@@ -1255,84 +1584,88 @@ const forEachLocation = (
 };
 
 const stopAutoRefresh = () => {
-	if (!refreshTimer) {
-		return;
-	}
-
-	clearInterval(refreshTimer);
-	refreshTimer = null;
+	stopPolling();
 };
+
+// 使用樓層管理 composable
+const { handleSaveFloor: baseHandleSaveFloor, handleDeleteFloor: baseHandleDeleteFloor } =
+	useFloorManagement<EnvironmentFloor>();
 
 // 處理儲存樓層
 const handleSaveFloor = async (floor: EnvironmentFloor) => {
-	try {
-		// 清理參數格式後再儲存
-		const cleanedFloor = cleanFloor(floor);
-
-		if (cleanedFloor.id) {
-			const result = await environmentApi.updateFloor(cleanedFloor.id, {
-				name: cleanedFloor.name,
-				locations: cleanedFloor.locations
-			});
-			// 清理返回的資料
-			const index = environmentFloors.value.findIndex(f => f.id === cleanedFloor.id);
-			if (index > -1) {
-				environmentFloors.value[index] = cleanFloor(result.floor);
-			}
-		} else {
-			const result = await environmentApi.createFloor({
-				name: cleanedFloor.name,
-				locations: cleanedFloor.locations
-			});
-			// 清理返回的資料
-			environmentFloors.value.push(cleanFloor(result.floor));
+	await baseHandleSaveFloor(
+		floor,
+		environmentFloors,
+		async (f: EnvironmentFloor) => {
+			return f.id
+				? await environmentApi.updateFloor(f.id, {
+						name: f.name,
+						locations: f.locations
+					})
+				: await environmentApi.createFloor({
+						name: f.name,
+						locations: f.locations
+					});
+		},
+		{
+			cleanFloor
 		}
-		toast.success("樓層儲存成功");
-	} catch (error) {
-		console.error("儲存樓層失敗:", error);
-		toast.error("儲存樓層失敗，請稍後再試");
-	}
+	);
 };
 
 // 處理刪除樓層
 const handleDeleteFloor = async (floorId: string) => {
-	try {
-		await environmentApi.deleteFloor(floorId);
-		const index = environmentFloors.value.findIndex(f => (f.id || f.name) === floorId);
-		if (index > -1) {
-			environmentFloors.value.splice(index, 1);
-		}
-		toast.success("樓層刪除成功");
-	} catch (error) {
-		console.error("刪除樓層失敗:", error);
-		toast.error("刪除樓層失敗，請稍後再試");
-	}
+	await baseHandleDeleteFloor(floorId, environmentFloors, environmentApi.deleteFloor, {
+		selectedLocationRef: selectedLocationId,
+		getLocationId
+	});
 };
 
 // 獲取參數值
 const getParameterValue = (type: SensorParameter["type"]): number | null => {
+	let value: number | null = null;
 	switch (type) {
 		case "pm25":
-			return sensorData.pm25;
+			value = sensorData.pm25;
+			break;
 		case "pm10":
-			return sensorData.pm10;
+			value = sensorData.pm10;
+			break;
 		case "tvoc":
-			return sensorData.tvoc;
+			value = sensorData.tvoc;
+			break;
 		case "hcho":
-			return sensorData.hcho;
+			value = sensorData.hcho;
+			break;
 		case "humidity":
-			return sensorData.humidity;
+			value = sensorData.humidity;
+			break;
 		case "temperature":
-			return sensorData.temperature;
+			value = sensorData.temperature;
+			break;
 		case "co2":
-			return sensorData.co2;
+			value = sensorData.co2;
+			break;
 		case "noise":
-			return sensorData.noise;
+			value = sensorData.noise;
+			break;
 		case "wind":
-			return sensorData.wind;
+			value = sensorData.wind;
+			break;
 		default:
 			return null;
 	}
+
+	// 調試：輸出參數值（僅在開發模式且值為 null 時）
+	if (process.dev && value === null && type === "pm25") {
+		console.log(`[environment] getParameterValue pm25 為 null:`, {
+			type,
+			sensorData: { ...sensorData },
+			currentLocation: currentLocationData.value?.name
+		});
+	}
+
+	return value;
 };
 
 // getParameterIcon 和 getParameterFractionDigits 已從 composable 導入
@@ -1344,12 +1677,24 @@ const isCurrentLocation = (location: EnvironmentLocation): boolean => {
 
 // 獲取地點的顯示資料（支援所有地點，不僅限於當前選中）
 const getLocationDisplayData = (location: EnvironmentLocation) => {
-	const locationId = getLocationId(location);
+	// 優先使用資料庫 ID，確保與 WebSocket 事件一致
+	const locationId = location.id || getLocationId(location);
 	const locationSensorData = getLocationSensorData(locationId);
 
 	// 如果是當前選中地點，使用 sensorData（即時更新）
 	// 否則使用 allLocationsSensorData 中儲存的資料
 	const dataSource = isCurrentLocation(location) ? sensorData : locationSensorData;
+
+	// 調試：輸出資料查找結果（僅在開發模式且找不到資料時）
+	if (process.dev && !dataSource && location.name === "工地管理") {
+		console.log(`[environment] getLocationDisplayData 找不到 ${location.name} 的資料:`, {
+			locationId,
+			locationDbId: location.id,
+			syntheticId: getLocationId(location),
+			allLocationsSensorDataKeys: Array.from(allLocationsSensorData.value.keys()),
+			isCurrentLocation: isCurrentLocation(location)
+		});
+	}
 
 	if (!dataSource) {
 		return {
@@ -1400,7 +1745,25 @@ watch(
 
 // 注意：環境感測器讀數現在會自動推送給所有客戶端，不需要房間訂閱
 
+// 載入警報規則
+const loadAlertRules = async () => {
+	try {
+		const rules = await getRules("environment", "threshold");
+		alertRules.value = rules;
+		rulesLoaded.value = true;
+		if (process.dev) {
+			console.log("[environment] 警報規則已載入:", rules.length, "條規則");
+		}
+	} catch (error) {
+		console.warn("[environment] 載入警報規則失敗，將使用預設值:", error);
+		rulesLoaded.value = false;
+	}
+};
+
 onMounted(async () => {
+	// 載入警報規則（優先載入，確保狀態判斷使用正確的規則）
+	await loadAlertRules();
+
 	// 初始化左側 ResizeObserver
 	initLeftSectionObserver();
 
@@ -1508,86 +1871,37 @@ const environmentData = computed(() => ({
 	]
 }));
 
-// 狀態判斷函數（基於國際標準）
-// PM2.5: WHO 2021 標準 (正常≤25, 警告25.1-50, 警報>50 µg/m³)
-// PM10: WHO 2021 標準 (正常≤50, 警告50.1-100, 警報>100 µg/m³)
-// CO2: ASHRAE 標準 (正常≤1000, 警告1000.1-2000, 警報>2000 ppm)
-// 溫度: ASHRAE 55 標準 (正常20-26, 警告18-20或26-28, 警報<18或>28°C)
-// 濕度: ASHRAE 標準 (正常30-60, 警告20-30或60-70, 警報<20或>70%)
-// 噪音: OSHA/WHO 標準 (正常≤55, 警告55.1-70, 警報>70 dB)
+// 狀態判斷函數（基於 getStatusText 的結果，確保與規則一致）
+// 注意：這些函數現在基於 getStatusText 的結果，而不是硬編碼閾值
+// 這樣可以確保與後端規則一致
 const getStatusClass = (type: string, value: number | null): string => {
 	if (value === null) return "";
-
-	switch (type) {
-		case "pm25":
-			if (value <= 25) return "";
-			if (value <= 50) return "border-yellow-400";
-			return "border-red-400 bg-red-500/20";
-		case "pm10":
-			if (value <= 50) return "";
-			if (value <= 100) return "border-yellow-400";
-			return "border-red-400 bg-red-500/20";
-		case "co2":
-			if (value <= 1000) return "";
-			if (value <= 2000) return "border-yellow-400";
-			return "border-red-400 bg-red-500/20";
-		case "temperature":
-			if (value >= 20 && value <= 26) return "";
-			if ((value >= 18 && value < 20) || (value > 26 && value <= 28)) return "border-yellow-400";
-			return "border-red-400 bg-red-500/20";
-		case "humidity":
-			if (value >= 30 && value <= 60) return "";
-			if ((value >= 20 && value < 30) || (value > 60 && value <= 70))
-				return "border-yellow-400 bg-yellow-500/10";
-			return "border-red-400 bg-red-500/20";
-		case "noise":
-			if (value <= 55) return "";
-			if (value <= 70) return "border-yellow-400";
-			return "border-red-400 bg-red-500/20";
-		default:
-			return "";
-	}
+	
+	const status = getStatusText(type, value);
+	if (status === "正常") return "";
+	if (status === "注意") return "border-yellow-400";
+	if (status === "警報") return "border-red-400 bg-red-500/20";
+	return "";
 };
 
 const getStatusDotClass = (type: string, value: number | null): string => {
 	if (value === null) return "bg-gray-400";
-
-	switch (type) {
-		case "pm25":
-			if (value <= 25) return "bg-green-400";
-			if (value <= 50) return "bg-yellow-400";
-			return "bg-red-400";
-		case "pm10":
-			if (value <= 50) return "bg-green-400";
-			if (value <= 100) return "bg-yellow-400";
-			return "bg-red-400";
-		case "co2":
-			if (value <= 1000) return "bg-green-400";
-			if (value <= 2000) return "bg-yellow-400";
-			return "bg-red-400";
-		case "tvoc":
-		case "hcho":
-			return "bg-green-400";
-		case "temperature":
-			if (value >= 20 && value <= 26) return "bg-green-400";
-			if ((value >= 18 && value < 20) || (value > 26 && value <= 28)) return "bg-yellow-400";
-			return "bg-red-400";
-		case "humidity":
-			if (value >= 30 && value <= 60) return "bg-green-400";
-			if ((value >= 20 && value < 30) || (value > 60 && value <= 70)) return "bg-yellow-400";
-			return "bg-red-400";
-		case "wind":
-			return "bg-green-400";
-		case "noise":
-			if (value <= 55) return "bg-green-400";
-			if (value <= 70) return "bg-yellow-400";
-			return "bg-red-400";
-		default:
-			return "bg-gray-400";
+	
+	const status = getStatusText(type, value);
+	if (status === "正常") return "bg-green-400";
+	if (status === "注意") return "bg-yellow-400";
+	if (status === "警報") return "bg-red-400";
+	
+	// 特殊處理：某些參數沒有規則時預設為正常
+	if (type === "tvoc" || type === "hcho" || type === "wind") {
+		return "bg-green-400";
 	}
+	
+	return "bg-gray-400";
 };
 
-const getStatusText = (type: string, value: number | null): string => {
+// 預設狀態判斷（向後兼容，當規則未載入時使用）
+const getDefaultStatusText = (type: string, value: number | null): string => {
 	if (value === null) return "無資料";
 
 	switch (type) {
@@ -1623,6 +1937,24 @@ const getStatusText = (type: string, value: number | null): string => {
 		default:
 			return "正常";
 	}
+};
+
+// 使用後端規則的狀態判斷（優先使用規則，失敗時使用預設值）
+const getStatusText = (type: string, value: number | null): string => {
+	if (value === null) return "無資料";
+
+	// 如果規則已載入，使用規則判斷
+	if (rulesLoaded.value && alertRules.value.length > 0) {
+		try {
+			const status = getStatusTextFromRules(type, value, alertRules.value);
+			return status;
+		} catch (error) {
+			console.warn("[environment] 使用規則判斷狀態失敗，使用預設值:", error);
+		}
+	}
+
+	// 否則使用預設值（向後兼容）
+	return getDefaultStatusText(type, value);
 };
 
 const getStatusTextClass = (type: string, value: number | null): string => {

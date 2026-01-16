@@ -6,10 +6,10 @@
 			<section class="relative flex-[1.2] 2xl:flex-[1.3]">
 				<div
 					ref="leftSectionRef"
-					class="flex flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 xl:p-6 2xl:p-8"
+					class="flex gap-4 overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 xl:p-6 2xl:p-8"
 				>
 					<!-- 載入狀態 -->
-					<div v-if="isLoadingSite" class="flex h-full items-center justify-center">
+					<div v-if="isLoadingSite" class="flex h-full w-full items-center justify-center">
 						<div class="text-center text-white">
 							<div class="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-white"></div>
 							<p>載入工地資訊...</p>
@@ -17,7 +17,7 @@
 					</div>
 
 					<!-- 錯誤狀態 -->
-					<div v-else-if="loadError" class="flex h-full items-center justify-center">
+					<div v-else-if="loadError" class="flex h-full w-full items-center justify-center">
 						<div class="rounded-lg bg-red-50/90 p-6 text-center dark:bg-red-900/30">
 							<p class="text-red-600 dark:text-red-400">{{ loadError }}</p>
 							<button @click="loadSiteDetail" class="mt-4 rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600">
@@ -26,20 +26,31 @@
 						</div>
 					</div>
 
-					<!-- 詳細工地資訊 -->
-					<div v-else-if="selectedSite" class="flex-1">
-						<SiteDetailPanel
-							:site="selectedSite"
-							:personnel="personnel"
-							:logs="logs"
-							@unit-select="handleUnitSelect"
-						/>
-					</div>
+					<!-- 左側內容：分為左右兩區塊 -->
+					<template v-else-if="selectedSite">
+						<!-- 左側-左：統計 + 記錄表 -->
+						<div class="flex-[1] overflow-y-auto">
+							<SiteStatsPanel
+								:entry-count="selectedSite.entryCount || 0"
+								:exit-count="selectedSite.exitCount || 0"
+								:logs="logs"
+							/>
+						</div>
+
+						<!-- 左側-右：單位列表 + 人員名單 -->
+						<div class="flex-[1] overflow-y-auto">
+							<SiteDetailPanel
+								:site="selectedSite"
+								:personnel="personnel"
+								@unit-select="handleUnitSelect"
+							/>
+						</div>
+					</template>
 
 					<!-- 提示：選擇工地 -->
 					<div
 						v-else
-						class="flex h-full min-h-[600px] items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
+						class="flex h-full min-h-[600px] w-full items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
 					>
 						<div>
 							<svg
@@ -83,16 +94,6 @@
 								>
 									{{ sites.length }}
 								</span>
-							</div>
-
-							<!-- 搜尋框 -->
-							<div class="mt-4">
-								<input
-									v-model="searchQuery"
-									type="text"
-									placeholder="搜尋工地..."
-									class="w-full rounded-lg border-2 border-white/30 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/50 backdrop-blur-sm transition-all focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 xl:text-base"
-								/>
 							</div>
 						</div>
 					</Transition>
@@ -152,11 +153,18 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, watch, nextTick } from "vue";
+import { onMounted, onBeforeUnmount } from "vue";
 import type { PeopleCountingSite, PeopleCountingPersonnel, PeopleCountingLog } from "~/types/peopleCounting";
+import SiteDetailPanel from "~/components/people-counting/SiteDetailPanel.vue";
+import SiteStatsPanel from "~/components/people-counting/SiteStatsPanel.vue";
+import SiteOverviewCard from "~/components/people-counting/SiteOverviewCard.vue";
+import { usePeopleCountingApi } from "~/composables/systems/usePeopleCountingApi";
+import { useToast } from "~/composables/core/useToast";
+import { useErrorHandler } from "~/composables/core/useErrorHandler";
 
 const peopleCountingApi = usePeopleCountingApi();
 const toast = useToast();
+const { handleError } = useErrorHandler();
 
 // 左側區域參考與高度（用於使右側同高）
 const leftSectionRef = ref<HTMLElement | null>(null);
@@ -192,7 +200,6 @@ const logs = ref<PeopleCountingLog[]>([]);
 const isLoadingSites = ref(false);
 const isLoadingSite = ref(false);
 const loadError = ref<string | null>(null);
-const searchQuery = ref("");
 
 // 側邊欄收縮狀態
 const isSidebarCollapsed = ref(false);
@@ -202,13 +209,7 @@ const selectedUnitId = ref<number | null>(null);
 
 // 計算屬性
 const filteredSites = computed(() => {
-	if (!searchQuery.value.trim()) {
-		return sites.value;
-	}
-	const query = searchQuery.value.toLowerCase();
-	return sites.value.filter(
-		site => site.name.toLowerCase().includes(query) || site.region.toLowerCase().includes(query)
-	);
+	return sites.value;
 });
 
 // 載入工地列表
@@ -216,15 +217,16 @@ const loadSites = async () => {
 	isLoadingSites.value = true;
 	try {
 		sites.value = await peopleCountingApi.getSites();
-		console.log("[PeopleCounting] 載入工地列表成功:", sites.value.length);
+		if (process.dev) {
+			console.log("[PeopleCounting] 載入工地列表成功:", sites.value.length);
+		}
 
 		// 如果沒有選中的工地，且列表不為空，自動選擇第一個
 		if (!selectedSite.value && sites.value.length > 0) {
 			await handleSiteSelect(sites.value[0].id);
 		}
 	} catch (error) {
-		console.error("[PeopleCounting] 載入工地列表失敗:", error);
-		toast.error("載入工地列表失敗");
+		handleError(error, "載入工地列表失敗");
 	} finally {
 		isLoadingSites.value = false;
 	}
@@ -248,12 +250,11 @@ const loadSiteDetail = async (siteId: number) => {
 			personnel.value = [];
 		}
 
-		// 載入進出場記錄
+		// 載入進出場記錄（最新 5 筆）
 		await loadSiteLogs(siteId);
 	} catch (error) {
-		console.error("[PeopleCounting] 載入工地詳情失敗:", error);
-		loadError.value = error instanceof Error ? error.message : "載入工地詳情失敗";
-		toast.error("載入工地詳情失敗");
+		const errorMsg = handleError(error, "載入工地詳情失敗");
+		loadError.value = errorMsg || "載入工地詳情失敗";
 	} finally {
 		isLoadingSite.value = false;
 	}
@@ -264,21 +265,19 @@ const loadUnitPersonnel = async (unitId: number) => {
 	try {
 		personnel.value = await peopleCountingApi.getUnitPersonnel(unitId);
 	} catch (error) {
-		console.error("[PeopleCounting] 載入單位人員失敗:", error);
-		toast.error("載入單位人員失敗");
+		handleError(error, "載入單位人員失敗");
 	}
 };
 
-// 載入工地進出場記錄
+// 載入工地進出場記錄（最新 5 筆）
 const loadSiteLogs = async (siteId: number, unitId?: number) => {
 	try {
 		logs.value = await peopleCountingApi.getSiteLogs(siteId, {
-			limit: 50,
-			unitId: unitId || undefined
+			limit: 5,
+			...(unitId && { unitId })
 		});
 	} catch (error) {
-		console.error("[PeopleCounting] 載入進出場記錄失敗:", error);
-		toast.error("載入進出場記錄失敗");
+		handleError(error, "載入進出場記錄失敗");
 	}
 };
 
@@ -327,7 +326,7 @@ onMounted(async () => {
 		await loadSites();
 		// ResizeObserver 會自動監聽尺寸變化
 	} catch (error) {
-		console.error("初始化失敗:", error);
+		handleError(error, "初始化失敗");
 	}
 });
 </script>

@@ -249,9 +249,15 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, watch } from "vue";
 import type { GridLayout, SurveillanceCamera, MonitorView } from "~/types/surveillance";
+import { usePolling } from "~/composables/monitoring/usePolling";
+import { useToast } from "~/composables/core/useToast";
+import { useWebSocket } from "~/composables/websocket/useWebSocket";
+import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import { useStreamStatus } from "~/composables/monitoring/useStreamStatus";
 
 const toast = useToast();
 const { connect, isConnected } = useWebSocket();
+const { handleError } = useErrorHandler();
 
 // 使用統一的串流狀態管理
 const streamStatus = useStreamStatus();
@@ -341,9 +347,8 @@ const loadCameras = async () => {
 	try {
 		await streamStatus.loadCameras();
 	} catch (error) {
-		console.error("[Surveillance] 載入攝影機失敗:", error);
-		loadError.value = error instanceof Error ? error.message : "載入攝影機列表失敗";
-		toast.error("載入攝影機列表失敗");
+		const errorMsg = handleError(error, "載入攝影機列表失敗");
+		loadError.value = errorMsg || "載入攝影機列表失敗";
 	}
 };
 
@@ -358,8 +363,7 @@ const refreshStatus = async () => {
 		await streamStatus.loadCameras();
 		toast.success("狀態已刷新");
 	} catch (error) {
-		console.error("[Surveillance] 刷新狀態失敗:", error);
-		toast.error("刷新狀態失敗");
+		handleError(error, "刷新狀態失敗");
 	}
 };
 
@@ -395,8 +399,7 @@ const handleStartStream = async (deviceId: number) => {
 		toast.success("串流啟動成功");
 		// ✅ 不需要 loadCameras()，WebSocket 事件已自動更新狀態
 	} catch (error) {
-		console.error("[Surveillance] 啟動串流失敗:", error);
-		toast.error(error instanceof Error ? error.message : "啟動串流失敗");
+		handleError(error, "啟動串流失敗");
 	}
 };
 
@@ -407,8 +410,7 @@ const handleStopStream = async (deviceId: number) => {
 		toast.success("串流已停止");
 		// ✅ 不需要 loadCameras()，WebSocket 事件已自動更新狀態
 	} catch (error) {
-		console.error("[Surveillance] 停止串流失敗:", error);
-		toast.error(error instanceof Error ? error.message : "停止串流失敗");
+		handleError(error, "停止串流失敗");
 	}
 };
 
@@ -429,8 +431,7 @@ const handleStartAll = async () => {
 		toast.success(`已啟動 ${camerasToStart.length} 個串流`);
 		// ✅ 不需要 loadCameras()，WebSocket 事件已自動更新狀態
 	} catch (error) {
-		console.error("[Surveillance] 批量啟動串流失敗:", error);
-		toast.error("批量啟動串流時發生錯誤");
+		handleError(error, "批量啟動串流時發生錯誤");
 	}
 };
 
@@ -449,8 +450,7 @@ const handleStopAll = async () => {
 		toast.success(`已停止 ${camerasToStop.length} 個串流`);
 		// ✅ 不需要 loadCameras()，WebSocket 事件已自動更新狀態
 	} catch (error) {
-		console.error("[Surveillance] 批量停止串流失敗:", error);
-		toast.error("批量停止串流時發生錯誤");
+		handleError(error, "批量停止串流時發生錯誤");
 	}
 };
 
@@ -508,10 +508,8 @@ const handleTestStart = async () => {
 			toast.success("測試串流已更新");
 		}
 	} catch (error) {
-		const errorMsg = error instanceof Error ? error.message : "啟動串流失敗";
-		console.error("[RTSP Test] 啟動測試串流失敗:", error);
-		testErrorMessage.value = `啟動串流失敗: ${errorMsg}\n\n請檢查：\n1. RTSP URL 是否正確\n2. 攝影機是否可以訪問\n3. 帳號密碼是否正確\n4. MediaMTX 服務是否正常運行（預設端口 9997）\n5. 後端服務是否正常運行`;
-		toast.error("測試串流啟動失敗");
+		const errorMsg = handleError(error, "測試串流啟動失敗");
+		testErrorMessage.value = `啟動串流失敗: ${errorMsg || "未知錯誤"}\n\n請檢查：\n1. RTSP URL 是否正確\n2. 攝影機是否可以訪問\n3. 帳號密碼是否正確\n4. MediaMTX 服務是否正常運行（預設端口 9997）\n5. 後端服務是否正常運行`;
 	} finally {
 		testLoading.value = false;
 	}
@@ -529,17 +527,13 @@ const handleTestStop = async () => {
 		await streamStatus.stopTestStream();
 		toast.success("測試串流已停止");
 	} catch (error) {
-		const errorMsg = error instanceof Error ? error.message : "停止串流失敗";
-		console.error("[RTSP Test] 停止測試串流失敗:", error);
-		testErrorMessage.value = `停止串流失敗: ${errorMsg}`;
-		toast.error("停止測試串流失敗");
+		const errorMsg = handleError(error, "停止測試串流失敗");
+		testErrorMessage.value = `停止串流失敗: ${errorMsg || "未知錯誤"}`;
 	} finally {
 		testLoading.value = false;
 	}
 };
 
-// 定期刷新狀態的定時器（已優化：使用 WebSocket 後改為 60 秒，僅作為備用）
-let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
 // ✅ 移除手動狀態同步邏輯：monitorViews 現在由 useStreamStatus 統一管理，自動同步
 // ✅ 移除測試串流 WebSocket 事件處理：已整合到 useStreamStatus 中
@@ -549,10 +543,6 @@ onBeforeUnmount(() => {
 	// 清理統一的狀態管理
 	streamStatus.cleanup();
 
-	if (refreshInterval) {
-		clearInterval(refreshInterval);
-		refreshInterval = null;
-	}
 	if (leftSectionResizeObserver && leftSectionRef.value) {
 		leftSectionResizeObserver.unobserve(leftSectionRef.value);
 		leftSectionResizeObserver.disconnect();
@@ -585,16 +575,26 @@ onMounted(async () => {
 		await loadCameras();
 		// ResizeObserver 會自動監聽尺寸變化，initLeftSectionObserver 已設定初始高度
 	} catch (error) {
-		console.error("初始化失敗:", error);
+		handleError(error, "初始化失敗");
 	}
 
-	// 定期刷新狀態（已優化：使用 WebSocket 後改為 60 秒，僅作為備用機制）
+	// 使用 usePolling 統一管理輪詢（作為 WebSocket 的備用機制）
 	// 只在有監控畫面時才刷新，且 WebSocket 未連接時才使用
-	refreshInterval = setInterval(() => {
-		if (monitorViews.value.length > 0 && !isConnected.value) {
-			refreshStatus();
+	const { start: startPolling } = usePolling({
+		callback: async () => {
+			if (monitorViews.value.length > 0 && !isConnected.value) {
+				await refreshStatus();
+			}
+		},
+		interval: 60000, // 60 秒
+		immediate: false, // 不在啟動時立即執行
+		enabled: () => monitorViews.value.length > 0 && !isConnected.value, // 只在有監控畫面且 WebSocket 未連接時執行
+		onError: (err) => {
+			handleError(err, "刷新狀態失敗");
 		}
-	}, 60000); // 從 30 秒改為 60 秒
+	});
+
+	startPolling();
 });
 </script>
 

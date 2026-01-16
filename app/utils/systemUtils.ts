@@ -36,17 +36,6 @@ export const getModuleByRoute = (route: string): SystemModule | undefined => {
 };
 
 /**
- * 獲取當前系統模組（根據當前路由）
- * 注意：此函數需要在 composable 上下文中使用（因為使用了 useRoute）
- */
-export const getCurrentModule = (): SystemModule | undefined => {
-	// 注意：useRoute() 需要在 composable 上下文中使用
-	// 如果不在 composable 上下文中，請直接使用 getModuleByRoute(route.path)
-	const route = useRoute();
-	return getSystemModuleByRoute(route.path);
-};
-
-/**
  * 檢查系統模組是否啟用
  */
 export const isModuleEnabled = (id: number): boolean => {

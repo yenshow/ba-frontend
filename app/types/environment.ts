@@ -36,7 +36,8 @@ export interface SensorParameter {
  * 注意：floor 欄位已移除，樓層資訊應從父層級 EnvironmentFloor.name 取得
  */
 export interface EnvironmentLocation {
-	id?: string;
+	id?: string; // 地點 ID (locations.id)
+	systemId?: string; // 系統 ID (location_systems.id)，用於錯誤追蹤和警報
 	name: string; // 位置名稱（如：管理中心、展廳）
 	// floor 欄位已移除（冗餘），樓層資訊從 EnvironmentFloor.name 取得
 	deviceId?: number; // 關聯的感測器設備 ID

@@ -44,7 +44,8 @@ export type LightingCategory = RoomCategory & {
  * 照明區域（原分類點）
  */
 export interface LightingArea {
-	id?: string; // 區域 ID（新建時可選）
+	id?: string; // 地點 ID (locations.id)
+	systemId?: string; // 系統 ID (location_systems.id)，用於錯誤追蹤和警報
 	name: string; // 區域名稱（原分類名稱）
 	location?: { x: number; y: number }; // 位置座標（百分比，未定位時為 undefined）
 	description?: string; // 描述

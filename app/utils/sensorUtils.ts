@@ -112,9 +112,14 @@ export const cleanLocation = (location: EnvironmentLocation): EnvironmentLocatio
  * 清理樓層資料（確保所有地點的參數格式正確）
  */
 export const cleanFloor = (floor: EnvironmentFloor): EnvironmentFloor => {
+	// 過濾掉名稱為空的地點，然後清理參數格式
+	const validLocations = (floor.locations || [])
+		.filter(loc => loc.name && loc.name.trim().length > 0)
+		.map(cleanLocation);
+	
 	return {
 		...floor,
-		locations: (floor.locations || []).map(cleanLocation)
+		locations: validLocations
 	};
 };
 

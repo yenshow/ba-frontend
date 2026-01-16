@@ -4,11 +4,10 @@
 		:class="statusBorderClass"
 		@click="$emit('click', site.id)"
 	>
-		<!-- 標題與區域 -->
+		<!-- 標題 -->
 		<div class="mb-4 flex items-center justify-between border-b border-white/30 pb-3">
 			<div>
 				<h3 class="text-xl font-semibold text-white xl:text-2xl 2xl:text-3xl">{{ site.name }}</h3>
-				<p class="mt-1 text-sm text-white/70 xl:text-base">{{ site.region }}</p>
 			</div>
 
 			<!-- 狀態指示器 -->

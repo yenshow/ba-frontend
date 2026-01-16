@@ -25,7 +25,7 @@
 					<div class="flex-1 overflow-y-auto pr-7 2xl:pr-8">
 						<div class="min-h-[200px]">
 							<Transition name="fade" mode="out-in">
-								<div v-if="deviceModels.length > 0" :key="`models-${deviceModels.length}`">
+								<div v-if="deviceModels && deviceModels.length > 0" :key="`models-${deviceModels.length}`">
 									<div class="space-y-3">
 										<div
 											v-for="model in deviceModels"
@@ -47,8 +47,12 @@
 												</p>
 											</div>
 											<div class="flex gap-2 2xl:gap-3">
-												<button type="button" class="btn-list-edit" @click="editDeviceModel(model)">編輯</button>
-												<button type="button" class="btn-list-delete" @click="confirmDelete(model)">刪除</button>
+												<button type="button" class="btn-list-edit" @click="editDeviceModel(model)">
+													編輯
+												</button>
+												<button type="button" class="btn-list-delete" @click="confirmDelete(model)">
+													刪除
+												</button>
 											</div>
 										</div>
 									</div>
@@ -251,6 +255,8 @@
 </template>
 
 <script setup lang="ts">
+import { useDeviceApi } from "~/composables/systems/useDeviceApi";
+import { useToast } from "~/composables/core/useToast";
 import type {
 	DeviceModel,
 	DeviceTypeCode,
@@ -263,7 +269,7 @@ import type { SensorParameterType } from "~/types/environment";
 
 interface Props {
 	modelValue: boolean;
-	deviceTypeCode: DeviceTypeCode;
+	deviceTypeCode: DeviceTypeCode | null;
 }
 
 interface Emits {
@@ -286,7 +292,9 @@ const deviceTypeNameMap: Record<DeviceTypeCode, string> = {
 	network: "網路裝置"
 };
 
-const deviceTypeName = computed(() => deviceTypeNameMap[props.deviceTypeCode] || "設備");
+const deviceTypeName = computed(() => {
+	return props.deviceTypeCode ? (deviceTypeNameMap[props.deviceTypeCode] || "設備") : "設備";
+});
 
 const deviceModels = ref<DeviceModel[]>([]);
 const isLoading = ref(false);
@@ -348,6 +356,8 @@ const removeSensorParameter = (index: number) => {
 };
 
 const loadDeviceType = async () => {
+	if (!props.deviceTypeCode) return;
+	
 	try {
 		const result = await deviceApi.getDeviceTypeByCode(props.deviceTypeCode);
 		currentDeviceTypeId.value = result.device_type.id;
@@ -372,6 +382,11 @@ const handleError = (
 };
 
 const loadDeviceModels = async (force = false) => {
+	if (!props.deviceTypeCode) {
+		deviceModels.value = [];
+		return;
+	}
+	
 	isLoading.value = true;
 	errorMessage.value = null;
 	try {
@@ -381,11 +396,11 @@ const loadDeviceModels = async (force = false) => {
 			params._t = String(Date.now());
 		}
 		const result = await deviceApi.getDeviceModels(params);
-		deviceModels.value = result.device_models;
+		deviceModels.value = Array.isArray(result?.device_models) ? result.device_models : [];
 	} catch (error: any) {
+		deviceModels.value = [];
 		if (error?.statusCode === 404 || error?.status === 404) {
 			errorMessage.value = "設備型號 API 尚未實作，請先完成後端實作";
-			deviceModels.value = [];
 			console.warn("設備型號 API 尚未實作，請參考後端實作指南");
 		} else {
 			handleError(error, "載入設備型號失敗");
@@ -480,10 +495,10 @@ const handleClose = () => {
 watch(
 	() => props.modelValue,
 	isOpen => {
-		if (isOpen) {
+		if (isOpen && props.deviceTypeCode) {
 			loadDeviceType();
 			loadDeviceModels(true); // 每次打開對話框時強制刷新，確保取得最新資料
-		} else {
+		} else if (!isOpen) {
 			deviceModels.value = [];
 			errorMessage.value = null;
 			showForm.value = false;

@@ -37,8 +37,11 @@ import AQICard from "~/components/home/AQICard.vue";
 import EnvironmentCard from "~/components/home/EnvironmentCard.vue";
 import BuildingCard from "~/components/home/BuildingCard.vue";
 import SystemModule from "~/components/home/SystemModule.vue";
-import { useDeviceApi } from "~/composables/useDeviceApi";
-import { useApiBase } from "~/composables/useApiBase";
+import { useDeviceApi } from "~/composables/systems/useDeviceApi";
+import { useApiBase } from "~/composables/core/useApiBase";
+import { useToast } from "~/composables/core/useToast";
+import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import { usePolling } from "~/composables/monitoring/usePolling";
 import { isDeviceConnectionError } from "~/utils/errorUtils";
 import type { ModbusDeviceConfig, ModbusDataResponse } from "~/types/modbus";
 import type { Device, SensorDeviceConfig } from "~/types/device";
@@ -107,9 +110,19 @@ const sensorData = reactive<SensorReadings>({
 const isFetching = ref(false);
 const isSensorOffline = ref(false); // 追蹤感測器離線狀態
 const lastOfflineAlertTime = ref<number | null>(null); // 記錄上次警報時間
-const AUTO_REFRESH_INTERVAL = 5000; // 調整為 5 秒，減少後端負擔
 const OFFLINE_ALERT_INTERVAL = 30000; // 每 30 秒最多顯示一次離線警報
-let refreshTimer: ReturnType<typeof setInterval> | null = null;
+
+// 使用 usePolling 統一管理輪詢
+const { start: startPolling } = usePolling({
+	callback: async () => {
+		await loadSensorData();
+	},
+	interval: 5000, // 每 5 秒執行一次
+	immediate: false, // 不在啟動時立即執行（因為 onMounted 會手動執行一次）
+	onError: err => {
+		handleError(err, "載入感測器資料失敗");
+	}
+});
 
 // 噪音值和風速（從感測器讀取）
 const noiseValue = ref<number | null>(null);
@@ -236,7 +249,7 @@ const loadSensorData = async () => {
 		}
 	} catch (error: any) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
-		
+
 		// 檢查是否為設備連接相關的錯誤
 		if (isDeviceConnectionError(errorMessage)) {
 			// 設備連接錯誤 - 使用防抖機制避免重複提示
@@ -263,35 +276,13 @@ const loadSensorData = async () => {
 	}
 };
 
-const startAutoRefresh = () => {
-	if (refreshTimer) {
-		return;
-	}
-
-	refreshTimer = setInterval(() => {
-		void loadSensorData();
-	}, AUTO_REFRESH_INTERVAL);
-};
-
-const stopAutoRefresh = () => {
-	if (!refreshTimer) {
-		return;
-	}
-
-	clearInterval(refreshTimer);
-	refreshTimer = null;
-};
-
 onMounted(async () => {
 	// 先載入感測器設備配置
 	await loadSensorDevice();
 	// 然後載入感測器資料
 	void loadSensorData();
-	startAutoRefresh();
-});
-
-onBeforeUnmount(() => {
-	stopAutoRefresh();
+	// 啟動輪詢
+	startPolling();
 });
 
 const toFixedNumber = (value: number | null, fractionDigits = 0) => {

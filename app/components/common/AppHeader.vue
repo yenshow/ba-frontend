@@ -30,6 +30,23 @@
 
 			<!-- Right Icons -->
 			<div class="flex items-center space-x-4 xl:space-x-6 2xl:space-x-8">
+				<!-- 警示紀錄 -->
+				<button :class="['icon-button relative', { 'icon-button-active': isAlertLogActive }]">
+					<NuxtLink to="/core/alert-log">
+						<img
+							:src="isDark ? '/layout/alert-logo-white.png' : '/layout/alert-log.png'"
+							alt="警示紀錄"
+							class="h-8 w-8 xl:h-12 xl:w-12 2xl:h-14 2xl:w-14"
+						/>
+						<!-- 未解決警報數量徽章 -->
+						<span
+							v-if="unresolvedAlertCount > 0"
+							class="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white xl:h-6 xl:w-6 xl:text-sm 2xl:h-7 2xl:w-7 2xl:text-base"
+						>
+							{{ unresolvedAlertCount > 99 ? "99+" : unresolvedAlertCount }}
+						</span>
+					</NuxtLink>
+				</button>
 				<!-- 設備管理 -->
 				<button :class="['icon-button', { 'icon-button-active': isDevicesActive }]">
 					<NuxtLink to="/core/equipment-management">
@@ -43,21 +60,17 @@
 						/>
 					</NuxtLink>
 				</button>
-				<!-- 警示紀錄 -->
-				<button :class="['icon-button relative', { 'icon-button-active': isAlertLogActive }]">
-					<NuxtLink to="/core/alert-log">
+				<!-- 區域點位圖 -->
+				<button :class="['icon-button', { 'icon-button-active': isAreaPointMapActive }]">
+					<NuxtLink to="/core/area-point-map">
 						<img
-							:src="isDark ? '/layout/alert-logo-white.png' : '/layout/alert-log.png'"
-							alt="警示紀錄"
-							class="h-8 w-8 xl:h-12 xl:w-12 2xl:h-14 2xl:w-14"
+							src="/layout/map.svg"
+							alt="區域點位圖"
+							:class="[
+								'h-8 w-8 xl:h-12 xl:w-12 2xl:h-14 2xl:w-14',
+								isDark ? 'icon-svg-dark' : 'icon-svg-light'
+							]"
 						/>
-						<!-- 未解決警報數量徽章 -->
-						<span
-							v-if="unresolvedAlertCount > 0"
-							class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white xl:h-6 xl:w-6 xl:text-sm 2xl:h-7 2xl:w-7 2xl:text-base"
-						>
-							{{ unresolvedAlertCount > 99 ? "99+" : unresolvedAlertCount }}
-						</span>
 					</NuxtLink>
 				</button>
 				<!-- 更多功能 -->
@@ -90,7 +103,10 @@
 						>
 							<div class="flex-1 overflow-y-auto">
 								<template v-for="(categoryGroup, index) in categoryGroups" :key="categoryGroup.category">
-									<div v-if="categoryGroup.modules.length" :class="{ 'border-t border-gray-100 pt-2': index > 0 }">
+									<div
+										v-if="categoryGroup.modules.length"
+										:class="{ 'border-t border-gray-100 pt-2': index > 0 }"
+									>
 										<p class="px-4 py-2 text-sm text-gray-500 2xl:text-base">{{ categoryGroup.label }}</p>
 										<ul class="space-y-0.5">
 											<li v-for="module in categoryGroup.modules" :key="module.id">
@@ -111,10 +127,7 @@
 													</div>
 													<span class="text-sm text-gray-700 2xl:text-base">{{ module.name }}</span>
 												</NuxtLink>
-												<div
-													v-else
-													class="flex items-center gap-3 px-4 py-2 text-gray-400 cursor-not-allowed"
-												>
+												<div v-else class="flex cursor-not-allowed items-center gap-3 px-4 py-2 text-gray-400">
 													<div class="flex h-8 w-8 flex-shrink-0 items-center justify-center">
 														<NuxtImg
 															:src="`/system/${module.icon}.png`"
@@ -273,6 +286,11 @@
 </template>
 
 <script setup lang="ts">
+import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
+import { useAuth } from "~/composables/core/useAuth";
+import { useTheme } from "~/composables/core/useTheme";
+import { getModuleByRoute, getModulesByCategory } from "~/utils/systemUtils";
+
 // 用戶選單狀態
 const isUserMenuOpen = ref(false);
 const userMenuRef = ref<HTMLElement | null>(null);
@@ -295,7 +313,6 @@ const userInfo = computed(() => ({
 	role: user.value?.role ? roleLabels[user.value.role] || user.value.role : ""
 }));
 
-import { getModuleByRoute, getModulesByCategory } from "~/utils/systemUtils";
 const route = useRoute();
 
 const currentModule = computed(() => getModuleByRoute(route.path));
@@ -328,7 +345,7 @@ const categoryOrder = [
 // 按分類分組的模組
 const categoryGroups = computed(() => {
 	return categoryOrder
-		.map((category) => {
+		.map(category => {
 			const modules = getModulesByCategory(category);
 			return {
 				category,
@@ -336,19 +353,20 @@ const categoryGroups = computed(() => {
 				modules
 			};
 		})
-		.filter((group) => group.modules.length > 0);
+		.filter(group => group.modules.length > 0);
 });
 
 // Active 狀態判斷
 const isDevicesActive = computed(() => route.path === "/core/equipment-management");
 const isAlertLogActive = computed(() => route.path === "/core/alert-log");
+const isAreaPointMapActive = computed(() => route.path === "/core/area-point-map");
 
 // 未解決警報數量（整合到 useAlertMonitor）
-const { 
-	unresolvedAlertCount, 
-	loadUnresolvedAlertCount, 
-	startAlertCountMonitoring: startAlertCountUpdate, 
-	stopAlertCountMonitoring: stopAlertCountUpdate 
+const {
+	unresolvedAlertCount,
+	loadUnresolvedAlertCount,
+	startAlertCountMonitoring: startAlertCountUpdate,
+	stopAlertCountMonitoring: stopAlertCountUpdate
 } = useAlertMonitor();
 
 const closeUserMenu = () => {
@@ -436,7 +454,7 @@ watch(
 // 監聽用戶登入狀態
 watch(
 	() => user.value,
-	(newUser) => {
+	newUser => {
 		if (newUser) {
 			// 初始載入未解決警報數量
 			void loadUnresolvedAlertCount();

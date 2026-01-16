@@ -169,6 +169,8 @@
 
 <script setup lang="ts">
 import type { DeviceType } from "~/types/device";
+import { useDeviceApi } from "~/composables/systems/useDeviceApi";
+import { useToast } from "~/composables/core/useToast";
 
 const props = defineProps<{
 	modelValue: boolean;
