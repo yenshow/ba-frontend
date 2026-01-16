@@ -15,55 +15,12 @@ import { logger } from "~/utils/logger";
 import { extractRegionFromFloorName } from "~/utils/peopleCountingAdapter";
 
 /**
- * 工地配置介面
- */
-interface SiteConfig {
-	siteId: number;
-	siteName: string;
-	region: string;
-	personGroupIds: number[]; // 對應的 person_group.id
-	status?: "active" | "equipment_anomaly" | "intrusion_detected";
-}
-
-/**
  * 人流統計工地配置 API
  */
 export const usePeopleCountingSiteApi = () => {
 	const siteApiLogger = logger.createLogger("PeopleCounting Site API");
 	const { request } = useApiBase();
 	const locationApi = usePeopleCountingLocationApi();
-
-	/**
-	 * 從地點管理系統取得工地配置（保留供其他 composables 使用）
-	 */
-	const getSiteConfigFromLocationApi = async (siteId: number): Promise<SiteConfig | null> => {
-		try {
-			const floorsResponse = await locationApi.getFloors();
-			const floors = floorsResponse.floors || [];
-
-			// 查找對應的工地地點
-			for (const floor of floors) {
-				for (const location of floor.locations || []) {
-					const locationId = location.id ? Number(location.id) : undefined;
-					if (locationId === siteId && location.personGroupIds && location.personGroupIds.length > 0) {
-						const region = extractRegionFromFloorName(floor.name) || "未分類";
-						return {
-							siteId,
-							siteName: location.name,
-							region,
-							personGroupIds: location.personGroupIds,
-							status: "active" as const
-						};
-					}
-				}
-			}
-
-			return null;
-		} catch (error) {
-			siteApiLogger.error("從地點管理系統取得工地配置失敗", { siteId, error });
-			return null;
-		}
-	};
 
 	/**
 	 * 取得所有工地列表（含統計）
@@ -137,6 +94,7 @@ export const usePeopleCountingSiteApi = () => {
 	/**
 	 * 取得單一工地詳情
 	 * 使用後端 API，後端已處理統計計算
+	 * 注意：units 需要從 getSites 結果中取得，因為後端 API 不返回 units
 	 */
 	const getSiteDetail = async (siteId: number): Promise<PeopleCountingSite> => {
 		try {
@@ -176,8 +134,11 @@ export const usePeopleCountingSiteApi = () => {
 				if (region !== "未分類") break;
 			}
 
-			// 取得單位列表
-			const units = await getSiteUnits(siteId);
+			// 從 getSites 結果中取得該工地的 units
+			// 為了取得 units，我們需要調用 getSites 並查找對應的工地
+			const sitesResponse = await getSites();
+			const site = sitesResponse.find(s => s.id === siteId);
+			const units = site?.units || [];
 
 			return {
 				id: response.location.id,
@@ -194,49 +155,8 @@ export const usePeopleCountingSiteApi = () => {
 		}
 	};
 
-	/**
-	 * 取得工地統計（今日進場/出場人數）
-	 * 使用後端 API，後端已處理統計計算
-	 */
-	const getSiteStats = async (
-		siteId: number
-	): Promise<{ entryCount: number; exitCount: number }> => {
-		try {
-			const response = await request<{
-				entryCount: number;
-				exitCount: number;
-				currentCount: number;
-			}>("/people-counting/sites/" + siteId + "/stats");
-
-			return {
-				entryCount: response.entryCount,
-				exitCount: response.exitCount
-			};
-		} catch (error) {
-			siteApiLogger.error("取得工地統計失敗", { siteId, error });
-			throw error;
-		}
-	};
-
-	/**
-	 * 取得工地單位列表（進場單位）
-	 * 從工地詳情中取得單位列表
-	 */
-	const getSiteUnits = async (siteId: number): Promise<PeopleCountingUnit[]> => {
-		try {
-			const siteDetail = await getSiteDetail(siteId);
-			return siteDetail.units || [];
-		} catch (error) {
-			siteApiLogger.error("取得工地單位列表失敗", { siteId, error });
-			throw error;
-		}
-	};
-
 	return {
-		getSiteConfigFromLocationApi,
 		getSites,
-		getSiteDetail,
-		getSiteStats,
-		getSiteUnits
+		getSiteDetail
 	};
 };

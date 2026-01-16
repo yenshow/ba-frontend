@@ -11,8 +11,8 @@
 		<UnitList :units="site.units || []" :selected-unit-id="selectedUnitId" @select="handleUnitSelect" />
 
 		<!-- 人員名單 -->
-		<div v-if="selectedUnitId && selectedPersonnel.length > 0">
-			<PersonnelList :personnel="selectedPersonnel" />
+		<div v-if="selectedUnitId && personnel.length > 0">
+			<PersonnelList :personnel="personnel" />
 		</div>
 	</div>
 </template>
@@ -34,10 +34,7 @@ const emit = defineEmits<{
 
 const selectedUnitId = ref<number | null>(null);
 
-const selectedPersonnel = computed(() => {
-	if (!selectedUnitId.value) return [];
-	return props.personnel.filter(p => p.unitId === selectedUnitId.value);
-});
+// 注意：personnel 已經由頁面根據選中的單位載入，不需要再次過濾
 
 const handleUnitSelect = (unitId: number) => {
 	if (selectedUnitId.value === unitId) {

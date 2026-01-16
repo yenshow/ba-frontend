@@ -49,21 +49,6 @@ export const usePeopleCountingApi = () => {
 		return siteApi.getSiteDetail(siteId);
 	};
 
-	/**
-	 * 取得工地統計（今日進場/出場人數）
-	 */
-	const getSiteStats = async (
-		siteId: number
-	): Promise<{ entryCount: number; exitCount: number }> => {
-		return siteApi.getSiteStats(siteId);
-	};
-
-	/**
-	 * 取得工地單位列表（進場單位）
-	 */
-	const getSiteUnits = async (siteId: number): Promise<PeopleCountingUnit[]> => {
-		return siteApi.getSiteUnits(siteId);
-	};
 
 	/**
 	 * 取得單位人員列表
@@ -86,8 +71,6 @@ export const usePeopleCountingApi = () => {
 		// 工地相關 API
 		getSites,
 		getSiteDetail,
-		getSiteStats,
-		getSiteUnits,
 
 		// 人員相關 API
 		getUnitPersonnel,

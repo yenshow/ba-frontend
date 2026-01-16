@@ -16,7 +16,6 @@
 					<div class="text-sm font-semibold text-white/90 xl:text-base 2xl:text-lg">
 						<span class="text-green-400">{{ unit.currentCount || 0 }}</span>
 						<span class="text-white/60">/</span>
-						<!-- 注意：目前使用 capacity，未來後端實作後應改為 totalCount -->
 						<span class="text-white/80">{{ unit.capacity || 0 }}</span>
 					</div>
 				</div>

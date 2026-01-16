@@ -159,11 +159,9 @@ import SiteDetailPanel from "~/components/people-counting/SiteDetailPanel.vue";
 import SiteStatsPanel from "~/components/people-counting/SiteStatsPanel.vue";
 import SiteOverviewCard from "~/components/people-counting/SiteOverviewCard.vue";
 import { usePeopleCountingApi } from "~/composables/systems/usePeopleCountingApi";
-import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 
 const peopleCountingApi = usePeopleCountingApi();
-const toast = useToast();
 const { handleError } = useErrorHandler();
 
 // 左側區域參考與高度（用於使右側同高）
