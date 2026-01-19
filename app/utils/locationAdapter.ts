@@ -1,22 +1,26 @@
 import type {
-	UnifiedFloor,
+	UnifiedZone,
 	UnifiedLocation,
 	SystemType,
+	SystemConfig,
 	EnvironmentSystemConfig,
 	LightingSystemConfig,
 	PeopleCountingSystemConfig,
 	LocationSystem
 } from "~/types/location";
-import type { EnvironmentFloor, EnvironmentLocation } from "~/types/environment";
-import type { LightingFloor, LightingArea } from "~/types/lighting";
-import type { PeopleCountingFloor, PeopleCountingLocation } from "~/types/peopleCounting";
+import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment";
+import type { LightingZone, LightingLocation } from "~/types/lighting";
+import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting";
+
+type LocationSystemInput = LocationSystem | Omit<LocationSystem, "id">;
+type UnifiedLocationInput = Omit<UnifiedLocation, "zoneId" | "systems"> & { systems: LocationSystemInput[] };
 
 /**
  * 後端返回的地點格式（新架構：包含 systems 陣列）
  */
 export type BackendLocation = {
 	id: string;
-	floorId: string;
+	zoneId: string;
 	name: string;
 	description?: string;
 	systems: Array<{
@@ -38,34 +42,36 @@ export type BackendLocation = {
 };
 
 /**
- * 後端返回的樓層格式
+ * 後端返回的區域格式
  */
-export type BackendFloor = {
+export type BackendZone = {
 	id: string;
 	name: string;
 	buildingId?: number;
-	floorNumber?: number;
+	zoneNumber?: number;
 	imageUrl?: string;
 	description?: string;
 	locations: BackendLocation[];
 };
 
+
 /**
- * 將後端返回的樓層格式轉換為統一樓層格式
+ * 將後端返回的區域格式轉換為統一區域格式
  * 注意：後端已經做了格式化，這裡只需要類型轉換
  */
-export function backendToUnifiedFloor(backendFloor: BackendFloor): UnifiedFloor {
-	// 後端 formatFloor 已經返回正確格式，直接轉換即可
+export function backendToUnifiedZone(backendZone: BackendZone): UnifiedZone {
+	// 後端 formatZone 已經返回正確格式，直接轉換即可
 	return {
-		id: backendFloor.id,
-		name: backendFloor.name,
-		buildingId: backendFloor.buildingId,
-		floorNumber: backendFloor.floorNumber,
-		imageUrl: backendFloor.imageUrl,
-		description: backendFloor.description,
-		locations: backendFloor.locations.map(backendToUnifiedLocation)
+		id: backendZone.id,
+		name: backendZone.name,
+		buildingId: backendZone.buildingId,
+		zoneNumber: backendZone.zoneNumber,
+		imageUrl: backendZone.imageUrl,
+		description: backendZone.description,
+		locations: backendZone.locations.map(backendToUnifiedLocation)
 	};
 }
+
 
 /**
  * 類型守衛：檢查是否為環境監測系統配置
@@ -96,6 +102,7 @@ function isPeopleCountingSystemConfig(config: unknown): config is PeopleCounting
 
 /**
  * 將後端返回的系統配置轉換為正確的類型
+ * 如果配置不符合預期類型，返回該系統類型的預設配置
  */
 function parseSystemConfig(systemType: SystemType, config: unknown): SystemConfig {
 	switch (systemType) {
@@ -109,7 +116,10 @@ function parseSystemConfig(systemType: SystemType, config: unknown): SystemConfi
 			if (isPeopleCountingSystemConfig(config)) return config;
 			return { personGroupIds: [] };
 		default:
-			return config as SystemConfig;
+			// SystemType 是有限的聯合類型，理論上不會執行到這裡
+			// 但為了類型安全，返回空配置
+			console.warn(`未知的系統類型: ${systemType}`);
+			return { parameters: [] };
 	}
 }
 
@@ -121,7 +131,7 @@ function backendToUnifiedLocation(backendLoc: BackendLocation): UnifiedLocation 
 	// 後端 formatLocation 已經返回正確格式，使用類型守衛確保類型安全
 	return {
 		id: backendLoc.id,
-		floorId: backendLoc.floorId,
+		zoneId: backendLoc.zoneId,
 		name: backendLoc.name,
 		description: backendLoc.description,
 		systems: backendLoc.systems.map((sys) => ({
@@ -133,35 +143,30 @@ function backendToUnifiedLocation(backendLoc: BackendLocation): UnifiedLocation 
 }
 
 /**
- * 將後端返回的樓層格式直接轉換為環境監測樓層格式
+ * 將後端返回的區域格式直接轉換為環境監測區域格式
  */
-export function backendToEnvironmentFloor(backendFloor: BackendFloor): EnvironmentFloor {
-	return unifiedToEnvironmentFloor(backendToUnifiedFloor(backendFloor));
+export function backendToEnvironmentZone(backendZone: BackendZone): EnvironmentZone {
+	return unifiedToEnvironmentZone(backendToUnifiedZone(backendZone));
 }
 
 /**
- * 將統一樓層轉換為環境監測樓層
+ * 將統一區域轉換為環境監測區域
  */
-export function unifiedToEnvironmentFloor(floor: UnifiedFloor): EnvironmentFloor {
+export function unifiedToEnvironmentZone(zone: UnifiedZone): EnvironmentZone {
 	return {
-		id: floor.id,
-		name: floor.name,
-		locations: floor.locations
+		id: zone.id,
+		name: zone.name,
+		locations: zone.locations
 			.flatMap((loc) => {
-				// 找到環境監測系統
 				const envSystem = loc.systems.find((s) => s.systemType === "environment");
-				if (!envSystem) return [];
-
-				// 使用類型守衛確保類型安全
-				if (!isEnvironmentSystemConfig(envSystem.config)) {
-					console.warn(`地點 ${loc.id} 的環境監測系統配置格式不正確`);
+				if (!envSystem || !isEnvironmentSystemConfig(envSystem.config)) {
 					return [];
 				}
 
 				return [
 					{
 						id: loc.id,
-						systemId: envSystem.id, // 添加 systemId 用於錯誤追蹤
+						systemId: envSystem.id,
 						name: loc.name,
 						deviceId: envSystem.config.deviceId,
 						parameters: envSystem.config.parameters || []
@@ -172,98 +177,90 @@ export function unifiedToEnvironmentFloor(floor: UnifiedFloor): EnvironmentFloor
 }
 
 /**
- * 將環境監測樓層轉換為統一樓層（用於傳送給後端）
+ * 將環境監測區域轉換為統一區域（用於傳送給後端）
  */
-export function environmentToUnifiedFloor(
-	floor: EnvironmentFloor,
+export function environmentToUnifiedZone(
+	zone: EnvironmentZone,
 	systemType: SystemType = "environment"
-): Omit<UnifiedFloor, "id"> {
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
 	return {
-		...(floor.name !== undefined && { name: floor.name }),
-		locations: floor.locations.map((loc) => environmentLocationToUnified(loc, systemType))
+		name: zone.name,
+		locations: zone.locations.map((loc) => environmentLocationToUnified(loc, systemType))
 	};
 }
 
+
 /**
- * 將後端返回的樓層格式直接轉換為照明樓層格式
+ * 將後端返回的區域格式直接轉換為照明區域格式
  */
-export function backendToLightingFloor(backendFloor: BackendFloor): LightingFloor {
-	return unifiedToLightingFloor(backendToUnifiedFloor(backendFloor));
+export function backendToLightingZone(backendZone: BackendZone): LightingZone {
+	return unifiedToLightingZone(backendToUnifiedZone(backendZone));
 }
 
 /**
- * 將統一樓層轉換為照明樓層
+ * 將統一區域轉換為照明區域
  */
-export function unifiedToLightingFloor(floor: UnifiedFloor): LightingFloor {
+export function unifiedToLightingZone(zone: UnifiedZone): LightingZone {
 	return {
-		id: floor.id,
-		name: floor.name,
-		imageUrl: floor.imageUrl,
-		description: floor.description,
-		areas: floor.locations
+		id: zone.id,
+		name: zone.name,
+		imageUrl: zone.imageUrl,
+		description: zone.description,
+		locations: zone.locations
 			.flatMap((loc) => {
-				// 找到照明系統
 				const lightingSystem = loc.systems.find((s) => s.systemType === "lighting");
-				if (!lightingSystem) return [];
-
-				// 使用類型守衛確保類型安全
-				if (!isLightingSystemConfig(lightingSystem.config)) {
-					console.warn(`地點 ${loc.id} 的照明系統配置格式不正確`);
+				if (!lightingSystem || !isLightingSystemConfig(lightingSystem.config)) {
 					return [];
 				}
 
 				return [
 					{
 						id: loc.id,
-						systemId: lightingSystem.id, // 添加 systemId 用於錯誤追蹤
+						systemId: lightingSystem.id,
 						name: loc.name,
 						location: lightingSystem.config.location,
 						deviceId: lightingSystem.config.deviceId,
 						modbus: lightingSystem.config.modbus
-					} as LightingArea
+					} as LightingLocation
 				];
 			})
 	};
 }
 
 /**
- * 將照明樓層轉換為統一樓層（用於傳送給後端）
+ * 將照明區域轉換為統一區域（用於傳送給後端）
  */
-export function lightingToUnifiedFloor(
-	floor: LightingFloor,
+export function lightingToUnifiedZone(
+	zone: LightingZone,
 	systemType: SystemType = "lighting"
-): Omit<UnifiedFloor, "id"> {
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
 	return {
-		name: floor.name,
-		...(floor.imageUrl !== undefined && { imageUrl: floor.imageUrl }),
-		...(floor.description !== undefined && { description: floor.description }),
-		locations: floor.areas.map((area) => lightingAreaToUnified(area, systemType))
+		name: zone.name,
+		...(zone.imageUrl !== undefined && { imageUrl: zone.imageUrl }),
+		...(zone.description !== undefined && { description: zone.description }),
+		locations: zone.locations.map((location) => lightingLocationToUnified(location, systemType))
 	};
 }
 
+
 /**
- * 將後端返回的樓層格式直接轉換為人流統計樓層格式
+ * 將後端返回的區域格式直接轉換為人流統計區域格式
  */
-export function backendToPeopleCountingFloor(backendFloor: BackendFloor): PeopleCountingFloor {
-	return unifiedToPeopleCountingFloor(backendToUnifiedFloor(backendFloor));
+export function backendToPeopleCountingZone(backendZone: BackendZone): PeopleCountingZone {
+	return unifiedToPeopleCountingZone(backendToUnifiedZone(backendZone));
 }
 
 /**
- * 將統一樓層轉換為人流統計樓層
+ * 將統一區域轉換為人流統計區域
  */
-export function unifiedToPeopleCountingFloor(floor: UnifiedFloor): PeopleCountingFloor {
+export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZone {
 	return {
-		id: floor.id,
-		name: floor.name,
-		locations: floor.locations
+		id: zone.id,
+		name: zone.name,
+		locations: zone.locations
 			.flatMap((loc) => {
-				// 找到人流統計系統
 				const pcSystem = loc.systems.find((s) => s.systemType === "people_counting");
-				if (!pcSystem) return [];
-
-				// 使用類型守衛確保類型安全
-				if (!isPeopleCountingSystemConfig(pcSystem.config)) {
-					console.warn(`地點 ${loc.id} 的人流統計系統配置格式不正確`);
+				if (!pcSystem || !isPeopleCountingSystemConfig(pcSystem.config)) {
 					return [];
 				}
 
@@ -281,17 +278,18 @@ export function unifiedToPeopleCountingFloor(floor: UnifiedFloor): PeopleCountin
 }
 
 /**
- * 將人流統計樓層轉換為統一樓層（用於傳送給後端）
+ * 將人流統計區域轉換為統一區域（用於傳送給後端）
  */
-export function peopleCountingToUnifiedFloor(
-	floor: PeopleCountingFloor,
+export function peopleCountingToUnifiedZone(
+	zone: PeopleCountingZone,
 	systemType: SystemType = "people_counting"
-): Omit<UnifiedFloor, "id"> {
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
 	return {
-		name: floor.name,
-		locations: floor.locations.map((loc) => peopleCountingLocationToUnified(loc, systemType))
+		name: zone.name,
+		locations: zone.locations.map((loc) => peopleCountingLocationToUnified(loc, systemType))
 	};
 }
+
 
 /**
  * 輔助函數：檢查地點是否有指定類型的系統
@@ -341,13 +339,15 @@ export function getLightingLocationStyle(location: UnifiedLocation): { left: str
 export function environmentLocationToUnified(
 	loc: EnvironmentLocation | Omit<EnvironmentLocation, "id">,
 	systemType: SystemType = "environment"
-): Omit<UnifiedLocation, "floorId"> {
+): UnifiedLocationInput {
 	const hasId = "id" in loc && loc.id;
+	const hasSystemId = "systemId" in loc && loc.systemId;
 	return {
 		...(hasId && { id: loc.id! }),
 		name: loc.name,
 		systems: [
 			{
+				...(hasSystemId && { id: loc.systemId! }),
 				systemType,
 				config: {
 					deviceId: loc.deviceId,
@@ -359,24 +359,26 @@ export function environmentLocationToUnified(
 }
 
 /**
- * 輔助函數：將照明區域轉換為統一地點格式
+ * 輔助函數：將照明地點轉換為統一地點格式
  */
-export function lightingAreaToUnified(
-	area: LightingArea | Omit<LightingArea, "id">,
+export function lightingLocationToUnified(
+	location: LightingLocation | Omit<LightingLocation, "id">,
 	systemType: SystemType = "lighting"
-): Omit<UnifiedLocation, "floorId"> {
-	const hasId = "id" in area && area.id;
+): UnifiedLocationInput {
+	const hasId = "id" in location && location.id;
+	const hasSystemId = "systemId" in location && location.systemId;
 	return {
-		...(hasId && { id: area.id! }),
-		name: area.name,
-		...(area.description !== undefined && { description: area.description }),
+		...(hasId && { id: location.id! }),
+		name: location.name,
+		...(location.description && { description: location.description }),
 		systems: [
 			{
+				...(hasSystemId && { id: location.systemId! }),
 				systemType,
 				config: {
-					deviceId: area.deviceId,
-					location: area.location,
-					modbus: area.modbus
+					deviceId: location.deviceId,
+					location: location.location,
+					modbus: location.modbus
 				} as LightingSystemConfig
 			}
 		]
@@ -389,7 +391,7 @@ export function lightingAreaToUnified(
 export function peopleCountingLocationToUnified(
 	loc: PeopleCountingLocation | Omit<PeopleCountingLocation, "id">,
 	systemType: SystemType = "people_counting"
-): Omit<UnifiedLocation, "floorId"> {
+): UnifiedLocationInput {
 	const hasId = "id" in loc && loc.id;
 	return {
 		...(hasId && { id: loc.id! }),

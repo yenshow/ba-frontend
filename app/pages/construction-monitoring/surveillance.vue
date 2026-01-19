@@ -254,6 +254,9 @@ import { useToast } from "~/composables/core/useToast";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useStreamStatus } from "~/composables/monitoring/useStreamStatus";
+import SurveillanceControlPanel from "~/components/surveillance/SurveillanceControlPanel.vue";
+import SurveillanceCameraGrid from "~/components/surveillance/SurveillanceCameraGrid.vue";
+import SurveillanceCameraCard from "~/components/surveillance/SurveillanceCameraCard.vue";
 
 const toast = useToast();
 const { connect, isConnected } = useWebSocket();

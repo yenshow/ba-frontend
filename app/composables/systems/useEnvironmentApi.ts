@@ -1,21 +1,21 @@
-import type { EnvironmentFloor, EnvironmentLocation, SensorReading } from "~/types/environment";
-import type { UnifiedFloor, UnifiedLocation } from "~/types/location";
+import type { EnvironmentZone, EnvironmentLocation, SensorReading } from "~/types/environment";
+import type { UnifiedZone, UnifiedLocation } from "~/types/location";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPathWithQuery } from "~/utils/apiUtils";
 import { useErrorTrackingApiFactory } from "~/composables/factories/useErrorTrackingApiFactory";
-import { useLocationApi } from "~/composables/systems/useLocationApi";
+import { useLocationApi } from "~/composables/systems/location/useLocationApi";
 import {
-	backendToEnvironmentFloor,
-	environmentToUnifiedFloor,
+	backendToEnvironmentZone,
+	environmentToUnifiedZone,
 	environmentLocationToUnified
 } from "~/utils/locationAdapter";
 
-export interface CreateEnvironmentFloorData {
+export interface CreateEnvironmentZoneData {
 	name: string;
 	locations?: Omit<EnvironmentLocation, "id">[];
 }
 
-export interface UpdateEnvironmentFloorData {
+export interface UpdateEnvironmentZoneData {
 	name?: string;
 	locations?: (EnvironmentLocation | Omit<EnvironmentLocation, "id">)[];
 }
@@ -53,46 +53,46 @@ export const useEnvironmentApi = () => {
 	);
 
 	return {
-		// ========== 樓層管理 API ==========
-		// 注意：位置（locations）統一通過樓層的 locations 來管理
+		// ========== 區域管理 API ==========
+		// 注意：位置（locations）統一通過區域的 locations 來管理
 		// 所有操作都通過統一地點管理 API 進行
 
-		// 取得樓層列表
-		getFloors: async () => {
-			const response = await locationApi.getFloors("environment");
+		// 取得區域列表
+		getZones: async () => {
+			const response = await locationApi.getZones("environment");
 			return {
-				floors: response.floors.map((floor) => backendToEnvironmentFloor(floor))
+				zones: response.zones.map((zone) => backendToEnvironmentZone(zone))
 			};
 		},
 
-		// 取得單一樓層
-		getFloor: async (id: string) => {
-			const response = await locationApi.getFloor(id, "environment");
+		// 取得單一區域
+		getZone: async (id: string) => {
+			const response = await locationApi.getZone(id, "environment");
 			return {
-				floor: backendToEnvironmentFloor(response.floor)
+				zone: backendToEnvironmentZone(response.zone)
 			};
 		},
 
-		// 建立樓層
-		createFloor: async (data: CreateEnvironmentFloorData) => {
-			const unifiedData = environmentToUnifiedFloor(
+		// 建立區域
+		createZone: async (data: CreateEnvironmentZoneData) => {
+			const unifiedData = environmentToUnifiedZone(
 				{ name: data.name, locations: data.locations || [] },
 				"environment"
 			);
-			const response = await locationApi.createFloor(unifiedData);
+			const response = await locationApi.createZone(unifiedData);
 			return {
 				merged: response.merged,
 				message: response.message,
-				floor: backendToEnvironmentFloor(response.floor)
+				zone: backendToEnvironmentZone(response.zone)
 			};
 		},
 
-		// 更新樓層
-		updateFloor: async (id: string, data: UpdateEnvironmentFloorData) => {
+		// 更新區域
+		updateZone: async (id: string, data: UpdateEnvironmentZoneData) => {
 			// 直接構建統一格式資料（後端支援部分更新）
 			const unifiedData: {
 				name?: string;
-				locations?: (UnifiedLocation | Omit<UnifiedLocation, "id" | "floorId">)[];
+				locations?: (UnifiedLocation | Omit<UnifiedLocation, "id" | "zoneId">)[];
 			} = {};
 			
 			if (data.name !== undefined) {
@@ -101,24 +101,22 @@ export const useEnvironmentApi = () => {
 			
 			if (data.locations !== undefined) {
 				// 將環境監測地點轉換為統一格式
-				// 轉換函數返回 Omit<UnifiedLocation, "floorId">，符合 updateFloor 的類型要求
 				unifiedData.locations = data.locations.map((loc) => {
 					const converted = environmentLocationToUnified(loc, "environment");
-					// 如果有 id，保留它；如果沒有，則符合 Omit<UnifiedLocation, "id" | "floorId">
-					return converted as UnifiedLocation | Omit<UnifiedLocation, "id" | "floorId">;
+					return converted as UnifiedLocation | Omit<UnifiedLocation, "id" | "zoneId">;
 				});
 			}
 
-			const response = await locationApi.updateFloor(id, unifiedData);
+			const response = await locationApi.updateZone(id, unifiedData);
 			return {
 				merged: response.merged,
 				message: response.message,
-				floor: backendToEnvironmentFloor(response.floor)
+				zone: backendToEnvironmentZone(response.zone)
 			};
 		},
 
-		// 刪除樓層
-		deleteFloor: locationApi.deleteFloor,
+		// 刪除區域
+		deleteZone: locationApi.deleteZone,
 
 		// ========== 感測器讀數 API ==========
 

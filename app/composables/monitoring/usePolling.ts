@@ -1,4 +1,4 @@
-import { ref, onBeforeUnmount, type Ref, type ComputedRef } from "vue";
+import { ref, getCurrentInstance, onBeforeUnmount, type Ref, type ComputedRef } from "vue";
 
 /**
  * 輪詢管理 Composable
@@ -25,6 +25,9 @@ export const usePolling = (options: UsePollingOptions) => {
 
 	const isActive = ref(false);
 	let timer: ReturnType<typeof setInterval> | null = null;
+	
+	// 獲取當前組件實例，只有在組件上下文中才註冊生命週期鉤子
+	const instance = getCurrentInstance();
 
 	/**
 	 * 執行輪詢回調
@@ -98,10 +101,12 @@ export const usePolling = (options: UsePollingOptions) => {
 		start();
 	};
 
-	// 組件卸載時自動清理
-	onBeforeUnmount(() => {
-		stop();
-	});
+	// 組件卸載時自動清理（只有在組件上下文中才註冊）
+	if (instance) {
+		onBeforeUnmount(() => {
+			stop();
+		});
+	}
 
 	return {
 		isActive,

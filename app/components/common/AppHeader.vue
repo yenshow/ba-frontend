@@ -60,12 +60,12 @@
 						/>
 					</NuxtLink>
 				</button>
-				<!-- 區域點位圖 -->
+				<!-- 全區點位圖 -->
 				<button :class="['icon-button', { 'icon-button-active': isAreaPointMapActive }]">
 					<NuxtLink to="/core/area-point-map">
 						<img
 							src="/layout/map.svg"
-							alt="區域點位圖"
+							alt="全區點位圖"
 							:class="[
 								'h-8 w-8 xl:h-12 xl:w-12 2xl:h-14 2xl:w-14',
 								isDark ? 'icon-svg-dark' : 'icon-svg-light'
@@ -324,7 +324,6 @@ const categoryLabels: Record<string, string> = {
 	"construction-monitoring": "工地監控",
 	infrastructure: "基礎設施",
 	security: "安全相關",
-	visualization: "視覺化",
 	maintenance: "維護管理",
 	business: "業務管理",
 	multimedia: "多媒體"
@@ -336,7 +335,6 @@ const categoryOrder = [
 	"construction-monitoring",
 	"infrastructure",
 	"security",
-	"visualization",
 	"maintenance",
 	"business",
 	"multimedia"

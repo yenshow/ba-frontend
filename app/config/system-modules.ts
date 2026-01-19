@@ -3,11 +3,10 @@
  * 集中管理所有系統模組的配置
  *
  * 分類說明：
- * - core: 核心基礎系統（設備、使用者、警示、區域點位圖）
+ * - core: 核心基礎系統（設備、使用者、警示、全區點位圖）
  * - construction-monitoring: 工地監控系統（環境、人流、車輛、影像）
  * - infrastructure: 基礎設施系統（照明、空調、電力、電梯、衛生排水）
  * - security: 安全相關系統（消防、門禁、緊急求救）
- * - visualization: 視覺化系統（已整合至核心基礎系統的區域點位圖）
  * - maintenance: 維護管理系統（整合：機電維護 + 可靠度 + 設施管理）
  * - business: 業務管理系統（訪客、寄物）
  * - multimedia: 多媒體系統（整合：電視牆 + 多媒體 + 資訊平台）
@@ -51,7 +50,7 @@ export const systemModules: SystemModule[] = [
 	},
 	{
 		id: 4,
-		name: "區域點位圖",
+		name: "全區點位圖",
 		icon: "map",
 		route: "/core/area-point-map",
 		category: "core",

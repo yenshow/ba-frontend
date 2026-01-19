@@ -6,23 +6,21 @@
 			<section class="relative flex-[1.2] 2xl:flex-[1.3]">
 				<div
 					ref="leftSectionRef"
-					class="flex gap-4 overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 xl:p-6 2xl:p-8"
+					class="relative flex gap-4 overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 xl:p-6 2xl:p-8"
 				>
+					<!-- 地點管理按鈕 -->
+					<button
+						type="button"
+						class="absolute left-8 top-2 z-10 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
+						@click="handleOpenLocationDialog"
+					>
+						地點管理
+					</button>
 					<!-- 載入狀態 -->
 					<div v-if="isLoadingSite" class="flex h-full w-full items-center justify-center">
 						<div class="text-center text-white">
 							<div class="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-white"></div>
 							<p>載入工地資訊...</p>
-						</div>
-					</div>
-
-					<!-- 錯誤狀態 -->
-					<div v-else-if="loadError" class="flex h-full w-full items-center justify-center">
-						<div class="rounded-lg bg-red-50/90 p-6 text-center dark:bg-red-900/30">
-							<p class="text-red-600 dark:text-red-400">{{ loadError }}</p>
-							<button @click="loadSiteDetail" class="mt-4 rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600">
-								重試
-							</button>
 						</div>
 					</div>
 
@@ -150,18 +148,39 @@
 			</aside>
 		</div>
 	</div>
+	<ZoneManagementDialog
+		v-model="showLocationManagementDialog"
+		:zones="peopleCountingZones"
+		system-type="people_counting"
+		:require-image-url="false"
+		@save="handleSaveZone"
+		@delete="handleDeleteZone"
+	/>
 </template>
 
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount } from "vue";
-import type { PeopleCountingSite, PeopleCountingPersonnel, PeopleCountingLog } from "~/types/peopleCounting";
+import type {
+	PeopleCountingSite,
+	PeopleCountingPersonnel,
+	PeopleCountingLog,
+	PeopleCountingZone
+} from "~/types/peopleCounting";
 import SiteDetailPanel from "~/components/people-counting/SiteDetailPanel.vue";
 import SiteStatsPanel from "~/components/people-counting/SiteStatsPanel.vue";
 import SiteOverviewCard from "~/components/people-counting/SiteOverviewCard.vue";
+import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
 import { usePeopleCountingApi } from "~/composables/systems/usePeopleCountingApi";
+import { usePeopleCountingLocationApi } from "~/composables/systems/location/usePeopleCountingLocationApi";
+import { useZoneManagement } from "~/composables/systems/useZoneManagement";
+import { useLocationApi } from "~/composables/systems/location/useLocationApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import { backendToPeopleCountingZone } from "~/utils/locationAdapter";
+import type { UnifiedZone } from "~/types/location";
 
 const peopleCountingApi = usePeopleCountingApi();
+const peopleCountingLocationApi = usePeopleCountingLocationApi();
+const locationApi = useLocationApi();
 const { handleError } = useErrorHandler();
 
 // 左側區域參考與高度（用於使右側同高）
@@ -204,6 +223,11 @@ const isSidebarCollapsed = ref(false);
 
 // 選中的單位 ID（用於過濾人員和記錄）
 const selectedUnitId = ref<number | null>(null);
+
+// 地點管理相關狀態
+const showLocationManagementDialog = ref(false);
+const peopleCountingZones = ref<PeopleCountingZone[]>([]);
+const isLoadingZones = ref(false);
 
 // 計算屬性
 const filteredSites = computed(() => {
@@ -315,6 +339,106 @@ onBeforeUnmount(() => {
 	}
 });
 
+// 使用區域管理 composable
+const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
+	useZoneManagement<PeopleCountingZone>();
+
+// 處理儲存區域
+const handleSaveZone = async (zone: PeopleCountingZone) => {
+	await baseHandleSaveZone(
+		zone,
+		peopleCountingZones,
+		async (z: PeopleCountingZone) => {
+			// 檢查是否為臨時 ID（以 temp- 開頭）或有效的數字 ID
+			const isValidId = z.id && !z.id.startsWith("temp-") && /^\d+$/.test(z.id);
+			const result = isValidId
+				? await peopleCountingLocationApi.updateZone(z.id, {
+						name: z.name,
+						locations: z.locations
+					})
+				: await peopleCountingLocationApi.createZone({
+						name: z.name,
+						locations: z.locations
+					});
+			// 確保返回的 zone 有 id
+			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as PeopleCountingZone & {
+				id: string;
+			};
+			return {
+				merged: result.merged,
+				message: result.message,
+				zone: zoneWithId
+			};
+		},
+		{
+			// 保存後重新載入工地列表（因為地點變更可能影響工地列表）
+			onAfterSave: async () => {
+				// 重新載入工地列表以反映地點變更
+				await loadSites();
+			}
+		}
+	);
+};
+
+// 處理刪除區域
+const handleDeleteZone = async (zoneId: string) => {
+	await baseHandleDeleteZone(zoneId, peopleCountingZones, peopleCountingLocationApi.deleteZone, {
+		// 系統特定的刪除選項
+		systemType: "people_counting",
+		getFullZoneApiCall: (id: string) => locationApi.getZone(id),
+		updateZoneApiCall: async (id: string, data: { locations: UnifiedZone["locations"] }) => {
+			const response = await locationApi.updateZone(id, { locations: data.locations });
+			const peopleCountingZone = backendToPeopleCountingZone(response.zone);
+			// 確保返回的 zone 有 id
+			return {
+				merged: response.merged,
+				message: response.message,
+				zone: { ...peopleCountingZone, id: peopleCountingZone.id || id } as PeopleCountingZone & {
+					id: string;
+				}
+			};
+		},
+		// 刪除後重新載入工地列表
+		onAfterDelete: async () => {
+			await loadSites();
+		}
+	});
+};
+
+// 載入區域列表
+const loadZonesFromAPI = async () => {
+	if (isLoadingZones.value) return;
+	isLoadingZones.value = true;
+	try {
+		const result = await peopleCountingLocationApi.getZones();
+		peopleCountingZones.value = result.zones || [];
+	} catch (error) {
+		handleError(error, "載入區域列表失敗");
+	} finally {
+		isLoadingZones.value = false;
+	}
+};
+
+// 處理打開地點管理對話框
+const handleOpenLocationDialog = async () => {
+	// 如果還沒有載入樓層數據，先載入
+	if (peopleCountingZones.value.length === 0) {
+		await loadZonesFromAPI();
+	}
+	// 打開對話框
+	showLocationManagementDialog.value = true;
+};
+
+// 監聽對話框打開狀態，載入樓層數據
+watch(
+	() => showLocationManagementDialog.value,
+	newValue => {
+		if (newValue && peopleCountingZones.value.length === 0) {
+			loadZonesFromAPI();
+		}
+	}
+);
+
 // 初始化
 onMounted(async () => {
 	// 初始化左側 ResizeObserver
@@ -340,4 +464,3 @@ onMounted(async () => {
 	opacity: 0;
 }
 </style>
-

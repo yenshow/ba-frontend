@@ -5,33 +5,33 @@
 		<h3 class="ms-[12px] text-center text-xl tracking-[12px] text-white lg:text-2xl xl:text-3xl">
 			狀態中心
 		</h3>
-		<!-- 樓層區塊 -->
-		<div v-for="floor in displayedFloors" :key="floor.id" class="space-y-3 xl:space-y-4">
-			<!-- 樓層標題 -->
+		<!-- 區域區塊 -->
+		<div v-for="zone in displayedZones" :key="zone.id" class="space-y-3 xl:space-y-4">
+			<!-- 區域標題 -->
 			<div class="flex items-center gap-3">
 				<button
 					type="button"
-					@click="handleFloorClick(floor.id || floor.name)"
+					@click="handleZoneClick(zone.id || zone.name)"
 					:class="[
 						'cursor-pointer rounded-full border-2 p-2 transition-all',
-						props.selectedFloor === (floor.id || floor.name)
+						props.selectedZone === (zone.id || zone.name)
 							? 'bg-white text-black/50'
 							: 'bg-transparent text-white'
 					]"
 				>
-					<h4 class="p-2 text-lg font-semibold tracking-wider xl:text-xl 2xl:text-2xl">
-						{{ floor.name }}
+					<h4 class="p-2 text-lg font-semibold tracking-wider xl:text-xl 2xl:text-2xl w-[48px]">
+						{{ zone.name }}
 					</h4>
 				</button>
 
-				<!-- 該樓層的區域（點位）- 兩列布局 -->
+				<!-- 該區域的地點（點位）- 兩列布局 -->
 				<div
-					v-if="getFloorAreas(floor).length > 0"
+					v-if="getZoneLocations(zone).length > 0"
 					class="grid grid-cols-2 gap-x-2 gap-y-4 xl:gap-y-5 2xl:gap-y-6"
 				>
 					<div
-						v-for="(area, areaIndex) in getFloorAreas(floor)"
-						:key="getAreaId(floor, area, areaIndex)"
+						v-for="(location, locationIndex) in getZoneLocations(zone)"
+						:key="getLocationId(zone, location, locationIndex)"
 						class="flex items-center rounded-xl border-2 border-white py-2 pe-2 xl:py-3 xl:pe-3 2xl:py-4 2xl:pe-4"
 					>
 						<!-- 左側圖示 -->
@@ -48,13 +48,13 @@
 						<!-- 右側內容區域 -->
 						<div class="flex flex-col gap-2">
 							<!-- 名稱 -->
-							<h4 class="whitespace-nowrap text-lg text-white xl:text-xl 2xl:text-2xl">{{ area.name }}</h4>
+							<h4 class="whitespace-nowrap text-lg text-white xl:text-xl 2xl:text-2xl ">{{ location.name }}</h4>
 							<div class="flex items-center gap-2">
 								<div class="space-y-2">
 									<!-- 運轉中標籤 -->
 									<div class="rounded border border-white bg-white/10 p-1">
 										<span class="whitespace-nowrap ps-2 text-sm tracking-[6px] text-white 2xl:text-base">
-											{{ getAreaStatus(getAreaId(floor, area, areaIndex)).isRunning ? "運轉中" : "已關閉" }}
+											{{ getLocationStatus(getLocationId(zone, location, locationIndex)).isRunning ? "運轉中" : "已關閉" }}
 										</span>
 									</div>
 
@@ -65,11 +65,11 @@
 										<div
 											:class="[
 												'h-5 w-5 rounded-full border border-white',
-												isAreaNormal(getAreaId(floor, area, areaIndex)) ? 'bg-green-300' : 'bg-red-500'
+												isLocationNormal(getLocationId(zone, location, locationIndex)) ? 'bg-green-300' : 'bg-red-500'
 											]"
 										></div>
 										<span class="text-sm text-white 2xl:text-base">{{
-											getAreaStatus(getAreaId(floor, area, areaIndex)).healthLabel
+											getLocationStatus(getLocationId(zone, location, locationIndex)).healthLabel
 										}}</span>
 									</div>
 								</div>
@@ -77,7 +77,7 @@
 								<div class="relative flex justify-center">
 									<!-- Loading 指示器（當正在處理切換時顯示） -->
 									<div
-										v-if="props.areaToggling.has(getAreaId(floor, area, areaIndex))"
+										v-if="props.areaToggling.has(getLocationId(zone, location, locationIndex))"
 										class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"
 									>
 										<div
@@ -87,26 +87,26 @@
 									<label
 										class="relative inline-flex items-center"
 										:class="{
-											'cursor-not-allowed': isAreaDisabled(getAreaId(floor, area, areaIndex)),
-											'cursor-pointer': !isAreaDisabled(getAreaId(floor, area, areaIndex))
+											'cursor-not-allowed': isLocationDisabled(getLocationId(zone, location, locationIndex)),
+											'cursor-pointer': !isLocationDisabled(getLocationId(zone, location, locationIndex))
 										}"
 									>
 										<input
 											type="checkbox"
-											:checked="getAreaStatus(getAreaId(floor, area, areaIndex)).isRunning"
+											:checked="getLocationStatus(getLocationId(zone, location, locationIndex)).isRunning"
 											class="peer sr-only"
-											:disabled="isAreaDisabled(getAreaId(floor, area, areaIndex))"
+											:disabled="isLocationDisabled(getLocationId(zone, location, locationIndex))"
 											@change="
 												handleToggle(
-													getAreaId(floor, area, areaIndex),
-													getAreaStatus(getAreaId(floor, area, areaIndex)).isRunning
+													getLocationId(zone, location, locationIndex),
+													getLocationStatus(getLocationId(zone, location, locationIndex)).isRunning
 												)
 											"
 										/>
 										<div
 											:class="[
 												'peer h-16 w-8 rounded-full border-2 border-white bg-transparent after:absolute after:bottom-0 after:left-0 after:h-8 after:w-8 after:rounded-full after:bg-white after:transition-all after:content-[\'\'] peer-checked:bg-[#00d1ff] peer-checked:after:-translate-y-full peer-focus:outline-none 2xl:h-20 2xl:w-10 2xl:after:h-10 2xl:after:w-10',
-												isAreaDisabled(getAreaId(floor, area, areaIndex)) ? 'opacity-50' : ''
+												isLocationDisabled(getLocationId(zone, location, locationIndex)) ? 'opacity-50' : ''
 											]"
 										>
 											<!-- ON 文字 -->
@@ -135,27 +135,27 @@
 </template>
 
 <script setup lang="ts">
-import type { LightingFloor, LightingArea } from "~/types/lighting";
+import type { LightingZone, LightingLocation } from "~/types/lighting";
 
 interface Props {
-	floors: LightingFloor[];
+	zones: LightingZone[];
 	areaStatuses?: Record<string, { isRunning: boolean; status: "normal" | "warning" | "error" }>;
 	areaDisabledMap?: Record<string, boolean>;
 	areaToggling?: Set<string>; // 正在處理切換操作的區域
-	selectedFloor?: string;
+	selectedZone?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-	floors: () => [],
+	zones: () => [],
 	areaStatuses: () => ({}),
 	areaDisabledMap: () => ({}),
 	areaToggling: () => new Set(),
-	selectedFloor: ""
+	selectedZone: ""
 });
 
 const emit = defineEmits<{
 	toggle: [areaId: string, isRunning: boolean];
-	"floor-selected": [floorId: string];
+	"zone-selected": [zoneId: string];
 }>();
 
 const statusLabels: Record<"normal" | "warning" | "error", string> = {
@@ -164,32 +164,32 @@ const statusLabels: Record<"normal" | "warning" | "error", string> = {
 	error: "異常"
 };
 
-// 生成區域 ID（與 lighting.vue 中的邏輯一致）
-const getAreaId = (floor: LightingFloor, area: LightingArea, areaIndex: number): string => {
-	return area.id || `area-${floor.id || floor.name}-${areaIndex}`;
+// 生成地點 ID（與 lighting.vue 中的邏輯一致）
+const getLocationId = (zone: LightingZone, location: LightingLocation, locationIndex: number): string => {
+	return location.id || `location-${zone.id || zone.name}-${locationIndex}`;
 };
 
-// 獲取指定樓層的區域
-const getFloorAreas = (floor: LightingFloor): LightingArea[] => {
-	return floor.areas || [];
+// 獲取指定區域的地點
+const getZoneLocations = (zone: LightingZone): LightingLocation[] => {
+	return zone.locations || [];
 };
 
-// 顯示的樓層（只顯示有區域的樓層）
-const displayedFloors = computed(() => {
-	if (!props.floors || !Array.isArray(props.floors)) {
+// 顯示的區域（只顯示有地點的區域）
+const displayedZones = computed(() => {
+	if (!props.zones || !Array.isArray(props.zones)) {
 		return [];
 	}
 
-	// 過濾出有區域的樓層
-	const floorsWithAreas = props.floors.filter(floor => {
-		return getFloorAreas(floor).length > 0;
+	// 過濾出有地點的區域
+	const zonesWithLocations = props.zones.filter(zone => {
+		return getZoneLocations(zone).length > 0;
 	});
 
-	// 如果沒有有區域的樓層，返回所有樓層（用於顯示空狀態）
-	const floorsToShow = floorsWithAreas.length > 0 ? floorsWithAreas : props.floors;
+	// 如果沒有有地點的區域，返回所有區域（用於顯示空狀態）
+	const zonesToShow = zonesWithLocations.length > 0 ? zonesWithLocations : props.zones;
 
-	// 排序：1F 在前面，2F 在後面（按樓層名稱的自然排序）
-	return floorsToShow.sort((a, b) => {
+	// 排序：1F 在前面，2F 在後面（按區域名稱的自然排序）
+	return zonesToShow.sort((a, b) => {
 		const nameA = a.name || "";
 		const nameB = b.name || "";
 		// 提取數字部分進行比較（例如 "1F" -> 1, "2F" -> 2）
@@ -199,9 +199,9 @@ const displayedFloors = computed(() => {
 	});
 });
 
-// 取得區域狀態
-const getAreaStatus = (areaId: string) => {
-	const status = props.areaStatuses[areaId];
+// 取得地點狀態
+const getLocationStatus = (locationId: string) => {
+	const status = props.areaStatuses[locationId];
 	if (status) {
 		return {
 			isRunning: status.isRunning,
@@ -216,21 +216,21 @@ const getAreaStatus = (areaId: string) => {
 	};
 };
 
-// 判斷區域是否正常
-const isAreaNormal = (areaId: string): boolean => {
-	const status = props.areaStatuses[areaId];
+// 判斷地點是否正常
+const isLocationNormal = (locationId: string): boolean => {
+	const status = props.areaStatuses[locationId];
 	return !status || status.status === "normal";
 };
 
-const isAreaDisabled = (areaId: string): boolean => {
-	return props.areaDisabledMap[areaId] ?? false;
+const isLocationDisabled = (locationId: string): boolean => {
+	return props.areaDisabledMap[locationId] ?? false;
 };
 
 const handleToggle = (areaId: string, isRunning: boolean) => {
 	emit("toggle", areaId, !isRunning);
 };
 
-const handleFloorClick = (floorId: string) => {
-	emit("floor-selected", floorId);
+const handleZoneClick = (zoneId: string) => {
+	emit("zone-selected", zoneId);
 };
 </script>

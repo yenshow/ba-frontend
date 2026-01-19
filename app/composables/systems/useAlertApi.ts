@@ -2,8 +2,7 @@ import type {
 	Alert,
 	AlertListResponse,
 	AlertFilters,
-	UnresolvedAlertCountResponse,
-	AlertHistoryItem
+	UnresolvedAlertCountResponse
 } from "~/types/alert";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPathWithQuery } from "~/utils/apiUtils";
@@ -24,13 +23,6 @@ export const useAlertApi = () => {
 	 */
 	const getAlertById = async (id: number): Promise<{ alert: Alert }> => {
 		return await request<{ alert: Alert }>(`/alerts/${id}`);
-	};
-
-	/**
-	 * 取得警報歷史記錄
-	 */
-	const getAlertHistory = async (id: number): Promise<{ history: AlertHistoryItem[] }> => {
-		return await request<{ history: AlertHistoryItem[] }>(`/alerts/${id}/history`);
 	};
 
 	/**
@@ -87,7 +79,6 @@ export const useAlertApi = () => {
 	return {
 		getAlerts,
 		getAlertById,
-		getAlertHistory,
 		unresolveAlert,
 		ignoreAlert,
 		unignoreAlert,

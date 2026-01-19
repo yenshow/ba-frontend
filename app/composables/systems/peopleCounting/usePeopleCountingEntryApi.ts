@@ -54,7 +54,7 @@ export const usePeopleCountingEntryApi = () => {
 			// 轉換為前端格式
 			return response.logs.map(log => ({
 				id: log.id,
-				siteId,
+					siteId,
 				unitId: log.unitId || 0,
 				personnelId: log.personId !== -1 ? log.personId : undefined,
 				personId: log.personId !== -1 ? log.personId : undefined,

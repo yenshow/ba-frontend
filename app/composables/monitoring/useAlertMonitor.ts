@@ -96,9 +96,9 @@ export const useAlertMonitor = () => {
 		let locationInfo = "";
 		if (alert.source_name) {
 			locationInfo = alert.source_name;
-			// 如果有樓層資訊，添加到位置資訊中
-			if (alert.floor_name) {
-				locationInfo = `${alert.floor_name} - ${locationInfo}`;
+			// 如果有區域資訊，添加到位置資訊中
+			if (alert.zone_name) {
+				locationInfo = `${alert.zone_name} - ${locationInfo}`;
 			}
 		} else if (alert.device_name) {
 			locationInfo = alert.device_name;

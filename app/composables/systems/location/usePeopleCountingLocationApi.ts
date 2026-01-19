@@ -1,12 +1,12 @@
-import type { PeopleCountingFloor, PeopleCountingLocation } from "~/types/peopleCounting";
-import type { UnifiedFloor, UnifiedLocation } from "~/types/location";
-import { useLocationApi } from "~/composables/systems/useLocationApi";
+import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting";
+import type { UnifiedZone, UnifiedLocation } from "~/types/location";
+import { useLocationApi } from "~/composables/systems/location/useLocationApi";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPathWithQuery } from "~/utils/apiUtils";
 import { logger } from "~/utils/logger";
 import {
-	backendToPeopleCountingFloor,
-	peopleCountingToUnifiedFloor,
+	backendToPeopleCountingZone,
+	peopleCountingToUnifiedZone,
 	peopleCountingLocationToUnified
 } from "~/utils/locationAdapter";
 
@@ -15,12 +15,12 @@ const peopleCountingLogger = logger.createLogger("PeopleCounting");
 // 工地名稱快取（siteId -> siteName）
 const siteNameCache = new Map<number, string | null>();
 
-export interface CreatePeopleCountingFloorData {
+export interface CreatePeopleCountingZoneData {
 	name: string;
 	locations?: Omit<PeopleCountingLocation, "id">[];
 }
 
-export interface UpdatePeopleCountingFloorData {
+export interface UpdatePeopleCountingZoneData {
 	name?: string;
 	locations?: (PeopleCountingLocation | Omit<PeopleCountingLocation, "id">)[];
 }
@@ -37,46 +37,46 @@ export const usePeopleCountingLocationApi = () => {
 	const { request } = useApiBase();
 
 	return {
-		// ========== 樓層管理 API ==========
-		// 注意：地點（locations）統一通過樓層的 locations 來管理
+		// ========== 區域管理 API ==========
+		// 注意：地點（locations）統一通過區域的 locations 來管理
 		// 所有操作都通過統一地點管理 API 進行
 
-		// 取得樓層列表
-		getFloors: async () => {
-			const response = await locationApi.getFloors("people_counting");
+		// 取得區域列表
+		getZones: async () => {
+			const response = await locationApi.getZones("people_counting");
 			return {
-				floors: response.floors.map(floor => backendToPeopleCountingFloor(floor))
+				zones: response.zones.map(zone => backendToPeopleCountingZone(zone))
 			};
 		},
 
-		// 取得單一樓層
-		getFloor: async (id: string) => {
-			const response = await locationApi.getFloor(id, "people_counting");
+		// 取得單一區域
+		getZone: async (id: string) => {
+			const response = await locationApi.getZone(id, "people_counting");
 			return {
-				floor: backendToPeopleCountingFloor(response.floor)
+				zone: backendToPeopleCountingZone(response.zone)
 			};
 		},
 
-		// 建立樓層
-		createFloor: async (data: CreatePeopleCountingFloorData) => {
-			const unifiedData = peopleCountingToUnifiedFloor(
+		// 建立區域
+		createZone: async (data: CreatePeopleCountingZoneData) => {
+			const unifiedData = peopleCountingToUnifiedZone(
 				{ name: data.name, locations: data.locations || [] },
 				"people_counting"
 			);
-			const response = await locationApi.createFloor(unifiedData);
+			const response = await locationApi.createZone(unifiedData);
 			return {
 				merged: response.merged,
 				message: response.message,
-				floor: backendToPeopleCountingFloor(response.floor)
+				zone: backendToPeopleCountingZone(response.zone)
 			};
 		},
 
-		// 更新樓層
-		updateFloor: async (id: string, data: UpdatePeopleCountingFloorData) => {
+		// 更新區域
+		updateZone: async (id: string, data: UpdatePeopleCountingZoneData) => {
 			// 直接構建統一格式資料（後端支援部分更新）
 			const unifiedData: {
 				name?: string;
-				locations?: (UnifiedLocation | Omit<UnifiedLocation, "id" | "floorId">)[];
+				locations?: (UnifiedLocation | Omit<UnifiedLocation, "id" | "zoneId">)[];
 			} = {};
 			
 			if (data.name !== undefined) {
@@ -85,32 +85,31 @@ export const usePeopleCountingLocationApi = () => {
 			
 			if (data.locations !== undefined) {
 				// 將人流統計地點轉換為統一格式
-				// 轉換函數返回 Omit<UnifiedLocation, "floorId">，符合 updateFloor 的類型要求
 				unifiedData.locations = data.locations.map((loc) => {
 					const converted = peopleCountingLocationToUnified(loc, "people_counting");
-					// 如果有 id，保留它；如果沒有，則符合 Omit<UnifiedLocation, "id" | "floorId">
-					return converted as UnifiedLocation | Omit<UnifiedLocation, "id" | "floorId">;
+					// 如果有 id，保留它；如果沒有，則符合 Omit<UnifiedLocation, "id" | "zoneId">
+					return converted as UnifiedLocation | Omit<UnifiedLocation, "id" | "zoneId">;
 				});
 			}
 
-			const response = await locationApi.updateFloor(id, unifiedData);
+			const response = await locationApi.updateZone(id, unifiedData);
 			return {
 				merged: response.merged,
 				message: response.message,
-				floor: backendToPeopleCountingFloor(response.floor)
+				zone: backendToPeopleCountingZone(response.zone)
 			};
 		},
 
-		// 刪除樓層
-		deleteFloor: locationApi.deleteFloor,
+		// 刪除區域
+		deleteZone: locationApi.deleteZone,
 
 		// ========== 地點管理 API（獨立 API，用於直接管理地點）==========
 		// 注意：這些 API 使用 /api/people-counting/locations，不是統一 API
 
 		// 取得地點列表（直接調用 /api/people-counting/locations）
-		getLocations: async (floorId?: string) => {
+		getLocations: async (zoneId?: string) => {
 			const params: Record<string, unknown> = {};
-			if (floorId) params.floorId = floorId;
+			if (zoneId) params.zoneId = zoneId;
 
 			const path = buildPathWithQuery("/people-counting/locations", params);
 			const response = await request<{ locations: PeopleCountingLocation[] }>(path);
@@ -128,7 +127,7 @@ export const usePeopleCountingLocationApi = () => {
 		// 建立地點
 		createLocation: async (data: {
 			name: string;
-			floorId: string;
+			zoneId: string;
 			personGroupIds: number[];
 			entryDoorId: number;
 			exitDoorId: number;
@@ -185,13 +184,13 @@ export const usePeopleCountingLocationApi = () => {
 			}
 
 			try {
-				// 取得所有樓層和地點（只查詢一次，後續使用快取）
-				const floorsResponse = await locationApi.getFloors("people_counting");
-				const floors = floorsResponse.floors.map(floor => backendToPeopleCountingFloor(floor));
+				// 取得所有區域和地點（只查詢一次，後續使用快取）
+				const zonesResponse = await locationApi.getZones("people_counting");
+				const zones = zonesResponse.zones.map(zone => backendToPeopleCountingZone(zone));
 
 				// 建立完整的快取映射（一次查詢，多次使用）
-				for (const floor of floors) {
-					for (const location of floor.locations || []) {
+				for (const zone of zones) {
+					for (const location of zone.locations || []) {
 						// 檢查地點的 personGroupIds 是否包含 siteId
 						if (location.personGroupIds?.includes(siteId)) {
 							siteNameCache.set(siteId, location.name);

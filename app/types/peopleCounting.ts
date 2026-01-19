@@ -13,9 +13,9 @@ export interface PeopleCountingLocation {
 
 /**
  * 人流統計樓層
- * 參考 EnvironmentFloor，用於地點管理系統
+ * 參考 EnvironmentZone，用於地點管理系統
  */
-export interface PeopleCountingFloor {
+export interface PeopleCountingZone {
 	id?: string;
 	name: string; // 樓層名稱（如：1F、2F）
 	locations: PeopleCountingLocation[]; // 地點列表（工地列表）

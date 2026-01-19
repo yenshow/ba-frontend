@@ -9,10 +9,10 @@
 /**
  * 從樓層名稱提取區域資訊
  */
-export const extractRegionFromFloorName = (floorName: string): string | null => {
+export const extractRegionFromZoneName = (zoneName: string): string | null => {
 	const regionKeywords = ["北部", "中部", "南部", "東部"];
 	for (const keyword of regionKeywords) {
-		if (floorName.includes(keyword)) {
+		if (zoneName.includes(keyword)) {
 			return keyword;
 		}
 	}

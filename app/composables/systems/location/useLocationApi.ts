@@ -1,4 +1,4 @@
-import type { UnifiedFloor, UnifiedLocation, SystemType, LocationSystem } from "~/types/location";
+import type { UnifiedZone, UnifiedLocation, SystemType, LocationSystem } from "~/types/location";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPathWithQuery } from "~/utils/apiUtils";
 
@@ -21,57 +21,57 @@ export const useLocationApi = () => {
 
 	return {
 		/**
-		 * 取得樓層列表
+		 * 取得區域列表
 		 * @param systemType 可選：篩選特定系統類型的地點
 		 */
-		getFloors: (systemType?: SystemType) => {
+		getZones: (systemType?: SystemType) => {
 			const params = buildSystemTypeParams(systemType);
-			const path = buildPathWithQuery("/locations/floors", params);
-			return request<{ floors: UnifiedFloor[] }>(path);
+			const path = buildPathWithQuery("/locations/zones", params);
+			return request<{ zones: UnifiedZone[] }>(path);
 		},
 
 		/**
-		 * 取得單一樓層
+		 * 取得單一區域
 		 */
-		getFloor: (id: string, systemType?: SystemType) => {
+		getZone: (id: string, systemType?: SystemType) => {
 			const params = buildSystemTypeParams(systemType);
-			const path = buildPathWithQuery(`/locations/floors/${id}`, params);
-			return request<{ floor: UnifiedFloor }>(path);
+			const path = buildPathWithQuery(`/locations/zones/${id}`, params);
+			return request<{ zone: UnifiedZone }>(path);
 		},
 
 		/**
-		 * 建立樓層
+		 * 建立區域
 		 */
-		createFloor: (data: {
+		createZone: (data: {
 			name: string;
 			buildingId?: number;
-			floorNumber?: number;
+			zoneNumber?: number;
 			imageUrl?: string;
 			description?: string;
-			locations?: Omit<UnifiedLocation, "id" | "floorId">[];
+			locations?: Omit<UnifiedLocation, "id" | "zoneId">[];
 		}) => {
-			return request<{ merged: boolean; message: string; floor: UnifiedFloor }>("/locations/floors", {
+			return request<{ merged: boolean; message: string; zone: UnifiedZone }>("/locations/zones", {
 				method: "POST",
 				body: JSON.stringify(data)
 			});
 		},
 
 		/**
-		 * 更新樓層
+		 * 更新區域
 		 */
-		updateFloor: (
+		updateZone: (
 			id: string,
 			data: {
 				name?: string;
 				buildingId?: number;
-				floorNumber?: number;
+				zoneNumber?: number;
 				imageUrl?: string;
 				description?: string;
-				locations?: (UnifiedLocation | Omit<UnifiedLocation, "id" | "floorId">)[];
+				locations?: (UnifiedLocation | Omit<UnifiedLocation, "id" | "zoneId">)[];
 			}
 		) => {
-			return request<{ merged: boolean; message: string; floor: UnifiedFloor }>(
-				`/locations/floors/${id}`,
+			return request<{ merged: boolean; message: string; zone: UnifiedZone }>(
+				`/locations/zones/${id}`,
 				{
 					method: "PUT",
 					body: JSON.stringify(data)
@@ -80,10 +80,10 @@ export const useLocationApi = () => {
 		},
 
 		/**
-		 * 刪除樓層
+		 * 刪除區域
 		 */
-		deleteFloor: (id: string) => {
-			return request<{ message: string }>(`/locations/floors/${id}`, {
+		deleteZone: (id: string) => {
+			return request<{ message: string }>(`/locations/zones/${id}`, {
 				method: "DELETE"
 			});
 		},
@@ -99,7 +99,7 @@ export const useLocationApi = () => {
 		 * 建立地點（含系統）
 		 */
 		createLocation: (data: {
-			floorId: string;
+			zoneId: string;
 			name: string;
 			description?: string;
 			systems?: Omit<LocationSystem, "id">[];

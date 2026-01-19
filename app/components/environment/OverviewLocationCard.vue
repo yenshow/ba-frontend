@@ -4,13 +4,13 @@
 		@click="handleClick"
 	>
 		<div
-			class="my-4 flex items-center justify-center bg-white px-2 text-xl 2xl:text-xl"
+			class="my-4 flex items-center justify-center bg-white px-2 text-xl 2xl:text-xl w-[36px]"
 			style="clip-path: polygon(0 0, 100% calc(0% + 24px), 100% calc(100% - 24px), 0 100%)"
 		>
-			{{ floor }}
+			{{ zone }}
 		</div>
 		<div class="flex flex-col items-center">
-			<!-- 頂部：標題和樓層 -->
+			<!-- 頂部：標題和區域 -->
 			<div class="mb-2 flex w-[160px] items-center justify-center border-b border-white/80 pb-px">
 				<h3 class="text-base text-white 2xl:text-lg">{{ name }}</h3>
 			</div>
@@ -85,7 +85,7 @@ interface Param {
 
 interface Props {
 	name: string;
-	floor: string;
+	zone: string;
 	aqi?: number | null;
 	noise?: number | null;
 	params?: Param[];

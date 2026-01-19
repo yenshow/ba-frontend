@@ -7,7 +7,14 @@ export interface SystemModule {
 	name: string;
 	icon: string;
 	route: string;
-	category: "core" | "construction-monitoring" | "infrastructure" | "security" | "visualization" | "maintenance" | "business" | "multimedia";
+	category:
+		| "core"
+		| "construction-monitoring"
+		| "infrastructure"
+		| "security"
+		| "maintenance"
+		| "business"
+		| "multimedia";
 	description?: string;
 	enabled?: boolean;
 }
@@ -20,7 +27,7 @@ export interface SystemPageConfig {
 	showStatusCenter?: boolean;
 }
 
-export interface Floor {
+export interface Zone {
 	id: string;
 	name: string;
 	level: number;
@@ -29,7 +36,7 @@ export interface Floor {
 export interface Room {
 	id: string;
 	name: string;
-	floorId: string;
+	zoneId: string;
 	area: string;
 	type: "indoor" | "outdoor";
 	location?: {
@@ -41,7 +48,7 @@ export interface Room {
 export interface RoomCategory {
 	id: string;
 	name: string; // 分類名稱，如"健身房"、"管委會"
-	floorId: string;
+	zoneId: string;
 	location: {
 		x: number;
 		y: number;

@@ -8,8 +8,33 @@
 				<div
 					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-5xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:max-w-6xl 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
 				>
-					<header class="flex items-center justify-between pr-7 2xl:pr-8">
-						<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">地點管理</h3>
+				<header class="flex items-center justify-between pr-7 2xl:pr-8">
+					<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">地點管理</h3>
+					<div class="flex items-center gap-3">
+						<!-- 變更提示 -->
+						<FormChangeIndicator
+							v-if="hasUnsavedChanges"
+							:has-changes="hasUnsavedChanges"
+							:changed-fields="changedFieldsList"
+							:message="changeSummary"
+						/>
+						<!-- ✅ 新增刪除按鈕 -->
+						<button
+							v-if="zone && zone.id"
+							type="button"
+							class="p-2 text-rose-400 transition-colors hover:text-rose-300"
+							@click="handleDeleteZone"
+							title="刪除區域"
+						>
+							<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+								/>
+							</svg>
+						</button>
 						<button
 							type="button"
 							class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
@@ -18,56 +43,53 @@
 						>
 							&times;
 						</button>
-					</header>
+					</div>
+				</header>
 
 					<div class="flex-1 overflow-y-auto pr-7 2xl:pr-8">
 						<div class="min-h-[200px]">
 							<Transition name="fade" mode="out-in">
-								<div v-if="floor && pendingFloor" :key="`floor-${floor.id}`">
+								<div v-if="zone && pendingZone" :key="`zone-${zone.id}`">
 									<div class="space-y-3">
 										<!-- 樓層基本資訊 -->
 										<div class="overflow-hidden rounded-lg border border-white/20 bg-white/10 p-4">
 											<div class="flex items-center gap-3 border-b border-white/10 pb-3">
 												<span class="text-base font-medium 2xl:text-lg">樓層名稱</span>
 												<input
-													:value="pendingFloor.name"
+													:value="pendingZone.name"
 													type="text"
 													required
 													class="form-input-small flex-1"
 													placeholder="例如：1F、2F"
-													@input="updateFloorName(($event.target as HTMLInputElement).value)"
+													@input="updateZoneName(($event.target as HTMLInputElement).value)"
 												/>
 												<input
-													:ref="
-														el => {
-															if (el) fileInputRef = el as HTMLInputElement;
-														}
-													"
+													ref="fileInputRef"
 													type="file"
 													accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
 													class="hidden"
-													@change="handleFloorImageChange"
+													@change="handleZoneImageChange"
 												/>
 												<button
-													v-if="pendingFloor.imageUrl"
+													v-if="pendingZone.imageUrl"
 													type="button"
 													class="btn-secondary text-sm 2xl:text-base"
-													@click.stop="viewFloorImage(pendingFloor.imageUrl)"
+													@click.stop="viewZoneImage(pendingZone.imageUrl)"
 												>
 													查看示意圖
 												</button>
 												<button
 													type="button"
 													class="btn-secondary text-sm 2xl:text-base"
-													@click.stop="triggerFloorImageInput"
+													@click.stop="triggerZoneImageInput"
 												>
-													{{ pendingFloor.imageUrl ? "更換" : "上傳" }}示意圖
+													{{ pendingZone.imageUrl ? "更換" : "上傳" }}示意圖
 												</button>
 												<button
-													v-if="pendingFloor.imageUrl"
+													v-if="pendingZone.imageUrl"
 													type="button"
 													class="p-2 text-rose-400 transition-colors hover:text-rose-300"
-													@click.stop="removeFloorImage"
+													@click.stop="removeZoneImage"
 													title="移除圖片"
 												>
 													<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -97,14 +119,14 @@
 
 											<!-- 地點項目 -->
 											<div
-												v-if="!pendingFloor.locations || pendingFloor.locations.length === 0"
+												v-if="!pendingZone.locations || pendingZone.locations.length === 0"
 												class="py-4 text-center text-sm text-white/60 2xl:text-base"
 											>
 												尚無地點，請新增地點
 											</div>
 											<div v-else class="space-y-2">
 												<div
-													v-for="(location, locationIndex) in pendingFloor.locations"
+													v-for="(location, locationIndex) in pendingZone.locations"
 													:key="location.id || `location-${locationIndex}`"
 													class="flex min-w-0 items-end gap-2 rounded border border-white/10 bg-white/5 p-2"
 												>
@@ -179,19 +201,39 @@
 			</div>
 		</Transition>
 	</Teleport>
+
+	<!-- 確認對話框 -->
+	<ConfirmDialog
+		v-model="showConfirmDialog"
+		:title="confirmDialogConfig.title"
+		:message="confirmDialogConfig.message"
+		:details="confirmDialogConfig.details"
+		:type="confirmDialogConfig.type"
+		@confirm="
+			confirmAction === 'delete'
+				? handleConfirmDelete()
+				: confirmAction === 'deleteLocation'
+					? handleConfirmDeleteLocation()
+					: handleConfirmClose()
+		"
+	/>
 </template>
 
 <script setup lang="ts">
-import type { UnifiedFloor, UnifiedLocation } from "~/types/location";
+import type { UnifiedZone, UnifiedLocation } from "~/types/location";
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
+import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
+import { useConfirmDialog } from "~/composables/useConfirmDialog";
 
 interface Props {
 	modelValue: boolean;
-	floor: UnifiedFloor | null;
+	zone: UnifiedZone | null;
 }
 
 interface Emits {
 	(e: "update:modelValue", value: boolean): void;
-	(e: "save", floor: UnifiedFloor): void;
+	(e: "save", zone: UnifiedZone): void;
+	(e: "delete", zoneId: string): void; // ✅ 新增刪除事件
 }
 
 const props = defineProps<Props>();
@@ -199,25 +241,65 @@ const emit = defineEmits<Emits>();
 
 const errorMessage = ref("");
 const fileInputRef = ref<HTMLInputElement | null>(null);
-const pendingFloor = ref<UnifiedFloor | null>(null);
+const pendingZone = ref<UnifiedZone | null>(null);
 
 // 檢查是否有未保存的變更
 const hasUnsavedChanges = computed(() => {
-	if (!pendingFloor.value || !props.floor) return false;
+	if (!pendingZone.value || !props.zone) return false;
 	// 比較關鍵欄位
 	return (
-		pendingFloor.value.name !== props.floor.name ||
-		pendingFloor.value.imageUrl !== props.floor.imageUrl ||
-		JSON.stringify(pendingFloor.value.locations) !== JSON.stringify(props.floor.locations)
+		pendingZone.value.name !== props.zone.name ||
+		pendingZone.value.imageUrl !== props.zone.imageUrl ||
+		JSON.stringify(pendingZone.value.locations) !== JSON.stringify(props.zone.locations)
 	);
 });
 
-// 監聽 floor 變化，初始化 pendingFloor
+// 計算變更的欄位列表
+const changedFieldsList = computed(() => {
+	if (!pendingZone.value || !props.zone) return [];
+	const fields: string[] = [];
+	
+	if (pendingZone.value.name !== props.zone.name) {
+		fields.push(`樓層名稱: ${props.zone.name} → ${pendingZone.value.name}`);
+	}
+	if (pendingZone.value.imageUrl !== props.zone.imageUrl) {
+		fields.push("區域示意圖");
+	}
+	if (JSON.stringify(pendingZone.value.locations) !== JSON.stringify(props.zone.locations)) {
+		fields.push("地點列表");
+	}
+	
+	return fields;
+});
+
+// 變更摘要訊息
+const changeSummary = computed(() => {
+	const count = changedFieldsList.value.length;
+	if (count === 0) return "";
+	return `有 ${count} 個欄位已修改`;
+});
+
+// 確認對話框
+const confirmDialog = useConfirmDialog();
+const confirmAction = ref<"close" | "delete" | "deleteLocation">("close");
+const pendingDeleteLocationIndex = ref<number | null>(null);
+
+// 解包 ref 以便在模板中使用
+const showConfirmDialog = computed({
+	get: () => confirmDialog.showDialog.value,
+	set: (value: boolean) => {
+		confirmDialog.showDialog.value = value;
+	}
+});
+
+const confirmDialogConfig = computed(() => confirmDialog.config.value);
+
+// 監聽 zone 變化，初始化 pendingZone
 watch(
-	() => props.floor,
-	newFloor => {
-		if (newFloor) {
-			pendingFloor.value = JSON.parse(JSON.stringify(newFloor));
+	() => props.zone,
+	newZone => {
+		if (newZone) {
+			pendingZone.value = JSON.parse(JSON.stringify(newZone));
 		}
 	},
 	{ immediate: true, deep: true }
@@ -225,37 +307,52 @@ watch(
 
 const handleClose = () => {
 	if (hasUnsavedChanges.value) {
-		if (!confirm("您有未保存的變更，確定要關閉嗎？未保存的變更將會遺失。")) {
-			return;
-		}
+		confirmAction.value = "close";
+		confirmDialog.show({
+			title: "確認關閉",
+			message: "您有未保存的變更，確定要關閉嗎？",
+			details: "未保存的變更將會遺失。",
+			type: "warning"
+		});
+		return;
 	}
+	closeDialog();
+};
+
+// 關閉對話框（清除狀態）
+const closeDialog = () => {
 	emit("update:modelValue", false);
 	errorMessage.value = "";
-	// 重置 pendingFloor
-	if (props.floor) {
-		pendingFloor.value = JSON.parse(JSON.stringify(props.floor));
+	// 重置 pendingZone
+	if (props.zone) {
+		pendingZone.value = JSON.parse(JSON.stringify(props.zone));
 	}
 };
 
-const updateFloorName = (newName: string) => {
-	if (!pendingFloor.value) return;
-	pendingFloor.value.name = newName.trim();
+// 確認關閉
+const handleConfirmClose = () => {
+	closeDialog();
 };
 
-const triggerFloorImageInput = () => {
+const updateZoneName = (newName: string) => {
+	if (!pendingZone.value) return;
+	pendingZone.value.name = newName.trim();
+};
+
+const triggerZoneImageInput = () => {
 	fileInputRef.value?.click();
 };
 
-const handleFloorImageChange = (event: Event) => {
+const handleZoneImageChange = (event: Event) => {
 	const target = event.target as HTMLInputElement;
-	if (!target.files?.[0] || !pendingFloor.value) return;
+	if (!target.files?.[0] || !pendingZone.value) return;
 
-	processFloorImageFile(target.files[0]);
+	processZoneImageFile(target.files[0]);
 	target.value = "";
 };
 
-const processFloorImageFile = (file: File) => {
-	if (!pendingFloor.value) return;
+const processZoneImageFile = (file: File) => {
+	if (!pendingZone.value) return;
 
 	const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"];
 	if (!validTypes.includes(file.type)) {
@@ -272,8 +369,8 @@ const processFloorImageFile = (file: File) => {
 	const reader = new FileReader();
 	reader.onload = e => {
 		const result = e.target?.result as string;
-		if (result && pendingFloor.value) {
-			pendingFloor.value.imageUrl = result;
+		if (result && pendingZone.value) {
+			pendingZone.value.imageUrl = result;
 			errorMessage.value = "";
 		}
 	};
@@ -283,12 +380,12 @@ const processFloorImageFile = (file: File) => {
 	reader.readAsDataURL(file);
 };
 
-const removeFloorImage = () => {
-	if (!pendingFloor.value) return;
-	pendingFloor.value.imageUrl = undefined;
+const removeZoneImage = () => {
+	if (!pendingZone.value) return;
+	pendingZone.value.imageUrl = undefined;
 };
 
-const viewFloorImage = (imageUrl: string) => {
+const viewZoneImage = (imageUrl: string) => {
 	if (!imageUrl) return;
 	const newWindow = window.open();
 	if (newWindow) {
@@ -296,7 +393,7 @@ const viewFloorImage = (imageUrl: string) => {
 			<!DOCTYPE html>
 			<html>
 				<head>
-					<title>樓層示意圖</title>
+					<title>區域示意圖</title>
 					<style>
 						body {
 							margin: 0;
@@ -315,7 +412,7 @@ const viewFloorImage = (imageUrl: string) => {
 					</style>
 				</head>
 				<body>
-					<img src="${imageUrl}" alt="樓層示意圖" />
+					<img src="${imageUrl}" alt="區域示意圖" />
 				</body>
 			</html>
 		`);
@@ -323,35 +420,71 @@ const viewFloorImage = (imageUrl: string) => {
 };
 
 const addLocation = () => {
-	if (!pendingFloor.value) return;
-	const newLocation: Omit<UnifiedLocation, "id" | "floorId"> = {
+	if (!pendingZone.value) return;
+	const newLocation: Omit<UnifiedLocation, "id" | "zoneId"> = {
 		name: "",
 		description: "",
 		systems: []
 	};
-	pendingFloor.value.locations = [...(pendingFloor.value.locations || []), newLocation as UnifiedLocation];
+	pendingZone.value.locations = [...(pendingZone.value.locations || []), newLocation as UnifiedLocation];
 };
 
 const removeLocation = (locationIndex: number) => {
-	if (!pendingFloor.value || !confirm("確定要刪除此地點嗎？")) return;
-	pendingFloor.value.locations = pendingFloor.value.locations.filter((_, index) => index !== locationIndex);
+	if (!pendingZone.value) return;
+	pendingDeleteLocationIndex.value = locationIndex;
+	confirmAction.value = "deleteLocation";
+	confirmDialog.show({
+		title: "確認刪除",
+		message: "確定要刪除此地點嗎？",
+		details: "此操作無法復原。",
+		type: "danger"
+	});
 };
 
+// 確認刪除地點
+const handleConfirmDeleteLocation = () => {
+	if (pendingZone.value && pendingDeleteLocationIndex.value !== null) {
+		pendingZone.value.locations = pendingZone.value.locations.filter(
+			(_, index) => index !== pendingDeleteLocationIndex.value
+		);
+		pendingDeleteLocationIndex.value = null;
+	}
+};
+
+// 刪除區域
+const handleDeleteZone = () => {
+	if (!props.zone || !props.zone.id) return;
+	
+	confirmAction.value = "delete";
+	confirmDialog.show({
+		title: "確認刪除",
+		message: "確定要刪除此區域嗎？",
+		details: "此操作將刪除該區域的所有地點資料，且無法復原。",
+		type: "danger"
+	});
+};
+
+// 確認刪除區域
+const handleConfirmDelete = () => {
+	if (props.zone && props.zone.id) {
+		emit("delete", props.zone.id);
+	}
+};
 
 const saveChanges = () => {
-	if (!pendingFloor.value || !hasUnsavedChanges.value) return;
+	if (!pendingZone.value || !hasUnsavedChanges.value) return;
 	// 過濾掉名稱為空的地點
-	const filteredFloor = {
-		...pendingFloor.value,
-		locations: (pendingFloor.value.locations || []).filter(
+	const filteredZone = {
+		...pendingZone.value,
+		locations: (pendingZone.value.locations || []).filter(
 			loc => loc.name && loc.name.trim().length > 0
 		)
 	};
-	emit("save", filteredFloor);
+	emit("save", filteredZone);
 	errorMessage.value = "";
-	// 更新 pendingFloor 以反映已保存的狀態
-	if (props.floor) {
-		pendingFloor.value = JSON.parse(JSON.stringify(filteredFloor));
+	// 更新 pendingZone 以反映已保存的狀態
+	if (props.zone) {
+		pendingZone.value = JSON.parse(JSON.stringify(filteredZone));
 	}
 };
 </script>

@@ -44,7 +44,7 @@ export const usePeopleCountingPersonnelApi = () => {
 					// 如果已經是 data:image 格式，直接使用；否則加上前綴
 					if (person.photoUrl.startsWith("data:image")) {
 						photoUrl = person.photoUrl;
-					} else {
+						} else {
 						photoUrl = `data:image/jpeg;base64,${person.photoUrl}`;
 					}
 				}

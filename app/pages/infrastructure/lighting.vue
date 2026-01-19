@@ -15,7 +15,7 @@
 								<span
 									class="inline-flex text-nowrap border-b-2 border-white/70 pb-1 text-2xl tracking-widest xl:text-3xl 2xl:text-5xl"
 								>
-									{{ selectedFloorName }}
+									{{ selectedZoneName }}
 								</span>
 							</div>
 							<!-- 樓層管理按鈕 -->
@@ -23,7 +23,7 @@
 								<button
 									v-if="!isInitialLoading"
 									type="button"
-									@click="handleOpenFloorDialog"
+									@click="handleOpenZoneDialog"
 									:class="[
 										'whitespace-nowrap rounded-2xl p-3 text-xs font-light text-white transition-all 2xl:text-lg',
 										'border-2 border-white/30 bg-transparent hover:bg-white/10'
@@ -50,18 +50,18 @@
 										{{ isEditMode ? "完成編輯" : "編輯定位" }}
 									</button>
 								</Transition>
-								<!-- 區域列表下拉選單 -->
+								<!-- 地點列表下拉選單 -->
 								<Transition name="dropdown">
 									<CategoryList
 										v-if="isEditMode"
 										:categories="
-											allFloorAreas.map((area, index) => ({
-												id: getAreaId(selectedFloorData || ({} as LightingFloor), area, index),
-												name: area.name,
-												floorId: selectedFloor || '',
-												location: area.location,
+											allZoneLocations.map((location, index) => ({
+												id: getLocationId(selectedZoneData || ({} as LightingZone), location, index),
+												name: location.name,
+												zoneId: selectedZone || '',
+												location: location.location,
 												roomIds: [],
-												modbus: area.modbus
+												modbus: location.modbus
 											}))
 										"
 										:editing="isEditMode"
@@ -75,62 +75,62 @@
 						</div>
 					</div>
 
-					<!-- 中央樓層平面圖 -->
+					<!-- 中央區域平面圖 -->
 					<div
-						ref="floorPlanRef"
+						ref="zonePlanRef"
 						class="relative h-[600px] w-full p-4 2xl:h-[780px]"
 						:class="{ 'cursor-crosshair': isEditMode && !draggingCategoryId }"
 						@drop="handleDrop"
 						@dragover.prevent
 					>
 						<NuxtImg
-							v-if="floorPlanImage"
-							:src="floorPlanImage"
-							alt="樓層平面圖"
+							v-if="zonePlanImage"
+							:src="zonePlanImage"
+							alt="區域平面圖"
 							class="image-blur-load pointer-events-none h-full w-full object-contain"
-							:class="{ 'image-loaded': isFloorPlanLoaded }"
+							:class="{ 'image-loaded': isZonePlanLoaded }"
 							width="auto"
 							height="full"
-							@load="isFloorPlanLoaded = true"
+							@load="isZonePlanLoaded = true"
 						/>
 						<div v-else class="flex h-full w-full items-center justify-center text-white/50">
-							<span>尚未設定樓層平面圖</span>
+							<span>尚未設定區域平面圖</span>
 						</div>
-						<!-- 區域點位（只顯示已定位的） -->
-						<template v-for="area in currentFloorAreas" :key="getAreaIdForDisplay(area)">
+						<!-- 地點點位（只顯示已定位的） -->
+						<template v-for="location in currentZoneLocations" :key="getLocationIdForDisplay(location)">
 							<div
-								v-if="selectedFloorData && area.location"
+								v-if="selectedZoneData && location.location"
 								class="category-dot-wrapper"
 								:class="{
-									'is-dragging': draggingCategoryId === getAreaIdForDisplay(area)
+									'is-dragging': draggingCategoryId === getLocationIdForDisplay(location)
 								}"
 								:style="{
-									left: `${area.location.x}%`,
-									top: `${area.location.y}%`
+									left: `${location.location.x}%`,
+									top: `${location.location.y}%`
 								}"
 								:draggable="isEditMode"
 								@dragstart="
-									handleDotDragStart($event, area, findAreaOriginalIndex(selectedFloorData, area))
+									handleDotDragStart($event, location, findLocationOriginalIndex(selectedZoneData, location))
 								"
 								@dragend="handleDragEnd"
 							>
 								<div
 									class="category-dot"
 									:class="[
-										{ 'is-active': selectedCategory === getAreaIdForDisplay(area) },
+										{ 'is-active': selectedCategory === getLocationIdForDisplay(location) },
 										{ 'is-editing': isEditMode }
 									]"
 									role="button"
 									tabindex="0"
-									:data-status="isAreaNormal(getAreaIdForDisplay(area)) ? 'normal' : 'abnormal'"
-									:title="`${area.name}：${isAreaNormal(getAreaIdForDisplay(area)) ? '正常' : '異常'}`"
-									:aria-label="`${area.name}：${isAreaNormal(getAreaIdForDisplay(area)) ? '正常' : '異常'}`"
-									@click.stop="!isEditMode && selectAreaByArea(area)"
+									:data-status="isLocationNormal(getLocationIdForDisplay(location)) ? 'normal' : 'abnormal'"
+									:title="`${location.name}：${isLocationNormal(getLocationIdForDisplay(location)) ? '正常' : '異常'}`"
+									:aria-label="`${location.name}：${isLocationNormal(getLocationIdForDisplay(location)) ? '正常' : '異常'}`"
+									@click.stop="!isEditMode && selectLocationByLocation(location)"
 								></div>
 								<CategoryTooltip
 									:show="true"
-									:category-name="area.name"
-									:is-normal="isAreaNormal(getAreaIdForDisplay(area))"
+									:category-name="location.name"
+									:is-normal="isLocationNormal(getLocationIdForDisplay(location))"
 								/>
 							</div>
 						</template>
@@ -144,22 +144,25 @@
 				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
 			>
 				<StatusCenter
-					:floors="lightingFloors"
-					:area-statuses="areaStatuses"
-					:area-disabled-map="areaDisabledMap"
-					:area-toggling="areaToggling"
-					:selected-floor="selectedFloor"
-					@toggle="handleAreaToggle"
-					@floor-selected="handleFloorSelected"
+					:zones="lightingZones"
+					:location-statuses="locationStatuses"
+					:location-disabled-map="locationDisabledMap"
+					:location-toggling="locationToggling"
+					:selected-zone="selectedZone"
+					@toggle="handleLocationToggle"
+					@zone-selected="handleZoneSelected"
 				/>
 			</aside>
 		</div>
 	</div>
-	<FloorManagementDialog
-		v-model="showFloorManagementDialog"
-		:floors="lightingFloors"
-		@save="handleSaveFloor"
-		@delete="handleDeleteFloor"
+	<ZoneManagementDialog
+		v-model="showZoneManagementDialog"
+		:zones="lightingZones"
+		system-type="lighting"
+		:require-image-url="true"
+		device-hint="請先在「設備管理」中建立控制器設備"
+		@save="handleSaveZone"
+		@delete="handleDeleteZone"
 	/>
 </template>
 
@@ -168,17 +171,20 @@ import { onMounted, onBeforeUnmount, watch, nextTick } from "vue";
 import StatusCenter from "~/components/lighting/StatusCenter.vue";
 import CategoryTooltip from "~/components/lighting/CategoryTooltip.vue";
 import CategoryList from "~/components/lighting/CategoryList.vue";
-import FloorManagementDialog from "~/components/lighting/FloorManagementDialog.vue";
-import type { CategoryModbusConfig, LightingFloor, LightingArea } from "~/types/lighting";
+import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
+import type { CategoryModbusConfig, LightingZone, LightingLocation } from "~/types/lighting";
 import { useLightingApi } from "~/composables/systems/useLightingApi";
+import { useLocationApi } from "~/composables/systems/location/useLocationApi";
 import { useDeviceApi } from "~/composables/systems/useDeviceApi";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { usePolling } from "~/composables/monitoring/usePolling";
-import { useFloorManagement } from "~/composables/systems/useFloorManagement";
+import { useZoneManagement } from "~/composables/systems/useZoneManagement";
 import type { Device, ControllerDeviceConfig } from "~/types/device";
 import type { ModbusDataResponse, ModbusDeviceConfig } from "~/types/modbus";
+import type { UnifiedZone } from "~/types/location";
+import { backendToLightingZone } from "~/utils/locationAdapter";
 
 definePageMeta({
 	layout: "default"
@@ -186,6 +192,7 @@ definePageMeta({
 });
 
 const lightingApi = useLightingApi();
+const locationApi = useLocationApi();
 
 // 左側區域參考與高度（用於使右側 StatusCenter 同高）
 const leftSectionRef = ref<HTMLElement | null>(null);
@@ -210,9 +217,13 @@ const initLeftSectionObserver = () => {
 	leftSectionResizeObserver.observe(leftSectionRef.value);
 };
 
-// 生成區域 ID（統一的 ID 生成邏輯）
-const getAreaId = (floor: LightingFloor, area: LightingArea, areaIndex: number): string => {
-	return area.id || `area-${floor.id || floor.name}-${areaIndex}`;
+// 生成地點 ID（統一的 ID 生成邏輯）
+const getLocationId = (
+	zone: LightingZone,
+	location: LightingLocation,
+	locationIndex: number
+): string => {
+	return location.id || `location-${zone.id || zone.name}-${locationIndex}`;
 };
 
 // Toast 通知（統一在頂層定義）
@@ -220,41 +231,41 @@ const toast = useToast();
 // 錯誤處理（統一在頂層定義）
 const { handleError } = useErrorHandler();
 
-// 樓層數據（從 API 載入）
-const lightingFloors = ref<LightingFloor[]>([]);
-const isLoadingFloors = ref(false);
+// 區域數據（從 API 載入）
+const lightingZones = ref<LightingZone[]>([]);
+const isLoadingZones = ref(false);
 const isInitialLoading = ref(true); // 追蹤初始載入狀態
 
-// 選中的樓層與分類
-const selectedFloor = ref<string>("");
+// 選中的區域與分類
+const selectedZone = ref<string>("");
 const selectedCategory = ref("");
 
 // 編輯模式相關
 const isEditMode = ref(false);
-const floorPlanRef = ref<HTMLElement | null>(null);
+const zonePlanRef = ref<HTMLElement | null>(null);
 const draggingCategoryId = ref<string>("");
-const isFloorPlanLoaded = ref(false);
-const showFloorManagementDialog = ref(false);
+const isZonePlanLoaded = ref(false);
+const showZoneManagementDialog = ref(false);
 
-// 創建 floorsById Map（避免重複查找）
-const floorsById = computed(() => {
-	return new Map(lightingFloors.value.map(floor => [floor.id || floor.name, floor]));
+// 創建 zonesById Map（避免重複查找）
+const zonesById = computed(() => {
+	return new Map(lightingZones.value.map(zone => [zone.id || zone.name, zone]));
 });
 
-// 選中的樓層名稱
-const selectedFloorName = computed(() => {
-	const floor = floorsById.value.get(selectedFloor.value);
-	return floor?.name || "";
+// 選中的區域名稱
+const selectedZoneName = computed(() => {
+	const zone = zonesById.value.get(selectedZone.value);
+	return zone?.name || "";
 });
 
-// 選中的樓層資料
-const selectedFloorData = computed(() => {
-	return floorsById.value.get(selectedFloor.value);
+// 選中的區域資料
+const selectedZoneData = computed(() => {
+	return zonesById.value.get(selectedZone.value);
 });
 
-// 樓層示意圖
-const floorPlanImage = computed(() => {
-	return selectedFloorData.value?.imageUrl;
+// 區域示意圖
+const zonePlanImage = computed(() => {
+	return selectedZoneData.value?.imageUrl;
 });
 
 // 檢查 location 是否有效
@@ -269,131 +280,134 @@ const isValidLocation = (location: { x: number; y: number } | undefined | null):
 	);
 };
 
-// 當前選中樓層的區域列表（過濾掉未定位的點位，只有定位的點位才會顯示在地圖上）
-const currentFloorAreas = computed(() => {
-	if (!selectedFloor.value) return [];
-	const floor = selectedFloorData.value;
-	return (floor?.areas || []).filter(area => isValidLocation(area.location));
+// 當前選中區域的地點列表（過濾掉未定位的點位，只有定位的點位才會顯示在地圖上）
+const currentZoneLocations = computed(() => {
+	if (!selectedZone.value) return [];
+	const zone = selectedZoneData.value;
+	return (zone?.locations || []).filter(location => isValidLocation(location.location));
 });
 
-// 所有區域列表（包含未定位的，用於 CategoryList）
-const allFloorAreas = computed(() => {
-	if (!selectedFloor.value) return [];
-	const floor = selectedFloorData.value;
-	return floor?.areas || [];
+// 所有地點列表（包含未定位的，用於 CategoryList）
+const allZoneLocations = computed(() => {
+	if (!selectedZone.value) return [];
+	const zone = selectedZoneData.value;
+	return zone?.locations || [];
 });
 
-// 判斷區域是否正常（基於 areaStatuses）
-const isAreaNormal = (areaId: string) => {
-	const status = areaStatuses.value[areaId];
+// 判斷地點是否正常（基於 locationStatuses）
+const isLocationNormal = (locationId: string) => {
+	const status = locationStatuses.value[locationId];
 	return !status || status.status === "normal";
 };
 
-// 計算區域禁用狀態 Map（用於 StatusCenter）
-const areaDisabledMap = computed(() => {
+// 計算地點禁用狀態 Map（用於 StatusCenter）
+const locationDisabledMap = computed(() => {
 	const map: Record<string, boolean> = {};
-	// 遍歷所有樓層的區域
-	lightingFloors.value.forEach(floor => {
-		floor.areas.forEach((area, areaIndex) => {
-			const areaId = getAreaId(floor, area, areaIndex);
-			const isToggling = areaToggling.value.has(areaId);
+	// 遍歷所有區域的地點
+	lightingZones.value.forEach(zone => {
+		zone.locations.forEach((location, locationIndex) => {
+			const locationId = getLocationId(zone, location, locationIndex);
+			const isToggling = locationToggling.value.has(locationId);
 
 			// 如果沒有 Modbus 配置，允許控制（用於範例資料）
-			if (!area.modbus) {
-				map[areaId] = isToggling;
+			if (!location.modbus) {
+				map[locationId] = isToggling;
 				return;
 			}
 
 			// 如果有 points 配置，檢查是否有 DO 類型的點位（只有 DO 可以控制）
-			if (area.modbus.points && area.modbus.points.length > 0) {
-				const hasDoPoints = filterDoPoints(area.modbus.points).length > 0;
-				map[areaId] = !hasDoPoints || isToggling;
+			if (location.modbus.points && location.modbus.points.length > 0) {
+				const hasDoPoints = filterDoPoints(location.modbus.points).length > 0;
+				map[locationId] = !hasDoPoints || isToggling;
 				return;
 			}
 
 			// 向後兼容：檢查舊格式
-			if (area.modbus.deviceId) {
+			if (location.modbus.deviceId) {
 				const hasDoAddresses = !(
-					!area.modbus.doAddresses &&
-					!area.modbus.doAddress &&
-					!area.modbus.address
+					!location.modbus.doAddresses &&
+					!location.modbus.doAddress &&
+					!location.modbus.address
 				);
-				map[areaId] = !hasDoAddresses || isToggling;
+				map[locationId] = !hasDoAddresses || isToggling;
 				return;
 			}
 
 			// 如果沒有設備配置，允許控制（可能是範例資料）
-			map[areaId] = isToggling;
+			map[locationId] = isToggling;
 		});
 	});
 	return map;
 });
 
-// 處理樓層選擇
-const handleFloorSelected = async (floorId: string) => {
-	selectedFloor.value = floorId;
+// 處理區域選擇
+const handleZoneSelected = async (zoneId: string) => {
+	selectedZone.value = zoneId;
 	selectedCategory.value = "";
 };
 
-// 選中區域
-const handleSelectCategory = (areaId: string) => {
-	selectedCategory.value = areaId;
+// 選中地點
+const handleSelectCategory = (locationId: string) => {
+	selectedCategory.value = locationId;
 };
 
-// 找到區域在原始樓層區域列表中的索引
-const findAreaOriginalIndex = (floor: LightingFloor, targetArea: LightingArea): number => {
-	return floor.areas.findIndex(area => {
-		if (area.id && targetArea.id) return area.id === targetArea.id;
-		return area === targetArea;
+// 找到地點在原始區域地點列表中的索引
+const findLocationOriginalIndex = (
+	zone: LightingZone,
+	targetLocation: LightingLocation
+): number => {
+	return zone.locations.findIndex(location => {
+		if (location.id && targetLocation.id) return location.id === targetLocation.id;
+		return location === targetLocation;
 	});
 };
 
-// 獲取區域的 ID（用於模板，避免重複計算）
-const getAreaIdForDisplay = (area: LightingArea): string => {
-	const floor = selectedFloorData.value;
-	if (!floor) return "";
-	const originalIndex = findAreaOriginalIndex(floor, area);
-	return originalIndex !== -1 ? getAreaId(floor, area, originalIndex) : "";
+// 獲取地點的 ID（用於模板，避免重複計算）
+const getLocationIdForDisplay = (location: LightingLocation): string => {
+	const zone = selectedZoneData.value;
+	if (!zone) return "";
+	const originalIndex = findLocationOriginalIndex(zone, location);
+	return originalIndex !== -1 ? getLocationId(zone, location, originalIndex) : "";
 };
 
-// 直接通過區域選中
-const selectAreaByArea = (area: LightingArea) => {
-	const floor = selectedFloorData.value;
-	if (floor && area) {
-		const originalIndex = findAreaOriginalIndex(floor, area);
+// 直接通過地點選中
+const selectLocationByLocation = (location: LightingLocation) => {
+	const zone = selectedZoneData.value;
+	if (zone && location) {
+		const originalIndex = findLocationOriginalIndex(zone, location);
 		if (originalIndex !== -1) {
-			selectedCategory.value = getAreaId(floor, area, originalIndex);
+			selectedCategory.value = getLocationId(zone, location, originalIndex);
 		}
 	}
 };
 
-// 區域狀態管理（每個區域對應一個開關狀態）
-const areaStatuses = ref<
+// 地點狀態管理（每個地點對應一個開關狀態）
+const locationStatuses = ref<
 	Record<string, { isRunning: boolean; status: "normal" | "warning" | "error" }>
 >({});
 
-// 追蹤正在進行切換操作的區域（避免重複點擊）
-const areaToggling = ref<Set<string>>(new Set());
+// 追蹤正在進行切換操作的地點（避免重複點擊）
+const locationToggling = ref<Set<string>>(new Set());
 
 // 防抖計時器（避免快速重複點擊）
 const toggleDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const TOGGLE_DEBOUNCE_DELAY = 300; // 300ms 防抖延遲
 
-// 確保區域狀態物件存在
-const ensureAreaStatus = (areaId: string, defaultStatus: "normal" | "error" = "normal") => {
-	if (!areaStatuses.value[areaId]) {
-		areaStatuses.value[areaId] = {
+// 確保地點狀態物件存在
+const ensureLocationStatus = (locationId: string, defaultStatus: "normal" | "error" = "normal") => {
+	if (!locationStatuses.value[locationId]) {
+		locationStatuses.value[locationId] = {
 			isRunning: false,
 			status: defaultStatus
 		};
 	}
-	return areaStatuses.value[areaId];
+	return locationStatuses.value[locationId];
 };
 
-// 回滾區域狀態
-const rollbackAreaStatus = (areaId: string, isRunning: boolean) => {
-	if (areaStatuses.value[areaId]) {
-		areaStatuses.value[areaId].isRunning = isRunning;
+// 回滾地點狀態
+const rollbackLocationStatus = (locationId: string, isRunning: boolean) => {
+	if (locationStatuses.value[locationId]) {
+		locationStatuses.value[locationId].isRunning = isRunning;
 	}
 };
 
@@ -450,36 +464,36 @@ const extractDoAddresses = (modbus: CategoryModbusConfig): number[] => {
 	return [];
 };
 
-// 判斷區域是否需要 Modbus 串接（有 modbus 配置的都需要）
-const needsModbusConnection = (area: LightingArea): boolean => {
-	return !!area.modbus;
+// 判斷地點是否需要 Modbus 串接（有 modbus 配置的都需要）
+const needsModbusConnection = (location: LightingLocation): boolean => {
+	return !!location.modbus;
 };
 
-// 初始化區域狀態（不設置 isRunning，等待從後端讀取）
-const initializeAreaStatuses = () => {
-	// 使用所有樓層的 areas 來初始化狀態
-	lightingFloors.value.forEach(floor => {
-		floor.areas.forEach((area, areaIndex) => {
-			const areaId = getAreaId(floor, area, areaIndex);
-			if (!areaStatuses.value[areaId]) {
-				areaStatuses.value[areaId] = {
-					isRunning: false, // 暫時設為 false，但會在 loadAllAreaStatuses 中更新
+// 初始化地點狀態（不設置 isRunning，等待從後端讀取）
+const initializeLocationStatuses = () => {
+	// 使用所有區域的 locations 來初始化狀態
+	lightingZones.value.forEach(zone => {
+		zone.locations.forEach((location, locationIndex) => {
+			const locationId = getLocationId(zone, location, locationIndex);
+			if (!locationStatuses.value[locationId]) {
+				locationStatuses.value[locationId] = {
+					isRunning: false, // 暫時設為 false，但會在 loadAllLocationStatuses 中更新
 					status: "normal"
 				};
 			}
 		});
 	});
 
-	// 清理已不存在的區域狀態
-	const areaIds = new Set<string>();
-	lightingFloors.value.forEach(floor => {
-		floor.areas.forEach((area, areaIndex) => {
-			areaIds.add(getAreaId(floor, area, areaIndex));
+	// 清理已不存在的地點狀態
+	const locationIds = new Set<string>();
+	lightingZones.value.forEach(zone => {
+		zone.locations.forEach((location, locationIndex) => {
+			locationIds.add(getLocationId(zone, location, locationIndex));
 		});
 	});
-	Object.keys(areaStatuses.value).forEach(areaId => {
-		if (!areaIds.has(areaId)) {
-			delete areaStatuses.value[areaId];
+	Object.keys(locationStatuses.value).forEach(locationId => {
+		if (!locationIds.has(locationId)) {
+			delete locationStatuses.value[locationId];
 		}
 	});
 };
@@ -595,10 +609,10 @@ const loadDeviceInfo = async (deviceId: number): Promise<Device | null> => {
 const preloadDeviceInfos = async () => {
 	// 收集所有需要的設備 ID（去重）
 	const deviceIds = new Set<number>();
-	lightingFloors.value.forEach(floor => {
-		floor.areas.forEach(area => {
-			if (area.modbus?.deviceId) {
-				deviceIds.add(area.modbus.deviceId);
+	lightingZones.value.forEach(zone => {
+		zone.locations.forEach(location => {
+			if (location.modbus?.deviceId) {
+				deviceIds.add(location.modbus.deviceId);
 			}
 		});
 	});
@@ -612,33 +626,33 @@ const preloadDeviceInfos = async () => {
 	await Promise.allSettled(uncachedDeviceIds.map(deviceId => loadDeviceInfo(deviceId)));
 };
 
-// 取得區域的設備配置（優化：使用快取，避免重複提取）
-const getAreaDeviceConfig = async (
-	area: LightingArea
+// 取得地點的設備配置（優化：使用快取，避免重複提取）
+const getLocationDeviceConfig = async (
+	location: LightingLocation
 ): Promise<{ host: string; port: number; unitId: number } | null> => {
-	if (!area.modbus) return null;
+	if (!location.modbus) return null;
 
 	// 如果使用新格式（有 deviceId）
-	if (area.modbus.deviceId) {
+	if (location.modbus.deviceId) {
 		// 先檢查配置快取
-		if (deviceConfigCache.value.has(area.modbus.deviceId)) {
-			return deviceConfigCache.value.get(area.modbus.deviceId)!;
+		if (deviceConfigCache.value.has(location.modbus.deviceId)) {
+			return deviceConfigCache.value.get(location.modbus.deviceId)!;
 		}
 
 		// 如果沒有快取，載入設備資訊（會自動快取配置）
-		const device = await loadDeviceInfo(area.modbus.deviceId);
+		const device = await loadDeviceInfo(location.modbus.deviceId);
 		if (!device) return null;
 
 		// 從快取中獲取配置
-		return deviceConfigCache.value.get(area.modbus.deviceId) || null;
+		return deviceConfigCache.value.get(location.modbus.deviceId) || null;
 	}
 
 	// 向後兼容：使用舊格式
-	if (area.modbus.host && area.modbus.port && area.modbus.unitId !== undefined) {
+	if (location.modbus.host && location.modbus.port && location.modbus.unitId !== undefined) {
 		return {
-			host: area.modbus.host,
-			port: area.modbus.port,
-			unitId: area.modbus.unitId
+			host: location.modbus.host,
+			port: location.modbus.port,
+			unitId: location.modbus.unitId
 		};
 	}
 
@@ -666,7 +680,7 @@ interface BatchRequest {
 	deviceConfig: { host: string; port: number; unitId: number };
 	address: number;
 	type: "coil" | "discrete";
-	areaId: string;
+	locationId: string; // 從 areaId 改名
 }
 
 // ========== 共用工具函數 ==========
@@ -674,18 +688,18 @@ interface BatchRequest {
 /**
  * 根據 areaId 查找對應的 area 物件和索引（統一查找邏輯）
  */
-const findAreaById = (
-	areaId: string,
+const findLocationById = (
+	locationId: string,
 	requireDbId = false
-): { area: LightingArea; floor: LightingFloor; areaIndex: number } | null => {
-	for (const floor of lightingFloors.value) {
-		for (let i = 0; i < floor.areas.length; i++) {
-			const area = floor.areas[i];
-			const computedAreaId = getAreaId(floor, area, i);
-			if (computedAreaId === areaId) {
-				// 如果需要資料庫 ID，則檢查 area.id 是否存在
-				if (requireDbId && !area.id) continue;
-				return { area, floor, areaIndex: i };
+): { location: LightingLocation; zone: LightingZone; locationIndex: number } | null => {
+	for (const zone of lightingZones.value) {
+		for (let i = 0; i < zone.locations.length; i++) {
+			const location = zone.locations[i];
+			const computedLocationId = getLocationId(zone, location, i);
+			if (computedLocationId === locationId) {
+				// 如果需要資料庫 ID，則檢查 location.id 是否存在
+				if (requireDbId && !location.id) continue;
+				return { location, zone, locationIndex: i };
 			}
 		}
 	}
@@ -693,14 +707,14 @@ const findAreaById = (
 };
 
 /**
- * 報告照明區域錯誤（靜默處理，不影響主要流程）
+ * 報告照明地點錯誤（靜默處理，不影響主要流程）
  */
-const reportAreaError = async (areaId: string, errorMessage: string) => {
-	const found = findAreaById(areaId, true);
-	if (!found?.area.systemId) return;
+const reportLocationError = async (locationId: string, errorMessage: string) => {
+	const found = findLocationById(locationId, true);
+	if (!found?.location.systemId) return;
 
 	try {
-		await lightingApi.reportError(found.area.systemId, errorMessage);
+		await lightingApi.reportError(found.location.systemId, errorMessage);
 	} catch (error) {
 		// 靜默處理，不影響主要流程
 		if (process.dev) {
@@ -710,14 +724,14 @@ const reportAreaError = async (areaId: string, errorMessage: string) => {
 };
 
 /**
- * 清除照明區域錯誤狀態（靜默處理，不影響主要流程）
+ * 清除照明地點錯誤狀態（靜默處理，不影響主要流程）
  */
-const clearAreaError = async (areaId: string) => {
-	const found = findAreaById(areaId, true);
-	if (!found?.area.systemId) return;
+const clearLocationError = async (locationId: string) => {
+	const found = findLocationById(locationId, true);
+	if (!found?.location.systemId) return;
 
 	try {
-		await lightingApi.clearError(found.area.systemId);
+		await lightingApi.clearError(found.location.systemId);
 	} catch (error) {
 		// 靜默處理，不影響主要流程
 		if (process.dev) {
@@ -726,17 +740,17 @@ const clearAreaError = async (areaId: string) => {
 	}
 };
 
-// 更新區域狀態的共用函數
-const updateAreaStatuses = async (areaIds: string[], value: boolean) => {
-	for (const areaId of areaIds) {
-		const status = ensureAreaStatus(areaId);
+// 更新地點狀態的共用函數
+const updateLocationStatuses = async (locationIds: string[], value: boolean) => {
+	for (const locationId of locationIds) {
+		const status = ensureLocationStatus(locationId);
 		const wasError = status.status === "error";
 		status.isRunning = value;
 		status.status = "normal";
 
-		// 如果區域從錯誤狀態恢復正常，清除錯誤狀態
+		// 如果地點從錯誤狀態恢復正常，清除錯誤狀態
 		if (wasError && status.status === "normal") {
-			await clearAreaError(areaId);
+			await clearLocationError(locationId);
 		}
 	}
 };
@@ -773,12 +787,12 @@ const processBatchRequests = async (requests: BatchRequest[]) => {
 	await Promise.allSettled(
 		Array.from(grouped.entries()).map(async ([requestKey, groupRequests]) => {
 			const firstReq = groupRequests[0];
-			const areaIds = groupRequests.map(req => req.areaId);
+			const locationIds = groupRequests.map(req => req.locationId);
 
 			// 檢查設備是否在失敗列表中（快速失敗）
 			if (failedDevices.has(requestKey)) {
-				areaIds.forEach(areaId => {
-					ensureAreaStatus(areaId).status = "error";
+				locationIds.forEach(locationId => {
+					ensureLocationStatus(locationId).status = "error";
 				});
 				return;
 			}
@@ -789,7 +803,7 @@ const processBatchRequests = async (requests: BatchRequest[]) => {
 				try {
 					const response = await cached.promise;
 					if (response?.data?.[0] !== undefined) {
-						await updateAreaStatuses(areaIds, response.data[0]);
+						await updateLocationStatuses(locationIds, response.data[0]);
 					}
 					return;
 				} catch (error) {
@@ -811,7 +825,7 @@ const processBatchRequests = async (requests: BatchRequest[]) => {
 
 				// 處理響應
 				if (response?.data?.[0] !== undefined) {
-					await updateAreaStatuses(areaIds, response.data[0]);
+					await updateLocationStatuses(locationIds, response.data[0]);
 				}
 
 				// 請求成功，從失敗列表中移除（設備已恢復）
@@ -830,13 +844,15 @@ const processBatchRequests = async (requests: BatchRequest[]) => {
 					failedDevices.set(requestKey, now);
 				}
 
-				// 標記所有相關區域為錯誤狀態
-				areaIds.forEach(areaId => {
-					ensureAreaStatus(areaId).status = "error";
+				// 標記所有相關地點為錯誤狀態
+				locationIds.forEach(locationId => {
+					ensureLocationStatus(locationId).status = "error";
 				});
 				// 並行報告錯誤（不阻塞）
 				await Promise.allSettled(
-					areaIds.map(areaId => reportAreaError(areaId, errorMessage || "無法讀取照明設備資料"))
+					locationIds.map(locationId =>
+						reportLocationError(locationId, errorMessage || "無法讀取照明設備資料")
+					)
 				);
 			}
 		})
@@ -891,19 +907,19 @@ const extractWritePoints = (modbus: CategoryModbusConfig): number[] => {
 	}
 };
 
-// 收集區域的讀取請求（用於批量處理）
-const collectAreaReadRequests = async (
-	floor: LightingFloor,
-	area: LightingArea,
-	areaIndex: number
+// 收集地點的讀取請求（用於批量處理）
+const collectLocationReadRequests = async (
+	zone: LightingZone,
+	location: LightingLocation,
+	locationIndex: number
 ): Promise<BatchRequest[]> => {
-	if (!needsModbusConnection(area) || !area.modbus) return [];
+	if (!needsModbusConnection(location) || !location.modbus) return [];
 
-	const deviceConfig = await getAreaDeviceConfig(area);
+	const deviceConfig = await getLocationDeviceConfig(location);
 	if (!deviceConfig) return [];
 
-	const areaId = getAreaId(floor, area, areaIndex);
-	const readPoint = extractReadPoint(area.modbus);
+	const locationId = getLocationId(zone, location, locationIndex);
+	const readPoint = extractReadPoint(location.modbus);
 
 	if (!readPoint) return [];
 
@@ -912,40 +928,40 @@ const collectAreaReadRequests = async (
 			deviceConfig: deviceConfig as { host: string; port: number; unitId: number },
 			address: readPoint.address,
 			type: readPoint.type,
-			areaId: areaId
+			locationId: locationId
 		}
 	];
 };
 
-// 載入所有區域的狀態（優化：批量讀取，減少請求數）
-const loadAllAreaStatuses = async (options?: { silent?: boolean; loadAllFloors?: boolean }) => {
-	// 如果 loadAllFloors 為 true，載入所有樓層的區域狀態（用於 StatusCenter 顯示）
-	// 否則只載入當前選中樓層的區域狀態
-	const currentFloorName = selectedFloorName.value;
+// 載入所有地點的狀態（優化：批量讀取，減少請求數）
+const loadAllLocationStatuses = async (options?: { silent?: boolean; loadAllZones?: boolean }) => {
+	// 如果 loadAllZones 為 true，載入所有區域的地點狀態（用於 StatusCenter 顯示）
+	// 否則只載入當前選中區域的地點狀態
+	const currentZoneName = selectedZoneName.value;
 
-	// 收集需要 Modbus 連接的區域
-	const areasNeedingModbus: Array<{ floor: LightingFloor; area: LightingArea; areaIndex: number }> =
-		[];
-	lightingFloors.value.forEach(floor => {
-		floor.areas.forEach((area, areaIndex) => {
-			if (needsModbusConnection(area)) {
-				if (
-					options?.loadAllFloors ||
-					(currentFloorName && (floor.id || floor.name) === currentFloorName)
-				) {
-					areasNeedingModbus.push({ floor, area, areaIndex });
+	// 收集需要 Modbus 連接的地點
+	const locationsNeedingModbus: Array<{
+		zone: LightingZone;
+		location: LightingLocation;
+		locationIndex: number;
+	}> = [];
+	lightingZones.value.forEach(zone => {
+		zone.locations.forEach((location, locationIndex) => {
+			if (needsModbusConnection(location)) {
+				if (options?.loadAllZones || (currentZoneName && (zone.id || zone.name) === currentZoneName)) {
+					locationsNeedingModbus.push({ zone, location, locationIndex });
 				}
 			}
 		});
 	});
 
-	if (areasNeedingModbus.length === 0) return;
+	if (locationsNeedingModbus.length === 0) return;
 
-	// 優化：批量預載入所有需要的設備配置（避免在 collectAreaReadRequests 中逐一請求）
+	// 優化：批量預載入所有需要的設備配置（避免在 collectLocationReadRequests 中逐一請求）
 	const deviceIds = new Set<number>();
-	areasNeedingModbus.forEach(({ area }) => {
-		if (area.modbus?.deviceId) {
-			deviceIds.add(area.modbus.deviceId);
+	locationsNeedingModbus.forEach(({ location }) => {
+		if (location.modbus?.deviceId) {
+			deviceIds.add(location.modbus.deviceId);
 		}
 	});
 	if (deviceIds.size > 0) {
@@ -958,8 +974,8 @@ const loadAllAreaStatuses = async (options?: { silent?: boolean; loadAllFloors?:
 	// 收集所有讀取請求（現在設備配置已經預載入，不會再有異步等待）
 	const allRequests: BatchRequest[] = [];
 	const results = await Promise.allSettled(
-		areasNeedingModbus.map(({ floor, area, areaIndex }) =>
-			collectAreaReadRequests(floor, area, areaIndex)
+		locationsNeedingModbus.map(({ zone, location, locationIndex }) =>
+			collectLocationReadRequests(zone, location, locationIndex)
 		)
 	);
 
@@ -976,71 +992,71 @@ const loadAllAreaStatuses = async (options?: { silent?: boolean; loadAllFloors?:
 	await processBatchRequests(allRequests);
 };
 
-// 處理區域開關切換（添加防抖和 loading 狀態）
-const handleAreaToggle = async (areaId: string, targetValue: boolean) => {
-	// 如果正在處理此區域的切換，忽略重複請求
-	if (areaToggling.value.has(areaId)) {
+// 處理地點開關切換（添加防抖和 loading 狀態）
+const handleLocationToggle = async (locationId: string, targetValue: boolean) => {
+	// 如果正在處理此地點的切換，忽略重複請求
+	if (locationToggling.value.has(locationId)) {
 		return;
 	}
 
 	// 清除之前的防抖計時器
-	const existingTimer = toggleDebounceTimers.get(areaId);
+	const existingTimer = toggleDebounceTimers.get(locationId);
 	if (existingTimer) {
 		clearTimeout(existingTimer);
 	}
 
 	// 設置防抖計時器
 	const timer = setTimeout(async () => {
-		await executeToggle(areaId, targetValue);
-		toggleDebounceTimers.delete(areaId);
+		await executeToggle(locationId, targetValue);
+		toggleDebounceTimers.delete(locationId);
 	}, TOGGLE_DEBOUNCE_DELAY);
 
-	toggleDebounceTimers.set(areaId, timer);
+	toggleDebounceTimers.set(locationId, timer);
 };
 
 // 執行實際的切換操作
-const executeToggle = async (areaId: string, targetValue: boolean) => {
-	const found = findAreaById(areaId);
+const executeToggle = async (locationId: string, targetValue: boolean) => {
+	const found = findLocationById(locationId);
 	if (!found) return;
 
-	const { area: targetArea, floor: targetFloor, areaIndex: targetAreaIndex } = found;
+	const { location: targetLocation, zone: targetZone, locationIndex: targetLocationIndex } = found;
 
 	// 如果正在處理，忽略
-	if (areaToggling.value.has(areaId)) {
+	if (locationToggling.value.has(locationId)) {
 		return;
 	}
 
 	// 標記為正在處理
-	areaToggling.value.add(areaId);
+	locationToggling.value.add(locationId);
 
 	// 取得當前狀態
-	const currentStatus = areaStatuses.value[areaId];
+	const currentStatus = locationStatuses.value[locationId];
 	const currentValue = currentStatus?.isRunning ?? false;
 
 	try {
 		// 更新本地狀態（樂觀更新）
-		if (areaStatuses.value[areaId]) {
-			areaStatuses.value[areaId].isRunning = targetValue;
+		if (locationStatuses.value[locationId]) {
+			locationStatuses.value[locationId].isRunning = targetValue;
 		}
 
 		// 如果沒有 Modbus 配置，只更新本地狀態
-		if (!needsModbusConnection(targetArea) || !targetArea.modbus) {
-			areaToggling.value.delete(areaId);
+		if (!needsModbusConnection(targetLocation) || !targetLocation.modbus) {
+			locationToggling.value.delete(locationId);
 			return;
 		}
 
-		const deviceConfig = await getAreaDeviceConfig(targetArea);
+		const deviceConfig = await getLocationDeviceConfig(targetLocation);
 		if (!deviceConfig) {
-			rollbackAreaStatus(areaId, currentValue);
-			areaToggling.value.delete(areaId);
+			rollbackLocationStatus(locationId, currentValue);
+			locationToggling.value.delete(locationId);
 			return;
 		}
 
 		// 提取寫入點位（統一處理新舊格式）
-		const writeAddresses = extractWritePoints(targetArea.modbus);
+		const writeAddresses = extractWritePoints(targetLocation.modbus);
 		if (writeAddresses.length === 0) {
-			rollbackAreaStatus(areaId, currentValue);
-			areaToggling.value.delete(areaId);
+			rollbackLocationStatus(locationId, currentValue);
+			locationToggling.value.delete(locationId);
 			return;
 		}
 
@@ -1049,19 +1065,23 @@ const executeToggle = async (areaId: string, targetValue: boolean) => {
 
 		// 寫入成功後，稍等一下再重新讀取狀態（避免與設備響應時間衝突）
 		setTimeout(async () => {
-			const readRequests = await collectAreaReadRequests(targetFloor, targetArea, targetAreaIndex);
+			const readRequests = await collectLocationReadRequests(
+				targetZone,
+				targetLocation,
+				targetLocationIndex
+			);
 			if (readRequests.length > 0) {
 				await processBatchRequests(readRequests);
 			}
-			areaToggling.value.delete(areaId);
+			locationToggling.value.delete(locationId);
 		}, 200); // 200ms 後讀取狀態
 	} catch (error) {
 		// 回滾狀態並標記為錯誤
-		rollbackAreaStatus(areaId, currentValue);
-		ensureAreaStatus(areaId, "error").status = "error";
-		areaToggling.value.delete(areaId);
+		rollbackLocationStatus(locationId, currentValue);
+		ensureLocationStatus(locationId, "error").status = "error";
+		locationToggling.value.delete(locationId);
 
-		handleError(error, `控制 ${targetArea.name} 失敗`);
+		handleError(error, `控制 ${targetLocation.name} 失敗`);
 	}
 };
 
@@ -1070,7 +1090,7 @@ const { start: startPolling, stop: stopPolling } = usePolling({
 	callback: async () => {
 		// 只有在頁面可見時才載入（優化：使用 Page Visibility API）
 		if (document.visibilityState === "visible") {
-			await loadAllAreaStatuses({ silent: true });
+			await loadAllLocationStatuses({ silent: true });
 		}
 	},
 	interval: 5000, // 每 5 秒執行一次
@@ -1097,44 +1117,44 @@ const stopAutoRefresh = () => {
 const handleVisibilityChange = () => {
 	if (document.visibilityState === "visible") {
 		// 頁面可見時，立即載入一次狀態
-		void loadAllAreaStatuses({ silent: true });
+		void loadAllLocationStatuses({ silent: true });
 	}
 };
 
-// 刪除區域（通過更新樓層來刪除區域）
-const handleDeleteCategory = async (areaId: string) => {
+// 刪除地點（通過更新區域來刪除地點）
+const handleDeleteCategory = async (locationId: string) => {
 	if (!isEditMode.value) return;
 	if (!confirm("確定要刪除這個點位嗎？")) return;
 
 	try {
-		const found = findAreaById(areaId);
+		const found = findLocationById(locationId);
 		if (!found) {
 			throw new Error("找不到要刪除的點位");
 		}
 
-		const { floor: targetFloor, areaIndex: targetAreaIndex } = found;
+		const { zone: targetZone, locationIndex: targetLocationIndex } = found;
 
-		// 從樓層的 areas 中移除該區域
-		const updatedAreas = targetFloor.areas.filter((_, index) => index !== targetAreaIndex);
+		// 從區域的 locations 中移除該地點
+		const updatedLocations = targetZone.locations.filter((_, index) => index !== targetLocationIndex);
 
-		// 更新樓層（包含更新後的 areas）
-		const result = await lightingApi.updateFloor(targetFloor.id!, {
-			name: targetFloor.name,
-			imageUrl: targetFloor.imageUrl,
-			areas: updatedAreas
+		// 更新區域（包含更新後的 locations）
+		const result = await lightingApi.updateZone(targetZone.id!, {
+			name: targetZone.name,
+			imageUrl: targetZone.imageUrl,
+			locations: updatedLocations
 		});
 
 		// 更新本地資料
-		const index = lightingFloors.value.findIndex(f => f.id === targetFloor.id);
+		const index = lightingZones.value.findIndex(z => z.id === targetZone.id);
 		if (index > -1) {
-			lightingFloors.value[index] = result.floor;
+			lightingZones.value[index] = result.zone;
 		}
 
 		// 清理狀態
-		if (selectedCategory.value === areaId) {
+		if (selectedCategory.value === locationId) {
 			selectedCategory.value = "";
 		}
-		delete areaStatuses.value[areaId];
+		delete locationStatuses.value[locationId];
 
 		toast.success("點位已刪除");
 	} catch (error) {
@@ -1142,24 +1162,28 @@ const handleDeleteCategory = async (areaId: string) => {
 	}
 };
 
-// 拖曳處理：在圖片上拖曳區域
-const handleDotDragStart = (event: DragEvent, area: LightingArea, areaIndex: number) => {
-	if (!isEditMode.value || !selectedFloorData.value) return;
-	const areaId = getAreaId(selectedFloorData.value, area, areaIndex);
-	startDrag(event, areaId);
+// 拖曳處理：在圖片上拖曳地點
+const handleDotDragStart = (
+	event: DragEvent,
+	location: LightingLocation,
+	locationIndex: number
+) => {
+	if (!isEditMode.value || !selectedZoneData.value) return;
+	const locationId = getLocationId(selectedZoneData.value, location, locationIndex);
+	startDrag(event, locationId);
 };
 
 // 處理從 CategoryList 開始的拖曳
 const handleCategoryListDragStart = (event: DragEvent, category: any) => {
-	if (!isEditMode.value || !selectedFloorData.value) return;
+	if (!isEditMode.value || !selectedZoneData.value) return;
 	startDrag(event, category.id, true);
 };
 
 // 統一的拖曳開始處理
-const startDrag = (event: DragEvent, areaId: string, fromCategoryList = false) => {
-	draggingCategoryId.value = areaId;
+const startDrag = (event: DragEvent, locationId: string, fromCategoryList = false) => {
+	draggingCategoryId.value = locationId;
 	event.dataTransfer!.effectAllowed = "move";
-	event.dataTransfer!.setData("areaId", areaId);
+	event.dataTransfer!.setData("locationId", locationId);
 	if (fromCategoryList) {
 		event.dataTransfer!.setData("fromCategoryList", "true");
 	}
@@ -1170,43 +1194,43 @@ const handleDragEnd = () => {
 	draggingCategoryId.value = "";
 };
 
-// 處理拖放（通過更新樓層來調整區域位置）
+// 處理拖放（通過更新區域來調整地點位置）
 const handleDrop = async (event: DragEvent) => {
-	if (!isEditMode.value || !floorPlanRef.value) return;
+	if (!isEditMode.value || !zonePlanRef.value) return;
 
 	event.preventDefault();
-	const areaId = event.dataTransfer?.getData("areaId");
-	if (!areaId) return;
+	const locationId = event.dataTransfer?.getData("locationId");
+	if (!locationId) return;
 
-	const found = findAreaById(areaId);
+	const found = findLocationById(locationId);
 	if (!found) return;
 
-	const { floor: targetFloor, areaIndex: targetAreaIndex } = found;
+	const { zone: targetZone, locationIndex: targetLocationIndex } = found;
 
-	const rect = floorPlanRef.value.getBoundingClientRect();
+	const rect = zonePlanRef.value.getBoundingClientRect();
 	const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
 	const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
 
-	// 更新區域位置（如果是從 CategoryList 拖曳過來的未定位點位，現在設定位置）
-	const updatedAreas = targetFloor.areas.map((area, index) => {
-		if (index === targetAreaIndex) {
-			return { ...area, location: { x, y } };
+	// 更新地點位置（如果是從 CategoryList 拖曳過來的未定位點位，現在設定位置）
+	const updatedLocations = targetZone.locations.map((location, index) => {
+		if (index === targetLocationIndex) {
+			return { ...location, location: { x, y } };
 		}
-		return area;
+		return location;
 	});
 
 	try {
-		// 更新樓層（包含更新後的 areas）
-		const result = await lightingApi.updateFloor(targetFloor.id!, {
-			name: targetFloor.name,
-			imageUrl: targetFloor.imageUrl,
-			areas: updatedAreas
+		// 更新區域（包含更新後的 locations）
+		const result = await lightingApi.updateZone(targetZone.id!, {
+			name: targetZone.name,
+			imageUrl: targetZone.imageUrl,
+			locations: updatedLocations
 		});
 
 		// 更新本地資料
-		const index = lightingFloors.value.findIndex(f => f.id === targetFloor.id);
+		const index = lightingZones.value.findIndex(z => z.id === targetZone.id);
 		if (index > -1) {
-			lightingFloors.value[index] = result.floor;
+			lightingZones.value[index] = result.zone;
 		}
 	} catch (error) {
 		handleError(error, "更新位置失敗");
@@ -1215,56 +1239,56 @@ const handleDrop = async (event: DragEvent) => {
 	draggingCategoryId.value = "";
 };
 
-// 批次更新位置（通過更新樓層來實現）
+// 批次更新位置（通過更新區域來實現）
 const saveBatchPositions = async (
 	updates: Array<{ id: string; location: { x: number; y: number } }>
 ) => {
 	try {
-		// 按樓層分組更新
-		const updatesByFloor = new Map<string, typeof updates>();
+		// 按區域分組更新
+		const updatesByZone = new Map<string, typeof updates>();
 		for (const update of updates) {
-			// 找到區域所屬的樓層
-			for (const floor of lightingFloors.value) {
-				const areaIndex = floor.areas.findIndex(
-					(area, idx) => getAreaId(floor, area, idx) === update.id
+			// 找到地點所屬的區域
+			for (const zone of lightingZones.value) {
+				const locationIndex = zone.locations.findIndex(
+					(location, idx) => getLocationId(zone, location, idx) === update.id
 				);
-				if (areaIndex !== -1) {
-					const floorId = floor.id || floor.name;
-					if (!updatesByFloor.has(floorId)) {
-						updatesByFloor.set(floorId, []);
+				if (locationIndex !== -1) {
+					const zoneId = zone.id || zone.name;
+					if (!updatesByZone.has(zoneId)) {
+						updatesByZone.set(zoneId, []);
 					}
-					updatesByFloor.get(floorId)!.push(update);
+					updatesByZone.get(zoneId)!.push(update);
 					break;
 				}
 			}
 		}
 
-		// 更新每個樓層
-		for (const [floorId, floorUpdates] of updatesByFloor.entries()) {
-			const floor = lightingFloors.value.find(f => (f.id || f.name) === floorId);
-			if (!floor) continue;
+		// 更新每個區域
+		for (const [zoneId, zoneUpdates] of updatesByZone.entries()) {
+			const zone = lightingZones.value.find(z => (z.id || z.name) === zoneId);
+			if (!zone) continue;
 
-			// 更新區域位置
-			const updatedAreas = floor.areas.map((area, index) => {
-				const areaId = getAreaId(floor, area, index);
-				const update = floorUpdates.find(u => u.id === areaId);
+			// 更新地點位置
+			const updatedLocations = zone.locations.map((location, index) => {
+				const locationId = getLocationId(zone, location, index);
+				const update = zoneUpdates.find(u => u.id === locationId);
 				if (update) {
-					return { ...area, location: update.location };
+					return { ...location, location: update.location };
 				}
-				return area;
+				return location;
 			});
 
-			// 更新樓層
-			const result = await lightingApi.updateFloor(floor.id!, {
-				name: floor.name,
-				imageUrl: floor.imageUrl,
-				areas: updatedAreas
+			// 更新區域
+			const result = await lightingApi.updateZone(zone.id!, {
+				name: zone.name,
+				imageUrl: zone.imageUrl,
+				locations: updatedLocations
 			});
 
 			// 更新本地資料
-			const index = lightingFloors.value.findIndex(f => f.id === floor.id);
+			const index = lightingZones.value.findIndex(z => z.id === zone.id);
 			if (index > -1) {
-				lightingFloors.value[index] = result.floor;
+				lightingZones.value[index] = result.zone;
 			}
 		}
 	} catch (error) {
@@ -1273,36 +1297,36 @@ const saveBatchPositions = async (
 	}
 };
 
-// 監聽樓層資料變化，重新初始化狀態
+// 監聽區域資料變化，重新初始化狀態
 watch(
-	() => lightingFloors.value,
+	() => lightingZones.value,
 	async () => {
-		// 當樓層資料變化時，重新初始化區域狀態
-		initializeAreaStatuses();
+		// 當區域資料變化時，重新初始化地點狀態
+		initializeLocationStatuses();
 		// 優化：批量預載入所有需要的設備資訊
 		await preloadDeviceInfos();
-		// 重新載入所有樓層的狀態（用於 StatusCenter）
-		// 注意：loadAllAreaStatuses 內部已經會批量預載入設備配置，這裡不需要重複
-		void loadAllAreaStatuses({ loadAllFloors: true });
+		// 重新載入所有區域的狀態（用於 StatusCenter）
+		// 注意：loadAllLocationStatuses 內部已經會批量預載入設備配置，這裡不需要重複
+		void loadAllLocationStatuses({ loadAllZones: true });
 	},
 	{ deep: true }
 );
 
-// 初始化：自動選中第一個區域
+// 初始化：自動選中第一個地點
 watch(
-	() => currentFloorAreas.value,
-	newAreas => {
-		if (!selectedFloorData.value) return;
+	() => currentZoneLocations.value,
+	newLocations => {
+		if (!selectedZoneData.value) return;
 
-		// 檢查當前選中的區域是否還存在於新清單中
-		const currentAreaExists = newAreas.some(
-			area => getAreaIdForDisplay(area) === selectedCategory.value
+		// 檢查當前選中的地點是否還存在於新清單中
+		const currentLocationExists = newLocations.some(
+			location => getLocationIdForDisplay(location) === selectedCategory.value
 		);
 
-		if (!currentAreaExists) {
+		if (!currentLocationExists) {
 			// 如果不存在，選中第一個或清空
-			if (newAreas.length > 0) {
-				selectedCategory.value = getAreaIdForDisplay(newAreas[0]);
+			if (newLocations.length > 0) {
+				selectedCategory.value = getLocationIdForDisplay(newLocations[0]);
 			} else {
 				selectedCategory.value = "";
 			}
@@ -1311,117 +1335,149 @@ watch(
 	{ immediate: true }
 );
 
-// ========== 樓層管理功能 ==========
+// ========== 區域管理功能 ==========
 
-// 處理打開樓層管理對話框
-const handleOpenFloorDialog = async () => {
-	// 如果還沒有載入樓層數據，先載入
-	if (lightingFloors.value.length === 0) {
-		await loadFloorsFromAPI();
+// 處理打開區域管理對話框
+const handleOpenZoneDialog = async () => {
+	// 如果還沒有載入區域數據，先載入
+	if (lightingZones.value.length === 0) {
+		await loadZonesFromAPI();
 	}
 	// 打開對話框
-	showFloorManagementDialog.value = true;
+	showZoneManagementDialog.value = true;
 };
 
 // 處理編輯模式切換
 const handleToggleEditMode = () => {
 	// 如果切換到編輯模式，確保數據已載入
-	if (!isEditMode.value && lightingFloors.value.length === 0) {
-		loadFloorsFromAPI();
+	if (!isEditMode.value && lightingZones.value.length === 0) {
+		loadZonesFromAPI();
 	}
 	// 切換編輯模式
 	isEditMode.value = !isEditMode.value;
 };
 
-// 從 API 載入樓層列表
-const loadFloorsFromAPI = async () => {
-	if (isLoadingFloors.value) return;
-	isLoadingFloors.value = true;
+// 從 API 載入區域列表
+const loadZonesFromAPI = async () => {
+	if (isLoadingZones.value) return;
+	isLoadingZones.value = true;
 	try {
-		const result = await lightingApi.getFloors();
-		lightingFloors.value = result.floors || [];
+		const result = await lightingApi.getZones();
+		lightingZones.value = result.zones || [];
 
-		// 如果沒有選中的樓層且有樓層資料，優先選擇 1F
-		if (!selectedFloor.value && lightingFloors.value.length > 0) {
+		// 如果沒有選中的區域且有區域資料，優先選擇 1F
+		if (!selectedZone.value && lightingZones.value.length > 0) {
 			// 優先查找 1F
-			const floor1F = lightingFloors.value.find(
-				floor => floor.name === "1F" || floor.name.toLowerCase().includes("1f")
+			const zone1F = lightingZones.value.find(
+				zone => zone.name === "1F" || zone.name.toLowerCase().includes("1f")
 			);
-			if (floor1F) {
-				selectedFloor.value = floor1F.id || floor1F.name;
+			if (zone1F) {
+				selectedZone.value = zone1F.id || zone1F.name;
 			} else {
 				// 如果沒有 1F，選中第一個
-				selectedFloor.value = lightingFloors.value[0].id || lightingFloors.value[0].name;
+				selectedZone.value = lightingZones.value[0].id || lightingZones.value[0].name;
 			}
 		}
 
 		// 優化：批量預載入所有需要的設備資訊，避免在讀取狀態時才逐一請求
 		await preloadDeviceInfos();
 	} catch (error) {
-		handleError(error, "載入樓層列表失敗");
+		handleError(error, "載入區域列表失敗");
 	} finally {
-		isLoadingFloors.value = false;
+		isLoadingZones.value = false;
 	}
 };
 
-// 使用樓層管理 composable
-const { handleSaveFloor: baseHandleSaveFloor, handleDeleteFloor: baseHandleDeleteFloor } =
-	useFloorManagement<LightingFloor>();
+// 使用區域管理 composable
+const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
+	useZoneManagement<LightingZone & { id: string }>();
 
-// 處理儲存樓層
-const handleSaveFloor = async (floor: LightingFloor) => {
-	await baseHandleSaveFloor(
-		floor,
-		lightingFloors,
-		async (f: LightingFloor) => {
-			return f.id
-				? await lightingApi.updateFloor(f.id, {
-						name: f.name,
-						imageUrl: f.imageUrl,
-						areas: f.areas
+// 處理儲存區域
+const handleSaveZone = async (zone: LightingZone) => {
+	await baseHandleSaveZone(
+		zone as LightingZone & { id: string },
+		lightingZones as Ref<(LightingZone & { id: string })[]>,
+		async (z: LightingZone & { id: string }) => {
+			// 檢查是否為臨時 ID（以 temp- 開頭）或有效的數字 ID
+			const isValidId = z.id && !z.id.startsWith("temp-") && /^\d+$/.test(z.id);
+			const result = isValidId
+				? await lightingApi.updateZone(z.id, {
+						name: z.name,
+						imageUrl: z.imageUrl,
+						locations: z.locations
 					})
-				: await lightingApi.createFloor({
-						name: f.name,
-						imageUrl: f.imageUrl,
-						areas: f.areas
+				: await lightingApi.createZone({
+						name: z.name,
+						imageUrl: z.imageUrl,
+						locations: z.locations
 					});
+			// 確保返回的 zone 有 id
+			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as LightingZone & {
+				id: string;
+			};
+			return {
+				merged: result.merged,
+				message: result.message,
+				zone: zoneWithId
+			};
 		},
 		{
-			selectedFloorRef: selectedFloor,
+			selectedZoneRef: selectedZone,
 			onAfterSave: () => {
-				initializeAreaStatuses();
+				initializeLocationStatuses();
 			}
 		}
 	);
 };
 
-// 處理刪除樓層
-const handleDeleteFloor = async (floorId: string) => {
-	await baseHandleDeleteFloor(floorId, lightingFloors, lightingApi.deleteFloor, {
-		selectedFloorRef: selectedFloor
-	});
+// 處理刪除區域
+const handleDeleteZone = async (zoneId: string) => {
+	await baseHandleDeleteZone(
+		zoneId,
+		lightingZones as Ref<(LightingZone & { id: string })[]>,
+		lightingApi.deleteZone,
+		{
+			selectedZoneRef: selectedZone,
+			// 系統特定的刪除選項（方案一：只刪除該系統的地點）
+			systemType: "lighting",
+			getFullZoneApiCall: async (id: string) => {
+				const response = await locationApi.getZone(id);
+				return { zone: response.zone };
+			}, // 取得完整區域資料（不帶 systemType 過濾）
+			updateZoneApiCall: async (id: string, data: { locations: UnifiedZone["locations"] }) => {
+				const response = await locationApi.updateZone(id, { locations: data.locations });
+				const lightingZone = backendToLightingZone(response.zone);
+				// 確保返回的 zone 有 id
+				return {
+					merged: response.merged,
+					message: response.message,
+					zone: { ...lightingZone, id: lightingZone.id || id } as LightingZone & { id: string }
+				};
+			}
+		}
+	);
 };
 
-// 初始化：載入樓層數據
+// 初始化：載入區域數據
 onMounted(async () => {
 	// 初始化左側 ResizeObserver
 	initLeftSectionObserver();
 	try {
-		// 載入樓層列表（會自動選擇 1F 或第一個樓層）
-		await loadFloorsFromAPI();
+		// 載入區域列表（會自動選擇 1F 或第一個區域）
+		await loadZonesFromAPI();
 
-		// 初始化區域狀態（從樓層的 areas）
-		initializeAreaStatuses();
+		// 初始化地點狀態（從區域的 locations）
+		initializeLocationStatuses();
 
 		// 同步右側高度
 		nextTick(() => {
 			updateLeftSectionHeight();
 		});
 
-		// 立即從後端載入所有樓層的區域實際狀態（不預設為 OFF）
-		// 注意：loadAllAreaStatuses 內部已經會批量預載入設備配置，避免重複請求
-		// 這樣 StatusCenter 也能正確顯示所有樓層的狀態
-		await loadAllAreaStatuses({ loadAllFloors: true });
+		// 立即從後端載入所有區域的地點實際狀態（不預設為 OFF）
+		// 注意：loadAllLocationStatuses 內部已經會批量預載入設備配置，避免重複請求
+		// 這樣 StatusCenter 也能正確顯示所有區域的狀態
+		await loadAllLocationStatuses({ loadAllZones: true });
 	} finally {
 		// 初始載入完成，顯示按鈕（使用淡入動畫）
 		isInitialLoading.value = false;

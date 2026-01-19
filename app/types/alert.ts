@@ -42,7 +42,7 @@ export interface Alert {
 	updated_at: string; // 永遠不會為 null（資料庫設置為 NOT NULL DEFAULT CURRENT_TIMESTAMP）
 	// 來源名稱（統一欄位，適用於所有來源類型）
 	source_name?: string | null; // 設備名稱、環境位置名稱、照明區域名稱等
-	floor_name?: string | null; // 樓層名稱（統一欄位，適用於所有系統來源）
+	zone_name?: string | null; // 區域名稱（統一欄位，適用於所有系統來源）
 	// 統計欄位（僅在列表查詢時存在）
 	alert_count?: number; // 合併的警報數量（後端 GROUP BY 查詢返回）
 }

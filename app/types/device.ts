@@ -27,9 +27,6 @@ export interface SensorParameterDefinition {
 	modbusConfig: SensorParameterModbusConfig; // Modbus 配置
 }
 
-// 重新導出給 environment.ts 使用
-export type { SensorParameterModbusConfig, SensorParameterDefinition };
-
 // 設備型號配置（根據設備類型有不同的結構）
 export interface SensorDeviceModelConfig {
 	// 感測器型號的參數配置列表

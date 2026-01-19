@@ -118,7 +118,7 @@
 															{{ getSourceLabel(alert.source) }}
 														</div>
 														<div class="mt-0.5 truncate text-sm font-semibold text-white 2xl:text-base">
-															{{ getSourceDisplayName(alert) }} {{ getFloorName(alert) }}
+															{{ getSourceDisplayName(alert) }} {{ getZoneName(alert) }}
 														</div>
 													</div>
 												</div>
@@ -635,7 +635,7 @@ const handleExport = async () => {
 			getSourceLabel(alert.source),
 			getSourceDisplayName(alert),
 			alert.source_id,
-			getFloorName(alert),
+		getZoneName(alert),
 			getTypeLabel(alert.alert_type),
 			getSeverityLabel(alert.severity),
 			statusLabels[alert.status] || alert.status,
@@ -702,8 +702,8 @@ const badgeBaseClass =
 const getSourceDisplayName = (alert: Alert): string =>
 	alert.source_name || `${getSourceLabel(alert.source)} #${alert.source_id}`;
 
-// 獲取樓層名稱
-const getFloorName = (alert: Alert): string => alert.floor_name || "";
+// 獲取區域名稱
+const getZoneName = (alert: Alert): string => alert.zone_name || "";
 
 // 取得警示卡片樣式
 const getAlertCardClass = (alert: Alert) => {

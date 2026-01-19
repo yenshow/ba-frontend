@@ -13,7 +13,7 @@
 					>
 						<div class="flex w-[200px] items-center justify-center">
 							<span v-if="currentLocationData" class="ps-[12px]">{{
-								getLocationFloor(currentLocationData)
+								getLocationZone(currentLocationData)
 							}}</span>
 						</div>
 						<div class="h-[24px] w-px bg-[#595959]"></div>
@@ -141,7 +141,7 @@
 										v-for="location in sortedLocations"
 										:key="getLocationId(location)"
 										:name="location.name"
-										:floor="getLocationFloor(location) || ''"
+										:zone="getLocationZone(location) || ''"
 										:aqi="getLocationDisplayData(location).aqi"
 										:noise="getLocationDisplayData(location).noise"
 										:params="getLocationDisplayData(location).params"
@@ -165,11 +165,14 @@
 			</aside>
 		</div>
 	</div>
-	<LocationManagementDialog
+	<ZoneManagementDialog
 		v-model="showLocationManagementDialog"
-		:floors="environmentFloors"
-		@save="handleSaveFloor"
-		@delete="handleDeleteFloor"
+		:zones="environmentZones"
+		system-type="environment"
+		:require-image-url="false"
+		device-hint="請先在「設備管理」中建立感測器設備"
+		@save="handleSaveZone"
+		@delete="handleDeleteZone"
 	/>
 </template>
 
@@ -177,15 +180,16 @@
 import EnvironmentGauge from "~/components/environment/EnvironmentGauge.vue";
 import EnvironmentParamCard from "~/components/environment/EnvironmentParamCard.vue";
 import OverviewLocationCard from "~/components/environment/OverviewLocationCard.vue";
-import LocationManagementDialog from "~/components/environment/LocationManagementDialog.vue";
+import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
 import { useDeviceApi } from "~/composables/systems/useDeviceApi";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { useEnvironmentApi } from "~/composables/systems/useEnvironmentApi";
+import { useLocationApi } from "~/composables/systems/location/useLocationApi";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { usePolling } from "~/composables/monitoring/usePolling";
-import { useFloorManagement } from "~/composables/systems/useFloorManagement";
+import { useZoneManagement } from "~/composables/systems/useZoneManagement";
 import { useAlertRules } from "~/composables/monitoring/useAlertRules";
 import type { EnvironmentReadingNewEvent } from "~/composables/websocket/useWebSocket";
 import {
@@ -193,7 +197,7 @@ import {
 	getParameterUnit,
 	getParameterIcon,
 	getParameterFractionDigits,
-	cleanFloor
+	cleanZone
 } from "~/utils/sensorUtils";
 import type { ModbusDeviceConfig, ModbusDataResponse } from "~/types/modbus";
 import type {
@@ -203,11 +207,13 @@ import type {
 	SensorParameterDefinition
 } from "~/types/device";
 import type {
-	EnvironmentFloor,
+	EnvironmentZone,
 	EnvironmentLocation,
 	SensorParameter,
 	SensorParameterType
 } from "~/types/environment";
+import type { UnifiedZone } from "~/types/location";
+import { backendToEnvironmentZone } from "~/utils/locationAdapter";
 
 definePageMeta({
 	layout: "default"
@@ -215,6 +221,7 @@ definePageMeta({
 
 const deviceApi = useDeviceApi();
 const environmentApi = useEnvironmentApi();
+const locationApi = useLocationApi();
 const { request } = useApiBase();
 const toast = useToast();
 const { isConnected, on, off } = useWebSocket();
@@ -225,9 +232,9 @@ const { getRules, getStatusText: getStatusTextFromRules } = useAlertRules();
 const alertRules = ref<any[]>([]);
 const rulesLoaded = ref(false);
 
-// 環境樓層和地點資料
-const environmentFloors = ref<EnvironmentFloor[]>([]);
-const isLoadingFloors = ref(false);
+// 環境區域和地點資料
+const environmentZones = ref<EnvironmentZone[]>([]);
+const isLoadingZones = ref(false);
 const showLocationManagementDialog = ref(false);
 const selectedLocationId = ref<string>("");
 
@@ -311,8 +318,8 @@ const windSpeed = computed(() => sensorData.wind);
 const currentLocationData = computed<EnvironmentLocation | null>(() => {
 	if (!selectedLocationId.value) return null;
 
-	for (const floor of environmentFloors.value) {
-		const location = floor.locations.find(loc => getLocationId(loc) === selectedLocationId.value);
+	for (const zone of environmentZones.value) {
+		const location = zone.locations.find(loc => getLocationId(loc) === selectedLocationId.value);
 		if (location) return location;
 	}
 	return null;
@@ -348,8 +355,8 @@ const initLeftSectionObserver = () => {
 	leftSectionResizeObserver.observe(leftSectionRef.value);
 };
 
-// 監聽左側區域高度變化由 ResizeObserver 處理，僅需在樓層/地點變化時更新一次
-watch([currentLocationData, environmentFloors], () => {
+// 監聽左側區域高度變化由 ResizeObserver 處理，僅需在區域/地點變化時更新一次
+watch([currentLocationData, environmentZones], () => {
 	nextTick(() => {
 		updateLeftSectionHeight();
 	});
@@ -357,40 +364,40 @@ watch([currentLocationData, environmentFloors], () => {
 
 // 所有地點（用於總覽面板）
 const allLocations = computed(() => {
-	return environmentFloors.value.flatMap(floor => floor.locations);
+	return environmentZones.value.flatMap(zone => zone.locations);
 });
 
-// 排序後的地點列表（按樓層排序：1F, 2F, 3F... 或按建立時間）
+// 排序後的地點列表（按區域排序：1F, 2F, 3F... 或按建立時間）
 const sortedLocations = computed(() => {
 	if (allLocations.value.length === 0) return [];
 
-	// 建立地點與樓層的映射
-	const locationFloorMap = new Map<EnvironmentLocation, string>();
-	for (const floor of environmentFloors.value) {
-		for (const location of floor.locations) {
-			locationFloorMap.set(location, floor.name);
+	// 建立地點與區域的映射
+	const locationZoneMap = new Map<EnvironmentLocation, string>();
+	for (const zone of environmentZones.value) {
+		for (const location of zone.locations) {
+			locationZoneMap.set(location, zone.name);
 		}
 	}
 
-	// 按樓層排序（提取數字部分進行比較）
+	// 按區域排序（提取數字部分進行比較）
 	return [...allLocations.value].sort((a, b) => {
-		const floorA = locationFloorMap.get(a) || "";
-		const floorB = locationFloorMap.get(b) || "";
+		const zoneA = locationZoneMap.get(a) || "";
+		const zoneB = locationZoneMap.get(b) || "";
 
-		// 提取樓層名稱中的數字（例如 "1F" -> 1, "B1F" -> -1, "2F" -> 2）
-		const extractFloorNumber = (floorName: string): number => {
+		// 提取區域名稱中的數字（例如 "1F" -> 1, "B1F" -> -1, "2F" -> 2）
+		const extractZoneNumber = (zoneName: string): number => {
 			// 處理負樓層（B1F, B2F 等）
-			if (floorName.toUpperCase().startsWith("B")) {
-				const num = parseInt(floorName.match(/\d+/)?.[0] || "0") || 0;
+			if (zoneName.toUpperCase().startsWith("B")) {
+				const num = parseInt(zoneName.match(/\d+/)?.[0] || "0") || 0;
 				return -num; // 負數表示地下樓層
 			}
 			// 處理正樓層（1F, 2F 等）
-			const num = parseInt(floorName.match(/\d+/)?.[0] || "999") || 999;
+			const num = parseInt(zoneName.match(/\d+/)?.[0] || "999") || 999;
 			return num;
 		};
 
-		const numA = extractFloorNumber(floorA);
-		const numB = extractFloorNumber(floorB);
+		const numA = extractZoneNumber(zoneA);
+		const numB = extractZoneNumber(zoneB);
 
 		// 先按數字排序
 		if (numA !== numB) {
@@ -398,7 +405,7 @@ const sortedLocations = computed(() => {
 		}
 
 		// 如果數字相同，按字串排序（處理特殊情況）
-		return floorA.localeCompare(floorB, "zh-TW");
+		return zoneA.localeCompare(zoneB, "zh-TW");
 	});
 });
 
@@ -408,11 +415,11 @@ const enabledParameters = computed(() => {
 	return currentLocationData.value.parameters.filter(param => param.enabled);
 });
 
-// 獲取地點所屬的樓層名稱
-const getLocationFloor = (location: EnvironmentLocation): string | null => {
-	for (const floor of environmentFloors.value) {
-		if (floor.locations.some(loc => loc.id === location.id || loc.name === location.name)) {
-			return floor.name;
+// 獲取地點所屬的區域名稱
+const getLocationZone = (location: EnvironmentLocation): string | null => {
+	for (const zone of environmentZones.value) {
+		if (zone.locations.some(loc => loc.id === location.id || loc.name === location.name)) {
+			return zone.name;
 		}
 	}
 	return null;
@@ -420,8 +427,8 @@ const getLocationFloor = (location: EnvironmentLocation): string | null => {
 
 // 獲取地點 ID
 const getLocationId = (location: EnvironmentLocation): string => {
-	const floorName = getLocationFloor(location);
-	return location.id || `${floorName || "unknown"}-${location.name}`;
+	const zoneName = getLocationZone(location);
+	return location.id || `${zoneName || "unknown"}-${location.name}`;
 };
 
 // 處理環境讀數新事件
@@ -483,7 +490,7 @@ const { start: startPolling, stop: stopPolling } = usePolling({
 		}
 
 		// 為所有有設備的地點讀取資料（用於總覽面板）
-		forEachLocation((location, floor) => {
+		forEachLocation((location, zone) => {
 			if (location.deviceId) {
 				const locationId = getLocationId(location);
 				// 如果不是當前選中地點，也讀取資料
@@ -697,8 +704,8 @@ const getLocationSensorData = (locationId: string): SensorReadings | null => {
 	if (data) return data;
 
 	// 如果找不到，可能是因為 key 不一致，嘗試在所有地點中查找匹配的 ID
-	for (const floor of environmentFloors.value) {
-		for (const location of floor.locations) {
+	for (const zone of environmentZones.value) {
+		for (const location of zone.locations) {
 			const dbId = location.id;
 			const syntheticId = getLocationId(location);
 			if (dbId === locationId || syntheticId === locationId) {
@@ -717,16 +724,16 @@ const getLocationSensorData = (locationId: string): SensorReadings | null => {
 	return null;
 };
 
-// cleanLocation 和 cleanFloor 已從 composable 導入
+// cleanLocation 和 cleanZone 已從 composable 導入
 
-// 載入樓層和地點資料
-const loadFloorsFromAPI = async () => {
-	if (isLoadingFloors.value) return;
-	isLoadingFloors.value = true;
+// 載入區域和地點資料
+const loadZonesFromAPI = async () => {
+	if (isLoadingZones.value) return;
+	isLoadingZones.value = true;
 	try {
-		const result = await environmentApi.getFloors();
-		// 清理並標準化參數格式並依樓層排序（B1F < 1F < 2F ...）
-		const sortedFloors = (result.floors || []).map(cleanFloor).sort((a, b) => {
+		const result = await environmentApi.getZones();
+		// 清理並標準化參數格式並依區域排序（B1F < 1F < 2F ...）
+		const sortedZones = (result.zones || []).map(cleanZone).sort((a, b) => {
 			const parseNum = (name: string) => {
 				if (name.toUpperCase().startsWith("B")) {
 					return -parseInt(name.match(/\d+/)?.[0] || "0", 10);
@@ -735,21 +742,21 @@ const loadFloorsFromAPI = async () => {
 			};
 			return parseNum(a.name) - parseNum(b.name);
 		});
-		environmentFloors.value = sortedFloors;
+		environmentZones.value = sortedZones;
 
 		// 如果沒有選中的地點且有地點資料，預設選擇 1F 或排序後最前面的地點
-		if (!selectedLocationId.value && environmentFloors.value.length > 0) {
-			for (const floor of environmentFloors.value) {
-				if (floor.locations && floor.locations.length > 0) {
-					selectLocation(floor.locations[0]);
+		if (!selectedLocationId.value && environmentZones.value.length > 0) {
+			for (const zone of environmentZones.value) {
+				if (zone.locations && zone.locations.length > 0) {
+					selectLocation(zone.locations[0]);
 					break;
 				}
 			}
 		}
 	} catch (error) {
-		handleError(error, "載入樓層列表失敗");
+		handleError(error, "載入區域列表失敗");
 	} finally {
-		isLoadingFloors.value = false;
+		isLoadingZones.value = false;
 	}
 };
 
@@ -1380,8 +1387,8 @@ const findSharedDeviceModelConfig = async (
 	}
 
 	// 遍歷所有地點，查找使用相同設備（相同 host/port）的地點
-	for (const floor of environmentFloors.value) {
-		for (const otherLocation of floor.locations) {
+	for (const zone of environmentZones.value) {
+		for (const otherLocation of zone.locations) {
 			// 跳過當前地點
 			if (
 				otherLocation.id === currentLocation.id ||
@@ -1574,11 +1581,11 @@ const loadLocationSensorDataForOverview = async (location: EnvironmentLocation) 
 
 // 遍歷所有地點並執行回調（共用函數）
 const forEachLocation = (
-	callback: (location: EnvironmentLocation, floor: EnvironmentFloor) => void | Promise<void>
+	callback: (location: EnvironmentLocation, zone: EnvironmentZone) => void | Promise<void>
 ) => {
-	for (const floor of environmentFloors.value) {
-		for (const location of floor.locations) {
-			void callback(location, floor);
+	for (const zone of environmentZones.value) {
+		for (const location of zone.locations) {
+			void callback(location, zone);
 		}
 	}
 };
@@ -1587,37 +1594,59 @@ const stopAutoRefresh = () => {
 	stopPolling();
 };
 
-// 使用樓層管理 composable
-const { handleSaveFloor: baseHandleSaveFloor, handleDeleteFloor: baseHandleDeleteFloor } =
-	useFloorManagement<EnvironmentFloor>();
+// 使用區域管理 composable
+const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
+	useZoneManagement<EnvironmentZone>();
 
-// 處理儲存樓層
-const handleSaveFloor = async (floor: EnvironmentFloor) => {
-	await baseHandleSaveFloor(
-		floor,
-		environmentFloors,
-		async (f: EnvironmentFloor) => {
-			return f.id
-				? await environmentApi.updateFloor(f.id, {
-						name: f.name,
-						locations: f.locations
+// 處理儲存區域
+const handleSaveZone = async (zone: EnvironmentZone) => {
+	await baseHandleSaveZone(
+		zone,
+		environmentZones,
+		async (z: EnvironmentZone) => {
+			// 檢查是否為臨時 ID（以 temp- 開頭）或有效的數字 ID
+			const isValidId = z.id && !z.id.startsWith("temp-") && /^\d+$/.test(z.id);
+			const result = isValidId
+				? await environmentApi.updateZone(z.id, {
+						name: z.name,
+						locations: z.locations
 					})
-				: await environmentApi.createFloor({
-						name: f.name,
-						locations: f.locations
+				: await environmentApi.createZone({
+						name: z.name,
+						locations: z.locations
 					});
+			// 確保返回的 zone 有 id
+			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as EnvironmentZone & { id: string };
+			return {
+				merged: result.merged,
+				message: result.message,
+				zone: zoneWithId
+			};
 		},
 		{
-			cleanFloor
+			cleanZone: cleanZone
 		}
 	);
 };
 
-// 處理刪除樓層
-const handleDeleteFloor = async (floorId: string) => {
-	await baseHandleDeleteFloor(floorId, environmentFloors, environmentApi.deleteFloor, {
+// 處理刪除區域
+const handleDeleteZone = async (zoneId: string) => {
+	await baseHandleDeleteZone(zoneId, environmentZones, environmentApi.deleteZone, {
 		selectedLocationRef: selectedLocationId,
-		getLocationId
+		getLocationId,
+		// 系統特定的刪除選項（方案一：只刪除該系統的地點）
+		systemType: "environment",
+		getFullZoneApiCall: (id: string) => locationApi.getZone(id), // 取得完整區域資料（不帶 systemType 過濾）
+		updateZoneApiCall: async (id: string, data: { locations: UnifiedZone["locations"] }) => {
+			const response = await locationApi.updateZone(id, { locations: data.locations });
+			const environmentZone = backendToEnvironmentZone(response.zone);
+			// 確保返回的 zone 有 id
+			return {
+				merged: response.merged,
+				message: response.message,
+				zone: { ...environmentZone, id: environmentZone.id || id } as EnvironmentZone & { id: string }
+			};
+		}
 	});
 };
 
@@ -1767,11 +1796,11 @@ onMounted(async () => {
 	// 初始化左側 ResizeObserver
 	initLeftSectionObserver();
 
-	// 載入樓層和地點資料（從環境 API）
-	await loadFloorsFromAPI();
+	// 載入區域和地點資料（從環境 API）
+	await loadZonesFromAPI();
 
 	// 為所有有設備的地點載入初始資料（用於總覽面板）
-	forEachLocation((location, floor) => {
+	forEachLocation((location, zone) => {
 		if (location.deviceId) {
 			const locationId = getLocationId(location);
 			// 如果不是當前選中地點，也載入資料
@@ -1839,8 +1868,8 @@ const currentTemperature = computed(() => {
 // 取得當前地點的顯示字串（共用函數）
 const getCurrentLocationString = (): string => {
 	if (!currentLocationData.value) return "請選擇地點";
-	const floorName = getLocationFloor(currentLocationData.value);
-	return `${floorName || ""} / ${currentLocationData.value.name}`;
+	const zoneName = getLocationZone(currentLocationData.value);
+	return `${zoneName || ""} / ${currentLocationData.value.name}`;
 };
 
 const aqiData = computed(() => ({

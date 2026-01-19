@@ -252,11 +252,23 @@
 			</div>
 		</Transition>
 	</Teleport>
+
+	<!-- 確認對話框 -->
+	<ConfirmDialog
+		v-model="showConfirmDialog"
+		:title="confirmDialogConfig.title"
+		:message="confirmDialogConfig.message"
+		:details="confirmDialogConfig.details"
+		:type="confirmDialogConfig.type"
+		@confirm="handleConfirmDelete"
+	/>
 </template>
 
 <script setup lang="ts">
 import { useDeviceApi } from "~/composables/systems/useDeviceApi";
 import { useToast } from "~/composables/core/useToast";
+import { useConfirmDialog } from "~/composables/useConfirmDialog";
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import type {
 	DeviceModel,
 	DeviceTypeCode,
@@ -429,15 +441,39 @@ const editDeviceModel = (model: DeviceModel) => {
 	showForm.value = true;
 };
 
-const confirmDelete = async (model: DeviceModel) => {
-	if (!confirm(`確定要刪除設備型號 "${model.name}" 嗎？此操作無法復原。`)) {
-		return;
+// 確認對話框
+const confirmDialog = useConfirmDialog();
+const pendingDeleteModel = ref<DeviceModel | null>(null);
+
+// 解包 ref 以便在模板中使用
+const showConfirmDialog = computed({
+	get: () => confirmDialog.showDialog.value,
+	set: (value: boolean) => {
+		confirmDialog.showDialog.value = value;
 	}
+});
+
+const confirmDialogConfig = computed(() => confirmDialog.config.value);
+
+const confirmDelete = (model: DeviceModel) => {
+	pendingDeleteModel.value = model;
+	confirmDialog.show({
+		title: "確認刪除",
+		message: `確定要刪除設備型號 "${model.name}" 嗎？`,
+		details: "此操作無法復原。",
+		type: "danger"
+	});
+};
+
+const handleConfirmDelete = async () => {
+	if (!pendingDeleteModel.value) return;
+	
 	try {
-		await deviceApi.deleteDeviceModel(model.id);
-		toast.success(`設備型號 "${model.name}" 已刪除`);
-		await loadDeviceModels(true); // 強制刷新
+		await deviceApi.deleteDeviceModel(pendingDeleteModel.value.id);
+		toast.success(`設備型號 "${pendingDeleteModel.value.name}" 已刪除`);
+		await loadDeviceModels(true);
 		emit("refresh");
+		pendingDeleteModel.value = null;
 	} catch (error) {
 		handleError(error, "刪除設備型號失敗");
 	}

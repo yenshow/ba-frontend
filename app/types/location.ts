@@ -64,13 +64,13 @@ export interface LocationSystem {
 }
 
 /**
- * 統一樓層
+ * 統一區域
  */
-export interface UnifiedFloor {
+export interface UnifiedZone {
 	id: string;
 	name: string;
 	buildingId?: number;
-	floorNumber?: number;
+	zoneNumber?: number;
 	imageUrl?: string; // 照明系統專用
 	description?: string;
 	locations: UnifiedLocation[];
@@ -81,15 +81,10 @@ export interface UnifiedFloor {
  */
 export interface UnifiedLocation {
 	id: string;
-	floorId: string;
+	zoneId: string;
 	name: string;
 	description?: string;
 	systems: LocationSystem[];
 }
 
-/**
- * 向後兼容：地點類型（已棄用，使用 systems 陣列）
- * @deprecated 使用 UnifiedLocation.systems 替代
- */
-export type LocationType = SystemType;
 

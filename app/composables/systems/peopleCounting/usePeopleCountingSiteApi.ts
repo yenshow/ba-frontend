@@ -10,9 +10,9 @@
 
 import type { PeopleCountingSite, PeopleCountingUnit } from "~/types/peopleCounting";
 import { useApiBase } from "~/composables/core/useApiBase";
-import { usePeopleCountingLocationApi } from "~/composables/systems/usePeopleCountingLocationApi";
+import { usePeopleCountingLocationApi } from "~/composables/systems/location/usePeopleCountingLocationApi";
 import { logger } from "~/utils/logger";
-import { extractRegionFromFloorName } from "~/utils/peopleCountingAdapter";
+import { extractRegionFromZoneName } from "~/utils/peopleCountingAdapter";
 
 /**
  * 人流統計工地配置 API
@@ -41,23 +41,23 @@ export const usePeopleCountingSiteApi = () => {
 				}>;
 			}> }>("/people-counting/sites");
 
-			// 取得樓層資訊以提取區域
-			let floorsResponse;
+			// 取得區域資訊以提取區域
+			let zonesResponse;
 			try {
-				floorsResponse = await locationApi.getFloors();
+				zonesResponse = await locationApi.getZones();
 			} catch (error) {
 				siteApiLogger.warn("無法載入地點管理系統，使用預設區域", { error });
-				floorsResponse = { floors: [] };
+				zonesResponse = { zones: [] };
 			}
 
-			const floors = floorsResponse.floors || [];
-			const locationMap = new Map<number, { floorName: string }>();
+			const zones = zonesResponse.zones || [];
+			const locationMap = new Map<number, { zoneName: string }>();
 
-			floors.forEach(floor => {
-				floor.locations?.forEach(location => {
+			zones.forEach(zone => {
+				zone.locations?.forEach(location => {
 					const siteId = location.id ? Number(location.id) : undefined;
 					if (siteId) {
-						locationMap.set(siteId, { floorName: floor.name });
+						locationMap.set(siteId, { zoneName: zone.name });
 					}
 				});
 			});
@@ -66,7 +66,7 @@ export const usePeopleCountingSiteApi = () => {
 			return response.sites.map(site => {
 				const locationInfo = locationMap.get(site.id);
 				const region = locationInfo
-					? extractRegionFromFloorName(locationInfo.floorName) || "未分類"
+					? extractRegionFromZoneName(locationInfo.zoneName) || "未分類"
 					: "未分類";
 
 				return {
@@ -111,23 +111,23 @@ export const usePeopleCountingSiteApi = () => {
 				};
 			}>("/people-counting/sites/" + siteId);
 
-			// 取得樓層資訊以提取區域
-			let floorsResponse;
+			// 取得區域資訊以提取區域
+			let zonesResponse;
 			try {
-				floorsResponse = await locationApi.getFloors();
+				zonesResponse = await locationApi.getZones();
 			} catch (error) {
 				siteApiLogger.warn("無法載入地點管理系統，使用預設區域", { error });
-				floorsResponse = { floors: [] };
+				zonesResponse = { zones: [] };
 			}
 
-			const floors = floorsResponse.floors || [];
+			const zones = zonesResponse.zones || [];
 			let region = "未分類";
 
-			for (const floor of floors) {
-				for (const location of floor.locations || []) {
+			for (const zone of zones) {
+				for (const location of zone.locations || []) {
 					const locationId = location.id ? Number(location.id) : undefined;
 					if (locationId === siteId) {
-						region = extractRegionFromFloorName(floor.name) || "未分類";
+						region = extractRegionFromZoneName(zone.name) || "未分類";
 						break;
 					}
 				}
