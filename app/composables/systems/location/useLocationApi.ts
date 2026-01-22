@@ -1,4 +1,4 @@
-import type { UnifiedZone, UnifiedLocation, SystemType, LocationSystem } from "~/types/location";
+import type { UnifiedZone, UnifiedLocation, SystemType, LocationSystem, UnifiedLocationInput } from "~/types/location";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPathWithQuery } from "~/utils/apiUtils";
 
@@ -48,7 +48,7 @@ export const useLocationApi = () => {
 			zoneNumber?: number;
 			imageUrl?: string;
 			description?: string;
-			locations?: Omit<UnifiedLocation, "id" | "zoneId">[];
+			locations?: UnifiedLocationInput[];
 		}) => {
 			return request<{ merged: boolean; message: string; zone: UnifiedZone }>("/locations/zones", {
 				method: "POST",
@@ -67,7 +67,7 @@ export const useLocationApi = () => {
 				zoneNumber?: number;
 				imageUrl?: string;
 				description?: string;
-				locations?: (UnifiedLocation | Omit<UnifiedLocation, "id" | "zoneId">)[];
+				locations?: (UnifiedLocation | UnifiedLocationInput)[];
 			}
 		) => {
 			return request<{ merged: boolean; message: string; zone: UnifiedZone }>(

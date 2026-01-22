@@ -183,7 +183,7 @@ export function useZoneManagement<T extends { id?: string; name: string; locatio
 						}
 					}
 
-					// 處理選中地點（環境品質系統）
+					// 處理選中地點（所有系統）
 					if (options?.selectedLocationRef && options?.getLocationId) {
 						// 檢查刪除的區域是否包含當前選中的地點
 						const deletedLocation = fullZone.locations?.find(
@@ -243,7 +243,7 @@ export function useZoneManagement<T extends { id?: string; name: string; locatio
 					}
 				}
 
-				// 處理選中地點（環境品質系統）
+				// 處理選中地點（所有系統）
 				if (options?.selectedLocationRef && options?.getLocationId) {
 					// 檢查刪除的區域是否包含當前選中的地點
 					if (

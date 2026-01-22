@@ -16,19 +16,12 @@
 		<!-- 控制器 -->
 		<label class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0">
 			<span>控制器</span>
-			<select
-				v-model.number="localLocation.deviceId"
-				class="form-input-small form-select min-w-0"
-				@change="handleDeviceChange"
-				:disabled="isLoadingDevices"
-			>
-				<option :value="0">請選擇控制器</option>
-				<option v-if="isLoadingDevices" value="" disabled>載入中...</option>
-				<option v-else-if="devices.length === 0" value="" disabled>尚無可用控制器</option>
-				<option v-for="device in devices" :key="device.id" :value="device.id">
-					{{ device.name }}
-				</option>
-			</select>
+			<FilterDropdown
+				v-model="deviceIdString"
+				:options="deviceOptions"
+				:placeholder="isLoadingDevices ? '載入中...' : '請選擇控制器'"
+				@update:modelValue="handleDeviceChange"
+			/>
 		</label>
 
 		<!-- Modbus 配置（當選擇了設備時顯示） -->
@@ -93,6 +86,7 @@
 import type { LightingLocation } from "~/types/lighting";
 import type { Device } from "~/types/device";
 import { useLightingLocationValidation } from "~/composables/systems/location/useLightingLocationValidation";
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
 
 interface Props {
 	location: LightingLocation;
@@ -120,6 +114,9 @@ const { checkDuplicateAddress } = useLightingLocationValidation();
 // 本地副本，用於雙向綁定
 const localLocation = ref<LightingLocation>({ ...props.location });
 
+// 設備 ID 字串（用於 FilterDropdown）
+const deviceIdString = ref("");
+
 // 初始化 modbus 配置的輔助函數
 const ensureModbusConfig = (location: LightingLocation) => {
 	if (location.deviceId && location.deviceId > 0) {
@@ -146,6 +143,10 @@ watch(
 	newLocation => {
 		localLocation.value = { ...newLocation };
 		ensureModbusConfig(localLocation.value);
+		// 更新設備 ID 字串（用於 FilterDropdown）
+		deviceIdString.value = localLocation.value.deviceId > 0 
+			? String(localLocation.value.deviceId) 
+			: "";
 	},
 	{ immediate: true, deep: true }
 );
@@ -163,8 +164,29 @@ const handleChange = () => {
 	emit("update", { ...localLocation.value });
 };
 
+// 設備選項（用於 FilterDropdown）
+const deviceOptions = computed(() => {
+	if (props.isLoadingDevices) {
+		return [{ value: "", label: "載入中..." }];
+	}
+	if (props.devices.length === 0) {
+		return [{ value: "", label: "尚無可用控制器" }];
+	}
+	const options = props.devices.map(device => ({
+		value: String(device.id),
+		label: device.name
+	}));
+	// 添加空選項（用於清除選擇）
+	return [
+		{ value: "", label: "請選擇控制器" },
+		...options
+	];
+});
+
 // 處理設備變更
-const handleDeviceChange = () => {
+const handleDeviceChange = (value: string) => {
+	const deviceId = value ? Number(value) : 0;
+	localLocation.value.deviceId = deviceId;
 	ensureModbusConfig(localLocation.value);
 	handleChange();
 };

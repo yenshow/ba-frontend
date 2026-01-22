@@ -1,16 +1,16 @@
 <template>
-	<div class="filter-dropdown relative">
+	<div ref="dropdownRef" class="filter-dropdown relative">
 		<div class="flex items-center gap-2">
 			<input
 				:value="displayValue"
 				readonly
-				@click="showDropdown = !showDropdown"
-				class="select-filter w-[125px] cursor-pointer text-center"
+				@click="toggleDropdown"
+				class="select-filter flex-1 cursor-pointer text-center"
 				:placeholder="placeholder"
 			/>
 			<svg
-				class="h-5 w-5 cursor-pointer text-white/70"
-				@click="showDropdown = !showDropdown"
+				class="h-5 w-5 flex-shrink-0 cursor-pointer text-white/70"
+				@click="toggleDropdown"
 				fill="none"
 				stroke="currentColor"
 				viewBox="0 0 24 24"
@@ -19,29 +19,35 @@
 			</svg>
 		</div>
 
-		<!-- 下拉選單 -->
-		<Transition name="fade">
-			<div
-				v-if="showDropdown"
-				class="absolute top-full z-50 mt-2 w-[125px] rounded-lg border border-white/20 bg-slate-800 p-2 shadow-lg"
-			>
-				<div class="space-y-1">
-					<button
-						v-for="option in options"
-						:key="option.value"
-						type="button"
-						@click="selectOption(option.value)"
-						:class="[
-							'w-full rounded px-3 py-2 text-center text-sm text-white transition-colors',
-							isSelected(option.value) ? 'bg-blue-500/80 text-white' : 'hover:bg-white/10'
-						]"
-					>
-						{{ option.label }}
-					</button>
+		<!-- 下拉選單（使用 Teleport 避免被容器裁剪） -->
+		<Teleport to="body">
+			<Transition name="fade">
+				<div
+					v-if="showDropdown"
+					ref="dropdownMenuRef"
+					class="fixed z-[9999] rounded-lg border border-white/20 bg-slate-800 shadow-lg"
+					:style="dropdownStyle"
+				>
+					<div class="max-h-60 overflow-y-auto p-2">
+						<div class="space-y-1">
+							<button
+								v-for="option in options"
+								:key="option.value"
+								type="button"
+								@click="selectOption(option.value)"
+								:class="[
+									'w-full rounded px-3 py-2 text-center text-sm text-white transition-colors',
+									isSelected(option.value) ? 'bg-blue-500/80 text-white' : 'hover:bg-white/10'
+								]"
+							>
+								{{ option.label }}
+							</button>
+						</div>
+						<slot name="custom-content" />
+					</div>
 				</div>
-				<slot name="custom-content" />
-			</div>
-		</Transition>
+			</Transition>
+		</Teleport>
 	</div>
 </template>
 
@@ -66,6 +72,31 @@ const emit = defineEmits<{
 }>();
 
 const showDropdown = ref(false);
+const dropdownRef = ref<HTMLElement | null>(null);
+const dropdownMenuRef = ref<HTMLElement | null>(null);
+
+// 計算下拉選單位置
+const dropdownStyle = computed(() => {
+	if (!dropdownRef.value || !showDropdown.value) {
+		return {};
+	}
+
+	const rect = dropdownRef.value.getBoundingClientRect();
+	const dropdownWidth = rect.width;
+	
+	// 計算位置：在輸入框下方，左對齊
+	// getBoundingClientRect() 返回的是相對於視口的座標，fixed 定位也是相對於視口
+	return {
+		top: `${rect.bottom + 8}px`, // 8px = mt-2
+		left: `${rect.left}px`,
+		width: `${dropdownWidth}px`
+	};
+});
+
+// 切換下拉選單
+const toggleDropdown = () => {
+	showDropdown.value = !showDropdown.value;
+};
 
 // 檢查選項是否被選中
 const isSelected = (value: string): boolean => {
@@ -92,17 +123,37 @@ const selectOption = (value: string) => {
 };
 
 // 點擊外部關閉下拉選單
+const handleClickOutside = (event: MouseEvent) => {
+	const target = event.target as HTMLElement;
+	if (
+		showDropdown.value &&
+		!target.closest(".filter-dropdown") &&
+		!dropdownMenuRef.value?.contains(target)
+	) {
+		showDropdown.value = false;
+	}
+};
+
+// 監聽滾動和調整大小，更新位置
+const updatePosition = () => {
+	if (showDropdown.value) {
+		// 觸發重新計算位置（通過響應式更新）
+		nextTick(() => {
+			// 位置會自動通過 computed 更新
+		});
+	}
+};
+
 onMounted(() => {
-	const handleClickOutside = (event: MouseEvent) => {
-		const target = event.target as HTMLElement;
-		if (showDropdown.value && !target.closest(".filter-dropdown")) {
-			showDropdown.value = false;
-		}
-	};
 	document.addEventListener("click", handleClickOutside);
-	onUnmounted(() => {
-		document.removeEventListener("click", handleClickOutside);
-	});
+	window.addEventListener("scroll", updatePosition, true);
+	window.addEventListener("resize", updatePosition);
+});
+
+onBeforeUnmount(() => {
+	document.removeEventListener("click", handleClickOutside);
+	window.removeEventListener("scroll", updatePosition, true);
+	window.removeEventListener("resize", updatePosition);
 });
 </script>
 

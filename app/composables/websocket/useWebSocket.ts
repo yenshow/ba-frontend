@@ -123,6 +123,38 @@ export interface RtspStreamStatusChangedEvent {
 }
 
 /**
+ * 人流統計相關事件類型
+ */
+export interface PeopleCountingRecordNewEvent {
+	id: string;
+	personId: number;
+	personName: string;
+	unitId: number | null;
+	unitName: string;
+	eventType: "entry" | "exit" | "failed";
+	timestamp: string;
+	deviceScreenshotUrl: string;
+	physicalId: number | null;
+	locationId: number | null;
+	locationName: string | null;
+}
+
+/**
+ * YSCP 事件相關類型
+ */
+export interface YscpEventAlarm {
+	type: "alarm";
+	data: Record<string, unknown>;
+	timestamp: string;
+}
+
+export interface YscpEventGeneric {
+	type: "generic";
+	data: Record<string, unknown>;
+	timestamp: string;
+}
+
+/**
  * WebSocket Composable
  * 提供 WebSocket 連接管理和事件監聽功能
  * 參考後端設計：ba-backend/docs/WEBSOCKET_STRATEGY_AND_IMPLEMENTATION.md

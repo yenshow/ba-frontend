@@ -195,11 +195,11 @@
 												<div class="space-y-3">
 													<label class="flex flex-col gap-1 text-xs text-white/80 2xl:text-sm">
 														<span>參數類型 *</span>
-														<select v-model="param.type" class="form-input form-select" required>
-															<option v-for="option in parameterTypes" :key="option.value" :value="option.value">
-																{{ option.label }}
-															</option>
-														</select>
+														<FilterDropdown
+															v-model="param.type"
+															:options="parameterTypeOptions"
+															placeholder="請選擇參數類型"
+														/>
 													</label>
 
 													<label class="flex flex-col gap-1 text-xs text-white/80 2xl:text-sm">
@@ -267,8 +267,9 @@
 <script setup lang="ts">
 import { useDeviceApi } from "~/composables/systems/useDeviceApi";
 import { useToast } from "~/composables/core/useToast";
-import { useConfirmDialog } from "~/composables/useConfirmDialog";
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import type {
 	DeviceModel,
 	DeviceTypeCode,
@@ -338,8 +339,8 @@ const resetForm = () => {
 	formErrorMessage.value = null;
 };
 
-// 參數類型選項
-const parameterTypes: { value: SensorParameterType; label: string }[] = [
+// 參數類型選項（用於 FilterDropdown）
+const parameterTypeOptions = [
 	{ value: "pm25", label: "PM2.5" },
 	{ value: "pm10", label: "PM10" },
 	{ value: "tvoc", label: "TVOC" },
@@ -349,7 +350,7 @@ const parameterTypes: { value: SensorParameterType; label: string }[] = [
 	{ value: "co2", label: "CO2" },
 	{ value: "noise", label: "噪音值" },
 	{ value: "wind", label: "風速" }
-];
+] as const;
 
 // 新增參數配置
 const addSensorParameter = () => {

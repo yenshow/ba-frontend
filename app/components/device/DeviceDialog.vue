@@ -38,20 +38,12 @@
 						</label>
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 							<span>設備型號 *</span>
-							<select
-								v-model.number="localFormData.model_id"
-								class="form-input form-select"
-								required
-								@change="onModelChange"
-								:disabled="isLoadingDeviceModels"
-							>
-								<option :value="0" disabled>請選擇設備型號</option>
-								<option v-if="isLoadingDeviceModels" value="" disabled>載入中...</option>
-								<option v-else-if="deviceModels.length === 0" value="" disabled>無可用設備型號</option>
-								<option v-for="model in deviceModels" :key="model.id" :value="model.id">
-									{{ model.name }}
-								</option>
-							</select>
+							<FilterDropdown
+								v-model="modelIdString"
+								:options="deviceModelOptions"
+								:placeholder="isLoadingDeviceModels ? '載入中...' : '請選擇設備型號'"
+								@update:modelValue="onModelChange"
+							/>
 							<p
 								v-if="deviceModels.length === 0 && !isLoadingDeviceModels"
 								class="mt-1 text-xs text-amber-300"
@@ -322,6 +314,7 @@
 
 <script setup lang="ts">
 import { useDeviceApi } from "~/composables/systems/useDeviceApi";
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import type {
 	Device,
 	CreateDeviceData,
@@ -366,6 +359,9 @@ const deviceModels = ref<DeviceModel[]>([]);
 const isLoadingDeviceModels = ref(false);
 const currentDeviceTypeId = ref<number | null>(null);
 const localErrorMessage = ref<string | null>(null);
+
+// 設備型號 ID 字串（用於 FilterDropdown）
+const modelIdString = ref("");
 
 const loadDeviceType = async () => {
 	try {
@@ -458,6 +454,25 @@ const loadDeviceModels = async (force = false) => {
 	}
 };
 
+// 設備型號選項（用於 FilterDropdown）
+const deviceModelOptions = computed(() => {
+	if (isLoadingDeviceModels.value) {
+		return [{ value: "", label: "載入中..." }];
+	}
+	if (deviceModels.value.length === 0) {
+		return [{ value: "", label: "無可用設備型號" }];
+	}
+	const options = deviceModels.value.map(model => ({
+		value: String(model.id),
+		label: model.name
+	}));
+	// 添加空選項（用於清除選擇）
+	return [
+		{ value: "", label: "請選擇設備型號" },
+		...options
+	];
+});
+
 // 獲取當前選中的設備型號
 const selectedDeviceModel = computed(() => {
 	if (!localFormData.model_id || deviceModels.value.length === 0) return null;
@@ -476,7 +491,8 @@ const inheritPortFromModel = () => {
 	}
 };
 
-const onModelChange = () => {
+const onModelChange = (value: string) => {
+	localFormData.model_id = value ? Number(value) : 0;
 	inheritPortFromModel();
 };
 
@@ -497,6 +513,15 @@ watch(
 	() => {
 		loadDeviceModels();
 	}
+);
+
+// 監聽 model_id 變化，同步更新 modelIdString
+watch(
+	() => localFormData.model_id,
+	newModelId => {
+		modelIdString.value = newModelId > 0 ? String(newModelId) : "";
+	},
+	{ immediate: true }
 );
 
 watch(

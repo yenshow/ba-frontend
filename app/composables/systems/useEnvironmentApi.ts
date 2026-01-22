@@ -1,9 +1,8 @@
 import type { EnvironmentZone, EnvironmentLocation, SensorReading } from "~/types/environment";
-import type { UnifiedZone, UnifiedLocation } from "~/types/location";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPathWithQuery } from "~/utils/apiUtils";
 import { useErrorTrackingApiFactory } from "~/composables/factories/useErrorTrackingApiFactory";
-import { useLocationApi } from "~/composables/systems/location/useLocationApi";
+import { useSystemLocationApiFactory } from "~/composables/systems/location/useSystemLocationApiFactory";
 import {
 	backendToEnvironmentZone,
 	environmentToUnifiedZone,
@@ -44,7 +43,14 @@ export interface GetReadingsOptions {
 
 export const useEnvironmentApi = () => {
 	const { request } = useApiBase();
-	const locationApi = useLocationApi();
+
+	// 使用通用 Factory 創建區域管理 API
+	const zoneApi = useSystemLocationApiFactory<EnvironmentZone, EnvironmentLocation>({
+		systemType: "environment",
+		backendToSystemZone: backendToEnvironmentZone,
+		systemToUnifiedZone: (zone) => environmentToUnifiedZone(zone, "environment"),
+		locationToUnified: environmentLocationToUnified
+	});
 
 	// 使用通用 Factory 創建錯誤追蹤 API
 	const errorTrackingApi = useErrorTrackingApiFactory(
@@ -58,65 +64,19 @@ export const useEnvironmentApi = () => {
 		// 所有操作都通過統一地點管理 API 進行
 
 		// 取得區域列表
-		getZones: async () => {
-			const response = await locationApi.getZones("environment");
-			return {
-				zones: response.zones.map((zone) => backendToEnvironmentZone(zone))
-			};
-		},
+		getZones: zoneApi.getZones,
 
 		// 取得單一區域
-		getZone: async (id: string) => {
-			const response = await locationApi.getZone(id, "environment");
-			return {
-				zone: backendToEnvironmentZone(response.zone)
-			};
-		},
+		getZone: zoneApi.getZone,
 
 		// 建立區域
-		createZone: async (data: CreateEnvironmentZoneData) => {
-			const unifiedData = environmentToUnifiedZone(
-				{ name: data.name, locations: data.locations || [] },
-				"environment"
-			);
-			const response = await locationApi.createZone(unifiedData);
-			return {
-				merged: response.merged,
-				message: response.message,
-				zone: backendToEnvironmentZone(response.zone)
-			};
-		},
+		createZone: zoneApi.createZone,
 
 		// 更新區域
-		updateZone: async (id: string, data: UpdateEnvironmentZoneData) => {
-			// 直接構建統一格式資料（後端支援部分更新）
-			const unifiedData: {
-				name?: string;
-				locations?: (UnifiedLocation | Omit<UnifiedLocation, "id" | "zoneId">)[];
-			} = {};
-			
-			if (data.name !== undefined) {
-				unifiedData.name = data.name;
-			}
-			
-			if (data.locations !== undefined) {
-				// 將環境監測地點轉換為統一格式
-				unifiedData.locations = data.locations.map((loc) => {
-					const converted = environmentLocationToUnified(loc, "environment");
-					return converted as UnifiedLocation | Omit<UnifiedLocation, "id" | "zoneId">;
-				});
-			}
-
-			const response = await locationApi.updateZone(id, unifiedData);
-			return {
-				merged: response.merged,
-				message: response.message,
-				zone: backendToEnvironmentZone(response.zone)
-			};
-		},
+		updateZone: zoneApi.updateZone,
 
 		// 刪除區域
-		deleteZone: locationApi.deleteZone,
+		deleteZone: zoneApi.deleteZone,
 
 		// ========== 感測器讀數 API ==========
 

@@ -1,54 +1,63 @@
 <template>
 	<div>
-		<!-- 人流統計系統頁面內容 - 參考 surveillance.vue 排版 -->
+		<!-- 人流統計系統頁面內容 -->
 		<div class="flex justify-center gap-4 xl:gap-6 2xl:gap-8">
 			<!-- 左側：詳細工地資訊（主要內容 - 大） -->
-			<section class="relative flex-[1.2] 2xl:flex-[1.3]">
+			<section class="relative flex-[1.2] 2xl:flex-[1.3]" ref="leftSectionRef">
 				<div
-					ref="leftSectionRef"
-					class="relative flex gap-4 overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 xl:p-6 2xl:p-8"
+					class="relative flex flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 2xl:p-6"
 				>
-					<!-- 地點管理按鈕 -->
+					<!-- 位置標題與地點選擇 -->
+					<div
+						class="absolute left-1/2 top-0 flex h-[36px] translate-x-[-50%] items-center justify-center bg-white text-lg text-[#595959] 2xl:text-xl"
+						style="clip-path: polygon(0 0, 100% 0, calc(100% - 24px) 100%, calc(0% + 24px) 100%)"
+					>
+						<div class="flex w-[200px] items-center justify-center">
+							<span v-if="selectedLocation" class="ps-[12px]">{{
+								getLocationZone(selectedLocation)
+							}}</span>
+						</div>
+						<div class="h-[24px] w-px bg-[#595959]"></div>
+						<div class="flex w-[200px] items-center justify-center">
+							<span v-if="selectedLocation" class="pe-[12px]">{{ selectedLocation.name }}</span>
+						</div>
+					</div>
+
 					<button
 						type="button"
-						class="absolute left-8 top-2 z-10 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
+						class="absolute left-8 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
 						@click="handleOpenLocationDialog"
 					>
 						地點管理
 					</button>
-					<!-- 載入狀態 -->
-					<div v-if="isLoadingSite" class="flex h-full w-full items-center justify-center">
-						<div class="text-center text-white">
-							<div class="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-white"></div>
-							<p>載入工地資訊...</p>
-						</div>
-					</div>
 
 					<!-- 左側內容：分為左右兩區塊 -->
-					<template v-else-if="selectedSite">
-						<!-- 左側-左：統計 + 記錄表 -->
-						<div class="flex-[1] overflow-y-auto">
-							<SiteStatsPanel
-								:entry-count="selectedSite.entryCount || 0"
-								:exit-count="selectedSite.exitCount || 0"
-								:logs="logs"
-							/>
-						</div>
-
-						<!-- 左側-右：單位列表 + 人員名單 -->
-						<div class="flex-[1] overflow-y-auto">
-							<SiteDetailPanel
-								:site="selectedSite"
-								:personnel="personnel"
-								@unit-select="handleUnitSelect"
-							/>
+					<template v-if="selectedLocation">
+						<div class="mt-12 flex">
+							<!-- 左側-左：統計 + 記錄表 -->
+							<div class="flex-1">
+								<LocationStatsPanel
+									:entry-count="selectedLocation.entryCount || 0"
+									:exit-count="selectedLocation.exitCount || 0"
+									:logs="logs"
+								/>
+							</div>
+							<!-- 左側-右：單位列表 + 人員名單 -->
+							<div class="flex-1 border-l-2 border-white/30 ms-4 ps-4">
+								<LocationDetailPanel
+									:location="selectedLocation"
+									:personnel="personnel"
+									:selected-unit-id="selectedUnitId"
+									@unit-select="handleUnitSelect"
+								/>
+							</div>
 						</div>
 					</template>
 
-					<!-- 提示：選擇工地 -->
+					<!-- 提示：選擇地點 -->
 					<div
 						v-else
-						class="flex h-full min-h-[600px] w-full items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
+						class="mt-12 flex h-full min-h-[600px] w-full items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
 					>
 						<div>
 							<svg
@@ -64,8 +73,8 @@
 									d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
 								/>
 							</svg>
-							<p class="text-xl font-medium text-white/90 xl:text-2xl 2xl:text-3xl">請選擇工地</p>
-							<p class="mt-2 text-sm text-white/70 xl:text-base">請從右側列表點選工地以查看詳細資訊</p>
+							<p class="text-xl font-medium text-white/90 xl:text-2xl 2xl:text-3xl">請選擇地點</p>
+							<p class="mt-2 text-sm text-white/70 xl:text-base">請從右側列表點選地點以查看詳細資訊</p>
 						</div>
 					</div>
 				</div>
@@ -84,16 +93,14 @@
 				>
 					<!-- 標題與收縮按鈕 -->
 					<Transition name="fade">
-						<div v-if="!isSidebarCollapsed" key="title" class="mb-4 border-b border-white/30 px-4 pb-4">
-							<div class="flex items-center justify-center">
-								<h2 class="text-xl font-semibold text-white xl:text-2xl 2xl:text-3xl">總覽</h2>
-								<span
-									class="ml-2 rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-medium text-white backdrop-blur-sm xl:text-sm"
-								>
-									{{ sites.length }}
-								</span>
-							</div>
-						</div>
+						<h2
+							v-if="!isSidebarCollapsed"
+							key="title"
+							class="mb-4 text-center text-xl font-semibold tracking-[12px] text-white xl:text-2xl 2xl:text-3xl"
+							style="padding-left: 12px"
+						>
+							總覽
+						</h2>
 					</Transition>
 					<button
 						type="button"
@@ -117,32 +124,27 @@
 						<div
 							v-if="!isSidebarCollapsed"
 							key="content"
-							class="min-h-0 flex-1 space-y-4 overflow-y-auto px-4"
+							class="min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
 						>
-							<!-- 載入狀態 -->
-							<div v-if="isLoadingSites" class="flex items-center justify-center py-8">
-								<div class="text-center text-white">
-									<div class="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-b-2 border-white"></div>
-									<p class="text-sm text-white/70">載入工地列表...</p>
-								</div>
-							</div>
-
-							<!-- 工地卡片列表 -->
-							<div v-else class="space-y-4">
-								<div
-									v-if="filteredSites.length === 0"
-									class="h-full py-8 text-center text-sm text-white/60 xl:text-base"
-								>
-									沒有找到工地
-								</div>
-								<SiteOverviewCard
-									v-for="site in filteredSites"
-									:key="site.id"
-									:site="site"
-									@click="handleSiteSelect"
+						<div class="space-y-4">
+							<template v-if="locations.length > 0">
+								<LocationOverviewCard
+									v-for="location in locationsForOverview"
+									:key="location.locationId || location.id"
+									:location="location"
+									@click="handleLocationSelect"
+									:class="{
+										'ring-2 ring-cyan-400': isCurrentLocation(location),
+										'hover:ring-2 hover:ring-cyan-300/50': true
+									}"
 								/>
+							</template>
+							<div v-else class="py-8 text-center text-white/60">
+								<p class="text-base 2xl:text-lg">尚無地點資料</p>
+								<p class="mt-2 text-sm 2xl:text-base">請在「地點管理」中新增地點</p>
 							</div>
 						</div>
+					</div>
 					</Transition>
 				</div>
 			</aside>
@@ -159,187 +161,133 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount } from "vue";
-import type {
-	PeopleCountingSite,
-	PeopleCountingPersonnel,
-	PeopleCountingLog,
-	PeopleCountingZone
-} from "~/types/peopleCounting";
-import SiteDetailPanel from "~/components/people-counting/SiteDetailPanel.vue";
-import SiteStatsPanel from "~/components/people-counting/SiteStatsPanel.vue";
-import SiteOverviewCard from "~/components/people-counting/SiteOverviewCard.vue";
+import { onMounted, onBeforeUnmount, watch, nextTick } from "vue";
+import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting";
+import LocationDetailPanel from "~/components/people-counting/LocationDetailPanel.vue";
+import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue";
+import LocationOverviewCard from "~/components/people-counting/LocationOverviewCard.vue";
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
-import { usePeopleCountingApi } from "~/composables/systems/usePeopleCountingApi";
+import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState";
+import { usePeopleCountingWebSocket } from "~/composables/systems/peopleCounting/usePeopleCountingWebSocket";
 import { usePeopleCountingLocationApi } from "~/composables/systems/location/usePeopleCountingLocationApi";
 import { useZoneManagement } from "~/composables/systems/useZoneManagement";
 import { useLocationApi } from "~/composables/systems/location/useLocationApi";
-import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { backendToPeopleCountingZone } from "~/utils/locationAdapter";
+import { useZoneSystemAdapter } from "~/composables/systems/useZoneSystemAdapter";
 import type { UnifiedZone } from "~/types/location";
 
-const peopleCountingApi = usePeopleCountingApi();
-const peopleCountingLocationApi = usePeopleCountingLocationApi();
-const locationApi = useLocationApi();
-const { handleError } = useErrorHandler();
+// 使用統一的狀態管理
+const {
+	locations,
+	selectedLocation,
+	personnel,
+	logs,
+	peopleCountingZones,
+	selectedUnitId,
+	loadLocations,
+	loadLocationDetail,
+	loadZones,
+	handleUnitSelect,
+	addLog,
+	getLocationZone
+} = usePeopleCountingState();
 
-// 左側區域參考與高度（用於使右側同高）
+// 右側總覽：顯示 zone 名稱（不影響詳情載入）
+const locationsForOverview = computed(() =>
+	locations.value.map(location => ({
+		...location,
+		overviewZoneName: getLocationZone(location)
+	}))
+);
+
+// WebSocket 事件處理
+const { setupEventListeners } = usePeopleCountingWebSocket();
+
+// 左側區域的 ref 和高度
 const leftSectionRef = ref<HTMLElement | null>(null);
 const leftSectionHeight = ref<number | null>(null);
 
-// ResizeObserver 監聽左側高度
+// ResizeObserver 用於動態監聽左側區域高度變化
 let leftSectionResizeObserver: ResizeObserver | null = null;
 
+// 更新左側高度
 const updateLeftSectionHeight = () => {
 	if (leftSectionRef.value) {
 		leftSectionHeight.value = leftSectionRef.value.offsetHeight;
 	}
 };
 
+// 初始化 ResizeObserver
 const initLeftSectionObserver = () => {
-	if (typeof ResizeObserver === "undefined" || !leftSectionRef.value) return;
+	if (typeof ResizeObserver === "undefined") return;
+	if (!leftSectionRef.value) return;
 
-	// 先設定一次初始高度
-	updateLeftSectionHeight();
-
-	// ResizeObserver 會自動監聽所有尺寸變化
-	leftSectionResizeObserver = new ResizeObserver(() => {
-		updateLeftSectionHeight();
+	leftSectionResizeObserver = new ResizeObserver(entries => {
+		if (entries.length) {
+			leftSectionHeight.value = entries[0].contentRect.height;
+		}
 	});
 	leftSectionResizeObserver.observe(leftSectionRef.value);
 };
 
-// 狀態管理
-const sites = ref<PeopleCountingSite[]>([]);
-const selectedSite = ref<PeopleCountingSite | null>(null);
-const personnel = ref<PeopleCountingPersonnel[]>([]);
-const logs = ref<PeopleCountingLog[]>([]);
-const isLoadingSites = ref(false);
-const isLoadingSite = ref(false);
-const loadError = ref<string | null>(null);
-
 // 側邊欄收縮狀態
 const isSidebarCollapsed = ref(false);
 
-// 選中的單位 ID（用於過濾人員和記錄）
-const selectedUnitId = ref<number | null>(null);
-
 // 地點管理相關狀態
 const showLocationManagementDialog = ref(false);
-const peopleCountingZones = ref<PeopleCountingZone[]>([]);
-const isLoadingZones = ref(false);
 
-// 計算屬性
-const filteredSites = computed(() => {
-	return sites.value;
+// 選中地點 ID（用於刪除邏輯，與環境品質保持一致）
+const selectedLocationId = ref<string>("");
+
+// 取得適配器（用於獲取統一的 getLocationId 方法）
+const adapter = useZoneSystemAdapter<PeopleCountingZone, PeopleCountingLocation>("people_counting");
+
+// 從地點對象獲取 ID（用於刪除邏輯，與環境品質保持一致）
+// 使用適配器提供的統一方法
+const getLocationId = (location: PeopleCountingLocation): string => {
+	const zoneName = getLocationZone(location);
+	return adapter.getLocationId?.(location, zoneName || undefined) || `${zoneName || "unknown"}-${location.name}`;
+};
+
+// 監聽 selectedLocation 變化，同步更新 selectedLocationId（用於刪除邏輯）
+watch(
+	() => selectedLocation.value,
+	newLocation => {
+		selectedLocationId.value = newLocation ? getLocationId(newLocation) : "";
+	},
+	{ immediate: true }
+);
+
+// 監聽左側區域高度變化由 ResizeObserver 處理，僅需在地點變化時更新一次
+watch([selectedLocation, locations, peopleCountingZones], () => {
+	nextTick(() => {
+		updateLeftSectionHeight();
+	});
 });
 
-// 載入工地列表
-const loadSites = async () => {
-	isLoadingSites.value = true;
-	try {
-		sites.value = await peopleCountingApi.getSites();
-		if (process.dev) {
-			console.log("[PeopleCounting] 載入工地列表成功:", sites.value.length);
-		}
-
-		// 如果沒有選中的工地，且列表不為空，自動選擇第一個
-		if (!selectedSite.value && sites.value.length > 0) {
-			await handleSiteSelect(sites.value[0].id);
-		}
-	} catch (error) {
-		handleError(error, "載入工地列表失敗");
-	} finally {
-		isLoadingSites.value = false;
-	}
+// 檢查是否為當前選中的地點
+const isCurrentLocation = (location: PeopleCountingLocation): boolean => {
+	if (!selectedLocation.value) return false;
+	return (
+		selectedLocation.value.locationId === location.locationId ||
+		selectedLocation.value.id === location.id
+	);
 };
 
-// 載入工地詳情
-const loadSiteDetail = async (siteId: number) => {
-	isLoadingSite.value = true;
-	loadError.value = null;
-	selectedUnitId.value = null; // 重置選中的單位
-
-	try {
-		// 載入工地詳情
-		selectedSite.value = await peopleCountingApi.getSiteDetail(siteId);
-
-		// 載入人員列表（如果是第一個單位，預設載入）
-		if (selectedSite.value.units && selectedSite.value.units.length > 0) {
-			const firstUnit = selectedSite.value.units[0];
-			await loadUnitPersonnel(firstUnit.id);
-		} else {
-			personnel.value = [];
-		}
-
-		// 載入進出場記錄（最新 5 筆）
-		await loadSiteLogs(siteId);
-	} catch (error) {
-		const errorMsg = handleError(error, "載入工地詳情失敗");
-		loadError.value = errorMsg || "載入工地詳情失敗";
-	} finally {
-		isLoadingSite.value = false;
-	}
-};
-
-// 載入單位人員
-const loadUnitPersonnel = async (unitId: number) => {
-	try {
-		personnel.value = await peopleCountingApi.getUnitPersonnel(unitId);
-	} catch (error) {
-		handleError(error, "載入單位人員失敗");
-	}
-};
-
-// 載入工地進出場記錄（最新 5 筆）
-const loadSiteLogs = async (siteId: number, unitId?: number) => {
-	try {
-		logs.value = await peopleCountingApi.getSiteLogs(siteId, {
-			limit: 5,
-			...(unitId && { unitId })
-		});
-	} catch (error) {
-		handleError(error, "載入進出場記錄失敗");
-	}
-};
-
-// 處理工地選擇
-const handleSiteSelect = async (siteId: number) => {
-	if (selectedSite.value?.id === siteId) {
+// 處理地點選擇
+const handleLocationSelect = async (locationId: number) => {
+	if (selectedLocation.value?.locationId === locationId) {
 		return; // 已經選中，不需要重新載入
 	}
-	await loadSiteDetail(siteId);
+	await loadLocationDetail(locationId);
 };
 
-// 處理單位選擇
-const handleUnitSelect = async (unitId: number | null) => {
-	selectedUnitId.value = unitId;
-	if (unitId) {
-		// 載入該單位的人員
-		await loadUnitPersonnel(unitId);
-		// 重新載入該單位的進出場記錄
-		if (selectedSite.value) {
-			await loadSiteLogs(selectedSite.value.id, unitId);
-		}
-	} else {
-		// 清除篩選，顯示所有記錄
-		personnel.value = [];
-		if (selectedSite.value) {
-			await loadSiteLogs(selectedSite.value.id);
-		}
-	}
-};
-
-// 清理函數
-onBeforeUnmount(() => {
-	if (leftSectionResizeObserver && leftSectionRef.value) {
-		leftSectionResizeObserver.unobserve(leftSectionRef.value);
-		leftSectionResizeObserver.disconnect();
-		leftSectionResizeObserver = null;
-	}
-});
+// 設置 WebSocket 事件監聽器
+let cleanupWebSocket: (() => void) | null = null;
 
 // 使用區域管理 composable
+const peopleCountingLocationApi = usePeopleCountingLocationApi();
+const locationApi = useLocationApi();
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
 	useZoneManagement<PeopleCountingZone>();
 
@@ -371,10 +319,9 @@ const handleSaveZone = async (zone: PeopleCountingZone) => {
 			};
 		},
 		{
-			// 保存後重新載入工地列表（因為地點變更可能影響工地列表）
+			// 保存後重新載入地點列表（因為地點變更可能影響地點列表）
 			onAfterSave: async () => {
-				// 重新載入工地列表以反映地點變更
-				await loadSites();
+				await loadLocations();
 			}
 		}
 	);
@@ -383,6 +330,9 @@ const handleSaveZone = async (zone: PeopleCountingZone) => {
 // 處理刪除區域
 const handleDeleteZone = async (zoneId: string) => {
 	await baseHandleDeleteZone(zoneId, peopleCountingZones, peopleCountingLocationApi.deleteZone, {
+		// 選中狀態管理（與環境品質保持一致）
+		selectedLocationRef: selectedLocationId,
+		getLocationId,
 		// 系統特定的刪除選項
 		systemType: "people_counting",
 		getFullZoneApiCall: (id: string) => locationApi.getZone(id),
@@ -398,43 +348,30 @@ const handleDeleteZone = async (zoneId: string) => {
 				}
 			};
 		},
-		// 刪除後重新載入工地列表
+		// 刪除後重新載入區域與地點列表（確保 UI 立即反映刪除結果）
 		onAfterDelete: async () => {
-			await loadSites();
+			await loadZones();
+			await loadLocations();
 		}
 	});
 };
 
-// 載入區域列表
-const loadZonesFromAPI = async () => {
-	if (isLoadingZones.value) return;
-	isLoadingZones.value = true;
-	try {
-		const result = await peopleCountingLocationApi.getZones();
-		peopleCountingZones.value = result.zones || [];
-	} catch (error) {
-		handleError(error, "載入區域列表失敗");
-	} finally {
-		isLoadingZones.value = false;
-	}
-};
-
 // 處理打開地點管理對話框
 const handleOpenLocationDialog = async () => {
-	// 如果還沒有載入樓層數據，先載入
+	// 如果還沒有載入區域數據，先載入
 	if (peopleCountingZones.value.length === 0) {
-		await loadZonesFromAPI();
+		await loadZones();
 	}
 	// 打開對話框
 	showLocationManagementDialog.value = true;
 };
 
-// 監聽對話框打開狀態，載入樓層數據
+// 監聽對話框打開狀態，載入區域數據
 watch(
 	() => showLocationManagementDialog.value,
 	newValue => {
 		if (newValue && peopleCountingZones.value.length === 0) {
-			loadZonesFromAPI();
+			loadZones();
 		}
 	}
 );
@@ -444,11 +381,57 @@ onMounted(async () => {
 	// 初始化左側 ResizeObserver
 	initLeftSectionObserver();
 
+	// 設置 WebSocket 事件監聽：收到 YSCP 事件後重新載入資料
+	// 使用防抖優化（500ms），避免短時間內多次觸發
+	cleanupWebSocket = setupEventListeners(async () => {
+		// 並行載入地點列表和詳情（如果有的話）
+		// 使用 Promise.allSettled 確保即使一個失敗也不影響另一個
+		// 錯誤已在 composable 中統一處理
+		await Promise.allSettled([
+			loadLocations(), // 載入列表（更新統計）
+			selectedLocation.value?.locationId
+				? loadLocationDetail(selectedLocation.value.locationId)
+				: Promise.resolve(),
+		]);
+	}, 500); // 防抖延遲 500ms
+
 	try {
-		await loadSites();
-		// ResizeObserver 會自動監聽尺寸變化
+		// 優化：先載入地點列表（內部會並行請求 zones），然後使用返回的 zones 數據
+		// 這樣可以避免重複請求 zones
+		await loadLocations();
+		
+		// 如果 loadLocations 沒有返回 zones（例如已有緩存），則單獨載入
+		if (peopleCountingZones.value.length === 0) {
+			await loadZones();
+		}
+		
+		// 如果列表不為空，自動選擇第一個
+		if (locations.value.length > 0 && !selectedLocation.value) {
+			await handleLocationSelect(locations.value[0].locationId || Number(locations.value[0].id || 0));
+		}
 	} catch (error) {
-		handleError(error, "初始化失敗");
+		// 錯誤已在 composable 中處理
+	}
+
+	// 更新左側高度（初始化）
+	nextTick(() => {
+		updateLeftSectionHeight();
+	});
+});
+
+// 清理函數
+onBeforeUnmount(() => {
+	// 清理 ResizeObserver
+	if (leftSectionResizeObserver && leftSectionRef.value) {
+		leftSectionResizeObserver.unobserve(leftSectionRef.value);
+		leftSectionResizeObserver.disconnect();
+		leftSectionResizeObserver = null;
+	}
+
+	// 清理 WebSocket 事件監聽器
+	if (cleanupWebSocket) {
+		cleanupWebSocket();
+		cleanupWebSocket = null;
 	}
 });
 </script>

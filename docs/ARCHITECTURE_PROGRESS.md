@@ -152,18 +152,18 @@
 **實作內容：**
 
 - ✅ 資料表：`lighting_categories`（照明分類點）
-- ✅ API 端點：`/api/lighting/floors/*`、`/api/lighting/categories/*`
+- ✅ API 端點：`/api/locations/zones*`（`locationType=lighting`）、`/api/lighting/categories/*`
 - ✅ Composable：`useLightingApi.ts`
 - ✅ 頁面：`/infrastructure/lighting`（`app/pages/infrastructure/lighting.vue`）
 - ✅ 組件：
   - `CategoryList.vue`（分類列表）
   - `CategoryTooltip.vue`（分類提示）
-  - `FloorManagementDialog.vue`（樓層管理）
+  - `ZoneManagementDialog.vue`（區域管理）
   - `StatusCenter.vue`（狀態中心）
 
 **功能特性：**
 
-- 樓層管理（Floor）
+- 區域管理（Zone）
 - 區域管理（Area）
 - 分類點管理（Category）
 - Modbus 配置
@@ -181,9 +181,9 @@
 
 **實作內容：**
 
-- ✅ 資料表：`environment_floors`、`environment_locations`、`environment_readings`
+- ✅ 資料表：`zones`、`locations`、`location_systems`（統一地點管理）、`device_data_logs`（讀數）
 - ✅ API 端點：
-  - `/api/environment/floors/*`（樓層管理）
+  - `/api/locations/zones*`（`locationType=environment`，區域/地點管理）
   - `/api/environment/readings/*`（感測器讀數）
 - ✅ Composable：`useEnvironmentApi.ts`
 - ✅ 頁面：`/construction-monitoring/environment`（`app/pages/construction-monitoring/environment.vue`）
@@ -196,7 +196,7 @@
 
 **功能特性：**
 
-- 樓層管理（Floor）
+- 區域管理（Zone）
 - 地點管理（Location）
 - 感測器參數配置（9 種參數類型）
 - Modbus 資料讀取

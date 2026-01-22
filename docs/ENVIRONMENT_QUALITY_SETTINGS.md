@@ -130,7 +130,7 @@ interface SensorParameterDefinition {
 
 ---
 
-## 地點與樓層管理
+## 地點與區域管理
 
 ### 資料結構
 
@@ -138,64 +138,62 @@ interface SensorParameterDefinition {
 interface EnvironmentLocation {
 	id?: string;
 	name: string; // 位置名稱（如：管理中心、展廳）
-	// floor 欄位已移除（冗餘），樓層資訊從 EnvironmentFloor.name 取得
 	deviceId?: number; // 關聯的感測器設備 ID
 	parameters: SensorParameter[]; // 該位置支援的感測器參數列表
 }
 
-interface EnvironmentFloor {
+interface EnvironmentZone {
 	id?: string;
-	name: string; // 樓層名稱（如：1F、2F）
+	name: string; // 區域名稱（如：管理中心、展廳區）
 	locations: EnvironmentLocation[]; // 位置列表
 }
 ```
 
-### ✅ 設計改進：已移除 Location.floor 冗餘欄位
+### ✅ 設計改進：統一使用 Zone/Location（不再有 Floor 層級）
 
 **改進說明**：
 
-- ✅ `EnvironmentLocation` 中的 `floor` 欄位已**移除**
-- ✅ Location 通過 `Floor.locations` 陣列屬於某個 Floor
-- ✅ 樓層資訊從父層級（Floor）取得，使用 `getLocationFloor()` helper function
+- ✅ `EnvironmentLocation` 不含 `floor` 欄位
+- ✅ Location 透過 `Zone.locations` 隸屬某個 Zone
+- ✅ 需要顯示「所屬區域」時，從父層級（Zone）取得（可用 helper function）
 
-**對比照明系統**：
+**對比照明系統（同樣採用 Zone/Location）**：
 
-- ✅ 與 `LightingArea` 設計一致（沒有 `floor` 欄位）
-- ✅ Area 通過 `Floor.areas` 陣列屬於某個 Floor
-- ✅ 需要顯示樓層時，從父層級取得
+- ✅ Location（或 Area）不含 `floor` 欄位
+- ✅ 透過 `Zone.locations`（或 `Zone.areas`）隸屬某個 Zone
 
 **實現方式**：
 
-1. ✅ 前端：使用 `getLocationFloor(location)` helper function 從 `environmentFloors` 陣列中查找
-2. ✅ 後端：移除對 `floor` 欄位的驗證和儲存
-3. ✅ 資料庫：移除 `environment_locations.floor` 欄位
+1. ✅ 前端：使用 `getLocationZone(location)` helper function 從 `environmentZones` 陣列中查找
+2. ✅ 後端：統一使用 `/locations/zones` API 管理 Zone/Location
+3. ✅ 資料庫：統一使用 `zones / locations / location_systems`（不再有 `environment_floors/environment_locations`）
 
 **使用範例**：
 
 ```typescript
-// 取得地點所屬的樓層名稱
-const getLocationFloor = (location: EnvironmentLocation): string | null => {
-	for (const floor of environmentFloors.value) {
-		if (floor.locations.some(loc => loc.id === location.id || loc.name === location.name)) {
-			return floor.name;
+// 取得地點所屬的區域名稱
+const getLocationZone = (location: EnvironmentLocation): string | null => {
+	for (const zone of environmentZones.value) {
+		if (zone.locations.some(loc => loc.id === location.id || loc.name === location.name)) {
+			return zone.name;
 		}
 	}
 	return null;
 };
 
 // 使用範例
-const floorName = getLocationFloor(currentLocationData.value);
+const zoneName = getLocationZone(currentLocationData.value);
 ```
 
 ### 管理流程
 
-1. **建立樓層**
-   - 在「地點管理」對話框中點擊「新增樓層」
-   - 系統自動生成樓層名稱（如：1F、2F）
+1. **建立區域**
+   - 在「地點管理」對話框中點擊「新增區域」
+   - 輸入區域名稱（如：1F、管理中心、展廳區）
 
 2. **新增地點**
-   - 在樓層中點擊「新增地點」
-   - 填寫地點名稱和樓層
+   - 在區域中點擊「新增地點」
+   - 填寫地點名稱
    - 選擇感測器設備（可選）
    - 選擇要啟用的參數
 
@@ -405,42 +403,42 @@ interface SensorParameterModbusConfig {
 
 ### 環境 API
 
-#### 取得樓層列表
+#### 取得區域列表
 
 ```
-GET /environment/floors
+GET /locations/zones?locationType=environment
 ```
 
-#### 取得單一樓層
+#### 取得單一區域
 
 ```
-GET /environment/floors/:id
+GET /locations/zones/:id?locationType=environment
 ```
 
-#### 建立樓層
+#### 建立區域
 
 ```
-POST /environment/floors
+POST /locations/zones
 Body: {
   name: string;
   locations?: EnvironmentLocation[];
 }
 ```
 
-#### 更新樓層
+#### 更新區域
 
 ```
-PUT /environment/floors/:id
+PUT /locations/zones/:id
 Body: {
   name?: string;
   locations?: EnvironmentLocation[];
 }
 ```
 
-#### 刪除樓層
+#### 刪除區域
 
 ```
-DELETE /environment/floors/:id
+DELETE /locations/zones/:id
 ```
 
 ### 設備 API

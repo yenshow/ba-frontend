@@ -18,7 +18,7 @@
 					stroke-linecap="round"
 					:stroke-dasharray="arcLength"
 					:stroke-dashoffset="arcDashOffset"
-					class="transition-all duration-500 ease-out"
+					class="transition-[stroke-dashoffset,opacity] duration-500 ease-out"
 					:style="{ opacity: isDataReady ? 1 : 0 }"
 				/>
 			</svg>
@@ -95,52 +95,15 @@ const props = defineProps<{
 	data: EnvironmentData;
 }>();
 
-// 顏色插值函數（用於平滑的顏色過渡）
-const interpolateColor = (startColor: string, endColor: string, factor: number): string => {
-	const start = parseInt(startColor.slice(1), 16);
-	const end = parseInt(endColor.slice(1), 16);
-
-	const r1 = (start >> 16) & 0xff;
-	const g1 = (start >> 8) & 0xff;
-	const b1 = start & 0xff;
-
-	const r2 = (end >> 16) & 0xff;
-	const g2 = (end >> 8) & 0xff;
-	const b2 = end & 0xff;
-
-	const r = Math.round(r1 + (r2 - r1) * factor);
-	const g = Math.round(g1 + (g2 - g1) * factor);
-	const b = Math.round(b1 + (b2 - b1) * factor);
-
-	return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
-};
-
-// 計算溫度指示器的顏色（精準的線性插值）
+// 計算溫度指示器的顏色（純色，無漸變）
 const temperatureColor = computed(() => {
 	const temp = props.data.temperature;
 
-	if (temp <= 0) return "#3B82F6"; // 藍色 - 極冷
-	if (temp <= 20) {
-		// 0-20°C: 藍色保持
-		return "#3B82F6";
-	}
-	if (temp <= 28) {
-		// 20-28°C: 藍色到綠色
-		const factor = (temp - 20) / 8;
-		return interpolateColor("#3B82F6", "#10B981", factor);
-	}
-	if (temp <= 30) {
-		// 28-30°C: 綠色到橙色
-		const factor = (temp - 28) / 2;
-		return interpolateColor("#10B981", "#F59E0B", factor);
-	}
-	if (temp <= 50) {
-		// 30-50°C: 橙色到紅色（警示）
-		const factor = (temp - 30) / 20;
-		return interpolateColor("#F59E0B", "#EF4444", factor);
-	}
-	// > 50°C: 保持深紅色
-	return "#DC2626"; // 更深的紅色表示極高溫
+	if (temp <= 20) return "#3B82F6"; // 藍色 - 冷
+	if (temp <= 28) return "#10B981"; // 綠色 - 舒適
+	if (temp <= 30) return "#F59E0B"; // 橙色 - 溫暖
+	if (temp <= 50) return "#EF4444"; // 紅色 - 警示
+	return "#DC2626"; // 深紅色 - 極高溫
 });
 
 // 圓心座標和半徑計算

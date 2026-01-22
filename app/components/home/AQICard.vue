@@ -6,7 +6,7 @@
 		<div class="relative aspect-square w-full max-w-[200px] 2xl:max-w-[240px]">
 			<!-- SVG 弧形指示器 -->
 			<svg
-				class="absolute inset-0 z-20 h-full w-full -rotate-90 transform"
+				class="absolute inset-0 z-20 h-full w-full -rotate-90"
 				viewBox="0 0 240 240"
 				style="overflow: visible"
 			>
@@ -18,7 +18,7 @@
 					stroke-linecap="round"
 					:stroke-dasharray="arcLength"
 					:stroke-dashoffset="arcDashOffset"
-					class="transition-all duration-500 ease-out"
+					class="transition-[stroke-dashoffset,opacity] duration-500 ease-out"
 					:style="{ opacity: isDataReady ? 1 : 0 }"
 				/>
 			</svg>

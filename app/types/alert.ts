@@ -1,5 +1,5 @@
 // 警報系統來源
-export type AlertSource = "device" | "environment" | "lighting" | "hvac" | "fire" | "security";
+export type AlertSource = "device" | "environment" | "lighting" | "people_counting" | "hvac" | "fire" | "security";
 
 // 警報狀態（移除 pending，只保留 active, resolved, ignored）
 export type AlertStatus = "active" | "resolved" | "ignored";

@@ -1,108 +1,190 @@
 <template>
-	<div class="space-y-3">
-		<h3 class="text-lg font-semibold text-white xl:text-xl 2xl:text-2xl">進出場記錄</h3>
+	<div v-if="logs.length === 0" class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center">
+		<p class="text-sm text-white/60 xl:text-base">尚無進出場記錄</p>
+	</div>
 
-		<div v-if="displayedLogs.length === 0" class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center">
-			<p class="text-sm text-white/60 xl:text-base">尚無進出場記錄</p>
-		</div>
-
-		<div v-else class="overflow-x-auto">
-			<table class="w-full border-collapse">
-				<thead>
-					<tr class="border-b-2 border-white/30">
-						<th class="px-3 py-2 text-left text-xs font-semibold text-white/80 xl:px-4 xl:py-3 xl:text-sm">
-							設備截圖
-						</th>
-						<th class="px-3 py-2 text-left text-xs font-semibold text-white/80 xl:px-4 xl:py-3 xl:text-sm">
-							進場單位
-						</th>
-						<th class="px-3 py-2 text-left text-xs font-semibold text-white/80 xl:px-4 xl:py-3 xl:text-sm">
-							工號
-						</th>
-						<th class="px-3 py-2 text-left text-xs font-semibold text-white/80 xl:px-4 xl:py-3 xl:text-sm">
-							姓名
-						</th>
-						<th class="px-3 py-2 text-left text-xs font-semibold text-white/80 xl:px-4 xl:py-3 xl:text-sm">
-							事件
-						</th>
-						<th class="px-3 py-2 text-left text-xs font-semibold text-white/80 xl:px-4 xl:py-3 xl:text-sm">
-							時間
-						</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr
-						v-for="log in displayedLogs"
-						:key="log.id"
-						class="border-b border-white/10 transition-colors hover:bg-white/5"
-					>
-						<td class="px-3 py-2 xl:px-4 xl:py-3">
-							<div class="h-12 w-16 overflow-hidden rounded bg-white/10 xl:h-16 xl:w-20">
-								<img
-									v-if="log.deviceScreenshotUrl"
-									:src="log.deviceScreenshotUrl"
-									:alt="`${log.name} 設備截圖`"
-									class="h-full w-full object-cover"
-								/>
-								<div v-else class="flex h-full w-full items-center justify-center text-white/20">
-									<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-										/>
-									</svg>
-								</div>
-							</div>
-						</td>
-						<td class="px-3 py-2 text-sm text-white/90 xl:px-4 xl:py-3 xl:text-base">
-							{{ log.unit?.name || log.unitName || "-" }}
-						</td>
-						<td class="px-3 py-2 text-sm text-white/90 xl:px-4 xl:py-3 xl:text-base">
-							{{ log.employeeId || log.personId || "-" }}
-						</td>
-						<td class="px-3 py-2 text-sm text-white/90 xl:px-4 xl:py-3 xl:text-base">
-							{{ log.name || log.personName || "-" }}
-						</td>
-						<td class="px-3 py-2 xl:px-4 xl:py-3">
-							<span
-								:class="[
-									'rounded-full px-2 py-0.5 text-xs font-medium xl:text-sm',
-									log.eventType === 'entry'
-										? 'bg-green-500/30 text-green-200'
-										: 'bg-blue-500/30 text-blue-200'
-								]"
+	<div v-else>
+		<table class="w-full border-collapse">
+			<thead>
+				<tr class="border-b-2 border-white/30 font-semibold text-white/80 text-center text-xs xl:text-sm">
+					<th class="p-2">
+						設備截圖
+					</th>	
+					<th class="p-2">
+						進場單位
+					</th>
+					<th class="p-2">
+						工號
+					</th>
+					<th class="p-2">
+						姓名
+					</th>
+					<th class="p-2">
+						事件
+					</th>
+					<th class="p-2">
+						時間
+					</th>
+				</tr>	
+			</thead>
+			<tbody>
+				<tr
+					v-for="log in logs"
+					:key="log.id"
+					class="border-b border-white/10 text-center text-white"
+				>
+					<td class="p-2">
+						<div class="relative h-12 w-12 overflow-hidden bg-white/10 xl:h-16 xl:w-16">
+							<!-- 載入中 -->
+							<div
+								v-if="imageLoadingStates[log.id]"
+								class="flex h-full w-full items-center justify-center"
 							>
-								{{ log.eventType === "entry" ? "進入" : "離開" }}
-							</span>
-						</td>
-						<td class="px-3 py-2 text-xs text-white/70 xl:px-4 xl:py-3 xl:text-sm">
-							{{ log.timestamp }}
-						</td>
-					</tr>
-				</tbody>
-			</table>
-		</div>
+								<div class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white/80"></div>
+							</div>
+
+							<!-- 圖片 -->
+							<img
+								v-else-if="imageUrls[log.id]"
+								:src="imageUrls[log.id]"
+								:alt="`${log.personName || '未知'} 設備截圖`"
+								class="h-full w-full object-cover"
+								@error="handleImageError($event, log.id)"
+							/>
+
+							<!-- 佔位符 -->
+							<img
+								v-else
+								src="/people-counting/no-photo-placeholder.png"
+								alt="無設備截圖"
+								class="h-full w-full object-cover"
+							/>
+						</div>
+					</td>
+					<td class="p-2 text-sm xl:text-base">
+						{{ log.unit?.name || log.unitName || "-" }}
+					</td>
+					<td class="p-2 text-sm xl:text-base">
+						{{ log.employeeId || log.personnelId || "-" }}
+					</td>
+					<td class="p-2 text-sm xl:text-base">
+						{{ log.personName || "-" }}
+					</td>
+					<td class="p-2">
+						<span
+							:class="[
+								'rounded-full px-2 py-0.5 text-xs font-medium xl:text-sm',
+								log.eventType === 'entry'
+									? 'bg-green-500/30 text-green-200'
+									: log.eventType === 'exit'
+										? 'bg-blue-500/30 text-blue-200'
+										: 'bg-red-500/70 text-red-200'
+							]"
+						>
+							{{
+								log.eventType === "entry"
+									? "進入"
+									: log.eventType === "exit"
+										? "離開"
+										: "失敗"
+							}}
+						</span>
+					</td>
+					<td class="p-2 text-xs  xl:text-sm">
+						{{ log.timestamp }}
+					</td>
+				</tr>
+			</tbody>
+		</table>
 	</div>
 </template>
 
 <script setup lang="ts">
+import { ref, watch } from "vue";
 import type { PeopleCountingLog } from "~/types/peopleCounting";
-import { computed } from "vue";
+import { useExternalDataApi } from "~/composables/systems/useExternalDataApi";
+import { convertBase64ToImageUrl } from "~/utils/imageUtils";
 
 interface Props {
 	logs: PeopleCountingLog[];
-	limit?: number;
 }
 
-const props = withDefaults(defineProps<Props>(), {
-	limit: 5
-});
+const props = defineProps<Props>();
 
-// 顯示最新 5 筆記錄
-const displayedLogs = computed(() => {
-	return props.logs.slice(0, props.limit);
-});
+const { getPictureByUri } = useExternalDataApi();
+const imageUrls = ref<Record<string | number, string>>({});
+const imageLoadingStates = ref<Record<string | number, boolean>>({});
+const imageCache = new Map<string, string>();
+
+/**
+ * 處理圖片載入錯誤
+ */
+const handleImageError = (event: Event, logId: string | number) => {
+	const img = event.target as HTMLImageElement;
+	img.src = "/people-counting/no-photo-placeholder.png";
+	// 清除錯誤的圖片 URL
+	delete imageUrls.value[logId];
+};
+
+/**
+ * 載入單個記錄的圖片
+ */
+const loadImage = async (log: PeopleCountingLog) => {
+	// 如果沒有 deviceScreenshotUrl（實際上是 snap_pic_url），不載入
+	if (!log.deviceScreenshotUrl || log.deviceScreenshotUrl.trim() === "") {
+		return;
+	}
+
+	const picUri = log.deviceScreenshotUrl.trim();
+	const logId = log.id;
+
+	// 檢查緩存
+	if (imageCache.has(picUri)) {
+		imageUrls.value[logId] = imageCache.get(picUri)!;
+		return;
+	}
+
+	// 如果正在載入，不重複載入
+	if (imageLoadingStates.value[logId]) {
+		return;
+	}
+
+	// 開始載入
+	imageLoadingStates.value[logId] = true;
+
+	try {
+		const result = await getPictureByUri(picUri);
+
+		if (result.success && result.data?.image) {
+			const imageUrl = convertBase64ToImageUrl(result.data.image);
+			imageUrls.value[logId] = imageUrl;
+			imageCache.set(picUri, imageUrl);
+		}
+	} catch (error) {
+		console.error("載入圖片失敗:", error);
+	} finally {
+		imageLoadingStates.value[logId] = false;
+	}
+};
+
+/**
+ * 載入所有記錄的圖片
+ */
+const loadAllImages = () => {
+	props.logs.forEach((log) => {
+		if (log.deviceScreenshotUrl && !imageUrls.value[log.id] && !imageLoadingStates.value[log.id]) {
+			loadImage(log);
+		}
+	});
+};
+
+// 監聽 logs 變化，載入新記錄的圖片
+watch(
+	() => props.logs,
+	() => {
+		loadAllImages();
+	},
+	{ immediate: true, deep: true }
+);
 </script>
 

@@ -223,7 +223,9 @@
 import type { UnifiedZone, UnifiedLocation } from "~/types/location";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
-import { useConfirmDialog } from "~/composables/useConfirmDialog";
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
+import { useLocationApi } from "~/composables/systems/location/useLocationApi";
+import { useErrorHandler } from "~/composables/core/useErrorHandler";
 
 interface Props {
 	modelValue: boolean;
@@ -242,6 +244,10 @@ const emit = defineEmits<Emits>();
 const errorMessage = ref("");
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const pendingZone = ref<UnifiedZone | null>(null);
+const deletedLocationIds = new Set<string>();
+
+const locationApi = useLocationApi();
+const { handleError } = useErrorHandler();
 
 // 檢查是否有未保存的變更
 const hasUnsavedChanges = computed(() => {
@@ -323,6 +329,7 @@ const handleClose = () => {
 const closeDialog = () => {
 	emit("update:modelValue", false);
 	errorMessage.value = "";
+	deletedLocationIds.clear();
 	// 重置 pendingZone
 	if (props.zone) {
 		pendingZone.value = JSON.parse(JSON.stringify(props.zone));
@@ -433,10 +440,17 @@ const removeLocation = (locationIndex: number) => {
 	if (!pendingZone.value) return;
 	pendingDeleteLocationIndex.value = locationIndex;
 	confirmAction.value = "deleteLocation";
+	const location = pendingZone.value.locations?.[locationIndex];
+	const hasId = Boolean(location && (location as any).id);
+	const systemCount = (location as any)?.systems?.length || 0;
 	confirmDialog.show({
 		title: "確認刪除",
 		message: "確定要刪除此地點嗎？",
-		details: "此操作無法復原。",
+		details: hasId
+			? systemCount > 0
+				? "此操作將刪除此地點並一併移除所有系統設定，且無法復原。"
+				: "此操作將刪除此地點，且無法復原。"
+			: "此地點尚未儲存，將直接從清單移除。",
 		type: "danger"
 	});
 };
@@ -444,6 +458,11 @@ const removeLocation = (locationIndex: number) => {
 // 確認刪除地點
 const handleConfirmDeleteLocation = () => {
 	if (pendingZone.value && pendingDeleteLocationIndex.value !== null) {
+		const location = pendingZone.value.locations?.[pendingDeleteLocationIndex.value];
+		const locationId = location && (location as any).id ? String((location as any).id) : null;
+		if (locationId) {
+			deletedLocationIds.add(locationId);
+		}
 		pendingZone.value.locations = pendingZone.value.locations.filter(
 			(_, index) => index !== pendingDeleteLocationIndex.value
 		);
@@ -471,8 +490,23 @@ const handleConfirmDelete = () => {
 	}
 };
 
-const saveChanges = () => {
+const saveChanges = async () => {
 	if (!pendingZone.value || !hasUnsavedChanges.value) return;
+
+	// 先處理待刪除地點（方案 B：批次處理）
+	if (deletedLocationIds.size > 0) {
+		try {
+			const idsToDelete = Array.from(deletedLocationIds);
+			for (const id of idsToDelete) {
+				await locationApi.deleteLocation(id);
+			}
+			deletedLocationIds.clear();
+		} catch (error) {
+			handleError(error, "刪除地點失敗");
+			return;
+		}
+	}
+
 	// 過濾掉名稱為空的地點
 	const filteredZone = {
 		...pendingZone.value,

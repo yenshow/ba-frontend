@@ -181,7 +181,7 @@
 import type { DeviceType } from "~/types/device";
 import { useDeviceApi } from "~/composables/systems/useDeviceApi";
 import { useToast } from "~/composables/core/useToast";
-import { useConfirmDialog } from "~/composables/useConfirmDialog";
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 
 const props = defineProps<{

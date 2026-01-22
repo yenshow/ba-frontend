@@ -7,11 +7,9 @@
 			</header>
 
 			<!-- 篩選器 -->
-			<div class="flex flex-wrap items-center gap-3 2xl:gap-4">
+			<div class="flex items-center gap-3 2xl:gap-4">
 				<FilterDropdown v-model="filterStatus" :options="statusOptions" placeholder="全部狀態" />
-
 				<FilterDropdown v-model="filterSource" :options="sourceOptions" placeholder="全部系統" />
-
 				<TimeRangePicker v-model="timeRange" :presets="timeRangePresets" />
 
 				<button
@@ -375,7 +373,8 @@ const sourceOptions = [
 	{ value: "", label: "全部系統" },
 	{ value: "device", label: "設備系統" },
 	{ value: "environment", label: "環境系統" },
-	{ value: "lighting", label: "照明系統" }
+	{ value: "lighting", label: "照明系統" },
+	{ value: "people_counting", label: "人流統計系統" }
 ];
 
 // 時間範圍

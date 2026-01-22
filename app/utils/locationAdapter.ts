@@ -6,14 +6,13 @@ import type {
 	EnvironmentSystemConfig,
 	LightingSystemConfig,
 	PeopleCountingSystemConfig,
-	LocationSystem
+	LocationSystem,
+	LocationSystemInput,
+	UnifiedLocationInput
 } from "~/types/location";
 import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment";
 import type { LightingZone, LightingLocation } from "~/types/lighting";
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting";
-
-type LocationSystemInput = LocationSystem | Omit<LocationSystem, "id">;
-type UnifiedLocationInput = Omit<UnifiedLocation, "zoneId" | "systems"> & { systems: LocationSystemInput[] };
 
 /**
  * 後端返回的地點格式（新架構：包含 systems 陣列）
@@ -407,4 +406,72 @@ export function peopleCountingLocationToUnified(
 			}
 		]
 	};
+}
+
+/**
+ * 統一區域更新數據構建輔助函數
+ * 統一處理不同系統的更新邏輯，減少代碼重複
+ * 
+ * @param data - 系統特定的區域更新數據
+ * @param options - 轉換選項
+ * @returns 統一格式的區域更新數據
+ */
+export function buildUnifiedZoneUpdateData<
+	TZone extends { name?: string; locations?: any[] }
+>(
+	data: Partial<TZone>,
+	options: {
+		systemType: SystemType;
+		locationConverter: (
+			location: EnvironmentLocation | LightingLocation | PeopleCountingLocation | Omit<EnvironmentLocation, "id"> | Omit<LightingLocation, "id"> | Omit<PeopleCountingLocation, "id">,
+			systemType: SystemType
+		) => UnifiedLocationInput;
+	}
+): {
+	name?: string;
+	buildingId?: number;
+	zoneNumber?: number;
+	imageUrl?: string;
+	description?: string;
+	locations?: (UnifiedLocation | UnifiedLocationInput)[];
+} {
+	const unifiedData: {
+		name?: string;
+		buildingId?: number;
+		zoneNumber?: number;
+		imageUrl?: string;
+		description?: string;
+		locations?: (UnifiedLocation | UnifiedLocationInput)[];
+	} = {};
+
+	// 處理基本字段
+	if (data.name !== undefined) {
+		unifiedData.name = data.name;
+	}
+
+	// 處理可選字段（使用類型守衛檢查）
+	if ("buildingId" in data && data.buildingId !== undefined) {
+		unifiedData.buildingId = data.buildingId as number;
+	}
+
+	if ("zoneNumber" in data && data.zoneNumber !== undefined) {
+		unifiedData.zoneNumber = data.zoneNumber as number;
+	}
+
+	if ("imageUrl" in data && data.imageUrl !== undefined) {
+		unifiedData.imageUrl = data.imageUrl as string;
+	}
+
+	if ("description" in data && data.description !== undefined) {
+		unifiedData.description = data.description as string;
+	}
+
+	// 處理地點轉換
+	if ("locations" in data && data.locations !== undefined && Array.isArray(data.locations)) {
+		unifiedData.locations = data.locations.map((loc) =>
+			options.locationConverter(loc, options.systemType)
+		);
+	}
+
+	return unifiedData;
 }

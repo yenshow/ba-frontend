@@ -136,6 +136,54 @@ export const useExternalDataApi = () => {
 		return getList("baseacs", "slot_card_records", filters);
 	};
 
+	/**
+	 * 根據記錄 ID 獲取快照圖片
+	 * @param id - 記錄 ID
+	 */
+	const getSlotCardRecordPicture = async (id: number): Promise<ExternalDataResponse<{
+		recordId: number;
+		picUri: string;
+		image: string; // Base64 編碼的圖片數據
+	}>> => {
+		const data = await request<{
+			recordId: number;
+			picUri: string;
+			image: string;
+		}>(`/external-data/baseacs/slot_card_records/${id}/picture`);
+		return {
+			success: true,
+			data: data as any
+		} as ExternalDataResponse<{
+			recordId: number;
+			picUri: string;
+			image: string;
+		}>;
+	};
+
+	/**
+	 * 根據 picUri 直接獲取圖片
+	 * @param picUri - 圖片 URI
+	 */
+	const getPictureByUri = async (picUri: string): Promise<ExternalDataResponse<{
+		picUri: string;
+		image: string; // Base64 編碼的圖片數據
+	}>> => {
+		const data = await request<{
+			picUri: string;
+			image: string;
+		}>(`/external-data/baseacs/slot_card_records/picture`, {
+			method: "POST",
+			body: JSON.stringify({ picUri })
+		});
+		return {
+			success: true,
+			data: data as any
+		} as ExternalDataResponse<{
+			picUri: string;
+			image: string;
+		}>;
+	};
+
 	return {
 		// 通用方法
 		getList,
@@ -146,7 +194,9 @@ export const useExternalDataApi = () => {
 		getPersonGroups,
 		getPersonHeadPics,
 		// Baseacs Schema
-		getSlotCardRecords
+		getSlotCardRecords,
+		getSlotCardRecordPicture,
+		getPictureByUri
 	};
 };
 

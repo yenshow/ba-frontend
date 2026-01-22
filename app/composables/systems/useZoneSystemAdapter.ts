@@ -3,7 +3,7 @@
  * 處理不同系統類型的區域和地點類型轉換
  */
 
-import type { UnifiedZone, SystemType } from "~/types/location";
+import type { UnifiedZone, SystemType, UnifiedLocation, LocationSystem, UnifiedLocationInput } from "~/types/location";
 import type { LightingZone, LightingLocation } from "~/types/lighting";
 import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment";
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting";
@@ -19,16 +19,35 @@ import {
 export type SystemZoneType = LightingZone | EnvironmentZone | PeopleCountingZone;
 export type SystemLocationType = LightingLocation | EnvironmentLocation | PeopleCountingLocation;
 
+/**
+ * 系統配置
+ * 用於標記系統特性，實現配置驅動的架構
+ */
+export interface SystemConfig {
+	// 是否每個區域只允許一個地點（用於環境品質、人流統計等）
+	singleLocationPerZone?: boolean;
+	// 是否需要示意圖（用於照明系統）
+	requireImageUrl?: boolean;
+}
+
+/**
+ * 區域系統適配器接口
+ * 統一處理不同系統類型的區域和地點類型轉換
+ */
 export interface ZoneSystemAdapter<TZone extends SystemZoneType, TLocation extends SystemLocationType> {
+	// ========== 轉換方法 ==========
 	// 從 UnifiedZone 轉換為系統特定類型
 	unifiedToSystem: (zone: UnifiedZone) => TZone;
-	// 從系統特定類型轉換為 UnifiedZone
-	systemToUnified: (zone: TZone) => Omit<UnifiedZone, "id">;
+	// 從系統特定類型轉換為 UnifiedZone（用於傳送給後端）
+	// 注意：返回的 locations 是 UnifiedLocationInput[]，因為轉換時可能缺少 zoneId 和系統 id
+	systemToUnified: (zone: TZone) => Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] };
 	// 從後端格式轉換為系統特定類型
 	backendToSystem: (zone: UnifiedZone) => TZone;
+	
+	// ========== 地點管理方法 ==========
 	// 取得地點列表的屬性名（例如：areas, locations）
 	getLocationsProperty: (zone: TZone) => TLocation[];
-	// 設定地點列表
+	// 設定地點列表（統一處理單一地點系統的限制）
 	setLocationsProperty: (zone: TZone, locations: TLocation[]) => TZone;
 	// 建立新的地點
 	createNewLocation: () => TLocation;
@@ -36,12 +55,26 @@ export interface ZoneSystemAdapter<TZone extends SystemZoneType, TLocation exten
 	createNewZone: (name: string) => TZone;
 	// 過濾空地點
 	filterEmptyLocations: (zone: TZone) => TZone;
+	
+	// ========== 系統配置（新增）==========
+	// 系統特性配置
+	systemConfig?: SystemConfig;
+	
+	// ========== 工具方法（新增）==========
+	// 從地點對象獲取 ID（統一格式：字串）
+	// zoneName 可選，用於生成合成 ID
+	getLocationId?: (location: TLocation, zoneName?: string) => string;
 }
 
 /**
  * 照明系統適配器
  */
 export function useLightingZoneAdapter(): ZoneSystemAdapter<LightingZone, LightingLocation> {
+	const systemConfig: SystemConfig = {
+		singleLocationPerZone: false, // 照明系統允許多個地點
+		requireImageUrl: true // 照明系統需要示意圖
+	};
+
 	return {
 		unifiedToSystem: (zone: UnifiedZone) => {
 			// 需要從 UnifiedZone 轉換，但這裡我們假設已經轉換過了
@@ -62,10 +95,13 @@ export function useLightingZoneAdapter(): ZoneSystemAdapter<LightingZone, Lighti
 		// 但組件中可能使用 areas（向後兼容）
 		return (zone as any).areas || zone.locations || [];
 	},
-	setLocationsProperty: (zone: LightingZone, locations: LightingLocation[]) => ({
+		setLocationsProperty: (zone: LightingZone, locations: LightingLocation[]) => {
+			// 照明系統允許多個地點，直接使用傳入的列表
+			return {
 		...zone,
 		locations
-	}),
+			};
+		},
 		createNewLocation: (): LightingLocation => ({
 			name: ""
 		}),
@@ -76,7 +112,11 @@ export function useLightingZoneAdapter(): ZoneSystemAdapter<LightingZone, Lighti
 		filterEmptyLocations: (zone: LightingZone): LightingZone => ({
 			...zone,
 			locations: (zone.locations || []).filter(loc => loc.name && loc.name.trim().length > 0)
-		})
+		}),
+		systemConfig,
+		getLocationId: (location: LightingLocation, zoneName?: string): string => {
+			return location.id || `${zoneName || "unknown"}-${location.name}`;
+		}
 	};
 }
 
@@ -84,6 +124,11 @@ export function useLightingZoneAdapter(): ZoneSystemAdapter<LightingZone, Lighti
  * 環境監測系統適配器
  */
 export function useEnvironmentZoneAdapter(): ZoneSystemAdapter<EnvironmentZone, EnvironmentLocation> {
+	const systemConfig: SystemConfig = {
+		singleLocationPerZone: true, // 環境監測系統每個區域只有一個地點
+		requireImageUrl: false // 環境監測系統不需要示意圖
+	};
+
 	return {
 		unifiedToSystem: (zone: UnifiedZone) => {
 			return zone as unknown as EnvironmentZone;
@@ -98,6 +143,7 @@ export function useEnvironmentZoneAdapter(): ZoneSystemAdapter<EnvironmentZone, 
 		getLocationsProperty: (zone: EnvironmentZone) => zone.locations || [],
 		setLocationsProperty: (zone: EnvironmentZone, locations: EnvironmentLocation[]) => {
 			// 環境監測系統每個區域只有一個地點
+			// 使用統一的單一地點處理邏輯
 			return {
 				...zone,
 				locations: locations.length > 0 ? [locations[0]] : []
@@ -114,7 +160,11 @@ export function useEnvironmentZoneAdapter(): ZoneSystemAdapter<EnvironmentZone, 
 		filterEmptyLocations: (zone: EnvironmentZone): EnvironmentZone => ({
 			...zone,
 			locations: (zone.locations || []).filter(loc => loc.name && loc.name.trim().length > 0)
-		})
+		}),
+		systemConfig,
+		getLocationId: (location: EnvironmentLocation, zoneName?: string): string => {
+			return location.id || `${zoneName || "unknown"}-${location.name}`;
+		}
 	};
 }
 
@@ -125,6 +175,11 @@ export function usePeopleCountingZoneAdapter(): ZoneSystemAdapter<
 	PeopleCountingZone,
 	PeopleCountingLocation
 > {
+	const systemConfig: SystemConfig = {
+		singleLocationPerZone: true, // 人流統計系統每個區域只有一個地點
+		requireImageUrl: false // 人流統計系統不需要示意圖
+	};
+
 	return {
 		unifiedToSystem: (zone: UnifiedZone) => {
 			return zone as unknown as PeopleCountingZone;
@@ -138,10 +193,14 @@ export function usePeopleCountingZoneAdapter(): ZoneSystemAdapter<
 			return backendToPeopleCountingZone(zone as any);
 		},
 		getLocationsProperty: (zone: PeopleCountingZone) => zone.locations || [],
-		setLocationsProperty: (zone: PeopleCountingZone, locations: PeopleCountingLocation[]) => ({
+		setLocationsProperty: (zone: PeopleCountingZone, locations: PeopleCountingLocation[]) => {
+			// 人流統計系統每個區域只有一個地點
+			// 使用統一的單一地點處理邏輯（與環境品質保持一致）
+			return {
 			...zone,
-			locations
-		}),
+				locations: locations.length > 0 ? [locations[0]] : []
+			};
+		},
 		createNewLocation: (): PeopleCountingLocation => ({
 			name: "",
 			personGroupIds: []
@@ -153,7 +212,16 @@ export function usePeopleCountingZoneAdapter(): ZoneSystemAdapter<
 		filterEmptyLocations: (zone: PeopleCountingZone): PeopleCountingZone => ({
 			...zone,
 			locations: (zone.locations || []).filter(loc => loc.name && loc.name.trim().length > 0)
-		})
+		}),
+		systemConfig,
+		getLocationId: (location: PeopleCountingLocation, zoneName?: string): string => {
+			// 優先使用 id（字串格式）
+			if (location.id) return location.id;
+			// 如果有 locationId（數字格式），轉換為字串
+			if (location.locationId) return String(location.locationId);
+			// 最後使用 zone 名稱和地點名稱組合
+			return `${zoneName || "unknown"}-${location.name}`;
+		}
 	};
 }
 
@@ -174,4 +242,5 @@ export function useZoneSystemAdapter<TZone extends SystemZoneType, TLocation ext
 			throw new Error(`不支援的系統類型: ${systemType}`);
 	}
 }
+
 

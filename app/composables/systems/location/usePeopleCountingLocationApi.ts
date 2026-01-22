@@ -1,6 +1,6 @@
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting";
-import type { UnifiedZone, UnifiedLocation } from "~/types/location";
 import { useLocationApi } from "~/composables/systems/location/useLocationApi";
+import { useSystemLocationApiFactory } from "~/composables/systems/location/useSystemLocationApiFactory";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPathWithQuery } from "~/utils/apiUtils";
 import { logger } from "~/utils/logger";
@@ -12,8 +12,8 @@ import {
 
 const peopleCountingLogger = logger.createLogger("PeopleCounting");
 
-// 工地名稱快取（siteId -> siteName）
-const siteNameCache = new Map<number, string | null>();
+// 地點名稱快取（locationId -> locationName）
+const locationNameCache = new Map<number, string | null>();
 
 export interface CreatePeopleCountingZoneData {
 	name: string;
@@ -27,7 +27,7 @@ export interface UpdatePeopleCountingZoneData {
 
 /**
  * 人流統計地點管理 API Composable
- * 參考 useEnvironmentApi，用於管理工地名稱和地點配置
+ * 參考 useEnvironmentApi，用於管理地點名稱和地點配置
  *
  * 注意：人流統計地點也可以通過獨立 API (/api/people-counting/locations) 管理
  * 但樓層管理統一使用 /api/locations API
@@ -36,72 +36,33 @@ export const usePeopleCountingLocationApi = () => {
 	const locationApi = useLocationApi();
 	const { request } = useApiBase();
 
+	// 使用通用 Factory 創建區域管理 API
+	const zoneApi = useSystemLocationApiFactory<PeopleCountingZone, PeopleCountingLocation>({
+		systemType: "people_counting",
+		backendToSystemZone: backendToPeopleCountingZone,
+		systemToUnifiedZone: (zone) => peopleCountingToUnifiedZone(zone, "people_counting"),
+		locationToUnified: peopleCountingLocationToUnified
+	});
+
 	return {
 		// ========== 區域管理 API ==========
 		// 注意：地點（locations）統一通過區域的 locations 來管理
 		// 所有操作都通過統一地點管理 API 進行
 
 		// 取得區域列表
-		getZones: async () => {
-			const response = await locationApi.getZones("people_counting");
-			return {
-				zones: response.zones.map(zone => backendToPeopleCountingZone(zone))
-			};
-		},
+		getZones: zoneApi.getZones,
 
 		// 取得單一區域
-		getZone: async (id: string) => {
-			const response = await locationApi.getZone(id, "people_counting");
-			return {
-				zone: backendToPeopleCountingZone(response.zone)
-			};
-		},
+		getZone: zoneApi.getZone,
 
 		// 建立區域
-		createZone: async (data: CreatePeopleCountingZoneData) => {
-			const unifiedData = peopleCountingToUnifiedZone(
-				{ name: data.name, locations: data.locations || [] },
-				"people_counting"
-			);
-			const response = await locationApi.createZone(unifiedData);
-			return {
-				merged: response.merged,
-				message: response.message,
-				zone: backendToPeopleCountingZone(response.zone)
-			};
-		},
+		createZone: zoneApi.createZone,
 
 		// 更新區域
-		updateZone: async (id: string, data: UpdatePeopleCountingZoneData) => {
-			// 直接構建統一格式資料（後端支援部分更新）
-			const unifiedData: {
-				name?: string;
-				locations?: (UnifiedLocation | Omit<UnifiedLocation, "id" | "zoneId">)[];
-			} = {};
-			
-			if (data.name !== undefined) {
-				unifiedData.name = data.name;
-			}
-			
-			if (data.locations !== undefined) {
-				// 將人流統計地點轉換為統一格式
-				unifiedData.locations = data.locations.map((loc) => {
-					const converted = peopleCountingLocationToUnified(loc, "people_counting");
-					// 如果有 id，保留它；如果沒有，則符合 Omit<UnifiedLocation, "id" | "zoneId">
-					return converted as UnifiedLocation | Omit<UnifiedLocation, "id" | "zoneId">;
-				});
-			}
-
-			const response = await locationApi.updateZone(id, unifiedData);
-			return {
-				merged: response.merged,
-				message: response.message,
-				zone: backendToPeopleCountingZone(response.zone)
-			};
-		},
+		updateZone: zoneApi.updateZone,
 
 		// 刪除區域
-		deleteZone: locationApi.deleteZone,
+		deleteZone: zoneApi.deleteZone,
 
 		// ========== 地點管理 API（獨立 API，用於直接管理地點）==========
 		// 注意：這些 API 使用 /api/people-counting/locations，不是統一 API
@@ -170,17 +131,20 @@ export const usePeopleCountingLocationApi = () => {
 			return response;
 		},
 
-		// ========== 工地名稱查詢 API ==========
+		// ========== 地點名稱查詢 API ==========
 
 		/**
-		 * 根據工地 ID 取得工地名稱
-		 * 從地點管理系統中查找對應的工地名稱
+		 * 根據地點 ID 取得地點名稱
+		 * 從地點管理系統中查找對應的地點名稱
 		 * 使用快取機制優化性能，避免重複查詢
+		 * 
+		 * @param locationId - 地點 ID（業務層的數字 ID）
+		 * @returns 地點名稱，如果找不到則返回 null
 		 */
-		getSiteName: async (siteId: number): Promise<string | null> => {
+		getLocationName: async (locationId: number): Promise<string | null> => {
 			// 檢查快取
-			if (siteNameCache.has(siteId)) {
-				return siteNameCache.get(siteId) || null;
+			if (locationNameCache.has(locationId)) {
+				return locationNameCache.get(locationId) || null;
 			}
 
 			try {
@@ -191,25 +155,25 @@ export const usePeopleCountingLocationApi = () => {
 				// 建立完整的快取映射（一次查詢，多次使用）
 				for (const zone of zones) {
 					for (const location of zone.locations || []) {
-						// 檢查地點的 personGroupIds 是否包含 siteId
-						if (location.personGroupIds?.includes(siteId)) {
-							siteNameCache.set(siteId, location.name);
+						// 檢查地點的 personGroupIds 是否包含 locationId
+						if (location.personGroupIds?.includes(locationId)) {
+							locationNameCache.set(locationId, location.name);
 							return location.name;
 						}
-						// 或者地點 ID 是否等於 siteId（如果使用地點 ID 作為工地 ID）
-						if (location.id === String(siteId)) {
-							siteNameCache.set(siteId, location.name);
+						// 或者地點 ID 是否等於 locationId（如果使用地點 ID 作為業務 ID）
+						if (location.id === String(locationId)) {
+							locationNameCache.set(locationId, location.name);
 							return location.name;
 						}
 					}
 				}
 
 				// 如果沒找到，快取 null 值，避免重複查詢
-				siteNameCache.set(siteId, null);
+				locationNameCache.set(locationId, null);
 				return null;
 			} catch (error) {
 				// 靜默處理錯誤，避免影響主流程
-				peopleCountingLogger.error("取得工地名稱失敗", { siteId, error });
+				peopleCountingLogger.error("取得地點名稱失敗", { locationId, error });
 				return null;
 			}
 		}

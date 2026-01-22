@@ -38,3 +38,24 @@ export const getImageErrorHandler = (fallbackSrc?: string) => {
 	return (event: Event) => handleImageError(event, fallbackSrc);
 };
 
+/**
+ * 將 Base64 編碼的圖片數據轉換為可用的圖片 URL
+ * @param base64Data - Base64 編碼的圖片數據（可能包含 data:image 前綴）
+ * @returns 可用的圖片 URL（data URL）
+ */
+export const convertBase64ToImageUrl = (base64Data: string): string => {
+	if (!base64Data) return "";
+
+	// 如果已經是完整的 data URL，直接返回
+	if (base64Data.startsWith("data:image/")) return base64Data;
+
+	// 判斷圖片格式並添加 data URL 前綴
+	const mimeType = base64Data.startsWith("/9j/") 
+		? "image/jpeg" 
+		: base64Data.startsWith("iVBORw0KGgo") 
+			? "image/png" 
+			: "image/jpeg"; // 預設為 JPEG（YSCP API 返回的是 JPEG）
+
+	return `data:${mimeType};base64,${base64Data}`;
+};
+

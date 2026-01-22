@@ -87,4 +87,14 @@ export interface UnifiedLocation {
 	systems: LocationSystem[];
 }
 
+/**
+ * 地點系統輸入類型（用於創建和更新，系統可能沒有 id）
+ */
+export type LocationSystemInput = LocationSystem | Omit<LocationSystem, "id">;
+
+/**
+ * 統一地點輸入類型（用於創建和更新，地點和系統可能沒有 id）
+ */
+export type UnifiedLocationInput = Omit<UnifiedLocation, "zoneId" | "systems"> & { systems: LocationSystemInput[] };
+
 

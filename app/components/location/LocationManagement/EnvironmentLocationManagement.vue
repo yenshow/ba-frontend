@@ -50,6 +50,8 @@ interface Props {
 }
 
 interface Emits {
+	(e: "add-location"): void;
+	(e: "remove-location", index: number): void;
 	(e: "update-location", index: number, location: EnvironmentLocation): void;
 }
 
