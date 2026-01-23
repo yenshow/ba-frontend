@@ -15,7 +15,7 @@
 				<h3 class="text-base text-white 2xl:text-lg">{{ location.name }}</h3>
 			</div>
 
-			<div class="flex items-center gap-4 py-4">
+			<div class="flex items-center gap-4 py-2">
 				<!-- 狀態圓形儀表 -->
 				<div class="relative flex flex-col items-center justify-center">
 					<div class="flex items-center justify-center h-24 w-24 rounded-full 2xl:h-32 2xl:w-32">
@@ -34,13 +34,13 @@
 				<!-- 進/出場數字 -->
 				<div class="flex min-w-[120px] flex-col gap-3 2xl:min-w-[140px] text-white border-r-2 border-white/50 pr-4">
 					<div class=" bg-white/10 p-2 flex flex-col items-center justify-center text-center gap-1">
-						<div class="text-sm 2xl:text-base">今日進場人數</div>
+						<div class="text-sm 2xl:text-base">進場人數</div>
 						<div class="mt-0.5 text-xl font-bold  2xl:text-2xl bg-black/20 w-[100px]">
 							{{ location.entryCount ?? 0 }}
 						</div>
 					</div>
 					<div class=" bg-white/10 p-2 flex flex-col items-center justify-center text-center gap-1">
-						<div class="text-sm 2xl:text-base">今日出場人數</div>
+						<div class="text-sm 2xl:text-base">出場人數</div>
 						<div class="mt-0.5 text-xl font-bold  2xl:text-2xl bg-black/20 w-[100px]">
 							{{ location.exitCount ?? 0 }}
 						</div>
@@ -52,11 +52,18 @@
 					<div
 						v-for="(unit, index) in displayUnits"
 						:key="unit ? unit.id : `empty-${index}`"
-						class="flex items-center justify-center bg-black/20 p-2 text-center text-[12px] min-h-[36px] min-w-[64px]"
-						:class="unit ? 'text-white/90' : 'text-white/30'"
+						class="flex items-center justify-center p-2 text-center min-h-[48px] min-w-[64px] transition-all"
+						:class="{
+							'bg-white/20': unit && (unit.currentCount || 0) > 0,
+							'bg-black/20': !unit || (unit.currentCount || 0) === 0,
+							'text-white/90': unit,
+							'text-white/30': !unit
+						}"
 						:title="unit ? unit.name : ''"
 					>
-						<span v-if="unit" class="line-clamp-2">{{ unit.name }}</span>
+						<span v-if="unit" class="text-[11px] font-semibold text-white line-clamp-2 2xl:text-xs">
+							{{ unit.name }}
+						</span>
 					</div>
 				</div>
 			</div>

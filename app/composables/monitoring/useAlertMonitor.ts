@@ -21,6 +21,7 @@ import { useErrorHandler, ErrorPriority } from "~/composables/core/useErrorHandl
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import { getSourceLabel, getSeverityLabel } from "~/utils/alertUtils";
 import { logger } from "~/utils/logger";
+import { getTodayDateRangeUTC } from "~/utils/dateUtils";
 import { useAlertPolling } from "./alertMonitor/useAlertPolling";
 import { useAlertWebSocket } from "./alertMonitor/useAlertWebSocket";
 import { useUnresolvedAlertCount } from "./alertMonitor/useUnresolvedAlertCount";
@@ -154,9 +155,27 @@ export const useAlertMonitor = () => {
 	};
 
 	/**
+	 * 檢查警報是否為今日創建
+	 */
+	const isTodayAlert = (alert: Alert): boolean => {
+		const { start, end } = getTodayDateRangeUTC();
+		const alertDate = new Date(alert.created_at);
+		return alertDate >= start && alertDate < end;
+	};
+
+	/**
 	 * 顯示警示通知（警報 Toast 永遠是持久顯示）
+	 * 只顯示今日創建的警報
 	 */
 	const showAlertNotification = (alert: Alert) => {
+		// 只顯示今日創建的警報（與後端按天分組邏輯一致）
+		if (!isTodayAlert(alert)) {
+			alertMonitorLogger.log(
+				`跳過顯示非今日警報 ${alert.id}，創建時間: ${alert.created_at}`
+			);
+			return;
+		}
+
 		// 檢查數量限制
 		const currentToastCount = activeAlertToasts.value.size;
 		if (currentToastCount >= MAX_ALERT_TOASTS) {
@@ -216,11 +235,14 @@ export const useAlertMonitor = () => {
 
 	/**
 	 * 處理輪詢檢查結果
+	 * 只處理今日創建的警報（輪詢層已過濾，這裡只處理優先級）
 	 */
 	const handlePollingCheck = async () => {
 		await polling.checkNewAlerts(
+			// 輪詢層已過濾今日警報，這裡只需進行優先級過濾
 			shouldProcessAlert,
 			(alert: Alert) => {
+				// 輪詢已確保只返回今日警報，這裡直接處理
 				// 檢查是否已有 Toast
 				const existingToastId = activeAlertToasts.value.get(alert.id);
 				if (existingToastId) {
@@ -229,7 +251,7 @@ export const useAlertMonitor = () => {
 					// 更新嚴重程度映射
 					alertSeverities.value.set(alert.id, alert.severity);
 				} else {
-					// 如果這個警報還沒有顯示 Toast，顯示它
+					// 如果這個警報還沒有顯示 Toast，顯示它（showAlertNotification 內部會再次檢查，但輪詢已確保是今日）
 					showAlertNotification(alert);
 				}
 			},
@@ -249,6 +271,7 @@ export const useAlertMonitor = () => {
 
 	/**
 	 * 處理新警報事件（WebSocket）
+	 * 只處理今日創建的警報
 	 */
 	const handleAlertNew = (alert: AlertNewEvent) => {
 		// 優先級過濾：如果有連線錯誤，忽略數值錯誤
@@ -256,7 +279,7 @@ export const useAlertMonitor = () => {
 			return;
 		}
 
-		// 如果這個警報還沒有顯示 Toast，顯示它
+		// 如果這個警報還沒有顯示 Toast，顯示它（showAlertNotification 內部會檢查是否為今日）
 		if (!activeAlertToasts.value.has(alert.id)) {
 			showAlertNotification(alert);
 		}
@@ -273,7 +296,7 @@ export const useAlertMonitor = () => {
 			removeAlertToast(alert.id);
 		}
 
-		// 如果從 resolved/ignored 變為 active，顯示 Toast
+		// 如果從 resolved/ignored 變為 active，顯示 Toast（showAlertNotification 內部會檢查是否為今日）
 		if ((oldStatus === "resolved" || oldStatus === "ignored") && newStatus === "active") {
 			if (shouldProcessAlert(alert)) {
 				showAlertNotification(alert);
@@ -289,7 +312,7 @@ export const useAlertMonitor = () => {
 				// 更新嚴重程度映射（severity 可能升級）
 				alertSeverities.value.set(alert.id, alert.severity);
 			} else if (shouldProcessAlert(alert)) {
-				// 如果沒有現有的 Toast，但應該處理此警報，則顯示新的 Toast
+				// 如果沒有現有的 Toast，但應該處理此警報，則顯示新的 Toast（showAlertNotification 內部會檢查是否為今日）
 				showAlertNotification(alert);
 			}
 		}

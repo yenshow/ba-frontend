@@ -229,9 +229,8 @@ const pendingChanges = ref<Map<string, TZone>>(new Map()) as Ref<Map<string, TZo
 const expandedZones = ref<Set<string>>(new Set());
 const errorMessage = ref("");
 
-// 待刪除地點（方案 B：批次處理）
+// 待刪除地點
 const pendingDeleteLocation = ref<{ zoneId: string; locationIndex: number } | null>(null);
-const deletedLocationIdsByZone = new Map<string, Set<string>>();
 
 // 驗證
 const { validateZone } = useZoneValidation();
@@ -277,11 +276,23 @@ const mergedZones = computed(() => {
 	return Array.from(zonesMap.values());
 });
 
-// 排序區域
+// 排序區域（過濾掉沒有地點的區域，但保留新區域）
 const sortedZones = computed(() => {
 	if (!mergedZones.value || mergedZones.value.length === 0) return [];
 
-	return [...mergedZones.value].sort((a, b) => {
+	// 過濾掉沒有地點的區域，但保留新區域（有 temp- ID 的）
+	const zonesWithLocations = mergedZones.value.filter(zone => {
+		const zoneId = getZoneId(zone);
+		const hasLocations = adapter.getLocationsProperty(zone).length > 0;
+		const isNewZone = zoneId?.startsWith("temp-");
+		// 如果有地點或是新區域，則顯示
+		return hasLocations || isNewZone;
+	});
+
+	// 如果所有區域都沒有地點且沒有新區域，顯示所有區域（用於顯示空狀態）
+	const zonesToShow = zonesWithLocations.length > 0 ? zonesWithLocations : mergedZones.value;
+
+	return [...zonesToShow].sort((a, b) => {
 		const nameA = a.name || "";
 		const nameB = b.name || "";
 		const numA = parseInt(nameA.match(/\d+/)?.[0] || "999") || 999;
@@ -563,7 +574,7 @@ const removeLocation = (zoneId: string, locationIndex: number) => {
 };
 
 // 確認刪除地點
-const handleConfirmDeleteLocation = () => {
+const handleConfirmDeleteLocation = async () => {
 	if (!pendingDeleteLocation.value) return;
 	const { zoneId, locationIndex } = pendingDeleteLocation.value;
 	const zone = sortedZones.value.find(z => getZoneId(z) === zoneId);
@@ -573,14 +584,26 @@ const handleConfirmDeleteLocation = () => {
 	}
 
 	const locations = [...adapter.getLocationsProperty(zone)];
-	const target = locations?.[locationIndex] as any;
-	const targetId = target?.id ? String(target.id) : null;
-	if (targetId) {
-		if (!deletedLocationIdsByZone.has(zoneId)) {
-			deletedLocationIdsByZone.set(zoneId, new Set());
-		}
-		deletedLocationIdsByZone.get(zoneId)!.add(targetId);
+	// 檢查索引是否有效
+	if (locationIndex < 0 || locationIndex >= locations.length) {
+		pendingDeleteLocation.value = null;
+		return;
 	}
+
+	const target = locations[locationIndex] as any;
+	const targetId = target?.id ? String(target.id) : null;
+	
+	// 如果地點有 ID（已保存），立即調用 API 刪除
+	if (targetId) {
+		try {
+			await locationApi.deleteLocation(targetId);
+		} catch (error) {
+			handleError(error, "刪除地點失敗");
+			pendingDeleteLocation.value = null;
+			return;
+		}
+	}
+	// 如果地點沒有 ID（未保存），直接從列表中移除即可
 
 	locations.splice(locationIndex, 1);
 	const updatedZone = adapter.setLocationsProperty(zone, locations);
@@ -608,19 +631,9 @@ const addNewZone = () => {
 		id: tempId // ✅ 賦值臨時 ID
 	} as TZone;
 
-	// 如果系統為單一地點系統，自動創建一個空地點
-	const locations = adapter.getLocationsProperty(newZone);
-	const isSingleLocationSystem = adapter.systemConfig?.singleLocationPerZone;
-	if (isSingleLocationSystem && locations.length === 0) {
-		const newLocation = adapter.createNewLocation();
-		const updatedZone = adapter.setLocationsProperty(newZone, [newLocation]);
-		// 使用 JSON 深拷貝，避免 structuredClone 無法處理某些對象的問題
-		pendingChanges.value.set(tempId, JSON.parse(JSON.stringify(updatedZone)) as TZone);
-	} else {
-		// ✅ 只加入待保存列表，不立即寫入資料庫
-		// 使用 JSON 深拷貝，避免 structuredClone 無法處理某些對象的問題
-		pendingChanges.value.set(tempId, JSON.parse(JSON.stringify(newZone)) as TZone);
-	}
+	// ✅ 只加入待保存列表，不立即寫入資料庫
+	// 使用 JSON 深拷貝，避免 structuredClone 無法處理某些對象的問題
+	pendingChanges.value.set(tempId, JSON.parse(JSON.stringify(newZone)) as TZone);
 
 	// ✅ 自動展開新區域
 	expandedZones.value.add(tempId);
@@ -658,20 +671,6 @@ const saveAllChanges = async () => {
 
 	// 逐一儲存
 	for (const [zoneId, zone] of zonesToSave) {
-		// 先刪除該區域待刪除的地點（方案 B：批次處理）
-		const deleteSet = deletedLocationIdsByZone.get(zoneId);
-		if (deleteSet && deleteSet.size > 0) {
-			try {
-				for (const locationId of deleteSet) {
-					await locationApi.deleteLocation(locationId);
-				}
-				deletedLocationIdsByZone.delete(zoneId);
-			} catch (error) {
-				handleError(error, "刪除地點失敗");
-				return;
-			}
-		}
-
 		const cleanedZone = adapter.filterEmptyLocations(zone as TZone);
 		const isNewZone = zoneAny(zone).id?.startsWith("temp-");
 
@@ -685,9 +684,8 @@ const saveAllChanges = async () => {
 		}
 	}
 
-	// 全部成功才清空 pendingChanges / pending 刪除
+	// 全部成功才清空 pendingChanges
 	pendingChanges.value.clear();
-	deletedLocationIdsByZone.clear();
 };
 
 // 刪除確認處理（使用 ref 追蹤待刪除的 zoneId）

@@ -105,9 +105,7 @@ const handleAddLocation = () => {
 
 // 處理刪除地點
 const handleRemoveLocation = (locationIndex: number) => {
-	if (confirm("確定要刪除此點位嗎？")) {
 		emit("remove-location", locationIndex);
-	}
 };
 
 // 處理地點更新

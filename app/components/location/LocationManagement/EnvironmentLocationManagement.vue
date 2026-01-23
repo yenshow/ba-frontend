@@ -3,9 +3,16 @@
 		<!-- 地點列表標題 -->
 		<div class="flex items-center justify-between">
 			<span class="text-base font-medium 2xl:text-lg">地點</span>
+			<button
+				type="button"
+				class="btn-secondary text-sm 2xl:text-base"
+				@click="handleAddLocation"
+			>
+				新增地點
+			</button>
 		</div>
 
-		<!-- 地點項目（環境品質只有一個地點） -->
+		<!-- 地點項目 -->
 		<div
 			v-if="getLocations(zone).length === 0"
 			class="py-4 text-center text-sm text-white/60 2xl:text-base"
@@ -27,6 +34,24 @@
 						@update="handleLocationUpdate(locationIndex, $event)"
 					/>
 				</div>
+
+				<!-- 刪除按鈕 -->
+				<button
+					v-if="getLocations(zone).length > 1"
+					type="button"
+					class="ml-auto flex-shrink-0 p-2 text-rose-400 transition-colors hover:text-rose-300"
+					@click="handleRemoveLocation(locationIndex)"
+					title="刪除地點"
+				>
+					<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+						/>
+					</svg>
+				</button>
 			</div>
 		</div>
 
@@ -69,6 +94,16 @@ const getLocations = (zone: EnvironmentZone): EnvironmentLocation[] => {
 // 取得地點 ID
 const getLocationId = (location: EnvironmentLocation, index: number): string => {
 	return (location as any).id || `location-${index}`;
+};
+
+// 處理新增地點
+const handleAddLocation = () => {
+	emit("add-location");
+};
+
+// 處理刪除地點
+const handleRemoveLocation = (locationIndex: number) => {
+	emit("remove-location", locationIndex);
 };
 
 // 處理地點更新

@@ -24,7 +24,8 @@ export type SystemLocationType = LightingLocation | EnvironmentLocation | People
  * 用於標記系統特性，實現配置驅動的架構
  */
 export interface SystemConfig {
-	// 是否每個區域只允許一個地點（用於環境品質、人流統計等）
+	// 是否每個區域只允許一個地點（已廢棄：所有系統現在都支持多個地點）
+	/** @deprecated 所有系統現在都支持多個地點，此配置已不再使用 */
 	singleLocationPerZone?: boolean;
 	// 是否需要示意圖（用於照明系統）
 	requireImageUrl?: boolean;
@@ -47,7 +48,7 @@ export interface ZoneSystemAdapter<TZone extends SystemZoneType, TLocation exten
 	// ========== 地點管理方法 ==========
 	// 取得地點列表的屬性名（例如：areas, locations）
 	getLocationsProperty: (zone: TZone) => TLocation[];
-	// 設定地點列表（統一處理單一地點系統的限制）
+	// 設定地點列表（支持多個地點）
 	setLocationsProperty: (zone: TZone, locations: TLocation[]) => TZone;
 	// 建立新的地點
 	createNewLocation: () => TLocation;
@@ -71,7 +72,6 @@ export interface ZoneSystemAdapter<TZone extends SystemZoneType, TLocation exten
  */
 export function useLightingZoneAdapter(): ZoneSystemAdapter<LightingZone, LightingLocation> {
 	const systemConfig: SystemConfig = {
-		singleLocationPerZone: false, // 照明系統允許多個地點
 		requireImageUrl: true // 照明系統需要示意圖
 	};
 
@@ -125,7 +125,6 @@ export function useLightingZoneAdapter(): ZoneSystemAdapter<LightingZone, Lighti
  */
 export function useEnvironmentZoneAdapter(): ZoneSystemAdapter<EnvironmentZone, EnvironmentLocation> {
 	const systemConfig: SystemConfig = {
-		singleLocationPerZone: true, // 環境監測系統每個區域只有一個地點
 		requireImageUrl: false // 環境監測系統不需要示意圖
 	};
 
@@ -142,11 +141,10 @@ export function useEnvironmentZoneAdapter(): ZoneSystemAdapter<EnvironmentZone, 
 		},
 		getLocationsProperty: (zone: EnvironmentZone) => zone.locations || [],
 		setLocationsProperty: (zone: EnvironmentZone, locations: EnvironmentLocation[]) => {
-			// 環境監測系統每個區域只有一個地點
-			// 使用統一的單一地點處理邏輯
+			// 環境監測系統現在支持多個地點
 			return {
 				...zone,
-				locations: locations.length > 0 ? [locations[0]] : []
+				locations
 			};
 		},
 		createNewLocation: (): EnvironmentLocation => ({
@@ -176,7 +174,6 @@ export function usePeopleCountingZoneAdapter(): ZoneSystemAdapter<
 	PeopleCountingLocation
 > {
 	const systemConfig: SystemConfig = {
-		singleLocationPerZone: true, // 人流統計系統每個區域只有一個地點
 		requireImageUrl: false // 人流統計系統不需要示意圖
 	};
 
@@ -194,11 +191,10 @@ export function usePeopleCountingZoneAdapter(): ZoneSystemAdapter<
 		},
 		getLocationsProperty: (zone: PeopleCountingZone) => zone.locations || [],
 		setLocationsProperty: (zone: PeopleCountingZone, locations: PeopleCountingLocation[]) => {
-			// 人流統計系統每個區域只有一個地點
-			// 使用統一的單一地點處理邏輯（與環境品質保持一致）
+			// 人流統計系統現在支持多個地點
 			return {
 			...zone,
-				locations: locations.length > 0 ? [locations[0]] : []
+				locations
 			};
 		},
 		createNewLocation: (): PeopleCountingLocation => ({

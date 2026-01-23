@@ -11,19 +11,26 @@
 			</div>
 			<div class="text-white space-y-2">
 				<div class="flex items-center justify-center gap-4">
-					<div class="text-base 2xl:text-xl font-semibold">今日進場人數</div>
+					<div class="text-base 2xl:text-xl font-semibold">進場人數</div>
 					<div class="text-xl 2xl:text-2xl bg-black/20 w-[120px] text-center">
 						{{ entryCount || 0 }}
 					</div>
 				</div>
 
 				<div class="flex items-center justify-center gap-4">
-					<div class="text-base 2xl:text-xl font-semibold">今日出場人數</div>
+					<div class="text-base 2xl:text-xl font-semibold">出場人數</div>
 					<div class="text-xl 2xl:text-2xl bg-black/20 w-[120px] text-center">
 						{{ exitCount || 0 }}
 					</div>
 				</div>
+
+				<div class="flex items-center justify-center gap-4">
+					<div class="text-base 2xl:text-xl font-semibold">在場人數</div>
+					<div class="text-xl 2xl:text-2xl bg-black/20 w-[120px] text-center">
+						{{ currentCount || 0 }}
+					</div>
 				</div>
+			</div>
 		</div>
 		<!-- 進出場記錄表（最新 5 筆） -->
 		<EntryExitLogTable :logs="logs" />
@@ -37,6 +44,7 @@ import EntryExitLogTable from "~/components/people-counting/EntryExitLogTable.vu
 interface Props {
 	entryCount: number
 	exitCount: number
+	currentCount: number
 	logs: PeopleCountingLog[]
 }
 

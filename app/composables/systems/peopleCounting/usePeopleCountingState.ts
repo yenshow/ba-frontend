@@ -8,6 +8,7 @@
  * - 頁面組件只負責 UI 渲染和用戶交互
  */
 
+import { ref } from "vue";
 import type {
 	PeopleCountingLocation,
 	PeopleCountingPersonnel,
@@ -57,6 +58,29 @@ export const usePeopleCountingState = () => {
 			
 			if (result.zones && result.zones.length > 0) {
 				peopleCountingZones.value = result.zones;
+			}
+			
+			// 如果當前有選中的地點，同步更新 selectedLocation 的統計資料
+			// 這樣可以確保總覽卡片和詳情面板的資料保持一致
+			if (selectedLocation.value?.locationId) {
+				const updatedLocation = locations.value.find(
+					loc => loc.locationId === selectedLocation.value?.locationId
+				);
+				if (updatedLocation) {
+					// 只更新統計資料，保留其他詳情（如 units, personnel 等）
+					selectedLocation.value = {
+						...selectedLocation.value,
+						entryCount: updatedLocation.entryCount,
+						exitCount: updatedLocation.exitCount,
+						// 更新 units 的 currentCount（如果有的話）
+						units: selectedLocation.value.units?.map(unit => {
+							const updatedUnit = updatedLocation.units?.find(u => u.id === unit.id);
+							return updatedUnit
+								? { ...unit, currentCount: updatedUnit.currentCount }
+								: unit;
+						}) || updatedLocation.units,
+					};
+				}
 			}
 			
 			if (process.dev) {
@@ -163,16 +187,6 @@ export const usePeopleCountingState = () => {
 	};
 
 	/**
-	 * 添加新記錄到列表（用於 WebSocket 事件）
-	 */
-	const addLog = (log: PeopleCountingLog, maxLogs: number = 5): void => {
-		logs.value.unshift(log);
-		if (logs.value.length > maxLogs) {
-			logs.value = logs.value.slice(0, maxLogs);
-		}
-	};
-
-	/**
 	 * 獲取地點所屬的區域名稱
 	 */
 	const getLocationZone = (location: PeopleCountingLocation): string | null => {
@@ -206,7 +220,6 @@ export const usePeopleCountingState = () => {
 		loadLocationLogs,
 		loadZones,
 		handleUnitSelect,
-		addLog,
 		getLocationZone
 	};
 };

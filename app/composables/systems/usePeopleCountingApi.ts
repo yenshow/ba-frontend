@@ -1,41 +1,36 @@
 /**
- * 人流統計 API Composable（主文件）
- *
- * 此文件作為入口點，委派給專用的子 composables：
- * - usePeopleCountingLocationBusinessApi: 地點配置和地點相關 API
- * - usePeopleCountingPersonnelApi: 人員管理 API
- * - usePeopleCountingEntryApi: 進出場記錄 API
- *
- * 架構說明：
+ * 人流統計 API Composable
+ * 
+ * 統一處理所有人流統計相關的 API 調用
  * - 地點（Location）：需要透過配置定義，將 person_group 映射到地點
  * - 區域（Zone）：對應到地點管理系統的區域
  * - 單位（Unit）：對應到 platform.person_group
  * - 人員（Personnel）：對應到 platform.person
  * - 進出場記錄（Log）：對應到 baseacs.slot_card_records
- *
+ * 
  * 注意：所有資料都直接從外部資料庫查詢，不進行快取
  */
 
 import type {
 	PeopleCountingLocation,
-	PeopleCountingUnit,
 	PeopleCountingPersonnel,
 	PeopleCountingLog,
 	PeopleCountingZone
 } from "~/types/peopleCounting";
-import { usePeopleCountingLocationBusinessApi } from "./peopleCounting/usePeopleCountingLocationBusinessApi";
-import { usePeopleCountingPersonnelApi } from "./peopleCounting/usePeopleCountingPersonnelApi";
-import { usePeopleCountingEntryApi } from "./peopleCounting/usePeopleCountingEntryApi";
+import { useApiBase } from "~/composables/core/useApiBase";
+import { usePeopleCountingLocationApi } from "~/composables/systems/location/usePeopleCountingLocationApi";
+import { logger } from "~/utils/logger";
+import { formatDateTime } from "~/utils/dateUtils";
+import { extractRegionFromZoneName, convertApiLogToFrontend } from "~/utils/peopleCountingAdapter";
+
+const apiLogger = logger.createLogger("PeopleCounting API");
 
 /**
- * 人流統計 API Composable（主入口）
- * 委派給專用的子 composables
+ * 人流統計 API Composable
  */
 export const usePeopleCountingApi = () => {
-	// 使用專用的子 composables
-	const locationApi = usePeopleCountingLocationBusinessApi();
-	const personnelApi = usePeopleCountingPersonnelApi();
-	const entryApi = usePeopleCountingEntryApi();
+	const { request } = useApiBase();
+	const peopleCountingLocationApi = usePeopleCountingLocationApi();
 
 	/**
 	 * 取得所有地點列表（含統計）
@@ -46,7 +41,70 @@ export const usePeopleCountingApi = () => {
 		locations: PeopleCountingLocation[];
 		zones: PeopleCountingZone[];
 	}> => {
-		return locationApi.getLocations(existingZones);
+		try {
+			// 並行請求 locations 和 zones（如果沒有提供現有 zones）
+			const [locationsResponse, zonesResponse] = await Promise.all([
+				request<{ sites: Array<{
+					id: number;
+					name: string;
+					entryCount: number;
+					exitCount: number;
+					units: Array<{
+						id: number;
+						name: string;
+						currentCount: number;
+						totalCount: number;
+					}>;
+				}> }>("/people-counting/sites"),
+				existingZones 
+					? Promise.resolve(existingZones)
+					: peopleCountingLocationApi.getZones().catch(error => {
+						apiLogger.warn("無法載入地點管理系統，使用預設區域", { error });
+						return { zones: [] };
+					})
+			]);
+
+			const zones = zonesResponse.zones || [];
+			const locationMap = new Map<number, { zoneName: string }>();
+
+			zones.forEach(zone => {
+				zone.locations?.forEach(location => {
+					const locationId = location.id ? Number(location.id) : undefined;
+					if (locationId) {
+						locationMap.set(locationId, { zoneName: zone.name });
+					}
+				});
+			});
+
+			// 轉換為前端格式
+			const locations = locationsResponse.sites.map(site => {
+				const locationInfo = locationMap.get(site.id);
+				const region = locationInfo
+					? extractRegionFromZoneName(locationInfo.zoneName) || "未分類"
+					: "未分類";
+
+				return {
+					locationId: site.id,
+					name: site.name,
+					region,
+					status: "active" as const,
+					entryCount: site.entryCount,
+					exitCount: site.exitCount,
+					units: site.units.map(unit => ({
+						id: unit.id,
+						locationId: site.id,
+						name: unit.name,
+						capacity: unit.totalCount,
+						currentCount: unit.currentCount
+					}))
+				} as PeopleCountingLocation;
+			});
+
+			return { locations, zones };
+		} catch (error) {
+			apiLogger.error("取得地點列表失敗", { error });
+			throw error;
+		}
 	};
 
 	/**
@@ -58,9 +116,29 @@ export const usePeopleCountingApi = () => {
 		locationId: number,
 		existingLocations?: PeopleCountingLocation[]
 	): Promise<PeopleCountingLocation> => {
-		return locationApi.getLocationDetail(locationId, existingLocations);
-	};
+		try {
+			// 如果提供了現有列表，直接使用
+			if (existingLocations) {
+				const location = existingLocations.find(l => l.locationId === locationId);
+				if (location) {
+					return location;
+				}
+			}
 
+			// 否則從 API 獲取
+			const locationsResponse = await getLocations();
+			const location = locationsResponse.locations.find(l => l.locationId === locationId);
+			
+			if (!location) {
+				throw new Error(`找不到地點 ID: ${locationId}`);
+			}
+
+			return location;
+		} catch (error) {
+			apiLogger.error("取得地點詳情失敗", { locationId, error });
+			throw error;
+		}
+	};
 
 	/**
 	 * 取得單位人員列表
@@ -68,7 +146,56 @@ export const usePeopleCountingApi = () => {
 	 * @param locationId - 地點 ID（可選，用於取得設備配置）
 	 */
 	const getUnitPersonnel = async (unitId: number, locationId?: number): Promise<PeopleCountingPersonnel[]> => {
-		return personnelApi.getUnitPersonnel(unitId, locationId);
+		try {
+			const url = locationId 
+				? `/people-counting/units/${unitId}/personnel?siteId=${locationId}`
+				: `/people-counting/units/${unitId}/personnel`;
+			
+			const response = await request<{ 
+				personnel: Array<{
+					id: number;
+					employeeId: string;
+					name: string;
+					photoUrl?: string;
+					isInside: boolean;
+					lastEntryTime: string | null;
+					lastExitTime: string | null;
+					lastEntryDate: string | null;
+					entryTime: string | null;
+					exitTime: string | null;
+					isTodayEntry?: boolean;
+				}>;
+				entryCount: number;
+				exitCount: number;
+			}>(url);
+
+			// 轉換為前端格式
+			return response.personnel.map(person => {
+				const photoUrl = person.photoUrl
+					? person.photoUrl.startsWith("data:image")
+						? person.photoUrl
+						: `data:image/jpeg;base64,${person.photoUrl}`
+					: undefined;
+
+				return {
+					id: person.id,
+					unitId,
+					employeeId: person.employeeId,
+					name: person.name,
+					photoUrl,
+					lastEntryTime: person.lastEntryTime ? formatDateTime(person.lastEntryTime) : undefined,
+					lastExitTime: person.lastExitTime ? formatDateTime(person.lastExitTime) : undefined,
+					lastEntryDate: person.lastEntryDate || undefined,
+					entryTime: person.entryTime || undefined,
+					exitTime: person.exitTime || undefined,
+					isPresent: person.isInside ?? false,
+					isTodayEntry: person.isTodayEntry ?? false
+				};
+			});
+		} catch (error) {
+			apiLogger.error("取得單位人員失敗", { unitId, error });
+			throw error;
+		}
 	};
 
 	/**
@@ -78,18 +205,43 @@ export const usePeopleCountingApi = () => {
 		locationId: number,
 		options?: { limit?: number; unitId?: number }
 	): Promise<PeopleCountingLog[]> => {
-		return entryApi.getLocationLogs(locationId, options);
+		try {
+			const params = new URLSearchParams();
+			if (options?.limit) {
+				params.append("limit", String(options.limit));
+			}
+			if (options?.unitId) {
+				params.append("unitId", String(options.unitId));
+			}
+
+			const queryString = params.toString();
+			const url = `/people-counting/sites/${locationId}/logs${queryString ? `?${queryString}` : ""}`;
+
+			const response = await request<{
+				logs: Array<{
+					id: string;
+					personId: number;
+					personName: string;
+					unitId: number | null;
+					unitName: string;
+					eventType: "entry" | "exit" | "failed";
+					timestamp: string;
+					deviceScreenshotUrl: string;
+				}>;
+			}>(url);
+
+			const logs = response.logs || [];
+			return logs.map(log => convertApiLogToFrontend(log, locationId));
+		} catch (error) {
+			apiLogger.error("取得進出場記錄失敗", { locationId, options, error });
+			throw error;
+		}
 	};
 
 	return {
-		// 地點相關 API
 		getLocations,
 		getLocationDetail,
-
-		// 人員相關 API
 		getUnitPersonnel,
-
-		// 進出場記錄相關 API
 		getLocationLogs
 	};
 };

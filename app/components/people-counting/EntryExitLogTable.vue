@@ -4,9 +4,9 @@
 	</div>
 
 	<div v-else>
-		<table class="w-full border-collapse">
-			<thead>
-				<tr class="border-b-2 border-white/30 font-semibold text-white/80 text-center text-xs xl:text-sm">
+		<table class="w-full border-b-2 border-r-2 border-l-2 border-white/20">
+			<thead class="bg-white/20">
+				<tr class="font-semibold text-white/80 text-center text-xs xl:text-sm">
 					<th class="p-2">
 						設備截圖
 					</th>	

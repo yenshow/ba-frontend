@@ -8,6 +8,7 @@ import type { AlertCountEvent } from "~/composables/websocket/useWebSocket";
 import { logger } from "~/utils/logger";
 import { useAlertApi } from "~/composables/systems/useAlertApi";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
+import { getTodayDateRangeUTC } from "~/utils/dateUtils";
 import { watch } from "vue";
 
 const countLogger = logger.createLogger("UnresolvedAlertCount");
@@ -34,13 +35,20 @@ export const useUnresolvedAlertCount = () => {
 
 	/**
 	 * 載入未解決警報數量
+	 * 只計算今日創建的警報（與後端按天分組邏輯一致）
 	 */
 	const loadUnresolvedAlertCount = async (filters?: { source?: AlertSource }) => {
 		if (isLoadingCount.value) return;
 
 		isLoadingCount.value = true;
 		try {
-			const result = await alertApi.getUnresolvedAlertCount(filters);
+			// 只計算今日創建的警報
+			const { start: todayStart, end: todayEnd } = getTodayDateRangeUTC();
+			const result = await alertApi.getUnresolvedAlertCount({
+				...filters,
+				start_date: todayStart.toISOString(),
+				end_date: todayEnd.toISOString()
+			});
 			unresolvedAlertCount.value = result.count || 0;
 		} catch (error) {
 			unresolvedAlertCount.value = 0;
@@ -52,10 +60,11 @@ export const useUnresolvedAlertCount = () => {
 
 	/**
 	 * 處理警報數量變化事件（WebSocket）
+	 * 後端推送的數量可能包含所有未解決警報，前端需要重新計算今日的數量
 	 */
-	const handleAlertCountEvent = (data: AlertCountEvent) => {
-		unresolvedAlertCount.value = data.count || 0;
-		countLogger.log("未解決警報數量變化", { count: data.count });
+	const handleAlertCountEvent = async (data: AlertCountEvent) => {
+		// 後端推送的數量可能包含非今日的警報，需要重新載入今日的數量以確保準確性
+		await loadUnresolvedAlertCount();
 	};
 
 	/**

@@ -11,6 +11,64 @@ export function useZoneManagement<T extends { id?: string; name: string; locatio
 	const { handleError } = useErrorHandler();
 
 	/**
+	 * 處理刪除後的選中狀態和回調（統一邏輯）
+	 */
+	const handlePostDelete = async (
+		zoneId: string,
+		deletedZone: T,
+		zonesRef: Ref<T[]>,
+		options?: {
+			selectedZoneRef?: Ref<string>;
+			selectedLocationRef?: Ref<string>;
+			onAfterDelete?: (deletedZone: T) => void | Promise<void>;
+			findEarliestZone?: (zones: T[]) => T | null;
+			getLocationId?: (location: any) => string;
+			reloadZones?: () => void | Promise<void>;
+		}
+	) => {
+		// 處理選中狀態
+		if (options?.selectedZoneRef && options.selectedZoneRef.value === zoneId) {
+			if (zonesRef.value.length > 0) {
+				const nextZone = options.findEarliestZone
+					? options.findEarliestZone(zonesRef.value)
+					: zonesRef.value[0];
+				options.selectedZoneRef.value = nextZone?.id || nextZone?.name || "";
+			} else {
+				options.selectedZoneRef.value = "";
+			}
+		}
+
+		// 處理選中地點
+		if (options?.selectedLocationRef && options?.getLocationId) {
+			if (
+				deletedZone.locations?.some(
+					loc => options.getLocationId!(loc) === options.selectedLocationRef!.value
+				)
+			) {
+				const firstAvailableLocation = zonesRef.value
+					.flatMap(zone => zone.locations || [])
+					.find(loc => options.getLocationId!(loc));
+
+				if (firstAvailableLocation) {
+					options.selectedLocationRef.value = options.getLocationId(firstAvailableLocation);
+				} else {
+					options.selectedLocationRef.value = "";
+				}
+			}
+		}
+
+		// 執行額外的回調
+		if (options?.onAfterDelete) {
+			await options.onAfterDelete(deletedZone);
+		}
+
+		// 重新載入區域資料
+		if (options?.reloadZones) {
+			await options.reloadZones();
+		}
+	};
+
+	/**
 	 * 處理儲存區域（統一邏輯）
 	 * @param zone 要儲存的區域
 	 * @param zonesRef 區域列表的 ref
@@ -121,105 +179,103 @@ export function useZoneManagement<T extends { id?: string; name: string; locatio
 					});
 				});
 
-				// 如果區域被其他系統使用，只刪除該系統的地點
-				if (allSystemTypes.size > 1 || !allSystemTypes.has(options.systemType)) {
-					// 過濾掉該系統的地點
-					const remainingLocations: UnifiedZone["locations"] = [];
+				// 檢查區域是否只有當前系統使用
+				const isOnlyCurrentSystem = allSystemTypes.size === 1 && allSystemTypes.has(options.systemType);
 
-					fullZone.locations?.forEach(location => {
-						// 如果地點沒有任何系統，保留它
-						if (!location.systems || location.systems.length === 0) {
-							remainingLocations.push(location);
-							return;
-						}
+				// 如果區域只有當前系統使用，直接刪除整個區域
+				if (isOnlyCurrentSystem) {
+					await deleteApiCall(zoneId);
 
-						// 過濾掉該系統
-						const filteredSystems = location.systems.filter(
-							system => system.systemType !== options.systemType
-						);
-
-						// 如果過濾後還有其他系統，保留該地點（但移除該系統）
-						if (filteredSystems.length > 0) {
-							// 創建新的地點對象，移除該系統
-							remainingLocations.push({
-								...location,
-								systems: filteredSystems
-							});
-						}
-						// 如果過濾後沒有其他系統，且該地點只有該系統，則刪除該地點（不加入 remainingLocations）
-					});
-
-					// 更新區域，移除該系統的地點
-					await options.updateZoneApiCall(zoneId, {
-						locations: remainingLocations
-					});
-
-					// 從本地資料更新（移除該系統的地點）
+					// 從本地資料移除
 					const index = zonesRef.value.findIndex(z => z.id === zoneId);
 					if (index > -1) {
-						// 如果更新後區域還有地點，更新本地資料
-						if (remainingLocations.length > 0) {
-							// 需要重新載入該系統的區域資料以更新本地狀態
-							// 這裡先從本地移除，讓調用方重新載入
-							zonesRef.value.splice(index, 1);
-						} else {
-							// 如果沒有地點了，從本地移除
-							zonesRef.value.splice(index, 1);
-						}
+						const deletedZone = zonesRef.value[index];
+						zonesRef.value.splice(index, 1);
+						await handlePostDelete(zoneId, deletedZone, zonesRef, options);
 					}
 
-					// 處理選中狀態
-					if (options?.selectedZoneRef && options.selectedZoneRef.value === zoneId) {
-						if (remainingLocations.length === 0) {
-							// 如果區域沒有地點了，選擇下一個區域
-							if (zonesRef.value.length > 0) {
-								const nextZone = options.findEarliestZone
-									? options.findEarliestZone(zonesRef.value)
-									: zonesRef.value[0];
-								options.selectedZoneRef.value = nextZone?.id || nextZone?.name || "";
-							} else {
-								options.selectedZoneRef.value = "";
-							}
-						}
-					}
-
-					// 處理選中地點（所有系統）
-					if (options?.selectedLocationRef && options?.getLocationId) {
-						// 檢查刪除的區域是否包含當前選中的地點
-						const deletedLocation = fullZone.locations?.find(
-							loc =>
-								options.getLocationId!(loc) === options.selectedLocationRef!.value &&
-								loc.systems?.some(system => system.systemType === options.systemType)
-						);
-
-						if (deletedLocation) {
-							// 查找第一個可用的地點
-							const firstAvailableLocation = zonesRef.value
-								.flatMap(zone => zone.locations || [])
-								.find(loc => options.getLocationId!(loc));
-
-							if (firstAvailableLocation) {
-								options.selectedLocationRef.value = options.getLocationId(firstAvailableLocation);
-							} else {
-								options.selectedLocationRef.value = "";
-							}
-						}
-					}
-
-					// 執行額外的回調
-					if (options?.onAfterDelete) {
-						const deletedZone = zonesRef.value.find(z => z.id === zoneId) || (fullZone as T);
-						await options.onAfterDelete(deletedZone);
-					}
-
-					// 重新載入區域資料（用於全區點位圖等需要同步所有系統資料的頁面）
-					if (options?.reloadZones) {
-						await options.reloadZones();
-					}
-
-					toast.success("已移除該系統在此區域的所有地點");
+					toast.success("區域刪除成功");
 					return;
 				}
+
+				// 如果區域被其他系統使用，只刪除該系統的地點
+				// 過濾掉該系統，構建更新後的地點列表
+				const remainingLocations: UnifiedZone["locations"] = fullZone.locations?.map(location => {
+					// 如果地點沒有任何系統，保留原樣
+					if (!location.systems || location.systems.length === 0) {
+						return location;
+					}
+
+					// 過濾掉當前系統
+					const filteredSystems = location.systems.filter(
+						system => system.systemType !== options.systemType
+					);
+
+					// 返回更新後的地點（移除當前系統）
+					// 如果過濾後沒有系統，傳入空陣列會讓後端刪除所有系統
+					return {
+						...location,
+						systems: filteredSystems
+					};
+				}) || [];
+
+				// 如果過濾後沒有地點了，刪除整個區域
+				if (remainingLocations.length === 0) {
+					await deleteApiCall(zoneId);
+
+					// 從本地資料移除
+					const index = zonesRef.value.findIndex(z => z.id === zoneId);
+					if (index > -1) {
+						const deletedZone = zonesRef.value[index];
+						zonesRef.value.splice(index, 1);
+						await handlePostDelete(zoneId, deletedZone, zonesRef, options);
+					}
+
+					toast.success("區域刪除成功");
+					return;
+				}
+
+				// 更新區域，移除該系統的地點
+				await options.updateZoneApiCall(zoneId, {
+					locations: remainingLocations
+				});
+
+				// 從本地資料移除（需要重新載入以更新狀態）
+				const index = zonesRef.value.findIndex(z => z.id === zoneId);
+				if (index > -1) {
+					zonesRef.value.splice(index, 1);
+				}
+
+				// 處理選中地點（檢查是否有當前系統的地點被刪除）
+				if (options?.selectedLocationRef && options?.getLocationId) {
+					const deletedLocation = fullZone.locations?.find(
+						loc =>
+							options.getLocationId!(loc) === options.selectedLocationRef!.value &&
+							loc.systems?.some(system => system.systemType === options.systemType)
+					);
+
+					if (deletedLocation) {
+						const firstAvailableLocation = zonesRef.value
+							.flatMap(zone => zone.locations || [])
+							.find(loc => options.getLocationId!(loc));
+
+						options.selectedLocationRef.value = firstAvailableLocation
+							? options.getLocationId(firstAvailableLocation)
+							: "";
+					}
+				}
+
+				// 執行額外的回調和重新載入
+				if (options?.onAfterDelete) {
+					await options.onAfterDelete(fullZone as T);
+				}
+
+				if (options?.reloadZones) {
+					await options.reloadZones();
+				}
+
+				toast.success("已移除該系統在此區域的所有地點");
+				return;
 			}
 
 			// 如果沒有提供 systemType，或者區域只有該系統使用，則直接刪除整個區域
@@ -230,49 +286,7 @@ export function useZoneManagement<T extends { id?: string; name: string; locatio
 			if (index > -1) {
 				const deletedZone = zonesRef.value[index];
 				zonesRef.value.splice(index, 1);
-
-				// 處理選中狀態
-				if (options?.selectedZoneRef && options.selectedZoneRef.value === zoneId) {
-					if (zonesRef.value.length > 0) {
-						const nextZone = options.findEarliestZone
-							? options.findEarliestZone(zonesRef.value)
-							: zonesRef.value[0];
-						options.selectedZoneRef.value = nextZone?.id || nextZone?.name || "";
-					} else {
-						options.selectedZoneRef.value = "";
-					}
-				}
-
-				// 處理選中地點（所有系統）
-				if (options?.selectedLocationRef && options?.getLocationId) {
-					// 檢查刪除的區域是否包含當前選中的地點
-					if (
-						deletedZone.locations?.some(
-							loc => options.getLocationId!(loc) === options.selectedLocationRef!.value
-						)
-					) {
-						// 查找第一個可用的地點
-						const firstAvailableLocation = zonesRef.value
-							.flatMap(zone => zone.locations || [])
-							.find(loc => options.getLocationId!(loc));
-
-						if (firstAvailableLocation) {
-							options.selectedLocationRef.value = options.getLocationId(firstAvailableLocation);
-						} else {
-							options.selectedLocationRef.value = "";
-						}
-					}
-				}
-
-				// 執行額外的回調
-				if (options?.onAfterDelete) {
-					await options.onAfterDelete(deletedZone);
-				}
-
-				// 重新載入區域資料（用於全區點位圖等需要同步所有系統資料的頁面）
-				if (options?.reloadZones) {
-					await options.reloadZones();
-				}
+				await handlePostDelete(zoneId, deletedZone, zonesRef, options);
 			}
 
 			toast.success("區域刪除成功");

@@ -122,22 +122,6 @@ export interface RtspStreamStatusChangedEvent {
 	timestamp: string;
 }
 
-/**
- * 人流統計相關事件類型
- */
-export interface PeopleCountingRecordNewEvent {
-	id: string;
-	personId: number;
-	personName: string;
-	unitId: number | null;
-	unitName: string;
-	eventType: "entry" | "exit" | "failed";
-	timestamp: string;
-	deviceScreenshotUrl: string;
-	physicalId: number | null;
-	locationId: number | null;
-	locationName: string | null;
-}
 
 /**
  * YSCP 事件相關類型

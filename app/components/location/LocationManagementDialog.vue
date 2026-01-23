@@ -244,7 +244,6 @@ const emit = defineEmits<Emits>();
 const errorMessage = ref("");
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const pendingZone = ref<UnifiedZone | null>(null);
-const deletedLocationIds = new Set<string>();
 
 const locationApi = useLocationApi();
 const { handleError } = useErrorHandler();
@@ -329,7 +328,6 @@ const handleClose = () => {
 const closeDialog = () => {
 	emit("update:modelValue", false);
 	errorMessage.value = "";
-	deletedLocationIds.clear();
 	// 重置 pendingZone
 	if (props.zone) {
 		pendingZone.value = JSON.parse(JSON.stringify(props.zone));
@@ -456,18 +454,28 @@ const removeLocation = (locationIndex: number) => {
 };
 
 // 確認刪除地點
-const handleConfirmDeleteLocation = () => {
-	if (pendingZone.value && pendingDeleteLocationIndex.value !== null) {
-		const location = pendingZone.value.locations?.[pendingDeleteLocationIndex.value];
-		const locationId = location && (location as any).id ? String((location as any).id) : null;
-		if (locationId) {
-			deletedLocationIds.add(locationId);
+const handleConfirmDeleteLocation = async () => {
+	if (!pendingZone.value || pendingDeleteLocationIndex.value === null) return;
+
+	const location = pendingZone.value.locations?.[pendingDeleteLocationIndex.value];
+	const locationId = location && (location as any).id ? String((location as any).id) : null;
+
+	// 如果地點有 ID（已保存），立即調用 API 刪除
+	if (locationId) {
+		try {
+			await locationApi.deleteLocation(locationId);
+		} catch (error) {
+			handleError(error, "刪除地點失敗");
+			pendingDeleteLocationIndex.value = null;
+			return;
 		}
-		pendingZone.value.locations = pendingZone.value.locations.filter(
-			(_, index) => index !== pendingDeleteLocationIndex.value
-		);
-		pendingDeleteLocationIndex.value = null;
 	}
+	// 如果地點沒有 ID（未保存），直接從列表中移除即可
+
+	pendingZone.value.locations = pendingZone.value.locations.filter(
+		(_, index) => index !== pendingDeleteLocationIndex.value
+	);
+	pendingDeleteLocationIndex.value = null;
 };
 
 // 刪除區域
@@ -492,20 +500,6 @@ const handleConfirmDelete = () => {
 
 const saveChanges = async () => {
 	if (!pendingZone.value || !hasUnsavedChanges.value) return;
-
-	// 先處理待刪除地點（方案 B：批次處理）
-	if (deletedLocationIds.size > 0) {
-		try {
-			const idsToDelete = Array.from(deletedLocationIds);
-			for (const id of idsToDelete) {
-				await locationApi.deleteLocation(id);
-			}
-			deletedLocationIds.clear();
-		} catch (error) {
-			handleError(error, "刪除地點失敗");
-			return;
-		}
-	}
 
 	// 過濾掉名稱為空的地點
 	const filteredZone = {

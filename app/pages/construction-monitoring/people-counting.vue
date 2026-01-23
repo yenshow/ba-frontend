@@ -36,11 +36,12 @@
 						<div class="mt-12 flex">
 							<!-- 左側-左：統計 + 記錄表 -->
 							<div class="flex-1">
-								<LocationStatsPanel
-									:entry-count="selectedLocation.entryCount || 0"
-									:exit-count="selectedLocation.exitCount || 0"
-									:logs="logs"
-								/>
+							<LocationStatsPanel
+								:entry-count="selectedLocation.entryCount || 0"
+								:exit-count="selectedLocation.exitCount || 0"
+								:current-count="currentCount"
+								:logs="logs"
+							/>
 							</div>
 							<!-- 左側-右：單位列表 + 人員名單 -->
 							<div class="flex-1 border-l-2 border-white/30 ms-4 ps-4">
@@ -161,7 +162,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, watch, nextTick } from "vue";
+import { onMounted, onBeforeUnmount, watch, nextTick, computed, ref } from "vue";
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting";
 import LocationDetailPanel from "~/components/people-counting/LocationDetailPanel.vue";
 import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue";
@@ -188,7 +189,6 @@ const {
 	loadLocationDetail,
 	loadZones,
 	handleUnitSelect,
-	addLog,
 	getLocationZone
 } = usePeopleCountingState();
 
@@ -199,6 +199,12 @@ const locationsForOverview = computed(() =>
 		overviewZoneName: getLocationZone(location)
 	}))
 );
+
+// 計算在場人數：所有單位的 currentCount 總和
+const currentCount = computed(() => {
+	if (!selectedLocation.value?.units) return 0;
+	return selectedLocation.value.units.reduce((sum, unit) => sum + (unit.currentCount || 0), 0);
+});
 
 // WebSocket 事件處理
 const { setupEventListeners } = usePeopleCountingWebSocket();
@@ -384,15 +390,22 @@ onMounted(async () => {
 	// 設置 WebSocket 事件監聽：收到 YSCP 事件後重新載入資料
 	// 使用防抖優化（500ms），避免短時間內多次觸發
 	cleanupWebSocket = setupEventListeners(async () => {
+		const locationId = selectedLocation.value?.locationId;
+		
 		// 並行載入地點列表和詳情（如果有的話）
 		// 使用 Promise.allSettled 確保即使一個失敗也不影響另一個
 		// 錯誤已在 composable 中統一處理
 		await Promise.allSettled([
-			loadLocations(), // 載入列表（更新統計）
-			selectedLocation.value?.locationId
-				? loadLocationDetail(selectedLocation.value.locationId)
-				: Promise.resolve(),
+			loadLocations(), // 載入列表（更新統計和總覽卡片）
+			locationId ? loadLocationDetail(locationId) : Promise.resolve(),
 		]);
+		
+		// 確保所有計算屬性和元件在資料載入後重新計算
+		// 使用 nextTick 確保 Vue 響應式系統完成所有更新
+		await nextTick();
+		
+		// 更新左側區域高度（因為資料變化可能影響佈局）
+		updateLeftSectionHeight();
 	}, 500); // 防抖延遲 500ms
 
 	try {

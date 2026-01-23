@@ -116,7 +116,7 @@
 															{{ getSourceLabel(alert.source) }}
 														</div>
 														<div class="mt-0.5 truncate text-sm font-semibold text-white 2xl:text-base">
-															{{ getSourceDisplayName(alert) }} {{ getZoneName(alert) }}
+															<span v-if="getZoneName(alert)">{{ getZoneName(alert) }} - </span>{{ getSourceDisplayName(alert) }}
 														</div>
 													</div>
 												</div>
@@ -607,9 +607,9 @@ const handleExport = async () => {
 		const headers = [
 			"ID",
 			"系統來源",
+			"樓層",
 			"來源名稱",
 			"來源ID",
-			"樓層",
 			"警報類型",
 			"嚴重程度",
 			"狀態",
@@ -632,9 +632,9 @@ const handleExport = async () => {
 		const rows = result.alerts.map(alert => [
 			alert.id,
 			getSourceLabel(alert.source),
+			getZoneName(alert),
 			getSourceDisplayName(alert),
 			alert.source_id,
-		getZoneName(alert),
 			getTypeLabel(alert.alert_type),
 			getSeverityLabel(alert.severity),
 			statusLabels[alert.status] || alert.status,
