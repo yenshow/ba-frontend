@@ -9,7 +9,7 @@
 			<div
 				v-for="person in personnel"
 				:key="person.id"
-				class="flex items-center gap-3 border-2 border-white/30 p-3"
+				class="flex items-start gap-3 border-2 border-white/30 p-3"
 				:class="[
 					person.isPresent
 						? 'bg-white/20'
@@ -18,7 +18,7 @@
 			>
 				<!-- 照片 -->
 				<div
-					class="h-12 w-12 overflow-hidden rounded-full bg-white/10 2xl:h-16 2xl:w-16"
+					class="h-12 w-12 overflow-hidden rounded-full bg-white/10 2xl:h-16 2xl:w-16 mt-4"
 				>
 					<img
 						v-if="person.photoUrl"
@@ -50,13 +50,15 @@
 							<span>{{ person.entryTime }}</span>
 						</div>
 						<!-- 離場時間：根據最近進場的日期，顯示時分秒 -->
-						<div v-if="person.exitTime && !shouldHideExitTime(person)">
+						<!-- 如果是今日進場，顯示今日的離場時間；如果今日沒有離場，顯示 "- -" -->
+						<div v-if="person.lastEntryDate || person.entryTime">
 							<span>離場時間：</span>
-							<span>{{ person.exitTime }}</span>
-						</div>
-						<div v-else-if="person.exitTime && shouldHideExitTime(person)">
-							<span>離場時間：</span>
-							<span> - -</span>
+							<span v-if="person.exitTime && !shouldHideExitTime(person)">
+								{{ person.exitTime }}
+							</span>
+							<span v-else>
+								- -
+							</span>
 						</div>
 						<div v-if="!person.lastEntryDate && !person.entryTime && !person.exitTime" class="text-white/40">
 							尚無進出場記錄

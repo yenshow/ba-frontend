@@ -34,7 +34,7 @@ export const usePeopleCountingWebSocket = () => {
 		const handleYscpEvent = (data: YscpEventAlarm | YscpEventGeneric) => {
 			// 如果正在載入，跳過本次事件（避免重複載入）
 			if (isLoading.value) {
-				if (process.dev) {
+			if (process.dev) {
 					wsLogger.log("資料載入中，跳過本次 YSCP 事件", { type: data.type });
 				}
 				return;

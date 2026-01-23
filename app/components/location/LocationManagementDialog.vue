@@ -51,10 +51,10 @@
 							<Transition name="fade" mode="out-in">
 								<div v-if="zone && pendingZone" :key="`zone-${zone.id}`">
 									<div class="space-y-3">
-										<!-- 樓層基本資訊 -->
+										<!-- 區域基本資訊 -->
 										<div class="overflow-hidden rounded-lg border border-white/20 bg-white/10 p-4">
 											<div class="flex items-center gap-3 border-b border-white/10 pb-3">
-												<span class="text-base font-medium 2xl:text-lg">樓層名稱</span>
+												<span class="text-base font-medium 2xl:text-lg">區域名稱</span>
 												<input
 													:value="pendingZone.name"
 													type="text"
@@ -145,13 +145,10 @@
 													<label
 														class="flex flex-[2] flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 													>
-														<span>描述</span>
-														<input
-															v-model="location.description"
-															type="text"
-															class="form-input-small"
-															placeholder="地點描述"
-														/>
+														<span>所屬系統</span>
+														<div class="form-input-small flex items-center text-white/70 cursor-default">
+															{{ getLocationSystemsLabel(location) || "無系統" }}
+														</div>
 													</label>
 													<button
 														type="button"
@@ -175,7 +172,7 @@
 								</div>
 								<!-- 空狀態 -->
 								<div v-else key="empty" class="py-8 text-center text-white/60">
-									<p class="text-base 2xl:text-lg">尚無樓層資料</p>
+									<p class="text-base 2xl:text-lg">尚無區域資料</p>
 								</div>
 							</Transition>
 						</div>
@@ -220,7 +217,7 @@
 </template>
 
 <script setup lang="ts">
-import type { UnifiedZone, UnifiedLocation } from "~/types/location";
+import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
@@ -265,7 +262,7 @@ const changedFieldsList = computed(() => {
 	const fields: string[] = [];
 	
 	if (pendingZone.value.name !== props.zone.name) {
-		fields.push(`樓層名稱: ${props.zone.name} → ${pendingZone.value.name}`);
+		fields.push(`區域名稱: ${props.zone.name} → ${pendingZone.value.name}`);
 	}
 	if (pendingZone.value.imageUrl !== props.zone.imageUrl) {
 		fields.push("區域示意圖");
@@ -496,6 +493,23 @@ const handleConfirmDelete = () => {
 	if (props.zone && props.zone.id) {
 		emit("delete", props.zone.id);
 	}
+};
+
+// 系統類型標籤映射
+const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
+	environment: "環境監測",
+	lighting: "照明系統",
+	people_counting: "人流統計"
+};
+
+// 取得地點的所屬系統標籤
+const getLocationSystemsLabel = (location: UnifiedLocation): string => {
+	if (!location.systems || location.systems.length === 0) {
+		return "";
+	}
+	return location.systems
+		.map(system => SYSTEM_TYPE_LABELS[system.systemType] || system.systemType)
+		.join("、");
 };
 
 const saveChanges = async () => {
