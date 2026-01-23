@@ -70,8 +70,10 @@ interface Props {
 	unit: string;
 	fractionDigits?: number;
 	deviceError?: boolean; // 設備本身是否異常（用於顯示黃黑警告條）
-	getStatusClass: (type: string, value: number | null) => string;
-	getStatusDotClass: (type: string, value: number | null) => string;
+	// 注意：getStatusClass 和 getStatusDotClass 已不再使用，組件內部根據 statusText 決定樣式
+	// 保留這些 props 僅為了向後兼容，但實際上不會被使用
+	getStatusClass?: (type: string, value: number | null) => string;
+	getStatusDotClass?: (type: string, value: number | null) => string;
 	getStatusText: (type: string, value: number | null) => string;
 	getStatusTextClass: (type: string, value: number | null) => string;
 	toFixedNumber: (value: number | null, fractionDigits?: number) => number;

@@ -1,20 +1,31 @@
 <template>
 	<div
-		class="relative flex items-center justify-between rounded-xl px-3 py-2 transition-all"
+		class="relative flex items-center transition-all"
 		:class="[backgroundClass, blinkAnimationClass]"
 	>
 		<!-- 參數名稱（中文和英文）- 左側 -->
-		<div class="text-xs text-white/80 2xl:text-sm">
-			{{ label }}
+		<div
+			class="flex w-[120px] flex-col items-center justify-center bg-white/10 py-3 leading-none text-white/80"
+		>
+			<!-- 根據參數類型決定顯示順序 -->
+			<div class="absolute left-1 top-1/2 h-[80%] w-2 -translate-y-1/2 bg-white/30"></div>
+			<template v-if="labelOrder === 'chinese-first'">
+				<div class="ms-[4px] text-[16px] tracking-[4px] 2xl:text-[24px]">{{ chineseLabel }}</div>
+				<div class="text-xs text-white/70 2xl:text-sm">{{ englishLabel }}</div>
+			</template>
+			<template v-else>
+				<div class="ms-[4px] text-[16px] tracking-[4px] 2xl:text-[24px]">{{ englishLabel }}</div>
+				<div class="text-xs text-white/70 2xl:text-sm">{{ chineseLabel }}</div>
+			</template>
 		</div>
 
 		<!-- 數值和單位 - 右側 -->
-		<div class="flex items-baseline gap-1">
-			<div class="text-xl font-medium text-white 2xl:text-2xl">
+		<div class="flex flex-1 items-end justify-center gap-1 border-b border-white/20 pb-2 mx-3">
+			<div class="text-2xl text-white 2xl:text-3xl">
 				{{ displayValue }}
 			</div>
-			<div v-if="!showLevel" class="text-xs text-white/70 2xl:text-sm">{{ unit }}</div>
-			<div v-if="showLevel" class="text-xs text-white/70 2xl:text-sm">/{{ levelText }}</div>
+			<div v-if="!showLevel" class="text-sm text-white/70 2xl:text-base">{{ unit }}</div>
+			<div v-if="showLevel" class="text-sm text-white/70 2xl:text-base">/{{ levelText }}</div>
 		</div>
 	</div>
 </template>
@@ -87,6 +98,39 @@ const levelText = computed(() => {
 	}
 	return "";
 });
+
+// 解析 label，分離中文和英文
+const parseLabel = (label: string): { chinese: string; english: string } => {
+	// 使用正則表達式分離中文字符和英文字符
+	const chineseRegex = /[\u4e00-\u9fa5]+/g;
+	const englishRegex = /[A-Za-z0-9.\s]+/g;
+
+	const chineseMatches = label.match(chineseRegex) || [];
+	const englishMatches = label.match(englishRegex) || [];
+
+	const chinese = chineseMatches.join(" ").trim();
+	const english = englishMatches.join(" ").trim();
+
+	return { chinese, english };
+};
+
+// 根據參數類型決定顯示順序
+const labelOrder = computed<"chinese-first" | "english-first">(() => {
+	// 根據 type 決定順序
+	// pm25, pm10, co2: 英文在上
+	// noise, humidity, temperature, wind, heatIndex: 中文在上
+	const englishFirstTypes = ["pm25", "pm10", "co2"];
+
+	if (englishFirstTypes.includes(props.type)) {
+		return "english-first";
+	}
+	return "chinese-first";
+});
+
+// 解析後的標籤
+const parsedLabel = computed(() => parseLabel(props.label));
+const chineseLabel = computed(() => parsedLabel.value.chinese);
+const englishLabel = computed(() => parsedLabel.value.english);
 </script>
 
 <style scoped>

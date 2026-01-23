@@ -1,15 +1,21 @@
 <template>
 	<div :class="['bg-ba-gradient', { 'bg-ba-gradient-dark': isDark }]" class="min-h-screen">
-		<main>
+		<main class="p-4 xl:p-8 2xl:p-12">
 			<slot />
 		</main>
+		<BottomNavigation />
 		<ToastContainer />
 	</div>
 </template>
 
 <script setup lang="ts">
 import ToastContainer from "~/components/common/ToastContainer.vue";
-import type { MonitoringDeviceStatusBatchEvent } from "~/composables/useWebSocket";
+import type { MonitoringDeviceStatusBatchEvent } from "~/composables/websocket/useWebSocket";
+import { useTheme } from "~/composables/core/useTheme";
+import { useAuth } from "~/composables/core/useAuth";
+import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
+import { useWebSocket } from "~/composables/websocket/useWebSocket";
+import BottomNavigation from "~/components/common/BottomNavigation.vue";
 
 const { isDark } = useTheme();
 const { user } = useAuth();

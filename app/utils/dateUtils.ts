@@ -90,15 +90,17 @@ export function formatDateInput(date: Date): string {
 /**
  * 格式化日期時間為本地顯示格式（YYYY/MM/DD HH:mm）
  * @param dateString - ISO 8601 格式的日期時間字符串
+ * @param includeSeconds - 是否包含秒數（預設為 false）
  * @returns 格式化後的本地日期時間字符串
  */
-export function formatDateTime(dateString: string): string {
+export function formatDateTime(dateString: string, includeSeconds = false): string {
 	return new Date(dateString).toLocaleString("zh-TW", {
 		year: "numeric",
 		month: "2-digit",
 		day: "2-digit",
 		hour: "2-digit",
 		minute: "2-digit",
+		second: includeSeconds ? "2-digit" : undefined,
 		hour12: false
 	});
 }

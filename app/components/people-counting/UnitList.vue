@@ -1,24 +1,24 @@
 <template>
-	<div class="space-y-3">
-		<h3 class="text-lg font-semibold text-white xl:text-xl 2xl:text-2xl">進場單位</h3>
-		<div class="space-y-2">
+	<div class="space-y-4 min-h-[220px]">
+		<h3 class="font-semibold text-lg bg-white/20 text-white text-center 2xl:text-xl py-1">進場單位</h3>
+		<div class="grid grid-cols-4 gap-4">
 			<div
 				v-for="unit in units"
 				:key="unit.id"
-				class="flex items-center justify-between rounded-lg border-2 border-white/30 bg-white/10 p-3 backdrop-blur-sm transition-all hover:border-white/50 hover:bg-white/15"
-				:class="{ 'border-green-400/50 bg-green-500/20': selectedUnitId === unit.id }"
+				class="flex flex-col justify-center items-center border-2 border-white/0 transition-all cursor-pointer py-2"
+				:class="{
+					'border-2 border-white/70': selectedUnitId === unit.id,
+					'bg-white/20': (unit.currentCount || 0) > 0,
+					'bg-black/20 ': (unit.currentCount || 0) === 0
+				}"
 				@click="$emit('select', unit.id)"
 			>
-				<div class="flex-1">
-					<div class="text-base font-medium text-white xl:text-lg 2xl:text-xl">{{ unit.name }}</div>
-				</div>
-				<div class="ml-4 text-right">
-					<div class="text-sm font-semibold text-white/90 xl:text-base 2xl:text-lg">
+					<div class="text-base font-semibold text-white 2xl:text-lg tracking-wide">{{ unit.name }}</div>
+					<div class="text-base  text-white 2xl:text-lg space-x-0.5">
 						<span class="text-green-400">{{ unit.currentCount || 0 }}</span>
-						<span class="text-white/60">/</span>
-						<span class="text-white/80">{{ unit.capacity }}</span>
+						<span>/</span>
+						<span>{{ unit.capacity || 0 }}</span>
 					</div>
-				</div>
 			</div>
 		</div>
 	</div>

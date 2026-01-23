@@ -32,24 +32,23 @@ export interface SensorParameter {
 }
 
 /**
- * 環境監測位置（不需要 location 座標）
- * 注意：floor 欄位已移除，樓層資訊應從父層級 EnvironmentFloor.name 取得
+ * 環境監測位置（類似 LightingArea，但不需要 location 座標）
  */
 export interface EnvironmentLocation {
-	id?: string;
+	id?: string; // 地點 ID (locations.id)
+	systemId?: string; // 系統 ID (location_systems.id)，用於錯誤追蹤和警報
 	name: string; // 位置名稱（如：管理中心、展廳）
-	// floor 欄位已移除（冗餘），樓層資訊從 EnvironmentFloor.name 取得
 	deviceId?: number; // 關聯的感測器設備 ID
 	// 該位置支援的感測器參數列表（不同感測器支援不同參數）
 	parameters: SensorParameter[];
 }
 
 /**
- * 環境監測樓層
+ * 環境監測區域（採用統一架構，對應 UnifiedZone）
  */
-export interface EnvironmentFloor {
+export interface EnvironmentZone {
 	id?: string;
-	name: string; // 樓層名稱（如：1F、2F）
+	name: string; // 區域名稱（如：1F、2F）
 	locations: EnvironmentLocation[]; // 位置列表
 }
 
@@ -75,9 +74,9 @@ export interface SensorReading {
 }
 
 /**
- * 樓層管理表單資料
+ * 區域管理表單資料
  */
-export interface EnvironmentFloorFormData {
+export interface EnvironmentZoneFormData {
 	name: string;
 }
 

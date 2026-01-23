@@ -1,3 +1,5 @@
+import { useAuth } from "~/composables/core/useAuth";
+
 export default defineNuxtRouteMiddleware((to, from) => {
 	// 公開路由列表（不需要認證）
 	const publicRoutes = ["/login"];

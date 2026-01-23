@@ -25,7 +25,7 @@
 					<div class="flex-1 overflow-y-auto pr-7 2xl:pr-8">
 						<div class="min-h-[200px]">
 							<Transition name="fade" mode="out-in">
-								<div v-if="deviceModels.length > 0" :key="`models-${deviceModels.length}`">
+								<div v-if="deviceModels && deviceModels.length > 0" :key="`models-${deviceModels.length}`">
 									<div class="space-y-3">
 										<div
 											v-for="model in deviceModels"
@@ -47,8 +47,12 @@
 												</p>
 											</div>
 											<div class="flex gap-2 2xl:gap-3">
-												<button type="button" class="btn-list-edit" @click="editDeviceModel(model)">編輯</button>
-												<button type="button" class="btn-list-delete" @click="confirmDelete(model)">刪除</button>
+												<button type="button" class="btn-list-edit" @click="editDeviceModel(model)">
+													編輯
+												</button>
+												<button type="button" class="btn-list-delete" @click="confirmDelete(model)">
+													刪除
+												</button>
 											</div>
 										</div>
 									</div>
@@ -191,11 +195,11 @@
 												<div class="space-y-3">
 													<label class="flex flex-col gap-1 text-xs text-white/80 2xl:text-sm">
 														<span>參數類型 *</span>
-														<select v-model="param.type" class="form-input form-select" required>
-															<option v-for="option in parameterTypes" :key="option.value" :value="option.value">
-																{{ option.label }}
-															</option>
-														</select>
+														<FilterDropdown
+															v-model="param.type"
+															:options="parameterTypeOptions"
+															placeholder="請選擇參數類型"
+														/>
 													</label>
 
 													<label class="flex flex-col gap-1 text-xs text-white/80 2xl:text-sm">
@@ -248,9 +252,24 @@
 			</div>
 		</Transition>
 	</Teleport>
+
+	<!-- 確認對話框 -->
+	<ConfirmDialog
+		v-model="showConfirmDialog"
+		:title="confirmDialogConfig.title"
+		:message="confirmDialogConfig.message"
+		:details="confirmDialogConfig.details"
+		:type="confirmDialogConfig.type"
+		@confirm="handleConfirmDelete"
+	/>
 </template>
 
 <script setup lang="ts">
+import { useDeviceApi } from "~/composables/systems/useDeviceApi";
+import { useToast } from "~/composables/core/useToast";
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import type {
 	DeviceModel,
 	DeviceTypeCode,
@@ -263,7 +282,7 @@ import type { SensorParameterType } from "~/types/environment";
 
 interface Props {
 	modelValue: boolean;
-	deviceTypeCode: DeviceTypeCode;
+	deviceTypeCode: DeviceTypeCode | null;
 }
 
 interface Emits {
@@ -286,7 +305,9 @@ const deviceTypeNameMap: Record<DeviceTypeCode, string> = {
 	network: "網路裝置"
 };
 
-const deviceTypeName = computed(() => deviceTypeNameMap[props.deviceTypeCode] || "設備");
+const deviceTypeName = computed(() => {
+	return props.deviceTypeCode ? (deviceTypeNameMap[props.deviceTypeCode] || "設備") : "設備";
+});
 
 const deviceModels = ref<DeviceModel[]>([]);
 const isLoading = ref(false);
@@ -318,8 +339,8 @@ const resetForm = () => {
 	formErrorMessage.value = null;
 };
 
-// 參數類型選項
-const parameterTypes: { value: SensorParameterType; label: string }[] = [
+// 參數類型選項（用於 FilterDropdown）
+const parameterTypeOptions = [
 	{ value: "pm25", label: "PM2.5" },
 	{ value: "pm10", label: "PM10" },
 	{ value: "tvoc", label: "TVOC" },
@@ -329,7 +350,7 @@ const parameterTypes: { value: SensorParameterType; label: string }[] = [
 	{ value: "co2", label: "CO2" },
 	{ value: "noise", label: "噪音值" },
 	{ value: "wind", label: "風速" }
-];
+] as const;
 
 // 新增參數配置
 const addSensorParameter = () => {
@@ -348,6 +369,8 @@ const removeSensorParameter = (index: number) => {
 };
 
 const loadDeviceType = async () => {
+	if (!props.deviceTypeCode) return;
+	
 	try {
 		const result = await deviceApi.getDeviceTypeByCode(props.deviceTypeCode);
 		currentDeviceTypeId.value = result.device_type.id;
@@ -372,6 +395,11 @@ const handleError = (
 };
 
 const loadDeviceModels = async (force = false) => {
+	if (!props.deviceTypeCode) {
+		deviceModels.value = [];
+		return;
+	}
+	
 	isLoading.value = true;
 	errorMessage.value = null;
 	try {
@@ -381,11 +409,11 @@ const loadDeviceModels = async (force = false) => {
 			params._t = String(Date.now());
 		}
 		const result = await deviceApi.getDeviceModels(params);
-		deviceModels.value = result.device_models;
+		deviceModels.value = Array.isArray(result?.device_models) ? result.device_models : [];
 	} catch (error: any) {
+		deviceModels.value = [];
 		if (error?.statusCode === 404 || error?.status === 404) {
 			errorMessage.value = "設備型號 API 尚未實作，請先完成後端實作";
-			deviceModels.value = [];
 			console.warn("設備型號 API 尚未實作，請參考後端實作指南");
 		} else {
 			handleError(error, "載入設備型號失敗");
@@ -414,15 +442,39 @@ const editDeviceModel = (model: DeviceModel) => {
 	showForm.value = true;
 };
 
-const confirmDelete = async (model: DeviceModel) => {
-	if (!confirm(`確定要刪除設備型號 "${model.name}" 嗎？此操作無法復原。`)) {
-		return;
+// 確認對話框
+const confirmDialog = useConfirmDialog();
+const pendingDeleteModel = ref<DeviceModel | null>(null);
+
+// 解包 ref 以便在模板中使用
+const showConfirmDialog = computed({
+	get: () => confirmDialog.showDialog.value,
+	set: (value: boolean) => {
+		confirmDialog.showDialog.value = value;
 	}
+});
+
+const confirmDialogConfig = computed(() => confirmDialog.config.value);
+
+const confirmDelete = (model: DeviceModel) => {
+	pendingDeleteModel.value = model;
+	confirmDialog.show({
+		title: "確認刪除",
+		message: `確定要刪除設備型號 "${model.name}" 嗎？`,
+		details: "此操作無法復原。",
+		type: "danger"
+	});
+};
+
+const handleConfirmDelete = async () => {
+	if (!pendingDeleteModel.value) return;
+	
 	try {
-		await deviceApi.deleteDeviceModel(model.id);
-		toast.success(`設備型號 "${model.name}" 已刪除`);
-		await loadDeviceModels(true); // 強制刷新
+		await deviceApi.deleteDeviceModel(pendingDeleteModel.value.id);
+		toast.success(`設備型號 "${pendingDeleteModel.value.name}" 已刪除`);
+		await loadDeviceModels(true);
 		emit("refresh");
+		pendingDeleteModel.value = null;
 	} catch (error) {
 		handleError(error, "刪除設備型號失敗");
 	}
@@ -480,10 +532,10 @@ const handleClose = () => {
 watch(
 	() => props.modelValue,
 	isOpen => {
-		if (isOpen) {
+		if (isOpen && props.deviceTypeCode) {
 			loadDeviceType();
 			loadDeviceModels(true); // 每次打開對話框時強制刷新，確保取得最新資料
-		} else {
+		} else if (!isOpen) {
 			deviceModels.value = [];
 			errorMessage.value = null;
 			showForm.value = false;

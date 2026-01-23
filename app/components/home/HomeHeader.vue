@@ -13,10 +13,10 @@
 		<!-- 右側：日期時間 -->
 		<ClientOnly>
 			<div class="col-span-1 flex flex-col items-center justify-center text-white">
-				<div class="ms-[-12px] text-[32px] font-semibold tracking-[12px] 2xl:text-[48px]">
+				<div class="ms-[12px] text-[32px] font-semibold tracking-[12px] 2xl:text-[48px]">
 					{{ formattedDate.date }}
 				</div>
-				<div class="ms-[-6px] text-[20px] tracking-[6px] 2xl:text-[24px]">
+				<div class="ms-[6px] text-[20px] tracking-[6px] 2xl:text-[24px]">
 					{{ formattedDate.weekday }} {{ formattedDate.period }} {{ formattedDate.time }}
 				</div>
 			</div>

@@ -6,7 +6,12 @@ import type { AlertSource, AlertType, AlertSeverity } from "~/types/alert";
 export const getSourceLabel = (source: AlertSource | string): string => {
 	const labels: Record<string, string> = {
 		device: "設備",
-		environment: "環境"
+		environment: "環境",
+		lighting: "照明",
+		people_counting: "人流統計",
+		hvac: "空調",
+		fire: "消防",
+		security: "安防"
 	};
 	return labels[source] || source;
 };

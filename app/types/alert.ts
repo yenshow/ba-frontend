@@ -1,5 +1,5 @@
-// 警報系統來源（方案 B - 工地管理系統）
-export type AlertSource = "device" | "environment";
+// 警報系統來源
+export type AlertSource = "device" | "environment" | "lighting" | "people_counting" | "hvac" | "fire" | "security";
 
 // 警報狀態（移除 pending，只保留 active, resolved, ignored）
 export type AlertStatus = "active" | "resolved" | "ignored";
@@ -41,8 +41,8 @@ export interface Alert {
 	created_at: string;
 	updated_at: string; // 永遠不會為 null（資料庫設置為 NOT NULL DEFAULT CURRENT_TIMESTAMP）
 	// 來源名稱（統一欄位，適用於所有來源類型）
-	source_name?: string | null; // 設備名稱、環境位置名稱等
-	environment_floor_name?: string | null; // 環境位置樓層名稱（僅適用於環境來源）
+	source_name?: string | null; // 設備名稱、環境位置名稱、照明區域名稱等
+	zone_name?: string | null; // 區域名稱（統一欄位，適用於所有系統來源）
 	// 統計欄位（僅在列表查詢時存在）
 	alert_count?: number; // 合併的警報數量（後端 GROUP BY 查詢返回）
 }

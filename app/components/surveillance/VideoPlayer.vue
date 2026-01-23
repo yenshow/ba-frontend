@@ -77,6 +77,7 @@ import {
 	type StreamErrorType
 } from "~/utils/streamErrorUtils";
 import { hlsInstanceManager } from "~/utils/hlsInstanceManager";
+import { useRtspApi } from "~/composables/systems/useRtsp";
 
 interface Props {
 	rtspUrl?: string;

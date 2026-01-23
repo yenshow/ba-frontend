@@ -1,34 +1,36 @@
-import type { Device, CameraDeviceConfig } from "./device";
-import type { RTSPStreamInfo } from "./rtsp";
-
 /**
- * 人流統計工地
+ * 人流統計地點（工地位置）
+ * 參考 EnvironmentLocation，用於地點管理系統
+ * 
+ * 包含配置信息和業務統計信息
  */
-export interface PeopleCountingSite {
-	id: number;
-	name: string;
-	region: string; // 區域（如：北部、中部、南部）
-	status: "active" | "equipment_anomaly" | "intrusion_detected"; // 狀態：正常、設備異常、非名單入侵
+export interface PeopleCountingLocation {
+	// 配置信息（來自地點管理系統）
+	id?: string;
+	name: string; // 地點名稱（工地名稱）
+	locationType?: "people_counting"; // 地點類型
+	personGroupIds?: number[]; // 對應的 person_group.id 列表
+	entryDoorId?: number; // 入口設備 ID
+	exitDoorId?: number; // 出口設備 ID
+	
+	// 業務統計信息（來自業務 API）
+	locationId?: number; // 業務層的地點 ID（數字格式，用於 API 調用）
+	region?: string; // 區域（如：北部、中部、南部）
+	status?: "active" | "equipment_anomaly" | "intrusion_detected"; // 狀態：正常、設備異常、非名單入侵
 	entryCount?: number; // 今日進場人數
 	exitCount?: number; // 今日出場人數
-	cameras?: SiteCamera[]; // 關聯的攝影機
 	units?: PeopleCountingUnit[]; // 關聯的單位
+	// 注意：cameras 已移除（不會有攝影機串流功能）
 }
 
 /**
- * 工地攝影機（關聯設備）
+ * 人流統計樓層
+ * 參考 EnvironmentZone，用於地點管理系統
  */
-export interface SiteCamera {
-	id: number;
-	siteId: number;
-	deviceId: number;
-	cameraType: "entry" | "exit"; // 進場 / 出場
-	position?: string; // 攝影機位置描述
-	isActive: boolean;
-	// 從 devices 表關聯的資訊
-	device?: Device & { config: CameraDeviceConfig };
-	streamInfo?: RTSPStreamInfo | null; // RTSP 串流資訊
-	isStreaming?: boolean;
+export interface PeopleCountingZone {
+	id?: string;
+	name: string; // 樓層名稱（如：1F、2F）
+	locations: PeopleCountingLocation[]; // 地點列表（工地列表）
 }
 
 /**
@@ -36,7 +38,7 @@ export interface SiteCamera {
  */
 export interface PeopleCountingUnit {
 	id: number;
-	siteId: number;
+	locationId: number; // 改為 locationId（對應 PeopleCountingLocation）
 	name: string;
 	capacity: number; // 容量上限
 	currentCount?: number; // 目前人數（計算：進入 - 離開）
@@ -50,32 +52,37 @@ export interface PeopleCountingPersonnel {
 	unitId: number;
 	employeeId: string; // 工號
 	name: string;
-	title?: string; // 職稱
-	photoUrl?: string; // 照片 URL
+	// 注意：不包含 title（職稱），根據規劃不需要顯示職稱
+	photoUrl?: string; // 照片 URL（Base64 解碼後）
 	// 計算欄位
-	lastEntryTime?: string; // 最近進場時間
-	lastExitTime?: string; // 最近出場時間
-	isInside?: boolean; // 是否在場內
+	lastEntryTime?: string; // 最近進場時間（完整格式）
+	lastExitTime?: string; // 最近出場時間（完整格式）
+	lastEntryDate?: string; // 最近進場日期（不含時分秒，如：2026/01/19）
+	entryTime?: string; // 進場時間（時分秒，如：09:30:00）
+	exitTime?: string; // 離場時間（時分秒，如：17:30:00）
+	isPresent?: boolean; // 在場狀態
+	isTodayEntry?: boolean; // 是否為今日進場
 }
 
 /**
  * 進出場記錄
  */
 export interface PeopleCountingLog {
-	id: number;
-	siteId: number;
+	id: string | number; // 支援字串或數字（實際資料沒有 id，需要生成）
+	locationId: number; // 改為 locationId（對應 PeopleCountingLocation）
 	unitId: number;
 	personnelId?: number; // 如果是名單內人員
 	deviceId: number; // 攝影機設備 ID
-	eventType: "entry" | "exit"; // 進入 / 離開
+	eventType: "entry" | "exit" | "failed"; // 進入 / 離開 / 失敗（未註冊或無法判定）
 	employeeId?: string; // 工號（用於非名單人員）
-	name?: string; // 姓名（用於非名單人員）
+	personName?: string; // 姓名
 	deviceScreenshotUrl?: string; // 設備截圖
-	modelingPhotoUrl?: string; // 建模照片
+	// 注意：不包含 modelingPhotoUrl（建模照片），根據規劃已移除此欄位
 	timestamp: string;
 	// 關聯資料
 	unit?: PeopleCountingUnit;
+	unitName?: string; // 進場單位名稱（支援直接提供，避免需要關聯查詢）
 	personnel?: PeopleCountingPersonnel;
-	device?: Device;
+	// 注意：device 已移除（不會有攝影機串流功能）
 }
 

@@ -47,6 +47,7 @@
 					<button
 						v-if="isAdmin"
 						type="button"
+						:disabled="!activeTab"
 						class="rounded-xl bg-blue-500/80 px-4 py-2 text-sm text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-blue-500/40 2xl:px-6 2xl:py-3 2xl:text-base"
 						@click="showDeviceModelDialog = true"
 					>
@@ -140,8 +141,8 @@
 							:offset="offset"
 							:limit="limit"
 							:disabled="isLoading"
-							@previous="previousPage"
-							@next="nextPage"
+							@previous="handlePreviousPage"
+							@next="handleNextPage"
 						/>
 					</div>
 					<!-- 無數據提示 -->
@@ -170,13 +171,16 @@
 
 		<!-- 設備型號管理對話框 -->
 		<DeviceModelDialog
+			v-if="activeTab"
 			v-model="showDeviceModelDialog"
 			:device-type-code="activeTab"
 			@close="showDeviceModelDialog = false"
 			@refresh="
 				() => {
 					// 設備型號變更後，刷新設備列表和設備型號選擇
-					loadDevices();
+					if (activeTab.value) {
+						load({ typeCode: activeTab.value, order: dateSortOrder.value });
+					}
 					refreshDeviceTypes = !refreshDeviceTypes; // 觸發 DeviceDialog 刷新設備型號列表
 				}
 			"
@@ -214,11 +218,17 @@ import type {
 	DeviceStatusChangedEvent,
 	MonitoringDeviceStatusEvent,
 	MonitoringDeviceStatusBatchEvent
-} from "~/composables/useWebSocket";
+} from "~/composables/websocket/useWebSocket";
 import DeviceModelDialog from "~/components/device/DeviceModelDialog.vue";
 import DeviceTypeDialog from "~/components/device/DeviceTypeDialog.vue";
 import Pagination from "~/components/common/Pagination.vue";
 import { formatDate } from "~/utils/dateUtils";
+import { useDataLoader } from "~/composables/monitoring/useDataLoader";
+import { useAuth } from "~/composables/core/useAuth";
+import { useToast } from "~/composables/core/useToast";
+import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import { useDeviceApi } from "~/composables/systems/useDeviceApi";
+import { useDeviceMonitor } from "~/composables/monitoring/useDeviceMonitor";
 
 definePageMeta({
 	layout: "default",
@@ -246,16 +256,10 @@ const currentTabName = computed(() => {
 	return tab?.name || "";
 });
 
-const devices = ref<Device[]>([]);
-const isLoading = ref(true);
-const errorMessage = ref<string | null>(null);
 const showCreateDialog = ref(false);
 const showDeviceModelDialog = ref(false);
 const showDeviceTypeDialog = ref(false);
 const refreshDeviceTypes = ref(false);
-
-// 請求去重
-const loadingDevicesMap = ref<Map<DeviceTypeCode, boolean>>(new Map());
 
 const showDialog = computed({
 	get: () => showCreateDialog.value || !!editingDevice.value,
@@ -268,14 +272,43 @@ const showDialog = computed({
 });
 const editingDevice = ref<Device | null>(null);
 const isSubmitting = ref(false);
+const errorMessage = ref<string | null>(null);
 
 // 常數配置
-const LIMIT = 20;
-
-const limit = LIMIT;
-const offset = ref(0);
-const total = ref(0);
+const limit = 20; // 用於分頁組件
 const dateSortOrder = ref<"asc" | "desc">("desc");
+
+// 使用 useDataLoader 統一管理數據載入
+const {
+	data: devices,
+	total,
+	offset,
+	isLoading,
+	load,
+	nextPage,
+	prevPage,
+	resetPage
+} = useDataLoader<Device, { typeCode: DeviceTypeCode; order: "asc" | "desc" }>({
+	fetcher: async params => {
+		if (!activeTab.value) {
+			return { items: [], total: 0 };
+		}
+		const result = await deviceApi.getDevices({
+			type_code: params.typeCode,
+			limit: params.limit as number,
+			offset: params.offset as number,
+			orderBy: "created_at",
+			order: params.order
+		});
+		return { items: result.devices, total: result.total };
+	},
+	debounce: 300,
+	pageSize: 20,
+	onError: err => {
+		const errorMsg = handleApiError(err, "載入設備列表失敗");
+		errorMessage.value = errorMsg || "載入設備列表失敗";
+	}
+});
 
 // 標籤映射
 const statusLabels: Record<string, string> = {
@@ -289,7 +322,6 @@ const tableHeaderClass = "py-3 2xl:py-4 px-4 2xl:px-6 text-sm 2xl:text-base text
 const tableCellClass = "py-3 2xl:py-4 px-4 2xl:px-6";
 const sortSelectClass =
 	"rounded-lg border border-white/40 bg-white/10 px-2 2xl:px-3 py-1 2xl:py-2 text-sm 2xl:text-base text-white focus:border-white focus:outline-none";
-
 
 const formatDeviceConfig = (config: DeviceConfig): string => {
 	if (!config) return "-";
@@ -332,81 +364,33 @@ const switchTab = (tabCode: DeviceTypeCode) => {
 	if (activeTab.value === tabCode) return; // 如果已經是當前 tab，不執行
 
 	// 立即清空舊資料，觸發過渡動畫
-	devices.value = [];
+	devices.value.length = 0;
 	total.value = 0;
 
 	// 切換 tab 並重置分頁
 	activeTab.value = tabCode;
-	offset.value = 0;
+	resetPage();
 
 	// 立即載入新資料（不使用防抖）
-	loadDevices(true);
+	load({ typeCode: tabCode, order: dateSortOrder.value }, true);
 };
 
 // 載入設備類型（使用共享快取）
 const loadDeviceTypes = async (force = false) => {
 	try {
 		const types = await deviceApi.getDeviceTypes(force);
-		deviceTypes.value = types;
+		// 確保 types 是數組，避免 undefined 錯誤
+		deviceTypes.value = Array.isArray(types) ? types : [];
 		// 如果還沒有選中的標籤，選擇第一個
 		if (!activeTab.value && deviceTypes.value.length > 0) {
 			activeTab.value = deviceTypes.value[0].code as DeviceTypeCode;
 		}
 	} catch (error) {
+		// 錯誤處理：確保 deviceTypes.value 保持為空數組，而不是 undefined
+		deviceTypes.value = [];
 		handleError(error, "載入設備類型失敗");
 	}
 };
-
-const loadDevices = async (skipDebounce = false) => {
-	if (!activeTab.value) return;
-
-	const tabCode = activeTab.value;
-
-	// 請求去重：如果該 tab 正在載入，跳過
-	if (loadingDevicesMap.value.get(tabCode)) {
-		return;
-	}
-
-	// 防抖：如果不是立即執行，使用防抖
-	if (!skipDebounce) {
-		// 清除之前的計時器
-		if (loadDevicesTimer) {
-			clearTimeout(loadDevicesTimer);
-		}
-
-		// 設置新的計時器
-		loadDevicesTimer = setTimeout(() => {
-			loadDevices(true);
-		}, 300);
-		return;
-	}
-
-	// 立即執行載入
-	loadingDevicesMap.value.set(tabCode, true);
-	isLoading.value = true;
-	errorMessage.value = null;
-
-	try {
-		const result = await deviceApi.getDevices({
-			type_code: tabCode,
-			limit,
-			offset: offset.value,
-			orderBy: "created_at",
-			order: dateSortOrder.value
-		});
-
-		devices.value = result.devices;
-		total.value = result.total;
-	} catch (error) {
-		handleError(error, "載入設備列表失敗");
-	} finally {
-		isLoading.value = false;
-		loadingDevicesMap.value.delete(tabCode);
-	}
-};
-
-// 防抖計時器
-let loadDevicesTimer: ReturnType<typeof setTimeout> | null = null;
 
 const editDevice = (device: Device) => {
 	editingDevice.value = device;
@@ -424,18 +408,27 @@ const handleSubmit = async (data: CreateDeviceData | UpdateDeviceData) => {
 	errorMessage.value = null;
 
 	try {
+		const result = editingDevice.value
+			? // 更新設備
+				await deviceApi.updateDevice(editingDevice.value.id, data as UpdateDeviceData)
+			: // 建立設備
+				await deviceApi.createDevice(data as CreateDeviceData);
+
+		// 更新本地狀態（避免不必要的重新載入）
 		if (editingDevice.value) {
-			// 更新設備
-			await deviceApi.updateDevice(editingDevice.value.id, data as UpdateDeviceData);
+			// 更新操作：更新本地狀態
+			const index = devices.value.findIndex(d => d.id === editingDevice.value!.id);
+			if (index > -1) {
+				devices.value[index] = result.device;
+			}
 		} else {
-			// 建立設備
-			await deviceApi.createDevice(data as CreateDeviceData);
+			// 創建操作：添加到本地
+			devices.value.push(result.device);
+			total.value += 1;
 		}
 
-		const wasEditing = !!editingDevice.value;
 		closeDialog();
-		await loadDevices(true); // 立即執行，不使用防抖
-		toast.success(wasEditing ? "設備更新成功" : "設備建立成功");
+		toast.success(result.message || "操作成功");
 	} catch (error) {
 		handleError(error, "操作失敗");
 	} finally {
@@ -449,39 +442,39 @@ const confirmDeleteDevice = async (device: Device) => {
 	}
 
 	try {
-		await deviceApi.deleteDevice(device.id);
-		await loadDevices(true); // 立即執行，不使用防抖
-		toast.success(`設備 "${device.name}" 已刪除`);
+		const result = await deviceApi.deleteDevice(device.id);
+
+		// 從本地移除（避免不必要的重新載入）
+		devices.value = devices.value.filter(d => d.id !== device.id);
+		total.value = Math.max(0, total.value - 1);
+
+		toast.success(result.message || "刪除成功");
 	} catch (error) {
-		const errorMsg = handleError(error, "刪除設備失敗");
-		alert(errorMsg);
+		handleError(error, "刪除設備失敗");
 	}
 };
 
-const previousPage = () => {
-	if (offset.value > 0) {
-		offset.value -= limit;
-		loadDevices(true); // 立即執行，不使用防抖
-	}
+const handlePreviousPage = () => {
+	if (!activeTab.value) return;
+	prevPage({ typeCode: activeTab.value, order: dateSortOrder.value });
 };
 
-const nextPage = () => {
-	if (offset.value + limit < total.value) {
-		offset.value += limit;
-		loadDevices(true); // 立即執行，不使用防抖
-	}
+const handleNextPage = () => {
+	if (!activeTab.value) return;
+	nextPage({ typeCode: activeTab.value, order: dateSortOrder.value });
 };
 
 const handleSortChange = () => {
-	offset.value = 0;
-	loadDevices(true); // 立即執行，不使用防抖
+	if (!activeTab.value) return;
+	resetPage();
+	load({ typeCode: activeTab.value, order: dateSortOrder.value }, true); // 立即執行
 };
 
 // 監聽 tab 切換（僅用於初始載入，手動切換由 switchTab 處理）
 watch(activeTab, (newTab, oldTab) => {
 	// 只有在初始設置時才載入（不是手動切換）
 	if (newTab && oldTab === null) {
-		loadDevices(true);
+		load({ typeCode: newTab, order: dateSortOrder.value }, true);
 	}
 });
 
@@ -508,7 +501,9 @@ const handleDeviceCreated = (event: DeviceCreatedEvent) => {
 			total.value += 1;
 		} else {
 			// 不在第一頁，重新載入以確保數據一致性
-			void loadDevices(true);
+			if (activeTab.value) {
+				void load({ typeCode: activeTab.value, order: dateSortOrder.value }, true);
+			}
 		}
 	}
 };
@@ -523,7 +518,9 @@ const handleDeviceUpdated = (event: DeviceUpdatedEvent) => {
 			devices.value[index] = device;
 		} else {
 			// 如果不在當前列表，重新載入
-			void loadDevices(true);
+			if (activeTab.value) {
+				void load({ typeCode: activeTab.value, order: dateSortOrder.value }, true);
+			}
 		}
 	}
 };
@@ -547,13 +544,17 @@ const handleDeviceStatusChanged = (event: DeviceStatusChangedEvent) => {
 
 // 處理設備監控狀態事件（設備上線/離線）
 const handleMonitoringStatus = (event: MonitoringDeviceStatusEvent) => {
-	updateDeviceMonitoringStatus(event.sourceId, event.status);
+	// 優先使用 deviceId，如果沒有則使用 sourceId（向後兼容）
+	const deviceId = event.deviceId || event.sourceId;
+	updateDeviceMonitoringStatus(deviceId, event.status);
 };
 
 // 處理設備批次監控狀態事件
 const handleMonitoringStatusBatch = (event: MonitoringDeviceStatusBatchEvent) => {
-	event.updates.forEach(({ sourceId }) => {
-		updateDeviceMonitoringStatus(sourceId, event.status);
+	event.updates.forEach(({ sourceId, deviceId }) => {
+		// 優先使用 deviceId，如果沒有則使用 sourceId（向後兼容）
+		const id = deviceId || sourceId;
+		updateDeviceMonitoringStatus(id, event.status);
 	});
 };
 
@@ -562,7 +563,7 @@ onMounted(async () => {
 	// 設備類型載入後會自動設置第一個 tab，watch 會處理載入設備
 	// 但如果沒有觸發 watch，手動載入一次
 	if (activeTab.value) {
-		loadDevices(true); // 立即執行，不使用防抖
+		load({ typeCode: activeTab.value, order: dateSortOrder.value }, true); // 立即執行
 	}
 
 	// 設置設備 WebSocket 事件監聽器

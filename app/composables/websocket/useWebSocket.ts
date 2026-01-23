@@ -1,0 +1,347 @@
+import { io, Socket } from "socket.io-client";
+import type { Alert } from "~/types/alert";
+import type { Device, DeviceStatus } from "~/types/device";
+import { logger } from "~/utils/logger";
+
+const wsLogger = logger.createLogger("WebSocket");
+
+/**
+ * WebSocket 連接狀態
+ */
+export type WebSocketStatus = "disconnected" | "connecting" | "connected" | "error";
+
+/**
+ * 警報相關事件類型
+ */
+export interface AlertNewEvent extends Alert {}
+
+export interface AlertUpdatedEvent {
+	alert: Alert;
+	oldStatus: string;
+	newStatus: string;
+	timestamp: string;
+}
+
+export interface AlertCountEvent {
+	count: number;
+	timestamp: string;
+}
+
+/**
+ * 設備相關事件類型
+ */
+export interface DeviceCreatedEvent {
+	device: Device;
+	userId: number;
+	timestamp: string;
+}
+
+export interface DeviceUpdatedEvent {
+	device: Device;
+	changes: Record<string, unknown>;
+	userId: number;
+	timestamp: string;
+}
+
+export interface DeviceDeletedEvent {
+	deviceId: number;
+	userId: number;
+	timestamp: string;
+}
+
+export interface DeviceStatusChangedEvent {
+	deviceId: number;
+	oldStatus: DeviceStatus;
+	newStatus: DeviceStatus;
+	timestamp: string;
+}
+
+export interface MonitoringDeviceStatusEvent {
+	system: string;
+	sourceId: number;
+	deviceId?: number | null; // 設備 ID（用於前端設備管理頁面）
+	status: "online" | "offline";
+	timestamp: string;
+}
+
+export interface MonitoringDeviceStatusBatchEvent {
+	system: string;
+	status: "online" | "offline";
+	updates: Array<{ sourceId: number; deviceId?: number | null }>;
+	timestamp: string;
+}
+
+/**
+ * 環境監控相關事件類型
+ */
+export interface EnvironmentReadingNewEvent {
+	locationId: number;
+	reading: {
+		pm25?: number | null;
+		pm10?: number | null;
+		tvoc?: number | null;
+		hcho?: number | null;
+		humidity?: number | null;
+		temperature?: number | null;
+		co2?: number | null;
+		noise?: number | null;
+		wind?: number | null;
+		[key: string]: number | null | undefined;
+	};
+	timestamp: string;
+}
+
+/**
+ * RTSP 串流相關事件類型
+ */
+export interface RtspStreamStartedEvent {
+	streamId: string;
+	rtspUrl: string;
+	hlsUrl: string;
+	timestamp: string;
+}
+
+export interface RtspStreamStoppedEvent {
+	streamId: string;
+	timestamp: string;
+}
+
+export interface RtspStreamErrorEvent {
+	streamId: string;
+	error: {
+		message: string;
+		code?: string | number;
+	};
+	timestamp: string;
+}
+
+export interface RtspStreamStatusChangedEvent {
+	streamId: string;
+	oldStatus: string;
+	newStatus: string;
+	timestamp: string;
+}
+
+
+/**
+ * YSCP 事件相關類型
+ */
+export interface YscpEventAlarm {
+	type: "alarm";
+	data: Record<string, unknown>;
+	timestamp: string;
+}
+
+export interface YscpEventGeneric {
+	type: "generic";
+	data: Record<string, unknown>;
+	timestamp: string;
+}
+
+/**
+ * WebSocket Composable
+ * 提供 WebSocket 連接管理和事件監聽功能
+ * 參考後端設計：ba-backend/docs/WEBSOCKET_STRATEGY_AND_IMPLEMENTATION.md
+ *
+ * 注意：使用單例模式，確保整個應用只有一個 WebSocket 連接實例
+ */
+// 全局單例實例（在客戶端共享）
+let globalSocket: Socket | null = null;
+let globalStatus = ref<WebSocketStatus>("disconnected");
+let globalConnectionError = ref<string | null>(null);
+const globalEventListeners = new Map<string, Set<Function>>();
+
+export const useWebSocket = () => {
+	const config = useRuntimeConfig();
+	const apiBase = config.public.apiBase || "http://localhost:4000/api";
+
+	// 從 API Base 推導 WebSocket URL（移除 /api 後綴）
+	const websocketUrl = config.public.websocketUrl || apiBase.replace("/api", "");
+
+	// 使用全局狀態（單例模式）
+	const status = globalStatus;
+	const isConnected = computed(() => status.value === "connected");
+	const isConnecting = computed(() => status.value === "connecting");
+	const connectionError = globalConnectionError;
+
+	// 使用全局事件監聽器映射（單例模式）
+	const eventListeners = globalEventListeners;
+
+	/**
+	 * 建立 WebSocket 連接
+	 */
+	const connect = () => {
+		// 只在客戶端執行
+		if (!process.client) {
+			return;
+		}
+
+		// 如果已經連接或正在連接，不重複連接（單例模式檢查）
+		if (globalSocket?.connected || status.value === "connecting") {
+			wsLogger.log("連接已存在，跳過重複連接");
+			return;
+		}
+
+		// 如果已有實例但未連接，先斷開
+		if (globalSocket && !globalSocket.connected) {
+			globalSocket.disconnect();
+			globalSocket = null;
+		}
+
+		status.value = "connecting";
+		connectionError.value = null;
+
+		try {
+			// 創建新的 Socket 實例並保存到全局變數（單例模式）
+			globalSocket = io(websocketUrl, {
+				transports: ["websocket"],
+				reconnection: true,
+				reconnectionDelay: 1000, // 初始延遲 1 秒
+				reconnectionDelayMax: 5000, // 最大延遲 5 秒
+				reconnectionAttempts: Infinity, // 無限重試
+				randomizationFactor: 0.5, // 隨機化因子
+				timeout: 20000, // 連接超時 20 秒
+				withCredentials: true // 支援認證
+			});
+
+			// 連接成功
+			globalSocket.on("connect", () => {
+				status.value = "connected";
+				connectionError.value = null;
+				wsLogger.log("連接成功", { socketId: globalSocket?.id });
+			});
+
+			// 連接失敗
+			globalSocket.on("connect_error", (error: Error) => {
+				status.value = "error";
+				connectionError.value = error.message || "連接失敗";
+				wsLogger.error("連接失敗", { error });
+			});
+
+			// 斷開連接
+			globalSocket.on("disconnect", (reason: string) => {
+				status.value = "disconnected";
+				wsLogger.log("連接斷開", { reason });
+
+				// 如果是手動斷開，不顯示錯誤
+				if (reason === "io client disconnect") {
+					connectionError.value = null;
+				}
+			});
+
+			// 重連嘗試
+			globalSocket.on("reconnect_attempt", (attemptNumber: number) => {
+				wsLogger.log(`重連嘗試 ${attemptNumber}...`);
+			});
+
+			// 重連成功
+			globalSocket.on("reconnect", (attemptNumber: number) => {
+				status.value = "connected";
+				connectionError.value = null;
+				wsLogger.log(`重連成功 (嘗試 ${attemptNumber} 次)`);
+			});
+
+			// 重連失敗
+			globalSocket.on("reconnect_failed", () => {
+				status.value = "error";
+				connectionError.value = "重連失敗，請檢查網路連線";
+				wsLogger.error("重連失敗");
+			});
+		} catch (error: any) {
+			status.value = "error";
+			connectionError.value = error?.message || "建立連接時發生錯誤";
+			wsLogger.error("建立連接失敗", { error });
+		}
+	};
+
+	/**
+	 * 斷開 WebSocket 連接
+	 */
+	const disconnect = () => {
+		if (globalSocket) {
+			globalSocket.disconnect();
+			globalSocket = null;
+		}
+
+		status.value = "disconnected";
+		connectionError.value = null;
+		eventListeners.clear();
+	};
+
+	/**
+	 * 監聽 WebSocket 事件
+	 * @param event - 事件名稱
+	 * @param callback - 回調函數
+	 */
+	const on = (event: string, callback: Function) => {
+		if (!globalSocket) {
+			wsLogger.warn(`嘗試監聽事件 ${event}，但連接尚未建立`);
+			return;
+		}
+
+		// 記錄監聽器（用於清理）
+		if (!eventListeners.has(event)) {
+			eventListeners.set(event, new Set());
+		}
+		eventListeners.get(event)?.add(callback);
+
+		// 註冊事件監聽器
+		globalSocket.on(event, callback as any);
+	};
+
+	/**
+	 * 移除事件監聽器
+	 * @param event - 事件名稱
+	 * @param callback - 可選的回調函數（如果未提供，移除該事件的所有監聽器）
+	 */
+	const off = (event: string, callback?: Function) => {
+		if (!globalSocket) {
+			return;
+		}
+
+		if (callback) {
+			// 移除特定監聽器
+			globalSocket.off(event, callback as any);
+			eventListeners.get(event)?.delete(callback);
+		} else {
+			// 移除該事件的所有監聽器
+			globalSocket.off(event);
+			eventListeners.delete(event);
+		}
+	};
+
+	/**
+	 * 清理所有事件監聽器
+	 */
+	const cleanup = () => {
+		if (globalSocket) {
+			// 移除所有監聽器
+			for (const [event, callbacks] of eventListeners.entries()) {
+				for (const callback of callbacks) {
+					globalSocket.off(event, callback as any);
+				}
+			}
+			eventListeners.clear();
+		}
+	};
+
+	return {
+		// 狀態
+		status: readonly(status),
+		isConnected: readonly(isConnected),
+		isConnecting: readonly(isConnecting),
+		connectionError: readonly(connectionError),
+		websocketUrl,
+
+		// 連接管理
+		connect,
+		disconnect,
+
+		// 事件監聽
+		on,
+		off,
+
+		// 清理
+		cleanup
+	};
+};

@@ -7,15 +7,14 @@
    ======================================== */
 
 /* 為 html 和 body 設置 scrollbar-gutter，預留滾動條空間 */
-html {
+/* html {
 	scrollbar-gutter: stable;
 }
 
 body {
 	scrollbar-gutter: stable;
-	/* 確保 body 不會因為滾動條出現而產生水平滾動 */
 	overflow-x: hidden;
-}
+} */
 
 /* ========================================
    壓克力泡泡效果 - 統一樣式系統
@@ -104,10 +103,10 @@ body {
 /* 篩選器輸入框樣式 */
 .select-filter {
 	border-radius: 0.75rem;
-	border: 1px solid rgba(255, 255, 255, 0.2);
-	background-color: rgba(255, 255, 255, 0.15);
-	padding: 0.5rem 1rem;
-	font-size: 0.875rem;
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	background-color: rgba(255, 255, 255, 0.1);
+	padding: 10px;
+	font-size: 16px;
 	color: white;
 	outline: none;
 }
@@ -115,13 +114,6 @@ body {
 .select-filter:focus {
 	outline: 2px solid rgba(59, 130, 246, 0.5);
 	outline-offset: 2px;
-}
-
-@media (min-width: 1536px) {
-	.select-filter {
-		padding: 0.75rem 1.5rem;
-		font-size: 1rem;
-	}
 }
 
 .select-filter option {
@@ -154,4 +146,81 @@ body {
 .dialog-fade-enter-from,
 .dialog-fade-leave-to {
 	opacity: 0;
+}
+
+/* ========================================
+   表單輸入樣式 - 統一樣式系統
+   ======================================== */
+
+/* 小型表單輸入框 */
+.form-input-small {
+	border-radius: 0.75rem;
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	background: rgba(255, 255, 255, 0.1);
+	padding: 0.65rem 0.85rem;
+	color: #f7fbff;
+	transition:
+		border-color 0.2s ease,
+		background 0.2s ease;
+}
+
+.form-input-small:focus {
+	border-color: #5be7f1;
+	background: rgba(255, 255, 255, 0.18);
+	outline: none;
+}
+
+.form-input-small:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+.form-input-small::placeholder {
+	color: rgba(255, 255, 255, 0.5);
+}
+
+/* 表單選擇框 */
+.form-select {
+	cursor: pointer;
+}
+
+.form-select option {
+	background: rgba(20, 64, 92, 0.98);
+	color: #f7fbff;
+}
+
+/* 響應式調整 */
+@media (min-width: 1536px) {
+	.form-input-small {
+		padding: 0.625rem 0.875rem;
+		font-size: 1rem;
+	}
+}
+
+/* ========================================
+   按鈕樣式 - 統一樣式系統
+   ======================================== */
+
+/* 次要按鈕 */
+.btn-secondary {
+	border-radius: 999px;
+	padding: 0.6rem 1.4rem;
+	font-weight: 500;
+	font-size: 1rem;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	border: none;
+	background: rgba(255, 255, 255, 0.08);
+	border: 1px solid rgba(91, 231, 241, 0.5);
+	color: #e8fbff;
+}
+
+.btn-secondary:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.12);
+	border-color: rgba(91, 231, 241, 0.7);
+}
+
+.btn-secondary:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
 }

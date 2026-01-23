@@ -44,7 +44,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
 import { Chart, registerables } from "chart.js";
-import { useEnvironmentApi } from "~/composables/useEnvironmentApi";
+import { useEnvironmentApi } from "~/composables/systems/useEnvironmentApi";
 
 // 註冊 Chart.js 組件
 Chart.register(...registerables);
@@ -175,10 +175,10 @@ const loadHistoricalData = async () => {
 			limit: 1000
 		});
 
-		// 處理資料
-		const readings = response.readings;
+		// 處理資料：支援多種回應格式（直接格式或包裝格式）
+		const readings = response.readings || (response as any).data?.readings || [];
 
-		if (readings.length === 0) {
+		if (!readings || !Array.isArray(readings) || readings.length === 0) {
 			chartData.value = null;
 			isLoading.value = false;
 			return;

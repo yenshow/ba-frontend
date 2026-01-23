@@ -1,0 +1,53 @@
+<template>
+	<div class="flex h-full flex-col space-y-4 overflow-y-auto">
+		<!-- 今日統計 -->
+		<div class="flex items-center justify-center gap-4 min-h-[220px]">
+			<div class="flex h-36 w-36 items-center justify-center 2xl:h-48 2xl:w-48">
+				<img
+					src="/people-counting/status-indicator-green.svg"
+					alt="進場"
+					class="h-full w-full object-contain"
+				/>
+			</div>
+			<div class="text-white space-y-2">
+				<div class="flex items-center justify-center gap-4">
+					<div class="text-base 2xl:text-xl font-semibold">進場人數</div>
+					<div class="text-xl 2xl:text-2xl bg-black/20 w-[120px] text-center">
+						{{ entryCount || 0 }}
+					</div>
+				</div>
+
+				<div class="flex items-center justify-center gap-4">
+					<div class="text-base 2xl:text-xl font-semibold">出場人數</div>
+					<div class="text-xl 2xl:text-2xl bg-black/20 w-[120px] text-center">
+						{{ exitCount || 0 }}
+					</div>
+				</div>
+
+				<div class="flex items-center justify-center gap-4">
+					<div class="text-base 2xl:text-xl font-semibold">在場人數</div>
+					<div class="text-xl 2xl:text-2xl bg-black/20 w-[120px] text-center">
+						{{ currentCount || 0 }}
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- 進出場記錄表（最新 5 筆） -->
+		<EntryExitLogTable :logs="logs" />
+	</div>
+</template>
+
+<script setup lang="ts">
+import type { PeopleCountingLog } from "~/types/peopleCounting"
+import EntryExitLogTable from "~/components/people-counting/EntryExitLogTable.vue"
+
+interface Props {
+	entryCount: number
+	exitCount: number
+	currentCount: number
+	logs: PeopleCountingLog[]
+}
+
+defineProps<Props>()
+</script>
+

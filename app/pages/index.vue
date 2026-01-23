@@ -1,42 +1,51 @@
 <template>
-	<div class="min-h-screen">
+	<div class="min-h-screen relative">
 		<!-- 頂部橫幅（紅色警告區域） -->
-		<SafetyBanner />
+		<div class="absolute top-0 left-0 -translate-x-[48px] -translate-y-[48px] overflow-hidden" style="width: calc(100% + 96px);">
+			<SafetyBanner />
+		</div>
 
 		<!-- 頂部區域（品牌與時間） -->
-		<HomeHeader />
+		<div class="py-4">
+			<HomeHeader />
+		</div>
 
 		<!-- 主要內容區域 -->
 		<div
-			class="grid grid-cols-1 gap-4 px-4 py-4 xl:grid-cols-12 xl:gap-6 xl:px-8 xl:py-6 2xl:px-12 2xl:py-8"
+			class="grid gap-4 2xl:grid-cols-10"
 		>
 			<!-- 左側欄 - 環境監測數據 -->
-			<div class="col-span-1 xl:col-span-4">
+			<div class="col-span-1 2xl:col-span-3">
 				<EnvironmentDashboard
 					v-if="selectedLocation"
 					:location="selectedLocation"
 					:sensor-data="sensorData"
 					:device-model-config="deviceModelConfig"
 				/>
+				<div v-else-if="selectedUnifiedLocation" class="rounded-2xl border-2 border-white/30 bg-white/10 p-8 text-center">
+					<p class="text-white/60">該地點未配置環境監測系統</p>
+				</div>
 				<div v-else class="rounded-2xl border-2 border-white/30 bg-white/10 p-8 text-center">
 					<p class="text-white/60">請選擇地點以顯示環境監測數據</p>
 				</div>
 			</div>
 
-			<!-- 中間區域 - 人員統計（預留空間） -->
-			<div class="col-span-1 xl:col-span-4">
-				<div class="rounded-2xl border-2 border-white/30 bg-white/10 p-8">
-					<h2 class="mb-4 text-xl font-semibold text-white xl:text-2xl 2xl:text-3xl">人員統計</h2>
-					<p class="text-white/60">人員統計功能開發中...</p>
+			<!-- 中間區域 - 人員統計 -->
+			<div class="col-span-1 2xl:col-span-4">
+				<!-- 區域地點選擇器 -->
+				<div class="w-full mb-5">
+					<FilterDropdown
+						v-model="selectedLocationId"
+						:options="locationOptions"
+						placeholder="請選擇區域地點"
+					/>
 				</div>
+				<PersonnelStats :locations="filteredPeopleCountingLocations" />
 			</div>
 
-			<!-- 右側欄 - 人員進出記錄（預留空間） -->
-			<div class="col-span-1 xl:col-span-4">
-				<div class="rounded-2xl border-2 border-white/30 bg-white/10 p-8">
-					<h2 class="mb-4 text-xl font-semibold text-white xl:text-2xl 2xl:text-3xl">進出記錄</h2>
-					<p class="text-white/60">進出記錄功能開發中...</p>
-				</div>
+			<!-- 右側欄 - 人員進出記錄 -->
+			<div class="col-span-1 2xl:col-span-3">
+				<EntryExitLog :logs="filteredLocationLogs" />
 			</div>
 		</div>
 	</div>
@@ -46,14 +55,21 @@
 import SafetyBanner from "~/components/home/SafetyBanner.vue";
 import HomeHeader from "~/components/home/HomeHeader.vue";
 import EnvironmentDashboard from "~/components/home/EnvironmentDashboard.vue";
-import { useEnvironmentApi } from "~/composables/useEnvironmentApi";
-import { useDeviceApi } from "~/composables/useDeviceApi";
-import { useApiBase } from "~/composables/useApiBase";
+import PersonnelStats from "~/components/home/PersonnelStats.vue";
+import EntryExitLog from "~/components/home/EntryExitLog.vue";
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
+import { useLocationApi } from "~/composables/systems/location/useLocationApi";
+import { useDeviceApi } from "~/composables/systems/useDeviceApi";
+import { useApiBase } from "~/composables/core/useApiBase";
+import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import { useToast } from "~/composables/core/useToast";
+import { usePolling } from "~/composables/monitoring/usePolling";
+import { useZoneManagement } from "~/composables/systems/useZoneManagement";
 import type {
-	EnvironmentFloor,
 	EnvironmentLocation,
 	SensorParameterType
 } from "~/types/environment";
+import type { UnifiedZone, UnifiedLocation, EnvironmentSystemConfig } from "~/types/location";
 import type {
 	Device,
 	SensorDeviceConfig,
@@ -61,37 +77,107 @@ import type {
 	SensorParameterDefinition
 } from "~/types/device";
 import type { ModbusDeviceConfig, ModbusDataResponse } from "~/types/modbus";
-// 工具函數已由 EnvironmentDashboard 組件內部使用，這裡不需要導入
 import { isDeviceConnectionError } from "~/utils/errorUtils";
-import { cleanFloor } from "~/utils/sensorUtils";
+import { cleanZone } from "~/utils/sensorUtils";
+import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState";
+import { usePeopleCountingWebSocket } from "~/composables/systems/peopleCounting/usePeopleCountingWebSocket";
+import { usePeopleCountingApi } from "~/composables/systems/usePeopleCountingApi";
+import type { PeopleCountingLog } from "~/types/peopleCounting";
 
 definePageMeta({
 	layout: "default"
 });
 
-const environmentApi = useEnvironmentApi();
+const locationApi = useLocationApi();
 const deviceApi = useDeviceApi();
 const { request } = useApiBase();
 const { handleError } = useErrorHandler();
+const toast = useToast();
+const { sortZones } = useZoneManagement<UnifiedZone>();
 
-// 環境樓層和地點資料
-const environmentFloors = ref<EnvironmentFloor[]>([]);
-const isLoadingFloors = ref(false);
-const selectedLocationId = ref<string>("");
+// 人流統計相關
+const {
+	locations: peopleCountingLocations,
+	loadLocations: loadPeopleCountingLocations
+} = usePeopleCountingState();
 
-// 獲取地點 ID（與 environment.vue 保持一致）
-const getLocationId = (location: EnvironmentLocation, floor: EnvironmentFloor): string => {
-	return location.id || `${floor.name}-${location.name}`;
+const peopleCountingApi = usePeopleCountingApi();
+
+// 進出記錄相關常數
+const LOGS_PER_LOCATION = 10;
+const MAX_DISPLAY_LOGS = 8;
+
+// 聚合所有地點的進出記錄
+const allLocationLogs = ref<PeopleCountingLog[]>([]);
+
+// 載入所有地點的進出記錄
+const loadAllLocationLogs = async () => {
+	try {
+		const allLogs: PeopleCountingLog[] = [];
+
+		// 並行載入所有地點的記錄
+		const logPromises = peopleCountingLocations.value.map(location => {
+			if (!location.locationId) return Promise.resolve([]);
+			return peopleCountingApi.getLocationLogs(location.locationId, { limit: LOGS_PER_LOCATION });
+		});
+
+		const results = await Promise.allSettled(logPromises);
+		
+		results.forEach(result => {
+			if (result.status === "fulfilled") {
+				allLogs.push(...result.value);
+			}
+		});
+
+		// 按時間排序（最新的在前）
+		allLogs.sort((a, b) => {
+			const timeA = new Date(a.timestamp).getTime();
+			const timeB = new Date(b.timestamp).getTime();
+			return timeB - timeA;
+		});
+
+		// 只保留最新的記錄
+		allLocationLogs.value = allLogs.slice(0, MAX_DISPLAY_LOGS);
+	} catch (error) {
+		console.error("[index] 載入進出記錄失敗:", error);
+	}
 };
 
-// 獲取地點所屬的樓層
-const getLocationFloor = (location: EnvironmentLocation): EnvironmentFloor | null => {
-	for (const floor of environmentFloors.value) {
-		if (floor.locations.some(loc => loc.id === location.id || loc.name === location.name)) {
-			return floor;
-		}
+// 統一區域和地點資料（包含所有系統）
+const unifiedZones = ref<UnifiedZone[]>([]);
+const isLoadingZones = ref(false);
+const selectedLocationId = ref<string>("");
+
+// 獲取地點 ID
+const getLocationId = (location: UnifiedLocation): string => {
+	return location.id || `unknown-${location.name}`;
+};
+
+// 從統一地點中提取環境監測系統配置
+const extractEnvironmentLocation = (unifiedLocation: UnifiedLocation): EnvironmentLocation | null => {
+	const envSystem = unifiedLocation.systems?.find(s => s.systemType === "environment");
+	if (!envSystem) {
+		return null;
 	}
-	return null;
+
+	// 類型守衛：檢查是否為環境監測系統配置
+	const config = envSystem.config;
+	if (!config || typeof config !== "object" || !("parameters" in config) || !Array.isArray(config.parameters)) {
+		return null;
+	}
+
+	const envConfig = config as EnvironmentSystemConfig;
+
+	return {
+		id: unifiedLocation.id,
+		systemId: envSystem.id,
+		name: unifiedLocation.name,
+		deviceId: envConfig.deviceId,
+		parameters: (envConfig.parameters || []).map(param => ({
+			type: param.type as SensorParameterType,
+			enabled: param.enabled
+		}))
+	};
 };
 
 // 感測器設備和配置
@@ -117,18 +203,91 @@ const sensorDeviceConfig = computed<ModbusDeviceConfig | null>(() => {
 	};
 });
 
-// 當前選中的地點
-const selectedLocation = computed<EnvironmentLocation | null>(() => {
+// 當前選中的統一地點
+const selectedUnifiedLocation = computed<UnifiedLocation | null>(() => {
 	if (!selectedLocationId.value) return null;
 
-	for (const floor of environmentFloors.value) {
-		const location = floor.locations.find(loc => {
-			const locationId = getLocationId(loc, floor);
-			return locationId === selectedLocationId.value;
-		});
+	for (const zone of unifiedZones.value) {
+		const location = zone.locations.find(loc => loc.id === selectedLocationId.value);
 		if (location) return location;
 	}
 	return null;
+});
+
+// 當前選中的環境監測地點（從統一地點中提取）
+const selectedLocation = computed<EnvironmentLocation | null>(() => {
+	if (!selectedUnifiedLocation.value) return null;
+	return extractEnvironmentLocation(selectedUnifiedLocation.value);
+});
+
+// 地點選項列表（用於下拉選單）- 顯示所有地點
+const locationOptions = computed(() => {
+	const options: Array<{ value: string; label: string }> = [];
+	
+	unifiedZones.value.forEach(zone => {
+		zone.locations.forEach(location => {
+			const locationId = getLocationId(location);
+			const label = `${zone.name} - ${location.name}`;
+			options.push({ value: locationId, label });
+		});
+	});
+	
+	return options;
+});
+
+// 根據選中的統一地點找到對應的人流統計地點
+// 優先通過 ID 匹配，如果沒有則通過名稱匹配
+const findMatchingPeopleCountingLocation = (unifiedLocation: UnifiedLocation | null) => {
+	if (!unifiedLocation) return null;
+	
+	// 先嘗試通過 ID 匹配
+	if (unifiedLocation.id) {
+		const matchedById = peopleCountingLocations.value.find(
+			pcLocation => pcLocation.id === unifiedLocation.id || String(pcLocation.locationId) === unifiedLocation.id
+		);
+		if (matchedById) return matchedById;
+	}
+	
+	// 如果 ID 匹配失敗，嘗試通過名稱匹配
+	const matchedByName = peopleCountingLocations.value.find(
+		pcLocation => pcLocation.name === unifiedLocation.name
+	);
+	if (matchedByName) return matchedByName;
+	
+	return null;
+};
+
+// 過濾後的人流統計地點（根據選中的統一地點）
+const filteredPeopleCountingLocations = computed(() => {
+	if (!selectedUnifiedLocation.value) {
+		// 如果沒有選中地點，返回所有人流統計地點
+		return peopleCountingLocations.value;
+	}
+	
+	const matchedLocation = findMatchingPeopleCountingLocation(selectedUnifiedLocation.value);
+	if (matchedLocation) {
+		return [matchedLocation];
+	}
+	
+	// 如果找不到匹配的地點，返回空陣列
+	return [];
+});
+
+// 過濾後的進出記錄（根據選中的地點）
+const filteredLocationLogs = computed(() => {
+	if (!selectedUnifiedLocation.value) {
+		// 如果沒有選中地點，返回所有記錄
+		return allLocationLogs.value;
+	}
+	
+	const matchedLocation = findMatchingPeopleCountingLocation(selectedUnifiedLocation.value);
+	if (!matchedLocation || !matchedLocation.locationId) {
+		// 如果找不到匹配的地點，返回空陣列
+		return [];
+	}
+	
+	// 過濾出該地點的記錄
+	return allLocationLogs.value.filter(log => log.locationId === matchedLocation.locationId);
 });
 
 // 感測器資料
@@ -166,59 +325,52 @@ const getParameterModbusConfig = (
 	return paramDef?.modbusConfig || null;
 };
 
-// 載入環境樓層（參考 environment.vue 的邏輯）
-const loadFloors = async () => {
-	if (isLoadingFloors.value) return;
-	isLoadingFloors.value = true;
+// 預設選擇的地點（區域名稱 - 地點名稱）
+const DEFAULT_LOCATION = { zoneName: "遠岫", locationName: "大門口" };
+
+// 載入所有區域和地點（包含所有系統）
+const loadZones = async () => {
+	if (isLoadingZones.value) return;
+	isLoadingZones.value = true;
 	try {
-		const result = await environmentApi.getFloors();
-		// 清理並標準化參數格式並依樓層排序（B1F < 1F < 2F ...）
-		const sortedFloors = (result.floors || []).map(cleanFloor).sort((a, b) => {
-			const parseNum = (name: string) => {
-				if (name.toUpperCase().startsWith("B")) {
-					return -parseInt(name.match(/\d+/)?.[0] || "0", 10);
-				}
-				return parseInt(name.match(/\d+/)?.[0] || "999", 10);
-			};
-			return parseNum(a.name) - parseNum(b.name);
-		});
-		environmentFloors.value = sortedFloors;
+		// 從統一地點管理系統載入所有區域（包含所有系統）
+		const unifiedResult = await locationApi.getZones();
+		const allZones: UnifiedZone[] = unifiedResult.zones || [];
 
-		// 優先選擇「測試工地管理」，如果沒有則選擇第一個地點
-		if (environmentFloors.value.length > 0) {
-			let foundLocation = false;
+		// 使用統一的排序函數
+		unifiedZones.value = sortZones(allZones);
 
-			// 先嘗試找「測試工地管理」
-			for (const floor of environmentFloors.value) {
-				const testSite = floor.locations.find(
-					loc => loc.name === "測試工地管理" || loc.name.includes("測試工地管理")
-				);
-				if (testSite) {
-					selectedLocationId.value = getLocationId(testSite, floor);
-					foundLocation = true;
-					break;
-				}
-			}
-
-			// 如果沒找到「測試工地管理」，選擇第一個地點
-			if (!foundLocation) {
-				for (const floor of environmentFloors.value) {
-					if (floor.locations && floor.locations.length > 0) {
-						selectedLocationId.value = getLocationId(floor.locations[0], floor);
-						foundLocation = true;
-						break;
+		// 優先選擇預設地點「遠岫 - 大門口」
+		if (unifiedZones.value.length > 0) {
+			// 先嘗試找預設地點
+			for (const zone of unifiedZones.value) {
+				if (zone.name === DEFAULT_LOCATION.zoneName) {
+					const defaultLocation = zone.locations.find(
+						loc => loc.name === DEFAULT_LOCATION.locationName
+					);
+					if (defaultLocation) {
+						selectedLocationId.value = getLocationId(defaultLocation);
+						return;
 					}
 				}
 			}
+
+			// 如果沒找到預設地點，選擇第一個可用地點
+			const firstLocation = unifiedZones.value
+				.flatMap(zone => zone.locations || [])
+				.find(() => true);
+			if (firstLocation) {
+				selectedLocationId.value = getLocationId(firstLocation);
+			}
 		}
 	} catch (error) {
-		handleError(error, "載入環境樓層失敗");
+		handleError(error, "載入區域列表失敗");
 	} finally {
-		isLoadingFloors.value = false;
+		isLoadingZones.value = false;
 	}
 };
 
-// 載入地點的感測器設備
+// 載入地點的感測器設備配置
 const loadLocationSensorDevice = async (location: EnvironmentLocation) => {
 	if (!location.deviceId) {
 		sensorDevice.value = null;
@@ -236,31 +388,25 @@ const loadLocationSensorDevice = async (location: EnvironmentLocation) => {
 			return;
 		}
 
+		sensorDevice.value = device;
+
 		// 嘗試從設備 API 返回的 model 中取得配置
 		const deviceWithModel = device as any;
-		if (deviceWithModel.model?.config) {
-			const modelConfig = deviceWithModel.model.config as SensorDeviceModelConfig | undefined;
-			if (modelConfig?.sensorParameters) {
-				sensorDevice.value = device;
-				deviceModelConfig.value = modelConfig || null;
-				return;
-			}
+		if (deviceWithModel.model?.config?.sensorParameters) {
+			deviceModelConfig.value = deviceWithModel.model.config as SensorDeviceModelConfig;
+			return;
 		}
 
 		// 如果設備 API 沒有返回 model.config，則單獨取得型號資訊
 		if (device.model_id) {
 			try {
 				const modelResult = await deviceApi.getDeviceModel(device.model_id);
-				const modelConfig = modelResult.device_model.config as SensorDeviceModelConfig | undefined;
-				sensorDevice.value = device;
-				deviceModelConfig.value = modelConfig || null;
+				deviceModelConfig.value = modelResult.device_model.config as SensorDeviceModelConfig | undefined || null;
 			} catch (error) {
 				console.warn("[index] 載入設備型號配置失敗:", error);
-				sensorDevice.value = device;
 				deviceModelConfig.value = null;
 			}
 		} else {
-			sensorDevice.value = device;
 			deviceModelConfig.value = null;
 		}
 	} catch (error) {
@@ -330,11 +476,25 @@ const applyTransform = (value: number, transform?: string): number => {
 	}
 };
 
+// 感測器狀態相關常數
+const OFFLINE_ALERT_INTERVAL = 30000; // 每 30 秒最多顯示一次離線警報
+
+// 載入狀態
+const isFetching = ref(false);
+const isSensorOffline = ref(false);
+const lastOfflineAlertTime = ref<number | null>(null);
+
 // 載入感測器資料（需要確保設備配置已載入）
 const loadSensorData = async () => {
+	if (isFetching.value) {
+		return;
+	}
+
 	if (!selectedLocation.value || !sensorDeviceConfig.value || !deviceModelConfig.value) {
 		return;
 	}
+
+	isFetching.value = true;
 
 	try {
 		const enabledParams = selectedLocation.value.parameters.filter(param => param.enabled);
@@ -362,66 +522,130 @@ const loadSensorData = async () => {
 				}
 			}
 		}
-	} catch (error) {
-		// 錯誤已由 useErrorHandler 統一處理
-		console.error("[index] 載入感測器資料失敗:", error);
+
+		// 感測器恢復連線
+		if (isSensorOffline.value) {
+			isSensorOffline.value = false;
+			toast.success("感測器已恢復連線", 5000);
+			lastOfflineAlertTime.value = null;
+		}
+	} catch (error: any) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+
+		// 檢查是否為設備連接相關的錯誤
+		if (isDeviceConnectionError(errorMessage)) {
+			// 設備連接錯誤 - 使用防抖機制避免重複提示
+			const now = Date.now();
+			const shouldShowAlert =
+				!isSensorOffline.value ||
+				lastOfflineAlertTime.value === null ||
+				now - lastOfflineAlertTime.value >= OFFLINE_ALERT_INTERVAL;
+
+			if (shouldShowAlert) {
+				isSensorOffline.value = true;
+				lastOfflineAlertTime.value = now;
+				toast.warning("感測器離線，無法讀取資料", 8000);
+			}
+		} else {
+			// 其他錯誤（真正的後端連接錯誤、CORS 等）- 只在感測器在線時顯示，避免重複提示
+			// 使用統一錯誤處理（會自動去重和優先級判斷）
+			if (!isSensorOffline.value) {
+				handleError(error, "讀取感測器資料失敗");
+			}
+		}
+	} finally {
+		isFetching.value = false;
 	}
 };
 
-// 自動刷新
-const AUTO_REFRESH_INTERVAL = 5000;
-let refreshTimer: ReturnType<typeof setInterval> | null = null;
+// 輪詢相關常數
+const SENSOR_POLLING_INTERVAL = 5000; // 每 5 秒執行一次
 
-const startAutoRefresh = () => {
-	if (refreshTimer) return;
-	refreshTimer = setInterval(() => {
-		void loadSensorData();
-	}, AUTO_REFRESH_INTERVAL);
-};
-
-const stopAutoRefresh = () => {
-	if (refreshTimer) {
-		clearInterval(refreshTimer);
-		refreshTimer = null;
+// 使用 usePolling 統一管理輪詢
+const { start: startPolling } = usePolling({
+	callback: async () => {
+		await loadSensorData();
+	},
+	interval: SENSOR_POLLING_INTERVAL,
+	immediate: false,
+	onError: err => {
+		handleError(err, "載入感測器資料失敗");
 	}
+});
+
+// 初始化選中地點的資料載入
+const initializeLocationData = async () => {
+	if (!selectedLocation.value) return;
+
+	// 載入設備配置
+	await loadLocationSensorDevice(selectedLocation.value);
+	// 等待配置載入完成後再載入數據
+	await nextTick();
+	await loadSensorData();
 };
 
 // 監聽地點變化
 watch(
 	() => selectedLocationId.value,
-	async newLocationId => {
-		if (!newLocationId) return;
-
-		const location = selectedLocation.value;
-		if (location) {
-			// 先載入設備配置
-			await loadLocationSensorDevice(location);
-			// 等待配置載入完成後再載入數據
-			await nextTick();
-			await loadSensorData();
+	async () => {
+		if (selectedLocationId.value) {
+			await initializeLocationData();
+			// 當地點切換時，重新載入進出記錄（確保顯示最新數據）
+			await loadAllLocationLogs();
 		}
 	}
 );
 
+// WebSocket 事件處理
+const { setupEventListeners } = usePeopleCountingWebSocket();
+let cleanupWebSocket: (() => void) | null = null;
+
 onMounted(async () => {
-	// 先載入樓層資料
-	await loadFloors();
+	// 載入所有區域和地點
+	await loadZones();
 
-	// 等待 selectedLocation 更新
+	// 等待 selectedLocation 更新後初始化資料
 	await nextTick();
+	await initializeLocationData();
 
-	if (selectedLocation.value) {
-		// 先載入設備配置
-		await loadLocationSensorDevice(selectedLocation.value);
-		// 等待配置載入完成後再載入數據
-		await nextTick();
-		await loadSensorData();
-		// 啟動自動刷新
-		startAutoRefresh();
+	// 啟動輪詢
+	startPolling();
+
+	// 載入人流統計數據
+	try {
+		await loadPeopleCountingLocations();
+		await loadAllLocationLogs();
+	} catch (error) {
+		console.error("[index] 載入人流統計數據失敗:", error);
 	}
+
+// WebSocket 防抖時間
+const WEBSOCKET_DEBOUNCE_MS = 500;
+
+	// 設置 WebSocket 事件監聽：收到 YSCP 事件後重新載入資料
+	cleanupWebSocket = setupEventListeners(async () => {
+		// 使用防抖優化，避免短時間內多次觸發
+		await Promise.allSettled([
+			loadPeopleCountingLocations(),
+			loadAllLocationLogs()
+		]);
+	}, WEBSOCKET_DEBOUNCE_MS);
 });
 
+// 監聽人流統計地點變化，重新載入進出記錄
+watch(
+	() => peopleCountingLocations.value,
+	async () => {
+		await loadAllLocationLogs();
+	},
+	{ deep: true }
+);
+
+// 清理 WebSocket 監聽器
 onBeforeUnmount(() => {
-	stopAutoRefresh();
+	if (cleanupWebSocket) {
+		cleanupWebSocket();
+		cleanupWebSocket = null;
+	}
 });
 </script>

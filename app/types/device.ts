@@ -1,5 +1,4 @@
 // 設備類型代碼（從後端動態讀取，這裡僅作為類型參考）
-// 注意：di_do 是通用的數位輸入/輸出設備類型，不是照明系統專用
 export type DeviceTypeCode = "camera" | "controller" | "sensor" | "tablet" | "network" | "modbus" | "di_do" | string;
 
 // 設備狀態
@@ -27,9 +26,6 @@ export interface SensorParameterDefinition {
 	type: string; // 參數類型（pm25, pm10, tvoc, hcho, humidity, temperature, co2, noise, wind）
 	modbusConfig: SensorParameterModbusConfig; // Modbus 配置
 }
-
-// 重新導出給 environment.ts 使用
-export type { SensorParameterModbusConfig, SensorParameterDefinition };
 
 // 設備型號配置（根據設備類型有不同的結構）
 export interface SensorDeviceModelConfig {

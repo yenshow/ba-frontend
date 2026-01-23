@@ -1,5 +1,5 @@
 <template>
-	<div class="w-full bg-red-600 py-2">
+	<div class="bg-red-600 py-2">
 		<div class="marquee-wrapper">
 			<div class="marquee-content" :style="animationStyle">
 				<span class="marquee-item">

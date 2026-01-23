@@ -119,6 +119,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, nextTick, watch } from "vue";
 import type { SurveillanceCamera, MonitorView, GridLayout } from "~/types/surveillance";
+import { useStreamStatus } from "~/composables/monitoring/useStreamStatus";
 
 interface Props {
 	cameras: SurveillanceCamera[];
