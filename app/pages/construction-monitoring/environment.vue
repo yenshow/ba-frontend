@@ -4,7 +4,7 @@
 			<!-- 左側：詳細視圖 -->
 			<section class="relative flex-[1.2] 2xl:flex-[1.3]" ref="leftSectionRef">
 				<div
-					class="relative flex flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 2xl:p-6"
+					class="relative flex flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 2xl:p-6 min-h-[664px] 2xl:min-h-[848px]"
 				>
 					<!-- 位置標題與地點選擇 -->
 					<div

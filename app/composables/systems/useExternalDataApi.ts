@@ -105,16 +105,7 @@ export const useExternalDataApi = () => {
 		return getList("platform", "person_group", filters);
 	};
 
-	/**
-	 * 取得人員頭像
-	 */
-	const getPersonHeadPics = async (filters: {
-		person_id?: number;
-		limit?: number;
-		offset?: number;
-	} = {}) => {
-		return getList("platform", "person_head_pic", filters);
-	};
+	// 注意：getPersonHeadPics 已移除，請使用 useYscpPersonApi 獲取人員資訊和圖片
 
 	// ========== Baseacs Schema 專用方法 ==========
 
@@ -164,24 +155,53 @@ export const useExternalDataApi = () => {
 	 * 根據 picUri 直接獲取圖片
 	 * @param picUri - 圖片 URI
 	 */
-	const getPictureByUri = async (picUri: string): Promise<ExternalDataResponse<{
-		picUri: string;
-		image: string; // Base64 編碼的圖片數據
-	}>> => {
-		const data = await request<{
+	const getPictureByUri = async (picUri: string) => {
+		type PictureResult = {
 			picUri: string;
 			image: string;
-		}>(`/external-data/baseacs/slot_card_records/picture`, {
-			method: "POST",
-			body: JSON.stringify({ picUri })
-		});
+		};
+
+		const data = await request<PictureResult>(
+			`/external-data/baseacs/slot_card_records/picture`,
+			{
+				method: "POST",
+				body: JSON.stringify({ picUri })
+			}
+		);
 		return {
 			success: true,
-			data: data as any
-		} as ExternalDataResponse<{
-			picUri: string;
-			image: string;
-		}>;
+			data
+		} as ExternalDataResponse<PictureResult>;
+	};
+
+	/**
+	 * 批次獲取圖片
+	 * @param picUris - 圖片 URI 列表
+	 */
+	const getBatchPicturesByUri = async (picUris: string[]) => {
+		type BatchPictureResult = {
+			results: Array<{
+				picUri: string;
+				success: boolean;
+				image?: string;
+				error?: string;
+			}>;
+			total: number;
+			success: number;
+			failed: number;
+		};
+
+		const data = await request<BatchPictureResult>(
+			`/external-data/baseacs/slot_card_records/pictures`,
+			{
+				method: "POST",
+				body: JSON.stringify({ picUris })
+			}
+		);
+		return {
+			success: true,
+			data
+		} as ExternalDataResponse<BatchPictureResult>;
 	};
 
 	return {
@@ -192,11 +212,12 @@ export const useExternalDataApi = () => {
 		// Platform Schema
 		getPersons,
 		getPersonGroups,
-		getPersonHeadPics,
+		// 注意：人員頭像已移至 useYscpPersonApi
 		// Baseacs Schema
 		getSlotCardRecords,
 		getSlotCardRecordPicture,
-		getPictureByUri
+		getPictureByUri,
+		getBatchPicturesByUri
 	};
 };
 

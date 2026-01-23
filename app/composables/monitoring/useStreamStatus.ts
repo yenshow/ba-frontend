@@ -81,8 +81,16 @@ export const useStreamStatus = () => {
 	};
 
 	// 啟動測試串流（重寫以包含同步）
-	const startTestStream = async (rtspUrl: string): Promise<RTSPStreamInfo> => {
-		return await cameraStream.startTestStream(rtspUrl, syncMonitorViews);
+	const startTestStream = async (
+		rtspUrl: string,
+		gpuOptions?: {
+			useGpuEncoding?: boolean;
+			gpuType?: "nvidia" | "intel" | "amd";
+			bitrate?: string;
+			preset?: string;
+		}
+	): Promise<RTSPStreamInfo> => {
+		return await cameraStream.startTestStream(rtspUrl, syncMonitorViews, gpuOptions);
 	};
 
 	// 停止測試串流（重寫以包含同步）

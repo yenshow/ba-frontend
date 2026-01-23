@@ -22,7 +22,9 @@
 				>
 					<div class="ps-[2px] text-xl tracking-[2px] text-white 2xl:text-3xl">AQI</div>
 					<div class="my-1 h-px w-2/3 bg-white/80 2xl:my-2"></div>
-					<div class="text-3xl text-white 2xl:text-5xl">{{ aqi ?? "—" }}</div>
+					<Transition name="fade" mode="out-in">
+						<div :key="aqi ?? 'empty'" class="text-3xl text-white 2xl:text-5xl">{{ aqi ?? "—" }}</div>
+					</Transition>
 				</div>
 
 				<!-- 噪音值儀表 -->
@@ -31,7 +33,9 @@
 				>
 					<div class="ps-[2px] text-lg tracking-[2px] text-white 2xl:text-2xl">噪音值</div>
 					<div class="my-1 h-px w-2/3 bg-white/80 2xl:my-2"></div>
-					<div class="text-3xl text-white 2xl:text-5xl">{{ noise ?? "--" }}</div>
+					<Transition name="fade" mode="out-in">
+						<div :key="noise ?? 'empty'" class="text-3xl text-white 2xl:text-5xl">{{ noise ?? "--" }}</div>
+					</Transition>
 				</div>
 
 				<!-- 參數網格（3x3） -->
@@ -46,14 +50,19 @@
 						<div class="absolute left-1 top-2 h-4/5 w-1 bg-white/30"></div>
 
 						<!-- 數值 -->
-						<div class="flex items-baseline gap-1">
+						<Transition name="fade" mode="out-in">
 							<div
-								class="flex min-w-[30px] items-center justify-center text-sm font-semibold text-white 2xl:text-base"
+								:key="`${param.label}-${param.value}`"
+								class="flex items-baseline gap-1"
 							>
-								{{ param.value }}
+								<div
+									class="flex min-w-[30px] items-center justify-center text-sm font-semibold text-white 2xl:text-base"
+								>
+									{{ param.value }}
+								</div>
+								<div class="text-xs text-white/80">{{ param.unit }}</div>
 							</div>
-							<div class="text-xs text-white/80">{{ param.unit }}</div>
-						</div>
+						</Transition>
 						<!-- 不透明分隔線 -->
 						<div class="my-0.5 h-px w-[90%] bg-white/80"></div>
 						<!-- 標籤 -->
@@ -167,5 +176,21 @@ const getParamBlinkClass = (param: Param) => {
 /* 數值警報：快速閃爍（1秒） */
 .blink-fast {
 	animation: blink 1s ease-in-out infinite;
+}
+
+/* Transition 淡入淡出效果 */
+.fade-enter-active,
+.fade-leave-active {
+	transition: opacity 0.3s ease-in-out;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+	opacity: 0;
+}
+
+.fade-enter-to,
+.fade-leave-from {
+	opacity: 1;
 }
 </style>

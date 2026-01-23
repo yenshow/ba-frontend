@@ -18,21 +18,27 @@
 			>
 				<!-- 照片 -->
 				<div
-					class="h-12 w-12 overflow-hidden rounded-full bg-white/10 2xl:h-16 2xl:w-16 mt-4"
+					class="relative h-12 w-12 overflow-hidden rounded-full bg-white/10 2xl:h-16 2xl:w-16 mt-4"
 				>
-					<img
-						v-if="person.photoUrl"
-						:src="person.photoUrl"
-						:alt="person.name"
-						class="h-full w-full object-cover"
-						@error="handleImageError($event)"
-					/>
-					<img
-						v-else
-						src="/people-counting/no-photo-placeholder.png"
-						alt="未設照片"
-						class="h-full w-full object-cover"
-					/>
+					<Transition name="fade">
+						<img
+							v-if="person.photoUrl"
+							key="photo"
+							:src="person.photoUrl"
+							:alt="person.name"
+							class="absolute inset-0 h-full w-full object-cover"
+							@error="handleImageError($event)"
+						/>
+					</Transition>
+					<Transition name="fade">
+						<img
+							v-if="!person.photoUrl"
+							key="placeholder"
+							src="/people-counting/no-photo-placeholder.png"
+							alt="未設照片"
+							class="absolute inset-0 h-full w-full object-cover"
+						/>
+					</Transition>
 				</div>
 
 				<!-- 資訊 -->
@@ -103,4 +109,21 @@ const handleImageError = (event: Event) => {
 	img.src = "/people-counting/no-photo-placeholder.png";
 };
 </script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+	transition: opacity 0.3s ease-in-out;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+	opacity: 0;
+}
+
+.fade-enter-to,
+.fade-leave-from {
+	opacity: 1;
+}
+</style>
 

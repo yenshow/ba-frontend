@@ -11,12 +11,24 @@ export const useRtspApi = () => {
 	/**
 	 * 啟動 RTSP 串流
 	 * @param rtspUrl - RTSP 串流 URL
+	 * @param gpuOptions - GPU 編碼選項（可選）
 	 * @returns Promise<RTSPStreamInfo>
 	 */
-	const startStream = async (rtspUrl: string): Promise<RTSPStreamInfo> => {
+	const startStream = async (
+		rtspUrl: string,
+		gpuOptions?: {
+			useGpuEncoding?: boolean;
+			gpuType?: "nvidia" | "intel" | "amd";
+			bitrate?: string;
+			preset?: string;
+		}
+	): Promise<RTSPStreamInfo> => {
 		return request<RTSPStreamInfo>("/rtsp/start", {
 			method: "POST",
-			body: JSON.stringify({ rtspUrl })
+			body: JSON.stringify({
+				rtspUrl,
+				...(gpuOptions || {})
+			})
 		});
 	};
 

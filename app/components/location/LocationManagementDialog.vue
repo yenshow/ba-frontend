@@ -515,11 +515,15 @@ const getLocationSystemsLabel = (location: UnifiedLocation): string => {
 const saveChanges = async () => {
 	if (!pendingZone.value || !hasUnsavedChanges.value) return;
 
-	// 過濾掉名稱為空的地點
+	// 過濾掉名稱為空或無系統的地點
 	const filteredZone = {
 		...pendingZone.value,
 		locations: (pendingZone.value.locations || []).filter(
-			loc => loc.name && loc.name.trim().length > 0
+			loc =>
+				loc.name &&
+				loc.name.trim().length > 0 &&
+				loc.systems &&
+				loc.systems.length > 0
 		)
 	};
 	emit("save", filteredZone);

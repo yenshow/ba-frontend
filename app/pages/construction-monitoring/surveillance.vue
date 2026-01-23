@@ -180,6 +180,63 @@
 										/>
 									</div>
 
+									<!-- GPU 編碼選項 -->
+									<div class="rounded-lg border-2 border-white/20 bg-white/5 p-3">
+										<div class="mb-2 flex items-center justify-between">
+											<label class="flex items-center gap-2 text-xs text-white/80 xl:text-sm">
+												<input
+													v-model="testGpuOptions.useGpuEncoding"
+													type="checkbox"
+													class="h-4 w-4 rounded border-white/30 bg-white/10 text-green-500 focus:ring-2 focus:ring-green-400/50"
+												/>
+												<span>啟用 GPU 編碼</span>
+											</label>
+										</div>
+
+										<div v-if="testGpuOptions.useGpuEncoding" class="mt-3 space-y-2">
+											<!-- GPU 類型選擇 -->
+											<div>
+												<label class="mb-1 block text-xs text-white/70 xl:text-sm">GPU 類型</label>
+												<select
+													v-model="testGpuOptions.gpuType"
+													class="w-full rounded-lg border-2 border-white/30 bg-white/10 px-3 py-2 text-sm text-white backdrop-blur-sm transition-all focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 xl:text-base"
+												>
+													<option value="nvidia">NVIDIA</option>
+													<option value="intel">Intel</option>
+													<option value="amd">AMD</option>
+												</select>
+											</div>
+
+											<!-- 位元率 -->
+											<div>
+												<label class="mb-1 block text-xs text-white/70 xl:text-sm">位元率</label>
+												<input
+													v-model="testGpuOptions.bitrate"
+													type="text"
+													placeholder="2M"
+													class="w-full rounded-lg border-2 border-white/30 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/50 backdrop-blur-sm transition-all focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 xl:text-base"
+												/>
+											</div>
+
+											<!-- Preset (僅 NVIDIA) -->
+											<div v-if="testGpuOptions.gpuType === 'nvidia'">
+												<label class="mb-1 block text-xs text-white/70 xl:text-sm">Preset</label>
+												<select
+													v-model="testGpuOptions.preset"
+													class="w-full rounded-lg border-2 border-white/30 bg-white/10 px-3 py-2 text-sm text-white backdrop-blur-sm transition-all focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 xl:text-base"
+												>
+													<option value="p1">P1 (最高品質)</option>
+													<option value="p2">P2 (高品質)</option>
+													<option value="p3">P3 (平衡)</option>
+													<option value="p4">P4 (平衡，預設)</option>
+													<option value="p5">P5 (高性能)</option>
+													<option value="p6">P6 (高性能)</option>
+													<option value="p7">P7 (最高性能)</option>
+												</select>
+											</div>
+										</div>
+									</div>
+
 									<!-- 操作按鈕 -->
 									<div class="flex gap-2">
 										<button
@@ -217,6 +274,12 @@
 													]"
 												>
 													{{ testStreamStatus === "running" ? "運行中" : "已停止" }}
+												</span>
+											</div>
+											<div v-if="testStream?.useGpuEncoding" class="flex items-center gap-2">
+												<span class="text-white/60">GPU 編碼:</span>
+												<span class="ml-2 rounded bg-blue-500/30 px-2 py-0.5 text-xs text-blue-100 xl:text-sm">
+													{{ testStream.gpuOptions?.gpuType?.toUpperCase() || "NVIDIA" }}
 												</span>
 											</div>
 											<div v-if="testHlsUrl" class="break-all">
@@ -310,6 +373,12 @@ const isSidebarCollapsed = ref(false);
 const testRtspUrl = ref("rtsp://admin:Aa83124007@192.168.2.103:554/Streaming/Channels/101");
 const testLoading = ref(false);
 const testErrorMessage = ref<string>("");
+const testGpuOptions = ref({
+	useGpuEncoding: false,
+	gpuType: "nvidia" as "nvidia" | "intel" | "amd",
+	bitrate: "2M",
+	preset: "p4"
+});
 
 // 從統一狀態管理獲取測試串流狀態
 const testStream = computed(() => streamStatus.testStream.value);
@@ -487,7 +556,17 @@ const handleTestStart = async () => {
 	testErrorMessage.value = "";
 
 	try {
-		const streamInfo = await streamStatus.startTestStream(testRtspUrl.value);
+		// 構建 GPU 選項（只有在啟用時才傳遞）
+		const gpuOptions = testGpuOptions.value.useGpuEncoding
+			? {
+					useGpuEncoding: true,
+					gpuType: testGpuOptions.value.gpuType,
+					bitrate: testGpuOptions.value.bitrate,
+					preset: testGpuOptions.value.gpuType === "nvidia" ? testGpuOptions.value.preset : undefined
+				}
+			: undefined;
+
+		const streamInfo = await streamStatus.startTestStream(testRtspUrl.value, gpuOptions);
 
 		// 將測試串流加入到監控畫面（如果尚未加入）
 		const existingTestView = monitorViews.value.find(v => v.isTestStream);

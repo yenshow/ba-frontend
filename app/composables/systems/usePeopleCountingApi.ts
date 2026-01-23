@@ -169,13 +169,8 @@ export const usePeopleCountingApi = () => {
 				exitCount: number;
 			}>(url);
 
-			// 轉換為前端格式
 			return response.personnel.map(person => {
-				const photoUrl = person.photoUrl
-					? person.photoUrl.startsWith("data:image")
-						? person.photoUrl
-						: `data:image/jpeg;base64,${person.photoUrl}`
-					: undefined;
+				const photoUrl = person.photoUrl || undefined;
 
 				return {
 					id: person.id,

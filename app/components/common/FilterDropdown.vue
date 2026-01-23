@@ -5,7 +5,7 @@
 				:value="displayValue"
 				readonly
 				@click="toggleDropdown"
-				class="select-filter flex-1 cursor-pointer text-center"
+				:class="['select-filter flex-1 cursor-pointer text-center', textSize]"
 				:placeholder="placeholder"
 			/>
 			<svg
@@ -36,7 +36,8 @@
 								type="button"
 								@click="selectOption(option.value)"
 								:class="[
-									'w-full rounded px-3 py-2 text-center text-sm text-white transition-colors',
+									'w-full rounded px-3 py-2 text-center text-white transition-colors',
+									textSize,
 									isSelected(option.value) ? 'bg-blue-500/80 text-white' : 'hover:bg-white/10'
 								]"
 							>
@@ -61,10 +62,12 @@ interface Props {
 	modelValue: string;
 	options: FilterOption[];
 	placeholder?: string;
+	textSize?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-	placeholder: "請選擇"
+	placeholder: "請選擇",
+	textSize: "text-base"
 });
 
 const emit = defineEmits<{

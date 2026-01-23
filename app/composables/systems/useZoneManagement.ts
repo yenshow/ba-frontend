@@ -200,24 +200,30 @@ export function useZoneManagement<T extends { id?: string; name: string; locatio
 
 				// 如果區域被其他系統使用，只刪除該系統的地點
 				// 過濾掉該系統，構建更新後的地點列表
-				const remainingLocations: UnifiedZone["locations"] = fullZone.locations?.map(location => {
-					// 如果地點沒有任何系統，保留原樣
-					if (!location.systems || location.systems.length === 0) {
-						return location;
-					}
+				// 同時移除那些過濾後沒有系統的地點
+				const remainingLocations: UnifiedZone["locations"] = fullZone.locations
+					?.map(location => {
+						// 如果地點沒有任何系統，返回 null（稍後過濾掉）
+						if (!location.systems || location.systems.length === 0) {
+							return null;
+						}
 
-					// 過濾掉當前系統
-					const filteredSystems = location.systems.filter(
-						system => system.systemType !== options.systemType
-					);
+						// 過濾掉當前系統
+						const filteredSystems = location.systems.filter(
+							system => system.systemType !== options.systemType
+						);
 
-					// 返回更新後的地點（移除當前系統）
-					// 如果過濾後沒有系統，傳入空陣列會讓後端刪除所有系統
-					return {
-						...location,
-						systems: filteredSystems
-					};
-				}) || [];
+						// 如果過濾後沒有系統了，返回 null（稍後過濾掉）
+						if (filteredSystems.length === 0) {
+							return null;
+						}
+
+						return {
+							...location,
+							systems: filteredSystems
+						};
+					})
+					.filter((location): location is UnifiedLocation => location !== null) || [];
 
 				// 如果過濾後沒有地點了，刪除整個區域
 				if (remainingLocations.length === 0) {

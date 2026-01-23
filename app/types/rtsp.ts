@@ -1,9 +1,18 @@
+export interface RTSPGpuOptions {
+	useGpuEncoding?: boolean;
+	gpuType?: "nvidia" | "intel" | "amd";
+	bitrate?: string;
+	preset?: string;
+}
+
 export interface RTSPStreamInfo {
 	streamId: string;
 	rtspUrl: string;
 	hlsUrl: string;
 	status: "running" | "stopped" | "unknown";
 	startedAt: string;
+	useGpuEncoding?: boolean;
+	gpuOptions?: RTSPGpuOptions;
 }
 
 export interface RTSPStartResponse {

@@ -36,29 +36,38 @@
 					<td class="p-2">
 						<div class="relative h-12 w-12 overflow-hidden bg-white/10 xl:h-16 xl:w-16">
 							<!-- 載入中 -->
-							<div
-								v-if="imageLoadingStates[log.id]"
-								class="flex h-full w-full items-center justify-center"
-							>
-								<div class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white/80"></div>
-							</div>
+							<Transition name="fade">
+								<div
+									v-if="imageLoadingStates[log.id]"
+									key="loading"
+									class="absolute inset-0 flex items-center justify-center bg-white/5"
+								>
+									<div class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white/80"></div>
+								</div>
+							</Transition>
 
 							<!-- 圖片 -->
-							<img
-								v-else-if="imageUrls[log.id]"
-								:src="imageUrls[log.id]"
-								:alt="`${log.personName || '未知'} 設備截圖`"
-								class="h-full w-full object-cover"
-								@error="handleImageError($event, log.id)"
-							/>
+							<Transition name="fade">
+								<img
+									v-if="imageUrls[log.id] && !imageLoadingStates[log.id]"
+									key="image"
+									:src="imageUrls[log.id]"
+									:alt="`${log.personName || '未知'} 設備截圖`"
+									class="absolute inset-0 h-full w-full object-cover"
+									@error="handleImageError($event, log.id)"
+								/>
+							</Transition>
 
 							<!-- 佔位符 -->
-							<img
-								v-else
-								src="/people-counting/no-photo-placeholder.png"
-								alt="無設備截圖"
-								class="h-full w-full object-cover"
-							/>
+							<Transition name="fade">
+								<img
+									v-if="!imageUrls[log.id] && !imageLoadingStates[log.id]"
+									key="placeholder"
+									src="/people-counting/no-photo-placeholder.png"
+									alt="無設備截圖"
+									class="absolute inset-0 h-full w-full object-cover"
+								/>
+							</Transition>
 						</div>
 					</td>
 					<td class="p-2 text-sm xl:text-base">
@@ -111,71 +120,75 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const { getPictureByUri } = useExternalDataApi();
+const { getBatchPicturesByUri } = useExternalDataApi();
 const imageUrls = ref<Record<string | number, string>>({});
 const imageLoadingStates = ref<Record<string | number, boolean>>({});
 const imageCache = new Map<string, string>();
 
-/**
- * 處理圖片載入錯誤
- */
 const handleImageError = (event: Event, logId: string | number) => {
 	const img = event.target as HTMLImageElement;
 	img.src = "/people-counting/no-photo-placeholder.png";
-	// 清除錯誤的圖片 URL
 	delete imageUrls.value[logId];
 };
 
-/**
- * 載入單個記錄的圖片
- */
-const loadImage = async (log: PeopleCountingLog) => {
-	// 如果沒有 deviceScreenshotUrl（實際上是 snap_pic_url），不載入
-	if (!log.deviceScreenshotUrl || log.deviceScreenshotUrl.trim() === "") {
+const loadAllImages = async () => {
+	const logsToLoad = props.logs.filter(
+		(log) =>
+			log.deviceScreenshotUrl &&
+			!imageUrls.value[log.id] &&
+			!imageLoadingStates.value[log.id]
+	);
+
+	if (logsToLoad.length === 0) {
 		return;
 	}
 
-	const picUri = log.deviceScreenshotUrl.trim();
-	const logId = log.id;
+	const picUris: string[] = [];
+	const logIdMap = new Map<string, string | number>();
 
-	// 檢查緩存
-	if (imageCache.has(picUri)) {
-		imageUrls.value[logId] = imageCache.get(picUri)!;
-		return;
-	}
-
-	// 如果正在載入，不重複載入
-	if (imageLoadingStates.value[logId]) {
-		return;
-	}
-
-	// 開始載入
-	imageLoadingStates.value[logId] = true;
-
-	try {
-		const result = await getPictureByUri(picUri);
-
-		if (result.success && result.data?.image) {
-			const imageUrl = convertBase64ToImageUrl(result.data.image);
-			imageUrls.value[logId] = imageUrl;
-			imageCache.set(picUri, imageUrl);
-		}
-	} catch (error) {
-		console.error("載入圖片失敗:", error);
-	} finally {
-		imageLoadingStates.value[logId] = false;
-	}
-};
-
-/**
- * 載入所有記錄的圖片
- */
-const loadAllImages = () => {
-	props.logs.forEach((log) => {
-		if (log.deviceScreenshotUrl && !imageUrls.value[log.id] && !imageLoadingStates.value[log.id]) {
-			loadImage(log);
+	logsToLoad.forEach((log) => {
+		const picUri = log.deviceScreenshotUrl!.trim();
+		if (imageCache.has(picUri)) {
+			imageUrls.value[log.id] = imageCache.get(picUri)!;
+		} else {
+			picUris.push(picUri);
+			logIdMap.set(picUri, log.id);
 		}
 	});
+
+	if (picUris.length === 0) {
+		return;
+	}
+
+	picUris.forEach((picUri) => {
+		const logId = logIdMap.get(picUri);
+		if (logId) {
+			imageLoadingStates.value[logId] = true;
+		}
+	});
+
+	try {
+		const result = await getBatchPicturesByUri(picUris);
+
+		if (result.success && result.data?.results) {
+			result.data.results.forEach((item) => {
+				if (item.success && item.image) {
+					const logId = logIdMap.get(item.picUri);
+					if (logId) {
+						const imageUrl = convertBase64ToImageUrl(item.image);
+						imageUrls.value[logId] = imageUrl;
+						imageCache.set(item.picUri, imageUrl);
+					}
+				}
+			});
+		}
+	} catch (error) {
+		console.error("批次載入圖片失敗:", error);
+	} finally {
+		logIdMap.forEach((logId) => {
+			imageLoadingStates.value[logId] = false;
+		});
+	}
 };
 
 // 監聽 logs 變化，載入新記錄的圖片
@@ -187,4 +200,21 @@ watch(
 	{ immediate: true, deep: true }
 );
 </script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+	transition: opacity 0.3s ease-in-out;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+	opacity: 0;
+}
+
+.fade-enter-to,
+.fade-leave-from {
+	opacity: 1;
+}
+</style>
 

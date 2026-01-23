@@ -1,231 +1,338 @@
-# 警報系統說明
+# 警報系統架構與實現說明
 
 **更新日期**：2025-01-09  
-**狀態**：✅ 系統運行中
+**狀態**：✅ 系統運行中  
+**版本**：v2.0
 
 ---
 
 ## 📋 目錄
 
 1. [系統概述](#系統概述)
-2. [警報規則系統](#警報規則系統)
-3. [Toast 通知系統](#toast-通知系統)
-4. [系統架構](#系統架構)
-5. [使用方式](#使用方式)
-6. [系統特性](#系統特性)
-7. [測試建議](#測試建議)
+2. [系統架構](#系統架構)
+3. [後端實現](#後端實現)
+4. [前端實現](#前端實現)
+5. [數據流與交互](#數據流與交互)
+6. [核心機制](#核心機制)
+7. [技術細節](#技術細節)
+8. [測試與驗證](#測試與驗證)
 
 ---
 
 ## 系統概述
 
-警報系統負責監控各種感測器數據，根據預設規則判斷狀態，並通過 Toast 通知向用戶展示警報信息。系統確保前後端使用相同的規則進行狀態判斷，保證顯示的一致性。
+### 核心目標
 
-### 核心功能
+警報系統是一個**前後端統一**的監控與通知系統，負責：
 
-1. **警報規則管理**：前端從後端獲取警報規則，用於判斷感測器讀數狀態
-2. **狀態顯示**：根據規則動態顯示感測器參數的狀態（正常/注意/警報）
-3. **Toast 通知**：實時顯示警報通知，支持更新、去重和優先級管理
-4. **交互功能**：點擊 Toast 可跳轉到警報詳情頁面
+1. **規則管理**：從資料庫獲取警報規則，用於判斷感測器狀態
+2. **狀態顯示**：根據規則動態顯示感測器參數狀態（正常/注意/警報）
+3. **實時通知**：通過 WebSocket 和輪詢雙路徑，實時推送警報信息
+4. **Toast 顯示**：智能管理 Toast 通知，支持更新、去重和優先級管理
+5. **交互功能**：點擊 Toast 可跳轉到警報詳情頁面
+
+### 設計原則
+
+- ✅ **前後端一致**：前端使用與後端相同的規則，確保顯示狀態與實際警報記錄一致
+- ✅ **動態配置**：通過修改資料庫規則調整閾值，無需修改代碼
+- ✅ **實時性**：WebSocket 優先，輪詢作為後備，確保即時通知
+- ✅ **性能優化**：規則緩存、增量查詢、防抖機制
+- ✅ **用戶體驗**：智能去重、優先級管理、詳細訊息格式
 
 ---
 
-## 警報規則系統
+## 系統架構
 
-### 系統架構
+### 整體架構圖
 
-前端使用後端資料庫中的警報規則來判斷感測器狀態，確保前後端完全一致。
-
-### 後端 API
-
-**端點**: `GET /api/alerts/rules`
-
-**參數**:
-
-- `source` (必填): 警報來源，如 `environment`
-- `alert_type` (可選): 警報類型，如 `threshold`
-- `parameter` (可選): 參數名稱，如 `pm25`
-
-**範例**:
-
-```javascript
-GET /api/alerts/rules?source=environment&alert_type=threshold
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        後端系統                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                               │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
+│  │  資料庫       │    │  警報服務     │    │  WebSocket   │  │
+│  │              │    │              │    │   服務       │  │
+│  │ - alerts     │◄───┤ - createAlert│───►│ - emitAlert  │  │
+│  │ - alert_rules│    │ - updateAlert │    │   New       │  │
+│  │              │    │ - getAlerts   │    │ - emitAlert  │  │
+│  └──────────────┘    └──────────────┘    │   Updated    │  │
+│         ▲                    │             │ - emitAlert  │  │
+│         │                    │             │   Count     │  │
+│         │                    ▼             └──────────────┘  │
+│  ┌──────────────┐    ┌──────────────┐                      │
+│  │  規則服務     │    │  監控服務     │                      │
+│  │              │    │              │                      │
+│  │ - getRules   │    │ - 環境監控    │                      │
+│  │ - evaluate   │    │ - 設備監控    │                      │
+│  └──────────────┘    └──────────────┘                      │
+│                                                               │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              │ HTTP API / WebSocket
+                              │
+┌─────────────────────────────────────────────────────────────┐
+│                        前端系統                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                               │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
+│  │  規則管理     │    │  警報監聽     │    │  Toast 管理   │  │
+│  │              │    │              │    │              │  │
+│  │ useAlertRules│◄───┤ useAlert     │───►│ useToast     │  │
+│  │              │    │ Monitor      │    │              │  │
+│  │ - getRules   │    │ - WebSocket  │    │ - showToast  │  │
+│  │ - evaluate   │    │ - Polling    │    │ - updateToast│  │
+│  │ - getStatus  │    │ - Priority   │    │ - removeToast│  │
+│  └──────────────┘    └──────────────┘    └──────────────┘  │
+│         │                    │                    │          │
+│         │                    │                    ▼          │
+│         │                    │            ┌──────────────┐  │
+│         │                    │            │ ToastContainer│  │
+│         │                    │            │   (UI)       │  │
+│         │                    │            └──────────────┘  │
+│         │                    │                              │
+│         ▼                    ▼                              │
+│  ┌──────────────┐    ┌──────────────┐                      │
+│  │  頁面組件     │    │  警報列表     │                      │
+│  │              │    │              │                      │
+│  │ environment  │    │ alert-log    │                      │
+│  │ lighting     │    │              │                      │
+│  └──────────────┘    └──────────────┘                      │
+│                                                               │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**回應格式**:
+### 模組劃分
 
-```json
-{
-	"success": true,
-	"data": {
-		"rules": [
-			{
-				"id": 1,
-				"source": "environment",
-				"alert_type": "threshold",
-				"severity": "warning",
-				"condition_config": {
-					"parameter": "pm25",
-					"operator": ">",
-					"value": 50
-				},
-				"enabled": true
-			}
-		]
-	}
+#### 後端模組
+
+| 模組 | 文件 | 職責 |
+|------|------|------|
+| **警報服務** | `alertService.js` | 警報 CRUD、狀態管理、WebSocket 推送 |
+| **規則服務** | `alertRuleService.js` | 規則查詢、條件評估、緩存管理 |
+| **WebSocket 服務** | `websocketService.js` | 事件推送、連接管理 |
+| **API 路由** | `alertRoutes.js` | REST API 端點 |
+
+#### 前端模組
+
+| 模組 | 文件 | 職責 |
+|------|------|------|
+| **警報監聽** | `useAlertMonitor.ts` | 主入口、協調 WebSocket 和輪詢 |
+| **WebSocket 監聽** | `useAlertWebSocket.ts` | WebSocket 事件處理 |
+| **輪詢監聽** | `useAlertPolling.ts` | 增量查詢、後備機制 |
+| **規則管理** | `useAlertRules.ts` | 規則獲取、緩存、狀態判斷 |
+| **Toast 管理** | `useToast.ts` | Toast 顯示、更新、去重 |
+| **UI 組件** | `ToastContainer.vue` | Toast 顯示組件 |
+
+---
+
+## 後端實現
+
+### 1. 警報服務 (`alertService.js`)
+
+#### 核心功能
+
+**創建警報流程**：
+
+```javascript
+createAlert(alertData) {
+  1. 驗證參數（source, source_id, alert_type, severity, message）
+  2. 檢查是否已被忽視（findIgnoredAlert）
+  3. 查詢現有 active 警報（findExistingActiveAlert，按天限制）
+  4. 如果存在：
+     - 檢查是否需要更新（severity 升級、message 變化）
+     - 更新警報內容（updateAlertContent）
+     - 推送 WebSocket 事件：alert:updated (active -> active)
+  5. 如果不存在：
+     - 創建新警報（INSERT INTO alerts）
+     - 推送 WebSocket 事件：alert:new
+  6. 推送未解決警報數量（防抖 500ms）
 }
 ```
 
-### 前端規則管理
+**關鍵特性**：
 
-**Composable**: `app/composables/monitoring/useAlertRules.ts`
+- ✅ **按天限制**：同一天同一來源同一類型只會有一個 active 警報
+- ✅ **參數匹配**：閾值警報支持通過 message 匹配參數（PM2.5、PM10 等）
+- ✅ **自動更新**：如果警報已存在，自動更新 severity 和 message
+- ✅ **並發處理**：處理唯一約束衝突，確保數據一致性
 
-提供以下功能：
+#### 狀態管理
 
-- `getRules(source, alertType)`: 獲取警報規則（帶緩存）
-- `evaluateParameter(parameter, value, rules)`: 評估參數值是否符合規則
-- `getStatusText(parameter, value, rules)`: 根據規則獲取狀態文字
-- `clearCache()`: 清除規則緩存
+**警報狀態**：
 
-**使用範例**:
+- `active`：活躍警報，需要處理
+- `resolved`：已解決，系統自動或手動標記
+- `ignored`：已忽視，不再顯示相同來源和類型的警報
 
-```typescript
-import { useAlertRules } from "~/composables/monitoring/useAlertRules";
+**狀態變更流程**：
 
-const { getRules, getStatusText } = useAlertRules();
-
-// 載入規則
-const rules = await getRules("environment", "threshold");
-
-// 判斷狀態
-const status = getStatusText("pm25", 55, rules); // 返回 "注意" 或 "警報" 或 "正常"
+```javascript
+updateAlertStatus(sourceId, source, alertType, newStatus, userId) {
+  1. 查詢匹配的警報（批量處理）
+  2. 更新狀態欄位（resolved_at, ignored_at 等）
+  3. 推送 WebSocket 事件：alert:updated (oldStatus -> newStatus)
+  4. 推送未解決警報數量
+}
 ```
 
-### 狀態判斷邏輯
+### 2. 規則服務 (`alertRuleService.js`)
 
-前端頁面（如 `environment.vue`）在載入時自動獲取規則，並使用規則判斷狀態：
+#### 規則查詢
 
-```typescript
-const { getRules, getStatusText: getStatusTextFromRules } = useAlertRules();
-const alertRules = ref<AlertRule[]>([]);
-const rulesLoaded = ref(false);
+**API 端點**：`GET /api/alerts/rules`
 
-const loadAlertRules = async () => {
-	try {
-		alertRules.value = await getRules("environment", "threshold");
-		rulesLoaded.value = true;
-	} catch (error) {
-		console.error("[environment] 載入警報規則失敗:", error);
-		rulesLoaded.value = false;
-	}
-};
+**參數**：
+- `source` (必填)：警報來源，如 `environment`
+- `alert_type` (可選)：警報類型，如 `threshold`
+- `parameter` (可選)：參數名稱，如 `pm25`
 
-const getStatusText = (type: string, value: number | null): string => {
-	if (value === null) return "無資料";
-	if (rulesLoaded.value && alertRules.value.length > 0) {
-		try {
-			return getStatusTextFromRules(type, value, alertRules.value);
-		} catch (error) {
-			console.warn("[environment] 使用規則判斷狀態失敗，使用預設值:", error);
-		}
-	}
-	return getDefaultStatusText(type, value); // 向後兼容
-};
+**回應格式**：
+
+```json
+{
+  "success": true,
+  "data": {
+    "rules": [
+      {
+        "id": 1,
+        "source": "environment",
+        "alert_type": "threshold",
+        "condition_type": "threshold",
+        "severity": "warning",
+        "condition_config": {
+          "parameter": "pm25",
+          "operator": ">",
+          "value": 50,
+          "unit": "µg/m³"
+        },
+        "message_template": "{parameter} 超過閾值：{value}{unit}",
+        "enabled": true
+      }
+    ]
+  }
+}
 ```
 
-### 狀態映射
+#### 規則緩存
 
-規則的 `severity` 會映射到狀態文字：
+- **緩存策略**：規則寫入資料庫後就是固定的，可以永久緩存
+- **緩存鍵**：`source`（如 `environment`）
+- **清除時機**：規則更新時手動清除
 
-- `critical` 或 `error` → "警報"
-- `warning` → "注意"
-- 無匹配規則 → "正常"
+### 3. WebSocket 服務 (`websocketService.js`)
 
-### 規則格式要求
+#### 事件類型
 
-1. **condition_config 格式**：必須包含 `parameter`、`operator`、`value` 欄位
-2. **參數名稱**：前端使用的參數名稱（如 "pm25", "pm10"）必須與後端規則中的 `parameter` 欄位一致
-3. **運算符**：支持的運算符包括 `>`, `>=`, `<`, `<=`
-4. **規則評估**：系統會按嚴重程度排序，優先返回最嚴重的匹配規則
+| 事件名稱 | 觸發時機 | 數據格式 |
+|---------|---------|---------|
+| `alert:new` | 新警報創建 | `Alert` 對象 |
+| `alert:updated` | 警報狀態或內容更新 | `{ alert, oldStatus, newStatus, timestamp }` |
+| `alert:count` | 未解決警報數量變化 | `{ count, timestamp }` |
 
-### 規則緩存機制
+#### 推送時機
 
-- 使用 `Map` 結構緩存規則，避免重複 API 請求
-- 緩存鍵格式：`${source}:${alertType}`
-- 支持手動清除緩存
+1. **新警報創建**：`createAlert()` 成功後立即推送
+2. **警報更新**：
+   - 狀態變更：`active` ↔ `resolved/ignored`
+   - 內容更新：`active -> active`（severity 升級、message 變化）
+3. **數量更新**：防抖 500ms，避免頻繁推送
 
 ---
 
-## Toast 通知系統
+## 前端實現
 
-### 系統概述
+### 1. 警報監聽 (`useAlertMonitor.ts`)
 
-Toast 通知系統負責實時顯示警報信息，支持動態更新、去重和優先級管理。
+#### 架構設計
 
-### 觸發時機
+```
+useAlertMonitor (主入口)
+├── useAlertWebSocket (WebSocket 監聽)
+├── useAlertPolling (輪詢監聽)
+└── useUnresolvedAlertCount (數量管理)
+```
 
-1. **WebSocket 事件** (`alert:new`) - 新警報創建
-2. **輪詢檢查** (`checkNewAlerts`) - 增量查詢更新
-3. **狀態變更** (`alert:updated`) - `resolved/ignored` ↔ `active`
-4. **內容更新** (`alert:updated`) - `active -> active`（severity/message 變化）
+#### 監聽策略
 
-### Toast 類型映射
+**智能切換機制**：
 
-| Alert Severity | Toast Type | 顏色 |
-| -------------- | ---------- | ---- |
-| `warning`      | `warning`  | 黃色 |
-| `error`        | `error`    | 紅色 |
-| `critical`     | `error`    | 紅色 |
+1. **初始載入**：使用 REST API 獲取當前警報列表
+2. **WebSocket 模式**（優先）：
+   - 建立連接
+   - 監聽 `alert:new` 和 `alert:updated` 事件
+   - 連接成功時停止輪詢
+3. **輪詢模式**（後備）：
+   - WebSocket 斷線時自動啟動
+   - 使用增量查詢（`updated_after`）優化
+   - 間隔：30 秒（可配置）
 
-**說明**：`critical` 和 `error` 都映射為 `error` 類型，因為兩者都需要立即關注。
+#### 優先級過濾
 
-### 去重機制
+**優先級定義**：
 
-- **有 alertId**：優先使用 `alertId` 匹配，找到則更新現有 Toast
-- **無 alertId**：使用 `message + type` 匹配（向後兼容）
-- **非持久**：5 秒內不重複顯示相同訊息
+| 警報類型 | 優先級 | 說明 |
+|---------|--------|------|
+| `offline` | HIGH | 設備離線 |
+| `error` | HIGH | 系統錯誤 |
+| `threshold` | MEDIUM | 閾值超標 |
+| 其他 | LOW | 低優先級 |
+
+**過濾規則**：
+
+- 如果當前有更高優先級的錯誤，忽略低優先級警報
+- 特殊規則：連線錯誤時，不處理數值錯誤
+
+### 2. Toast 管理
+
+#### Toast 類型映射
+
+| Alert Severity | Toast Type | 顏色 | 說明 |
+|---------------|------------|------|------|
+| `warning` | `warning` | 黃色 | 注意級別 |
+| `error` | `error` | 紅色 | 錯誤級別 |
+| `critical` | `error` | 紅色 | 嚴重級別 |
+
+#### 去重機制
+
+**策略**：
+
+1. **有 alertId**：優先使用 `alertId` 匹配，找到則更新現有 Toast
+2. **無 alertId**：使用 `message + type` 匹配（向後兼容）
+3. **非持久**：5 秒內不重複顯示相同訊息
 
 **效果**：
 
-- 正確識別同一警報的更新
-- 不會創建重複的 Toast
-- 自動更新 Toast 內容（severity/message 變化）
+- ✅ 正確識別同一警報的更新
+- ✅ 不會創建重複的 Toast
+- ✅ 自動更新 Toast 內容（severity/message 變化）
 
-### 數量限制
+#### 數量限制
 
 - **最大顯示數量**：8 個
 - **優先級**：`critical` > `error` > `warning`
 - **替換機制**：critical 級別可以替換低優先級警報
 
-當達到最大數量時：
-
-- 如果新警報是 `critical` 級別，會替換優先級最低的現有 Toast
-- 如果新警報是 `error` 或 `warning` 級別，則跳過顯示
-
-### 更新機制
-
-**WebSocket 事件處理**：
+**處理邏輯**：
 
 ```typescript
-// 處理 active -> active 的內容更新
-if (oldStatus === "active" && newStatus === "active") {
-	const existingToastId = activeAlertToasts.value.get(alert.id);
-	if (existingToastId) {
-		updateAlertToastContent(existingToastId, alert);
-		alertSeverities.value.set(alert.id, alert.severity);
-	}
+if (currentToastCount >= MAX_ALERT_TOASTS) {
+  if (alert.severity === "critical") {
+    // 替換優先級最低的 Toast
+    const lowestPriorityAlertId = findLowestPriorityToast();
+    if (lowestPriorityAlertId) {
+      removeAlertToast(lowestPriorityAlertId);
+    }
+  } else {
+    // 跳過顯示
+    return;
+  }
 }
 ```
 
-**輪詢檢查**：
+#### Toast 訊息格式
 
-- 使用增量查詢 (`updated_after`)
-- 同步更新現有 Toast 內容
-- 移除已解決/忽視的警報的 Toast
-
-### Toast 訊息格式
-
-Toast 訊息採用詳細格式，包含以下信息：
+**詳細格式**：
 
 ```
 [嚴重] 環境系統 - 展廳 1F
@@ -239,251 +346,454 @@ PM2.5 超過閾值：51µg/m³
 - 第二行：詳細訊息
 - 第三行：時間戳（HH:mm）
 
-### 跳轉功能
+### 3. 規則管理 (`useAlertRules.ts`)
 
-點擊 Toast 可以跳轉到警報詳情頁面：
+#### 規則獲取
 
-- 自動定位到對應警報並高亮顯示（3 秒）
-- 如果警報不在當前列表，自動調整時間範圍並載入
+**緩存機制**：
+
+- 使用 `Map` 結構緩存規則
+- 緩存鍵格式：`${source}:${alertType}`
+- 支持手動清除緩存
+
+**使用範例**：
+
+```typescript
+const { getRules, getStatusText } = useAlertRules();
+const alertRules = ref<AlertRule[]>([]);
+
+// 載入規則
+alertRules.value = await getRules("environment", "threshold");
+
+// 判斷狀態
+const status = getStatusText("pm25", 55, alertRules.value);
+// 返回："注意" 或 "警報" 或 "正常"
+```
+
+#### 狀態判斷邏輯
+
+**評估流程**：
+
+1. 過濾出該參數的規則
+2. 按嚴重程度排序（critical < error < warning）
+3. 檢查每個規則，返回第一個匹配的（最嚴重的）
+4. 根據嚴重程度返回狀態文字
+
+**狀態映射**：
+
+| 規則 Severity | 狀態文字 |
+|--------------|---------|
+| `critical` | "警報" |
+| `error` | "警報" |
+| `warning` | "注意" |
+| 無匹配規則 | "正常" |
+
+---
+
+## 數據流與交互
+
+### 1. 警報創建流程
+
+```
+┌─────────────┐
+│  監控服務    │
+│ (環境/設備)  │
+└──────┬──────┘
+       │ 檢測到異常
+       ▼
+┌─────────────┐
+│ alertService│
+│ createAlert │
+└──────┬──────┘
+       │
+       ├─► 檢查是否已忽視
+       ├─► 查詢現有 active 警報
+       │
+       ├─► [存在] 更新警報內容
+       │   └─► WebSocket: alert:updated
+       │
+       └─► [不存在] 創建新警報
+           └─► WebSocket: alert:new
+               │
+               ▼
+       ┌─────────────┐
+       │ 前端監聽    │
+       │ useAlert    │
+       │ Monitor     │
+       └──────┬──────┘
+              │
+              ├─► 優先級過濾
+              ├─► 檢查是否為今日
+              └─► 顯示 Toast
+```
+
+### 2. 規則載入流程
+
+```
+┌─────────────┐
+│  頁面載入    │
+│ environment  │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│ useAlertRules│
+│ getRules     │
+└──────┬──────┘
+       │
+       ├─► 檢查緩存
+       │   └─► [命中] 返回緩存
+       │
+       └─► [未命中] API 請求
+           GET /api/alerts/rules
+           │
+           ▼
+       ┌─────────────┐
+       │ alertRule    │
+       │ Service      │
+       └──────┬──────┘
+              │
+              ├─► 查詢資料庫
+              ├─► 存入緩存
+              └─► 返回規則
+                  │
+                  ▼
+           ┌─────────────┐
+           │ 狀態判斷     │
+           │ getStatusText│
+           └─────────────┘
+```
+
+### 3. Toast 更新流程
+
+```
+┌─────────────┐
+│ WebSocket    │
+│ alert:updated│
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│ handleAlert │
+│ Updated     │
+└──────┬──────┘
+       │
+       ├─► active -> resolved/ignored
+       │   └─► removeAlertToast
+       │
+       ├─► resolved/ignored -> active
+       │   └─► showAlertNotification
+       │
+       └─► active -> active
+           ├─► 更新現有 Toast 內容
+           └─► 更新嚴重程度映射
+```
+
+### 4. 輪詢檢查流程
+
+```
+┌─────────────┐
+│ 輪詢觸發     │
+│ (30秒間隔)   │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│ checkNew    │
+│ Alerts      │
+└──────┬──────┘
+       │
+       ├─► 構建增量查詢
+       │   - status: active
+       │   - start_date: 今日開始
+       │   - updated_after: 上次檢查時間
+       │
+       ▼
+┌─────────────┐
+│ API 請求     │
+│ GET /alerts  │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│ 處理結果     │
+└──────┬──────┘
+       │
+       ├─► 優先級過濾
+       ├─► 檢查現有 Toast
+       │   └─► [存在] 更新內容
+       │   └─► [不存在] 顯示新 Toast
+       │
+       └─► 移除已解決的 Toast
+```
+
+---
+
+## 核心機制
+
+### 1. 按天限制機制
+
+**目的**：確保同一天同一來源同一類型只會有一個 active 警報
+
+**實現**：
+
+- 後端：查詢現有 active 警報時，限制在當天範圍內
+- 前端：只顯示今日創建的警報
+
+**效果**：
+
+- ✅ 避免重複警報
+- ✅ 簡化警報管理
+- ✅ 提高查詢效率
+
+### 2. 增量查詢機制
+
+**目的**：優化輪詢效率，只獲取更新的警報
 
 **實現**：
 
 ```typescript
-// ToastContainer.vue - 點擊處理
-const handleToastClick = (toast: Toast) => {
-	if (toast.alertId) {
-		navigateTo(`/core/alert-log?alertId=${toast.alertId}`);
-	}
+const filters: AlertFilters = {
+  status: "active",
+  start_date: todayStart.toISOString(),
+  updated_after: lastCheckTime.value?.toISOString(), // 增量查詢
+  limit: 50
 };
 ```
 
-### 核心數據結構
+**效果**：
 
-- `activeAlertToasts: Map<alertId, toastId>` - 警報與 Toast 的映射
-- `alertSeverities: Map<alertId, severity>` - 警報嚴重程度追蹤
+- ✅ 減少數據傳輸量
+- ✅ 提高查詢速度
+- ✅ 降低服務器負載
 
-### Toast 與 Alert 對應關係
+### 3. 防抖機制
 
-| Alert 屬性            | Toast 屬性              | 說明            |
-| --------------------- | ----------------------- | --------------- |
-| `alert.id`            | `activeAlertToasts` key | 用於去重和更新  |
-| `alert.severity`      | `toast.type`            | 決定 Toast 類型 |
-| `alert.message`       | `toast.message`         | Toast 顯示內容  |
-| `alert.status`        | `toast.persistent`      | 是否持久顯示    |
-| `alert.status` 變更   | Toast 顯示/移除         | 狀態同步        |
-| `alert.severity` 變化 | Toast 類型更新          | 內容同步        |
-| `alert.message` 變化  | Toast 訊息更新          | 內容同步        |
+**目的**：避免頻繁推送未解決警報數量
+
+**實現**：
+
+```javascript
+const UNRESOLVED_COUNT_DEBOUNCE_MS = 500; // 500ms 防抖
+
+function emitUnresolvedAlertCount() {
+  if (unresolvedCountTimer) {
+    clearTimeout(unresolvedCountTimer);
+  }
+  unresolvedCountTimer = setTimeout(async () => {
+    const count = await getUnresolvedAlertCount();
+    websocketService.emitAlertCount(count);
+  }, UNRESOLVED_COUNT_DEBOUNCE_MS);
+}
+```
+
+**效果**：
+
+- ✅ 減少 WebSocket 推送次數
+- ✅ 降低資料庫查詢頻率
+- ✅ 提高系統性能
+
+### 4. 規則緩存機制
+
+**目的**：避免重複 API 請求，提高性能
+
+**實現**：
+
+- 前端：使用 `Map` 結構緩存規則
+- 後端：使用 `Map` 結構緩存閾值規則（永久緩存）
+
+**效果**：
+
+- ✅ 減少 API 請求
+- ✅ 提高響應速度
+- ✅ 降低服務器負載
 
 ---
 
-## 系統架構
+## 技術細節
 
-### 架構圖
+### 1. 規則格式要求
 
-```
-┌─────────────────┐
-│   後端資料庫     │
-│  alert_rules    │
-└────────┬────────┘
-         │
-         │ API: GET /api/alerts/rules
-         ▼
-┌─────────────────┐
-│  前端 Composable │
-│  useAlertRules   │
-│  (規則緩存)      │
-└────────┬────────┘
-         │
-         │ 使用規則判斷狀態
-         ▼
-┌─────────────────┐
-│  environment.vue │
-│  (狀態顯示)      │
-└─────────────────┘
+**condition_config 格式**：
 
-┌─────────────────┐
-│   後端資料庫     │
-│     alerts      │
-└────────┬────────┘
-         │
-         │ WebSocket / 輪詢
-         ▼
-┌─────────────────┐
-│ useAlertMonitor │
-│  (Toast 管理)    │
-└────────┬────────┘
-         │
-         │ 顯示/更新 Toast
-         ▼
-┌─────────────────┐
-│ ToastContainer   │
-│  (UI 顯示)       │
-└─────────────────┘
+```json
+{
+  "parameter": "pm25",      // 參數名稱（必填）
+  "operator": ">",          // 運算符（必填）：>, >=, <, <=
+  "value": 50,              // 閾值（必填）
+  "unit": "µg/m³"           // 單位（可選）
+}
 ```
 
-### 數據流
+**參數名稱對應**：
 
-1. **規則載入流程**：
+| 前端參數 | 後端參數 | 顯示名稱 |
+|---------|---------|---------|
+| `pm25` | `pm25` | PM2.5 |
+| `pm10` | `pm10` | PM10 |
+| `co2` | `co2` | CO2 |
+| `temperature` | `temperature` | 溫度 |
+| `humidity` | `humidity` | 濕度 |
 
-   ```
-   頁面載入 → useAlertRules.getRules() → API 請求 → 規則緩存 → 狀態判斷
-   ```
+### 2. WebSocket 事件格式
 
-2. **Toast 更新流程**：
-
-   ```
-   WebSocket/輪詢 → 警報更新 → useAlertMonitor → 檢查現有 Toast → 更新/創建 Toast
-   ```
-
-3. **狀態判斷流程**：
-   ```
-   感測器讀數 → getStatusText() → 使用規則評估 → 返回狀態文字 → UI 顯示
-   ```
-
-### 關鍵技術點
-
-1. **規則緩存機制**：
-   - 使用 `Map` 結構緩存規則
-   - 避免重複 API 請求
-   - 支持手動清除緩存
-
-2. **狀態判斷統一**：
-   - 所有狀態判斷函數基於 `getStatusText` 的結果
-   - 確保視覺樣式與文字狀態一致
-
-3. **Toast 去重與更新**：
-   - 使用 `alertId` 作為唯一標識
-   - 支持動態更新內容
-   - 優先級管理確保重要警報始終顯示
-
----
-
-## 使用方式
-
-### 後端配置
-
-確保資料庫中有正確的警報規則：
-
-```sql
-SELECT * FROM alert_rules
-WHERE source = 'environment'
-  AND alert_type = 'threshold'
-  AND enabled = TRUE;
-```
-
-### 前端使用
-
-前端會自動在頁面載入時獲取規則，並使用規則來判斷狀態。無需額外配置。
-
-**在組件中使用**：
+**alert:new**：
 
 ```typescript
-import { useAlertRules } from "~/composables/monitoring/useAlertRules";
+interface AlertNewEvent extends Alert {
+  // Alert 對象的所有欄位
+}
+```
 
-const { getRules, getStatusText } = useAlertRules();
-const alertRules = ref<AlertRule[]>([]);
+**alert:updated**：
 
-onMounted(async () => {
-	// 載入規則
-	alertRules.value = await getRules("environment", "threshold");
+```typescript
+interface AlertUpdatedEvent {
+  alert: Alert;
+  oldStatus: AlertStatus;
+  newStatus: AlertStatus;
+  timestamp: string;
+}
+```
 
-	// 使用規則判斷狀態
-	const status = getStatusText("pm25", 55, alertRules.value);
+**alert:count**：
+
+```typescript
+interface AlertCountEvent {
+  count: number;
+  timestamp: string;
+}
+```
+
+### 3. 警報數據結構
+
+```typescript
+interface Alert {
+  id: number;
+  source: AlertSource;           // device, environment, lighting 等
+  source_id: number;
+  alert_type: AlertType;         // offline, error, threshold
+  severity: AlertSeverity;       // warning, error, critical
+  message: string;
+  status: AlertStatus;            // active, resolved, ignored
+  created_at: string;
+  updated_at: string;
+  source_name?: string;           // 來源名稱
+  zone_name?: string;             // 區域名稱
+  // ... 其他欄位
+}
+```
+
+### 4. 前端 API 使用
+
+**獲取警報列表**：
+
+```typescript
+const { getAlerts } = useAlertApi();
+
+const result = await getAlerts({
+  source: "environment",
+  status: "active",
+  start_date: todayStart.toISOString(),
+  end_date: todayEnd.toISOString(),
+  updated_after: lastCheckTime.value?.toISOString(),
+  limit: 50,
+  offset: 0
 });
 ```
 
-### 注意事項
+**獲取警報規則**：
 
-1. **規則格式**：後端規則的 `condition_config` 必須包含 `parameter`、`operator`、`value` 欄位
-2. **參數名稱**：前端使用的參數名稱（如 "pm25", "pm10"）必須與後端規則中的 `parameter` 欄位一致
-3. **運算符**：目前支持的運算符包括 `>`, `>=`, `<`, `<=`
-4. **向後兼容**：如果規則載入失敗，會使用預設值，確保系統正常運作
+```typescript
+const { getAlertRules } = useAlertApi();
 
----
-
-## 系統特性
-
-### 核心特性
-
-1. **前後端一致**：前端使用與後端相同的規則，確保顯示的狀態與實際警報記錄一致
-2. **動態配置**：可以通過修改資料庫中的規則來調整閾值，不需要修改前端代碼
-3. **向後兼容**：如果規則載入失敗，會使用預設值，確保系統正常運作
-4. **性能優化**：規則緩存機制，避免重複請求
-
-### Toast 通知特性
-
-1. **智能更新**：WebSocket 和輪詢雙路徑處理更新
-2. **優先級管理**：critical 級別始終可以顯示
-3. **數據同步**：`alertSeverities` Map 確保優先級判斷準確
-4. **詳細訊息**：多行格式，包含完整資訊
-5. **智能跳轉**：自動定位並高亮顯示對應警報
-
-### 狀態判斷特性
-
-1. **單一數據源**：所有狀態判斷基於後端規則，確保一致性
-2. **統一邏輯**：所有狀態判斷函數基於 `getStatusText` 的結果
-3. **視覺一致性**：確保視覺樣式與文字狀態一致
+const result = await getAlertRules("environment", "threshold");
+// 返回：{ rules: AlertRule[] }
+```
 
 ---
 
-## 測試建議
+## 測試與驗證
 
-### 警報規則系統測試
+### 1. 後端測試
 
-1. **規則載入測試**：
-   - 確認後端 API `/api/alerts/rules?source=environment&alert_type=threshold` 返回正確的規則
-   - 確認前端在頁面載入時成功載入規則
-   - 測試規則緩存機制是否正常工作
+**警報創建測試**：
 
-2. **狀態判斷測試**：
-   - 測試不同參數值的狀態判斷是否正確
-   - 測試規則載入失敗時的向後兼容行為
-   - 確認前後端狀態顯示一致
+- ✅ 創建新警報
+- ✅ 更新現有警報（severity 升級）
+- ✅ 更新現有警報（message 變化）
+- ✅ 按天限制機制
+- ✅ 參數匹配機制
+- ✅ 並發處理
 
-3. **規則格式測試**：
-   - 確認規則的 `condition_config` 格式正確
-   - 測試不同運算符（`>`, `>=`, `<`, `<=`）是否正常工作
-   - 測試嚴重程度映射是否正確
+**規則查詢測試**：
 
-### Toast 通知系統測試
+- ✅ 獲取閾值規則
+- ✅ 參數過濾
+- ✅ 緩存機制
 
-1. **更新機制測試**：
-   - 測試 WebSocket 事件觸發時 Toast 是否正確更新
-   - 測試輪詢檢查時 Toast 是否正確更新
-   - 測試警報狀態變更時 Toast 是否正確顯示/移除
+**WebSocket 推送測試**：
 
-2. **去重機制測試**：
-   - 測試使用 `alertId` 去重是否正常工作
-   - 測試無 `alertId` 時的向後兼容行為
-   - 確認不會創建重複的 Toast
+- ✅ 新警報推送
+- ✅ 警報更新推送
+- ✅ 數量更新推送
 
-3. **數量限制測試**：
-   - 測試超過 8 個警報時的處理邏輯
-   - 測試 critical 級別是否可以替換低優先級警報
-   - 確認優先級管理是否正確
+### 2. 前端測試
 
-4. **交互功能測試**：
-   - 測試點擊 Toast 是否正確跳轉到警報詳情頁面
-   - 測試自動定位和高亮顯示是否正常工作
-   - 測試警報不在當前列表時的處理邏輯
+**規則載入測試**：
 
-### 整合測試
+- ✅ 規則緩存機制
+- ✅ 狀態判斷邏輯
+- ✅ 向後兼容
 
-1. **端到端測試**：
-   - 測試完整的警報流程：感測器讀數 → 規則判斷 → 狀態顯示 → Toast 通知
-   - 測試多個地點共用同一個感測器時的處理邏輯
-   - 確認前後端完全一致
+**Toast 顯示測試**：
 
-2. **性能測試**：
-   - 測試規則緩存機制是否減少 API 請求
-   - 測試 Toast 數量限制是否提高 UI 性能
-   - 確認系統在大量警報時的表現
+- ✅ 新警報顯示
+- ✅ Toast 更新
+- ✅ Toast 去重
+- ✅ 數量限制
+- ✅ 優先級管理
+
+**監聽機制測試**：
+
+- ✅ WebSocket 連接
+- ✅ 輪詢後備
+- ✅ 智能切換
+- ✅ 優先級過濾
+
+### 3. 整合測試
+
+**端到端測試**：
+
+1. 感測器讀數超標 → 後端創建警報 → WebSocket 推送 → 前端顯示 Toast
+2. 警報 severity 升級 → 後端更新警報 → WebSocket 推送 → 前端更新 Toast
+3. 警報解決 → 後端更新狀態 → WebSocket 推送 → 前端移除 Toast
+
+**性能測試**：
+
+- ✅ 規則緩存效果
+- ✅ 增量查詢效果
+- ✅ 防抖機制效果
+- ✅ Toast 數量限制效果
 
 ---
 
 ## 總結
 
-警報系統通過統一使用後端規則、實施完整的 Toast 更新機制和優化代碼結構，實現了前後端一致性、動態配置和良好的用戶體驗。系統現在更加穩定、一致和易於維護。
+### 系統優勢
+
+1. **前後端一致**：使用相同的規則，確保顯示狀態與實際警報記錄一致
+2. **實時性**：WebSocket 優先，輪詢後備，確保即時通知
+3. **性能優化**：規則緩存、增量查詢、防抖機制
+4. **用戶體驗**：智能去重、優先級管理、詳細訊息格式
+5. **可維護性**：模組化設計、清晰的數據流、完整的文檔
+
+### 未來改進方向
+
+1. **規則管理界面**：提供 UI 界面管理警報規則
+2. **警報統計**：提供警報統計和分析功能
+3. **通知渠道**：支持郵件、短信等通知渠道
+4. **規則模板**：提供規則模板，簡化配置
 
 ---
 

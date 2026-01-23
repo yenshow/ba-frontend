@@ -5,7 +5,7 @@
 			<!-- 左側：詳細工地資訊（主要內容 - 大） -->
 			<section class="relative flex-[1.2] 2xl:flex-[1.3]" ref="leftSectionRef">
 				<div
-					class="relative flex flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 2xl:p-6"
+					class="relative flex flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 2xl:p-6 min-h-[664px] 2xl:min-h-[848px]"
 				>
 					<!-- 位置標題與地點選擇 -->
 					<div
@@ -33,7 +33,7 @@
 
 					<!-- 左側內容：分為左右兩區塊 -->
 					<template v-if="selectedLocation">
-						<div class="mt-12 flex">
+						<div class="mt-16 flex">
 							<!-- 左側-左：統計 + 記錄表 -->
 							<div class="flex-1">
 							<LocationStatsPanel

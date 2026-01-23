@@ -178,8 +178,8 @@
 			@refresh="
 				() => {
 					// 設備型號變更後，刷新設備列表和設備型號選擇
-					if (activeTab.value) {
-						load({ typeCode: activeTab.value, order: dateSortOrder.value });
+					if (activeTab) {
+						load({ typeCode: activeTab, order: dateSortOrder });
 					}
 					refreshDeviceTypes = !refreshDeviceTypes; // 觸發 DeviceDialog 刷新設備型號列表
 				}
@@ -288,15 +288,18 @@ const {
 	nextPage,
 	prevPage,
 	resetPage
-} = useDataLoader<Device, { typeCode: DeviceTypeCode; order: "asc" | "desc" }>({
+} = useDataLoader<
+	Device,
+	{ typeCode: DeviceTypeCode; order: "asc" | "desc"; limit?: number; offset?: number }
+>({
 	fetcher: async params => {
 		if (!activeTab.value) {
 			return { items: [], total: 0 };
 		}
 		const result = await deviceApi.getDevices({
 			type_code: params.typeCode,
-			limit: params.limit as number,
-			offset: params.offset as number,
+			limit: params.limit ?? limit,
+			offset: params.offset ?? offset.value,
 			orderBy: "created_at",
 			order: params.order
 		});

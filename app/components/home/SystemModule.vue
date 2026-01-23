@@ -17,7 +17,7 @@
 		</button>
 
 		<!-- 模組網格：使用過渡動畫 -->
-		<div class="min-h-[400px] xl:min-h-[450px] 2xl:min-h-[500px]">
+		<div class="min-h-[400px] 2xl:min-h-[528px]">
 			<Transition name="fade" mode="out-in">
 				<div
 					v-if="!isLoading"

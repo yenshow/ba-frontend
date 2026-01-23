@@ -17,25 +17,30 @@
 
 		<!-- 圖表區域 -->
 		<div ref="chartContainer" class="relative h-24 w-full">
-			<div
-				v-if="isLoading"
-				class="absolute inset-0 flex items-center justify-center rounded-lg bg-white/10"
-			>
-				<span class="text-white/50">載入中...</span>
-			</div>
-			<div
-				v-else-if="error"
-				class="absolute inset-0 flex items-center justify-center rounded-lg bg-white/10"
-			>
-				<span class="text-red-400">{{ error }}</span>
-			</div>
-			<div
-				v-else-if="!chartData || chartData.labels.length === 0"
-				class="absolute inset-0 flex items-center justify-center rounded-lg bg-white/10"
-			>
-				<span class="text-white/50">尚無資料</span>
-			</div>
-			<canvas v-else ref="chartCanvas" class="h-full w-full"></canvas>
+			<Transition name="fade" mode="out-in">
+				<div
+					v-if="isLoading"
+					key="loading"
+					class="absolute inset-0 flex items-center justify-center rounded-lg bg-white/10"
+				>
+					<span class="text-white/50">載入中...</span>
+				</div>
+				<div
+					v-else-if="error"
+					key="error"
+					class="absolute inset-0 flex items-center justify-center rounded-lg bg-white/10"
+				>
+					<span class="text-red-400">{{ error }}</span>
+				</div>
+				<div
+					v-else-if="!chartData || chartData.labels.length === 0"
+					key="no-data"
+					class="absolute inset-0 flex items-center justify-center rounded-lg bg-white/10"
+				>
+					<span class="text-white/50">尚無資料</span>
+				</div>
+				<canvas v-else ref="chartCanvas" key="chart" class="absolute inset-0 h-full w-full"></canvas>
+			</Transition>
 		</div>
 		<div class="text-xs tracking-widest text-white">{{ chartTitle }}</div>
 	</div>
@@ -464,3 +469,20 @@ onUnmounted(() => {
 	}
 });
 </script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+	transition: opacity 0.3s ease-in-out;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+	opacity: 0;
+}
+
+.fade-enter-to,
+.fade-leave-from {
+	opacity: 1;
+}
+</style>
