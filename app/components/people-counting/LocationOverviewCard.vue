@@ -15,34 +15,27 @@
 				<h3 class="text-base text-white 2xl:text-lg">{{ location.name }}</h3>
 			</div>
 
-			<div class="flex items-center gap-4 py-2">
-				<!-- 狀態圓形儀表 -->
-				<div class="relative flex flex-col items-center justify-center">
-					<div class="flex items-center justify-center h-24 w-24 rounded-full 2xl:h-32 2xl:w-32">
-						<img
-							src="/people-counting/status-indicator-green.svg"
-							alt="進場"
-							class="h-full w-full object-contain"
-						/>
-					</div>
-
-					<div class="my-2 text-sm text-white 2xl:text-base">
-						狀態：正常
-					</div>
-				</div>
-
-				<!-- 進/出場數字 -->
-				<div class="flex min-w-[120px] flex-col gap-3 2xl:min-w-[140px] text-white border-r-2 border-white/50 pr-4">
-					<div class=" bg-white/10 p-2 flex flex-col items-center justify-center text-center gap-1">
-						<div class="text-sm 2xl:text-base">進場人數</div>
-						<div class="mt-0.5 text-xl font-bold  2xl:text-2xl bg-black/20 w-[100px]">
+			<div class="flex items-center gap-8 py-2">
+				<!-- 三種人數統計 -->
+				<div class="flex min-w-[140px] flex-col gap-3 2xl:min-w-[160px] text-white border-r-2 border-white/50 pr-8">
+					<div class="flex items-center justify-center gap-3 bg-white/20 p-2">
+						<div class="text-sm 2xl:text-base font-semibold">進場人數</div>
+						<div class="text-xl 2xl:text-2xl bg-black/20 w-[64px] 2xl:w-[100px] text-center">
 							{{ location.entryCount ?? 0 }}
 						</div>
 					</div>
-					<div class=" bg-white/10 p-2 flex flex-col items-center justify-center text-center gap-1">
-						<div class="text-sm 2xl:text-base">出場人數</div>
-						<div class="mt-0.5 text-xl font-bold  2xl:text-2xl bg-black/20 w-[100px]">
+
+					<div class="flex items-center justify-center gap-3 bg-white/20 p-2">
+						<div class="text-sm 2xl:text-base font-semibold">出場人數</div>
+						<div class="text-xl 2xl:text-2xl bg-black/20 w-[64px] 2xl:w-[100px] text-center">
 							{{ location.exitCount ?? 0 }}
+						</div>
+					</div>
+
+					<div class="flex items-center justify-center gap-3 bg-white/20 p-2">
+						<div class="text-sm 2xl:text-base font-semibold">在場人數</div>
+						<div class="text-xl 2xl:text-2xl bg-black/20 w-[64px] 2xl:w-[100px] text-center">
+							{{ currentCount }}
 						</div>
 					</div>
 				</div>
@@ -52,7 +45,7 @@
 					<div
 						v-for="(unit, index) in displayUnits"
 						:key="unit ? unit.id : `empty-${index}`"
-						class="flex items-center justify-center p-2 text-center min-h-[48px] min-w-[64px] transition-all"
+						class="flex items-center justify-center p-2 text-center min-h-[36px] min-w-[64px] transition-all"
 						:class="{
 							'bg-white/20': unit && (unit.currentCount || 0) > 0,
 							'bg-black/20': !unit || (unit.currentCount || 0) === 0,
@@ -61,7 +54,7 @@
 						}"
 						:title="unit ? unit.name : ''"
 					>
-						<span v-if="unit" class="text-[11px] font-semibold text-white line-clamp-2 2xl:text-xs">
+						<span v-if="unit" class="font-semibold text-white line-clamp-2 text-xs">
 							{{ unit.name }}
 						</span>
 					</div>
@@ -87,6 +80,12 @@ defineEmits<{
 }>();
 
 const regionText = computed(() => location.value.overviewZoneName || "未分類");
+
+// 計算在場人數：所有單位的 currentCount 總和
+const currentCount = computed(() => {
+	if (!location.value.units) return 0;
+	return location.value.units.reduce((sum, unit) => sum + (unit.currentCount || 0), 0);
+});
 
 const TOTAL_GRID_CELLS = 12; // 3x4 網格
 

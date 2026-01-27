@@ -340,7 +340,7 @@ const resetForm = () => {
 };
 
 // 參數類型選項（用於 FilterDropdown）
-const parameterTypeOptions = [
+const parameterTypeOptions: Array<{ value: string; label: string }> = [
 	{ value: "pm25", label: "PM2.5" },
 	{ value: "pm10", label: "PM10" },
 	{ value: "tvoc", label: "TVOC" },
@@ -350,7 +350,7 @@ const parameterTypeOptions = [
 	{ value: "co2", label: "CO2" },
 	{ value: "noise", label: "噪音值" },
 	{ value: "wind", label: "風速" }
-] as const;
+];
 
 // 新增參數配置
 const addSensorParameter = () => {

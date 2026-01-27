@@ -51,13 +51,13 @@
 		</div>
 
 		<!-- Metrics List -->
-		<div class="flex w-full flex-col space-y-4 xl:space-y-5 2xl:space-y-6">
+		<div class="flex w-full flex-col space-y-4 2xl:space-y-6">
 			<div
 				v-for="(metric, index) in data.metrics"
 				:key="index"
 				class="flex items-center space-x-2 2xl:space-x-4"
 			>
-				<div class="h-16 w-16 xl:h-14 xl:w-14 2xl:h-16 2xl:w-16">
+				<div class="h-14 w-14 2xl:h-16 2xl:w-16">
 					<NuxtImg
 						:src="getMetricIcon(metric.icon)"
 						:alt="metric.label"

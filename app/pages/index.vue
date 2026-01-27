@@ -1,22 +1,22 @@
 <template>
 	<!-- Main Content -->
-	<div class="grid grid-cols-1 gap-4 xl:grid-cols-3 2xl:gap-8">
+	<div class="grid grid-cols-3 gap-6 2xl:gap-8">
 		<!-- Left Column -->
-		<div class="col-span-2 space-y-4 2xl:space-y-8">
+		<div class="col-span-2 space-y-6 2xl:space-y-8">
 			<!-- Data Cards Section -->
 			<div class="overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30">
-				<div class="grid h-full grid-cols-1 xl:grid-cols-12">
+				<div class="grid h-full grid-cols-12">
 					<!-- AQI Card -->
-					<AQICard class="col-span-1 xl:col-span-7" :aqi="aqiData" />
+					<AQICard class="col-span-7" :aqi="aqiData" />
 
 					<!-- Environmental Card -->
-					<EnvironmentCard class="col-span-1 xl:col-span-5" :data="environmentData" />
+					<EnvironmentCard class="col-span-5" :data="environmentData" />
 				</div>
 			</div>
 
 			<!-- System Modules Section -->
 			<div
-				class="overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 px-8 xl:px-12 2xl:px-24"
+				class="overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 px-12 2xl:px-24"
 			>
 				<SystemModule />
 			</div>

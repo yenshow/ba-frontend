@@ -32,7 +32,7 @@
 				>
 					<div class="text-center text-white">
 						<div class="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-b-2 border-white"></div>
-						<p class="text-sm xl:text-base">正在啟動串流...</p>
+						<p class="text-sm 2xl:text-base">正在啟動串流...</p>
 					</div>
 				</div>
 
@@ -55,11 +55,11 @@
 								d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
 							/>
 						</svg>
-						<p class="text-sm text-gray-400 xl:text-base">{{ getStatusMessage(view.deviceId) }}</p>
+						<p class="text-sm text-gray-400 2xl:text-base">{{ getStatusMessage(view.deviceId) }}</p>
 						<button
 							v-if="getCamera(view.deviceId)?.status === 'active'"
 							@click.stop="handleStartStream(view.deviceId)"
-							class="mt-2 rounded bg-blue-500 px-3 py-1 text-xs text-white hover:bg-blue-600 xl:text-sm 2xl:text-base"
+							class="mt-2 rounded bg-blue-500 px-3 py-1 text-white hover:bg-blue-600 text-sm 2xl:text-base"
 						>
 							啟動串流
 						</button>
@@ -72,13 +72,13 @@
 					class="absolute inset-0 flex items-center justify-center bg-gray-900"
 				>
 					<div class="text-center text-white">
-						<p class="text-sm text-gray-400 xl:text-base">測試串流載入中...</p>
+						<p class="text-sm text-gray-400 2xl:text-base">測試串流載入中...</p>
 					</div>
 				</div>
 
 				<!-- 設備名稱覆蓋層 -->
 				<div
-					class="absolute left-0 top-0 z-20 max-w-[60%] overflow-hidden text-ellipsis whitespace-nowrap rounded-br bg-black/60 px-2 py-1 text-xs font-medium text-white backdrop-blur-sm xl:text-sm 2xl:text-base"
+					class="absolute left-0 top-0 z-20 max-w-[60%] overflow-hidden text-ellipsis whitespace-nowrap rounded-br bg-black/60 px-2 py-1 text-xs font-medium text-white 2xl:text-base"
 				>
 					{{ getCameraName(view.deviceId, view) }}
 				</div>
@@ -89,14 +89,14 @@
 					<button
 						v-if="!view.isTestStream && getStreamUrl(view.deviceId)"
 						@click.stop="handleStopStream(view.deviceId)"
-						class="shrink-0 whitespace-nowrap rounded bg-red-500/80 px-1.5 py-0.5 text-[10px] text-white transition-colors hover:bg-red-600 xl:px-2 xl:py-1 xl:text-xs"
+						class="shrink-0 whitespace-nowrap rounded bg-red-500/80 px-1.5 py-0.5 text-white transition-colors hover:bg-red-600 text-xs 2xl:px-2 2xl:py-1 2xl:text-xs"
 						title="停止串流"
 					>
 						停止
 					</button>
 					<button
 						@click.stop="$emit('remove', view.deviceId)"
-						class="shrink-0 whitespace-nowrap rounded bg-gray-500/80 px-1.5 py-0.5 text-[10px] text-white transition-colors hover:bg-gray-600 xl:px-2 xl:py-1 xl:text-xs"
+						class="shrink-0 whitespace-nowrap rounded bg-gray-500/80 px-1.5 py-0.5 text-white transition-colors hover:bg-gray-600 text-xs 2xl:px-2 2xl:py-1 2xl:text-xs"
 						title="移除畫面"
 					>
 						移除
@@ -110,7 +110,7 @@
 				:key="`empty-${index}`"
 				class="flex aspect-video items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-800"
 			>
-				<p class="text-sm text-gray-400 xl:text-base dark:text-gray-500">空位</p>
+				<p class="text-sm text-gray-400 2xl:text-base dark:text-gray-500">空位</p>
 			</div>
 		</div>
 	</div>
@@ -122,8 +122,8 @@ import type { SurveillanceCamera, MonitorView, GridLayout } from "~/types/survei
 import { useStreamStatus } from "~/composables/monitoring/useStreamStatus";
 
 interface Props {
-	cameras: SurveillanceCamera[];
-	views: MonitorView[];
+	cameras: readonly SurveillanceCamera[];
+	views: readonly MonitorView[];
 	layout: GridLayout;
 }
 

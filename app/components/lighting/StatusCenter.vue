@@ -1,12 +1,12 @@
 <template>
 	<div
-		class="relative h-full space-y-4 overflow-hidden overflow-y-auto rounded-2xl border-2 border-white/80 bg-white/30 px-2 py-4 xl:space-y-6 xl:px-3 xl:py-6 2xl:space-y-8 2xl:px-4 2xl:py-8"
+		class="relative h-full overflow-hidden overflow-y-auto rounded-2xl border-2 border-white/80 bg-white/30 space-y-6 px-3 py-6 2xl:space-y-8 2xl:px-4 2xl:py-8"
 	>
-		<h3 class="ms-[12px] text-center text-xl tracking-[12px] text-white lg:text-2xl xl:text-3xl">
+		<h3 class="ms-[12px] text-center text-2xl tracking-[12px] text-white 2xl:text-3xl">
 			狀態中心
 		</h3>
 		<!-- 區域區塊 -->
-		<div v-for="zone in displayedZones" :key="zone.id" class="space-y-3 xl:space-y-4">
+		<div v-for="zone in displayedZones" :key="zone.id" class="space-y-3 2xl:space-y-4">
 			<!-- 區域標題 -->
 			<div class="flex items-center gap-3">
 				<button
@@ -19,7 +19,7 @@
 							: 'bg-transparent text-white'
 					]"
 				>
-					<h4 class="p-2 text-lg font-semibold tracking-wider xl:text-xl 2xl:text-2xl w-[48px]">
+					<h4 class="p-2 font-semibold tracking-wider text-xl 2xl:text-2xl w-[48px]">
 						{{ zone.name }}
 					</h4>
 				</button>
@@ -27,12 +27,12 @@
 				<!-- 該區域的地點（點位）- 兩列布局 -->
 				<div
 					v-if="getZoneLocations(zone).length > 0"
-					class="grid grid-cols-2 gap-x-2 gap-y-4 xl:gap-y-5 2xl:gap-y-6"
+					class="grid grid-cols-2 gap-x-2 gap-y-4 2xl:gap-y-6"
 				>
 					<div
 						v-for="(location, locationIndex) in getZoneLocations(zone)"
 						:key="getLocationId(zone, location, locationIndex)"
-						class="flex items-center rounded-xl border-2 border-white py-2 pe-2 xl:py-3 xl:pe-3 2xl:py-4 2xl:pe-4"
+						class="flex items-center rounded-xl border-2 border-white py-3 pe-3 2xl:py-4 2xl:pe-4"
 					>
 						<!-- 左側圖示 -->
 						<div>
@@ -48,7 +48,7 @@
 						<!-- 右側內容區域 -->
 						<div class="flex flex-col gap-2">
 							<!-- 名稱 -->
-							<h4 class="whitespace-nowrap text-lg text-white xl:text-xl 2xl:text-2xl ">{{ location.name }}</h4>
+							<h4 class="whitespace-nowrap text-white text-xl 2xl:text-2xl ">{{ location.name }}</h4>
 							<div class="flex items-center gap-2">
 								<div class="space-y-2">
 									<!-- 運轉中標籤 -->

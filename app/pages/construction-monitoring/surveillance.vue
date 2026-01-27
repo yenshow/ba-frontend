@@ -1,12 +1,12 @@
 <template>
 	<div>
 		<!-- 影像監視系統頁面內容 - 參考照明系統排版 -->
-		<div class="flex justify-center gap-4 xl:gap-6 2xl:gap-8">
+		<div class="flex justify-center gap-6 2xl:gap-8">
 			<!-- 左側：監控畫面（主要內容 - 大） -->
 			<section class="relative flex-[1.2] 2xl:flex-[1.3]">
 				<div
 					ref="leftSectionRef"
-					class="flex flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 xl:p-6 2xl:p-8"
+					class="flex flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-6 2xl:p-8"
 				>
 					<!-- 控制面板 -->
 					<div class="mb-4">
@@ -43,8 +43,8 @@
 							<!-- 監控網格 -->
 							<div v-else-if="monitorViews.length > 0" key="grid">
 								<SurveillanceCameraGrid
-									:cameras="cameras as SurveillanceCamera[]"
-									:views="monitorViews as MonitorView[]"
+									:cameras="cameras"
+									:views="monitorViews"
 									:layout="gridLayout"
 									@start-stream="handleStartStream"
 									@stop-stream="handleStopStream"
@@ -72,8 +72,8 @@
 											d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
 										/>
 									</svg>
-									<p class="text-xl font-medium text-white/90 xl:text-2xl 2xl:text-3xl">尚未選擇攝影機</p>
-									<p class="mt-2 text-sm text-white/70 xl:text-base">
+									<p class="text-white/90 text-2xl 2xl:text-3xl">尚未選擇攝影機</p>
+									<p class="mt-2 text-base text-white/70 2xl:text-lg">
 										請從右側列表點選攝影機以加入到監控畫面
 									</p>
 								</div>
@@ -98,22 +98,12 @@
 					<Transition name="fade">
 						<div v-if="!isSidebarCollapsed" key="title" class="mb-4 border-b border-white/30 px-4 pb-4">
 							<div class="flex items-center justify-center">
-								<h2 class="text-xl font-semibold text-white xl:text-2xl 2xl:text-3xl">攝影機列表</h2>
+								<h2 class="font-semibold text-white text-2xl 2xl:text-3xl">攝影機列表</h2>
 								<span
-									class="ml-2 rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-medium text-white backdrop-blur-sm xl:text-sm"
+									class="ml-2 rounded-full bg-white/20 px-2.5 py-0.5 text-base font-medium text-white backdrop-blur-sm 2xl:text-lg"
 								>
 									{{ cameras.length }}
 								</span>
-							</div>
-
-							<!-- 搜尋框 -->
-							<div class="mt-4">
-								<input
-									v-model="searchQuery"
-									type="text"
-									placeholder="搜尋攝影機..."
-									class="w-full rounded-lg border-2 border-white/30 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/50 backdrop-blur-sm transition-all focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 xl:text-base"
-								/>
 							</div>
 						</div>
 					</Transition>
@@ -124,7 +114,7 @@
 						:title="isSidebarCollapsed ? '展開列表' : '收縮列表'"
 					>
 						<svg
-							class="h-5 w-5 xl:h-6 xl:w-6 2xl:h-7 2xl:w-7"
+							class="h-6 w-6 2xl:h-7 2xl:w-7"
 							:class="{ 'rotate-180': isSidebarCollapsed }"
 							fill="none"
 							stroke="currentColor"
@@ -144,13 +134,13 @@
 							<!-- 攝影機卡片列表 -->
 							<div class="space-y-3">
 								<div
-									v-if="filteredCameras.length === 0"
+									v-if="cameras.length === 0"
 									class="h-full py-8 text-center text-sm text-white/60 xl:text-base"
 								>
-									沒有找到攝影機
+									沒有攝影機
 								</div>
 								<SurveillanceCameraCard
-									v-for="camera in filteredCameras"
+									v-for="camera in cameras"
 									:key="camera.id"
 									:camera="camera"
 									:is-selected="selectedCameraIds.includes(camera.id)"
@@ -356,7 +346,6 @@ const initLeftSectionObserver = () => {
 
 // 狀態管理（使用統一的串流狀態管理）
 const loadError = ref<string | null>(null);
-const searchQuery = ref("");
 
 // 從統一的狀態管理獲取狀態（只讀）
 const cameras = computed(() => streamStatus.cameras.value);
@@ -387,19 +376,6 @@ const testHlsUrl = computed(() => testStream.value?.hlsUrl || "");
 const testStreamStatus = computed(() => testStream.value?.status || "");
 
 // 計算屬性
-const filteredCameras = computed(() => {
-	if (!searchQuery.value.trim()) {
-		return cameras.value;
-	}
-	const query = searchQuery.value.toLowerCase();
-	return cameras.value.filter(
-		camera =>
-			camera.name.toLowerCase().includes(query) ||
-			camera.config.ip_address.toLowerCase().includes(query) ||
-			(camera.description && camera.description.toLowerCase().includes(query))
-	);
-});
-
 const streamingCamerasCount = computed(() => {
 	return cameras.value.filter(camera => camera.isStreaming).length;
 });

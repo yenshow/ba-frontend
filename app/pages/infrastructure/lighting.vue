@@ -1,19 +1,19 @@
 <template>
 	<div>
 		<!-- 照明系統頁面內容 - 自定義排版 -->
-		<div class="flex justify-center gap-4 xl:gap-6 2xl:gap-8">
+		<div class="flex justify-center gap-6 2xl:gap-8">
 			<!-- 主要內容 -->
 			<section class="relative flex-[1.2] 2xl:flex-[1.3]" ref="leftSectionRef">
 				<div
-					class="flex overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 xl:p-6 2xl:p-8"
+					class="flex overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-6 2xl:p-8"
 				>
 					<!-- 樓層選擇 -->
 					<div class="z-10 flex flex-col justify-between py-4 text-center text-white">
 						<div class="space-y-4">
 							<!-- 樓層顯示 -->
-							<div class="w-[60px] py-4 2xl:w-[100px]">
+							<div class="py-4">
 								<span
-									class="inline-flex text-nowrap border-b-2 border-white/70 pb-1 text-2xl tracking-widest xl:text-3xl 2xl:text-5xl"
+									class="inline-flex text-nowrap border-b-2 border-white/70 pb-1 tracking-widest text-3xl 2xl:text-5xl"
 								>
 									{{ selectedZoneName }}
 								</span>
@@ -25,7 +25,7 @@
 									type="button"
 									@click="handleOpenZoneDialog"
 									:class="[
-										'whitespace-nowrap rounded-2xl p-3 text-xs font-light text-white transition-all 2xl:text-lg',
+										'whitespace-nowrap rounded-2xl p-3 text-base font-light text-white transition-all 2xl:text-lg',
 										'border-2 border-white/30 bg-transparent hover:bg-white/10'
 									]"
 									title="樓層管理"
@@ -41,7 +41,7 @@
 										type="button"
 										@click="handleToggleEditMode"
 										:class="[
-											'whitespace-nowrap rounded-2xl p-3 text-xs font-light text-white transition-all 2xl:text-lg',
+											'whitespace-nowrap rounded-2xl p-3 text-base font-light text-white transition-all 2xl:text-lg',
 											isEditMode
 												? 'border-2 border-white bg-white/10'
 												: 'border-2 border-white/30 bg-transparent'
@@ -1438,21 +1438,19 @@ const handleDeleteZone = async (zoneId: string) => {
 		lightingApi.deleteZone,
 		{
 			selectedZoneRef: selectedZone,
-			// 系統特定的刪除選項（方案一：只刪除該系統的地點）
 			systemType: "lighting",
-			getFullZoneApiCall: async (id: string) => {
-				const response = await locationApi.getZone(id);
-				return { zone: response.zone };
-			}, // 取得完整區域資料（不帶 systemType 過濾）
+			getFullZoneApiCall: (id: string) => locationApi.getZone(id),
 			updateZoneApiCall: async (id: string, data: { locations: UnifiedZone["locations"] }) => {
 				const response = await locationApi.updateZone(id, { locations: data.locations });
 				const lightingZone = backendToLightingZone(response.zone);
-				// 確保返回的 zone 有 id
 				return {
 					merged: response.merged,
 					message: response.message,
 					zone: { ...lightingZone, id: lightingZone.id || id } as LightingZone & { id: string }
 				};
+			},
+			onAfterDelete: async () => {
+				await loadZonesFromAPI();
 			}
 		}
 	);

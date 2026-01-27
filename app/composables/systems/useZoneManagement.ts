@@ -11,6 +11,46 @@ export function useZoneManagement<T extends { id?: string; name: string; locatio
 	const { handleError } = useErrorHandler();
 
 	/**
+	 * 重置選中區域狀態（共用邏輯）
+	 */
+	const resetSelectedZone = (
+		zoneId: string,
+		zonesRef: Ref<T[]>,
+		selectedZoneRef?: Ref<string>,
+		findEarliestZone?: (zones: T[]) => T | null
+	) => {
+		if (!selectedZoneRef || selectedZoneRef.value !== zoneId) return;
+
+		if (zonesRef.value.length > 0) {
+			const nextZone = findEarliestZone
+				? findEarliestZone(zonesRef.value)
+				: zonesRef.value[0];
+			selectedZoneRef.value = nextZone?.id || nextZone?.name || "";
+		} else {
+			selectedZoneRef.value = "";
+		}
+	};
+
+	/**
+	 * 重置選中地點狀態（共用邏輯）
+	 */
+	const resetSelectedLocation = (
+		zonesRef: Ref<T[]>,
+		selectedLocationRef?: Ref<string>,
+		getLocationId?: (location: any) => string
+	) => {
+		if (!selectedLocationRef || !getLocationId) return;
+
+		const firstAvailableLocation = zonesRef.value
+			.flatMap(zone => zone.locations || [])
+			.find(loc => getLocationId(loc));
+
+		selectedLocationRef.value = firstAvailableLocation
+			? getLocationId(firstAvailableLocation)
+			: "";
+	};
+
+	/**
 	 * 處理刪除後的選中狀態和回調（統一邏輯）
 	 */
 	const handlePostDelete = async (
@@ -26,34 +66,21 @@ export function useZoneManagement<T extends { id?: string; name: string; locatio
 			reloadZones?: () => void | Promise<void>;
 		}
 	) => {
-		// 處理選中狀態
-		if (options?.selectedZoneRef && options.selectedZoneRef.value === zoneId) {
-			if (zonesRef.value.length > 0) {
-				const nextZone = options.findEarliestZone
-					? options.findEarliestZone(zonesRef.value)
-					: zonesRef.value[0];
-				options.selectedZoneRef.value = nextZone?.id || nextZone?.name || "";
-			} else {
-				options.selectedZoneRef.value = "";
-			}
-		}
+		// 重置選中區域
+		resetSelectedZone(zoneId, zonesRef, options?.selectedZoneRef, options?.findEarliestZone);
 
-		// 處理選中地點
+		// 重置選中地點
 		if (options?.selectedLocationRef && options?.getLocationId) {
-			if (
-				deletedZone.locations?.some(
-					loc => options.getLocationId!(loc) === options.selectedLocationRef!.value
-				)
-			) {
-				const firstAvailableLocation = zonesRef.value
-					.flatMap(zone => zone.locations || [])
-					.find(loc => options.getLocationId!(loc));
+			const deletedLocationId = deletedZone.locations?.find(
+				loc => options.getLocationId!(loc) === options.selectedLocationRef!.value
+			) ? options.selectedLocationRef.value : undefined;
 
-				if (firstAvailableLocation) {
-					options.selectedLocationRef.value = options.getLocationId(firstAvailableLocation);
-				} else {
-					options.selectedLocationRef.value = "";
-				}
+			if (deletedLocationId) {
+				resetSelectedLocation(
+					zonesRef,
+					options.selectedLocationRef,
+					options.getLocationId
+				);
 			}
 		}
 
@@ -182,38 +209,17 @@ export function useZoneManagement<T extends { id?: string; name: string; locatio
 				// 檢查區域是否只有當前系統使用
 				const isOnlyCurrentSystem = allSystemTypes.size === 1 && allSystemTypes.has(options.systemType);
 
-				// 如果區域只有當前系統使用，直接刪除整個區域
-				if (isOnlyCurrentSystem) {
-					await deleteApiCall(zoneId);
-
-					// 從本地資料移除
-					const index = zonesRef.value.findIndex(z => z.id === zoneId);
-					if (index > -1) {
-						const deletedZone = zonesRef.value[index];
-						zonesRef.value.splice(index, 1);
-						await handlePostDelete(zoneId, deletedZone, zonesRef, options);
-					}
-
-					toast.success("區域刪除成功");
-					return;
-				}
-
-				// 如果區域被其他系統使用，只刪除該系統的地點
-				// 過濾掉該系統，構建更新後的地點列表
-				// 同時移除那些過濾後沒有系統的地點
+				// 過濾掉該系統的地點，同時移除過濾後沒有系統的地點
 				const remainingLocations: UnifiedZone["locations"] = fullZone.locations
 					?.map(location => {
-						// 如果地點沒有任何系統，返回 null（稍後過濾掉）
 						if (!location.systems || location.systems.length === 0) {
 							return null;
 						}
 
-						// 過濾掉當前系統
 						const filteredSystems = location.systems.filter(
 							system => system.systemType !== options.systemType
 						);
 
-						// 如果過濾後沒有系統了，返回 null（稍後過濾掉）
 						if (filteredSystems.length === 0) {
 							return null;
 						}
@@ -225,8 +231,8 @@ export function useZoneManagement<T extends { id?: string; name: string; locatio
 					})
 					.filter((location): location is UnifiedLocation => location !== null) || [];
 
-				// 如果過濾後沒有地點了，刪除整個區域
-				if (remainingLocations.length === 0) {
+				// 如果區域只有當前系統使用，或過濾後沒有地點了，直接刪除整個區域
+				if (isOnlyCurrentSystem || remainingLocations.length === 0) {
 					await deleteApiCall(zoneId);
 
 					// 從本地資料移除
@@ -246,13 +252,16 @@ export function useZoneManagement<T extends { id?: string; name: string; locatio
 					locations: remainingLocations
 				});
 
-				// 從本地資料移除（需要重新載入以更新狀態）
+				// 從本地資料移除（該系統看不到此區域，後端會篩選掉）
 				const index = zonesRef.value.findIndex(z => z.id === zoneId);
 				if (index > -1) {
 					zonesRef.value.splice(index, 1);
 				}
 
-				// 處理選中地點（檢查是否有當前系統的地點被刪除）
+				// 重置選中區域（統一處理）
+				resetSelectedZone(zoneId, zonesRef, options.selectedZoneRef, options.findEarliestZone);
+
+				// 重置選中地點（如果被刪除的地點是當前選中的）
 				if (options?.selectedLocationRef && options?.getLocationId) {
 					const deletedLocation = fullZone.locations?.find(
 						loc =>
@@ -261,17 +270,15 @@ export function useZoneManagement<T extends { id?: string; name: string; locatio
 					);
 
 					if (deletedLocation) {
-						const firstAvailableLocation = zonesRef.value
-							.flatMap(zone => zone.locations || [])
-							.find(loc => options.getLocationId!(loc));
-
-						options.selectedLocationRef.value = firstAvailableLocation
-							? options.getLocationId(firstAvailableLocation)
-							: "";
+						resetSelectedLocation(
+							zonesRef,
+							options.selectedLocationRef,
+							options.getLocationId
+						);
 					}
 				}
 
-				// 執行額外的回調和重新載入
+				// 執行回調和重新載入（確保 UI 與後端同步）
 				if (options?.onAfterDelete) {
 					await options.onAfterDelete(fullZone as T);
 				}
@@ -309,6 +316,7 @@ export function useZoneManagement<T extends { id?: string; name: string; locatio
 
 		// 嘗試將 ID 轉換為數字進行比較（如果是數字 ID）
 		const numericZones = zones.filter(zone => {
+			if (!zone.id) return false;
 			const numId = Number(zone.id);
 			return !isNaN(numId) && isFinite(numId);
 		});
@@ -318,8 +326,14 @@ export function useZoneManagement<T extends { id?: string; name: string; locatio
 			return numericZones.sort((a, b) => Number(a.id) - Number(b.id))[0];
 		}
 
-		// 否則根據 ID 的字典序排序（小的在前）
-		return [...zones].sort((a, b) => a.id.localeCompare(b.id))[0];
+		// 否則根據 ID 的字典序排序（小的在前），過濾掉沒有 ID 的區域
+		const zonesWithId = zones.filter(zone => zone.id);
+		if (zonesWithId.length > 0) {
+			return [...zonesWithId].sort((a, b) => (a.id || "").localeCompare(b.id || ""))[0];
+		}
+
+		// 如果都沒有 ID，返回第一個
+		return zones[0];
 	};
 
 	/**

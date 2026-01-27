@@ -1,15 +1,15 @@
 <template>
 	<header
 		:class="[
-			'w-full border-b-[8px] xl:border-b-[12px] 2xl:border-b-[16px]',
+			'w-full border-b-[12px] 2xl:border-b-[16px]',
 			isDark ? 'border-[#007878] bg-[#003B45]' : 'border-[#00BAC2] bg-white'
 		]"
 	>
 		<div
-			class="flex h-[64px] items-end justify-between px-8 pb-2 xl:h-[88px] xl:px-12 xl:pb-3 2xl:h-[96px] 2xl:px-16 2xl:pb-4"
+			class="flex items-end justify-between h-[88px] px-12 pb-3 2xl:h-[96px] 2xl:px-16 2xl:pb-4"
 		>
 			<!-- Logo -->
-			<div class="h-[56px] xl:h-[64px] 2xl:h-[72px]">
+			<div class="h-[64px] 2xl:h-[72px]">
 				<img
 					src="/layout/yenshow-logo.svg"
 					alt="YENSHOW"
@@ -29,19 +29,19 @@
 			</div>
 
 			<!-- Right Icons -->
-			<div class="flex items-center space-x-4 xl:space-x-6 2xl:space-x-8">
+			<div class="flex items-center space-x-6 2xl:space-x-8">
 				<!-- 警示紀錄 -->
 				<button :class="['icon-button relative', { 'icon-button-active': isAlertLogActive }]">
 					<NuxtLink to="/core/alert-log">
 						<img
 							:src="isDark ? '/layout/alert-logo-white.png' : '/layout/alert-log.png'"
 							alt="警示紀錄"
-							class="h-8 w-8 xl:h-12 xl:w-12 2xl:h-14 2xl:w-14"
+							class="h-12 w-12 2xl:h-14 2xl:w-14"
 						/>
 						<!-- 未解決警報數量徽章 -->
 						<span
 							v-if="unresolvedAlertCount > 0"
-							class="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white xl:h-6 xl:w-6 xl:text-sm 2xl:h-7 2xl:w-7 2xl:text-base"
+							class="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-sm font-bold text-white 2xl:h-7 2xl:w-7 2xl:text-base"
 						>
 							{{ unresolvedAlertCount > 99 ? "99+" : unresolvedAlertCount }}
 						</span>
@@ -54,7 +54,7 @@
 							src="/layout/devices.svg"
 							alt="設備管理"
 							:class="[
-								'h-8 w-8 xl:h-12 xl:w-12 2xl:h-14 2xl:w-14',
+								'h-12 w-12 2xl:h-14 2xl:w-14',
 								isDark ? 'icon-svg-dark' : 'icon-svg-light'
 							]"
 						/>
@@ -67,7 +67,7 @@
 							src="/layout/map.svg"
 							alt="全區點位圖"
 							:class="[
-								'h-8 w-8 xl:h-12 xl:w-12 2xl:h-14 2xl:w-14',
+								'h-12 w-12 2xl:h-14 2xl:w-14',
 								isDark ? 'icon-svg-dark' : 'icon-svg-light'
 							]"
 						/>
@@ -83,7 +83,7 @@
 							src="/layout/more-functions.svg"
 							alt="更多功能"
 							:class="[
-								'h-8 w-8 xl:h-12 xl:w-12 2xl:h-14 2xl:w-14',
+								'h-12 w-12 2xl:h-14 2xl:w-14',
 								isDark ? 'icon-svg-dark' : 'icon-svg-light'
 							]"
 						/>
@@ -147,7 +147,7 @@
 						</div>
 					</Transition>
 				</div>
-				<div class="h-8 w-[2px] xl:h-12 2xl:h-14" :class="isDark ? 'bg-white/30' : 'bg-black/30'"></div>
+				<div class="h-12 w-[2px] 2xl:h-14" :class="isDark ? 'bg-white/30' : 'bg-black/30'"></div>
 
 				<!-- 用戶資訊 -->
 				<div class="relative flex items-center" ref="userMenuRef">
@@ -159,7 +159,7 @@
 							src="/layout/user-info.svg"
 							alt="用戶資訊"
 							:class="[
-								'h-8 w-8 xl:h-12 xl:w-12 2xl:h-14 2xl:w-14',
+								'h-12 w-12 2xl:h-14 2xl:w-14',
 								isDark ? 'icon-svg-dark' : 'icon-svg-light'
 							]"
 						/>
@@ -274,7 +274,7 @@
 							src="/layout/home.svg"
 							alt="首頁"
 							:class="[
-								'h-8 w-8 xl:h-12 xl:w-12 2xl:h-14 2xl:w-14',
+								'h-12 w-12 2xl:h-14 2xl:w-14',
 								isDark ? 'icon-svg-dark' : 'icon-svg-light'
 							]"
 						/>

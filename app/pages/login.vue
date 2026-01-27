@@ -2,20 +2,17 @@
 	<div class="bg-login-gradient flex min-h-screen items-center justify-center">
 		<!-- Main Container -->
 		<div class="container">
-			<div class="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 xl:grid-cols-3">
+			<div class="flex items-center justify-center">
 				<!-- Left Side - Hero Illustration -->
-				<div
-					class="col-span-1 hidden -translate-y-16 flex-col items-center justify-center space-y-8 lg:flex xl:col-span-2"
-				>
+				<div>
 					<!-- Hero Image/Illustration -->
 					<NuxtImg
 						src="/login_heroPic.png"
 						alt="BA System"
-						class="image-blur-load h-full w-full object-contain"
+						class="image-blur-load object-contain h-[840px]"
 						:class="{ 'image-loaded': isHeroLoaded }"
-						width="800"
-						height="750"
-						sizes="lg:800px"
+						width="full"
+						height="full"
 						loading="eager"
 						@load="isHeroLoaded = true"
 					/>
@@ -178,11 +175,7 @@
 						</form>
 
 						<!-- Divider -->
-						<div class="my-8 flex items-center">
-							<div class="h-px flex-1 bg-white/10"></div>
-							<span class="text-md px-4 text-white/40">或</span>
-							<div class="h-px flex-1 bg-white/10"></div>
-						</div>
+						<div class="my-8 h-px bg-white/10"></div>
 
 						<!-- Contact Link -->
 						<div class="text-center">
@@ -197,8 +190,8 @@
 
 					<!-- Version Info -->
 					<div class="mt-8 text-center text-white/40">
-						<p class="text-xl">BA System v1.2.0</p>
-						<p class="text-sm">© 2025 YENSHOW Technology</p>
+						<p class="text-xl">BA System v1.6.0</p>
+						<p class="text-sm">© 2026 YENSHOW Technology</p>
 					</div>
 				</div>
 			</div>

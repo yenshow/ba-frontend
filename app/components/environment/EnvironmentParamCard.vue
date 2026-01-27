@@ -35,7 +35,7 @@
 			<!-- 中間：參數標籤、數值和單位 -->
 			<div class="flex flex-col justify-center">
 				<!-- 參數標籤 -->
-				<div class="mb-2 text-base font-medium tracking-widest text-white 2xl:text-lg">{{ label }}</div>
+				<div class="mb-2 font-medium tracking-widest text-white text-lg">{{ label }}</div>
 
 				<!-- 數值和單位 -->
 				<div class="flex items-baseline gap-2">
@@ -88,7 +88,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const displayValue = computed(() => {
-	if (props.value === null) return "—";
+	if (props.value === null) return "--";
 	return props.toFixedNumber(props.value, props.fractionDigits ?? 0);
 });
 

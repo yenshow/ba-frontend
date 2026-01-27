@@ -1,7 +1,7 @@
 <template>
 	<div class="space-y-6 2xl:space-y-8">
 		<div class="flex items-center justify-between">
-			<header class="flex flex-col gap-2">
+			<header class="flex flex-col gap-1 2xl:gap-2">
 				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">警示紀錄</h1>
 				<p class="text-base text-white/80 2xl:text-xl">查看與管理系統警示訊息</p>
 			</header>
@@ -59,8 +59,8 @@
 										d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
 									/>
 								</svg>
-								<p class="text-xl font-medium text-white/90 xl:text-2xl 2xl:text-3xl">目前沒有警示紀錄</p>
-								<p class="mt-2 text-sm text-white/70 xl:text-base">請調整篩選條件或稍後再查看</p>
+								<p class="font-medium text-white/90 text-2xl 2xl:text-3xl">目前沒有警示紀錄</p>
+								<p class="mt-2 text-sm text-white/70 2xl:text-base">請調整篩選條件或稍後再查看</p>
 							</div>
 						</div>
 
@@ -95,11 +95,11 @@
 
 										<!-- 設備資訊卡片 -->
 										<div class="mb-3 rounded-lg border border-white/10 bg-white/5 p-3 2xl:p-4">
-											<div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4 2xl:gap-4">
+											<div class="grid gap-3 grid-cols-4 2xl:gap-4">
 												<!-- 設備名稱 -->
 												<div class="flex items-start gap-2">
 													<svg
-														class="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-400 2xl:h-6 2xl:w-6"
+														class="mt-0.5 h-6 w-6 flex-shrink-0 text-blue-400"
 														fill="none"
 														stroke="currentColor"
 														viewBox="0 0 24 24"
@@ -112,10 +112,10 @@
 														/>
 													</svg>
 													<div class="min-w-0 flex-1">
-														<div class="text-xs text-white/60 2xl:text-sm">
+														<div class="text-sm text-white/60">
 															{{ getSourceLabel(alert.source) }}
 														</div>
-														<div class="mt-0.5 truncate text-sm font-semibold text-white 2xl:text-base">
+														<div class="mt-0.5 truncate text-base font-semibold text-white">
 															<span v-if="getZoneName(alert)">{{ getZoneName(alert) }} - </span>{{ getSourceDisplayName(alert) }}
 														</div>
 													</div>
@@ -124,7 +124,7 @@
 												<!-- 設備類型 -->
 												<div v-if="alert.device_type_name" class="flex items-start gap-2">
 													<svg
-														class="mt-0.5 h-5 w-5 flex-shrink-0 text-purple-400 2xl:h-6 2xl:w-6"
+														class="mt-0.5 h-6 w-6 flex-shrink-0 text-purple-400"
 														fill="none"
 														stroke="currentColor"
 														viewBox="0 0 24 24"
@@ -137,8 +137,8 @@
 														/>
 													</svg>
 													<div class="min-w-0 flex-1">
-														<div class="text-xs text-white/60 2xl:text-sm">類型</div>
-														<div class="mt-0.5 text-sm font-medium text-white 2xl:text-base">
+														<div class="text-sm text-white/60">類型</div>
+														<div class="mt-0.5 text-base font-medium text-white">
 															{{ alert.device_type_name }}
 														</div>
 													</div>
@@ -147,7 +147,7 @@
 												<!-- 創建時間 -->
 												<div class="flex items-start gap-2">
 													<svg
-														class="mt-0.5 h-5 w-5 flex-shrink-0 text-green-400 2xl:h-6 2xl:w-6"
+														class="mt-0.5 h-6 w-6 flex-shrink-0 text-green-400"
 														fill="none"
 														stroke="currentColor"
 														viewBox="0 0 24 24"
@@ -160,8 +160,8 @@
 														/>
 													</svg>
 													<div class="min-w-0 flex-1">
-														<div class="text-xs text-white/60 2xl:text-sm">創建時間</div>
-														<div class="mt-0.5 text-sm text-white 2xl:text-base">
+														<div class="text-sm text-white/60">創建時間</div>
+														<div class="mt-0.5 text-base text-white">
 															{{ formatDateTime(alert.created_at) }}
 														</div>
 													</div>
@@ -170,7 +170,7 @@
 												<!-- 更新時間 -->
 												<div class="flex items-start gap-2">
 													<svg
-														class="mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-400 2xl:h-6 2xl:w-6"
+														class="mt-0.5 h-6 w-6 flex-shrink-0 text-yellow-400"
 														fill="none"
 														stroke="currentColor"
 														viewBox="0 0 24 24"
@@ -183,8 +183,8 @@
 														/>
 													</svg>
 													<div class="min-w-0 flex-1">
-														<div class="text-xs text-white/60 2xl:text-sm">更新時間</div>
-														<div class="mt-0.5 text-sm text-white 2xl:text-base">
+														<div class="text-sm text-white/60">更新時間</div>
+														<div class="mt-0.5 text-base text-white">
 															{{ formatDateTime(alert.updated_at) }}
 														</div>
 													</div>
@@ -205,7 +205,7 @@
 											type="button"
 											@click="handleIgnore(alert)"
 											:disabled="isIgnoring"
-											class="rounded-lg bg-gray-500/80 px-3 py-1.5 text-xs text-white transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-sm"
+											class="rounded-lg bg-gray-500/80 px-3 py-1.5 text-base text-white transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
 											title="忽視此警報（僅限管理員）"
 										>
 											忽視
@@ -215,7 +215,7 @@
 											type="button"
 											@click="handleUnignore(alert)"
 											:disabled="isIgnoring"
-											class="rounded-lg bg-blue-500/80 px-3 py-1.5 text-xs text-white transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-sm"
+											class="rounded-lg bg-blue-500/80 px-3 py-1.5 text-base text-white transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
 											title="取消忽視此警報（僅限管理員）"
 										>
 											取消忽視
@@ -228,7 +228,7 @@
 										>
 											<div class="flex items-center gap-2">
 												<svg
-													class="h-4 w-4 flex-shrink-0 text-emerald-400 2xl:h-4 2xl:w-4"
+													class="h-6 w-6 flex-shrink-0 text-emerald-400"
 													fill="none"
 													stroke="currentColor"
 													viewBox="0 0 24 24"
@@ -241,14 +241,14 @@
 													/>
 												</svg>
 												<div class="min-w-0 flex-1 space-y-0.5">
-													<div class="text-xs font-medium text-emerald-300 2xl:text-sm">已解決</div>
-													<div v-if="alert.resolved_at" class="text-xs text-white/70 2xl:text-sm">
+													<div class="text-base font-medium text-emerald-300">已解決</div>
+													<div v-if="alert.resolved_at" class="text-base text-white/70">
 														{{ formatDateTime(alert.resolved_at) }}
 													</div>
-													<div v-if="alert.resolved_by_username" class="text-xs text-white/60 2xl:text-sm">
+													<div v-if="alert.resolved_by_username" class="text-base text-white/60">
 														解決者：{{ alert.resolved_by_username }}
 													</div>
-													<div v-else class="text-xs text-emerald-400 2xl:text-sm">系統自動解決</div>
+													<div v-else class="text-base text-emerald-400">系統自動解決</div>
 												</div>
 											</div>
 										</div>
@@ -260,7 +260,7 @@
 										>
 											<div class="flex items-center gap-2">
 												<svg
-													class="h-4 w-4 flex-shrink-0 text-gray-400 2xl:h-4 2xl:w-4"
+													class="h-6 w-6 flex-shrink-0 text-gray-400"
 													fill="none"
 													stroke="currentColor"
 													viewBox="0 0 24 24"
@@ -273,11 +273,11 @@
 													/>
 												</svg>
 												<div class="min-w-0 flex-1 space-y-0.5">
-													<div class="text-xs font-medium text-gray-300 2xl:text-sm">已忽視</div>
-													<div v-if="alert.ignored_at" class="text-xs text-white/70 2xl:text-sm">
+													<div class="text-base font-medium text-gray-300">已忽視</div>
+													<div v-if="alert.ignored_at" class="text-base text-white/70">
 														{{ formatDateTime(alert.ignored_at) }}
 													</div>
-													<div v-if="alert.ignored_by_username" class="text-xs text-white/60 2xl:text-sm">
+													<div v-if="alert.ignored_by_username" class="text-base text-white/60">
 														忽視者：{{ alert.ignored_by_username }}
 													</div>
 												</div>
@@ -695,7 +695,7 @@ const goToNextPage = () => {
 
 // Badge 基礎樣式類
 const badgeBaseClass =
-	"inline-block rounded-full px-3 py-1 text-xs font-semibold text-white 2xl:px-4 2xl:py-1.5 2xl:text-sm";
+	"inline-block rounded-full px-3 py-1 text-base font-semibold text-white 2xl:px-4 2xl:py-1.5";
 
 // 獲取來源顯示名稱
 const getSourceDisplayName = (alert: Alert): string =>

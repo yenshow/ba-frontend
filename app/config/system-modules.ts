@@ -162,7 +162,7 @@ export const systemModules: SystemModule[] = [
 	// ========== 維護管理系統（整合：機電維護 + 可靠度 + 設施管理）==========
 	{
 		id: 18,
-		name: "設備維護管理系統",
+		name: "設備維護系統",
 		icon: "maintenance",
 		route: "/maintenance/equipment",
 		category: "maintenance",

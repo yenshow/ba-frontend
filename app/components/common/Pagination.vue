@@ -1,5 +1,5 @@
 <template>
-	<div v-if="show" class="mt-6 flex items-center justify-between text-white/80 2xl:mt-6">
+	<div v-if="show" class="mt-6 flex items-center justify-between text-white/80">
 		<div class="text-sm 2xl:text-base">
 			顯示 {{ offset + 1 }}-{{ Math.min(offset + limit, total) }} / 共 {{ total }} 筆
 		</div>

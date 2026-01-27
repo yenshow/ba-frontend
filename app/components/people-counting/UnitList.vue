@@ -1,7 +1,7 @@
 <template>
 	<div class="space-y-4 min-h-[220px]">
 		<h3 class="font-semibold text-lg bg-white/20 text-white text-center 2xl:text-xl py-1">進場單位</h3>
-		<div class="grid grid-cols-4 gap-4">
+		<div class="grid grid-cols-4 gap-2 2xl:gap-4">
 			<div
 				v-for="unit in units"
 				:key="unit.id"

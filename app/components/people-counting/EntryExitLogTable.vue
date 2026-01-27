@@ -1,12 +1,12 @@
 <template>
 	<div v-if="logs.length === 0" class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center">
-		<p class="text-sm text-white/60 xl:text-base">尚無進出場記錄</p>
+		<p class="text-base text-white/60 2xl:text-lg">尚無進出場記錄</p>
 	</div>
 
 	<div v-else>
 		<table class="w-full border-b-2 border-r-2 border-l-2 border-white/20">
 			<thead class="bg-white/20">
-				<tr class="font-semibold text-white/80 text-center text-xs xl:text-sm">
+				<tr class="font-semibold text-white/80 text-center text-xs 2xl:text-sm">
 					<th class="p-2">
 						設備截圖
 					</th>	
@@ -34,7 +34,7 @@
 					class="border-b border-white/10 text-center text-white"
 				>
 					<td class="p-2">
-						<div class="relative h-12 w-12 overflow-hidden bg-white/10 xl:h-16 xl:w-16">
+						<div class="relative h-12 w-12 overflow-hidden bg-white/10 2xl:h-16 2xl:w-16">
 							<!-- 載入中 -->
 							<Transition name="fade">
 								<div
@@ -49,7 +49,7 @@
 							<!-- 圖片 -->
 							<Transition name="fade">
 								<img
-									v-if="imageUrls[log.id] && !imageLoadingStates[log.id]"
+									v-if="imageUrls[log.id] && !imageLoadingStates[log.id] && !imageErrorStates[log.id]"
 									key="image"
 									:src="imageUrls[log.id]"
 									:alt="`${log.personName || '未知'} 設備截圖`"
@@ -58,31 +58,42 @@
 								/>
 							</Transition>
 
-							<!-- 佔位符 -->
+							<!-- 佔位符 SVG -->
 							<Transition name="fade">
-								<img
-									v-if="!imageUrls[log.id] && !imageLoadingStates[log.id]"
-									key="placeholder"
-									src="/people-counting/no-photo-placeholder.png"
-									alt="無設備截圖"
-									class="absolute inset-0 h-full w-full object-cover"
-								/>
+								<div
+									v-if="(!imageUrls[log.id] || imageErrorStates[log.id]) && !imageLoadingStates[log.id]"
+									class="absolute inset-0 flex items-center justify-center"
+								>
+									<svg
+										class="h-20 w-20 text-white"
+										fill="currentColor"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+										/>
+									</svg>
+								</div>
 							</Transition>
 						</div>
 					</td>
-					<td class="p-2 text-sm xl:text-base">
+					<td class="p-2 text-sm 2xl:text-base">
 						{{ log.unit?.name || log.unitName || "-" }}
 					</td>
-					<td class="p-2 text-sm xl:text-base">
+					<td class="p-2 text-sm 2xl:text-base">
 						{{ log.employeeId || log.personnelId || "-" }}
 					</td>
-					<td class="p-2 text-sm xl:text-base">
+					<td class="p-2 text-sm 2xl:text-base">
 						{{ log.personName || "-" }}
 					</td>
 					<td class="p-2">
 						<span
 							:class="[
-								'rounded-full px-2 py-0.5 text-xs font-medium xl:text-sm',
+								'rounded-full px-2 py-0.5 text-xs font-medium 2xl:text-sm',
 								log.eventType === 'entry'
 									? 'bg-green-500/30 text-green-200'
 									: log.eventType === 'exit'
@@ -99,8 +110,11 @@
 							}}
 						</span>
 					</td>
-					<td class="p-2 text-xs  xl:text-sm">
-						{{ log.timestamp }}
+					<td class="p-2 text-xs 2xl:text-sm">
+						<div class="flex flex-col items-center gap-1">
+							<span>{{ formatDate(log.timestamp) }}</span>
+							<span>{{ formatTime(log.timestamp) }}</span>
+						</div>
 					</td>
 				</tr>
 			</tbody>
@@ -123,11 +137,22 @@ const props = defineProps<Props>();
 const { getBatchPicturesByUri } = useExternalDataApi();
 const imageUrls = ref<Record<string | number, string>>({});
 const imageLoadingStates = ref<Record<string | number, boolean>>({});
+const imageErrorStates = ref<Record<string | number, boolean>>({});
 const imageCache = new Map<string, string>();
 
-const handleImageError = (event: Event, logId: string | number) => {
-	const img = event.target as HTMLImageElement;
-	img.src = "/people-counting/no-photo-placeholder.png";
+// 格式化日期和時間：從 timestamp 中提取
+const formatDate = (timestamp: string): string => {
+	if (!timestamp) return "-";
+	return timestamp.split(" ")[0] || "-";
+};
+
+const formatTime = (timestamp: string): string => {
+	if (!timestamp) return "-";
+	return timestamp.split(" ")[1] || "-";
+};
+
+const handleImageError = (_event: Event, logId: string | number) => {
+	imageErrorStates.value[logId] = true;
 	delete imageUrls.value[logId];
 };
 
@@ -139,14 +164,12 @@ const loadAllImages = async () => {
 			!imageLoadingStates.value[log.id]
 	);
 
-	if (logsToLoad.length === 0) {
-		return;
-	}
+	if (logsToLoad.length === 0) return;
 
 	const picUris: string[] = [];
 	const logIdMap = new Map<string, string | number>();
 
-	logsToLoad.forEach((log) => {
+	for (const log of logsToLoad) {
 		const picUri = log.deviceScreenshotUrl!.trim();
 		if (imageCache.has(picUri)) {
 			imageUrls.value[log.id] = imageCache.get(picUri)!;
@@ -154,18 +177,16 @@ const loadAllImages = async () => {
 			picUris.push(picUri);
 			logIdMap.set(picUri, log.id);
 		}
-	});
-
-	if (picUris.length === 0) {
-		return;
 	}
 
-	picUris.forEach((picUri) => {
+	if (picUris.length === 0) return;
+
+	for (const picUri of picUris) {
 		const logId = logIdMap.get(picUri);
 		if (logId) {
 			imageLoadingStates.value[logId] = true;
 		}
-	});
+	}
 
 	try {
 		const result = await getBatchPicturesByUri(picUris);
@@ -185,9 +206,9 @@ const loadAllImages = async () => {
 	} catch (error) {
 		console.error("批次載入圖片失敗:", error);
 	} finally {
-		logIdMap.forEach((logId) => {
+		for (const logId of logIdMap.values()) {
 			imageLoadingStates.value[logId] = false;
-		});
+		}
 	}
 };
 
@@ -206,15 +227,9 @@ watch(
 .fade-leave-active {
 	transition: opacity 0.3s ease-in-out;
 }
-
 .fade-enter-from,
 .fade-leave-to {
 	opacity: 0;
-}
-
-.fade-enter-to,
-.fade-leave-from {
-	opacity: 1;
 }
 </style>
 

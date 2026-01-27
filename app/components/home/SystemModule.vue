@@ -3,11 +3,11 @@
 		<!-- 左側切換按鈕 -->
 		<button
 			v-if="canNavigatePrevious && !isLoading"
-			class="absolute left-0 top-1/2 z-10 flex h-12 w-12 -translate-x-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white/80 text-white transition-all hover:bg-white/10 xl:h-14 xl:w-14 xl:-translate-x-12 2xl:h-20 2xl:w-20 2xl:-translate-x-20"
+			class="absolute left-0 top-1/2 z-10 flex h-14 w-14 -translate-x-11 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white/80 text-white transition-all hover:bg-white/10 2xl:h-20 2xl:w-20 2xl:-translate-x-20"
 			@click="previousPage"
 		>
 			<svg
-				class="h-8 w-8 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12"
+				class="h-8 w-8 2xl:h-12 2xl:w-12"
 				fill="none"
 				stroke="currentColor"
 				viewBox="0 0 24 24"
@@ -17,12 +17,12 @@
 		</button>
 
 		<!-- 模組網格：使用過渡動畫 -->
-		<div class="min-h-[400px] 2xl:min-h-[528px]">
+		<div class="min-h-[420px] 2xl:min-h-[528px]">
 			<Transition name="fade" mode="out-in">
 				<div
 					v-if="!isLoading"
 					:key="`modules-${currentPage}-${systemModules.length}`"
-					class="grid grid-cols-4 gap-x-4 gap-y-2 px-2 py-4 xl:gap-x-6 xl:gap-y-3 xl:px-3 xl:py-6 2xl:gap-x-8 2xl:gap-y-4 2xl:px-4 2xl:py-8"
+					class="grid grid-cols-4 gap-x-6 gap-y-3 px-3 py-6 2xl:gap-x-8 2xl:gap-y-4 2xl:px-4 2xl:py-8"
 				>
 					<template v-for="module in currentModules" :key="module.id">
 						<NuxtLink
@@ -44,42 +44,15 @@
 										/>
 									</div>
 								</div>
-								<div class="mt-2 xl:mt-3 2xl:mt-4">
+								<div class="mt-2 2xl:mt-4">
 									<h3
-										class="ms-[6px] whitespace-nowrap text-lg tracking-[6px] text-white xl:text-xl 2xl:text-2xl"
+										class="ms-[6px] whitespace-nowrap text-xl tracking-[6px] text-white 2xl:text-2xl"
 									>
 										{{ module.name }}
 									</h3>
 								</div>
 							</div>
 						</NuxtLink>
-						<div
-							v-else
-							class="aspect-square overflow-hidden rounded-xl border-2 border-white/30 opacity-50"
-							:style="{
-								boxShadow:
-									'inset -7px 7px 7px rgba(255, 255, 255, 0.15), inset 7px -7px 10px rgba(0, 0, 0, 0.15)'
-							}"
-						>
-							<div class="flex h-full flex-col items-center justify-center">
-								<div class="flex items-center justify-center">
-									<div class="flex h-24 w-24 items-center justify-center 2xl:h-28 2xl:w-28">
-										<img
-											:src="`/system/${module.icon}.png`"
-											:alt="module.name"
-											class="h-full w-full object-contain"
-										/>
-									</div>
-								</div>
-								<div class="mt-2 xl:mt-3 2xl:mt-4">
-									<h3
-										class="ms-[6px] whitespace-nowrap text-lg tracking-[6px] text-white xl:text-xl 2xl:text-2xl"
-									>
-										{{ module.name }}
-									</h3>
-								</div>
-							</div>
-						</div>
 					</template>
 				</div>
 			</Transition>
@@ -88,11 +61,11 @@
 		<!-- 右側切換按鈕 -->
 		<button
 			v-if="canNavigateNext && !isLoading"
-			class="absolute right-0 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 translate-x-8 items-center justify-center rounded-full border-2 border-white/80 text-white transition-all hover:bg-white/10 xl:h-14 xl:w-14 xl:translate-x-12 2xl:h-20 2xl:w-20 2xl:translate-x-20"
+			class="absolute right-0 top-1/2 z-10 flex h-14 w-14 -translate-y-1/2 translate-x-11 items-center justify-center rounded-full border-2 border-white/80 text-white transition-all hover:bg-white/10 2xl:h-20 2xl:w-20 2xl:translate-x-20"
 			@click="nextPage"
 		>
 			<svg
-				class="h-8 w-8 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12"
+				class="h-8 w-8 2xl:h-12 2xl:w-12"
 				fill="none"
 				stroke="currentColor"
 				viewBox="0 0 24 24"

@@ -20,7 +20,7 @@
 				<div
 					class="flex aspect-square h-[100px] w-[100px] flex-col items-center justify-center rounded-full border-2 border-white/80 2xl:h-[140px] 2xl:w-[140px]"
 				>
-					<div class="ps-[2px] text-xl tracking-[2px] text-white 2xl:text-3xl">AQI</div>
+					<div class="ps-[2px] text-2xl tracking-[2px] text-white 2xl:text-3xl">AQI</div>
 					<div class="my-1 h-px w-2/3 bg-white/80 2xl:my-2"></div>
 					<Transition name="fade" mode="out-in">
 						<div :key="aqi ?? 'empty'" class="text-3xl text-white 2xl:text-5xl">{{ aqi ?? "—" }}</div>

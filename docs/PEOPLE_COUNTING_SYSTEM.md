@@ -260,17 +260,17 @@
 
 **事件類型**：
 
-- `yscp:event:alarm`：警報事件（包含 events 數組）
-- `yscp:event:generic`：通用事件（不包含 events 數組）
+- `yscp:event:alarm`：警報事件（YSCP 系統已設定為只發送此類型事件）
 
 **處理流程**：
 
 ```javascript
-1. 接收 YSCP 事件數據
-2. 判斷事件類型（根據是否有 events 數組）
-3. 通過 WebSocket 推送事件給前端
-4. 前端收到事件後重新載入資料
+1. 接收 YSCP 事件數據（結構：{ method: 'OnEventNotify', params: { events: [...] }, ... }）
+2. 直接通過 WebSocket 推送 yscp:event:alarm 事件給前端
+3. 前端收到事件後重新載入資料
 ```
+
+**注意**：YSCP 系統已設定為只發送包含 `events` 數組的警報事件，因此後端不需要進行事件類型判斷，統一處理即可。
 
 ---
 
@@ -446,6 +446,9 @@
 ┌─────────────┐
 │  YSCP 系統   │
 │  刷卡事件    │
+│  (已設定為   │
+│   只發送     │
+│   alarm)    │
 └──────┬──────┘
        │
        ▼
@@ -454,9 +457,7 @@
 │ Service     │
 └──────┬──────┘
        │
-       ├─► 判斷事件類型
-       │   ├─► alarm（有 events）
-       │   └─► generic（無 events）
+       │ (統一處理，無需判斷類型)
        │
        ▼
 ┌─────────────┐
@@ -464,8 +465,7 @@
 │ emit        │
 └──────┬──────┘
        │
-       ├─► yscp:event:alarm
-       └─► yscp:event:generic
+       └─► yscp:event:alarm
        │
        ▼
 ┌─────────────┐
@@ -760,8 +760,9 @@ interface PeopleCountingLog {
 
 | 事件名稱 | 觸發時機 | 數據格式 |
 |---------|---------|---------|
-| `yscp:event:alarm` | YSCP 警報事件 | `{ type: "alarm", data: {...}, timestamp: string }` |
-| `yscp:event:generic` | YSCP 通用事件 | `{ type: "generic", data: {...}, timestamp: string }` |
+| `yscp:event:alarm` | YSCP 警報事件（YSCP 系統已設定為只發送此類型） | `{ type: "alarm", data: {...}, timestamp: string }` |
+
+**注意**：YSCP 系統已設定為只發送 `alarm` 類型的事件，因此前端只需監聽 `yscp:event:alarm` 事件。
 
 ### 4. 外部資料庫 Schema
 

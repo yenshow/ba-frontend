@@ -1,6 +1,6 @@
 <template>
 	<div
-		class="flex h-full flex-row items-center justify-center gap-4 py-4 pl-12 xl:gap-6 xl:py-6 xl:pl-8 2xl:gap-8 2xl:py-8 2xl:pl-12"
+		class="flex h-full flex-row items-center justify-center gap-6 py-6 pl-8 2xl:gap-8 2xl:py-8 2xl:pl-12"
 	>
 		<!-- AQI Gauge -->
 		<div class="relative aspect-square w-full max-w-[200px] 2xl:max-w-[240px]">
@@ -28,7 +28,7 @@
 				class="absolute inset-0 z-10 flex h-full w-full flex-col items-center justify-center space-y-2 overflow-hidden rounded-full border-4 border-white"
 			>
 				<!-- AQI 標題 -->
-				<div class="text-5xl font-light tracking-widest text-white 2xl:text-6xl">AQI</div>
+				<div class="text-5xl font-light tracking-widest text-white 2xl:text-6xl min-w-[100px] 2xl:min-w-[120px] text-center">AQI</div>
 				<!-- 位置資訊 -->
 				<div class="text-sm font-light tracking-widest text-white/80 2xl:text-base">
 					{{ aqi.location }}
@@ -44,14 +44,14 @@
 			<div
 				v-for="(column, columnIndex) in metricsColumns"
 				:key="columnIndex"
-				class="flex flex-col space-y-4 xl:space-y-5 2xl:space-y-6"
+				class="flex flex-col space-y-4 2xl:space-y-6"
 			>
 				<div
 					v-for="metric in column"
 					:key="`${metric.label}-${metric.unit}`"
 					class="flex items-center space-x-2 2xl:space-x-4"
 				>
-					<div class="h-16 w-16 xl:h-14 xl:w-14 2xl:h-16 2xl:w-16">
+					<div class="h-14 w-14 2xl:h-16 2xl:w-16">
 						<NuxtImg
 							:src="getMetricIcon(metric)"
 							:alt="metric.label"

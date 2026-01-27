@@ -1,19 +1,19 @@
 <template>
 	<div
-		class="flex flex-wrap items-center justify-between gap-4 rounded-lg border-2 border-white/30 bg-white/10 p-4 backdrop-blur-sm"
+		class="flex flex-wrap items-center justify-between gap-2 2xl:gap-4 rounded-lg border-2 border-white/30 bg-white/10 p-4 backdrop-blur-sm"
 	>
 		<!-- 左側：布局選擇 -->
 		<div class="flex items-center gap-2">
-			<span class="text-sm font-medium text-white xl:text-base 2xl:text-lg">畫面布局：</span>
+			<span class="font-medium text-white text-base 2xl:text-lg">畫面布局：</span>
 			<div class="flex gap-1">
 				<button
 					v-for="layoutOption in layoutOptions"
 					:key="layoutOption.value"
 					:class="[
-						'rounded-lg px-3 py-1.5 text-sm font-medium backdrop-blur-sm transition-colors xl:text-base 2xl:text-lg',
+						'rounded-lg px-3 py-1.5 transition-colors text-base 2xl:text-lg',
 						modelValue === layoutOption.value
-							? 'border-2 border-white/50 bg-white/30 text-white'
-							: 'border-2 border-white/30 bg-white/10 text-white/80 hover:border-white/40 hover:bg-white/15'
+							? 'border-2 border-white/50 bg-white/20 text-white'
+							: 'border-2 border-white/30 bg-black/20 text-white/80 hover:border-white/40 hover:bg-white/15'
 					]"
 					@click="$emit('update:modelValue', layoutOption.value)"
 				>
@@ -23,16 +23,16 @@
 		</div>
 
 		<!-- 中間：統計資訊 -->
-		<div class="flex items-center gap-4 text-sm xl:text-base 2xl:text-lg">
-			<div class="flex items-center gap-2">
+		<div class="flex items-center gap-2 2xl:gap-4 text-base 2xl:text-lg">
+			<div class="flex items-center gap-1 2xl:gap-2">
 				<span class="text-white/70">總攝影機：</span>
 				<span class="font-semibold text-white">{{ totalCameras }}</span>
 			</div>
-			<div class="flex items-center gap-2">
+			<div class="flex items-center gap-1 2xl:gap-2">
 				<span class="text-white/70">運行中：</span>
 				<span class="font-semibold text-green-300">{{ streamingCount }}</span>
 			</div>
-			<div class="flex items-center gap-2">
+			<div class="flex items-center gap-1 2xl:gap-2">
 				<span class="text-white/70">監控畫面：</span>
 				<span class="font-semibold text-white">{{ viewCount }}/{{ maxViews }}</span>
 			</div>

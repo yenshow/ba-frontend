@@ -2,7 +2,7 @@
 
 **更新日期**：2025-01-09  
 **狀態**：✅ 系統運行中  
-**版本**：v1.0
+**版本**：v1.1
 
 ---
 
@@ -244,6 +244,12 @@ zones (1) ──< (N) locations (1) ──< (N) location_systems
 - `createLocationWithSystems()`: 建立地點和系統（支援跨系統共用）
 - `updateLocationWithSystems()`: 更新地點和系統
 - `buildSystemConfig()`: 構建系統配置物件
+
+**資料清理**：
+
+- `deleteLocationsWithoutSystems()`: 刪除指定區域中無系統的地點
+- `deleteLocationsByIdsWithoutSystems()`: 刪除指定地點列表中無系統的地點
+- `deleteEmptyZoneIfNeeded()`: 檢查並刪除空區域（無地點的區域）
 
 #### 自動合併機制
 
@@ -528,16 +534,25 @@ const zones = await environmentApi.getZones();
 2. 如果是系統頁面：
    a. 取得完整區域資料（不帶 systemType 過濾）
    b. 檢查區域是否被其他系統使用
-   c. 如果只有當前系統使用，刪除整個區域
-   d. 如果被其他系統使用，只刪除該系統的地點
+   c. 過濾掉該系統的地點，同時移除過濾後沒有系統的地點
+   d. 如果只有當前系統使用，或過濾後沒有地點了，刪除整個區域
+   e. 否則更新區域，移除該系統的地點
+   f. 重置選中狀態（區域和地點）
+   g. 執行回調和重新載入
 3. 如果不是系統頁面，直接刪除整個區域
-4. 處理選中狀態
+4. 處理選中狀態（統一處理 selectedZoneRef 和 selectedLocationRef）
 5. 執行回調
 ```
 
+**選中狀態管理**：
+
+- `resetSelectedZone()`: 重置選中區域狀態（共用邏輯）
+- `resetSelectedLocation()`: 重置選中地點狀態（共用邏輯）
+- `handlePostDelete()`: 處理刪除後的選中狀態和回調（統一邏輯）
+
 **工具方法**：
 
-- `findEarliestZone()`: 找到最先創建的區域
+- `findEarliestZone()`: 找到最先創建的區域（處理 ID 為 undefined 的情況）
 - `sortZones()`: 排序區域（按名稱的自然排序，如 1F, 2F, 3F）
 
 ### 5. UI 組件 (`ZoneManagementDialog.vue`)
@@ -727,6 +742,7 @@ const zones = await environmentApi.getZones();
 └──────┬──────┘
        │
        ├─► 取得完整區域資料（不帶 systemType 過濾）
+       │   └─► GET /api/locations/zones/:id
        │
        ▼
 ┌─────────────┐
@@ -736,22 +752,26 @@ const zones = await environmentApi.getZones();
        │
        ├─► 提取所有系統類型
        ├─► 檢查是否只有當前系統使用
+       ├─► 過濾掉該系統的地點
+       └─► 移除過濾後沒有系統的地點
        │
-       ├─► [只有當前系統] 刪除整個區域
-       │   └─► DELETE /api/locations/zones/:id
+       ├─► [只有當前系統 或 過濾後無地點] 刪除整個區域
+       │   ├─► DELETE /api/locations/zones/:id
+       │   ├─► 從本地資料移除
+       │   ├─► 重置選中狀態（區域/地點）
+       │   └─► 執行回調和重新載入
        │
        └─► [被其他系統使用] 只刪除該系統的地點
-           ├─► 過濾掉當前系統，構建更新後的地點列表
-           ├─► 移除那些過濾後沒有系統的地點
-           ├─► 如果過濾後沒有地點了，刪除整個區域
-           └─► 否則更新區域，移除該系統的地點
+           ├─► PUT /api/locations/zones/:id
+           │   └─► 後端處理：
+           │       ├─► 更新地點系統配置
+           │       ├─► 自動清理無系統的地點
+           │       └─► 自動清理空區域
            │
-           ▼
-       ┌─────────────┐
-       │ PUT /api/   │
-       │ locations/  │
-       │ zones/:id   │
-       └─────────────┘
+           ├─► 從本地資料移除（該系統看不到此區域）
+           ├─► 重置選中區域（統一處理 selectedZoneRef）
+           ├─► 重置選中地點（統一處理 selectedLocationRef）
+           └─► 執行回調和重新載入
 ```
 
 ---
@@ -856,6 +876,69 @@ const locationsByZoneId = groupLocationRowsByLocation(locationRows);
 - ✅ 減少資料庫查詢次數
 - ✅ 提高查詢速度
 - ✅ 降低資料庫負載
+
+### 5. 資料清理機制
+
+**目的**：確保資料一致性，自動清理無系統的地點和空區域
+
+**後端清理函數**：
+
+```javascript
+// 刪除指定區域中無系統的地點
+async function deleteLocationsWithoutSystems(query, zoneId) {
+  await query(
+    `DELETE FROM locations 
+     WHERE zone_id = $1 
+     AND NOT EXISTS (SELECT 1 FROM location_systems WHERE location_id = locations.id)`,
+    [zoneId]
+  );
+}
+
+// 刪除指定地點列表中無系統的地點
+async function deleteLocationsByIdsWithoutSystems(query, locationIds) {
+  if (locationIds.length === 0) return;
+  await query(
+    `DELETE FROM locations 
+     WHERE id = ANY($1::int[]) 
+     AND NOT EXISTS (SELECT 1 FROM location_systems WHERE location_id = locations.id)`,
+    [locationIds]
+  );
+}
+
+// 檢查並刪除空區域
+async function deleteEmptyZoneIfNeeded(query, zoneId) {
+  const remainingLocations = await query(
+    "SELECT id FROM locations WHERE zone_id = $1",
+    [zoneId]
+  );
+  if (remainingLocations.length === 0) {
+    await query("DELETE FROM zones WHERE id = $1", [zoneId]);
+    return true;
+  }
+  return false;
+}
+```
+
+**清理時機**：
+
+1. **更新區域時**：
+   - 刪除不在更新列表中的地點（只刪除無系統的地點）
+   - 清理更新後無系統的地點
+   - 如果區域沒有地點了，刪除區域
+
+2. **更新地點時**：
+   - 如果地點更新後變成無系統，自動刪除地點
+   - 如果區域沒有地點了，刪除區域
+
+3. **合併區域時**：
+   - 刪除當前區域中沒有系統的地點
+   - 如果當前區域沒有地點了，刪除它
+
+**前後端協同**：
+
+- **前端**：過濾掉無系統的地點後，發送給後端
+- **後端**：在更新時再次清理無系統的地點，確保資料一致性
+- **效果**：雙重保障，確保不會有無系統的地點殘留
 
 ---
 
@@ -977,6 +1060,59 @@ function handleUniqueConstraintError(error, constraintName, errorMessage) {
 }
 ```
 
+### 6. 前後端協同機制
+
+**刪除區域的完整流程**：
+
+```
+前端 (useZoneManagement.ts)         後端 (locationService.js)
+─────────────────────────          ─────────────────────────
+1. 取得完整區域資料                   
+   └─► GET /api/locations/zones/:id
+                                      └─► 返回完整區域（含所有系統）
+   
+2. 檢查系統使用情況
+   ├─► 提取所有系統類型
+   └─► 判斷是否只有當前系統使用
+   
+3. 過濾地點
+   ├─► 過濾掉當前系統
+   └─► 移除過濾後沒有系統的地點
+   
+4. 決定操作
+   ├─► [只有當前系統] 
+   │   └─► DELETE /api/locations/zones/:id
+   │                                      └─► 刪除區域（級聯刪除地點和系統）
+   │
+   └─► [被其他系統使用]
+       └─► PUT /api/locations/zones/:id
+           └─► { locations: remainingLocations }
+                                      ├─► 更新地點系統配置
+                                      ├─► deleteLocationsWithoutSystems()
+                                      │   └─► 清理無系統的地點
+                                      └─► deleteEmptyZoneIfNeeded()
+                                          └─► 清理空區域
+   
+5. 重置選中狀態
+   ├─► resetSelectedZone() (照明系統)
+   └─► resetSelectedLocation() (環境/人流系統)
+   
+6. 執行回調
+   └─► onAfterDelete() → loadZonesFromAPI()
+```
+
+**資料清理的雙重保障**：
+
+1. **前端過濾**：在發送更新請求前，過濾掉無系統的地點
+2. **後端清理**：在更新時再次清理，確保資料一致性
+3. **自動清理**：後端自動清理空區域，避免孤立區域
+
+**選中狀態管理**：
+
+- **照明系統**：使用 `selectedZoneRef`，刪除區域時重置選中區域
+- **環境/人流系統**：使用 `selectedLocationRef` + `getLocationId`，刪除區域時重置選中地點
+- **統一處理**：`resetSelectedZone` 和 `resetSelectedLocation` 共用邏輯，確保一致性
+
 ---
 
 ## 測試與驗證
@@ -1027,7 +1163,12 @@ function handleUniqueConstraintError(error, constraintName, errorMessage) {
 - ✅ 儲存區域
 - ✅ 刪除區域（全區點位圖）
 - ✅ 刪除區域（系統頁面）
+  - ✅ 只有當前系統使用：刪除整個區域
+  - ✅ 被其他系統使用：只刪除該系統的地點
+  - ✅ 選中狀態重置（區域和地點）
 - ✅ 區域合併處理
+- ✅ 無系統地點自動清理
+- ✅ 空區域自動清理
 
 ### 3. 整合測試
 
@@ -1055,6 +1196,8 @@ function handleUniqueConstraintError(error, constraintName, errorMessage) {
 3. **自動合併**：同名區域/地點自動合併，提高用戶體驗
 4. **類型安全**：使用 TypeScript 確保類型安全
 5. **性能優化**：批次查詢、JOIN 優化，提高查詢效率
+6. **資料一致性**：前後端雙重清理機制，確保無系統的地點和空區域自動清理
+7. **選中狀態管理**：統一處理選中區域和地點的重置邏輯，支援照明系統（selectedZoneRef）和環境/人流系統（selectedLocationRef）
 
 ### 未來改進方向
 

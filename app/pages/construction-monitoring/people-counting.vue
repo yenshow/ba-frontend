@@ -1,7 +1,7 @@
 <template>
 	<div>
 		<!-- 人流統計系統頁面內容 -->
-		<div class="flex justify-center gap-4 xl:gap-6 2xl:gap-8">
+		<div class="flex justify-center gap-6 2xl:gap-8">
 			<!-- 左側：詳細工地資訊（主要內容 - 大） -->
 			<section class="relative flex-[1.2] 2xl:flex-[1.3]" ref="leftSectionRef">
 				<div
@@ -74,8 +74,8 @@
 									d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
 								/>
 							</svg>
-							<p class="text-xl font-medium text-white/90 xl:text-2xl 2xl:text-3xl">請選擇地點</p>
-							<p class="mt-2 text-sm text-white/70 xl:text-base">請從右側列表點選地點以查看詳細資訊</p>
+							<p class="font-medium text-white/90 text-2xl 2xl:text-3xl">請選擇地點</p>
+							<p class="mt-2 text-base text-white/70 2xl:text-lg">請從右側列表點選地點以查看詳細資訊</p>
 						</div>
 					</div>
 				</div>
@@ -90,14 +90,14 @@
 				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
 			>
 				<div
-					class="relative h-full min-w-[72px] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8 transition-all duration-500 ease-in-out 2xl:min-w-[84px]"
+					class="relative h-full min-w-[72px] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8 2xl:min-w-[84px]"
 				>
 					<!-- 標題與收縮按鈕 -->
 					<Transition name="fade">
 						<h2
 							v-if="!isSidebarCollapsed"
 							key="title"
-							class="mb-4 text-center text-xl font-semibold tracking-[12px] text-white xl:text-2xl 2xl:text-3xl"
+							class="mb-4 text-center font-semibold tracking-[12px] text-white text-2xl 2xl:text-3xl"
 							style="padding-left: 12px"
 						>
 							總覽
@@ -110,7 +110,7 @@
 						:title="isSidebarCollapsed ? '展開列表' : '收縮列表'"
 					>
 						<svg
-							class="h-5 w-5 xl:h-6 xl:w-6 2xl:h-7 2xl:w-7"
+							class="h-6 w-6 2xl:h-7 2xl:w-7"
 							:class="{ 'rotate-180': isSidebarCollapsed }"
 							fill="none"
 							stroke="currentColor"

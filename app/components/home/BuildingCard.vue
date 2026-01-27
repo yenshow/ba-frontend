@@ -1,7 +1,7 @@
 <template>
 	<div class="flex h-full min-h-0 flex-col items-center justify-center">
 		<!-- Building image -->
-		<div class="relative mx-6 my-2 overflow-hidden xl:mx-8 xl:my-3 2xl:mx-12 2xl:my-4">
+		<div class="relative mx-6 my-2 overflow-hidden 2xl:mx-12 2xl:my-4">
 			<NuxtImg
 				src="/layout/modern-business-building.jpg"
 				alt="建築物圖片"
@@ -18,7 +18,7 @@
 			<NuxtImg
 				src="/layout/building-name.png"
 				alt="建築名稱"
-				class="image-blur-load h-auto max-h-[80px] w-full object-contain xl:max-h-[96px] 2xl:max-h-[112px]"
+				class="image-blur-load h-auto max-h-[96px] w-full object-contain 2xl:max-h-[112px]"
 				:class="{ 'image-loaded': isNameLoaded }"
 				width="full"
 				height="112"

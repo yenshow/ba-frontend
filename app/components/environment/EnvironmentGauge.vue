@@ -133,7 +133,7 @@ const unit = computed(() => {
 
 // 根據類型格式化顯示值
 const displayValue = computed(() => {
-	if (props.value === null) return "—";
+	if (props.value === null) return "--";
 
 	switch (props.type) {
 		case "noise":

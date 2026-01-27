@@ -14,7 +14,7 @@
 						:key="tab.code"
 						type="button"
 						:class="[
-							'whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium transition-all 2xl:px-6 2xl:py-3 2xl:text-base',
+							'whitespace-nowrap rounded-xl px-4 py-2 text-lg font-medium transition-all 2xl:px-6 2xl:py-3 2xl:text-xl',
 							activeTab === tab.code
 								? 'bg-blue-500/80 text-white shadow-lg'
 								: 'text-white/70 hover:bg-white/10 hover:text-white'
@@ -29,7 +29,7 @@
 			<button
 				v-if="isAdmin"
 				type="button"
-				class="rounded-xl bg-purple-500/80 px-4 py-2 text-sm text-white hover:bg-purple-400 disabled:cursor-not-allowed disabled:bg-purple-500/40 2xl:px-6 2xl:py-3 2xl:text-base"
+				class="rounded-xl bg-purple-500/80 px-4 py-2 text-base text-white hover:bg-purple-400 disabled:cursor-not-allowed disabled:bg-purple-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
 				@click="showDeviceTypeDialog = true"
 			>
 				設備類型管理
@@ -48,15 +48,15 @@
 						v-if="isAdmin"
 						type="button"
 						:disabled="!activeTab"
-						class="rounded-xl bg-blue-500/80 px-4 py-2 text-sm text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-blue-500/40 2xl:px-6 2xl:py-3 2xl:text-base"
+						class="rounded-xl bg-blue-500/80 px-4 py-2 text-base text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-blue-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
 						@click="showDeviceModelDialog = true"
 					>
-						設備型號管理
+						型號管理
 					</button>
 					<button
 						v-if="isAdmin"
 						type="button"
-						class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-500/40 2xl:px-6 2xl:py-3 2xl:text-base"
+						class="rounded-xl bg-emerald-500/80 px-4 py-2 text-base text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
 						@click="showCreateDialog = true"
 					>
 						新增設備
