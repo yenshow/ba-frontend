@@ -5,7 +5,7 @@
 				:value="displayValue"
 				readonly
 				@click="toggleDropdown"
-				:class="['select-filter flex-1 cursor-pointer text-center', textSize]"
+				:class="['select-filter cursor-pointer text-center', textSize]"
 				:placeholder="placeholder"
 			/>
 			<svg

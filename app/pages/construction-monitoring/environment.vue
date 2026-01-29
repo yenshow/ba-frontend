@@ -8,17 +8,17 @@
 				>
 					<!-- 位置標題與地點選擇 -->
 					<div
-						class="absolute left-1/2 top-0 flex h-[36px] translate-x-[-50%] items-center justify-center bg-white text-lg text-[#595959] 2xl:text-xl"
+						class="absolute left-1/2 top-0 flex h-[48px] translate-x-[-50%] items-center justify-center bg-white text-lg text-[#595959] 2xl:text-xl"
 						style="clip-path: polygon(0 0, 100% 0, calc(100% - 24px) 100%, calc(0% + 24px) 100%)"
 					>
 						<div class="flex w-[200px] items-center justify-center">
-							<span v-if="currentLocationData" class="ps-[12px]">{{
+							<span v-if="currentLocationData" class="ps-[12px] text-[21px] 2xl:text-[28px]">{{
 								getLocationZone(currentLocationData)
 							}}</span>
 						</div>
 						<div class="h-[24px] w-px bg-[#595959]"></div>
 						<div class="flex w-[200px] items-center justify-center">
-							<span v-if="currentLocationData" class="pe-[12px]">{{ currentLocationData.name }}</span>
+							<span v-if="currentLocationData" class="pe-[12px] text-[21px] 2xl:text-[28px]">{{ currentLocationData.name }}</span>
 						</div>
 					</div>
 
@@ -31,7 +31,7 @@
 					</button>
 
 					<!-- 三個大儀表（包含趨勢圖） -->
-					<div class="mt-12 grid grid-cols-3 gap-4 border-b border-white/80 pb-2 2xl:gap-6">
+					<div class="mt-16 grid grid-cols-3 gap-4 border-b border-white/80 pb-2 2xl:gap-6">
 						<!-- 噪音值儀表 -->
 						<EnvironmentGauge
 							type="noise"

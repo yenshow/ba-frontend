@@ -7,7 +7,7 @@
 					:key="toast.id"
 					:class="[
 						toastClasses[toast.type],
-						{ 'cursor-pointer hover:opacity-90': toast.alertId },
+						{ 'cursor-pointer hover:opacity-100': toast.alertId },
 						'animate-slide-in flex min-w-[300px] max-w-md items-start gap-3 rounded-lg border p-4 shadow-lg backdrop-blur-sm transition-opacity'
 					]"
 					role="alert"
@@ -69,10 +69,10 @@
 					<!-- Close Button -->
 					<button
 						@click.stop="removeToast(toast.id)"
-						class="flex-shrink-0 text-current opacity-60 transition-opacity hover:opacity-100"
+						class="flex-shrink-0 rounded-full p-0.5 text-current opacity-60 transition-all hover:bg-white/20 hover:opacity-100"
 						aria-label="關閉"
 					>
-						<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+						<svg class="h-4 w-4 2xl:h-6 2xl:w-6" fill="currentColor" viewBox="0 0 20 20">
 							<path
 								fill-rule="evenodd"
 								d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"

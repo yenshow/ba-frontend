@@ -33,7 +33,7 @@
 					:key="log.id"
 					class="border-b border-white/10 text-center text-white"
 				>
-					<td class="p-2">
+					<td class="p-2 flex items-center justify-center">
 						<div class="relative h-12 w-12 overflow-hidden bg-white/10 2xl:h-16 2xl:w-16">
 							<!-- 載入中 -->
 							<Transition name="fade">
@@ -65,7 +65,7 @@
 									class="absolute inset-0 flex items-center justify-center"
 								>
 									<svg
-										class="h-20 w-20 text-white"
+										class="h-full w-full text-white"
 										fill="currentColor"
 										stroke="currentColor"
 										viewBox="0 0 24 24"

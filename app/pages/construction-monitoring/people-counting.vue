@@ -13,13 +13,13 @@
 						style="clip-path: polygon(0 0, 100% 0, calc(100% - 24px) 100%, calc(0% + 24px) 100%)"
 					>
 						<div class="flex w-[200px] items-center justify-center">
-							<span v-if="selectedLocation" class="ps-[12px]">{{
+							<span v-if="selectedLocation" class="ps-[12px] text-[21px] 2xl:text-[28px]">{{
 								getLocationZone(selectedLocation)
 							}}</span>
 						</div>
 						<div class="h-[24px] w-px bg-[#595959]"></div>
 						<div class="flex w-[200px] items-center justify-center">
-							<span v-if="selectedLocation" class="pe-[12px]">{{ selectedLocation.name }}</span>
+							<span v-if="selectedLocation" class="pe-[12px] text-[21px] 2xl:text-[28px]">{{ selectedLocation.name }}</span>
 						</div>
 					</div>
 

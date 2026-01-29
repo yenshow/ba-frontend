@@ -11,22 +11,22 @@
 			</div>
 			<div class="text-white space-y-2">
 				<div class="flex items-center justify-center gap-4">
-					<div class="text-base 2xl:text-xl font-semibold">進場人數</div>
-					<div class="text-xl 2xl:text-2xl bg-black/20 w-[100px] 2xl:w-[120px] text-center">
+					<div class="text-lg 2xl:text-2xl font-semibold">進場人數</div>
+					<div class="text-2xl 2xl:text-3xl bg-black/20 w-[100px] 2xl:w-[120px] text-center">
 						{{ entryCount || 0 }}
 					</div>
 				</div>
 
 				<div class="flex items-center justify-center gap-4">
-					<div class="text-base 2xl:text-xl font-semibold">出場人數</div>
-					<div class="text-xl 2xl:text-2xl bg-black/20 w-[100px] 2xl:w-[120px] text-center">
+					<div class="text-lg 2xl:text-2xl font-semibold">出場人數</div>
+					<div class="text-2xl 2xl:text-3xl bg-black/20 w-[100px] 2xl:w-[120px] text-center">
 						{{ exitCount || 0 }}
 					</div>
 				</div>
 
 				<div class="flex items-center justify-center gap-4">
-					<div class="text-base 2xl:text-xl font-semibold">在場人數</div>
-					<div class="text-xl 2xl:text-2xl bg-black/20 w-[100px] 2xl:w-[120px] text-center">
+					<div class="text-lg 2xl:text-2xl font-semibold">在場人數</div>
+					<div class="text-2xl 2xl:text-3xl bg-black/20 w-[100px] 2xl:w-[120px] text-center">
 						{{ currentCount || 0 }}
 					</div>
 				</div>

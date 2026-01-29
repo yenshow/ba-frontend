@@ -6,7 +6,7 @@
 		<div class="relative aspect-square w-full max-w-[200px] 2xl:max-w-[240px]">
 			<!-- SVG 弧形指示器 -->
 			<svg
-				class="absolute inset-0 z-20 h-full w-full -rotate-90 transform"
+				class="absolute inset-0 z-10 h-full w-full -rotate-90 transform"
 				viewBox="0 0 240 240"
 				style="overflow: visible"
 			>
@@ -25,7 +25,7 @@
 
 			<!-- Background Circle -->
 			<div
-				class="absolute inset-0 z-10 flex h-full w-full flex-col items-center justify-center space-y-2 overflow-hidden rounded-full border-4 border-white"
+				class="absolute inset-0 z-20 flex h-full w-full flex-col items-center justify-center space-y-2 overflow-hidden rounded-full border-4 border-white"
 			>
 				<!-- 溫度圖標 -->
 				<NuxtImg
@@ -37,10 +37,13 @@
 				/>
 
 				<!-- 位置資訊 -->
-				<div
-					class="-translate-y-2 px-2 text-center text-sm font-light leading-tight tracking-widest text-white/80 2xl:-translate-y-3 2xl:text-base"
-				>
-					{{ data.location }}
+				<div class="ps-2 -translate-y-3">
+					<FilterDropdown
+						v-model="selectedLocationId"
+						:options="options"
+						:placeholder="placeholder"
+						:textSize="textSize"
+					/>
 				</div>
 				<div class="mx-auto h-0.5 w-4/5 -translate-y-2 bg-white/20 2xl:-translate-y-3"></div>
 				<!-- 溫度數值 -->
@@ -80,6 +83,8 @@
 </template>
 
 <script setup lang="ts">
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
+
 interface EnvironmentData {
 	temperature: number;
 	location: string;
@@ -91,9 +96,33 @@ interface EnvironmentData {
 	}>;
 }
 
-const props = defineProps<{
-	data: EnvironmentData;
+interface FilterOption {
+	value: string;
+	label: string;
+}
+
+const props = withDefaults(
+	defineProps<{
+		data: EnvironmentData;
+		modelValue: string;
+		options: FilterOption[];
+		placeholder?: string;
+		textSize?: string;
+	}>(),
+	{
+		placeholder: "請選擇地點",
+		textSize: "text-sm 2xl:text-base"
+	}
+);
+
+const emit = defineEmits<{
+	"update:modelValue": [value: string];
 }>();
+
+const selectedLocationId = computed({
+	get: () => props.modelValue,
+	set: (value: string) => emit("update:modelValue", value)
+});
 
 // 計算溫度指示器的顏色（純色，無漸變）
 const temperatureColor = computed(() => {

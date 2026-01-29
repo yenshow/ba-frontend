@@ -6,7 +6,7 @@
 		<div class="relative aspect-square w-full max-w-[200px] 2xl:max-w-[240px]">
 			<!-- SVG 弧形指示器 -->
 			<svg
-				class="absolute inset-0 z-20 h-full w-full -rotate-90"
+				class="absolute inset-0 z-10 h-full w-full -rotate-90"
 				viewBox="0 0 240 240"
 				style="overflow: visible"
 			>
@@ -25,13 +25,18 @@
 
 			<!-- Background Circle -->
 			<div
-				class="absolute inset-0 z-10 flex h-full w-full flex-col items-center justify-center space-y-2 overflow-hidden rounded-full border-4 border-white"
+				class="absolute inset-0 z-20 flex h-full w-full flex-col items-center justify-center space-y-2 overflow-hidden rounded-full border-4 border-white"
 			>
 				<!-- AQI 標題 -->
 				<div class="text-5xl font-light tracking-widest text-white 2xl:text-6xl min-w-[100px] 2xl:min-w-[120px] text-center">AQI</div>
 				<!-- 位置資訊 -->
-				<div class="text-sm font-light tracking-widest text-white/80 2xl:text-base">
-					{{ aqi.location }}
+				<div class="ps-2">
+					<FilterDropdown
+						v-model="selectedLocationId"
+						:options="options"
+						:placeholder="placeholder"
+						:textSize="textSize"
+					/>
 				</div>
 				<div class="mx-auto h-0.5 w-4/5 bg-white/20"></div>
 				<!-- AQI 數值（底部） -->
@@ -75,6 +80,8 @@
 </template>
 
 <script setup lang="ts">
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
+
 interface AQIData {
 	value: number;
 	location: string;
@@ -88,9 +95,33 @@ interface AQIData {
 
 type AQIMetric = AQIData["metrics"][number];
 
-const props = defineProps<{
-	aqi: AQIData;
+interface FilterOption {
+	value: string;
+	label: string;
+}
+
+const props = withDefaults(
+	defineProps<{
+		aqi: AQIData;
+		modelValue: string;
+		options: FilterOption[];
+		placeholder?: string;
+		textSize?: string;
+	}>(),
+	{
+		placeholder: "請選擇地點",
+		textSize: "text-sm 2xl:text-base"
+	}
+);
+
+const emit = defineEmits<{
+	"update:modelValue": [value: string];
 }>();
+
+const selectedLocationId = computed({
+	get: () => props.modelValue,
+	set: (value: string) => emit("update:modelValue", value)
+});
 
 const metricsColumns = computed(() => {
 	const metrics = props.aqi.metrics ?? [];

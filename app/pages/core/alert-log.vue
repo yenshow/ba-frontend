@@ -373,8 +373,7 @@ const sourceOptions = [
 	{ value: "", label: "全部系統" },
 	{ value: "device", label: "設備系統" },
 	{ value: "environment", label: "環境系統" },
-	{ value: "lighting", label: "照明系統" },
-	{ value: "people_counting", label: "人流統計系統" }
+	{ value: "lighting", label: "照明系統" }
 ];
 
 // 時間範圍
@@ -431,13 +430,13 @@ const {
 		return { items: result.alerts, total: result.total };
 	},
 	debounce: 150,
-	pageSize: 10,
+	pageSize: 5,
 	onError: err => {
 		handleApiError(err, "載入警示列表失敗");
 	}
 });
 
-const limit = 10;
+const limit = 5;
 
 // 載入未解決警示數量（根據時間範圍篩選）
 const loadUnresolvedCount = async () => {
