@@ -1,9 +1,11 @@
 /**
  * 人流統計 WebSocket 事件處理 Composable
  * 負責監聽 YSCP 事件並觸發資料重新載入
+ * 
+ * 注意：YSCP 系統已設定為只發送一種類型的事件（alarm），因此只需監聽 yscp:event:alarm
  */
 
-import type { YscpEventAlarm, YscpEventGeneric } from "~/composables/websocket/useWebSocket";
+import type { YscpEventAlarm } from "~/composables/websocket/useWebSocket";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import { logger } from "~/utils/logger";
 import { ref } from "vue";
@@ -22,7 +24,7 @@ export const usePeopleCountingWebSocket = () => {
 	 * @param debounceMs 防抖延遲時間（毫秒），預設 500ms
 	 */
 	const setupEventListeners = (
-		onYscpEvent: (event: YscpEventAlarm | YscpEventGeneric) => void,
+		onYscpEvent: (event: YscpEventAlarm) => void,
 		debounceMs: number = 500
 	) => {
 		// 防抖計時器
@@ -30,11 +32,11 @@ export const usePeopleCountingWebSocket = () => {
 		// 追蹤是否正在載入
 		const isLoading = ref(false);
 
-		// 統一的 YSCP 事件處理函數（帶防抖）
-		const handleYscpEvent = (data: YscpEventAlarm | YscpEventGeneric) => {
+		// YSCP 事件處理函數（帶防抖）
+		const handleYscpEvent = (data: YscpEventAlarm) => {
 			// 如果正在載入，跳過本次事件（避免重複載入）
 			if (isLoading.value) {
-			if (process.dev) {
+				if (process.dev) {
 					wsLogger.log("資料載入中，跳過本次 YSCP 事件", { type: data.type });
 				}
 				return;
@@ -63,12 +65,10 @@ export const usePeopleCountingWebSocket = () => {
 			isConnected,
 			connected => {
 				if (connected) {
-					// 監聽 YSCP 事件（主要觸發機制）
+					// 監聽 YSCP 事件（YSCP 系統已設定為只發送 alarm 類型事件）
 					on("yscp:event:alarm", handleYscpEvent);
-					on("yscp:event:generic", handleYscpEvent);
 				} else {
 					off("yscp:event:alarm", handleYscpEvent);
-					off("yscp:event:generic", handleYscpEvent);
 					// 清除防抖計時器
 					if (debounceTimer) {
 						clearTimeout(debounceTimer);
@@ -82,7 +82,6 @@ export const usePeopleCountingWebSocket = () => {
 		// 返回清理函數
 		return () => {
 			off("yscp:event:alarm", handleYscpEvent);
-			off("yscp:event:generic", handleYscpEvent);
 			// 清除防抖計時器
 			if (debounceTimer) {
 				clearTimeout(debounceTimer);

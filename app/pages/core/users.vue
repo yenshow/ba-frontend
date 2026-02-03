@@ -34,8 +34,8 @@
 									<th :class="tableHeaderClass">
 										<label>
 											<select v-model="dateSortOrder" :class="sortSelectClass" @change="handleSortChange">
-												<option value="desc">由新到舊</option>
 												<option value="asc">由舊到新</option>
+												<option value="desc">由新到舊</option>
 											</select>
 										</label>
 									</th>
@@ -204,7 +204,7 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useUserApi } from "~/composables/systems/useUserApi";
 
 definePageMeta({
-	layout: "default",
+	layout: "auxiliary",
 	middleware: "admin" // 需要管理員權限
 });
 
@@ -213,7 +213,7 @@ const userApi = useUserApi();
 const toast = useToast();
 const { handleError: handleApiError } = useErrorHandler();
 
-const dateSortOrder = ref<"asc" | "desc">("desc"); // 預設由新到舊
+const dateSortOrder = ref<"asc" | "desc">("asc"); // 預設由舊到新
 const showCreateDialog = ref(false);
 const editingUser = ref<User | null>(null);
 const isSubmitting = ref(false);
@@ -230,15 +230,15 @@ const {
 	prevPage,
 	resetPage
 } = useDataLoader<User, { order: "asc" | "desc" }>({
-	fetcher: async params => {
-		const result = await userApi.getUsers({
-			limit: 20,
-			offset: 0,
-			orderBy: "created_at",
-			order: params.order
-		});
-		return { items: result.users, total: result.total };
-	},
+		fetcher: async params => {
+			const result = await userApi.getUsers({
+				limit: 20,
+				offset: 0,
+				orderBy: "id",
+				order: params.order
+			});
+			return { items: result.users, total: result.total };
+		},
 	debounce: 300,
 	pageSize: 20,
 	minLoadingDelay: 300, // 防止畫面閃爍

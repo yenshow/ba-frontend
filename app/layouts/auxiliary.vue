@@ -1,15 +1,6 @@
 <template>
 	<div :class="['bg-ba-gradient', { 'bg-ba-gradient-dark': isDark }]" class="min-h-screen">
-		<!-- 頂部橫幅（紅色警告區域） -->
-		<div class="absolute top-0 left-0 -translate-x-[48px] overflow-hidden" style="width: calc(100% + 48px);">
-			<SafetyBanner />
-		</div>
-
-		<!-- 頂部區域（品牌與時間） -->
-		<div class="pt-20 2xl:pt-32">
-			<HomeHeader />
-		</div>
-		<main class="p-8 2xl:px-12 2xl:py-8">
+		<main class="p-8 2xl:px-12 2xl:py-16">
 			<slot />
 		</main>
 		<BottomNavigation />
@@ -25,8 +16,6 @@ import { useAuth } from "~/composables/core/useAuth";
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import BottomNavigation from "~/components/common/BottomNavigation.vue";
-import SafetyBanner from "~/components/home/SafetyBanner.vue";
-import HomeHeader from "~/components/home/HomeHeader.vue";
 
 const { isDark } = useTheme();
 const { user } = useAuth();
@@ -50,6 +39,7 @@ const setupGlobalDeviceStatusListener = () => {
 				`[GlobalDeviceMonitor] 設備狀態批次更新: ${event.system} 系統, ${event.status} 狀態, ${event.updates.length} 個設備`
 			);
 		}
+		// 可以在這裡添加全局的狀態更新邏輯，例如更新全局設備狀態快取
 	};
 
 	// 監聽設備狀態批次更新事件

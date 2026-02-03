@@ -6,13 +6,13 @@
 	<div v-else class="overflow-x-auto">
 		<table class="w-full border-b-2 border-r-2 border-l-2 border-white/20">
 			<thead>
-				<tr class="bg-white/20 font-semibold text-white text-center text-xs xl:text-base">
-					<th class="h-[44px]">設備截圖</th>
-					<th class="h-[44px]">進場單位</th>
-					<th class="h-[44px]">工號</th>
-					<th class="h-[44px]">姓名</th>
-					<th class="h-[44px]">事件</th>
-					<th class="h-[44px]">時間</th>
+				<tr class="bg-white/20 2xl:font-semibold text-white text-center text-xs xl:text-base whitespace-nowrap">
+					<th class="p-2">設備截圖</th>
+					<th class="p-2">進場單位</th>
+					<th class="p-2">工號</th>
+					<th class="p-2">姓名</th>
+					<th class="p-2">事件</th>
+					<th class="p-2">時間</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -21,47 +21,67 @@
 					:key="log.id"
 					class="border-b border-white/10 text-center text-white"
 				>
-					<td class="p-2">
-						<div class="relative h-12 w-12 overflow-hidden xl:h-16 xl:w-16 mx-auto">
+					<td class="p-2 flex items-center justify-center">
+						<div class="relative h-12 w-12 overflow-hidden bg-white/10 2xl:h-16 2xl:w-16 mx-auto">
 							<!-- 載入中 -->
-							<div
-								v-if="imageLoadingStates[log.id]"
-								class="flex h-full w-full items-center justify-center"
-							>
-								<div class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white/80"></div>
-							</div>
+							<Transition name="fade">
+								<div
+									v-if="imageLoadingStates[log.id]"
+									key="loading"
+									class="absolute inset-0 flex items-center justify-center bg-white/5"
+								>
+									<div class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white/80"></div>
+								</div>
+							</Transition>
 
 							<!-- 圖片 -->
-							<img
-								v-else-if="imageUrls[log.id]"
-								:src="imageUrls[log.id]"
-								:alt="`${log.personName || '未知'} 設備截圖`"
-								class="h-full w-full object-cover"
-								@error="handleImageError($event, log.id)"
-							/>
+							<Transition name="fade">
+								<img
+									v-if="imageUrls[log.id] && !imageLoadingStates[log.id] && !imageErrorStates[log.id]"
+									key="image"
+									:src="imageUrls[log.id]"
+									:alt="`${log.personName || '未知'} 設備截圖`"
+									class="absolute inset-0 h-full w-full object-cover"
+									@error="handleImageError($event, log.id)"
+								/>
+							</Transition>
 
-							<!-- 佔位符 -->
-							<img
-								v-else
-								src="/people-counting/no-photo-placeholder.png"
-								alt="無設備截圖"
-								class="h-full w-full object-cover"
-							/>
+							<!-- 佔位符 SVG -->
+							<Transition name="fade">
+								<div
+									v-if="(!imageUrls[log.id] || imageErrorStates[log.id]) && !imageLoadingStates[log.id]"
+									class="absolute inset-0 flex items-center justify-center"
+								>
+									<svg
+										class="h-full w-full text-white"
+										fill="currentColor"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+										/>
+									</svg>
+								</div>
+							</Transition>
 						</div>
 					</td>
-					<td class="p-2 text-sm xl:text-base">
+					<td class="p-2 text-sm 2xl:text-base">
 						{{ log.unit?.name || log.unitName || "-" }}
 					</td>
-					<td class="p-2 text-sm xl:text-base">
+					<td class="p-2 text-sm 2xl:text-base">
 						{{ log.employeeId || log.personnelId || "-" }}
 					</td>
-					<td class="p-2 text-sm xl:text-base">
+					<td class="p-2 text-sm 2xl:text-base">
 						{{ log.personName || "-" }}
 					</td>
-					<td class="p-2">
+					<td class="p-2 whitespace-nowrap">
 						<span
 							:class="[
-								'rounded-full px-2 py-0.5 text-xs font-medium xl:text-sm',
+								'rounded-full px-2 py-0.5 text-xs font-medium 2xl:text-sm',
 								log.eventType === 'entry'
 									? 'bg-green-500/30 text-green-200'
 									: log.eventType === 'exit'
@@ -78,8 +98,11 @@
 							}}
 						</span>
 					</td>
-					<td class="p-2 text-xs xl:text-sm">
-						{{ log.timestamp }}
+					<td class="p-2 text-xs 2xl:text-sm">
+						<div class="flex flex-col items-center gap-1">
+							<span>{{ formatDate(log.timestamp) }}</span>
+							<span>{{ formatTime(log.timestamp) }}</span>
+						</div>
 					</td>
 				</tr>
 			</tbody>
@@ -102,15 +125,25 @@ const props = defineProps<Props>();
 const { getPictureByUri } = useExternalDataApi();
 const imageUrls = ref<Record<string | number, string>>({});
 const imageLoadingStates = ref<Record<string | number, boolean>>({});
+const imageErrorStates = ref<Record<string | number, boolean>>({});
 const imageCache = new Map<string, string>();
+
+// 格式化日期和時間：從 timestamp 中提取
+const formatDate = (timestamp: string): string => {
+	if (!timestamp) return "-";
+	return timestamp.split(" ")[0] || "-";
+};
+
+const formatTime = (timestamp: string): string => {
+	if (!timestamp) return "-";
+	return timestamp.split(" ")[1] || "-";
+};
 
 /**
  * 處理圖片載入錯誤
  */
-const handleImageError = (event: Event, logId: string | number) => {
-	const img = event.target as HTMLImageElement;
-	img.src = "/people-counting/no-photo-placeholder.png";
-	// 清除錯誤的圖片 URL
+const handleImageError = (_event: Event, logId: string | number) => {
+	imageErrorStates.value[logId] = true;
 	delete imageUrls.value[logId];
 };
 
@@ -156,23 +189,40 @@ const loadImage = async (log: PeopleCountingLog) => {
 };
 
 /**
- * 載入所有記錄的圖片
+ * 載入所有記錄的圖片（並行載入優化）
  */
-const loadAllImages = () => {
-	props.logs.forEach((log) => {
-		if (log.deviceScreenshotUrl && !imageUrls.value[log.id] && !imageLoadingStates.value[log.id]) {
-			loadImage(log);
-		}
-	});
+const loadAllImages = async () => {
+	// 過濾出需要載入的圖片
+	const logsToLoad = props.logs.filter(
+		log => 
+			log.deviceScreenshotUrl && 
+			!imageUrls.value[log.id] && 
+			!imageLoadingStates.value[log.id]
+	);
+
+	// 並行載入所有圖片，減少總等待時間
+	const imagePromises = logsToLoad.map(log => loadImage(log));
+	await Promise.allSettled(imagePromises);
 };
 
 // 監聽 logs 變化，載入新記錄的圖片
 watch(
 	() => props.logs,
-	() => {
-		loadAllImages();
+	async () => {
+		await loadAllImages();
 	},
 	{ immediate: true, deep: true }
 );
 </script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+	transition: opacity 0.3s ease-in-out;
+}
+.fade-enter-from,
+.fade-leave-to {
+	opacity: 0;
+}
+</style>
 

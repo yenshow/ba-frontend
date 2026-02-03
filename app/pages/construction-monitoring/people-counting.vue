@@ -5,21 +5,19 @@
 			<!-- 左側：詳細工地資訊（主要內容 - 大） -->
 			<section class="relative flex-[1.2] 2xl:flex-[1.3]" ref="leftSectionRef">
 				<div
-					class="relative flex flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 2xl:p-6"
+					class="relative flex flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 2xl:p-6 min-h-[664px] 2xl:min-h-[848px]"
 				>
 					<!-- 位置標題與地點選擇 -->
 					<div
-						class="absolute left-1/2 top-0 flex h-[36px] translate-x-[-50%] items-center justify-center bg-white text-lg text-[#595959] 2xl:text-xl"
+						class="absolute left-1/2 top-0 flex h-[36px] 2xl:h-[48px] translate-x-[-50%] items-center justify-center bg-white text-[#595959]"
 						style="clip-path: polygon(0 0, 100% 0, calc(100% - 24px) 100%, calc(0% + 24px) 100%)"
 					>
 						<div class="flex w-[200px] items-center justify-center">
-							<span v-if="selectedLocation" class="ps-[12px]">{{
-								getLocationZone(selectedLocation)
-							}}</span>
+							<span v-if="selectedLocation" class="ps-[12px] text-[24px] 2xl:text-[36px]">{{getLocationZone(selectedLocation)}}</span>
 						</div>
 						<div class="h-[24px] w-px bg-[#595959]"></div>
 						<div class="flex w-[200px] items-center justify-center">
-							<span v-if="selectedLocation" class="pe-[12px]">{{ selectedLocation.name }}</span>
+							<span v-if="selectedLocation" class="pe-[12px] text-[24px] 2xl:text-[36px]">{{ selectedLocation.name }}</span>
 						</div>
 					</div>
 
@@ -31,26 +29,52 @@
 						地點管理
 					</button>
 
-					<!-- 左側內容：分為左右兩區塊 -->
+					<!-- 左側內容：分為上、左下、右下三區塊 -->
 					<template v-if="selectedLocation">
-						<div class="mt-12 flex">
-							<!-- 左側-左：統計 + 記錄表 -->
+						<div class="mt-16 flex flex-col gap-12">
+							<!-- 上：統計 -->
 							<div class="flex-1">
-							<LocationStatsPanel
-								:entry-count="selectedLocation.entryCount || 0"
-								:exit-count="selectedLocation.exitCount || 0"
-								:current-count="currentCount"
-								:logs="logs"
-							/>
-							</div>
-							<!-- 左側-右：單位列表 + 人員名單 -->
-							<div class="flex-1 border-l-2 border-white/30 ms-4 ps-4">
-								<LocationDetailPanel
-									:location="selectedLocation"
-									:personnel="personnel"
-									:selected-unit-id="selectedUnitId"
-									@unit-select="handleUnitSelect"
+								<LocationStatsPanel
+									:entry-count="selectedLocation.entryCount || 0"
+									:exit-count="selectedLocation.exitCount || 0"
+									:current-count="currentCount"
 								/>
+							</div>
+							<!-- 左下、右下：記錄表 + 單位列表 -->
+							<div class="grid grid-cols-2 gap-4">
+								<!-- 左下：進出場記錄表 -->
+								<EntryExitLogTable :logs="logs" />
+								<!-- 右下：進場單位列表 -->
+								<div class="space-y-4">
+									<h3 class="font-semibold text-lg bg-white/20 text-white text-center 2xl:text-xl py-1">進場單位</h3>
+									<div v-if="!selectedLocation.units || selectedLocation.units.length === 0" class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center">
+										<p class="text-sm text-white/60 xl:text-base">尚無單位資料</p>
+									</div>
+									<div v-else class="grid grid-cols-4 gap-4">
+										<div
+											v-for="unit in selectedLocation.units"
+											:key="unit.id"
+											class="flex flex-col justify-center items-center border-2 border-white/0 transition-all cursor-pointer py-2"
+											:class="{
+												'bg-white/20': (unit.currentCount || 0) > 0,
+												'bg-black/20': (unit.currentCount || 0) === 0
+											}"
+											tabindex="0"
+											role="button"
+											:aria-label="`查看 ${unit.name} 人員名單`"
+											@click="handleUnitClick(unit)"
+											@keydown.enter="handleUnitClick(unit)"
+											@keydown.space.prevent="handleUnitClick(unit)"
+										>
+											<div class="text-base font-semibold text-white 2xl:text-lg tracking-wide">{{ unit.name }}</div>
+											<div class="text-base text-white 2xl:text-lg space-x-0.5">
+												<span class="text-green-400">{{ unit.currentCount || 0 }}</span>
+												<span>/</span>
+												<span>{{ unit.capacity || 0 }}</span>
+											</div>
+										</div>
+									</div>
+								</div>
 							</div>
 						</div>
 					</template>
@@ -159,14 +183,22 @@
 		@save="handleSaveZone"
 		@delete="handleDeleteZone"
 	/>
+	<UnitPersonnelDialog
+		v-model="isUnitDialogOpen"
+		:unit-name="selectedUnitName"
+		:personnel="unitPersonnel"
+		:is-loading="isLoadingUnitPersonnel"
+		@close="handleUnitDialogClose"
+	/>
 </template>
 
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, watch, nextTick, computed, ref } from "vue";
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting";
-import LocationDetailPanel from "~/components/people-counting/LocationDetailPanel.vue";
 import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue";
 import LocationOverviewCard from "~/components/people-counting/LocationOverviewCard.vue";
+import EntryExitLogTable from "~/components/people-counting/EntryExitLogTable.vue";
+import UnitPersonnelDialog from "~/components/home/UnitPersonnelDialog.vue";
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
 import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState";
 import { usePeopleCountingWebSocket } from "~/composables/systems/peopleCounting/usePeopleCountingWebSocket";
@@ -176,6 +208,9 @@ import { useLocationApi } from "~/composables/systems/location/useLocationApi";
 import { backendToPeopleCountingZone } from "~/utils/locationAdapter";
 import { useZoneSystemAdapter } from "~/composables/systems/useZoneSystemAdapter";
 import type { UnifiedZone } from "~/types/location";
+import { usePeopleCountingApi } from "~/composables/systems/usePeopleCountingApi";
+import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import type { PeopleCountingUnit, PeopleCountingPersonnel } from "~/types/peopleCounting";
 
 // 使用統一的狀態管理
 const {
@@ -191,6 +226,14 @@ const {
 	handleUnitSelect,
 	getLocationZone
 } = usePeopleCountingState();
+
+// 單位人員對話框相關
+const peopleCountingApi = usePeopleCountingApi();
+const { handleError } = useErrorHandler();
+const isUnitDialogOpen = ref(false);
+const selectedUnitName = ref("");
+const unitPersonnel = ref<PeopleCountingPersonnel[]>([]);
+const isLoadingUnitPersonnel = ref(false);
 
 // 右側總覽：顯示 zone 名稱（不影響詳情載入）
 const locationsForOverview = computed(() =>
@@ -370,6 +413,33 @@ const handleOpenLocationDialog = async () => {
 	}
 	// 打開對話框
 	showLocationManagementDialog.value = true;
+};
+
+// 處理單位點擊事件（打開人員對話框）
+const handleUnitClick = async (unit: PeopleCountingUnit) => {
+	if (!unit || !unit.name) return;
+	
+	selectedUnitName.value = unit.name;
+	isUnitDialogOpen.value = true;
+	isLoadingUnitPersonnel.value = true;
+	unitPersonnel.value = [];
+
+	try {
+		const locationId = selectedLocation.value?.locationId;
+		const unitPersonnelList = await peopleCountingApi.getUnitPersonnel(unit.id, locationId);
+		unitPersonnel.value = unitPersonnelList;
+	} catch (error) {
+		handleError(error, `載入 ${unit.name} 人員列表失敗`);
+		unitPersonnel.value = [];
+	} finally {
+		isLoadingUnitPersonnel.value = false;
+	}
+};
+
+// 處理單位對話框關閉
+const handleUnitDialogClose = () => {
+	selectedUnitName.value = "";
+	unitPersonnel.value = [];
 };
 
 // 監聽對話框打開狀態，載入區域數據

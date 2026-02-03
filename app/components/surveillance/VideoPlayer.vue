@@ -98,6 +98,33 @@ const config = useRuntimeConfig();
 
 const videoElement = ref<HTMLVideoElement | null>(null);
 const hlsUrl = ref<string>("");
+
+/** 輪詢 HLS manifest URL 直到可訪問（配合後端早回傳，前端先拿到 hlsUrl 再等 manifest 就緒） */
+const waitForManifestReady = async (
+	url: string,
+	maxWaitMs = 6000,
+	intervalMs = 300
+): Promise<boolean> => {
+	if (!process.client || !url) return false;
+	const start = Date.now();
+	while (Date.now() - start < maxWaitMs) {
+		try {
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 2000);
+			const res = await fetch(url, {
+				method: "GET",
+				mode: "cors",
+				signal: controller.signal
+			});
+			clearTimeout(timeoutId);
+			if (res.ok) return true;
+		} catch {
+			// 忽略單次失敗，繼續輪詢
+		}
+		await new Promise(r => setTimeout(r, intervalMs));
+	}
+	return false;
+};
 const streamId = ref<string>("");
 const loading = ref(false);
 const error = ref<string>("");
@@ -107,21 +134,19 @@ const hls = ref<any>(null);
 const hlsLatency = ref<number>(0); // HLS 播放延遲（秒）
 const latencyCheckInterval = ref<ReturnType<typeof setInterval> | null>(null);
 
-// 延遲監控配置
-const TARGET_LATENCY = 1.5; // 目標延遲：1.5 秒
-const MAX_LATENCY = 3.0; // 最大允許延遲：3 秒
-const MIN_LATENCY = 0.5; // 最小允許延遲：0.5 秒
-const CHECK_INTERVAL = 5000; // 檢查間隔：5 秒
+// 延遲監控（目標 < 1s）
+const TARGET_LATENCY = 0.5;
+const MAX_LATENCY = 1.2;
+const CHECK_INTERVAL = 2000;
 
-// HLS 播放器配置常量（極低延遲優化 - 目標 < 0.3 秒）
 const HLS_PLAYER_CONFIG = {
-	maxBufferLength: 0.2, // 最大緩衝 0.2 秒（極低延遲）
-	maxMaxBufferLength: 0.4, // 最大緩衝上限 0.4 秒
-	backBufferLength: 0, // 禁用後緩衝
-	maxBufferSize: 400 * 1000, // 最大緩衝大小 400KB（減少緩衝以降低延遲）
-	fragLoadingTimeOut: 800, // 片段加載超時 0.8 秒
-	manifestLoadingTimeOut: 200, // 清單加載超時 0.2 秒
-	levelLoadingTimeOut: 800 // 級別加載超時 0.8 秒
+	maxBufferLength: 0.2,
+	maxMaxBufferLength: 0.4,
+	backBufferLength: 0,
+	maxBufferSize: 400 * 1000,
+	fragLoadingTimeOut: 800,
+	manifestLoadingTimeOut: 200,
+	levelLoadingTimeOut: 800
 };
 
 // 構建完整的 HLS URL
@@ -221,7 +246,7 @@ const startStream = async () => {
 				}
 				hls.value = null;
 			}
-			
+
 			// 清理視頻元素
 			if (videoElement.value) {
 				try {
@@ -232,24 +257,23 @@ const startStream = async () => {
 					console.warn("[VideoPlayer] 清理視頻元素時出錯:", err);
 				}
 			}
-			
+
 			// 清空 URL（強制重新初始化）
 			hlsUrl.value = "";
 			await nextTick(); // 等待清理完成
 		}
 
-		const streamInfo = await rtspApi.startStream(props.rtspUrl);
+		const streamInfo = await rtspApi.startStream(props.rtspUrl, { useGpuEncoding: true });
 		streamId.value = streamInfo.streamId;
 		const fullHlsUrl = getFullHlsUrl(streamInfo.hlsUrl);
 		hlsUrl.value = fullHlsUrl;
 
-		// ⭐ 關鍵：等待一小段時間（1 秒），讓 MediaMTX 生成新片段
-		// 如果後端使用了新路徑名稱，這個等待可以縮短
-		// 前端會強制跳轉到最新片段，延遲監控會自動修正任何殘留延遲
-		await new Promise((resolve) => setTimeout(resolve, 1000));
-
-		// 跳過 URL 檢查，直接讓 HLS.js 處理（它有自己的重試機制）
-		// MediaMTX 可能需要時間生成文件，HLS.js 會自動重試
+		// 後端早回傳：manifest 可能尚未就緒，輪詢直到可訪問再初始化播放器
+		const manifestReady = await waitForManifestReady(fullHlsUrl, 6000, 300);
+		if (!manifestReady) {
+			error.value = "HLS 清單尚未就緒，請稍後重試";
+			return;
+		}
 		await initHlsPlayer();
 	} catch (err) {
 		error.value = err instanceof Error ? err.message : "啟動串流失敗";
@@ -343,15 +367,11 @@ const initHlsPlayer = async () => {
 		let retryCount = 0;
 		const maxRetries = 8; // 適中的重試次數（MediaMTX 配置優化後生成更快）
 
-		// ⭐ 統一方法：強制跳轉到目標時間（如果差距足夠大）
 		const seekToTargetTime = (targetTime: number, method: string) => {
 			if (!videoElement.value) return false;
-			
 			const currentTime = videoElement.value.currentTime;
 			const timeDiff = Math.abs(currentTime - targetTime);
-			
-			// 只在時間差距 > 2 秒或當前時間明顯落後時才跳轉
-			if (timeDiff > 2.0 || currentTime < targetTime - 1.0) {
+			if (timeDiff > 0.8 || currentTime < targetTime - 0.3) {
 				videoElement.value.currentTime = Math.max(0, targetTime);
 				if (process.dev) {
 					console.log(
@@ -367,28 +387,22 @@ const initHlsPlayer = async () => {
 			if (process.dev) {
 				console.log("[HLS] 播放列表解析完成，強制跳轉到最新片段");
 			}
-			
-			// ⭐ 關鍵：強制跳轉到最新片段（解決頁面重新載入和重新啟動時延遲增加的問題）
-			// 使用 setTimeout 確保在 manifest 完全解析後再跳轉
+
 			setTimeout(() => {
 				if (videoElement.value && hls.value) {
 					try {
-						// 方法 1: 使用 hls.js 的 liveSyncPosition（推薦，LL-HLS 專用）
 						const liveSyncPosition = (hls.value as any).liveSyncPosition;
 						if (liveSyncPosition !== undefined && liveSyncPosition > 0) {
-							const targetTime = Math.max(0, liveSyncPosition - TARGET_LATENCY);
-							seekToTargetTime(targetTime, "liveSyncPosition");
+							seekToTargetTime(Math.max(0, liveSyncPosition - TARGET_LATENCY), "liveSyncPosition");
 							return;
 						}
-						
-						// 方法 2: 使用 fragments（備用方案）
 						const levels = (hls.value as any).levels;
 						if (levels && levels.length > 0) {
 							const currentLevel = (hls.value as any).currentLevel;
 							if (currentLevel >= 0 && currentLevel < levels.length) {
 								const fragments = levels[currentLevel].details?.fragments;
 								if (fragments && fragments.length > 0) {
-									const targetFragmentIndex = Math.max(0, fragments.length - 2);
+									const targetFragmentIndex = Math.max(0, fragments.length - 1);
 									const targetFragment = fragments[targetFragmentIndex];
 									if (targetFragment && targetFragment.start > 0) {
 										seekToTargetTime(targetFragment.start, `fragments[${targetFragmentIndex}]`);
@@ -402,13 +416,11 @@ const initHlsPlayer = async () => {
 						}
 					}
 				}
-			}, 500); // 等待 500ms 確保 manifest 完全解析
-			
+			}, 150);
+
 			handleAutoPlay();
 			retryCount = 0;
-			loading.value = false; // 提前結束載入狀態
-			
-			// ⭐ 關鍵：啟動持續延遲監控（會自動修正任何殘留延遲）
+			loading.value = false;
 			startLatencyMonitoring();
 		});
 
@@ -583,42 +595,37 @@ const adjustPlayback = (latency: number) => {
 	if (!videoElement.value || !hls.value) return;
 
 	try {
-		// 策略 1: 延遲超過 3 秒，直接跳轉（快速校時）
 		if (latency > MAX_LATENCY) {
 			const liveSyncPosition = (hls.value as any).liveSyncPosition;
 			if (liveSyncPosition !== undefined && liveSyncPosition > 0) {
 				const targetTime = Math.max(0, liveSyncPosition - TARGET_LATENCY);
 				const currentTime = videoElement.value.currentTime;
-				// 只在跳轉距離 > 1 秒時執行，避免頻繁跳轉
-				if (Math.abs(targetTime - currentTime) > 1.0) {
+				if (Math.abs(targetTime - currentTime) > 0.5) {
 					videoElement.value.currentTime = targetTime;
 					if (process.dev) {
 						console.log(
 							`[VideoPlayer] 延遲過高 (${latency.toFixed(2)}s)，跳轉到 ${targetTime.toFixed(2)}s`
 						);
 					}
-					// 跳轉後恢復正常速度
 					videoElement.value.playbackRate = 1.0;
 					return;
 				}
 			}
 		}
 
-		// 策略 2: 延遲在 2-3 秒，使用播放速度調整（平滑校時）
-		if (latency > 2.0 && latency <= MAX_LATENCY) {
+		if (latency > 0.8 && latency <= MAX_LATENCY) {
 			if (videoElement.value.playbackRate !== 1.1) {
-				videoElement.value.playbackRate = 1.1; // 加速 10%
+				videoElement.value.playbackRate = 1.1;
 				if (process.dev) {
-					console.log(`[VideoPlayer] 延遲 ${latency.toFixed(2)}s，使用加速播放 (1.1x)`);
+					console.log(`[VideoPlayer] 延遲 ${latency.toFixed(2)}s，加速 (1.1x)`);
 				}
 			}
 			return;
 		}
 
-		// 策略 3: 延遲在 1.5-2 秒，輕微加速（微調）
-		if (latency > TARGET_LATENCY && latency <= 2.0) {
+		if (latency > TARGET_LATENCY && latency <= 0.8) {
 			if (videoElement.value.playbackRate !== 1.05) {
-				videoElement.value.playbackRate = 1.05; // 加速 5%
+				videoElement.value.playbackRate = 1.05;
 				if (process.dev) {
 					console.log(`[VideoPlayer] 延遲 ${latency.toFixed(2)}s，輕微加速 (1.05x)`);
 				}
@@ -626,7 +633,6 @@ const adjustPlayback = (latency: number) => {
 			return;
 		}
 
-		// 策略 4: 延遲正常，恢復正常速度
 		if (latency <= TARGET_LATENCY) {
 			if (videoElement.value.playbackRate !== 1.0) {
 				videoElement.value.playbackRate = 1.0;
@@ -642,16 +648,11 @@ const adjustPlayback = (latency: number) => {
 	}
 };
 
-/**
- * 啟動延遲監控（每 5 秒檢查一次）
- */
 const startLatencyMonitoring = () => {
-	// 清除舊的監測
 	if (latencyCheckInterval.value) {
 		clearInterval(latencyCheckInterval.value);
 	}
 
-	// 每 5 秒檢查一次延遲並自動調整
 	latencyCheckInterval.value = setInterval(() => {
 		if (!hls.value || !videoElement.value || videoElement.value.paused) {
 			return;
@@ -779,19 +780,23 @@ watch(
 );
 
 // 檢查並更新 HLS URL（統一方法）
-const checkAndUpdateHlsUrl = async (targetStreamId: string, shouldReload: boolean = true): Promise<boolean> => {
+const checkAndUpdateHlsUrl = async (
+	targetStreamId: string,
+	shouldReload: boolean = true
+): Promise<boolean> => {
 	try {
 		const refreshData = await rtspApi.refreshHlsUrl(targetStreamId);
 		const fullHlsUrl = getFullHlsUrl(refreshData.hlsUrl);
-		
+
 		// 檢查 URL 是否已更新（時間戳不同）
 		const currentUrl = hlsUrl.value.split("?")[0]; // 移除查詢參數
 		const newUrl = fullHlsUrl.split("?")[0];
-		const isUrlUpdated = currentUrl !== newUrl || !hlsUrl.value.includes(`t=${refreshData.timestamp}`);
-		
+		const isUrlUpdated =
+			currentUrl !== newUrl || !hlsUrl.value.includes(`t=${refreshData.timestamp}`);
+
 		if (isUrlUpdated) {
 			hlsUrl.value = fullHlsUrl;
-			
+
 			// 如果需要重新載入 HLS 源（頁面可見性變化時）
 			if (shouldReload && hls.value && videoElement.value) {
 				hls.value.loadSource(fullHlsUrl);
@@ -816,7 +821,7 @@ const handleVisibilityChange = async () => {
 		}
 		// 刷新 URL 並重新載入（shouldReload = true）
 		await checkAndUpdateHlsUrl(streamId.value, true);
-		
+
 		// ⭐ 關鍵：如果監控已停止，重新啟動（頁面重新可見時）
 		if (!latencyCheckInterval.value && videoElement.value && !videoElement.value.paused) {
 			startLatencyMonitoring();
@@ -833,20 +838,20 @@ onMounted(async () => {
 	if (process.client) {
 		document.addEventListener("visibilitychange", handleVisibilityChange);
 	}
-	
+
 	// 如果有 streamId 但沒有 hlsUrl，先刷新 URL（頁面重新載入時）
 	if (props.streamId && !props.hlsUrl && props.autoStart) {
 		if (process.dev) {
 			console.log(`[VideoPlayer] 頁面載入，刷新 HLS URL: ${props.streamId}`);
 		}
-		
+
 		streamId.value = props.streamId; // 先設置 streamId，確保後續邏輯正常
-		
+
 		// 刷新 URL 但不重新載入（shouldReload = false），由 startStream 處理
 		// 如果刷新失敗，startStream 會使用 props.rtspUrl 啟動新串流
 		await checkAndUpdateHlsUrl(props.streamId, false);
 	}
-	
+
 	if (props.autoStart && (props.rtspUrl || props.hlsUrl || hlsUrl.value)) {
 		startStream();
 	}
@@ -858,10 +863,10 @@ onUnmounted(() => {
 	if (process.client) {
 		document.removeEventListener("visibilitychange", handleVisibilityChange);
 	}
-	
+
 	// ⭐ 關鍵：停止延遲監控（確保清理）
 	stopLatencyMonitoring();
-	
+
 	stopStream();
 });
 

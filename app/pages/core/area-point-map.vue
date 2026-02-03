@@ -1,19 +1,19 @@
 <template>
 	<div>
 		<!-- 主要內容區域：左右排版 -->
-		<div class="flex justify-center gap-4 xl:gap-6 2xl:gap-8">
+		<div class="flex justify-center gap-6 2xl:gap-8">
 			<!-- 左側面板：區域選擇與編輯功能 -->
 			<section class="flex-[1.2] 2xl:flex-[1.3]" ref="leftSectionRef">
 				<div
-					class="flex overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 xl:p-6 2xl:p-8"
+					class="flex overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-6 2xl:p-8"
 				>
 					<!-- 區域選擇 -->
 					<div class="relative z-10 flex flex-col justify-between py-4 text-center text-white">
 						<div class="space-y-4">
 							<!-- 區域顯示 -->
-							<div class="w-[60px] py-4 2xl:w-[100px]">
+							<div class="py-4">
 								<span
-									class="inline-flex text-nowrap border-b-2 border-white/70 pb-1 text-2xl tracking-widest xl:text-3xl 2xl:text-5xl"
+									class="inline-flex text-nowrap border-b-2 border-white/70 pb-1 tracking-widest text-4xl 2xl:text-5xl"
 								>
 									{{ selectedZoneName }}
 								</span>
@@ -25,7 +25,7 @@
 									type="button"
 									@click="handleOpenZoneDialog"
 									:class="[
-										'whitespace-nowrap rounded-2xl p-3 text-xs font-light text-white transition-all 2xl:text-lg',
+										'whitespace-nowrap rounded-2xl p-3 text-base text-white transition-all 2xl:text-lg',
 										'border-2 border-white/30 bg-transparent hover:bg-white/10'
 									]"
 									title="區域管理"
@@ -46,13 +46,13 @@
 											type="button"
 											@click="handleSystemTypeToggle(systemType)"
 											:class="[
-												'w-full rounded-xl border-2 p-3 text-left text-xs text-white transition-all 2xl:text-lg',
+												'w-full rounded-xl border-2 p-3 text-center text-base text-white transition-all 2xl:text-lg',
 												selectedSystemType === systemType
 													? 'border-white bg-white/20'
 													: 'border-white/20 bg-white/5 hover:bg-white/10'
 											]"
 										>
-											<div class="font-medium">
+											<div>
 												{{ getLocationTypeLabel(systemType) }}
 											</div>
 										</button>
@@ -110,12 +110,12 @@
 			<!-- 右側總覽面板 -->
 			<aside class="flex-[0.8] overflow-y-auto 2xl:flex-[0.7]">
 				<div
-					class="rounded-2xl border-2 border-white/80 bg-white/30 p-4 xl:p-6 2xl:p-8"
+					class="rounded-2xl border-2 border-white/80 bg-white/30 p-6 2xl:p-8"
 					:style="leftSectionHeight ? { minHeight: leftSectionHeight + 'px' } : undefined"
 				>
 					<!-- 總覽標題 -->
 					<h2
-						class="mb-4 text-center text-xl font-semibold tracking-[12px] text-white xl:text-2xl 2xl:text-3xl"
+						class="mb-4 text-center font-semibold tracking-[12px] text-white text-2xl 2xl:text-3xl"
 					>
 						總覽
 					</h2>
@@ -123,7 +123,7 @@
 					<!-- 載入狀態 -->
 					<div v-if="isLoading" class="flex min-h-[200px] items-center justify-center">
 						<div class="text-center text-white/60">
-							<p class="text-sm 2xl:text-base">載入中...</p>
+							<p class="text-base 2xl:text-lg">載入中...</p>
 						</div>
 					</div>
 
@@ -148,7 +148,7 @@
 									</span>
 								</div>
 								<div class="flex-1">
-									<div class="text-sm text-white/80 2xl:text-base">
+									<div class="text-base text-white/80 2xl:text-lg">
 										<template v-if="getZoneSystemTypes(zone).length > 0">
 											{{
 												getZoneSystemTypes(zone)
@@ -166,7 +166,7 @@
 					<!-- 空狀態 -->
 					<div v-else class="flex min-h-[200px] items-center justify-center">
 						<div class="text-center text-white/60">
-							<p class="text-sm 2xl:text-base">尚無區域資料</p>
+							<p class="text-base 2xl:text-lg">尚無區域資料</p>
 						</div>
 					</div>
 				</div>
@@ -195,7 +195,7 @@ import LocationManagementDialog from "~/components/location/LocationManagementDi
 import CategoryTooltip from "~/components/lighting/CategoryTooltip.vue";
 
 definePageMeta({
-	layout: "default"
+	layout: "auxiliary"
 });
 
 const { isAdmin } = useAuth();

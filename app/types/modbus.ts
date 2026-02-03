@@ -18,6 +18,3 @@ export interface ModbusDataResponse<T = number | boolean> {
 	data: T[];
 	device?: ModbusDeviceConfig;
 }
-
-// 設備管理相關類型已遷移到 device.ts
-// 請使用 Device, CreateDeviceData, UpdateDeviceData, DeviceType, DeviceModel 等類型

@@ -1,10 +1,10 @@
 <template>
 	<div>
-		<div class="flex justify-center gap-4 xl:gap-6 2xl:gap-8">
+		<div class="flex justify-center gap-6 2xl:gap-8">
 			<!-- 左側：詳細視圖 -->
 			<section class="relative flex-[1.2] 2xl:flex-[1.3]" ref="leftSectionRef">
 				<div
-					class="relative flex flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 2xl:p-6"
+					class="relative flex flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 2xl:p-6 min-h-[664px] 2xl:min-h-[848px]"
 				>
 					<!-- 位置標題與地點選擇 -->
 					<div
@@ -105,7 +105,7 @@
 						<h2
 							v-if="!isOverviewCollapsed"
 							key="title"
-							class="mb-4 text-center text-xl font-semibold tracking-[12px] text-white xl:text-2xl 2xl:text-3xl"
+							class="mb-4 text-center font-semibold tracking-[12px] text-white text-2xl 2xl:text-3xl"
 							style="padding-left: 12px"
 						>
 							總覽
@@ -118,7 +118,7 @@
 						:title="isOverviewCollapsed ? '展開總覽' : '收縮總覽'"
 					>
 						<svg
-							class="h-5 w-5 xl:h-6 xl:w-6 2xl:h-7 2xl:w-7"
+							class="h-6 w-6 2xl:h-7 2xl:w-7"
 							:class="{ 'rotate-180': isOverviewCollapsed }"
 							fill="none"
 							stroke="currentColor"
@@ -1634,18 +1634,19 @@ const handleDeleteZone = async (zoneId: string) => {
 	await baseHandleDeleteZone(zoneId, environmentZones, environmentApi.deleteZone, {
 		selectedLocationRef: selectedLocationId,
 		getLocationId,
-		// 系統特定的刪除選項（方案一：只刪除該系統的地點）
 		systemType: "environment",
-		getFullZoneApiCall: (id: string) => locationApi.getZone(id), // 取得完整區域資料（不帶 systemType 過濾）
+		getFullZoneApiCall: (id: string) => locationApi.getZone(id),
 		updateZoneApiCall: async (id: string, data: { locations: UnifiedZone["locations"] }) => {
 			const response = await locationApi.updateZone(id, { locations: data.locations });
 			const environmentZone = backendToEnvironmentZone(response.zone);
-			// 確保返回的 zone 有 id
 			return {
 				merged: response.merged,
 				message: response.message,
 				zone: { ...environmentZone, id: environmentZone.id || id } as EnvironmentZone & { id: string }
 			};
+		},
+		onAfterDelete: async () => {
+			await loadZonesFromAPI();
 		}
 	});
 };
@@ -1741,7 +1742,7 @@ const getLocationDisplayData = (location: EnvironmentLocation) => {
 			const value = dataSource[param.type];
 			return {
 				label: getParameterDisplayName(param.type),
-				value: value !== null ? toFixedNumber(value, getParameterFractionDigits(param.type)) : "—",
+				value: value !== null ? toFixedNumber(value, getParameterFractionDigits(param.type)) : "--",
 				unit: getParameterUnit(param.type),
 				alertClass: getStatusTextClass(param.type, value),
 				type: param.type, // 傳遞參數類型用於狀態判斷

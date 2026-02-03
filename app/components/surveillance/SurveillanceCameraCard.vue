@@ -1,7 +1,7 @@
 <template>
 	<div
 		:class="[
-			'cursor-pointer rounded-lg border-2 p-3 backdrop-blur-sm transition-all hover:shadow-lg',
+			'cursor-pointer rounded-lg border-2 p-3 transition-all',
 			isSelected ? 'border-white bg-white/20' : 'border-white/30 bg-white/10 hover:bg-white/15',
 			isStreaming ? 'ring-2 ring-green-400/50' : ''
 		]"
@@ -10,10 +10,10 @@
 		<div class="flex items-start justify-between">
 			<div class="flex-1">
 				<div class="flex items-center gap-2">
-					<h3 class="text-base font-semibold text-white xl:text-lg 2xl:text-xl">{{ camera.name }}</h3>
+					<h3 class="text-lg font-semibold text-white 2xl:text-xl">{{ camera.name }}</h3>
 					<span
 						:class="[
-							'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium backdrop-blur-sm xl:text-sm',
+							'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium backdrop-blur-sm 2xl:text-sm',
 							camera.status === 'active'
 								? 'bg-green-500/30 text-green-100'
 								: camera.status === 'error'
@@ -24,10 +24,10 @@
 						{{ camera.status === "active" ? "啟用" : camera.status === "error" ? "錯誤" : "停用" }}
 					</span>
 				</div>
-				<p v-if="camera.description" class="mt-1 text-sm text-white/70 xl:text-base">
+				<p v-if="camera.description" class="mt-1 text-sm text-white/70 2xl:text-base">
 					{{ camera.description }}
 				</p>
-				<div class="mt-2 flex items-center gap-2 text-xs text-white/60 xl:text-sm">
+				<div class="mt-2 flex items-center gap-2 text-xs text-white/60 2xl:text-sm">
 					<span>{{ camera.config.ip_address }}</span>
 					<span v-if="camera.config.port">:{{ camera.config.port }}</span>
 				</div>
@@ -36,19 +36,19 @@
 				<!-- 串流狀態指示器 -->
 				<div
 					v-if="isStreaming"
-					class="flex items-center gap-1 rounded-full bg-green-500/30 px-2 py-0.5 text-xs font-medium text-green-100 backdrop-blur-sm xl:text-sm"
+					class="flex items-center gap-1 rounded-full bg-green-500/30 px-2 py-0.5 text-xs font-medium text-green-100 2xl:text-sm"
 				>
 					<span class="h-2 w-2 animate-pulse rounded-full bg-green-400"></span>
 					串流中
 				</div>
-				<div v-else-if="camera.status === 'active'" class="text-xs text-white/50 xl:text-sm">未串流</div>
+				<div v-else-if="camera.status === 'active'" class="text-xs text-white/50 2xl:text-sm">未串流</div>
 			</div>
 		</div>
 
 		<!-- 縮圖預覽（可選，未來可加入快照功能） -->
 		<div
 			v-if="showThumbnail"
-			class="mt-3 aspect-video w-full overflow-hidden rounded bg-white/10 backdrop-blur-sm"
+			class="mt-3 aspect-video w-full overflow-hidden rounded bg-white/10"
 		>
 			<div class="flex h-full items-center justify-center text-xs text-white/60">
 				{{ isStreaming ? "預覽中..." : "無預覽" }}

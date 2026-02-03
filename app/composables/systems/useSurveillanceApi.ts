@@ -20,9 +20,7 @@ const buildRtspUrl = (config: CameraDeviceConfig): string | null => {
 	}
 
 	const port = config.port || 554;
-	const auth = config.username && config.password 
-		? `${config.username}:${config.password}@` 
-		: "";
+	const auth = config.username && config.password ? `${config.username}:${config.password}@` : "";
 
 	// 如果 rtsp_url 是相對路徑（以 / 開頭），則與基礎 URL 組合
 	if (config.rtsp_url && !config.rtsp_url.startsWith("rtsp://")) {
@@ -73,8 +71,8 @@ export const useSurveillanceApi = () => {
 			});
 
 			return devices
-				.filter((device): device is Device & { config: CameraDeviceConfig } => 
-					device.config.type === "camera"
+				.filter(
+					(device): device is Device & { config: CameraDeviceConfig } => device.config.type === "camera"
 				)
 				.map(device => {
 					const rtspUrl = buildRtspUrl(device.config as CameraDeviceConfig);
@@ -113,8 +111,7 @@ export const useSurveillanceApi = () => {
 				throw new Error("無法構建 RTSP URL，請檢查設備配置");
 			}
 
-			// 啟動串流
-			const streamInfo = await rtspApi.startStream(rtspUrl);
+			const streamInfo = await rtspApi.startStream(rtspUrl, { useGpuEncoding: true });
 			return streamInfo;
 		} catch (error) {
 			surveillanceLogger.error("啟動攝影機串流失敗", { deviceId, error });
@@ -213,11 +210,11 @@ export const useSurveillanceApi = () => {
 	/**
 	 * 批量獲取多個攝影機的串流狀態
 	 */
-	const getMultipleCameraStreamStatus = async (deviceIds: number[]): Promise<CameraStreamStatus[]> => {
+	const getMultipleCameraStreamStatus = async (
+		deviceIds: number[]
+	): Promise<CameraStreamStatus[]> => {
 		try {
-			const statuses = await Promise.all(
-				deviceIds.map(id => getCameraStreamStatus(id))
-			);
+			const statuses = await Promise.all(deviceIds.map(id => getCameraStreamStatus(id)));
 			return statuses.filter((s): s is CameraStreamStatus => s !== null);
 		} catch (error) {
 			surveillanceLogger.error("批量獲取串流狀態失敗", { error });
@@ -235,4 +232,3 @@ export const useSurveillanceApi = () => {
 		buildRtspUrl
 	};
 };
-

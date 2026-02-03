@@ -31,12 +31,7 @@ export const useCameraStreamStatus = () => {
 	const cameras = ref<SurveillanceCamera[]>([]);
 
 	// 測試串流狀態
-	const testStream = ref<{
-		streamId: string;
-		hlsUrl: string;
-		rtspUrl: string;
-		status: string;
-	} | null>(null);
+	const testStream = ref<RTSPStreamInfo | null>(null);
 
 	/**
 	 * 獲取指定設備的串流狀態
@@ -192,7 +187,10 @@ export const useCameraStreamStatus = () => {
 				streamId: data.streamId,
 				hlsUrl: data.hlsUrl,
 				rtspUrl: data.rtspUrl,
-				status: "running"
+				status: "running",
+				startedAt: data.timestamp || new Date().toISOString(),
+				useGpuEncoding: data.useGpuEncoding,
+				gpuOptions: data.gpuOptions
 			};
 
 			// 更新 monitorViews 中對應的測試串流視圖
@@ -279,9 +277,9 @@ export const useCameraStreamStatus = () => {
 		const isTest = isTestStreamCheck?.(data.streamId) ?? false;
 
 		if (isTest) {
-			// 更新測試串流狀態為錯誤
+			// 更新測試串流狀態為停止（錯誤時設為停止）
 			if (testStream.value?.streamId === data.streamId) {
-				testStream.value.status = "error";
+				testStream.value.status = "stopped";
 			}
 		} else {
 			// 正常串流：根據 streamId 找到對應的攝影機
@@ -352,17 +350,26 @@ export const useCameraStreamStatus = () => {
 	 */
 	const startTestStream = async (
 		rtspUrl: string,
-		syncMonitorViews?: () => void
+		syncMonitorViews?: () => void,
+		gpuOptions?: {
+			useGpuEncoding?: boolean;
+			gpuType?: "nvidia" | "intel" | "amd";
+			bitrate?: string;
+			preset?: string;
+		}
 	): Promise<RTSPStreamInfo> => {
 		try {
-			const streamInfo = await rtspApi.startStream(rtspUrl);
+			const streamInfo = await rtspApi.startStream(rtspUrl, gpuOptions);
 
 			// 更新測試串流狀態
 			testStream.value = {
 				streamId: streamInfo.streamId,
 				hlsUrl: streamInfo.hlsUrl,
 				rtspUrl: rtspUrl,
-				status: streamInfo.status
+				status: streamInfo.status,
+				startedAt: streamInfo.startedAt,
+				useGpuEncoding: streamInfo.useGpuEncoding,
+				gpuOptions: streamInfo.gpuOptions
 			};
 
 			// 自動同步 monitorViews

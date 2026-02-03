@@ -99,6 +99,13 @@ export interface RtspStreamStartedEvent {
 	rtspUrl: string;
 	hlsUrl: string;
 	timestamp: string;
+	useGpuEncoding?: boolean;
+	gpuOptions?: {
+		useGpuEncoding?: boolean;
+		gpuType?: "nvidia" | "intel" | "amd";
+		bitrate?: string;
+		preset?: string;
+	};
 }
 
 export interface RtspStreamStoppedEvent {

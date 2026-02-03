@@ -1,6 +1,5 @@
 import { useRequestFetch } from "#app";
 import { useAuth } from "~/composables/core/useAuth";
-import { useToast } from "~/composables/core/useToast";
 import { isDeviceApiRequest } from "~/utils/errorUtils";
 
 /**
@@ -185,13 +184,7 @@ export const useApiBase = () => {
 
 			if (isNetworkError) {
 				const targetHost = url.match(/https?:\/\/([^\/:]+)/)?.[1] || "未知";
-				throw new Error(
-					`無法連接到後端伺服器 (${targetHost})\n\n` +
-						`請確認：\n` +
-						`1. 後端服務是否正常運行\n` +
-						`2. 後端地址是否正確：${url}\n` +
-						`3. 前端和後端是否在同一網路或可以互相訪問`
-				);
+				throw new Error(`無法連接到後端伺服器 (${targetHost})`);
 			}
 
 			// 處理請求超時（沒有狀態碼的情況）
@@ -206,10 +199,8 @@ export const useApiBase = () => {
 				errorMessage.includes("Access-Control") ||
 				(error?.statusCode === 0 && !isNetworkError)
 			) {
-				throw new Error(
-					`CORS 錯誤：無法連接到後端 API (${url})\n\n` +
-						`請檢查後端 CORS_ORIGINS 環境變數是否包含前端地址`
-				);
+				const targetHost = url.match(/https?:\/\/([^\/:]+)/)?.[1] || "未知";
+				throw new Error(`CORS 錯誤：無法連接到後端 API (${targetHost})`);
 			}
 
 			// 如果以上都不匹配，處理其他錯誤

@@ -14,7 +14,7 @@
 						:key="tab.code"
 						type="button"
 						:class="[
-							'whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium transition-all 2xl:px-6 2xl:py-3 2xl:text-base',
+							'whitespace-nowrap rounded-xl px-4 py-2 text-lg font-medium transition-all 2xl:px-6 2xl:py-3 2xl:text-xl',
 							activeTab === tab.code
 								? 'bg-blue-500/80 text-white shadow-lg'
 								: 'text-white/70 hover:bg-white/10 hover:text-white'
@@ -29,7 +29,7 @@
 			<button
 				v-if="isAdmin"
 				type="button"
-				class="rounded-xl bg-purple-500/80 px-4 py-2 text-sm text-white hover:bg-purple-400 disabled:cursor-not-allowed disabled:bg-purple-500/40 2xl:px-6 2xl:py-3 2xl:text-base"
+				class="rounded-xl bg-purple-500/80 px-4 py-2 text-base text-white hover:bg-purple-400 disabled:cursor-not-allowed disabled:bg-purple-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
 				@click="showDeviceTypeDialog = true"
 			>
 				設備類型管理
@@ -48,15 +48,15 @@
 						v-if="isAdmin"
 						type="button"
 						:disabled="!activeTab"
-						class="rounded-xl bg-blue-500/80 px-4 py-2 text-sm text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-blue-500/40 2xl:px-6 2xl:py-3 2xl:text-base"
+						class="rounded-xl bg-blue-500/80 px-4 py-2 text-base text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-blue-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
 						@click="showDeviceModelDialog = true"
 					>
-						設備型號管理
+						型號管理
 					</button>
 					<button
 						v-if="isAdmin"
 						type="button"
-						class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-500/40 2xl:px-6 2xl:py-3 2xl:text-base"
+						class="rounded-xl bg-emerald-500/80 px-4 py-2 text-base text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
 						@click="showCreateDialog = true"
 					>
 						新增設備
@@ -178,8 +178,8 @@
 			@refresh="
 				() => {
 					// 設備型號變更後，刷新設備列表和設備型號選擇
-					if (activeTab.value) {
-						load({ typeCode: activeTab.value, order: dateSortOrder.value });
+					if (activeTab) {
+						load({ typeCode: activeTab, order: dateSortOrder });
 					}
 					refreshDeviceTypes = !refreshDeviceTypes; // 觸發 DeviceDialog 刷新設備型號列表
 				}
@@ -231,7 +231,7 @@ import { useDeviceApi } from "~/composables/systems/useDeviceApi";
 import { useDeviceMonitor } from "~/composables/monitoring/useDeviceMonitor";
 
 definePageMeta({
-	layout: "default",
+	layout: "auxiliary",
 	middleware: "admin" // 需要管理員權限
 });
 
@@ -288,15 +288,18 @@ const {
 	nextPage,
 	prevPage,
 	resetPage
-} = useDataLoader<Device, { typeCode: DeviceTypeCode; order: "asc" | "desc" }>({
+} = useDataLoader<
+	Device,
+	{ typeCode: DeviceTypeCode; order: "asc" | "desc"; limit?: number; offset?: number }
+>({
 	fetcher: async params => {
 		if (!activeTab.value) {
 			return { items: [], total: 0 };
 		}
 		const result = await deviceApi.getDevices({
 			type_code: params.typeCode,
-			limit: params.limit as number,
-			offset: params.offset as number,
+			limit: params.limit ?? limit,
+			offset: params.offset ?? offset.value,
 			orderBy: "created_at",
 			order: params.order
 		});

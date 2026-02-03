@@ -26,13 +26,17 @@
 				<div
 					class="absolute inset-0 z-10 flex h-full w-full flex-col items-center justify-end rounded-full border-4 border-white pb-4"
 				>
-					<div :class="valueSizeClass">
-						{{ displayValue }}
-					</div>
-					<div v-if="unit" :class="unitSizeClass">
-						{{ unit }}
-					</div>
-					<div v-else :class="unitSizeClass">--</div>
+					<Transition name="fade" mode="out-in">
+						<div :key="displayValue" :class="valueSizeClass">
+							{{ displayValue }}
+						</div>
+					</Transition>
+					<Transition name="fade" mode="out-in">
+						<div v-if="unit" :key="unit" :class="unitSizeClass">
+							{{ unit }}
+						</div>
+						<div v-else key="no-unit" :class="unitSizeClass">--</div>
+					</Transition>
 					<div class="my-2 h-px w-3/4 bg-white/80"></div>
 					<div :class="titleSizeClass">{{ title }}</div>
 				</div>
@@ -129,7 +133,7 @@ const unit = computed(() => {
 
 // 根據類型格式化顯示值
 const displayValue = computed(() => {
-	if (props.value === null) return "—";
+	if (props.value === null) return "--";
 
 	switch (props.type) {
 		case "noise":
@@ -241,3 +245,20 @@ const isDataReady = computed(() => {
 	return props.value !== null && props.value >= 0;
 });
 </script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+	transition: opacity 0.3s ease-in-out;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+	opacity: 0;
+}
+
+.fade-enter-to,
+.fade-leave-from {
+	opacity: 1;
+}
+</style>

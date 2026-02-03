@@ -5,7 +5,7 @@
 	>
 		<!-- 參數名稱（中文和英文）- 左側 -->
 		<div
-			class="flex w-[120px] flex-col items-center justify-center bg-white/10 py-3 leading-none text-white/80"
+			class="flex w-[100px] 2xl:w-[120px] flex-col items-center justify-center bg-white/10 py-3 leading-none text-white/80"
 		>
 			<!-- 根據參數類型決定顯示順序 -->
 			<div class="absolute left-1 top-1/2 h-[80%] w-2 -translate-y-1/2 bg-white/30"></div>
@@ -20,7 +20,7 @@
 		</div>
 
 		<!-- 數值和單位 - 右側 -->
-		<div class="flex flex-1 items-end justify-center gap-1 border-b border-white/20 pb-2 mx-3">
+		<div class="flex flex-1 items-end justify-center gap-1 border-b border-white/30 pb-2 mx-3">
 			<div class="text-2xl text-white 2xl:text-3xl">
 				{{ displayValue }}
 			</div>
@@ -53,7 +53,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const displayValue = computed(() => {
-	if (props.value === null) return "—";
+	if (props.value === null) return "--";
 	return props.toFixedNumber(props.value, props.fractionDigits ?? 0);
 });
 

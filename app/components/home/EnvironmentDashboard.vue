@@ -1,10 +1,10 @@
 <template>
-	<div class="space-y-4">
+	<div class="space-y-3 2xl:space-y-6">
 		<!-- 主要指標（大型圓形儀表） -->
 		<div>
 			<!-- 熱指數 -->
 			<div class="flex flex-col items-center">
-				<div class="relative aspect-square w-full max-w-[200px]">
+				<div class="relative aspect-square w-full max-w-[160px] 2xl:max-w-[200px]">
 					<!-- SVG 弧形指示器 -->
 					<svg
 						class="absolute inset-0 z-20 h-full w-full -rotate-90 transform"
@@ -32,24 +32,24 @@
 							<div class="text-xl ms-[6px] tracking-[6px] font-semibold text-white 2xl:text-2xl">熱指數</div>
 						</div>
 						<!-- 數值（中間） -->
-						<div class="text-4xl text-white 2xl:text-5xl">
-							{{ heatIndex.value !== null ? heatIndex.value.toFixed(1) : "—" }}
+						<div class="text-4xl text-white 2xl:text-5xl mb-2">
+							{{ heatIndex.value !== null ? heatIndex.value.toFixed(1) : "--" }}
 						</div>
 						<!-- 等級顯示（小圓圈） -->
 						<div
 							v-if="heatIndex.value !== null"
-							class="flex items-center justify-center rounded-full bg-white h-10 w-10"
+							class="flex items-center justify-center rounded-full bg-white h-8 w-8 2xl:h-10 2xl:w-10"
 						>
-							<div class="text-black text-2xl">{{ heatIndex.level }}</div>
-							<div class="text-black text-[10px]">級</div>
+							<div class="text-black text-xl 2xl:text-2xl">{{ heatIndex.level }}</div>
+							<div class="text-black text-xs 2xl:text-[10px]">級</div>
 						</div>
 					</div>
 				</div>
 			</div>
-			<div class="grid grid-cols-2 gap-4">
+			<div class="grid grid-cols-2">
 				<!-- 噪音值 -->
 				<div class="flex flex-col items-center">
-					<div class="relative aspect-square w-full max-w-[160px]">
+					<div class="relative aspect-square w-full max-w-[140px] 2xl:max-w-[160px]">
 						<!-- SVG 弧形指示器 -->
 						<svg
 							class="absolute inset-0 z-20 h-full w-full -rotate-90 transform"
@@ -78,10 +78,10 @@
 							</div>
 							<!-- 數值（中間） -->
 							<div
-								class="text-4xl font-light 2xl:text-5xl"
+								class="text-4xl 2xl:text-5xl"
 								:class="getNoiseValueColor()"
 							>
-								{{ sensorData.noise !== null ? Math.round(sensorData.noise) : "—" }}
+								{{ sensorData.noise !== null ? Math.round(sensorData.noise) : "--" }}
 							</div>
 						</div>
 					</div>
@@ -89,7 +89,7 @@
 
 				<!-- PM2.5 -->
 				<div class="flex flex-col items-center">
-					<div class="relative aspect-square w-full max-w-[160px]">
+					<div class="relative aspect-square w-full max-w-[140px] 2xl:max-w-[160px]">
 						<!-- SVG 弧形指示器 -->
 						<svg
 							class="absolute inset-0 z-20 h-full w-full -rotate-90 transform"
@@ -117,8 +117,8 @@
 								<div class="ms-[6px] tracking-[6px] font-semibold text-white text-xl 2xl:text-2xl">PM2.5</div>
 							</div>
 							<!-- 數值（中間） -->
-							<div class="text-4xl font-light text-white 2xl:text-5xl">
-								{{ sensorData.pm25 !== null ? Math.round(sensorData.pm25) : "—" }}
+							<div class="text-4xl text-white 2xl:text-5xl">
+								{{ sensorData.pm25 !== null ? Math.round(sensorData.pm25) : "--" }}
 							</div>
 						</div>
 					</div>
@@ -127,7 +127,7 @@
 		</div>
 
 		<!-- 詳細參數（小型卡片） -->
-		<div class="grid grid-cols-2 gap-3">
+		<div class="grid grid-cols-2 gap-2 2xl:gap-3">
 			<EnvironmentParamCardSimple
 				v-for="param in displayParams"
 				:key="param.type"

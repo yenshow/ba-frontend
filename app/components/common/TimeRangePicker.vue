@@ -5,7 +5,7 @@
 				:value="displayValue"
 				readonly
 				@click="showDropdown = !showDropdown"
-				class="select-filter w-[250px] cursor-pointer text-center"
+				class="select-filter w-[250px] cursor-pointer text-center text-base"
 				placeholder="選擇時間範圍"
 			/>
 			<svg

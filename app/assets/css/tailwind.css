@@ -3,20 +3,6 @@
 @tailwind utilities;
 
 /* ========================================
-   全局滾動條優化 - 防止布局偏移
-   ======================================== */
-
-/* 為 html 和 body 設置 scrollbar-gutter，預留滾動條空間 */
-/* html {
-	scrollbar-gutter: stable;
-}
-
-body {
-	scrollbar-gutter: stable;
-	overflow-x: hidden;
-} */
-
-/* ========================================
    壓克力泡泡效果 - 統一樣式系統
    ======================================== */
 
@@ -106,7 +92,6 @@ body {
 	border: 1px solid rgba(255, 255, 255, 0.35);
 	background-color: rgba(255, 255, 255, 0.1);
 	padding: 10px;
-	font-size: 16px;
 	color: white;
 	outline: none;
 }
@@ -223,4 +208,18 @@ body {
 .btn-secondary:disabled {
 	opacity: 0.6;
 	cursor: not-allowed;
+}
+
+/* ========================================
+   滾動軸樣式 - 隱藏滾動軸
+   ======================================== */
+
+/* 隱藏滾動軸但保持滾動功能 */
+* {
+	scrollbar-width: none; /* Firefox */
+	-ms-overflow-style: none; /* IE 和 Edge */
+}
+
+*::-webkit-scrollbar {
+	display: none; /* Chrome, Safari, Opera */
 }

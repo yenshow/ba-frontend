@@ -13,17 +13,20 @@
 		<!-- 內容區域：水平排版（由左到右） -->
 		<div class="relative z-10 flex flex-1 items-center gap-2">
 			<!-- 左側：圖標 -->
-			<div class="flex h-16 w-16 shrink-0 items-center justify-center 2xl:h-20 2xl:w-20">
-				<NuxtImg
-					v-if="iconSrc"
-					:src="iconSrc"
-					:alt="label"
-					class="h-16 w-16 object-contain 2xl:h-20 2xl:w-20"
-					width="80"
-					height="80"
-					quality="90"
-					loading="lazy"
-				/>
+			<div class="relative flex h-16 w-16 shrink-0 items-center justify-center 2xl:h-20 2xl:w-20">
+				<Transition name="fade">
+					<NuxtImg
+						v-if="iconSrc"
+						key="icon"
+						:src="iconSrc"
+						:alt="label"
+						class="absolute inset-0 h-16 w-16 object-contain 2xl:h-20 2xl:w-20"
+						width="80"
+						height="80"
+						quality="90"
+						loading="lazy"
+					/>
+				</Transition>
 			</div>
 
 			<!-- 分隔線 -->
@@ -32,7 +35,7 @@
 			<!-- 中間：參數標籤、數值和單位 -->
 			<div class="flex flex-col justify-center">
 				<!-- 參數標籤 -->
-				<div class="mb-2 text-base font-medium tracking-widest text-white 2xl:text-lg">{{ label }}</div>
+				<div class="mb-2 font-medium tracking-widest text-white text-lg">{{ label }}</div>
 
 				<!-- 數值和單位 -->
 				<div class="flex items-baseline gap-2">
@@ -85,7 +88,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const displayValue = computed(() => {
-	if (props.value === null) return "—";
+	if (props.value === null) return "--";
 	return props.toFixedNumber(props.value, props.fractionDigits ?? 0);
 });
 
@@ -185,5 +188,21 @@ const statusDotStyle = computed(() => {
 /* 數值警報：快速閃爍（1秒） */
 .blink-fast {
 	animation: blink 1s ease-in-out infinite;
+}
+
+/* Transition 淡入淡出效果 */
+.fade-enter-active,
+.fade-leave-active {
+	transition: opacity 0.3s ease-in-out;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+	opacity: 0;
+}
+
+.fade-enter-to,
+.fade-leave-from {
+	opacity: 1;
 }
 </style>

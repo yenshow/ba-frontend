@@ -1,28 +1,19 @@
 <template>
-	<div class="min-h-screen relative">
-		<!-- 頂部橫幅（紅色警告區域） -->
-		<div class="absolute top-0 left-0 -translate-x-[48px] -translate-y-[48px] overflow-hidden" style="width: calc(100% + 96px);">
-			<SafetyBanner />
-		</div>
-
-		<!-- 頂部區域（品牌與時間） -->
-		<div class="py-4">
-			<HomeHeader />
-		</div>
-
+	<div class="relative">
 		<!-- 主要內容區域 -->
-		<div
-			class="grid gap-4 2xl:grid-cols-10"
-		>
+		<div class="grid grid-cols-10 gap-4 2xl:gap-8">
 			<!-- 左側欄 - 環境監測數據 -->
-			<div class="col-span-1 2xl:col-span-3">
+			<div class="col-span-3">
 				<EnvironmentDashboard
 					v-if="selectedLocation"
 					:location="selectedLocation"
 					:sensor-data="sensorData"
 					:device-model-config="deviceModelConfig"
 				/>
-				<div v-else-if="selectedUnifiedLocation" class="rounded-2xl border-2 border-white/30 bg-white/10 p-8 text-center">
+				<div
+					v-else-if="selectedUnifiedLocation"
+					class="rounded-2xl border-2 border-white/30 bg-white/10 p-8 text-center"
+				>
 					<p class="text-white/60">該地點未配置環境監測系統</p>
 				</div>
 				<div v-else class="rounded-2xl border-2 border-white/30 bg-white/10 p-8 text-center">
@@ -31,20 +22,21 @@
 			</div>
 
 			<!-- 中間區域 - 人員統計 -->
-			<div class="col-span-1 2xl:col-span-4">
+			<div class="col-span-4">
 				<!-- 區域地點選擇器 -->
-				<div class="w-full mb-5">
+				<div class="mb-4 w-full 2xl:mb-6">
 					<FilterDropdown
 						v-model="selectedLocationId"
 						:options="locationOptions"
 						placeholder="請選擇區域地點"
+						textSize="text-4xl"
 					/>
 				</div>
 				<PersonnelStats :locations="filteredPeopleCountingLocations" />
 			</div>
 
 			<!-- 右側欄 - 人員進出記錄 -->
-			<div class="col-span-1 2xl:col-span-3">
+			<div class="col-span-3">
 				<EntryExitLog :logs="filteredLocationLogs" />
 			</div>
 		</div>
@@ -52,8 +44,6 @@
 </template>
 
 <script setup lang="ts">
-import SafetyBanner from "~/components/home/SafetyBanner.vue";
-import HomeHeader from "~/components/home/HomeHeader.vue";
 import EnvironmentDashboard from "~/components/home/EnvironmentDashboard.vue";
 import PersonnelStats from "~/components/home/PersonnelStats.vue";
 import EntryExitLog from "~/components/home/EntryExitLog.vue";
@@ -65,10 +55,7 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useToast } from "~/composables/core/useToast";
 import { usePolling } from "~/composables/monitoring/usePolling";
 import { useZoneManagement } from "~/composables/systems/useZoneManagement";
-import type {
-	EnvironmentLocation,
-	SensorParameterType
-} from "~/types/environment";
+import type { EnvironmentLocation, SensorParameterType } from "~/types/environment";
 import type { UnifiedZone, UnifiedLocation, EnvironmentSystemConfig } from "~/types/location";
 import type {
 	Device,
@@ -78,7 +65,6 @@ import type {
 } from "~/types/device";
 import type { ModbusDeviceConfig, ModbusDataResponse } from "~/types/modbus";
 import { isDeviceConnectionError } from "~/utils/errorUtils";
-import { cleanZone } from "~/utils/sensorUtils";
 import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState";
 import { usePeopleCountingWebSocket } from "~/composables/systems/peopleCounting/usePeopleCountingWebSocket";
 import { usePeopleCountingApi } from "~/composables/systems/usePeopleCountingApi";
@@ -96,10 +82,8 @@ const toast = useToast();
 const { sortZones } = useZoneManagement<UnifiedZone>();
 
 // 人流統計相關
-const {
-	locations: peopleCountingLocations,
-	loadLocations: loadPeopleCountingLocations
-} = usePeopleCountingState();
+const { locations: peopleCountingLocations, loadLocations: loadPeopleCountingLocations } =
+	usePeopleCountingState();
 
 const peopleCountingApi = usePeopleCountingApi();
 
@@ -122,7 +106,7 @@ const loadAllLocationLogs = async () => {
 		});
 
 		const results = await Promise.allSettled(logPromises);
-		
+
 		results.forEach(result => {
 			if (result.status === "fulfilled") {
 				allLogs.push(...result.value);
@@ -154,7 +138,9 @@ const getLocationId = (location: UnifiedLocation): string => {
 };
 
 // 從統一地點中提取環境監測系統配置
-const extractEnvironmentLocation = (unifiedLocation: UnifiedLocation): EnvironmentLocation | null => {
+const extractEnvironmentLocation = (
+	unifiedLocation: UnifiedLocation
+): EnvironmentLocation | null => {
 	const envSystem = unifiedLocation.systems?.find(s => s.systemType === "environment");
 	if (!envSystem) {
 		return null;
@@ -162,7 +148,12 @@ const extractEnvironmentLocation = (unifiedLocation: UnifiedLocation): Environme
 
 	// 類型守衛：檢查是否為環境監測系統配置
 	const config = envSystem.config;
-	if (!config || typeof config !== "object" || !("parameters" in config) || !Array.isArray(config.parameters)) {
+	if (
+		!config ||
+		typeof config !== "object" ||
+		!("parameters" in config) ||
+		!Array.isArray(config.parameters)
+	) {
 		return null;
 	}
 
@@ -185,21 +176,15 @@ const sensorDevice = ref<Device | null>(null);
 const deviceModelConfig = ref<SensorDeviceModelConfig | null>(null);
 
 const sensorDeviceConfig = computed<ModbusDeviceConfig | null>(() => {
-	if (!sensorDevice.value || sensorDevice.value.type_code !== "sensor") {
-		return null;
-	}
+	if (!sensorDevice.value || sensorDevice.value.type_code !== "sensor") return null;
 
 	const config = sensorDevice.value.config as SensorDeviceConfig;
-	if (config.protocol !== "modbus" || !config.host || !config.port) {
-		return null;
-	}
-
-	const unitId = config.unitId || 1;
+	if (config.protocol !== "modbus" || !config.host || !config.port) return null;
 
 	return {
 		host: config.host,
 		port: config.port,
-		unitId
+		unitId: config.unitId || 1
 	};
 });
 
@@ -220,74 +205,41 @@ const selectedLocation = computed<EnvironmentLocation | null>(() => {
 	return extractEnvironmentLocation(selectedUnifiedLocation.value);
 });
 
-// 地點選項列表（用於下拉選單）- 顯示所有地點
-const locationOptions = computed(() => {
-	const options: Array<{ value: string; label: string }> = [];
-	
-	unifiedZones.value.forEach(zone => {
-		zone.locations.forEach(location => {
-			const locationId = getLocationId(location);
-			const label = `${zone.name} - ${location.name}`;
-			options.push({ value: locationId, label });
-		});
-	});
-	
-	return options;
-});
+const locationOptions = computed(() =>
+	unifiedZones.value.flatMap(zone =>
+		zone.locations.map(location => ({
+			value: getLocationId(location),
+			label: `${zone.name} - ${location.name}`
+		}))
+	)
+);
 
-// 根據選中的統一地點找到對應的人流統計地點
-// 優先通過 ID 匹配，如果沒有則通過名稱匹配
 const findMatchingPeopleCountingLocation = (unifiedLocation: UnifiedLocation | null) => {
 	if (!unifiedLocation) return null;
-	
-	// 先嘗試通過 ID 匹配
 	if (unifiedLocation.id) {
-		const matchedById = peopleCountingLocations.value.find(
-			pcLocation => pcLocation.id === unifiedLocation.id || String(pcLocation.locationId) === unifiedLocation.id
+		const byId = peopleCountingLocations.value.find(
+			pc => pc.id === unifiedLocation.id || String(pc.locationId) === unifiedLocation.id
 		);
-		if (matchedById) return matchedById;
+		if (byId) return byId;
 	}
-	
-	// 如果 ID 匹配失敗，嘗試通過名稱匹配
-	const matchedByName = peopleCountingLocations.value.find(
-		pcLocation => pcLocation.name === unifiedLocation.name
-	);
-	if (matchedByName) return matchedByName;
-	
-	return null;
+	return peopleCountingLocations.value.find(pc => pc.name === unifiedLocation.name) ?? null;
 };
 
-// 過濾後的人流統計地點（根據選中的統一地點）
+const matchedPeopleCountingLocation = computed(() =>
+	findMatchingPeopleCountingLocation(selectedUnifiedLocation.value)
+);
+
 const filteredPeopleCountingLocations = computed(() => {
-	if (!selectedUnifiedLocation.value) {
-		// 如果沒有選中地點，返回所有人流統計地點
-		return peopleCountingLocations.value;
-	}
-	
-	const matchedLocation = findMatchingPeopleCountingLocation(selectedUnifiedLocation.value);
-	if (matchedLocation) {
-		return [matchedLocation];
-	}
-	
-	// 如果找不到匹配的地點，返回空陣列
-	return [];
+	if (!selectedUnifiedLocation.value) return peopleCountingLocations.value;
+	const matched = matchedPeopleCountingLocation.value;
+	return matched ? [matched] : [];
 });
 
-// 過濾後的進出記錄（根據選中的地點）
 const filteredLocationLogs = computed(() => {
-	if (!selectedUnifiedLocation.value) {
-		// 如果沒有選中地點，返回所有記錄
-		return allLocationLogs.value;
-	}
-	
-	const matchedLocation = findMatchingPeopleCountingLocation(selectedUnifiedLocation.value);
-	if (!matchedLocation || !matchedLocation.locationId) {
-		// 如果找不到匹配的地點，返回空陣列
-		return [];
-	}
-	
-	// 過濾出該地點的記錄
-	return allLocationLogs.value.filter(log => log.locationId === matchedLocation.locationId);
+	if (!selectedUnifiedLocation.value) return allLocationLogs.value;
+	const matched = matchedPeopleCountingLocation.value;
+	if (!matched?.locationId) return [];
+	return allLocationLogs.value.filter(log => log.locationId === matched.locationId);
 });
 
 // 感測器資料
@@ -328,41 +280,22 @@ const getParameterModbusConfig = (
 // 預設選擇的地點（區域名稱 - 地點名稱）
 const DEFAULT_LOCATION = { zoneName: "遠岫", locationName: "大門口" };
 
-// 載入所有區域和地點（包含所有系統）
 const loadZones = async () => {
 	if (isLoadingZones.value) return;
 	isLoadingZones.value = true;
 	try {
-		// 從統一地點管理系統載入所有區域（包含所有系統）
-		const unifiedResult = await locationApi.getZones();
-		const allZones: UnifiedZone[] = unifiedResult.zones || [];
+		const { zones = [] } = await locationApi.getZones();
+		unifiedZones.value = sortZones(zones);
 
-		// 使用統一的排序函數
-		unifiedZones.value = sortZones(allZones);
+		if (unifiedZones.value.length === 0) return;
 
-		// 優先選擇預設地點「遠岫 - 大門口」
-		if (unifiedZones.value.length > 0) {
-			// 先嘗試找預設地點
-			for (const zone of unifiedZones.value) {
-				if (zone.name === DEFAULT_LOCATION.zoneName) {
-					const defaultLocation = zone.locations.find(
-						loc => loc.name === DEFAULT_LOCATION.locationName
-					);
-					if (defaultLocation) {
-						selectedLocationId.value = getLocationId(defaultLocation);
-						return;
-					}
-				}
-			}
-
-			// 如果沒找到預設地點，選擇第一個可用地點
-			const firstLocation = unifiedZones.value
-				.flatMap(zone => zone.locations || [])
-				.find(() => true);
-			if (firstLocation) {
-				selectedLocationId.value = getLocationId(firstLocation);
-			}
-		}
+		const defaultZone = unifiedZones.value.find(z => z.name === DEFAULT_LOCATION.zoneName);
+		const defaultLocation = defaultZone?.locations.find(
+			loc => loc.name === DEFAULT_LOCATION.locationName
+		);
+		const targetLocation =
+			defaultLocation ?? unifiedZones.value.flatMap(z => z.locations || []).find(() => true);
+		if (targetLocation) selectedLocationId.value = getLocationId(targetLocation);
 	} catch (error) {
 		handleError(error, "載入區域列表失敗");
 	} finally {
@@ -370,7 +303,6 @@ const loadZones = async () => {
 	}
 };
 
-// 載入地點的感測器設備配置
 const loadLocationSensorDevice = async (location: EnvironmentLocation) => {
 	if (!location.deviceId) {
 		sensorDevice.value = null;
@@ -379,9 +311,7 @@ const loadLocationSensorDevice = async (location: EnvironmentLocation) => {
 	}
 
 	try {
-		const result = await deviceApi.getDevice(location.deviceId);
-		const device = result.device;
-
+		const { device } = await deviceApi.getDevice(location.deviceId);
 		if (!device || device.type_code !== "sensor") {
 			sensorDevice.value = null;
 			deviceModelConfig.value = null;
@@ -390,25 +320,20 @@ const loadLocationSensorDevice = async (location: EnvironmentLocation) => {
 
 		sensorDevice.value = device;
 
-		// 嘗試從設備 API 返回的 model 中取得配置
-		const deviceWithModel = device as any;
-		if (deviceWithModel.model?.config?.sensorParameters) {
-			deviceModelConfig.value = deviceWithModel.model.config as SensorDeviceModelConfig;
-			return;
-		}
+		const deviceWithModel = device as { model?: { config?: SensorDeviceModelConfig } };
+		let modelConfig: SensorDeviceModelConfig | null = deviceWithModel.model?.config?.sensorParameters
+			? (deviceWithModel.model.config as SensorDeviceModelConfig)
+			: null;
 
-		// 如果設備 API 沒有返回 model.config，則單獨取得型號資訊
-		if (device.model_id) {
+		if (!modelConfig && device.model_id) {
 			try {
-				const modelResult = await deviceApi.getDeviceModel(device.model_id);
-				deviceModelConfig.value = modelResult.device_model.config as SensorDeviceModelConfig | undefined || null;
+				const { device_model } = await deviceApi.getDeviceModel(device.model_id);
+				modelConfig = (device_model?.config as SensorDeviceModelConfig | undefined) ?? null;
 			} catch (error) {
 				console.warn("[index] 載入設備型號配置失敗:", error);
-				deviceModelConfig.value = null;
 			}
-		} else {
-			deviceModelConfig.value = null;
 		}
+		deviceModelConfig.value = modelConfig;
 	} catch (error) {
 		console.error("[index] 載入設備失敗:", error);
 		sensorDevice.value = null;
@@ -416,17 +341,32 @@ const loadLocationSensorDevice = async (location: EnvironmentLocation) => {
 	}
 };
 
-// 讀取 Modbus 寄存器
 const readModbusRegister = async (
 	modbusConfig: ModbusDeviceConfig,
-	address: number,
-	length: number = 1
+	address: number
 ): Promise<ModbusDataResponse<number>> => {
 	const queryParams = new URLSearchParams({
 		host: modbusConfig.host,
 		port: String(modbusConfig.port),
 		unitId: String(modbusConfig.unitId),
-		address: String(address),
+		address: String(address)
+	});
+
+	return await request<ModbusDataResponse<number>>(
+		`/modbus/holding-registers?${queryParams.toString()}`
+	);
+};
+
+const readModbusRegisterBatch = async (
+	modbusConfig: ModbusDeviceConfig,
+	startAddress: number,
+	length: number
+): Promise<ModbusDataResponse<number>> => {
+	const queryParams = new URLSearchParams({
+		host: modbusConfig.host,
+		port: String(modbusConfig.port),
+		unitId: String(modbusConfig.unitId),
+		address: String(startAddress),
 		length: String(length)
 	});
 
@@ -435,8 +375,97 @@ const readModbusRegister = async (
 	);
 };
 
-// 應用轉換公式（參考 environment.vue 的實現）
-// 統一使用簡化格式：直接填入運算符和數值，例如 "-1", "/ 10", "* 2", "+ 5"
+type AddressGroup = { start: number; length: number; addresses: number[] };
+
+const groupConsecutiveAddresses = (addresses: number[]): AddressGroup[] => {
+	if (addresses.length === 0) return [];
+	const sorted = [...addresses].sort((a, b) => a - b);
+	const groups: AddressGroup[] = [];
+	let current: number[] = [sorted[0]];
+
+	for (let i = 1; i < sorted.length; i++) {
+		if (sorted[i] === current[current.length - 1] + 1) {
+			current.push(sorted[i]);
+		} else {
+			groups.push({ start: current[0], length: current.length, addresses: [...current] });
+			current = [sorted[i]];
+		}
+	}
+	groups.push({ start: current[0], length: current.length, addresses: current });
+	return groups;
+};
+
+type ParameterWithModbusConfig = {
+	type: SensorParameterType;
+	modbusConfig: { address: number; transform?: string };
+};
+
+type BatchResult = { type: SensorParameterType; value: number | null; success: boolean };
+
+const mapParamListToResults = (
+	paramDataList: ParameterWithModbusConfig[],
+	rawValue: number,
+	success: boolean
+): BatchResult[] =>
+	paramDataList.map(paramData => ({
+		type: paramData.type,
+		value: success ? applyTransform(rawValue, paramData.modbusConfig.transform) : null,
+		success
+	}));
+
+const readParametersBatch = async (
+	modbusConfig: ModbusDeviceConfig,
+	paramAddressMap: Map<number, ParameterWithModbusConfig[]>
+): Promise<BatchResult[]> => {
+	const addresses = Array.from(paramAddressMap.keys()).sort((a, b) => a - b);
+	if (addresses.length === 0) return [];
+
+	const addressGroups = groupConsecutiveAddresses(addresses);
+	const readPromises: Promise<BatchResult[]>[] = [];
+
+	for (const group of addressGroups) {
+		if (group.length > 1) {
+			readPromises.push(
+				readModbusRegisterBatch(modbusConfig, group.start, group.length)
+					.then(response =>
+						group.addresses.flatMap((addr, idx) => {
+							const list = paramAddressMap.get(addr);
+							return list?.length ? mapParamListToResults(list, response.data[idx], true) : [];
+						})
+					)
+					.catch(async () => {
+						const fallback = await Promise.all(
+							group.addresses.map(async addr => {
+								const list = paramAddressMap.get(addr);
+								if (!list?.length) return [];
+								try {
+									const res = await readModbusRegister(modbusConfig, addr);
+									return mapParamListToResults(list, res.data[0], true);
+								} catch {
+									return mapParamListToResults(list, 0, false);
+								}
+							})
+						);
+						return fallback.flat();
+					})
+			);
+			continue;
+		}
+
+		const addr = group.addresses[0];
+		const list = paramAddressMap.get(addr);
+		if (!list?.length) continue;
+
+		readPromises.push(
+			readModbusRegister(modbusConfig, addr)
+				.then(res => mapParamListToResults(list, res.data[0], true))
+				.catch(() => mapParamListToResults(list, 0, false))
+		);
+	}
+
+	return (await Promise.all(readPromises)).flat();
+};
+
 const applyTransform = (value: number, transform?: string): number => {
 	if (!transform || !transform.trim()) return value;
 
@@ -476,15 +505,12 @@ const applyTransform = (value: number, transform?: string): number => {
 	}
 };
 
-// 感測器狀態相關常數
-const OFFLINE_ALERT_INTERVAL = 30000; // 每 30 秒最多顯示一次離線警報
+const OFFLINE_ALERT_INTERVAL = 30000;
 
-// 載入狀態
 const isFetching = ref(false);
 const isSensorOffline = ref(false);
 const lastOfflineAlertTime = ref<number | null>(null);
 
-// 載入感測器資料（需要確保設備配置已載入）
 const loadSensorData = async () => {
 	if (isFetching.value) {
 		return;
@@ -502,25 +528,28 @@ const loadSensorData = async () => {
 			return;
 		}
 
-		// 讀取所有啟用的參數
+		const paramAddressMap = new Map<number, ParameterWithModbusConfig[]>();
 		for (const param of enabledParams) {
 			const modbusConfig = getParameterModbusConfig(param.type);
 			if (!modbusConfig || modbusConfig.address === undefined) {
 				continue;
 			}
 
-			try {
-				const response = await readModbusRegister(sensorDeviceConfig.value, modbusConfig.address, 1);
-				const rawValue = response.data[0];
-				const transformedValue = applyTransform(rawValue, modbusConfig.transform);
-				(sensorData as any)[param.type] = transformedValue;
-			} catch (error: any) {
-				const errorMessage = error instanceof Error ? error.message : String(error);
-				if (isDeviceConnectionError(errorMessage)) {
-					// 設備連接錯誤，靜默處理
-					(sensorData as any)[param.type] = null;
-				}
-			}
+			const existing = paramAddressMap.get(modbusConfig.address) ?? [];
+			existing.push({
+				type: param.type,
+				modbusConfig: { address: modbusConfig.address, transform: modbusConfig.transform }
+			});
+			paramAddressMap.set(modbusConfig.address, existing);
+		}
+
+		if (paramAddressMap.size === 0) {
+			return;
+		}
+
+		const results = await readParametersBatch(sensorDeviceConfig.value, paramAddressMap);
+		for (const result of results) {
+			(sensorData as any)[result.type] = result.success ? result.value : null;
 		}
 
 		// 感測器恢復連線
@@ -558,81 +587,58 @@ const loadSensorData = async () => {
 	}
 };
 
-// 輪詢相關常數
-const SENSOR_POLLING_INTERVAL = 5000; // 每 5 秒執行一次
+const SENSOR_POLLING_INTERVAL = 5000;
 
-// 使用 usePolling 統一管理輪詢
 const { start: startPolling } = usePolling({
-	callback: async () => {
-		await loadSensorData();
-	},
+	callback: () => loadSensorData(),
 	interval: SENSOR_POLLING_INTERVAL,
-	immediate: false,
-	onError: err => {
-		handleError(err, "載入感測器資料失敗");
-	}
+	immediate: true,
+	onError: err => handleError(err, "載入感測器資料失敗")
 });
 
-// 初始化選中地點的資料載入
 const initializeLocationData = async () => {
 	if (!selectedLocation.value) return;
-
-	// 載入設備配置
 	await loadLocationSensorDevice(selectedLocation.value);
-	// 等待配置載入完成後再載入數據
 	await nextTick();
 	await loadSensorData();
 };
 
-// 監聽地點變化
 watch(
 	() => selectedLocationId.value,
 	async () => {
 		if (selectedLocationId.value) {
-			await initializeLocationData();
-			// 當地點切換時，重新載入進出記錄（確保顯示最新數據）
-			await loadAllLocationLogs();
+			// 並行執行：初始化地點數據和重新載入進出記錄
+			await Promise.allSettled([initializeLocationData(), loadAllLocationLogs()]);
 		}
 	}
 );
 
-// WebSocket 事件處理
 const { setupEventListeners } = usePeopleCountingWebSocket();
 let cleanupWebSocket: (() => void) | null = null;
 
 onMounted(async () => {
-	// 載入所有區域和地點
-	await loadZones();
+	cleanupWebSocket = setupEventListeners(
+		() => Promise.allSettled([loadPeopleCountingLocations(), loadAllLocationLogs()]),
+		500
+	);
 
-	// 等待 selectedLocation 更新後初始化資料
+	const [zonesResult, peopleCountingResult] = await Promise.allSettled([
+		loadZones(),
+		loadPeopleCountingLocations()
+	]);
 	await nextTick();
-	await initializeLocationData();
 
-	// 啟動輪詢
-	startPolling();
-
-	// 載入人流統計數據
-	try {
-		await loadPeopleCountingLocations();
-		await loadAllLocationLogs();
-	} catch (error) {
-		console.error("[index] 載入人流統計數據失敗:", error);
+	const parallelTasks: Promise<void>[] = [];
+	if (zonesResult.status === "fulfilled") {
+		parallelTasks.push(initializeLocationData().catch(console.error));
 	}
-
-// WebSocket 防抖時間
-const WEBSOCKET_DEBOUNCE_MS = 500;
-
-	// 設置 WebSocket 事件監聽：收到 YSCP 事件後重新載入資料
-	cleanupWebSocket = setupEventListeners(async () => {
-		// 使用防抖優化，避免短時間內多次觸發
-		await Promise.allSettled([
-			loadPeopleCountingLocations(),
-			loadAllLocationLogs()
-		]);
-	}, WEBSOCKET_DEBOUNCE_MS);
+	if (peopleCountingResult.status === "fulfilled") {
+		parallelTasks.push(loadAllLocationLogs().catch(console.error));
+	}
+	await Promise.allSettled(parallelTasks);
+	startPolling();
 });
 
-// 監聽人流統計地點變化，重新載入進出記錄
 watch(
 	() => peopleCountingLocations.value,
 	async () => {
@@ -641,7 +647,6 @@ watch(
 	{ deep: true }
 );
 
-// 清理 WebSocket 監聽器
 onBeforeUnmount(() => {
 	if (cleanupWebSocket) {
 		cleanupWebSocket();
