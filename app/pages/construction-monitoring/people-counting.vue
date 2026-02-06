@@ -19,7 +19,9 @@
 						</div>
 						<div class="h-[24px] w-px bg-[#595959]"></div>
 						<div class="flex w-[200px] items-center justify-center">
-							<span v-if="selectedLocation" class="pe-[12px] text-[21px] 2xl:text-[28px]">{{ selectedLocation.name }}</span>
+							<span v-if="selectedLocation" class="pe-[12px] text-[21px] 2xl:text-[28px]">{{
+								selectedLocation.name
+							}}</span>
 						</div>
 					</div>
 
@@ -36,12 +38,12 @@
 						<div class="mt-16 flex">
 							<!-- 左側-左：統計 + 記錄表 -->
 							<div class="flex-1">
-							<LocationStatsPanel
-								:entry-count="selectedLocation.entryCount || 0"
-								:exit-count="selectedLocation.exitCount || 0"
-								:current-count="currentCount"
-								:logs="logs"
-							/>
+								<LocationStatsPanel
+									:entry-count="selectedLocation.entryCount || 0"
+									:exit-count="selectedLocation.exitCount || 0"
+									:current-count="currentCount"
+									:logs="logs"
+								/>
 							</div>
 							<!-- 左側-右：單位列表 + 人員名單 -->
 							<div class="flex-1 border-l-2 border-white/30 ms-4 ps-4">
@@ -75,7 +77,9 @@
 								/>
 							</svg>
 							<p class="font-medium text-white/90 text-2xl 2xl:text-3xl">請選擇地點</p>
-							<p class="mt-2 text-base text-white/70 2xl:text-lg">請從右側列表點選地點以查看詳細資訊</p>
+							<p class="mt-2 text-base text-white/70 2xl:text-lg">
+								請從右側列表點選地點以查看詳細資訊
+							</p>
 						</div>
 					</div>
 				</div>
@@ -85,7 +89,7 @@
 			<aside
 				:class="[
 					'flex flex-col transition-all duration-500 ease-in-out',
-					isSidebarCollapsed ? 'flex-[0.05]' : 'flex-[0.8] 2xl:flex-[0.7]'
+					isSidebarCollapsed ? 'flex-[0.05]' : 'flex-[0.8] 2xl:flex-[0.7]',
 				]"
 				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
 			>
@@ -116,7 +120,12 @@
 							stroke="currentColor"
 							viewBox="0 0 24 24"
 						>
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M9 5l7 7-7 7"
+							/>
 						</svg>
 					</button>
 
@@ -127,25 +136,25 @@
 							key="content"
 							class="min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
 						>
-						<div class="space-y-4">
-							<template v-if="locations.length > 0">
-								<LocationOverviewCard
-									v-for="location in locationsForOverview"
-									:key="location.locationId || location.id"
-									:location="location"
-									@click="handleLocationSelect"
-									:class="{
-										'ring-2 ring-cyan-400': isCurrentLocation(location),
-										'hover:ring-2 hover:ring-cyan-300/50': true
-									}"
-								/>
-							</template>
-							<div v-else class="py-8 text-center text-white/60">
-								<p class="text-base 2xl:text-lg">尚無地點資料</p>
-								<p class="mt-2 text-sm 2xl:text-base">請在「地點管理」中新增地點</p>
+							<div class="space-y-4">
+								<template v-if="locations.length > 0">
+									<LocationOverviewCard
+										v-for="location in locationsForOverview"
+										:key="location.locationId || location.id"
+										:location="location"
+										@click="handleLocationSelect"
+										:class="{
+											'ring-2 ring-cyan-400': isCurrentLocation(location),
+											'hover:ring-2 hover:ring-cyan-300/50': true,
+										}"
+									/>
+								</template>
+								<div v-else class="py-8 text-center text-white/60">
+									<p class="text-base 2xl:text-lg">尚無地點資料</p>
+									<p class="mt-2 text-sm 2xl:text-base">請在「地點管理」中新增地點</p>
+								</div>
 							</div>
 						</div>
-					</div>
 					</Transition>
 				</div>
 			</aside>
@@ -162,20 +171,20 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, watch, nextTick, computed, ref } from "vue";
-import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting";
-import LocationDetailPanel from "~/components/people-counting/LocationDetailPanel.vue";
-import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue";
-import LocationOverviewCard from "~/components/people-counting/LocationOverviewCard.vue";
-import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
-import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState";
-import { usePeopleCountingWebSocket } from "~/composables/systems/peopleCounting/usePeopleCountingWebSocket";
-import { usePeopleCountingLocationApi } from "~/composables/systems/location/usePeopleCountingLocationApi";
-import { useZoneManagement } from "~/composables/systems/useZoneManagement";
-import { useLocationApi } from "~/composables/systems/location/useLocationApi";
-import { backendToPeopleCountingZone } from "~/utils/locationAdapter";
-import { useZoneSystemAdapter } from "~/composables/systems/useZoneSystemAdapter";
-import type { UnifiedZone } from "~/types/location";
+import { onMounted, onBeforeUnmount, watch, nextTick, computed, ref } from "vue"
+import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting"
+import LocationDetailPanel from "~/components/people-counting/LocationDetailPanel.vue"
+import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue"
+import LocationOverviewCard from "~/components/people-counting/LocationOverviewCard.vue"
+import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
+import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState"
+import { usePeopleCountingWebSocket } from "~/composables/systems/peopleCounting/usePeopleCountingWebSocket"
+import { usePeopleCountingLocationApi } from "~/composables/systems/location/usePeopleCountingLocationApi"
+import { useZoneManagement } from "~/composables/systems/useZoneManagement"
+import { useLocationApi } from "~/composables/systems/location/useLocationApi"
+import { unifiedToPeopleCountingZone } from "~/utils/locationAdapter"
+import { useZoneSystemAdapter } from "~/composables/systems/useZoneSystemAdapter"
+import type { UnifiedZone } from "~/types/location"
 
 // 使用統一的狀態管理
 const {
@@ -189,113 +198,116 @@ const {
 	loadLocationDetail,
 	loadZones,
 	handleUnitSelect,
-	getLocationZone
-} = usePeopleCountingState();
+	getLocationZone,
+} = usePeopleCountingState()
 
 // 右側總覽：顯示 zone 名稱（不影響詳情載入）
 const locationsForOverview = computed(() =>
-	locations.value.map(location => ({
+	locations.value.map((location) => ({
 		...location,
-		overviewZoneName: getLocationZone(location)
+		overviewZoneName: getLocationZone(location),
 	}))
-);
+)
 
 // 計算在場人數：所有單位的 currentCount 總和
 const currentCount = computed(() => {
-	if (!selectedLocation.value?.units) return 0;
-	return selectedLocation.value.units.reduce((sum, unit) => sum + (unit.currentCount || 0), 0);
-});
+	if (!selectedLocation.value?.units) return 0
+	return selectedLocation.value.units.reduce((sum, unit) => sum + (unit.currentCount || 0), 0)
+})
 
 // WebSocket 事件處理
-const { setupEventListeners } = usePeopleCountingWebSocket();
+const { setupEventListeners } = usePeopleCountingWebSocket()
 
 // 左側區域的 ref 和高度
-const leftSectionRef = ref<HTMLElement | null>(null);
-const leftSectionHeight = ref<number | null>(null);
+const leftSectionRef = ref<HTMLElement | null>(null)
+const leftSectionHeight = ref<number | null>(null)
 
 // ResizeObserver 用於動態監聽左側區域高度變化
-let leftSectionResizeObserver: ResizeObserver | null = null;
+let leftSectionResizeObserver: ResizeObserver | null = null
 
 // 更新左側高度
 const updateLeftSectionHeight = () => {
 	if (leftSectionRef.value) {
-		leftSectionHeight.value = leftSectionRef.value.offsetHeight;
+		leftSectionHeight.value = leftSectionRef.value.offsetHeight
 	}
-};
+}
 
 // 初始化 ResizeObserver
 const initLeftSectionObserver = () => {
-	if (typeof ResizeObserver === "undefined") return;
-	if (!leftSectionRef.value) return;
+	if (typeof ResizeObserver === "undefined") return
+	if (!leftSectionRef.value) return
 
-	leftSectionResizeObserver = new ResizeObserver(entries => {
+	leftSectionResizeObserver = new ResizeObserver((entries) => {
 		if (entries.length) {
-			leftSectionHeight.value = entries[0].contentRect.height;
+			leftSectionHeight.value = entries[0].contentRect.height
 		}
-	});
-	leftSectionResizeObserver.observe(leftSectionRef.value);
-};
+	})
+	leftSectionResizeObserver.observe(leftSectionRef.value)
+}
 
 // 側邊欄收縮狀態
-const isSidebarCollapsed = ref(false);
+const isSidebarCollapsed = ref(false)
 
 // 地點管理相關狀態
-const showLocationManagementDialog = ref(false);
+const showLocationManagementDialog = ref(false)
 
 // 選中地點 ID（用於刪除邏輯，與環境品質保持一致）
-const selectedLocationId = ref<string>("");
+const selectedLocationId = ref<string>("")
 
 // 取得適配器（用於獲取統一的 getLocationId 方法）
-const adapter = useZoneSystemAdapter<PeopleCountingZone, PeopleCountingLocation>("people_counting");
+const adapter = useZoneSystemAdapter<PeopleCountingZone, PeopleCountingLocation>("people_counting")
 
 // 從地點對象獲取 ID（用於刪除邏輯，與環境品質保持一致）
 // 使用適配器提供的統一方法
 const getLocationId = (location: PeopleCountingLocation): string => {
-	const zoneName = getLocationZone(location);
-	return adapter.getLocationId?.(location, zoneName || undefined) || `${zoneName || "unknown"}-${location.name}`;
-};
+	const zoneName = getLocationZone(location)
+	return (
+		adapter.getLocationId?.(location, zoneName || undefined) ||
+		`${zoneName || "unknown"}-${location.name}`
+	)
+}
 
 // 監聽 selectedLocation 變化，同步更新 selectedLocationId（用於刪除邏輯）
 watch(
 	() => selectedLocation.value,
-	newLocation => {
-		selectedLocationId.value = newLocation ? getLocationId(newLocation) : "";
+	(newLocation) => {
+		selectedLocationId.value = newLocation ? getLocationId(newLocation) : ""
 	},
 	{ immediate: true }
-);
+)
 
 // 監聽左側區域高度變化由 ResizeObserver 處理，僅需在地點變化時更新一次
 watch([selectedLocation, locations, peopleCountingZones], () => {
 	nextTick(() => {
-		updateLeftSectionHeight();
-	});
-});
+		updateLeftSectionHeight()
+	})
+})
 
 // 檢查是否為當前選中的地點
 const isCurrentLocation = (location: PeopleCountingLocation): boolean => {
-	if (!selectedLocation.value) return false;
+	if (!selectedLocation.value) return false
 	return (
 		selectedLocation.value.locationId === location.locationId ||
 		selectedLocation.value.id === location.id
-	);
-};
+	)
+}
 
 // 處理地點選擇
 const handleLocationSelect = async (locationId: number) => {
 	if (selectedLocation.value?.locationId === locationId) {
-		return; // 已經選中，不需要重新載入
+		return // 已經選中，不需要重新載入
 	}
-	await loadLocationDetail(locationId);
-};
+	await loadLocationDetail(locationId)
+}
 
 // 設置 WebSocket 事件監聽器
-let cleanupWebSocket: (() => void) | null = null;
+let cleanupWebSocket: (() => void) | null = null
 
 // 使用區域管理 composable
-const peopleCountingLocationApi = usePeopleCountingLocationApi();
-const locationApi = useLocationApi();
+const peopleCountingLocationApi = usePeopleCountingLocationApi()
+const locationApi = useLocationApi()
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
-	useZoneManagement<PeopleCountingZone>();
+	useZoneManagement<PeopleCountingZone>()
 
 // 處理儲存區域
 const handleSaveZone = async (zone: PeopleCountingZone) => {
@@ -304,34 +316,34 @@ const handleSaveZone = async (zone: PeopleCountingZone) => {
 		peopleCountingZones,
 		async (z: PeopleCountingZone) => {
 			// 檢查是否為臨時 ID（以 temp- 開頭）或有效的數字 ID
-			const isValidId = z.id && !z.id.startsWith("temp-") && /^\d+$/.test(z.id);
+			const isValidId = z.id && !z.id.startsWith("temp-") && /^\d+$/.test(z.id)
 			const result = isValidId
 				? await peopleCountingLocationApi.updateZone(z.id, {
 						name: z.name,
-						locations: z.locations
+						locations: z.locations,
 					})
 				: await peopleCountingLocationApi.createZone({
 						name: z.name,
-						locations: z.locations
-					});
+						locations: z.locations,
+					})
 			// 確保返回的 zone 有 id
 			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as PeopleCountingZone & {
-				id: string;
-			};
+				id: string
+			}
 			return {
 				merged: result.merged,
 				message: result.message,
-				zone: zoneWithId
-			};
+				zone: zoneWithId,
+			}
 		},
 		{
 			// 保存後重新載入地點列表（因為地點變更可能影響地點列表）
 			onAfterSave: async () => {
-				await loadLocations();
-			}
+				await loadLocations()
+			},
 		}
-	);
-};
+	)
+}
 
 // 處理刪除區域
 const handleDeleteZone = async (zoneId: string) => {
@@ -343,84 +355,87 @@ const handleDeleteZone = async (zoneId: string) => {
 		systemType: "people_counting",
 		getFullZoneApiCall: (id: string) => locationApi.getZone(id),
 		updateZoneApiCall: async (id: string, data: { locations: UnifiedZone["locations"] }) => {
-			const response = await locationApi.updateZone(id, { locations: data.locations });
-			const peopleCountingZone = backendToPeopleCountingZone(response.zone);
+			const response = await locationApi.updateZone(id, { locations: data.locations })
+			const peopleCountingZone = unifiedToPeopleCountingZone(response.zone)
+
 			// 確保返回的 zone 有 id
 			return {
 				merged: response.merged,
 				message: response.message,
 				zone: { ...peopleCountingZone, id: peopleCountingZone.id || id } as PeopleCountingZone & {
-					id: string;
-				}
-			};
+					id: string
+				},
+			}
 		},
 		// 刪除後重新載入區域與地點列表（確保 UI 立即反映刪除結果）
 		onAfterDelete: async () => {
-			await loadZones();
-			await loadLocations();
-		}
-	});
-};
+			await loadZones()
+			await loadLocations()
+		},
+	})
+}
 
 // 處理打開地點管理對話框
 const handleOpenLocationDialog = async () => {
 	// 如果還沒有載入區域數據，先載入
 	if (peopleCountingZones.value.length === 0) {
-		await loadZones();
+		await loadZones()
 	}
 	// 打開對話框
-	showLocationManagementDialog.value = true;
-};
+	showLocationManagementDialog.value = true
+}
 
 // 監聽對話框打開狀態，載入區域數據
 watch(
 	() => showLocationManagementDialog.value,
-	newValue => {
+	(newValue) => {
 		if (newValue && peopleCountingZones.value.length === 0) {
-			loadZones();
+			loadZones()
 		}
 	}
-);
+)
 
 // 初始化
 onMounted(async () => {
 	// 初始化左側 ResizeObserver
-	initLeftSectionObserver();
+	initLeftSectionObserver()
 
 	// 設置 WebSocket 事件監聽：收到 YSCP 事件後重新載入資料
 	// 使用防抖優化（500ms），避免短時間內多次觸發
 	cleanupWebSocket = setupEventListeners(async () => {
-		const locationId = selectedLocation.value?.locationId;
-		
+		const locationId = selectedLocation.value?.locationId
+
 		// 並行載入地點列表和詳情（如果有的話）
 		// 使用 Promise.allSettled 確保即使一個失敗也不影響另一個
 		// 錯誤已在 composable 中統一處理
 		await Promise.allSettled([
 			loadLocations(), // 載入列表（更新統計和總覽卡片）
 			locationId ? loadLocationDetail(locationId) : Promise.resolve(),
-		]);
-		
+		])
+
 		// 確保所有計算屬性和元件在資料載入後重新計算
 		// 使用 nextTick 確保 Vue 響應式系統完成所有更新
-		await nextTick();
-		
+		await nextTick()
+
 		// 更新左側區域高度（因為資料變化可能影響佈局）
-		updateLeftSectionHeight();
-	}, 500); // 防抖延遲 500ms
+		updateLeftSectionHeight()
+	}, 500) // 防抖延遲 500ms
 
 	try {
 		// 優化：先載入地點列表（內部會並行請求 zones），然後使用返回的 zones 數據
 		// 這樣可以避免重複請求 zones
-		await loadLocations();
-		
+		await loadLocations()
+
 		// 如果 loadLocations 沒有返回 zones（例如已有緩存），則單獨載入
 		if (peopleCountingZones.value.length === 0) {
-			await loadZones();
+			await loadZones()
 		}
-		
+
 		// 如果列表不為空，自動選擇第一個
 		if (locations.value.length > 0 && !selectedLocation.value) {
-			await handleLocationSelect(locations.value[0].locationId || Number(locations.value[0].id || 0));
+			await handleLocationSelect(
+				locations.value[0].locationId || Number(locations.value[0].id || 0)
+			)
 		}
 	} catch (error) {
 		// 錯誤已在 composable 中處理
@@ -428,25 +443,25 @@ onMounted(async () => {
 
 	// 更新左側高度（初始化）
 	nextTick(() => {
-		updateLeftSectionHeight();
-	});
-});
+		updateLeftSectionHeight()
+	})
+})
 
 // 清理函數
 onBeforeUnmount(() => {
 	// 清理 ResizeObserver
 	if (leftSectionResizeObserver && leftSectionRef.value) {
-		leftSectionResizeObserver.unobserve(leftSectionRef.value);
-		leftSectionResizeObserver.disconnect();
-		leftSectionResizeObserver = null;
+		leftSectionResizeObserver.unobserve(leftSectionRef.value)
+		leftSectionResizeObserver.disconnect()
+		leftSectionResizeObserver = null
 	}
 
 	// 清理 WebSocket 事件監聽器
 	if (cleanupWebSocket) {
-		cleanupWebSocket();
-		cleanupWebSocket = null;
+		cleanupWebSocket()
+		cleanupWebSocket = null
 	}
-});
+})
 </script>
 
 <style scoped>

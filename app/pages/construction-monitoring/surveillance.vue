@@ -72,7 +72,7 @@
 											d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
 										/>
 									</svg>
-									<p class="text-white/90 text-2xl 2xl:text-3xl">尚未選擇攝影機</p>
+									<p class="text-2xl text-white/90 2xl:text-3xl">尚未選擇攝影機</p>
 									<p class="mt-2 text-base text-white/70 2xl:text-lg">
 										請從右側列表點選攝影機以加入到監控畫面
 									</p>
@@ -98,7 +98,7 @@
 					<Transition name="fade">
 						<div v-if="!isSidebarCollapsed" key="title" class="mb-4 border-b border-white/30 px-4 pb-4">
 							<div class="flex items-center justify-center">
-								<h2 class="font-semibold text-white text-2xl 2xl:text-3xl">攝影機列表</h2>
+								<h2 class="text-2xl font-semibold text-white 2xl:text-3xl">攝影機列表</h2>
 								<span
 									class="ml-2 rounded-full bg-white/20 px-2.5 py-0.5 text-base font-medium text-white backdrop-blur-sm 2xl:text-lg"
 								>
@@ -170,61 +170,16 @@
 										/>
 									</div>
 
-									<!-- GPU 編碼選項 -->
+									<!-- GPU 編碼選項（簡化：只保留開關） -->
 									<div class="rounded-lg border-2 border-white/20 bg-white/5 p-3">
-										<div class="mb-2 flex items-center justify-between">
-											<label class="flex items-center gap-2 text-xs text-white/80 xl:text-sm">
-												<input
-													v-model="testGpuOptions.useGpuEncoding"
-													type="checkbox"
-													class="h-4 w-4 rounded border-white/30 bg-white/10 text-green-500 focus:ring-2 focus:ring-green-400/50"
-												/>
-												<span>啟用 GPU 編碼</span>
-											</label>
-										</div>
-
-										<div v-if="testGpuOptions.useGpuEncoding" class="mt-3 space-y-2">
-											<!-- GPU 類型選擇 -->
-											<div>
-												<label class="mb-1 block text-xs text-white/70 xl:text-sm">GPU 類型</label>
-												<select
-													v-model="testGpuOptions.gpuType"
-													class="w-full rounded-lg border-2 border-white/30 bg-white/10 px-3 py-2 text-sm text-white backdrop-blur-sm transition-all focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 xl:text-base"
-												>
-													<option value="nvidia">NVIDIA</option>
-													<option value="intel">Intel</option>
-													<option value="amd">AMD</option>
-												</select>
-											</div>
-
-											<!-- 位元率 -->
-											<div>
-												<label class="mb-1 block text-xs text-white/70 xl:text-sm">位元率</label>
-												<input
-													v-model="testGpuOptions.bitrate"
-													type="text"
-													placeholder="2M"
-													class="w-full rounded-lg border-2 border-white/30 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/50 backdrop-blur-sm transition-all focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 xl:text-base"
-												/>
-											</div>
-
-											<!-- Preset (僅 NVIDIA) -->
-											<div v-if="testGpuOptions.gpuType === 'nvidia'">
-												<label class="mb-1 block text-xs text-white/70 xl:text-sm">Preset</label>
-												<select
-													v-model="testGpuOptions.preset"
-													class="w-full rounded-lg border-2 border-white/30 bg-white/10 px-3 py-2 text-sm text-white backdrop-blur-sm transition-all focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 xl:text-base"
-												>
-													<option value="p1">P1 (最高品質)</option>
-													<option value="p2">P2 (高品質)</option>
-													<option value="p3">P3 (平衡)</option>
-													<option value="p4">P4 (平衡，預設)</option>
-													<option value="p5">P5 (高性能)</option>
-													<option value="p6">P6 (高性能)</option>
-													<option value="p7">P7 (最高性能)</option>
-												</select>
-											</div>
-										</div>
+										<label class="flex items-center gap-2 text-xs text-white/80 xl:text-sm">
+											<input
+												v-model="testGpuOptions.useGpuEncoding"
+												type="checkbox"
+												class="h-4 w-4 rounded border-white/30 bg-white/10 text-green-500 focus:ring-2 focus:ring-green-400/50"
+											/>
+											<span>啟用 GPU 編碼（NVIDIA）</span>
+										</label>
 									</div>
 
 									<!-- 操作按鈕 -->
@@ -269,7 +224,7 @@
 											<div v-if="testStream?.useGpuEncoding" class="flex items-center gap-2">
 												<span class="text-white/60">GPU 編碼:</span>
 												<span class="ml-2 rounded bg-blue-500/30 px-2 py-0.5 text-xs text-blue-100 xl:text-sm">
-													{{ testStream.gpuOptions?.gpuType?.toUpperCase() || "NVIDIA" }}
+													NVIDIA
 												</span>
 											</div>
 											<div v-if="testHlsUrl" class="break-all">
@@ -362,12 +317,7 @@ const isSidebarCollapsed = ref(false);
 const testRtspUrl = ref("rtsp://admin:Aa83124007@192.168.2.103:554/Streaming/Channels/101");
 const testLoading = ref(false);
 const testErrorMessage = ref<string>("");
-const testGpuOptions = ref({
-	useGpuEncoding: false,
-	gpuType: "nvidia" as "nvidia" | "intel" | "amd",
-	bitrate: "2M",
-	preset: "p4"
-});
+const testGpuOptions = ref({ useGpuEncoding: true });
 
 // 從統一狀態管理獲取測試串流狀態
 const testStream = computed(() => streamStatus.testStream.value);
@@ -532,15 +482,8 @@ const handleTestStart = async () => {
 	testErrorMessage.value = "";
 
 	try {
-		// 構建 GPU 選項（只有在啟用時才傳遞）
-		const gpuOptions = testGpuOptions.value.useGpuEncoding
-			? {
-					useGpuEncoding: true,
-					gpuType: testGpuOptions.value.gpuType,
-					bitrate: testGpuOptions.value.bitrate,
-					preset: testGpuOptions.value.gpuType === "nvidia" ? testGpuOptions.value.preset : undefined
-				}
-			: undefined;
+		// 簡化：只傳遞 useGpuEncoding 開關
+		const gpuOptions = testGpuOptions.value.useGpuEncoding ? { useGpuEncoding: true } : undefined;
 
 		const streamInfo = await streamStatus.startTestStream(testRtspUrl.value, gpuOptions);
 
@@ -591,7 +534,6 @@ const handleTestStop = async () => {
 		testLoading.value = false;
 	}
 };
-
 
 // ✅ 移除手動狀態同步邏輯：monitorViews 現在由 useStreamStatus 統一管理，自動同步
 // ✅ 移除測試串流 WebSocket 事件處理：已整合到 useStreamStatus 中
@@ -647,7 +589,7 @@ onMounted(async () => {
 		interval: 60000, // 60 秒
 		immediate: false, // 不在啟動時立即執行
 		enabled: () => monitorViews.value.length > 0 && !isConnected.value, // 只在有監控畫面且 WebSocket 未連接時執行
-		onError: (err) => {
+		onError: err => {
 			handleError(err, "刷新狀態失敗");
 		}
 	});

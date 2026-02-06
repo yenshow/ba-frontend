@@ -3,21 +3,38 @@
  * 處理不同系統類型的區域和地點類型轉換
  */
 
-import type { UnifiedZone, SystemType, UnifiedLocation, LocationSystem, UnifiedLocationInput } from "~/types/location";
+import type {
+	UnifiedZone,
+	SystemType,
+	UnifiedLocation,
+	LocationSystem,
+	UnifiedLocationInput
+} from "~/types/location";
 import type { LightingZone, LightingLocation } from "~/types/lighting";
 import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment";
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting";
+import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess";
 import {
 	backendToLightingZone,
 	lightingToUnifiedZone,
 	backendToEnvironmentZone,
 	environmentToUnifiedZone,
 	backendToPeopleCountingZone,
-	peopleCountingToUnifiedZone
+	peopleCountingToUnifiedZone,
+	backendToVehicleAccessZone,
+	vehicleAccessToUnifiedZone
 } from "~/utils/locationAdapter";
 
-export type SystemZoneType = LightingZone | EnvironmentZone | PeopleCountingZone;
-export type SystemLocationType = LightingLocation | EnvironmentLocation | PeopleCountingLocation;
+export type SystemZoneType =
+	| LightingZone
+	| EnvironmentZone
+	| PeopleCountingZone
+	| VehicleAccessZone;
+export type SystemLocationType =
+	| LightingLocation
+	| EnvironmentLocation
+	| PeopleCountingLocation
+	| VehicleAccessLocation;
 
 /**
  * 系統配置
@@ -35,16 +52,21 @@ export interface SystemConfig {
  * 區域系統適配器接口
  * 統一處理不同系統類型的區域和地點類型轉換
  */
-export interface ZoneSystemAdapter<TZone extends SystemZoneType, TLocation extends SystemLocationType> {
+export interface ZoneSystemAdapter<
+	TZone extends SystemZoneType,
+	TLocation extends SystemLocationType
+> {
 	// ========== 轉換方法 ==========
 	// 從 UnifiedZone 轉換為系統特定類型
 	unifiedToSystem: (zone: UnifiedZone) => TZone;
 	// 從系統特定類型轉換為 UnifiedZone（用於傳送給後端）
 	// 注意：返回的 locations 是 UnifiedLocationInput[]，因為轉換時可能缺少 zoneId 和系統 id
-	systemToUnified: (zone: TZone) => Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] };
+	systemToUnified: (
+		zone: TZone
+	) => Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] };
 	// 從後端格式轉換為系統特定類型
 	backendToSystem: (zone: UnifiedZone) => TZone;
-	
+
 	// ========== 地點管理方法 ==========
 	// 取得地點列表的屬性名（例如：areas, locations）
 	getLocationsProperty: (zone: TZone) => TLocation[];
@@ -56,11 +78,11 @@ export interface ZoneSystemAdapter<TZone extends SystemZoneType, TLocation exten
 	createNewZone: (name: string) => TZone;
 	// 過濾空地點
 	filterEmptyLocations: (zone: TZone) => TZone;
-	
+
 	// ========== 系統配置（新增）==========
 	// 系統特性配置
 	systemConfig?: SystemConfig;
-	
+
 	// ========== 工具方法（新增）==========
 	// 從地點對象獲取 ID（統一格式：字串）
 	// zoneName 可選，用於生成合成 ID
@@ -90,16 +112,16 @@ export function useLightingZoneAdapter(): ZoneSystemAdapter<LightingZone, Lighti
 			// 否則需要轉換（這裡簡化處理，實際應該使用完整的轉換邏輯）
 			return backendToLightingZone(zone as any);
 		},
-	getLocationsProperty: (zone: LightingZone) => {
-		// 照明系統使用 locations 屬性（類型定義）
-		// 但組件中可能使用 areas（向後兼容）
-		return (zone as any).areas || zone.locations || [];
-	},
+		getLocationsProperty: (zone: LightingZone) => {
+			// 照明系統使用 locations 屬性（類型定義）
+			// 但組件中可能使用 areas（向後兼容）
+			return (zone as any).areas || zone.locations || [];
+		},
 		setLocationsProperty: (zone: LightingZone, locations: LightingLocation[]) => {
 			// 照明系統允許多個地點，直接使用傳入的列表
 			return {
-		...zone,
-		locations
+				...zone,
+				locations
 			};
 		},
 		createNewLocation: (): LightingLocation => ({
@@ -123,7 +145,10 @@ export function useLightingZoneAdapter(): ZoneSystemAdapter<LightingZone, Lighti
 /**
  * 環境監測系統適配器
  */
-export function useEnvironmentZoneAdapter(): ZoneSystemAdapter<EnvironmentZone, EnvironmentLocation> {
+export function useEnvironmentZoneAdapter(): ZoneSystemAdapter<
+	EnvironmentZone,
+	EnvironmentLocation
+> {
 	const systemConfig: SystemConfig = {
 		requireImageUrl: false // 環境監測系統不需要示意圖
 	};
@@ -193,7 +218,7 @@ export function usePeopleCountingZoneAdapter(): ZoneSystemAdapter<
 		setLocationsProperty: (zone: PeopleCountingZone, locations: PeopleCountingLocation[]) => {
 			// 人流統計系統現在支持多個地點
 			return {
-			...zone,
+				...zone,
 				locations
 			};
 		},
@@ -222,11 +247,56 @@ export function usePeopleCountingZoneAdapter(): ZoneSystemAdapter<
 }
 
 /**
+ * 車輛進出系統適配器
+ */
+export function useVehicleAccessZoneAdapter(): ZoneSystemAdapter<
+	VehicleAccessZone,
+	VehicleAccessLocation
+> {
+	const systemConfig: SystemConfig = {
+		requireImageUrl: false
+	};
+
+	return {
+		unifiedToSystem: (zone: UnifiedZone) => zone as unknown as VehicleAccessZone,
+		systemToUnified: (zone: VehicleAccessZone) => vehicleAccessToUnifiedZone(zone, "vehicle_access"),
+		backendToSystem: (zone: UnifiedZone) => {
+			if ("locations" in zone && Array.isArray(zone.locations)) {
+				return zone as unknown as VehicleAccessZone;
+			}
+			return backendToVehicleAccessZone(zone as any);
+		},
+		getLocationsProperty: (zone: VehicleAccessZone) => zone.locations || [],
+		setLocationsProperty: (zone: VehicleAccessZone, locations: VehicleAccessLocation[]) => ({
+			...zone,
+			locations
+		}),
+		createNewLocation: (): VehicleAccessLocation => ({
+			name: ""
+		}),
+		createNewZone: (name: string): VehicleAccessZone => ({
+			name,
+			locations: []
+		}),
+		filterEmptyLocations: (zone: VehicleAccessZone): VehicleAccessZone => ({
+			...zone,
+			locations: (zone.locations || []).filter(loc => loc.name && loc.name.trim().length > 0)
+		}),
+		systemConfig,
+		getLocationId: (location: VehicleAccessLocation, zoneName?: string): string => {
+			if (location.id) return location.id;
+			return `${zoneName || "unknown"}-${location.name}`;
+		}
+	};
+}
+
+/**
  * 根據系統類型取得適配器
  */
-export function useZoneSystemAdapter<TZone extends SystemZoneType, TLocation extends SystemLocationType>(
-	systemType: SystemType
-): ZoneSystemAdapter<TZone, TLocation> {
+export function useZoneSystemAdapter<
+	TZone extends SystemZoneType,
+	TLocation extends SystemLocationType
+>(systemType: SystemType): ZoneSystemAdapter<TZone, TLocation> {
 	switch (systemType) {
 		case "lighting":
 			return useLightingZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>;
@@ -234,9 +304,9 @@ export function useZoneSystemAdapter<TZone extends SystemZoneType, TLocation ext
 			return useEnvironmentZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>;
 		case "people_counting":
 			return usePeopleCountingZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>;
+		case "vehicle_access":
+			return useVehicleAccessZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>;
 		default:
 			throw new Error(`不支援的系統類型: ${systemType}`);
 	}
 }
-
-

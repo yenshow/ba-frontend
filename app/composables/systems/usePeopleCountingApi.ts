@@ -1,14 +1,7 @@
 /**
  * 人流統計 API Composable
- * 
- * 統一處理所有人流統計相關的 API 調用
- * - 地點（Location）：需要透過配置定義，將 person_group 映射到地點
- * - 區域（Zone）：對應到地點管理系統的區域
- * - 單位（Unit）：對應到 platform.person_group
- * - 人員（Personnel）：對應到 platform.person
- * - 進出場記錄（Log）：對應到 baseacs.slot_card_records
- * 
- * 注意：所有資料都直接從外部資料庫查詢，不進行快取
+ * 地點/區域/單位/人員/進出場記錄對應後端與 baseacs.slot_card_records。
+ * 時間語意：地點統計與進出場記錄為「今日」；單位人員為每人「最近一次進/出場」＋今日進出場時分。
  */
 
 import type {
@@ -37,31 +30,35 @@ export const usePeopleCountingApi = () => {
 	 * @param existingZones - 可選的現有區域列表，如果提供則直接使用，避免重複 API 調用
 	 * @returns 返回地點列表和區域列表
 	 */
-	const getLocations = async (existingZones?: { zones: PeopleCountingZone[] }): Promise<{
+	const getLocations = async (existingZones?: {
+		zones: PeopleCountingZone[];
+	}): Promise<{
 		locations: PeopleCountingLocation[];
 		zones: PeopleCountingZone[];
 	}> => {
 		try {
 			// 並行請求 locations 和 zones（如果沒有提供現有 zones）
 			const [locationsResponse, zonesResponse] = await Promise.all([
-				request<{ sites: Array<{
-					id: number;
-					name: string;
-					entryCount: number;
-					exitCount: number;
-					units: Array<{
+				request<{
+					sites: Array<{
 						id: number;
 						name: string;
-						currentCount: number;
-						totalCount: number;
+						entryCount: number;
+						exitCount: number;
+						units: Array<{
+							id: number;
+							name: string;
+							currentCount: number;
+							totalCount: number;
+						}>;
 					}>;
-				}> }>("/people-counting/sites"),
-				existingZones 
+				}>("/people-counting/sites"),
+				existingZones
 					? Promise.resolve(existingZones)
 					: peopleCountingLocationApi.getZones().catch(error => {
-						apiLogger.warn("無法載入地點管理系統，使用預設區域", { error });
-						return { zones: [] };
-					})
+							apiLogger.warn("無法載入地點管理系統，使用預設區域", { error });
+							return { zones: [] };
+						})
 			]);
 
 			const zones = zonesResponse.zones || [];
@@ -128,7 +125,7 @@ export const usePeopleCountingApi = () => {
 			// 否則從 API 獲取
 			const locationsResponse = await getLocations();
 			const location = locationsResponse.locations.find(l => l.locationId === locationId);
-			
+
 			if (!location) {
 				throw new Error(`找不到地點 ID: ${locationId}`);
 			}
@@ -145,13 +142,16 @@ export const usePeopleCountingApi = () => {
 	 * @param unitId - 單位 ID
 	 * @param locationId - 地點 ID（可選，用於取得設備配置）
 	 */
-	const getUnitPersonnel = async (unitId: number, locationId?: number): Promise<PeopleCountingPersonnel[]> => {
+	const getUnitPersonnel = async (
+		unitId: number,
+		locationId?: number
+	): Promise<PeopleCountingPersonnel[]> => {
 		try {
-			const url = locationId 
+			const url = locationId
 				? `/people-counting/units/${unitId}/personnel?siteId=${locationId}`
 				: `/people-counting/units/${unitId}/personnel`;
-			
-			const response = await request<{ 
+
+			const response = await request<{
 				personnel: Array<{
 					id: number;
 					employeeId: string;

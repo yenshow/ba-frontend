@@ -1,6 +1,5 @@
 import { useRequestFetch } from "#app";
 import { useAuth } from "~/composables/core/useAuth";
-import { useToast } from "~/composables/core/useToast";
 import { isDeviceApiRequest } from "~/utils/errorUtils";
 
 /**

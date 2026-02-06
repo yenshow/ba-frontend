@@ -9,7 +9,9 @@
  */
 export function getTodayDateRangeUTC(): { start: Date; end: Date } {
 	const now = new Date();
-	const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+	const todayStart = new Date(
+		Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0)
+	);
 	const todayEnd = new Date(todayStart);
 	todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);
 	return { start: todayStart, end: todayEnd };
@@ -33,7 +35,9 @@ export function getTimeRangeUTC(preset: string): { start: Date; end: Date } {
 			return { start: todayStart, end: todayEnd };
 		}
 		case "yesterday": {
-			const yesterday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1, 0, 0, 0, 0));
+			const yesterday = new Date(
+				Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1, 0, 0, 0, 0)
+			);
 			const yesterdayEnd = new Date(yesterday);
 			yesterdayEnd.setUTCDate(yesterdayEnd.getUTCDate() + 1);
 			return { start: yesterday, end: yesterdayEnd };
@@ -55,12 +59,16 @@ export function getTimeRangeUTC(preset: string): { start: Date; end: Date } {
 			return { start, end: lastWeekEnd };
 		}
 		case "last_7_days": {
-			start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 7, 0, 0, 0, 0));
+			start = new Date(
+				Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 7, 0, 0, 0, 0)
+			);
 			end.setUTCDate(end.getUTCDate() + 1);
 			break;
 		}
 		case "last_30_days": {
-			start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 30, 0, 0, 0, 0));
+			start = new Date(
+				Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 30, 0, 0, 0, 0)
+			);
 			end.setUTCDate(end.getUTCDate() + 1);
 			break;
 		}
@@ -115,3 +123,17 @@ export function formatDate(dateString?: string | null): string {
 	return formatDateLocal(new Date(dateString));
 }
 
+/**
+ * 格式化日期時間為本地顯示格式（僅時間，HH:mm:ss）
+ * @param dateString - ISO 8601 格式的日期時間字符串（可選）
+ * @returns 格式化後的本地時間字符串，如果為空則返回 "-"
+ */
+export function formatTime(dateString?: string | null): string {
+	if (!dateString) return "-";
+	return new Date(dateString).toLocaleTimeString("zh-TW", {
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+		hour12: false
+	});
+}

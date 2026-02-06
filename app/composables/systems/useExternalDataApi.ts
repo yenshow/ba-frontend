@@ -83,25 +83,29 @@ export const useExternalDataApi = () => {
 	/**
 	 * 取得人員列表
 	 */
-	const getPersons = async (filters: {
-		person_group_id?: number;
-		person_type?: number;
-		search?: string;
-		limit?: number;
-		offset?: number;
-	} = {}) => {
+	const getPersons = async (
+		filters: {
+			person_group_id?: number;
+			person_type?: number;
+			search?: string;
+			limit?: number;
+			offset?: number;
+		} = {}
+	) => {
 		return getList("platform", "person", filters);
 	};
 
 	/**
 	 * 取得人員群組列表
 	 */
-	const getPersonGroups = async (filters: {
-		is_deleted?: number;
-		search?: string;
-		limit?: number;
-		offset?: number;
-	} = {}) => {
+	const getPersonGroups = async (
+		filters: {
+			is_deleted?: number;
+			search?: string;
+			limit?: number;
+			offset?: number;
+		} = {}
+	) => {
 		return getList("platform", "person_group", filters);
 	};
 
@@ -110,20 +114,22 @@ export const useExternalDataApi = () => {
 	// ========== Baseacs Schema 專用方法 ==========
 
 	/**
-	 * 取得刷卡記錄列表
+	 * 取得刷卡記錄列表（未指定時間時後端預設今日）
 	 */
-	const getSlotCardRecords = async (filters: {
-		person_id?: number;
-		timeRange?: "last_hour" | "today" | "yesterday" | "this_week" | "last_week" | "last_30_days";
-		startTime?: string;
-		endTime?: string;
-		is_deleted?: boolean;
-		search?: string;
-		limit?: number;
-		offset?: number;
-		orderBy?: string;
-		orderDirection?: "ASC" | "DESC";
-	} = {}) => {
+	const getSlotCardRecords = async (
+		filters: {
+			person_id?: number;
+			timeRange?: "today";
+			startTime?: string;
+			endTime?: string;
+			is_deleted?: boolean;
+			search?: string;
+			limit?: number;
+			offset?: number;
+			orderBy?: string;
+			orderDirection?: "ASC" | "DESC";
+		} = {}
+	) => {
 		return getList("baseacs", "slot_card_records", filters);
 	};
 
@@ -131,11 +137,15 @@ export const useExternalDataApi = () => {
 	 * 根據記錄 ID 獲取快照圖片
 	 * @param id - 記錄 ID
 	 */
-	const getSlotCardRecordPicture = async (id: number): Promise<ExternalDataResponse<{
-		recordId: number;
-		picUri: string;
-		image: string; // Base64 編碼的圖片數據
-	}>> => {
+	const getSlotCardRecordPicture = async (
+		id: number
+	): Promise<
+		ExternalDataResponse<{
+			recordId: number;
+			picUri: string;
+			image: string; // Base64 編碼的圖片數據
+		}>
+	> => {
 		const data = await request<{
 			recordId: number;
 			picUri: string;
@@ -161,13 +171,10 @@ export const useExternalDataApi = () => {
 			image: string;
 		};
 
-		const data = await request<PictureResult>(
-			`/external-data/baseacs/slot_card_records/picture`,
-			{
-				method: "POST",
-				body: JSON.stringify({ picUri })
-			}
-		);
+		const data = await request<PictureResult>(`/external-data/baseacs/slot_card_records/picture`, {
+			method: "POST",
+			body: JSON.stringify({ picUri })
+		});
 		return {
 			success: true,
 			data
@@ -220,4 +227,3 @@ export const useExternalDataApi = () => {
 		getBatchPicturesByUri
 	};
 };
-
