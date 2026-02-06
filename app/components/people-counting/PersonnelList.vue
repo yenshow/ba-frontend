@@ -1,90 +1,92 @@
 <template>
 	<div class="space-y-4">
-		<h3 class="font-semibold text-lg bg-white/20 text-white text-center 2xl:text-xl py-1">人員名單</h3>
-		<div v-if="personnel.length === 0" class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center">
+		<h3 class="bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
+			人員名單
+		</h3>
+		<div
+			v-if="personnel.length === 0"
+			class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
+		>
 			<p class="text-base text-white/60 2xl:text-lg">尚無人員資料</p>
 		</div>
 
 		<div v-else class="space-y-4">
-			<div class="grid grid-cols-1 2xl:grid-cols-2 gap-4 w-[240px] 2xl:w-full mx-auto">
+			<div class="mx-auto grid w-[240px] grid-cols-1 gap-4 2xl:w-full 2xl:grid-cols-2">
 				<div
 					v-for="person in paginatedPersonnel"
 					:key="person.id"
 					class="flex items-start gap-3 border-2 border-white/30 p-3"
-					:class="[
-						person.isPresent
-							? 'bg-white/20'
-							: 'bg-black/20'
-					]"
+					:class="[person.isPresent ? 'bg-white/20' : 'bg-black/20']"
 				>
-				<!-- 照片 -->
-				<div
-					class="relative overflow-hidden rounded-full bg-white/10 h-16 w-16 mt-2 2xl:mt-4"
-				>
-					<Transition name="fade">
-						<img
-							v-if="person.photoUrl && !imageErrorStates[person.id]"
-							key="photo"
-							:src="person.photoUrl"
-							:alt="person.name"
-							class="absolute inset-0 h-full w-full object-cover"
-							@error="handleImageError($event, person.id)"
-						/>
-					</Transition>
-					<Transition name="fade">
-						<div
-							v-if="!person.photoUrl || imageErrorStates[person.id]"
-							class="absolute inset-0 flex items-center justify-center"
-						>
-							<svg
-								class="h-20 w-20 text-white"
-								fill="currentColor"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
+					<!-- 照片 -->
+					<div class="relative mt-2 h-16 w-16 overflow-hidden rounded-full bg-white/10 2xl:mt-4">
+						<Transition name="fade">
+							<img
+								v-if="person.photoUrl && !imageErrorStates[person.id]"
+								key="photo"
+								:src="person.photoUrl"
+								:alt="person.name"
+								class="absolute inset-0 h-full w-full object-cover"
+								@error="handleImageError($event, person.id)"
+							/>
+						</Transition>
+						<Transition name="fade">
+							<div
+								v-if="!person.photoUrl || imageErrorStates[person.id]"
+								class="absolute inset-0 flex items-center justify-center"
 							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-								/>
-							</svg>
-						</div>
-					</Transition>
-				</div>
+								<svg
+									class="h-20 w-20 text-white"
+									fill="currentColor"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+									/>
+								</svg>
+							</div>
+						</Transition>
+					</div>
 
-				<!-- 資訊 -->
-				<div class="min-w-0 2xl:flex-1">
-					<div class="font-medium text-white text-base 2xl:text-xl border-b border-white/30 pb-1">{{ person.name }}</div>
-					<div class="mt-1 space-y-0.5 text-xs text-white/60 2xl:text-sm">
-						<!-- 最近進場：顯示日期（不含時分秒） -->
-						<div v-if="person.lastEntryDate">
-							<span>最近進場：</span>
-							<span>{{ person.lastEntryDate }}</span>
+					<!-- 資訊 -->
+					<div class="min-w-0 2xl:flex-1">
+						<div class="border-b border-white/30 pb-1 text-base font-medium text-white 2xl:text-xl">
+							{{ person.name }}
 						</div>
-						<!-- 進場時間：根據最近進場的日期，顯示時分秒 -->
-						<div v-if="person.entryTime">
-							<span>進場時間：</span>
-							<span>{{ person.entryTime }}</span>
-						</div>
-						<!-- 離場時間：根據最近進場的日期，顯示時分秒 -->
-						<!-- 如果是今日進場，顯示今日的離場時間；如果今日沒有離場，顯示 "- -" -->
-						<div v-if="person.lastEntryDate || person.entryTime">
-							<span>離場時間：</span>
-							<span v-if="person.exitTime && !shouldHideExitTime(person)">
-								{{ person.exitTime }}
-							</span>
-							<span v-else>
-								- -
-							</span>
-						</div>
-						<div v-if="!person.lastEntryDate && !person.entryTime && !person.exitTime" class="text-white/40">
-							尚無進出場記錄
+						<div class="mt-1 space-y-0.5 text-xs text-white/60 2xl:text-sm">
+							<!-- 最近進場：顯示日期（不含時分秒） -->
+							<div v-if="person.lastEntryDate">
+								<span>最近進場：</span>
+								<span>{{ person.lastEntryDate }}</span>
+							</div>
+							<!-- 進場時間：根據最近進場的日期，顯示時分秒 -->
+							<div v-if="person.entryTime">
+								<span>進場時間：</span>
+								<span>{{ person.entryTime }}</span>
+							</div>
+							<!-- 離場時間：根據最近進場的日期，顯示時分秒 -->
+							<!-- 如果是今日進場，顯示今日的離場時間；如果今日沒有離場，顯示 "- -" -->
+							<div v-if="person.lastEntryDate || person.entryTime">
+								<span>離場時間：</span>
+								<span v-if="person.exitTime && !shouldHideExitTime(person)">
+									{{ person.exitTime }}
+								</span>
+								<span v-else> - - </span>
+							</div>
+							<div
+								v-if="!person.lastEntryDate && !person.entryTime && !person.exitTime"
+								class="text-white/40"
+							>
+								尚無進出場記錄
+							</div>
 						</div>
 					</div>
 				</div>
 			</div>
-		</div>
 			<Pagination
 				:total="personnel.length"
 				:offset="offset"
@@ -137,7 +139,7 @@ const paginatedPersonnel = computed(() => {
 // 監聽 personnel 變化，確保 offset 不會超出範圍
 watch(
 	() => props.personnel.length,
-	(newLength) => {
+	newLength => {
 		if (offset.value >= newLength) {
 			offset.value = 0;
 		}
@@ -159,7 +161,7 @@ let lastItemsPerPage = 2;
 
 onMounted(() => {
 	if (!process.client) return;
-	
+
 	windowWidth.value = window.innerWidth;
 	lastItemsPerPage = itemsPerPage.value;
 
@@ -193,8 +195,8 @@ const parseTimeToSeconds = (time?: string | null) => {
 };
 
 const shouldHideExitTime = (person: PeopleCountingPersonnel) => {
-	const entrySec = parseTimeToSeconds((person as any).entryTime);
-	const exitSec = parseTimeToSeconds((person as any).exitTime);
+	const entrySec = parseTimeToSeconds(person.entryTime);
+	const exitSec = parseTimeToSeconds(person.exitTime);
 	if (entrySec == null || exitSec == null) return false;
 	return entrySec > exitSec;
 };
@@ -214,4 +216,3 @@ const handleImageError = (_event: Event, personId: string | number) => {
 	opacity: 0;
 }
 </style>
-

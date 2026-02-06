@@ -1,39 +1,26 @@
 <template>
-	<div v-if="logs.length === 0" class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center">
+	<div
+		v-if="logs.length === 0"
+		class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
+	>
 		<p class="text-base text-white/60 2xl:text-lg">尚無進出場記錄</p>
 	</div>
 
 	<div v-else>
-		<table class="w-full border-b-2 border-r-2 border-l-2 border-white/20">
+		<table class="w-full border-b-2 border-l-2 border-r-2 border-white/20">
 			<thead class="bg-white/20">
-				<tr class="font-semibold text-white/80 text-center text-xs 2xl:text-sm">
-					<th class="p-2">
-						設備截圖
-					</th>	
-					<th class="p-2">
-						進場單位
-					</th>
-					<th class="p-2">
-						工號
-					</th>
-					<th class="p-2">
-						姓名
-					</th>
-					<th class="p-2">
-						事件
-					</th>
-					<th class="p-2">
-						時間
-					</th>
-				</tr>	
+				<tr class="text-center text-xs font-semibold text-white/80 2xl:text-sm">
+					<th class="p-2">設備截圖</th>
+					<th class="p-2">進場單位</th>
+					<th class="p-2">工號</th>
+					<th class="p-2">姓名</th>
+					<th class="p-2">事件</th>
+					<th class="p-2">時間</th>
+				</tr>
 			</thead>
 			<tbody>
-				<tr
-					v-for="log in logs"
-					:key="log.id"
-					class="border-b border-white/10 text-center text-white"
-				>
-					<td class="p-2 flex items-center justify-center">
+				<tr v-for="log in logs" :key="log.id" class="border-b border-white/10 text-center text-white">
+					<td class="flex items-center justify-center p-2">
 						<div class="relative h-12 w-12 overflow-hidden bg-white/10 2xl:h-16 2xl:w-16">
 							<!-- 載入中 -->
 							<Transition name="fade">
@@ -42,7 +29,9 @@
 									key="loading"
 									class="absolute inset-0 flex items-center justify-center bg-white/5"
 								>
-									<div class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white/80"></div>
+									<div
+										class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white/80"
+									></div>
 								</div>
 							</Transition>
 
@@ -101,13 +90,7 @@
 										: 'bg-red-500/70 text-red-200'
 							]"
 						>
-							{{
-								log.eventType === "entry"
-									? "進入"
-									: log.eventType === "exit"
-										? "離開"
-										: "失敗"
-							}}
+							{{ log.eventType === "entry" ? "進入" : log.eventType === "exit" ? "離開" : "失敗" }}
 						</span>
 					</td>
 					<td class="p-2 text-xs 2xl:text-sm">
@@ -127,6 +110,7 @@ import { ref, watch } from "vue";
 import type { PeopleCountingLog } from "~/types/peopleCounting";
 import { useExternalDataApi } from "~/composables/systems/useExternalDataApi";
 import { convertBase64ToImageUrl } from "~/utils/imageUtils";
+import { formatDate, formatTime } from "~/utils/dateUtils";
 
 interface Props {
 	logs: PeopleCountingLog[];
@@ -140,17 +124,6 @@ const imageLoadingStates = ref<Record<string | number, boolean>>({});
 const imageErrorStates = ref<Record<string | number, boolean>>({});
 const imageCache = new Map<string, string>();
 
-// 格式化日期和時間：從 timestamp 中提取
-const formatDate = (timestamp: string): string => {
-	if (!timestamp) return "-";
-	return timestamp.split(" ")[0] || "-";
-};
-
-const formatTime = (timestamp: string): string => {
-	if (!timestamp) return "-";
-	return timestamp.split(" ")[1] || "-";
-};
-
 const handleImageError = (_event: Event, logId: string | number) => {
 	imageErrorStates.value[logId] = true;
 	delete imageUrls.value[logId];
@@ -158,10 +131,7 @@ const handleImageError = (_event: Event, logId: string | number) => {
 
 const loadAllImages = async () => {
 	const logsToLoad = props.logs.filter(
-		(log) =>
-			log.deviceScreenshotUrl &&
-			!imageUrls.value[log.id] &&
-			!imageLoadingStates.value[log.id]
+		log => log.deviceScreenshotUrl && !imageUrls.value[log.id] && !imageLoadingStates.value[log.id]
 	);
 
 	if (logsToLoad.length === 0) return;
@@ -192,7 +162,7 @@ const loadAllImages = async () => {
 		const result = await getBatchPicturesByUri(picUris);
 
 		if (result.success && result.data?.results) {
-			result.data.results.forEach((item) => {
+			result.data.results.forEach(item => {
 				if (item.success && item.image) {
 					const logId = logIdMap.get(item.picUri);
 					if (logId) {
@@ -232,4 +202,3 @@ watch(
 	opacity: 0;
 }
 </style>
-

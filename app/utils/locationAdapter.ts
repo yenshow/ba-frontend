@@ -6,6 +6,7 @@ import type {
 	EnvironmentSystemConfig,
 	LightingSystemConfig,
 	PeopleCountingSystemConfig,
+	VehicleAccessSystemConfig,
 	LocationSystem,
 	LocationSystemInput,
 	UnifiedLocationInput
@@ -13,6 +14,7 @@ import type {
 import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment";
 import type { LightingZone, LightingLocation } from "~/types/lighting";
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting";
+import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess";
 
 /**
  * 後端返回的地點格式（新架構：包含 systems 陣列）
@@ -36,6 +38,7 @@ export type BackendLocation = {
 			personGroupIds?: number[];
 			entryDoorId?: number;
 			exitDoorId?: number;
+			// vehicle_access 系統配置（entryLaneId / exitLaneId）
 		};
 	}>;
 };
@@ -53,7 +56,6 @@ export type BackendZone = {
 	locations: BackendLocation[];
 };
 
-
 /**
  * 將後端返回的區域格式轉換為統一區域格式
  * 注意：後端已經做了格式化，這裡只需要類型轉換
@@ -70,7 +72,6 @@ export function backendToUnifiedZone(backendZone: BackendZone): UnifiedZone {
 		locations: backendZone.locations.map(backendToUnifiedLocation)
 	};
 }
-
 
 /**
  * 類型守衛：檢查是否為環境監測系統配置
@@ -100,6 +101,15 @@ function isPeopleCountingSystemConfig(config: unknown): config is PeopleCounting
 }
 
 /**
+ * 類型守衛：檢查是否為車輛進出系統配置
+ */
+function isVehicleAccessSystemConfig(config: unknown): config is VehicleAccessSystemConfig {
+	if (!config || typeof config !== "object") return false;
+	const c = config as Record<string, unknown>;
+	return "entryLaneId" in c || "exitLaneId" in c;
+}
+
+/**
  * 將後端返回的系統配置轉換為正確的類型
  * 如果配置不符合預期類型，返回該系統類型的預設配置
  */
@@ -114,6 +124,9 @@ function parseSystemConfig(systemType: SystemType, config: unknown): SystemConfi
 		case "people_counting":
 			if (isPeopleCountingSystemConfig(config)) return config;
 			return { personGroupIds: [] };
+		case "vehicle_access":
+			if (isVehicleAccessSystemConfig(config)) return config;
+			return { entryLaneId: undefined, exitLaneId: undefined };
 		default:
 			// SystemType 是有限的聯合類型，理論上不會執行到這裡
 			// 但為了類型安全，返回空配置
@@ -133,7 +146,7 @@ function backendToUnifiedLocation(backendLoc: BackendLocation): UnifiedLocation 
 		zoneId: backendLoc.zoneId,
 		name: backendLoc.name,
 		description: backendLoc.description,
-		systems: backendLoc.systems.map((sys) => ({
+		systems: backendLoc.systems.map(sys => ({
 			id: sys.id,
 			systemType: sys.systemType,
 			config: parseSystemConfig(sys.systemType, sys.config)
@@ -155,23 +168,22 @@ export function unifiedToEnvironmentZone(zone: UnifiedZone): EnvironmentZone {
 	return {
 		id: zone.id,
 		name: zone.name,
-		locations: zone.locations
-			.flatMap((loc) => {
-				const envSystem = loc.systems.find((s) => s.systemType === "environment");
-				if (!envSystem || !isEnvironmentSystemConfig(envSystem.config)) {
-					return [];
-				}
+		locations: zone.locations.flatMap(loc => {
+			const envSystem = loc.systems.find(s => s.systemType === "environment");
+			if (!envSystem || !isEnvironmentSystemConfig(envSystem.config)) {
+				return [];
+			}
 
-				return [
-					{
-						id: loc.id,
-						systemId: envSystem.id,
-						name: loc.name,
-						deviceId: envSystem.config.deviceId,
-						parameters: envSystem.config.parameters || []
-					} as EnvironmentLocation
-				];
-			})
+			return [
+				{
+					id: loc.id,
+					systemId: envSystem.id,
+					name: loc.name,
+					deviceId: envSystem.config.deviceId,
+					parameters: envSystem.config.parameters || []
+				} as EnvironmentLocation
+			];
+		})
 	};
 }
 
@@ -184,10 +196,9 @@ export function environmentToUnifiedZone(
 ): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
 	return {
 		name: zone.name,
-		locations: zone.locations.map((loc) => environmentLocationToUnified(loc, systemType))
+		locations: zone.locations.map(loc => environmentLocationToUnified(loc, systemType))
 	};
 }
-
 
 /**
  * 將後端返回的區域格式直接轉換為照明區域格式
@@ -205,24 +216,23 @@ export function unifiedToLightingZone(zone: UnifiedZone): LightingZone {
 		name: zone.name,
 		imageUrl: zone.imageUrl,
 		description: zone.description,
-		locations: zone.locations
-			.flatMap((loc) => {
-				const lightingSystem = loc.systems.find((s) => s.systemType === "lighting");
-				if (!lightingSystem || !isLightingSystemConfig(lightingSystem.config)) {
-					return [];
-				}
+		locations: zone.locations.flatMap(loc => {
+			const lightingSystem = loc.systems.find(s => s.systemType === "lighting");
+			if (!lightingSystem || !isLightingSystemConfig(lightingSystem.config)) {
+				return [];
+			}
 
-				return [
-					{
-						id: loc.id,
-						systemId: lightingSystem.id,
-						name: loc.name,
-						location: lightingSystem.config.location,
-						deviceId: lightingSystem.config.deviceId,
-						modbus: lightingSystem.config.modbus
-					} as LightingLocation
-				];
-			})
+			return [
+				{
+					id: loc.id,
+					systemId: lightingSystem.id,
+					name: loc.name,
+					location: lightingSystem.config.location,
+					deviceId: lightingSystem.config.deviceId,
+					modbus: lightingSystem.config.modbus
+				} as LightingLocation
+			];
+		})
 	};
 }
 
@@ -237,10 +247,9 @@ export function lightingToUnifiedZone(
 		name: zone.name,
 		...(zone.imageUrl !== undefined && { imageUrl: zone.imageUrl }),
 		...(zone.description !== undefined && { description: zone.description }),
-		locations: zone.locations.map((location) => lightingLocationToUnified(location, systemType))
+		locations: zone.locations.map(location => lightingLocationToUnified(location, systemType))
 	};
 }
-
 
 /**
  * 將後端返回的區域格式直接轉換為人流統計區域格式
@@ -256,23 +265,22 @@ export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZo
 	return {
 		id: zone.id,
 		name: zone.name,
-		locations: zone.locations
-			.flatMap((loc) => {
-				const pcSystem = loc.systems.find((s) => s.systemType === "people_counting");
-				if (!pcSystem || !isPeopleCountingSystemConfig(pcSystem.config)) {
-					return [];
-				}
+		locations: zone.locations.flatMap(loc => {
+			const pcSystem = loc.systems.find(s => s.systemType === "people_counting");
+			if (!pcSystem || !isPeopleCountingSystemConfig(pcSystem.config)) {
+				return [];
+			}
 
-				return [
-					{
-						id: loc.id,
-						name: loc.name,
-						personGroupIds: pcSystem.config.personGroupIds || [],
-						entryDoorId: pcSystem.config.entryDoorId || 0,
-						exitDoorId: pcSystem.config.exitDoorId || 0
-					} as PeopleCountingLocation
-				];
-			})
+			return [
+				{
+					id: loc.id,
+					name: loc.name,
+					personGroupIds: pcSystem.config.personGroupIds || [],
+					entryDoorId: pcSystem.config.entryDoorId || 0,
+					exitDoorId: pcSystem.config.exitDoorId || 0
+				} as PeopleCountingLocation
+			];
+		})
 	};
 }
 
@@ -285,23 +293,93 @@ export function peopleCountingToUnifiedZone(
 ): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
 	return {
 		name: zone.name,
-		locations: zone.locations.map((loc) => peopleCountingLocationToUnified(loc, systemType))
+		locations: zone.locations.map(loc => peopleCountingLocationToUnified(loc, systemType))
 	};
 }
 
+/**
+ * 將後端返回的區域格式直接轉換為車輛進出區域格式
+ */
+export function backendToVehicleAccessZone(backendZone: BackendZone): VehicleAccessZone {
+	return unifiedToVehicleAccessZone(backendToUnifiedZone(backendZone));
+}
+
+/**
+ * 將統一區域轉換為車輛進出區域
+ */
+export function unifiedToVehicleAccessZone(zone: UnifiedZone): VehicleAccessZone {
+	return {
+		id: zone.id,
+		name: zone.name,
+		locations: zone.locations.flatMap(loc => {
+			const vaSystem = loc.systems.find(s => s.systemType === "vehicle_access");
+			if (!vaSystem || !isVehicleAccessSystemConfig(vaSystem.config)) {
+				return [];
+			}
+
+			return [
+				{
+					id: loc.id,
+					name: loc.name,
+					entryLaneId: vaSystem.config.entryLaneId ?? undefined,
+					exitLaneId: vaSystem.config.exitLaneId ?? undefined
+				} as VehicleAccessLocation
+			];
+		})
+	};
+}
+
+/**
+ * 將車輛進出區域轉換為統一區域（用於傳送給後端）
+ */
+export function vehicleAccessToUnifiedZone(
+	zone: VehicleAccessZone,
+	systemType: SystemType = "vehicle_access"
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
+	return {
+		name: zone.name,
+		locations: zone.locations.map(loc => vehicleAccessLocationToUnified(loc, systemType))
+	};
+}
+
+/**
+ * 輔助函數：將車輛進出地點轉換為統一地點格式
+ */
+export function vehicleAccessLocationToUnified(
+	loc: VehicleAccessLocation | Omit<VehicleAccessLocation, "id">,
+	systemType: SystemType = "vehicle_access"
+): UnifiedLocationInput {
+	const hasId = "id" in loc && loc.id;
+	return {
+		...(hasId && { id: loc.id! }),
+		name: loc.name,
+		systems: [
+			{
+				systemType,
+				config: {
+					entryLaneId: loc.entryLaneId ?? undefined,
+					exitLaneId: loc.exitLaneId ?? undefined
+				} as VehicleAccessSystemConfig
+			}
+		]
+	};
+}
 
 /**
  * 輔助函數：檢查地點是否有指定類型的系統
  */
 export function hasSystem(location: UnifiedLocation, systemType: SystemType): boolean {
-	return location.systems.some((s) => s.systemType === systemType);
+	return location.systems.some(s => s.systemType === systemType);
 }
 
 /**
  * 輔助函數：獲取地點的指定類型系統
  */
-export function getSystem(location: UnifiedLocation, systemType: SystemType): LocationSystem | undefined {
-	return location.systems.find((s) => s.systemType === systemType);
+export function getSystem(
+	location: UnifiedLocation,
+	systemType: SystemType
+): LocationSystem | undefined {
+	return location.systems.find(s => s.systemType === systemType);
 }
 
 /**
@@ -310,7 +388,7 @@ export function getSystem(location: UnifiedLocation, systemType: SystemType): Lo
 export function hasLightingCoordinates(location: UnifiedLocation): boolean {
 	const lightingSystem = getSystem(location, "lighting");
 	if (!lightingSystem || !isLightingSystemConfig(lightingSystem.config)) return false;
-	
+
 	const config = lightingSystem.config;
 	return config.location?.x !== undefined && config.location?.y !== undefined;
 }
@@ -318,10 +396,12 @@ export function hasLightingCoordinates(location: UnifiedLocation): boolean {
 /**
  * 輔助函數：獲取照明系統的座標樣式
  */
-export function getLightingLocationStyle(location: UnifiedLocation): { left: string; top: string } | {} {
+export function getLightingLocationStyle(
+	location: UnifiedLocation
+): { left: string; top: string } | {} {
 	const lightingSystem = getSystem(location, "lighting");
 	if (!lightingSystem || !isLightingSystemConfig(lightingSystem.config)) return {};
-	
+
 	const config = lightingSystem.config;
 	if (config.location && config.location.x !== undefined && config.location.y !== undefined) {
 		return {
@@ -411,19 +491,25 @@ export function peopleCountingLocationToUnified(
 /**
  * 統一區域更新數據構建輔助函數
  * 統一處理不同系統的更新邏輯，減少代碼重複
- * 
+ *
  * @param data - 系統特定的區域更新數據
  * @param options - 轉換選項
  * @returns 統一格式的區域更新數據
  */
-export function buildUnifiedZoneUpdateData<
-	TZone extends { name?: string; locations?: any[] }
->(
+export function buildUnifiedZoneUpdateData<TZone extends { name?: string; locations?: any[] }>(
 	data: Partial<TZone>,
 	options: {
 		systemType: SystemType;
 		locationConverter: (
-			location: EnvironmentLocation | LightingLocation | PeopleCountingLocation | Omit<EnvironmentLocation, "id"> | Omit<LightingLocation, "id"> | Omit<PeopleCountingLocation, "id">,
+			location:
+				| EnvironmentLocation
+				| LightingLocation
+				| PeopleCountingLocation
+				| VehicleAccessLocation
+				| Omit<EnvironmentLocation, "id">
+				| Omit<LightingLocation, "id">
+				| Omit<PeopleCountingLocation, "id">
+				| Omit<VehicleAccessLocation, "id">,
 			systemType: SystemType
 		) => UnifiedLocationInput;
 	}
@@ -468,7 +554,7 @@ export function buildUnifiedZoneUpdateData<
 
 	// 處理地點轉換
 	if ("locations" in data && data.locations !== undefined && Array.isArray(data.locations)) {
-		unifiedData.locations = data.locations.map((loc) =>
+		unifiedData.locations = data.locations.map(loc =>
 			options.locationConverter(loc, options.systemType)
 		);
 	}

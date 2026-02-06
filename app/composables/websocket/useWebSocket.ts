@@ -129,19 +129,11 @@ export interface RtspStreamStatusChangedEvent {
 	timestamp: string;
 }
 
-
 /**
- * YSCP 事件相關類型
+ * YSCP 事件 payload（依 params.ability 分流：event_veh → vehicle_access，event_acs → acs）
  */
-export interface YscpEventAlarm {
-	type: "alarm";
-	data: Record<string, unknown>;
-	timestamp: string;
-}
-
-export interface YscpEventGeneric {
-	type: "generic";
-	data: Record<string, unknown>;
+export interface YscpEventPayload {
+	type: "vehicle_access" | "acs";
 	timestamp: string;
 }
 

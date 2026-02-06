@@ -8,26 +8,26 @@
 				<div
 					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-5xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:max-w-6xl 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
 				>
-				<header class="flex items-center justify-between pr-7 2xl:pr-8">
-					<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">區域管理</h3>
-					<div class="flex items-center gap-3">
-						<!-- 變更提示 -->
-						<FormChangeIndicator
-							v-if="hasUnsavedChanges"
-							:has-changes="hasUnsavedChanges"
-							:changed-fields="changedFieldsList"
-							:message="changeSummary"
-						/>
-						<button
-							type="button"
-							class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
-							aria-label="關閉對話框"
-							@click="handleClose"
-						>
-							&times;
-						</button>
-					</div>
-				</header>
+					<header class="flex items-center justify-between pr-7 2xl:pr-8">
+						<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">區域管理</h3>
+						<div class="flex items-center gap-3">
+							<!-- 變更提示 -->
+							<FormChangeIndicator
+								v-if="hasUnsavedChanges"
+								:has-changes="hasUnsavedChanges"
+								:changed-fields="changedFieldsList"
+								:message="changeSummary"
+							/>
+							<button
+								type="button"
+								class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
+								aria-label="關閉對話框"
+								@click="handleClose"
+							>
+								&times;
+							</button>
+						</div>
+					</header>
 
 					<div class="flex-1 overflow-y-auto pr-7 2xl:pr-8">
 						<div class="min-h-[200px]">
@@ -113,19 +113,22 @@
 														@update="handleZoneUpdate(getZoneId(zone), $event)"
 													/>
 
-					<!-- 系統特定的地點管理組件 -->
-					<component
-						:is="locationManagementComponent"
-						:zone="zone"
-						:devices="devices"
-						:is-loading-devices="isLoadingDevices"
-						:device-hint="deviceHint"
-						:person-groups="personGroups"
-						:doors="doors"
-						@add-location="() => addLocation(zone)"
-						@remove-location="(index: number) => removeLocation(getZoneId(zone), index)"
-						@update-location="(index: number, location: SystemLocationType) => handleLocationUpdate(getZoneId(zone), index, location)"
-					/>
+													<!-- 系統特定的地點管理組件 -->
+													<component
+														:is="locationManagementComponent"
+														:zone="zone"
+														:devices="devices"
+														:is-loading-devices="isLoadingDevices"
+														:device-hint="deviceHint"
+														:person-groups="personGroups"
+														:doors="doors"
+														@add-location="() => addLocation(zone)"
+														@remove-location="(index: number) => removeLocation(getZoneId(zone), index)"
+														@update-location="
+															(index: number, location: SystemLocationType) =>
+																handleLocationUpdate(getZoneId(zone), index, location)
+														"
+													/>
 												</div>
 											</Transition>
 										</div>
@@ -193,6 +196,7 @@ import ZoneFormFields from "./ZoneFormFields.vue";
 import EnvironmentLocationManagement from "./LocationManagement/EnvironmentLocationManagement.vue";
 import LightingLocationManagement from "./LocationManagement/LightingLocationManagement.vue";
 import PeopleCountingLocationManagement from "./LocationManagement/PeopleCountingLocationManagement.vue";
+import VehicleAccessLocationManagement from "./LocationManagement/VehicleAccessLocationManagement.vue";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
@@ -366,16 +370,21 @@ const isLoadingDevices = ref(false);
 // 人員群組和門禁設備（僅用於人流統計系統）
 const externalDataApi = useExternalDataApi();
 const personGroups = ref<Array<{ id: number; name: string; is_deleted?: number }>>([]);
-const doors = ref<Array<{ id: number; device_id: number; dev_name: string; door_index: number; is_deleted?: number }>>([]);
+const doors = ref<
+	Array<{ id: number; device_id: number; dev_name: string; door_index: number; is_deleted?: number }>
+>([]);
 
 // 地點管理組件映射
 const locationManagementComponentMap: Record<SystemType, Component> = {
 	lighting: LightingLocationManagement,
 	environment: EnvironmentLocationManagement,
-	people_counting: PeopleCountingLocationManagement
+	people_counting: PeopleCountingLocationManagement,
+	vehicle_access: VehicleAccessLocationManagement
 };
 
-const locationManagementComponent = computed(() => locationManagementComponentMap[props.systemType]);
+const locationManagementComponent = computed(
+	() => locationManagementComponentMap[props.systemType]
+);
 
 // 載入設備列表
 const loadDevices = async () => {
@@ -399,7 +408,7 @@ const loadDevices = async () => {
 // 載入人員群組列表（僅用於人流統計系統）
 const loadPersonGroups = async () => {
 	if (props.systemType !== "people_counting") return;
-	
+
 	try {
 		const result = await externalDataApi.getPersonGroups({
 			limit: 1000
@@ -414,7 +423,7 @@ const loadPersonGroups = async () => {
 // 載入門禁設備列表（僅用於人流統計系統）
 const loadDoors = async () => {
 	if (props.systemType !== "people_counting") return;
-	
+
 	try {
 		const result = await externalDataApi.getList("deviceaccess", "door", {
 			limit: 1000
@@ -460,7 +469,8 @@ const getLocationLabel = (): string => {
 	const labelMap: Record<SystemType, string> = {
 		lighting: "點位",
 		environment: "地點",
-		people_counting: "地點"
+		people_counting: "地點",
+		vehicle_access: "地點"
 	};
 	return labelMap[props.systemType] || "地點";
 };
@@ -532,7 +542,11 @@ const handleZoneUpdate = (zoneId: string, updates: Partial<UnifiedZone>) => {
 };
 
 // 處理地點更新（從 LocationManagement 組件接收）
-const handleLocationUpdate = (zoneId: string, locationIndex: number, updatedLocation: SystemLocationType) => {
+const handleLocationUpdate = (
+	zoneId: string,
+	locationIndex: number,
+	updatedLocation: SystemLocationType
+) => {
 	const zone = sortedZones.value.find(z => getZoneId(z) === zoneId);
 	if (!zone) return;
 
@@ -592,7 +606,7 @@ const handleConfirmDeleteLocation = async () => {
 
 	const target = locations[locationIndex] as any;
 	const targetId = target?.id ? String(target.id) : null;
-	
+
 	// 如果地點有 ID（已保存），立即調用 API 刪除
 	if (targetId) {
 		try {

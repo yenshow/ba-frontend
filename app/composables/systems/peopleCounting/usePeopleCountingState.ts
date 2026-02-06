@@ -1,7 +1,7 @@
 /**
  * 人流統計狀態管理 Composable
  * 統一管理頁面狀態和數據載入邏輯
- * 
+ *
  * 職權分離：
  * - 集中管理所有狀態
  * - 統一處理數據載入和錯誤處理
@@ -55,11 +55,11 @@ export const usePeopleCountingState = () => {
 		try {
 			const result = await peopleCountingApi.getLocations(existingZones);
 			locations.value = result.locations;
-			
+
 			if (result.zones && result.zones.length > 0) {
 				peopleCountingZones.value = result.zones;
 			}
-			
+
 			// 如果當前有選中的地點，同步更新 selectedLocation 的統計資料
 			// 這樣可以確保總覽卡片和詳情面板的資料保持一致
 			if (selectedLocation.value?.locationId) {
@@ -73,16 +73,15 @@ export const usePeopleCountingState = () => {
 						entryCount: updatedLocation.entryCount,
 						exitCount: updatedLocation.exitCount,
 						// 更新 units 的 currentCount（如果有的話）
-						units: selectedLocation.value.units?.map(unit => {
-							const updatedUnit = updatedLocation.units?.find(u => u.id === unit.id);
-							return updatedUnit
-								? { ...unit, currentCount: updatedUnit.currentCount }
-								: unit;
-						}) || updatedLocation.units,
+						units:
+							selectedLocation.value.units?.map(unit => {
+								const updatedUnit = updatedLocation.units?.find(u => u.id === unit.id);
+								return updatedUnit ? { ...unit, currentCount: updatedUnit.currentCount } : unit;
+							}) || updatedLocation.units
 					};
 				}
 			}
-			
+
 			if (process.dev) {
 				stateLogger.log("載入地點列表成功", { count: locations.value.length });
 			}
@@ -111,10 +110,7 @@ export const usePeopleCountingState = () => {
 			if (firstUnit) {
 				selectedUnitId.value = firstUnit.id;
 				// 並行載入人員列表和進出場記錄，提高載入速度
-				await Promise.all([
-					loadUnitPersonnel(firstUnit.id),
-					loadLocationLogs(locationId)
-				]);
+				await Promise.all([loadUnitPersonnel(firstUnit.id), loadLocationLogs(locationId)]);
 			} else {
 				personnel.value = [];
 				// 即使沒有單位，也載入進出場記錄
@@ -223,4 +219,3 @@ export const usePeopleCountingState = () => {
 		getLocationZone
 	};
 };
-

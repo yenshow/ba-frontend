@@ -4,16 +4,14 @@
 		<div class="flex justify-center gap-6 2xl:gap-8">
 			<!-- 左側面板：區域選擇與編輯功能 -->
 			<section class="flex-[1.2] 2xl:flex-[1.3]" ref="leftSectionRef">
-				<div
-					class="flex overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-6 2xl:p-8"
-				>
+				<div class="flex overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-6 2xl:p-8">
 					<!-- 區域選擇 -->
 					<div class="relative z-10 flex flex-col justify-between py-4 text-center text-white">
 						<div class="space-y-4">
 							<!-- 區域顯示 -->
 							<div class="py-4">
 								<span
-									class="inline-flex text-nowrap border-b-2 border-white/70 pb-1 tracking-widest text-4xl 2xl:text-5xl"
+									class="inline-flex text-nowrap border-b-2 border-white/70 pb-1 text-4xl tracking-widest 2xl:text-5xl"
 								>
 									{{ selectedZoneName }}
 								</span>
@@ -114,9 +112,7 @@
 					:style="leftSectionHeight ? { minHeight: leftSectionHeight + 'px' } : undefined"
 				>
 					<!-- 總覽標題 -->
-					<h2
-						class="mb-4 text-center font-semibold tracking-[12px] text-white text-2xl 2xl:text-3xl"
-					>
+					<h2 class="mb-4 text-center text-2xl font-semibold tracking-[12px] text-white 2xl:text-3xl">
 						總覽
 					</h2>
 
@@ -368,7 +364,8 @@ const selectLocation = (location: UnifiedLocation) => {
 const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
 	environment: "環境監測",
 	lighting: "照明系統",
-	people_counting: "人流統計"
+	people_counting: "人流統計",
+	vehicle_access: "車輛通行"
 };
 
 // 取得系統類型標籤

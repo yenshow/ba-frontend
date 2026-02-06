@@ -4,21 +4,23 @@
 			<!-- 左側：詳細視圖 -->
 			<section class="relative flex-[1.2] 2xl:flex-[1.3]" ref="leftSectionRef">
 				<div
-					class="relative flex flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 2xl:p-6 min-h-[664px] 2xl:min-h-[848px]"
+					class="relative flex min-h-[664px] flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 2xl:min-h-[848px] 2xl:p-6"
 				>
 					<!-- 位置標題與地點選擇 -->
 					<div
-						class="absolute left-1/2 top-0 flex h-[36px] translate-x-[-50%] items-center justify-center bg-white text-lg text-[#595959] 2xl:text-xl"
+						class="absolute left-1/2 top-0 flex h-[36px] translate-x-[-50%] items-center justify-center bg-white text-lg text-[#595959] 2xl:h-[48px] 2xl:text-xl"
 						style="clip-path: polygon(0 0, 100% 0, calc(100% - 24px) 100%, calc(0% + 24px) 100%)"
 					>
 						<div class="flex w-[200px] items-center justify-center">
-							<span v-if="currentLocationData" class="ps-[12px]">{{
+							<span v-if="currentLocationData" class="ps-[12px] text-[24px] 2xl:text-[36px]">{{
 								getLocationZone(currentLocationData)
 							}}</span>
 						</div>
 						<div class="h-[24px] w-px bg-[#595959]"></div>
 						<div class="flex w-[200px] items-center justify-center">
-							<span v-if="currentLocationData" class="pe-[12px]">{{ currentLocationData.name }}</span>
+							<span v-if="currentLocationData" class="pe-[12px] text-[24px] 2xl:text-[36px]">{{
+								currentLocationData.name
+							}}</span>
 						</div>
 					</div>
 
@@ -31,7 +33,7 @@
 					</button>
 
 					<!-- 三個大儀表（包含趨勢圖） -->
-					<div class="mt-12 grid grid-cols-3 gap-4 border-b border-white/80 pb-2 2xl:gap-6">
+					<div class="mt-16 grid grid-cols-3 gap-4 border-b border-white/80 pb-2 2xl:gap-6">
 						<!-- 噪音值儀表 -->
 						<EnvironmentGauge
 							type="noise"
@@ -105,7 +107,7 @@
 						<h2
 							v-if="!isOverviewCollapsed"
 							key="title"
-							class="mb-4 text-center font-semibold tracking-[12px] text-white text-2xl 2xl:text-3xl"
+							class="mb-4 text-center text-2xl font-semibold tracking-[12px] text-white 2xl:text-3xl"
 							style="padding-left: 12px"
 						>
 							總覽
@@ -243,7 +245,9 @@ const sensorDevice = ref<Device | null>(null);
 // 設備型號配置快取
 const deviceModelConfig = ref<SensorDeviceModelConfig | null>(null);
 // 設備型號配置全局緩存（key: deviceId, value: { device, modelConfig, timestamp }）
-const deviceModelConfigCache = ref<Map<number, { device: Device; modelConfig: SensorDeviceModelConfig | null; timestamp: number }>>(new Map());
+const deviceModelConfigCache = ref<
+	Map<number, { device: Device; modelConfig: SensorDeviceModelConfig | null; timestamp: number }>
+>(new Map());
 const CONFIG_CACHE_TTL = 5 * 60 * 1000; // 5 分鐘緩存時間
 // 共享配置緩存（key: `${host}:${port}`, value: modelConfig）
 const sharedConfigCache = ref<Map<string, SensorDeviceModelConfig | null>>(new Map());
@@ -502,7 +506,7 @@ const { start: startPolling, stop: stopPolling } = usePolling({
 	},
 	interval: pollingInterval, // 使用響應式間隔時間
 	immediate: false, // 不在啟動時立即執行
-	onError: (err) => {
+	onError: err => {
 		handleError(err, "載入感測器資料失敗");
 	}
 });
@@ -799,7 +803,7 @@ const loadDeviceAndModelConfig = async (
 		if (!modelConfig && device.model_id) {
 			try {
 				const modelResult = await deviceApi.getDeviceModel(device.model_id);
-				modelConfig = modelResult.device_model.config as SensorDeviceModelConfig | undefined || null;
+				modelConfig = (modelResult.device_model.config as SensorDeviceModelConfig | undefined) || null;
 			} catch (error) {
 				console.warn("[environment] 載入設備型號配置失敗:", error);
 				modelConfig = null;
@@ -956,13 +960,13 @@ const findParameterModbusConfig = (
 ): { address: number; transform?: string } | null => {
 	// 先從當前地點的設備型號配置中查找
 	let paramDef = modelConfig?.sensorParameters?.find(p => p.type === paramType);
-	
+
 	// 如果當前配置中沒有，且找到了共享配置，則從共享配置中查找
 	if (!paramDef?.modbusConfig?.address && sharedModelConfig?.sensorParameters) {
 		paramDef = sharedModelConfig.sensorParameters.find(p => p.type === paramType);
 	}
-	
-	return paramDef?.modbusConfig?.address !== undefined 
+
+	return paramDef?.modbusConfig?.address !== undefined
 		? { address: paramDef.modbusConfig.address, transform: paramDef.modbusConfig.transform }
 		: null;
 };
@@ -976,7 +980,9 @@ const readParametersBatch = async (
 	if (addresses.length === 0) return [];
 
 	const addressGroups = groupConsecutiveAddresses(addresses);
-	const readPromises: Promise<Array<{ type: SensorParameterType; value: number | null; success: boolean }>>[] = [];
+	const readPromises: Promise<
+		Array<{ type: SensorParameterType; value: number | null; success: boolean }>
+	>[] = [];
 
 	for (const group of addressGroups) {
 		if (group.length > 1) {
@@ -1006,7 +1012,11 @@ const readParametersBatch = async (
 							group.addresses.map(addr => {
 								const paramData = paramAddressMap.get(addr);
 								if (!paramData) {
-									return Promise.resolve({ type: "pm25" as SensorParameterType, value: null, success: false });
+									return Promise.resolve({
+										type: "pm25" as SensorParameterType,
+										value: null,
+										success: false
+									});
 								}
 								return readParameterValue(
 									modbusConfig,
@@ -1165,7 +1175,13 @@ const loadSensorData = async () => {
 		}
 
 		// 建立參數到地址的映射（用於批量讀取優化）
-		const paramAddressMap = new Map<number, { param: (typeof enabledParams)[0]; modbusConfig: NonNullable<ReturnType<typeof getParameterModbusConfig>> }>();
+		const paramAddressMap = new Map<
+			number,
+			{
+				param: (typeof enabledParams)[0];
+				modbusConfig: NonNullable<ReturnType<typeof getParameterModbusConfig>>;
+			}
+		>();
 		const paramsWithoutConfig: typeof enabledParams = [];
 
 		for (const param of enabledParams) {
@@ -1192,18 +1208,21 @@ const loadSensorData = async () => {
 		}
 
 		const batchResults = await readParametersBatch(config, paramAddressMapForBatch);
-		
+
 		// 將結果轉換為原始格式
-		const results: Array<{ param: (typeof enabledParams)[0]; value: number | null; success: boolean }> = 
-			batchResults.map(result => {
-				const addr = paramTypeToAddressMap.get(result.type);
-				const paramData = addr ? paramAddressMap.get(addr) : null;
-				return {
-					param: paramData?.param || enabledParams[0],
-					value: result.value,
-					success: result.success
-				};
-			});
+		const results: Array<{
+			param: (typeof enabledParams)[0];
+			value: number | null;
+			success: boolean;
+		}> = batchResults.map(result => {
+			const addr = paramTypeToAddressMap.get(result.type);
+			const paramData = addr ? paramAddressMap.get(addr) : null;
+			return {
+				param: paramData?.param || enabledParams[0],
+				value: result.value,
+				success: result.success
+			};
+		});
 
 		// 添加沒有配置的參數
 		paramsWithoutConfig.forEach(param => {
@@ -1503,7 +1522,7 @@ const loadLocationSensorDataForOverview = async (location: EnvironmentLocation) 
 
 		for (const param of enabledParams) {
 			const modbusConfig = findParameterModbusConfig(param.type, modelConfig, sharedModelConfig);
-			
+
 			if (!modbusConfig) {
 				if (process.dev) {
 					console.warn(
@@ -1514,7 +1533,11 @@ const loadLocationSensorDataForOverview = async (location: EnvironmentLocation) 
 				continue;
 			}
 
-			if (process.dev && sharedModelConfig && !modelConfig?.sensorParameters?.find(p => p.type === param.type && p.modbusConfig?.address)) {
+			if (
+				process.dev &&
+				sharedModelConfig &&
+				!modelConfig?.sensorParameters?.find(p => p.type === param.type && p.modbusConfig?.address)
+			) {
 				console.log(
 					`[environment] ${location.name} 的參數 ${getParameterDisplayName(param.type)} 使用共享設備型號配置 (address: ${modbusConfig.address})`
 				);
@@ -1616,7 +1639,9 @@ const handleSaveZone = async (zone: EnvironmentZone) => {
 						locations: z.locations
 					});
 			// 確保返回的 zone 有 id
-			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as EnvironmentZone & { id: string };
+			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as EnvironmentZone & {
+				id: string;
+			};
 			return {
 				merged: result.merged,
 				message: result.message,
@@ -1906,7 +1931,7 @@ const environmentData = computed(() => ({
 // 這樣可以確保與後端規則一致
 const getStatusClass = (type: string, value: number | null): string => {
 	if (value === null) return "";
-	
+
 	const status = getStatusText(type, value);
 	if (status === "正常") return "";
 	if (status === "注意") return "border-yellow-400";
@@ -1916,17 +1941,17 @@ const getStatusClass = (type: string, value: number | null): string => {
 
 const getStatusDotClass = (type: string, value: number | null): string => {
 	if (value === null) return "bg-gray-400";
-	
+
 	const status = getStatusText(type, value);
 	if (status === "正常") return "bg-green-400";
 	if (status === "注意") return "bg-yellow-400";
 	if (status === "警報") return "bg-red-400";
-	
+
 	// 特殊處理：某些參數沒有規則時預設為正常
 	if (type === "tvoc" || type === "hcho" || type === "wind") {
 		return "bg-green-400";
 	}
-	
+
 	return "bg-gray-400";
 };
 

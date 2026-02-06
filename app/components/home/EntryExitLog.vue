@@ -1,12 +1,17 @@
 <template>
-	<div v-if="logs.length === 0" class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center">
+	<div
+		v-if="logs.length === 0"
+		class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
+	>
 		<p class="text-sm text-white/60 xl:text-base">尚無進出場記錄</p>
 	</div>
 
 	<div v-else class="overflow-x-auto">
-		<table class="w-full border-b-2 border-r-2 border-l-2 border-white/20">
+		<table class="w-full border-b-2 border-l-2 border-r-2 border-white/20">
 			<thead>
-				<tr class="bg-white/20 2xl:font-semibold text-white text-center text-xs xl:text-base whitespace-nowrap">
+				<tr
+					class="whitespace-nowrap bg-white/20 text-center text-xs text-white xl:text-base 2xl:font-semibold"
+				>
 					<th class="p-2">設備截圖</th>
 					<th class="p-2">進場單位</th>
 					<th class="p-2">工號</th>
@@ -16,13 +21,9 @@
 				</tr>
 			</thead>
 			<tbody>
-				<tr
-					v-for="log in logs"
-					:key="log.id"
-					class="border-b border-white/10 text-center text-white"
-				>
-					<td class="p-2 flex items-center justify-center">
-						<div class="relative h-12 w-12 overflow-hidden bg-white/10 2xl:h-16 2xl:w-16 mx-auto">
+				<tr v-for="log in logs" :key="log.id" class="border-b border-white/10 text-center text-white">
+					<td class="flex items-center justify-center p-2">
+						<div class="relative mx-auto h-12 w-12 overflow-hidden bg-white/10 2xl:h-16 2xl:w-16">
 							<!-- 載入中 -->
 							<Transition name="fade">
 								<div
@@ -30,7 +31,9 @@
 									key="loading"
 									class="absolute inset-0 flex items-center justify-center bg-white/5"
 								>
-									<div class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white/80"></div>
+									<div
+										class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white/80"
+									></div>
 								</div>
 							</Transition>
 
@@ -78,7 +81,7 @@
 					<td class="p-2 text-sm 2xl:text-base">
 						{{ log.personName || "-" }}
 					</td>
-					<td class="p-2 whitespace-nowrap">
+					<td class="whitespace-nowrap p-2">
 						<span
 							:class="[
 								'rounded-full px-2 py-0.5 text-xs font-medium 2xl:text-sm',
@@ -89,13 +92,7 @@
 										: 'bg-red-500/70 text-red-200'
 							]"
 						>
-							{{
-								log.eventType === "entry"
-									? "進入"
-									: log.eventType === "exit"
-										? "離開"
-										: "失敗"
-							}}
+							{{ log.eventType === "entry" ? "進入" : log.eventType === "exit" ? "離開" : "失敗" }}
 						</span>
 					</td>
 					<td class="p-2 text-xs 2xl:text-sm">
@@ -115,6 +112,7 @@ import { ref, watch } from "vue";
 import type { PeopleCountingLog } from "~/types/peopleCounting";
 import { useExternalDataApi } from "~/composables/systems/useExternalDataApi";
 import { convertBase64ToImageUrl } from "~/utils/imageUtils";
+import { formatDate, formatTime } from "~/utils/dateUtils";
 
 interface Props {
 	logs: PeopleCountingLog[];
@@ -127,17 +125,6 @@ const imageUrls = ref<Record<string | number, string>>({});
 const imageLoadingStates = ref<Record<string | number, boolean>>({});
 const imageErrorStates = ref<Record<string | number, boolean>>({});
 const imageCache = new Map<string, string>();
-
-// 格式化日期和時間：從 timestamp 中提取
-const formatDate = (timestamp: string): string => {
-	if (!timestamp) return "-";
-	return timestamp.split(" ")[0] || "-";
-};
-
-const formatTime = (timestamp: string): string => {
-	if (!timestamp) return "-";
-	return timestamp.split(" ")[1] || "-";
-};
 
 /**
  * 處理圖片載入錯誤
@@ -194,10 +181,7 @@ const loadImage = async (log: PeopleCountingLog) => {
 const loadAllImages = async () => {
 	// 過濾出需要載入的圖片
 	const logsToLoad = props.logs.filter(
-		log => 
-			log.deviceScreenshotUrl && 
-			!imageUrls.value[log.id] && 
-			!imageLoadingStates.value[log.id]
+		log => log.deviceScreenshotUrl && !imageUrls.value[log.id] && !imageLoadingStates.value[log.id]
 	);
 
 	// 並行載入所有圖片，減少總等待時間
@@ -225,4 +209,3 @@ watch(
 	opacity: 0;
 }
 </style>
-

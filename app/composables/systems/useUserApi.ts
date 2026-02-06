@@ -59,9 +59,10 @@ export const useUserApi = () => {
 			});
 		},
 
-		// 取得當前用戶
-		getMe: () => {
-			return request<User>("/users/me");
+		// 取得當前用戶（後端回傳 { user }，此處解包以符合 useAuth 預期）
+		getMe: async (): Promise<User> => {
+			const res = await request<{ user: User }>("/users/me");
+			return res.user;
 		},
 
 		// 取得用戶列表（管理員）

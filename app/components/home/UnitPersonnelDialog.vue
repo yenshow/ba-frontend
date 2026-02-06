@@ -7,7 +7,7 @@
 				@click.self="handleClose"
 			>
 				<div
-					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-xl 2xl:max-w-2xl flex-col gap-4 overflow-hidden rounded-3xl p-8"
+					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-xl flex-col gap-4 overflow-hidden rounded-3xl p-8 2xl:max-w-2xl"
 				>
 					<header class="flex items-center justify-between">
 						<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">
@@ -26,8 +26,11 @@
 						</button>
 					</header>
 
-					<div class="flex-1 overflow-y-auto min-h-[130px]">
-						<div v-if="personnel.length === 0" class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center">
+					<div class="min-h-[130px] flex-1 overflow-y-auto">
+						<div
+							v-if="personnel.length === 0"
+							class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
+						>
 							<p class="text-sm text-white/60 xl:text-base">尚無人員資料</p>
 						</div>
 						<div v-else class="space-y-4">
@@ -36,16 +39,10 @@
 									v-for="person in paginatedPersonnel"
 									:key="`${person.id}-${person.unitId}`"
 									class="flex items-start gap-3 border-2 border-white/30 p-3"
-									:class="[
-										person.isPresent
-											? 'bg-white/20'
-											: 'bg-black/20'
-									]"
+									:class="[person.isPresent ? 'bg-white/20' : 'bg-black/20']"
 								>
 									<!-- 照片 -->
-									<div
-										class="overflow-hidden rounded-full bg-white/10 h-16 w-16 mt-4"
-									>
+									<div class="mt-4 h-16 w-16 overflow-hidden rounded-full bg-white/10">
 										<img
 											v-if="person.photoUrl"
 											:src="person.photoUrl"
@@ -63,7 +60,9 @@
 
 									<!-- 資訊 -->
 									<div class="min-w-0 flex-1">
-										<div class="font-medium text-white text-base 2xl:text-xl border-b border-white/30 pb-1">{{ person.name }}</div>
+										<div class="border-b border-white/30 pb-1 text-base font-medium text-white 2xl:text-xl">
+											{{ person.name }}
+										</div>
 										<div class="mt-1 space-y-0.5 text-xs text-white/60 xl:text-sm">
 											<!-- 最近進場：顯示日期（不含時分秒） -->
 											<div v-if="person.lastEntryDate">
@@ -82,11 +81,12 @@
 												<span v-if="person.exitTime && !shouldHideExitTime(person)">
 													{{ person.exitTime }}
 												</span>
-												<span v-else>
-													- -
-												</span>
+												<span v-else> - - </span>
 											</div>
-											<div v-if="!person.lastEntryDate && !person.entryTime && !person.exitTime" class="text-white/40">
+											<div
+												v-if="!person.lastEntryDate && !person.entryTime && !person.exitTime"
+												class="text-white/40"
+											>
 												尚無進出場記錄
 											</div>
 										</div>
@@ -146,7 +146,7 @@ const paginatedPersonnel = computed(() => {
 // 監聽 personnel 變化，確保 offset 不會超出範圍
 watch(
 	() => props.personnel.length,
-	(newLength) => {
+	newLength => {
 		if (offset.value >= newLength) {
 			offset.value = 0;
 		}
@@ -165,19 +165,18 @@ const handleNext = () => {
 
 const parseTimeToSeconds = (time?: string | null) => {
 	if (!time) return null;
-	// 支援 "HH:mm" 或 "HH:mm:ss"
 	const m = time.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
 	if (!m) return null;
 	const hh = Number(m[1]);
 	const mm = Number(m[2]);
 	const ss = m[3] ? Number(m[3]) : 0;
-	if ([hh, mm, ss].some((n) => Number.isNaN(n))) return null;
+	if (Number.isNaN(hh) || Number.isNaN(mm) || Number.isNaN(ss)) return null;
 	return hh * 3600 + mm * 60 + ss;
 };
 
 const shouldHideExitTime = (person: PeopleCountingPersonnel) => {
-	const entrySec = parseTimeToSeconds((person as any).entryTime);
-	const exitSec = parseTimeToSeconds((person as any).exitTime);
+	const entrySec = parseTimeToSeconds(person.entryTime);
+	const exitSec = parseTimeToSeconds(person.exitTime);
 	if (entrySec == null || exitSec == null) return false;
 	return entrySec > exitSec;
 };
@@ -210,4 +209,3 @@ const handleClose = () => {
 	opacity: 0;
 }
 </style>
-
