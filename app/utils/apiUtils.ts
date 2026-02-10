@@ -5,6 +5,23 @@
  */
 
 /**
+ * 解析上傳檔案的顯示 URL
+ * 當 src 為後端上傳路徑（/uploads/）時，需加上伺服器 base URL
+ *
+ * @param src - 原始設定值（URL 或 /uploads/... 路徑）
+ * @param apiBase - API base 設定（可含 /api 後綴，會自動 stripping）
+ */
+export const resolveUploadUrl = (src: string, apiBase: string): string => {
+	const trimmed = src?.trim() ?? "";
+	if (!trimmed) return "";
+	if (trimmed.startsWith("/uploads/")) {
+		const base = apiBase.replace(/\/api\/?$/, "");
+		return `${base}${trimmed}`;
+	}
+	return trimmed;
+};
+
+/**
  * 構建查詢參數的通用函數
  * 自動過濾 undefined、null 和空字串
  */
