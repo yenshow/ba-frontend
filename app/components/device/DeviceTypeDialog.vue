@@ -259,14 +259,18 @@ const confirmDelete = (type: DeviceType) => {
 	});
 };
 
+const refreshListAndNotify = async () => {
+	await loadDeviceTypes(true);
+	emit("refresh");
+};
+
 const handleConfirmDelete = async () => {
 	if (!pendingDeleteType.value) return;
-	
+
 	try {
 		await deviceApi.deleteDeviceType(pendingDeleteType.value.id);
-		await loadDeviceTypes();
 		toast.success(`設備類型 "${pendingDeleteType.value.name}" 已刪除`);
-		emit("refresh");
+		await refreshListAndNotify();
 		pendingDeleteType.value = null;
 	} catch (error) {
 		handleError(error, "刪除設備類型失敗");
@@ -299,9 +303,7 @@ const handleSubmit = async () => {
 			toast.success("設備類型建立成功");
 		}
 		closeForm();
-		deviceApi.clearDeviceTypesCache(); // 清除前端快取
-		await loadDeviceTypes(true); // 強制刷新（force = true）
-		emit("refresh");
+		await refreshListAndNotify();
 	} catch (error) {
 		handleError(error, "操作失敗");
 	} finally {

@@ -5,7 +5,7 @@ import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPathWithQuery } from "~/utils/apiUtils";
 import { logger } from "~/utils/logger";
 import {
-	backendToPeopleCountingZone,
+	unifiedToPeopleCountingZone,
 	peopleCountingToUnifiedZone,
 	peopleCountingLocationToUnified
 } from "~/utils/locationAdapter";
@@ -39,8 +39,8 @@ export const usePeopleCountingLocationApi = () => {
 	// 使用通用 Factory 創建區域管理 API
 	const zoneApi = useSystemLocationApiFactory<PeopleCountingZone, PeopleCountingLocation>({
 		systemType: "people_counting",
-		backendToSystemZone: backendToPeopleCountingZone,
-		systemToUnifiedZone: (zone) => peopleCountingToUnifiedZone(zone, "people_counting"),
+		backendToSystemZone: unifiedToPeopleCountingZone,
+		systemToUnifiedZone: zone => peopleCountingToUnifiedZone(zone, "people_counting"),
 		locationToUnified: peopleCountingLocationToUnified
 	});
 
@@ -137,7 +137,7 @@ export const usePeopleCountingLocationApi = () => {
 		 * 根據地點 ID 取得地點名稱
 		 * 從地點管理系統中查找對應的地點名稱
 		 * 使用快取機制優化性能，避免重複查詢
-		 * 
+		 *
 		 * @param locationId - 地點 ID（業務層的數字 ID）
 		 * @returns 地點名稱，如果找不到則返回 null
 		 */
@@ -150,7 +150,7 @@ export const usePeopleCountingLocationApi = () => {
 			try {
 				// 取得所有區域和地點（只查詢一次，後續使用快取）
 				const zonesResponse = await locationApi.getZones("people_counting");
-				const zones = zonesResponse.zones.map(zone => backendToPeopleCountingZone(zone));
+				const zones = zonesResponse.zones.map(zone => unifiedToPeopleCountingZone(zone));
 
 				// 建立完整的快取映射（一次查詢，多次使用）
 				for (const zone of zones) {

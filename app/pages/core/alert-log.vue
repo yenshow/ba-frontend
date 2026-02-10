@@ -208,12 +208,7 @@
 									<!-- 操作按鈕 -->
 									<div class="flex h-[160px] flex-col justify-center gap-2">
 										<button
-											v-if="
-												alert.status === 'active' &&
-												!isAlertResolved(alert) &&
-												!isAlertIgnored(alert) &&
-												isAdmin
-											"
+											v-if="alert.status === 'active' && isAdmin"
 											type="button"
 											@click="handleIgnore(alert)"
 											:disabled="isIgnoring"
@@ -233,7 +228,7 @@
 											取消忽視
 										</button>
 
-										<!-- 解決資訊：顯示在按鈕下方 -->
+										<!-- 解決資訊：僅系統自動解決，解決時間為 status=resolved 時的 updated_at -->
 										<div
 											v-if="isAlertResolved(alert) && !isAlertIgnored(alert)"
 											class="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 2xl:p-2.5"
@@ -254,13 +249,10 @@
 												</svg>
 												<div class="min-w-0 flex-1 space-y-0.5">
 													<div class="text-base font-medium text-emerald-300">已解決</div>
-													<div v-if="alert.resolved_at" class="text-base text-white/70">
-														{{ formatDateTime(alert.resolved_at) }}
+													<div class="text-base text-white/70">
+														{{ formatDateTime(alert.updated_at) }}
 													</div>
-													<div v-if="alert.resolved_by_username" class="text-base text-white/60">
-														解決者：{{ alert.resolved_by_username }}
-													</div>
-													<div v-else class="text-base text-emerald-400">系統自動解決</div>
+													<div class="text-base text-emerald-400">系統自動解決</div>
 												</div>
 											</div>
 										</div>
@@ -530,10 +522,6 @@ const matchesFilters = (alert: Alert): boolean => {
 	if (filterSource.value && alert.source !== filterSource.value) return false
 
 	if (filterStartDate.value || filterEndDate.value) {
-		// 按天限制邏輯：Toast 觸發的警報應該是當下的情況
-		// - alert:new → created_at 應該是今天
-		// - alert:updated (active → active) → created_at 應該是今天（因為按天限制，同一天才會更新）
-		// 所以使用 created_at 進行篩選即可
 		const alertTime = new Date(alert.created_at).getTime()
 
 		if (filterStartDate.value) {
@@ -616,22 +604,17 @@ const handleExport = async () => {
 		})
 
 		const headers = [
-			"ID",
 			"系統來源",
-			"樓層",
-			"來源名稱",
-			"來源ID",
-			"警報類型",
-			"嚴重程度",
+			"區域-地點",
+			"設備類型",
+			"設備配置",
+			"類型與程度",
 			"狀態",
 			"訊息",
 			"創建時間",
 			"更新時間",
-			"解決時間",
-			"解決者",
 			"忽視時間",
 			"忽視者",
-			"設備類型",
 		]
 
 		const statusLabels: Record<string, string> = {
@@ -640,23 +623,29 @@ const handleExport = async () => {
 			ignored: "已忽視",
 		}
 
+		const formatZoneLocation = (z?: string | null, l?: string | null) =>
+			[z, l].filter(Boolean).join("-") || ""
+		const getDeviceConfigDisplay = (c: Record<string, unknown> | string | null | undefined) => {
+			if (!c) return ""
+			const o = typeof c === "string" ? (JSON.parse(c || "{}") as Record<string, unknown>) : c
+			return String(o.host ?? "").trim() || ""
+		}
+		const fmt = (s?: string | null) => (s ? formatDateTime(s, true) : "")
+		const typeSeverity = (a: Alert) =>
+			`${getTypeLabel(a.alert_type)}（${getSeverityLabel(a.severity)}）`
+
 		const rows = result.alerts.map((alert) => [
-			alert.id,
 			getSourceLabel(alert.source),
-			getZoneName(alert),
-			getSourceDisplayName(alert),
-			alert.source_id,
-			getTypeLabel(alert.alert_type),
-			getSeverityLabel(alert.severity),
+			formatZoneLocation(alert.zone_name, alert.source_name),
+			alert.device_type_name || "",
+			getDeviceConfigDisplay(alert.device_config as Record<string, unknown> | null | undefined),
+			typeSeverity(alert),
 			statusLabels[alert.status] || alert.status,
 			alert.message,
-			formatDateTime(alert.created_at),
-			formatDateTime(alert.updated_at),
-			alert.resolved_at ? formatDateTime(alert.resolved_at) : "",
-			alert.resolved_by_username || "",
-			alert.ignored_at ? formatDateTime(alert.ignored_at) : "",
+			fmt(alert.created_at),
+			fmt(alert.updated_at),
+			fmt(alert.ignored_at),
 			alert.ignored_by_username || "",
-			alert.device_type_name || "",
 		])
 
 		const escapeCSV = (value: unknown): string => {
@@ -678,9 +667,10 @@ const handleExport = async () => {
 		const url = URL.createObjectURL(blob)
 		const link = document.createElement("a")
 		link.href = url
+		const datePart = (s: string) => s.split("T")[0]
 		link.download = `警示紀錄_${
 			filterStartDate.value && filterEndDate.value
-				? `${filterStartDate.value}_${filterEndDate.value}`
+				? `${datePart(filterStartDate.value)}_${datePart(filterEndDate.value)}`
 				: new Date().toISOString().split("T")[0]
 		}.csv`
 

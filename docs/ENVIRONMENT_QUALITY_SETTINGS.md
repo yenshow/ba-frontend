@@ -64,7 +64,7 @@
 │  │ Service      │    │ holding-     │    │ Monitor      │  │
 │  │              │    │ registers    │    │              │  │
 │  │ - getZones   │    │              │    │ - 定期讀取    │  │
-│  │ - saveReading│    │ - 讀取寄存器  │    │ - 儲存資料    │  │
+│  │ - getReadings│    │ - 讀取寄存器  │    │ - 儲存資料    │  │
 │  │ - getReadings│    │ - 批量讀取    │    │ - 推送事件    │  │
 │  └──────────────┘    └──────────────┘    └──────────────┘  │
 │         │                    │                    │          │
@@ -88,7 +88,7 @@
 │  │ Api          │    │ Register     │    │              │  │
 │  │              │    │              │    │ - 監聽事件    │  │
 │  │ - getZones   │    │ - 單個讀取    │    │ - 更新資料    │  │
-│  │ - saveReading│    │ - 批量讀取    │    │              │  │
+│  │ - getReadings│    │ - 批量讀取    │    │              │  │
 │  │ - getReadings│    │ - 轉換公式    │    │              │  │
 │  └──────────────┘    └──────────────┘    └──────────────┘  │
 │         │                    │                    │          │
@@ -143,8 +143,7 @@
 
 **感測器讀數管理**：
 
-- `saveReading(data)`: 儲存感測器讀數（已廢棄，改由監控服務自動記錄）
-- `getReadings(locationId, options)`: 取得歷史讀數（從 `device_data_logs` 聚合查詢）
+- `getReadings(locationId, options)`: 取得歷史讀數；即時讀數由 Monitor 寫入並推送 WebSocket
 
 **錯誤追蹤**：
 
@@ -181,15 +180,14 @@ DELETE /api/locations/zones/:id
 **感測器讀數**：
 
 ```
-POST   /api/environment/readings          # 儲存讀數（已廢棄，保留用於向後兼容）
-GET    /api/environment/readings/:locationId?startTime=&endTime=&limit=
+GET    /api/environment/readings/:locationId?startTime=&endTime=&limit=   # 歷史讀數，即時由 Monitor 推送 WebSocket
 ```
 
 **錯誤追蹤**：
 
 ```
-POST   /api/environment/locations/:locationId/errors  # locationId 實際上是 systemId
-DELETE /api/environment/locations/:locationId/errors
+POST   /api/environment/systems/:systemId/errors
+DELETE /api/environment/systems/:systemId/errors
 ```
 
 ---
@@ -213,7 +211,6 @@ deleteZone(id): Promise<{ message: string }>
 **感測器讀數**：
 
 ```typescript
-saveReading(data: SaveReadingData): Promise<{ message: string; reading: SensorReading }>
 getReadings(locationId: string, options?): Promise<{ readings: SensorReading[] }>
 ```
 

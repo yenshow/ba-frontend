@@ -6,7 +6,7 @@
 		<p class="text-base text-white/60 2xl:text-lg">尚無過車記錄</p>
 	</div>
 
-	<div v-else ref="tableContainerRef" class="overflow-x-auto">
+	<div v-else class="overflow-x-auto">
 		<table class="w-full border-b-2 border-l-2 border-r-2 border-white/20">
 			<thead class="bg-white/20">
 				<tr class="text-center text-xs font-semibold text-white/80 2xl:text-sm">
@@ -147,7 +147,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, onBeforeUnmount } from "vue";
+import { ref, watch, nextTick } from "vue";
 import type { VehicleDataLog } from "~/types/vehicleAccess";
 import { formatDate, formatTime } from "~/utils/dateUtils";
 import { useExternalDataApi } from "~/composables/systems/useExternalDataApi";
@@ -159,14 +159,11 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const { getBatchPicturesByUri } = useExternalDataApi();
+const { getPictureByUri } = useExternalDataApi();
 const resolvedImageUrls = ref<Record<number, string>>({});
 const imageLoadingStates = ref<Record<number, boolean>>({});
 const imageErrorStates = ref<Record<number, boolean>>({});
 const lightboxImageUrl = ref<string | null>(null);
-const tableContainerRef = ref<HTMLElement | null>(null);
-const hasTableEnteredView = ref(false);
-let intersectionObserver: IntersectionObserver | null = null;
 
 const lightboxRef = ref<HTMLElement | null>(null);
 const openLightbox = (url: string) => {
@@ -182,115 +179,54 @@ const closeLightbox = () => {
 const isDirectUrl = (url: string): boolean =>
 	url.startsWith("http://") || url.startsWith("https://");
 
-/** 使用批次 API 一次取得所有需解析的圖片，減少請求數 */
-const loadAllImages = async () => {
-	const toBatch: { id: number; url: string }[] = [];
+/** 與 VehiclePlateImage 相同：http(s) 直接使用，vsm:// 等經 API 解析 */
+const resolveImageUrl = async (log: VehicleDataLog) => {
+	const url = log.plate_license_image_url?.trim();
+	const id = log.id;
+	if (!url) return;
 
+	if (isDirectUrl(url)) {
+		resolvedImageUrls.value[id] = url;
+		return;
+	}
+
+	imageLoadingStates.value[id] = true;
+	imageErrorStates.value[id] = false;
+	try {
+		const result = await getPictureByUri(url);
+		if (result.success && result.data?.image) {
+			resolvedImageUrls.value[id] = convertBase64ToImageUrl(result.data.image);
+		}
+	} catch {
+		imageErrorStates.value[id] = true;
+	} finally {
+		imageLoadingStates.value[id] = false;
+	}
+};
+
+const loadAllImages = async () => {
+	const toResolve: VehicleDataLog[] = [];
 	for (const log of props.logs) {
-		const url = log.plate_license_image_url?.trim();
-		if (!url) continue;
+		if (!log.plate_license_image_url?.trim()) continue;
 		const id = log.id;
+		const url = log.plate_license_image_url.trim();
 		if (resolvedImageUrls.value[id]) continue;
 		if (isDirectUrl(url)) {
 			resolvedImageUrls.value[id] = url;
 		} else {
-			toBatch.push({ id, url });
+			toResolve.push(log);
 		}
 	}
-
-	if (toBatch.length === 0) return;
-
-	for (const { id } of toBatch) {
-		imageLoadingStates.value[id] = true;
-		imageErrorStates.value[id] = false;
-	}
-
-	try {
-		const picUris = toBatch.map(({ url }) => url);
-		const result = await getBatchPicturesByUri(picUris);
-		const results = result.data?.results ?? [];
-		const uriToLog = new Map<string, { id: number }>();
-		toBatch.forEach(({ id, url }) => uriToLog.set(url, { id }));
-
-		for (const item of results) {
-			const log = uriToLog.get(item.picUri);
-			if (!log) continue;
-			if (item.success && item.image) {
-				resolvedImageUrls.value[log.id] = convertBase64ToImageUrl(item.image);
-			} else {
-				imageErrorStates.value[log.id] = true;
-			}
-			imageLoadingStates.value[log.id] = false;
-		}
-		for (const { id } of toBatch) {
-			if (imageLoadingStates.value[id]) {
-				imageErrorStates.value[id] = true;
-				imageLoadingStates.value[id] = false;
-			}
-		}
-	} catch {
-		for (const { id } of toBatch) {
-			imageErrorStates.value[id] = true;
-			imageLoadingStates.value[id] = false;
-		}
-	}
-};
-
-const maybeLoadImages = () => {
-	if (!hasTableEnteredView.value) return;
-	loadAllImages();
+	await Promise.allSettled(toResolve.map(log => resolveImageUrl(log)));
 };
 
 watch(
 	() => props.logs,
-	newLogs => {
-		const newIds = new Set((newLogs ?? []).map((l: VehicleDataLog) => l.id));
-		for (const id of Object.keys(resolvedImageUrls.value).map(Number)) {
-			if (!newIds.has(id)) {
-				delete resolvedImageUrls.value[id];
-				delete imageLoadingStates.value[id];
-				delete imageErrorStates.value[id];
-			}
-		}
-		maybeLoadImages();
+	() => {
+		loadAllImages();
 	},
 	{ immediate: true, deep: true }
 );
-
-const setupIntersectionObserver = () => {
-	if (typeof IntersectionObserver === "undefined") {
-		hasTableEnteredView.value = true;
-		maybeLoadImages();
-		return;
-	}
-	if (!tableContainerRef.value || intersectionObserver) return;
-	intersectionObserver = new IntersectionObserver(
-		entries => {
-			if (entries[0]?.isIntersecting) {
-				hasTableEnteredView.value = true;
-				maybeLoadImages();
-			}
-		},
-		{ rootMargin: "50px", threshold: 0 }
-	);
-	intersectionObserver.observe(tableContainerRef.value);
-};
-
-watch(
-	() => props.logs.length > 0,
-	hasLogs => {
-		if (hasLogs) nextTick(setupIntersectionObserver);
-	},
-	{ immediate: true }
-);
-
-onBeforeUnmount(() => {
-	if (intersectionObserver && tableContainerRef.value) {
-		intersectionObserver.unobserve(tableContainerRef.value);
-		intersectionObserver.disconnect();
-		intersectionObserver = null;
-	}
-});
 
 const handleImageError = (logId: number) => {
 	imageErrorStates.value[logId] = true;

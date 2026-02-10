@@ -485,12 +485,10 @@ let lastValidationAlertTime: number | null = null
 // 總覽面板載入狀態追蹤（key: locationId, value: 是否正在載入）
 const overviewLoadingMap = ref<Map<string, boolean>>(new Map())
 
-// 動態計算輪詢間隔：WebSocket 連接時 30 秒，否則 5 秒
-const pollingInterval = computed(() => {
-	return isConnected.value ? 30000 : 5000
-})
+// 輪詢間隔：每 30 秒
+const POLLING_INTERVAL = 30000
 
-// 使用 usePolling 統一管理輪詢（支持動態間隔時間）
+// 使用 usePolling 統一管理輪詢
 const { start: startPolling, stop: stopPolling } = usePolling({
 	callback: async () => {
 		// 只有當有選中地點且有感測器設備時才讀取資料
@@ -509,7 +507,7 @@ const { start: startPolling, stop: stopPolling } = usePolling({
 			}
 		})
 	},
-	interval: pollingInterval, // 使用響應式間隔時間
+	interval: POLLING_INTERVAL,
 	immediate: false, // 不在啟動時立即執行
 	onError: (err) => {
 		handleError(err, "載入感測器資料失敗")
@@ -1273,32 +1271,6 @@ const loadSensorData = async () => {
 			})
 		}
 
-		// 如果有成功讀取的資料，自動儲存到後端
-		// 注意：必須使用實際的資料庫 ID（location.id），而不是 getLocationId 的結果
-		if (successCount > 0 && currentLocationData.value?.id) {
-			try {
-				await environmentApi.saveReading({
-					locationId: currentLocationData.value.id,
-					timestamp: new Date().toISOString(),
-					data: {
-						pm25: sensorData.pm25 ?? null,
-						pm10: sensorData.pm10 ?? null,
-						tvoc: sensorData.tvoc ?? null,
-						hcho: sensorData.hcho ?? null,
-						humidity: sensorData.humidity ?? null,
-						temperature: sensorData.temperature ?? null,
-						co2: sensorData.co2 ?? null,
-						noise: sensorData.noise ?? null,
-						wind: sensorData.wind ?? null,
-					},
-				})
-				console.log("[environment] 感測器讀數已儲存到後端")
-			} catch (saveError) {
-				// 儲存失敗不影響主要流程，只記錄錯誤
-				console.warn("[environment] 儲存感測器讀數失敗:", saveError)
-			}
-		}
-
 		// 如果所有參數讀取都失敗，記錄錯誤（不顯示 Toast，統一由警報監聽器處理）
 		if (successCount === 0 && failCount > 0) {
 			await reportLocationError(currentLocationData.value, "無法讀取感測器資料，請檢查設備連線狀態")
@@ -1357,37 +1329,6 @@ const readParameterValue = async (
 		}
 		return null
 	}
-}
-
-// 讀取地點的感測器參數資料（共用函數，用於總覽面板）
-const readLocationSensorParameters = async (
-	location: EnvironmentLocation,
-	modelConfig: SensorDeviceModelConfig,
-	modbusConfig: ModbusDeviceConfig,
-	locationId: string
-) => {
-	const enabledParams = location.parameters.filter((param) => param.enabled)
-
-	// 使用並行讀取提升性能
-	const readPromises = enabledParams.map(async (param) => {
-		const paramDef = modelConfig.sensorParameters?.find((p) => p.type === param.type)
-		if (!paramDef?.modbusConfig?.address) {
-			return { type: param.type, value: null }
-		}
-
-		const value = await readParameterValue(
-			modbusConfig,
-			paramDef.modbusConfig.address,
-			paramDef.modbusConfig.transform
-		)
-		return { type: param.type, value }
-	})
-
-	const results = await Promise.all(readPromises)
-	results.forEach(({ type, value }) => {
-		// 傳入 location 物件，讓 updateSensorData 使用資料庫 ID 作為 key
-		updateSensorData(type, value, locationId, location)
-	})
 }
 
 // 查找使用相同設備（相同 host/port）的其他地點，並獲取它們的設備型號配置

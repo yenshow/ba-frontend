@@ -201,8 +201,7 @@
 			@close="showDeviceTypeDialog = false"
 			@refresh="
 				() => {
-					deviceApi.clearDeviceTypesCache() // 清除快取
-					loadDeviceTypes(true) // 強制刷新
+					loadDeviceTypes(true)
 					refreshDeviceTypes = !refreshDeviceTypes
 				}
 			"

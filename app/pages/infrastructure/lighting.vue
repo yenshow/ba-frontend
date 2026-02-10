@@ -574,25 +574,20 @@ const deviceConfigCache = ref<Map<number, { host: string; port: number; unitId: 
 	new Map()
 )
 
-// 從設備對象提取 Modbus 配置
+// 從設備對象提取 Modbus 配置（後端可能不把 type 存在 config 內，用 type_code 判斷）
 const extractDeviceConfig = (
 	device: Device
 ): { host: string; port: number; unitId: number } | null => {
-	const config = device.config as ControllerDeviceConfig
-	if (
-		config &&
-		config.type === "controller" &&
-		config.host &&
-		config.port &&
-		config.unitId !== undefined
-	) {
-		return {
-			host: config.host,
-			port: config.port,
-			unitId: config.unitId,
-		}
+	const config = device.config as ControllerDeviceConfig & Record<string, unknown>
+	if (!config?.host || config.port === undefined || config.unitId === undefined) return null
+	const isController =
+		config.type === "controller" || (device as Device & { type_code?: string }).type_code === "controller"
+	if (!isController) return null
+	return {
+		host: String(config.host),
+		port: Number(config.port),
+		unitId: Number(config.unitId),
 	}
-	return null
 }
 
 // 載入設備資訊（如果尚未載入）
@@ -641,36 +636,34 @@ const preloadDeviceInfos = async () => {
 }
 
 // 取得地點的設備配置（優化：使用快取，避免重複提取）
+// 優先使用 location.deviceId（來自 API device_id），與 modbus.deviceId 一致時才不會讀寫錯設備
 const getLocationDeviceConfig = async (
 	location: LightingLocation
 ): Promise<{ host: string; port: number; unitId: number } | null> => {
 	if (!location.modbus) return null
 
-	// 如果使用新格式（有 deviceId）
-	if (location.modbus.deviceId) {
-		// 先檢查配置快取
-		if (deviceConfigCache.value.has(location.modbus.deviceId)) {
-			return deviceConfigCache.value.get(location.modbus.deviceId)!
+	const effectiveDeviceId = location.deviceId ?? location.modbus.deviceId
+	if (!effectiveDeviceId) {
+		// 向後兼容：使用 modbus 內嵌的 host/port/unitId
+		if (location.modbus.host && location.modbus.port && location.modbus.unitId !== undefined) {
+			return {
+				host: location.modbus.host,
+				port: location.modbus.port,
+				unitId: location.modbus.unitId,
+			}
 		}
-
-		// 如果沒有快取，載入設備資訊（會自動快取配置）
-		const device = await loadDeviceInfo(location.modbus.deviceId)
-		if (!device) return null
-
-		// 從快取中獲取配置
-		return deviceConfigCache.value.get(location.modbus.deviceId) || null
+		return null
 	}
 
-	// 向後兼容：使用舊格式
-	if (location.modbus.host && location.modbus.port && location.modbus.unitId !== undefined) {
-		return {
-			host: location.modbus.host,
-			port: location.modbus.port,
-			unitId: location.modbus.unitId,
-		}
+	// 使用 location.deviceId 或 modbus.deviceId 載入控制器設備
+	if (deviceConfigCache.value.has(effectiveDeviceId)) {
+		return deviceConfigCache.value.get(effectiveDeviceId)!
 	}
 
-	return null
+	const device = await loadDeviceInfo(effectiveDeviceId)
+	if (!device) return null
+
+	return deviceConfigCache.value.get(effectiveDeviceId) || null
 }
 
 // Modbus 請求超時時間（3 秒，快速失敗）

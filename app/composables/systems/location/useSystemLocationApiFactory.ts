@@ -4,7 +4,10 @@
  */
 
 import type { SystemType, UnifiedZone, UnifiedLocationInput } from "~/types/location";
-import type { SystemZoneType, SystemLocationType } from "~/composables/systems/useZoneSystemAdapter";
+import type {
+	SystemZoneType,
+	SystemLocationType
+} from "~/composables/systems/useZoneSystemAdapter";
 import { useLocationApi } from "./useLocationApi";
 import {
 	buildUnifiedZoneUpdateData,
@@ -61,7 +64,7 @@ export function useSystemLocationApiFactory<
 		getZones: async () => {
 			const response = await locationApi.getZones(config.systemType);
 			return {
-				zones: response.zones.map((zone) => config.backendToSystemZone(zone))
+				zones: response.zones.map(zone => config.backendToSystemZone(zone))
 			};
 		},
 
@@ -75,20 +78,22 @@ export function useSystemLocationApiFactory<
 			};
 		},
 
-	/**
-	 * 建立區域
-	 */
-	createZone: async (data: CreateZoneData<TZone>) => {
-		// 類型轉換：將系統特定類型轉換為統一格式
-		const zoneData = data as Omit<TZone, "id"> & { locations?: (TLocation | Omit<TLocation, "id">)[] };
-		const unifiedData = config.systemToUnifiedZone(zoneData);
-		const response = await locationApi.createZone(unifiedData);
-		return {
-			merged: response.merged,
-			message: response.message,
-			zone: config.backendToSystemZone(response.zone)
-		};
-	},
+		/**
+		 * 建立區域
+		 */
+		createZone: async (data: CreateZoneData<TZone>) => {
+			// 類型轉換：將系統特定類型轉換為統一格式
+			const zoneData = data as Omit<TZone, "id"> & {
+				locations?: (TLocation | Omit<TLocation, "id">)[];
+			};
+			const unifiedData = config.systemToUnifiedZone(zoneData);
+			const response = await locationApi.createZone(unifiedData);
+			return {
+				merged: response.merged,
+				message: response.message,
+				zone: config.backendToSystemZone(response.zone)
+			};
+		},
 
 		/**
 		 * 更新區域
@@ -112,4 +117,3 @@ export function useSystemLocationApiFactory<
 		deleteZone: locationApi.deleteZone
 	};
 }
-

@@ -170,7 +170,7 @@ createAlert(alertData) {
 ```javascript
 updateAlertStatus(sourceId, source, alertType, newStatus, userId) {
   1. 查詢匹配的警報（批量處理）
-  2. 更新狀態欄位（resolved_at, ignored_at 等）
+  2. 更新狀態欄位（updated_at, ignored_at 等；解決時間由 status=resolved 時的 updated_at 表示）
   3. 推送 WebSocket 事件：alert:updated (oldStatus -> newStatus)
   4. 推送未解決警報數量
 }
@@ -665,22 +665,28 @@ interface AlertCountEvent {
 }
 ```
 
-### 3. 警報數據結構
+### 3. 警報數據結構（與後端對齊）
+
+- **時間**：僅 `created_at`、`updated_at`、`ignored_at`；無 `resolved_at`。解決時間 = `status === 'resolved'` 時的 `updated_at`。
+- **操作者**：僅 `ignored_by` / `ignored_by_username`（忽視者）；無解決者欄位，解決一律為系統自動。
 
 ```typescript
 interface Alert {
   id: number;
-  source: AlertSource;           // device, environment, lighting 等
+  source: AlertSource;
   source_id: number;
-  alert_type: AlertType;         // offline, error, threshold
-  severity: AlertSeverity;       // warning, error, critical
+  alert_type: AlertType;
+  severity: AlertSeverity;
   message: string;
   status: AlertStatus;            // active, resolved, ignored
   created_at: string;
-  updated_at: string;
-  source_name?: string;           // 來源名稱
-  zone_name?: string;             // 區域名稱
-  // ... 其他欄位
+  updated_at: string;             // resolved 時即為解決時間
+  ignored_at?: string | null;
+  ignored_by?: number | null;
+  ignored_by_username?: string | null;
+  source_name?: string;
+  zone_name?: string;
+  // ...
 }
 ```
 

@@ -211,3 +211,67 @@ definePageMeta({
 - **角色擴充**：新增角色時需同步修改 `app/types/user.ts` 的 `User.role` 型別，以及 `useAuth` 的 `isAdmin` / `isOperator` / `isViewer` 邏輯（若新角色要納入既有階層）。
 
 以上為目前用戶登入與權限的處理與設定說明。
+
+---
+
+## 十二、與後端對照（ba-backend）
+
+以下對照後端 `ba-backend` 的認證與權限實作，確保前後端一致。
+
+### 12.1 後端參考文件與程式
+
+| 後端項目 | 路徑 / 說明 |
+|----------|-------------|
+| 權限與認證說明 | `docs/USER_PERMISSIONS_AND_AUTH.md` |
+| 認證中間件 | `src/middleware/authMiddleware.js` |
+| 用戶路由 | `src/routes/userRoutes.js` |
+| 用戶服務 | `src/services/userService.js` |
+| JWT 設定 | `src/config.js` → `jwt.secret`、`jwt.expiresIn` |
+
+### 12.2 登入與 Token
+
+| 項目 | 前端 | 後端 | 對齊說明 |
+|------|------|------|----------|
+| 登入 API | POST `/users/login`（透過 `apiBase`） | POST `/api/users/login` | 一致；前端 base 已含 `/api`。 |
+| 認證 Header | `Authorization: Bearer <token>` | 支援 `Bearer <token>` 或直接 `<token>` | 一致。 |
+| Token 儲存 | Cookie `auth_token`，maxAge 7 天 | JWT 預設 `JWT_EXPIRES_IN=7d` | 一致；可依需求與後端環境變數同步調整。 |
+| JWT Payload | — | `{ id, username, role }` | 前端僅儲存與顯示後端回傳的 `user` 物件，不解析 JWT。 |
+
+### 12.3 用戶與角色型別
+
+| 項目 | 前端 `app/types/user.ts` | 後端 DB / userService | 對齊說明 |
+|------|---------------------------|------------------------|----------|
+| 角色 | `admin` \| `operator` \| `viewer` | `user_role` ENUM 同三者 | 一致。 |
+| 狀態 | `active` \| `inactive` \| `suspended` | `user_status` ENUM 同三者 | 一致。 |
+| User 欄位 | id, username, email, role, status, created_at?, updated_at? | 查詢回傳同上（不含 password_hash） | 一致。 |
+| 非 active 登入 | — | 登入時檢查 `status === 'active'`，否則拋「帳號已被停用或暫停」 | 前端可依 4xx 錯誤訊息顯示；useUserApi 登入錯誤已統一為「用戶名或密碼錯誤」可視需求是否區分「停用/暫停」。 |
+
+### 12.4 API 回應格式
+
+| 端點 | 後端回應（responseHandler） | 前端處理 |
+|------|-----------------------------|----------|
+| POST `/users/login` | `sendSuccess({ user, token })` → 實際回傳 `{ user, token, timestamp }` | useApiBase 移除 `timestamp` 後得到 `{ user, token }`；useAuth 寫入 `token` 與 `user`。 |
+| GET `/users/me` | `sendSuccess({ user })` → 實際回傳 `{ user, timestamp }` | useApiBase 移除 `timestamp` 後得到 `{ user }`；useUserApi.getMe 解包為 `User` 再回傳，供 useAuth.setUser 使用。 |
+
+### 12.5 錯誤碼與前端行為
+
+| 後端 | 前端 useApiBase | 對齊說明 |
+|------|------------------|----------|
+| 401 未提供/無效 Token、認證失敗 | 呼叫 useAuth().logout()，導向 `/login?redirect=...`，拋「登入已過期，請重新登入」 | 一致。 |
+| 403 權限不足（authorize / requireAdmin） | 拋「權限不足，無法執行此操作」或後端訊息 | 一致。 |
+| 登入失敗（用戶名/密碼/帳號停用） | useUserApi 統一顯示「用戶名或密碼錯誤」 | 刻意不區分原因以利安全與 UX。 |
+
+### 12.6 後端路由權限摘要（與前端對照）
+
+- **公開（無需認證）**：POST `/api/users/register`、POST `/api/users/login`。  
+  前端僅登入頁呼叫 login；若未來有註冊頁，需對應 register。
+- **需認證**：GET `/api/users/me`、PUT `/api/users/:id`、PUT `/api/users/:id/password`。  
+  前端 useAuth.init / fetchUser 使用 GET `/users/me`；使用者管理使用 PUT/DELETE。
+- **需管理員**：GET `/api/users/`、GET `/api/users/:id`、DELETE `/api/users/:id`。  
+  前端以 `isAdmin` 控制使用者管理頁的列表/編輯/刪除；非管理員呼叫上述 API 會得 403，由 useApiBase 顯示權限不足。
+
+### 12.7 注意事項（與後端一致）
+
+- **JWT 過期**：後端預設 `7d`；前端 Cookie maxAge 亦為 7 天。若後端改 `JWT_EXPIRES_IN`，建議一併調整前端 Cookie maxAge，避免 token 已失效但 cookie 仍存在。
+- **HttpOnly**：前端目前 `httpOnly: false`；若後端改為以 HttpOnly cookie 發送/驗證 token，前端需改為不存 token 到 cookie，並依後端 CORS/credentials 設定調整。
+- **requireAdminOrOperator**：後端已定義，目前未用於任何路由；若未來後端區分 operator 與 viewer 的 API，前端需在對應功能使用 `isOperator` 或路由/API 權限對齊。

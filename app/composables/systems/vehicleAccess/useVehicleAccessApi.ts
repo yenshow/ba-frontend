@@ -2,12 +2,14 @@
  * 車輛進出 API（external-data vehiclebiz/passageway_log_data、vehiclebiz/lane_info）
  */
 
-import type { VehicleDataLog, LaneInfo } from "~/types/vehicleAccess";
+import type { VehicleDataLog, LaneInfo, VehicleListItem } from "~/types/vehicleAccess";
 import { useExternalDataApi } from "~/composables/systems/useExternalDataApi";
 
 const SCHEMA = "vehiclebiz";
+const SCHEMA_PLATFORM = "platform";
 const TABLE_PASSAGEWAY = "passageway_log_data";
 const TABLE_LANE_INFO = "lane_info";
+const TABLE_VEHICLE_LIST = "vehicle_list";
 
 /** 時間範圍：今日、昨日、最近一週（後端 dateRangeUtils 支援） */
 export type VehicleDataLogTimeRange = "today" | "yesterday" | "last7days";
@@ -90,10 +92,26 @@ export const useVehicleAccessApi = () => {
 		return result.data || [];
 	};
 
+	/**
+	 * 取得固定車輛名單（platform.vehicle_list）
+	 * 欄位：plate_license、owner_name、person_id（查 standard_head_portrait）
+	 */
+	const getVehicleList = async (filters?: { limit?: number; search?: string }): Promise<VehicleListItem[]> => {
+		const params: Record<string, unknown> = { limit: filters?.limit ?? 200 };
+		if (filters?.search) params.search = filters.search;
+		const result = await externalDataApi.getList<VehicleListItem>(
+			SCHEMA_PLATFORM,
+			TABLE_VEHICLE_LIST,
+			params
+		);
+		return result.data || [];
+	};
+
 	return {
 		getVehicleDataLogList,
 		getVehicleDataLogCount,
 		getVehicleDataLogById,
-		getLaneInfoList
+		getLaneInfoList,
+		getVehicleList
 	};
 };
