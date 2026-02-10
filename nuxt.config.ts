@@ -12,10 +12,10 @@ export default defineNuxtConfig({
 			meta: [
 				{ charset: "utf-8" },
 				{ name: "viewport", content: "width=device-width, initial-scale=1" },
-				{ name: "description", content: "樓宇自動化監控與管理系統" }
+				{ name: "description", content: "樓宇自動化監控與管理系統" },
 			],
-			link: [{ rel: "icon", type: "image/x-icon", href: "/favicon.ico" }]
-		}
+			link: [{ rel: "icon", type: "image/x-icon", href: "/favicon.ico" }],
+		},
 	},
 
 	// CSS 全域樣式
@@ -24,13 +24,13 @@ export default defineNuxtConfig({
 	// TypeScript 配置
 	typescript: {
 		strict: false,
-		typeCheck: false
+		typeCheck: false,
 	},
 
 	// 開發伺服器配置 - 開放區域網路存取
 	devServer: {
 		host: "0.0.0.0", // 監聽所有網路介面，允許區域網路存取
-		port: 3000 // 預設端口，可根據需要修改
+		port: 3000, // 預設端口，可根據需要修改
 	},
 
 	// Nuxt Image 配置
@@ -46,30 +46,23 @@ export default defineNuxtConfig({
 			md: 768,
 			lg: 1024,
 			xl: 1280,
-			xxl: 1536
+			xxl: 1536,
 		},
 		// 預設提供者設定
 		providers: {
 			// 使用內建提供者處理本地圖片
-			ipx: {}
+			ipx: {},
 		},
 		// 預設圖片設定
 		defaults: {
 			loading: "lazy",
-			format: "webp"
-		}
+			format: "webp",
+		},
 	},
 
 	runtimeConfig: {
 		public: {
-			apiBase: process.env.NUXT_PUBLIC_API_BASE || "http://localhost:4000/api",
-			modbusRequestTimeout: Number(process.env.NUXT_PUBLIC_MODBUS_TIMEOUT ?? 5000),
-			// MediaMTX 服務 URL（HLS 和 WebRTC）
-			mediamtxHlsUrl: process.env.NUXT_PUBLIC_MEDIAMTX_HLS_URL || "http://localhost:8888",
-			mediamtxWebrtcUrl: process.env.NUXT_PUBLIC_MEDIAMTX_WEBRTC_URL || "http://localhost:8889",
-			// WebSocket 配置（可選，預設從 apiBase 推導）
-			websocketUrl: process.env.NUXT_PUBLIC_WEBSOCKET_URL || undefined,
-			websocketEnabled: process.env.NUXT_PUBLIC_WEBSOCKET_ENABLED !== "false"
-		}
-	}
-});
+			apiBase: process.env.NUXT_PUBLIC_API_BASE || "http://192.168.2.8:4000/api",
+		},
+	},
+})
