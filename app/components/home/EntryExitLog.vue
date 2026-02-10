@@ -23,7 +23,15 @@
 			<tbody>
 				<tr v-for="log in logs" :key="log.id" class="border-b border-white/10 text-center text-white">
 					<td class="flex items-center justify-center p-2">
-						<div class="relative mx-auto h-12 w-12 overflow-hidden bg-white/10 2xl:h-16 2xl:w-16">
+						<button
+							type="button"
+							class="relative mx-auto block h-12 w-12 overflow-hidden rounded bg-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-400 2xl:h-16 2xl:w-16"
+							:aria-label="`放大檢視 ${log.personName || '未知'} 設備截圖`"
+							:disabled="
+								!imageUrls[log.id] || imageLoadingStates[log.id] || imageErrorStates[log.id]
+							"
+							@click="openLightbox(imageUrls[log.id])"
+						>
 							<!-- 載入中 -->
 							<Transition name="fade">
 								<div
@@ -53,10 +61,11 @@
 							<Transition name="fade">
 								<div
 									v-if="(!imageUrls[log.id] || imageErrorStates[log.id]) && !imageLoadingStates[log.id]"
-									class="absolute inset-0 flex items-center justify-center"
+									class="absolute inset-0 flex items-center justify-center text-white/50"
+									aria-hidden="true"
 								>
 									<svg
-										class="h-full w-full text-white"
+										class="h-8 w-8 2xl:h-10 2xl:w-10"
 										fill="currentColor"
 										stroke="currentColor"
 										viewBox="0 0 24 24"
@@ -70,7 +79,7 @@
 									</svg>
 								</div>
 							</Transition>
-						</div>
+						</button>
 					</td>
 					<td class="p-2 text-sm 2xl:text-base">
 						{{ log.unit?.name || log.unitName || "-" }}
@@ -105,10 +114,49 @@
 			</tbody>
 		</table>
 	</div>
+
+	<!-- 設備截圖 lightbox -->
+	<Teleport to="body">
+		<Transition name="lightbox-fade">
+			<div
+				v-if="lightboxImageUrl"
+				ref="lightboxRef"
+				class="fixed inset-0 z-[4000] flex items-center justify-center bg-black/80 p-4"
+				role="dialog"
+				aria-modal="true"
+				aria-label="設備截圖放大檢視"
+				tabindex="-1"
+				@click.self="closeLightbox"
+				@keydown.escape="closeLightbox"
+			>
+				<button
+					type="button"
+					class="absolute right-4 top-4 z-10 rounded-full bg-white/20 p-2 text-white transition-colors hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+					aria-label="關閉"
+					@click="closeLightbox"
+				>
+					<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M6 18L18 6M6 6l12 12"
+						/>
+					</svg>
+				</button>
+				<img
+					:src="lightboxImageUrl"
+					alt="設備截圖"
+					class="max-h-[90vh] max-w-full object-contain"
+					@click.stop
+				/>
+			</div>
+		</Transition>
+	</Teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, nextTick } from "vue";
 import type { PeopleCountingLog } from "~/types/peopleCounting";
 import { useExternalDataApi } from "~/composables/systems/useExternalDataApi";
 import { convertBase64ToImageUrl } from "~/utils/imageUtils";
@@ -125,6 +173,18 @@ const imageUrls = ref<Record<string | number, string>>({});
 const imageLoadingStates = ref<Record<string | number, boolean>>({});
 const imageErrorStates = ref<Record<string | number, boolean>>({});
 const imageCache = new Map<string, string>();
+const lightboxImageUrl = ref<string | null>(null);
+const lightboxRef = ref<HTMLElement | null>(null);
+
+const openLightbox = (url: string | undefined) => {
+	if (url) {
+		lightboxImageUrl.value = url;
+		nextTick(() => lightboxRef.value?.focus());
+	}
+};
+const closeLightbox = () => {
+	lightboxImageUrl.value = null;
+};
 
 /**
  * 處理圖片載入錯誤
@@ -206,6 +266,14 @@ watch(
 }
 .fade-enter-from,
 .fade-leave-to {
+	opacity: 0;
+}
+.lightbox-fade-enter-active,
+.lightbox-fade-leave-active {
+	transition: opacity 0.2s ease;
+}
+.lightbox-fade-enter-from,
+.lightbox-fade-leave-to {
 	opacity: 0;
 }
 </style>
