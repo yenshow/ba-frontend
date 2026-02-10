@@ -34,28 +34,8 @@
 				</div>
 				<PersonnelStats :locations="filteredPeopleCountingLocations" />
 
-				<!-- 影片播放 -->
-				<div class="flex justify-center">
-					<div class="aspect-video w-full max-w-[710px]">
-						<iframe
-							class="h-full w-full"
-							src="https://www.youtube.com/embed/o3vXtwa6HTk?si=FRGSNeMVUlbWJUWm"
-							title="YouTube video player"
-							frameborder="0"
-							allow="
-								accelerometer;
-								autoplay;
-								clipboard-write;
-								encrypted-media;
-								gyroscope;
-								picture-in-picture;
-								web-share;
-							"
-							referrerpolicy="strict-origin-when-cross-origin"
-							allowfullscreen
-						/>
-					</div>
-				</div>
+				<!-- 影片播放（可編輯：新增連結或上傳影片，儲存至後端） -->
+				<HomeVideoPlayer />
 			</div>
 
 			<!-- 右側欄 - 人員進出記錄 -->
@@ -69,6 +49,7 @@
 <script setup lang="ts">
 import EnvironmentDashboard from "~/components/home/EnvironmentDashboard.vue";
 import PersonnelStats from "~/components/home/PersonnelStats.vue";
+import HomeVideoPlayer from "~/components/home/HomeVideoPlayer.vue";
 import EntryExitLog from "~/components/home/EntryExitLog.vue";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import { useLocationApi } from "~/composables/systems/location/useLocationApi";

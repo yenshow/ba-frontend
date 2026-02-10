@@ -2,7 +2,7 @@
 	<div class="group relative bg-red-600 py-2">
 		<button
 			type="button"
-			class="absolute right-3 top-1/2 z-10 hidden -translate-y-1/2 rounded-lg bg-black/30 px-3 py-1 text-sm 2xl:text-base text-white backdrop-blur transition hover:bg-black/50 group-hover:block"
+			class="absolute right-3 top-1/2 z-10 hidden -translate-y-1/2 rounded-lg bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 group-hover:block 2xl:text-base"
 			aria-label="編輯跑馬燈文字"
 			@click="isEditOpen = true"
 			@keydown.enter="isEditOpen = true"
@@ -14,13 +14,13 @@
 		<div class="marquee-wrapper">
 			<div class="marquee-content" :style="animationStyle">
 				<span class="marquee-item">
-					{{ bannerMessage }}
+					{{ bannerMessage || "請新增跑馬燈文字" }}
 				</span>
 				<span class="marquee-item">
-					{{ bannerMessage }}
+					{{ bannerMessage || "請新增跑馬燈文字" }}
 				</span>
 				<span class="marquee-item">
-					{{ bannerMessage }}
+					{{ bannerMessage || "請新增跑馬燈文字" }}
 				</span>
 			</div>
 		</div>
@@ -46,15 +46,16 @@ interface Props {
 	message?: string;
 }
 
-const props = withDefaults(defineProps<Props>(), {
-	message: "施工中，請勿擅自闖入。場內嚴禁酒精性飲料。工作人員請留意自身安全，保持工作環境整潔。"
-});
+const props = defineProps<Props>();
 
-const { value: bannerMessage, save: saveBannerMessage, reset: resetBannerMessage } =
-	useAppSettings({
-		key: "safety_banner_message",
-		defaultValue: props.message
-	});
+const {
+	value: bannerMessage,
+	save: saveBannerMessage,
+	reset: resetBannerMessage
+} = useAppSettings({
+	key: "safety_banner_message",
+	defaultValue: props.message ?? ""
+});
 
 const isEditOpen = ref(false);
 

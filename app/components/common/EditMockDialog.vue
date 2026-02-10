@@ -10,7 +10,9 @@
 				@click.self="handleClose"
 				@keydown.esc="handleClose"
 			>
-				<div class="dialog-panel-bg flex w-full max-w-md flex-col gap-4 rounded-3xl p-6 2xl:max-w-xl 2xl:gap-6 2xl:p-8">
+				<div
+					class="dialog-panel-bg flex w-full max-w-md flex-col gap-4 rounded-3xl p-6 2xl:max-w-xl 2xl:gap-6 2xl:p-8"
+				>
 					<header class="flex items-start justify-between gap-4">
 						<div class="min-w-0">
 							<h3 :id="titleId" class="text-xl font-semibold tracking-[2px] text-white 2xl:text-2xl">
@@ -31,88 +33,125 @@
 					</header>
 
 					<div class="space-y-4">
-					<div v-if="inputMode === 'text'">
-						<label class="block text-base font-medium text-white/80 2xl:text-lg" :for="inputId">內容</label>
-						<input
-							:id="inputId"
-							ref="textInputRef"
-							v-model="draftValue"
-							type="text"
-							:placeholder="placeholder"
-							class="form-input-small mt-2 w-full"
-						/>
-						<p v-if="hint" class="mt-2 text-sm text-white/50 2xl:text-base">
-							{{ hint }}
-						</p>
-					</div>
-
-					<div v-else>
-						<label class="block text-base font-medium text-white/80 2xl:text-lg" :for="inputId"
-							>圖片（URL 或上傳）</label
-						>
-						<div class="mt-2 flex items-center gap-3">
+						<div v-if="inputMode === 'text'">
+							<label class="block text-base font-medium text-white/80 2xl:text-lg" :for="inputId"
+								>內容</label
+							>
 							<input
 								:id="inputId"
 								ref="textInputRef"
 								v-model="draftValue"
 								type="text"
 								:placeholder="placeholder"
-								class="form-input-small flex-1 min-w-0"
+								class="form-input-small mt-2 w-full"
 							/>
-							<input
-								ref="fileInputRef"
-								type="file"
-								accept="image/*"
-								class="hidden"
-								@change="handleFileChange"
-							/>
-							<button
-								type="button"
-								class="btn-secondary text-sm 2xl:text-base whitespace-nowrap flex-shrink-0"
-								aria-label="上傳圖片"
-								@click="handlePickFile"
-							>
-								上傳圖片
-							</button>
+							<p v-if="hint" class="mt-2 text-sm text-white/50 2xl:text-base">
+								{{ hint }}
+							</p>
 						</div>
 
-						<div v-if="draftValue?.trim()" class="mt-4 overflow-hidden rounded-xl border border-white/20 bg-white/10 p-3">
-							<div class="text-sm text-white/60 2xl:text-base">預覽</div>
-							<img
-								:src="previewImageSrc"
-								:alt="previewAlt"
-								class="mt-2 max-h-40 w-full rounded-lg object-contain"
-							/>
+						<div v-else-if="inputMode === 'image'">
+							<label class="block text-base font-medium text-white/80 2xl:text-lg" :for="inputId"
+								>圖片（URL 或上傳）</label
+							>
+							<div class="mt-2 flex items-center gap-3">
+								<input
+									:id="inputId"
+									ref="textInputRef"
+									v-model="draftValue"
+									type="text"
+									:placeholder="placeholder"
+									class="form-input-small min-w-0 flex-1"
+								/>
+								<input
+									ref="fileInputRef"
+									type="file"
+									accept="image/*"
+									class="hidden"
+									@change="handleFileChange"
+								/>
+								<button
+									type="button"
+									class="btn-secondary flex-shrink-0 whitespace-nowrap text-sm 2xl:text-base"
+									aria-label="上傳圖片"
+									@click="handlePickFile"
+								>
+									上傳圖片
+								</button>
+							</div>
+
+							<div
+								v-if="draftValue?.trim()"
+								class="mt-4 overflow-hidden rounded-xl border border-white/20 bg-white/10 p-3"
+							>
+								<div class="text-sm text-white/60 2xl:text-base">預覽</div>
+								<img
+									:src="previewResolvedUrl"
+									:alt="previewAlt"
+									class="mt-2 max-h-40 w-full rounded-lg object-contain"
+								/>
+							</div>
+						</div>
+
+						<div v-else>
+							<label class="block text-base font-medium text-white/80 2xl:text-lg" :for="inputId">
+								影片（連結或上傳）
+							</label>
+							<div class="mt-2 flex items-center gap-3">
+								<input
+									:id="inputId"
+									ref="textInputRef"
+									v-model="draftValue"
+									type="text"
+									:placeholder="placeholder"
+									class="form-input-small min-w-0 flex-1"
+								/>
+								<input
+									ref="fileInputRef"
+									type="file"
+									accept="video/*"
+									class="hidden"
+									@change="handleFileChange"
+								/>
+								<button
+									type="button"
+									class="btn-secondary flex-shrink-0 whitespace-nowrap text-sm 2xl:text-base"
+									aria-label="上傳影片"
+									@click="handlePickFile"
+								>
+									上傳影片
+								</button>
+							</div>
+
+							<div
+								v-if="draftValue?.trim()"
+								class="mt-4 overflow-hidden rounded-xl border border-white/20 bg-white/10 p-3"
+							>
+								<div class="text-sm text-white/60 2xl:text-base">預覽</div>
+								<video
+									v-if="isVideoPreviewUrl"
+									:src="previewResolvedUrl"
+									class="mt-2 max-h-40 w-full rounded-lg object-contain"
+									controls
+									muted
+									playsinline
+								/>
+								<p v-else class="mt-2 text-sm text-white/70 2xl:text-base">
+									{{ isYouTubeLink ? "已設定 YouTube 連結" : "已設定影片連結" }}
+								</p>
+							</div>
 						</div>
 					</div>
-				</div>
 
 					<footer class="flex items-center gap-3 border-t border-white/20 pt-4">
-						<button
-							type="button"
-							class="btn-secondary"
-							aria-label="重設為預設值"
-							@click="handleReset"
-						>
+						<button type="button" class="btn-secondary" aria-label="重設為預設值" @click="handleReset">
 							重設
 						</button>
 						<div class="flex-1"></div>
-						<button
-							type="button"
-							class="btn-secondary"
-							aria-label="取消"
-							@click="handleClose"
-						>
+						<button type="button" class="btn-secondary" aria-label="取消" @click="handleClose">
 							取消
 						</button>
-						<button
-							type="button"
-							class="btn-primary"
-							aria-label="儲存"
-							@click="handleSave"
-						>
-							儲存
-						</button>
+						<button type="button" class="btn-primary" aria-label="儲存" @click="handleSave">儲存</button>
 					</footer>
 				</div>
 			</div>
@@ -121,7 +160,10 @@
 </template>
 
 <script setup lang="ts">
-type InputMode = "text" | "image";
+import { useUploadBaseUrl } from "~/composables/core/useUploadBaseUrl";
+import { resolveUploadUrl } from "~/utils/apiUtils";
+
+type InputMode = "text" | "image" | "video";
 
 type Props = {
 	modelValue: boolean;
@@ -156,20 +198,20 @@ const draftValue = ref<string>(props.value ?? "");
 const textInputRef = ref<HTMLInputElement | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
-// 處理圖片預覽 URL：如果是後端上傳的檔案，加上 API base URL
-const config = useRuntimeConfig();
-const apiBase = config.public.apiBase || "http://localhost:4000";
-const previewImageSrc = computed(() => {
-	const src = draftValue.value;
-	if (!src) return "";
-	
-	// 如果是後端上傳的檔案 URL（以 /uploads/ 開頭），加上 API base
-	if (src.startsWith("/uploads/")) {
-		return `${apiBase}${src}`;
-	}
-	
-	// 其他情況（相對路徑、完整 URL 或 Base64）直接返回
-	return src;
+const apiBase = useUploadBaseUrl();
+const previewResolvedUrl = computed(() =>
+	resolveUploadUrl(draftValue.value ?? "", apiBase)
+);
+
+const isYouTubeLink = computed(() => {
+	const src = draftValue.value?.trim() ?? "";
+	return src.includes("youtube.com") || src.includes("youtu.be");
+});
+
+/** 影片模式：僅對非 YouTube 連結顯示 <video> 預覽 */
+const isVideoPreviewUrl = computed(() => {
+	const src = draftValue.value?.trim() ?? "";
+	return src.length > 0 && !isYouTubeLink.value;
 });
 
 watch(
@@ -220,10 +262,9 @@ const handleFileChange = async (event: Event) => {
 		return;
 	}
 
-	// 如果是圖片模式，觸發上傳事件（由父元件處理）
-	if (props.inputMode === "image") {
+	// 圖片或影片模式：觸發上傳事件（由父元件處理）
+	if (props.inputMode === "image" || props.inputMode === "video") {
 		emit("upload", file);
-		// 清空 input，允許重複選擇同一檔案
 		if (target) {
 			target.value = "";
 		}
@@ -306,4 +347,3 @@ const handleFileChange = async (event: Event) => {
 	cursor: not-allowed;
 }
 </style>
-

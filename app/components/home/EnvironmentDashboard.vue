@@ -27,21 +27,23 @@
 						class="absolute z-10 flex h-full w-full flex-col items-center justify-center rounded-full border-2 border-white"
 					>
 						<!-- 標題（頂部） -->
-						<div class="flex flex-col items-center border-b-2 border-white mb-1 pb-1 w-[70%]">
+						<div class="mb-1 flex w-[70%] flex-col items-center border-b-2 border-white pb-1">
 							<div class="text-xs font-light tracking-widest text-white">Heat Index</div>
-							<div class="text-xl ms-[6px] tracking-[6px] font-semibold text-white 2xl:text-2xl">熱指數</div>
+							<div class="ms-[6px] text-xl font-semibold tracking-[6px] text-white 2xl:text-2xl">
+								熱指數
+							</div>
 						</div>
 						<!-- 數值（中間） -->
-						<div class="text-4xl text-white 2xl:text-5xl mb-2">
+						<div class="mb-2 text-4xl text-white 2xl:text-5xl">
 							{{ heatIndex.value !== null ? heatIndex.value.toFixed(1) : "--" }}
 						</div>
 						<!-- 等級顯示（小圓圈） -->
 						<div
 							v-if="heatIndex.value !== null"
-							class="flex items-center justify-center rounded-full bg-white h-8 w-8 2xl:h-10 2xl:w-10"
+							class="flex h-8 w-8 items-center justify-center rounded-full bg-white 2xl:h-10 2xl:w-10"
 						>
-							<div class="text-black text-xl 2xl:text-2xl">{{ heatIndex.level }}</div>
-							<div class="text-black text-xs 2xl:text-[10px]">級</div>
+							<div class="text-xl text-black 2xl:text-2xl">{{ heatIndex.level }}</div>
+							<div class="text-xs text-black 2xl:text-[10px]">級</div>
 						</div>
 					</div>
 				</div>
@@ -72,15 +74,14 @@
 							class="absolute z-10 flex h-full w-full flex-col items-center justify-center rounded-full border-2 border-white"
 						>
 							<!-- 標題（頂部） -->
-							<div class="flex flex-col items-center border-b-2 border-white mb-1 pb-1 w-[70%]">
+							<div class="mb-1 flex w-[70%] flex-col items-center border-b-2 border-white pb-1">
 								<div class="text-xs font-light tracking-widest text-white">Noise Level</div>
-								<div class="ms-[6px] tracking-[6px] font-semibold text-white text-xl 2xl:text-2xl">噪音值</div>
+								<div class="ms-[6px] text-xl font-semibold tracking-[6px] text-white 2xl:text-2xl">
+									噪音值
+								</div>
 							</div>
 							<!-- 數值（中間） -->
-							<div
-								class="text-4xl 2xl:text-5xl"
-								:class="getNoiseValueColor()"
-							>
+							<div class="text-4xl 2xl:text-5xl" :class="getNoiseValueColor()">
 								{{ sensorData.noise !== null ? Math.round(sensorData.noise) : "--" }}
 							</div>
 						</div>
@@ -112,9 +113,11 @@
 							class="absolute z-10 flex h-full w-full flex-col items-center justify-center rounded-full border-2 border-white"
 						>
 							<!-- 標題（頂部） -->
-							<div class="flex flex-col items-center border-b-2 border-white mb-1 pb-1 w-[70%]">
+							<div class="mb-1 flex w-[70%] flex-col items-center border-b-2 border-white pb-1">
 								<div class="text-xs font-light tracking-widest text-white">細懸浮微粒</div>
-								<div class="ms-[6px] tracking-[6px] font-semibold text-white text-xl 2xl:text-2xl">PM2.5</div>
+								<div class="ms-[6px] text-xl font-semibold tracking-[6px] text-white 2xl:text-2xl">
+									PM2.5
+								</div>
 							</div>
 							<!-- 數值（中間） -->
 							<div class="text-4xl text-white 2xl:text-5xl">

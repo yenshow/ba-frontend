@@ -7,12 +7,23 @@
 
 		<!-- 中間：專案資訊 -->
 		<div class="group col-span-1 flex items-center justify-center">
-			<div class="relative">
-				<img :src="projectImageSrc" alt="專案名稱" class="h-28 object-contain 2xl:h-36" />
+			<div class="relative flex h-28 items-center justify-center 2xl:h-36">
+				<img
+					v-if="projectImageSrc"
+					:src="projectImageSrc"
+					alt="專案圖片"
+					class="h-28 object-contain 2xl:h-36"
+				/>
+				<div
+					v-else
+					class="rounded-lg border-2 border-white/20 bg-white/5 px-6 py-3 text-center text-sm text-white/80 2xl:text-base"
+				>
+					請上傳或設定專案圖片
+				</div>
 
 				<button
 					type="button"
-					class="absolute -right-2 -top-2 hidden rounded-full bg-black/35 px-3 py-1 text-sm 2xl:text-base text-white backdrop-blur transition hover:bg-black/50 group-hover:block"
+					class="absolute -right-2 -top-2 hidden rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 group-hover:block 2xl:text-base"
 					aria-label="編輯專案圖片"
 					@click="isProjectImageEditOpen = true"
 					@keydown.enter="isProjectImageEditOpen = true"
@@ -27,7 +38,7 @@
 				title="編輯專案圖片"
 				:value="projectImageSrcRaw"
 				input-mode="image"
-				placeholder="例如：https://... 或 /layout/building-name.png"
+				placeholder="例如：https://... 或上傳圖片"
 				preview-alt="專案圖片預覽"
 				@save="saveProjectImageSrc"
 				@reset="resetProjectImageSrc"
@@ -47,12 +58,8 @@
 			</div>
 			<template #fallback>
 				<div class="col-span-1 flex flex-col items-center justify-center text-white">
-					<div class="ms-[12px] text-[36px] font-semibold tracking-[12px] 2xl:text-[48px]">
-						--
-					</div>
-					<div class="ms-[6px] text-[21px] tracking-[6px] 2xl:text-[28px]">
-						--
-					</div>
+					<div class="ms-[12px] text-[36px] font-semibold tracking-[12px] 2xl:text-[48px]">--</div>
+					<div class="ms-[6px] text-[21px] tracking-[6px] 2xl:text-[28px]">--</div>
 				</div>
 			</template>
 		</ClientOnly>
@@ -60,58 +67,43 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import EditMockDialog from "~/components/common/EditMockDialog.vue";
 import { useAppSettings } from "~/composables/core/useAppSettings";
+import { useUploadBaseUrl } from "~/composables/core/useUploadBaseUrl";
+import { resolveUploadUrl } from "~/utils/apiUtils";
+import { createSafeFileName } from "~/utils/fileUtils";
 
-interface Props {
-	projectName?: string;
-	constructionCompany?: string;
-}
+// --- 專案圖片設定 ---
 
-const props = withDefaults(defineProps<Props>(), {
-	projectName: "蝶蛹新天地",
-	constructionCompany: "遠岫建設有限公司"
+const {
+	value: projectImageSrcRaw,
+	save: saveProjectImageSrc,
+	reset: resetProjectImageSrc,
+	uploadFile: uploadProjectImage
+} = useAppSettings({
+	key: "home_header_project_image",
+	defaultValue: ""
 });
 
-const defaultProjectImageSrc = "/layout/building-name.png";
-
-const { value: projectImageSrcRaw, save: saveProjectImageSrc, reset: resetProjectImageSrc, uploadFile: uploadProjectImage } =
-	useAppSettings({
-		key: "home_header_project_image",
-		defaultValue: defaultProjectImageSrc
-	});
-
-// 處理圖片 URL：如果是後端上傳的檔案，加上 API base URL
-const config = useRuntimeConfig();
-const apiBase = config.public.apiBase || "http://localhost:4000";
-const projectImageSrc = computed(() => {
-	const src = projectImageSrcRaw.value;
-	if (!src) return defaultProjectImageSrc;
-	
-	// 如果是後端上傳的檔案 URL（以 /uploads/ 開頭），加上 API base
-	if (src.startsWith("/uploads/")) {
-		return `${apiBase}${src}`;
-	}
-	
-	// 其他情況（相對路徑或完整 URL）直接返回
-	return src;
-});
-
+const apiBase = useUploadBaseUrl();
+const projectImageSrc = computed(() =>
+	resolveUploadUrl(projectImageSrcRaw.value ?? "", apiBase)
+);
 const isProjectImageEditOpen = ref(false);
 
-// 處理檔案上傳
 const handleUploadProjectImage = async (file: File) => {
 	try {
-		await uploadProjectImage(file);
-		// 上傳成功後關閉對話框
+		const safeFile = createSafeFileName("project-header", file, "png");
+		await uploadProjectImage(safeFile);
 		isProjectImageEditOpen.value = false;
 	} catch (error) {
-		// 錯誤已由 useAppSettings 處理（Toast 顯示）
-		console.error("[HomeHeader] 上傳專案圖片失敗:", error);
+		console.error("Upload failed:", error);
 	}
 };
 
-// 格式化日期時間
+// --- 日期時間邏輯 ---
+
 const formatDateTime = (date: Date) => {
 	const year = date.getFullYear();
 	const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -125,6 +117,7 @@ const formatDateTime = (date: Date) => {
 	const seconds = String(date.getSeconds()).padStart(2, "0");
 
 	const period = hours < 12 ? "上午" : "下午";
+	// 12小時制顯示
 	const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
 	const time = `${String(displayHours).padStart(2, "0")}:${minutes}:${seconds}`;
 
@@ -136,14 +129,15 @@ const formatDateTime = (date: Date) => {
 	};
 };
 
-// 當前日期時間（響應式）
 const currentDateTime = ref(new Date());
 const formattedDate = computed(() => formatDateTime(currentDateTime.value));
 
-// 每秒更新時間
 let timeInterval: ReturnType<typeof setInterval> | null = null;
 
 onMounted(() => {
+	// 初始化時間
+	currentDateTime.value = new Date();
+	// 每秒更新
 	timeInterval = setInterval(() => {
 		currentDateTime.value = new Date();
 	}, 1000);
