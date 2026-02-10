@@ -87,15 +87,24 @@
 						@click.stop="navigateToRoute(item.route)"
 						:aria-label="item.name"
 					>
-						<NuxtImg
-							:src="item.icon"
-							:alt="item.name"
-							:class="['h-12 w-12 2xl:h-16 2xl:w-16', item.isSvg && 'brightness-0 invert']"
-							width="200"
-							height="200"
-							quality="90"
-							loading="lazy"
-						/>
+						<div class="relative">
+							<NuxtImg
+								:src="item.icon"
+								:alt="item.name"
+								:class="['h-12 w-12 2xl:h-16 2xl:w-16', item.isSvg && 'brightness-0 invert']"
+								width="200"
+								height="200"
+								quality="90"
+								loading="lazy"
+							/>
+							<!-- 未解決警報數量徽章（僅警示紀錄） -->
+							<span
+								v-if="item.id === 'alert-log' && unresolvedAlertCount > 0"
+								class="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-sm font-bold text-white 2xl:h-7 2xl:w-7 2xl:text-base"
+							>
+								{{ unresolvedAlertCount > 99 ? "99+" : unresolvedAlertCount }}
+							</span>
+						</div>
 					</button>
 
 					<!-- 使用者資訊按鈕 -->
@@ -211,11 +220,20 @@ import { getSystemModulesByCategory } from "~/config/system-modules";
 import type { SystemModule } from "~/types/system";
 import { useAuth } from "~/composables/core/useAuth";
 import { useToast } from "~/composables/core/useToast";
+import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 
 const route = useRoute();
 const router = useRouter();
 const { user, isAuthenticated, isAdmin, logout } = useAuth();
 const toast = useToast();
+
+// 未解決警報數量（參考 AppHeader 顯示）
+const {
+	unresolvedAlertCount,
+	loadUnresolvedAlertCount,
+	startAlertCountMonitoring,
+	stopAlertCountMonitoring
+} = useAlertMonitor();
 
 // 主要導航項目（移除警示紀錄，已移至輔助功能區）
 const mainNavigationItems = computed<SystemModule[]>(() => {
@@ -397,8 +415,20 @@ const handleClickOutside = (event: MouseEvent) => {
 onMounted(() => {
 	if (process.client) {
 		document.addEventListener("click", handleClickOutside);
+		// 初始載入未解決警報數量並開始監聽
+		void loadUnresolvedAlertCount();
+		startAlertCountMonitoring();
 	}
 });
+
+watch(
+	() => route.path,
+	() => {
+		if (route.path === "/core/alert-log") {
+			void loadUnresolvedAlertCount();
+		}
+	}
+);
 
 onBeforeUnmount(() => {
 	if (process.client) {
@@ -406,6 +436,7 @@ onBeforeUnmount(() => {
 		window.removeEventListener("resize", updateUserMenuPosition);
 		window.removeEventListener("scroll", updateUserMenuPosition, true);
 		if (collapseTimer) clearTimeout(collapseTimer);
+		stopAlertCountMonitoring();
 	}
 });
 </script>

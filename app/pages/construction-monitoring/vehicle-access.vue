@@ -42,7 +42,7 @@
 									:current-count="onSiteCount"
 								/>
 							</div>
-							<!-- 當日記錄表 + 車輛群組 -->
+							<!-- 當日記錄表 + 車輛名單（platform.vehicle_list + 是否入場） -->
 							<div class="grid grid-cols-2 gap-4">
 								<!-- 當日過車記錄表 -->
 								<div class="space-y-3">
@@ -74,8 +74,12 @@
 										<VehicleDataLogTable :logs="logs" />
 									</div>
 								</div>
-								<!-- 車輛群組（點開顯示名單） -->
-								<VehicleGroupList :groups="vehicleGroups" @select="handleGroupClick" />
+								<!-- 車輛名單（固定清單 + 是否入場，點開顯示該車過車記錄） -->
+								<VehicleListPanel
+									:items="vehicleListWithStatus"
+									:is-loading="isLoadingVehicleList"
+									@select="handleVehicleListSelect"
+								/>
 							</div>
 						</div>
 					</template>
@@ -209,9 +213,9 @@
 
 	<VehicleGroupDetailDialog
 		v-model="isGroupDialogOpen"
-		:group-name="selectedGroupName"
-		:records="vehicleGroupRecords"
-		@close="handleGroupDialogClose"
+		:group-name="selectedVehicleDialogTitle"
+		:records="vehicleListRecordsForSelected"
+		@close="handleVehicleDialogClose"
 	/>
 </template>
 
@@ -225,7 +229,7 @@ import type {
 import type { VehicleAccessTimeRange } from "~/composables/systems/vehicleAccess/useVehicleAccessState";
 import VehicleStatsPanel from "~/components/vehicle-access/VehicleStatsPanel.vue";
 import VehicleDataLogTable from "~/components/vehicle-access/VehicleDataLogTable.vue";
-import VehicleGroupList from "~/components/vehicle-access/VehicleGroupList.vue";
+import VehicleListPanel from "~/components/vehicle-access/VehicleListPanel.vue";
 import VehicleOverviewCard from "~/components/vehicle-access/VehicleOverviewCard.vue";
 import VehicleGroupDetailDialog from "~/components/vehicle-access/VehicleGroupDetailDialog.vue";
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
@@ -247,26 +251,42 @@ const {
 	entryCount,
 	exitCount,
 	onSiteCount,
-	vehicleGroups,
-	vehicleGroupRecords,
-	selectedVehicleGroupKey,
+	vehicleListWithStatus,
+	vehicleListRecordsForSelected,
+	selectedVehiclePlate,
+	isLoadingVehicleList,
+	loadVehicleList,
+	setSelectedVehiclePlate,
 	isLoadingZones,
 	isLoadingLogs,
 	loadZones,
 	loadLogs,
 	loadEntryExitOnSiteCounts,
 	loadOverviewSummaries,
-	getLocationZone,
-	setVehicleGroupSelection
+	getLocationZone
 } = useVehicleAccessState();
 
 const isGroupDialogOpen = ref(false);
-const selectedGroupName = computed(() => {
-	const key = selectedVehicleGroupKey.value;
-	if (!key) return "";
-	const g = vehicleGroups.value.find(gr => gr.key === key);
-	return g?.name ?? "";
+/** 彈窗標題：選中車輛的顯示名稱（owner_name）與車牌 */
+const selectedVehicleDialogTitle = computed(() => {
+	const plate = selectedVehiclePlate.value;
+	if (!plate) return "";
+	const plateNorm = plate.trim();
+	const item = vehicleListWithStatus.value.find(
+		v => (v.plate_license?.trim() ?? "") === plateNorm
+	);
+	if (item?.owner_name?.trim()) return `${item.owner_name.trim()} - ${item.plate_license?.trim() ?? plate}`;
+	return item?.plate_license?.trim() ?? plate;
 });
+
+const handleVehicleListSelect = (plate: string) => {
+	setSelectedVehiclePlate(plate);
+	isGroupDialogOpen.value = true;
+};
+
+const handleVehicleDialogClose = () => {
+	setSelectedVehiclePlate(null);
+};
 
 /** 時間篩選選項：今日、昨日、最近一週 */
 const timeRangeOptions: { value: VehicleAccessTimeRange; label: string }[] = [
@@ -364,15 +384,6 @@ const handleOverviewClick = (locationId: string) => {
 	filters.value = { ...filters.value, locationId: locationId || null };
 };
 
-const handleGroupClick = (key: string) => {
-	setVehicleGroupSelection(key);
-	isGroupDialogOpen.value = true;
-};
-
-const handleGroupDialogClose = () => {
-	setVehicleGroupSelection(null);
-};
-
 const handleOpenLocationDialog = async () => {
 	if (vehicleAccessZones.value.length === 0) {
 		await loadZones();
@@ -438,7 +449,7 @@ const loadLogsAndCounts = () => {
 	if (loadDataDebounceTimer) clearTimeout(loadDataDebounceTimer);
 	loadDataDebounceTimer = setTimeout(() => {
 		loadDataDebounceTimer = null;
-		Promise.all([loadLogs(), loadEntryExitOnSiteCounts()]);
+		Promise.all([loadLogs(), loadEntryExitOnSiteCounts(), loadVehicleList()]);
 	}, DEBOUNCE_MS);
 };
 
@@ -453,7 +464,12 @@ onMounted(async () => {
 	initLeftSectionObserver();
 
 	cleanupWebSocket = setupEventListeners(async () => {
-		await Promise.allSettled([loadLogs(), loadEntryExitOnSiteCounts(), loadOverviewSummaries()]);
+		await Promise.allSettled([
+			loadLogs(),
+			loadEntryExitOnSiteCounts(),
+			loadOverviewSummaries(),
+			loadVehicleList()
+		]);
 		await nextTick();
 		updateLeftSectionHeight();
 	}, 500);
@@ -461,6 +477,7 @@ onMounted(async () => {
 	try {
 		await loadZones();
 		await loadOverviewSummaries();
+		await loadVehicleList();
 		if (locations.value.length > 0 && !selectedLocation.value) {
 			const first = locations.value[0];
 			const firstId = first?.id ?? first?.locationId;

@@ -79,7 +79,6 @@ export interface UnifiedZone {
 	id: string;
 	name: string;
 	buildingId?: number;
-	zoneNumber?: number;
 	imageUrl?: string; // 照明系統專用
 	description?: string;
 	locations: UnifiedLocation[];

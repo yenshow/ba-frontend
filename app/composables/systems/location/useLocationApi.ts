@@ -45,7 +45,6 @@ export const useLocationApi = () => {
 		createZone: (data: {
 			name: string;
 			buildingId?: number;
-			zoneNumber?: number;
 			imageUrl?: string;
 			description?: string;
 			locations?: UnifiedLocationInput[];
@@ -64,7 +63,6 @@ export const useLocationApi = () => {
 			data: {
 				name?: string;
 				buildingId?: number;
-				zoneNumber?: number;
 				imageUrl?: string;
 				description?: string;
 				locations?: (UnifiedLocation | UnifiedLocationInput)[];

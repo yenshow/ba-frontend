@@ -22,6 +22,22 @@ export interface VehicleDataLog {
 	is_blacklist: boolean;
 }
 
+/** 固定車輛名單（platform.vehicle_list）；plate_license 對應 passageway_log_data.license_plate */
+export interface VehicleListItem {
+	id: number;
+	plate_license: string | null;
+	owner_name?: string | null;
+	person_id?: number | null;
+	vehicle_group_id?: number | null;
+}
+
+/** 車輛名單項目 + 依當日過車記錄計算的進/出/在場 */
+export interface VehicleListItemWithStatus extends VehicleListItem {
+	entryCount: number;
+	exitCount: number;
+	onSiteCount: number;
+}
+
 /** 車道資訊（vehiclebiz.lane_info，deleted=0） */
 export interface LaneInfo {
 	id: number;

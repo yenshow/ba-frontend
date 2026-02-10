@@ -33,7 +33,11 @@
 									<th :class="tableHeaderClass">狀態</th>
 									<th :class="tableHeaderClass">
 										<label>
-											<select v-model="dateSortOrder" :class="sortSelectClass" @change="handleSortChange">
+											<select
+												v-model="dateSortOrder"
+												:class="sortSelectClass"
+												@change="handleSortChange"
+											>
 												<option value="asc">由舊到新</option>
 												<option value="desc">由新到舊</option>
 											</select>
@@ -52,18 +56,28 @@
 									<td :class="tableCellClass">{{ user.username }}</td>
 									<td :class="tableCellClass">{{ user.email }}</td>
 									<td :class="tableCellClass">
-										<span :class="[getRoleBadgeClass(user.role), 'rounded px-2 py-1 2xl:px-3 2xl:py-1.5']">
+										<span
+											:class="[
+												getRoleBadgeClass(user.role),
+												'rounded px-2 py-1 2xl:px-3 2xl:py-1.5',
+											]"
+										>
 											{{ roleLabels[user.role] }}
 										</span>
 									</td>
 									<td :class="tableCellClass">
 										<span
-											:class="[getStatusBadgeClass(user.status), 'rounded px-2 py-1 2xl:px-3 2xl:py-1.5']"
+											:class="[
+												getStatusBadgeClass(user.status),
+												'rounded px-2 py-1 2xl:px-3 2xl:py-1.5',
+											]"
 										>
 											{{ statusLabels[user.status] }}
 										</span>
 									</td>
-									<td :class="[tableCellClass, 'text-white/70']">{{ formatDate(user.created_at) }}</td>
+									<td :class="[tableCellClass, 'text-white/70']">
+										{{ formatDate(user.created_at) }}
+									</td>
 									<td v-if="isAdmin" :class="tableCellClass">
 										<div class="flex gap-2 2xl:gap-3">
 											<button
@@ -194,30 +208,29 @@
 </template>
 
 <script setup lang="ts">
-import type { User } from "~/types/user";
-import Pagination from "~/components/common/Pagination.vue";
-import { formatDate } from "~/utils/dateUtils";
-import { useDataLoader } from "~/composables/monitoring/useDataLoader";
-import { useAuth } from "~/composables/core/useAuth";
-import { useToast } from "~/composables/core/useToast";
-import { useErrorHandler } from "~/composables/core/useErrorHandler";
-import { useUserApi } from "~/composables/systems/useUserApi";
+import type { User } from "~/types/user"
+import Pagination from "~/components/common/Pagination.vue"
+import { formatDate } from "~/utils/dateUtils"
+import { useDataLoader } from "~/composables/monitoring/useDataLoader"
+import { useAuth } from "~/composables/core/useAuth"
+import { useToast } from "~/composables/core/useToast"
+import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { useUserApi } from "~/composables/systems/useUserApi"
 
 definePageMeta({
-	layout: "auxiliary",
-	middleware: "admin" // 需要管理員權限
-});
+	layout: "default",
+})
 
-const { user: currentUser, isAdmin } = useAuth();
-const userApi = useUserApi();
-const toast = useToast();
-const { handleError: handleApiError } = useErrorHandler();
+const { user: currentUser, isAdmin } = useAuth()
+const userApi = useUserApi()
+const toast = useToast()
+const { handleError: handleApiError } = useErrorHandler()
 
-const dateSortOrder = ref<"asc" | "desc">("asc"); // 預設由舊到新
-const showCreateDialog = ref(false);
-const editingUser = ref<User | null>(null);
-const isSubmitting = ref(false);
-const errorMessage = ref<string | null>(null);
+const dateSortOrder = ref<"asc" | "desc">("asc") // 預設由舊到新
+const showCreateDialog = ref(false)
+const editingUser = ref<User | null>(null)
+const isSubmitting = ref(false)
+const errorMessage = ref<string | null>(null)
 
 // 使用 useDataLoader 統一管理數據載入
 const {
@@ -228,107 +241,107 @@ const {
 	load,
 	nextPage,
 	prevPage,
-	resetPage
+	resetPage,
 } = useDataLoader<User, { order: "asc" | "desc" }>({
-		fetcher: async params => {
-			const result = await userApi.getUsers({
-				limit: 20,
-				offset: 0,
-				orderBy: "id",
-				order: params.order
-			});
-			return { items: result.users, total: result.total };
-		},
+	fetcher: async (params) => {
+		const result = await userApi.getUsers({
+			limit: 20,
+			offset: 0,
+			orderBy: "id",
+			order: params.order,
+		})
+		return { items: result.users, total: result.total }
+	},
 	debounce: 300,
 	pageSize: 20,
 	minLoadingDelay: 300, // 防止畫面閃爍
-	onError: err => {
-		const errorMsg = handleApiError(err, "載入用戶列表失敗");
-		errorMessage.value = errorMsg || "載入用戶列表失敗";
-	}
-});
+	onError: (err) => {
+		const errorMsg = handleApiError(err, "載入用戶列表失敗")
+		errorMessage.value = errorMsg || "載入用戶列表失敗"
+	},
+})
 
-const limit = 20; // 用於分頁組件
+const limit = 20 // 用於分頁組件
 
 // 標籤映射
 const roleLabels: Record<string, string> = {
 	admin: "管理員",
 	operator: "操作員",
-	viewer: "檢視者"
-};
+	viewer: "檢視者",
+}
 
 const statusLabels: Record<string, string> = {
 	active: "啟用",
 	inactive: "停用",
-	suspended: "暫停"
-};
+	suspended: "暫停",
+}
 
 // 統一樣式類
-const tableHeaderClass = "py-3 2xl:py-4 px-4 2xl:px-6 text-sm 2xl:text-base text-white/80";
-const tableCellClass = "py-3 2xl:py-4 px-4 2xl:px-6";
+const tableHeaderClass = "py-3 2xl:py-4 px-4 2xl:px-6 text-sm 2xl:text-base text-white/80"
+const tableCellClass = "py-3 2xl:py-4 px-4 2xl:px-6"
 const sortSelectClass =
-	"rounded-lg border border-white/40 bg-white/10 px-2 2xl:px-3 py-1 2xl:py-2 text-sm 2xl:text-base text-white focus:border-white focus:outline-none";
+	"rounded-lg border border-white/40 bg-white/10 px-2 2xl:px-3 py-1 2xl:py-2 text-sm 2xl:text-base text-white focus:border-white focus:outline-none"
 
 const formData = reactive({
 	username: "",
 	email: "",
 	password: "",
 	role: "viewer" as "admin" | "operator" | "viewer",
-	status: "active" as "active" | "inactive" | "suspended"
-});
+	status: "active" as "active" | "inactive" | "suspended",
+})
 
 const getRoleBadgeClass = (role: string) => {
 	const classes = {
 		admin: "bg-red-500/20 text-red-200",
 		operator: "bg-blue-500/20 text-blue-200",
-		viewer: "bg-gray-500/20 text-gray-200"
-	};
-	return classes[role as keyof typeof classes] || classes.viewer;
-};
+		viewer: "bg-gray-500/20 text-gray-200",
+	}
+	return classes[role as keyof typeof classes] || classes.viewer
+}
 
 const getStatusBadgeClass = (status: string) => {
 	const classes = {
 		active: "bg-emerald-500/20 text-emerald-200",
 		inactive: "bg-yellow-500/20 text-yellow-200",
-		suspended: "bg-red-500/20 text-red-200"
-	};
-	return classes[status as keyof typeof classes] || classes.inactive;
-};
+		suspended: "bg-red-500/20 text-red-200",
+	}
+	return classes[status as keyof typeof classes] || classes.inactive
+}
 
 // 業務邏輯函數：統一錯誤處理（同時更新頁面錯誤訊息）
 const handleError = (error: unknown, defaultMessage: string) => {
-	const errorMsg = handleApiError(error, defaultMessage);
-	errorMessage.value = errorMsg || defaultMessage;
-	return errorMsg;
-};
+	const errorMsg = handleApiError(error, defaultMessage)
+	errorMessage.value = errorMsg || defaultMessage
+	return errorMsg
+}
 
 const resetForm = () => {
-	formData.username = "";
-	formData.email = "";
-	formData.password = "";
-	formData.role = "viewer";
-	formData.status = "active";
-};
+	formData.username = ""
+	formData.email = ""
+	formData.password = ""
+	formData.role = "viewer"
+	formData.status = "active"
+}
 
 const editUser = (user: User) => {
-	editingUser.value = user;
-	formData.username = user.username;
-	formData.email = user.email;
-	formData.role = user.role;
-	formData.status = user.status;
-	formData.password = "";
-};
+	editingUser.value = user
+	formData.username = user.username
+	formData.email = user.email
+	formData.role = user.role
+	formData.status = user.status
+	formData.password = ""
+}
 
 const closeDialog = () => {
-	showCreateDialog.value = false;
-	editingUser.value = null;
-	resetForm();
-	errorMessage.value = null;
-};
+	showCreateDialog.value = false
+	editingUser.value = null
+	resetForm()
+	errorMessage.value = null
+}
 
 const handleSubmit = async () => {
-	isSubmitting.value = true;
-	errorMessage.value = null;
+	isSubmitting.value = true
+	errorMessage.value = null
 
 	try {
 		const result = editingUser.value
@@ -337,72 +350,72 @@ const handleSubmit = async () => {
 					username: formData.username,
 					email: formData.email,
 					role: formData.role,
-					status: formData.status
+					status: formData.status,
 				})
 			: // 建立用戶
 				await userApi.register({
 					username: formData.username,
 					email: formData.email,
 					password: formData.password,
-					role: formData.role
-				});
+					role: formData.role,
+				})
 
 		// 更新本地狀態（避免不必要的重新載入）
 		if (editingUser.value) {
 			// 更新操作：更新本地狀態
-			const index = users.value.findIndex(u => u.id === editingUser.value!.id);
+			const index = users.value.findIndex((u) => u.id === editingUser.value!.id)
 			if (index > -1) {
-				users.value[index] = result.user;
+				users.value[index] = result.user
 			}
 		} else {
 			// 創建操作：添加到本地
-			users.value.push(result.user);
-			total.value += 1;
+			users.value.push(result.user)
+			total.value += 1
 		}
 
-		closeDialog();
-		toast.success(result.message || "操作成功");
+		closeDialog()
+		toast.success(result.message || "操作成功")
 	} catch (error) {
-		handleError(error, "操作失敗");
+		handleError(error, "操作失敗")
 	} finally {
-		isSubmitting.value = false;
+		isSubmitting.value = false
 	}
-};
+}
 
 const confirmDeleteUser = async (user: User) => {
 	if (!confirm(`確定要刪除用戶 "${user.username}" 嗎？此操作無法復原。`)) {
-		return;
+		return
 	}
 
 	try {
-		const result = await userApi.deleteUser(user.id);
+		const result = await userApi.deleteUser(user.id)
 
 		// 從本地移除（避免不必要的重新載入）
-		users.value = users.value.filter(u => u.id !== user.id);
-		total.value = Math.max(0, total.value - 1);
+		users.value = users.value.filter((u) => u.id !== user.id)
+		total.value = Math.max(0, total.value - 1)
 
-		toast.success(result.message || "刪除成功");
+		toast.success(result.message || "刪除成功")
 	} catch (error) {
-		handleError(error, "刪除用戶失敗");
+		handleError(error, "刪除用戶失敗")
 	}
-};
+}
 
 const handlePreviousPage = () => {
-	prevPage({ order: dateSortOrder.value });
-};
+	prevPage({ order: dateSortOrder.value })
+}
 
 const handleNextPage = () => {
-	nextPage({ order: dateSortOrder.value });
-};
+	nextPage({ order: dateSortOrder.value })
+}
 
 const handleSortChange = () => {
-	resetPage();
-	load({ order: dateSortOrder.value }, true); // 立即執行
-};
+	resetPage()
+	load({ order: dateSortOrder.value }, true) // 立即執行
+}
 
 onMounted(() => {
-	load({ order: dateSortOrder.value }, true); // 立即執行
-});
+	load({ order: dateSortOrder.value }, true) // 立即執行
+})
 </script>
 
 <style scoped>

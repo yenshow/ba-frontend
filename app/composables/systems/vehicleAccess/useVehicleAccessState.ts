@@ -7,7 +7,9 @@ import type {
 	VehicleDataLog,
 	VehicleAccessLocationSummary,
 	VehicleAccessZone,
-	VehicleAccessLocation
+	VehicleAccessLocation,
+	VehicleListItem,
+	VehicleListItemWithStatus
 } from "~/types/vehicleAccess";
 import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi";
 import { useLocationApi } from "~/composables/systems/location/useLocationApi";
@@ -55,6 +57,12 @@ function getLaneIdsForLocation(loc: VehicleAccessLocation | null | undefined): n
 	return ids;
 }
 
+/** 車牌正規化（比對用：去空白、統一大小寫） */
+function normalizePlate(plate: string | null | undefined): string {
+	if (plate == null) return "";
+	return String(plate).trim().toUpperCase();
+}
+
 export const useVehicleAccessState = () => {
 	const vehicleAccessApi = useVehicleAccessApi();
 	const locationApi = useLocationApi();
@@ -73,8 +81,14 @@ export const useVehicleAccessState = () => {
 	/** 當日在場車輛數（進場－出場，不小於 0） */
 	const onSiteCount = ref(0);
 
-	/** 點開群組時顯示的群組 key（vehicle_list_id 或 "none"） */
+	/** 點開群組時顯示的群組 key（vehicle_list_id 或 "none"），保留供相容 */
 	const selectedVehicleGroupKey = ref<string | null>(null);
+
+	/** 固定車輛名單（platform.vehicle_list） */
+	const vehicleList = ref<VehicleListItem[]>([]);
+	/** 選中的車牌（點擊車輛名單時，用於彈窗顯示該車過車記錄） */
+	const selectedVehiclePlate = ref<string | null>(null);
+	const isLoadingVehicleList = ref(false);
 
 	const isLoadingZones = ref(false);
 	const isLoadingLogs = ref(false);
@@ -300,7 +314,7 @@ export const useVehicleAccessState = () => {
 		}));
 	});
 
-	/** 選中群組下的當日記錄（供彈窗顯示） */
+	/** 選中群組下的當日記錄（供彈窗顯示），保留供相容 */
 	const vehicleGroupRecords = computed<VehicleDataLog[]>(() => {
 		const key = selectedVehicleGroupKey.value;
 		if (!key) return [];
@@ -312,8 +326,63 @@ export const useVehicleAccessState = () => {
 		return list.filter(log => log.vehicle_list_id === id);
 	});
 
+	/** 固定車輛名單 + 依當日過車記錄計算的進/出/在場（僅計 allow_result=1、lane_type 1/2） */
+	const vehicleListWithStatus = computed<VehicleListItemWithStatus[]>(() => {
+		const list = vehicleList.value;
+		const logList = logs.value;
+		const laneIds = selectedLaneIds.value;
+		const set = laneIds?.length ? new Set(laneIds) : null;
+		return list.map(vehicle => {
+			const plateNorm = normalizePlate(vehicle.plate_license);
+			let entry = 0;
+			let exit = 0;
+			for (const log of logList) {
+				if (log.allow_result !== 1) continue;
+				const lt = log.lane_type ?? null;
+				if (lt !== 1 && lt !== 2) continue;
+				if (set != null && log.lane_id != null && !set.has(log.lane_id)) continue;
+				if (normalizePlate(log.license_plate) !== plateNorm) continue;
+				if (lt === 1) entry += 1;
+				else exit += 1;
+			}
+			const onSite = Math.max(0, entry - exit);
+			return {
+				...vehicle,
+				entryCount: entry,
+				exitCount: exit,
+				onSiteCount: onSite
+			};
+		});
+	});
+
+	/** 選中車輛（車牌）的當日過車記錄（供彈窗顯示） */
+	const vehicleListRecordsForSelected = computed<VehicleDataLog[]>(() => {
+		const plate = selectedVehiclePlate.value;
+		if (!plate) return [];
+		const norm = normalizePlate(plate);
+		return logs.value.filter(log => normalizePlate(log.license_plate) === norm);
+	});
+
 	const setVehicleGroupSelection = (key: string | null) => {
 		selectedVehicleGroupKey.value = key;
+	};
+
+	const setSelectedVehiclePlate = (plate: string | null) => {
+		selectedVehiclePlate.value = plate;
+	};
+
+	/** 載入固定車輛名單（platform.vehicle_list） */
+	const loadVehicleList = async (): Promise<void> => {
+		isLoadingVehicleList.value = true;
+		try {
+			const data = await vehicleAccessApi.getVehicleList({ limit: 200 });
+			vehicleList.value = data;
+		} catch (error) {
+			handleError(error, "載入車輛名單失敗");
+			vehicleList.value = [];
+		} finally {
+			isLoadingVehicleList.value = false;
+		}
 	};
 
 	return {
@@ -330,6 +399,13 @@ export const useVehicleAccessState = () => {
 		vehicleGroups,
 		selectedVehicleGroupKey,
 		vehicleGroupRecords,
+		vehicleList,
+		vehicleListWithStatus,
+		selectedVehiclePlate,
+		vehicleListRecordsForSelected,
+		isLoadingVehicleList,
+		loadVehicleList,
+		setSelectedVehiclePlate,
 		isLoadingZones,
 		isLoadingLogs,
 		loadZones,

@@ -33,6 +33,29 @@
 					/>
 				</div>
 				<PersonnelStats :locations="filteredPeopleCountingLocations" />
+
+				<!-- 影片播放 -->
+				<div class="flex justify-center">
+					<div class="aspect-video w-full max-w-[710px]">
+						<iframe
+							class="h-full w-full"
+							src="https://www.youtube.com/embed/o3vXtwa6HTk?si=FRGSNeMVUlbWJUWm"
+							title="YouTube video player"
+							frameborder="0"
+							allow="
+								accelerometer;
+								autoplay;
+								clipboard-write;
+								encrypted-media;
+								gyroscope;
+								picture-in-picture;
+								web-share;
+							"
+							referrerpolicy="strict-origin-when-cross-origin"
+							allowfullscreen
+						/>
+					</div>
+				</div>
 			</div>
 
 			<!-- 右側欄 - 人員進出記錄 -->
@@ -587,7 +610,7 @@ const loadSensorData = async () => {
 	}
 };
 
-const SENSOR_POLLING_INTERVAL = 5000;
+const SENSOR_POLLING_INTERVAL = 30000;
 
 const { start: startPolling } = usePolling({
 	callback: () => loadSensorData(),

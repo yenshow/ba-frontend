@@ -1,6 +1,13 @@
-/** 客戶端認證初始化：恢復登入狀態並驗證 token */
+/**
+ * 認證狀態初始化插件（僅客戶端）
+ * 在應用啟動時自動恢復登入狀態
+ */
 import { useAuth } from "~/composables/core/useAuth";
 
 export default defineNuxtPlugin(async () => {
-	await useAuth().init();
+	const { init } = useAuth();
+
+	// 在客戶端初始化認證狀態
+	// 這樣可以確保在路由中間件執行之前就恢復了認證狀態
+	await init();
 });

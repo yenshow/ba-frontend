@@ -11,7 +11,7 @@
 				>
 					<header class="flex items-center justify-between">
 						<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">
-							{{ groupName }} - 車輛名單
+							{{ groupName || "車輛" }} - 過車記錄
 						</h3>
 						<button
 							type="button"
@@ -39,7 +39,7 @@
 							v-else-if="records.length === 0"
 							class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
 						>
-							<p class="text-sm text-white/60 xl:text-base">尚無車輛記錄</p>
+							<p class="text-sm text-white/60 xl:text-base">尚無過車記錄</p>
 						</div>
 						<div v-else class="space-y-4">
 							<div class="grid grid-cols-2 gap-4">
