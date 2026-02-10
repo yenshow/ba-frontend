@@ -8,7 +8,7 @@ export default defineNuxtConfig({
 	// 應用程式設定
 	app: {
 		head: {
-			title: "BA 系統 - 樓宇自動化管理平台",
+			title: "Yenshow 智慧管理平台",
 			meta: [
 				{ charset: "utf-8" },
 				{ name: "viewport", content: "width=device-width, initial-scale=1" },
