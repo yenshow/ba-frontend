@@ -324,16 +324,16 @@ const formatDeviceConfig = (config: DeviceConfig): string => {
 	if (!config) return "-"
 	switch (config.type) {
 		case "controller":
-			return `${config.host}:${config.port}`
+			return `${config.host}`
 		case "camera":
 			return config.ip_address || config.rtsp_url || "-"
 		case "sensor":
 			if (config.protocol === "modbus") {
-				return `${config.host}:${config.port}`
+				return `${config.host}`
 			}
 			return config.connection_string || config.api_endpoint || "-"
 		case "access_control":
-			return `${config.host}:${config.port ?? 80} (${config.username})`
+			return `${config.host}`
 		default:
 			return "-"
 	}

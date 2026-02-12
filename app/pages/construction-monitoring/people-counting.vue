@@ -103,7 +103,7 @@
 				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
 			>
 				<div
-					class="show-scrollbar relative h-full min-w-[72px] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8 2xl:min-w-[84px]"
+					class="relative h-full min-w-[72px] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8 2xl:min-w-[84px]"
 				>
 					<!-- 標題與收縮按鈕 -->
 					<Transition name="fade">
@@ -143,7 +143,7 @@
 						<div
 							v-if="!isSidebarCollapsed"
 							key="content"
-							class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
+							class="min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
 						>
 							<div class="space-y-4">
 								<template v-if="locations.length > 0">
@@ -183,6 +183,7 @@
 			:zone-name="simulationZoneName"
 			:location-name="simulationLocationName"
 			:time-range="simulationTimeRange"
+			:pagination="simulationPagination"
 			@update:time-range="handleSimulationTimeRangeUpdate"
 		/>
 	</SimulationFrame>
@@ -293,18 +294,21 @@ const simulationZoneName = computed(() =>
 const simulationLocationName = computed(() => selectedLocation.value?.name ?? "")
 
 const simulationLogs = ref<PeopleCountingLog[]>([])
+const simulationOffset = ref(0)
+const simulationPageSize = 500
 
-/** 完整報表一次載入全部資料（含超過 500 筆），供畫面與 CSV 匯出使用 */
-const loadSimulationLogs = async () => {
+const loadSimulationLogs = async (offset = 0) => {
 	const loc = selectedLocation.value
 	if (!loc?.locationId) {
 		simulationLogs.value = []
 		return
 	}
+	simulationOffset.value = offset
 	const { startDate, endDate } = simulationTimeRange.value
 	try {
 		simulationLogs.value = await peopleCountingApi.getLocationLogs(loc.locationId, {
-			limit: 50000,
+			limit: simulationPageSize,
+			offset,
 			...(startDate && { startTime: startDate }),
 			...(endDate && { endTime: endDate }),
 		})
@@ -319,7 +323,7 @@ const handleSimulationTimeRangeUpdate = (v: {
 	preset: string
 }) => {
 	simulationTimeRange.value = v
-	void loadSimulationLogs()
+	void loadSimulationLogs(0)
 }
 
 const handleOpenSimulation = async () => {
@@ -330,8 +334,16 @@ const handleOpenSimulation = async () => {
 		preset: "today",
 	}
 	showSimulationFrame.value = true
-	await loadSimulationLogs()
+	await loadSimulationLogs(0)
 }
+
+const simulationPagination = computed(() => ({
+	offset: simulationOffset.value,
+	hasPrev: simulationOffset.value > 0,
+	hasNext: simulationLogs.value.length === simulationPageSize,
+	onPrev: () => loadSimulationLogs(Math.max(0, simulationOffset.value - simulationPageSize)),
+	onNext: () => loadSimulationLogs(simulationOffset.value + simulationPageSize),
+}))
 
 // 選中地點 ID（用於刪除邏輯，與環境品質保持一致）
 const selectedLocationId = ref<string>("")

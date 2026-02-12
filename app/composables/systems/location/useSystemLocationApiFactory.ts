@@ -11,6 +11,7 @@ import type {
 import { useLocationApi } from "./useLocationApi";
 import {
 	buildUnifiedZoneUpdateData,
+	mergeFullZoneWithSystemUpdate,
 	environmentLocationToUnified,
 	lightingLocationToUnified,
 	peopleCountingLocationToUnified
@@ -24,8 +25,8 @@ export interface SystemApiConfig<
 	TLocation extends SystemLocationType
 > {
 	systemType: SystemType;
-	// 從 UnifiedZone 轉換為系統特定類型
-	backendToSystemZone: (zone: UnifiedZone) => TZone;
+	/** 將 API 回傳的 UnifiedZone 轉為系統區域類型 */
+	unifiedToSystemZone: (zone: UnifiedZone) => TZone;
 	// 從系統特定類型轉換為 UnifiedZone（用於創建）
 	systemToUnifiedZone: (
 		zone: Omit<TZone, "id"> & { locations?: (TLocation | Omit<TLocation, "id">)[] }
@@ -64,7 +65,7 @@ export function useSystemLocationApiFactory<
 		getZones: async () => {
 			const response = await locationApi.getZones(config.systemType);
 			return {
-				zones: response.zones.map(zone => config.backendToSystemZone(zone))
+				zones: response.zones.map(zone => config.unifiedToSystemZone(zone))
 			};
 		},
 
@@ -74,7 +75,7 @@ export function useSystemLocationApiFactory<
 		getZone: async (id: string) => {
 			const response = await locationApi.getZone(id, config.systemType);
 			return {
-				zone: config.backendToSystemZone(response.zone)
+				zone: config.unifiedToSystemZone(response.zone)
 			};
 		},
 
@@ -91,23 +92,37 @@ export function useSystemLocationApiFactory<
 			return {
 				merged: response.merged,
 				message: response.message,
-				zone: config.backendToSystemZone(response.zone)
+				zone: config.unifiedToSystemZone(response.zone)
 			};
 		},
 
 		/**
 		 * 更新區域
+		 * 先取得完整區域（含所有系統），再與當前系統的編輯資料合併後送出，避免覆蓋其他系統的地點/系統資料。
 		 */
 		updateZone: async (id: string, data: UpdateZoneData<TZone>) => {
-			const unifiedData = buildUnifiedZoneUpdateData(data, {
-				systemType: config.systemType,
-				locationConverter: config.locationToUnified
-			});
+			const hasLocations = "locations" in data && Array.isArray(data.locations);
+			let unifiedData: Parameters<typeof locationApi.updateZone>[1];
+
+			if (hasLocations) {
+				const fullZoneResponse = await locationApi.getZone(id);
+				const fullZone = fullZoneResponse.zone;
+				unifiedData = mergeFullZoneWithSystemUpdate(fullZone, data as Partial<TZone>, {
+					systemType: config.systemType,
+					locationConverter: config.locationToUnified
+				});
+			} else {
+				unifiedData = buildUnifiedZoneUpdateData(data, {
+					systemType: config.systemType,
+					locationConverter: config.locationToUnified
+				});
+			}
+
 			const response = await locationApi.updateZone(id, unifiedData);
 			return {
 				merged: response.merged,
 				message: response.message,
-				zone: config.backendToSystemZone(response.zone)
+				zone: config.unifiedToSystemZone(response.zone)
 			};
 		},
 

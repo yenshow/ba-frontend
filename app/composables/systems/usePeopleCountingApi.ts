@@ -195,6 +195,7 @@ export const usePeopleCountingApi = () => {
 
 	/**
 	 * 取得地點進出場記錄
+	 * startTime / endTime 未傳時，後端預設為今日範圍
 	 */
 	const getLocationLogs = async (
 		locationId: number,

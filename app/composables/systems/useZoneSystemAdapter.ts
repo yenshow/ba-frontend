@@ -3,27 +3,11 @@
  * 處理不同系統類型的區域和地點類型轉換
  */
 
-import type {
-	UnifiedZone,
-	SystemType,
-	UnifiedLocation,
-	LocationSystem,
-	UnifiedLocationInput
-} from "~/types/location";
+import type { SystemType } from "~/types/location";
 import type { LightingZone, LightingLocation } from "~/types/lighting";
 import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment";
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting";
 import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess";
-import {
-	backendToLightingZone,
-	lightingToUnifiedZone,
-	backendToEnvironmentZone,
-	environmentToUnifiedZone,
-	backendToPeopleCountingZone,
-	peopleCountingToUnifiedZone,
-	backendToVehicleAccessZone,
-	vehicleAccessToUnifiedZone
-} from "~/utils/locationAdapter";
 
 export type SystemZoneType =
 	| LightingZone
@@ -50,42 +34,19 @@ export interface SystemConfig {
 
 /**
  * 區域系統適配器接口
- * 統一處理不同系統類型的區域和地點類型轉換
+ * 提供 UI 層的地點列表讀寫、建立空地點/區域、過濾空地點與取得地點 ID，供 ZoneManagementDialog 使用。
+ * 區域與後端的轉換由 useSystemLocationApiFactory 與 locationAdapter 負責。
  */
 export interface ZoneSystemAdapter<
 	TZone extends SystemZoneType,
 	TLocation extends SystemLocationType
 > {
-	// ========== 轉換方法 ==========
-	// 從 UnifiedZone 轉換為系統特定類型
-	unifiedToSystem: (zone: UnifiedZone) => TZone;
-	// 從系統特定類型轉換為 UnifiedZone（用於傳送給後端）
-	// 注意：返回的 locations 是 UnifiedLocationInput[]，因為轉換時可能缺少 zoneId 和系統 id
-	systemToUnified: (
-		zone: TZone
-	) => Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] };
-	// 從後端格式轉換為系統特定類型
-	backendToSystem: (zone: UnifiedZone) => TZone;
-
-	// ========== 地點管理方法 ==========
-	// 取得地點列表的屬性名（例如：areas, locations）
 	getLocationsProperty: (zone: TZone) => TLocation[];
-	// 設定地點列表（支持多個地點）
 	setLocationsProperty: (zone: TZone, locations: TLocation[]) => TZone;
-	// 建立新的地點
 	createNewLocation: () => TLocation;
-	// 建立新的區域
 	createNewZone: (name: string) => TZone;
-	// 過濾空地點
 	filterEmptyLocations: (zone: TZone) => TZone;
-
-	// ========== 系統配置（新增）==========
-	// 系統特性配置
 	systemConfig?: SystemConfig;
-
-	// ========== 工具方法（新增）==========
-	// 從地點對象獲取 ID（統一格式：字串）
-	// zoneName 可選，用於生成合成 ID
 	getLocationId?: (location: TLocation, zoneName?: string) => string;
 }
 
@@ -98,20 +59,6 @@ export function useLightingZoneAdapter(): ZoneSystemAdapter<LightingZone, Lighti
 	};
 
 	return {
-		unifiedToSystem: (zone: UnifiedZone) => {
-			// 需要從 UnifiedZone 轉換，但這裡我們假設已經轉換過了
-			// 實際使用時應該使用 backendToLightingZone
-			return zone as unknown as LightingZone;
-		},
-		systemToUnified: (zone: LightingZone) => lightingToUnifiedZone(zone, "lighting"),
-		backendToSystem: (zone: UnifiedZone) => {
-			// 如果 zone 已經是 LightingZone 格式，直接返回
-			if ("areas" in zone) {
-				return zone as LightingZone;
-			}
-			// 否則需要轉換（這裡簡化處理，實際應該使用完整的轉換邏輯）
-			return backendToLightingZone(zone as any);
-		},
 		getLocationsProperty: (zone: LightingZone) => {
 			// 照明系統使用 locations 屬性（類型定義）
 			// 但組件中可能使用 areas（向後兼容）
@@ -154,16 +101,6 @@ export function useEnvironmentZoneAdapter(): ZoneSystemAdapter<
 	};
 
 	return {
-		unifiedToSystem: (zone: UnifiedZone) => {
-			return zone as unknown as EnvironmentZone;
-		},
-		systemToUnified: (zone: EnvironmentZone) => environmentToUnifiedZone(zone, "environment"),
-		backendToSystem: (zone: UnifiedZone) => {
-			if ("locations" in zone && Array.isArray(zone.locations)) {
-				return zone as unknown as EnvironmentZone;
-			}
-			return backendToEnvironmentZone(zone as any);
-		},
 		getLocationsProperty: (zone: EnvironmentZone) => zone.locations || [],
 		setLocationsProperty: (zone: EnvironmentZone, locations: EnvironmentLocation[]) => {
 			// 環境監測系統現在支持多個地點
@@ -203,17 +140,6 @@ export function usePeopleCountingZoneAdapter(): ZoneSystemAdapter<
 	};
 
 	return {
-		unifiedToSystem: (zone: UnifiedZone) => {
-			return zone as unknown as PeopleCountingZone;
-		},
-		systemToUnified: (zone: PeopleCountingZone) =>
-			peopleCountingToUnifiedZone(zone, "people_counting"),
-		backendToSystem: (zone: UnifiedZone) => {
-			if ("locations" in zone && Array.isArray(zone.locations)) {
-				return zone as unknown as PeopleCountingZone;
-			}
-			return backendToPeopleCountingZone(zone as any);
-		},
 		getLocationsProperty: (zone: PeopleCountingZone) => zone.locations || [],
 		setLocationsProperty: (zone: PeopleCountingZone, locations: PeopleCountingLocation[]) => {
 			// 人流統計系統現在支持多個地點
@@ -258,14 +184,6 @@ export function useVehicleAccessZoneAdapter(): ZoneSystemAdapter<
 	};
 
 	return {
-		unifiedToSystem: (zone: UnifiedZone) => zone as unknown as VehicleAccessZone,
-		systemToUnified: (zone: VehicleAccessZone) => vehicleAccessToUnifiedZone(zone, "vehicle_access"),
-		backendToSystem: (zone: UnifiedZone) => {
-			if ("locations" in zone && Array.isArray(zone.locations)) {
-				return zone as unknown as VehicleAccessZone;
-			}
-			return backendToVehicleAccessZone(zone as any);
-		},
 		getLocationsProperty: (zone: VehicleAccessZone) => zone.locations || [],
 		setLocationsProperty: (zone: VehicleAccessZone, locations: VehicleAccessLocation[]) => ({
 			...zone,

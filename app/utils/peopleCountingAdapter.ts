@@ -110,3 +110,4 @@ export const convertApiLogToFrontend = (
 		timestamp: formatDateTime(log.timestamp, true),
 	}
 }
+
