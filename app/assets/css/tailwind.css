@@ -223,3 +223,33 @@
 *::-webkit-scrollbar {
 	display: none; /* Chrome, Safari, Opera */
 }
+
+/* ========================================
+   表單／表格區顯示滾動軸
+   ======================================== */
+
+/* 用於資料表、表單等需要可見滾動軸的區塊 */
+.show-scrollbar {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(255, 255, 255, 0.4) transparent;
+	-ms-overflow-style: scrollbar;
+}
+
+.show-scrollbar::-webkit-scrollbar {
+	display: block;
+	width: 8px;
+	height: 8px;
+}
+
+.show-scrollbar::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.show-scrollbar::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.4);
+	border-radius: 4px;
+}
+
+.show-scrollbar::-webkit-scrollbar-thumb:hover {
+	background: rgba(255, 255, 255, 0.55);
+}

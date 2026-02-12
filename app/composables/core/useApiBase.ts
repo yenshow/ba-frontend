@@ -52,8 +52,14 @@ export const useApiBase = () => {
 	// 統一的請求處理函數
 	const request = async <T>(path: string, options: RequestInit & { timeout?: number } = {}) => {
 		const url = `${apiBase}${path}`;
+		const isFormData = options.body instanceof FormData;
+		const baseHeaders = getAuthHeaders() as Record<string, string>;
+		// FormData 時不要設定 Content-Type，讓瀏覽器自動帶上 multipart/form-data + boundary
+		if (isFormData) {
+			delete baseHeaders["Content-Type"];
+		}
 		const headers: Record<string, string> = {
-			...(getAuthHeaders() as Record<string, string>),
+			...baseHeaders,
 			// 禁用瀏覽器快取，確保取得最新資料
 			// 注意：只使用標準的 Cache-Control 和 Pragma，避免 CORS 問題
 			"Cache-Control": "no-cache, no-store, must-revalidate",
@@ -111,10 +117,15 @@ export const useApiBase = () => {
 				if (process.client) {
 					const router = useRouter();
 					const currentPath = router.currentRoute.value?.fullPath || "/";
+					// 避免 redirect 迴圈：若已在登入頁或 redirect 已含 /login，改導向首頁
+					const redirectPath =
+						currentPath.startsWith("/login") || currentPath.includes("/login?")
+							? "/"
+							: currentPath;
 					await router.push({
 						path: "/login",
 						query: {
-							redirect: currentPath
+							redirect: redirectPath
 						}
 					});
 				}

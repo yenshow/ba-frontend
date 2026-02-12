@@ -8,45 +8,45 @@
 				<div
 					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-5xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:max-w-6xl 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
 				>
-				<header class="flex items-center justify-between pr-7 2xl:pr-8">
-					<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">地點管理</h3>
-					<div class="flex items-center gap-3">
-						<!-- 變更提示 -->
-						<FormChangeIndicator
-							v-if="hasUnsavedChanges"
-							:has-changes="hasUnsavedChanges"
-							:changed-fields="changedFieldsList"
-							:message="changeSummary"
-						/>
-						<!-- ✅ 新增刪除按鈕 -->
-						<button
-							v-if="zone && zone.id"
-							type="button"
-							class="p-2 text-rose-400 transition-colors hover:text-rose-300"
-							@click="handleDeleteZone"
-							title="刪除區域"
-						>
-							<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-								/>
-							</svg>
-						</button>
-						<button
-							type="button"
-							class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
-							aria-label="關閉對話框"
-							@click="handleClose"
-						>
-							&times;
-						</button>
-					</div>
-				</header>
+					<header class="flex items-center justify-between pr-7 2xl:pr-8">
+						<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">地點管理</h3>
+						<div class="flex items-center gap-3">
+							<!-- 變更提示 -->
+							<FormChangeIndicator
+								v-if="hasUnsavedChanges"
+								:has-changes="hasUnsavedChanges"
+								:changed-fields="changedFieldsList"
+								:message="changeSummary"
+							/>
+							<!-- ✅ 新增刪除按鈕 -->
+							<button
+								v-if="zone && zone.id"
+								type="button"
+								class="p-2 text-rose-400 transition-colors hover:text-rose-300"
+								@click="handleDeleteZone"
+								title="刪除區域"
+							>
+								<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+									/>
+								</svg>
+							</button>
+							<button
+								type="button"
+								class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
+								aria-label="關閉對話框"
+								@click="handleClose"
+							>
+								&times;
+							</button>
+						</div>
+					</header>
 
-					<div class="flex-1 overflow-y-auto pr-7 2xl:pr-8">
+					<div class="show-scrollbar flex-1 overflow-y-auto pr-7 2xl:pr-8">
 						<div class="min-h-[200px]">
 							<Transition name="fade" mode="out-in">
 								<div v-if="zone && pendingZone" :key="`zone-${zone.id}`">
@@ -106,13 +106,9 @@
 
 										<!-- 地點列表 -->
 										<div class="overflow-hidden rounded-lg border border-white/20 bg-white/10 p-4">
-											<div class="flex items-center justify-between mb-3">
+											<div class="mb-3 flex items-center justify-between">
 												<span class="text-base font-medium 2xl:text-lg">地點列表</span>
-												<button
-													type="button"
-													class="btn-secondary text-sm 2xl:text-base"
-													@click="addLocation"
-												>
+												<button type="button" class="btn-secondary text-sm 2xl:text-base" @click="addLocation">
 													新增地點
 												</button>
 											</div>
@@ -138,15 +134,15 @@
 															v-model="location.name"
 															type="text"
 															required
-														class="form-input-small"
-														placeholder="例如：主控室"
-													/>
+															class="form-input-small"
+															placeholder="例如：主控室"
+														/>
 													</label>
 													<label
 														class="flex flex-[2] flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 													>
 														<span>所屬系統</span>
-														<div class="form-input-small flex items-center text-white/70 cursor-default">
+														<div class="form-input-small flex cursor-default items-center text-white/70">
 															{{ getLocationSystemsLabel(location) || "無系統" }}
 														</div>
 													</label>
@@ -260,7 +256,7 @@ const hasUnsavedChanges = computed(() => {
 const changedFieldsList = computed(() => {
 	if (!pendingZone.value || !props.zone) return [];
 	const fields: string[] = [];
-	
+
 	if (pendingZone.value.name !== props.zone.name) {
 		fields.push(`區域名稱: ${props.zone.name} → ${pendingZone.value.name}`);
 	}
@@ -270,7 +266,7 @@ const changedFieldsList = computed(() => {
 	if (JSON.stringify(pendingZone.value.locations) !== JSON.stringify(props.zone.locations)) {
 		fields.push("地點列表");
 	}
-	
+
 	return fields;
 });
 
@@ -428,7 +424,10 @@ const addLocation = () => {
 		description: "",
 		systems: []
 	};
-	pendingZone.value.locations = [...(pendingZone.value.locations || []), newLocation as UnifiedLocation];
+	pendingZone.value.locations = [
+		...(pendingZone.value.locations || []),
+		newLocation as UnifiedLocation
+	];
 };
 
 const removeLocation = (locationIndex: number) => {
@@ -478,7 +477,7 @@ const handleConfirmDeleteLocation = async () => {
 // 刪除區域
 const handleDeleteZone = () => {
 	if (!props.zone || !props.zone.id) return;
-	
+
 	confirmAction.value = "delete";
 	confirmDialog.show({
 		title: "確認刪除",
@@ -499,7 +498,8 @@ const handleConfirmDelete = () => {
 const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
 	environment: "環境監測",
 	lighting: "照明系統",
-	people_counting: "人流統計"
+	people_counting: "人流統計",
+	vehicle_access: "車輛通行"
 };
 
 // 取得地點的所屬系統標籤
@@ -519,11 +519,7 @@ const saveChanges = async () => {
 	const filteredZone = {
 		...pendingZone.value,
 		locations: (pendingZone.value.locations || []).filter(
-			loc =>
-				loc.name &&
-				loc.name.trim().length > 0 &&
-				loc.systems &&
-				loc.systems.length > 0
+			loc => loc.name && loc.name.trim().length > 0 && loc.systems && loc.systems.length > 0
 		)
 	};
 	emit("save", filteredZone);
@@ -597,7 +593,9 @@ const saveChanges = async () => {
 	background: rgba(255, 255, 255, 0.1);
 	padding: 0.65rem 0.85rem;
 	color: #f7fbff;
-	transition: border-color 0.2s ease, background 0.2s ease;
+	transition:
+		border-color 0.2s ease,
+		background 0.2s ease;
 }
 
 .form-input-small:focus {
@@ -610,4 +608,3 @@ const saveChanges = async () => {
 	color: rgba(255, 255, 255, 0.5);
 }
 </style>
-

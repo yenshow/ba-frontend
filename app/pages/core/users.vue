@@ -125,7 +125,7 @@
 					@click.self="closeDialog"
 				>
 					<div
-						class="dialog-panel-bg flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:max-w-lg 2xl:gap-6 2xl:p-8"
+						class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:max-w-lg 2xl:gap-6 2xl:p-8"
 					>
 						<header class="flex items-center justify-between">
 							<h3 class="text-lg font-semibold tracking-[4px] text-white 2xl:text-xl">
@@ -242,11 +242,11 @@ const {
 	nextPage,
 	prevPage,
 	resetPage,
-} = useDataLoader<User, { order: "asc" | "desc" }>({
+} = useDataLoader<User, { order: "asc" | "desc"; limit?: number; offset?: number }>({
 	fetcher: async (params) => {
 		const result = await userApi.getUsers({
-			limit: 20,
-			offset: 0,
+			limit: params.limit ?? 20,
+			offset: params.offset ?? 0,
 			orderBy: "id",
 			order: params.order,
 		})

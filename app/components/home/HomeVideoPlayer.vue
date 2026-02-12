@@ -23,6 +23,7 @@
 			<!-- 直接影片連結或上傳檔案 -->
 			<video
 				v-else-if="videoDisplaySrc"
+				ref="videoRef"
 				class="h-full w-full rounded-lg object-contain"
 				:src="videoDisplaySrc"
 				controls
@@ -30,6 +31,7 @@
 				muted
 				loop
 				playsinline
+				@ended="handleVideoEnded"
 			/>
 			<!-- 無設定時佔位 -->
 			<div
@@ -83,7 +85,17 @@ const {
 });
 
 const isEditOpen = ref(false);
+const videoRef = ref<HTMLVideoElement | null>(null);
 const apiBase = useUploadBaseUrl();
+
+/** 影片結束時重播（搭配 loop，確保自動重播） */
+const handleVideoEnded = () => {
+	const el = videoRef.value;
+	if (el) {
+		el.currentTime = 0;
+		el.play().catch(() => {});
+	}
+};
 
 /** 顯示用影片 URL：上傳檔案路徑需加上 API base */
 const videoDisplaySrc = computed(() =>

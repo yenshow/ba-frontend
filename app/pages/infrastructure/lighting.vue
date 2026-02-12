@@ -153,7 +153,7 @@
 
 			<!-- 右側狀態中心 -->
 			<aside
-				class="flex-[0.8] overflow-y-auto 2xl:flex-[0.7]"
+				class="show-scrollbar flex-[0.8] overflow-y-auto 2xl:flex-[0.7]"
 				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
 			>
 				<StatusCenter

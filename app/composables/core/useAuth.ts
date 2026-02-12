@@ -3,10 +3,19 @@ import { useUserApi } from "~/composables/systems/useUserApi";
 
 export const useAuth = () => {
 	const userApi = useUserApi();
+	const config = useRuntimeConfig();
 
 	// 使用 cookie 儲存 token 和用戶資訊
-	// secure: 只在生產環境的 HTTPS 下為 true（開發環境 HTTP 無法設置 secure cookie）
-	const isSecure = process.env.NODE_ENV === "production";
+	// secure: 依 API 協定決定
+	// - https://backend.yenshow.com (Cloudflare tunnel) → secure: true
+	// - http://192.168.2.8:4000 (本地) → secure: false（HTTP 無法設置 secure cookie）
+	// 可透過 NUXT_PUBLIC_SECURE_COOKIE 強制覆寫（true/false）
+	const apiBase = config.public.apiBase || "http://localhost:4000/api";
+	const secureOverride = (config.public as { secureCookie?: string }).secureCookie;
+	const isSecure =
+		secureOverride !== undefined && secureOverride !== ""
+			? secureOverride === "true"
+			: apiBase.startsWith("https://");
 
 	const tokenCookie = useCookie<string | null>("auth_token", {
 		default: () => null,

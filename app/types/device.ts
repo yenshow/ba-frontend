@@ -1,5 +1,12 @@
 // 設備類型代碼（從後端動態讀取，這裡僅作為類型參考）
-export type DeviceTypeCode = "camera" | "controller" | "sensor" | "tablet" | "network" | "modbus" | "di_do" | string;
+export type DeviceTypeCode =
+	| "camera"
+	| "controller"
+	| "sensor"
+	| "access_control"
+	| "modbus"
+	| "di_do"
+	| string;
 
 // 設備狀態
 export type DeviceStatus = "active" | "inactive" | "error";
@@ -31,6 +38,16 @@ export interface SensorParameterDefinition {
 export interface SensorDeviceModelConfig {
 	// 感測器型號的參數配置列表
 	sensorParameters?: SensorParameterDefinition[];
+}
+
+/** 門禁設備型號：僅設定 CaptureFaceData 回傳格式，其餘參數由後端預設 */
+export interface AccessControlDeviceModelConfig {
+	isapi?: {
+		captureFaceData?: {
+			/** 回傳格式：AC-02 用 binary，AC-07 用 url */
+			dataType?: "binary" | "url";
+		};
+	};
 }
 
 // 設備型號
@@ -85,25 +102,21 @@ export interface SensorDeviceConfig extends DeviceConfigBase {
 	api_endpoint?: string; // HTTP 專用
 }
 
-// 平板配置
-export interface TabletDeviceConfig extends DeviceConfigBase {
-	type: "tablet";
-	mac_address: string;
-	ip_address?: string;
-	location?: string;
-}
-
-// 網路裝置配置
-export interface NetworkDeviceConfig extends DeviceConfigBase {
-	type: "network";
-	ip_address: string;
-	mac_address?: string;
-	device_type: "router" | "switch" | "access_point" | "other";
+// 門禁設備配置（ISAPI Digest Auth）
+export interface AccessControlDeviceConfig extends DeviceConfigBase {
+	type: "access_control";
+	host: string;
 	port?: number;
+	username: string;
+	password: string;
 }
 
 // 聯合類型
-export type DeviceConfig = ControllerDeviceConfig | CameraDeviceConfig | SensorDeviceConfig | TabletDeviceConfig | NetworkDeviceConfig;
+export type DeviceConfig =
+	| ControllerDeviceConfig
+	| CameraDeviceConfig
+	| SensorDeviceConfig
+	| AccessControlDeviceConfig;
 
 // 通用設備介面
 export interface Device {

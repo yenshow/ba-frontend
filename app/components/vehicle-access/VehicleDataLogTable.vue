@@ -6,7 +6,7 @@
 		<p class="text-base text-white/60 2xl:text-lg">尚無過車記錄</p>
 	</div>
 
-	<div v-else class="overflow-x-auto">
+	<div v-else class="show-scrollbar overflow-x-auto">
 		<table class="w-full border-b-2 border-l-2 border-r-2 border-white/20">
 			<thead class="bg-white/20">
 				<tr class="text-center text-xs font-semibold text-white/80 2xl:text-sm">

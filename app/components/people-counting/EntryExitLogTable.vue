@@ -25,9 +25,7 @@
 							type="button"
 							class="relative block h-12 w-12 overflow-hidden rounded bg-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-400 2xl:h-16 2xl:w-16"
 							:aria-label="`放大檢視 ${log.personName || '未知'} 設備截圖`"
-							:disabled="
-								!imageUrls[log.id] || imageLoadingStates[log.id] || imageErrorStates[log.id]
-							"
+							:disabled="!imageUrls[log.id] || imageLoadingStates[log.id] || imageErrorStates[log.id]"
 							@click="openLightbox(imageUrls[log.id])"
 						>
 							<!-- 載入中 -->

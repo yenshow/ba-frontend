@@ -28,7 +28,7 @@
 					class="fixed z-[9999] rounded-lg border border-white/20 bg-slate-800 shadow-lg"
 					:style="dropdownStyle"
 				>
-					<div class="max-h-60 overflow-y-auto p-2">
+					<div class="show-scrollbar max-h-60 overflow-y-auto p-2">
 						<div class="space-y-1">
 							<button
 								v-for="option in options"

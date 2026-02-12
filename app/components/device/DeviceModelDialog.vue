@@ -22,7 +22,7 @@
 						</button>
 					</header>
 
-					<div class="flex-1 overflow-y-auto pr-7 2xl:pr-8">
+					<div class="show-scrollbar flex-1 overflow-y-auto pr-7 2xl:pr-8">
 						<div class="min-h-[200px]">
 							<Transition name="fade" mode="out-in">
 								<div v-if="deviceModels && deviceModels.length > 0" :key="`models-${deviceModels.length}`">
@@ -39,7 +39,7 @@
 														model.type_name || "類型"
 													}}</span>
 													<span class="rounded bg-blue-500/30 px-2 py-1 text-xs text-blue-200 2xl:text-sm"
-														>Port : {{ model.port || 502 }}</span
+														>Port : {{ model.port ?? (deviceTypeCode === 'access_control' ? 80 : 502) }}</span
 													>
 												</div>
 												<p v-if="model.description" class="mt-1 text-sm text-white/60 2xl:text-base">
@@ -71,7 +71,7 @@
 					<footer class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8">
 						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
 						<div class="flex-1"></div>
-						<button type="button" class="btn-primary" @click="showForm = true">新增型號</button>
+						<button type="button" class="btn-primary" @click="openAddForm">新增型號</button>
 					</footer>
 				</div>
 
@@ -99,7 +99,7 @@
 
 							<form
 								@submit.prevent="handleFormSubmit"
-								class="flex flex-1 flex-col gap-4 overflow-y-auto pb-4 pr-7 2xl:gap-6 2xl:pb-6 2xl:pr-8"
+								class="show-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto pb-4 pr-7 2xl:gap-6 2xl:pb-6 2xl:pr-8"
 							>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>型號名稱 *</span>
@@ -132,9 +132,12 @@
 										min="1"
 										max="65535"
 										class="form-input"
-										placeholder="例如：502"
+										:placeholder="deviceTypeCode === 'access_control' ? '例如：80' : '例如：502'"
 									/>
-									<p class="mt-1 text-xs text-white/60">Modbus TCP 標準端口為 502</p>
+									<p v-if="deviceTypeCode === 'access_control'" class="mt-1 text-xs text-white/60">
+										HTTP/HTTPS 端口，預設 80
+									</p>
+									<p v-else class="mt-1 text-xs text-white/60">Modbus TCP 標準端口為 502</p>
 								</label>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>備註</span>
@@ -145,6 +148,24 @@
 										placeholder="設備型號描述或備註"
 									></textarea>
 								</label>
+
+								<!-- 門禁設備：僅設定設備截圖回傳格式，其餘參數由後端預設 -->
+								<template v-if="deviceTypeCode === 'access_control'">
+									<div class="border-t border-white/10 pt-4">
+										<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+											<span>設備截圖回傳格式 (CaptureFaceData) *</span>
+											<select
+												v-model="captureFaceDataType"
+												required
+												class="form-input form-select"
+											>
+												<option value="url">url（AC-07 等，回傳圖片網址）</option>
+												<option value="binary">binary（AC-02 等，回傳二進位）</option>
+											</select>
+											<p class="text-xs text-white/60">AC-02 請選 binary；AC-07 請選 url。</p>
+										</label>
+									</div>
+								</template>
 
 								<!-- 感測器參數配置（僅當設備類型為 sensor 時顯示） -->
 								<template v-if="deviceTypeCode === 'sensor'">
@@ -297,12 +318,11 @@ const emit = defineEmits<Emits>();
 const deviceApi = useDeviceApi();
 const toast = useToast();
 
-const deviceTypeNameMap: Record<DeviceTypeCode, string> = {
+const deviceTypeNameMap: Record<string, string> = {
 	camera: "影像設備",
 	controller: "控制器",
 	sensor: "感測器",
-	tablet: "平板",
-	network: "網路裝置"
+	access_control: "門禁設備",
 };
 
 const deviceTypeName = computed(() => {
@@ -318,6 +338,8 @@ const isSubmitting = ref(false);
 const formErrorMessage = ref<string | null>(null);
 const currentDeviceTypeId = ref<number | null>(null);
 
+const defaultPort = computed(() => (props.deviceTypeCode === "access_control" ? 80 : 502));
+
 const formData = reactive({
 	name: "",
 	type_id: 0,
@@ -329,13 +351,17 @@ const formData = reactive({
 // 感測器參數配置（僅當設備類型為 sensor 時使用）
 const sensorParameters = ref<SensorParameterDefinition[]>([]);
 
+// 門禁設備：僅設定 CaptureFaceData 回傳格式，其餘由後端預設
+const captureFaceDataType = ref<"binary" | "url">("url");
+
 const resetForm = () => {
 	formData.name = "";
 	formData.type_id = currentDeviceTypeId.value || 0;
-	formData.port = 502;
+	formData.port = defaultPort.value;
 	formData.description = "";
 	formData.config = {};
 	sensorParameters.value = [];
+	captureFaceDataType.value = "url";
 	formErrorMessage.value = null;
 };
 
@@ -427,13 +453,18 @@ const editDeviceModel = (model: DeviceModel) => {
 	editingModel.value = model;
 	formData.name = model.name;
 	formData.type_id = model.type_id;
-	formData.port = model.port || 502;
+	formData.port = model.port ?? defaultPort.value;
 	formData.description = model.description || "";
+
+	if (props.deviceTypeCode === "access_control") {
+		const config = model.config as Record<string, any> | undefined;
+		const c = config?.isapi?.captureFaceData;
+		captureFaceDataType.value = c?.dataType === "binary" ? "binary" : "url";
+	}
 
 	// 載入感測器參數配置（如果是感測器型號）
 	if (props.deviceTypeCode === "sensor" && model.config) {
 		const config = model.config as SensorDeviceModelConfig;
-		// 直接使用配置，後端已經不返回 length 欄位
 		sensorParameters.value = config.sensorParameters ? [...config.sensorParameters] : [];
 	} else {
 		sensorParameters.value = [];
@@ -480,6 +511,12 @@ const handleConfirmDelete = async () => {
 	}
 };
 
+const openAddForm = () => {
+	editingModel.value = null;
+	resetForm();
+	showForm.value = true;
+};
+
 const closeForm = () => {
 	showForm.value = false;
 	editingModel.value = null;
@@ -499,12 +536,16 @@ const handleFormSubmit = async () => {
 			description: formData.description || undefined
 		};
 
-		// 如果是感測器型號，包含參數配置
 		if (props.deviceTypeCode === "sensor") {
 			const sensorConfig: SensorDeviceModelConfig = {
 				sensorParameters: sensorParameters.value.length > 0 ? sensorParameters.value : undefined
 			};
 			submitData.config = sensorConfig;
+		}
+		if (props.deviceTypeCode === "access_control") {
+			submitData.config = {
+				isapi: { captureFaceData: { dataType: captureFaceDataType.value } }
+			};
 		}
 
 		if (editingModel.value) {
@@ -573,7 +614,7 @@ watch(
 }
 
 .form-input:disabled {
-	opacity: 0.6;
+	opacity: 0.5;
 	cursor: not-allowed;
 }
 

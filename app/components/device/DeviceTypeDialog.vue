@@ -22,7 +22,7 @@
 						</button>
 					</header>
 
-					<div class="flex-1 overflow-y-auto pr-7 2xl:pr-8">
+					<div class="show-scrollbar flex-1 overflow-y-auto pr-7 2xl:pr-8">
 						<div class="min-h-[200px]">
 							<Transition name="fade" mode="out-in">
 								<div v-if="deviceTypes.length > 0" :key="`types-${deviceTypes.length}`">
@@ -104,7 +104,7 @@
 
 							<form
 								@submit.prevent="handleSubmit"
-								class="flex flex-1 flex-col gap-4 overflow-y-auto pb-4 pr-7 2xl:gap-6 2xl:pb-6 2xl:pr-8"
+								class="show-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto pb-4 pr-7 2xl:gap-6 2xl:pb-6 2xl:pr-8"
 							>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>類型名稱 *</span>
@@ -343,7 +343,7 @@ watch(
 }
 
 .form-input:disabled {
-	opacity: 0.6;
+	opacity: 0.5;
 	cursor: not-allowed;
 }
 

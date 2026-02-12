@@ -1,5 +1,32 @@
 <template>
 	<div class="flex min-w-0 flex-1 flex-col">
+		<!-- 資料來源 -->
+		<div class="mb-3">
+			<span class="text-sm font-medium text-white/80 2xl:text-base">資料來源</span>
+			<div class="mt-2 flex gap-4">
+				<label class="flex cursor-pointer items-center gap-2">
+					<input
+						v-model="dataSource"
+						type="radio"
+						value="yscp"
+						class="h-4 w-4 accent-cyan-400"
+						@change="handleDataSourceChange"
+					/>
+					<span class="text-sm text-white/90 2xl:text-base">YSCP 資料庫（出入口設備）</span>
+				</label>
+				<label class="flex cursor-pointer items-center gap-2">
+					<input
+						v-model="dataSource"
+						type="radio"
+						value="access_control"
+						class="h-4 w-4 accent-cyan-400"
+						@change="handleDataSourceChange"
+					/>
+					<span class="text-sm text-white/90 2xl:text-base">門禁設備（本系統）</span>
+				</label>
+			</div>
+		</div>
+
 		<div class="flex min-w-0 items-end gap-2">
 			<!-- 地點名稱 -->
 			<label class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0">
@@ -14,93 +41,147 @@
 				/>
 			</label>
 
-			<!-- 入口設備 -->
-			<label class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0">
-				<span>入口設備</span>
-				<FilterDropdown
-					v-model="entryDoorIdString"
-					:options="doorOptions"
-					placeholder="無"
-					@update:modelValue="handleEntryDoorChange"
-				/>
-			</label>
+			<!-- YSCP：入口／出口設備 -->
+			<template v-if="dataSource === 'yscp'">
+				<label class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0">
+					<span>入口設備</span>
+					<FilterDropdown
+						v-model="entryDoorIdString"
+						:options="doorOptions"
+						placeholder="無"
+						@update:modelValue="(v: string) => setEntryExit('entry', v)"
+					/>
+				</label>
+				<label class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0">
+					<span>出口設備</span>
+					<FilterDropdown
+						v-model="exitDoorIdString"
+						:options="doorOptions"
+						placeholder="無"
+						@update:modelValue="(v: string) => setEntryExit('exit', v)"
+					/>
+				</label>
+			</template>
 
-			<!-- 出口設備 -->
-			<label class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0">
-				<span>出口設備</span>
-				<FilterDropdown
-					v-model="exitDoorIdString"
-					:options="doorOptions"
-					placeholder="無"
-					@update:modelValue="handleExitDoorChange"
-				/>
-			</label>
+			<!-- 門禁設備：入口／出口設備（本系統） -->
+			<template v-else>
+				<label class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0">
+					<span>入口設備 *</span>
+					<FilterDropdown
+						v-model="entryDeviceIdString"
+						:options="accessControlDeviceOptions"
+						:placeholder="accessControlDevices.length === 0 ? '請先在設備管理新增門禁設備' : '請選擇'"
+						@update:modelValue="(v: string) => setEntryExit('entry', v)"
+					/>
+				</label>
+				<label class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0">
+					<span>出口設備</span>
+					<FilterDropdown
+						v-model="exitDeviceIdString"
+						:options="accessControlDeviceOptions"
+						placeholder="無"
+						@update:modelValue="(v: string) => setEntryExit('exit', v)"
+					/>
+				</label>
+			</template>
 		</div>
 
-		<!-- 人員群組列表（參考感測器參數列表的設計） -->
+		<!-- 人員群組（YSCP 必選；門禁設備為選填，建立地點後再管理人員） -->
 		<div class="mt-3 border-t border-white/10 pt-3">
 			<div class="mb-3">
-				<span class="text-sm font-medium text-white/80 2xl:text-base">人員群組 *</span>
+				<span class="text-sm font-medium text-white/80 2xl:text-base">
+					人員群組 {{ dataSource === 'yscp' ? '*' : '（選填）' }}
+				</span>
 			</div>
 
-			<!-- 載入中狀態 -->
-			<div
-				v-if="personGroups.length === 0"
-				class="py-2 text-center text-xs text-white/50 2xl:text-sm"
-			>
-				載入中...
-			</div>
-
-			<!-- 人員群組選項（使用網格布局） -->
-			<div v-else class="grid grid-cols-2 gap-2">
-				<label
-					v-for="group in personGroups"
-					:key="group.id"
-					class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
-					:class="{
-						'border-cyan-400/50 bg-cyan-500/20': isPersonGroupSelected(group.id)
-					}"
+			<template v-if="dataSource === 'yscp'">
+				<div
+					v-if="personGroups.length === 0"
+					class="py-2 text-center text-xs text-white/50 2xl:text-sm"
 				>
-					<input
-						type="checkbox"
-						:checked="isPersonGroupSelected(group.id)"
-						@change="togglePersonGroup(group.id)"
-						class="h-4 w-4 cursor-pointer accent-cyan-400"
-					/>
-					<span class="text-xs text-white/90 2xl:text-sm">
-						{{ group.name }}
-					</span>
-				</label>
-			</div>
+					載入中...
+				</div>
+				<div v-else class="grid grid-cols-2 gap-2">
+					<label
+						v-for="group in personGroups"
+						:key="group.id"
+						class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
+						:class="{
+							'border-cyan-400/50 bg-cyan-500/20': isPersonGroupSelected(group.id)
+						}"
+					>
+						<input
+							type="checkbox"
+							:checked="isPersonGroupSelected(group.id)"
+							@change="togglePersonGroup(group.id)"
+							class="h-4 w-4 cursor-pointer accent-cyan-400"
+						/>
+						<span class="text-xs text-white/90 2xl:text-sm">{{ group.name }}</span>
+					</label>
+				</div>
+				<p
+					v-if="(!localLocation.personGroupIds || localLocation.personGroupIds.length === 0) && personGroups.length > 0"
+					class="mt-2 text-xs text-amber-300 2xl:text-sm"
+				>
+					至少需要選擇一個人員群組
+				</p>
+			</template>
+			<template v-else>
+				<AccessControlPersonnelPanel
+					:title="'入口設備人員'"
+					:role-label="'入口設備'"
+					:device-id="localLocation.entryDeviceId"
+					@update:list="handleEntryPersonnelUpdate"
+				/>
+				<AccessControlPersonnelPanel
+					:title="'出口設備人員'"
+					:role-label="'出口設備'"
+					:device-id="localLocation.exitDeviceId"
+					@update:list="handleExitPersonnelUpdate"
+				/>
 
-			<!-- 驗證提示 -->
-			<p
-				v-if="!localLocation.personGroupIds || localLocation.personGroupIds.length === 0"
-				class="mt-2 text-xs text-amber-300 2xl:text-sm"
-			>
-				至少需要選擇一個人員群組
-			</p>
+				<AccessControlGroupsPanel
+					:groups="accessControlGroupsList"
+					:entry-personnel="entryPersonnelList"
+					:exit-personnel="exitPersonnelList"
+					@update:groups="handleGroupsUpdate"
+				/>
+			</template>
 		</div>
 
 		<!-- 警告提示 -->
-		<div
-			v-if="localLocation.entryDoorId && !localLocation.exitDoorId"
-			class="mt-3 rounded border border-amber-500/50 bg-amber-500/20 p-2 text-xs text-amber-300 2xl:text-sm"
-		>
-			已設定入口設備，建議同時設定出口設備
-		</div>
-		<div
-			v-if="localLocation.exitDoorId && !localLocation.entryDoorId"
-			class="mt-3 rounded border border-amber-500/50 bg-amber-500/20 p-2 text-xs text-amber-300 2xl:text-sm"
-		>
-			已設定出口設備，建議同時設定入口設備
-		</div>
+		<template v-if="dataSource === 'yscp'">
+			<div
+				v-if="localLocation.entryDoorId && !localLocation.exitDoorId"
+				class="mt-3 rounded border border-amber-500/50 bg-amber-500/20 p-2 text-xs text-amber-300 2xl:text-sm"
+			>
+				已設定入口設備，建議同時設定出口設備
+			</div>
+			<div
+				v-if="localLocation.exitDoorId && !localLocation.entryDoorId"
+				class="mt-3 rounded border border-amber-500/50 bg-amber-500/20 p-2 text-xs text-amber-300 2xl:text-sm"
+			>
+				已設定出口設備，建議同時設定入口設備
+			</div>
+		</template>
+		<template v-else>
+			<div
+				v-if="localLocation.entryDeviceId && localLocation.exitDeviceId && localLocation.entryDeviceId === localLocation.exitDeviceId"
+				class="mt-3 rounded border border-amber-500/50 bg-amber-500/20 p-2 text-xs text-amber-300 2xl:text-sm"
+			>
+				入口與出口請勿選擇同一設備
+			</div>
+		</template>
 	</div>
 </template>
 
 <script setup lang="ts">
-import type { PeopleCountingLocation } from "~/types/peopleCounting";
+import type { PeopleCountingLocation, AccessControlGroup } from "~/types/peopleCounting";
+import type { Device } from "~/types/device";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
+import type { AccessControlUserInfo } from "~/composables/systems/useAccessControlApi";
+import AccessControlPersonnelPanel from "~/components/access-control/AccessControlPersonnelPanel.vue";
+import AccessControlGroupsPanel from "~/components/access-control/AccessControlGroupsPanel.vue";
 
 interface PersonGroup {
 	id: number;
@@ -120,6 +201,7 @@ interface Props {
 	location: PeopleCountingLocation;
 	personGroups?: PersonGroup[];
 	doors?: Door[];
+	accessControlDevices?: Device[];
 }
 
 interface Emits {
@@ -128,82 +210,118 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
 	personGroups: () => [],
-	doors: () => []
+	doors: () => [],
+	accessControlDevices: () => [],
 });
 
 const emit = defineEmits<Emits>();
 
-// 本地副本，用於雙向綁定
 const localLocation = ref<PeopleCountingLocation>({ ...props.location });
 
-// 設備 ID 字串（用於 FilterDropdown）- 必須在 watch 之前定義
+const dataSource = ref<"yscp" | "access_control">(
+	(props.location.dataSource as "yscp" | "access_control") || "yscp"
+);
+
 const entryDoorIdString = ref("");
 const exitDoorIdString = ref("");
+const entryDeviceIdString = ref("");
+const exitDeviceIdString = ref("");
 
-// 監聽 props.location 變化
 watch(
 	() => props.location,
-	newLocation => {
+	(newLocation) => {
 		localLocation.value = { ...newLocation };
-		// 確保 personGroupIds 陣列存在
-		if (!localLocation.value.personGroupIds) {
-			localLocation.value.personGroupIds = [];
-		}
-		// 更新設備 ID 字串（用於 FilterDropdown）
-		entryDoorIdString.value = localLocation.value.entryDoorId ? String(localLocation.value.entryDoorId) : "";
-		exitDoorIdString.value = localLocation.value.exitDoorId ? String(localLocation.value.exitDoorId) : "";
+		if (!localLocation.value.personGroupIds) localLocation.value.personGroupIds = [];
+		if (!localLocation.value.accessControlGroups) localLocation.value.accessControlGroups = [];
+		dataSource.value = (newLocation.dataSource as "yscp" | "access_control") || "yscp";
+		entryDoorIdString.value = newLocation.entryDoorId ? String(newLocation.entryDoorId) : "";
+		exitDoorIdString.value = newLocation.exitDoorId ? String(newLocation.exitDoorId) : "";
+		entryDeviceIdString.value = newLocation.entryDeviceId ? String(newLocation.entryDeviceId) : "";
+		exitDeviceIdString.value = newLocation.exitDeviceId ? String(newLocation.exitDeviceId) : "";
 	},
 	{ immediate: true, deep: true }
 );
 
-// 門禁設備選項（用於 FilterDropdown）
+// 門禁設備：入口／出口人員列表（供群組交集運算）
+const entryPersonnelList = ref<AccessControlUserInfo[]>([]);
+const exitPersonnelList = ref<AccessControlUserInfo[]>([]);
+
+const accessControlGroupsList = computed(() => localLocation.value.accessControlGroups || []);
+
+const handleEntryPersonnelUpdate = (list: AccessControlUserInfo[]) => {
+	entryPersonnelList.value = list;
+};
+
+const handleExitPersonnelUpdate = (list: AccessControlUserInfo[]) => {
+	exitPersonnelList.value = list;
+};
+
+const handleGroupsUpdate = (groups: AccessControlGroup[]) => {
+	localLocation.value.accessControlGroups = groups;
+	handleChange();
+};
+
 const doorOptions = computed(() => {
-	const options = props.doors.map(door => ({
+	const options = props.doors.map((door) => ({
 		value: String(door.id),
-		label: door.dev_name
+		label: door.dev_name,
 	}));
-	// 添加空選項（用於清除選擇）
-	return [
-		{ value: "", label: "無" },
-		...options
-	];
+	return [{ value: "", label: "無" }, ...options];
 });
 
-// 檢查人員群組是否被選中
+const accessControlDeviceOptions = computed(() => {
+	const options = props.accessControlDevices.map((d) => ({
+		value: String(d.id),
+		label: d.name,
+	}));
+	return [{ value: "", label: "無" }, ...options];
+});
+
 const isPersonGroupSelected = (groupId: number): boolean => {
 	return localLocation.value.personGroupIds?.includes(groupId) || false;
 };
 
-// 切換人員群組選中狀態
 const togglePersonGroup = (groupId: number) => {
 	if (!localLocation.value.personGroupIds) {
 		localLocation.value.personGroupIds = [];
 	}
-
 	const index = localLocation.value.personGroupIds.indexOf(groupId);
 	if (index > -1) {
-		// 移除
 		localLocation.value.personGroupIds.splice(index, 1);
 	} else {
-		// 新增
 		localLocation.value.personGroupIds.push(groupId);
 	}
 	handleChange();
 };
 
-// 處理入口設備變更
-const handleEntryDoorChange = (value: string) => {
-	localLocation.value.entryDoorId = value ? Number(value) : undefined;
+const handleDataSourceChange = () => {
+	localLocation.value.dataSource = dataSource.value;
+	if (dataSource.value === "access_control") {
+		localLocation.value.entryDoorId = undefined;
+		localLocation.value.exitDoorId = undefined;
+		localLocation.value.entryDeviceId = entryDeviceIdString.value ? Number(entryDeviceIdString.value) : undefined;
+		localLocation.value.exitDeviceId = exitDeviceIdString.value ? Number(exitDeviceIdString.value) : undefined;
+	} else {
+		localLocation.value.entryDeviceId = undefined;
+		localLocation.value.exitDeviceId = undefined;
+		localLocation.value.entryDoorId = entryDoorIdString.value ? Number(entryDoorIdString.value) : undefined;
+		localLocation.value.exitDoorId = exitDoorIdString.value ? Number(exitDoorIdString.value) : undefined;
+	}
 	handleChange();
 };
 
-// 處理出口設備變更
-const handleExitDoorChange = (value: string) => {
-	localLocation.value.exitDoorId = value ? Number(value) : undefined;
+const setEntryExit = (role: "entry" | "exit", value: string) => {
+	const num = value ? Number(value) : undefined;
+	if (dataSource.value === "access_control") {
+		if (role === "entry") localLocation.value.entryDeviceId = num;
+		else localLocation.value.exitDeviceId = num;
+	} else {
+		if (role === "entry") localLocation.value.entryDoorId = num;
+		else localLocation.value.exitDoorId = num;
+	}
 	handleChange();
 };
 
-// 處理變更
 const handleChange = () => {
 	emit("update", { ...localLocation.value });
 };

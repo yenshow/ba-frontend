@@ -26,7 +26,7 @@
 						</button>
 					</header>
 
-					<div class="min-h-[130px] flex-1 overflow-y-auto">
+					<div class="show-scrollbar min-h-[130px] flex-1 overflow-y-auto">
 						<div
 							v-if="isLoading"
 							class="flex items-center justify-center rounded-lg border-2 border-white/20 bg-white/5 p-8"

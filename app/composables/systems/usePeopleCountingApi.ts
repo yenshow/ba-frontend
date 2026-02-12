@@ -195,10 +195,17 @@ export const usePeopleCountingApi = () => {
 
 	/**
 	 * 取得地點進出場記錄
+	 * startTime / endTime 未傳時，後端預設為今日範圍
 	 */
 	const getLocationLogs = async (
 		locationId: number,
-		options?: { limit?: number; unitId?: number }
+		options?: {
+			limit?: number;
+			unitId?: number;
+			startTime?: string;
+			endTime?: string;
+			offset?: number;
+		}
 	): Promise<PeopleCountingLog[]> => {
 		try {
 			const params = new URLSearchParams();
@@ -207,6 +214,15 @@ export const usePeopleCountingApi = () => {
 			}
 			if (options?.unitId) {
 				params.append("unitId", String(options.unitId));
+			}
+			if (options?.startTime) {
+				params.append("startTime", options.startTime);
+			}
+			if (options?.endTime) {
+				params.append("endTime", options.endTime);
+			}
+			if (options?.offset != null && options.offset > 0) {
+				params.append("offset", String(options.offset));
 			}
 
 			const queryString = params.toString();
@@ -222,6 +238,7 @@ export const usePeopleCountingApi = () => {
 					eventType: "entry" | "exit" | "failed";
 					timestamp: string;
 					deviceScreenshotUrl: string;
+					deviceName?: string;
 				}>;
 			}>(url);
 

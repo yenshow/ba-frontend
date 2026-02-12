@@ -86,7 +86,11 @@
 
 <script setup lang="ts">
 // 使用統一的時間工具函數（UTC）
-import { getTimeRangeUTC, formatDateInput as formatDateInputUtil, formatDateLocal } from "~/utils/dateUtils";
+import {
+	getTimeRangeUTC,
+	formatDateInput as formatDateInputUtil,
+	formatDateLocal
+} from "~/utils/dateUtils";
 
 interface TimeRangePreset {
 	value: string;
@@ -199,4 +203,3 @@ onMounted(() => {
 	opacity: 0;
 }
 </style>
-

@@ -6,7 +6,7 @@
 		<p class="text-sm text-white/60 xl:text-base">尚無進出場記錄</p>
 	</div>
 
-	<div v-else class="overflow-x-auto">
+	<div v-else class="show-scrollbar overflow-x-auto">
 		<table class="w-full border-b-2 border-l-2 border-r-2 border-white/20">
 			<thead>
 				<tr

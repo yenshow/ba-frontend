@@ -1,6 +1,6 @@
 <template>
 	<div
-		class="relative h-full overflow-hidden overflow-y-auto rounded-2xl border-2 border-white/80 bg-white/30 space-y-6 px-3 py-6 2xl:space-y-8 2xl:px-4 2xl:py-8"
+		class="show-scrollbar relative h-full overflow-hidden overflow-y-auto rounded-2xl border-2 border-white/80 bg-white/30 space-y-6 px-3 py-6 2xl:space-y-8 2xl:px-4 2xl:py-8"
 	>
 		<h3 class="ms-[12px] text-center text-2xl tracking-[12px] text-white 2xl:text-3xl">
 			狀態中心

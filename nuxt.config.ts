@@ -1,7 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
 	compatibilityDate: "2025-07-15",
-	devtools: { enabled: true },
+	devtools: { enabled: false },
 
 	modules: ["@nuxt/image", "@nuxt/scripts", "@nuxt/test-utils", "@nuxtjs/tailwindcss"],
 
@@ -12,7 +12,7 @@ export default defineNuxtConfig({
 			meta: [
 				{ charset: "utf-8" },
 				{ name: "viewport", content: "width=device-width, initial-scale=1" },
-				{ name: "description", content: "樓宇自動化監控與管理系統" }
+				{ name: "description", content: "智慧工地管理與監控平台" }
 			],
 			link: [{ rel: "icon", type: "image/x-icon", href: "/favicon.ico" }]
 		}
@@ -63,6 +63,8 @@ export default defineNuxtConfig({
 	runtimeConfig: {
 		public: {
 			apiBase: process.env.NUXT_PUBLIC_API_BASE || "http://192.168.2.8:4000/api",
+			// 強制覆寫 cookie secure：未設定時依 apiBase 協定自動判斷（https→true, http→false）
+			secureCookie: process.env.NUXT_PUBLIC_SECURE_COOKIE || undefined,
 			// MediaMTX 服務 URL（HLS 和 WebRTC）
 			mediamtxHlsUrl: process.env.NUXT_PUBLIC_MEDIAMTX_HLS_URL || "http://localhost:8888",
 			mediamtxWebrtcUrl: process.env.NUXT_PUBLIC_MEDIAMTX_WEBRTC_URL || "http://localhost:8889",

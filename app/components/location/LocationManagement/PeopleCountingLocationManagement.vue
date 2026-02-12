@@ -19,7 +19,7 @@
 		>
 			尚無地點，請新增地點
 		</div>
-		<div v-else class="space-y-2">
+			<div v-else class="space-y-2">
 			<div
 				v-for="(location, locationIndex) in getLocations(zone)"
 				:key="getLocationId(location, locationIndex)"
@@ -31,6 +31,7 @@
 						:location="location"
 						:person-groups="personGroups"
 						:doors="doors"
+						:access-control-devices="accessControlDevices"
 						@update="handleLocationUpdate(locationIndex, $event)"
 					/>
 				</div>
@@ -59,6 +60,7 @@
 
 <script setup lang="ts">
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting";
+import type { Device } from "~/types/device";
 import PeopleCountingLocationFields from "../LocationFormFields/PeopleCountingLocationFields.vue";
 
 interface PersonGroup {
@@ -79,6 +81,7 @@ interface Props {
 	zone: PeopleCountingZone;
 	personGroups?: PersonGroup[];
 	doors?: Door[];
+	accessControlDevices?: Device[];
 }
 
 interface Emits {
@@ -89,7 +92,8 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
 	personGroups: () => [],
-	doors: () => []
+	doors: () => [],
+	accessControlDevices: () => [],
 });
 
 const emit = defineEmits<Emits>();

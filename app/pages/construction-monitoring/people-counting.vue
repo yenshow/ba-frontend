@@ -5,28 +5,41 @@
 			<!-- 左側：詳細工地資訊（主要內容 - 大） -->
 			<section class="relative flex-[1.2] 2xl:flex-[1.3]" ref="leftSectionRef">
 				<div
-					class="relative flex flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 2xl:p-6 min-h-[664px] 2xl:min-h-[848px]"
+					class="relative flex min-h-[664px] flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 2xl:min-h-[848px] 2xl:p-6"
 				>
 					<!-- 位置標題與地點選擇 -->
 					<div
-						class="absolute left-1/2 top-0 flex h-[36px] 2xl:h-[48px] translate-x-[-50%] items-center justify-center bg-white text-[#595959]"
+						class="absolute left-1/2 top-0 flex h-[36px] translate-x-[-50%] items-center justify-center bg-white text-[#595959] 2xl:h-[48px]"
 						style="clip-path: polygon(0 0, 100% 0, calc(100% - 24px) 100%, calc(0% + 24px) 100%)"
 					>
 						<div class="flex w-[200px] items-center justify-center">
-							<span v-if="selectedLocation" class="ps-[12px] text-[24px] 2xl:text-[36px]">{{getLocationZone(selectedLocation)}}</span>
+							<span v-if="selectedLocation" class="ps-[12px] text-[24px] 2xl:text-[36px]">{{
+								getLocationZone(selectedLocation)
+							}}</span>
 						</div>
 						<div class="h-[24px] w-px bg-[#595959]"></div>
 						<div class="flex w-[200px] items-center justify-center">
-							<span v-if="selectedLocation" class="pe-[12px] text-[24px] 2xl:text-[36px]">{{ selectedLocation.name }}</span>
+							<span v-if="selectedLocation" class="pe-[12px] text-[24px] 2xl:text-[36px]">{{
+								selectedLocation.name
+							}}</span>
 						</div>
 					</div>
 
 					<button
 						type="button"
 						class="absolute left-8 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
+						aria-label="地點管理"
 						@click="handleOpenLocationDialog"
 					>
 						地點管理
+					</button>
+					<button
+						type="button"
+						class="absolute right-8 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
+						aria-label="開啟完整報表"
+						@click="handleOpenSimulation"
+					>
+						完整報表
 					</button>
 
 					<!-- 左側內容：分為上、左下、右下三區塊 -->
@@ -46,15 +59,20 @@
 								<EntryExitLogTable :logs="logs" />
 								<!-- 右下：進場單位列表 -->
 								<div class="space-y-4">
-									<h3 class="font-semibold text-lg bg-white/20 text-white text-center 2xl:text-xl py-1">進場單位</h3>
-									<div v-if="!selectedLocation.units || selectedLocation.units.length === 0" class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center">
+									<h3 class="bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
+										進場單位
+									</h3>
+									<div
+										v-if="!selectedLocation.units || selectedLocation.units.length === 0"
+										class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
+									>
 										<p class="text-sm text-white/60 xl:text-base">尚無單位資料</p>
 									</div>
 									<div v-else class="grid grid-cols-4 gap-4">
 										<div
 											v-for="unit in selectedLocation.units"
 											:key="unit.id"
-											class="flex flex-col justify-center items-center border-2 border-white/0 transition-all cursor-pointer py-2"
+											class="flex cursor-pointer flex-col items-center justify-center border-2 border-white/0 py-2 transition-all"
 											:class="{
 												'bg-white/20': (unit.currentCount || 0) > 0,
 												'bg-black/20': (unit.currentCount || 0) === 0
@@ -66,8 +84,10 @@
 											@keydown.enter="handleUnitClick(unit)"
 											@keydown.space.prevent="handleUnitClick(unit)"
 										>
-											<div class="text-base font-semibold text-white 2xl:text-lg tracking-wide">{{ unit.name }}</div>
-											<div class="text-base text-white 2xl:text-lg space-x-0.5">
+											<div class="text-base font-semibold tracking-wide text-white 2xl:text-lg">
+												{{ unit.name }}
+											</div>
+											<div class="space-x-0.5 text-base text-white 2xl:text-lg">
 												<span class="text-green-400">{{ unit.currentCount || 0 }}</span>
 												<span>/</span>
 												<span>{{ unit.capacity || 0 }}</span>
@@ -114,7 +134,7 @@
 				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
 			>
 				<div
-					class="relative h-full min-w-[72px] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8 transition-all duration-500 ease-in-out 2xl:min-w-[84px]"
+					class="show-scrollbar relative h-full min-w-[72px] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8 transition-all duration-500 ease-in-out 2xl:min-w-[84px]"
 				>
 					<!-- 標題與收縮按鈕 -->
 					<Transition name="fade">
@@ -149,27 +169,27 @@
 						<div
 							v-if="!isSidebarCollapsed"
 							key="content"
-							class="min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
+							class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
 						>
-						<div class="space-y-4">
-							<template v-if="locations.length > 0">
-								<LocationOverviewCard
-									v-for="location in locationsForOverview"
-									:key="location.locationId || location.id"
-									:location="location"
-									@click="handleLocationSelect"
-									:class="{
-										'ring-2 ring-cyan-400': isCurrentLocation(location),
-										'hover:ring-2 hover:ring-cyan-300/50': true
-									}"
-								/>
-							</template>
-							<div v-else class="py-8 text-center text-white/60">
-								<p class="text-base 2xl:text-lg">尚無地點資料</p>
-								<p class="mt-2 text-sm 2xl:text-base">請在「地點管理」中新增地點</p>
+							<div class="space-y-4">
+								<template v-if="locations.length > 0">
+									<LocationOverviewCard
+										v-for="location in locationsForOverview"
+										:key="location.locationId || location.id"
+										:location="location"
+										@click="handleLocationSelect"
+										:class="{
+											'ring-2 ring-cyan-400': isCurrentLocation(location),
+											'hover:ring-2 hover:ring-cyan-300/50': true
+										}"
+									/>
+								</template>
+								<div v-else class="py-8 text-center text-white/60">
+									<p class="text-base 2xl:text-lg">尚無地點資料</p>
+									<p class="mt-2 text-sm 2xl:text-base">請在「地點管理」中新增地點</p>
+								</div>
 							</div>
 						</div>
-					</div>
 					</Transition>
 				</div>
 			</aside>
@@ -183,6 +203,15 @@
 		@save="handleSaveZone"
 		@delete="handleDeleteZone"
 	/>
+	<SimulationFrame v-model="showSimulationFrame" title="人流統計 - 完整報表">
+		<PeopleCountingSimulation
+			:logs="simulationLogs"
+			:zone-name="simulationZoneName"
+			:location-name="simulationLocationName"
+			:time-range="simulationTimeRange"
+			@update:time-range="handleSimulationTimeRangeUpdate"
+		/>
+	</SimulationFrame>
 	<UnitPersonnelDialog
 		v-model="isUnitDialogOpen"
 		:unit-name="selectedUnitName"
@@ -194,12 +223,18 @@
 
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, watch, nextTick, computed, ref } from "vue";
-import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting";
+import type {
+	PeopleCountingZone,
+	PeopleCountingLocation,
+	PeopleCountingLog
+} from "~/types/peopleCounting";
 import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue";
 import LocationOverviewCard from "~/components/people-counting/LocationOverviewCard.vue";
 import EntryExitLogTable from "~/components/people-counting/EntryExitLogTable.vue";
 import UnitPersonnelDialog from "~/components/home/UnitPersonnelDialog.vue";
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
+import SimulationFrame from "~/components/common/SimulationFrame.vue";
+import PeopleCountingSimulation from "~/components/people-counting/PeopleCountingSimulation.vue";
 import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState";
 import { usePeopleCountingWebSocket } from "~/composables/systems/peopleCounting/usePeopleCountingWebSocket";
 import { usePeopleCountingLocationApi } from "~/composables/systems/location/usePeopleCountingLocationApi";
@@ -211,6 +246,7 @@ import type { UnifiedZone } from "~/types/location";
 import { usePeopleCountingApi } from "~/composables/systems/usePeopleCountingApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import type { PeopleCountingUnit, PeopleCountingPersonnel } from "~/types/peopleCounting";
+import { getTodayDateRangeUTC } from "~/utils/dateUtils";
 
 // 使用統一的狀態管理
 const {
@@ -282,8 +318,62 @@ const initLeftSectionObserver = () => {
 // 側邊欄收縮狀態
 const isSidebarCollapsed = ref(false);
 
-// 地點管理相關狀態
+// 地點管理與模擬框狀態
 const showLocationManagementDialog = ref(false);
+const showSimulationFrame = ref(false);
+
+const { start: todayStart, end: todayEnd } = getTodayDateRangeUTC();
+const simulationTimeRange = ref({
+	startDate: todayStart.toISOString(),
+	endDate: todayEnd.toISOString(),
+	preset: "today"
+});
+
+const simulationZoneName = computed(() =>
+	selectedLocation.value ? (getLocationZone(selectedLocation.value) ?? "") : ""
+);
+const simulationLocationName = computed(() => selectedLocation.value?.name ?? "");
+
+const simulationLogs = ref<PeopleCountingLog[]>([]);
+
+/** 完整報表一次載入全部資料（含超過 500 筆），供畫面與 CSV 匯出使用 */
+const loadSimulationLogs = async () => {
+	const loc = selectedLocation.value;
+	if (!loc?.locationId) {
+		simulationLogs.value = [];
+		return;
+	}
+	const { startDate, endDate } = simulationTimeRange.value;
+	try {
+		simulationLogs.value = await peopleCountingApi.getLocationLogs(loc.locationId, {
+			limit: 50000,
+			...(startDate && { startTime: startDate }),
+			...(endDate && { endTime: endDate })
+		});
+	} catch {
+		simulationLogs.value = [];
+	}
+};
+
+const handleSimulationTimeRangeUpdate = (v: {
+	startDate: string;
+	endDate: string;
+	preset: string;
+}) => {
+	simulationTimeRange.value = v;
+	void loadSimulationLogs();
+};
+
+const handleOpenSimulation = async () => {
+	const { start, end } = getTodayDateRangeUTC();
+	simulationTimeRange.value = {
+		startDate: start.toISOString(),
+		endDate: end.toISOString(),
+		preset: "today"
+	};
+	showSimulationFrame.value = true;
+	await loadSimulationLogs();
+};
 
 // 選中地點 ID（用於刪除邏輯，與環境品質保持一致）
 const selectedLocationId = ref<string>("");
@@ -295,7 +385,10 @@ const adapter = useZoneSystemAdapter<PeopleCountingZone, PeopleCountingLocation>
 // 使用適配器提供的統一方法
 const getLocationId = (location: PeopleCountingLocation): string => {
 	const zoneName = getLocationZone(location);
-	return adapter.getLocationId?.(location, zoneName || undefined) || `${zoneName || "unknown"}-${location.name}`;
+	return (
+		adapter.getLocationId?.(location, zoneName || undefined) ||
+		`${zoneName || "unknown"}-${location.name}`
+	);
 };
 
 // 監聽 selectedLocation 變化，同步更新 selectedLocationId（用於刪除邏輯）
@@ -418,7 +511,7 @@ const handleOpenLocationDialog = async () => {
 // 處理單位點擊事件（打開人員對話框）
 const handleUnitClick = async (unit: PeopleCountingUnit) => {
 	if (!unit || !unit.name) return;
-	
+
 	selectedUnitName.value = unit.name;
 	isUnitDialogOpen.value = true;
 	isLoadingUnitPersonnel.value = true;
@@ -461,19 +554,19 @@ onMounted(async () => {
 	// 使用防抖優化（500ms），避免短時間內多次觸發
 	cleanupWebSocket = setupEventListeners(async () => {
 		const locationId = selectedLocation.value?.locationId;
-		
+
 		// 並行載入地點列表和詳情（如果有的話）
 		// 使用 Promise.allSettled 確保即使一個失敗也不影響另一個
 		// 錯誤已在 composable 中統一處理
 		await Promise.allSettled([
 			loadLocations(), // 載入列表（更新統計和總覽卡片）
-			locationId ? loadLocationDetail(locationId) : Promise.resolve(),
+			locationId ? loadLocationDetail(locationId) : Promise.resolve()
 		]);
-		
+
 		// 確保所有計算屬性和元件在資料載入後重新計算
 		// 使用 nextTick 確保 Vue 響應式系統完成所有更新
 		await nextTick();
-		
+
 		// 更新左側區域高度（因為資料變化可能影響佈局）
 		updateLeftSectionHeight();
 	}, 500); // 防抖延遲 500ms
@@ -482,12 +575,12 @@ onMounted(async () => {
 		// 優化：先載入地點列表（內部會並行請求 zones），然後使用返回的 zones 數據
 		// 這樣可以避免重複請求 zones
 		await loadLocations();
-		
+
 		// 如果 loadLocations 沒有返回 zones（例如已有緩存），則單獨載入
 		if (peopleCountingZones.value.length === 0) {
 			await loadZones();
 		}
-		
+
 		// 如果列表不為空，自動選擇第一個
 		if (locations.value.length > 0 && !selectedLocation.value) {
 			await handleLocationSelect(locations.value[0].locationId || Number(locations.value[0].id || 0));
