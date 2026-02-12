@@ -186,7 +186,7 @@
 									:summary="summary"
 									:class="{
 										'ring-2 ring-cyan-400': isCurrentSummary(summary),
-										'hover:ring-2 hover:ring-cyan-300/50': true
+										'cursor-pointer transition-all hover:ring-2 hover:ring-cyan-300/50': true
 									}"
 									@click="handleOverviewClick(summary.id)"
 								/>
@@ -272,10 +272,9 @@ const selectedVehicleDialogTitle = computed(() => {
 	const plate = selectedVehiclePlate.value;
 	if (!plate) return "";
 	const plateNorm = plate.trim();
-	const item = vehicleListWithStatus.value.find(
-		v => (v.plate_license?.trim() ?? "") === plateNorm
-	);
-	if (item?.owner_name?.trim()) return `${item.owner_name.trim()} - ${item.plate_license?.trim() ?? plate}`;
+	const item = vehicleListWithStatus.value.find(v => (v.plate_license?.trim() ?? "") === plateNorm);
+	if (item?.owner_name?.trim())
+		return `${item.owner_name.trim()} - ${item.plate_license?.trim() ?? plate}`;
 	return item?.plate_license?.trim() ?? plate;
 });
 
@@ -370,9 +369,11 @@ const getLocationId = (location: VehicleAccessLocation & { zoneName?: string }):
 	);
 };
 
+// 與 environment 一致：僅以單一 id 判斷選定，確保總覽只有一卡高亮
 const isCurrentSummary = (summary: VehicleAccessLocationSummary): boolean => {
-	if (!selectedLocation.value) return false;
-	return summary.id === selectedLocation.value.id || summary.name === selectedLocation.value.name;
+	const selectedId = filters.value.locationId ?? "";
+	if (!selectedId) return false;
+	return String(summary.id ?? "") === String(selectedId);
 };
 
 /** 與人流統計一致：地點／列表變更時更新右側高度 */

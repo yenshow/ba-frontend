@@ -39,7 +39,7 @@ export const usePeopleCountingLocationApi = () => {
 	// 使用通用 Factory 創建區域管理 API
 	const zoneApi = useSystemLocationApiFactory<PeopleCountingZone, PeopleCountingLocation>({
 		systemType: "people_counting",
-		backendToSystemZone: unifiedToPeopleCountingZone,
+		unifiedToSystemZone: unifiedToPeopleCountingZone,
 		systemToUnifiedZone: zone => peopleCountingToUnifiedZone(zone, "people_counting"),
 		locationToUnified: peopleCountingLocationToUnified
 	});

@@ -2,7 +2,7 @@ import type { LightingZone, LightingLocation } from "~/types/lighting";
 import { useErrorTrackingApiFactory } from "~/composables/factories/useErrorTrackingApiFactory";
 import { useSystemLocationApiFactory } from "~/composables/systems/location/useSystemLocationApiFactory";
 import {
-	backendToLightingZone,
+	unifiedToLightingZone,
 	lightingToUnifiedZone,
 	lightingLocationToUnified
 } from "~/utils/locationAdapter";
@@ -22,7 +22,7 @@ export interface UpdateLightingZoneData {
 export const useLightingApi = () => {
 	const zoneApi = useSystemLocationApiFactory<LightingZone, LightingLocation>({
 		systemType: "lighting",
-		backendToSystemZone: backendToLightingZone,
+		unifiedToSystemZone: unifiedToLightingZone,
 		systemToUnifiedZone: (zone) => lightingToUnifiedZone(zone, "lighting"),
 		locationToUnified: lightingLocationToUnified
 	});

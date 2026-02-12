@@ -499,7 +499,7 @@ const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
 	environment: "環境監測",
 	lighting: "照明系統",
 	people_counting: "人流統計",
-	vehicle_access: "車輛通行"
+	vehicle_access: "車輛進出"
 };
 
 // 取得地點的所屬系統標籤

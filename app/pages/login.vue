@@ -9,7 +9,7 @@
 					<NuxtImg
 						src="/login_heroPic.png"
 						alt="BA System"
-						class="image-blur-load object-contain h-[840px]"
+						class="image-blur-load h-[840px] object-contain"
 						:class="{ 'image-loaded': isHeroLoaded }"
 						width="full"
 						height="full"

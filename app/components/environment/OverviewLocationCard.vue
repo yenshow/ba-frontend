@@ -4,7 +4,7 @@
 		@click="handleClick"
 	>
 		<div
-			class="my-4 flex items-center justify-center bg-white px-2 text-xl 2xl:text-xl w-[36px]"
+			class="my-4 flex w-[36px] items-center justify-center bg-white px-2 text-xl 2xl:text-xl"
 			style="clip-path: polygon(0 0, 100% calc(0% + 24px), 100% calc(100% - 24px), 0 100%)"
 		>
 			{{ zone }}
@@ -15,7 +15,7 @@
 				<h3 class="text-base text-white 2xl:text-lg">{{ name }}</h3>
 			</div>
 
-			<div class="flex items-center gap-2">
+			<div class="flex min-h-[150px] items-center gap-2 2xl:min-h-[200px]">
 				<!-- AQI 儀表 -->
 				<div
 					class="flex aspect-square h-[100px] w-[100px] flex-col items-center justify-center rounded-full border-2 border-white/80 2xl:h-[140px] 2xl:w-[140px]"
@@ -34,7 +34,9 @@
 					<div class="ps-[2px] text-lg tracking-[2px] text-white 2xl:text-2xl">噪音值</div>
 					<div class="my-1 h-px w-2/3 bg-white/80 2xl:my-2"></div>
 					<Transition name="fade" mode="out-in">
-						<div :key="noise ?? 'empty'" class="text-3xl text-white 2xl:text-5xl">{{ noise ?? "--" }}</div>
+						<div :key="noise ?? 'empty'" class="text-3xl text-white 2xl:text-5xl">
+							{{ noise ?? "--" }}
+						</div>
 					</Transition>
 				</div>
 
@@ -51,10 +53,7 @@
 
 						<!-- 數值 -->
 						<Transition name="fade" mode="out-in">
-							<div
-								:key="`${param.label}-${param.value}`"
-								class="flex items-baseline gap-1"
-							>
+							<div :key="`${param.label}-${param.value}`" class="flex items-baseline gap-1">
 								<div
 									class="flex min-w-[30px] items-center justify-center text-sm font-semibold text-white 2xl:text-base"
 								>

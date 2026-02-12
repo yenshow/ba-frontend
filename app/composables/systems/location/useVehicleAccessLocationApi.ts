@@ -14,7 +14,7 @@ import type { UnifiedZone } from "~/types/location";
 export const useVehicleAccessLocationApi = () => {
 	const zoneApi = useSystemLocationApiFactory<VehicleAccessZone, VehicleAccessLocation>({
 		systemType: "vehicle_access",
-		backendToSystemZone: (zone: UnifiedZone) => unifiedToVehicleAccessZone(zone),
+		unifiedToSystemZone: (zone: UnifiedZone) => unifiedToVehicleAccessZone(zone),
 		systemToUnifiedZone: zone => vehicleAccessToUnifiedZone(zone, "vehicle_access"),
 		locationToUnified: (loc, systemType) => vehicleAccessLocationToUnified(loc, systemType)
 	});

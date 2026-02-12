@@ -56,6 +56,14 @@ export const systemModules: SystemModule[] = [
 		category: "core",
 		description: "整合區域平面圖與全區點位圖的空間視覺化系統"
 	},
+	{
+		id: 17,
+		name: "人員管理",
+		icon: "people-counting",
+		route: "/core/personnel",
+		category: "core",
+		description: "人員群組、人員主檔、門禁權限與設備同步"
+	},
 
 	// ========== 工地監控系統 ==========
 	{

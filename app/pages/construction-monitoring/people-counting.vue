@@ -175,12 +175,12 @@
 								<template v-if="locations.length > 0">
 									<LocationOverviewCard
 										v-for="location in locationsForOverview"
-										:key="location.locationId || location.id"
+										:key="getLocationId(location)"
 										:location="location"
 										@click="handleLocationSelect"
 										:class="{
 											'ring-2 ring-cyan-400': isCurrentLocation(location),
-											'hover:ring-2 hover:ring-cyan-300/50': true
+											'cursor-pointer transition-all hover:ring-2 hover:ring-cyan-300/50': true
 										}"
 									/>
 								</template>
@@ -240,7 +240,7 @@ import { usePeopleCountingWebSocket } from "~/composables/systems/peopleCounting
 import { usePeopleCountingLocationApi } from "~/composables/systems/location/usePeopleCountingLocationApi";
 import { useZoneManagement } from "~/composables/systems/useZoneManagement";
 import { useLocationApi } from "~/composables/systems/location/useLocationApi";
-import { backendToPeopleCountingZone } from "~/utils/locationAdapter";
+import { unifiedToPeopleCountingZone } from "~/utils/locationAdapter";
 import { useZoneSystemAdapter } from "~/composables/systems/useZoneSystemAdapter";
 import type { UnifiedZone } from "~/types/location";
 import { usePeopleCountingApi } from "~/composables/systems/usePeopleCountingApi";
@@ -407,13 +407,9 @@ watch([selectedLocation, locations, peopleCountingZones], () => {
 	});
 });
 
-// 檢查是否為當前選中的地點
+// 檢查是否為當前選中的地點（與 environment 一致：使用單一 canonical id，僅一卡高亮）
 const isCurrentLocation = (location: PeopleCountingLocation): boolean => {
-	if (!selectedLocation.value) return false;
-	return (
-		selectedLocation.value.locationId === location.locationId ||
-		selectedLocation.value.id === location.id
-	);
+	return getLocationId(location) === selectedLocationId.value;
 };
 
 // 處理地點選擇
@@ -480,7 +476,7 @@ const handleDeleteZone = async (zoneId: string) => {
 		getFullZoneApiCall: (id: string) => locationApi.getZone(id),
 		updateZoneApiCall: async (id: string, data: { locations: UnifiedZone["locations"] }) => {
 			const response = await locationApi.updateZone(id, { locations: data.locations });
-			const peopleCountingZone = backendToPeopleCountingZone(response.zone);
+			const peopleCountingZone = unifiedToPeopleCountingZone(response.zone);
 			// 確保返回的 zone 有 id
 			return {
 				merged: response.merged,

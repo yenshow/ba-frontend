@@ -4,7 +4,7 @@ import { buildPathWithQuery } from "~/utils/apiUtils";
 import { useErrorTrackingApiFactory } from "~/composables/factories/useErrorTrackingApiFactory";
 import { useSystemLocationApiFactory } from "~/composables/systems/location/useSystemLocationApiFactory";
 import {
-	backendToEnvironmentZone,
+	unifiedToEnvironmentZone,
 	environmentToUnifiedZone,
 	environmentLocationToUnified
 } from "~/utils/locationAdapter";
@@ -30,7 +30,7 @@ export const useEnvironmentApi = () => {
 
 	const zoneApi = useSystemLocationApiFactory<EnvironmentZone, EnvironmentLocation>({
 		systemType: "environment",
-		backendToSystemZone: backendToEnvironmentZone,
+		unifiedToSystemZone: unifiedToEnvironmentZone,
 		systemToUnifiedZone: (zone) => environmentToUnifiedZone(zone, "environment"),
 		locationToUnified: environmentLocationToUnified
 	});
