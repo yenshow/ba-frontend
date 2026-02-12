@@ -29,7 +29,7 @@
 						</div>
 					</header>
 
-					<div class="flex-1 overflow-y-auto pr-7 2xl:pr-8">
+					<div class="show-scrollbar flex-1 overflow-y-auto pr-7 2xl:pr-8">
 						<div class="min-h-[200px]">
 							<Transition name="fade" mode="out-in">
 								<div v-if="sortedZones.length > 0" :key="`zones-${sortedZones.length}`">
@@ -122,6 +122,7 @@
 														:device-hint="deviceHint"
 														:person-groups="personGroups"
 														:doors="doors"
+														:access-control-devices="accessControlDevices"
 														@add-location="() => addLocation(zone)"
 														@remove-location="(index: number) => removeLocation(getZoneId(zone), index)"
 														@update-location="
@@ -184,6 +185,7 @@
 
 <script setup lang="ts" generic="TZone extends SystemZoneType">
 import type { SystemType, UnifiedZone } from "~/types/location";
+import type { Device } from "~/types/device";
 import type {
 	SystemZoneType,
 	SystemLocationType
@@ -373,6 +375,7 @@ const personGroups = ref<Array<{ id: number; name: string; is_deleted?: number }
 const doors = ref<
 	Array<{ id: number; device_id: number; dev_name: string; door_index: number; is_deleted?: number }>
 >([]);
+const accessControlDevices = ref<Device[]>([]);
 
 // 地點管理組件映射
 const locationManagementComponentMap: Record<SystemType, Component> = {
@@ -435,6 +438,23 @@ const loadDoors = async () => {
 	}
 };
 
+// 載入本系統門禁設備列表（僅用於人流統計系統「門禁設備」資料來源）
+const loadAccessControlDevices = async () => {
+	if (props.systemType !== "people_counting") return;
+
+	try {
+		const result = await deviceApi.getDevices({
+			type_code: "access_control",
+			status: "active",
+			limit: 100
+		});
+		accessControlDevices.value = result.devices || [];
+	} catch (error) {
+		console.error("載入門禁設備列表失敗:", error);
+		accessControlDevices.value = [];
+	}
+};
+
 // 當對話框打開時載入設備列表和相關資料
 watch(
 	() => props.modelValue,
@@ -445,6 +465,7 @@ watch(
 			if (props.systemType === "people_counting") {
 				loadPersonGroups();
 				loadDoors();
+				loadAccessControlDevices();
 			}
 			pendingChanges.value.clear();
 			expandedZones.value.clear();

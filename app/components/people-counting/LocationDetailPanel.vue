@@ -1,5 +1,5 @@
 <template>
-	<div class="flex h-full flex-col space-y-8 overflow-y-auto">
+	<div class="show-scrollbar flex h-full flex-col space-y-8 overflow-y-auto">
 		<!-- 進場單位列表 -->
 		<UnitList :units="location.units || []" :selected-unit-id="selectedUnitId" @select="handleUnitSelect" />
 

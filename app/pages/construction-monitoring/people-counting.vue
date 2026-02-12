@@ -28,9 +28,18 @@
 					<button
 						type="button"
 						class="absolute left-8 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
+						aria-label="地點管理"
 						@click="handleOpenLocationDialog"
 					>
 						地點管理
+					</button>
+					<button
+						type="button"
+						class="absolute right-8 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
+						aria-label="開啟完整報表"
+						@click="handleOpenSimulation"
+					>
+						完整報表
 					</button>
 
 					<!-- 左側內容：分為左右兩區塊 -->
@@ -94,7 +103,7 @@
 				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
 			>
 				<div
-					class="relative h-full min-w-[72px] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8 2xl:min-w-[84px]"
+					class="show-scrollbar relative h-full min-w-[72px] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8 2xl:min-w-[84px]"
 				>
 					<!-- 標題與收縮按鈕 -->
 					<Transition name="fade">
@@ -134,7 +143,7 @@
 						<div
 							v-if="!isSidebarCollapsed"
 							key="content"
-							class="min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
+							class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
 						>
 							<div class="space-y-4">
 								<template v-if="locations.length > 0">
@@ -168,22 +177,39 @@
 		@save="handleSaveZone"
 		@delete="handleDeleteZone"
 	/>
+	<SimulationFrame v-model="showSimulationFrame" title="人流統計 - 完整報表">
+		<PeopleCountingSimulation
+			:logs="simulationLogs"
+			:zone-name="simulationZoneName"
+			:location-name="simulationLocationName"
+			:time-range="simulationTimeRange"
+			@update:time-range="handleSimulationTimeRangeUpdate"
+		/>
+	</SimulationFrame>
 </template>
 
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, watch, nextTick, computed, ref } from "vue"
-import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting"
+import type {
+	PeopleCountingZone,
+	PeopleCountingLocation,
+	PeopleCountingLog,
+} from "~/types/peopleCounting"
 import LocationDetailPanel from "~/components/people-counting/LocationDetailPanel.vue"
 import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue"
 import LocationOverviewCard from "~/components/people-counting/LocationOverviewCard.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
+import SimulationFrame from "~/components/common/SimulationFrame.vue"
+import PeopleCountingSimulation from "~/components/people-counting/PeopleCountingSimulation.vue"
 import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState"
 import { usePeopleCountingWebSocket } from "~/composables/systems/peopleCounting/usePeopleCountingWebSocket"
 import { usePeopleCountingLocationApi } from "~/composables/systems/location/usePeopleCountingLocationApi"
 import { useZoneManagement } from "~/composables/systems/useZoneManagement"
 import { useLocationApi } from "~/composables/systems/location/useLocationApi"
+import { usePeopleCountingApi } from "~/composables/systems/usePeopleCountingApi"
 import { unifiedToPeopleCountingZone } from "~/utils/locationAdapter"
 import { useZoneSystemAdapter } from "~/composables/systems/useZoneSystemAdapter"
+import { getTodayDateRangeUTC } from "~/utils/dateUtils"
 import type { UnifiedZone } from "~/types/location"
 
 // 使用統一的狀態管理
@@ -200,6 +226,7 @@ const {
 	handleUnitSelect,
 	getLocationZone,
 } = usePeopleCountingState()
+const peopleCountingApi = usePeopleCountingApi()
 
 // 右側總覽：顯示 zone 名稱（不影響詳情載入）
 const locationsForOverview = computed(() =>
@@ -248,8 +275,63 @@ const initLeftSectionObserver = () => {
 // 側邊欄收縮狀態
 const isSidebarCollapsed = ref(false)
 
-// 地點管理相關狀態
+// 地點管理與模擬框狀態
 const showLocationManagementDialog = ref(false)
+const showSimulationFrame = ref(false)
+
+const { start: todayStart, end: todayEnd } = getTodayDateRangeUTC()
+const simulationTimeRange = ref({
+	startDate: todayStart.toISOString(),
+	endDate: todayEnd.toISOString(),
+	preset: "today",
+})
+
+// 模擬框用：區域名、地點名
+const simulationZoneName = computed(() =>
+	selectedLocation.value ? (getLocationZone(selectedLocation.value) ?? "") : ""
+)
+const simulationLocationName = computed(() => selectedLocation.value?.name ?? "")
+
+const simulationLogs = ref<PeopleCountingLog[]>([])
+
+/** 完整報表一次載入全部資料（含超過 500 筆），供畫面與 CSV 匯出使用 */
+const loadSimulationLogs = async () => {
+	const loc = selectedLocation.value
+	if (!loc?.locationId) {
+		simulationLogs.value = []
+		return
+	}
+	const { startDate, endDate } = simulationTimeRange.value
+	try {
+		simulationLogs.value = await peopleCountingApi.getLocationLogs(loc.locationId, {
+			limit: 50000,
+			...(startDate && { startTime: startDate }),
+			...(endDate && { endTime: endDate }),
+		})
+	} catch {
+		simulationLogs.value = []
+	}
+}
+
+const handleSimulationTimeRangeUpdate = (v: {
+	startDate: string
+	endDate: string
+	preset: string
+}) => {
+	simulationTimeRange.value = v
+	void loadSimulationLogs()
+}
+
+const handleOpenSimulation = async () => {
+	const { start, end } = getTodayDateRangeUTC()
+	simulationTimeRange.value = {
+		startDate: start.toISOString(),
+		endDate: end.toISOString(),
+		preset: "today",
+	}
+	showSimulationFrame.value = true
+	await loadSimulationLogs()
+}
 
 // 選中地點 ID（用於刪除邏輯，與環境品質保持一致）
 const selectedLocationId = ref<string>("")

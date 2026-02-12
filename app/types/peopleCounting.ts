@@ -1,3 +1,9 @@
+/** 門禁人員群組（群組內成員限為入口與出口設備皆有之人員，以 employeeNo 識別） */
+export interface AccessControlGroup {
+	name: string;
+	employeeNos: string[];
+}
+
 /**
  * 人流統計地點（工地位置）
  * 參考 EnvironmentLocation，用於地點管理系統
@@ -9,10 +15,17 @@ export interface PeopleCountingLocation {
 	id?: string;
 	name: string; // 地點名稱（工地名稱）
 	locationType?: "people_counting"; // 地點類型
-	personGroupIds?: number[]; // 對應的 person_group.id 列表
-	entryDoorId?: number; // 入口設備 ID
-	exitDoorId?: number; // 出口設備 ID
-	
+	personGroupIds?: number[]; // 對應的 person_group.id 列表（YSCP）
+	entryDoorId?: number; // 入口設備 ID（YSCP）
+	exitDoorId?: number; // 出口設備 ID（YSCP）
+	/** 資料來源：yscp（預設）或 access_control */
+	dataSource?: "yscp" | "access_control";
+	/** 本系統門禁設備 ID（dataSource 為 access_control 時使用） */
+	entryDeviceId?: number;
+	exitDeviceId?: number;
+	/** 門禁人員群組（僅 dataSource 為 access_control 時使用；成員限為出入口設備皆有之人員 employeeNo） */
+	accessControlGroups?: AccessControlGroup[];
+
 	// 業務統計信息（來自業務 API）
 	locationId?: number; // 業務層的地點 ID（數字格式，用於 API 調用）
 	region?: string; // 區域（如：北部、中部、南部）
@@ -77,6 +90,7 @@ export interface PeopleCountingLog {
 	employeeId?: string; // 工號（用於非名單人員）
 	personName?: string; // 姓名
 	deviceScreenshotUrl?: string; // 設備截圖
+	deviceName?: string; // 出入口設備名稱（來自 deviceaccess.door dev_name）
 	// 注意：不包含 modelingPhotoUrl（建模照片），根據規劃已移除此欄位
 	timestamp: string;
 	// 關聯資料

@@ -326,6 +326,7 @@ import {
 	getTypeBadgeClass,
 } from "~/utils/alertUtils"
 import { getTodayDateRangeUTC, formatDateTime } from "~/utils/dateUtils"
+import { exportCsv } from "~/utils/csvExport"
 import { isAlertResolved, isAlertIgnored } from "~/utils/alertUtils"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
@@ -589,7 +590,36 @@ const handleAlertUpdated = (data: AlertUpdatedEvent) => {
 	}
 }
 
-// 匯出警示為 CSV
+const ALERT_CSV_HEADERS = [
+	"系統來源",
+	"區域-地點",
+	"設備類型",
+	"設備配置",
+	"類型與程度",
+	"狀態",
+	"訊息",
+	"創建時間",
+	"更新時間",
+	"忽視時間",
+	"忽視者",
+] as const
+
+const STATUS_LABELS: Record<string, string> = {
+	active: "未解決",
+	resolved: "已解決",
+	ignored: "已忽視",
+}
+
+const formatZoneLocation = (z?: string | null, l?: string | null) =>
+	[z, l].filter(Boolean).join("-") || ""
+
+const getDeviceConfigDisplay = (c: Record<string, unknown> | string | null | undefined) => {
+	if (!c) return ""
+	const o = typeof c === "string" ? (JSON.parse(c || "{}") as Record<string, unknown>) : c
+	return String(o.host ?? "").trim() || ""
+}
+
+// 匯出警示為 CSV（欄位順序與後端備份一致）
 const handleExport = async () => {
 	try {
 		const result = await alertApi.getAlerts({
@@ -603,82 +633,36 @@ const handleExport = async () => {
 			order: "desc",
 		})
 
-		const headers = [
-			"系統來源",
-			"區域-地點",
-			"設備類型",
-			"設備配置",
-			"類型與程度",
-			"狀態",
-			"訊息",
-			"創建時間",
-			"更新時間",
-			"忽視時間",
-			"忽視者",
-		]
-
-		const statusLabels: Record<string, string> = {
-			active: "未解決",
-			resolved: "已解決",
-			ignored: "已忽視",
+		if (result.alerts.length === 0) {
+			toast.info("無資料可匯出")
+			return
 		}
 
-		const formatZoneLocation = (z?: string | null, l?: string | null) =>
-			[z, l].filter(Boolean).join("-") || ""
-		const getDeviceConfigDisplay = (c: Record<string, unknown> | string | null | undefined) => {
-			if (!c) return ""
-			const o = typeof c === "string" ? (JSON.parse(c || "{}") as Record<string, unknown>) : c
-			return String(o.host ?? "").trim() || ""
-		}
 		const fmt = (s?: string | null) => (s ? formatDateTime(s, true) : "")
 		const typeSeverity = (a: Alert) =>
 			`${getTypeLabel(a.alert_type)}（${getSeverityLabel(a.severity)}）`
 
-		const rows = result.alerts.map((alert) => [
-			getSourceLabel(alert.source),
-			formatZoneLocation(alert.zone_name, alert.source_name),
-			alert.device_type_name || "",
-			getDeviceConfigDisplay(alert.device_config as Record<string, unknown> | null | undefined),
-			typeSeverity(alert),
-			statusLabels[alert.status] || alert.status,
-			alert.message,
-			fmt(alert.created_at),
-			fmt(alert.updated_at),
-			fmt(alert.ignored_at),
-			alert.ignored_by_username || "",
-		])
+		const rows = result.alerts.map((alert) => ({
+			系統來源: getSourceLabel(alert.source),
+			"區域-地點": formatZoneLocation(alert.zone_name, alert.source_name),
+			設備類型: alert.device_type_name ?? "",
+			設備配置: getDeviceConfigDisplay(alert.device_config as Record<string, unknown> | null | undefined),
+			"類型與程度": typeSeverity(alert),
+			狀態: STATUS_LABELS[alert.status] ?? alert.status,
+			訊息: alert.message ?? "",
+			創建時間: fmt(alert.created_at),
+			更新時間: fmt(alert.updated_at),
+			忽視時間: fmt(alert.ignored_at),
+			忽視者: alert.ignored_by_username ?? "",
+		}))
 
-		const escapeCSV = (value: unknown): string => {
-			if (value === null || value === undefined) return ""
-			const str = String(value)
-			if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-				return `"${str.replace(/"/g, '""')}"`
-			}
-			return str
-		}
-
-		const csvContent = [
-			headers.map(escapeCSV).join(","),
-			...rows.map((row) => row.map(escapeCSV).join(",")),
-		].join("\n")
-
-		const BOM = "\uFEFF"
-		const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" })
-		const url = URL.createObjectURL(blob)
-		const link = document.createElement("a")
-		link.href = url
 		const datePart = (s: string) => s.split("T")[0]
-		link.download = `警示紀錄_${
+		const filename =
 			filterStartDate.value && filterEndDate.value
-				? `${datePart(filterStartDate.value)}_${datePart(filterEndDate.value)}`
-				: new Date().toISOString().split("T")[0]
-		}.csv`
+				? `警示紀錄_${datePart(filterStartDate.value)}_${datePart(filterEndDate.value)}.csv`
+				: `警示紀錄_${new Date().toISOString().split("T")[0]}.csv`
 
-		document.body.appendChild(link)
-		link.click()
-		document.body.removeChild(link)
-		URL.revokeObjectURL(url)
-
+		exportCsv([...ALERT_CSV_HEADERS], rows, filename, { backupStyle: true })
 		toast.success(`已匯出 ${result.alerts.length} 筆警示紀錄`, 3000)
 	} catch (error) {
 		handleApiError(error, "匯出警示失敗")

@@ -1,7 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
 	compatibilityDate: "2025-07-15",
-	devtools: { enabled: true },
+	devtools: { enabled: false },
 
 	modules: ["@nuxt/image", "@nuxt/scripts", "@nuxt/test-utils", "@nuxtjs/tailwindcss"],
 
@@ -63,6 +63,8 @@ export default defineNuxtConfig({
 	runtimeConfig: {
 		public: {
 			apiBase: process.env.NUXT_PUBLIC_API_BASE || "http://192.168.2.8:4000/api",
+			// 強制覆寫 cookie secure：未設定時依 apiBase 協定自動判斷（https→true, http→false）
+			secureCookie: process.env.NUXT_PUBLIC_SECURE_COOKIE || undefined,
 		},
 	},
 })

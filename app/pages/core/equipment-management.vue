@@ -8,7 +8,7 @@
 
 			<!-- Tab 切換 -->
 			<div class="rounded-2xl border border-white/20 bg-white/15 p-1">
-				<div class="flex gap-2 overflow-x-auto">
+				<div class="show-scrollbar flex gap-2 overflow-x-auto">
 					<button
 						v-for="tab in deviceTabs"
 						:key="tab.code"
@@ -184,27 +184,14 @@
 			v-model="showDeviceModelDialog"
 			:device-type-code="activeTab"
 			@close="showDeviceModelDialog = false"
-			@refresh="
-				() => {
-					// 設備型號變更後，刷新設備列表和設備型號選擇
-					if (activeTab) {
-						load({ typeCode: activeTab, order: dateSortOrder })
-					}
-					refreshDeviceTypes = !refreshDeviceTypes // 觸發 DeviceDialog 刷新設備型號列表
-				}
-			"
+			@refresh="handleDeviceModelRefresh"
 		/>
 
 		<!-- 設備類型管理對話框 -->
 		<DeviceTypeDialog
 			v-model="showDeviceTypeDialog"
 			@close="showDeviceTypeDialog = false"
-			@refresh="
-				() => {
-					loadDeviceTypes(true)
-					refreshDeviceTypes = !refreshDeviceTypes
-				}
-			"
+			@refresh="handleDeviceTypeRefresh"
 		/>
 	</div>
 </template>
@@ -345,10 +332,8 @@ const formatDeviceConfig = (config: DeviceConfig): string => {
 				return `${config.host}:${config.port}`
 			}
 			return config.connection_string || config.api_endpoint || "-"
-		case "tablet":
-			return config.ip_address || config.mac_address || "-"
-		case "network":
-			return config.ip_address || "-"
+		case "access_control":
+			return `${config.host}:${config.port ?? 80} (${config.username})`
 		default:
 			return "-"
 	}
@@ -414,27 +399,27 @@ const closeDialog = () => {
 }
 
 const handleSubmit = async (data: CreateDeviceData | UpdateDeviceData) => {
+	if (isSubmitting.value) return
 	isSubmitting.value = true
 	errorMessage.value = null
 
 	try {
 		const result = editingDevice.value
-			? // 更新設備
-				await deviceApi.updateDevice(editingDevice.value.id, data as UpdateDeviceData)
-			: // 建立設備
-				await deviceApi.createDevice(data as CreateDeviceData)
+			? await deviceApi.updateDevice(editingDevice.value.id, data as UpdateDeviceData)
+			: await deviceApi.createDevice(data as CreateDeviceData)
 
-		// 更新本地狀態（避免不必要的重新載入）
 		if (editingDevice.value) {
-			// 更新操作：更新本地狀態
 			const index = devices.value.findIndex((d) => d.id === editingDevice.value!.id)
-			if (index > -1) {
-				devices.value[index] = result.device
-			}
+			if (index > -1) devices.value[index] = result.device
 		} else {
-			// 創建操作：添加到本地
-			devices.value.push(result.device)
-			total.value += 1
+			// 新增後重新載入列表，避免重複顯示（雙擊或事件觸發兩次時仍只會顯示後端一份）
+			if (activeTab.value) {
+				resetPage()
+				load({ typeCode: activeTab.value, order: dateSortOrder.value }, true)
+			} else {
+				devices.value.push(result.device)
+				total.value += 1
+			}
 		}
 
 		closeDialog()
@@ -478,6 +463,20 @@ const handleSortChange = () => {
 	if (!activeTab.value) return
 	resetPage()
 	load({ typeCode: activeTab.value, order: dateSortOrder.value }, true) // 立即執行
+}
+
+// 設備型號變更後刷新列表與型號選擇（供 DeviceModelDialog @refresh 使用）
+const handleDeviceModelRefresh = () => {
+	if (activeTab.value) {
+		load({ typeCode: activeTab.value, order: dateSortOrder.value }, true)
+	}
+	refreshDeviceTypes.value = !refreshDeviceTypes.value
+}
+
+// 設備類型變更後刷新（供 DeviceTypeDialog @refresh 使用）
+const handleDeviceTypeRefresh = () => {
+	loadDeviceTypes(true)
+	refreshDeviceTypes.value = !refreshDeviceTypes.value
 }
 
 // 監聽 tab 切換（僅用於初始載入，手動切換由 switchTab 處理）
@@ -592,5 +591,3 @@ onUnmounted(() => {
 	removeDeviceListeners()
 })
 </script>
-
-<style scoped></style>

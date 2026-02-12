@@ -92,7 +92,7 @@
 				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
 			>
 				<div
-					class="relative h-full min-w-[72px] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8 transition-all duration-500 ease-in-out 2xl:min-w-[84px]"
+					class="show-scrollbar relative h-full min-w-[72px] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8 transition-all duration-500 ease-in-out 2xl:min-w-[84px]"
 				>
 					<!-- 標題與收縮按鈕 -->
 					<Transition name="fade">
@@ -129,7 +129,7 @@
 						<div
 							v-if="!isSidebarCollapsed"
 							key="content"
-							class="min-h-0 flex-1 space-y-4 overflow-y-auto px-4"
+							class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4"
 						>
 							<!-- 攝影機卡片列表 -->
 							<div class="space-y-3">

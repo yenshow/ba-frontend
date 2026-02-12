@@ -17,7 +17,7 @@
 		>
 			<p class="text-sm text-white/60 xl:text-base">尚無車輛名單資料</p>
 		</div>
-		<div v-else class="grid grid-cols-2 gap-2 overflow-y-auto max-h-[400px] 2xl:max-h-[520px]">
+		<div v-else class="show-scrollbar grid grid-cols-2 gap-2 overflow-y-auto max-h-[400px] 2xl:max-h-[520px]">
 			<button
 				v-for="item in items"
 				:key="item.id"

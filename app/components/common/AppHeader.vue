@@ -101,7 +101,7 @@
 							@click.stop
 							class="absolute right-0 top-full z-50 mt-2 flex h-[540px] w-48 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white py-2 shadow-lg 2xl:h-[600px]"
 						>
-							<div class="flex-1 overflow-y-auto">
+							<div class="show-scrollbar flex-1 overflow-y-auto">
 								<template v-for="(categoryGroup, index) in categoryGroups" :key="categoryGroup.category">
 									<div
 										v-if="categoryGroup.modules.length"

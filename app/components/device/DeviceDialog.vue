@@ -24,7 +24,7 @@
 
 					<form
 						@submit.prevent="handleSubmit"
-						class="flex flex-1 flex-col gap-4 overflow-y-auto pb-4 pr-7 2xl:gap-6 2xl:pb-6 2xl:pr-8"
+						class="show-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto pb-4 pr-7 2xl:gap-6 2xl:pb-6 2xl:pr-8"
 					>
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 							<span>設備名稱 *</span>
@@ -186,79 +186,46 @@
 							</template>
 						</template>
 
-						<template v-if="deviceTypeCode === 'tablet'">
+						<template v-if="deviceTypeCode === 'access_control'">
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>MAC 位址 *</span>
+								<span>主機位址 (IP 或網域名稱) *</span>
 								<input
-									v-model="tabletConfig.mac_address"
+									v-model="accessControlConfig.host"
 									type="text"
 									required
-									pattern="^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$"
 									class="form-input"
-									placeholder="例如：00:11:22:33:44:55"
+									placeholder="例如：192.168.2.34"
 								/>
 							</label>
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>IP 位址</span>
+								<span>端口（選填，預設 80）</span>
 								<input
-									v-model="tabletConfig.ip_address"
-									type="text"
-									pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
-									class="form-input"
-									placeholder="例如：192.168.2.50"
-								/>
-							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>位置</span>
-								<input
-									v-model="tabletConfig.location"
-									type="text"
-									class="form-input"
-									placeholder="例如：一樓大廳"
-								/>
-							</label>
-						</template>
-
-						<template v-if="deviceTypeCode === 'network'">
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>IP 位址 *</span>
-								<input
-									v-model="networkConfig.ip_address"
-									type="text"
-									required
-									pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
-									class="form-input"
-									placeholder="例如：192.168.2.1"
-								/>
-							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>MAC 位址</span>
-								<input
-									v-model="networkConfig.mac_address"
-									type="text"
-									pattern="^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$"
-									class="form-input"
-									placeholder="例如：00:11:22:33:44:55"
-								/>
-							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>裝置類型 *</span>
-								<select v-model="networkConfig.device_type" required class="form-input form-select">
-									<option value="router">路由器</option>
-									<option value="switch">交換器</option>
-									<option value="access_point">無線基地台</option>
-									<option value="other">其他</option>
-								</select>
-							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>端口</span>
-								<input
-									v-model.number="networkConfig.port"
+									v-model.number="accessControlConfig.port"
 									type="number"
 									min="1"
 									max="65535"
 									class="form-input"
-									placeholder="例如：80"
+									placeholder="80"
+								/>
+							</label>
+							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+								<span>使用者名稱 (Digest Auth) *</span>
+								<input
+									v-model="accessControlConfig.username"
+									type="text"
+									required
+									class="form-input"
+									placeholder="例如：admin"
+								/>
+							</label>
+							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+								<span>密碼 (Digest Auth) *</span>
+								<input
+									v-model="accessControlConfig.password"
+									type="password"
+									required
+									class="form-input"
+									placeholder="設備登入密碼"
 								/>
 							</label>
 						</template>
@@ -327,8 +294,7 @@ import type {
 	ControllerDeviceConfig,
 	CameraDeviceConfig,
 	SensorDeviceConfig,
-	TabletDeviceConfig,
-	NetworkDeviceConfig
+	AccessControlDeviceConfig,
 } from "~/types/device";
 
 interface Props {
@@ -405,19 +371,12 @@ const sensorConfig = reactive<SensorDeviceConfig>({
 	api_endpoint: ""
 });
 
-const tabletConfig = reactive<TabletDeviceConfig>({
-	type: "tablet",
-	mac_address: "",
-	ip_address: "",
-	location: ""
-});
-
-const networkConfig = reactive<NetworkDeviceConfig>({
-	type: "network",
-	ip_address: "",
-	mac_address: "",
-	device_type: "router",
-	port: 80
+const accessControlConfig = reactive<AccessControlDeviceConfig>({
+	type: "access_control",
+	host: "",
+	port: 80,
+	username: "",
+	password: ""
 });
 
 // 追蹤當前載入的設備類型，確保切換類型時重新載入
@@ -555,14 +514,10 @@ const resetForm = () => {
 	sensorConfig.connection_string = "";
 	sensorConfig.api_endpoint = "";
 
-	tabletConfig.mac_address = "";
-	tabletConfig.ip_address = "";
-	tabletConfig.location = "";
-
-	networkConfig.ip_address = "";
-	networkConfig.mac_address = "";
-	networkConfig.device_type = "router";
-	networkConfig.port = 80;
+	accessControlConfig.host = "";
+	accessControlConfig.port = 80;
+	accessControlConfig.username = "";
+	accessControlConfig.password = "";
 
 	localErrorMessage.value = null;
 };
@@ -598,11 +553,8 @@ const loadConfigFromDevice = (device: Device) => {
 		case "sensor":
 			Object.assign(sensorConfig, device.config);
 			break;
-		case "tablet":
-			Object.assign(tabletConfig, device.config);
-			break;
-		case "network":
-			Object.assign(networkConfig, device.config);
+		case "access_control":
+			Object.assign(accessControlConfig, device.config);
 			break;
 	}
 };
@@ -657,10 +609,14 @@ const getCurrentConfig = (): DeviceConfig => {
 			return { ...cameraConfig };
 		case "sensor":
 			return { ...sensorConfig };
-		case "tablet":
-			return { ...tabletConfig };
-		case "network":
-			return { ...networkConfig };
+		case "access_control":
+			return {
+				type: "access_control",
+				host: accessControlConfig.host,
+				port: accessControlConfig.port || 80,
+				username: accessControlConfig.username,
+				password: accessControlConfig.password
+			};
 		default:
 			throw new Error(`未知的設備類型: ${props.deviceTypeCode}`);
 	}

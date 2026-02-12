@@ -1,5 +1,5 @@
 <template>
-	<div class="flex h-full flex-col space-y-8 overflow-y-auto">
+	<div class="show-scrollbar flex h-full flex-col space-y-8 overflow-y-auto">
 		<!-- 今日統計 -->
 		<div class="flex items-center justify-center gap-4 min-h-[220px]">
 			<div class="flex h-40 w-40 items-center justify-center 2xl:h-48 2xl:w-48">

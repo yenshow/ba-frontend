@@ -1,6 +1,6 @@
 <template>
 	<div
-		class="absolute left-0 top-full z-50 mt-2 max-h-[400px] w-[76px] space-y-2 overflow-hidden overflow-y-auto rounded-2xl border-2 border-white/80 p-2 2xl:w-[100px] 2xl:space-y-3 2xl:p-3"
+		class="show-scrollbar absolute left-0 top-full z-50 mt-2 max-h-[400px] w-[76px] space-y-2 overflow-hidden overflow-y-auto rounded-2xl border-2 border-white/80 p-2 2xl:w-[100px] 2xl:space-y-3 2xl:p-3"
 	>
 		<h3
 			class="ps-[2px] text-sm tracking-[2px] text-white 2xl:ps-[4px] 2xl:text-base 2xl:tracking-[4px]"

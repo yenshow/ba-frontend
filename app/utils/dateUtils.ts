@@ -79,6 +79,18 @@ export function getTimeRangeUTC(preset: string): { start: Date; end: Date } {
 	return { start, end };
 }
 
+/** 時間範圍預設選項（與 TimeRangePicker 共用） */
+export const TIME_RANGE_PRESETS = [
+	{ value: "past_hour", label: "過去一小時" },
+	{ value: "today", label: "今天" },
+	{ value: "yesterday", label: "昨天" },
+	{ value: "this_week", label: "本週" },
+	{ value: "last_week", label: "上周" },
+	{ value: "last_7_days", label: "近七天" },
+	{ value: "last_30_days", label: "最近三十天" },
+	{ value: "custom", label: "自訂" },
+] as const;
+
 /**
  * 格式化日期為本地顯示格式（YYYY/MM/DD）
  */

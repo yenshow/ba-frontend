@@ -27,9 +27,18 @@
 					<button
 						type="button"
 						class="absolute left-8 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
+						aria-label="地點管理"
 						@click="showLocationManagementDialog = true"
 					>
 						地點管理
+					</button>
+					<button
+						type="button"
+						class="absolute right-8 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
+						aria-label="開啟完整報表"
+						@click="handleOpenSimulation"
+					>
+						完整報表
 					</button>
 
 					<!-- 三個大儀表（包含趨勢圖） -->
@@ -100,7 +109,7 @@
 				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
 			>
 				<div
-					class="relative h-full min-w-[72px] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8 transition-all duration-500 ease-in-out 2xl:min-w-[84px]"
+					class="show-scrollbar relative h-full min-w-[72px] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8 transition-all duration-500 ease-in-out 2xl:min-w-[84px]"
 				>
 					<!-- 標題與收縮按鈕 -->
 					<Transition name="fade">
@@ -140,7 +149,7 @@
 						<div
 							v-if="!isOverviewCollapsed"
 							key="content"
-							class="min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
+							class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
 						>
 							<div class="space-y-4">
 								<template v-if="sortedLocations.length > 0">
@@ -181,6 +190,16 @@
 		@save="handleSaveZone"
 		@delete="handleDeleteZone"
 	/>
+	<SimulationFrame v-model="showSimulationFrame" title="環境監控 - 完整報表">
+		<EnvironmentSimulation
+			:readings="simulationReadings"
+			:zone-name="simulationZoneName"
+			:location-name="simulationLocationName"
+			:device-config="simulationDeviceConfig"
+			:time-range="simulationTimeRange"
+			@update:time-range="handleSimulationTimeRangeUpdate"
+		/>
+	</SimulationFrame>
 </template>
 
 <script setup lang="ts">
@@ -188,6 +207,8 @@ import EnvironmentGauge from "~/components/environment/EnvironmentGauge.vue"
 import EnvironmentParamCard from "~/components/environment/EnvironmentParamCard.vue"
 import OverviewLocationCard from "~/components/environment/OverviewLocationCard.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
+import SimulationFrame from "~/components/common/SimulationFrame.vue"
+import EnvironmentSimulation from "~/components/environment/EnvironmentSimulation.vue"
 import { useDeviceApi } from "~/composables/systems/useDeviceApi"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useEnvironmentApi } from "~/composables/systems/useEnvironmentApi"
@@ -218,9 +239,11 @@ import type {
 	EnvironmentLocation,
 	SensorParameter,
 	SensorParameterType,
+	SensorReading,
 } from "~/types/environment"
 import type { UnifiedZone } from "~/types/location"
 import { unifiedToEnvironmentZone } from "~/utils/locationAdapter"
+import { getTodayDateRangeUTC } from "~/utils/dateUtils"
 
 definePageMeta({
 	layout: "default",
@@ -243,7 +266,65 @@ const rulesLoaded = ref(false)
 const environmentZones = ref<EnvironmentZone[]>([])
 const isLoadingZones = ref(false)
 const showLocationManagementDialog = ref(false)
+const showSimulationFrame = ref(false)
+const simulationReadings = ref<SensorReading[]>([])
 const selectedLocationId = ref<string>("")
+
+const { start: todayStart, end: todayEnd } = getTodayDateRangeUTC()
+const simulationTimeRange = ref({
+	startDate: todayStart.toISOString(),
+	endDate: todayEnd.toISOString(),
+	preset: "today",
+})
+
+// 模擬框用：區域名、地點名、設備配置字串
+const simulationZoneName = computed(() =>
+	currentLocationData.value ? (getLocationZone(currentLocationData.value) ?? "") : ""
+)
+const simulationLocationName = computed(() => currentLocationData.value?.name ?? "")
+const simulationDeviceConfig = computed(() => {
+	const c = sensorDeviceConfig.value
+	return c ? `${c.host}:${c.port}` : ""
+})
+
+const loadSimulationReadings = async () => {
+	const loc = currentLocationData.value
+	if (!loc?.id || !simulationTimeRange.value.startDate || !simulationTimeRange.value.endDate) {
+		simulationReadings.value = []
+		return
+	}
+	try {
+		const result = await environmentApi.getReadings(loc.id, {
+			startTime: simulationTimeRange.value.startDate,
+			endTime: simulationTimeRange.value.endDate,
+			limit: 500,
+		})
+		simulationReadings.value = result.readings ?? []
+	} catch (error) {
+		handleError(error, "載入環境讀數失敗")
+		simulationReadings.value = []
+	}
+}
+
+const handleSimulationTimeRangeUpdate = (v: {
+	startDate: string
+	endDate: string
+	preset: string
+}) => {
+	simulationTimeRange.value = v
+	void loadSimulationReadings()
+}
+
+const handleOpenSimulation = async () => {
+	const { start, end } = getTodayDateRangeUTC()
+	simulationTimeRange.value = {
+		startDate: start.toISOString(),
+		endDate: end.toISOString(),
+		preset: "today",
+	}
+	showSimulationFrame.value = true
+	await loadSimulationReadings()
+}
 
 // 感測器設備（從設備 API 讀取）
 const sensorDevice = ref<Device | null>(null)

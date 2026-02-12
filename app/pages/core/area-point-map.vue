@@ -108,7 +108,7 @@
 			</section>
 
 			<!-- 右側總覽面板 -->
-			<aside class="flex-[0.8] overflow-y-auto 2xl:flex-[0.7]">
+			<aside class="show-scrollbar flex-[0.8] overflow-y-auto 2xl:flex-[0.7]">
 				<div
 					class="rounded-2xl border-2 border-white/80 bg-white/30 p-6 2xl:p-8"
 					:style="leftSectionHeight ? { minHeight: leftSectionHeight + 'px' } : undefined"

@@ -144,7 +144,7 @@
 				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
 			>
 				<div
-					class="relative flex h-full min-w-[72px] flex-col overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8 transition-all duration-500 ease-in-out 2xl:min-w-[84px]"
+					class="show-scrollbar relative flex h-full min-w-[72px] flex-col overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8 transition-all duration-500 ease-in-out 2xl:min-w-[84px]"
 				>
 					<Transition name="fade">
 						<h2
@@ -177,7 +177,7 @@
 						<div
 							v-if="!isSidebarCollapsed"
 							key="content"
-							class="min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
+							class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
 						>
 							<template v-if="overviewSummariesWithZone.length > 0">
 								<VehicleOverviewCard

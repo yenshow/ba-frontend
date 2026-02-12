@@ -111,10 +111,15 @@ export const useApiBase = () => {
 				if (process.client) {
 					const router = useRouter();
 					const currentPath = router.currentRoute.value?.fullPath || "/";
+					// 避免 redirect 迴圈：若已在登入頁或 redirect 已含 /login，改導向首頁
+					const redirectPath =
+						currentPath.startsWith("/login") || currentPath.includes("/login?")
+							? "/"
+							: currentPath;
 					await router.push({
 						path: "/login",
 						query: {
-							redirect: currentPath
+							redirect: redirectPath
 						}
 					});
 				}
