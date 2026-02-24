@@ -1,8 +1,3 @@
-/**
- * 人員管理相關型別
- * 對接後端 /api/personnel
- */
-
 /** 人員群組 */
 export interface PersonGroup {
 	id: number;
@@ -46,7 +41,7 @@ export interface SyncableLocation {
 
 /** 取得門禁權限回傳 */
 export interface AccessLocationsResponse {
-	person: { id: number; employeeNo: string; fullName: string };
+	person: { id: number; employeeNo: string; fullName: string | null };
 	locations: AccessLocation[];
 }
 
@@ -56,4 +51,27 @@ export interface ImportPersonRow {
 	fullName?: string;
 	personGroupId?: number;
 	locationIds?: number[];
+}
+
+/** 批次匯入回傳 */
+export interface ImportResult {
+	created: number;
+	createdIds?: Array<{ id: number; employeeNo: string }>;
+	errors?: Array<{ row: number; employeeNo?: string; message: string }>;
+}
+
+/** 設備同步單筆警告（人臉／新增／更新／刪除失敗；sync-all 時可帶 locationName） */
+export interface SyncWarning {
+	type: string;
+	employeeNo?: string;
+	deviceId?: number;
+	message: string;
+	locationName?: string;
+}
+
+/** 單一地點同步結果（sync-all-locations 用） */
+export interface SyncLocationResult {
+	locationId: number;
+	locationName?: string;
+	warnings: SyncWarning[];
 }

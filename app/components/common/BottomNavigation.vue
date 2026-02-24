@@ -284,8 +284,7 @@ const mainNavigationItems = computed<SystemModule[]>(() => {
 		.filter((module): module is SystemModule => module !== undefined);
 });
 
-// 輔助功能：當前活動項目用（警示紀錄、使用者管理、首頁）
-// 使用者管理從「用戶設定」進入，收合時顯示首頁圖示
+// 輔助功能：當前活動項目用（警示紀錄、首頁）
 const auxiliaryItemsForActive = [
 	{
 		id: "alert-log",
@@ -293,13 +292,6 @@ const auxiliaryItemsForActive = [
 		route: "/core/alert-log",
 		icon: "/layout/alert-logo-white.png",
 		isSvg: false
-	},
-	{
-		id: "users",
-		name: "使用者管理",
-		route: "/core/users",
-		icon: "/layout/setting.svg",
-		isSvg: true
 	},
 	{ id: "home", name: "首頁", route: "/", icon: "/layout/home.svg", isSvg: true }
 ] as const;

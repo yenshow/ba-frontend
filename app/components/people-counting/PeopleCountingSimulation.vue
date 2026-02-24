@@ -24,11 +24,24 @@
 		</div>
 
 		<div v-else class="my-4 space-y-6">
-			<!-- 總覽表：進場/出場人數 + 進場未出場人員（置於上方） -->
-			<div class="show-scrollbar max-h-[50vh] overflow-y-auto">
+			<!-- 1. 進出統計 -->
+			<div class="show-scrollbar max-h-[40vh] overflow-y-auto">
 				<h3 class="mb-3 w-fit border-b-2 border-white/70 text-lg text-white/90 2xl:text-xl">
-					進出統計及未出場人員
+					進出統計
 				</h3>
+				<div v-if="zoneLocationOptions.length > 1" class="mb-2 flex items-center gap-2">
+					<label class="text-sm text-white/70 2xl:text-base">區域-地點：</label>
+					<select
+						v-model="filterZoneLocation"
+						class="filter-select rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white focus:border-white/40 focus:outline-none 2xl:py-2.5 2xl:text-base"
+						aria-label="篩選區域-地點"
+					>
+						<option value="">全部</option>
+						<option v-for="opt in zoneLocationOptions" :key="opt" :value="opt">
+							{{ opt }}
+						</option>
+					</select>
+				</div>
 				<table class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base">
 					<thead class="bg-white/20">
 						<tr class="text-white/90">
@@ -36,66 +49,155 @@
 							<th class="whitespace-nowrap border border-white/20 p-2">區域-地點</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">進場人數</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">出場人數</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">人員ID</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">人員姓名</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">單位名稱</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">最後進場時間</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">在場人數</th>
 						</tr>
 					</thead>
 					<tbody>
-						<tr
-							v-for="(row, index) in summaryTableRows"
-							:key="row.key"
-							class="border-b border-white/10 text-white"
-						>
+						<tr v-for="row in statsTableRows" :key="row.key" class="border-b border-white/10 text-white">
 							<td class="border border-white/20 p-2">{{ row.日期 }}</td>
 							<td class="border border-white/20 p-2">{{ row["區域-地點"] }}</td>
 							<td class="border border-white/20 p-2">{{ row.進場人數 }}</td>
 							<td class="border border-white/20 p-2">{{ row.出場人數 }}</td>
-							<td class="border border-white/20 p-2">{{ row.人員ID }}</td>
-							<td class="border border-white/20 p-2">{{ row.人員姓名 }}</td>
-							<td class="border border-white/20 p-2">{{ row.單位名稱 }}</td>
-							<td class="border border-white/20 p-2">{{ row.最後進場時間 }}</td>
+							<td class="border border-white/20 p-2">{{ row.在場人數 }}</td>
 						</tr>
 					</tbody>
 				</table>
 			</div>
 
-			<!-- 進出紀錄明細（置於下方，不顯示日期與進出場人數欄位） -->
-			<div class="show-scrollbar max-h-[75vh] overflow-y-auto">
+			<!-- 2. 單位統計 -->
+			<div class="show-scrollbar max-h-[40vh] overflow-y-auto">
 				<h3 class="mb-3 w-fit border-b-2 border-white/70 text-lg text-white/90 2xl:text-xl">
-					進出紀錄
+					單位統計
 				</h3>
+				<div v-if="zoneLocationOptions.length > 1" class="mb-2 flex items-center gap-2">
+					<label class="text-sm text-white/70 2xl:text-base">區域-地點：</label>
+					<select
+						v-model="filterZoneLocationUnit"
+						class="filter-select rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white focus:border-white/40 focus:outline-none 2xl:py-2.5 2xl:text-base"
+						aria-label="篩選區域-地點（單位統計）"
+					>
+						<option value="">全部</option>
+						<option v-for="opt in zoneLocationOptions" :key="opt" :value="opt">
+							{{ opt }}
+						</option>
+					</select>
+				</div>
+				<table class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base">
+					<thead class="bg-white/20">
+						<tr class="text-white/90">
+							<th class="whitespace-nowrap border border-white/20 p-2">日期</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">區域-地點</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">單位名稱</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">進場人數</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">出場人數</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">在場人數</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr
+							v-for="row in unitStatsTableRows"
+							:key="row.key"
+							class="border-b border-white/10 text-white"
+						>
+							<td class="border border-white/20 p-2">{{ row.日期 }}</td>
+							<td class="border border-white/20 p-2">{{ row["區域-地點"] }}</td>
+							<td class="border border-white/20 p-2">{{ row.單位名稱 }}</td>
+							<td class="border border-white/20 p-2">{{ row.進場人數 }}</td>
+							<td class="border border-white/20 p-2">{{ row.出場人數 }}</td>
+							<td class="border border-white/20 p-2">{{ row.在場人數 }}</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+
+			<!-- 3. 進出紀錄 -->
+			<div class="max-h-[75vh] overflow-y-auto">
+				<div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+					<h3 class="w-fit border-b-2 border-white/70 text-lg text-white/90 2xl:text-xl">進出紀錄</h3>
+					<div class="flex flex-wrap items-center gap-4">
+						<div v-if="zoneLocationOptions.length >= 1" class="flex items-center gap-2">
+							<label class="text-sm text-white/70 2xl:text-base">區域-地點：</label>
+							<select
+								v-model="filterZoneLocationDetail"
+								class="filter-select rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white focus:border-white/40 focus:outline-none 2xl:py-2.5 2xl:text-base"
+								aria-label="篩選區域-地點"
+							>
+								<option value="">全部</option>
+								<option v-for="opt in zoneLocationOptions" :key="opt" :value="opt">
+									{{ opt }}
+								</option>
+							</select>
+						</div>
+						<div class="flex items-center gap-2">
+							<label class="text-sm text-white/70 2xl:text-base">單位名稱：</label>
+							<select
+								v-model="filterUnitName"
+								class="filter-select rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white focus:border-white/40 focus:outline-none 2xl:py-2.5 2xl:text-base"
+								aria-label="篩選單位名稱"
+							>
+								<option value="">全部</option>
+								<option v-for="opt in unitNameOptions" :key="opt" :value="opt">
+									{{ opt }}
+								</option>
+							</select>
+						</div>
+					</div>
+				</div>
 				<table class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base">
 					<thead class="bg-white/20">
 						<tr class="text-white/90">
 							<th class="whitespace-nowrap border border-white/20 p-2">區域-地點</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">人員ID</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">刷卡時間</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">出入口設備名稱</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">人員姓名</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">單位ID</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">單位名稱</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">人員姓名</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">出入口名稱</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">刷卡時間</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">方向</th>
 						</tr>
 					</thead>
 					<tbody>
 						<tr
-							v-for="(row, index) in detailTableRows"
+							v-for="row in detailTableRowsPaginated"
 							:key="row.key"
 							class="border-b border-white/10 text-white"
+							:class="row.isEntryOnly ? 'bg-amber-500/25' : ''"
 						>
 							<td class="border border-white/20 p-2">{{ row["區域-地點"] }}</td>
-							<td class="border border-white/20 p-2">{{ row.人員ID }}</td>
-							<td class="border border-white/20 p-2">{{ row.刷卡時間 }}</td>
-							<td class="border border-white/20 p-2">{{ row.出入口設備名稱 }}</td>
-							<td class="border border-white/20 p-2">{{ row.人員姓名 }}</td>
-							<td class="border border-white/20 p-2">{{ row.單位ID }}</td>
 							<td class="border border-white/20 p-2">{{ row.單位名稱 }}</td>
+							<td class="border border-white/20 p-2">{{ row.人員姓名 }}</td>
+							<td class="border border-white/20 p-2">{{ row.出入口名稱 }}</td>
+							<td class="border border-white/20 p-2">{{ row.刷卡時間 }}</td>
 							<td class="border border-white/20 p-2">{{ row.方向 }}</td>
 						</tr>
 					</tbody>
 				</table>
+				<div
+					v-if="detailTableRows.length > 0"
+					class="mt-3 flex flex-wrap items-center justify-between gap-3"
+				>
+					<p class="text-sm text-white/70 2xl:text-base">
+						第 {{ detailPage }} / {{ totalDetailPages }} 頁，共 {{ detailTableRows.length }} 筆
+					</p>
+					<div class="flex items-center gap-2">
+						<button
+							type="button"
+							:disabled="detailPage <= 1"
+							class="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-sm text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-4 2xl:py-2 2xl:text-base"
+							aria-label="上一頁"
+							@click="handleDetailPrevPage"
+						>
+							上一頁
+						</button>
+						<button
+							type="button"
+							:disabled="detailPage >= totalDetailPages"
+							class="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-sm text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-4 2xl:py-2 2xl:text-base"
+							aria-label="下一頁"
+							@click="handleDetailNextPage"
+						>
+							下一頁
+						</button>
+					</div>
+				</div>
 			</div>
 		</div>
 	</section>
@@ -105,10 +207,13 @@
 import type { PeopleCountingLog } from "~/types/peopleCounting";
 import { formatDate, formatDateTime, TIME_RANGE_PRESETS } from "~/utils/dateUtils";
 import { buildCsvSection } from "~/utils/csvExport";
-import { countEntryExitForDay, getEntryOnlyPersonsForDay } from "~/utils/peopleCountingAdapter";
+import {
+	countEntryExitForDay,
+	getEntryOnlyPersonsForDay,
+	getUnitStatsForDay
+} from "~/utils/peopleCountingAdapter";
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue";
 
-// logs 已由後端依 timeRange 回傳，無需前端再篩選
 const props = defineProps<{
 	logs: PeopleCountingLog[];
 	zoneName: string;
@@ -131,7 +236,23 @@ const zoneLocationLabel = computed(() => {
 	return [z, l].filter(Boolean).join("-") || "-";
 });
 
-/** 從 log 的 timestamp 取得日期字串（YYYY/MM/DD）；支援 "YYYY/MM/DD HH:mm:ss" 與 ISO */
+const filterZoneLocation = ref("");
+const filterZoneLocationUnit = ref("");
+const filterZoneLocationDetail = ref("");
+const filterUnitName = ref("");
+
+const zoneLocationOptions = computed(() =>
+	zoneLocationLabel.value ? [zoneLocationLabel.value] : []
+);
+
+const unitNameOptions = computed(() => {
+	const set = new Set<string>();
+	for (const log of props.logs) {
+		set.add((log.unit?.name ?? log.unitName ?? "") || "(未指定單位)");
+	}
+	return [...set].sort();
+});
+
 const getDateKey = (log: PeopleCountingLog): string => {
 	if (!log.timestamp) return "";
 	const s = log.timestamp;
@@ -139,7 +260,6 @@ const getDateKey = (log: PeopleCountingLog): string => {
 	return i !== -1 ? s.slice(0, i) : formatDate(s);
 };
 
-/** 依日期分組（供表格與匯出共用） */
 const groupsByDate = computed(() => {
 	const g = new Map<string, PeopleCountingLog[]>();
 	for (const log of props.logs) {
@@ -154,150 +274,155 @@ const groupsByDate = computed(() => {
 const directionLabel = (log: PeopleCountingLog) =>
 	log.eventType === "entry" ? "進場" : log.eventType === "exit" ? "出場" : "失敗";
 
-/** 總覽表列型別（isSummary 為 boolean，其餘為顯示用字串） */
-type SummaryTableRow = {
-	key: string;
-	isSummary: boolean;
-	日期: string;
-	"區域-地點": string;
-	進場人數: string;
-	出場人數: string;
-	人員ID: string;
-	人員姓名: string;
-	單位名稱: string;
-	最後進場時間: string;
-};
-
-/** 總覽表：進場/出場人數 + 進場未出場人員，同一表格；日期由新到舊，每日先一列統計再該日進場未出場列 */
-const summaryTableRows = computed(() => {
+const statsTableRows = computed(() => {
 	const zl = zoneLocationLabel.value;
-	const datesDesc = [...groupsByDate.value.keys()].sort((a, b) => b.localeCompare(a));
-	const rows: SummaryTableRow[] = [];
-	for (const dateStr of datesDesc) {
-		const dayLogs = groupsByDate.value.get(dateStr)!;
-		const { entry, exit } = countEntryExitForDay(dayLogs);
-		rows.push({
-			key: `summary-${dateStr}`,
-			isSummary: true,
-			日期: dateStr,
-			"區域-地點": zl,
-			進場人數: String(entry),
-			出場人數: String(exit),
-			人員ID: "",
-			人員姓名: "",
-			單位名稱: "",
-			最後進場時間: ""
-		});
-		const persons = getEntryOnlyPersonsForDay(dayLogs);
-		persons.forEach((log, i) => {
-			rows.push({
-				key: `entry-only-${dateStr}-${log.personnelId ?? log.employeeId ?? ""}-${i}`,
-				isSummary: false,
-				日期: dateStr,
-				"區域-地點": zl,
-				進場人數: "",
-				出場人數: "",
-				人員ID: String(log.personnelId ?? log.employeeId ?? ""),
-				人員姓名: log.personName ?? "",
-				單位名稱: log.unit?.name ?? log.unitName ?? "",
-				最後進場時間: log.timestamp ? formatDateTime(log.timestamp, true) : ""
-			});
-		});
-	}
-	return rows;
-});
-
-/** 進出紀錄明細表：只含每筆刷卡紀錄，不含每日統計列 */
-const detailTableRows = computed(() => {
-	const zl = zoneLocationLabel.value;
+	if (filterZoneLocation.value && zl !== filterZoneLocation.value) return [];
 	const datesDesc = [...groupsByDate.value.keys()].sort((a, b) => b.localeCompare(a));
 	const rows: Array<Record<string, string> & { key: string }> = [];
 	for (const dateStr of datesDesc) {
 		const dayLogs = groupsByDate.value.get(dateStr)!;
-		dayLogs.forEach((log, i) => {
-			rows.push({
-				key: `log-${log.id ?? dateStr}-${i}`,
-				日期: "",
-				"區域-地點": zl,
-				進場人數: "",
-				出場人數: "",
-				人員ID: String(log.personnelId ?? log.employeeId ?? ""),
-				刷卡時間: log.timestamp ? formatDateTime(log.timestamp, true) : "",
-				出入口設備名稱: log.deviceName ?? "",
-				人員姓名: log.personName ?? "",
-				單位ID: String(log.unitId ?? ""),
-				單位名稱: log.unit?.name ?? log.unitName ?? "",
-				方向: directionLabel(log)
-			});
+		const { entry, exit } = countEntryExitForDay(dayLogs);
+		const current = Math.max(0, entry - exit);
+		rows.push({
+			key: `stats-${dateStr}-${zl}`,
+			日期: dateStr,
+			"區域-地點": zl,
+			進場人數: String(entry),
+			出場人數: String(exit),
+			在場人數: String(current)
 		});
 	}
 	return rows;
 });
 
-/** 匯出用：與頁面一致＝1. 進出統計（8 欄） 2. 進出紀錄（8 欄，無日期與進出場人數） */
-const SUMMARY_EXPORT_HEADERS = [
-	"日期",
-	"區域-地點",
-	"進場人數",
-	"出場人數",
-	"人員ID",
-	"人員姓名",
-	"單位名稱",
-	"最後進場時間"
-];
-const DETAIL_EXPORT_HEADERS = [
-	"區域-地點",
-	"人員ID",
-	"刷卡時間",
-	"出入口設備名稱",
-	"人員姓名",
-	"單位ID",
-	"單位名稱",
-	"方向"
-];
+const unitStatsTableRows = computed(() => {
+	const zl = zoneLocationLabel.value;
+	if (filterZoneLocationUnit.value && zl !== filterZoneLocationUnit.value) return [];
+	const datesDesc = [...groupsByDate.value.keys()].sort((a, b) => b.localeCompare(a));
+	const rows: Array<Record<string, string> & { key: string }> = [];
+	for (const dateStr of datesDesc) {
+		const dayLogs = groupsByDate.value.get(dateStr)!;
+		const unitStats = getUnitStatsForDay(dayLogs);
+		for (const u of unitStats) {
+			rows.push({
+				key: `unit-${dateStr}-${u.unitName}`,
+				日期: dateStr,
+				"區域-地點": zl,
+				單位名稱: u.unitName,
+				進場人數: String(u.entry),
+				出場人數: String(u.exit),
+				在場人數: String(u.current)
+			});
+		}
+	}
+	return rows;
+});
 
-/** 進出統計匯出列（與 summaryTableRows 一致，僅取 8 欄） */
-const summaryExportRows = computed(() =>
-	summaryTableRows.value.map(row => ({
-		日期: row.日期,
-		"區域-地點": row["區域-地點"],
-		進場人數: row.進場人數,
-		出場人數: row.出場人數,
-		人員ID: row.人員ID,
-		人員姓名: row.人員姓名,
-		單位名稱: row.單位名稱,
-		最後進場時間: row.最後進場時間
-	}))
+const detailTableRows = computed(() => {
+	const zl = zoneLocationLabel.value;
+	const datesDesc = [...groupsByDate.value.keys()].sort((a, b) => b.localeCompare(a));
+	type DetailRow = {
+		key: string;
+		isEntryOnly: boolean;
+		"區域-地點": string;
+		單位名稱: string;
+		人員姓名: string;
+		出入口名稱: string;
+		刷卡時間: string;
+		方向: string;
+	};
+	const rows: DetailRow[] = [];
+	for (const dateStr of datesDesc) {
+		const dayLogs = groupsByDate.value.get(dateStr)!;
+		const entryOnlyLastLogMap = new Map<string, PeopleCountingLog>();
+		for (const log of getEntryOnlyPersonsForDay(dayLogs)) {
+			entryOnlyLastLogMap.set(String(log.personnelId ?? log.employeeId ?? log.id ?? ""), log);
+		}
+		const sorted = [...dayLogs].sort(
+			(a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+		);
+		for (const log of sorted) {
+			const personKey = String(log.personnelId ?? log.employeeId ?? log.id ?? "");
+			const isEntryOnly = entryOnlyLastLogMap.has(personKey);
+			const lastEntryLog = entryOnlyLastLogMap.get(personKey);
+			const unitName = (log.unit?.name ?? log.unitName ?? "") || "(未指定單位)";
+			if (filterZoneLocationDetail.value && zl !== filterZoneLocationDetail.value) continue;
+			if (filterUnitName.value && unitName !== filterUnitName.value) continue;
+			rows.push({
+				key: `log-${log.id ?? dateStr}-${personKey}-${log.timestamp}`,
+				isEntryOnly: isEntryOnly && lastEntryLog === log,
+				"區域-地點": zl,
+				單位名稱: unitName,
+				人員姓名: log.personName ?? "",
+				出入口名稱: log.deviceName ?? "",
+				刷卡時間: log.timestamp ? formatDateTime(log.timestamp, true) : "",
+				方向: directionLabel(log)
+			});
+		}
+	}
+	return rows.sort((a, b) => (b.刷卡時間 || "").localeCompare(a.刷卡時間 || ""));
+});
+
+const DETAIL_PAGE_SIZE = 10;
+const detailPage = ref(1);
+
+watch([filterZoneLocationDetail, filterUnitName], () => {
+	detailPage.value = 1;
+});
+
+const totalDetailPages = computed(() =>
+	Math.max(1, Math.ceil(detailTableRows.value.length / DETAIL_PAGE_SIZE))
 );
 
-/** 進出紀錄匯出列（與 detailTableRows 一致，僅 8 欄） */
-const detailExportRows = computed(() =>
-	detailTableRows.value.map(row => ({
-		"區域-地點": row["區域-地點"],
-		人員ID: row.人員ID,
-		刷卡時間: row.刷卡時間,
-		出入口設備名稱: row.出入口設備名稱,
-		人員姓名: row.人員姓名,
-		單位ID: row.單位ID,
-		單位名稱: row.單位名稱,
-		方向: row.方向
-	}))
-);
+const detailTableRowsPaginated = computed(() => {
+	const rows = detailTableRows.value;
+	const start = (detailPage.value - 1) * DETAIL_PAGE_SIZE;
+	return rows.slice(start, start + DETAIL_PAGE_SIZE);
+});
 
-/** 匯出檔名用日期（第一筆紀錄的日期） */
+watch(totalDetailPages, total => {
+	if (detailPage.value > total) detailPage.value = Math.max(1, total);
+});
+
+const handleDetailPrevPage = () => {
+	if (detailPage.value > 1) detailPage.value -= 1;
+};
+
+const handleDetailNextPage = () => {
+	if (detailPage.value < totalDetailPages.value) detailPage.value += 1;
+};
+
+const STATS_HEADERS = ["日期", "區域-地點", "進場人數", "出場人數", "在場人數"];
+const UNIT_STATS_HEADERS = ["日期", "區域-地點", "單位名稱", "進場人數", "出場人數", "在場人數"];
+const DETAIL_HEADERS = ["區域-地點", "單位名稱", "人員姓名", "出入口名稱", "刷卡時間", "方向"];
+
 const firstDateStr = computed(() => (props.logs.length > 0 ? getDateKey(props.logs[0]) : ""));
 
 const handleExportCsv = () => {
-	const summaryRows = summaryExportRows.value;
-	const detailRows = detailExportRows.value;
-	if (summaryRows.length === 0 && detailRows.length === 0) return;
+	if (props.logs.length === 0) return;
 	const dateStr = firstDateStr.value.replace(/\//g, "-") || new Date().toISOString().slice(0, 10);
 	const parts: string[] = [];
 	parts.push("進出統計");
-	parts.push(buildCsvSection(SUMMARY_EXPORT_HEADERS, summaryRows, { backupStyle: true }));
+	parts.push(buildCsvSection(STATS_HEADERS, statsTableRows.value, { backupStyle: true }));
+	parts.push("");
+	parts.push("單位統計");
+	parts.push(buildCsvSection(UNIT_STATS_HEADERS, unitStatsTableRows.value, { backupStyle: true }));
 	parts.push("");
 	parts.push("進出紀錄");
-	parts.push(buildCsvSection(DETAIL_EXPORT_HEADERS, detailRows, { backupStyle: true }));
+	parts.push(
+		buildCsvSection(
+			DETAIL_HEADERS,
+			detailTableRows.value.map(r => ({
+				"區域-地點": r["區域-地點"],
+				單位名稱: r.單位名稱,
+				人員姓名: r.人員姓名,
+				出入口名稱: r.出入口名稱,
+				刷卡時間: r.刷卡時間,
+				方向: r.方向
+			})),
+			{ backupStyle: true }
+		)
+	);
 	const csvContent = "\uFEFF" + parts.join("\n");
 	const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
 	const url = URL.createObjectURL(blob);
@@ -311,3 +436,10 @@ const handleExportCsv = () => {
 	URL.revokeObjectURL(url);
 };
 </script>
+
+<style scoped>
+.filter-select option {
+	background: rgb(30 41 59);
+	color: rgb(248 250 252);
+}
+</style>

@@ -36,6 +36,32 @@ export function countEntryExitForDay(
 }
 
 /**
+ * 當日依「單位」分組後，每組依時間升序計數進場/出場，回傳各單位進場、出場、在場人數（在場 = 進場 - 出場）
+ */
+export function getUnitStatsForDay(
+	dayLogs: PeopleCountingLog[]
+): Array<{ unitName: string; entry: number; exit: number; current: number }> {
+	const byUnit = new Map<string, PeopleCountingLog[]>();
+	for (const log of dayLogs) {
+		const name = log.unit?.name ?? log.unitName ?? "";
+		const key = String(name);
+		if (!byUnit.has(key)) byUnit.set(key, []);
+		byUnit.get(key)!.push(log);
+	}
+	const result: Array<{ unitName: string; entry: number; exit: number; current: number }> = [];
+	for (const [unitName, logs] of byUnit) {
+		const { entry, exit } = countEntryExitForDay(logs);
+		result.push({
+			unitName: unitName || "(未指定單位)",
+			entry,
+			exit,
+			current: Math.max(0, entry - exit),
+		});
+	}
+	return result.sort((a, b) => a.unitName.localeCompare(b.unitName));
+}
+
+/**
  * 當日依時間升序掃描後，最後一筆為「進場」的人員（進場但未出場），回傳其最後一筆 log 供顯示。
  */
 export function getEntryOnlyPersonsForDay(

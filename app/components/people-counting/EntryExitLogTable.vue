@@ -81,7 +81,7 @@
 						{{ log.unit?.name || log.unitName || "-" }}
 					</td>
 					<td class="p-2 text-sm 2xl:text-base">
-						{{ log.employeeId || log.personnelId || "-" }}
+						{{ log.employeeId ?? "-" }}
 					</td>
 					<td class="p-2 text-sm 2xl:text-base">
 						{{ log.personName || "-" }}
@@ -157,6 +157,7 @@ import type { PeopleCountingLog } from "~/types/peopleCounting";
 import { useExternalDataApi } from "~/composables/systems/useExternalDataApi";
 import { convertBase64ToImageUrl } from "~/utils/imageUtils";
 import { formatDate, formatTime } from "~/utils/dateUtils";
+import { resolveUploadUrl } from "~/utils/apiUtils";
 
 interface Props {
 	logs: PeopleCountingLog[];
@@ -187,6 +188,10 @@ const handleImageError = (_event: Event, logId: string | number) => {
 	delete imageUrls.value[logId];
 };
 
+const uploadConfig = useRuntimeConfig();
+const apiBase = (uploadConfig.public.apiBase as string) || "";
+const getUploadsImageUrl = (path: string): string => resolveUploadUrl(path, apiBase);
+
 const loadAllImages = async () => {
 	const logsToLoad = props.logs.filter(
 		log => log.deviceScreenshotUrl && !imageUrls.value[log.id] && !imageLoadingStates.value[log.id]
@@ -199,6 +204,13 @@ const loadAllImages = async () => {
 
 	for (const log of logsToLoad) {
 		const picUri = log.deviceScreenshotUrl!.trim();
+		// 本系統門禁事件附圖：直接使用後端 URL，不呼叫 getBatchPicturesByUri
+		if (picUri.startsWith("/uploads/")) {
+			const fullUrl = getUploadsImageUrl(picUri);
+			imageUrls.value[log.id] = fullUrl;
+			imageCache.set(picUri, fullUrl);
+			continue;
+		}
 		if (imageCache.has(picUri)) {
 			imageUrls.value[log.id] = imageCache.get(picUri)!;
 		} else {

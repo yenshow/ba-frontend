@@ -586,7 +586,7 @@ const addLocation = (zone: TZone) => {
 	updateZone(updatedZone);
 };
 
-// 刪除地點（從 LocationManagement 組件接收）
+// 刪除地點（僅從當前系統移除）
 const removeLocation = (zoneId: string, locationIndex: number) => {
 	const zone = sortedZones.value.find(z => getZoneId(z) === zoneId);
 	if (!zone) return;
@@ -596,13 +596,14 @@ const removeLocation = (zoneId: string, locationIndex: number) => {
 	const target = locations?.[locationIndex] as any;
 	const hasId = Boolean(target?.id);
 	const systemCount = target?.systems?.length || 0;
+	const onlyCurrentSystem = systemCount <= 1;
 	confirmDialog.show({
 		title: "確認刪除",
 		message: "確定要刪除此地點嗎？",
 		details: hasId
-			? systemCount > 0
-				? "此操作將刪除此地點並一併移除所有系統設定，且無法復原。"
-				: "此操作將刪除此地點，且無法復原。"
+			? onlyCurrentSystem
+				? "此操作將刪除此地點，且無法復原。"
+				: "僅從本系統移除此地點，其他系統下的此地點不受影響。"
 			: "此地點尚未儲存，將直接從清單移除。",
 		type: "danger"
 	});
@@ -619,7 +620,6 @@ const handleConfirmDeleteLocation = async () => {
 	}
 
 	const locations = [...adapter.getLocationsProperty(zone)];
-	// 檢查索引是否有效
 	if (locationIndex < 0 || locationIndex >= locations.length) {
 		pendingDeleteLocation.value = null;
 		return;
@@ -628,17 +628,23 @@ const handleConfirmDeleteLocation = async () => {
 	const target = locations[locationIndex] as any;
 	const targetId = target?.id ? String(target.id) : null;
 
-	// 如果地點有 ID（已保存），立即調用 API 刪除
 	if (targetId) {
 		try {
-			await locationApi.deleteLocation(targetId);
+			const { location: fullLocation } = await locationApi.getLocation(targetId);
+			const otherSystems = (fullLocation.systems || []).filter(
+				(s: { systemType: string }) => s.systemType !== props.systemType
+			);
+			if (otherSystems.length === 0) {
+				await locationApi.deleteLocation(targetId);
+			} else {
+				await locationApi.updateLocation(targetId, { systems: otherSystems });
+			}
 		} catch (error) {
 			handleError(error, "刪除地點失敗");
 			pendingDeleteLocation.value = null;
 			return;
 		}
 	}
-	// 如果地點沒有 ID（未保存），直接從列表中移除即可
 
 	locations.splice(locationIndex, 1);
 	const updatedZone = adapter.setLocationsProperty(zone, locations);

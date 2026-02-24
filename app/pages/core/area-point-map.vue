@@ -170,10 +170,11 @@
 		</div>
 	</div>
 
-	<!-- 地點管理對話框 -->
+	<!-- 地點管理對話框（有篩選系統時傳入 systemType，刪除地點僅從該系統移除） -->
 	<LocationManagementDialog
 		v-model="showLocationManagementDialog"
 		:zone="selectedZoneData"
+		:system-type="selectedSystemType ?? undefined"
 		@save="handleSaveZone"
 		@delete="handleDeleteZone"
 	/>

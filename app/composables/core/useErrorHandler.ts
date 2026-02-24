@@ -166,6 +166,10 @@ export const useErrorHandler = () => {
 		const errorMsg = error instanceof Error 
 			? (error.message || String(error) || defaultMessage)
 			: (typeof error === "string" ? error : defaultMessage);
+		// 未儲存／無效 id 等情境觸發的參數錯誤，不顯示 toast（非使用者需處理的錯誤）
+		if (/無效的整數參數|Invalid integer parameter/i.test(errorMsg)) {
+			return null;
+		}
 		const errorObj = error instanceof Error ? error : new Error(errorMsg);
 		const errorPriority = getErrorPriority(errorObj);
 

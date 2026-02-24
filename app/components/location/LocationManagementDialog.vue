@@ -223,6 +223,8 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler";
 interface Props {
 	modelValue: boolean;
 	zone: UnifiedZone | null;
+	/** 可選：提供時刪除地點僅移除此系統 */
+	systemType?: SystemType;
 }
 
 interface Emits {
@@ -437,13 +439,14 @@ const removeLocation = (locationIndex: number) => {
 	const location = pendingZone.value.locations?.[locationIndex];
 	const hasId = Boolean(location && (location as any).id);
 	const systemCount = (location as any)?.systems?.length || 0;
+	const onlyCurrentSystem = !props.systemType || systemCount <= 1;
 	confirmDialog.show({
 		title: "確認刪除",
 		message: "確定要刪除此地點嗎？",
 		details: hasId
-			? systemCount > 0
-				? "此操作將刪除此地點並一併移除所有系統設定，且無法復原。"
-				: "此操作將刪除此地點，且無法復原。"
+			? onlyCurrentSystem
+				? "此操作將刪除此地點，且無法復原。"
+				: "僅從本系統移除此地點，其他系統下的此地點不受影響。"
 			: "此地點尚未儲存，將直接從清單移除。",
 		type: "danger"
 	});
@@ -456,17 +459,27 @@ const handleConfirmDeleteLocation = async () => {
 	const location = pendingZone.value.locations?.[pendingDeleteLocationIndex.value];
 	const locationId = location && (location as any).id ? String((location as any).id) : null;
 
-	// 如果地點有 ID（已保存），立即調用 API 刪除
 	if (locationId) {
 		try {
-			await locationApi.deleteLocation(locationId);
+			if (props.systemType) {
+				const { location: fullLocation } = await locationApi.getLocation(locationId);
+				const otherSystems = (fullLocation.systems || []).filter(
+					(s: { systemType: string }) => s.systemType !== props.systemType
+				);
+				if (otherSystems.length === 0) {
+					await locationApi.deleteLocation(locationId);
+				} else {
+					await locationApi.updateLocation(locationId, { systems: otherSystems });
+				}
+			} else {
+				await locationApi.deleteLocation(locationId);
+			}
 		} catch (error) {
 			handleError(error, "刪除地點失敗");
 			pendingDeleteLocationIndex.value = null;
 			return;
 		}
 	}
-	// 如果地點沒有 ID（未保存），直接從列表中移除即可
 
 	pendingZone.value.locations = pendingZone.value.locations.filter(
 		(_, index) => index !== pendingDeleteLocationIndex.value
