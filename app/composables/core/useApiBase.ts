@@ -52,8 +52,14 @@ export const useApiBase = () => {
 	// 統一的請求處理函數
 	const request = async <T>(path: string, options: RequestInit & { timeout?: number } = {}) => {
 		const url = `${apiBase}${path}`;
+		const isFormData = options.body instanceof FormData;
+		const baseHeaders = getAuthHeaders() as Record<string, string>;
+		// FormData 時不要設定 Content-Type，讓瀏覽器自動帶上 multipart/form-data + boundary
+		if (isFormData) {
+			delete baseHeaders["Content-Type"];
+		}
 		const headers: Record<string, string> = {
-			...(getAuthHeaders() as Record<string, string>),
+			...baseHeaders,
 			// 禁用瀏覽器快取，確保取得最新資料
 			// 注意：只使用標準的 Cache-Control 和 Pragma，避免 CORS 問題
 			"Cache-Control": "no-cache, no-store, must-revalidate",

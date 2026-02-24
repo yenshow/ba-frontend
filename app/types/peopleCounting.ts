@@ -23,7 +23,7 @@ export interface PeopleCountingLocation {
 	/** 本系統門禁設備 ID（dataSource 為 access_control 時使用） */
 	entryDeviceId?: number;
 	exitDeviceId?: number;
-	/** 門禁人員群組（僅 dataSource 為 access_control 時使用；成員限為出入口設備皆有之人員 employeeNo） */
+	/** 門禁人員群組（後端相容保留；門禁設備之人員與權限已改由「人員管理」處理，此地點表單不再編輯此欄） */
 	accessControlGroups?: AccessControlGroup[];
 
 	// 業務統計信息（來自業務 API）

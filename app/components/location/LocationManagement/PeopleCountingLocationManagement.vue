@@ -38,11 +38,11 @@
 
 				<!-- 刪除按鈕 -->
 				<button
-					v-if="getLocations(zone).length > 1"
 					type="button"
 					class="ml-auto flex-shrink-0 p-2 text-rose-400 transition-colors hover:text-rose-300"
 					@click="handleRemoveLocation(locationIndex)"
 					title="刪除地點"
+					aria-label="刪除此地點"
 				>
 					<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path

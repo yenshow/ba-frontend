@@ -258,6 +258,7 @@ export function backendToPeopleCountingZone(backendZone: BackendZone): PeopleCou
 
 /**
  * 將統一區域轉換為人流統計區域
+ * 須包含 dataSource、entryDeviceId、exitDeviceId，否則門禁設備（本系統）選項會遺失
  */
 export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZone {
 	return {
@@ -268,14 +269,17 @@ export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZo
 			if (!pcSystem || !isPeopleCountingSystemConfig(pcSystem.config)) {
 				return [];
 			}
-
+			const config = pcSystem.config as PeopleCountingSystemConfig;
 			return [
 				{
 					id: loc.id,
 					name: loc.name,
-					personGroupIds: pcSystem.config.personGroupIds || [],
-					entryDoorId: pcSystem.config.entryDoorId || 0,
-					exitDoorId: pcSystem.config.exitDoorId || 0
+					personGroupIds: config.personGroupIds || [],
+					entryDoorId: config.entryDoorId ?? undefined,
+					exitDoorId: config.exitDoorId ?? undefined,
+					dataSource: config.dataSource ?? "yscp",
+					entryDeviceId: config.entryDeviceId ?? undefined,
+					exitDeviceId: config.exitDeviceId ?? undefined
 				} as PeopleCountingLocation
 			];
 		})
@@ -468,6 +472,7 @@ export function lightingLocationToUnified(
 
 /**
  * 輔助函數：將人流統計地點轉換為統一地點格式
+ * 須送出 dataSource、entryDeviceId、exitDeviceId，否則門禁設備（本系統）儲存後會遺失
  */
 export function peopleCountingLocationToUnified(
 	loc: PeopleCountingLocation | Omit<PeopleCountingLocation, "id">,
@@ -483,7 +488,10 @@ export function peopleCountingLocationToUnified(
 				config: {
 					personGroupIds: loc.personGroupIds || [],
 					entryDoorId: loc.entryDoorId,
-					exitDoorId: loc.exitDoorId
+					exitDoorId: loc.exitDoorId,
+					dataSource: loc.dataSource ?? "yscp",
+					entryDeviceId: loc.entryDeviceId ?? undefined,
+					exitDeviceId: loc.exitDeviceId ?? undefined
 				} as PeopleCountingSystemConfig
 			}
 		]

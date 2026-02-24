@@ -19,7 +19,11 @@
 				</tr>
 			</thead>
 			<tbody>
-				<tr v-for="log in logs" :key="log.id" class="border-b border-white/10 text-center text-white">
+				<tr
+					v-for="log in logs"
+					:key="log.id"
+					class="border-b border-white/10 text-center text-white"
+				>
 					<td class="flex items-center justify-center p-2">
 						<button
 							type="button"
@@ -46,7 +50,9 @@
 							<!-- 圖片 -->
 							<Transition name="fade">
 								<img
-									v-if="imageUrls[log.id] && !imageLoadingStates[log.id] && !imageErrorStates[log.id]"
+									v-if="
+										imageUrls[log.id] && !imageLoadingStates[log.id] && !imageErrorStates[log.id]
+									"
 									key="image"
 									:src="imageUrls[log.id]"
 									:alt="`${log.personName || '未知'} 設備截圖`"
@@ -58,7 +64,9 @@
 							<!-- 佔位符 SVG -->
 							<Transition name="fade">
 								<div
-									v-if="(!imageUrls[log.id] || imageErrorStates[log.id]) && !imageLoadingStates[log.id]"
+									v-if="
+										(!imageUrls[log.id] || imageErrorStates[log.id]) && !imageLoadingStates[log.id]
+									"
 									class="absolute inset-0 flex items-center justify-center text-white/50"
 									aria-hidden="true"
 								>
@@ -83,7 +91,7 @@
 						{{ log.unit?.name || log.unitName || "-" }}
 					</td>
 					<td class="p-2 text-sm 2xl:text-base">
-						{{ log.employeeId || log.personnelId || "-" }}
+						{{ log.employeeId ?? "-" }}
 					</td>
 					<td class="p-2 text-sm 2xl:text-base">
 						{{ log.personName || "-" }}
@@ -96,7 +104,7 @@
 									? 'bg-green-500/30 text-green-200'
 									: log.eventType === 'exit'
 										? 'bg-blue-500/30 text-blue-200'
-										: 'bg-red-500/70 text-red-200'
+										: 'bg-red-500/70 text-red-200',
 							]"
 						>
 							{{ log.eventType === "entry" ? "進入" : log.eventType === "exit" ? "離開" : "失敗" }}
@@ -154,102 +162,115 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from "vue";
-import type { PeopleCountingLog } from "~/types/peopleCounting";
-import { useExternalDataApi } from "~/composables/systems/useExternalDataApi";
-import { convertBase64ToImageUrl } from "~/utils/imageUtils";
-import { formatDate, formatTime } from "~/utils/dateUtils";
+import { ref, watch, nextTick } from "vue"
+import type { PeopleCountingLog } from "~/types/peopleCounting"
+import { useExternalDataApi } from "~/composables/systems/useExternalDataApi"
+import { convertBase64ToImageUrl } from "~/utils/imageUtils"
+import { formatDate, formatTime } from "~/utils/dateUtils"
+import { resolveUploadUrl } from "~/utils/apiUtils"
 
 interface Props {
-	logs: PeopleCountingLog[];
+	logs: PeopleCountingLog[]
 }
 
-const props = defineProps<Props>();
+const props = defineProps<Props>()
 
-const { getBatchPicturesByUri } = useExternalDataApi();
-const imageUrls = ref<Record<string | number, string>>({});
-const imageLoadingStates = ref<Record<string | number, boolean>>({});
-const imageErrorStates = ref<Record<string | number, boolean>>({});
-const imageCache = new Map<string, string>();
-const lightboxImageUrl = ref<string | null>(null);
-const lightboxRef = ref<HTMLElement | null>(null);
+const { getBatchPicturesByUri } = useExternalDataApi()
+const imageUrls = ref<Record<string | number, string>>({})
+const imageLoadingStates = ref<Record<string | number, boolean>>({})
+const imageErrorStates = ref<Record<string | number, boolean>>({})
+const imageCache = new Map<string, string>()
+const lightboxImageUrl = ref<string | null>(null)
+const lightboxRef = ref<HTMLElement | null>(null)
 
 const openLightbox = (url: string | undefined) => {
 	if (url) {
-		lightboxImageUrl.value = url;
-		nextTick(() => lightboxRef.value?.focus());
+		lightboxImageUrl.value = url
+		nextTick(() => lightboxRef.value?.focus())
 	}
-};
+}
 const closeLightbox = () => {
-	lightboxImageUrl.value = null;
-};
+	lightboxImageUrl.value = null
+}
 
 const handleImageError = (_event: Event, logId: string | number) => {
-	imageErrorStates.value[logId] = true;
-	delete imageUrls.value[logId];
-};
+	imageErrorStates.value[logId] = true
+	delete imageUrls.value[logId]
+}
+
+const uploadConfig = useRuntimeConfig()
+const apiBase = (uploadConfig.public.apiBase as string) || ""
+const getUploadsImageUrl = (path: string): string => resolveUploadUrl(path, apiBase)
 
 const loadAllImages = async () => {
 	const logsToLoad = props.logs.filter(
-		log => log.deviceScreenshotUrl && !imageUrls.value[log.id] && !imageLoadingStates.value[log.id]
-	);
+		(log) =>
+			log.deviceScreenshotUrl && !imageUrls.value[log.id] && !imageLoadingStates.value[log.id]
+	)
 
-	if (logsToLoad.length === 0) return;
+	if (logsToLoad.length === 0) return
 
-	const picUris: string[] = [];
-	const logIdMap = new Map<string, string | number>();
+	const picUris: string[] = []
+	const logIdMap = new Map<string, string | number>()
 
 	for (const log of logsToLoad) {
-		const picUri = log.deviceScreenshotUrl!.trim();
+		const picUri = log.deviceScreenshotUrl!.trim()
+		// 本系統門禁事件附圖：直接使用後端 URL，不呼叫 getBatchPicturesByUri
+		if (picUri.startsWith("/uploads/")) {
+			const fullUrl = getUploadsImageUrl(picUri)
+			imageUrls.value[log.id] = fullUrl
+			imageCache.set(picUri, fullUrl)
+			continue
+		}
 		if (imageCache.has(picUri)) {
-			imageUrls.value[log.id] = imageCache.get(picUri)!;
+			imageUrls.value[log.id] = imageCache.get(picUri)!
 		} else {
-			picUris.push(picUri);
-			logIdMap.set(picUri, log.id);
+			picUris.push(picUri)
+			logIdMap.set(picUri, log.id)
 		}
 	}
 
-	if (picUris.length === 0) return;
+	if (picUris.length === 0) return
 
 	for (const picUri of picUris) {
-		const logId = logIdMap.get(picUri);
+		const logId = logIdMap.get(picUri)
 		if (logId) {
-			imageLoadingStates.value[logId] = true;
+			imageLoadingStates.value[logId] = true
 		}
 	}
 
 	try {
-		const result = await getBatchPicturesByUri(picUris);
+		const result = await getBatchPicturesByUri(picUris)
 
 		if (result.success && result.data?.results) {
-			result.data.results.forEach(item => {
+			result.data.results.forEach((item) => {
 				if (item.success && item.image) {
-					const logId = logIdMap.get(item.picUri);
+					const logId = logIdMap.get(item.picUri)
 					if (logId) {
-						const imageUrl = convertBase64ToImageUrl(item.image);
-						imageUrls.value[logId] = imageUrl;
-						imageCache.set(item.picUri, imageUrl);
+						const imageUrl = convertBase64ToImageUrl(item.image)
+						imageUrls.value[logId] = imageUrl
+						imageCache.set(item.picUri, imageUrl)
 					}
 				}
-			});
+			})
 		}
 	} catch (error) {
-		console.error("批次載入圖片失敗:", error);
+		console.error("批次載入圖片失敗:", error)
 	} finally {
 		for (const logId of logIdMap.values()) {
-			imageLoadingStates.value[logId] = false;
+			imageLoadingStates.value[logId] = false
 		}
 	}
-};
+}
 
 // 監聽 logs 變化，載入新記錄的圖片
 watch(
 	() => props.logs,
 	() => {
-		loadAllImages();
+		loadAllImages()
 	},
 	{ immediate: true, deep: true }
-);
+)
 </script>
 
 <style scoped>

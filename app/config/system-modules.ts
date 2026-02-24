@@ -12,12 +12,12 @@
  * - multimedia: 多媒體系統（整合：電視牆 + 多媒體 + 資訊平台）
  */
 
-import type { SystemModule } from "~/types/system";
+import type { SystemModule } from "~/types/system"
 
 /**
  * 檢查模組是否啟用
  */
-const isModuleEnabled = (module: SystemModule): boolean => module.enabled !== false;
+const isModuleEnabled = (module: SystemModule): boolean => module.enabled !== false
 
 /**
  * 系統模組列表（按分類組織，id 按順序編號）
@@ -30,15 +30,15 @@ export const systemModules: SystemModule[] = [
 		icon: "equipment-management",
 		route: "/core/equipment-management",
 		category: "core",
-		description: "設備管理系統"
+		description: "設備管理系統",
 	},
 	{
 		id: 2,
-		name: "使用者管理",
+		name: "人員管理",
 		icon: "user-management",
-		route: "/core/users",
+		route: "/core/personnel",
 		category: "core",
-		description: "使用者帳號與權限管理"
+		description: "人員管理系統",
 	},
 	{
 		id: 3,
@@ -46,7 +46,7 @@ export const systemModules: SystemModule[] = [
 		icon: "alert-log",
 		route: "/core/alert-log",
 		category: "core",
-		description: "系統警示與紀錄查詢"
+		description: "系統警示與紀錄查詢",
 	},
 	{
 		id: 4,
@@ -54,7 +54,7 @@ export const systemModules: SystemModule[] = [
 		icon: "map",
 		route: "/core/area-point-map",
 		category: "core",
-		description: "整合區域平面圖與全區點位圖的空間視覺化系統"
+		description: "整合區域平面圖與全區點位圖的空間視覺化系統",
 	},
 
 	// ========== 工地監控系統 ==========
@@ -64,7 +64,7 @@ export const systemModules: SystemModule[] = [
 		icon: "environment",
 		route: "/construction-monitoring/environment",
 		category: "construction-monitoring",
-		description: "環境品質監測與管理"
+		description: "環境品質監測與管理",
 	},
 	{
 		id: 6,
@@ -72,7 +72,7 @@ export const systemModules: SystemModule[] = [
 		icon: "people-counting",
 		route: "/construction-monitoring/people-counting",
 		category: "construction-monitoring",
-		description: "人流統計與管理"
+		description: "人流統計與管理",
 	},
 	{
 		id: 7,
@@ -80,7 +80,7 @@ export const systemModules: SystemModule[] = [
 		icon: "vehicle-access",
 		route: "/construction-monitoring/vehicle-access",
 		category: "construction-monitoring",
-		description: "車輛進出管理系統"
+		description: "車輛進出管理系統",
 	},
 	{
 		id: 8,
@@ -88,7 +88,7 @@ export const systemModules: SystemModule[] = [
 		icon: "surveillance",
 		route: "/construction-monitoring/surveillance",
 		category: "construction-monitoring",
-		description: "影像監視與錄影管理（整合 RTSP）"
+		description: "影像監視與錄影管理（整合 RTSP）",
 	},
 
 	// ========== 基礎設施系統 ==========
@@ -98,7 +98,7 @@ export const systemModules: SystemModule[] = [
 		icon: "lighting",
 		route: "/infrastructure/lighting",
 		category: "infrastructure",
-		description: "照明設備控制與監控"
+		description: "照明設備控制與監控",
 	},
 	{
 		id: 10,
@@ -106,7 +106,7 @@ export const systemModules: SystemModule[] = [
 		icon: "hvac",
 		route: "/infrastructure/hvac",
 		category: "infrastructure",
-		description: "空調系統控制與監控"
+		description: "空調系統控制與監控",
 	},
 	{
 		id: 11,
@@ -114,7 +114,7 @@ export const systemModules: SystemModule[] = [
 		icon: "power",
 		route: "/infrastructure/power",
 		category: "infrastructure",
-		description: "電力系統監控與管理"
+		description: "電力系統監控與管理",
 	},
 	{
 		id: 12,
@@ -122,7 +122,7 @@ export const systemModules: SystemModule[] = [
 		icon: "elevator",
 		route: "/infrastructure/elevator",
 		category: "infrastructure",
-		description: "電梯系統監控與管理"
+		description: "電梯系統監控與管理",
 	},
 	{
 		id: 13,
@@ -130,7 +130,7 @@ export const systemModules: SystemModule[] = [
 		icon: "drainage",
 		route: "/infrastructure/drainage",
 		category: "infrastructure",
-		description: "衛生與排水系統管理"
+		description: "衛生與排水系統管理",
 	},
 
 	// ========== 安全相關系統 ==========
@@ -140,7 +140,7 @@ export const systemModules: SystemModule[] = [
 		icon: "fire",
 		route: "/security/fire",
 		category: "security",
-		description: "消防設備監控與管理"
+		description: "消防設備監控與管理",
 	},
 	{
 		id: 15,
@@ -148,7 +148,7 @@ export const systemModules: SystemModule[] = [
 		icon: "security",
 		route: "/security/access-control",
 		category: "security",
-		description: "門禁與保全系統管理"
+		description: "門禁與保全系統管理",
 	},
 	{
 		id: 16,
@@ -156,7 +156,7 @@ export const systemModules: SystemModule[] = [
 		icon: "emergency",
 		route: "/security/emergency",
 		category: "security",
-		description: "緊急求救與通報系統"
+		description: "緊急求救與通報系統",
 	},
 
 	// ========== 維護管理系統（整合：機電維護 + 可靠度 + 設施管理）==========
@@ -166,7 +166,7 @@ export const systemModules: SystemModule[] = [
 		icon: "maintenance",
 		route: "/maintenance/equipment",
 		category: "maintenance",
-		description: "整合機電維護、設備運轉可靠度、設施管理"
+		description: "整合機電維護、設備運轉可靠度、設施管理",
 	},
 
 	// ========== 業務管理系統 ==========
@@ -176,7 +176,7 @@ export const systemModules: SystemModule[] = [
 		icon: "visitor",
 		route: "/business/visitor",
 		category: "business",
-		description: "訪客登記與管理"
+		description: "訪客登記與管理",
 	},
 	{
 		id: 20,
@@ -184,7 +184,7 @@ export const systemModules: SystemModule[] = [
 		icon: "locker-management",
 		route: "/business/locker-management",
 		category: "business",
-		description: "寄物櫃管理系統"
+		description: "寄物櫃管理系統",
 	},
 
 	// ========== 多媒體系統（整合：電視牆 + 多媒體 + 資訊平台）==========
@@ -194,9 +194,9 @@ export const systemModules: SystemModule[] = [
 		icon: "video-wall",
 		route: "/multimedia/info",
 		category: "multimedia",
-		description: "整合電視牆模組、多媒體伺服器、資訊平台"
-	}
-];
+		description: "整合電視牆模組、多媒體伺服器、資訊平台",
+	},
+]
 
 /**
  * 根據分類獲取系統模組
@@ -204,23 +204,23 @@ export const systemModules: SystemModule[] = [
 export function getSystemModulesByCategory(
 	category: SystemModule["category"] | "all" = "all"
 ): SystemModule[] {
-	const enabledModules = systemModules.filter(isModuleEnabled);
+	const enabledModules = systemModules.filter(isModuleEnabled)
 	if (category === "all") {
-		return enabledModules;
+		return enabledModules
 	}
-	return enabledModules.filter(module => module.category === category);
+	return enabledModules.filter((module) => module.category === category)
 }
 
 /**
  * 根據 ID 獲取系統模組
  */
 export function getSystemModuleById(id: number): SystemModule | undefined {
-	return systemModules.find(module => module.id === id);
+	return systemModules.find((module) => module.id === id)
 }
 
 /**
  * 根據路由獲取系統模組
  */
 export function getSystemModuleByRoute(route: string): SystemModule | undefined {
-	return systemModules.find(module => module.route === route);
+	return systemModules.find((module) => module.route === route)
 }
