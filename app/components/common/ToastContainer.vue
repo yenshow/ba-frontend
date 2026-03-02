@@ -101,15 +101,27 @@ const toastClasses = {
 	info: "bg-blue-500/90 text-white border-blue-400/50"
 };
 
+const NEW_WINDOW_WIDTH = 1920;
+const NEW_WINDOW_HEIGHT = 1080;
+
+const openAlertLogInNewWindow = (path: string) => {
+	if (import.meta.client) {
+		const url = path.startsWith("http") ? path : `${window.location.origin}${path}`;
+		window.open(
+			url,
+			"_blank",
+			`width=${NEW_WINDOW_WIDTH},height=${NEW_WINDOW_HEIGHT},noopener,noreferrer,scrollbars=yes,resizable=yes`
+		);
+	}
+};
+
 /**
- * 處理 Toast 點擊事件（跳轉到警報詳情）
+ * 處理 Toast 點擊事件（新視窗開啟警示紀錄頁面）
  */
 const handleToastClick = (toast: Toast) => {
 	if (toast.alertId) {
-		// 移除警報 Toast（從 useAlertMonitor 中移除，會自動清理相關狀態）
 		removeAlertToast(toast.alertId);
-		// 跳轉到警報詳情頁面
-		navigateTo(`/core/alert-log?alertId=${toast.alertId}`);
+		openAlertLogInNewWindow(`/core/alert-log?alertId=${toast.alertId}`);
 	}
 };
 </script>

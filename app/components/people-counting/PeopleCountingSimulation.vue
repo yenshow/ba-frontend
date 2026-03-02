@@ -1,5 +1,5 @@
 <template>
-	<section>
+	<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 			<p class="text-base text-white/70 2xl:text-lg">共 {{ logs.length }} 筆紀錄</p>
 			<div class="flex items-center gap-3 2xl:gap-4">
@@ -23,7 +23,7 @@
 			<p class="text-base text-white/70 2xl:text-lg">尚無進出場紀錄</p>
 		</div>
 
-		<div v-else class="my-4 space-y-6">
+		<div v-else class="space-y-6">
 			<!-- 1. 進出統計 -->
 			<div class="show-scrollbar max-h-[40vh] overflow-y-auto">
 				<h3 class="mb-3 w-fit border-b-2 border-white/70 text-lg text-white/90 2xl:text-xl">

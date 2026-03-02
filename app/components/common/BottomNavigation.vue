@@ -82,7 +82,7 @@
 					<!-- 1. 警示紀錄 -->
 					<button
 						:class="getButtonClasses(isActive('/core/alert-log'))"
-						@click.stop="navigateToRoute('/core/alert-log')"
+						@click.stop="navigateToRouteInNewWindow('/core/alert-log')"
 						aria-label="警示紀錄"
 					>
 						<div class="relative">
@@ -141,8 +141,8 @@
 										v-for="item in moreFunctionsItems"
 										:key="item.id"
 										class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
-										@click="navigateToRoute(item.route)"
-										:aria-label="item.name"
+										@click="navigateToRouteInNewWindow(item.route)"
+										:aria-label="`${item.name}`"
 									>
 										<NuxtImg
 											:src="item.icon"
@@ -158,7 +158,7 @@
 						</Teleport>
 					</div>
 
-					<!-- 3. 用戶設定（下拉：使用者資訊區、使用者管理、登入登出） -->
+					<!-- 3. 用戶設定（下拉：使用者資訊區、權限管理、登入登出） -->
 					<div class="relative z-[100]">
 						<button
 							ref="userMenuButtonRef"
@@ -201,14 +201,14 @@
 									</div>
 
 									<div class="space-y-1">
-										<!-- 使用者管理（不含 icon，僅管理員可見） -->
+										<!-- 權限管理（不含 icon，僅管理員可見） -->
 										<button
 											v-if="isAdmin"
 											class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
 											@click="handleUserManagement"
-											aria-label="使用者管理"
+											aria-label="權限管理"
 										>
-											使用者管理
+											權限管理
 										</button>
 
 										<!-- 登入登出 -->
@@ -256,6 +256,7 @@
 </template>
 
 <script setup lang="ts">
+import type { Ref } from "vue";
 import { getSystemModulesByCategory } from "~/config/system-modules";
 import type { SystemModule } from "~/types/system";
 import { useAuth } from "~/composables/core/useAuth";
@@ -327,39 +328,31 @@ let collapseTimer: ReturnType<typeof setTimeout> | null = null;
 const isActive = (routePath: string): boolean =>
 	routePath === "/" ? route.path === "/" : route.path.startsWith(routePath);
 
-// 獲取當前活動的導航項目
-const currentActiveItem = computed(() => {
+type ActiveNavItem = { id: string; name: string; route: string; iconPath: string; isSvg: boolean };
+
+const toActiveItem = (
+	item: { id: string; name: string; route: string; icon: string },
+	isSvg: boolean
+): ActiveNavItem => ({
+	id: item.id,
+	name: item.name,
+	route: item.route,
+	iconPath: item.icon,
+	isSvg
+});
+
+const currentActiveItem = computed<ActiveNavItem | null>(() => {
 	const mainActive = mainNavigationItems.value.find(item => isActive(item.route));
 	if (mainActive) {
-		return {
-			id: String(mainActive.id),
-			name: mainActive.name,
-			route: mainActive.route,
-			iconPath: `/system/${mainActive.icon}.png`,
-			isSvg: false
-		};
+		return toActiveItem(
+			{ ...mainActive, id: String(mainActive.id), icon: `/system/${mainActive.icon}.png` },
+			false
+		);
 	}
-
 	const moreActive = moreFunctionsItems.find(item => isActive(item.route));
-	if (moreActive) {
-		return {
-			id: moreActive.id,
-			name: moreActive.name,
-			route: moreActive.route,
-			iconPath: moreActive.icon,
-			isSvg: true
-		};
-	}
+	if (moreActive) return toActiveItem(moreActive, true);
 	const auxActive = auxiliaryItemsForActive.find(item => isActive(item.route));
-	return auxActive
-		? {
-				id: auxActive.id,
-				name: auxActive.name,
-				route: auxActive.route,
-				iconPath: auxActive.icon,
-				isSvg: auxActive.isSvg
-			}
-		: null;
+	return auxActive ? toActiveItem(auxActive, auxActive.isSvg) : null;
 });
 
 // 按鈕樣式類別
@@ -369,58 +362,55 @@ const getButtonClasses = (isActive: boolean) => [
 	isActive ? "bg-white/20" : "hover:bg-white/15"
 ];
 
-// 計算使用者選單的位置
-const updateUserMenuPosition = () => {
-	if (!userMenuButtonRef.value || !showUserMenu.value) {
-		userMenuStyle.value = {};
+/** 依按鈕位置計算下拉樣式（共用） */
+const setDropdownPosition = (
+	buttonEl: HTMLElement | null,
+	isOpen: boolean,
+	styleRef: Ref<Record<string, string>>
+) => {
+	if (!buttonEl || !isOpen) {
+		styleRef.value = {};
 		return;
 	}
-	const rect = userMenuButtonRef.value.getBoundingClientRect();
-	userMenuStyle.value = {
+	const rect = buttonEl.getBoundingClientRect();
+	styleRef.value = {
 		bottom: `${window.innerHeight - rect.top + 8}px`,
 		right: `${window.innerWidth - rect.right}px`
 	};
 };
 
-// 計算更多功能選單的位置
-const updateMoreFunctionsMenuPosition = () => {
-	if (!moreFunctionsButtonRef.value || !showMoreFunctionsMenu.value) {
-		moreFunctionsMenuStyle.value = {};
-		return;
-	}
-	const rect = moreFunctionsButtonRef.value.getBoundingClientRect();
-	moreFunctionsMenuStyle.value = {
-		bottom: `${window.innerHeight - rect.top + 8}px`,
-		right: `${window.innerWidth - rect.right}px`
-	};
+const updateUserMenuPosition = () =>
+	setDropdownPosition(userMenuButtonRef.value, showUserMenu.value, userMenuStyle);
+const updateMoreFunctionsMenuPosition = () =>
+	setDropdownPosition(
+		moreFunctionsButtonRef.value,
+		showMoreFunctionsMenu.value,
+		moreFunctionsMenuStyle
+	);
+
+const updateAllDropdownPositions = () => {
+	updateUserMenuPosition();
+	updateMoreFunctionsMenuPosition();
 };
 
-// 監聽選單顯示狀態變化
-watch(showUserMenu, newValue => {
-	if (!process.client) return;
-
-	if (newValue) {
-		updateUserMenuPosition();
-		window.addEventListener("resize", updateUserMenuPosition);
-		window.addEventListener("scroll", updateUserMenuPosition, true);
-	} else {
-		window.removeEventListener("resize", updateUserMenuPosition);
-		window.removeEventListener("scroll", updateUserMenuPosition, true);
-	}
-});
-
-watch(showMoreFunctionsMenu, newValue => {
-	if (!process.client) return;
-
-	if (newValue) {
-		updateMoreFunctionsMenuPosition();
-		window.addEventListener("resize", updateMoreFunctionsMenuPosition);
-		window.addEventListener("scroll", updateMoreFunctionsMenuPosition, true);
-	} else {
-		window.removeEventListener("resize", updateMoreFunctionsMenuPosition);
-		window.removeEventListener("scroll", updateMoreFunctionsMenuPosition, true);
-	}
-});
+watch(
+	[showUserMenu, showMoreFunctionsMenu],
+	([userOpen, moreOpen]) => {
+		if (!process.client) return;
+		const anyOpen = userOpen || moreOpen;
+		if (anyOpen) {
+			updateAllDropdownPositions();
+			window.addEventListener("resize", updateAllDropdownPositions);
+			window.addEventListener("scroll", updateAllDropdownPositions, true);
+		} else {
+			userMenuStyle.value = {};
+			moreFunctionsMenuStyle.value = {};
+			window.removeEventListener("resize", updateAllDropdownPositions);
+			window.removeEventListener("scroll", updateAllDropdownPositions, true);
+		}
+	},
+	{ immediate: false }
+);
 
 // Hover 事件處理
 const handleMouseEnter = () => {
@@ -441,6 +431,12 @@ const handleMouseLeave = () => {
 	}, 300);
 };
 
+/** 關閉所有下拉選單，避免重複寫入 */
+const closeAllMenus = () => {
+	showUserMenu.value = false;
+	showMoreFunctionsMenu.value = false;
+};
+
 const toggleUserMenu = () => {
 	showMoreFunctionsMenu.value = false;
 	showUserMenu.value = !showUserMenu.value;
@@ -452,19 +448,30 @@ const toggleMoreFunctionsMenu = () => {
 };
 
 const navigateToRoute = (routePath: string) => {
-	showUserMenu.value = false;
-	showMoreFunctionsMenu.value = false;
+	closeAllMenus();
 	router.push(routePath);
 };
 
+const NEW_WINDOW_WIDTH = 1920;
+const NEW_WINDOW_HEIGHT = 1080;
+
+const navigateToRouteInNewWindow = (routePath: string) => {
+	closeAllMenus();
+	if (import.meta.client) {
+		const url = routePath.startsWith("http") ? routePath : `${window.location.origin}${routePath}`;
+		const features = `width=${NEW_WINDOW_WIDTH},height=${NEW_WINDOW_HEIGHT},noopener,noreferrer,scrollbars=yes,resizable=yes`;
+		window.open(url, "_blank", features);
+	}
+};
+
 const handleUserManagement = () => {
-	showUserMenu.value = false;
-	router.push("/core/users");
+	closeAllMenus();
+	navigateToRouteInNewWindow("/core/users");
 };
 
 const handleLogout = async () => {
 	try {
-		showUserMenu.value = false;
+		closeAllMenus();
 		logout();
 		toast.success("已登出");
 		await router.push("/login");
@@ -512,10 +519,8 @@ watch(
 onBeforeUnmount(() => {
 	if (process.client) {
 		document.removeEventListener("click", handleClickOutside);
-		window.removeEventListener("resize", updateUserMenuPosition);
-		window.removeEventListener("scroll", updateUserMenuPosition, true);
-		window.removeEventListener("resize", updateMoreFunctionsMenuPosition);
-		window.removeEventListener("scroll", updateMoreFunctionsMenuPosition, true);
+		window.removeEventListener("resize", updateAllDropdownPositions);
+		window.removeEventListener("scroll", updateAllDropdownPositions, true);
 		if (collapseTimer) clearTimeout(collapseTimer);
 		stopAlertCountMonitoring();
 	}
