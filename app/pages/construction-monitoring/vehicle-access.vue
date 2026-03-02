@@ -184,6 +184,7 @@
 									v-for="summary in overviewSummariesWithZone"
 									:key="summary.id"
 									:summary="summary"
+									:groups="organizationGroups ?? []"
 									:class="{
 										'ring-2 ring-cyan-400': isCurrentSummary(summary),
 										'cursor-pointer transition-all hover:ring-2 hover:ring-cyan-300/50': true
