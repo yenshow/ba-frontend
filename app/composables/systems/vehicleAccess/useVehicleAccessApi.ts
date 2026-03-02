@@ -1,15 +1,14 @@
 /**
- * 車輛進出 API（external-data vehiclebiz/passageway_log_data、vehiclebiz/lane_info）
+ * 車輛進出 API（external-data vehiclebiz/passageway_log_data、vehiclebiz/lane_info、vehicle-access/vehicle-groups）
  */
 
-import type { VehicleDataLog, LaneInfo, VehicleListItem } from "~/types/vehicleAccess";
+import type { VehicleDataLog, LaneInfo, VehicleGroupFromApi } from "~/types/vehicleAccess";
 import { useExternalDataApi } from "~/composables/systems/useExternalDataApi";
+import { useApiBase } from "~/composables/core/useApiBase";
 
 const SCHEMA = "vehiclebiz";
-const SCHEMA_PLATFORM = "platform";
 const TABLE_PASSAGEWAY = "passageway_log_data";
 const TABLE_LANE_INFO = "lane_info";
-const TABLE_VEHICLE_LIST = "vehicle_list";
 
 /** 時間範圍：今日、昨日、最近一週（後端 dateRangeUtils 支援） */
 export type VehicleDataLogTimeRange = "today" | "yesterday" | "last7days";
@@ -93,18 +92,14 @@ export const useVehicleAccessApi = () => {
 	};
 
 	/**
-	 * 取得固定車輛名單（platform.vehicle_list）
-	 * 欄位：plate_license、owner_name、person_id（查 standard_head_portrait）
+	 * 取得車輛群組彙總（anpr.vehicle_custom_list + vehicle_and_list_relation + platform.vehicle_list）
+	 * 供右側「車輛群組」使用；不含人員大頭照
 	 */
-	const getVehicleList = async (filters?: { limit?: number; search?: string }): Promise<VehicleListItem[]> => {
-		const params: Record<string, unknown> = { limit: filters?.limit ?? 200 };
-		if (filters?.search) params.search = filters.search;
-		const result = await externalDataApi.getList<VehicleListItem>(
-			SCHEMA_PLATFORM,
-			TABLE_VEHICLE_LIST,
-			params
-		);
-		return result.data || [];
+	const getVehicleGroups = async (): Promise<VehicleGroupFromApi> => {
+		const { request } = useApiBase();
+		const res = await request<VehicleGroupFromApi>("/external-data/vehicle-access/vehicle-groups");
+		const data = res && typeof res === "object" && "groups" in res ? (res as VehicleGroupFromApi) : undefined;
+		return data ?? { groups: [] };
 	};
 
 	return {
@@ -112,6 +107,6 @@ export const useVehicleAccessApi = () => {
 		getVehicleDataLogCount,
 		getVehicleDataLogById,
 		getLaneInfoList,
-		getVehicleList
+		getVehicleGroups
 	};
 };

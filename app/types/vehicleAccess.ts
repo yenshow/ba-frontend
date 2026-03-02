@@ -47,6 +47,53 @@ export interface LaneInfo {
 	deleted?: number;
 }
 
+/** 後端車輛群組 API 單一車輛（platform.vehicle_list 對應欄位） */
+export interface VehicleGroupVehicleItem {
+	vehicle_id: number;
+	plate_license: string | null;
+	owner_name: string | null;
+}
+
+/** 後端車輛群組 API 回傳格式（anpr.vehicle_custom_list + vehicle_and_list_relation + platform.vehicle_list） */
+export interface VehicleGroupFromApi {
+	groups: Array<{
+		id: number;
+		list_name: string;
+		list_sequence?: number;
+		vehicles: VehicleGroupVehicleItem[];
+	}>;
+}
+
+/** 車輛群組（來源：anpr.vehicle_custom_list list_type=0 + 未分類；進出／在場由 passageway_log_data 計算） */
+export interface VehicleOrganizationGroupItem {
+	/** 選取用 key（"vg_1" 或 "vg_0" 未分類） */
+	groupKey: string;
+	/** 群組 id（0 表示未分類） */
+	personGroupId: number;
+	/** 顯示名稱（list_name 或 未分類） */
+	personGroupName: string;
+	/** 該群組車輛數（分母） */
+	vehicleCount: number;
+	entryCount: number;
+	exitCount: number;
+	onSiteCount: number;
+}
+
+/** 群組彈窗內單一車輛（車主-車牌、進出場時間；無圖片欄位） */
+export interface VehicleGroupMemberItem {
+	id: number;
+	plate_license: string | null;
+	owner_name: string | null;
+	/** 最近進場日期（如 2026/02/24） */
+	lastEntryDate?: string | null;
+	/** 進場時間（如 17:00:41） */
+	entryTime?: string | null;
+	/** 離開時間（如 17:15:36），未離場則顯示 - - */
+	exitTime?: string | null;
+	/** 是否在場（有進場且尚無離場） */
+	isPresent?: boolean;
+}
+
 /** 總覽卡片用（對齊人流 LocationOverviewCard：進／出／在場） */
 export interface VehicleAccessLocationSummary {
 	id: string;

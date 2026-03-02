@@ -57,7 +57,7 @@
 						<div class="font-medium text-white text-base 2xl:text-xl border-b border-white/30 pb-1">
 							{{ person.name }}
 						</div>
-						<div class="mt-1 space-y-0.5 text-xs text-white/60 2xl:text-sm">
+						<div class="mt-2 space-y-0.5 text-xs text-white/60 2xl:text-sm">
 							<!-- 最近進場：顯示日期（不含時分秒） -->
 							<div v-if="person.lastEntryDate">
 								<span>最近進場：</span>

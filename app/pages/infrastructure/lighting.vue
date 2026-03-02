@@ -404,7 +404,10 @@ const locationToggling = ref<Set<string>>(new Set())
 
 // 防抖計時器（避免快速重複點擊）
 const toggleDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>()
-const TOGGLE_DEBOUNCE_DELAY = 300 // 300ms 防抖延遲
+const TOGGLE_DEBOUNCE_DELAY = 150 // 150ms 防抖，兼顧即時感與防止連點
+// 剛切換後此時間內輪詢不覆蓋 isRunning，避免畫面被舊資料蓋回
+const TOGGLE_GUARD_MS = 3000
+const lastToggledAt = new Map<string, number>()
 
 // 確保地點狀態物件存在
 const ensureLocationStatus = (locationId: string, defaultStatus: "normal" | "error" = "normal") => {
@@ -748,11 +751,24 @@ const clearLocationError = async (locationId: string) => {
 }
 
 // 更新地點狀態的共用函數
-const updateLocationStatuses = async (locationIds: string[], value: boolean) => {
+// fromToggledRead：來自切換後的延遲重讀時為 true，一律寫入；輪詢時為 false，剛切換過的地點不覆蓋 isRunning
+const updateLocationStatuses = async (
+	locationIds: string[],
+	value: boolean,
+	options?: { fromToggledRead?: boolean }
+) => {
+	const now = Date.now()
 	for (const locationId of locationIds) {
 		const status = ensureLocationStatus(locationId)
 		const wasError = status.status === "error"
-		status.isRunning = value
+		// 輪詢結果不覆蓋「剛切換」地點的 isRunning，避免延遲或設備慢導致畫面被蓋回
+		const recentlyToggled =
+			!options?.fromToggledRead &&
+			lastToggledAt.get(locationId) != null &&
+			now - lastToggledAt.get(locationId)! < TOGGLE_GUARD_MS
+		if (!recentlyToggled) {
+			status.isRunning = value
+		}
 		status.status = "normal"
 
 		// 如果地點從錯誤狀態恢復正常，清除錯誤狀態
@@ -768,7 +784,11 @@ const failedDevices = new Map<string, number>()
 const FAILED_DEVICE_TTL = 30000 // 30 秒後重試失敗的設備
 
 // 批量讀取請求處理（優化：智能合併相同設備和地址的請求，並發處理）
-const processBatchRequests = async (requests: BatchRequest[]) => {
+// options.fromToggledRead：切換後延遲重讀時傳 true，結果會寫入狀態；輪詢時不傳，剛切換地點不覆蓋 isRunning
+const processBatchRequests = async (
+	requests: BatchRequest[],
+	options?: { fromToggledRead?: boolean }
+) => {
 	if (requests.length === 0) return
 
 	const now = Date.now()
@@ -810,7 +830,7 @@ const processBatchRequests = async (requests: BatchRequest[]) => {
 				try {
 					const response = await cached.promise
 					if (response?.data?.[0] !== undefined) {
-						await updateLocationStatuses(locationIds, response.data[0])
+						await updateLocationStatuses(locationIds, response.data[0], options)
 					}
 					return
 				} catch (error) {
@@ -832,7 +852,7 @@ const processBatchRequests = async (requests: BatchRequest[]) => {
 
 				// 處理響應
 				if (response?.data?.[0] !== undefined) {
-					await updateLocationStatuses(locationIds, response.data[0])
+					await updateLocationStatuses(locationIds, response.data[0], options)
 				}
 
 				// 請求成功，從失敗列表中移除（設備已恢復）
@@ -1002,11 +1022,19 @@ const loadAllLocationStatuses = async (options?: { silent?: boolean; loadAllZone
 	await processBatchRequests(allRequests)
 }
 
-// 處理地點開關切換（添加防抖和 loading 狀態）
+// 處理地點開關切換（即時樂觀更新 + 防抖發送）
 const handleLocationToggle = async (locationId: string, targetValue: boolean) => {
 	// 如果正在處理此地點的切換，忽略重複請求
 	if (locationToggling.value.has(locationId)) {
 		return
+	}
+
+	// 即時樂觀更新：點擊當下就更新畫面，不等待防抖或寫入
+	const found = findLocationById(locationId)
+	if (found) {
+		ensureLocationStatus(locationId)
+		locationStatuses.value[locationId].isRunning = targetValue
+		lastToggledAt.set(locationId, Date.now())
 	}
 
 	// 清除之前的防抖計時器
@@ -1015,7 +1043,7 @@ const handleLocationToggle = async (locationId: string, targetValue: boolean) =>
 		clearTimeout(existingTimer)
 	}
 
-	// 設置防抖計時器
+	// 防抖後再發送寫入，避免連點重複請求
 	const timer = setTimeout(async () => {
 		await executeToggle(locationId, targetValue)
 		toggleDebounceTimers.delete(locationId)
@@ -1075,7 +1103,8 @@ const executeToggle = async (locationId: string, targetValue: boolean) => {
 			writeAddresses.map((address) => writeCoil(address, targetValue, deviceConfig))
 		)
 
-		// 寫入成功後，稍等一下再重新讀取狀態（避免與設備響應時間衝突）
+		// 寫入成功即結束 loading，讓按鈕即時可再操作；延遲重讀在背景執行以同步設備狀態
+		locationToggling.value.delete(locationId)
 		setTimeout(async () => {
 			const readRequests = await collectLocationReadRequests(
 				targetZone,
@@ -1083,10 +1112,10 @@ const executeToggle = async (locationId: string, targetValue: boolean) => {
 				targetLocationIndex
 			)
 			if (readRequests.length > 0) {
-				await processBatchRequests(readRequests)
+				await processBatchRequests(readRequests, { fromToggledRead: true })
 			}
-			locationToggling.value.delete(locationId)
-		}, 200) // 200ms 後讀取狀態
+			lastToggledAt.delete(locationId)
+		}, 200)
 	} catch (error) {
 		// 回滾狀態並標記為錯誤
 		rollbackLocationStatus(locationId, currentValue)

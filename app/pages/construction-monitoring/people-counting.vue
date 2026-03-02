@@ -149,9 +149,11 @@
 								<template v-if="locations.length > 0">
 									<LocationOverviewCard
 										v-for="location in locationsForOverview"
-										:key="location.locationId || location.id"
+										:key="getLocationId(location)"
 										:location="location"
+										:selected="isCurrentLocation(location)"
 										@click="handleLocationSelect"
+										class="cursor-pointer transition-all"
 										:class="{
 											'ring-2 ring-cyan-400': isCurrentLocation(location),
 											'hover:ring-2 hover:ring-cyan-300/50': true,
@@ -377,13 +379,9 @@ watch([selectedLocation, locations, peopleCountingZones], () => {
 	})
 })
 
-// 檢查是否為當前選中的地點
+// 檢查是否為當前選中的地點（與 construction 一致：單一 canonical id，僅一卡高亮／左側白條）
 const isCurrentLocation = (location: PeopleCountingLocation): boolean => {
-	if (!selectedLocation.value) return false
-	return (
-		selectedLocation.value.locationId === location.locationId ||
-		selectedLocation.value.id === location.id
-	)
+	return getLocationId(location) === selectedLocationId.value
 }
 
 // 處理地點選擇

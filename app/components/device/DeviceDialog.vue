@@ -209,16 +209,6 @@
 								/>
 							</label>
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>使用者名稱 (Digest Auth) *</span>
-								<input
-									v-model="accessControlConfig.username"
-									type="text"
-									required
-									class="form-input"
-									placeholder="例如：admin"
-								/>
-							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 								<span>密碼 (Digest Auth) *</span>
 								<input
 									v-model="accessControlConfig.password"
@@ -230,15 +220,6 @@
 							</label>
 						</template>
 
-						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-							<span>備註</span>
-							<textarea
-								v-model="localFormData.description"
-								class="form-input"
-								rows="3"
-								placeholder="設備描述或備註"
-							></textarea>
-						</label>
 						<label
 							v-if="isAdmin"
 							class="flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base"
@@ -341,8 +322,7 @@ const loadDeviceType = async () => {
 const localFormData = reactive({
 	name: "",
 	model_id: 0,
-	description: "",
-	status: "inactive" as "active" | "inactive" | "error"
+	status: "active" as "active" | "inactive" | "error"
 });
 
 const controllerConfig = reactive<ControllerDeviceConfig>({
@@ -495,8 +475,7 @@ watch(
 const resetForm = () => {
 	localFormData.name = "";
 	localFormData.model_id = 0;
-	localFormData.description = "";
-	localFormData.status = "inactive";
+	localFormData.status = "active";
 	controllerConfig.host = "";
 	controllerConfig.port = 502;
 	// unitId 由後端自動生成，不需要重置
@@ -516,7 +495,6 @@ const resetForm = () => {
 
 	accessControlConfig.host = "";
 	accessControlConfig.port = 80;
-	accessControlConfig.username = "";
 	accessControlConfig.password = "";
 
 	localErrorMessage.value = null;
@@ -565,7 +543,6 @@ watch(
 		if (device) {
 			localFormData.name = device.name;
 			localFormData.model_id = device.model_id; // model_id 現在是必填的
-			localFormData.description = device.description || "";
 			localFormData.status = device.status;
 			loadConfigFromDevice(device);
 		} else {
@@ -614,7 +591,7 @@ const getCurrentConfig = (): DeviceConfig => {
 				type: "access_control",
 				host: accessControlConfig.host,
 				port: accessControlConfig.port || 80,
-				username: accessControlConfig.username,
+				username: "admin",
 				password: accessControlConfig.password
 			};
 		default:
@@ -642,7 +619,6 @@ const handleSubmit = () => {
 		emit("submit", {
 			name: localFormData.name,
 			model_id: localFormData.model_id,
-			description: localFormData.description,
 			status: localFormData.status,
 			config: config
 		} as UpdateDeviceData);
@@ -651,7 +627,6 @@ const handleSubmit = () => {
 			name: localFormData.name,
 			type_id: currentDeviceTypeId.value,
 			model_id: localFormData.model_id,
-			description: localFormData.description,
 			status: localFormData.status === "active" ? "active" : undefined,
 			config: config
 		};

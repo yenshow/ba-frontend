@@ -11,7 +11,7 @@
 				>
 					<header class="flex items-center justify-between">
 						<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">
-							{{ groupName || "車輛" }} - 過車記錄
+							{{ groupName || "車輛" }} - 車輛名單
 						</h3>
 						<button
 							type="button"
@@ -28,67 +28,60 @@
 
 					<div class="show-scrollbar min-h-[130px] flex-1 overflow-y-auto">
 						<div
-							v-if="isLoading"
-							class="flex items-center justify-center rounded-lg border-2 border-white/20 bg-white/5 p-8"
-						>
-							<div
-								class="h-10 w-10 animate-spin rounded-full border-2 border-white/30 border-t-white/80"
-							></div>
-						</div>
-						<div
-							v-else-if="records.length === 0"
+							v-if="vehicleList.length === 0"
 							class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
 						>
-							<p class="text-sm text-white/60 xl:text-base">尚無過車記錄</p>
+							<p class="text-base text-white/60 2xl:text-lg">尚無車輛資料</p>
 						</div>
-						<div v-else class="space-y-4">
-							<div class="grid grid-cols-2 gap-4">
-								<div
-									v-for="log in paginatedRecords"
-									:key="log.id"
-									class="flex items-start gap-3 border-2 border-white/30 p-3"
-									:class="[log.lane_type === 1 ? 'bg-white/20' : 'bg-black/20']"
-								>
-									<!-- 車牌圖片 -->
-									<div class="mt-4 h-16 w-16 overflow-hidden rounded bg-white/10">
-										<img
-											v-if="log.plate_license_image_url"
-											:src="log.plate_license_image_url"
-											:alt="log.license_plate ?? ''"
-											class="h-full w-full object-cover"
-											@error="handleImageError($event)"
-										/>
-										<div v-else class="flex h-full w-full items-center justify-center text-xs text-white/60">
-											無圖
-										</div>
-									</div>
 
-									<div class="min-w-0 flex-1">
-										<div class="border-b border-white/30 pb-1 text-base font-medium text-white 2xl:text-xl">
-											{{ log.license_plate ?? "-" }}
+						<div v-else class="space-y-4">
+							<div class="mx-auto grid w-full grid-cols-2 gap-4">
+								<div
+									v-for="vehicle in paginatedList"
+									:key="vehicle.id"
+									class="flex min-h-[117px] items-start gap-3 border-2 border-white/30 p-3 2xl:min-h-[133px]"
+									:class="[vehicle.isPresent ? 'bg-white/20' : 'bg-black/20']"
+								>
+									<div class="mx-4 w-full 2xl:flex-1">
+										<div
+											class="border-b border-white/30 pb-1 text-base font-medium text-white 2xl:text-xl"
+										>
+											{{ vehicle.owner_name?.trim() || "- -" }}
+											<span class="text-white/80"
+												>({{ vehicle.plate_license?.trim() || "- -" }})</span
+											>
 										</div>
-										<div v-if="log.owner_name" class="mt-1 text-xs text-white/60 xl:text-sm">
-											車主：{{ log.owner_name }}
-										</div>
-										<div class="mt-1 space-y-0.5 text-xs text-white/60 xl:text-sm">
-											<div>
-												<span>時間：</span>
-												<span>{{ formatTriggerTime(log.trigger_time) }}</span>
+										<div class="mt-2 space-y-0.5 text-xs text-white/60 2xl:text-sm">
+											<div v-if="vehicle.lastEntryDate">
+												<span>最近進場：</span>
+												<span>{{ vehicle.lastEntryDate }}</span>
 											</div>
-											<div>
-												<span>進/出：</span>
-												<span>{{ formatLaneType(log.lane_type) }}</span>
+											<div v-if="vehicle.entryTime">
+												<span>進場時間：</span>
+												<span>{{ vehicle.entryTime }}</span>
+											</div>
+											<div v-if="vehicle.lastEntryDate || vehicle.entryTime">
+												<span>離場時間：</span>
+												<span v-if="vehicle.exitTime && !shouldHideExitTime(vehicle)">
+													{{ vehicle.exitTime }}
+												</span>
+												<span v-else> - - </span>
+											</div>
+											<div
+												v-if="!vehicle.lastEntryDate && !vehicle.entryTime && !vehicle.exitTime"
+												class="text-white/40"
+											>
+												尚無進出場記錄
 											</div>
 										</div>
 									</div>
 								</div>
 							</div>
 							<Pagination
-								v-if="records.length > itemsPerPage"
-								:total="records.length"
+								:total="vehicleList.length"
 								:offset="offset"
 								:limit="itemsPerPage"
-								:show="true"
+								:show="vehicleList.length > itemsPerPage"
 								@previous="handlePrevious"
 								@next="handleNext"
 							/>
@@ -101,71 +94,82 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
-import type { VehicleDataLog } from "~/types/vehicleAccess";
-import { formatDateTime } from "~/utils/dateUtils";
-import Pagination from "~/components/common/Pagination.vue";
+import { ref, computed, watch } from "vue"
+import type { VehicleGroupMemberItem } from "~/types/vehicleAccess"
+import Pagination from "~/components/common/Pagination.vue"
 
 interface Props {
-	modelValue: boolean;
-	groupName: string;
-	records: VehicleDataLog[];
-	isLoading?: boolean;
+	modelValue: boolean
+	groupName: string
+	vehicleList: VehicleGroupMemberItem[]
 }
 
-const props = withDefaults(defineProps<Props>(), {
-	isLoading: false
-});
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
-	(e: "update:modelValue", value: boolean): void;
-	(e: "close"): void;
-}>();
+	(e: "update:modelValue", value: boolean): void
+	(e: "close"): void
+}>()
 
-const itemsPerPage = 6;
-const offset = ref(0);
+const itemsPerPage = 4
+const offset = ref(0)
 
-const paginatedRecords = computed(() => {
-	const start = offset.value;
-	const end = start + itemsPerPage;
-	return props.records.slice(start, end);
-});
+const paginatedList = computed(() => {
+	const start = offset.value
+	const end = start + itemsPerPage
+	return props.vehicleList.slice(start, end)
+})
 
 watch(
-	() => props.records.length,
-	() => {
-		offset.value = 0;
+	() => props.vehicleList.length,
+	(newLength) => {
+		if (offset.value >= newLength) {
+			offset.value = 0
+		}
 	}
-);
+)
 
-const formatTriggerTime = (triggerTime: string | null): string =>
-	triggerTime ? formatDateTime(triggerTime, true) : "-";
+const displayName = (v: VehicleGroupMemberItem): string => {
+	const name = v.owner_name?.trim() || ""
+	const plate = v.plate_license?.trim() || ""
+	if (name && plate) return `${name} - ${plate}`
+	if (plate) return plate
+	if (name) return name
+	return "- -"
+}
 
-const formatLaneType = (laneType: number | null | undefined): string => {
-	if (laneType === 1) return "進";
-	if (laneType === 2) return "出";
-	return "-";
-};
+const parseTimeToSeconds = (time?: string | null) => {
+	if (!time) return null
+	const m = time.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)
+	if (!m) return null
+	const hh = Number(m[1])
+	const mm = Number(m[2])
+	const ss = m[3] ? Number(m[3]) : 0
+	if (Number.isNaN(hh) || Number.isNaN(mm) || Number.isNaN(ss)) return null
+	return hh * 3600 + mm * 60 + ss
+}
 
-const handleImageError = (event: Event) => {
-	const img = event.target as HTMLImageElement;
-	img.style.display = "none";
-};
+const shouldHideExitTime = (v: VehicleGroupMemberItem) => {
+	const entrySec = parseTimeToSeconds(v.entryTime)
+	const exitSec = parseTimeToSeconds(v.exitTime ?? null)
+	if (entrySec == null || exitSec == null) return false
+	return entrySec > exitSec
+}
 
 const handlePrevious = () => {
-	offset.value = Math.max(0, offset.value - itemsPerPage);
-};
+	offset.value = Math.max(0, offset.value - itemsPerPage)
+}
 
 const handleNext = () => {
-	if (offset.value + itemsPerPage < props.records.length) {
-		offset.value += itemsPerPage;
+	if (offset.value + itemsPerPage < props.vehicleList.length) {
+		offset.value += itemsPerPage
 	}
-};
+}
 
 const handleClose = () => {
-	emit("update:modelValue", false);
-	emit("close");
-};
+	emit("update:modelValue", false)
+	emit("close")
+}
 </script>
 
 <style scoped>

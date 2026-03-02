@@ -18,9 +18,6 @@ import { extractRegionFromZoneName, convertApiLogToFrontend } from "~/utils/peop
 
 const apiLogger = logger.createLogger("PeopleCounting API");
 
-/**
- * 人流統計 API Composable
- */
 export const usePeopleCountingApi = () => {
 	const { request } = useApiBase();
 	const peopleCountingLocationApi = usePeopleCountingLocationApi();
@@ -194,38 +191,21 @@ export const usePeopleCountingApi = () => {
 	};
 
 	/**
-	 * 取得地點進出場記錄
+	 * 取得地點進出場記錄（YSCP / access_control 同一 API）
 	 * startTime / endTime 未傳時，後端預設為今日範圍
 	 */
 	const getLocationLogs = async (
 		locationId: number,
-		options?: {
-			limit?: number;
-			unitId?: number;
-			startTime?: string;
-			endTime?: string;
-			offset?: number;
-		}
+		options?: { limit?: number; unitId?: number; startTime?: string; endTime?: string; offset?: number }
 	): Promise<PeopleCountingLog[]> => {
 		try {
-			const params = new URLSearchParams();
-			if (options?.limit) {
-				params.append("limit", String(options.limit));
-			}
-			if (options?.unitId) {
-				params.append("unitId", String(options.unitId));
-			}
-			if (options?.startTime) {
-				params.append("startTime", options.startTime);
-			}
-			if (options?.endTime) {
-				params.append("endTime", options.endTime);
-			}
-			if (options?.offset != null && options.offset > 0) {
-				params.append("offset", String(options.offset));
-			}
-
-			const queryString = params.toString();
+			const q: Record<string, string> = {};
+			if (options?.limit) q.limit = String(options.limit);
+			if (options?.unitId) q.unitId = String(options.unitId);
+			if (options?.startTime) q.startTime = options.startTime;
+			if (options?.endTime) q.endTime = options.endTime;
+			if (options?.offset != null && options.offset > 0) q.offset = String(options.offset);
+			const queryString = new URLSearchParams(q).toString();
 			const url = `/people-counting/sites/${locationId}/logs${queryString ? `?${queryString}` : ""}`;
 
 			const response = await request<{
@@ -235,6 +215,7 @@ export const usePeopleCountingApi = () => {
 					personName: string;
 					unitId: number | null;
 					unitName: string;
+					employeeId?: string | null;
 					eventType: "entry" | "exit" | "failed";
 					timestamp: string;
 					deviceScreenshotUrl: string;

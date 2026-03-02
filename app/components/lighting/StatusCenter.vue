@@ -77,7 +77,7 @@
 								<div class="relative flex justify-center">
 									<!-- Loading 指示器（當正在處理切換時顯示） -->
 									<div
-										v-if="props.areaToggling.has(getLocationId(zone, location, locationIndex))"
+										v-if="props.locationToggling.has(getLocationId(zone, location, locationIndex))"
 										class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"
 									>
 										<div
@@ -139,17 +139,18 @@ import type { LightingZone, LightingLocation } from "~/types/lighting";
 
 interface Props {
 	zones: LightingZone[];
-	areaStatuses?: Record<string, { isRunning: boolean; status: "normal" | "warning" | "error" }>;
-	areaDisabledMap?: Record<string, boolean>;
-	areaToggling?: Set<string>; // 正在處理切換操作的區域
+	/** 與 lighting.vue 傳入的 location-statuses 對應，勿改為 areaStatuses 否則收不到狀態 */
+	locationStatuses?: Record<string, { isRunning: boolean; status: "normal" | "warning" | "error" }>;
+	locationDisabledMap?: Record<string, boolean>;
+	locationToggling?: Set<string>; // 正在處理切換操作的地點
 	selectedZone?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	zones: () => [],
-	areaStatuses: () => ({}),
-	areaDisabledMap: () => ({}),
-	areaToggling: () => new Set(),
+	locationStatuses: () => ({}),
+	locationDisabledMap: () => ({}),
+	locationToggling: () => new Set(),
 	selectedZone: ""
 });
 
@@ -199,9 +200,9 @@ const displayedZones = computed(() => {
 	});
 });
 
-// 取得地點狀態
+// 取得地點狀態（使用 locationStatuses 與 lighting.vue 傳入一致）
 const getLocationStatus = (locationId: string) => {
-	const status = props.areaStatuses[locationId];
+	const status = props.locationStatuses[locationId];
 	if (status) {
 		return {
 			isRunning: status.isRunning,
@@ -218,12 +219,12 @@ const getLocationStatus = (locationId: string) => {
 
 // 判斷地點是否正常
 const isLocationNormal = (locationId: string): boolean => {
-	const status = props.areaStatuses[locationId];
+	const status = props.locationStatuses[locationId];
 	return !status || status.status === "normal";
 };
 
 const isLocationDisabled = (locationId: string): boolean => {
-	return props.areaDisabledMap[locationId] ?? false;
+	return props.locationDisabledMap[locationId] ?? false;
 };
 
 const handleToggle = (areaId: string, isRunning: boolean) => {

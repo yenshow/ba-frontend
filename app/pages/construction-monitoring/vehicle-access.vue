@@ -42,7 +42,7 @@
 									:current-count="onSiteCount"
 								/>
 							</div>
-							<!-- 當日記錄表 + 車輛名單（platform.vehicle_list + 是否入場） -->
+							<!-- 當日記錄表 + 車輛群組（依 platform.vehicle_list.person_group_id + person_group 穩定取得，進出由 passageway_log_data 計算） -->
 							<div class="grid grid-cols-2 gap-4">
 								<!-- 當日過車記錄表 -->
 								<div class="space-y-3">
@@ -74,11 +74,11 @@
 										<VehicleDataLogTable :logs="logs" />
 									</div>
 								</div>
-								<!-- 車輛名單（固定清單 + 是否入場，點開顯示該車過車記錄） -->
-								<VehicleListPanel
-									:items="vehicleListWithStatus"
-									:is-loading="isLoadingVehicleList"
-									@select="handleVehicleListSelect"
+								<!-- 車輛群組（工程部、行銷部等，點開顯示該群組過車記錄） -->
+								<VehicleOrganizationGroupPanel
+									:groups="organizationGroups ?? []"
+									:selected-group-key="selectedOrganizationKey ?? undefined"
+									@select="handleOrganizationGroupSelect"
 								/>
 							</div>
 						</div>
@@ -104,7 +104,9 @@
 								/>
 							</svg>
 							<p class="text-xl font-medium text-white/90 xl:text-2xl 2xl:text-3xl">請選擇地點</p>
-							<p class="mt-2 text-sm text-white/70 xl:text-base">請從右側列表點選地點以查看詳細資訊</p>
+							<p class="mt-2 text-sm text-white/70 xl:text-base">
+								請從右側列表點選地點以查看詳細資訊
+							</p>
 						</div>
 					</div>
 					<!-- 尚無地點 -->
@@ -126,7 +128,9 @@
 									d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0zM13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1h-1m-6-1a1 1 0 001-1V7m8 10v3m0 0v-3m0 0h-3m3 0h3"
 								/>
 							</svg>
-							<p class="text-xl font-medium text-white/90 xl:text-2xl 2xl:text-3xl">尚無車輛進出地點</p>
+							<p class="text-xl font-medium text-white/90 xl:text-2xl 2xl:text-3xl">
+								尚無車輛進出地點
+							</p>
 							<p class="mt-2 text-sm text-white/70 xl:text-base">
 								請在「地點管理」中新增含車輛進出系統的地點
 							</p>
@@ -139,7 +143,7 @@
 			<aside
 				:class="[
 					'flex flex-col transition-all duration-500 ease-in-out',
-					isSidebarCollapsed ? 'flex-[0.05]' : 'flex-[0.8] 2xl:flex-[0.7]'
+					isSidebarCollapsed ? 'flex-[0.05]' : 'flex-[0.8] 2xl:flex-[0.7]',
 				]"
 				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
 			>
@@ -169,7 +173,12 @@
 							stroke="currentColor"
 							viewBox="0 0 24 24"
 						>
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M9 5l7 7-7 7"
+							/>
 						</svg>
 					</button>
 
@@ -186,7 +195,7 @@
 									:summary="summary"
 									:class="{
 										'ring-2 ring-cyan-400': isCurrentSummary(summary),
-										'cursor-pointer transition-all hover:ring-2 hover:ring-cyan-300/50': true
+										'cursor-pointer transition-all hover:ring-2 hover:ring-cyan-300/50': true,
 									}"
 									@click="handleOverviewClick(summary.id)"
 								/>
@@ -213,33 +222,33 @@
 
 	<VehicleGroupDetailDialog
 		v-model="isGroupDialogOpen"
-		:group-name="selectedVehicleDialogTitle"
-		:records="vehicleListRecordsForSelected"
-		@close="handleVehicleDialogClose"
+		:group-name="selectedOrganizationGroupName"
+		:vehicle-list="organizationGroupVehicleList"
+		@close="handleOrganizationDialogClose"
 	/>
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, watch, nextTick, computed, ref } from "vue";
+import { onMounted, onBeforeUnmount, watch, nextTick, computed, ref } from "vue"
 import type {
 	VehicleAccessZone,
 	VehicleAccessLocation,
-	VehicleAccessLocationSummary
-} from "~/types/vehicleAccess";
-import type { VehicleAccessTimeRange } from "~/composables/systems/vehicleAccess/useVehicleAccessState";
-import VehicleStatsPanel from "~/components/vehicle-access/VehicleStatsPanel.vue";
-import VehicleDataLogTable from "~/components/vehicle-access/VehicleDataLogTable.vue";
-import VehicleListPanel from "~/components/vehicle-access/VehicleListPanel.vue";
-import VehicleOverviewCard from "~/components/vehicle-access/VehicleOverviewCard.vue";
-import VehicleGroupDetailDialog from "~/components/vehicle-access/VehicleGroupDetailDialog.vue";
-import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
-import { useVehicleAccessState } from "~/composables/systems/vehicleAccess/useVehicleAccessState";
-import { useVehicleAccessWebSocket } from "~/composables/systems/vehicleAccess/useVehicleAccessWebSocket";
-import { useVehicleAccessLocationApi } from "~/composables/systems/location/useVehicleAccessLocationApi";
-import { useZoneManagement } from "~/composables/systems/useZoneManagement";
-import { useLocationApi } from "~/composables/systems/location/useLocationApi";
-import { useZoneSystemAdapter } from "~/composables/systems/useZoneSystemAdapter";
-import type { UnifiedZone } from "~/types/location";
+	VehicleAccessLocationSummary,
+} from "~/types/vehicleAccess"
+import type { VehicleAccessTimeRange } from "~/composables/systems/vehicleAccess/useVehicleAccessState"
+import VehicleStatsPanel from "~/components/vehicle-access/VehicleStatsPanel.vue"
+import VehicleDataLogTable from "~/components/vehicle-access/VehicleDataLogTable.vue"
+import VehicleOrganizationGroupPanel from "~/components/vehicle-access/VehicleOrganizationGroupPanel.vue"
+import VehicleOverviewCard from "~/components/vehicle-access/VehicleOverviewCard.vue"
+import VehicleGroupDetailDialog from "~/components/vehicle-access/VehicleGroupDetailDialog.vue"
+import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
+import { useVehicleAccessState } from "~/composables/systems/vehicleAccess/useVehicleAccessState"
+import { useVehicleAccessWebSocket } from "~/composables/systems/vehicleAccess/useVehicleAccessWebSocket"
+import { useVehicleAccessLocationApi } from "~/composables/systems/location/useVehicleAccessLocationApi"
+import { useZoneManagement } from "~/composables/systems/useZoneManagement"
+import { useLocationApi } from "~/composables/systems/location/useLocationApi"
+import { useZoneSystemAdapter } from "~/composables/systems/useZoneSystemAdapter"
+import type { UnifiedZone } from "~/types/location"
 
 const {
 	filters,
@@ -251,173 +260,170 @@ const {
 	entryCount,
 	exitCount,
 	onSiteCount,
-	vehicleListWithStatus,
-	vehicleListRecordsForSelected,
-	selectedVehiclePlate,
-	isLoadingVehicleList,
-	loadVehicleList,
-	setSelectedVehiclePlate,
+	organizationGroups,
+	selectedOrganizationKey,
+	organizationGroupVehicleList,
+	setSelectedOrganizationKey,
 	isLoadingZones,
 	isLoadingLogs,
+	isLoadingVehicleGroups,
 	loadZones,
 	loadLogs,
+	loadVehicleGroups,
 	loadEntryExitOnSiteCounts,
 	loadOverviewSummaries,
-	getLocationZone
-} = useVehicleAccessState();
+	getLocationZone,
+} = useVehicleAccessState()
 
-const isGroupDialogOpen = ref(false);
-/** 彈窗標題：選中車輛的顯示名稱（owner_name）與車牌 */
-const selectedVehicleDialogTitle = computed(() => {
-	const plate = selectedVehiclePlate.value;
-	if (!plate) return "";
-	const plateNorm = plate.trim();
-	const item = vehicleListWithStatus.value.find(v => (v.plate_license?.trim() ?? "") === plateNorm);
-	if (item?.owner_name?.trim())
-		return `${item.owner_name.trim()} - ${item.plate_license?.trim() ?? plate}`;
-	return item?.plate_license?.trim() ?? plate;
-});
+const isGroupDialogOpen = ref(false)
+/** 彈窗標題：選中單位名稱（工程部、行銷部等） */
+const selectedOrganizationGroupName = computed(() => {
+	const key = selectedOrganizationKey.value
+	if (!key) return ""
+	const g = organizationGroups.value.find((gr) => gr.groupKey === key)
+	return g?.personGroupName ?? ""
+})
 
-const handleVehicleListSelect = (plate: string) => {
-	setSelectedVehiclePlate(plate);
-	isGroupDialogOpen.value = true;
-};
+const handleOrganizationGroupSelect = (groupKey: string) => {
+	setSelectedOrganizationKey(groupKey)
+	isGroupDialogOpen.value = true
+}
 
-const handleVehicleDialogClose = () => {
-	setSelectedVehiclePlate(null);
-};
+const handleOrganizationDialogClose = () => {
+	setSelectedOrganizationKey(null)
+}
 
 /** 時間篩選選項：今日、昨日、最近一週 */
 const timeRangeOptions: { value: VehicleAccessTimeRange; label: string }[] = [
 	{ value: "today", label: "今日" },
 	{ value: "yesterday", label: "昨日" },
-	{ value: "last7days", label: "最近一週" }
-];
+	{ value: "last7days", label: "最近一週" },
+]
 const timeRangeRecordLabel = computed(() => {
-	const v = filters.value.timeRange;
-	if (v === "today") return "當日紀錄";
-	if (v === "yesterday") return "昨日紀錄";
-	if (v === "last7days") return "最近一週紀錄";
-	return "過車紀錄";
-});
+	const v = filters.value.timeRange
+	if (v === "today") return "當日紀錄"
+	if (v === "yesterday") return "昨日紀錄"
+	if (v === "last7days") return "最近一週紀錄"
+	return "過車紀錄"
+})
 const handleTimeRangeChange = (value: VehicleAccessTimeRange) => {
-	if (filters.value.timeRange === value) return;
-	filters.value = { ...filters.value, timeRange: value };
-	loadLogsAndCounts();
-};
+	if (filters.value.timeRange === value) return
+	filters.value = { ...filters.value, timeRange: value }
+	loadLogsAndCounts()
+}
 
-const selectedLocationIdRef = ref<string>("");
+const selectedLocationIdRef = ref<string>("")
 watch(
 	() => filters.value.locationId,
-	id => {
-		selectedLocationIdRef.value = id ?? "";
+	(id) => {
+		selectedLocationIdRef.value = id ?? ""
 	},
 	{ immediate: true }
-);
-watch(selectedLocationIdRef, id => {
+)
+watch(selectedLocationIdRef, (id) => {
 	if (filters.value.locationId !== (id || null)) {
-		filters.value = { ...filters.value, locationId: id || null };
+		filters.value = { ...filters.value, locationId: id || null }
 	}
-});
+})
 
 const overviewSummariesWithZone = computed(() =>
-	overviewSummaries.value.map(s => ({
+	overviewSummaries.value.map((s) => ({
 		...s,
-		zoneName: s.zoneName ?? vehicleAccessZones.value.find(z => z.id === s.zoneId)?.name ?? null
+		zoneName: s.zoneName ?? vehicleAccessZones.value.find((z) => z.id === s.zoneId)?.name ?? null,
 	}))
-);
+)
 
-const leftSectionRef = ref<HTMLElement | null>(null);
-const leftSectionHeight = ref<number | null>(null);
-let leftSectionResizeObserver: ResizeObserver | null = null;
+const leftSectionRef = ref<HTMLElement | null>(null)
+const leftSectionHeight = ref<number | null>(null)
+let leftSectionResizeObserver: ResizeObserver | null = null
 
 const updateLeftSectionHeight = () => {
 	if (leftSectionRef.value) {
-		leftSectionHeight.value = leftSectionRef.value.offsetHeight;
+		leftSectionHeight.value = leftSectionRef.value.offsetHeight
 	}
-};
+}
 
 const initLeftSectionObserver = () => {
-	if (typeof ResizeObserver === "undefined") return;
-	if (!leftSectionRef.value) return;
-	leftSectionResizeObserver = new ResizeObserver(entries => {
+	if (typeof ResizeObserver === "undefined") return
+	if (!leftSectionRef.value) return
+	leftSectionResizeObserver = new ResizeObserver((entries) => {
 		if (entries.length) {
-			leftSectionHeight.value = entries[0].contentRect.height;
+			leftSectionHeight.value = entries[0].contentRect.height
 		}
-	});
-	leftSectionResizeObserver.observe(leftSectionRef.value);
-};
+	})
+	leftSectionResizeObserver.observe(leftSectionRef.value)
+}
 
-const isSidebarCollapsed = ref(false);
-const showLocationManagementDialog = ref(false);
+const isSidebarCollapsed = ref(false)
+const showLocationManagementDialog = ref(false)
 
-const vehicleAccessLocationApi = useVehicleAccessLocationApi();
-const locationApi = useLocationApi();
-const adapter = useZoneSystemAdapter<VehicleAccessZone, VehicleAccessLocation>("vehicle_access");
+const vehicleAccessLocationApi = useVehicleAccessLocationApi()
+const locationApi = useLocationApi()
+const adapter = useZoneSystemAdapter<VehicleAccessZone, VehicleAccessLocation>("vehicle_access")
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
-	useZoneManagement<VehicleAccessZone>();
+	useZoneManagement<VehicleAccessZone>()
 
 const getLocationId = (location: VehicleAccessLocation & { zoneName?: string }): string => {
 	const zoneName =
 		location.zoneName ??
-		vehicleAccessZones.value.find(z =>
-			z.locations?.some(l => l.id === location.id || l.name === location.name)
-		)?.name;
+		vehicleAccessZones.value.find((z) =>
+			z.locations?.some((l) => l.id === location.id || l.name === location.name)
+		)?.name
 	return (
 		adapter.getLocationId?.(location, zoneName ?? undefined) ??
 		`${zoneName ?? "unknown"}-${location.name}`
-	);
-};
+	)
+}
 
 // 與 environment 一致：僅以單一 id 判斷選定，確保總覽只有一卡高亮
 const isCurrentSummary = (summary: VehicleAccessLocationSummary): boolean => {
-	const selectedId = filters.value.locationId ?? "";
-	if (!selectedId) return false;
-	return String(summary.id ?? "") === String(selectedId);
-};
+	const selectedId = filters.value.locationId ?? ""
+	if (!selectedId) return false
+	return String(summary.id ?? "") === String(selectedId)
+}
 
 /** 與人流統計一致：地點／列表變更時更新右側高度 */
 watch([selectedLocation, locations, vehicleAccessZones], () => {
-	nextTick(() => updateLeftSectionHeight());
-});
+	nextTick(() => updateLeftSectionHeight())
+})
 
 const handleOverviewClick = (locationId: string) => {
-	filters.value = { ...filters.value, locationId: locationId || null };
-};
+	filters.value = { ...filters.value, locationId: locationId || null }
+}
 
 const handleOpenLocationDialog = async () => {
 	if (vehicleAccessZones.value.length === 0) {
-		await loadZones();
+		await loadZones()
 	}
-	showLocationManagementDialog.value = true;
-};
+	showLocationManagementDialog.value = true
+}
 
 const handleSaveZone = async (zone: VehicleAccessZone) => {
 	await baseHandleSaveZone(
 		zone,
 		vehicleAccessZones,
 		async (z: VehicleAccessZone) => {
-			const isValidId = z.id && !z.id.startsWith("temp-") && /^\d+$/.test(z.id);
+			const isValidId = z.id && !z.id.startsWith("temp-") && /^\d+$/.test(z.id)
 			const result = isValidId
 				? await vehicleAccessLocationApi.updateZone(z.id, { name: z.name, locations: z.locations })
-				: await vehicleAccessLocationApi.createZone({ name: z.name, locations: z.locations });
+				: await vehicleAccessLocationApi.createZone({ name: z.name, locations: z.locations })
 			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as VehicleAccessZone & {
-				id: string;
-			};
+				id: string
+			}
 			return {
 				merged: result.merged,
 				message: result.message,
-				zone: zoneWithId
-			};
+				zone: zoneWithId,
+			}
 		},
 		{
 			onAfterSave: async () => {
-				await loadZones();
-				await loadOverviewSummaries();
-			}
+				await loadZones()
+				await loadOverviewSummaries()
+			},
 		}
-	);
-};
+	)
+}
 
 const handleDeleteZone = async (zoneId: string) => {
 	await baseHandleDeleteZone(zoneId, vehicleAccessZones, vehicleAccessLocationApi.deleteZone, {
@@ -425,89 +431,89 @@ const handleDeleteZone = async (zoneId: string) => {
 		getLocationId: (loc: VehicleAccessLocation) => getLocationId(loc),
 		getFullZoneApiCall: (id: string) => locationApi.getZone(id),
 		updateZoneApiCall: async (id: string, data: { locations: UnifiedZone["locations"] }) => {
-			const response = await locationApi.updateZone(id, { locations: data.locations });
+			const response = await locationApi.updateZone(id, { locations: data.locations })
 			return {
 				merged: response.merged,
 				message: response.message,
-				zone: response.zone as unknown as VehicleAccessZone
-			};
+				zone: response.zone as unknown as VehicleAccessZone,
+			}
 		},
 		systemType: "vehicle_access",
 		onAfterDelete: async () => {
-			await loadZones();
-			await loadOverviewSummaries();
-		}
-	});
-};
+			await loadZones()
+			await loadOverviewSummaries()
+		},
+	})
+}
 
-const { setupEventListeners } = useVehicleAccessWebSocket();
-let cleanupWebSocket: (() => void) | null = null;
+const { setupEventListeners } = useVehicleAccessWebSocket()
+let cleanupWebSocket: (() => void) | null = null
 
 /** 防抖：避免 locationId 變更時重複請求 */
-const DEBOUNCE_MS = 200;
-let loadDataDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+const DEBOUNCE_MS = 200
+let loadDataDebounceTimer: ReturnType<typeof setTimeout> | null = null
 const loadLogsAndCounts = () => {
-	if (loadDataDebounceTimer) clearTimeout(loadDataDebounceTimer);
+	if (loadDataDebounceTimer) clearTimeout(loadDataDebounceTimer)
 	loadDataDebounceTimer = setTimeout(() => {
-		loadDataDebounceTimer = null;
-		Promise.all([loadLogs(), loadEntryExitOnSiteCounts(), loadVehicleList()]);
-	}, DEBOUNCE_MS);
-};
+		loadDataDebounceTimer = null
+		Promise.all([loadLogs(), loadEntryExitOnSiteCounts(), loadVehicleGroups()])
+	}, DEBOUNCE_MS)
+}
 
 watch(
 	() => filters.value.locationId,
 	() => {
-		loadLogsAndCounts();
+		loadLogsAndCounts()
 	}
-);
+)
 
 onMounted(async () => {
-	initLeftSectionObserver();
+	initLeftSectionObserver()
 
 	cleanupWebSocket = setupEventListeners(async () => {
 		await Promise.allSettled([
 			loadLogs(),
 			loadEntryExitOnSiteCounts(),
 			loadOverviewSummaries(),
-			loadVehicleList()
-		]);
-		await nextTick();
-		updateLeftSectionHeight();
-	}, 500);
+			loadVehicleGroups(),
+		])
+		await nextTick()
+		updateLeftSectionHeight()
+	}, 500)
 
 	try {
-		await loadZones();
-		await loadOverviewSummaries();
-		await loadVehicleList();
+		await loadZones()
+		await loadOverviewSummaries()
+		await loadVehicleGroups()
 		if (locations.value.length > 0 && !selectedLocation.value) {
-			const first = locations.value[0];
-			const firstId = first?.id ?? first?.locationId;
+			const first = locations.value[0]
+			const firstId = first?.id ?? first?.locationId
 			if (firstId != null) {
-				filters.value = { ...filters.value, locationId: String(firstId) };
+				filters.value = { ...filters.value, locationId: String(firstId) }
 				// 由 watch(filters.value.locationId) 統一觸發 loadLogs + loadEntryExitOnSiteCounts，避免重複請求
 			}
 		}
 	} catch {
 		// 錯誤已在 composable 處理
 	}
-	nextTick(() => updateLeftSectionHeight());
-});
+	nextTick(() => updateLeftSectionHeight())
+})
 
 onBeforeUnmount(() => {
 	if (loadDataDebounceTimer) {
-		clearTimeout(loadDataDebounceTimer);
-		loadDataDebounceTimer = null;
+		clearTimeout(loadDataDebounceTimer)
+		loadDataDebounceTimer = null
 	}
 	if (leftSectionResizeObserver && leftSectionRef.value) {
-		leftSectionResizeObserver.unobserve(leftSectionRef.value);
-		leftSectionResizeObserver.disconnect();
-		leftSectionResizeObserver = null;
+		leftSectionResizeObserver.unobserve(leftSectionRef.value)
+		leftSectionResizeObserver.disconnect()
+		leftSectionResizeObserver = null
 	}
 	if (cleanupWebSocket) {
-		cleanupWebSocket();
-		cleanupWebSocket = null;
+		cleanupWebSocket()
+		cleanupWebSocket = null
 	}
-});
+})
 </script>
 
 <style scoped>

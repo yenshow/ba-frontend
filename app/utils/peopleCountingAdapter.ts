@@ -103,8 +103,7 @@ export const extractRegionFromZoneName = (zoneName: string): string | null => {
 };
 
 /**
- * 將後端 API 返回的記錄轉換為前端格式
- * 統一處理字段映射和格式轉換
+ * 將後端 API 返回的記錄轉換為前端格式（YSCP / access_control 同一結構）
  */
 export const convertApiLogToFrontend = (
 	log: {
@@ -113,6 +112,7 @@ export const convertApiLogToFrontend = (
 		personName: string;
 		unitId: number | null;
 		unitName: string;
+		employeeId?: string | null;
 		eventType: "entry" | "exit" | "failed";
 		timestamp: string;
 		deviceScreenshotUrl: string;
@@ -121,7 +121,6 @@ export const convertApiLogToFrontend = (
 	locationId: number
 ): PeopleCountingLog => {
 	const personnelId = log.personId !== -1 ? log.personId : undefined;
-
 	return {
 		id: log.id,
 		locationId,
@@ -129,10 +128,11 @@ export const convertApiLogToFrontend = (
 		personnelId,
 		deviceId: 0,
 		eventType: log.eventType,
+		employeeId: log.employeeId != null && String(log.employeeId).trim() !== "" ? String(log.employeeId).trim() : undefined,
 		personName: log.personName || undefined,
 		deviceScreenshotUrl: log.deviceScreenshotUrl || undefined,
 		deviceName: log.deviceName ?? undefined,
 		unitName: log.unitName || undefined,
-		timestamp: formatDateTime(log.timestamp, true)
+		timestamp: formatDateTime(log.timestamp, true),
 	};
 };
