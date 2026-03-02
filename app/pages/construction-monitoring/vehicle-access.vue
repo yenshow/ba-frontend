@@ -27,9 +27,18 @@
 					<button
 						type="button"
 						class="absolute left-8 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
+						aria-label="地點管理"
 						@click="handleOpenLocationDialog"
 					>
 						地點管理
+					</button>
+					<button
+						type="button"
+						class="absolute right-8 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
+						aria-label="開啟完整報表"
+						@click="handleOpenSimulation"
+					>
+						完整報表
 					</button>
 
 					<template v-if="selectedLocation">
@@ -227,6 +236,16 @@
 		:vehicle-list="organizationGroupVehicleList"
 		@close="handleOrganizationDialogClose"
 	/>
+
+	<SimulationFrame v-model="showSimulationFrame" title="車輛進出 - 完整報表">
+		<VehicleAccessSimulation
+			:logs="simulationLogs"
+			:zone-name="simulationZoneName"
+			:location-name="simulationLocationName"
+			:time-range="simulationTimeRange"
+			@update:time-range="handleSimulationTimeRangeUpdate"
+		/>
+	</SimulationFrame>
 </template>
 
 <script setup lang="ts">
@@ -235,6 +254,7 @@ import type {
 	VehicleAccessZone,
 	VehicleAccessLocation,
 	VehicleAccessLocationSummary,
+	VehicleDataLog,
 } from "~/types/vehicleAccess"
 import type { VehicleAccessTimeRange } from "~/composables/systems/vehicleAccess/useVehicleAccessState"
 import VehicleStatsPanel from "~/components/vehicle-access/VehicleStatsPanel.vue"
@@ -243,19 +263,24 @@ import VehicleOrganizationGroupPanel from "~/components/vehicle-access/VehicleOr
 import VehicleOverviewCard from "~/components/vehicle-access/VehicleOverviewCard.vue"
 import VehicleGroupDetailDialog from "~/components/vehicle-access/VehicleGroupDetailDialog.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
+import SimulationFrame from "~/components/common/SimulationFrame.vue"
+import VehicleAccessSimulation from "~/components/vehicle-access/VehicleAccessSimulation.vue"
 import { useVehicleAccessState } from "~/composables/systems/vehicleAccess/useVehicleAccessState"
+import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi"
 import { useVehicleAccessWebSocket } from "~/composables/systems/vehicleAccess/useVehicleAccessWebSocket"
 import { useVehicleAccessLocationApi } from "~/composables/systems/location/useVehicleAccessLocationApi"
 import { useZoneManagement } from "~/composables/systems/useZoneManagement"
 import { useLocationApi } from "~/composables/systems/location/useLocationApi"
 import { useZoneSystemAdapter } from "~/composables/systems/useZoneSystemAdapter"
 import type { UnifiedZone } from "~/types/location"
+import { getTodayDateRangeUTC } from "~/utils/dateUtils"
 
 const {
 	filters,
 	vehicleAccessZones,
 	locations,
 	selectedLocation,
+	selectedLaneIds,
 	logs,
 	overviewSummaries,
 	entryCount,
@@ -275,6 +300,63 @@ const {
 	loadOverviewSummaries,
 	getLocationZone,
 } = useVehicleAccessState()
+
+const vehicleAccessApi = useVehicleAccessApi()
+
+const showSimulationFrame = ref(false)
+const { start: todayStart, end: todayEnd } = getTodayDateRangeUTC()
+const simulationTimeRange = ref({
+	startDate: todayStart.toISOString(),
+	endDate: todayEnd.toISOString(),
+	preset: "today",
+})
+const simulationZoneName = computed(() =>
+	selectedLocation.value ? (getLocationZone(selectedLocation.value) ?? "") : ""
+)
+const simulationLocationName = computed(() => selectedLocation.value?.name ?? "")
+const simulationLogs = ref<VehicleDataLog[]>([])
+
+const loadSimulationLogs = async () => {
+	const laneIds = selectedLaneIds.value
+	if (!laneIds?.length) {
+		simulationLogs.value = []
+		return
+	}
+	const { startDate, endDate } = simulationTimeRange.value
+	try {
+		const result = await vehicleAccessApi.getVehicleDataLogList({
+			lane_id: laneIds,
+			startTime: startDate,
+			endTime: endDate,
+			limit: 50000,
+			orderBy: "trigger_time",
+			orderDirection: "ASC",
+		})
+		simulationLogs.value = result.data ?? []
+	} catch {
+		simulationLogs.value = []
+	}
+}
+
+const handleSimulationTimeRangeUpdate = (v: {
+	startDate: string
+	endDate: string
+	preset: string
+}) => {
+	simulationTimeRange.value = v
+	void loadSimulationLogs()
+}
+
+const handleOpenSimulation = async () => {
+	const { start, end } = getTodayDateRangeUTC()
+	simulationTimeRange.value = {
+		startDate: start.toISOString(),
+		endDate: end.toISOString(),
+		preset: "today",
+	}
+	showSimulationFrame.value = true
+	await loadSimulationLogs()
+}
 
 const isGroupDialogOpen = ref(false)
 /** 彈窗標題：選中單位名稱（工程部、行銷部等） */

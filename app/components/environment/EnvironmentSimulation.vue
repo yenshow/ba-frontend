@@ -18,7 +18,7 @@
 
 		<div
 			v-if="readings.length === 0"
-			class="flex min-h-[200px] items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-8 text-center"
+			class="flex min-h-[200px] items-center justify-center text-center"
 		>
 			<p class="text-base text-white/70 2xl:text-lg">尚無環境讀數資料</p>
 		</div>
