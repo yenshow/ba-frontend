@@ -16,7 +16,7 @@
 			{{ summary.zoneName || "－" }}
 		</div>
 
-		<!-- 右側：內容（進場／出場／在場車輛，對齊人流三欄） -->
+		<!-- 右側：內容（進場／出場／在場車輛 + 車輛群組格，對齊人流 LocationOverviewCard） -->
 		<div class="flex flex-1 flex-col items-center pr-2">
 			<div class="mb-2 flex w-[160px] items-center justify-center border-b border-white/80 pb-px">
 				<h3 class="text-base text-white 2xl:text-lg">{{ summary.name }}</h3>
@@ -45,34 +45,74 @@
 						</div>
 					</div>
 				</div>
+
+				<!-- 車輛群組格（3x4，對齊 LocationOverviewCard 單位格） -->
+				<div class="grid grid-cols-3 gap-2 overflow-hidden">
+					<div
+						v-for="(group, index) in displayGroups"
+						:key="group ? group.groupKey : `empty-${index}`"
+						class="flex min-h-[36px] min-w-[64px] items-center justify-center p-2 text-center transition-all"
+						:class="{
+							'bg-white/20': group && (group.onSiteCount || 0) > 0,
+							'bg-black/20': !group || (group.onSiteCount || 0) === 0,
+							'text-white/90': group,
+							'text-white/30': !group,
+						}"
+						:title="group ? group.personGroupName : ''"
+					>
+						<span
+							v-if="group"
+							class="line-clamp-2 text-[11px] font-semibold text-white 2xl:text-xs"
+						>
+							{{ group.personGroupName }}
+						</span>
+					</div>
+				</div>
 			</div>
 		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import type { VehicleAccessLocationSummary } from "~/types/vehicleAccess";
+import { computed } from "vue"
+import type {
+	VehicleAccessLocationSummary,
+	VehicleOrganizationGroupItem,
+} from "~/types/vehicleAccess"
 
 interface Props {
-	summary: VehicleAccessLocationSummary & { zoneName?: string };
+	summary: VehicleAccessLocationSummary & { zoneName?: string }
+	/** 車輛群組列表（工程部、行銷部等），對齊 LocationOverviewCard 的 units 網格 */
+	groups?: VehicleOrganizationGroupItem[]
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+	groups: () => [],
+})
+
 const emit = defineEmits<{
-	(e: "click", locationId: string): void;
-}>();
+	(e: "click", locationId: string): void
+}>()
 
 /** 在場車輛數：優先使用 summary.currentCount，否則以 進場－出場 計算（與人流 LocationOverviewCard 一致） */
 const currentCount = computed(() => {
-	const s = props.summary;
-	if (s.currentCount != null) return s.currentCount;
-	const entry = s.entryCount ?? 0;
-	const exit = s.exitCount ?? 0;
-	return Math.max(0, entry - exit);
-});
+	const s = props.summary
+	if (s.currentCount != null) return s.currentCount
+	const entry = s.entryCount ?? 0
+	const exit = s.exitCount ?? 0
+	return Math.max(0, entry - exit)
+})
+
+/** 3x4 群組格，不足補空（對齊 LocationOverviewCard displayUnits） */
+const TOTAL_GRID_CELLS = 12
+
+const displayGroups = computed(() => {
+	const list = (props.groups ?? []).slice(0, TOTAL_GRID_CELLS)
+	const emptyCells = Array(TOTAL_GRID_CELLS - list.length).fill(null)
+	return [...list, ...emptyCells]
+})
 
 const handleClick = () => {
-	emit("click", props.summary.id ?? "");
-};
+	emit("click", props.summary.id ?? "")
+}
 </script>
