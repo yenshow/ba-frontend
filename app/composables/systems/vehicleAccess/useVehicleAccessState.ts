@@ -8,8 +8,9 @@ import type {
 	VehicleAccessLocationSummary,
 	VehicleAccessZone,
 	VehicleAccessLocation,
-	VehicleListItem,
-	VehicleListItemWithStatus
+	VehicleOrganizationGroupItem,
+	VehicleGroupMemberItem,
+	VehicleGroupFromApi
 } from "~/types/vehicleAccess";
 import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi";
 import { useLocationApi } from "~/composables/systems/location/useLocationApi";
@@ -81,14 +82,11 @@ export const useVehicleAccessState = () => {
 	/** 當日在場車輛數（進場－出場，不小於 0） */
 	const onSiteCount = ref(0);
 
-	/** 點開群組時顯示的群組 key（vehicle_list_id 或 "none"），保留供相容 */
-	const selectedVehicleGroupKey = ref<string | null>(null);
-
-	/** 固定車輛名單（platform.vehicle_list） */
-	const vehicleList = ref<VehicleListItem[]>([]);
-	/** 選中的車牌（點擊車輛名單時，用於彈窗顯示該車過車記錄） */
-	const selectedVehiclePlate = ref<string | null>(null);
-	const isLoadingVehicleList = ref(false);
+	/** 車輛群組彙總（anpr.vehicle_custom_list + vehicle_and_list_relation + platform.vehicle_list，不含人員大頭照） */
+	const vehicleGroupsFromApi = ref<VehicleGroupFromApi>({ groups: [] });
+	/** 選中的車輛群組 key（"vg_1" = 群組 id），用於彈窗顯示該群組車輛名單 */
+	const selectedOrganizationKey = ref<string | null>(null);
+	const isLoadingVehicleGroups = ref(false);
 
 	const isLoadingZones = ref(false);
 	const isLoadingLogs = ref(false);
@@ -274,114 +272,131 @@ export const useVehicleAccessState = () => {
 		vehicleAccessZones.value.find(z => z.locations?.some(l => l.id === location.id))?.name ??
 		null;
 
-	/** 車輛群組（依 vehicle_list_id／name 彙總當日 logs 的進／出／在場） */
-	interface VehicleGroupItem {
-		key: string;
-		id: number;
-		name: string;
-		entryCount: number;
-		exitCount: number;
-		onSiteCount: number;
-		totalPassCount: number;
-	}
-	/** 車輛群組：進／出僅計 allow_result=1 且 lane_type=1 或 2 */
-	const vehicleGroups = computed<VehicleGroupItem[]>(() => {
-		const list = logs.value;
-		const map = new Map<string, { id: number; name: string; entry: number; exit: number }>();
-		for (const log of list) {
-			if (log.allow_result !== 1) continue;
-			const lt = log.lane_type ?? null;
-			if (lt !== 1 && lt !== 2) continue;
-			const id = log.vehicle_list_id ?? -1;
-			const name = log.vehicle_list_name?.trim() || "未分組";
-			const key = id <= 0 ? "none" : String(id);
-			let item = map.get(key);
-			if (!item) {
-				item = { id, name, entry: 0, exit: 0 };
-				map.set(key, item);
-			}
-			if (lt === 1) item.entry += 1;
-			else item.exit += 1;
-		}
-		return Array.from(map.entries()).map(([key, item]) => ({
-			key,
-			id: item.id,
-			name: item.name,
-			entryCount: item.entry,
-			exitCount: item.exit,
-			onSiteCount: Math.max(0, item.entry - item.exit),
-			totalPassCount: item.entry + item.exit
-		}));
-	});
-
-	/** 選中群組下的當日記錄（供彈窗顯示），保留供相容 */
-	const vehicleGroupRecords = computed<VehicleDataLog[]>(() => {
-		const key = selectedVehicleGroupKey.value;
-		if (!key) return [];
-		const list = logs.value;
-		if (key === "none") {
-			return list.filter(log => log.vehicle_list_id == null || log.vehicle_list_id <= 0);
-		}
-		const id = Number(key);
-		return list.filter(log => log.vehicle_list_id === id);
-	});
-
-	/** 固定車輛名單 + 依當日過車記錄計算的進/出/在場（僅計 allow_result=1、lane_type 1/2） */
-	const vehicleListWithStatus = computed<VehicleListItemWithStatus[]>(() => {
-		const list = vehicleList.value;
+	/**
+	 * 車輛群組（來源：anpr.vehicle_custom_list list_type=0 + 未分類；進出／在場由 passageway_log_data 計算）
+	 */
+	const organizationGroups = computed<VehicleOrganizationGroupItem[]>(() => {
+		const apiGroups = vehicleGroupsFromApi.value.groups ?? [];
 		const logList = logs.value;
 		const laneIds = selectedLaneIds.value;
-		const set = laneIds?.length ? new Set(laneIds) : null;
-		return list.map(vehicle => {
-			const plateNorm = normalizePlate(vehicle.plate_license);
+		const laneSet = laneIds?.length ? new Set(laneIds) : null;
+
+		const result: VehicleOrganizationGroupItem[] = [];
+
+		for (const g of apiGroups) {
+			const groupId = g.id ?? 0;
+			const groupKey = `vg_${groupId}`;
+			const vehicles = g.vehicles ?? [];
+			const plates = new Set(vehicles.map(v => normalizePlate(v.plate_license)).filter(Boolean));
+
 			let entry = 0;
 			let exit = 0;
 			for (const log of logList) {
 				if (log.allow_result !== 1) continue;
 				const lt = log.lane_type ?? null;
 				if (lt !== 1 && lt !== 2) continue;
-				if (set != null && log.lane_id != null && !set.has(log.lane_id)) continue;
-				if (normalizePlate(log.license_plate) !== plateNorm) continue;
+				if (laneSet != null && log.lane_id != null && !laneSet.has(log.lane_id)) continue;
+				if (!plates.has(normalizePlate(log.license_plate))) continue;
 				if (lt === 1) entry += 1;
 				else exit += 1;
 			}
-			const onSite = Math.max(0, entry - exit);
-			return {
-				...vehicle,
+
+			result.push({
+				groupKey,
+				personGroupId: groupId,
+				personGroupName: g.list_name ?? (groupId === 0 ? "未分類" : `群組 ${groupId}`),
+				vehicleCount: vehicles.length,
 				entryCount: entry,
 				exitCount: exit,
-				onSiteCount: onSite
-			};
+				onSiteCount: Math.max(0, entry - exit)
+			});
+		}
+
+		return result;
+	});
+
+	/**
+	 * 選中群組的車輛名單（來自 anpr + platform.vehicle_list；含進出場時間，不含人員大頭照）
+	 */
+	const organizationGroupVehicleList = computed<VehicleGroupMemberItem[]>(() => {
+		const key = selectedOrganizationKey.value;
+		if (!key) return [];
+		const match = key.match(/^vg_(\d+)$/);
+		if (!match) return [];
+		const groupId = Number(match[1]);
+		const apiGroups = vehicleGroupsFromApi.value.groups ?? [];
+		const group = apiGroups.find(g => (g.id ?? 0) === groupId);
+		if (!group) return [];
+		const vehicles = group.vehicles ?? [];
+		const logList = logs.value;
+		const laneIds = selectedLaneIds.value;
+		const laneSet = laneIds?.length ? new Set(laneIds) : null;
+		const plates = new Set(vehicles.map(v => normalizePlate(v.plate_license)).filter(Boolean));
+
+		const validLogs = logList.filter(log => {
+			if (log.allow_result !== 1 || (log.lane_type !== 1 && log.lane_type !== 2)) return false;
+			if (laneSet != null && log.lane_id != null && !laneSet.has(log.lane_id)) return false;
+			return plates.has(normalizePlate(log.license_plate));
 		});
+
+		const result: VehicleGroupMemberItem[] = [];
+		for (const v of vehicles) {
+			const plateNorm = normalizePlate(v.plate_license);
+			const plateLogs = validLogs
+				.filter(log => normalizePlate(log.license_plate) === plateNorm)
+				.map(log => ({ ...log, t: new Date(log.trigger_time ?? 0).getTime() }))
+				.sort((a, b) => b.t - a.t);
+
+			let lastEntryDate: string | null = null;
+			let entryTime: string | null = null;
+			let exitTime: string | null = null;
+			let isPresent = false;
+
+			const lastEntry = plateLogs.find(l => l.lane_type === 1);
+			if (lastEntry) {
+				const d = new Date(lastEntry.trigger_time ?? "");
+				lastEntryDate = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
+				entryTime = lastEntry.trigger_time
+					? new Date(lastEntry.trigger_time).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })
+					: null;
+				const exitAfter = plateLogs.find(l => l.lane_type === 2 && new Date(l.trigger_time ?? 0).getTime() > (lastEntry.t ?? 0));
+				if (exitAfter) {
+					exitTime = exitAfter.trigger_time
+						? new Date(exitAfter.trigger_time).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })
+						: null;
+				} else {
+					isPresent = true;
+				}
+			}
+
+			result.push({
+				id: v.vehicle_id,
+				plate_license: v.plate_license,
+				owner_name: v.owner_name ?? null,
+				lastEntryDate: lastEntryDate ?? undefined,
+				entryTime: entryTime ?? undefined,
+				exitTime: exitTime ?? undefined,
+				isPresent
+			});
+		}
+		return result;
 	});
 
-	/** 選中車輛（車牌）的當日過車記錄（供彈窗顯示） */
-	const vehicleListRecordsForSelected = computed<VehicleDataLog[]>(() => {
-		const plate = selectedVehiclePlate.value;
-		if (!plate) return [];
-		const norm = normalizePlate(plate);
-		return logs.value.filter(log => normalizePlate(log.license_plate) === norm);
-	});
-
-	const setVehicleGroupSelection = (key: string | null) => {
-		selectedVehicleGroupKey.value = key;
+	const setSelectedOrganizationKey = (key: string | null) => {
+		selectedOrganizationKey.value = key;
 	};
 
-	const setSelectedVehiclePlate = (plate: string | null) => {
-		selectedVehiclePlate.value = plate;
-	};
-
-	/** 載入固定車輛名單（platform.vehicle_list） */
-	const loadVehicleList = async (): Promise<void> => {
-		isLoadingVehicleList.value = true;
+	/** 載入車輛群組彙總（anpr.vehicle_custom_list + vehicle_and_list_relation + platform.vehicle_list） */
+	const loadVehicleGroups = async (): Promise<void> => {
+		isLoadingVehicleGroups.value = true;
 		try {
-			const data = await vehicleAccessApi.getVehicleList({ limit: 200 });
-			vehicleList.value = data;
+			const data = await vehicleAccessApi.getVehicleGroups();
+			vehicleGroupsFromApi.value = data ?? { groups: [] };
 		} catch (error) {
-			handleError(error, "載入車輛名單失敗");
-			vehicleList.value = [];
+			handleError(error, "載入車輛群組失敗");
+			vehicleGroupsFromApi.value = { groups: [] };
 		} finally {
-			isLoadingVehicleList.value = false;
+			isLoadingVehicleGroups.value = false;
 		}
 	};
 
@@ -396,23 +411,19 @@ export const useVehicleAccessState = () => {
 		entryCount,
 		exitCount,
 		onSiteCount,
-		vehicleGroups,
-		selectedVehicleGroupKey,
-		vehicleGroupRecords,
-		vehicleList,
-		vehicleListWithStatus,
-		selectedVehiclePlate,
-		vehicleListRecordsForSelected,
-		isLoadingVehicleList,
-		loadVehicleList,
-		setSelectedVehiclePlate,
+		organizationGroups,
+		selectedOrganizationKey,
+		organizationGroupVehicleList,
+		vehicleGroupsFromApi,
+		isLoadingVehicleGroups,
+		loadVehicleGroups,
+		setSelectedOrganizationKey,
 		isLoadingZones,
 		isLoadingLogs,
 		loadZones,
 		loadLogs,
 		loadEntryExitOnSiteCounts,
 		loadOverviewSummaries,
-		getLocationZone,
-		setVehicleGroupSelection
+		getLocationZone
 	};
 };

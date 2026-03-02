@@ -15,7 +15,9 @@
 				type="button"
 				:class="[
 					'rounded-t-xl px-4 py-2 text-sm font-medium transition-colors 2xl:px-6 2xl:py-3 2xl:text-base',
-					activeTab === tab.id ? 'bg-white/20 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'
+					activeTab === tab.id
+						? 'bg-white/20 text-white'
+						: 'text-white/70 hover:bg-white/10 hover:text-white'
 				]"
 				:aria-label="tab.label"
 				@click="activeTab = tab.id"
@@ -115,93 +117,93 @@
 			<div class="min-h-[300px]">
 				<table class="w-full text-center">
 					<thead>
-							<tr class="border-b border-white/20">
-								<th :class="tableHeaderClass">頭像</th>
-								<th :class="tableHeaderClass">員工編號</th>
-								<th :class="tableHeaderClass">姓名</th>
-								<th :class="tableHeaderClass">
-									<select
-										v-model="personFilter.groupId"
-										class="form-input form-select inline-block max-w-[140px] border-white/30 bg-white/10 py-1.5 text-sm text-white 2xl:max-w-[160px] 2xl:py-2 2xl:text-base"
-										aria-label="依群組篩選"
-										@change="loadPersons"
-									>
-										<option :value="null">全部群組</option>
-										<option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
-									</select>
-								</th>
-								<th :class="tableHeaderClass">狀態</th>
-								<th v-if="canEdit" :class="tableHeaderClass">操作</th>
-							</tr>
-						</thead>
-						<tbody>
-							<template v-if="persons.length > 0">
-								<tr
-									v-for="p in persons"
-									:key="p.id"
-									class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
+						<tr class="border-b border-white/20">
+							<th :class="tableHeaderClass">頭像</th>
+							<th :class="tableHeaderClass">工號</th>
+							<th :class="tableHeaderClass">姓名</th>
+							<th :class="tableHeaderClass">
+								<select
+									v-model="personFilter.groupId"
+									class="form-input form-select inline-block max-w-[140px] border-white/30 bg-white/10 py-1.5 text-sm text-white 2xl:max-w-[160px] 2xl:py-2 2xl:text-base"
+									aria-label="依群組篩選"
+									@change="loadPersons"
 								>
-									<td :class="tableCellClass">
-										<div class="flex justify-center">
-											<img
-												v-if="getFaceImageSrc(p.face_url)"
-												:src="getFaceImageSrc(p.face_url)!"
-												:alt="p.full_name || p.employee_no"
-												class="h-10 w-10 rounded-full object-cover 2xl:h-12 2xl:w-12"
-											/>
-											<div
-												v-else
-												class="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-lg text-white/60 2xl:h-12 2xl:w-12"
-												aria-hidden="true"
-											>
-												{{ (p.full_name || p.employee_no).charAt(0) || "?" }}
-											</div>
-										</div>
-									</td>
-									<td :class="tableCellClass">{{ p.employee_no }}</td>
-									<td :class="tableCellClass">{{ p.full_name || "—" }}</td>
-									<td :class="tableCellClass">{{ p.group_name || "—" }}</td>
-									<td :class="tableCellClass">
-										<span
-											:class="[getPersonStatusBadgeClass(p.status), 'rounded px-2 py-1 2xl:px-3 2xl:py-1.5']"
+									<option :value="null">全部群組</option>
+									<option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+								</select>
+							</th>
+							<th :class="tableHeaderClass">狀態</th>
+							<th v-if="canEdit" :class="tableHeaderClass">操作</th>
+						</tr>
+					</thead>
+					<tbody>
+						<template v-if="persons.length > 0">
+							<tr
+								v-for="p in persons"
+								:key="p.id"
+								class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
+							>
+								<td :class="tableCellClass">
+									<div class="flex justify-center">
+										<img
+											v-if="getFaceImageSrc(p.face_url)"
+											:src="getFaceImageSrc(p.face_url)!"
+											:alt="p.full_name || p.employee_no"
+											class="h-10 w-10 rounded-full object-cover 2xl:h-12 2xl:w-12"
+										/>
+										<div
+											v-else
+											class="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-lg text-white/60 2xl:h-12 2xl:w-12"
+											aria-hidden="true"
 										>
-											{{ personStatusLabels[p.status] }}
-										</span>
-									</td>
-									<td v-if="canEdit" :class="tableCellClass">
-										<div class="flex flex-wrap justify-center gap-2 2xl:gap-3">
-											<button
-												type="button"
-												class="rounded bg-cyan-500/80 px-3 py-1 text-white hover:bg-cyan-400 2xl:px-4 2xl:py-2"
-												@click="openAccessLocations(p)"
-											>
-												門禁權限
-											</button>
-											<button
-												type="button"
-												class="rounded bg-blue-500/80 px-3 py-1 text-white hover:bg-blue-400 2xl:px-4 2xl:py-2"
-												@click="editPerson(p)"
-											>
-												編輯
-											</button>
-											<button
-												type="button"
-												class="rounded bg-red-500/80 px-3 py-1 text-white hover:bg-red-400 2xl:px-4 2xl:py-2"
-												@click="confirmDeletePerson(p)"
-											>
-												刪除
-											</button>
+											{{ (p.full_name || p.employee_no).charAt(0) || "?" }}
 										</div>
-									</td>
-								</tr>
-							</template>
-							<tr v-else class="text-white/60">
-								<td :colspan="canEdit ? 6 : 5" class="py-12 text-center text-base 2xl:text-lg">
-									{{ isLoadingPersons ? "載入中..." : "尚無人員或無符合群組篩選結果" }}
+									</div>
+								</td>
+								<td :class="tableCellClass">{{ p.employee_no }}</td>
+								<td :class="tableCellClass">{{ p.full_name || "—" }}</td>
+								<td :class="tableCellClass">{{ p.group_name || "—" }}</td>
+								<td :class="tableCellClass">
+									<span
+										:class="[getPersonStatusBadgeClass(p.status), 'rounded px-2 py-1 2xl:px-3 2xl:py-1.5']"
+									>
+										{{ personStatusLabels[p.status] }}
+									</span>
+								</td>
+								<td v-if="canEdit" :class="tableCellClass">
+									<div class="flex flex-wrap justify-center gap-2 2xl:gap-3">
+										<button
+											type="button"
+											class="rounded bg-cyan-500/80 px-3 py-1 text-white hover:bg-cyan-400 2xl:px-4 2xl:py-2"
+											@click="openAccessLocations(p)"
+										>
+											門禁權限
+										</button>
+										<button
+											type="button"
+											class="rounded bg-blue-500/80 px-3 py-1 text-white hover:bg-blue-400 2xl:px-4 2xl:py-2"
+											@click="editPerson(p)"
+										>
+											編輯
+										</button>
+										<button
+											type="button"
+											class="rounded bg-red-500/80 px-3 py-1 text-white hover:bg-red-400 2xl:px-4 2xl:py-2"
+											@click="confirmDeletePerson(p)"
+										>
+											刪除
+										</button>
+									</div>
 								</td>
 							</tr>
-						</tbody>
-					</table>
+						</template>
+						<tr v-else class="text-white/60">
+							<td :colspan="canEdit ? 6 : 5" class="py-12 text-center text-base 2xl:text-lg">
+								{{ isLoadingPersons ? "載入中..." : "尚無人員或無符合群組篩選結果" }}
+							</td>
+						</tr>
+					</tbody>
+				</table>
 			</div>
 		</section>
 
@@ -287,302 +289,50 @@
 		</section>
 
 		<!-- 群組 新增/編輯 彈窗 -->
-		<Teleport to="body">
-			<Transition name="dialog-fade">
-				<div
-					v-if="showGroupDialog"
-					class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
-					@click.self="closeGroupDialog"
-				>
-					<div
-						class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:p-8"
-					>
-						<header class="flex items-center justify-between">
-							<h3 class="text-lg font-semibold tracking-[4px] text-white 2xl:text-xl">
-								{{ editingGroup ? "編輯群組" : "新增群組" }}
-							</h3>
-							<button
-								type="button"
-								class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
-								aria-label="關閉"
-								@click="closeGroupDialog"
-							>
-								&times;
-							</button>
-						</header>
-						<form class="flex flex-col gap-4 2xl:gap-6" @submit.prevent="submitGroup">
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-								<span>名稱 *</span>
-								<input v-model="groupForm.name" type="text" required class="form-input" />
-							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-								<span>說明</span>
-								<input v-model="groupForm.description" type="text" class="form-input" />
-							</label>
-							<p v-if="errorMessage" class="text-sm text-rose-300">{{ errorMessage }}</p>
-							<footer class="mt-2 flex gap-3 2xl:gap-4">
-								<button type="button" class="btn-secondary" @click="closeGroupDialog">取消</button>
-								<div class="flex-1"></div>
-								<button type="submit" class="btn-primary" :disabled="isSubmitting">
-									{{ isSubmitting ? "處理中..." : editingGroup ? "更新" : "建立" }}
-								</button>
-							</footer>
-						</form>
-					</div>
-				</div>
-			</Transition>
-		</Teleport>
+		<PersonnelGroupDialog
+			v-model="showGroupDialog"
+			:editing-group="editingGroup"
+			:form="groupForm"
+			:is-submitting="isSubmitting"
+			:error-message="errorMessage"
+			@submit="submitGroup"
+		/>
 
 		<!-- 人員 新增/編輯 彈窗 -->
-		<Teleport to="body">
-			<Transition name="dialog-fade">
-				<div
-					v-if="showPersonDialog"
-					class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
-					@click.self="closePersonDialog"
-				>
-					<div
-						class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:p-8"
-					>
-						<header class="flex items-center justify-between">
-							<h3 class="text-lg font-semibold tracking-[4px] text-white 2xl:text-xl">
-								{{ editingPerson ? "編輯人員" : "新增人員" }}
-							</h3>
-							<button
-								type="button"
-								class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
-								aria-label="關閉"
-								@click="closePersonDialog"
-							>
-								&times;
-							</button>
-						</header>
-						<form class="flex flex-col gap-4 2xl:gap-6" @submit.prevent="submitPerson">
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-								<span>員工編號 *</span>
-								<input
-									v-model="personForm.employeeNo"
-									type="text"
-									required
-									class="form-input"
-									:readonly="!!editingPerson"
-								/>
-							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-								<span>姓名</span>
-								<input v-model="personForm.fullName" type="text" class="form-input" />
-							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-								<span>群組</span>
-								<select v-model="personForm.personGroupId" class="form-input form-select">
-									<option :value="null">未指定</option>
-									<option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
-								</select>
-							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-								<span>大頭照</span>
-								<div class="flex flex-wrap items-center gap-3">
-									<div
-										class="flex h-20 w-20 shrink-0 overflow-hidden rounded-full border border-white/20 bg-white/10 2xl:h-24 2xl:w-24"
-									>
-										<img
-											v-if="personFormFacePreview"
-											:src="personFormFacePreview"
-											alt="大頭照預覽"
-											class="h-full w-full object-cover"
-										/>
-										<div
-											v-else
-											class="flex h-full w-full items-center justify-center text-2xl text-white/40"
-											aria-hidden="true"
-										>
-											?
-										</div>
-									</div>
-									<div class="flex flex-col gap-1">
-										<input
-											ref="faceFileInputRef"
-											type="file"
-											accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-											class="hidden"
-											aria-label="選擇大頭照"
-											@change="handleFaceFileChange"
-										/>
-										<button
-											type="button"
-											class="rounded-lg bg-white/20 px-3 py-2 text-sm text-white hover:bg-white/30"
-											@click="triggerFaceFileSelect"
-										>
-											選擇圖片
-										</button>
-										<button
-											v-if="hasFacePreview"
-											type="button"
-											class="rounded-lg bg-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/20"
-											@click="clearFaceUrl"
-										>
-											清除
-										</button>
-									</div>
-								</div>
-							</label>
-							<label v-if="editingPerson" class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-								<span>狀態</span>
-								<select v-model="personForm.status" class="form-input form-select">
-									<option value="active">啟用</option>
-									<option value="inactive">停用</option>
-									<option value="deleted">已刪除</option>
-								</select>
-							</label>
-							<p v-if="errorMessage" class="text-sm text-rose-300">{{ errorMessage }}</p>
-							<footer class="mt-2 flex gap-3 2xl:gap-4">
-								<button type="button" class="btn-secondary" @click="closePersonDialog">取消</button>
-								<div class="flex-1"></div>
-								<button type="submit" class="btn-primary" :disabled="isSubmitting">
-									{{ isSubmitting ? "處理中..." : editingPerson ? "更新" : "建立" }}
-								</button>
-							</footer>
-						</form>
-					</div>
-				</div>
-			</Transition>
-		</Teleport>
+		<PersonnelPersonDialog
+			v-model="showPersonDialog"
+			:editing-person="editingPerson"
+			:form="personForm"
+			:groups="groups"
+			:face-preview-url="personFormFacePreview"
+			:has-face-preview="hasFacePreview"
+			:is-submitting="isSubmitting"
+			:error-message="errorMessage"
+			@submit="submitPerson"
+			@face-file-change="handleFaceFileChange"
+			@clear-face="clearFaceUrl"
+		/>
 
 		<!-- 門禁權限 彈窗 -->
-		<Teleport to="body">
-			<Transition name="dialog-fade">
-				<div
-					v-if="showAccessDialog"
-					class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
-					@click.self="closeAccessDialog"
-				>
-					<div
-						class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-lg flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:p-8"
-					>
-						<header class="flex items-center justify-between">
-							<h3 class="text-lg font-semibold tracking-[4px] text-white 2xl:text-xl">
-								門禁權限 — {{ accessPerson?.employee_no }} {{ accessPerson?.full_name || "" }}
-							</h3>
-							<button
-								type="button"
-								class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
-								aria-label="關閉"
-								@click="closeAccessDialog"
-							>
-								&times;
-							</button>
-						</header>
-						<p class="text-sm text-white/70">
-							此處為「可進出之地點」（可多選），不是門禁設備列表。門禁設備請在「設備管理」新增；地點需在「人流統計」中建立並綁定入口/出口設備後，才會出現在下方。
-						</p>
-						<div v-if="isLoadingAccess" class="py-8 text-center text-white/70">載入中...</div>
-						<div v-else class="space-y-2">
-							<label
-								v-for="loc in syncableLocations"
-								:key="loc.id"
-								class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
-								:class="{ 'border-cyan-400/50 bg-cyan-500/20': selectedLocationIds.includes(loc.id) }"
-							>
-								<input
-									v-model="selectedLocationIds"
-									type="checkbox"
-									:value="loc.id"
-									class="h-4 w-4 accent-cyan-400"
-								/>
-								<span class="text-sm text-white/90 2xl:text-base"
-									>{{ loc.zone_name }} — {{ loc.name }}</span
-								>
-							</label>
-							<div
-								v-if="syncableLocations.length === 0"
-								class="rounded border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200/90"
-							>
-								<p class="font-medium">尚無可同步地點</p>
-								<p class="mt-2 text-white/80">請依序完成：</p>
-								<ol class="mt-1 list-inside list-decimal space-y-1 text-white/70">
-									<li>在「設備管理」新增門禁設備（您已有設備則可略過）</li>
-									<li>至「人流統計」→ 點「地點管理」→ 建立區域與地點</li>
-									<li>在各地點中選擇「門禁設備（本系統）」並綁定入口／出口設備</li>
-								</ol>
-								<p class="mt-2 text-white/70">
-									完成綁定後，此地點會出現在上方列表，即可為人員設定可進出之地點。
-								</p>
-							</div>
-						</div>
-						<footer class="mt-2 flex gap-3 2xl:gap-4">
-							<button type="button" class="btn-secondary" @click="closeAccessDialog">取消</button>
-							<div class="flex-1"></div>
-							<button
-								type="button"
-								class="btn-primary"
-								:disabled="isSavingAccess || !accessPerson"
-								@click="saveAccessLocations"
-							>
-								{{ isSavingAccess ? "儲存中..." : "儲存" }}
-							</button>
-						</footer>
-					</div>
-				</div>
-			</Transition>
-		</Teleport>
+		<PersonnelAccessDialog
+			v-model="showAccessDialog"
+			:person="accessPerson"
+			:locations="syncableLocations"
+			v-model:selected-location-ids="selectedLocationIds"
+			:is-loading="isLoadingAccess"
+			:is-saving="isSavingAccess"
+			@save="saveAccessLocations"
+		/>
 
 		<!-- 批次匯入 彈窗 -->
-		<Teleport to="body">
-			<Transition name="dialog-fade">
-				<div
-					v-if="showImportDialog"
-					class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
-					@click.self="showImportDialog = false"
-				>
-					<div
-						class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-2xl flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:p-8"
-					>
-						<header class="flex items-center justify-between">
-							<h3 class="text-lg font-semibold tracking-[4px] text-white 2xl:text-xl">批次匯入</h3>
-							<button
-								type="button"
-								class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
-								aria-label="關閉"
-								@click="showImportDialog = false"
-							>
-								&times;
-							</button>
-						</header>
-						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-							<span>JSON 陣列（每筆含 employeeNo；可選 fullName, personGroupId, locationIds）</span>
-							<textarea
-								v-model="importJsonText"
-								class="form-input min-h-[200px] font-mono text-sm"
-								placeholder='[{"employeeNo":"A001","fullName":"王小明","personGroupId":1,"locationIds":[1,2]}]'
-							></textarea>
-						</label>
-						<p v-if="importError" class="text-sm text-rose-300">{{ importError }}</p>
-						<div
-							v-if="importResult"
-							class="rounded border border-white/20 bg-white/5 p-3 text-sm text-white/90"
-						>
-							<p>成功：{{ importResult.created }} 筆</p>
-							<p v-if="importResult.errors?.length" class="mt-2 text-amber-300">
-								錯誤：{{ importResult.errors.length }} 筆 —
-								{{ importResult.errors.map(e => `第${e.row}行 ${e.message}`).join("；") }}
-							</p>
-						</div>
-						<footer class="mt-2 flex gap-3 2xl:gap-4">
-							<button type="button" class="btn-secondary" @click="showImportDialog = false">關閉</button>
-							<div class="flex-1"></div>
-							<button
-								type="button"
-								class="btn-primary"
-								:disabled="isImporting || !importJsonText.trim()"
-								@click="submitImport"
-							>
-								{{ isImporting ? "匯入中..." : "匯入" }}
-							</button>
-						</footer>
-					</div>
-				</div>
-			</Transition>
-		</Teleport>
+		<PersonnelImportDialog
+			v-model="showImportDialog"
+			v-model:json-text="importJsonText"
+			:error="importError"
+			:result="importResult"
+			:is-importing="isImporting"
+			@submit="submitImport"
+		/>
 	</div>
 </template>
 
@@ -598,9 +348,13 @@ import { useAuth } from "~/composables/core/useAuth";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { usePersonnelApi } from "~/composables/systems/usePersonnelApi";
+import PersonnelGroupDialog from "~/components/personnel/PersonnelGroupDialog.vue";
+import PersonnelPersonDialog from "~/components/personnel/PersonnelPersonDialog.vue";
+import PersonnelAccessDialog from "~/components/personnel/PersonnelAccessDialog.vue";
+import PersonnelImportDialog from "~/components/personnel/PersonnelImportDialog.vue";
 
 definePageMeta({
-	layout: "default"
+	layout: "auxiliary"
 });
 
 const personnelApi = usePersonnelApi();
@@ -666,12 +420,6 @@ const editGroup = (g: PersonGroup) => {
 	showGroupDialog.value = true;
 };
 
-const closeGroupDialog = () => {
-	showGroupDialog.value = false;
-	editingGroup.value = null;
-	errorMessage.value = null;
-};
-
 const submitGroup = async () => {
 	isSubmitting.value = true;
 	errorMessage.value = null;
@@ -692,7 +440,7 @@ const submitGroup = async () => {
 			groups.value.push(created);
 			toast.success("已新增群組");
 		}
-		closeGroupDialog();
+		showGroupDialog.value = false;
 	} catch (err) {
 		errorMessage.value = handleApiError(err, "儲存失敗") || "儲存失敗";
 	} finally {
@@ -723,7 +471,7 @@ const personForm = reactive<{
 	employeeNo: string;
 	fullName: string;
 	personGroupId: number | null;
-	status: "active" | "inactive" | "deleted";
+	status: "active" | "inactive";
 	faceUrl: string;
 }>({ employeeNo: "", fullName: "", personGroupId: null, status: "active", faceUrl: "" });
 
@@ -749,11 +497,6 @@ const personFormFacePreview = computed(() => {
 
 const hasFacePreview = computed(() => !!personForm.faceUrl?.trim() || !!facePreviewObjectUrl.value);
 
-const faceFileInputRef = ref<HTMLInputElement | null>(null);
-const triggerFaceFileSelect = () => faceFileInputRef.value?.click();
-const resetFaceFileInput = () => {
-	faceFileInputRef.value && (faceFileInputRef.value.value = "");
-};
 const clearFaceUrl = () => {
 	personForm.faceUrl = "";
 	pendingFaceFile.value = null;
@@ -761,16 +504,18 @@ const clearFaceUrl = () => {
 		URL.revokeObjectURL(facePreviewObjectUrl.value);
 		facePreviewObjectUrl.value = null;
 	}
-	resetFaceFileInput();
 };
-const handleFaceFileChange = async (e: Event) => {
-	const input = e.target as HTMLInputElement;
-	const file = input.files?.[0];
+const handleFaceFileChange = async (file: File) => {
 	if (!file) return;
 	if (editingPerson.value) {
 		try {
 			const res = await personnelApi.uploadFaceForPerson(editingPerson.value.id, file);
 			if (res?.faceUrl) personForm.faceUrl = res.faceUrl;
+			if (res?.person) {
+				const idx = persons.value.findIndex(x => x.id === editingPerson.value!.id);
+				if (idx > -1) persons.value[idx] = res.person;
+			}
+			toast.success("已更新大頭照");
 		} catch (err) {
 			handleApiError(err, "上傳大頭照失敗");
 		}
@@ -779,7 +524,6 @@ const handleFaceFileChange = async (e: Event) => {
 		if (facePreviewObjectUrl.value) URL.revokeObjectURL(facePreviewObjectUrl.value);
 		facePreviewObjectUrl.value = URL.createObjectURL(file);
 	}
-	input.value = "";
 };
 
 const loadPersons = async () => {
@@ -807,7 +551,6 @@ const openPersonCreate = () => {
 		URL.revokeObjectURL(facePreviewObjectUrl.value);
 		facePreviewObjectUrl.value = null;
 	}
-	resetFaceFileInput();
 	errorMessage.value = null;
 	showPersonDialog.value = true;
 };
@@ -817,26 +560,15 @@ const editPerson = (p: Person) => {
 	personForm.employeeNo = p.employee_no;
 	personForm.fullName = p.full_name ?? "";
 	personForm.personGroupId = p.person_group_id ?? null;
-	personForm.status = p.status;
+	personForm.status = p.status === "active" ? "active" : "inactive";
 	personForm.faceUrl = p.face_url ?? "";
 	pendingFaceFile.value = null;
 	if (facePreviewObjectUrl.value) {
 		URL.revokeObjectURL(facePreviewObjectUrl.value);
 		facePreviewObjectUrl.value = null;
 	}
-	resetFaceFileInput();
 	errorMessage.value = null;
 	showPersonDialog.value = true;
-};
-
-const closePersonDialog = () => {
-	if (facePreviewObjectUrl.value) {
-		URL.revokeObjectURL(facePreviewObjectUrl.value);
-		facePreviewObjectUrl.value = null;
-	}
-	showPersonDialog.value = false;
-	editingPerson.value = null;
-	errorMessage.value = null;
 };
 
 const submitPerson = async () => {
@@ -873,7 +605,7 @@ const submitPerson = async () => {
 			}
 			toast.success("已新增人員");
 		}
-		closePersonDialog();
+		showPersonDialog.value = false;
 	} catch (err) {
 		errorMessage.value = handleApiError(err, "儲存失敗") || "儲存失敗";
 	} finally {
@@ -920,18 +652,13 @@ const openAccessLocations = async (p: Person) => {
 	}
 };
 
-const closeAccessDialog = () => {
-	showAccessDialog.value = false;
-	accessPerson.value = null;
-};
-
 const saveAccessLocations = async () => {
 	if (!accessPerson.value) return;
 	isSavingAccess.value = true;
 	try {
 		await personnelApi.setAccessLocations(accessPerson.value.id, selectedLocationIds.value);
 		toast.success("已更新門禁權限");
-		closeAccessDialog();
+		showAccessDialog.value = false;
 	} catch (err) {
 		handleApiError(err, "更新門禁權限失敗");
 	} finally {
@@ -945,10 +672,14 @@ const isLoadingSyncable = ref(false);
 const isSyncingAll = ref(false);
 const syncingLocationId = ref<number | null>(null);
 const syncWarnings = ref<SyncWarning[]>([]);
-const syncWarningTypeLabel = (type: string) =>
-	({ face: "人臉更新失敗", add: "新增失敗", update: "更新失敗", delete: "刪除失敗", sync: "同步失敗" }[
-		type
-	] ?? type);
+const SYNC_WARNING_LABELS: Record<string, string> = {
+	face: "人臉更新失敗",
+	add: "新增失敗",
+	update: "更新失敗",
+	delete: "刪除失敗",
+	sync: "同步失敗"
+};
+const syncWarningTypeLabel = (type: string) => SYNC_WARNING_LABELS[type] ?? type;
 
 const loadSyncableLocations = async () => {
 	isLoadingSyncable.value = true;
@@ -985,8 +716,8 @@ const syncAllLocations = async () => {
 	syncWarnings.value = [];
 	try {
 		const result = await personnelApi.syncAllLocations();
-		const allWarnings = (result.results ?? []).flatMap((r) =>
-			(r.warnings ?? []).map((w) => ({ ...w, locationName: r.locationName }))
+		const allWarnings = (result.results ?? []).flatMap(r =>
+			(r.warnings ?? []).map(w => ({ ...w, locationName: r.locationName }))
 		);
 		syncWarnings.value = allWarnings;
 		if (allWarnings.length > 0) {
@@ -1019,11 +750,11 @@ const submitImport = async () => {
 		importError.value = "JSON 格式錯誤";
 		return;
 	}
-	const personsPayload = arr.map((row: any) => ({
-		employeeNo: row.employeeNo ?? row.employee_no ?? "",
-		fullName: row.fullName ?? row.full_name,
-		personGroupId: row.personGroupId ?? row.person_group_id,
-		locationIds: row.locationIds ?? row.location_ids ?? []
+	const personsPayload = (arr as Record<string, unknown>[]).map((row) => ({
+		employeeNo: (row.employeeNo ?? row.employee_no ?? "") as string,
+		fullName: (row.fullName ?? row.full_name) as string | undefined,
+		personGroupId: (row.personGroupId ?? row.person_group_id) as number | undefined,
+		locationIds: (row.locationIds ?? row.location_ids ?? []) as number[]
 	}));
 	isImporting.value = true;
 	try {
@@ -1055,24 +786,38 @@ watch(
 	},
 	{ immediate: true }
 );
+
+watch(showGroupDialog, v => {
+	if (!v) {
+		editingGroup.value = null;
+		errorMessage.value = null;
+	}
+});
+
+watch(showPersonDialog, v => {
+	if (!v) {
+		if (facePreviewObjectUrl.value) {
+			URL.revokeObjectURL(facePreviewObjectUrl.value);
+			facePreviewObjectUrl.value = null;
+		}
+		editingPerson.value = null;
+		errorMessage.value = null;
+	}
+});
+
+watch(showAccessDialog, v => {
+	if (!v) accessPerson.value = null;
+});
 </script>
 
 <style scoped>
-.dialog-panel-bg {
-	background: linear-gradient(145deg, rgba(9, 106, 133, 0.95), rgba(20, 64, 92, 0.98));
-	border: 1px solid rgba(255, 255, 255, 0.25);
-	box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
-	color: #f5f9ff;
-}
 .form-input {
 	border-radius: 0.75rem;
 	border: 1px solid rgba(255, 255, 255, 0.35);
 	background: rgba(255, 255, 255, 0.1);
 	padding: 0.65rem 0.85rem;
 	color: #f7fbff;
-	transition:
-		border-color 0.2s ease,
-		background 0.2s ease;
+	transition: border-color 0.2s ease, background 0.2s ease;
 }
 .form-input:focus {
 	border-color: #5be7f1;
@@ -1085,49 +830,6 @@ watch(
 .form-select option {
 	background: rgba(20, 64, 92, 0.98);
 	color: #f7fbff;
-}
-.btn-primary {
-	border-radius: 999px;
-	padding: 0.6rem 1.4rem;
-	font-weight: 500;
-	font-size: 0.9rem;
-	cursor: pointer;
-	transition: all 0.2s ease;
-	background: linear-gradient(135deg, #2dd4bf, #1ba9d3);
-	color: #0b2c3c;
-	border: none;
-	box-shadow: 0 10px 25px rgba(23, 217, 199, 0.35);
-}
-.btn-primary:hover:not(:disabled) {
-	transform: translateY(-1px);
-	box-shadow: 0 12px 30px rgba(23, 217, 199, 0.45);
-}
-.btn-primary:disabled {
-	opacity: 0.6;
-	cursor: not-allowed;
-}
-.btn-secondary {
-	border-radius: 999px;
-	padding: 0.6rem 1.4rem;
-	font-weight: 500;
-	font-size: 0.9rem;
-	cursor: pointer;
-	transition: all 0.2s ease;
-	background: rgba(255, 255, 255, 0.08);
-	border: 1px solid rgba(91, 231, 241, 0.5);
-	color: #e8fbff;
-}
-.btn-secondary:hover {
-	background: rgba(255, 255, 255, 0.12);
-	border-color: rgba(91, 231, 241, 0.7);
-}
-.dialog-fade-enter-active,
-.dialog-fade-leave-active {
-	transition: opacity 0.2s ease;
-}
-.dialog-fade-enter-from,
-.dialog-fade-leave-to {
-	opacity: 0;
 }
 .fade-enter-active,
 .fade-leave-active {

@@ -192,7 +192,7 @@ import LocationManagementDialog from "~/components/location/LocationManagementDi
 import CategoryTooltip from "~/components/lighting/CategoryTooltip.vue";
 
 definePageMeta({
-	layout: "default"
+	layout: "auxiliary"
 });
 
 const { isAdmin } = useAuth();

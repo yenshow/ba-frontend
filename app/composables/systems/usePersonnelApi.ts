@@ -19,11 +19,12 @@ export const usePersonnelApi = () => {
 	return {
 		// 人員群組
 		getPersonGroups: (params?: { name?: string }) => {
-			const path = params ? buildPathWithQuery(`${PERSONNEL_PREFIX}/groups`, params) : `${PERSONNEL_PREFIX}/groups`;
+			const path = params
+				? buildPathWithQuery(`${PERSONNEL_PREFIX}/groups`, params)
+				: `${PERSONNEL_PREFIX}/groups`;
 			return request<PersonGroup[]>(path);
 		},
-		getPersonGroupById: (id: number) =>
-			request<PersonGroup>(`${PERSONNEL_PREFIX}/groups/${id}`),
+		getPersonGroupById: (id: number) => request<PersonGroup>(`${PERSONNEL_PREFIX}/groups/${id}`),
 		createPersonGroup: (body: { name: string; description?: string | null }) =>
 			request<PersonGroup>(`${PERSONNEL_PREFIX}/groups`, {
 				method: "POST",
@@ -56,8 +57,7 @@ export const usePersonnelApi = () => {
 				: `${PERSONNEL_PREFIX}/persons`;
 			return request<Person[]>(path);
 		},
-		getPersonById: (id: number) =>
-			request<Person>(`${PERSONNEL_PREFIX}/persons/${id}`),
+		getPersonById: (id: number) => request<Person>(`${PERSONNEL_PREFIX}/persons/${id}`),
 		getPersonByEmployeeNo: (employeeNo: string) =>
 			request<Person>(`${PERSONNEL_PREFIX}/persons/by-employee-no/${encodeURIComponent(employeeNo)}`),
 		createPerson: (body: {
@@ -85,7 +85,7 @@ export const usePersonnelApi = () => {
 				method: "PUT",
 				body: JSON.stringify(body)
 			}),
-		/** 上傳該人員大頭照（檔名由後端依姓名/員工編號組成，並自動更新 face_url） */
+		/** 上傳該人員大頭照（檔名由後端依姓名/工號組成，並自動更新 face_url） */
 		uploadFaceForPerson: (personId: number, file: File) => {
 			const form = new FormData();
 			form.append("file", file);
@@ -113,8 +113,7 @@ export const usePersonnelApi = () => {
 			}),
 
 		// 可同步地點與同步
-		getSyncableLocations: () =>
-			request<SyncableLocation[]>(`${PERSONNEL_PREFIX}/syncable-locations`),
+		getSyncableLocations: () => request<SyncableLocation[]>(`${PERSONNEL_PREFIX}/syncable-locations`),
 		syncLocation: (locationId: number) =>
 			request<{ success: boolean; warnings: SyncWarning[] }>(
 				`${PERSONNEL_PREFIX}/sync-location/${locationId}`,

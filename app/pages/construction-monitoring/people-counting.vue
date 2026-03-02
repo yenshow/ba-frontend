@@ -68,7 +68,7 @@
 									>
 										<p class="text-sm text-white/60 xl:text-base">尚無單位資料</p>
 									</div>
-									<div v-else class="grid grid-cols-4 gap-4">
+									<div v-else class="grid grid-cols-3 gap-4 2xl:grid-cols-4">
 										<div
 											v-for="unit in selectedLocation.units"
 											:key="unit.id"

@@ -217,7 +217,7 @@ import { useDeviceApi } from "~/composables/systems/useDeviceApi";
 import { useDeviceMonitor } from "~/composables/monitoring/useDeviceMonitor";
 
 definePageMeta({
-	layout: "default"
+	layout: "auxiliary"
 });
 
 const { isAdmin } = useAuth();

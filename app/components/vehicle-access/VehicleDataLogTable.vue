@@ -89,7 +89,10 @@
 					</td>
 					<td class="p-2">
 						<span
-							:class="['inline-block rounded-full px-2 py-0.5 text-xs font-medium 2xl:text-sm', getPassResultTagClass(log)]"
+							:class="[
+								'inline-block rounded-full px-2 py-0.5 text-xs font-medium 2xl:text-sm',
+								getPassResultTagClass(log)
+							]"
 							:aria-label="getPassResultLabel(log)"
 						>
 							{{ getPassResultLabel(log) }}
@@ -179,7 +182,6 @@ const closeLightbox = () => {
 const isDirectUrl = (url: string): boolean =>
 	url.startsWith("http://") || url.startsWith("https://");
 
-/** 與 VehiclePlateImage 相同：http(s) 直接使用，vsm:// 等經 API 解析 */
 const resolveImageUrl = async (log: VehicleDataLog) => {
 	const url = log.plate_license_image_url?.trim();
 	const id = log.id;

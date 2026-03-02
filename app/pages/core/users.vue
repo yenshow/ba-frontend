@@ -210,7 +210,7 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useUserApi } from "~/composables/systems/useUserApi";
 
 definePageMeta({
-	layout: "default"
+	layout: "auxiliary"
 });
 
 const { user: currentUser, isAdmin } = useAuth();

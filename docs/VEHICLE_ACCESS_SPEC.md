@@ -216,19 +216,11 @@ interface VehicleDataLogCountResponse {
 ### 新增組件
 
 | 組件名稱                | 路徑                                                  | 說明                                                                                    |
-| ----------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| ----------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------- | --- |
 | `VehicleOverviewCard`   | `components/vehicle-access/VehicleOverviewCard.vue`   | 總覽側欄的工地卡片（今日過車筆數等）                                                    |
 | `VehicleDataLogTable`   | `components/vehicle-access/VehicleDataLogTable.vue`   | 過車記錄表格（trigger_time、license_plate、lane_name、vehicle_list_name、is_blacklist） |
 | `VehicleDataLogFilters` | `components/vehicle-access/VehicleDataLogFilters.vue` | 篩選列（地點、時間、僅無群組、僅黑名單、搜尋）                                          |
-| `VehicleDataLogDetail`  | `components/vehicle-access/VehicleDataLogDetail.vue`  | 單筆詳情／彈窗（含車牌圖片、車主、is_blacklist 標示）                                   |
-| `VehiclePlateImage`     | `components/vehicle-access/VehiclePlateImage.vue`     | 選中記錄的車牌圖片顯示（plate_license_image_url）                                       |
-
-### 可選／預留組件
-
-| 組件名稱             | 說明                                            |
-| -------------------- | ----------------------------------------------- |
-| `GateStatusPanel`    | 柵欄機狀態（後端未提供時可預留或省略）          |
-| `LicensePlateViewer` | 多筆車牌結果分頁（可與 VehiclePlateImage 合併） |
+| `VehicleDataLogDetail`  | `components/vehicle-access/VehicleDataLogDetail.vue`  | 單筆詳情／彈窗（含車牌圖片、車主、is_blacklist 標示）                                   |     |
 
 ### 複用組件
 
@@ -304,10 +296,7 @@ composables/
 
 ### Phase 3：進階功能
 
-1. **VehiclePlateImage / VehicleDataLogDetail**
-   - 選中記錄的車牌圖片（plate_license_image_url）、詳情彈窗（單筆 API `/:id`）、is_blacklist 標示
-
-2. **useVehicleAccessWebSocket**
+1. **useVehicleAccessWebSocket**
    - 訂閱 `yscp:event:vehicle`，收到後依目前篩選重新拉取列表（及可選 count）
 
 ### Phase 4：整合優化
@@ -354,8 +343,7 @@ app/
 │       ├── VehicleOverviewCard.vue       # 總覽卡片（今日過車筆數）
 │       ├── VehicleDataLogTable.vue       # 過車記錄表格
 │       ├── VehicleDataLogFilters.vue     # 篩選列
-│       ├── VehicleDataLogDetail.vue      # 單筆詳情／彈窗
-│       └── VehiclePlateImage.vue         # 選中記錄車牌圖片
+│       └── VehicleDataLogDetail.vue      # 單筆詳情／彈窗
 ├── composables/
 │   └── systems/
 │       └── vehicleAccess/
