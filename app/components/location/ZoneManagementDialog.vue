@@ -37,8 +37,14 @@
 										<div
 											v-for="zone in sortedZones"
 											:key="getZoneId(zone)"
-											class="overflow-hidden rounded-lg border border-white/20 bg-white/10 transition-all"
-											:class="{ 'bg-white/15': expandedZones.has(getZoneId(zone)) }"
+											class="overflow-hidden rounded-lg border transition-all"
+											:class="[
+												isNewZone(zone)
+													? 'border-2 border-amber-400/90 bg-amber-500/10 shadow-[0_0_0_1px_rgba(251,191,36,0.4)]'
+													: 'border border-white/20 bg-white/10',
+												{ 'bg-white/15': !isNewZone(zone) && expandedZones.has(getZoneId(zone)) },
+												{ 'bg-amber-500/15': isNewZone(zone) && expandedZones.has(getZoneId(zone)) }
+											]"
 										>
 											<!-- 區域標題列（可點擊展開） -->
 											<div
@@ -653,30 +659,26 @@ const handleConfirmDeleteLocation = async () => {
 	pendingDeleteLocation.value = null;
 };
 
+// 是否為新增的區域（尚未儲存，以 temp- 開頭的 ID）
+const isNewZone = (zone: TZone): boolean => {
+	const zoneId = getZoneId(zone);
+	return Boolean(zoneId?.startsWith("temp-"));
+};
+
 // 新增區域
 const addNewZone = () => {
-	// 生成不重複的臨時名稱
-	let tempName = `${props.zones.length + 1}F`;
-	let counter = 1;
-	while (props.zones.some(z => z.name.trim() === tempName.trim())) {
-		tempName = `${props.zones.length + 1 + counter}F`;
-		counter++;
-	}
-
-	// 生成臨時 ID
 	const tempId = `temp-${Date.now()}-${Math.random()}`;
 
-	// 建立新區域，並賦值臨時 ID
+	// 建立新區域：區域名稱預設為空白
 	const newZone = {
-		...adapter.createNewZone(tempName),
-		id: tempId // ✅ 賦值臨時 ID
+		...adapter.createNewZone(""),
+		id: tempId
 	} as TZone;
 
-	// ✅ 只加入待保存列表，不立即寫入資料庫
-	// 使用 JSON 深拷貝，避免 structuredClone 無法處理某些對象的問題
+	// 只加入待保存列表，不立即寫入資料庫
 	pendingChanges.value.set(tempId, JSON.parse(JSON.stringify(newZone)) as TZone);
 
-	// ✅ 自動展開新區域
+	// 自動展開新區域
 	expandedZones.value.add(tempId);
 };
 
@@ -756,51 +758,6 @@ const handleConfirmDelete = () => {
 </script>
 
 <style scoped>
-.dialog-panel-bg {
-	background: linear-gradient(145deg, rgba(9, 106, 133, 0.95), rgba(20, 64, 92, 0.98));
-	border: 1px solid rgba(255, 255, 255, 0.25);
-	box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
-	color: #f5f9ff;
-}
-
-.btn-primary,
-.btn-secondary {
-	border-radius: 999px;
-	padding: 0.6rem 1.4rem;
-	font-weight: 500;
-	font-size: 1rem;
-	cursor: pointer;
-	transition: all 0.2s ease;
-	border: none;
-}
-
-.btn-primary {
-	background: linear-gradient(135deg, #2dd4bf, #1ba9d3);
-	color: #0b2c3c;
-	box-shadow: 0 10px 25px rgba(23, 217, 199, 0.35);
-}
-
-.btn-primary:hover:not(:disabled) {
-	transform: translateY(-1px);
-	box-shadow: 0 12px 30px rgba(23, 217, 199, 0.45);
-}
-
-.btn-primary:disabled {
-	opacity: 0.6;
-	cursor: not-allowed;
-}
-
-.btn-secondary {
-	background: rgba(255, 255, 255, 0.08);
-	border: 1px solid rgba(91, 231, 241, 0.5);
-	color: #e8fbff;
-}
-
-.btn-secondary:hover:not(:disabled) {
-	background: rgba(255, 255, 255, 0.12);
-	border-color: rgba(91, 231, 241, 0.7);
-}
-
 /* 展開動畫 */
 .expand-enter-active,
 .expand-leave-active {
@@ -831,14 +788,4 @@ const handleConfirmDelete = () => {
 	opacity: 0;
 }
 
-/* 對話框淡入淡出 */
-.dialog-fade-enter-active,
-.dialog-fade-leave-active {
-	transition: opacity 0.3s ease;
-}
-
-.dialog-fade-enter-from,
-.dialog-fade-leave-to {
-	opacity: 0;
-}
 </style>

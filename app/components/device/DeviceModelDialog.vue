@@ -589,13 +589,6 @@ watch(
 </script>
 
 <style scoped>
-.dialog-panel-bg {
-	background: linear-gradient(145deg, rgba(9, 106, 133, 0.95), rgba(20, 64, 92, 0.98));
-	border: 1px solid rgba(255, 255, 255, 0.25);
-	box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
-	color: #f5f9ff;
-}
-
 .form-input {
 	border-radius: 0.75rem;
 	border: 1px solid rgba(255, 255, 255, 0.35);
@@ -625,44 +618,6 @@ watch(
 .form-select option {
 	background: rgba(20, 64, 92, 0.98);
 	color: #f7fbff;
-}
-
-.btn-primary,
-.btn-secondary {
-	border-radius: 999px;
-	padding: 0.6rem 1.4rem;
-	font-weight: 500;
-	font-size: 0.9rem;
-	cursor: pointer;
-	transition: all 0.2s ease;
-}
-
-.btn-primary {
-	background: linear-gradient(135deg, #2dd4bf, #1ba9d3);
-	color: #0b2c3c;
-	border: none;
-	box-shadow: 0 10px 25px rgba(23, 217, 199, 0.35);
-}
-
-.btn-primary:hover:not(:disabled) {
-	transform: translateY(-1px);
-	box-shadow: 0 12px 30px rgba(23, 217, 199, 0.45);
-}
-
-.btn-primary:disabled {
-	opacity: 0.6;
-	cursor: not-allowed;
-}
-
-.btn-secondary {
-	background: rgba(255, 255, 255, 0.08);
-	border: 1px solid rgba(91, 231, 241, 0.5);
-	color: #e8fbff;
-}
-
-.btn-secondary:hover:not(:disabled) {
-	background: rgba(255, 255, 255, 0.12);
-	border-color: rgba(91, 231, 241, 0.7);
 }
 
 .btn-list-edit,
@@ -706,13 +661,4 @@ watch(
 	}
 }
 
-.dialog-fade-enter-active,
-.dialog-fade-leave-active {
-	transition: opacity 0.2s ease;
-}
-
-.dialog-fade-enter-from,
-.dialog-fade-leave-to {
-	opacity: 0;
-}
 </style>

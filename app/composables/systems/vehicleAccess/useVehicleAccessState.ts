@@ -16,10 +16,11 @@ import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehi
 import { useLocationApi } from "~/composables/systems/location/useLocationApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { unifiedToVehicleAccessZone } from "~/utils/locationAdapter";
+import { normalizePlate } from "~/utils/vehicleAccessUtils";
 import type { UnifiedZone } from "~/types/location";
 
-/** 時間範圍：今日、昨日、最近一週、自訂 */
-export type VehicleAccessTimeRange = "today" | "yesterday" | "last7days" | "custom";
+/** 時間範圍：今日、昨日、自訂 */
+export type VehicleAccessTimeRange = "today" | "yesterday" | "custom";
 
 /** 篩選器時間範圍選項（UI 用：今日／自訂） */
 export type TimeRangeOption = "today" | "custom";
@@ -50,11 +51,6 @@ function getLaneIdsForLocation(loc: VehicleAccessLocation | null | undefined): n
 	if (loc.entryLaneId != null) ids.push(Number(loc.entryLaneId));
 	if (loc.exitLaneId != null) ids.push(Number(loc.exitLaneId));
 	return ids;
-}
-
-function normalizePlate(plate: string | null | undefined): string {
-	if (plate == null) return "";
-	return String(plate).trim().toUpperCase();
 }
 
 export const useVehicleAccessState = () => {
@@ -250,7 +246,9 @@ export const useVehicleAccessState = () => {
 		null;
 
 	const organizationGroups = computed<VehicleOrganizationGroupItem[]>(() => {
-		const apiGroups = vehicleGroupsFromApi.value.groups ?? [];
+		const apiGroups = (vehicleGroupsFromApi.value.groups ?? []).filter(
+			(g) => (g.id ?? 0) !== 0
+		);
 		const logList = logs.value;
 		const laneIds = selectedLaneIds.value;
 		const laneSet = laneIds?.length ? new Set(laneIds) : null;

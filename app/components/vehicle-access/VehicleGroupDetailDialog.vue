@@ -173,19 +173,4 @@ const handleClose = () => {
 </script>
 
 <style scoped>
-.dialog-panel-bg {
-	background: linear-gradient(145deg, rgba(9, 106, 133, 0.95), rgba(20, 64, 92, 0.98));
-	border: 1px solid rgba(255, 255, 255, 0.25);
-	box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
-}
-
-.dialog-fade-enter-active,
-.dialog-fade-leave-active {
-	transition: opacity 0.3s ease;
-}
-
-.dialog-fade-enter-from,
-.dialog-fade-leave-to {
-	opacity: 0;
-}
 </style>

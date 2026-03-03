@@ -49,10 +49,12 @@ export function getUnitStatsForDay(
 		byUnit.get(key)!.push(log);
 	}
 	const result: Array<{ unitName: string; entry: number; exit: number; current: number }> = [];
-	for (const [unitName, logs] of byUnit) {
+	for (const [unitKey, logs] of byUnit) {
+		const unitName = unitKey.trim();
+		if (!unitName) continue;
 		const { entry, exit } = countEntryExitForDay(logs);
 		result.push({
-			unitName: unitName || "(未指定單位)",
+			unitName,
 			entry,
 			exit,
 			current: Math.max(0, entry - exit),

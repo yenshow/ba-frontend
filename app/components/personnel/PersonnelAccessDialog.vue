@@ -1,13 +1,13 @@
 <template>
 	<Teleport to="body">
-		<Transition name="personnel-dialog-fade">
+		<Transition name="dialog-fade">
 			<div
 				v-if="modelValue"
 				class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
 				@click.self="handleClose"
 			>
 				<div
-					class="personnel-dialog-panel show-scrollbar flex max-h-[90vh] w-full max-w-lg flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:p-8"
+					class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-lg flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:p-8"
 				>
 					<header class="flex items-center justify-between">
 						<h3 class="text-lg font-semibold tracking-[4px] text-white 2xl:text-xl">
@@ -62,11 +62,11 @@
 						</div>
 					</div>
 					<footer class="mt-2 flex gap-3 2xl:gap-4">
-						<button type="button" class="personnel-btn-secondary" @click="handleClose">取消</button>
+						<button type="button" class="btn-secondary" @click="handleClose">取消</button>
 						<div class="flex-1"></div>
 						<button
 							type="button"
-							class="personnel-btn-primary"
+							class="btn-primary"
 							:disabled="isSaving || !person"
 							@click="handleSave"
 						>

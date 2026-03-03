@@ -112,7 +112,12 @@
 							<td class="border border-white/20 p-2">{{ row.單位名稱 }}</td>
 							<td class="border border-white/20 p-2">{{ row.進場人數 }}</td>
 							<td class="border border-white/20 p-2">{{ row.出場人數 }}</td>
-							<td class="border border-white/20 p-2">{{ row.在場人數 }}</td>
+							<td
+								class="border border-white/20 p-2"
+								:class="row.hasOnSite ? 'bg-red-500/80 font-semibold' : ''"
+							>
+								{{ row.在場人數 }}
+							</td>
 						</tr>
 					</tbody>
 				</table>
@@ -171,7 +176,7 @@
 							v-for="row in detailTableRowsPaginated"
 							:key="row.key"
 							class="border-b border-white/10 text-white"
-							:class="row.isEntryOnly ? 'bg-amber-500/25' : ''"
+							:class="row.isEntryOnly ? 'bg-red-500/80' : ''"
 						>
 							<td class="border border-white/20 p-2">{{ row["區域-地點"] }}</td>
 							<td class="border border-white/20 p-2">{{ row.單位名稱 }}</td>
@@ -260,7 +265,8 @@ const zoneLocationOptions = computed(() =>
 const unitNameOptions = computed(() => {
 	const set = new Set<string>()
 	for (const log of props.logs) {
-		set.add((log.unit?.name ?? log.unitName ?? "") || "(未指定單位)")
+		const name = (log.unit?.name ?? log.unitName ?? "").trim()
+		if (name) set.add(name)
 	}
 	return [...set].sort()
 })
@@ -307,11 +313,22 @@ const statsTableRows = computed(() => {
 	return rows
 })
 
-const unitStatsTableRows = computed(() => {
+type UnitStatsRow = {
+	key: string
+	日期: string
+	"區域-地點": string
+	單位名稱: string
+	進場人數: string
+	出場人數: string
+	在場人數: string
+	hasOnSite: boolean
+}
+
+const unitStatsTableRows = computed((): UnitStatsRow[] => {
 	const zl = zoneLocationLabel.value
 	if (filterZoneLocationUnit.value && zl !== filterZoneLocationUnit.value) return []
 	const datesDesc = [...groupsByDate.value.keys()].sort((a, b) => b.localeCompare(a))
-	const rows: Array<Record<string, string> & { key: string }> = []
+	const rows: UnitStatsRow[] = []
 	for (const dateStr of datesDesc) {
 		const dayLogs = groupsByDate.value.get(dateStr)!
 		const unitStats = getUnitStatsForDay(dayLogs)
@@ -324,6 +341,7 @@ const unitStatsTableRows = computed(() => {
 				進場人數: String(u.entry),
 				出場人數: String(u.exit),
 				在場人數: String(u.current),
+				hasOnSite: u.current > 0,
 			})
 		}
 	}
@@ -357,7 +375,7 @@ const detailTableRows = computed(() => {
 			const personKey = String(log.personnelId ?? log.employeeId ?? log.id ?? "")
 			const isEntryOnly = entryOnlyLastLogMap.has(personKey)
 			const lastEntryLog = entryOnlyLastLogMap.get(personKey)
-			const unitName = (log.unit?.name ?? log.unitName ?? "") || "(未指定單位)"
+			const unitName = (log.unit?.name ?? log.unitName ?? "").trim() || "－"
 			if (filterZoneLocationDetail.value && zl !== filterZoneLocationDetail.value) continue
 			if (filterUnitName.value && unitName !== filterUnitName.value) continue
 			rows.push({
@@ -418,7 +436,20 @@ const handleExportCsv = () => {
 	parts.push(buildCsvSection(STATS_HEADERS, statsTableRows.value, { backupStyle: true }))
 	parts.push("")
 	parts.push("單位統計")
-	parts.push(buildCsvSection(UNIT_STATS_HEADERS, unitStatsTableRows.value, { backupStyle: true }))
+	parts.push(
+		buildCsvSection(
+			UNIT_STATS_HEADERS,
+			unitStatsTableRows.value.map((r) => ({
+				日期: r.日期,
+				"區域-地點": r["區域-地點"],
+				單位名稱: r.單位名稱,
+				進場人數: r.進場人數,
+				出場人數: r.出場人數,
+				在場人數: r.在場人數,
+			})),
+			{ backupStyle: true }
+		)
+	)
 	parts.push("")
 	parts.push("進出紀錄")
 	parts.push(
