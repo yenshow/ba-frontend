@@ -1,13 +1,13 @@
 <template>
 	<Teleport to="body">
-		<Transition name="personnel-dialog-fade">
+		<Transition name="dialog-fade">
 			<div
 				v-if="modelValue"
 				class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
 				@click.self="handleClose"
 			>
 				<div
-					class="personnel-dialog-panel show-scrollbar flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:p-8"
+					class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:p-8"
 				>
 					<header class="flex items-center justify-between">
 						<h3 class="text-lg font-semibold tracking-[4px] text-white 2xl:text-xl">
@@ -29,17 +29,17 @@
 								v-model="form.employeeNo"
 								type="text"
 								required
-								class="personnel-form-input"
+								class="form-input-small"
 								:readonly="!!editingPerson"
 							/>
 						</label>
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
 							<span>姓名</span>
-							<input v-model="form.fullName" type="text" class="personnel-form-input" />
+							<input v-model="form.fullName" type="text" class="form-input-small" />
 						</label>
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
 							<span>群組</span>
-							<select v-model="form.personGroupId" class="personnel-form-input personnel-form-select">
+							<select v-model="form.personGroupId" class="form-input-small form-select">
 								<option :value="null">未指定</option>
 								<option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
 							</select>
@@ -112,9 +112,9 @@
 						</label>
 						<p v-if="errorMessage" class="text-sm text-rose-300">{{ errorMessage }}</p>
 						<footer class="mt-2 flex gap-3 2xl:gap-4">
-							<button type="button" class="personnel-btn-secondary" @click="handleClose">取消</button>
+							<button type="button" class="btn-secondary" @click="handleClose">取消</button>
 							<div class="flex-1"></div>
-							<button type="submit" class="personnel-btn-primary" :disabled="isSubmitting">
+							<button type="submit" class="btn-primary" :disabled="isSubmitting">
 								{{ isSubmitting ? "處理中..." : editingPerson ? "更新" : "建立" }}
 							</button>
 						</footer>
@@ -126,51 +126,51 @@
 </template>
 
 <script setup lang="ts">
-import type { Person, PersonGroup } from "~/types/personnel"
+import type { Person, PersonGroup } from "~/types/personnel";
 
 const props = defineProps<{
-	modelValue: boolean
-	editingPerson: Person | null
+	modelValue: boolean;
+	editingPerson: Person | null;
 	form: {
-		employeeNo: string
-		fullName: string
-		personGroupId: number | null
-		status: "active" | "inactive"
-		faceUrl: string
-	}
-	groups: PersonGroup[]
-	facePreviewUrl: string | null
-	hasFacePreview: boolean
-	isSubmitting: boolean
-	errorMessage: string | null
-}>()
+		employeeNo: string;
+		fullName: string;
+		personGroupId: number | null;
+		status: "active" | "inactive";
+		faceUrl: string;
+	};
+	groups: PersonGroup[];
+	facePreviewUrl: string | null;
+	hasFacePreview: boolean;
+	isSubmitting: boolean;
+	errorMessage: string | null;
+}>();
 
 const emit = defineEmits<{
-	"update:modelValue": [value: boolean]
-	submit: []
-	"face-file-change": [file: File]
-	"clear-face": []
-}>()
+	"update:modelValue": [value: boolean];
+	submit: [];
+	"face-file-change": [file: File];
+	"clear-face": [];
+}>();
 
-const faceFileInputRef = ref<HTMLInputElement | null>(null)
+const faceFileInputRef = ref<HTMLInputElement | null>(null);
 
-const handleClose = () => emit("update:modelValue", false)
-const handleSubmit = () => emit("submit")
-const triggerFaceFileSelect = () => faceFileInputRef.value?.click()
+const handleClose = () => emit("update:modelValue", false);
+const handleSubmit = () => emit("submit");
+const triggerFaceFileSelect = () => faceFileInputRef.value?.click();
 
 const handleFaceFileChange = (e: Event) => {
-	const input = e.target as HTMLInputElement
-	const file = input.files?.[0]
-	if (file) emit("face-file-change", file)
-	input.value = ""
-}
+	const input = e.target as HTMLInputElement;
+	const file = input.files?.[0];
+	if (file) emit("face-file-change", file);
+	input.value = "";
+};
 
-const handleClearFace = () => emit("clear-face")
+const handleClearFace = () => emit("clear-face");
 
 watch(
 	() => props.modelValue,
-	(v) => {
-		if (!v && faceFileInputRef.value) faceFileInputRef.value.value = ""
+	v => {
+		if (!v && faceFileInputRef.value) faceFileInputRef.value.value = "";
 	}
-)
+);
 </script>

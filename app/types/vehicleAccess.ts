@@ -5,6 +5,8 @@
 export interface VehicleDataLog {
 	id: number;
 	lane_name: string | null;
+	/** 車道 ID（vehiclebiz.lane_info.id；用於依選中地點篩選過車記錄） */
+	lane_id?: number | null;
 	/** 放行結果：1=放行、0=未放行（未放行顯示「拒絕」） */
 	allow_result?: number | null;
 	/** 車道類型 1 進 2 出（由後端自 vehiclebiz.lane_info 帶入，放行時顯示進入/離開） */

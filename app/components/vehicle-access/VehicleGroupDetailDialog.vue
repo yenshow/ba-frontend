@@ -39,15 +39,18 @@
 								<div
 									v-for="vehicle in paginatedList"
 									:key="vehicle.id"
-									class="flex min-h-[117px] items-start gap-3 border-2 border-white/30 p-3 2xl:min-h-[133px]"
+									class="flex min-h-[135px] items-start gap-3 border-2 border-white/30 p-3 2xl:min-h-[155px]"
 									:class="[vehicle.isPresent ? 'bg-white/20' : 'bg-black/20']"
 								>
 									<div class="mx-4 w-full 2xl:flex-1">
 										<div class="border-b border-white/30 pb-1 text-base font-medium text-white 2xl:text-xl">
-											{{ vehicle.owner_name?.trim() || "- -" }}
-											<span class="text-white/80">({{ vehicle.plate_license?.trim() || "- -" }})</span>
+											{{ vehicle.plate_license?.trim() || "- -" }}
 										</div>
 										<div class="mt-2 space-y-0.5 text-xs text-white/60 2xl:text-sm">
+											<div v-if="vehicle.owner_name?.trim()">
+												<span>車主姓名：</span>
+												<span>{{ vehicle.owner_name?.trim() }}</span>
+											</div>
 											<div v-if="vehicle.lastEntryDate">
 												<span>最近進場：</span>
 												<span>{{ vehicle.lastEntryDate }}</span>
@@ -169,19 +172,4 @@ const handleClose = () => {
 </script>
 
 <style scoped>
-.dialog-panel-bg {
-	background: linear-gradient(145deg, rgba(9, 106, 133, 0.95), rgba(20, 64, 92, 0.98));
-	border: 1px solid rgba(255, 255, 255, 0.25);
-	box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
-}
-
-.dialog-fade-enter-active,
-.dialog-fade-leave-active {
-	transition: opacity 0.3s ease;
-}
-
-.dialog-fade-enter-from,
-.dialog-fade-leave-to {
-	opacity: 0;
-}
 </style>

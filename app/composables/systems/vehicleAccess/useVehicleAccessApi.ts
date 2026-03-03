@@ -11,7 +11,7 @@ const TABLE_PASSAGEWAY = "passageway_log_data";
 const TABLE_LANE_INFO = "lane_info";
 
 /** 時間範圍：今日、昨日、最近一週（後端 dateRangeUtils 支援） */
-export type VehicleDataLogTimeRange = "today" | "yesterday" | "last7days";
+export type VehicleDataLogTimeRange = "today" | "yesterday";
 
 export interface VehicleDataLogListFilters {
 	timeRange?: VehicleDataLogTimeRange;

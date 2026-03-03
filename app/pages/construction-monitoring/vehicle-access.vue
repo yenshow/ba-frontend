@@ -55,7 +55,7 @@
 							<div class="grid grid-cols-2 gap-4">
 								<!-- 當日過車記錄表 -->
 								<div class="space-y-3">
-									<!-- 時間篩選：今日／昨日／最近一週 -->
+									<!-- 時間篩選：今日／昨日 -->
 									<div class="flex flex-wrap items-center gap-2">
 										<span class="text-sm text-white/80 2xl:text-base">時間：</span>
 										<button
@@ -367,19 +367,11 @@ const handleOrganizationDialogClose = () => {
 	setSelectedOrganizationKey(null);
 };
 
-/** 時間篩選選項：今日、昨日、最近一週 */
+/** 時間篩選選項：今日、昨日 */
 const timeRangeOptions: { value: VehicleAccessTimeRange; label: string }[] = [
 	{ value: "today", label: "今日" },
-	{ value: "yesterday", label: "昨日" },
-	{ value: "last7days", label: "最近一週" }
+	{ value: "yesterday", label: "昨日" }
 ];
-const timeRangeRecordLabel = computed(() => {
-	const v = filters.value.timeRange;
-	if (v === "today") return "當日紀錄";
-	if (v === "yesterday") return "昨日紀錄";
-	if (v === "last7days") return "最近一週紀錄";
-	return "過車紀錄";
-});
 const handleTimeRangeChange = (value: VehicleAccessTimeRange) => {
 	if (filters.value.timeRange === value) return;
 	filters.value = { ...filters.value, timeRange: value };

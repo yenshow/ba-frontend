@@ -78,7 +78,12 @@
 							<td class="border border-white/20 p-2">{{ row.群組名稱 }}</td>
 							<td class="border border-white/20 p-2">{{ row.進場車輛 }}</td>
 							<td class="border border-white/20 p-2">{{ row.出場車輛 }}</td>
-							<td class="border border-white/20 p-2">{{ row.在場車輛 }}</td>
+							<td
+								class="border border-white/20 p-2"
+								:class="row.hasOnSite ? 'bg-red-500/80 font-semibold' : ''"
+							>
+								{{ row.在場車輛 }}
+							</td>
 						</tr>
 					</tbody>
 				</table>
@@ -107,6 +112,7 @@
 							v-for="row in detailTableRowsPaginated"
 							:key="row.key"
 							class="border-b border-white/10 text-white"
+							:class="row.isEntryOnly ? 'bg-red-500/80' : ''"
 						>
 							<td class="border border-white/20 p-2">{{ row["區域-地點"] }}</td>
 							<td class="border border-white/20 p-2">{{ row.車牌 }}</td>
@@ -156,6 +162,7 @@
 import type { VehicleDataLog } from "~/types/vehicleAccess";
 import { formatDate, formatDateTime, TIME_RANGE_PRESETS } from "~/utils/dateUtils";
 import { buildCsvSection } from "~/utils/csvExport";
+import { getEntryOnlyLogIds } from "~/utils/vehicleAccessUtils";
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue";
 
 const props = defineProps<{
@@ -228,9 +235,20 @@ const statsTableRows = computed(() => {
 const getGroupName = (log: VehicleDataLog): string =>
 	(log.vehicle_list_name?.trim() || log.person_group_name?.trim() || "") || "(未指定群組)";
 
-const groupStatsTableRows = computed(() => {
+type GroupStatsRow = {
+	key: string;
+	日期: string;
+	"區域-地點": string;
+	群組名稱: string;
+	進場車輛: string;
+	出場車輛: string;
+	在場車輛: string;
+	hasOnSite: boolean;
+};
+
+const groupStatsTableRows = computed((): GroupStatsRow[] => {
 	const zl = zoneLocationLabel.value;
-	const rows: Array<Record<string, string> & { key: string }> = [];
+	const rows: GroupStatsRow[] = [];
 	for (const dateStr of datesDesc.value) {
 		const dayLogs = groupsByDate.value.get(dateStr)!;
 		const byGroup = new Map<string, VehicleDataLog[]>();
@@ -248,7 +266,8 @@ const groupStatsTableRows = computed(() => {
 				群組名稱: groupName,
 				進場車輛: String(entry),
 				出場車輛: String(exit),
-				在場車輛: String(current)
+				在場車輛: String(current),
+				hasOnSite: current > 0
 			});
 		}
 	}
@@ -261,8 +280,12 @@ const allowResultLabel = (log: VehicleDataLog): string =>
 const directionLabel = (log: VehicleDataLog): string =>
 	log.lane_type === 1 ? "進場" : log.lane_type === 2 ? "出場" : "-";
 
+/** 進場未出場的紀錄 ID 集合（用於表格背景凸顯） */
+const entryOnlyLogIds = computed(() => getEntryOnlyLogIds(props.logs));
+
 type DetailRow = {
 	key: string;
+	isEntryOnly: boolean;
 	"區域-地點": string;
 	車牌: string;
 	過車時間: string;
@@ -275,6 +298,7 @@ type DetailRow = {
 
 const detailTableRows = computed((): DetailRow[] => {
 	const zl = zoneLocationLabel.value;
+	const ids = entryOnlyLogIds.value;
 	const rows: DetailRow[] = [];
 	for (const dateStr of datesDesc.value) {
 		const dayLogs = groupsByDate.value.get(dateStr)!;
@@ -284,6 +308,7 @@ const detailTableRows = computed((): DetailRow[] => {
 		for (const log of sorted) {
 			rows.push({
 				key: `log-${log.id}-${log.trigger_time}`,
+				isEntryOnly: ids.has(log.id),
 				"區域-地點": zl,
 				車牌: log.license_plate?.trim() ?? "",
 				過車時間: log.trigger_time ? formatDateTime(log.trigger_time, true) : "",
@@ -348,10 +373,38 @@ const handleExportCsv = () => {
 	parts.push(buildCsvSection(STATS_HEADERS, statsTableRows.value, { backupStyle: true }));
 	parts.push("");
 	parts.push("群組統計");
-	parts.push(buildCsvSection(GROUP_STATS_HEADERS, groupStatsTableRows.value, { backupStyle: true }));
+	parts.push(
+		buildCsvSection(
+			GROUP_STATS_HEADERS,
+			groupStatsTableRows.value.map(r => ({
+				日期: r.日期,
+				"區域-地點": r["區域-地點"],
+				群組名稱: r.群組名稱,
+				進場車輛: r.進場車輛,
+				出場車輛: r.出場車輛,
+				在場車輛: r.在場車輛
+			})),
+			{ backupStyle: true }
+		)
+	);
 	parts.push("");
 	parts.push("過車紀錄");
-	parts.push(buildCsvSection(DETAIL_HEADERS, detailTableRows.value, { backupStyle: true }));
+	parts.push(
+		buildCsvSection(
+			DETAIL_HEADERS,
+			detailTableRows.value.map(r => ({
+				"區域-地點": r["區域-地點"],
+				車牌: r.車牌,
+				過車時間: r.過車時間,
+				車道名稱: r.車道名稱,
+				車主名稱: r.車主名稱,
+				車輛群組: r.車輛群組,
+				放行結果: r.放行結果,
+				方向: r.方向
+			})),
+			{ backupStyle: true }
+		)
+	);
 	const csvContent = "\uFEFF" + parts.join("\n");
 	const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
 	const url = URL.createObjectURL(blob);
