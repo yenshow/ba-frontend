@@ -1,6 +1,6 @@
 <template>
 	<div class="flex min-w-0 flex-1 flex-col">
-		<div class="flex min-w-0 items-end gap-2">
+		<div class="flex min-w-0 flex-col gap-2">
 			<!-- 地點名稱 -->
 			<label class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0">
 				<span>地點名稱 *</span>
@@ -14,30 +14,55 @@
 				/>
 			</label>
 
-			<!-- 感測器設備 -->
-			<label class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0">
-				<span>感測器設備</span>
-				<FilterDropdown
-					v-model="deviceIdString"
-					:options="deviceOptions"
-					:placeholder="isLoadingDevices ? '載入中...' : '請選擇感測器'"
-					@update:modelValue="handleDeviceChange"
-				/>
-			</label>
+			<!-- 感測器設備（複選，勾選多台） -->
+			<div class="flex flex-1 flex-col gap-2">
+				<span class="text-sm text-white/80 2xl:text-base">感測器設備</span>
+				<div
+					v-if="isLoadingDevices"
+					class="py-2 text-center text-xs text-white/50 2xl:text-sm"
+				>
+					載入中...
+				</div>
+				<div
+					v-else-if="sensorDevices.length === 0"
+					class="py-2 text-center text-xs text-amber-300 2xl:text-sm"
+				>
+					尚無可用感測器，請先在「設備管理」中建立感測器設備
+				</div>
+				<div v-else class="grid grid-cols-2 gap-2">
+					<label
+						v-for="device in sensorDevices"
+						:key="device.id"
+						class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
+						:class="{
+							'border-cyan-400/50 bg-cyan-500/20': isDeviceSelected(device.id)
+						}"
+					>
+						<input
+							type="checkbox"
+							:checked="isDeviceSelected(device.id)"
+							@change="toggleDevice(device.id)"
+							class="h-4 w-4 cursor-pointer accent-cyan-400"
+							:aria-label="`勾選感測器：${device.name}`"
+						/>
+						<span class="text-xs text-white/90 2xl:text-sm">{{ device.name }}</span>
+					</label>
+				</div>
+				<p class="text-xs text-white/50 2xl:text-sm">可勾選多台設備，此地點數值將由所選設備提供</p>
+			</div>
 		</div>
 
-		<!-- 感測器參數列表（從設備型號讀取） -->
+		<!-- 感測器參數列表（從所選設備型號聯集讀取） -->
 		<div class="mt-3 border-t border-white/10 pt-3">
 			<div class="mb-3">
 				<span class="text-sm font-medium text-white/80 2xl:text-base">感測器參數</span>
 			</div>
 
-			<!-- 未選擇設備時的提示（對齊舊版） -->
 			<div
-				v-if="!localLocation.deviceId || localLocation.deviceId === 0"
+				v-if="selectedDeviceIds.length === 0"
 				class="py-2 text-center text-xs text-amber-300 2xl:text-sm"
 			>
-				請先選擇感測器設備以顯示可用參數
+				請至少勾選一台感測器設備以顯示可用參數
 			</div>
 
 			<template v-else>
@@ -45,7 +70,7 @@
 					v-if="availableParameters.length === 0"
 					class="py-2 text-center text-xs text-white/50 2xl:text-sm"
 				>
-					<p>此設備型號尚未配置參數</p>
+					<p>所選設備型號尚未配置參數</p>
 					<p class="mt-1 text-xs">請在「設備型號管理」中設定參數配置</p>
 				</div>
 				<div v-else class="grid grid-cols-2 gap-2">
@@ -85,7 +110,6 @@ import type { EnvironmentLocation, SensorParameterType } from "~/types/environme
 import type { Device, SensorParameterDefinition } from "~/types/device";
 import { useDeviceApi } from "~/composables/systems/useDeviceApi";
 import { getParameterDisplayName } from "~/utils/sensorUtils";
-import FilterDropdown from "~/components/common/FilterDropdown.vue";
 
 interface Props {
 	location: EnvironmentLocation;
@@ -106,56 +130,59 @@ const emit = defineEmits<Emits>();
 
 const deviceApi = useDeviceApi();
 
-// 本地副本，用於雙向綁定
 const localLocation = ref<EnvironmentLocation>({ ...props.location });
 
-// 設備參數定義快取
 const deviceParameterDefinitions = ref<Map<number, SensorParameterDefinition[]>>(new Map());
 
-// 設備 ID 字串（用於 FilterDropdown）
-const deviceIdString = ref("");
-
-// 監聽 props.location 變化
 watch(
 	() => props.location,
 	newLocation => {
 		localLocation.value = { ...newLocation };
-		// 確保 parameters 陣列存在
 		if (!localLocation.value.parameters) {
 			localLocation.value.parameters = [];
 		}
-		// 更新設備 ID 字串（用於 FilterDropdown）
-		deviceIdString.value = localLocation.value.deviceId > 0 
-			? String(localLocation.value.deviceId) 
-			: "";
+		const ids = getNormalizedDeviceIds(localLocation.value);
+		if (JSON.stringify(ids) !== JSON.stringify(localLocation.value.deviceIds ?? [])) {
+			localLocation.value.deviceIds = ids.length ? ids : undefined;
+			localLocation.value.deviceId = ids[0];
+		}
 	},
 	{ immediate: true, deep: true }
 );
 
-// 處理變更
+function getNormalizedDeviceIds(loc: EnvironmentLocation): number[] {
+	if (Array.isArray(loc.deviceIds) && loc.deviceIds.length > 0) return loc.deviceIds;
+	if (loc.deviceId != null && loc.deviceId > 0) return [loc.deviceId];
+	return [];
+}
+
+const selectedDeviceIds = computed(() => getNormalizedDeviceIds(localLocation.value));
+
+const sensorDevices = computed(() =>
+	props.devices.filter((d) => d.type_code === "sensor" || (d as { type_code?: string }).type_code === "sensor")
+);
+
 const handleChange = () => {
 	emit("update", { ...localLocation.value });
 };
 
-// 監聽設備 ID 變化，載入參數定義
 watch(
-	() => localLocation.value.deviceId,
-	async deviceId => {
-		if (deviceId && deviceId > 0 && !deviceParameterDefinitions.value.has(deviceId)) {
+	selectedDeviceIds,
+	async (ids) => {
+		for (const deviceId of ids) {
+			if (!deviceId || deviceParameterDefinitions.value.has(deviceId)) continue;
 			try {
 				const result = await deviceApi.getDevice(deviceId);
 				const fullDevice = result.device;
-
-				// 檢查是否有 model 資訊
 				const modelConfig = (fullDevice as any).model?.config;
 				if (modelConfig?.sensorParameters) {
 					deviceParameterDefinitions.value.set(deviceId, modelConfig.sensorParameters);
 				} else if (fullDevice.model_id) {
 					const modelResult = await deviceApi.getDeviceModel(fullDevice.model_id);
 					const model = modelResult.device_model;
-					const modelConfig = model.config;
-					if (modelConfig?.sensorParameters) {
-						deviceParameterDefinitions.value.set(deviceId, modelConfig.sensorParameters);
+					const config = model?.config;
+					if (config?.sensorParameters) {
+						deviceParameterDefinitions.value.set(deviceId, config.sensorParameters);
 					}
 				}
 			} catch (error) {
@@ -163,24 +190,52 @@ watch(
 			}
 		}
 	},
-	{ immediate: true }
+	{ immediate: true, deep: true }
 );
 
-// 取得可用參數定義
 const availableParameters = computed(() => {
-	const deviceId = localLocation.value.deviceId;
-	if (!deviceId || deviceId === 0) return [];
-	return deviceParameterDefinitions.value.get(deviceId) || [];
+	const ids = selectedDeviceIds.value;
+	if (ids.length === 0) return [];
+	const seen = new Set<string>();
+	const out: SensorParameterDefinition[] = [];
+	for (const deviceId of ids) {
+		const defs = deviceParameterDefinitions.value.get(deviceId) || [];
+		for (const d of defs) {
+			if (!seen.has(d.type)) {
+				seen.add(d.type);
+				out.push(d);
+			}
+		}
+	}
+	return out;
 });
 
-// 檢查參數是否已啟用
-const isParameterEnabled = (paramType: SensorParameterType): boolean => {
-	return localLocation.value.parameters.some(p => p.type === paramType && p.enabled);
+const isDeviceSelected = (deviceId: number): boolean =>
+	selectedDeviceIds.value.includes(deviceId);
+
+const toggleDevice = (deviceId: number) => {
+	const ids = [...selectedDeviceIds.value];
+	const idx = ids.indexOf(deviceId);
+	if (idx >= 0) {
+		ids.splice(idx, 1);
+	} else {
+		ids.push(deviceId);
+		ids.sort((a, b) => a - b);
+	}
+	localLocation.value.deviceIds = ids.length ? ids : undefined;
+	localLocation.value.deviceId = ids[0];
+	const availableTypes = new Set(availableParameters.value.map((p) => p.type));
+	localLocation.value.parameters = localLocation.value.parameters.filter((p) =>
+		availableTypes.has(p.type as SensorParameterType)
+	);
+	handleChange();
 };
 
-// 切換參數啟用狀態
+const isParameterEnabled = (paramType: SensorParameterType): boolean =>
+	localLocation.value.parameters.some((p) => p.type === paramType && p.enabled);
+
 const toggleParameter = (paramType: SensorParameterType) => {
-	const existingParam = localLocation.value.parameters.find(p => p.type === paramType);
+	const existingParam = localLocation.value.parameters.find((p) => p.type === paramType);
 	if (existingParam) {
 		existingParam.enabled = !existingParam.enabled;
 	} else {
@@ -188,42 +243,6 @@ const toggleParameter = (paramType: SensorParameterType) => {
 			type: paramType,
 			enabled: true
 		});
-	}
-	handleChange();
-};
-
-// 設備選項（用於 FilterDropdown）
-const deviceOptions = computed(() => {
-	if (props.isLoadingDevices) {
-		return [{ value: "", label: "載入中..." }];
-	}
-	if (props.devices.length === 0) {
-		return [{ value: "", label: "尚無可用感測器" }];
-	}
-	const options = props.devices.map(device => ({
-		value: String(device.id),
-		label: device.name
-	}));
-	// 添加空選項（用於清除選擇）
-	return [
-		{ value: "", label: "請選擇感測器" },
-		...options
-	];
-});
-
-// 處理設備變更
-const handleDeviceChange = (value: string) => {
-	const deviceId = value ? Number(value) : 0;
-	localLocation.value.deviceId = deviceId;
-	
-	if (deviceId > 0) {
-		// 保留已啟用的參數，但清除不存在的參數
-		const availableTypes = new Set(availableParameters.value.map(p => p.type));
-		localLocation.value.parameters = localLocation.value.parameters.filter(p =>
-			availableTypes.has(p.type as SensorParameterType)
-		);
-	} else {
-		localLocation.value.parameters = [];
 	}
 	handleChange();
 };

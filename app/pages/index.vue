@@ -69,6 +69,7 @@ import type {
 } from "~/types/device";
 import type { ModbusDeviceConfig, ModbusDataResponse } from "~/types/modbus";
 import { isDeviceConnectionError } from "~/utils/errorUtils";
+import { getLocationDeviceIds } from "~/utils/sensorUtils";
 import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState";
 import { usePeopleCountingWebSocket } from "~/composables/systems/peopleCounting/usePeopleCountingWebSocket";
 import { usePeopleCountingApi } from "~/composables/systems/usePeopleCountingApi";
@@ -162,12 +163,18 @@ const extractEnvironmentLocation = (
 	}
 
 	const envConfig = config as EnvironmentSystemConfig;
+	const deviceIds = Array.isArray(envConfig.deviceIds)
+		? envConfig.deviceIds
+		: envConfig.deviceId != null
+			? [envConfig.deviceId]
+			: [];
 
 	return {
 		id: unifiedLocation.id,
 		systemId: envSystem.id,
 		name: unifiedLocation.name,
-		deviceId: envConfig.deviceId,
+		deviceId: envConfig.deviceId ?? deviceIds[0],
+		deviceIds: deviceIds.length ? deviceIds : undefined,
 		parameters: (envConfig.parameters || []).map(param => ({
 			type: param.type as SensorParameterType,
 			enabled: param.enabled
@@ -308,14 +315,15 @@ const loadZones = async () => {
 };
 
 const loadLocationSensorDevice = async (location: EnvironmentLocation) => {
-	if (!location.deviceId) {
+	const primaryId = getLocationDeviceIds(location)[0];
+	if (!primaryId) {
 		sensorDevice.value = null;
 		deviceModelConfig.value = null;
 		return;
 	}
 
 	try {
-		const { device } = await deviceApi.getDevice(location.deviceId);
+		const { device } = await deviceApi.getDevice(primaryId);
 		if (!device || device.type_code !== "sensor") {
 			sensorDevice.value = null;
 			deviceModelConfig.value = null;

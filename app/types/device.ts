@@ -21,6 +21,9 @@ export interface DeviceType {
 	updated_at?: string;
 }
 
+/** Modbus 功能碼 / API 方法（對應後端 readCoils, readDiscreteInputs, readHoldingRegisters, readInputRegisters） */
+export type ModbusRegisterType = "coils" | "discrete" | "holding" | "input";
+
 // 感測器參數的 Modbus 配置（定義在設備型號中）
 export interface SensorParameterModbusConfig {
 	address: number; // Modbus 地址（必填）
@@ -36,6 +39,8 @@ export interface SensorParameterDefinition {
 
 // 設備型號配置（根據設備類型有不同的結構）
 export interface SensorDeviceModelConfig {
+	/** 本型號統一使用的 Modbus API 方法（FC01～FC04），預設 holding */
+	registerType?: ModbusRegisterType;
 	// 感測器型號的參數配置列表
 	sensorParameters?: SensorParameterDefinition[];
 }
@@ -55,7 +60,8 @@ export interface DeviceModel {
 	id: number;
 	name: string;
 	type_id: number;
-	port: number; // 端口號（預設 502）
+	port?: number | null; // 端口號（選填，Modbus 標準 502 可留空由設備填寫）
+	unit_id?: number | null; // Unit ID（選填，感測器/控制器每設備可不同）
 	description?: string;
 	// 根據設備類型，可能包含不同的配置欄位
 	// 對於感測器類型，config 應符合 SensorDeviceModelConfig 結構
@@ -159,7 +165,8 @@ export interface UpdateDeviceData {
 export interface CreateDeviceModelData {
 	name: string;
 	type_id: number;
-	port?: number; // 端口號（預設 502）
+	port?: number | null; // 端口號（選填，留空則不設）
+	unit_id?: number | null; // Unit ID（選填，1-255）
 	description?: string;
 	config?: Record<string, any>;
 }
@@ -168,7 +175,8 @@ export interface CreateDeviceModelData {
 export interface UpdateDeviceModelData {
 	name?: string;
 	type_id?: number;
-	port?: number; // 端口號
+	port?: number | null; // 端口號（選填）
+	unit_id?: number | null; // Unit ID（選填，1-255）
 	description?: string;
 	config?: Record<string, any>;
 }

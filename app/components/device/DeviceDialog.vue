@@ -65,16 +65,19 @@
 								/>
 							</label>
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>端口（可選）</span>
+								<span>端口 *</span>
 								<input
 									v-model.number="controllerConfig.port"
 									type="number"
 									min="1"
 									max="65535"
+									required
 									class="form-input"
 									placeholder="例如：502"
 									:disabled="isControllerPortInherited"
+									aria-label="Modbus 端口"
 								/>
+								<p v-if="isControllerPortInherited" class="mt-1 text-xs text-white/50">繼承自型號</p>
 							</label>
 						</template>
 
@@ -151,13 +154,30 @@
 									<input
 										v-model.number="sensorConfig.port"
 										type="number"
-										required
 										min="1"
 										max="65535"
+										required
 										class="form-input"
-										placeholder="例如：5020"
+										placeholder="例如：502"
 										:disabled="isSensorPortInherited"
+										aria-label="Modbus 端口"
 									/>
+									<p v-if="isSensorPortInherited" class="mt-1 text-xs text-white/50">繼承自型號</p>
+								</label>
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<span>Unit ID *</span>
+									<input
+										v-model.number="sensorConfig.unitId"
+										type="number"
+										min="1"
+										max="255"
+										required
+										class="form-input"
+										placeholder="例如：1"
+										:disabled="isSensorUnitIdInherited"
+										aria-label="Modbus Unit ID"
+									/>
+									<p v-if="isSensorUnitIdInherited" class="mt-1 text-xs text-white/50">繼承自型號</p>
 								</label>
 							</template>
 							<template v-else-if="sensorConfig.protocol === 'http'">
@@ -328,8 +348,8 @@ const localFormData = reactive({
 const controllerConfig = reactive<ControllerDeviceConfig>({
 	type: "controller",
 	host: "",
-	port: 502
-	// unitId 由後端自動生成，前端不提供
+	port: undefined,
+	unitId: undefined
 });
 
 const cameraConfig = reactive<CameraDeviceConfig>({
@@ -345,8 +365,8 @@ const sensorConfig = reactive<SensorDeviceConfig>({
 	type: "sensor",
 	protocol: "modbus",
 	host: "",
-	port: 5020,
-	// unitId 由後端自動生成（僅 Modbus 協議），前端不提供
+	port: undefined,
+	unitId: undefined,
 	connection_string: "",
 	api_endpoint: ""
 });
@@ -418,29 +438,31 @@ const selectedDeviceModel = computed(() => {
 	return deviceModels.value.find(m => m.id === localFormData.model_id) || null;
 });
 
-// 從選中的型號繼承 port
-const inheritPortFromModel = () => {
+// 從選中的型號繼承 port 與 unit_id
+const inheritFromModel = () => {
 	const model = selectedDeviceModel.value;
-	if (!model?.port) return;
+	if (!model) return;
 
 	if (props.deviceTypeCode === "controller") {
-		controllerConfig.port = model.port;
+		if (model.port != null) controllerConfig.port = model.port;
+		if (model.unit_id != null) controllerConfig.unitId = model.unit_id;
 	} else if (props.deviceTypeCode === "sensor" && sensorConfig.protocol === "modbus") {
-		sensorConfig.port = model.port;
+		if (model.port != null) sensorConfig.port = model.port;
+		if (model.unit_id != null) sensorConfig.unitId = model.unit_id;
 	}
 };
 
 const onModelChange = (value: string) => {
 	localFormData.model_id = value ? Number(value) : 0;
-	inheritPortFromModel();
+	inheritFromModel();
 };
 
-// 監聽感測器協議變化，當切換到 modbus 時，如果已選擇型號則繼承 port
+// 監聽感測器協議變化，當切換到 modbus 時，如果已選擇型號則繼承 port / unit_id
 watch(
 	() => sensorConfig.protocol,
 	newProtocol => {
 		if (newProtocol === "modbus") {
-			inheritPortFromModel();
+			inheritFromModel();
 		}
 	}
 );
@@ -477,8 +499,8 @@ const resetForm = () => {
 	localFormData.model_id = 0;
 	localFormData.status = "active";
 	controllerConfig.host = "";
-	controllerConfig.port = 502;
-	// unitId 由後端自動生成，不需要重置
+	controllerConfig.port = undefined;
+	controllerConfig.unitId = undefined;
 
 	cameraConfig.ip_address = "";
 	cameraConfig.rtsp_url = "";
@@ -488,8 +510,8 @@ const resetForm = () => {
 
 	sensorConfig.protocol = "modbus";
 	sensorConfig.host = "";
-	sensorConfig.port = 5020;
-	// unitId 由後端自動生成（僅 Modbus 協議），不需要重置
+	sensorConfig.port = undefined;
+	sensorConfig.unitId = undefined;
 	sensorConfig.connection_string = "";
 	sensorConfig.api_endpoint = "";
 
@@ -514,7 +536,16 @@ const isSensorPortInherited = computed(() => {
 	return (
 		props.deviceTypeCode === "sensor" &&
 		sensorConfig.protocol === "modbus" &&
-		!!selectedDeviceModel.value?.port
+		selectedDeviceModel.value?.port != null
+	);
+});
+
+// 判斷感測器的 unitId 是否繼承自型號（僅當協議為 modbus 時）
+const isSensorUnitIdInherited = computed(() => {
+	return (
+		props.deviceTypeCode === "sensor" &&
+		sensorConfig.protocol === "modbus" &&
+		selectedDeviceModel.value?.unit_id != null
 	);
 });
 
@@ -574,18 +605,19 @@ const handleClose = () => {
 const getCurrentConfig = (): DeviceConfig => {
 	switch (props.deviceTypeCode) {
 		case "controller": {
-			// unitId 由後端自動生成，前端不提供
-			const config: ControllerDeviceConfig = {
+			return {
 				type: "controller",
 				host: controllerConfig.host,
-				port: controllerConfig.port
+				port: controllerConfig.port,
+				...(controllerConfig.unitId != null && { unitId: controllerConfig.unitId })
 			};
-			return config;
 		}
 		case "camera":
 			return { ...cameraConfig };
-		case "sensor":
-			return { ...sensorConfig };
+		case "sensor": {
+			const { unitId, ...rest } = sensorConfig;
+			return { ...rest, ...(unitId != null && { unitId }) };
+		}
 		case "access_control":
 			return {
 				type: "access_control",
@@ -611,6 +643,28 @@ const handleSubmit = () => {
 	if (!localFormData.model_id || localFormData.model_id === 0) {
 		localErrorMessage.value = "請選擇設備型號";
 		return;
+	}
+
+	// 感測器 Modbus：端口與 Unit ID 必填（可繼承自型號）
+	if (props.deviceTypeCode === "sensor" && sensorConfig.protocol === "modbus") {
+		const hasPort = isSensorPortInherited.value || (sensorConfig.port != null && sensorConfig.port !== "");
+		const hasUnitId = isSensorUnitIdInherited.value || (sensorConfig.unitId != null && sensorConfig.unitId !== "");
+		if (!hasPort) {
+			localErrorMessage.value = "請填寫端口，或選擇已設定端口的設備型號";
+			return;
+		}
+		if (!hasUnitId) {
+			localErrorMessage.value = "請填寫 Unit ID，或選擇已設定 Unit ID 的設備型號";
+			return;
+		}
+	}
+	// 控制器：端口必填（可繼承自型號）
+	if (props.deviceTypeCode === "controller") {
+		const hasPort = isControllerPortInherited.value || (controllerConfig.port != null && controllerConfig.port !== "");
+		if (!hasPort) {
+			localErrorMessage.value = "請填寫端口，或選擇已設定端口的設備型號";
+			return;
+		}
 	}
 
 	const config = getCurrentConfig();

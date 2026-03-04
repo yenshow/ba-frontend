@@ -3,7 +3,7 @@
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 			<p class="text-base text-white/70 2xl:text-lg">共 {{ logs.length }} 筆紀錄</p>
 			<div class="flex items-center gap-3 2xl:gap-4">
-				<TimeRangePicker v-model="timeRangeModel" :presets="[...TIME_RANGE_PRESETS]" />
+				<TimeRangePicker v-model="timeRangeModel" :presets="[...TIME_RANGE_PRESETS_FULL_REPORT]" />
 				<button
 					type="button"
 					:disabled="logs.length === 0"
@@ -18,7 +18,7 @@
 
 		<div
 			v-if="logs.length === 0"
-			class="flex min-h-[200px] items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-8 text-center"
+			class="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-8 text-center"
 		>
 			<p class="text-base text-white/70 2xl:text-lg">尚無過車紀錄</p>
 		</div>
@@ -160,7 +160,7 @@
 
 <script setup lang="ts">
 import type { VehicleDataLog } from "~/types/vehicleAccess";
-import { formatDate, formatDateTime, TIME_RANGE_PRESETS } from "~/utils/dateUtils";
+import { formatDate, formatDateTime, TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtils";
 import { buildCsvSection } from "~/utils/csvExport";
 import { getEntryOnlyLogIds } from "~/utils/vehicleAccessUtils";
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue";
@@ -203,9 +203,7 @@ const groupsByDate = computed(() => {
 	return g;
 });
 
-const datesDesc = computed(() =>
-	[...groupsByDate.value.keys()].sort((a, b) => b.localeCompare(a))
-);
+const datesDesc = computed(() => [...groupsByDate.value.keys()].sort((a, b) => b.localeCompare(a)));
 
 /** 依 allow_result=1 與 lane_type 計算進場／出場／在場 */
 const entryExitCurrent = (logList: VehicleDataLog[]) => {
@@ -233,7 +231,7 @@ const statsTableRows = computed(() => {
 });
 
 const getGroupName = (log: VehicleDataLog): string =>
-	(log.vehicle_list_name?.trim() || log.person_group_name?.trim() || "") || "(未指定群組)";
+	log.vehicle_list_name?.trim() || log.person_group_name?.trim() || "" || "(未指定群組)";
 
 type GroupStatsRow = {
 	key: string;
@@ -361,9 +359,7 @@ const DETAIL_HEADERS = [
 	"方向"
 ];
 
-const firstDateStr = computed(
-	() => statsTableRows.value[0]?.日期?.replace(/\//g, "-") ?? ""
-);
+const firstDateStr = computed(() => statsTableRows.value[0]?.日期?.replace(/\//g, "-") ?? "");
 
 const handleExportCsv = () => {
 	if (props.logs.length === 0) return;

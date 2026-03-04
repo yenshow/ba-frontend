@@ -25,6 +25,14 @@ export interface GetReadingsOptions {
 	limit?: number;
 }
 
+export type AggregatedBucket = "hour" | "day" | "month";
+
+export interface GetReadingsAggregatedOptions {
+	bucket: AggregatedBucket;
+	startTime?: string;
+	endTime?: string;
+}
+
 export const useEnvironmentApi = () => {
 	const { request } = useApiBase();
 
@@ -53,6 +61,13 @@ export const useEnvironmentApi = () => {
 			if (options?.limit) params.limit = options.limit;
 
 			const path = buildPathWithQuery(`/environment/readings/${locationId}`, params);
+			return request<{ readings: SensorReading[] }>(path);
+		},
+		getReadingsAggregated: (locationId: string, options: GetReadingsAggregatedOptions) => {
+			const params: Record<string, unknown> = { bucket: options.bucket };
+			if (options.startTime) params.startTime = options.startTime;
+			if (options.endTime) params.endTime = options.endTime;
+			const path = buildPathWithQuery(`/environment/readings/${locationId}/aggregated`, params);
 			return request<{ readings: SensorReading[] }>(path);
 		},
 

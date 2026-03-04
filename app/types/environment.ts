@@ -38,7 +38,10 @@ export interface EnvironmentLocation {
 	id?: string; // 地點 ID (locations.id)
 	systemId?: string; // 系統 ID (location_systems.id)，用於錯誤追蹤和警報
 	name: string; // 位置名稱（如：管理中心、展廳）
-	deviceId?: number; // 關聯的感測器設備 ID
+	/** @deprecated 請使用 deviceIds；向後相容：若僅有 deviceId 則視為 [deviceId] */
+	deviceId?: number;
+	/** 關聯的感測器設備 ID 列表（可多台設備提供數值） */
+	deviceIds?: number[];
 	// 該位置支援的感測器參數列表（不同感測器支援不同參數）
 	parameters: SensorParameter[];
 }
