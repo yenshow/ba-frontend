@@ -60,11 +60,29 @@ export const getParameterIcon = (type: SensorParameterType): string => {
 };
 
 /**
- * 參數類型小數位數映射
+ * 取得地點的感測器設備 ID 列表（支援 deviceIds 與舊版 deviceId）
+ */
+export const getLocationDeviceIds = (
+	location: EnvironmentLocation | null | undefined
+): number[] => {
+	if (!location) return [];
+	if (Array.isArray(location.deviceIds) && location.deviceIds.length > 0) return location.deviceIds;
+	if (location.deviceId != null && location.deviceId > 0) return [location.deviceId];
+	return [];
+};
+
+/**
+ * 參數類型小數位數映射（統一小數一位，與儲存與趨勢圖一致）
  */
 export const getParameterFractionDigits = (type: SensorParameterType): number => {
-	if (type === "temperature" || type === "humidity" || type === "wind") return 1;
-	if (type === "tvoc") return 3;
+	if (
+		type === "temperature" ||
+		type === "humidity" ||
+		type === "wind" ||
+		type === "tvoc" ||
+		type === "hcho"
+	)
+		return 1;
 	return 0;
 };
 

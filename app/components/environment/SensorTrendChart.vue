@@ -47,11 +47,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
+import { ref, computed, watch, onUnmounted, nextTick } from "vue";
 import { Chart, registerables } from "chart.js";
 import { useEnvironmentApi } from "~/composables/systems/useEnvironmentApi";
+import type { AggregatedBucket } from "~/composables/systems/useEnvironmentApi";
+import { getTimeRangeForTrendUTC } from "~/utils/dateUtils";
 
-// 註冊 Chart.js 組件
 Chart.register(...registerables);
 
 type GaugeType = "noise" | "aqi" | "temperature";
@@ -78,19 +79,9 @@ const chartCanvas = ref<HTMLCanvasElement | null>(null);
 const chartContainer = ref<HTMLElement | null>(null);
 let chartInstance: Chart | null = null;
 
-// 取得對應的參數名稱
 const getParameterName = (type: GaugeType): string => {
-	switch (type) {
-		case "noise":
-			return "noise";
-		case "aqi":
-			// AQI 是計算值，需要從 pm25 和 pm10 計算
-			return "aqi";
-		case "temperature":
-			return "temperature";
-		default:
-			return "";
-	}
+	if (type === "aqi") return "aqi";
+	return type === "noise" ? "noise" : "temperature";
 };
 
 // 計算 AQI 值
@@ -134,149 +125,55 @@ const calculateAQI = (
 	return null;
 };
 
-// 取得時間範圍
-const getTimeRange = (period: Period): { startTime: Date; endTime: Date } => {
-	const endTime = new Date();
-	const startTime = new Date();
-
-	switch (period) {
-		case "day":
-			startTime.setHours(0, 0, 0, 0);
-			break;
-		case "week":
-			startTime.setDate(endTime.getDate() - 7);
-			startTime.setHours(0, 0, 0, 0);
-			break;
-		case "month":
-			startTime.setMonth(endTime.getMonth() - 1);
-			startTime.setHours(0, 0, 0, 0);
-			break;
-		case "year":
-			startTime.setFullYear(endTime.getFullYear() - 1);
-			startTime.setHours(0, 0, 0, 0);
-			break;
-	}
-
-	return { startTime, endTime };
+const periodToBucket: Record<Period, AggregatedBucket> = {
+	day: "hour",
+	week: "day",
+	month: "day",
+	year: "month"
 };
 
-// 載入歷史資料
+function formatLabel(timestamp: string, period: Period): string {
+	const d = new Date(timestamp);
+	if (period === "day") return `${d.getUTCHours().toString().padStart(2, "0")}:00`;
+	if (period === "year") return `${d.getUTCFullYear()}/${d.getUTCMonth() + 1}`;
+	return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+}
+
 const loadHistoricalData = async () => {
 	if (!props.locationId) {
 		chartData.value = null;
 		return;
 	}
-
 	isLoading.value = true;
 	error.value = null;
-
 	try {
-		const { startTime, endTime } = getTimeRange(selectedPeriod.value);
+		const { start, end } = getTimeRangeForTrendUTC(selectedPeriod.value);
+		const bucket = periodToBucket[selectedPeriod.value];
 		const environmentApi = useEnvironmentApi();
-
-		const response = await environmentApi.getReadings(props.locationId, {
-			startTime: startTime.toISOString(),
-			endTime: endTime.toISOString(),
-			limit: 1000
+		const response = await environmentApi.getReadingsAggregated(props.locationId, {
+			bucket,
+			startTime: start.toISOString(),
+			endTime: end.toISOString()
 		});
-
-		// 處理資料：支援多種回應格式（直接格式或包裝格式）
-		const readings = response.readings || (response as any).data?.readings || [];
-
-		if (!readings || !Array.isArray(readings) || readings.length === 0) {
+		const readings = response?.readings ?? [];
+		if (!readings?.length) {
 			chartData.value = null;
-			isLoading.value = false;
 			return;
 		}
-
-		// 根據類型提取數值
-		const rawData: Array<{ timestamp: Date; value: number | null }> = readings
-			.map(reading => {
-				const date = new Date(reading.timestamp);
-				let value: number | null = null;
-
-				if (props.type === "aqi") {
-					value = calculateAQI(reading.data.pm25, reading.data.pm10);
-				} else {
-					const paramName = getParameterName(props.type);
-					const rawValue = reading.data[paramName as keyof typeof reading.data];
-					value = typeof rawValue === "number" ? rawValue : null;
-				}
-
-				return { timestamp: date, value };
-			})
-			.filter(item => item.value !== null); // 過濾掉 null 值
-
-		// 根據時間範圍聚合資料
-		let aggregatedData: Array<{ label: string; value: number; timestamp: Date }> = [];
-
-		switch (selectedPeriod.value) {
-			case "day":
-				// 按小時聚合（取每小時最後一個值）
-				const hourlyMap = new Map<string, { value: number; timestamp: Date }>();
-				rawData.forEach(item => {
-					const hourKey = `${item.timestamp.getHours().toString().padStart(2, "0")}:00`;
-					// 建立該小時的標準時間戳（只保留小時，分鐘秒歸零）
-					const hourTimestamp = new Date(item.timestamp);
-					hourTimestamp.setMinutes(0, 0, 0);
-					hourlyMap.set(hourKey, { value: item.value!, timestamp: hourTimestamp });
-				});
-				aggregatedData = Array.from(hourlyMap.entries())
-					.sort(([, a], [, b]) => a.timestamp.getTime() - b.timestamp.getTime())
-					.map(([label, data]) => ({ label, value: data.value, timestamp: data.timestamp }));
-				break;
-
-			case "week":
-				// 按日聚合（取每日最後一個值）
-				const dailyMap = new Map<string, { value: number; timestamp: Date }>();
-				rawData.forEach(item => {
-					const dayKey = `${item.timestamp.getMonth() + 1}/${item.timestamp.getDate()}`;
-					// 建立該日的標準時間戳（只保留日期，時間歸零）
-					const dayTimestamp = new Date(item.timestamp);
-					dayTimestamp.setHours(0, 0, 0, 0);
-					dailyMap.set(dayKey, { value: item.value!, timestamp: dayTimestamp });
-				});
-				aggregatedData = Array.from(dailyMap.entries())
-					.sort(([, a], [, b]) => a.timestamp.getTime() - b.timestamp.getTime())
-					.map(([label, data]) => ({ label, value: data.value, timestamp: data.timestamp }));
-				break;
-
-			case "month":
-				// 按日顯示
-				const monthDailyMap = new Map<string, { value: number; timestamp: Date }>();
-				rawData.forEach(item => {
-					const dayKey = `${item.timestamp.getMonth() + 1}/${item.timestamp.getDate()}`;
-					// 建立該日的標準時間戳（只保留日期，時間歸零）
-					const dayTimestamp = new Date(item.timestamp);
-					dayTimestamp.setHours(0, 0, 0, 0);
-					monthDailyMap.set(dayKey, { value: item.value!, timestamp: dayTimestamp });
-				});
-				aggregatedData = Array.from(monthDailyMap.entries())
-					.sort(([, a], [, b]) => a.timestamp.getTime() - b.timestamp.getTime())
-					.map(([label, data]) => ({ label, value: data.value, timestamp: data.timestamp }));
-				break;
-
-			case "year":
-				// 按月顯示
-				const monthlyMap = new Map<string, { value: number; timestamp: Date }>();
-				rawData.forEach(item => {
-					const monthKey = `${item.timestamp.getFullYear()}/${item.timestamp.getMonth() + 1}`;
-					// 建立該月的標準時間戳（只保留年月，日期和時間歸零）
-					const monthTimestamp = new Date(item.timestamp.getFullYear(), item.timestamp.getMonth(), 1);
-					monthlyMap.set(monthKey, { value: item.value!, timestamp: monthTimestamp });
-				});
-				aggregatedData = Array.from(monthlyMap.entries())
-					.sort(([, a], [, b]) => a.timestamp.getTime() - b.timestamp.getTime())
-					.map(([label, data]) => ({ label, value: data.value, timestamp: data.timestamp }));
-				break;
+		const labels: string[] = [];
+		const values: number[] = [];
+		for (const r of readings) {
+			let value: number | null = null;
+			if (props.type === "aqi") value = calculateAQI(r.data?.pm25, r.data?.pm10);
+			else value = r.data?.[getParameterName(props.type)] ?? null;
+			if (value !== null) {
+				labels.push(formatLabel(r.timestamp, selectedPeriod.value));
+				values.push(Number(Number(value).toFixed(1)));
+			}
 		}
-
-		chartData.value = {
-			labels: aggregatedData.map(item => item.label),
-			values: aggregatedData.map(item => item.value)
-		};
+		chartData.value = labels.length ? { labels, values } : null;
 	} catch (err: any) {
-		console.error("[SensorTrendChart] 載入歷史資料失敗:", err);
+		console.error("[SensorTrendChart] 載入失敗:", err);
 		error.value = err?.message || "載入資料失敗";
 		chartData.value = null;
 	} finally {
@@ -299,20 +196,6 @@ const chartTitle = computed(() => {
 			return "";
 	}
 });
-
-// 根據類型取得顏色
-const getChartColor = (type: GaugeType): string => {
-	switch (type) {
-		case "noise":
-			return "#00ffb4";
-		case "aqi":
-			return "#00ffb4";
-		case "temperature":
-			return "#00ffb4";
-		default:
-			return "#00ffb4";
-	}
-};
 
 // 繪製圖表
 const renderChart = async () => {
@@ -412,14 +295,12 @@ const renderChart = async () => {
 						display: false
 					},
 					ticks: {
-						color: "#ffffff", // 白色標籤
-						font: {
-							size: 10
-						},
+						color: "#ffffff",
+						font: { size: 10 },
 						padding: 4,
-						// 自動計算刻度，符合附圖的數值範圍顯示
-						callback: function (value) {
-							return value;
+						callback: function (value: number | string) {
+							const n = typeof value === "number" ? value : Number(value);
+							return Number.isFinite(n) ? Number(n.toFixed(1)) : value;
 						}
 					},
 					beginAtZero: false // 不強制從 0 開始，讓數據範圍更合理
@@ -433,33 +314,26 @@ const renderChart = async () => {
 	});
 };
 
-// 監聽時間範圍和地點變化
+// 監聽時間範圍與地點，觸發載入（immediate 涵蓋掛載時）
 watch(
 	[selectedPeriod, () => props.locationId],
 	() => {
-		if (props.locationId) {
-			void loadHistoricalData();
-		}
+		if (props.locationId) void loadHistoricalData();
 	},
-	{ immediate: false }
+	{ immediate: true }
 );
 
 // 監聽資料或 Canvas 變化，重新繪製圖表
 watch(
 	[chartData, chartCanvas],
 	async () => {
-		if (chartCanvas.value && chartData.value && chartData.value.labels.length > 0) {
+		if (chartCanvas.value && chartData.value?.labels?.length) {
 			await nextTick();
 			await renderChart();
 		}
 	},
 	{ deep: true }
 );
-
-// 組件掛載時載入資料
-onMounted(() => {
-	void loadHistoricalData();
-});
 
 // 組件卸載時銷毀圖表
 onUnmounted(() => {

@@ -21,6 +21,8 @@ export type SystemConfig =
  */
 export interface EnvironmentSystemConfig {
 	deviceId?: number;
+	/** 感測器設備 ID 列表（複選）；送出時以 deviceIds 為準 */
+	deviceIds?: number[];
 	parameters: Array<{
 		type: string;
 		enabled: boolean;

@@ -79,6 +79,43 @@ export function getTimeRangeUTC(preset: string): { start: Date; end: Date } {
 	return { start, end };
 }
 
+/** 趨勢圖用時間範圍（UTC）：日／週／月／年，與後端 aggregated API 對齊 */
+export function getTimeRangeForTrendUTC(
+	period: "day" | "week" | "month" | "year"
+): { start: Date; end: Date } {
+	const { start: todayStart, end: tomorrowStart } = getTodayDateRangeUTC();
+	const todayEnd = new Date(tomorrowStart.getTime() - 1);
+
+	const now = new Date();
+	switch (period) {
+		case "day":
+			return { start: new Date(todayStart), end: todayEnd };
+		case "week":
+			return {
+				start: new Date(
+					Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 6, 0, 0, 0, 0)
+				),
+				end: todayEnd
+			};
+		case "month":
+			return {
+				start: new Date(
+					Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 29, 0, 0, 0, 0)
+				),
+				end: todayEnd
+			};
+		case "year":
+			return {
+				start: new Date(
+					Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, now.getUTCDate(), 0, 0, 0, 0)
+				),
+				end: todayEnd
+			};
+		default:
+			return { start: new Date(todayStart), end: todayEnd };
+	}
+}
+
 /** 時間範圍預設選項（與 TimeRangePicker 共用） */
 export const TIME_RANGE_PRESETS = [
 	{ value: "past_hour", label: "過去一小時" },
@@ -90,6 +127,11 @@ export const TIME_RANGE_PRESETS = [
 	{ value: "last_30_days", label: "最近三十天" },
 	{ value: "custom", label: "自訂" },
 ] as const;
+
+/** 完整報表用：不含「過去一小時」 */
+export const TIME_RANGE_PRESETS_FULL_REPORT = TIME_RANGE_PRESETS.filter(
+	(p) => p.value !== "past_hour"
+);
 
 /**
  * 格式化日期為本地顯示格式（YYYY/MM/DD）

@@ -3,7 +3,7 @@
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 			<p class="text-base text-white/70 2xl:text-lg">共 {{ logs.length }} 筆紀錄</p>
 			<div class="flex items-center gap-3 2xl:gap-4">
-				<TimeRangePicker v-model="timeRangeModel" :presets="[...TIME_RANGE_PRESETS]" />
+				<TimeRangePicker v-model="timeRangeModel" :presets="[...TIME_RANGE_PRESETS_FULL_REPORT]" />
 				<button
 					type="button"
 					:disabled="logs.length === 0"
@@ -222,7 +222,7 @@
 
 <script setup lang="ts">
 import type { PeopleCountingLog } from "~/types/peopleCounting"
-import { formatDate, formatDateTime, TIME_RANGE_PRESETS } from "~/utils/dateUtils"
+import { formatDate, formatDateTime, TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtils"
 import { buildCsvSection } from "~/utils/csvExport"
 import {
 	countEntryExitForDay,

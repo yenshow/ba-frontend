@@ -38,9 +38,15 @@
 													<span class="rounded bg-white/20 px-2 py-1 text-xs text-white/80 2xl:text-sm">{{
 														model.type_name || "類型"
 													}}</span>
-													<span class="rounded bg-blue-500/30 px-2 py-1 text-xs text-blue-200 2xl:text-sm"
-														>Port : {{ model.port ?? (deviceTypeCode === 'access_control' ? 80 : 502) }}</span
+													<span class="rounded bg-blue-500/30 px-2 py-1 text-xs text-blue-200 2xl:text-sm">
+														Port : {{ model.port != null ? model.port : "未設定" }}
+													</span>
+													<span
+														v-if="deviceTypeCode === 'sensor' && model.unit_id != null"
+														class="rounded bg-emerald-500/30 px-2 py-1 text-xs text-emerald-200 2xl:text-sm"
 													>
+														Unit ID : {{ model.unit_id }}
+													</span>
 												</div>
 												<p v-if="model.description" class="mt-1 text-sm text-white/60 2xl:text-base">
 													{{ model.description }}
@@ -108,36 +114,58 @@
 										type="text"
 										required
 										class="form-input"
-										placeholder="例如：DI / DO"
+										placeholder="例如：展廳測試"
 									/>
 								</label>
-								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>類型 *</span>
-									<select
-										v-model.number="formData.type_id"
-										required
-										class="form-input form-select"
-										:disabled="true"
-									>
-										<option :value="currentDeviceTypeId">{{ deviceTypeName }}</option>
-									</select>
-									<p class="mt-1 text-xs text-white/60">類型已固定為 {{ deviceTypeName }}</p>
-								</label>
-								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>端口號 *</span>
+								<label
+									v-if="deviceTypeCode !== 'sensor'"
+									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+								>
+									<span>端口號</span>
 									<input
-										v-model.number="formData.port"
+										v-model="formData.port"
 										type="number"
-										required
 										min="1"
 										max="65535"
 										class="form-input"
 										:placeholder="deviceTypeCode === 'access_control' ? '例如：80' : '例如：502'"
 									/>
-									<p v-if="deviceTypeCode === 'access_control'" class="mt-1 text-xs text-white/60">
-										HTTP/HTTPS 端口，預設 80
-									</p>
-									<p v-else class="mt-1 text-xs text-white/60">Modbus TCP 標準端口為 502</p>
+								</label>
+								<template v-if="deviceTypeCode === 'sensor'">
+									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+										<span>端口號</span>
+										<input
+											v-model="formData.port"
+											type="number"
+											min="1"
+											max="65535"
+											class="form-input"
+											placeholder="例如：502"
+										/>
+									</label>
+									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+										<span>Unit ID</span>
+										<input
+											v-model="formData.unit_id"
+											type="number"
+											min="1"
+											max="255"
+											class="form-input"
+											placeholder="例如：1"
+											aria-label="Modbus Unit ID"
+										/>
+									</label>
+								</template>
+								<label
+									v-if="deviceTypeCode === 'sensor'"
+									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+								>
+									<span>API 方法 (功能碼) *</span>
+									<FilterDropdown
+										v-model="sensorRegisterType"
+										:options="modbusRegisterTypeOptions"
+										placeholder="請選擇功能碼"
+									/>
 								</label>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>備註</span>
@@ -297,7 +325,8 @@ import type {
 	CreateDeviceModelData,
 	UpdateDeviceModelData,
 	SensorDeviceModelConfig,
-	SensorParameterDefinition
+	SensorParameterDefinition,
+	ModbusRegisterType
 } from "~/types/device";
 import type { SensorParameterType } from "~/types/environment";
 
@@ -338,18 +367,28 @@ const isSubmitting = ref(false);
 const formErrorMessage = ref<string | null>(null);
 const currentDeviceTypeId = ref<number | null>(null);
 
-const defaultPort = computed(() => (props.deviceTypeCode === "access_control" ? 80 : 502));
+const defaultPort = computed(() => (props.deviceTypeCode === "access_control" ? 80 : undefined));
 
-const formData = reactive({
+const formData = reactive<{
+	name: string;
+	type_id: number;
+	port: number | undefined | null;
+	unit_id: number | undefined | null;
+	description: string;
+	config: SensorDeviceModelConfig | Record<string, any>;
+}>({
 	name: "",
 	type_id: 0,
-	port: 502,
+	port: undefined,
+	unit_id: undefined,
 	description: "",
-	config: {} as SensorDeviceModelConfig | Record<string, any>
+	config: {}
 });
 
 // 感測器參數配置（僅當設備類型為 sensor 時使用）
 const sensorParameters = ref<SensorParameterDefinition[]>([]);
+// 感測器型號統一使用的 Modbus API 方法（型號層級設定一次）
+const sensorRegisterType = ref<ModbusRegisterType>("holding");
 
 // 門禁設備：僅設定 CaptureFaceData 回傳格式，其餘由後端預設
 const captureFaceDataType = ref<"binary" | "url">("url");
@@ -358,9 +397,11 @@ const resetForm = () => {
 	formData.name = "";
 	formData.type_id = currentDeviceTypeId.value || 0;
 	formData.port = defaultPort.value;
+	formData.unit_id = undefined;
 	formData.description = "";
 	formData.config = {};
 	sensorParameters.value = [];
+	sensorRegisterType.value = "holding";
 	captureFaceDataType.value = "url";
 	formErrorMessage.value = null;
 };
@@ -378,14 +419,19 @@ const parameterTypeOptions: Array<{ value: string; label: string }> = [
 	{ value: "wind", label: "風速" }
 ];
 
+// Modbus API 方法（功能碼）選項：FC01～FC04
+const modbusRegisterTypeOptions: Array<{ value: ModbusRegisterType; label: string }> = [
+	{ value: "holding", label: "FC03 保持寄存器 (Holding Registers)" },
+	{ value: "input", label: "FC04 輸入寄存器 (Input Registers)" },
+	{ value: "coils", label: "FC01 線圈 (Coils)" },
+	{ value: "discrete", label: "FC02 離散輸入 (Discrete Inputs)" }
+];
+
 // 新增參數配置
 const addSensorParameter = () => {
 	sensorParameters.value.push({
 		type: "pm25",
-		modbusConfig: {
-			address: 0,
-			transform: ""
-		}
+		modbusConfig: { address: 0, transform: "" }
 	});
 };
 
@@ -453,7 +499,8 @@ const editDeviceModel = (model: DeviceModel) => {
 	editingModel.value = model;
 	formData.name = model.name;
 	formData.type_id = model.type_id;
-	formData.port = model.port ?? defaultPort.value;
+	formData.port = model.port ?? defaultPort.value ?? undefined;
+	formData.unit_id = model.unit_id ?? undefined;
 	formData.description = model.description || "";
 
 	if (props.deviceTypeCode === "access_control") {
@@ -462,9 +509,10 @@ const editDeviceModel = (model: DeviceModel) => {
 		captureFaceDataType.value = c?.dataType === "binary" ? "binary" : "url";
 	}
 
-	// 載入感測器參數配置（如果是感測器型號）
+	// 載入感測器參數配置與型號層級 API 方法
 	if (props.deviceTypeCode === "sensor" && model.config) {
 		const config = model.config as SensorDeviceModelConfig;
+		sensorRegisterType.value = config.registerType ?? "holding";
 		sensorParameters.value = config.sensorParameters ? [...config.sensorParameters] : [];
 	} else {
 		sensorParameters.value = [];
@@ -528,16 +576,19 @@ const handleFormSubmit = async () => {
 	formErrorMessage.value = null;
 
 	try {
-		// 準備提交資料
+		const toOpt = (v: unknown) =>
+			v !== undefined && v !== null && v !== "" ? Number(v) : undefined;
 		const submitData: CreateDeviceModelData | UpdateDeviceModelData = {
 			name: formData.name,
 			type_id: formData.type_id,
-			port: formData.port,
+			port: toOpt(formData.port),
+			unit_id: toOpt(formData.unit_id),
 			description: formData.description || undefined
 		};
 
 		if (props.deviceTypeCode === "sensor") {
 			const sensorConfig: SensorDeviceModelConfig = {
+				registerType: sensorRegisterType.value,
 				sensorParameters: sensorParameters.value.length > 0 ? sensorParameters.value : undefined
 			};
 			submitData.config = sensorConfig;

@@ -61,6 +61,7 @@ import { usePolling } from "~/composables/monitoring/usePolling"
 import { useLocationApi } from "~/composables/systems/location/useLocationApi"
 import { useZoneManagement } from "~/composables/systems/useZoneManagement"
 import type { UnifiedZone, UnifiedLocation, EnvironmentSystemConfig } from "~/types/location"
+import { getLocationDeviceIds } from "~/utils/sensorUtils"
 import { isDeviceConnectionError } from "~/utils/errorUtils"
 import type { ModbusDeviceConfig, ModbusDataResponse } from "~/types/modbus"
 import type { Device, SensorDeviceConfig } from "~/types/device"
@@ -147,11 +148,19 @@ const extractEnvironmentLocation = (unifiedLocation: UnifiedLocation) => {
 		return null
 	}
 
+	const deviceIds =
+		Array.isArray(config.deviceIds) && config.deviceIds.length > 0
+			? config.deviceIds
+			: config.deviceId != null
+				? [config.deviceId]
+				: []
+
 	return {
 		id: unifiedLocation.id,
 		systemId: envSystem.id,
 		name: unifiedLocation.name,
 		deviceId: config.deviceId,
+		deviceIds,
 	}
 }
 
@@ -177,7 +186,8 @@ const getEnvironmentDeviceIdByLocationId = (locationId: string): number | null =
 	}
 
 	const envLocation = extractEnvironmentLocation(unifiedLocation)
-	return envLocation?.deviceId ?? null
+	const ids = getLocationDeviceIds(envLocation ?? undefined)
+	return ids[0] ?? null
 }
 
 const locationOptions = computed(() => {

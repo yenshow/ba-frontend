@@ -172,13 +172,20 @@ export function unifiedToEnvironmentZone(zone: UnifiedZone): EnvironmentZone {
 				return [];
 			}
 
+			const cfg = envSystem.config;
+			const deviceIds = Array.isArray(cfg.deviceIds)
+				? cfg.deviceIds
+				: cfg.deviceId != null
+					? [cfg.deviceId]
+					: [];
 			return [
 				{
 					id: loc.id,
 					systemId: envSystem.id,
 					name: loc.name,
-					deviceId: envSystem.config.deviceId,
-					parameters: envSystem.config.parameters || []
+					deviceId: cfg.deviceId ?? deviceIds[0],
+					deviceIds: deviceIds.length ? deviceIds : undefined,
+					parameters: cfg.parameters || []
 				} as EnvironmentLocation
 			];
 		})
@@ -423,6 +430,11 @@ export function environmentLocationToUnified(
 ): UnifiedLocationInput {
 	const hasId = "id" in loc && loc.id;
 	const hasSystemId = "systemId" in loc && loc.systemId;
+	const deviceIds = Array.isArray(loc.deviceIds)
+		? loc.deviceIds
+		: loc.deviceId != null
+			? [loc.deviceId]
+			: [];
 	return {
 		...(hasId && { id: loc.id! }),
 		name: loc.name,
@@ -431,7 +443,8 @@ export function environmentLocationToUnified(
 				...(hasSystemId && { id: loc.systemId! }),
 				systemType,
 				config: {
-					deviceId: loc.deviceId,
+					deviceId: deviceIds[0],
+					deviceIds: deviceIds.length ? deviceIds : undefined,
 					parameters: loc.parameters || []
 				} as EnvironmentSystemConfig
 			}

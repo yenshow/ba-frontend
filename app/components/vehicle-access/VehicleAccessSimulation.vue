@@ -3,7 +3,7 @@
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 			<p class="text-base text-white/70 2xl:text-lg">共 {{ logs.length }} 筆紀錄</p>
 			<div class="flex items-center gap-3 2xl:gap-4">
-				<TimeRangePicker v-model="timeRangeModel" :presets="[...TIME_RANGE_PRESETS]" />
+				<TimeRangePicker v-model="timeRangeModel" :presets="[...TIME_RANGE_PRESETS_FULL_REPORT]" />
 				<button
 					type="button"
 					:disabled="logs.length === 0"
@@ -18,7 +18,7 @@
 
 		<div
 			v-if="logs.length === 0"
-			class="flex min-h-[200px] items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-8 text-center"
+			class="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-8 text-center"
 		>
 			<p class="text-base text-white/70 2xl:text-lg">尚無過車紀錄</p>
 		</div>
@@ -160,7 +160,7 @@
 
 <script setup lang="ts">
 import type { VehicleDataLog } from "~/types/vehicleAccess"
-import { formatDate, formatDateTime, TIME_RANGE_PRESETS } from "~/utils/dateUtils"
+import { formatDate, formatDateTime, TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtils"
 import { buildCsvSection } from "~/utils/csvExport"
 import { getEntryOnlyLogIds } from "~/utils/vehicleAccessUtils"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
