@@ -4,7 +4,7 @@
 
 本文件規劃 **人員管理** 前端（Nuxt 4 + Vue 3 + Tailwind）實作，對接後端 `/api/personnel`：人員群組、人員主檔、門禁權限、可同步地點、同步、批次匯入。
 
-**後端對應**：`ba-backend` 的 `PERSONNEL_DATABASE_AND_PEOPLE_COUNTING_PLAN.md` 與已實作 API。
+**後端對應**：`ba-backend` 的 `PERSONNEL_DATABASE_AND_PEOPLE_COUNTING_PLAN.md` 與已實作 API。門禁事件已改為**佈防模式**（後端主動向設備訂閱），設備端不需設定 HTTP 監聽主機。
 
 ---
 

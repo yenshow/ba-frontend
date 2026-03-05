@@ -161,12 +161,17 @@ import type { PeopleCountingLog } from "~/types/peopleCounting";
 import { useExternalDataApi } from "~/composables/systems/useExternalDataApi";
 import { convertBase64ToImageUrl } from "~/utils/imageUtils";
 import { formatDate, formatTime } from "~/utils/dateUtils";
+import { resolveUploadUrl } from "~/utils/apiUtils";
 
 interface Props {
 	logs: PeopleCountingLog[];
 }
 
 const props = defineProps<Props>();
+
+const uploadConfig = useRuntimeConfig();
+const apiBase = (uploadConfig.public.apiBase as string) || "";
+const getUploadsImageUrl = (path: string) => resolveUploadUrl(path, apiBase);
 
 const { getPictureByUri } = useExternalDataApi();
 const imageUrls = ref<Record<string | number, string>>({});
@@ -198,13 +203,19 @@ const handleImageError = (_event: Event, logId: string | number) => {
  * 載入單個記錄的圖片
  */
 const loadImage = async (log: PeopleCountingLog) => {
-	// 如果沒有 deviceScreenshotUrl（實際上是 snap_pic_url），不載入
 	if (!log.deviceScreenshotUrl || log.deviceScreenshotUrl.trim() === "") {
 		return;
 	}
 
 	const picUri = log.deviceScreenshotUrl.trim();
 	const logId = log.id;
+
+	// 本系統門禁事件附圖（/uploads/isapi-events/）：直接使用後端 URL
+	if (picUri.startsWith("/uploads/")) {
+		imageUrls.value[logId] = getUploadsImageUrl(picUri);
+		imageCache.set(picUri, imageUrls.value[logId]);
+		return;
+	}
 
 	// 檢查緩存
 	if (imageCache.has(picUri)) {
@@ -217,7 +228,7 @@ const loadImage = async (log: PeopleCountingLog) => {
 		return;
 	}
 
-	// 開始載入
+	// 開始載入（YSCP 等外部 URI 走 getPictureByUri）
 	imageLoadingStates.value[logId] = true;
 
 	try {

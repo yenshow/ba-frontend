@@ -1,5 +1,9 @@
 # 門禁設備與人流統計前端實作規劃
 
+**事件接收**：門禁事件已改為**佈防模式**，後端主動向設備訂閱，設備端**不需**設定「事件通知 → HTTP 監聽主機」。前端僅需綁定入口／出口設備、人員權限與設備同步；即時進出紀錄仍由 WebSocket `people-counting:access-control:event` 觸發重新載入。
+
+---
+
 ## 1. 架構原則
 
 - **同一頁面、同一呈現**：門禁設備與現有人流統計共用 **人流統計管理** 頁面（`/construction-monitoring/people-counting`）及相同元件（地點列表、統計面板、進出記錄表、單位列表等）。
@@ -13,8 +17,8 @@
 |------|------------------|-------------------|
 | 1 | 在人流統計系統建立地點資料 | 在**設備管理**頁面新增門禁設備（類型：門禁設備，型號：如 AC-02 / AC-07） |
 | 2 | 選擇 **YSCP 資料庫**中的出入口設備（`deviceaccess.door`） | 在人流統計系統建立地點後，選擇**本系統門禁設備**（`/api/devices?type_code=access_control`）作為入口／出口 |
-| 3 | 勾選人員群組（從 **YSCP** `platform.person_group` 抓取） | **手動建立人員群組**（本系統或設備端管理） |
-| 4 | — | 使用 **ISAPI** 建立人員資料與人臉資料（後端 5 支 API：搜尋、修改、刪除人員、上傳人臉、設備截圖） |
+| 3 | 勾選人員群組（從 **YSCP** `platform.person_group` 抓取） | 在**人員管理**設定門禁權限（可進出之地點）並執行設備同步 |
+| 4 | — | 門禁事件由**後端佈防訂閱**接收，不需在設備設定 HTTP 監聽主機；人員／人臉由後端 ISAPI 與設備同步 |
 
 建置完成後，不論 YSCP 或門禁設備，皆使用相同：
 - 地點選擇與區域管理
@@ -128,6 +132,7 @@
 
 ## 6. 與後端文件對應
 
+- 門禁設備完整流程（佈防訂閱）：[ba-backend/docs/ACCESS_CONTROL_DEVICE_FLOW.md](../../ba-backend/docs/ACCESS_CONTROL_DEVICE_FLOW.md)
 - 門禁設備與型號設計、config 結構：[ba-backend/docs/ACCESS_CONTROL_DEVICE_DESIGN.md](../../ba-backend/docs/ACCESS_CONTROL_DEVICE_DESIGN.md)
-- ISAPI 五支 API 規格：[ba-backend/docs/ISAPI_DEVICE_REQUEST_SERVICES.md](../../ba-backend/docs/ISAPI_DEVICE_REQUEST_SERVICES.md)
-- Postman 測試：[ba-backend/docs/POSTMAN_ACCESS_CONTROL_TESTING.md](../../ba-backend/docs/POSTMAN_ACCESS_CONTROL_TESTING.md)
+- 佈防訂閱規格：[ba-backend/docs/ISAPI_SUBSCRIBE_MODE.md](../../ba-backend/docs/ISAPI_SUBSCRIBE_MODE.md)
+- ISAPI 人員／人臉 API（設備同步）：[ba-backend/docs/ISAPI_DEVICE_REQUEST_SERVICES.md](../../ba-backend/docs/ISAPI_DEVICE_REQUEST_SERVICES.md)

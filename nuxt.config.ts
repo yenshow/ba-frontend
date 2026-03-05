@@ -60,15 +60,10 @@ export default defineNuxtConfig({
 		}
 	},
 
-	runtimeConfig: {
+		runtimeConfig: {
 		public: {
 			apiBase: process.env.NUXT_PUBLIC_API_BASE || "http://192.168.2.8:4000/api",
-			// 強制覆寫 cookie secure：未設定時依 apiBase 協定自動判斷（https→true, http→false）
 			secureCookie: process.env.NUXT_PUBLIC_SECURE_COOKIE || undefined,
-			// MediaMTX 服務 URL（HLS 和 WebRTC）
-			mediamtxHlsUrl: process.env.NUXT_PUBLIC_MEDIAMTX_HLS_URL || "http://localhost:8888",
-			mediamtxWebrtcUrl: process.env.NUXT_PUBLIC_MEDIAMTX_WEBRTC_URL || "http://localhost:8889",
-			// WebSocket 配置（可選，預設從 apiBase 推導）
 			websocketUrl: process.env.NUXT_PUBLIC_WEBSOCKET_URL || undefined,
 			websocketEnabled: process.env.NUXT_PUBLIC_WEBSOCKET_ENABLED !== "false"
 		}

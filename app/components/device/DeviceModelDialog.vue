@@ -38,10 +38,7 @@
 													<span class="rounded bg-white/20 px-2 py-1 text-xs text-white/80 2xl:text-sm">{{
 														model.type_name || "類型"
 													}}</span>
-													<span class="rounded bg-blue-500/30 px-2 py-1 text-xs text-blue-200 2xl:text-sm">
-														Port : {{ model.port != null ? model.port : "未設定" }}
-													</span>
-													<span
+														<span
 														v-if="deviceTypeCode === 'sensor' && model.unit_id != null"
 														class="rounded bg-emerald-500/30 px-2 py-1 text-xs text-emerald-200 2xl:text-sm"
 													>
@@ -117,32 +114,7 @@
 										placeholder="例如：展廳測試"
 									/>
 								</label>
-								<label
-									v-if="deviceTypeCode !== 'sensor'"
-									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-								>
-									<span>端口號</span>
-									<input
-										v-model="formData.port"
-										type="number"
-										min="1"
-										max="65535"
-										class="form-input"
-										:placeholder="deviceTypeCode === 'access_control' ? '例如：80' : '例如：502'"
-									/>
-								</label>
 								<template v-if="deviceTypeCode === 'sensor'">
-									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-										<span>端口號</span>
-										<input
-											v-model="formData.port"
-											type="number"
-											min="1"
-											max="65535"
-											class="form-input"
-											placeholder="例如：502"
-										/>
-									</label>
 									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 										<span>Unit ID</span>
 										<input
@@ -363,19 +335,15 @@ const isSubmitting = ref(false);
 const formErrorMessage = ref<string | null>(null);
 const currentDeviceTypeId = ref<number | null>(null);
 
-const defaultPort = computed(() => (props.deviceTypeCode === "access_control" ? 80 : undefined));
-
 const formData = reactive<{
 	name: string;
 	type_id: number;
-	port: number | undefined | null;
 	unit_id: number | undefined | null;
 	description: string;
 	config: SensorDeviceModelConfig | Record<string, any>;
 }>({
 	name: "",
 	type_id: 0,
-	port: undefined,
 	unit_id: undefined,
 	description: "",
 	config: {}
@@ -392,7 +360,6 @@ const captureFaceDataType = ref<"binary" | "url">("url");
 const resetForm = () => {
 	formData.name = "";
 	formData.type_id = currentDeviceTypeId.value || 0;
-	formData.port = defaultPort.value;
 	formData.unit_id = undefined;
 	formData.description = "";
 	formData.config = {};
@@ -495,7 +462,6 @@ const editDeviceModel = (model: DeviceModel) => {
 	editingModel.value = model;
 	formData.name = model.name;
 	formData.type_id = model.type_id;
-	formData.port = model.port ?? defaultPort.value ?? undefined;
 	formData.unit_id = model.unit_id ?? undefined;
 	formData.description = model.description || "";
 
@@ -576,7 +542,6 @@ const handleFormSubmit = async () => {
 		const submitData: CreateDeviceModelData | UpdateDeviceModelData = {
 			name: formData.name,
 			type_id: formData.type_id,
-			port: toOpt(formData.port),
 			unit_id: toOpt(formData.unit_id),
 			description: formData.description || undefined
 		};

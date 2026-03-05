@@ -317,7 +317,7 @@ const formatDeviceConfig = (config: DeviceConfig): string => {
 		case "controller":
 			return `${config.host}`;
 		case "camera":
-			return config.ip_address || config.rtsp_url || "-";
+			return config.host || config.ip_address || "-";
 		case "sensor":
 			if (config.protocol === "modbus") {
 				return `${config.host}`;

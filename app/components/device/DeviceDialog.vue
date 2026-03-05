@@ -83,39 +83,22 @@
 
 						<template v-if="deviceTypeCode === 'camera'">
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>IP 位址 *</span>
+								<span>設備 IP (host) *</span>
 								<input
-									v-model="cameraConfig.ip_address"
-									type="text"
-									required
-									pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
-									class="form-input"
-									placeholder="例如：192.168.2.100"
-								/>
-							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>RTSP URL</span>
-								<input
-									v-model="cameraConfig.rtsp_url"
+									v-model="cameraConfig.host"
 									type="text"
 									class="form-input"
-									placeholder="例如：rtsp://192.168.2.100:554/stream"
+									placeholder="例如：192.168.2.102"
 								/>
 							</label>
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>端口</span>
+								<span>ISAPI 預覽路徑 *</span>
 								<input
-									v-model.number="cameraConfig.port"
-									type="number"
-									min="1"
-									max="65535"
+									v-model="cameraConfig.isapi_preview_path"
+									type="text"
 									class="form-input"
-									placeholder="例如：554"
+									placeholder="可修改預設路徑"
 								/>
-							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>使用者名稱</span>
-								<input v-model="cameraConfig.username" type="text" class="form-input" placeholder="選填" />
 							</label>
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 								<span>密碼</span>
@@ -238,6 +221,9 @@
 									placeholder="設備登入密碼"
 								/>
 							</label>
+							<p class="text-xs text-white/50 2xl:text-sm">
+								門禁事件由後端自動向設備訂閱，不需在此設備設定「事件通知 → HTTP 監聽主機」。
+							</p>
 						</template>
 
 						<label
@@ -352,12 +338,13 @@ const controllerConfig = reactive<ControllerDeviceConfig>({
 	unitId: undefined
 });
 
+const defaultIsapiPreviewPath = "/ISAPI/Streaming/channels/102/httpPreview";
+
 const cameraConfig = reactive<CameraDeviceConfig>({
 	type: "camera",
-	ip_address: "",
-	rtsp_url: "",
-	port: 554,
-	username: "",
+	host: "",
+	isapi_preview_path: defaultIsapiPreviewPath,
+	username: "admin",
 	password: ""
 });
 
@@ -502,10 +489,9 @@ const resetForm = () => {
 	controllerConfig.port = undefined;
 	controllerConfig.unitId = undefined;
 
-	cameraConfig.ip_address = "";
-	cameraConfig.rtsp_url = "";
-	cameraConfig.port = 554;
-	cameraConfig.username = "";
+	cameraConfig.host = "";
+	cameraConfig.isapi_preview_path = defaultIsapiPreviewPath;
+	cameraConfig.username = "admin";
 	cameraConfig.password = "";
 
 	sensorConfig.protocol = "modbus";
@@ -556,9 +542,16 @@ const loadConfigFromDevice = (device: Device) => {
 		case "controller":
 			Object.assign(controllerConfig, device.config);
 			break;
-		case "camera":
+		case "camera": {
 			Object.assign(cameraConfig, device.config);
+			if (!cameraConfig.host && (cameraConfig as { ip_address?: string }).ip_address) {
+				cameraConfig.host = (cameraConfig as { ip_address?: string }).ip_address;
+			}
+			if (!cameraConfig.isapi_preview_path) cameraConfig.isapi_preview_path = defaultIsapiPreviewPath;
+			if (!cameraConfig.username) cameraConfig.username = "admin";
+			delete (cameraConfig as Record<string, unknown>).port;
 			break;
+		}
 		case "sensor":
 			Object.assign(sensorConfig, device.config);
 			break;
@@ -612,8 +605,10 @@ const getCurrentConfig = (): DeviceConfig => {
 				...(controllerConfig.unitId != null && { unitId: controllerConfig.unitId })
 			};
 		}
-		case "camera":
-			return { ...cameraConfig };
+		case "camera": {
+			const { port: _p, ...rest } = cameraConfig as CameraDeviceConfig & { port?: number };
+			return { ...rest };
+		}
 		case "sensor": {
 			const { unitId, ...rest } = sensorConfig;
 			return { ...rest, ...(unitId != null && { unitId }) };

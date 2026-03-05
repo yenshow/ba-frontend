@@ -92,44 +92,6 @@ export interface EnvironmentReadingNewEvent {
 }
 
 /**
- * RTSP 串流相關事件類型
- */
-export interface RtspStreamStartedEvent {
-	streamId: string;
-	rtspUrl: string;
-	hlsUrl: string;
-	timestamp: string;
-	useGpuEncoding?: boolean;
-	gpuOptions?: {
-		useGpuEncoding?: boolean;
-		gpuType?: "nvidia" | "intel" | "amd";
-		bitrate?: string;
-		preset?: string;
-	};
-}
-
-export interface RtspStreamStoppedEvent {
-	streamId: string;
-	timestamp: string;
-}
-
-export interface RtspStreamErrorEvent {
-	streamId: string;
-	error: {
-		message: string;
-		code?: string | number;
-	};
-	timestamp: string;
-}
-
-export interface RtspStreamStatusChangedEvent {
-	streamId: string;
-	oldStatus: string;
-	newStatus: string;
-	timestamp: string;
-}
-
-/**
  * YSCP 事件 payload（依 params.ability 分流：event_veh → vehicle_access，event_acs → acs）
  */
 export interface YscpEventPayload {

@@ -2,8 +2,7 @@
 	<div
 		:class="[
 			'cursor-pointer rounded-lg border-2 p-3 transition-all',
-			isSelected ? 'border-white bg-white/20' : 'border-white/30 bg-white/10 hover:bg-white/15',
-			isStreaming ? 'ring-2 ring-green-400/50' : ''
+			isSelected ? 'border-white bg-white/20' : 'border-white/30 bg-white/10 hover:bg-white/15'
 		]"
 		@click="$emit('select', camera.id)"
 	>
@@ -28,31 +27,19 @@
 					{{ camera.description }}
 				</p>
 				<div class="mt-2 flex items-center gap-2 text-xs text-white/60 2xl:text-sm">
-					<span>{{ camera.config.ip_address }}</span>
-					<span v-if="camera.config.port">:{{ camera.config.port }}</span>
+					<span>{{ camera.config.host || camera.config.ip_address }}</span>
 				</div>
-			</div>
-			<div class="ml-2 flex flex-col items-end gap-1">
-				<!-- 串流狀態指示器 -->
-				<div
-					v-if="isStreaming"
-					class="flex items-center gap-1 rounded-full bg-green-500/30 px-2 py-0.5 text-xs font-medium text-green-100 2xl:text-sm"
-				>
-					<span class="h-2 w-2 animate-pulse rounded-full bg-green-400"></span>
-					串流中
+				<div v-if="camera.config.isapi_preview_path" class="mt-1 text-xs text-white/50 2xl:text-sm">
+					可預覽
 				</div>
-				<div v-else-if="camera.status === 'active'" class="text-xs text-white/50 2xl:text-sm">未串流</div>
 			</div>
 		</div>
 
-		<!-- 縮圖預覽（可選，未來可加入快照功能） -->
 		<div
 			v-if="showThumbnail"
-			class="mt-3 aspect-video w-full overflow-hidden rounded bg-white/10"
+			class="mt-3 aspect-video w-full overflow-hidden rounded bg-white/10 flex items-center justify-center text-xs text-white/60"
 		>
-			<div class="flex h-full items-center justify-center text-xs text-white/60">
-				{{ isStreaming ? "預覽中..." : "無預覽" }}
-			</div>
+			點擊加入監控畫面
 		</div>
 	</div>
 </template>
@@ -70,10 +57,6 @@ const props = withDefaults(defineProps<Props>(), {
 	isSelected: false,
 	showThumbnail: false
 });
-
-const isStreaming = computed(
-	() => props.camera.isStreaming || props.camera.streamInfo?.status === "running"
-);
 
 defineEmits<{
 	select: [deviceId: number];
