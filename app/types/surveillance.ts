@@ -1,24 +1,10 @@
 import type { Device, CameraDeviceConfig } from "./device";
-import type { RTSPStreamInfo } from "./rtsp";
 
 /**
  * 攝影機設備資訊（擴展設備資訊）
  */
 export interface SurveillanceCamera extends Device {
 	config: CameraDeviceConfig;
-	streamInfo?: RTSPStreamInfo | null; // 當前串流資訊
-	isStreaming?: boolean; // 是否正在串流
-}
-
-/**
- * 攝影機串流狀態
- */
-export interface CameraStreamStatus {
-	deviceId: number;
-	streamId?: string;
-	status: "running" | "stopped" | "error" | "loading";
-	hlsUrl?: string;
-	error?: string;
 }
 
 /**
@@ -27,13 +13,11 @@ export interface CameraStreamStatus {
 export type GridLayout = "1" | "4" | "9";
 
 /**
- * 監控畫面配置
+ * 監控畫面配置（MJPEG 預覽：加入畫面時取得 previewUrl）
  */
 export interface MonitorView {
-	deviceId: number; // 設備 ID，如果是測試串流則為 0 或負數
-	position: number; // 在網格中的位置（0-based）
-	hlsUrl?: string; // 可選：直接用於測試串流的 HLS URL
-	streamId?: string; // 可選：串流 ID（用於測試串流）
-	isTestStream?: boolean; // 是否為測試串流
+	deviceId: number;
+	position: number;
+	/** MJPEG 預覽 URL（由 GET /api/devices/:id/preview-url 取得） */
+	previewUrl?: string;
 }
-

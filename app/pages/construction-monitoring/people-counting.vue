@@ -26,6 +26,7 @@
 					</div>
 
 					<button
+						v-if="isOperator"
 						type="button"
 						class="absolute left-8 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
 						aria-label="地點管理"
@@ -214,6 +215,9 @@ import { unifiedToPeopleCountingZone } from "~/utils/locationAdapter"
 import { useZoneSystemAdapter } from "~/composables/systems/useZoneSystemAdapter"
 import { getTodayDateRangeUTC } from "~/utils/dateUtils"
 import type { UnifiedZone } from "~/types/location"
+import { useAuth } from "~/composables/core/useAuth"
+
+const { isOperator } = useAuth()
 
 // 使用統一的狀態管理
 const {

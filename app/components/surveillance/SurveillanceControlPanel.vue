@@ -2,7 +2,6 @@
 	<div
 		class="flex flex-wrap items-center justify-between gap-2 2xl:gap-4 rounded-lg border-2 border-white/30 bg-white/10 p-4 backdrop-blur-sm"
 	>
-		<!-- 左側：布局選擇 -->
 		<div class="flex items-center gap-2">
 			<span class="font-medium text-white text-base 2xl:text-lg">畫面布局：</span>
 			<div class="flex gap-1">
@@ -22,15 +21,10 @@
 			</div>
 		</div>
 
-		<!-- 中間：統計資訊 -->
 		<div class="flex items-center gap-2 2xl:gap-4 text-base 2xl:text-lg">
 			<div class="flex items-center gap-1 2xl:gap-2">
-				<span class="text-white/70">總攝影機：</span>
+				<span class="text-white/70">攝影機：</span>
 				<span class="font-semibold text-white">{{ totalCameras }}</span>
-			</div>
-			<div class="flex items-center gap-1 2xl:gap-2">
-				<span class="text-white/70">運行中：</span>
-				<span class="font-semibold text-green-300">{{ streamingCount }}</span>
 			</div>
 			<div class="flex items-center gap-1 2xl:gap-2">
 				<span class="text-white/70">監控畫面：</span>
@@ -38,27 +32,12 @@
 			</div>
 		</div>
 
-		<!-- 右側：操作按鈕 -->
 		<div class="flex items-center gap-2">
-			<button
-				v-if="canStartAll"
-				@click="$emit('startAll')"
-				class="rounded-lg border-2 border-green-400/50 bg-green-500/30 px-4 py-2 text-xs font-medium text-white backdrop-blur-sm transition-all hover:border-green-400/70 hover:bg-green-500/40 xl:text-sm 2xl:text-lg"
-			>
-				全部啟動
-			</button>
-			<button
-				v-if="canStopAll"
-				@click="$emit('stopAll')"
-				class="rounded-lg border-2 border-red-400/50 bg-red-500/30 px-4 py-2 text-xs font-medium text-white backdrop-blur-sm transition-all hover:border-red-400/70 hover:bg-red-500/40 xl:text-sm 2xl:text-lg"
-			>
-				全部停止
-			</button>
 			<button
 				@click="$emit('refresh')"
 				class="rounded-lg border-2 border-white/30 bg-white/10 px-4 py-2 text-xs font-medium text-white backdrop-blur-sm transition-all hover:border-white/40 hover:bg-white/15 xl:text-sm 2xl:text-lg"
 			>
-				刷新狀態
+				重新載入
 			</button>
 		</div>
 	</div>
@@ -70,22 +49,14 @@ import type { GridLayout } from "~/types/surveillance";
 interface Props {
 	modelValue: GridLayout;
 	totalCameras: number;
-	streamingCount: number;
 	viewCount: number;
 	maxViews: number;
-	canStartAll?: boolean;
-	canStopAll?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), {
-	canStartAll: false,
-	canStopAll: false
-});
+defineProps<Props>();
 
 defineEmits<{
 	"update:modelValue": [value: GridLayout];
-	startAll: [];
-	stopAll: [];
 	refresh: [];
 }>();
 

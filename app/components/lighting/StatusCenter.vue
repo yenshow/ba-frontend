@@ -87,15 +87,15 @@
 									<label
 										class="relative inline-flex items-center"
 										:class="{
-											'cursor-not-allowed': isLocationDisabled(getLocationId(zone, location, locationIndex)),
-											'cursor-pointer': !isLocationDisabled(getLocationId(zone, location, locationIndex))
+											'cursor-not-allowed': isLocationDisabled(getLocationId(zone, location, locationIndex)) || !props.canToggle,
+											'cursor-pointer': !isLocationDisabled(getLocationId(zone, location, locationIndex)) && props.canToggle
 										}"
 									>
 										<input
 											type="checkbox"
 											:checked="getLocationStatus(getLocationId(zone, location, locationIndex)).isRunning"
 											class="peer sr-only"
-											:disabled="isLocationDisabled(getLocationId(zone, location, locationIndex))"
+											:disabled="isLocationDisabled(getLocationId(zone, location, locationIndex)) || !props.canToggle"
 											@change="
 												handleToggle(
 													getLocationId(zone, location, locationIndex),
@@ -106,7 +106,7 @@
 										<div
 											:class="[
 												'peer h-16 w-8 rounded-full border-2 border-white bg-transparent after:absolute after:bottom-0 after:left-0 after:h-8 after:w-8 after:rounded-full after:bg-white after:transition-all after:content-[\'\'] peer-checked:bg-[#00d1ff] peer-checked:after:-translate-y-full peer-focus:outline-none 2xl:h-20 2xl:w-10 2xl:after:h-10 2xl:after:w-10',
-												isLocationDisabled(getLocationId(zone, location, locationIndex)) ? 'opacity-50' : ''
+												isLocationDisabled(getLocationId(zone, location, locationIndex)) || !props.canToggle ? 'opacity-50' : ''
 											]"
 										>
 											<!-- ON 文字 -->
@@ -144,6 +144,8 @@ interface Props {
 	locationDisabledMap?: Record<string, boolean>;
 	locationToggling?: Set<string>; // 正在處理切換操作的地點
 	selectedZone?: string;
+	/** 是否允許切換開關（viewer 為 false） */
+	canToggle?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -151,7 +153,8 @@ const props = withDefaults(defineProps<Props>(), {
 	locationStatuses: () => ({}),
 	locationDisabledMap: () => ({}),
 	locationToggling: () => new Set(),
-	selectedZone: ""
+	selectedZone: "",
+	canToggle: true
 });
 
 const emit = defineEmits<{
@@ -228,6 +231,7 @@ const isLocationDisabled = (locationId: string): boolean => {
 };
 
 const handleToggle = (areaId: string, isRunning: boolean) => {
+	if (!props.canToggle) return;
 	emit("toggle", areaId, !isRunning);
 };
 

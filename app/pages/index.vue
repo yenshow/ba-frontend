@@ -61,10 +61,10 @@ import { usePolling } from "~/composables/monitoring/usePolling"
 import { useLocationApi } from "~/composables/systems/location/useLocationApi"
 import { useZoneManagement } from "~/composables/systems/useZoneManagement"
 import type { UnifiedZone, UnifiedLocation, EnvironmentSystemConfig } from "~/types/location"
-import { getLocationDeviceIds } from "~/utils/sensorUtils"
 import { isDeviceConnectionError } from "~/utils/errorUtils"
 import type { ModbusDeviceConfig, ModbusDataResponse } from "~/types/modbus"
-import type { Device, SensorDeviceConfig } from "~/types/device"
+import type { Device, SensorDeviceConfig, SensorDeviceModelConfig } from "~/types/device"
+import type { SensorParameterType } from "~/types/environment"
 
 definePageMeta({
 	layout: "default",
@@ -77,16 +77,6 @@ const { request } = useApiBase()
 const toast = useToast()
 const { handleError } = useErrorHandler()
 
-const SENSOR_ADDRESSES = {
-	PM25: 0,
-	PM10: 1,
-	TVOC: 2,
-	HCHO: 3,
-	HUMIDITY: 4,
-	TEMPERATURE: 5,
-	CO2: 6,
-} as const
-
 type SensorReadings = {
 	pm25: number | null
 	pm10: number | null
@@ -95,6 +85,8 @@ type SensorReadings = {
 	humidity: number | null
 	temperature: number | null
 	co2: number | null
+	noise: number | null
+	wind: number | null
 }
 
 const OFFLINE_ALERT_INTERVAL = 30000 // 每 30 秒最多顯示一次離線警報
@@ -107,6 +99,8 @@ const createEmptySensorReadings = (): SensorReadings => ({
 	humidity: null,
 	temperature: null,
 	co2: null,
+	noise: null,
+	wind: null,
 })
 
 // 兩張卡片可各自選擇不同地點，因此拆成兩份感測器資料與狀態
@@ -179,15 +173,12 @@ const findUnifiedLocationByLocationId = (locationId: string): UnifiedLocation | 
 	return null
 }
 
-const getEnvironmentDeviceIdByLocationId = (locationId: string): number | null => {
+const getEnvironmentDeviceIdsByLocationId = (locationId: string): number[] => {
 	const unifiedLocation = findUnifiedLocationByLocationId(locationId)
-	if (!unifiedLocation) {
-		return null
-	}
-
-	const envLocation = extractEnvironmentLocation(unifiedLocation)
-	const ids = getLocationDeviceIds(envLocation ?? undefined)
-	return ids[0] ?? null
+	if (!unifiedLocation) return []
+	const env = extractEnvironmentLocation(unifiedLocation)
+	if (!env) return []
+	return env.deviceIds?.length ? env.deviceIds : env.deviceId != null ? [env.deviceId] : []
 }
 
 const locationOptions = computed(() => {
@@ -271,10 +262,6 @@ const { start: startPolling } = usePolling({
 	},
 })
 
-// 噪音值和風速（從感測器讀取）
-const noiseValue = ref<number | null>(null)
-const windSpeed = ref<number | null>(null)
-
 type AQIBreakpoint = {
 	concentrationRange: [number, number]
 	indexRange: [number, number]
@@ -323,39 +310,6 @@ const calculatePollutantAQI = (
 	return Math.round(index)
 }
 
-const transformSensorData = (raw: number[]): SensorReadings | null => {
-	if (raw.length < 7) {
-		return null
-	}
-
-	return {
-		pm25: raw[SENSOR_ADDRESSES.PM25] - 1,
-		pm10: raw[SENSOR_ADDRESSES.PM10] - 1,
-		tvoc: Number((raw[SENSOR_ADDRESSES.TVOC] / 1000).toFixed(3)),
-		hcho: raw[SENSOR_ADDRESSES.HCHO],
-		humidity: Number((raw[SENSOR_ADDRESSES.HUMIDITY] / 10).toFixed(1)),
-		temperature: Number((raw[SENSOR_ADDRESSES.TEMPERATURE] / 10).toFixed(1)),
-		co2: raw[SENSOR_ADDRESSES.CO2],
-	}
-}
-
-const getModbusDeviceConfigFromDevice = (device: Device): ModbusDeviceConfig | null => {
-	if (!device || device.type_code !== "sensor") {
-		return null
-	}
-
-	const config = device.config as SensorDeviceConfig
-	if (config.protocol !== "modbus" || !config.host || !config.port) {
-		return null
-	}
-
-	return {
-		host: config.host,
-		port: config.port,
-		unitId: config.unitId || 1,
-	}
-}
-
 const getDeviceByIdCached = async (deviceId: number): Promise<Device | null> => {
 	if (!deviceId || deviceId <= 0) {
 		return null
@@ -375,6 +329,176 @@ const getDeviceByIdCached = async (deviceId: number): Promise<Device | null> => 
 	return null
 }
 
+const loadDeviceAndModelConfig = async (
+	deviceId: number
+): Promise<{ device: Device; modelConfig: SensorDeviceModelConfig | null } | null> => {
+	try {
+		const device = await getDeviceByIdCached(deviceId)
+		if (!device || device.type_code !== "sensor") return null
+		const deviceWithModel = device as { model?: { config?: SensorDeviceModelConfig } }
+		let modelConfig: SensorDeviceModelConfig | null =
+			deviceWithModel.model?.config != null ? (deviceWithModel.model!.config as SensorDeviceModelConfig) : null
+		if (!modelConfig && device.model_id) {
+			try {
+				const { device_model } = await deviceApi.getDeviceModel(device.model_id)
+				modelConfig = (device_model?.config as SensorDeviceModelConfig) ?? null
+			} catch {
+				// ignore
+			}
+		}
+		return { device, modelConfig }
+	} catch {
+		return null
+	}
+}
+
+const getParameterModbusConfigFromModel = (
+	paramType: SensorParameterType,
+	modelConfig: SensorDeviceModelConfig | null
+): { address: number; transform?: string } | null => {
+	if (!modelConfig?.sensorParameters) return null
+	const paramDef = modelConfig.sensorParameters.find((p) => p.type === paramType)
+	return paramDef?.modbusConfig?.address !== undefined
+		? { address: paramDef.modbusConfig!.address, transform: paramDef.modbusConfig?.transform }
+		: null
+}
+
+const readModbusRegister = async (
+	modbusConfig: ModbusDeviceConfig,
+	address: number
+): Promise<ModbusDataResponse<number>> => {
+	const queryParams = new URLSearchParams({
+		host: modbusConfig.host,
+		port: String(modbusConfig.port),
+		unitId: String(modbusConfig.unitId),
+		address: String(address),
+	})
+	return request<ModbusDataResponse<number>>(`/modbus/holding-registers?${queryParams.toString()}`)
+}
+
+const readModbusRegisterBatch = async (
+	modbusConfig: ModbusDeviceConfig,
+	startAddress: number,
+	length: number
+): Promise<ModbusDataResponse<number>> => {
+	const queryParams = new URLSearchParams({
+		host: modbusConfig.host,
+		port: String(modbusConfig.port),
+		unitId: String(modbusConfig.unitId),
+		address: String(startAddress),
+		length: String(length),
+	})
+	return request<ModbusDataResponse<number>>(`/modbus/holding-registers?${queryParams.toString()}`)
+}
+
+const applyTransform = (value: number, transform?: string): number => {
+	if (!transform?.trim()) return value
+	try {
+		const trimmed = transform.trim()
+		let formula = ""
+		if (/^[\+\-\*\/]/.test(trimmed)) {
+			if (trimmed.startsWith("-")) {
+				const numPart = trimmed.substring(1).trim()
+				formula = `${value} - ${numPart}`
+			} else {
+				formula = `${value} ${trimmed}`
+			}
+		} else if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+			formula = `${value} - ${trimmed}`
+		} else {
+			formula = trimmed.replace(/value/gi, String(value))
+		}
+		const result = Function(`"use strict"; return (${formula})`)()
+		return typeof result === "number" && !Number.isNaN(result) ? result : value
+	} catch {
+		return value
+	}
+}
+
+type ParameterWithModbusConfig = { type: SensorParameterType; modbusConfig: { address: number; transform?: string } }
+type BatchResult = { type: SensorParameterType; value: number | null; success: boolean }
+
+const groupConsecutiveAddresses = (addresses: number[]): { start: number; length: number; addresses: number[] }[] => {
+	if (addresses.length === 0) return []
+	const sorted = [...addresses].sort((a, b) => a - b)
+	const groups: { start: number; length: number; addresses: number[] }[] = []
+	let current: number[] = [sorted[0]]
+	for (let i = 1; i < sorted.length; i++) {
+		if (sorted[i] === current[current.length - 1] + 1) {
+			current.push(sorted[i])
+		} else {
+			groups.push({ start: current[0], length: current.length, addresses: [...current] })
+			current = [sorted[i]]
+		}
+	}
+	groups.push({ start: current[0], length: current.length, addresses: current })
+	return groups
+}
+
+const mapParamListToResults = (
+	list: ParameterWithModbusConfig[],
+	rawValue: number,
+	success: boolean
+): BatchResult[] =>
+	list.map((param) => ({
+		type: param.type,
+		value: success ? applyTransform(rawValue, param.modbusConfig.transform) : null,
+		success,
+	}))
+
+const readParametersBatch = async (
+	modbusConfig: ModbusDeviceConfig,
+	paramAddressMap: Map<number, ParameterWithModbusConfig[]>
+): Promise<BatchResult[]> => {
+	const addresses = Array.from(paramAddressMap.keys()).sort((a, b) => a - b)
+	if (addresses.length === 0) return []
+	const addressGroups = groupConsecutiveAddresses(addresses)
+	const readPromises: Promise<BatchResult[]>[] = []
+	for (const group of addressGroups) {
+		if (group.length > 1) {
+			readPromises.push(
+				readModbusRegisterBatch(modbusConfig, group.start, group.length)
+					.then((res) =>
+						group.addresses.flatMap((addr, idx) => {
+							const list = paramAddressMap.get(addr)
+							return list?.length ? mapParamListToResults(list, res.data[idx], true) : []
+						})
+					)
+					.catch(async () => {
+						const fallback = await Promise.all(
+							group.addresses.map(async (addr) => {
+								const list = paramAddressMap.get(addr)
+								if (!list?.length) return []
+								try {
+									const res = await readModbusRegister(modbusConfig, addr)
+									return mapParamListToResults(list, res.data[0], true)
+								} catch {
+									return mapParamListToResults(list, 0, false)
+								}
+							})
+						)
+						return fallback.flat()
+					})
+			)
+		} else {
+			const addr = group.addresses[0]
+			const list = paramAddressMap.get(addr)
+			if (list?.length) {
+				readPromises.push(
+					readModbusRegister(modbusConfig, addr)
+						.then((res) => mapParamListToResults(list, res.data[0], true))
+						.catch(() => mapParamListToResults(list, 0, false))
+				)
+			}
+		}
+	}
+	return (await Promise.all(readPromises)).flat()
+}
+
+const PARAM_KEYS: SensorParameterType[] = [
+	"pm25", "pm10", "tvoc", "hcho", "humidity", "temperature", "co2", "noise", "wind",
+]
+
 type LoadTarget = "aqi" | "environment"
 const loadSensorDataByLocationId = async (params: {
 	target: LoadTarget
@@ -384,50 +508,48 @@ const loadSensorDataByLocationId = async (params: {
 	isOfflineRef: Ref<boolean>
 	lastOfflineAlertTimeRef: Ref<number | null>
 }): Promise<void> => {
-	if (params.isFetchingRef.value) {
-		return
-	}
+	if (params.isFetchingRef.value || !params.locationId) return
 
-	if (!params.locationId) {
-		return
-	}
-
-	const deviceId = getEnvironmentDeviceIdByLocationId(params.locationId)
-	if (!deviceId) {
+	const deviceIds = getEnvironmentDeviceIdsByLocationId(params.locationId)
+	if (deviceIds.length === 0) {
 		Object.assign(params.targetSensorData, createEmptySensorReadings())
 		return
 	}
 
 	params.isFetchingRef.value = true
+	// 每輪清空後僅合併成功讀取值（多設備時風速等可來自不同設備）
+	Object.assign(params.targetSensorData, createEmptySensorReadings())
 
 	try {
-		const device = await getDeviceByIdCached(deviceId)
-		if (!device) {
-			Object.assign(params.targetSensorData, createEmptySensorReadings())
-			return
-		}
+		for (const deviceId of deviceIds) {
+			const result = await loadDeviceAndModelConfig(deviceId)
+			if (!result) continue
+			const { device, modelConfig } = result
+			const config = device.config as SensorDeviceConfig
+			if (config?.protocol !== "modbus" || !config?.host || !config?.port) continue
 
-		const modbusConfig = getModbusDeviceConfigFromDevice(device)
-		if (!modbusConfig) {
-			Object.assign(params.targetSensorData, createEmptySensorReadings())
-			return
-		}
+			const modbusConfig: ModbusDeviceConfig = {
+				host: config.host,
+				port: config.port,
+				unitId: config.unitId ?? 1,
+			}
 
-		const queryParams = new URLSearchParams({
-			host: modbusConfig.host,
-			port: String(modbusConfig.port),
-			unitId: String(modbusConfig.unitId),
-			address: "0",
-			length: "7",
-		})
+			const paramAddressMap = new Map<number, ParameterWithModbusConfig[]>()
+			for (const paramType of PARAM_KEYS) {
+				const modbusCfg = getParameterModbusConfigFromModel(paramType, modelConfig)
+				if (!modbusCfg) continue
+				const existing = paramAddressMap.get(modbusCfg.address) ?? []
+				existing.push({ type: paramType, modbusConfig: modbusCfg })
+				paramAddressMap.set(modbusCfg.address, existing)
+			}
+			if (paramAddressMap.size === 0) continue
 
-		const response = await request<ModbusDataResponse<number>>(
-			`/modbus/holding-registers?${queryParams.toString()}`
-		)
-
-		const readings = transformSensorData(response.data)
-		if (readings) {
-			Object.assign(params.targetSensorData, readings)
+			const results = await readParametersBatch(modbusConfig, paramAddressMap)
+			for (const r of results) {
+				if (r.success && r.value != null) {
+					;(params.targetSensorData as Record<string, number | null>)[r.type] = r.value
+				}
+			}
 		}
 
 		if (params.isOfflineRef.value) {
@@ -435,25 +557,21 @@ const loadSensorDataByLocationId = async (params: {
 			params.lastOfflineAlertTimeRef.value = null
 			toast.success(`${params.target === "aqi" ? "AQI" : "環境"} 感測器已恢復連線`, 5000)
 		}
-	} catch (error: any) {
+	} catch (error: unknown) {
 		const errorMessage = error instanceof Error ? error.message : String(error)
-
 		if (isDeviceConnectionError(errorMessage)) {
 			const now = Date.now()
 			const shouldShowAlert =
 				!params.isOfflineRef.value ||
 				params.lastOfflineAlertTimeRef.value === null ||
 				now - params.lastOfflineAlertTimeRef.value >= OFFLINE_ALERT_INTERVAL
-
 			if (shouldShowAlert) {
 				params.isOfflineRef.value = true
 				params.lastOfflineAlertTimeRef.value = now
 				toast.warning(`${params.target === "aqi" ? "AQI" : "環境"} 感測器離線，無法讀取資料`, 8000)
 			}
-
 			return
 		}
-
 		if (!params.isOfflineRef.value) {
 			handleError(error, "讀取感測器資料失敗")
 		}
@@ -563,13 +681,13 @@ const aqiData = computed(() => ({
 		},
 		{
 			label: "風速",
-			value: toFixedNumber(windSpeed.value, 1),
+			value: toFixedNumber(aqiSensorData.wind, 1),
 			unit: "m/s",
 			icon: "wind",
 		},
 		{
 			label: "噪音",
-			value: toFixedNumber(noiseValue.value),
+			value: toFixedNumber(aqiSensorData.noise),
 			unit: "dB",
 			icon: "noise",
 		},

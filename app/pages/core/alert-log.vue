@@ -208,22 +208,22 @@
 									<!-- 操作按鈕 -->
 									<div class="flex h-[160px] flex-col justify-center gap-2">
 										<button
-											v-if="alert.status === 'active' && isAdmin"
+											v-if="alert.status === 'active' && isOperator"
 											type="button"
 											@click="handleIgnore(alert)"
 											:disabled="isIgnoring"
 											class="rounded-lg bg-gray-500/80 px-3 py-1.5 text-base text-white transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
-											title="忽視此警報（僅限管理員）"
+											title="忽視此警報（操作員或管理員）"
 										>
 											忽視
 										</button>
 										<button
-											v-if="isAlertIgnored(alert) && isAdmin"
+											v-if="isAlertIgnored(alert) && isOperator"
 											type="button"
 											@click="handleUnignore(alert)"
 											:disabled="isIgnoring"
 											class="rounded-lg bg-blue-500/80 px-3 py-1.5 text-base text-white transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
-											title="取消忽視此警報（僅限管理員）"
+											title="取消忽視此警報（操作員或管理員）"
 										>
 											取消忽視
 										</button>
@@ -350,7 +350,7 @@ definePageMeta({
 
 const alertApi = useAlertApi()
 const toast = useToast()
-const { isAdmin } = useAuth()
+const { isOperator } = useAuth()
 const { removeAlertToast } = useAlertMonitor()
 const { handleError: handleApiError } = useErrorHandler()
 const { on, off } = useWebSocket()

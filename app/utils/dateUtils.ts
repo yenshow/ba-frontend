@@ -18,60 +18,53 @@ export function getTodayDateRangeUTC(): { start: Date; end: Date } {
 }
 
 /**
- * 獲取時間範圍（UTC）
- * 統一處理所有時間範圍預設選項
+ * 獲取時間範圍（回傳 Date 以 toISOString() 送後端）
+ * 以「使用者本地日曆 00:00」為日界，避免 UTC 午夜在台灣變成 08:00 換日的錯覺
  */
 export function getTimeRangeUTC(preset: string): { start: Date; end: Date } {
 	const now = new Date();
-	const end = new Date(now);
+	const y = now.getFullYear();
+	const m = now.getMonth();
+	const d = now.getDate();
+	// 預設 end = 明天 00:00 本地（今日結束，exclusive）
+	const endDefault = new Date(y, m, d + 1, 0, 0, 0, 0);
 	let start = new Date(now);
+	let end = new Date(endDefault);
 
 	switch (preset) {
 		case "past_hour":
 			start = new Date(now.getTime() - 60 * 60 * 1000);
+			end = new Date(now);
 			break;
-		case "today": {
-			const { start: todayStart, end: todayEnd } = getTodayDateRangeUTC();
-			return { start: todayStart, end: todayEnd };
-		}
-		case "yesterday": {
-			const yesterday = new Date(
-				Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1, 0, 0, 0, 0)
-			);
-			const yesterdayEnd = new Date(yesterday);
-			yesterdayEnd.setUTCDate(yesterdayEnd.getUTCDate() + 1);
-			return { start: yesterday, end: yesterdayEnd };
-		}
+		case "today":
+			return { start: new Date(y, m, d, 0, 0, 0, 0), end: endDefault };
+		case "yesterday":
+			return {
+				start: new Date(y, m, d - 1, 0, 0, 0, 0),
+				end: new Date(y, m, d, 0, 0, 0, 0)
+			};
 		case "this_week": {
-			// 週一為第一天
-			const dayOfWeek = now.getUTCDay();
-			const diff = now.getUTCDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-			start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), diff, 0, 0, 0, 0));
-			end.setUTCDate(end.getUTCDate() + 1);
+			const dayOfWeek = now.getDay();
+			const toMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+			start = new Date(y, m, d + toMonday, 0, 0, 0, 0);
+			end = endDefault;
 			break;
 		}
 		case "last_week": {
-			const dayOfWeek = now.getUTCDay();
-			const diff = now.getUTCDate() - dayOfWeek - 6 + (dayOfWeek === 0 ? -6 : 1);
-			start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), diff, 0, 0, 0, 0));
-			const lastWeekEnd = new Date(start);
-			lastWeekEnd.setUTCDate(lastWeekEnd.getUTCDate() + 7);
-			return { start, end: lastWeekEnd };
+			const dayOfWeek = now.getDay();
+			const toMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+			start = new Date(y, m, d + toMonday - 7, 0, 0, 0, 0);
+			end = new Date(y, m, d + toMonday, 0, 0, 0, 0);
+			return { start, end };
 		}
-		case "last_7_days": {
-			start = new Date(
-				Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 7, 0, 0, 0, 0)
-			);
-			end.setUTCDate(end.getUTCDate() + 1);
+		case "last_7_days":
+			start = new Date(y, m, d - 7, 0, 0, 0, 0);
+			end = endDefault;
 			break;
-		}
-		case "last_30_days": {
-			start = new Date(
-				Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 30, 0, 0, 0, 0)
-			);
-			end.setUTCDate(end.getUTCDate() + 1);
+		case "last_30_days":
+			start = new Date(y, m, d - 30, 0, 0, 0, 0);
+			end = endDefault;
 			break;
-		}
 		default:
 			return { start: new Date(), end: new Date() };
 	}

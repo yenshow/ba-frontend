@@ -89,7 +89,7 @@
 import type { SensorReading, SensorParameterType } from "~/types/environment"
 import { formatDateTime, TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtils"
 import { buildCsvSection } from "~/utils/csvExport"
-import { getParameterFractionDigits } from "~/utils/sensorUtils"
+import { formatSensorValue } from "~/utils/sensorUtils"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
 
 const paramCols = ["CO2", "HCHO", "PM10", "PM2.5", "TVOC", "風速", "噪音值", "濕度", "溫度"] as const
@@ -144,21 +144,26 @@ const detailTitle = computed(() => {
 	return "讀數"
 })
 
-const formatValue = (type: SensorParameterType, value: number | null | undefined): string => {
-	if (value == null || Number.isNaN(value)) return ""
-	const digits = getParameterFractionDigits(type)
-	const rounded = Math.round(value * Math.pow(10, digits)) / Math.pow(10, digits)
-	return digits === 0 ? String(Math.round(rounded)) : rounded.toFixed(digits)
-}
+const formatValue = (type: SensorParameterType, value: number | null | undefined): string =>
+	formatSensorValue(type, value ?? null, { fallback: "" })
 
 const PARAM_KEYS = ["co2", "hcho", "pm10", "pm25", "tvoc", "wind", "noise", "humidity", "temperature"] as const
 
-function mergeReadingsByTime(readings: SensorReading[]): Array<{ timestamp: string; data: SensorReading["data"] }> {
+/**
+ * 依時間區間合併多筆讀數（同一區間內多設備的資料合併為一筆，同一參數取平均）
+ * @param bucketMinutes 區間分鐘數。詳細資料建議 5（與後端寫入週期一致），同一地點多設備會整合在同一列
+ */
+function mergeReadingsByTime(
+	readings: SensorReading[],
+	bucketMinutes: number = 1
+): Array<{ timestamp: string; data: SensorReading["data"] }> {
 	if (readings.length === 0) return []
-	const roundToMinute = (ts: string) => Math.floor(new Date(ts).getTime() / 60000) * 60000
+	const msPerBucket = bucketMinutes * 60 * 1000
+	const roundToBucket = (ts: string) =>
+		Math.floor(new Date(ts).getTime() / msPerBucket) * msPerBucket
 	const groups = new Map<number, SensorReading[]>()
 	for (const r of readings) {
-		const key = roundToMinute(r.timestamp)
+		const key = roundToBucket(r.timestamp)
 		if (!groups.has(key)) groups.set(key, [])
 		groups.get(key)!.push(r)
 	}
@@ -177,13 +182,14 @@ function mergeReadingsByTime(readings: SensorReading[]): Array<{ timestamp: stri
 }
 
 const mergedSummaryReadings = computed(() => {
-	const merged = mergeReadingsByTime(props.summaryReadings)
+	const merged = mergeReadingsByTime(props.summaryReadings, 1)
 	merged.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 	return merged
 })
 
 const mergedDetailReadings = computed(() => {
-	const merged = mergeReadingsByTime(props.detailReadings)
+	// 以 5 分鐘區間合併，與後端寫入週期一致，同一地點多設備的資料會整合在同一列
+	const merged = mergeReadingsByTime(props.detailReadings, 5)
 	merged.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 	return merged
 })

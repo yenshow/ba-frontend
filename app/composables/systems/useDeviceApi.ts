@@ -6,7 +6,8 @@ import type {
 	UpdateDeviceData,
 	CreateDeviceModelData,
 	UpdateDeviceModelData,
-	DeviceTypeCode
+	DeviceTypeCode,
+	DevicePreviewUrlResponse
 } from "~/types/device";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPaginationParams, buildPathWithQuery, mergeQueryParams } from "~/utils/apiUtils";
@@ -62,6 +63,11 @@ export const useDeviceApi = () => {
 		// 取得單一設備
 		getDevice: (id: number) => {
 			return request<{ device: Device }>(`/devices/${id}`);
+		},
+
+		// 取得設備 MJPEG 預覽 URL（攝影機用）
+		getPreviewUrl: (id: number) => {
+			return request<DevicePreviewUrlResponse>(`/devices/${id}/preview-url`);
 		},
 
 		// 更新設備

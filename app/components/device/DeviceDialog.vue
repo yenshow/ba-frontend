@@ -9,17 +9,25 @@
 					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:max-w-lg 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
 				>
 					<header class="flex items-center justify-between pr-7 2xl:pr-8">
-						<h3 class="text-lg font-semibold tracking-[4px] text-white 2xl:text-xl">
+						<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">
 							{{ editingDevice ? "編輯設備" : "新增設備" }}
 						</h3>
-						<button
-							type="button"
-							class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
-							aria-label="關閉對話框"
-							@click="handleClose"
-						>
-							&times;
-						</button>
+						<div class="flex items-center gap-3">
+							<FormChangeIndicator
+								v-if="hasUnsavedChanges"
+								:has-changes="hasUnsavedChanges"
+								:changed-fields="changedFieldsList"
+								:message="changeSummary"
+							/>
+							<button
+								type="button"
+								class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
+								aria-label="關閉對話框"
+								@click="handleClose"
+							>
+								&times;
+							</button>
+						</div>
 					</header>
 
 					<form
@@ -83,47 +91,31 @@
 
 						<template v-if="deviceTypeCode === 'camera'">
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>IP 位址 *</span>
+								<span>設備 IP (host) *</span>
 								<input
-									v-model="cameraConfig.ip_address"
-									type="text"
-									required
-									pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
-									class="form-input"
-									placeholder="例如：192.168.2.100"
-								/>
-							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>RTSP URL</span>
-								<input
-									v-model="cameraConfig.rtsp_url"
+									v-model="cameraConfig.host"
 									type="text"
 									class="form-input"
-									placeholder="例如：rtsp://192.168.2.100:554/stream"
+									placeholder="例如：192.168.2.102"
 								/>
 							</label>
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>端口</span>
+								<span>ISAPI 預覽路徑 *</span>
 								<input
-									v-model.number="cameraConfig.port"
-									type="number"
-									min="1"
-									max="65535"
+									v-model="cameraConfig.isapi_preview_path"
+									type="text"
 									class="form-input"
-									placeholder="例如：554"
+									placeholder="可修改預設路徑"
 								/>
 							</label>
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>使用者名稱</span>
-								<input v-model="cameraConfig.username" type="text" class="form-input" placeholder="選填" />
-							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>密碼</span>
+								<span>密碼 *</span>
 								<input
 									v-model="cameraConfig.password"
 									type="password"
+									required
 									class="form-input"
-									placeholder="選填"
+									placeholder="設備登入密碼"
 								/>
 							</label>
 						</template>
@@ -238,6 +230,9 @@
 									placeholder="設備登入密碼"
 								/>
 							</label>
+							<p class="text-xs text-white/50 2xl:text-sm">
+								門禁事件由後端自動向設備訂閱，不需在此設備設定「事件通知 → HTTP 監聽主機」。
+							</p>
 						</template>
 
 						<label
@@ -267,22 +262,40 @@
 						</p>
 					</form>
 
-					<footer class="flex items-center gap-3 pr-7 2xl:gap-4 2xl:pr-8">
+					<footer class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8">
 						<button type="button" class="btn-secondary" @click="handleClose">取消</button>
 						<div class="flex-1"></div>
-						<button type="button" class="btn-primary" :disabled="isSubmitting" @click="handleSubmit">
-							{{ isSubmitting ? "處理中..." : editingDevice ? "更新" : "建立" }}
+						<button
+							type="button"
+							class="btn-primary"
+							:class="{ 'cursor-not-allowed opacity-50': editingDevice && !hasUnsavedChanges }"
+							:disabled="isSubmitting || (editingDevice && !hasUnsavedChanges)"
+							@click="handleSubmit"
+						>
+							{{ isSubmitting ? "處理中..." : editingDevice ? "儲存變更" : "建立" }}
 						</button>
 					</footer>
 				</div>
 			</div>
 		</Transition>
 	</Teleport>
+
+	<ConfirmDialog
+		v-model="showConfirmDialog"
+		:title="confirmDialogConfig.title"
+		:message="confirmDialogConfig.message"
+		:details="confirmDialogConfig.details"
+		:type="confirmDialogConfig.type"
+		@confirm="closeDialog"
+	/>
 </template>
 
 <script setup lang="ts">
 import { useDeviceApi } from "~/composables/systems/useDeviceApi";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
+import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import type {
 	Device,
 	CreateDeviceData,
@@ -352,12 +365,13 @@ const controllerConfig = reactive<ControllerDeviceConfig>({
 	unitId: undefined
 });
 
+const defaultIsapiPreviewPath = "/ISAPI/Streaming/channels/102/httpPreview";
+
 const cameraConfig = reactive<CameraDeviceConfig>({
 	type: "camera",
-	ip_address: "",
-	rtsp_url: "",
-	port: 554,
-	username: "",
+	host: "",
+	isapi_preview_path: defaultIsapiPreviewPath,
+	username: "admin",
 	password: ""
 });
 
@@ -502,10 +516,9 @@ const resetForm = () => {
 	controllerConfig.port = undefined;
 	controllerConfig.unitId = undefined;
 
-	cameraConfig.ip_address = "";
-	cameraConfig.rtsp_url = "";
-	cameraConfig.port = 554;
-	cameraConfig.username = "";
+	cameraConfig.host = "";
+	cameraConfig.isapi_preview_path = defaultIsapiPreviewPath;
+	cameraConfig.username = "admin";
 	cameraConfig.password = "";
 
 	sensorConfig.protocol = "modbus";
@@ -526,9 +539,112 @@ const displayErrorMessage = computed(() => {
 	return localErrorMessage.value || props.errorMessage;
 });
 
+// 表單快照（用於比對未保存變更）
+interface FormSnapshot {
+	name: string;
+	model_id: number;
+	status: string;
+	config: DeviceConfig;
+}
+const initialFormSnapshot = ref<FormSnapshot | null>(null);
+
+const getFormSnapshot = (): FormSnapshot => ({
+	name: localFormData.name,
+	model_id: localFormData.model_id,
+	status: localFormData.status,
+	config: getCurrentConfig()
+});
+
+// 新增模式下表單是否已填寫（任一欄位有值即視為有變更）
+const createModeHasContent = computed(() => {
+	if (props.editingDevice) return false;
+	const nameFilled = localFormData.name.trim() !== "";
+	const modelSelected = localFormData.model_id > 0;
+	const configFilled = (() => {
+		const c = getCurrentConfig();
+		if (c.type === "controller") return !!(c.host && (c.port != null || controllerConfig.port != null));
+		if (c.type === "camera") return !!c.host;
+		if (c.type === "sensor") {
+			if (c.protocol === "modbus") return !!(c.host && (c.port != null || sensorConfig.port != null));
+			if (c.protocol === "http") return !!c.api_endpoint;
+			if (c.protocol === "mqtt") return !!c.connection_string;
+			return false;
+		}
+		if (c.type === "access_control") return !!(c.host && c.password);
+		return false;
+	})();
+	return nameFilled || modelSelected || configFilled;
+});
+
+const hasUnsavedChanges = computed(() => {
+	if (props.editingDevice) {
+		if (!initialFormSnapshot.value) return false;
+		const current = getFormSnapshot();
+		const initial = initialFormSnapshot.value;
+		return (
+			current.name !== initial.name ||
+			current.model_id !== initial.model_id ||
+			current.status !== initial.status ||
+			JSON.stringify(current.config) !== JSON.stringify(initial.config)
+		);
+	}
+	return createModeHasContent.value;
+});
+
+const changedFieldsList = computed(() => {
+	if (!props.editingDevice || !initialFormSnapshot.value) return [];
+	const current = getFormSnapshot();
+	const initial = initialFormSnapshot.value;
+	const fields: string[] = [];
+	if (current.name !== initial.name) {
+		fields.push(`設備名稱: ${initial.name || "(空)"} → ${current.name || "(空)"}`);
+	}
+	if (current.model_id !== initial.model_id) {
+		fields.push("設備型號");
+	}
+	if (current.status !== initial.status) {
+		fields.push("啟用狀態");
+	}
+	if (JSON.stringify(current.config) !== JSON.stringify(initial.config)) {
+		fields.push("連線設定");
+	}
+	return fields;
+});
+
+const changeSummary = computed(() => {
+	const count = changedFieldsList.value.length;
+	if (count === 0 && !props.editingDevice && createModeHasContent.value) return "表單已填寫，尚未儲存";
+	if (count === 0) return "";
+	return `有 ${count} 個欄位已修改`;
+});
+
+// 確認對話框（關閉前未保存提示）
+const confirmDialog = useConfirmDialog();
+const showConfirmDialog = computed({
+	get: () => confirmDialog.showDialog.value,
+	set: (value: boolean) => {
+		confirmDialog.showDialog.value = value;
+	}
+});
+const confirmDialogConfig = computed(() => confirmDialog.config.value);
+
+const CONFIRM_CLOSE = {
+	title: "確認關閉",
+	message: "您有未保存的變更，確定要關閉嗎？",
+	details: "未保存的變更將會遺失。",
+	type: "warning" as const
+};
+
+const closeDialog = () => {
+	initialFormSnapshot.value = null;
+	localErrorMessage.value = null;
+	emit("update:modelValue", false);
+	emit("close");
+};
+
 // 判斷控制器的 port 是否繼承自型號
 const isControllerPortInherited = computed(() => {
-	return props.deviceTypeCode === "controller" && selectedDeviceModel.value?.port != null;
+	return props.deviceTypeCode === "controller" && !!selectedDeviceModel.value?.port;
 });
 
 // 判斷感測器的 port 是否繼承自型號（僅當協議為 modbus 時）
@@ -556,9 +672,16 @@ const loadConfigFromDevice = (device: Device) => {
 		case "controller":
 			Object.assign(controllerConfig, device.config);
 			break;
-		case "camera":
+		case "camera": {
 			Object.assign(cameraConfig, device.config);
+			if (!cameraConfig.host && (cameraConfig as { ip_address?: string }).ip_address) {
+				cameraConfig.host = (cameraConfig as { ip_address?: string }).ip_address;
+			}
+			if (!cameraConfig.isapi_preview_path) cameraConfig.isapi_preview_path = defaultIsapiPreviewPath;
+			if (!cameraConfig.username) cameraConfig.username = "admin";
+			delete (cameraConfig as Record<string, unknown>).port;
 			break;
+		}
 		case "sensor":
 			Object.assign(sensorConfig, device.config);
 			break;
@@ -589,17 +712,23 @@ watch(
 		if (isOpen) {
 			loadDeviceType();
 			loadDeviceModels();
+			nextTick(() => {
+				initialFormSnapshot.value = getFormSnapshot();
+			});
 		} else {
 			resetForm();
+			initialFormSnapshot.value = null;
 		}
 	},
 	{ immediate: true }
 );
 
 const handleClose = () => {
-	localErrorMessage.value = null;
-	emit("update:modelValue", false);
-	emit("close");
+	if (hasUnsavedChanges.value) {
+		confirmDialog.show(CONFIRM_CLOSE);
+		return;
+	}
+	closeDialog();
 };
 
 const getCurrentConfig = (): DeviceConfig => {
@@ -612,8 +741,10 @@ const getCurrentConfig = (): DeviceConfig => {
 				...(controllerConfig.unitId != null && { unitId: controllerConfig.unitId })
 			};
 		}
-		case "camera":
-			return { ...cameraConfig };
+		case "camera": {
+			const { port: _p, ...rest } = cameraConfig as CameraDeviceConfig & { port?: number };
+			return { ...rest };
+		}
 		case "sensor": {
 			const { unitId, ...rest } = sensorConfig;
 			return { ...rest, ...(unitId != null && { unitId }) };
@@ -663,6 +794,13 @@ const handleSubmit = () => {
 		const hasPort = isControllerPortInherited.value || (controllerConfig.port != null && controllerConfig.port !== "");
 		if (!hasPort) {
 			localErrorMessage.value = "請填寫端口，或選擇已設定端口的設備型號";
+			return;
+		}
+	}
+	// 攝影機：密碼必填
+	if (props.deviceTypeCode === "camera") {
+		if (!cameraConfig.password || !String(cameraConfig.password).trim()) {
+			localErrorMessage.value = "請填寫密碼";
 			return;
 		}
 	}
@@ -720,5 +858,4 @@ const handleSubmit = () => {
 	background: rgba(20, 64, 92, 0.98);
 	color: #f7fbff;
 }
-
 </style>

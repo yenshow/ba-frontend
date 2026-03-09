@@ -2,6 +2,8 @@
 
 本文件說明專案中用戶登入、認證狀態與角色權限的處理方式與設定。
 
+**與後端對齊**：登入與用戶權限設計以 **`ba-backend/docs/AUTH_AND_PERMISSIONS.md`** 為準（第一步：登入；第二步：用戶權限 admin/operator/viewer）。本專案前端實作與該文檔 ① 登入、② 用戶權限 一致。
+
 ---
 
 ## 一、架構概覽
@@ -161,15 +163,19 @@
 
 ## 八、權限在頁面/元件中的使用
 
-目前權限以「元件內依角色顯示/隱藏」為主，而非一律用路由中間件擋下。
+目前權限以「元件內依角色顯示/隱藏」為主，與 **AUTH_AND_PERMISSIONS.md ② 用戶權限** 對齊：**viewer 僅檢視**，**isOperator**（admin 或 operator）可編輯/操作。
 
 | 頁面/元件 | 使用方式 |
 |-----------|----------|
-| **AppHeader** | `user`、`isAdmin`、`logout`；顯示用戶名、角色標籤（管理員/操作員/檢視者）、登出。 |
+| **AppHeader** | `user`、`isAdmin`、`isOperator`、`logout`；**「更多功能」僅 `isOperator` 顯示（viewer 不顯示）**；權限管理僅 `isAdmin`；顯示用戶名、角色標籤、登出。 |
 | **core/users.vue** | `isAdmin`：僅管理員顯示「新增用戶」、表格「操作」欄（編輯/刪除）。非管理員仍可進入頁面，僅看不到這些操作。 |
-| **core/equipment-management.vue** | `isAdmin`：僅管理員顯示新增/編輯/刪除等 UI，並傳 `is-admin` 給子元件。 |
-| **core/area-point-map.vue** | `isAdmin`：部分功能僅在 `isAdmin` 時顯示。 |
-| **core/alert-log.vue** | `isAdmin`：與警示忽略等操作相關的 UI。 |
+| **core/equipment-management.vue** | `isOperator`：設備類型管理、型號管理、新增設備、表格「操作」欄（編輯/刪除），並傳 `:is-admin="isOperator"` 給 DeviceDialog。 |
+| **core/area-point-map.vue** | `isOperator`：「區域管理」按鈕僅 admin/operator 顯示。 |
+| **core/alert-log.vue** | `isOperator`：警示「忽視」「取消忽視」按鈕僅 admin/operator 顯示。 |
+| **construction-monitoring/environment.vue** | `isOperator`：「地點管理」按鈕僅 admin/operator 顯示。 |
+| **construction-monitoring/people-counting.vue** | `isOperator`：「地點管理」按鈕僅 admin/operator 顯示。 |
+| **construction-monitoring/vehicle-access.vue** | `isOperator`：「地點管理」按鈕僅 admin/operator 顯示。 |
+| **infrastructure/lighting.vue** | `isOperator`：「樓層管理」「編輯定位」僅 admin/operator；StatusCenter 開關傳 `:can-toggle="isOperator"`，viewer 僅檢視不可切換。 |
 
 若希望「僅管理員可進入某頁」，需在該頁加上：
 
@@ -222,7 +228,7 @@ definePageMeta({
 
 | 後端項目 | 路徑 / 說明 |
 |----------|-------------|
-| 權限與認證說明 | `docs/USER_PERMISSIONS_AND_AUTH.md` |
+| **登入與權限精簡總結（權威文檔）** | **`docs/AUTH_AND_PERMISSIONS.md`**（① 登入 ② 用戶權限 ③ 授權） |
 | 認證中間件 | `src/middleware/authMiddleware.js` |
 | 用戶路由 | `src/routes/userRoutes.js` |
 | 用戶服務 | `src/services/userService.js` |

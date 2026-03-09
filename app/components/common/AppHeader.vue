@@ -45,87 +45,89 @@
 						</span>
 					</NuxtLink>
 				</button>
-				<!-- 2. 更多功能 -->
-				<div class="relative flex items-center" ref="moreMenuRef">
-					<button
-						@click.stop="toggleMoreMenu"
-						:class="['icon-button', { 'icon-button-active': isMoreMenuOpen }]"
-					>
-						<img
-							src="/layout/more-functions.svg"
-							alt="更多功能"
-							:class="['h-12 w-12 2xl:h-14 2xl:w-14', isDark ? 'icon-svg-dark' : 'icon-svg-light']"
-						/>
-					</button>
-					<Transition
-						enter-active-class="transition ease-out duration-100"
-						enter-from-class="transform opacity-0 scale-95"
-						enter-to-class="transform opacity-100 scale-100"
-						leave-active-class="transition ease-in duration-75"
-						leave-from-class="transform opacity-100 scale-100"
-						leave-to-class="transform opacity-0 scale-95"
-					>
-						<div
-							v-if="isMoreMenuOpen"
-							@click.stop
-							class="absolute right-0 top-full z-50 mt-2 flex h-[540px] w-48 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white py-2 shadow-lg 2xl:h-[600px]"
+				<!-- 2. 更多功能（僅 admin/operator 顯示，viewer 不顯示） -->
+				<template v-if="isOperator">
+					<div class="relative flex items-center" ref="moreMenuRef">
+						<button
+							@click.stop="toggleMoreMenu"
+							:class="['icon-button', { 'icon-button-active': isMoreMenuOpen }]"
 						>
-							<div class="show-scrollbar flex-1 overflow-y-auto">
-								<template
-									v-for="(categoryGroup, index) in categoryGroups"
-									:key="categoryGroup.category"
-								>
-									<div
-										v-if="categoryGroup.modules.length"
-										:class="{ 'border-t border-gray-100 pt-2': index > 0 }"
+							<img
+								src="/layout/more-functions.svg"
+								alt="更多功能"
+								:class="['h-12 w-12 2xl:h-14 2xl:w-14', isDark ? 'icon-svg-dark' : 'icon-svg-light']"
+							/>
+						</button>
+						<Transition
+							enter-active-class="transition ease-out duration-100"
+							enter-from-class="transform opacity-0 scale-95"
+							enter-to-class="transform opacity-100 scale-100"
+							leave-active-class="transition ease-in duration-75"
+							leave-from-class="transform opacity-100 scale-100"
+							leave-to-class="transform opacity-0 scale-95"
+						>
+							<div
+								v-if="isMoreMenuOpen"
+								@click.stop
+								class="absolute right-0 top-full z-50 mt-2 flex h-[540px] w-48 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white py-2 shadow-lg 2xl:h-[600px]"
+							>
+								<div class="show-scrollbar flex-1 overflow-y-auto">
+									<template
+										v-for="(categoryGroup, index) in categoryGroups"
+										:key="categoryGroup.category"
 									>
-										<p class="px-4 py-2 text-sm text-gray-500 2xl:text-base">
-											{{ categoryGroup.label }}
-										</p>
-										<ul class="space-y-0.5">
-											<li v-for="module in categoryGroup.modules" :key="module.id">
-												<NuxtLink
-													v-if="module.route"
-													:to="module.route"
-													@click="closeMoreMenu"
-													class="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-gray-100"
-												>
-													<div class="flex h-8 w-8 flex-shrink-0 items-center justify-center">
-														<NuxtImg
-															:src="`/system/${module.icon}.png`"
-															:alt="module.name"
-															class="icon-dark h-8 w-8 object-contain"
-															width="200"
-															height="200"
-														/>
+										<div
+											v-if="categoryGroup.modules.length"
+											:class="{ 'border-t border-gray-100 pt-2': index > 0 }"
+										>
+											<p class="px-4 py-2 text-sm text-gray-500 2xl:text-base">
+												{{ categoryGroup.label }}
+											</p>
+											<ul class="space-y-0.5">
+												<li v-for="module in categoryGroup.modules" :key="module.id">
+													<NuxtLink
+														v-if="module.route"
+														:to="module.route"
+														@click="closeMoreMenu"
+														class="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-gray-100"
+													>
+														<div class="flex h-8 w-8 flex-shrink-0 items-center justify-center">
+															<NuxtImg
+																:src="`/system/${module.icon}.png`"
+																:alt="module.name"
+																class="icon-dark h-8 w-8 object-contain"
+																width="200"
+																height="200"
+															/>
+														</div>
+														<span class="text-sm text-gray-700 2xl:text-base">{{ module.name }}</span>
+													</NuxtLink>
+													<div
+														v-else
+														class="flex cursor-not-allowed items-center gap-3 px-4 py-2 text-gray-400"
+													>
+														<div class="flex h-8 w-8 flex-shrink-0 items-center justify-center">
+															<NuxtImg
+																:src="`/system/${module.icon}.png`"
+																:alt="module.name"
+																class="icon-dark h-8 w-8 object-contain opacity-50"
+																width="200"
+																height="200"
+															/>
+														</div>
+														<span class="text-sm 2xl:text-base">{{ module.name }}</span>
 													</div>
-													<span class="text-sm text-gray-700 2xl:text-base">{{ module.name }}</span>
-												</NuxtLink>
-												<div
-													v-else
-													class="flex cursor-not-allowed items-center gap-3 px-4 py-2 text-gray-400"
-												>
-													<div class="flex h-8 w-8 flex-shrink-0 items-center justify-center">
-														<NuxtImg
-															:src="`/system/${module.icon}.png`"
-															:alt="module.name"
-															class="icon-dark h-8 w-8 object-contain opacity-50"
-															width="200"
-															height="200"
-														/>
-													</div>
-													<span class="text-sm 2xl:text-base">{{ module.name }}</span>
-												</div>
-											</li>
-										</ul>
-									</div>
-								</template>
+												</li>
+											</ul>
+										</div>
+									</template>
+								</div>
 							</div>
-						</div>
-					</Transition>
-				</div>
-				<!-- 分隔線 -->
-				<div class="h-12 w-[2px] 2xl:h-14" :class="isDark ? 'bg-white/30' : 'bg-black/30'"></div>
+						</Transition>
+					</div>
+					<!-- 分隔線 -->
+					<div class="h-12 w-[2px] 2xl:h-14" :class="isDark ? 'bg-white/30' : 'bg-black/30'"></div>
+				</template>
 
 				<!-- 3. 用戶設定 -->
 				<div class="relative flex items-center" ref="userMenuRef">
@@ -284,7 +286,7 @@ const isMoreMenuOpen = ref(false)
 const moreMenuRef = ref<HTMLElement | null>(null)
 
 // 認證狀態
-const { user, isAdmin, logout: authLogout } = useAuth()
+const { user, isAdmin, isOperator, logout: authLogout } = useAuth()
 
 const roleLabels: Record<string, string> = {
 	admin: "管理員",

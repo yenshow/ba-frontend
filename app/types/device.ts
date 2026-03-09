@@ -86,12 +86,14 @@ export interface ControllerDeviceConfig extends DeviceConfigBase {
 	unitId?: number;
 }
 
-// 影像設備配置
+// 影像設備配置（MJPEG 預覽：host + isapi_preview_path）
 export interface CameraDeviceConfig extends DeviceConfigBase {
 	type: "camera";
-	rtsp_url?: string;
-	ip_address: string;
-	port?: number;
+	/** 設備 IP（與 host 二擇一，後端優先 host） */
+	host?: string;
+	ip_address?: string;
+	/** ISAPI 預覽路徑，必填，例：/ISAPI/Streaming/channels/102/httpPreview；使用 HTTP 預設 port 80，不需設定 port */
+	isapi_preview_path: string;
 	username?: string;
 	password?: string;
 }
@@ -123,6 +125,14 @@ export type DeviceConfig =
 	| CameraDeviceConfig
 	| SensorDeviceConfig
 	| AccessControlDeviceConfig;
+
+/** 設備 MJPEG 預覽 URL 回傳（GET /api/devices/:id/preview-url） */
+export interface DevicePreviewUrlResponse {
+	url: string;
+	streamType: string;
+	deviceId: number;
+	deviceName: string;
+}
 
 // 通用設備介面
 export interface Device {

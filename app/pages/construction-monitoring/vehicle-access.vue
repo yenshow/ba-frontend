@@ -25,6 +25,7 @@
 					</div>
 
 					<button
+						v-if="isOperator"
 						type="button"
 						class="absolute left-8 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
 						aria-label="地點管理"
@@ -274,6 +275,9 @@ import { useLocationApi } from "~/composables/systems/location/useLocationApi"
 import { useZoneSystemAdapter } from "~/composables/systems/useZoneSystemAdapter"
 import type { UnifiedZone } from "~/types/location"
 import { getTodayDateRangeUTC } from "~/utils/dateUtils"
+import { useAuth } from "~/composables/core/useAuth"
+
+const { isOperator } = useAuth()
 
 const {
 	filters,
