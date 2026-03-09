@@ -17,7 +17,7 @@
 					<p class="text-white/60">該地點未配置環境監測系統</p>
 				</div>
 				<div v-else class="rounded-2xl border-2 border-white/30 bg-white/10 p-8 text-center">
-					<p class="text-white/60">請選擇地點以顯示環境監測數據</p>
+					<p class="text-white/60">載入地點中...</p>
 				</div>
 			</div>
 
@@ -92,43 +92,24 @@ const { locations: peopleCountingLocations, loadLocations: loadPeopleCountingLoc
 
 const peopleCountingApi = usePeopleCountingApi();
 
-// 進出記錄相關常數
-const LOGS_PER_LOCATION = 10;
+// 進出記錄：僅依所選地點抓取，最多 8 筆
 const MAX_DISPLAY_LOGS = 8;
+const locationLogs = ref<PeopleCountingLog[]>([]);
 
-// 聚合所有地點的進出記錄
-const allLocationLogs = ref<PeopleCountingLog[]>([]);
-
-// 載入所有地點的進出記錄
-const loadAllLocationLogs = async () => {
+const loadLocationLogs = async (locationId: string) => {
 	try {
-		const allLogs: PeopleCountingLog[] = [];
-
-		// 並行載入所有地點的記錄
-		const logPromises = peopleCountingLocations.value.map(location => {
-			if (!location.locationId) return Promise.resolve([]);
-			return peopleCountingApi.getLocationLogs(location.locationId, { limit: LOGS_PER_LOCATION });
+		const list = await peopleCountingApi.getLocationLogs(Number(locationId), {
+			limit: MAX_DISPLAY_LOGS
 		});
-
-		const results = await Promise.allSettled(logPromises);
-
-		results.forEach(result => {
-			if (result.status === "fulfilled") {
-				allLogs.push(...result.value);
-			}
-		});
-
-		// 按時間排序（最新的在前）
-		allLogs.sort((a, b) => {
+		const sorted = [...list].sort((a, b) => {
 			const timeA = new Date(a.timestamp).getTime();
 			const timeB = new Date(b.timestamp).getTime();
 			return timeB - timeA;
 		});
-
-		// 只保留最新的記錄
-		allLocationLogs.value = allLogs.slice(0, MAX_DISPLAY_LOGS);
+		locationLogs.value = sorted.slice(0, MAX_DISPLAY_LOGS);
 	} catch (error) {
 		console.error("[index] 載入進出記錄失敗:", error);
+		locationLogs.value = [];
 	}
 };
 
@@ -241,17 +222,11 @@ const matchedPeopleCountingLocation = computed(() =>
 );
 
 const filteredPeopleCountingLocations = computed(() => {
-	if (!selectedUnifiedLocation.value) return peopleCountingLocations.value;
 	const matched = matchedPeopleCountingLocation.value;
 	return matched ? [matched] : [];
 });
 
-const filteredLocationLogs = computed(() => {
-	if (!selectedUnifiedLocation.value) return allLocationLogs.value;
-	const matched = matchedPeopleCountingLocation.value;
-	if (!matched?.locationId) return [];
-	return allLocationLogs.value.filter(log => log.locationId === matched.locationId);
-});
+const filteredLocationLogs = computed(() => locationLogs.value);
 
 // 感測器資料
 type SensorReadings = {
@@ -278,14 +253,40 @@ const sensorData = reactive<SensorReadings>({
 	wind: null
 });
 
-// 從設備型號配置中取得參數的 Modbus 配置
-const getParameterModbusConfig = (
-	paramType: SensorParameterType
+// 從指定型號配置取得參數的 Modbus 配置（多設備合併讀取時每台設備各用其型號）
+const getParameterModbusConfigFromModel = (
+	paramType: SensorParameterType,
+	modelConfig: SensorDeviceModelConfig | null
 ): SensorParameterDefinition["modbusConfig"] | null => {
-	if (!deviceModelConfig.value?.sensorParameters) return null;
+	if (!modelConfig?.sensorParameters) return null;
+	const paramDef = modelConfig.sensorParameters.find(p => p.type === paramType);
+	return paramDef?.modbusConfig ?? null;
+};
 
-	const paramDef = deviceModelConfig.value.sensorParameters.find(p => p.type === paramType);
-	return paramDef?.modbusConfig || null;
+const loadDeviceAndModelConfig = async (
+	deviceId: number
+): Promise<{ device: Device; modelConfig: SensorDeviceModelConfig | null } | null> => {
+	try {
+		const { device } = await deviceApi.getDevice(deviceId);
+		if (!device || device.type_code !== "sensor") return null;
+
+		const deviceWithModel = device as { model?: { config?: SensorDeviceModelConfig } };
+		let modelConfig: SensorDeviceModelConfig | null = deviceWithModel.model?.config?.sensorParameters
+			? (deviceWithModel.model.config as SensorDeviceModelConfig)
+			: null;
+
+		if (!modelConfig && device.model_id) {
+			try {
+				const { device_model } = await deviceApi.getDeviceModel(device.model_id);
+				modelConfig = (device_model?.config as SensorDeviceModelConfig | undefined) ?? null;
+			} catch {
+				// 忽略型號載入失敗
+			}
+		}
+		return { device, modelConfig };
+	} catch {
+		return null;
+	}
 };
 
 // 預設選擇的地點（區域名稱 - 地點名稱）
@@ -524,53 +525,64 @@ const isSensorOffline = ref(false);
 const lastOfflineAlertTime = ref<number | null>(null);
 
 const loadSensorData = async () => {
-	if (isFetching.value) {
-		return;
-	}
+	if (isFetching.value) return;
+	if (!selectedLocation.value) return;
 
-	if (!selectedLocation.value || !sensorDeviceConfig.value || !deviceModelConfig.value) {
-		return;
-	}
+	const deviceIds = getLocationDeviceIds(selectedLocation.value);
+	if (deviceIds.length === 0) return;
+
+	const enabledParams = selectedLocation.value.parameters.filter(param => param.enabled);
+	if (enabledParams.length === 0) return;
 
 	isFetching.value = true;
 
-	try {
-		const enabledParams = selectedLocation.value.parameters.filter(param => param.enabled);
-		if (enabledParams.length === 0) {
-			return;
-		}
+	// 每輪清空後僅合併成功讀取值
+	Object.keys(sensorData).forEach(key => {
+		(sensorData as Record<string, number | null>)[key] = null;
+	});
 
-		const paramAddressMap = new Map<number, ParameterWithModbusConfig[]>();
-		for (const param of enabledParams) {
-			const modbusConfig = getParameterModbusConfig(param.type);
-			if (!modbusConfig || modbusConfig.address === undefined) {
-				continue;
+	try {
+		for (const deviceId of deviceIds) {
+			const result = await loadDeviceAndModelConfig(deviceId);
+			if (!result) continue;
+
+			const { device, modelConfig } = result;
+			const config = device.config as SensorDeviceConfig;
+			if (config?.protocol !== "modbus" || !config?.host || !config?.port) continue;
+
+			const modbusConfig: ModbusDeviceConfig = {
+				host: config.host,
+				port: config.port,
+				unitId: config.unitId ?? 1
+			};
+
+			const paramAddressMap = new Map<number, ParameterWithModbusConfig[]>();
+			for (const param of enabledParams) {
+				const modbusCfg = getParameterModbusConfigFromModel(param.type, modelConfig);
+				if (!modbusCfg || modbusCfg.address === undefined) continue;
+
+				const existing = paramAddressMap.get(modbusCfg.address) ?? [];
+				existing.push({
+					type: param.type,
+					modbusConfig: { address: modbusCfg.address, transform: modbusCfg.transform }
+				});
+				paramAddressMap.set(modbusCfg.address, existing);
 			}
 
-			const existing = paramAddressMap.get(modbusConfig.address) ?? [];
-			existing.push({
-				type: param.type,
-				modbusConfig: { address: modbusConfig.address, transform: modbusConfig.transform }
-			});
-			paramAddressMap.set(modbusConfig.address, existing);
+			if (paramAddressMap.size === 0) continue;
+
+			const results = await readParametersBatch(modbusConfig, paramAddressMap);
+			for (const r of results) {
+				if (r.success) (sensorData as Record<string, number | null>)[r.type] = r.value;
+			}
 		}
 
-		if (paramAddressMap.size === 0) {
-			return;
-		}
-
-		const results = await readParametersBatch(sensorDeviceConfig.value, paramAddressMap);
-		for (const result of results) {
-			(sensorData as any)[result.type] = result.success ? result.value : null;
-		}
-
-		// 感測器恢復連線
 		if (isSensorOffline.value) {
 			isSensorOffline.value = false;
 			toast.success("感測器已恢復連線", 5000);
 			lastOfflineAlertTime.value = null;
 		}
-	} catch (error: any) {
+	} catch (error: unknown) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
 
 		// 檢查是否為設備連接相關的錯誤
@@ -618,21 +630,34 @@ const initializeLocationData = async () => {
 watch(
 	() => selectedLocationId.value,
 	async () => {
-		if (selectedLocationId.value) {
-			// 並行執行：初始化地點數據和重新載入進出記錄
-			await Promise.allSettled([initializeLocationData(), loadAllLocationLogs()]);
-		}
+		if (!selectedLocationId.value) return;
+		const matched = matchedPeopleCountingLocation.value;
+		const locationId = matched?.locationId != null ? String(matched.locationId) : null;
+		await Promise.allSettled([
+			initializeLocationData(),
+			locationId ? loadLocationLogs(locationId) : Promise.resolve()
+		]);
+		if (!locationId) locationLogs.value = [];
 	}
 );
 
 const { setupEventListeners } = usePeopleCountingWebSocket();
 let cleanupWebSocket: (() => void) | null = null;
 
+const refreshCurrentLocationLogs = async () => {
+	const matched = matchedPeopleCountingLocation.value;
+	if (matched?.locationId != null) {
+		await loadLocationLogs(String(matched.locationId));
+	} else {
+		locationLogs.value = [];
+	}
+};
+
 onMounted(async () => {
-	cleanupWebSocket = setupEventListeners(
-		() => Promise.allSettled([loadPeopleCountingLocations(), loadAllLocationLogs()]),
-		500
-	);
+	cleanupWebSocket = setupEventListeners(async () => {
+		await loadPeopleCountingLocations();
+		await refreshCurrentLocationLogs();
+	}, 500);
 
 	const [zonesResult, peopleCountingResult] = await Promise.allSettled([
 		loadZones(),
@@ -645,7 +670,7 @@ onMounted(async () => {
 		parallelTasks.push(initializeLocationData().catch(console.error));
 	}
 	if (peopleCountingResult.status === "fulfilled") {
-		parallelTasks.push(loadAllLocationLogs().catch(console.error));
+		parallelTasks.push(refreshCurrentLocationLogs().catch(console.error));
 	}
 	await Promise.allSettled(parallelTasks);
 	startPolling();
@@ -653,8 +678,8 @@ onMounted(async () => {
 
 watch(
 	() => peopleCountingLocations.value,
-	async () => {
-		await loadAllLocationLogs();
+	() => {
+		refreshCurrentLocationLogs();
 	},
 	{ deep: true }
 );

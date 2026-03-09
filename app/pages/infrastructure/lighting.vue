@@ -21,7 +21,7 @@
 							<!-- 樓層管理按鈕 -->
 							<Transition name="fade-in">
 								<button
-									v-if="!isInitialLoading"
+									v-if="!isInitialLoading && isOperator"
 									type="button"
 									@click="handleOpenZoneDialog"
 									:class="[
@@ -37,7 +37,7 @@
 							<div class="relative">
 								<Transition name="fade-in">
 									<button
-										v-if="!isInitialLoading"
+										v-if="!isInitialLoading && isOperator"
 										type="button"
 										@click="handleToggleEditMode"
 										:class="[
@@ -161,6 +161,7 @@
 					:location-statuses="locationStatuses"
 					:location-disabled-map="locationDisabledMap"
 					:location-toggling="locationToggling"
+					:can-toggle="isOperator"
 					:selected-zone="selectedZone"
 					@toggle="handleLocationToggle"
 					@zone-selected="handleZoneSelected"
@@ -194,6 +195,7 @@ import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { usePolling } from "~/composables/monitoring/usePolling"
 import { useZoneManagement } from "~/composables/systems/useZoneManagement"
+import { useAuth } from "~/composables/core/useAuth"
 import type { Device, ControllerDeviceConfig } from "~/types/device"
 import type { ModbusDataResponse, ModbusDeviceConfig } from "~/types/modbus"
 import type { UnifiedZone } from "~/types/location"
@@ -203,6 +205,8 @@ definePageMeta({
 	layout: "default",
 	// 認證由全局中間件處理
 })
+
+const { isOperator } = useAuth()
 
 const lightingApi = useLightingApi()
 const locationApi = useLocationApi()

@@ -9,17 +9,25 @@
 					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:max-w-lg 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
 				>
 					<header class="flex items-center justify-between pr-7 2xl:pr-8">
-						<h3 class="text-lg font-semibold tracking-[4px] text-white 2xl:text-xl">
+						<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">
 							{{ editingDevice ? "編輯設備" : "新增設備" }}
 						</h3>
-						<button
-							type="button"
-							class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
-							aria-label="關閉對話框"
-							@click="handleClose"
-						>
-							&times;
-						</button>
+						<div class="flex items-center gap-3">
+							<FormChangeIndicator
+								v-if="hasUnsavedChanges"
+								:has-changes="hasUnsavedChanges"
+								:changed-fields="changedFieldsList"
+								:message="changeSummary"
+							/>
+							<button
+								type="button"
+								class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
+								aria-label="關閉對話框"
+								@click="handleClose"
+							>
+								&times;
+							</button>
+						</div>
 					</header>
 
 					<form
@@ -253,22 +261,40 @@
 						</p>
 					</form>
 
-					<footer class="flex items-center gap-3 pr-7 2xl:gap-4 2xl:pr-8">
+					<footer class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8">
 						<button type="button" class="btn-secondary" @click="handleClose">取消</button>
 						<div class="flex-1"></div>
-						<button type="button" class="btn-primary" :disabled="isSubmitting" @click="handleSubmit">
-							{{ isSubmitting ? "處理中..." : editingDevice ? "更新" : "建立" }}
+						<button
+							type="button"
+							class="btn-primary"
+							:class="{ 'cursor-not-allowed opacity-50': editingDevice && !hasUnsavedChanges }"
+							:disabled="isSubmitting || (editingDevice && !hasUnsavedChanges)"
+							@click="handleSubmit"
+						>
+							{{ isSubmitting ? "處理中..." : editingDevice ? "儲存變更" : "建立" }}
 						</button>
 					</footer>
 				</div>
 			</div>
 		</Transition>
 	</Teleport>
+
+	<ConfirmDialog
+		v-model="showConfirmDialog"
+		:title="confirmDialogConfig.title"
+		:message="confirmDialogConfig.message"
+		:details="confirmDialogConfig.details"
+		:type="confirmDialogConfig.type"
+		@confirm="closeDialog"
+	/>
 </template>
 
 <script setup lang="ts">
 import { useDeviceApi } from "~/composables/systems/useDeviceApi";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
+import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import type {
 	Device,
 	CreateDeviceData,
@@ -512,6 +538,109 @@ const displayErrorMessage = computed(() => {
 	return localErrorMessage.value || props.errorMessage;
 });
 
+// 表單快照（用於比對未保存變更）
+interface FormSnapshot {
+	name: string;
+	model_id: number;
+	status: string;
+	config: DeviceConfig;
+}
+const initialFormSnapshot = ref<FormSnapshot | null>(null);
+
+const getFormSnapshot = (): FormSnapshot => ({
+	name: localFormData.name,
+	model_id: localFormData.model_id,
+	status: localFormData.status,
+	config: getCurrentConfig()
+});
+
+// 新增模式下表單是否已填寫（任一欄位有值即視為有變更）
+const createModeHasContent = computed(() => {
+	if (props.editingDevice) return false;
+	const nameFilled = localFormData.name.trim() !== "";
+	const modelSelected = localFormData.model_id > 0;
+	const configFilled = (() => {
+		const c = getCurrentConfig();
+		if (c.type === "controller") return !!(c.host && (c.port != null || controllerConfig.port != null));
+		if (c.type === "camera") return !!c.host;
+		if (c.type === "sensor") {
+			if (c.protocol === "modbus") return !!(c.host && (c.port != null || sensorConfig.port != null));
+			if (c.protocol === "http") return !!c.api_endpoint;
+			if (c.protocol === "mqtt") return !!c.connection_string;
+			return false;
+		}
+		if (c.type === "access_control") return !!(c.host && c.password);
+		return false;
+	})();
+	return nameFilled || modelSelected || configFilled;
+});
+
+const hasUnsavedChanges = computed(() => {
+	if (props.editingDevice) {
+		if (!initialFormSnapshot.value) return false;
+		const current = getFormSnapshot();
+		const initial = initialFormSnapshot.value;
+		return (
+			current.name !== initial.name ||
+			current.model_id !== initial.model_id ||
+			current.status !== initial.status ||
+			JSON.stringify(current.config) !== JSON.stringify(initial.config)
+		);
+	}
+	return createModeHasContent.value;
+});
+
+const changedFieldsList = computed(() => {
+	if (!props.editingDevice || !initialFormSnapshot.value) return [];
+	const current = getFormSnapshot();
+	const initial = initialFormSnapshot.value;
+	const fields: string[] = [];
+	if (current.name !== initial.name) {
+		fields.push(`設備名稱: ${initial.name || "(空)"} → ${current.name || "(空)"}`);
+	}
+	if (current.model_id !== initial.model_id) {
+		fields.push("設備型號");
+	}
+	if (current.status !== initial.status) {
+		fields.push("啟用狀態");
+	}
+	if (JSON.stringify(current.config) !== JSON.stringify(initial.config)) {
+		fields.push("連線設定");
+	}
+	return fields;
+});
+
+const changeSummary = computed(() => {
+	const count = changedFieldsList.value.length;
+	if (count === 0 && !props.editingDevice && createModeHasContent.value) return "表單已填寫，尚未儲存";
+	if (count === 0) return "";
+	return `有 ${count} 個欄位已修改`;
+});
+
+// 確認對話框（關閉前未保存提示）
+const confirmDialog = useConfirmDialog();
+const showConfirmDialog = computed({
+	get: () => confirmDialog.showDialog.value,
+	set: (value: boolean) => {
+		confirmDialog.showDialog.value = value;
+	}
+});
+const confirmDialogConfig = computed(() => confirmDialog.config.value);
+
+const CONFIRM_CLOSE = {
+	title: "確認關閉",
+	message: "您有未保存的變更，確定要關閉嗎？",
+	details: "未保存的變更將會遺失。",
+	type: "warning" as const
+};
+
+const closeDialog = () => {
+	initialFormSnapshot.value = null;
+	localErrorMessage.value = null;
+	emit("update:modelValue", false);
+	emit("close");
+};
+
 // 判斷控制器的 port 是否繼承自型號
 const isControllerPortInherited = computed(() => {
 	return props.deviceTypeCode === "controller" && !!selectedDeviceModel.value?.port;
@@ -582,17 +711,23 @@ watch(
 		if (isOpen) {
 			loadDeviceType();
 			loadDeviceModels();
+			nextTick(() => {
+				initialFormSnapshot.value = getFormSnapshot();
+			});
 		} else {
 			resetForm();
+			initialFormSnapshot.value = null;
 		}
 	},
 	{ immediate: true }
 );
 
 const handleClose = () => {
-	localErrorMessage.value = null;
-	emit("update:modelValue", false);
-	emit("close");
+	if (hasUnsavedChanges.value) {
+		confirmDialog.show(CONFIRM_CLOSE);
+		return;
+	}
+	closeDialog();
 };
 
 const getCurrentConfig = (): DeviceConfig => {

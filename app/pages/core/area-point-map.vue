@@ -19,7 +19,7 @@
 							<!-- 區域管理按鈕 -->
 							<Transition name="fade-in">
 								<button
-									v-if="!isInitialLoading && isAdmin"
+									v-if="!isInitialLoading && isOperator"
 									type="button"
 									@click="handleOpenZoneDialog"
 									:class="[
@@ -195,7 +195,7 @@ definePageMeta({
 	layout: "auxiliary"
 });
 
-const { isAdmin } = useAuth();
+const { isAdmin, isOperator } = useAuth();
 const locationApi = useLocationApi();
 const toast = useToast();
 const { handleError } = useErrorHandler();

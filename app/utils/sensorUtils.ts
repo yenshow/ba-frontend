@@ -87,6 +87,25 @@ export const getParameterFractionDigits = (type: SensorParameterType): number =>
 	return 0;
 };
 
+type FormatSensorValueOptions = {
+	fallback?: string;
+};
+
+/**
+ * 統一感測器數值顯示格式（避免同一參數在不同元件顯示不一致）
+ */
+export const formatSensorValue = (
+	type: SensorParameterType,
+	value: number | null | undefined,
+	options: FormatSensorValueOptions = {}
+): string => {
+	const fallback = options.fallback ?? "--";
+	if (value === null || value === undefined || Number.isNaN(value)) return fallback;
+
+	const digits = getParameterFractionDigits(type);
+	return value.toFixed(digits);
+};
+
 /**
  * 清理參數格式（移除舊格式的欄位，只保留 type 和 enabled）
  * 支援多種 enabled 格式：布林值、字串 "true"/"false"、數字 1/0

@@ -27,7 +27,7 @@
 			</div>
 
 			<button
-				v-if="isAdmin"
+				v-if="isOperator"
 				type="button"
 				class="rounded-xl bg-purple-500/80 px-4 py-2 text-base text-white hover:bg-purple-400 disabled:cursor-not-allowed disabled:bg-purple-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
 				@click="showDeviceTypeDialog = true"
@@ -45,7 +45,7 @@
 				</h2>
 				<div class="flex items-center gap-3 2xl:gap-4">
 					<button
-						v-if="isAdmin"
+						v-if="isOperator"
 						type="button"
 						:disabled="!activeTab"
 						class="rounded-xl bg-blue-500/80 px-4 py-2 text-base text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-blue-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
@@ -54,7 +54,7 @@
 						型號管理
 					</button>
 					<button
-						v-if="isAdmin"
+						v-if="isOperator"
 						type="button"
 						class="rounded-xl bg-emerald-500/80 px-4 py-2 text-base text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
 						@click="showCreateDialog = true"
@@ -83,7 +83,7 @@
 											</select>
 										</label>
 									</th>
-									<th v-if="isAdmin" :class="tableHeaderClass">操作</th>
+									<th v-if="isOperator" :class="tableHeaderClass">操作</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -112,7 +112,7 @@
 									<td :class="[tableCellClass, 'text-white/70']">
 										{{ formatDate(device.created_at) }}
 									</td>
-									<td v-if="isAdmin" :class="tableCellClass">
+									<td v-if="isOperator" :class="tableCellClass">
 										<div class="flex gap-2 2xl:gap-3">
 											<button
 												type="button"
@@ -148,7 +148,7 @@
 					<!-- 無數據提示 -->
 					<div v-else key="empty" class="py-8 text-center text-white/60">
 						<p class="text-lg 2xl:text-xl">尚無設備資料</p>
-						<p v-if="isAdmin" class="mt-2 text-sm 2xl:text-base">
+						<p v-if="isOperator" class="mt-2 text-sm 2xl:text-base">
 							點擊「新增設備」開始建立 {{ currentTabName }}
 						</p>
 					</div>
@@ -161,7 +161,7 @@
 			v-model="showDialog"
 			:editing-device="editingDevice"
 			:device-type-code="activeTab"
-			:is-admin="isAdmin"
+			:is-admin="isOperator"
 			:is-submitting="isSubmitting"
 			:error-message="errorMessage"
 			:refresh-device-types="refreshDeviceTypes"
@@ -220,7 +220,7 @@ definePageMeta({
 	layout: "auxiliary"
 });
 
-const { isAdmin } = useAuth();
+const { isAdmin, isOperator } = useAuth();
 const deviceApi = useDeviceApi();
 const toast = useToast();
 const { handleError: handleApiError } = useErrorHandler();

@@ -41,29 +41,33 @@
 				請新增影片連結或上傳影片
 			</div>
 
-			<button
-				type="button"
-				class="absolute right-0 top-0 z-10 hidden rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 group-hover:block 2xl:text-base"
-				aria-label="編輯影片"
-				@click="isEditOpen = true"
-				@keydown.enter="isEditOpen = true"
-				@keydown.space.prevent="isEditOpen = true"
-			>
-				編輯
-			</button>
+			<template v-if="isOperator">
+				<button
+					type="button"
+					class="absolute right-0 top-0 z-10 hidden rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 group-hover:block 2xl:text-base"
+					aria-label="編輯影片"
+					@click="isEditOpen = true"
+					@keydown.enter="isEditOpen = true"
+					@keydown.space.prevent="isEditOpen = true"
+				>
+					編輯
+				</button>
+			</template>
 		</div>
 
-		<EditMockDialog
-			v-model="isEditOpen"
-			title="編輯影片"
-			:value="videoSrcRaw"
-			input-mode="video"
-			placeholder="例如：https://www.youtube.com/embed/xxx"
-			hint="可貼上 YouTube 嵌入網址、觀看網址，或點「上傳影片」上傳檔案。"
-			@save="saveVideoSrc"
-			@reset="resetVideoSrc"
-			@upload="handleUploadVideo"
-		/>
+		<template v-if="isOperator">
+			<EditMockDialog
+				v-model="isEditOpen"
+				title="編輯影片"
+				:value="videoSrcRaw"
+				input-mode="video"
+				placeholder="例如：https://www.youtube.com/embed/xxx"
+				hint="可貼上 YouTube 嵌入網址、觀看網址，或點「上傳影片」上傳檔案。"
+				@save="saveVideoSrc"
+				@reset="resetVideoSrc"
+				@upload="handleUploadVideo"
+			/>
+		</template>
 	</div>
 </template>
 
@@ -73,6 +77,7 @@ import { useAppSettings } from "~/composables/core/useAppSettings";
 import { useUploadBaseUrl } from "~/composables/core/useUploadBaseUrl";
 import { resolveUploadUrl } from "~/utils/apiUtils";
 import { createSafeFileName } from "~/utils/fileUtils";
+import { useAuth } from "~/composables/core/useAuth";
 
 const {
 	value: videoSrcRaw,
@@ -83,6 +88,8 @@ const {
 	key: "home_video_src",
 	defaultValue: ""
 });
+
+const { isOperator } = useAuth();
 
 const isEditOpen = ref(false);
 const videoRef = ref<HTMLVideoElement | null>(null);

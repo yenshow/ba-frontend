@@ -21,29 +21,33 @@
 					請上傳或設定專案圖片
 				</div>
 
-				<button
-					type="button"
-					class="absolute -right-2 -top-2 hidden rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 group-hover:block 2xl:text-base"
-					aria-label="編輯專案圖片"
-					@click="isProjectImageEditOpen = true"
-					@keydown.enter="isProjectImageEditOpen = true"
-					@keydown.space.prevent="isProjectImageEditOpen = true"
-				>
-					編輯
-				</button>
+				<template v-if="isOperator">
+					<button
+						type="button"
+						class="absolute -right-2 -top-2 hidden rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 group-hover:block 2xl:text-base"
+						aria-label="編輯專案圖片"
+						@click="isProjectImageEditOpen = true"
+						@keydown.enter="isProjectImageEditOpen = true"
+						@keydown.space.prevent="isProjectImageEditOpen = true"
+					>
+						編輯
+					</button>
+				</template>
 			</div>
 
-			<EditMockDialog
-				v-model="isProjectImageEditOpen"
-				title="編輯專案圖片"
-				:value="projectImageSrcRaw"
-				input-mode="image"
-				placeholder="例如：https://... 或上傳圖片"
-				preview-alt="專案圖片預覽"
-				@save="saveProjectImageSrc"
-				@reset="resetProjectImageSrc"
-				@upload="handleUploadProjectImage"
-			/>
+			<template v-if="isOperator">
+				<EditMockDialog
+					v-model="isProjectImageEditOpen"
+					title="編輯專案圖片"
+					:value="projectImageSrcRaw"
+					input-mode="image"
+					placeholder="例如：https://... 或上傳圖片"
+					preview-alt="專案圖片預覽"
+					@save="saveProjectImageSrc"
+					@reset="resetProjectImageSrc"
+					@upload="handleUploadProjectImage"
+				/>
+			</template>
 		</div>
 
 		<!-- 右側：日期時間 -->
@@ -73,6 +77,7 @@ import { useAppSettings } from "~/composables/core/useAppSettings";
 import { useUploadBaseUrl } from "~/composables/core/useUploadBaseUrl";
 import { resolveUploadUrl } from "~/utils/apiUtils";
 import { createSafeFileName } from "~/utils/fileUtils";
+import { useAuth } from "~/composables/core/useAuth";
 
 // --- 專案圖片設定 ---
 
@@ -85,6 +90,8 @@ const {
 	key: "home_header_project_image",
 	defaultValue: ""
 });
+
+const { isOperator } = useAuth();
 
 const apiBase = useUploadBaseUrl();
 const projectImageSrc = computed(() =>

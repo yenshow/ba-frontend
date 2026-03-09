@@ -196,7 +196,13 @@ export const usePeopleCountingApi = () => {
 	 */
 	const getLocationLogs = async (
 		locationId: number,
-		options?: { limit?: number; unitId?: number; startTime?: string; endTime?: string; offset?: number }
+		options?: {
+			limit?: number;
+			unitId?: number;
+			startTime?: string;
+			endTime?: string;
+			offset?: number;
+		}
 	): Promise<PeopleCountingLog[]> => {
 		try {
 			const q: Record<string, string> = {};

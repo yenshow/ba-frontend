@@ -101,27 +101,20 @@ const toastClasses = {
 	info: "bg-blue-500/90 text-white border-blue-400/50"
 };
 
-const NEW_WINDOW_WIDTH = 1920;
-const NEW_WINDOW_HEIGHT = 1080;
-
-const openAlertLogInNewWindow = (path: string) => {
+const openAlertLogInNewTab = (path: string) => {
 	if (import.meta.client) {
 		const url = path.startsWith("http") ? path : `${window.location.origin}${path}`;
-		window.open(
-			url,
-			"_blank",
-			`width=${NEW_WINDOW_WIDTH},height=${NEW_WINDOW_HEIGHT},noopener,noreferrer,scrollbars=yes,resizable=yes`
-		);
+		window.open(url, "_blank", "noopener,noreferrer");
 	}
 };
 
 /**
- * 處理 Toast 點擊事件（新視窗開啟警示紀錄頁面）
+ * 處理 Toast 點擊事件（新分頁開啟警示紀錄頁面）
  */
 const handleToastClick = (toast: Toast) => {
 	if (toast.alertId) {
 		removeAlertToast(toast.alertId);
-		openAlertLogInNewWindow(`/core/alert-log?alertId=${toast.alertId}`);
+		openAlertLogInNewTab(`/core/alert-log?alertId=${toast.alertId}`);
 	}
 };
 </script>

@@ -76,7 +76,7 @@
 					<footer class="flex items-center gap-3 border-t border-white/20 pt-4 pr-7 2xl:gap-4 2xl:pr-8">
 						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
 						<div class="flex-1"></div>
-						<button type="button" class="btn-primary" @click="showForm = true">新增類型</button>
+						<button type="button" class="btn-primary" @click="openAddForm">新增類型</button>
 					</footer>
 				</div>
 
@@ -89,17 +89,25 @@
 							class="dialog-panel-bg flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-hidden rounded-3xl pl-7 pr-0 pt-7 pb-7 2xl:max-w-lg 2xl:gap-6 2xl:pl-8 2xl:pr-0 2xl:pt-8 2xl:pb-8"
 						>
 							<header class="flex items-center justify-between pr-7 2xl:pr-8">
-								<h3 class="text-lg font-semibold tracking-[4px] text-white 2xl:text-xl">
+								<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">
 									{{ editingType ? "編輯設備類型" : "新增設備類型" }}
 								</h3>
-								<button
-									type="button"
-									class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
-									aria-label="關閉表單"
-									@click="closeForm"
-								>
-									&times;
-								</button>
+								<div class="flex items-center gap-3">
+									<FormChangeIndicator
+										v-if="formHasUnsavedChanges"
+										:has-changes="formHasUnsavedChanges"
+										:changed-fields="formChangedFieldsList"
+										:message="formChangeSummary"
+									/>
+									<button
+										type="button"
+										class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
+										aria-label="關閉表單"
+										@click="handleCloseFormClick"
+									>
+										&times;
+									</button>
+								</div>
 							</header>
 
 							<form
@@ -145,18 +153,19 @@
 								</p>
 							</form>
 
-							<footer class="flex items-center gap-3 pr-7 2xl:gap-4 2xl:pr-8">
-								<button
-									type="button"
-									class="btn-secondary"
-									@click="closeForm"
-									:disabled="isSubmitting"
-								>
+							<footer class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8">
+								<button type="button" class="btn-secondary" @click="handleCloseFormClick">
 									取消
 								</button>
 								<div class="flex-1"></div>
-								<button type="button" class="btn-primary" :disabled="isSubmitting" @click="handleSubmit">
-									{{ isSubmitting ? "處理中..." : editingType ? "更新" : "建立" }}
+								<button
+									type="button"
+									class="btn-primary"
+									:class="{ 'cursor-not-allowed opacity-50': editingType && !formHasUnsavedChanges }"
+									:disabled="isSubmitting || (editingType && !formHasUnsavedChanges)"
+									@click="handleSubmit"
+								>
+									{{ isSubmitting ? "處理中..." : editingType ? "儲存變更" : "建立" }}
 								</button>
 							</footer>
 						</div>
@@ -173,7 +182,7 @@
 		:message="confirmDialogConfig.message"
 		:details="confirmDialogConfig.details"
 		:type="confirmDialogConfig.type"
-		@confirm="handleConfirmDelete"
+		@confirm="handleConfirmDialogConfirm"
 	/>
 </template>
 
@@ -183,6 +192,7 @@ import { useDeviceApi } from "~/composables/systems/useDeviceApi";
 import { useToast } from "~/composables/core/useToast";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
+import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 
 const props = defineProps<{
 	modelValue: boolean;
@@ -206,7 +216,59 @@ const isSubmitting = ref(false);
 
 const formData = ref({ name: "", code: "", description: "" });
 
+// 表單快照（內層新增/編輯類型表單）
+const formInitialSnapshot = ref<{ name: string; code: string; description: string } | null>(null);
+
+const getFormSnapshot = () => ({
+	name: formData.value.name,
+	code: formData.value.code,
+	description: formData.value.description
+});
+
+const formHasUnsavedChanges = computed(() => {
+	if (!showForm.value) return false;
+	if (editingType.value) {
+		if (!formInitialSnapshot.value) return false;
+		const cur = getFormSnapshot();
+		const init = formInitialSnapshot.value;
+		return cur.name !== init.name || cur.code !== init.code || cur.description !== init.description;
+	}
+	const cur = getFormSnapshot();
+	return cur.name.trim() !== "" || cur.code.trim() !== "" || cur.description.trim() !== "";
+});
+
+const formChangedFieldsList = computed(() => {
+	if (!editingType.value || !formInitialSnapshot.value) return [];
+	const cur = getFormSnapshot();
+	const init = formInitialSnapshot.value;
+	const fields: string[] = [];
+	if (cur.name !== init.name) fields.push(`類型名稱: ${init.name || "(空)"} → ${cur.name || "(空)"}`);
+	if (cur.code !== init.code) fields.push("類型代碼");
+	if (cur.description !== init.description) fields.push("描述");
+	return fields;
+});
+
+const formChangeSummary = computed(() => {
+	const count = formChangedFieldsList.value.length;
+	if (count === 0 && !editingType.value && formHasUnsavedChanges.value) return "表單已填寫，尚未儲存";
+	if (count === 0) return "";
+	return `有 ${count} 個欄位已修改`;
+});
+
+const CONFIRM_CLOSE = {
+	title: "確認關閉",
+	message: "您有未保存的變更，確定要關閉嗎？",
+	details: "未保存的變更將會遺失。",
+	type: "warning" as const
+};
+
 const handleClose = () => {
+	if (showForm.value && formHasUnsavedChanges.value) {
+		confirmAction.value = "closeMain";
+		confirmDialog.show(CONFIRM_CLOSE);
+		return;
+	}
+	if (showForm.value) closeFormInternal();
 	emit("update:modelValue", false);
 	emit("close");
 };
@@ -229,17 +291,29 @@ const loadDeviceTypes = async (force = false) => {
 	}
 };
 
+const openAddForm = () => {
+	editingType.value = null;
+	formData.value = { name: "", code: "", description: "" };
+	showForm.value = true;
+	nextTick(() => {
+		formInitialSnapshot.value = getFormSnapshot();
+	});
+};
+
 const editDeviceType = (type: DeviceType) => {
 	editingType.value = type;
 	formData.value = { name: type.name, code: type.code, description: type.description || "" };
 	showForm.value = true;
+	nextTick(() => {
+		formInitialSnapshot.value = getFormSnapshot();
+	});
 };
 
-// 確認對話框
+// 確認對話框（刪除 / 關閉表單 / 關閉主對話框）
 const confirmDialog = useConfirmDialog();
+const confirmAction = ref<"delete" | "closeForm" | "closeMain">("delete");
 const pendingDeleteType = ref<DeviceType | null>(null);
 
-// 解包 ref 以便在模板中使用
 const showConfirmDialog = computed({
 	get: () => confirmDialog.showDialog.value,
 	set: (value: boolean) => {
@@ -249,7 +323,37 @@ const showConfirmDialog = computed({
 
 const confirmDialogConfig = computed(() => confirmDialog.config.value);
 
+const handleConfirmDialogConfirm = () => {
+	if (confirmAction.value === "delete") handleConfirmDelete();
+	else if (confirmAction.value === "closeForm") closeFormInternal();
+	else if (confirmAction.value === "closeMain") closeMainDialog();
+};
+
+const closeFormInternal = () => {
+	showForm.value = false;
+	editingType.value = null;
+	formData.value = { name: "", code: "", description: "" };
+	errorMessage.value = null;
+	formInitialSnapshot.value = null;
+};
+
+const closeMainDialog = () => {
+	closeFormInternal();
+	emit("update:modelValue", false);
+	emit("close");
+};
+
+const handleCloseFormClick = () => {
+	if (formHasUnsavedChanges.value) {
+		confirmAction.value = "closeForm";
+		confirmDialog.show(CONFIRM_CLOSE);
+		return;
+	}
+	closeFormInternal();
+};
+
 const confirmDelete = (type: DeviceType) => {
+	confirmAction.value = "delete";
 	pendingDeleteType.value = type;
 	confirmDialog.show({
 		title: "確認刪除",
@@ -277,13 +381,6 @@ const handleConfirmDelete = async () => {
 	}
 };
 
-const closeForm = () => {
-	showForm.value = false;
-	editingType.value = null;
-	formData.value = { name: "", code: "", description: "" };
-	errorMessage.value = null;
-};
-
 const handleSubmit = async () => {
 	isSubmitting.value = true;
 	errorMessage.value = null;
@@ -302,7 +399,7 @@ const handleSubmit = async () => {
 			});
 			toast.success("設備類型建立成功");
 		}
-		closeForm();
+		closeFormInternal();
 		await refreshListAndNotify();
 	} catch (error) {
 		handleError(error, "操作失敗");
@@ -313,7 +410,10 @@ const handleSubmit = async () => {
 
 watch(
 	() => props.modelValue,
-	newVal => newVal && loadDeviceTypes()
+	newVal => {
+		if (newVal) loadDeviceTypes();
+		else closeFormInternal();
+	}
 );
 </script>
 

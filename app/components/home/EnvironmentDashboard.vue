@@ -82,7 +82,7 @@
 							</div>
 							<!-- 數值（中間） -->
 							<div class="text-4xl 2xl:text-5xl" :class="getNoiseValueColor()">
-								{{ sensorData.noise !== null ? Math.round(sensorData.noise) : "--" }}
+								{{ getFormattedValue("noise", sensorData.noise) }}
 							</div>
 						</div>
 					</div>
@@ -121,7 +121,7 @@
 							</div>
 							<!-- 數值（中間） -->
 							<div class="text-4xl text-white 2xl:text-5xl">
-								{{ sensorData.pm25 !== null ? Math.round(sensorData.pm25) : "--" }}
+								{{ getFormattedValue("pm25", sensorData.pm25) }}
 							</div>
 						</div>
 					</div>
@@ -158,7 +158,8 @@ import type { SensorDeviceModelConfig } from "~/types/device";
 import {
 	getParameterDisplayName,
 	getParameterUnit,
-	getParameterFractionDigits
+	getParameterFractionDigits,
+	formatSensorValue
 } from "~/utils/sensorUtils";
 
 interface Props {
@@ -245,6 +246,10 @@ const displayParams = computed(() => {
 // 取得參數值
 const getParamValue = (type: SensorParameterType): number | null => {
 	return props.sensorData[type] ?? null;
+};
+
+const getFormattedValue = (type: SensorParameterType, value: number | null): string => {
+	return formatSensorValue(type, value, { fallback: "--" });
 };
 
 // 計算熱指數

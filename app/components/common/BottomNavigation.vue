@@ -82,7 +82,7 @@
 					<!-- 1. 警示紀錄 -->
 					<button
 						:class="getButtonClasses(isActive('/core/alert-log'))"
-						@click.stop="navigateToRouteInNewWindow('/core/alert-log')"
+						@click.stop="navigateToRouteInNewTab('/core/alert-log')"
 						aria-label="警示紀錄"
 					>
 						<div class="relative">
@@ -105,7 +105,7 @@
 					</button>
 
 					<!-- 2. 更多功能（下拉：設備管理、全區點位圖、人員管理） -->
-					<div class="relative z-[100]" data-more-functions-menu>
+					<div v-if="isOperator" class="relative z-[100]" data-more-functions-menu>
 						<button
 							ref="moreFunctionsButtonRef"
 							:class="getButtonClasses(showMoreFunctionsMenu)"
@@ -141,7 +141,7 @@
 										v-for="item in moreFunctionsItems"
 										:key="item.id"
 										class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
-										@click="navigateToRouteInNewWindow(item.route)"
+										@click="navigateToRouteInNewTab(item.route)"
 										:aria-label="`${item.name}`"
 									>
 										<NuxtImg
@@ -265,7 +265,7 @@ import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 
 const route = useRoute();
 const router = useRouter();
-const { user, isAuthenticated, isAdmin, logout } = useAuth();
+const { user, isAuthenticated, isAdmin, isOperator, logout } = useAuth();
 const toast = useToast();
 
 // 未解決警報數量（參考 AppHeader 顯示）
@@ -452,21 +452,17 @@ const navigateToRoute = (routePath: string) => {
 	router.push(routePath);
 };
 
-const NEW_WINDOW_WIDTH = 1920;
-const NEW_WINDOW_HEIGHT = 1080;
-
-const navigateToRouteInNewWindow = (routePath: string) => {
+const navigateToRouteInNewTab = (routePath: string) => {
 	closeAllMenus();
 	if (import.meta.client) {
 		const url = routePath.startsWith("http") ? routePath : `${window.location.origin}${routePath}`;
-		const features = `width=${NEW_WINDOW_WIDTH},height=${NEW_WINDOW_HEIGHT},noopener,noreferrer,scrollbars=yes,resizable=yes`;
-		window.open(url, "_blank", features);
+		window.open(url, "_blank", "noopener,noreferrer");
 	}
 };
 
 const handleUserManagement = () => {
 	closeAllMenus();
-	navigateToRouteInNewWindow("/core/users");
+	navigateToRouteInNewTab("/core/users");
 };
 
 const handleLogout = async () => {
