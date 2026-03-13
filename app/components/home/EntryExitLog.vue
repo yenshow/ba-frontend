@@ -1,12 +1,13 @@
 <template>
-	<div
-		v-if="logs.length === 0"
-		class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
-	>
-		<p class="text-sm text-white/60 xl:text-base">尚無進出場記錄</p>
-	</div>
+	<div>
+		<div
+			v-if="logs.length === 0"
+			class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
+		>
+			<p class="text-sm text-white/60 xl:text-base">尚無進出場記錄</p>
+		</div>
 
-	<div v-else class="show-scrollbar overflow-x-auto">
+		<div v-else class="show-scrollbar overflow-x-auto">
 		<table class="w-full border-b-2 border-l-2 border-r-2 border-white/20">
 			<thead>
 				<tr
@@ -113,6 +114,7 @@
 				</tr>
 			</tbody>
 		</table>
+		</div>
 	</div>
 
 	<!-- 設備截圖 lightbox -->

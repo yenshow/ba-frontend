@@ -65,7 +65,9 @@ export default defineNuxtConfig({
 			apiBase: process.env.NUXT_PUBLIC_API_BASE || "http://192.168.2.8:4000/api",
 			secureCookie: process.env.NUXT_PUBLIC_SECURE_COOKIE || undefined,
 			websocketUrl: process.env.NUXT_PUBLIC_WEBSOCKET_URL || undefined,
-			websocketEnabled: process.env.NUXT_PUBLIC_WEBSOCKET_ENABLED !== "false"
+			websocketEnabled: process.env.NUXT_PUBLIC_WEBSOCKET_ENABLED !== "false",
+			/** 設為 true 時暫時開放所有功能（不顯示鎖頭、不擋路由） */
+			licenseOpenAllFeatures: process.env.NUXT_PUBLIC_LICENSE_OPEN_ALL_FEATURES === "true"
 		}
 	}
 });

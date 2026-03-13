@@ -316,8 +316,10 @@ const formatDeviceConfig = (config: DeviceConfig): string => {
 	switch (config.type) {
 		case "controller":
 			return `${config.host}`;
-		case "camera":
-			return config.host || config.ip_address || "-";
+		case "camera": {
+			const c = config as import("~/types/device").CameraDeviceConfig;
+			return c.host || c.ip_address || (c.rtsp_url ? "RTSP" : "-");
+		}
 		case "sensor":
 			if (config.protocol === "modbus") {
 				return `${config.host}`;

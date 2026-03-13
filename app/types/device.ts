@@ -86,14 +86,13 @@ export interface ControllerDeviceConfig extends DeviceConfigBase {
 	unitId?: number;
 }
 
-// 影像設備配置（MJPEG 預覽：host + isapi_preview_path）
+// 影像設備配置（RTSP + WebRTC，僅 rtsp_url 必填）
 export interface CameraDeviceConfig extends DeviceConfigBase {
 	type: "camera";
-	/** 設備 IP（與 host 二擇一，後端優先 host） */
+	/** RTSP URL，必填，例：rtsp://admin:xxx@192.168.2.102:554/Streaming/Channels/102 */
+	rtsp_url: string;
 	host?: string;
 	ip_address?: string;
-	/** ISAPI 預覽路徑，必填，例：/ISAPI/Streaming/channels/102/httpPreview；使用 HTTP 預設 port 80，不需設定 port */
-	isapi_preview_path: string;
 	username?: string;
 	password?: string;
 }
@@ -126,12 +125,19 @@ export type DeviceConfig =
 	| SensorDeviceConfig
 	| AccessControlDeviceConfig;
 
-/** 設備 MJPEG 預覽 URL 回傳（GET /api/devices/:id/preview-url） */
-export interface DevicePreviewUrlResponse {
-	url: string;
-	streamType: string;
-	deviceId: number;
-	deviceName: string;
+/** 串流啟動回傳（POST /api/devices/:id/stream/start） */
+export interface DeviceStreamStartResponse {
+	streamId: string;
+	pathName: string;
+	webrtcUrl: string;
+	status: string;
+}
+
+/** 串流狀態回傳（GET /api/devices/:id/stream/status） */
+export interface DeviceStreamStatusResponse {
+	streamId: string;
+	webrtcUrl: string;
+	status: "running" | "stopped";
 }
 
 // 通用設備介面

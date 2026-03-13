@@ -1,6 +1,6 @@
 /**
- * 監控畫面管理 Composable（MJPEG 預覽）
- * 負責監控畫面的增刪改查，每個畫面以 previewUrl 顯示
+ * 監控畫面管理 Composable（WebRTC 串流）
+ * 負責監控畫面的增刪改查；同一 deviceId 可對應多格（reference counting 在 useStreamStatus）
  */
 
 import type { MonitorView } from "~/types/surveillance";
@@ -9,14 +9,6 @@ export const useMonitorViews = () => {
 	const monitorViews = ref<MonitorView[]>([]);
 
 	const addMonitorView = (view: MonitorView) => {
-		const existingIndex = monitorViews.value.findIndex(
-			v => v.deviceId === view.deviceId
-		);
-		if (existingIndex >= 0) {
-			monitorViews.value.splice(existingIndex, 1);
-			reorderMonitorViews();
-			return;
-		}
 		const newView: MonitorView = {
 			...view,
 			position: monitorViews.value.length
@@ -24,16 +16,21 @@ export const useMonitorViews = () => {
 		monitorViews.value.push(newView);
 	};
 
+	/** 移除第一個符合 deviceId 的畫面（同一攝影機可有多格） */
 	const removeMonitorView = (deviceId: number) => {
-		const index = monitorViews.value.findIndex(v => v.deviceId === deviceId);
+		const index = monitorViews.value.findIndex((v) => v.deviceId === deviceId);
 		if (index >= 0) {
 			monitorViews.value.splice(index, 1);
 			reorderMonitorViews();
 		}
 	};
 
+	/** 更新指定 deviceId 的畫面（優先更新 streamStatus 為 loading 的那一筆） */
 	const updateMonitorView = (deviceId: number, updates: Partial<MonitorView>) => {
-		const view = monitorViews.value.find(v => v.deviceId === deviceId);
+		const view =
+			monitorViews.value.find(
+				(v) => v.deviceId === deviceId && v.streamStatus === "loading"
+			) ?? monitorViews.value.find((v) => v.deviceId === deviceId);
 		if (view) {
 			Object.assign(view, updates);
 		}

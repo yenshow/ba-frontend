@@ -50,9 +50,10 @@
 						:class="[
 							'group relative flex flex-col items-center justify-center gap-1 rounded-2xl p-2 transition-all duration-200',
 							'min-w-[100px] text-white',
-							isActive(item.route) ? 'bg-white/20' : 'hover:bg-white/15'
+							isActive(item.route) ? 'bg-white/20' : 'hover:bg-white/15',
+							isModuleLocked(item) && 'opacity-60'
 						]"
-						@click.stop="navigateToRoute(item.route)"
+						@click.stop="handleModuleClick(item)"
 						:aria-label="item.name"
 					>
 						<!-- 圖標 -->
@@ -66,6 +67,29 @@
 								quality="90"
 								loading="lazy"
 							/>
+							<!-- 鎖頭（未授權） -->
+							<div
+								v-if="isModuleLocked(item)"
+								class="absolute -right-4 -top-2 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/20"
+								aria-hidden="true"
+							>
+								<svg viewBox="0 0 24 24" class="h-8 w-8 text-white" fill="none">
+									<path
+										d="M8 11V8a4 4 0 1 1 8 0v3"
+										stroke="currentColor"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+									/>
+									<path
+										d="M7 11h10a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z"
+										stroke="currentColor"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+									/>
+								</svg>
+							</div>
 						</div>
 						<!-- 文字標籤 -->
 						<span class="text-xs 2xl:text-sm">
@@ -262,11 +286,14 @@ import type { SystemModule } from "~/types/system";
 import { useAuth } from "~/composables/core/useAuth";
 import { useToast } from "~/composables/core/useToast";
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
+import { useLicense } from "~/composables/core/useLicense";
+import { getFeatureKeyByRoute } from "~/utils/licenseUtils";
 
 const route = useRoute();
 const router = useRouter();
 const { user, isAuthenticated, isAdmin, isOperator, logout } = useAuth();
 const toast = useToast();
+const { hasFeature } = useLicense();
 
 // 未解決警報數量（參考 AppHeader 顯示）
 const {
@@ -450,6 +477,20 @@ const toggleMoreFunctionsMenu = () => {
 const navigateToRoute = (routePath: string) => {
 	closeAllMenus();
 	router.push(routePath);
+};
+
+const isModuleLocked = (module: SystemModule) => {
+	const featureKey = getFeatureKeyByRoute(module.route);
+	if (!featureKey) return false;
+	return !hasFeature(featureKey);
+};
+
+const handleModuleClick = (module: SystemModule) => {
+	if (isModuleLocked(module)) {
+		toast.warning("此功能尚未授權，請聯絡管理員");
+		return;
+	}
+	navigateToRoute(module.route);
 };
 
 const navigateToRouteInNewTab = (routePath: string) => {

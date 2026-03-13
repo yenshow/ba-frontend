@@ -34,6 +34,14 @@
 
 		<div class="flex items-center gap-2">
 			<button
+				v-if="modelValue === '9' || modelValue === '16'"
+				type="button"
+				@click="$emit('fullscreen')"
+				class="rounded-lg border-2 border-white/30 bg-white/10 px-4 py-2 text-xs font-medium text-white backdrop-blur-sm transition-all hover:border-white/40 hover:bg-white/15 xl:text-sm 2xl:text-lg"
+			>
+				全螢幕
+			</button>
+			<button
 				@click="$emit('refresh')"
 				class="rounded-lg border-2 border-white/30 bg-white/10 px-4 py-2 text-xs font-medium text-white backdrop-blur-sm transition-all hover:border-white/40 hover:bg-white/15 xl:text-sm 2xl:text-lg"
 			>
@@ -58,11 +66,13 @@ defineProps<Props>();
 defineEmits<{
 	"update:modelValue": [value: GridLayout];
 	refresh: [];
+	fullscreen: [];
 }>();
 
 const layoutOptions = [
 	{ value: "1" as GridLayout, label: "1 畫面" },
 	{ value: "4" as GridLayout, label: "4 畫面" },
-	{ value: "9" as GridLayout, label: "9 畫面" }
+	{ value: "9" as GridLayout, label: "9 畫面" },
+	{ value: "16" as GridLayout, label: "16 畫面" }
 ];
 </script>

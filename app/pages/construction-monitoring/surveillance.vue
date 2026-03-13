@@ -16,6 +16,7 @@
 							:view-count="monitorViews.length"
 							:max-views="parseInt(gridLayout)"
 							@refresh="refreshStatus"
+							@fullscreen="isFullscreenOpen = true"
 						/>
 					</div>
 
@@ -146,6 +147,14 @@
 			</aside>
 		</div>
 	</div>
+
+	<SurveillanceFullscreenGridDialog
+		v-model="isFullscreenOpen"
+		:cameras="cameras"
+		:views="monitorViews"
+		:layout="gridLayout"
+		@remove="handleRemoveView"
+	/>
 </template>
 
 <script setup lang="ts">
@@ -157,6 +166,7 @@ import { useStreamStatus } from "~/composables/monitoring/useStreamStatus";
 import SurveillanceControlPanel from "~/components/surveillance/SurveillanceControlPanel.vue";
 import SurveillanceCameraGrid from "~/components/surveillance/SurveillanceCameraGrid.vue";
 import SurveillanceCameraCard from "~/components/surveillance/SurveillanceCameraCard.vue";
+import SurveillanceFullscreenGridDialog from "~/components/surveillance/SurveillanceFullscreenGridDialog.vue";
 
 const toast = useToast();
 const { handleError } = useErrorHandler();
@@ -201,6 +211,8 @@ const monitorViews = computed(() => streamStatus.monitorViews.value);
 const gridLayout = ref<GridLayout>("1");
 const selectedCameraIds = computed(() => monitorViews.value.map(view => view.deviceId));
 
+const isFullscreenOpen = ref(false);
+
 // 側邊欄收縮狀態
 const isSidebarCollapsed = ref(false);
 
@@ -225,7 +237,7 @@ const refreshStatus = async () => {
 	}
 };
 
-// 處理攝影機選擇：加入或移除監控畫面（加入時會取得 MJPEG 預覽 URL）
+// 處理攝影機選擇：加入或移除監控畫面（加入時呼叫 stream/start 取得 webrtcUrl）
 const handleCameraSelect = async (deviceId: number) => {
 	const existing = monitorViews.value.find(v => v.deviceId === deviceId);
 	if (existing) {
@@ -243,7 +255,7 @@ const handleCameraSelect = async (deviceId: number) => {
 		await streamStatus.addMonitorView(deviceId);
 		toast.success("已加入監控畫面");
 	} catch (error) {
-		handleError(error, "取得預覽失敗");
+		handleError(error, "啟動串流失敗");
 	}
 };
 
@@ -263,6 +275,16 @@ watch(gridLayout, newLayout => {
 	}
 	// ResizeObserver 會自動監聽尺寸變化，無需手動更新
 });
+
+watch(
+	() => isFullscreenOpen.value,
+	isOpen => {
+		if (!isOpen) return;
+		if (gridLayout.value !== "9" && gridLayout.value !== "16") {
+			isFullscreenOpen.value = false;
+		}
+	}
+);
 
 onBeforeUnmount(() => {
 	if (leftSectionResizeObserver && leftSectionRef.value) {

@@ -1,5 +1,5 @@
 /**
- * 攝影機列表狀態（MJPEG 預覽：僅載入設備列表，無串流啟動/停止）
+ * 攝影機列表狀態（載入設備列表，串流由 useStreamStatus 管理）
  */
 
 import type { SurveillanceCamera } from "~/types/surveillance";

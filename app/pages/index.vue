@@ -1,29 +1,41 @@
 <template>
 	<div class="relative">
-		<!-- 主要內容區域 -->
 		<div class="grid grid-cols-10 gap-4 2xl:gap-8">
-			<!-- 左側欄 - 環境監測數據 -->
+			<!-- 左側欄 - 環境監測（未授權時不顯示數據） -->
 			<div class="col-span-3">
-				<EnvironmentDashboard
-					v-if="selectedLocation"
-					:location="selectedLocation"
-					:sensor-data="sensorData"
-					:device-model-config="deviceModelConfig"
-				/>
 				<div
-					v-else-if="selectedUnifiedLocation"
+					v-if="showLicensePlaceholder"
 					class="rounded-2xl border-2 border-white/30 bg-white/10 p-8 text-center"
 				>
-					<p class="text-white/60">該地點未配置環境監測系統</p>
+					<p class="text-white/60">載入中...</p>
 				</div>
-				<div v-else class="rounded-2xl border-2 border-white/30 bg-white/10 p-8 text-center">
-					<p class="text-white/60">載入地點中...</p>
+				<div v-else-if="hasEnvironment" class="min-w-0">
+					<EnvironmentDashboard
+						v-if="selectedLocation"
+						:location="selectedLocation"
+						:sensor-data="sensorData"
+						:device-model-config="deviceModelConfig"
+					/>
+					<div
+						v-else-if="selectedUnifiedLocation"
+						class="rounded-2xl border-2 border-white/30 bg-white/10 p-8 text-center"
+					>
+						<p class="text-white/60">該地點未配置環境監測系統</p>
+					</div>
+					<div v-else class="rounded-2xl border-2 border-white/30 bg-white/10 p-8 text-center">
+						<p class="text-white/60">載入地點中...</p>
+					</div>
+				</div>
+				<div
+					v-else
+					class="rounded-2xl border-2 border-white/30 bg-white/10 p-8 text-center"
+				>
+					<p class="text-white/60">尚無資料</p>
 				</div>
 			</div>
 
 			<!-- 中間區域 - 人員統計 -->
 			<div class="col-span-4">
-				<!-- 區域地點選擇器 -->
 				<div class="mb-4 w-full 2xl:mb-6">
 					<FilterDropdown
 						v-model="selectedLocationId"
@@ -32,15 +44,41 @@
 						textSize="text-4xl"
 					/>
 				</div>
-				<PersonnelStats :locations="filteredPeopleCountingLocations" />
-
-				<!-- 影片播放（可編輯：新增連結或上傳影片，儲存至後端） -->
+				<div
+					v-if="showLicensePlaceholder"
+					class="mb-4 rounded-2xl border-2 border-white/30 bg-white/10 p-8 text-center 2xl:mb-6"
+				>
+					<p class="text-white/60">載入中...</p>
+				</div>
+				<div v-else-if="hasPeopleCounting" class="mb-4 min-w-0 2xl:mb-6">
+					<PersonnelStats :locations="filteredPeopleCountingLocations" />
+				</div>
+				<div
+					v-else
+					class="mb-4 rounded-2xl border-2 border-white/30 bg-white/10 p-8 text-center 2xl:mb-6"
+				>
+					<p class="text-white/60">尚無資料</p>
+				</div>
 				<HomeVideoPlayer />
 			</div>
 
 			<!-- 右側欄 - 人員進出記錄 -->
 			<div class="col-span-3">
-				<EntryExitLog :logs="filteredLocationLogs" />
+				<div
+					v-if="showLicensePlaceholder"
+					class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
+				>
+					<p class="text-sm text-white/60 xl:text-base">載入中...</p>
+				</div>
+				<div v-else-if="hasPeopleCounting" class="min-w-0">
+					<EntryExitLog :logs="filteredLocationLogs" />
+				</div>
+				<div
+					v-else
+					class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
+				>
+					<p class="text-sm text-white/60 xl:text-base">尚無資料</p>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -73,6 +111,7 @@ import { getLocationDeviceIds } from "~/utils/sensorUtils";
 import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState";
 import { usePeopleCountingWebSocket } from "~/composables/systems/peopleCounting/usePeopleCountingWebSocket";
 import { usePeopleCountingApi } from "~/composables/systems/usePeopleCountingApi";
+import { useLicense } from "~/composables/core/useLicense";
 import type { PeopleCountingLog } from "~/types/peopleCounting";
 
 definePageMeta({
@@ -82,6 +121,14 @@ definePageMeta({
 const locationApi = useLocationApi();
 const deviceApi = useDeviceApi();
 const { request } = useApiBase();
+const { canLoadFeature, isLoaded: licenseLoaded } = useLicense();
+const hasEnvironment = computed(() => canLoadFeature("environment"));
+const hasPeopleCounting = computed(() => canLoadFeature("people_counting"));
+// 僅在客戶端 mount 後才依授權切換內容，避免 SSR 與 hydration 時 state 不同步導致節點不匹配
+const isMounted = ref(false);
+const showLicensePlaceholder = computed(
+	() => !isMounted.value || !licenseLoaded.value
+);
 const { handleError } = useErrorHandler();
 const toast = useToast();
 const { sortZones } = useZoneManagement<UnifiedZone>();
@@ -97,6 +144,10 @@ const MAX_DISPLAY_LOGS = 8;
 const locationLogs = ref<PeopleCountingLog[]>([]);
 
 const loadLocationLogs = async (locationId: string) => {
+	if (!hasPeopleCounting.value) {
+		locationLogs.value = [];
+		return;
+	}
 	try {
 		const list = await peopleCountingApi.getLocationLogs(Number(locationId), {
 			limit: MAX_DISPLAY_LOGS
@@ -222,6 +273,7 @@ const matchedPeopleCountingLocation = computed(() =>
 );
 
 const filteredPeopleCountingLocations = computed(() => {
+	if (!hasPeopleCounting.value) return [];
 	const matched = matchedPeopleCountingLocation.value;
 	return matched ? [matched] : [];
 });
@@ -526,7 +578,7 @@ const lastOfflineAlertTime = ref<number | null>(null);
 
 const loadSensorData = async () => {
 	if (isFetching.value) return;
-	if (!selectedLocation.value) return;
+	if (!hasEnvironment.value || !selectedLocation.value) return;
 
 	const deviceIds = getLocationDeviceIds(selectedLocation.value);
 	if (deviceIds.length === 0) return;
@@ -621,7 +673,7 @@ const { start: startPolling } = usePolling({
 });
 
 const initializeLocationData = async () => {
-	if (!selectedLocation.value) return;
+	if (!hasEnvironment.value || !selectedLocation.value) return;
 	await loadLocationSensorDevice(selectedLocation.value);
 	await nextTick();
 	await loadSensorData();
@@ -635,9 +687,9 @@ watch(
 		const locationId = matched?.locationId != null ? String(matched.locationId) : null;
 		await Promise.allSettled([
 			initializeLocationData(),
-			locationId ? loadLocationLogs(locationId) : Promise.resolve()
+			locationId && hasPeopleCounting.value ? loadLocationLogs(locationId) : Promise.resolve()
 		]);
-		if (!locationId) locationLogs.value = [];
+		if (!locationId || !hasPeopleCounting.value) locationLogs.value = [];
 	}
 );
 
@@ -645,6 +697,10 @@ const { setupEventListeners } = usePeopleCountingWebSocket();
 let cleanupWebSocket: (() => void) | null = null;
 
 const refreshCurrentLocationLogs = async () => {
+	if (!hasPeopleCounting.value) {
+		locationLogs.value = [];
+		return;
+	}
 	const matched = matchedPeopleCountingLocation.value;
 	if (matched?.locationId != null) {
 		await loadLocationLogs(String(matched.locationId));
@@ -654,22 +710,25 @@ const refreshCurrentLocationLogs = async () => {
 };
 
 onMounted(async () => {
+	isMounted.value = true;
 	cleanupWebSocket = setupEventListeners(async () => {
-		await loadPeopleCountingLocations();
-		await refreshCurrentLocationLogs();
+		if (hasPeopleCounting.value) {
+			await loadPeopleCountingLocations();
+			await refreshCurrentLocationLogs();
+		}
 	}, 500);
 
 	const [zonesResult, peopleCountingResult] = await Promise.allSettled([
 		loadZones(),
-		loadPeopleCountingLocations()
+		hasPeopleCounting.value ? loadPeopleCountingLocations() : Promise.resolve()
 	]);
 	await nextTick();
 
 	const parallelTasks: Promise<void>[] = [];
-	if (zonesResult.status === "fulfilled") {
+	if (zonesResult.status === "fulfilled" && hasEnvironment.value) {
 		parallelTasks.push(initializeLocationData().catch(console.error));
 	}
-	if (peopleCountingResult.status === "fulfilled") {
+	if (peopleCountingResult.status === "fulfilled" && hasPeopleCounting.value) {
 		parallelTasks.push(refreshCurrentLocationLogs().catch(console.error));
 	}
 	await Promise.allSettled(parallelTasks);
@@ -679,7 +738,7 @@ onMounted(async () => {
 watch(
 	() => peopleCountingLocations.value,
 	() => {
-		refreshCurrentLocationLogs();
+		if (hasPeopleCounting.value) refreshCurrentLocationLogs();
 	},
 	{ deep: true }
 );

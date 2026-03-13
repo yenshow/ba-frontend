@@ -585,10 +585,6 @@ const handleEnvironmentReadingNew = (event: EnvironmentReadingNewEvent) => {
 		}
 	});
 	allLocationsSensorData.value.set(locationIdStr, existingData);
-
-	if (process.dev) {
-		console.log("[Environment] 收到新讀數:", locationId, reading);
-	}
 };
 
 // 選擇地點
@@ -604,6 +600,8 @@ const isSensorOffline = ref(false);
 // 驗證提示間隔（用於配置驗證提示，非警報通知）
 const VALIDATION_ALERT_INTERVAL = 30000;
 let lastValidationAlertTime: number | null = null;
+/** 設備連線異常 Toast 節流，與「缺少 Modbus 配置」分開 */
+let lastConnectionAlertTime: number | null = null;
 // 總覽面板載入狀態追蹤（key: locationId, value: 是否正在載入）
 const overviewLoadingMap = ref<Map<string, boolean>>(new Map());
 
@@ -779,22 +777,6 @@ const updateSensorData = (
 	locationId?: string,
 	location?: EnvironmentLocation
 ) => {
-	// 調試：輸出更新資訊（包括 null 值，用於追蹤問題）
-	if (process.dev) {
-		console.log(`[environment] updateSensorData:`, {
-			type,
-			value,
-			locationId,
-			locationName: location?.name,
-			currentLocationId: currentLocationData.value?.id,
-			isCurrentLocation: location?.id === currentLocationData.value?.id,
-			willUpdateSensorData:
-				location?.id === currentLocationData.value?.id ||
-				(!location?.id &&
-					locationId === getLocationId(currentLocationData.value || ({} as EnvironmentLocation)))
-		});
-	}
-
 	// 只有當更新的是當前選中地點的資料時，才更新 sensorData
 	// 避免更新其他地點（總覽面板）時覆蓋當前地點的資料
 	const isCurrentLocation =
@@ -902,9 +884,6 @@ const loadDeviceAndModelConfig = async (
 	if (useCache) {
 		const cached = deviceModelConfigCache.value.get(deviceId);
 		if (cached && Date.now() - cached.timestamp < CONFIG_CACHE_TTL) {
-			if (process.dev) {
-				console.log(`[environment] 使用緩存的設備配置: deviceId=${deviceId}`);
-			}
 			return { device: cached.device, modelConfig: cached.modelConfig };
 		}
 	}
@@ -1216,17 +1195,10 @@ const loadSensorData = async () => {
 			updateSensorData(param.type, null, getLocationId(location), location);
 		}
 
-		// 只在開發模式輸出載入日誌
-		if (process.dev) {
-			console.log("[environment] 載入感測器資料:", {
-				location: location.name,
-				enabledParamsCount: enabledParams.length,
-				deviceIds
-			});
-		}
-
 		// 多設備讀值：逐台設備讀取可提供的參數（同參數後讀覆蓋）
 		const providedParams = new Set<SensorParameterType>();
+		/** 有 Modbus 設定且已嘗試讀取的參數（用於區分「缺設定」與「讀取失敗」） */
+		const attemptedParams = new Set<SensorParameterType>();
 		let successCount = 0;
 		let failCount = 0;
 
@@ -1269,6 +1241,7 @@ const loadSensorData = async () => {
 
 			const results = await readParametersBatch(modbusConfig, paramAddressMapForBatch);
 			for (const { type, value, success } of results) {
+				attemptedParams.add(type);
 				if (success) {
 					updateSensorData(type, value, getLocationId(location), location);
 					providedParams.add(type);
@@ -1283,37 +1256,34 @@ const loadSensorData = async () => {
 			}
 		}
 
-		// 只有「所有設備都沒有提供」的參數，才提示缺少 Modbus 配置
-		const missingAcrossAllDevices = enabledParams
-			.filter(p => !providedParams.has(p.type))
+		// 僅對「從未有 Modbus 設定、未嘗試讀取」的參數提示缺少配置；有嘗試但讀取失敗視為連線/設備問題
+		const missingConfigParamNames = enabledParams
+			.filter(p => !attemptedParams.has(p.type))
 			.map(p => getParameterDisplayName(p.type));
 
-		if (missingAcrossAllDevices.length > 0) {
+		if (missingConfigParamNames.length > 0) {
 			const now = Date.now();
 			const shouldShowAlert =
 				!lastValidationAlertTime || now - lastValidationAlertTime >= VALIDATION_ALERT_INTERVAL;
 			if (shouldShowAlert) {
 				lastValidationAlertTime = now;
 				toast.warning(
-					`以下參數在已勾選的所有設備中都找不到 Modbus 配置：${missingAcrossAllDevices.join("、")}\n請到「設備型號管理」設定，或在「地點管理」再勾選能提供該參數的設備`,
+					`以下參數在已勾選的所有設備中都找不到 Modbus 配置：${missingConfigParamNames.join("、")}\n請到「設備型號管理」設定，或在「地點管理」再勾選能提供該參數的設備`,
 					10000
 				);
 			}
 		}
 
-		// 只在開發模式或失敗時輸出日誌
-		if (process.dev || failCount > 0) {
-			console.log("[environment] 感測器資料更新完成:", {
-				successCount,
-				failCount,
-				total: enabledParams.length,
-				providedParams: Array.from(providedParams)
-			});
-		}
-
-		// 如果所有參數讀取都失敗，記錄錯誤（不顯示 Toast，統一由警報監聽器處理）
+		// 有嘗試讀取但全部失敗 → 設備連線異常或 Modbus 位址錯誤，顯示對應 Toast
 		if (successCount === 0 && failCount > 0) {
 			await reportLocationError(currentLocationData.value, "無法讀取感測器資料，請檢查設備連線狀態");
+			const now = Date.now();
+			const shouldShowConnectionAlert =
+				!lastConnectionAlertTime || now - lastConnectionAlertTime >= VALIDATION_ALERT_INTERVAL;
+			if (shouldShowConnectionAlert) {
+				lastConnectionAlertTime = now;
+				toast.warning("設備連線異常或讀取失敗，請檢查設備連線與 Modbus 位址設定", 8000);
+			}
 		}
 
 		// 如果感測器恢復連線，清除錯誤狀態
@@ -1386,9 +1356,6 @@ const findSharedDeviceModelConfig = async (
 	const cacheKey = `${currentConfig.host}:${currentConfig.port}`;
 	const cachedConfig = sharedConfigCache.value.get(cacheKey);
 	if (cachedConfig !== undefined) {
-		if (process.dev) {
-			console.log(`[environment] 使用緩存的共享配置: ${cacheKey}`);
-		}
 		return cachedConfig;
 	}
 
@@ -1419,11 +1386,6 @@ const findSharedDeviceModelConfig = async (
 					otherConfig.port === currentConfig.port
 				) {
 					// 找到使用相同設備的地點，返回其設備型號配置並緩存
-					if (process.dev) {
-						console.log(
-							`[environment] 找到 ${currentLocation.name} 與 ${otherLocation.name} 使用相同設備，共享設備型號配置`
-						);
-					}
 					sharedConfigCache.value.set(cacheKey, modelConfig);
 					return modelConfig;
 				}
@@ -1643,15 +1605,6 @@ const getParameterValue = (type: SensorParameter["type"]): number | null => {
 			return null;
 	}
 
-	// 調試：輸出參數值（僅在開發模式且值為 null 時）
-	if (process.dev && value === null && type === "pm25") {
-		console.log(`[environment] getParameterValue pm25 為 null:`, {
-			type,
-			sensorData: { ...sensorData },
-			currentLocation: currentLocationData.value?.name
-		});
-	}
-
 	return value;
 };
 
@@ -1724,9 +1677,6 @@ const loadAlertRules = async () => {
 		const rules = await getRules("environment", "threshold");
 		alertRules.value = rules;
 		rulesLoaded.value = true;
-		if (process.dev) {
-			console.log("[environment] 警報規則已載入:", rules.length, "條規則");
-		}
 	} catch (error) {
 		console.warn("[environment] 載入警報規則失敗，將使用預設值:", error);
 		rulesLoaded.value = false;

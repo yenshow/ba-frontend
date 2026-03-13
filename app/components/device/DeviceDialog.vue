@@ -91,31 +91,14 @@
 
 						<template v-if="deviceTypeCode === 'camera'">
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>設備 IP (host) *</span>
+								<span>RTSP URL *</span>
 								<input
-									v-model="cameraConfig.host"
+									v-model="cameraConfig.rtsp_url"
 									type="text"
 									class="form-input"
-									placeholder="例如：192.168.2.102"
+									placeholder="rtsp://admin:密碼@192.168.2.102:554/Streaming/Channels/102"
 								/>
-							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>ISAPI 預覽路徑 *</span>
-								<input
-									v-model="cameraConfig.isapi_preview_path"
-									type="text"
-									class="form-input"
-									placeholder="可修改預設路徑"
-								/>
-							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>密碼</span>
-								<input
-									v-model="cameraConfig.password"
-									type="password"
-									class="form-input"
-									placeholder="選填"
-								/>
+								<p class="mt-1 text-xs text-white/50">須以 rtsp:// 開頭，路徑完整（海康例：/Streaming/Channels/102），建議 H.264 子碼流</p>
 							</label>
 						</template>
 
@@ -364,14 +347,9 @@ const controllerConfig = reactive<ControllerDeviceConfig>({
 	unitId: undefined
 });
 
-const defaultIsapiPreviewPath = "/ISAPI/Streaming/channels/102/httpPreview";
-
 const cameraConfig = reactive<CameraDeviceConfig>({
 	type: "camera",
-	host: "",
-	isapi_preview_path: defaultIsapiPreviewPath,
-	username: "admin",
-	password: ""
+	rtsp_url: ""
 });
 
 const sensorConfig = reactive<SensorDeviceConfig>({
@@ -515,10 +493,7 @@ const resetForm = () => {
 	controllerConfig.port = undefined;
 	controllerConfig.unitId = undefined;
 
-	cameraConfig.host = "";
-	cameraConfig.isapi_preview_path = defaultIsapiPreviewPath;
-	cameraConfig.username = "admin";
-	cameraConfig.password = "";
+	cameraConfig.rtsp_url = "";
 
 	sensorConfig.protocol = "modbus";
 	sensorConfig.host = "";
@@ -562,7 +537,7 @@ const createModeHasContent = computed(() => {
 	const configFilled = (() => {
 		const c = getCurrentConfig();
 		if (c.type === "controller") return !!(c.host && (c.port != null || controllerConfig.port != null));
-		if (c.type === "camera") return !!c.host;
+		if (c.type === "camera") return !!(c.rtsp_url && c.rtsp_url.trim().toLowerCase().startsWith("rtsp://"));
 		if (c.type === "sensor") {
 			if (c.protocol === "modbus") return !!(c.host && (c.port != null || sensorConfig.port != null));
 			if (c.protocol === "http") return !!c.api_endpoint;
@@ -673,12 +648,7 @@ const loadConfigFromDevice = (device: Device) => {
 			break;
 		case "camera": {
 			Object.assign(cameraConfig, device.config);
-			if (!cameraConfig.host && (cameraConfig as { ip_address?: string }).ip_address) {
-				cameraConfig.host = (cameraConfig as { ip_address?: string }).ip_address;
-			}
-			if (!cameraConfig.isapi_preview_path) cameraConfig.isapi_preview_path = defaultIsapiPreviewPath;
-			if (!cameraConfig.username) cameraConfig.username = "admin";
-			delete (cameraConfig as Record<string, unknown>).port;
+			if (!cameraConfig.rtsp_url) cameraConfig.rtsp_url = "";
 			break;
 		}
 		case "sensor":
@@ -740,10 +710,8 @@ const getCurrentConfig = (): DeviceConfig => {
 				...(controllerConfig.unitId != null && { unitId: controllerConfig.unitId })
 			};
 		}
-		case "camera": {
-			const { port: _p, ...rest } = cameraConfig as CameraDeviceConfig & { port?: number };
-			return { ...rest };
-		}
+		case "camera":
+			return { type: "camera", rtsp_url: cameraConfig.rtsp_url };
 		case "sensor": {
 			const { unitId, ...rest } = sensorConfig;
 			return { ...rest, ...(unitId != null && { unitId }) };
@@ -777,8 +745,8 @@ const handleSubmit = () => {
 
 	// 感測器 Modbus：端口與 Unit ID 必填（可繼承自型號）
 	if (props.deviceTypeCode === "sensor" && sensorConfig.protocol === "modbus") {
-		const hasPort = isSensorPortInherited.value || (sensorConfig.port != null && sensorConfig.port !== "");
-		const hasUnitId = isSensorUnitIdInherited.value || (sensorConfig.unitId != null && sensorConfig.unitId !== "");
+		const hasPort = isSensorPortInherited.value || (sensorConfig.port != null && sensorConfig.port > 0);
+		const hasUnitId = isSensorUnitIdInherited.value || (sensorConfig.unitId != null && sensorConfig.unitId > 0);
 		if (!hasPort) {
 			localErrorMessage.value = "請填寫端口，或選擇已設定端口的設備型號";
 			return;
@@ -790,7 +758,7 @@ const handleSubmit = () => {
 	}
 	// 控制器：端口必填（可繼承自型號）
 	if (props.deviceTypeCode === "controller") {
-		const hasPort = isControllerPortInherited.value || (controllerConfig.port != null && controllerConfig.port !== "");
+		const hasPort = isControllerPortInherited.value || (controllerConfig.port != null && controllerConfig.port > 0);
 		if (!hasPort) {
 			localErrorMessage.value = "請填寫端口，或選擇已設定端口的設備型號";
 			return;
@@ -798,6 +766,19 @@ const handleSubmit = () => {
 	}
 
 	const config = getCurrentConfig();
+
+	// 攝影機：rtsp_url 必填且須以 rtsp:// 開頭
+	if (props.deviceTypeCode === "camera") {
+		const rtsp = (config as CameraDeviceConfig).rtsp_url?.trim() ?? "";
+		if (!rtsp) {
+			localErrorMessage.value = "請填寫 RTSP URL";
+			return;
+		}
+		if (!rtsp.toLowerCase().startsWith("rtsp://")) {
+			localErrorMessage.value = "RTSP URL 須以 rtsp:// 開頭";
+			return;
+		}
+	}
 
 	if (props.editingDevice) {
 		emit("submit", {

@@ -96,7 +96,7 @@ export const systemModules: SystemModule[] = [
 		icon: "surveillance",
 		route: "/construction-monitoring/surveillance",
 		category: "construction-monitoring",
-		description: "影像監視（設備 MJPEG 預覽）"
+		description: "影像監視（RTSP + WebRTC）"
 	},
 
 	// ========== 基礎設施系統 ==========
