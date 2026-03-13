@@ -70,7 +70,7 @@
 							<!-- 鎖頭（未授權） -->
 							<div
 								v-if="isModuleLocked(item)"
-								class="absolute -right-4 -top-2 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/20"
+								class="absolute -right-4 -top-2 flex h-10 w-10 items-center justify-center rounded-full bg-black/20 ring-1 ring-white/20"
 								aria-hidden="true"
 							>
 								<svg viewBox="0 0 24 24" class="h-8 w-8 text-white" fill="none">
