@@ -1,5 +1,9 @@
-import type { Device, CameraDeviceConfig } from "~/types/device";
-import type { DevicePreviewUrlResponse } from "~/types/device";
+import type {
+	Device,
+	CameraDeviceConfig,
+	DeviceStreamStartResponse,
+	DeviceStreamStatusResponse
+} from "~/types/device";
 import type { SurveillanceCamera } from "~/types/surveillance";
 import { logger } from "~/utils/logger";
 
@@ -47,13 +51,37 @@ export const useSurveillanceApi = () => {
 	};
 
 	/**
-	 * 取得設備 MJPEG 預覽 URL
+	 * 啟動攝影機串流（MediaMTX），回傳 webrtcUrl
 	 */
-	const getPreviewUrl = async (deviceId: number): Promise<DevicePreviewUrlResponse> => {
+	const startCameraStream = async (deviceId: number): Promise<DeviceStreamStartResponse> => {
 		try {
-			return await deviceApi.getPreviewUrl(deviceId);
+			return await deviceApi.startStream(deviceId);
 		} catch (error) {
-			surveillanceLogger.error("取得預覽 URL 失敗", { deviceId, error });
+			surveillanceLogger.error("啟動串流失敗", { deviceId, error });
+			throw error;
+		}
+	};
+
+	/**
+	 * 停止攝影機串流
+	 */
+	const stopCameraStream = async (deviceId: number): Promise<void> => {
+		try {
+			await deviceApi.stopStream(deviceId);
+		} catch (error) {
+			surveillanceLogger.error("停止串流失敗", { deviceId, error });
+			throw error;
+		}
+	};
+
+	/**
+	 * 查詢攝影機串流狀態
+	 */
+	const getCameraStreamStatus = async (deviceId: number): Promise<DeviceStreamStatusResponse> => {
+		try {
+			return await deviceApi.getStreamStatus(deviceId);
+		} catch (error) {
+			surveillanceLogger.error("查詢串流狀態失敗", { deviceId, error });
 			throw error;
 		}
 	};
@@ -61,6 +89,8 @@ export const useSurveillanceApi = () => {
 	return {
 		getCameraDevices,
 		getCamerasWithStreamInfo,
-		getPreviewUrl
+		startCameraStream,
+		stopCameraStream,
+		getCameraStreamStatus
 	};
 };

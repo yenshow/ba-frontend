@@ -225,7 +225,7 @@ const refreshStatus = async () => {
 	}
 };
 
-// 處理攝影機選擇：加入或移除監控畫面（加入時會取得 MJPEG 預覽 URL）
+// 處理攝影機選擇：加入或移除監控畫面（加入時呼叫 stream/start 取得 webrtcUrl）
 const handleCameraSelect = async (deviceId: number) => {
 	const existing = monitorViews.value.find(v => v.deviceId === deviceId);
 	if (existing) {
@@ -243,7 +243,7 @@ const handleCameraSelect = async (deviceId: number) => {
 		await streamStatus.addMonitorView(deviceId);
 		toast.success("已加入監控畫面");
 	} catch (error) {
-		handleError(error, "取得預覽失敗");
+		handleError(error, "啟動串流失敗");
 	}
 };
 

@@ -27,10 +27,10 @@
 					{{ camera.description }}
 				</p>
 				<div class="mt-2 flex items-center gap-2 text-xs text-white/60 2xl:text-sm">
-					<span>{{ camera.config.host || camera.config.ip_address }}</span>
+					<span>{{ camera.config.host || camera.config.ip_address || (camera.config.rtsp_url ? "RTSP 已設定" : "") }}</span>
 				</div>
-				<div v-if="camera.config.isapi_preview_path" class="mt-1 text-xs text-white/50 2xl:text-sm">
-					可預覽
+				<div v-if="camera.config.rtsp_url" class="mt-1 text-xs text-white/50 2xl:text-sm">
+					WebRTC
 				</div>
 			</div>
 		</div>

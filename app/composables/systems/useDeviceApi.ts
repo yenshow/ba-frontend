@@ -7,7 +7,8 @@ import type {
 	CreateDeviceModelData,
 	UpdateDeviceModelData,
 	DeviceTypeCode,
-	DevicePreviewUrlResponse
+	DeviceStreamStartResponse,
+	DeviceStreamStatusResponse
 } from "~/types/device";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPaginationParams, buildPathWithQuery, mergeQueryParams } from "~/utils/apiUtils";
@@ -65,9 +66,23 @@ export const useDeviceApi = () => {
 			return request<{ device: Device }>(`/devices/${id}`);
 		},
 
-		// 取得設備 MJPEG 預覽 URL（攝影機用）
-		getPreviewUrl: (id: number) => {
-			return request<DevicePreviewUrlResponse>(`/devices/${id}/preview-url`);
+		// 啟動攝影機串流（MediaMTX path），回傳 webrtcUrl
+		startStream: (id: number) => {
+			return request<DeviceStreamStartResponse>(`/devices/${id}/stream/start`, {
+				method: "POST"
+			});
+		},
+
+		// 停止攝影機串流
+		stopStream: (id: number) => {
+			return request<{ message?: string }>(`/devices/${id}/stream/stop`, {
+				method: "POST"
+			});
+		},
+
+		// 查詢攝影機串流狀態
+		getStreamStatus: (id: number) => {
+			return request<DeviceStreamStatusResponse>(`/devices/${id}/stream/status`);
 		},
 
 		// 更新設備

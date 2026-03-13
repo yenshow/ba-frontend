@@ -13,19 +13,23 @@
 				]"
 				:style="{ aspectRatio: '16/9' }"
 			>
-				<div v-if="view.previewUrl && isViewVisible(index)" class="absolute inset-0">
+				<div
+					v-if="(view.webrtcUrl || view.streamStatus === 'loading') && isViewVisible(index)"
+					class="absolute inset-0"
+				>
 					<SurveillanceVideoPlayer
-						:key="`player-${view.deviceId}-${view.position}`"
-						:preview-url="view.previewUrl"
+						:key="`player-${view.deviceId}-${view.position}-${index}`"
+						:webrtc-url="view.webrtcUrl"
+						:stream-status="view.streamStatus"
 						class="h-full w-full"
 					/>
 				</div>
 
 				<div
-					v-else-if="!view.previewUrl"
+					v-else-if="!view.webrtcUrl && view.streamStatus !== 'loading'"
 					class="absolute inset-0 flex items-center justify-center bg-gray-900"
 				>
-					<p class="text-sm text-gray-400 2xl:text-base">無預覽</p>
+					<p class="text-sm text-gray-400 2xl:text-base">無串流</p>
 				</div>
 
 				<!-- 設備名稱覆蓋層 -->

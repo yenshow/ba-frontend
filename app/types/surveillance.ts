@@ -13,11 +13,15 @@ export interface SurveillanceCamera extends Device {
 export type GridLayout = "1" | "4" | "9";
 
 /**
- * 監控畫面配置（MJPEG 預覽：加入畫面時取得 previewUrl）
+ * 監控畫面配置（WebRTC：加入畫面時呼叫 stream/start 取得 webrtcUrl）
  */
 export interface MonitorView {
 	deviceId: number;
 	position: number;
-	/** MJPEG 預覽 URL（由 GET /api/devices/:id/preview-url 取得） */
-	previewUrl?: string;
+	/** WebRTC WHEP URL（由 POST /api/devices/:id/stream/start 取得） */
+	webrtcUrl?: string;
+	/** 串流 path 名稱（與後端 MediaMTX path 對應） */
+	streamId?: string;
+	/** 串流狀態 */
+	streamStatus?: "running" | "stopped" | "loading" | "error";
 }

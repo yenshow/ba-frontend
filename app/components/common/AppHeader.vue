@@ -85,8 +85,9 @@
 											</p>
 											<ul class="space-y-0.5">
 												<li v-for="module in categoryGroup.modules" :key="module.id">
+													<!-- 有路由且已授權：可點擊導向 -->
 													<NuxtLink
-														v-if="module.route"
+														v-if="module.route && !isModuleLocked(module)"
 														:to="module.route"
 														@click="closeMoreMenu"
 														class="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-gray-100"
@@ -102,6 +103,31 @@
 														</div>
 														<span class="text-sm text-gray-700 2xl:text-base">{{ module.name }}</span>
 													</NuxtLink>
+													<!-- 有路由但未授權：顯示鎖頭、點擊僅 toast -->
+													<button
+														v-else-if="module.route && isModuleLocked(module)"
+														type="button"
+														class="flex w-full cursor-not-allowed items-center gap-3 px-4 py-2 text-left opacity-60 transition-colors hover:bg-gray-50"
+														@click="handleModuleClick(module)"
+														:aria-label="`${module.name}（未授權）`"
+													>
+														<div class="relative flex h-8 w-8 flex-shrink-0 items-center justify-center">
+															<NuxtImg
+																:src="`/system/${module.icon}.png`"
+																:alt="module.name"
+																class="icon-dark h-8 w-8 object-contain"
+																width="200"
+																height="200"
+															/>
+															<span
+																class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-gray-300"
+															>
+																<CommonLicenseLockIcon class="h-3 w-3 text-gray-600" />
+															</span>
+														</div>
+														<span class="text-sm text-gray-500 2xl:text-base">{{ module.name }}</span>
+													</button>
+													<!-- 無路由：僅顯示為停用 -->
 													<div
 														v-else
 														class="flex cursor-not-allowed items-center gap-3 px-4 py-2 text-gray-400"
@@ -274,8 +300,12 @@
 <script setup lang="ts">
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor"
 import { useAuth } from "~/composables/core/useAuth"
+import { useLicense } from "~/composables/core/useLicense"
+import { useToast } from "~/composables/core/useToast"
 import { useTheme } from "~/composables/core/useTheme"
 import { getModuleByRoute, getModulesByCategory } from "~/utils/systemUtils"
+import { LICENSE_MESSAGE_LOCKED } from "~/utils/licenseUtils"
+import type { SystemModule } from "~/types/system"
 
 // 用戶選單狀態
 const isUserMenuOpen = ref(false)
@@ -287,6 +317,15 @@ const moreMenuRef = ref<HTMLElement | null>(null)
 
 // 認證狀態
 const { user, isAdmin, isOperator, logout: authLogout } = useAuth()
+const { isModuleLocked } = useLicense()
+const toast = useToast()
+
+const handleModuleClick = (module: SystemModule) => {
+	if (isModuleLocked(module)) {
+		toast.warning(LICENSE_MESSAGE_LOCKED)
+		closeMoreMenu()
+	}
+}
 
 const roleLabels: Record<string, string> = {
 	admin: "管理員",

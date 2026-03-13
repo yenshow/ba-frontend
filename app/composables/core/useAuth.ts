@@ -64,6 +64,11 @@ export const useAuth = () => {
 
 	// 登出
 	const logout = () => {
+		try {
+			useLicense().clearLicense();
+		} catch {
+			// 避免 useLicense 未就緒時拋錯
+		}
 		tokenCookie.value = null;
 		userCookie.value = null;
 		token.value = null;
