@@ -30,11 +30,12 @@ export const useDeviceApi = () => {
 			});
 		},
 
-		// 取得設備列表（支援按類型篩選）
+		// 取得設備列表（支援按類型、群組篩選）
 		getDevices: async (params?: {
 			type_id?: number;
 			type_code?: DeviceTypeCode;
 			status?: string;
+			group?: string;
 			limit?: number;
 			offset?: number;
 			orderBy?: string;
@@ -45,6 +46,7 @@ export const useDeviceApi = () => {
 			if (params?.type_id) filterParams.type_id = params.type_id;
 			if (params?.type_code) filterParams.type_code = params.type_code;
 			if (params?.status) filterParams.status = params.status;
+			if (params?.group != null && params.group !== "") filterParams.group = params.group;
 
 			// 構建分頁參數
 			const paginationParams = buildPaginationParams({
@@ -59,6 +61,11 @@ export const useDeviceApi = () => {
 
 			const path = buildPathWithQuery("/devices", allParams);
 			return request<{ devices: Device[]; total: number; limit: number; offset: number }>(path);
+		},
+
+		// 取得攝影機群組列表（供篩選下拉）
+		getCameraGroups: () => {
+			return request<{ groups: string[] }>(buildPathWithQuery("/devices/groups", { type_code: "camera" }));
 		},
 
 		// 取得單一設備

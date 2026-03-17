@@ -16,10 +16,10 @@
 									{{ selectedZoneName }}
 								</span>
 							</div>
-							<!-- 區域管理按鈕 -->
+							<!-- 區域管理按鈕（依權限 operation.location_management 或 admin） -->
 							<Transition name="fade-in">
 								<button
-									v-if="!isInitialLoading && isOperator"
+									v-if="!isInitialLoading && (isAdmin || hasPermission(PERMISSIONS.LOCATION_MANAGEMENT))"
 									type="button"
 									@click="handleOpenZoneDialog"
 									:class="[
@@ -186,6 +186,7 @@ import { useLocationApi } from "~/composables/systems/location/useLocationApi";
 import { useAuth } from "~/composables/core/useAuth";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import { PERMISSIONS } from "~/constants/permissions";
 import { useZoneManagement } from "~/composables/systems/useZoneManagement";
 import { hasLightingCoordinates, getLightingLocationStyle } from "~/utils/locationAdapter";
 import LocationManagementDialog from "~/components/location/LocationManagementDialog.vue";
@@ -195,7 +196,7 @@ definePageMeta({
 	layout: "auxiliary"
 });
 
-const { isAdmin, isOperator } = useAuth();
+const { isAdmin, isOperator, hasPermission } = useAuth();
 const locationApi = useLocationApi();
 const toast = useToast();
 const { handleError } = useErrorHandler();

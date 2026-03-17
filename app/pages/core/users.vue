@@ -2,12 +2,12 @@
 	<div class="space-y-6 2xl:space-y-8">
 		<header class="flex flex-wrap items-end justify-between gap-4 2xl:gap-6">
 			<div class="space-y-2 2xl:space-y-4">
-				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">用戶管理</h1>
+				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">權限管理</h1>
 				<p class="text-base text-white/80 2xl:text-xl">管理系統用戶帳號、角色與權限</p>
 			</div>
 			<div class="flex items-center">
 				<button
-					v-if="isAdmin"
+					v-if="canManageUsers"
 					type="button"
 					class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-500/40 2xl:px-6 2xl:py-3 2xl:text-base"
 					@click="showCreateDialog = true"
@@ -22,13 +22,12 @@
 			<!-- 用戶列表表格：使用過渡動畫 -->
 			<div class="min-h-[500px]">
 				<Transition name="fade" mode="out-in">
-					<div v-if="users.length > 0" :key="`users-${offset}-${users.length}`">
+					<div v-if="visibleUsers.length > 0" :key="`users-${offset}-${visibleUsers.length}`">
 						<table class="w-full text-center">
 							<thead>
 								<tr class="border-b border-white/20">
-									<th :class="tableHeaderClass">ID</th>
+									<th :class="tableHeaderClass">#</th>
 									<th :class="tableHeaderClass">用戶名</th>
-									<th :class="tableHeaderClass">Email</th>
 									<th :class="tableHeaderClass">角色</th>
 									<th :class="tableHeaderClass">狀態</th>
 									<th :class="tableHeaderClass">
@@ -42,18 +41,17 @@
 											/>
 										</div>
 									</th>
-									<th v-if="isAdmin" :class="tableHeaderClass">操作</th>
+									<th v-if="canManageUsers" :class="tableHeaderClass">操作</th>
 								</tr>
 							</thead>
 							<tbody>
 								<tr
-									v-for="user in users"
+									v-for="(user, index) in visibleUsers"
 									:key="user.id"
 									class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
 								>
-									<td :class="tableCellClass">{{ user.id }}</td>
+									<td :class="tableCellClass">{{ offset + index + 1 }}</td>
 									<td :class="tableCellClass">{{ user.username }}</td>
-									<td :class="tableCellClass">{{ user.email }}</td>
 									<td :class="tableCellClass">
 										<span :class="[getRoleBadgeClass(user.role), 'rounded px-2 py-1 2xl:px-3 2xl:py-1.5']">
 											{{ roleLabels[user.role] }}
@@ -69,8 +67,8 @@
 									<td :class="[tableCellClass, 'text-white/70']">
 										{{ formatDate(user.created_at) }}
 									</td>
-									<td v-if="isAdmin" :class="tableCellClass">
-										<div class="flex gap-2 2xl:gap-3">
+									<td v-if="canManageUsers" :class="tableCellClass">
+										<div class="flex flex-wrap gap-2 2xl:gap-3">
 											<button
 												type="button"
 												class="rounded bg-blue-500/80 px-3 py-1 text-white hover:bg-blue-400 2xl:px-4 2xl:py-2"
@@ -79,7 +77,15 @@
 												編輯
 											</button>
 											<button
-												v-if="user.id !== currentUser?.id"
+												type="button"
+												v-if="canShowPermissionButton(user)"
+												class="rounded bg-slate-500/80 px-3 py-1 text-white hover:bg-slate-400 2xl:px-4 2xl:py-2"
+												@click="openPermissionDialog(user)"
+											>
+												權限
+											</button>
+											<button
+												v-if="canShowDeleteButton(user)"
 												type="button"
 												class="rounded bg-red-500/80 px-3 py-1 text-white hover:bg-red-400 2xl:px-4 2xl:py-2"
 												@click="confirmDeleteUser(user)"
@@ -138,10 +144,6 @@
 									<span>用戶名</span>
 									<input v-model="formData.username" type="text" required class="form-input" />
 								</label>
-								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>Email</span>
-									<input v-model="formData.email" type="email" required class="form-input" />
-								</label>
 								<label
 									v-if="!editingUser"
 									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
@@ -156,7 +158,7 @@
 									/>
 								</label>
 								<label
-									v-if="isAdmin"
+									v-if="canManageUsers"
 									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 								>
 									<span>角色</span>
@@ -167,7 +169,7 @@
 									</select>
 								</label>
 								<label
-									v-if="isAdmin && editingUser"
+									v-if="canManageUsers && editingUser"
 									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 								>
 									<span>狀態</span>
@@ -195,6 +197,15 @@
 				</div>
 			</Transition>
 		</Teleport>
+
+		<!-- 權限設定對話框（管理員） -->
+		<PermissionSettingsDialog
+			:open="!!permissionDialogUser"
+			:user-id="permissionDialogUser?.id ?? 0"
+			:target-username="permissionDialogUser?.username ?? ''"
+			@close="permissionDialogUser = null"
+			@saved="onPermissionSaved"
+		/>
 	</div>
 </template>
 
@@ -202,6 +213,7 @@
 import type { User } from "~/types/user";
 import Pagination from "~/components/common/Pagination.vue";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
+import PermissionSettingsDialog from "~/components/common/PermissionSettingsDialog.vue";
 import { formatDate } from "~/utils/dateUtils";
 import { useDataLoader } from "~/composables/monitoring/useDataLoader";
 import { useAuth } from "~/composables/core/useAuth";
@@ -213,7 +225,9 @@ definePageMeta({
 	layout: "auxiliary"
 });
 
-const { user: currentUser, isAdmin } = useAuth();
+const { user: currentUser, isAdmin, isOperator } = useAuth();
+/** 可管理用戶（新增/編輯/刪除/權限） */
+const canManageUsers = computed(() => isAdmin.value || isOperator.value);
 const userApi = useUserApi();
 const toast = useToast();
 const { handleError: handleApiError } = useErrorHandler();
@@ -221,6 +235,7 @@ const { handleError: handleApiError } = useErrorHandler();
 const dateSortOrder = ref<"asc" | "desc">("asc"); // 預設由舊到新
 const showCreateDialog = ref(false);
 const editingUser = ref<User | null>(null);
+const permissionDialogUser = ref<User | null>(null);
 const isSubmitting = ref(false);
 const errorMessage = ref<string | null>(null);
 
@@ -255,6 +270,11 @@ const {
 
 const limit = 20; // 用於分頁組件
 
+// operator 不顯示 admin；admin 則可看到全部
+const visibleUsers = computed(() =>
+	isAdmin.value ? users.value : users.value.filter(u => u.role !== "admin")
+);
+
 // 標籤映射
 const roleLabels: Record<string, string> = {
 	admin: "管理員",
@@ -280,7 +300,6 @@ const tableCellClass = "py-3 2xl:py-4 px-4 2xl:px-6";
 
 const formData = reactive({
 	username: "",
-	email: "",
 	password: "",
 	role: "viewer" as "admin" | "operator" | "viewer",
 	status: "active" as "active" | "inactive" | "suspended"
@@ -304,6 +323,29 @@ const getStatusBadgeClass = (status: string) => {
 	return classes[status as keyof typeof classes] || classes.inactive;
 };
 
+const canShowPermissionButton = (user: User) => {
+	// 操作員看不到 admin，因此僅需處理「自己」與一般用戶
+	if (!canManageUsers.value) {
+		return false;
+	}
+	return true;
+};
+
+const canShowDeleteButton = (user: User) => {
+	if (!canManageUsers.value) {
+		return false;
+	}
+	// 不顯示刪除自己的按鈕
+	if (currentUser.value && user.id === currentUser.value.id) {
+		return false;
+	}
+	// 操作員不可刪除 admin（雖然列表已不顯示 admin，仍加雙重保護）
+	if (!isAdmin.value && user.role === "admin") {
+		return false;
+	}
+	return true;
+};
+
 // 業務邏輯函數：統一錯誤處理（同時更新頁面錯誤訊息）
 const handleError = (error: unknown, defaultMessage: string) => {
 	const errorMsg = handleApiError(error, defaultMessage);
@@ -313,7 +355,6 @@ const handleError = (error: unknown, defaultMessage: string) => {
 
 const resetForm = () => {
 	formData.username = "";
-	formData.email = "";
 	formData.password = "";
 	formData.role = "viewer";
 	formData.status = "active";
@@ -322,7 +363,6 @@ const resetForm = () => {
 const editUser = (user: User) => {
 	editingUser.value = user;
 	formData.username = user.username;
-	formData.email = user.email;
 	formData.role = user.role;
 	formData.status = user.status;
 	formData.password = "";
@@ -335,23 +375,30 @@ const closeDialog = () => {
 	errorMessage.value = null;
 };
 
+const openPermissionDialog = (user: User) => {
+	permissionDialogUser.value = user;
+};
+
+const onPermissionSaved = () => {
+	permissionDialogUser.value = null;
+	toast.success("權限已更新");
+	// 即時刷新當前頁用戶列表，使權限/角色變更反映在畫面上
+	load({ order: dateSortOrder.value }, true);
+};
+
 const handleSubmit = async () => {
 	isSubmitting.value = true;
 	errorMessage.value = null;
 
 	try {
 		const result = editingUser.value
-			? // 更新用戶
-				await userApi.updateUser(editingUser.value.id, {
+			? await userApi.updateUser(editingUser.value.id, {
 					username: formData.username,
-					email: formData.email,
 					role: formData.role,
 					status: formData.status
 				})
-			: // 建立用戶
-				await userApi.register({
+			: await userApi.register({
 					username: formData.username,
-					email: formData.email,
 					password: formData.password,
 					role: formData.role
 				});
@@ -440,5 +487,4 @@ onMounted(() => {
 	background: rgba(20, 64, 92, 0.98);
 	color: #f7fbff;
 }
-
 </style>

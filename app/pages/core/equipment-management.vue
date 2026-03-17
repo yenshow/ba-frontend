@@ -72,16 +72,26 @@
 							<thead>
 								<tr class="border-b border-white/20">
 									<th :class="tableHeaderClass">設備名稱</th>
+									<th v-if="activeTab === 'camera'" :class="tableHeaderClass">
+										<FilterDropdown
+											:model-value="cameraGroupFilter"
+											:options="cameraGroupFilterOptions"
+											placeholder="全部"
+											text-size="text-sm 2xl:text-base"
+											@update:model-value="onCameraGroupFilterUpdate"
+										/>
+									</th>
 									<th :class="tableHeaderClass">設備型號</th>
-									<th :class="tableHeaderClass">配置資訊</th>
+									<th :class="tableHeaderClass">{{ activeTab === "camera" ? "IP 位址" : "配置資訊" }}</th>
 									<th :class="tableHeaderClass">狀態</th>
 									<th :class="tableHeaderClass">
-										<label>
-											<select v-model="dateSortOrder" :class="sortSelectClass" @change="handleSortChange">
-												<option value="desc">由新到舊</option>
-												<option value="asc">由舊到新</option>
-											</select>
-										</label>
+										<FilterDropdown
+											:model-value="dateSortOrder"
+											:options="dateSortOptions"
+											placeholder="由新到舊"
+											text-size="text-sm 2xl:text-base"
+											@update:model-value="onDateSortUpdate"
+										/>
 									</th>
 									<th v-if="isOperator" :class="tableHeaderClass">操作</th>
 								</tr>
@@ -93,13 +103,16 @@
 									class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
 								>
 									<td :class="tableCellClass">{{ device.name }}</td>
+									<td v-if="activeTab === 'camera'" :class="tableCellClass">
+										<span class="text-white/80">{{ getCameraGroup(device) }}</span>
+									</td>
 									<td :class="tableCellClass">
 										<span v-if="device.model_name" class="text-white/90">{{ device.model_name }}</span>
 										<span v-else class="text-white/50">-</span>
 									</td>
 									<td :class="tableCellClass">
 										<span class="text-sm text-white/80 2xl:text-base">{{
-											formatDeviceConfig(device.config)
+											activeTab === "camera" ? getCameraIp(device) : formatDeviceConfig(device.config)
 										}}</span>
 									</td>
 									<td :class="tableCellClass">
@@ -195,7 +208,8 @@ import type {
 	DeviceTypeCode,
 	DeviceConfig,
 	DeviceType,
-	DeviceStatus
+	DeviceStatus,
+	CameraDeviceConfig
 } from "~/types/device";
 import type {
 	DeviceCreatedEvent,
@@ -207,6 +221,7 @@ import type {
 } from "~/composables/websocket/useWebSocket";
 import DeviceModelDialog from "~/components/device/DeviceModelDialog.vue";
 import DeviceTypeDialog from "~/components/device/DeviceTypeDialog.vue";
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import Pagination from "~/components/common/Pagination.vue";
 import { formatDate } from "~/utils/dateUtils";
 import { useDataLoader } from "~/composables/monitoring/useDataLoader";
@@ -260,8 +275,10 @@ const isSubmitting = ref(false);
 const errorMessage = ref<string | null>(null);
 
 // 常數配置
-const limit = 20; // 用於分頁組件
+const limit = 10; // 用於分頁組件
 const dateSortOrder = ref<"asc" | "desc">("desc");
+const cameraGroupFilter = ref<string>("");
+const cameraGroups = ref<string[]>([]);
 
 // 使用 useDataLoader 統一管理數據載入
 const {
@@ -275,7 +292,13 @@ const {
 	resetPage
 } = useDataLoader<
 	Device,
-	{ typeCode: DeviceTypeCode; order: "asc" | "desc"; limit?: number; offset?: number }
+	{
+		typeCode: DeviceTypeCode;
+		order: "asc" | "desc";
+		limit?: number;
+		offset?: number;
+		group?: string;
+	}
 >({
 	fetcher: async params => {
 		if (!activeTab.value) {
@@ -286,12 +309,13 @@ const {
 			limit: params.limit ?? limit,
 			offset: params.offset ?? offset.value,
 			orderBy: "created_at",
-			order: params.order
+			order: params.order,
+			...(params.typeCode === "camera" && params.group ? { group: params.group } : {})
 		});
 		return { items: result.devices, total: result.total };
 	},
 	debounce: 300,
-	pageSize: 20,
+	pageSize: 10,
 	onError: err => {
 		const errorMsg = handleApiError(err, "載入設備列表失敗");
 		errorMessage.value = errorMsg || "載入設備列表失敗";
@@ -308,8 +332,48 @@ const statusLabels: Record<string, string> = {
 // 統一樣式類
 const tableHeaderClass = "py-3 2xl:py-4 px-4 2xl:px-6 text-sm 2xl:text-base text-white/80";
 const tableCellClass = "py-3 2xl:py-4 px-4 2xl:px-6";
-const sortSelectClass =
-	"rounded-lg border border-white/40 bg-white/10 px-2 2xl:px-3 py-1 2xl:py-2 text-sm 2xl:text-base text-white focus:border-white focus:outline-none";
+
+const dateSortOptions = [
+	{ value: "desc", label: "由新到舊" },
+	{ value: "asc", label: "由舊到新" }
+];
+const cameraGroupFilterOptions = computed(() => [
+	{ value: "", label: "全部" },
+	...cameraGroups.value.map(g => ({ value: g, label: g }))
+]);
+
+const onDateSortUpdate = (value: string) => {
+	dateSortOrder.value = value as "asc" | "desc";
+	if (activeTab.value) reloadList();
+};
+const onCameraGroupFilterUpdate = (value: string) => {
+	cameraGroupFilter.value = value;
+	reloadList();
+};
+
+const reloadList = () => {
+	resetPage();
+	load(getLoadParams(), true);
+};
+
+const getCameraGroup = (device: Device): string => {
+	const config = device.config as CameraDeviceConfig | undefined;
+	return config?.group?.trim() ?? "-";
+};
+
+const getCameraIp = (device: Device): string => {
+	const config = device.config as CameraDeviceConfig | undefined;
+	if (!config) return "-";
+	if (config.host) return config.host;
+	if (config.ip_address) return config.ip_address;
+	if (!config.rtsp_url) return "-";
+	try {
+		const url = new URL(config.rtsp_url);
+		return url.hostname || url.host || "-";
+	} catch {
+		return "-";
+	}
+};
 
 const formatDeviceConfig = (config: DeviceConfig): string => {
 	if (!config) return "-";
@@ -317,7 +381,7 @@ const formatDeviceConfig = (config: DeviceConfig): string => {
 		case "controller":
 			return `${config.host}`;
 		case "camera": {
-			const c = config as import("~/types/device").CameraDeviceConfig;
+			const c = config as CameraDeviceConfig;
 			return c.host || c.ip_address || (c.rtsp_url ? "RTSP" : "-");
 		}
 		case "sensor":
@@ -341,6 +405,14 @@ const getStatusBadgeClass = (status: string) => {
 	return classes[status as keyof typeof classes] || classes.inactive;
 };
 
+const getLoadParams = () => ({
+	typeCode: activeTab.value!,
+	order: dateSortOrder.value,
+	...(activeTab.value === "camera" && cameraGroupFilter.value
+		? { group: cameraGroupFilter.value }
+		: {})
+});
+
 // 業務邏輯函數：統一錯誤處理（同時更新頁面錯誤訊息）
 const handleError = (error: unknown, defaultMessage: string) => {
 	const errorMsg = handleApiError(error, defaultMessage);
@@ -360,7 +432,7 @@ const switchTab = (tabCode: DeviceTypeCode) => {
 	resetPage();
 
 	// 立即載入新資料（不使用防抖）
-	load({ typeCode: tabCode, order: dateSortOrder.value }, true);
+	load(getLoadParams(), true);
 };
 
 // 載入設備類型（使用共享快取）
@@ -391,6 +463,17 @@ const closeDialog = () => {
 	errorMessage.value = null;
 };
 
+// 將後端 getDeviceById 結構正規化為列表用（保留 model_name / type_name / type_code）
+const normalizeDeviceForList = (
+	raw: Device & { model?: { name?: string }; type_name?: string; type_code?: string },
+	fallback?: Device
+): Device => ({
+	...raw,
+	model_name: raw.model?.name ?? fallback?.model_name,
+	type_name: raw.type_name ?? fallback?.type_name,
+	type_code: raw.type_code ?? fallback?.type_code
+});
+
 const handleSubmit = async (data: CreateDeviceData | UpdateDeviceData) => {
 	if (isSubmitting.value) return;
 	isSubmitting.value = true;
@@ -403,12 +486,18 @@ const handleSubmit = async (data: CreateDeviceData | UpdateDeviceData) => {
 
 		if (editingDevice.value) {
 			const index = devices.value.findIndex(d => d.id === editingDevice.value!.id);
-			if (index > -1) devices.value[index] = result.device;
+			if (index > -1) {
+				// 後端 PUT 回傳 getDeviceById 結構（含 model 物件），正規化為列表用欄位以即時顯示
+				devices.value[index] = normalizeDeviceForList(
+					result.device as Device & { model?: { name?: string } },
+					devices.value[index]
+				);
+			}
 		} else {
 			// 新增後重新載入列表，避免重複顯示（雙擊或事件觸發兩次時仍只會顯示後端一份）
 			if (activeTab.value) {
 				resetPage();
-				load({ typeCode: activeTab.value, order: dateSortOrder.value }, true);
+				load(getLoadParams(), true);
 			} else {
 				devices.value.push(result.device);
 				total.value += 1;
@@ -444,24 +533,27 @@ const confirmDeleteDevice = async (device: Device) => {
 
 const handlePreviousPage = () => {
 	if (!activeTab.value) return;
-	prevPage({ typeCode: activeTab.value, order: dateSortOrder.value });
+	prevPage(getLoadParams());
 };
 
 const handleNextPage = () => {
 	if (!activeTab.value) return;
-	nextPage({ typeCode: activeTab.value, order: dateSortOrder.value });
+	nextPage(getLoadParams());
 };
 
-const handleSortChange = () => {
-	if (!activeTab.value) return;
-	resetPage();
-	load({ typeCode: activeTab.value, order: dateSortOrder.value }, true); // 立即執行
+const loadCameraGroups = async () => {
+	try {
+		const res = await deviceApi.getCameraGroups();
+		cameraGroups.value = res.groups ?? [];
+	} catch {
+		cameraGroups.value = [];
+	}
 };
 
 // 設備型號變更後刷新列表與型號選擇（供 DeviceModelDialog @refresh 使用）
 const handleDeviceModelRefresh = () => {
 	if (activeTab.value) {
-		load({ typeCode: activeTab.value, order: dateSortOrder.value }, true);
+		load(getLoadParams(), true);
 	}
 	refreshDeviceTypes.value = !refreshDeviceTypes.value;
 };
@@ -474,9 +566,11 @@ const handleDeviceTypeRefresh = () => {
 
 // 監聽 tab 切換（僅用於初始載入，手動切換由 switchTab 處理）
 watch(activeTab, (newTab, oldTab) => {
-	// 只有在初始設置時才載入（不是手動切換）
 	if (newTab && oldTab === null) {
-		load({ typeCode: newTab, order: dateSortOrder.value }, true);
+		load(getLoadParams(), true);
+	}
+	if (newTab === "camera") {
+		void loadCameraGroups();
 	}
 });
 
@@ -504,7 +598,7 @@ const handleDeviceCreated = (event: DeviceCreatedEvent) => {
 		} else {
 			// 不在第一頁，重新載入以確保數據一致性
 			if (activeTab.value) {
-				void load({ typeCode: activeTab.value, order: dateSortOrder.value }, true);
+				void load(getLoadParams(), true);
 			}
 		}
 	}
@@ -517,11 +611,14 @@ const handleDeviceUpdated = (event: DeviceUpdatedEvent) => {
 	if (device.type_code === activeTab.value) {
 		const index = devices.value.findIndex(d => d.id === device.id);
 		if (index !== -1) {
-			devices.value[index] = device;
+			devices.value[index] = normalizeDeviceForList(
+				device as Device & { model?: { name?: string } },
+				devices.value[index]
+			);
 		} else {
 			// 如果不在當前列表，重新載入
 			if (activeTab.value) {
-				void load({ typeCode: activeTab.value, order: dateSortOrder.value }, true);
+				void load(getLoadParams(), true);
 			}
 		}
 	}
@@ -565,7 +662,7 @@ onMounted(async () => {
 	// 設備類型載入後會自動設置第一個 tab，watch 會處理載入設備
 	// 但如果沒有觸發 watch，手動載入一次
 	if (activeTab.value) {
-		load({ typeCode: activeTab.value, order: dateSortOrder.value }, true); // 立即執行
+		load(getLoadParams(), true); // 立即執行
 	}
 
 	// 設置設備 WebSocket 事件監聽器

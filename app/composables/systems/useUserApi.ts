@@ -1,4 +1,11 @@
-import type { User, LoginCredentials, RegisterData, LoginResponse } from "~/types/user";
+import type {
+	User,
+	LoginCredentials,
+	RegisterData,
+	LoginResponse,
+	PermissionDefinition,
+	UserPermissionSettings
+} from "~/types/user";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPaginationParams, buildPathWithQuery, mergeQueryParams } from "~/utils/apiUtils";
 
@@ -107,6 +114,25 @@ export const useUserApi = () => {
 		deleteUser: (id: number) => {
 			return request<{ message: string }>(`/users/${id}`, {
 				method: "DELETE"
+			});
+		},
+
+		// 權限定義（供權限設定頁渲染）
+		getPermissionDefinitions: (tree = false) => {
+			const path = tree ? "/permissions/definitions?tree=true" : "/permissions/definitions";
+			return request<{ definitions: PermissionDefinition[] }>(path);
+		},
+
+		// 取得某用戶的權限設定（管理員）
+		getUserPermissions: (userId: number) => {
+			return request<UserPermissionSettings>(`/users/${userId}/permissions`);
+		},
+
+		// 寫入某用戶的權限覆寫（管理員）
+		updateUserPermissions: (userId: number, overrides: { permission_id: number; granted: boolean }[]) => {
+			return request<UserPermissionSettings>(`/users/${userId}/permissions`, {
+				method: "PUT",
+				body: JSON.stringify({ overrides })
 			});
 		}
 	};

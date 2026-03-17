@@ -38,7 +38,7 @@
 													<span class="rounded bg-white/20 px-2 py-1 text-xs text-white/80 2xl:text-sm">{{
 														model.type_name || "類型"
 													}}</span>
-														<span
+													<span
 														v-if="deviceTypeCode === 'sensor' && model.unit_id != null"
 														class="rounded bg-emerald-500/30 px-2 py-1 text-xs text-emerald-200 2xl:text-sm"
 													>
@@ -147,6 +147,21 @@
 										placeholder="請選擇功能碼"
 									/>
 								</label>
+
+								<!-- 攝影機型號：RTSP URL 樣板（供新增設備時參考） -->
+								<label
+									v-if="deviceTypeCode === 'camera'"
+									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+								>
+									<span>RTSP URL *</span>
+									<input
+										v-model="cameraRtspTemplate"
+										type="text"
+										class="form-input"
+										placeholder="rtsp://admin:密碼@ip/Streaming/channels/101"
+									/>
+								</label>
+
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>備註</span>
 									<textarea
@@ -259,7 +274,9 @@
 								</p>
 							</form>
 
-							<footer class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8">
+							<footer
+								class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8"
+							>
 								<button type="button" class="btn-secondary" @click="handleCloseFormClick">取消</button>
 								<div class="flex-1"></div>
 								<button
@@ -359,6 +376,9 @@ const formData = reactive<{
 	config: {}
 });
 
+// 攝影機型號：RTSP URL 樣板（存放在 config.rtsp_url_template）
+const cameraRtspTemplate = ref<string>("");
+
 // 感測器參數配置（僅當設備類型為 sensor 時使用）
 const sensorParameters = ref<SensorParameterDefinition[]>([]);
 // 感測器型號統一使用的 Modbus API 方法（型號層級設定一次）
@@ -373,6 +393,7 @@ const resetForm = () => {
 	formData.unit_id = undefined;
 	formData.description = "";
 	formData.config = {};
+	cameraRtspTemplate.value = "";
 	sensorParameters.value = [];
 	sensorRegisterType.value = "holding";
 	captureFaceDataType.value = "url";
@@ -481,6 +502,11 @@ const editDeviceModel = (model: DeviceModel) => {
 		captureFaceDataType.value = c?.dataType === "binary" ? "binary" : "url";
 	}
 
+	if (props.deviceTypeCode === "camera") {
+		const config = (model.config as Record<string, any> | undefined) ?? {};
+		cameraRtspTemplate.value = (config.rtsp_url_template as string) || "";
+	}
+
 	// 載入感測器參數配置與型號層級 API 方法
 	if (props.deviceTypeCode === "sensor" && model.config) {
 		const config = model.config as SensorDeviceModelConfig;
@@ -505,6 +531,7 @@ interface FormSnapshot {
 	registerType: ModbusRegisterType;
 	sensorParametersJson: string;
 	captureFaceDataType: "binary" | "url";
+	cameraRtspTemplate: string;
 }
 const formInitialSnapshot = ref<FormSnapshot | null>(null);
 
@@ -515,7 +542,8 @@ const getFormSnapshot = (): FormSnapshot => ({
 	description: formData.description,
 	registerType: sensorRegisterType.value,
 	sensorParametersJson: JSON.stringify(sensorParameters.value),
-	captureFaceDataType: captureFaceDataType.value
+	captureFaceDataType: captureFaceDataType.value,
+	cameraRtspTemplate: cameraRtspTemplate.value
 });
 
 const formHasUnsavedChanges = computed(() => {
@@ -531,7 +559,8 @@ const formHasUnsavedChanges = computed(() => {
 			cur.description !== init.description ||
 			cur.registerType !== init.registerType ||
 			cur.sensorParametersJson !== init.sensorParametersJson ||
-			cur.captureFaceDataType !== init.captureFaceDataType
+			cur.captureFaceDataType !== init.captureFaceDataType ||
+			cur.cameraRtspTemplate !== init.cameraRtspTemplate
 		);
 	}
 	// 新增模式：任一欄位有值即視為有變更
@@ -549,18 +578,21 @@ const formChangedFieldsList = computed(() => {
 	const cur = getFormSnapshot();
 	const init = formInitialSnapshot.value;
 	const fields: string[] = [];
-	if (cur.name !== init.name) fields.push(`型號名稱: ${init.name || "(空)"} → ${cur.name || "(空)"}`);
+	if (cur.name !== init.name)
+		fields.push(`型號名稱: ${init.name || "(空)"} → ${cur.name || "(空)"}`);
 	if (cur.unit_id !== init.unit_id) fields.push("Unit ID");
 	if (cur.description !== init.description) fields.push("備註");
 	if (cur.registerType !== init.registerType) fields.push("API 方法 (功能碼)");
 	if (cur.sensorParametersJson !== init.sensorParametersJson) fields.push("感測器參數配置");
 	if (cur.captureFaceDataType !== init.captureFaceDataType) fields.push("設備截圖回傳格式");
+	if (cur.cameraRtspTemplate !== init.cameraRtspTemplate) fields.push("RTSP URL 樣板");
 	return fields;
 });
 
 const formChangeSummary = computed(() => {
 	const count = formChangedFieldsList.value.length;
-	if (count === 0 && !editingModel.value && formHasUnsavedChanges.value) return "表單已填寫，尚未儲存";
+	if (count === 0 && !editingModel.value && formHasUnsavedChanges.value)
+		return "表單已填寫，尚未儲存";
 	if (count === 0) return "";
 	return `有 ${count} 個欄位已修改`;
 });
@@ -672,6 +704,10 @@ const handleFormSubmit = async () => {
 			description: formData.description || undefined
 		};
 
+		if (props.deviceTypeCode === "camera") {
+			const template = cameraRtspTemplate.value.trim();
+			submitData.config = template ? { rtsp_url_template: template } : {};
+		}
 		if (props.deviceTypeCode === "sensor") {
 			const sensorConfig: SensorDeviceModelConfig = {
 				registerType: sensorRegisterType.value,

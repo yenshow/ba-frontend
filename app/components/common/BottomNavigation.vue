@@ -162,7 +162,7 @@
 									class="fixed z-[9999] w-48 rounded-lg border border-white/20 bg-slate-900/95 p-2 shadow-xl backdrop-blur-md"
 								>
 									<button
-										v-for="item in moreFunctionsItems"
+										v-for="item in visibleMoreFunctionsItems"
 										:key="item.id"
 										class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
 										@click="navigateToRouteInNewTab(item.route)"
@@ -225,9 +225,9 @@
 									</div>
 
 									<div class="space-y-1">
-										<!-- 權限管理（不含 icon，僅管理員可見） -->
+										<!-- 權限管理（管理員與操作員可見） -->
 										<button
-											v-if="isAdmin"
+											v-if="isAdmin || isOperator"
 											class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
 											@click="handleUserManagement"
 											aria-label="權限管理"
@@ -288,10 +288,11 @@ import { useToast } from "~/composables/core/useToast";
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 import { useLicense } from "~/composables/core/useLicense";
 import { getFeatureKeyByRoute } from "~/utils/licenseUtils";
+import { PERMISSIONS } from "~/constants/permissions";
 
 const route = useRoute();
 const router = useRouter();
-const { user, isAuthenticated, isAdmin, isOperator, logout } = useAuth();
+const { user, isAuthenticated, isAdmin, isOperator, hasPermission, logout } = useAuth();
 const toast = useToast();
 const { hasFeature } = useLicense();
 
@@ -324,7 +325,7 @@ const auxiliaryItemsForActive = [
 	{ id: "home", name: "首頁", route: "/", icon: "/layout/home.svg", isSvg: true }
 ] as const;
 
-// 更多功能下拉項目（設備管理、全區點位圖、人員管理）
+// 更多功能下拉項目（設備管理、全區點位圖、人員管理）；全區點位圖依權限 operation.location_management 顯示
 const moreFunctionsItems = [
 	{
 		id: "equipment-management",
@@ -340,6 +341,12 @@ const moreFunctionsItems = [
 	},
 	{ id: "personnel", name: "人員管理", route: "/core/personnel", icon: "/layout/user-info.svg" }
 ] as const;
+
+const visibleMoreFunctionsItems = computed(() =>
+	moreFunctionsItems.filter(
+		item => item.id !== "area-point-map" || hasPermission(PERMISSIONS.LOCATION_MANAGEMENT)
+	)
+);
 
 // 展開/收縮狀態
 const isExpanded = ref(false);
@@ -479,10 +486,36 @@ const navigateToRoute = (routePath: string) => {
 	router.push(routePath);
 };
 
+const getPermissionCodeByRoute = (routePath: string): string | null => {
+	if (!routePath || typeof routePath !== "string") {
+		return null;
+	}
+
+	if (routePath.startsWith("/construction-monitoring/people-counting")) {
+		return PERMISSIONS.SYSTEM_PEOPLE_COUNTING;
+	}
+	if (routePath.startsWith("/construction-monitoring/surveillance")) {
+		return PERMISSIONS.SYSTEM_VIDEO_SURVEILLANCE;
+	}
+	if (routePath.startsWith("/construction-monitoring/environment")) {
+		return PERMISSIONS.SYSTEM_ENVIRONMENT;
+	}
+	if (routePath.startsWith("/construction-monitoring/vehicle-access")) {
+		return PERMISSIONS.SYSTEM_VEHICLE_ACCESS;
+	}
+
+	return null;
+};
+
 const isModuleLocked = (module: SystemModule) => {
 	const featureKey = getFeatureKeyByRoute(module.route);
-	if (!featureKey) return false;
-	return !hasFeature(featureKey);
+	const hasLicense = !featureKey || hasFeature(featureKey);
+
+	const permissionCode = getPermissionCodeByRoute(module.route);
+	const hasSystemPermission = !permissionCode || hasPermission(permissionCode);
+
+	// 需同時具備授權與系統使用權，否則視為上鎖
+	return !(hasLicense && hasSystemPermission);
 };
 
 const handleModuleClick = (module: SystemModule) => {

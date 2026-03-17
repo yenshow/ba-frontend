@@ -95,6 +95,8 @@ export interface CameraDeviceConfig extends DeviceConfigBase {
 	ip_address?: string;
 	username?: string;
 	password?: string;
+	/** 攝影機群組（用於設備管理與影像監控篩選） */
+	group?: string;
 }
 
 // 感測器配置

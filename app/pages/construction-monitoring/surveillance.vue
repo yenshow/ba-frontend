@@ -91,13 +91,21 @@
 					<!-- 標題與收縮按鈕 -->
 					<Transition name="fade">
 						<div v-if="!isSidebarCollapsed" key="title" class="mb-4 border-b border-white/30 px-4 pb-4">
-							<div class="flex items-center justify-center">
-								<h2 class="text-2xl font-semibold text-white 2xl:text-3xl">攝影機列表</h2>
-								<span
-									class="ml-2 rounded-full bg-white/20 px-2.5 py-0.5 text-base font-medium text-white backdrop-blur-sm 2xl:text-lg"
-								>
-									{{ cameras.length }}
-								</span>
+							<div class="flex flex-col gap-4">
+								<div class="flex items-center justify-center">
+									<h2 class="text-2xl font-semibold text-white 2xl:text-3xl">攝影機列表</h2>
+									<span
+										class="ml-2 rounded-full bg-white/20 px-2.5 py-0.5 text-base font-medium text-white backdrop-blur-sm 2xl:text-lg"
+									>
+										{{ filteredCameras.length }}
+									</span>
+								</div>
+								<FilterDropdown
+									v-model="surveillanceGroupFilter"
+									:options="surveillanceGroupFilterOptions"
+									placeholder="全部"
+									text-size="text-sm 2xl:text-base"
+								/>
 							</div>
 						</div>
 					</Transition>
@@ -128,13 +136,13 @@
 							<!-- 攝影機卡片列表 -->
 							<div class="space-y-3">
 								<div
-									v-if="cameras.length === 0"
+									v-if="filteredCameras.length === 0"
 									class="h-full py-8 text-center text-sm text-white/60 xl:text-base"
 								>
-									沒有攝影機
+									{{ cameras.length === 0 ? "沒有攝影機" : "此群組無攝影機" }}
 								</div>
 								<SurveillanceCameraCard
-									v-for="camera in cameras"
+									v-for="camera in filteredCameras"
 									:key="camera.id"
 									:camera="camera"
 									:is-selected="selectedCameraIds.includes(camera.id)"
@@ -159,10 +167,13 @@
 
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, watch } from "vue";
-import type { GridLayout, SurveillanceCamera, MonitorView } from "~/types/surveillance";
+import type { GridLayout, MonitorView } from "~/types/surveillance";
+import type { CameraDeviceConfig } from "~/types/device";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useStreamStatus } from "~/composables/monitoring/useStreamStatus";
+import { useDeviceApi } from "~/composables/systems/useDeviceApi";
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import SurveillanceControlPanel from "~/components/surveillance/SurveillanceControlPanel.vue";
 import SurveillanceCameraGrid from "~/components/surveillance/SurveillanceCameraGrid.vue";
 import SurveillanceCameraCard from "~/components/surveillance/SurveillanceCameraCard.vue";
@@ -207,6 +218,20 @@ const loadError = ref<string | null>(null);
 const cameras = computed(() => streamStatus.cameras.value);
 const monitorViews = computed(() => streamStatus.monitorViews.value);
 
+const deviceApi = useDeviceApi();
+const surveillanceGroupFilter = ref<string>("");
+const cameraGroups = ref<string[]>([]);
+const surveillanceGroupFilterOptions = computed(() => [
+	{ value: "", label: "全部" },
+	...cameraGroups.value.map(g => ({ value: g, label: g }))
+]);
+const filteredCameras = computed(() => {
+	const group = surveillanceGroupFilter.value?.trim();
+	return group
+		? cameras.value.filter(c => (c.config as CameraDeviceConfig)?.group?.trim() === group)
+		: cameras.value;
+});
+
 // 布局管理
 const gridLayout = ref<GridLayout>("1");
 const selectedCameraIds = computed(() => monitorViews.value.map(view => view.deviceId));
@@ -215,6 +240,15 @@ const isFullscreenOpen = ref(false);
 
 // 側邊欄收縮狀態
 const isSidebarCollapsed = ref(false);
+
+const loadCameraGroups = async () => {
+	try {
+		const res = await deviceApi.getCameraGroups();
+		cameraGroups.value = res.groups ?? [];
+	} catch {
+		cameraGroups.value = [];
+	}
+};
 
 // 載入攝影機列表
 const loadCameras = async () => {
@@ -296,6 +330,7 @@ onBeforeUnmount(() => {
 
 onMounted(async () => {
 	initLeftSectionObserver();
+	void loadCameraGroups();
 
 	try {
 		await loadCameras();

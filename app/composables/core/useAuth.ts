@@ -43,6 +43,14 @@ export const useAuth = () => {
 	const isOperator = computed(() => user.value?.role === "operator" || user.value?.role === "admin");
 	const isViewer = computed(() => user.value?.role === "viewer" || isOperator.value);
 
+	/** 是否具備指定權限（admin 視為擁有全部；其餘依 user.permissions） */
+	const hasPermission = (code: string): boolean => {
+		const u = user.value;
+		if (!u) return false;
+		if (u.role === "admin") return true;
+		return Array.isArray(u.permissions) && u.permissions.includes(code);
+	};
+
 	// 登入
 	const login = async (credentials: LoginCredentials) => {
 		try {
@@ -110,6 +118,7 @@ export const useAuth = () => {
 		isAdmin,
 		isOperator,
 		isViewer,
+		hasPermission,
 		login,
 		logout,
 		fetchUser,

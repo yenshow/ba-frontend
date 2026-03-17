@@ -86,7 +86,7 @@ const dropdownStyle = computed(() => {
 
 	const rect = dropdownRef.value.getBoundingClientRect();
 	const dropdownWidth = rect.width;
-	
+
 	// 計算位置：在輸入框下方，左對齊
 	// getBoundingClientRect() 返回的是相對於視口的座標，fixed 定位也是相對於視口
 	return {

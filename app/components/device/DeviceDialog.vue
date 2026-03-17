@@ -45,6 +45,16 @@
 							/>
 						</label>
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+							<span>群組</span>
+							<input
+								v-model="cameraGroup"
+								type="text"
+								class="form-input"
+								placeholder="例如：大門、工地 A 區"
+								aria-label="攝影機群組"
+							/>
+						</label>
+						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 							<span>設備型號 *</span>
 							<FilterDropdown
 								v-model="modelIdString"
@@ -91,15 +101,33 @@
 
 						<template v-if="deviceTypeCode === 'camera'">
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>RTSP URL *</span>
+								<span>設備 IP 位址 *</span>
 								<input
-									v-model="cameraConfig.rtsp_url"
+									v-model="cameraIp"
 									type="text"
+									required
+									pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
 									class="form-input"
-									placeholder="rtsp://admin:密碼@192.168.2.102:554/Streaming/Channels/102"
+									placeholder="例如：192.168.2.102"
 								/>
-								<p class="mt-1 text-xs text-white/50">須以 rtsp:// 開頭，路徑完整（海康例：/Streaming/Channels/102），建議 H.264 子碼流</p>
 							</label>
+							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+								<span>設備登入密碼 *</span>
+								<input
+									v-model="cameraPassword"
+									type="text"
+									required
+									class="form-input"
+									placeholder="請輸入設備 admin 密碼"
+								/>
+								<p class="mt-1 text-xs text-white/50">
+									會自動組成 RTSP URL（海康例：/Streaming/channels/101）
+								</p>
+							</label>
+							<div class="text-xs text-white/60 2xl:text-sm">
+								RTSP URL 預覽：
+								<span class="break-all">{{ cameraRtspPreview }}</span>
+							</div>
 						</template>
 
 						<template v-if="deviceTypeCode === 'sensor'">
@@ -278,6 +306,7 @@ import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
+import { computed } from "vue";
 import type {
 	Device,
 	CreateDeviceData,
@@ -290,7 +319,7 @@ import type {
 	ControllerDeviceConfig,
 	CameraDeviceConfig,
 	SensorDeviceConfig,
-	AccessControlDeviceConfig,
+	AccessControlDeviceConfig
 } from "~/types/device";
 
 interface Props {
@@ -350,6 +379,47 @@ const controllerConfig = reactive<ControllerDeviceConfig>({
 const cameraConfig = reactive<CameraDeviceConfig>({
 	type: "camera",
 	rtsp_url: ""
+});
+
+const cameraIp = ref<string>("");
+const cameraPassword = ref<string>("");
+const cameraGroup = ref<string>("");
+
+const DEFAULT_CAMERA_RTSP_TEMPLATE = "rtsp://admin:密碼@ip:554/Streaming/channels/101";
+
+const selectedCameraRtspTemplate = computed(() => {
+	const config = selectedDeviceModel.value?.config as Record<string, unknown> | undefined;
+	const tpl = config?.rtsp_url_template;
+	return typeof tpl === "string" && tpl.trim() ? tpl.trim() : DEFAULT_CAMERA_RTSP_TEMPLATE;
+});
+
+const buildCameraRtspUrl = (template: string, ip: string, password: string) => {
+	const safeIp = ip.trim();
+	const safePwd = password.trim();
+	if (!safeIp || !safePwd) return "";
+
+	// 以 template 為主，支援兩種常見寫法：
+	// 1) rtsp://admin:密碼@ip/...
+	// 2) rtsp://admin:{password}@{ip}/...
+	const encodedPwd = encodeURIComponent(safePwd);
+	return template
+		.replaceAll("{ip}", safeIp)
+		.replaceAll("{password}", encodedPwd)
+		.replaceAll("ip", safeIp)
+		.replaceAll("密碼", encodedPwd);
+};
+
+const cameraRtspPreview = computed(() => {
+	const tpl = selectedCameraRtspTemplate.value;
+	const ip = cameraIp.value.trim();
+	const pwd = cameraPassword.value.trim();
+	if (!ip || !pwd) return tpl;
+	// 預覽顯示未編碼密碼（含 @ 等符號），送出時才 encode
+	return tpl
+		.replaceAll("{ip}", ip)
+		.replaceAll("{password}", pwd)
+		.replaceAll("ip", ip)
+		.replaceAll("密碼", pwd);
 });
 
 const sensorConfig = reactive<SensorDeviceConfig>({
@@ -417,10 +487,7 @@ const deviceModelOptions = computed(() => {
 		label: model.name
 	}));
 	// 添加空選項（用於清除選擇）
-	return [
-		{ value: "", label: "請選擇設備型號" },
-		...options
-	];
+	return [{ value: "", label: "請選擇設備型號" }, ...options];
 });
 
 // 獲取當前選中的設備型號
@@ -495,6 +562,10 @@ const resetForm = () => {
 
 	cameraConfig.rtsp_url = "";
 
+	cameraIp.value = "";
+	cameraPassword.value = "";
+	cameraGroup.value = "";
+
 	sensorConfig.protocol = "modbus";
 	sensorConfig.host = "";
 	sensorConfig.port = undefined;
@@ -536,8 +607,9 @@ const createModeHasContent = computed(() => {
 	const modelSelected = localFormData.model_id > 0;
 	const configFilled = (() => {
 		const c = getCurrentConfig();
-		if (c.type === "controller") return !!(c.host && (c.port != null || controllerConfig.port != null));
-		if (c.type === "camera") return !!(c.rtsp_url && c.rtsp_url.trim().toLowerCase().startsWith("rtsp://"));
+		if (c.type === "controller")
+			return !!(c.host && (c.port != null || controllerConfig.port != null));
+		if (c.type === "camera") return !!(cameraIp.value.trim() && cameraPassword.value.trim());
 		if (c.type === "sensor") {
 			if (c.protocol === "modbus") return !!(c.host && (c.port != null || sensorConfig.port != null));
 			if (c.protocol === "http") return !!c.api_endpoint;
@@ -587,7 +659,8 @@ const changedFieldsList = computed(() => {
 
 const changeSummary = computed(() => {
 	const count = changedFieldsList.value.length;
-	if (count === 0 && !props.editingDevice && createModeHasContent.value) return "表單已填寫，尚未儲存";
+	if (count === 0 && !props.editingDevice && createModeHasContent.value)
+		return "表單已填寫，尚未儲存";
 	if (count === 0) return "";
 	return `有 ${count} 個欄位已修改`;
 });
@@ -648,7 +721,26 @@ const loadConfigFromDevice = (device: Device) => {
 			break;
 		case "camera": {
 			Object.assign(cameraConfig, device.config);
-			if (!cameraConfig.rtsp_url) cameraConfig.rtsp_url = "";
+			cameraGroup.value = (device.config as CameraDeviceConfig).group ?? "";
+			if (!cameraConfig.rtsp_url) {
+				cameraConfig.rtsp_url = "";
+				cameraIp.value = "";
+				cameraPassword.value = "";
+				break;
+			}
+
+			const rtsp = cameraConfig.rtsp_url;
+			const match =
+				/^rtsp:\/\/admin:(?<pwd>[^@]+)@(?<host>[^/:]+)(?::\d+)?\/?/i.exec(rtsp) ||
+				/^rtsp:\/\/(?<host>[^/:]+)(?::\d+)?\/?/i.exec(rtsp);
+			const groups = (match && (match.groups as { pwd?: string; host?: string })) || {};
+			cameraIp.value = groups.host ?? "";
+			const rawPwd = groups.pwd ?? "";
+			try {
+				cameraPassword.value = rawPwd ? decodeURIComponent(rawPwd) : "";
+			} catch {
+				cameraPassword.value = rawPwd;
+			}
 			break;
 		}
 		case "sensor":
@@ -710,8 +802,21 @@ const getCurrentConfig = (): DeviceConfig => {
 				...(controllerConfig.unitId != null && { unitId: controllerConfig.unitId })
 			};
 		}
-		case "camera":
-			return { type: "camera", rtsp_url: cameraConfig.rtsp_url };
+		case "camera": {
+			const ip = cameraIp.value.trim();
+			const pwd = cameraPassword.value.trim();
+			const rtspUrl =
+				ip && pwd
+					? buildCameraRtspUrl(selectedCameraRtspTemplate.value, ip, pwd)
+					: cameraConfig.rtsp_url;
+			return {
+				type: "camera",
+				rtsp_url: rtspUrl,
+				host: ip || cameraConfig.host,
+				ip_address: ip || cameraConfig.ip_address,
+				group: cameraGroup.value.trim() || undefined
+			};
+		}
 		case "sensor": {
 			const { unitId, ...rest } = sensorConfig;
 			return { ...rest, ...(unitId != null && { unitId }) };
@@ -745,8 +850,10 @@ const handleSubmit = () => {
 
 	// 感測器 Modbus：端口與 Unit ID 必填（可繼承自型號）
 	if (props.deviceTypeCode === "sensor" && sensorConfig.protocol === "modbus") {
-		const hasPort = isSensorPortInherited.value || (sensorConfig.port != null && sensorConfig.port > 0);
-		const hasUnitId = isSensorUnitIdInherited.value || (sensorConfig.unitId != null && sensorConfig.unitId > 0);
+		const hasPort =
+			isSensorPortInherited.value || (sensorConfig.port != null && sensorConfig.port > 0);
+		const hasUnitId =
+			isSensorUnitIdInherited.value || (sensorConfig.unitId != null && sensorConfig.unitId > 0);
 		if (!hasPort) {
 			localErrorMessage.value = "請填寫端口，或選擇已設定端口的設備型號";
 			return;
@@ -758,7 +865,8 @@ const handleSubmit = () => {
 	}
 	// 控制器：端口必填（可繼承自型號）
 	if (props.deviceTypeCode === "controller") {
-		const hasPort = isControllerPortInherited.value || (controllerConfig.port != null && controllerConfig.port > 0);
+		const hasPort =
+			isControllerPortInherited.value || (controllerConfig.port != null && controllerConfig.port > 0);
 		if (!hasPort) {
 			localErrorMessage.value = "請填寫端口，或選擇已設定端口的設備型號";
 			return;
@@ -767,15 +875,10 @@ const handleSubmit = () => {
 
 	const config = getCurrentConfig();
 
-	// 攝影機：rtsp_url 必填且須以 rtsp:// 開頭
+	// 攝影機：需填寫 IP 與密碼（rtsp_url 由前端組合）
 	if (props.deviceTypeCode === "camera") {
-		const rtsp = (config as CameraDeviceConfig).rtsp_url?.trim() ?? "";
-		if (!rtsp) {
-			localErrorMessage.value = "請填寫 RTSP URL";
-			return;
-		}
-		if (!rtsp.toLowerCase().startsWith("rtsp://")) {
-			localErrorMessage.value = "RTSP URL 須以 rtsp:// 開頭";
+		if (!cameraIp.value.trim() || !cameraPassword.value.trim()) {
+			localErrorMessage.value = "請填寫設備 IP 與密碼";
 			return;
 		}
 	}
