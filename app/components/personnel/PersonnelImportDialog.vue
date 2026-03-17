@@ -30,20 +30,15 @@
 						></textarea>
 					</label>
 					<p v-if="error" class="text-sm text-rose-300">{{ error }}</p>
-					<div
-						v-if="result"
-						class="rounded border border-white/20 bg-white/5 p-3 text-sm text-white/90"
-					>
+					<div v-if="result" class="rounded border border-white/20 bg-white/5 p-3 text-sm text-white/90">
 						<p>成功：{{ result.created }} 筆</p>
 						<p v-if="result.errors?.length" class="mt-2 text-amber-300">
 							錯誤：{{ result.errors.length }} 筆 —
-							{{ result.errors.map((e) => `第${e.row}行 ${e.message}`).join("；") }}
+							{{ result.errors.map(e => `第${e.row}行 ${e.message}`).join("；") }}
 						</p>
 					</div>
 					<footer class="mt-2 flex gap-3 2xl:gap-4">
-						<button type="button" class="btn-secondary" @click="handleClose">
-							關閉
-						</button>
+						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
 						<div class="flex-1"></div>
 						<button
 							type="button"
@@ -61,24 +56,23 @@
 </template>
 
 <script setup lang="ts">
-import type { ImportResult } from "~/types/personnel"
+import type { ImportResult } from "~/types/personnel";
 
 defineProps<{
-	modelValue: boolean
-	jsonText: string
-	error: string
-	result: ImportResult | null
-	isImporting: boolean
-}>()
+	modelValue: boolean;
+	jsonText: string;
+	error: string;
+	result: ImportResult | null;
+	isImporting: boolean;
+}>();
 
 const emit = defineEmits<{
-	"update:modelValue": [value: boolean]
-	"update:jsonText": [value: string]
-	submit: []
-}>()
+	"update:modelValue": [value: boolean];
+	"update:jsonText": [value: string];
+	submit: [];
+}>();
 
-const handleClose = () => emit("update:modelValue", false)
-const handleInput = (e: Event) =>
-	emit("update:jsonText", (e.target as HTMLTextAreaElement).value)
-const handleSubmit = () => emit("submit")
+const handleClose = () => emit("update:modelValue", false);
+const handleInput = (e: Event) => emit("update:jsonText", (e.target as HTMLTextAreaElement).value);
+const handleSubmit = () => emit("submit");
 </script>

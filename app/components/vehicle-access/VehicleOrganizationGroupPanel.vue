@@ -12,7 +12,7 @@
 				:class="{
 					'border-white/70': selectedGroupKey === group.groupKey,
 					'bg-white/20': (group.onSiteCount || 0) > 0,
-					'bg-black/20': (group.onSiteCount || 0) === 0,
+					'bg-black/20': (group.onSiteCount || 0) === 0
 				}"
 				tabindex="0"
 				role="button"
@@ -37,20 +37,20 @@
 </template>
 
 <script setup lang="ts">
-import type { VehicleOrganizationGroupItem } from "~/types/vehicleAccess"
+import type { VehicleOrganizationGroupItem } from "~/types/vehicleAccess";
 
 interface Props {
-	groups: VehicleOrganizationGroupItem[]
-	selectedGroupKey?: string
+	groups: VehicleOrganizationGroupItem[];
+	selectedGroupKey?: string;
 }
 
-defineProps<Props>()
+defineProps<Props>();
 
 const emit = defineEmits<{
-	(e: "select", groupKey: string): void
-}>()
+	(e: "select", groupKey: string): void;
+}>();
 
 const handleSelect = (group: VehicleOrganizationGroupItem) => {
-	if (group.groupKey) emit("select", group.groupKey)
-}
+	if (group.groupKey) emit("select", group.groupKey);
+};
 </script>

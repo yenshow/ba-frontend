@@ -45,9 +45,8 @@
 						</span>
 					</NuxtLink>
 				</button>
-				<!-- 2. 更多功能（僅 admin/operator 顯示，viewer 不顯示） -->
-				<template v-if="isOperator">
-					<div class="relative flex items-center" ref="moreMenuRef">
+				<!-- 2. 更多功能 -->
+				<div class="relative flex items-center" ref="moreMenuRef">
 						<button
 							@click.stop="toggleMoreMenu"
 							:class="['icon-button', { 'icon-button-active': isMoreMenuOpen }]"
@@ -55,7 +54,10 @@
 							<img
 								src="/layout/more-functions.svg"
 								alt="更多功能"
-								:class="['h-12 w-12 2xl:h-14 2xl:w-14', isDark ? 'icon-svg-dark' : 'icon-svg-light']"
+								:class="[
+									'h-12 w-12 2xl:h-14 2xl:w-14',
+									isDark ? 'icon-svg-dark' : 'icon-svg-light',
+								]"
 							/>
 						</button>
 						<Transition
@@ -101,7 +103,9 @@
 																height="200"
 															/>
 														</div>
-														<span class="text-sm text-gray-700 2xl:text-base">{{ module.name }}</span>
+														<span class="text-sm text-gray-700 2xl:text-base">{{
+															module.name
+														}}</span>
 													</NuxtLink>
 													<!-- 有路由但未授權：顯示鎖頭、點擊僅 toast -->
 													<button
@@ -111,7 +115,9 @@
 														@click="handleModuleClick(module)"
 														:aria-label="`${module.name}（未授權）`"
 													>
-														<div class="relative flex h-8 w-8 flex-shrink-0 items-center justify-center">
+														<div
+															class="relative flex h-8 w-8 flex-shrink-0 items-center justify-center"
+														>
 															<NuxtImg
 																:src="`/system/${module.icon}.png`"
 																:alt="module.name"
@@ -125,7 +131,9 @@
 																<CommonLicenseLockIcon class="h-3 w-3 text-gray-600" />
 															</span>
 														</div>
-														<span class="text-sm text-gray-500 2xl:text-base">{{ module.name }}</span>
+														<span class="text-sm text-gray-500 2xl:text-base">{{
+															module.name
+														}}</span>
 													</button>
 													<!-- 無路由：僅顯示為停用 -->
 													<div
@@ -150,10 +158,9 @@
 								</div>
 							</div>
 						</Transition>
-					</div>
-					<!-- 分隔線 -->
-					<div class="h-12 w-[2px] 2xl:h-14" :class="isDark ? 'bg-white/30' : 'bg-black/30'"></div>
-				</template>
+				</div>
+				<!-- 分隔線 -->
+				<div class="h-12 w-[2px] 2xl:h-14" :class="isDark ? 'bg-white/30' : 'bg-black/30'"></div>
 
 				<!-- 3. 用戶設定 -->
 				<div class="relative flex items-center" ref="userMenuRef">
@@ -304,7 +311,7 @@ import { useLicense } from "~/composables/core/useLicense"
 import { useToast } from "~/composables/core/useToast"
 import { useTheme } from "~/composables/core/useTheme"
 import { getModuleByRoute, getModulesByCategory } from "~/utils/systemUtils"
-import { LICENSE_MESSAGE_LOCKED } from "~/utils/licenseUtils"
+import { LICENSE_MESSAGE_LOCKED, PERMISSION_MESSAGE_LOCKED } from "~/utils/licenseUtils"
 import type { SystemModule } from "~/types/system"
 
 // 用戶選單狀態
@@ -316,12 +323,21 @@ const isMoreMenuOpen = ref(false)
 const moreMenuRef = ref<HTMLElement | null>(null)
 
 // 認證狀態
-const { user, isAdmin, isOperator, logout: authLogout } = useAuth()
-const { isModuleLocked } = useLicense()
+const { user, isAdmin, hasModulePermission, logout: authLogout } = useAuth()
+const { isModuleLocked: isModuleLockedByLicense } = useLicense()
 const toast = useToast()
 
+/** 模組是否鎖住：授權不足或無該系統權限 */
+const isModuleLocked = (module: SystemModule) =>
+	isModuleLockedByLicense(module) || !hasModulePermission(module)
+
 const handleModuleClick = (module: SystemModule) => {
-	if (isModuleLocked(module)) {
+	if (!hasModulePermission(module)) {
+		toast.warning(PERMISSION_MESSAGE_LOCKED)
+		closeMoreMenu()
+		return
+	}
+	if (isModuleLockedByLicense(module)) {
 		toast.warning(LICENSE_MESSAGE_LOCKED)
 		closeMoreMenu()
 	}
@@ -472,17 +488,17 @@ watch(
 	}
 )
 
-// 監聽用戶登入狀態
+// 監聽用戶登入狀態（僅在 client 啟動/停止未解決警報數量，與 construction BottomNavigation 一致，避免 SSR 觸發 composable）
 watch(
 	() => user.value,
 	(newUser) => {
-		if (newUser) {
-			// 初始載入未解決警報數量
-			void loadUnresolvedAlertCount()
-			// 開始監聽（自動設置 WebSocket 和輪詢後備）
-			startAlertCountUpdate()
-		} else {
+		if (!newUser) {
 			stopAlertCountUpdate()
+			return
+		}
+		if (process.client) {
+			void loadUnresolvedAlertCount()
+			startAlertCountUpdate()
 		}
 	},
 	{ immediate: true }

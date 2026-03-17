@@ -126,51 +126,51 @@
 </template>
 
 <script setup lang="ts">
-import type { Person, PersonGroup } from "~/types/personnel"
+import type { Person, PersonGroup } from "~/types/personnel";
 
 const props = defineProps<{
-	modelValue: boolean
-	editingPerson: Person | null
+	modelValue: boolean;
+	editingPerson: Person | null;
 	form: {
-		employeeNo: string
-		fullName: string
-		personGroupId: number | null
-		status: "active" | "inactive"
-		faceUrl: string
-	}
-	groups: PersonGroup[]
-	facePreviewUrl: string | null
-	hasFacePreview: boolean
-	isSubmitting: boolean
-	errorMessage: string | null
-}>()
+		employeeNo: string;
+		fullName: string;
+		personGroupId: number | null;
+		status: "active" | "inactive";
+		faceUrl: string;
+	};
+	groups: PersonGroup[];
+	facePreviewUrl: string | null;
+	hasFacePreview: boolean;
+	isSubmitting: boolean;
+	errorMessage: string | null;
+}>();
 
 const emit = defineEmits<{
-	"update:modelValue": [value: boolean]
-	submit: []
-	"face-file-change": [file: File]
-	"clear-face": []
-}>()
+	"update:modelValue": [value: boolean];
+	submit: [];
+	"face-file-change": [file: File];
+	"clear-face": [];
+}>();
 
-const faceFileInputRef = ref<HTMLInputElement | null>(null)
+const faceFileInputRef = ref<HTMLInputElement | null>(null);
 
-const handleClose = () => emit("update:modelValue", false)
-const handleSubmit = () => emit("submit")
-const triggerFaceFileSelect = () => faceFileInputRef.value?.click()
+const handleClose = () => emit("update:modelValue", false);
+const handleSubmit = () => emit("submit");
+const triggerFaceFileSelect = () => faceFileInputRef.value?.click();
 
 const handleFaceFileChange = (e: Event) => {
-	const input = e.target as HTMLInputElement
-	const file = input.files?.[0]
-	if (file) emit("face-file-change", file)
-	input.value = ""
-}
+	const input = e.target as HTMLInputElement;
+	const file = input.files?.[0];
+	if (file) emit("face-file-change", file);
+	input.value = "";
+};
 
-const handleClearFace = () => emit("clear-face")
+const handleClearFace = () => emit("clear-face");
 
 watch(
 	() => props.modelValue,
-	(v) => {
-		if (!v && faceFileInputRef.value) faceFileInputRef.value.value = ""
+	v => {
+		if (!v && faceFileInputRef.value) faceFileInputRef.value.value = "";
 	}
-)
+);
 </script>

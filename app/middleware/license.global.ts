@@ -1,9 +1,27 @@
+import { useAuth } from "~/composables/core/useAuth";
 import { useLicense } from "~/composables/core/useLicense";
-import { getFeatureKeyByRoute, LICENSE_MESSAGE_REDIRECT } from "~/utils/licenseUtils";
+import {
+	getFeatureKeyByRoute,
+	LICENSE_MESSAGE_REDIRECT,
+	PERMISSION_MESSAGE_REDIRECT,
+} from "~/utils/licenseUtils";
+import { getPermissionCodeByRoute } from "~/constants/permissions";
 import { useToast } from "~/composables/core/useToast";
 
 export default defineNuxtRouteMiddleware(async (to) => {
 	if (to.path === "/login") return;
+
+	// 1. 系統權限檢查：若該路由需權限且用戶無權限則導回首頁
+	const permissionCode = getPermissionCodeByRoute(to.path);
+	if (permissionCode) {
+		const { hasPermission } = useAuth();
+		if (!hasPermission(permissionCode)) {
+			if (process.client) useToast().warning(PERMISSION_MESSAGE_REDIRECT);
+			return navigateTo("/");
+		}
+	}
+
+	// 2. 授權（License）檢查
 	const featureKey = getFeatureKeyByRoute(to.path);
 	if (!featureKey) return;
 
@@ -14,3 +32,4 @@ export default defineNuxtRouteMiddleware(async (to) => {
 	if (process.client) useToast().warning(LICENSE_MESSAGE_REDIRECT);
 	return navigateTo("/");
 });
+

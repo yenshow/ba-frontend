@@ -26,7 +26,6 @@ export function getTimeRangeUTC(preset: string): { start: Date; end: Date } {
 	const y = now.getFullYear();
 	const m = now.getMonth();
 	const d = now.getDate();
-	// 預設 end = 明天 00:00 本地（今日結束，exclusive）
 	const endDefault = new Date(y, m, d + 1, 0, 0, 0, 0);
 	let start = new Date(now);
 	let end = new Date(endDefault);

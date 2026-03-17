@@ -58,12 +58,10 @@ Chart.register(...registerables);
 type GaugeType = "noise" | "aqi" | "temperature";
 type Period = "day" | "week" | "month" | "year";
 
-interface Props {
+const props = defineProps<{
 	type: GaugeType;
 	locationId: string | null;
-}
-
-const props = defineProps<Props>();
+}>();
 
 const periods: { value: Period; label: string }[] = [
 	{ value: "day", label: "日" },
@@ -84,39 +82,32 @@ const getParameterName = (type: GaugeType): string => {
 	return type === "noise" ? "noise" : "temperature";
 };
 
-// 計算 AQI 值
 const calculateAQI = (
 	pm25: number | null | undefined,
 	pm10: number | null | undefined
 ): number | null => {
 	if (pm25 === null && pm10 === null) return null;
 	if (pm25 === null && pm10 !== null) {
-		// 只用 PM10 計算
 		if (pm10 <= 54) return (50 / 54) * pm10;
 		if (pm10 <= 154) return 50 + (50 / 100) * (pm10 - 54);
 		if (pm10 <= 254) return 100 + (50 / 100) * (pm10 - 154);
 		return null;
 	}
 	if (pm25 !== null && pm10 === null) {
-		// 只用 PM2.5 計算
 		if (pm25 <= 12) return (50 / 12) * pm25;
 		if (pm25 <= 35.4) return 50 + (50 / 23.4) * (pm25 - 12);
 		if (pm25 <= 55.4) return 100 + (50 / 20) * (pm25 - 35.4);
 		return null;
 	}
 	if (pm25 !== null && pm10 !== null) {
-		// 計算兩者的 AQI，取最大值
 		let aqi25: number | null = null;
 		let aqi10: number | null = null;
-
 		if (pm25 <= 12) aqi25 = (50 / 12) * pm25;
 		else if (pm25 <= 35.4) aqi25 = 50 + (50 / 23.4) * (pm25 - 12);
 		else if (pm25 <= 55.4) aqi25 = 100 + (50 / 20) * (pm25 - 35.4);
-
 		if (pm10 <= 54) aqi10 = (50 / 54) * pm10;
 		else if (pm10 <= 154) aqi10 = 50 + (50 / 100) * (pm10 - 54);
 		else if (pm10 <= 254) aqi10 = 100 + (50 / 100) * (pm10 - 154);
-
 		if (aqi25 === null && aqi10 === null) return null;
 		if (aqi25 === null) return aqi10;
 		if (aqi10 === null) return aqi25;

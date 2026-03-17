@@ -25,6 +25,7 @@ export const useMonitorViews = () => {
 		}
 	};
 
+	/** 更新指定 deviceId 的畫面（優先更新 streamStatus 為 loading 的那一筆） */
 	const updateMonitorView = (deviceId: number, updates: Partial<MonitorView>) => {
 		const view =
 			monitorViews.value.find(

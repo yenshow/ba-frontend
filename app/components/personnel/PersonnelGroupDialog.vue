@@ -47,21 +47,21 @@
 </template>
 
 <script setup lang="ts">
-import type { PersonGroup } from "~/types/personnel"
+import type { PersonGroup } from "~/types/personnel";
 
 defineProps<{
-	modelValue: boolean
-	editingGroup: PersonGroup | null
-	form: { name: string; description: string }
-	isSubmitting: boolean
-	errorMessage: string | null
-}>()
+	modelValue: boolean;
+	editingGroup: PersonGroup | null;
+	form: { name: string; description: string };
+	isSubmitting: boolean;
+	errorMessage: string | null;
+}>();
 
 const emit = defineEmits<{
-	"update:modelValue": [value: boolean]
-	submit: []
-}>()
+	"update:modelValue": [value: boolean];
+	submit: [];
+}>();
 
-const handleClose = () => emit("update:modelValue", false)
-const handleSubmit = () => emit("submit")
+const handleClose = () => emit("update:modelValue", false);
+const handleSubmit = () => emit("submit");
 </script>

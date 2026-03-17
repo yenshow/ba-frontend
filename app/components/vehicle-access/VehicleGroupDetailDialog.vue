@@ -39,19 +39,18 @@
 								<div
 									v-for="vehicle in paginatedList"
 									:key="vehicle.id"
-									class="flex min-h-[117px] items-start gap-3 border-2 border-white/30 p-3 2xl:min-h-[133px]"
+									class="flex min-h-[135px] items-start gap-3 border-2 border-white/30 p-3 2xl:min-h-[155px]"
 									:class="[vehicle.isPresent ? 'bg-white/20' : 'bg-black/20']"
 								>
 									<div class="mx-4 w-full 2xl:flex-1">
-										<div
-											class="border-b border-white/30 pb-1 text-base font-medium text-white 2xl:text-xl"
-										>
-											{{ vehicle.owner_name?.trim() || "- -" }}
-											<span class="text-white/80"
-												>({{ vehicle.plate_license?.trim() || "- -" }})</span
-											>
+										<div class="border-b border-white/30 pb-1 text-base font-medium text-white 2xl:text-xl">
+											{{ vehicle.plate_license?.trim() || "- -" }}
 										</div>
 										<div class="mt-2 space-y-0.5 text-xs text-white/60 2xl:text-sm">
+											<div v-if="vehicle.owner_name?.trim()">
+												<span>車主姓名：</span>
+												<span>{{ vehicle.owner_name?.trim() }}</span>
+											</div>
 											<div v-if="vehicle.lastEntryDate">
 												<span>最近進場：</span>
 												<span>{{ vehicle.lastEntryDate }}</span>
@@ -94,82 +93,82 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue"
-import type { VehicleGroupMemberItem } from "~/types/vehicleAccess"
-import Pagination from "~/components/common/Pagination.vue"
+import { ref, computed, watch } from "vue";
+import type { VehicleGroupMemberItem } from "~/types/vehicleAccess";
+import Pagination from "~/components/common/Pagination.vue";
 
 interface Props {
-	modelValue: boolean
-	groupName: string
-	vehicleList: VehicleGroupMemberItem[]
+	modelValue: boolean;
+	groupName: string;
+	vehicleList: VehicleGroupMemberItem[];
 }
 
-const props = defineProps<Props>()
+const props = defineProps<Props>();
 
 const emit = defineEmits<{
-	(e: "update:modelValue", value: boolean): void
-	(e: "close"): void
-}>()
+	(e: "update:modelValue", value: boolean): void;
+	(e: "close"): void;
+}>();
 
-const itemsPerPage = 4
-const offset = ref(0)
+const itemsPerPage = 4;
+const offset = ref(0);
 
 const paginatedList = computed(() => {
-	const start = offset.value
-	const end = start + itemsPerPage
-	return props.vehicleList.slice(start, end)
-})
+	const start = offset.value;
+	const end = start + itemsPerPage;
+	return props.vehicleList.slice(start, end);
+});
 
 watch(
 	() => props.vehicleList.length,
-	(newLength) => {
+	newLength => {
 		if (offset.value >= newLength) {
-			offset.value = 0
+			offset.value = 0;
 		}
 	}
-)
+);
 
 const displayName = (v: VehicleGroupMemberItem): string => {
-	const name = v.owner_name?.trim() || ""
-	const plate = v.plate_license?.trim() || ""
-	if (name && plate) return `${name} - ${plate}`
-	if (plate) return plate
-	if (name) return name
-	return "- -"
-}
+	const name = v.owner_name?.trim() || "";
+	const plate = v.plate_license?.trim() || "";
+	if (name && plate) return `${name} - ${plate}`;
+	if (plate) return plate;
+	if (name) return name;
+	return "- -";
+};
 
 const parseTimeToSeconds = (time?: string | null) => {
-	if (!time) return null
-	const m = time.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)
-	if (!m) return null
-	const hh = Number(m[1])
-	const mm = Number(m[2])
-	const ss = m[3] ? Number(m[3]) : 0
-	if (Number.isNaN(hh) || Number.isNaN(mm) || Number.isNaN(ss)) return null
-	return hh * 3600 + mm * 60 + ss
-}
+	if (!time) return null;
+	const m = time.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+	if (!m) return null;
+	const hh = Number(m[1]);
+	const mm = Number(m[2]);
+	const ss = m[3] ? Number(m[3]) : 0;
+	if (Number.isNaN(hh) || Number.isNaN(mm) || Number.isNaN(ss)) return null;
+	return hh * 3600 + mm * 60 + ss;
+};
 
 const shouldHideExitTime = (v: VehicleGroupMemberItem) => {
-	const entrySec = parseTimeToSeconds(v.entryTime)
-	const exitSec = parseTimeToSeconds(v.exitTime ?? null)
-	if (entrySec == null || exitSec == null) return false
-	return entrySec > exitSec
-}
+	const entrySec = parseTimeToSeconds(v.entryTime);
+	const exitSec = parseTimeToSeconds(v.exitTime ?? null);
+	if (entrySec == null || exitSec == null) return false;
+	return entrySec > exitSec;
+};
 
 const handlePrevious = () => {
-	offset.value = Math.max(0, offset.value - itemsPerPage)
-}
+	offset.value = Math.max(0, offset.value - itemsPerPage);
+};
 
 const handleNext = () => {
 	if (offset.value + itemsPerPage < props.vehicleList.length) {
-		offset.value += itemsPerPage
+		offset.value += itemsPerPage;
 	}
-}
+};
 
 const handleClose = () => {
-	emit("update:modelValue", false)
-	emit("close")
-}
+	emit("update:modelValue", false);
+	emit("close");
+};
 </script>
 
 <style scoped>

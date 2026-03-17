@@ -95,13 +95,12 @@ const displayValue = computed(() => {
 const statusText = computed(() => props.getStatusText(props.type, props.value));
 const statusTextClass = computed(() => props.getStatusTextClass(props.type, props.value));
 
-// 判斷狀態類型（無資料時用中性樣式，不顯示黃/紅警示）
+// 判斷狀態類型
 const statusType = computed<"normal" | "warning" | "alarm">(() => {
-	if (props.value === null) return "normal";
 	const text = statusText.value;
 	if (text === "正常") return "normal";
 	if (text === "警報") return "alarm";
-	return "warning";
+	return "warning"; // 異常、注意等
 });
 
 // 背景顏色類別

@@ -675,10 +675,11 @@ const addNewZone = () => {
 		id: tempId
 	} as TZone;
 
-	// 只加入待保存列表，不立即寫入資料庫
+	// ✅ 只加入待保存列表，不立即寫入資料庫
+	// 使用 JSON 深拷貝，避免 structuredClone 無法處理某些對象的問題
 	pendingChanges.value.set(tempId, JSON.parse(JSON.stringify(newZone)) as TZone);
 
-	// 自動展開新區域
+	// ✅ 自動展開新區域
 	expandedZones.value.add(tempId);
 };
 

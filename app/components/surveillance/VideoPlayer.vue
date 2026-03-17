@@ -24,10 +24,7 @@
 		<div v-else class="flex h-full w-full items-center justify-center bg-black text-white/70">
 			<p class="text-sm 2xl:text-base">無串流</p>
 		</div>
-		<div
-			v-if="error"
-			class="absolute inset-0 flex items-center justify-center bg-black/80 p-4"
-		>
+		<div v-if="error" class="absolute inset-0 flex items-center justify-center bg-black/80 p-4">
 			<p class="text-center text-sm text-red-400 2xl:text-base">{{ error }}</p>
 		</div>
 	</div>
@@ -46,7 +43,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 const videoRef = ref<HTMLVideoElement | null>(null);
 const error = ref<string>("");
-
 let pc: RTCPeerConnection | null = null;
 
 /** 分頁不可見時暫停 video，省 CPU／電量 */

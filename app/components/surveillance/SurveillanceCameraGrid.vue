@@ -1,12 +1,13 @@
 <template>
 	<div class="w-full">
-		<div :class="['grid gap-4', gridClass]">
+		<div :class="['grid', isFullscreen ? 'gap-0' : 'gap-4', gridClass]">
 			<div
 				v-for="(view, index) in displayViews"
 				:key="`view-${view.deviceId}-${view.position}-${index}`"
 				:ref="(el: HTMLElement | null) => setViewRef(el, index)"
 				:class="[
-					'relative overflow-hidden rounded-lg border-2 bg-black',
+					'relative overflow-hidden bg-black',
+					isFullscreen ? 'rounded-none border-0' : 'rounded-lg border-2',
 					isSelected(view.deviceId)
 						? 'border-blue-500 ring-2 ring-blue-500'
 						: 'border-gray-300 dark:border-gray-700'
@@ -34,12 +35,13 @@
 
 				<!-- 設備名稱覆蓋層 -->
 				<div
+					v-if="!isFullscreen"
 					class="absolute left-0 top-0 z-20 max-w-[60%] overflow-hidden text-ellipsis whitespace-nowrap rounded-br bg-black/60 px-2 py-1 text-xs font-medium text-white 2xl:text-base"
 				>
 					{{ getCameraName(view.deviceId) }}
 				</div>
 
-				<div class="absolute right-0 top-0 z-20 flex shrink-0 gap-1 p-1.5">
+				<div v-if="!isFullscreen" class="absolute right-0 top-0 z-20 flex shrink-0 gap-1 p-1.5">
 					<button
 						@click.stop="$emit('remove', view.deviceId)"
 						class="shrink-0 whitespace-nowrap rounded bg-gray-500/80 px-1.5 py-0.5 text-white transition-colors hover:bg-gray-600 text-xs 2xl:px-2 2xl:py-1 2xl:text-xs"
@@ -53,9 +55,14 @@
 			<div
 				v-for="idx in emptySlots"
 				:key="`empty-${idx}`"
-				class="flex aspect-video items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-800"
+				:class="[
+					'flex aspect-video items-center justify-center',
+					isFullscreen
+						? 'bg-black'
+						: 'rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-800'
+				]"
 			>
-				<p class="text-sm text-gray-400 2xl:text-base dark:text-gray-500">空位</p>
+				<p v-if="!isFullscreen" class="text-sm text-gray-400 2xl:text-base dark:text-gray-500">空位</p>
 			</div>
 		</div>
 	</div>
@@ -69,9 +76,12 @@ interface Props {
 	cameras: readonly SurveillanceCamera[];
 	views: readonly MonitorView[];
 	layout: GridLayout;
+	isFullscreen?: boolean;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+	isFullscreen: false
+});
 
 const emit = defineEmits<{
 	remove: [deviceId: number];
@@ -120,6 +130,7 @@ const gridClass = computed(() => {
 		case "1": return "grid-cols-1";
 		case "4": return "grid-cols-2";
 		case "9": return "grid-cols-3";
+		case "16": return "grid-cols-4";
 		default: return "grid-cols-1";
 	}
 });

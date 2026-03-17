@@ -159,116 +159,104 @@
 </template>
 
 <script setup lang="ts">
-import type { VehicleDataLog } from "~/types/vehicleAccess"
-import { formatDate, formatDateTime, TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtils"
-import { buildCsvSection } from "~/utils/csvExport"
-import { getEntryOnlyLogIds } from "~/utils/vehicleAccessUtils"
-import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
+import type { VehicleDataLog } from "~/types/vehicleAccess";
+import { formatDate, formatDateTime, TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtils";
+import { buildCsvSection } from "~/utils/csvExport";
+import { getEntryOnlyLogIds } from "~/utils/vehicleAccessUtils";
+import TimeRangePicker from "~/components/common/TimeRangePicker.vue";
 
 const props = defineProps<{
-	logs: VehicleDataLog[]
-	zoneName: string
-	locationName: string
-	timeRange: { startDate: string; endDate: string; preset: string }
-}>()
+	logs: VehicleDataLog[];
+	zoneName: string;
+	locationName: string;
+	timeRange: { startDate: string; endDate: string; preset: string };
+}>();
 
 const emit = defineEmits<{
-	"update:timeRange": [v: { startDate: string; endDate: string; preset: string }]
-}>()
+	"update:timeRange": [v: { startDate: string; endDate: string; preset: string }];
+}>();
 
 const timeRangeModel = computed({
 	get: () => props.timeRange,
-	set: (v) => emit("update:timeRange", v),
-})
+	set: v => emit("update:timeRange", v)
+});
 
 const zoneLocationLabel = computed(() => {
-	const z = props.zoneName || ""
-	const l = props.locationName || ""
-	return [z, l].filter(Boolean).join("-") || "-"
-})
+	const z = props.zoneName || "";
+	const l = props.locationName || "";
+	return [z, l].filter(Boolean).join("-") || "-";
+});
 
 const getDateKey = (log: VehicleDataLog): string => {
-	if (!log.trigger_time) return ""
-	return formatDate(log.trigger_time)
-}
+	if (!log.trigger_time) return "";
+	return formatDate(log.trigger_time);
+};
 
 const groupsByDate = computed(() => {
-	const g = new Map<string, VehicleDataLog[]>()
+	const g = new Map<string, VehicleDataLog[]>();
 	for (const log of props.logs) {
-		const d = getDateKey(log)
-		if (!d) continue
-		if (!g.has(d)) g.set(d, [])
-		g.get(d)!.push(log)
+		const d = getDateKey(log);
+		if (!d) continue;
+		if (!g.has(d)) g.set(d, []);
+		g.get(d)!.push(log);
 	}
-	return g
-})
+	return g;
+});
 
-const datesDesc = computed(() =>
-	[...groupsByDate.value.keys()].sort((a, b) => b.localeCompare(a))
-)
+const datesDesc = computed(() => [...groupsByDate.value.keys()].sort((a, b) => b.localeCompare(a)));
 
 /** 依 allow_result=1 與 lane_type 計算進場／出場／在場 */
 const entryExitCurrent = (logList: VehicleDataLog[]) => {
-	const entry = logList.filter((l) => l.allow_result === 1 && l.lane_type === 1).length
-	const exit = logList.filter((l) => l.allow_result === 1 && l.lane_type === 2).length
-	return { entry, exit, current: Math.max(0, entry - exit) }
-}
+	const entry = logList.filter(l => l.allow_result === 1 && l.lane_type === 1).length;
+	const exit = logList.filter(l => l.allow_result === 1 && l.lane_type === 2).length;
+	return { entry, exit, current: Math.max(0, entry - exit) };
+};
 
 const statsTableRows = computed(() => {
-	const zl = zoneLocationLabel.value
-	const rows: Array<Record<string, string> & { key: string }> = []
+	const zl = zoneLocationLabel.value;
+	const rows: Array<Record<string, string> & { key: string }> = [];
 	for (const dateStr of datesDesc.value) {
-		const dayLogs = groupsByDate.value.get(dateStr)!
-		const { entry, exit, current } = entryExitCurrent(dayLogs)
+		const dayLogs = groupsByDate.value.get(dateStr)!;
+		const { entry, exit, current } = entryExitCurrent(dayLogs);
 		rows.push({
 			key: `stats-${dateStr}-${zl}`,
 			日期: dateStr,
 			"區域-地點": zl,
 			進場車輛: String(entry),
 			出場車輛: String(exit),
-			在場車輛: String(current),
-		})
+			在場車輛: String(current)
+		});
 	}
-	return rows
-})
+	return rows;
+});
 
 const getGroupName = (log: VehicleDataLog): string =>
-	(log.vehicle_list_name?.trim() || (log as { person_group_name?: string }).person_group_name?.trim() || "") ||
-	"(未指定群組)"
-
-const allowResultLabel = (log: VehicleDataLog): string =>
-	log.allow_result === 1 ? "放行" : "未放行"
-
-const directionLabel = (log: VehicleDataLog): string =>
-	log.lane_type === 1 ? "進場" : log.lane_type === 2 ? "出場" : "-"
-
-/** 進場未出場的紀錄 ID 集合（用於表格背景凸顯） */
-const entryOnlyLogIds = computed(() => getEntryOnlyLogIds(props.logs))
+	log.vehicle_list_name?.trim() || log.person_group_name?.trim() || "" || "(未指定群組)";
 
 type GroupStatsRow = {
-	key: string
-	日期: string
-	"區域-地點": string
-	群組名稱: string
-	進場車輛: string
-	出場車輛: string
-	在場車輛: string
-	hasOnSite: boolean
-}
+	key: string;
+	日期: string;
+	"區域-地點": string;
+	群組名稱: string;
+	進場車輛: string;
+	出場車輛: string;
+	在場車輛: string;
+	hasOnSite: boolean;
+};
 
 const groupStatsTableRows = computed((): GroupStatsRow[] => {
-	const zl = zoneLocationLabel.value
-	const rows: GroupStatsRow[] = []
+	const zl = zoneLocationLabel.value;
+	const rows: GroupStatsRow[] = [];
 	for (const dateStr of datesDesc.value) {
-		const dayLogs = groupsByDate.value.get(dateStr)!
-		const byGroup = new Map<string, VehicleDataLog[]>()
+		const dayLogs = groupsByDate.value.get(dateStr)!;
+		const byGroup = new Map<string, VehicleDataLog[]>();
 		for (const log of dayLogs) {
-			const name = getGroupName(log)
-			if (!byGroup.has(name)) byGroup.set(name, [])
-			byGroup.get(name)!.push(log)
+			const name = getGroupName(log);
+			if (!byGroup.has(name)) byGroup.set(name, []);
+			byGroup.get(name)!.push(log);
 		}
 		for (const groupName of [...byGroup.keys()].sort()) {
-			const { entry, exit, current } = entryExitCurrent(byGroup.get(groupName)!)
+			const { entry, exit, current } = entryExitCurrent(byGroup.get(groupName)!);
 			rows.push({
 				key: `group-${dateStr}-${groupName}`,
 				日期: dateStr,
@@ -277,35 +265,44 @@ const groupStatsTableRows = computed((): GroupStatsRow[] => {
 				進場車輛: String(entry),
 				出場車輛: String(exit),
 				在場車輛: String(current),
-				hasOnSite: current > 0,
-			})
+				hasOnSite: current > 0
+			});
 		}
 	}
-	return rows
-})
+	return rows;
+});
+
+const allowResultLabel = (log: VehicleDataLog): string =>
+	log.allow_result === 1 ? "放行" : "未放行";
+
+const directionLabel = (log: VehicleDataLog): string =>
+	log.lane_type === 1 ? "進場" : log.lane_type === 2 ? "出場" : "-";
+
+/** 進場未出場的紀錄 ID 集合（用於表格背景凸顯） */
+const entryOnlyLogIds = computed(() => getEntryOnlyLogIds(props.logs));
 
 type DetailRow = {
-	key: string
-	isEntryOnly: boolean
-	"區域-地點": string
-	車牌: string
-	過車時間: string
-	車道名稱: string
-	車主名稱: string
-	車輛群組: string
-	放行結果: string
-	方向: string
-}
+	key: string;
+	isEntryOnly: boolean;
+	"區域-地點": string;
+	車牌: string;
+	過車時間: string;
+	車道名稱: string;
+	車主名稱: string;
+	車輛群組: string;
+	放行結果: string;
+	方向: string;
+};
 
 const detailTableRows = computed((): DetailRow[] => {
-	const zl = zoneLocationLabel.value
-	const ids = entryOnlyLogIds.value
-	const rows: DetailRow[] = []
+	const zl = zoneLocationLabel.value;
+	const ids = entryOnlyLogIds.value;
+	const rows: DetailRow[] = [];
 	for (const dateStr of datesDesc.value) {
-		const dayLogs = groupsByDate.value.get(dateStr)!
+		const dayLogs = groupsByDate.value.get(dateStr)!;
 		const sorted = [...dayLogs].sort(
 			(a, b) => new Date(b.trigger_time || 0).getTime() - new Date(a.trigger_time || 0).getTime()
-		)
+		);
 		for (const log of sorted) {
 			rows.push({
 				key: `log-${log.id}-${log.trigger_time}`,
@@ -317,40 +314,40 @@ const detailTableRows = computed((): DetailRow[] => {
 				車主名稱: log.owner_name?.trim() ?? "",
 				車輛群組: log.vehicle_list_name?.trim() ?? "",
 				放行結果: allowResultLabel(log),
-				方向: directionLabel(log),
-			})
+				方向: directionLabel(log)
+			});
 		}
 	}
-	return rows
-})
+	return rows;
+});
 
-const DETAIL_PAGE_SIZE = 10
-const detailPage = ref(1)
+const DETAIL_PAGE_SIZE = 10;
+const detailPage = ref(1);
 
 const totalDetailPages = computed(() =>
 	Math.max(1, Math.ceil(detailTableRows.value.length / DETAIL_PAGE_SIZE))
-)
+);
 
 const detailTableRowsPaginated = computed(() => {
-	const rows = detailTableRows.value
-	const start = (detailPage.value - 1) * DETAIL_PAGE_SIZE
-	return rows.slice(start, start + DETAIL_PAGE_SIZE)
-})
+	const rows = detailTableRows.value;
+	const start = (detailPage.value - 1) * DETAIL_PAGE_SIZE;
+	return rows.slice(start, start + DETAIL_PAGE_SIZE);
+});
 
-watch(totalDetailPages, (total) => {
-	if (detailPage.value > total) detailPage.value = Math.max(1, total)
-})
+watch(totalDetailPages, total => {
+	if (detailPage.value > total) detailPage.value = Math.max(1, total);
+});
 
 const handleDetailPrevPage = () => {
-	if (detailPage.value > 1) detailPage.value -= 1
-}
+	if (detailPage.value > 1) detailPage.value -= 1;
+};
 
 const handleDetailNextPage = () => {
-	if (detailPage.value < totalDetailPages.value) detailPage.value += 1
-}
+	if (detailPage.value < totalDetailPages.value) detailPage.value += 1;
+};
 
-const STATS_HEADERS = ["日期", "區域-地點", "進場車輛", "出場車輛", "在場車輛"]
-const GROUP_STATS_HEADERS = ["日期", "區域-地點", "群組名稱", "進場車輛", "出場車輛", "在場車輛"]
+const STATS_HEADERS = ["日期", "區域-地點", "進場車輛", "出場車輛", "在場車輛"];
+const GROUP_STATS_HEADERS = ["日期", "區域-地點", "群組名稱", "進場車輛", "出場車輛", "在場車輛"];
 const DETAIL_HEADERS = [
 	"區域-地點",
 	"車牌",
@@ -359,41 +356,39 @@ const DETAIL_HEADERS = [
 	"車主名稱",
 	"車輛群組",
 	"放行結果",
-	"方向",
-]
+	"方向"
+];
 
-const firstDateStr = computed(
-	() => statsTableRows.value[0]?.日期?.replace(/\//g, "-") ?? ""
-)
+const firstDateStr = computed(() => statsTableRows.value[0]?.日期?.replace(/\//g, "-") ?? "");
 
 const handleExportCsv = () => {
-	if (props.logs.length === 0) return
-	const dateStr = firstDateStr.value || new Date().toISOString().slice(0, 10)
-	const parts: string[] = []
-	parts.push("進出統計")
-	parts.push(buildCsvSection(STATS_HEADERS, statsTableRows.value, { backupStyle: true }))
-	parts.push("")
-	parts.push("群組統計")
+	if (props.logs.length === 0) return;
+	const dateStr = firstDateStr.value || new Date().toISOString().slice(0, 10);
+	const parts: string[] = [];
+	parts.push("進出統計");
+	parts.push(buildCsvSection(STATS_HEADERS, statsTableRows.value, { backupStyle: true }));
+	parts.push("");
+	parts.push("群組統計");
 	parts.push(
 		buildCsvSection(
 			GROUP_STATS_HEADERS,
-			groupStatsTableRows.value.map((r) => ({
+			groupStatsTableRows.value.map(r => ({
 				日期: r.日期,
 				"區域-地點": r["區域-地點"],
 				群組名稱: r.群組名稱,
 				進場車輛: r.進場車輛,
 				出場車輛: r.出場車輛,
-				在場車輛: r.在場車輛,
+				在場車輛: r.在場車輛
 			})),
 			{ backupStyle: true }
 		)
-	)
-	parts.push("")
-	parts.push("過車紀錄")
+	);
+	parts.push("");
+	parts.push("過車紀錄");
 	parts.push(
 		buildCsvSection(
 			DETAIL_HEADERS,
-			detailTableRows.value.map((r) => ({
+			detailTableRows.value.map(r => ({
 				"區域-地點": r["區域-地點"],
 				車牌: r.車牌,
 				過車時間: r.過車時間,
@@ -401,21 +396,21 @@ const handleExportCsv = () => {
 				車主名稱: r.車主名稱,
 				車輛群組: r.車輛群組,
 				放行結果: r.放行結果,
-				方向: r.方向,
+				方向: r.方向
 			})),
 			{ backupStyle: true }
 		)
-	)
-	const csvContent = "\uFEFF" + parts.join("\n")
-	const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" })
-	const url = URL.createObjectURL(blob)
-	const link = document.createElement("a")
-	link.href = url
-	link.download = `vehicle_access_logs_${dateStr}.csv`
-	link.setAttribute("aria-label", "下載 CSV")
-	document.body.appendChild(link)
-	link.click()
-	document.body.removeChild(link)
-	URL.revokeObjectURL(url)
-}
+	);
+	const csvContent = "\uFEFF" + parts.join("\n");
+	const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
+	const url = URL.createObjectURL(blob);
+	const link = document.createElement("a");
+	link.href = url;
+	link.download = `vehicle_access_logs_${dateStr}.csv`;
+	link.setAttribute("aria-label", "下載 CSV");
+	document.body.appendChild(link);
+	link.click();
+	document.body.removeChild(link);
+	URL.revokeObjectURL(url);
+};
 </script>

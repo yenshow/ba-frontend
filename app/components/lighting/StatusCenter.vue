@@ -77,7 +77,7 @@
 								<div class="relative flex justify-center">
 									<!-- Loading 指示器（當正在處理切換時顯示） -->
 									<div
-										v-if="props.locationToggling.has(getLocationId(zone, location, locationIndex))"
+										v-if="props.areaToggling.has(getLocationId(zone, location, locationIndex))"
 										class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"
 									>
 										<div
@@ -106,7 +106,9 @@
 										<div
 											:class="[
 												'peer h-16 w-8 rounded-full border-2 border-white bg-transparent after:absolute after:bottom-0 after:left-0 after:h-8 after:w-8 after:rounded-full after:bg-white after:transition-all after:content-[\'\'] peer-checked:bg-[#00d1ff] peer-checked:after:-translate-y-full peer-focus:outline-none 2xl:h-20 2xl:w-10 2xl:after:h-10 2xl:after:w-10',
-												isLocationDisabled(getLocationId(zone, location, locationIndex)) || !props.canToggle ? 'opacity-50' : ''
+												isLocationDisabled(getLocationId(zone, location, locationIndex)) || !props.canToggle
+													? 'opacity-50'
+													: ''
 											]"
 										>
 											<!-- ON 文字 -->
@@ -139,20 +141,18 @@ import type { LightingZone, LightingLocation } from "~/types/lighting";
 
 interface Props {
 	zones: LightingZone[];
-	/** 與 lighting.vue 傳入的 location-statuses 對應，勿改為 areaStatuses 否則收不到狀態 */
-	locationStatuses?: Record<string, { isRunning: boolean; status: "normal" | "warning" | "error" }>;
-	locationDisabledMap?: Record<string, boolean>;
-	locationToggling?: Set<string>; // 正在處理切換操作的地點
+	areaStatuses?: Record<string, { isRunning: boolean; status: "normal" | "warning" | "error" }>;
+	areaDisabledMap?: Record<string, boolean>;
+	areaToggling?: Set<string>; // 正在處理切換操作的區域
 	selectedZone?: string;
-	/** 是否允許切換開關（viewer 為 false） */
 	canToggle?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	zones: () => [],
-	locationStatuses: () => ({}),
-	locationDisabledMap: () => ({}),
-	locationToggling: () => new Set(),
+	areaStatuses: () => ({}),
+	areaDisabledMap: () => ({}),
+	areaToggling: () => new Set(),
 	selectedZone: "",
 	canToggle: true
 });
@@ -203,9 +203,9 @@ const displayedZones = computed(() => {
 	});
 });
 
-// 取得地點狀態（使用 locationStatuses 與 lighting.vue 傳入一致）
+// 取得地點狀態
 const getLocationStatus = (locationId: string) => {
-	const status = props.locationStatuses[locationId];
+	const status = props.areaStatuses[locationId];
 	if (status) {
 		return {
 			isRunning: status.isRunning,
@@ -222,12 +222,12 @@ const getLocationStatus = (locationId: string) => {
 
 // 判斷地點是否正常
 const isLocationNormal = (locationId: string): boolean => {
-	const status = props.locationStatuses[locationId];
+	const status = props.areaStatuses[locationId];
 	return !status || status.status === "normal";
 };
 
 const isLocationDisabled = (locationId: string): boolean => {
-	return props.locationDisabledMap[locationId] ?? false;
+	return props.areaDisabledMap[locationId] ?? false;
 };
 
 const handleToggle = (areaId: string, isRunning: boolean) => {

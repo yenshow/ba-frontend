@@ -228,7 +228,7 @@
 				</button>
 			</div>
 			<p class="mb-4 text-sm text-white/70 2xl:text-base">
-				可同步地點為人流統計中已設定門禁入口設備的地點；同步會將有權限的人員寫入該地點的門禁設備。
+				可同步地點為人流統計中已設定門禁入口設備的地點；同步會將有權限的人員寫入該地點的門禁設備。門禁事件由後端自動向設備訂閱，不需在設備設定監聽主機。
 			</p>
 			<div class="min-h-[200px]">
 				<Transition name="fade" mode="out-in">
@@ -820,7 +820,9 @@ watch(showAccessDialog, (v) => {
 	background: rgba(255, 255, 255, 0.1);
 	padding: 0.65rem 0.85rem;
 	color: #f7fbff;
-	transition: border-color 0.2s ease, background 0.2s ease;
+	transition:
+		border-color 0.2s ease,
+		background 0.2s ease;
 }
 .form-input:focus {
 	border-color: #5be7f1;

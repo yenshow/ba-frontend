@@ -6,7 +6,7 @@ export interface YscpBatchPersonResult {
 	personId: number | string;
 	success: boolean;
 	personInfo?: YscpPersonInfo;
-	/** Base64 圖片（includePicture: true 時由 YSCP 取得） */
+	/** Base64 圖片（includePicture: true 時由 YSCP 取得，與人流人員名單相同） */
 	picture?: string;
 	pictureError?: string;
 	error?: string;

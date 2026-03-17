@@ -28,10 +28,15 @@ export type TimeRangeOption = "today" | "custom";
 export interface VehicleAccessFilters {
 	locationId: string | null;
 	timeRange: VehicleAccessTimeRange;
+	/** 自訂時間起（datetime-local 字串） */
 	startTime?: string | null;
+	/** 自訂時間迄（datetime-local 字串） */
 	endTime?: string | null;
+	/** 僅顯示無群組 */
 	onlyNoGroup?: boolean;
+	/** 僅顯示黑名單 */
 	onlyBlacklist?: boolean;
+	/** 關鍵字搜尋（車牌、車道、群組、車主） */
 	search?: string | null;
 }
 
@@ -45,6 +50,7 @@ const getDefaultFilters = (): VehicleAccessFilters => ({
 	search: null
 });
 
+/** 從地點取得車道 ID 列表（入口＋出口）；無則回傳空陣列 */
 function getLaneIdsForLocation(loc: VehicleAccessLocation | null | undefined): number[] {
 	if (!loc) return [];
 	const ids: number[] = [];
@@ -64,11 +70,16 @@ export const useVehicleAccessState = () => {
 	const totalCount = ref(0);
 	const overviewSummaries = ref<VehicleAccessLocationSummary[]>([]);
 
+	/** 當日進場車輛數（allow_result=1 且 lane_type=1，僅計放行） */
 	const entryCount = ref(0);
+	/** 當日出場車輛數（allow_result=1 且 lane_type=2，僅計放行） */
 	const exitCount = ref(0);
+	/** 當日在場車輛數（進場－出場，不小於 0） */
 	const onSiteCount = ref(0);
 
+	/** 車輛群組彙總（anpr.vehicle_custom_list + vehicle_and_list_relation + platform.vehicle_list，不含人員大頭照） */
 	const vehicleGroupsFromApi = ref<VehicleGroupFromApi>({ groups: [] });
+	/** 選中的車輛群組 key（"vg_1" = 群組 id），用於彈窗顯示該群組車輛名單 */
 	const selectedOrganizationKey = ref<string | null>(null);
 	const isLoadingVehicleGroups = ref(false);
 
@@ -77,6 +88,7 @@ export const useVehicleAccessState = () => {
 	const isLoadingOverview = ref(false);
 	const isLoadingCounts = ref(false);
 
+	/** 有 vehicle_access 的地點列表（扁平化） */
 	const locations = computed(() =>
 		vehicleAccessZones.value.flatMap(zone =>
 			(zone.locations || []).map(loc => ({
@@ -88,17 +100,22 @@ export const useVehicleAccessState = () => {
 		)
 	);
 
+	/** 當前選中的地點（用於篩選與標題） */
 	const selectedLocation = computed(() => {
 		const id = filters.value.locationId;
 		if (!id) return null;
 		return locations.value.find(loc => loc.id === id || loc.locationId === id);
 	});
 
+	/** 當前選中地點的車道 ID（用於 API lane_id）；無則 undefined */
 	const selectedLaneIds = computed((): number[] | undefined => {
 		const ids = getLaneIdsForLocation(selectedLocation.value);
 		return ids.length ? ids : undefined;
 	});
 
+	/**
+	 * 載入區域列表（含 vehicle_access 地點）
+	 */
 	const loadZones = async (): Promise<void> => {
 		isLoadingZones.value = true;
 		try {
@@ -113,6 +130,9 @@ export const useVehicleAccessState = () => {
 		}
 	};
 
+	/**
+	 * 載入過車記錄列表（依篩選：時間範圍／自訂起迄／車道／搜尋等）
+	 */
 	const loadLogs = async (): Promise<void> => {
 		isLoadingLogs.value = true;
 		try {
@@ -147,6 +167,7 @@ export const useVehicleAccessState = () => {
 		}
 	};
 
+	/** 載入當日進場／出場／在場數量（僅計放行 allow_result=1 + lane_type） */
 	const loadEntryExitOnSiteCounts = async (): Promise<void> => {
 		const laneIds = selectedLaneIds.value;
 		if (!laneIds?.length) {
@@ -189,6 +210,7 @@ export const useVehicleAccessState = () => {
 		}
 	};
 
+	/** 載入總覽各地點：今日過車筆數、進場／出場／在場（僅計放行） */
 	const loadOverviewSummaries = async (): Promise<void> => {
 		isLoadingOverview.value = true;
 		try {
@@ -245,6 +267,9 @@ export const useVehicleAccessState = () => {
 		vehicleAccessZones.value.find(z => z.locations?.some(l => l.id === location.id))?.name ??
 		null;
 
+	/**
+	 * 車輛群組（來源：anpr.vehicle_custom_list list_type=0；不含未分類；進出／在場由 passageway_log_data 計算）
+	 */
 	const organizationGroups = computed<VehicleOrganizationGroupItem[]>(() => {
 		const apiGroups = (vehicleGroupsFromApi.value.groups ?? []).filter(
 			(g) => (g.id ?? 0) !== 0
@@ -287,6 +312,9 @@ export const useVehicleAccessState = () => {
 		return result;
 	});
 
+	/**
+	 * 選中群組的車輛名單（來自 anpr + platform.vehicle_list；含進出場時間，不含人員大頭照）
+	 */
 	const organizationGroupVehicleList = computed<VehicleGroupMemberItem[]>(() => {
 		const key = selectedOrganizationKey.value;
 		if (!key) return [];
@@ -355,6 +383,7 @@ export const useVehicleAccessState = () => {
 		selectedOrganizationKey.value = key;
 	};
 
+	/** 載入車輛群組彙總（anpr.vehicle_custom_list + vehicle_and_list_relation + platform.vehicle_list） */
 	const loadVehicleGroups = async (): Promise<void> => {
 		isLoadingVehicleGroups.value = true;
 		try {

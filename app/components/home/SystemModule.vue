@@ -84,18 +84,28 @@
 
 <script setup lang="ts">
 import { getAllModules } from "~/utils/systemUtils"
+import { useAuth } from "~/composables/core/useAuth"
 import { useLicense } from "~/composables/core/useLicense"
 import { useToast } from "~/composables/core/useToast"
-import { LICENSE_MESSAGE_LOCKED } from "~/utils/licenseUtils"
+import { LICENSE_MESSAGE_LOCKED, PERMISSION_MESSAGE_LOCKED } from "~/utils/licenseUtils"
 import type { SystemModule } from "~/types/system"
 
-const { isModuleLocked } = useLicense()
+const { hasModulePermission } = useAuth()
+const { isModuleLocked: isModuleLockedByLicense } = useLicense()
 const toast = useToast()
+
+/** 模組是否鎖住：授權不足或無該系統權限 */
+const isModuleLocked = (module: SystemModule) =>
+	isModuleLockedByLicense(module) || !hasModulePermission(module)
 
 const systemModules = computed(() => getAllModules())
 
 const handleModuleClick = (module: SystemModule) => {
-	if (isModuleLocked(module)) {
+	if (!hasModulePermission(module)) {
+		toast.warning(PERMISSION_MESSAGE_LOCKED)
+		return
+	}
+	if (isModuleLockedByLicense(module)) {
 		toast.warning(LICENSE_MESSAGE_LOCKED)
 		return
 	}

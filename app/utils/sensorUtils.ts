@@ -72,9 +72,10 @@ export const getLocationDeviceIds = (
 };
 
 /**
- * 參數類型小數位數映射（統一小數一位，與儲存與趨勢圖一致）
+ * 參數類型小數位數映射
  */
 export const getParameterFractionDigits = (type: SensorParameterType): number => {
+	// 統一小數一位（儲存與趨勢圖一致）
 	if (
 		type === "temperature" ||
 		type === "humidity" ||

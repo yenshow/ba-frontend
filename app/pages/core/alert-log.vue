@@ -61,7 +61,7 @@
 										d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
 									/>
 								</svg>
-								<p class="font-medium text-white/90 text-2xl 2xl:text-3xl">目前沒有警示紀錄</p>
+								<p class="text-2xl font-medium text-white/90 2xl:text-3xl">目前沒有警示紀錄</p>
 								<p class="mt-2 text-sm text-white/70 2xl:text-base">請調整篩選條件或稍後再查看</p>
 							</div>
 						</div>
@@ -106,7 +106,7 @@
 
 										<!-- 設備資訊卡片 -->
 										<div class="mb-3 rounded-lg border border-white/10 bg-white/5 p-3 2xl:p-4">
-											<div class="grid gap-3 grid-cols-4 2xl:gap-4">
+											<div class="grid grid-cols-4 gap-3 2xl:gap-4">
 												<!-- 設備名稱 -->
 												<div class="flex items-start gap-2">
 													<svg
@@ -213,7 +213,7 @@
 											@click="handleIgnore(alert)"
 											:disabled="isIgnoring"
 											class="rounded-lg bg-gray-500/80 px-3 py-1.5 text-base text-white transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
-											title="忽視此警報（操作員或管理員）"
+											title="忽視此警報"
 										>
 											忽視
 										</button>
@@ -223,7 +223,7 @@
 											@click="handleUnignore(alert)"
 											:disabled="isIgnoring"
 											class="rounded-lg bg-blue-500/80 px-3 py-1.5 text-base text-white transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
-											title="取消忽視此警報（操作員或管理員）"
+											title="取消忽視此警報"
 										>
 											取消忽視
 										</button>
@@ -350,7 +350,7 @@ definePageMeta({
 
 const alertApi = useAlertApi()
 const toast = useToast()
-const { isOperator } = useAuth()
+const { isAdmin, isOperator } = useAuth()
 const { removeAlertToast } = useAlertMonitor()
 const { handleError: handleApiError } = useErrorHandler()
 const { on, off } = useWebSocket()
@@ -646,8 +646,10 @@ const handleExport = async () => {
 			系統來源: getSourceLabel(alert.source),
 			"區域-地點": formatZoneLocation(alert.zone_name, alert.source_name),
 			設備類型: alert.device_type_name ?? "",
-			設備配置: getDeviceConfigDisplay(alert.device_config as Record<string, unknown> | null | undefined),
-			"類型與程度": typeSeverity(alert),
+			設備配置: getDeviceConfigDisplay(
+				alert.device_config as Record<string, unknown> | null | undefined
+			),
+			類型與程度: typeSeverity(alert),
 			狀態: STATUS_LABELS[alert.status] ?? alert.status,
 			訊息: alert.message ?? "",
 			創建時間: fmt(alert.created_at),

@@ -86,15 +86,12 @@
 			</template>
 		</div>
 
-		<!-- 人員群組（YSCP 必選；門禁設備為選填，建立地點後再管理人員） -->
+		<!-- 人員群組（僅 YSCP 使用；門禁設備之人員與權限改由「人員管理」處理） -->
 		<div class="mt-3 border-t border-white/10 pt-3">
-			<div class="mb-3">
-				<span class="text-sm font-medium text-white/80 2xl:text-base">
-					人員群組 {{ dataSource === 'yscp' ? '*' : '（選填）' }}
-				</span>
-			</div>
-
 			<template v-if="dataSource === 'yscp'">
+				<div class="mb-3">
+					<span class="text-sm font-medium text-white/80 2xl:text-base">人員群組 *</span>
+				</div>
 				<div
 					v-if="personGroups.length === 0"
 					class="py-2 text-center text-xs text-white/50 2xl:text-sm"
@@ -127,25 +124,13 @@
 				</p>
 			</template>
 			<template v-else>
-				<AccessControlPersonnelPanel
-					:title="'入口設備人員'"
-					:role-label="'入口設備'"
-					:device-id="localLocation.entryDeviceId"
-					@update:list="handleEntryPersonnelUpdate"
-				/>
-				<AccessControlPersonnelPanel
-					:title="'出口設備人員'"
-					:role-label="'出口設備'"
-					:device-id="localLocation.exitDeviceId"
-					@update:list="handleExitPersonnelUpdate"
-				/>
-
-				<AccessControlGroupsPanel
-					:groups="accessControlGroupsList"
-					:entry-personnel="entryPersonnelList"
-					:exit-personnel="exitPersonnelList"
-					@update:groups="handleGroupsUpdate"
-				/>
+				<!-- 門禁設備（本系統）：人員與可進出權限改由「人員管理」設定與同步，此地點僅綁定入口／出口設備；事件由後端佈防訂閱 -->
+				<div class="rounded border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-sm text-cyan-100/90 2xl:text-base">
+					<p class="font-medium">人員與門禁權限由「人員管理」處理</p>
+					<p class="mt-1 text-white/70">
+						此地點僅需綁定上方入口／出口設備。人員的新增、群組與「可進出此地點」的權限請至<strong>「人員管理」</strong>設定，並使用「設備同步」將人員寫入門禁設備。門禁事件由後端自動訂閱，不需在門禁機上設定事件監聽主機。
+					</p>
+				</div>
 			</template>
 		</div>
 
@@ -176,12 +161,9 @@
 </template>
 
 <script setup lang="ts">
-import type { PeopleCountingLocation, AccessControlGroup } from "~/types/peopleCounting";
+import type { PeopleCountingLocation } from "~/types/peopleCounting";
 import type { Device } from "~/types/device";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
-import type { AccessControlUserInfo } from "~/composables/systems/useAccessControlApi";
-import AccessControlPersonnelPanel from "~/components/access-control/AccessControlPersonnelPanel.vue";
-import AccessControlGroupsPanel from "~/components/access-control/AccessControlGroupsPanel.vue";
 
 interface PersonGroup {
 	id: number;
@@ -232,7 +214,6 @@ watch(
 	(newLocation) => {
 		localLocation.value = { ...newLocation };
 		if (!localLocation.value.personGroupIds) localLocation.value.personGroupIds = [];
-		if (!localLocation.value.accessControlGroups) localLocation.value.accessControlGroups = [];
 		dataSource.value = (newLocation.dataSource as "yscp" | "access_control") || "yscp";
 		entryDoorIdString.value = newLocation.entryDoorId ? String(newLocation.entryDoorId) : "";
 		exitDoorIdString.value = newLocation.exitDoorId ? String(newLocation.exitDoorId) : "";
@@ -241,25 +222,6 @@ watch(
 	},
 	{ immediate: true, deep: true }
 );
-
-// 門禁設備：入口／出口人員列表（供群組交集運算）
-const entryPersonnelList = ref<AccessControlUserInfo[]>([]);
-const exitPersonnelList = ref<AccessControlUserInfo[]>([]);
-
-const accessControlGroupsList = computed(() => localLocation.value.accessControlGroups || []);
-
-const handleEntryPersonnelUpdate = (list: AccessControlUserInfo[]) => {
-	entryPersonnelList.value = list;
-};
-
-const handleExitPersonnelUpdate = (list: AccessControlUserInfo[]) => {
-	exitPersonnelList.value = list;
-};
-
-const handleGroupsUpdate = (groups: AccessControlGroup[]) => {
-	localLocation.value.accessControlGroups = groups;
-	handleChange();
-};
 
 const doorOptions = computed(() => {
 	const options = props.doors.map((door) => ({

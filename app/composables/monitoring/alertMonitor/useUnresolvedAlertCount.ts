@@ -17,7 +17,6 @@ const countLogger = logger.createLogger("UnresolvedAlertCount");
  * 未解決警報數量管理
  */
 export const useUnresolvedAlertCount = () => {
-	const nuxtApp = useNuxtApp();
 	const alertApi = useAlertApi();
 	const { isConnected, on, off } = useWebSocket();
 
@@ -84,10 +83,7 @@ export const useUnresolvedAlertCount = () => {
 	const startCountPolling = () => {
 		stopCountPolling();
 		countPollingTimer = setInterval(() => {
-			// 定時器回調不在 Nuxt 環境，需用 runWithContext 才能安全呼叫 composable 鏈（useAlertApi → useApiBase）
-			nuxtApp.runWithContext(() => {
-				void loadUnresolvedAlertCount();
-			});
+			void loadUnresolvedAlertCount();
 		}, 30000); // 30 秒
 	};
 

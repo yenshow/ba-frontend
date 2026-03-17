@@ -18,7 +18,7 @@
 						</h3>
 						<button
 							type="button"
-							class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70 focus:outline-none focus:ring-2 focus:ring-white/50 rounded"
+							class="cursor-pointer rounded border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70 focus:outline-none focus:ring-2 focus:ring-white/50"
 							aria-label="關閉完整報表"
 							tabindex="0"
 							@click="handleClose"
@@ -29,7 +29,7 @@
 						</button>
 					</header>
 
-					<div class="show-scrollbar flex-1 min-h-0 overflow-y-auto pr-5 2xl:pr-6">
+					<div class="show-scrollbar min-h-0 flex-1 overflow-y-auto pr-5 2xl:pr-6">
 						<slot></slot>
 					</div>
 				</div>
@@ -40,31 +40,31 @@
 
 <script setup lang="ts">
 defineProps<{
-	modelValue: boolean
-	title: string
-}>()
+	modelValue: boolean;
+	title: string;
+}>();
 
 const emit = defineEmits<{
-	"update:modelValue": [value: boolean]
-}>()
+	"update:modelValue": [value: boolean];
+}>();
 
 const handleClose = () => {
-	emit("update:modelValue", false)
-}
+	emit("update:modelValue", false);
+};
 
 const handleKeyDown = (e: KeyboardEvent) => {
 	if (e.key === "Escape") {
-		handleClose()
+		handleClose();
 	}
-}
+};
 
 onMounted(() => {
-	document.addEventListener("keydown", handleKeyDown)
-})
+	document.addEventListener("keydown", handleKeyDown);
+});
 
 onBeforeUnmount(() => {
-	document.removeEventListener("keydown", handleKeyDown)
-})
+	document.removeEventListener("keydown", handleKeyDown);
+});
 </script>
 
 <style scoped>

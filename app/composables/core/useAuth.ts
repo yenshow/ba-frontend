@@ -1,5 +1,6 @@
 import type { User, LoginCredentials } from "~/types/user";
 import { useUserApi } from "~/composables/systems/useUserApi";
+import { getPermissionCodeByRoute } from "~/constants/permissions";
 
 export const useAuth = () => {
 	const userApi = useUserApi();
@@ -43,6 +44,21 @@ export const useAuth = () => {
 	const isOperator = computed(() => user.value?.role === "operator" || user.value?.role === "admin");
 	const isViewer = computed(() => user.value?.role === "viewer" || isOperator.value);
 
+	/** 是否具備指定權限（admin 視為擁有全部；其餘依 user.permissions） */
+	const hasPermission = (code: string): boolean => {
+		const u = user.value;
+		if (!u) return false;
+		if (u.role === "admin") return true;
+		return Array.isArray(u.permissions) && u.permissions.includes(code);
+	};
+
+	/** 是否具備該模組（系統）的存取權限：若該路由需權限則檢查 hasPermission，否則視為有權限 */
+	const hasModulePermission = (module: { route: string }): boolean => {
+		const code = getPermissionCodeByRoute(module.route);
+		if (!code) return true;
+		return hasPermission(code);
+	};
+
 	// 登入
 	const login = async (credentials: LoginCredentials) => {
 		try {
@@ -64,11 +80,6 @@ export const useAuth = () => {
 
 	// 登出
 	const logout = () => {
-		try {
-			useLicense().clearLicense();
-		} catch {
-			// 避免 useLicense 未就緒時拋錯
-		}
 		tokenCookie.value = null;
 		userCookie.value = null;
 		token.value = null;
@@ -115,6 +126,8 @@ export const useAuth = () => {
 		isAdmin,
 		isOperator,
 		isViewer,
+		hasPermission,
+		hasModulePermission,
 		login,
 		logout,
 		fetchUser,

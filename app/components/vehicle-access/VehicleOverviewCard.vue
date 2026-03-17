@@ -56,7 +56,7 @@
 							'bg-white/20': group && (group.onSiteCount || 0) > 0,
 							'bg-black/20': !group || (group.onSiteCount || 0) === 0,
 							'text-white/90': group,
-							'text-white/30': !group,
+							'text-white/30': !group
 						}"
 						:title="group ? group.personGroupName : ''"
 					>
@@ -74,45 +74,45 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed } from "vue";
 import type {
 	VehicleAccessLocationSummary,
-	VehicleOrganizationGroupItem,
-} from "~/types/vehicleAccess"
+	VehicleOrganizationGroupItem
+} from "~/types/vehicleAccess";
 
 interface Props {
-	summary: VehicleAccessLocationSummary & { zoneName?: string }
+	summary: VehicleAccessLocationSummary & { zoneName?: string };
 	/** 車輛群組列表（工程部、行銷部等），對齊 LocationOverviewCard 的 units 網格 */
-	groups?: VehicleOrganizationGroupItem[]
+	groups?: VehicleOrganizationGroupItem[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
-	groups: () => [],
-})
+	groups: () => []
+});
 
 const emit = defineEmits<{
-	(e: "click", locationId: string): void
-}>()
+	(e: "click", locationId: string): void;
+}>();
 
 /** 在場車輛數：優先使用 summary.currentCount，否則以 進場－出場 計算（與人流 LocationOverviewCard 一致） */
 const currentCount = computed(() => {
-	const s = props.summary
-	if (s.currentCount != null) return s.currentCount
-	const entry = s.entryCount ?? 0
-	const exit = s.exitCount ?? 0
-	return Math.max(0, entry - exit)
-})
+	const s = props.summary;
+	if (s.currentCount != null) return s.currentCount;
+	const entry = s.entryCount ?? 0;
+	const exit = s.exitCount ?? 0;
+	return Math.max(0, entry - exit);
+});
 
 /** 3x4 群組格，不足補空（對齊 LocationOverviewCard displayUnits） */
-const TOTAL_GRID_CELLS = 12
+const TOTAL_GRID_CELLS = 12;
 
 const displayGroups = computed(() => {
-	const list = (props.groups ?? []).slice(0, TOTAL_GRID_CELLS)
-	const emptyCells = Array(TOTAL_GRID_CELLS - list.length).fill(null)
-	return [...list, ...emptyCells]
-})
+	const list = (props.groups ?? []).slice(0, TOTAL_GRID_CELLS);
+	const emptyCells = Array(TOTAL_GRID_CELLS - list.length).fill(null);
+	return [...list, ...emptyCells];
+});
 
 const handleClick = () => {
-	emit("click", props.summary.id ?? "")
-}
+	emit("click", props.summary.id ?? "");
+};
 </script>

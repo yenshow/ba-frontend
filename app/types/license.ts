@@ -1,6 +1,4 @@
-/**
- * 授權控管：僅此五項會顯示鎖頭並在後端做授權檢查；其餘由角色管理
- */
+/** 授權控管：僅此五項會顯示鎖頭並在後端做授權檢查；其餘由角色管理 */
 export type FeatureKey =
 	| "people_counting"
 	| "lighting"
@@ -22,3 +20,4 @@ export type LicenseState = {
 	expired: boolean;
 	canActivate: boolean;
 };
+

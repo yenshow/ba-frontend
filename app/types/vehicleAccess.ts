@@ -19,6 +19,10 @@ export interface VehicleDataLog {
 	plate_license_image_url?: string | null;
 	vehicle_list_id: number;
 	vehicle_list_name: string | null;
+	/** 組織/單位 ID（對應 platform.person_group.id）；-1 或無效表示無 */
+	organization_id?: number | null;
+	/** 依 organization_id 查 platform.person_group 取得的群組名稱（如 35 → 工程部） */
+	person_group_name?: string | null;
 	/** 車輛類別：數字或陣列（後端已正規化）；包含 5 即為黑名單，僅供警報系統用，不用於放行結果 */
 	vehicle_category?: number | number[];
 	is_blacklist: boolean;
@@ -31,6 +35,8 @@ export interface VehicleListItem {
 	owner_name?: string | null;
 	person_id?: number | null;
 	vehicle_group_id?: number | null;
+	/** 所屬人員群組 ID（對應 platform.person_group.id）；用於穩定取得「有車輛的群組」 */
+	person_group_id?: number | null;
 }
 
 /** 車輛名單項目 + 依當日過車記錄計算的進/出/在場 */
@@ -47,6 +53,12 @@ export interface LaneInfo {
 	lane_type: number | null; // 1 進 2 出
 	passageway_id?: number | null;
 	deleted?: number;
+}
+
+/** 人員群組（platform.person_group，供其他功能使用；車輛群組已改為 anpr.vehicle_custom_list） */
+export interface VehiclePersonGroup {
+	id: number;
+	name: string | null;
 }
 
 /** 後端車輛群組 API 單一車輛（platform.vehicle_list 對應欄位） */

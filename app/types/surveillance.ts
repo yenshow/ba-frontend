@@ -10,7 +10,7 @@ export interface SurveillanceCamera extends Device {
 /**
  * 監控畫面布局模式
  */
-export type GridLayout = "1" | "4" | "9";
+export type GridLayout = "1" | "4" | "9" | "16";
 
 /**
  * 監控畫面配置（WebRTC：加入畫面時呼叫 stream/start 取得 webrtcUrl）
@@ -25,3 +25,4 @@ export interface MonitorView {
 	/** 串流狀態 */
 	streamStatus?: "running" | "stopped" | "loading" | "error";
 }
+

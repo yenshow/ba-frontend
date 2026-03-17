@@ -23,21 +23,24 @@
 						{{ camera.status === "active" ? "啟用" : camera.status === "error" ? "錯誤" : "停用" }}
 					</span>
 				</div>
-				<p v-if="camera.description" class="mt-1 text-sm text-white/70 2xl:text-base">
-					{{ camera.description }}
-				</p>
-				<div class="mt-2 flex items-center gap-2 text-xs text-white/60 2xl:text-sm">
-					<span>{{ camera.config.host || camera.config.ip_address || (camera.config.rtsp_url ? "RTSP 已設定" : "") }}</span>
-				</div>
-				<div v-if="camera.config.rtsp_url" class="mt-1 text-xs text-white/50 2xl:text-sm">
-					WebRTC
+				<div
+					v-if="displayAddress || displayGroup"
+					class="mt-2 flex flex-wrap items-center gap-2 text-xs text-white/60 2xl:text-sm"
+				>
+					<span v-if="displayAddress">{{ displayAddress }}</span>
+					<span
+						v-if="displayGroup"
+						class="rounded bg-white/20 px-1.5 py-0.5 text-white/80"
+					>
+						{{ displayGroup }}
+					</span>
 				</div>
 			</div>
 		</div>
 
 		<div
 			v-if="showThumbnail"
-			class="mt-3 aspect-video w-full overflow-hidden rounded bg-white/10 flex items-center justify-center text-xs text-white/60"
+			class="mt-3 flex aspect-video w-full items-center justify-center overflow-hidden rounded bg-white/10 text-xs text-white/60"
 		>
 			點擊加入監控畫面
 		</div>
@@ -45,6 +48,7 @@
 </template>
 
 <script setup lang="ts">
+import type { CameraDeviceConfig } from "~/types/device";
 import type { SurveillanceCamera } from "~/types/surveillance";
 
 interface Props {
@@ -56,6 +60,26 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
 	isSelected: false,
 	showThumbnail: false
+});
+
+const displayAddress = computed(() => {
+	const config = props.camera.config as CameraDeviceConfig;
+
+	if (config.host) return config.host;
+	if (config.ip_address) return config.ip_address;
+	if (!config.rtsp_url) return "";
+
+	try {
+		const url = new URL(config.rtsp_url);
+		return url.hostname || url.host || "";
+	} catch {
+		return "";
+	}
+});
+
+const displayGroup = computed(() => {
+	const config = props.camera.config as CameraDeviceConfig;
+	return config?.group?.trim() || "";
 });
 
 defineEmits<{

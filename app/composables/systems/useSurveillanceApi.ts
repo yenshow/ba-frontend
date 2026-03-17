@@ -6,10 +6,9 @@ import type {
 } from "~/types/device";
 import type { SurveillanceCamera } from "~/types/surveillance";
 import { logger } from "~/utils/logger";
+import { useDeviceApi } from "~/composables/systems/useDeviceApi";
 
 const surveillanceLogger = logger.createLogger("Surveillance API");
-
-import { useDeviceApi } from "~/composables/systems/useDeviceApi";
 
 export const useSurveillanceApi = () => {
 	const deviceApi = useDeviceApi();
@@ -77,7 +76,9 @@ export const useSurveillanceApi = () => {
 	/**
 	 * 查詢攝影機串流狀態
 	 */
-	const getCameraStreamStatus = async (deviceId: number): Promise<DeviceStreamStatusResponse> => {
+	const getCameraStreamStatus = async (
+		deviceId: number
+	): Promise<DeviceStreamStatusResponse> => {
 		try {
 			return await deviceApi.getStreamStatus(deviceId);
 		} catch (error) {
