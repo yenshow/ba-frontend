@@ -166,20 +166,9 @@ export const systemModules: SystemModule[] = [
 		category: "security",
 		description: "緊急求救與通報系統"
 	},
-
-	// ========== 維護管理系統（整合：機電維護 + 可靠度 + 設施管理）==========
-	{
-		id: 18,
-		name: "設備維護管理系統",
-		icon: "maintenance",
-		route: "/maintenance/equipment",
-		category: "maintenance",
-		description: "整合機電維護、設備運轉可靠度、設施管理"
-	},
-
 	// ========== 業務管理系統 ==========
 	{
-		id: 19,
+		id: 18,
 		name: "訪客系統",
 		icon: "visitor",
 		route: "/business/visitor",
@@ -187,7 +176,7 @@ export const systemModules: SystemModule[] = [
 		description: "訪客登記與管理"
 	},
 	{
-		id: 20,
+		id: 19,
 		name: "寄物管理",
 		icon: "locker-management",
 		route: "/business/locker-management",
@@ -197,8 +186,8 @@ export const systemModules: SystemModule[] = [
 
 	// ========== 多媒體系統（整合：電視牆 + 多媒體 + 資訊平台）==========
 	{
-		id: 21,
-		name: "多媒體資訊系統",
+		id: 20,
+		name: "多媒體資訊",
 		icon: "video-wall",
 		route: "/multimedia/info",
 		category: "multimedia",

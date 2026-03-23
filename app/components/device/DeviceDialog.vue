@@ -112,17 +112,25 @@
 								/>
 							</label>
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+								<span>設備登入帳號 *</span>
+								<input
+									v-model="cameraUsername"
+									type="text"
+									required
+									class="form-input"
+									placeholder="預設 admin，可修改"
+									aria-label="攝影機登入帳號"
+								/>
+							</label>
+							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 								<span>設備登入密碼 *</span>
 								<input
 									v-model="cameraPassword"
 									type="text"
 									required
 									class="form-input"
-									placeholder="請輸入設備 admin 密碼"
+									placeholder="請輸入設備登入密碼"
 								/>
-								<p class="mt-1 text-xs text-white/50">
-									會自動組成 RTSP URL（海康例：/Streaming/channels/101）
-								</p>
 							</label>
 							<div class="text-xs text-white/60 2xl:text-sm">
 								RTSP URL 預覽：
@@ -321,6 +329,12 @@ import type {
 	SensorDeviceConfig,
 	AccessControlDeviceConfig
 } from "~/types/device";
+import {
+	DEFAULT_CAMERA_RTSP_TEMPLATE,
+	buildCameraRtspUrl,
+	previewCameraRtspTemplate,
+	parseCameraRtspUrl
+} from "~/utils/cameraRtspUtils";
 
 interface Props {
 	modelValue: boolean;
@@ -382,10 +396,9 @@ const cameraConfig = reactive<CameraDeviceConfig>({
 });
 
 const cameraIp = ref<string>("");
+const cameraUsername = ref<string>("admin");
 const cameraPassword = ref<string>("");
 const cameraGroup = ref<string>("");
-
-const DEFAULT_CAMERA_RTSP_TEMPLATE = "rtsp://admin:密碼@ip:554/Streaming/channels/101";
 
 const selectedCameraRtspTemplate = computed(() => {
 	const config = selectedDeviceModel.value?.config as Record<string, unknown> | undefined;
@@ -393,34 +406,14 @@ const selectedCameraRtspTemplate = computed(() => {
 	return typeof tpl === "string" && tpl.trim() ? tpl.trim() : DEFAULT_CAMERA_RTSP_TEMPLATE;
 });
 
-const buildCameraRtspUrl = (template: string, ip: string, password: string) => {
-	const safeIp = ip.trim();
-	const safePwd = password.trim();
-	if (!safeIp || !safePwd) return "";
-
-	// 以 template 為主，支援兩種常見寫法：
-	// 1) rtsp://admin:密碼@ip/...
-	// 2) rtsp://admin:{password}@{ip}/...
-	const encodedPwd = encodeURIComponent(safePwd);
-	return template
-		.replaceAll("{ip}", safeIp)
-		.replaceAll("{password}", encodedPwd)
-		.replaceAll("ip", safeIp)
-		.replaceAll("密碼", encodedPwd);
-};
-
-const cameraRtspPreview = computed(() => {
-	const tpl = selectedCameraRtspTemplate.value;
-	const ip = cameraIp.value.trim();
-	const pwd = cameraPassword.value.trim();
-	if (!ip || !pwd) return tpl;
-	// 預覽顯示未編碼密碼（含 @ 等符號），送出時才 encode
-	return tpl
-		.replaceAll("{ip}", ip)
-		.replaceAll("{password}", pwd)
-		.replaceAll("ip", ip)
-		.replaceAll("密碼", pwd);
-});
+const cameraRtspPreview = computed(() =>
+	previewCameraRtspTemplate(
+		selectedCameraRtspTemplate.value,
+		cameraIp.value,
+		cameraUsername.value,
+		cameraPassword.value
+	)
+);
 
 const sensorConfig = reactive<SensorDeviceConfig>({
 	type: "sensor",
@@ -563,6 +556,7 @@ const resetForm = () => {
 	cameraConfig.rtsp_url = "";
 
 	cameraIp.value = "";
+	cameraUsername.value = "admin";
 	cameraPassword.value = "";
 	cameraGroup.value = "";
 
@@ -609,7 +603,12 @@ const createModeHasContent = computed(() => {
 		const c = getCurrentConfig();
 		if (c.type === "controller")
 			return !!(c.host && (c.port != null || controllerConfig.port != null));
-		if (c.type === "camera") return !!(cameraIp.value.trim() && cameraPassword.value.trim());
+		if (c.type === "camera") {
+			const ip = cameraIp.value.trim();
+			const user = cameraUsername.value.trim();
+			const pwd = cameraPassword.value.trim();
+			return !!(ip && user && pwd);
+		}
 		if (c.type === "sensor") {
 			if (c.protocol === "modbus") return !!(c.host && (c.port != null || sensorConfig.port != null));
 			if (c.protocol === "http") return !!c.api_endpoint;
@@ -721,26 +720,18 @@ const loadConfigFromDevice = (device: Device) => {
 			break;
 		case "camera": {
 			Object.assign(cameraConfig, device.config);
-			cameraGroup.value = (device.config as CameraDeviceConfig).group ?? "";
-			if (!cameraConfig.rtsp_url) {
-				cameraConfig.rtsp_url = "";
+			const camCfg = device.config as CameraDeviceConfig;
+			cameraGroup.value = camCfg.group ?? "";
+			if (!(cameraConfig.rtsp_url || "").trim()) {
 				cameraIp.value = "";
+				cameraUsername.value = camCfg.username?.trim() || "admin";
 				cameraPassword.value = "";
 				break;
 			}
-
-			const rtsp = cameraConfig.rtsp_url;
-			const match =
-				/^rtsp:\/\/admin:(?<pwd>[^@]+)@(?<host>[^/:]+)(?::\d+)?\/?/i.exec(rtsp) ||
-				/^rtsp:\/\/(?<host>[^/:]+)(?::\d+)?\/?/i.exec(rtsp);
-			const groups = (match && (match.groups as { pwd?: string; host?: string })) || {};
-			cameraIp.value = groups.host ?? "";
-			const rawPwd = groups.pwd ?? "";
-			try {
-				cameraPassword.value = rawPwd ? decodeURIComponent(rawPwd) : "";
-			} catch {
-				cameraPassword.value = rawPwd;
-			}
+			const { host, user, password } = parseCameraRtspUrl(cameraConfig.rtsp_url);
+			cameraIp.value = host;
+			cameraUsername.value = camCfg.username?.trim() || user || "admin";
+			cameraPassword.value = password;
 			break;
 		}
 		case "sensor":
@@ -804,16 +795,18 @@ const getCurrentConfig = (): DeviceConfig => {
 		}
 		case "camera": {
 			const ip = cameraIp.value.trim();
+			const user = cameraUsername.value.trim() || "admin";
 			const pwd = cameraPassword.value.trim();
 			const rtspUrl =
 				ip && pwd
-					? buildCameraRtspUrl(selectedCameraRtspTemplate.value, ip, pwd)
+					? buildCameraRtspUrl(selectedCameraRtspTemplate.value, ip, user, pwd)
 					: cameraConfig.rtsp_url;
 			return {
 				type: "camera",
 				rtsp_url: rtspUrl,
 				host: ip || cameraConfig.host,
 				ip_address: ip || cameraConfig.ip_address,
+				username: user,
 				group: cameraGroup.value.trim() || undefined
 			};
 		}
@@ -875,10 +868,12 @@ const handleSubmit = () => {
 
 	const config = getCurrentConfig();
 
-	// 攝影機：需填寫 IP 與密碼（rtsp_url 由前端組合）
 	if (props.deviceTypeCode === "camera") {
-		if (!cameraIp.value.trim() || !cameraPassword.value.trim()) {
-			localErrorMessage.value = "請填寫設備 IP 與密碼";
+		const ip = cameraIp.value.trim();
+		const user = cameraUsername.value.trim();
+		const pwd = cameraPassword.value.trim();
+		if (!ip || !user || !pwd) {
+			localErrorMessage.value = "請填寫設備 IP、登入帳號與密碼";
 			return;
 		}
 	}

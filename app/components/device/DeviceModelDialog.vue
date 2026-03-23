@@ -158,7 +158,7 @@
 										v-model="cameraRtspTemplate"
 										type="text"
 										class="form-input"
-										placeholder="rtsp://admin:密碼@ip/Streaming/channels/101"
+										placeholder="rtsp://{username}:{password}@{ip}:554/Streaming/channels/101"
 									/>
 								</label>
 

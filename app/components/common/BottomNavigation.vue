@@ -73,22 +73,7 @@
 								class="absolute -right-4 -top-2 flex h-10 w-10 items-center justify-center rounded-full bg-black/20 ring-1 ring-white/20"
 								aria-hidden="true"
 							>
-								<svg viewBox="0 0 24 24" class="h-8 w-8 text-white" fill="none">
-									<path
-										d="M8 11V8a4 4 0 1 1 8 0v3"
-										stroke="currentColor"
-										stroke-width="2"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									/>
-									<path
-										d="M7 11h10a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z"
-										stroke="currentColor"
-										stroke-width="2"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									/>
-								</svg>
+								<CommonLicenseLockIcon class="h-8 w-8 text-white" />
 							</div>
 						</div>
 						<!-- 文字標籤 -->
@@ -235,6 +220,16 @@
 											權限管理
 										</button>
 
+										<!-- 授權管理（僅管理員可見） -->
+										<button
+											v-if="isAdmin"
+											class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
+											@click="handleLicenseManagement"
+											aria-label="授權管理"
+										>
+											授權管理
+										</button>
+
 										<!-- 登入登出 -->
 										<button
 											class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
@@ -287,7 +282,12 @@ import { useAuth } from "~/composables/core/useAuth";
 import { useToast } from "~/composables/core/useToast";
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 import { useLicense } from "~/composables/core/useLicense";
-import { getFeatureKeyByRoute } from "~/utils/licenseUtils";
+import {
+	getFeatureKeyByRoute,
+	getPermissionCodeByRoute,
+	LICENSE_MESSAGE_LOCKED,
+	PERMISSION_MESSAGE_LOCKED,
+} from "~/utils/licenseUtils";
 import { PERMISSIONS } from "~/constants/permissions";
 
 const route = useRoute();
@@ -486,27 +486,6 @@ const navigateToRoute = (routePath: string) => {
 	router.push(routePath);
 };
 
-const getPermissionCodeByRoute = (routePath: string): string | null => {
-	if (!routePath || typeof routePath !== "string") {
-		return null;
-	}
-
-	if (routePath.startsWith("/construction-monitoring/people-counting")) {
-		return PERMISSIONS.SYSTEM_PEOPLE_COUNTING;
-	}
-	if (routePath.startsWith("/construction-monitoring/surveillance")) {
-		return PERMISSIONS.SYSTEM_VIDEO_SURVEILLANCE;
-	}
-	if (routePath.startsWith("/construction-monitoring/environment")) {
-		return PERMISSIONS.SYSTEM_ENVIRONMENT;
-	}
-	if (routePath.startsWith("/construction-monitoring/vehicle-access")) {
-		return PERMISSIONS.SYSTEM_VEHICLE_ACCESS;
-	}
-
-	return null;
-};
-
 const isModuleLocked = (module: SystemModule) => {
 	const featureKey = getFeatureKeyByRoute(module.route);
 	const hasLicense = !featureKey || hasFeature(featureKey);
@@ -519,10 +498,18 @@ const isModuleLocked = (module: SystemModule) => {
 };
 
 const handleModuleClick = (module: SystemModule) => {
-	if (isModuleLocked(module)) {
-		toast.warning("此功能尚未授權，請聯絡管理員");
+	const permissionCode = getPermissionCodeByRoute(module.route);
+	if (permissionCode && !hasPermission(permissionCode)) {
+		toast.warning(PERMISSION_MESSAGE_LOCKED);
 		return;
 	}
+
+	const featureKey = getFeatureKeyByRoute(module.route);
+	if (featureKey && !hasFeature(featureKey)) {
+		toast.warning(LICENSE_MESSAGE_LOCKED);
+		return;
+	}
+
 	navigateToRoute(module.route);
 };
 
@@ -537,6 +524,11 @@ const navigateToRouteInNewTab = (routePath: string) => {
 const handleUserManagement = () => {
 	closeAllMenus();
 	navigateToRouteInNewTab("/core/users");
+};
+
+const handleLicenseManagement = () => {
+	closeAllMenus();
+	navigateToRouteInNewTab("/core/license");
 };
 
 const handleLogout = async () => {

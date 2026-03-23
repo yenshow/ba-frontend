@@ -197,7 +197,7 @@
 									<!-- 操作按鈕 -->
 									<div class="flex h-[160px] flex-col justify-center gap-2">
 										<button
-											v-if="alert.status === 'active' && isOperator"
+											v-if="alert.status === 'active' && isAdmin"
 											type="button"
 											@click="handleIgnore(alert)"
 											:disabled="isIgnoring"
@@ -207,7 +207,7 @@
 											忽視
 										</button>
 										<button
-											v-if="isAlertIgnored(alert) && isOperator"
+											v-if="isAlertIgnored(alert) && isAdmin"
 											type="button"
 											@click="handleUnignore(alert)"
 											:disabled="isIgnoring"
@@ -339,7 +339,7 @@ definePageMeta({
 
 const alertApi = useAlertApi();
 const toast = useToast();
-const { isAdmin, isOperator } = useAuth();
+const { isAdmin } = useAuth();
 const { removeAlertToast } = useAlertMonitor();
 const { handleError: handleApiError } = useErrorHandler();
 const { on, off } = useWebSocket();

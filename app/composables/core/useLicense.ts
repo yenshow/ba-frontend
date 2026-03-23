@@ -1,12 +1,17 @@
 import type { FeatureKey, LicenseState } from "~/types/license";
 import { useAuth } from "~/composables/core/useAuth";
 import { useApiBase } from "~/composables/core/useApiBase";
+import { getFeatureKeyByRoute } from "~/utils/licenseUtils";
 
 const DEFAULT_LICENSE: LicenseState = {
 	features: [],
-	expiresAt: null,
 	expired: false,
-	canActivate: false
+	canActivate: false,
+	serialNumber: null,
+	licenseKey: null,
+	activationMethod: null,
+	deviceFingerprint: null,
+	extensionKeys: []
 };
 
 export const useLicense = () => {
@@ -53,14 +58,19 @@ export const useLicense = () => {
 	/** 用於鎖頭、路由守衛：openAll 時不鎖，否則依後端授權 */
 	const hasFeature = (featureKey: FeatureKey) => {
 		if (isOpenAll()) return true;
-		if (license.value.expired) return false;
 		return license.value.features.includes(featureKey);
 	};
 
 	/** 用於是否載入資料（首頁等）：一律依後端授權，不套用 openAll，避免前後端不一致 */
 	const canLoadFeature = (featureKey: FeatureKey) => {
-		if (license.value.expired) return false;
 		return license.value.features.includes(featureKey);
+	};
+
+	/** 依模組 route 判斷是否為授權控管模組且未授權（用於鎖頭、點擊攔截） */
+	const isModuleLocked = (module: { route: string }) => {
+		const featureKey = getFeatureKeyByRoute(module.route);
+		if (!featureKey) return false;
+		return !hasFeature(featureKey);
 	};
 
 	const isLoaded = computed(() => lastLoadedAt.value > 0);
@@ -72,7 +82,7 @@ export const useLicense = () => {
 		fetchLicense,
 		clearLicense,
 		hasFeature,
-		canLoadFeature
+		canLoadFeature,
+		isModuleLocked
 	};
 };
-
