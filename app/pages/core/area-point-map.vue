@@ -71,7 +71,7 @@
 					</div>
 
 					<!-- 中央區域平面圖 -->
-					<div class="relative h-[600px] w-full p-4 2xl:h-[780px]">
+					<div class="map-location-dots relative h-[600px] w-full p-4 2xl:h-[780px]">
 						<NuxtImg
 							v-if="zonePlanImage"
 							:src="zonePlanImage"
@@ -196,7 +196,7 @@ import { PERMISSIONS } from "~/constants/permissions"
 import { useZoneManagement } from "~/composables/systems/useZoneManagement"
 import { hasLightingCoordinates, getLightingLocationStyle } from "~/utils/locationAdapter"
 import LocationManagementDialog from "~/components/location/LocationManagementDialog.vue"
-import CategoryTooltip from "~/components/lighting/CategoryTooltip.vue"
+import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
 
 definePageMeta({
 	layout: "default",
@@ -372,6 +372,7 @@ const selectLocation = (location: UnifiedLocation) => {
 const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
 	environment: "環境監測",
 	lighting: "照明系統",
+	drainage: "衛生排水",
 	people_counting: "人流統計",
 	vehicle_access: "車輛進出",
 }
@@ -464,121 +465,3 @@ onBeforeUnmount(() => {
 	}
 })
 </script>
-
-<style scoped>
-/* 按鈕進場動畫 */
-.fade-in-enter-active {
-	transition:
-		opacity 0.4s ease-in,
-		transform 0.4s ease-out;
-}
-
-.fade-in-enter-from {
-	opacity: 0;
-	transform: translateY(-10px);
-}
-
-.fade-in-enter-to {
-	opacity: 1;
-	transform: translateY(0);
-}
-
-/* 圖片載入動畫 */
-.image-blur-load {
-	transition:
-		filter 0.6s ease-in-out,
-		opacity 0.6s ease-in-out;
-	filter: blur(20px);
-	opacity: 0.6;
-}
-
-.image-blur-load.image-loaded {
-	filter: blur(0);
-	opacity: 1;
-}
-
-/* 地點點位樣式 */
-.location-dot-wrapper {
-	position: absolute;
-	z-index: 10;
-}
-
-.location-dot {
-	position: absolute;
-	width: 48px;
-	height: 48px;
-	border-radius: 9999px;
-	transform: translate(-50%, -50%);
-	border: 2px solid transparent;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	cursor: pointer;
-	backdrop-filter: blur(3px);
-	transition:
-		box-shadow 0.2s ease,
-		border-color 0.2s ease,
-		background 0.2s ease;
-}
-
-.location-dot::before {
-	content: "";
-	position: absolute;
-	inset: 6px;
-	border-radius: inherit;
-	transition: background 0.2s ease;
-}
-
-.location-dot::after {
-	position: relative;
-	content: "";
-	font-size: 16px;
-	font-weight: 600;
-	color: #ffffff;
-}
-
-/* 正常狀態 */
-.location-dot[data-status="normal"] {
-	background: rgba(28, 200, 138, 0.28);
-	border-color: rgba(28, 200, 138, 0.6);
-}
-
-.location-dot[data-status="normal"]::before {
-	background: #1cc88a;
-}
-
-.location-dot[data-status="normal"]::after {
-	content: "✓";
-}
-
-/* 異常狀態 */
-.location-dot[data-status="abnormal"] {
-	background: rgba(245, 101, 101, 0.32);
-	border-color: rgba(245, 101, 101, 0.72);
-	animation: dot-alert 1.6s ease-in-out infinite;
-}
-
-.location-dot[data-status="abnormal"]::before {
-	background: #f56565;
-}
-
-.location-dot[data-status="abnormal"]::after {
-	content: "!";
-}
-
-/* 選中狀態 */
-.location-dot.is-active {
-	box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
-	border-color: rgba(255, 255, 255, 0.8);
-}
-
-@keyframes dot-alert {
-	0%,
-	100% {
-		box-shadow: 0 0 18px rgba(245, 101, 101, 0.6);
-	}
-	50% {
-		box-shadow: 0 0 28px rgba(245, 101, 101, 0.95);
-	}
-}
-</style>

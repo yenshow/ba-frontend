@@ -7,12 +7,24 @@
  * - construction-monitoring: 工地監控系統（環境、人流、車輛、影像）
  * - infrastructure: 基礎設施系統（照明、空調、電力、電梯、衛生排水）
  * - security: 安全相關系統（消防、門禁、緊急求救）
- * - maintenance: 維護管理系統（整合：機電維護 + 可靠度 + 設施管理）
  * - business: 業務管理系統（訪客、寄物）
  * - multimedia: 多媒體系統（整合：電視牆 + 多媒體 + 資訊平台）
  */
 
 import type { SystemModule } from "~/types/system"
+
+/**
+ * 各分類主視覺色（Header 底線、System Title、更多功能分類標題列等）
+ * 規格：核心 #005064、工地 #0096DC、基礎設施 #4BC8C8、安全 #962328、業務／物業 #00D296、多媒體 #640082
+ */
+export const SYSTEM_CATEGORY_ACCENT_COLORS: Record<SystemModule["category"], string> = {
+	core: "#005064",
+	"construction-monitoring": "#0096DC",
+	infrastructure: "#4BC8C8",
+	security: "#962328",
+	business: "#00D296",
+	multimedia: "#640082",
+}
 
 /**
  * 檢查模組是否啟用
@@ -159,19 +171,9 @@ export const systemModules: SystemModule[] = [
 		description: "緊急求救與通報系統",
 	},
 
-	// ========== 維護管理系統（整合：機電維護 + 可靠度 + 設施管理）==========
-	{
-		id: 18,
-		name: "設備維護系統",
-		icon: "maintenance",
-		route: "/maintenance/equipment",
-		category: "maintenance",
-		description: "整合機電維護、設備運轉可靠度、設施管理",
-	},
-
 	// ========== 業務管理系統 ==========
 	{
-		id: 19,
+		id: 18,
 		name: "訪客系統",
 		icon: "visitor",
 		route: "/business/visitor",
@@ -179,7 +181,7 @@ export const systemModules: SystemModule[] = [
 		description: "訪客登記與管理",
 	},
 	{
-		id: 20,
+		id: 19,
 		name: "寄物管理",
 		icon: "locker-management",
 		route: "/business/locker-management",
@@ -189,8 +191,8 @@ export const systemModules: SystemModule[] = [
 
 	// ========== 多媒體系統（整合：電視牆 + 多媒體 + 資訊平台）==========
 	{
-		id: 21,
-		name: "多媒體資訊系統",
+		id: 20,
+		name: "多媒體資訊",
 		icon: "video-wall",
 		route: "/multimedia/info",
 		category: "multimedia",

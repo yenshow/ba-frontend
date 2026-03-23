@@ -29,21 +29,6 @@
 </template>
 
 <script setup lang="ts">
-const isBuildingLoaded = ref(false);
-const isNameLoaded = ref(false);
+const isBuildingLoaded = ref(false)
+const isNameLoaded = ref(false)
 </script>
-
-<style scoped>
-.image-blur-load {
-	transition:
-		filter 0.5s ease-in-out,
-		opacity 0.5s ease-in-out;
-	filter: blur(20px);
-	opacity: 0.7;
-}
-
-.image-blur-load.image-loaded {
-	filter: blur(0);
-	opacity: 1;
-}
-</style>

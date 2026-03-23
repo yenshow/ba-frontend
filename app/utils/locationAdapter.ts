@@ -5,6 +5,7 @@ import type {
 	SystemConfig,
 	EnvironmentSystemConfig,
 	LightingSystemConfig,
+	DrainageSystemConfig,
 	PeopleCountingSystemConfig,
 	VehicleAccessSystemConfig,
 	LocationSystem,
@@ -15,6 +16,7 @@ import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment";
 import type { LightingZone, LightingLocation } from "~/types/lighting";
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting";
 import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess";
+import type { DrainageZone, DrainageLocation } from "~/types/drainage";
 
 /**
  * 後端返回的地點格式（新架構：包含 systems 陣列）
@@ -39,6 +41,10 @@ export type BackendLocation = {
 			entryDoorId?: number;
 			exitDoorId?: number;
 			// vehicle_access 系統配置（entryLaneId / exitLaneId）
+			// drainage 系統配置
+			equipmentKind?: string;
+			viewCategory?: string;
+			statusPoints?: Record<string, unknown>;
 		};
 	}>;
 };
@@ -81,10 +87,20 @@ function isEnvironmentSystemConfig(config: unknown): config is EnvironmentSystem
 }
 
 /**
+ * 類型守衛：檢查是否為排水系統配置（與照明同時具備 location/modbus 時優先判斷）
+ */
+function isDrainageSystemConfig(config: unknown): config is DrainageSystemConfig {
+	if (!config || typeof config !== "object") return false;
+	const c = config as Record<string, unknown>;
+	return "equipmentKind" in c || "viewCategory" in c || "statusPoints" in c;
+}
+
+/**
  * 類型守衛：檢查是否為照明系統配置
  */
 function isLightingSystemConfig(config: unknown): config is LightingSystemConfig {
 	if (!config || typeof config !== "object") return false;
+	if (isDrainageSystemConfig(config)) return false;
 	const c = config as Record<string, unknown>;
 	return "location" in c || "modbus" in c || "deviceId" in c;
 }
@@ -119,6 +135,13 @@ function parseSystemConfig(systemType: SystemType, config: unknown): SystemConfi
 		case "lighting":
 			if (isLightingSystemConfig(config)) return config;
 			return {};
+		case "drainage":
+			if (isDrainageSystemConfig(config)) return config;
+			return {
+				equipmentKind: "pump",
+				viewCategory: "drainage",
+				statusPoints: {}
+			};
 		case "people_counting":
 			if (isPeopleCountingSystemConfig(config)) return config;
 			return { personGroupIds: [] };
@@ -253,6 +276,53 @@ export function lightingToUnifiedZone(
 		...(zone.imageUrl !== undefined && { imageUrl: zone.imageUrl }),
 		...(zone.description !== undefined && { description: zone.description }),
 		locations: zone.locations.map(location => lightingLocationToUnified(location, systemType))
+	};
+}
+
+/**
+ * 將統一區域轉換為排水區域
+ */
+export function unifiedToDrainageZone(zone: UnifiedZone): DrainageZone {
+	return {
+		id: zone.id,
+		name: zone.name,
+		imageUrl: zone.imageUrl,
+		description: zone.description,
+		locations: zone.locations.flatMap(loc => {
+			const drainageSystem = loc.systems.find(s => s.systemType === "drainage");
+			if (!drainageSystem || !isDrainageSystemConfig(drainageSystem.config)) {
+				return [];
+			}
+			const cfg = drainageSystem.config;
+			return [
+				{
+					id: loc.id,
+					systemId: drainageSystem.id,
+					name: loc.name,
+					location: cfg.location,
+					deviceId: cfg.deviceId,
+					modbus: cfg.modbus as DrainageLocation["modbus"],
+					equipmentKind: cfg.equipmentKind,
+					viewCategory: cfg.viewCategory,
+					statusPoints: cfg.statusPoints
+				} as DrainageLocation
+			];
+		})
+	};
+}
+
+/**
+ * 將排水區域轉換為統一區域（用於傳送給後端）
+ */
+export function drainageToUnifiedZone(
+	zone: DrainageZone,
+	systemType: SystemType = "drainage"
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
+	return {
+		name: zone.name,
+		...(zone.imageUrl !== undefined && { imageUrl: zone.imageUrl }),
+		...(zone.description !== undefined && { description: zone.description }),
+		locations: zone.locations.map(location => drainageLocationToUnified(location, systemType))
 	};
 }
 
@@ -478,6 +548,43 @@ export function lightingLocationToUnified(
 							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
 							: undefined
 				} as LightingSystemConfig
+			}
+		]
+	};
+}
+
+/**
+ * 將排水地點轉換為統一地點格式
+ */
+export function drainageLocationToUnified(
+	location: DrainageLocation | Omit<DrainageLocation, "id">,
+	systemType: SystemType = "drainage"
+): UnifiedLocationInput {
+	const hasId = "id" in location && location.id;
+	const hasSystemId = "systemId" in location && location.systemId;
+	const statusPoints =
+		location.statusPoints && Object.keys(location.statusPoints).length > 0
+			? location.statusPoints
+			: {};
+	return {
+		...(hasId && { id: location.id! }),
+		name: location.name,
+		...(location.description && { description: location.description }),
+		systems: [
+			{
+				...(hasSystemId && { id: location.systemId! }),
+				systemType,
+				config: {
+					deviceId: location.deviceId,
+					location: location.location,
+					modbus:
+						location.modbus != null
+							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
+							: undefined,
+					equipmentKind: location.equipmentKind ?? "pump",
+					viewCategory: location.viewCategory ?? "drainage",
+					statusPoints
+				} as DrainageSystemConfig
 			}
 		]
 	};

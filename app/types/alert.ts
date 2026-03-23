@@ -1,5 +1,13 @@
 // 警報系統來源
-export type AlertSource = "device" | "environment" | "lighting" | "people_counting" | "hvac" | "fire" | "security";
+export type AlertSource =
+	| "device"
+	| "environment"
+	| "lighting"
+	| "drainage"
+	| "people_counting"
+	| "hvac"
+	| "fire"
+	| "security";
 
 export type AlertStatus = "active" | "resolved" | "ignored";
 

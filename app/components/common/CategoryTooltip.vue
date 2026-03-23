@@ -11,63 +11,63 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue"
 
 interface Props {
-	show: boolean;
-	categoryName: string;
-	isNormal: boolean;
+	show: boolean
+	categoryName: string
+	isNormal: boolean
 }
 
-const props = defineProps<Props>();
+const props = defineProps<Props>()
 
-const tooltipRef = ref<HTMLElement | null>(null);
-const tooltipOffsetX = ref(0);
+const tooltipRef = ref<HTMLElement | null>(null)
+const tooltipOffsetX = ref(0)
 
 const tooltipStyle = computed(() => {
-	if (tooltipOffsetX.value === 0) return {};
+	if (tooltipOffsetX.value === 0) return {}
 	return {
-		transform: `translate(calc(-50% + ${tooltipOffsetX.value}px), 0)`
-	};
-});
+		transform: `translate(calc(-50% + ${tooltipOffsetX.value}px), 0)`,
+	}
+})
 
 const adjustTooltipPosition = () => {
-	if (!tooltipRef.value || !props.show) return;
+	if (!tooltipRef.value || !props.show) return
 
 	nextTick(() => {
-		if (!tooltipRef.value) return;
+		if (!tooltipRef.value) return
 
-		const rect = tooltipRef.value.getBoundingClientRect();
-		const margin = 12;
-		tooltipOffsetX.value = 0;
+		const rect = tooltipRef.value.getBoundingClientRect()
+		const margin = 12
+		tooltipOffsetX.value = 0
 
 		if (rect.left < margin) {
-			tooltipOffsetX.value = margin - rect.left;
+			tooltipOffsetX.value = margin - rect.left
 		} else if (rect.right > window.innerWidth - margin) {
-			tooltipOffsetX.value = window.innerWidth - margin - rect.right;
+			tooltipOffsetX.value = window.innerWidth - margin - rect.right
 		}
-	});
-};
+	})
+}
 
 watch(
 	() => props.show,
 	() => {
 		if (props.show) {
-			nextTick(adjustTooltipPosition);
+			nextTick(adjustTooltipPosition)
 		}
 	}
-);
+)
 onMounted(() => {
-	if (typeof window === "undefined") return;
-	window.addEventListener("resize", adjustTooltipPosition);
-	window.addEventListener("scroll", adjustTooltipPosition, true);
-});
+	if (typeof window === "undefined") return
+	window.addEventListener("resize", adjustTooltipPosition)
+	window.addEventListener("scroll", adjustTooltipPosition, true)
+})
 
 onUnmounted(() => {
-	if (typeof window === "undefined") return;
-	window.removeEventListener("resize", adjustTooltipPosition);
-	window.removeEventListener("scroll", adjustTooltipPosition, true);
-});
+	if (typeof window === "undefined") return
+	window.removeEventListener("resize", adjustTooltipPosition)
+	window.removeEventListener("scroll", adjustTooltipPosition, true)
+})
 </script>
 
 <style scoped>
@@ -119,9 +119,9 @@ onUnmounted(() => {
 }
 
 .status-abnormal {
-	background: rgba(245, 101, 101, 0.2);
-	color: #f56565;
-	border: 1px solid rgba(245, 101, 101, 0.4);
+	background: rgba(245, 158, 11, 0.2);
+	color: #f59e0b;
+	border: 1px solid rgba(245, 158, 11, 0.4);
 }
 
 .tooltip-content {

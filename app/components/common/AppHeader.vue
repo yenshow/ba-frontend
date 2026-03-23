@@ -1,9 +1,10 @@
 <template>
 	<header
 		:class="[
-			'w-full border-b-[12px] 2xl:border-b-[16px]',
-			isDark ? 'border-[#007878] bg-[#003B45]' : 'border-[#00BAC2] bg-white',
+			'w-full border-b-[12px] border-solid 2xl:border-b-[16px]',
+			isDark ? 'bg-[#003B45]' : 'bg-white',
 		]"
+		:style="{ borderBottomColor: headerBorderAccentColor }"
 	>
 		<div class="flex items-end justify-between h-[88px] px-12 pb-3 2xl:h-[96px] 2xl:px-16 2xl:pb-4">
 			<!-- Logo -->
@@ -15,13 +16,23 @@
 				/>
 			</div>
 
-			<!-- System Title -->
+			<!-- System Title（模組名稱 + public/system 圖示） -->
 			<div class="flex flex-1 justify-center">
-				<div v-if="currentModuleName" class="system-title">
-					<span
-						class="ms-[8px] text-3xl font-semibold tracking-[8px] 2xl:ms-[16px] 2xl:text-4xl 2xl:tracking-[16px]"
-					>
-						{{ currentModuleName }}
+				<div
+					v-if="currentModule"
+					class="system-title"
+					:class="{ 'system-title--dark-ink': systemTitleChrome?.useDarkInk }"
+					:style="systemTitleChrome?.style"
+				>
+					<NuxtImg
+						:src="`/system/${currentModule.icon}.png`"
+						:alt="currentModule.name"
+						class="system-title-module-icon h-10 w-10 flex-shrink-0 object-contain 2xl:h-11 2xl:w-11"
+						width="200"
+						height="200"
+					/>
+					<span class="text-3xl font-semibold tracking-[8px] 2xl:text-4xl 2xl:tracking-[16px]">
+						{{ currentModule.name }}
 					</span>
 				</div>
 			</div>
@@ -47,117 +58,94 @@
 				</button>
 				<!-- 2. 更多功能 -->
 				<div class="relative flex items-center" ref="moreMenuRef">
-						<button
-							@click.stop="toggleMoreMenu"
-							:class="['icon-button', { 'icon-button-active': isMoreMenuOpen }]"
+					<button
+						@click.stop="toggleMoreMenu"
+						:class="['icon-button', { 'icon-button-active': isMoreMenuOpen }]"
+					>
+						<img
+							src="/layout/more-functions.svg"
+							alt="更多功能"
+							:class="['h-12 w-12 2xl:h-14 2xl:w-14', isDark ? 'icon-svg-dark' : 'icon-svg-light']"
+						/>
+					</button>
+					<Transition
+						enter-active-class="transition ease-out duration-100"
+						enter-from-class="transform opacity-0 scale-95"
+						enter-to-class="transform opacity-100 scale-100"
+						leave-active-class="transition ease-in duration-75"
+						leave-from-class="transform opacity-100 scale-100"
+						leave-to-class="transform opacity-0 scale-95"
+					>
+						<div
+							v-if="isMoreMenuOpen"
+							@click.stop
+							class="absolute right-0 top-full z-50 mt-2 flex h-[540px] w-48 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white py-2 shadow-lg 2xl:h-[600px]"
 						>
-							<img
-								src="/layout/more-functions.svg"
-								alt="更多功能"
-								:class="[
-									'h-12 w-12 2xl:h-14 2xl:w-14',
-									isDark ? 'icon-svg-dark' : 'icon-svg-light',
-								]"
-							/>
-						</button>
-						<Transition
-							enter-active-class="transition ease-out duration-100"
-							enter-from-class="transform opacity-0 scale-95"
-							enter-to-class="transform opacity-100 scale-100"
-							leave-active-class="transition ease-in duration-75"
-							leave-from-class="transform opacity-100 scale-100"
-							leave-to-class="transform opacity-0 scale-95"
-						>
-							<div
-								v-if="isMoreMenuOpen"
-								@click.stop
-								class="absolute right-0 top-full z-50 mt-2 flex h-[540px] w-48 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white py-2 shadow-lg 2xl:h-[600px]"
-							>
-								<div class="show-scrollbar flex-1 overflow-y-auto">
-									<template
-										v-for="(categoryGroup, index) in categoryGroups"
-										:key="categoryGroup.category"
-									>
-										<div
-											v-if="categoryGroup.modules.length"
-											:class="{ 'border-t border-gray-100 pt-2': index > 0 }"
+							<div class="show-scrollbar flex-1 overflow-y-auto">
+								<template
+									v-for="(categoryGroup, index) in categoryGroups"
+									:key="categoryGroup.category"
+								>
+									<div v-if="categoryGroup.modules.length">
+										<p
+											class="px-4 py-2 text-sm font-medium 2xl:text-base opacity-80"
+											:style="getMoreMenuCategoryLabelStyle(categoryGroup.category)"
 										>
-											<p class="px-4 py-2 text-sm text-gray-500 2xl:text-base">
-												{{ categoryGroup.label }}
-											</p>
-											<ul class="space-y-0.5">
-												<li v-for="module in categoryGroup.modules" :key="module.id">
-													<!-- 有路由且已授權：可點擊導向 -->
-													<NuxtLink
-														v-if="module.route && !isModuleLocked(module)"
-														:to="module.route"
-														@click="closeMoreMenu"
-														class="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-gray-100"
-													>
-														<div class="flex h-8 w-8 flex-shrink-0 items-center justify-center">
-															<NuxtImg
-																:src="`/system/${module.icon}.png`"
-																:alt="module.name"
-																class="icon-dark h-8 w-8 object-contain"
-																width="200"
-																height="200"
-															/>
-														</div>
-														<span class="text-sm text-gray-700 2xl:text-base">{{
-															module.name
-														}}</span>
-													</NuxtLink>
-													<!-- 有路由但未授權：顯示鎖頭、點擊僅 toast -->
-													<button
-														v-else-if="module.route && isModuleLocked(module)"
-														type="button"
-														class="flex w-full cursor-not-allowed items-center gap-3 px-4 py-2 text-left opacity-60 transition-colors hover:bg-gray-50"
-														@click="handleModuleClick(module)"
-														:aria-label="`${module.name}（未授權）`"
-													>
-														<div
-															class="relative flex h-8 w-8 flex-shrink-0 items-center justify-center"
-														>
-															<NuxtImg
-																:src="`/system/${module.icon}.png`"
-																:alt="module.name"
-																class="icon-dark h-8 w-8 object-contain"
-																width="200"
-																height="200"
-															/>
-															<span
-																class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-gray-300"
-															>
-																<CommonLicenseLockIcon class="h-3 w-3 text-gray-600" />
-															</span>
-														</div>
-														<span class="text-sm text-gray-500 2xl:text-base">{{
-															module.name
-														}}</span>
-													</button>
-													<!-- 無路由：僅顯示為停用 -->
-													<div
-														v-else
-														class="flex cursor-not-allowed items-center gap-3 px-4 py-2 text-gray-400"
-													>
-														<div class="flex h-8 w-8 flex-shrink-0 items-center justify-center">
-															<NuxtImg
-																:src="`/system/${module.icon}.png`"
-																:alt="module.name"
-																class="icon-dark h-8 w-8 object-contain opacity-50"
-																width="200"
-																height="200"
-															/>
-														</div>
-														<span class="text-sm 2xl:text-base">{{ module.name }}</span>
+											{{ categoryGroup.label }}
+										</p>
+										<ul class="space-y-0.5">
+											<li v-for="module in categoryGroup.modules" :key="module.id">
+												<!-- 有路由且已授權：可點擊導向 -->
+												<NuxtLink
+													v-if="module.route && !isModuleLocked(module)"
+													:to="module.route"
+													@click="closeMoreMenu"
+													class="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-gray-100"
+												>
+													<div class="flex h-8 w-8 flex-shrink-0 items-center justify-center">
+														<NuxtImg
+															:src="`/system/${module.icon}.png`"
+															:alt="module.name"
+															class="icon-dark h-8 w-8 object-contain"
+															width="200"
+															height="200"
+														/>
 													</div>
-												</li>
-											</ul>
-										</div>
-									</template>
-								</div>
+													<span class="text-sm text-gray-700 2xl:text-base">{{ module.name }}</span>
+												</NuxtLink>
+												<!-- 有路由但未授權：顯示鎖頭、點擊僅 toast -->
+												<button
+													v-else-if="module.route && isModuleLocked(module)"
+													type="button"
+													class="flex w-full cursor-not-allowed items-center gap-3 px-4 py-2 text-left opacity-60 transition-colors hover:bg-gray-50"
+													@click="handleModuleClick(module)"
+													:aria-label="`${module.name}（未授權）`"
+												>
+													<div
+														class="relative flex h-8 w-8 flex-shrink-0 items-center justify-center"
+													>
+														<NuxtImg
+															:src="`/system/${module.icon}.png`"
+															:alt="module.name"
+															class="icon-dark h-8 w-8 object-contain"
+															width="200"
+															height="200"
+														/>
+														<span
+															class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-gray-300"
+														>
+															<CommonLicenseLockIcon class="h-3 w-3 text-gray-600" />
+														</span>
+													</div>
+													<span class="text-sm text-gray-500 2xl:text-base">{{ module.name }}</span>
+												</button>
+											</li>
+										</ul>
+									</div>
+								</template>
 							</div>
-						</Transition>
+						</div>
+					</Transition>
 				</div>
 				<!-- 分隔線 -->
 				<div class="h-12 w-[2px] 2xl:h-14" :class="isDark ? 'bg-white/30' : 'bg-black/30'"></div>
@@ -310,6 +298,8 @@ import { useAuth } from "~/composables/core/useAuth"
 import { useLicense } from "~/composables/core/useLicense"
 import { useToast } from "~/composables/core/useToast"
 import { useTheme } from "~/composables/core/useTheme"
+import { SYSTEM_CATEGORY_ACCENT_COLORS } from "~/config/system-modules"
+import { hexRelativeLuminance, hexToRgba } from "~/utils/colorUtils"
 import { getModuleByRoute, getModulesByCategory } from "~/utils/systemUtils"
 import { LICENSE_MESSAGE_LOCKED, PERMISSION_MESSAGE_LOCKED } from "~/utils/licenseUtils"
 import type { SystemModule } from "~/types/system"
@@ -357,7 +347,44 @@ const userInfo = computed(() => ({
 const route = useRoute()
 
 const currentModule = computed(() => getModuleByRoute(route.path))
-const currentModuleName = computed(() => currentModule.value?.name ?? "")
+
+const defaultHeaderBorderAccent = { dark: "#007878", light: "#00BAC2" } as const
+
+const moduleAccentHex = computed(() => {
+	const m = currentModule.value
+	return m ? SYSTEM_CATEGORY_ACCENT_COLORS[m.category] : null
+})
+
+const { theme, isDark, toggleTheme } = useTheme()
+
+const headerBorderAccentColor = computed(
+	() =>
+		moduleAccentHex.value ??
+		(isDark.value ? defaultHeaderBorderAccent.dark : defaultHeaderBorderAccent.light)
+)
+
+/** System Title 背景／陰影與淺色底用深字 */
+const systemTitleChrome = computed(() => {
+	const hex = moduleAccentHex.value
+	if (!hex) {
+		return null
+	}
+	return {
+		style: {
+			background: hexToRgba(hex, 0.88),
+			boxShadow: `0 0 22px ${hexToRgba(hex, 0.42)}, inset 0 0 18px rgba(255, 255, 255, 0.08)`,
+		},
+		useDarkInk: hexRelativeLuminance(hex) > 0.55,
+	}
+})
+
+const getMoreMenuCategoryLabelStyle = (category: SystemModule["category"]) => {
+	const hex = SYSTEM_CATEGORY_ACCENT_COLORS[category]
+	return {
+		backgroundColor: hex,
+		color: hexRelativeLuminance(hex) > 0.55 ? "#1a1a1a" : "#ffffff",
+	}
+}
 
 // 分類標籤對應
 const categoryLabels: Record<string, string> = {
@@ -365,7 +392,6 @@ const categoryLabels: Record<string, string> = {
 	"construction-monitoring": "工地監控",
 	infrastructure: "基礎設施",
 	security: "安全相關",
-	maintenance: "維護管理",
 	business: "業務管理",
 	multimedia: "多媒體",
 }
@@ -376,7 +402,6 @@ const categoryOrder = [
 	"construction-monitoring",
 	"infrastructure",
 	"security",
-	"maintenance",
 	"business",
 	"multimedia",
 ] as const
@@ -429,9 +454,6 @@ const toggleMoreMenu = () => {
 		closeUserMenu()
 	}
 }
-
-// 主題管理
-const { theme, isDark, toggleTheme } = useTheme()
 
 // 處理選單項目點擊
 const handleMenuItemClick = (action: string) => {
@@ -510,11 +532,8 @@ watch(
 	position: relative;
 	display: inline-flex;
 	align-items: center;
+	gap: 0.75rem;
 	padding: 0.75rem 2.6rem;
-	background: rgba(0, 186, 194, 0.8);
-	box-shadow:
-		0 0 22px rgba(19, 168, 175, 0.42),
-		inset 0 0 18px rgba(255, 255, 255, 0.08);
 	clip-path: polygon(
 		22px 0,
 		calc(100% - 22px) 0,
@@ -525,6 +544,20 @@ watch(
 	);
 	overflow: hidden;
 	color: #ffffff;
+}
+
+/* 淺色分類底：深字＋深色圖示 */
+.system-title--dark-ink {
+	color: #1a1a1a;
+}
+
+/* 與選單相同來源之 PNG；深底用反白、淺底用實色 */
+.system-title-module-icon {
+	filter: brightness(0) invert(1);
+}
+
+.system-title--dark-ink .system-title-module-icon {
+	filter: brightness(0) opacity(0.88);
 }
 
 .system-title::before {

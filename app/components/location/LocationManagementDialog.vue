@@ -511,6 +511,7 @@ const handleConfirmDelete = () => {
 const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
 	environment: "環境監測",
 	lighting: "照明系統",
+	drainage: "衛生排水",
 	people_counting: "人流統計",
 	vehicle_access: "車輛進出"
 };

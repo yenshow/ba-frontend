@@ -5,7 +5,12 @@
 /**
  * 系統類型
  */
-export type SystemType = "environment" | "lighting" | "people_counting" | "vehicle_access";
+export type SystemType =
+	| "environment"
+	| "lighting"
+	| "drainage"
+	| "people_counting"
+	| "vehicle_access";
 
 /**
  * 系統配置（根據系統類型不同）
@@ -13,6 +18,7 @@ export type SystemType = "environment" | "lighting" | "people_counting" | "vehic
 export type SystemConfig =
 	| EnvironmentSystemConfig
 	| LightingSystemConfig
+	| DrainageSystemConfig
 	| PeopleCountingSystemConfig
 	| VehicleAccessSystemConfig;
 
@@ -46,6 +52,25 @@ export interface LightingSystemConfig {
 			note?: string;
 		}>;
 	};
+}
+
+/** 排水狀態點位（對應後端 status_points） */
+export interface DrainageStatusPointDef {
+	registerType: "coil" | "discrete" | "holding" | "input";
+	address: number;
+	length?: number;
+}
+
+/**
+ * 衛生排水系統配置
+ */
+export interface DrainageSystemConfig {
+	deviceId?: number;
+	location?: { x: number; y: number };
+	modbus?: LightingSystemConfig["modbus"];
+	equipmentKind?: "pump" | "tank";
+	viewCategory?: "pumping" | "sewage" | "drainage";
+	statusPoints?: Record<string, DrainageStatusPointDef>;
 }
 
 /**

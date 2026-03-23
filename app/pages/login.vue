@@ -9,7 +9,7 @@
 					<NuxtImg
 						src="/login_heroPic.png"
 						alt="BA System"
-						class="image-blur-load h-[840px] object-contain"
+						class="image-blur-load image-blur-load--hero h-[840px] object-contain"
 						:class="{ 'image-loaded': isHeroLoaded }"
 						width="full"
 						height="full"
@@ -51,7 +51,12 @@
 								<label class="text-md mb-2 block text-white/80">帳號</label>
 								<div class="relative">
 									<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-										<svg class="h-5 w-5 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<svg
+											class="h-5 w-5 text-white/80"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
 											<path
 												stroke-linecap="round"
 												stroke-linejoin="round"
@@ -75,7 +80,12 @@
 								<label class="mb-2 block text-sm text-white/80">密碼</label>
 								<div class="relative">
 									<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-										<svg class="h-5 w-5 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<svg
+											class="h-5 w-5 text-white/80"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
 											<path
 												stroke-linecap="round"
 												stroke-linejoin="round"
@@ -116,7 +126,13 @@
 												d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
 											/>
 										</svg>
-										<svg v-else class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<svg
+											v-else
+											class="h-5 w-5"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
 											<path
 												stroke-linecap="round"
 												stroke-linejoin="round"
@@ -181,7 +197,10 @@
 						<div class="text-center">
 							<p class="text-md text-white/60">
 								遇到問題？
-								<NuxtLink to="/" class="font-bold text-[#ffffffe6] transition-colors hover:text-[#ffffff]">
+								<NuxtLink
+									to="/"
+									class="font-bold text-[#ffffffe6] transition-colors hover:text-[#ffffff]"
+								>
 									聯絡管理員
 								</NuxtLink>
 							</p>
@@ -200,69 +219,69 @@
 </template>
 
 <script setup lang="ts">
-import { useAuth } from "~/composables/core/useAuth";
-import { useToast } from "~/composables/core/useToast";
-import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import { useAuth } from "~/composables/core/useAuth"
+import { useToast } from "~/composables/core/useToast"
+import { useErrorHandler } from "~/composables/core/useErrorHandler"
 
 definePageMeta({
-	layout: false
-});
+	layout: false,
+})
 
-const { login, isAuthenticated } = useAuth();
-const router = useRouter();
-const route = useRoute();
-const toast = useToast();
-const { handleError } = useErrorHandler();
+const { login, isAuthenticated } = useAuth()
+const router = useRouter()
+const route = useRoute()
+const toast = useToast()
+const { handleError } = useErrorHandler()
 
 // 如果已經登入，自動重定向（等待插件初始化完成）
 onMounted(async () => {
 	// 等待下一個 tick 確保認證狀態已恢復
-	await nextTick();
+	await nextTick()
 	if (isAuthenticated.value) {
-		const redirectPath = (route.query.redirect as string) || "/";
-		router.push(redirectPath);
+		const redirectPath = (route.query.redirect as string) || "/"
+		router.push(redirectPath)
 	}
-});
+})
 
 const formData = ref({
 	account: "",
-	password: ""
-});
+	password: "",
+})
 
-const showPassword = ref(false);
-const isLoading = ref(false);
-const errorMessage = ref<string | null>(null);
+const showPassword = ref(false)
+const isLoading = ref(false)
+const errorMessage = ref<string | null>(null)
 
 // 登入頁插圖載入狀態
-const isHeroLoaded = ref(false);
+const isHeroLoaded = ref(false)
 
 const handleLogin = async () => {
 	if (!formData.value.account || !formData.value.password) {
-		errorMessage.value = "請輸入帳號和密碼";
-		return;
+		errorMessage.value = "請輸入帳號和密碼"
+		return
 	}
 
-	isLoading.value = true;
-	errorMessage.value = null;
+	isLoading.value = true
+	errorMessage.value = null
 
 	try {
 		await login({
 			username: formData.value.account,
-			password: formData.value.password
-		});
+			password: formData.value.password,
+		})
 
-		toast.success("登入成功");
+		toast.success("登入成功")
 
 		// 登入成功後跳轉 - 檢查 redirect query 參數
-		const redirectPath = (route.query.redirect as string) || "/";
-		await router.push(redirectPath);
+		const redirectPath = (route.query.redirect as string) || "/"
+		await router.push(redirectPath)
 	} catch (error) {
-		const errorMsg = handleError(error, "登入失敗，請檢查帳號密碼");
-		errorMessage.value = errorMsg || "登入失敗，請檢查帳號密碼";
+		const errorMsg = handleError(error, "登入失敗，請檢查帳號密碼")
+		errorMessage.value = errorMsg || "登入失敗，請檢查帳號密碼"
 	} finally {
-		isLoading.value = false;
+		isLoading.value = false
 	}
-};
+}
 </script>
 
 <style scoped>
@@ -282,20 +301,4 @@ button[type="submit"]:active {
 	transition: color 0.2s;
 }
 
-/* 圖片模糊載入效果 */
-.image-blur-load {
-	transition:
-		filter 0.6s ease-in-out,
-		opacity 0.6s ease-in-out,
-		transform 0.6s ease-in-out;
-	filter: blur(20px);
-	opacity: 0.6;
-	transform: scale(1.05);
-}
-
-.image-blur-load.image-loaded {
-	filter: blur(0);
-	opacity: 1;
-	transform: scale(1);
-}
 </style>

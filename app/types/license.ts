@@ -2,6 +2,7 @@
 export type FeatureKey =
 	| "people_counting"
 	| "lighting"
+	| "drainage"
 	| "environment"
 	| "surveillance"
 	| "vehicle_access";
@@ -9,6 +10,7 @@ export type FeatureKey =
 export const LICENSE_FEATURE_KEYS: readonly FeatureKey[] = [
 	"people_counting",
 	"lighting",
+	"drainage",
 	"environment",
 	"surveillance",
 	"vehicle_access"

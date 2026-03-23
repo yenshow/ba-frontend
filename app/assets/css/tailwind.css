@@ -38,7 +38,12 @@
 	left: -50%;
 	width: 200%;
 	height: 200%;
-	background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+	background: linear-gradient(
+		45deg,
+		transparent 30%,
+		rgba(255, 255, 255, 0.1) 50%,
+		transparent 70%
+	);
 	transform: rotate(45deg);
 	pointer-events: none;
 	z-index: 0;
@@ -131,6 +136,198 @@
 .dialog-fade-enter-from,
 .dialog-fade-leave-to {
 	opacity: 0;
+}
+
+/* Vue Transition：fade-in（基礎設施頁按鈕／列表進場） */
+.fade-in-enter-active {
+	transition:
+		opacity 0.4s ease-in,
+		transform 0.4s ease-out;
+}
+.fade-in-enter-from {
+	opacity: 0;
+	transform: translateY(-10px);
+}
+.fade-in-enter-to {
+	opacity: 1;
+	transform: translateY(0);
+}
+
+/* Vue Transition：dropdown（編輯模式分類列表） */
+.dropdown-enter-active,
+.dropdown-leave-active {
+	transition: all 0.2s ease;
+}
+.dropdown-enter-from {
+	opacity: 0;
+	transform: translateY(-8px);
+}
+.dropdown-enter-to {
+	opacity: 1;
+	transform: translateY(0);
+}
+.dropdown-leave-from {
+	opacity: 1;
+	transform: translateY(0);
+}
+.dropdown-leave-to {
+	opacity: 0;
+	transform: translateY(-8px);
+}
+
+/* ========================================
+   圖片模糊載入（平面圖、首頁建築圖、登入頁等）
+   ======================================== */
+.image-blur-load {
+	transition:
+		filter 0.6s ease-in-out,
+		opacity 0.6s ease-in-out,
+		transform 0.6s ease-in-out;
+	filter: blur(20px);
+	opacity: 0.6;
+}
+.image-blur-load.image-loaded {
+	filter: blur(0);
+	opacity: 1;
+}
+/* 登入英雄圖：載入前略放大再收回 */
+.image-blur-load--hero:not(.image-loaded) {
+	transform: scale(1.05);
+}
+.image-blur-load--hero.image-loaded {
+	transform: scale(1);
+}
+
+/* ========================================
+   平面圖地點點位（照明／排水 category-dot、全區圖 location-dot）
+   預設＝照明；父層加 map-location-dots--drainage 啟用排水警告／紅色警報
+   ======================================== */
+.map-location-dots .category-dot-wrapper,
+.map-location-dots .location-dot-wrapper {
+	position: absolute;
+	z-index: 10;
+}
+.map-location-dots .category-dot,
+.map-location-dots .location-dot {
+	position: absolute;
+	width: 48px;
+	height: 48px;
+	border-radius: 9999px;
+	transform: translate(-50%, -50%);
+	border: 2px solid transparent;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	backdrop-filter: blur(3px);
+	-webkit-backdrop-filter: blur(3px);
+	transition:
+		box-shadow 0.2s ease,
+		border-color 0.2s ease,
+		background 0.2s ease;
+}
+.map-location-dots .category-dot::before,
+.map-location-dots .location-dot::before {
+	content: "";
+	position: absolute;
+	inset: 6px;
+	border-radius: inherit;
+	transition: background 0.2s ease;
+}
+.map-location-dots .category-dot::after,
+.map-location-dots .location-dot::after {
+	position: relative;
+	content: "";
+	font-size: 16px;
+	font-weight: 600;
+	color: #ffffff;
+	transition: transform 0.2s ease;
+}
+.map-location-dots .category-dot[data-status="normal"],
+.map-location-dots .location-dot[data-status="normal"] {
+	background: rgba(251, 191, 36, 0.32);
+	border-color: rgba(251, 191, 36, 0.72);
+}
+.map-location-dots .category-dot[data-status="normal"]::before,
+.map-location-dots .location-dot[data-status="normal"]::before {
+	background: #fbbf24;
+}
+.map-location-dots .category-dot[data-status="normal"]::after,
+.map-location-dots .location-dot[data-status="normal"]::after {
+	content: "✓";
+}
+/* 預設異常：琥珀警示（照明、全區點位圖） */
+.map-location-dots .category-dot[data-status="abnormal"],
+.map-location-dots .location-dot[data-status="abnormal"] {
+	background: rgba(245, 158, 11, 0.32);
+	border-color: rgba(245, 158, 11, 0.72);
+	animation: map-dot-alert-amber 1.6s ease-in-out infinite;
+}
+.map-location-dots .category-dot[data-status="abnormal"]::before,
+.map-location-dots .location-dot[data-status="abnormal"]::before {
+	background: #f59e0b;
+}
+.map-location-dots .category-dot[data-status="abnormal"]::after,
+.map-location-dots .location-dot[data-status="abnormal"]::after {
+	content: "!";
+}
+.map-location-dots .category-dot:focus-visible,
+.map-location-dots .location-dot:focus-visible {
+	outline: 2px solid #ffffff;
+	outline-offset: 2px;
+}
+.map-location-dots .category-dot.is-editing {
+	cursor: move;
+}
+.map-location-dots .category-dot-wrapper.is-dragging {
+	opacity: 0.5;
+	z-index: 100;
+}
+.map-location-dots .category-dot-wrapper[draggable="true"] {
+	cursor: move;
+}
+.map-location-dots .category-dot.is-active,
+.map-location-dots .location-dot.is-active {
+	box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+	border-color: rgba(255, 255, 255, 0.8);
+}
+/* 排水：警告（橘）／警報（紅）覆寫預設 abnormal */
+.map-location-dots--drainage .category-dot[data-status="warning"] {
+	background: rgba(245, 158, 11, 0.32);
+	border-color: rgba(245, 158, 11, 0.72);
+}
+.map-location-dots--drainage .category-dot[data-status="warning"]::before {
+	background: #f59e0b;
+}
+.map-location-dots--drainage .category-dot[data-status="abnormal"] {
+	background: rgba(245, 101, 101, 0.32);
+	border-color: rgba(245, 101, 101, 0.72);
+	animation: map-dot-alert-rose 1.6s ease-in-out infinite;
+}
+.map-location-dots--drainage .category-dot[data-status="abnormal"]::before {
+	background: #f56565;
+}
+.map-location-dots--drainage .category-dot[data-status="warning"]::after,
+.map-location-dots--drainage .category-dot[data-status="abnormal"]::after {
+	content: "!";
+}
+@keyframes map-dot-alert-amber {
+	0%,
+	100% {
+		box-shadow: 0 0 18px rgba(245, 158, 11, 0.6);
+	}
+	50% {
+		box-shadow: 0 0 28px rgba(245, 158, 11, 0.95);
+	}
+}
+@keyframes map-dot-alert-rose {
+	0%,
+	100% {
+		box-shadow: 0 0 18px rgba(245, 101, 101, 0.6);
+	}
+	50% {
+		box-shadow: 0 0 28px rgba(245, 101, 101, 0.95);
+	}
 }
 
 /* ========================================

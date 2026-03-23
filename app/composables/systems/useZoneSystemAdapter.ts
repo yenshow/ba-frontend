@@ -8,17 +8,20 @@ import type { LightingZone, LightingLocation } from "~/types/lighting";
 import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment";
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting";
 import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess";
+import type { DrainageZone, DrainageLocation } from "~/types/drainage";
 
 export type SystemZoneType =
 	| LightingZone
 	| EnvironmentZone
 	| PeopleCountingZone
-	| VehicleAccessZone;
+	| VehicleAccessZone
+	| DrainageZone;
 export type SystemLocationType =
 	| LightingLocation
 	| EnvironmentLocation
 	| PeopleCountingLocation
-	| VehicleAccessLocation;
+	| VehicleAccessLocation
+	| DrainageLocation;
 
 /**
  * 系統配置
@@ -173,6 +176,42 @@ export function usePeopleCountingZoneAdapter(): ZoneSystemAdapter<
 }
 
 /**
+ * 衛生排水系統適配器
+ */
+export function useDrainageZoneAdapter(): ZoneSystemAdapter<DrainageZone, DrainageLocation> {
+	const systemConfig: SystemConfig = {
+		requireImageUrl: true
+	};
+
+	return {
+		getLocationsProperty: (zone: DrainageZone) => (zone as any).areas || zone.locations || [],
+		setLocationsProperty: (zone: DrainageZone, locations: DrainageLocation[]) => ({
+			...zone,
+			locations
+		}),
+		createNewLocation: (): DrainageLocation => ({
+			name: "",
+			equipmentKind: "pump",
+			viewCategory: "drainage",
+			statusPoints: {}
+		}),
+		createNewZone: (name: string): DrainageZone => ({
+			name,
+			locations: []
+		}),
+		filterEmptyLocations: (zone: DrainageZone): DrainageZone => ({
+			...zone,
+			locations: (zone.locations || []).filter(loc => loc.name && loc.name.trim().length > 0)
+		}),
+		systemConfig,
+		getLocationId: (location: DrainageLocation, zoneName?: string): string => {
+			if (location.id) return location.id;
+			return `${zoneName || "unknown"}-${location.name}`;
+		}
+	};
+}
+
+/**
  * 車輛進出系統適配器
  */
 export function useVehicleAccessZoneAdapter(): ZoneSystemAdapter<
@@ -224,6 +263,8 @@ export function useZoneSystemAdapter<
 			return usePeopleCountingZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>;
 		case "vehicle_access":
 			return useVehicleAccessZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>;
+		case "drainage":
+			return useDrainageZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>;
 		default:
 			throw new Error(`不支援的系統類型: ${systemType}`);
 	}

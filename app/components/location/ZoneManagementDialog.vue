@@ -205,6 +205,7 @@ import EnvironmentLocationManagement from "./LocationManagement/EnvironmentLocat
 import LightingLocationManagement from "./LocationManagement/LightingLocationManagement.vue";
 import PeopleCountingLocationManagement from "./LocationManagement/PeopleCountingLocationManagement.vue";
 import VehicleAccessLocationManagement from "./LocationManagement/VehicleAccessLocationManagement.vue";
+import DrainageLocationManagement from "./LocationManagement/DrainageLocationManagement.vue";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
@@ -388,7 +389,8 @@ const locationManagementComponentMap: Record<SystemType, Component> = {
 	lighting: LightingLocationManagement,
 	environment: EnvironmentLocationManagement,
 	people_counting: PeopleCountingLocationManagement,
-	vehicle_access: VehicleAccessLocationManagement
+	vehicle_access: VehicleAccessLocationManagement,
+	drainage: DrainageLocationManagement
 };
 
 const locationManagementComponent = computed(
@@ -399,7 +401,8 @@ const locationManagementComponent = computed(
 const loadDevices = async () => {
 	isLoadingDevices.value = true;
 	try {
-		const deviceType = props.systemType === "lighting" ? "controller" : "sensor";
+		const deviceType =
+			props.systemType === "lighting" || props.systemType === "drainage" ? "controller" : "sensor";
 		const result = await deviceApi.getDevices({
 			type_code: deviceType,
 			status: "active",
@@ -495,6 +498,7 @@ const getLocationsCount = (zone: TZone): number => {
 const getLocationLabel = (): string => {
 	const labelMap: Record<SystemType, string> = {
 		lighting: "點位",
+		drainage: "點位",
 		environment: "地點",
 		people_counting: "地點",
 		vehicle_access: "地點"
@@ -705,7 +709,7 @@ const saveAllChanges = async () => {
 
 		// 2. 驗證系統特定規則（例如：照明系統需要示意圖）
 		if (props.requireImageUrl && !zoneAny(zone).imageUrl) {
-			errorMessage.value = "照明系統必須上傳示意圖";
+			errorMessage.value = "此系統必須上傳區域示意圖";
 			return;
 		}
 	}
