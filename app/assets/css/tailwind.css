@@ -137,6 +137,33 @@
    表單輸入樣式 - 統一樣式系統
    ======================================== */
 
+/* 表單輸入框（Device dialogs 通用） */
+.form-input {
+	border-radius: 0.75rem;
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	background: rgba(255, 255, 255, 0.1);
+	padding: 0.65rem 0.85rem;
+	color: #f7fbff;
+	transition:
+		border-color 0.2s ease,
+		background 0.2s ease;
+}
+
+.form-input:focus {
+	border-color: #5be7f1;
+	background: rgba(255, 255, 255, 0.18);
+	outline: none;
+}
+
+.form-input:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.form-input::placeholder {
+	color: rgba(255, 255, 255, 0.5);
+}
+
 /* 小型表單輸入框 */
 .form-input-small {
 	border-radius: 0.75rem;
@@ -232,6 +259,44 @@
 .btn-secondary:disabled {
 	opacity: 0.6;
 	cursor: not-allowed;
+}
+
+/* 區域管理／點位列表：上下排序箭頭（集中樣式，略大於舊版 text-xs） */
+.btn-reorder-stack {
+	display: flex;
+	flex-direction: column;
+	gap: 0.125rem;
+}
+
+.btn-reorder-arrow {
+	border-radius: 0.25rem;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	padding: 0.35rem 0.55rem;
+	font-size: 0.95rem;
+	font-weight: 600;
+	line-height: 1;
+	color: rgba(255, 255, 255, 0.92);
+	cursor: pointer;
+	transition: background-color 0.15s ease;
+	background: transparent;
+	min-width: 2rem;
+}
+
+.btn-reorder-arrow:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-reorder-arrow:disabled {
+	cursor: not-allowed;
+	opacity: 0.3;
+}
+
+@media (min-width: 1536px) {
+	.btn-reorder-arrow {
+		padding: 0.4rem 0.65rem;
+		font-size: 1.05rem;
+		min-width: 2.25rem;
+	}
 }
 
 /* ========================================

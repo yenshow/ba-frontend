@@ -807,6 +807,7 @@ const getCurrentConfig = (): DeviceConfig => {
 				host: ip || cameraConfig.host,
 				ip_address: ip || cameraConfig.ip_address,
 				username: user,
+				password: pwd || cameraConfig.password,
 				group: cameraGroup.value.trim() || undefined
 			};
 		}
@@ -830,8 +831,9 @@ const getCurrentConfig = (): DeviceConfig => {
 const handleSubmit = () => {
 	localErrorMessage.value = null;
 
-	if (!currentDeviceTypeId.value) {
-		console.error("設備類型 ID 尚未載入");
+	// 新增模式才需要 type_id（編輯模式不依賴 currentDeviceTypeId）
+	if (!props.editingDevice && !currentDeviceTypeId.value) {
+		localErrorMessage.value = "設備類型尚未載入完成，請稍後再試";
 		return;
 	}
 
@@ -888,7 +890,7 @@ const handleSubmit = () => {
 	} else {
 		const submitData: CreateDeviceData = {
 			name: localFormData.name,
-			type_id: currentDeviceTypeId.value,
+			type_id: currentDeviceTypeId.value!,
 			model_id: localFormData.model_id,
 			status: localFormData.status === "active" ? "active" : undefined,
 			config: config
@@ -898,35 +900,4 @@ const handleSubmit = () => {
 };
 </script>
 
-<style scoped>
-.form-input {
-	border-radius: 0.75rem;
-	border: 1px solid rgba(255, 255, 255, 0.35);
-	background: rgba(255, 255, 255, 0.1);
-	padding: 0.65rem 0.85rem;
-	color: #f7fbff;
-	transition:
-		border-color 0.2s ease,
-		background 0.2s ease;
-}
-
-.form-input:focus {
-	border-color: #5be7f1;
-	background: rgba(255, 255, 255, 0.18);
-	outline: none;
-}
-
-.form-input:disabled {
-	opacity: 0.5;
-	cursor: not-allowed;
-}
-
-.form-select {
-	cursor: pointer;
-}
-
-.form-select option {
-	background: rgba(20, 64, 92, 0.98);
-	color: #f7fbff;
-}
-</style>
+<style scoped></style>

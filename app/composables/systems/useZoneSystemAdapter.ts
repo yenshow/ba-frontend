@@ -59,11 +59,7 @@ export function useLightingZoneAdapter(): ZoneSystemAdapter<LightingZone, Lighti
 	};
 
 	return {
-		getLocationsProperty: (zone: LightingZone) => {
-			// 照明系統使用 locations 屬性（類型定義）
-			// 但組件中可能使用 areas（向後兼容）
-			return (zone as any).areas || zone.locations || [];
-		},
+		getLocationsProperty: (zone: LightingZone) => zone.locations || [],
 		setLocationsProperty: (zone: LightingZone, locations: LightingLocation[]) => {
 			// 照明系統允許多個地點，直接使用傳入的列表
 			return {

@@ -67,7 +67,7 @@
 						<div v-else class="space-y-4">
 							<div
 								v-for="alert in alerts"
-								:key="alert.id"
+								:key="getAlertKey(alert)"
 								:id="`alert-${alert.id}`"
 								:class="['rounded-xl border-2 p-4 transition-all 2xl:p-6', getAlertCardClass(alert)]"
 							>
@@ -467,10 +467,20 @@ const handleIgnoreAction = async (
 	isIgnoring.value = true;
 	try {
 		if (action === "ignore") {
-			await alertApi.ignoreAlert(alert.source_id, alert.alert_type, alert.source);
-			removeAlertToast(alert.id);
+			await alertApi.ignoreAlert(
+				alert.source_id,
+				alert.alert_type,
+				alert.source,
+				alert.dimension_key || undefined
+			);
+			removeAlertToast(alert.id, alert.dimension_key);
 		} else {
-			await alertApi.unignoreAlert(alert.source_id, alert.alert_type, alert.source);
+			await alertApi.unignoreAlert(
+				alert.source_id,
+				alert.alert_type,
+				alert.source,
+				alert.dimension_key || undefined
+			);
 		}
 		toast.success(successMessage, 3000);
 		await reloadAfterAction();
@@ -486,7 +496,7 @@ const handleIgnore = (alert: Alert) =>
 	handleIgnoreAction(
 		alert,
 		"ignore",
-		"確定要忽視此警示嗎？忽視後將不再顯示此來源的相同類型警示。",
+		"確定要忽視此警示嗎？忽視後將不再顯示此來源同類型、同維度的警示。",
 		"警示已忽視",
 		"忽視警示失敗"
 	);
@@ -496,7 +506,7 @@ const handleUnignore = (alert: Alert) =>
 	handleIgnoreAction(
 		alert,
 		"unignore",
-		"確定要取消忽視此警示嗎？取消後將恢復顯示此來源的相同類型警示。",
+		"確定要取消忽視此警示嗎？取消後將恢復顯示此來源同類型、同維度的警示。",
 		"已取消忽視警示",
 		"取消忽視警示失敗"
 	);
@@ -504,6 +514,9 @@ const handleUnignore = (alert: Alert) =>
 // 獲取當前篩選條件對應的狀態
 const getFilterStatus = (): AlertStatus | undefined =>
 	filterStatus.value !== "all" ? (filterStatus.value as AlertStatus) : undefined;
+
+const getAlertKey = (alert: Pick<Alert, "id" | "dimension_key">): string =>
+	`${alert.id}:${alert.dimension_key || "default"}`;
 
 // 檢查警報是否符合當前篩選條件
 const matchesFilters = (alert: Alert): boolean => {
@@ -530,7 +543,7 @@ const matchesFilters = (alert: Alert): boolean => {
 // 處理新警報事件（WebSocket）
 const handleAlertNew = (alert: AlertNewEvent) => {
 	// 檢查是否已存在
-	if (alerts.value.find(a => a.id === alert.id)) return;
+	if (alerts.value.find(a => getAlertKey(a) === getAlertKey(alert))) return;
 
 	// 檢查是否符合篩選條件
 	if (!matchesFilters(alert)) {
@@ -558,7 +571,7 @@ const handleAlertNew = (alert: AlertNewEvent) => {
 // 處理警報更新事件（WebSocket）
 const handleAlertUpdated = (data: AlertUpdatedEvent) => {
 	const { alert, oldStatus, newStatus } = data;
-	const index = alerts.value.findIndex(a => a.id === alert.id);
+	const index = alerts.value.findIndex(a => getAlertKey(a) === getAlertKey(alert));
 	const matches = matchesFilters(alert);
 
 	if (index !== -1) {

@@ -107,6 +107,7 @@ import type {
 } from "~/types/device";
 import type { ModbusDeviceConfig, ModbusDataResponse } from "~/types/modbus";
 import { isDeviceConnectionError } from "~/utils/errorUtils";
+import { firstLocationInSortedZones } from "~/utils/sortOrder";
 import { getLocationDeviceIds } from "~/utils/sensorUtils";
 import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState";
 import { usePeopleCountingWebSocket } from "~/composables/systems/peopleCounting/usePeopleCountingWebSocket";
@@ -168,6 +169,37 @@ const loadLocationLogs = async (locationId: string) => {
 const unifiedZones = ref<UnifiedZone[]>([]);
 const isLoadingZones = ref(false);
 const selectedLocationId = ref<string>("");
+
+/** 首頁選取之統一地點（localStorage 固定下次進入） */
+const LS_HOME_UNIFIED_LOCATION_ID = "ba-construction-home-unified-location-id";
+const isHydratingHomeLocation = ref(false);
+
+const persistHomeUnifiedLocationId = () => {
+	if (!import.meta.client) return;
+	const v = selectedLocationId.value;
+	if (v) localStorage.setItem(LS_HOME_UNIFIED_LOCATION_ID, v);
+	else localStorage.removeItem(LS_HOME_UNIFIED_LOCATION_ID);
+};
+
+const restoreHomeUnifiedLocationIdFromStorage = () => {
+	if (!import.meta.client) return;
+	const s = localStorage.getItem(LS_HOME_UNIFIED_LOCATION_ID);
+	if (s) selectedLocationId.value = s;
+};
+
+const reconcileHomeLocationWithZones = () => {
+	if (unifiedZones.value.length === 0) {
+		selectedLocationId.value = "";
+		return;
+	}
+	const validIds = new Set(
+		unifiedZones.value.flatMap(zone => zone.locations.map(loc => getLocationId(loc)))
+	);
+	if (!selectedLocationId.value || !validIds.has(selectedLocationId.value)) {
+		const first = firstLocationInSortedZones(unifiedZones.value);
+		selectedLocationId.value = first ? getLocationId(first) : "";
+	}
+};
 
 // 獲取地點 ID
 const getLocationId = (location: UnifiedLocation): string => {
@@ -236,7 +268,7 @@ const selectedUnifiedLocation = computed<UnifiedLocation | null>(() => {
 	if (!selectedLocationId.value) return null;
 
 	for (const zone of unifiedZones.value) {
-		const location = zone.locations.find(loc => loc.id === selectedLocationId.value);
+		const location = zone.locations.find(loc => getLocationId(loc) === selectedLocationId.value);
 		if (location) return location;
 	}
 	return null;
@@ -341,25 +373,12 @@ const loadDeviceAndModelConfig = async (
 	}
 };
 
-// 預設選擇的地點（區域名稱 - 地點名稱）
-const DEFAULT_LOCATION = { zoneName: "遠岫", locationName: "大門口" };
-
 const loadZones = async () => {
 	if (isLoadingZones.value) return;
 	isLoadingZones.value = true;
 	try {
 		const { zones = [] } = await locationApi.getZones();
 		unifiedZones.value = sortZones(zones);
-
-		if (unifiedZones.value.length === 0) return;
-
-		const defaultZone = unifiedZones.value.find(z => z.name === DEFAULT_LOCATION.zoneName);
-		const defaultLocation = defaultZone?.locations.find(
-			loc => loc.name === DEFAULT_LOCATION.locationName
-		);
-		const targetLocation =
-			defaultLocation ?? unifiedZones.value.flatMap(z => z.locations || []).find(() => true);
-		if (targetLocation) selectedLocationId.value = getLocationId(targetLocation);
 	} catch (error) {
 		handleError(error, "載入區域列表失敗");
 	} finally {
@@ -682,7 +701,9 @@ const initializeLocationData = async () => {
 watch(
 	() => selectedLocationId.value,
 	async () => {
+		persistHomeUnifiedLocationId();
 		if (!selectedLocationId.value) return;
+		if (isHydratingHomeLocation.value) return;
 		const matched = matchedPeopleCountingLocation.value;
 		const locationId = matched?.locationId != null ? String(matched.locationId) : null;
 		await Promise.allSettled([
@@ -718,20 +739,28 @@ onMounted(async () => {
 		}
 	}, 500);
 
-	const [zonesResult, peopleCountingResult] = await Promise.allSettled([
-		loadZones(),
-		hasPeopleCounting.value ? loadPeopleCountingLocations() : Promise.resolve()
-	]);
-	await nextTick();
+	isHydratingHomeLocation.value = true;
+	try {
+		restoreHomeUnifiedLocationIdFromStorage();
+		const [zonesResult, peopleCountingResult] = await Promise.allSettled([
+			loadZones(),
+			hasPeopleCounting.value ? loadPeopleCountingLocations() : Promise.resolve()
+		]);
+		reconcileHomeLocationWithZones();
+		persistHomeUnifiedLocationId();
+		await nextTick();
 
-	const parallelTasks: Promise<void>[] = [];
-	if (zonesResult.status === "fulfilled" && hasEnvironment.value) {
-		parallelTasks.push(initializeLocationData().catch(console.error));
+		const parallelTasks: Promise<void>[] = [];
+		if (zonesResult.status === "fulfilled" && hasEnvironment.value) {
+			parallelTasks.push(initializeLocationData().catch(console.error));
+		}
+		if (peopleCountingResult.status === "fulfilled" && hasPeopleCounting.value) {
+			parallelTasks.push(refreshCurrentLocationLogs().catch(console.error));
+		}
+		await Promise.allSettled(parallelTasks);
+	} finally {
+		isHydratingHomeLocation.value = false;
 	}
-	if (peopleCountingResult.status === "fulfilled" && hasPeopleCounting.value) {
-		parallelTasks.push(refreshCurrentLocationLogs().catch(console.error));
-	}
-	await Promise.allSettled(parallelTasks);
 	startPolling();
 });
 

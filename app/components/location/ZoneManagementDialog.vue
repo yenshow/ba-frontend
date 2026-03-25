@@ -88,6 +88,28 @@
 													</div>
 												</div>
 												<div class="ml-4 flex gap-2 2xl:gap-3" @click.stop>
+													<div class="btn-reorder-stack">
+														<button
+															type="button"
+															class="btn-reorder-arrow"
+															:disabled="isFirstZoneInList(zone)"
+															title="區域上移"
+															aria-label="此區域上移"
+															@click.stop="moveZoneOrder(zone, -1)"
+														>
+															↑
+														</button>
+														<button
+															type="button"
+															class="btn-reorder-arrow"
+															:disabled="isLastZoneInList(zone)"
+															title="區域下移"
+															aria-label="此區域下移"
+															@click.stop="moveZoneOrder(zone, 1)"
+														>
+															↓
+														</button>
+													</div>
 													<button
 														type="button"
 														class="p-2 text-rose-400 transition-colors hover:text-rose-300"
@@ -129,8 +151,14 @@
 														:person-groups="personGroups"
 														:doors="doors"
 														:access-control-devices="accessControlDevices"
+														:camera-devices="cameraDevices"
+														:reorderable-locations="true"
 														@add-location="() => addLocation(zone)"
 														@remove-location="(index: number) => removeLocation(getZoneId(zone), index)"
+														@reorder-location="
+															(payload: { index: number; direction: 'up' | 'down' }) =>
+																handleReorderLocationRow(zone, payload)
+														"
 														@update-location="
 															(index: number, location: SystemLocationType) =>
 																handleLocationUpdate(getZoneId(zone), index, location)
@@ -208,9 +236,15 @@ import VehicleAccessLocationManagement from "./LocationManagement/VehicleAccessL
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
-import type { Component } from "vue";
+import { nextTick, type Component } from "vue";
 import { useLocationApi } from "~/composables/systems/location/useLocationApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import {
+	compareZoneRowsForDialog,
+	pickSortOrder,
+	sortOrderForZoneRowSwap,
+	zoneSortOrderValue
+} from "~/utils/sortOrder";
 
 interface Props {
 	modelValue: boolean;
@@ -304,13 +338,7 @@ const sortedZones = computed(() => {
 	// 如果所有區域都沒有地點且沒有新區域，顯示所有區域（用於顯示空狀態）
 	const zonesToShow = zonesWithLocations.length > 0 ? zonesWithLocations : mergedZones.value;
 
-	return [...zonesToShow].sort((a, b) => {
-		const nameA = a.name || "";
-		const nameB = b.name || "";
-		const numA = parseInt(nameA.match(/\d+/)?.[0] || "999") || 999;
-		const numB = parseInt(nameB.match(/\d+/)?.[0] || "999") || 999;
-		return numA - numB;
-	});
+	return [...zonesToShow].sort((a, b) => compareZoneRowsForDialog(a, b, getZoneId));
 });
 
 // 檢查是否有未保存的變更
@@ -382,6 +410,7 @@ const doors = ref<
 	Array<{ id: number; device_id: number; dev_name: string; door_index: number; is_deleted?: number }>
 >([]);
 const accessControlDevices = ref<Device[]>([]);
+const cameraDevices = ref<Device[]>([]);
 
 // 地點管理組件映射
 const locationManagementComponentMap: Record<SystemType, Component> = {
@@ -461,6 +490,23 @@ const loadAccessControlDevices = async () => {
 	}
 };
 
+// 載入攝影機設備列表（僅用於人流統計系統「攝影機」資料來源）
+const loadCameraDevices = async () => {
+	if (props.systemType !== "people_counting") return;
+
+	try {
+		const result = await deviceApi.getDevices({
+			type_code: "camera",
+			status: "active",
+			limit: 200
+		});
+		cameraDevices.value = result.devices || [];
+	} catch (error) {
+		console.error("載入攝影機設備列表失敗:", error);
+		cameraDevices.value = [];
+	}
+};
+
 // 當對話框打開時載入設備列表和相關資料
 watch(
 	() => props.modelValue,
@@ -472,6 +518,7 @@ watch(
 				loadPersonGroups();
 				loadDoors();
 				loadAccessControlDevices();
+				loadCameraDevices();
 			}
 			pendingChanges.value.clear();
 			expandedZones.value.clear();
@@ -510,6 +557,7 @@ const getZoneForFormFields = (zone: TZone): UnifiedZone => {
 		name: zone.name,
 		imageUrl: zoneAny.imageUrl,
 		description: zoneAny.description,
+		...pickSortOrder(zoneAny.sortOrder),
 		locations: []
 	} as UnifiedZone;
 };
@@ -587,7 +635,7 @@ const handleLocationUpdate = (
 // 新增地點（從 LocationManagement 組件接收）
 const addLocation = (zone: TZone) => {
 	const newLocation = adapter.createNewLocation();
-	const locations = [...adapter.getLocationsProperty(zone), newLocation];
+	const locations = [newLocation, ...adapter.getLocationsProperty(zone)];
 	const updatedZone = adapter.setLocationsProperty(zone, locations);
 	updateZone(updatedZone);
 };
@@ -665,6 +713,70 @@ const isNewZone = (zone: TZone): boolean => {
 	return Boolean(zoneId?.startsWith("temp-"));
 };
 
+const maxZoneSortOrder = (): number => {
+	let m = -1;
+	for (const z of mergedZones.value) {
+		m = Math.max(m, zoneSortOrderValue(z as { sortOrder?: number | null }));
+	}
+	return m;
+};
+
+const snapshotZoneById = (zoneId: string): TZone | undefined => {
+	const pending = pendingChanges.value.get(zoneId);
+	if (pending) return JSON.parse(JSON.stringify(pending)) as TZone;
+	const fromProps = props.zones.find(z => getZoneId(z) === zoneId);
+	return fromProps ? (JSON.parse(JSON.stringify(fromProps)) as TZone) : undefined;
+};
+
+const isFirstZoneInList = (zone: TZone) => {
+	const id = getZoneId(zone);
+	if (!id) return true;
+	const i = sortedZones.value.findIndex(z => getZoneId(z) === id);
+	return i <= 0;
+};
+
+const isLastZoneInList = (zone: TZone) => {
+	const id = getZoneId(zone);
+	if (!id) return true;
+	const i = sortedZones.value.findIndex(z => getZoneId(z) === id);
+	return i < 0 || i >= sortedZones.value.length - 1;
+};
+
+const moveZoneOrder = (zone: TZone, delta: number) => {
+	const id = getZoneId(zone);
+	if (!id) return;
+	const list = sortedZones.value;
+	const i = list.findIndex(z => getZoneId(z) === id);
+	const j = i + delta;
+	if (i < 0 || j < 0 || j >= list.length) return;
+	const idA = getZoneId(list[i]!)!;
+	const idB = getZoneId(list[j]!)!;
+	const za = snapshotZoneById(idA);
+	const zb = snapshotZoneById(idB);
+	if (!za || !zb) return;
+	const sortA = sortOrderForZoneRowSwap((za as unknown as { sortOrder?: unknown }).sortOrder, i);
+	const sortB = sortOrderForZoneRowSwap((zb as unknown as { sortOrder?: unknown }).sortOrder, j);
+	pendingChanges.value.set(idA, { ...za, sortOrder: sortB } as TZone);
+	pendingChanges.value.set(idB, { ...zb, sortOrder: sortA } as TZone);
+	errorMessage.value = "";
+};
+
+const handleReorderLocationRow = (
+	zone: TZone,
+	payload: { index: number; direction: "up" | "down" }
+) => {
+	const locs = [...adapter.getLocationsProperty(zone)] as SystemLocationType[];
+	const { index, direction } = payload;
+	const j = direction === "up" ? index - 1 : index + 1;
+	if (j < 0 || j >= locs.length) return;
+	[locs[index], locs[j]] = [locs[j]!, locs[index]!];
+	locs.forEach((loc, idx) => {
+		(loc as unknown as { sortOrder?: number }).sortOrder = idx;
+	});
+	const updatedZone = adapter.setLocationsProperty(zone, locs);
+	updateZone(updatedZone);
+};
+
 // 新增區域
 const addNewZone = () => {
 	const tempId = `temp-${Date.now()}-${Math.random()}`;
@@ -672,7 +784,8 @@ const addNewZone = () => {
 	// 建立新區域：區域名稱預設為空白
 	const newZone = {
 		...adapter.createNewZone(""),
-		id: tempId
+		id: tempId,
+		sortOrder: maxZoneSortOrder() + 1
 	} as TZone;
 
 	// ✅ 只加入待保存列表，不立即寫入資料庫
@@ -683,9 +796,25 @@ const addNewZone = () => {
 	expandedZones.value.add(tempId);
 };
 
+/** 儲存前讓對話框內仍聚焦的表單控制項 blur，觸發子元件 emit，避免 pending 仍是舊值 */
+const flushFocusedFormControlInDialog = async () => {
+	if (typeof document === "undefined") return;
+	const raw = document.activeElement;
+	if (!raw || !(raw instanceof HTMLElement)) return;
+	if (!raw.closest(".dialog-panel-bg")) return;
+	const tag = raw.tagName;
+	if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+		raw.blur();
+		await nextTick();
+		await nextTick();
+	}
+};
+
 // 儲存所有變更
 const saveAllChanges = async () => {
 	if (pendingChanges.value.size === 0) return;
+
+	await flushFocusedFormControlInDialog();
 
 	errorMessage.value = "";
 	const zoneAny = (zone: TZone) => zone as any;

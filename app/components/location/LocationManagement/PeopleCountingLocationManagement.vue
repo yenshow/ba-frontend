@@ -32,8 +32,32 @@
 						:person-groups="personGroups"
 						:doors="doors"
 						:access-control-devices="accessControlDevices"
+						:camera-devices="cameraDevices"
 						@update="handleLocationUpdate(locationIndex, $event)"
 					/>
+				</div>
+
+				<div v-if="reorderableLocations" class="btn-reorder-stack shrink-0 self-start">
+					<button
+						type="button"
+						class="btn-reorder-arrow"
+						:disabled="locationIndex === 0"
+						title="上移"
+						aria-label="此地點上移"
+						@click="emit('reorder-location', { index: locationIndex, direction: 'up' })"
+					>
+						↑
+					</button>
+					<button
+						type="button"
+						class="btn-reorder-arrow"
+						:disabled="locationIndex >= getLocations(zone).length - 1"
+						title="下移"
+						aria-label="此地點下移"
+						@click="emit('reorder-location', { index: locationIndex, direction: 'down' })"
+					>
+						↓
+					</button>
 				</div>
 
 				<!-- 刪除按鈕 -->
@@ -82,18 +106,23 @@ interface Props {
 	personGroups?: PersonGroup[];
 	doors?: Door[];
 	accessControlDevices?: Device[];
+	cameraDevices?: Device[];
+	reorderableLocations?: boolean;
 }
 
 interface Emits {
 	(e: "add-location"): void;
 	(e: "remove-location", index: number): void;
 	(e: "update-location", index: number, location: PeopleCountingLocation): void;
+	(e: "reorder-location", payload: { index: number; direction: "up" | "down" }): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	personGroups: () => [],
 	doors: () => [],
 	accessControlDevices: () => [],
+	cameraDevices: () => [],
+	reorderableLocations: false
 });
 
 const emit = defineEmits<Emits>();

@@ -37,6 +37,8 @@ export interface SensorParameter {
 export interface EnvironmentLocation {
 	id?: string; // 地點 ID (locations.id)
 	systemId?: string; // 系統 ID (location_systems.id)，用於錯誤追蹤和警報
+	/** 同區域內地點排序（小者在前） */
+	sortOrder?: number;
 	name: string; // 位置名稱（如：管理中心、展廳）
 	/** @deprecated 請使用 deviceIds；向後相容：若僅有 deviceId 則視為 [deviceId] */
 	deviceId?: number;
@@ -52,6 +54,8 @@ export interface EnvironmentLocation {
 export interface EnvironmentZone {
 	id?: string;
 	name: string; // 區域名稱（如：1F、2F）
+	/** 區域排序（小者在前） */
+	sortOrder?: number;
 	locations: EnvironmentLocation[]; // 位置列表
 }
 

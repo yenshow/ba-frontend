@@ -101,20 +101,23 @@ const toastClasses = {
 	info: "bg-blue-500/90 text-white border-blue-400/50"
 };
 
-const openAlertLogInNewTab = (path: string) => {
-	if (import.meta.client) {
-		const url = path.startsWith("http") ? path : `${window.location.origin}${path}`;
-		window.open(url, "_blank", "noopener,noreferrer");
-	}
+const routeToAlertTarget = async (path: string) => {
+	if (!path) return;
+	await navigateTo(path);
 };
 
 /**
- * 處理 Toast 點擊事件（新分頁開啟警示紀錄頁面）
+ * 處理 Toast 點擊事件（導向警報來源系統頁）
  */
-const handleToastClick = (toast: Toast) => {
+const handleToastClick = async (toast: Toast) => {
 	if (toast.alertId) {
-		removeAlertToast(toast.alertId);
-		openAlertLogInNewTab(`/core/alert-log?alertId=${toast.alertId}`);
+		if (toast.alertKey) {
+			removeAlertToast(toast.alertKey);
+		} else {
+			removeAlertToast(toast.alertId);
+		}
+		const targetPath = toast.alertRoute || `/core/alert-log?alertId=${toast.alertId}`;
+		await routeToAlertTarget(targetPath);
 	}
 };
 </script>

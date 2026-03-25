@@ -18,6 +18,7 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { unifiedToVehicleAccessZone } from "~/utils/locationAdapter";
 import { normalizePlate } from "~/utils/vehicleAccessUtils";
 import type { UnifiedZone } from "~/types/location";
+import { compareZonesLoose } from "~/utils/sortOrder";
 
 /** 時間範圍：今日、昨日、自訂 */
 export type VehicleAccessTimeRange = "today" | "yesterday" | "custom";
@@ -88,16 +89,18 @@ export const useVehicleAccessState = () => {
 	const isLoadingOverview = ref(false);
 	const isLoadingCounts = ref(false);
 
-	/** 有 vehicle_access 的地點列表（扁平化） */
+	/** 有 vehicle_access 的地點列表（扁平化；區域依 sort_order／名稱慣例排序） */
 	const locations = computed(() =>
-		vehicleAccessZones.value.flatMap(zone =>
-			(zone.locations || []).map(loc => ({
-				...loc,
-				zoneId: zone.id,
-				zoneName: zone.name,
-				locationId: loc.id
-			}))
-		)
+		[...vehicleAccessZones.value]
+			.sort((a, b) => compareZonesLoose(a, b))
+			.flatMap(zone =>
+				(zone.locations || []).map(loc => ({
+					...loc,
+					zoneId: zone.id,
+					zoneName: zone.name,
+					locationId: loc.id
+				}))
+			)
 	);
 
 	/** 當前選中的地點（用於篩選與標題） */
@@ -121,7 +124,7 @@ export const useVehicleAccessState = () => {
 		try {
 			const result = await locationApi.getZones("vehicle_access");
 			const zones = (result.zones || []).map((z: UnifiedZone) => unifiedToVehicleAccessZone(z));
-			vehicleAccessZones.value = zones;
+			vehicleAccessZones.value = [...zones].sort((a, b) => compareZonesLoose(a, b));
 		} catch (error) {
 			handleError(error, "載入區域列表失敗");
 			throw error;

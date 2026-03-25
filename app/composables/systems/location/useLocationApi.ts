@@ -47,6 +47,7 @@ export const useLocationApi = () => {
 			buildingId?: number;
 			imageUrl?: string;
 			description?: string;
+			sortOrder?: number;
 			locations?: UnifiedLocationInput[];
 		}) => {
 			return request<{ merged: boolean; message: string; zone: UnifiedZone }>("/locations/zones", {
@@ -65,6 +66,7 @@ export const useLocationApi = () => {
 				buildingId?: number;
 				imageUrl?: string;
 				description?: string;
+				sortOrder?: number;
 				locations?: (UnifiedLocation | UnifiedLocationInput)[];
 			}
 		) => {

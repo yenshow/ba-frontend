@@ -35,6 +35,29 @@
 					/>
 				</div>
 
+				<div v-if="reorderableLocations" class="btn-reorder-stack shrink-0 self-start">
+					<button
+						type="button"
+						class="btn-reorder-arrow"
+						:disabled="locationIndex === 0"
+						title="上移"
+						aria-label="此地點上移"
+						@click="emit('reorder-location', { index: locationIndex, direction: 'up' })"
+					>
+						↑
+					</button>
+					<button
+						type="button"
+						class="btn-reorder-arrow"
+						:disabled="locationIndex >= getLocations(zone).length - 1"
+						title="下移"
+						aria-label="此地點下移"
+						@click="emit('reorder-location', { index: locationIndex, direction: 'down' })"
+					>
+						↓
+					</button>
+				</div>
+
 				<!-- 刪除按鈕 -->
 				<button
 					type="button"
@@ -72,16 +95,19 @@ interface Props {
 	devices: Device[];
 	isLoadingDevices: boolean;
 	deviceHint?: string;
+	reorderableLocations?: boolean;
 }
 
 interface Emits {
 	(e: "add-location"): void;
 	(e: "remove-location", index: number): void;
 	(e: "update-location", index: number, location: EnvironmentLocation): void;
+	(e: "reorder-location", payload: { index: number; direction: "up" | "down" }): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-	deviceHint: "請先在「設備管理」中建立感測器設備"
+	deviceHint: "請先在「設備管理」中建立感測器設備",
+	reorderableLocations: false
 });
 
 const emit = defineEmits<Emits>();

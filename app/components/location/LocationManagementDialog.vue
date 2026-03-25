@@ -427,8 +427,8 @@ const addLocation = () => {
 		systems: []
 	};
 	pendingZone.value.locations = [
-		...(pendingZone.value.locations || []),
-		newLocation as UnifiedLocation
+		newLocation as UnifiedLocation,
+		...(pendingZone.value.locations || [])
 	];
 };
 

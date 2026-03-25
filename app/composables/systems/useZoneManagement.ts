@@ -1,6 +1,7 @@
 import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import { compareZonesLoose } from "~/utils/sortOrder";
 
 /**
  * 區域管理 Composable
@@ -337,19 +338,17 @@ export function useZoneManagement<T extends { id?: string; name: string; locatio
 	};
 
 	/**
-	 * 排序區域（按區域名稱的自然排序，例如：1F, 2F, 3F）
+	 * 排序區域：sortOrder → 名稱數字 → id（與後端／區域管理一致）
 	 */
 	const sortZones = (zones: T[]): T[] => {
 		if (!zones || zones.length === 0) return [];
 
-		return [...zones].sort((a, b) => {
-			const nameA = a.name || "";
-			const nameB = b.name || "";
-			// 提取數字部分進行比較（例如 "1F" -> 1, "2F" -> 2）
-			const numA = parseInt(nameA.match(/\d+/)?.[0] || "999") || 999;
-			const numB = parseInt(nameB.match(/\d+/)?.[0] || "999") || 999;
-			return numA - numB;
-		});
+		return [...zones].sort((a, b) =>
+			compareZonesLoose(
+				a as { sortOrder?: number | null; name?: string; id?: string },
+				b as { sortOrder?: number | null; name?: string; id?: string }
+			)
+		);
 	};
 
 	return {

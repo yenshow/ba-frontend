@@ -15,6 +15,7 @@ import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment";
 import type { LightingZone, LightingLocation } from "~/types/lighting";
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting";
 import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess";
+import { pickSortOrder } from "~/utils/sortOrder";
 
 /**
  * 後端返回的地點格式（新架構：包含 systems 陣列）
@@ -24,6 +25,8 @@ export type BackendLocation = {
 	zoneId: string;
 	name: string;
 	description?: string;
+	createdAt?: string;
+	sortOrder?: number;
 	systems: Array<{
 		id: string;
 		systemType: SystemType;
@@ -52,6 +55,7 @@ export type BackendZone = {
 	buildingId?: number;
 	imageUrl?: string;
 	description?: string;
+	sortOrder?: number;
 	locations: BackendLocation[];
 };
 
@@ -67,6 +71,7 @@ export function backendToUnifiedZone(backendZone: BackendZone): UnifiedZone {
 		buildingId: backendZone.buildingId,
 		imageUrl: backendZone.imageUrl,
 		description: backendZone.description,
+		...pickSortOrder(backendZone.sortOrder),
 		locations: backendZone.locations.map(backendToUnifiedLocation)
 	};
 }
@@ -95,7 +100,16 @@ function isLightingSystemConfig(config: unknown): config is LightingSystemConfig
 function isPeopleCountingSystemConfig(config: unknown): config is PeopleCountingSystemConfig {
 	if (!config || typeof config !== "object") return false;
 	const c = config as Record<string, unknown>;
-	return "personGroupIds" in c && Array.isArray(c.personGroupIds);
+	return (
+		("dataSource" in c && typeof c.dataSource === "string") ||
+		("personGroupIds" in c && Array.isArray(c.personGroupIds)) ||
+		"entryDoorId" in c ||
+		"exitDoorId" in c ||
+		"entryDeviceId" in c ||
+		"exitDeviceId" in c ||
+		"cameraDeviceId" in c ||
+		"cameraChannelId" in c
+	);
 }
 
 /**
@@ -144,6 +158,8 @@ function backendToUnifiedLocation(backendLoc: BackendLocation): UnifiedLocation 
 		zoneId: backendLoc.zoneId,
 		name: backendLoc.name,
 		description: backendLoc.description,
+		...(backendLoc.createdAt && { createdAt: backendLoc.createdAt }),
+		...pickSortOrder(backendLoc.sortOrder),
 		systems: backendLoc.systems.map(sys => ({
 			id: sys.id,
 			systemType: sys.systemType,
@@ -166,6 +182,7 @@ export function unifiedToEnvironmentZone(zone: UnifiedZone): EnvironmentZone {
 	return {
 		id: zone.id,
 		name: zone.name,
+		...pickSortOrder(zone.sortOrder),
 		locations: zone.locations.flatMap(loc => {
 			const envSystem = loc.systems.find(s => s.systemType === "environment");
 			if (!envSystem || !isEnvironmentSystemConfig(envSystem.config)) {
@@ -183,6 +200,7 @@ export function unifiedToEnvironmentZone(zone: UnifiedZone): EnvironmentZone {
 					id: loc.id,
 					systemId: envSystem.id,
 					name: loc.name,
+					...pickSortOrder(loc.sortOrder),
 					deviceId: cfg.deviceId ?? deviceIds[0],
 					deviceIds: deviceIds.length ? deviceIds : undefined,
 					parameters: cfg.parameters || []
@@ -201,6 +219,7 @@ export function environmentToUnifiedZone(
 ): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
 	return {
 		name: zone.name,
+		...pickSortOrder(zone.sortOrder),
 		locations: zone.locations.map(loc => environmentLocationToUnified(loc, systemType))
 	};
 }
@@ -221,6 +240,7 @@ export function unifiedToLightingZone(zone: UnifiedZone): LightingZone {
 		name: zone.name,
 		imageUrl: zone.imageUrl,
 		description: zone.description,
+		...pickSortOrder(zone.sortOrder),
 		locations: zone.locations.flatMap(loc => {
 			const lightingSystem = loc.systems.find(s => s.systemType === "lighting");
 			if (!lightingSystem || !isLightingSystemConfig(lightingSystem.config)) {
@@ -232,6 +252,7 @@ export function unifiedToLightingZone(zone: UnifiedZone): LightingZone {
 					id: loc.id,
 					systemId: lightingSystem.id,
 					name: loc.name,
+					...pickSortOrder(loc.sortOrder),
 					location: lightingSystem.config.location,
 					deviceId: lightingSystem.config.deviceId,
 					modbus: lightingSystem.config.modbus
@@ -252,6 +273,7 @@ export function lightingToUnifiedZone(
 		name: zone.name,
 		...(zone.imageUrl !== undefined && { imageUrl: zone.imageUrl }),
 		...(zone.description !== undefined && { description: zone.description }),
+		...pickSortOrder(zone.sortOrder),
 		locations: zone.locations.map(location => lightingLocationToUnified(location, systemType))
 	};
 }
@@ -271,6 +293,7 @@ export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZo
 	return {
 		id: zone.id,
 		name: zone.name,
+		...pickSortOrder(zone.sortOrder),
 		locations: zone.locations.flatMap(loc => {
 			const pcSystem = loc.systems.find(s => s.systemType === "people_counting");
 			if (!pcSystem || !isPeopleCountingSystemConfig(pcSystem.config)) {
@@ -281,12 +304,15 @@ export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZo
 				{
 					id: loc.id,
 					name: loc.name,
+					...pickSortOrder(loc.sortOrder),
 					personGroupIds: config.personGroupIds || [],
 					entryDoorId: config.entryDoorId ?? undefined,
 					exitDoorId: config.exitDoorId ?? undefined,
 					dataSource: config.dataSource ?? "yscp",
 					entryDeviceId: config.entryDeviceId ?? undefined,
-					exitDeviceId: config.exitDeviceId ?? undefined
+					exitDeviceId: config.exitDeviceId ?? undefined,
+					cameraDeviceId: config.cameraDeviceId ?? undefined,
+					cameraChannelId: config.cameraChannelId ?? 1
 				} as PeopleCountingLocation
 			];
 		})
@@ -302,6 +328,7 @@ export function peopleCountingToUnifiedZone(
 ): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
 	return {
 		name: zone.name,
+		...pickSortOrder(zone.sortOrder),
 		locations: zone.locations.map(loc => peopleCountingLocationToUnified(loc, systemType))
 	};
 }
@@ -320,6 +347,7 @@ export function unifiedToVehicleAccessZone(zone: UnifiedZone): VehicleAccessZone
 	return {
 		id: zone.id,
 		name: zone.name,
+		...pickSortOrder(zone.sortOrder),
 		locations: zone.locations.flatMap(loc => {
 			const vaSystem = loc.systems.find(s => s.systemType === "vehicle_access");
 			if (!vaSystem || !isVehicleAccessSystemConfig(vaSystem.config)) {
@@ -330,6 +358,7 @@ export function unifiedToVehicleAccessZone(zone: UnifiedZone): VehicleAccessZone
 				{
 					id: loc.id,
 					name: loc.name,
+					...pickSortOrder(loc.sortOrder),
 					entryLaneId: vaSystem.config.entryLaneId ?? undefined,
 					exitLaneId: vaSystem.config.exitLaneId ?? undefined
 				} as VehicleAccessLocation
@@ -347,6 +376,7 @@ export function vehicleAccessToUnifiedZone(
 ): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
 	return {
 		name: zone.name,
+		...pickSortOrder(zone.sortOrder),
 		locations: zone.locations.map(loc => vehicleAccessLocationToUnified(loc, systemType))
 	};
 }
@@ -362,6 +392,7 @@ export function vehicleAccessLocationToUnified(
 	return {
 		...(hasId && { id: loc.id! }),
 		name: loc.name,
+		...pickSortOrder((loc as { sortOrder?: unknown }).sortOrder),
 		systems: [
 			{
 				systemType,
@@ -438,6 +469,7 @@ export function environmentLocationToUnified(
 	return {
 		...(hasId && { id: loc.id! }),
 		name: loc.name,
+		...pickSortOrder((loc as { sortOrder?: unknown }).sortOrder),
 		systems: [
 			{
 				...(hasSystemId && { id: loc.systemId! }),
@@ -465,6 +497,7 @@ export function lightingLocationToUnified(
 		...(hasId && { id: location.id! }),
 		name: location.name,
 		...(location.description && { description: location.description }),
+		...pickSortOrder(location.sortOrder),
 		systems: [
 			{
 				...(hasSystemId && { id: location.systemId! }),
@@ -495,6 +528,7 @@ export function peopleCountingLocationToUnified(
 	return {
 		...(hasId && { id: loc.id! }),
 		name: loc.name,
+		...pickSortOrder((loc as { sortOrder?: unknown }).sortOrder),
 		systems: [
 			{
 				systemType,
@@ -504,7 +538,9 @@ export function peopleCountingLocationToUnified(
 					exitDoorId: loc.exitDoorId,
 					dataSource: loc.dataSource ?? "yscp",
 					entryDeviceId: loc.entryDeviceId ?? undefined,
-					exitDeviceId: loc.exitDeviceId ?? undefined
+					exitDeviceId: loc.exitDeviceId ?? undefined,
+					cameraDeviceId: loc.cameraDeviceId ?? undefined,
+					cameraChannelId: loc.cameraChannelId ?? 1
 				} as PeopleCountingSystemConfig
 			}
 		]
@@ -541,6 +577,7 @@ export function buildUnifiedZoneUpdateData<TZone extends { name?: string; locati
 	buildingId?: number;
 	imageUrl?: string;
 	description?: string;
+	sortOrder?: number;
 	locations?: (UnifiedLocation | UnifiedLocationInput)[];
 } {
 	const unifiedData: {
@@ -548,6 +585,7 @@ export function buildUnifiedZoneUpdateData<TZone extends { name?: string; locati
 		buildingId?: number;
 		imageUrl?: string;
 		description?: string;
+		sortOrder?: number;
 		locations?: (UnifiedLocation | UnifiedLocationInput)[];
 	} = {};
 
@@ -568,6 +606,8 @@ export function buildUnifiedZoneUpdateData<TZone extends { name?: string; locati
 	if ("description" in data && data.description !== undefined) {
 		unifiedData.description = data.description as string;
 	}
+
+	Object.assign(unifiedData, pickSortOrder((data as { sortOrder?: unknown }).sortOrder));
 
 	// 處理地點轉換
 	if ("locations" in data && data.locations !== undefined && Array.isArray(data.locations)) {
@@ -605,6 +645,7 @@ export function mergeFullZoneWithSystemUpdate<
 	buildingId?: number;
 	imageUrl?: string;
 	description?: string;
+	sortOrder?: number;
 	locations?: (UnifiedLocation | UnifiedLocationInput)[];
 } {
 	const result: {
@@ -612,6 +653,7 @@ export function mergeFullZoneWithSystemUpdate<
 		buildingId?: number;
 		imageUrl?: string;
 		description?: string;
+		sortOrder?: number;
 		locations?: (UnifiedLocation | UnifiedLocationInput)[];
 	} = {};
 
@@ -627,49 +669,37 @@ export function mergeFullZoneWithSystemUpdate<
 	if ("description" in data && data.description !== undefined) {
 		result.description = data.description as string;
 	}
+	Object.assign(result, pickSortOrder((data as { sortOrder?: unknown }).sortOrder));
 
 	const systemType = options.systemType;
 	const locationConverter = options.locationConverter;
 	const fullLocations = fullZone.locations ?? [];
-	const systemLocations = "locations" in data && Array.isArray(data.locations) ? data.locations : [];
 
-	const matchSystemLocation = (fullLoc: UnifiedLocation) => {
-		return systemLocations.find(
-			(sl: { id?: string; name?: string }) =>
-				(sl.id != null && fullLoc.id != null && String(sl.id) === String(fullLoc.id)) ||
-				(sl.name != null && sl.name === fullLoc.name)
-		);
-	};
-
-	const mergedLocations: (UnifiedLocation | UnifiedLocationInput)[] = fullLocations.map(
-		fullLoc => {
-			const systemLoc = matchSystemLocation(fullLoc);
-			if (!systemLoc) {
-				return fullLoc;
+	if ("locations" in data && Array.isArray(data.locations)) {
+		const systemLocations = data.locations;
+		const mergedFirst: (UnifiedLocation | UnifiedLocationInput)[] = systemLocations.map(
+			(sl: { id?: string; name?: string }) => {
+				const fullMatch = fullLocations.find(
+					fl => sl.id != null && fl.id != null && String(sl.id) === String(fl.id)
+				);
+				if (fullMatch) {
+					const otherSystems = (fullMatch.systems ?? []).filter(s => s.systemType !== systemType);
+					const ourUnified = locationConverter(sl, systemType);
+					const mergedSystems = [...otherSystems, ...(ourUnified.systems ?? [])];
+					return {
+						...fullMatch,
+						systems: mergedSystems
+					};
+				}
+				return locationConverter(sl, systemType);
 			}
-			const otherSystems = (fullLoc.systems ?? []).filter(
-				s => s.systemType !== systemType
-			);
-			const ourUnified = locationConverter(systemLoc, systemType);
-			const mergedSystems = [...otherSystems, ...(ourUnified.systems ?? [])];
-			return {
-				...fullLoc,
-				systems: mergedSystems
-			};
-		}
-	);
-
-	const isMatched = (sl: { id?: string; name?: string }) =>
-		fullLocations.some(
-			fl =>
-				(sl.id != null && fl.id != null && String(sl.id) === String(fl.id)) ||
-				(sl.name != null && sl.name === fl.name)
 		);
-	const newLocations = systemLocations.filter((sl: { id?: string; name?: string }) => !isMatched(sl));
-	for (const newLoc of newLocations) {
-		mergedLocations.push(locationConverter(newLoc, systemType));
+		const mergedIds = new Set(
+			mergedFirst.map(fl => fl.id).filter(Boolean).map(id => String(id))
+		);
+		const rest = fullLocations.filter(fl => !mergedIds.has(String(fl.id)));
+		result.locations = [...mergedFirst, ...rest];
 	}
 
-	result.locations = mergedLocations;
 	return result;
 }

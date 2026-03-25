@@ -7,6 +7,10 @@ export interface Toast {
 	duration: number; // 0 = 持久顯示（不自動移除），> 0 = 自動消失時間（毫秒）
 	count?: number; // 疊加數量
 	alertId?: number; // 警報 ID（用於警報 Toast 的去重和更新）
+	alertKey?: string; // 警報唯一鍵（alertId + dimension_key）
+	alertSource?: string;
+	alertSourceId?: number;
+	alertRoute?: string;
 }
 
 export const useToast = () => {
@@ -20,9 +24,13 @@ export const useToast = () => {
 	 */
 	const findExistingToast = (
 		alertId?: number,
+		alertKey?: string,
 		message?: string,
 		type?: ToastType
 	): Toast | undefined => {
+		if (alertKey) {
+			return toasts.value.find(t => t.alertKey === alertKey);
+		}
 		if (alertId !== undefined) {
 			// 警報 Toast：使用 alertId 匹配
 			return toasts.value.find(t => t.alertId === alertId);
@@ -35,12 +43,19 @@ export const useToast = () => {
 		type: ToastType,
 		message: string,
 		duration = 3000,
-		options?: { count?: number; alertId?: number }
+		options?: {
+			count?: number;
+			alertId?: number;
+			alertKey?: string;
+			alertSource?: string;
+			alertSourceId?: number;
+			alertRoute?: string;
+		}
 	) => {
-		const { count, alertId } = options || {};
+		const { count, alertId, alertKey, alertSource, alertSourceId, alertRoute } = options || {};
 
 		// 統一去重邏輯
-		const existingToast = findExistingToast(alertId, message, type);
+		const existingToast = findExistingToast(alertId, alertKey, message, type);
 		if (existingToast) {
 			// 更新現有 Toast 的內容
 			existingToast.message = message;
@@ -50,7 +65,7 @@ export const useToast = () => {
 		}
 
 		// 非持久顯示的普通 Toast：檢查是否在 5 秒內顯示過相同訊息
-		if (duration > 0 && !alertId) {
+		if (duration > 0 && !alertId && !alertKey) {
 			const now = Date.now();
 			const lastShown = recentToasts.get(message);
 			if (lastShown && now - lastShown < 5000) {
@@ -76,7 +91,11 @@ export const useToast = () => {
 			message,
 			duration, // 0 = 持久顯示，> 0 = 自動消失時間
 			count: count || (duration === 0 ? 1 : undefined),
-			alertId
+			alertId,
+			alertKey,
+			alertSource,
+			alertSourceId,
+			alertRoute
 		};
 
 		toasts.value.push(toast);
@@ -126,22 +145,50 @@ export const useToast = () => {
 	const success = (
 		message: string,
 		duration?: number,
-		options?: { count?: number; alertId?: number }
+		options?: {
+			count?: number;
+			alertId?: number;
+			alertKey?: string;
+			alertSource?: string;
+			alertSourceId?: number;
+			alertRoute?: string;
+		}
 	) => showToast("success", message, duration, options);
 	const error = (
 		message: string,
 		duration?: number,
-		options?: { count?: number; alertId?: number }
+		options?: {
+			count?: number;
+			alertId?: number;
+			alertKey?: string;
+			alertSource?: string;
+			alertSourceId?: number;
+			alertRoute?: string;
+		}
 	) => showToast("error", message, duration, options);
 	const warning = (
 		message: string,
 		duration?: number,
-		options?: { count?: number; alertId?: number }
+		options?: {
+			count?: number;
+			alertId?: number;
+			alertKey?: string;
+			alertSource?: string;
+			alertSourceId?: number;
+			alertRoute?: string;
+		}
 	) => showToast("warning", message, duration, options);
 	const info = (
 		message: string,
 		duration?: number,
-		options?: { count?: number; alertId?: number }
+		options?: {
+			count?: number;
+			alertId?: number;
+			alertKey?: string;
+			alertSource?: string;
+			alertSourceId?: number;
+			alertRoute?: string;
+		}
 	) => showToast("info", message, duration, options);
 
 	return {

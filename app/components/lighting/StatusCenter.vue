@@ -138,6 +138,7 @@
 
 <script setup lang="ts">
 import type { LightingZone, LightingLocation } from "~/types/lighting";
+import { compareZonesLoose } from "~/utils/sortOrder";
 
 interface Props {
 	zones: LightingZone[];
@@ -192,15 +193,8 @@ const displayedZones = computed(() => {
 	// 如果沒有有地點的區域，返回所有區域（用於顯示空狀態）
 	const zonesToShow = zonesWithLocations.length > 0 ? zonesWithLocations : props.zones;
 
-	// 排序：1F 在前面，2F 在後面（按區域名稱的自然排序）
-	return zonesToShow.sort((a, b) => {
-		const nameA = a.name || "";
-		const nameB = b.name || "";
-		// 提取數字部分進行比較（例如 "1F" -> 1, "2F" -> 2）
-		const numA = parseInt(nameA.match(/\d+/)?.[0] || "999") || 999;
-		const numB = parseInt(nameB.match(/\d+/)?.[0] || "999") || 999;
-		return numA - numB;
-	});
+	// 排序：sortOrder → 名稱數字 → id（不變更 props 來源陣列）
+	return [...zonesToShow].sort((a, b) => compareZonesLoose(a, b));
 });
 
 // 取得地點狀態

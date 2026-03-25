@@ -46,6 +46,8 @@ export type LightingCategory = RoomCategory & {
 export interface LightingLocation {
 	id?: string; // 地點 ID (locations.id)
 	systemId?: string; // 系統 ID (location_systems.id)，用於錯誤追蹤和警報
+	/** 同區域內地點排序（小者在前） */
+	sortOrder?: number;
 	name: string; // 地點名稱（原分類名稱）
 	location?: { x: number; y: number }; // 位置座標（百分比，未定位時為 undefined）
 	description?: string; // 描述
@@ -59,6 +61,8 @@ export interface LightingLocation {
 export interface LightingZone {
 	id?: string; // 區域 ID（新建時可選）
 	name: string; // 區域名稱（如：1F、2F）
+	/** 區域排序（小者在前） */
+	sortOrder?: number;
 	imageUrl?: string; // 示意圖 URL
 	locations: LightingLocation[]; // 地點列表
 	description?: string; // 區域描述

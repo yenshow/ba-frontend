@@ -250,6 +250,10 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useAuth } from "~/composables/core/useAuth";
 import type { PeopleCountingUnit, PeopleCountingPersonnel } from "~/types/peopleCounting";
 import { getTodayDateRangeUTC } from "~/utils/dateUtils";
+import {
+	firstFlatSiteMatchingSortedZoneLocations,
+	sortFlatSitesBySortedZoneLocations
+} from "~/utils/sortOrder";
 
 const { isOperator } = useAuth();
 
@@ -276,13 +280,14 @@ const selectedUnitName = ref("");
 const unitPersonnel = ref<PeopleCountingPersonnel[]>([]);
 const isLoadingUnitPersonnel = ref(false);
 
-// 右側總覽：顯示 zone 名稱（不影響詳情載入）
-const locationsForOverview = computed(() =>
-	locations.value.map(location => ({
+// 右側總覽：依 zones/locations 排序後再補 zone 名稱（UI 順序要跟「上下調整」一致）
+const locationsForOverview = computed(() => {
+	const ordered = sortFlatSitesBySortedZoneLocations(peopleCountingZones.value, locations.value);
+	return ordered.map(location => ({
 		...location,
 		overviewZoneName: getLocationZone(location)
-	}))
-);
+	}));
+});
 
 // 計算在場人數：所有單位的 currentCount 總和
 const currentCount = computed(() => {
@@ -511,6 +516,8 @@ const handleOpenLocationDialog = async () => {
 
 // 處理單位點擊事件（打開人員對話框）
 const handleUnitClick = async (unit: PeopleCountingUnit) => {
+	// 攝影機人流：目前不提供單位/人員名單
+	if (selectedLocation.value?.dataSource === "camera_isapi") return;
 	if (!unit || !unit.name) return;
 
 	selectedUnitName.value = unit.name;
@@ -582,9 +589,14 @@ onMounted(async () => {
 			await loadZones();
 		}
 
-		// 如果列表不為空，自動選擇第一個
-		if (locations.value.length > 0 && !selectedLocation.value) {
-			await handleLocationSelect(locations.value[0].locationId || Number(locations.value[0].id || 0));
+		if (!selectedLocation.value && locations.value.length > 0) {
+			const hit = firstFlatSiteMatchingSortedZoneLocations(
+				peopleCountingZones.value,
+				locations.value
+			);
+			if (hit?.locationId != null) {
+				await handleLocationSelect(hit.locationId);
+			}
 		}
 	} catch (error) {
 		// 錯誤已在 composable 中處理

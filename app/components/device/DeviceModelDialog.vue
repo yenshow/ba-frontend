@@ -153,13 +153,63 @@
 									v-if="deviceTypeCode === 'camera'"
 									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 								>
-									<span>RTSP URL *</span>
-									<input
-										v-model="cameraRtspTemplate"
-										type="text"
-										class="form-input"
-										placeholder="rtsp://{username}:{password}@{ip}:554/Streaming/channels/101"
-									/>
+									<span>RTSP URL 樣板 *</span>
+									<div class="space-y-3 rounded-xl border border-white/15 bg-white/10 p-3">
+										<div class="space-y-2">
+											<label class="flex items-start gap-2">
+												<input
+													v-model="cameraRtspTemplatePresetKey"
+													type="radio"
+													name="camera-rtsp-template"
+													value="hik_channels_101"
+													class="mt-1 h-4 w-4 accent-emerald-400"
+													aria-label="RTSP 路由：Streaming channels 101"
+												/>
+												<div class="flex-1">
+													<div class="text-sm text-white/80 2xl:text-base">Yenshow</div>
+												</div>
+											</label>
+
+											<label class="flex items-start gap-2">
+												<input
+													v-model="cameraRtspTemplatePresetKey"
+													type="radio"
+													name="camera-rtsp-template"
+													value="stream1"
+													class="mt-1 h-4 w-4 accent-emerald-400"
+													aria-label="RTSP 路由：stream1"
+												/>
+												<div class="flex-1">
+													<div class="text-sm text-white/80 2xl:text-base">TP Link</div>
+												</div>
+											</label>
+
+											<label class="flex items-center gap-2">
+												<input
+													v-model="cameraRtspTemplatePresetKey"
+													type="radio"
+													name="camera-rtsp-template"
+													value="custom"
+													class="mt-1 h-4 w-4 accent-emerald-400"
+													aria-label="RTSP 路由：自訂"
+												/>
+												<div class="flex items-center gap-2">
+													<div class="text-sm text-white/80 2xl:text-base">自訂</div>
+													<input
+														v-model="cameraRtspTemplateCustom"
+														type="text"
+														class="form-input"
+														:disabled="cameraRtspTemplatePresetKey !== 'custom'"
+														placeholder="rtsp://{username}:{password}@{ip}:554/Streaming/channels/101"
+														aria-label="自訂 RTSP 樣板"
+													/>
+												</div>
+											</label>
+											<p class="text-xs text-white/60 2xl:text-sm">
+												需使用 `{username}` / `{password}` / `{ip}` 佔位符
+											</p>
+										</div>
+									</div>
 								</label>
 
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
@@ -377,7 +427,30 @@ const formData = reactive<{
 });
 
 // 攝影機型號：RTSP URL 樣板（存放在 config.rtsp_url_template）
-const cameraRtspTemplate = ref<string>("");
+const CAMERA_RTSP_PRESETS = {
+	hik_channels_101: "rtsp://{username}:{password}@{ip}:554/Streaming/channels/101",
+	stream1: "rtsp://{username}:{password}@{ip}/stream1"
+} as const;
+type CameraRtspPresetKey = keyof typeof CAMERA_RTSP_PRESETS | "custom";
+
+const cameraRtspTemplatePresetKey = ref<CameraRtspPresetKey>("hik_channels_101");
+const cameraRtspTemplateCustom = ref<string>("");
+
+const cameraRtspTemplateEffective = computed(() => {
+	if (cameraRtspTemplatePresetKey.value === "custom") return cameraRtspTemplateCustom.value.trim();
+	return CAMERA_RTSP_PRESETS[cameraRtspTemplatePresetKey.value];
+});
+
+const cameraRtspTemplatePreview = computed(() => {
+	const tpl = cameraRtspTemplateEffective.value;
+	if (!tpl) return "-";
+	return tpl
+		.replaceAll("{username}", "admin")
+		.replaceAll("{user}", "admin")
+		.replaceAll("{password}", "密碼")
+		.replaceAll("{ip}", "ip")
+		.replaceAll("{host}", "ip");
+});
 
 // 感測器參數配置（僅當設備類型為 sensor 時使用）
 const sensorParameters = ref<SensorParameterDefinition[]>([]);
@@ -393,7 +466,8 @@ const resetForm = () => {
 	formData.unit_id = undefined;
 	formData.description = "";
 	formData.config = {};
-	cameraRtspTemplate.value = "";
+	cameraRtspTemplatePresetKey.value = "hik_channels_101";
+	cameraRtspTemplateCustom.value = "";
 	sensorParameters.value = [];
 	sensorRegisterType.value = "holding";
 	captureFaceDataType.value = "url";
@@ -504,7 +578,21 @@ const editDeviceModel = (model: DeviceModel) => {
 
 	if (props.deviceTypeCode === "camera") {
 		const config = (model.config as Record<string, any> | undefined) ?? {};
-		cameraRtspTemplate.value = (config.rtsp_url_template as string) || "";
+		const existing = (config.rtsp_url_template as string) || "";
+		const trimmed = existing.trim();
+		if (!trimmed) {
+			cameraRtspTemplatePresetKey.value = "hik_channels_101";
+			cameraRtspTemplateCustom.value = "";
+		} else if (trimmed === CAMERA_RTSP_PRESETS.hik_channels_101) {
+			cameraRtspTemplatePresetKey.value = "hik_channels_101";
+			cameraRtspTemplateCustom.value = "";
+		} else if (trimmed === CAMERA_RTSP_PRESETS.stream1) {
+			cameraRtspTemplatePresetKey.value = "stream1";
+			cameraRtspTemplateCustom.value = "";
+		} else {
+			cameraRtspTemplatePresetKey.value = "custom";
+			cameraRtspTemplateCustom.value = trimmed;
+		}
 	}
 
 	// 載入感測器參數配置與型號層級 API 方法
@@ -531,7 +619,8 @@ interface FormSnapshot {
 	registerType: ModbusRegisterType;
 	sensorParametersJson: string;
 	captureFaceDataType: "binary" | "url";
-	cameraRtspTemplate: string;
+	cameraRtspTemplatePresetKey: string;
+	cameraRtspTemplateCustom: string;
 }
 const formInitialSnapshot = ref<FormSnapshot | null>(null);
 
@@ -543,7 +632,8 @@ const getFormSnapshot = (): FormSnapshot => ({
 	registerType: sensorRegisterType.value,
 	sensorParametersJson: JSON.stringify(sensorParameters.value),
 	captureFaceDataType: captureFaceDataType.value,
-	cameraRtspTemplate: cameraRtspTemplate.value
+	cameraRtspTemplatePresetKey: cameraRtspTemplatePresetKey.value,
+	cameraRtspTemplateCustom: cameraRtspTemplateCustom.value
 });
 
 const formHasUnsavedChanges = computed(() => {
@@ -560,7 +650,8 @@ const formHasUnsavedChanges = computed(() => {
 			cur.registerType !== init.registerType ||
 			cur.sensorParametersJson !== init.sensorParametersJson ||
 			cur.captureFaceDataType !== init.captureFaceDataType ||
-			cur.cameraRtspTemplate !== init.cameraRtspTemplate
+			cur.cameraRtspTemplatePresetKey !== init.cameraRtspTemplatePresetKey ||
+			cur.cameraRtspTemplateCustom !== init.cameraRtspTemplateCustom
 		);
 	}
 	// 新增模式：任一欄位有值即視為有變更
@@ -585,7 +676,11 @@ const formChangedFieldsList = computed(() => {
 	if (cur.registerType !== init.registerType) fields.push("API 方法 (功能碼)");
 	if (cur.sensorParametersJson !== init.sensorParametersJson) fields.push("感測器參數配置");
 	if (cur.captureFaceDataType !== init.captureFaceDataType) fields.push("設備截圖回傳格式");
-	if (cur.cameraRtspTemplate !== init.cameraRtspTemplate) fields.push("RTSP URL 樣板");
+	if (
+		cur.cameraRtspTemplatePresetKey !== init.cameraRtspTemplatePresetKey ||
+		cur.cameraRtspTemplateCustom !== init.cameraRtspTemplateCustom
+	)
+		fields.push("RTSP URL 樣板");
 	return fields;
 });
 
@@ -696,6 +791,18 @@ const handleFormSubmit = async () => {
 	formErrorMessage.value = null;
 
 	try {
+		if (props.deviceTypeCode === "camera") {
+			const tpl = cameraRtspTemplateEffective.value.trim();
+			if (!tpl) {
+				formErrorMessage.value = "請選擇 RTSP URL 樣板，或填寫自訂樣板";
+				return;
+			}
+			if (cameraRtspTemplatePresetKey.value === "custom" && !cameraRtspTemplateCustom.value.trim()) {
+				formErrorMessage.value = "自訂樣板不可為空";
+				return;
+			}
+		}
+
 		const toOpt = (v: unknown) => (v !== undefined && v !== null && v !== "" ? Number(v) : undefined);
 		const submitData: CreateDeviceModelData | UpdateDeviceModelData = {
 			name: formData.name,
@@ -705,7 +812,7 @@ const handleFormSubmit = async () => {
 		};
 
 		if (props.deviceTypeCode === "camera") {
-			const template = cameraRtspTemplate.value.trim();
+			const template = cameraRtspTemplateEffective.value.trim();
 			submitData.config = template ? { rtsp_url_template: template } : {};
 		}
 		if (props.deviceTypeCode === "sensor") {
@@ -755,37 +862,6 @@ watch(
 </script>
 
 <style scoped>
-.form-input {
-	border-radius: 0.75rem;
-	border: 1px solid rgba(255, 255, 255, 0.35);
-	background: rgba(255, 255, 255, 0.1);
-	padding: 0.65rem 0.85rem;
-	color: #f7fbff;
-	transition:
-		border-color 0.2s ease,
-		background 0.2s ease;
-}
-
-.form-input:focus {
-	border-color: #5be7f1;
-	background: rgba(255, 255, 255, 0.18);
-	outline: none;
-}
-
-.form-input:disabled {
-	opacity: 0.5;
-	cursor: not-allowed;
-}
-
-.form-select {
-	cursor: pointer;
-}
-
-.form-select option {
-	background: rgba(20, 64, 92, 0.98);
-	color: #f7fbff;
-}
-
 .btn-list-edit,
 .btn-list-delete {
 	border-radius: 0.5rem;

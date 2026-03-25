@@ -310,9 +310,10 @@ const currentZoneLocations = computed(() => {
 const {
 	handleSaveZone: baseHandleSaveZone,
 	handleDeleteZone: baseHandleDeleteZone,
-	findEarliestZone,
 	sortZones
 } = useZoneManagement<UnifiedZone>();
+
+const firstZoneByDisplayOrder = (zs: UnifiedZone[]) => sortZones(zs)[0] ?? null;
 
 // 載入區域列表
 const loadZones = async () => {
@@ -321,15 +322,10 @@ const loadZones = async () => {
 		const response = await locationApi.getZones();
 		zones.value = response.zones;
 
-		// 如果沒有選中的區域且有區域資料，優先選擇最先創建的
+		// 若尚未選區域，依 sort_order／名稱慣例選排序後第一個
 		if (!selectedZone.value && zones.value.length > 0) {
-			const earliestZone = findEarliestZone(zones.value);
-			if (earliestZone) {
-				selectedZone.value = earliestZone.id;
-			} else {
-				// 如果無法判斷，選擇第一個
-				selectedZone.value = zones.value[0].id;
-			}
+			const first = firstZoneByDisplayOrder(zones.value);
+			if (first?.id) selectedZone.value = first.id;
 		}
 	} catch (error) {
 		handleError(error, "載入區域列表失敗");
@@ -412,7 +408,7 @@ const handleSaveZone = async (zone: UnifiedZone) => {
 const handleDeleteZone = async (zoneId: string) => {
 	await baseHandleDeleteZone(zoneId, zones, locationApi.deleteZone, {
 		selectedZoneRef: selectedZone,
-		findEarliestZone,
+		findEarliestZone: firstZoneByDisplayOrder,
 		reloadZones: loadZones // 刪除後重新載入所有系統的區域資料
 	});
 };

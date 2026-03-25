@@ -20,7 +20,7 @@ export function usePeopleCountingLocationValidation() {
 	 */
 	const validatePersonGroupIds = (
 		personGroupIds: number[] | undefined | null,
-		dataSource?: "yscp" | "access_control"
+		dataSource?: "yscp" | "access_control" | "camera_isapi"
 	): string | null => {
 		if (!personGroupIds || !Array.isArray(personGroupIds)) {
 			return "personGroupIds 必須是陣列";
@@ -28,6 +28,9 @@ export function usePeopleCountingLocationValidation() {
 		if (dataSource === "access_control") {
 			// 門禁設備：選填，若有填則驗證格式
 			if (personGroupIds.length === 0) return null;
+		} else if (dataSource === "camera_isapi") {
+			// 攝影機：先不使用人員群組
+			return null;
 		} else {
 			// YSCP：至少需要一個
 			if (personGroupIds.length === 0) {
@@ -93,6 +96,19 @@ export function usePeopleCountingLocationValidation() {
 				const exitDeviceError = validateDoorId(location.exitDeviceId, "出口設備 ID");
 				if (exitDeviceError) errors.push(exitDeviceError);
 			}
+		} else if (dataSource === "camera_isapi") {
+			if (location.cameraDeviceId == null || location.cameraDeviceId === 0) {
+				errors.push("請選擇攝影機設備");
+			} else {
+				const cameraDeviceError = validateDoorId(location.cameraDeviceId, "攝影機設備 ID");
+				if (cameraDeviceError) errors.push(cameraDeviceError);
+			}
+			if (location.cameraChannelId != null) {
+				const channel = Number(location.cameraChannelId);
+				if (!Number.isInteger(channel) || channel <= 0) {
+					errors.push("攝影機通道必須為正整數");
+				}
+			}
 		} else {
 			const entryDoorError = validateDoorId(location.entryDoorId, "入口設備 ID");
 			if (entryDoorError) errors.push(entryDoorError);
@@ -100,10 +116,12 @@ export function usePeopleCountingLocationValidation() {
 			if (exitDoorError) errors.push(exitDoorError);
 		}
 
-		const hasEntry = dataSource === "yscp" ? !!location.entryDoorId : !!location.entryDeviceId;
-		const hasExit = dataSource === "yscp" ? !!location.exitDoorId : !!location.exitDeviceId;
-		if (hasEntry && !hasExit) warnings.push("已設定入口設備，但未設定出口設備");
-		if (hasExit && !hasEntry) warnings.push("已設定出口設備，但未設定入口設備");
+		if (dataSource !== "camera_isapi") {
+			const hasEntry = dataSource === "yscp" ? !!location.entryDoorId : !!location.entryDeviceId;
+			const hasExit = dataSource === "yscp" ? !!location.exitDoorId : !!location.exitDeviceId;
+			if (hasEntry && !hasExit) warnings.push("已設定入口設備，但未設定出口設備");
+			if (hasExit && !hasEntry) warnings.push("已設定出口設備，但未設定入口設備");
+		}
 
 		return {
 			isValid: errors.length === 0,

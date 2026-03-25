@@ -13,6 +13,8 @@ export interface Alert {
 	id: number;
 	source: AlertSource;
 	source_id: number;
+	dimension_key?: string;
+	rule_id?: number | null;
 	device_id?: number;
 	device_name?: string;
 	device_type_name?: string;
@@ -58,6 +60,7 @@ export interface AlertFilters {
 	source_id?: number;
 	device_id?: number;
 	alert_type?: AlertType;
+	dimension_key?: string;
 	severity?: AlertSeverity;
 	status?: AlertStatus;
 	resolved?: boolean;
@@ -73,4 +76,6 @@ export interface AlertFilters {
 
 export interface UnresolvedAlertCountResponse {
 	count: number;
+	dimension_keys?: string[];
+	rule_ids?: number[];
 }

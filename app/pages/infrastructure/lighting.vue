@@ -264,6 +264,9 @@ const draggingCategoryId = ref<string>("")
 const isZonePlanLoaded = ref(false)
 const showZoneManagementDialog = ref(false)
 
+const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone, sortZones } =
+	useZoneManagement<LightingZone & { id: string }>()
+
 // 創建 zonesById Map（避免重複查找）
 const zonesById = computed(() => {
 	return new Map(lightingZones.value.map((zone) => [zone.id || zone.name, zone]))
@@ -1383,18 +1386,9 @@ const loadZonesFromAPI = async () => {
 		const result = await lightingApi.getZones()
 		lightingZones.value = result.zones || []
 
-		// 如果沒有選中的區域且有區域資料，優先選擇 1F
 		if (!selectedZone.value && lightingZones.value.length > 0) {
-			// 優先查找 1F
-			const zone1F = lightingZones.value.find(
-				(zone) => zone.name === "1F" || zone.name.toLowerCase().includes("1f")
-			)
-			if (zone1F) {
-				selectedZone.value = zone1F.id || zone1F.name
-			} else {
-				// 如果沒有 1F，選中第一個
-				selectedZone.value = lightingZones.value[0].id || lightingZones.value[0].name
-			}
+			const first = sortZones(lightingZones.value)[0]!
+			selectedZone.value = first.id || first.name
 		}
 
 		// 優化：批量預載入所有需要的設備資訊，避免在讀取狀態時才逐一請求
@@ -1405,10 +1399,6 @@ const loadZonesFromAPI = async () => {
 		isLoadingZones.value = false
 	}
 }
-
-// 使用區域管理 composable
-const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
-	useZoneManagement<LightingZone & { id: string }>()
 
 // 處理儲存區域
 const handleSaveZone = async (zone: LightingZone) => {
@@ -1479,7 +1469,7 @@ onMounted(async () => {
 	// 初始化左側 ResizeObserver
 	initLeftSectionObserver()
 	try {
-		// 載入區域列表（會自動選擇 1F 或第一個區域）
+		// 載入區域列表（依 sort_order 選第一個區域，見 loadZonesFromAPI）
 		await loadZonesFromAPI()
 
 		// 初始化地點狀態（從區域的 locations）
