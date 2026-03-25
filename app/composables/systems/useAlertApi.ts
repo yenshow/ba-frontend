@@ -2,7 +2,10 @@ import type {
 	Alert,
 	AlertListResponse,
 	AlertFilters,
-	UnresolvedAlertCountResponse
+	UnresolvedAlertCountResponse,
+	AlertRule,
+	CreateAlertRulePayload,
+	UpdateAlertRulePayload
 } from "~/types/alert";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPathWithQuery } from "~/utils/apiUtils";
@@ -38,23 +41,32 @@ export const useAlertApi = () => {
 	/**
 	 * 忽視/取消忽視警示的通用方法
 	 */
-	const toggleIgnoreAlert = async (sourceId: number, alertType: string, action: "ignore" | "unignore", source?: string): Promise<{ success: boolean; message: string; count: number }> => {
-		const path = buildPathWithQuery(`/alerts/${sourceId}/${alertType}/${action}`, source ? { source } : undefined);
+	const toggleIgnoreAlert = async (
+		sourceId: number,
+		alertType: string,
+		action: "ignore" | "unignore",
+		source?: string,
+		dimensionKey?: string
+	): Promise<{ success: boolean; message: string; count: number }> => {
+		const query: Record<string, unknown> = {};
+		if (source) query.source = source;
+		if (dimensionKey) query.dimension_key = dimensionKey;
+		const path = buildPathWithQuery(`/alerts/${sourceId}/${alertType}/${action}`, query);
 		return await request<{ success: boolean; message: string; count: number }>(path, { method: "POST" });
 	};
 
 	/**
 	 * 忽視警示（不再顯示相同來源和類型的警示）
 	 */
-	const ignoreAlert = async (sourceId: number, alertType: string, source?: string): Promise<{ success: boolean; message: string; count: number }> => {
-		return toggleIgnoreAlert(sourceId, alertType, "ignore", source);
+	const ignoreAlert = async (sourceId: number, alertType: string, source?: string, dimensionKey?: string): Promise<{ success: boolean; message: string; count: number }> => {
+		return toggleIgnoreAlert(sourceId, alertType, "ignore", source, dimensionKey);
 	};
 
 	/**
 	 * 取消忽視警示（恢復顯示相同來源和類型的警示）
 	 */
-	const unignoreAlert = async (sourceId: number, alertType: string, source?: string): Promise<{ success: boolean; message: string; count: number }> => {
-		return toggleIgnoreAlert(sourceId, alertType, "unignore", source);
+	const unignoreAlert = async (sourceId: number, alertType: string, source?: string, dimensionKey?: string): Promise<{ success: boolean; message: string; count: number }> => {
+		return toggleIgnoreAlert(sourceId, alertType, "unignore", source, dimensionKey);
 	};
 
 	/**
@@ -68,12 +80,44 @@ export const useAlertApi = () => {
 	/**
 	 * 取得警報規則（用於前端顯示狀態）
 	 */
-	const getAlertRules = async (source: string, alertType?: string, parameter?: string): Promise<{ rules: any[] }> => {
+	const getAlertRules = async (source: string, alertType?: string, parameter?: string): Promise<{ rules: AlertRule[] }> => {
 		const params: Record<string, unknown> = { source };
 		if (alertType) params.alert_type = alertType;
 		if (parameter) params.parameter = parameter;
 		const path = buildPathWithQuery("/alerts/rules", params);
-		return await request<{ rules: any[] }>(path);
+		return await request<{ rules: AlertRule[] }>(path);
+	};
+
+	/**
+	 * 建立警報規則（admin/operator）
+	 */
+	const createAlertRule = async (payload: CreateAlertRulePayload): Promise<{ rule: AlertRule }> => {
+		return await request<{ rule: AlertRule }>("/alerts/rules", {
+			method: "POST",
+			body: payload
+		});
+	};
+
+	/**
+	 * 更新警報規則（admin/operator）
+	 */
+	const updateAlertRule = async (
+		id: number,
+		payload: UpdateAlertRulePayload
+	): Promise<{ rule: AlertRule }> => {
+		return await request<{ rule: AlertRule }>(`/alerts/rules/${id}`, {
+			method: "PUT",
+			body: payload
+		});
+	};
+
+	/**
+	 * 刪除警報規則（admin/operator）
+	 */
+	const deleteAlertRule = async (id: number): Promise<{ rule: AlertRule }> => {
+		return await request<{ rule: AlertRule }>(`/alerts/rules/${id}`, {
+			method: "DELETE"
+		});
 	};
 
 	return {
@@ -83,6 +127,9 @@ export const useAlertApi = () => {
 		ignoreAlert,
 		unignoreAlert,
 		getUnresolvedAlertCount,
-		getAlertRules
+		getAlertRules,
+		createAlertRule,
+		updateAlertRule,
+		deleteAlertRule
 	};
 };

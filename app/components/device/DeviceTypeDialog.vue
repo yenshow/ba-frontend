@@ -418,41 +418,6 @@ watch(
 </script>
 
 <style scoped>
-.form-input {
-	border-radius: 0.75rem;
-	border: 1px solid rgba(255, 255, 255, 0.35);
-	background: rgba(255, 255, 255, 0.1);
-	padding: 0.65rem 0.85rem;
-	color: #f7fbff;
-	transition:
-		border-color 0.2s ease,
-		background 0.2s ease;
-}
-
-.form-input:focus {
-	border-color: #5be7f1;
-	background: rgba(255, 255, 255, 0.18);
-	outline: none;
-}
-
-.form-input:disabled {
-	opacity: 0.5;
-	cursor: not-allowed;
-}
-
-.form-input::placeholder {
-	color: rgba(255, 255, 255, 0.5);
-}
-
-.form-select {
-	cursor: pointer;
-}
-
-.form-select option {
-	background: rgba(20, 64, 92, 0.98);
-	color: #f7fbff;
-}
-
 .btn-list-edit,
 .btn-list-delete {
 	border-radius: 0.5rem;

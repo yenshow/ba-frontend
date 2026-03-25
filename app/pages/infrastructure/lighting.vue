@@ -13,6 +13,7 @@
 				:current-zone-locations="currentZoneLocations"
 				:zone-plan-image="zonePlanImage"
 				:is-location-normal="isLocationNormal"
+				:get-location-alert-flash="getLocationAlertFlash"
 				@open-zone-management="handleOpenZoneDialog"
 				@toggle-edit-mode="handleToggleEditMode"
 				@select-category="handleSelectCategory"
@@ -64,6 +65,7 @@ import { useLightingModbusIntegration } from "~/composables/systems/lighting/use
 import { useLightingZonePersistence } from "~/composables/systems/lighting/useLightingZonePersistence"
 import type { UnifiedZone } from "~/types/location"
 import { unifiedToLightingZone } from "~/utils/locationAdapter"
+import { healthStatusToAlertFlash } from "~/utils/alertUtils"
 import {
 	findLightingLocationIndexInZone,
 	getLightingLocationId,
@@ -133,12 +135,19 @@ const {
 	handleVisibilityChange,
 } = useLightingModbusIntegration(lightingZones, selectedZone)
 
+const getLocationAlertFlash = (id: string): "none" | "slow" | "fast" => {
+	return healthStatusToAlertFlash(locationStatuses.value[id]?.status, { whenAbsent: "none" })
+}
+
 const { saveLocationPosition } = useLightingZonePersistence(
 	lightingZones,
 	selectedCategory,
 	locationStatuses,
 	isEditMode
 )
+
+const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone, sortZones } =
+	useZoneManagement<LightingZone>()
 
 const handleZoneSelected = async (zoneId: string) => {
 	selectedZone.value = zoneId
@@ -216,14 +225,8 @@ const loadZonesFromAPI = async () => {
 		lightingZones.value = result.zones || []
 
 		if (!selectedZone.value && lightingZones.value.length > 0) {
-			const zone1F = lightingZones.value.find(
-				(zone) => zone.name === "1F" || zone.name.toLowerCase().includes("1f")
-			)
-			if (zone1F) {
-				selectedZone.value = zone1F.id || zone1F.name
-			} else {
-				selectedZone.value = lightingZones.value[0].id || lightingZones.value[0].name
-			}
+			const first = sortZones(lightingZones.value)[0]!
+			selectedZone.value = first.id || first.name
 		}
 
 		await preloadDeviceInfos()
@@ -233,9 +236,6 @@ const loadZonesFromAPI = async () => {
 		isLoadingZones.value = false
 	}
 }
-
-const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
-	useZoneManagement<LightingZone & { id: string }>()
 
 const handleSaveZone = async (zone: LightingZone) => {
 	await baseHandleSaveZone(

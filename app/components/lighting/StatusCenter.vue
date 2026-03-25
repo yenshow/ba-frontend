@@ -19,6 +19,7 @@
 							zoneHasAbnormal(zone)
 								? 'ring-2 ring-amber-400/90 ring-offset-2 ring-offset-transparent'
 								: '',
+							getZoneAlertBlinkClass(zone),
 						]"
 						:aria-label="
 							zoneHasAbnormal(zone) ? `${zone.name}，此區域有地點異常` : `${zone.name}，選取此樓層`
@@ -30,7 +31,7 @@
 					</button>
 					<span
 						v-if="zoneHasAbnormal(zone)"
-					class="pointer-events-none absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-0.5 text-[9px] font-bold leading-none text-teal-950 2xl:h-5 2xl:min-w-5 2xl:text-[10px]"
+						class="pointer-events-none absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-0.5 text-[9px] font-bold leading-none text-teal-950 2xl:h-5 2xl:min-w-5 2xl:text-[10px]"
 						aria-hidden="true"
 						title="此區域有地點異常"
 					>
@@ -40,16 +41,20 @@
 
 				<!-- 該區域的地點（點位）- 兩列布局 -->
 				<div
-					v-if="getZoneLocations(zone).length > 0"
+					v-if="getZoneLocationsWithIds(zone).length > 0"
 					class="grid grid-cols-2 gap-x-2 gap-y-4 2xl:gap-y-6"
 				>
 					<div
-						v-for="(location, locationIndex) in getZoneLocations(zone)"
-						:key="getLightingLocationId(zone, location, locationIndex)"
-						class="flex flex-col rounded-xl border-2 border-white px-3 py-2"
+						v-for="row in getZoneLocationsWithIds(zone)"
+						:key="row.locationId"
+						:class="[
+							'flex flex-col rounded-xl border-2 border-white px-3 py-2',
+							getLocationCardBackgroundClass(row.locationId),
+							getLocationCardBlinkClass(row.locationId),
+						]"
 					>
 						<h4 class="mb-2 whitespace-nowrap text-center text-xl text-white 2xl:text-2xl">
-							{{ location.name }}
+							{{ row.location.name }}
 						</h4>
 						<div class="flex items-center gap-2">
 							<!-- 左側圖示 -->
@@ -67,7 +72,7 @@
 							<div class="flex min-w-0 flex-1 flex-col items-center gap-2">
 								<div class="relative flex w-full justify-center">
 									<div
-										v-if="props.areaToggling.has(getLightingLocationId(zone, location, locationIndex))"
+										v-if="props.areaToggling.has(row.locationId)"
 										class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"
 									>
 										<div
@@ -78,35 +83,24 @@
 										class="relative inline-flex select-none items-center"
 										:class="{
 											'cursor-not-allowed':
-												isLocationDisabled(getLightingLocationId(zone, location, locationIndex)) ||
-												!props.canToggle,
+												isLocationDisabled(row.locationId) || !props.canToggle,
 											'cursor-pointer':
-												!isLocationDisabled(getLightingLocationId(zone, location, locationIndex)) &&
-												props.canToggle,
+												!isLocationDisabled(row.locationId) && props.canToggle,
 										}"
 									>
 										<input
 											type="checkbox"
-											:checked="
-												getLocationStatus(getLightingLocationId(zone, location, locationIndex)).isRunning
-											"
+											:checked="getLocationStatus(row.locationId).isRunning"
 											class="peer sr-only"
-											:disabled="
-												isLocationDisabled(getLightingLocationId(zone, location, locationIndex)) ||
-												!props.canToggle
-											"
+											:disabled="isLocationDisabled(row.locationId) || !props.canToggle"
 											@change="
-												handleToggle(
-													getLightingLocationId(zone, location, locationIndex),
-													getLocationStatus(getLightingLocationId(zone, location, locationIndex)).isRunning
-												)
+												handleToggle(row.locationId, getLocationStatus(row.locationId).isRunning)
 											"
 										/>
 										<div
 											:class="[
 												'relative h-9 w-[5.125rem] shrink-0 overflow-hidden rounded-full border-2 border-white bg-white/15 transition-colors duration-200 peer-checked:bg-[#5eb8e8] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-white 2xl:h-10 2xl:w-24',
-												isLocationDisabled(getLightingLocationId(zone, location, locationIndex)) ||
-												!props.canToggle
+												isLocationDisabled(row.locationId) || !props.canToggle
 													? 'opacity-50'
 													: '',
 											]"
@@ -114,9 +108,7 @@
 											<span
 												class="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2 text-[10px] font-semibold tracking-wide text-white transition-opacity duration-200 2xl:left-2.5 2xl:text-xs"
 												:class="
-													getLocationStatus(getLightingLocationId(zone, location, locationIndex)).isRunning
-														? 'opacity-100'
-														: 'opacity-0'
+													getLocationStatus(row.locationId).isRunning ? 'opacity-100' : 'opacity-0'
 												"
 											>
 												ON
@@ -124,9 +116,7 @@
 											<span
 												class="pointer-events-none absolute right-2 top-1/2 z-10 -translate-y-1/2 text-[10px] font-semibold tracking-wide text-white transition-opacity duration-200 2xl:right-2.5 2xl:text-xs"
 												:class="
-													getLocationStatus(getLightingLocationId(zone, location, locationIndex)).isRunning
-														? 'opacity-0'
-														: 'opacity-100'
+													getLocationStatus(row.locationId).isRunning ? 'opacity-0' : 'opacity-100'
 												"
 											>
 												OFF
@@ -134,7 +124,7 @@
 											<span
 												class="pointer-events-none absolute top-1/2 block h-7 w-7 -translate-y-1/2 rounded-full bg-white shadow-sm transition-[left] duration-200 ease-out 2xl:h-8 2xl:w-8"
 												:class="
-													getLocationStatus(getLightingLocationId(zone, location, locationIndex)).isRunning
+													getLocationStatus(row.locationId).isRunning
 														? 'left-[calc(100%-1.75rem-0.25rem)] 2xl:left-[calc(100%-2rem-0.25rem)]'
 														: 'left-1'
 												"
@@ -148,13 +138,12 @@
 									<div
 										:class="[
 											'h-4 w-4 shrink-0 rounded-full border border-white 2xl:h-5 2xl:w-5',
-											isLocationNormal(getLightingLocationId(zone, location, locationIndex))
-												? 'bg-emerald-300'
-												: 'bg-amber-400',
+											isLocationNormal(row.locationId) ? 'bg-emerald-400' : 'bg-amber-400',
 										]"
+										aria-hidden="true"
 									></div>
 									<span class="text-sm text-white 2xl:text-base">{{
-										getLocationStatus(getLightingLocationId(zone, location, locationIndex)).healthLabel
+										getLocationStatus(row.locationId).healthLabel
 									}}</span>
 								</div>
 							</div>
@@ -169,6 +158,7 @@
 <script setup lang="ts">
 import type { LightingZone, LightingLocation } from "~/types/lighting"
 import { getLightingLocationId } from "~/utils/lightingLocation"
+import { compareZonesLoose } from "~/utils/sortOrder"
 
 interface Props {
 	zones: LightingZone[]
@@ -193,15 +183,25 @@ const emit = defineEmits<{
 	"zone-selected": [zoneId: string]
 }>()
 
+/** 照明監控僅兩種對外語意：正常／異常；warning／error 閃爍節奏相同（.blink-slow） */
 const statusLabels: Record<"normal" | "warning" | "error", string> = {
 	normal: "正常",
-	warning: "警告",
+	warning: "異常",
 	error: "異常",
 }
 
 // 獲取指定區域的地點
 const getZoneLocations = (zone: LightingZone): LightingLocation[] => {
 	return zone.locations || []
+}
+
+/** 每列只算一次 locationId，避免 template 重複呼叫 */
+const getZoneLocationsWithIds = (zone: LightingZone) => {
+	return getZoneLocations(zone).map((location, locationIndex) => ({
+		location,
+		locationIndex,
+		locationId: getLightingLocationId(zone, location, locationIndex),
+	}))
 }
 
 // 顯示的區域（只顯示有地點的區域）
@@ -218,15 +218,8 @@ const displayedZones = computed(() => {
 	// 如果沒有有地點的區域，返回所有區域（用於顯示空狀態）
 	const zonesToShow = zonesWithLocations.length > 0 ? zonesWithLocations : props.zones
 
-	// 排序：1F 在前面，2F 在後面（按區域名稱的自然排序）
-	return zonesToShow.sort((a, b) => {
-		const nameA = a.name || ""
-		const nameB = b.name || ""
-		// 提取數字部分進行比較（例如 "1F" -> 1, "2F" -> 2）
-		const numA = parseInt(nameA.match(/\d+/)?.[0] || "999") || 999
-		const numB = parseInt(nameB.match(/\d+/)?.[0] || "999") || 999
-		return numA - numB
-	})
+	// 排序：sortOrder → 名稱數字 → id（不變更 props 來源陣列）
+	return [...zonesToShow].sort((a, b) => compareZonesLoose(a, b))
 })
 
 // 取得地點狀態
@@ -253,10 +246,17 @@ const isLocationNormal = (locationId: string): boolean => {
 }
 
 const zoneHasAbnormal = (zone: LightingZone): boolean => {
-	return getZoneLocations(zone).some((location, locationIndex) => {
-		return !isLocationNormal(getLightingLocationId(zone, location, locationIndex))
-	})
+	return getZoneLocationsWithIds(zone).some((row) => !isLocationNormal(row.locationId))
 }
+
+const getLocationCardBlinkClass = (locationId: string): string =>
+	isLocationNormal(locationId) ? "" : "blink-slow"
+
+const getLocationCardBackgroundClass = (locationId: string): string =>
+	isLocationNormal(locationId) ? "bg-white/10" : "bg-[#FFC801]/60"
+
+const getZoneAlertBlinkClass = (zone: LightingZone): string =>
+	getZoneLocationsWithIds(zone).some((row) => !isLocationNormal(row.locationId)) ? "blink-slow" : ""
 
 const isLocationDisabled = (locationId: string): boolean => {
 	return props.areaDisabledMap[locationId] ?? false

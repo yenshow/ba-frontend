@@ -556,12 +556,11 @@ onMounted(async () => {
 		await loadZones();
 		await loadOverviewSummaries();
 		await loadVehicleGroups();
-		if (locations.value.length > 0 && !selectedLocation.value) {
+		if (!filters.value.locationId && locations.value.length > 0) {
 			const first = locations.value[0];
 			const firstId = first?.id ?? first?.locationId;
 			if (firstId != null) {
 				filters.value = { ...filters.value, locationId: String(firstId) };
-				// 由 watch(filters.value.locationId) 統一觸發 loadLogs + loadEntryExitOnSiteCounts，避免重複請求
 			}
 		}
 	} catch {

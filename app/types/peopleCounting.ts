@@ -13,6 +13,8 @@ export interface AccessControlGroup {
 export interface PeopleCountingLocation {
 	// 配置信息（來自地點管理系統）
 	id?: string;
+	/** 同區域內顯示排序（小者在前） */
+	sortOrder?: number;
 	name: string; // 地點名稱（工地名稱）
 	locationType?: "people_counting"; // 地點類型
 	personGroupIds?: number[]; // 對應的 person_group.id 列表（YSCP）
@@ -43,6 +45,8 @@ export interface PeopleCountingLocation {
 export interface PeopleCountingZone {
 	id?: string;
 	name: string; // 樓層名稱（如：1F、2F）
+	/** 區域列表排序（小者在前） */
+	sortOrder?: number;
 	locations: PeopleCountingLocation[]; // 地點列表（工地列表）
 }
 

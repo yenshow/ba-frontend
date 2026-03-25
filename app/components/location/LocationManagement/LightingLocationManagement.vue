@@ -3,11 +3,7 @@
 		<!-- 點位列表標題 -->
 		<div class="flex items-center justify-between">
 			<span class="text-base font-medium 2xl:text-lg">點位列表</span>
-			<button
-				type="button"
-				class="btn-secondary text-sm 2xl:text-base"
-				@click="handleAddLocation"
-			>
+			<button type="button" class="btn-secondary text-sm 2xl:text-base" @click="handleAddLocation">
 				新增點位
 			</button>
 		</div>
@@ -35,6 +31,29 @@
 						:is-loading-devices="isLoadingDevices"
 						@update="handleLocationUpdate(locationIndex, $event)"
 					/>
+				</div>
+
+				<div v-if="reorderableLocations" class="btn-reorder-stack shrink-0 self-start">
+					<button
+						type="button"
+						class="btn-reorder-arrow"
+						:disabled="locationIndex === 0"
+						title="上移"
+						aria-label="此點位上移"
+						@click="emit('reorder-location', { index: locationIndex, direction: 'up' })"
+					>
+						↑
+					</button>
+					<button
+						type="button"
+						class="btn-reorder-arrow"
+						:disabled="locationIndex >= getLocations(zone).length - 1"
+						title="下移"
+						aria-label="此點位下移"
+						@click="emit('reorder-location', { index: locationIndex, direction: 'down' })"
+					>
+						↓
+					</button>
 				</div>
 
 				<!-- 刪除按鈕 -->
@@ -65,52 +84,54 @@
 </template>
 
 <script setup lang="ts">
-import type { LightingZone, LightingLocation } from "~/types/lighting";
-import type { Device } from "~/types/device";
-import LightingLocationFields from "../LocationFormFields/LightingLocationFields.vue";
+import type { LightingZone, LightingLocation } from "~/types/lighting"
+import type { Device } from "~/types/device"
+import LightingLocationFields from "../LocationFormFields/LightingLocationFields.vue"
 
 interface Props {
-	zone: LightingZone;
-	devices: Device[];
-	isLoadingDevices: boolean;
-	deviceHint?: string;
+	zone: LightingZone
+	devices: Device[]
+	isLoadingDevices: boolean
+	deviceHint?: string
+	reorderableLocations?: boolean
 }
 
 interface Emits {
-	(e: "add-location"): void;
-	(e: "remove-location", index: number): void;
-	(e: "update-location", index: number, location: LightingLocation): void;
+	(e: "add-location"): void
+	(e: "remove-location", index: number): void
+	(e: "update-location", index: number, location: LightingLocation): void
+	(e: "reorder-location", payload: { index: number; direction: "up" | "down" }): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
-	deviceHint: "請先在「設備管理」中建立控制器設備"
-});
+	deviceHint: "請先在「設備管理」中建立控制器設備",
+	reorderableLocations: false,
+})
 
-const emit = defineEmits<Emits>();
+const emit = defineEmits<Emits>()
 
 // 取得地點列表
 const getLocations = (zone: LightingZone): LightingLocation[] => {
-	return zone.locations || [];
-};
+	return zone.locations || []
+}
 
 // 取得地點 ID
 const getLocationId = (location: LightingLocation, index: number): string => {
-	return (location as any).id || `location-${index}`;
-};
+	return (location as any).id || `location-${index}`
+}
 
 // 處理新增地點
 const handleAddLocation = () => {
-	emit("add-location");
-};
+	emit("add-location")
+}
 
 // 處理刪除地點
 const handleRemoveLocation = (locationIndex: number) => {
-		emit("remove-location", locationIndex);
-};
+	emit("remove-location", locationIndex)
+}
 
 // 處理地點更新
 const handleLocationUpdate = (locationIndex: number, updatedLocation: LightingLocation) => {
-	emit("update-location", locationIndex, updatedLocation);
-};
+	emit("update-location", locationIndex, updatedLocation)
+}
 </script>
-

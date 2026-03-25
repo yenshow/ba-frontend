@@ -62,6 +62,7 @@ import { useLocationApi } from "~/composables/systems/location/useLocationApi"
 import { useZoneManagement } from "~/composables/systems/useZoneManagement"
 import type { UnifiedZone, UnifiedLocation, EnvironmentSystemConfig } from "~/types/location"
 import { isDeviceConnectionError } from "~/utils/errorUtils"
+import { firstLocationInSortedZones } from "~/utils/sortOrder"
 import type { ModbusDeviceConfig, ModbusDataResponse } from "~/types/modbus"
 import type { Device, SensorDeviceConfig, SensorDeviceModelConfig } from "~/types/device"
 import type { SensorParameterType } from "~/types/environment"
@@ -116,9 +117,60 @@ const isEnvironmentSensorOffline = ref(false)
 const lastAqiOfflineAlertTime = ref<number | null>(null)
 const lastEnvironmentOfflineAlertTime = ref<number | null>(null)
 
-// 區域地點選擇（AQI / 環境可分開選）
+// 區域地點選擇（AQI / 環境可分開選；會寫入 localStorage 以固定下次進入首頁的選擇）
 const selectedAqiLocationId = ref<string>("")
 const selectedEnvironmentLocationId = ref<string>("")
+
+const LS_HOME_AQI_LOCATION_ID = "ba-central-home-aqi-location-id"
+const LS_HOME_ENV_LOCATION_ID = "ba-central-home-environment-location-id"
+
+/** 還原／套用預設時略過 watch 內的感測器載入，改由 onMounted 結尾統一載入 */
+const isHydratingHomeLocationSelections = ref(false)
+
+const persistHomeAqiLocationId = () => {
+	if (!import.meta.client) return
+	const v = selectedAqiLocationId.value
+	if (v) localStorage.setItem(LS_HOME_AQI_LOCATION_ID, v)
+	else localStorage.removeItem(LS_HOME_AQI_LOCATION_ID)
+}
+
+const persistHomeEnvironmentLocationId = () => {
+	if (!import.meta.client) return
+	const v = selectedEnvironmentLocationId.value
+	if (v) localStorage.setItem(LS_HOME_ENV_LOCATION_ID, v)
+	else localStorage.removeItem(LS_HOME_ENV_LOCATION_ID)
+}
+
+const restoreHomeLocationSelectionsFromStorage = () => {
+	if (!import.meta.client) return
+	const a = localStorage.getItem(LS_HOME_AQI_LOCATION_ID)
+	const e = localStorage.getItem(LS_HOME_ENV_LOCATION_ID)
+	if (a) selectedAqiLocationId.value = a
+	if (e) selectedEnvironmentLocationId.value = e
+}
+
+const getValidHomeLocationOptionIds = (): Set<string> =>
+	new Set(locationOptions.value.map((o) => o.value))
+
+const reconcileHomeLocationSelectionsWithZones = (): void => {
+	if (unifiedZones.value.length === 0) {
+		selectedAqiLocationId.value = ""
+		selectedEnvironmentLocationId.value = ""
+		return
+	}
+	const valid = getValidHomeLocationOptionIds()
+	if (selectedAqiLocationId.value && !valid.has(selectedAqiLocationId.value)) {
+		selectedAqiLocationId.value = ""
+	}
+	if (selectedEnvironmentLocationId.value && !valid.has(selectedEnvironmentLocationId.value)) {
+		selectedEnvironmentLocationId.value = ""
+	}
+	const defaultLocation = firstLocationInSortedZones(unifiedZones.value)
+	if (!defaultLocation) return
+	const defaultId = getLocationId(defaultLocation)
+	if (!selectedAqiLocationId.value) selectedAqiLocationId.value = defaultId
+	if (!selectedEnvironmentLocationId.value) selectedEnvironmentLocationId.value = defaultId
+}
 
 // 設備快取（避免每次輪詢都打設備 API）
 const deviceCache = new Map<number, Device>()
@@ -195,59 +247,22 @@ const locationOptions = computed(() => {
 	return options
 })
 
-const DEFAULT_LOCATION = { zoneName: "遠岫", locationName: "大門口" }
-
-const loadZones = async (): Promise<boolean> => {
+const loadZones = async (): Promise<void> => {
 	if (isLoadingZones.value) {
-		return false
+		return
 	}
 
 	isLoadingZones.value = true
-	let didSetDefaultSelection = false
 
 	try {
 		const result = await locationApi.getZones("environment")
 		const zones = result.zones || []
 		unifiedZones.value = sortZones(zones)
-
-		if (unifiedZones.value.length === 0) {
-			return false
-		}
-
-		let defaultLocation: UnifiedLocation | undefined
-
-		for (const zone of unifiedZones.value) {
-			if (zone.name === DEFAULT_LOCATION.zoneName) {
-				const found = zone.locations.find((loc) => loc.name === DEFAULT_LOCATION.locationName)
-				if (found) {
-					defaultLocation = found
-					break
-				}
-			}
-		}
-
-		if (!defaultLocation) {
-			defaultLocation = unifiedZones.value.flatMap((zone) => zone.locations)[0]
-		}
-
-		if (defaultLocation) {
-			const defaultLocationId = getLocationId(defaultLocation)
-			if (!selectedAqiLocationId.value) {
-				selectedAqiLocationId.value = defaultLocationId
-				didSetDefaultSelection = true
-			}
-			if (!selectedEnvironmentLocationId.value) {
-				selectedEnvironmentLocationId.value = defaultLocationId
-				didSetDefaultSelection = true
-			}
-		}
 	} catch (error) {
 		handleError(error, "載入區域列表失敗")
 	} finally {
 		isLoadingZones.value = false
 	}
-
-	return didSetDefaultSelection
 }
 
 // 使用 usePolling 統一管理輪詢
@@ -605,6 +620,8 @@ const loadEnvironmentSensorData = async () => {
 watch(
 	() => selectedAqiLocationId.value,
 	async () => {
+		persistHomeAqiLocationId()
+		if (isHydratingHomeLocationSelections.value) return
 		Object.assign(aqiSensorData, createEmptySensorReadings())
 		await loadAqiSensorData()
 	}
@@ -613,16 +630,25 @@ watch(
 watch(
 	() => selectedEnvironmentLocationId.value,
 	async () => {
+		persistHomeEnvironmentLocationId()
+		if (isHydratingHomeLocationSelections.value) return
 		Object.assign(environmentSensorData, createEmptySensorReadings())
 		await loadEnvironmentSensorData()
 	}
 )
 
 onMounted(async () => {
-	const didSetDefaultSelection = await loadZones()
-	if (!didSetDefaultSelection) {
-		await Promise.allSettled([loadAqiSensorData(), loadEnvironmentSensorData()])
+	isHydratingHomeLocationSelections.value = true
+	try {
+		restoreHomeLocationSelectionsFromStorage()
+		await loadZones()
+		reconcileHomeLocationSelectionsWithZones()
+		persistHomeAqiLocationId()
+		persistHomeEnvironmentLocationId()
+	} finally {
+		isHydratingHomeLocationSelections.value = false
 	}
+	await Promise.allSettled([loadAqiSensorData(), loadEnvironmentSensorData()])
 	startPolling()
 })
 

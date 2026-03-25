@@ -25,6 +25,30 @@
 						@update="handleLocationUpdate(locationIndex, $event)"
 					/>
 				</div>
+
+				<div v-if="reorderableLocations" class="btn-reorder-stack shrink-0 self-start">
+					<button
+						type="button"
+						class="btn-reorder-arrow"
+						:disabled="locationIndex === 0"
+						title="上移"
+						aria-label="此地點上移"
+						@click="emit('reorder-location', { index: locationIndex, direction: 'up' })"
+					>
+						↑
+					</button>
+					<button
+						type="button"
+						class="btn-reorder-arrow"
+						:disabled="locationIndex >= getLocations(zone).length - 1"
+						title="下移"
+						aria-label="此地點下移"
+						@click="emit('reorder-location', { index: locationIndex, direction: 'down' })"
+					>
+						↓
+					</button>
+				</div>
+
 				<!-- 刪除按鈕 -->
 				<button
 					type="button"
@@ -48,38 +72,42 @@
 </template>
 
 <script setup lang="ts">
-import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess";
-import VehicleAccessLocationFields from "../LocationFormFields/VehicleAccessLocationFields.vue";
+import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess"
+import VehicleAccessLocationFields from "../LocationFormFields/VehicleAccessLocationFields.vue"
 
 interface Props {
-	zone: VehicleAccessZone;
+	zone: VehicleAccessZone
+	reorderableLocations?: boolean
 }
 
 interface Emits {
-	(e: "add-location"): void;
-	(e: "remove-location", index: number): void;
-	(e: "update-location", index: number, location: VehicleAccessLocation): void;
+	(e: "add-location"): void
+	(e: "remove-location", index: number): void
+	(e: "update-location", index: number, location: VehicleAccessLocation): void
+	(e: "reorder-location", payload: { index: number; direction: "up" | "down" }): void
 }
 
-defineProps<Props>();
-const emit = defineEmits<Emits>();
+withDefaults(defineProps<Props>(), {
+	reorderableLocations: false,
+})
+const emit = defineEmits<Emits>()
 
 const getLocations = (zone: VehicleAccessZone): VehicleAccessLocation[] => {
-	return zone.locations || [];
-};
+	return zone.locations || []
+}
 
 const getLocationId = (location: VehicleAccessLocation, index: number): string =>
-	location.id ?? `location-${index}`;
+	location.id ?? `location-${index}`
 
 const handleAddLocation = () => {
-	emit("add-location");
-};
+	emit("add-location")
+}
 
 const handleRemoveLocation = (locationIndex: number) => {
-	emit("remove-location", locationIndex);
-};
+	emit("remove-location", locationIndex)
+}
 
 const handleLocationUpdate = (locationIndex: number, updatedLocation: VehicleAccessLocation) => {
-	emit("update-location", locationIndex, updatedLocation);
-};
+	emit("update-location", locationIndex, updatedLocation)
+}
 </script>

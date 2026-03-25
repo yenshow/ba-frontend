@@ -199,8 +199,12 @@
 }
 
 /* ========================================
-   平面圖地點點位（照明／排水 category-dot、全區圖 location-dot）
-   預設＝照明；父層加 map-location-dots--drainage 啟用排水警告／紅色警報
+   平面圖地點點位（category-dot、全區圖 location-dot）
+   data-status 統一語意（由各系統在元件內對應業務狀態，不在此分系統寫樣式）：
+   - normal：正常（綠）
+   - abnormal：異常（黃，閃爍較柔和）
+   - alarm：警報（紅，閃爍較強）
+   照明等僅兩態者：normal + abnormal 即可。
    ======================================== */
 .map-location-dots .category-dot-wrapper,
 .map-location-dots .location-dot-wrapper {
@@ -243,25 +247,26 @@
 	color: #ffffff;
 	transition: transform 0.2s ease;
 }
+/* 正常：內圈綠（與 StatusCenter 狀態點一致），外框統一白線（不依選取狀態切換顏色） */
 .map-location-dots .category-dot[data-status="normal"],
 .map-location-dots .location-dot[data-status="normal"] {
-	background: rgba(251, 191, 36, 0.32);
-	border-color: rgba(251, 191, 36, 0.72);
+	background: rgba(52, 211, 153, 0.28);
+	border-color: rgba(255, 255, 255, 0.78);
 }
 .map-location-dots .category-dot[data-status="normal"]::before,
 .map-location-dots .location-dot[data-status="normal"]::before {
-	background: #fbbf24;
+	background: #34d399;
 }
 .map-location-dots .category-dot[data-status="normal"]::after,
 .map-location-dots .location-dot[data-status="normal"]::after {
 	content: "✓";
 }
-/* 預設異常：琥珀警示（照明、全區點位圖） */
+/* 異常（黃）：琥珀內圈 + 白外框 */
 .map-location-dots .category-dot[data-status="abnormal"],
 .map-location-dots .location-dot[data-status="abnormal"] {
 	background: rgba(245, 158, 11, 0.32);
-	border-color: rgba(245, 158, 11, 0.72);
-	animation: map-dot-alert-amber 1.6s ease-in-out infinite;
+	border-color: rgba(255, 255, 255, 0.78);
+	animation: status-alert-warning-blink 2.4s ease-in-out infinite;
 }
 .map-location-dots .category-dot[data-status="abnormal"]::before,
 .map-location-dots .location-dot[data-status="abnormal"]::before {
@@ -269,6 +274,21 @@
 }
 .map-location-dots .category-dot[data-status="abnormal"]::after,
 .map-location-dots .location-dot[data-status="abnormal"]::after {
+	content: "!";
+}
+/* 警報（紅）：玫瑰內圈 + 白外框 */
+.map-location-dots .category-dot[data-status="alarm"],
+.map-location-dots .location-dot[data-status="alarm"] {
+	background: rgba(245, 101, 101, 0.32);
+	border-color: rgba(255, 255, 255, 0.78);
+	animation: status-alert-warning-blink 2.4s ease-in-out infinite;
+}
+.map-location-dots .category-dot[data-status="alarm"]::before,
+.map-location-dots .location-dot[data-status="alarm"]::before {
+	background: #f56565;
+}
+.map-location-dots .category-dot[data-status="alarm"]::after,
+.map-location-dots .location-dot[data-status="alarm"]::after {
 	content: "!";
 }
 .map-location-dots .category-dot:focus-visible,
@@ -286,31 +306,43 @@
 .map-location-dots .category-dot-wrapper[draggable="true"] {
 	cursor: move;
 }
-.map-location-dots .category-dot.is-active,
-.map-location-dots .location-dot.is-active {
-	box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
-	border-color: rgba(255, 255, 255, 0.8);
+/* 監控卡片／工具提示閃爍（對齊 EnvironmentParamCard）：底色固定 + 透明度脈動 */
+@keyframes status-alert-warning-blink {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
 }
-/* 排水：警告（橘）／警報（紅）覆寫預設 abnormal */
-.map-location-dots--drainage .category-dot[data-status="warning"] {
-	background: rgba(245, 158, 11, 0.32);
-	border-color: rgba(245, 158, 11, 0.72);
+
+@keyframes status-alert-alarm-blink {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
 }
-.map-location-dots--drainage .category-dot[data-status="warning"]::before {
-	background: #f59e0b;
+
+.blink-slow {
+	animation: status-alert-warning-blink 1.6s ease-in-out infinite;
+	will-change: opacity;
 }
-.map-location-dots--drainage .category-dot[data-status="abnormal"] {
-	background: rgba(245, 101, 101, 0.32);
-	border-color: rgba(245, 101, 101, 0.72);
-	animation: map-dot-alert-rose 1.6s ease-in-out infinite;
+
+.blink-fast {
+	animation: status-alert-alarm-blink 1.6s ease-in-out infinite;
+	will-change: opacity;
 }
-.map-location-dots--drainage .category-dot[data-status="abnormal"]::before {
-	background: #f56565;
+
+/* 警報閃爍節奏與異常一致（保留 class 名稱供既有元件相容） */
+.blink-alarm-fast {
+	animation: status-alert-alarm-blink 1.6s ease-in-out infinite;
+	will-change: opacity;
 }
-.map-location-dots--drainage .category-dot[data-status="warning"]::after,
-.map-location-dots--drainage .category-dot[data-status="abnormal"]::after {
-	content: "!";
-}
+
 @keyframes map-dot-alert-amber {
 	0%,
 	100% {
@@ -333,6 +365,33 @@
 /* ========================================
    表單輸入樣式 - 統一樣式系統
    ======================================== */
+
+/* 表單輸入框（Device dialogs 通用） */
+.form-input {
+	border-radius: 0.75rem;
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	background: rgba(255, 255, 255, 0.1);
+	padding: 0.65rem 0.85rem;
+	color: #f7fbff;
+	transition:
+		border-color 0.2s ease,
+		background 0.2s ease;
+}
+
+.form-input:focus {
+	border-color: #5be7f1;
+	background: rgba(255, 255, 255, 0.18);
+	outline: none;
+}
+
+.form-input:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.form-input::placeholder {
+	color: rgba(255, 255, 255, 0.5);
+}
 
 /* 小型表單輸入框 */
 .form-input-small {
@@ -429,6 +488,44 @@
 .btn-secondary:disabled {
 	opacity: 0.6;
 	cursor: not-allowed;
+}
+
+/* 區域管理／點位列表：上下排序箭頭（集中樣式，略大於舊版 text-xs） */
+.btn-reorder-stack {
+	display: flex;
+	flex-direction: column;
+	gap: 0.125rem;
+}
+
+.btn-reorder-arrow {
+	border-radius: 0.25rem;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	padding: 0.35rem 0.55rem;
+	font-size: 0.95rem;
+	font-weight: 600;
+	line-height: 1;
+	color: rgba(255, 255, 255, 0.92);
+	cursor: pointer;
+	transition: background-color 0.15s ease;
+	background: transparent;
+	min-width: 2rem;
+}
+
+.btn-reorder-arrow:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-reorder-arrow:disabled {
+	cursor: not-allowed;
+	opacity: 0.3;
+}
+
+@media (min-width: 1536px) {
+	.btn-reorder-arrow {
+		padding: 0.4rem 0.65rem;
+		font-size: 1.05rem;
+		min-width: 2.25rem;
+	}
 }
 
 /* ========================================

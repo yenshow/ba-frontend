@@ -245,6 +245,7 @@ import type {
 import type { UnifiedZone } from "~/types/location";
 import { unifiedToEnvironmentZone } from "~/utils/locationAdapter";
 import { getTodayDateRangeUTC, getTimeRangeUTC } from "~/utils/dateUtils";
+import { compareZonesLoose } from "~/utils/sortOrder";
 
 definePageMeta({
 	layout: "default"
@@ -492,52 +493,8 @@ watch([currentLocationData, environmentZones], () => {
 	});
 });
 
-// 所有地點（用於總覽面板）
-const allLocations = computed(() => {
-	return environmentZones.value.flatMap(zone => zone.locations);
-});
-
-// 排序後的地點列表（按區域排序：1F, 2F, 3F... 或按建立時間）
-const sortedLocations = computed(() => {
-	if (allLocations.value.length === 0) return [];
-
-	// 建立地點與區域的映射
-	const locationZoneMap = new Map<EnvironmentLocation, string>();
-	for (const zone of environmentZones.value) {
-		for (const location of zone.locations) {
-			locationZoneMap.set(location, zone.name);
-		}
-	}
-
-	// 按區域排序（提取數字部分進行比較）
-	return [...allLocations.value].sort((a, b) => {
-		const zoneA = locationZoneMap.get(a) || "";
-		const zoneB = locationZoneMap.get(b) || "";
-
-		// 提取區域名稱中的數字（例如 "1F" -> 1, "B1F" -> -1, "2F" -> 2）
-		const extractZoneNumber = (zoneName: string): number => {
-			// 處理負樓層（B1F, B2F 等）
-			if (zoneName.toUpperCase().startsWith("B")) {
-				const num = parseInt(zoneName.match(/\d+/)?.[0] || "0") || 0;
-				return -num; // 負數表示地下樓層
-			}
-			// 處理正樓層（1F, 2F 等）
-			const num = parseInt(zoneName.match(/\d+/)?.[0] || "999") || 999;
-			return num;
-		};
-
-		const numA = extractZoneNumber(zoneA);
-		const numB = extractZoneNumber(zoneB);
-
-		// 先按數字排序
-		if (numA !== numB) {
-			return numA - numB;
-		}
-
-		// 如果數字相同，按字串排序（處理特殊情況）
-		return zoneA.localeCompare(zoneB, "zh-TW");
-	});
-});
+// 與 environmentZones 順序一致（區域已依 sort_order／名稱慣例排序，地點依後端陣列序）
+const sortedLocations = computed(() => environmentZones.value.flatMap(zone => zone.locations));
 
 // 啟用的參數（用於顯示）
 const enabledParameters = computed(() => {
@@ -847,26 +804,14 @@ const loadZonesFromAPI = async () => {
 	isLoadingZones.value = true;
 	try {
 		const result = await environmentApi.getZones();
-		// 清理並標準化參數格式並依區域排序（B1F < 1F < 2F ...）
-		const sortedZones = (result.zones || []).map(cleanZone).sort((a, b) => {
-			const parseNum = (name: string) => {
-				if (name.toUpperCase().startsWith("B")) {
-					return -parseInt(name.match(/\d+/)?.[0] || "0", 10);
-				}
-				return parseInt(name.match(/\d+/)?.[0] || "999", 10);
-			};
-			return parseNum(a.name) - parseNum(b.name);
-		});
+		// 與首頁／全區一致：sort_order → 名稱數字 → id
+		const sortedZones = [...(result.zones || []).map(cleanZone)].sort((a, b) =>
+			compareZonesLoose(a, b)
+		);
 		environmentZones.value = sortedZones;
-
-		// 如果沒有選中的地點且有地點資料，預設選擇 1F 或排序後最前面的地點
-		if (!selectedLocationId.value && environmentZones.value.length > 0) {
-			for (const zone of environmentZones.value) {
-				if (zone.locations && zone.locations.length > 0) {
-					selectLocation(zone.locations[0]);
-					break;
-				}
-			}
+		if (!selectedLocationId.value) {
+			const first = sortedZones.find(z => z.locations?.length)?.locations?.[0];
+			if (first) selectLocation(first);
 		}
 	} catch (error) {
 		handleError(error, "載入區域列表失敗");

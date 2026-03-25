@@ -1,7 +1,9 @@
 <template>
 	<div class="flex min-w-0 flex-1 items-end gap-2">
 		<!-- 點位名稱 -->
-		<label class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0">
+		<label
+			class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0"
+		>
 			<span>點位名稱 *</span>
 			<input
 				v-model="localLocation.name"
@@ -14,7 +16,9 @@
 		</label>
 
 		<!-- 控制器 -->
-		<label class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0">
+		<label
+			class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0"
+		>
 			<span>控制器</span>
 			<FilterDropdown
 				v-model="deviceIdString"
@@ -25,7 +29,11 @@
 		</label>
 
 		<!-- Modbus 配置（當選擇了設備時顯示） -->
-		<template v-if="localLocation.deviceId && localLocation.deviceId > 0 && localLocation.modbus?.points?.[0]">
+		<template
+			v-if="
+				localLocation.deviceId && localLocation.deviceId > 0 && localLocation.modbus?.points?.[0]
+			"
+		>
 			<!-- Modbus 類型 -->
 			<label
 				class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
@@ -83,39 +91,39 @@
 </template>
 
 <script setup lang="ts">
-import type { LightingLocation } from "~/types/lighting";
-import type { Device } from "~/types/device";
-import { useLightingLocationValidation } from "~/composables/systems/location/useLightingLocationValidation";
-import FilterDropdown from "~/components/common/FilterDropdown.vue";
+import type { LightingLocation } from "~/types/lighting"
+import type { Device } from "~/types/device"
+import { useLightingLocationValidation } from "~/composables/systems/location/useLightingLocationValidation"
+import FilterDropdown from "~/components/common/FilterDropdown.vue"
 
 interface Props {
-	location: LightingLocation;
-	allLocations?: LightingLocation[];
-	currentIndex?: number;
-	devices?: Device[];
-	isLoadingDevices?: boolean;
+	location: LightingLocation
+	allLocations?: LightingLocation[]
+	currentIndex?: number
+	devices?: Device[]
+	isLoadingDevices?: boolean
 }
 
 interface Emits {
-	(e: "update", location: LightingLocation): void;
+	(e: "update", location: LightingLocation): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	allLocations: () => [],
 	currentIndex: -1,
 	devices: () => [],
-	isLoadingDevices: false
-});
+	isLoadingDevices: false,
+})
 
-const emit = defineEmits<Emits>();
+const emit = defineEmits<Emits>()
 
-const { checkDuplicateAddress } = useLightingLocationValidation();
+const { checkDuplicateAddress } = useLightingLocationValidation()
 
 // 本地副本，用於雙向綁定
-const localLocation = ref<LightingLocation>({ ...props.location });
+const localLocation = ref<LightingLocation>({ ...props.location })
 
 // 設備 ID 字串（用於 FilterDropdown）
-const deviceIdString = ref("");
+const deviceIdString = ref("")
 
 // 初始化 modbus 配置的輔助函數（確保 deviceId 與 location.deviceId 一致，避免讀寫錯設備）
 const ensureModbusConfig = (location: LightingLocation) => {
@@ -123,74 +131,70 @@ const ensureModbusConfig = (location: LightingLocation) => {
 		if (!location.modbus) {
 			location.modbus = {
 				deviceId: location.deviceId,
-				points: []
-			};
+				points: [],
+			}
 		} else {
 			// 同步 modbus.deviceId 與 location.deviceId，否則照明狀態會用錯設備讀寫
-			location.modbus.deviceId = location.deviceId;
+			location.modbus.deviceId = location.deviceId
 		}
 		if (!location.modbus.points || location.modbus.points.length === 0) {
 			location.modbus.points = [
 				{
 					address: 0,
-					type: "DO"
-				}
-			];
+					type: "DO",
+				},
+			]
 		}
 	}
-};
+}
 
 // 監聽 props.location 變化
 watch(
 	() => props.location,
-	newLocation => {
-		localLocation.value = { ...newLocation };
-		ensureModbusConfig(localLocation.value);
+	(newLocation) => {
+		localLocation.value = { ...newLocation }
+		ensureModbusConfig(localLocation.value)
 		// 更新設備 ID 字串（用於 FilterDropdown）
-		deviceIdString.value = localLocation.value.deviceId > 0 
-			? String(localLocation.value.deviceId) 
-			: "";
+		deviceIdString.value =
+			localLocation.value.deviceId > 0 ? String(localLocation.value.deviceId) : ""
 	},
 	{ immediate: true, deep: true }
-);
+)
 
 // 檢查地址是否重複
 const hasDuplicateAddress = computed(() => {
 	if (props.currentIndex < 0 || !props.allLocations || props.allLocations.length === 0) {
-		return false;
+		return false
 	}
-	return checkDuplicateAddress(localLocation.value, props.allLocations, props.currentIndex);
-});
+	return checkDuplicateAddress(localLocation.value, props.allLocations, props.currentIndex)
+})
 
 // 處理變更
 const handleChange = () => {
-	emit("update", { ...localLocation.value });
-};
+	emit("update", { ...localLocation.value })
+}
 
 // 設備選項（用於 FilterDropdown）
 const deviceOptions = computed(() => {
 	if (props.isLoadingDevices) {
-		return [{ value: "", label: "載入中..." }];
+		return [{ value: "", label: "載入中..." }]
 	}
 	if (props.devices.length === 0) {
-		return [{ value: "", label: "尚無可用控制器" }];
+		return [{ value: "", label: "尚無可用控制器" }]
 	}
-	const options = props.devices.map(device => ({
+	const options = props.devices.map((device) => ({
 		value: String(device.id),
-		label: device.name
-	}));
+		label: device.name,
+	}))
 	// 添加空選項（用於清除選擇）
-	return [
-		{ value: "", label: "請選擇控制器" },
-		...options
-	];
-});
+	return [{ value: "", label: "請選擇控制器" }, ...options]
+})
 
 // 處理設備變更
 const handleDeviceChange = (value: string) => {
-	const deviceId = value ? Number(value) : 0;
-	localLocation.value.deviceId = deviceId;
-	ensureModbusConfig(localLocation.value);
-	handleChange();
-};
+	const deviceId = value ? Number(value) : 0
+	localLocation.value.deviceId = deviceId
+	ensureModbusConfig(localLocation.value)
+	handleChange()
+}
 </script>

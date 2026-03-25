@@ -16,11 +16,14 @@ export type AlertType = "offline" | "error" | "threshold";
 
 // 嚴重程度
 export type AlertSeverity = "warning" | "error" | "critical";
+export type AlertConditionType = "threshold" | "error_count";
 
 export interface Alert {
 	id: number;
 	source: AlertSource;
 	source_id: number;
+	dimension_key?: string;
+	rule_id?: number | null;
 	device_id?: number;
 	device_name?: string;
 	device_type_name?: string;
@@ -66,6 +69,7 @@ export interface AlertFilters {
 	source_id?: number;
 	device_id?: number;
 	alert_type?: AlertType;
+	dimension_key?: string;
 	severity?: AlertSeverity;
 	status?: AlertStatus;
 	resolved?: boolean;
@@ -81,4 +85,31 @@ export interface AlertFilters {
 
 export interface UnresolvedAlertCountResponse {
 	count: number;
+	dimension_keys?: string[];
+	rule_ids?: number[];
 }
+
+export interface AlertRule {
+	id: number;
+	source: AlertSource;
+	alert_type: AlertType;
+	severity: AlertSeverity;
+	condition_type: AlertConditionType | null;
+	condition_config: Record<string, unknown> | null;
+	message_template: string | null;
+	enabled: boolean;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface CreateAlertRulePayload {
+	source: AlertSource;
+	alert_type: AlertType;
+	severity: AlertSeverity;
+	condition_type: AlertConditionType;
+	condition_config: Record<string, unknown>;
+	message_template?: string;
+	enabled?: boolean;
+}
+
+export type UpdateAlertRulePayload = Partial<CreateAlertRulePayload>;

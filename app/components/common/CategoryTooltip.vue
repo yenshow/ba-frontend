@@ -1,9 +1,15 @@
 <template>
-	<div v-if="show" ref="tooltipRef" class="category-tooltip" :style="tooltipStyle">
+	<div
+		v-if="show"
+		ref="tooltipRef"
+		class="category-tooltip"
+		:class="tooltipAlertClass"
+		:style="tooltipStyle"
+	>
 		<div class="tooltip-content">
 			<span class="tooltip-title">{{ categoryName }}</span>
-			<span :class="['tooltip-status', isNormal ? 'status-normal' : 'status-abnormal']">
-				{{ isNormal ? "正常" : "異常" }}
+			<span :class="['tooltip-status', `status-${resolvedStatusType}`]">
+				{{ resolvedStatusLabel }}
 			</span>
 		</div>
 		<div class="tooltip-arrow"></div>
@@ -17,12 +23,34 @@ interface Props {
 	show: boolean
 	categoryName: string
 	isNormal: boolean
+	/** 可覆寫狀態文案；未傳入時維持既有 isNormal 二態行為 */
+	statusType?: "normal" | "abnormal" | "alarm"
+	/** 與環境監控警報語意一致：無／慢閃／快閃 */
+	alertFlash?: "none" | "slow" | "fast"
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+	alertFlash: "none",
+})
 
 const tooltipRef = ref<HTMLElement | null>(null)
 const tooltipOffsetX = ref(0)
+
+const tooltipAlertClass = computed(() => {
+	if (props.alertFlash === "fast") return "blink-fast"
+	if (props.alertFlash === "slow") return "blink-slow"
+	return ""
+})
+
+const resolvedStatusType = computed<"normal" | "abnormal" | "alarm">(
+	() => props.statusType ?? (props.isNormal ? "normal" : "abnormal")
+)
+
+const resolvedStatusLabel = computed(() => {
+	if (resolvedStatusType.value === "normal") return "正常"
+	if (resolvedStatusType.value === "alarm") return "警報"
+	return "異常"
+})
 
 const tooltipStyle = computed(() => {
 	if (tooltipOffsetX.value === 0) return {}
@@ -122,6 +150,12 @@ onUnmounted(() => {
 	background: rgba(245, 158, 11, 0.2);
 	color: #f59e0b;
 	border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.status-alarm {
+	background: rgba(244, 63, 94, 0.2);
+	color: #f43f5e;
+	border: 1px solid rgba(244, 63, 94, 0.45);
 }
 
 .tooltip-content {

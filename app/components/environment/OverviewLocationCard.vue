@@ -23,7 +23,9 @@
 					<div class="ps-[2px] text-2xl tracking-[2px] text-white 2xl:text-3xl">AQI</div>
 					<div class="my-1 h-px w-2/3 bg-white/80 2xl:my-2"></div>
 					<Transition name="fade" mode="out-in">
-						<div :key="aqi ?? 'empty'" class="text-3xl text-white 2xl:text-5xl">{{ aqi ?? "—" }}</div>
+						<div :key="aqi ?? 'empty'" class="text-3xl text-white 2xl:text-5xl">
+							{{ aqi ?? "—" }}
+						</div>
 					</Transition>
 				</div>
 
@@ -72,7 +74,10 @@
 				</div>
 
 				<!-- 無資料或未連接狀態 -->
-				<div v-else class="flex min-h-[170px] min-w-[240px] flex-col items-center justify-center py-6">
+				<div
+					v-else
+					class="flex min-h-[170px] min-w-[240px] flex-col items-center justify-center py-6"
+				>
 					<div v-if="disabled" class="text-sm italic text-white/50 2xl:text-base">待連接感測器</div>
 					<div v-else class="text-sm text-white/50 2xl:text-base">尚無參數資料</div>
 				</div>
@@ -83,76 +88,76 @@
 
 <script setup lang="ts">
 interface Param {
-	label: string;
-	value: string | number;
-	unit: string;
-	alertClass?: string;
-	type?: string; // 參數類型（用於狀態判斷）
-	rawValue?: number | null; // 原始數值（用於狀態判斷）
+	label: string
+	value: string | number
+	unit: string
+	alertClass?: string
+	type?: string // 參數類型（用於狀態判斷）
+	rawValue?: number | null // 原始數值（用於狀態判斷）
 }
 
 interface Props {
-	name: string;
-	zone: string;
-	aqi?: number | null;
-	noise?: number | null;
-	params?: Param[];
-	disabled?: boolean;
-	getStatusText?: (type: string, value: number | null) => string; // 狀態文字判斷函數
+	name: string
+	zone: string
+	aqi?: number | null
+	noise?: number | null
+	params?: Param[]
+	disabled?: boolean
+	getStatusText?: (type: string, value: number | null) => string // 狀態文字判斷函數
 }
 
 interface Emits {
-	(e: "click"): void;
+	(e: "click"): void
 }
 
-const emit = defineEmits<Emits>();
+const emit = defineEmits<Emits>()
 
 const handleClick = () => {
-	emit("click");
-};
+	emit("click")
+}
 
 const props = withDefaults(defineProps<Props>(), {
 	disabled: false,
-	getStatusText: undefined
-});
+	getStatusText: undefined,
+})
 
 // 判斷參數狀態類型
 const getParamStatusType = (param: Param): "normal" | "warning" | "alarm" => {
 	if (!props.getStatusText || !param.type || param.rawValue === undefined) {
-		return "normal";
+		return "normal"
 	}
 
-	const statusText = props.getStatusText(param.type, param.rawValue);
-	if (statusText === "正常") return "normal";
-	if (statusText === "警報") return "alarm";
-	return "warning"; // 異常、注意等
-};
+	const statusText = props.getStatusText(param.type, param.rawValue)
+	if (statusText === "正常") return "normal"
+	if (statusText === "警報") return "alarm"
+	return "warning" // 異常、注意等
+}
 
 // 參數背景顏色類別
 const getParamBackgroundClass = (param: Param) => {
-	const statusType = getParamStatusType(param);
+	const statusType = getParamStatusType(param)
 	switch (statusType) {
 		case "normal":
-			return "bg-transparent"; // 正常：白色 10% 透明度
+			return "bg-transparent" // 正常：白色 10% 透明度
 		case "warning":
-			return "bg-[#FFC801]/90"; // 異常：黃色 90% 透明度
+			return "bg-[#FFC801]/90" // 異常：黃色 90% 透明度
 		case "alarm":
-			return "bg-[#FF0000]/90"; // 警報：紅色 90% 透明度
+			return "bg-[#FF0000]/90" // 警報：紅色 90% 透明度
 		default:
-			return "bg-transparent";
+			return "bg-transparent"
 	}
-};
+}
 
 // 參數閃爍動畫類別
 const getParamBlinkClass = (param: Param) => {
-	const statusType = getParamStatusType(param);
+	const statusType = getParamStatusType(param)
 	if (statusType === "alarm") {
-		return "blink-fast"; // 警報：快速閃爍（1秒）
+		return "blink-fast" // 警報：快速閃爍（1秒）
 	} else if (statusType === "warning") {
-		return "blink-slow"; // 異常/警告：慢速閃爍（2秒）
+		return "blink-slow" // 異常/警告：慢速閃爍（2秒）
 	}
-	return ""; // 正常：不閃爍
-};
+	return "" // 正常：不閃爍
+}
 </script>
 
 <style scoped>

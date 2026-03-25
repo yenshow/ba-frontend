@@ -1,336 +1,117 @@
 <template>
 	<div class="space-y-6 2xl:space-y-8">
 		<div class="flex items-center justify-between">
-			<header class="flex flex-col gap-1 2xl:gap-2">
+			<header class="flex flex-col gap-1 2xl:gap-2 me-4">
 				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">警示紀錄</h1>
 				<p class="text-base text-white/80 2xl:text-xl">查看與管理系統警示訊息</p>
 			</header>
 
-			<!-- 篩選器 -->
-			<div class="flex items-center gap-3 2xl:gap-4">
-				<FilterDropdown v-model="filterStatus" :options="statusOptions" placeholder="全部狀態" />
-				<FilterDropdown v-model="filterSource" :options="sourceOptions" placeholder="全部系統" />
-				<TimeRangePicker v-model="timeRange" :presets="timeRangePresets" />
-
+			<!-- 僅 admin 可切換「警示紀錄／規則管理」 -->
+			<div
+				v-if="isAdmin"
+				class="rounded-xl border border-white/20 bg-white/5 p-1 space-x-2 me-auto"
+			>
 				<button
 					type="button"
-					@click="handleExport"
-					:disabled="isLoading || alerts.length === 0"
-					class="rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
+					@click="currentMode = 'alerts'"
+					:class="[
+						'rounded-lg px-3 py-1.5 text-base transition-colors 2xl:text-lg',
+						currentMode === 'alerts' ? 'bg-cyan-500 text-white' : 'text-white/80 hover:bg-white/10',
+					]"
 				>
-					匯出 CSV
+					警示紀錄
 				</button>
+				<button
+					type="button"
+					@click="handleSwitchToRules"
+					:class="[
+						'rounded-lg px-3 py-1.5 text-base transition-colors 2xl:text-lg',
+						currentMode === 'rules' ? 'bg-cyan-500 text-white' : 'text-white/80 hover:bg-white/10',
+					]"
+				>
+					規則管理
+				</button>
+			</div>
+
+			<div class="flex items-center gap-3 2xl:gap-4">
+				<template v-if="currentMode === 'alerts'">
+					<FilterDropdown v-model="filterStatus" :options="statusOptions" placeholder="全部狀態" />
+					<FilterDropdown v-model="filterSource" :options="sourceOptions" placeholder="全部系統" />
+					<TimeRangePicker v-model="timeRange" :presets="timeRangePresets" />
+
+					<button
+						type="button"
+						@click="handleExport"
+						:disabled="isLoading || alerts.length === 0"
+						class="rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
+					>
+						匯出 CSV
+					</button>
+				</template>
+				<template v-else-if="currentMode === 'rules'">
+					<FilterDropdown
+						v-model="ruleFilterSource"
+						:options="sourceOptions"
+						placeholder="全部系統"
+					/>
+					<FilterDropdown
+						v-model="ruleFilterType"
+						:options="ruleTypeOptions"
+						placeholder="全部類型"
+					/>
+
+					<button
+						type="button"
+						@click="handleOpenCreateRule"
+						class="rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors hover:bg-green-400 2xl:px-6 2xl:py-3 2xl:text-base"
+					>
+						新增規則
+					</button>
+				</template>
 			</div>
 		</div>
 
-		<!-- 警示列表 -->
-		<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
-			<!-- 統計資訊 -->
-			<div class="mb-6 flex items-center gap-4 2xl:gap-6">
-				<div class="text-white">
-					<span class="text-sm text-white/70 2xl:text-base">總計：</span>
-					<span class="text-lg font-semibold 2xl:text-xl">{{ totalAlerts }}</span>
-				</div>
-				<div class="text-white">
-					<span class="text-sm text-white/70 2xl:text-base">未解決：</span>
-					<span class="text-lg font-semibold text-yellow-400 2xl:text-xl">{{
-						unresolvedCount
-					}}</span>
-				</div>
-			</div>
+		<AlertListSection
+			v-if="currentMode === 'alerts'"
+			:alerts="alerts"
+			:total-alerts="totalAlerts"
+			:unresolved-count="unresolvedCount"
+			:offset="offset"
+			:limit="limit"
+			:is-loading="isLoading"
+			:is-ignoring="isIgnoring"
+			:is-admin="isAdmin"
+			@ignore="handleIgnore"
+			@unignore="handleUnignore"
+			@previous="goToPreviousPage"
+			@next="goToNextPage"
+		/>
 
-			<!-- 內容區域：使用過渡動畫切換內容 -->
-			<div class="min-h-[500px]">
-				<Transition name="fade" mode="out-in">
-					<div :key="`content-${offset}-${filterStatus}-${filterSource}-${alerts.length}`">
-						<div
-							v-if="alerts.length === 0"
-							class="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
-						>
-							<div>
-								<svg
-									class="mx-auto mb-4 h-16 w-16 text-white/60"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-									/>
-								</svg>
-								<p class="text-2xl font-medium text-white/90 2xl:text-3xl">目前沒有警示紀錄</p>
-								<p class="mt-2 text-sm text-white/70 2xl:text-base">請調整篩選條件或稍後再查看</p>
-							</div>
-						</div>
-
-						<div v-else class="space-y-4">
-							<div
-								v-for="alert in alerts"
-								:key="alert.id"
-								:id="`alert-${alert.id}`"
-								:class="[
-									'rounded-xl border-2 p-4 transition-all 2xl:p-6',
-									getAlertCardClass(alert),
-								]"
-							>
-								<div class="flex items-start justify-between gap-4">
-									<div class="flex-1">
-										<div class="mb-2 flex flex-wrap items-center gap-2">
-											<span :class="[badgeBaseClass, 'bg-blue-500/80']">
-												{{ getSourceLabel(alert.source) }}
-											</span>
-											<span :class="[badgeBaseClass, getSeverityBadgeClass(alert.severity)]">
-												{{ getSeverityLabel(alert.severity) }}
-											</span>
-											<span :class="[badgeBaseClass, getTypeBadgeClass(alert.alert_type)]">
-												{{ getTypeLabel(alert.alert_type) }}
-											</span>
-											<span
-												v-if="isAlertResolved(alert)"
-												:class="[badgeBaseClass, 'bg-green-500/80']"
-											>
-												已解決
-											</span>
-											<span
-												v-if="isAlertIgnored(alert)"
-												:class="[badgeBaseClass, 'bg-gray-500/80']"
-											>
-												已忽視
-											</span>
-										</div>
-
-										<p class="mb-4 text-base text-white 2xl:text-lg">{{ alert.message }}</p>
-
-										<!-- 設備資訊卡片 -->
-										<div class="mb-3 rounded-lg border border-white/10 bg-white/5 p-3 2xl:p-4">
-											<div class="grid grid-cols-4 gap-3 2xl:gap-4">
-												<!-- 設備名稱 -->
-												<div class="flex items-start gap-2">
-													<svg
-														class="mt-0.5 h-6 w-6 flex-shrink-0 text-blue-400"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
-														/>
-													</svg>
-													<div class="min-w-0 flex-1">
-														<div class="text-sm text-white/60">
-															{{ getSourceLabel(alert.source) }}
-														</div>
-														<div class="mt-0.5 truncate text-base font-semibold text-white">
-															<span v-if="getZoneName(alert)">{{ getZoneName(alert) }} - </span
-															>{{ getSourceDisplayName(alert) }}
-														</div>
-													</div>
-												</div>
-
-												<!-- 設備類型 -->
-												<div v-if="alert.device_type_name" class="flex items-start gap-2">
-													<svg
-														class="mt-0.5 h-6 w-6 flex-shrink-0 text-purple-400"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
-														/>
-													</svg>
-													<div class="min-w-0 flex-1">
-														<div class="text-sm text-white/60">類型</div>
-														<div class="mt-0.5 text-base font-medium text-white">
-															{{ alert.device_type_name }}
-														</div>
-													</div>
-												</div>
-
-												<!-- 創建時間 -->
-												<div class="flex items-start gap-2">
-													<svg
-														class="mt-0.5 h-6 w-6 flex-shrink-0 text-green-400"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-														/>
-													</svg>
-													<div class="min-w-0 flex-1">
-														<div class="text-sm text-white/60">創建時間</div>
-														<div class="mt-0.5 text-base text-white">
-															{{ formatDateTime(alert.created_at) }}
-														</div>
-													</div>
-												</div>
-
-												<!-- 更新時間 -->
-												<div class="flex items-start gap-2">
-													<svg
-														class="mt-0.5 h-6 w-6 flex-shrink-0 text-yellow-400"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-														/>
-													</svg>
-													<div class="min-w-0 flex-1">
-														<div class="text-sm text-white/60">更新時間</div>
-														<div class="mt-0.5 text-base text-white">
-															{{ formatDateTime(alert.updated_at) }}
-														</div>
-													</div>
-												</div>
-											</div>
-										</div>
-									</div>
-
-									<!-- 操作按鈕 -->
-									<div class="flex h-[160px] flex-col justify-center gap-2">
-										<button
-											v-if="alert.status === 'active' && isAdmin"
-											type="button"
-											@click="handleIgnore(alert)"
-											:disabled="isIgnoring"
-											class="rounded-lg bg-gray-500/80 px-3 py-1.5 text-base text-white transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
-											title="忽視此警報"
-										>
-											忽視
-										</button>
-										<button
-											v-if="isAlertIgnored(alert) && isAdmin"
-											type="button"
-											@click="handleUnignore(alert)"
-											:disabled="isIgnoring"
-											class="rounded-lg bg-blue-500/80 px-3 py-1.5 text-base text-white transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
-											title="取消忽視此警報"
-										>
-											取消忽視
-										</button>
-
-										<!-- 解決資訊：僅系統自動解決，解決時間為 status=resolved 時的 updated_at -->
-										<div
-											v-if="isAlertResolved(alert) && !isAlertIgnored(alert)"
-											class="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 2xl:p-2.5"
-										>
-											<div class="flex items-center gap-2">
-												<svg
-													class="h-6 w-6 flex-shrink-0 text-emerald-400"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
-												>
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-													/>
-												</svg>
-												<div class="min-w-0 flex-1 space-y-0.5">
-													<div class="text-base font-medium text-emerald-300">已解決</div>
-													<div class="text-base text-white/70">
-														{{ formatDateTime(alert.updated_at) }}
-													</div>
-													<div class="text-base text-emerald-400">系統自動解決</div>
-												</div>
-											</div>
-										</div>
-
-										<!-- 忽視資訊：顯示在按鈕下方 -->
-										<div
-											v-if="isAlertIgnored(alert)"
-											class="mt-2 rounded-lg border border-gray-500/30 bg-gray-500/10 p-2 2xl:p-2.5"
-										>
-											<div class="flex items-center gap-2">
-												<svg
-													class="h-6 w-6 flex-shrink-0 text-gray-400"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
-												>
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
-													/>
-												</svg>
-												<div class="min-w-0 flex-1 space-y-0.5">
-													<div class="text-base font-medium text-gray-300">已忽視</div>
-													<div v-if="alert.ignored_at" class="text-base text-white/70">
-														{{ formatDateTime(alert.ignored_at) }}
-													</div>
-													<div v-if="alert.ignored_by_username" class="text-base text-white/60">
-														忽視者：{{ alert.ignored_by_username }}
-													</div>
-												</div>
-											</div>
-										</div>
-									</div>
-								</div>
-							</div>
-						</div>
-
-						<!-- 分頁 -->
-						<Pagination
-							v-if="totalAlerts > limit"
-							:total="totalAlerts"
-							:offset="offset"
-							:limit="limit"
-							:disabled="isLoading"
-							@previous="goToPreviousPage"
-							@next="goToNextPage"
-						/>
-					</div>
-				</Transition>
-			</div>
-		</section>
+		<AlertRuleManagement
+			v-else-if="isAdmin"
+			ref="ruleManagementRef"
+			v-model:selected-rule-source="ruleFilterSource"
+			v-model:selected-rule-type="ruleFilterType"
+		/>
 	</div>
 </template>
 
 <script setup lang="ts">
 import { useToast } from "~/composables/core/useToast"
-import type { Alert, AlertStatus, AlertSource } from "~/types/alert"
+import type { Alert, AlertStatus, AlertSource, AlertType } from "~/types/alert"
 import { useAuth } from "~/composables/core/useAuth"
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useAlertApi } from "~/composables/systems/useAlertApi"
 import { useWebSocket } from "~/composables/websocket/useWebSocket"
 import type { AlertNewEvent, AlertUpdatedEvent } from "~/composables/websocket/useWebSocket"
-import {
-	getSourceLabel,
-	getTypeLabel,
-	getSeverityLabel,
-	getSeverityBadgeClass,
-	getTypeBadgeClass,
-} from "~/utils/alertUtils"
+import { getSourceLabel, getTypeLabel, getSeverityLabel } from "~/utils/alertUtils"
 import { getTodayDateRangeUTC, formatDateTime } from "~/utils/dateUtils"
 import { exportCsv } from "~/utils/csvExport"
-import { isAlertResolved, isAlertIgnored } from "~/utils/alertUtils"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
-import Pagination from "~/components/common/Pagination.vue"
+import AlertListSection from "~/components/alerts/AlertListSection.vue"
+import AlertRuleManagement from "~/components/alerts/AlertRuleManagement.vue"
 import { useDataLoader } from "~/composables/monitoring/useDataLoader"
 
 /**
@@ -358,6 +139,22 @@ const { on, off } = useWebSocket()
 // 狀態
 const isIgnoring = ref(false)
 const unresolvedCount = ref(0)
+const currentMode = ref<"alerts" | "rules">("alerts")
+
+const ruleManagementRef = ref<{ openCreateRuleDialog: () => void } | null>(null)
+const ruleFilterSource = ref<"" | AlertSource>("")
+const ruleFilterType = ref<"" | AlertType>("")
+
+const ruleTypeOptions: { value: "" | AlertType; label: string }[] = [
+	{ value: "", label: "全部類型" },
+	{ value: "offline", label: "offline" },
+	{ value: "error", label: "error" },
+	{ value: "threshold", label: "threshold" },
+]
+
+const handleOpenCreateRule = () => {
+	ruleManagementRef.value?.openCreateRuleDialog()
+}
 
 // 篩選條件
 const filterStatus = ref<string>("all")
@@ -380,6 +177,10 @@ const sourceOptions = [
 	{ value: "environment", label: "環境系統" },
 	{ value: "lighting", label: "照明系統" },
 	{ value: "drainage", label: "衛生排水系統" },
+	{ value: "people_counting", label: "人流系統" },
+	{ value: "hvac", label: "空調系統" },
+	{ value: "fire", label: "消防系統" },
+	{ value: "security", label: "安防系統" },
 ]
 
 // 時間範圍
@@ -458,6 +259,10 @@ const loadUnresolvedCount = async () => {
 	}
 }
 
+const handleSwitchToRules = () => {
+	currentMode.value = "rules"
+}
+
 // 處理警報操作後的重新載入
 const reloadAfterAction = async () => {
 	load({}, true) // 立即執行
@@ -479,10 +284,20 @@ const handleIgnoreAction = async (
 	isIgnoring.value = true
 	try {
 		if (action === "ignore") {
-			await alertApi.ignoreAlert(alert.source_id, alert.alert_type, alert.source)
-			removeAlertToast(alert.id)
+			await alertApi.ignoreAlert(
+				alert.source_id,
+				alert.alert_type,
+				alert.source,
+				alert.dimension_key || undefined
+			)
+			removeAlertToast(alert.id, alert.dimension_key)
 		} else {
-			await alertApi.unignoreAlert(alert.source_id, alert.alert_type, alert.source)
+			await alertApi.unignoreAlert(
+				alert.source_id,
+				alert.alert_type,
+				alert.source,
+				alert.dimension_key || undefined
+			)
 		}
 		toast.success(successMessage, 3000)
 		await reloadAfterAction()
@@ -498,7 +313,7 @@ const handleIgnore = (alert: Alert) =>
 	handleIgnoreAction(
 		alert,
 		"ignore",
-		"確定要忽視此警示嗎？忽視後將不再顯示此來源的相同類型警示。",
+		"確定要忽視此警示嗎？忽視後將不再顯示此來源同類型、同維度的警示。",
 		"警示已忽視",
 		"忽視警示失敗"
 	)
@@ -508,7 +323,7 @@ const handleUnignore = (alert: Alert) =>
 	handleIgnoreAction(
 		alert,
 		"unignore",
-		"確定要取消忽視此警示嗎？取消後將恢復顯示此來源的相同類型警示。",
+		"確定要取消忽視此警示嗎？取消後將恢復顯示此來源同類型、同維度的警示。",
 		"已取消忽視警示",
 		"取消忽視警示失敗"
 	)
@@ -516,6 +331,9 @@ const handleUnignore = (alert: Alert) =>
 // 獲取當前篩選條件對應的狀態
 const getFilterStatus = (): AlertStatus | undefined =>
 	filterStatus.value !== "all" ? (filterStatus.value as AlertStatus) : undefined
+
+const getAlertKey = (alert: Pick<Alert, "id" | "dimension_key">): string =>
+	`${alert.id}:${alert.dimension_key || "default"}`
 
 // 檢查警報是否符合當前篩選條件
 const matchesFilters = (alert: Alert): boolean => {
@@ -542,7 +360,7 @@ const matchesFilters = (alert: Alert): boolean => {
 // 處理新警報事件（WebSocket）
 const handleAlertNew = (alert: AlertNewEvent) => {
 	// 檢查是否已存在
-	if (alerts.value.find((a) => a.id === alert.id)) return
+	if (alerts.value.find((a) => getAlertKey(a) === getAlertKey(alert))) return
 
 	// 檢查是否符合篩選條件
 	if (!matchesFilters(alert)) {
@@ -570,7 +388,7 @@ const handleAlertNew = (alert: AlertNewEvent) => {
 // 處理警報更新事件（WebSocket）
 const handleAlertUpdated = (data: AlertUpdatedEvent) => {
 	const { alert, oldStatus, newStatus } = data
-	const index = alerts.value.findIndex((a) => a.id === alert.id)
+	const index = alerts.value.findIndex((a) => getAlertKey(a) === getAlertKey(alert))
 	const matches = matchesFilters(alert)
 
 	if (index !== -1) {
@@ -681,40 +499,17 @@ const goToNextPage = () => {
 	nextPage({})
 }
 
-// Badge 基礎樣式類
-const badgeBaseClass =
-	"inline-block rounded-full px-3 py-1 text-base font-semibold text-white 2xl:px-4 2xl:py-1.5"
-
-// 獲取來源顯示名稱
-const getSourceDisplayName = (alert: Alert): string =>
-	alert.source_name || `${getSourceLabel(alert.source)} #${alert.source_id}`
-
-// 獲取區域名稱
-const getZoneName = (alert: Alert): string => alert.zone_name || ""
-
-// 取得警示卡片樣式
-const getAlertCardClass = (alert: Alert) => {
-	if (isAlertResolved(alert)) {
-		return "border-green-500/30 bg-green-500/5"
-	}
-	if (isAlertIgnored(alert)) {
-		return "border-gray-500/30 bg-gray-500/5"
-	}
-
-	const severityClasses: Record<string, string> = {
-		warning: "border-yellow-500/30 bg-yellow-500/5",
-		error: "border-orange-500/30 bg-orange-500/5",
-		critical: "border-red-500/30 bg-red-500/5",
-	}
-
-	return severityClasses[alert.severity] || "border-white/20 bg-white/5"
-}
-
 // 監聽篩選條件變化
 watch([filterStatus, filterSource, filterStartDate, filterEndDate], () => {
 	resetPage()
 	load({})
 	loadUnresolvedCount()
+})
+
+watch(isAdmin, (admin) => {
+	if (!admin && currentMode.value === "rules") {
+		currentMode.value = "alerts"
+	}
 })
 
 // 初始化時間範圍為「今天」（使用統一的時間工具）

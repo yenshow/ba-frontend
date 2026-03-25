@@ -90,13 +90,10 @@
 							<div class="location-dot-wrapper" :style="getLightingLocationStyle(location)">
 								<div
 									class="location-dot"
-									:class="{ 'is-active': selectedLocation === location.id }"
-									role="button"
-									tabindex="0"
 									:data-status="isLocationNormal(location) ? 'normal' : 'abnormal'"
 									:title="`${location.name}：${isLocationNormal(location) ? '正常' : '異常'}`"
+									role="img"
 									:aria-label="`${location.name}：${isLocationNormal(location) ? '正常' : '異常'}`"
-									@click.stop="selectLocation(location)"
 								></div>
 								<CategoryTooltip
 									:show="true"
@@ -234,9 +231,7 @@ const zones = ref<UnifiedZone[]>([])
 const isLoading = ref(false)
 const isInitialLoading = ref(true)
 
-// 選中的區域與地點
 const selectedZone = ref<string>("")
-const selectedLocation = ref<string>("")
 // 選中的系統類型（用於篩選）
 const selectedSystemType = ref<SystemType | null>(null)
 
@@ -316,9 +311,10 @@ const currentZoneLocations = computed(() => {
 const {
 	handleSaveZone: baseHandleSaveZone,
 	handleDeleteZone: baseHandleDeleteZone,
-	findEarliestZone,
 	sortZones,
 } = useZoneManagement<UnifiedZone>()
+
+const firstZoneByDisplayOrder = (zs: UnifiedZone[]) => sortZones(zs)[0] ?? null
 
 // 載入區域列表
 const loadZones = async () => {
@@ -327,15 +323,10 @@ const loadZones = async () => {
 		const response = await locationApi.getZones()
 		zones.value = response.zones
 
-		// 如果沒有選中的區域且有區域資料，優先選擇最先創建的
+		// 若尚未選區域，依 sort_order／名稱慣例選排序後第一個
 		if (!selectedZone.value && zones.value.length > 0) {
-			const earliestZone = findEarliestZone(zones.value)
-			if (earliestZone) {
-				selectedZone.value = earliestZone.id
-			} else {
-				// 如果無法判斷，選擇第一個
-				selectedZone.value = zones.value[0].id
-			}
+			const first = firstZoneByDisplayOrder(zones.value)
+			if (first?.id) selectedZone.value = first.id
 		}
 	} catch (error) {
 		handleError(error, "載入區域列表失敗")
@@ -347,7 +338,6 @@ const loadZones = async () => {
 // 處理區域選擇
 const handleZoneSelected = (zoneId: string) => {
 	selectedZone.value = zoneId
-	selectedLocation.value = ""
 	// 切換區域時重置系統篩選
 	selectedSystemType.value = null
 }
@@ -361,11 +351,6 @@ const handleSystemTypeToggle = (systemType: SystemType) => {
 		// 否則選中該系統類型
 		selectedSystemType.value = systemType
 	}
-}
-
-// 選中地點
-const selectLocation = (location: UnifiedLocation) => {
-	selectedLocation.value = location.id
 }
 
 // 系統類型標籤映射（提取為常數，避免重複定義）
@@ -419,7 +404,7 @@ const handleSaveZone = async (zone: UnifiedZone) => {
 const handleDeleteZone = async (zoneId: string) => {
 	await baseHandleDeleteZone(zoneId, zones, locationApi.deleteZone, {
 		selectedZoneRef: selectedZone,
-		findEarliestZone,
+		findEarliestZone: firstZoneByDisplayOrder,
 		reloadZones: loadZones, // 刪除後重新載入所有系統的區域資料
 	})
 }

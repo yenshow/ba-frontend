@@ -54,11 +54,13 @@ export interface LightingSystemConfig {
 	};
 }
 
-/** 排水狀態點位（對應後端 status_points） */
+/** 排水狀態點位（對應後端 status_points）；可每點獨立指定控制器 */
 export interface DrainageStatusPointDef {
 	registerType: "coil" | "discrete" | "holding" | "input";
 	address: number;
 	length?: number;
+	/** 若省略則使用地點層級的 deviceId */
+	deviceId?: number;
 }
 
 /**
@@ -69,7 +71,8 @@ export interface DrainageSystemConfig {
 	location?: { x: number; y: number };
 	modbus?: LightingSystemConfig["modbus"];
 	equipmentKind?: "pump" | "tank";
-	viewCategory?: "pumping" | "sewage" | "drainage";
+	/** 檢視分類（使用者自訂字串；舊資料可能為 pumping／sewage／drainage） */
+	viewCategory?: string;
 	statusPoints?: Record<string, DrainageStatusPointDef>;
 }
 
@@ -116,6 +119,8 @@ export interface UnifiedZone {
 	buildingId?: number;
 	imageUrl?: string; // 照明系統專用
 	description?: string;
+	/** 區域排序（小者在前），由後端與區域表單維護 */
+	sortOrder?: number;
 	locations: UnifiedLocation[];
 }
 
@@ -127,6 +132,10 @@ export interface UnifiedLocation {
 	zoneId: string;
 	name: string;
 	description?: string;
+	/** 地點列建立時間（ISO 8601），供前端排序；未持久化前可由前端填入 */
+	createdAt?: string;
+	/** 同區域內地點排序（小者在前） */
+	sortOrder?: number;
 	systems: LocationSystem[];
 }
 

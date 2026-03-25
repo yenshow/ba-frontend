@@ -10,17 +10,19 @@
 							{{ selectedZoneName }}
 						</span>
 					</div>
+
 					<Transition name="fade-in">
 						<button
 							v-if="!isInitialLoading && isOperator"
 							type="button"
 							class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base font-light text-white transition-all hover:bg-white/10 2xl:text-lg"
 							title="樓層管理"
-							@click="handleOpenZoneDialog"
+							@click="emit('open-zone-management')"
 						>
 							樓層管理
 						</button>
 					</Transition>
+
 					<div class="relative">
 						<Transition name="fade-in">
 							<button
@@ -32,28 +34,15 @@
 										? 'border-2 border-white bg-white/10'
 										: 'border-2 border-white/30 bg-transparent',
 								]"
-								@click="handleToggleEditMode"
+								@click="emit('toggle-edit-mode')"
 							>
-								{{ isEditMode ? "完成編輯" : "編輯定位" }}
+								{{ isEditMode ? "完成編輯" : "編輯點位" }}
 							</button>
 						</Transition>
 						<Transition name="dropdown">
 							<CategoryList
 								v-if="isEditMode"
-								:categories="
-									allZoneLocations.map((location, index) => ({
-										id: getLightingLocationId(
-											selectedZoneData || ({} as LightingZone),
-											location,
-											index
-										),
-										name: location.name,
-										zoneId: selectedZone || '',
-										location: location.location,
-										roomIds: [],
-										modbus: location.modbus,
-									}))
-								"
+								:categories="editModeCategoryListItems"
 								:editing="isEditMode"
 								:selected-category-id="selectedCategory"
 								@select="handleSelectCategory"
@@ -80,49 +69,47 @@
 					:class="{ 'image-loaded': isZonePlanLoaded }"
 					width="auto"
 					height="full"
-					@load="handleZonePlanImageLoad"
+					@load="isZonePlanLoaded = true"
 				/>
 				<div v-else class="flex h-full w-full items-center justify-center text-white/50">
 					<span>尚未設定區域平面圖</span>
 				</div>
-				<template v-for="location in currentZoneLocations" :key="getLocationIdForDisplay(location)">
+
+				<template
+					v-for="location in filteredZoneLocations"
+					:key="getLocationIdForDisplay(location)"
+				>
 					<div
 						v-if="selectedZoneData && location.location"
 						class="category-dot-wrapper"
-						:class="{
-							'is-dragging': draggingCategoryId === getLocationIdForDisplay(location),
-						}"
-						:style="{
-							left: `${location.location.x}%`,
-							top: `${location.location.y}%`,
-						}"
+						:class="{ 'is-dragging': draggingCategoryId === getLocationIdForDisplay(location) }"
+						:style="{ left: `${location.location.x}%`, top: `${location.location.y}%` }"
 						:draggable="isEditMode"
 						@dragstart="
 							handleDotDragStart(
 								$event,
 								location,
-								findLightingLocationIndexInZone(selectedZoneData!, location)
+								findLocationOriginalIndex(selectedZoneData, location)
 							)
 						"
 						@dragend="handleDragEnd"
 					>
 						<div
 							class="category-dot"
-							:class="[{ 'is-editing': isEditMode }]"
+							:class="[{ 'is-editing': isEditMode }, getLocationAlertFlashClass(location)]"
 							role="button"
 							tabindex="0"
-							:data-status="
-								isLocationNormal(getLocationIdForDisplay(location)) ? 'normal' : 'abnormal'
-							"
-							:title="`${location.name}：${isLocationNormal(getLocationIdForDisplay(location)) ? '正常' : '異常'}`"
-							:aria-label="`${location.name}：${isLocationNormal(getLocationIdForDisplay(location)) ? '正常' : '異常'}`"
-							@click.stop="!isEditMode && handleSelectLocationByLocation(location)"
+							:data-status="dotStatusForLocation(location)"
+							:title="tooltipTitle(location)"
+							:aria-label="tooltipTitle(location)"
+							@click.stop="!isEditMode && emit('select-location-by-location', location)"
 						></div>
 						<CategoryTooltip
 							:show="true"
 							:category-name="location.name"
-							:is-normal="isLocationNormal(getLocationIdForDisplay(location))"
-							:alert-flash="getLocationAlertFlashForTooltip(location)"
+							:is-normal="getTooltipStatusType(location) === 'normal'"
+							:status-type="getTooltipStatusType(location)"
+							:alert-flash="getLocationAlertFlash ? getLocationAlertFlash(location) : 'none'"
 						/>
 					</div>
 				</template>
@@ -135,8 +122,7 @@
 import { nextTick, onBeforeUnmount, onMounted, watch } from "vue"
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
 import CategoryList from "~/components/common/CategoryList.vue"
-import type { LightingLocation, LightingZone } from "~/types/lighting"
-import { findLightingLocationIndexInZone, getLightingLocationId } from "~/utils/lightingLocation"
+import type { DrainageLocation, DrainageZone } from "~/types/drainage"
 
 interface Props {
 	selectedZoneName: string
@@ -144,14 +130,14 @@ interface Props {
 	isOperator: boolean
 	isEditMode: boolean
 	selectedZone: string
-	selectedZoneData: LightingZone | undefined
+	selectedZoneData: DrainageZone | undefined
 	selectedCategory: string
-	allZoneLocations: LightingLocation[]
-	currentZoneLocations: LightingLocation[]
+	filteredZoneLocations: DrainageLocation[]
 	zonePlanImage: string | undefined
-	isLocationNormal: (locationId: string) => boolean
-	/** 與 StatusCenter／環境頁警報閃爍語意一致；未傳則平面圖點位不套用透明度閃爍 */
-	getLocationAlertFlash?: (locationId: string) => "none" | "slow" | "fast"
+	dotStatusForLocation: (loc: DrainageLocation) => "normal" | "abnormal" | "alarm"
+	/** 與監控中心一致：正常不閃，其餘慢閃 */
+	getLocationAlertFlash?: (loc: DrainageLocation) => "none" | "slow" | "fast"
+	tooltipTitle: (loc: DrainageLocation) => string
 }
 
 const props = defineProps<Props>()
@@ -161,7 +147,7 @@ const emit = defineEmits<{
 	"toggle-edit-mode": []
 	"select-category": [locationId: string]
 	"save-location-position": [payload: { locationId: string; x: number; y: number }]
-	"select-location-by-location": [location: LightingLocation]
+	"select-location-by-location": [location: DrainageLocation]
 	"section-height": [height: number]
 }>()
 
@@ -169,61 +155,87 @@ const sectionRef = ref<HTMLElement | null>(null)
 const zonePlanRef = ref<HTMLElement | null>(null)
 const draggingCategoryId = ref("")
 const isZonePlanLoaded = ref(false)
-
 let sectionResizeObserver: ResizeObserver | null = null
 
 const updateSectionHeight = () => {
-	if (sectionRef.value) {
-		emit("section-height", sectionRef.value.offsetHeight)
-	}
+	if (sectionRef.value) emit("section-height", sectionRef.value.offsetHeight)
 }
 
 const initSectionObserver = () => {
 	if (typeof ResizeObserver === "undefined" || !sectionRef.value) return
 	sectionResizeObserver = new ResizeObserver((entries) => {
-		if (entries.length) {
-			emit("section-height", entries[0].contentRect.height)
-		}
+		if (entries.length) emit("section-height", entries[0].contentRect.height)
 	})
 	sectionResizeObserver.observe(sectionRef.value)
 }
 
-const handleOpenZoneDialog = () => {
-	emit("open-zone-management")
+const getLocationId = (
+	zone: DrainageZone,
+	location: DrainageLocation,
+	locationIndex: number
+): string => {
+	return location.id || `location-${zone.id || zone.name}-${locationIndex}`
 }
 
-const handleToggleEditMode = () => {
-	emit("toggle-edit-mode")
+const findLocationOriginalIndex = (zone: DrainageZone, target: DrainageLocation) => {
+	return zone.locations.findIndex((location) => {
+		if (location.id && target.id) return location.id === target.id
+		return location === target
+	})
 }
+
+const getLocationIdForDisplay = (location: DrainageLocation): string => {
+	const zone = props.selectedZoneData
+	if (!zone) return ""
+	const idx = findLocationOriginalIndex(zone, location)
+	return idx !== -1 ? getLocationId(zone, location, idx) : ""
+}
+
+const getLocationAlertFlashClass = (location: DrainageLocation): string => {
+	const mode = props.getLocationAlertFlash?.(location) ?? "none"
+	if (mode === "fast") return "blink-alarm-fast"
+	if (mode === "slow") return "blink-slow"
+	return ""
+}
+
+const getTooltipStatusType = (location: DrainageLocation): "normal" | "abnormal" | "alarm" => {
+	const dotStatus = props.dotStatusForLocation(location)
+	if (dotStatus === "alarm") return "alarm"
+	if (dotStatus === "abnormal") return "abnormal"
+	return "normal"
+}
+
+/** 與平面圖點位一致：僅目前檢視分類，且 id 使用 zone.locations 原始索引 */
+const editModeCategoryListItems = computed(() => {
+	const zone = props.selectedZoneData
+	if (!zone) return []
+	return props.filteredZoneLocations
+		.map((location) => {
+			const idx = findLocationOriginalIndex(zone, location)
+			if (idx === -1) return null
+			return {
+				id: getLocationId(zone, location, idx),
+				name: location.name,
+				zoneId: props.selectedZone || "",
+				location: location.location,
+				roomIds: [] as string[],
+				modbus: location.modbus,
+			}
+		})
+		.filter((item): item is NonNullable<typeof item> => item != null)
+})
 
 const handleSelectCategory = (locationId: string) => {
 	emit("select-category", locationId)
 }
 
-const getLocationIdForDisplay = (location: LightingLocation): string => {
-	const zone = props.selectedZoneData
-	if (!zone) return ""
-	const originalIndex = findLightingLocationIndexInZone(zone, location)
-	return originalIndex !== -1 ? getLightingLocationId(zone, location, originalIndex) : ""
-}
-
-const getLocationAlertFlashForTooltip = (location: LightingLocation) => {
-	const id = getLocationIdForDisplay(location)
-	if (!id || !props.getLocationAlertFlash) return "none" as const
-	return props.getLocationAlertFlash(id)
-}
-
-const handleSelectLocationByLocation = (location: LightingLocation) => {
-	emit("select-location-by-location", location)
-}
-
 const handleDotDragStart = (
 	event: DragEvent,
-	location: LightingLocation,
+	location: DrainageLocation,
 	locationIndex: number
 ) => {
 	if (!props.isEditMode || !props.selectedZoneData) return
-	const locationId = getLightingLocationId(props.selectedZoneData, location, locationIndex)
+	const locationId = getLocationId(props.selectedZoneData, location, locationIndex)
 	startDrag(event, locationId)
 }
 
@@ -236,9 +248,7 @@ const startDrag = (event: DragEvent, locationId: string, fromCategoryList = fals
 	draggingCategoryId.value = locationId
 	event.dataTransfer!.effectAllowed = "move"
 	event.dataTransfer!.setData("locationId", locationId)
-	if (fromCategoryList) {
-		event.dataTransfer!.setData("fromCategoryList", "true")
-	}
+	if (fromCategoryList) event.dataTransfer!.setData("fromCategoryList", "true")
 }
 
 const handleDragEnd = () => {
@@ -247,21 +257,14 @@ const handleDragEnd = () => {
 
 const handleDrop = (event: DragEvent) => {
 	if (!props.isEditMode || !zonePlanRef.value) return
-
 	event.preventDefault()
 	const locationId = event.dataTransfer?.getData("locationId")
 	if (!locationId) return
-
 	const rect = zonePlanRef.value.getBoundingClientRect()
 	const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100))
 	const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100))
-
 	emit("save-location-position", { locationId, x, y })
 	draggingCategoryId.value = ""
-}
-
-const handleZonePlanImageLoad = () => {
-	isZonePlanLoaded.value = true
 }
 
 watch(
@@ -273,9 +276,7 @@ watch(
 
 onMounted(() => {
 	initSectionObserver()
-	nextTick(() => {
-		updateSectionHeight()
-	})
+	nextTick(updateSectionHeight)
 })
 
 onBeforeUnmount(() => {

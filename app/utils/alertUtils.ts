@@ -1,5 +1,44 @@
 import type { AlertSource, AlertType, AlertSeverity } from "~/types/alert";
 
+/** 與環境／照明監控一致：透明度脈動頻率（對應 tailwind.css `.blink-slow` / `.blink-fast`、地圖點 `.alert-dot-flash-*`） */
+export type AlertFlashMode = "none" | "slow" | "fast";
+
+/** 監控 UI 常用健康狀態（Modbus／地點狀態列舉） */
+export type UiHealthStatus = "normal" | "warning" | "error";
+
+/**
+ * 健康狀態 → 閃爍節奏
+ * @param whenAbsent 未帶 `status` 時：`fast` ＝監控卡片視為需強調（與 StatusCenter 一致）；`none` ＝不閃（例如平面圖點位尚未寫入狀態）
+ */
+export const healthStatusToAlertFlash = (
+	status: UiHealthStatus | undefined | null,
+	options?: { whenAbsent?: "none" | "fast" }
+): AlertFlashMode => {
+	const absent = options?.whenAbsent ?? "fast";
+	if (status === "normal") return "none";
+	if (status === "warning") return "slow";
+	if (status === "error") return "fast";
+	return absent === "fast" ? "fast" : "none";
+};
+
+/** 警報嚴重度（後端 Alert）→ 閃爍節奏，供環境／設備列表等複用 */
+export const alertSeverityToAlertFlash = (
+	severity: AlertSeverity | undefined | null
+): AlertFlashMode => {
+	if (severity === "warning") return "slow";
+	if (severity === "error" || severity === "critical") return "fast";
+	return "none";
+};
+
+/**
+ * 平面圖點位（category-dot／location-dot）專用 class；需父層在 `.map-location-dots` 內
+ */
+export const alertFlashModeToMapDotClass = (mode: AlertFlashMode): string => {
+	if (mode === "slow") return "alert-dot-flash-slow";
+	if (mode === "fast") return "alert-dot-flash-fast";
+	return "";
+};
+
 /**
  * 取得系統來源標籤
  */
