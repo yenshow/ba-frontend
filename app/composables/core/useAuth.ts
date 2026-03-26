@@ -1,5 +1,5 @@
 import type { User, LoginCredentials } from "~/types/user";
-import { useUserApi } from "~/composables/systems/useUserApi";
+import { useUserApi } from "~/composables/systems/users/useUserApi";
 
 export const useAuth = () => {
 	const userApi = useUserApi();

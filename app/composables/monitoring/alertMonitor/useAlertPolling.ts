@@ -5,7 +5,7 @@
 
 import type { Alert, AlertFilters } from "~/types/alert";
 import { logger } from "~/utils/logger";
-import { useAlertApi } from "~/composables/systems/useAlertApi";
+import { useAlertApi } from "~/composables/systems/alerts/useAlertApi";
 import { useErrorHandler, ErrorPriority } from "~/composables/core/useErrorHandler";
 import { getTodayDateRangeUTC } from "~/utils/dateUtils";
 

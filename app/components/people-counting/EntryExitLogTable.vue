@@ -154,7 +154,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick } from "vue";
 import type { PeopleCountingLog } from "~/types/peopleCounting";
-import { useExternalDataApi } from "~/composables/systems/useExternalDataApi";
+import { useExternalDataApi } from "~/composables/systems/externalData/useExternalDataApi";
 import { convertBase64ToImageUrl } from "~/utils/imageUtils";
 import { formatDate, formatTime } from "~/utils/dateUtils";
 import { resolveUploadUrl } from "~/utils/apiUtils";

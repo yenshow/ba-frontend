@@ -239,21 +239,18 @@ import SimulationFrame from "~/components/common/SimulationFrame.vue";
 import PeopleCountingSimulation from "~/components/people-counting/PeopleCountingSimulation.vue";
 import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState";
 import { usePeopleCountingWebSocket } from "~/composables/systems/peopleCounting/usePeopleCountingWebSocket";
-import { usePeopleCountingLocationApi } from "~/composables/systems/location/usePeopleCountingLocationApi";
-import { useZoneManagement } from "~/composables/systems/useZoneManagement";
-import { useLocationApi } from "~/composables/systems/location/useLocationApi";
+import { usePeopleCountingLocationApi } from "~/composables/location/api/usePeopleCountingLocationApi";
+import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
+import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { unifiedToPeopleCountingZone } from "~/utils/locationAdapter";
-import { useZoneSystemAdapter } from "~/composables/systems/useZoneSystemAdapter";
+import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter";
 import type { UnifiedZone } from "~/types/location";
-import { usePeopleCountingApi } from "~/composables/systems/usePeopleCountingApi";
+import { usePeopleCountingApi } from "~/composables/systems/peopleCounting/usePeopleCountingApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useAuth } from "~/composables/core/useAuth";
 import type { PeopleCountingUnit, PeopleCountingPersonnel } from "~/types/peopleCounting";
 import { getTodayDateRangeUTC } from "~/utils/dateUtils";
-import {
-	firstFlatSiteMatchingSortedZoneLocations,
-	sortFlatSitesBySortedZoneLocations
-} from "~/utils/sortOrder";
+import { firstFlatSiteMatchingSortedZoneLocations } from "~/utils/sortOrder";
 
 const { isOperator } = useAuth();
 
@@ -280,14 +277,13 @@ const selectedUnitName = ref("");
 const unitPersonnel = ref<PeopleCountingPersonnel[]>([]);
 const isLoadingUnitPersonnel = ref(false);
 
-// 右側總覽：依 zones/locations 排序後再補 zone 名稱（UI 順序要跟「上下調整」一致）
-const locationsForOverview = computed(() => {
-	const ordered = sortFlatSitesBySortedZoneLocations(peopleCountingZones.value, locations.value);
-	return ordered.map(location => ({
+// 右側總覽：顯示 zone 名稱（不影響詳情載入）
+const locationsForOverview = computed(() =>
+	locations.value.map(location => ({
 		...location,
 		overviewZoneName: getLocationZone(location)
-	}));
-});
+	}))
+);
 
 // 計算在場人數：所有單位的 currentCount 總和
 const currentCount = computed(() => {
@@ -437,7 +433,7 @@ let cleanupWebSocket: (() => void) | null = null;
 const peopleCountingLocationApi = usePeopleCountingLocationApi();
 const locationApi = useLocationApi();
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
-	useZoneManagement<PeopleCountingZone>();
+	useZoneManagement<PeopleCountingLocation, PeopleCountingZone>();
 
 // 處理儲存區域
 const handleSaveZone = async (zone: PeopleCountingZone) => {
@@ -483,19 +479,6 @@ const handleDeleteZone = async (zoneId: string) => {
 		getLocationId,
 		// 系統特定的刪除選項
 		systemType: "people_counting",
-		getFullZoneApiCall: (id: string) => locationApi.getZone(id),
-		updateZoneApiCall: async (id: string, data: { locations: UnifiedZone["locations"] }) => {
-			const response = await locationApi.updateZone(id, { locations: data.locations });
-			const peopleCountingZone = unifiedToPeopleCountingZone(response.zone);
-			// 確保返回的 zone 有 id
-			return {
-				merged: response.merged,
-				message: response.message,
-				zone: { ...peopleCountingZone, id: peopleCountingZone.id || id } as PeopleCountingZone & {
-					id: string;
-				}
-			};
-		},
 		// 刪除後重新載入區域與地點列表（確保 UI 立即反映刪除結果）
 		onAfterDelete: async () => {
 			await loadZones();
@@ -516,8 +499,6 @@ const handleOpenLocationDialog = async () => {
 
 // 處理單位點擊事件（打開人員對話框）
 const handleUnitClick = async (unit: PeopleCountingUnit) => {
-	// 攝影機人流：目前不提供單位/人員名單
-	if (selectedLocation.value?.dataSource === "camera_isapi") return;
 	if (!unit || !unit.name) return;
 
 	selectedUnitName.value = unit.name;
@@ -590,9 +571,12 @@ onMounted(async () => {
 		}
 
 		if (!selectedLocation.value && locations.value.length > 0) {
+			const locationsWithId = locations.value.filter(
+				(l): l is (typeof l & { locationId: number }) => l.locationId != null
+			);
 			const hit = firstFlatSiteMatchingSortedZoneLocations(
 				peopleCountingZones.value,
-				locations.value
+				locationsWithId
 			);
 			if (hit?.locationId != null) {
 				await handleLocationSelect(hit.locationId);

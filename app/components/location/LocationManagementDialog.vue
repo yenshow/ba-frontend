@@ -66,7 +66,7 @@
 												<input
 													ref="fileInputRef"
 													type="file"
-													accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+													:accept="ZONE_IMAGE_ACCEPT_ATTR"
 													class="hidden"
 													@change="handleZoneImageChange"
 												/>
@@ -74,7 +74,7 @@
 													v-if="pendingZone.imageUrl"
 													type="button"
 													class="btn-secondary text-sm 2xl:text-base"
-													@click.stop="viewZoneImage(pendingZone.imageUrl)"
+													@click.stop="openZoneSchematicPreview(pendingZone.imageUrl)"
 												>
 													查看示意圖
 												</button>
@@ -123,7 +123,7 @@
 											<div v-else class="space-y-2">
 												<div
 													v-for="(location, locationIndex) in pendingZone.locations"
-													:key="location.id || `location-${locationIndex}`"
+													:key="getLocationUiKey({ zone: pendingZone, location, locationIndex })"
 													class="flex min-w-0 items-end gap-2 rounded border border-white/10 bg-white/5 p-2"
 												>
 													<label
@@ -217,8 +217,12 @@ import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
-import { useLocationApi } from "~/composables/systems/location/useLocationApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import { ZONE_IMAGE_ACCEPT_ATTR } from "~/constants/zoneImage"
+import { useZoneImageUpload } from "~/composables/location/ui/useZoneImageUpload"
+import { openZoneSchematicPreview } from "~/composables/location/ui/useZoneImagePreview"
+import { removeLocationFromSystemOrDelete } from "~/utils/locationCrudHelpers"
+import { getLocationUiKey } from "~/utils/locationUiId"
 
 interface Props {
 	modelValue: boolean;
@@ -237,11 +241,20 @@ const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
 const errorMessage = ref("");
-const fileInputRef = ref<HTMLInputElement | null>(null);
 const pendingZone = ref<UnifiedZone | null>(null);
 
-const locationApi = useLocationApi();
 const { handleError } = useErrorHandler();
+
+const { fileInputRef, triggerImageInput: triggerZoneImageInput, handleZoneImageChange } = useZoneImageUpload({
+	onImageReady: (imageUrl) => {
+		if (!pendingZone.value) return
+		pendingZone.value.imageUrl = imageUrl
+		errorMessage.value = ""
+	},
+	onError: (message) => {
+		errorMessage.value = message
+	},
+})
 
 // 檢查是否有未保存的變更
 const hasUnsavedChanges = computed(() => {
@@ -339,84 +352,9 @@ const updateZoneName = (newName: string) => {
 	pendingZone.value.name = newName.trim();
 };
 
-const triggerZoneImageInput = () => {
-	fileInputRef.value?.click();
-};
-
-const handleZoneImageChange = (event: Event) => {
-	const target = event.target as HTMLInputElement;
-	if (!target.files?.[0] || !pendingZone.value) return;
-
-	processZoneImageFile(target.files[0]);
-	target.value = "";
-};
-
-const processZoneImageFile = (file: File) => {
-	if (!pendingZone.value) return;
-
-	const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"];
-	if (!validTypes.includes(file.type)) {
-		errorMessage.value = "不支援的檔案格式，請上傳 PNG、JPG、GIF 或 WEBP 格式的圖片";
-		return;
-	}
-
-	const maxSize = 10 * 1024 * 1024;
-	if (file.size > maxSize) {
-		errorMessage.value = "檔案大小超過 10MB，請選擇較小的圖片";
-		return;
-	}
-
-	const reader = new FileReader();
-	reader.onload = e => {
-		const result = e.target?.result as string;
-		if (result && pendingZone.value) {
-			pendingZone.value.imageUrl = result;
-			errorMessage.value = "";
-		}
-	};
-	reader.onerror = () => {
-		errorMessage.value = "讀取檔案失敗，請稍後再試";
-	};
-	reader.readAsDataURL(file);
-};
-
 const removeZoneImage = () => {
 	if (!pendingZone.value) return;
 	pendingZone.value.imageUrl = undefined;
-};
-
-const viewZoneImage = (imageUrl: string) => {
-	if (!imageUrl) return;
-	const newWindow = window.open();
-	if (newWindow) {
-		newWindow.document.write(`
-			<!DOCTYPE html>
-			<html>
-				<head>
-					<title>區域示意圖</title>
-					<style>
-						body {
-							margin: 0;
-							padding: 20px;
-							background: #1a1a1a;
-							display: flex;
-							justify-content: center;
-							align-items: center;
-							min-height: 100vh;
-						}
-						img {
-							max-width: 100%;
-							max-height: 100vh;
-							object-fit: contain;
-						}
-					</style>
-				</head>
-				<body>
-					<img src="${imageUrl}" alt="區域示意圖" />
-				</body>
-			</html>
-		`);
-	}
 };
 
 const addLocation = () => {
@@ -459,26 +397,12 @@ const handleConfirmDeleteLocation = async () => {
 	const location = pendingZone.value.locations?.[pendingDeleteLocationIndex.value];
 	const locationId = location && (location as any).id ? String((location as any).id) : null;
 
-	if (locationId) {
-		try {
-			if (props.systemType) {
-				const { location: fullLocation } = await locationApi.getLocation(locationId);
-				const otherSystems = (fullLocation.systems || []).filter(
-					(s: { systemType: string }) => s.systemType !== props.systemType
-				);
-				if (otherSystems.length === 0) {
-					await locationApi.deleteLocation(locationId);
-				} else {
-					await locationApi.updateLocation(locationId, { systems: otherSystems });
-				}
-			} else {
-				await locationApi.deleteLocation(locationId);
-			}
-		} catch (error) {
-			handleError(error, "刪除地點失敗");
-			pendingDeleteLocationIndex.value = null;
-			return;
-		}
+	try {
+		await removeLocationFromSystemOrDelete({ locationId, systemType: props.systemType })
+	} catch (error) {
+		handleError(error, "刪除地點失敗")
+		pendingDeleteLocationIndex.value = null
+		return
 	}
 
 	pendingZone.value.locations = pendingZone.value.locations.filter(

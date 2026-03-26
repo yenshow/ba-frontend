@@ -4,7 +4,7 @@
 
 import type { SurveillanceCamera } from "~/types/surveillance";
 import { logger } from "~/utils/logger";
-import { useSurveillanceApi } from "~/composables/systems/useSurveillanceApi";
+import { useSurveillanceApi } from "~/composables/systems/surveillance/useSurveillanceApi";
 
 const loggerSurveillance = logger.createLogger("Surveillance");
 

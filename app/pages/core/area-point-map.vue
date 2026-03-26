@@ -182,12 +182,12 @@
 
 <script setup lang="ts">
 import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location";
-import { useLocationApi } from "~/composables/systems/location/useLocationApi";
+import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useAuth } from "~/composables/core/useAuth";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { PERMISSIONS } from "~/constants/permissions";
-import { useZoneManagement } from "~/composables/systems/useZoneManagement";
+import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
 import { hasLightingCoordinates, getLightingLocationStyle } from "~/utils/locationAdapter";
 import LocationManagementDialog from "~/components/location/LocationManagementDialog.vue";
 import CategoryTooltip from "~/components/lighting/CategoryTooltip.vue";

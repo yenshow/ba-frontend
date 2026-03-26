@@ -151,7 +151,6 @@
 														:person-groups="personGroups"
 														:doors="doors"
 														:access-control-devices="accessControlDevices"
-														:camera-devices="cameraDevices"
 														:reorderable-locations="true"
 														@add-location="() => addLocation(zone)"
 														@remove-location="(index: number) => removeLocation(getZoneId(zone), index)"
@@ -223,11 +222,11 @@ import type { Device } from "~/types/device";
 import type {
 	SystemZoneType,
 	SystemLocationType
-} from "~/composables/systems/useZoneSystemAdapter";
-import { useZoneSystemAdapter } from "~/composables/systems/useZoneSystemAdapter";
-import { useZoneValidation } from "~/composables/systems/useZoneValidation";
-import { useDeviceApi } from "~/composables/systems/useDeviceApi";
-import { useExternalDataApi } from "~/composables/systems/useExternalDataApi";
+} from "~/composables/location/adapters/useZoneSystemAdapter";
+import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter";
+import { useZoneValidation } from "~/composables/location/validation/useZoneValidation";
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
+import { useExternalDataApi } from "~/composables/systems/externalData/useExternalDataApi";
 import ZoneFormFields from "./ZoneFormFields.vue";
 import EnvironmentLocationManagement from "./LocationManagement/EnvironmentLocationManagement.vue";
 import LightingLocationManagement from "./LocationManagement/LightingLocationManagement.vue";
@@ -237,7 +236,7 @@ import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import { nextTick, type Component } from "vue";
-import { useLocationApi } from "~/composables/systems/location/useLocationApi";
+import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import {
 	compareZoneRowsForDialog,
@@ -410,7 +409,6 @@ const doors = ref<
 	Array<{ id: number; device_id: number; dev_name: string; door_index: number; is_deleted?: number }>
 >([]);
 const accessControlDevices = ref<Device[]>([]);
-const cameraDevices = ref<Device[]>([]);
 
 // 地點管理組件映射
 const locationManagementComponentMap: Record<SystemType, Component> = {
@@ -490,23 +488,6 @@ const loadAccessControlDevices = async () => {
 	}
 };
 
-// 載入攝影機設備列表（僅用於人流統計系統「攝影機」資料來源）
-const loadCameraDevices = async () => {
-	if (props.systemType !== "people_counting") return;
-
-	try {
-		const result = await deviceApi.getDevices({
-			type_code: "camera",
-			status: "active",
-			limit: 200
-		});
-		cameraDevices.value = result.devices || [];
-	} catch (error) {
-		console.error("載入攝影機設備列表失敗:", error);
-		cameraDevices.value = [];
-	}
-};
-
 // 當對話框打開時載入設備列表和相關資料
 watch(
 	() => props.modelValue,
@@ -518,7 +499,6 @@ watch(
 				loadPersonGroups();
 				loadDoors();
 				loadAccessControlDevices();
-				loadCameraDevices();
 			}
 			pendingChanges.value.clear();
 			expandedZones.value.clear();

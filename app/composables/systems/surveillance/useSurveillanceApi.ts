@@ -1,0 +1,83 @@
+import type {
+	Device,
+	CameraDeviceConfig,
+	DeviceStreamStartResponse,
+	DeviceStreamStatusResponse
+} from "~/types/device";
+import type { SurveillanceCamera } from "~/types/surveillance";
+import { logger } from "~/utils/logger";
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
+
+const surveillanceLogger = logger.createLogger("Surveillance API");
+
+export const useSurveillanceApi = () => {
+	const deviceApi = useDeviceApi();
+
+	const getCameraDevices = async (): Promise<Device[]> => {
+		try {
+			const response = await deviceApi.getDevices({
+				type_code: "camera"
+			});
+			return response.devices || [];
+		} catch (error) {
+			surveillanceLogger.error("獲取攝影機設備失敗", { error });
+			throw error;
+		}
+	};
+
+	const getCamerasWithStreamInfo = async (): Promise<SurveillanceCamera[]> => {
+		try {
+			const devices = await getCameraDevices();
+			return devices
+				.filter(
+					(device): device is Device & { config: CameraDeviceConfig } =>
+						device.config?.type === "camera"
+				)
+				.map(device => ({
+					...device,
+					config: device.config as CameraDeviceConfig
+				}));
+		} catch (error) {
+			surveillanceLogger.error("獲取攝影機列表失敗", { error });
+			throw error;
+		}
+	};
+
+	const startCameraStream = async (deviceId: number): Promise<DeviceStreamStartResponse> => {
+		try {
+			return await deviceApi.startStream(deviceId);
+		} catch (error) {
+			surveillanceLogger.error("啟動串流失敗", { deviceId, error });
+			throw error;
+		}
+	};
+
+	const stopCameraStream = async (deviceId: number): Promise<void> => {
+		try {
+			await deviceApi.stopStream(deviceId);
+		} catch (error) {
+			surveillanceLogger.error("停止串流失敗", { deviceId, error });
+			throw error;
+		}
+	};
+
+	const getCameraStreamStatus = async (
+		deviceId: number
+	): Promise<DeviceStreamStatusResponse> => {
+		try {
+			return await deviceApi.getStreamStatus(deviceId);
+		} catch (error) {
+			surveillanceLogger.error("查詢串流狀態失敗", { deviceId, error });
+			throw error;
+		}
+	};
+
+	return {
+		getCameraDevices,
+		getCamerasWithStreamInfo,
+		startCameraStream,
+		stopCameraStream,
+		getCameraStreamStatus
+	};
+};
+

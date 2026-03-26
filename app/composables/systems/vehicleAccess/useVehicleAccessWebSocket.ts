@@ -2,7 +2,7 @@
  * 車輛進出 WebSocket（yscp:event:vehicle → 重新載入列表與總覽）
  */
 
-import type { YscpEventPayload } from "~/composables/websocket/useWebSocket";
+import type { YscpEventPayload } from "~/types/websocket";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import { logger } from "~/utils/logger";
 import { ref, watch } from "vue";

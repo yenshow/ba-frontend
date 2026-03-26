@@ -208,18 +208,18 @@ import OverviewLocationCard from "~/components/environment/OverviewLocationCard.
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
 import SimulationFrame from "~/components/common/SimulationFrame.vue";
 import EnvironmentSimulation from "~/components/environment/EnvironmentSimulation.vue";
-import { useDeviceApi } from "~/composables/systems/useDeviceApi";
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import { useApiBase } from "~/composables/core/useApiBase";
-import { useEnvironmentApi } from "~/composables/systems/useEnvironmentApi";
-import { useLocationApi } from "~/composables/systems/location/useLocationApi";
+import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi";
+import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { usePolling } from "~/composables/monitoring/usePolling";
-import { useZoneManagement } from "~/composables/systems/useZoneManagement";
+import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
 import { useAlertRules } from "~/composables/monitoring/useAlertRules";
 import { useAuth } from "~/composables/core/useAuth";
-import type { EnvironmentReadingNewEvent } from "~/composables/websocket/useWebSocket";
+import type { EnvironmentReadingNewEvent } from "~/types/websocket";
 import {
 	getParameterDisplayName,
 	getParameterUnit,
@@ -1495,18 +1495,6 @@ const handleDeleteZone = async (zoneId: string) => {
 		selectedLocationRef: selectedLocationId,
 		getLocationId,
 		systemType: "environment",
-		getFullZoneApiCall: (id: string) => locationApi.getZone(id),
-		updateZoneApiCall: async (id: string, data: { locations: UnifiedZone["locations"] }) => {
-			const response = await locationApi.updateZone(id, { locations: data.locations });
-			const environmentZone = unifiedToEnvironmentZone(response.zone);
-			return {
-				merged: response.merged,
-				message: response.message,
-				zone: { ...environmentZone, id: environmentZone.id || id } as EnvironmentZone & {
-					id: string;
-				}
-			};
-		},
 		onAfterDelete: async () => {
 			await loadZonesFromAPI();
 		}

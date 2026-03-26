@@ -153,7 +153,7 @@
 import { ref, watch, nextTick } from "vue";
 import type { VehicleDataLog } from "~/types/vehicleAccess";
 import { formatDate, formatTime } from "~/utils/dateUtils";
-import { useExternalDataApi } from "~/composables/systems/useExternalDataApi";
+import { useExternalDataApi } from "~/composables/systems/externalData/useExternalDataApi";
 import { convertBase64ToImageUrl } from "~/utils/imageUtils";
 
 interface Props {

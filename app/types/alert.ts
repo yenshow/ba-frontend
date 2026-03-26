@@ -1,5 +1,13 @@
 // 警報系統來源
-export type AlertSource = "device" | "environment" | "lighting" | "people_counting" | "hvac" | "fire" | "security";
+export type AlertSource =
+	| "device"
+	| "environment"
+	| "lighting"
+	| "people_counting"
+	| "drainage"
+	| "hvac"
+	| "fire"
+	| "security";
 
 export type AlertStatus = "active" | "resolved" | "ignored";
 
@@ -59,6 +67,7 @@ export interface AlertFilters {
 	source?: AlertSource;
 	source_id?: number;
 	device_id?: number;
+	exclude_sources?: AlertSource[];
 	alert_type?: AlertType;
 	dimension_key?: string;
 	severity?: AlertSeverity;

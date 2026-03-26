@@ -1,5 +1,5 @@
 import type { Alert } from "~/types/alert";
-import type { AlertNewEvent, AlertUpdatedEvent } from "~/composables/websocket/useWebSocket";
+import type { AlertNewEvent, AlertUpdatedEvent } from "~/types/websocket";
 import { useToast } from "~/composables/core/useToast";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import { useAlertPolling } from "~/composables/monitoring/alertMonitor/useAlertPolling";
@@ -8,9 +8,9 @@ import { useUnresolvedAlertCount } from "~/composables/monitoring/alertMonitor/u
 import { getSourceLabel, getSeverityLabel } from "~/utils/alertUtils";
 
 const sourceRouteMap: Partial<Record<string, string>> = {
-	device: "/core/equipment-management",
 	environment: "/construction-monitoring/environment",
 	lighting: "/infrastructure/lighting",
+	drainage: "/infrastructure/drainage",
 	people_counting: "/construction-monitoring/people-counting",
 	surveillance: "/construction-monitoring/surveillance",
 	vehicle_access: "/construction-monitoring/vehicle-access"
@@ -59,7 +59,7 @@ export const useAlertMonitor = () => {
 	const alertToastIds = useState<Record<string, string>>("alert-monitor:toast-ids", () => ({}));
 	const activeAlertKeys = useState<string[]>("alert-monitor:active-alert-keys", () => []);
 
-	const shouldProcessAlert = (alert: Alert) => isActiveAlert(alert);
+	const shouldProcessAlert = (alert: Alert) => isActiveAlert(alert) && alert.source !== "device";
 
 	const addActiveAlertKey = (key: string) => {
 		if (activeAlertKeys.value.includes(key)) return;

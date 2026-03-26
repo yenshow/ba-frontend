@@ -187,14 +187,14 @@ import CategoryTooltip from "~/components/lighting/CategoryTooltip.vue"
 import CategoryList from "~/components/lighting/CategoryList.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
 import type { CategoryModbusConfig, LightingZone, LightingLocation } from "~/types/lighting"
-import { useLightingApi } from "~/composables/systems/useLightingApi"
-import { useLocationApi } from "~/composables/systems/location/useLocationApi"
-import { useDeviceApi } from "~/composables/systems/useDeviceApi"
+import { useLightingApi } from "~/composables/systems/lighting/useLightingApi"
+import { useLocationApi } from "~/composables/location/api/useLocationApi"
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { usePolling } from "~/composables/monitoring/usePolling"
-import { useZoneManagement } from "~/composables/systems/useZoneManagement"
+import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import { useAuth } from "~/composables/core/useAuth"
 import type { Device, ControllerDeviceConfig } from "~/types/device"
 import type { ModbusDataResponse, ModbusDeviceConfig } from "~/types/modbus"
@@ -1447,16 +1447,6 @@ const handleDeleteZone = async (zoneId: string) => {
 		{
 			selectedZoneRef: selectedZone,
 			systemType: "lighting",
-			getFullZoneApiCall: (id: string) => locationApi.getZone(id),
-			updateZoneApiCall: async (id: string, data: { locations: UnifiedZone["locations"] }) => {
-				const response = await locationApi.updateZone(id, { locations: data.locations })
-				const lightingZone = unifiedToLightingZone(response.zone)
-				return {
-					merged: response.merged,
-					message: response.message,
-					zone: { ...lightingZone, id: lightingZone.id || id } as LightingZone & { id: string },
-				}
-			},
 			onAfterDelete: async () => {
 				await loadZonesFromAPI()
 			},

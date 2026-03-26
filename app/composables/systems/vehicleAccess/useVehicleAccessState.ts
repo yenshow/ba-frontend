@@ -13,7 +13,7 @@ import type {
 	VehicleGroupFromApi
 } from "~/types/vehicleAccess";
 import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi";
-import { useLocationApi } from "~/composables/systems/location/useLocationApi";
+import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { unifiedToVehicleAccessZone } from "~/utils/locationAdapter";
 import { normalizePlate } from "~/utils/vehicleAccessUtils";

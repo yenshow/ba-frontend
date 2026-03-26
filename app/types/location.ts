@@ -56,15 +56,11 @@ export interface PeopleCountingSystemConfig {
 	personGroupIds?: number[];
 	entryDoorId?: number;
 	exitDoorId?: number;
-	/** 資料來源：yscp（預設）/ access_control / camera_isapi */
-	dataSource?: "yscp" | "access_control" | "camera_isapi";
+	/** 資料來源：yscp（預設）或 access_control */
+	dataSource?: "yscp" | "access_control";
 	/** 本系統門禁設備 ID（devices.id），dataSource 為 access_control 時使用 */
 	entryDeviceId?: number;
 	exitDeviceId?: number;
-	/** 攝影機設備 ID（devices.id），dataSource 為 camera_isapi 時使用 */
-	cameraDeviceId?: number;
-	/** 攝影機通道（預設 1） */
-	cameraChannelId?: number;
 	/** 門禁人員群組（name + employeeNos），成員限為出入口皆有之人員 */
 	accessControlGroups?: Array<{ name: string; employeeNos: string[] }>;
 }

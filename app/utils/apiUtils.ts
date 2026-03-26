@@ -29,9 +29,17 @@ export const buildQueryParams = (filters?: Record<string, unknown>): URLSearchPa
 	const queryParams = new URLSearchParams();
 	if (filters) {
 		for (const [key, value] of Object.entries(filters)) {
-			if (value !== undefined && value !== null && value !== "") {
-				queryParams.append(key, typeof value === "string" ? value : String(value));
+			if (value === undefined || value === null || value === "") {
+				continue
 			}
+			if (Array.isArray(value)) {
+				for (const v of value) {
+					if (v === undefined || v === null || v === "") continue
+					queryParams.append(key, typeof v === "string" ? v : String(v))
+				}
+				continue
+			}
+			queryParams.append(key, typeof value === "string" ? value : String(value));
 		}
 	}
 	return queryParams;

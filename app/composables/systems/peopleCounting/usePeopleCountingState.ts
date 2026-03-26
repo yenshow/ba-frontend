@@ -15,8 +15,8 @@ import type {
 	PeopleCountingLog,
 	PeopleCountingZone
 } from "~/types/peopleCounting";
-import { usePeopleCountingApi } from "~/composables/systems/usePeopleCountingApi";
-import { usePeopleCountingLocationApi } from "~/composables/systems/location/usePeopleCountingLocationApi";
+import { usePeopleCountingApi } from "~/composables/systems/peopleCounting/usePeopleCountingApi";
+import { usePeopleCountingLocationApi } from "~/composables/location/api/usePeopleCountingLocationApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { logger } from "~/utils/logger";
 

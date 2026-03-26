@@ -20,15 +20,11 @@ export interface PeopleCountingLocation {
 	personGroupIds?: number[]; // 對應的 person_group.id 列表（YSCP）
 	entryDoorId?: number; // 入口設備 ID（YSCP）
 	exitDoorId?: number; // 出口設備 ID（YSCP）
-	/** 資料來源：yscp（預設）/ access_control / camera_isapi */
-	dataSource?: "yscp" | "access_control" | "camera_isapi";
+	/** 資料來源：yscp（預設）或 access_control */
+	dataSource?: "yscp" | "access_control";
 	/** 本系統門禁設備 ID（dataSource 為 access_control 時使用） */
 	entryDeviceId?: number;
 	exitDeviceId?: number;
-	/** 攝影機設備 ID（dataSource 為 camera_isapi 時使用） */
-	cameraDeviceId?: number;
-	/** 攝影機通道（預設 1） */
-	cameraChannelId?: number;
 	/** 門禁人員群組（後端相容保留；門禁設備之人員與權限已改由「人員管理」處理，此地點表單不再編輯此欄） */
 	accessControlGroups?: AccessControlGroup[];
 

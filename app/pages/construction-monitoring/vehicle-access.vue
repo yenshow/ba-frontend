@@ -261,10 +261,10 @@ import VehicleAccessSimulation from "~/components/vehicle-access/VehicleAccessSi
 import { useVehicleAccessState } from "~/composables/systems/vehicleAccess/useVehicleAccessState";
 import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi";
 import { useVehicleAccessWebSocket } from "~/composables/systems/vehicleAccess/useVehicleAccessWebSocket";
-import { useVehicleAccessLocationApi } from "~/composables/systems/location/useVehicleAccessLocationApi";
-import { useZoneManagement } from "~/composables/systems/useZoneManagement";
-import { useLocationApi } from "~/composables/systems/location/useLocationApi";
-import { useZoneSystemAdapter } from "~/composables/systems/useZoneSystemAdapter";
+import { useVehicleAccessLocationApi } from "~/composables/location/api/useVehicleAccessLocationApi";
+import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
+import { useLocationApi } from "~/composables/location/api/useLocationApi";
+import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter";
 import type { UnifiedZone } from "~/types/location";
 import { getTodayDateRangeUTC } from "~/utils/dateUtils";
 import { useAuth } from "~/composables/core/useAuth";
@@ -500,15 +500,6 @@ const handleDeleteZone = async (zoneId: string) => {
 	await baseHandleDeleteZone(zoneId, vehicleAccessZones, vehicleAccessLocationApi.deleteZone, {
 		selectedLocationRef: selectedLocationIdRef,
 		getLocationId: (loc: VehicleAccessLocation) => getLocationId(loc),
-		getFullZoneApiCall: (id: string) => locationApi.getZone(id),
-		updateZoneApiCall: async (id: string, data: { locations: UnifiedZone["locations"] }) => {
-			const response = await locationApi.updateZone(id, { locations: data.locations });
-			return {
-				merged: response.merged,
-				message: response.message,
-				zone: response.zone as unknown as VehicleAccessZone
-			};
-		},
 		systemType: "vehicle_access",
 		onAfterDelete: async () => {
 			await loadZones();

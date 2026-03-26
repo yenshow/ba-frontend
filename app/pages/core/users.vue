@@ -219,7 +219,7 @@ import { useDataLoader } from "~/composables/monitoring/useDataLoader";
 import { useAuth } from "~/composables/core/useAuth";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
-import { useUserApi } from "~/composables/systems/useUserApi";
+import { useUserApi } from "~/composables/systems/users/useUserApi";
 
 definePageMeta({
 	layout: "auxiliary"

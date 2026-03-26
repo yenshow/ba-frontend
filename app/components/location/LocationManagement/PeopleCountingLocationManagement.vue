@@ -32,7 +32,6 @@
 						:person-groups="personGroups"
 						:doors="doors"
 						:access-control-devices="accessControlDevices"
-						:camera-devices="cameraDevices"
 						@update="handleLocationUpdate(locationIndex, $event)"
 					/>
 				</div>
@@ -106,7 +105,6 @@ interface Props {
 	personGroups?: PersonGroup[];
 	doors?: Door[];
 	accessControlDevices?: Device[];
-	cameraDevices?: Device[];
 	reorderableLocations?: boolean;
 }
 
@@ -121,7 +119,6 @@ const props = withDefaults(defineProps<Props>(), {
 	personGroups: () => [],
 	doors: () => [],
 	accessControlDevices: () => [],
-	cameraDevices: () => [],
 	reorderableLocations: false
 });
 

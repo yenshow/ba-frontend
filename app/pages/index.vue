@@ -90,13 +90,13 @@ import PersonnelStats from "~/components/home/PersonnelStats.vue";
 import HomeVideoPlayer from "~/components/home/HomeVideoPlayer.vue";
 import EntryExitLog from "~/components/home/EntryExitLog.vue";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
-import { useLocationApi } from "~/composables/systems/location/useLocationApi";
-import { useDeviceApi } from "~/composables/systems/useDeviceApi";
+import { useLocationApi } from "~/composables/location/api/useLocationApi";
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useToast } from "~/composables/core/useToast";
 import { usePolling } from "~/composables/monitoring/usePolling";
-import { useZoneManagement } from "~/composables/systems/useZoneManagement";
+import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
 import type { EnvironmentLocation, SensorParameterType } from "~/types/environment";
 import type { UnifiedZone, UnifiedLocation, EnvironmentSystemConfig } from "~/types/location";
 import type {
@@ -111,7 +111,7 @@ import { firstLocationInSortedZones } from "~/utils/sortOrder";
 import { getLocationDeviceIds } from "~/utils/sensorUtils";
 import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState";
 import { usePeopleCountingWebSocket } from "~/composables/systems/peopleCounting/usePeopleCountingWebSocket";
-import { usePeopleCountingApi } from "~/composables/systems/usePeopleCountingApi";
+import { usePeopleCountingApi } from "~/composables/systems/peopleCounting/usePeopleCountingApi";
 import { useLicense } from "~/composables/core/useLicense";
 import type { PeopleCountingLog } from "~/types/peopleCounting";
 

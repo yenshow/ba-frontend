@@ -24,16 +24,6 @@
 					/>
 					<span class="text-sm text-white/90 2xl:text-base">門禁設備（本系統）</span>
 				</label>
-				<label class="flex cursor-pointer items-center gap-2">
-					<input
-						v-model="dataSource"
-						type="radio"
-						value="camera_isapi"
-						class="h-4 w-4 accent-cyan-400"
-						@change="handleDataSourceChange"
-					/>
-					<span class="text-sm text-white/90 2xl:text-base">攝影機（ISAPI PeopleCounting）</span>
-				</label>
 			</div>
 		</div>
 
@@ -74,7 +64,7 @@
 			</template>
 
 			<!-- 門禁設備：入口／出口設備（本系統） -->
-			<template v-else-if="dataSource === 'access_control'">
+			<template v-else>
 				<label class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0">
 					<span>入口設備 *</span>
 					<FilterDropdown
@@ -91,32 +81,6 @@
 						:options="accessControlDeviceOptions"
 						placeholder="無"
 						@update:modelValue="(v: string) => setEntryExit('exit', v)"
-					/>
-				</label>
-			</template>
-
-			<!-- 攝影機：設備 + 通道 -->
-			<template v-else>
-				<label class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0">
-					<span>攝影機設備 *</span>
-					<FilterDropdown
-						v-model="cameraDeviceIdString"
-						:options="cameraDeviceOptions"
-						:placeholder="props.cameraDevices.length === 0 ? '請先在設備管理新增攝影機設備' : '請選擇'"
-						@update:modelValue="handleCameraDeviceSelect"
-					/>
-				</label>
-				<label class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0">
-					<span>通道</span>
-					<input
-						v-model="cameraChannelIdString"
-						type="number"
-						inputmode="numeric"
-						min="1"
-						step="1"
-						class="form-input-small"
-						placeholder="1"
-						@blur="handleCameraChannelBlur"
 					/>
 				</label>
 			</template>
@@ -159,20 +123,12 @@
 					至少需要選擇一個人員群組
 				</p>
 			</template>
-			<template v-else-if="dataSource === 'access_control'">
+			<template v-else>
 				<!-- 門禁設備（本系統）：人員與可進出權限改由「人員管理」設定與同步，此地點僅綁定入口／出口設備；事件由後端佈防訂閱 -->
 				<div class="rounded border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-sm text-cyan-100/90 2xl:text-base">
 					<p class="font-medium">人員與門禁權限由「人員管理」處理</p>
 					<p class="mt-1 text-white/70">
 						此地點僅需綁定上方入口／出口設備。人員的新增、群組與「可進出此地點」的權限請至<strong>「人員管理」</strong>設定，並使用「設備同步」將人員寫入門禁設備。門禁事件由後端自動訂閱，不需在門禁機上設定事件監聽主機。
-					</p>
-				</div>
-			</template>
-			<template v-else>
-				<div class="rounded border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-sm text-cyan-100/90 2xl:text-base">
-					<p class="font-medium">此來源僅提供統計（enter/exit）</p>
-					<p class="mt-1 text-white/70">
-						攝影機 PeopleCounting 事件僅提供時間與 enter/exit 累積值；人員／單位等欄位目前會留空。前端會以 enter/exit 的增量推導「進入／離開」事件供列表顯示。
 					</p>
 				</div>
 			</template>
@@ -193,7 +149,7 @@
 				已設定出口設備，建議同時設定入口設備
 			</div>
 		</template>
-		<template v-else-if="dataSource === 'access_control'">
+		<template v-else>
 			<div
 				v-if="localLocation.entryDeviceId && localLocation.exitDeviceId && localLocation.entryDeviceId === localLocation.exitDeviceId"
 				class="mt-3 rounded border border-amber-500/50 bg-amber-500/20 p-2 text-xs text-amber-300 2xl:text-sm"
@@ -228,7 +184,6 @@ interface Props {
 	personGroups?: PersonGroup[];
 	doors?: Door[];
 	accessControlDevices?: Device[];
-	cameraDevices?: Device[];
 }
 
 interface Emits {
@@ -239,38 +194,31 @@ const props = withDefaults(defineProps<Props>(), {
 	personGroups: () => [],
 	doors: () => [],
 	accessControlDevices: () => [],
-	cameraDevices: () => [],
 });
 
 const emit = defineEmits<Emits>();
 
 const localLocation = ref<PeopleCountingLocation>({ ...props.location });
 
-const dataSource = ref<"yscp" | "access_control" | "camera_isapi">(
-	(props.location.dataSource as "yscp" | "access_control" | "camera_isapi") || "yscp"
+const dataSource = ref<"yscp" | "access_control">(
+	(props.location.dataSource as "yscp" | "access_control") || "yscp"
 );
 
 const entryDoorIdString = ref("");
 const exitDoorIdString = ref("");
 const entryDeviceIdString = ref("");
 const exitDeviceIdString = ref("");
-const cameraDeviceIdString = ref("");
-const cameraChannelIdString = ref("");
 
 watch(
 	() => props.location,
 	(newLocation) => {
 		localLocation.value = { ...newLocation };
 		if (!localLocation.value.personGroupIds) localLocation.value.personGroupIds = [];
-		dataSource.value =
-			(newLocation.dataSource as "yscp" | "access_control" | "camera_isapi") || "yscp";
+		dataSource.value = (newLocation.dataSource as "yscp" | "access_control") || "yscp";
 		entryDoorIdString.value = newLocation.entryDoorId ? String(newLocation.entryDoorId) : "";
 		exitDoorIdString.value = newLocation.exitDoorId ? String(newLocation.exitDoorId) : "";
 		entryDeviceIdString.value = newLocation.entryDeviceId ? String(newLocation.entryDeviceId) : "";
 		exitDeviceIdString.value = newLocation.exitDeviceId ? String(newLocation.exitDeviceId) : "";
-		cameraDeviceIdString.value = newLocation.cameraDeviceId ? String(newLocation.cameraDeviceId) : "";
-		cameraChannelIdString.value =
-			newLocation.cameraChannelId != null ? String(newLocation.cameraChannelId) : "1";
 	},
 	{ immediate: true, deep: true }
 );
@@ -289,14 +237,6 @@ const accessControlDeviceOptions = computed(() => {
 		label: d.name,
 	}));
 	return [{ value: "", label: "無" }, ...options];
-});
-
-const cameraDeviceOptions = computed(() => {
-	const options = props.cameraDevices.map((d) => ({
-		value: String(d.id),
-		label: d.name,
-	}));
-	return [{ value: "", label: "請選擇" }, ...options];
 });
 
 const isPersonGroupSelected = (groupId: number): boolean => {
@@ -321,23 +261,11 @@ const handleDataSourceChange = () => {
 	if (dataSource.value === "access_control") {
 		localLocation.value.entryDoorId = undefined;
 		localLocation.value.exitDoorId = undefined;
-		localLocation.value.cameraDeviceId = undefined;
-		localLocation.value.cameraChannelId = undefined;
 		localLocation.value.entryDeviceId = entryDeviceIdString.value ? Number(entryDeviceIdString.value) : undefined;
 		localLocation.value.exitDeviceId = exitDeviceIdString.value ? Number(exitDeviceIdString.value) : undefined;
-	} else if (dataSource.value === "camera_isapi") {
-		localLocation.value.personGroupIds = [];
-		localLocation.value.entryDoorId = undefined;
-		localLocation.value.exitDoorId = undefined;
-		localLocation.value.entryDeviceId = undefined;
-		localLocation.value.exitDeviceId = undefined;
-		localLocation.value.cameraDeviceId = cameraDeviceIdString.value ? Number(cameraDeviceIdString.value) : undefined;
-		localLocation.value.cameraChannelId = cameraChannelIdString.value ? Number(cameraChannelIdString.value) : 1;
 	} else {
 		localLocation.value.entryDeviceId = undefined;
 		localLocation.value.exitDeviceId = undefined;
-		localLocation.value.cameraDeviceId = undefined;
-		localLocation.value.cameraChannelId = undefined;
 		localLocation.value.entryDoorId = entryDoorIdString.value ? Number(entryDoorIdString.value) : undefined;
 		localLocation.value.exitDoorId = exitDoorIdString.value ? Number(exitDoorIdString.value) : undefined;
 	}
@@ -353,20 +281,6 @@ const setEntryExit = (role: "entry" | "exit", value: string) => {
 		if (role === "entry") localLocation.value.entryDoorId = num;
 		else localLocation.value.exitDoorId = num;
 	}
-	handleChange();
-};
-
-const handleCameraDeviceSelect = (value: string) => {
-	cameraDeviceIdString.value = value;
-	localLocation.value.cameraDeviceId = value ? Number(value) : undefined;
-	handleChange();
-};
-
-const handleCameraChannelBlur = () => {
-	const raw = cameraChannelIdString.value;
-	const n = raw ? Number(raw) : 1;
-	localLocation.value.cameraChannelId = Number.isFinite(n) && n > 0 ? Math.trunc(n) : 1;
-	cameraChannelIdString.value = String(localLocation.value.cameraChannelId);
 	handleChange();
 };
 

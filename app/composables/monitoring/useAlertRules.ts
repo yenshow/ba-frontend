@@ -3,7 +3,7 @@
  * 用於獲取和管理警報規則，確保前後端一致
  */
 
-import { useAlertApi } from "~/composables/systems/useAlertApi";
+import { useAlertApi } from "~/composables/systems/alerts/useAlertApi";
 
 export interface AlertRule {
 	id: number;

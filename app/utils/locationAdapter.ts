@@ -100,16 +100,7 @@ function isLightingSystemConfig(config: unknown): config is LightingSystemConfig
 function isPeopleCountingSystemConfig(config: unknown): config is PeopleCountingSystemConfig {
 	if (!config || typeof config !== "object") return false;
 	const c = config as Record<string, unknown>;
-	return (
-		("dataSource" in c && typeof c.dataSource === "string") ||
-		("personGroupIds" in c && Array.isArray(c.personGroupIds)) ||
-		"entryDoorId" in c ||
-		"exitDoorId" in c ||
-		"entryDeviceId" in c ||
-		"exitDeviceId" in c ||
-		"cameraDeviceId" in c ||
-		"cameraChannelId" in c
-	);
+	return "personGroupIds" in c && Array.isArray(c.personGroupIds);
 }
 
 /**
@@ -310,9 +301,7 @@ export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZo
 					exitDoorId: config.exitDoorId ?? undefined,
 					dataSource: config.dataSource ?? "yscp",
 					entryDeviceId: config.entryDeviceId ?? undefined,
-					exitDeviceId: config.exitDeviceId ?? undefined,
-					cameraDeviceId: config.cameraDeviceId ?? undefined,
-					cameraChannelId: config.cameraChannelId ?? 1
+					exitDeviceId: config.exitDeviceId ?? undefined
 				} as PeopleCountingLocation
 			];
 		})
@@ -538,9 +527,7 @@ export function peopleCountingLocationToUnified(
 					exitDoorId: loc.exitDoorId,
 					dataSource: loc.dataSource ?? "yscp",
 					entryDeviceId: loc.entryDeviceId ?? undefined,
-					exitDeviceId: loc.exitDeviceId ?? undefined,
-					cameraDeviceId: loc.cameraDeviceId ?? undefined,
-					cameraChannelId: loc.cameraChannelId ?? 1
+					exitDeviceId: loc.exitDeviceId ?? undefined
 				} as PeopleCountingSystemConfig
 			}
 		]
