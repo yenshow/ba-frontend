@@ -85,6 +85,7 @@
 import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment"
 import type { Device } from "~/types/device"
 import EnvironmentLocationFields from "../LocationFormFields/EnvironmentLocationFields.vue"
+import { getLocationUiKey } from "~/utils/locationUiId"
 
 interface Props {
 	zone: EnvironmentZone
@@ -115,7 +116,7 @@ const getLocations = (zone: EnvironmentZone): EnvironmentLocation[] => {
 
 // 取得地點 ID
 const getLocationId = (location: EnvironmentLocation, index: number): string => {
-	return (location as any).id || `location-${index}`
+	return getLocationUiKey({ zone: props.zone as any, location: location as any, locationIndex: index })
 }
 
 // 處理新增地點

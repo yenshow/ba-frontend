@@ -42,11 +42,11 @@
 								v-if="isEditMode"
 								:categories="
 									allZoneLocations.map((location, index) => ({
-										id: getLightingLocationId(
-											selectedZoneData || ({} as LightingZone),
+										id: getLocationUiKey({
+											zone: selectedZoneData || ({} as LightingZone),
 											location,
-											index
-										),
+											locationIndex: index,
+										}),
 										name: location.name,
 										zoneId: selectedZone || '',
 										location: location.location,
@@ -101,7 +101,7 @@
 							handleDotDragStart(
 								$event,
 								location,
-								findLightingLocationIndexInZone(selectedZoneData!, location)
+								findLocationIndexInZone(selectedZoneData!, location)
 							)
 						"
 						@dragend="handleDragEnd"
@@ -136,7 +136,7 @@ import { nextTick, onBeforeUnmount, onMounted, watch } from "vue"
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
 import CategoryList from "~/components/common/CategoryList.vue"
 import type { LightingLocation, LightingZone } from "~/types/lighting"
-import { findLightingLocationIndexInZone, getLightingLocationId } from "~/utils/lightingLocation"
+import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 
 interface Props {
 	selectedZoneName: string
@@ -203,8 +203,8 @@ const handleSelectCategory = (locationId: string) => {
 const getLocationIdForDisplay = (location: LightingLocation): string => {
 	const zone = props.selectedZoneData
 	if (!zone) return ""
-	const originalIndex = findLightingLocationIndexInZone(zone, location)
-	return originalIndex !== -1 ? getLightingLocationId(zone, location, originalIndex) : ""
+	const originalIndex = findLocationIndexInZone(zone, location)
+	return originalIndex !== -1 ? getLocationUiKey({ zone, location, locationIndex: originalIndex }) : ""
 }
 
 const getLocationAlertFlashForTooltip = (location: LightingLocation) => {
@@ -223,7 +223,7 @@ const handleDotDragStart = (
 	locationIndex: number
 ) => {
 	if (!props.isEditMode || !props.selectedZoneData) return
-	const locationId = getLightingLocationId(props.selectedZoneData, location, locationIndex)
+	const locationId = getLocationUiKey({ zone: props.selectedZoneData, location, locationIndex })
 	startDrag(event, locationId)
 }
 

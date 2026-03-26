@@ -74,6 +74,7 @@
 <script setup lang="ts">
 import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess"
 import VehicleAccessLocationFields from "../LocationFormFields/VehicleAccessLocationFields.vue"
+import { getLocationUiKey } from "~/utils/locationUiId"
 
 interface Props {
 	zone: VehicleAccessZone
@@ -87,7 +88,7 @@ interface Emits {
 	(e: "reorder-location", payload: { index: number; direction: "up" | "down" }): void
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
 	reorderableLocations: false,
 })
 const emit = defineEmits<Emits>()
@@ -97,7 +98,7 @@ const getLocations = (zone: VehicleAccessZone): VehicleAccessLocation[] => {
 }
 
 const getLocationId = (location: VehicleAccessLocation, index: number): string =>
-	location.id ?? `location-${index}`
+	getLocationUiKey({ zone: props.zone as any, location: location as any, locationIndex: index })
 
 const handleAddLocation = () => {
 	emit("add-location")

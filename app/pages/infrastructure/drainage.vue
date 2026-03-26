@@ -64,14 +64,16 @@ import {
 	deriveDrainagePumpUiStatus,
 	deriveDrainageTankOverallUiStatus,
 } from "~/types/drainage"
-import { useDrainageApi } from "~/composables/systems/useDrainageApi"
-import { useLocationApi } from "~/composables/systems/location/useLocationApi"
+import { useDrainageApi } from "~/composables/systems/drainage/useDrainageApi"
+import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { usePolling } from "~/composables/monitoring/usePolling"
-import { useZoneManagement } from "~/composables/systems/useZoneManagement"
+import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import { useAuth } from "~/composables/core/useAuth"
 import type { UnifiedZone } from "~/types/location"
 import { unifiedToDrainageZone } from "~/utils/locationAdapter"
+import { getLocationUiKey, findLocationIndexInZone } from "~/utils/locationUiId"
+import { isValidPercentPosition } from "~/utils/mapPosition"
 
 definePageMeta({
 	layout: "default",
@@ -84,14 +86,6 @@ const { handleError } = useErrorHandler()
 
 const leftSectionHeight = ref<number | null>(null)
 
-const getLocationId = (
-	zone: DrainageZone,
-	location: DrainageLocation,
-	locationIndex: number
-): string => {
-	return location.id || `location-${zone.id || zone.name}-${locationIndex}`
-}
-
 const drainageZones = ref<DrainageZone[]>([])
 const isLoadingZones = ref(false)
 const isInitialLoading = ref(true)
@@ -103,8 +97,11 @@ const statusItems = ref<DrainageStatusItem[]>([])
 
 const selectedViewCategory = ref<string>(DEFAULT_DRAINAGE_MONITOR_VIEW_CATEGORY)
 
-const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone, sortZones } =
-	useZoneManagement<DrainageZone & { id: string }>()
+const {
+	handleSaveZone: baseHandleSaveZone,
+	handleDeleteZone: baseHandleDeleteZone,
+	sortZones,
+} = useZoneManagement<DrainageLocation, DrainageZone>()
 
 const viewFilterOptions = computed(() => buildDrainageMonitorViewFilterOptions(drainageZones.value))
 
@@ -130,22 +127,13 @@ const selectedZoneName = computed(() => zonesById.value.get(selectedZone.value)?
 const selectedZoneData = computed(() => zonesById.value.get(selectedZone.value))
 const zonePlanImage = computed(() => selectedZoneData.value?.imageUrl)
 
-const isValidLocation = (location: { x: number; y: number } | undefined | null): boolean => {
-	return (
-		location != null &&
-		typeof location.x === "number" &&
-		typeof location.y === "number" &&
-		!Number.isNaN(location.x) &&
-		!Number.isNaN(location.y)
-	)
-}
-
 const filteredZoneLocations = computed(() => {
 	if (!selectedZone.value) return []
 	const zone = selectedZoneData.value
 	return (zone?.locations || []).filter(
 		(loc) =>
-			isValidLocation(loc.location) && drainageLocationInViewCategory(loc, selectedViewCategory.value)
+			isValidPercentPosition(loc.location) &&
+			drainageLocationInViewCategory(loc, selectedViewCategory.value)
 	)
 })
 
@@ -164,9 +152,7 @@ const pumpUiStatusForLocation = (loc: DrainageLocation): DrainageStatusItem["uiS
 
 const tankUiStatusForLocation = (loc: DrainageLocation): DrainageStatusItem["uiStatus"] => {
 	if (!loc.systemId) return "warning"
-	return deriveDrainageTankOverallUiStatus(
-		statusBySystemId.value.get(String(loc.systemId)) ?? null
-	)
+	return deriveDrainageTankOverallUiStatus(statusBySystemId.value.get(String(loc.systemId)) ?? null)
 }
 
 const uiStatusForLocation = (loc: DrainageLocation): DrainageStatusItem["uiStatus"] => {
@@ -210,17 +196,14 @@ const handleZoneSelected = (zoneId: string) => {
 }
 
 const findLocationOriginalIndex = (zone: DrainageZone, target: DrainageLocation) => {
-	return zone.locations.findIndex((location) => {
-		if (location.id && target.id) return location.id === target.id
-		return location === target
-	})
+	return findLocationIndexInZone(zone, target)
 }
 
 const getLocationIdForDisplay = (location: DrainageLocation): string => {
 	const zone = selectedZoneData.value
 	if (!zone) return ""
 	const idx = findLocationOriginalIndex(zone, location)
-	return idx !== -1 ? getLocationId(zone, location, idx) : ""
+	return idx !== -1 ? getLocationUiKey({ zone, location, locationIndex: idx }) : ""
 }
 
 const selectLocationByLocation = (location: DrainageLocation) => {
@@ -228,7 +211,7 @@ const selectLocationByLocation = (location: DrainageLocation) => {
 	if (!zone) return
 	const idx = findLocationOriginalIndex(zone, location)
 	if (idx !== -1) {
-		selectedCategory.value = getLocationId(zone, location, idx)
+		selectedCategory.value = getLocationUiKey({ zone, location, locationIndex: idx })
 	}
 }
 
@@ -240,7 +223,9 @@ const findLocationById = (
 	locationId: string
 ): { zone: DrainageZone; locationIndex: number } | null => {
 	for (const zone of drainageZones.value) {
-		const idx = zone.locations.findIndex((loc, i) => getLocationId(zone, loc, i) === locationId)
+		const idx = zone.locations.findIndex(
+			(loc, i) => getLocationUiKey({ zone, location: loc, locationIndex: i }) === locationId
+		)
 		if (idx !== -1) return { zone, locationIndex: idx }
 	}
 	return null
@@ -347,16 +332,6 @@ const handleDeleteZone = async (zoneId: string) => {
 		{
 			selectedZoneRef: selectedZone,
 			systemType: "drainage",
-			getFullZoneApiCall: (id: string) => locationApi.getZone(id),
-			updateZoneApiCall: async (id: string, data: { locations: UnifiedZone["locations"] }) => {
-				const response = await locationApi.updateZone(id, { locations: data.locations })
-				const dz = unifiedToDrainageZone(response.zone)
-				return {
-					merged: response.merged,
-					message: response.message,
-					zone: { ...dz, id: dz.id || id } as DrainageZone & { id: string },
-				}
-			},
 			onAfterDelete: async () => {
 				await loadZonesFromAPI()
 			},

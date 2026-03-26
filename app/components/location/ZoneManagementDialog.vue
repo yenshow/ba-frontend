@@ -243,11 +243,12 @@
 <script setup lang="ts" generic="TZone extends SystemZoneType">
 import type { SystemType, UnifiedZone } from "~/types/location"
 import type { Device } from "~/types/device"
-import type { SystemZoneType, SystemLocationType } from "~/composables/systems/useZoneSystemAdapter"
-import { useZoneSystemAdapter } from "~/composables/systems/useZoneSystemAdapter"
-import { useZoneValidation } from "~/composables/systems/useZoneValidation"
-import { useDeviceApi } from "~/composables/systems/useDeviceApi"
-import { useExternalDataApi } from "~/composables/systems/useExternalDataApi"
+import type { SystemZoneType, SystemLocationType } from "~/composables/location/adapters/useZoneSystemAdapter"
+import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter"
+import { useLocationValidationPipeline } from "~/composables/location/validation/useLocationValidationPipeline"
+import { useZoneDrafts } from "~/composables/location/ui/useZoneDrafts"
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { useExternalDataApi } from "~/composables/systems/externalData/useExternalDataApi"
 import ZoneFormFields from "./ZoneFormFields.vue"
 import EnvironmentLocationManagement from "./LocationManagement/EnvironmentLocationManagement.vue"
 import LightingLocationManagement from "./LocationManagement/LightingLocationManagement.vue"
@@ -258,14 +259,17 @@ import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { nextTick, type Component } from "vue"
-import { useLocationApi } from "~/composables/systems/location/useLocationApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { removeLocationFromSystemOrDelete } from "~/utils/locationCrudHelpers"
+import { buildDeleteLocationConfirmCopy } from "~/domain/location/confirmCopy"
+import { getLocationUiKey } from "~/utils/locationUiId"
 import {
 	compareZoneRowsForDialog,
 	pickSortOrder,
 	sortOrderForZoneRowSwap,
 	zoneSortOrderValue,
 } from "~/utils/sortOrder"
+import { getZoneUiKey } from "~/utils/zoneUiId"
 
 interface Props {
 	modelValue: boolean
@@ -291,85 +295,54 @@ const emit = defineEmits<Emits>()
 // 系統適配器
 const adapter = useZoneSystemAdapter<TZone, SystemLocationType>(props.systemType)
 
-// 本地狀態管理（簡化版本，直接使用系統特定類型）
-const pendingChanges = ref<Map<string, TZone>>(new Map()) as Ref<Map<string, TZone>>
-const expandedZones = ref<Set<string>>(new Set())
+const {
+	pendingChanges,
+	expandedZones,
+	hasUnsavedChanges,
+	clearAllDrafts,
+	setDraft,
+	deleteDraft,
+	createMergedZones,
+	createSortedZones,
+	buildChangedFieldsList,
+	buildChangeSummary,
+} = useZoneDrafts<TZone, SystemLocationType>()
 const errorMessage = ref("")
 
-// 待刪除地點
-const pendingDeleteLocation = ref<{ zoneId: string; locationIndex: number } | null>(null)
+// 待刪除地點（使用 UI key，避免 reorder 後刪錯）
+const pendingDeleteLocation = ref<{ zoneId: string; locationUiKey: string } | null>(null)
 
 // 驗證
-const { validateZone } = useZoneValidation()
+const { validateSystemZoneForSave } = useLocationValidationPipeline()
 
 // 更新區域（加入待保存列表）
 const updateZone = (zone: TZone) => {
 	const zoneId = getZoneId(zone)
 	if (!zoneId) return
 
-	// 驗證區域
-	const validation = validateZone({
-		name: zone.name,
-		imageUrl: (zone as any).imageUrl,
-		description: (zone as any).description,
-	})
-	if (!validation.isValid) {
-		errorMessage.value = validation.errors.join(", ")
-		return
-	}
-
 	errorMessage.value = ""
 	// 使用 JSON 深拷貝，避免 structuredClone 無法處理某些對象的問題
-	pendingChanges.value.set(zoneId, JSON.parse(JSON.stringify(zone)) as TZone)
+	setDraft(zoneId, JSON.parse(JSON.stringify(zone)) as TZone)
 }
 
 // 合併原始 zones 和待保存的變更
 const mergedZones = computed(() => {
-	const zonesMap = new Map<string, TZone>()
-
-	// 先添加所有原始 zones
-	props.zones.forEach((zone) => {
-		const zoneId = getZoneId(zone)
-		if (zoneId) {
-			zonesMap.set(zoneId, { ...zone })
-		}
-	})
-
-	// 然後用待保存的變更覆蓋
-	pendingChanges.value.forEach((zone, zoneId) => {
-		zonesMap.set(zoneId, { ...zone } as TZone)
-	})
-
-	return Array.from(zonesMap.values())
+	return createMergedZones({ originalZones: props.zones, getZoneId })
 })
 
 // 排序區域（過濾掉沒有地點的區域，但保留新區域）
 const sortedZones = computed(() => {
-	if (!mergedZones.value || mergedZones.value.length === 0) return []
-
-	// 過濾掉沒有地點的區域，但保留新區域（有 temp- ID 的）
-	const zonesWithLocations = mergedZones.value.filter((zone) => {
-		const zoneId = getZoneId(zone)
-		const hasLocations = adapter.getLocationsProperty(zone).length > 0
-		const isNewZone = zoneId?.startsWith("temp-")
-		// 如果有地點或是新區域，則顯示
-		return hasLocations || isNewZone
+	return createSortedZones({
+		mergedZones: mergedZones.value,
+		getZoneId,
+		getLocations: (z) => adapter.getLocationsProperty(z),
 	})
-
-	// 如果所有區域都沒有地點且沒有新區域，顯示所有區域（用於顯示空狀態）
-	const zonesToShow = zonesWithLocations.length > 0 ? zonesWithLocations : mergedZones.value
-
-	return [...zonesToShow].sort((a, b) => compareZoneRowsForDialog(a, b, getZoneId))
 })
-
-// 檢查是否有未保存的變更
-const hasUnsavedChanges = computed(() => pendingChanges.value.size > 0)
 
 // 確認對話框
 const confirmDialog = useConfirmDialog()
 const confirmAction = ref<"close" | "delete" | "deleteLocation">("close")
 
-const locationApi = useLocationApi()
 const { handleError } = useErrorHandler()
 
 // 解包 ref 以便在模板中使用
@@ -384,39 +357,20 @@ const confirmDialogConfig = computed(() => confirmDialog.config.value)
 
 // 計算變更的欄位列表
 const changedFieldsList = computed(() => {
-	const fields: string[] = []
-	pendingChanges.value.forEach((zone, zoneId) => {
-		const originalZone = props.zones.find((z) => getZoneId(z) === zoneId)
-		if (!originalZone) {
-			fields.push(`新增區域: ${zone.name || "未命名"}`)
-		} else {
-			if (zone.name !== originalZone.name) {
-				fields.push(`區域名稱: ${originalZone.name} → ${zone.name}`)
-			}
-			const zoneAny = zone as any
-			const originalAny = originalZone as any
-			if (zoneAny.imageUrl !== originalAny.imageUrl) {
-				fields.push("區域示意圖")
-			}
-			// 檢查地點變更
-			const originalLocations = adapter.getLocationsProperty(originalZone)
-			const pendingLocations = adapter.getLocationsProperty(zone)
-			if (JSON.stringify(originalLocations) !== JSON.stringify(pendingLocations)) {
-				fields.push(`${getLocationLabel()}列表`)
-			}
-		}
+	return buildChangedFieldsList({
+		originalZones: props.zones,
+		pendingChanges: pendingChanges.value,
+		getZoneId,
+		getZoneName: (z) => (z as any)?.name ?? "",
+		getZoneImageUrl: (z) => (z as any)?.imageUrl,
+		getLocations: (z) => adapter.getLocationsProperty(z),
+		locationLabel: getLocationLabel(),
 	})
-	return fields
 })
 
 // 變更摘要訊息
 const changeSummary = computed(() => {
-	const count = pendingChanges.value.size
-	const hasNew = Array.from(pendingChanges.value.keys()).some((id) => id.startsWith("temp-"))
-	if (hasNew) {
-		return `有 ${count} 個區域已修改，包含新增的區域`
-	}
-	return `有 ${count} 個區域已修改`
+	return buildChangeSummary({ pendingChanges: pendingChanges.value })
 })
 
 // 設備管理
@@ -528,8 +482,7 @@ watch(
 				loadDoors()
 				loadAccessControlDevices()
 			}
-			pendingChanges.value.clear()
-			expandedZones.value.clear()
+			clearAllDrafts()
 			errorMessage.value = ""
 		}
 	}
@@ -537,8 +490,7 @@ watch(
 
 // 取得區域 ID
 const getZoneId = (zone: TZone): string => {
-	const zoneAny = zone as any
-	return zoneAny.id || zoneAny.name || `temp-${Date.now()}-${Math.random()}`
+	return getZoneUiKey(zone as any)
 }
 
 // 取得地點數量（用於顯示）
@@ -605,8 +557,7 @@ const handleClose = () => {
 
 // 關閉對話框（清除狀態）
 const closeDialog = () => {
-	pendingChanges.value.clear()
-	expandedZones.value.clear()
+	clearAllDrafts()
 	errorMessage.value = ""
 	emit("update:modelValue", false)
 }
@@ -678,29 +629,25 @@ const handleDrainageRenameViewCategory = (
 const removeLocation = (zoneId: string, locationIndex: number) => {
 	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
 	if (!zone) return
-	pendingDeleteLocation.value = { zoneId, locationIndex }
-	confirmAction.value = "deleteLocation"
 	const locations = adapter.getLocationsProperty(zone)
 	const target = locations?.[locationIndex] as any
+	const locationUiKey = getLocationUiKey({ zone: zone as any, location: target, locationIndex })
+	pendingDeleteLocation.value = { zoneId, locationUiKey }
+	confirmAction.value = "deleteLocation"
 	const hasId = Boolean(target?.id)
 	const systemCount = target?.systems?.length || 0
-	const onlyCurrentSystem = systemCount <= 1
-	confirmDialog.show({
-		title: "確認刪除",
-		message: "確定要刪除此地點嗎？",
-		details: hasId
-			? onlyCurrentSystem
-				? "此操作將刪除此地點，且無法復原。"
-				: "僅從本系統移除此地點，其他系統下的此地點不受影響。"
-			: "此地點尚未儲存，將直接從清單移除。",
-		type: "danger",
+	const copy = buildDeleteLocationConfirmCopy({
+		hasId,
+		systemType: props.systemType,
+		systemCount,
 	})
+	confirmDialog.show(copy)
 }
 
 // 確認刪除地點
 const handleConfirmDeleteLocation = async () => {
 	if (!pendingDeleteLocation.value) return
-	const { zoneId, locationIndex } = pendingDeleteLocation.value
+	const { zoneId, locationUiKey } = pendingDeleteLocation.value
 	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
 	if (!zone) {
 		pendingDeleteLocation.value = null
@@ -708,25 +655,20 @@ const handleConfirmDeleteLocation = async () => {
 	}
 
 	const locations = [...adapter.getLocationsProperty(zone)]
-	if (locationIndex < 0 || locationIndex >= locations.length) {
+	const resolvedIndex = locations.findIndex((loc: any, idx: number) => {
+		return getLocationUiKey({ zone: zone as any, location: loc, locationIndex: idx }) === locationUiKey
+	})
+	if (resolvedIndex < 0 || resolvedIndex >= locations.length) {
 		pendingDeleteLocation.value = null
 		return
 	}
 
-	const target = locations[locationIndex] as any
+	const target = locations[resolvedIndex] as any
 	const targetId = target?.id ? String(target.id) : null
 
 	if (targetId) {
 		try {
-			const { location: fullLocation } = await locationApi.getLocation(targetId)
-			const otherSystems = (fullLocation.systems || []).filter(
-				(s: { systemType: string }) => s.systemType !== props.systemType
-			)
-			if (otherSystems.length === 0) {
-				await locationApi.deleteLocation(targetId)
-			} else {
-				await locationApi.updateLocation(targetId, { systems: otherSystems })
-			}
+			await removeLocationFromSystemOrDelete({ locationId: targetId, systemType: props.systemType })
 		} catch (error) {
 			handleError(error, "刪除地點失敗")
 			pendingDeleteLocation.value = null
@@ -734,7 +676,7 @@ const handleConfirmDeleteLocation = async () => {
 		}
 	}
 
-	locations.splice(locationIndex, 1)
+	locations.splice(resolvedIndex, 1)
 	const updatedZone = adapter.setLocationsProperty(zone, locations)
 	updateZone(updatedZone)
 
@@ -924,20 +866,15 @@ const saveAllChanges = async () => {
 
 	// 驗證所有待保存的區域
 	for (const zone of pendingChanges.value.values()) {
-		// 1. 驗證區域基本資訊
-		const validation = validateZone({
-			name: zone.name,
-			imageUrl: zoneAny(zone).imageUrl,
-			description: zoneAny(zone).description,
+		const locations = adapter.getLocationsProperty(zone)
+		const result = validateSystemZoneForSave({
+			systemType: props.systemType,
+			requireImageUrl: props.requireImageUrl,
+			zone,
+			locations,
 		})
-		if (!validation.isValid) {
-			errorMessage.value = validation.errors.join("\n")
-			return
-		}
-
-		// 2. 驗證系統特定規則（例如：照明系統需要示意圖）
-		if (props.requireImageUrl && !zoneAny(zone).imageUrl) {
-			errorMessage.value = "此系統必須上傳區域示意圖"
+		if (!result.isValid) {
+			errorMessage.value = result.errors.join("\n")
 			return
 		}
 	}
@@ -961,7 +898,7 @@ const saveAllChanges = async () => {
 	}
 
 	// 全部成功才清空 pendingChanges
-	pendingChanges.value.clear()
+	clearAllDrafts()
 }
 
 // 刪除確認處理（使用 ref 追蹤待刪除的 zoneId）
@@ -983,8 +920,7 @@ const handleDeleteZone = (zoneId: string) => {
 const handleConfirmDelete = () => {
 	if (pendingDeleteZoneId.value) {
 		emit("delete", pendingDeleteZoneId.value)
-		pendingChanges.value.delete(pendingDeleteZoneId.value)
-		expandedZones.value.delete(pendingDeleteZoneId.value)
+		deleteDraft(pendingDeleteZoneId.value)
 		pendingDeleteZoneId.value = null
 	}
 }

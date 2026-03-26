@@ -6,6 +6,11 @@ import { isDeviceApiRequest } from "~/utils/errorUtils";
  * 共用的 API 基礎 composable
  * 提供統一的請求處理和錯誤處理邏輯
  */
+type RequestOptions = Omit<RequestInit, "body"> & {
+	timeout?: number
+	body?: unknown
+}
+
 export const useApiBase = () => {
 	const config = useRuntimeConfig();
 	const fetcher = useRequestFetch();
@@ -50,7 +55,7 @@ export const useApiBase = () => {
 	};
 
 	// 統一的請求處理函數
-	const request = async <T>(path: string, options: RequestInit & { timeout?: number } = {}) => {
+	const request = async <T>(path: string, options: RequestOptions = {}) => {
 		const url = `${apiBase}${path}`;
 		const isFormData = options.body instanceof FormData;
 		const baseHeaders = getAuthHeaders() as Record<string, string>;
@@ -71,10 +76,20 @@ export const useApiBase = () => {
 		const timeout = options.timeout ?? 10000;
 		// 從 options 中移除 timeout，避免傳遞給 fetcher 時出現問題
 		const { timeout: _timeout, ...fetcherOptions } = options;
+		const contentType = String(headers["Content-Type"] || headers["content-type"] || "");
+		const shouldStringifyJsonBody =
+			!isFormData &&
+			fetcherOptions.body != null &&
+			typeof fetcherOptions.body === "object" &&
+			contentType.includes("application/json");
+		const finalBody = shouldStringifyJsonBody
+			? JSON.stringify(fetcherOptions.body)
+			: fetcherOptions.body;
 
 		try {
 			const response = await fetcher<T>(url, {
 				...fetcherOptions,
+				body: finalBody as any,
 				headers,
 				credentials: "include",
 				timeout

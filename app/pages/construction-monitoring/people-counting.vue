@@ -207,12 +207,12 @@ import SimulationFrame from "~/components/common/SimulationFrame.vue"
 import PeopleCountingSimulation from "~/components/people-counting/PeopleCountingSimulation.vue"
 import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState"
 import { usePeopleCountingWebSocket } from "~/composables/systems/peopleCounting/usePeopleCountingWebSocket"
-import { usePeopleCountingLocationApi } from "~/composables/systems/location/usePeopleCountingLocationApi"
-import { useZoneManagement } from "~/composables/systems/useZoneManagement"
-import { useLocationApi } from "~/composables/systems/location/useLocationApi"
-import { usePeopleCountingApi } from "~/composables/systems/usePeopleCountingApi"
+import { usePeopleCountingLocationApi } from "~/composables/location/api/usePeopleCountingLocationApi"
+import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
+import { useLocationApi } from "~/composables/location/api/useLocationApi"
+import { usePeopleCountingApi } from "~/composables/systems/peopleCounting/usePeopleCountingApi"
 import { unifiedToPeopleCountingZone } from "~/utils/locationAdapter"
-import { useZoneSystemAdapter } from "~/composables/systems/useZoneSystemAdapter"
+import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter"
 import { getTodayDateRangeUTC } from "~/utils/dateUtils"
 import type { UnifiedZone } from "~/types/location"
 import { useAuth } from "~/composables/core/useAuth"
@@ -241,7 +241,13 @@ const peopleCountingApi = usePeopleCountingApi()
 
 // 右側總覽：依 zones/locations 排序後再補 zone 名稱（UI 順序要跟「上下調整」一致）
 const locationsForOverview = computed(() => {
-	const ordered = sortFlatSitesBySortedZoneLocations(peopleCountingZones.value, locations.value)
+	const sitesWithLocationId = (locations.value as PeopleCountingLocation[]).filter(
+		(l): l is PeopleCountingLocation & { locationId: number } => l.locationId != null
+	)
+	const ordered = sortFlatSitesBySortedZoneLocations(
+		peopleCountingZones.value,
+		sitesWithLocationId
+	) as (PeopleCountingLocation & { locationId: number })[]
 	return ordered.map((location) => ({
 		...location,
 		overviewZoneName: getLocationZone(location),
@@ -366,10 +372,17 @@ const adapter = useZoneSystemAdapter<PeopleCountingZone, PeopleCountingLocation>
 // 使用適配器提供的統一方法
 const getLocationId = (location: PeopleCountingLocation): string => {
 	const zoneName = getLocationZone(location)
-	return (
-		adapter.getLocationId?.(location, zoneName || undefined) ||
-		`${zoneName || "unknown"}-${location.name}`
+	const zone = peopleCountingZones.value.find((z) =>
+		(z.locations || []).some((l) => l === location || (l.id && location.id && l.id === location.id))
 	)
+	if (!zone || !adapter.getLocationId) {
+		return `${zoneName || "unknown"}-${location.name}`
+	}
+	const idx = (zone.locations || []).findIndex(
+		(l) => l === location || (l.id && location.id && l.id === location.id)
+	)
+	if (idx < 0) return `${zoneName || "unknown"}-${location.name}`
+	return adapter.getLocationId({ zone, location, locationIndex: idx })
 }
 
 // 監聽 selectedLocation 變化，同步更新 selectedLocationId（用於刪除邏輯）
@@ -408,7 +421,7 @@ let cleanupWebSocket: (() => void) | null = null
 const peopleCountingLocationApi = usePeopleCountingLocationApi()
 const locationApi = useLocationApi()
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
-	useZoneManagement<PeopleCountingZone>()
+	useZoneManagement<PeopleCountingLocation, PeopleCountingZone>()
 
 // 處理儲存區域
 const handleSaveZone = async (zone: PeopleCountingZone) => {
@@ -454,20 +467,6 @@ const handleDeleteZone = async (zoneId: string) => {
 		getLocationId,
 		// 系統特定的刪除選項
 		systemType: "people_counting",
-		getFullZoneApiCall: (id: string) => locationApi.getZone(id),
-		updateZoneApiCall: async (id: string, data: { locations: UnifiedZone["locations"] }) => {
-			const response = await locationApi.updateZone(id, { locations: data.locations })
-			const peopleCountingZone = unifiedToPeopleCountingZone(response.zone)
-
-			// 確保返回的 zone 有 id
-			return {
-				merged: response.merged,
-				message: response.message,
-				zone: { ...peopleCountingZone, id: peopleCountingZone.id || id } as PeopleCountingZone & {
-					id: string
-				},
-			}
-		},
 		// 刪除後重新載入區域與地點列表（確保 UI 立即反映刪除結果）
 		onAfterDelete: async () => {
 			await loadZones()
@@ -533,9 +532,12 @@ onMounted(async () => {
 		}
 
 		if (!selectedLocation.value && locations.value.length > 0) {
+			const sitesWithLocationId = (locations.value as PeopleCountingLocation[]).filter(
+				(l): l is PeopleCountingLocation & { locationId: number } => l.locationId != null
+			)
 			const hit = firstFlatSiteMatchingSortedZoneLocations(
 				peopleCountingZones.value,
-				locations.value
+				sitesWithLocationId
 			)
 			if (hit?.locationId != null) {
 				await handleLocationSelect(hit.locationId)

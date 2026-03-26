@@ -49,8 +49,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted, nextTick } from "vue";
 import { Chart, registerables } from "chart.js";
-import { useEnvironmentApi } from "~/composables/systems/useEnvironmentApi";
-import type { AggregatedBucket } from "~/composables/systems/useEnvironmentApi";
+import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi";
+import type { AggregatedBucket } from "~/composables/systems/environment/useEnvironmentApi";
 import { getTimeRangeForTrendUTC } from "~/utils/dateUtils";
 
 Chart.register(...registerables);

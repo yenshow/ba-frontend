@@ -1,7 +1,7 @@
 import type { Ref } from "vue"
 import type { LightingZone } from "~/types/lighting"
-import { findLightingLocationById, getLightingLocationId } from "~/utils/lightingLocation"
-import { useLightingApi } from "~/composables/systems/useLightingApi"
+import { findLocationInZonesByUiKey, getLocationUiKey } from "~/utils/locationUiId"
+import { useLightingApi } from "~/composables/systems/lighting/useLightingApi"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 
@@ -22,7 +22,7 @@ export const useLightingZonePersistence = (
 		if (!confirm("確定要刪除這個點位嗎？")) return
 
 		try {
-			const found = findLightingLocationById(lightingZones.value, locationId)
+			const found = findLocationInZonesByUiKey(lightingZones.value, locationId)
 			if (!found) {
 				throw new Error("找不到要刪除的點位")
 			}
@@ -56,7 +56,7 @@ export const useLightingZonePersistence = (
 	}
 
 	const saveLocationPosition = async (locationId: string, x: number, y: number) => {
-		const found = findLightingLocationById(lightingZones.value, locationId)
+		const found = findLocationInZonesByUiKey(lightingZones.value, locationId)
 		if (!found) return
 
 		const { zone: targetZone, locationIndex: targetLocationIndex } = found
@@ -92,7 +92,7 @@ export const useLightingZonePersistence = (
 			for (const update of updates) {
 				for (const zone of lightingZones.value) {
 					const locationIndex = zone.locations.findIndex(
-						(location, idx) => getLightingLocationId(zone, location, idx) === update.id
+						(location, idx) => getLocationUiKey({ zone, location, locationIndex: idx }) === update.id
 					)
 					if (locationIndex !== -1) {
 						const zoneId = zone.id || zone.name
@@ -110,7 +110,7 @@ export const useLightingZonePersistence = (
 				if (!zone) continue
 
 				const updatedLocations = zone.locations.map((location, index) => {
-					const locId = getLightingLocationId(zone, location, index)
+					const locId = getLocationUiKey({ zone, location, locationIndex: index })
 					const u = zoneUpdates.find((item) => item.id === locId)
 					if (u) {
 						return { ...location, location: u.location }

@@ -123,6 +123,7 @@ import { nextTick, onBeforeUnmount, onMounted, watch } from "vue"
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
 import CategoryList from "~/components/common/CategoryList.vue"
 import type { DrainageLocation, DrainageZone } from "~/types/drainage"
+import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 
 interface Props {
 	selectedZoneName: string
@@ -169,26 +170,15 @@ const initSectionObserver = () => {
 	sectionResizeObserver.observe(sectionRef.value)
 }
 
-const getLocationId = (
-	zone: DrainageZone,
-	location: DrainageLocation,
-	locationIndex: number
-): string => {
-	return location.id || `location-${zone.id || zone.name}-${locationIndex}`
-}
-
 const findLocationOriginalIndex = (zone: DrainageZone, target: DrainageLocation) => {
-	return zone.locations.findIndex((location) => {
-		if (location.id && target.id) return location.id === target.id
-		return location === target
-	})
+	return findLocationIndexInZone(zone, target)
 }
 
 const getLocationIdForDisplay = (location: DrainageLocation): string => {
 	const zone = props.selectedZoneData
 	if (!zone) return ""
 	const idx = findLocationOriginalIndex(zone, location)
-	return idx !== -1 ? getLocationId(zone, location, idx) : ""
+	return idx !== -1 ? getLocationUiKey({ zone, location, locationIndex: idx }) : ""
 }
 
 const getLocationAlertFlashClass = (location: DrainageLocation): string => {
@@ -214,7 +204,7 @@ const editModeCategoryListItems = computed(() => {
 			const idx = findLocationOriginalIndex(zone, location)
 			if (idx === -1) return null
 			return {
-				id: getLocationId(zone, location, idx),
+				id: getLocationUiKey({ zone, location, locationIndex: idx }),
 				name: location.name,
 				zoneId: props.selectedZone || "",
 				location: location.location,
@@ -235,7 +225,7 @@ const handleDotDragStart = (
 	locationIndex: number
 ) => {
 	if (!props.isEditMode || !props.selectedZoneData) return
-	const locationId = getLocationId(props.selectedZoneData, location, locationIndex)
+	const locationId = getLocationUiKey({ zone: props.selectedZoneData, location, locationIndex })
 	startDrag(event, locationId)
 }
 

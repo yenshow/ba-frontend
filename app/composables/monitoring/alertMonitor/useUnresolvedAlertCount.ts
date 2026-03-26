@@ -4,9 +4,9 @@
  */
 
 import type { AlertSource } from "~/types/alert";
-import type { AlertCountEvent } from "~/composables/websocket/useWebSocket";
+import type { AlertCountEvent } from "~/types/websocket";
 import { logger } from "~/utils/logger";
-import { useAlertApi } from "~/composables/systems/useAlertApi";
+import { useAlertApi } from "~/composables/systems/alerts/useAlertApi";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import { getTodayDateRangeUTC } from "~/utils/dateUtils";
 import { watch } from "vue";

@@ -1,12 +1,12 @@
 <template>
 	<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
 		<div class="min-h-[500px]">
-			<div v-if="isRulesLoading" class="py-16 text-center text-white/70">規則載入中...</div>
+			<div v-if="isRulesLoading" class="py-16 text-center text-white/70">警報定義載入中...</div>
 			<div
 				v-else-if="rules.length === 0"
 				class="flex min-h-[500px] items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-10 text-center text-white/80"
 			>
-				目前沒有規則
+				目前沒有警報定義
 			</div>
 			<Transition v-else name="fade" mode="out-in">
 				<div :key="`rules-${ruleOffset}-${rules.length}`">
@@ -14,6 +14,8 @@
 						<thead>
 							<tr class="border-b border-white/20">
 								<th :class="tableHeaderClass">#</th>
+								<th :class="tableHeaderClass">名稱</th>
+								<th :class="tableHeaderClass">目標</th>
 								<th :class="tableHeaderClass">訊息</th>
 								<th :class="tableHeaderClass">類型</th>
 								<th :class="tableHeaderClass">嚴重度</th>
@@ -29,6 +31,12 @@
 								class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
 							>
 								<td :class="tableCellClass">{{ ruleOffset + index + 1 }}</td>
+								<td :class="[tableCellClass, 'text-white/80']">
+									{{ rule.name || "-" }}
+								</td>
+								<td :class="[tableCellClass, 'text-white/70']">
+									{{ getRuleTargetText(rule) }}
+								</td>
 								<td :class="[tableCellClass, 'text-white/70']">
 									{{ rule.message_template || "-" }}
 								</td>
@@ -128,7 +136,7 @@ import type {
 } from "~/types/alert"
 import Pagination from "~/components/common/Pagination.vue"
 import AlertRuleDialog from "~/components/alerts/AlertRuleDialog.vue"
-import { useAlertApi } from "~/composables/systems/useAlertApi"
+import { useAlertApi } from "~/composables/systems/alerts/useAlertApi"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 
@@ -151,7 +159,6 @@ const ruleLimit = 10
 
 const ruleSourceOptions = [
 	{ value: "", label: "全部系統" },
-	{ value: "device", label: "設備系統" },
 	{ value: "environment", label: "環境系統" },
 	{ value: "lighting", label: "照明系統" },
 	{ value: "drainage", label: "衛生排水系統" },
@@ -206,7 +213,18 @@ const getRuleConditionText = (rule: AlertRule): string => {
 	if (rule.condition_type === "error_count") {
 		return `min_errors >= ${String(config.min_errors ?? 5)}`
 	}
+	if (rule.condition_type === "bit_state") {
+		return `bit_key = ${String(config.bit_key ?? "-")}`
+	}
 	return "-"
+}
+
+const getRuleTargetText = (rule: AlertRule): string => {
+	if (!rule.target_type || rule.target_id == null) return "全域"
+	if (rule.target_type === "system") return `systemId=${rule.target_id}`
+	if (rule.target_type === "location") return `locationId=${rule.target_id}`
+	if (rule.target_type === "zone") return `zoneId=${rule.target_id}`
+	return "全域"
 }
 
 const openCreateRuleDialog = () => {
@@ -231,30 +249,30 @@ const handleSubmitRule = async (payload: CreateAlertRulePayload) => {
 	try {
 		if (editingRule.value) {
 			await alertApi.updateAlertRule(editingRule.value.id, payload as UpdateAlertRulePayload)
-			toast.success("規則已更新", 3000)
+			toast.success("警報定義已更新", 3000)
 		} else {
 			await alertApi.createAlertRule(payload)
-			toast.success("規則已建立", 3000)
+			toast.success("警報定義已建立", 3000)
 		}
 		closeRuleDialog()
 		await loadRules()
 	} catch (error) {
-		handleApiError(error, editingRule.value ? "更新規則失敗" : "建立規則失敗")
+		handleApiError(error, editingRule.value ? "更新警報定義失敗" : "建立警報定義失敗")
 	} finally {
 		isRuleSaving.value = false
 	}
 }
 
 const handleDeleteRule = async (rule: AlertRule) => {
-	if (!confirm("確定要刪除這筆規則嗎？")) {
+	if (!confirm("確定要刪除此警報定義嗎？")) {
 		return
 	}
 	try {
 		await alertApi.deleteAlertRule(rule.id)
-		toast.success("規則已刪除", 3000)
+		toast.success("警報定義已刪除", 3000)
 		await loadRules()
 	} catch (error) {
-		handleApiError(error, "刪除規則失敗")
+		handleApiError(error, "刪除警報定義失敗")
 	}
 }
 

@@ -87,6 +87,7 @@
 import type { LightingZone, LightingLocation } from "~/types/lighting"
 import type { Device } from "~/types/device"
 import LightingLocationFields from "../LocationFormFields/LightingLocationFields.vue"
+import { getLocationUiKey } from "~/utils/locationUiId"
 
 interface Props {
 	zone: LightingZone
@@ -117,7 +118,7 @@ const getLocations = (zone: LightingZone): LightingLocation[] => {
 
 // 取得地點 ID
 const getLocationId = (location: LightingLocation, index: number): string => {
-	return (location as any).id || `location-${index}`
+	return getLocationUiKey({ zone: props.zone as any, location: location as any, locationIndex: index })
 }
 
 // 處理新增地點

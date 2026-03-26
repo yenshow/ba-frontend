@@ -93,7 +93,7 @@
 <script setup lang="ts">
 import type { LightingLocation } from "~/types/lighting"
 import type { Device } from "~/types/device"
-import { useLightingLocationValidation } from "~/composables/systems/location/useLightingLocationValidation"
+import { useLightingLocationValidation } from "~/composables/location/validation/useLightingLocationValidation"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 
 interface Props {

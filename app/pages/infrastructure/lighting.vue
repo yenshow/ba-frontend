@@ -56,21 +56,18 @@ import StatusCenter from "~/components/lighting/StatusCenter.vue"
 import LightingZonePlanPanel from "~/components/lighting/LightingZonePlanPanel.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
 import type { LightingZone, LightingLocation } from "~/types/lighting"
-import { useLightingApi } from "~/composables/systems/useLightingApi"
-import { useLocationApi } from "~/composables/systems/location/useLocationApi"
+import { useLightingApi } from "~/composables/systems/lighting/useLightingApi"
+import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { useZoneManagement } from "~/composables/systems/useZoneManagement"
+import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import { useAuth } from "~/composables/core/useAuth"
 import { useLightingModbusIntegration } from "~/composables/systems/lighting/useLightingModbusIntegration"
 import { useLightingZonePersistence } from "~/composables/systems/lighting/useLightingZonePersistence"
 import type { UnifiedZone } from "~/types/location"
 import { unifiedToLightingZone } from "~/utils/locationAdapter"
 import { healthStatusToAlertFlash } from "~/utils/alertUtils"
-import {
-	findLightingLocationIndexInZone,
-	getLightingLocationId,
-	isValidLightingMapPosition,
-} from "~/utils/lightingLocation"
+import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
+import { isValidPercentPosition } from "~/utils/mapPosition"
 
 definePageMeta({
 	layout: "default",
@@ -112,7 +109,7 @@ const zonePlanImage = computed(() => {
 const currentZoneLocations = computed(() => {
 	if (!selectedZone.value) return []
 	const zone = selectedZoneData.value
-	return (zone?.locations || []).filter((location) => isValidLightingMapPosition(location.location))
+	return (zone?.locations || []).filter((location) => isValidPercentPosition(location.location))
 })
 
 const allZoneLocations = computed(() => {
@@ -147,7 +144,7 @@ const { saveLocationPosition } = useLightingZonePersistence(
 )
 
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone, sortZones } =
-	useZoneManagement<LightingZone>()
+	useZoneManagement<LightingLocation, LightingZone>()
 
 const handleZoneSelected = async (zoneId: string) => {
 	selectedZone.value = zoneId
@@ -161,9 +158,9 @@ const handleSelectCategory = (locationId: string) => {
 const selectLocationByLocation = (location: LightingLocation) => {
 	const zone = selectedZoneData.value
 	if (zone && location) {
-		const originalIndex = findLightingLocationIndexInZone(zone, location)
+		const originalIndex = findLocationIndexInZone(zone, location)
 		if (originalIndex !== -1) {
-			selectedCategory.value = getLightingLocationId(zone, location, originalIndex)
+			selectedCategory.value = getLocationUiKey({ zone, location, locationIndex: originalIndex })
 		}
 	}
 }
@@ -179,8 +176,8 @@ const handleSaveLocationPositionFromPanel = (payload: {
 const getLocationIdForDisplay = (location: LightingLocation): string => {
 	const zone = selectedZoneData.value
 	if (!zone) return ""
-	const originalIndex = findLightingLocationIndexInZone(zone, location)
-	return originalIndex !== -1 ? getLightingLocationId(zone, location, originalIndex) : ""
+	const originalIndex = findLocationIndexInZone(zone, location)
+	return originalIndex !== -1 ? getLocationUiKey({ zone, location, locationIndex: originalIndex }) : ""
 }
 
 watch(
@@ -280,16 +277,6 @@ const handleDeleteZone = async (zoneId: string) => {
 		{
 			selectedZoneRef: selectedZone,
 			systemType: "lighting",
-			getFullZoneApiCall: (id: string) => locationApi.getZone(id),
-			updateZoneApiCall: async (id: string, data: { locations: UnifiedZone["locations"] }) => {
-				const response = await locationApi.updateZone(id, { locations: data.locations })
-				const lightingZone = unifiedToLightingZone(response.zone)
-				return {
-					merged: response.merged,
-					message: response.message,
-					zone: { ...lightingZone, id: lightingZone.id || id } as LightingZone & { id: string },
-				}
-			},
 			onAfterDelete: async () => {
 				await loadZonesFromAPI()
 			},

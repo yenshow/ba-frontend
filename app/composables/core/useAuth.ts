@@ -1,5 +1,5 @@
 import type { User, LoginCredentials } from "~/types/user";
-import { useUserApi } from "~/composables/systems/useUserApi";
+import { useUserApi } from "~/composables/systems/users/useUserApi";
 import { getPermissionCodeByRoute } from "~/constants/permissions";
 
 export const useAuth = () => {

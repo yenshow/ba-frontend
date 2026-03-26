@@ -66,7 +66,7 @@
 												<input
 													ref="fileInputRef"
 													type="file"
-													accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+													:accept="ZONE_IMAGE_ACCEPT_ATTR"
 													class="hidden"
 													@change="handleZoneImageChange"
 												/>
@@ -74,7 +74,7 @@
 													v-if="pendingZone.imageUrl"
 													type="button"
 													class="btn-secondary text-sm 2xl:text-base"
-													@click.stop="viewZoneImage(pendingZone.imageUrl)"
+													@click.stop="openZoneSchematicPreview(pendingZone.imageUrl)"
 												>
 													查看示意圖
 												</button>
@@ -123,7 +123,7 @@
 											<div v-else class="space-y-2">
 												<div
 													v-for="(location, locationIndex) in pendingZone.locations"
-													:key="location.id || `location-${locationIndex}`"
+													:key="getLocationUiKey({ zone: pendingZone, location, locationIndex })"
 													class="flex min-w-0 items-end gap-2 rounded border border-white/10 bg-white/5 p-2"
 												>
 													<label
@@ -214,11 +214,18 @@
 
 <script setup lang="ts">
 import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location";
+import { ZONE_IMAGE_ACCEPT_ATTR } from "~/constants/zoneImage";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
-import { useLocationApi } from "~/composables/systems/location/useLocationApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import { removeLocationFromSystemOrDelete } from "~/utils/locationCrudHelpers";
+import { buildDeleteLocationConfirmCopy, buildDeleteZoneConfirmCopy } from "~/domain/location/confirmCopy";
+import { getLocationUiKey } from "~/utils/locationUiId";
+import { useLocationValidationPipeline } from "~/composables/location/validation/useLocationValidationPipeline";
+import { useUnifiedZoneDraft } from "~/composables/location/ui/useUnifiedZoneDraft";
+import { useZoneImageUpload } from "~/composables/location/ui/useZoneImageUpload";
+import { openZoneSchematicPreview } from "~/composables/location/ui/useZoneImagePreview";
 
 interface Props {
 	modelValue: boolean;
@@ -237,52 +244,30 @@ const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
 const errorMessage = ref("");
-const fileInputRef = ref<HTMLInputElement | null>(null);
-const pendingZone = ref<UnifiedZone | null>(null);
 
-const locationApi = useLocationApi();
 const { handleError } = useErrorHandler();
+const { validateUnifiedZoneForSave } = useLocationValidationPipeline();
 
-// 檢查是否有未保存的變更
-const hasUnsavedChanges = computed(() => {
-	if (!pendingZone.value || !props.zone) return false;
-	// 比較關鍵欄位
-	return (
-		pendingZone.value.name !== props.zone.name ||
-		pendingZone.value.imageUrl !== props.zone.imageUrl ||
-		JSON.stringify(pendingZone.value.locations) !== JSON.stringify(props.zone.locations)
-	);
-});
-
-// 計算變更的欄位列表
-const changedFieldsList = computed(() => {
-	if (!pendingZone.value || !props.zone) return [];
-	const fields: string[] = [];
-
-	if (pendingZone.value.name !== props.zone.name) {
-		fields.push(`區域名稱: ${props.zone.name} → ${pendingZone.value.name}`);
-	}
-	if (pendingZone.value.imageUrl !== props.zone.imageUrl) {
-		fields.push("區域示意圖");
-	}
-	if (JSON.stringify(pendingZone.value.locations) !== JSON.stringify(props.zone.locations)) {
-		fields.push("地點列表");
-	}
-
-	return fields;
-});
-
-// 變更摘要訊息
-const changeSummary = computed(() => {
-	const count = changedFieldsList.value.length;
-	if (count === 0) return "";
-	return `有 ${count} 個欄位已修改`;
-});
+const { pendingZone, hasUnsavedChanges, changedFieldsList, changeSummary, resetToSource } =
+	useUnifiedZoneDraft({
+		sourceZone: computed(() => props.zone),
+	});
+const { fileInputRef, triggerImageInput: triggerZoneImageInput, handleZoneImageChange } =
+	useZoneImageUpload({
+		onImageReady: (imageUrl) => {
+			if (!pendingZone.value) return;
+			pendingZone.value.imageUrl = imageUrl;
+			errorMessage.value = "";
+		},
+		onError: (message) => {
+			errorMessage.value = message;
+		}
+	});
 
 // 確認對話框
 const confirmDialog = useConfirmDialog();
 const confirmAction = ref<"close" | "delete" | "deleteLocation">("close");
-const pendingDeleteLocationIndex = ref<number | null>(null);
+const pendingDeleteLocationUiKey = ref<string | null>(null);
 
 // 解包 ref 以便在模板中使用
 const showConfirmDialog = computed({
@@ -293,17 +278,6 @@ const showConfirmDialog = computed({
 });
 
 const confirmDialogConfig = computed(() => confirmDialog.config.value);
-
-// 監聽 zone 變化，初始化 pendingZone
-watch(
-	() => props.zone,
-	newZone => {
-		if (newZone) {
-			pendingZone.value = JSON.parse(JSON.stringify(newZone));
-		}
-	},
-	{ immediate: true, deep: true }
-);
 
 const handleClose = () => {
 	if (hasUnsavedChanges.value) {
@@ -324,9 +298,7 @@ const closeDialog = () => {
 	emit("update:modelValue", false);
 	errorMessage.value = "";
 	// 重置 pendingZone
-	if (props.zone) {
-		pendingZone.value = JSON.parse(JSON.stringify(props.zone));
-	}
+	resetToSource();
 };
 
 // 確認關閉
@@ -339,84 +311,9 @@ const updateZoneName = (newName: string) => {
 	pendingZone.value.name = newName.trim();
 };
 
-const triggerZoneImageInput = () => {
-	fileInputRef.value?.click();
-};
-
-const handleZoneImageChange = (event: Event) => {
-	const target = event.target as HTMLInputElement;
-	if (!target.files?.[0] || !pendingZone.value) return;
-
-	processZoneImageFile(target.files[0]);
-	target.value = "";
-};
-
-const processZoneImageFile = (file: File) => {
-	if (!pendingZone.value) return;
-
-	const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"];
-	if (!validTypes.includes(file.type)) {
-		errorMessage.value = "不支援的檔案格式，請上傳 PNG、JPG、GIF 或 WEBP 格式的圖片";
-		return;
-	}
-
-	const maxSize = 10 * 1024 * 1024;
-	if (file.size > maxSize) {
-		errorMessage.value = "檔案大小超過 10MB，請選擇較小的圖片";
-		return;
-	}
-
-	const reader = new FileReader();
-	reader.onload = e => {
-		const result = e.target?.result as string;
-		if (result && pendingZone.value) {
-			pendingZone.value.imageUrl = result;
-			errorMessage.value = "";
-		}
-	};
-	reader.onerror = () => {
-		errorMessage.value = "讀取檔案失敗，請稍後再試";
-	};
-	reader.readAsDataURL(file);
-};
-
 const removeZoneImage = () => {
 	if (!pendingZone.value) return;
 	pendingZone.value.imageUrl = undefined;
-};
-
-const viewZoneImage = (imageUrl: string) => {
-	if (!imageUrl) return;
-	const newWindow = window.open();
-	if (newWindow) {
-		newWindow.document.write(`
-			<!DOCTYPE html>
-			<html>
-				<head>
-					<title>區域示意圖</title>
-					<style>
-						body {
-							margin: 0;
-							padding: 20px;
-							background: #1a1a1a;
-							display: flex;
-							justify-content: center;
-							align-items: center;
-							min-height: 100vh;
-						}
-						img {
-							max-width: 100%;
-							max-height: 100vh;
-							object-fit: contain;
-						}
-					</style>
-				</head>
-				<body>
-					<img src="${imageUrl}" alt="區域示意圖" />
-				</body>
-			</html>
-		`);
-	}
 };
 
 const addLocation = () => {
@@ -434,57 +331,60 @@ const addLocation = () => {
 
 const removeLocation = (locationIndex: number) => {
 	if (!pendingZone.value) return;
-	pendingDeleteLocationIndex.value = locationIndex;
-	confirmAction.value = "deleteLocation";
 	const location = pendingZone.value.locations?.[locationIndex];
+	const locationUiKey = getLocationUiKey({
+		zone: pendingZone.value,
+		location: location as any,
+		locationIndex
+	});
+	pendingDeleteLocationUiKey.value = locationUiKey;
+	confirmAction.value = "deleteLocation";
 	const hasId = Boolean(location && (location as any).id);
 	const systemCount = (location as any)?.systems?.length || 0;
-	const onlyCurrentSystem = !props.systemType || systemCount <= 1;
-	confirmDialog.show({
-		title: "確認刪除",
-		message: "確定要刪除此地點嗎？",
-		details: hasId
-			? onlyCurrentSystem
-				? "此操作將刪除此地點，且無法復原。"
-				: "僅從本系統移除此地點，其他系統下的此地點不受影響。"
-			: "此地點尚未儲存，將直接從清單移除。",
-		type: "danger"
+	const copy = buildDeleteLocationConfirmCopy({
+		hasId,
+		systemType: props.systemType,
+		systemCount,
 	});
+	confirmDialog.show(copy);
 };
 
 // 確認刪除地點
 const handleConfirmDeleteLocation = async () => {
-	if (!pendingZone.value || pendingDeleteLocationIndex.value === null) return;
+	if (!pendingZone.value || !pendingDeleteLocationUiKey.value) return;
 
-	const location = pendingZone.value.locations?.[pendingDeleteLocationIndex.value];
+	const resolvedIndex =
+		(pendingZone.value.locations || []).findIndex((loc, idx) => {
+			return (
+				getLocationUiKey({
+					zone: pendingZone.value as any,
+					location: loc as any,
+					locationIndex: idx
+				}) === pendingDeleteLocationUiKey.value
+			);
+		});
+	if (resolvedIndex < 0) {
+		pendingDeleteLocationUiKey.value = null;
+		return;
+	}
+
+	const location = pendingZone.value.locations?.[resolvedIndex];
 	const locationId = location && (location as any).id ? String((location as any).id) : null;
 
 	if (locationId) {
 		try {
-			if (props.systemType) {
-				const { location: fullLocation } = await locationApi.getLocation(locationId);
-				const otherSystems = (fullLocation.systems || []).filter(
-					(s: { systemType: string }) => s.systemType !== props.systemType
-				);
-				if (otherSystems.length === 0) {
-					await locationApi.deleteLocation(locationId);
-				} else {
-					await locationApi.updateLocation(locationId, { systems: otherSystems });
-				}
-			} else {
-				await locationApi.deleteLocation(locationId);
-			}
+			await removeLocationFromSystemOrDelete({ locationId, systemType: props.systemType });
 		} catch (error) {
 			handleError(error, "刪除地點失敗");
-			pendingDeleteLocationIndex.value = null;
+			pendingDeleteLocationUiKey.value = null;
 			return;
 		}
 	}
 
 	pendingZone.value.locations = pendingZone.value.locations.filter(
-		(_, index) => index !== pendingDeleteLocationIndex.value
+		(_, index) => index !== resolvedIndex
 	);
-	pendingDeleteLocationIndex.value = null;
+	pendingDeleteLocationUiKey.value = null;
 };
 
 // 刪除區域
@@ -492,12 +392,7 @@ const handleDeleteZone = () => {
 	if (!props.zone || !props.zone.id) return;
 
 	confirmAction.value = "delete";
-	confirmDialog.show({
-		title: "確認刪除",
-		message: "確定要刪除此區域嗎？",
-		details: "此操作將刪除該區域的所有地點資料，且無法復原。",
-		type: "danger"
-	});
+	confirmDialog.show(buildDeleteZoneConfirmCopy({ systemType: props.systemType }));
 };
 
 // 確認刪除區域
@@ -529,19 +424,16 @@ const getLocationSystemsLabel = (location: UnifiedLocation): string => {
 const saveChanges = async () => {
 	if (!pendingZone.value || !hasUnsavedChanges.value) return;
 
-	// 過濾掉名稱為空或無系統的地點
-	const filteredZone = {
-		...pendingZone.value,
-		locations: (pendingZone.value.locations || []).filter(
-			loc => loc.name && loc.name.trim().length > 0 && loc.systems && loc.systems.length > 0
-		)
-	};
-	emit("save", filteredZone);
+	const result = validateUnifiedZoneForSave({ zone: pendingZone.value });
+	if (!result.isValid) {
+		errorMessage.value = result.errors.join("\n");
+		return;
+	}
+
+	emit("save", pendingZone.value);
 	errorMessage.value = "";
 	// 更新 pendingZone 以反映已保存的狀態
-	if (props.zone) {
-		pendingZone.value = JSON.parse(JSON.stringify(filteredZone));
-	}
+	resetToSource();
 };
 </script>
 

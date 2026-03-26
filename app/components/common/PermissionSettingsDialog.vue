@@ -75,7 +75,7 @@
 
 <script setup lang="ts">
 import type { PermissionDefinition, UserPermissionSettings } from "~/types/user";
-import { useUserApi } from "~/composables/systems/useUserApi";
+import { useUserApi } from "~/composables/systems/users/useUserApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 
 const props = defineProps<{

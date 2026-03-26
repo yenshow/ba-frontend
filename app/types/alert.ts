@@ -16,7 +16,8 @@ export type AlertType = "offline" | "error" | "threshold";
 
 // 嚴重程度
 export type AlertSeverity = "warning" | "error" | "critical";
-export type AlertConditionType = "threshold" | "error_count";
+export type AlertConditionType = "threshold" | "error_count" | "bit_state";
+export type AlertTargetType = "system" | "location" | "zone";
 
 export interface Alert {
 	id: number;
@@ -68,6 +69,7 @@ export interface AlertFilters {
 	source?: AlertSource;
 	source_id?: number;
 	device_id?: number;
+	exclude_sources?: AlertSource[];
 	alert_type?: AlertType;
 	dimension_key?: string;
 	severity?: AlertSeverity;
@@ -94,6 +96,10 @@ export interface AlertRule {
 	source: AlertSource;
 	alert_type: AlertType;
 	severity: AlertSeverity;
+	name?: string | null;
+	dimension_key?: string | null;
+	target_type?: AlertTargetType | null;
+	target_id?: number | null;
 	condition_type: AlertConditionType | null;
 	condition_config: Record<string, unknown> | null;
 	message_template: string | null;
@@ -108,6 +114,10 @@ export interface CreateAlertRulePayload {
 	severity: AlertSeverity;
 	condition_type: AlertConditionType;
 	condition_config: Record<string, unknown>;
+	name?: string;
+	dimension_key?: string;
+	target_type?: AlertTargetType | null;
+	target_id?: number | null;
 	message_template?: string;
 	enabled?: boolean;
 }

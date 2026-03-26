@@ -3,9 +3,10 @@
  * 負責 WebSocket 事件監聽和處理
  */
 
-import type { AlertNewEvent, AlertUpdatedEvent } from "~/composables/websocket/useWebSocket";
 import { logger } from "~/utils/logger";
+import type { AlertNewEvent, AlertUpdatedEvent } from "~/types/websocket"
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
+import { useWebSocketMonitor } from "~/composables/websocket/useWebSocketMonitor";
 import { watch } from "vue";
 
 const websocketLogger = logger.createLogger("AlertWebSocket");
@@ -14,7 +15,8 @@ const websocketLogger = logger.createLogger("AlertWebSocket");
  * 警報 WebSocket 監聽
  */
 export const useAlertWebSocket = () => {
-	const { isConnected, on, off } = useWebSocket();
+	const { isConnected } = useWebSocket();
+	const { setupListeners, removeListeners } = useWebSocketMonitor();
 
 	// 是否已設置 WebSocket 監聽器
 	const websocketListenersSetup = ref(false);
@@ -39,15 +41,20 @@ export const useAlertWebSocket = () => {
 			return;
 		}
 
-		// 保存引用以便清理
+		// 保存引用（僅保留給外部狀態判斷/除錯；實際註冊交給 useWebSocketMonitor）
 		handleAlertNewRef = handleAlertNew;
 		handleAlertUpdatedRef = handleAlertUpdated;
 
-		// 監聽新警報
-		on("alert:new", handleAlertNew);
-
-		// 監聽警報更新
-		on("alert:updated", handleAlertUpdated);
+		setupListeners([
+			{
+				event: "alert:new",
+				handler: (e: AlertNewEvent) => handleAlertNew(e),
+			},
+			{
+				event: "alert:updated",
+				handler: (e: AlertUpdatedEvent) => handleAlertUpdated(e),
+			},
+		]);
 
 		websocketListenersSetup.value = true;
 		websocketLogger.log("WebSocket 事件監聽器已設置");
@@ -61,15 +68,9 @@ export const useAlertWebSocket = () => {
 			return;
 		}
 
-		if (handleAlertNewRef) {
-			off("alert:new", handleAlertNewRef);
-			handleAlertNewRef = null;
-		}
-
-		if (handleAlertUpdatedRef) {
-			off("alert:updated", handleAlertUpdatedRef);
-			handleAlertUpdatedRef = null;
-		}
+		removeListeners(["alert:new", "alert:updated"]);
+		handleAlertNewRef = null;
+		handleAlertUpdatedRef = null;
 
 		websocketListenersSetup.value = false;
 		websocketLogger.log("WebSocket 事件監聽器已移除");

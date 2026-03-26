@@ -283,6 +283,7 @@ import {
 import type { Device } from "~/types/device"
 import DrainageLocationFields from "../LocationFormFields/DrainageLocationFields.vue"
 import { useToast } from "~/composables/core/useToast"
+import { getLocationUiKey } from "~/utils/locationUiId"
 const EMPTY_KEY = "__empty__"
 
 interface GroupRow {
@@ -420,7 +421,11 @@ watch(
 )
 
 const getStableItemKey = (item: { loc: DrainageLocation; globalIndex: number }) =>
-	item.loc.id || `idx-${item.globalIndex}`
+	getLocationUiKey({
+		zone: props.zone as any,
+		location: item.loc as any,
+		locationIndex: item.globalIndex,
+	})
 
 const handleAddDraftCategory = () => {
 	const id = `draft-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`

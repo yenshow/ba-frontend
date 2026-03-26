@@ -3,7 +3,8 @@
  * 用於獲取和管理警報規則，確保前後端一致
  */
 
-import { useAlertApi } from "~/composables/systems/useAlertApi";
+import { useAlertApi } from "~/composables/systems/alerts/useAlertApi";
+import type { AlertRule as ApiAlertRule } from "~/types/alert";
 
 export interface AlertRule {
 	id: number;
@@ -48,12 +49,31 @@ export const useAlertRules = () => {
 		isLoading.value = true;
 		try {
 			const result = await alertApi.getAlertRules(source, alertType);
-			const rules = (result.rules || []) as AlertRule[];
+			// 後端回傳型別較寬（condition_config 可能是 Record），這裡統一轉成前端使用的結構
+			const rules = (result.rules || []) as unknown as ApiAlertRule[];
+			const normalized: AlertRule[] = rules.map((r) => {
+				const cfg = (r as any).condition_config ?? {};
+				return {
+					id: Number((r as any).id ?? 0),
+					source: String((r as any).source ?? ""),
+					alert_type: String((r as any).alert_type ?? ""),
+					condition_type: String((r as any).condition_type ?? ""),
+					condition_config: {
+						parameter: String(cfg.parameter ?? ""),
+						operator: String(cfg.operator ?? ""),
+						value: Number(cfg.value ?? 0),
+						unit: cfg.unit != null ? String(cfg.unit) : undefined,
+					},
+					severity: ((r as any).severity ?? "warning") as AlertRule["severity"],
+					message_template: String((r as any).message_template ?? ""),
+					enabled: Boolean((r as any).enabled),
+				};
+			});
 			
 			// 存入緩存
-			rulesCache.value.set(cacheKey, rules);
+			rulesCache.value.set(cacheKey, normalized);
 			
-			return rules;
+			return normalized;
 		} catch (error) {
 			console.error("[useAlertRules] 獲取警報規則失敗:", error);
 			return [];

@@ -53,16 +53,17 @@ import AQICard from "~/components/home/AQICard.vue"
 import EnvironmentCard from "~/components/home/EnvironmentCard.vue"
 import BuildingCard from "~/components/home/BuildingCard.vue"
 import SystemModule from "~/components/home/SystemModule.vue"
-import { useDeviceApi } from "~/composables/systems/useDeviceApi"
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { usePolling } from "~/composables/monitoring/usePolling"
-import { useLocationApi } from "~/composables/systems/location/useLocationApi"
-import { useZoneManagement } from "~/composables/systems/useZoneManagement"
+import { useLocationApi } from "~/composables/location/api/useLocationApi"
+import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import type { UnifiedZone, UnifiedLocation, EnvironmentSystemConfig } from "~/types/location"
 import { isDeviceConnectionError } from "~/utils/errorUtils"
 import { firstLocationInSortedZones } from "~/utils/sortOrder"
+import { getLocationUiKey } from "~/utils/locationUiId"
 import type { ModbusDeviceConfig, ModbusDataResponse } from "~/types/modbus"
 import type { Device, SensorDeviceConfig, SensorDeviceModelConfig } from "~/types/device"
 import type { SensorParameterType } from "~/types/environment"
@@ -72,7 +73,7 @@ definePageMeta({
 })
 
 const locationApi = useLocationApi()
-const { sortZones } = useZoneManagement<UnifiedZone>()
+const { sortZones } = useZoneManagement<UnifiedLocation, UnifiedZone>()
 const deviceApi = useDeviceApi()
 const { request } = useApiBase()
 const toast = useToast()
@@ -167,7 +168,11 @@ const reconcileHomeLocationSelectionsWithZones = (): void => {
 	}
 	const defaultLocation = firstLocationInSortedZones(unifiedZones.value)
 	if (!defaultLocation) return
-	const defaultId = getLocationId(defaultLocation)
+	const defaultRow =
+		unifiedZones.value
+			.flatMap((z) => (z.locations || []).map((loc, idx) => ({ zone: z, loc, idx })))
+			.find(({ loc }) => loc === defaultLocation) ?? null
+	const defaultId = defaultRow ? getLocationId(defaultRow.zone, defaultRow.loc, defaultRow.idx) : ""
 	if (!selectedAqiLocationId.value) selectedAqiLocationId.value = defaultId
 	if (!selectedEnvironmentLocationId.value) selectedEnvironmentLocationId.value = defaultId
 }
@@ -179,8 +184,8 @@ const deviceCache = new Map<number, Device>()
 const unifiedZones = ref<UnifiedZone[]>([])
 const isLoadingZones = ref(false)
 
-const getLocationId = (location: UnifiedLocation): string => {
-	return location.id || `unknown-${location.name}`
+const getLocationId = (zone: UnifiedZone, location: UnifiedLocation, locationIndex: number): string => {
+	return getLocationUiKey({ zone, location, locationIndex })
 }
 
 const extractEnvironmentLocation = (unifiedLocation: UnifiedLocation) => {
@@ -216,7 +221,9 @@ const findUnifiedLocationByLocationId = (locationId: string): UnifiedLocation | 
 	}
 
 	for (const zone of unifiedZones.value) {
-		const location = zone.locations.find((loc) => getLocationId(loc) === locationId)
+		const location = (zone.locations || []).find(
+			(loc, idx) => getLocationId(zone, loc, idx) === locationId
+		)
 		if (location) {
 			return location
 		}
@@ -237,8 +244,8 @@ const locationOptions = computed(() => {
 	const options: Array<{ value: string; label: string }> = []
 
 	unifiedZones.value.forEach((zone) => {
-		zone.locations.forEach((location) => {
-			const locationId = getLocationId(location)
+		zone.locations.forEach((location, locationIndex) => {
+			const locationId = getLocationId(zone, location, locationIndex)
 			const label = `${zone.name} - ${location.name}`
 			options.push({ value: locationId, label })
 		})

@@ -3,7 +3,7 @@
  */
 
 import type { VehicleDataLog, LaneInfo, VehicleGroupFromApi } from "~/types/vehicleAccess";
-import { useExternalDataApi } from "~/composables/systems/useExternalDataApi";
+import { useExternalDataApi } from "~/composables/systems/externalData/useExternalDataApi";
 import { useApiBase } from "~/composables/core/useApiBase";
 
 const SCHEMA = "vehiclebiz";

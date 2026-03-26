@@ -188,7 +188,7 @@
 
 <script setup lang="ts">
 import type { DeviceType } from "~/types/device";
-import { useDeviceApi } from "~/composables/systems/useDeviceApi";
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import { useToast } from "~/composables/core/useToast";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";

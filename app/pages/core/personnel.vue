@@ -350,7 +350,7 @@ import type {
 import { useAuth } from "~/composables/core/useAuth"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { usePersonnelApi } from "~/composables/systems/usePersonnelApi"
+import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import PersonnelGroupDialog from "~/components/personnel/PersonnelGroupDialog.vue"
 import PersonnelPersonDialog from "~/components/personnel/PersonnelPersonDialog.vue"
 import PersonnelAccessDialog from "~/components/personnel/PersonnelAccessDialog.vue"

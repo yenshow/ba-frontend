@@ -172,7 +172,7 @@ import type { CameraDeviceConfig } from "~/types/device";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useStreamStatus } from "~/composables/monitoring/useStreamStatus";
-import { useDeviceApi } from "~/composables/systems/useDeviceApi";
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import SurveillanceControlPanel from "~/components/surveillance/SurveillanceControlPanel.vue";
 import SurveillanceCameraGrid from "~/components/surveillance/SurveillanceCameraGrid.vue";

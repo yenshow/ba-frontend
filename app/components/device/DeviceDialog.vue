@@ -315,7 +315,7 @@
 </template>
 
 <script setup lang="ts">
-import { useDeviceApi } from "~/composables/systems/useDeviceApi"
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"

@@ -7,7 +7,7 @@
 import type { MonitorView } from "~/types/surveillance";
 import { useCameraStreamStatus } from "./streamStatus/useCameraStreamStatus";
 import { useMonitorViews } from "./streamStatus/useMonitorViews";
-import { useSurveillanceApi } from "~/composables/systems/useSurveillanceApi";
+import { useSurveillanceApi } from "~/composables/systems/surveillance/useSurveillanceApi";
 
 export const useStreamStatus = () => {
 	const surveillanceApi = useSurveillanceApi();

@@ -208,18 +208,18 @@ import OverviewLocationCard from "~/components/environment/OverviewLocationCard.
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
 import SimulationFrame from "~/components/common/SimulationFrame.vue";
 import EnvironmentSimulation from "~/components/environment/EnvironmentSimulation.vue";
-import { useDeviceApi } from "~/composables/systems/useDeviceApi";
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import { useApiBase } from "~/composables/core/useApiBase";
-import { useEnvironmentApi } from "~/composables/systems/useEnvironmentApi";
-import { useLocationApi } from "~/composables/systems/location/useLocationApi";
+import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi";
+import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { usePolling } from "~/composables/monitoring/usePolling";
-import { useZoneManagement } from "~/composables/systems/useZoneManagement";
+import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
 import { useAlertRules } from "~/composables/monitoring/useAlertRules";
 import { useAuth } from "~/composables/core/useAuth";
-import type { EnvironmentReadingNewEvent } from "~/composables/websocket/useWebSocket";
+import type { EnvironmentReadingNewEvent } from "~/types/websocket";
 import {
 	getParameterDisplayName,
 	getParameterUnit,
@@ -246,6 +246,7 @@ import type { UnifiedZone } from "~/types/location";
 import { unifiedToEnvironmentZone } from "~/utils/locationAdapter";
 import { getTodayDateRangeUTC, getTimeRangeUTC } from "~/utils/dateUtils";
 import { compareZonesLoose } from "~/utils/sortOrder";
+import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId";
 
 definePageMeta({
 	layout: "default"
@@ -514,9 +515,23 @@ const getLocationZone = (location: EnvironmentLocation): string | null => {
 
 // 獲取地點 ID（一律字串，供總覽 Map key 與 API 對應）
 const getLocationId = (location: EnvironmentLocation): string => {
-	if (location.id != null && location.id !== "") return String(location.id);
-	const zoneName = getLocationZone(location);
-	return `${zoneName || "unknown"}-${location.name}`;
+	// UI 穩定 key：優先 DB id，否則 `location-${zoneKey}-${index}`（避免 rename 造成 key 變動）
+	const zone =
+		environmentZones.value.find((z) =>
+			(z.locations || []).some(
+				(l) => l === location || (l.id && location.id && String(l.id) === String(location.id))
+			)
+		) ?? null;
+	if (!zone) {
+		const zoneName = getLocationZone(location);
+		return `${zoneName || "unknown"}-${location.name}`;
+	}
+	const idx = findLocationIndexInZone(zone, location);
+	if (idx < 0) {
+		const zoneName = getLocationZone(location);
+		return `${zoneName || "unknown"}-${location.name}`;
+	}
+	return getLocationUiKey({ zone, location, locationIndex: idx });
 };
 
 // 處理環境讀數新事件
@@ -1456,7 +1471,7 @@ const stopAutoRefresh = () => {
 
 // 使用區域管理 composable
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
-	useZoneManagement<EnvironmentZone>();
+	useZoneManagement<EnvironmentLocation, EnvironmentZone>();
 
 // 處理儲存區域
 const handleSaveZone = async (zone: EnvironmentZone) => {
@@ -1497,18 +1512,6 @@ const handleDeleteZone = async (zoneId: string) => {
 		selectedLocationRef: selectedLocationId,
 		getLocationId,
 		systemType: "environment",
-		getFullZoneApiCall: (id: string) => locationApi.getZone(id),
-		updateZoneApiCall: async (id: string, data: { locations: UnifiedZone["locations"] }) => {
-			const response = await locationApi.updateZone(id, { locations: data.locations });
-			const environmentZone = unifiedToEnvironmentZone(response.zone);
-			return {
-				merged: response.merged,
-				message: response.message,
-				zone: { ...environmentZone, id: environmentZone.id || id } as EnvironmentZone & {
-					id: string;
-				}
-			};
-		},
 		onAfterDelete: async () => {
 			await loadZonesFromAPI();
 		}

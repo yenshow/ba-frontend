@@ -11,7 +11,7 @@
 <script setup lang="ts">
 import AppHeader from "~/components/common/AppHeader.vue";
 import ToastContainer from "~/components/common/ToastContainer.vue";
-import type { MonitoringDeviceStatusBatchEvent } from "~/composables/websocket/useWebSocket";
+import type { MonitoringDeviceStatusBatchEvent } from "~/types/websocket";
 import { useTheme } from "~/composables/core/useTheme";
 import { useAuth } from "~/composables/core/useAuth";
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";

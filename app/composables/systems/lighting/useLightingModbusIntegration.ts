@@ -2,8 +2,8 @@ import { computed, ref, watch, type Ref } from "vue"
 import type { LightingLocation, LightingZone } from "~/types/lighting"
 import type { Device, ControllerDeviceConfig } from "~/types/device"
 import type { ModbusDataResponse, ModbusDeviceConfig } from "~/types/modbus"
-import { useLightingApi } from "~/composables/systems/useLightingApi"
-import { useDeviceApi } from "~/composables/systems/useDeviceApi"
+import { useLightingApi } from "~/composables/systems/lighting/useLightingApi"
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { usePolling } from "~/composables/monitoring/usePolling"
@@ -14,7 +14,7 @@ import {
 	hasLocationControllerConfig,
 	needsModbusConnection,
 } from "~/utils/lightingModbus"
-import { findLightingLocationById, getLightingLocationId } from "~/utils/lightingLocation"
+import { findLocationInZonesByUiKey, getLocationUiKey } from "~/utils/locationUiId"
 
 const MODBUS_TIMEOUT = 3000
 const TOGGLE_DEBOUNCE_DELAY = 300
@@ -190,7 +190,11 @@ export const useLightingModbusIntegration = (
 	}
 
 	const findLocationById = (locationId: string, requireDbId = false) => {
-		return findLightingLocationById(lightingZones.value, locationId, requireDbId)
+		return findLocationInZonesByUiKey<LightingLocation, LightingZone>(
+			lightingZones.value,
+			locationId,
+			{ requireDbId }
+		)
 	}
 
 	const ensureLocationStatus = (locationId: string, defaultStatus: "normal" | "error" = "normal") => {
@@ -346,7 +350,7 @@ export const useLightingModbusIntegration = (
 	): Promise<BatchRequest[]> => {
 		if (!needsModbusConnection(location) || !location.modbus) return []
 
-		const locationId = getLightingLocationId(zone, location, locationIndex)
+		const locationId = getLocationUiKey({ zone, location, locationIndex })
 		const readPoint = extractReadPoint(location.modbus)
 		if (!readPoint) {
 			ensureLocationStatus(locationId, "error").status = "error"
@@ -424,7 +428,7 @@ export const useLightingModbusIntegration = (
 	const initializeLocationStatuses = () => {
 		lightingZones.value.forEach((zone) => {
 			zone.locations.forEach((location, locationIndex) => {
-				const locationId = getLightingLocationId(zone, location, locationIndex)
+				const locationId = getLocationUiKey({ zone, location, locationIndex })
 				const hasController = hasLocationControllerConfig(location)
 				const existingStatus = locationStatuses.value[locationId]
 
@@ -438,7 +442,7 @@ export const useLightingModbusIntegration = (
 		const locationIds = new Set<string>()
 		lightingZones.value.forEach((zone) => {
 			zone.locations.forEach((location, locationIndex) => {
-				locationIds.add(getLightingLocationId(zone, location, locationIndex))
+				locationIds.add(getLocationUiKey({ zone, location, locationIndex }))
 			})
 		})
 		Object.keys(locationStatuses.value).forEach((locationId) => {
@@ -452,7 +456,7 @@ export const useLightingModbusIntegration = (
 		const map: Record<string, boolean> = {}
 		lightingZones.value.forEach((zone) => {
 			zone.locations.forEach((location, locationIndex) => {
-				const locationId = getLightingLocationId(zone, location, locationIndex)
+				const locationId = getLocationUiKey({ zone, location, locationIndex })
 				const isToggling = locationToggling.value.has(locationId)
 				const hasDeviceReference = hasLocationControllerConfig(location)
 

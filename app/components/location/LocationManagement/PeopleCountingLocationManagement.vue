@@ -81,6 +81,7 @@
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting"
 import type { Device } from "~/types/device"
 import PeopleCountingLocationFields from "../LocationFormFields/PeopleCountingLocationFields.vue"
+import { getLocationUiKey } from "~/utils/locationUiId"
 
 interface PersonGroup {
 	id: number
@@ -127,7 +128,7 @@ const getLocations = (zone: PeopleCountingZone): PeopleCountingLocation[] => {
 
 // 取得地點 ID
 const getLocationId = (location: PeopleCountingLocation, index: number): string => {
-	return (location as any).id || `location-${index}`
+	return getLocationUiKey({ zone: props.zone as any, location: location as any, locationIndex: index })
 }
 
 // 處理新增地點

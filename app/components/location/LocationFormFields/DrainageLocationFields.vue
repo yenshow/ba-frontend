@@ -178,7 +178,7 @@ import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import {
 	useDrainageLocationValidation,
 	type DrainageModbusTuple,
-} from "~/composables/systems/location/useDrainageLocationValidation"
+} from "~/composables/location/validation/useDrainageLocationValidation"
 
 type DiDo = "DI" | "DO"
 type TankRoleKey = "highLevel" | "lowLevel" | "coverAlarm"

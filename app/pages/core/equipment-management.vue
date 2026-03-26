@@ -227,7 +227,7 @@ import type {
 	DeviceStatusChangedEvent,
 	MonitoringDeviceStatusEvent,
 	MonitoringDeviceStatusBatchEvent,
-} from "~/composables/websocket/useWebSocket"
+} from "~/types/websocket"
 import DeviceModelDialog from "~/components/device/DeviceModelDialog.vue"
 import DeviceTypeDialog from "~/components/device/DeviceTypeDialog.vue"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
@@ -237,8 +237,8 @@ import { useDataLoader } from "~/composables/monitoring/useDataLoader"
 import { useAuth } from "~/composables/core/useAuth"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { useDeviceApi } from "~/composables/systems/useDeviceApi"
-import { useDeviceMonitor } from "~/composables/monitoring/useDeviceMonitor"
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { useDeviceWebSocket } from "~/composables/websocket/subscribers/useDeviceWebSocket"
 
 definePageMeta({
 	layout: "default",
@@ -248,7 +248,7 @@ const { isAdmin, isOperator } = useAuth()
 const deviceApi = useDeviceApi()
 const toast = useToast()
 const { handleError: handleApiError } = useErrorHandler()
-const { setupDeviceListeners, removeDeviceListeners } = useDeviceMonitor()
+const { setupDeviceListeners, removeDeviceListeners } = useDeviceWebSocket()
 
 // 從後端動態讀取的設備類型
 const deviceTypes = ref<DeviceType[]>([])

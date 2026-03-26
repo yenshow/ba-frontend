@@ -261,10 +261,10 @@ import VehicleAccessSimulation from "~/components/vehicle-access/VehicleAccessSi
 import { useVehicleAccessState } from "~/composables/systems/vehicleAccess/useVehicleAccessState";
 import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi";
 import { useVehicleAccessWebSocket } from "~/composables/systems/vehicleAccess/useVehicleAccessWebSocket";
-import { useVehicleAccessLocationApi } from "~/composables/systems/location/useVehicleAccessLocationApi";
-import { useZoneManagement } from "~/composables/systems/useZoneManagement";
-import { useLocationApi } from "~/composables/systems/location/useLocationApi";
-import { useZoneSystemAdapter } from "~/composables/systems/useZoneSystemAdapter";
+import { useVehicleAccessLocationApi } from "~/composables/location/api/useVehicleAccessLocationApi";
+import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
+import { useLocationApi } from "~/composables/location/api/useLocationApi";
+import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter";
 import type { UnifiedZone } from "~/types/location";
 import { getTodayDateRangeUTC } from "~/utils/dateUtils";
 import { useAuth } from "~/composables/core/useAuth";
@@ -432,18 +432,22 @@ const vehicleAccessLocationApi = useVehicleAccessLocationApi();
 const locationApi = useLocationApi();
 const adapter = useZoneSystemAdapter<VehicleAccessZone, VehicleAccessLocation>("vehicle_access");
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
-	useZoneManagement<VehicleAccessZone>();
+	useZoneManagement<VehicleAccessLocation, VehicleAccessZone>();
 
 const getLocationId = (location: VehicleAccessLocation & { zoneName?: string }): string => {
-	const zoneName =
-		location.zoneName ??
-		vehicleAccessZones.value.find(z =>
-			z.locations?.some(l => l.id === location.id || l.name === location.name)
-		)?.name;
-	return (
-		adapter.getLocationId?.(location, zoneName ?? undefined) ??
-		`${zoneName ?? "unknown"}-${location.name}`
-	);
+	const zone =
+		vehicleAccessZones.value.find((z) =>
+			(z.locations || []).some((l) => l === location || (l.id && location.id && l.id === location.id))
+		) ?? null
+	const zoneName = location.zoneName ?? zone?.name ?? null
+	if (!zone || !adapter.getLocationId) {
+		return `${zoneName ?? "unknown"}-${location.name}`
+	}
+	const idx = (zone.locations || []).findIndex(
+		(l) => l === location || (l.id && location.id && l.id === location.id)
+	)
+	if (idx < 0) return `${zoneName ?? "unknown"}-${location.name}`
+	return adapter.getLocationId({ zone, location, locationIndex: idx })
 };
 
 // 與 environment 一致：僅以單一 id 判斷選定，確保總覽只有一卡高亮
@@ -500,15 +504,6 @@ const handleDeleteZone = async (zoneId: string) => {
 	await baseHandleDeleteZone(zoneId, vehicleAccessZones, vehicleAccessLocationApi.deleteZone, {
 		selectedLocationRef: selectedLocationIdRef,
 		getLocationId: (loc: VehicleAccessLocation) => getLocationId(loc),
-		getFullZoneApiCall: (id: string) => locationApi.getZone(id),
-		updateZoneApiCall: async (id: string, data: { locations: UnifiedZone["locations"] }) => {
-			const response = await locationApi.updateZone(id, { locations: data.locations });
-			return {
-				merged: response.merged,
-				message: response.message,
-				zone: response.zone as unknown as VehicleAccessZone
-			};
-		},
 		systemType: "vehicle_access",
 		onAfterDelete: async () => {
 			await loadZones();

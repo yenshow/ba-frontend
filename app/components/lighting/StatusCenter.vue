@@ -157,7 +157,7 @@
 
 <script setup lang="ts">
 import type { LightingZone, LightingLocation } from "~/types/lighting"
-import { getLightingLocationId } from "~/utils/lightingLocation"
+import { getLocationUiKey } from "~/utils/locationUiId"
 import { compareZonesLoose } from "~/utils/sortOrder"
 
 interface Props {
@@ -200,7 +200,7 @@ const getZoneLocationsWithIds = (zone: LightingZone) => {
 	return getZoneLocations(zone).map((location, locationIndex) => ({
 		location,
 		locationIndex,
-		locationId: getLightingLocationId(zone, location, locationIndex),
+		locationId: getLocationUiKey({ zone, location, locationIndex }),
 	}))
 }
 

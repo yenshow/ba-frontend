@@ -3,7 +3,7 @@
  * 監聽 YSCP event_acs（yscp:event:acs）與門禁 ISAPI 事件（people-counting:access-control:event），觸發資料重新載入
  */
 
-import type { YscpEventPayload } from "~/composables/websocket/useWebSocket";
+import type { YscpEventPayload } from "~/types/websocket";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import { logger } from "~/utils/logger";
 import { ref, watch } from "vue";

@@ -108,7 +108,7 @@
 <script setup lang="ts">
 import type { EnvironmentLocation, SensorParameterType } from "~/types/environment";
 import type { Device, SensorParameterDefinition } from "~/types/device";
-import { useDeviceApi } from "~/composables/systems/useDeviceApi";
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import { getParameterDisplayName } from "~/utils/sensorUtils";
 
 interface Props {
