@@ -1,8 +1,8 @@
 import { useAuth } from "~/composables/core/useAuth";
 import { useLicense } from "~/composables/core/useLicense";
+import { getPermissionCodeByRoute } from "~/constants/permissions";
 import {
 	getFeatureKeyByRoute,
-	getPermissionCodeByRoute,
 	LICENSE_MESSAGE_REDIRECT,
 	PERMISSION_MESSAGE_REDIRECT,
 } from "~/utils/licenseUtils";

@@ -14,3 +14,22 @@ export const PERMISSIONS = {
 	/** 地點管理（全區點位圖、區域管理按鈕） */
 	LOCATION_MANAGEMENT: "operation.location_management",
 } as const;
+
+/** 路由前綴 → 系統權限代碼（僅需權限控管的系統） */
+const ROUTE_TO_SYSTEM_PERMISSION: Record<string, string> = {
+	"/construction-monitoring/environment": PERMISSIONS.SYSTEM_ENVIRONMENT,
+	"/construction-monitoring/people-counting": PERMISSIONS.SYSTEM_PEOPLE_COUNTING,
+	"/construction-monitoring/surveillance": PERMISSIONS.SYSTEM_VIDEO_SURVEILLANCE,
+	"/construction-monitoring/vehicle-access": PERMISSIONS.SYSTEM_VEHICLE_ACCESS,
+};
+
+/**
+ * 依路由取得該系統所需權限代碼；若該路由不需權限控管則回傳 null。
+ */
+export const getPermissionCodeByRoute = (routePath: string): string | null => {
+	if (!routePath || typeof routePath !== "string") return null;
+	for (const [prefix, code] of Object.entries(ROUTE_TO_SYSTEM_PERMISSION)) {
+		if (routePath === prefix || routePath.startsWith(prefix + "/")) return code;
+	}
+	return null;
+};

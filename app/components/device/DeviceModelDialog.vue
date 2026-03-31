@@ -205,9 +205,6 @@
 													/>
 												</div>
 											</label>
-											<p class="text-xs text-white/60 2xl:text-sm">
-												需使用 `{username}` / `{password}` / `{ip}` 佔位符
-											</p>
 										</div>
 									</div>
 								</label>
@@ -439,17 +436,6 @@ const cameraRtspTemplateCustom = ref<string>("");
 const cameraRtspTemplateEffective = computed(() => {
 	if (cameraRtspTemplatePresetKey.value === "custom") return cameraRtspTemplateCustom.value.trim();
 	return CAMERA_RTSP_PRESETS[cameraRtspTemplatePresetKey.value];
-});
-
-const cameraRtspTemplatePreview = computed(() => {
-	const tpl = cameraRtspTemplateEffective.value;
-	if (!tpl) return "-";
-	return tpl
-		.replaceAll("{username}", "admin")
-		.replaceAll("{user}", "admin")
-		.replaceAll("{password}", "密碼")
-		.replaceAll("{ip}", "ip")
-		.replaceAll("{host}", "ip");
 });
 
 // 感測器參數配置（僅當設備類型為 sensor 時使用）

@@ -23,6 +23,10 @@ export const usePeopleCountingApi = () => {
 	const { request } = useApiBase();
 	const peopleCountingLocationApi = usePeopleCountingLocationApi();
 
+	/**
+	 * 取得所有地點列表（含統計）
+	 * @param existingZones - 可選的現有區域列表，如果提供則直接使用，避免重複 API 調用
+	 */
 	const getLocations = async (existingZones?: {
 		zones: PeopleCountingZone[];
 	}): Promise<{
@@ -35,6 +39,7 @@ export const usePeopleCountingApi = () => {
 					sites: Array<{
 						id: number;
 						name: string;
+						dataSource?: "yscp" | "access_control" | "isapi_camera";
 						entryCount: number;
 						exitCount: number;
 						units: Array<{
@@ -42,6 +47,8 @@ export const usePeopleCountingApi = () => {
 							name: string;
 							currentCount: number;
 							totalCount: number;
+							entryCount?: number;
+							exitCount?: number;
 						}>;
 					}>;
 				}>("/people-counting/sites"),
@@ -74,6 +81,7 @@ export const usePeopleCountingApi = () => {
 				return {
 					locationId: site.id,
 					name: site.name,
+					dataSource: site.dataSource,
 					region,
 					status: "active" as const,
 					entryCount: site.entryCount,
@@ -83,7 +91,9 @@ export const usePeopleCountingApi = () => {
 						locationId: site.id,
 						name: unit.name,
 						capacity: unit.totalCount,
-						currentCount: unit.currentCount
+						currentCount: unit.currentCount,
+						entryCount: unit.entryCount,
+						exitCount: unit.exitCount,
 					}))
 				} as PeopleCountingLocation;
 			});
@@ -95,6 +105,11 @@ export const usePeopleCountingApi = () => {
 		}
 	};
 
+	/**
+	 * 取得單一地點詳情
+	 * @param locationId - 地點 ID
+	 * @param existingLocations - 可選的現有地點列表，如果提供則直接使用
+	 */
 	const getLocationDetail = async (
 		locationId: number,
 		existingLocations?: PeopleCountingLocation[]
@@ -111,6 +126,7 @@ export const usePeopleCountingApi = () => {
 				sites: Array<{
 					id: number;
 					name: string;
+					dataSource?: "yscp" | "access_control" | "isapi_camera";
 					entryCount: number;
 					exitCount: number;
 					units: Array<{
@@ -118,6 +134,8 @@ export const usePeopleCountingApi = () => {
 						name: string;
 						currentCount: number;
 						totalCount: number;
+						entryCount?: number;
+						exitCount?: number;
 					}>;
 				}>;
 			}>("/people-counting/sites");
@@ -130,6 +148,7 @@ export const usePeopleCountingApi = () => {
 			return {
 				locationId: site.id,
 				name: site.name,
+				dataSource: site.dataSource,
 				region: "未分類",
 				status: "active" as const,
 				entryCount: site.entryCount,
@@ -139,7 +158,9 @@ export const usePeopleCountingApi = () => {
 					locationId: site.id,
 					name: unit.name,
 					capacity: unit.totalCount,
-					currentCount: unit.currentCount
+					currentCount: unit.currentCount,
+					entryCount: unit.entryCount,
+					exitCount: unit.exitCount,
 				}))
 			} as PeopleCountingLocation;
 		} catch (error) {
@@ -148,6 +169,7 @@ export const usePeopleCountingApi = () => {
 		}
 	};
 
+	/** 取得人員列表（獨立查詢，可依 locationId 篩選） */
 	const getPersonnelList = async (locationId?: number): Promise<PeopleCountingPersonnel[]> => {
 		const params: Record<string, unknown> = {};
 		if (locationId != null) params.locationId = locationId;
@@ -156,16 +178,95 @@ export const usePeopleCountingApi = () => {
 		return Array.isArray(res?.personnel) ? res.personnel : [];
 	};
 
+	/** 取得單位人員列表（後端僅辨識 query `siteId`；此處的 `locationId` 對應 `siteId`） */
 	const getUnitPersonnel = async (unitId: number, locationId?: number): Promise<PeopleCountingPersonnel[]> => {
-		const params: Record<string, unknown> = {};
-		if (locationId != null) params.locationId = locationId;
-		const path = buildPathWithQuery(`/people-counting/units/${unitId}/personnel`, params);
-		const res = await request<{ personnel: PeopleCountingPersonnel[] }>(path);
-		return Array.isArray(res?.personnel) ? res.personnel : [];
+		try {
+			const url = locationId
+				? `/people-counting/units/${unitId}/personnel?siteId=${locationId}`
+				: `/people-counting/units/${unitId}/personnel`;
+
+			const response = await request<{
+				personnel: Array<{
+					id: number;
+					employeeId: string;
+					name: string;
+					photoUrl?: string;
+					isInside: boolean;
+					lastEntryTime: string | null;
+					lastExitTime: string | null;
+					lastEntryDate: string | null;
+					entryTime: string | null;
+					exitTime: string | null;
+					isTodayEntry?: boolean;
+				}>;
+				entryCount: number;
+				exitCount: number;
+			}>(url);
+
+			const { personnel } = response;
+			if (!Array.isArray(personnel)) return [];
+
+			return personnel.map(person => {
+				return {
+					id: person.id,
+					unitId,
+					employeeId: person.employeeId,
+					name: person.name,
+					photoUrl: person.photoUrl || undefined,
+					lastEntryTime: person.lastEntryTime ? formatDateTime(person.lastEntryTime) : undefined,
+					lastExitTime: person.lastExitTime ? formatDateTime(person.lastExitTime) : undefined,
+					lastEntryDate: person.lastEntryDate || undefined,
+					entryTime: person.entryTime || undefined,
+					exitTime: person.exitTime || undefined,
+					isPresent: person.isInside ?? false,
+					isTodayEntry: person.isTodayEntry ?? false
+				};
+			});
+		} catch (error) {
+			apiLogger.error("取得單位人員失敗", { unitId, locationId, error });
+			throw error;
+		}
+	};
+
+	/** 取得地點最新 5 筆進出場記錄（主畫面固定顯示 5 筆） */
+	const getLocationLatestLogs = async (
+		locationId: number,
+		options?: {
+			unitId?: number;
+		}
+	): Promise<PeopleCountingLog[]> => {
+		try {
+			const q: Record<string, string> = {};
+			if (options?.unitId) q.unitId = String(options.unitId);
+			const queryString = new URLSearchParams(q).toString();
+			const url = `/people-counting/sites/${locationId}/logs/latest${queryString ? `?${queryString}` : ""}`;
+
+			const response = await request<{
+				logs: Array<{
+					id: string;
+					personId: number;
+					personName: string;
+					unitId: number | null;
+					unitName: string;
+					employeeId?: string | null;
+					eventType: "entry" | "exit" | "failed";
+					timestamp: string;
+					deviceScreenshotUrl: string;
+					deviceName?: string;
+					count?: number;
+				}>;
+			}>(url);
+
+			const logs = response.logs || [];
+			return logs.map(log => convertApiLogToFrontend(log, locationId));
+		} catch (error) {
+			apiLogger.error("取得最新進出場記錄失敗", { locationId, options, error });
+			throw error;
+		}
 	};
 
 	/**
-	 * 取得地點進出場記錄（YSCP / access_control 同一 API）
+	 * 取得地點進出場記錄（完整報表用，可分頁/時間區間）
 	 * startTime / endTime 未傳時，後端預設為今日範圍
 	 */
 	const getLocationLogs = async (
@@ -200,6 +301,7 @@ export const usePeopleCountingApi = () => {
 					timestamp: string;
 					deviceScreenshotUrl: string;
 					deviceName?: string;
+					count?: number;
 				}>;
 			}>(url);
 
@@ -216,7 +318,7 @@ export const usePeopleCountingApi = () => {
 		getLocationDetail,
 		getPersonnelList,
 		getUnitPersonnel,
+		getLocationLatestLogs,
 		getLocationLogs
 	};
 };
-

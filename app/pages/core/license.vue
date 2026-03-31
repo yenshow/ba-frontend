@@ -254,8 +254,6 @@ definePageMeta({
 
 const featureLabels: Record<string, string> = {
 	people_counting: "人流統計",
-	lighting: "照明系統",
-	drainage: "排水系統",
 	environment: "環境品質",
 	surveillance: "影像監控",
 	vehicle_access: "車輛進出"

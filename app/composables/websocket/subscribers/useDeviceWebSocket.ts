@@ -15,6 +15,7 @@ import { useWebSocketMonitor } from "~/composables/websocket/useWebSocketMonitor
 export const useDeviceWebSocket = () => {
 	const { setupListeners, removeListeners, isConnected } = useWebSocketMonitor()
 
+	// 事件回調函數（由外部設置）
 	let callbacks: {
 		onDeviceCreated?: (event: DeviceCreatedEvent) => void
 		onDeviceUpdated?: (event: DeviceUpdatedEvent) => void

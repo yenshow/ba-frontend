@@ -12,6 +12,7 @@ const wsLogger = logger.createLogger("PeopleCounting WebSocket");
 
 const YSCP_ACS_EVENT = "yscp:event:acs";
 const ACCESS_CONTROL_EVENT = "people-counting:access-control:event";
+const ISAPI_CAMERA_EVENT = "people-counting:isapi-camera:event";
 
 export const usePeopleCountingWebSocket = () => {
 	const { isConnected, on, off } = useWebSocket();
@@ -45,6 +46,7 @@ export const usePeopleCountingWebSocket = () => {
 
 		const handleYscpEvent = (data: YscpEventPayload) => triggerRefetch(data);
 		const handleAccessControlEvent = () => triggerRefetch();
+		const handleIsapiCameraEvent = () => triggerRefetch();
 
 		watch(
 			isConnected,
@@ -52,9 +54,11 @@ export const usePeopleCountingWebSocket = () => {
 				if (connected) {
 					on(YSCP_ACS_EVENT, handleYscpEvent);
 					on(ACCESS_CONTROL_EVENT, handleAccessControlEvent);
+					on(ISAPI_CAMERA_EVENT, handleIsapiCameraEvent);
 				} else {
 					off(YSCP_ACS_EVENT, handleYscpEvent);
 					off(ACCESS_CONTROL_EVENT, handleAccessControlEvent);
+					off(ISAPI_CAMERA_EVENT, handleIsapiCameraEvent);
 					if (debounceTimer) {
 						clearTimeout(debounceTimer);
 						debounceTimer = null;
@@ -67,6 +71,7 @@ export const usePeopleCountingWebSocket = () => {
 		return () => {
 			off(YSCP_ACS_EVENT, handleYscpEvent);
 			off(ACCESS_CONTROL_EVENT, handleAccessControlEvent);
+			off(ISAPI_CAMERA_EVENT, handleIsapiCameraEvent);
 			if (debounceTimer) {
 				clearTimeout(debounceTimer);
 				debounceTimer = null;

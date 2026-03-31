@@ -1,5 +1,5 @@
 <template>
-	<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
+	<section class="min-h-[664px] rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 			<p class="text-base text-white/70 2xl:text-lg">共 {{ mergedDetailReadings.length }} 筆讀數</p>
 			<div class="flex items-center gap-3 2xl:gap-4">
@@ -150,19 +150,18 @@ const zoneLocationLabel = computed(() => {
 
 const hasSummaryTable = computed(() => {
 	const p = props.preset;
-	return p === "today" || p === "yesterday" || p === "this_week" || p === "last_week";
+	return p === "today" || p === "yesterday";
 });
 
 const summaryTitle = computed(() => {
 	if (props.preset === "today" || props.preset === "yesterday") return "每小時平均";
-	if (props.preset === "this_week" || props.preset === "last_week") return "每日平均";
 	return "彙總";
 });
 
 const detailTitle = computed(() => {
 	if (props.preset === "today" || props.preset === "yesterday") return "詳細資料";
-	if (props.preset === "this_week" || props.preset === "last_week") return "每小時平均的詳細資料";
-	return "讀數";
+	// 週／月：頁面已改為 aggregated day（每日平均）
+	return "每日平均";
 });
 
 const formatValue = (type: SensorParameterType, value: number | null | undefined): string =>
@@ -212,17 +211,31 @@ function mergeReadingsByTime(
 	return merged;
 }
 
+const normalizeReadings = (
+	readings: SensorReading[]
+): Array<{ timestamp: string; data: SensorReading["data"] }> =>
+	(readings || []).map(r => ({ timestamp: r.timestamp, data: r.data || {} }));
+
 const mergedSummaryReadings = computed(() => {
-	const merged = mergeReadingsByTime(props.summaryReadings, 1);
-	merged.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-	return merged;
+	if (!hasSummaryTable.value) return [];
+	const rows = normalizeReadings(props.summaryReadings);
+	rows.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+	return rows;
 });
 
 const mergedDetailReadings = computed(() => {
-	// 以 5 分鐘區間合併，與後端寫入週期一致，同一地點多設備的資料會整合在同一列
-	const merged = mergeReadingsByTime(props.detailReadings, 5);
-	merged.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-	return merged;
+	const isDayRange = props.preset === "today" || props.preset === "yesterday";
+	if (isDayRange) {
+		// raw：以 5 分鐘區間合併，與後端寫入週期一致，同一地點多設備的資料會整合在同一列
+		const merged = mergeReadingsByTime(props.detailReadings, 5);
+		merged.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+		return merged;
+	}
+
+	// aggregated（day）：不需要再做分鐘 bucket 合併，只需排序
+	const rows = normalizeReadings(props.detailReadings);
+	rows.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+	return rows;
 });
 
 const paramTypeMap: Record<(typeof paramCols)[number], SensorParameterType> = {

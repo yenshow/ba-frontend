@@ -2,9 +2,7 @@
 export type AlertSource =
 	| "device"
 	| "environment"
-	| "lighting"
 	| "people_counting"
-	| "drainage"
 	| "hvac"
 	| "fire"
 	| "security";
@@ -16,6 +14,8 @@ export type AlertType = "offline" | "error" | "threshold";
 
 // 嚴重程度
 export type AlertSeverity = "warning" | "error" | "critical";
+export type AlertConditionType = "threshold" | "error_count" | "bit_state";
+export type AlertTargetType = "system" | "location" | "zone";
 
 export interface Alert {
 	id: number;
@@ -88,3 +88,36 @@ export interface UnresolvedAlertCountResponse {
 	dimension_keys?: string[];
 	rule_ids?: number[];
 }
+
+export interface AlertRule {
+	id: number;
+	source: AlertSource;
+	alert_type: AlertType;
+	severity: AlertSeverity;
+	name?: string | null;
+	dimension_key?: string | null;
+	target_type?: AlertTargetType | null;
+	target_id?: number | null;
+	condition_type: AlertConditionType | null;
+	condition_config: Record<string, unknown> | null;
+	message_template: string | null;
+	enabled: boolean;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface CreateAlertRulePayload {
+	source: AlertSource;
+	alert_type: AlertType;
+	severity: AlertSeverity;
+	condition_type: AlertConditionType;
+	condition_config: Record<string, unknown>;
+	name?: string;
+	dimension_key?: string;
+	target_type?: AlertTargetType | null;
+	target_id?: number | null;
+	message_template?: string;
+	enabled?: boolean;
+}
+
+export type UpdateAlertRulePayload = Partial<CreateAlertRulePayload>;

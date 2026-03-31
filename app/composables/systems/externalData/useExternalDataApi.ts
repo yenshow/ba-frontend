@@ -22,6 +22,12 @@ export interface ExternalDataResponse<T> {
 export const useExternalDataApi = () => {
 	const { request } = useApiBase();
 
+	/**
+	 * 取得資料列表
+	 * @param schema - Schema 名稱（如 'platform', 'baseacs'）
+	 * @param table - 資料表名稱
+	 * @param filters - 篩選參數
+	 */
 	const getList = async <T = any>(
 		schema: string,
 		table: string,
@@ -35,6 +41,12 @@ export const useExternalDataApi = () => {
 		} as ExternalDataResponse<T[]>;
 	};
 
+	/**
+	 * 取得單筆資料
+	 * @param schema - Schema 名稱
+	 * @param table - 資料表名稱
+	 * @param id - 資料 ID
+	 */
 	const getById = async <T = any>(
 		schema: string,
 		table: string,
@@ -47,6 +59,12 @@ export const useExternalDataApi = () => {
 		} as ExternalDataResponse<T>;
 	};
 
+	/**
+	 * 取得資料總數
+	 * @param schema - Schema 名稱
+	 * @param table - 資料表名稱
+	 * @param filters - 篩選參數
+	 */
 	const getCount = async (
 		schema: string,
 		table: string,
@@ -60,6 +78,11 @@ export const useExternalDataApi = () => {
 		} as ExternalDataResponse<{ count: number }>;
 	};
 
+	// ========== Platform Schema 專用方法 ==========
+
+	/**
+	 * 取得人員列表
+	 */
 	const getPersons = async (
 		filters: {
 			person_group_id?: number;
@@ -72,6 +95,9 @@ export const useExternalDataApi = () => {
 		return getList("platform", "person", filters);
 	};
 
+	/**
+	 * 取得人員群組列表
+	 */
 	const getPersonGroups = async (
 		filters: {
 			is_deleted?: number;
@@ -83,6 +109,13 @@ export const useExternalDataApi = () => {
 		return getList("platform", "person_group", filters);
 	};
 
+	// 注意：getPersonHeadPics 已移除，請使用 useYscpPersonApi 獲取人員資訊和圖片
+
+	// ========== Baseacs Schema 專用方法 ==========
+
+	/**
+	 * 取得刷卡記錄列表（未指定時間時後端預設今日）
+	 */
 	const getSlotCardRecords = async (
 		filters: {
 			person_id?: number;
@@ -100,13 +133,17 @@ export const useExternalDataApi = () => {
 		return getList("baseacs", "slot_card_records", filters);
 	};
 
+	/**
+	 * 根據記錄 ID 獲取快照圖片
+	 * @param id - 記錄 ID
+	 */
 	const getSlotCardRecordPicture = async (
 		id: number
 	): Promise<
 		ExternalDataResponse<{
 			recordId: number;
 			picUri: string;
-			image: string;
+			image: string; // Base64 編碼的圖片數據
 		}>
 	> => {
 		const data = await request<{
@@ -124,6 +161,10 @@ export const useExternalDataApi = () => {
 		}>;
 	};
 
+	/**
+	 * 根據 picUri 直接獲取圖片
+	 * @param picUri - 圖片 URI
+	 */
 	const getPictureByUri = async (picUri: string) => {
 		type PictureResult = {
 			picUri: string;
@@ -140,6 +181,10 @@ export const useExternalDataApi = () => {
 		} as ExternalDataResponse<PictureResult>;
 	};
 
+	/**
+	 * 批次獲取圖片
+	 * @param picUris - 圖片 URI 列表
+	 */
 	const getBatchPicturesByUri = async (picUris: string[]) => {
 		type BatchPictureResult = {
 			results: Array<{
@@ -167,11 +212,15 @@ export const useExternalDataApi = () => {
 	};
 
 	return {
+		// 通用方法
 		getList,
 		getById,
 		getCount,
+		// Platform Schema
 		getPersons,
 		getPersonGroups,
+		// 注意：人員頭像已移至 useYscpPersonApi
+		// Baseacs Schema
 		getSlotCardRecords,
 		getSlotCardRecordPicture,
 		getPictureByUri,

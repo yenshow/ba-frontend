@@ -8,6 +8,9 @@ import { buildPathWithQuery } from "~/utils/apiUtils";
 export const useLocationApi = () => {
 	const { request } = useApiBase();
 
+	/**
+	 * 構建系統類型參數（輔助函數，避免重複邏輯）
+	 */
 	const buildSystemTypeParams = (systemType?: SystemType): Record<string, unknown> => {
 		const params: Record<string, unknown> = {};
 		if (systemType) {
@@ -17,18 +20,28 @@ export const useLocationApi = () => {
 	};
 
 	return {
+		/**
+		 * 取得區域列表
+		 * @param systemType 可選：篩選特定系統類型的地點
+		 */
 		getZones: (systemType?: SystemType) => {
 			const params = buildSystemTypeParams(systemType);
 			const path = buildPathWithQuery("/locations/zones", params);
 			return request<{ zones: UnifiedZone[] }>(path);
 		},
 
+		/**
+		 * 取得單一區域
+		 */
 		getZone: (id: string, systemType?: SystemType) => {
 			const params = buildSystemTypeParams(systemType);
 			const path = buildPathWithQuery(`/locations/zones/${id}`, params);
 			return request<{ zone: UnifiedZone }>(path);
 		},
 
+		/**
+		 * 建立區域
+		 */
 		createZone: (data: {
 			name: string;
 			buildingId?: number;
@@ -43,6 +56,9 @@ export const useLocationApi = () => {
 			});
 		},
 
+		/**
+		 * 更新區域
+		 */
 		updateZone: (
 			id: string,
 			data: {
@@ -63,16 +79,25 @@ export const useLocationApi = () => {
 			);
 		},
 
+		/**
+		 * 刪除區域
+		 */
 		deleteZone: (id: string) => {
 			return request<{ message: string }>(`/locations/zones/${id}`, {
 				method: "DELETE"
 			});
 		},
 
+		/**
+		 * 取得單一地點（含所有系統）
+		 */
 		getLocation: (id: string) => {
 			return request<{ location: UnifiedLocation }>(`/locations/${id}`);
 		},
 
+		/**
+		 * 建立地點（含系統）
+		 */
 		createLocation: (data: {
 			zoneId: string;
 			name: string;
@@ -85,6 +110,9 @@ export const useLocationApi = () => {
 			});
 		},
 
+		/**
+		 * 更新地點（含系統）
+		 */
 		updateLocation: (
 			id: string,
 			data: {
@@ -99,6 +127,9 @@ export const useLocationApi = () => {
 			});
 		},
 
+		/**
+		 * 刪除地點
+		 */
 		deleteLocation: (id: string) => {
 			return request<{ message: string }>(`/locations/${id}`, {
 				method: "DELETE"

@@ -276,7 +276,6 @@
 
 <script setup lang="ts">
 import type { Ref } from "vue";
-import { getSystemModulesByCategory } from "~/config/system-modules";
 import type { SystemModule } from "~/types/system";
 import { useAuth } from "~/composables/core/useAuth";
 import { useToast } from "~/composables/core/useToast";
@@ -284,11 +283,10 @@ import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 import { useLicense } from "~/composables/core/useLicense";
 import {
 	getFeatureKeyByRoute,
-	getPermissionCodeByRoute,
 	LICENSE_MESSAGE_LOCKED,
 	PERMISSION_MESSAGE_LOCKED,
 } from "~/utils/licenseUtils";
-import { PERMISSIONS } from "~/constants/permissions";
+import { PERMISSIONS, getPermissionCodeByRoute } from "~/constants/permissions";
 
 const route = useRoute();
 const router = useRouter();
@@ -304,14 +302,14 @@ const {
 	stopAlertCountMonitoring
 } = useAlertMonitor();
 
-// 主要導航項目（移除警示紀錄，已移至輔助功能區）
-const mainNavigationItems = computed<SystemModule[]>(() => {
-	const allModules = getSystemModulesByCategory("all");
-	const mainNavIds = [6, 5, 8, 7]; // 人流統計、環境品質、影像監視、車輛進出
-	return mainNavIds
-		.map(id => allModules.find(module => module.id === id))
-		.filter((module): module is SystemModule => module !== undefined);
-});
+const MAIN_NAV_MODULES: SystemModule[] = [
+	{ id: 6, name: "人流統計管理", icon: "people-counting", route: "/construction-monitoring/people-counting", category: "construction-monitoring", description: "人流統計與管理" },
+	{ id: 5, name: "環境品質系統", icon: "environment", route: "/construction-monitoring/environment", category: "construction-monitoring", description: "環境品質監測與管理" },
+	{ id: 8, name: "影像監視系統", icon: "surveillance", route: "/construction-monitoring/surveillance", category: "construction-monitoring", description: "影像監視（RTSP + WebRTC）" },
+	{ id: 7, name: "車輛進出管理", icon: "vehicle-access", route: "/construction-monitoring/vehicle-access", category: "construction-monitoring", description: "車輛進出管理系統" },
+];
+
+const mainNavigationItems = computed<SystemModule[]>(() => MAIN_NAV_MODULES);
 
 // 輔助功能：當前活動項目用（警示紀錄、首頁）
 const auxiliaryItemsForActive = [

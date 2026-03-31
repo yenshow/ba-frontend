@@ -12,7 +12,6 @@ export interface SystemModule {
 		| "construction-monitoring"
 		| "infrastructure"
 		| "security"
-		| "maintenance"
 		| "business"
 		| "multimedia";
 	description?: string;

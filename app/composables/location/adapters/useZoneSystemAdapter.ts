@@ -3,187 +3,182 @@
  * 處理不同系統類型的區域和地點類型轉換
  */
 
-import type { SystemType } from "~/types/location";
-import type { LightingZone, LightingLocation } from "~/types/lighting";
-import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment";
-import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting";
-import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess";
+import type { SystemType } from "~/types/location"
+import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment"
+import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting"
+import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess"
+import { getLocationUiKey } from "~/utils/locationUiId"
 
 export type SystemZoneType =
-	| LightingZone
 	| EnvironmentZone
 	| PeopleCountingZone
-	| VehicleAccessZone;
+	| VehicleAccessZone
 export type SystemLocationType =
-	| LightingLocation
 	| EnvironmentLocation
 	| PeopleCountingLocation
-	| VehicleAccessLocation;
+	| VehicleAccessLocation
 
+/**
+ * 系統配置
+ * 用於標記系統特性，實現配置驅動的架構
+ */
 export interface SystemConfig {
+	// 是否每個區域只允許一個地點（已廢棄：所有系統現在都支持多個地點）
 	/** @deprecated 所有系統現在都支持多個地點，此配置已不再使用 */
-	singleLocationPerZone?: boolean;
-	requireImageUrl?: boolean;
+	singleLocationPerZone?: boolean
+	// 是否需要示意圖（用於照明系統）
+	requireImageUrl?: boolean
 }
 
+/**
+ * 區域系統適配器接口
+ * 提供 UI 層的地點列表讀寫、建立空地點/區域、過濾空地點與取得地點 ID，供 ZoneManagementDialog 使用。
+ * 區域與後端的轉換由 useSystemLocationApiFactory 與 locationAdapter 負責。
+ */
 export interface ZoneSystemAdapter<
 	TZone extends SystemZoneType,
-	TLocation extends SystemLocationType
+	TLocation extends SystemLocationType,
 > {
-	getLocationsProperty: (zone: TZone) => TLocation[];
-	setLocationsProperty: (zone: TZone, locations: TLocation[]) => TZone;
-	createNewLocation: () => TLocation;
-	createNewZone: (name: string) => TZone;
-	filterEmptyLocations: (zone: TZone) => TZone;
-	systemConfig?: SystemConfig;
-	getLocationId?: (location: TLocation, zoneName?: string) => string;
+	getLocationsProperty: (zone: TZone) => TLocation[]
+	setLocationsProperty: (zone: TZone, locations: TLocation[]) => TZone
+	createNewLocation: () => TLocation
+	createNewZone: (name: string) => TZone
+	filterEmptyLocations: (zone: TZone) => TZone
+	systemConfig?: SystemConfig
+	getLocationId?: (args: { zone: TZone; location: TLocation; locationIndex: number }) => string
 }
 
-export function useLightingZoneAdapter(): ZoneSystemAdapter<LightingZone, LightingLocation> {
-	const systemConfig: SystemConfig = {
-		requireImageUrl: true
-	};
-
-	return {
-		getLocationsProperty: (zone: LightingZone) => zone.locations || [],
-		setLocationsProperty: (zone: LightingZone, locations: LightingLocation[]) => ({
-			...zone,
-			locations
-		}),
-		createNewLocation: (): LightingLocation => ({
-			name: ""
-		}),
-		createNewZone: (name: string): LightingZone => ({
-			name,
-			locations: []
-		}),
-		filterEmptyLocations: (zone: LightingZone): LightingZone => ({
-			...zone,
-			locations: (zone.locations || []).filter(loc => loc.name && loc.name.trim().length > 0)
-		}),
-		systemConfig,
-		getLocationId: (location: LightingLocation, zoneName?: string): string => {
-			return location.id || `${zoneName || "unknown"}-${location.name}`;
-		}
-	};
-}
-
+/**
+ * 環境監測系統適配器
+ */
 export function useEnvironmentZoneAdapter(): ZoneSystemAdapter<
 	EnvironmentZone,
 	EnvironmentLocation
 > {
 	const systemConfig: SystemConfig = {
-		requireImageUrl: false
-	};
+		requireImageUrl: false, // 環境監測系統不需要示意圖
+	}
 
 	return {
 		getLocationsProperty: (zone: EnvironmentZone) => zone.locations || [],
-		setLocationsProperty: (zone: EnvironmentZone, locations: EnvironmentLocation[]) => ({
-			...zone,
-			locations
-		}),
+		setLocationsProperty: (zone: EnvironmentZone, locations: EnvironmentLocation[]) => {
+			// 環境監測系統現在支持多個地點
+			return {
+				...zone,
+				locations,
+			}
+		},
 		createNewLocation: (): EnvironmentLocation => ({
 			name: "",
-			parameters: []
+			parameters: [],
 		}),
 		createNewZone: (name: string): EnvironmentZone => ({
 			name,
-			locations: []
+			locations: [],
 		}),
 		filterEmptyLocations: (zone: EnvironmentZone): EnvironmentZone => ({
 			...zone,
-			locations: (zone.locations || []).filter(loc => loc.name && loc.name.trim().length > 0)
+			locations: (zone.locations || []).filter((loc) => loc.name && loc.name.trim().length > 0),
 		}),
 		systemConfig,
-		getLocationId: (location: EnvironmentLocation, zoneName?: string): string => {
-			return location.id || `${zoneName || "unknown"}-${location.name}`;
-		}
-	};
+		getLocationId: ({ zone, location, locationIndex }): string => {
+			return getLocationUiKey({ zone, location, locationIndex })
+		},
+	}
 }
 
+/**
+ * 人流統計系統適配器
+ */
 export function usePeopleCountingZoneAdapter(): ZoneSystemAdapter<
 	PeopleCountingZone,
 	PeopleCountingLocation
 > {
 	const systemConfig: SystemConfig = {
-		requireImageUrl: false
-	};
+		requireImageUrl: false, // 人流統計系統不需要示意圖
+	}
 
 	return {
 		getLocationsProperty: (zone: PeopleCountingZone) => zone.locations || [],
-		setLocationsProperty: (zone: PeopleCountingZone, locations: PeopleCountingLocation[]) => ({
-			...zone,
-			locations
-		}),
+		setLocationsProperty: (zone: PeopleCountingZone, locations: PeopleCountingLocation[]) => {
+			// 人流統計系統現在支持多個地點
+			return {
+				...zone,
+				locations,
+			}
+		},
 		createNewLocation: (): PeopleCountingLocation => ({
 			name: "",
-			personGroupIds: []
+			personGroupIds: [],
 		}),
 		createNewZone: (name: string): PeopleCountingZone => ({
 			name,
-			locations: []
+			locations: [],
 		}),
 		filterEmptyLocations: (zone: PeopleCountingZone): PeopleCountingZone => ({
 			...zone,
-			locations: (zone.locations || []).filter(loc => loc.name && loc.name.trim().length > 0)
+			locations: (zone.locations || []).filter((loc) => loc.name && loc.name.trim().length > 0),
 		}),
 		systemConfig,
-		getLocationId: (location: PeopleCountingLocation, zoneName?: string): string => {
-			if (location.id) return location.id;
-			if (location.locationId) return String(location.locationId);
-			return `${zoneName || "unknown"}-${location.name}`;
-		}
-	};
+		getLocationId: ({ zone, location, locationIndex }): string => {
+			// PeopleCountingLocation 可能同時存在 locationId（業務層數字）；但 UI 穩定 key 仍以 DB id 優先，
+			// 未存檔則統一走 zoneKey + index，避免 rename 造成 key 變動。
+			return getLocationUiKey({ zone, location, locationIndex })
+		},
+	}
 }
 
+/**
+ * 車輛進出系統適配器
+ */
 export function useVehicleAccessZoneAdapter(): ZoneSystemAdapter<
 	VehicleAccessZone,
 	VehicleAccessLocation
 > {
 	const systemConfig: SystemConfig = {
-		requireImageUrl: false
-	};
+		requireImageUrl: false,
+	}
 
 	return {
 		getLocationsProperty: (zone: VehicleAccessZone) => zone.locations || [],
 		setLocationsProperty: (zone: VehicleAccessZone, locations: VehicleAccessLocation[]) => ({
 			...zone,
-			locations
+			locations,
 		}),
 		createNewLocation: (): VehicleAccessLocation => ({
-			name: ""
+			name: "",
 		}),
 		createNewZone: (name: string): VehicleAccessZone => ({
 			name,
-			locations: []
+			locations: [],
 		}),
 		filterEmptyLocations: (zone: VehicleAccessZone): VehicleAccessZone => ({
 			...zone,
-			locations: (zone.locations || []).filter(loc => loc.name && loc.name.trim().length > 0)
+			locations: (zone.locations || []).filter((loc) => loc.name && loc.name.trim().length > 0),
 		}),
 		systemConfig,
-		getLocationId: (location: VehicleAccessLocation, zoneName?: string): string => {
-			if (location.id) return location.id;
-			return `${zoneName || "unknown"}-${location.name}`;
-		}
-	};
+		getLocationId: ({ zone, location, locationIndex }): string => {
+			return getLocationUiKey({ zone, location, locationIndex })
+		},
+	}
 }
 
+/**
+ * 根據系統類型取得適配器
+ */
 export function useZoneSystemAdapter<
 	TZone extends SystemZoneType,
-	TLocation extends SystemLocationType
+	TLocation extends SystemLocationType,
 >(systemType: SystemType): ZoneSystemAdapter<TZone, TLocation> {
 	switch (systemType) {
-		case "lighting":
-			return useLightingZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>;
 		case "environment":
-			return useEnvironmentZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>;
+			return useEnvironmentZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		case "people_counting":
-			return usePeopleCountingZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>;
+			return usePeopleCountingZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		case "vehicle_access":
-			return useVehicleAccessZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>;
+			return useVehicleAccessZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		default:
-			throw new Error(`不支援的系統類型: ${systemType}`);
+			throw new Error(`不支援的系統類型: ${systemType}`)
 	}
 }
 

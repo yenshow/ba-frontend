@@ -1,5 +1,5 @@
 <template>
-	<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
+	<section class="min-h-[664px] rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 			<p class="text-base text-white/70 2xl:text-lg">共 {{ logs.length }} 筆紀錄</p>
 			<div class="flex items-center gap-3 2xl:gap-4">

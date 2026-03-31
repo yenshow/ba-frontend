@@ -37,6 +37,7 @@ export const useAccessControlApi = () => {
 	const { request } = useApiBase();
 
 	return {
+		/** 取得門禁設備上的人員列表 */
 		searchUserInfo: (
 			deviceId: number,
 			params?: { searchResultPosition?: number; maxResults?: number }
@@ -50,6 +51,7 @@ export const useAccessControlApi = () => {
 			);
 		},
 
+		/** 修改單一人員資料 */
 		updateUserInfo: (deviceId: number, userInfo: UserInfoPayload) => {
 			return request<{ success: boolean }>(
 				`/access-control/devices/${deviceId}/user-info`,
@@ -60,6 +62,7 @@ export const useAccessControlApi = () => {
 			);
 		},
 
+		/** 刪除人員（單一或多筆） */
 		deleteUserInfo: (
 			deviceId: number,
 			payload: { employeeNo?: string; employeeNoList?: string[] }
@@ -73,6 +76,7 @@ export const useAccessControlApi = () => {
 			);
 		},
 
+		/** 上傳人臉圖（multipart：img 檔案） */
 		uploadFace: (
 			deviceId: number,
 			employeeNo: string,
@@ -97,6 +101,7 @@ export const useAccessControlApi = () => {
 			);
 		},
 
+		/** 呼叫設備截圖（捕獲人臉資料） */
 		captureFace: (
 			deviceId: number,
 			params?: { dataType?: string; captureInfrared?: boolean; readerID?: number }

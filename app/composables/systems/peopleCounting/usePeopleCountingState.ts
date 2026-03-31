@@ -67,16 +67,21 @@ export const usePeopleCountingState = () => {
 					loc => loc.locationId === selectedLocation.value?.locationId
 				);
 				if (updatedLocation) {
-					// 只更新統計資料，保留其他詳情（如 units, personnel 等）
 					selectedLocation.value = {
 						...selectedLocation.value,
+						dataSource: updatedLocation.dataSource,
 						entryCount: updatedLocation.entryCount,
 						exitCount: updatedLocation.exitCount,
-						// 更新 units 的 currentCount（如果有的話）
 						units:
 							selectedLocation.value.units?.map(unit => {
 								const updatedUnit = updatedLocation.units?.find(u => u.id === unit.id);
-								return updatedUnit ? { ...unit, currentCount: updatedUnit.currentCount } : unit;
+								if (!updatedUnit) return unit;
+								return {
+									...unit,
+									currentCount: updatedUnit.currentCount,
+									entryCount: updatedUnit.entryCount,
+									exitCount: updatedUnit.exitCount,
+								};
 							}) || updatedLocation.units
 					};
 				}
@@ -105,16 +110,20 @@ export const usePeopleCountingState = () => {
 			// 使用現有的 locations 列表，避免重複 API 調用
 			selectedLocation.value = await peopleCountingApi.getLocationDetail(locationId, locations.value);
 
-			// 預設選取第一個單位
-			const firstUnit = selectedLocation.value.units?.[0];
-			if (firstUnit) {
-				selectedUnitId.value = firstUnit.id;
-				// 並行載入人員列表和進出場記錄，提高載入速度
-				await Promise.all([loadUnitPersonnel(firstUnit.id), loadLocationLogs(locationId)]);
-			} else {
+			const isCamera = selectedLocation.value.dataSource === "isapi_camera";
+			if (isCamera) {
+				selectedUnitId.value = null;
 				personnel.value = [];
-				// 即使沒有單位，也載入進出場記錄
 				await loadLocationLogs(locationId);
+			} else {
+				const firstUnit = selectedLocation.value.units?.[0];
+				if (firstUnit) {
+					selectedUnitId.value = firstUnit.id;
+					await Promise.all([loadUnitPersonnel(firstUnit.id), loadLocationLogs(locationId)]);
+				} else {
+					personnel.value = [];
+					await loadLocationLogs(locationId);
+				}
 			}
 		} catch (error) {
 			const errorMsg = handleError(error, "載入地點詳情失敗");

@@ -4,9 +4,9 @@
  */
 
 import { logger } from "~/utils/logger";
+import type { AlertNewEvent, AlertUpdatedEvent } from "~/types/websocket"
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import { useWebSocketMonitor } from "~/composables/websocket/useWebSocketMonitor";
-import type { AlertNewEvent, AlertUpdatedEvent } from "~/types/websocket"
 import { watch } from "vue";
 
 const websocketLogger = logger.createLogger("AlertWebSocket");

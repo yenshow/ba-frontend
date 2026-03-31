@@ -1,21 +1,22 @@
 export type ZoneUiKeyable = { id?: string | null; name?: string | null }
 
+/**
+ * UI 層用的 zone key（優先 DB id，其次 name）
+ * 注意：不要在 getter 內臨時生成隨機 temp id，避免 key 不穩定造成 UI 狀態飄移。
+ */
+export const getZoneUiKey = (zone: ZoneUiKeyable | null | undefined): string => {
+	if (!zone) return ""
+	if (zone.id != null && String(zone.id).trim() !== "") return String(zone.id)
+	if (zone.name != null && String(zone.name).trim() !== "") return String(zone.name)
+	return ""
+}
+
 export type LocationUiKeyable = { id?: string | null }
 
 export type LocationUiKeyParts<TZone extends ZoneUiKeyable, TLocation extends LocationUiKeyable> = {
 	zone: TZone
 	location: TLocation
 	locationIndex: number
-}
-
-/**
- * UI 層用的 zone key（不等於 DB id；只用於組合 location 的 fallback key）
- */
-export const getZoneUiKey = (zone: ZoneUiKeyable | null | undefined): string => {
-	if (!zone) return "unknown-zone"
-	if (zone.id != null && String(zone.id).trim() !== "") return String(zone.id)
-	if (zone.name != null && String(zone.name).trim() !== "") return String(zone.name)
-	return "unknown-zone"
 }
 
 /**
@@ -28,7 +29,8 @@ export const getLocationUiKey = <TZone extends ZoneUiKeyable, TLocation extends 
 ): string => {
 	const id = parts.location?.id
 	if (id != null && String(id).trim() !== "") return String(id)
-	return `location-${getZoneUiKey(parts.zone)}-${parts.locationIndex}`
+	const zoneKey = getZoneUiKey(parts.zone) || "unknown-zone"
+	return `location-${zoneKey}-${parts.locationIndex}`
 }
 
 export type ZoneWithLocations<TLocation extends LocationUiKeyable> = ZoneUiKeyable & {
@@ -71,4 +73,3 @@ export const findLocationInZonesByUiKey = <
 
 	return null
 }
-

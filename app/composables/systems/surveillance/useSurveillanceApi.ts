@@ -13,6 +13,9 @@ const surveillanceLogger = logger.createLogger("Surveillance API");
 export const useSurveillanceApi = () => {
 	const deviceApi = useDeviceApi();
 
+	/**
+	 * 獲取所有攝影機設備
+	 */
 	const getCameraDevices = async (): Promise<Device[]> => {
 		try {
 			const response = await deviceApi.getDevices({
@@ -25,6 +28,9 @@ export const useSurveillanceApi = () => {
 		}
 	};
 
+	/**
+	 * 獲取攝影機列表（用於監視頁面，無串流狀態）
+	 */
 	const getCamerasWithStreamInfo = async (): Promise<SurveillanceCamera[]> => {
 		try {
 			const devices = await getCameraDevices();
@@ -43,6 +49,9 @@ export const useSurveillanceApi = () => {
 		}
 	};
 
+	/**
+	 * 啟動攝影機串流（MediaMTX），回傳 webrtcUrl
+	 */
 	const startCameraStream = async (deviceId: number): Promise<DeviceStreamStartResponse> => {
 		try {
 			return await deviceApi.startStream(deviceId);
@@ -52,6 +61,9 @@ export const useSurveillanceApi = () => {
 		}
 	};
 
+	/**
+	 * 停止攝影機串流
+	 */
 	const stopCameraStream = async (deviceId: number): Promise<void> => {
 		try {
 			await deviceApi.stopStream(deviceId);
@@ -61,6 +73,9 @@ export const useSurveillanceApi = () => {
 		}
 	};
 
+	/**
+	 * 查詢攝影機串流狀態
+	 */
 	const getCameraStreamStatus = async (
 		deviceId: number
 	): Promise<DeviceStreamStatusResponse> => {

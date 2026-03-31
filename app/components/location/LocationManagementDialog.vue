@@ -13,14 +13,14 @@
 						<div class="flex items-center gap-3">
 							<!-- 變更提示 -->
 							<FormChangeIndicator
-								v-if="hasUnsavedChanges"
+								v-if="!isReadOnly && hasUnsavedChanges"
 								:has-changes="hasUnsavedChanges"
 								:changed-fields="changedFieldsList"
 								:message="changeSummary"
 							/>
 							<!-- ✅ 新增刪除按鈕 -->
 							<button
-								v-if="zone && zone.id"
+								v-if="canDelete && zone && zone.id"
 								type="button"
 								class="p-2 text-rose-400 transition-colors hover:text-rose-300"
 								@click="handleDeleteZone"
@@ -61,9 +61,11 @@
 													required
 													class="form-input-small flex-1"
 													placeholder="例如：1F、2F"
+													:readonly="isReadOnly"
 													@input="updateZoneName(($event.target as HTMLInputElement).value)"
 												/>
 												<input
+													v-if="!isReadOnly"
 													ref="fileInputRef"
 													type="file"
 													:accept="ZONE_IMAGE_ACCEPT_ATTR"
@@ -79,6 +81,7 @@
 													查看示意圖
 												</button>
 												<button
+													v-if="!isReadOnly"
 													type="button"
 													class="btn-secondary text-sm 2xl:text-base"
 													@click.stop="triggerZoneImageInput"
@@ -86,7 +89,7 @@
 													{{ pendingZone.imageUrl ? "更換" : "上傳" }}示意圖
 												</button>
 												<button
-													v-if="pendingZone.imageUrl"
+													v-if="!isReadOnly && pendingZone.imageUrl"
 													type="button"
 													class="p-2 text-rose-400 transition-colors hover:text-rose-300"
 													@click.stop="removeZoneImage"
@@ -108,7 +111,12 @@
 										<div class="overflow-hidden rounded-lg border border-white/20 bg-white/10 p-4">
 											<div class="mb-3 flex items-center justify-between">
 												<span class="text-base font-medium 2xl:text-lg">地點列表</span>
-												<button type="button" class="btn-secondary text-sm 2xl:text-base" @click="addLocation">
+												<button
+													v-if="!isReadOnly"
+													type="button"
+													class="btn-secondary text-sm 2xl:text-base"
+													@click="addLocation"
+												>
 													新增地點
 												</button>
 											</div>
@@ -136,6 +144,7 @@
 															required
 															class="form-input-small"
 															placeholder="例如：主控室"
+															:readonly="isReadOnly"
 														/>
 													</label>
 													<label
@@ -147,6 +156,7 @@
 														</div>
 													</label>
 													<button
+														v-if="canDelete"
 														type="button"
 														class="ml-auto flex-shrink-0 p-2 text-rose-400 transition-colors hover:text-rose-300"
 														@click="removeLocation(locationIndex)"
@@ -181,6 +191,7 @@
 						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
 						<div class="flex-1"></div>
 						<button
+							v-if="!isReadOnly"
 							type="button"
 							class="btn-primary"
 							:class="{ 'cursor-not-allowed opacity-50': !hasUnsavedChanges }"
@@ -214,21 +225,26 @@
 
 <script setup lang="ts">
 import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location";
+import { ZONE_IMAGE_ACCEPT_ATTR } from "~/constants/zoneImage";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
-import { ZONE_IMAGE_ACCEPT_ATTR } from "~/constants/zoneImage"
-import { useZoneImageUpload } from "~/composables/location/ui/useZoneImageUpload"
-import { openZoneSchematicPreview } from "~/composables/location/ui/useZoneImagePreview"
-import { removeLocationFromSystemOrDelete } from "~/utils/locationCrudHelpers"
-import { getLocationUiKey } from "~/utils/locationUiId"
+import { removeLocationFromSystemOrDelete } from "~/services/location/locationService";
+import { buildDeleteLocationConfirmCopy, buildDeleteZoneConfirmCopy } from "~/domain/location/confirmCopy";
+import { getLocationUiKey } from "~/utils/locationUiId";
+import { useLocationValidationPipeline } from "~/composables/location/validation/useLocationValidationPipeline";
+import { useUnifiedZoneDraft } from "~/composables/location/ui/useZoneDrafts";
+import { useZoneImageUpload, openZoneSchematicPreview } from "~/composables/location/ui/useZoneImage";
 
 interface Props {
 	modelValue: boolean;
 	zone: UnifiedZone | null;
 	/** 可選：提供時刪除地點僅移除此系統 */
 	systemType?: SystemType;
+	readOnly?: boolean;
+	/** 可選：即使可編輯，也可關閉刪除功能（例如只允許 admin 刪除） */
+	allowDelete?: boolean;
 }
 
 interface Emits {
@@ -239,63 +255,37 @@ interface Emits {
 
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
+const isReadOnly = computed(() => props.readOnly === true);
+const canDelete = computed(() => {
+	if (isReadOnly.value) return false;
+	return props.allowDelete !== false;
+});
 
 const errorMessage = ref("");
-const pendingZone = ref<UnifiedZone | null>(null);
 
 const { handleError } = useErrorHandler();
+const { validateUnifiedZoneForSave } = useLocationValidationPipeline();
 
-const { fileInputRef, triggerImageInput: triggerZoneImageInput, handleZoneImageChange } = useZoneImageUpload({
-	onImageReady: (imageUrl) => {
-		if (!pendingZone.value) return
-		pendingZone.value.imageUrl = imageUrl
-		errorMessage.value = ""
-	},
-	onError: (message) => {
-		errorMessage.value = message
-	},
-})
-
-// 檢查是否有未保存的變更
-const hasUnsavedChanges = computed(() => {
-	if (!pendingZone.value || !props.zone) return false;
-	// 比較關鍵欄位
-	return (
-		pendingZone.value.name !== props.zone.name ||
-		pendingZone.value.imageUrl !== props.zone.imageUrl ||
-		JSON.stringify(pendingZone.value.locations) !== JSON.stringify(props.zone.locations)
-	);
-});
-
-// 計算變更的欄位列表
-const changedFieldsList = computed(() => {
-	if (!pendingZone.value || !props.zone) return [];
-	const fields: string[] = [];
-
-	if (pendingZone.value.name !== props.zone.name) {
-		fields.push(`區域名稱: ${props.zone.name} → ${pendingZone.value.name}`);
-	}
-	if (pendingZone.value.imageUrl !== props.zone.imageUrl) {
-		fields.push("區域示意圖");
-	}
-	if (JSON.stringify(pendingZone.value.locations) !== JSON.stringify(props.zone.locations)) {
-		fields.push("地點列表");
-	}
-
-	return fields;
-});
-
-// 變更摘要訊息
-const changeSummary = computed(() => {
-	const count = changedFieldsList.value.length;
-	if (count === 0) return "";
-	return `有 ${count} 個欄位已修改`;
-});
+const { pendingZone, hasUnsavedChanges, changedFieldsList, changeSummary, resetToSource } =
+	useUnifiedZoneDraft({
+		sourceZone: computed(() => props.zone),
+	});
+const { fileInputRef, triggerImageInput: triggerZoneImageInput, handleZoneImageChange } =
+	useZoneImageUpload({
+		onImageReady: (imageUrl) => {
+			if (!pendingZone.value) return;
+			pendingZone.value.imageUrl = imageUrl;
+			errorMessage.value = "";
+		},
+		onError: (message) => {
+			errorMessage.value = message;
+		}
+	});
 
 // 確認對話框
 const confirmDialog = useConfirmDialog();
 const confirmAction = ref<"close" | "delete" | "deleteLocation">("close");
-const pendingDeleteLocationIndex = ref<number | null>(null);
+const pendingDeleteLocationUiKey = ref<string | null>(null);
 
 // 解包 ref 以便在模板中使用
 const showConfirmDialog = computed({
@@ -307,18 +297,11 @@ const showConfirmDialog = computed({
 
 const confirmDialogConfig = computed(() => confirmDialog.config.value);
 
-// 監聽 zone 變化，初始化 pendingZone
-watch(
-	() => props.zone,
-	newZone => {
-		if (newZone) {
-			pendingZone.value = JSON.parse(JSON.stringify(newZone));
-		}
-	},
-	{ immediate: true, deep: true }
-);
-
 const handleClose = () => {
+	if (isReadOnly.value) {
+		closeDialog();
+		return;
+	}
 	if (hasUnsavedChanges.value) {
 		confirmAction.value = "close";
 		confirmDialog.show({
@@ -337,9 +320,7 @@ const closeDialog = () => {
 	emit("update:modelValue", false);
 	errorMessage.value = "";
 	// 重置 pendingZone
-	if (props.zone) {
-		pendingZone.value = JSON.parse(JSON.stringify(props.zone));
-	}
+	resetToSource();
 };
 
 // 確認關閉
@@ -348,16 +329,19 @@ const handleConfirmClose = () => {
 };
 
 const updateZoneName = (newName: string) => {
+	if (isReadOnly.value) return;
 	if (!pendingZone.value) return;
 	pendingZone.value.name = newName.trim();
 };
 
 const removeZoneImage = () => {
+	if (isReadOnly.value) return;
 	if (!pendingZone.value) return;
 	pendingZone.value.imageUrl = undefined;
 };
 
 const addLocation = () => {
+	if (isReadOnly.value) return;
 	if (!pendingZone.value) return;
 	const newLocation: Omit<UnifiedLocation, "id" | "zoneId"> = {
 		name: "",
@@ -371,57 +355,72 @@ const addLocation = () => {
 };
 
 const removeLocation = (locationIndex: number) => {
+	if (!canDelete.value) return;
 	if (!pendingZone.value) return;
-	pendingDeleteLocationIndex.value = locationIndex;
-	confirmAction.value = "deleteLocation";
 	const location = pendingZone.value.locations?.[locationIndex];
+	const locationUiKey = getLocationUiKey({
+		zone: pendingZone.value,
+		location: location as any,
+		locationIndex
+	});
+	pendingDeleteLocationUiKey.value = locationUiKey;
+	confirmAction.value = "deleteLocation";
 	const hasId = Boolean(location && (location as any).id);
 	const systemCount = (location as any)?.systems?.length || 0;
-	const onlyCurrentSystem = !props.systemType || systemCount <= 1;
-	confirmDialog.show({
-		title: "確認刪除",
-		message: "確定要刪除此地點嗎？",
-		details: hasId
-			? onlyCurrentSystem
-				? "此操作將刪除此地點，且無法復原。"
-				: "僅從本系統移除此地點，其他系統下的此地點不受影響。"
-			: "此地點尚未儲存，將直接從清單移除。",
-		type: "danger"
+	const copy = buildDeleteLocationConfirmCopy({
+		hasId,
+		systemType: props.systemType,
+		systemCount,
 	});
+	confirmDialog.show(copy);
 };
 
 // 確認刪除地點
 const handleConfirmDeleteLocation = async () => {
-	if (!pendingZone.value || pendingDeleteLocationIndex.value === null) return;
+	if (!canDelete.value) return;
+	if (!pendingZone.value || !pendingDeleteLocationUiKey.value) return;
 
-	const location = pendingZone.value.locations?.[pendingDeleteLocationIndex.value];
+	const resolvedIndex =
+		(pendingZone.value.locations || []).findIndex((loc, idx) => {
+			return (
+				getLocationUiKey({
+					zone: pendingZone.value as any,
+					location: loc as any,
+					locationIndex: idx
+				}) === pendingDeleteLocationUiKey.value
+			);
+		});
+	if (resolvedIndex < 0) {
+		pendingDeleteLocationUiKey.value = null;
+		return;
+	}
+
+	const location = pendingZone.value.locations?.[resolvedIndex];
 	const locationId = location && (location as any).id ? String((location as any).id) : null;
 
-	try {
-		await removeLocationFromSystemOrDelete({ locationId, systemType: props.systemType })
-	} catch (error) {
-		handleError(error, "刪除地點失敗")
-		pendingDeleteLocationIndex.value = null
-		return
+	if (locationId) {
+		try {
+			await removeLocationFromSystemOrDelete({ locationId, systemType: props.systemType });
+		} catch (error) {
+			handleError(error, "刪除地點失敗");
+			pendingDeleteLocationUiKey.value = null;
+			return;
+		}
 	}
 
 	pendingZone.value.locations = pendingZone.value.locations.filter(
-		(_, index) => index !== pendingDeleteLocationIndex.value
+		(_, index) => index !== resolvedIndex
 	);
-	pendingDeleteLocationIndex.value = null;
+	pendingDeleteLocationUiKey.value = null;
 };
 
 // 刪除區域
 const handleDeleteZone = () => {
+	if (!canDelete.value) return;
 	if (!props.zone || !props.zone.id) return;
 
 	confirmAction.value = "delete";
-	confirmDialog.show({
-		title: "確認刪除",
-		message: "確定要刪除此區域嗎？",
-		details: "此操作將刪除該區域的所有地點資料，且無法復原。",
-		type: "danger"
-	});
+	confirmDialog.show(buildDeleteZoneConfirmCopy({ systemType: props.systemType }));
 };
 
 // 確認刪除區域
@@ -434,7 +433,6 @@ const handleConfirmDelete = () => {
 // 系統類型標籤映射
 const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
 	environment: "環境監測",
-	lighting: "照明系統",
 	people_counting: "人流統計",
 	vehicle_access: "車輛進出"
 };
@@ -450,21 +448,19 @@ const getLocationSystemsLabel = (location: UnifiedLocation): string => {
 };
 
 const saveChanges = async () => {
+	if (isReadOnly.value) return;
 	if (!pendingZone.value || !hasUnsavedChanges.value) return;
 
-	// 過濾掉名稱為空或無系統的地點
-	const filteredZone = {
-		...pendingZone.value,
-		locations: (pendingZone.value.locations || []).filter(
-			loc => loc.name && loc.name.trim().length > 0 && loc.systems && loc.systems.length > 0
-		)
-	};
-	emit("save", filteredZone);
+	const result = validateUnifiedZoneForSave({ zone: pendingZone.value });
+	if (!result.isValid) {
+		errorMessage.value = result.errors.join("\n");
+		return;
+	}
+
+	emit("save", pendingZone.value);
 	errorMessage.value = "";
 	// 更新 pendingZone 以反映已保存的狀態
-	if (props.zone) {
-		pendingZone.value = JSON.parse(JSON.stringify(filteredZone));
-	}
+	resetToSource();
 };
 </script>
 

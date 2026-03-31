@@ -175,8 +175,10 @@
 		v-model="showLocationManagementDialog"
 		:zone="selectedZoneData"
 		:system-type="selectedSystemType ?? undefined"
-		@save="handleSaveZone"
-		@delete="handleDeleteZone"
+		:read-only="!(isAdmin || hasPermission(PERMISSIONS.LOCATION_MANAGEMENT))"
+		:allow-delete="isAdmin"
+		@save="handleSaveUnifiedZone"
+		@delete="handleDeleteUnifiedZone"
 	/>
 </template>
 
@@ -184,22 +186,25 @@
 import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location";
 import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useAuth } from "~/composables/core/useAuth";
-import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { PERMISSIONS } from "~/constants/permissions";
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
-import { hasLightingCoordinates, getLightingLocationStyle } from "~/utils/locationAdapter";
 import LocationManagementDialog from "~/components/location/LocationManagementDialog.vue";
-import CategoryTooltip from "~/components/lighting/CategoryTooltip.vue";
+import CategoryTooltip from "~/components/common/CategoryTooltip.vue";
+
+const hasLightingCoordinates = (_location: UnifiedLocation): boolean => true;
+
+const getLightingLocationStyle = (_location: UnifiedLocation): Record<string, string> => ({});
 
 definePageMeta({
 	layout: "auxiliary"
 });
 
-const { isAdmin, isOperator, hasPermission } = useAuth();
+const { isAdmin, hasPermission } = useAuth();
 const locationApi = useLocationApi();
-const toast = useToast();
 const { handleError } = useErrorHandler();
+const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
+	useZoneManagement<UnifiedLocation, UnifiedZone>();
 
 // 左側區域參考與高度（用於使右側面板同高）
 const leftSectionRef = ref<HTMLElement | null>(null);
@@ -306,12 +311,17 @@ const currentZoneLocations = computed(() => {
 	return locations;
 });
 
-// 使用區域管理 composable
-const {
-	handleSaveZone: baseHandleSaveZone,
-	handleDeleteZone: baseHandleDeleteZone,
-	sortZones
-} = useZoneManagement<UnifiedZone>();
+const sortZones = (zones: UnifiedZone[]) =>
+	[...zones].sort((a, b) => {
+		const aSort = Number.isFinite(a.sortOrder as number)
+			? Number(a.sortOrder)
+			: Number.MAX_SAFE_INTEGER;
+		const bSort = Number.isFinite(b.sortOrder as number)
+			? Number(b.sortOrder)
+			: Number.MAX_SAFE_INTEGER;
+		if (aSort !== bSort) return aSort - bSort;
+		return (a.name || "").localeCompare(b.name || "", "zh-Hant");
+	});
 
 const firstZoneByDisplayOrder = (zs: UnifiedZone[]) => sortZones(zs)[0] ?? null;
 
@@ -332,6 +342,56 @@ const loadZones = async () => {
 	} finally {
 		isLoading.value = false;
 	}
+};
+
+const handleSaveUnifiedZone = async (zone: UnifiedZone) => {
+	const canWrite = isAdmin.value || hasPermission(PERMISSIONS.LOCATION_MANAGEMENT);
+	if (!canWrite) return;
+
+	await baseHandleSaveZone(
+		zone,
+		zones,
+		async (z) => {
+			if (!z.id) {
+				return await locationApi.createZone({
+					name: z.name,
+					imageUrl: z.imageUrl,
+					description: z.description,
+					sortOrder: z.sortOrder,
+					locations: z.locations
+				});
+			}
+			return await locationApi.updateZone(z.id, {
+				name: z.name,
+				imageUrl: z.imageUrl,
+				description: z.description,
+				sortOrder: z.sortOrder,
+				locations: z.locations
+			});
+		},
+		{
+			selectedZoneRef: selectedZone,
+			closeDialogRef: showLocationManagementDialog
+		}
+	);
+
+	// 以後端為準重新載入（確保刪除地點後的狀態同步）
+	await loadZones();
+};
+
+const handleDeleteUnifiedZone = async (zoneId: string) => {
+	if (!isAdmin.value) return;
+
+	await baseHandleDeleteZone(zoneId, zones, locationApi.deleteZone, {
+		selectedZoneRef: selectedZone,
+		selectedLocationRef: selectedLocation,
+		findEarliestZone: firstZoneByDisplayOrder,
+		getLocationId: (loc) => String(loc.id || ""),
+		reloadZones: async () => {
+			await loadZones();
+			showLocationManagementDialog.value = false;
+		}
+	});
 };
 
 // 處理區域選擇
@@ -361,7 +421,6 @@ const selectLocation = (location: UnifiedLocation) => {
 // 系統類型標籤映射（提取為常數，避免重複定義）
 const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
 	environment: "環境監測",
-	lighting: "照明系統",
 	people_counting: "人流統計",
 	vehicle_access: "車輛進出"
 };
@@ -377,40 +436,6 @@ const handleOpenZoneDialog = async () => {
 		await loadZones();
 	}
 	showLocationManagementDialog.value = true;
-};
-
-// 處理儲存區域
-const handleSaveZone = async (zone: UnifiedZone) => {
-	await baseHandleSaveZone(
-		zone,
-		zones,
-		async (z: UnifiedZone) => {
-			return z.id
-				? await locationApi.updateZone(z.id, {
-						name: z.name,
-						imageUrl: z.imageUrl,
-						locations: z.locations
-					})
-				: await locationApi.createZone({
-						name: z.name,
-						imageUrl: z.imageUrl,
-						locations: z.locations
-					});
-		},
-		{
-			selectedZoneRef: selectedZone,
-			closeDialogRef: showLocationManagementDialog
-		}
-	);
-};
-
-// 處理刪除區域（當其他系統刪除區域時，全區點位圖需要重新載入資料）
-const handleDeleteZone = async (zoneId: string) => {
-	await baseHandleDeleteZone(zoneId, zones, locationApi.deleteZone, {
-		selectedZoneRef: selectedZone,
-		findEarliestZone: firstZoneByDisplayOrder,
-		reloadZones: loadZones // 刪除後重新載入所有系統的區域資料
-	});
 };
 
 // 監聽頁面可見性變化，當頁面重新可見時重新載入資料

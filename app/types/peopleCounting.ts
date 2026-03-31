@@ -20,11 +20,19 @@ export interface PeopleCountingLocation {
 	personGroupIds?: number[]; // 對應的 person_group.id 列表（YSCP）
 	entryDoorId?: number; // 入口設備 ID（YSCP）
 	exitDoorId?: number; // 出口設備 ID（YSCP）
-	/** 資料來源：yscp（預設）或 access_control */
-	dataSource?: "yscp" | "access_control";
+	/** 資料來源：yscp（預設）/ access_control / isapi_camera */
+	dataSource?: "yscp" | "access_control" | "isapi_camera";
 	/** 本系統門禁設備 ID（dataSource 為 access_control 時使用） */
 	entryDeviceId?: number;
 	exitDeviceId?: number;
+	/** 攝影機設備 ID（dataSource 為 isapi_camera 時使用） */
+	cameraDeviceId?: number;
+	/** 攝影機設備 ID 列表（dataSource 為 isapi_camera 時使用；複選） */
+	cameraDeviceIds?: number[];
+	/** 攝影機 channelId（預設 1） */
+	cameraChannelId?: number;
+	/** 優先使用 RegionList 當作進場單位（true=依區域/單位統計與顯示） */
+	preferRegion?: boolean;
 	/** 門禁人員群組（後端相容保留；門禁設備之人員與權限已改由「人員管理」處理，此地點表單不再編輯此欄） */
 	accessControlGroups?: AccessControlGroup[];
 
@@ -55,10 +63,14 @@ export interface PeopleCountingZone {
  */
 export interface PeopleCountingUnit {
 	id: number;
-	locationId: number; // 改為 locationId（對應 PeopleCountingLocation）
+	locationId: number;
 	name: string;
-	capacity: number; // 容量上限
-	currentCount?: number; // 目前人數（計算：進入 - 離開）
+	capacity: number;
+	currentCount?: number;
+	/** 攝影機（isapi_camera）各 Region 累計進場人數 */
+	entryCount?: number;
+	/** 攝影機（isapi_camera）各 Region 累計出場人數 */
+	exitCount?: number;
 }
 
 /**
@@ -95,6 +107,8 @@ export interface PeopleCountingLog {
 	personName?: string; // 姓名
 	deviceScreenshotUrl?: string; // 設備截圖
 	deviceName?: string; // 出入口設備名稱（來自 deviceaccess.door dev_name）
+	/** 後端可能仍帶此欄；畫面已不顯示「人次」，僅依事件類型判斷進／出 */
+	count?: number;
 	// 注意：不包含 modelingPhotoUrl（建模照片），根據規劃已移除此欄位
 	timestamp: string;
 	// 關聯資料

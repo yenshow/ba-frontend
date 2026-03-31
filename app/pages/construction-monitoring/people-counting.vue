@@ -73,26 +73,40 @@
 										<div
 											v-for="unit in selectedLocation.units"
 											:key="unit.id"
-											class="flex cursor-pointer flex-col items-center justify-center border-2 border-white/0 py-2 transition-all"
-											:class="{
-												'bg-white/20': (unit.currentCount || 0) > 0,
-												'bg-black/20': (unit.currentCount || 0) === 0
-											}"
-											tabindex="0"
-											role="button"
-											:aria-label="`查看 ${unit.name} 人員名單`"
-											@click="handleUnitClick(unit)"
-											@keydown.enter="handleUnitClick(unit)"
-											@keydown.space.prevent="handleUnitClick(unit)"
+											class="flex flex-col items-center justify-center border-2 border-white/0 py-2 transition-all"
+											:class="[
+												{
+													'bg-white/20': (unit.currentCount || 0) > 0,
+													'bg-black/20': (unit.currentCount || 0) === 0
+												},
+												isIsapiCamera ? '' : 'cursor-pointer'
+											]"
+											:tabindex="isIsapiCamera ? undefined : 0"
+											:role="isIsapiCamera ? undefined : 'button'"
+											:aria-label="isIsapiCamera ? `${unit.name}，進出統計` : `查看 ${unit.name} 人員名單`"
+											@click="handleUnitCardActivate(unit)"
+											@keydown.enter="handleUnitCardActivate(unit)"
+											@keydown.space.prevent="handleUnitCardActivate(unit)"
 										>
 											<div class="text-base font-semibold tracking-wide text-white 2xl:text-lg">
 												{{ unit.name }}
 											</div>
-											<div class="space-x-0.5 text-base text-white 2xl:text-lg">
-												<span class="text-green-400">{{ unit.currentCount || 0 }}</span>
-												<span>/</span>
-												<span>{{ unit.capacity || 0 }}</span>
-											</div>
+											<!-- 攝影機：顯示進場/出場人數 -->
+											<template v-if="isIsapiCamera">
+												<div class="space-x-0.5 text-sm text-white 2xl:text-base">
+													<span class="text-green-400">進 {{ unit.entryCount ?? 0 }}</span>
+													<span>/</span>
+													<span class="text-blue-300">出 {{ unit.exitCount ?? 0 }}</span>
+												</div>
+											</template>
+											<!-- YSCP / 門禁：顯示在場人數/容量 -->
+											<template v-else>
+												<div class="space-x-0.5 text-base text-white 2xl:text-lg">
+													<span class="text-green-400">{{ unit.currentCount || 0 }}</span>
+													<span>/</span>
+													<span>{{ unit.capacity || 0 }}</span>
+												</div>
+											</template>
 										</div>
 									</div>
 								</div>
@@ -208,6 +222,16 @@
 	<SimulationFrame v-model="showSimulationFrame" title="人流統計 - 完整報表">
 		<PeopleCountingSimulation
 			:logs="simulationLogs"
+			:data-source="selectedLocation?.dataSource"
+			:site-summary="
+				selectedLocation
+					? {
+							entryCount: selectedLocation.entryCount ?? 0,
+							exitCount: selectedLocation.exitCount ?? 0,
+							units: selectedLocation.units ?? []
+						}
+					: undefined
+			"
 			:zone-name="simulationZoneName"
 			:location-name="simulationLocationName"
 			:time-range="simulationTimeRange"
@@ -233,7 +257,7 @@ import type {
 import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue";
 import LocationOverviewCard from "~/components/people-counting/LocationOverviewCard.vue";
 import EntryExitLogTable from "~/components/people-counting/EntryExitLogTable.vue";
-import UnitPersonnelDialog from "~/components/home/UnitPersonnelDialog.vue";
+import UnitPersonnelDialog from "~/components/people-counting/UnitPersonnelDialog.vue";
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
 import SimulationFrame from "~/components/common/SimulationFrame.vue";
 import PeopleCountingSimulation from "~/components/people-counting/PeopleCountingSimulation.vue";
@@ -241,16 +265,16 @@ import { usePeopleCountingState } from "~/composables/systems/peopleCounting/use
 import { usePeopleCountingWebSocket } from "~/composables/systems/peopleCounting/usePeopleCountingWebSocket";
 import { usePeopleCountingLocationApi } from "~/composables/location/api/usePeopleCountingLocationApi";
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
-import { useLocationApi } from "~/composables/location/api/useLocationApi";
-import { unifiedToPeopleCountingZone } from "~/utils/locationAdapter";
 import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter";
-import type { UnifiedZone } from "~/types/location";
 import { usePeopleCountingApi } from "~/composables/systems/peopleCounting/usePeopleCountingApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useAuth } from "~/composables/core/useAuth";
 import type { PeopleCountingUnit, PeopleCountingPersonnel } from "~/types/peopleCounting";
 import { getTodayDateRangeUTC } from "~/utils/dateUtils";
-import { firstFlatSiteMatchingSortedZoneLocations } from "~/utils/sortOrder";
+import {
+	firstFlatSiteMatchingSortedZoneLocations,
+	sortFlatSitesBySortedZoneLocations
+} from "~/utils/sortOrder";
 
 const { isOperator } = useAuth();
 
@@ -258,14 +282,11 @@ const { isOperator } = useAuth();
 const {
 	locations,
 	selectedLocation,
-	personnel,
 	logs,
 	peopleCountingZones,
-	selectedUnitId,
 	loadLocations,
 	loadLocationDetail,
 	loadZones,
-	handleUnitSelect,
 	getLocationZone
 } = usePeopleCountingState();
 
@@ -278,16 +299,34 @@ const unitPersonnel = ref<PeopleCountingPersonnel[]>([]);
 const isLoadingUnitPersonnel = ref(false);
 
 // 右側總覽：顯示 zone 名稱（不影響詳情載入）
-const locationsForOverview = computed(() =>
-	locations.value.map(location => ({
+const locationsForOverview = computed(() => {
+	const locationsWithId = locations.value.filter(
+		(l): l is PeopleCountingLocation & { locationId: number } => l.locationId != null
+	);
+	const ordered = sortFlatSitesBySortedZoneLocations(peopleCountingZones.value, locationsWithId);
+	return ordered.map(location => ({
 		...location,
 		overviewZoneName: getLocationZone(location)
-	}))
-);
+	}));
+});
+
+// 判斷是否為攝影機資料來源
+const isIsapiCamera = computed(() => selectedLocation.value?.dataSource === "isapi_camera");
+
+const handleUnitCardActivate = (unit: PeopleCountingUnit) => {
+	if (isIsapiCamera.value) return;
+	void handleUnitClick(unit);
+};
 
 // 計算在場人數：所有單位的 currentCount 總和
 const currentCount = computed(() => {
 	if (!selectedLocation.value?.units) return 0;
+	// 攝影機：站點在場數以站點總計（entryCount - exitCount）為準，避免用分區加總造成口徑不一致
+	if (isIsapiCamera.value) {
+		const entry = selectedLocation.value.entryCount ?? 0;
+		const exit = selectedLocation.value.exitCount ?? 0;
+		return Math.max(0, entry - exit);
+	}
 	return selectedLocation.value.units.reduce((sum, unit) => sum + (unit.currentCount || 0), 0);
 });
 
@@ -391,10 +430,16 @@ const adapter = useZoneSystemAdapter<PeopleCountingZone, PeopleCountingLocation>
 // 使用適配器提供的統一方法
 const getLocationId = (location: PeopleCountingLocation): string => {
 	const zoneName = getLocationZone(location);
-	return (
-		adapter.getLocationId?.(location, zoneName || undefined) ||
-		`${zoneName || "unknown"}-${location.name}`
+	const zone =
+		peopleCountingZones.value.find(z =>
+			(z.locations || []).some(l => l === location || (l.id && location.id && l.id === location.id))
+		) ?? null;
+	if (!zone || !adapter.getLocationId) return `${zoneName || "unknown"}-${location.name}`;
+	const idx = (zone.locations || []).findIndex(
+		l => l === location || (l.id && location.id && l.id === location.id)
 	);
+	if (idx < 0) return `${zoneName || "unknown"}-${location.name}`;
+	return adapter.getLocationId({ zone, location, locationIndex: idx });
 };
 
 // 監聽 selectedLocation 變化，同步更新 selectedLocationId（用於刪除邏輯）
@@ -431,7 +476,6 @@ let cleanupWebSocket: (() => void) | null = null;
 
 // 使用區域管理 composable
 const peopleCountingLocationApi = usePeopleCountingLocationApi();
-const locationApi = useLocationApi();
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
 	useZoneManagement<PeopleCountingLocation, PeopleCountingZone>();
 
@@ -497,9 +541,10 @@ const handleOpenLocationDialog = async () => {
 	showLocationManagementDialog.value = true;
 };
 
-// 處理單位點擊事件（打開人員對話框）
+// 處理單位點擊事件（打開人員對話框；攝影機人流無人員名單，不提供點選）
 const handleUnitClick = async (unit: PeopleCountingUnit) => {
 	if (!unit || !unit.name) return;
+	if (selectedLocation.value?.dataSource === "isapi_camera") return;
 
 	selectedUnitName.value = unit.name;
 	isUnitDialogOpen.value = true;
@@ -572,12 +617,9 @@ onMounted(async () => {
 
 		if (!selectedLocation.value && locations.value.length > 0) {
 			const locationsWithId = locations.value.filter(
-				(l): l is (typeof l & { locationId: number }) => l.locationId != null
+				(l): l is typeof l & { locationId: number } => l.locationId != null
 			);
-			const hit = firstFlatSiteMatchingSortedZoneLocations(
-				peopleCountingZones.value,
-				locationsWithId
-			);
+			const hit = firstFlatSiteMatchingSortedZoneLocations(peopleCountingZones.value, locationsWithId);
 			if (hit?.locationId != null) {
 				await handleLocationSelect(hit.locationId);
 			}

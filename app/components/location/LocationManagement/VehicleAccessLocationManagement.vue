@@ -72,42 +72,43 @@
 </template>
 
 <script setup lang="ts">
-import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess";
-import VehicleAccessLocationFields from "../LocationFormFields/VehicleAccessLocationFields.vue";
+import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess"
+import VehicleAccessLocationFields from "../LocationFormFields/VehicleAccessLocationFields.vue"
+import { getLocationUiKey } from "~/utils/locationUiId"
 
 interface Props {
-	zone: VehicleAccessZone;
-	reorderableLocations?: boolean;
+	zone: VehicleAccessZone
+	reorderableLocations?: boolean
 }
 
 interface Emits {
-	(e: "add-location"): void;
-	(e: "remove-location", index: number): void;
-	(e: "update-location", index: number, location: VehicleAccessLocation): void;
-	(e: "reorder-location", payload: { index: number; direction: "up" | "down" }): void;
+	(e: "add-location"): void
+	(e: "remove-location", index: number): void
+	(e: "update-location", index: number, location: VehicleAccessLocation): void
+	(e: "reorder-location", payload: { index: number; direction: "up" | "down" }): void
 }
 
-withDefaults(defineProps<Props>(), {
-	reorderableLocations: false
-});
-const emit = defineEmits<Emits>();
+const props = withDefaults(defineProps<Props>(), {
+	reorderableLocations: false,
+})
+const emit = defineEmits<Emits>()
 
 const getLocations = (zone: VehicleAccessZone): VehicleAccessLocation[] => {
-	return zone.locations || [];
-};
+	return zone.locations || []
+}
 
 const getLocationId = (location: VehicleAccessLocation, index: number): string =>
-	location.id ?? `location-${index}`;
+	getLocationUiKey({ zone: props.zone as any, location: location as any, locationIndex: index })
 
 const handleAddLocation = () => {
-	emit("add-location");
-};
+	emit("add-location")
+}
 
 const handleRemoveLocation = (locationIndex: number) => {
-	emit("remove-location", locationIndex);
-};
+	emit("remove-location", locationIndex)
+}
 
 const handleLocationUpdate = (locationIndex: number, updatedLocation: VehicleAccessLocation) => {
-	emit("update-location", locationIndex, updatedLocation);
-};
+	emit("update-location", locationIndex, updatedLocation)
+}
 </script>

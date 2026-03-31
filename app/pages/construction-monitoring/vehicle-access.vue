@@ -432,18 +432,22 @@ const vehicleAccessLocationApi = useVehicleAccessLocationApi();
 const locationApi = useLocationApi();
 const adapter = useZoneSystemAdapter<VehicleAccessZone, VehicleAccessLocation>("vehicle_access");
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
-	useZoneManagement<VehicleAccessZone>();
+	useZoneManagement<VehicleAccessLocation, VehicleAccessZone>();
 
 const getLocationId = (location: VehicleAccessLocation & { zoneName?: string }): string => {
-	const zoneName =
-		location.zoneName ??
-		vehicleAccessZones.value.find(z =>
-			z.locations?.some(l => l.id === location.id || l.name === location.name)
-		)?.name;
-	return (
-		adapter.getLocationId?.(location, zoneName ?? undefined) ??
-		`${zoneName ?? "unknown"}-${location.name}`
-	);
+	const zone =
+		vehicleAccessZones.value.find((z) =>
+			(z.locations || []).some((l) => l === location || (l.id && location.id && l.id === location.id))
+		) ?? null
+	const zoneName = location.zoneName ?? zone?.name ?? null
+	if (!zone || !adapter.getLocationId) {
+		return `${zoneName ?? "unknown"}-${location.name}`
+	}
+	const idx = (zone.locations || []).findIndex(
+		(l) => l === location || (l.id && location.id && l.id === location.id)
+	)
+	if (idx < 0) return `${zoneName ?? "unknown"}-${location.name}`
+	return adapter.getLocationId({ zone, location, locationIndex: idx })
 };
 
 // 與 environment 一致：僅以單一 id 判斷選定，確保總覽只有一卡高亮
@@ -476,8 +480,16 @@ const handleSaveZone = async (zone: VehicleAccessZone) => {
 		async (z: VehicleAccessZone) => {
 			const isValidId = z.id && !z.id.startsWith("temp-") && /^\d+$/.test(z.id);
 			const result = isValidId
-				? await vehicleAccessLocationApi.updateZone(z.id, { name: z.name, locations: z.locations })
-				: await vehicleAccessLocationApi.createZone({ name: z.name, locations: z.locations });
+				? await vehicleAccessLocationApi.updateZone(z.id, {
+						name: z.name,
+						sortOrder: (z as unknown as { sortOrder?: number }).sortOrder,
+						locations: z.locations,
+					})
+				: await vehicleAccessLocationApi.createZone({
+						name: z.name,
+						sortOrder: (z as unknown as { sortOrder?: number }).sortOrder,
+						locations: z.locations,
+					});
 			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as VehicleAccessZone & {
 				id: string;
 			};

@@ -6,6 +6,7 @@ export interface YscpBatchPersonResult {
 	personId: number | string;
 	success: boolean;
 	personInfo?: YscpPersonInfo;
+	/** Base64 圖片（includePicture: true 時由 YSCP 取得，與人流人員名單相同） */
 	picture?: string;
 	pictureError?: string;
 	error?: string;
@@ -56,6 +57,11 @@ export const useYscpPersonApi = () => {
 		return data;
 	};
 
+	/**
+	 * 批次取得人員資訊（含大頭照），與人流統計「人員名單」同一 YSCP 來源
+	 * @param personIds - 人員 ID 列表
+	 * @param includePicture - 是否包含圖片（true 時回傳 picture 為 base64）
+	 */
 	const getBatchPersonInfo = async (
 		personIds: number[],
 		includePicture = false
@@ -71,11 +77,7 @@ export const useYscpPersonApi = () => {
 				})
 			}
 		);
-		const results =
-			(raw &&
-				typeof raw === "object" &&
-				(raw as { data?: { results?: YscpBatchPersonResult[] } }).data?.results) ??
-			[];
+		const results = (raw && typeof raw === "object" && (raw as { data?: { results?: YscpBatchPersonResult[] } }).data?.results) ?? [];
 		return results;
 	};
 

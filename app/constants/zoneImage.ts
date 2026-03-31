@@ -4,11 +4,10 @@ export const ZONE_IMAGE_ACCEPT_TYPES = [
 	"image/jpeg",
 	"image/jpg",
 	"image/gif",
-	"image/webp",
+	"image/webp"
 ] as const
 
 export const ZONE_IMAGE_ACCEPT_ATTR = ZONE_IMAGE_ACCEPT_TYPES.join(",")
 
 /** 區域示意圖大小上限（位元組） */
 export const MAX_ZONE_IMAGE_BYTES = 10 * 1024 * 1024
-

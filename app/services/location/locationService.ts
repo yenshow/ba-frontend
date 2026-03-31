@@ -7,7 +7,7 @@ export type RemoveLocationResult =
 	| { action: "updated"; systems: LocationSystemInput[] }
 
 /**
- * 地點刪除（統一規則）：
+ * 地點刪除（統一規則，見 docs/50-systems/zone-location-system.md §11.1）：
  * - 未存檔（無 id）：不呼叫 API
  * - 有 id + 有 systemType：只移除該 system；若移除後無系統，刪整筆
  * - 有 id + 無 systemType：刪整筆
@@ -42,7 +42,7 @@ export type DeleteZoneResult =
 	| { action: "removed-system-from-zone"; remainingLocations: UnifiedLocation[] }
 
 /**
- * 區域刪除（統一規則）：
+ * 區域刪除（統一規則，見 docs/50-systems/zone-location-system.md §11.2）：
  * - 無 systemType：直接刪除整個區域
  * - 有 systemType：
  *   - 若該區域只有當前 systemType 使用 → 刪除整個區域
@@ -53,7 +53,9 @@ export const deleteZoneWithSystemAwareness = async (args: {
 	systemType?: SystemType
 }): Promise<DeleteZoneResult> => {
 	const zoneId = String(args.zoneId || "").trim()
-	if (!zoneId) throw new Error("zoneId 不能為空")
+	if (!zoneId) {
+		throw new Error("zoneId 不能為空")
+	}
 
 	const locationApi = useLocationApi()
 
@@ -71,12 +73,15 @@ export const deleteZoneWithSystemAwareness = async (args: {
 		}
 	}
 
-	const isOnlyCurrentSystem = allSystemTypes.size === 1 && allSystemTypes.has(args.systemType)
+	const isOnlyCurrentSystem =
+		allSystemTypes.size === 1 && allSystemTypes.has(args.systemType)
 
 	const remainingLocations: UnifiedLocation[] =
 		(fullZone.locations || [])
 			.map((location) => {
-				const filteredSystems = (location.systems || []).filter((system) => system.systemType !== args.systemType)
+				const filteredSystems = (location.systems || []).filter(
+					(system) => system.systemType !== args.systemType
+				)
 				if (filteredSystems.length === 0) return null
 				return { ...location, systems: filteredSystems } as UnifiedLocation
 			})

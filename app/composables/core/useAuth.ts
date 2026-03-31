@@ -1,5 +1,6 @@
 import type { User, LoginCredentials } from "~/types/user";
 import { useUserApi } from "~/composables/systems/users/useUserApi";
+import { getPermissionCodeByRoute } from "~/constants/permissions";
 
 export const useAuth = () => {
 	const userApi = useUserApi();
@@ -49,6 +50,13 @@ export const useAuth = () => {
 		if (!u) return false;
 		if (u.role === "admin") return true;
 		return Array.isArray(u.permissions) && u.permissions.includes(code);
+	};
+
+	/** 是否具備該模組（系統）的存取權限：若該路由需權限則檢查 hasPermission，否則視為有權限 */
+	const hasModulePermission = (module: { route: string }): boolean => {
+		const code = getPermissionCodeByRoute(module.route);
+		if (!code) return true;
+		return hasPermission(code);
 	};
 
 	// 登入
@@ -119,6 +127,7 @@ export const useAuth = () => {
 		isOperator,
 		isViewer,
 		hasPermission,
+		hasModulePermission,
 		login,
 		logout,
 		fetchUser,
