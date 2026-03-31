@@ -1,7 +1,12 @@
 <template>
 	<div class="show-scrollbar flex h-full flex-col space-y-8 overflow-y-auto">
 		<!-- 進場單位列表 -->
-		<UnitList :units="location.units || []" :selected-unit-id="selectedUnitId" @select="handleUnitSelect" />
+		<UnitList
+			:units="location.units || []"
+			:selected-unit-id="selectedUnitId"
+			:is-isapi-camera="location.dataSource === 'isapi_camera'"
+			@select="handleUnitSelect"
+		/>
 
 		<!-- 人員名單：如果有選中的單位，則顯示（即使沒有人員資料也顯示空狀態） -->
 		<PersonnelList v-if="selectedUnitId !== null" :personnel="personnel" />

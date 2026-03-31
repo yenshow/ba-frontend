@@ -127,7 +127,7 @@ export interface VehicleAccessLocationSummary {
 
 export interface VehicleAccessLocation {
 	id?: string;
-	/** 同區域內顯示排序（小者在前） */
+	/** 同區域內地點排序（小者在前） */
 	sortOrder?: number;
 	name: string;
 	/** 入口車道 ID（vehiclebiz.lane_info，lane_type=1） */
@@ -141,7 +141,7 @@ export interface VehicleAccessLocation {
 export interface VehicleAccessZone {
 	id?: string;
 	name: string;
-	/** 區域列表排序（小者在前） */
+	/** 區域排序（小者在前） */
 	sortOrder?: number;
 	locations: VehicleAccessLocation[];
 }

@@ -1,10 +1,4 @@
-type JsonLike =
-	| null
-	| boolean
-	| number
-	| string
-	| JsonLike[]
-	| { [key: string]: JsonLike }
+type JsonLike = null | boolean | number | string | JsonLike[] | { [key: string]: JsonLike }
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> => {
 	if (!v || typeof v !== "object") return false
@@ -23,9 +17,9 @@ export const stableStringify = (input: unknown): string => {
 	const normalize = (v: unknown): JsonLike => {
 		if (v === null) return null
 		const t = typeof v
-		if (t === "string") return v
-		if (t === "number") return Number.isFinite(v) ? v : String(v)
-		if (t === "boolean") return v
+		if (t === "string") return v as string
+		if (t === "number") return Number.isFinite(v) ? (v as number) : String(v)
+		if (t === "boolean") return v as boolean
 		if (t === "undefined") return null
 		if (t === "bigint") return String(v)
 		if (t === "symbol") return String(v)
@@ -68,5 +62,5 @@ export const stableStringify = (input: unknown): string => {
 	return JSON.stringify(normalize(input))
 }
 
-export const stableEqual = (a: unknown, b: unknown): boolean => stableStringify(a) === stableStringify(b)
-
+export const stableEqual = (a: unknown, b: unknown): boolean =>
+	stableStringify(a) === stableStringify(b)

@@ -15,6 +15,16 @@ const peopleCountingLogger = logger.createLogger("PeopleCounting");
 // 地點名稱快取（locationId -> locationName）
 const locationNameCache = new Map<number, string | null>();
 
+export interface CreatePeopleCountingZoneData {
+	name: string;
+	locations?: Omit<PeopleCountingLocation, "id">[];
+}
+
+export interface UpdatePeopleCountingZoneData {
+	name?: string;
+	locations?: (PeopleCountingLocation | Omit<PeopleCountingLocation, "id">)[];
+}
+
 /**
  * 人流統計地點管理 API Composable
  * 參考 useEnvironmentApi，用於管理地點名稱和地點配置

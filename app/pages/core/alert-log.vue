@@ -173,6 +173,7 @@ const statusOptions = [
 // 系統來源選項
 const sourceOptions = [
 	{ value: "", label: "全部系統" },
+	{ value: "device", label: "設備系統" },
 	{ value: "environment", label: "環境系統" },
 	{ value: "lighting", label: "照明系統" },
 	{ value: "drainage", label: "衛生排水系統" },
@@ -226,7 +227,6 @@ const {
 		const result = await alertApi.getAlerts({
 			status: getFilterStatus(),
 			source: filterSource.value as AlertSource | undefined,
-			exclude_sources: filterSource.value ? undefined : (["device"] as AlertSource[]),
 			start_date: filterStartDate.value || undefined,
 			end_date: filterEndDate.value || undefined,
 			limit: params.limit as number,
@@ -250,7 +250,6 @@ const loadUnresolvedCount = async () => {
 	try {
 		const result = await alertApi.getUnresolvedAlertCount({
 			source: (filterSource.value as AlertSource) || undefined,
-			exclude_sources: filterSource.value ? undefined : (["device"] as AlertSource[]),
 			start_date: filterStartDate.value || undefined,
 			end_date: filterEndDate.value || undefined,
 		})

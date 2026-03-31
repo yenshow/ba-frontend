@@ -1,5 +1,5 @@
 <template>
-	<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
+	<section class="min-h-[664px] rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 			<p class="text-base text-white/70 2xl:text-lg">共 {{ logs.length }} 筆紀錄</p>
 			<div class="flex items-center gap-3 2xl:gap-4">
@@ -225,6 +225,7 @@ import type { PeopleCountingLog } from "~/types/peopleCounting"
 import { formatDate, formatDateTime, TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtils"
 import { buildCsvSection } from "~/utils/csvExport"
 import {
+	countingPersonKey,
 	countEntryExitForDay,
 	getEntryOnlyPersonsForDay,
 	getUnitStatsForDay,
@@ -233,6 +234,31 @@ import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
 
 const props = defineProps<{
 	logs: PeopleCountingLog[]
+	dataSource?: "yscp" | "access_control" | "isapi_camera"
+	siteSummary?: {
+		entryCount: number
+		exitCount: number
+		units?: Array<{
+			name: string
+			entryCount?: number
+			exitCount?: number
+			currentCount?: number
+			// 允許帶額外欄位（如 id/capacity 等），避免呼叫端型別不相容
+			[key: string]: unknown
+		}>
+	} | null
+	/** 相容：舊頁面用 site-summary 綁定 */
+	siteSnapshot?: {
+		entryCount: number
+		exitCount: number
+		units?: Array<{
+			name: string
+			entryCount?: number
+			exitCount?: number
+			currentCount?: number
+			[key: string]: unknown
+		}>
+	} | null
 	zoneName: string
 	locationName: string
 	timeRange: { startDate: string; endDate: string; preset: string }
@@ -257,6 +283,17 @@ const filterZoneLocation = ref("")
 const filterZoneLocationUnit = ref("")
 const filterZoneLocationDetail = ref("")
 const filterUnitName = ref("")
+
+const isIsapiCameraReport = computed(() => props.dataSource === "isapi_camera")
+
+const effectiveSnapshot = computed(() => props.siteSnapshot ?? props.siteSummary ?? null)
+
+const useIsapiSnapshotTotals = computed(
+	() =>
+		isIsapiCameraReport.value &&
+		effectiveSnapshot.value != null &&
+		props.timeRange.preset === "today"
+)
 
 const zoneLocationOptions = computed(() =>
 	zoneLocationLabel.value ? [zoneLocationLabel.value] : []
@@ -299,7 +336,16 @@ const statsTableRows = computed(() => {
 	const rows: Array<Record<string, string> & { key: string }> = []
 	for (const dateStr of datesDesc) {
 		const dayLogs = groupsByDate.value.get(dateStr)!
-		const { entry, exit } = countEntryExitForDay(dayLogs)
+		let entry: number
+		let exit: number
+		if (useIsapiSnapshotTotals.value && effectiveSnapshot.value && datesDesc.length === 1) {
+			entry = effectiveSnapshot.value.entryCount
+			exit = effectiveSnapshot.value.exitCount
+		} else {
+			const r = countEntryExitForDay(dayLogs)
+			entry = r.entry
+			exit = r.exit
+		}
 		const current = Math.max(0, entry - exit)
 		rows.push({
 			key: `stats-${dateStr}-${zl}`,
@@ -331,18 +377,37 @@ const unitStatsTableRows = computed((): UnitStatsRow[] => {
 	const rows: UnitStatsRow[] = []
 	for (const dateStr of datesDesc) {
 		const dayLogs = groupsByDate.value.get(dateStr)!
-		const unitStats = getUnitStatsForDay(dayLogs)
-		for (const u of unitStats) {
-			rows.push({
-				key: `unit-${dateStr}-${u.unitName}`,
-				日期: dateStr,
-				"區域-地點": zl,
-				單位名稱: u.unitName,
-				進場人數: String(u.entry),
-				出場人數: String(u.exit),
-				在場人數: String(u.current),
-				hasOnSite: u.current > 0,
-			})
+		if (
+			useIsapiSnapshotTotals.value &&
+			effectiveSnapshot.value?.units?.length &&
+			datesDesc.length === 1
+		) {
+			for (const u of effectiveSnapshot.value.units!) {
+				rows.push({
+					key: `unit-${dateStr}-${u.name}`,
+					日期: dateStr,
+					"區域-地點": zl,
+					單位名稱: u.name,
+					進場人數: String(u.entryCount ?? 0),
+					出場人數: String(u.exitCount ?? 0),
+					在場人數: String(u.currentCount ?? 0),
+					hasOnSite: (u.currentCount ?? 0) > 0,
+				})
+			}
+		} else {
+			const unitStats = getUnitStatsForDay(dayLogs)
+			for (const u of unitStats) {
+				rows.push({
+					key: `unit-${dateStr}-${u.unitName}`,
+					日期: dateStr,
+					"區域-地點": zl,
+					單位名稱: u.unitName,
+					進場人數: String(u.entry),
+					出場人數: String(u.exit),
+					在場人數: String(u.current),
+					hasOnSite: u.current > 0,
+				})
+			}
 		}
 	}
 	return rows
@@ -366,13 +431,13 @@ const detailTableRows = computed(() => {
 		const dayLogs = groupsByDate.value.get(dateStr)!
 		const entryOnlyLastLogMap = new Map<string, PeopleCountingLog>()
 		for (const log of getEntryOnlyPersonsForDay(dayLogs)) {
-			entryOnlyLastLogMap.set(String(log.personnelId ?? log.employeeId ?? log.id ?? ""), log)
+			entryOnlyLastLogMap.set(countingPersonKey(log), log)
 		}
 		const sorted = [...dayLogs].sort(
 			(a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
 		)
 		for (const log of sorted) {
-			const personKey = String(log.personnelId ?? log.employeeId ?? log.id ?? "")
+			const personKey = countingPersonKey(log)
 			const isEntryOnly = entryOnlyLastLogMap.has(personKey)
 			const lastEntryLog = entryOnlyLastLogMap.get(personKey)
 			const unitName = (log.unit?.name ?? log.unitName ?? "").trim() || "－"

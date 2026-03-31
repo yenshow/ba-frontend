@@ -7,7 +7,12 @@ const DEFAULT_LICENSE: LicenseState = {
 	features: [],
 	expiresAt: null,
 	expired: false,
-	canActivate: false
+	canActivate: false,
+	serialNumber: null,
+	licenseKey: null,
+	activationMethod: null,
+	deviceFingerprint: null,
+	extensionKeys: []
 };
 
 export const useLicense = () => {
@@ -84,4 +89,3 @@ export const useLicense = () => {
 		isModuleLocked
 	};
 };
-

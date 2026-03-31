@@ -7,6 +7,15 @@
 import type { PeopleCountingLog } from "~/types/peopleCounting";
 import { formatDateTime } from "~/utils/dateUtils";
 
+/** 同人連續同向只計一次；無 personnel／工號時（攝影機）依單位合成鍵，避免每筆 log.id 不同導致「出場」全被略過 */
+export function countingPersonKey(log: PeopleCountingLog): string {
+	if (log.personnelId != null) return String(log.personnelId);
+	const emp = log.employeeId != null ? String(log.employeeId).trim() : "";
+	if (emp !== "") return emp;
+	const unit = (log.unit?.name ?? log.unitName ?? "").trim();
+	return unit !== "" ? `__anon__:${unit}` : "__anon__";
+}
+
 /**
  * 依時間升序計數進場/出場（與後端 countEntryExitFromSorted 一致）
  */
@@ -23,7 +32,7 @@ export function countEntryExitForDay(dayLogs: PeopleCountingLog[]): {
 	for (const log of sorted) {
 		const dir = log.eventType === "entry" ? "entry" : log.eventType === "exit" ? "exit" : null;
 		if (dir !== "entry" && dir !== "exit") continue;
-		const personKey = String(log.personnelId ?? log.employeeId ?? log.id ?? "");
+		const personKey = countingPersonKey(log);
 		const prev = lastByPerson.get(personKey);
 		if (prev === undefined && dir === "exit") continue;
 		if (prev !== dir) {
@@ -75,7 +84,7 @@ export function getEntryOnlyPersonsForDay(dayLogs: PeopleCountingLog[]): PeopleC
 	for (const log of sorted) {
 		const dir = log.eventType === "entry" ? "entry" : log.eventType === "exit" ? "exit" : null;
 		if (dir !== "entry" && dir !== "exit") continue;
-		const personKey = String(log.personnelId ?? log.employeeId ?? log.id ?? "");
+		const personKey = countingPersonKey(log);
 		const prev = lastByPerson.get(personKey);
 		if (prev === undefined && dir === "exit") continue;
 		if (prev !== dir) {
@@ -116,6 +125,7 @@ export const convertApiLogToFrontend = (
 		timestamp: string;
 		deviceScreenshotUrl: string;
 		deviceName?: string;
+		count?: number;
 	},
 	locationId: number
 ): PeopleCountingLog => {
@@ -127,6 +137,7 @@ export const convertApiLogToFrontend = (
 		personnelId,
 		deviceId: 0,
 		eventType: log.eventType,
+		count: typeof log.count === "number" && Number.isFinite(log.count) ? log.count : undefined,
 		employeeId:
 			log.employeeId != null && String(log.employeeId).trim() !== ""
 				? String(log.employeeId).trim()

@@ -71,7 +71,7 @@
 					</div>
 
 					<!-- 中央區域平面圖 -->
-					<div class="map-location-dots relative h-[600px] w-full p-4 2xl:h-[780px]">
+					<div class="relative h-[600px] w-full p-4 2xl:h-[780px]">
 						<NuxtImg
 							v-if="zonePlanImage"
 							:src="zonePlanImage"
@@ -90,10 +90,13 @@
 							<div class="location-dot-wrapper" :style="getLightingLocationStyle(location)">
 								<div
 									class="location-dot"
+									:class="{ 'is-active': selectedLocation === location.id }"
+									role="button"
+									tabindex="0"
 									:data-status="isLocationNormal(location) ? 'normal' : 'abnormal'"
 									:title="`${location.name}：${isLocationNormal(location) ? '正常' : '異常'}`"
-									role="img"
 									:aria-label="`${location.name}：${isLocationNormal(location) ? '正常' : '異常'}`"
+									@click.stop="selectLocation(location)"
 								></div>
 								<CategoryTooltip
 									:show="true"
@@ -178,8 +181,10 @@
 		v-model="showLocationManagementDialog"
 		:zone="selectedZoneData"
 		:system-type="selectedSystemType ?? undefined"
-		@save="handleSaveZone"
-		@delete="handleDeleteZone"
+		:read-only="!(isAdmin || hasPermission(PERMISSIONS.LOCATION_MANAGEMENT))"
+		:allow-delete="isAdmin"
+		@save="handleSaveUnifiedZone"
+		@delete="handleDeleteUnifiedZone"
 	/>
 </template>
 
@@ -187,11 +192,10 @@
 import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { useAuth } from "~/composables/core/useAuth"
-import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { PERMISSIONS } from "~/constants/permissions"
-import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import { hasLightingCoordinates, getLightingLocationStyle } from "~/utils/locationAdapter"
+import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import LocationManagementDialog from "~/components/location/LocationManagementDialog.vue"
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
 
@@ -199,10 +203,11 @@ definePageMeta({
 	layout: "default",
 })
 
-const { isAdmin, isOperator, hasPermission } = useAuth()
+const { isAdmin, hasPermission } = useAuth()
 const locationApi = useLocationApi()
-const toast = useToast()
 const { handleError } = useErrorHandler()
+const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
+	useZoneManagement<UnifiedLocation, UnifiedZone>()
 
 // 左側區域參考與高度（用於使右側面板同高）
 const leftSectionRef = ref<HTMLElement | null>(null)
@@ -231,7 +236,9 @@ const zones = ref<UnifiedZone[]>([])
 const isLoading = ref(false)
 const isInitialLoading = ref(true)
 
+// 選中的區域與地點
 const selectedZone = ref<string>("")
+const selectedLocation = ref<string>("")
 // 選中的系統類型（用於篩選）
 const selectedSystemType = ref<SystemType | null>(null)
 
@@ -307,12 +314,17 @@ const currentZoneLocations = computed(() => {
 	return locations
 })
 
-// 使用區域管理 composable
-const {
-	handleSaveZone: baseHandleSaveZone,
-	handleDeleteZone: baseHandleDeleteZone,
-	sortZones,
-} = useZoneManagement<UnifiedLocation, UnifiedZone>()
+const sortZones = (zones: UnifiedZone[]) =>
+	[...zones].sort((a, b) => {
+		const aSort = Number.isFinite(a.sortOrder as number)
+			? Number(a.sortOrder)
+			: Number.MAX_SAFE_INTEGER
+		const bSort = Number.isFinite(b.sortOrder as number)
+			? Number(b.sortOrder)
+			: Number.MAX_SAFE_INTEGER
+		if (aSort !== bSort) return aSort - bSort
+		return (a.name || "").localeCompare(b.name || "", "zh-Hant")
+	})
 
 const firstZoneByDisplayOrder = (zs: UnifiedZone[]) => sortZones(zs)[0] ?? null
 
@@ -335,9 +347,59 @@ const loadZones = async () => {
 	}
 }
 
+const handleSaveUnifiedZone = async (zone: UnifiedZone) => {
+	const canWrite = isAdmin.value || hasPermission(PERMISSIONS.LOCATION_MANAGEMENT)
+	if (!canWrite) return
+
+	await baseHandleSaveZone(
+		zone,
+		zones,
+		async (z) => {
+			if (!z.id) {
+				return await locationApi.createZone({
+					name: z.name,
+					imageUrl: z.imageUrl,
+					description: z.description,
+					sortOrder: z.sortOrder,
+					locations: z.locations,
+				})
+			}
+			return await locationApi.updateZone(z.id, {
+				name: z.name,
+				imageUrl: z.imageUrl,
+				description: z.description,
+				sortOrder: z.sortOrder,
+				locations: z.locations,
+			})
+		},
+		{
+			selectedZoneRef: selectedZone,
+			closeDialogRef: showLocationManagementDialog,
+		}
+	)
+
+	await loadZones()
+}
+
+const handleDeleteUnifiedZone = async (zoneId: string) => {
+	if (!isAdmin.value) return
+
+	await baseHandleDeleteZone(zoneId, zones, locationApi.deleteZone, {
+		selectedZoneRef: selectedZone,
+		selectedLocationRef: selectedLocation,
+		findEarliestZone: firstZoneByDisplayOrder,
+		getLocationId: (loc) => String(loc.id || ""),
+		reloadZones: async () => {
+			await loadZones()
+			showLocationManagementDialog.value = false
+		},
+	})
+}
+
 // 處理區域選擇
 const handleZoneSelected = (zoneId: string) => {
 	selectedZone.value = zoneId
+	selectedLocation.value = ""
 	// 切換區域時重置系統篩選
 	selectedSystemType.value = null
 }
@@ -353,11 +415,16 @@ const handleSystemTypeToggle = (systemType: SystemType) => {
 	}
 }
 
+// 選中地點
+const selectLocation = (location: UnifiedLocation) => {
+	selectedLocation.value = location.id
+}
+
 // 系統類型標籤映射（提取為常數，避免重複定義）
 const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
+	drainage: "排水系統",
 	environment: "環境監測",
 	lighting: "照明系統",
-	drainage: "衛生排水",
 	people_counting: "人流統計",
 	vehicle_access: "車輛進出",
 }
@@ -373,40 +440,6 @@ const handleOpenZoneDialog = async () => {
 		await loadZones()
 	}
 	showLocationManagementDialog.value = true
-}
-
-// 處理儲存區域
-const handleSaveZone = async (zone: UnifiedZone) => {
-	await baseHandleSaveZone(
-		zone,
-		zones,
-		async (z: UnifiedZone) => {
-			return z.id
-				? await locationApi.updateZone(z.id, {
-						name: z.name,
-						imageUrl: z.imageUrl,
-						locations: z.locations,
-					})
-				: await locationApi.createZone({
-						name: z.name,
-						imageUrl: z.imageUrl,
-						locations: z.locations,
-					})
-		},
-		{
-			selectedZoneRef: selectedZone,
-			closeDialogRef: showLocationManagementDialog,
-		}
-	)
-}
-
-// 處理刪除區域（當其他系統刪除區域時，全區點位圖需要重新載入資料）
-const handleDeleteZone = async (zoneId: string) => {
-	await baseHandleDeleteZone(zoneId, zones, locationApi.deleteZone, {
-		selectedZoneRef: selectedZone,
-		findEarliestZone: firstZoneByDisplayOrder,
-		reloadZones: loadZones, // 刪除後重新載入所有系統的區域資料
-	})
 }
 
 // 監聽頁面可見性變化，當頁面重新可見時重新載入資料
@@ -450,3 +483,121 @@ onBeforeUnmount(() => {
 	}
 })
 </script>
+
+<style scoped>
+/* 按鈕進場動畫 */
+.fade-in-enter-active {
+	transition:
+		opacity 0.4s ease-in,
+		transform 0.4s ease-out;
+}
+
+.fade-in-enter-from {
+	opacity: 0;
+	transform: translateY(-10px);
+}
+
+.fade-in-enter-to {
+	opacity: 1;
+	transform: translateY(0);
+}
+
+/* 圖片載入動畫 */
+.image-blur-load {
+	transition:
+		filter 0.6s ease-in-out,
+		opacity 0.6s ease-in-out;
+	filter: blur(20px);
+	opacity: 0.6;
+}
+
+.image-blur-load.image-loaded {
+	filter: blur(0);
+	opacity: 1;
+}
+
+/* 地點點位樣式 */
+.location-dot-wrapper {
+	position: absolute;
+	z-index: 10;
+}
+
+.location-dot {
+	position: absolute;
+	width: 48px;
+	height: 48px;
+	border-radius: 9999px;
+	transform: translate(-50%, -50%);
+	border: 2px solid transparent;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	backdrop-filter: blur(3px);
+	transition:
+		box-shadow 0.2s ease,
+		border-color 0.2s ease,
+		background 0.2s ease;
+}
+
+.location-dot::before {
+	content: "";
+	position: absolute;
+	inset: 6px;
+	border-radius: inherit;
+	transition: background 0.2s ease;
+}
+
+.location-dot::after {
+	position: relative;
+	content: "";
+	font-size: 16px;
+	font-weight: 600;
+	color: #ffffff;
+}
+
+/* 正常狀態 */
+.location-dot[data-status="normal"] {
+	background: rgba(28, 200, 138, 0.28);
+	border-color: rgba(28, 200, 138, 0.6);
+}
+
+.location-dot[data-status="normal"]::before {
+	background: #1cc88a;
+}
+
+.location-dot[data-status="normal"]::after {
+	content: "✓";
+}
+
+/* 異常狀態 */
+.location-dot[data-status="abnormal"] {
+	background: rgba(245, 101, 101, 0.32);
+	border-color: rgba(245, 101, 101, 0.72);
+	animation: dot-alert 1.6s ease-in-out infinite;
+}
+
+.location-dot[data-status="abnormal"]::before {
+	background: #f56565;
+}
+
+.location-dot[data-status="abnormal"]::after {
+	content: "!";
+}
+
+/* 選中狀態 */
+.location-dot.is-active {
+	box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+	border-color: rgba(255, 255, 255, 0.8);
+}
+
+@keyframes dot-alert {
+	0%,
+	100% {
+		box-shadow: 0 0 18px rgba(245, 101, 101, 0.6);
+	}
+	50% {
+		box-shadow: 0 0 28px rgba(245, 101, 101, 0.95);
+	}
+}
+</style>

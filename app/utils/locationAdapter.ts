@@ -116,7 +116,13 @@ function isLightingSystemConfig(config: unknown): config is LightingSystemConfig
 function isPeopleCountingSystemConfig(config: unknown): config is PeopleCountingSystemConfig {
 	if (!config || typeof config !== "object") return false
 	const c = config as Record<string, unknown>
-	return "personGroupIds" in c && Array.isArray(c.personGroupIds)
+	if ("personGroupIds" in c && Array.isArray(c.personGroupIds)) return true
+	if (c.dataSource === "isapi_camera" || c.dataSource === "access_control") return true
+	if (typeof c.cameraDeviceId === "number" && Number.isFinite(c.cameraDeviceId)) return true
+	if ("cameraDeviceIds" in c && Array.isArray((c as { cameraDeviceIds?: unknown }).cameraDeviceIds)) return true
+	if ("entryDoorId" in c || "exitDoorId" in c) return true
+	if ("entryDeviceId" in c || "exitDeviceId" in c) return true
+	return false
 }
 
 /**
@@ -376,6 +382,15 @@ export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZo
 					dataSource: config.dataSource ?? "yscp",
 					entryDeviceId: config.entryDeviceId ?? undefined,
 					exitDeviceId: config.exitDeviceId ?? undefined,
+					cameraDeviceId: config.cameraDeviceId ?? undefined,
+					cameraDeviceIds: Array.isArray(config.cameraDeviceIds)
+						? config.cameraDeviceIds
+						: config.cameraDeviceId != null
+							? [config.cameraDeviceId]
+							: undefined,
+					cameraChannelId: config.cameraChannelId ?? undefined,
+					preferRegion: config.preferRegion ?? undefined,
+					accessControlGroups: config.accessControlGroups || [],
 				} as PeopleCountingLocation,
 			]
 		}),
@@ -627,6 +642,13 @@ export function peopleCountingLocationToUnified(
 	systemType: SystemType = "people_counting"
 ): UnifiedLocationInput {
 	const hasId = "id" in loc && loc.id
+	const cameraDeviceIds = Array.isArray((loc as PeopleCountingLocation).cameraDeviceIds)
+		? (loc as PeopleCountingLocation).cameraDeviceIds!.filter(
+				(id) => typeof id === "number" && Number.isFinite(id) && id > 0
+			)
+		: loc.cameraDeviceId != null
+			? [loc.cameraDeviceId]
+			: []
 	return {
 		...(hasId && { id: loc.id! }),
 		name: loc.name,
@@ -641,6 +663,13 @@ export function peopleCountingLocationToUnified(
 					dataSource: loc.dataSource ?? "yscp",
 					entryDeviceId: loc.entryDeviceId ?? undefined,
 					exitDeviceId: loc.exitDeviceId ?? undefined,
+					cameraDeviceId: cameraDeviceIds[0] ?? undefined,
+					cameraDeviceIds: cameraDeviceIds.length ? cameraDeviceIds : undefined,
+					cameraChannelId:
+						loc.cameraChannelId != null && loc.cameraChannelId > 0 ? loc.cameraChannelId : 1,
+					preferRegion:
+						loc.dataSource === "isapi_camera" ? true : (loc.preferRegion ?? false),
+					accessControlGroups: loc.accessControlGroups ?? [],
 				} as PeopleCountingSystemConfig,
 			},
 		],
@@ -772,11 +801,23 @@ export function mergeFullZoneWithSystemUpdate<TZone extends { name?: string; loc
 
 	if ("locations" in data && Array.isArray(data.locations)) {
 		const systemLocations = data.locations
+		const resolveFullLocationMatch = (sl: {
+			id?: string | null
+			name?: string | null
+		}): UnifiedLocation | undefined => {
+			const slId = sl.id != null && String(sl.id).trim() !== "" ? String(sl.id) : ""
+			const isPersistedId = Boolean(slId && !slId.startsWith("temp-"))
+			if (isPersistedId) {
+				const byId = fullLocations.find((fl) => fl.id != null && String(fl.id) === slId)
+				if (byId) return byId
+			}
+			const trimmedName = sl.name != null ? String(sl.name).trim() : ""
+			if (!trimmedName) return undefined
+			return fullLocations.find((fl) => (fl.name || "").trim() === trimmedName)
+		}
 		const mergedFirst: (UnifiedLocation | UnifiedLocationInput)[] = systemLocations.map(
 			(sl: { id?: string; name?: string }) => {
-				const fullMatch = fullLocations.find(
-					(fl) => sl.id != null && fl.id != null && String(sl.id) === String(fl.id)
-				)
+				const fullMatch = resolveFullLocationMatch(sl)
 				if (fullMatch) {
 					const otherSystems = (fullMatch.systems ?? []).filter((s) => s.systemType !== systemType)
 					const ourUnified = locationConverter(sl, systemType)
@@ -797,7 +838,10 @@ export function mergeFullZoneWithSystemUpdate<TZone extends { name?: string; loc
 			}
 		)
 		const mergedIds = new Set(
-			mergedFirst.map((fl) => fl.id).filter(Boolean).map((id) => String(id))
+			mergedFirst
+				.map((fl) => fl.id)
+				.filter(Boolean)
+				.map((id) => String(id))
 		)
 		const rest = fullLocations.filter((fl) => !mergedIds.has(String(fl.id)))
 		result.locations = [...mergedFirst, ...rest]

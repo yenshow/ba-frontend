@@ -4,7 +4,7 @@
  */
 
 import type { LightingLocation } from "~/types/lighting";
-import { useLocationValidation } from "~/composables/location/validation/useLocationValidation";
+import { useLocationValidation } from "~/composables/location/validation/useBaseValidation";
 import { useModbusValidation } from "~/composables/location/validation/useModbusValidation";
 
 export interface LightingLocationValidationResult {

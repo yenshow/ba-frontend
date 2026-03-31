@@ -1,6 +1,6 @@
 import type { FeatureKey } from "~/types/license";
 
-/** 點擊鎖定模組時的 Toast 文案（與 construction 一致） */
+/** 點擊鎖定模組時的 Toast 文案 */
 export const LICENSE_MESSAGE_LOCKED = "此功能尚未授權，請聯絡管理員";
 
 /** 用戶無該系統權限時的 Toast 文案 */
@@ -13,7 +13,7 @@ export const LICENSE_MESSAGE_REDIRECT = "此功能尚未授權，已為你返回
 export const PERMISSION_MESSAGE_REDIRECT = "您沒有此系統的存取權限，已為你返回首頁";
 
 /**
- * 僅對「授權控管」的 5 個模組回傳 feature key；
+ * 僅對「授權控管」模組回傳 feature key；
  * /core/*、首頁等為基本功能，僅角色控管，回傳 null（不顯示鎖頭、不擋路由）。
  */
 export const getFeatureKeyByRoute = (routePath: string): FeatureKey | null => {
@@ -28,4 +28,3 @@ export const getFeatureKeyByRoute = (routePath: string): FeatureKey | null => {
 
 	return null;
 };
-

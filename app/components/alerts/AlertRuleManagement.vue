@@ -159,6 +159,7 @@ const ruleLimit = 10
 
 const ruleSourceOptions = [
 	{ value: "", label: "全部系統" },
+	{ value: "device", label: "設備系統" },
 	{ value: "environment", label: "環境系統" },
 	{ value: "lighting", label: "照明系統" },
 	{ value: "drainage", label: "衛生排水系統" },

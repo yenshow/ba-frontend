@@ -1,6 +1,7 @@
 /**
- * 區域驗證 Composable
- * 統一處理區域表單的驗證邏輯
+ * 區域／地點基礎驗證 Composable
+ * 統一處理區域與地點表單的基礎驗證邏輯
+ * 系統特定的驗證邏輯請使用對應的系統驗證 composable
  */
 
 import { MAX_ZONE_IMAGE_BYTES, ZONE_IMAGE_ACCEPT_TYPES } from "~/constants/zoneImage"
@@ -10,10 +11,12 @@ export interface ZoneValidationResult {
 	errors: string[];
 }
 
+export interface LocationValidationResult {
+	isValid: boolean;
+	errors: string[];
+}
+
 export function useZoneValidation() {
-	/**
-	 * 驗證區域名稱
-	 */
 	const validateZoneName = (name: string | undefined | null): string | null => {
 		if (!name || name.trim().length === 0) {
 			return "區域名稱不能為空";
@@ -24,20 +27,15 @@ export function useZoneValidation() {
 		return null;
 	};
 
-	/**
-	 * 驗證區域示意圖
-	 */
 	const validateZoneImage = (imageUrl: string | undefined | null): string | null => {
-		if (!imageUrl) return null; // 選填欄位
+		if (!imageUrl) return null;
 
-		// 檢查是否為 Base64 格式
 		if (imageUrl.startsWith("data:image/")) {
 			const base64Data = imageUrl.split(",")[1];
 			if (!base64Data) {
 				return "圖片格式不正確";
 			}
 
-			// 檢查檔案大小（Base64 編碼後會增加約 33% 的大小）
 			const sizeInBytes = (base64Data.length * 3) / 4;
 			if (sizeInBytes > MAX_ZONE_IMAGE_BYTES) {
 				return "圖片大小不能超過 10MB";
@@ -48,7 +46,6 @@ export function useZoneValidation() {
 				return "不支援的圖片格式，請使用 PNG、JPG、GIF 或 WEBP";
 			}
 		} else if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
-			// URL 格式，不進行大小檢查
 			return null;
 		} else {
 			return "圖片格式不正確";
@@ -57,20 +54,14 @@ export function useZoneValidation() {
 		return null;
 	};
 
-	/**
-	 * 驗證區域描述
-	 */
 	const validateZoneDescription = (description: string | undefined | null): string | null => {
-		if (!description) return null; // 選填欄位
+		if (!description) return null;
 		if (description.length > 500) {
 			return "區域描述長度不能超過 500 字元";
 		}
 		return null;
 	};
 
-	/**
-	 * 驗證完整區域資料
-	 */
 	const validateZone = (zone: {
 		name?: string | null;
 		imageUrl?: string | null;
@@ -101,3 +92,61 @@ export function useZoneValidation() {
 	};
 }
 
+export function useLocationValidation() {
+	const validateLocationName = (name: string | undefined | null): string | null => {
+		if (!name || name.trim().length === 0) {
+			return "地點名稱不能為空";
+		}
+		if (name.length > 100) {
+			return "地點名稱長度不能超過 100 字元";
+		}
+		return null;
+	};
+
+	const validateLocationDescription = (description: string | undefined | null): string | null => {
+		if (!description) return null;
+		if (description.length > 500) {
+			return "地點描述長度不能超過 500 字元";
+		}
+		return null;
+	};
+
+	const validateLocation = (location: {
+		name?: string | null;
+		description?: string | null;
+	}): LocationValidationResult => {
+		const errors: string[] = [];
+
+		const nameError = validateLocationName(location.name);
+		if (nameError) errors.push(nameError);
+
+		const descriptionError = validateLocationDescription(location.description);
+		if (descriptionError) errors.push(descriptionError);
+
+		return {
+			isValid: errors.length === 0,
+			errors
+		};
+	};
+
+	const checkDuplicateLocationName = (
+		locationName: string,
+		locations: Array<{ name?: string; id?: string }>,
+		currentLocationId?: string
+	): boolean => {
+		const trimmedName = locationName.trim();
+		return locations.some(
+			loc =>
+				loc.name?.trim() === trimmedName &&
+				loc.id !== currentLocationId &&
+				loc.name?.trim().length > 0
+		);
+	};
+
+	return {
+		validateLocationName,
+		validateLocationDescription,
+		validateLocation,
+		checkDuplicateLocationName
+	};
+}

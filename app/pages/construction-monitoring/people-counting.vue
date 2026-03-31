@@ -183,6 +183,16 @@
 	<SimulationFrame v-model="showSimulationFrame" title="人流統計 - 完整報表">
 		<PeopleCountingSimulation
 			:logs="simulationLogs"
+			:data-source="selectedLocation?.dataSource"
+			:site-summary="
+				selectedLocation
+					? {
+							entryCount: selectedLocation.entryCount ?? 0,
+							exitCount: selectedLocation.exitCount ?? 0,
+							units: selectedLocation.units ?? []
+						}
+					: undefined
+			"
 			:zone-name="simulationZoneName"
 			:location-name="simulationLocationName"
 			:time-range="simulationTimeRange"
@@ -254,9 +264,17 @@ const locationsForOverview = computed(() => {
 	}))
 })
 
+const isIsapiCamera = computed(() => selectedLocation.value?.dataSource === "isapi_camera")
+
 // 計算在場人數：所有單位的 currentCount 總和
 const currentCount = computed(() => {
 	if (!selectedLocation.value?.units) return 0
+	// 攝影機：站點在場數以站點總計（entryCount - exitCount）為準，避免用單位加總造成口徑不一致
+	if (isIsapiCamera.value) {
+		const entry = selectedLocation.value.entryCount ?? 0
+		const exit = selectedLocation.value.exitCount ?? 0
+		return Math.max(0, entry - exit)
+	}
 	return selectedLocation.value.units.reduce((sum, unit) => sum + (unit.currentCount || 0), 0)
 })
 

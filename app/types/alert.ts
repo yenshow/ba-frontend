@@ -3,8 +3,8 @@ export type AlertSource =
 	| "device"
 	| "environment"
 	| "lighting"
-	| "drainage"
 	| "people_counting"
+	| "drainage"
 	| "hvac"
 	| "fire"
 	| "security";

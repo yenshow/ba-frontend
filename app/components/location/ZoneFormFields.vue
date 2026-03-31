@@ -62,9 +62,8 @@
 <script setup lang="ts">
 import type { UnifiedZone } from "~/types/location";
 import { ZONE_IMAGE_ACCEPT_ATTR } from "~/constants/zoneImage";
-import { useZoneValidation } from "~/composables/location/validation/useZoneValidation";
-import { useZoneImageUpload } from "~/composables/location/ui/useZoneImageUpload";
-import { openZoneSchematicPreview } from "~/composables/location/ui/useZoneImagePreview";
+import { useZoneValidation } from "~/composables/location/validation/useBaseValidation";
+import { useZoneImageUpload, openZoneSchematicPreview } from "~/composables/location/ui/useZoneImage";
 
 interface Props {
 	zone: UnifiedZone;

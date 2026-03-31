@@ -161,6 +161,7 @@
 														:person-groups="personGroups"
 														:doors="doors"
 														:access-control-devices="accessControlDevices"
+														:isapi-camera-devices="isapiCameraDevices"
 														:reorderable-locations="true"
 														@add-location="
 															(payload?: { viewCategory?: string }) => addLocation(zone, payload)
@@ -243,7 +244,10 @@
 <script setup lang="ts" generic="TZone extends SystemZoneType">
 import type { SystemType, UnifiedZone } from "~/types/location"
 import type { Device } from "~/types/device"
-import type { SystemZoneType, SystemLocationType } from "~/composables/location/adapters/useZoneSystemAdapter"
+import type {
+	SystemZoneType,
+	SystemLocationType,
+} from "~/composables/location/adapters/useZoneSystemAdapter"
 import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter"
 import { useLocationValidationPipeline } from "~/composables/location/validation/useLocationValidationPipeline"
 import { useZoneDrafts } from "~/composables/location/ui/useZoneDrafts"
@@ -260,16 +264,11 @@ import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { nextTick, type Component } from "vue"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { removeLocationFromSystemOrDelete } from "~/utils/locationCrudHelpers"
+import { removeLocationFromSystemOrDelete } from "~/services/location/locationService"
 import { buildDeleteLocationConfirmCopy } from "~/domain/location/confirmCopy"
 import { getLocationUiKey } from "~/utils/locationUiId"
-import {
-	compareZoneRowsForDialog,
-	pickSortOrder,
-	sortOrderForZoneRowSwap,
-	zoneSortOrderValue,
-} from "~/utils/sortOrder"
-import { getZoneUiKey } from "~/utils/zoneUiId"
+import { compareZoneRowsForDialog, pickSortOrder, zoneSortOrderValue } from "~/utils/sortOrder"
+import { getZoneUiKey } from "~/utils/locationUiId"
 
 interface Props {
 	modelValue: boolean
@@ -391,6 +390,7 @@ const doors = ref<
 	}>
 >([])
 const accessControlDevices = ref<Device[]>([])
+const isapiCameraDevices = ref<Device[]>([])
 
 // 地點管理組件映射
 const locationManagementComponentMap: Record<SystemType, Component> = {
@@ -470,6 +470,21 @@ const loadAccessControlDevices = async () => {
 	}
 }
 
+// 載入可用的 ISAPI 攝影機設備列表（人流攝影機）
+// 規則：取全部 active 設備，讓使用者自行選擇具備 host/username/password 的 ISAPI 設備
+const loadIsapiCameraDevices = async () => {
+	if (props.systemType !== "people_counting") return
+	try {
+		const result = await deviceApi.getDevices({
+			status: "active",
+			limit: 200,
+		})
+		isapiCameraDevices.value = result.devices || []
+	} catch {
+		isapiCameraDevices.value = []
+	}
+}
+
 // 當對話框打開時載入設備列表和相關資料
 watch(
 	() => props.modelValue,
@@ -481,6 +496,7 @@ watch(
 				loadPersonGroups()
 				loadDoors()
 				loadAccessControlDevices()
+				loadIsapiCameraDevices()
 			}
 			clearAllDrafts()
 			errorMessage.value = ""
@@ -656,7 +672,9 @@ const handleConfirmDeleteLocation = async () => {
 
 	const locations = [...adapter.getLocationsProperty(zone)]
 	const resolvedIndex = locations.findIndex((loc: any, idx: number) => {
-		return getLocationUiKey({ zone: zone as any, location: loc, locationIndex: idx }) === locationUiKey
+		return (
+			getLocationUiKey({ zone: zone as any, location: loc, locationIndex: idx }) === locationUiKey
+		)
 	})
 	if (resolvedIndex < 0 || resolvedIndex >= locations.length) {
 		pendingDeleteLocation.value = null
@@ -725,15 +743,22 @@ const moveZoneOrder = (zone: TZone, delta: number) => {
 	const i = list.findIndex((z) => getZoneId(z) === id)
 	const j = i + delta
 	if (i < 0 || j < 0 || j >= list.length) return
-	const idA = getZoneId(list[i]!)!
-	const idB = getZoneId(list[j]!)!
-	const za = snapshotZoneById(idA)
-	const zb = snapshotZoneById(idB)
-	if (!za || !zb) return
-	const sortA = sortOrderForZoneRowSwap((za as unknown as { sortOrder?: unknown }).sortOrder, i)
-	const sortB = sortOrderForZoneRowSwap((zb as unknown as { sortOrder?: unknown }).sortOrder, j)
-	pendingChanges.value.set(idA, { ...za, sortOrder: sortB } as TZone)
-	pendingChanges.value.set(idB, { ...zb, sortOrder: sortA } as TZone)
+
+	/**
+	 * 修正：舊資料常見多個 zone 的 sortOrder 都是 0（或相同值），僅互換兩列 sortOrder 會「看起來沒動」。
+	 * 因此以「目前對話框可見順序」先正規化成 0..n-1，再交換相鄰兩列，並回寫所有列的 sortOrder，確保排序一定生效。
+	 */
+	const orderedIds = list.map((z) => getZoneId(z)).filter(Boolean)
+	if (orderedIds.length !== list.length) return
+	;[orderedIds[i], orderedIds[j]] = [orderedIds[j]!, orderedIds[i]!]
+
+	for (let idx = 0; idx < orderedIds.length; idx += 1) {
+		const zoneId = orderedIds[idx]!
+		const snap = snapshotZoneById(zoneId)
+		if (!snap) continue
+		pendingChanges.value.set(zoneId, { ...snap, sortOrder: idx } as TZone)
+	}
+
 	errorMessage.value = ""
 }
 
@@ -793,11 +818,7 @@ const handleReorderDrainageViewCategoryBlock = (
 	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
 	if (!zone) return
 	const locs = [...adapter.getLocationsProperty(zone)] as SystemLocationType[]
-	const next = reorderDrainageLocationsByCategoryBlock(
-		locs,
-		payload.categoryKey,
-		payload.direction
-	)
+	const next = reorderDrainageLocationsByCategoryBlock(locs, payload.categoryKey, payload.direction)
 	if (!next) return
 	next.forEach((loc, idx) => {
 		;(loc as unknown as { sortOrder?: number }).sortOrder = idx

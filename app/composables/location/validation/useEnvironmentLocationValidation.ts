@@ -5,7 +5,7 @@
 
 import type { EnvironmentLocation } from "~/types/environment";
 import type { SensorParameterType } from "~/types/environment";
-import { useLocationValidation } from "~/composables/location/validation/useLocationValidation";
+import { useLocationValidation } from "~/composables/location/validation/useBaseValidation";
 
 export interface EnvironmentLocationValidationResult {
 	isValid: boolean;

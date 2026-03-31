@@ -10,7 +10,7 @@ export type SystemType =
 	| "lighting"
 	| "drainage"
 	| "people_counting"
-	| "vehicle_access";
+	| "vehicle_access"
 
 /**
  * 系統配置（根據系統類型不同）
@@ -20,133 +20,143 @@ export type SystemConfig =
 	| LightingSystemConfig
 	| DrainageSystemConfig
 	| PeopleCountingSystemConfig
-	| VehicleAccessSystemConfig;
+	| VehicleAccessSystemConfig
 
 /**
  * 環境監測系統配置
  */
 export interface EnvironmentSystemConfig {
-	deviceId?: number;
+	deviceId?: number
 	/** 感測器設備 ID 列表（複選）；送出時以 deviceIds 為準 */
-	deviceIds?: number[];
+	deviceIds?: number[]
 	parameters: Array<{
-		type: string;
-		enabled: boolean;
-	}>;
+		type: string
+		enabled: boolean
+	}>
 }
 
 /**
  * 照明系統配置
  */
 export interface LightingSystemConfig {
-	deviceId?: number;
+	deviceId?: number
 	location?: {
-		x: number;
-		y: number;
-	};
+		x: number
+		y: number
+	}
 	modbus?: {
-		deviceId?: number;
+		deviceId?: number
 		points?: Array<{
-			address: number;
-			type: "DI" | "DO";
-			note?: string;
-		}>;
-	};
+			address: number
+			type: "DI" | "DO"
+			note?: string
+		}>
+	}
 }
 
 /** 排水狀態點位（對應後端 status_points）；可每點獨立指定控制器 */
 export interface DrainageStatusPointDef {
-	registerType: "coil" | "discrete" | "holding" | "input";
-	address: number;
-	length?: number;
+	registerType: "coil" | "discrete" | "holding" | "input"
+	address: number
+	length?: number
 	/** 若省略則使用地點層級的 deviceId */
-	deviceId?: number;
+	deviceId?: number
 }
 
 /**
  * 衛生排水系統配置
  */
 export interface DrainageSystemConfig {
-	deviceId?: number;
-	location?: { x: number; y: number };
-	modbus?: LightingSystemConfig["modbus"];
-	equipmentKind?: "pump" | "tank";
+	deviceId?: number
+	location?: { x: number; y: number }
+	modbus?: LightingSystemConfig["modbus"]
+	equipmentKind?: "pump" | "tank"
 	/** 檢視分類（使用者自訂字串；舊資料可能為 pumping／sewage／drainage） */
-	viewCategory?: string;
-	statusPoints?: Record<string, DrainageStatusPointDef>;
+	viewCategory?: string
+	statusPoints?: Record<string, DrainageStatusPointDef>
 }
 
 /**
  * 人流統計系統配置
- * dataSource 為 access_control 時使用 entryDeviceId / exitDeviceId（本系統門禁設備）；為 yscp 時使用 entryDoorId / exitDoorId（YSCP）。
+ * dataSource 為 access_control 時使用 entryDeviceId / exitDeviceId；yscp 時使用 entryDoorId / exitDoorId；isapi_camera 時使用 cameraDeviceId 等。
  */
 export interface PeopleCountingSystemConfig {
-	personGroupIds?: number[];
-	entryDoorId?: number;
-	exitDoorId?: number;
-	/** 資料來源：yscp（預設）或 access_control */
-	dataSource?: "yscp" | "access_control";
+	personGroupIds?: number[]
+	entryDoorId?: number
+	exitDoorId?: number
+	/** 資料來源：yscp（預設）/ access_control / isapi_camera */
+	dataSource?: "yscp" | "access_control" | "isapi_camera"
 	/** 本系統門禁設備 ID（devices.id），dataSource 為 access_control 時使用 */
-	entryDeviceId?: number;
-	exitDeviceId?: number;
+	entryDeviceId?: number
+	exitDeviceId?: number
+	/**
+	 * ISAPI PeopleCounting 攝影機（devices.id）單值（相容欄位）
+	 * - **僅作 fallback**：舊資料/舊前端可能只存此欄位
+	 * - 新版請以 cameraDeviceIds 為準
+	 */
+	cameraDeviceId?: number
+	/** ISAPI PeopleCounting 攝影機（devices.id）列表（複選）；**主要欄位** */
+	cameraDeviceIds?: number[]
+	cameraChannelId?: number
+	preferRegion?: boolean
 	/** 門禁人員群組（name + employeeNos），成員限為出入口皆有之人員 */
-	accessControlGroups?: Array<{ name: string; employeeNos: string[] }>;
+	accessControlGroups?: Array<{ name: string; employeeNos: string[] }>
 }
 
 /**
  * 車輛進出系統配置（車道來自 vehiclebiz.lane_info；entry_lane_id／exit_lane_id 對應入口／出口車道）
  */
 export interface VehicleAccessSystemConfig {
-	entryLaneId?: number | null;
-	exitLaneId?: number | null;
+	entryLaneId?: number | null
+	exitLaneId?: number | null
 }
 
 /**
  * 地點系統
  */
 export interface LocationSystem {
-	id: string;
-	systemType: SystemType;
-	config: SystemConfig;
+	id: string
+	systemType: SystemType
+	config: SystemConfig
 }
 
 /**
  * 統一區域
  */
 export interface UnifiedZone {
-	id: string;
-	name: string;
-	buildingId?: number;
-	imageUrl?: string; // 照明系統專用
-	description?: string;
+	id: string
+	name: string
+	buildingId?: number
+	imageUrl?: string // 照明系統專用
+	description?: string
 	/** 區域排序（小者在前），由後端與區域表單維護 */
-	sortOrder?: number;
-	locations: UnifiedLocation[];
+	sortOrder?: number
+	locations: UnifiedLocation[]
 }
 
 /**
  * 統一地點（支援多系統）
  */
 export interface UnifiedLocation {
-	id: string;
-	zoneId: string;
-	name: string;
-	description?: string;
+	id: string
+	zoneId: string
+	name: string
+	description?: string
 	/** 地點列建立時間（ISO 8601），供前端排序；未持久化前可由前端填入 */
-	createdAt?: string;
+	createdAt?: string
 	/** 同區域內地點排序（小者在前） */
-	sortOrder?: number;
-	systems: LocationSystem[];
+	sortOrder?: number
+	systems: LocationSystem[]
 }
 
 /**
  * 地點系統輸入類型（用於創建和更新，系統可能沒有 id）
  */
-export type LocationSystemInput = LocationSystem | Omit<LocationSystem, "id">;
+export type LocationSystemInput = LocationSystem | Omit<LocationSystem, "id">
 
 /**
  * 統一地點輸入類型（用於創建和更新，地點和系統可能沒有 id）
  */
 export type UnifiedLocationInput = Omit<UnifiedLocation, "zoneId" | "systems"> & {
-	systems: LocationSystemInput[];
-};
+	systems: LocationSystemInput[]
+}

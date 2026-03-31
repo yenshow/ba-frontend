@@ -308,11 +308,13 @@ const handleSaveZone = async (zone: DrainageZone) => {
 				? await drainageApi.updateZone(z.id, {
 						name: z.name,
 						imageUrl: z.imageUrl,
+						sortOrder: z.sortOrder,
 						locations: z.locations,
 					})
 				: await drainageApi.createZone({
 						name: z.name,
 						imageUrl: z.imageUrl,
+						sortOrder: z.sortOrder,
 						locations: z.locations,
 					})
 			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as DrainageZone & {

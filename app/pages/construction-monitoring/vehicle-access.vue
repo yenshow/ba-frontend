@@ -480,8 +480,16 @@ const handleSaveZone = async (zone: VehicleAccessZone) => {
 		async (z: VehicleAccessZone) => {
 			const isValidId = z.id && !z.id.startsWith("temp-") && /^\d+$/.test(z.id);
 			const result = isValidId
-				? await vehicleAccessLocationApi.updateZone(z.id, { name: z.name, locations: z.locations })
-				: await vehicleAccessLocationApi.createZone({ name: z.name, locations: z.locations });
+				? await vehicleAccessLocationApi.updateZone(z.id, {
+						name: z.name,
+						sortOrder: (z as unknown as { sortOrder?: number }).sortOrder,
+						locations: z.locations,
+					})
+				: await vehicleAccessLocationApi.createZone({
+						name: z.name,
+						sortOrder: (z as unknown as { sortOrder?: number }).sortOrder,
+						locations: z.locations,
+					});
 			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as VehicleAccessZone & {
 				id: string;
 			};

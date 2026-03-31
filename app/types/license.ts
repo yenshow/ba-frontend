@@ -1,4 +1,4 @@
-/** 授權控管：僅此五項會顯示鎖頭並在後端做授權檢查；其餘由角色管理 */
+/** 授權控管：與後端 ALL_FEATURE_KEYS 對齊 */
 export type FeatureKey =
 	| "people_counting"
 	| "lighting"
@@ -21,5 +21,9 @@ export type LicenseState = {
 	expiresAt: string | null;
 	expired: boolean;
 	canActivate: boolean;
+	serialNumber?: string | null;
+	licenseKey?: string | null;
+	activationMethod?: string | null;
+	deviceFingerprint?: string | null;
+	extensionKeys?: string[];
 };
-

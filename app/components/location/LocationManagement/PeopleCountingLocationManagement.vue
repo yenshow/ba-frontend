@@ -28,6 +28,7 @@
 						:person-groups="personGroups"
 						:doors="doors"
 						:access-control-devices="accessControlDevices"
+						:isapi-camera-devices="isapiCameraDevices"
 						@update="handleLocationUpdate(locationIndex, $event)"
 					/>
 				</div>
@@ -102,6 +103,7 @@ interface Props {
 	personGroups?: PersonGroup[]
 	doors?: Door[]
 	accessControlDevices?: Device[]
+	isapiCameraDevices?: Device[]
 	reorderableLocations?: boolean
 }
 
@@ -116,6 +118,7 @@ const props = withDefaults(defineProps<Props>(), {
 	personGroups: () => [],
 	doors: () => [],
 	accessControlDevices: () => [],
+	isapiCameraDevices: () => [],
 	reorderableLocations: false,
 })
 
