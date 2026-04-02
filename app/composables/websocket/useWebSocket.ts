@@ -20,6 +20,7 @@ const globalEventListeners = new Map<string, Set<Function>>();
 export const useWebSocket = () => {
 	const config = useRuntimeConfig();
 	const apiBase = config.public.apiBase || "http://localhost:4000/api";
+	const tokenCookie = useCookie<string | null>("auth_token");
 
 	// 從 API Base 推導 WebSocket URL（移除 /api 後綴）
 	const websocketUrl = String(config.public.websocketUrl || apiBase.replace("/api", ""));
@@ -61,6 +62,10 @@ export const useWebSocket = () => {
 			// 創建新的 Socket 實例並保存到全局變數（單例模式）
 			globalSocket = io(websocketUrl, {
 				transports: ["websocket"],
+				auth: {
+					// 後端用於 WS 連線後的 permission rooms join（不依賴 license）
+					token: tokenCookie.value || undefined
+				},
 				reconnection: true,
 				reconnectionDelay: 1000, // 初始延遲 1 秒
 				reconnectionDelayMax: 5000, // 最大延遲 5 秒
@@ -75,6 +80,12 @@ export const useWebSocket = () => {
 				status.value = "connected";
 				connectionError.value = null;
 				wsLogger.log("連接成功", { socketId: globalSocket?.id });
+
+				// WS rooms：識別 app（後端會將 client 從 app:legacy 移到 app:construction）
+				// 向下相容：後端若未實作此事件，也不影響既有功能
+				try {
+					globalSocket?.emit("client:hello", { app: "construction" });
+				} catch (_e) {}
 			});
 
 			// 連接失敗

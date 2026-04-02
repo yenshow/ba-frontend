@@ -1,4 +1,5 @@
 import type { SystemType } from "~/types/location"
+import { getSystemTypeLabel } from "~/constants/systemLabels"
 
 type DeleteConfirm = {
 	title: string
@@ -9,12 +10,7 @@ type DeleteConfirm = {
 
 const systemTypeLabel = (systemType?: SystemType): string => {
 	if (!systemType) return ""
-	const labels: Record<SystemType, string> = {
-		environment: "環境監測",
-		people_counting: "人流統計",
-		vehicle_access: "車輛進出",
-	}
-	return labels[systemType] || String(systemType)
+	return getSystemTypeLabel(systemType)
 }
 
 export const buildDeleteLocationConfirmCopy = (args: {
@@ -71,4 +67,3 @@ export const buildDeleteZoneConfirmCopy = (args: { systemType?: SystemType }): D
 		type: "danger",
 	}
 }
-

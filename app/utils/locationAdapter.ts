@@ -358,6 +358,49 @@ export function getSystem(
 	return location.systems.find((s) => s.systemType === systemType)
 }
 
+export type SystemCoordinates = { x: number; y: number }
+
+const isFiniteCoordinate = (v: unknown): v is number => {
+	return typeof v === "number" && Number.isFinite(v)
+}
+
+/**
+ * 取回某地點在指定系統下的座標（若該系統 config.location 不存在或不合法則回傳 null）。
+ * 注意：construction 目前雖未使用座標，但保留此工具以便與 central 同步與未來擴充。
+ */
+export const getSystemCoordinates = (
+	location: UnifiedLocation,
+	systemType: SystemType
+): SystemCoordinates | null => {
+	const sys = getSystem(location, systemType)
+	if (!sys) return null
+	const cfg = sys.config as Record<string, unknown>
+	const raw = cfg.location as { x?: unknown; y?: unknown } | undefined
+	if (!raw) return null
+	if (!isFiniteCoordinate(raw.x) || !isFiniteCoordinate(raw.y)) return null
+	return { x: raw.x, y: raw.y }
+}
+
+export const hasCoordinatesForSystem = (location: UnifiedLocation, systemType: SystemType): boolean => {
+	return getSystemCoordinates(location, systemType) != null
+}
+
+export const hasAnySystemCoordinates = (location: UnifiedLocation): boolean => {
+	for (const s of location.systems || []) {
+		if (getSystemCoordinates(location, s.systemType)) return true
+	}
+	return false
+}
+
+export const getLocationStyleBySystem = (
+	location: UnifiedLocation,
+	systemType: SystemType
+): { left: string; top: string } | {} => {
+	const c = getSystemCoordinates(location, systemType)
+	if (!c) return {}
+	return { left: `${c.x}%`, top: `${c.y}%` }
+}
+
 /**
  * 輔助函數：將環境監測地點轉換為統一地點格式
  */

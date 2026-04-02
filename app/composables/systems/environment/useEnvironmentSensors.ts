@@ -3,7 +3,7 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useToast } from "~/composables/core/useToast"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi"
-import type { ModbusDeviceConfig, ModbusDataResponse } from "~/types/modbus"
+import type { ModbusDeviceConfig } from "~/types/modbus"
 import type { Device, SensorDeviceConfig, SensorDeviceModelConfig } from "~/types/device"
 import type { EnvironmentLocation, EnvironmentZone, SensorParameter, SensorParameterType } from "~/types/environment"
 import { getParameterDisplayName, getLocationDeviceIds } from "~/utils/sensorUtils"
@@ -207,32 +207,35 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 		}
 	}
 
-	const readModbusRegister = async (
-		config: ModbusDeviceConfig,
-		address: number
-	): Promise<ModbusDataResponse<number>> => {
-		const queryParams = new URLSearchParams({
-			host: config.host,
-			port: String(config.port),
-			unitId: String(config.unitId),
-			address: String(address),
-		})
-		return request<ModbusDataResponse<number>>(`/modbus/holding-registers?${queryParams.toString()}`)
-	}
-
-	const readModbusRegisterBatch = async (
-		config: ModbusDeviceConfig,
-		startAddress: number,
-		length: number
-	): Promise<ModbusDataResponse<number>> => {
-		const queryParams = new URLSearchParams({
-			host: config.host,
-			port: String(config.port),
-			unitId: String(config.unitId),
-			address: String(startAddress),
-			length: String(length),
-		})
-		return request<ModbusDataResponse<number>>(`/modbus/holding-registers?${queryParams.toString()}`)
+	const batchReadHolding = async (config: ModbusDeviceConfig, address: number, length: number) => {
+		return request<{
+			results: Array<
+				| {
+						ok: true
+						data: number[]
+						device: ModbusDeviceConfig
+						registerType: "holding"
+						address: number
+						length: number
+						meta?: any
+				  }
+				| { ok: false; error: string; meta?: any }
+			>
+		}>("/modbus/batch-read", {
+			method: "POST",
+			body: JSON.stringify({
+				requests: [
+					{
+						host: config.host,
+						port: config.port,
+						unitId: config.unitId,
+						registerType: "holding",
+						address,
+						length,
+					},
+				],
+			}),
+		} as any)
 	}
 
 	type ParameterWithModbusConfig = {
@@ -261,8 +264,10 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 		transform?: string
 	): Promise<number | null> => {
 		try {
-			const response = await readModbusRegister(modbusConfig, address)
-			const rawValue = response.data[0]
+			const response = await batchReadHolding(modbusConfig, address, 1)
+			const first = response.results?.[0] as any
+			if (!first?.ok || !Array.isArray(first.data)) return null
+			const rawValue = first.data[0]
 			return applyTransform(rawValue, transform)
 		} catch {
 			return null
@@ -284,15 +289,19 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 		for (const group of addressGroups) {
 			if (group.length > 1) {
 				readPromises.push(
-					readModbusRegisterBatch(modbusConfig, group.start, group.length)
+					batchReadHolding(modbusConfig, group.start, group.length)
 						.then((response) => {
+							const first = response.results?.[0] as any
+							if (!first?.ok || !Array.isArray(first.data)) {
+								throw new Error(String(first?.error || "讀取失敗"))
+							}
 							return group.addresses.map((addr, idx) => {
 								const paramData = paramAddressMap.get(addr)
 								if (!paramData) {
 									return { type: "pm25" as SensorParameterType, value: null, success: false }
 								}
 
-								const rawValue = response.data[idx]
+								const rawValue = first.data[idx]
 								return {
 									type: paramData.type,
 									value: applyTransform(rawValue, paramData.modbusConfig.transform),

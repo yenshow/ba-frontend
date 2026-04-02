@@ -720,16 +720,11 @@ watch(
 
 // 注意：環境感測器讀數現在會自動推送給所有客戶端，不需要房間訂閱
 
-// 載入警報規則
+// 載入警報規則（`useAlertRules`：單次 GET 全量後依 threshold 過濾，失敗回空陣列）
 const loadAlertRules = async () => {
-	try {
-		const rules = await getRules("environment", "threshold")
-		alertRules.value = rules
-		rulesLoaded.value = true
-	} catch (error) {
-		console.warn("[environment] 載入警報規則失敗，將使用預設值:", error)
-		rulesLoaded.value = false
-	}
+	const rules = await getRules("environment", "threshold")
+	alertRules.value = rules
+	rulesLoaded.value = true
 }
 
 onMounted(async () => {

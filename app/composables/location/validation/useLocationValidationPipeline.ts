@@ -5,6 +5,7 @@ import type { VehicleAccessLocation } from "~/types/vehicleAccess"
 import { useZoneValidation, useLocationValidation } from "~/composables/location/validation/useBaseValidation"
 import { useEnvironmentLocationValidation } from "~/composables/location/validation/useEnvironmentLocationValidation"
 import { usePeopleCountingLocationValidation } from "~/composables/location/validation/usePeopleCountingLocationValidation"
+import { getSystemTypeLabel } from "~/constants/systemLabels"
 
 export type ValidationPipelineResult = {
 	isValid: boolean
@@ -20,14 +21,7 @@ const merge = (...results: ValidationPipelineResult[]): ValidationPipelineResult
 	return { isValid: errors.length === 0, errors, warnings }
 }
 
-const labelForSystemType = (systemType: SystemType): string => {
-	const map: Record<SystemType, string> = {
-		environment: "環境監測",
-		people_counting: "人流統計",
-		vehicle_access: "車輛進出",
-	}
-	return map[systemType] || systemType
-}
+const labelForSystemType = getSystemTypeLabel
 
 export function useLocationValidationPipeline() {
 	const { validateZone } = useZoneValidation()
@@ -113,7 +107,7 @@ export function useLocationValidationPipeline() {
 	}
 
 	/**
-	 * 全區點位圖：驗證 UnifiedZone（包含 locations[] 與 systems[]）
+	 * 地點管理（UnifiedZone）：驗證 locations[] 與 systems[]
 	 * - 統一規則：location.name 必填；location.systems 至少一個
 	 */
 	const validateUnifiedZoneForSave = (args: {

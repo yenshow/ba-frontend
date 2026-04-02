@@ -255,7 +255,7 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { removeLocationFromSystemOrDelete } from "~/services/location/locationService"
 import { buildDeleteLocationConfirmCopy } from "~/domain/location/confirmCopy"
 import { getLocationUiKey } from "~/utils/locationUiId"
-import { compareZoneRowsForDialog, pickSortOrder, zoneSortOrderValue } from "~/utils/sortOrder"
+import { pickSortOrder, zoneSortOrderValue } from "~/utils/sortOrder"
 import { getZoneUiKey } from "~/utils/locationUiId"
 
 interface Props {
@@ -380,16 +380,21 @@ const doors = ref<
 const accessControlDevices = ref<Device[]>([])
 const isapiCameraDevices = ref<Device[]>([])
 
-// 地點管理組件映射
-const locationManagementComponentMap: Record<SystemType, Component> = {
+// 地點管理組件映射（與 central 相同結構；construction 僅啟用下列 systemType）
+const locationManagementComponentMap: Partial<Record<SystemType, Component>> = {
 	environment: EnvironmentLocationManagement,
 	people_counting: PeopleCountingLocationManagement,
 	vehicle_access: VehicleAccessLocationManagement,
 }
 
-const locationManagementComponent = computed(() => locationManagementComponentMap[props.systemType])
+const locationManagementComponent = computed(() => {
+	const c = locationManagementComponentMap[props.systemType]
+	return c ?? EnvironmentLocationManagement
+})
 
 // 載入設備列表
+// 與 central 對齊：central 於 lighting/drainage/fire/emergency_rescue 使用 controller，其餘為 sensor；
+// construction 僅環境／人流／車輛，皆對應 sensor。
 const loadDevices = async () => {
 	isLoadingDevices.value = true
 	try {
@@ -499,7 +504,7 @@ const getLocationsCount = (zone: TZone): number => {
 	return adapter.getLocationsProperty(zone).length
 }
 
-// 取得地點標籤（用於顯示）
+// 取得地點標籤（用於顯示；與 central 規則一致：排水／照明等為「點位」，其餘為「地點」— construction 僅下列三系統，皆為「地點」）
 const getLocationLabel = (): string => {
 	const labelMap: Record<SystemType, string> = {
 		environment: "地點",
@@ -591,10 +596,10 @@ const handleLocationUpdate = (
 	updateZone(updatedZone)
 }
 
-// 新增地點（從 LocationManagement 組件接收）
+// 新增地點（從 LocationManagement 組件接收；與 central 一致：新列接在列表尾端）
 const addLocation = (zone: TZone) => {
 	const newLocation = adapter.createNewLocation() as SystemLocationType
-	const locations = [newLocation, ...adapter.getLocationsProperty(zone)]
+	const locations = [...adapter.getLocationsProperty(zone), newLocation]
 	const updatedZone = adapter.setLocationsProperty(zone, locations)
 	updateZone(updatedZone)
 }

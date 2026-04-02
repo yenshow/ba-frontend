@@ -113,7 +113,7 @@
 						</div>
 					</button>
 
-					<!-- 2. 更多功能（下拉：設備管理、全區點位圖、人員管理） -->
+					<!-- 2. 更多功能（下拉：設備管理、人員管理） -->
 					<div v-if="isOperator" class="relative z-[100]" data-more-functions-menu>
 						<button
 							ref="moreFunctionsButtonRef"
@@ -323,7 +323,7 @@ const auxiliaryItemsForActive = [
 	{ id: "home", name: "首頁", route: "/", icon: "/layout/home.svg", isSvg: true }
 ] as const;
 
-// 更多功能下拉項目（設備管理、全區點位圖、人員管理）；全區點位圖依權限 operation.location_management 顯示
+// 更多功能下拉項目（設備管理、人員管理）
 const moreFunctionsItems = [
 	{
 		id: "equipment-management",
@@ -331,20 +331,10 @@ const moreFunctionsItems = [
 		route: "/core/equipment-management",
 		icon: "/layout/devices.svg"
 	},
-	{
-		id: "area-point-map",
-		name: "全區點位圖",
-		route: "/core/area-point-map",
-		icon: "/layout/map.svg"
-	},
 	{ id: "personnel", name: "人員管理", route: "/core/personnel", icon: "/layout/user-info.svg" }
 ] as const;
 
-const visibleMoreFunctionsItems = computed(() =>
-	moreFunctionsItems.filter(
-		item => item.id !== "area-point-map" || hasPermission(PERMISSIONS.LOCATION_MANAGEMENT)
-	)
-);
+const visibleMoreFunctionsItems = computed(() => moreFunctionsItems);
 
 // 展開/收縮狀態
 const isExpanded = ref(false);

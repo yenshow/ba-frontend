@@ -105,7 +105,7 @@ import type {
 	SensorDeviceModelConfig,
 	SensorParameterDefinition
 } from "~/types/device";
-import type { ModbusDeviceConfig, ModbusDataResponse } from "~/types/modbus";
+import type { ModbusDeviceConfig } from "~/types/modbus";
 import { isDeviceConnectionError } from "~/utils/errorUtils";
 import { firstLocationInSortedZones } from "~/utils/sortOrder";
 import { getLocationDeviceIds } from "~/utils/sensorUtils";
@@ -425,38 +425,35 @@ const loadLocationSensorDevice = async (location: EnvironmentLocation) => {
 	}
 };
 
-const readModbusRegister = async (
-	modbusConfig: ModbusDeviceConfig,
-	address: number
-): Promise<ModbusDataResponse<number>> => {
-	const queryParams = new URLSearchParams({
-		host: modbusConfig.host,
-		port: String(modbusConfig.port),
-		unitId: String(modbusConfig.unitId),
-		address: String(address)
-	});
-
-	return await request<ModbusDataResponse<number>>(
-		`/modbus/holding-registers?${queryParams.toString()}`
-	);
-};
-
-const readModbusRegisterBatch = async (
-	modbusConfig: ModbusDeviceConfig,
-	startAddress: number,
-	length: number
-): Promise<ModbusDataResponse<number>> => {
-	const queryParams = new URLSearchParams({
-		host: modbusConfig.host,
-		port: String(modbusConfig.port),
-		unitId: String(modbusConfig.unitId),
-		address: String(startAddress),
-		length: String(length)
-	});
-
-	return await request<ModbusDataResponse<number>>(
-		`/modbus/holding-registers?${queryParams.toString()}`
-	);
+const batchReadHolding = async (modbusConfig: ModbusDeviceConfig, address: number, length: number) => {
+	return await request<{
+		results: Array<
+			| {
+					ok: true;
+					data: number[];
+					device: ModbusDeviceConfig;
+					registerType: "holding";
+					address: number;
+					length: number;
+					meta?: any;
+			  }
+			| { ok: false; error: string; meta?: any }
+		>;
+	}>("/modbus/batch-read", {
+		method: "POST",
+		body: JSON.stringify({
+			requests: [
+				{
+					host: modbusConfig.host,
+					port: modbusConfig.port,
+					unitId: modbusConfig.unitId,
+					registerType: "holding",
+					address,
+					length
+				}
+			]
+		})
+	} as any);
 };
 
 type AddressGroup = { start: number; length: number; addresses: number[] };
@@ -510,21 +507,31 @@ const readParametersBatch = async (
 	for (const group of addressGroups) {
 		if (group.length > 1) {
 			readPromises.push(
-				readModbusRegisterBatch(modbusConfig, group.start, group.length)
-					.then(response =>
-						group.addresses.flatMap((addr, idx) => {
+				batchReadHolding(modbusConfig, group.start, group.length)
+					.then(res => {
+						const first = (res as any).results?.[0];
+						if (!first?.ok || !Array.isArray(first.data)) {
+							throw new Error(String(first?.error || "讀取失敗"));
+						}
+						return group.addresses.flatMap((addr, idx) => {
 							const list = paramAddressMap.get(addr);
-							return list?.length ? mapParamListToResults(list, response.data[idx], true) : [];
-						})
-					)
+							return list?.length ? mapParamListToResults(list, first.data[idx], true) : [];
+						});
+					})
 					.catch(async () => {
 						const fallback = await Promise.all(
 							group.addresses.map(async addr => {
 								const list = paramAddressMap.get(addr);
 								if (!list?.length) return [];
 								try {
-									const res = await readModbusRegister(modbusConfig, addr);
-									return mapParamListToResults(list, res.data[0], true);
+									const res1 = await batchReadHolding(modbusConfig, addr, 1);
+									const first1 = (res1 as any).results?.[0];
+									const raw = first1?.ok ? first1.data?.[0] : undefined;
+									return mapParamListToResults(
+										list,
+										typeof raw === "number" ? raw : 0,
+										typeof raw === "number"
+									);
 								} catch {
 									return mapParamListToResults(list, 0, false);
 								}
@@ -541,8 +548,16 @@ const readParametersBatch = async (
 		if (!list?.length) continue;
 
 		readPromises.push(
-			readModbusRegister(modbusConfig, addr)
-				.then(res => mapParamListToResults(list, res.data[0], true))
+			batchReadHolding(modbusConfig, addr, 1)
+				.then(res => {
+					const first = (res as any).results?.[0];
+					const raw = first?.ok ? first.data?.[0] : undefined;
+					return mapParamListToResults(
+						list,
+						typeof raw === "number" ? raw : 0,
+						typeof raw === "number"
+					);
+				})
 				.catch(() => mapParamListToResults(list, 0, false))
 		);
 	}
