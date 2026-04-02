@@ -120,6 +120,16 @@ export const useAlertApi = () => {
 		});
 	};
 
+	/** 規則訊息預覽（canonical 模板 + 範例變數，不寫入 DB） */
+	const previewAlertRuleMessage = async (
+		body: Record<string, unknown>
+	): Promise<{ template: string; rendered: string }> => {
+		return await request<{ template: string; rendered: string }>("/alerts/rules/preview-message", {
+			method: "POST",
+			body
+		});
+	};
+
 	return {
 		getAlerts,
 		getAlertById,
@@ -130,7 +140,8 @@ export const useAlertApi = () => {
 		getAlertRules,
 		createAlertRule,
 		updateAlertRule,
-		deleteAlertRule
+		deleteAlertRule,
+		previewAlertRuleMessage
 	};
 };
 

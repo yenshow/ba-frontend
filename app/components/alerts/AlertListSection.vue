@@ -19,7 +19,12 @@
 						class="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
 					>
 						<div>
-							<svg class="mx-auto mb-4 h-16 w-16 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<svg
+								class="mx-auto mb-4 h-16 w-16 text-white/60"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
 								<path
 									stroke-linecap="round"
 									stroke-linejoin="round"
@@ -42,11 +47,21 @@
 							<div class="flex items-start justify-between gap-4">
 								<div class="flex-1">
 									<div class="mb-2 flex flex-wrap items-center gap-2">
-										<span :class="[badgeBaseClass, 'bg-blue-500/80']">{{ getSourceLabel(alert.source) }}</span>
-										<span :class="[badgeBaseClass, getSeverityBadgeClass(alert.severity)]">{{ getSeverityLabel(alert.severity) }}</span>
-										<span :class="[badgeBaseClass, getTypeBadgeClass(alert.alert_type)]">{{ getTypeLabel(alert.alert_type) }}</span>
-										<span v-if="isAlertResolved(alert)" :class="[badgeBaseClass, 'bg-green-500/80']">已解決</span>
-										<span v-if="isAlertIgnored(alert)" :class="[badgeBaseClass, 'bg-gray-500/80']">已忽視</span>
+										<span :class="[badgeBaseClass, 'bg-blue-500/80']">{{
+											getSourceLabel(alert.source)
+										}}</span>
+										<span :class="[badgeBaseClass, getSeverityBadgeClass(alert.severity)]">{{
+											getSeverityLabel(alert.severity)
+										}}</span>
+										<span :class="[badgeBaseClass, getTypeBadgeClass(alert.alert_type)]">{{
+											getTypeLabel(alert.alert_type)
+										}}</span>
+										<span v-if="isAlertResolved(alert)" :class="[badgeBaseClass, 'bg-green-500/80']"
+											>已解決</span
+										>
+										<span v-if="isAlertIgnored(alert)" :class="[badgeBaseClass, 'bg-gray-500/80']"
+											>已忽視</span
+										>
 									</div>
 
 									<p class="mb-4 text-base text-white 2xl:text-lg">{{ alert.message }}</p>
@@ -55,28 +70,37 @@
 										<div class="grid grid-cols-4 gap-3 2xl:gap-4">
 											<div class="flex items-start gap-2">
 												<div class="min-w-0 flex-1">
-													<div class="text-sm text-white/60">{{ getSourceLabel(alert.source) }}</div>
+													<div class="text-sm text-white/60">
+														{{ getSourceLabel(alert.source) }}
+													</div>
 													<div class="mt-0.5 truncate text-base font-semibold text-white">
-														<span v-if="alert.zone_name">{{ alert.zone_name }} - </span>{{ getSourceDisplayName(alert) }}
+														<span v-if="alert.zone_name">{{ alert.zone_name }} - </span
+														>{{ getSourceDisplayName(alert) }}
 													</div>
 												</div>
 											</div>
 											<div v-if="alert.device_type_name" class="flex items-start gap-2">
 												<div class="min-w-0 flex-1">
 													<div class="text-sm text-white/60">類型</div>
-													<div class="mt-0.5 text-base font-medium text-white">{{ alert.device_type_name }}</div>
+													<div class="mt-0.5 text-base font-medium text-white">
+														{{ alert.device_type_name }}
+													</div>
 												</div>
 											</div>
 											<div class="flex items-start gap-2">
 												<div class="min-w-0 flex-1">
 													<div class="text-sm text-white/60">創建時間</div>
-													<div class="mt-0.5 text-base text-white">{{ formatDateTime(alert.created_at) }}</div>
+													<div class="mt-0.5 text-base text-white">
+														{{ formatDateTime(alert.created_at) }}
+													</div>
 												</div>
 											</div>
 											<div class="flex items-start gap-2">
 												<div class="min-w-0 flex-1">
 													<div class="text-sm text-white/60">更新時間</div>
-													<div class="mt-0.5 text-base text-white">{{ formatDateTime(alert.updated_at) }}</div>
+													<div class="mt-0.5 text-base text-white">
+														{{ formatDateTime(alert.updated_at) }}
+													</div>
 												</div>
 											</div>
 										</div>
@@ -164,9 +188,8 @@ const getAlertCardClass = (alert: Alert) => {
 	if (isAlertResolved(alert)) return "border-green-500/30 bg-green-500/5"
 	if (isAlertIgnored(alert)) return "border-gray-500/30 bg-gray-500/5"
 	const severityClasses: Record<string, string> = {
-		warning: "border-yellow-500/30 bg-yellow-500/5",
-		error: "border-orange-500/30 bg-orange-500/5",
-		critical: "border-red-500/30 bg-red-500/5",
+		warning: "border-yellow-500 bg-yellow-500/30",
+		critical: "border-red-500 bg-red-500/30",
 	}
 	return severityClasses[alert.severity] || "border-white/20 bg-white/5"
 }

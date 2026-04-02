@@ -1,5 +1,20 @@
 export function useModbusValidation() {
 	/**
+	 * 將表單輸入正規化為合法 Modbus 位址（整數 0～65535），與 validateModbusAddress 邊界一致。
+	 * 區域／地點表單（DI/DO 地址）與警報規則 DI/DO 位址欄位共用。
+	 */
+	const normalizeModbusAddressInput = (
+		value: number | string | undefined | null,
+	): number => {
+		const raw = typeof value === "string" ? Number(value.trim()) : Number(value)
+		if (!Number.isFinite(raw)) return 0
+		const t = Math.trunc(raw)
+		if (t < 0) return 0
+		if (t > 65535) return 65535
+		return t
+	}
+
+	/**
 	 * 驗證 Modbus 地址（共用規則：0 ~ 65535）
 	 * - 未選擇設備時不驗證（允許空）
 	 */
@@ -29,8 +44,8 @@ export function useModbusValidation() {
 	}
 
 	return {
+		normalizeModbusAddressInput,
 		validateModbusAddress,
 		validateModbusType,
 	}
 }
-

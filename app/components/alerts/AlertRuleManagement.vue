@@ -14,12 +14,10 @@
 						<thead>
 							<tr class="border-b border-white/20">
 								<th :class="tableHeaderClass">#</th>
-								<th :class="tableHeaderClass">名稱</th>
 								<th :class="tableHeaderClass">目標</th>
-								<th :class="tableHeaderClass">訊息</th>
-								<th :class="tableHeaderClass">類型</th>
-								<th :class="tableHeaderClass">嚴重度</th>
 								<th :class="tableHeaderClass">條件</th>
+								<th :class="tableHeaderClass">類型</th>
+								<th :class="tableHeaderClass">狀態</th>
 								<th :class="tableHeaderClass">狀態</th>
 								<th :class="tableHeaderClass">操作</th>
 							</tr>
@@ -31,14 +29,11 @@
 								class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
 							>
 								<td :class="tableCellClass">{{ ruleOffset + index + 1 }}</td>
-								<td :class="[tableCellClass, 'text-white/80']">
-									{{ rule.name || "-" }}
-								</td>
 								<td :class="[tableCellClass, 'text-white/70']">
 									{{ getRuleTargetText(rule) }}
 								</td>
 								<td :class="[tableCellClass, 'text-white/70']">
-									{{ rule.message_template || "-" }}
+									{{ formatAlertRuleConditionDisplay(rule) }}
 								</td>
 								<td :class="tableCellClass">
 									<span
@@ -57,11 +52,8 @@
 											'rounded px-2 py-1 2xl:px-3 2xl:py-1.5',
 										]"
 									>
-										{{ rule.severity }}
+										{{ getSeverityLabel(rule.severity) }}
 									</span>
-								</td>
-								<td :class="[tableCellClass, 'text-white/70']">
-									{{ getRuleConditionText(rule) }}
 								</td>
 								<td :class="tableCellClass">
 									<span
@@ -134,15 +126,43 @@ import type {
 	CreateAlertRulePayload,
 	UpdateAlertRulePayload,
 } from "~/types/alert"
+import type { UnifiedZone } from "~/types/location"
 import Pagination from "~/components/common/Pagination.vue"
 import AlertRuleDialog from "~/components/alerts/AlertRuleDialog.vue"
+import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import {
+	alertSourceToSystemType,
+	formatAlertRuleConditionDisplay,
+	getSeverityLabel,
+} from "~/utils/alertUtils"
 
 const alertApi = useAlertApi()
+const locationApi = useLocationApi()
 const toast = useToast()
 const { handleError: handleApiError } = useErrorHandler()
+
+const zonesBySource = ref<Partial<Record<AlertSource, UnifiedZone[]>>>({})
+
+const loadZonesForRulesSources = async () => {
+	const sources = [...new Set(rules.value.map((r) => r.source))]
+	const updates: Partial<Record<AlertSource, UnifiedZone[]>> = {}
+	await Promise.all(
+		sources.map(async (source) => {
+			const systemType = alertSourceToSystemType(source)
+			if (!systemType) return
+			try {
+				const result = await locationApi.getZones(systemType)
+				updates[source] = result.zones || []
+			} catch {
+				updates[source] = []
+			}
+		})
+	)
+	zonesBySource.value = { ...zonesBySource.value, ...updates }
+}
 
 const selectedRuleSource = defineModel<"" | AlertSource>("selectedRuleSource", { default: "" })
 const selectedRuleType = defineModel<"" | AlertType>("selectedRuleType", {
@@ -166,6 +186,7 @@ const ruleSourceOptions = [
 	{ value: "people_counting", label: "人流系統" },
 	{ value: "hvac", label: "空調系統" },
 	{ value: "fire", label: "消防系統" },
+	{ value: "emergency_rescue", label: "緊急求救系統" },
 	{ value: "security", label: "安防系統" },
 ]
 
@@ -179,12 +200,10 @@ const loadRules = async () => {
 			? [selectedRuleSource.value]
 			: ruleSourceOptions.filter((item) => item.value).map((item) => item.value as AlertSource)
 
-		const typesToLoad = selectedRuleType.value
-			? [selectedRuleType.value]
-			: (["offline", "error", "threshold"] as const)
-
-		const requests = sourcesToLoad.flatMap((source) =>
-			typesToLoad.map((type) => alertApi.getAlertRules(source, type))
+		const requests = sourcesToLoad.map((source) =>
+			selectedRuleType.value
+				? alertApi.getAlertRules(source, selectedRuleType.value)
+				: alertApi.getAlertRules(source)
 		)
 		const results = await Promise.all(requests)
 		const mergedRules = results.flatMap((result) => result.rules)
@@ -200,31 +219,28 @@ const loadRules = async () => {
 	} finally {
 		isRulesLoading.value = false
 	}
-}
-
-const getRuleConditionText = (rule: AlertRule): string => {
-	const config = (rule.condition_config || {}) as Record<string, unknown>
-	if (rule.condition_type === "threshold") {
-		const parameter = String(config.parameter || "-")
-		const operator = String(config.operator || "-")
-		const value = String(config.value ?? "-")
-		const unit = String(config.unit || "")
-		return `${parameter} ${operator} ${value}${unit ? ` ${unit}` : ""}`
-	}
-	if (rule.condition_type === "error_count") {
-		return `min_errors >= ${String(config.min_errors ?? 5)}`
-	}
-	if (rule.condition_type === "bit_state") {
-		return `bit_key = ${String(config.bit_key ?? "-")}`
-	}
-	return "-"
+	await loadZonesForRulesSources()
 }
 
 const getRuleTargetText = (rule: AlertRule): string => {
 	if (!rule.target_type || rule.target_id == null) return "全域"
 	if (rule.target_type === "system") return `systemId=${rule.target_id}`
-	if (rule.target_type === "location") return `locationId=${rule.target_id}`
-	if (rule.target_type === "zone") return `zoneId=${rule.target_id}`
+
+	const zones = zonesBySource.value[rule.source]
+	if (rule.target_type === "zone") {
+		const zone = zones?.find((z) => Number(z.id) === Number(rule.target_id))
+		if (zone) return `${zone.name} - 區域`
+		return `zoneId=${rule.target_id}`
+	}
+	if (rule.target_type === "location") {
+		for (const z of zones || []) {
+			const loc = (z.locations || []).find(
+				(l) => Number(l.id) === Number(rule.target_id)
+			)
+			if (loc) return `${z.name} - ${loc.name}`
+		}
+		return `locationId=${rule.target_id}`
+	}
 	return "全域"
 }
 
@@ -290,6 +306,8 @@ const getAlertTypeBadgeClass = (type: AlertType) => {
 		offline: "bg-gray-500/20 text-gray-200",
 		error: "bg-red-500/20 text-red-200",
 		threshold: "bg-blue-500/20 text-blue-200",
+		di: "bg-emerald-500/20 text-emerald-200",
+		do: "bg-sky-500/20 text-sky-200",
 	}
 	return classes[type] ?? "bg-gray-500/20 text-gray-200"
 }

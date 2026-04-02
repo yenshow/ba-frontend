@@ -154,6 +154,7 @@
 													<!-- 系統特定的地點管理組件 -->
 													<component
 														:is="locationManagementComponent"
+														v-bind="drainageLikeProps"
 														:zone="zone"
 														:devices="devices"
 														:is-loading-devices="isLoadingDevices"
@@ -259,6 +260,8 @@ import LightingLocationManagement from "./LocationManagement/LightingLocationMan
 import PeopleCountingLocationManagement from "./LocationManagement/PeopleCountingLocationManagement.vue"
 import VehicleAccessLocationManagement from "./LocationManagement/VehicleAccessLocationManagement.vue"
 import DrainageLocationManagement from "./LocationManagement/DrainageLocationManagement.vue"
+import EmergencyRescueLocationManagement from "./LocationManagement/EmergencyRescueLocationManagement.vue"
+import FireLocationManagement from "./LocationManagement/FireLocationManagement.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
@@ -267,7 +270,7 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { removeLocationFromSystemOrDelete } from "~/services/location/locationService"
 import { buildDeleteLocationConfirmCopy } from "~/domain/location/confirmCopy"
 import { getLocationUiKey } from "~/utils/locationUiId"
-import { compareZoneRowsForDialog, pickSortOrder, zoneSortOrderValue } from "~/utils/sortOrder"
+import { pickSortOrder, zoneSortOrderValue } from "~/utils/sortOrder"
 import { getZoneUiKey } from "~/utils/locationUiId"
 
 interface Props {
@@ -393,22 +396,41 @@ const accessControlDevices = ref<Device[]>([])
 const isapiCameraDevices = ref<Device[]>([])
 
 // 地點管理組件映射
-const locationManagementComponentMap: Record<SystemType, Component> = {
+const locationManagementComponentMap: Partial<Record<SystemType, Component>> = {
 	lighting: LightingLocationManagement,
 	environment: EnvironmentLocationManagement,
 	people_counting: PeopleCountingLocationManagement,
 	vehicle_access: VehicleAccessLocationManagement,
 	drainage: DrainageLocationManagement,
+	fire: FireLocationManagement,
+	emergency_rescue: EmergencyRescueLocationManagement,
 }
 
-const locationManagementComponent = computed(() => locationManagementComponentMap[props.systemType])
+const locationManagementComponent = computed(() => {
+	const c = locationManagementComponentMap[props.systemType]
+	return c ?? LightingLocationManagement
+})
+
+const drainageLikeVariant = computed(() => {
+	if (props.systemType === "drainage") return "drainage"
+	return null
+})
+
+const drainageLikeProps = computed(() =>
+	drainageLikeVariant.value ? { variant: drainageLikeVariant.value } : {}
+)
 
 // 載入設備列表
 const loadDevices = async () => {
 	isLoadingDevices.value = true
 	try {
 		const deviceType =
-			props.systemType === "lighting" || props.systemType === "drainage" ? "controller" : "sensor"
+			props.systemType === "lighting" ||
+			props.systemType === "drainage" ||
+			props.systemType === "fire" ||
+			props.systemType === "emergency_rescue"
+				? "controller"
+				: "sensor"
 		const result = await deviceApi.getDevices({
 			type_code: deviceType,
 			status: "active",
@@ -519,6 +541,8 @@ const getLocationLabel = (): string => {
 	const labelMap: Record<SystemType, string> = {
 		lighting: "點位",
 		drainage: "點位",
+		fire: "點位",
+		emergency_rescue: "點位",
 		environment: "地點",
 		people_counting: "地點",
 		vehicle_access: "地點",
@@ -611,10 +635,14 @@ const handleLocationUpdate = (
 // 新增地點（從 LocationManagement 組件接收；排水可帶 viewCategory）
 const addLocation = (zone: TZone, payload?: { viewCategory?: string }) => {
 	const newLocation = adapter.createNewLocation() as SystemLocationType
-	if (props.systemType === "drainage" && payload && payload.viewCategory !== undefined) {
+	if (
+		(props.systemType === "drainage" || props.systemType === "fire") &&
+		payload &&
+		payload.viewCategory !== undefined
+	) {
 		;(newLocation as { viewCategory?: string }).viewCategory = payload.viewCategory
 	}
-	const locations = [newLocation, ...adapter.getLocationsProperty(zone)]
+	const locations = [...adapter.getLocationsProperty(zone), newLocation]
 	const updatedZone = adapter.setLocationsProperty(zone, locations)
 	updateZone(updatedZone)
 }
@@ -623,7 +651,7 @@ const handleDrainageRenameViewCategory = (
 	zoneId: string,
 	payload: { oldCategory: string; newCategory: string }
 ) => {
-	if (props.systemType !== "drainage") return
+	if (props.systemType !== "drainage" && props.systemType !== "fire") return
 	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
 	if (!zone) return
 	const oldTrim = payload.oldCategory.trim()
@@ -814,7 +842,7 @@ const handleReorderDrainageViewCategoryBlock = (
 	zoneId: string,
 	payload: { categoryKey: string; direction: "up" | "down" }
 ) => {
-	if (props.systemType !== "drainage") return
+	if (props.systemType !== "drainage" && props.systemType !== "fire") return
 	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
 	if (!zone) return
 	const locs = [...adapter.getLocationsProperty(zone)] as SystemLocationType[]

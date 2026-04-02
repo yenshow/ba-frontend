@@ -59,7 +59,7 @@
 								v-model="draft.name"
 								type="text"
 								class="form-input-small"
-								placeholder="例如：揚水、汙水、排水"
+								:placeholder="categoryPlaceholder"
 							/>
 						</label>
 					</div>
@@ -274,23 +274,26 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, watch } from "vue"
+import { computed, reactive, watch } from "vue"
 import {
 	type DrainageZone,
 	type DrainageLocation,
 	getDrainageViewCategoryDisplayLabel,
 } from "~/types/drainage"
+import { getFireViewCategoryDisplayLabel, type FireZone, type FireLocation } from "~/types/fire"
 import type { Device } from "~/types/device"
 import DrainageLocationFields from "../LocationFormFields/DrainageLocationFields.vue"
 import { useToast } from "~/composables/core/useToast"
 import { getLocationUiKey } from "~/utils/locationUiId"
 const EMPTY_KEY = "__empty__"
 
+type DrainageLikeLocation = DrainageLocation | FireLocation
+
 interface GroupRow {
 	key: string
 	viewCategory: string
 	displayLabel: string
-	items: { loc: DrainageLocation; globalIndex: number }[]
+	items: { loc: DrainageLikeLocation; globalIndex: number }[]
 }
 
 interface DraftCategory {
@@ -299,17 +302,19 @@ interface DraftCategory {
 }
 
 interface Props {
-	zone: DrainageZone
+	zone: DrainageZone | FireZone
 	devices: Device[]
 	isLoadingDevices: boolean
 	deviceHint?: string
 	reorderableLocations?: boolean
+	/** 消防與排水共用此元件；僅影響分類顯示標籤與提示用字 */
+	variant?: "drainage" | "fire"
 }
 
 interface Emits {
 	(e: "add-location", payload?: { viewCategory?: string }): void
 	(e: "remove-location", index: number): void
-	(e: "update-location", index: number, location: DrainageLocation): void
+	(e: "update-location", index: number, location: DrainageLikeLocation): void
 	(e: "rename-view-category", payload: { oldCategory: string; newCategory: string }): void
 	(e: "reorder-location", payload: { index: number; direction: "up" | "down" }): void
 	(e: "reorder-view-category-block", payload: { categoryKey: string; direction: "up" | "down" }): void
@@ -318,7 +323,15 @@ interface Emits {
 const props = withDefaults(defineProps<Props>(), {
 	deviceHint: "請先在「設備管理」中建立控制器設備",
 	reorderableLocations: false,
+	variant: "drainage",
 })
+
+const categoryLabelForRaw = (raw: string) =>
+	props.variant === "fire" ? getFireViewCategoryDisplayLabel(raw) : getDrainageViewCategoryDisplayLabel(raw)
+
+const categoryPlaceholder = computed(() =>
+	props.variant === "fire" ? "例如：灑水、泡沫、消防" : "例如：揚水、汙水、排水"
+)
 
 const emit = defineEmits<Emits>()
 const toast = useToast()
@@ -331,7 +344,7 @@ const draftExpandedById = reactive<Record<string, boolean>>({})
 
 const locations = computed(() => props.zone.locations || [])
 
-const normalizeCategory = (loc: DrainageLocation) => (loc.viewCategory ?? "").trim()
+const normalizeCategory = (loc: DrainageLikeLocation) => (loc.viewCategory ?? "").trim()
 
 /** 分組順序依 zone.locations（後端 sort_order）首次出現分類的順序；未分類置於最後 */
 const groupedLocations = computed((): GroupRow[] => {
@@ -340,7 +353,7 @@ const groupedLocations = computed((): GroupRow[] => {
 	locations.value.forEach((loc, globalIndex) => {
 		const raw = normalizeCategory(loc)
 		const key = raw === "" ? EMPTY_KEY : raw
-		const displayLabel = getDrainageViewCategoryDisplayLabel(raw)
+		const displayLabel = categoryLabelForRaw(raw)
 		if (!map.has(key)) {
 			map.set(key, { key, viewCategory: raw, displayLabel, items: [] })
 			keyOrder.push(key)
@@ -420,7 +433,7 @@ watch(
 	{ immediate: true }
 )
 
-const getStableItemKey = (item: { loc: DrainageLocation; globalIndex: number }) =>
+const getStableItemKey = (item: { loc: DrainageLikeLocation; globalIndex: number }) =>
 	getLocationUiKey({
 		zone: props.zone as any,
 		location: item.loc as any,
@@ -482,7 +495,7 @@ const handleRemoveLocation = (locationIndex: number) => {
 	emit("remove-location", locationIndex)
 }
 
-const handleLocationUpdate = (locationIndex: number, updatedLocation: DrainageLocation) => {
+const handleLocationUpdate = (locationIndex: number, updatedLocation: DrainageLikeLocation) => {
 	emit("update-location", locationIndex, updatedLocation)
 }
 </script>

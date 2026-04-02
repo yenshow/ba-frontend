@@ -101,9 +101,9 @@ import { useToast } from "~/composables/core/useToast"
 import type { Alert, AlertStatus, AlertSource, AlertType } from "~/types/alert"
 import { useAuth } from "~/composables/core/useAuth"
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor"
+import { useAlertEventBus } from "~/composables/monitoring/alertMonitor/useAlertEventBus"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi"
-import { useWebSocket } from "~/composables/websocket/useWebSocket"
 import type { AlertNewEvent, AlertUpdatedEvent } from "~/types/websocket"
 import { getSourceLabel, getTypeLabel, getSeverityLabel } from "~/utils/alertUtils"
 import { getTodayDateRangeUTC, formatDateTime } from "~/utils/dateUtils"
@@ -113,17 +113,9 @@ import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
 import AlertListSection from "~/components/alerts/AlertListSection.vue"
 import AlertRuleManagement from "~/components/alerts/AlertRuleManagement.vue"
 import { useDataLoader } from "~/composables/monitoring/useDataLoader"
+import { logger } from "~/utils/logger"
 
-/**
- * 開發模式日誌輔助函數（統一處理）
- */
-const devLog = {
-	warn: (msg: string, ...args: unknown[]) => {
-		if (process.dev) {
-			console.warn(msg, ...args)
-		}
-	},
-}
+const alertLogLogger = logger.createLogger("alert-log")
 
 definePageMeta({
 	layout: "default",
@@ -133,8 +125,8 @@ const alertApi = useAlertApi()
 const toast = useToast()
 const { isAdmin } = useAuth()
 const { removeAlertToast } = useAlertMonitor()
+const { onAlertNew: busOnAlertNew, onAlertUpdated: busOnAlertUpdated, offAlertNew: busOffAlertNew, offAlertUpdated: busOffAlertUpdated } = useAlertEventBus()
 const { handleError: handleApiError } = useErrorHandler()
-const { on, off } = useWebSocket()
 
 // 狀態
 const isIgnoring = ref(false)
@@ -150,6 +142,8 @@ const ruleTypeOptions: { value: "" | AlertType; label: string }[] = [
 	{ value: "offline", label: "offline" },
 	{ value: "error", label: "error" },
 	{ value: "threshold", label: "threshold" },
+	{ value: "di", label: "di" },
+	{ value: "do", label: "do" },
 ]
 
 const handleOpenCreateRule = () => {
@@ -180,6 +174,7 @@ const sourceOptions = [
 	{ value: "people_counting", label: "人流系統" },
 	{ value: "hvac", label: "空調系統" },
 	{ value: "fire", label: "消防系統" },
+	{ value: "emergency_rescue", label: "緊急求救系統" },
 	{ value: "security", label: "安防系統" },
 ]
 
@@ -255,7 +250,7 @@ const loadUnresolvedCount = async () => {
 		})
 		unresolvedCount.value = result.count
 	} catch (error) {
-		devLog.warn("[alert-log] 載入未解決警示數量失敗", error)
+		alertLogLogger.warn("載入未解決警示數量失敗", error)
 	}
 }
 
@@ -364,11 +359,9 @@ const handleAlertNew = (alert: AlertNewEvent) => {
 
 	// 檢查是否符合篩選條件
 	if (!matchesFilters(alert)) {
-		// 如果是 active 警報但不在時間範圍內，記錄警告（開發模式）
-		if (alert.status === "active" && process.dev) {
-			console.warn(
-				`[AlertLog] 新警報 ${alert.id} 不在當前時間範圍內，` +
-					`創建時間: ${alert.created_at}, 更新時間: ${alert.updated_at}`
+		if (alert.status === "active") {
+			alertLogLogger.warn(
+				`新警報 ${alert.id} 不在當前時間範圍內，創建時間: ${alert.created_at}, 更新時間: ${alert.updated_at}`
 			)
 		}
 		return
@@ -578,9 +571,7 @@ const handleAlertIdQuery = async () => {
 
 		await scrollToAlert(alertId)
 	} catch (error) {
-		if (process.dev) {
-			console.warn(`[alert-log] 無法載入警報 ${alertId}`, error)
-		}
+		alertLogLogger.warn(`無法載入警報 ${alertId}`, error)
 	}
 }
 
@@ -591,8 +582,10 @@ onMounted(async () => {
 
 	load({}, true) // 立即執行
 	void loadUnresolvedCount()
-	on("alert:new", handleAlertNew)
-	on("alert:updated", handleAlertUpdated)
+
+	// 透過 EventBus 訂閱（唯一 WS 層由 useAlertEventBus 管理）
+	busOnAlertNew(handleAlertNew)
+	busOnAlertUpdated(handleAlertUpdated)
 
 	// 處理 alertId 查詢參數
 	await handleAlertIdQuery()
@@ -600,7 +593,7 @@ onMounted(async () => {
 
 // 組件卸載時清理
 onUnmounted(() => {
-	off("alert:new", handleAlertNew)
-	off("alert:updated", handleAlertUpdated)
+	busOffAlertNew(handleAlertNew)
+	busOffAlertUpdated(handleAlertUpdated)
 })
 </script>

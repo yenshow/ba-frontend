@@ -1,14 +1,17 @@
 <template>
 	<Teleport to="body">
-		<div class="fixed right-4 top-[10%] z-[9999] max-w-md space-y-2">
+		<div class="fixed right-4 top-[10%] z-[9999] space-y-2">
 			<TransitionGroup name="toast" tag="div">
 				<div
 					v-for="toast in toasts"
 					:key="toast.id"
 					:class="[
 						toastClasses[toast.type],
-						{ 'cursor-pointer hover:opacity-100': toast.alertId },
-						'animate-slide-in flex min-w-[300px] max-w-md items-start gap-3 rounded-lg border p-4 shadow-lg backdrop-blur-sm transition-opacity',
+						{
+							'cursor-pointer hover:opacity-100':
+								toast.alertId || toast.alertKey === SUMMARY_TOAST_KEY,
+						},
+						'animate-slide-in flex min-w-[300px] max-w-lg items-start gap-3 rounded-lg border p-4 shadow-lg backdrop-blur-sm transition-opacity',
 					]"
 					role="alert"
 					@click="handleToastClick(toast)"
@@ -61,14 +64,20 @@
 					</div>
 
 					<!-- Message -->
-					<div class="flex-1 whitespace-pre-line text-sm font-medium">
-						{{ toast.message }}
-						<span
-							v-if="toast.count && toast.count > 1"
-							class="ml-2 inline-flex items-center justify-center rounded-full bg-white/30 px-2 py-0.5 text-xs font-bold"
-						>
-							{{ toast.count }}
-						</span>
+					<div class="flex-1 whitespace-pre-line text-base">
+						<template v-if="toast.alertKey === SUMMARY_TOAST_KEY">
+							{{ toast.message }}
+							<span class="ml-1 underline underline-offset-2 opacity-80">查看全部 →</span>
+						</template>
+						<template v-else>
+							{{ toast.message }}
+							<span
+								v-if="toast.count && toast.count > 1"
+								class="ml-2 inline-flex items-center justify-center rounded-full bg-white/30 px-2 py-0.5 font-bold"
+							>
+								{{ toast.count }}
+							</span>
+						</template>
 					</div>
 
 					<!-- Close Button -->
@@ -94,7 +103,7 @@
 <script setup lang="ts">
 import type { Toast } from "~/composables/core/useToast"
 import { useToast } from "~/composables/core/useToast"
-import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor"
+import { useAlertMonitor, SUMMARY_TOAST_KEY } from "~/composables/monitoring/useAlertMonitor"
 
 const { toasts, removeToast } = useToast()
 const { removeAlertToast } = useAlertMonitor()
@@ -115,6 +124,10 @@ const routeToAlertTarget = async (path: string) => {
  * 處理 Toast 點擊事件（導向警報來源系統頁）
  */
 const handleToastClick = async (toast: Toast) => {
+	if (toast.alertKey === SUMMARY_TOAST_KEY) {
+		await routeToAlertTarget("/core/alert-log")
+		return
+	}
 	if (toast.alertId) {
 		if (toast.alertKey) {
 			removeAlertToast(toast.alertKey)

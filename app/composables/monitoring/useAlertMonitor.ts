@@ -1,17 +1,23 @@
 import type { Alert } from "~/types/alert"
 import type { AlertNewEvent, AlertUpdatedEvent } from "~/types/websocket"
+import { watch } from "vue"
 import { useToast } from "~/composables/core/useToast"
 import { useWebSocket } from "~/composables/websocket/useWebSocket"
 import { useAlertPolling } from "~/composables/monitoring/alertMonitor/useAlertPolling"
-import { useAlertWebSocket } from "~/composables/monitoring/alertMonitor/useAlertWebSocket"
+import { useAlertEventBus } from "~/composables/monitoring/alertMonitor/useAlertEventBus"
 import { useUnresolvedAlertCount } from "~/composables/monitoring/alertMonitor/useUnresolvedAlertCount"
 import { getSourceLabel, getSeverityLabel } from "~/utils/alertUtils"
+
+const MAX_ALERT_TOASTS = 5
+export const SUMMARY_TOAST_KEY = "__alert-summary__"
 
 const sourceRouteMap: Partial<Record<string, string>> = {
 	device: "/core/equipment-management",
 	environment: "/construction-monitoring/environment",
 	lighting: "/infrastructure/lighting",
 	drainage: "/infrastructure/drainage",
+	fire: "/security/fire",
+	emergency_rescue: "/security/emergency",
 	people_counting: "/construction-monitoring/people-counting",
 	surveillance: "/construction-monitoring/surveillance",
 	vehicle_access: "/construction-monitoring/vehicle-access",
@@ -36,18 +42,66 @@ const parseAlertTargetKey = (target: string | number, dimensionKey?: string): st
 const getAlertRoute = (alert: Pick<Alert, "id" | "source">): string =>
 	sourceRouteMap[alert.source] || `/core/alert-log?alertId=${alert.id}`
 
-const isActiveAlert = (alert: Pick<Alert, "status">) => alert.status === "active"
+const formatZoneLocationLabel = (
+	alert: Pick<Alert, "zone_name" | "source_name" | "source_display_name">
+) =>
+	[alert.zone_name, alert.source_display_name || alert.source_name].filter(Boolean).join("-").trim()
+
+/**
+ * 後端部分子系統（例如緊急求救）在 message 內仍可能回傳 `source: id` 的原始 label（如 `emergency_rescue: 140`）。
+ * 前端 toast 需對齊「衛生排水」的顯示方式：以 `區域-地點` 呈現，避免顯示系統 key。
+ */
+const normalizeAlertMessageForToast = (alert: Alert): string => {
+	const raw = String(alert.message ?? "").trim()
+	if (!raw) return ""
+
+	const zoneLocation = formatZoneLocationLabel(alert)
+	if (!zoneLocation) return raw
+
+	// 僅在訊息開頭是「source: id」時進行替換，避免誤傷其他自訂訊息
+	const headPattern = new RegExp(
+		`^\\s*${String(alert.source).replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}\\s*:\\s*\\d+\\s*`,
+		"i"
+	)
+	if (!headPattern.test(raw)) return raw
+
+	return raw.replace(headPattern, `${zoneLocation} `).replace(/\s+/g, " ").trim()
+}
 
 export const useAlertMonitor = () => {
-	const { warning, removeToast, toasts } = useToast()
-	const { connect } = useWebSocket()
+	const { warning, error, info, removeToast, updateToast, toasts } = useToast()
+	const { connect, isConnected } = useWebSocket()
 	const { checkNewAlerts, startPolling, stopPolling, reset } = useAlertPolling()
+
+	let stopConnectionWatcher: (() => void) | null = null
+	const setupConnectionWatcher = (onConnected: () => void, onDisconnected: () => void) => {
+		if (stopConnectionWatcher) {
+			stopConnectionWatcher()
+			stopConnectionWatcher = null
+		}
+		stopConnectionWatcher = watch(
+			isConnected,
+			(connected) => {
+				if (connected) onConnected()
+				else onDisconnected()
+			},
+			{ immediate: true }
+		)
+	}
+	const cleanupConnectionWatcher = () => {
+		if (stopConnectionWatcher) {
+			stopConnectionWatcher()
+			stopConnectionWatcher = null
+		}
+	}
+
 	const {
-		setupWebSocketListeners,
-		removeWebSocketListeners,
-		setupConnectionWatcher,
-		cleanupConnectionWatcher,
-	} = useAlertWebSocket()
+		setup: setupEventBus,
+		teardown: teardownEventBus,
+		onAlertNew: busOnAlertNew,
+		onAlertUpdated: busOnAlertUpdated,
+		clearAll: clearEventBusHandlers,
+	} = useAlertEventBus()
 	const {
 		unresolvedAlertCount,
 		isLoadingCount,
@@ -58,19 +112,16 @@ export const useAlertMonitor = () => {
 
 	const isMonitoring = useState<boolean>("alert-monitor:is-monitoring", () => false)
 	const alertToastIds = useState<Record<string, string>>("alert-monitor:toast-ids", () => ({}))
-	const activeAlertKeys = useState<string[]>("alert-monitor:active-alert-keys", () => [])
+	const activeAlertKeys = useState<Set<string>>("alert-monitor:active-alert-keys", () => new Set())
 
-	const shouldProcessAlert = (alert: Alert) => isActiveAlert(alert)
+	const shouldProcessAlert = (alert: Alert) => alert.status === "active"
 
 	const addActiveAlertKey = (key: string) => {
-		if (activeAlertKeys.value.includes(key)) return
-		activeAlertKeys.value.push(key)
+		activeAlertKeys.value.add(key)
 	}
 
 	const removeActiveAlertKey = (key: string) => {
-		const idx = activeAlertKeys.value.indexOf(key)
-		if (idx === -1) return
-		activeAlertKeys.value.splice(idx, 1)
+		activeAlertKeys.value.delete(key)
 	}
 
 	const removeAlertToast = (target: string | number, dimensionKey?: string) => {
@@ -80,18 +131,76 @@ export const useAlertMonitor = () => {
 		if (toastId) {
 			removeToast(toastId)
 			delete alertToastIds.value[key]
-			removeActiveAlertKey(key)
-			return
-		}
-
-		const matchedToast = toasts.value.find(
-			(t) => t.alertKey === key || (typeof target === "number" && t.alertId === target)
-		)
-		if (matchedToast) {
-			removeToast(matchedToast.id)
+		} else {
+			const matchedToast = toasts.value.find(
+				(t) => t.alertKey === key || (typeof target === "number" && t.alertId === target)
+			)
+			if (matchedToast) {
+				removeToast(matchedToast.id)
+			}
 		}
 
 		removeActiveAlertKey(key)
+		upsertSummaryToast()
+	}
+
+	/**
+	 * 取得目前持久警報 Toast 數量
+	 */
+	const getAlertToastCount = (): number => {
+		return toasts.value.filter((t) => t.alertId != null && t.duration === 0).length
+	}
+
+	/**
+	 * 移除最舊的警報 Toast（FIFO）
+	 */
+	const evictOldestAlertToast = () => {
+		const alertToast = toasts.value.find((t) => t.alertId != null && t.duration === 0)
+		if (alertToast) {
+			removeToast(alertToast.id)
+			if (alertToast.alertKey) {
+				delete alertToastIds.value[alertToast.alertKey]
+			}
+		}
+	}
+
+	const getOverflowCount = (): number =>
+		Math.max(0, activeAlertKeys.value.size - getAlertToastCount())
+
+	const removeSummaryToast = () => {
+		const toastId = alertToastIds.value[SUMMARY_TOAST_KEY]
+		if (toastId) {
+			removeToast(toastId)
+			delete alertToastIds.value[SUMMARY_TOAST_KEY]
+		}
+	}
+
+	const upsertSummaryToast = () => {
+		const overflow = getOverflowCount()
+		if (overflow <= 0) {
+			removeSummaryToast()
+			return
+		}
+
+		const message = `還有 ${overflow} 則未處理警報`
+		const existingToastId = alertToastIds.value[SUMMARY_TOAST_KEY]
+
+		if (existingToastId) {
+			const stillExists = toasts.value.some((t) => t.id === existingToastId)
+			if (stillExists) {
+				updateToast(existingToastId, { message })
+				return
+			}
+			delete alertToastIds.value[SUMMARY_TOAST_KEY]
+		}
+
+		const toastId = info(message, 0, {
+			alertKey: SUMMARY_TOAST_KEY,
+			alertRoute: "/core/alert-log",
+		})
+		if (toastId) {
+			alertToastIds.value[SUMMARY_TOAST_KEY] = toastId
+		}
 	}
 
 	const upsertAlertToast = (alert: Alert) => {
@@ -101,8 +210,19 @@ export const useAlertMonitor = () => {
 		}
 
 		const alertKey = getAlertKey(alert.id, alert.dimension_key)
-		const message = `[${getSourceLabel(alert.source)}][${getSeverityLabel(alert.severity)}] ${alert.message}`
-		const toastId = warning(message, 0, {
+		const messageBody = normalizeAlertMessageForToast(alert)
+		const message = `[${getSourceLabel(alert.source)}][${getSeverityLabel(alert.severity)}] ${messageBody}`
+
+		const show =
+			alert.alert_type === "error" ? info : alert.severity === "warning" ? warning : error
+
+		// 若已有同 key 的 Toast，直接更新不計入上限
+		const existingToastId = alertToastIds.value[alertKey]
+		if (!existingToastId && getAlertToastCount() >= MAX_ALERT_TOASTS) {
+			evictOldestAlertToast()
+		}
+
+		const toastId = show(message, 0, {
 			alertId: alert.id,
 			alertKey,
 			alertSource: alert.source,
@@ -114,6 +234,7 @@ export const useAlertMonitor = () => {
 			alertToastIds.value[alertKey] = toastId
 		}
 		addActiveAlertKey(alertKey)
+		upsertSummaryToast()
 	}
 
 	const handleAlertNew = (alert: AlertNewEvent) => {
@@ -131,7 +252,7 @@ export const useAlertMonitor = () => {
 				upsertAlertToast(alert)
 			},
 			(currentActiveAlertIds) => {
-				const toRemove = activeAlertKeys.value.filter((key) => {
+				const toRemove = [...activeAlertKeys.value].filter((key) => {
 					const [idPart] = key.split(":")
 					const alertId = Number(idPart)
 					return Number.isFinite(alertId) && !currentActiveAlertIds.has(alertId)
@@ -150,7 +271,11 @@ export const useAlertMonitor = () => {
 		isMonitoring.value = true
 		connect()
 
-		setupWebSocketListeners(handleAlertNew, handleAlertUpdated)
+		// 設置 EventBus（唯一 WS 訂閱）並註冊 Toast handler
+		setupEventBus()
+		busOnAlertNew(handleAlertNew)
+		busOnAlertUpdated(handleAlertUpdated)
+
 		setupConnectionWatcher(
 			() => {
 				stopPolling()
@@ -172,13 +297,16 @@ export const useAlertMonitor = () => {
 
 		stopPolling()
 		reset()
-		removeWebSocketListeners()
+		clearEventBusHandlers()
+		teardownEventBus()
 		cleanupConnectionWatcher()
 		stopAlertCountMonitoring()
 
-		for (const key of activeAlertKeys.value.slice()) {
-			removeAlertToast(key)
+		for (const toastId of Object.values(alertToastIds.value)) {
+			removeToast(toastId)
 		}
+		alertToastIds.value = {}
+		activeAlertKeys.value.clear()
 
 		isMonitoring.value = false
 	}

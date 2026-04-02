@@ -122,7 +122,10 @@ export interface DrainageZone {
 }
 
 /** 地點是否屬於指定檢視分類（無 `viewCategory` 不算匹配） */
-export const drainageLocationInViewCategory = (loc: DrainageLocation, categoryId: string): boolean => {
+export const drainageLocationInViewCategory = (
+	loc: DrainageLocation,
+	categoryId: string
+): boolean => {
 	const t = trimDrainageViewCategory(loc.viewCategory)
 	return t !== "" && t === categoryId
 }

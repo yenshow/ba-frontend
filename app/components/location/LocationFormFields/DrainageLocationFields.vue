@@ -321,9 +321,9 @@ const equipmentKindOptions = [
 ]
 
 const tankRoles: { key: TankRoleKey; label: string }[] = [
+	{ key: "coverAlarm", label: "水箱蓋" },
 	{ key: "highLevel", label: "高水位" },
 	{ key: "lowLevel", label: "低水位" },
-	{ key: "coverAlarm", label: "水箱蓋" },
 ]
 
 const localLocation = ref<DrainageLocation>({ ...props.location })

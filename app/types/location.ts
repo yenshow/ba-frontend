@@ -9,6 +9,8 @@ export type SystemType =
 	| "environment"
 	| "lighting"
 	| "drainage"
+	| "fire"
+	| "emergency_rescue"
 	| "people_counting"
 	| "vehicle_access"
 
@@ -19,6 +21,8 @@ export type SystemConfig =
 	| EnvironmentSystemConfig
 	| LightingSystemConfig
 	| DrainageSystemConfig
+	| FireSystemConfig
+	| EmergencyRescueSystemConfig
 	| PeopleCountingSystemConfig
 	| VehicleAccessSystemConfig
 
@@ -75,6 +79,12 @@ export interface DrainageSystemConfig {
 	viewCategory?: string
 	statusPoints?: Record<string, DrainageStatusPointDef>
 }
+
+/** 消防系統配置（欄位與排水相同；以 systemType 區分） */
+export type FireSystemConfig = DrainageSystemConfig
+
+/** 緊急求救（與消防／排水相同點位結構；預設檢視分類 sos） */
+export type EmergencyRescueSystemConfig = DrainageSystemConfig
 
 /**
  * 人流統計系統配置

@@ -1,10 +1,14 @@
 /**
- * 警報規則管理 Composable
- * 用於獲取和管理警報規則，確保前後端一致
+ * 警報規則（與 `GET /api/alerts/rules` 對齊：未帶 `alert_type` 時後端回傳該 source 全部啟用規則）
+ * 每個 `source` 只快取一筆全量結果；`getRules(source, alertType)` 可選在客端依 `alert_type` 過濾。
+ * @see docs/40-contracts/api-surface.md — GET `/alerts/rules`
  */
 
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi";
+import { logger } from "~/utils/logger";
 import type { AlertRule as ApiAlertRule } from "~/types/alert";
+
+const rulesLogger = logger.createLogger("useAlertRules");
 
 export interface AlertRule {
 	id: number;
@@ -22,60 +26,45 @@ export interface AlertRule {
 	enabled: boolean;
 }
 
-/**
- * 使用警報規則
- */
+function normalizeApiRules(rules: ApiAlertRule[]): AlertRule[] {
+	return rules.map(r => {
+		const cfg = r.condition_config ?? {};
+		return {
+			id: Number(r.id ?? 0),
+			source: String(r.source ?? ""),
+			alert_type: String(r.alert_type ?? ""),
+			condition_type: String(r.condition_type ?? ""),
+			condition_config: {
+				parameter: String((cfg as { parameter?: string }).parameter ?? ""),
+				operator: String((cfg as { operator?: string }).operator ?? ""),
+				value: Number((cfg as { value?: number }).value ?? 0),
+				unit: cfg.unit != null ? String(cfg.unit) : undefined,
+			},
+			severity: (r.severity ?? "warning") as AlertRule["severity"],
+			message_template: String(r.message_template ?? ""),
+			enabled: Boolean(r.enabled),
+		};
+	});
+}
+
 export const useAlertRules = () => {
 	const alertApi = useAlertApi();
-
-	// 規則緩存（key: source, value: rules）
+	/** key = source（與 api-surface：單次全量規則一致） */
 	const rulesCache = ref<Map<string, AlertRule[]>>(new Map());
-
-	// 載入狀態
 	const isLoading = ref(false);
 
-	/**
-	 * 獲取警報規則（帶緩存）
-	 */
-	const getRules = async (source: string, alertType: string = "threshold"): Promise<AlertRule[]> => {
-		const cacheKey = `${source}:${alertType}`;
-
-		// 檢查緩存
-		if (rulesCache.value.has(cacheKey)) {
-			return rulesCache.value.get(cacheKey)!;
+	const fetchAllRulesForSource = async (source: string): Promise<AlertRule[]> => {
+		if (rulesCache.value.has(source)) {
+			return rulesCache.value.get(source)!;
 		}
-
-		// 載入規則
 		isLoading.value = true;
 		try {
-			const result = await alertApi.getAlertRules(source, alertType);
-			// 後端回傳型別較寬（condition_config 可能是 Record），這裡統一轉成前端使用的結構
-			const rules = (result.rules || []) as unknown as ApiAlertRule[];
-			const normalized: AlertRule[] = rules.map((r) => {
-				const cfg = (r as any).condition_config ?? {};
-				return {
-					id: Number((r as any).id ?? 0),
-					source: String((r as any).source ?? ""),
-					alert_type: String((r as any).alert_type ?? ""),
-					condition_type: String((r as any).condition_type ?? ""),
-					condition_config: {
-						parameter: String(cfg.parameter ?? ""),
-						operator: String(cfg.operator ?? ""),
-						value: Number(cfg.value ?? 0),
-						unit: cfg.unit != null ? String(cfg.unit) : undefined,
-					},
-					severity: ((r as any).severity ?? "warning") as AlertRule["severity"],
-					message_template: String((r as any).message_template ?? ""),
-					enabled: Boolean((r as any).enabled),
-				};
-			});
-			
-			// 存入緩存
-			rulesCache.value.set(cacheKey, normalized);
-			
+			const result = await alertApi.getAlertRules(source);
+			const normalized = normalizeApiRules(result.rules ?? []);
+			rulesCache.value.set(source, normalized);
 			return normalized;
 		} catch (error) {
-			console.error("[useAlertRules] 獲取警報規則失敗:", error);
+			rulesLogger.error("獲取警報規則失敗", { error, source });
 			return [];
 		} finally {
 			isLoading.value = false;
@@ -83,29 +72,24 @@ export const useAlertRules = () => {
 	};
 
 	/**
-	 * 清除緩存
+	 * @param alertType 若指定，於客端篩選（仍只發一次全量 REST 請求）
 	 */
-	const clearCache = (source?: string) => {
-		if (source) {
-			// 清除特定來源的緩存
-			for (const key of rulesCache.value.keys()) {
-				if (key.startsWith(`${source}:`)) {
-					rulesCache.value.delete(key);
-				}
-			}
-		} else {
-			// 清除所有緩存
-			rulesCache.value.clear();
+	const getRules = async (source: string, alertType?: string): Promise<AlertRule[]> => {
+		const all = await fetchAllRulesForSource(source);
+		if (alertType == null || alertType === "") {
+			return all;
 		}
+		return all.filter(r => r.alert_type === alertType);
 	};
 
-	/**
-	 * 評估參數值是否符合規則
-	 * @param parameter - 參數名稱（如 "pm25", "pm10"）
-	 * @param value - 參數值
-	 * @param rules - 規則列表
-	 * @returns 匹配的規則（最嚴重的那個），如果沒有匹配則返回 null
-	 */
+	const clearCache = (source?: string) => {
+		if (source) {
+			rulesCache.value.delete(source);
+			return;
+		}
+		rulesCache.value.clear();
+	};
+
 	const evaluateParameter = (
 		parameter: string,
 		value: number | null,
@@ -114,30 +98,20 @@ export const useAlertRules = () => {
 		if (value === null || value === undefined) {
 			return null;
 		}
-
-		// 過濾出該參數的規則
-		const parameterRules = rules.filter(
-			rule => rule.condition_config?.parameter === parameter
-		);
-
+		const parameterRules = rules.filter(rule => rule.condition_config?.parameter === parameter);
 		if (parameterRules.length === 0) {
 			return null;
 		}
-
-		// 按嚴重程度排序（critical < error < warning）
 		const severityOrder = { critical: 1, error: 2, warning: 3 };
 		parameterRules.sort((a, b) => {
 			const orderA = severityOrder[a.severity] || 999;
 			const orderB = severityOrder[b.severity] || 999;
 			return orderA - orderB;
 		});
-
-		// 檢查每個規則，返回第一個匹配的（最嚴重的）
 		for (const rule of parameterRules) {
 			const config = rule.condition_config;
 			const threshold = config.value;
 			const operator = config.operator;
-
 			let matched = false;
 			switch (operator) {
 				case ">":
@@ -155,22 +129,13 @@ export const useAlertRules = () => {
 				default:
 					matched = false;
 			}
-
 			if (matched) {
 				return rule;
 			}
 		}
-
 		return null;
 	};
 
-	/**
-	 * 根據規則獲取狀態文字
-	 * @param parameter - 參數名稱
-	 * @param value - 參數值
-	 * @param rules - 規則列表
-	 * @returns 狀態文字（"正常" | "注意" | "警報"）
-	 */
 	const getStatusText = (
 		parameter: string,
 		value: number | null,
@@ -179,17 +144,12 @@ export const useAlertRules = () => {
 		if (value === null || value === undefined) {
 			return "正常";
 		}
-
 		const matchedRule = evaluateParameter(parameter, value, rules);
-
 		if (!matchedRule) {
 			return "正常";
 		}
-
-		// 根據嚴重程度返回狀態
 		switch (matchedRule.severity) {
 			case "critical":
-				return "警報";
 			case "error":
 				return "警報";
 			case "warning":
@@ -202,9 +162,8 @@ export const useAlertRules = () => {
 	return {
 		getRules,
 		clearCache,
-		evaluateParameter, // 保留用於未來可能的擴展
+		evaluateParameter,
 		getStatusText,
-		isLoading: readonly(isLoading)
+		isLoading: readonly(isLoading),
 	};
 };
-

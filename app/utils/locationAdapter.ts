@@ -6,6 +6,7 @@ import type {
 	EnvironmentSystemConfig,
 	LightingSystemConfig,
 	DrainageSystemConfig,
+	FireSystemConfig,
 	PeopleCountingSystemConfig,
 	VehicleAccessSystemConfig,
 	LocationSystem,
@@ -17,6 +18,8 @@ import type { LightingZone, LightingLocation } from "~/types/lighting"
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting"
 import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess"
 import type { DrainageZone, DrainageLocation } from "~/types/drainage"
+import type { FireZone, FireLocation } from "~/types/fire"
+import type { EmergencyRescueZone, EmergencyRescueLocation } from "~/types/emergency-rescue"
 import { pickSortOrder } from "~/utils/sortOrder"
 
 /**
@@ -151,6 +154,20 @@ function parseSystemConfig(systemType: SystemType, config: unknown): SystemConfi
 			return {
 				equipmentKind: "pump",
 				viewCategory: "drainage",
+				statusPoints: {},
+			}
+		case "fire":
+			if (isDrainageSystemConfig(config)) return config as FireSystemConfig
+			return {
+				equipmentKind: "pump",
+				viewCategory: "sprinkler",
+				statusPoints: {},
+			}
+		case "emergency_rescue":
+			if (isDrainageSystemConfig(config)) return config as FireSystemConfig
+			return {
+				equipmentKind: "pump",
+				viewCategory: "sos",
 				statusPoints: {},
 			}
 		case "people_counting":
@@ -334,6 +351,182 @@ export function unifiedToDrainageZone(zone: UnifiedZone): DrainageZone {
 }
 
 /**
+ * 將統一區域轉換為消防區域
+ */
+export function unifiedToFireZone(zone: UnifiedZone): FireZone {
+	return {
+		id: zone.id,
+		name: zone.name,
+		imageUrl: zone.imageUrl,
+		description: zone.description,
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.flatMap((loc) => {
+			const fireSystem = loc.systems.find((s) => s.systemType === "fire")
+			if (!fireSystem || !isDrainageSystemConfig(fireSystem.config)) {
+				return []
+			}
+			const cfg = fireSystem.config
+			return [
+				{
+					id: loc.id,
+					systemId: fireSystem.id,
+					name: loc.name,
+					...(loc.createdAt && { createdAt: loc.createdAt }),
+					...pickSortOrder(loc.sortOrder),
+					location: cfg.location,
+					deviceId: cfg.deviceId,
+					modbus: cfg.modbus as FireLocation["modbus"],
+					equipmentKind: cfg.equipmentKind,
+					viewCategory: cfg.viewCategory,
+					statusPoints: cfg.statusPoints,
+				} as FireLocation,
+			]
+		}),
+	}
+}
+
+/**
+ * 將消防區域轉換為統一區域（用於傳送給後端）
+ */
+export function fireToUnifiedZone(
+	zone: FireZone,
+	systemType: SystemType = "fire"
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
+	return {
+		name: zone.name,
+		...(zone.imageUrl !== undefined && { imageUrl: zone.imageUrl }),
+		...(zone.description !== undefined && { description: zone.description }),
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.map((location) => fireLocationToUnified(location, systemType)),
+	}
+}
+
+/**
+ * 將消防地點轉換為統一地點格式
+ */
+export function fireLocationToUnified(
+	location: FireLocation | Omit<FireLocation, "id">,
+	systemType: SystemType = "fire"
+): UnifiedLocationInput {
+	const hasId = "id" in location && location.id
+	const hasSystemId = "systemId" in location && location.systemId
+	const statusPoints =
+		location.statusPoints && Object.keys(location.statusPoints).length > 0
+			? location.statusPoints
+			: {}
+	return {
+		...(hasId && { id: location.id! }),
+		name: location.name,
+		...(location.description && { description: location.description }),
+		...(location.createdAt && { createdAt: location.createdAt }),
+		...pickSortOrder(location.sortOrder),
+		systems: [
+			{
+				...(hasSystemId && { id: location.systemId! }),
+				systemType,
+				config: {
+					deviceId: location.deviceId,
+					location: location.location,
+					modbus:
+						location.modbus != null
+							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
+							: undefined,
+					equipmentKind: location.equipmentKind ?? "pump",
+					viewCategory: location.viewCategory ?? "sprinkler",
+					statusPoints,
+				} as FireSystemConfig,
+			},
+		],
+	}
+}
+
+/**
+ * 將統一區域轉換為緊急求救區域
+ */
+export function unifiedToEmergencyRescueZone(zone: UnifiedZone): EmergencyRescueZone {
+	return {
+		id: zone.id,
+		name: zone.name,
+		imageUrl: zone.imageUrl,
+		description: zone.description,
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.flatMap((loc) => {
+			const sys = loc.systems.find((s) => s.systemType === "emergency_rescue")
+			if (!sys || !isDrainageSystemConfig(sys.config)) {
+				return []
+			}
+			const cfg = sys.config
+			return [
+				{
+					id: loc.id,
+					systemId: sys.id,
+					name: loc.name,
+					...(loc.createdAt && { createdAt: loc.createdAt }),
+					...pickSortOrder(loc.sortOrder),
+					location: cfg.location,
+					deviceId: cfg.deviceId,
+					modbus: cfg.modbus as EmergencyRescueLocation["modbus"],
+					equipmentKind: cfg.equipmentKind,
+					viewCategory: cfg.viewCategory,
+					statusPoints: cfg.statusPoints,
+				} as EmergencyRescueLocation,
+			]
+		}),
+	}
+}
+
+export function emergencyRescueToUnifiedZone(
+	zone: EmergencyRescueZone,
+	systemType: SystemType = "emergency_rescue"
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
+	return {
+		name: zone.name,
+		...(zone.imageUrl !== undefined && { imageUrl: zone.imageUrl }),
+		...(zone.description !== undefined && { description: zone.description }),
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.map((location) =>
+			emergencyRescueLocationToUnified(location, systemType)
+		),
+	}
+}
+
+export function emergencyRescueLocationToUnified(
+	location: EmergencyRescueLocation | Omit<EmergencyRescueLocation, "id">,
+	systemType: SystemType = "emergency_rescue"
+): UnifiedLocationInput {
+	const hasId = "id" in location && location.id
+	const hasSystemId = "systemId" in location && location.systemId
+	const statusPoints =
+		location.statusPoints && Object.keys(location.statusPoints).length > 0
+			? location.statusPoints
+			: {}
+	return {
+		...(hasId && { id: location.id! }),
+		name: location.name,
+		...(location.description && { description: location.description }),
+		...(location.createdAt && { createdAt: location.createdAt }),
+		...pickSortOrder(location.sortOrder),
+		systems: [
+			{
+				...(hasSystemId && { id: location.systemId! }),
+				systemType,
+				config: {
+					deviceId: location.deviceId,
+					location: location.location,
+					modbus:
+						location.modbus != null
+							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
+							: undefined,
+					equipmentKind: location.equipmentKind ?? "pump",
+					viewCategory: location.viewCategory ?? "sos",
+					statusPoints,
+				} as FireSystemConfig,
+			},
+		],
+	}
+}
+
+/**
  * 將排水區域轉換為統一區域（用於傳送給後端）
  */
 export function drainageToUnifiedZone(
@@ -500,34 +693,43 @@ export function getSystem(
 	return location.systems.find((s) => s.systemType === systemType)
 }
 
-/**
- * 輔助函數：檢查地點是否有照明系統的座標
- */
-export function hasLightingCoordinates(location: UnifiedLocation): boolean {
-	const lightingSystem = getSystem(location, "lighting")
-	if (!lightingSystem || !isLightingSystemConfig(lightingSystem.config)) return false
+export type SystemCoordinates = { x: number; y: number }
 
-	const config = lightingSystem.config
-	return config.location?.x !== undefined && config.location?.y !== undefined
+const isFiniteCoordinate = (v: unknown): v is number => {
+	return typeof v === "number" && Number.isFinite(v)
 }
 
-/**
- * 輔助函數：獲取照明系統的座標樣式
- */
-export function getLightingLocationStyle(
-	location: UnifiedLocation
-): { left: string; top: string } | {} {
-	const lightingSystem = getSystem(location, "lighting")
-	if (!lightingSystem || !isLightingSystemConfig(lightingSystem.config)) return {}
+export const getSystemCoordinates = (
+	location: UnifiedLocation,
+	systemType: SystemType
+): SystemCoordinates | null => {
+	const sys = getSystem(location, systemType)
+	if (!sys) return null
+	const cfg = sys.config as Record<string, unknown>
+	const raw = cfg.location as { x?: unknown; y?: unknown } | undefined
+	if (!raw) return null
+	if (!isFiniteCoordinate(raw.x) || !isFiniteCoordinate(raw.y)) return null
+	return { x: raw.x, y: raw.y }
+}
 
-	const config = lightingSystem.config
-	if (config.location && config.location.x !== undefined && config.location.y !== undefined) {
-		return {
-			left: `${config.location.x}%`,
-			top: `${config.location.y}%`,
-		}
+export const hasCoordinatesForSystem = (location: UnifiedLocation, systemType: SystemType): boolean => {
+	return getSystemCoordinates(location, systemType) != null
+}
+
+export const hasAnySystemCoordinates = (location: UnifiedLocation): boolean => {
+	for (const s of location.systems || []) {
+		if (getSystemCoordinates(location, s.systemType)) return true
 	}
-	return {}
+	return false
+}
+
+export const getLocationStyleBySystem = (
+	location: UnifiedLocation,
+	systemType: SystemType
+): { left: string; top: string } | {} => {
+	const c = getSystemCoordinates(location, systemType)
+	if (!c) return {}
+	return { left: `${c.x}%`, top: `${c.y}%` }
 }
 
 /**

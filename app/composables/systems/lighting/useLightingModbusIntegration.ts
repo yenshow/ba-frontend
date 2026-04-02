@@ -1,7 +1,7 @@
 import { computed, ref, watch, type Ref } from "vue"
 import type { LightingLocation, LightingZone } from "~/types/lighting"
 import type { Device, ControllerDeviceConfig } from "~/types/device"
-import type { ModbusDataResponse, ModbusDeviceConfig } from "~/types/modbus"
+import type { ModbusDeviceConfig } from "~/types/modbus"
 import { useLightingApi } from "~/composables/systems/lighting/useLightingApi"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useApiBase } from "~/composables/core/useApiBase"
@@ -47,39 +47,41 @@ export const useLightingModbusIntegration = (
 		new Map()
 	)
 
-	const requestCache = new Map<string, { timestamp: number; promise?: Promise<any> }>()
+	const requestCache = new Map<
+		string,
+		{ timestamp: number; ok: boolean; value?: boolean; error?: string }
+	>()
 	const failedDevices = new Map<string, number>()
 	const toggleDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>()
+	let inflightRefresh: Promise<void> | null = null
 
-	const buildModbusQueryParams = (
-		deviceConfig: ModbusDeviceConfig,
-		address: number,
-		length: number
-	): string => {
-		const params = new URLSearchParams({
-			host: deviceConfig.host,
-			port: String(deviceConfig.port),
-			unitId: String(deviceConfig.unitId),
-			address: String(address),
-			length: String(length),
-		})
-		return params.toString()
-	}
-
-	const getCoils = async (address: number, length: number, deviceConfig: ModbusDeviceConfig) => {
-		const queryParams = buildModbusQueryParams(deviceConfig, address, length)
-		return request<ModbusDataResponse<boolean>>(`/modbus/coils?${queryParams}`, {
-			timeout: MODBUS_TIMEOUT,
-		} as any)
-	}
-
-	const getDiscreteInputs = async (
-		address: number,
-		length: number,
-		deviceConfig: ModbusDeviceConfig
+	const batchRead = async (
+		reqs: Array<{
+			host: string
+			port: number
+			unitId: number
+			registerType: "coil" | "discrete"
+			address: number
+			length: number
+			meta?: any
+		}>
 	) => {
-		const queryParams = buildModbusQueryParams(deviceConfig, address, length)
-		return request<ModbusDataResponse<boolean>>(`/modbus/discrete-inputs?${queryParams}`, {
+		return request<{
+			results: Array<
+				| {
+						ok: true
+						data: unknown[]
+						device: ModbusDeviceConfig
+						registerType: "coil" | "discrete"
+						address: number
+						length: number
+						meta?: any
+				  }
+				| { ok: false; error: string; meta?: any }
+			>
+		}>("/modbus/batch-read", {
+			method: "POST",
+			body: JSON.stringify({ requests: reqs }),
 			timeout: MODBUS_TIMEOUT,
 		} as any)
 	}
@@ -97,6 +99,38 @@ export const useLightingModbusIntegration = (
 				body: JSON.stringify({ address, value }),
 			}
 		)
+	}
+
+	const refreshLocationStatusFresh = async (
+		locationId: string,
+		deviceConfig: { host: string; port: number; unitId: number },
+		readPoint: { address: number; type: "coil" | "discrete" }
+	) => {
+		const requestKey = getRequestKey(deviceConfig, readPoint.address, readPoint.type)
+		try {
+			const res = await batchRead([
+				{
+					host: deviceConfig.host,
+					port: deviceConfig.port,
+					unitId: deviceConfig.unitId,
+					registerType: readPoint.type,
+					address: readPoint.address,
+					length: 1,
+					meta: { requestKey, noCache: true },
+				},
+			])
+			const rr = res.results?.[0] as any
+			if (rr?.ok && typeof rr.data?.[0] === "boolean") {
+				requestCache.set(requestKey, { timestamp: Date.now(), ok: true, value: rr.data[0] })
+				await updateLocationStatuses([locationId], rr.data[0])
+				return
+			}
+			const errorMessage = String(rr?.error || "無法讀取照明設備資料")
+			requestCache.set(requestKey, { timestamp: Date.now(), ok: false, error: errorMessage })
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error)
+			requestCache.set(requestKey, { timestamp: Date.now(), ok: false, error: errorMessage })
+		}
 	}
 
 	const extractDeviceConfig = (
@@ -255,6 +289,12 @@ export const useLightingModbusIntegration = (
 	const processBatchRequests = async (requests: BatchRequest[]) => {
 		if (requests.length === 0) return
 
+		if (inflightRefresh) {
+			await inflightRefresh
+			return
+		}
+
+		inflightRefresh = (async () => {
 		const now = Date.now()
 
 		for (const [deviceKey, timestamp] of failedDevices.entries()) {
@@ -272,50 +312,76 @@ export const useLightingModbusIntegration = (
 			grouped.get(key)!.push(req)
 		}
 
-		await Promise.allSettled(
-			Array.from(grouped.entries()).map(async ([requestKey, groupRequests]) => {
-				const firstReq = groupRequests[0]
-				const locationIds = groupRequests.map((req) => req.locationId)
+		const batchPayload: Array<{
+			host: string
+			port: number
+			unitId: number
+			registerType: "coil" | "discrete"
+			address: number
+			length: number
+			meta: { requestKey: string }
+		}> = []
 
-				if (failedDevices.has(requestKey)) {
-					locationIds.forEach((locationId) => {
-						ensureLocationStatus(locationId).status = "error"
-					})
-					return
+		for (const [requestKey, groupRequests] of grouped.entries()) {
+			const firstReq = groupRequests[0]
+			if (failedDevices.has(requestKey)) {
+				groupRequests.forEach((r) => ensureLocationStatus(r.locationId).status = "error")
+				continue
+			}
+			const cached = requestCache.get(requestKey)
+			if (cached && now - cached.timestamp < REQUEST_CACHE_TTL) {
+				if (cached.ok && typeof cached.value === "boolean") {
+					await updateLocationStatuses(groupRequests.map((r) => r.locationId), cached.value)
+				} else if (!cached.ok) {
+					const errorMessage = cached.error || "無法讀取照明設備資料"
+					groupRequests.forEach((r) => ensureLocationStatus(r.locationId).status = "error")
+					await Promise.allSettled(
+						groupRequests.map((r) =>
+							reportLocationError(r.locationId, errorMessage || "無法讀取照明設備資料")
+						)
+					)
 				}
+				continue
+			}
 
-				const cached = requestCache.get(requestKey)
-				if (cached?.promise && now - cached.timestamp < REQUEST_CACHE_TTL) {
-					try {
-						const response = await cached.promise
-						if (response?.data?.[0] !== undefined) {
-							await updateLocationStatuses(locationIds, response.data[0])
+			batchPayload.push({
+				host: firstReq.deviceConfig.host,
+				port: firstReq.deviceConfig.port,
+				unitId: firstReq.deviceConfig.unitId,
+				registerType: firstReq.type,
+				address: firstReq.address,
+				length: 1,
+				meta: { requestKey },
+			})
+		}
+
+		if (batchPayload.length > 0) {
+			try {
+				const res = await batchRead(batchPayload)
+				const list = res.results || []
+				const byKey = new Map<string, (typeof list)[number]>()
+				list.forEach((r) => {
+					const k = (r as any)?.meta?.requestKey
+					if (k) byKey.set(String(k), r)
+				})
+
+				for (const [requestKey, groupRequests] of grouped.entries()) {
+					const rr = byKey.get(requestKey)
+					const locationIds = groupRequests.map((r) => r.locationId)
+					if (!rr) continue
+
+					if ((rr as any).ok) {
+						const v = (rr as any).data?.[0]
+						if (typeof v === "boolean") {
+							requestCache.set(requestKey, { timestamp: now, ok: true, value: v })
+							await updateLocationStatuses(locationIds, v)
 						}
-						return
-					} catch {
-						// 緩存請求失敗，繼續執行新請求
-					}
-				}
-
-				try {
-					const requestPromise =
-						firstReq.type === "coil"
-							? getCoils(firstReq.address, 1, firstReq.deviceConfig)
-							: getDiscreteInputs(firstReq.address, 1, firstReq.deviceConfig)
-
-					requestCache.set(requestKey, { timestamp: now, promise: requestPromise })
-
-					const response = await requestPromise
-
-					if (response?.data?.[0] !== undefined) {
-						await updateLocationStatuses(locationIds, response.data[0])
+						failedDevices.delete(requestKey)
+						continue
 					}
 
-					failedDevices.delete(requestKey)
-				} catch (error) {
-					requestCache.delete(requestKey)
-					const errorMessage = error instanceof Error ? error.message : String(error)
-
+					const errorMessage = String((rr as any).error || "無法讀取照明設備資料")
+					requestCache.set(requestKey, { timestamp: now, ok: false, error: errorMessage })
 					if (
 						errorMessage.includes("503") ||
 						errorMessage.includes("Service Unavailable") ||
@@ -333,14 +399,39 @@ export const useLightingModbusIntegration = (
 						)
 					)
 				}
-			})
-		)
+			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : String(error)
+				batchPayload.forEach((p) => {
+					requestCache.set(p.meta.requestKey, { timestamp: now, ok: false, error: errorMessage })
+				})
+				for (const [requestKey, groupRequests] of grouped.entries()) {
+					if (
+						errorMessage.includes("503") ||
+						errorMessage.includes("Service Unavailable") ||
+						errorMessage.includes("設備離線")
+					) {
+						failedDevices.set(requestKey, now)
+					}
+					groupRequests.forEach((r) => ensureLocationStatus(r.locationId).status = "error")
+					await Promise.allSettled(
+						groupRequests.map((r) =>
+							reportLocationError(r.locationId, errorMessage || "無法讀取照明設備資料")
+						)
+					)
+				}
+			}
+		}
 
 		for (const [key, value] of requestCache.entries()) {
 			if (now - value.timestamp > REQUEST_CACHE_TTL * 2) {
 				requestCache.delete(key)
 			}
 		}
+		})().finally(() => {
+			inflightRefresh = null
+		})
+
+		await inflightRefresh
 	}
 
 	const collectLocationReadRequests = async (
@@ -543,13 +634,17 @@ export const useLightingModbusIntegration = (
 			}
 
 			setTimeout(async () => {
-				const readRequests = await collectLocationReadRequests(
-					targetZone,
-					targetLocation,
-					targetLocationIndex
-				)
-				if (readRequests.length > 0) {
-					await processBatchRequests(readRequests)
+				if (readPointAfterWrite) {
+					await refreshLocationStatusFresh(locationId, deviceConfig, readPointAfterWrite)
+				} else {
+					const readRequests = await collectLocationReadRequests(
+						targetZone,
+						targetLocation,
+						targetLocationIndex
+					)
+					if (readRequests.length > 0) {
+						await processBatchRequests(readRequests)
+					}
 				}
 				locationToggling.value.delete(locationId)
 			}, 450)

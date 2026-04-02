@@ -266,7 +266,6 @@
 .map-location-dots .location-dot[data-status="abnormal"] {
 	background: rgba(245, 158, 11, 0.32);
 	border-color: rgba(255, 255, 255, 0.78);
-	animation: status-alert-warning-blink 2.4s ease-in-out infinite;
 }
 .map-location-dots .category-dot[data-status="abnormal"]::before,
 .map-location-dots .location-dot[data-status="abnormal"]::before {
@@ -281,7 +280,6 @@
 .map-location-dots .location-dot[data-status="alarm"] {
 	background: rgba(245, 101, 101, 0.32);
 	border-color: rgba(255, 255, 255, 0.78);
-	animation: status-alert-warning-blink 2.4s ease-in-out infinite;
 }
 .map-location-dots .category-dot[data-status="alarm"]::before,
 .map-location-dots .location-dot[data-status="alarm"]::before {
@@ -305,6 +303,16 @@
 }
 .map-location-dots .category-dot-wrapper[draggable="true"] {
 	cursor: move;
+}
+
+/* 全區點位圖 location-dot：依 data-flash 決定閃爍節奏（避免僅靠 data-status 造成節奏不一致） */
+.map-location-dots .location-dot[data-flash="slow"] {
+	animation: status-alert-warning-blink 1.6s ease-in-out infinite;
+	will-change: opacity;
+}
+.map-location-dots .location-dot[data-flash="fast"] {
+	animation: status-alert-alarm-blink 0.9s ease-in-out infinite;
+	will-change: opacity;
 }
 /* 監控卡片／工具提示閃爍（對齊 EnvironmentParamCard）：底色固定 + 透明度脈動 */
 @keyframes status-alert-warning-blink {

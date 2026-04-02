@@ -9,6 +9,8 @@ import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment"
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting"
 import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess"
 import type { DrainageZone, DrainageLocation } from "~/types/drainage"
+import type { FireZone, FireLocation } from "~/types/fire"
+import type { EmergencyRescueZone, EmergencyRescueLocation } from "~/types/emergency-rescue"
 import { getLocationUiKey } from "~/utils/locationUiId"
 
 export type SystemZoneType =
@@ -17,12 +19,16 @@ export type SystemZoneType =
 	| PeopleCountingZone
 	| VehicleAccessZone
 	| DrainageZone
+	| FireZone
+	| EmergencyRescueZone
 export type SystemLocationType =
 	| LightingLocation
 	| EnvironmentLocation
 	| PeopleCountingLocation
 	| VehicleAccessLocation
 	| DrainageLocation
+	| FireLocation
+	| EmergencyRescueLocation
 
 /**
  * 系統配置
@@ -206,6 +212,81 @@ export function useDrainageZoneAdapter(): ZoneSystemAdapter<DrainageZone, Draina
 }
 
 /**
+ * 緊急求救適配器（形狀同消防；預設檢視分類 sos）
+ */
+export function useEmergencyRescueZoneAdapter(): ZoneSystemAdapter<
+	EmergencyRescueZone,
+	EmergencyRescueLocation
+> {
+	const systemConfig: SystemConfig = {
+		requireImageUrl: true,
+	}
+
+	return {
+		getLocationsProperty: (zone: EmergencyRescueZone) => zone.locations || [],
+		setLocationsProperty: (zone: EmergencyRescueZone, locations: EmergencyRescueLocation[]) => ({
+			...zone,
+			locations,
+		}),
+		createNewLocation: (): EmergencyRescueLocation => ({
+			name: "",
+			equipmentKind: "pump",
+			viewCategory: "sos",
+			statusPoints: {},
+			createdAt: new Date().toISOString(),
+		}),
+		createNewZone: (name: string): EmergencyRescueZone => ({
+			name,
+			locations: [],
+		}),
+		filterEmptyLocations: (zone: EmergencyRescueZone): EmergencyRescueZone => ({
+			...zone,
+			locations: (zone.locations || []).filter((loc) => loc.name && loc.name.trim().length > 0),
+		}),
+		systemConfig,
+		getLocationId: ({ zone, location, locationIndex }): string => {
+			return getLocationUiKey({ zone, location, locationIndex })
+		},
+	}
+}
+
+/**
+ * 消防系統適配器（資料形狀同排水，預設檢視分類為灑水）
+ */
+export function useFireZoneAdapter(): ZoneSystemAdapter<FireZone, FireLocation> {
+	const systemConfig: SystemConfig = {
+		requireImageUrl: true,
+	}
+
+	return {
+		getLocationsProperty: (zone: FireZone) => zone.locations || [],
+		setLocationsProperty: (zone: FireZone, locations: FireLocation[]) => ({
+			...zone,
+			locations,
+		}),
+		createNewLocation: (): FireLocation => ({
+			name: "",
+			equipmentKind: "pump",
+			viewCategory: "sprinkler",
+			statusPoints: {},
+			createdAt: new Date().toISOString(),
+		}),
+		createNewZone: (name: string): FireZone => ({
+			name,
+			locations: [],
+		}),
+		filterEmptyLocations: (zone: FireZone): FireZone => ({
+			...zone,
+			locations: (zone.locations || []).filter((loc) => loc.name && loc.name.trim().length > 0),
+		}),
+		systemConfig,
+		getLocationId: ({ zone, location, locationIndex }): string => {
+			return getLocationUiKey({ zone, location, locationIndex })
+		},
+	}
+}
+
+/**
  * 車輛進出系統適配器
  */
 export function useVehicleAccessZoneAdapter(): ZoneSystemAdapter<
@@ -258,6 +339,10 @@ export function useZoneSystemAdapter<
 			return useVehicleAccessZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		case "drainage":
 			return useDrainageZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
+		case "fire":
+			return useFireZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
+		case "emergency_rescue":
+			return useEmergencyRescueZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		default:
 			throw new Error(`不支援的系統類型: ${systemType}`)
 	}

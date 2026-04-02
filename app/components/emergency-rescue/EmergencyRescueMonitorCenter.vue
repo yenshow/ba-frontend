@@ -1,0 +1,215 @@
+<template>
+	<div
+		class="show-scrollbar relative h-full overflow-hidden overflow-y-auto rounded-2xl border-2 border-white/80 bg-white/30 space-y-6 px-3 py-6 2xl:space-y-8 2xl:px-4 2xl:py-8"
+	>
+		<div class="space-y-2">
+			<h3 class="ms-[12px] text-center text-2xl tracking-[12px] text-white 2xl:text-3xl">
+				監控中心
+			</h3>
+		</div>
+
+		<div v-for="zone in displayedZones" :key="zone.id || zone.name" class="space-y-3 2xl:space-y-4">
+			<div class="flex items-center justify-center gap-3">
+				<div class="relative shrink-0">
+					<button
+						type="button"
+						class="cursor-pointer rounded-full border-2 p-2 transition-all"
+						:class="[
+							selectedZone === (zone.id || zone.name)
+								? 'bg-white text-black/50'
+								: 'bg-transparent text-white',
+							zoneHasAlarm(zone)
+								? 'ring-2 ring-red-500/90 ring-offset-2 ring-offset-transparent'
+								: zoneHasAbnormal(zone)
+									? 'ring-2 ring-amber-400/90 ring-offset-2 ring-offset-transparent'
+									: '',
+							getZoneAlertBlinkClass(zone),
+						]"
+						:aria-label="
+							zoneHasAlarm(zone)
+								? `${zone.name}，此樓層有求救或警報`
+								: zoneHasAbnormal(zone)
+									? `${zone.name}，此樓層有異常`
+									: `${zone.name}，選取此樓層`
+						"
+						@click="handleZoneClick(zone.id || zone.name || '')"
+					>
+						<h4 class="w-[48px] p-2 text-xl font-semibold tracking-wider 2xl:text-2xl">
+							{{ zone.name }}
+						</h4>
+					</button>
+					<span
+						v-if="zoneHasAbnormal(zone)"
+						class="pointer-events-none absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[9px] font-bold leading-none 2xl:h-5 2xl:min-w-5 2xl:text-[10px]"
+						:class="zoneHasAlarm(zone) ? 'bg-red-500 text-white' : 'bg-amber-400 text-teal-950'"
+						aria-hidden="true"
+						:title="zoneHasAlarm(zone) ? '此樓層有警報' : '此樓層有異常'"
+					>
+						!
+					</span>
+				</div>
+
+				<div
+					v-if="locationsForZone(zone).length > 0"
+					class="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2"
+				>
+					<div
+						v-for="row in locationsForZone(zone)"
+						:key="row.rowKey"
+						class="flex min-w-0 flex-col rounded-xl border-2 border-white px-3 py-2"
+						:class="[
+							locationRowBackgroundClass(zone, row.loc),
+							locationRowFlashClass(zone, row.loc),
+						]"
+					>
+						<div class="flex min-w-0 items-center gap-3 py-2">
+							<div class="shrink-0">
+								<NuxtImg
+									src="/emergency/sos.png"
+									alt="SOS"
+									class="h-16 w-16 2xl:h-24 2xl:w-24"
+									width="96"
+									height="96"
+								/>
+							</div>
+							<div class="flex min-w-0 flex-1 flex-col justify-center gap-2">
+								<h4 class="truncate text-center text-lg text-white 2xl:text-xl">
+									{{ row.loc.name }}
+								</h4>
+								<div
+									class="flex items-center justify-center gap-2 rounded-full border border-white bg-white/10 mx-1 py-2"
+								>
+									<span
+										class="h-4 w-4 shrink-0 rounded-full border border-white 2xl:h-5 2xl:w-5"
+										:class="statusDotClass(rowUiStatus(row.loc))"
+										aria-hidden="true"
+									/>
+									<span class="text-sm text-white 2xl:text-base">
+										{{ statusLabel(rowUiStatus(row.loc)) }}
+									</span>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</template>
+
+<script setup lang="ts">
+import type {
+	EmergencyRescueZone,
+	EmergencyRescueLocation,
+	EmergencyRescueStatusItem,
+} from "~/types/emergency-rescue"
+import { deriveEmergencyRescueUiStatus } from "~/types/emergency-rescue"
+import { compareZonesLoose } from "~/utils/sortOrder"
+
+const props = defineProps<{
+	zones: EmergencyRescueZone[]
+	statusItems: EmergencyRescueStatusItem[]
+	selectedZone: string
+}>()
+
+const emit = defineEmits<{
+	zoneSelected: [zoneId: string]
+}>()
+
+const handleZoneClick = (zoneId: string) => {
+	emit("zoneSelected", zoneId)
+}
+
+const itemBySystemId = computed(() => {
+	const m = new Map<string, EmergencyRescueStatusItem>()
+	for (const it of props.statusItems) {
+		m.set(String(it.systemId), it)
+	}
+	return m
+})
+
+const rowKey = (zone: EmergencyRescueZone, loc: EmergencyRescueLocation, index: number): string =>
+	loc.id || `location-${zone.id || zone.name}-${index}`
+
+const locationsForZone = (
+	zone: EmergencyRescueZone
+): { loc: EmergencyRescueLocation; rowKey: string }[] => {
+	const list = zone.locations || []
+	const out: { loc: EmergencyRescueLocation; rowKey: string }[] = []
+	list.forEach((loc, index) => {
+		out.push({ loc, rowKey: rowKey(zone, loc, index) })
+	})
+	return out
+}
+
+const displayedZones = computed(() => {
+	if (!props.zones?.length) return []
+	const sorted = [...props.zones].sort((a, b) => compareZonesLoose(a, b))
+	return sorted.filter((zone) => locationsForZone(zone).length > 0)
+})
+
+const getItemForLocation = (loc: EmergencyRescueLocation): EmergencyRescueStatusItem | null => {
+	if (!loc.systemId) return null
+	return itemBySystemId.value.get(String(loc.systemId)) ?? null
+}
+
+const rowUiStatus = (loc: EmergencyRescueLocation): EmergencyRescueStatusItem["uiStatus"] =>
+	deriveEmergencyRescueUiStatus(getItemForLocation(loc))
+
+const statusLabel = (s: EmergencyRescueStatusItem["uiStatus"]) => {
+	if (s === "normal") return "正常"
+	if (s === "warning" || s === "offline" || s === "unknown") return "異常"
+	if (s === "alarm") return "警報"
+	return "異常"
+}
+
+const statusDotClass = (s: EmergencyRescueStatusItem["uiStatus"]) => {
+	if (s === "normal") return "bg-emerald-400"
+	if (s === "warning" || s === "offline" || s === "unknown") return "bg-amber-400"
+	if (s === "alarm") return "bg-rose-500"
+	return "bg-amber-400"
+}
+
+type RowFlash = "none" | "slow" | "alarm-fast"
+
+const flashFromUi = (s: EmergencyRescueStatusItem["uiStatus"]): RowFlash => {
+	if (s === "normal") return "none"
+	if (s === "alarm") return "alarm-fast"
+	return "slow"
+}
+
+const rowFlashMode = (_zone: EmergencyRescueZone, loc: EmergencyRescueLocation): RowFlash =>
+	flashFromUi(rowUiStatus(loc))
+
+const flashModeToClass = (mode: RowFlash): string => {
+	if (mode === "alarm-fast") return "blink-alarm-fast"
+	if (mode === "slow") return "blink-slow"
+	return ""
+}
+
+const zoneHasAbnormal = (zone: EmergencyRescueZone): boolean =>
+	locationsForZone(zone).some(({ loc }) => rowFlashMode(zone, loc) !== "none")
+
+const zoneHasAlarm = (zone: EmergencyRescueZone): boolean =>
+	locationsForZone(zone).some(({ loc }) => rowUiStatus(loc) === "alarm")
+
+const getZoneAlertBlinkClass = (zone: EmergencyRescueZone): string => {
+	const modes = locationsForZone(zone).map(({ loc }) => rowFlashMode(zone, loc))
+	if (modes.includes("alarm-fast")) return "blink-alarm-fast"
+	if (modes.includes("slow")) return "blink-slow"
+	return ""
+}
+
+const locationRowFlashClass = (zone: EmergencyRescueZone, loc: EmergencyRescueLocation): string =>
+	flashModeToClass(rowFlashMode(zone, loc))
+
+const locationRowBackgroundClass = (
+	zone: EmergencyRescueZone,
+	loc: EmergencyRescueLocation
+): string => {
+	const mode = rowFlashMode(zone, loc)
+	if (mode === "alarm-fast") return "bg-[#FF0000]/60"
+	if (mode === "slow") return "bg-[#FFC801]/60"
+	return "bg-white/10"
+}
+</script>

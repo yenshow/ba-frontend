@@ -423,13 +423,8 @@ const categoryGroups = computed(() => {
 // Active 狀態判斷
 const isAlertLogActive = computed(() => route.path === "/core/alert-log")
 
-// 未解決警報數量（整合到 useAlertMonitor）
-const {
-	unresolvedAlertCount,
-	loadUnresolvedAlertCount,
-	startAlertCountMonitoring: startAlertCountUpdate,
-	stopAlertCountMonitoring: stopAlertCountUpdate,
-} = useAlertMonitor()
+// 未解決警報數量（僅消費 useAlertMonitor 的 ref，生命週期由 default.vue 管理）
+const { unresolvedAlertCount, loadUnresolvedAlertCount } = useAlertMonitor()
 
 const closeUserMenu = () => {
 	isUserMenuOpen.value = false
@@ -495,7 +490,6 @@ onMounted(() => {
 
 onUnmounted(() => {
 	document.removeEventListener("click", handleClickOutside)
-	stopAlertCountUpdate()
 })
 
 watch(
@@ -510,21 +504,8 @@ watch(
 	}
 )
 
-// 監聽用戶登入狀態（僅在 client 啟動/停止未解決警報數量，與 construction BottomNavigation 一致，避免 SSR 觸發 composable）
-watch(
-	() => user.value,
-	(newUser) => {
-		if (!newUser) {
-			stopAlertCountUpdate()
-			return
-		}
-		if (process.client) {
-			void loadUnresolvedAlertCount()
-			startAlertCountUpdate()
-		}
-	},
-	{ immediate: true }
-)
+// 路由切到 alert-log 時主動刷新一次數量
+// 生命週期（啟動/停止監聽）統一由 default.vue 的 startMonitoring/stopMonitoring 管理
 </script>
 
 <style scoped>

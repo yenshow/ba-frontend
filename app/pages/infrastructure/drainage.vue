@@ -67,13 +67,13 @@ import {
 import { useDrainageApi } from "~/composables/systems/drainage/useDrainageApi"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { usePolling } from "~/composables/monitoring/usePolling"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import { useAuth } from "~/composables/core/useAuth"
 import type { UnifiedZone } from "~/types/location"
 import { unifiedToDrainageZone } from "~/utils/locationAdapter"
 import { getLocationUiKey, findLocationIndexInZone } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
+import { useDrainageModbusIntegration } from "~/composables/systems/drainage/useDrainageModbusIntegration"
 
 definePageMeta({
 	layout: "default",
@@ -164,7 +164,7 @@ const uiStatusForLocation = (loc: DrainageLocation): DrainageStatusItem["uiStatu
 const dotStatusForLocation = (loc: DrainageLocation): "normal" | "abnormal" | "alarm" => {
 	const s = uiStatusForLocation(loc)
 	if (s === "normal") return "normal"
-	if (s === "warning") return "abnormal"
+	if (s === "warning" || s === "offline" || s === "unknown") return "abnormal"
 	return "alarm"
 }
 
@@ -276,27 +276,22 @@ const loadZonesFromAPI = async () => {
 	}
 }
 
-const loadStatus = async () => {
-	try {
-		const res = await drainageApi.getStatus()
-		statusItems.value = res.items || []
-	} catch (error) {
-		handleError(error, "載入排水狀態失敗")
-	}
-}
+const {
+	statusItems: computedStatusItems,
+	preloadDeviceInfos,
+	loadStatusSnapshot,
+	startAutoRefresh,
+	stopAutoRefresh,
+	handleVisibilityChange,
+} = useDrainageModbusIntegration(drainageZones)
 
-const { start: startPolling, stop: stopPolling } = usePolling({
-	callback: () => loadStatus(),
-	interval: 5000,
-	immediate: false,
-	enabled: () => typeof document !== "undefined" && document.visibilityState === "visible",
-})
-
-const handleVisibilityChange = () => {
-	if (document.visibilityState === "visible") {
-		void loadStatus()
-	}
-}
+watch(
+	computedStatusItems,
+	(next) => {
+		statusItems.value = next
+	},
+	{ immediate: true }
+)
 
 const handleSaveZone = async (zone: DrainageZone) => {
 	await baseHandleSaveZone(
@@ -375,16 +370,17 @@ watch(
 onMounted(async () => {
 	try {
 		await loadZonesFromAPI()
-		await loadStatus()
+		await preloadDeviceInfos()
+		await loadStatusSnapshot()
 	} finally {
 		isInitialLoading.value = false
 	}
-	startPolling()
+	startAutoRefresh()
 	document.addEventListener("visibilitychange", handleVisibilityChange)
 })
 
 onBeforeUnmount(() => {
-	stopPolling()
+	stopAutoRefresh()
 	document.removeEventListener("visibilitychange", handleVisibilityChange)
 })
 </script>

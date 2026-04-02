@@ -28,7 +28,7 @@
 					>
 						<div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-4 2xl:gap-6">
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>來源系統 *</span>
+								<span>系統 *</span>
 								<FilterDropdown
 									v-model="form.source"
 									:options="sourceSelectOptions"
@@ -37,8 +37,20 @@
 								/>
 							</label>
 
+							<div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-4 2xl:gap-6">
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<span>狀態 *</span>
+									<FilterDropdown
+										v-model="form.severity"
+										:options="severityOptions"
+										placeholder="請選擇狀態（異常／警報）"
+										text-size="text-sm 2xl:text-base"
+									/>
+								</label>
+							</div>
+
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>警報類型 *</span>
+								<span>類型 *</span>
 								<FilterDropdown
 									v-model="form.alert_type"
 									:options="alertTypeOptions"
@@ -50,100 +62,46 @@
 
 						<div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-4 2xl:gap-6">
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>嚴重程度 *</span>
+								<span>目標區域 (zone)</span>
 								<FilterDropdown
-									v-model="form.severity"
-									:options="severityOptions"
-									placeholder="請選擇嚴重程度"
-									text-size="text-sm 2xl:text-base"
-								/>
-							</label>
-
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>條件類型</span>
-								<FilterDropdown
-									v-model="form.condition_type"
-									:options="conditionTypeOptions"
-									placeholder="請選擇條件類型"
-									text-size="text-sm 2xl:text-base"
-								/>
-							</label>
-						</div>
-
-						<div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-4 2xl:gap-6">
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>警報名稱</span>
-								<input
-									v-model="form.name"
-									type="text"
-									class="form-input"
-									placeholder="例如：A 水箱高水位"
-								/>
-							</label>
-
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>維度鍵 (dimension_key)</span>
-								<input
-									v-model="form.dimension_key"
-									type="text"
-									class="form-input"
-									placeholder="例如：drainage:highLevel"
-								/>
-							</label>
-						</div>
-
-						<div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-4 2xl:gap-6">
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>目標範圍</span>
-								<FilterDropdown
-									:model-value="form.target_type || ''"
-									:options="targetTypeOptions"
-									placeholder="全域"
+									:model-value="selectedZoneId"
+									:options="zoneOptions"
+									placeholder="全域（不限定區域）"
 									text-size="text-sm 2xl:text-base"
 									@update:model-value="
 										(v) => {
-											form.target_type = (v || null) as any
-											if (!form.target_type) form.target_id = null
+											handleSelectZone(v)
 										}
 									"
 								/>
 							</label>
 
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>目標 ID</span>
-								<input
-									v-model.number="form.target_id"
-									:type="form.target_type ? 'number' : 'text'"
-									:disabled="!form.target_type"
-									class="form-input"
-									:class="{ 'cursor-not-allowed opacity-70': !form.target_type }"
-									:placeholder="
-										form.target_type === 'system'
-											? 'systemId（location_systems.id）'
-											: form.target_type === 'location'
-												? 'locationId（locations.id）'
-												: form.target_type === 'zone'
-													? 'zoneId（zones.id）'
-													: '全域不需填寫'
-									"
+								<span>目標地點 (location)</span>
+								<FilterDropdown
+									:model-value="selectedLocationId"
+									:options="locationOptions"
+									:disabled="!selectedZoneId"
+									placeholder="先選擇區域"
+									text-size="text-sm 2xl:text-base"
+									@update:model-value="(v) => handleSelectLocation(v)"
 								/>
 							</label>
 						</div>
 
 						<div
-							v-if="form.condition_type === 'threshold'"
+							v-if="form.alert_type === 'threshold'"
 							class="rounded-2xl border border-white/15 bg-white/5 p-4 2xl:p-5"
 						>
-							<p class="mb-3 text-sm font-medium text-white/90 2xl:text-base">Threshold 條件設定</p>
+							<p class="mb-3 text-sm font-medium text-white/90 2xl:text-base">警報細節設定</p>
 							<div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-4 2xl:gap-6">
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>參數 (parameter) *</span>
-									<input
+									<FilterDropdown
 										v-model="thresholdConfig.parameter"
-										type="text"
-										required
-										class="form-input"
-										placeholder="例如：pm25 / humidity"
+										:options="parameterOptions"
+										placeholder="請選擇參數"
+										text-size="text-sm 2xl:text-base"
 									/>
 								</label>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
@@ -179,10 +137,8 @@
 						</div>
 
 						<div v-else class="rounded-2xl border border-white/15 bg-white/5 p-4 2xl:p-5">
-							<p class="mb-3 text-sm font-medium text-white/90 2xl:text-base">
-								條件設定
-							</p>
-							<template v-if="form.condition_type === 'error_count'">
+							<p class="mb-3 text-sm font-medium text-white/90 2xl:text-base">警報細節設定</p>
+							<template v-if="form.alert_type === 'offline'">
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>最小錯誤次數 (min_errors) *</span>
 									<input
@@ -195,28 +151,43 @@
 									/>
 								</label>
 							</template>
-							<template v-else-if="form.condition_type === 'bit_state'">
+							<template v-else-if="form.alert_type === 'di' || form.alert_type === 'do'">
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>位元鍵 (bit_key) *</span>
-									<FilterDropdown
-										v-model="bitStateConfig.bit_key"
-										:options="bitKeyOptions"
-										placeholder="請選擇位元鍵"
-										text-size="text-sm 2xl:text-base"
+									<span>位址 *</span>
+									<input
+										v-model.number="ioAddress"
+										type="number"
+										min="0"
+										max="65535"
+										required
+										class="form-input"
+										placeholder="位址"
+										@blur="handleIoAddressBlur"
 									/>
 								</label>
+							</template>
+							<template v-else>
+								<p class="text-sm text-white/60">請先選擇警報類型</p>
 							</template>
 						</div>
 
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-							<span>訊息模板 (message_template)</span>
+							<span>訊息模板</span>
 							<textarea
 								v-model="form.message_template"
 								rows="3"
 								class="form-input min-h-[5.5rem] resize-y"
-								placeholder="例如：{source_name} 連續 {error_count} 次無法連接"
+								placeholder="例如：{location_label} 連續 {error_count} 次無法連接"
+								@input="handleMessageTemplateInput"
 							/>
 						</label>
+						<p
+							v-if="previewRendered"
+							class="text-sm leading-relaxed text-white/55 2xl:text-base"
+							aria-live="polite"
+						>
+							預覽：{{ previewRendered }}
+						</p>
 
 						<label class="flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base">
 							<span class="sr-only">規則啟用狀態</span>
@@ -259,8 +230,24 @@
 </template>
 
 <script setup lang="ts">
-import type { AlertRule, AlertSeverity, AlertSource, AlertTargetType, AlertType } from "~/types/alert"
+import type {
+	AlertRule,
+	AlertSeverity,
+	AlertSource,
+	AlertTargetType,
+	AlertType,
+} from "~/types/alert"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
+import type { UnifiedZone } from "~/types/location"
+import { useLocationApi } from "~/composables/location/api/useLocationApi"
+import { useModbusValidation } from "~/composables/location/validation/useModbusValidation"
+import { useAlertApi } from "~/composables/systems/alerts/useAlertApi"
+import {
+	alertSourceToSystemType,
+	getDefaultRuleMessageTemplate,
+	inferRuleTemplateKeyFromAlertType,
+	isAllowedThresholdOperator,
+} from "~/utils/alertUtils"
 
 interface OptionItem {
 	value: string
@@ -271,11 +258,8 @@ interface RuleFormValue {
 	source: AlertSource
 	alert_type: AlertType
 	severity: AlertSeverity
-	name: string
-	dimension_key: string
 	target_type: AlertTargetType | null
 	target_id: number | null
-	condition_type: "threshold" | "error_count" | "bit_state"
 	message_template: string
 	enabled: boolean
 }
@@ -288,17 +272,24 @@ interface Props {
 	sourceOptions: OptionItem[]
 }
 
+type MessageTemplateKey =
+	| "rule.threshold.v1"
+	| "rule.offline.v1"
+	| "rule.di.v1"
+	| "rule.do.v1"
+	| "custom"
+
 interface SubmitPayload {
 	source: AlertSource
 	alert_type: AlertType
 	severity: AlertSeverity
-	name?: string
-	dimension_key?: string
 	target_type?: AlertTargetType | null
 	target_id?: number | null
 	condition_type: "threshold" | "error_count" | "bit_state"
 	condition_config: Record<string, unknown>
 	message_template?: string
+	message_template_key?: MessageTemplateKey
+	message_template_custom?: boolean
 	enabled: boolean
 }
 
@@ -311,22 +302,22 @@ const props = withDefaults(defineProps<Props>(), {
 const sourceSelectOptions = computed(() => props.sourceOptions.filter((o) => o.value !== ""))
 
 const alertTypeOptions: OptionItem[] = [
-	{ value: "offline", label: "offline" },
-	{ value: "error", label: "error" },
-	{ value: "threshold", label: "threshold" },
+	{ value: "offline", label: "設備狀態警報" },
+	{ value: "di", label: "DI 警報" },
+	{ value: "do", label: "DO 警報" },
+	{ value: "threshold", label: "環境參數警報" },
 ]
 
 const severityOptions: OptionItem[] = [
-	{ value: "warning", label: "warning" },
-	{ value: "error", label: "error" },
-	{ value: "critical", label: "critical" },
+	{ value: "warning", label: "異常" },
+	{ value: "critical", label: "警報" },
 ]
 
 const thresholdOperatorOptions: OptionItem[] = [
-	{ value: ">", label: "大於 (>)" },
-	{ value: ">=", label: "大於等於 (>=)" },
-	{ value: "<", label: "小於 (<)" },
-	{ value: "<=", label: "小於等於 (<=)" },
+	{ value: ">", label: "超過（>）" },
+	{ value: ">=", label: "超過含等於（>=）" },
+	{ value: "<", label: "低於（<）" },
+	{ value: "<=", label: "低於含等於（<=）" },
 ]
 
 const emit = defineEmits<{
@@ -338,11 +329,8 @@ const form = reactive<RuleFormValue>({
 	source: "environment",
 	alert_type: "threshold",
 	severity: "warning",
-	name: "",
-	dimension_key: "",
 	target_type: null,
 	target_id: null,
-	condition_type: "threshold",
 	message_template: "",
 	enabled: true,
 })
@@ -358,39 +346,54 @@ const errorCountConfig = reactive({
 	min_errors: 5,
 })
 
-const bitStateConfig = reactive({
-	bit_key: "runningAlarm",
+const ioAddress = ref<number>(0)
+
+const { normalizeModbusAddressInput } = useModbusValidation()
+
+const alertApi = useAlertApi()
+const previewRendered = ref("")
+let previewDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+const inferTemplateKey = (): MessageTemplateKey =>
+	inferRuleTemplateKeyFromAlertType(form.alert_type) as MessageTemplateKey
+
+const syncDefaultMessageTemplate = (): string => getDefaultRuleMessageTemplate(form.alert_type)
+
+const parameterOptions: OptionItem[] = [
+	{ value: "noise", label: "noise（噪音值）" },
+	{ value: "pm25", label: "pm25（PM2.5）" },
+	{ value: "pm10", label: "pm10（PM10）" },
+	{ value: "co2", label: "co2（CO2）" },
+	{ value: "temperature", label: "temperature（溫度）" },
+	{ value: "humidity", label: "humidity（濕度）" },
+	{ value: "tvoc", label: "tvoc（TVOC）" },
+	{ value: "hcho", label: "hcho（HCHO）" },
+	{ value: "wind", label: "wind（風速）" },
+]
+
+const locationApi = useLocationApi()
+const zones = ref<UnifiedZone[]>([])
+const selectedZoneId = ref<string>("")
+const selectedLocationId = ref<string>("")
+
+const zoneOptions = computed<OptionItem[]>(() => {
+	const base: OptionItem[] = [{ value: "", label: "全域" }]
+	return base.concat(zones.value.map((z) => ({ value: String(z.id), label: z.name })))
 })
 
-const conditionTypeOptions: OptionItem[] = [
-	{ value: "threshold", label: "threshold" },
-	{ value: "error_count", label: "error_count" },
-	{ value: "bit_state", label: "bit_state" },
-]
-
-const targetTypeOptions: OptionItem[] = [
-	{ value: "", label: "全域" },
-	{ value: "system", label: "指定 systemId" },
-	{ value: "location", label: "指定 locationId" },
-	{ value: "zone", label: "指定 zoneId" },
-]
-
-const bitKeyOptions: OptionItem[] = [
-	{ value: "runningAlarm", label: "runningAlarm（運轉警報）" },
-	{ value: "coverAlarm", label: "coverAlarm（水箱蓋狀態）" },
-	{ value: "highLevel", label: "highLevel（高水位）" },
-	{ value: "lowLevel", label: "lowLevel（低水位）" },
-]
+const locationOptions = computed<OptionItem[]>(() => {
+	if (!selectedZoneId.value) return []
+	const zone = zones.value.find((z) => String(z.id) === String(selectedZoneId.value))
+	const locations = zone?.locations || []
+	return locations.map((l) => ({ value: String(l.id), label: l.name }))
+})
 
 const resetForm = () => {
 	form.source = "environment"
 	form.alert_type = "threshold"
 	form.severity = "warning"
-	form.name = ""
-	form.dimension_key = ""
 	form.target_type = null
 	form.target_id = null
-	form.condition_type = "threshold"
 	form.message_template = ""
 	form.enabled = true
 
@@ -399,24 +402,178 @@ const resetForm = () => {
 	thresholdConfig.value = 0
 	thresholdConfig.unit = ""
 	errorCountConfig.min_errors = 5
-	bitStateConfig.bit_key = "runningAlarm"
+	ioAddress.value = 0
+	selectedZoneId.value = ""
+	selectedLocationId.value = ""
+	isMessageTemplateDirty.value = false
+}
+
+const handleSelectZone = (zoneId: string) => {
+	selectedZoneId.value = zoneId || ""
+	selectedLocationId.value = ""
+	// 目標映射：若選 location → target_type=location；若只選 zone → target_type=zone；都不選 → global
+	if (!selectedZoneId.value) {
+		form.target_type = null
+		form.target_id = null
+		return
+	}
+	form.target_type = "zone"
+	form.target_id = Number(selectedZoneId.value)
+}
+
+const handleSelectLocation = (locationId: string) => {
+	selectedLocationId.value = locationId || ""
+	if (!selectedZoneId.value) {
+		form.target_type = null
+		form.target_id = null
+		return
+	}
+	if (!selectedLocationId.value) {
+		form.target_type = "zone"
+		form.target_id = Number(selectedZoneId.value)
+		return
+	}
+	form.target_type = "location"
+	form.target_id = Number(selectedLocationId.value)
+}
+
+const loadZones = async () => {
+	const systemType = alertSourceToSystemType(form.source)
+	if (!systemType) {
+		zones.value = []
+		return
+	}
+	const result = await locationApi.getZones(systemType)
+	zones.value = result.zones || []
+}
+
+const conditionTypeForPayload = (): SubmitPayload["condition_type"] =>
+	form.alert_type === "offline"
+		? "error_count"
+		: form.alert_type === "di" || form.alert_type === "do"
+			? "bit_state"
+			: "threshold"
+
+const buildConditionConfig = (): Record<string, unknown> => {
+	if (form.alert_type === "threshold") {
+		return {
+			parameter: thresholdConfig.parameter.trim(),
+			operator: thresholdConfig.operator,
+			value: Number(thresholdConfig.value),
+			unit: thresholdConfig.unit.trim(),
+		}
+	}
+	if (form.alert_type === "offline") {
+		return {
+			min_errors: Math.max(1, Number(errorCountConfig.min_errors) || 1),
+		}
+	}
+	const addr = normalizeModbusAddressInput(ioAddress.value)
+	return {
+		bit_key: `${form.alert_type}:${addr}`,
+	}
+}
+
+const handleIoAddressBlur = () => {
+	ioAddress.value = normalizeModbusAddressInput(ioAddress.value)
+}
+
+const buildPreviewSampleCurrentValue = (): number => {
+	if (form.alert_type !== "threshold") return 72
+	const t = Number(thresholdConfig.value)
+	if (!Number.isFinite(t)) return 72
+	const op = thresholdConfig.operator
+	if (op === ">" || op === ">=") return t + 2
+	if (op === "<" || op === "<=") return Math.max(0, t - 2)
+	return t + 2
+}
+
+const schedulePreview = () => {
+	if (!import.meta.client) return
+	if (previewDebounceTimer) clearTimeout(previewDebounceTimer)
+	previewDebounceTimer = setTimeout(async () => {
+		try {
+			const { rendered } = await alertApi.previewAlertRuleMessage({
+				source: form.source,
+				alert_type: form.alert_type,
+				condition_type: conditionTypeForPayload(),
+				condition_config: buildConditionConfig(),
+				target_type: form.target_type,
+				target_id: form.target_id,
+				message_template: form.message_template,
+				message_template_custom: isMessageTemplateDirty.value,
+				message_template_key: isMessageTemplateDirty.value ? "custom" : inferTemplateKey(),
+				sample_source_display_name: "範例地點",
+				sample_current_value: buildPreviewSampleCurrentValue(),
+				sample_error_count:
+					form.alert_type === "offline" ? Math.max(1, Number(errorCountConfig.min_errors) || 1) : 5,
+			})
+			previewRendered.value = rendered
+		} catch {
+			previewRendered.value = ""
+		}
+	}, 150)
+}
+
+const isMessageTemplateDirty = ref(false)
+const handleMessageTemplateInput = () => {
+	isMessageTemplateDirty.value = true
 }
 
 watch(
-	() => form.target_type,
-	() => {
-		if (!form.target_type) {
-			form.target_id = null
+	() => [form.source, form.alert_type] as const,
+	async ([nextSource]) => {
+		await loadZones()
+		// 切換來源後，若原本選的 zone/location 不存在就重置
+		const zoneExists = selectedZoneId.value
+			? zones.value.some((z) => String(z.id) === String(selectedZoneId.value))
+			: true
+		if (!zoneExists) {
+			handleSelectZone("")
 		}
-	}
+
+		// 編輯模式：若只帶 locationId，從 zones 反推 zoneId，確保 location 下拉可用
+		if (selectedLocationId.value && !selectedZoneId.value) {
+			for (const z of zones.value) {
+				const exists = (z.locations || []).some(
+					(l) => String(l.id) === String(selectedLocationId.value)
+				)
+				if (exists) {
+					selectedZoneId.value = String(z.id)
+					break
+				}
+			}
+			if (selectedZoneId.value) {
+				form.target_type = "location"
+				form.target_id = Number(selectedLocationId.value)
+			}
+		}
+
+		if (!isMessageTemplateDirty.value) {
+			form.message_template = syncDefaultMessageTemplate()
+		}
+		schedulePreview()
+	},
+	{ immediate: true }
 )
 
 watch(
-	() => [form.condition_type, bitStateConfig.bit_key] as const,
-	([type, bitKey]) => {
-		if (type !== "bit_state") return
-		// 位元告警的 alert_type 只作分類；依既有後端映射：high/low = threshold，其餘 = error
-		form.alert_type = bitKey === "highLevel" || bitKey === "lowLevel" ? "threshold" : "error"
+	() =>
+		[
+			form.message_template,
+			isMessageTemplateDirty.value,
+			form.target_type,
+			form.target_id,
+			thresholdConfig.parameter,
+			thresholdConfig.operator,
+			thresholdConfig.value,
+			thresholdConfig.unit,
+			errorCountConfig.min_errors,
+			ioAddress.value,
+			selectedZoneId.value,
+		] as const,
+	() => {
+		schedulePreview()
 	}
 )
 
@@ -429,30 +586,43 @@ watch(
 		}
 		form.source = rule.source
 		form.alert_type = rule.alert_type
-		form.severity = rule.severity
-		form.name = String((rule as any).name || "")
-		form.dimension_key = String((rule as any).dimension_key || "")
+		// 相容：舊資料若是 error severity，前端顯示成 critical（紅）
+		form.severity = rule.severity === "error" ? "critical" : rule.severity
 		form.target_type = ((rule as any).target_type as AlertTargetType) || null
 		form.target_id = (rule as any).target_id != null ? Number((rule as any).target_id) : null
 		form.message_template = rule.message_template || ""
 		form.enabled = rule.enabled
+		isMessageTemplateDirty.value = Boolean((rule as AlertRule).message_template_custom)
 
-		form.condition_type =
-			(rule.condition_type as any) ||
-			(rule.alert_type === "threshold" ? "threshold" : "error_count")
+		// 目標反推：location > zone；其餘視為全域
+		selectedZoneId.value = ""
+		selectedLocationId.value = ""
+		if (form.target_type === "location" && form.target_id != null) {
+			selectedLocationId.value = String(form.target_id)
+			form.target_type = "location"
+		} else if (form.target_type === "zone" && form.target_id != null) {
+			selectedZoneId.value = String(form.target_id)
+			form.target_type = "zone"
+		} else {
+			form.target_type = null
+			form.target_id = null
+		}
 
-		if (form.condition_type === "threshold") {
+		if (rule.condition_type === "threshold") {
 			const config = (rule.condition_config || {}) as Record<string, unknown>
 			thresholdConfig.parameter = String(config.parameter || "")
-			thresholdConfig.operator = String(config.operator || ">")
+			const rawOp = String(config.operator || ">")
+			thresholdConfig.operator = isAllowedThresholdOperator(rawOp) ? rawOp : ">"
 			thresholdConfig.value = Number(config.value ?? 0)
 			thresholdConfig.unit = String(config.unit || "")
-		} else if (form.condition_type === "error_count") {
+		} else if (rule.condition_type === "error_count") {
 			const config = (rule.condition_config || {}) as Record<string, unknown>
 			errorCountConfig.min_errors = Number(config.min_errors ?? 5)
-		} else if (form.condition_type === "bit_state") {
+		} else if (rule.condition_type === "bit_state") {
 			const config = (rule.condition_config || {}) as Record<string, unknown>
-			bitStateConfig.bit_key = String(config.bit_key || "runningAlarm")
+			const bitKey = String(config.bit_key || "")
+			const match = bitKey.match(/^(di|do):(\d+)$/i)
+			ioAddress.value = normalizeModbusAddressInput(match ? Number(match[2]) : 0)
 		}
 	},
 	{ immediate: true }
@@ -463,31 +633,21 @@ const handleSubmit = () => {
 	const targetId = form.target_id != null ? Number(form.target_id) : null
 	if (targetType && (targetId == null || !Number.isFinite(targetId))) return
 
+	const conditionType = conditionTypeForPayload()
+	const conditionConfig = buildConditionConfig()
+	const custom = isMessageTemplateDirty.value
+
 	const payload: SubmitPayload = {
 		source: form.source,
 		alert_type: form.alert_type,
 		severity: form.severity,
-		name: form.name.trim() || undefined,
-		dimension_key: form.dimension_key.trim() || undefined,
 		target_type: targetType,
 		target_id: targetId,
-		condition_type: form.condition_type,
-		condition_config:
-			form.condition_type === "threshold"
-				? {
-						parameter: thresholdConfig.parameter.trim(),
-						operator: thresholdConfig.operator,
-						value: Number(thresholdConfig.value),
-						unit: thresholdConfig.unit.trim(),
-					}
-				: form.condition_type === "error_count"
-					? {
-							min_errors: Math.max(1, Number(errorCountConfig.min_errors) || 1),
-						}
-					: {
-							bit_key: String(bitStateConfig.bit_key || "").trim(),
-						},
+		condition_type: conditionType,
+		condition_config: conditionConfig,
 		message_template: form.message_template.trim(),
+		message_template_key: custom ? "custom" : inferTemplateKey(),
+		message_template_custom: custom,
 		enabled: form.enabled,
 	}
 

@@ -71,7 +71,7 @@
 					</div>
 
 					<!-- 中央區域平面圖 -->
-					<div class="relative h-[600px] w-full p-4 2xl:h-[780px]">
+					<div class="map-location-dots relative h-[600px] w-full p-4 2xl:h-[780px]">
 						<NuxtImg
 							v-if="zonePlanImage"
 							:src="zonePlanImage"
@@ -87,21 +87,22 @@
 						</div>
 						<!-- 地點點位（只顯示已定位的） -->
 						<template v-for="location in currentZoneLocations" :key="location.id">
-							<div class="location-dot-wrapper" :style="getLightingLocationStyle(location)">
+							<div class="location-dot-wrapper" :style="getLocationDotStyle(location)">
 								<div
 									class="location-dot"
 									:class="{ 'is-active': selectedLocation === location.id }"
 									role="button"
 									tabindex="0"
-									:data-status="isLocationNormal(location) ? 'normal' : 'abnormal'"
-									:title="`${location.name}：${isLocationNormal(location) ? '正常' : '異常'}`"
-									:aria-label="`${location.name}：${isLocationNormal(location) ? '正常' : '異常'}`"
+									:data-status="dotStatusForLocation(location)"
+									:data-flash="flashModeForLocation(location)"
+									:title="tooltipLabelForLocation(location)"
+									:aria-label="tooltipLabelForLocation(location)"
 									@click.stop="selectLocation(location)"
 								></div>
 								<CategoryTooltip
 									:show="true"
 									:category-name="location.name"
-									:is-normal="isLocationNormal(location)"
+									:is-normal="dotStatusForLocation(location) === 'normal'"
 								/>
 							</div>
 						</template>
@@ -181,9 +182,9 @@
 		v-model="showLocationManagementDialog"
 		:zone="selectedZoneData"
 		:system-type="selectedSystemType ?? undefined"
-		:read-only="!(isAdmin || hasPermission(PERMISSIONS.LOCATION_MANAGEMENT))"
+		mode="delete-only"
+		:read-only="true"
 		:allow-delete="isAdmin"
-		@save="handleSaveUnifiedZone"
 		@delete="handleDeleteUnifiedZone"
 	/>
 </template>
@@ -194,10 +195,25 @@ import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { useAuth } from "~/composables/core/useAuth"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { PERMISSIONS } from "~/constants/permissions"
-import { hasLightingCoordinates, getLightingLocationStyle } from "~/utils/locationAdapter"
+import {
+	getLocationStyleBySystem,
+	hasAnySystemCoordinates,
+	hasCoordinatesForSystem,
+} from "~/utils/locationAdapter"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import LocationManagementDialog from "~/components/location/LocationManagementDialog.vue"
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
+import type { LightingZone } from "~/types/lighting"
+import type { DrainageZone } from "~/types/drainage"
+import type { FireZone } from "~/types/fire"
+import { useLightingApi } from "~/composables/systems/lighting/useLightingApi"
+import { useDrainageApi } from "~/composables/systems/drainage/useDrainageApi"
+import { useFireApi } from "~/composables/systems/fire/useFireApi"
+import { useLightingModbusIntegration } from "~/composables/systems/lighting/useLightingModbusIntegration"
+import { useDrainageModbusIntegration } from "~/composables/systems/drainage/useDrainageModbusIntegration"
+import { useFireModbusIntegration } from "~/composables/systems/fire/useFireModbusIntegration"
+import { getSystemTypeLabel } from "~/constants/systemLabels"
+import { getLocationUiKey } from "~/utils/locationUiId"
 
 definePageMeta({
 	layout: "default",
@@ -206,7 +222,7 @@ definePageMeta({
 const { isAdmin, hasPermission } = useAuth()
 const locationApi = useLocationApi()
 const { handleError } = useErrorHandler()
-const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
+const { handleDeleteZone: baseHandleDeleteZone, sortZones } =
 	useZoneManagement<UnifiedLocation, UnifiedZone>()
 
 // 左側區域參考與高度（用於使右側面板同高）
@@ -241,6 +257,44 @@ const selectedZone = ref<string>("")
 const selectedLocation = ref<string>("")
 // 選中的系統類型（用於篩選）
 const selectedSystemType = ref<SystemType | null>(null)
+
+// 選系統時才載入對應系統的狀態（避免總覽時打爆 API/輪詢）
+const lightingApi = useLightingApi()
+const drainageApi = useDrainageApi()
+const fireApi = useFireApi()
+
+const lightingZones = ref<LightingZone[]>([])
+const drainageZones = ref<DrainageZone[]>([])
+const fireZones = ref<FireZone[]>([])
+
+const lightingSelectedZoneKey = computed(() => selectedZone.value)
+const {
+	locationStatuses: lightingLocationStatuses,
+	initializeLocationStatuses: initializeLightingStatuses,
+	preloadDeviceInfos: preloadLightingDevices,
+	loadAllLocationStatuses: loadAllLightingStatuses,
+	startAutoRefresh: startLightingAutoRefresh,
+	stopAutoRefresh: stopLightingAutoRefresh,
+	handleVisibilityChange: handleLightingVisibilityChange,
+} = useLightingModbusIntegration(lightingZones, lightingSelectedZoneKey)
+
+const {
+	statusItems: drainageStatusItems,
+	preloadDeviceInfos: preloadDrainageDevices,
+	loadStatusSnapshot: loadDrainageSnapshot,
+	startAutoRefresh: startDrainageAutoRefresh,
+	stopAutoRefresh: stopDrainageAutoRefresh,
+	handleVisibilityChange: handleDrainageVisibilityChange,
+} = useDrainageModbusIntegration(drainageZones)
+
+const {
+	statusItems: fireStatusItems,
+	preloadDeviceInfos: preloadFireDevices,
+	loadStatusSnapshot: loadFireSnapshot,
+	startAutoRefresh: startFireAutoRefresh,
+	stopAutoRefresh: stopFireAutoRefresh,
+	handleVisibilityChange: handleFireVisibilityChange,
+} = useFireModbusIntegration(fireZones)
 
 // 其他狀態
 const isZonePlanLoaded = ref(false)
@@ -288,43 +342,180 @@ const sortedZones = computed(() => sortZones(zones.value))
 // 區域示意圖
 const zonePlanImage = computed(() => selectedZoneData.value?.imageUrl)
 
-// 判斷地點是否正常（暫時都返回正常，未來可以根據系統狀態判斷）
-const isLocationNormal = (location: UnifiedLocation): boolean => {
-	// 未來可以根據系統狀態判斷
-	return true
+type DotStatus = "normal" | "abnormal" | "alarm"
+type FlashMode = "none" | "slow" | "fast"
+
+const dotSeverity = (s: DotStatus): 0 | 1 | 2 => {
+	if (s === "alarm") return 2
+	if (s === "abnormal") return 1
+	return 0
 }
 
-// 當前選中區域的地點列表（過濾掉未定位的點位，只有定位的點位才會顯示在地圖上）
-// 並根據選中的系統類型進行篩選
+const buildUiStatusMap = (items: unknown[]): Map<string, string> => {
+	const m = new Map<string, string>()
+	for (const it of items) {
+		const locationId = String((it as any).locationId || "")
+		if (!locationId) continue
+		m.set(locationId, String((it as any).uiStatus || "unknown"))
+	}
+	return m
+}
+
+const drainageUiStatusByLocationId = computed(() => buildUiStatusMap(drainageStatusItems.value || []))
+const fireUiStatusByLocationId = computed(() => buildUiStatusMap(fireStatusItems.value || []))
+
+const lightingHealthByLocationDbId = computed(() => {
+	const m = new Map<string, { status?: "normal" | "warning" | "error" }>()
+	for (const zone of lightingZones.value || []) {
+		for (let i = 0; i < (zone.locations || []).length; i += 1) {
+			const loc = zone.locations[i] as any
+			const dbId = loc?.id ? String(loc.id) : ""
+			if (!dbId) continue
+			// lighting integration 的 key 是 UI key（含 index）；以相同算法取回 status，再映射到 dbId
+			const uiKey = getLocationUiKey({ zone, location: loc, locationIndex: i })
+			const s = lightingLocationStatuses.value[uiKey]?.status
+			m.set(dbId, { status: s })
+		}
+	}
+	return m
+})
+
+const uiStatusToDot = (s: string): DotStatus => {
+	// 與各系統頁一致：warning/offline/unknown => abnormal，alarm => alarm
+	const t = String(s || "unknown")
+	if (t === "normal") return "normal"
+	if (t === "alarm") return "alarm"
+	if (t === "warning" || t === "offline" || t === "unknown") return "abnormal"
+	return "abnormal"
+}
+
+const uiStatusToFlash = (s: string): FlashMode => {
+	const t = String(s || "unknown")
+	if (t === "normal") return "none"
+	if (t === "alarm") return "fast"
+	return "slow"
+}
+
+const locationHasSystemType = (location: UnifiedLocation, systemType: SystemType): boolean => {
+	const systems = location.systems || []
+	return systems.some((s) => s?.systemType === systemType)
+}
+
+const getModbusUiStatus = (locationId: string): string | null => {
+	if (selectedSystemType.value === "drainage") {
+		return drainageUiStatusByLocationId.value.get(locationId) ?? "unknown"
+	}
+	if (selectedSystemType.value === "fire") return fireUiStatusByLocationId.value.get(locationId) ?? "unknown"
+	return null
+}
+
+const dotStatusForLocation = (location: UnifiedLocation): DotStatus => {
+	const id = String(location.id || "")
+
+	if (!selectedSystemType.value) {
+		let best: DotStatus = "normal"
+
+		if (locationHasSystemType(location, "drainage")) {
+			const s = uiStatusToDot(drainageUiStatusByLocationId.value.get(id) ?? "unknown")
+			if (dotSeverity(s) > dotSeverity(best)) best = s
+		}
+
+		if (locationHasSystemType(location, "fire")) {
+			const s = uiStatusToDot(fireUiStatusByLocationId.value.get(id) ?? "unknown")
+			if (dotSeverity(s) > dotSeverity(best)) best = s
+		}
+
+		if (locationHasSystemType(location, "lighting")) {
+			const lighting = lightingHealthByLocationDbId.value.get(id)?.status
+			if (lighting === "normal") {
+				// no-op
+			} else {
+				// 照明對外僅兩態：normal / abnormal（warning、error、缺值都算異常）
+				best = dotSeverity(best) >= 1 ? best : "abnormal"
+			}
+		}
+
+		return best
+	}
+
+	const modbusStatus = getModbusUiStatus(id)
+	if (modbusStatus !== null) return uiStatusToDot(modbusStatus)
+
+	if (selectedSystemType.value === "lighting") {
+		const s = lightingHealthByLocationDbId.value.get(id)?.status
+		if (s === "normal") return "normal"
+		// 照明對外僅兩態：normal / abnormal（warning、error、缺值都算異常）
+		return "abnormal"
+	}
+	return "normal"
+}
+
+const flashModeForLocation = (location: UnifiedLocation): FlashMode => {
+	const id = String(location.id || "")
+
+	if (!selectedSystemType.value) {
+		const s = dotStatusForLocation(location)
+		if (s === "alarm") return "fast"
+		if (s === "abnormal") return "slow"
+		return "none"
+	}
+
+	const modbusStatus = getModbusUiStatus(id)
+	if (modbusStatus !== null) return uiStatusToFlash(modbusStatus)
+
+	if (selectedSystemType.value === "lighting") {
+		const s = lightingHealthByLocationDbId.value.get(id)?.status
+		// 照明監控僅兩態：正常不閃，其餘慢閃（與 lighting StatusCenter 一致）
+		if (s === "normal") return "none"
+		return "slow"
+	}
+	return "none"
+}
+
+const tooltipLabelForLocation = (location: UnifiedLocation): string => {
+	const status = dotStatusForLocation(location)
+	const label = status === "normal" ? "正常" : status === "alarm" ? "警報" : "異常"
+	if (selectedSystemType.value) return `${location.name}：${label}`
+
+	const id = String(location.id || "")
+	const parts: string[] = []
+	const drainageUi = drainageUiStatusByLocationId.value.get(id)
+	if (drainageUi && drainageUi !== "unknown" && drainageUi !== "normal") {
+		parts.push(`衛生排水：${uiStatusToDot(drainageUi) === "alarm" ? "警報" : "異常"}`)
+	}
+	const fireUi = fireUiStatusByLocationId.value.get(id)
+	if (fireUi && fireUi !== "unknown" && fireUi !== "normal") {
+		parts.push(`消防：${uiStatusToDot(fireUi) === "alarm" ? "警報" : "異常"}`)
+	}
+	const lighting = lightingHealthByLocationDbId.value.get(id)?.status
+	if (lighting === "warning") parts.push("照明：異常")
+	if (lighting === "error") parts.push("照明：警報")
+
+	return parts.length ? `${location.name}：${label}\n${parts.join("、")}` : `${location.name}：${label}`
+}
+
 const currentZoneLocations = computed(() => {
 	if (!selectedZone.value) return []
 	const zone = selectedZoneData.value
 	if (!zone) return []
 
-	// 先過濾有座標的地點（目前只有照明系統支援座標）
-	let locations = (zone.locations || []).filter((loc) => hasLightingCoordinates(loc))
-
-	// 如果選中了系統類型，進一步篩選
-	if (selectedSystemType.value) {
-		locations = locations.filter((loc) =>
-			loc.systems?.some((system) => system.systemType === selectedSystemType.value)
-		)
-	}
-
-	return locations
+	return (zone.locations || []).filter((loc) => {
+		if (selectedSystemType.value) return hasCoordinatesForSystem(loc, selectedSystemType.value)
+		return hasAnySystemCoordinates(loc)
+	})
 })
 
-const sortZones = (zones: UnifiedZone[]) =>
-	[...zones].sort((a, b) => {
-		const aSort = Number.isFinite(a.sortOrder as number)
-			? Number(a.sortOrder)
-			: Number.MAX_SAFE_INTEGER
-		const bSort = Number.isFinite(b.sortOrder as number)
-			? Number(b.sortOrder)
-			: Number.MAX_SAFE_INTEGER
-		if (aSort !== bSort) return aSort - bSort
-		return (a.name || "").localeCompare(b.name || "", "zh-Hant")
-	})
+const getLocationDotStyle = (location: UnifiedLocation): Record<string, string> => {
+	if (!selectedSystemType.value) {
+		// 未選系統：依序找第一個有座標的系統作為顯示座標
+		for (const s of location.systems || []) {
+			const style = getLocationStyleBySystem(location, s.systemType)
+			if ("left" in style && "top" in style) return style as Record<string, string>
+		}
+		return {}
+	}
+	return getLocationStyleBySystem(location, selectedSystemType.value) as Record<string, string>
+}
 
 const firstZoneByDisplayOrder = (zs: UnifiedZone[]) => sortZones(zs)[0] ?? null
 
@@ -347,40 +538,6 @@ const loadZones = async () => {
 	}
 }
 
-const handleSaveUnifiedZone = async (zone: UnifiedZone) => {
-	const canWrite = isAdmin.value || hasPermission(PERMISSIONS.LOCATION_MANAGEMENT)
-	if (!canWrite) return
-
-	await baseHandleSaveZone(
-		zone,
-		zones,
-		async (z) => {
-			if (!z.id) {
-				return await locationApi.createZone({
-					name: z.name,
-					imageUrl: z.imageUrl,
-					description: z.description,
-					sortOrder: z.sortOrder,
-					locations: z.locations,
-				})
-			}
-			return await locationApi.updateZone(z.id, {
-				name: z.name,
-				imageUrl: z.imageUrl,
-				description: z.description,
-				sortOrder: z.sortOrder,
-				locations: z.locations,
-			})
-		},
-		{
-			selectedZoneRef: selectedZone,
-			closeDialogRef: showLocationManagementDialog,
-		}
-	)
-
-	await loadZones()
-}
-
 const handleDeleteUnifiedZone = async (zoneId: string) => {
 	if (!isAdmin.value) return
 
@@ -396,7 +553,6 @@ const handleDeleteUnifiedZone = async (zoneId: string) => {
 	})
 }
 
-// 處理區域選擇
 const handleZoneSelected = (zoneId: string) => {
 	selectedZone.value = zoneId
 	selectedLocation.value = ""
@@ -404,35 +560,127 @@ const handleZoneSelected = (zoneId: string) => {
 	selectedSystemType.value = null
 }
 
-// 處理系統類型切換（點擊已選中的系統類型則取消選中，回到全部）
 const handleSystemTypeToggle = (systemType: SystemType) => {
-	if (selectedSystemType.value === systemType) {
-		// 如果點擊的是已選中的系統類型，取消選中（顯示全部）
-		selectedSystemType.value = null
-	} else {
-		// 否則選中該系統類型
-		selectedSystemType.value = systemType
-	}
+	selectedSystemType.value = selectedSystemType.value === systemType ? null : systemType
 }
 
-// 選中地點
 const selectLocation = (location: UnifiedLocation) => {
 	selectedLocation.value = location.id
 }
 
-// 系統類型標籤映射（提取為常數，避免重複定義）
-const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
-	drainage: "排水系統",
-	environment: "環境監測",
-	lighting: "照明系統",
-	people_counting: "人流統計",
-	vehicle_access: "車輛進出",
+const stopAllSystemAutoRefresh = () => {
+	stopLightingAutoRefresh()
+	stopDrainageAutoRefresh()
+	stopFireAutoRefresh()
 }
 
-// 取得系統類型標籤
-const getLocationTypeLabel = (systemType: SystemType): string => {
-	return SYSTEM_TYPE_LABELS[systemType] || systemType
+const hasLoadedLightingSnapshot = ref(false)
+const hasLoadedDrainageSnapshot = ref(false)
+const hasLoadedFireSnapshot = ref(false)
+
+const overviewRefreshIntervalId = ref<ReturnType<typeof setInterval> | null>(null)
+
+const stopOverviewAutoRefresh = () => {
+	if (!overviewRefreshIntervalId.value) return
+	clearInterval(overviewRefreshIntervalId.value)
+	overviewRefreshIntervalId.value = null
 }
+
+const refreshOverviewStatuses = async () => {
+	// 未選系統也要維持狀態更新，避免與各系統頁資訊不一致
+	if (selectedSystemType.value) return
+
+	if (!hasLoadedLightingSnapshot.value) {
+		await loadLightingStatusSnapshot({ autoRefresh: false })
+	} else {
+		await loadAllLightingStatuses({ loadAllZones: true })
+	}
+
+	if (!hasLoadedDrainageSnapshot.value) {
+		await loadDrainageStatusSnapshot({ autoRefresh: false })
+	} else {
+		await loadDrainageSnapshot()
+	}
+
+	if (!hasLoadedFireSnapshot.value) {
+		await loadFireStatusSnapshot({ autoRefresh: false })
+	} else {
+		await loadFireSnapshot()
+	}
+}
+
+const startOverviewAutoRefresh = () => {
+	stopOverviewAutoRefresh()
+	if (selectedSystemType.value) return
+	overviewRefreshIntervalId.value = setInterval(() => {
+		if (typeof document === "undefined") return
+		if (document.visibilityState !== "visible") return
+		void refreshOverviewStatuses()
+	}, 15000)
+}
+
+const loadLightingStatusSnapshot = async (options: { autoRefresh: boolean }) => {
+	const result = await lightingApi.getZones()
+	lightingZones.value = result.zones || []
+	initializeLightingStatuses()
+	await preloadLightingDevices()
+	await loadAllLightingStatuses({ loadAllZones: true })
+	hasLoadedLightingSnapshot.value = true
+	if (options.autoRefresh) startLightingAutoRefresh()
+}
+
+const loadDrainageStatusSnapshot = async (options: { autoRefresh: boolean }) => {
+	const result = await drainageApi.getZones()
+	drainageZones.value = result.zones || []
+	await preloadDrainageDevices()
+	await loadDrainageSnapshot()
+	hasLoadedDrainageSnapshot.value = true
+	if (options.autoRefresh) startDrainageAutoRefresh()
+}
+
+const loadFireStatusSnapshot = async (options: { autoRefresh: boolean }) => {
+	const result = await fireApi.getZones()
+	fireZones.value = result.zones || []
+	await preloadFireDevices()
+	await loadFireSnapshot()
+	hasLoadedFireSnapshot.value = true
+	if (options.autoRefresh) startFireAutoRefresh()
+}
+
+const ensureAllStatusSnapshotsLoaded = async () => {
+	if (!hasLoadedLightingSnapshot.value) await loadLightingStatusSnapshot({ autoRefresh: false })
+	if (!hasLoadedDrainageSnapshot.value) await loadDrainageStatusSnapshot({ autoRefresh: false })
+	if (!hasLoadedFireSnapshot.value) await loadFireStatusSnapshot({ autoRefresh: false })
+}
+
+watch(
+	() => selectedSystemType.value,
+	async (next) => {
+		stopOverviewAutoRefresh()
+		stopAllSystemAutoRefresh()
+
+		if (!next) {
+			await ensureAllStatusSnapshotsLoaded()
+			startOverviewAutoRefresh()
+			return
+		}
+		if (next === "lighting") {
+			await loadLightingStatusSnapshot({ autoRefresh: true })
+			return
+		}
+		if (next === "drainage") {
+			await loadDrainageStatusSnapshot({ autoRefresh: true })
+			return
+		}
+		if (next === "fire") {
+			await loadFireStatusSnapshot({ autoRefresh: true })
+			return
+		}
+	},
+	{ immediate: true }
+)
+
+const getLocationTypeLabel = getSystemTypeLabel
 
 // 處理打開區域管理對話框
 const handleOpenZoneDialog = async () => {
@@ -447,6 +695,15 @@ const handleVisibilityChange = () => {
 	if (document.visibilityState === "visible") {
 		// 頁面可見時，重新載入區域資料以確保資料同步
 		void loadZones()
+		// 未選系統：補一次快照，避免點位狀態與點擊後不一致
+		if (!selectedSystemType.value) {
+			void ensureAllStatusSnapshotsLoaded()
+			startOverviewAutoRefresh()
+		}
+		// 若當前有選系統，讓該系統的輪詢也補一輪
+		if (selectedSystemType.value === "lighting") handleLightingVisibilityChange()
+		if (selectedSystemType.value === "drainage") handleDrainageVisibilityChange()
+		if (selectedSystemType.value === "fire") handleFireVisibilityChange()
 	}
 }
 
@@ -458,6 +715,9 @@ onMounted(async () => {
 	try {
 		// 載入區域列表
 		await loadZones()
+		// 未選系統預設也要能顯示異常/警報：先取一次快照（不輪詢）
+		await ensureAllStatusSnapshotsLoaded()
+		startOverviewAutoRefresh()
 
 		// 同步右側高度
 		await nextTick()
@@ -476,6 +736,8 @@ onMounted(async () => {
 // 清理
 onBeforeUnmount(() => {
 	document.removeEventListener("visibilitychange", handleVisibilityChange)
+	stopOverviewAutoRefresh()
+	stopAllSystemAutoRefresh()
 	if (leftSectionResizeObserver && leftSectionRef.value) {
 		leftSectionResizeObserver.unobserve(leftSectionRef.value)
 		leftSectionResizeObserver.disconnect()
@@ -485,119 +747,4 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* 按鈕進場動畫 */
-.fade-in-enter-active {
-	transition:
-		opacity 0.4s ease-in,
-		transform 0.4s ease-out;
-}
-
-.fade-in-enter-from {
-	opacity: 0;
-	transform: translateY(-10px);
-}
-
-.fade-in-enter-to {
-	opacity: 1;
-	transform: translateY(0);
-}
-
-/* 圖片載入動畫 */
-.image-blur-load {
-	transition:
-		filter 0.6s ease-in-out,
-		opacity 0.6s ease-in-out;
-	filter: blur(20px);
-	opacity: 0.6;
-}
-
-.image-blur-load.image-loaded {
-	filter: blur(0);
-	opacity: 1;
-}
-
-/* 地點點位樣式 */
-.location-dot-wrapper {
-	position: absolute;
-	z-index: 10;
-}
-
-.location-dot {
-	position: absolute;
-	width: 48px;
-	height: 48px;
-	border-radius: 9999px;
-	transform: translate(-50%, -50%);
-	border: 2px solid transparent;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	cursor: pointer;
-	backdrop-filter: blur(3px);
-	transition:
-		box-shadow 0.2s ease,
-		border-color 0.2s ease,
-		background 0.2s ease;
-}
-
-.location-dot::before {
-	content: "";
-	position: absolute;
-	inset: 6px;
-	border-radius: inherit;
-	transition: background 0.2s ease;
-}
-
-.location-dot::after {
-	position: relative;
-	content: "";
-	font-size: 16px;
-	font-weight: 600;
-	color: #ffffff;
-}
-
-/* 正常狀態 */
-.location-dot[data-status="normal"] {
-	background: rgba(28, 200, 138, 0.28);
-	border-color: rgba(28, 200, 138, 0.6);
-}
-
-.location-dot[data-status="normal"]::before {
-	background: #1cc88a;
-}
-
-.location-dot[data-status="normal"]::after {
-	content: "✓";
-}
-
-/* 異常狀態 */
-.location-dot[data-status="abnormal"] {
-	background: rgba(245, 101, 101, 0.32);
-	border-color: rgba(245, 101, 101, 0.72);
-	animation: dot-alert 1.6s ease-in-out infinite;
-}
-
-.location-dot[data-status="abnormal"]::before {
-	background: #f56565;
-}
-
-.location-dot[data-status="abnormal"]::after {
-	content: "!";
-}
-
-/* 選中狀態 */
-.location-dot.is-active {
-	box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
-	border-color: rgba(255, 255, 255, 0.8);
-}
-
-@keyframes dot-alert {
-	0%,
-	100% {
-		box-shadow: 0 0 18px rgba(245, 101, 101, 0.6);
-	}
-	50% {
-		box-shadow: 0 0 28px rgba(245, 101, 101, 0.95);
-	}
-}
 </style>

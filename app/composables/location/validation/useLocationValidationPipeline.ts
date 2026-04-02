@@ -8,6 +8,7 @@ import { useZoneValidation, useLocationValidation } from "~/composables/location
 import { useEnvironmentLocationValidation } from "~/composables/location/validation/useEnvironmentLocationValidation"
 import { useLightingLocationValidation } from "~/composables/location/validation/useLightingLocationValidation"
 import { usePeopleCountingLocationValidation } from "~/composables/location/validation/usePeopleCountingLocationValidation"
+import { getSystemTypeLabel } from "~/constants/systemLabels"
 
 export type ValidationPipelineResult = {
 	isValid: boolean
@@ -23,16 +24,7 @@ const merge = (...results: ValidationPipelineResult[]): ValidationPipelineResult
 	return { isValid: errors.length === 0, errors, warnings }
 }
 
-const labelForSystemType = (systemType: SystemType): string => {
-	const map: Record<SystemType, string> = {
-		environment: "環境監測",
-		lighting: "照明系統",
-		drainage: "衛生排水",
-		people_counting: "人流統計",
-		vehicle_access: "車輛進出",
-	}
-	return map[systemType] || systemType
-}
+const labelForSystemType = getSystemTypeLabel
 
 export function useLocationValidationPipeline() {
 	const { validateZone } = useZoneValidation()
@@ -114,8 +106,9 @@ export function useLocationValidationPipeline() {
 					// 目前無專用 validation composable：先以名稱必填為硬規則，其餘留給欄位層
 					break
 				}
-				case "drainage": {
-					// 目前僅有 useDrainageLocationValidation（地址展開等）；先以名稱必填為硬規則
+				case "drainage":
+				case "fire":
+				case "emergency_rescue": {
 					break
 				}
 				default:

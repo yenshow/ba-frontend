@@ -25,6 +25,9 @@ export const getFeatureKeyByRoute = (routePath: string): FeatureKey | null => {
 	if (routePath.startsWith("/construction-monitoring/vehicle-access")) return "vehicle_access";
 	if (routePath.startsWith("/infrastructure/lighting")) return "lighting";
 	if (routePath.startsWith("/infrastructure/drainage")) return "drainage";
+	if (routePath.startsWith("/security/fire")) return "fire";
+	if (routePath.startsWith("/infrastructure/fire")) return "fire";
+	if (routePath.startsWith("/security/emergency")) return "emergency_rescue";
 
 	return null;
 };

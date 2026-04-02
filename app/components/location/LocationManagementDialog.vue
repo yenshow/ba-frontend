@@ -13,13 +13,12 @@
 						<div class="flex items-center gap-3">
 							<!-- 變更提示 -->
 							<FormChangeIndicator
-								v-if="!isReadOnly && hasUnsavedChanges"
+								v-if="canEdit && hasUnsavedChanges"
 								:has-changes="hasUnsavedChanges"
 								:changed-fields="changedFieldsList"
 								:message="changeSummary"
 							/>
-							<!-- ✅ 新增刪除按鈕 -->
-							<button
+						<button
 								v-if="canDelete && zone && zone.id"
 								type="button"
 								class="p-2 text-rose-400 transition-colors hover:text-rose-300"
@@ -61,11 +60,11 @@
 													required
 													class="form-input-small flex-1"
 													placeholder="例如：1F、2F"
-													:readonly="isReadOnly"
+													:readonly="!canEdit"
 													@input="updateZoneName(($event.target as HTMLInputElement).value)"
 												/>
 												<input
-													v-if="!isReadOnly"
+													v-if="canEdit"
 													ref="fileInputRef"
 													type="file"
 													:accept="ZONE_IMAGE_ACCEPT_ATTR"
@@ -81,7 +80,7 @@
 													查看示意圖
 												</button>
 												<button
-													v-if="!isReadOnly"
+													v-if="canEdit"
 													type="button"
 													class="btn-secondary text-sm 2xl:text-base"
 													@click.stop="triggerZoneImageInput"
@@ -89,7 +88,7 @@
 													{{ pendingZone.imageUrl ? "更換" : "上傳" }}示意圖
 												</button>
 												<button
-													v-if="!isReadOnly && pendingZone.imageUrl"
+													v-if="canEdit && pendingZone.imageUrl"
 													type="button"
 													class="p-2 text-rose-400 transition-colors hover:text-rose-300"
 													@click.stop="removeZoneImage"
@@ -112,7 +111,7 @@
 											<div class="mb-3 flex items-center justify-between">
 												<span class="text-base font-medium 2xl:text-lg">地點列表</span>
 												<button
-													v-if="!isReadOnly"
+													v-if="canEdit"
 													type="button"
 													class="btn-secondary text-sm 2xl:text-base"
 													@click="addLocation"
@@ -144,7 +143,7 @@
 															required
 															class="form-input-small"
 															placeholder="例如：主控室"
-															:readonly="isReadOnly"
+															:readonly="!canEdit"
 														/>
 													</label>
 													<label
@@ -191,7 +190,7 @@
 						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
 						<div class="flex-1"></div>
 						<button
-							v-if="!isReadOnly"
+							v-if="canEdit"
 							type="button"
 							class="btn-primary"
 							:class="{ 'cursor-not-allowed opacity-50': !hasUnsavedChanges }"
@@ -236,6 +235,7 @@ import { getLocationUiKey } from "~/utils/locationUiId";
 import { useLocationValidationPipeline } from "~/composables/location/validation/useLocationValidationPipeline";
 import { useUnifiedZoneDraft } from "~/composables/location/ui/useZoneDrafts";
 import { useZoneImageUpload, openZoneSchematicPreview } from "~/composables/location/ui/useZoneImage";
+import { getSystemTypeLabel } from "~/constants/systemLabels";
 
 interface Props {
 	modelValue: boolean;
@@ -243,6 +243,11 @@ interface Props {
 	/** 可選：提供時刪除地點僅移除此系統 */
 	systemType?: SystemType;
 	readOnly?: boolean;
+	/**
+	 * full：完整管理（可新增/編輯/儲存，是否可刪由 allowDelete 決定）
+	 * delete-only：只允許刪除（用於全區點位圖彙整頁）
+	 */
+	mode?: "full" | "delete-only";
 	/** 可選：即使可編輯，也可關閉刪除功能（例如只允許 admin 刪除） */
 	allowDelete?: boolean;
 }
@@ -250,16 +255,15 @@ interface Props {
 interface Emits {
 	(e: "update:modelValue", value: boolean): void;
 	(e: "save", zone: UnifiedZone): void;
-	(e: "delete", zoneId: string): void; // ✅ 新增刪除事件
+	(e: "delete", zoneId: string): void;
 }
 
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
+const mode = computed(() => props.mode ?? "full");
 const isReadOnly = computed(() => props.readOnly === true);
-const canDelete = computed(() => {
-	if (isReadOnly.value) return false;
-	return props.allowDelete !== false;
-});
+const canEdit = computed(() => !isReadOnly.value && mode.value === "full");
+const canDelete = computed(() => props.allowDelete !== false);
 
 const errorMessage = ref("");
 
@@ -298,7 +302,7 @@ const showConfirmDialog = computed({
 const confirmDialogConfig = computed(() => confirmDialog.config.value);
 
 const handleClose = () => {
-	if (isReadOnly.value) {
+	if (!canEdit.value) {
 		closeDialog();
 		return;
 	}
@@ -329,19 +333,19 @@ const handleConfirmClose = () => {
 };
 
 const updateZoneName = (newName: string) => {
-	if (isReadOnly.value) return;
+	if (!canEdit.value) return;
 	if (!pendingZone.value) return;
 	pendingZone.value.name = newName.trim();
 };
 
 const removeZoneImage = () => {
-	if (isReadOnly.value) return;
+	if (!canEdit.value) return;
 	if (!pendingZone.value) return;
 	pendingZone.value.imageUrl = undefined;
 };
 
 const addLocation = () => {
-	if (isReadOnly.value) return;
+	if (!canEdit.value) return;
 	if (!pendingZone.value) return;
 	const newLocation: Omit<UnifiedLocation, "id" | "zoneId"> = {
 		name: "",
@@ -349,8 +353,8 @@ const addLocation = () => {
 		systems: []
 	};
 	pendingZone.value.locations = [
-		newLocation as UnifiedLocation,
-		...(pendingZone.value.locations || [])
+		...(pendingZone.value.locations || []),
+		newLocation as UnifiedLocation
 	];
 };
 
@@ -430,27 +434,15 @@ const handleConfirmDelete = () => {
 	}
 };
 
-// 系統類型標籤映射
-const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
-	environment: "環境監測",
-	lighting: "照明系統",
-	drainage: "衛生排水",
-	people_counting: "人流統計",
-	vehicle_access: "車輛進出"
-};
-
-// 取得地點的所屬系統標籤
 const getLocationSystemsLabel = (location: UnifiedLocation): string => {
-	if (!location.systems || location.systems.length === 0) {
-		return "";
-	}
+	if (!location.systems || location.systems.length === 0) return ""
 	return location.systems
-		.map(system => SYSTEM_TYPE_LABELS[system.systemType] || system.systemType)
-		.join("、");
+		.map(system => getSystemTypeLabel(system.systemType))
+		.join("、")
 };
 
 const saveChanges = async () => {
-	if (isReadOnly.value) return;
+	if (!canEdit.value) return;
 	if (!pendingZone.value || !hasUnsavedChanges.value) return;
 
 	const result = validateUnifiedZoneForSave({ zone: pendingZone.value });

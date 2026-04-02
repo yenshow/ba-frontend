@@ -56,12 +56,12 @@ export const useAlertPolling = () => {
 	 * 檢查新的警示
 	 * @param shouldProcessAlert - 優先級過濾函數
 	 * @param onAlertFound - 當發現警報時的回調函數
-	 * @param onAlertRemoved - 當警報被移除時的回調函數
+	 * @param onStillActiveIds - 本輪 API 仍為 active 的警報 id 集合（供對照並移除本地已結案 Toast）
 	 */
 	const checkNewAlerts = async (
 		shouldProcessAlert: (alert: Alert) => boolean,
 		onAlertFound: (alert: Alert) => void,
-		onAlertRemoved: (alertIds: Set<number>) => void
+		onStillActiveIds: (activeIds: Set<number>) => void
 	) => {
 		if (isChecking.value) {
 			return;
@@ -109,8 +109,7 @@ export const useAlertPolling = () => {
 				onAlertFound(alert);
 			}
 
-			// 通知已移除的警報
-			onAlertRemoved(currentActiveAlertIds);
+			onStillActiveIds(currentActiveAlertIds);
 
 			// 更新最後檢查時間（用於下次增量查詢）
 			lastCheckTime.value = new Date();
