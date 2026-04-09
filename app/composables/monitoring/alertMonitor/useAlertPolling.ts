@@ -7,8 +7,6 @@ import type { Alert, AlertFilters } from "~/types/alert";
 import { logger } from "~/utils/logger";
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi";
 import { useErrorHandler, ErrorPriority } from "~/composables/core/useErrorHandler";
-import { getTodayDateRangeUTC } from "~/utils/dateUtils";
-
 const pollingLogger = logger.createLogger("AlertPolling");
 
 /**
@@ -70,27 +68,16 @@ export const useAlertPolling = () => {
 		isChecking.value = true;
 
 		try {
-			// 只查詢今日創建的警報（與後端按天分組邏輯一致）
-			const { start: todayStart, end: todayEnd } = getTodayDateRangeUTC();
-
-			// 使用增量查詢優化：只獲取創建時間或更新時間在最後檢查時間之後的警報
 			const filters: AlertFilters = {
 				status: "active",
-				start_date: todayStart.toISOString(), // 只查詢今日的警報
-				end_date: todayEnd.toISOString(),
 				limit: 50,
 				offset: 0,
-				orderBy: "created_at",
+				orderBy: "updated_at",
 				order: "desc"
 			};
 
-			// 如果有上次檢查時間，使用增量查詢（但限制在今日範圍內）
 			if (lastCheckTime.value) {
-				const lastCheck = lastCheckTime.value;
-				// 確保增量查詢的起始時間不早於今日開始時間
-				const incrementalStart = lastCheck > todayStart ? lastCheck : todayStart;
-				filters.start_date = incrementalStart.toISOString();
-				filters.updated_after = incrementalStart.toISOString();
+				filters.updated_after = lastCheckTime.value.toISOString();
 			}
 
 			const result = await alertApi.getAlerts(filters);
@@ -198,4 +185,3 @@ export const useAlertPolling = () => {
 		reset
 	};
 };
-

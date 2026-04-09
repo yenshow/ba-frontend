@@ -6,7 +6,9 @@ export type AlertSource =
 	| "people_counting"
 	| "drainage"
 	| "hvac"
+	| "power"
 	| "fire"
+	| "emergency_rescue"
 	| "security"
 
 export type AlertStatus = "active" | "resolved" | "ignored"
@@ -72,14 +74,11 @@ export interface AlertHistoryItem {
 export interface AlertFilters {
 	source?: AlertSource
 	source_id?: number
-	device_id?: number
 	exclude_sources?: AlertSource[]
 	alert_type?: AlertType
 	dimension_key?: string
 	severity?: AlertSeverity
 	status?: AlertStatus
-	resolved?: boolean
-	ignored?: boolean
 	start_date?: string
 	end_date?: string
 	updated_after?: string

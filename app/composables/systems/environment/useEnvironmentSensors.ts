@@ -84,23 +84,10 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 		)
 	}
 
-	const reportLocationError = async (location: EnvironmentLocation | undefined, errorMessage: string) => {
-		if (!location?.systemId) return
-		try {
-			await environmentApi.reportError(location.systemId, errorMessage)
-		} catch {
-			// 靜默：不影響主要流程
-		}
-	}
-
-	const clearLocationError = async (location: EnvironmentLocation | undefined) => {
-		if (!location?.systemId) return
-		try {
-			await environmentApi.clearError(location.systemId)
-		} catch {
-			// 靜默：不影響主要流程
-		}
-	}
+	/**
+	 * 重要：環境系統的「連線錯誤追蹤 / 警報建立」以後端背景監控為準（SSOT）。
+	 * 前端頁面讀取失敗只做 UI 提示，不再呼叫 /systems/:id/errors，避免「點開頁面才會累積達閾值」。
+	 */
 
 	const updateSensorData = (
 		type: SensorParameter["type"],
@@ -500,7 +487,6 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 			}
 
 			if (successCount === 0 && failCount > 0) {
-				await reportLocationError(options.currentLocationData.value, "無法讀取感測器資料，請檢查設備連線狀態")
 				const now = Date.now()
 				const shouldShowConnectionAlert =
 					!lastConnectionAlertTime || now - lastConnectionAlertTime >= VALIDATION_ALERT_INTERVAL
@@ -513,19 +499,13 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 			if (isSensorOffline.value && successCount > 0) {
 				isSensorOffline.value = false
 				toast.success("感測器已恢復連線", 5000)
-				await clearLocationError(options.currentLocationData.value)
 			}
 		} catch (error: unknown) {
 			const errorMessage = error instanceof Error ? error.message : String(error)
 			const offline = isOfflineError(errorMessage)
 			if (offline && !isSensorOffline.value) isSensorOffline.value = true
 
-			if (offline || !isSensorOffline.value) {
-				await reportLocationError(
-					options.currentLocationData.value,
-					errorMessage || (offline ? "感測器離線，無法讀取資料" : "讀取感測器資料失敗")
-				)
-			}
+			// SSOT：不回報後端 errors（由 background monitor 處理）
 		} finally {
 			isFetching.value = false
 		}
@@ -602,16 +582,10 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 				})
 			}
 
-			if (totalSuccess === 0 && totalFail > 0) {
-				await reportLocationError(location, "無法讀取感測器資料，請檢查設備連線狀態")
-			} else if (totalSuccess > 0) {
-				await clearLocationError(location)
-			}
+			// SSOT：不回報後端 errors（由 background monitor 處理）
 		} catch (error: unknown) {
 			const errorMessage = error instanceof Error ? error.message : String(error)
-			if (isOfflineError(errorMessage)) {
-				await reportLocationError(location, errorMessage || "感測器離線，無法讀取資料")
-			}
+			// SSOT：不回報後端 errors（由 background monitor 處理）
 		} finally {
 			overviewLoadingMap.value.set(locationId, false)
 		}

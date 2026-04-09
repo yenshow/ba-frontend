@@ -44,6 +44,64 @@
 			</div>
 		</section>
 
+		<ClientOnly>
+			<section class="rounded-2xl border border-white/20 bg-white/10 p-6 2xl:p-8">
+				<h2 class="text-lg font-semibold text-white 2xl:text-xl">配額使用狀態</h2>
+				<div class="mt-4 overflow-hidden rounded-xl border border-white/15">
+					<table class="w-full border-collapse">
+						<thead>
+							<tr class="bg-white/5 text-left text-sm text-white/70 2xl:text-base">
+								<th class="px-4 py-3 font-medium">模組</th>
+								<th class="px-4 py-3 font-medium">使用量</th>
+								<th class="px-4 py-3 font-medium">上限</th>
+								<th class="px-4 py-3 font-medium">狀態</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr
+								v-for="row in quotaRows"
+								:key="row.key"
+								class="border-t border-white/10 text-sm text-white/80 2xl:text-base"
+							>
+								<td class="px-4 py-3">
+									<span class="font-medium text-white">{{ row.label }}</span>
+								</td>
+								<td class="px-4 py-3 tabular-nums">
+									{{ row.used }}
+								</td>
+								<td class="px-4 py-3 tabular-nums">
+									{{ row.maxText }}
+								</td>
+								<td class="px-4 py-3">
+									<span
+										class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 2xl:text-sm"
+										:class="
+											row.isExceeded
+												? 'bg-rose-500/15 text-rose-100 ring-rose-400/30'
+												: row.isNear
+													? 'bg-amber-500/15 text-amber-100 ring-amber-400/30'
+													: 'bg-emerald-500/15 text-emerald-100 ring-emerald-400/30'
+										"
+									>
+										{{ row.statusText }}
+									</span>
+								</td>
+							</tr>
+							<tr v-if="quotaRows.length === 0" class="border-t border-white/10">
+								<td class="px-4 py-4 text-sm text-white/60 2xl:text-base" colspan="4">尚未設定任何配額</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</section>
+			<template #fallback>
+				<section class="rounded-2xl border border-white/20 bg-white/10 p-6 2xl:p-8">
+					<h2 class="text-lg font-semibold text-white 2xl:text-xl">配額使用狀態</h2>
+					<p class="mt-2 text-sm text-white/60 2xl:text-base">載入中...</p>
+				</section>
+			</template>
+		</ClientOnly>
+
 		<!-- 啟用方式：線上 | 離線（一卡兩步驟） -->
 		<section class="grid grid-cols-1 gap-6 2xl:grid-cols-2 2xl:gap-8">
 			<!-- 線上啟用 -->
@@ -66,7 +124,8 @@
 							aria-label="License Key 輸入"
 						/>
 						<span class="text-sm text-white/50">
-							<span v-if="isActivated"
+							<span v-if="showLicensePlaceholder">載入中...</span>
+							<span v-else-if="isActivated"
 								>已啟用主授權；若要追加功能模組，請輸入副 License Key 並再次啟用。</span
 							>
 							<span v-else>所有流程以 LK 為主；啟用成功後可回顯 SN 供稽核用。</span>
@@ -302,6 +361,46 @@ const canGenerateRequestFile = computed(() => !!requestFileLicenseKeyInput.value
 const isActivated = computed(() => (license.value.features?.length ?? 0) > 0);
 
 const licenseStatusText = computed(() => (isActivated.value ? "已啟用" : "未啟用"));
+
+type QuotaRow = {
+	key: string;
+	label: string;
+	used: number;
+	max: number | null;
+	maxText: string;
+	isExceeded: boolean;
+	isNear: boolean;
+	statusText: string;
+};
+
+const quotaRows = computed<QuotaRow[]>(() => {
+	const quotas = license.value.quotas ?? {};
+	const usage = license.value.usage ?? {};
+
+	const keys = Object.keys(quotas).filter(k => k !== "vehicle_access");
+	const rows = keys.map(key => {
+		const max = quotas[key as keyof typeof quotas]?.maxDevices;
+		const used = usage[key as keyof typeof usage]?.usedDevices ?? 0;
+		const hasMax = typeof max === "number" && Number.isFinite(max);
+		const safeMax = hasMax ? Math.max(0, Math.floor(max)) : null;
+		const safeUsed = Number.isFinite(used) ? Math.max(0, Math.floor(used)) : 0;
+		const isExceeded = safeMax != null ? safeUsed >= safeMax : false;
+		const isNear = safeMax != null ? safeUsed / Math.max(1, safeMax) >= 0.8 : false;
+
+		return {
+			key,
+			label: featureLabels[key] ?? key,
+			used: safeUsed,
+			max: safeMax,
+			maxText: safeMax == null ? "∞" : String(safeMax),
+			isExceeded,
+			isNear,
+			statusText: safeMax == null ? "不限" : isExceeded ? "已滿" : isNear ? "接近上限" : "正常"
+		};
+	});
+
+	return rows.sort((a, b) => a.key.localeCompare(b.key));
+});
 
 const refreshLicense = async () => {
 	await fetchLicense({ force: true });

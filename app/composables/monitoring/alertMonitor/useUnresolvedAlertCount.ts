@@ -3,7 +3,7 @@
  * 負責未解決警報數量的監聽和管理（WebSocket + 輪詢後備）
  *
  * 策略：收到 alert:count 時先用 payload.count 即時更新 badge，
- *       再透過定期校準（REST）確保與「今日」語意一致。
+ *       再透過定期校準（REST）與後端「全量 active」語意一致（狀態型警報）。
  */
 
 import type { AlertSource } from "~/types/alert";
@@ -11,7 +11,6 @@ import type { AlertCountEvent } from "~/types/websocket";
 import { logger } from "~/utils/logger";
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
-import { getTodayDateRangeUTC } from "~/utils/dateUtils";
 import { watch } from "vue";
 
 const countLogger = logger.createLogger("UnresolvedAlertCount");
@@ -39,11 +38,8 @@ export const useUnresolvedAlertCount = () => {
 
 		isLoadingCount.value = true;
 		try {
-			const { start: todayStart, end: todayEnd } = getTodayDateRangeUTC();
 			const result = await alertApi.getUnresolvedAlertCount({
-				...filters,
-				start_date: todayStart.toISOString(),
-				end_date: todayEnd.toISOString(),
+				...filters
 			});
 			unresolvedAlertCount.value = result.count || 0;
 			isDirty = false;
@@ -107,7 +103,7 @@ export const useUnresolvedAlertCount = () => {
 
 		countWebsocketWatcher = watch(
 			isConnected,
-			(connected) => {
+			connected => {
 				if (connected) {
 					if (handleAlertCount) {
 						on("alert:count", handleAlertCount);
@@ -152,6 +148,6 @@ export const useUnresolvedAlertCount = () => {
 		isLoadingCount: readonly(isLoadingCount),
 		loadUnresolvedAlertCount,
 		startAlertCountMonitoring,
-		stopAlertCountMonitoring,
+		stopAlertCountMonitoring
 	};
 };

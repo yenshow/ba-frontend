@@ -1,22 +1,19 @@
 <template>
 	<div class="space-y-6 2xl:space-y-8">
 		<div class="flex items-center justify-between">
-			<header class="flex flex-col gap-1 2xl:gap-2 me-4">
+			<header class="me-4 flex flex-col gap-1 2xl:gap-2">
 				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">警示紀錄</h1>
 				<p class="text-base text-white/80 2xl:text-xl">查看與管理系統警示訊息</p>
 			</header>
 
 			<!-- 僅 admin 可切換「警示紀錄／規則管理」 -->
-			<div
-				v-if="isAdmin"
-				class="rounded-xl border border-white/20 bg-white/5 p-1 space-x-2 me-auto"
-			>
+			<div v-if="isAdmin" class="me-auto space-x-2 rounded-xl border border-white/20 bg-white/5 p-1">
 				<button
 					type="button"
 					@click="currentMode = 'alerts'"
 					:class="[
 						'rounded-lg px-3 py-1.5 text-base transition-colors 2xl:text-lg',
-						currentMode === 'alerts' ? 'bg-cyan-500 text-white' : 'text-white/80 hover:bg-white/10',
+						currentMode === 'alerts' ? 'bg-cyan-500 text-white' : 'text-white/80 hover:bg-white/10'
 					]"
 				>
 					警示紀錄
@@ -26,7 +23,7 @@
 					@click="handleSwitchToRules"
 					:class="[
 						'rounded-lg px-3 py-1.5 text-base transition-colors 2xl:text-lg',
-						currentMode === 'rules' ? 'bg-cyan-500 text-white' : 'text-white/80 hover:bg-white/10',
+						currentMode === 'rules' ? 'bg-cyan-500 text-white' : 'text-white/80 hover:bg-white/10'
 					]"
 				>
 					警報設定
@@ -49,16 +46,8 @@
 					</button>
 				</template>
 				<template v-else-if="currentMode === 'rules'">
-					<FilterDropdown
-						v-model="ruleFilterSource"
-						:options="sourceOptions"
-						placeholder="全部系統"
-					/>
-					<FilterDropdown
-						v-model="ruleFilterType"
-						:options="ruleTypeOptions"
-						placeholder="全部類型"
-					/>
+					<FilterDropdown v-model="ruleFilterSource" :options="sourceOptions" placeholder="全部系統" />
+					<FilterDropdown v-model="ruleFilterType" :options="ruleTypeOptions" placeholder="全部類型" />
 
 					<button
 						type="button"
@@ -97,85 +86,85 @@
 </template>
 
 <script setup lang="ts">
-import { useToast } from "~/composables/core/useToast"
-import type { Alert, AlertStatus, AlertSource, AlertType } from "~/types/alert"
-import { useAuth } from "~/composables/core/useAuth"
-import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor"
-import { useAlertEventBus } from "~/composables/monitoring/alertMonitor/useAlertEventBus"
-import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { useAlertApi } from "~/composables/systems/alerts/useAlertApi"
-import type { AlertNewEvent, AlertUpdatedEvent } from "~/types/websocket"
-import { getSourceLabel, getTypeLabel, getSeverityLabel } from "~/utils/alertUtils"
-import { getTodayDateRangeUTC, formatDateTime } from "~/utils/dateUtils"
-import { exportCsv } from "~/utils/csvExport"
-import FilterDropdown from "~/components/common/FilterDropdown.vue"
-import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
-import AlertListSection from "~/components/alerts/AlertListSection.vue"
-import AlertRuleManagement from "~/components/alerts/AlertRuleManagement.vue"
-import { useDataLoader } from "~/composables/monitoring/useDataLoader"
-import { logger } from "~/utils/logger"
+import { useToast } from "~/composables/core/useToast";
+import type { Alert, AlertStatus, AlertSource, AlertType } from "~/types/alert";
+import { useAuth } from "~/composables/core/useAuth";
+import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
+import { useAlertEventBus } from "~/composables/monitoring/alertMonitor/useAlertEventBus";
+import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import { useAlertApi } from "~/composables/systems/alerts/useAlertApi";
+import type { AlertNewEvent, AlertUpdatedEvent } from "~/types/websocket";
+import { getSourceLabel, getTypeLabel, getSeverityLabel } from "~/utils/alertUtils";
+import { getTodayDateRangeUTC, formatDateTime } from "~/utils/dateUtils";
+import { exportCsv } from "~/utils/csvExport";
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
+import TimeRangePicker from "~/components/common/TimeRangePicker.vue";
+import AlertListSection from "~/components/alerts/AlertListSection.vue";
+import AlertRuleManagement from "~/components/alerts/AlertRuleManagement.vue";
+import { useDataLoader } from "~/composables/monitoring/useDataLoader";
+import { logger } from "~/utils/logger";
 
-const alertLogLogger = logger.createLogger("alert-log")
+const alertLogLogger = logger.createLogger("alert-log");
 
 definePageMeta({
-	layout: "auxiliary",
-})
+	layout: "auxiliary"
+});
 
-const alertApi = useAlertApi()
-const toast = useToast()
-const { isAdmin } = useAuth()
-const { removeAlertToast } = useAlertMonitor()
-const { handleError: handleApiError } = useErrorHandler()
+const alertApi = useAlertApi();
+const toast = useToast();
+const { isAdmin } = useAuth();
+const { removeAlertToast } = useAlertMonitor();
+const { handleError: handleApiError } = useErrorHandler();
 const {
 	onAlertNew: busOnAlertNew,
 	onAlertUpdated: busOnAlertUpdated,
 	offAlertNew: busOffAlertNew,
-	offAlertUpdated: busOffAlertUpdated,
-} = useAlertEventBus()
+	offAlertUpdated: busOffAlertUpdated
+} = useAlertEventBus();
 
-const isIgnoring = ref(false)
-const unresolvedCount = ref(0)
-const currentMode = ref<"alerts" | "rules">("alerts")
+const isIgnoring = ref(false);
+const unresolvedCount = ref(0);
+const currentMode = ref<"alerts" | "rules">("alerts");
 
-const ruleManagementRef = ref<{ openCreateRuleDialog: () => void } | null>(null)
-const ruleFilterSource = ref<"" | AlertSource>("")
-const ruleFilterType = ref<"" | AlertType>("")
+const ruleManagementRef = ref<{ openCreateRuleDialog: () => void } | null>(null);
+const ruleFilterSource = ref<"" | AlertSource>("");
+const ruleFilterType = ref<"" | AlertType>("");
 
 const ruleTypeOptions: { value: "" | AlertType; label: string }[] = [
 	{ value: "", label: "全部類型" },
 	{ value: "offline", label: "offline" },
 	{ value: "error", label: "error" },
-	{ value: "threshold", label: "threshold" },
-]
+	{ value: "threshold", label: "threshold" }
+];
 
 const handleOpenCreateRule = () => {
-	ruleManagementRef.value?.openCreateRuleDialog()
-}
+	ruleManagementRef.value?.openCreateRuleDialog();
+};
 
-const filterStatus = ref<string>("all")
-const filterSource = ref<string>("")
-const filterStartDate = ref<string>("")
-const filterEndDate = ref<string>("")
+const filterStatus = ref<string>("all");
+const filterSource = ref<string>("");
+const filterStartDate = ref<string>("");
+const filterEndDate = ref<string>("");
 
 const statusOptions = [
 	{ value: "all", label: "全部狀態" },
 	{ value: "active", label: "未解決" },
 	{ value: "resolved", label: "已解決" },
-	{ value: "ignored", label: "已忽視" },
-]
+	{ value: "ignored", label: "已忽視" }
+];
 
 const sourceOptions = [
 	{ value: "", label: "全部系統" },
 	{ value: "device", label: "設備系統" },
 	{ value: "environment", label: "環境系統" },
-	{ value: "people_counting", label: "人流系統" },
-]
+	{ value: "people_counting", label: "人流系統" }
+];
 
 const timeRange = ref({
 	startDate: "",
 	endDate: "",
-	preset: "today",
-})
+	preset: "today"
+});
 
 const timeRangePresets = [
 	{ value: "past_hour", label: "過去一小時" },
@@ -185,17 +174,17 @@ const timeRangePresets = [
 	{ value: "last_week", label: "上周" },
 	{ value: "last_7_days", label: "近七天" },
 	{ value: "last_30_days", label: "最近三十天" },
-	{ value: "custom", label: "自訂" },
-]
+	{ value: "custom", label: "自訂" }
+];
 
 watch(
 	() => timeRange.value,
-	(newValue) => {
-		filterStartDate.value = newValue.startDate
-		filterEndDate.value = newValue.endDate
+	newValue => {
+		filterStartDate.value = newValue.startDate;
+		filterEndDate.value = newValue.endDate;
 	},
 	{ deep: true }
-)
+);
 
 const {
 	data: alerts,
@@ -205,9 +194,9 @@ const {
 	load,
 	nextPage,
 	prevPage,
-	resetPage,
+	resetPage
 } = useDataLoader<Alert, Record<string, never>>({
-	fetcher: async (params) => {
+	fetcher: async params => {
 		const result = await alertApi.getAlerts({
 			status: getFilterStatus(),
 			source: filterSource.value as AlertSource | undefined,
@@ -216,40 +205,40 @@ const {
 			limit: params.limit as number,
 			offset: params.offset as number,
 			orderBy: "created_at",
-			order: "desc",
-		})
-		return { items: result.alerts, total: result.total }
+			order: "desc"
+		});
+		return { items: result.alerts, total: result.total };
 	},
 	debounce: 150,
 	pageSize: 5,
-	onError: (err) => {
-		handleApiError(err, "載入警示列表失敗")
-	},
-})
+	onError: err => {
+		handleApiError(err, "載入警示列表失敗");
+	}
+});
 
-const limit = 5
+const limit = 5;
 
 const loadUnresolvedCount = async () => {
 	try {
 		const result = await alertApi.getUnresolvedAlertCount({
 			source: (filterSource.value as AlertSource) || undefined,
 			start_date: filterStartDate.value || undefined,
-			end_date: filterEndDate.value || undefined,
-		})
-		unresolvedCount.value = result.count
+			end_date: filterEndDate.value || undefined
+		});
+		unresolvedCount.value = result.count;
 	} catch (error) {
-		alertLogLogger.warn("載入未解決警示數量失敗", error)
+		alertLogLogger.warn("載入未解決警示數量失敗", error);
 	}
-}
+};
 
 const handleSwitchToRules = () => {
-	currentMode.value = "rules"
-}
+	currentMode.value = "rules";
+};
 
 const reloadAfterAction = async () => {
-	load({}, true)
-	loadUnresolvedCount()
-}
+	load({}, true);
+	loadUnresolvedCount();
+};
 
 const handleIgnoreAction = async (
 	alert: Alert,
@@ -259,10 +248,10 @@ const handleIgnoreAction = async (
 	errorMessage: string
 ) => {
 	if (!confirm(confirmMessage)) {
-		return
+		return;
 	}
 
-	isIgnoring.value = true
+	isIgnoring.value = true;
 	try {
 		if (action === "ignore") {
 			await alertApi.ignoreAlert(
@@ -270,24 +259,24 @@ const handleIgnoreAction = async (
 				alert.alert_type,
 				alert.source,
 				alert.dimension_key || undefined
-			)
-			removeAlertToast(alert.id, alert.dimension_key)
+			);
+			removeAlertToast(alert.id, alert.dimension_key);
 		} else {
 			await alertApi.unignoreAlert(
 				alert.source_id,
 				alert.alert_type,
 				alert.source,
 				alert.dimension_key || undefined
-			)
+			);
 		}
-		toast.success(successMessage, 3000)
-		await reloadAfterAction()
+		toast.success(successMessage, 3000);
+		await reloadAfterAction();
 	} catch (error) {
-		handleApiError(error, errorMessage)
+		handleApiError(error, errorMessage);
 	} finally {
-		isIgnoring.value = false
+		isIgnoring.value = false;
 	}
-}
+};
 
 const handleIgnore = (alert: Alert) =>
 	handleIgnoreAction(
@@ -296,7 +285,7 @@ const handleIgnore = (alert: Alert) =>
 		"確定要忽視此警示嗎？忽視後將不再顯示此來源同類型、同維度的警示。",
 		"警示已忽視",
 		"忽視警示失敗"
-	)
+	);
 
 const handleUnignore = (alert: Alert) =>
 	handleIgnoreAction(
@@ -305,78 +294,78 @@ const handleUnignore = (alert: Alert) =>
 		"確定要取消忽視此警示嗎？取消後將恢復顯示此來源同類型、同維度的警示。",
 		"已取消忽視警示",
 		"取消忽視警示失敗"
-	)
+	);
 
 const getFilterStatus = (): AlertStatus | undefined =>
-	filterStatus.value !== "all" ? (filterStatus.value as AlertStatus) : undefined
+	filterStatus.value !== "all" ? (filterStatus.value as AlertStatus) : undefined;
 
 const getAlertKey = (alert: Pick<Alert, "id" | "dimension_key">): string =>
-	`${alert.id}:${alert.dimension_key || "default"}`
+	`${alert.id}:${alert.dimension_key || "default"}`;
 
 const matchesFilters = (alert: Alert): boolean => {
-	const currentStatus = getFilterStatus()
-	if (currentStatus && alert.status !== currentStatus) return false
-	if (filterSource.value && alert.source !== filterSource.value) return false
+	const currentStatus = getFilterStatus();
+	if (currentStatus && alert.status !== currentStatus) return false;
+	if (filterSource.value && alert.source !== filterSource.value) return false;
 
 	if (filterStartDate.value || filterEndDate.value) {
-		const alertTime = new Date(alert.created_at).getTime()
+		const alertTime = new Date(alert.created_at).getTime();
 
 		if (filterStartDate.value) {
-			const startTime = new Date(filterStartDate.value).getTime()
-			if (alertTime < startTime) return false
+			const startTime = new Date(filterStartDate.value).getTime();
+			if (alertTime < startTime) return false;
 		}
 		if (filterEndDate.value) {
-			const endTime = new Date(filterEndDate.value).getTime()
-			if (alertTime > endTime) return false
+			const endTime = new Date(filterEndDate.value).getTime();
+			if (alertTime > endTime) return false;
 		}
 	}
 
-	return true
-}
+	return true;
+};
 
 const handleAlertNew = (alert: AlertNewEvent) => {
-	if (alerts.value.find((a) => getAlertKey(a) === getAlertKey(alert))) return
+	if (alerts.value.find(a => getAlertKey(a) === getAlertKey(alert))) return;
 	if (!matchesFilters(alert)) {
 		if (alert.status === "active") {
 			alertLogLogger.warn(
 				`新警報 ${alert.id} 不在當前時間範圍內，創建時間: ${alert.created_at}, 更新時間: ${alert.updated_at}`
-			)
+			);
 		}
-		return
+		return;
 	}
 
 	if (offset.value === 0) {
-		alerts.value.unshift(alert)
+		alerts.value.unshift(alert);
 	}
-	totalAlerts.value += 1
+	totalAlerts.value += 1;
 
 	if (alert.status === "active") {
-		unresolvedCount.value++
+		unresolvedCount.value++;
 	}
-}
+};
 
 const handleAlertUpdated = (data: AlertUpdatedEvent) => {
-	const { alert, oldStatus, newStatus } = data
-	const index = alerts.value.findIndex((a) => getAlertKey(a) === getAlertKey(alert))
-	const matches = matchesFilters(alert)
+	const { alert, oldStatus, newStatus } = data;
+	const index = alerts.value.findIndex(a => getAlertKey(a) === getAlertKey(alert));
+	const matches = matchesFilters(alert);
 
 	if (index !== -1) {
-		alerts.value[index] = { ...alerts.value[index], ...alert }
+		alerts.value[index] = { ...alerts.value[index], ...alert };
 		if (!matches) {
-			alerts.value.splice(index, 1)
-			totalAlerts.value = Math.max(0, totalAlerts.value - 1)
+			alerts.value.splice(index, 1);
+			totalAlerts.value = Math.max(0, totalAlerts.value - 1);
 		}
 	} else if (matches && offset.value === 0) {
-		alerts.value.unshift(alert)
-		totalAlerts.value += 1
+		alerts.value.unshift(alert);
+		totalAlerts.value += 1;
 	}
 
 	if (oldStatus === "active" && (newStatus === "resolved" || newStatus === "ignored")) {
-		unresolvedCount.value = Math.max(0, unresolvedCount.value - 1)
+		unresolvedCount.value = Math.max(0, unresolvedCount.value - 1);
 	} else if ((oldStatus === "resolved" || oldStatus === "ignored") && newStatus === "active") {
-		unresolvedCount.value++
+		unresolvedCount.value++;
 	}
-}
+};
 
 const ALERT_CSV_HEADERS = [
 	"系統來源",
@@ -389,23 +378,23 @@ const ALERT_CSV_HEADERS = [
 	"創建時間",
 	"更新時間",
 	"忽視時間",
-	"忽視者",
-] as const
+	"忽視者"
+] as const;
 
 const STATUS_LABELS: Record<string, string> = {
 	active: "未解決",
 	resolved: "已解決",
-	ignored: "已忽視",
-}
+	ignored: "已忽視"
+};
 
 const formatZoneLocation = (z?: string | null, l?: string | null) =>
-	[z, l].filter(Boolean).join("-") || ""
+	[z, l].filter(Boolean).join("-") || "";
 
 const getDeviceConfigDisplay = (c: Record<string, unknown> | string | null | undefined) => {
-	if (!c) return ""
-	const o = typeof c === "string" ? (JSON.parse(c || "{}") as Record<string, unknown>) : c
-	return String(o.host ?? "").trim() || ""
-}
+	if (!c) return "";
+	const o = typeof c === "string" ? (JSON.parse(c || "{}") as Record<string, unknown>) : c;
+	return String(o.host ?? "").trim() || "";
+};
 
 const handleExport = async () => {
 	try {
@@ -417,19 +406,19 @@ const handleExport = async () => {
 			limit: 10000,
 			offset: 0,
 			orderBy: "created_at",
-			order: "desc",
-		})
+			order: "desc"
+		});
 
 		if (result.alerts.length === 0) {
-			toast.info("無資料可匯出")
-			return
+			toast.info("無資料可匯出");
+			return;
 		}
 
-		const fmt = (s?: string | null) => (s ? formatDateTime(s, true) : "")
+		const fmt = (s?: string | null) => (s ? formatDateTime(s, true) : "");
 		const typeSeverity = (a: Alert) =>
-			`${getTypeLabel(a.alert_type)}（${getSeverityLabel(a.severity)}）`
+			`${getTypeLabel(a.alert_type)}（${getSeverityLabel(a.severity)}）`;
 
-		const rows = result.alerts.map((alert) => ({
+		const rows = result.alerts.map(alert => ({
 			系統來源: getSourceLabel(alert.source),
 			"區域-地點": formatZoneLocation(alert.zone_name, alert.source_name),
 			設備類型: alert.device_type_name ?? "",
@@ -442,119 +431,119 @@ const handleExport = async () => {
 			創建時間: fmt(alert.created_at),
 			更新時間: fmt(alert.updated_at),
 			忽視時間: fmt(alert.ignored_at),
-			忽視者: alert.ignored_by_username ?? "",
-		}))
+			忽視者: alert.ignored_by_username ?? ""
+		}));
 
-		const datePart = (s: string) => s.split("T")[0]
+		const datePart = (s: string) => s.split("T")[0];
 		const filename =
 			filterStartDate.value && filterEndDate.value
 				? `警示紀錄_${datePart(filterStartDate.value)}_${datePart(filterEndDate.value)}.csv`
-				: `警示紀錄_${new Date().toISOString().split("T")[0]}.csv`
+				: `警示紀錄_${new Date().toISOString().split("T")[0]}.csv`;
 
-		exportCsv([...ALERT_CSV_HEADERS], rows, filename, { backupStyle: true })
-		toast.success(`已匯出 ${result.alerts.length} 筆警示紀錄`, 3000)
+		exportCsv([...ALERT_CSV_HEADERS], rows, filename, { backupStyle: true });
+		toast.success(`已匯出 ${result.alerts.length} 筆警示紀錄`, 3000);
 	} catch (error) {
-		handleApiError(error, "匯出警示失敗")
+		handleApiError(error, "匯出警示失敗");
 	}
-}
+};
 
 const goToPreviousPage = () => {
-	prevPage({})
-}
+	prevPage({});
+};
 
 const goToNextPage = () => {
-	nextPage({})
-}
+	nextPage({});
+};
 
 watch([filterStatus, filterSource, filterStartDate, filterEndDate], () => {
-	resetPage()
-	load({})
-	loadUnresolvedCount()
-})
+	resetPage();
+	load({});
+	loadUnresolvedCount();
+});
 
-watch(isAdmin, (admin) => {
+watch(isAdmin, admin => {
 	if (!admin && currentMode.value === "rules") {
-		currentMode.value = "alerts"
+		currentMode.value = "alerts";
 	}
-})
+});
 
 const initializeTimeRange = () => {
-	const { start, end } = getTodayDateRangeUTC()
+	const { start, end } = getTodayDateRangeUTC();
 	timeRange.value = {
 		startDate: start.toISOString(),
 		endDate: end.toISOString(),
-		preset: "today",
-	}
-	filterStartDate.value = start.toISOString()
-	filterEndDate.value = end.toISOString()
-}
+		preset: "today"
+	};
+	filterStartDate.value = start.toISOString();
+	filterEndDate.value = end.toISOString();
+};
 
 const scrollToAlert = async (alertId: number) => {
-	await nextTick()
-	const alertElement = document.getElementById(`alert-${alertId}`)
+	await nextTick();
+	const alertElement = document.getElementById(`alert-${alertId}`);
 	if (alertElement) {
-		alertElement.scrollIntoView({ behavior: "smooth", block: "center" })
-		alertElement.classList.add("ring-2", "ring-blue-500", "ring-offset-2")
+		alertElement.scrollIntoView({ behavior: "smooth", block: "center" });
+		alertElement.classList.add("ring-2", "ring-blue-500", "ring-offset-2");
 		setTimeout(() => {
-			alertElement.classList.remove("ring-2", "ring-blue-500", "ring-offset-2")
-		}, 3000)
+			alertElement.classList.remove("ring-2", "ring-blue-500", "ring-offset-2");
+		}, 3000);
 	}
-}
+};
 
 const handleAlertIdQuery = async () => {
-	const route = useRoute()
-	const alertIdParam = route.query.alertId
+	const route = useRoute();
+	const alertIdParam = route.query.alertId;
 
-	if (!alertIdParam) return
+	if (!alertIdParam) return;
 
-	const alertId = Number(alertIdParam)
-	if (isNaN(alertId)) return
+	const alertId = Number(alertIdParam);
+	if (isNaN(alertId)) return;
 
-	await nextTick()
+	await nextTick();
 
-	const alert = alerts.value.find((a) => a.id === alertId)
+	const alert = alerts.value.find(a => a.id === alertId);
 
 	if (alert) {
-		await scrollToAlert(alertId)
-		return
+		await scrollToAlert(alertId);
+		return;
 	}
 
 	try {
-		const result = await alertApi.getAlertById(alertId)
-		const targetAlert = result.alert
-		const alertDate = new Date(targetAlert.created_at)
-		const { start, end } = getTodayDateRangeUTC()
+		const result = await alertApi.getAlertById(alertId);
+		const targetAlert = result.alert;
+		const alertDate = new Date(targetAlert.created_at);
+		const { start, end } = getTodayDateRangeUTC();
 
 		if (alertDate < start || alertDate >= end) {
 			timeRange.value = {
 				startDate: new Date(alertDate.getTime() - 24 * 60 * 60 * 1000).toISOString(),
 				endDate: new Date(alertDate.getTime() + 24 * 60 * 60 * 1000).toISOString(),
-				preset: "custom",
-			}
-			filterStartDate.value = timeRange.value.startDate
-			filterEndDate.value = timeRange.value.endDate
-			load({}, true)
+				preset: "custom"
+			};
+			filterStartDate.value = timeRange.value.startDate;
+			filterEndDate.value = timeRange.value.endDate;
+			load({}, true);
 		}
 
-		await scrollToAlert(alertId)
+		await scrollToAlert(alertId);
 	} catch (error) {
-		alertLogLogger.warn(`無法載入警報 ${alertId}`, error)
+		alertLogLogger.warn(`無法載入警報 ${alertId}`, error);
 	}
-}
+};
 
 onMounted(async () => {
-	initializeTimeRange()
+	initializeTimeRange();
 
-	load({}, true)
-	void loadUnresolvedCount()
-	busOnAlertNew(handleAlertNew)
-	busOnAlertUpdated(handleAlertUpdated)
+	load({}, true);
+	void loadUnresolvedCount();
+	busOnAlertNew(handleAlertNew);
+	busOnAlertUpdated(handleAlertUpdated);
 
-	await handleAlertIdQuery()
-})
+	await handleAlertIdQuery();
+});
 
 onUnmounted(() => {
-	busOffAlertNew(handleAlertNew)
-	busOffAlertUpdated(handleAlertUpdated)
-})
+	busOffAlertNew(handleAlertNew);
+	busOffAlertUpdated(handleAlertUpdated);
+});
 </script>

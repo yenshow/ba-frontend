@@ -6,7 +6,7 @@ const RULE_CANONICAL_TEMPLATE_KEY_BY_ALERT_TYPE: Partial<Record<AlertType, strin
 	threshold: "rule.threshold.v1",
 	offline: "rule.offline.v1",
 	di: "rule.di.v1",
-	do: "rule.do.v1",
+	do: "rule.do.v1"
 };
 
 /** 表單未勾選自訂時的預設模板字串（須與後端 CANONICAL_TEMPLATES 一致；`location_label` = 來源顯示名 + 目標後綴） */
@@ -15,7 +15,7 @@ const CANONICAL_RULE_MESSAGE_BODY: Partial<Record<AlertType, string>> = {
 		"{location_label} {parameter_name} {operator} {threshold}{unit}（當前 {current_value}{unit}）",
 	offline: "{location_label} 連續 {error_count} 次無法連接",
 	di: "{location_label} DI 位址 {di_address} 觸發",
-	do: "{location_label} DO 位址 {do_address} 觸發",
+	do: "{location_label} DO 位址 {do_address} 觸發"
 };
 
 export const getDefaultRuleMessageTemplate = (alertType: AlertType): string =>
@@ -70,12 +70,7 @@ export const getSourceLabel = (source: AlertSource | string): string => {
 	const labels: Record<string, string> = {
 		device: "設備",
 		environment: "環境",
-		lighting: "照明",
-		drainage: "衛生排水",
-		people_counting: "人流統計",
-		hvac: "空調",
-		fire: "消防",
-		security: "安防"
+		people_counting: "人流統計"
 	};
 	return labels[source] || source;
 };
@@ -87,9 +82,7 @@ export const getTypeLabel = (type: AlertType | string): string => {
 	const labels: Record<string, string> = {
 		offline: "離線",
 		error: "錯誤",
-		threshold: "閾值",
-		di: "DI",
-		do: "DO",
+		threshold: "閾值"
 	};
 	return labels[type] || type;
 };
@@ -101,7 +94,7 @@ export const getSeverityLabel = (severity: AlertSeverity | string): string => {
 	const labels: Record<string, string> = {
 		warning: "異常",
 		error: "警報",
-		critical: "警報",
+		critical: "警報"
 	};
 	return labels[severity] || severity;
 };
@@ -109,7 +102,7 @@ export const getSeverityLabel = (severity: AlertSeverity | string): string => {
 /** 工地端：警報來源 → 地點 API systemType（無區域樹的來源回傳 null） */
 const CONSTRUCTION_ALERT_SOURCE_TO_SYSTEM_TYPE: Partial<Record<AlertSource, SystemType>> = {
 	environment: "environment",
-	people_counting: "people_counting",
+	people_counting: "people_counting"
 };
 
 export const alertSourceToSystemType = (source: AlertSource): SystemType | null =>
@@ -136,18 +129,16 @@ export const getTypeBadgeClass = (type: AlertType | string): string => {
 		error: "bg-red-500/80 text-white",
 		threshold: "bg-purple-500/80 text-white",
 		di: "bg-emerald-500/80 text-white",
-		do: "bg-sky-500/80 text-white",
+		do: "bg-sky-500/80 text-white"
 	};
 	return classes[type] || "bg-gray-500/80 text-white";
 };
 
 /** 是否已解決（僅依 status；後端無 resolved_at/resolved_by） */
-export const isAlertResolved = (alert: { status?: string }): boolean =>
-	alert.status === "resolved";
+export const isAlertResolved = (alert: { status?: string }): boolean => alert.status === "resolved";
 
 /** 是否已忽視 */
-export const isAlertIgnored = (alert: { status?: string }): boolean =>
-	alert.status === "ignored";
+export const isAlertIgnored = (alert: { status?: string }): boolean => alert.status === "ignored";
 
 /** 後端 evaluateThreshold 允許的 operator（不支援 = / ==） */
 export const ALLOWED_THRESHOLD_OPERATORS = [">", ">=", "<", "<="] as const;
@@ -217,11 +208,9 @@ export const formatAlertRuleConditionDisplay = (rule: AlertRuleConditionDisplayI
 		const bitKey = String(config.bit_key ?? "");
 		const match = bitKey.match(/^(di|do):(\d+)$/i);
 		const addr = match?.[2] ?? (bitKey.replace(/^(di|do):/i, "").trim() || "?");
-		const isDo =
-			rule.alert_type === "do" || String(match?.[1] ?? "").toLowerCase() === "do";
+		const isDo = rule.alert_type === "do" || String(match?.[1] ?? "").toLowerCase() === "do";
 		return `${isDo ? "DO" : "DI"} 位址 ${addr} 觸發`;
 	}
 
 	return "-";
 };
-
