@@ -257,9 +257,11 @@ import { useExternalDataApi } from "~/composables/systems/externalData/useExtern
 import ZoneFormFields from "./ZoneFormFields.vue"
 import EnvironmentLocationManagement from "./LocationManagement/EnvironmentLocationManagement.vue"
 import LightingLocationManagement from "./LocationManagement/LightingLocationManagement.vue"
+import HvacLocationManagement from "./LocationManagement/HvacLocationManagement.vue"
 import PeopleCountingLocationManagement from "./LocationManagement/PeopleCountingLocationManagement.vue"
 import VehicleAccessLocationManagement from "./LocationManagement/VehicleAccessLocationManagement.vue"
 import DrainageLocationManagement from "./LocationManagement/DrainageLocationManagement.vue"
+import PowerLocationManagement from "./LocationManagement/PowerLocationManagement.vue"
 import EmergencyRescueLocationManagement from "./LocationManagement/EmergencyRescueLocationManagement.vue"
 import FireLocationManagement from "./LocationManagement/FireLocationManagement.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
@@ -398,10 +400,12 @@ const isapiCameraDevices = ref<Device[]>([])
 // 地點管理組件映射
 const locationManagementComponentMap: Partial<Record<SystemType, Component>> = {
 	lighting: LightingLocationManagement,
+	hvac: HvacLocationManagement,
 	environment: EnvironmentLocationManagement,
 	people_counting: PeopleCountingLocationManagement,
 	vehicle_access: VehicleAccessLocationManagement,
 	drainage: DrainageLocationManagement,
+	power: PowerLocationManagement,
 	fire: FireLocationManagement,
 	emergency_rescue: EmergencyRescueLocationManagement,
 }
@@ -426,7 +430,9 @@ const loadDevices = async () => {
 	try {
 		const deviceType =
 			props.systemType === "lighting" ||
+			props.systemType === "hvac" ||
 			props.systemType === "drainage" ||
+			props.systemType === "power" ||
 			props.systemType === "fire" ||
 			props.systemType === "emergency_rescue"
 				? "controller"
@@ -540,7 +546,9 @@ const getLocationsCount = (zone: TZone): number => {
 const getLocationLabel = (): string => {
 	const labelMap: Record<SystemType, string> = {
 		lighting: "點位",
+		hvac: "點位",
 		drainage: "點位",
+		power: "點位",
 		fire: "點位",
 		emergency_rescue: "點位",
 		environment: "地點",
@@ -636,7 +644,9 @@ const handleLocationUpdate = (
 const addLocation = (zone: TZone, payload?: { viewCategory?: string }) => {
 	const newLocation = adapter.createNewLocation() as SystemLocationType
 	if (
-		(props.systemType === "drainage" || props.systemType === "fire") &&
+		(props.systemType === "drainage" ||
+			props.systemType === "power" ||
+			props.systemType === "fire") &&
 		payload &&
 		payload.viewCategory !== undefined
 	) {
@@ -651,7 +661,12 @@ const handleDrainageRenameViewCategory = (
 	zoneId: string,
 	payload: { oldCategory: string; newCategory: string }
 ) => {
-	if (props.systemType !== "drainage" && props.systemType !== "fire") return
+	if (
+		props.systemType !== "drainage" &&
+		props.systemType !== "power" &&
+		props.systemType !== "fire"
+	)
+		return
 	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
 	if (!zone) return
 	const oldTrim = payload.oldCategory.trim()
@@ -842,7 +857,12 @@ const handleReorderDrainageViewCategoryBlock = (
 	zoneId: string,
 	payload: { categoryKey: string; direction: "up" | "down" }
 ) => {
-	if (props.systemType !== "drainage" && props.systemType !== "fire") return
+	if (
+		props.systemType !== "drainage" &&
+		props.systemType !== "power" &&
+		props.systemType !== "fire"
+	)
+		return
 	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
 	if (!zone) return
 	const locs = [...adapter.getLocationsProperty(zone)] as SystemLocationType[]

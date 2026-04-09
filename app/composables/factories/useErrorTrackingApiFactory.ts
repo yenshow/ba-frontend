@@ -1,34 +1,6 @@
-import { useApiBase } from "~/composables/core/useApiBase";
-
 /**
- * 通用錯誤追蹤 API Factory
- * 用於統一管理不同系統的錯誤追蹤操作
+ * `useErrorTrackingApiFactory` 已移除：
+ * - 連線錯誤追蹤/警報建立以後端背景監控為準（SSOT）
+ * - 前端不再呼叫 `/systems/:id/errors`（避免「點開頁面才會累積達閾值」）
  */
-export const useErrorTrackingApiFactory = (resourcePath: string, defaultErrorMessage: string) => {
-	const { request } = useApiBase();
-
-	return {
-		/**
-		 * 記錄錯誤
-		 */
-		reportError: (resourceId: string | number, errorMessage?: string) => {
-			return request<{ success: boolean; alertCreated: boolean }>(
-				`${resourcePath}/${resourceId}/errors`,
-				{
-					method: "POST",
-					body: JSON.stringify({ errorMessage: errorMessage || defaultErrorMessage })
-				}
-			);
-		},
-
-		/**
-		 * 清除錯誤
-		 */
-		clearError: (resourceId: string | number) => {
-			return request<{ success: boolean }>(`${resourcePath}/${resourceId}/errors`, {
-				method: "DELETE"
-			});
-		}
-	};
-};
 

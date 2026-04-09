@@ -16,6 +16,8 @@ const sourceRouteMap: Partial<Record<string, string>> = {
 	environment: "/construction-monitoring/environment",
 	lighting: "/infrastructure/lighting",
 	drainage: "/infrastructure/drainage",
+	power: "/infrastructure/power",
+	hvac: "/infrastructure/hvac",
 	fire: "/security/fire",
 	emergency_rescue: "/security/emergency",
 	people_counting: "/construction-monitoring/people-counting",

@@ -1,5 +1,4 @@
 import type { FireZone, FireLocation, FireStatusItem } from "~/types/fire"
-import { useErrorTrackingApiFactory } from "~/composables/factories/useErrorTrackingApiFactory"
 import { useSystemLocationApiFactory } from "~/composables/location/api/useSystemLocationApiFactory"
 import { unifiedToFireZone, fireToUnifiedZone, fireLocationToUnified } from "~/utils/locationAdapter"
 import { useApiBase } from "~/composables/core/useApiBase"
@@ -12,8 +11,6 @@ export const useFireApi = () => {
 		locationToUnified: fireLocationToUnified,
 	})
 
-	const errorTrackingApi = useErrorTrackingApiFactory("/fire/systems", "無法讀取消防設備資料")
-
 	const { request } = useApiBase()
 
 	return {
@@ -22,8 +19,6 @@ export const useFireApi = () => {
 		createZone: zoneApi.createZone,
 		updateZone: zoneApi.updateZone,
 		deleteZone: zoneApi.deleteZone,
-		reportError: errorTrackingApi.reportError,
-		clearError: errorTrackingApi.clearError,
 		getStatus: (zoneIds?: string[]) => {
 			const q =
 				zoneIds && zoneIds.length > 0 ? `?zoneIds=${zoneIds.map(encodeURIComponent).join(",")}` : ""

@@ -3,7 +3,6 @@ import type {
 	EmergencyRescueLocation,
 	EmergencyRescueStatusItem,
 } from "~/types/emergency-rescue"
-import { useErrorTrackingApiFactory } from "~/composables/factories/useErrorTrackingApiFactory"
 import { useSystemLocationApiFactory } from "~/composables/location/api/useSystemLocationApiFactory"
 import {
 	unifiedToEmergencyRescueZone,
@@ -20,11 +19,6 @@ export const useEmergencyRescueApi = () => {
 		locationToUnified: emergencyRescueLocationToUnified,
 	})
 
-	const errorTrackingApi = useErrorTrackingApiFactory(
-		"/emergency-rescue/systems",
-		"無法讀取緊急求救設備資料"
-	)
-
 	const { request } = useApiBase()
 
 	return {
@@ -33,8 +27,6 @@ export const useEmergencyRescueApi = () => {
 		createZone: zoneApi.createZone,
 		updateZone: zoneApi.updateZone,
 		deleteZone: zoneApi.deleteZone,
-		reportError: errorTrackingApi.reportError,
-		clearError: errorTrackingApi.clearError,
 		getStatus: (zoneIds?: string[]) => {
 			const q =
 				zoneIds && zoneIds.length > 0 ? `?zoneIds=${zoneIds.map(encodeURIComponent).join(",")}` : ""

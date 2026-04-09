@@ -1,7 +1,6 @@
 import type { EnvironmentZone, EnvironmentLocation, SensorReading } from "~/types/environment"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { buildPathWithQuery } from "~/utils/apiUtils"
-import { useErrorTrackingApiFactory } from "~/composables/factories/useErrorTrackingApiFactory"
 import { useSystemLocationApiFactory } from "~/composables/location/api/useSystemLocationApiFactory"
 import {
 	unifiedToEnvironmentZone,
@@ -43,8 +42,6 @@ export const useEnvironmentApi = () => {
 		locationToUnified: environmentLocationToUnified,
 	})
 
-	const errorTrackingApi = useErrorTrackingApiFactory("/environment/systems", "無法讀取感測器資料")
-
 	return {
 		getZones: zoneApi.getZones,
 		getZone: zoneApi.getZone,
@@ -67,9 +64,6 @@ export const useEnvironmentApi = () => {
 			const path = buildPathWithQuery(`/environment/readings/${locationId}/aggregated`, params)
 			return request<{ readings: SensorReading[] }>(path)
 		},
-
-		reportError: errorTrackingApi.reportError,
-		clearError: errorTrackingApi.clearError,
 	}
 }
 

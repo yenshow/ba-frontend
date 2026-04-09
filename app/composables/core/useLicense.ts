@@ -8,6 +8,8 @@ const DEFAULT_LICENSE: LicenseState = {
 	expiresAt: null,
 	expired: false,
 	canActivate: false,
+	quotas: {},
+	usage: {},
 	serialNumber: null,
 	licenseKey: null,
 	activationMethod: null,

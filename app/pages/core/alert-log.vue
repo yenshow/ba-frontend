@@ -31,6 +31,16 @@
 				>
 					警報設定
 				</button>
+				<button
+					type="button"
+					@click="currentMode = 'linkages'"
+					:class="[
+						'rounded-lg px-3 py-1.5 text-base transition-colors 2xl:text-lg',
+						currentMode === 'linkages' ? 'bg-cyan-500 text-white' : 'text-white/80 hover:bg-white/10',
+					]"
+				>
+					警報連動
+				</button>
 			</div>
 
 			<div class="flex items-center gap-3 2xl:gap-4">
@@ -88,11 +98,13 @@
 		/>
 
 		<AlertRuleManagement
-			v-else-if="isAdmin"
+			v-else-if="currentMode === 'rules' && isAdmin"
 			ref="ruleManagementRef"
 			v-model:selected-rule-source="ruleFilterSource"
 			v-model:selected-rule-type="ruleFilterType"
 		/>
+
+		<AlertLinkageManagement v-else-if="currentMode === 'linkages' && isAdmin" />
 	</div>
 </template>
 
@@ -112,6 +124,7 @@ import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
 import AlertListSection from "~/components/alerts/AlertListSection.vue"
 import AlertRuleManagement from "~/components/alerts/AlertRuleManagement.vue"
+import AlertLinkageManagement from "~/components/alerts/AlertLinkageManagement.vue"
 import { useDataLoader } from "~/composables/monitoring/useDataLoader"
 import { logger } from "~/utils/logger"
 
@@ -131,7 +144,7 @@ const { handleError: handleApiError } = useErrorHandler()
 // 狀態
 const isIgnoring = ref(false)
 const unresolvedCount = ref(0)
-const currentMode = ref<"alerts" | "rules">("alerts")
+const currentMode = ref<"alerts" | "rules" | "linkages">("alerts")
 
 const ruleManagementRef = ref<{ openCreateRuleDialog: () => void } | null>(null)
 const ruleFilterSource = ref<"" | AlertSource>("")
@@ -173,6 +186,7 @@ const sourceOptions = [
 	{ value: "drainage", label: "衛生排水系統" },
 	{ value: "people_counting", label: "人流系統" },
 	{ value: "hvac", label: "空調系統" },
+	{ value: "power", label: "電力系統" },
 	{ value: "fire", label: "消防系統" },
 	{ value: "emergency_rescue", label: "緊急求救系統" },
 	{ value: "security", label: "安防系統" },
@@ -500,7 +514,7 @@ watch([filterStatus, filterSource, filterStartDate, filterEndDate], () => {
 })
 
 watch(isAdmin, (admin) => {
-	if (!admin && currentMode.value === "rules") {
+	if (!admin && currentMode.value !== "alerts") {
 		currentMode.value = "alerts"
 	}
 })

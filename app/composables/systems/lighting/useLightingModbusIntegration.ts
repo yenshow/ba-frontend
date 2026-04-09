@@ -247,31 +247,10 @@ export const useLightingModbusIntegration = (
 		}
 	}
 
-	const reportLocationError = async (locationId: string, errorMessage: string) => {
-		const found = findLocationById(locationId, true)
-		if (!found?.location.systemId) return
-
-		try {
-			await lightingApi.reportError(found.location.systemId, errorMessage)
-		} catch (error) {
-			if (process.dev) {
-				console.warn("[lighting] 報告錯誤失敗:", error)
-			}
-		}
-	}
-
-	const clearLocationError = async (locationId: string) => {
-		const found = findLocationById(locationId, true)
-		if (!found?.location.systemId) return
-
-		try {
-			await lightingApi.clearError(found.location.systemId)
-		} catch (error) {
-			if (process.dev) {
-				console.warn("[lighting] 清除錯誤失敗:", error)
-			}
-		}
-	}
+	/**
+	 * 重要：照明系統的「連線錯誤追蹤 / 警報建立」以後端背景監控為準（SSOT）。
+	 * 前端操作失敗只做 UI 狀態與提示，不再呼叫 /systems/:id/errors，避免「點開頁面才會累積達閾值」。
+	 */
 
 	const updateLocationStatuses = async (locationIds: string[], value: boolean) => {
 		for (const locationId of locationIds) {
@@ -280,9 +259,8 @@ export const useLightingModbusIntegration = (
 			status.isRunning = value
 			status.status = "normal"
 
-			if (wasError && status.status === "normal") {
-				await clearLocationError(locationId)
-			}
+			// SSOT：不回報後端 errors（由 background monitor 處理）
+			void wasError
 		}
 	}
 
@@ -335,11 +313,6 @@ export const useLightingModbusIntegration = (
 				} else if (!cached.ok) {
 					const errorMessage = cached.error || "無法讀取照明設備資料"
 					groupRequests.forEach((r) => ensureLocationStatus(r.locationId).status = "error")
-					await Promise.allSettled(
-						groupRequests.map((r) =>
-							reportLocationError(r.locationId, errorMessage || "無法讀取照明設備資料")
-						)
-					)
 				}
 				continue
 			}
@@ -393,11 +366,6 @@ export const useLightingModbusIntegration = (
 					locationIds.forEach((locationId) => {
 						ensureLocationStatus(locationId).status = "error"
 					})
-					await Promise.allSettled(
-						locationIds.map((locationId) =>
-							reportLocationError(locationId, errorMessage || "無法讀取照明設備資料")
-						)
-					)
 				}
 			} catch (error) {
 				const errorMessage = error instanceof Error ? error.message : String(error)
@@ -413,11 +381,6 @@ export const useLightingModbusIntegration = (
 						failedDevices.set(requestKey, now)
 					}
 					groupRequests.forEach((r) => ensureLocationStatus(r.locationId).status = "error")
-					await Promise.allSettled(
-						groupRequests.map((r) =>
-							reportLocationError(r.locationId, errorMessage || "無法讀取照明設備資料")
-						)
-					)
 				}
 			}
 		}

@@ -3,7 +3,7 @@
  * 負責未解決警報數量的監聽和管理（WebSocket + 輪詢後備）
  *
  * 策略：收到 alert:count 時先用 payload.count 即時更新 badge，
- *       再透過定期校準（REST）確保與「今日」語意一致。
+ *       再透過定期校準（REST）與後端「全量 active」語意一致（狀態型警報）。
  */
 
 import type { AlertSource } from "~/types/alert";
@@ -11,7 +11,6 @@ import type { AlertCountEvent } from "~/types/websocket";
 import { logger } from "~/utils/logger";
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
-import { getTodayDateRangeUTC } from "~/utils/dateUtils";
 import { watch } from "vue";
 
 const countLogger = logger.createLogger("UnresolvedAlertCount");
@@ -36,18 +35,15 @@ export const useUnresolvedAlertCount = () => {
 	let latestCountPayload: AlertCountEvent | null = null;
 
 	/**
-	 * 透過 REST 載入精確的「今日未解決數」
+	 * 透過 REST 載入未解決數（所有 status=active，與 alert:count 一致）
 	 */
 	const loadUnresolvedAlertCount = async (filters?: { source?: AlertSource }) => {
 		if (isLoadingCount.value) return;
 
 		isLoadingCount.value = true;
 		try {
-			const { start: todayStart, end: todayEnd } = getTodayDateRangeUTC();
 			const result = await alertApi.getUnresolvedAlertCount({
-				...filters,
-				start_date: todayStart.toISOString(),
-				end_date: todayEnd.toISOString()
+				...filters
 			});
 			unresolvedAlertCount.value = result.count || 0;
 			isDirty = false;

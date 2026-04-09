@@ -5,7 +5,14 @@ import type {
 	UnresolvedAlertCountResponse,
 	AlertRule,
 	CreateAlertRulePayload,
-	UpdateAlertRulePayload
+	UpdateAlertRulePayload,
+	AlertLinkage,
+	CreateAlertLinkagePayload,
+	UpdateAlertLinkagePayload,
+	ManualOffDoOutputPayload,
+	ManualOffDoOutputResponse,
+	ReleaseManualOffOverridePayload,
+	ReleaseManualOffOverrideResponse
 } from "~/types/alert";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPathWithQuery } from "~/utils/apiUtils";
@@ -72,7 +79,7 @@ export const useAlertApi = () => {
 	/**
 	 * 取得未解決的警示數量（支持時間範圍篩選）
 	 */
-	const getUnresolvedAlertCount = async (filters?: Pick<AlertFilters, "source" | "source_id" | "device_id" | "exclude_sources" | "alert_type" | "severity" | "start_date" | "end_date">): Promise<UnresolvedAlertCountResponse> => {
+	const getUnresolvedAlertCount = async (filters?: Pick<AlertFilters, "source" | "source_id" | "exclude_sources" | "alert_type" | "severity" | "start_date" | "end_date">): Promise<UnresolvedAlertCountResponse> => {
 		const path = buildPathWithQuery("/alerts/unresolved/count", filters as Record<string, unknown>);
 		return await request<UnresolvedAlertCountResponse>(path);
 	};
@@ -130,6 +137,59 @@ export const useAlertApi = () => {
 		});
 	};
 
+	/** 連動規則列表（DI 觸發後 DO 輸出等） */
+	const getAlertLinkages = async (): Promise<{ linkages: AlertLinkage[] }> => {
+		return await request<{ linkages: AlertLinkage[] }>("/alerts/linkages");
+	};
+
+	/** 建立連動規則 */
+	const createAlertLinkage = async (
+		payload: CreateAlertLinkagePayload
+	): Promise<{ linkage: AlertLinkage }> => {
+		return await request<{ linkage: AlertLinkage }>("/alerts/linkages", {
+			method: "POST",
+			body: payload
+		});
+	};
+
+	/** 更新連動規則 */
+	const updateAlertLinkage = async (
+		id: number,
+		payload: UpdateAlertLinkagePayload
+	): Promise<{ linkage: AlertLinkage }> => {
+		return await request<{ linkage: AlertLinkage }>(`/alerts/linkages/${id}`, {
+			method: "PUT",
+			body: payload
+		});
+	};
+
+	/** 刪除連動規則 */
+	const deleteAlertLinkage = async (id: number): Promise<{ linkage: AlertLinkage }> => {
+		return await request<{ linkage: AlertLinkage }>(`/alerts/linkages/${id}`, {
+			method: "DELETE"
+		});
+	};
+
+	/** 手動強制關閉 DO（不需到現場切換） */
+	const manualOffDoOutput = async (
+		payload: ManualOffDoOutputPayload
+	): Promise<ManualOffDoOutputResponse> => {
+		return await request<ManualOffDoOutputResponse>("/alerts/do-outputs/manual-off", {
+			method: "POST",
+			body: payload
+		});
+	};
+
+	/** 解除手動覆寫（恢復自動連動） */
+	const releaseManualOffOverride = async (
+		payload: ReleaseManualOffOverridePayload
+	): Promise<ReleaseManualOffOverrideResponse> => {
+		return await request<ReleaseManualOffOverrideResponse>("/alerts/do-outputs/release-manual-off", {
+			method: "POST",
+			body: payload
+		});
+	};
+
 	return {
 		getAlerts,
 		getAlertById,
@@ -141,7 +201,13 @@ export const useAlertApi = () => {
 		createAlertRule,
 		updateAlertRule,
 		deleteAlertRule,
-		previewAlertRuleMessage
+		previewAlertRuleMessage,
+		getAlertLinkages,
+		createAlertLinkage,
+		updateAlertLinkage,
+		deleteAlertLinkage,
+		manualOffDoOutput,
+		releaseManualOffOverride
 	};
 };
 

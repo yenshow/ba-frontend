@@ -205,12 +205,18 @@ import LocationManagementDialog from "~/components/location/LocationManagementDi
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
 import type { LightingZone } from "~/types/lighting"
 import type { DrainageZone } from "~/types/drainage"
+import type { PowerZone, PowerStatusItem } from "~/types/power"
+import type { HvacZone } from "~/types/hvac"
 import type { FireZone } from "~/types/fire"
 import { useLightingApi } from "~/composables/systems/lighting/useLightingApi"
 import { useDrainageApi } from "~/composables/systems/drainage/useDrainageApi"
+import { usePowerApi } from "~/composables/systems/power/usePowerApi"
+import { useHvacApi } from "~/composables/systems/hvac/useHvacApi"
 import { useFireApi } from "~/composables/systems/fire/useFireApi"
 import { useLightingModbusIntegration } from "~/composables/systems/lighting/useLightingModbusIntegration"
 import { useDrainageModbusIntegration } from "~/composables/systems/drainage/useDrainageModbusIntegration"
+import { usePowerModbusIntegration } from "~/composables/systems/power/usePowerModbusIntegration"
+import { useHvacModbusIntegration } from "~/composables/systems/hvac/useHvacModbusIntegration"
 import { useFireModbusIntegration } from "~/composables/systems/fire/useFireModbusIntegration"
 import { getSystemTypeLabel } from "~/constants/systemLabels"
 import { getLocationUiKey } from "~/utils/locationUiId"
@@ -262,10 +268,14 @@ const selectedSystemType = ref<SystemType | null>(null)
 const lightingApi = useLightingApi()
 const drainageApi = useDrainageApi()
 const fireApi = useFireApi()
+const powerApi = usePowerApi()
+const hvacApi = useHvacApi()
 
 const lightingZones = ref<LightingZone[]>([])
 const drainageZones = ref<DrainageZone[]>([])
 const fireZones = ref<FireZone[]>([])
+const powerZones = ref<PowerZone[]>([])
+const hvacZones = ref<HvacZone[]>([])
 
 const lightingSelectedZoneKey = computed(() => selectedZone.value)
 const {
@@ -295,6 +305,26 @@ const {
 	stopAutoRefresh: stopFireAutoRefresh,
 	handleVisibilityChange: handleFireVisibilityChange,
 } = useFireModbusIntegration(fireZones)
+
+const {
+	statusItems: powerStatusItems,
+	preloadDeviceInfos: preloadPowerDevices,
+	loadStatusSnapshot: loadPowerSnapshot,
+	startAutoRefresh: startPowerAutoRefresh,
+	stopAutoRefresh: stopPowerAutoRefresh,
+	handleVisibilityChange: handlePowerVisibilityChange,
+} = usePowerModbusIntegration(powerZones)
+
+const hvacSelectedZoneKey = computed(() => selectedZone.value)
+const {
+	locationStatuses: hvacLocationStatuses,
+	initializeLocationStatuses: initializeHvacStatuses,
+	preloadDeviceInfos: preloadHvacDevices,
+	loadAllLocationStatuses: loadAllHvacStatuses,
+	startAutoRefresh: startHvacAutoRefresh,
+	stopAutoRefresh: stopHvacAutoRefresh,
+	handleVisibilityChange: handleHvacVisibilityChange,
+} = useHvacModbusIntegration(hvacZones, hvacSelectedZoneKey)
 
 // 其他狀態
 const isZonePlanLoaded = ref(false)
@@ -364,6 +394,16 @@ const buildUiStatusMap = (items: unknown[]): Map<string, string> => {
 const drainageUiStatusByLocationId = computed(() => buildUiStatusMap(drainageStatusItems.value || []))
 const fireUiStatusByLocationId = computed(() => buildUiStatusMap(fireStatusItems.value || []))
 
+const powerUiStatusByLocationId = computed(() => {
+	const m = new Map<string, PowerStatusItem["uiStatus"]>()
+	for (const it of powerStatusItems.value || []) {
+		const locationId = String((it as any).locationId || "")
+		if (!locationId) continue
+		m.set(locationId, String((it as any).uiStatus || "unknown") as any)
+	}
+	return m
+})
+
 const lightingHealthByLocationDbId = computed(() => {
 	const m = new Map<string, { status?: "normal" | "warning" | "error" }>()
 	for (const zone of lightingZones.value || []) {
@@ -375,6 +415,22 @@ const lightingHealthByLocationDbId = computed(() => {
 			const uiKey = getLocationUiKey({ zone, location: loc, locationIndex: i })
 			const s = lightingLocationStatuses.value[uiKey]?.status
 			m.set(dbId, { status: s })
+		}
+	}
+	return m
+})
+
+const hvacUiStatusByLocationDbId = computed(() => {
+	const m = new Map<string, { uiStatus?: "normal" | "abnormal"; temperatureC?: number | null }>()
+	for (const zone of hvacZones.value || []) {
+		for (let i = 0; i < (zone.locations || []).length; i += 1) {
+			const loc = (zone.locations || [])[i] as any
+			const dbId = loc?.id ? String(loc.id) : ""
+			if (!dbId) continue
+			const uiKey = getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i })
+			const s = hvacLocationStatuses.value[uiKey]
+			if (!s) continue
+			m.set(dbId, { uiStatus: s.uiStatus, temperatureC: (s as any).temperatureC ?? null })
 		}
 	}
 	return m
@@ -406,6 +462,7 @@ const getModbusUiStatus = (locationId: string): string | null => {
 		return drainageUiStatusByLocationId.value.get(locationId) ?? "unknown"
 	}
 	if (selectedSystemType.value === "fire") return fireUiStatusByLocationId.value.get(locationId) ?? "unknown"
+	if (selectedSystemType.value === "power") return powerUiStatusByLocationId.value.get(locationId) ?? "unknown"
 	return null
 }
 
@@ -435,6 +492,18 @@ const dotStatusForLocation = (location: UnifiedLocation): DotStatus => {
 			}
 		}
 
+		if (locationHasSystemType(location, "hvac")) {
+			const hvac = hvacUiStatusByLocationDbId.value.get(id)?.uiStatus
+			if (hvac !== "normal") {
+				best = dotSeverity(best) >= 1 ? best : "abnormal"
+			}
+		}
+
+		if (locationHasSystemType(location, "power")) {
+			const s = uiStatusToDot(powerUiStatusByLocationId.value.get(id) ?? "unknown")
+			if (dotSeverity(s) > dotSeverity(best)) best = s
+		}
+
 		return best
 	}
 
@@ -446,6 +515,10 @@ const dotStatusForLocation = (location: UnifiedLocation): DotStatus => {
 		if (s === "normal") return "normal"
 		// 照明對外僅兩態：normal / abnormal（warning、error、缺值都算異常）
 		return "abnormal"
+	}
+	if (selectedSystemType.value === "hvac") {
+		const s = hvacUiStatusByLocationDbId.value.get(id)?.uiStatus
+		return s === "normal" ? "normal" : "abnormal"
 	}
 	return "normal"
 }
@@ -466,6 +539,11 @@ const flashModeForLocation = (location: UnifiedLocation): FlashMode => {
 	if (selectedSystemType.value === "lighting") {
 		const s = lightingHealthByLocationDbId.value.get(id)?.status
 		// 照明監控僅兩態：正常不閃，其餘慢閃（與 lighting StatusCenter 一致）
+		if (s === "normal") return "none"
+		return "slow"
+	}
+	if (selectedSystemType.value === "hvac") {
+		const s = hvacUiStatusByLocationDbId.value.get(id)?.uiStatus
 		if (s === "normal") return "none"
 		return "slow"
 	}
@@ -490,6 +568,20 @@ const tooltipLabelForLocation = (location: UnifiedLocation): string => {
 	const lighting = lightingHealthByLocationDbId.value.get(id)?.status
 	if (lighting === "warning") parts.push("照明：異常")
 	if (lighting === "error") parts.push("照明：警報")
+
+	const hvac = hvacUiStatusByLocationDbId.value.get(id)
+	if (hvac?.uiStatus && hvac.uiStatus !== "normal") {
+		const temp =
+			hvac.temperatureC != null && Number.isFinite(hvac.temperatureC)
+				? `（${Math.round(hvac.temperatureC)}°C）`
+				: ""
+		parts.push(`空調：異常${temp}`)
+	}
+
+	const powerUi = powerUiStatusByLocationId.value.get(id)
+	if (powerUi && powerUi !== "unknown" && powerUi !== "normal") {
+		parts.push(`電力：${uiStatusToDot(powerUi) === "alarm" ? "警報" : "異常"}`)
+	}
 
 	return parts.length ? `${location.name}：${label}\n${parts.join("、")}` : `${location.name}：${label}`
 }
@@ -572,11 +664,15 @@ const stopAllSystemAutoRefresh = () => {
 	stopLightingAutoRefresh()
 	stopDrainageAutoRefresh()
 	stopFireAutoRefresh()
+	stopPowerAutoRefresh()
+	stopHvacAutoRefresh()
 }
 
 const hasLoadedLightingSnapshot = ref(false)
 const hasLoadedDrainageSnapshot = ref(false)
 const hasLoadedFireSnapshot = ref(false)
+const hasLoadedPowerSnapshot = ref(false)
+const hasLoadedHvacSnapshot = ref(false)
 
 const overviewRefreshIntervalId = ref<ReturnType<typeof setInterval> | null>(null)
 
@@ -606,6 +702,18 @@ const refreshOverviewStatuses = async () => {
 		await loadFireStatusSnapshot({ autoRefresh: false })
 	} else {
 		await loadFireSnapshot()
+	}
+
+	if (!hasLoadedPowerSnapshot.value) {
+		await loadPowerStatusSnapshot({ autoRefresh: false })
+	} else {
+		await loadPowerSnapshot()
+	}
+
+	if (!hasLoadedHvacSnapshot.value) {
+		await loadHvacStatusSnapshot({ autoRefresh: false })
+	} else {
+		await loadAllHvacStatuses({ loadAllZones: true })
 	}
 }
 
@@ -647,10 +755,31 @@ const loadFireStatusSnapshot = async (options: { autoRefresh: boolean }) => {
 	if (options.autoRefresh) startFireAutoRefresh()
 }
 
+const loadPowerStatusSnapshot = async (options: { autoRefresh: boolean }) => {
+	const result = await powerApi.getZones()
+	powerZones.value = result.zones || []
+	await preloadPowerDevices()
+	await loadPowerSnapshot()
+	hasLoadedPowerSnapshot.value = true
+	if (options.autoRefresh) startPowerAutoRefresh()
+}
+
+const loadHvacStatusSnapshot = async (options: { autoRefresh: boolean }) => {
+	const result = await hvacApi.getZones()
+	hvacZones.value = result.zones || []
+	initializeHvacStatuses()
+	await preloadHvacDevices()
+	await loadAllHvacStatuses({ loadAllZones: true })
+	hasLoadedHvacSnapshot.value = true
+	if (options.autoRefresh) startHvacAutoRefresh()
+}
+
 const ensureAllStatusSnapshotsLoaded = async () => {
 	if (!hasLoadedLightingSnapshot.value) await loadLightingStatusSnapshot({ autoRefresh: false })
 	if (!hasLoadedDrainageSnapshot.value) await loadDrainageStatusSnapshot({ autoRefresh: false })
 	if (!hasLoadedFireSnapshot.value) await loadFireStatusSnapshot({ autoRefresh: false })
+	if (!hasLoadedPowerSnapshot.value) await loadPowerStatusSnapshot({ autoRefresh: false })
+	if (!hasLoadedHvacSnapshot.value) await loadHvacStatusSnapshot({ autoRefresh: false })
 }
 
 watch(
@@ -674,6 +803,14 @@ watch(
 		}
 		if (next === "fire") {
 			await loadFireStatusSnapshot({ autoRefresh: true })
+			return
+		}
+		if (next === "power") {
+			await loadPowerStatusSnapshot({ autoRefresh: true })
+			return
+		}
+		if (next === "hvac") {
+			await loadHvacStatusSnapshot({ autoRefresh: true })
 			return
 		}
 	},
@@ -704,6 +841,8 @@ const handleVisibilityChange = () => {
 		if (selectedSystemType.value === "lighting") handleLightingVisibilityChange()
 		if (selectedSystemType.value === "drainage") handleDrainageVisibilityChange()
 		if (selectedSystemType.value === "fire") handleFireVisibilityChange()
+		if (selectedSystemType.value === "power") handlePowerVisibilityChange()
+		if (selectedSystemType.value === "hvac") handleHvacVisibilityChange()
 	}
 }
 

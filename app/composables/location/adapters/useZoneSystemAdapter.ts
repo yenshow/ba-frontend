@@ -5,28 +5,34 @@
 
 import type { SystemType } from "~/types/location"
 import type { LightingZone, LightingLocation } from "~/types/lighting"
+import type { HvacZone, HvacLocation } from "~/types/hvac"
 import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment"
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting"
 import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess"
 import type { DrainageZone, DrainageLocation } from "~/types/drainage"
+import type { PowerZone, PowerLocation } from "~/types/power"
 import type { FireZone, FireLocation } from "~/types/fire"
 import type { EmergencyRescueZone, EmergencyRescueLocation } from "~/types/emergency-rescue"
 import { getLocationUiKey } from "~/utils/locationUiId"
 
 export type SystemZoneType =
 	| LightingZone
+	| HvacZone
 	| EnvironmentZone
 	| PeopleCountingZone
 	| VehicleAccessZone
 	| DrainageZone
+	| PowerZone
 	| FireZone
 	| EmergencyRescueZone
 export type SystemLocationType =
 	| LightingLocation
+	| HvacLocation
 	| EnvironmentLocation
 	| PeopleCountingLocation
 	| VehicleAccessLocation
 	| DrainageLocation
+	| PowerLocation
 	| FireLocation
 	| EmergencyRescueLocation
 
@@ -96,6 +102,38 @@ export function useLightingZoneAdapter(): ZoneSystemAdapter<LightingZone, Lighti
 }
 
 /**
+ * 空調系統適配器（編輯流程與照明相同；型別獨立）
+ */
+export function useHvacZoneAdapter(): ZoneSystemAdapter<HvacZone, HvacLocation> {
+	const systemConfig: SystemConfig = {
+		requireImageUrl: true,
+	}
+
+	return {
+		getLocationsProperty: (zone: HvacZone) => zone.locations || [],
+		setLocationsProperty: (zone: HvacZone, locations: HvacLocation[]) => ({
+			...zone,
+			locations,
+		}),
+		createNewLocation: (): HvacLocation => ({
+			name: "",
+		}),
+		createNewZone: (name: string): HvacZone => ({
+			name,
+			locations: [],
+		}),
+		filterEmptyLocations: (zone: HvacZone): HvacZone => ({
+			...zone,
+			locations: (zone.locations || []).filter((loc) => loc.name && loc.name.trim().length > 0),
+		}),
+		systemConfig,
+		getLocationId: ({ zone, location, locationIndex }): string => {
+			return getLocationUiKey({ zone, location, locationIndex })
+		},
+	}
+}
+
+/**
  * 環境監測系統適配器
  */
 export function useEnvironmentZoneAdapter(): ZoneSystemAdapter<
@@ -124,6 +162,42 @@ export function useEnvironmentZoneAdapter(): ZoneSystemAdapter<
 			locations: [],
 		}),
 		filterEmptyLocations: (zone: EnvironmentZone): EnvironmentZone => ({
+			...zone,
+			locations: (zone.locations || []).filter((loc) => loc.name && loc.name.trim().length > 0),
+		}),
+		systemConfig,
+		getLocationId: ({ zone, location, locationIndex }): string => {
+			return getLocationUiKey({ zone, location, locationIndex })
+		},
+	}
+}
+
+/**
+ * 電力系統適配器（與排水類似；預設檢視分類 generator）
+ */
+export function usePowerZoneAdapter(): ZoneSystemAdapter<PowerZone, PowerLocation> {
+	const systemConfig: SystemConfig = {
+		requireImageUrl: true,
+	}
+
+	return {
+		getLocationsProperty: (zone: PowerZone) => zone.locations || [],
+		setLocationsProperty: (zone: PowerZone, locations: PowerLocation[]) => ({
+			...zone,
+			locations,
+		}),
+		createNewLocation: (): PowerLocation => ({
+			name: "",
+			equipmentKind: "generator",
+			viewCategory: "",
+			statusPoints: {},
+			createdAt: new Date().toISOString(),
+		}),
+		createNewZone: (name: string): PowerZone => ({
+			name,
+			locations: [],
+		}),
+		filterEmptyLocations: (zone: PowerZone): PowerZone => ({
 			...zone,
 			locations: (zone.locations || []).filter((loc) => loc.name && loc.name.trim().length > 0),
 		}),
@@ -331,6 +405,8 @@ export function useZoneSystemAdapter<
 	switch (systemType) {
 		case "lighting":
 			return useLightingZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
+		case "hvac":
+			return useHvacZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		case "environment":
 			return useEnvironmentZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		case "people_counting":
@@ -339,6 +415,8 @@ export function useZoneSystemAdapter<
 			return useVehicleAccessZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		case "drainage":
 			return useDrainageZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
+		case "power":
+			return usePowerZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		case "fire":
 			return useFireZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		case "emergency_rescue":

@@ -6,6 +6,7 @@ export type AlertSource =
 	| "people_counting"
 	| "drainage"
 	| "hvac"
+	| "power"
 	| "fire"
 	| "emergency_rescue"
 	| "security"
@@ -73,14 +74,11 @@ export interface AlertHistoryItem {
 export interface AlertFilters {
 	source?: AlertSource
 	source_id?: number
-	device_id?: number
 	exclude_sources?: AlertSource[]
 	alert_type?: AlertType
 	dimension_key?: string
 	severity?: AlertSeverity
 	status?: AlertStatus
-	resolved?: boolean
-	ignored?: boolean
 	start_date?: string
 	end_date?: string
 	updated_after?: string
@@ -133,3 +131,56 @@ export interface CreateAlertRulePayload {
 }
 
 export type UpdateAlertRulePayload = Partial<CreateAlertRulePayload>
+
+export interface AlertLinkage {
+	id: number
+	name?: string | null
+	enabled: boolean
+	trigger_source: AlertSource
+	trigger_alert_type: AlertType
+	trigger_dimension_key?: string | null
+	trigger_severity_min: AlertSeverity
+	do_device_id: number | null
+	do_address: number | null
+	do_value: boolean
+	auto_off_seconds?: number | null
+	created_by?: number | null
+	created_at: string
+	updated_at: string
+}
+
+export interface CreateAlertLinkagePayload {
+	name?: string | null
+	enabled?: boolean
+	trigger_source: AlertSource
+	trigger_alert_type: AlertType
+	trigger_dimension_key?: string | null
+	trigger_severity_min?: AlertSeverity
+	do_device_id: number
+	do_address: number
+	do_value?: boolean
+	auto_off_seconds?: number | null
+}
+
+export type UpdateAlertLinkagePayload = Partial<CreateAlertLinkagePayload>
+
+export interface ManualOffDoOutputPayload {
+	linkage_id?: number | null
+	do_device_id: number
+	do_address: number
+	reason?: string | null
+	expires_at?: string | null
+}
+
+export interface ManualOffDoOutputResponse {
+	success: boolean
+}
+
+export interface ReleaseManualOffOverridePayload {
+	do_device_id: number
+	do_address: number
+}
+
+export interface ReleaseManualOffOverrideResponse {
+	success: boolean
+}

@@ -9,15 +9,18 @@ import type {
 	FireSystemConfig,
 	PeopleCountingSystemConfig,
 	VehicleAccessSystemConfig,
+	PowerSystemConfig,
 	LocationSystem,
 	LocationSystemInput,
 	UnifiedLocationInput,
 } from "~/types/location"
 import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment"
 import type { LightingZone, LightingLocation } from "~/types/lighting"
+import type { HvacZone, HvacLocation } from "~/types/hvac.ts"
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting"
 import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess"
 import type { DrainageZone, DrainageLocation } from "~/types/drainage"
+import type { PowerZone, PowerLocation } from "~/types/power"
 import type { FireZone, FireLocation } from "~/types/fire"
 import type { EmergencyRescueZone, EmergencyRescueLocation } from "~/types/emergency-rescue"
 import { pickSortOrder } from "~/utils/sortOrder"
@@ -114,6 +117,16 @@ function isLightingSystemConfig(config: unknown): config is LightingSystemConfig
 }
 
 /**
+ * 類型守衛：檢查是否為空調（HVAC）系統配置
+ * 注意：HVAC 可沿用照明結構，也可帶 statusPoints（與 drainage/fire 類似）
+ */
+function isHvacSystemConfig(config: unknown): config is import("~/types/location").HvacSystemConfig {
+	if (!config || typeof config !== "object") return false
+	const c = config as Record<string, unknown>
+	return "location" in c || "modbus" in c || "deviceId" in c || "statusPoints" in c
+}
+
+/**
  * 類型守衛：檢查是否為人流統計系統配置
  */
 function isPeopleCountingSystemConfig(config: unknown): config is PeopleCountingSystemConfig {
@@ -149,11 +162,21 @@ function parseSystemConfig(systemType: SystemType, config: unknown): SystemConfi
 		case "lighting":
 			if (isLightingSystemConfig(config)) return config
 			return {}
+		case "hvac":
+			if (isHvacSystemConfig(config)) return config
+			return {}
 		case "drainage":
 			if (isDrainageSystemConfig(config)) return config
 			return {
 				equipmentKind: "pump",
 				viewCategory: "drainage",
+				statusPoints: {},
+			}
+		case "power":
+			if (isDrainageSystemConfig(config)) return config as PowerSystemConfig
+			return {
+				equipmentKind: "generator",
+				viewCategory: "generator",
 				statusPoints: {},
 			}
 		case "fire":
@@ -300,6 +323,36 @@ export function unifiedToLightingZone(zone: UnifiedZone): LightingZone {
 }
 
 /**
+ * 將統一區域轉換為空調（HVAC）區域
+ */
+export function unifiedToHvacZone(zone: UnifiedZone): HvacZone {
+	return {
+		id: zone.id,
+		name: zone.name,
+		imageUrl: zone.imageUrl,
+		description: zone.description,
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.flatMap((loc) => {
+			const hvacSystem = loc.systems.find((s) => s.systemType === "hvac")
+			if (!hvacSystem || !isHvacSystemConfig(hvacSystem.config)) return []
+			return [
+				{
+					id: loc.id,
+					systemId: hvacSystem.id,
+					name: loc.name,
+					...(loc.createdAt && { createdAt: loc.createdAt }),
+					...pickSortOrder(loc.sortOrder),
+					location: hvacSystem.config.location,
+					deviceId: hvacSystem.config.deviceId,
+					modbus: hvacSystem.config.modbus,
+					statusPoints: hvacSystem.config.statusPoints,
+				} as HvacLocation,
+			]
+		}),
+	}
+}
+
+/**
  * 將照明區域轉換為統一區域（用於傳送給後端）
  */
 export function lightingToUnifiedZone(
@@ -312,6 +365,22 @@ export function lightingToUnifiedZone(
 		...(zone.description !== undefined && { description: zone.description }),
 		...pickSortOrder(zone.sortOrder),
 		locations: zone.locations.map((location) => lightingLocationToUnified(location, systemType)),
+	}
+}
+
+/**
+ * 將空調（HVAC）區域轉換為統一區域（用於傳送給後端）
+ */
+export function hvacToUnifiedZone(
+	zone: HvacZone,
+	systemType: SystemType = "hvac"
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
+	return {
+		name: zone.name,
+		...(zone.imageUrl !== undefined && { imageUrl: zone.imageUrl }),
+		...(zone.description !== undefined && { description: zone.description }),
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.map((location) => hvacLocationToUnified(location, systemType)),
 	}
 }
 
@@ -345,6 +414,41 @@ export function unifiedToDrainageZone(zone: UnifiedZone): DrainageZone {
 					viewCategory: cfg.viewCategory,
 					statusPoints: cfg.statusPoints,
 				} as DrainageLocation,
+			]
+		}),
+	}
+}
+
+/**
+ * 將統一區域轉換為電力區域
+ */
+export function unifiedToPowerZone(zone: UnifiedZone): PowerZone {
+	return {
+		id: zone.id,
+		name: zone.name,
+		imageUrl: zone.imageUrl,
+		description: zone.description,
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.flatMap((loc) => {
+			const powerSystem = loc.systems.find((s) => s.systemType === "power")
+			if (!powerSystem || !isDrainageSystemConfig(powerSystem.config)) {
+				return []
+			}
+			const cfg = powerSystem.config as PowerSystemConfig
+			return [
+				{
+					id: loc.id,
+					systemId: powerSystem.id,
+					name: loc.name,
+					...(loc.createdAt && { createdAt: loc.createdAt }),
+					...pickSortOrder(loc.sortOrder),
+					location: cfg.location,
+					deviceId: cfg.deviceId,
+					modbus: cfg.modbus as PowerLocation["modbus"],
+					equipmentKind: cfg.equipmentKind,
+					viewCategory: cfg.viewCategory,
+					statusPoints: cfg.statusPoints,
+				} as PowerLocation,
 			]
 		}),
 	}
@@ -539,6 +643,19 @@ export function drainageToUnifiedZone(
 		...(zone.description !== undefined && { description: zone.description }),
 		...pickSortOrder(zone.sortOrder),
 		locations: zone.locations.map((location) => drainageLocationToUnified(location, systemType)),
+	}
+}
+
+export function powerToUnifiedZone(
+	zone: PowerZone,
+	systemType: SystemType = "power"
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
+	return {
+		name: zone.name,
+		...(zone.imageUrl !== undefined && { imageUrl: zone.imageUrl }),
+		...(zone.description !== undefined && { description: zone.description }),
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.map((location) => powerLocationToUnified(location, systemType)),
 	}
 }
 
@@ -797,6 +914,41 @@ export function lightingLocationToUnified(
 }
 
 /**
+ * 輔助函數：將空調（HVAC）地點轉換為統一地點格式
+ */
+export function hvacLocationToUnified(
+	location: HvacLocation | Omit<HvacLocation, "id">,
+	systemType: SystemType = "hvac"
+): UnifiedLocationInput {
+	const hasId = "id" in location && location.id
+	const hasSystemId = "systemId" in location && location.systemId
+	const statusPoints =
+		location.statusPoints && Object.keys(location.statusPoints).length > 0 ? location.statusPoints : {}
+	return {
+		...(hasId && { id: location.id! }),
+		name: location.name,
+		...(location.description && { description: location.description }),
+		...(location.createdAt && { createdAt: location.createdAt }),
+		...pickSortOrder(location.sortOrder),
+		systems: [
+			{
+				...(hasSystemId && { id: location.systemId! }),
+				systemType,
+				config: {
+					deviceId: location.deviceId,
+					location: location.location,
+					modbus:
+						location.modbus != null
+							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
+							: undefined,
+					statusPoints,
+				} as import("~/types/location").HvacSystemConfig,
+			},
+		],
+	}
+}
+
+/**
  * 將排水地點轉換為統一地點格式
  */
 export function drainageLocationToUnified(
@@ -830,6 +982,45 @@ export function drainageLocationToUnified(
 					viewCategory: location.viewCategory ?? "drainage",
 					statusPoints,
 				} as DrainageSystemConfig,
+			},
+		],
+	}
+}
+
+/**
+ * 將電力地點轉換為統一地點格式
+ */
+export function powerLocationToUnified(
+	location: PowerLocation | Omit<PowerLocation, "id">,
+	systemType: SystemType = "power"
+): UnifiedLocationInput {
+	const hasId = "id" in location && location.id
+	const hasSystemId = "systemId" in location && location.systemId
+	const statusPoints =
+		location.statusPoints && Object.keys(location.statusPoints).length > 0
+			? location.statusPoints
+			: {}
+	return {
+		...(hasId && { id: location.id! }),
+		name: location.name,
+		...(location.description && { description: location.description }),
+		...(location.createdAt && { createdAt: location.createdAt }),
+		...pickSortOrder(location.sortOrder),
+		systems: [
+			{
+				...(hasSystemId && { id: location.systemId! }),
+				systemType,
+				config: {
+					deviceId: location.deviceId,
+					location: location.location,
+					modbus:
+						location.modbus != null
+							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
+							: undefined,
+					equipmentKind: location.equipmentKind ?? "generator",
+					viewCategory: location.viewCategory ?? "generator",
+					statusPoints,
+				} as PowerSystemConfig,
 			},
 		],
 	}

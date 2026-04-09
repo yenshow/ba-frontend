@@ -1,5 +1,4 @@
 import type { LightingZone, LightingLocation } from "~/types/lighting"
-import { useErrorTrackingApiFactory } from "~/composables/factories/useErrorTrackingApiFactory"
 import { useSystemLocationApiFactory } from "~/composables/location/api/useSystemLocationApiFactory"
 import {
 	unifiedToLightingZone,
@@ -27,16 +26,12 @@ export const useLightingApi = () => {
 		locationToUnified: lightingLocationToUnified,
 	})
 
-	const errorTrackingApi = useErrorTrackingApiFactory("/lighting/systems", "無法讀取照明設備資料")
-
 	return {
 		getZones: zoneApi.getZones,
 		getZone: zoneApi.getZone,
 		createZone: zoneApi.createZone,
 		updateZone: zoneApi.updateZone,
 		deleteZone: zoneApi.deleteZone,
-		reportError: errorTrackingApi.reportError,
-		clearError: errorTrackingApi.clearError,
 	}
 }
 

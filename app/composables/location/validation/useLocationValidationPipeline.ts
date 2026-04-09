@@ -4,7 +4,10 @@ import type { LightingLocation } from "~/types/lighting"
 import type { PeopleCountingLocation } from "~/types/peopleCounting"
 import type { VehicleAccessLocation } from "~/types/vehicleAccess"
 import type { DrainageLocation } from "~/types/drainage"
-import { useZoneValidation, useLocationValidation } from "~/composables/location/validation/useBaseValidation"
+import {
+	useZoneValidation,
+	useLocationValidation,
+} from "~/composables/location/validation/useBaseValidation"
 import { useEnvironmentLocationValidation } from "~/composables/location/validation/useEnvironmentLocationValidation"
 import { useLightingLocationValidation } from "~/composables/location/validation/useLightingLocationValidation"
 import { usePeopleCountingLocationValidation } from "~/composables/location/validation/usePeopleCountingLocationValidation"
@@ -73,7 +76,9 @@ export function useLocationValidationPipeline() {
 			const loc = locations[i]
 			const nameError = validateLocationName(loc?.name)
 			if (nameError) {
-				errors.push(`${labelForSystemType(args.systemType)}地點「${loc?.name || `第 ${i + 1} 筆`}」：${nameError}`)
+				errors.push(
+					`${labelForSystemType(args.systemType)}地點「${loc?.name || `第 ${i + 1} 筆`}」：${nameError}`
+				)
 				continue
 			}
 
@@ -88,8 +93,8 @@ export function useLocationValidationPipeline() {
 					}
 					break
 				}
-				case "lighting": {
-					// lighting 有提供區域內整體檢查（包含重複地址等），集中處理即可
+				case "lighting":
+				case "hvac": {
 					break
 				}
 				case "people_counting": {
@@ -116,8 +121,8 @@ export function useLocationValidationPipeline() {
 			}
 		}
 
-		// lighting 的整區檢查放在最後一次做，避免重複 O(n^2)
-		if (args.systemType === "lighting") {
+		// lighting / HVAC：整區 Modbus 檢查（結構與照明點位相同）放在最後一次做，避免重複 O(n^2)
+		if (args.systemType === "lighting" || args.systemType === "hvac") {
 			const r = lighting.validateZoneLocations(locations as LightingLocation[])
 			if (!r.isValid) errors.push(...r.errors)
 			if (r.warnings?.length) warnings.push(...r.warnings)
@@ -130,11 +135,13 @@ export function useLocationValidationPipeline() {
 	 * 全區點位圖：驗證 UnifiedZone（包含 locations[] 與 systems[]）
 	 * - 統一規則：location.name 必填；location.systems 至少一個
 	 */
-	const validateUnifiedZoneForSave = (args: {
-		zone: UnifiedZone
-	}): ValidationPipelineResult => {
+	const validateUnifiedZoneForSave = (args: { zone: UnifiedZone }): ValidationPipelineResult => {
 		const base = validateZoneBase({
-			zone: { name: args.zone?.name, imageUrl: args.zone?.imageUrl, description: args.zone?.description },
+			zone: {
+				name: args.zone?.name,
+				imageUrl: args.zone?.imageUrl,
+				description: args.zone?.description,
+			},
 			requireImageUrl: false,
 		})
 
@@ -164,4 +171,3 @@ export function useLocationValidationPipeline() {
 		validateUnifiedZoneForSave,
 	}
 }
-
