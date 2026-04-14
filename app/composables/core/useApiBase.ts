@@ -2,6 +2,9 @@ import { useRequestFetch } from "#app";
 import { useAuth } from "~/composables/core/useAuth";
 import { isDeviceApiRequest } from "~/utils/errorUtils";
 
+// GET 同 URL 同時間去重（避免多個元件/多個 watch 同步觸發造成 burst）
+const inFlightGetRequests = new Map<string, Promise<unknown>>();
+
 /**
  * 共用的 API 基礎 composable
  * 提供統一的請求處理和錯誤處理邏輯
@@ -57,6 +60,13 @@ export const useApiBase = () => {
 	// 統一的請求處理函數
 	const request = async <T>(path: string, options: RequestOptions = {}) => {
 		const url = `${apiBase}${path}`;
+		const method = String((options.method || "GET")).toUpperCase();
+
+		if (method === "GET") {
+			const existing = inFlightGetRequests.get(url) as Promise<T> | undefined;
+			if (existing) return await existing;
+		}
+
 		const isFormData = options.body instanceof FormData;
 		const baseHeaders = getAuthHeaders() as Record<string, string>;
 		// FormData 時不要設定 Content-Type，讓瀏覽器自動帶上 multipart/form-data + boundary
@@ -86,7 +96,7 @@ export const useApiBase = () => {
 			? JSON.stringify(fetcherOptions.body)
 			: fetcherOptions.body;
 
-		try {
+		const run = async () => {
 			const response = await fetcher<T>(url, {
 				...fetcherOptions,
 				body: finalBody as any,
@@ -108,7 +118,16 @@ export const useApiBase = () => {
 				}
 			}
 			
-			return response;
+			return response as any;
+		};
+
+		try {
+			const promise = run();
+			if (method === "GET") {
+				inFlightGetRequests.set(url, promise as Promise<unknown>);
+			}
+			const response = await promise;
+			return response as T;
 		} catch (error: any) {
 			// 先提取後端返回的錯誤訊息和狀態碼（優先處理 HTTP 狀態碼）
 			const backendErrorMsg =
@@ -234,6 +253,10 @@ export const useApiBase = () => {
 				throw new Error(`API 請求失敗: ${error.message}`);
 			}
 			throw error;
+		} finally {
+			if (method === "GET") {
+				inFlightGetRequests.delete(url);
+			}
 		}
 	};
 

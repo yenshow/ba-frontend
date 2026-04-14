@@ -221,6 +221,7 @@ import { useAlertRules } from "~/composables/monitoring/useAlertRules"
 import { useAuth } from "~/composables/core/useAuth"
 import { useEnvironmentSensors, type SensorReadings } from "~/composables/systems/environment/useEnvironmentSensors"
 import type { EnvironmentReadingNewEvent } from "~/types/websocket"
+import type { AlertRule } from "~/types/alert"
 import {
 	getParameterDisplayName,
 	getParameterUnit,
@@ -256,7 +257,7 @@ const { handleError } = useErrorHandler()
 const { getRules, getStatusText: getStatusTextFromRules } = useAlertRules()
 
 // 警報規則緩存
-const alertRules = ref<any[]>([])
+const alertRules = ref<AlertRule[]>([])
 const rulesLoaded = ref(false)
 
 // 環境區域和地點資料

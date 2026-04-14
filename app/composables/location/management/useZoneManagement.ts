@@ -2,7 +2,7 @@ import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location"
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { compareZonesLoose } from "~/utils/sortOrder";
-import { deleteZoneWithSystemAwareness } from "~/services/location/locationService";
+import { deleteZoneWithSystemAwareness } from "~/composables/location/locationSystemActions";
 
 /**
  * 區域管理 Composable

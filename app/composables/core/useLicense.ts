@@ -14,7 +14,8 @@ const DEFAULT_LICENSE: LicenseState = {
 	licenseKey: null,
 	activationMethod: null,
 	deviceFingerprint: null,
-	extensionKeys: []
+	extensionKeys: [],
+	licenseEntitlements: []
 };
 
 export const useLicense = () => {

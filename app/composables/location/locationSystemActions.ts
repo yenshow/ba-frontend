@@ -95,4 +95,3 @@ export const deleteZoneWithSystemAwareness = async (args: {
 	await locationApi.updateZone(zoneId, { locations: remainingLocations })
 	return { action: "removed-system-from-zone", remainingLocations }
 }
-

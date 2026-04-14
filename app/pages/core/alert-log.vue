@@ -31,16 +31,6 @@
 				>
 					警報設定
 				</button>
-				<button
-					type="button"
-					@click="currentMode = 'linkages'"
-					:class="[
-						'rounded-lg px-3 py-1.5 text-base transition-colors 2xl:text-lg',
-						currentMode === 'linkages' ? 'bg-cyan-500 text-white' : 'text-white/80 hover:bg-white/10',
-					]"
-				>
-					警報連動
-				</button>
 			</div>
 
 			<div class="flex items-center gap-3 2xl:gap-4">
@@ -103,9 +93,43 @@
 			v-model:selected-rule-source="ruleFilterSource"
 			v-model:selected-rule-type="ruleFilterType"
 		/>
-
-		<AlertLinkageManagement v-else-if="currentMode === 'linkages' && isAdmin" />
 	</div>
+
+	<!-- Camera popup (rule camera linkage) -->
+	<Teleport to="body">
+		<Transition name="dialog-fade">
+			<div
+				v-if="cameraPopup.open"
+				class="fixed inset-0 z-[2100] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
+				role="dialog"
+				aria-modal="true"
+				aria-label="攝影機彈窗"
+			>
+				<div class="dialog-panel-bg w-full max-w-6xl overflow-hidden rounded-3xl p-4 2xl:p-6">
+					<div class="mb-3 flex items-center justify-between">
+						<h3 class="text-lg font-semibold tracking-[2px] text-white 2xl:text-xl">
+							攝影機：{{ cameraPopup.cameraName }}
+						</h3>
+						<button
+							type="button"
+							class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
+							aria-label="關閉攝影機彈窗"
+							@click="handleCloseCameraPopup"
+						>
+							&times;
+						</button>
+					</div>
+					<div class="h-[70vh] w-full overflow-hidden rounded-2xl border border-white/15">
+						<VideoPlayer
+							:webrtc-url="cameraPopup.webrtcUrl"
+							:stream-status="cameraPopup.streamStatus"
+						/>
+					</div>
+					<p v-if="cameraPopup.error" class="mt-3 text-sm text-rose-300">{{ cameraPopup.error }}</p>
+				</div>
+			</div>
+		</Transition>
+	</Teleport>
 </template>
 
 <script setup lang="ts">
@@ -116,6 +140,7 @@ import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor"
 import { useAlertEventBus } from "~/composables/monitoring/alertMonitor/useAlertEventBus"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi"
+import { useAlertRuleIntegrationsStore } from "~/composables/systems/alerts/useAlertRuleIntegrationsStore"
 import type { AlertNewEvent, AlertUpdatedEvent } from "~/types/websocket"
 import { getSourceLabel, getTypeLabel, getSeverityLabel } from "~/utils/alertUtils"
 import { getTodayDateRangeUTC, formatDateTime } from "~/utils/dateUtils"
@@ -124,9 +149,10 @@ import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
 import AlertListSection from "~/components/alerts/AlertListSection.vue"
 import AlertRuleManagement from "~/components/alerts/AlertRuleManagement.vue"
-import AlertLinkageManagement from "~/components/alerts/AlertLinkageManagement.vue"
 import { useDataLoader } from "~/composables/monitoring/useDataLoader"
 import { logger } from "~/utils/logger"
+import VideoPlayer from "~/components/surveillance/VideoPlayer.vue"
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 
 const alertLogLogger = logger.createLogger("alert-log")
 
@@ -135,16 +161,41 @@ definePageMeta({
 })
 
 const alertApi = useAlertApi()
+const integrationsStore = useAlertRuleIntegrationsStore()
+const deviceApi = useDeviceApi()
 const toast = useToast()
 const { isAdmin } = useAuth()
 const { removeAlertToast } = useAlertMonitor()
-const { onAlertNew: busOnAlertNew, onAlertUpdated: busOnAlertUpdated, offAlertNew: busOffAlertNew, offAlertUpdated: busOffAlertUpdated } = useAlertEventBus()
+const {
+	onAlertNew: busOnAlertNew,
+	onAlertUpdated: busOnAlertUpdated,
+	onAlertDailyRollover: busOnAlertDailyRollover,
+	offAlertNew: busOffAlertNew,
+	offAlertUpdated: busOffAlertUpdated,
+	offAlertDailyRollover: busOffAlertDailyRollover,
+} = useAlertEventBus()
 const { handleError: handleApiError } = useErrorHandler()
+
+const cameraPopup = reactive({
+	open: false,
+	webrtcUrl: "",
+	streamStatus: "stopped" as "running" | "stopped" | "loading" | "error",
+	error: "",
+	cameraName: "",
+})
+
+const handleCloseCameraPopup = () => {
+	cameraPopup.open = false
+	cameraPopup.webrtcUrl = ""
+	cameraPopup.streamStatus = "stopped"
+	cameraPopup.error = ""
+	cameraPopup.cameraName = ""
+}
 
 // 狀態
 const isIgnoring = ref(false)
 const unresolvedCount = ref(0)
-const currentMode = ref<"alerts" | "rules" | "linkages">("alerts")
+const currentMode = ref<"alerts" | "rules">("alerts")
 
 const ruleManagementRef = ref<{ openCreateRuleDialog: () => void } | null>(null)
 const ruleFilterSource = ref<"" | AlertSource>("")
@@ -201,7 +252,6 @@ const timeRange = ref({
 
 // 時間範圍預設選項
 const timeRangePresets = [
-	{ value: "past_hour", label: "過去一小時" },
 	{ value: "today", label: "今天" },
 	{ value: "yesterday", label: "昨天" },
 	{ value: "this_week", label: "本週" },
@@ -211,14 +261,13 @@ const timeRangePresets = [
 	{ value: "custom", label: "自訂" },
 ]
 
-// 監聽時間範圍變化
+// 監聽時間範圍變化（避免 deep watch 造成不必要觸發）
 watch(
-	() => timeRange.value,
-	(newValue) => {
-		filterStartDate.value = newValue.startDate
-		filterEndDate.value = newValue.endDate
-	},
-	{ deep: true }
+	() => [timeRange.value.startDate, timeRange.value.endDate] as const,
+	([startDate, endDate]) => {
+		filterStartDate.value = startDate
+		filterEndDate.value = endDate
+	}
 )
 
 // 使用 useDataLoader 統一管理數據載入
@@ -322,7 +371,7 @@ const handleIgnore = (alert: Alert) =>
 	handleIgnoreAction(
 		alert,
 		"ignore",
-		"確定要忽視此警示嗎？忽視後將不再顯示此來源同類型、同維度的警示。",
+		"確定要忽視此警示嗎？忽視僅對「當曆日」有效；隔日若仍異常將再次通知。當日內將不再為此來源同類型、同維度建立新警示。",
 		"警示已忽視",
 		"忽視警示失敗"
 	)
@@ -345,22 +394,21 @@ const getAlertKey = (alert: Pick<Alert, "id" | "dimension_key">): string =>
 	`${alert.id}:${alert.dimension_key || "default"}`
 
 // 檢查警報是否符合當前篩選條件
+const startMs = computed(() =>
+	filterStartDate.value ? new Date(filterStartDate.value).getTime() : null
+)
+const endMs = computed(() => (filterEndDate.value ? new Date(filterEndDate.value).getTime() : null))
+
 const matchesFilters = (alert: Alert): boolean => {
 	const currentStatus = getFilterStatus()
 	if (currentStatus && alert.status !== currentStatus) return false
 	if (filterSource.value && alert.source !== filterSource.value) return false
 
-	if (filterStartDate.value || filterEndDate.value) {
+	if (startMs.value != null || endMs.value != null) {
 		const alertTime = new Date(alert.created_at).getTime()
 
-		if (filterStartDate.value) {
-			const startTime = new Date(filterStartDate.value).getTime()
-			if (alertTime < startTime) return false
-		}
-		if (filterEndDate.value) {
-			const endTime = new Date(filterEndDate.value).getTime()
-			if (alertTime > endTime) return false
-		}
+		if (startMs.value != null && alertTime < startMs.value) return false
+		if (endMs.value != null && alertTime > endMs.value) return false
 	}
 
 	return true
@@ -390,6 +438,12 @@ const handleAlertNew = (alert: AlertNewEvent) => {
 	if (alert.status === "active") {
 		unresolvedCount.value++
 	}
+
+	// 攝影機連動：若此 alert 綁了規則，且該規則有 camera linkage，彈出播放器
+	const ruleId = alert.rule_id != null ? Number(alert.rule_id) : null
+	if (ruleId && Number.isFinite(ruleId)) {
+		void maybeOpenCameraPopupByRule(ruleId, alert)
+	}
 }
 
 // 處理警報更新事件（WebSocket）
@@ -413,6 +467,52 @@ const handleAlertUpdated = (data: AlertUpdatedEvent) => {
 		unresolvedCount.value = Math.max(0, unresolvedCount.value - 1)
 	} else if ((oldStatus === "resolved" || oldStatus === "ignored") && newStatus === "active") {
 		unresolvedCount.value++
+	}
+}
+
+const handleAlertDailyRollover = () => {
+	if (currentMode.value !== "alerts") return
+	load({}, true)
+	void loadUnresolvedCount()
+}
+
+const maybeOpenCameraPopupByRule = async (
+	ruleId: number,
+	alert?: Pick<Alert, "zone_name" | "source_name" | "source_display_name" | "location_name">
+) => {
+	try {
+		const next = await integrationsStore.ensureCameraLinkage(ruleId)
+		if (!next.enabled || !next.cameraDeviceId) return
+		await openCameraPopupForDevice(next.cameraDeviceId, alert)
+	} catch {
+		// ignore
+	}
+}
+
+const openCameraPopupForDevice = async (
+	deviceId: number,
+	alert?: Pick<Alert, "zone_name" | "source_name" | "source_display_name" | "location_name">
+) => {
+	cameraPopup.open = true
+	cameraPopup.streamStatus = "loading"
+	cameraPopup.error = ""
+	cameraPopup.cameraName = ""
+	try {
+		const deviceRes = await deviceApi.getDevice(deviceId)
+		cameraPopup.cameraName = deviceRes?.device?.name?.trim?.() || ""
+
+		const status = await deviceApi.getStreamStatus(deviceId)
+		if (status.status !== "running") {
+			const started = await deviceApi.startStream(deviceId)
+			cameraPopup.webrtcUrl = started.webrtcUrl || ""
+			cameraPopup.streamStatus = "running"
+			return
+		}
+		cameraPopup.webrtcUrl = status.webrtcUrl || ""
+		cameraPopup.streamStatus = status.status
+	} catch (e) {
+		cameraPopup.streamStatus = "error"
+		cameraPopup.error = e instanceof Error ? e.message : "啟動攝影機串流失敗"
 	}
 }
 
@@ -441,8 +541,12 @@ const formatZoneLocation = (z?: string | null, l?: string | null) =>
 
 const getDeviceConfigDisplay = (c: Record<string, unknown> | string | null | undefined) => {
 	if (!c) return ""
-	const o = typeof c === "string" ? (JSON.parse(c || "{}") as Record<string, unknown>) : c
-	return String(o.host ?? "").trim() || ""
+	try {
+		const o = typeof c === "string" ? (JSON.parse(c || "{}") as Record<string, unknown>) : c
+		return String(o.host ?? "").trim() || ""
+	} catch {
+		return ""
+	}
 }
 
 // 匯出警示為 CSV（欄位順序與後端備份一致）
@@ -600,6 +704,7 @@ onMounted(async () => {
 	// 透過 EventBus 訂閱（唯一 WS 層由 useAlertEventBus 管理）
 	busOnAlertNew(handleAlertNew)
 	busOnAlertUpdated(handleAlertUpdated)
+	busOnAlertDailyRollover(handleAlertDailyRollover)
 
 	// 處理 alertId 查詢參數
 	await handleAlertIdQuery()
@@ -609,5 +714,6 @@ onMounted(async () => {
 onUnmounted(() => {
 	busOffAlertNew(handleAlertNew)
 	busOffAlertUpdated(handleAlertUpdated)
+	busOffAlertDailyRollover(handleAlertDailyRollover)
 })
 </script>

@@ -19,6 +19,7 @@
 								<th :class="tableHeaderClass">類型</th>
 								<th :class="tableHeaderClass">狀態</th>
 								<th :class="tableHeaderClass">狀態</th>
+								<th :class="tableHeaderClass">連動</th>
 								<th :class="tableHeaderClass">操作</th>
 							</tr>
 						</thead>
@@ -64,6 +65,31 @@
 									>
 										{{ rule.enabled ? "啟用" : "停用" }}
 									</span>
+								</td>
+								<td :class="tableCellClass">
+									<div class="flex flex-wrap items-center justify-center gap-1.5">
+										<template v-if="getIntegrationSummary(rule.id).hasAny">
+											<span
+												v-if="getIntegrationSummary(rule.id).doEnabled"
+												class="rounded bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-100 2xl:text-sm"
+											>
+												DO
+											</span>
+											<span
+												v-if="getIntegrationSummary(rule.id).cameraEnabled"
+												class="rounded bg-sky-500/20 px-2 py-0.5 text-xs text-sky-100 2xl:text-sm"
+											>
+												CAM
+											</span>
+											<span
+												v-if="getIntegrationSummary(rule.id).webhookEnabled"
+												class="rounded bg-violet-500/20 px-2 py-0.5 text-xs text-violet-100 2xl:text-sm"
+											>
+												WEB
+											</span>
+										</template>
+										<span v-else class="text-sm text-white/40">—</span>
+									</div>
 								</td>
 								<td :class="tableCellClass">
 									<div class="flex flex-wrap gap-2 2xl:gap-3">
@@ -123,14 +149,17 @@ import type {
 	AlertRule,
 	AlertSeverity,
 	AlertType,
+	AlertRuleIntegrationSummary,
 	CreateAlertRulePayload,
 	UpdateAlertRulePayload,
 } from "~/types/alert"
 import type { UnifiedZone } from "~/types/location"
 import Pagination from "~/components/common/Pagination.vue"
 import AlertRuleDialog from "~/components/alerts/AlertRuleDialog.vue"
-import { useLocationApi } from "~/composables/location/api/useLocationApi"
+import { useZonesCache } from "~/composables/location/cache/useZonesCache"
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi"
+import { useAlertRuleIntegrationsStore } from "~/composables/systems/alerts/useAlertRuleIntegrationsStore"
+import { useAlertRules } from "~/composables/monitoring/useAlertRules"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import {
@@ -140,7 +169,9 @@ import {
 } from "~/utils/alertUtils"
 
 const alertApi = useAlertApi()
-const locationApi = useLocationApi()
+const zonesCache = useZonesCache()
+const integrationsStore = useAlertRuleIntegrationsStore()
+const alertRules = useAlertRules()
 const toast = useToast()
 const { handleError: handleApiError } = useErrorHandler()
 
@@ -148,14 +179,16 @@ const zonesBySource = ref<Partial<Record<AlertSource, UnifiedZone[]>>>({})
 
 const loadZonesForRulesSources = async () => {
 	const sources = [...new Set(rules.value.map((r) => r.source))]
+	const sourcesToFetch = sources.filter((source) => zonesBySource.value[source] == null)
+	if (sourcesToFetch.length === 0) return
 	const updates: Partial<Record<AlertSource, UnifiedZone[]>> = {}
 	await Promise.all(
-		sources.map(async (source) => {
+		sourcesToFetch.map(async (source) => {
 			const systemType = alertSourceToSystemType(source)
 			if (!systemType) return
 			try {
-				const result = await locationApi.getZones(systemType)
-				updates[source] = result.zones || []
+				const zones = await zonesCache.getZones(systemType)
+				updates[source] = zones || []
 			} catch {
 				updates[source] = []
 			}
@@ -194,22 +227,22 @@ const ruleSourceOptions = [
 const tableHeaderClass = "py-3 2xl:py-4 px-4 2xl:px-6 text-sm 2xl:text-base text-white/80"
 const tableCellClass = "py-3 2xl:py-4 px-4 2xl:px-6"
 
+const getIntegrationSummary = (ruleId: number): AlertRuleIntegrationSummary =>
+	integrationsStore.getSummary(ruleId)
+
 const loadRules = async () => {
 	isRulesLoading.value = true
 	try {
-		const sourcesToLoad = selectedRuleSource.value
-			? [selectedRuleSource.value]
-			: ruleSourceOptions.filter((item) => item.value).map((item) => item.value as AlertSource)
+		const shouldLoadAllSources = selectedRuleSource.value === ""
+		const mergedRules = shouldLoadAllSources
+			? (await alertApi.getAllAlertRules()).rules
+			: (await alertApi.getAlertRules(selectedRuleSource.value)).rules
+		const filteredRules =
+			selectedRuleType.value === ""
+				? mergedRules
+				: mergedRules.filter((r) => r.alert_type === selectedRuleType.value)
 
-		const requests = sourcesToLoad.map((source) =>
-			selectedRuleType.value
-				? alertApi.getAlertRules(source, selectedRuleType.value)
-				: alertApi.getAlertRules(source)
-		)
-		const results = await Promise.all(requests)
-		const mergedRules = results.flatMap((result) => result.rules)
-
-		rules.value = mergedRules
+		rules.value = filteredRules
 			.filter(
 				(rule, index, arr) => arr.findIndex((candidate) => candidate.id === rule.id) === index
 			)
@@ -221,6 +254,7 @@ const loadRules = async () => {
 		isRulesLoading.value = false
 	}
 	await loadZonesForRulesSources()
+	await integrationsStore.prefetch(paginatedRules.value.map((r) => r.id))
 }
 
 const getRuleTargetText = (rule: AlertRule): string => {
@@ -235,9 +269,7 @@ const getRuleTargetText = (rule: AlertRule): string => {
 	}
 	if (rule.target_type === "location") {
 		for (const z of zones || []) {
-			const loc = (z.locations || []).find(
-				(l) => Number(l.id) === Number(rule.target_id)
-			)
+			const loc = (z.locations || []).find((l) => Number(l.id) === Number(rule.target_id))
 			if (loc) return `${z.name} - ${loc.name}`
 		}
 		return `locationId=${rule.target_id}`
@@ -262,14 +294,33 @@ const closeRuleDialog = () => {
 	editingRule.value = null
 }
 
-const handleSubmitRule = async (payload: CreateAlertRulePayload) => {
+const handleSubmitRule = async (payload: {
+	rule: CreateAlertRulePayload
+	integrations: Partial<{
+		doLinkage: unknown
+		cameraLinkage: unknown
+		webhookSubscriptions: unknown
+	}>
+}) => {
 	isRuleSaving.value = true
 	try {
+		const rulePayload = payload.rule
+		const integrationsBody = payload.integrations || {}
 		if (editingRule.value) {
-			await alertApi.updateAlertRule(editingRule.value.id, payload as UpdateAlertRulePayload)
+			const ruleId = editingRule.value.id
+			await alertApi.updateAlertRule(editingRule.value.id, rulePayload as UpdateAlertRulePayload)
+			await alertApi.updateAlertRuleIntegrations(editingRule.value.id, integrationsBody as any)
+			alertRules.clearCache(rulePayload.source)
+			integrationsStore.invalidate(ruleId)
 			toast.success("警報定義已更新", 3000)
 		} else {
-			await alertApi.createAlertRule(payload)
+			const created = await alertApi.createAlertRule(rulePayload)
+			const newId = created?.rule?.id
+			if (newId) {
+				await alertApi.updateAlertRuleIntegrations(newId, integrationsBody as any)
+				integrationsStore.invalidate(newId)
+			}
+			alertRules.clearCache(rulePayload.source)
 			toast.success("警報定義已建立", 3000)
 		}
 		closeRuleDialog()
@@ -287,6 +338,8 @@ const handleDeleteRule = async (rule: AlertRule) => {
 	}
 	try {
 		await alertApi.deleteAlertRule(rule.id)
+		alertRules.clearCache(rule.source)
+		integrationsStore.invalidate(rule.id)
 		toast.success("警報定義已刪除", 3000)
 		await loadRules()
 	} catch (error) {
@@ -296,6 +349,14 @@ const handleDeleteRule = async (rule: AlertRule) => {
 
 const paginatedRules = computed(() =>
 	rules.value.slice(ruleOffset.value, ruleOffset.value + ruleLimit)
+)
+
+watch(
+	paginatedRules,
+	(next) => {
+		void integrationsStore.prefetch(next.map((r) => r.id))
+	},
+	{ immediate: true }
 )
 
 const getRuleStatusBadgeClass = (enabled: boolean) =>

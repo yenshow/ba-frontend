@@ -26,35 +26,31 @@
 						class="show-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto pb-4 pr-7 2xl:gap-6 2xl:pb-6 2xl:pr-8"
 						@submit.prevent="handleSubmit"
 					>
+						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+							<span>系統 *</span>
+							<FilterDropdown
+								v-model="form.source"
+								:options="sourceSelectOptions"
+								placeholder="請選擇來源系統"
+								text-size="text-sm 2xl:text-base"
+							/>
+						</label>
 						<div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-4 2xl:gap-6">
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>系統 *</span>
-								<FilterDropdown
-									v-model="form.source"
-									:options="sourceSelectOptions"
-									placeholder="請選擇來源系統"
-									text-size="text-sm 2xl:text-base"
-								/>
-							</label>
-
-							<div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-4 2xl:gap-6">
-								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>狀態 *</span>
-									<FilterDropdown
-										v-model="form.severity"
-										:options="severityOptions"
-										placeholder="請選擇狀態（異常／警報）"
-										text-size="text-sm 2xl:text-base"
-									/>
-								</label>
-							</div>
-
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 								<span>類型 *</span>
 								<FilterDropdown
 									v-model="form.alert_type"
 									:options="alertTypeOptions"
 									placeholder="請選擇警報類型"
+									text-size="text-sm 2xl:text-base"
+								/>
+							</label>
+							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+								<span>狀態 *</span>
+								<FilterDropdown
+									v-model="form.severity"
+									:options="severityOptions"
+									placeholder="請選擇狀態（異常／警報）"
 									text-size="text-sm 2xl:text-base"
 								/>
 							</label>
@@ -93,7 +89,6 @@
 							v-if="form.alert_type === 'threshold'"
 							class="rounded-2xl border border-white/15 bg-white/5 p-4 2xl:p-5"
 						>
-							<p class="mb-3 text-sm font-medium text-white/90 2xl:text-base">警報細節設定</p>
 							<div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-4 2xl:gap-6">
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>參數 (parameter) *</span>
@@ -137,7 +132,6 @@
 						</div>
 
 						<div v-else class="rounded-2xl border border-white/15 bg-white/5 p-4 2xl:p-5">
-							<p class="mb-3 text-sm font-medium text-white/90 2xl:text-base">警報細節設定</p>
 							<template v-if="form.alert_type === 'offline'">
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>最小錯誤次數 (min_errors) *</span>
@@ -171,23 +165,145 @@
 							</template>
 						</div>
 
-						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-							<span>訊息模板</span>
-							<textarea
-								v-model="form.message_template"
-								rows="3"
-								class="form-input min-h-[5.5rem] resize-y"
-								placeholder="例如：{location_label} 連續 {error_count} 次無法連接"
-								@input="handleMessageTemplateInput"
-							/>
-						</label>
-						<p
-							v-if="previewRendered"
-							class="text-sm leading-relaxed text-white/55 2xl:text-base"
-							aria-live="polite"
-						>
-							預覽：{{ previewRendered }}
-						</p>
+						<div class="rounded-2xl border border-white/15 bg-white/5 p-4 2xl:p-5">
+							<p class="mb-2 text-sm font-medium text-white/90 2xl:text-base">訊息模板</p>
+							<label
+								class="mt-3 flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+							>
+								<textarea
+									v-model="form.message_suffix"
+									rows="3"
+									class="form-input min-h-[5.5rem] resize-y"
+									placeholder="例如：請值班人員立即到場確認"
+								/>
+							</label>
+						</div>
+
+						<!-- Integrations: accordion -->
+						<div class="rounded-2xl border border-white/15 bg-white/5 p-4 2xl:p-5">
+							<button
+								type="button"
+								class="flex w-full items-center justify-between text-left text-sm font-medium text-white/90 2xl:text-base"
+								@click="expandedSections.linkage = !expandedSections.linkage"
+							>
+								<span>警報連動</span>
+								<span class="text-white/60">{{ expandedSections.linkage ? "收合" : "展開" }}</span>
+							</button>
+
+							<div v-if="expandedSections.linkage" class="mt-4 space-y-4">
+								<div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+									<p class="mb-3 text-sm font-medium text-white/90">DO 輸出設定</p>
+									<label class="flex items-center gap-3 text-sm text-white/80">
+										<input v-model="doLinkage.enabled" type="checkbox" class="h-4 w-4" />
+										<span>啟用 DO 連動</span>
+									</label>
+
+									<div v-if="doLinkage.enabled" class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+										<label class="flex flex-col gap-2 text-sm text-white/80 md:col-span-2">
+											<span>設備 *</span>
+											<FilterDropdown
+												v-model="doDeviceIdModel"
+												:options="controllerDeviceOptions"
+												placeholder="請選擇控制器設備"
+												text-size="text-sm 2xl:text-base"
+											/>
+										</label>
+
+										<label class="flex flex-col gap-2 text-sm text-white/80">
+											<span>觸發時輸出 *</span>
+											<FilterDropdown
+												v-model="doOutputValueModel"
+												:options="doOutputValueOptions"
+												placeholder="請選擇"
+												text-size="text-sm 2xl:text-base"
+											/>
+										</label>
+
+										<label class="flex flex-col gap-2 text-sm text-white/80">
+											<span>位址 *</span>
+											<input
+												v-model.number="doLinkage.do_address"
+												type="number"
+												min="0"
+												class="form-input"
+												placeholder="例如：0"
+											/>
+										</label>
+
+										<label class="flex flex-col gap-2 text-sm text-white/80 md:col-span-2">
+											<span>延時復歸（秒）</span>
+											<input
+												v-model.number="doLinkage.auto_off_seconds"
+												type="number"
+												min="1"
+												class="form-input"
+												placeholder="留空 - 不自動復歸"
+											/>
+										</label>
+									</div>
+								</div>
+
+								<div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+									<p class="mb-3 text-sm font-medium text-white/90">攝影機連動</p>
+									<label class="flex items-center gap-3 text-sm text-white/80">
+										<input v-model="cameraLinkage.enabled" type="checkbox" class="h-4 w-4" />
+										<span>啟用攝影機彈窗</span>
+									</label>
+									<div v-if="cameraLinkage.enabled" class="mt-3">
+										<label class="flex flex-col gap-2 text-sm text-white/80">
+											<span>攝影機 *</span>
+											<FilterDropdown
+												v-model="cameraDeviceIdModel"
+												:options="cameraDeviceOptions"
+												placeholder="請選擇攝影機"
+												text-size="text-sm 2xl:text-base"
+											/>
+										</label>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div class="rounded-2xl border border-white/15 bg-white/5 p-4 2xl:p-5">
+							<button
+								type="button"
+								class="flex w-full items-center justify-between text-left text-sm font-medium text-white/90 2xl:text-base"
+								@click="expandedSections.notify = !expandedSections.notify"
+							>
+								<span>警報通知（Webhook）</span>
+								<span class="text-white/60">{{ expandedSections.notify ? "收合" : "展開" }}</span>
+							</button>
+
+							<div v-if="expandedSections.notify" class="mt-4 space-y-3">
+								<p class="text-sm leading-relaxed text-white/60">
+									本次先保留設定，後續再擴充實際投遞。
+								</p>
+								<label class="flex items-center gap-3 text-sm text-white/80">
+									<input v-model="webhook.enabled" type="checkbox" class="h-4 w-4" />
+									<span>啟用 Webhook</span>
+								</label>
+								<div v-if="webhook.enabled" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+									<label class="flex flex-col gap-2 text-sm text-white/80 md:col-span-2">
+										<span>Webhook URL *</span>
+										<input
+											v-model="webhook.url"
+											type="text"
+											class="form-input"
+											placeholder="https://..."
+										/>
+									</label>
+									<label class="flex flex-col gap-2 text-sm text-white/80 md:col-span-2">
+										<span>Secret</span>
+										<input
+											v-model="webhook.secret"
+											type="text"
+											class="form-input"
+											placeholder="用於簽章或驗證"
+										/>
+									</label>
+								</div>
+							</div>
+						</div>
 
 						<label class="flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base">
 							<span class="sr-only">規則啟用狀態</span>
@@ -236,18 +352,16 @@ import type {
 	AlertSource,
 	AlertTargetType,
 	AlertType,
+	AlertRuleIntegrations,
 } from "~/types/alert"
+import type { Device } from "~/types/device"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import type { UnifiedZone } from "~/types/location"
-import { useLocationApi } from "~/composables/location/api/useLocationApi"
+import { useZonesCache } from "~/composables/location/cache/useZonesCache"
 import { useModbusValidation } from "~/composables/location/validation/useModbusValidation"
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi"
-import {
-	alertSourceToSystemType,
-	getDefaultRuleMessageTemplate,
-	inferRuleTemplateKeyFromAlertType,
-	isAllowedThresholdOperator,
-} from "~/utils/alertUtils"
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { alertSourceToSystemType, isAllowedThresholdOperator } from "~/utils/alertUtils"
 
 interface OptionItem {
 	value: string
@@ -260,7 +374,7 @@ interface RuleFormValue {
 	severity: AlertSeverity
 	target_type: AlertTargetType | null
 	target_id: number | null
-	message_template: string
+	message_suffix: string
 	enabled: boolean
 }
 
@@ -272,13 +386,6 @@ interface Props {
 	sourceOptions: OptionItem[]
 }
 
-type MessageTemplateKey =
-	| "rule.threshold.v1"
-	| "rule.offline.v1"
-	| "rule.di.v1"
-	| "rule.do.v1"
-	| "custom"
-
 interface SubmitPayload {
 	source: AlertSource
 	alert_type: AlertType
@@ -287,10 +394,27 @@ interface SubmitPayload {
 	target_id?: number | null
 	condition_type: "threshold" | "error_count" | "bit_state"
 	condition_config: Record<string, unknown>
-	message_template?: string
-	message_template_key?: MessageTemplateKey
-	message_template_custom?: boolean
+	message_suffix?: string | null
 	enabled: boolean
+}
+
+interface IntegrationsDraft {
+	doLinkage: null | {
+		enabled: boolean
+		do_device_id: number | null
+		do_address: number | null
+		do_output_value: "on" | "off"
+		auto_off_seconds: number | null
+	}
+	cameraLinkage: null | {
+		enabled: boolean
+		camera_device_id: number | null
+	}
+	webhookSubscriptions: Array<{
+		enabled: boolean
+		url: string
+		secret?: string | null
+	}>
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -322,7 +446,7 @@ const thresholdOperatorOptions: OptionItem[] = [
 
 const emit = defineEmits<{
 	(e: "update:modelValue", value: boolean): void
-	(e: "submit", payload: SubmitPayload): void
+	(e: "submit", payload: { rule: SubmitPayload; integrations: IntegrationsDraft }): void
 }>()
 
 const form = reactive<RuleFormValue>({
@@ -331,7 +455,7 @@ const form = reactive<RuleFormValue>({
 	severity: "warning",
 	target_type: null,
 	target_id: null,
-	message_template: "",
+	message_suffix: "",
 	enabled: true,
 })
 
@@ -351,13 +475,89 @@ const ioAddress = ref<number>(0)
 const { normalizeModbusAddressInput } = useModbusValidation()
 
 const alertApi = useAlertApi()
-const previewRendered = ref("")
-let previewDebounceTimer: ReturnType<typeof setTimeout> | null = null
+const deviceApi = useDeviceApi()
 
-const inferTemplateKey = (): MessageTemplateKey =>
-	inferRuleTemplateKeyFromAlertType(form.alert_type) as MessageTemplateKey
+const expandedSections = reactive({ linkage: false, notify: false })
 
-const syncDefaultMessageTemplate = (): string => getDefaultRuleMessageTemplate(form.alert_type)
+const doLinkage = reactive({
+	enabled: false,
+	do_device_id: null as number | null,
+	do_address: null as number | null,
+	do_output_value: "on" as "on" | "off",
+	auto_off_seconds: null as number | null,
+})
+
+const cameraLinkage = reactive({
+	enabled: false,
+	camera_device_id: null as number | null,
+})
+
+const webhook = reactive({
+	enabled: false,
+	url: "",
+	secret: "",
+})
+
+const devices = ref<Device[]>([])
+const isDevicesLoading = ref(false)
+let devicesLoadPromise: Promise<void> | null = null
+
+const doOutputValueOptions = [
+	{ value: "on", label: "ON" },
+	{ value: "off", label: "OFF" },
+]
+
+const doOutputValueModel = computed<string>({
+	get() {
+		return doLinkage.do_output_value
+	},
+	set(v) {
+		doLinkage.do_output_value = v === "off" ? "off" : "on"
+	},
+})
+
+const doDeviceIdModel = computed<string>({
+	get() {
+		return doLinkage.do_device_id != null ? String(doLinkage.do_device_id) : ""
+	},
+	set(v) {
+		const n = Number(v)
+		doLinkage.do_device_id = v && Number.isFinite(n) ? n : null
+	},
+})
+
+const cameraDeviceIdModel = computed<string>({
+	get() {
+		return cameraLinkage.camera_device_id != null ? String(cameraLinkage.camera_device_id) : ""
+	},
+	set(v) {
+		const n = Number(v)
+		cameraLinkage.camera_device_id = v && Number.isFinite(n) ? n : null
+	},
+})
+
+const controllerDeviceOptions = computed(() => {
+	const base = [{ value: "", label: isDevicesLoading.value ? "設備載入中..." : "請選擇設備" }]
+	const items = devices.value
+		.filter(
+			(d) =>
+				String((d as Device & { type_code?: string }).type_code || "").toLowerCase() ===
+				"controller"
+		)
+		.map((d) => ({ value: String(d.id), label: String(d.name || "").trim() || "(未命名)" }))
+	return [...base, ...items]
+})
+
+const cameraDeviceOptions = computed(() => {
+	const base = [{ value: "", label: isDevicesLoading.value ? "設備載入中..." : "請選擇攝影機" }]
+	const items = devices.value
+		.filter(
+			(d) =>
+				String((d as Device & { type_code?: string }).type_code || "").toLowerCase() === "camera"
+		)
+		.map((d) => ({ value: String(d.id), label: String(d.name || "").trim() || "(未命名)" }))
+	return [...base, ...items]
+})
 
 const parameterOptions: OptionItem[] = [
 	{ value: "noise", label: "noise（噪音值）" },
@@ -371,7 +571,7 @@ const parameterOptions: OptionItem[] = [
 	{ value: "wind", label: "wind（風速）" },
 ]
 
-const locationApi = useLocationApi()
+const zonesCache = useZonesCache()
 const zones = ref<UnifiedZone[]>([])
 const selectedZoneId = ref<string>("")
 const selectedLocationId = ref<string>("")
@@ -394,7 +594,7 @@ const resetForm = () => {
 	form.severity = "warning"
 	form.target_type = null
 	form.target_id = null
-	form.message_template = ""
+	form.message_suffix = ""
 	form.enabled = true
 
 	thresholdConfig.parameter = ""
@@ -405,7 +605,22 @@ const resetForm = () => {
 	ioAddress.value = 0
 	selectedZoneId.value = ""
 	selectedLocationId.value = ""
-	isMessageTemplateDirty.value = false
+
+	doLinkage.enabled = false
+	doLinkage.do_device_id = null
+	doLinkage.do_address = null
+	doLinkage.do_output_value = "on"
+	doLinkage.auto_off_seconds = null
+
+	cameraLinkage.enabled = false
+	cameraLinkage.camera_device_id = null
+
+	webhook.enabled = false
+	webhook.url = ""
+	webhook.secret = ""
+
+	expandedSections.linkage = false
+	expandedSections.notify = false
 }
 
 const handleSelectZone = (zoneId: string) => {
@@ -443,8 +658,8 @@ const loadZones = async () => {
 		zones.value = []
 		return
 	}
-	const result = await locationApi.getZones(systemType)
-	zones.value = result.zones || []
+	const z = await zonesCache.getZones(systemType)
+	zones.value = z || []
 }
 
 const conditionTypeForPayload = (): SubmitPayload["condition_type"] =>
@@ -478,46 +693,54 @@ const handleIoAddressBlur = () => {
 	ioAddress.value = normalizeModbusAddressInput(ioAddress.value)
 }
 
-const buildPreviewSampleCurrentValue = (): number => {
-	if (form.alert_type !== "threshold") return 72
-	const t = Number(thresholdConfig.value)
-	if (!Number.isFinite(t)) return 72
-	const op = thresholdConfig.operator
-	if (op === ">" || op === ">=") return t + 2
-	if (op === "<" || op === "<=") return Math.max(0, t - 2)
-	return t + 2
-}
-
-const schedulePreview = () => {
-	if (!import.meta.client) return
-	if (previewDebounceTimer) clearTimeout(previewDebounceTimer)
-	previewDebounceTimer = setTimeout(async () => {
+const loadDevices = async () => {
+	if (devices.value.length > 0) return
+	if (devicesLoadPromise) {
+		await devicesLoadPromise
+		return
+	}
+	isDevicesLoading.value = true
+	devicesLoadPromise = (async () => {
 		try {
-			const { rendered } = await alertApi.previewAlertRuleMessage({
-				source: form.source,
-				alert_type: form.alert_type,
-				condition_type: conditionTypeForPayload(),
-				condition_config: buildConditionConfig(),
-				target_type: form.target_type,
-				target_id: form.target_id,
-				message_template: form.message_template,
-				message_template_custom: isMessageTemplateDirty.value,
-				message_template_key: isMessageTemplateDirty.value ? "custom" : inferTemplateKey(),
-				sample_source_display_name: "範例地點",
-				sample_current_value: buildPreviewSampleCurrentValue(),
-				sample_error_count:
-					form.alert_type === "offline" ? Math.max(1, Number(errorCountConfig.min_errors) || 1) : 5,
+			const res = await deviceApi.getDevices({
+				limit: 500,
+				offset: 0,
+				orderBy: "id",
+				order: "desc",
 			})
-			previewRendered.value = rendered
+			devices.value = Array.isArray(res.devices) ? res.devices : []
 		} catch {
-			previewRendered.value = ""
+			devices.value = []
+		} finally {
+			isDevicesLoading.value = false
+			devicesLoadPromise = null
 		}
-	}, 150)
+	})()
+	await devicesLoadPromise
 }
 
-const isMessageTemplateDirty = ref(false)
-const handleMessageTemplateInput = () => {
-	isMessageTemplateDirty.value = true
+const loadIntegrationsForRule = async (ruleId: number) => {
+	try {
+		const res = await alertApi.getAlertRuleIntegrations(ruleId)
+		const d = res?.doLinkage
+		doLinkage.enabled = Boolean(d?.enabled)
+		doLinkage.do_device_id = d?.do_device_id ?? null
+		doLinkage.do_address = d?.do_address ?? null
+		doLinkage.do_output_value = (d?.do_output_value as "on" | "off") || "on"
+		doLinkage.auto_off_seconds = d?.auto_off_seconds ?? null
+
+		const c = res?.cameraLinkage
+		cameraLinkage.enabled = Boolean(c?.enabled)
+		cameraLinkage.camera_device_id = c?.camera_device_id ?? null
+
+		const w = Array.isArray(res?.webhookSubscriptions) ? res.webhookSubscriptions : []
+		const first = w[0]
+		webhook.enabled = Boolean(first?.enabled)
+		webhook.url = String(first?.url || "")
+		webhook.secret = String(first?.secret || "")
+	} catch {
+		// ignore
+	}
 }
 
 watch(
@@ -548,38 +771,13 @@ watch(
 				form.target_id = Number(selectedLocationId.value)
 			}
 		}
-
-		if (!isMessageTemplateDirty.value) {
-			form.message_template = syncDefaultMessageTemplate()
-		}
-		schedulePreview()
 	},
 	{ immediate: true }
 )
 
 watch(
-	() =>
-		[
-			form.message_template,
-			isMessageTemplateDirty.value,
-			form.target_type,
-			form.target_id,
-			thresholdConfig.parameter,
-			thresholdConfig.operator,
-			thresholdConfig.value,
-			thresholdConfig.unit,
-			errorCountConfig.min_errors,
-			ioAddress.value,
-			selectedZoneId.value,
-		] as const,
-	() => {
-		schedulePreview()
-	}
-)
-
-watch(
 	() => props.editingRule,
-	(rule) => {
+	async (rule) => {
 		if (!rule) {
 			resetForm()
 			return
@@ -590,9 +788,8 @@ watch(
 		form.severity = rule.severity === "error" ? "critical" : rule.severity
 		form.target_type = ((rule as any).target_type as AlertTargetType) || null
 		form.target_id = (rule as any).target_id != null ? Number((rule as any).target_id) : null
-		form.message_template = rule.message_template || ""
+		form.message_suffix = String((rule as AlertRule).message_suffix || "")
 		form.enabled = rule.enabled
-		isMessageTemplateDirty.value = Boolean((rule as AlertRule).message_template_custom)
 
 		// 目標反推：location > zone；其餘視為全域
 		selectedZoneId.value = ""
@@ -624,6 +821,27 @@ watch(
 			const match = bitKey.match(/^(di|do):(\d+)$/i)
 			ioAddress.value = normalizeModbusAddressInput(match ? Number(match[2]) : 0)
 		}
+
+		if (import.meta.client) {
+			if (devices.value.length === 0 && !isDevicesLoading.value) {
+				void loadDevices()
+			}
+			if (rule.id) {
+				void loadIntegrationsForRule(rule.id)
+			}
+		}
+	},
+	{ immediate: true }
+)
+
+watch(
+	() => props.modelValue,
+	(open) => {
+		if (!open) return
+		if (!import.meta.client) return
+		if (devices.value.length === 0 && !isDevicesLoading.value) {
+			void loadDevices()
+		}
 	},
 	{ immediate: true }
 )
@@ -633,11 +851,24 @@ const handleSubmit = () => {
 	const targetId = form.target_id != null ? Number(form.target_id) : null
 	if (targetType && (targetId == null || !Number.isFinite(targetId))) return
 
+	if (doLinkage.enabled) {
+		if (!doLinkage.do_device_id) return
+		if (doLinkage.do_address == null || Number(doLinkage.do_address) < 0) return
+		if (doLinkage.auto_off_seconds != null && Number(doLinkage.auto_off_seconds) <= 0) return
+	}
+
+	if (cameraLinkage.enabled) {
+		if (!cameraLinkage.camera_device_id) return
+	}
+
+	if (webhook.enabled) {
+		if (!webhook.url.trim()) return
+	}
+
 	const conditionType = conditionTypeForPayload()
 	const conditionConfig = buildConditionConfig()
-	const custom = isMessageTemplateDirty.value
 
-	const payload: SubmitPayload = {
+	const rulePayload: SubmitPayload = {
 		source: form.source,
 		alert_type: form.alert_type,
 		severity: form.severity,
@@ -645,45 +876,29 @@ const handleSubmit = () => {
 		target_id: targetId,
 		condition_type: conditionType,
 		condition_config: conditionConfig,
-		message_template: form.message_template.trim(),
-		message_template_key: custom ? "custom" : inferTemplateKey(),
-		message_template_custom: custom,
+		message_suffix: form.message_suffix ?? null,
 		enabled: form.enabled,
 	}
 
-	emit("submit", payload)
+	const integrations: IntegrationsDraft = {
+		doLinkage: doLinkage.enabled
+			? {
+					enabled: true,
+					do_device_id: doLinkage.do_device_id,
+					do_address: doLinkage.do_address,
+					do_output_value: doLinkage.do_output_value,
+					auto_off_seconds: doLinkage.auto_off_seconds,
+				}
+			: null,
+		cameraLinkage: cameraLinkage.enabled
+			? { enabled: true, camera_device_id: cameraLinkage.camera_device_id }
+			: null,
+		webhookSubscriptions:
+			webhook.enabled && webhook.url.trim()
+				? [{ enabled: true, url: webhook.url.trim(), secret: webhook.secret?.trim() || null }]
+				: [],
+	}
+
+	emit("submit", { rule: rulePayload, integrations })
 }
 </script>
-
-<style scoped>
-.form-input {
-	border-radius: 0.75rem;
-	border: 1px solid rgba(255, 255, 255, 0.35);
-	background: rgba(255, 255, 255, 0.1);
-	padding: 0.65rem 0.85rem;
-	color: #f7fbff;
-	transition:
-		border-color 0.2s ease,
-		background 0.2s ease;
-}
-
-.form-input:focus {
-	border-color: #5be7f1;
-	background: rgba(255, 255, 255, 0.18);
-	outline: none;
-}
-
-.form-input:disabled {
-	opacity: 0.5;
-	cursor: not-allowed;
-}
-
-.form-select {
-	cursor: pointer;
-}
-
-.form-select option {
-	background: rgba(20, 64, 92, 0.98);
-	color: #f7fbff;
-}
-</style>

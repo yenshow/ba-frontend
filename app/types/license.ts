@@ -24,6 +24,11 @@ export const LICENSE_FEATURE_KEYS: readonly FeatureKey[] = [
 	"vehicle_access",
 ]
 
+export type LicenseEntitlementEntry = {
+	licenseKey: string
+	features: FeatureKey[]
+}
+
 export type LicenseState = {
 	features: FeatureKey[]
 	expiresAt: string | null
@@ -36,4 +41,6 @@ export type LicenseState = {
 	activationMethod?: string | null
 	deviceFingerprint?: string | null
 	extensionKeys?: string[]
+	/** 各次啟用記錄之 LK 與該次帶入功能（主／副）；舊資料可能為空 */
+	licenseEntitlements?: LicenseEntitlementEntry[]
 }

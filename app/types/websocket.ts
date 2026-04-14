@@ -23,6 +23,14 @@ export interface AlertCountEvent {
 	timestamp: string
 }
 
+/** 日界線批次結案 active→resolved 後廣播（非逐筆 alert:updated） */
+export interface AlertDailyRolloverEvent {
+	resolvedCount: number
+	occurredAt: string
+	timezone: string
+	timestamp: string
+}
+
 /**
  * 設備相關事件類型
  */

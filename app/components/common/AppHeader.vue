@@ -164,7 +164,7 @@
 						/>
 					</button>
 
-					<!-- Dropdown Menu：使用者資訊區、權限管理(不含 icon)、登入登出 -->
+					<!-- Dropdown Menu：使用者資訊區、用戶管理、登入登出 -->
 					<Transition
 						enter-active-class="transition ease-out duration-100"
 						enter-from-class="transform opacity-0 scale-95"
@@ -190,7 +190,7 @@
 
 							<!-- Menu Items -->
 							<div class="py-1">
-								<!-- 權限管理 (僅管理員顯示) -->
+								<!-- 用戶管理 (僅管理員顯示) -->
 								<NuxtLink
 									v-if="isAdmin"
 									to="/core/users"
@@ -211,7 +211,7 @@
 											d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
 										/>
 									</svg>
-									權限管理
+									用戶管理
 								</NuxtLink>
 
 								<!-- 授權管理 (僅管理員顯示) -->

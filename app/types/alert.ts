@@ -106,9 +106,7 @@ export interface AlertRule {
 	condition_type: AlertConditionType | null
 	condition_config: Record<string, unknown> | null
 	message_template: string | null
-	/** canonical 模板鍵，例如 rule.threshold.v1；custom 表示使用者自訂全文 */
-	message_template_key?: string | null
-	message_template_custom?: boolean | null
+	message_suffix?: string | null
 	enabled: boolean
 	created_at: string
 	updated_at: string
@@ -124,63 +122,56 @@ export interface CreateAlertRulePayload {
 	dimension_key?: string
 	target_type?: AlertTargetType | null
 	target_id?: number | null
-	message_template?: string
-	message_template_key?: string
-	message_template_custom?: boolean
+	message_suffix?: string | null
 	enabled?: boolean
 }
 
 export type UpdateAlertRulePayload = Partial<CreateAlertRulePayload>
 
-export interface AlertLinkage {
+export interface AlertDoLinkage {
 	id: number
-	name?: string | null
 	enabled: boolean
-	trigger_source: AlertSource
-	trigger_alert_type: AlertType
-	trigger_dimension_key?: string | null
-	trigger_severity_min: AlertSeverity
+	rule_id: number
 	do_device_id: number | null
 	do_address: number | null
-	do_value: boolean
+	do_output_value: "on" | "off"
 	auto_off_seconds?: number | null
 	created_by?: number | null
 	created_at: string
 	updated_at: string
 }
 
-export interface CreateAlertLinkagePayload {
-	name?: string | null
-	enabled?: boolean
-	trigger_source: AlertSource
-	trigger_alert_type: AlertType
-	trigger_dimension_key?: string | null
-	trigger_severity_min?: AlertSeverity
-	do_device_id: number
-	do_address: number
-	do_value?: boolean
-	auto_off_seconds?: number | null
+export interface AlertCameraLinkage {
+	id: number
+	enabled: boolean
+	rule_id: number
+	camera_device_id: number | null
+	created_by?: number | null
+	created_at: string
+	updated_at: string
 }
 
-export type UpdateAlertLinkagePayload = Partial<CreateAlertLinkagePayload>
-
-export interface ManualOffDoOutputPayload {
-	linkage_id?: number | null
-	do_device_id: number
-	do_address: number
-	reason?: string | null
-	expires_at?: string | null
+export interface AlertWebhookSubscription {
+	id: number
+	enabled: boolean
+	rule_id: number
+	url: string
+	secret?: string | null
+	headers_json?: Record<string, unknown> | null
+	created_by?: number | null
+	created_at: string
+	updated_at: string
 }
 
-export interface ManualOffDoOutputResponse {
-	success: boolean
+export interface AlertRuleIntegrations {
+	doLinkage: AlertDoLinkage | null
+	cameraLinkage: AlertCameraLinkage | null
+	webhookSubscriptions: AlertWebhookSubscription[]
 }
 
-export interface ReleaseManualOffOverridePayload {
-	do_device_id: number
-	do_address: number
-}
-
-export interface ReleaseManualOffOverrideResponse {
-	success: boolean
+export type AlertRuleIntegrationSummary = {
+	doEnabled: boolean
+	cameraEnabled: boolean
+	webhookEnabled: boolean
+	hasAny: boolean
 }

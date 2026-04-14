@@ -31,10 +31,6 @@ export function getTimeRangeUTC(preset: string): { start: Date; end: Date } {
 	let end = new Date(endDefault);
 
 	switch (preset) {
-		case "past_hour":
-			start = new Date(now.getTime() - 60 * 60 * 1000);
-			end = new Date(now);
-			break;
 		case "today":
 			return { start: new Date(y, m, d, 0, 0, 0, 0), end: endDefault };
 		case "yesterday":
@@ -110,7 +106,6 @@ export function getTimeRangeForTrendUTC(
 
 /** 時間範圍預設選項（與 TimeRangePicker 共用） */
 export const TIME_RANGE_PRESETS = [
-	{ value: "past_hour", label: "過去一小時" },
 	{ value: "today", label: "今天" },
 	{ value: "yesterday", label: "昨天" },
 	{ value: "this_week", label: "本週" },
@@ -120,10 +115,8 @@ export const TIME_RANGE_PRESETS = [
 	{ value: "custom", label: "自訂" },
 ] as const;
 
-/** 完整報表用：不含「過去一小時」 */
-export const TIME_RANGE_PRESETS_FULL_REPORT = TIME_RANGE_PRESETS.filter(
-	(p) => p.value !== "past_hour"
-);
+/** 完整報表用：與一般選項一致 */
+export const TIME_RANGE_PRESETS_FULL_REPORT = TIME_RANGE_PRESETS;
 
 /**
  * 格式化日期為本地顯示格式（YYYY/MM/DD）

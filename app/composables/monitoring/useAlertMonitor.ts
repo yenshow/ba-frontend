@@ -102,6 +102,7 @@ export const useAlertMonitor = () => {
 		teardown: teardownEventBus,
 		onAlertNew: busOnAlertNew,
 		onAlertUpdated: busOnAlertUpdated,
+		onAlertDailyRollover: busOnAlertDailyRollover,
 		clearAll: clearEventBusHandlers,
 	} = useAlertEventBus()
 	const {
@@ -247,6 +248,16 @@ export const useAlertMonitor = () => {
 		upsertAlertToast(data.alert)
 	}
 
+	/** 日界線批次結案：關閉持久警報 Toast（未逐筆 alert:updated） */
+	const handleAlertDailyRollover = () => {
+		const keys = [...activeAlertKeys.value]
+		for (const key of keys) {
+			removeAlertToast(key)
+		}
+		removeSummaryToast()
+		void loadUnresolvedAlertCount()
+	}
+
 	const checkAlertsByPolling = async () => {
 		await checkNewAlerts(
 			shouldProcessAlert,
@@ -277,6 +288,7 @@ export const useAlertMonitor = () => {
 		setupEventBus()
 		busOnAlertNew(handleAlertNew)
 		busOnAlertUpdated(handleAlertUpdated)
+		busOnAlertDailyRollover(handleAlertDailyRollover)
 
 		setupConnectionWatcher(
 			() => {
