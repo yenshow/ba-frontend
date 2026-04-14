@@ -1,5 +1,14 @@
 export function useModbusValidation() {
 	/**
+	 * 正規化 Modbus 地址輸入（共用規則：0 ~ 65535）
+	 */
+	const normalizeModbusAddressInput = (address: number | undefined | null): number => {
+		const n = Number(address)
+		if (!Number.isFinite(n)) return 0
+		return Math.min(65535, Math.max(0, Math.floor(n)))
+	}
+
+	/**
 	 * 驗證 Modbus 地址（共用規則：0 ~ 65535）
 	 * - 未選擇設備時不驗證（允許空）
 	 */
@@ -29,6 +38,7 @@ export function useModbusValidation() {
 	}
 
 	return {
+		normalizeModbusAddressInput,
 		validateModbusAddress,
 		validateModbusType,
 	}

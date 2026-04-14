@@ -13,12 +13,12 @@ export type AlertSource =
 
 export type AlertStatus = "active" | "resolved" | "ignored"
 
-// 警報類型
-export type AlertType = "offline" | "error" | "threshold" | "di" | "do"
+// 警報類型（工地端不使用 DI/DO；保留 error/offline/threshold）
+export type AlertType = "offline" | "error" | "threshold"
 
 // 嚴重程度
 export type AlertSeverity = "warning" | "error" | "critical"
-export type AlertConditionType = "threshold" | "error_count" | "bit_state"
+export type AlertConditionType = "threshold" | "error_count"
 export type AlertTargetType = "system" | "location" | "zone"
 
 export interface Alert {
@@ -106,9 +106,7 @@ export interface AlertRule {
 	condition_type: AlertConditionType | null
 	condition_config: Record<string, unknown> | null
 	message_template: string | null
-	/** canonical 模板鍵，例如 rule.threshold.v1；custom 表示使用者自訂全文 */
-	message_template_key?: string | null
-	message_template_custom?: boolean | null
+	message_suffix?: string | null
 	enabled: boolean
 	created_at: string
 	updated_at: string
@@ -124,10 +122,55 @@ export interface CreateAlertRulePayload {
 	dimension_key?: string
 	target_type?: AlertTargetType | null
 	target_id?: number | null
-	message_template?: string
-	message_template_key?: string
-	message_template_custom?: boolean
 	enabled?: boolean
 }
 
 export type UpdateAlertRulePayload = Partial<CreateAlertRulePayload>
+
+export interface AlertDoLinkage {
+	id: number
+	enabled: boolean
+	rule_id: number
+	do_device_id: number | null
+	do_address: number | null
+	do_output_value: "on" | "off"
+	auto_off_seconds?: number | null
+	created_by?: number | null
+	created_at: string
+	updated_at: string
+}
+
+export interface AlertCameraLinkage {
+	id: number
+	enabled: boolean
+	rule_id: number
+	camera_device_id: number | null
+	created_by?: number | null
+	created_at: string
+	updated_at: string
+}
+
+export interface AlertWebhookSubscription {
+	id: number
+	enabled: boolean
+	rule_id: number
+	url: string
+	secret?: string | null
+	headers_json?: Record<string, unknown> | null
+	created_by?: number | null
+	created_at: string
+	updated_at: string
+}
+
+export interface AlertRuleIntegrations {
+	doLinkage: AlertDoLinkage | null
+	cameraLinkage: AlertCameraLinkage | null
+	webhookSubscriptions: AlertWebhookSubscription[]
+}
+
+export type AlertRuleIntegrationSummary = {
+	doEnabled: boolean
+	cameraEnabled: boolean
+	webhookEnabled: boolean
+	hasAny: boolean
+}

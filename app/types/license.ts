@@ -8,6 +8,11 @@ export const LICENSE_FEATURE_KEYS: readonly FeatureKey[] = [
 	"vehicle_access"
 ];
 
+export type LicenseEntitlementEntry = {
+	licenseKey: string;
+	features: FeatureKey[];
+};
+
 export type LicenseState = {
 	features: FeatureKey[];
 	expiresAt: string | null;
@@ -20,4 +25,5 @@ export type LicenseState = {
 	activationMethod?: string | null;
 	deviceFingerprint?: string | null;
 	extensionKeys?: string[];
+	licenseEntitlements?: LicenseEntitlementEntry[];
 };

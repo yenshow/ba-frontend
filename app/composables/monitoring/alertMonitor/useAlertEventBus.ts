@@ -6,14 +6,20 @@
  * 生命週期由 useAlertMonitor 統一管理。
  */
 
-import type { AlertNewEvent, AlertUpdatedEvent } from "~/types/websocket";
+import type {
+	AlertDailyRolloverEvent,
+	AlertNewEvent,
+	AlertUpdatedEvent,
+} from "~/types/websocket";
 import { useWebSocketMonitor } from "~/composables/websocket/useWebSocketMonitor";
 
 type AlertNewHandler = (alert: AlertNewEvent) => void;
 type AlertUpdatedHandler = (data: AlertUpdatedEvent) => void;
+type AlertDailyRolloverHandler = (data: AlertDailyRolloverEvent) => void;
 
 const newHandlers = new Set<AlertNewHandler>();
 const updatedHandlers = new Set<AlertUpdatedHandler>();
+const dailyRolloverHandlers = new Set<AlertDailyRolloverHandler>();
 
 let isSetup = false;
 
@@ -36,6 +42,12 @@ export const useAlertEventBus = () => {
 					for (const fn of updatedHandlers) fn(e);
 				},
 			},
+			{
+				event: "alert:daily_rollover",
+				handler: (e: AlertDailyRolloverEvent) => {
+					for (const fn of dailyRolloverHandlers) fn(e);
+				},
+			},
 		]);
 
 		isSetup = true;
@@ -43,7 +55,7 @@ export const useAlertEventBus = () => {
 
 	const teardown = () => {
 		if (!isSetup) return;
-		removeListeners(["alert:new", "alert:updated"]);
+		removeListeners(["alert:new", "alert:updated", "alert:daily_rollover"]);
 		isSetup = false;
 	};
 
@@ -63,9 +75,18 @@ export const useAlertEventBus = () => {
 		updatedHandlers.delete(handler);
 	};
 
+	const onAlertDailyRollover = (handler: AlertDailyRolloverHandler) => {
+		dailyRolloverHandlers.add(handler);
+	};
+
+	const offAlertDailyRollover = (handler: AlertDailyRolloverHandler) => {
+		dailyRolloverHandlers.delete(handler);
+	};
+
 	const clearAll = () => {
 		newHandlers.clear();
 		updatedHandlers.clear();
+		dailyRolloverHandlers.clear();
 	};
 
 	return {
@@ -73,6 +94,8 @@ export const useAlertEventBus = () => {
 		teardown,
 		onAlertNew,
 		onAlertUpdated,
+		onAlertDailyRollover,
+		offAlertDailyRollover,
 		offAlertNew,
 		offAlertUpdated,
 		clearAll,

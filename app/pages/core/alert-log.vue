@@ -77,12 +77,45 @@
 		/>
 
 		<AlertRuleManagement
-			v-else-if="isAdmin"
+			v-else-if="currentMode === 'rules' && isAdmin"
 			ref="ruleManagementRef"
 			v-model:selected-rule-source="ruleFilterSource"
 			v-model:selected-rule-type="ruleFilterType"
 		/>
 	</div>
+
+	<!-- Camera popup (rule camera linkage) -->
+	<Teleport to="body">
+		<Transition name="dialog-fade">
+			<div
+				v-if="cameraPopup.open"
+				class="fixed inset-0 z-[2100] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
+				role="dialog"
+				aria-modal="true"
+				aria-label="攝影機彈窗"
+			>
+				<div class="dialog-panel-bg w-full max-w-6xl overflow-hidden rounded-3xl p-4 2xl:p-6">
+					<div class="mb-3 flex items-center justify-between">
+						<h3 class="text-lg font-semibold tracking-[2px] text-white 2xl:text-xl">
+							攝影機：{{ cameraPopup.cameraName }}
+						</h3>
+						<button
+							type="button"
+							class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
+							aria-label="關閉攝影機彈窗"
+							@click="handleCloseCameraPopup"
+						>
+							&times;
+						</button>
+					</div>
+					<div class="h-[70vh] w-full overflow-hidden rounded-2xl border border-white/15">
+						<VideoPlayer :webrtc-url="cameraPopup.webrtcUrl" :stream-status="cameraPopup.streamStatus" />
+					</div>
+					<p v-if="cameraPopup.error" class="mt-3 text-sm text-rose-300">{{ cameraPopup.error }}</p>
+				</div>
+			</div>
+		</Transition>
+	</Teleport>
 </template>
 
 <script setup lang="ts">
@@ -93,6 +126,7 @@ import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 import { useAlertEventBus } from "~/composables/monitoring/alertMonitor/useAlertEventBus";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi";
+import { useAlertRuleIntegrationsStore } from "~/composables/systems/alerts/useAlertRuleIntegrationsStore";
 import type { AlertNewEvent, AlertUpdatedEvent } from "~/types/websocket";
 import { getSourceLabel, getTypeLabel, getSeverityLabel } from "~/utils/alertUtils";
 import { getTodayDateRangeUTC, formatDateTime } from "~/utils/dateUtils";
@@ -103,25 +137,48 @@ import AlertListSection from "~/components/alerts/AlertListSection.vue";
 import AlertRuleManagement from "~/components/alerts/AlertRuleManagement.vue";
 import { useDataLoader } from "~/composables/monitoring/useDataLoader";
 import { logger } from "~/utils/logger";
+import VideoPlayer from "~/components/surveillance/VideoPlayer.vue";
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 
 const alertLogLogger = logger.createLogger("alert-log");
 
 definePageMeta({
-	layout: "auxiliary"
+	layout: "default"
 });
 
 const alertApi = useAlertApi();
+const integrationsStore = useAlertRuleIntegrationsStore();
+const deviceApi = useDeviceApi();
 const toast = useToast();
 const { isAdmin } = useAuth();
 const { removeAlertToast } = useAlertMonitor();
-const { handleError: handleApiError } = useErrorHandler();
 const {
 	onAlertNew: busOnAlertNew,
 	onAlertUpdated: busOnAlertUpdated,
+	onAlertDailyRollover: busOnAlertDailyRollover,
 	offAlertNew: busOffAlertNew,
-	offAlertUpdated: busOffAlertUpdated
+	offAlertUpdated: busOffAlertUpdated,
+	offAlertDailyRollover: busOffAlertDailyRollover
 } = useAlertEventBus();
+const { handleError: handleApiError } = useErrorHandler();
 
+const cameraPopup = reactive({
+	open: false,
+	webrtcUrl: "",
+	streamStatus: "stopped" as "running" | "stopped" | "loading" | "error",
+	error: "",
+	cameraName: ""
+});
+
+const handleCloseCameraPopup = () => {
+	cameraPopup.open = false;
+	cameraPopup.webrtcUrl = "";
+	cameraPopup.streamStatus = "stopped";
+	cameraPopup.error = "";
+	cameraPopup.cameraName = "";
+};
+
+// 狀態
 const isIgnoring = ref(false);
 const unresolvedCount = ref(0);
 const currentMode = ref<"alerts" | "rules">("alerts");
@@ -141,11 +198,13 @@ const handleOpenCreateRule = () => {
 	ruleManagementRef.value?.openCreateRuleDialog();
 };
 
+// 篩選條件
 const filterStatus = ref<string>("all");
 const filterSource = ref<string>("");
 const filterStartDate = ref<string>("");
 const filterEndDate = ref<string>("");
 
+// 狀態選項
 const statusOptions = [
 	{ value: "all", label: "全部狀態" },
 	{ value: "active", label: "未解決" },
@@ -153,19 +212,29 @@ const statusOptions = [
 	{ value: "ignored", label: "已忽視" }
 ];
 
+// 系統來源選項
 const sourceOptions = [
 	{ value: "", label: "全部系統" },
 	{ value: "device", label: "設備系統" },
 	{ value: "environment", label: "環境系統" },
-	{ value: "people_counting", label: "人流系統" }
+	{ value: "lighting", label: "照明系統" },
+	{ value: "drainage", label: "衛生排水系統" },
+	{ value: "people_counting", label: "人流系統" },
+	{ value: "hvac", label: "空調系統" },
+	{ value: "power", label: "電力系統" },
+	{ value: "fire", label: "消防系統" },
+	{ value: "emergency_rescue", label: "緊急求救系統" },
+	{ value: "security", label: "安防系統" }
 ];
 
+// 時間範圍
 const timeRange = ref({
 	startDate: "",
 	endDate: "",
 	preset: "today"
 });
 
+// 時間範圍預設選項
 const timeRangePresets = [
 	{ value: "past_hour", label: "過去一小時" },
 	{ value: "today", label: "今天" },
@@ -177,15 +246,16 @@ const timeRangePresets = [
 	{ value: "custom", label: "自訂" }
 ];
 
+// 監聽時間範圍變化（避免 deep watch 造成不必要觸發）
 watch(
-	() => timeRange.value,
-	newValue => {
-		filterStartDate.value = newValue.startDate;
-		filterEndDate.value = newValue.endDate;
-	},
-	{ deep: true }
+	() => [timeRange.value.startDate, timeRange.value.endDate] as const,
+	([startDate, endDate]) => {
+		filterStartDate.value = startDate;
+		filterEndDate.value = endDate;
+	}
 );
 
+// 使用 useDataLoader 統一管理數據載入
 const {
 	data: alerts,
 	total: totalAlerts,
@@ -218,6 +288,7 @@ const {
 
 const limit = 5;
 
+// 載入未解決警示數量（根據時間範圍篩選）
 const loadUnresolvedCount = async () => {
 	try {
 		const result = await alertApi.getUnresolvedAlertCount({
@@ -235,11 +306,13 @@ const handleSwitchToRules = () => {
 	currentMode.value = "rules";
 };
 
+// 處理警報操作後的重新載入
 const reloadAfterAction = async () => {
-	load({}, true);
+	load({}, true); // 立即執行
 	loadUnresolvedCount();
 };
 
+// 處理忽視/取消忽視操作的通用函數
 const handleIgnoreAction = async (
 	alert: Alert,
 	action: "ignore" | "unignore",
@@ -278,15 +351,17 @@ const handleIgnoreAction = async (
 	}
 };
 
+// 忽視警示
 const handleIgnore = (alert: Alert) =>
 	handleIgnoreAction(
 		alert,
 		"ignore",
-		"確定要忽視此警示嗎？忽視後將不再顯示此來源同類型、同維度的警示。",
+		"確定要忽視此警示嗎？忽視僅對「當曆日」有效；隔日若仍異常將再次通知。當日內將不再為此來源同類型、同維度建立新警示。",
 		"警示已忽視",
 		"忽視警示失敗"
 	);
 
+// 取消忽視警示
 const handleUnignore = (alert: Alert) =>
 	handleIgnoreAction(
 		alert,
@@ -296,35 +371,42 @@ const handleUnignore = (alert: Alert) =>
 		"取消忽視警示失敗"
 	);
 
+// 獲取當前篩選條件對應的狀態
 const getFilterStatus = (): AlertStatus | undefined =>
 	filterStatus.value !== "all" ? (filterStatus.value as AlertStatus) : undefined;
 
 const getAlertKey = (alert: Pick<Alert, "id" | "dimension_key">): string =>
 	`${alert.id}:${alert.dimension_key || "default"}`;
 
+// 檢查警報是否符合當前篩選條件
+const startMs = computed(() =>
+	filterStartDate.value ? new Date(filterStartDate.value).getTime() : null
+);
+const endMs = computed(() =>
+	filterEndDate.value ? new Date(filterEndDate.value).getTime() : null
+);
+
 const matchesFilters = (alert: Alert): boolean => {
 	const currentStatus = getFilterStatus();
 	if (currentStatus && alert.status !== currentStatus) return false;
 	if (filterSource.value && alert.source !== filterSource.value) return false;
 
-	if (filterStartDate.value || filterEndDate.value) {
+	if (startMs.value != null || endMs.value != null) {
 		const alertTime = new Date(alert.created_at).getTime();
 
-		if (filterStartDate.value) {
-			const startTime = new Date(filterStartDate.value).getTime();
-			if (alertTime < startTime) return false;
-		}
-		if (filterEndDate.value) {
-			const endTime = new Date(filterEndDate.value).getTime();
-			if (alertTime > endTime) return false;
-		}
+		if (startMs.value != null && alertTime < startMs.value) return false;
+		if (endMs.value != null && alertTime > endMs.value) return false;
 	}
 
 	return true;
 };
 
+// 處理新警報事件（WebSocket）
 const handleAlertNew = (alert: AlertNewEvent) => {
+	// 檢查是否已存在
 	if (alerts.value.find(a => getAlertKey(a) === getAlertKey(alert))) return;
+
+	// 檢查是否符合篩選條件
 	if (!matchesFilters(alert)) {
 		if (alert.status === "active") {
 			alertLogLogger.warn(
@@ -334,6 +416,7 @@ const handleAlertNew = (alert: AlertNewEvent) => {
 		return;
 	}
 
+	// 正常添加到列表
 	if (offset.value === 0) {
 		alerts.value.unshift(alert);
 	}
@@ -342,8 +425,15 @@ const handleAlertNew = (alert: AlertNewEvent) => {
 	if (alert.status === "active") {
 		unresolvedCount.value++;
 	}
+
+	// 攝影機連動：若此 alert 綁了規則，且該規則有 camera linkage，彈出播放器
+	const ruleId = alert.rule_id != null ? Number(alert.rule_id) : null;
+	if (ruleId && Number.isFinite(ruleId)) {
+		void maybeOpenCameraPopupByRule(ruleId, alert);
+	}
 };
 
+// 處理警報更新事件（WebSocket）
 const handleAlertUpdated = (data: AlertUpdatedEvent) => {
 	const { alert, oldStatus, newStatus } = data;
 	const index = alerts.value.findIndex(a => getAlertKey(a) === getAlertKey(alert));
@@ -364,6 +454,52 @@ const handleAlertUpdated = (data: AlertUpdatedEvent) => {
 		unresolvedCount.value = Math.max(0, unresolvedCount.value - 1);
 	} else if ((oldStatus === "resolved" || oldStatus === "ignored") && newStatus === "active") {
 		unresolvedCount.value++;
+	}
+};
+
+const handleAlertDailyRollover = () => {
+	if (currentMode.value !== "alerts") return;
+	load({}, true);
+	void loadUnresolvedCount();
+};
+
+const maybeOpenCameraPopupByRule = async (
+	ruleId: number,
+	alert?: Pick<Alert, "zone_name" | "source_name" | "source_display_name" | "location_name">
+) => {
+	try {
+		const next = await integrationsStore.ensureCameraLinkage(ruleId);
+		if (!next.enabled || !next.cameraDeviceId) return;
+		await openCameraPopupForDevice(next.cameraDeviceId, alert);
+	} catch {
+		// ignore
+	}
+};
+
+const openCameraPopupForDevice = async (
+	deviceId: number,
+	alert?: Pick<Alert, "zone_name" | "source_name" | "source_display_name" | "location_name">
+) => {
+	cameraPopup.open = true;
+	cameraPopup.streamStatus = "loading";
+	cameraPopup.error = "";
+	cameraPopup.cameraName = "";
+	try {
+		const deviceRes = await deviceApi.getDevice(deviceId);
+		cameraPopup.cameraName = deviceRes?.device?.name?.trim?.() || "";
+
+		const status = await deviceApi.getStreamStatus(deviceId);
+		if (status.status !== "running") {
+			const started = await deviceApi.startStream(deviceId);
+			cameraPopup.webrtcUrl = started.webrtcUrl || "";
+			cameraPopup.streamStatus = "running";
+			return;
+		}
+		cameraPopup.webrtcUrl = status.webrtcUrl || "";
+		cameraPopup.streamStatus = status.status;
+	} catch (e) {
+		cameraPopup.streamStatus = "error";
+		cameraPopup.error = e instanceof Error ? e.message : "啟動攝影機串流失敗";
 	}
 };
 
@@ -392,10 +528,15 @@ const formatZoneLocation = (z?: string | null, l?: string | null) =>
 
 const getDeviceConfigDisplay = (c: Record<string, unknown> | string | null | undefined) => {
 	if (!c) return "";
-	const o = typeof c === "string" ? (JSON.parse(c || "{}") as Record<string, unknown>) : c;
-	return String(o.host ?? "").trim() || "";
+	try {
+		const o = typeof c === "string" ? (JSON.parse(c || "{}") as Record<string, unknown>) : c;
+		return String(o.host ?? "").trim() || "";
+	} catch {
+		return "";
+	}
 };
 
+// 匯出警示為 CSV（欄位順序與後端備份一致）
 const handleExport = async () => {
 	try {
 		const result = await alertApi.getAlerts({
@@ -447,6 +588,7 @@ const handleExport = async () => {
 	}
 };
 
+// 分頁
 const goToPreviousPage = () => {
 	prevPage({});
 };
@@ -455,6 +597,7 @@ const goToNextPage = () => {
 	nextPage({});
 };
 
+// 監聽篩選條件變化
 watch([filterStatus, filterSource, filterStartDate, filterEndDate], () => {
 	resetPage();
 	load({});
@@ -462,11 +605,12 @@ watch([filterStatus, filterSource, filterStartDate, filterEndDate], () => {
 });
 
 watch(isAdmin, admin => {
-	if (!admin && currentMode.value === "rules") {
+	if (!admin && currentMode.value !== "alerts") {
 		currentMode.value = "alerts";
 	}
 });
 
+// 初始化時間範圍為「今天」（使用統一的時間工具）
 const initializeTimeRange = () => {
 	const { start, end } = getTodayDateRangeUTC();
 	timeRange.value = {
@@ -478,6 +622,7 @@ const initializeTimeRange = () => {
 	filterEndDate.value = end.toISOString();
 };
 
+// 滾動並高亮顯示指定警報
 const scrollToAlert = async (alertId: number) => {
 	await nextTick();
 	const alertElement = document.getElementById(`alert-${alertId}`);
@@ -490,6 +635,7 @@ const scrollToAlert = async (alertId: number) => {
 	}
 };
 
+// 處理 alertId 查詢參數（用於從 Toast 跳轉）
 const handleAlertIdQuery = async () => {
 	const route = useRoute();
 	const alertIdParam = route.query.alertId;
@@ -501,6 +647,7 @@ const handleAlertIdQuery = async () => {
 
 	await nextTick();
 
+	// 檢查警報是否在當前列表中
 	const alert = alerts.value.find(a => a.id === alertId);
 
 	if (alert) {
@@ -508,12 +655,14 @@ const handleAlertIdQuery = async () => {
 		return;
 	}
 
+	// 如果警報不在列表中，嘗試載入該警報並調整篩選條件
 	try {
 		const result = await alertApi.getAlertById(alertId);
 		const targetAlert = result.alert;
 		const alertDate = new Date(targetAlert.created_at);
 		const { start, end } = getTodayDateRangeUTC();
 
+		// 如果警報不在今天，調整時間範圍
 		if (alertDate < start || alertDate >= end) {
 			timeRange.value = {
 				startDate: new Date(alertDate.getTime() - 24 * 60 * 60 * 1000).toISOString(),
@@ -522,7 +671,7 @@ const handleAlertIdQuery = async () => {
 			};
 			filterStartDate.value = timeRange.value.startDate;
 			filterEndDate.value = timeRange.value.endDate;
-			load({}, true);
+			load({}, true); // 立即執行
 		}
 
 		await scrollToAlert(alertId);
@@ -531,19 +680,27 @@ const handleAlertIdQuery = async () => {
 	}
 };
 
+// 初始化
 onMounted(async () => {
+	// 初始化時間範圍
 	initializeTimeRange();
 
-	load({}, true);
+	load({}, true); // 立即執行
 	void loadUnresolvedCount();
+
+	// 透過 EventBus 訂閱（唯一 WS 層由 useAlertEventBus 管理）
 	busOnAlertNew(handleAlertNew);
 	busOnAlertUpdated(handleAlertUpdated);
+	busOnAlertDailyRollover(handleAlertDailyRollover);
 
+	// 處理 alertId 查詢參數
 	await handleAlertIdQuery();
 });
 
+// 組件卸載時清理
 onUnmounted(() => {
 	busOffAlertNew(handleAlertNew);
 	busOffAlertUpdated(handleAlertUpdated);
+	busOffAlertDailyRollover(handleAlertDailyRollover);
 });
 </script>

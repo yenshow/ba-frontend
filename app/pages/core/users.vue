@@ -2,7 +2,7 @@
 	<div class="space-y-6 2xl:space-y-8">
 		<header class="flex flex-wrap items-end justify-between gap-4 2xl:gap-6">
 			<div class="space-y-2 2xl:space-y-4">
-				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">權限管理</h1>
+				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">用戶管理</h1>
 				<p class="text-base text-white/80 2xl:text-xl">管理系統用戶帳號、角色與權限</p>
 			</div>
 			<div class="flex items-center">

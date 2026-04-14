@@ -167,7 +167,7 @@
 						</Teleport>
 					</div>
 
-					<!-- 3. 用戶設定（下拉：使用者資訊區、權限管理、登入登出） -->
+					<!-- 3. 用戶設定（下拉：使用者資訊區、用戶管理、登入登出） -->
 					<div class="relative z-[100]">
 						<button
 							ref="userMenuButtonRef"
@@ -210,14 +210,14 @@
 									</div>
 
 									<div class="space-y-1">
-										<!-- 權限管理（管理員與操作員可見） -->
+										<!-- 用戶管理（管理員與操作員可見） -->
 										<button
 											v-if="isAdmin || isOperator"
 											class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
 											@click="handleUserManagement"
-											aria-label="權限管理"
+											aria-label="用戶管理"
 										>
-											權限管理
+											用戶管理
 										</button>
 
 										<!-- 授權管理（僅管理員可見） -->
@@ -284,7 +284,7 @@ import { useLicense } from "~/composables/core/useLicense";
 import {
 	getFeatureKeyByRoute,
 	LICENSE_MESSAGE_LOCKED,
-	PERMISSION_MESSAGE_LOCKED,
+	PERMISSION_MESSAGE_LOCKED
 } from "~/utils/licenseUtils";
 import { PERMISSIONS, getPermissionCodeByRoute } from "~/constants/permissions";
 
@@ -303,10 +303,38 @@ const {
 } = useAlertMonitor();
 
 const MAIN_NAV_MODULES: SystemModule[] = [
-	{ id: 6, name: "人流統計管理", icon: "people-counting", route: "/construction-monitoring/people-counting", category: "construction-monitoring", description: "人流統計與管理" },
-	{ id: 5, name: "環境品質系統", icon: "environment", route: "/construction-monitoring/environment", category: "construction-monitoring", description: "環境品質監測與管理" },
-	{ id: 8, name: "影像監視系統", icon: "surveillance", route: "/construction-monitoring/surveillance", category: "construction-monitoring", description: "影像監視（RTSP + WebRTC）" },
-	{ id: 7, name: "車輛進出管理", icon: "vehicle-access", route: "/construction-monitoring/vehicle-access", category: "construction-monitoring", description: "車輛進出管理系統" },
+	{
+		id: 6,
+		name: "人流統計管理",
+		icon: "people-counting",
+		route: "/construction-monitoring/people-counting",
+		category: "construction-monitoring",
+		description: "人流統計與管理"
+	},
+	{
+		id: 5,
+		name: "環境品質系統",
+		icon: "environment",
+		route: "/construction-monitoring/environment",
+		category: "construction-monitoring",
+		description: "環境品質監測與管理"
+	},
+	{
+		id: 8,
+		name: "影像監視系統",
+		icon: "surveillance",
+		route: "/construction-monitoring/surveillance",
+		category: "construction-monitoring",
+		description: "影像監視（RTSP + WebRTC）"
+	},
+	{
+		id: 7,
+		name: "車輛進出管理",
+		icon: "vehicle-access",
+		route: "/construction-monitoring/vehicle-access",
+		category: "construction-monitoring",
+		description: "車輛進出管理系統"
+	}
 ];
 
 const mainNavigationItems = computed<SystemModule[]>(() => MAIN_NAV_MODULES);

@@ -6,25 +6,25 @@
 			autoplay
 			playsinline
 			muted
-			class="webrtc-frame h-full w-full bg-black object-contain"
+			class="webrtc-frame h-full w-full object-contain"
 			:aria-label="'攝影機串流 ' + (error ? '錯誤' : '播放中')"
 		/>
 		<div
 			v-else-if="streamStatus === 'loading'"
-			class="flex h-full w-full items-center justify-center bg-black text-white/70"
+			class="flex h-full w-full items-center justify-center text-white/70"
 		>
 			<p class="text-sm 2xl:text-base">連線中…</p>
 		</div>
 		<div
 			v-else-if="streamStatus === 'error'"
-			class="flex h-full w-full items-center justify-center bg-black text-red-400"
+			class="flex h-full w-full items-center justify-center text-red-400"
 		>
 			<p class="text-center text-sm 2xl:text-base">串流失敗</p>
 		</div>
-		<div v-else class="flex h-full w-full items-center justify-center bg-black text-white/70">
+		<div v-else class="flex h-full w-full items-center justify-center text-white/70">
 			<p class="text-sm 2xl:text-base">無串流</p>
 		</div>
-		<div v-if="error" class="absolute inset-0 flex items-center justify-center bg-black/80 p-4">
+		<div v-if="error" class="absolute inset-0 flex items-center justify-center p-4">
 			<p class="text-center text-sm text-red-400 2xl:text-base">{{ error }}</p>
 		</div>
 	</div>

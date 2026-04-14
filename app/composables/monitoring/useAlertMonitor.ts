@@ -38,6 +38,32 @@ const parseAlertTargetKey = (target: string | number, dimensionKey?: string): st
 const getAlertRoute = (alert: Pick<Alert, "id" | "source">): string =>
 	sourceRouteMap[alert.source] || `/core/alert-log?alertId=${alert.id}`;
 
+const formatZoneLocationLabel = (
+	alert: Pick<Alert, "zone_name" | "source_name" | "source_display_name">
+) =>
+	[alert.zone_name, alert.source_display_name || alert.source_name].filter(Boolean).join("-").trim();
+
+/**
+ * 後端部分子系統在 message 內仍可能回傳 `source: id` 的原始 label（如 `environment: 140`）。
+ * 前端 toast 以 `區域-地點` 呈現，避免顯示系統 key。
+ */
+const normalizeAlertMessageForToast = (alert: Alert): string => {
+	const raw = String(alert.message ?? "").trim();
+	if (!raw) return "";
+
+	const zoneLocation = formatZoneLocationLabel(alert);
+	if (!zoneLocation) return raw;
+
+	// 僅在訊息開頭是「source: id」時進行替換，避免誤傷其他自訂訊息
+	const headPattern = new RegExp(
+		`^\\s*${String(alert.source).replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}\\s*:\\s*\\d+\\s*`,
+		"i"
+	);
+	if (!headPattern.test(raw)) return raw;
+
+	return raw.replace(headPattern, `${zoneLocation} `).replace(/\\s+/g, " ").trim();
+};
+
 export const useAlertMonitor = () => {
 	const { warning, error, info, removeToast, updateToast, toasts } = useToast();
 	const { connect, isConnected } = useWebSocket();
@@ -70,6 +96,7 @@ export const useAlertMonitor = () => {
 		teardown: teardownEventBus,
 		onAlertNew: busOnAlertNew,
 		onAlertUpdated: busOnAlertUpdated,
+		onAlertDailyRollover: busOnAlertDailyRollover,
 		clearAll: clearEventBusHandlers
 	} = useAlertEventBus();
 	const {
@@ -173,7 +200,8 @@ export const useAlertMonitor = () => {
 		}
 
 		const alertKey = getAlertKey(alert.id, alert.dimension_key);
-		const message = `[${getSourceLabel(alert.source)}][${getSeverityLabel(alert.severity)}] ${alert.message}`;
+		const messageBody = normalizeAlertMessageForToast(alert);
+		const message = `[${getSourceLabel(alert.source)}][${getSeverityLabel(alert.severity)}] ${messageBody}`;
 
 		const show = alert.alert_type === "error" ? info : alert.severity === "warning" ? warning : error;
 
@@ -205,6 +233,16 @@ export const useAlertMonitor = () => {
 		upsertAlertToast(data.alert);
 	};
 
+	/** 日界線批次結案：關閉持久警報 Toast（未逐筆 alert:updated） */
+	const handleAlertDailyRollover = () => {
+		const keys = [...activeAlertKeys.value];
+		for (const key of keys) {
+			removeAlertToast(key);
+		}
+		removeSummaryToast();
+		void loadUnresolvedAlertCount();
+	};
+
 	const checkAlertsByPolling = async () => {
 		await checkNewAlerts(
 			shouldProcessAlert,
@@ -234,6 +272,7 @@ export const useAlertMonitor = () => {
 		setupEventBus();
 		busOnAlertNew(handleAlertNew);
 		busOnAlertUpdated(handleAlertUpdated);
+		busOnAlertDailyRollover(handleAlertDailyRollover);
 
 		setupConnectionWatcher(
 			() => {

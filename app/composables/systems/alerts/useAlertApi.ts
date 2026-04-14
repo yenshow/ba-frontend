@@ -5,7 +5,8 @@ import type {
 	UnresolvedAlertCountResponse,
 	AlertRule,
 	CreateAlertRulePayload,
-	UpdateAlertRulePayload
+	UpdateAlertRulePayload,
+	AlertRuleIntegrations
 } from "~/types/alert";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPathWithQuery } from "~/utils/apiUtils";
@@ -115,6 +116,11 @@ export const useAlertApi = () => {
 		return await request<{ rules: AlertRule[] }>(path);
 	};
 
+	/** 取得所有來源的警報規則（後台「全部系統」一次載入） */
+	const getAllAlertRules = async (): Promise<{ rules: AlertRule[] }> => {
+		return await request<{ rules: AlertRule[] }>("/alerts/rules");
+	};
+
 	/**
 	 * 建立警報規則（admin/operator）
 	 */
@@ -147,12 +153,28 @@ export const useAlertApi = () => {
 		});
 	};
 
-	/** 規則訊息預覽（canonical 模板 + 範例變數，不寫入 DB） */
-	const previewAlertRuleMessage = async (
-		body: Record<string, unknown>
-	): Promise<{ template: string; rendered: string }> => {
-		return await request<{ template: string; rendered: string }>("/alerts/rules/preview-message", {
+	/** 取得規則整合設定（DO/Camera/Webhook） */
+	const getAlertRuleIntegrations = async (ruleId: number): Promise<AlertRuleIntegrations> => {
+		return await request<AlertRuleIntegrations>(`/alerts/rules/${ruleId}/integrations`);
+	};
+
+	/** 批次取得多規則整合設定（DO/Camera/Webhook） */
+	const getAlertRuleIntegrationsBatch = async (
+		ruleIds: number[]
+	): Promise<Record<number, AlertRuleIntegrations>> => {
+		return await request<Record<number, AlertRuleIntegrations>>("/alerts/rules/integrations/batch", {
 			method: "POST",
+			body: { ruleIds }
+		});
+	};
+
+	/** 更新規則整合設定（DO/Camera/Webhook） */
+	const updateAlertRuleIntegrations = async (
+		ruleId: number,
+		body: Partial<AlertRuleIntegrations>
+	): Promise<AlertRuleIntegrations> => {
+		return await request<AlertRuleIntegrations>(`/alerts/rules/${ruleId}/integrations`, {
+			method: "PUT",
 			body
 		});
 	};
@@ -165,9 +187,12 @@ export const useAlertApi = () => {
 		unignoreAlert,
 		getUnresolvedAlertCount,
 		getAlertRules,
+		getAllAlertRules,
 		createAlertRule,
 		updateAlertRule,
 		deleteAlertRule,
-		previewAlertRuleMessage
+		getAlertRuleIntegrations,
+		getAlertRuleIntegrationsBatch,
+		updateAlertRuleIntegrations
 	};
 };

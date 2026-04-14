@@ -229,7 +229,7 @@ import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
-import { removeLocationFromSystemOrDelete } from "~/services/location/locationService";
+import { removeLocationFromSystemOrDelete } from "~/composables/location/locationSystemActions";
 import { buildDeleteLocationConfirmCopy, buildDeleteZoneConfirmCopy } from "~/domain/location/confirmCopy";
 import { getLocationUiKey } from "~/utils/locationUiId";
 import { useLocationValidationPipeline } from "~/composables/location/validation/useLocationValidationPipeline";

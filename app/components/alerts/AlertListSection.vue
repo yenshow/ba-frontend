@@ -70,7 +70,9 @@
 										<div class="grid grid-cols-4 gap-3 2xl:gap-4">
 											<div class="flex items-start gap-2">
 												<div class="min-w-0 flex-1">
-													<div class="text-sm text-white/60">{{ getSourceLabel(alert.source) }}</div>
+													<div class="text-sm text-white/60">
+														{{ getSourceLabel(alert.source) }}
+													</div>
 													<div class="mt-0.5 truncate text-base font-semibold text-white">
 														<span v-if="alert.zone_name">{{ alert.zone_name }} - </span
 														>{{ getSourceDisplayName(alert) }}
@@ -80,19 +82,25 @@
 											<div v-if="alert.device_type_name" class="flex items-start gap-2">
 												<div class="min-w-0 flex-1">
 													<div class="text-sm text-white/60">類型</div>
-													<div class="mt-0.5 text-base font-medium text-white">{{ alert.device_type_name }}</div>
+													<div class="mt-0.5 text-base font-medium text-white">
+														{{ alert.device_type_name }}
+													</div>
 												</div>
 											</div>
 											<div class="flex items-start gap-2">
 												<div class="min-w-0 flex-1">
 													<div class="text-sm text-white/60">創建時間</div>
-													<div class="mt-0.5 text-base text-white">{{ formatDateTime(alert.created_at) }}</div>
+													<div class="mt-0.5 text-base text-white">
+														{{ formatDateTime(alert.created_at) }}
+													</div>
 												</div>
 											</div>
 											<div class="flex items-start gap-2">
 												<div class="min-w-0 flex-1">
 													<div class="text-sm text-white/60">更新時間</div>
-													<div class="mt-0.5 text-base text-white">{{ formatDateTime(alert.updated_at) }}</div>
+													<div class="mt-0.5 text-base text-white">
+														{{ formatDateTime(alert.updated_at) }}
+													</div>
 												</div>
 											</div>
 										</div>

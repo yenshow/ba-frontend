@@ -1,29 +1,6 @@
 import type { AlertSource, AlertType, AlertSeverity } from "~/types/alert";
 import type { SystemType } from "~/types/location";
 
-/** 與後端 MESSAGE_TEMPLATE_KEYS 對齊（僅供 inferRuleTemplateKeyFromAlertType） */
-const RULE_CANONICAL_TEMPLATE_KEY_BY_ALERT_TYPE: Partial<Record<AlertType, string>> = {
-	threshold: "rule.threshold.v1",
-	offline: "rule.offline.v1",
-	di: "rule.di.v1",
-	do: "rule.do.v1"
-};
-
-/** 表單未勾選自訂時的預設模板字串（須與後端 CANONICAL_TEMPLATES 一致；`location_label` = 來源顯示名 + 目標後綴） */
-const CANONICAL_RULE_MESSAGE_BODY: Partial<Record<AlertType, string>> = {
-	threshold:
-		"{location_label} {parameter_name} {operator} {threshold}{unit}（當前 {current_value}{unit}）",
-	offline: "{location_label} 連續 {error_count} 次無法連接",
-	di: "{location_label} DI 位址 {di_address} 觸發",
-	do: "{location_label} DO 位址 {do_address} 觸發"
-};
-
-export const getDefaultRuleMessageTemplate = (alertType: AlertType): string =>
-	CANONICAL_RULE_MESSAGE_BODY[alertType] ?? CANONICAL_RULE_MESSAGE_BODY.threshold!;
-
-export const inferRuleTemplateKeyFromAlertType = (alertType: AlertType): string =>
-	RULE_CANONICAL_TEMPLATE_KEY_BY_ALERT_TYPE[alertType] ?? "rule.threshold.v1";
-
 /** 與環境／照明監控一致：透明度脈動頻率（對應 tailwind.css `.blink-slow` / `.blink-fast`、地圖點 `.alert-dot-flash-*`） */
 export type AlertFlashMode = "none" | "slow" | "fast";
 
@@ -128,8 +105,6 @@ export const getTypeBadgeClass = (type: AlertType | string): string => {
 		offline: "bg-gray-500/80 text-white",
 		error: "bg-red-500/80 text-white",
 		threshold: "bg-purple-500/80 text-white",
-		di: "bg-emerald-500/80 text-white",
-		do: "bg-sky-500/80 text-white"
 	};
 	return classes[type] || "bg-gray-500/80 text-white";
 };
@@ -202,14 +177,6 @@ export const formatAlertRuleConditionDisplay = (rule: AlertRuleConditionDisplayI
 		const n = raw != null && raw !== "" ? Number(raw) : 5;
 		const count = Number.isFinite(n) ? Math.max(1, Math.floor(n)) : 5;
 		return `連續 ${count} 次無法連接`;
-	}
-
-	if (ct === "bit_state") {
-		const bitKey = String(config.bit_key ?? "");
-		const match = bitKey.match(/^(di|do):(\d+)$/i);
-		const addr = match?.[2] ?? (bitKey.replace(/^(di|do):/i, "").trim() || "?");
-		const isDo = rule.alert_type === "do" || String(match?.[1] ?? "").toLowerCase() === "do";
-		return `${isDo ? "DO" : "DI"} 位址 ${addr} 觸發`;
 	}
 
 	return "-";
