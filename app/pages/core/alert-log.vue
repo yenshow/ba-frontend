@@ -217,14 +217,7 @@ const sourceOptions = [
 	{ value: "", label: "全部系統" },
 	{ value: "device", label: "設備系統" },
 	{ value: "environment", label: "環境系統" },
-	{ value: "lighting", label: "照明系統" },
-	{ value: "drainage", label: "衛生排水系統" },
-	{ value: "people_counting", label: "人流系統" },
-	{ value: "hvac", label: "空調系統" },
-	{ value: "power", label: "電力系統" },
-	{ value: "fire", label: "消防系統" },
-	{ value: "emergency_rescue", label: "緊急求救系統" },
-	{ value: "security", label: "安防系統" }
+	{ value: "people_counting", label: "人流系統" }
 ];
 
 // 時間範圍
@@ -236,7 +229,6 @@ const timeRange = ref({
 
 // 時間範圍預設選項
 const timeRangePresets = [
-	{ value: "past_hour", label: "過去一小時" },
 	{ value: "today", label: "今天" },
 	{ value: "yesterday", label: "昨天" },
 	{ value: "this_week", label: "本週" },
