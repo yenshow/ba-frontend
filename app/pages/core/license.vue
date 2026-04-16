@@ -30,7 +30,7 @@
 					class="rounded-xl border border-white/25 bg-white/10 px-4 py-2 text-sm text-white/85 transition-colors hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
 					:disabled="showLicensePlaceholder || isResettingLicense"
 					aria-label="重置本地授權"
-					@click="handleResetLicense"
+					@click="handleRequestResetLicense"
 				>
 					{{ isResettingLicense ? "重置中..." : "重置授權" }}
 				</button>
@@ -323,6 +323,7 @@
 												class="rounded-full bg-emerald-500/15 px-3 py-1 text-sm text-emerald-100 ring-1 ring-emerald-400/30 2xl:px-4 2xl:py-1.5 2xl:text-base"
 											>
 												{{ featureLabels[fk] ?? fk }}
+												<span class="ml-1 text-white/70">({{ featureQuotaText(entry, fk) }})</span>
 											</span>
 										</div>
 									</div>
@@ -338,6 +339,18 @@
 			</section>
 		</div>
 	</div>
+
+	<ConfirmDialog
+		v-model="showConfirmDialog"
+		:title="confirmDialogConfig.title"
+		:message="confirmDialogConfig.message"
+		:details="confirmDialogConfig.details"
+		:type="confirmDialogConfig.type"
+		:confirm-text="confirmDialogConfig.confirmText"
+		:cancel-text="confirmDialogConfig.cancelText"
+		@confirm="handleConfirmDialogConfirm"
+		@cancel="handleConfirmDialogCancel"
+	/>
 </template>
 
 <script setup lang="ts">
@@ -347,6 +360,9 @@ import { useAuth } from "~/composables/core/useAuth";
 import { useLicense } from "~/composables/core/useLicense";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
+import { formatMaxDevicesText, normalizeMaxDevices, toNonNegativeInt } from "~/utils/licenseFormat";
 
 definePageMeta({
 	layout: "auxiliary"
@@ -382,13 +398,25 @@ const { license, fetchLicense, isLoaded } = useLicense();
 const toast = useToast();
 const { handleError } = useErrorHandler();
 
+const confirmDialog = useConfirmDialog();
+const showConfirmDialog = computed({
+	get: () => confirmDialog.showDialog.value,
+	set: (value: boolean) => {
+		confirmDialog.showDialog.value = value;
+	}
+});
+const confirmDialogConfig = computed(() => confirmDialog.config.value);
+
+type ResetConfirmStep = "idle" | "content" | "execute";
+const resetConfirmStep = ref<ResetConfirmStep>("idle");
+
 const offlineStep = ref<1 | 2>(1);
 const overviewTab = ref<"quota" | "keys">("quota");
 
 const getPillButtonClass = (isActive: boolean) => {
 	return isActive
 		? "border-white/25 bg-white/10 text-white"
-		: "border-white/10 bg-white/5 text-white/50 hover:bg-white/10";
+		: "border-white/10 bg-white/5 text-white/80 hover:bg-white/10";
 };
 
 const getStepCircleClass = (isActive: boolean) => {
@@ -463,11 +491,9 @@ const quotaDetailRows = computed<QuotaDetailRow[]>(() => {
 	return LICENSE_FEATURE_KEYS.map(key => {
 		const label = featureLabels[key] ?? key;
 		const licensed = enabled.has(key);
-		const max = quotas[key]?.maxDevices;
-		const hasMax = typeof max === "number" && Number.isFinite(max);
-		const safeMax = hasMax ? Math.max(0, Math.floor(max)) : null;
+		const maxInfo = normalizeMaxDevices(quotas[key]?.maxDevices);
 		const usedRaw = usage[key]?.usedDevices ?? 0;
-		const safeUsed = Number.isFinite(usedRaw) ? Math.max(0, Math.floor(usedRaw)) : 0;
+		const safeUsed = toNonNegativeInt(usedRaw) ?? 0;
 
 		if (!licensed) {
 			return {
@@ -475,13 +501,13 @@ const quotaDetailRows = computed<QuotaDetailRow[]>(() => {
 				label,
 				licensed: false,
 				used: safeUsed,
-				maxText: safeMax == null ? "—" : String(safeMax),
+				maxText: maxInfo.text,
 				statusText: "未授權",
 				statusKind: "muted" as const
 			};
 		}
 
-		const isExceeded = safeMax != null ? safeUsed >= safeMax : false;
+		const isExceeded = maxInfo.max != null ? safeUsed >= maxInfo.max : false;
 		const statusText = isExceeded ? "已滿" : "正常";
 		const statusKind: QuotaDetailStatusKind = isExceeded ? "rose" : "emerald";
 
@@ -490,18 +516,23 @@ const quotaDetailRows = computed<QuotaDetailRow[]>(() => {
 			label,
 			licensed: true,
 			used: safeUsed,
-			maxText: safeMax == null ? "—" : String(safeMax),
+			maxText: maxInfo.text,
 			statusText,
 			statusKind
 		};
 	});
 });
 
+const featureQuotaText = (entry: LicenseListRow, key: FeatureKey) => {
+	return formatMaxDevicesText(entry.quotas?.[key]?.maxDevices);
+};
+
 type LicenseListRow = {
 	id: string;
 	licenseKey: string;
 	roleLabel: string;
 	features: FeatureKey[];
+	quotas?: Partial<Record<FeatureKey, { maxDevices: number }>>;
 	legacyMerged?: boolean;
 	legacyUnknown?: boolean;
 };
@@ -516,7 +547,8 @@ const licenseListRows = computed<LicenseListRow[]>(() => {
 				id: "open-all",
 				licenseKey: "",
 				roleLabel: "全功能開啟（測試）",
-				features: [...LICENSE_FEATURE_KEYS]
+				features: [...LICENSE_FEATURE_KEYS],
+				quotas: {}
 			}
 		];
 	}
@@ -528,7 +560,8 @@ const licenseListRows = computed<LicenseListRow[]>(() => {
 			id: `${e.licenseKey}-${i}`,
 			licenseKey: e.licenseKey,
 			roleLabel: e.licenseKey === mainLk ? "主 License Key" : "副 License Key",
-			features: [...e.features]
+			features: [...e.features],
+			quotas: e.quotas ?? {}
 		}));
 	}
 
@@ -543,6 +576,7 @@ const licenseListRows = computed<LicenseListRow[]>(() => {
 			licenseKey: main,
 			roleLabel: "主 License Key",
 			features: [...feats],
+			quotas: {},
 			legacyMerged: ext.length > 0
 		});
 	}
@@ -555,6 +589,7 @@ const licenseListRows = computed<LicenseListRow[]>(() => {
 			licenseKey: kk,
 			roleLabel: "副 License Key",
 			features: [],
+			quotas: {},
 			legacyUnknown: true
 		});
 	}
@@ -605,6 +640,45 @@ const handleResetLicense = async () => {
 	} finally {
 		isResettingLicense.value = false;
 	}
+};
+
+const handleRequestResetLicense = () => {
+	if (showLicensePlaceholder.value || isResettingLicense.value) return;
+	resetConfirmStep.value = "content";
+	confirmDialog.show({
+		type: "warning",
+		title: "確認重置內容",
+		message: "即將重置本地授權狀態，以下資料會被清除：",
+		details:
+			"已啟用功能、配額與使用量、序號（SN）、主／副 License Key、離線啟用指紋、副 LK 清單與授權清單（licenseEntitlements）。",
+		confirmText: "下一步",
+		cancelText: "取消"
+	});
+};
+
+const handleConfirmDialogConfirm = async () => {
+	if (resetConfirmStep.value === "content") {
+		resetConfirmStep.value = "execute";
+		await nextTick();
+		confirmDialog.show({
+			type: "danger",
+			title: "確認執行重置",
+			message: "確定要執行「重置授權」嗎？",
+			details: "此動作無法復原；請再次確認已完成備份或已了解影響範圍。",
+			confirmText: "確定重置",
+			cancelText: "返回"
+		});
+		return;
+	}
+
+	if (resetConfirmStep.value === "execute") {
+		resetConfirmStep.value = "idle";
+		await handleResetLicense();
+	}
+};
+
+const handleConfirmDialogCancel = () => {
+	resetConfirmStep.value = "idle";
 };
 
 const handleGenerateRequestFile = async () => {

@@ -6,7 +6,9 @@ import type {
 	AlertRule,
 	CreateAlertRulePayload,
 	UpdateAlertRulePayload,
-	AlertRuleIntegrations
+	AlertRuleIntegrations,
+	AlertEmailSubscriptionSmtpOverride,
+	AlertEmailSmtpTestResponse
 } from "~/types/alert";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPathWithQuery } from "~/utils/apiUtils";
@@ -153,12 +155,12 @@ export const useAlertApi = () => {
 		});
 	};
 
-	/** 取得規則整合設定（DO/Camera/Webhook） */
+	/** 取得規則整合設定（攝影機 / Email） */
 	const getAlertRuleIntegrations = async (ruleId: number): Promise<AlertRuleIntegrations> => {
 		return await request<AlertRuleIntegrations>(`/alerts/rules/${ruleId}/integrations`);
 	};
 
-	/** 批次取得多規則整合設定（DO/Camera/Webhook） */
+	/** 批次取得多規則整合設定（攝影機 / Email） */
 	const getAlertRuleIntegrationsBatch = async (
 		ruleIds: number[]
 	): Promise<Record<number, AlertRuleIntegrations>> => {
@@ -168,7 +170,7 @@ export const useAlertApi = () => {
 		});
 	};
 
-	/** 更新規則整合設定（DO/Camera/Webhook） */
+	/** 更新規則整合設定（攝影機 / Email） */
 	const updateAlertRuleIntegrations = async (
 		ruleId: number,
 		body: Partial<AlertRuleIntegrations>
@@ -176,6 +178,18 @@ export const useAlertApi = () => {
 		return await request<AlertRuleIntegrations>(`/alerts/rules/${ruleId}/integrations`, {
 			method: "PUT",
 			body
+		});
+	};
+
+	/** SMTP 測試寄信（不寫入 DB；可用 emailSubscription 覆寫目前表單設定） */
+	const testAlertRuleSmtpEmail = async (
+		ruleId: number,
+		body: { emailSubscription?: Partial<AlertEmailSubscriptionSmtpOverride> | null } = {}
+	): Promise<AlertEmailSmtpTestResponse> => {
+		return await request<AlertEmailSmtpTestResponse>(`/alerts/rules/${ruleId}/email/test`, {
+			method: "POST",
+			body,
+			timeout: 40000
 		});
 	};
 
@@ -193,6 +207,7 @@ export const useAlertApi = () => {
 		deleteAlertRule,
 		getAlertRuleIntegrations,
 		getAlertRuleIntegrationsBatch,
-		updateAlertRuleIntegrations
+		updateAlertRuleIntegrations,
+		testAlertRuleSmtpEmail
 	};
 };

@@ -2,69 +2,130 @@
  * 錯誤處理相關工具函數
  */
 
-/**
- * 錯誤優先級定義
- */
-export enum ErrorPriority {
-	CRITICAL = 100, // 連線錯誤、認證錯誤
-	HIGH = 80, // 設備離線、服務不可用
-	MEDIUM = 50, // 數值錯誤、閾值超標
-	LOW = 20 // 一般錯誤、警告
-}
+export type AppSeverity = "warning" | "error" | "critical";
 
-/**
- * 錯誤優先級關鍵字映射（集中管理，供 useErrorHandler 使用）
- */
-export const ERROR_KEYWORDS = {
-	CRITICAL: [
-		"無法連接到後端伺服器",
-		"無法連接到後端",
-		"後端服務是否正常運行",
-		"econnrefused",
-		"enotfound",
-		"networkerror",
-		"failed to fetch",
-		"認證",
-		"auth",
-		"401",
-		"登入",
-		"token"
-	],
-	HIGH: [
-		"503",
-		"連接超時",
-		"連接被拒絕",
-		"無法到達設備",
-		"連接已斷開",
-		"離線",
-		"offline",
-		"服務不可用",
-		"service unavailable",
-		"設備連接失敗",
-		"設備離線",
-		"無法在"
-	],
-	MEDIUM: ["閾值", "threshold", "超標", "數值"]
+export const APP_SEVERITY_RANK: Record<AppSeverity, number> = {
+	warning: 1,
+	error: 2,
+	critical: 3
 } as const;
 
+/**
+ * 連線/離線 token（僅用於「無 status/code」時的 fallback；避免解析整句中文訊息造成漂移）
+ * - **前後端需盡量一致**（後端：systemAlertHelper.js）
+ */
+export const CONNECTION_ERROR_TOKENS = [
+	"連接超時",
+	"連接被拒絕",
+	"無法到達設備",
+	"連接已斷開",
+	"無法連接",
+	"無法讀取",
+	"connection refused",
+	"econnrefused",
+	"設備離線",
+	"設備連接失敗",
+	"服務不可用",
+	"service unavailable"
+] as const;
+
+export const TIMEOUT_ERROR_TOKENS = ["timeout", "timed out", "etimedout", "請求超時"] as const;
+
+export type ApiErrorCode =
+	| "HTTP_400"
+	| "HTTP_401"
+	| "HTTP_403"
+	| "HTTP_404"
+	| "HTTP_500"
+	| "HTTP_503"
+	| "NETWORK_ERROR"
+	| "DEVICE_CONNECTION_ERROR"
+	| "TIMEOUT"
+	| "CORS"
+	| "UNKNOWN";
+
+export class ApiRequestError extends Error {
+	statusCode?: number;
+	code?: ApiErrorCode;
+	originalMessage?: string;
+
+	constructor(
+		message: string,
+		meta?: { statusCode?: number; code?: ApiErrorCode; originalMessage?: string }
+	) {
+		super(message);
+		this.name = "ApiRequestError";
+		this.statusCode = meta?.statusCode;
+		this.code = meta?.code;
+		this.originalMessage = meta?.originalMessage;
+	}
+}
+
+export const severityToToastType = (
+	severity: AppSeverity
+): { type: "error" | "warning" | "info"; duration: number } => {
+	if (severity === "critical") return { type: "error", duration: 10000 };
+	if (severity === "error") return { type: "warning", duration: 8000 };
+	return { type: "info", duration: 5000 };
+};
+
+export const inferSeverityFromApiError = (error: unknown): AppSeverity => {
+	const e = error as any;
+	const statusCode: number | undefined =
+		typeof e?.statusCode === "number"
+			? e.statusCode
+			: typeof e?.status === "number"
+				? e.status
+				: undefined;
+
+	if (statusCode === 400) return "warning";
+	if (statusCode === 401 || statusCode === 403 || statusCode === 404) return "error";
+	if (statusCode === 500 || statusCode === 503) return "critical";
+
+	const code: string = String(e?.code ?? "");
+	if (code === "DEVICE_CONNECTION_ERROR" || code === "NETWORK_ERROR") return "critical";
+	if (code === "TIMEOUT" || code === "CORS") return "error";
+
+	const message = String(e?.message ?? "").toLowerCase();
+	if (CONNECTION_ERROR_TOKENS.some(t => message.includes(String(t).toLowerCase()))) {
+		return "critical";
+	}
+	if (TIMEOUT_ERROR_TOKENS.some(t => message.includes(String(t).toLowerCase()))) {
+		return "error";
+	}
+	if (
+		message.includes("failed to fetch") ||
+		message.includes("networkerror") ||
+		message.includes("enotfound") ||
+		message.includes("無法連接到後端伺服器")
+	) {
+		return "critical";
+	}
+	if (message.includes("cors") || message.includes("cross-origin")) return "error";
+	return "warning";
+};
 /**
  * 檢查是否為設備連接錯誤
  * @param errorMessage - 錯誤訊息
  * @returns 是否為設備連接錯誤
  */
 export const isDeviceConnectionError = (errorMessage: string): boolean => {
-	return (
-		errorMessage.includes("503") ||
-		errorMessage.includes("服務不可用") ||
-		errorMessage.includes("設備離線") ||
-		errorMessage.includes("設備連接失敗") ||
-		errorMessage.includes("連接超時") ||
-		errorMessage.includes("連接被拒絕") ||
-		errorMessage.includes("無法到達設備") ||
-		errorMessage.includes("連接已斷開") ||
-		(errorMessage.includes("無法連接到後端伺服器") && 
-		 (errorMessage.includes("/modbus/") || errorMessage.includes("/device/")))
-	);
+	const msg = String(errorMessage || "");
+	const lower = msg.toLowerCase();
+	const hasIp = Boolean(lower.match(/\d+\.\d+\.\d+\.\d+:\d+/));
+	const isDeviceApi = lower.includes("/modbus/") || lower.includes("/device/");
+
+	if (CONNECTION_ERROR_TOKENS.some(t => lower.includes(String(t).toLowerCase()))) {
+		return true;
+	}
+
+	if (isDeviceApi && hasIp) {
+		return true;
+	}
+
+	if (lower.includes("503")) return true;
+
+	return false;
 };
 
 /**
@@ -75,4 +136,3 @@ export const isDeviceConnectionError = (errorMessage: string): boolean => {
 export const isDeviceApiRequest = (path: string): boolean => {
 	return path.includes("/modbus/") || path.includes("/device/");
 };
-

@@ -6,7 +6,7 @@
 import type { Alert, AlertFilters } from "~/types/alert";
 import { logger } from "~/utils/logger";
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi";
-import { useErrorHandler, ErrorPriority } from "~/composables/core/useErrorHandler";
+import { useErrorHandler } from "~/composables/core/useErrorHandler";
 const pollingLogger = logger.createLogger("AlertPolling");
 
 /**
@@ -14,7 +14,7 @@ const pollingLogger = logger.createLogger("AlertPolling");
  */
 export const useAlertPolling = () => {
 	const alertApi = useAlertApi();
-	const { currentPriority, handleError } = useErrorHandler();
+	const { currentSeverity, handleError } = useErrorHandler();
 
 	// 上次檢查時間（用於增量查詢）
 	const lastCheckTime = ref<Date | null>(null);
@@ -42,7 +42,7 @@ export const useAlertPolling = () => {
 		}
 
 		// 高優先級錯誤時延長間隔（減少後端負擔）
-		if (currentPriority.value >= ErrorPriority.HIGH) {
+		if (currentSeverity.value === "error" || currentSeverity.value === "critical") {
 			return 60000; // 1 分鐘
 		}
 

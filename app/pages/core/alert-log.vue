@@ -84,38 +84,6 @@
 		/>
 	</div>
 
-	<!-- Camera popup (rule camera linkage) -->
-	<Teleport to="body">
-		<Transition name="dialog-fade">
-			<div
-				v-if="cameraPopup.open"
-				class="fixed inset-0 z-[2100] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
-				role="dialog"
-				aria-modal="true"
-				aria-label="攝影機彈窗"
-			>
-				<div class="dialog-panel-bg w-full max-w-6xl overflow-hidden rounded-3xl p-4 2xl:p-6">
-					<div class="mb-3 flex items-center justify-between">
-						<h3 class="text-lg font-semibold tracking-[2px] text-white 2xl:text-xl">
-							攝影機：{{ cameraPopup.cameraName }}
-						</h3>
-						<button
-							type="button"
-							class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
-							aria-label="關閉攝影機彈窗"
-							@click="handleCloseCameraPopup"
-						>
-							&times;
-						</button>
-					</div>
-					<div class="h-[70vh] w-full overflow-hidden rounded-2xl border border-white/15">
-						<VideoPlayer :webrtc-url="cameraPopup.webrtcUrl" :stream-status="cameraPopup.streamStatus" />
-					</div>
-					<p v-if="cameraPopup.error" class="mt-3 text-sm text-rose-300">{{ cameraPopup.error }}</p>
-				</div>
-			</div>
-		</Transition>
-	</Teleport>
 </template>
 
 <script setup lang="ts">
@@ -137,13 +105,17 @@ import AlertListSection from "~/components/alerts/AlertListSection.vue";
 import AlertRuleManagement from "~/components/alerts/AlertRuleManagement.vue";
 import { useDataLoader } from "~/composables/monitoring/useDataLoader";
 import { logger } from "~/utils/logger";
-import VideoPlayer from "~/components/surveillance/VideoPlayer.vue";
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
+import AlertCameraLinkagePopup from "~/components/alerts/AlertCameraLinkagePopup.vue";
+import type {
+	CameraPopupItem,
+	CameraStreamState
+} from "~/components/alerts/AlertCameraLinkagePopup.vue";
 
 const alertLogLogger = logger.createLogger("alert-log");
 
 definePageMeta({
-	layout: "default"
+	layout: "auxiliary"
 });
 
 const alertApi = useAlertApi();
@@ -164,18 +136,84 @@ const { handleError: handleApiError } = useErrorHandler();
 
 const cameraPopup = reactive({
 	open: false,
-	webrtcUrl: "",
-	streamStatus: "stopped" as "running" | "stopped" | "loading" | "error",
-	error: "",
-	cameraName: ""
+	items: [] as CameraPopupItem[],
+	activeIndex: 0,
+	streams: [] as CameraStreamState[]
 });
 
 const handleCloseCameraPopup = () => {
 	cameraPopup.open = false;
-	cameraPopup.webrtcUrl = "";
-	cameraPopup.streamStatus = "stopped";
-	cameraPopup.error = "";
-	cameraPopup.cameraName = "";
+	cameraPopup.items = [];
+	cameraPopup.activeIndex = 0;
+	cameraPopup.streams = [];
+};
+
+const normalizeCameraDeviceIds = (ids: number[]): number[] =>
+	[...new Set(ids.map(v => Number(v)).filter(n => Number.isFinite(n) && n > 0))].slice(0, 4);
+
+const setActiveCameraPopupIndex = async (nextIndex: number) => {
+	const idx = Math.max(0, Math.min(nextIndex, cameraPopup.items.length - 1));
+	cameraPopup.activeIndex = idx;
+	await loadStreamsForActivePopupItem();
+};
+
+const handleCameraPopupPrev = () => {
+	void setActiveCameraPopupIndex(cameraPopup.activeIndex - 1);
+};
+
+const handleCameraPopupNext = () => {
+	void setActiveCameraPopupIndex(cameraPopup.activeIndex + 1);
+};
+
+const enqueueCameraPopup = async (cameraDeviceIds: number[], ruleId: number) => {
+	const ids = normalizeCameraDeviceIds(cameraDeviceIds);
+	if (ids.length === 0) return;
+
+	const key = `${ruleId}:${ids.join(",")}:${Date.now()}`;
+	cameraPopup.items.unshift({ key, ruleId, cameraDeviceIds: ids, createdAt: Date.now(), count: 1 });
+	cameraPopup.items = cameraPopup.items.slice(0, 20);
+	cameraPopup.open = true;
+	cameraPopup.activeIndex = 0;
+	await loadStreamsForActivePopupItem();
+};
+
+const loadStreamsForActivePopupItem = async () => {
+	const item = cameraPopup.items[cameraPopup.activeIndex];
+	if (!item) {
+		cameraPopup.streams = [];
+		return;
+	}
+
+	const ids = normalizeCameraDeviceIds(item.cameraDeviceIds);
+	cameraPopup.streams = ids.map(deviceId => ({
+		deviceId,
+		deviceName: "",
+		webrtcUrl: "",
+		streamStatus: "loading",
+		error: ""
+	}));
+
+	await Promise.all(
+		cameraPopup.streams.map(async s => {
+			try {
+				const deviceRes = await deviceApi.getDevice(s.deviceId);
+				s.deviceName = deviceRes?.device?.name?.trim?.() || `設備 ${s.deviceId}`;
+
+				const status = await deviceApi.getStreamStatus(s.deviceId);
+				if (status.status !== "running") {
+					const started = await deviceApi.startStream(s.deviceId);
+					s.webrtcUrl = started.webrtcUrl || "";
+					s.streamStatus = "running";
+					return;
+				}
+				s.webrtcUrl = status.webrtcUrl || "";
+				s.streamStatus = status.status;
+			} catch (e) {
+				s.streamStatus = "error";
+				s.error = e instanceof Error ? e.message : "啟動攝影機串流失敗";
+			}
+		})
+	);
 };
 
 // 狀態
@@ -189,9 +227,9 @@ const ruleFilterType = ref<"" | AlertType>("");
 
 const ruleTypeOptions: { value: "" | AlertType; label: string }[] = [
 	{ value: "", label: "全部類型" },
-	{ value: "offline", label: "offline" },
-	{ value: "error", label: "error" },
-	{ value: "threshold", label: "threshold" }
+	{ value: "offline", label: "設備狀態警報" },
+	{ value: "error", label: "系統錯誤警報" },
+	{ value: "threshold", label: "環境參數警報" }
 ];
 
 const handleOpenCreateRule = () => {
@@ -461,37 +499,10 @@ const maybeOpenCameraPopupByRule = async (
 ) => {
 	try {
 		const next = await integrationsStore.ensureCameraLinkage(ruleId);
-		if (!next.enabled || !next.cameraDeviceId) return;
-		await openCameraPopupForDevice(next.cameraDeviceId, alert);
+		if (!next.enabled || next.cameraDeviceIds.length === 0) return;
+		await enqueueCameraPopup(next.cameraDeviceIds, ruleId);
 	} catch {
 		// ignore
-	}
-};
-
-const openCameraPopupForDevice = async (
-	deviceId: number,
-	alert?: Pick<Alert, "zone_name" | "source_name" | "source_display_name" | "location_name">
-) => {
-	cameraPopup.open = true;
-	cameraPopup.streamStatus = "loading";
-	cameraPopup.error = "";
-	cameraPopup.cameraName = "";
-	try {
-		const deviceRes = await deviceApi.getDevice(deviceId);
-		cameraPopup.cameraName = deviceRes?.device?.name?.trim?.() || "";
-
-		const status = await deviceApi.getStreamStatus(deviceId);
-		if (status.status !== "running") {
-			const started = await deviceApi.startStream(deviceId);
-			cameraPopup.webrtcUrl = started.webrtcUrl || "";
-			cameraPopup.streamStatus = "running";
-			return;
-		}
-		cameraPopup.webrtcUrl = status.webrtcUrl || "";
-		cameraPopup.streamStatus = status.status;
-	} catch (e) {
-		cameraPopup.streamStatus = "error";
-		cameraPopup.error = e instanceof Error ? e.message : "啟動攝影機串流失敗";
 	}
 };
 

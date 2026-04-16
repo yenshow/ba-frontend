@@ -132,7 +132,7 @@ const showLicensePlaceholder = computed(
 );
 const { handleError } = useErrorHandler();
 const toast = useToast();
-const { sortZones } = useZoneManagement<UnifiedZone>();
+const { sortZones } = useZoneManagement<UnifiedLocation, UnifiedZone>();
 
 // 人流統計相關
 const { locations: peopleCountingLocations, loadLocations: loadPeopleCountingLocations } =
