@@ -1,12 +1,14 @@
 import { ref, readonly } from "vue";
 import { useToast } from "~/composables/core/useToast";
 import { logger } from "~/utils/logger";
-import { ErrorPriority, ERROR_KEYWORDS } from "~/utils/errorUtils";
+import {
+	APP_SEVERITY_RANK,
+	inferSeverityFromApiError,
+	severityToToastType,
+	type AppSeverity
+} from "~/utils/errorUtils";
 
 const errorHandlerLogger = logger.createLogger("Error Handler");
-
-// 重新導出 ErrorPriority 供外部使用
-export { ErrorPriority };
 
 /**
  * 錯誤去重機制
@@ -51,74 +53,23 @@ const errorDeduplication = {
 export const useErrorHandler = () => {
 	const toast = useToast();
 
-	// 當前最高優先級錯誤
-	const currentPriority = ref<ErrorPriority>(ErrorPriority.LOW);
+	// 當前最高嚴重度（三段 SSOT：warning/error/critical）
+	const currentSeverity = ref<AppSeverity>("warning");
 
 	/**
-	 * 從錯誤訊息提取優先級
+	 * 從錯誤推導嚴重度（優先 status/code，其次少量字串兜底）
 	 */
-	const getErrorPriority = (error: Error): ErrorPriority => {
-		const message = error.message.toLowerCase();
-
-		// CRITICAL: 後端連接錯誤、認證錯誤
-		// 但如果錯誤訊息包含設備相關的 URL（如 /modbus/），則可能是設備連接錯誤，不應判斷為 CRITICAL
-		const isDeviceApiError = message.includes("/modbus/") || message.includes("/device/");
-		const hasDeviceIp = message.match(/\d+\.\d+\.\d+\.\d+:\d+/);
-
-		if (
-			ERROR_KEYWORDS.CRITICAL.some(keyword => {
-				if (keyword === "econnrefused" || keyword === "enotfound") {
-					return message.includes(keyword) && !message.includes("連接到");
-				}
-				// 如果是設備 API 錯誤且包含「無法連接到後端伺服器」和設備 IP，則是設備連接錯誤
-				if (isDeviceApiError && keyword === "無法連接到後端伺服器" && hasDeviceIp) {
-					return false; // 不判斷為 CRITICAL
-				}
-				return message.includes(keyword);
-			})
-		) {
-			// 如果是設備 API 錯誤且包含設備相關資訊，降級為 HIGH（設備連接錯誤）
-			if (isDeviceApiError && (message.includes("設備") || hasDeviceIp)) {
-				return ErrorPriority.HIGH;
-			}
-			return ErrorPriority.CRITICAL;
-		}
-
-		// HIGH: 設備連接錯誤、設備離線、服務不可用
-		if (
-			ERROR_KEYWORDS.HIGH.some(keyword => {
-				// "無法在" 需要配合 "連接到" 一起判斷
-				if (keyword === "無法在") {
-					return message.includes(keyword) && message.includes("連接到");
-				}
-				return message.includes(keyword);
-			})
-		) {
-			return ErrorPriority.HIGH;
-		}
-
-		// MEDIUM: 數值錯誤、閾值超標
-		if (ERROR_KEYWORDS.MEDIUM.some(keyword => message.includes(keyword))) {
-			return ErrorPriority.MEDIUM;
-		}
-
-		// LOW: 默認優先級
-		return ErrorPriority.LOW;
-	};
+	const getErrorSeverity = (error: unknown): AppSeverity =>
+		inferSeverityFromApiError(error);
 
 	/**
-	 * 優先級判斷：是否應該處理此錯誤
+	 * 嚴重度判斷：是否應該處理此錯誤
 	 */
-	const shouldProcessError = (error: Error): boolean => {
-		const errorPriority = getErrorPriority(error);
+	const shouldProcessError = (error: unknown): boolean => {
+		const nextSeverity = getErrorSeverity(error);
 
-		// 如果當前有更高優先級的錯誤，忽略此錯誤
-		if (currentPriority.value > errorPriority) {
-			return false;
-		}
-
-		// 特殊規則：連線錯誤時，不處理數值錯誤
-		if (currentPriority.value >= ErrorPriority.HIGH && errorPriority <= ErrorPriority.MEDIUM) {
+		// 如果當前有更高嚴重度，忽略此錯誤
+		if (APP_SEVERITY_RANK[currentSeverity.value] > APP_SEVERITY_RANK[nextSeverity]) {
 			return false;
 		}
 
@@ -128,31 +79,13 @@ export const useErrorHandler = () => {
 	/**
 	 * 生成錯誤唯一標識
 	 */
-	const generateErrorKey = (errorMsg: string, priority: ErrorPriority): string => {
+	const generateErrorKey = (errorMsg: string, severity: AppSeverity): string => {
 		// 簡化錯誤訊息作為 key（移除動態部分如 URL、時間戳等）
 		const simplifiedMsg = errorMsg
 			.replace(/https?:\/\/[^\s]+/g, "[URL]")
 			.replace(/\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}[^\s]*/g, "[TIME]")
 			.replace(/\d+/g, "[NUM]");
-		return `${simplifiedMsg}:${priority}`;
-	};
-
-	/**
-	 * 根據優先級獲取 Toast 配置
-	 */
-	const getToastConfig = (
-		priority: ErrorPriority
-	): { type: "error" | "warning" | "info"; duration: number } => {
-		if (priority >= ErrorPriority.CRITICAL) {
-			return { type: "error", duration: 10000 };
-		}
-		if (priority >= ErrorPriority.HIGH) {
-			return { type: "warning", duration: 8000 };
-		}
-		if (priority >= ErrorPriority.MEDIUM) {
-			return { type: "warning", duration: 5000 };
-		}
-		return { type: "info", duration: 3000 };
+		return `${simplifiedMsg}:${severity}`;
 	};
 
 	/**
@@ -170,32 +103,30 @@ export const useErrorHandler = () => {
 		if (/無效的整數參數|Invalid integer parameter/i.test(errorMsg)) {
 			return null;
 		}
-		const errorObj = error instanceof Error ? error : new Error(errorMsg);
-		const errorPriority = getErrorPriority(errorObj);
+		const errorSeverity = getErrorSeverity(error);
 
 		// 錯誤去重檢查
-		const errorKey = generateErrorKey(errorMsg, errorPriority);
+		const errorKey = generateErrorKey(errorMsg, errorSeverity);
 		if (errorDeduplication.isDuplicate(errorKey)) {
 			return null; // 重複錯誤，不處理
 		}
 
-		// 優先級判斷
-		if (!shouldProcessError(errorObj)) {
+		// 嚴重度判斷
+		if (!shouldProcessError(error)) {
 			return null; // 低優先級錯誤被忽略
 		}
 
-		// 更新當前優先級
-		if (errorPriority > currentPriority.value) {
-			currentPriority.value = errorPriority;
+		// 更新當前嚴重度
+		if (APP_SEVERITY_RANK[errorSeverity] > APP_SEVERITY_RANK[currentSeverity.value]) {
+			currentSeverity.value = errorSeverity;
 		}
 
-		// 根據優先級選擇 Toast 類型和持續時間
-		const { type: toastType, duration } = getToastConfig(errorPriority);
+		const { type: toastType, duration } = severityToToastType(errorSeverity);
 
 		// 記錄錯誤（開發模式，只記錄簡要資訊，避免重複）
 		errorHandlerLogger.warn("處理錯誤", {
 			message: errorMsg.substring(0, 100), // 只顯示前100個字符
-			priority: errorPriority
+			severity: errorSeverity
 		});
 
 		// 顯示 Toast
@@ -208,7 +139,7 @@ export const useErrorHandler = () => {
 	 * 重置優先級（當錯誤恢復時調用）
 	 */
 	const resetPriority = () => {
-		currentPriority.value = ErrorPriority.LOW;
+		currentSeverity.value = "warning";
 	};
 
 	// 定期清理過期記錄
@@ -220,9 +151,9 @@ export const useErrorHandler = () => {
 
 	return {
 		handleError,
-		currentPriority: readonly(currentPriority),
+		currentSeverity: readonly(currentSeverity),
 		resetPriority,
-		getErrorPriority,
+		getErrorSeverity,
 		shouldProcessError
 	};
 };

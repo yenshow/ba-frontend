@@ -134,6 +134,35 @@ export function formatDateInput(date: Date): string {
 	return `${date.getFullYear()}-${padZero(date.getMonth() + 1)}-${padZero(date.getDate())}`;
 }
 
+export type ClockDisplay = {
+	date: string
+	weekday: string
+	period: "上午" | "下午"
+	time: string
+}
+
+/**
+ * 資訊牆／首頁 Header 時鐘顯示（YYYY/MM/DD + 星期 + 上午/下午 + 12 小時制含秒）
+ */
+export function formatClockDisplay(date: Date): ClockDisplay {
+	const weekdays = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"]
+	const weekday = weekdays[date.getDay()] ?? ""
+
+	const hours = date.getHours()
+	const minutes = String(date.getMinutes()).padStart(2, "0")
+	const seconds = String(date.getSeconds()).padStart(2, "0")
+	const period: ClockDisplay["period"] = hours < 12 ? "上午" : "下午"
+	const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours
+	const time = `${String(displayHours).padStart(2, "0")}:${minutes}:${seconds}`
+
+	return {
+		date: formatDateLocal(date),
+		weekday,
+		period,
+		time,
+	}
+}
+
 /**
  * 格式化日期時間為本地顯示格式（YYYY/MM/DD HH:mm）
  * @param dateString - ISO 8601 格式的日期時間字符串

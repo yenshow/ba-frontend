@@ -4,6 +4,22 @@
  * 注意：這些都是純函數，不需要響應式狀態
  */
 
+const resolveBackendAssetUrl = (raw: string, apiBase: string): string => {
+	const v = String(raw || "").trim()
+	if (!v) return ""
+
+	// 已是絕對網址
+	if (/^https?:\/\//i.test(v)) return v
+
+	// 只處理後端提供的 /uploads/* 路徑
+	if (!v.startsWith("/uploads/")) return v
+
+	const base = String(apiBase || "").trim()
+	// apiBase 通常是 http://host:4000/api → assetBase = http://host:4000
+	const assetBase = base.endsWith("/api") ? base.slice(0, -4) : base
+	return `${assetBase}${v}`
+}
+
 /**
  * 解析上傳檔案的顯示 URL
  * 當 src 為後端上傳路徑（/uploads/）時，需加上伺服器 base URL
@@ -12,13 +28,7 @@
  * @param apiBase - API base 設定（可含 /api 後綴，會自動 stripping）
  */
 export const resolveUploadUrl = (src: string, apiBase: string): string => {
-	const trimmed = src?.trim() ?? "";
-	if (!trimmed) return "";
-	if (trimmed.startsWith("/uploads/")) {
-		const base = apiBase.replace(/\/api\/?$/, "");
-		return `${base}${trimmed}`;
-	}
-	return trimmed;
+	return resolveBackendAssetUrl(src, apiBase)
 };
 
 /**

@@ -95,41 +95,6 @@
 		/>
 	</div>
 
-	<!-- Camera popup (rule camera linkage) -->
-	<Teleport to="body">
-		<Transition name="dialog-fade">
-			<div
-				v-if="cameraPopup.open"
-				class="fixed inset-0 z-[2100] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
-				role="dialog"
-				aria-modal="true"
-				aria-label="攝影機彈窗"
-			>
-				<div class="dialog-panel-bg w-full max-w-6xl overflow-hidden rounded-3xl p-4 2xl:p-6">
-					<div class="mb-3 flex items-center justify-between">
-						<h3 class="text-lg font-semibold tracking-[2px] text-white 2xl:text-xl">
-							攝影機：{{ cameraPopup.cameraName }}
-						</h3>
-						<button
-							type="button"
-							class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
-							aria-label="關閉攝影機彈窗"
-							@click="handleCloseCameraPopup"
-						>
-							&times;
-						</button>
-					</div>
-					<div class="h-[70vh] w-full overflow-hidden rounded-2xl border border-white/15">
-						<VideoPlayer
-							:webrtc-url="cameraPopup.webrtcUrl"
-							:stream-status="cameraPopup.streamStatus"
-						/>
-					</div>
-					<p v-if="cameraPopup.error" class="mt-3 text-sm text-rose-300">{{ cameraPopup.error }}</p>
-				</div>
-			</div>
-		</Transition>
-	</Teleport>
 </template>
 
 <script setup lang="ts">
@@ -151,7 +116,6 @@ import AlertListSection from "~/components/alerts/AlertListSection.vue"
 import AlertRuleManagement from "~/components/alerts/AlertRuleManagement.vue"
 import { useDataLoader } from "~/composables/monitoring/useDataLoader"
 import { logger } from "~/utils/logger"
-import VideoPlayer from "~/components/surveillance/VideoPlayer.vue"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 
 const alertLogLogger = logger.createLogger("alert-log")
@@ -176,21 +140,7 @@ const {
 } = useAlertEventBus()
 const { handleError: handleApiError } = useErrorHandler()
 
-const cameraPopup = reactive({
-	open: false,
-	webrtcUrl: "",
-	streamStatus: "stopped" as "running" | "stopped" | "loading" | "error",
-	error: "",
-	cameraName: "",
-})
-
-const handleCloseCameraPopup = () => {
-	cameraPopup.open = false
-	cameraPopup.webrtcUrl = ""
-	cameraPopup.streamStatus = "stopped"
-	cameraPopup.error = ""
-	cameraPopup.cameraName = ""
-}
+// 攝影機連動彈窗改為全域（layout）；本頁不再管理 popup
 
 // 狀態
 const isIgnoring = ref(false)
@@ -203,11 +153,10 @@ const ruleFilterType = ref<"" | AlertType>("")
 
 const ruleTypeOptions: { value: "" | AlertType; label: string }[] = [
 	{ value: "", label: "全部類型" },
-	{ value: "offline", label: "offline" },
-	{ value: "error", label: "error" },
-	{ value: "threshold", label: "threshold" },
-	{ value: "di", label: "di" },
-	{ value: "do", label: "do" },
+	{ value: "offline", label: "設備狀態警報" },
+	{ value: "threshold", label: "環境參數警報" },
+	{ value: "di", label: "DI 警報" },
+	{ value: "do", label: "DO 警報" },
 ]
 
 const handleOpenCreateRule = () => {
@@ -439,11 +388,7 @@ const handleAlertNew = (alert: AlertNewEvent) => {
 		unresolvedCount.value++
 	}
 
-	// 攝影機連動：若此 alert 綁了規則，且該規則有 camera linkage，彈出播放器
-	const ruleId = alert.rule_id != null ? Number(alert.rule_id) : null
-	if (ruleId && Number.isFinite(ruleId)) {
-		void maybeOpenCameraPopupByRule(ruleId, alert)
-	}
+	// 攝影機連動彈窗為全域（layout）處理
 }
 
 // 處理警報更新事件（WebSocket）
@@ -476,45 +421,7 @@ const handleAlertDailyRollover = () => {
 	void loadUnresolvedCount()
 }
 
-const maybeOpenCameraPopupByRule = async (
-	ruleId: number,
-	alert?: Pick<Alert, "zone_name" | "source_name" | "source_display_name" | "location_name">
-) => {
-	try {
-		const next = await integrationsStore.ensureCameraLinkage(ruleId)
-		if (!next.enabled || !next.cameraDeviceId) return
-		await openCameraPopupForDevice(next.cameraDeviceId, alert)
-	} catch {
-		// ignore
-	}
-}
-
-const openCameraPopupForDevice = async (
-	deviceId: number,
-	alert?: Pick<Alert, "zone_name" | "source_name" | "source_display_name" | "location_name">
-) => {
-	cameraPopup.open = true
-	cameraPopup.streamStatus = "loading"
-	cameraPopup.error = ""
-	cameraPopup.cameraName = ""
-	try {
-		const deviceRes = await deviceApi.getDevice(deviceId)
-		cameraPopup.cameraName = deviceRes?.device?.name?.trim?.() || ""
-
-		const status = await deviceApi.getStreamStatus(deviceId)
-		if (status.status !== "running") {
-			const started = await deviceApi.startStream(deviceId)
-			cameraPopup.webrtcUrl = started.webrtcUrl || ""
-			cameraPopup.streamStatus = "running"
-			return
-		}
-		cameraPopup.webrtcUrl = status.webrtcUrl || ""
-		cameraPopup.streamStatus = status.status
-	} catch (e) {
-		cameraPopup.streamStatus = "error"
-		cameraPopup.error = e instanceof Error ? e.message : "啟動攝影機串流失敗"
-	}
-}
+// 攝影機連動彈窗已改為全域（layout）；此處不再處理攝影機連動/串流啟動
 
 const ALERT_CSV_HEADERS = [
 	"系統來源",

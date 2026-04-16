@@ -80,7 +80,7 @@ export const getTypeLabel = (type: AlertType | string): string => {
 export const getSeverityLabel = (severity: AlertSeverity | string): string => {
 	const labels: Record<string, string> = {
 		warning: "異常",
-		error: "警報",
+		error: "錯誤",
 		critical: "警報",
 	};
 	return labels[severity] || severity;

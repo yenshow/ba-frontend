@@ -5,22 +5,35 @@
 			<slot />
 		</main>
 		<ToastContainer />
+		<AlertCameraLinkagePopup
+			:open="cameraPopup.state.open"
+			:items="cameraPopup.state.items"
+			:active-index="cameraPopup.state.activeIndex"
+			:streams="cameraPopup.state.streams"
+			@close="cameraPopup.handleClose"
+			@prev="cameraPopup.handlePrev"
+			@next="cameraPopup.handleNext"
+			@reload="cameraPopup.handleReload"
+		/>
 	</div>
 </template>
 
 <script setup lang="ts">
 import AppHeader from "~/components/common/AppHeader.vue";
 import ToastContainer from "~/components/common/ToastContainer.vue";
+import AlertCameraLinkagePopup from "~/components/alerts/AlertCameraLinkagePopup.vue";
 import type { MonitoringDeviceStatusBatchEvent } from "~/types/websocket";
 import { useTheme } from "~/composables/core/useTheme";
 import { useAuth } from "~/composables/core/useAuth";
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
+import { useAlertCameraLinkagePopup } from "~/composables/monitoring/useAlertCameraLinkagePopup";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 
 const { isDark } = useTheme();
 const { user } = useAuth();
 const { startMonitoring, stopMonitoring } = useAlertMonitor();
 const { isConnected, on, off } = useWebSocket();
+const cameraPopup = useAlertCameraLinkagePopup();
 
 // 全局設備狀態批次更新監聽器（用於所有頁面）
 let globalDeviceStatusBatchHandler: ((event: MonitoringDeviceStatusBatchEvent) => void) | null =
@@ -85,9 +98,11 @@ watch(
 		if (connected && user.value) {
 			// WebSocket 連接成功且用戶已登入，設置全局監聽器
 			setupGlobalDeviceStatusListener();
+			cameraPopup.start();
 		} else if (!connected) {
 			// WebSocket 斷線，移除全局監聽器
 			removeGlobalDeviceStatusListener();
+			cameraPopup.stop();
 		}
 	},
 	{ immediate: true }
@@ -97,6 +112,7 @@ watch(
 onBeforeUnmount(() => {
 	stopMonitoring();
 	removeGlobalDeviceStatusListener();
+	cameraPopup.stop();
 });
 </script>
 

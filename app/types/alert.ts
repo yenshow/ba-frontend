@@ -145,33 +145,60 @@ export interface AlertCameraLinkage {
 	id: number
 	enabled: boolean
 	rule_id: number
-	camera_device_id: number | null
+	camera_device_ids: number[]
 	created_by?: number | null
 	created_at: string
 	updated_at: string
 }
 
-export interface AlertWebhookSubscription {
+export type SmtpSecurity = "none" | "ssl" | "tls"
+
+export interface AlertEmailSubscription {
 	id: number
 	enabled: boolean
 	rule_id: number
-	url: string
-	secret?: string | null
-	headers_json?: Record<string, unknown> | null
+	smtp_host: string | null
+	smtp_port: number | null
+	smtp_user: string | null
+	smtp_password?: string | null
+	smtp_security: SmtpSecurity
+	to_emails: string[]
+	repeat_min_interval_seconds: number
+	repeat_max_send_count: number
 	created_by?: number | null
 	created_at: string
 	updated_at: string
+}
+
+/** 用於 SMTP 測試（可不帶 id/rule_id；後端會與 DB 既有設定 merge） */
+export type AlertEmailSubscriptionSmtpOverride = Pick<
+	AlertEmailSubscription,
+	| "enabled"
+	| "smtp_host"
+	| "smtp_port"
+	| "smtp_user"
+	| "smtp_password"
+	| "smtp_security"
+	| "to_emails"
+>
+
+export interface AlertEmailSmtpTestResponse {
+	ok: boolean
+	messageId?: string | null
+	accepted?: unknown
+	rejected?: unknown
+	response?: unknown
 }
 
 export interface AlertRuleIntegrations {
 	doLinkage: AlertDoLinkage | null
 	cameraLinkage: AlertCameraLinkage | null
-	webhookSubscriptions: AlertWebhookSubscription[]
+	emailSubscription: AlertEmailSubscription | null
 }
 
 export type AlertRuleIntegrationSummary = {
 	doEnabled: boolean
 	cameraEnabled: boolean
-	webhookEnabled: boolean
+	emailEnabled: boolean
 	hasAny: boolean
 }

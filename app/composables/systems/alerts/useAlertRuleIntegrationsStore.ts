@@ -1,7 +1,10 @@
 import type { AlertRuleIntegrationSummary, AlertRuleIntegrations } from "~/types/alert"
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi"
 
-type CameraLinkageResult = { enabled: boolean; cameraDeviceId: number | null }
+type CameraLinkageResult = {
+	enabled: boolean
+	cameraDeviceIds: number[]
+}
 
 const FLUSH_DELAY_MS = 50
 
@@ -23,11 +26,8 @@ const normalizeRuleIds = (ruleIds: number[]): number[] =>
 const summarize = (integrations: AlertRuleIntegrations | null | undefined): AlertRuleIntegrationSummary => {
 	const doEnabled = Boolean(integrations?.doLinkage?.enabled)
 	const cameraEnabled = Boolean(integrations?.cameraLinkage?.enabled)
-	const webhookEnabled = Boolean(
-		Array.isArray(integrations?.webhookSubscriptions) &&
-			integrations!.webhookSubscriptions.some((w) => Boolean(w?.enabled))
-	)
-	return { doEnabled, cameraEnabled, webhookEnabled, hasAny: doEnabled || cameraEnabled || webhookEnabled }
+	const emailEnabled = Boolean(integrations?.emailSubscription?.enabled)
+	return { doEnabled, cameraEnabled, emailEnabled, hasAny: doEnabled || cameraEnabled || emailEnabled }
 }
 
 const setCacheForRule = (ruleId: number, integrations: AlertRuleIntegrations | null) => {
@@ -100,15 +100,19 @@ export const useAlertRuleIntegrationsStore = () => {
 		const id = Number(ruleId)
 		const cached = summaryByRuleId.get(id)
 		if (cached) return cached
-		return { doEnabled: false, cameraEnabled: false, webhookEnabled: false, hasAny: false }
+		return { doEnabled: false, cameraEnabled: false, emailEnabled: false, hasAny: false }
 	}
 
 	const getCameraLinkage = (ruleId: number): CameraLinkageResult => {
 		const id = Number(ruleId)
 		const integrations = integrationsByRuleId.get(id)
 		const enabled = Boolean(integrations?.cameraLinkage?.enabled)
-		const cameraDeviceId = integrations?.cameraLinkage?.camera_device_id ?? null
-		return { enabled, cameraDeviceId }
+		const rawIds = integrations?.cameraLinkage?.camera_device_ids
+		const idsFromArray = Array.isArray(rawIds)
+			? rawIds.map((v) => Number(v)).filter((n) => Number.isFinite(n) && n > 0)
+			: []
+		const merged = [...new Set(idsFromArray)].slice(0, 4)
+		return { enabled, cameraDeviceIds: merged }
 	}
 
 	const ensureCameraLinkage = async (ruleId: number): Promise<CameraLinkageResult> => {

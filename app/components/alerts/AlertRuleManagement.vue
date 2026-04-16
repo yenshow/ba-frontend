@@ -43,7 +43,7 @@
 											'rounded px-2 py-1 2xl:px-3 2xl:py-1.5',
 										]"
 									>
-										{{ rule.alert_type }}
+										{{ getAlertTypeLabel(rule.alert_type) }}
 									</span>
 								</td>
 								<td :class="tableCellClass">
@@ -79,13 +79,13 @@
 												v-if="getIntegrationSummary(rule.id).cameraEnabled"
 												class="rounded bg-sky-500/20 px-2 py-0.5 text-xs text-sky-100 2xl:text-sm"
 											>
-												CAM
+												攝影機
 											</span>
 											<span
-												v-if="getIntegrationSummary(rule.id).webhookEnabled"
+												v-if="getIntegrationSummary(rule.id).emailEnabled"
 												class="rounded bg-violet-500/20 px-2 py-0.5 text-xs text-violet-100 2xl:text-sm"
 											>
-												WEB
+												Email
 											</span>
 										</template>
 										<span v-else class="text-sm text-white/40">—</span>
@@ -246,7 +246,12 @@ const loadRules = async () => {
 			.filter(
 				(rule, index, arr) => arr.findIndex((candidate) => candidate.id === rule.id) === index
 			)
-			.sort((a, b) => b.id - a.id)
+			.sort((a, b) => {
+				const aTime = Number.isFinite(Date.parse(a.created_at)) ? Date.parse(a.created_at) : null
+				const bTime = Number.isFinite(Date.parse(b.created_at)) ? Date.parse(b.created_at) : null
+				if (aTime != null && bTime != null && aTime !== bTime) return aTime - bTime
+				return a.id - b.id
+			})
 		ruleOffset.value = 0
 	} catch (error) {
 		handleApiError(error, "載入警報規則失敗")
@@ -299,7 +304,7 @@ const handleSubmitRule = async (payload: {
 	integrations: Partial<{
 		doLinkage: unknown
 		cameraLinkage: unknown
-		webhookSubscriptions: unknown
+		emailSubscription: unknown
 	}>
 }) => {
 	isRuleSaving.value = true
@@ -362,7 +367,6 @@ watch(
 const getRuleStatusBadgeClass = (enabled: boolean) =>
 	enabled ? "bg-emerald-500/20 text-emerald-200" : "bg-yellow-500/20 text-yellow-200"
 
-/** 與 users.vue 角色徽章色階一致之警報類型區分 */
 const getAlertTypeBadgeClass = (type: AlertType) => {
 	const classes: Record<AlertType, string> = {
 		offline: "bg-gray-500/20 text-gray-200",
@@ -372,6 +376,17 @@ const getAlertTypeBadgeClass = (type: AlertType) => {
 		do: "bg-sky-500/20 text-sky-200",
 	}
 	return classes[type] ?? "bg-gray-500/20 text-gray-200"
+}
+
+const getAlertTypeLabel = (type: AlertType) => {
+	const labels: Record<AlertType, string> = {
+		offline: "設備狀態警報",
+		threshold: "環境參數警報",
+		di: "DI 警報",
+		do: "DO 警報",
+		error: "系統錯誤警報",
+	}
+	return labels[type] ?? String(type)
 }
 
 /** 與 users.vue 狀態徽章色階一致之嚴重度區分 */

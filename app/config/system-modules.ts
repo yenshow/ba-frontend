@@ -194,7 +194,7 @@ export const systemModules: SystemModule[] = [
 		id: 20,
 		name: "多媒體資訊",
 		icon: "video-wall",
-		route: "/multimedia/info",
+		route: "/multimedia/dashboard",
 		category: "multimedia",
 		description: "整合電視牆模組、多媒體伺服器、資訊平台",
 	},

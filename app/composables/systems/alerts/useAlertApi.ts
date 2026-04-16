@@ -7,6 +7,8 @@ import type {
 	CreateAlertRulePayload,
 	UpdateAlertRulePayload,
 	AlertRuleIntegrations,
+	AlertEmailSubscriptionSmtpOverride,
+	AlertEmailSmtpTestResponse,
 } from "~/types/alert"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { buildPathWithQuery } from "~/utils/apiUtils"
@@ -155,22 +157,25 @@ export const useAlertApi = () => {
 
 	// 規則訊息預覽 API 已移除（訊息模板固定 + 後綴，前端不提供預覽）
 
-	/** 取得規則整合設定（DO/Camera/Webhook） */
+	/** 取得規則整合設定（DO / 攝影機 / Email） */
 	const getAlertRuleIntegrations = async (ruleId: number): Promise<AlertRuleIntegrations> => {
 		return await request<AlertRuleIntegrations>(`/alerts/rules/${ruleId}/integrations`)
 	}
 
-	/** 批次取得多規則整合設定（DO/Camera/Webhook） */
+	/** 批次取得多規則整合設定（DO / 攝影機 / Email） */
 	const getAlertRuleIntegrationsBatch = async (
 		ruleIds: number[]
 	): Promise<Record<number, AlertRuleIntegrations>> => {
-		return await request<Record<number, AlertRuleIntegrations>>("/alerts/rules/integrations/batch", {
-			method: "POST",
-			body: { ruleIds },
-		})
+		return await request<Record<number, AlertRuleIntegrations>>(
+			"/alerts/rules/integrations/batch",
+			{
+				method: "POST",
+				body: { ruleIds },
+			}
+		)
 	}
 
-	/** 更新規則整合設定（DO/Camera/Webhook） */
+	/** 更新規則整合設定（DO / 攝影機 / Email） */
 	const updateAlertRuleIntegrations = async (
 		ruleId: number,
 		body: Partial<AlertRuleIntegrations>
@@ -178,6 +183,18 @@ export const useAlertApi = () => {
 		return await request<AlertRuleIntegrations>(`/alerts/rules/${ruleId}/integrations`, {
 			method: "PUT",
 			body,
+		})
+	}
+
+	/** SMTP 測試寄信（不寫入 DB；可用 emailSubscription 覆寫目前表單設定） */
+	const testAlertRuleSmtpEmail = async (
+		ruleId: number,
+		body: { emailSubscription?: Partial<AlertEmailSubscriptionSmtpOverride> | null } = {}
+	): Promise<AlertEmailSmtpTestResponse> => {
+		return await request<AlertEmailSmtpTestResponse>(`/alerts/rules/${ruleId}/email/test`, {
+			method: "POST",
+			body,
+			timeout: 40_000,
 		})
 	}
 
@@ -196,5 +213,6 @@ export const useAlertApi = () => {
 		getAlertRuleIntegrations,
 		getAlertRuleIntegrationsBatch,
 		updateAlertRuleIntegrations,
+		testAlertRuleSmtpEmail,
 	}
 }

@@ -165,19 +165,15 @@
 							</template>
 						</div>
 
-						<div class="rounded-2xl border border-white/15 bg-white/5 p-4 2xl:p-5">
-							<p class="mb-2 text-sm font-medium text-white/90 2xl:text-base">訊息模板</p>
-							<label
-								class="mt-3 flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-							>
-								<textarea
-									v-model="form.message_suffix"
-									rows="3"
-									class="form-input min-h-[5.5rem] resize-y"
-									placeholder="例如：請值班人員立即到場確認"
-								/>
-							</label>
-						</div>
+						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+							<span>訊息模板</span>
+							<textarea
+								v-model="form.message_suffix"
+								rows="3"
+								class="form-input min-h-[5.5rem] resize-y"
+								placeholder="例如：請值班人員立即到場確認"
+							/>
+						</label>
 
 						<!-- Integrations: accordion -->
 						<div class="rounded-2xl border border-white/15 bg-white/5 p-4 2xl:p-5">
@@ -199,7 +195,7 @@
 									</label>
 
 									<div v-if="doLinkage.enabled" class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-										<label class="flex flex-col gap-2 text-sm text-white/80 md:col-span-2">
+										<label class="flex flex-col gap-2 text-sm text-white/80">
 											<span>設備 *</span>
 											<FilterDropdown
 												v-model="doDeviceIdModel"
@@ -230,7 +226,7 @@
 											/>
 										</label>
 
-										<label class="flex flex-col gap-2 text-sm text-white/80 md:col-span-2">
+										<label class="flex flex-col gap-2 text-sm text-white/80">
 											<span>延時復歸（秒）</span>
 											<input
 												v-model.number="doLinkage.auto_off_seconds"
@@ -250,15 +246,50 @@
 										<span>啟用攝影機彈窗</span>
 									</label>
 									<div v-if="cameraLinkage.enabled" class="mt-3">
-										<label class="flex flex-col gap-2 text-sm text-white/80">
-											<span>攝影機 *</span>
-											<FilterDropdown
-												v-model="cameraDeviceIdModel"
-												:options="cameraDeviceOptions"
-												placeholder="請選擇攝影機"
-												text-size="text-sm 2xl:text-base"
-											/>
-										</label>
+										<div class="flex items-center justify-between gap-3">
+											<p class="text-sm text-white/80">攝影機（最多 4 台）*</p>
+											<button
+												type="button"
+												class="btn-secondary"
+												:disabled="cameraDeviceIdsModel.length >= 4"
+												aria-label="新增一台攝影機"
+												@click="handleAddCameraDeviceSlot"
+											>
+												新增
+											</button>
+										</div>
+										<div class="mt-3 space-y-3">
+											<div
+												v-for="(val, index) in cameraDeviceIdsModel"
+												:key="`camera-slot-${index}`"
+												class="flex items-end gap-2"
+											>
+												<label class="flex flex-1 flex-col gap-2 text-sm text-white/80">
+													<span>第 {{ index + 1 }} 台</span>
+													<FilterDropdown
+														:model-value="val ? String(val) : ''"
+														:options="cameraDeviceOptions"
+														placeholder="請選擇攝影機"
+														text-size="text-sm 2xl:text-base"
+														@update:model-value="
+															(v: string) => handleUpdateCameraDeviceId(index, v)
+														"
+													/>
+												</label>
+												<button
+													type="button"
+													class="btn-secondary"
+													:disabled="cameraDeviceIdsModel.length <= 1"
+													aria-label="移除此攝影機"
+													@click="handleRemoveCameraDeviceSlot(index)"
+												>
+													移除
+												</button>
+											</div>
+											<p class="text-xs text-white/60">
+												提示：重複選擇會自動去除；僅會儲存前 4 台。
+											</p>
+										</div>
 									</div>
 								</div>
 							</div>
@@ -270,37 +301,112 @@
 								class="flex w-full items-center justify-between text-left text-sm font-medium text-white/90 2xl:text-base"
 								@click="expandedSections.notify = !expandedSections.notify"
 							>
-								<span>警報通知（Webhook）</span>
+								<span>警報通知</span>
 								<span class="text-white/60">{{ expandedSections.notify ? "收合" : "展開" }}</span>
 							</button>
 
 							<div v-if="expandedSections.notify" class="mt-4 space-y-3">
-								<p class="text-sm leading-relaxed text-white/60">
-									本次先保留設定，後續再擴充實際投遞。
-								</p>
-								<label class="flex items-center gap-3 text-sm text-white/80">
-									<input v-model="webhook.enabled" type="checkbox" class="h-4 w-4" />
-									<span>啟用 Webhook</span>
-								</label>
-								<div v-if="webhook.enabled" class="grid grid-cols-1 gap-4 md:grid-cols-2">
-									<label class="flex flex-col gap-2 text-sm text-white/80 md:col-span-2">
-										<span>Webhook URL *</span>
-										<input
-											v-model="webhook.url"
-											type="text"
-											class="form-input"
-											placeholder="https://..."
-										/>
+								<div class="mt-2 rounded-2xl border border-white/10 bg-white/5 p-4">
+									<p class="mb-3 text-sm font-medium text-white/90">Email（SMTP）</p>
+									<label class="flex items-center gap-3 text-sm text-white/80">
+										<input v-model="email.enabled" type="checkbox" class="h-4 w-4" />
+										<span>啟用 Email 通知</span>
 									</label>
-									<label class="flex flex-col gap-2 text-sm text-white/80 md:col-span-2">
-										<span>Secret</span>
-										<input
-											v-model="webhook.secret"
-											type="text"
-											class="form-input"
-											placeholder="用於簽章或驗證"
-										/>
-									</label>
+
+									<div v-if="email.enabled" class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+										<label class="flex flex-col gap-2 text-sm text-white/80 md:col-span-2">
+											<span>SMTP Host *</span>
+											<input
+												v-model="email.smtp_host"
+												type="text"
+												class="form-input"
+												placeholder="例如：smtp.example.com"
+											/>
+										</label>
+										<label class="flex flex-col gap-2 text-sm text-white/80">
+											<span>SMTP Port *</span>
+											<input
+												v-model.number="email.smtp_port"
+												type="number"
+												min="1"
+												class="form-input"
+												placeholder="例如：587"
+											/>
+										</label>
+										<label class="flex flex-col gap-2 text-sm text-white/80">
+											<span>連線方式 *</span>
+											<FilterDropdown
+												v-model="email.smtp_security"
+												:options="smtpSecurityOptions"
+												placeholder="請選擇"
+												text-size="text-sm 2xl:text-base"
+											/>
+										</label>
+										<label class="flex flex-col gap-2 text-sm text-white/80">
+											<span>寄件人 Email（必填）</span>
+											<input
+												v-model="email.smtp_user"
+												type="text"
+												required
+												class="form-input"
+												placeholder="例如：noreply@example.com"
+											/>
+										</label>
+										<label class="flex flex-col gap-2 text-sm text-white/80">
+											<span>密碼</span>
+											<input
+												v-model="email.smtp_password"
+												type="password"
+												class="form-input"
+												placeholder="可留空"
+												autocomplete="new-password"
+											/>
+										</label>
+
+										<label class="flex flex-col gap-2 text-sm text-white/80 md:col-span-2">
+											<span>收件人 To（每行一個）*</span>
+											<textarea
+												v-model="email.to_emails_text"
+												rows="3"
+												class="form-input min-h-[5.5rem] resize-y"
+												placeholder="a@example.com&#10;b@example.com"
+											/>
+										</label>
+
+										<div class="flex flex-col gap-2 md:col-span-2">
+											<button
+												type="button"
+												class="btn-secondary w-full md:w-auto"
+												:disabled="isEmailSmtpTestLoading || isSubmitting || !props.editingRule?.id"
+												aria-label="寄送 SMTP 測試信"
+												@click="handleEmailSmtpTestClick"
+											>
+												{{ isEmailSmtpTestLoading ? "寄送中..." : "寄送 SMTP 測試信" }}
+											</button>
+											<p v-if="!props.editingRule?.id" class="text-xs text-white/55">
+												請先建立並儲存規則（取得規則 ID）後，才能寄送測試信。
+											</p>
+										</div>
+										<label class="flex flex-col gap-2 text-sm text-white/80">
+											<span>重複發送間隔（秒）*</span>
+											<input
+												v-model.number="email.repeat_min_interval_seconds"
+												type="number"
+												min="15"
+												class="form-input"
+											/>
+										</label>
+										<label class="flex flex-col gap-2 text-sm text-white/80">
+											<span>最大發送次數（含第一封）*</span>
+											<input
+												v-model.number="email.repeat_max_send_count"
+												type="number"
+												min="1"
+												max="10"
+												class="form-input"
+											/>
+										</label>
+									</div>
 								</div>
 							</div>
 						</div>
@@ -318,8 +424,15 @@
 							</label>
 						</label>
 
-						<p v-if="errorMessage" class="text-sm text-rose-300 2xl:text-base">
-							{{ errorMessage }}
+						<p v-if="localErrorMessage || errorMessage" class="text-sm text-rose-300 2xl:text-base">
+							{{ localErrorMessage || errorMessage }}
+						</p>
+						<p
+							v-if="smtpTestFeedback.message"
+							class="text-sm 2xl:text-base"
+							:class="smtpTestFeedback.ok ? 'text-emerald-300' : 'text-amber-200'"
+						>
+							{{ smtpTestFeedback.message }}
 						</p>
 					</form>
 
@@ -408,13 +521,19 @@ interface IntegrationsDraft {
 	}
 	cameraLinkage: null | {
 		enabled: boolean
-		camera_device_id: number | null
+		camera_device_ids?: number[]
 	}
-	webhookSubscriptions: Array<{
+	emailSubscription: null | {
 		enabled: boolean
-		url: string
-		secret?: string | null
-	}>
+		smtp_host: string
+		smtp_port: number
+		smtp_user: string | null
+		smtp_password: string | null
+		smtp_security: "none" | "ssl" | "tls"
+		to_emails: string[]
+		repeat_min_interval_seconds: number
+		repeat_max_send_count: number
+	}
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -489,14 +608,41 @@ const doLinkage = reactive({
 
 const cameraLinkage = reactive({
 	enabled: false,
-	camera_device_id: null as number | null,
+	/** 內部用 slots 表示（可為 null），送出時再轉成 number[] */
+	camera_device_ids: [null] as Array<number | null>,
 })
 
-const webhook = reactive({
+const smtpSecurityOptions: OptionItem[] = [
+	{ value: "none", label: "無（不強制加密）" },
+	{ value: "ssl", label: "SSL（SMTPS）" },
+	{ value: "tls", label: "TLS（STARTTLS）" },
+]
+
+const email = reactive({
 	enabled: false,
-	url: "",
-	secret: "",
+	smtp_host: "",
+	smtp_port: 587 as number,
+	smtp_user: "",
+	smtp_password: "",
+	smtp_security: "tls" as "none" | "ssl" | "tls",
+	to_emails_text: "",
+	repeat_min_interval_seconds: 15 as number,
+	repeat_max_send_count: 10 as number,
 })
+
+const localErrorMessage = ref<string>("")
+const isEmailSmtpTestLoading = ref(false)
+const smtpTestFeedback = reactive<{ ok: boolean; message: string }>({
+	ok: false,
+	message: "",
+})
+
+const parseEmailsFromText = (text: string): string[] => {
+	return String(text || "")
+		.split(/\r?\n|,|;/g)
+		.map((v) => v.trim())
+		.filter(Boolean)
+}
 
 const devices = ref<Device[]>([])
 const isDevicesLoading = ref(false)
@@ -526,13 +672,44 @@ const doDeviceIdModel = computed<string>({
 	},
 })
 
-const cameraDeviceIdModel = computed<string>({
+const cameraDeviceIdsModel = computed<Array<number | null>>({
 	get() {
-		return cameraLinkage.camera_device_id != null ? String(cameraLinkage.camera_device_id) : ""
+		const raw = Array.isArray(cameraLinkage.camera_device_ids)
+			? cameraLinkage.camera_device_ids
+			: []
+		const normalized = raw
+			.map((v) => (v == null ? null : Number(v)))
+			.map((n) => (Number.isFinite(n as number) ? (n as number) : null))
+
+		// 保留空 slot；但已選擇的 deviceId 需去重（保留第一個）
+		const seen = new Set<number>()
+		const deduped = normalized.map((v) => {
+			if (v == null || v <= 0) return null
+			if (seen.has(v)) return null
+			seen.add(v)
+			return v
+		})
+
+		const trimmed = deduped.slice(0, 4)
+		return trimmed.length > 0 ? trimmed : [null]
 	},
-	set(v) {
-		const n = Number(v)
-		cameraLinkage.camera_device_id = v && Number.isFinite(n) ? n : null
+	set(next) {
+		const raw = Array.isArray(next) ? next : []
+		const normalized = raw
+			.map((v) => (v == null ? null : Number(v)))
+			.map((n) => (Number.isFinite(n as number) ? (n as number) : null))
+			.map((v) => (v != null && v > 0 ? v : null))
+
+		const seen = new Set<number>()
+		const deduped = normalized.map((v) => {
+			if (v == null) return null
+			if (seen.has(v)) return null
+			seen.add(v)
+			return v
+		})
+
+		const trimmed = deduped.slice(0, 4)
+		cameraLinkage.camera_device_ids = trimmed.length > 0 ? trimmed : [null]
 	},
 })
 
@@ -613,14 +790,40 @@ const resetForm = () => {
 	doLinkage.auto_off_seconds = null
 
 	cameraLinkage.enabled = false
-	cameraLinkage.camera_device_id = null
+	cameraLinkage.camera_device_ids = [null]
 
-	webhook.enabled = false
-	webhook.url = ""
-	webhook.secret = ""
+	email.enabled = false
+	email.smtp_host = ""
+	email.smtp_port = 587
+	email.smtp_user = ""
+	email.smtp_password = ""
+	email.smtp_security = "tls"
+	email.to_emails_text = ""
+	email.repeat_min_interval_seconds = 15
+	email.repeat_max_send_count = 10
+
+	localErrorMessage.value = ""
 
 	expandedSections.linkage = false
 	expandedSections.notify = false
+}
+
+const handleAddCameraDeviceSlot = () => {
+	if (cameraDeviceIdsModel.value.length >= 4) return
+	cameraDeviceIdsModel.value = [...cameraDeviceIdsModel.value, null]
+}
+
+const handleRemoveCameraDeviceSlot = (index: number) => {
+	const next = [...cameraDeviceIdsModel.value]
+	next.splice(index, 1)
+	cameraDeviceIdsModel.value = next.length > 0 ? next : [null]
+}
+
+const handleUpdateCameraDeviceId = (index: number, value: string) => {
+	const n = Number(value)
+	const next = [...cameraDeviceIdsModel.value]
+	next[index] = Number.isFinite(n) && n > 0 ? n : null
+	cameraDeviceIdsModel.value = next
 }
 
 const handleSelectZone = (zoneId: string) => {
@@ -731,13 +934,26 @@ const loadIntegrationsForRule = async (ruleId: number) => {
 
 		const c = res?.cameraLinkage
 		cameraLinkage.enabled = Boolean(c?.enabled)
-		cameraLinkage.camera_device_id = c?.camera_device_id ?? null
+		const idsRaw = (c as any)?.camera_device_ids as unknown
+		const ids = Array.isArray(idsRaw)
+			? (idsRaw as unknown[])
+					.map((v) => Number(v))
+					.filter((n): n is number => Number.isFinite(n) && n > 0)
+					.slice(0, 4)
+			: []
+		const merged = [...new Set(ids)].slice(0, 4)
+		cameraLinkage.camera_device_ids = merged.length > 0 ? merged : [null]
 
-		const w = Array.isArray(res?.webhookSubscriptions) ? res.webhookSubscriptions : []
-		const first = w[0]
-		webhook.enabled = Boolean(first?.enabled)
-		webhook.url = String(first?.url || "")
-		webhook.secret = String(first?.secret || "")
+		const es = (res as any)?.emailSubscription
+		email.enabled = Boolean(es?.enabled)
+		email.smtp_host = String(es?.smtp_host || "")
+		email.smtp_port = Number(es?.smtp_port ?? 587)
+		email.smtp_user = String(es?.smtp_user || "")
+		email.smtp_password = String(es?.smtp_password || "")
+		email.smtp_security = String(es?.smtp_security || "tls") as any as "none" | "ssl" | "tls"
+		email.to_emails_text = Array.isArray(es?.to_emails) ? es.to_emails.join("\n") : ""
+		email.repeat_min_interval_seconds = Number(es?.repeat_min_interval_seconds ?? 15)
+		email.repeat_max_send_count = Number(es?.repeat_max_send_count ?? 10)
 	} catch {
 		// ignore
 	}
@@ -838,6 +1054,8 @@ watch(
 	() => props.modelValue,
 	(open) => {
 		if (!open) return
+		smtpTestFeedback.ok = false
+		smtpTestFeedback.message = ""
 		if (!import.meta.client) return
 		if (devices.value.length === 0 && !isDevicesLoading.value) {
 			void loadDevices()
@@ -846,7 +1064,62 @@ watch(
 	{ immediate: true }
 )
 
+const validateEmailSmtpTestFields = (): string | null => {
+	if (!email.smtp_host.trim()) return "SMTP 測試：SMTP Host 為必填"
+	if (!Number.isFinite(Number(email.smtp_port)) || Number(email.smtp_port) <= 0) {
+		return "SMTP 測試：SMTP Port 需為正整數"
+	}
+	if (!email.smtp_user.trim()) return "SMTP 測試：寄件人 Email 為必填"
+	const toList = parseEmailsFromText(email.to_emails_text)
+	if (toList.length === 0) return "SMTP 測試：收件人 To 為必填"
+	return null
+}
+
+const handleEmailSmtpTestClick = async () => {
+	localErrorMessage.value = ""
+	smtpTestFeedback.ok = false
+	smtpTestFeedback.message = ""
+
+	const ruleId = props.editingRule?.id
+	if (!ruleId) {
+		localErrorMessage.value = "SMTP 測試：請先建立並儲存規則"
+		return
+	}
+
+	const err = validateEmailSmtpTestFields()
+	if (err) {
+		localErrorMessage.value = err
+		return
+	}
+
+	isEmailSmtpTestLoading.value = true
+	try {
+		const res = await alertApi.testAlertRuleSmtpEmail(ruleId, {
+			emailSubscription: {
+				enabled: Boolean(email.enabled),
+				smtp_host: email.smtp_host.trim(),
+				smtp_port: Number(email.smtp_port),
+				smtp_user: email.smtp_user.trim(),
+				smtp_password: email.smtp_password || null,
+				smtp_security: email.smtp_security,
+				to_emails: parseEmailsFromText(email.to_emails_text),
+			},
+		})
+
+		smtpTestFeedback.ok = true
+		smtpTestFeedback.message = `SMTP 測試寄送成功（messageId: ${String(res?.messageId || "") || "—"}）`
+	} catch (e: any) {
+		smtpTestFeedback.ok = false
+		smtpTestFeedback.message = `SMTP 測試寄送失敗：${String(e?.data?.message || e?.message || e || "未知錯誤")}`
+	} finally {
+		isEmailSmtpTestLoading.value = false
+	}
+}
+
 const handleSubmit = () => {
+	localErrorMessage.value = ""
+	smtpTestFeedback.ok = false
+	smtpTestFeedback.message = ""
 	const targetType = form.target_type || null
 	const targetId = form.target_id != null ? Number(form.target_id) : null
 	if (targetType && (targetId == null || !Number.isFinite(targetId))) return
@@ -858,11 +1131,38 @@ const handleSubmit = () => {
 	}
 
 	if (cameraLinkage.enabled) {
-		if (!cameraLinkage.camera_device_id) return
+		const ids = cameraDeviceIdsModel.value
+			.map((v) => (v == null ? null : Number(v)))
+			.filter((n): n is number => n != null && Number.isFinite(n) && n > 0)
+		if (ids.length === 0) return
 	}
 
-	if (webhook.enabled) {
-		if (!webhook.url.trim()) return
+	if (email.enabled) {
+		if (!email.smtp_host.trim()) {
+			localErrorMessage.value = "Email 通知：SMTP Host 為必填"
+			return
+		}
+		if (!Number.isFinite(Number(email.smtp_port)) || Number(email.smtp_port) <= 0) {
+			localErrorMessage.value = "Email 通知：SMTP Port 需為正整數"
+			return
+		}
+		if (!email.smtp_user.trim()) {
+			localErrorMessage.value = "Email 通知：寄件人 Email 為必填"
+			return
+		}
+		const toList = parseEmailsFromText(email.to_emails_text)
+		if (toList.length === 0) {
+			localErrorMessage.value = "Email 通知：收件人 To 為必填"
+			return
+		}
+		if (Number(email.repeat_min_interval_seconds) < 15) {
+			localErrorMessage.value = "Email 通知：重複發送間隔最短 15 秒"
+			return
+		}
+		if (Number(email.repeat_max_send_count) < 1 || Number(email.repeat_max_send_count) > 10) {
+			localErrorMessage.value = "Email 通知：最大發送次數需介於 1~10"
+			return
+		}
 	}
 
 	const conditionType = conditionTypeForPayload()
@@ -891,12 +1191,27 @@ const handleSubmit = () => {
 				}
 			: null,
 		cameraLinkage: cameraLinkage.enabled
-			? { enabled: true, camera_device_id: cameraLinkage.camera_device_id }
+			? {
+					enabled: true,
+					camera_device_ids: cameraDeviceIdsModel.value
+						.map((v) => (v == null ? null : Number(v)))
+						.filter((n): n is number => n != null && Number.isFinite(n) && n > 0)
+						.slice(0, 4),
+				}
 			: null,
-		webhookSubscriptions:
-			webhook.enabled && webhook.url.trim()
-				? [{ enabled: true, url: webhook.url.trim(), secret: webhook.secret?.trim() || null }]
-				: [],
+		emailSubscription: email.enabled
+			? {
+					enabled: true,
+					smtp_host: email.smtp_host.trim(),
+					smtp_port: Number(email.smtp_port),
+					smtp_user: email.smtp_user.trim(),
+					smtp_password: email.smtp_password || null,
+					smtp_security: email.smtp_security,
+					to_emails: parseEmailsFromText(email.to_emails_text),
+					repeat_min_interval_seconds: Number(email.repeat_min_interval_seconds),
+					repeat_max_send_count: Number(email.repeat_max_send_count),
+				}
+			: null,
 	}
 
 	emit("submit", { rule: rulePayload, integrations })

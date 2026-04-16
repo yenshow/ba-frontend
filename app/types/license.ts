@@ -27,6 +27,7 @@ export const LICENSE_FEATURE_KEYS: readonly FeatureKey[] = [
 export type LicenseEntitlementEntry = {
 	licenseKey: string
 	features: FeatureKey[]
+	quotas?: Partial<Record<FeatureKey, { maxDevices: number }>>
 }
 
 export type LicenseState = {
