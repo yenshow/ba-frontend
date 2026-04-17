@@ -100,23 +100,3 @@ const displayUnits = computed(() => {
 	return [...units, ...emptyCells]
 })
 </script>
-
-<style scoped>
-@keyframes blink {
-	0%,
-	100% {
-		opacity: 1;
-	}
-	50% {
-		opacity: 0.5;
-	}
-}
-
-.blink-slow {
-	animation: blink 2s ease-in-out infinite;
-}
-
-.blink-fast {
-	animation: blink 1s ease-in-out infinite;
-}
-</style>

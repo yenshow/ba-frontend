@@ -84,8 +84,6 @@
 							:unit="getParameterUnit(param.type)"
 							:fraction-digits="getParameterFractionDigits(param.type)"
 							:device-error="isSensorOffline"
-							:get-status-class="getStatusClass"
-							:get-status-dot-class="getStatusDotClass"
 							:get-status-text="getStatusText"
 							:get-status-text-class="getStatusTextClass"
 							:to-fixed-number="toFixedNumber"
@@ -219,7 +217,10 @@ import { usePolling } from "~/composables/monitoring/usePolling"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import { useAlertRules } from "~/composables/monitoring/useAlertRules"
 import { useAuth } from "~/composables/core/useAuth"
-import { useEnvironmentSensors, type SensorReadings } from "~/composables/systems/environment/useEnvironmentSensors"
+import {
+	useEnvironmentSensors,
+	type SensorReadings,
+} from "~/composables/systems/environment/useEnvironmentSensors"
 import type { EnvironmentReadingNewEvent } from "~/types/websocket"
 import type { AlertRule } from "~/types/alert"
 import {
@@ -243,6 +244,11 @@ import { getTodayDateRangeUTC, getTimeRangeUTC } from "~/utils/dateUtils"
 import { compareZonesLoose } from "~/utils/sortOrder"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import { calculateAqiScore } from "~/utils/environmentAqi"
+import {
+	normalizeMonitoringStatusText,
+	monitoringStatusTextToUiStatus,
+	type MonitoringUiStatus,
+} from "~/utils/monitoringStatus"
 
 definePageMeta({
 	layout: "default",
@@ -827,108 +833,41 @@ const environmentData = computed(() => ({
 	],
 }))
 
-// 狀態判斷函數（基於 getStatusText 的結果，確保與規則一致）
-// 注意：這些函數現在基於 getStatusText 的結果，而不是硬編碼閾值
-// 這樣可以確保與後端規則一致
-const getStatusClass = (type: string, value: number | null): string => {
-	if (value === null) return ""
-
-	const status = getStatusText(type, value)
-	if (status === "正常") return ""
-	if (status === "注意") return "border-yellow-400"
-	if (status === "警報") return "border-red-400 bg-red-500/20"
-	return ""
-}
-
-const getStatusDotClass = (type: string, value: number | null): string => {
-	if (value === null) return "bg-gray-400"
-
-	const status = getStatusText(type, value)
-	if (status === "正常") return "bg-green-400"
-	if (status === "注意") return "bg-yellow-400"
-	if (status === "警報") return "bg-red-400"
-
-	// 特殊處理：某些參數沒有規則時預設為正常
-	if (type === "tvoc" || type === "hcho" || type === "wind") {
-		return "bg-green-400"
-	}
-
-	return "bg-gray-400"
-}
-
-// 預設狀態判斷（向後兼容，當規則未載入時使用）
-const getDefaultStatusText = (type: string, value: number | null): string => {
-	if (value === null) return "無資料"
-
-	switch (type) {
-		case "pm25":
-			if (value <= 25) return "正常"
-			if (value <= 50) return "注意"
-			return "警報"
-		case "pm10":
-			if (value <= 50) return "正常"
-			if (value <= 100) return "注意"
-			return "警報"
-		case "co2":
-			if (value <= 1000) return "正常"
-			if (value <= 2000) return "注意"
-			return "警報"
-		case "tvoc":
-		case "hcho":
-			return "正常"
-		case "temperature":
-			if (value >= 20 && value <= 26) return "正常"
-			if ((value >= 18 && value < 20) || (value > 26 && value <= 28)) return "注意"
-			return "警報"
-		case "humidity":
-			if (value >= 30 && value <= 60) return "正常"
-			if ((value >= 20 && value < 30) || (value > 60 && value <= 70)) return "注意"
-			return "警報"
-		case "wind":
-			return "正常"
-		case "noise":
-			if (value <= 55) return "正常"
-			if (value <= 70) return "注意"
-			return "警報"
-		default:
-			return "正常"
-	}
-}
-
-// 使用後端規則的狀態判斷（優先使用規則，失敗時使用預設值）
 const getStatusText = (type: string, value: number | null): string => {
-	if (value === null) return "無資料"
+	if (value === null) return "離線"
 
 	// 如果規則已載入，使用規則判斷
-	if (rulesLoaded.value && alertRules.value.length > 0) {
+	if (rulesLoaded.value) {
 		try {
 			const status = getStatusTextFromRules(type, value, alertRules.value)
 			return status
 		} catch (error) {
-			console.warn("[environment] 使用規則判斷狀態失敗，使用預設值:", error)
+			console.warn("[environment] 使用規則判斷狀態失敗，視為正常:", error)
 		}
 	}
 
-	// 否則使用預設值（向後兼容）
-	return getDefaultStatusText(type, value)
+	// 規則尚未載入時，不推測門檻，避免與「警報設定」不一致
+	return "正常"
 }
 
 const getStatusTextClass = (type: string, value: number | null): string => {
-	if (value === null) return "text-white/50"
+	const status = normalizeMonitoringStatusText(getStatusText(type, value))
+	const ui = monitoringStatusTextToUiStatus(status)
 
-	const status = getStatusText(type, value)
-	if (status === "正常") return "text-green-300"
-	if (status === "注意") return "text-yellow-300"
-	if (status === "警報" || status === "異常") return "text-red-300"
+	if (ui === "normal") return "text-green-300"
+	if (ui === "abnormal") return "text-yellow-300"
+	if (ui === "alarm") return "text-red-300"
+	if (ui === "offline") return "text-white/60"
 	return "text-white/70"
 }
 
 /** 完整報表儲存格背景：超過閾值標黃/紅 */
 const getReportCellClass = (type: string, value: number | null): string => {
-	if (value === null) return ""
-	const status = getStatusText(type, value)
-	if (status === "注意") return "bg-yellow-500/30"
-	if (status === "警報" || status === "異常") return "bg-red-500/30"
+	const status = normalizeMonitoringStatusText(getStatusText(type, value))
+	const ui: MonitoringUiStatus = monitoringStatusTextToUiStatus(status)
+
+	if (ui === "abnormal") return "bg-yellow-500/30"
+	if (ui === "alarm") return "bg-red-500/30"
 	return ""
 }
 </script>

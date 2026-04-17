@@ -1,10 +1,7 @@
 export type MultimediaAnnouncement = {
 	id: string
 	title: string
-	content: string
 	pinned: boolean
-	startAt: string
-	endAt: string
 	sortOrder: number
 }
 
@@ -33,4 +30,3 @@ export type MultimediaEnvironmentSnapshot = {
 	timestamp: string | null
 	data: Record<string, unknown>
 }
-

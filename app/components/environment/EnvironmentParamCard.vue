@@ -3,9 +3,9 @@
 		class="relative flex flex-col rounded-xl px-2 py-3 transition-all"
 		:class="[backgroundClass, blinkAnimationClass]"
 	>
-		<!-- 警告條（設備異常時顯示） -->
+		<!-- 警告條（設備異常/離線時顯示） -->
 		<div
-			v-if="props.deviceError"
+			v-if="props.deviceError || statusText === '離線'"
 			class="blink-animation absolute bottom-0 left-0 right-0 h-2 rounded-b-xl"
 			:style="warningBarStyle"
 		></div>
@@ -65,6 +65,14 @@
 </template>
 
 <script setup lang="ts">
+import {
+	normalizeMonitoringStatusText,
+	monitoringStatusTextToUiStatus,
+	monitoringUiStatusToBlinkClass,
+	monitoringUiStatusToCardBackgroundClass,
+	monitoringUiStatusToDotColor,
+} from "~/utils/monitoringStatus"
+
 interface Props {
 	type: string
 	value: number | null
@@ -92,39 +100,47 @@ const displayValue = computed(() => {
 	return props.toFixedNumber(props.value, props.fractionDigits ?? 0)
 })
 
-const statusText = computed(() => props.getStatusText(props.type, props.value))
+const statusText = computed(() =>
+	normalizeMonitoringStatusText(props.getStatusText(props.type, props.value))
+)
 const statusTextClass = computed(() => props.getStatusTextClass(props.type, props.value))
 
 // 判斷狀態類型
-const statusType = computed<"normal" | "warning" | "alarm">(() => {
+const statusType = computed<"normal" | "warning" | "alarm" | "device">(() => {
+	if (props.deviceError) return "device"
+
 	const text = statusText.value
+	if (text === "離線") return "device"
 	if (text === "正常") return "normal"
+	if (text === "異常") return "warning"
 	if (text === "警報") return "alarm"
-	return "warning" // 異常、注意等
+	return "normal"
 })
+
+const uiStatus = computed(() => monitoringStatusTextToUiStatus(statusText.value))
 
 // 背景顏色類別
 const backgroundClass = computed(() => {
+	if (statusType.value === "device") {
+		return monitoringUiStatusToCardBackgroundClass("offline")
+	}
+
 	switch (statusType.value) {
 		case "normal":
-			return "bg-white/10" // 正常：白色 10% 透明度
+			return monitoringUiStatusToCardBackgroundClass("normal")
 		case "warning":
-			return "bg-[#FFC801]/90" // 異常：黃色 90% 透明度
+			return monitoringUiStatusToCardBackgroundClass("abnormal")
 		case "alarm":
-			return "bg-[#FF0000]/90" // 警報：紅色 90% 透明度
+			return monitoringUiStatusToCardBackgroundClass("alarm")
 		default:
-			return "bg-white/10"
+			return monitoringUiStatusToCardBackgroundClass("normal")
 	}
 })
 
 // 閃爍動畫類別（根據狀態級別設置不同的閃爍頻率）
 const blinkAnimationClass = computed(() => {
-	if (statusType.value === "alarm") {
-		return "blink-fast" // 警報：快速閃爍（1秒）
-	} else if (statusType.value === "warning") {
-		return "blink-slow" // 異常/警告：慢速閃爍（2秒）
-	}
-	return "" // 正常：不閃爍
+	if (statusType.value === "device") return ""
+	return monitoringUiStatusToBlinkClass(uiStatus.value)
 })
 
 // 警告條樣式（黃黑條紋）
@@ -137,57 +153,24 @@ const warningBarStyle = computed(() => {
 
 // 狀態燈內聯樣式
 const statusDotStyle = computed(() => {
-	const status = statusType.value
-
-	if (status === "normal") {
-		// 正常：綠色 #00FFB5，白色線條 2pt
-		return {
-			backgroundColor: "#00FFB5",
-		}
-	} else if (status === "warning") {
-		// 注意/異常：黃色 #FFC701，白色線條約 2pt
-		return {
-			backgroundColor: "#FFC701",
-		}
-	} else if (status === "alarm") {
-		// 警報：紅色 #FF0000，100% 透明度，白色線條約 2pt
-		return {
-			backgroundColor: "#FF0000",
-		}
+	if (statusType.value === "device") {
+		return { backgroundColor: monitoringUiStatusToDotColor("offline") }
 	}
 
-	// 無資料時使用灰色
-	return {
-		backgroundColor: "#9CA3AF",
-	}
+	if (statusType.value === "normal")
+		return { backgroundColor: monitoringUiStatusToDotColor("normal") }
+	if (statusType.value === "warning")
+		return { backgroundColor: monitoringUiStatusToDotColor("abnormal") }
+	if (statusType.value === "alarm")
+		return { backgroundColor: monitoringUiStatusToDotColor("alarm") }
+	return { backgroundColor: monitoringUiStatusToDotColor("offline") }
 })
 </script>
 
 <style scoped>
-/* 閃爍動畫 */
-@keyframes blink {
-	0%,
-	100% {
-		opacity: 1;
-	}
-	50% {
-		opacity: 0.5;
-	}
-}
-
-/* 設備異常警告條：中等速度閃爍（1.5秒） */
+/* 設備警告條：中等速度閃爍（1.5秒） */
 .blink-animation {
-	animation: blink 1.5s ease-in-out infinite;
-}
-
-/* 數值異常/警告：慢速閃爍（2秒） */
-.blink-slow {
-	animation: blink 2s ease-in-out infinite;
-}
-
-/* 數值警報：快速閃爍（1秒） */
-.blink-fast {
-	animation: blink 1s ease-in-out infinite;
+	animation: status-alert-warning-blink 1.5s ease-in-out infinite;
 }
 
 /* Transition 淡入淡出效果 */

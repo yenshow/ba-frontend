@@ -126,7 +126,7 @@ export const useAlertRules = () => {
 		parameter: string,
 		value: number | null,
 		rules: ApiAlertRule[]
-	): "正常" | "注意" | "警報" => {
+	): "正常" | "異常" | "警報" => {
 		if (value === null || value === undefined) {
 			return "正常"
 		}
@@ -139,7 +139,7 @@ export const useAlertRules = () => {
 			case "error":
 				return "警報"
 			case "warning":
-				return "注意"
+				return "異常"
 			default:
 				return "正常"
 		}

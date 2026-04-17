@@ -5,7 +5,12 @@ import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi"
 import type { ModbusDeviceConfig } from "~/types/modbus"
 import type { Device, SensorDeviceConfig, SensorDeviceModelConfig } from "~/types/device"
-import type { EnvironmentLocation, EnvironmentZone, SensorParameter, SensorParameterType } from "~/types/environment"
+import type {
+	EnvironmentLocation,
+	EnvironmentZone,
+	SensorParameter,
+	SensorParameterType,
+} from "~/types/environment"
 import { getParameterDisplayName, getLocationDeviceIds } from "~/utils/sensorUtils"
 import { applyTransform, groupConsecutiveAddresses } from "~/utils/modbusMath"
 
@@ -98,7 +103,8 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 		const current = options.currentLocationData.value
 		const isCurrentLocation =
 			location?.id === current?.id ||
-			(!location?.id && locationId === options.getLocationId(current || ({} as EnvironmentLocation)))
+			(!location?.id &&
+				locationId === options.getLocationId(current || ({} as EnvironmentLocation)))
 
 		if (isCurrentLocation) {
 			sensorData[type] = value
@@ -127,7 +133,9 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 		}
 	}
 
-	const getLocationSensorData = (locationId: string | number | undefined): SensorReadings | null => {
+	const getLocationSensorData = (
+		locationId: string | number | undefined
+	): SensorReadings | null => {
 		if (locationId == null || locationId === "") return null
 		const idStr = String(locationId)
 
@@ -448,7 +456,10 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 				for (const param of enabledParams) {
 					const modbusCfg = findParameterModbusConfig(param.type, modelConfig, sharedModelConfig)
 					if (!modbusCfg) continue
-					paramAddressMapForBatch.set(modbusCfg.address, { type: param.type, modbusConfig: modbusCfg })
+					paramAddressMapForBatch.set(modbusCfg.address, {
+						type: param.type,
+						modbusConfig: modbusCfg,
+					})
 				}
 				if (paramAddressMapForBatch.size === 0) continue
 
@@ -570,7 +581,10 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 				for (const param of enabledParams) {
 					const modbusCfg = findParameterModbusConfig(param.type, modelConfig, sharedModelConfig)
 					if (!modbusCfg) continue
-					paramAddressMapForBatch.set(modbusCfg.address, { type: param.type, modbusConfig: modbusCfg })
+					paramAddressMapForBatch.set(modbusCfg.address, {
+						type: param.type,
+						modbusConfig: modbusCfg,
+					})
 				}
 
 				const results = await readParametersBatch(modbusConfig, paramAddressMapForBatch)
@@ -608,4 +622,3 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 		loadLocationSensorDataForOverview,
 	}
 }
-

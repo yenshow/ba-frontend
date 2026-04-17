@@ -737,15 +737,15 @@ const cameraDeviceOptions = computed(() => {
 })
 
 const parameterOptions: OptionItem[] = [
-	{ value: "noise", label: "noise（噪音值）" },
-	{ value: "pm25", label: "pm25（PM2.5）" },
-	{ value: "pm10", label: "pm10（PM10）" },
-	{ value: "co2", label: "co2（CO2）" },
-	{ value: "temperature", label: "temperature（溫度）" },
-	{ value: "humidity", label: "humidity（濕度）" },
-	{ value: "tvoc", label: "tvoc（TVOC）" },
-	{ value: "hcho", label: "hcho（HCHO）" },
-	{ value: "wind", label: "wind（風速）" },
+	{ value: "noise", label: "噪音值" },
+	{ value: "pm25", label: "PM2.5" },
+	{ value: "pm10", label: "PM10" },
+	{ value: "co2", label: "CO2" },
+	{ value: "temperature", label: "溫度" },
+	{ value: "humidity", label: "濕度" },
+	{ value: "tvoc", label: "TVOC" },
+	{ value: "hcho", label: "HCHO" },
+	{ value: "wind", label: "風速" },
 ]
 
 const zonesCache = useZonesCache()

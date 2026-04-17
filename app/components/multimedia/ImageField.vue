@@ -6,7 +6,7 @@
 			</div>
 			<label
 				class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent px-3 py-1.5 text-sm font-light text-white transition-all hover:bg-white/10 2xl:text-base cursor-pointer"
-				aria-label="上傳圖片"
+				:aria-label="`上傳：${label}`"
 				tabindex="0"
 				@keydown.enter.prevent.stop="handleOpenFile"
 				@keydown.space.prevent.stop="handleOpenFile"
@@ -15,7 +15,7 @@
 					ref="fileInputRef"
 					type="file"
 					class="hidden"
-					accept="image/*"
+					:accept="accept"
 					@change="handleFileChange"
 				/>
 				上傳
@@ -23,8 +23,16 @@
 		</div>
 
 		<div class="mt-3 overflow-hidden rounded-lg border border-white/10 bg-black/10">
+			<video
+				v-if="resolvedValue && isVideo"
+				:src="resolvedValue"
+				class="aspect-[16/9] object-contain max-h-[300px] mx-auto"
+				controls
+				playsinline
+				aria-label="影片預覽"
+			/>
 			<img
-				v-if="resolvedValue"
+				v-else-if="resolvedValue"
 				:src="resolvedValue"
 				:alt="label"
 				class="aspect-[16/9] object-contain max-h-[300px] mx-auto"
@@ -42,6 +50,7 @@ import { resolveUploadUrl } from "~/utils/apiUtils"
 interface Props {
 	label: string
 	value: string
+	accept?: string
 }
 
 interface Emits {
@@ -55,6 +64,20 @@ const { apiBase } = useRuntimeConfig().public as { apiBase: string }
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
 const resolvedValue = computed(() => resolveUploadUrl(props.value, apiBase))
+
+const accept = computed(() => props.accept || "image/*")
+
+const VIDEO_EXTS = new Set(["mp4", "webm", "mov", "m4v", "ogv", "ogg"])
+
+const getUrlExt = (url: string) => {
+	if (!url) return ""
+	const clean = url.split("?")[0].split("#")[0]
+	const parts = clean.split(".")
+	if (parts.length < 2) return ""
+	return String(parts[parts.length - 1]).toLowerCase()
+}
+
+const isVideo = computed(() => VIDEO_EXTS.has(getUrlExt(resolvedValue.value || props.value || "")))
 
 const handleOpenFile = () => {
 	fileInputRef.value?.click()

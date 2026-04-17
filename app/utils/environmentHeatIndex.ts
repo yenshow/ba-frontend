@@ -15,9 +15,8 @@ export const calculateHeatIndexC = (input: HeatIndexInput): number | null => {
 	if (tC === null || rh === null) return null
 	if (!Number.isFinite(tC) || !Number.isFinite(rh)) return null
 
-	// 常見定義：Heat Index 通常在 \(T >= 26.7°C\)（80°F）且濕度偏高時才採用
 	const tF = cToF(tC)
-	if (tF < 80 || rh < 40) return null
+	if (tF < 80 || rh < 40) return tC
 
 	const T = tF
 	const R = rh
@@ -37,4 +36,3 @@ export const calculateHeatIndexC = (input: HeatIndexInput): number | null => {
 	const hiC = fToC(hiF)
 	return Number.isFinite(hiC) ? hiC : null
 }
-

@@ -17,7 +17,7 @@ export const useMultimediaDashboardApi = () => {
 		} as any)
 	}
 
-	const uploadImage = async (file: File): Promise<{ file: { url: string } }> => {
+	const uploadMedia = async (file: File): Promise<{ file: { url: string } }> => {
 		const formData = new FormData()
 		formData.append("file", file)
 		return request("/multimedia/dashboard/upload", {
@@ -26,6 +26,6 @@ export const useMultimediaDashboardApi = () => {
 		} as any)
 	}
 
-	return { getSettings, updateSettings, uploadImage }
+	return { getSettings, updateSettings, uploadMedia }
 }
 

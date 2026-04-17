@@ -87,6 +87,12 @@
 </template>
 
 <script setup lang="ts">
+import {
+	normalizeMonitoringStatusText,
+	monitoringStatusTextToUiStatus,
+	monitoringUiStatusToBlinkClass,
+} from "~/utils/monitoringStatus"
+
 interface Param {
 	label: string
 	value: string | number
@@ -122,15 +128,17 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 // 判斷參數狀態類型
-const getParamStatusType = (param: Param): "normal" | "warning" | "alarm" => {
+const getParamStatusType = (param: Param): "normal" | "warning" | "alarm" | "offline" => {
 	if (!props.getStatusText || !param.type || param.rawValue === undefined) {
 		return "normal"
 	}
 
-	const statusText = props.getStatusText(param.type, param.rawValue)
-	if (statusText === "正常") return "normal"
-	if (statusText === "警報") return "alarm"
-	return "warning" // 異常、注意等
+	const normalized = normalizeMonitoringStatusText(props.getStatusText(param.type, param.rawValue))
+	const ui = monitoringStatusTextToUiStatus(normalized)
+	if (ui === "alarm") return "alarm"
+	if (ui === "abnormal") return "warning"
+	if (ui === "offline") return "offline"
+	return "normal"
 }
 
 // 參數背景顏色類別
@@ -143,6 +151,8 @@ const getParamBackgroundClass = (param: Param) => {
 			return "bg-[#FFC801]/90" // 異常：黃色 90% 透明度
 		case "alarm":
 			return "bg-[#FF0000]/90" // 警報：紅色 90% 透明度
+		case "offline":
+			return "bg-transparent"
 		default:
 			return "bg-transparent"
 	}
@@ -151,37 +161,14 @@ const getParamBackgroundClass = (param: Param) => {
 // 參數閃爍動畫類別
 const getParamBlinkClass = (param: Param) => {
 	const statusType = getParamStatusType(param)
-	if (statusType === "alarm") {
-		return "blink-fast" // 警報：快速閃爍（1秒）
-	} else if (statusType === "warning") {
-		return "blink-slow" // 異常/警告：慢速閃爍（2秒）
-	}
-	return "" // 正常：不閃爍
+	if (statusType === "offline") return ""
+	if (statusType === "alarm") return monitoringUiStatusToBlinkClass("alarm")
+	if (statusType === "warning") return monitoringUiStatusToBlinkClass("abnormal")
+	return ""
 }
 </script>
 
 <style scoped>
-/* 閃爍動畫 */
-@keyframes blink {
-	0%,
-	100% {
-		opacity: 1;
-	}
-	50% {
-		opacity: 0.5;
-	}
-}
-
-/* 數值異常/警告：慢速閃爍（2秒） */
-.blink-slow {
-	animation: blink 2s ease-in-out infinite;
-}
-
-/* 數值警報：快速閃爍（1秒） */
-.blink-fast {
-	animation: blink 1s ease-in-out infinite;
-}
-
 /* Transition 淡入淡出效果 */
 .fade-enter-active,
 .fade-leave-active {
