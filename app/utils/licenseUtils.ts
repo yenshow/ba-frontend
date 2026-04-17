@@ -19,6 +19,7 @@ export const PERMISSION_MESSAGE_REDIRECT = "您沒有此系統的存取權限，
 export const getFeatureKeyByRoute = (routePath: string): FeatureKey | null => {
 	if (!routePath || typeof routePath !== "string") return null
 
+	if (routePath.startsWith("/multimedia")) return "multimedia"
 	if (routePath.startsWith("/construction-monitoring/environment")) return "environment"
 	if (routePath.startsWith("/construction-monitoring/people-counting")) return "people_counting"
 	if (routePath.startsWith("/construction-monitoring/surveillance")) return "surveillance"

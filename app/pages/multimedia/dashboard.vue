@@ -1,6 +1,6 @@
 <template>
 	<div class="relative min-h-screen flex flex-col justify-center items-center pt-24">
-		<div class="flex flex-col gap-4 2xl:gap-8">
+		<div class="flex flex-col gap-4 2xl:gap-8 min-w-[100vw]">
 			<section class="grid grid-cols-12 gap-4 px-6 2xl:px-10">
 				<div
 					class="relative col-span-7 rounded-2xl border-2 border-[#323232]/50 bg-[#f0f0e6]/70 p-4"
@@ -98,6 +98,12 @@
 									:value="m.value"
 									:status="m.status"
 								/>
+							</div>
+							<div
+								v-if="environmentMetrics.length === 0"
+								class="py-10 text-center text-xl font-semibold"
+							>
+								尚未設定環境骨架
 							</div>
 						</div>
 					</div>

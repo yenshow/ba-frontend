@@ -11,7 +11,7 @@
 							'cursor-pointer hover:opacity-100':
 								toast.alertId || toast.alertKey === SUMMARY_TOAST_KEY,
 						},
-						'animate-slide-in flex min-w-[300px] max-w-lg items-start gap-3 rounded-lg border p-4 shadow-lg backdrop-blur-sm transition-opacity',
+						'animate-slide-in flex min-w-[300px] max-w-xl items-start gap-3 rounded-lg border p-4 shadow-lg backdrop-blur-sm transition-opacity',
 					]"
 					role="alert"
 					@click="handleToastClick(toast)"
@@ -64,19 +64,13 @@
 					</div>
 
 					<!-- Message -->
-					<div class="flex-1 whitespace-pre-line text-base">
+					<div class="flex-1 whitespace-pre-line text-lg">
 						<template v-if="toast.alertKey === SUMMARY_TOAST_KEY">
 							{{ toast.message }}
 							<span class="ml-1 underline underline-offset-2 opacity-80">查看全部 →</span>
 						</template>
 						<template v-else>
 							{{ toast.message }}
-							<span
-								v-if="toast.count && toast.count > 1"
-								class="ml-2 inline-flex items-center justify-center rounded-full bg-white/30 px-2 py-0.5 font-bold"
-							>
-								{{ toast.count }}
-							</span>
 						</template>
 					</div>
 

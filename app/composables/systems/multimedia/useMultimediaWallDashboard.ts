@@ -21,12 +21,8 @@ import {
 const ANNOUNCEMENTS_PER_PAGE = 5
 const SCHEDULES_PER_PAGE = 4
 
-const DEFAULT_BANNER = "管理室社區物業管理服務時間：每日 08:00～20:00，歡迎洽詢"
-
 const ANNOUNCEMENTS_AUTO_PAGE_INTERVAL_MS = 10000
 const SCHEDULES_AUTO_PAGE_INTERVAL_MS = 10000
-
-const METRIC_KEYS = ["temperature", "humidity", "aqi", "illuminance", "heatIndex", "ph"] as const
 
 const VIDEO_EXTS = new Set(["mp4", "webm", "mov", "m4v", "ogv", "ogg"])
 const getUrlExt = (url: string) => {
@@ -37,13 +33,26 @@ const getUrlExt = (url: string) => {
 	return String(parts[parts.length - 1]).toLowerCase()
 }
 
-const DISPLAY_LABELS: Record<(typeof METRIC_KEYS)[number], { label: string; unit: string }> = {
-	temperature: { label: "溫度", unit: "°C" },
-	humidity: { label: "濕度", unit: "%" },
-	aqi: { label: "AQI", unit: "" },
-	illuminance: { label: "照度", unit: "LUX" },
-	heatIndex: { label: "熱指數", unit: "級" },
-	ph: { label: "酸鹼值", unit: "" },
+type EnvironmentMetricKey = "temperature" | "humidity" | "aqi" | "illuminance" | "heatIndex" | "ph"
+
+const isEnvironmentMetricKey = (k: string): k is EnvironmentMetricKey => {
+	return (
+		k === "temperature" ||
+		k === "humidity" ||
+		k === "aqi" ||
+		k === "illuminance" ||
+		k === "heatIndex" ||
+		k === "ph"
+	)
+}
+
+const getEnvironmentMetricMeta = (key: EnvironmentMetricKey): { label: string; unit: string } => {
+	if (key === "temperature") return { label: "溫度", unit: "°C" }
+	if (key === "humidity") return { label: "濕度", unit: "%" }
+	if (key === "aqi") return { label: "AQI", unit: "" }
+	if (key === "illuminance") return { label: "照度", unit: "LUX" }
+	if (key === "heatIndex") return { label: "熱指數", unit: "級" }
+	return { label: "酸鹼值", unit: "" }
 }
 
 export const useMultimediaWallDashboard = () => {
@@ -75,11 +84,38 @@ export const useMultimediaWallDashboard = () => {
 	})
 	const getLocationId = (location: EnvironmentLocation) => String(location.id ?? "")
 
+	const displayMetricKeys = computed<EnvironmentMetricKey[]>(() => {
+		const configured = (settings.envDisplayParameters || [])
+			.map((k) => String(k || "").trim())
+			.filter(Boolean)
+			.filter(isEnvironmentMetricKey)
+		return configured
+	})
+
+	const enabledSensorTypes = computed(() => {
+		const next = new Set<string>()
+		for (const key of displayMetricKeys.value) {
+			if (key === "aqi") {
+				next.add("pm25")
+				next.add("pm10")
+				continue
+			}
+			if (key === "heatIndex") {
+				next.add("temperature")
+				next.add("humidity")
+				continue
+			}
+			next.add(key)
+		}
+		return next
+	})
+
 	const currentLocationData = computed<EnvironmentLocation | null>(() => {
 		const deviceIds = (settings.envDeviceIds || []).filter((n) => Number.isFinite(n) && n > 0)
 		if (deviceIds.length === 0) return null
-		const enabledTypes = new Set(["temperature", "humidity", "pm25", "pm10", "illuminance", "ph"])
-		const parameters = [...enabledTypes].map((t) => ({ type: t as any, enabled: true }))
+		const types = enabledSensorTypes.value
+		if (!types.size) return null
+		const parameters = [...types].map((t) => ({ type: t as any, enabled: true }))
 		return { id: "multimedia", name: "多媒體資訊牆", deviceIds, parameters } as any
 	})
 
@@ -98,7 +134,7 @@ export const useMultimediaWallDashboard = () => {
 	const formattedDate = computed(() => formatClockDisplay(now.value))
 	let clockTimer: ReturnType<typeof setInterval> | null = null
 
-	const bannerText = computed(() => settings.bannerMarqueeText?.trim() || DEFAULT_BANNER)
+	const bannerText = computed(() => settings.bannerMarqueeText?.trim() || "")
 
 	const sortedAnnouncements = computed(() => {
 		const list = [...(settings.announcements || [])]
@@ -229,12 +265,13 @@ export const useMultimediaWallDashboard = () => {
 		return "normal"
 	}
 
-	const environmentMetrics = computed(() =>
-		METRIC_KEYS.map((key) => {
+	const environmentMetrics = computed(() => {
+		return displayMetricKeys.value.map((key) => {
+			const meta = getEnvironmentMetricMeta(key)
 			if (key === "aqi") {
 				return {
 					key,
-					...DISPLAY_LABELS.aqi,
+					...meta,
 					value: aqiDerived.value.aqi,
 					status: getMetricStatus("aqi", aqiDerived.value.aqi),
 				}
@@ -242,26 +279,38 @@ export const useMultimediaWallDashboard = () => {
 			if (key === "heatIndex") {
 				return {
 					key,
-					...DISPLAY_LABELS.heatIndex,
+					...meta,
 					value: heatIndexDerived.value.level ? heatIndexDerived.value.level : null,
 					status: getMetricStatus("heatIndex", heatIndexDerived.value.valueC),
 				}
 			}
-			const meta = DISPLAY_LABELS[key]
 			const value = getReading(key)
 			return { key, ...meta, value, status: getMetricStatus(key, value) }
 		})
-	)
+	})
+
+	const isLoadingSettings = ref(false)
+	const isLoadingAlertRules = ref(false)
 
 	const loadSettings = async () => {
-		const res = await api.getSettings()
-		Object.assign(settings, res.settings)
+		isLoadingSettings.value = true
+		try {
+			const res = await api.getSettings()
+			Object.assign(settings, res.settings)
+		} finally {
+			isLoadingSettings.value = false
+		}
 	}
 
 	const loadAlertRules = async () => {
-		const rules = await getRules("environment", "threshold")
-		alertRules.value = rules as AlertRule[]
-		rulesLoaded.value = true
+		isLoadingAlertRules.value = true
+		try {
+			const rules = await getRules("environment", "threshold")
+			alertRules.value = rules as AlertRule[]
+			rulesLoaded.value = true
+		} finally {
+			isLoadingAlertRules.value = false
+		}
 	}
 
 	const { start: startPolling, stop: stopPolling } = usePolling({
@@ -312,5 +361,8 @@ export const useMultimediaWallDashboard = () => {
 		schedulesPerPage: SCHEDULES_PER_PAGE,
 		handleSetSchedulePage,
 		environmentMetrics,
+		displayMetricKeys,
+		isLoadingSettings,
+		isLoadingAlertRules,
 	}
 }

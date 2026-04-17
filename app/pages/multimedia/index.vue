@@ -93,13 +93,20 @@
 
 			<!-- Right -->
 			<div class="col-span-5">
-				<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white min-h-[560px]">
+				<section
+					class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white min-h-[560px]"
+				>
 					<h2 class="text-2xl font-semibold tracking-[4px]">環境資料來源</h2>
 
 					<div class="mt-4">
 						<div class="mb-2 text-lg font-semibold text-white/80">感測器設備</div>
-						<div v-if="isLoadingSensorDevices" class="py-4 text-center text-base text-white/60">載入中...</div>
-						<div v-else-if="sensorDevices.length === 0" class="py-4 text-center text-base text-amber-300">
+						<div v-if="isLoadingSensorDevices" class="py-4 text-center text-base text-white/60">
+							載入中...
+						</div>
+						<div
+							v-else-if="sensorDevices.length === 0"
+							class="py-4 text-center text-base text-amber-300"
+						>
 							尚無可用感測器，請先在「設備管理」中建立感測器設備
 						</div>
 						<div v-else class="grid grid-cols-2 gap-2">
@@ -147,7 +154,9 @@
 
 		<div v-show="activeTab === 'content'" class="grid grid-cols-12 gap-6">
 			<div class="col-span-7 space-y-6">
-				<section class="min-h-[420px] rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
+				<section
+					class="min-h-[420px] rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white"
+				>
 					<div class="flex items-center justify-between gap-3">
 						<h2 class="text-xl font-semibold tracking-[6px]">社區公告</h2>
 						<button
@@ -193,7 +202,11 @@
 								</label>
 								<label class="block">
 									<div class="mb-1 text-sm text-white/80">顯示排序（數字小先）</div>
-									<input v-model.number="a.sortOrder" type="number" class="form-input-small w-full" />
+									<input
+										v-model.number="a.sortOrder"
+										type="number"
+										class="form-input-small w-full"
+									/>
 								</label>
 							</div>
 						</div>
@@ -210,7 +223,9 @@
 			</div>
 
 			<div class="col-span-5 space-y-6">
-				<section class="min-h-[420px] rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
+				<section
+					class="min-h-[420px] rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white"
+				>
 					<div class="flex items-center justify-between gap-3">
 						<h2 class="text-xl font-semibold tracking-[6px]">今日社區排程</h2>
 						<button
@@ -245,7 +260,11 @@
 								</label>
 								<label class="block">
 									<div class="mb-1 text-sm text-white/80">顯示排序（數字小先）</div>
-									<input v-model.number="s.sortOrder" type="number" class="form-input-small w-full" />
+									<input
+										v-model.number="s.sortOrder"
+										type="number"
+										class="form-input-small w-full"
+									/>
 								</label>
 							</div>
 
@@ -295,7 +314,11 @@ import Pagination from "~/components/common/Pagination.vue"
 import ImageField from "~/components/multimedia/ImageField.vue"
 import { getParameterDisplayName } from "~/utils/sensorUtils"
 import type { Device, DeviceModel, SensorParameterDefinition } from "~/types/device"
-import type { MultimediaAnnouncement, MultimediaDashboardSettings, MultimediaSchedule } from "~/types/multimedia"
+import type {
+	MultimediaAnnouncement,
+	MultimediaDashboardSettings,
+	MultimediaSchedule,
+} from "~/types/multimedia"
 
 definePageMeta({ layout: "default" })
 
@@ -308,7 +331,14 @@ const deviceApi = useDeviceApi()
 const isSaving = ref(false)
 const activeTab = ref<"basic" | "content">("basic")
 
-const FIXED_ENV_SKELETON_KEYS = ["temperature", "humidity", "aqi", "illuminance", "heatIndex", "ph"] as const
+const FIXED_ENV_SKELETON_KEYS = [
+	"temperature",
+	"humidity",
+	"aqi",
+	"illuminance",
+	"heatIndex",
+	"ph",
+] as const
 
 const draft = reactive<MultimediaDashboardSettings>({
 	backgroundImageUrl: "",
@@ -326,7 +356,10 @@ const announcementOffset = ref(0)
 const scheduleOffset = ref(0)
 
 const pagedAnnouncements = computed(() =>
-	(draft.announcements || []).slice(announcementOffset.value, announcementOffset.value + ITEMS_PER_PAGE)
+	(draft.announcements || []).slice(
+		announcementOffset.value,
+		announcementOffset.value + ITEMS_PER_PAGE
+	)
 )
 
 const pagedSchedules = computed(() =>
@@ -567,4 +600,3 @@ onMounted(async () => {
 	await Promise.allSettled([loadSensorDevices(), loadSettings()])
 })
 </script>
-

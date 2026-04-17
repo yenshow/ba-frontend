@@ -5,7 +5,6 @@ export interface Toast {
 	type: ToastType
 	message: string
 	duration: number // 0 = 持久顯示（不自動移除），> 0 = 自動消失時間（毫秒）
-	count?: number // 疊加數量
 	alertId?: number // 警報 ID（用於警報 Toast 的去重和更新）
 	alertKey?: string // 警報唯一鍵（alertId + dimension_key）
 	alertSource?: string
@@ -44,7 +43,6 @@ export const useToast = () => {
 		message: string,
 		duration = 3000,
 		options?: {
-			count?: number
 			alertId?: number
 			alertKey?: string
 			alertSource?: string
@@ -52,7 +50,7 @@ export const useToast = () => {
 			alertRoute?: string
 		}
 	) => {
-		const { count, alertId, alertKey, alertSource, alertSourceId, alertRoute } = options || {}
+		const { alertId, alertKey, alertSource, alertSourceId, alertRoute } = options || {}
 
 		// 統一去重邏輯
 		const existingToast = findExistingToast(alertId, alertKey, message, type)
@@ -60,7 +58,6 @@ export const useToast = () => {
 			// 更新現有 Toast 的內容
 			existingToast.message = message
 			existingToast.type = type
-			existingToast.count = count !== undefined ? count : (existingToast.count || 1) + 1
 			return existingToast.id
 		}
 
@@ -90,7 +87,6 @@ export const useToast = () => {
 			type,
 			message,
 			duration, // 0 = 持久顯示，> 0 = 自動消失時間
-			count: count || (duration === 0 ? 1 : undefined),
 			alertId,
 			alertKey,
 			alertSource,
@@ -118,23 +114,11 @@ export const useToast = () => {
 	}
 
 	/**
-	 * 更新 Toast 的疊加數量
-	 */
-	const updateToastCount = (id: string, count: number | undefined) => {
-		const index = toasts.value.findIndex((t) => t.id === id)
-		if (index > -1) {
-			toasts.value[index].count = count
-		}
-	}
-
-	/**
-	 * 更新 Toast 的內容（訊息、類型、數量等）
-	 * @param id - Toast ID
-	 * @param updates - 要更新的內容
+	 * 更新 Toast 的內容（訊息、類型等）
 	 */
 	const updateToast = (
 		id: string,
-		updates: { message?: string; type?: ToastType; count?: number }
+		updates: { message?: string; type?: ToastType }
 	) => {
 		const index = toasts.value.findIndex((t) => t.id === id)
 		if (index > -1) {
@@ -146,7 +130,6 @@ export const useToast = () => {
 		message: string,
 		duration?: number,
 		options?: {
-			count?: number
 			alertId?: number
 			alertKey?: string
 			alertSource?: string
@@ -158,7 +141,6 @@ export const useToast = () => {
 		message: string,
 		duration?: number,
 		options?: {
-			count?: number
 			alertId?: number
 			alertKey?: string
 			alertSource?: string
@@ -170,7 +152,6 @@ export const useToast = () => {
 		message: string,
 		duration?: number,
 		options?: {
-			count?: number
 			alertId?: number
 			alertKey?: string
 			alertSource?: string
@@ -182,7 +163,6 @@ export const useToast = () => {
 		message: string,
 		duration?: number,
 		options?: {
-			count?: number
 			alertId?: number
 			alertKey?: string
 			alertSource?: string
@@ -195,7 +175,6 @@ export const useToast = () => {
 		toasts: readonly(toasts),
 		showToast,
 		removeToast,
-		updateToastCount,
 		updateToast,
 		success,
 		error,
