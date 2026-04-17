@@ -245,11 +245,22 @@
 									<div v-if="email.enabled" class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
 										<label class="flex flex-col gap-2 text-sm text-white/80 md:col-span-2">
 											<span>SMTP Host *</span>
-											<input v-model="email.smtp_host" type="text" class="form-input" placeholder="例如：smtp.example.com" />
+											<input
+												v-model="email.smtp_host"
+												type="text"
+												class="form-input"
+												placeholder="例如：smtp.example.com"
+											/>
 										</label>
 										<label class="flex flex-col gap-2 text-sm text-white/80">
 											<span>SMTP Port *</span>
-											<input v-model.number="email.smtp_port" type="number" min="1" class="form-input" placeholder="例如：587" />
+											<input
+												v-model.number="email.smtp_port"
+												type="number"
+												min="1"
+												class="form-input"
+												placeholder="例如：587"
+											/>
 										</label>
 										<label class="flex flex-col gap-2 text-sm text-white/80">
 											<span>連線方式 *</span>
@@ -262,15 +273,32 @@
 										</label>
 										<label class="flex flex-col gap-2 text-sm text-white/80">
 											<span>寄件人 Email（必填）</span>
-											<input v-model="email.smtp_user" type="text" required class="form-input" placeholder="例如：noreply@example.com" />
+											<input
+												v-model="email.smtp_user"
+												type="text"
+												required
+												class="form-input"
+												placeholder="例如：noreply@example.com"
+											/>
 										</label>
 										<label class="flex flex-col gap-2 text-sm text-white/80">
 											<span>密碼</span>
-											<input v-model="email.smtp_password" type="password" class="form-input" placeholder="可留空" autocomplete="new-password" />
+											<input
+												v-model="email.smtp_password"
+												type="password"
+												class="form-input"
+												placeholder="可留空"
+												autocomplete="new-password"
+											/>
 										</label>
 										<label class="flex flex-col gap-2 text-sm text-white/80 md:col-span-2">
 											<span>收件人 To（每行一個）*</span>
-											<textarea v-model="email.to_emails_text" rows="3" class="form-input min-h-[5.5rem] resize-y" placeholder="a@example.com&#10;b@example.com" />
+											<textarea
+												v-model="email.to_emails_text"
+												rows="3"
+												class="form-input min-h-[5.5rem] resize-y"
+												placeholder="a@example.com&#10;b@example.com"
+											/>
 										</label>
 
 										<div class="flex flex-col gap-2 md:col-span-2">
@@ -290,16 +318,25 @@
 
 										<label class="flex flex-col gap-2 text-sm text-white/80">
 											<span>重複發送間隔（秒）*</span>
-											<input v-model.number="email.repeat_min_interval_seconds" type="number" min="15" class="form-input" />
+											<input
+												v-model.number="email.repeat_min_interval_seconds"
+												type="number"
+												min="15"
+												class="form-input"
+											/>
 										</label>
 										<label class="flex flex-col gap-2 text-sm text-white/80">
 											<span>最大發送次數（含第一封）*</span>
-											<input v-model.number="email.repeat_max_send_count" type="number" min="1" max="10" class="form-input" />
+											<input
+												v-model.number="email.repeat_max_send_count"
+												type="number"
+												min="1"
+												max="10"
+												class="form-input"
+											/>
 										</label>
 									</div>
-
 								</div>
-
 							</div>
 						</div>
 
@@ -349,7 +386,7 @@ import type {
 	AlertSeverity,
 	AlertSource,
 	AlertTargetType,
-	AlertType,
+	AlertType
 } from "~/types/alert";
 import type { Device } from "~/types/device";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
@@ -627,15 +664,15 @@ const cameraDeviceOptions = computed(() => {
 });
 
 const parameterOptions: OptionItem[] = [
-	{ value: "noise", label: "noise（噪音值）" },
-	{ value: "pm25", label: "pm25（PM2.5）" },
-	{ value: "pm10", label: "pm10（PM10）" },
-	{ value: "co2", label: "co2（CO2）" },
-	{ value: "temperature", label: "temperature（溫度）" },
-	{ value: "humidity", label: "humidity（濕度）" },
-	{ value: "tvoc", label: "tvoc（TVOC）" },
-	{ value: "hcho", label: "hcho（HCHO）" },
-	{ value: "wind", label: "wind（風速）" }
+	{ value: "noise", label: "噪音值" },
+	{ value: "pm25", label: "PM2.5" },
+	{ value: "pm10", label: "PM10" },
+	{ value: "co2", label: "CO2" },
+	{ value: "temperature", label: "溫度" },
+	{ value: "humidity", label: "濕度" },
+	{ value: "tvoc", label: "TVOC" },
+	{ value: "hcho", label: "HCHO" },
+	{ value: "wind", label: "風速" }
 ];
 
 const zonesCache = useZonesCache();
@@ -783,13 +820,13 @@ const loadIntegrationsForRule = async (ruleId: number) => {
 		const res = await alertApi.getAlertRuleIntegrations(ruleId);
 		const c = res?.cameraLinkage;
 		cameraLinkage.enabled = Boolean(c?.enabled);
-		const idsRaw = (c as any)?.camera_device_ids as unknown
+		const idsRaw = (c as any)?.camera_device_ids as unknown;
 		const ids = Array.isArray(idsRaw)
 			? (idsRaw as unknown[])
-					.map((v) => Number(v))
+					.map(v => Number(v))
 					.filter((n): n is number => Number.isFinite(n) && n > 0)
 					.slice(0, 4)
-			: []
+			: [];
 		const merged = [...new Set(ids)].slice(0, 4);
 		cameraLinkage.camera_device_ids = merged.length > 0 ? merged : [null];
 

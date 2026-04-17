@@ -44,8 +44,8 @@
 													: 'border border-white/20 bg-white/10',
 												{ 'bg-white/15': !isNewZone(zone) && expandedZones.has(getZoneId(zone)) },
 												{
-													'bg-amber-500/15': isNewZone(zone) && expandedZones.has(getZoneId(zone)),
-												},
+													'bg-amber-500/15': isNewZone(zone) && expandedZones.has(getZoneId(zone))
+												}
 											]"
 										>
 											<!-- 區域標題列（可點擊展開） -->
@@ -73,10 +73,7 @@
 													<div
 														class="flex h-16 min-w-[80px] items-center justify-center rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 shadow-lg"
 													>
-														<h4
-															v-if="zone.name"
-															class="text-xl font-bold tracking-wider text-white 2xl:text-2xl"
-														>
+														<h4 v-if="zone.name" class="text-xl font-bold tracking-wider text-white 2xl:text-2xl">
 															{{ zone.name }}
 														</h4>
 														<span v-else class="text-sm text-white/60 2xl:text-base">未命名</span>
@@ -121,12 +118,7 @@
 														@click.stop="handleDeleteZone(getZoneId(zone))"
 														title="刪除區域"
 													>
-														<svg
-															class="h-5 w-5"
-															fill="none"
-															stroke="currentColor"
-															viewBox="0 0 24 24"
-														>
+														<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 															<path
 																stroke-linecap="round"
 																stroke-linejoin="round"
@@ -164,9 +156,7 @@
 														:isapi-camera-devices="isapiCameraDevices"
 														:reorderable-locations="true"
 														@add-location="() => addLocation(zone)"
-														@remove-location="
-															(index: number) => removeLocation(getZoneId(zone), index)
-														"
+														@remove-location="(index: number) => removeLocation(getZoneId(zone), index)"
 														@reorder-location="
 															(payload: { index: number; direction: 'up' | 'down' }) =>
 																handleReorderLocationRow(zone, payload)
@@ -193,9 +183,7 @@
 					<p v-if="errorMessage" class="pr-7 text-base text-rose-300 2xl:pr-8 2xl:text-lg">
 						{{ errorMessage }}
 					</p>
-					<footer
-						class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8"
-					>
+					<footer class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8">
 						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
 						<div class="flex-1"></div>
 						<button
@@ -232,55 +220,55 @@
 </template>
 
 <script setup lang="ts" generic="TZone extends SystemZoneType">
-import type { SystemType, UnifiedZone } from "~/types/location"
-import type { Device } from "~/types/device"
+import type { SystemType, UnifiedZone } from "~/types/location";
+import type { Device } from "~/types/device";
 import type {
 	SystemZoneType,
-	SystemLocationType,
-} from "~/composables/location/adapters/useZoneSystemAdapter"
-import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter"
-import { useLocationValidationPipeline } from "~/composables/location/validation/useLocationValidationPipeline"
-import { useZoneDrafts } from "~/composables/location/ui/useZoneDrafts"
-import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
-import { useExternalDataApi } from "~/composables/systems/externalData/useExternalDataApi"
-import ZoneFormFields from "./ZoneFormFields.vue"
-import EnvironmentLocationManagement from "./LocationManagement/EnvironmentLocationManagement.vue"
-import PeopleCountingLocationManagement from "./LocationManagement/PeopleCountingLocationManagement.vue"
-import VehicleAccessLocationManagement from "./LocationManagement/VehicleAccessLocationManagement.vue"
-import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
-import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
-import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
-import { nextTick, type Component } from "vue"
-import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { removeLocationFromSystemOrDelete } from "~/composables/location/locationSystemActions"
-import { buildDeleteLocationConfirmCopy } from "~/domain/location/confirmCopy"
-import { getLocationUiKey } from "~/utils/locationUiId"
-import { pickSortOrder, zoneSortOrderValue } from "~/utils/sortOrder"
-import { getZoneUiKey } from "~/utils/locationUiId"
+	SystemLocationType
+} from "~/composables/location/adapters/useZoneSystemAdapter";
+import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter";
+import { useLocationValidationPipeline } from "~/composables/location/validation/useLocationValidationPipeline";
+import { useZoneDrafts } from "~/composables/location/ui/useZoneDrafts";
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
+import { useExternalDataApi } from "~/composables/systems/externalData/useExternalDataApi";
+import ZoneFormFields from "./ZoneFormFields.vue";
+import EnvironmentLocationManagement from "./LocationManagement/EnvironmentLocationManagement.vue";
+import PeopleCountingLocationManagement from "./LocationManagement/PeopleCountingLocationManagement.vue";
+import VehicleAccessLocationManagement from "./LocationManagement/VehicleAccessLocationManagement.vue";
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
+import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
+import { nextTick, type Component } from "vue";
+import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import { removeLocationFromSystemOrDelete } from "~/composables/location/locationSystemActions";
+import { buildDeleteLocationConfirmCopy } from "~/utils/confirmCopy";
+import { getLocationUiKey } from "~/utils/locationUiId";
+import { pickSortOrder, zoneSortOrderValue } from "~/utils/sortOrder";
+import { getZoneUiKey } from "~/utils/locationUiId";
 
 interface Props {
-	modelValue: boolean
-	zones: TZone[]
-	systemType: SystemType
-	requireImageUrl?: boolean
-	deviceHint?: string
+	modelValue: boolean;
+	zones: TZone[];
+	systemType: SystemType;
+	requireImageUrl?: boolean;
+	deviceHint?: string;
 }
 
 interface Emits {
-	(e: "update:modelValue", value: boolean): void
-	(e: "save", zone: TZone): void
-	(e: "delete", zoneId: string): void
+	(e: "update:modelValue", value: boolean): void;
+	(e: "save", zone: TZone): void;
+	(e: "delete", zoneId: string): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	requireImageUrl: false,
-	deviceHint: "請先在「設備管理」中建立設備",
-})
+	deviceHint: "請先在「設備管理」中建立設備"
+});
 
-const emit = defineEmits<Emits>()
+const emit = defineEmits<Emits>();
 
 // 系統適配器
-const adapter = useZoneSystemAdapter<TZone, SystemLocationType>(props.systemType)
+const adapter = useZoneSystemAdapter<TZone, SystemLocationType>(props.systemType);
 
 const {
 	pendingChanges,
@@ -292,55 +280,55 @@ const {
 	createMergedZones,
 	createSortedZones,
 	buildChangedFieldsList,
-	buildChangeSummary,
-} = useZoneDrafts<TZone, SystemLocationType>()
-const errorMessage = ref("")
+	buildChangeSummary
+} = useZoneDrafts<TZone, SystemLocationType>();
+const errorMessage = ref("");
 
 // 待刪除地點（使用 UI key，避免 reorder 後刪錯）
-const pendingDeleteLocation = ref<{ zoneId: string; locationUiKey: string } | null>(null)
+const pendingDeleteLocation = ref<{ zoneId: string; locationUiKey: string } | null>(null);
 
 // 驗證
-const { validateSystemZoneForSave } = useLocationValidationPipeline()
+const { validateSystemZoneForSave } = useLocationValidationPipeline();
 
 // 更新區域（加入待保存列表）
 const updateZone = (zone: TZone) => {
-	const zoneId = getZoneId(zone)
-	if (!zoneId) return
+	const zoneId = getZoneId(zone);
+	if (!zoneId) return;
 
-	errorMessage.value = ""
+	errorMessage.value = "";
 	// 使用 JSON 深拷貝，避免 structuredClone 無法處理某些對象的問題
-	setDraft(zoneId, JSON.parse(JSON.stringify(zone)) as TZone)
-}
+	setDraft(zoneId, JSON.parse(JSON.stringify(zone)) as TZone);
+};
 
 // 合併原始 zones 和待保存的變更
 const mergedZones = computed(() => {
-	return createMergedZones({ originalZones: props.zones, getZoneId })
-})
+	return createMergedZones({ originalZones: props.zones, getZoneId });
+});
 
 // 排序區域（過濾掉沒有地點的區域，但保留新區域）
 const sortedZones = computed(() => {
 	return createSortedZones({
 		mergedZones: mergedZones.value,
 		getZoneId,
-		getLocations: (z) => adapter.getLocationsProperty(z),
-	})
-})
+		getLocations: z => adapter.getLocationsProperty(z)
+	});
+});
 
 // 確認對話框
-const confirmDialog = useConfirmDialog()
-const confirmAction = ref<"close" | "delete" | "deleteLocation">("close")
+const confirmDialog = useConfirmDialog();
+const confirmAction = ref<"close" | "delete" | "deleteLocation">("close");
 
-const { handleError } = useErrorHandler()
+const { handleError } = useErrorHandler();
 
 // 解包 ref 以便在模板中使用
 const showConfirmDialog = computed({
 	get: () => confirmDialog.showDialog.value,
 	set: (value: boolean) => {
-		confirmDialog.showDialog.value = value
-	},
-})
+		confirmDialog.showDialog.value = value;
+	}
+});
 
-const confirmDialogConfig = computed(() => confirmDialog.config.value)
+const confirmDialogConfig = computed(() => confirmDialog.config.value);
 
 // 計算變更的欄位列表
 const changedFieldsList = computed(() => {
@@ -348,201 +336,201 @@ const changedFieldsList = computed(() => {
 		originalZones: props.zones,
 		pendingChanges: pendingChanges.value,
 		getZoneId,
-		getZoneName: (z) => (z as any)?.name ?? "",
-		getZoneImageUrl: (z) => (z as any)?.imageUrl,
-		getLocations: (z) => adapter.getLocationsProperty(z),
-		locationLabel: getLocationLabel(),
-	})
-})
+		getZoneName: z => (z as any)?.name ?? "",
+		getZoneImageUrl: z => (z as any)?.imageUrl,
+		getLocations: z => adapter.getLocationsProperty(z),
+		locationLabel: getLocationLabel()
+	});
+});
 
 // 變更摘要訊息
 const changeSummary = computed(() => {
-	return buildChangeSummary({ pendingChanges: pendingChanges.value })
-})
+	return buildChangeSummary({ pendingChanges: pendingChanges.value });
+});
 
 // 設備管理
-const deviceApi = useDeviceApi()
-const devices = ref<any[]>([])
-const isLoadingDevices = ref(false)
+const deviceApi = useDeviceApi();
+const devices = ref<any[]>([]);
+const isLoadingDevices = ref(false);
 
 // 人員群組和門禁設備（僅用於人流統計系統）
-const externalDataApi = useExternalDataApi()
-const personGroups = ref<Array<{ id: number; name: string; is_deleted?: number }>>([])
+const externalDataApi = useExternalDataApi();
+const personGroups = ref<Array<{ id: number; name: string; is_deleted?: number }>>([]);
 const doors = ref<
 	Array<{
-		id: number
-		device_id: number
-		dev_name: string
-		door_index: number
-		is_deleted?: number
+		id: number;
+		device_id: number;
+		dev_name: string;
+		door_index: number;
+		is_deleted?: number;
 	}>
->([])
-const accessControlDevices = ref<Device[]>([])
-const isapiCameraDevices = ref<Device[]>([])
+>([]);
+const accessControlDevices = ref<Device[]>([]);
+const isapiCameraDevices = ref<Device[]>([]);
 
 // 地點管理組件映射（與 central 相同結構；construction 僅啟用下列 systemType）
 const locationManagementComponentMap: Partial<Record<SystemType, Component>> = {
 	environment: EnvironmentLocationManagement,
 	people_counting: PeopleCountingLocationManagement,
-	vehicle_access: VehicleAccessLocationManagement,
-}
+	vehicle_access: VehicleAccessLocationManagement
+};
 
 const locationManagementComponent = computed(() => {
-	const c = locationManagementComponentMap[props.systemType]
-	return c ?? EnvironmentLocationManagement
-})
+	const c = locationManagementComponentMap[props.systemType];
+	return c ?? EnvironmentLocationManagement;
+});
 
 // 載入設備列表
 // 與 central 對齊：central 於 lighting/drainage/fire/emergency_rescue 使用 controller，其餘為 sensor；
 // construction 僅環境／人流／車輛，皆對應 sensor。
 const loadDevices = async () => {
-	isLoadingDevices.value = true
+	isLoadingDevices.value = true;
 	try {
-		const deviceType = "sensor"
+		const deviceType = "sensor";
 		const result = await deviceApi.getDevices({
 			type_code: deviceType,
 			status: "active",
-			limit: 100,
-		})
-		devices.value = result.devices
+			limit: 100
+		});
+		devices.value = result.devices;
 	} catch (error) {
-		console.error("載入設備列表失敗:", error)
-		errorMessage.value = "載入設備列表失敗"
+		console.error("載入設備列表失敗:", error);
+		errorMessage.value = "載入設備列表失敗";
 	} finally {
-		isLoadingDevices.value = false
+		isLoadingDevices.value = false;
 	}
-}
+};
 
 // 載入人員群組列表（僅用於人流統計系統）
 const loadPersonGroups = async () => {
-	if (props.systemType !== "people_counting") return
+	if (props.systemType !== "people_counting") return;
 
 	try {
 		const result = await externalDataApi.getPersonGroups({
-			limit: 1000,
-		})
-		personGroups.value = result.data || []
+			limit: 1000
+		});
+		personGroups.value = result.data || [];
 	} catch (error) {
-		console.error("載入人員群組列表失敗:", error)
-		errorMessage.value = "載入人員群組列表失敗"
+		console.error("載入人員群組列表失敗:", error);
+		errorMessage.value = "載入人員群組列表失敗";
 	}
-}
+};
 
 // 載入門禁設備列表（僅用於人流統計系統）
 const loadDoors = async () => {
-	if (props.systemType !== "people_counting") return
+	if (props.systemType !== "people_counting") return;
 
 	try {
 		const result = await externalDataApi.getList("deviceaccess", "door", {
-			limit: 1000,
-		})
-		doors.value = result.data || []
+			limit: 1000
+		});
+		doors.value = result.data || [];
 	} catch (error) {
-		console.error("載入門禁設備列表失敗:", error)
-		errorMessage.value = "載入門禁設備列表失敗"
+		console.error("載入門禁設備列表失敗:", error);
+		errorMessage.value = "載入門禁設備列表失敗";
 	}
-}
+};
 
 // 載入本系統門禁設備列表（僅用於人流統計系統「門禁設備」資料來源）
 const loadAccessControlDevices = async () => {
-	if (props.systemType !== "people_counting") return
+	if (props.systemType !== "people_counting") return;
 
 	try {
 		const result = await deviceApi.getDevices({
 			type_code: "access_control",
 			status: "active",
-			limit: 100,
-		})
-		accessControlDevices.value = result.devices || []
+			limit: 100
+		});
+		accessControlDevices.value = result.devices || [];
 	} catch (error) {
-		console.error("載入門禁設備列表失敗:", error)
-		accessControlDevices.value = []
+		console.error("載入門禁設備列表失敗:", error);
+		accessControlDevices.value = [];
 	}
-}
+};
 
 // 載入可用的 ISAPI 攝影機設備列表（人流攝影機）
 // 規則：取全部 active 設備，讓使用者自行選擇具備 host/username/password 的 ISAPI 設備
 const loadIsapiCameraDevices = async () => {
-	if (props.systemType !== "people_counting") return
+	if (props.systemType !== "people_counting") return;
 	try {
 		const result = await deviceApi.getDevices({
 			status: "active",
-			limit: 200,
-		})
-		isapiCameraDevices.value = result.devices || []
+			limit: 200
+		});
+		isapiCameraDevices.value = result.devices || [];
 	} catch {
-		isapiCameraDevices.value = []
+		isapiCameraDevices.value = [];
 	}
-}
+};
 
 // 當對話框打開時載入設備列表和相關資料
 watch(
 	() => props.modelValue,
-	(newValue) => {
+	newValue => {
 		if (newValue) {
-			loadDevices()
+			loadDevices();
 			// 僅在人流統計系統時載入人員群組和門禁設備
 			if (props.systemType === "people_counting") {
-				loadPersonGroups()
-				loadDoors()
-				loadAccessControlDevices()
-				loadIsapiCameraDevices()
+				loadPersonGroups();
+				loadDoors();
+				loadAccessControlDevices();
+				loadIsapiCameraDevices();
 			}
-			clearAllDrafts()
-			errorMessage.value = ""
+			clearAllDrafts();
+			errorMessage.value = "";
 		}
 	}
-)
+);
 
 // 取得區域 ID
 const getZoneId = (zone: TZone): string => {
-	return getZoneUiKey(zone as any)
-}
+	return getZoneUiKey(zone as any);
+};
 
 // 取得地點數量（用於顯示）
 const getLocationsCount = (zone: TZone): number => {
-	return adapter.getLocationsProperty(zone).length
-}
+	return adapter.getLocationsProperty(zone).length;
+};
 
 // 取得地點標籤（用於顯示；與 central 規則一致：排水／照明等為「點位」，其餘為「地點」— construction 僅下列三系統，皆為「地點」）
 const getLocationLabel = (): string => {
 	const labelMap: Record<SystemType, string> = {
 		environment: "地點",
 		people_counting: "地點",
-		vehicle_access: "地點",
-	}
-	return labelMap[props.systemType] || "地點"
-}
+		vehicle_access: "地點"
+	};
+	return labelMap[props.systemType] || "地點";
+};
 
 // 取得區域用於表單欄位（轉換為 UnifiedZone）
 const getZoneForFormFields = (zone: TZone): UnifiedZone => {
-	const zoneAny = zone as any
+	const zoneAny = zone as any;
 	return {
 		id: getZoneId(zone),
 		name: zone.name,
 		imageUrl: zoneAny.imageUrl,
 		description: zoneAny.description,
 		...pickSortOrder(zoneAny.sortOrder),
-		locations: [],
-	} as UnifiedZone
-}
+		locations: []
+	} as UnifiedZone;
+};
 
 // 切換區域展開/收起
 const toggleZone = (zoneId: string) => {
 	if (expandedZones.value.has(zoneId)) {
-		expandedZones.value.delete(zoneId)
+		expandedZones.value.delete(zoneId);
 	} else {
-		expandedZones.value.add(zoneId)
+		expandedZones.value.add(zoneId);
 	}
-}
+};
 
 // 處理關閉
 const handleClose = () => {
 	if (hasUnsavedChanges.value) {
 		// ✅ 檢查是否有新增的區域（臨時 ID）
-		const hasNewZones = Array.from(pendingChanges.value.keys()).some((id) => id.startsWith("temp-"))
+		const hasNewZones = Array.from(pendingChanges.value.keys()).some(id => id.startsWith("temp-"));
 
-		confirmAction.value = "close"
+		confirmAction.value = "close";
 		confirmDialog.show({
 			title: "確認關閉",
 			message: hasNewZones
@@ -551,34 +539,34 @@ const handleClose = () => {
 			details: hasNewZones
 				? "未保存的變更將會遺失，新增的區域不會寫入資料庫。"
 				: "未保存的變更將會遺失。",
-			type: "warning",
-		})
-		return
+			type: "warning"
+		});
+		return;
 	}
 
-	closeDialog()
-}
+	closeDialog();
+};
 
 // 關閉對話框（清除狀態）
 const closeDialog = () => {
-	clearAllDrafts()
-	errorMessage.value = ""
-	emit("update:modelValue", false)
-}
+	clearAllDrafts();
+	errorMessage.value = "";
+	emit("update:modelValue", false);
+};
 
 // 確認關閉
 const handleConfirmClose = () => {
-	closeDialog()
-}
+	closeDialog();
+};
 
 // 處理區域更新
 const handleZoneUpdate = (zoneId: string, updates: Partial<UnifiedZone>) => {
-	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
-	if (!zone) return
+	const zone = sortedZones.value.find(z => getZoneId(z) === zoneId);
+	if (!zone) return;
 
-	const updatedZone = { ...zone, ...updates } as TZone
-	updateZone(updatedZone)
-}
+	const updatedZone = { ...zone, ...updates } as TZone;
+	updateZone(updatedZone);
+};
 
 // 處理地點更新（從 LocationManagement 組件接收）
 const handleLocationUpdate = (
@@ -586,263 +574,263 @@ const handleLocationUpdate = (
 	locationIndex: number,
 	updatedLocation: SystemLocationType
 ) => {
-	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
-	if (!zone) return
+	const zone = sortedZones.value.find(z => getZoneId(z) === zoneId);
+	if (!zone) return;
 
-	const locations = [...adapter.getLocationsProperty(zone)]
-	locations[locationIndex] = updatedLocation
+	const locations = [...adapter.getLocationsProperty(zone)];
+	locations[locationIndex] = updatedLocation;
 
-	const updatedZone = adapter.setLocationsProperty(zone, locations)
-	updateZone(updatedZone)
-}
+	const updatedZone = adapter.setLocationsProperty(zone, locations);
+	updateZone(updatedZone);
+};
 
 // 新增地點（從 LocationManagement 組件接收；與 central 一致：新列接在列表尾端）
 const addLocation = (zone: TZone) => {
-	const newLocation = adapter.createNewLocation() as SystemLocationType
-	const locations = [...adapter.getLocationsProperty(zone), newLocation]
-	const updatedZone = adapter.setLocationsProperty(zone, locations)
-	updateZone(updatedZone)
-}
+	const newLocation = adapter.createNewLocation() as SystemLocationType;
+	const locations = [...adapter.getLocationsProperty(zone), newLocation];
+	const updatedZone = adapter.setLocationsProperty(zone, locations);
+	updateZone(updatedZone);
+};
 
 // 刪除地點（僅從當前系統移除）
 const removeLocation = (zoneId: string, locationIndex: number) => {
-	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
-	if (!zone) return
-	const locations = adapter.getLocationsProperty(zone)
-	const target = locations?.[locationIndex] as any
-	const locationUiKey = getLocationUiKey({ zone: zone as any, location: target, locationIndex })
-	pendingDeleteLocation.value = { zoneId, locationUiKey }
-	confirmAction.value = "deleteLocation"
-	const hasId = Boolean(target?.id)
-	const systemCount = target?.systems?.length || 0
+	const zone = sortedZones.value.find(z => getZoneId(z) === zoneId);
+	if (!zone) return;
+	const locations = adapter.getLocationsProperty(zone);
+	const target = locations?.[locationIndex] as any;
+	const locationUiKey = getLocationUiKey({ zone: zone as any, location: target, locationIndex });
+	pendingDeleteLocation.value = { zoneId, locationUiKey };
+	confirmAction.value = "deleteLocation";
+	const hasId = Boolean(target?.id);
+	const systemCount = target?.systems?.length || 0;
 	const copy = buildDeleteLocationConfirmCopy({
 		hasId,
 		systemType: props.systemType,
-		systemCount,
-	})
-	confirmDialog.show(copy)
-}
+		systemCount
+	});
+	confirmDialog.show(copy);
+};
 
 // 確認刪除地點
 const handleConfirmDeleteLocation = async () => {
-	if (!pendingDeleteLocation.value) return
-	const { zoneId, locationUiKey } = pendingDeleteLocation.value
-	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
+	if (!pendingDeleteLocation.value) return;
+	const { zoneId, locationUiKey } = pendingDeleteLocation.value;
+	const zone = sortedZones.value.find(z => getZoneId(z) === zoneId);
 	if (!zone) {
-		pendingDeleteLocation.value = null
-		return
+		pendingDeleteLocation.value = null;
+		return;
 	}
 
-	const locations = [...adapter.getLocationsProperty(zone)]
+	const locations = [...adapter.getLocationsProperty(zone)];
 	const resolvedIndex = locations.findIndex((loc: any, idx: number) => {
 		return (
 			getLocationUiKey({ zone: zone as any, location: loc, locationIndex: idx }) === locationUiKey
-		)
-	})
+		);
+	});
 	if (resolvedIndex < 0 || resolvedIndex >= locations.length) {
-		pendingDeleteLocation.value = null
-		return
+		pendingDeleteLocation.value = null;
+		return;
 	}
 
-	const target = locations[resolvedIndex] as any
-	const targetId = target?.id ? String(target.id) : null
+	const target = locations[resolvedIndex] as any;
+	const targetId = target?.id ? String(target.id) : null;
 
 	if (targetId) {
 		try {
-			await removeLocationFromSystemOrDelete({ locationId: targetId, systemType: props.systemType })
+			await removeLocationFromSystemOrDelete({ locationId: targetId, systemType: props.systemType });
 		} catch (error) {
-			handleError(error, "刪除地點失敗")
-			pendingDeleteLocation.value = null
-			return
+			handleError(error, "刪除地點失敗");
+			pendingDeleteLocation.value = null;
+			return;
 		}
 	}
 
-	locations.splice(resolvedIndex, 1)
-	const updatedZone = adapter.setLocationsProperty(zone, locations)
-	updateZone(updatedZone)
+	locations.splice(resolvedIndex, 1);
+	const updatedZone = adapter.setLocationsProperty(zone, locations);
+	updateZone(updatedZone);
 
-	pendingDeleteLocation.value = null
-}
+	pendingDeleteLocation.value = null;
+};
 
 // 是否為新增的區域（尚未儲存，以 temp- 開頭的 ID）
 const isNewZone = (zone: TZone): boolean => {
-	const zoneId = getZoneId(zone)
-	return Boolean(zoneId?.startsWith("temp-"))
-}
+	const zoneId = getZoneId(zone);
+	return Boolean(zoneId?.startsWith("temp-"));
+};
 
 const maxZoneSortOrder = (): number => {
-	let m = -1
+	let m = -1;
 	for (const z of mergedZones.value) {
-		m = Math.max(m, zoneSortOrderValue(z as { sortOrder?: number | null }))
+		m = Math.max(m, zoneSortOrderValue(z as { sortOrder?: number | null }));
 	}
-	return m
-}
+	return m;
+};
 
 const snapshotZoneById = (zoneId: string): TZone | undefined => {
-	const pending = pendingChanges.value.get(zoneId)
-	if (pending) return JSON.parse(JSON.stringify(pending)) as TZone
-	const fromProps = props.zones.find((z) => getZoneId(z) === zoneId)
-	return fromProps ? (JSON.parse(JSON.stringify(fromProps)) as TZone) : undefined
-}
+	const pending = pendingChanges.value.get(zoneId);
+	if (pending) return JSON.parse(JSON.stringify(pending)) as TZone;
+	const fromProps = props.zones.find(z => getZoneId(z) === zoneId);
+	return fromProps ? (JSON.parse(JSON.stringify(fromProps)) as TZone) : undefined;
+};
 
 const isFirstZoneInList = (zone: TZone) => {
-	const id = getZoneId(zone)
-	if (!id) return true
-	const i = sortedZones.value.findIndex((z) => getZoneId(z) === id)
-	return i <= 0
-}
+	const id = getZoneId(zone);
+	if (!id) return true;
+	const i = sortedZones.value.findIndex(z => getZoneId(z) === id);
+	return i <= 0;
+};
 
 const isLastZoneInList = (zone: TZone) => {
-	const id = getZoneId(zone)
-	if (!id) return true
-	const i = sortedZones.value.findIndex((z) => getZoneId(z) === id)
-	return i < 0 || i >= sortedZones.value.length - 1
-}
+	const id = getZoneId(zone);
+	if (!id) return true;
+	const i = sortedZones.value.findIndex(z => getZoneId(z) === id);
+	return i < 0 || i >= sortedZones.value.length - 1;
+};
 
 const moveZoneOrder = (zone: TZone, delta: number) => {
-	const id = getZoneId(zone)
-	if (!id) return
-	const list = sortedZones.value
-	const i = list.findIndex((z) => getZoneId(z) === id)
-	const j = i + delta
-	if (i < 0 || j < 0 || j >= list.length) return
+	const id = getZoneId(zone);
+	if (!id) return;
+	const list = sortedZones.value;
+	const i = list.findIndex(z => getZoneId(z) === id);
+	const j = i + delta;
+	if (i < 0 || j < 0 || j >= list.length) return;
 
 	/**
 	 * 修正：舊資料常見多個 zone 的 sortOrder 都是 0（或相同值），僅互換兩列 sortOrder 會「看起來沒動」。
 	 * 因此以「目前對話框可見順序」先正規化成 0..n-1，再交換相鄰兩列，並回寫所有列的 sortOrder，確保排序一定生效。
 	 */
-	const orderedIds = list.map((z) => getZoneId(z)).filter(Boolean)
-	if (orderedIds.length !== list.length) return
-	;[orderedIds[i], orderedIds[j]] = [orderedIds[j]!, orderedIds[i]!]
+	const orderedIds = list.map(z => getZoneId(z)).filter(Boolean);
+	if (orderedIds.length !== list.length) return;
+	[orderedIds[i], orderedIds[j]] = [orderedIds[j]!, orderedIds[i]!];
 
 	for (let idx = 0; idx < orderedIds.length; idx += 1) {
-		const zoneId = orderedIds[idx]!
-		const snap = snapshotZoneById(zoneId)
-		if (!snap) continue
-		pendingChanges.value.set(zoneId, { ...snap, sortOrder: idx } as TZone)
+		const zoneId = orderedIds[idx]!;
+		const snap = snapshotZoneById(zoneId);
+		if (!snap) continue;
+		pendingChanges.value.set(zoneId, { ...snap, sortOrder: idx } as TZone);
 	}
 
-	errorMessage.value = ""
-}
+	errorMessage.value = "";
+};
 
 const handleReorderLocationRow = (
 	zone: TZone,
 	payload: { index: number; direction: "up" | "down" }
 ) => {
-	const locs = [...adapter.getLocationsProperty(zone)] as SystemLocationType[]
-	const { index, direction } = payload
-	const j = direction === "up" ? index - 1 : index + 1
-	if (j < 0 || j >= locs.length) return
-	;[locs[index], locs[j]] = [locs[j]!, locs[index]!]
+	const locs = [...adapter.getLocationsProperty(zone)] as SystemLocationType[];
+	const { index, direction } = payload;
+	const j = direction === "up" ? index - 1 : index + 1;
+	if (j < 0 || j >= locs.length) return;
+	[locs[index], locs[j]] = [locs[j]!, locs[index]!];
 	locs.forEach((loc, idx) => {
-		;(loc as unknown as { sortOrder?: number }).sortOrder = idx
-	})
-	const updatedZone = adapter.setLocationsProperty(zone, locs)
-	updateZone(updatedZone)
-}
+		(loc as unknown as { sortOrder?: number }).sortOrder = idx;
+	});
+	const updatedZone = adapter.setLocationsProperty(zone, locs);
+	updateZone(updatedZone);
+};
 
 // 新增區域
 const addNewZone = () => {
-	const tempId = `temp-${Date.now()}-${Math.random()}`
+	const tempId = `temp-${Date.now()}-${Math.random()}`;
 
 	// 建立新區域：區域名稱預設為空白
 	const newZone = {
 		...adapter.createNewZone(""),
 		id: tempId,
-		sortOrder: maxZoneSortOrder() + 1,
-	} as TZone
+		sortOrder: maxZoneSortOrder() + 1
+	} as TZone;
 
 	// ✅ 只加入待保存列表，不立即寫入資料庫
 	// 使用 JSON 深拷貝，避免 structuredClone 無法處理某些對象的問題
-	pendingChanges.value.set(tempId, JSON.parse(JSON.stringify(newZone)) as TZone)
+	pendingChanges.value.set(tempId, JSON.parse(JSON.stringify(newZone)) as TZone);
 
 	// ✅ 自動展開新區域
-	expandedZones.value.add(tempId)
-}
+	expandedZones.value.add(tempId);
+};
 
 /** 儲存前讓對話框內仍聚焦的表單控制項 blur，觸發子元件 emit，避免 pending 仍是舊值 */
 const flushFocusedFormControlInDialog = async () => {
-	if (typeof document === "undefined") return
-	const raw = document.activeElement
-	if (!raw || !(raw instanceof HTMLElement)) return
-	if (!raw.closest(".dialog-panel-bg")) return
-	const tag = raw.tagName
+	if (typeof document === "undefined") return;
+	const raw = document.activeElement;
+	if (!raw || !(raw instanceof HTMLElement)) return;
+	if (!raw.closest(".dialog-panel-bg")) return;
+	const tag = raw.tagName;
 	if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
-		raw.blur()
-		await nextTick()
-		await nextTick()
+		raw.blur();
+		await nextTick();
+		await nextTick();
 	}
-}
+};
 
 // 儲存所有變更
 const saveAllChanges = async () => {
-	if (pendingChanges.value.size === 0) return
+	if (pendingChanges.value.size === 0) return;
 
-	await flushFocusedFormControlInDialog()
+	await flushFocusedFormControlInDialog();
 
-	errorMessage.value = ""
-	const zoneAny = (zone: TZone) => zone as any
+	errorMessage.value = "";
+	const zoneAny = (zone: TZone) => zone as any;
 
 	// 驗證所有待保存的區域
 	for (const zone of pendingChanges.value.values()) {
-		const locations = adapter.getLocationsProperty(zone)
+		const locations = adapter.getLocationsProperty(zone);
 		const result = validateSystemZoneForSave({
 			systemType: props.systemType,
 			requireImageUrl: props.requireImageUrl,
 			zone,
-			locations,
-		})
+			locations
+		});
 		if (!result.isValid) {
-			errorMessage.value = result.errors.join("\n")
-			return
+			errorMessage.value = result.errors.join("\n");
+			return;
 		}
 	}
 
 	// 複製待保存的區域列表（保留 zoneId；不要先清空，避免中途失敗丟失）
-	const zonesToSave = Array.from(pendingChanges.value.entries())
+	const zonesToSave = Array.from(pendingChanges.value.entries());
 
 	// 逐一儲存
 	for (const [zoneId, zone] of zonesToSave) {
-		const cleanedZone = adapter.filterEmptyLocations(zone as TZone)
-		const isNewZone = zoneAny(zone).id?.startsWith("temp-")
+		const cleanedZone = adapter.filterEmptyLocations(zone as TZone);
+		const isNewZone = zoneAny(zone).id?.startsWith("temp-");
 
 		if (isNewZone) {
 			// 新增區域：移除臨時 ID
-			const { id, ...zoneWithoutId } = zoneAny(cleanedZone)
-			emit("save", zoneWithoutId as TZone)
+			const { id, ...zoneWithoutId } = zoneAny(cleanedZone);
+			emit("save", zoneWithoutId as TZone);
 		} else {
 			// 更新區域：保留 ID
-			emit("save", cleanedZone)
+			emit("save", cleanedZone);
 		}
 	}
 
 	// 全部成功才清空 pendingChanges
-	clearAllDrafts()
-}
+	clearAllDrafts();
+};
 
 // 刪除確認處理（使用 ref 追蹤待刪除的 zoneId）
-const pendingDeleteZoneId = ref<string | null>(null)
+const pendingDeleteZoneId = ref<string | null>(null);
 
 // 刪除區域
 const handleDeleteZone = (zoneId: string) => {
-	pendingDeleteZoneId.value = zoneId
-	confirmAction.value = "delete"
+	pendingDeleteZoneId.value = zoneId;
+	confirmAction.value = "delete";
 	confirmDialog.show({
 		title: "確認刪除",
 		message: "確定要刪除此區域嗎？",
 		details: "此操作將刪除該區域的所有地點資料，且無法復原。",
-		type: "danger",
-	})
-}
+		type: "danger"
+	});
+};
 
 // 確認刪除
 const handleConfirmDelete = () => {
 	if (pendingDeleteZoneId.value) {
-		emit("delete", pendingDeleteZoneId.value)
-		deleteDraft(pendingDeleteZoneId.value)
-		pendingDeleteZoneId.value = null
+		emit("delete", pendingDeleteZoneId.value);
+		deleteDraft(pendingDeleteZoneId.value);
+		pendingDeleteZoneId.value = null;
 	}
-}
+};
 </script>
 
 <style scoped>

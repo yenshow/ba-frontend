@@ -20,7 +20,7 @@
 							:stroke-dasharray="getArcLength('heatIndex')"
 							:stroke-dashoffset="getArcDashOffset('heatIndex')"
 							class="transition-all duration-500 ease-out"
-							:style="{ opacity: heatIndex.value !== null ? 1 : 0 }"
+							:style="{ opacity: heatIndex.valueC !== null ? 1 : 0 }"
 						/>
 					</svg>
 					<div
@@ -33,17 +33,22 @@
 								熱指數
 							</div>
 						</div>
-						<!-- 數值（中間） -->
-						<div class="mb-2 text-4xl text-white 2xl:text-5xl">
-							{{ heatIndex.value !== null ? heatIndex.value.toFixed(1) : "--" }}
+						<!-- 數值（中間）：以級數呈現，避免與溫度重複 -->
+						<div class="mb-2 flex items-baseline gap-1 text-white">
+							<div class="text-5xl 2xl:text-6xl">
+								{{ heatIndex.level ? heatIndex.level : "--" }}
+							</div>
+							<div v-if="heatIndex.level" class="text-lg 2xl:text-xl">級</div>
 						</div>
-						<!-- 等級顯示（小圓圈） -->
+						<!-- 補充：體感溫度（小圓圈） -->
 						<div
-							v-if="heatIndex.value !== null"
-							class="flex h-8 w-8 items-center justify-center rounded-full bg-white 2xl:h-10 2xl:w-10"
+							v-if="heatIndex.valueC !== null"
+							class="flex h-9 w-14 items-center justify-center rounded-full bg-white px-2 2xl:h-10 2xl:w-16"
 						>
-							<div class="text-xl text-black 2xl:text-2xl">{{ heatIndex.level }}</div>
-							<div class="text-xs text-black 2xl:text-[10px]">級</div>
+							<div class="text-base font-semibold text-black 2xl:text-lg">
+								{{ heatIndex.valueC.toFixed(1) }}
+							</div>
+							<div class="ms-1 text-[10px] text-black/80 2xl:text-xs">°C</div>
 						</div>
 					</div>
 				</div>
@@ -155,6 +160,9 @@
 import EnvironmentParamCardSimple from "~/components/home/EnvironmentParamCardSimple.vue";
 import type { EnvironmentLocation, SensorParameterType } from "~/types/environment";
 import type { SensorDeviceModelConfig } from "~/types/device";
+import { getHeatIndexDerivedResult } from "~/utils/environmentDerivedMetrics";
+import { useAlertRules } from "~/composables/monitoring/useAlertRules";
+import type { AlertRule } from "~/types/alert";
 import {
 	getParameterDisplayName,
 	getParameterUnit,
@@ -179,6 +187,17 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+const { getRules, getStatusText: getStatusTextFromRules } = useAlertRules();
+const alertRules = ref<AlertRule[]>([]);
+const rulesLoaded = ref(false);
+
+const loadAlertRules = async () => {
+	if (rulesLoaded.value) return;
+	const rules = await getRules("environment", "threshold");
+	alertRules.value = rules as AlertRule[];
+	rulesLoaded.value = true;
+};
 
 // 啟用的參數列表（排除 HCHO 和 TVOC）
 const enabledParams = computed(() => {
@@ -232,7 +251,7 @@ const displayParams = computed(() => {
 	// 添加熱指數
 	params.push({
 		type: "heatIndex",
-		value: heatIndex.value.value,
+		value: heatIndex.value.valueC,
 		label: getParameterFullLabel("heatIndex" as SensorParameterType),
 		unit: "",
 		fractionDigits: 1,
@@ -252,166 +271,47 @@ const getFormattedValue = (type: SensorParameterType, value: number | null): str
 	return formatSensorValue(type, value, { fallback: "--" });
 };
 
-// 計算熱指數
-const calculateHeatIndex = (temperature: number | null, humidity: number | null) => {
-	if (temperature === null || humidity === null) {
-		return { value: null, level: 0 };
-	}
-
-	// 簡化的熱指數計算（基於溫度和濕度）
-	// 使用簡化公式：HI = T + 0.5 * (T - 14.4) * (RH - 50)
-	// 其中 T 是溫度（攝氏度），RH 是相對濕度（%）
-	let heatIndex = temperature + 0.5 * (temperature - 14.4) * ((humidity - 50) / 100);
-
-	// 如果溫度低於 27°C，熱指數等於溫度
-	if (temperature < 27) {
-		heatIndex = temperature;
-	}
-
-	// 計算等級
-	let level = 1;
-	if (heatIndex >= 54) {
-		level = 5; // 極度危險
-	} else if (heatIndex >= 41) {
-		level = 4; // 危險
-	} else if (heatIndex >= 32) {
-		level = 3; // 警告
-	} else if (heatIndex >= 27) {
-		level = 2; // 注意
-	} else {
-		level = 1; // 安全
-	}
-
-	return {
-		value: Math.round(heatIndex * 10) / 10,
-		level
-	};
-};
-
 // 熱指數
 const heatIndex = computed(() => {
-	return calculateHeatIndex(props.sensorData.temperature, props.sensorData.humidity);
+	return getHeatIndexDerivedResult(props.sensorData.temperature, props.sensorData.humidity);
 });
 
-// 狀態判斷函數（從環境頁面複製）
-const getStatusClass = (type: string, value: number | null): string => {
-	if (value === null) return "";
+onMounted(() => {
+	void loadAlertRules();
+});
 
-	switch (type) {
-		case "pm25":
-			if (value <= 25) return "";
-			if (value <= 50) return "bg-yellow-500/20";
-			return "bg-red-500/20";
-		case "pm10":
-			if (value <= 50) return "";
-			if (value <= 100) return "bg-yellow-500/20";
-			return "bg-red-500/20";
-		case "humidity":
-			if (value >= 30 && value <= 70) return "";
-			return "bg-yellow-500/20";
-		case "temperature":
-			if (value >= 18 && value <= 28) return "";
-			if (value >= 15 && value <= 32) return "bg-yellow-500/20";
-			return "bg-red-500/20";
-		case "co2":
-			if (value <= 1000) return "";
-			if (value <= 2000) return "bg-yellow-500/20";
-			return "bg-red-500/20";
-		case "noise":
-			if (value <= 60) return "";
-			if (value <= 70) return "bg-yellow-500/20";
-			return "bg-red-500/20";
-		case "wind":
-			return "";
-		case "heatIndex":
-			// 熱指數狀態判斷
-			if (value < 27) return "";
-			if (value < 32) return "bg-yellow-500/20";
-			if (value < 41) return "bg-yellow-500/20";
-			return "bg-red-500/20";
-		default:
-			return "";
-	}
+// 狀態判斷函數（以警報規則為準；未載入規則時一律視為正常）
+const getStatusClass = (type: string, value: number | null): string => {
+	const status = getStatusText(type, value);
+	if (status === "警報") return "bg-red-500/20";
+	if (status === "異常") return "bg-yellow-500/20";
+	return "";
 };
 
 const getStatusDotClass = (type: string, value: number | null): string => {
-	if (value === null) return "bg-gray-400";
-
-	switch (type) {
-		case "pm25":
-			if (value <= 25) return "bg-green-400";
-			if (value <= 50) return "bg-yellow-400";
-			return "bg-red-400";
-		case "pm10":
-			if (value <= 50) return "bg-green-400";
-			if (value <= 100) return "bg-yellow-400";
-			return "bg-red-400";
-		case "humidity":
-			if (value >= 30 && value <= 70) return "bg-green-400";
-			return "bg-yellow-400";
-		case "temperature":
-			if (value >= 18 && value <= 28) return "bg-green-400";
-			if (value >= 15 && value <= 32) return "bg-yellow-400";
-			return "bg-red-400";
-		case "co2":
-			if (value <= 1000) return "bg-green-400";
-			if (value <= 2000) return "bg-yellow-400";
-			return "bg-red-400";
-		case "noise":
-			if (value <= 60) return "bg-green-400";
-			if (value <= 70) return "bg-yellow-400";
-			return "bg-red-400";
-		case "wind":
-			return "bg-green-400";
-		case "heatIndex":
-			// 熱指數狀態判斷
-			if (value < 27) return "bg-green-400";
-			if (value < 32) return "bg-yellow-400";
-			if (value < 41) return "bg-yellow-400";
-			return "bg-red-400";
-		default:
-			return "bg-gray-400";
-	}
+	const status = getStatusText(type, value);
+	if (status === "警報") return "bg-red-400";
+	if (status === "異常") return "bg-yellow-400";
+	if (status === "離線") return "bg-gray-400";
+	return "bg-green-400";
 };
 
 const getStatusText = (type: string, value: number | null): string => {
-	if (value === null) return "無資料";
+	if (value === null) return "離線";
 
-	switch (type) {
-		case "pm25":
-			if (value <= 25) return "正常";
-			if (value <= 50) return "注意";
-			return "警報";
-		case "pm10":
-			if (value <= 50) return "正常";
-			if (value <= 100) return "注意";
-			return "警報";
-		case "humidity":
-			if (value >= 30 && value <= 70) return "正常";
-			return "注意";
-		case "temperature":
-			if (value >= 18 && value <= 28) return "正常";
-			if (value >= 15 && value <= 32) return "注意";
-			return "警報";
-		case "co2":
-			if (value <= 1000) return "正常";
-			if (value <= 2000) return "注意";
-			return "警報";
-		case "noise":
-			if (value <= 60) return "正常";
-			if (value <= 70) return "注意";
-			return "警報";
-		case "wind":
-			return "正常";
-		case "heatIndex":
-			// 熱指數狀態判斷
-			if (value < 27) return "正常";
-			if (value < 32) return "注意";
-			if (value < 41) return "注意";
-			return "警報";
-		default:
-			return "無資料";
+	// 熱指數：使用 derived 的 valueC 做規則判斷（規則仍以 parameter=heatIndex）
+	const effectiveValue = type === "heatIndex" ? heatIndex.value.valueC : value;
+	if (effectiveValue === null) return "離線";
+
+	if (rulesLoaded.value) {
+		try {
+			return getStatusTextFromRules(type, effectiveValue, alertRules.value);
+		} catch {
+			// ignore: 視為正常
+		}
 	}
+
+	return "正常";
 };
 
 const getStatusTextClass = (type: string, value: number | null): string => {
@@ -419,8 +319,9 @@ const getStatusTextClass = (type: string, value: number | null): string => {
 
 	const status = getStatusText(type, value);
 	if (status === "正常") return "text-green-300";
-	if (status === "注意") return "text-yellow-300";
-	if (status === "警報" || status === "異常") return "text-red-300";
+	if (status === "異常") return "text-yellow-300";
+	if (status === "警報") return "text-red-300";
+	if (status === "離線") return "text-white/60";
 	return "text-white/70";
 };
 
@@ -458,7 +359,7 @@ const getMaxValue = (type: string): number => {
 const getParamValueForArc = (type: string): number | null => {
 	switch (type) {
 		case "heatIndex":
-			return heatIndex.value.value;
+			return heatIndex.value.valueC;
 		case "noise":
 			return props.sensorData.noise;
 		case "pm25":
@@ -471,28 +372,10 @@ const getParamValueForArc = (type: string): number | null => {
 // 計算圓弧的顏色
 const getArcColor = (type: string): string => {
 	const value = getParamValueForArc(type);
-	if (value === null) return "#ffffff";
-
-	switch (type) {
-		case "heatIndex":
-			// 熱指數：根據等級決定顏色
-			if (value < 27) return "#ffffff"; // 白色
-			if (value < 32) return "#FFC701"; // 黃色
-			if (value < 41) return "#FFC701"; // 黃色
-			return "#FF0000"; // 紅色
-		case "noise":
-			// 噪音值：根據值決定顏色
-			if (value <= 60) return "#ffffff"; // 白色
-			if (value <= 70) return "#FFC701"; // 黃色
-			return "#FF8C00"; // 橙色
-		case "pm25":
-			// PM2.5：根據值決定顏色
-			if (value <= 25) return "#ffffff"; // 白色
-			if (value <= 50) return "#FFC701"; // 黃色
-			return "#FF0000"; // 紅色
-		default:
-			return "#ffffff";
-	}
+	const status = getStatusText(type, value);
+	if (status === "警報") return "#FF0000";
+	if (status === "異常") return "#FFC701";
+	return "#ffffff";
 };
 
 // 計算圓弧百分比
@@ -531,9 +414,9 @@ const getArcDashOffset = (type: string): number => {
 // 獲取噪音值的文字顏色
 const getNoiseValueColor = (): string => {
 	const value = props.sensorData.noise;
-	if (value === null) return "text-white";
-	if (value <= 60) return "text-white";
-	if (value <= 70) return "text-yellow-300";
-	return "text-orange-400";
+	const status = getStatusText("noise", value);
+	if (status === "警報") return "text-red-300";
+	if (status === "異常") return "text-yellow-300";
+	return "text-white";
 };
 </script>

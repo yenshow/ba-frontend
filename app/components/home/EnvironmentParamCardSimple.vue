@@ -5,7 +5,7 @@
 	>
 		<!-- 參數名稱（中文和英文）- 左側 -->
 		<div
-			class="flex w-[100px] 2xl:w-[120px] flex-col items-center justify-center bg-white/10 py-3 leading-none text-white/80"
+			class="flex w-[100px] flex-col items-center justify-center bg-white/10 py-3 leading-none text-white/80 2xl:w-[120px]"
 		>
 			<!-- 根據參數類型決定顯示順序 -->
 			<div class="absolute left-1 top-1/2 h-[80%] w-2 -translate-y-1/2 bg-white/30"></div>
@@ -20,7 +20,7 @@
 		</div>
 
 		<!-- 數值和單位 - 右側 -->
-		<div class="flex flex-1 items-end justify-center gap-1 border-b border-white/30 pb-2 mx-3">
+		<div class="mx-3 flex flex-1 items-end justify-center gap-1 border-b border-white/30 pb-2">
 			<div class="text-2xl text-white 2xl:text-3xl">
 				{{ displayValue }}
 			</div>
@@ -31,6 +31,11 @@
 </template>
 
 <script setup lang="ts">
+import {
+	normalizeMonitoringStatusText,
+	monitoringStatusTextToUiStatus
+} from "~/utils/monitoringStatus";
+
 interface Props {
 	type: string;
 	value: number | null;
@@ -57,15 +62,17 @@ const displayValue = computed(() => {
 	return props.toFixedNumber(props.value, props.fractionDigits ?? 0);
 });
 
-const statusText = computed(() => props.getStatusText(props.type, props.value));
+const statusText = computed(() =>
+	normalizeMonitoringStatusText(props.getStatusText(props.type, props.value))
+);
 
 // 判斷狀態類型（無資料時用中性樣式，不顯示黃/紅警示）
-const statusType = computed<"normal" | "warning" | "alarm">(() => {
-	if (props.value === null) return "normal";
-	const text = statusText.value;
-	if (text === "正常") return "normal";
-	if (text === "警報") return "alarm";
-	return "warning";
+const statusType = computed<"normal" | "warning" | "alarm" | "offline">(() => {
+	const ui = monitoringStatusTextToUiStatus(statusText.value);
+	if (ui === "offline") return "offline";
+	if (ui === "alarm") return "alarm";
+	if (ui === "abnormal") return "warning";
+	return "normal";
 });
 
 // 背景顏色類別（根據狀態動態改變）
@@ -73,6 +80,8 @@ const backgroundClass = computed(() => {
 	switch (statusType.value) {
 		case "normal":
 			return "bg-white/10"; // 正常：白色 10% 透明度
+		case "offline":
+			return "bg-white/10";
 		case "warning":
 			return "bg-[#FFC801]/90"; // 異常：黃色 90% 透明度
 		case "alarm":

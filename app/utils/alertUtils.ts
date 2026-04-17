@@ -47,7 +47,14 @@ export const getSourceLabel = (source: AlertSource | string): string => {
 	const labels: Record<string, string> = {
 		device: "設備",
 		environment: "環境",
-		people_counting: "人流統計"
+		lighting: "照明",
+		drainage: "衛生排水",
+		people_counting: "人流統計",
+		hvac: "空調",
+		power: "電力",
+		fire: "消防",
+		emergency_rescue: "緊急求救",
+		security: "安防"
 	};
 	return labels[source] || source;
 };
@@ -59,13 +66,16 @@ export const getTypeLabel = (type: AlertType | string): string => {
 	const labels: Record<string, string> = {
 		offline: "離線",
 		error: "錯誤",
-		threshold: "閾值"
+		threshold: "閾值",
+		di: "DI",
+		do: "DO"
 	};
 	return labels[type] || type;
 };
 
 /**
- * 取得嚴重程度標籤（與 Central 一致：異常／警報；API 仍為 warning / critical / error）
+ * 取得嚴重程度標籤（Central 統一用語：異常／警報，與規則表單「狀態」一致）
+ * API 仍為 `warning` / `critical` / `error`；`error` 與 `critical` 同列為「警報」層級。
  */
 export const getSeverityLabel = (severity: AlertSeverity | string): string => {
 	const labels: Record<string, string> = {
@@ -75,15 +85,6 @@ export const getSeverityLabel = (severity: AlertSeverity | string): string => {
 	};
 	return labels[severity] || severity;
 };
-
-/** 工地端：警報來源 → 地點 API systemType（無區域樹的來源回傳 null） */
-const CONSTRUCTION_ALERT_SOURCE_TO_SYSTEM_TYPE: Partial<Record<AlertSource, SystemType>> = {
-	environment: "environment",
-	people_counting: "people_counting"
-};
-
-export const alertSourceToSystemType = (source: AlertSource): SystemType | null =>
-	CONSTRUCTION_ALERT_SOURCE_TO_SYSTEM_TYPE[source] ?? null;
 
 /**
  * 取得嚴重程度徽章樣式類名
@@ -104,7 +105,9 @@ export const getTypeBadgeClass = (type: AlertType | string): string => {
 	const classes: Record<string, string> = {
 		offline: "bg-gray-500/80 text-white",
 		error: "bg-red-500/80 text-white",
-		threshold: "bg-purple-500/80 text-white"
+		threshold: "bg-purple-500/80 text-white",
+		di: "bg-emerald-500/80 text-white",
+		do: "bg-sky-500/80 text-white"
 	};
 	return classes[type] || "bg-gray-500/80 text-white";
 };
@@ -179,5 +182,21 @@ export const formatAlertRuleConditionDisplay = (rule: AlertRuleConditionDisplayI
 		return `連續 ${count} 次無法連接`;
 	}
 
+	if (ct === "bit_state") {
+		const bitKey = String(config.bit_key ?? "");
+		const match = bitKey.match(/^(di|do):(\d+)$/i);
+		const addr = match?.[2] ?? (bitKey.replace(/^(di|do):/i, "").trim() || "?");
+		const isDo = rule.alert_type === "do" || String(match?.[1] ?? "").toLowerCase() === "do";
+		return `${isDo ? "DO" : "DI"} 位址 ${addr} 觸發`;
+	}
+
 	return "-";
 };
+
+const SOURCE_SYSTEM_TYPE_MAP: Partial<Record<AlertSource, SystemType>> = {
+	environment: "environment",
+	people_counting: "people_counting"
+};
+
+export const alertSourceToSystemType = (source: AlertSource): SystemType | null =>
+	SOURCE_SYSTEM_TYPE_MAP[source] ?? null;

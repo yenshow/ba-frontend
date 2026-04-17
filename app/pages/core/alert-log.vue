@@ -83,7 +83,6 @@
 			v-model:selected-rule-type="ruleFilterType"
 		/>
 	</div>
-
 </template>
 
 <script setup lang="ts">
@@ -304,7 +303,7 @@ const {
 			end_date: filterEndDate.value || undefined,
 			limit: params.limit as number,
 			offset: params.offset as number,
-			orderBy: "created_at",
+			orderBy: "updated_at",
 			order: "desc"
 		});
 		return { items: result.alerts, total: result.total };
@@ -549,7 +548,7 @@ const handleExport = async () => {
 			end_date: filterEndDate.value || undefined,
 			limit: 10000,
 			offset: 0,
-			orderBy: "created_at",
+			orderBy: "updated_at",
 			order: "desc"
 		});
 

@@ -230,11 +230,14 @@ import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { removeLocationFromSystemOrDelete } from "~/composables/location/locationSystemActions";
-import { buildDeleteLocationConfirmCopy, buildDeleteZoneConfirmCopy } from "~/domain/location/confirmCopy";
+import { buildDeleteLocationConfirmCopy, buildDeleteZoneConfirmCopy } from "~/utils/confirmCopy";
 import { getLocationUiKey } from "~/utils/locationUiId";
 import { useLocationValidationPipeline } from "~/composables/location/validation/useLocationValidationPipeline";
 import { useUnifiedZoneDraft } from "~/composables/location/ui/useZoneDrafts";
-import { useZoneImageUpload, openZoneSchematicPreview } from "~/composables/location/ui/useZoneImage";
+import {
+	useZoneImageUpload,
+	openZoneSchematicPreview
+} from "~/composables/location/ui/useZoneImage";
 import { getSystemTypeLabel } from "~/constants/systemLabels";
 
 interface Props {
@@ -272,19 +275,22 @@ const { validateUnifiedZoneForSave } = useLocationValidationPipeline();
 
 const { pendingZone, hasUnsavedChanges, changedFieldsList, changeSummary, resetToSource } =
 	useUnifiedZoneDraft({
-		sourceZone: computed(() => props.zone),
+		sourceZone: computed(() => props.zone)
 	});
-const { fileInputRef, triggerImageInput: triggerZoneImageInput, handleZoneImageChange } =
-	useZoneImageUpload({
-		onImageReady: (imageUrl) => {
-			if (!pendingZone.value) return;
-			pendingZone.value.imageUrl = imageUrl;
-			errorMessage.value = "";
-		},
-		onError: (message) => {
-			errorMessage.value = message;
-		}
-	});
+const {
+	fileInputRef,
+	triggerImageInput: triggerZoneImageInput,
+	handleZoneImageChange
+} = useZoneImageUpload({
+	onImageReady: imageUrl => {
+		if (!pendingZone.value) return;
+		pendingZone.value.imageUrl = imageUrl;
+		errorMessage.value = "";
+	},
+	onError: message => {
+		errorMessage.value = message;
+	}
+});
 
 // 確認對話框
 const confirmDialog = useConfirmDialog();
@@ -374,7 +380,7 @@ const removeLocation = (locationIndex: number) => {
 	const copy = buildDeleteLocationConfirmCopy({
 		hasId,
 		systemType: props.systemType,
-		systemCount,
+		systemCount
 	});
 	confirmDialog.show(copy);
 };
@@ -384,16 +390,15 @@ const handleConfirmDeleteLocation = async () => {
 	if (!canDelete.value) return;
 	if (!pendingZone.value || !pendingDeleteLocationUiKey.value) return;
 
-	const resolvedIndex =
-		(pendingZone.value.locations || []).findIndex((loc, idx) => {
-			return (
-				getLocationUiKey({
-					zone: pendingZone.value as any,
-					location: loc as any,
-					locationIndex: idx
-				}) === pendingDeleteLocationUiKey.value
-			);
-		});
+	const resolvedIndex = (pendingZone.value.locations || []).findIndex((loc, idx) => {
+		return (
+			getLocationUiKey({
+				zone: pendingZone.value as any,
+				location: loc as any,
+				locationIndex: idx
+			}) === pendingDeleteLocationUiKey.value
+		);
+	});
 	if (resolvedIndex < 0) {
 		pendingDeleteLocationUiKey.value = null;
 		return;
@@ -435,10 +440,8 @@ const handleConfirmDelete = () => {
 };
 
 const getLocationSystemsLabel = (location: UnifiedLocation): string => {
-	if (!location.systems || location.systems.length === 0) return ""
-	return location.systems
-		.map(system => getSystemTypeLabel(system.systemType))
-		.join("、")
+	if (!location.systems || location.systems.length === 0) return "";
+	return location.systems.map(system => getSystemTypeLabel(system.systemType)).join("、");
 };
 
 const saveChanges = async () => {
@@ -458,5 +461,4 @@ const saveChanges = async () => {
 };
 </script>
 
-<style scoped>
-</style>
+<style scoped></style>
