@@ -35,20 +35,20 @@
 						</div>
 						<!-- 數值（中間）：以級數呈現，避免與溫度重複 -->
 						<div class="mb-2 flex items-baseline gap-1 text-white">
-							<div class="text-5xl 2xl:text-6xl">
-								{{ heatIndex.level ? heatIndex.level : "--" }}
+							<div class="text-4xl 2xl:text-5xl">
+								{{ heatIndex.valueC === null ? "--" : heatIndex.valueC.toFixed(1) }}
 							</div>
-							<div v-if="heatIndex.level" class="text-lg 2xl:text-xl">級</div>
+							<div class="text-lg 2xl:text-xl">°C</div>
 						</div>
 						<!-- 補充：體感溫度（小圓圈） -->
 						<div
 							v-if="heatIndex.valueC !== null"
-							class="flex h-9 w-14 items-center justify-center rounded-full bg-white px-2 2xl:h-10 2xl:w-16"
+							class="flex items-center justify-center rounded-full bg-white px-1.5 py-1"
 						>
-							<div class="text-base font-semibold text-black 2xl:text-lg">
-								{{ heatIndex.valueC.toFixed(1) }}
+							<div class="text-lg text-black 2xl:text-2xl">
+								{{ heatIndex.level ? heatIndex.level : "--" }}
 							</div>
-							<div class="ms-1 text-[10px] text-black/80 2xl:text-xs">°C</div>
+							<div v-if="heatIndex.level" class="ms-1 text-[10px] text-black/80 2xl:text-xs">級</div>
 						</div>
 					</div>
 				</div>
