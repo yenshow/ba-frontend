@@ -2,16 +2,17 @@ export type MultimediaAnnouncement = {
 	id: string
 	title: string
 	pinned: boolean
-	sortOrder: number
+	enabled: boolean
+	startDate?: string // YYYY-MM-DD
+	endDate?: string // YYYY-MM-DD
 }
 
 export type MultimediaSchedule = {
 	id: string
-	date: string // YYYY-MM-DD
+	enabled: boolean
 	startTime: string // HH:mm
 	endTime: string // HH:mm
 	title: string
-	sortOrder: number
 }
 
 export type MultimediaDashboardSettings = {
@@ -21,6 +22,10 @@ export type MultimediaDashboardSettings = {
 	bannerMarqueeText: string
 	envDeviceIds: number[]
 	envDisplayParameters: string[]
+	wallAnnouncementsPerPage?: number
+	wallSchedulesPerPage?: number
+	wallAnnouncementsAutoPageIntervalMs?: number
+	wallSchedulesAutoPageIntervalMs?: number
 	announcements: MultimediaAnnouncement[]
 	schedules: MultimediaSchedule[]
 }

@@ -83,22 +83,23 @@
 </template>
 
 <script setup lang="ts">
-import { getAllModules } from "~/utils/systemUtils"
 import { useAuth } from "~/composables/core/useAuth"
 import { useLicense } from "~/composables/core/useLicense"
 import { useToast } from "~/composables/core/useToast"
 import { LICENSE_MESSAGE_LOCKED, PERMISSION_MESSAGE_LOCKED } from "~/utils/licenseUtils"
 import type { SystemModule } from "~/types/system"
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 
 const { hasModulePermission } = useAuth()
 const { isModuleLocked: isModuleLockedByLicense } = useLicense()
 const toast = useToast()
+const moduleRegistry = useModuleRegistry()
 
 /** 模組是否鎖住：授權不足或無該系統權限 */
 const isModuleLocked = (module: SystemModule) =>
 	isModuleLockedByLicense(module) || !hasModulePermission(module)
 
-const systemModules = computed(() => getAllModules())
+const systemModules = computed(() => moduleRegistry.getAllModules())
 
 const handleModuleClick = (module: SystemModule) => {
 	if (!hasModulePermission(module)) {
@@ -155,6 +156,7 @@ let handleResize: (() => void) | null = null
 let lastModulesPerPage = 8 // 初始值
 
 onMounted(() => {
+	void moduleRegistry.ensureLoaded()
 	// onMounted 只在客戶端執行，所以在這裡更新視窗寬度是安全的
 	// 這確保 SSR 和 CSR 初始狀態一致（都使用 1024），然後在客戶端掛載後更新
 	windowWidth.value = window.innerWidth

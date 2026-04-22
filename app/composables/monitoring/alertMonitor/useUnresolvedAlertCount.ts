@@ -11,6 +11,7 @@ import type { AlertCountEvent } from "~/types/websocket";
 import { logger } from "~/utils/logger";
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
+import { useAuth } from "~/composables/core/useAuth";
 import { watch } from "vue";
 
 const countLogger = logger.createLogger("UnresolvedAlertCount");
@@ -21,6 +22,7 @@ const FALLBACK_POLLING_INTERVAL_MS = 30_000; // 斷線後備輪詢
 export const useUnresolvedAlertCount = () => {
 	const alertApi = useAlertApi();
 	const { isConnected, on, off } = useWebSocket();
+	const { hasPermission } = useAuth();
 
 	/** 與 useAlertMonitor 內其他狀態一致：跨元件共用，避免 layout 更新、AppHeader 讀到另一份 ref 永遠為 0 */
 	const unresolvedAlertCount = useState<number>("alert-monitor:unresolved-count", () => 0);
@@ -38,6 +40,10 @@ export const useUnresolvedAlertCount = () => {
 	 * 透過 REST 載入未解決數（所有 status=active，與 alert:count 一致）
 	 */
 	const loadUnresolvedAlertCount = async (filters?: { source?: AlertSource }) => {
+		if (!hasPermission("system.alert_log")) {
+			unresolvedAlertCount.value = 0;
+			return;
+		}
 		if (isLoadingCount.value) return;
 
 		isLoadingCount.value = true;
@@ -115,6 +121,10 @@ export const useUnresolvedAlertCount = () => {
 
 	const startAlertCountMonitoring = () => {
 		stopAlertCountMonitoring();
+		if (!hasPermission("system.alert_log")) {
+			unresolvedAlertCount.value = 0;
+			return;
+		}
 
 		handleAlertCount = handleAlertCountEvent;
 

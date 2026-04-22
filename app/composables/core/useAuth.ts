@@ -1,6 +1,6 @@
 import type { User, LoginCredentials } from "~/types/user";
 import { useUserApi } from "~/composables/systems/users/useUserApi";
-import { getPermissionCodeByRoute } from "~/constants/permissions";
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 
 export const useAuth = () => {
 	const userApi = useUserApi();
@@ -54,7 +54,8 @@ export const useAuth = () => {
 
 	/** 是否具備該模組（系統）的存取權限：若該路由需權限則檢查 hasPermission，否則視為有權限 */
 	const hasModulePermission = (module: { route: string }): boolean => {
-		const code = getPermissionCodeByRoute(module.route);
+		const moduleRegistry = useModuleRegistry();
+		const code = moduleRegistry.getPermissionCodeByRoute(module.route);
 		if (!code) return true;
 		return hasPermission(code);
 	};

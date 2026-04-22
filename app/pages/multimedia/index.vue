@@ -50,9 +50,9 @@
 			</button>
 		</div>
 
-		<div v-show="activeTab === 'basic'" class="grid grid-cols-12 gap-6">
+		<div v-show="activeTab === 'basic'" class="grid grid-cols-12 gap-4">
 			<!-- 圖片 -->
-			<div class="col-span-7 space-y-6">
+			<div class="col-span-7 space-y-4">
 				<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
 					<h2 class="text-2xl font-semibold tracking-[4px]">圖片設定</h2>
 
@@ -83,23 +83,20 @@
 					<div class="mt-4">
 						<textarea
 							v-model="draft.bannerMarqueeText"
-							rows="3"
+							rows="4"
 							class="form-input-small w-full"
-							placeholder="Banner 文字"
+							placeholder="看板文字"
 						/>
 					</div>
 				</section>
 			</div>
 
 			<!-- Right -->
-			<div class="col-span-5">
-				<section
-					class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white min-h-[560px]"
-				>
+			<div class="col-span-5 space-y-4">
+				<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
 					<h2 class="text-2xl font-semibold tracking-[4px]">環境資料來源</h2>
 
 					<div class="mt-4">
-						<div class="mb-2 text-lg font-semibold text-white/80">感測器設備</div>
 						<div v-if="isLoadingSensorDevices" class="py-4 text-center text-base text-white/60">
 							載入中...
 						</div>
@@ -126,12 +123,9 @@
 								<span class="text-base text-white">{{ device.name }}</span>
 							</label>
 						</div>
-						<p class="mt-4 text-sm text-white/50">可勾選多台設備，資訊牆數值將由所選設備提供</p>
 					</div>
 
 					<div class="mt-5 border-t border-white/50 pt-4">
-						<div class="mb-4 text-lg font-semibold text-white/80">環境骨架（固定順序）</div>
-
 						<div class="grid grid-cols-2 gap-2">
 							<div
 								v-for="item in fixedEnvSkeleton"
@@ -147,6 +141,54 @@
 								<span class="ml-auto text-sm text-white/50">{{ item.unit }}</span>
 							</div>
 						</div>
+					</div>
+				</section>
+
+				<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
+					<h2 class="text-2xl font-semibold tracking-[4px]">看板分頁 / 輪播</h2>
+					<div class="mt-4 grid grid-cols-2 gap-4">
+						<label class="block">
+							<div class="mb-1 text-sm text-white/80">公告每頁筆數</div>
+							<input
+								v-model.number="draft.wallAnnouncementsPerPage"
+								type="number"
+								min="1"
+								max="20"
+								class="form-input-small w-full"
+							/>
+						</label>
+						<label class="block">
+							<div class="mb-1 text-sm text-white/80">排程每頁筆數</div>
+							<input
+								v-model.number="draft.wallSchedulesPerPage"
+								type="number"
+								min="1"
+								max="20"
+								class="form-input-small w-full"
+							/>
+						</label>
+					</div>
+					<div class="mt-4 grid grid-cols-2 gap-4">
+						<label class="block">
+							<div class="mb-1 text-sm text-white/80">公告自動切頁（秒）</div>
+							<input
+								v-model.number="wallAnnouncementAutoPageIntervalSec"
+								type="number"
+								min="1"
+								max="120"
+								class="form-input-small w-full"
+							/>
+						</label>
+						<label class="block">
+							<div class="mb-1 text-sm text-white/80">排程自動切頁（秒）</div>
+							<input
+								v-model.number="wallScheduleAutoPageIntervalSec"
+								type="number"
+								min="1"
+								max="120"
+								class="form-input-small w-full"
+							/>
+						</label>
 					</div>
 				</section>
 			</div>
@@ -175,37 +217,67 @@
 						>
 							<div class="flex items-center justify-between gap-3">
 								<div class="flex items-center gap-3">
-									<label class="flex items-center gap-2 text-sm text-white/80">
+									<label class="flex items-center gap-2 text-xl text-white/80">
 										<input v-model="a.pinned" type="checkbox" class="h-4 w-4" />
 										置頂
 									</label>
-									<span class="text-xs text-white/50">排序：{{ a.sortOrder }}</span>
+									<label class="flex items-center gap-2 text-xl text-white/80">
+										<input v-model="a.enabled" type="checkbox" class="h-4 w-4" />
+										啟用
+									</label>
 								</div>
-								<button
-									type="button"
-									class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent px-3 py-2 text-sm font-light text-white transition-all hover:bg-white/10"
-									@click="handleRemoveAnnouncement(announcementOffset + idx)"
-								>
-									刪除
-								</button>
+								<div class="flex items-center gap-2">
+									<div class="btn-reorder-stack">
+										<button
+											type="button"
+											class="btn-reorder-arrow"
+											:disabled="announcementOffset + idx <= 0"
+											title="上移"
+											aria-label="此公告上移"
+											@click="handleReorderAnnouncement(announcementOffset + idx, 'up')"
+										>
+											↑
+										</button>
+										<button
+											type="button"
+											class="btn-reorder-arrow"
+											:disabled="announcementOffset + idx >= (draft.announcements || []).length - 1"
+											title="下移"
+											aria-label="此公告下移"
+											@click="handleReorderAnnouncement(announcementOffset + idx, 'down')"
+										>
+											↓
+										</button>
+									</div>
+									<button
+										type="button"
+										class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent px-3 py-2 text-sm font-light text-white transition-all hover:bg-white/10"
+										@click="handleRemoveAnnouncement(announcementOffset + idx)"
+									>
+										刪除
+									</button>
+								</div>
 							</div>
 
 							<div class="mt-3 grid grid-cols-2 gap-3">
 								<label class="block">
-									<div class="mb-1 text-sm text-white/80">標題</div>
-									<input
-										v-model="a.title"
-										type="text"
-										class="form-input-small w-full"
-										placeholder="例如：設備施工公告"
-									/>
+									<div class="mb-1 text-sm text-white/80">開始日期</div>
+									<input v-model="a.startDate" type="date" class="form-input-small w-full" />
 								</label>
 								<label class="block">
-									<div class="mb-1 text-sm text-white/80">顯示排序（數字小先）</div>
-									<input
-										v-model.number="a.sortOrder"
-										type="number"
+									<div class="mb-1 text-sm text-white/80">結束日期</div>
+									<input v-model="a.endDate" type="date" class="form-input-small w-full" />
+								</label>
+							</div>
+
+							<div class="mt-3 grid grid-cols-1 gap-3">
+								<label class="block">
+									<div class="mb-1 text-sm text-white/80">內容</div>
+									<textarea
+										v-model="a.title"
+										rows="2"
 										class="form-input-small w-full"
+										placeholder="例如：設備施工公告"
 									/>
 								</label>
 							</div>
@@ -243,29 +315,43 @@
 							class="rounded-xl border border-white/15 bg-black/15 p-4"
 						>
 							<div class="flex items-center justify-between gap-3">
-								<span class="text-xs text-white/50">排序：{{ s.sortOrder }}</span>
-								<button
-									type="button"
-									class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent px-3 py-2 text-sm font-light text-white transition-all hover:bg-white/10"
-									@click="handleRemoveSchedule(scheduleOffset + idx)"
-								>
-									刪除
-								</button>
-							</div>
-
-							<div class="mt-3 grid grid-cols-2 gap-3">
-								<label class="block">
-									<div class="mb-1 text-sm text-white/80">日期</div>
-									<input v-model="s.date" type="date" class="form-input-small w-full" />
-								</label>
-								<label class="block">
-									<div class="mb-1 text-sm text-white/80">顯示排序（數字小先）</div>
-									<input
-										v-model.number="s.sortOrder"
-										type="number"
-										class="form-input-small w-full"
-									/>
-								</label>
+								<div class="flex items-center gap-3">
+									<label class="flex items-center gap-2 text-xl text-white/80">
+										<input v-model="s.enabled" type="checkbox" class="h-4 w-4" />
+										啟用
+									</label>
+								</div>
+								<div class="flex items-center gap-2">
+									<div class="btn-reorder-stack">
+										<button
+											type="button"
+											class="btn-reorder-arrow"
+											:disabled="scheduleOffset + idx <= 0"
+											title="上移"
+											aria-label="此排程上移"
+											@click="handleReorderSchedule(scheduleOffset + idx, 'up')"
+										>
+											↑
+										</button>
+										<button
+											type="button"
+											class="btn-reorder-arrow"
+											:disabled="scheduleOffset + idx >= (draft.schedules || []).length - 1"
+											title="下移"
+											aria-label="此排程下移"
+											@click="handleReorderSchedule(scheduleOffset + idx, 'down')"
+										>
+											↓
+										</button>
+									</div>
+									<button
+										type="button"
+										class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent px-3 py-2 text-sm font-light text-white transition-all hover:bg-white/10"
+										@click="handleRemoveSchedule(scheduleOffset + idx)"
+									>
+										刪除
+									</button>
+								</div>
 							</div>
 
 							<div class="mt-3 grid grid-cols-2 gap-3">
@@ -347,8 +433,31 @@ const draft = reactive<MultimediaDashboardSettings>({
 	bannerMarqueeText: "",
 	envDeviceIds: [],
 	envDisplayParameters: [],
+	wallAnnouncementsPerPage: 5,
+	wallSchedulesPerPage: 4,
+	wallAnnouncementsAutoPageIntervalMs: 10000,
+	wallSchedulesAutoPageIntervalMs: 10000,
 	announcements: [],
 	schedules: [],
+})
+
+const wallAnnouncementAutoPageIntervalSec = computed({
+	get: () =>
+		Math.max(1, Math.round(Number(draft.wallAnnouncementsAutoPageIntervalMs || 10000) / 1000)),
+	set: (sec: number) => {
+		const n = Number(sec)
+		if (!Number.isFinite(n)) return
+		draft.wallAnnouncementsAutoPageIntervalMs = Math.round(Math.max(1, n) * 1000)
+	},
+})
+
+const wallScheduleAutoPageIntervalSec = computed({
+	get: () => Math.max(1, Math.round(Number(draft.wallSchedulesAutoPageIntervalMs || 10000) / 1000)),
+	set: (sec: number) => {
+		const n = Number(sec)
+		if (!Number.isFinite(n)) return
+		draft.wallSchedulesAutoPageIntervalMs = Math.round(Math.max(1, n) * 1000)
+	},
 })
 
 const ITEMS_PER_PAGE = 5
@@ -498,12 +607,95 @@ const handleToggleEnvDevice = (deviceId: number) => {
 
 const newId = (prefix: string) => `${prefix}_${Date.now()}_${Math.round(Math.random() * 1e9)}`
 
+const isValidDateKey = (v: unknown): v is string => {
+	if (typeof v !== "string") return false
+	return /^\d{4}-\d{2}-\d{2}$/.test(v)
+}
+const isValidTimeKey = (v: unknown): v is string => {
+	if (typeof v !== "string") return false
+	if (!/^\d{2}:\d{2}$/.test(v)) return false
+	const [hh, mm] = v.split(":").map((x) => Number(x))
+	if (!Number.isFinite(hh) || !Number.isFinite(mm)) return false
+	if (hh < 0 || hh > 23) return false
+	if (mm < 0 || mm > 59) return false
+	return true
+}
+const toDateKeyOrEmpty = (v: unknown) => (isValidDateKey(v) ? v : "")
+const toTimeKeyOrEmpty = (v: unknown) => (isValidTimeKey(v) ? v : "")
+
+const swapInPlace = <T,>(arr: T[], i: number, j: number) => {
+	if (i < 0 || j < 0) return
+	if (i >= arr.length || j >= arr.length) return
+	;[arr[i], arr[j]] = [arr[j]!, arr[i]!]
+}
+
+const handleReorderAnnouncement = (globalIndex: number, direction: "up" | "down") => {
+	const list = draft.announcements || []
+	const nextIndex = direction === "up" ? globalIndex - 1 : globalIndex + 1
+	swapInPlace(list, globalIndex, nextIndex)
+}
+
+const handleReorderSchedule = (globalIndex: number, direction: "up" | "down") => {
+	const list = draft.schedules || []
+	const nextIndex = direction === "up" ? globalIndex - 1 : globalIndex + 1
+	swapInPlace(list, globalIndex, nextIndex)
+}
+
+const validateDraft = (): { ok: true } | { ok: false; message: string } => {
+	const clampInt = (v: unknown, min: number, max: number, fallback: number) => {
+		const n = Number(v)
+		if (!Number.isFinite(n)) return fallback
+		const i = Math.floor(n)
+		if (i < min) return min
+		if (i > max) return max
+		return i
+	}
+
+	draft.wallAnnouncementsPerPage = clampInt(draft.wallAnnouncementsPerPage, 1, 20, 5)
+	draft.wallSchedulesPerPage = clampInt(draft.wallSchedulesPerPage, 1, 20, 4)
+	draft.wallAnnouncementsAutoPageIntervalMs = clampInt(
+		draft.wallAnnouncementsAutoPageIntervalMs,
+		1000,
+		120000,
+		10000
+	)
+	draft.wallSchedulesAutoPageIntervalMs = clampInt(
+		draft.wallSchedulesAutoPageIntervalMs,
+		1000,
+		120000,
+		10000
+	)
+
+	for (const [i, a] of (draft.announcements || []).entries()) {
+		const startKey = (a as any)?.startDate
+		const endKey = (a as any)?.endDate
+		const start = toDateKeyOrEmpty(startKey)
+		const end = toDateKeyOrEmpty(endKey)
+		if (startKey && !start) return { ok: false, message: `公告第 ${i + 1} 筆：開始日期格式不正確` }
+		if (endKey && !end) return { ok: false, message: `公告第 ${i + 1} 筆：結束日期格式不正確` }
+		if (start && end && start > end)
+			return { ok: false, message: `公告第 ${i + 1} 筆：開始日期不可晚於結束日期` }
+	}
+
+	for (const [i, s] of (draft.schedules || []).entries()) {
+		const start = toTimeKeyOrEmpty((s as any)?.startTime)
+		const end = toTimeKeyOrEmpty((s as any)?.endTime)
+		if (!start) return { ok: false, message: `排程第 ${i + 1} 筆：開始時間格式不正確` }
+		if (!end) return { ok: false, message: `排程第 ${i + 1} 筆：結束時間格式不正確` }
+		if (start >= end) return { ok: false, message: `排程第 ${i + 1} 筆：開始時間需早於結束時間` }
+	}
+
+	return { ok: true }
+}
+
 const handleAddAnnouncement = () => {
 	const next: MultimediaAnnouncement = {
 		id: newId("a"),
 		title: "",
 		pinned: false,
-		sortOrder: draft.announcements.length,
+		enabled: true,
+		startDate: "",
+		endDate: "",
 	}
 	draft.announcements.push(next)
 }
@@ -513,17 +705,12 @@ const handleRemoveAnnouncement = (index: number) => {
 }
 
 const handleAddSchedule = () => {
-	const today = new Date()
-	const yyyy = today.getFullYear()
-	const mm = String(today.getMonth() + 1).padStart(2, "0")
-	const dd = String(today.getDate()).padStart(2, "0")
 	const next: MultimediaSchedule = {
 		id: newId("s"),
-		date: `${yyyy}-${mm}-${dd}`,
+		enabled: true,
 		startTime: "09:00",
 		endTime: "12:00",
 		title: "",
-		sortOrder: draft.schedules.length,
 	}
 	draft.schedules.push(next)
 }
@@ -582,6 +769,12 @@ const handleSave = async () => {
 		return
 	}
 	if (isSaving.value) return
+
+	const validation = validateDraft()
+	if (validation.ok === false) {
+		toast.error(validation.message, 3500)
+		return
+	}
 
 	isSaving.value = true
 	try {

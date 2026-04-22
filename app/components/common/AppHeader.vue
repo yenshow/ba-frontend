@@ -322,11 +322,15 @@ import { useAuth } from "~/composables/core/useAuth"
 import { useLicense } from "~/composables/core/useLicense"
 import { useToast } from "~/composables/core/useToast"
 import { useTheme } from "~/composables/core/useTheme"
-import { SYSTEM_CATEGORY_ACCENT_COLORS } from "~/config/system-modules"
 import { hexRelativeLuminance, hexToRgba } from "~/utils/colorUtils"
-import { getModuleByRoute, getModulesByCategory } from "~/utils/systemUtils"
 import { LICENSE_MESSAGE_LOCKED, PERMISSION_MESSAGE_LOCKED } from "~/utils/licenseUtils"
 import type { SystemModule } from "~/types/system"
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
+import {
+	MODULE_CATEGORY_ACCENT_HEX,
+	MODULE_CATEGORY_LABELS,
+	MODULE_CATEGORY_ORDER,
+} from "~/constants/moduleCategories"
 
 // 用戶選單狀態
 const isUserMenuOpen = ref(false)
@@ -369,14 +373,15 @@ const userInfo = computed(() => ({
 }))
 
 const route = useRoute()
+const systemModulesApi = useModuleRegistry()
 
-const currentModule = computed(() => getModuleByRoute(route.path))
+const currentModule = computed(() => systemModulesApi.getUiModuleByRoute(route.path))
 
 const defaultHeaderBorderAccent = { dark: "#007878", light: "#00BAC2" } as const
 
 const moduleAccentHex = computed(() => {
 	const m = currentModule.value
-	return m ? SYSTEM_CATEGORY_ACCENT_COLORS[m.category] : null
+	return m ? MODULE_CATEGORY_ACCENT_HEX[m.category] : null
 })
 
 const { theme, isDark, toggleTheme } = useTheme()
@@ -403,45 +408,23 @@ const systemTitleChrome = computed(() => {
 })
 
 const getMoreMenuCategoryLabelStyle = (category: SystemModule["category"]) => {
-	const hex = SYSTEM_CATEGORY_ACCENT_COLORS[category]
+	const hex = MODULE_CATEGORY_ACCENT_HEX[category]
 	return {
 		backgroundColor: hex,
 		color: hexRelativeLuminance(hex) > 0.55 ? "#1a1a1a" : "#ffffff",
 	}
 }
 
-// 分類標籤對應
-const categoryLabels: Record<string, string> = {
-	core: "核心基礎",
-	"construction-monitoring": "工地監控",
-	infrastructure: "基礎設施",
-	security: "安全相關",
-	business: "業務管理",
-	multimedia: "多媒體",
-}
-
-// 分類順序（按優先級排列）
-const categoryOrder = [
-	"core",
-	"construction-monitoring",
-	"infrastructure",
-	"security",
-	"business",
-	"multimedia",
-] as const
-
-// 按分類分組的模組
+// 按分類分組的模組（標籤／順序與 SSOT `moduleCategories` 一致）
 const categoryGroups = computed(() => {
-	return categoryOrder
-		.map((category) => {
-			const modules = getModulesByCategory(category)
-			return {
-				category,
-				label: categoryLabels[category] || category,
-				modules,
-			}
-		})
-		.filter((group) => group.modules.length > 0)
+	return MODULE_CATEGORY_ORDER.map((category) => {
+		const modules = systemModulesApi.getModulesByCategory(category)
+		return {
+			category,
+			label: MODULE_CATEGORY_LABELS[category],
+			modules,
+		}
+	}).filter((group) => group.modules.length > 0)
 })
 
 // Active 狀態判斷
@@ -510,6 +493,7 @@ const handleClickOutside = (event: MouseEvent) => {
 // 監聽點擊事件
 onMounted(() => {
 	document.addEventListener("click", handleClickOutside)
+	void systemModulesApi.ensureLoaded()
 })
 
 onUnmounted(() => {
@@ -527,9 +511,6 @@ watch(
 		}
 	}
 )
-
-// 路由切到 alert-log 時主動刷新一次數量
-// 生命週期（啟動/停止監聽）統一由 default.vue 的 startMonitoring/stopMonitoring 管理
 </script>
 
 <style scoped>
@@ -572,33 +553,6 @@ watch(
 	clip-path: inherit;
 	opacity: 0.45;
 }
-/* 
-.system-title::after {
-	content: "";
-	position: absolute;
-	top: -12%;
-	left: -45%;
-	width: 45%;
-	height: 124%;
-	background: linear-gradient(
-		90deg,
-		transparent 0%,
-		rgba(255, 255, 255, 0.5) 50%,
-		transparent 100%
-	);
-	opacity: 0.6;
-	transform: skewX(-17deg);
-	animation: system-title-scan 3.8s linear infinite;
-}
-
-@keyframes system-title-scan {
-	0% {
-		transform: translateX(0) skewX(-15deg);
-	}
-	100% {
-		transform: translateX(290%) skewX(-15deg);
-	}
-} */
 
 .icon-button {
 	transition: all 0.2s ease;

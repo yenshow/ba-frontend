@@ -11,7 +11,7 @@ import {
 import { useEnvironmentLocationValidation } from "~/composables/location/validation/useEnvironmentLocationValidation"
 import { useLightingLocationValidation } from "~/composables/location/validation/useLightingLocationValidation"
 import { usePeopleCountingLocationValidation } from "~/composables/location/validation/usePeopleCountingLocationValidation"
-import { getSystemTypeLabel } from "~/constants/systemLabels"
+import { getSystemTypeLabel } from "~/types/location"
 
 export type ValidationPipelineResult = {
 	isValid: boolean

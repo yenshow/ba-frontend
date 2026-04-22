@@ -17,11 +17,20 @@ export interface Person {
 	group_name?: string | null;
 	status: "active" | "inactive" | "deleted";
 	face_url?: string | null;
+	/** 後端 getPersonsPaged 會附上門禁權限摘要（JSON array） */
+	access_locations?: AccessLocation[] | null;
 	config?: Record<string, unknown> | null;
 	created_by?: number | null;
 	user_id?: number | null;
 	created_at?: string;
 	updated_at?: string;
+}
+
+export interface PagedResult<T> {
+	items: T[];
+	total: number;
+	limit: number;
+	offset: number;
 }
 
 /** 門禁權限：人員可進出之地點 */
@@ -45,14 +54,6 @@ export interface AccessLocationsResponse {
 	locations: AccessLocation[];
 }
 
-/** 匯入請求單筆 */
-export interface ImportPersonRow {
-	employeeNo: string;
-	fullName?: string;
-	personGroupId?: number;
-	locationIds?: number[];
-}
-
 /** 批次匯入回傳 */
 export interface ImportResult {
 	created: number;
@@ -74,4 +75,32 @@ export interface SyncLocationResult {
 	locationId: number;
 	locationName?: string;
 	warnings: SyncWarning[];
+}
+
+export interface SyncAllLocationsJob {
+	jobId: string;
+	status: "queued" | "running" | "completed";
+	createdAt: number;
+	startedAt: number | null;
+	finishedAt: number | null;
+	progress: {
+		total: number;
+		completed: number;
+		currentLocationId: number | null;
+		currentLocationName: string | null;
+	};
+	result: { synced: number; results: SyncLocationResult[] } | null;
+	error: { message: string } | null;
+}
+
+export interface SyncLocationJob {
+	jobId: string;
+	locationId: number;
+	locationName: string | null;
+	status: "queued" | "running" | "completed";
+	createdAt: number;
+	startedAt: number | null;
+	finishedAt: number | null;
+	result: { warnings: SyncWarning[] } | null;
+	error: { message: string } | null;
 }

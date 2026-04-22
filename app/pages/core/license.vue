@@ -389,6 +389,7 @@ const featureLabels: Record<string, string> = {
 	environment: "環境品質",
 	surveillance: "影像監控",
 	vehicle_access: "車輛進出",
+	multimedia: "多媒體資訊",
 }
 
 const { isAdmin } = useAuth()

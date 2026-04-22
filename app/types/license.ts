@@ -44,6 +44,5 @@ export type LicenseState = {
 	activationMethod?: string | null
 	deviceFingerprint?: string | null
 	extensionKeys?: string[]
-	/** 各次啟用記錄之 LK 與該次帶入功能（主／副）；舊資料可能為空 */
 	licenseEntitlements?: LicenseEntitlementEntry[]
 }

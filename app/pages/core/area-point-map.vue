@@ -18,11 +18,11 @@
 									{{ selectedZoneName }}
 								</span>
 							</div>
-							<!-- 區域管理按鈕（依權限 operation.location_management 或 admin） -->
+							<!-- 區域管理按鈕（依權限 system.area_point_map 或 admin） -->
 							<Transition name="fade-in">
 								<button
 									v-if="
-										!isInitialLoading && (isAdmin || hasPermission(PERMISSIONS.LOCATION_MANAGEMENT))
+										!isInitialLoading && (isAdmin || hasPermission(LOCATION_MANAGEMENT_PERMISSION_CODE))
 									"
 									type="button"
 									@click="handleOpenZoneDialog"
@@ -194,7 +194,6 @@ import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { useAuth } from "~/composables/core/useAuth"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { PERMISSIONS } from "~/constants/permissions"
 import {
 	getLocationStyleBySystem,
 	hasAnySystemCoordinates,
@@ -218,7 +217,7 @@ import { useDrainageModbusIntegration } from "~/composables/systems/drainage/use
 import { usePowerModbusIntegration } from "~/composables/systems/power/usePowerModbusIntegration"
 import { useHvacModbusIntegration } from "~/composables/systems/hvac/useHvacModbusIntegration"
 import { useFireModbusIntegration } from "~/composables/systems/fire/useFireModbusIntegration"
-import { getSystemTypeLabel } from "~/constants/systemLabels"
+import { getSystemTypeLabel } from "~/types/location"
 import { getLocationUiKey } from "~/utils/locationUiId"
 
 definePageMeta({
@@ -230,6 +229,8 @@ const locationApi = useLocationApi()
 const { handleError } = useErrorHandler()
 const { handleDeleteZone: baseHandleDeleteZone, sortZones } =
 	useZoneManagement<UnifiedLocation, UnifiedZone>()
+
+const LOCATION_MANAGEMENT_PERMISSION_CODE = "system.area_point_map"
 
 // 左側區域參考與高度（用於使右側面板同高）
 const leftSectionRef = ref<HTMLElement | null>(null)

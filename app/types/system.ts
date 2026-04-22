@@ -7,6 +7,7 @@ export interface SystemModule {
 	name: string
 	icon: string
 	route: string
+	permissionCode?: string
 	category:
 		| "core"
 		| "construction-monitoring"

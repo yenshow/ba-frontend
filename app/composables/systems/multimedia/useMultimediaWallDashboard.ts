@@ -18,13 +18,23 @@ import {
 	type MonitoringUiStatus,
 } from "~/utils/monitoringStatus"
 
-const ANNOUNCEMENTS_PER_PAGE = 5
-const SCHEDULES_PER_PAGE = 4
-
-const ANNOUNCEMENTS_AUTO_PAGE_INTERVAL_MS = 10000
-const SCHEDULES_AUTO_PAGE_INTERVAL_MS = 10000
+const DEFAULT_ANNOUNCEMENTS_PER_PAGE = 5
+const DEFAULT_SCHEDULES_PER_PAGE = 4
+const DEFAULT_ANNOUNCEMENTS_AUTO_PAGE_INTERVAL_MS = 10000
+const DEFAULT_SCHEDULES_AUTO_PAGE_INTERVAL_MS = 10000
 
 const VIDEO_EXTS = new Set(["mp4", "webm", "mov", "m4v", "ogv", "ogg"])
+const isValidDateKey = (v: unknown): v is string => {
+	if (typeof v !== "string") return false
+	return /^\d{4}-\d{2}-\d{2}$/.test(v)
+}
+const toDateKeyOrEmpty = (v: unknown) => (isValidDateKey(v) ? v : "")
+const isDateInRange = (dateKey: string, startKey: string, endKey: string) => {
+	if (!dateKey) return false
+	if (startKey && dateKey < startKey) return false
+	if (endKey && dateKey > endKey) return false
+	return true
+}
 const getUrlExt = (url: string) => {
 	if (!url) return ""
 	const clean = url.split("?")[0].split("#")[0]
@@ -136,17 +146,58 @@ export const useMultimediaWallDashboard = () => {
 
 	const bannerText = computed(() => settings.bannerMarqueeText?.trim() || "")
 
-	const sortedAnnouncements = computed(() => {
-		const list = [...(settings.announcements || [])]
-		return list.sort(
-			(a, b) => Number(b.pinned) - Number(a.pinned) || (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+	const clampInt = (v: unknown, min: number, max: number, fallback: number) => {
+		const n = Number(v)
+		if (!Number.isFinite(n)) return fallback
+		const i = Math.floor(n)
+		if (i < min) return min
+		if (i > max) return max
+		return i
+	}
+
+	const announcementsPerPage = computed(() =>
+		clampInt((settings as any)?.wallAnnouncementsPerPage, 1, 20, DEFAULT_ANNOUNCEMENTS_PER_PAGE)
+	)
+	const schedulesPerPage = computed(() =>
+		clampInt((settings as any)?.wallSchedulesPerPage, 1, 20, DEFAULT_SCHEDULES_PER_PAGE)
+	)
+	const announcementsAutoPageIntervalMs = computed(() =>
+		clampInt(
+			(settings as any)?.wallAnnouncementsAutoPageIntervalMs,
+			1000,
+			120000,
+			DEFAULT_ANNOUNCEMENTS_AUTO_PAGE_INTERVAL_MS
 		)
+	)
+	const schedulesAutoPageIntervalMs = computed(() =>
+		clampInt(
+			(settings as any)?.wallSchedulesAutoPageIntervalMs,
+			1000,
+			120000,
+			DEFAULT_SCHEDULES_AUTO_PAGE_INTERVAL_MS
+		)
+	)
+
+	const sortedAnnouncements = computed(() => {
+		const today = formatDateInput(new Date())
+		const list = [...(settings.announcements || [])].filter((a) => {
+			if ((a as any)?.enabled === false) return false
+			const startKey = toDateKeyOrEmpty((a as any)?.startDate)
+			const endKey = toDateKeyOrEmpty((a as any)?.endDate)
+			if (!startKey && !endKey) return true
+			return isDateInRange(today, startKey, endKey)
+		})
+		return list
+			.map((a, idx) => ({ a, idx }))
+			.sort((x, y) => Number((y.a as any)?.pinned) - Number((x.a as any)?.pinned) || x.idx - y.idx)
+			.map((x) => x.a)
 	})
 
 	const announcementPageIndex = ref(0)
 	const announcementTotalPages = computed(() => {
 		const total = sortedAnnouncements.value.length
-		return total > 0 ? Math.ceil(total / ANNOUNCEMENTS_PER_PAGE) : 0
+		const perPage = announcementsPerPage.value
+		return total > 0 ? Math.ceil(total / perPage) : 0
 	})
 
 	const clampAnnouncementPageIndex = () => {
@@ -166,8 +217,9 @@ export const useMultimediaWallDashboard = () => {
 	watch(() => sortedAnnouncements.value.length, clampAnnouncementPageIndex, { immediate: true })
 
 	const pagedAnnouncements = computed(() => {
-		const start = announcementPageIndex.value * ANNOUNCEMENTS_PER_PAGE
-		return sortedAnnouncements.value.slice(start, start + ANNOUNCEMENTS_PER_PAGE)
+		const perPage = announcementsPerPage.value
+		const start = announcementPageIndex.value * perPage
+		return sortedAnnouncements.value.slice(start, start + perPage)
 	})
 
 	let announcementAutoPager: ReturnType<typeof setInterval> | null = null
@@ -177,7 +229,7 @@ export const useMultimediaWallDashboard = () => {
 			const total = announcementTotalPages.value
 			if (total <= 1) return
 			handleSetAnnouncementPage((announcementPageIndex.value + 1) % total)
-		}, ANNOUNCEMENTS_AUTO_PAGE_INTERVAL_MS)
+		}, announcementsAutoPageIntervalMs.value)
 	}
 	const stopAnnouncementAutoPager = () => {
 		if (!announcementAutoPager) return
@@ -185,16 +237,23 @@ export const useMultimediaWallDashboard = () => {
 		announcementAutoPager = null
 	}
 
-	const todayKey = computed(() => formatDateInput(new Date()))
+	watch(
+		() => announcementsAutoPageIntervalMs.value,
+		() => {
+			stopAnnouncementAutoPager()
+			startAnnouncementAutoPager()
+		}
+	)
+
 	const todaySchedules = computed(() => {
-		const list = (settings.schedules || []).filter((s) => s.date === todayKey.value)
-		return [...list].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+		return (settings.schedules || []).filter((s) => (s as any)?.enabled !== false)
 	})
 
 	const schedulePageIndex = ref(0)
 	const scheduleTotalPages = computed(() => {
 		const total = todaySchedules.value.length
-		return total > 0 ? Math.ceil(total / SCHEDULES_PER_PAGE) : 0
+		const perPage = schedulesPerPage.value
+		return total > 0 ? Math.ceil(total / perPage) : 0
 	})
 
 	const clampSchedulePageIndex = () => {
@@ -214,8 +273,9 @@ export const useMultimediaWallDashboard = () => {
 	watch(() => todaySchedules.value.length, clampSchedulePageIndex, { immediate: true })
 
 	const pagedTodaySchedules = computed(() => {
-		const start = schedulePageIndex.value * SCHEDULES_PER_PAGE
-		return todaySchedules.value.slice(start, start + SCHEDULES_PER_PAGE)
+		const perPage = schedulesPerPage.value
+		const start = schedulePageIndex.value * perPage
+		return todaySchedules.value.slice(start, start + perPage)
 	})
 
 	let scheduleAutoPager: ReturnType<typeof setInterval> | null = null
@@ -225,13 +285,21 @@ export const useMultimediaWallDashboard = () => {
 			const total = scheduleTotalPages.value
 			if (total <= 1) return
 			handleSetSchedulePage((schedulePageIndex.value + 1) % total)
-		}, SCHEDULES_AUTO_PAGE_INTERVAL_MS)
+		}, schedulesAutoPageIntervalMs.value)
 	}
 	const stopScheduleAutoPager = () => {
 		if (!scheduleAutoPager) return
 		clearInterval(scheduleAutoPager)
 		scheduleAutoPager = null
 	}
+
+	watch(
+		() => schedulesAutoPageIntervalMs.value,
+		() => {
+			stopScheduleAutoPager()
+			startScheduleAutoPager()
+		}
+	)
 
 	const getReading = (key: string): number | null => {
 		const v = (sensorData as any)[key]
@@ -352,13 +420,13 @@ export const useMultimediaWallDashboard = () => {
 		pagedAnnouncements,
 		announcementPageIndex,
 		announcementTotalPages,
-		announcementsPerPage: ANNOUNCEMENTS_PER_PAGE,
+		announcementsPerPage,
 		handleSetAnnouncementPage,
 		todaySchedules,
 		pagedTodaySchedules,
 		schedulePageIndex,
 		scheduleTotalPages,
-		schedulesPerPage: SCHEDULES_PER_PAGE,
+		schedulesPerPage,
 		handleSetSchedulePage,
 		environmentMetrics,
 		displayMetricKeys,

@@ -45,8 +45,9 @@
 							/>
 						</label>
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-							<span>群組</span>
+							<span v-if="deviceTypeCode === 'camera'">群組</span>
 							<input
+								v-if="deviceTypeCode === 'camera'"
 								v-model="cameraGroup"
 								type="text"
 								class="form-input"
@@ -126,13 +127,59 @@
 							</label>
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 								<span>設備登入密碼 *</span>
-								<input
-									v-model="cameraPassword"
-									type="text"
-									required
-									class="form-input"
-									placeholder="請輸入設備登入密碼"
-								/>
+								<div class="relative w-full">
+									<input
+										v-model="cameraPassword"
+										:type="showCameraPassword ? 'text' : 'password'"
+										required
+										class="form-input w-full pr-12"
+										placeholder="請輸入設備登入密碼"
+										:aria-label="
+											showCameraPassword ? '攝影機密碼（已顯示）' : '攝影機密碼（已隱藏）'
+										"
+									/>
+									<button
+										type="button"
+										class="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-white/50 transition-colors hover:text-white/80 focus:outline-none"
+										:aria-label="showCameraPassword ? '隱藏密碼' : '顯示密碼'"
+										@click="showCameraPassword = !showCameraPassword"
+									>
+										<svg
+											v-if="!showCameraPassword"
+											class="h-5 w-5"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+											/>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+											/>
+										</svg>
+										<svg
+											v-else
+											class="h-5 w-5"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+											/>
+										</svg>
+									</button>
+								</div>
 							</label>
 							<div class="text-xs text-white/60 2xl:text-sm">
 								RTSP URL 預覽：
@@ -244,17 +291,60 @@
 							</label>
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 								<span>密碼 (Digest Auth) *</span>
-								<input
-									v-model="accessControlConfig.password"
-									type="password"
-									required
-									class="form-input"
-									placeholder="設備登入密碼"
-								/>
+								<div class="relative w-full">
+									<input
+										v-model="accessControlConfig.password"
+										:type="showAccessControlPassword ? 'text' : 'password'"
+										required
+										class="form-input w-full pr-12"
+										placeholder="設備登入密碼"
+										:aria-label="
+											showAccessControlPassword ? '門禁密碼（已顯示）' : '門禁密碼（已隱藏）'
+										"
+									/>
+									<button
+										type="button"
+										class="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-white/50 transition-colors hover:text-white/80 focus:outline-none"
+										:aria-label="showAccessControlPassword ? '隱藏密碼' : '顯示密碼'"
+										@click="showAccessControlPassword = !showAccessControlPassword"
+									>
+										<svg
+											v-if="!showAccessControlPassword"
+											class="h-5 w-5"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+											/>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+											/>
+										</svg>
+										<svg
+											v-else
+											class="h-5 w-5"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+											/>
+										</svg>
+									</button>
+								</div>
 							</label>
-							<p class="text-xs text-white/50 2xl:text-sm">
-								門禁事件由後端自動向設備訂閱，不需在此設備設定「事件通知 → HTTP 監聽主機」。
-							</p>
 						</template>
 
 						<label
@@ -405,6 +495,8 @@ const cameraIp = ref<string>("")
 const cameraUsername = ref<string>("admin")
 const cameraPassword = ref<string>("")
 const cameraGroup = ref<string>("")
+const showCameraPassword = ref(false)
+const showAccessControlPassword = ref(false)
 
 const selectedCameraRtspTemplate = computed(() => {
 	const config = selectedDeviceModel.value?.config as Record<string, unknown> | undefined
@@ -565,6 +657,7 @@ const resetForm = () => {
 	cameraUsername.value = "admin"
 	cameraPassword.value = ""
 	cameraGroup.value = ""
+	showCameraPassword.value = false
 
 	sensorConfig.protocol = "modbus"
 	sensorConfig.host = ""
@@ -576,6 +669,7 @@ const resetForm = () => {
 	accessControlConfig.host = ""
 	accessControlConfig.port = 80
 	accessControlConfig.password = ""
+	showAccessControlPassword.value = false
 
 	localErrorMessage.value = null
 }
