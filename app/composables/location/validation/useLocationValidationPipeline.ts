@@ -5,7 +5,7 @@ import type { VehicleAccessLocation } from "~/types/vehicleAccess"
 import { useZoneValidation, useLocationValidation } from "~/composables/location/validation/useBaseValidation"
 import { useEnvironmentLocationValidation } from "~/composables/location/validation/useEnvironmentLocationValidation"
 import { usePeopleCountingLocationValidation } from "~/composables/location/validation/usePeopleCountingLocationValidation"
-import { getSystemTypeLabel } from "~/constants/systemLabels"
+import { getSystemTypeLabel } from "~/types/location"
 
 export type ValidationPipelineResult = {
 	isValid: boolean

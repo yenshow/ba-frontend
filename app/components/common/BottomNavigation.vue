@@ -281,18 +281,15 @@ import { useAuth } from "~/composables/core/useAuth";
 import { useToast } from "~/composables/core/useToast";
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 import { useLicense } from "~/composables/core/useLicense";
-import {
-	getFeatureKeyByRoute,
-	LICENSE_MESSAGE_LOCKED,
-	PERMISSION_MESSAGE_LOCKED
-} from "~/utils/licenseUtils";
-import { PERMISSIONS, getPermissionCodeByRoute } from "~/constants/permissions";
+import { LICENSE_MESSAGE_LOCKED, PERMISSION_MESSAGE_LOCKED } from "~/utils/licenseUtils";
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 
 const route = useRoute();
 const router = useRouter();
-const { user, isAuthenticated, isAdmin, isOperator, hasPermission, logout } = useAuth();
+const { user, isAuthenticated, isAdmin, isOperator, hasModulePermission, logout } = useAuth();
 const toast = useToast();
-const { hasFeature } = useLicense();
+const { isModuleLocked: isModuleLockedByLicense } = useLicense();
+const moduleRegistry = useModuleRegistry();
 
 // 未解決警報數量（參考 AppHeader 顯示）
 const {
@@ -302,42 +299,21 @@ const {
 	stopAlertCountMonitoring
 } = useAlertMonitor();
 
-const MAIN_NAV_MODULES: SystemModule[] = [
-	{
-		id: 6,
-		name: "人流統計管理",
-		icon: "people-counting",
-		route: "/construction-monitoring/people-counting",
-		category: "construction-monitoring",
-		description: "人流統計與管理"
-	},
-	{
-		id: 5,
-		name: "環境品質系統",
-		icon: "environment",
-		route: "/construction-monitoring/environment",
-		category: "construction-monitoring",
-		description: "環境品質監測與管理"
-	},
-	{
-		id: 8,
-		name: "影像監視系統",
-		icon: "surveillance",
-		route: "/construction-monitoring/surveillance",
-		category: "construction-monitoring",
-		description: "影像監視（RTSP + WebRTC）"
-	},
-	{
-		id: 7,
-		name: "車輛進出管理",
-		icon: "vehicle-access",
-		route: "/construction-monitoring/vehicle-access",
-		category: "construction-monitoring",
-		description: "車輛進出管理系統"
-	}
-];
+const MAIN_NAV_ROUTE_ORDER = [
+	"/construction-monitoring/people-counting",
+	"/construction-monitoring/environment",
+	"/construction-monitoring/surveillance",
+	"/construction-monitoring/vehicle-access"
+] as const;
 
-const mainNavigationItems = computed<SystemModule[]>(() => MAIN_NAV_MODULES);
+const mainNavigationItems = computed<SystemModule[]>(() => {
+	const modules = moduleRegistry.getModulesByCategory("construction-monitoring");
+	const byRoute = new Map(modules.map((m) => [m.route, m] as const));
+	const ordered = MAIN_NAV_ROUTE_ORDER.map((r) => byRoute.get(r)).filter(Boolean) as SystemModule[];
+	// 若 registry 內容有增減（或排序調整），將未列入固定順序者補在後面
+	const leftovers = modules.filter((m) => !MAIN_NAV_ROUTE_ORDER.includes(m.route as any));
+	return [...ordered, ...leftovers];
+});
 
 // 輔助功能：當前活動項目用（警示紀錄、首頁）
 const auxiliaryItemsForActive = [
@@ -503,25 +479,16 @@ const navigateToRoute = (routePath: string) => {
 };
 
 const isModuleLocked = (module: SystemModule) => {
-	const featureKey = getFeatureKeyByRoute(module.route);
-	const hasLicense = !featureKey || hasFeature(featureKey);
-
-	const permissionCode = getPermissionCodeByRoute(module.route);
-	const hasSystemPermission = !permissionCode || hasPermission(permissionCode);
-
-	// 需同時具備授權與系統使用權，否則視為上鎖
-	return !(hasLicense && hasSystemPermission);
+	return isModuleLockedByLicense(module) || !hasModulePermission(module);
 };
 
 const handleModuleClick = (module: SystemModule) => {
-	const permissionCode = getPermissionCodeByRoute(module.route);
-	if (permissionCode && !hasPermission(permissionCode)) {
+	if (!hasModulePermission(module)) {
 		toast.warning(PERMISSION_MESSAGE_LOCKED);
 		return;
 	}
 
-	const featureKey = getFeatureKeyByRoute(module.route);
-	if (featureKey && !hasFeature(featureKey)) {
+	if (isModuleLockedByLicense(module)) {
 		toast.warning(LICENSE_MESSAGE_LOCKED);
 		return;
 	}
@@ -579,6 +546,7 @@ const handleClickOutside = (event: MouseEvent) => {
 onMounted(() => {
 	if (process.client) {
 		document.addEventListener("click", handleClickOutside);
+		void moduleRegistry.ensureLoaded();
 		// 初始載入未解決警報數量並開始監聽
 		void loadUnresolvedAlertCount();
 		startAlertCountMonitoring();

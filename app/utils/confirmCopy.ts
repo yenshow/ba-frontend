@@ -1,5 +1,5 @@
 import type { SystemType } from "~/types/location"
-import { getSystemTypeLabel } from "~/constants/systemLabels"
+import { getSystemTypeLabel } from "~/types/location"
 
 type DeleteConfirm = {
 	title: string

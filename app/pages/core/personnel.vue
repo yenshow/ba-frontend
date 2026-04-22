@@ -1,30 +1,28 @@
 <template>
 	<div class="space-y-6 2xl:space-y-8">
-		<header class="flex flex-wrap items-end justify-between gap-4 2xl:gap-6">
-			<div class="space-y-2 2xl:space-y-4">
+		<div class="flex flex-wrap items-center justify-between gap-4">
+			<header class="me-4 flex flex-col gap-1 2xl:gap-2">
 				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">人員管理</h1>
 				<p class="text-base text-white/80 2xl:text-xl">管理人員群組、人員主檔與門禁權限</p>
-			</div>
-		</header>
+			</header>
 
-		<!-- Tab 切換 -->
-		<nav class="flex gap-2 border-b border-white/20">
-			<button
-				v-for="tab in tabs"
-				:key="tab.id"
-				type="button"
-				:class="[
-					'rounded-t-xl px-4 py-2 text-sm font-medium transition-colors 2xl:px-6 2xl:py-3 2xl:text-base',
-					activeTab === tab.id
-						? 'bg-white/20 text-white'
-						: 'text-white/70 hover:bg-white/10 hover:text-white'
-				]"
-				:aria-label="tab.label"
-				@click="activeTab = tab.id"
-			>
-				{{ tab.label }}
-			</button>
-		</nav>
+			<!-- Tab 切換（參考 alert-log.vue 的分段按鈕樣式） -->
+			<div class="me-auto space-x-2 rounded-xl border border-white/20 bg-white/5 p-1">
+				<button
+					v-for="tab in tabs"
+					:key="tab.id"
+					type="button"
+					@click="activeTab = tab.id"
+					:class="[
+						'rounded-lg px-3 py-1.5 text-base transition-colors 2xl:text-lg',
+						activeTab === tab.id ? 'bg-cyan-500 text-white' : 'text-white/80 hover:bg-white/10'
+					]"
+					:aria-label="tab.label"
+				>
+					{{ tab.label }}
+				</button>
+			</div>
+		</div>
 
 		<!-- Tab: 人員群組 -->
 		<section
@@ -95,10 +93,28 @@
 			v-show="activeTab === 'persons'"
 			class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8"
 		>
-			<div class="mb-4 flex items-center justify-between">
+			<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 				<h2 class="text-xl font-semibold text-white 2xl:text-2xl">人員列表</h2>
-				<div v-if="canEdit" class="flex gap-2">
+				<div class="flex flex-wrap items-center gap-2">
+					<div class="flex items-center gap-2">
+						<input
+							v-model="personFilter.q"
+							type="text"
+							class="form-input w-[220px] border-white/30 bg-white/10 py-1.5 text-sm text-white placeholder:text-white/40 2xl:w-[260px] 2xl:py-2 2xl:text-base"
+							placeholder="搜尋工號 / 姓名"
+							aria-label="搜尋工號或姓名"
+							@keydown.enter="handleSearch"
+						/>
+						<button
+							type="button"
+							class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white hover:bg-white/30 2xl:px-6 2xl:py-3 2xl:text-base"
+							@click="handleSearch"
+						>
+							搜尋
+						</button>
+					</div>
 					<button
+						v-if="canEdit"
 						type="button"
 						class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white hover:bg-white/30 2xl:px-6 2xl:py-3 2xl:text-base"
 						@click="showImportDialog = true"
@@ -106,6 +122,7 @@
 						批次匯入
 					</button>
 					<button
+						v-if="canEdit"
 						type="button"
 						class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-base"
 						@click="openPersonCreate"
@@ -121,16 +138,16 @@
 							<th :class="tableHeaderClass">頭像</th>
 							<th :class="tableHeaderClass">工號</th>
 							<th :class="tableHeaderClass">姓名</th>
+							<th :class="tableHeaderClass">門禁權限</th>
 							<th :class="tableHeaderClass">
-								<select
-									v-model="personFilter.groupId"
-									class="form-input form-select inline-block max-w-[140px] border-white/30 bg-white/10 py-1.5 text-sm text-white 2xl:max-w-[160px] 2xl:py-2 2xl:text-base"
-									aria-label="依群組篩選"
-									@change="loadPersons"
-								>
-									<option :value="null">全部群組</option>
-									<option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
-								</select>
+								<div class="mx-auto max-w-[200px]">
+									<FilterDropdown
+										v-model="selectedGroupId"
+										:options="groupFilterOptions"
+										placeholder="全部群組"
+										text-size="text-sm 2xl:text-base"
+									/>
+								</div>
 							</th>
 							<th :class="tableHeaderClass">狀態</th>
 							<th v-if="canEdit" :class="tableHeaderClass">操作</th>
@@ -162,6 +179,26 @@
 								</td>
 								<td :class="tableCellClass">{{ p.employee_no }}</td>
 								<td :class="tableCellClass">{{ p.full_name || "—" }}</td>
+								<td :class="tableCellClass">
+									<div class="mx-auto flex max-w-[280px] flex-wrap justify-center gap-1">
+										<span
+											v-for="(label, i) in getPersonAccessLocationLabels(p)"
+											:key="`${p.id}-${i}`"
+											class="rounded bg-white/10 px-2 py-1 text-xs text-white/85 2xl:text-sm"
+										>
+											{{ label }}
+										</span>
+										<span
+											v-if="getPersonAccessLocationOverflowCount(p) > 0"
+											class="rounded bg-white/5 px-2 py-1 text-xs text-white/60 2xl:text-sm"
+										>
+											+{{ getPersonAccessLocationOverflowCount(p) }}
+										</span>
+										<span v-if="getPersonAccessLocationLabels(p).length === 0" class="text-sm text-white/50">
+											—
+										</span>
+									</div>
+								</td>
 								<td :class="tableCellClass">{{ p.group_name || "—" }}</td>
 								<td :class="tableCellClass">
 									<span
@@ -172,13 +209,6 @@
 								</td>
 								<td v-if="canEdit" :class="tableCellClass">
 									<div class="flex flex-wrap justify-center gap-2 2xl:gap-3">
-										<button
-											type="button"
-											class="rounded bg-cyan-500/80 px-3 py-1 text-white hover:bg-cyan-400 2xl:px-4 2xl:py-2"
-											@click="openAccessLocations(p)"
-										>
-											門禁權限
-										</button>
 										<button
 											type="button"
 											class="rounded bg-blue-500/80 px-3 py-1 text-white hover:bg-blue-400 2xl:px-4 2xl:py-2"
@@ -198,13 +228,23 @@
 							</tr>
 						</template>
 						<tr v-else class="text-white/60">
-							<td :colspan="canEdit ? 6 : 5" class="py-12 text-center text-base 2xl:text-lg">
+							<td :colspan="canEdit ? 7 : 6" class="py-12 text-center text-base 2xl:text-lg">
 								{{ isLoadingPersons ? "載入中..." : "尚無人員或無符合群組篩選結果" }}
 							</td>
 						</tr>
 					</tbody>
 				</table>
 			</div>
+
+			<Pagination
+				:total="personsTotal"
+				:offset="personsOffset"
+				:limit="PAGE_SIZE"
+				:disabled="isLoadingPersons"
+				:show="personsTotal > PAGE_SIZE"
+				@previous="goPrevPage"
+				@next="goNextPage"
+			/>
 		</section>
 
 		<!-- Tab: 設備同步 -->
@@ -224,9 +264,6 @@
 					{{ isSyncingAll ? "同步中..." : "同步全部" }}
 				</button>
 			</div>
-			<p class="mb-4 text-sm text-white/70 2xl:text-base">
-				可同步地點為人流統計中已設定門禁入口設備的地點；同步會將有權限的人員寫入該地點的門禁設備。門禁事件由後端自動向設備訂閱，不需在設備設定監聽主機。
-			</p>
 			<div class="min-h-[200px]">
 				<Transition name="fade" mode="out-in">
 					<div v-if="syncableLocations.length > 0" key="sync-list">
@@ -304,6 +341,8 @@
 			:editing-person="editingPerson"
 			:form="personForm"
 			:groups="groups"
+			:locations="syncableLocations"
+			v-model:selected-location-ids="personAccessLocationIds"
 			:face-preview-url="personFormFacePreview"
 			:has-face-preview="hasFacePreview"
 			:is-submitting="isSubmitting"
@@ -313,21 +352,9 @@
 			@clear-face="clearFaceUrl"
 		/>
 
-		<!-- 門禁權限 彈窗 -->
-		<PersonnelAccessDialog
-			v-model="showAccessDialog"
-			:person="accessPerson"
-			:locations="syncableLocations"
-			v-model:selected-location-ids="selectedLocationIds"
-			:is-loading="isLoadingAccess"
-			:is-saving="isSavingAccess"
-			@save="saveAccessLocations"
-		/>
-
 		<!-- 批次匯入 彈窗 -->
 		<PersonnelImportDialog
 			v-model="showImportDialog"
-			v-model:json-text="importJsonText"
 			:error="importError"
 			:result="importResult"
 			:is-importing="isImporting"
@@ -350,8 +377,9 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi";
 import PersonnelGroupDialog from "~/components/personnel/PersonnelGroupDialog.vue";
 import PersonnelPersonDialog from "~/components/personnel/PersonnelPersonDialog.vue";
-import PersonnelAccessDialog from "~/components/personnel/PersonnelAccessDialog.vue";
 import PersonnelImportDialog from "~/components/personnel/PersonnelImportDialog.vue";
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
+import Pagination from "~/components/common/Pagination.vue";
 
 definePageMeta({
 	layout: "auxiliary"
@@ -464,7 +492,25 @@ const persons = ref<Person[]>([]);
 const isLoadingPersons = ref(false);
 const personFilter = reactive<{
 	groupId: number | null;
-}>({ groupId: null });
+	q: string;
+}>({ groupId: null, q: "" });
+const PAGE_SIZE = 10;
+const personsTotal = ref(0);
+const personsOffset = ref(0);
+
+const groupFilterOptions = computed(() => {
+	return [
+		{ value: "", label: "全部群組" },
+		...groups.value.map(g => ({ value: String(g.id), label: g.name }))
+	];
+});
+const selectedGroupId = computed<string>({
+	get: () => (personFilter.groupId == null ? "" : String(personFilter.groupId)),
+	set: v => {
+		personFilter.groupId = v ? Number(v) : null;
+		handleFilterChange();
+	}
+});
 const showPersonDialog = ref(false);
 const editingPerson = ref<Person | null>(null);
 const personForm = reactive<{
@@ -474,6 +520,8 @@ const personForm = reactive<{
 	status: "active" | "inactive";
 	faceUrl: string;
 }>({ employeeNo: "", fullName: "", personGroupId: null, status: "active", faceUrl: "" });
+
+const personAccessLocationIds = ref<number[]>([]);
 
 const config = useRuntimeConfig();
 const getFaceImageSrc = (url: string | null | undefined): string | null => {
@@ -513,7 +561,7 @@ const handleFaceFileChange = async (file: File) => {
 			if (res?.faceUrl) personForm.faceUrl = res.faceUrl;
 			if (res?.person) {
 				const idx = persons.value.findIndex(x => x.id === editingPerson.value!.id);
-				if (idx > -1) persons.value[idx] = res.person;
+				if (idx > -1) persons.value[idx] = { ...persons.value[idx], ...res.person };
 			}
 			toast.success("已更新大頭照");
 		} catch (err) {
@@ -529,14 +577,44 @@ const handleFaceFileChange = async (file: File) => {
 const loadPersons = async () => {
 	isLoadingPersons.value = true;
 	try {
-		const params = personFilter.groupId != null ? { personGroupId: personFilter.groupId } : {};
-		persons.value = await personnelApi.getPersons(params);
+		const params = {
+			personGroupId: personFilter.groupId ?? undefined,
+			q: personFilter.q?.trim() || undefined,
+			limit: PAGE_SIZE,
+			offset: personsOffset.value
+		};
+		const res = await personnelApi.getPersons(params);
+		persons.value = res.items;
+		personsTotal.value = res.total;
 	} catch (err) {
 		handleApiError(err, "載入人員失敗");
 		persons.value = [];
+		personsTotal.value = 0;
 	} finally {
 		isLoadingPersons.value = false;
 	}
+};
+
+const handleFilterChange = () => {
+	personsOffset.value = 0;
+	loadPersons();
+};
+
+const handleSearch = () => {
+	personsOffset.value = 0;
+	loadPersons();
+};
+
+const goPrevPage = () => {
+	if (personsOffset.value === 0) return;
+	personsOffset.value = Math.max(0, personsOffset.value - PAGE_SIZE);
+	loadPersons();
+};
+
+const goNextPage = () => {
+	if (personsOffset.value + PAGE_SIZE >= personsTotal.value) return;
+	personsOffset.value = personsOffset.value + PAGE_SIZE;
+	loadPersons();
 };
 
 const openPersonCreate = () => {
@@ -546,12 +624,14 @@ const openPersonCreate = () => {
 	personForm.personGroupId = null;
 	personForm.status = "active";
 	personForm.faceUrl = "";
+	personAccessLocationIds.value = [];
 	pendingFaceFile.value = null;
 	if (facePreviewObjectUrl.value) {
 		URL.revokeObjectURL(facePreviewObjectUrl.value);
 		facePreviewObjectUrl.value = null;
 	}
 	errorMessage.value = null;
+	void ensureSyncableLocationsLoaded();
 	showPersonDialog.value = true;
 };
 
@@ -563,15 +643,43 @@ const editPerson = (p: Person) => {
 	personForm.status = p.status === "active" ? "active" : "inactive";
 	personForm.faceUrl = p.face_url ?? "";
 	pendingFaceFile.value = null;
+	personAccessLocationIds.value = [];
 	if (facePreviewObjectUrl.value) {
 		URL.revokeObjectURL(facePreviewObjectUrl.value);
 		facePreviewObjectUrl.value = null;
 	}
 	errorMessage.value = null;
 	showPersonDialog.value = true;
+	void loadPersonAccessLocationsForEdit(p.id);
+};
+
+const ensureSyncableLocationsLoaded = async () => {
+	if (syncableLocations.value.length > 0) return;
+	try {
+		syncableLocations.value = await personnelApi.getSyncableLocations();
+	} catch (err) {
+		handleApiError(err, "載入可同步地點失敗");
+		syncableLocations.value = [];
+	}
+};
+
+const loadPersonAccessLocationsForEdit = async (personId: number) => {
+	try {
+		await ensureSyncableLocationsLoaded();
+		const res = await personnelApi.getAccessLocations(personId);
+		personAccessLocationIds.value = res.locations.map(l => l.location_id);
+	} catch (err) {
+		handleApiError(err, "載入門禁權限失敗");
+		personAccessLocationIds.value = [];
+	}
 };
 
 const submitPerson = async () => {
+	if (!personForm.fullName.trim()) {
+		errorMessage.value = "姓名為必填";
+		return;
+	}
+
 	isSubmitting.value = true;
 	errorMessage.value = null;
 	try {
@@ -582,26 +690,32 @@ const submitPerson = async () => {
 				status: personForm.status,
 				faceUrl: personForm.faceUrl.trim() || null
 			});
-			const idx = persons.value.findIndex(x => x.id === editingPerson.value!.id);
-			if (idx > -1) persons.value[idx] = updated;
+			const personId = editingPerson.value.id;
+			const accessRes = await personnelApi.setAccessLocations(personId, personAccessLocationIds.value);
+			const idx = persons.value.findIndex(x => x.id === personId);
+			if (idx > -1) persons.value[idx] = { ...updated, access_locations: accessRes.locations };
 			toast.success("已更新人員");
 		} else {
 			const created = await personnelApi.createPerson({
 				employeeNo: personForm.employeeNo.trim(),
-				fullName: personForm.fullName.trim() || null,
+				fullName: personForm.fullName.trim(),
 				personGroupId: personForm.personGroupId,
 				status: personForm.status
 			});
+			const accessRes = await personnelApi.setAccessLocations(
+				created.id,
+				personAccessLocationIds.value
+			);
 			if (pendingFaceFile.value) {
 				const uploadRes = await personnelApi.uploadFaceForPerson(created.id, pendingFaceFile.value);
-				persons.value.push(uploadRes.person);
+				persons.value.push({ ...uploadRes.person, access_locations: accessRes.locations });
 				pendingFaceFile.value = null;
 				if (facePreviewObjectUrl.value) {
 					URL.revokeObjectURL(facePreviewObjectUrl.value);
 					facePreviewObjectUrl.value = null;
 				}
 			} else {
-				persons.value.push(created);
+				persons.value.push({ ...created, access_locations: accessRes.locations });
 			}
 			toast.success("已新增人員");
 		}
@@ -624,46 +738,20 @@ const confirmDeletePerson = async (p: Person) => {
 	}
 };
 
-// ---------- 門禁權限彈窗 ----------
-const showAccessDialog = ref(false);
-const accessPerson = ref<Person | null>(null);
-const selectedLocationIds = ref<number[]>([]);
-const isLoadingAccess = ref(false);
-const isSavingAccess = ref(false);
-
-const openAccessLocations = async (p: Person) => {
-	accessPerson.value = p;
-	selectedLocationIds.value = [];
-	showAccessDialog.value = true;
-	isLoadingAccess.value = true;
-	try {
-		const [res, syncList] = await Promise.all([
-			personnelApi.getAccessLocations(p.id),
-			syncableLocations.value.length > 0
-				? Promise.resolve(syncableLocations.value)
-				: personnelApi.getSyncableLocations()
-		]);
-		selectedLocationIds.value = res.locations.map(l => l.location_id);
-		if (syncableLocations.value.length === 0) syncableLocations.value = syncList;
-	} catch (err) {
-		handleApiError(err, "載入門禁權限失敗");
-	} finally {
-		isLoadingAccess.value = false;
-	}
+// ---------- 人員列表：門禁權限欄位（最多顯示 3 個） ----------
+const getPersonAccessLocationLabels = (p: Person): string[] => {
+	const list = (p.access_locations || []).filter(Boolean) as Array<{
+		zone_name?: string;
+		location_name?: string;
+	}>;
+	return list
+		.map(x => [x.zone_name, x.location_name].filter(Boolean).join("/"))
+		.filter(Boolean)
+		.slice(0, 3);
 };
-
-const saveAccessLocations = async () => {
-	if (!accessPerson.value) return;
-	isSavingAccess.value = true;
-	try {
-		await personnelApi.setAccessLocations(accessPerson.value.id, selectedLocationIds.value);
-		toast.success("已更新門禁權限");
-		showAccessDialog.value = false;
-	} catch (err) {
-		handleApiError(err, "更新門禁權限失敗");
-	} finally {
-		isSavingAccess.value = false;
-	}
+const getPersonAccessLocationOverflowCount = (p: Person): number => {
+	const total = Array.isArray(p.access_locations) ? p.access_locations.length : 0;
+	return Math.max(0, total - 3);
 };
 
 // ---------- 同步 ----------
@@ -715,15 +803,30 @@ const syncAllLocations = async () => {
 	isSyncingAll.value = true;
 	syncWarnings.value = [];
 	try {
-		const result = await personnelApi.syncAllLocations();
-		const allWarnings = (result.results ?? []).flatMap(r =>
-			(r.warnings ?? []).map(w => ({ ...w, locationName: r.locationName }))
-		);
-		syncWarnings.value = allWarnings;
-		if (allWarnings.length > 0) {
-			toast.warning(`已同步 ${result.synced} 個地點，但有 ${allWarnings.length} 筆警告`);
-		} else {
-			toast.success(`已同步 ${result.synced} 個地點`);
+		const { jobId } = await personnelApi.syncAllLocations();
+		const startedAt = Date.now();
+		for (;;) {
+			const job = await personnelApi.getSyncAllLocationsJob(jobId);
+			if (job.status !== "completed") {
+				if (Date.now() - startedAt > 10 * 60 * 1000) throw new Error("同步逾時，請稍後再試");
+				await new Promise(r => setTimeout(r, 1000));
+				continue;
+			}
+
+			if (job.error?.message) throw new Error(job.error.message);
+
+			const result = job.result;
+			const allWarnings = (result?.results ?? []).flatMap(r =>
+				(r.warnings ?? []).map(w => ({ ...w, locationName: r.locationName }))
+			);
+			syncWarnings.value = allWarnings;
+			const synced = result?.synced ?? 0;
+			if (allWarnings.length > 0) {
+				toast.warning(`已同步 ${synced} 個地點，但有 ${allWarnings.length} 筆警告`);
+			} else {
+				toast.success(`已同步 ${synced} 個地點`);
+			}
+			break;
 		}
 	} catch (err) {
 		handleApiError(err, "同步全部失敗");
@@ -734,31 +837,19 @@ const syncAllLocations = async () => {
 
 // ---------- 批次匯入 ----------
 const showImportDialog = ref(false);
-const importJsonText = ref("");
 const importError = ref("");
 const importResult = ref<ImportResult | null>(null);
 const isImporting = ref(false);
 
-const submitImport = async () => {
+const submitImport = async (payload: { excel: File; imagesZip: File | null }) => {
 	importError.value = "";
 	importResult.value = null;
-	let arr: unknown[];
-	try {
-		const parsed = JSON.parse(importJsonText.value);
-		arr = Array.isArray(parsed) ? parsed : [parsed];
-	} catch {
-		importError.value = "JSON 格式錯誤";
-		return;
-	}
-	const personsPayload = (arr as Record<string, unknown>[]).map((row) => ({
-		employeeNo: (row.employeeNo ?? row.employee_no ?? "") as string,
-		fullName: (row.fullName ?? row.full_name) as string | undefined,
-		personGroupId: (row.personGroupId ?? row.person_group_id) as number | undefined,
-		locationIds: (row.locationIds ?? row.location_ids ?? []) as number[]
-	}));
 	isImporting.value = true;
 	try {
-		const result = await personnelApi.importPersons({ persons: personsPayload });
+		const form = new FormData();
+		form.append("excel", payload.excel);
+		if (payload.imagesZip) form.append("imagesZip", payload.imagesZip);
+		const result = await personnelApi.importPersons(form);
 		importResult.value = result;
 		if (result.created > 0) {
 			toast.success(`已匯入 ${result.created} 筆`);
@@ -802,11 +893,14 @@ watch(showPersonDialog, v => {
 		}
 		editingPerson.value = null;
 		errorMessage.value = null;
+		personAccessLocationIds.value = [];
 	}
 });
 
-watch(showAccessDialog, v => {
-	if (!v) accessPerson.value = null;
+watch(showImportDialog, v => {
+	if (!v) return;
+	importError.value = "";
+	importResult.value = null;
 });
 </script>
 
@@ -817,7 +911,9 @@ watch(showAccessDialog, v => {
 	background: rgba(255, 255, 255, 0.1);
 	padding: 0.65rem 0.85rem;
 	color: #f7fbff;
-	transition: border-color 0.2s ease, background 0.2s ease;
+	transition:
+		border-color 0.2s ease,
+		background 0.2s ease;
 }
 .form-input:focus {
 	border-color: #5be7f1;

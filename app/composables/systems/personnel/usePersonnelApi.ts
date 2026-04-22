@@ -3,10 +3,11 @@ import type {
 	Person,
 	AccessLocationsResponse,
 	SyncableLocation,
-	ImportPersonRow,
 	ImportResult,
 	SyncWarning,
-	SyncLocationResult
+	PagedResult,
+	SyncAllLocationsJob,
+	SyncLocationJob
 } from "~/types/personnel";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPathWithQuery } from "~/utils/apiUtils";
@@ -15,6 +16,7 @@ const PERSONNEL_PREFIX = "/personnel";
 
 export const usePersonnelApi = () => {
 	const { request } = useApiBase();
+	const config = useRuntimeConfig();
 
 	return {
 		// 人員群組
@@ -46,16 +48,22 @@ export const usePersonnelApi = () => {
 			status?: string;
 			employeeNo?: string;
 			fullName?: string;
+			q?: string;
+			limit?: number;
+			offset?: number;
 		}) => {
 			const query: Record<string, string | number> = {};
 			if (params?.personGroupId != null) query.personGroupId = params.personGroupId;
 			if (params?.status) query.status = params.status;
 			if (params?.employeeNo) query.employeeNo = params.employeeNo;
 			if (params?.fullName) query.fullName = params.fullName;
+			if (params?.q) query.q = params.q;
+			if (params?.limit != null) query.limit = params.limit;
+			if (params?.offset != null) query.offset = params.offset;
 			const path = Object.keys(query).length
 				? buildPathWithQuery(`${PERSONNEL_PREFIX}/persons`, query)
 				: `${PERSONNEL_PREFIX}/persons`;
-			return request<Person[]>(path);
+			return request<PagedResult<Person>>(path);
 		},
 		getPersonById: (id: number) => request<Person>(`${PERSONNEL_PREFIX}/persons/${id}`),
 		getPersonByEmployeeNo: (employeeNo: string) =>
@@ -114,23 +122,66 @@ export const usePersonnelApi = () => {
 
 		// 可同步地點與同步
 		getSyncableLocations: () => request<SyncableLocation[]>(`${PERSONNEL_PREFIX}/syncable-locations`),
-		syncLocation: (locationId: number) =>
-			request<{ success: boolean; warnings: SyncWarning[] }>(
-				`${PERSONNEL_PREFIX}/sync-location/${locationId}`,
-				{ method: "POST", timeout: 60000 }
-			),
+		startSyncLocationJob: (locationId: number) =>
+			request<{ jobId: string }>(`${PERSONNEL_PREFIX}/sync-location/${locationId}/job`, {
+				method: "POST",
+				timeout: 15000
+			}),
+		getSyncLocationJob: (jobId: string) =>
+			request<SyncLocationJob>(`${PERSONNEL_PREFIX}/sync-location/jobs/${encodeURIComponent(jobId)}`),
+		syncLocation: async (locationId: number) => {
+			const { jobId } = await request<{ jobId: string }>(
+				`${PERSONNEL_PREFIX}/sync-location/${locationId}/job`,
+				{ method: "POST", timeout: 15000 }
+			);
+			const startedAt = Date.now();
+			for (;;) {
+				const job = await request<SyncLocationJob>(
+					`${PERSONNEL_PREFIX}/sync-location/jobs/${encodeURIComponent(jobId)}`
+				);
+				if (job.status !== "completed") {
+					if (Date.now() - startedAt > 10 * 60 * 1000) throw new Error("同步逾時，請稍後再試");
+					await new Promise(r => setTimeout(r, 1000));
+					continue;
+				}
+				if (job.error?.message) throw new Error(job.error.message);
+				return { success: true, warnings: job.result?.warnings ?? [] };
+			}
+		},
 		syncAllLocations: () =>
-			request<{ synced: number; results: SyncLocationResult[] }>(
+			request<{ jobId: string }>(
 				`${PERSONNEL_PREFIX}/sync-all-locations`,
-				{ method: "POST", timeout: 120000 }
+				{ method: "POST", timeout: 15000 }
+			),
+		getSyncAllLocationsJob: (jobId: string) =>
+			request<SyncAllLocationsJob>(
+				`${PERSONNEL_PREFIX}/sync-all-locations/jobs/${encodeURIComponent(jobId)}`
 			),
 
 		// 批次匯入
-		importPersons: (body: { persons: ImportPersonRow[] }) =>
+		importPersons: (form: FormData) =>
 			request<ImportResult>(`${PERSONNEL_PREFIX}/import`, {
 				method: "POST",
-				body: JSON.stringify(body)
-			})
+				body: form,
+				timeout: 120000
+			}),
+		downloadImportTemplate: async () => {
+			const apiBase = (config.public.apiBase as string) || "http://localhost:4000/api";
+			const url = `${apiBase}${PERSONNEL_PREFIX}/import-template`;
+			const cookie = useCookie<string | null>("auth_token");
+			const token = cookie.value;
+
+			const headers: HeadersInit = {};
+			if (token) headers.Authorization = `Bearer ${token}`;
+
+			const res = await fetch(url, {
+				method: "GET",
+				headers,
+				credentials: "include"
+			});
+			if (!res.ok) throw new Error(`下載範例檔失敗（${res.status}）`);
+			return await res.blob();
+		},
 	};
 };
 

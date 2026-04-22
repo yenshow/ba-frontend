@@ -41,7 +41,7 @@
 								class="rounded-xl border border-white/20 bg-white/5 p-4"
 							>
 								<h3 class="mb-3 text-base font-medium uppercase tracking-wider text-white/80">
-									{{ CATEGORY_LABELS[cat] || cat }}
+									{{ getCategoryLabel(cat) }}
 								</h3>
 								<div class="space-y-2">
 									<label
@@ -77,6 +77,8 @@
 import type { PermissionDefinition, UserPermissionSettings } from "~/types/user";
 import { useUserApi } from "~/composables/systems/users/useUserApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
+import { MODULE_CATEGORY_LABELS, MODULE_CATEGORY_ORDER } from "~/constants/moduleCategories";
 
 const props = defineProps<{
 	open: boolean;
@@ -91,6 +93,7 @@ const emit = defineEmits<{
 
 const userApi = useUserApi();
 const { handleError } = useErrorHandler();
+const moduleRegistry = useModuleRegistry();
 
 const isLoading = ref(true);
 const isSaving = ref(false);
@@ -99,42 +102,75 @@ const definitions = ref<PermissionDefinition[]>([]);
 const settings = ref<UserPermissionSettings | null>(null);
 const localGranted = ref<Record<number, boolean>>({});
 
-const CATEGORY_LABELS: Record<string, string> = {
-	system: "可使用的系統",
-	resource: "資源權限",
-	configuration: "組態權限",
-	operation: "操作權限"
-};
-
-const categoryOrder = computed(() =>
-	definitions.value.some(d => d.category === "system")
-		? ["system"]
-		: ["resource", "configuration", "operation"]
-);
-
-const definitionsByCategory = computed(() => {
-	const order = categoryOrder.value;
-	const map = new Map<string, PermissionDefinition[]>();
-	for (const d of definitions.value) {
-		const cat = d.category || "operation";
-		if (!order.includes(cat)) continue;
-		if (!map.has(cat)) map.set(cat, []);
-		map.get(cat)!.push(d);
-	}
-	for (const cat of order) {
-		map.get(cat)?.sort((a, b) => a.sort_order - b.sort_order);
+const systemPermissionCategoryByCode = computed(() => {
+	const map = new Map<string, string>();
+	const modules = moduleRegistry.registry.value?.modules ?? [];
+	for (const m of modules) {
+		if (!m.permissionCode) continue;
+		if (!m.category) continue;
+		map.set(m.permissionCode, m.category);
 	}
 	return map;
 });
+
+const allowedPermissionCodes = computed(() => {
+	const s = new Set<string>();
+	const modules = moduleRegistry.registry.value?.modules ?? [];
+	for (const m of modules) {
+		if (!m.permissionCode) continue;
+		s.add(m.permissionCode);
+	}
+	return s;
+});
+
+const definitionsByCategory = computed(() => {
+	const map = new Map<string, PermissionDefinition[]>();
+	const systemCategoryMap = systemPermissionCategoryByCode.value;
+	const allowedCodes = allowedPermissionCodes.value;
+
+	for (const d of definitions.value) {
+		// 僅顯示「registry 有宣告 permissionCode」的系統權限，避免顯示不存在的頁面/殘留權限碼
+		if (!allowedCodes.has(d.code)) continue;
+		const categoryKey = systemCategoryMap.get(d.code) ?? "system";
+		if (!map.has(categoryKey)) map.set(categoryKey, []);
+		map.get(categoryKey)!.push(d);
+	}
+
+	for (const [, defs] of map) {
+		defs.sort(
+			(a, b) => a.sort_order - b.sort_order || (a.name || a.code).localeCompare(b.name || b.code)
+		);
+	}
+
+	return map;
+});
+
+const categoryOrder = computed(() => {
+	const keys = new Set(definitionsByCategory.value.keys());
+	const order: string[] = [];
+	for (const key of MODULE_CATEGORY_ORDER) {
+		if (keys.has(key)) order.push(key);
+	}
+	if (keys.has("system")) order.push("system");
+	return order;
+});
+
+const getCategoryLabel = (cat: string) => {
+	if (cat in MODULE_CATEGORY_LABELS)
+		return MODULE_CATEGORY_LABELS[cat as keyof typeof MODULE_CATEGORY_LABELS];
+	if (cat === "system") return "未歸類";
+	return cat;
+};
 
 const load = async () => {
 	if (!props.userId || !props.open) return;
 	isLoading.value = true;
 	errorMessage.value = null;
 	try {
+		await moduleRegistry.ensureLoaded();
 		const [defRes, settingsRes] = await Promise.all([
 			userApi.getPermissionDefinitions(false),
-			userApi.getUserPermissions(props.userId)
+			userApi.getUserPermissions(props.userId),
 		]);
 		definitions.value = defRes.definitions;
 		settings.value = settingsRes;

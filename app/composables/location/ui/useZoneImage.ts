@@ -1,5 +1,5 @@
-import { MAX_ZONE_IMAGE_BYTES, ZONE_IMAGE_ACCEPT_TYPES } from "~/constants/zoneImage"
 import { useZoneValidation } from "~/composables/location/validation/useBaseValidation"
+import { MAX_ZONE_IMAGE_BYTES, ZONE_IMAGE_ACCEPT_TYPES } from "~/composables/location/validation/useBaseValidation"
 
 /**
  * 在新視窗中預覽區域示意圖（base64 / http(s) URL 皆適用）

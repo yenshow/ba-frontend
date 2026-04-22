@@ -7,6 +7,7 @@ import { useAlertPolling } from "~/composables/monitoring/alertMonitor/useAlertP
 import { useAlertEventBus } from "~/composables/monitoring/alertMonitor/useAlertEventBus";
 import { useUnresolvedAlertCount } from "~/composables/monitoring/alertMonitor/useUnresolvedAlertCount";
 import { getSourceLabel, getSeverityLabel } from "~/utils/alertUtils";
+import { useAuth } from "~/composables/core/useAuth";
 
 const MAX_ALERT_TOASTS = 5;
 export const SUMMARY_TOAST_KEY = "__alert-summary__";
@@ -68,6 +69,7 @@ export const useAlertMonitor = () => {
 	const { warning, error, info, removeToast, updateToast, toasts } = useToast();
 	const { connect, isConnected } = useWebSocket();
 	const { checkNewAlerts, startPolling, stopPolling, reset } = useAlertPolling();
+	const { hasPermission } = useAuth();
 
 	let stopConnectionWatcher: (() => void) | null = null;
 	const setupConnectionWatcher = (onConnected: () => void, onDisconnected: () => void) => {
@@ -265,6 +267,10 @@ export const useAlertMonitor = () => {
 
 	const startMonitoring = () => {
 		if (!process.client || isMonitoring.value) return;
+		// 無警示紀錄權限：不要建立 websocket/polling，避免 403 噪音
+		if (!hasPermission("system.alert_log")) {
+			return;
+		}
 
 		isMonitoring.value = true;
 		connect();

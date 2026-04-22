@@ -224,7 +224,7 @@
 
 <script setup lang="ts">
 import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location";
-import { ZONE_IMAGE_ACCEPT_ATTR } from "~/constants/zoneImage";
+import { ZONE_IMAGE_ACCEPT_ATTR } from "~/composables/location/validation/useBaseValidation";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
@@ -238,7 +238,7 @@ import {
 	useZoneImageUpload,
 	openZoneSchematicPreview
 } from "~/composables/location/ui/useZoneImage";
-import { getSystemTypeLabel } from "~/constants/systemLabels";
+import { getSystemTypeLabel } from "~/types/location";
 
 interface Props {
 	modelValue: boolean;

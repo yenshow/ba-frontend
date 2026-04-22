@@ -34,15 +34,50 @@
 							/>
 						</label>
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-							<span>姓名</span>
-							<input v-model="form.fullName" type="text" class="form-input-small" />
+							<span>姓名 *</span>
+							<input v-model="form.fullName" type="text" required class="form-input-small" />
 						</label>
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
 							<span>群組</span>
 							<select v-model="form.personGroupId" class="form-input-small form-select">
-								<option :value="null">未指定</option>
-								<option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+								<option :value="null">不指定</option>
+								<option v-for="g in groups" :key="g.id" :value="g.id">
+									{{ g.name }}
+								</option>
 							</select>
+						</label>
+						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
+							<span>門禁權限（可進出地點）</span>
+							<span class="text-xs text-white/60 2xl:text-sm">
+								可略過；未設定者不會被同步到任何門禁設備
+							</span>
+							<div class="space-y-2">
+								<label
+									v-for="loc in locations"
+									:key="loc.id"
+									class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
+									:class="{
+										'border-cyan-400/50 bg-cyan-500/20': localSelectedLocationIds.includes(loc.id)
+									}"
+								>
+									<input
+										v-model="localSelectedLocationIds"
+										type="checkbox"
+										:value="loc.id"
+										class="h-4 w-4 accent-cyan-400"
+									/>
+									<span class="text-sm text-white/90 2xl:text-base">
+										{{ loc.zone_name }} — {{ loc.name }}
+									</span>
+								</label>
+
+								<div
+									v-if="locations.length === 0"
+									class="rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200/90"
+								>
+									尚無可同步地點（請先在人流統計設定地點並綁定入口設備）
+								</div>
+							</div>
 						</label>
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
 							<span>大頭照</span>
@@ -126,7 +161,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Person, PersonGroup } from "~/types/personnel";
+import type { Person, PersonGroup, SyncableLocation } from "~/types/personnel";
 
 const props = defineProps<{
 	modelValue: boolean;
@@ -139,6 +174,8 @@ const props = defineProps<{
 		faceUrl: string;
 	};
 	groups: PersonGroup[];
+	locations: SyncableLocation[];
+	selectedLocationIds: number[];
 	facePreviewUrl: string | null;
 	hasFacePreview: boolean;
 	isSubmitting: boolean;
@@ -147,12 +184,18 @@ const props = defineProps<{
 
 const emit = defineEmits<{
 	"update:modelValue": [value: boolean];
+	"update:selectedLocationIds": [ids: number[]];
 	submit: [];
 	"face-file-change": [file: File];
 	"clear-face": [];
 }>();
 
 const faceFileInputRef = ref<HTMLInputElement | null>(null);
+
+const localSelectedLocationIds = computed({
+	get: () => props.selectedLocationIds,
+	set: (ids: number[]) => emit("update:selectedLocationIds", ids)
+});
 
 const handleClose = () => emit("update:modelValue", false);
 const handleSubmit = () => emit("submit");

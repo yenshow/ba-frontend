@@ -370,12 +370,6 @@ definePageMeta({
 
 const featureLabels: Record<string, string> = {
 	people_counting: "人流統計",
-	lighting: "照明",
-	hvac: "空調",
-	drainage: "排水",
-	power: "電力",
-	fire: "消防",
-	emergency_rescue: "緊急救援",
 	environment: "環境品質",
 	surveillance: "影像監控",
 	vehicle_access: "車輛進出"

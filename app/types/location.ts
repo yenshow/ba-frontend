@@ -10,6 +10,15 @@ export type SystemType =
 	| "people_counting"
 	| "vehicle_access"
 
+export const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
+	environment: "環境監測",
+	people_counting: "人流統計",
+	vehicle_access: "車輛進出",
+}
+
+export const getSystemTypeLabel = (systemType: SystemType): string =>
+	SYSTEM_TYPE_LABELS[systemType] || String(systemType)
+
 /**
  * 系統配置（根據系統類型不同）
  */

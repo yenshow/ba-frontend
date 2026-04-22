@@ -1,7 +1,7 @@
 import type { FeatureKey, LicenseState } from "~/types/license";
 import { useAuth } from "~/composables/core/useAuth";
 import { useApiBase } from "~/composables/core/useApiBase";
-import { getFeatureKeyByRoute } from "~/utils/licenseUtils";
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 
 const DEFAULT_LICENSE: LicenseState = {
 	features: [],
@@ -38,7 +38,8 @@ export const useLicense = () => {
 	};
 
 	const isOpenAll = () =>
-		(useRuntimeConfig().public as { licenseOpenAllFeatures?: boolean }).licenseOpenAllFeatures === true;
+		(useRuntimeConfig().public as { licenseOpenAllFeatures?: boolean }).licenseOpenAllFeatures ===
+		true;
 
 	const fetchLicense = async (options: { force?: boolean } = {}) => {
 		if (!isAuthenticated.value) {
@@ -74,7 +75,8 @@ export const useLicense = () => {
 
 	/** 依模組 route 判斷是否為授權控管模組且未授權（用於鎖頭、點擊攔截） */
 	const isModuleLocked = (module: { route: string }) => {
-		const featureKey = getFeatureKeyByRoute(module.route);
+		const moduleRegistry = useModuleRegistry();
+		const featureKey = moduleRegistry.getFeatureKeyByRoute(module.route);
 		if (!featureKey) return false;
 		return !hasFeature(featureKey);
 	};

@@ -1,8 +1,7 @@
 import { useAuth } from "~/composables/core/useAuth";
 import { useLicense } from "~/composables/core/useLicense";
-import { getPermissionCodeByRoute } from "~/constants/permissions";
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 import {
-	getFeatureKeyByRoute,
 	LICENSE_MESSAGE_REDIRECT,
 	PERMISSION_MESSAGE_REDIRECT,
 } from "~/utils/licenseUtils";
@@ -11,8 +10,12 @@ import { useToast } from "~/composables/core/useToast";
 export default defineNuxtRouteMiddleware(async (to) => {
 	if (to.path === "/login") return;
 
+	// 優先使用後端 module registry（SSOT）
+	const moduleRegistry = useModuleRegistry();
+	await moduleRegistry.ensureLoaded();
+	const permissionCode = moduleRegistry.getPermissionCodeByRoute(to.path);
+
 	// 1. 系統權限檢查：若該路由需權限且用戶無權限則導回首頁
-	const permissionCode = getPermissionCodeByRoute(to.path);
 	if (permissionCode) {
 		const { hasPermission } = useAuth();
 		if (!hasPermission(permissionCode)) {
@@ -21,7 +24,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 		}
 	}
 
-	const featureKey = getFeatureKeyByRoute(to.path);
+	const featureKey = moduleRegistry.getFeatureKeyByRoute(to.path);
 	if (!featureKey) return;
 
 	const { hasFeature, fetchLicense, isLoaded } = useLicense();

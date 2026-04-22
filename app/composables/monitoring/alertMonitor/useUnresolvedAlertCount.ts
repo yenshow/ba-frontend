@@ -11,6 +11,7 @@ import type { AlertCountEvent } from "~/types/websocket";
 import { logger } from "~/utils/logger";
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
+import { useAuth } from "~/composables/core/useAuth";
 import { watch } from "vue";
 
 const countLogger = logger.createLogger("UnresolvedAlertCount");
@@ -21,6 +22,7 @@ const FALLBACK_POLLING_INTERVAL_MS = 30_000;
 export const useUnresolvedAlertCount = () => {
 	const alertApi = useAlertApi();
 	const { isConnected, on, off } = useWebSocket();
+	const { hasPermission } = useAuth();
 
 	const unresolvedAlertCount = useState<number>("alert-monitor:unresolved-count", () => 0);
 	const isLoadingCount = useState<boolean>("alert-monitor:unresolved-count-loading", () => false);
@@ -34,6 +36,10 @@ export const useUnresolvedAlertCount = () => {
 	let latestCountPayload: AlertCountEvent | null = null;
 
 	const loadUnresolvedAlertCount = async (filters?: { source?: AlertSource }) => {
+		if (!hasPermission("system.alert_log")) {
+			unresolvedAlertCount.value = 0;
+			return;
+		}
 		if (isLoadingCount.value) return;
 
 		isLoadingCount.value = true;
@@ -98,6 +104,10 @@ export const useUnresolvedAlertCount = () => {
 
 	const startAlertCountMonitoring = () => {
 		stopAlertCountMonitoring();
+		if (!hasPermission("system.alert_log")) {
+			unresolvedAlertCount.value = 0;
+			return;
+		}
 
 		handleAlertCount = handleAlertCountEvent;
 

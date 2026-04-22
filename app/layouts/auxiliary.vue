@@ -4,7 +4,7 @@
 			<slot />
 		</main>
 		<BottomNavigation />
-		<ToastContainer />
+		<!-- <ToastContainer /> -->
 	</div>
 </template>
 
