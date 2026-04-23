@@ -59,3 +59,28 @@ export const convertBase64ToImageUrl = (base64Data: string): string => {
 	return `data:${mimeType};base64,${base64Data}`;
 };
 
+const normalizeImageMimeType = (raw: string | null | undefined): string => {
+	const v = String(raw || "")
+		.split(";")[0]
+		.trim()
+		.toLowerCase();
+	if (v.startsWith("image/")) return v;
+	return "image/jpeg";
+};
+
+export const base64ToFile = (options: {
+	base64: string;
+	filename?: string;
+	mimeType?: string | null;
+}): File => {
+	const mimeType = normalizeImageMimeType(options.mimeType);
+	const base64 = options.base64 || "";
+	const binaryStr = atob(base64);
+	const bytes = new Uint8Array(binaryStr.length);
+	for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+	const blob = new Blob([bytes], { type: mimeType });
+	const ext = mimeType.includes("png") ? "png" : "jpg";
+	const filename = options.filename || `image_${Date.now()}.${ext}`;
+	return new File([blob], filename, { type: blob.type || "image/jpeg" });
+};
+

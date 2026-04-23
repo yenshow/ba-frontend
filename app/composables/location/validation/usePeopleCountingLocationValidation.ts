@@ -89,15 +89,26 @@ export function usePeopleCountingLocationValidation() {
 		if (personGroupIdsError) errors.push(personGroupIdsError)
 
 		if (dataSource === "access_control") {
-			if (location.entryDeviceId == null || location.entryDeviceId === 0) {
+			const entryIds = Array.isArray(location.entryDeviceIds)
+				? location.entryDeviceIds.filter((id) => typeof id === "number" && id > 0 && Number.isInteger(id))
+				: []
+			const exitIds = Array.isArray(location.exitDeviceIds)
+				? location.exitDeviceIds.filter((id) => typeof id === "number" && id > 0 && Number.isInteger(id))
+				: []
+
+			if (entryIds.length === 0) {
 				errors.push("請選擇入口設備（門禁設備）")
-			} else {
-				const entryDeviceError = validateDoorId(location.entryDeviceId, "入口設備 ID")
-				if (entryDeviceError) errors.push(entryDeviceError)
 			}
-			if (location.exitDeviceId != null && location.exitDeviceId !== 0) {
-				const exitDeviceError = validateDoorId(location.exitDeviceId, "出口設備 ID")
-				if (exitDeviceError) errors.push(exitDeviceError)
+			if (exitIds.length === 0) {
+				errors.push("請選擇出口設備（門禁設備）")
+			}
+			for (const id of [...entryIds, ...exitIds]) {
+				const err = validateDoorId(id, "門禁設備 ID")
+				if (err) errors.push(err)
+			}
+			const entrySet = new Set(entryIds)
+			for (const id of exitIds) {
+				if (entrySet.has(id)) errors.push("入口與出口請勿選擇同一設備")
 			}
 		} else if (dataSource === "isapi_camera") {
 			const cameraDeviceIds = Array.isArray(location.cameraDeviceIds)
@@ -119,28 +130,25 @@ export function usePeopleCountingLocationValidation() {
 				if (channelError) errors.push(channelError)
 			}
 		} else {
-			const entryDoorError = validateDoorId(location.entryDoorId, "入口設備 ID")
-			if (entryDoorError) errors.push(entryDoorError)
-			const exitDoorError = validateDoorId(location.exitDoorId, "出口設備 ID")
-			if (exitDoorError) errors.push(exitDoorError)
+			const entryIds = Array.isArray(location.entryDoorIds)
+				? location.entryDoorIds.filter((id) => typeof id === "number" && id > 0 && Number.isInteger(id))
+				: []
+			const exitIds = Array.isArray(location.exitDoorIds)
+				? location.exitDoorIds.filter((id) => typeof id === "number" && id > 0 && Number.isInteger(id))
+				: []
+			if (entryIds.length === 0) errors.push("請選擇入口設備（YSCP）")
+			if (exitIds.length === 0) errors.push("請選擇出口設備（YSCP）")
+			for (const id of [...entryIds, ...exitIds]) {
+				const err = validateDoorId(id, "門設備 ID")
+				if (err) errors.push(err)
+			}
+			const entrySet = new Set(entryIds)
+			for (const id of exitIds) {
+				if (entrySet.has(id)) errors.push("入口與出口請勿選擇同一設備")
+			}
 		}
 
-		const hasEntry =
-			dataSource === "yscp"
-				? !!location.entryDoorId
-				: dataSource === "access_control"
-					? !!location.entryDeviceId
-					: Array.isArray(location.cameraDeviceIds)
-						? location.cameraDeviceIds.length > 0
-						: !!location.cameraDeviceId
-		const hasExit =
-			dataSource === "yscp"
-				? !!location.exitDoorId
-				: dataSource === "access_control"
-					? !!location.exitDeviceId
-					: false
-		if (hasEntry && !hasExit) warnings.push("已設定入口設備，但未設定出口設備")
-		if (hasExit && !hasEntry) warnings.push("已設定出口設備，但未設定入口設備")
+		// 出入口皆必填（yscp / access_control）；不再用 warnings 提示半套設定
 
 		return {
 			isValid: errors.length === 0,

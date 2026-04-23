@@ -4,13 +4,12 @@
 			<div
 				v-if="modelValue"
 				class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
-				@click.self="handleClose"
 			>
 				<div
-					class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:p-8"
+					class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-3xl flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:gap-6 2xl:p-8"
 				>
 					<header class="flex items-center justify-between">
-						<h3 class="text-lg font-semibold tracking-[4px] text-white 2xl:text-xl">
+						<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">
 							{{ editingPerson ? "編輯人員" : "新增人員" }}
 						</h3>
 						<button
@@ -22,108 +21,268 @@
 							&times;
 						</button>
 					</header>
-					<form class="flex flex-col gap-4 2xl:gap-6" @submit.prevent="handleSubmit">
-						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-							<span>大頭照</span>
-							<div class="flex flex-wrap items-center gap-3">
-								<div
-									class="flex h-20 w-20 shrink-0 overflow-hidden rounded-full border border-white/20 bg-white/10 2xl:h-24 2xl:w-24"
-								>
-									<img
-										v-if="facePreviewUrl"
-										:src="facePreviewUrl"
-										alt="大頭照預覽"
-										class="h-full w-full object-cover"
-									/>
+					<form class="grid gap-4 2xl:gap-6 grid-cols-2" @submit.prevent="handleSubmit">
+						<div
+							v-if="!hasAccessControlDevices"
+							class="col-span-2 rounded-lg border border-white/20 bg-white/5 p-3 text-xs text-white/70 2xl:text-sm"
+							role="status"
+						>
+							尚無可用的門禁設備（請先到設備管理建立 type_code=access_control 的設備）
+						</div>
+
+						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
+							<p>大頭照</p>
+							<p class="text-white/60">(支援 200KB 以下的 JPG/JPEG)</p>
+							<div class="rounded-xl border border-white/10 bg-white/5 p-3">
+								<div class="flex items-center gap-4">
 									<div
-										v-else
-										class="flex h-full w-full items-center justify-center text-2xl text-white/40"
-										aria-hidden="true"
+										class="flex h-20 w-20 shrink-0 overflow-hidden rounded-full border border-white/20 bg-white/10 2xl:h-24 2xl:w-24"
 									>
-										?
+										<img
+											v-if="resolvedFaceUrl"
+											:src="resolvedFaceUrl"
+											alt="大頭照預覽"
+											class="h-full w-full object-cover"
+										/>
+										<div
+											v-else
+											class="flex h-full w-full items-center justify-center text-2xl text-white/40"
+											aria-hidden="true"
+										>
+											?
+										</div>
+									</div>
+
+									<div class="flex flex-col gap-3">
+										<input
+											ref="faceFileInputRef"
+											type="file"
+											accept="image/jpeg,image/jpg"
+											class="hidden"
+											aria-label="選擇大頭照"
+											@change="handleFaceFileChange"
+										/>
+										<button
+											type="button"
+											class="w-full rounded-lg bg-white/20 px-3 py-2 text-sm text-white hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/30 md:w-auto"
+											@click="triggerFaceFileSelect"
+										>
+											上傳圖片
+										</button>
+										<button
+											v-if="resolvedFaceUrl"
+											type="button"
+											class="w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/20 md:w-auto"
+											@click="handleClearFace"
+										>
+											清除
+										</button>
 									</div>
 								</div>
-								<div class="flex flex-col gap-1">
-									<input
-										ref="faceFileInputRef"
-										type="file"
-										accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-										class="hidden"
-										aria-label="選擇大頭照"
-										@change="handleFaceFileChange"
-									/>
+
+								<div class="mt-6 flex gap-3 items-center">
+									<div class="w-full md:max-w-[240px]">
+										<FilterDropdown
+											v-model="localCaptureDeviceIdString"
+											:options="accessControlDeviceOptions"
+											placeholder="選擇門禁設備"
+											text-size="text-sm 2xl:text-base"
+										/>
+									</div>
 									<button
 										type="button"
-										class="rounded-lg bg-white/20 px-3 py-2 text-sm text-white hover:bg-white/30"
-										@click="triggerFaceFileSelect"
+										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white hover:bg-cyan-400 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-cyan-300/50"
+										:disabled="
+											isCapturingFace || !hasSelectedCaptureDevice || !hasAccessControlDevices
+										"
+										aria-label="從設備截圖"
+										@click="handleCaptureFace"
 									>
-										上傳圖片
-									</button>
-									<button
-										v-if="hasFacePreview"
-										type="button"
-										class="rounded-lg bg-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/20"
-										@click="handleClearFace"
-									>
-										清除
+										{{ isCapturingFace ? "截圖中..." : "截圖" }}
 									</button>
 								</div>
-							</div>
-						</label>
-						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-							<span>工號 *</span>
-							<input
-								v-model="form.employeeNo"
-								type="text"
-								required
-								class="form-input-small"
-								:readonly="!!editingPerson"
-							/>
-						</label>
-						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-							<span>姓名 *</span>
-							<input v-model="form.fullName" type="text" required class="form-input-small" />
-						</label>
-						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-							<span>群組</span>
-							<select v-model="form.personGroupId" class="form-input-small form-select">
-								<option :value="null">不指定</option>
-								<option v-for="g in groups" :key="g.id" :value="g.id">
-									{{ g.name }}
-								</option>
-							</select>
-						</label>
-						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-							<span>門禁權限（可進出地點）</span>
-							<div class="space-y-2">
-								<label
-									v-for="loc in locations"
-									:key="loc.id"
-									class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
-									:class="{
-										'border-cyan-400/50 bg-cyan-500/20': localSelectedLocationIds.includes(loc.id),
-									}"
+
+								<p
+									v-if="captureErrorText"
+									class="mt-2 text-xs text-rose-300 2xl:text-sm"
+									role="alert"
+									aria-live="polite"
 								>
+									{{ captureErrorText }}
+								</p>
+							</div>
+						</div>
+
+						<div class="space-y-3">
+							<label class="flex flex-col gap-2 text-white/80 text-base">
+								<span>姓名 *</span>
+								<input v-model="form.fullName" type="text" required class="form-input-small" />
+							</label>
+
+							<label class="flex flex-col gap-2 text-white/80 text-base">
+								<span>工號 *</span>
+								<input
+									v-model="form.employeeNo"
+									type="text"
+									required
+									class="form-input-small"
+									:readonly="!!editingPerson"
+								/>
+							</label>
+
+							<label class="flex flex-col gap-2 text-white/80 text-base">
+								<span>密碼設定</span>
+								<input
+									:value="localPassword"
+									type="text"
+									inputmode="numeric"
+									pattern="[0-9]*"
+									class="form-input-small"
+									placeholder="僅數字（4~12 碼）"
+									aria-label="門禁密碼"
+									@input="handlePasswordInput"
+								/>
+							</label>
+						</div>
+
+						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base col-span-2">
+							<p>有效期限</p>
+							<div class="rounded-xl border border-white/10 bg-white/5 p-3 space-y-3">
+								<label class="relative inline-flex cursor-pointer items-center">
 									<input
-										v-model="localSelectedLocationIds"
+										v-model="localIsLongTerm"
 										type="checkbox"
-										:value="loc.id"
-										class="h-4 w-4 accent-cyan-400"
+										class="peer sr-only"
+										aria-label="長期授權：開啟或關閉"
 									/>
-									<span class="text-sm text-white/90 2xl:text-base">
-										{{ loc.zone_name }} - {{ loc.name }}
-									</span>
+									<div
+										class="peer h-6 w-11 rounded-full bg-white/20 after:absolute after:left-[4px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-cyan-500 peer-checked:after:translate-x-full peer-focus:outline-none 2xl:h-7 2xl:w-14 2xl:after:h-6 2xl:after:w-6"
+									></div>
+									<span class="ml-3 text-sm 2xl:text-base">{{
+										localIsLongTerm ? "長期授權" : "指定有效期限"
+									}}</span>
 								</label>
 
-								<div
-									v-if="locations.length === 0"
-									class="rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200/90"
-								>
-									尚無可同步地點（請先在人流統計設定地點並綁定入口設備）
+								<div v-if="!localIsLongTerm" class="grid grid-cols-2 gap-3">
+									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
+										<span>起始日 *</span>
+										<input
+											v-model="localValidBeginDate"
+											type="date"
+											required
+											class="form-input-small"
+											aria-label="有效期限起始日"
+										/>
+									</label>
+									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
+										<span>結束日 *</span>
+										<input
+											v-model="localValidEndDate"
+											type="date"
+											required
+											class="form-input-small"
+											aria-label="有效期限結束日"
+										/>
+									</label>
 								</div>
 							</div>
-						</label>
-						<label class="flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base">
+						</div>
+
+						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
+							<p>卡片設定</p>
+							<div class="rounded-xl border border-white/10 bg-white/5 p-3">
+								<div class="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+									<div class="w-full md:max-w-[240px]">
+										<FilterDropdown
+											v-model="localCardDeviceIdString"
+											:options="accessControlDeviceOptions"
+											placeholder="選擇門禁設備"
+											text-size="text-sm 2xl:text-base"
+										/>
+									</div>
+									<button
+										type="button"
+										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white hover:bg-cyan-400 disabled:opacity-50 md:w-auto"
+										:disabled="
+											isCapturingCard || !hasSelectedCardDevice || !hasAccessControlDevices
+										"
+										aria-label="從設備讀取卡號"
+										@click="handleCaptureCard"
+									>
+										{{ isCapturingCard ? "讀卡中..." : "讀卡" }}
+									</button>
+								</div>
+
+								<div class="mt-3 flex flex-wrap items-center gap-2">
+									<input
+										v-model="localCardNo"
+										type="text"
+										inputmode="numeric"
+										class="form-input w-full max-w-[320px] border-white/30 bg-white/10 py-1.5 text-sm text-white placeholder:text-white/40 2xl:py-2 2xl:text-base"
+										placeholder="卡號（可手動輸入）"
+										aria-label="卡號"
+									/>
+								</div>
+
+								<p
+									v-if="cardErrorText"
+									class="mt-2 text-xs text-rose-300 2xl:text-sm"
+									role="alert"
+									aria-live="polite"
+								>
+									{{ cardErrorText }}
+								</p>
+							</div>
+						</div>
+
+						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
+							<p>指紋設定</p>
+							<div class="rounded-xl border border-white/10 bg-white/5 p-3">
+								<div class="flex items-center gap-2">
+									<div class="w-full md:max-w-[240px]">
+										<FilterDropdown
+											v-model="localFingerDeviceIdString"
+											:options="accessControlDeviceOptions"
+											placeholder="選擇門禁設備"
+											text-size="text-sm 2xl:text-base"
+										/>
+									</div>
+									<button
+										type="button"
+										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white hover:bg-cyan-400 disabled:opacity-50"
+										:disabled="
+											isCapturingFingerPrint || !hasSelectedFingerDevice || !hasAccessControlDevices
+										"
+										aria-label="讀取指紋模板"
+										@click="handleCaptureFingerPrint"
+									>
+										{{ isCapturingFingerPrint ? "讀取中..." : "讀取" }}
+									</button>
+								</div>
+								<div class="mt-3 flex flex-wrap items-center gap-2">
+									<input
+										v-model="localFingerPrintData"
+										type="text"
+										class="form-input w-full max-w-[320px] border-white/30 bg-white/10 py-1.5 text-sm text-white placeholder:text-white/40 2xl:py-2 2xl:text-base"
+										placeholder="指紋模板值"
+										aria-label="指紋模板值"
+									/>
+								</div>
+
+								<p
+									v-if="fingerPrintErrorText"
+									class="mt-2 text-xs text-rose-300 2xl:text-sm"
+									role="alert"
+									aria-live="polite"
+								>
+									{{ fingerPrintErrorText }}
+								</p>
+							</div>
+						</div>
+
+						<div
+							class="flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base col-span-2"
+						>
 							<label class="relative inline-flex cursor-pointer items-center">
 								<input
 									v-model="form.status"
@@ -141,9 +300,13 @@
 									form.status === "active" ? "已啟用" : "已停用"
 								}}</span>
 							</label>
-						</label>
-						<p v-if="errorMessage" class="text-sm text-rose-300">{{ errorMessage }}</p>
-						<footer class="mt-2 flex gap-3 2xl:gap-4">
+						</div>
+
+						<p v-if="errorMessage" class="text-sm text-rose-300 col-span-2">
+							{{ errorMessage }}
+						</p>
+
+						<footer class="mt-2 flex gap-3 2xl:gap-4 col-span-2">
 							<button type="button" class="btn-secondary" @click="handleClose">取消</button>
 							<div class="flex-1"></div>
 							<button type="submit" class="btn-primary" :disabled="isSubmitting">
@@ -158,7 +321,9 @@
 </template>
 
 <script setup lang="ts">
-import type { Person, PersonGroup, SyncableLocation } from "~/types/personnel"
+import type { Person } from "~/types/personnel"
+import type { Device } from "~/types/device"
+import FilterDropdown from "~/components/common/FilterDropdown.vue"
 
 const props = defineProps<{
 	modelValue: boolean
@@ -166,37 +331,139 @@ const props = defineProps<{
 	form: {
 		employeeNo: string
 		fullName: string
-		personGroupId: number | null
 		status: "active" | "inactive"
 		faceUrl: string
 	}
-	groups: PersonGroup[]
-	locations: SyncableLocation[]
-	selectedLocationIds: number[]
+	accessControlDevices: Device[]
+	captureDeviceId: number | null
+	isCapturingFace: boolean
+	captureErrorMessage: string | null
+	cardDeviceId: number | null
+	isCapturingCard: boolean
+	cardErrorMessage: string | null
+	cardNo: string
+	fingerDeviceId: number | null
+	fingerPrintData: string
+	password: string
+	isLongTerm: boolean
+	validBeginDate: string
+	validEndDate: string
+	isCapturingFingerPrint: boolean
+	fingerPrintErrorMessage: string | null
 	facePreviewUrl: string | null
-	hasFacePreview: boolean
 	isSubmitting: boolean
 	errorMessage: string | null
 }>()
 
 const emit = defineEmits<{
 	"update:modelValue": [value: boolean]
-	"update:selectedLocationIds": [ids: number[]]
+	"update:captureDeviceId": [id: number | null]
+	"update:cardDeviceId": [id: number | null]
+	"update:cardNo": [cardNo: string]
+	"update:fingerDeviceId": [id: number | null]
+	"update:fingerPrintData": [data: string]
+	"update:password": [value: string]
+	"update:isLongTerm": [value: boolean]
+	"update:validBeginDate": [value: string]
+	"update:validEndDate": [value: string]
 	submit: []
 	"face-file-change": [file: File]
 	"clear-face": []
+	"capture-face": []
+	"capture-card": []
+	"capture-fingerprint": []
 }>()
 
 const faceFileInputRef = ref<HTMLInputElement | null>(null)
 
-const localSelectedLocationIds = computed({
-	get: () => props.selectedLocationIds,
-	set: (ids: number[]) => emit("update:selectedLocationIds", ids),
+const resolvedFaceUrl = computed(() => {
+	const url = props.facePreviewUrl || props.form.faceUrl || null
+	if (!url) return null
+	const trimmed = String(url).trim()
+	return trimmed ? trimmed : null
 })
+
+const hasAccessControlDevices = computed(
+	() => Array.isArray(props.accessControlDevices) && props.accessControlDevices.length > 0
+)
+
+const captureErrorText = computed(() => (props.captureErrorMessage || "").trim() || null)
+const cardErrorText = computed(() => (props.cardErrorMessage || "").trim() || null)
+
+const accessControlDeviceOptions = computed(() => {
+	return (props.accessControlDevices || []).map((d) => ({
+		value: String(d.id),
+		label: d.name,
+	}))
+})
+
+const localCaptureDeviceIdString = computed<string>({
+	get: () => (props.captureDeviceId == null ? "" : String(props.captureDeviceId)),
+	set: (v) => emit("update:captureDeviceId", v ? Number(v) : null),
+})
+
+const hasSelectedCaptureDevice = computed(() => props.captureDeviceId != null)
+
+const localCardDeviceIdString = computed<string>({
+	get: () => (props.cardDeviceId == null ? "" : String(props.cardDeviceId)),
+	set: (v) => emit("update:cardDeviceId", v ? Number(v) : null),
+})
+
+const hasSelectedCardDevice = computed(() => props.cardDeviceId != null)
+
+const localCardNo = computed<string>({
+	get: () => props.cardNo || "",
+	set: (v) => emit("update:cardNo", v),
+})
+
+const localFingerDeviceIdString = computed<string>({
+	get: () => (props.fingerDeviceId == null ? "" : String(props.fingerDeviceId)),
+	set: (v) => emit("update:fingerDeviceId", v ? Number(v) : null),
+})
+
+const hasSelectedFingerDevice = computed(() => props.fingerDeviceId != null)
+
+const localFingerPrintData = computed<string>({
+	get: () => props.fingerPrintData || "",
+	set: (v) => emit("update:fingerPrintData", v),
+})
+
+const localPassword = computed<string>({
+	get: () => props.password || "",
+	set: (v) => emit("update:password", v),
+})
+
+const handlePasswordInput = (e: Event) => {
+	const input = e.target as HTMLInputElement | null
+	if (!input) return
+	const next = String(input.value || "").replace(/\D+/g, "")
+	if (next !== input.value) input.value = next
+	localPassword.value = next
+}
+
+const localIsLongTerm = computed<boolean>({
+	get: () => Boolean(props.isLongTerm),
+	set: (v) => emit("update:isLongTerm", Boolean(v)),
+})
+
+const localValidBeginDate = computed<string>({
+	get: () => props.validBeginDate || "",
+	set: (v) => emit("update:validBeginDate", v),
+})
+
+const localValidEndDate = computed<string>({
+	get: () => props.validEndDate || "",
+	set: (v) => emit("update:validEndDate", v),
+})
+
+const fingerPrintErrorText = computed(() => (props.fingerPrintErrorMessage || "").trim() || null)
 
 const handleClose = () => emit("update:modelValue", false)
 const handleSubmit = () => emit("submit")
 const triggerFaceFileSelect = () => faceFileInputRef.value?.click()
+const handleCaptureFace = () => emit("capture-face")
+const handleCaptureCard = () => emit("capture-card")
+const handleCaptureFingerPrint = () => emit("capture-fingerprint")
 
 const handleFaceFileChange = (e: Event) => {
 	const input = e.target as HTMLInputElement

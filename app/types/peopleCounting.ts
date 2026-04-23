@@ -18,13 +18,13 @@ export interface PeopleCountingLocation {
 	name: string; // 地點名稱（工地名稱）
 	locationType?: "people_counting"; // 地點類型
 	personGroupIds?: number[]; // 對應的 person_group.id 列表（YSCP）
-	entryDoorId?: number; // 入口設備 ID（YSCP）
-	exitDoorId?: number; // 出口設備 ID（YSCP）
+	entryDoorIds?: number[]; // 入口設備 IDs（YSCP）
+	exitDoorIds?: number[]; // 出口設備 IDs（YSCP）
 	/** 資料來源：yscp（預設）/ access_control / isapi_camera */
 	dataSource?: "yscp" | "access_control" | "isapi_camera";
-	/** 本系統門禁設備 ID（dataSource 為 access_control 時使用） */
-	entryDeviceId?: number;
-	exitDeviceId?: number;
+	/** 本系統門禁設備 IDs（dataSource 為 access_control 時使用） */
+	entryDeviceIds?: number[];
+	exitDeviceIds?: number[];
 	/** 攝影機設備 ID（dataSource 為 isapi_camera 時使用） */
 	cameraDeviceId?: number;
 	/** 攝影機設備 ID 列表（dataSource 為 isapi_camera 時使用；複選） */

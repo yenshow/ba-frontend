@@ -135,13 +135,13 @@ export type EmergencyRescueSystemConfig = DrainageSystemConfig
  */
 export interface PeopleCountingSystemConfig {
 	personGroupIds?: number[]
-	entryDoorId?: number
-	exitDoorId?: number
+	entryDoorIds?: number[]
+	exitDoorIds?: number[]
 	/** 資料來源：yscp（預設）/ access_control / isapi_camera */
 	dataSource?: "yscp" | "access_control" | "isapi_camera"
 	/** 本系統門禁設備 ID（devices.id），dataSource 為 access_control 時使用 */
-	entryDeviceId?: number
-	exitDeviceId?: number
+	entryDeviceIds?: number[]
+	exitDeviceIds?: number[]
 	/**
 	 * ISAPI PeopleCounting 攝影機（devices.id）單值（相容欄位）
 	 * - **僅作 fallback**：舊資料/舊前端可能只存此欄位

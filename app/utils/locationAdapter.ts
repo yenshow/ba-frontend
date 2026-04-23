@@ -47,8 +47,10 @@ export type BackendLocation = {
 			modbus?: any
 			// people_counting 系統配置
 			personGroupIds?: number[]
-			entryDoorId?: number
-			exitDoorId?: number
+			entryDoorIds?: number[]
+			exitDoorIds?: number[]
+			entryDeviceIds?: number[]
+			exitDeviceIds?: number[]
 			// vehicle_access 系統配置（entryLaneId / exitLaneId）
 			// drainage 系統配置
 			equipmentKind?: string
@@ -107,6 +109,30 @@ function isDrainageSystemConfig(config: unknown): config is DrainageSystemConfig
 }
 
 /**
+ * 類型守衛：檢查是否為電力系統配置
+ *
+ * 注意：Power 與 Drainage 結構高度相似，唯一明顯差異是 equipmentKind 的可選值。
+ * - 若 payload 帶有 equipmentKind，必須落在 power 的允許範圍
+ * - 若未帶 equipmentKind，則只要具備任一 power 相關欄位即可視為有效（由 systemType 保證語意）
+ */
+function isPowerSystemConfig(config: unknown): config is PowerSystemConfig {
+	if (!config || typeof config !== "object") return false
+	const c = config as Record<string, unknown>
+
+	if ("equipmentKind" in c) {
+		return c.equipmentKind === "generator" || c.equipmentKind === "oil_level"
+	}
+
+	return (
+		"statusPoints" in c ||
+		"viewCategory" in c ||
+		"location" in c ||
+		"modbus" in c ||
+		"deviceId" in c
+	)
+}
+
+/**
  * 類型守衛：檢查是否為照明系統配置
  */
 function isLightingSystemConfig(config: unknown): config is LightingSystemConfig {
@@ -136,8 +162,8 @@ function isPeopleCountingSystemConfig(config: unknown): config is PeopleCounting
 	if (c.dataSource === "isapi_camera" || c.dataSource === "access_control") return true
 	if (typeof c.cameraDeviceId === "number" && Number.isFinite(c.cameraDeviceId)) return true
 	if ("cameraDeviceIds" in c && Array.isArray((c as { cameraDeviceIds?: unknown }).cameraDeviceIds)) return true
-	if ("entryDoorId" in c || "exitDoorId" in c) return true
-	if ("entryDeviceId" in c || "exitDeviceId" in c) return true
+	if ("entryDoorIds" in c || "exitDoorIds" in c) return true
+	if ("entryDeviceIds" in c || "exitDeviceIds" in c) return true
 	return false
 }
 
@@ -173,7 +199,7 @@ function parseSystemConfig(systemType: SystemType, config: unknown): SystemConfi
 				statusPoints: {},
 			}
 		case "power":
-			if (isDrainageSystemConfig(config)) return config as PowerSystemConfig
+			if (isPowerSystemConfig(config)) return config
 			return {
 				equipmentKind: "generator",
 				viewCategory: "generator",
@@ -431,10 +457,10 @@ export function unifiedToPowerZone(zone: UnifiedZone): PowerZone {
 		...pickSortOrder(zone.sortOrder),
 		locations: zone.locations.flatMap((loc) => {
 			const powerSystem = loc.systems.find((s) => s.systemType === "power")
-			if (!powerSystem || !isDrainageSystemConfig(powerSystem.config)) {
+			if (!powerSystem || !isPowerSystemConfig(powerSystem.config)) {
 				return []
 			}
-			const cfg = powerSystem.config as PowerSystemConfig
+			const cfg = powerSystem.config
 			return [
 				{
 					id: loc.id,
@@ -687,11 +713,11 @@ export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZo
 					name: loc.name,
 					...pickSortOrder(loc.sortOrder),
 					personGroupIds: config.personGroupIds || [],
-					entryDoorId: config.entryDoorId ?? undefined,
-					exitDoorId: config.exitDoorId ?? undefined,
+					entryDoorIds: Array.isArray(config.entryDoorIds) ? config.entryDoorIds : [],
+					exitDoorIds: Array.isArray(config.exitDoorIds) ? config.exitDoorIds : [],
 					dataSource: config.dataSource ?? "yscp",
-					entryDeviceId: config.entryDeviceId ?? undefined,
-					exitDeviceId: config.exitDeviceId ?? undefined,
+					entryDeviceIds: Array.isArray(config.entryDeviceIds) ? config.entryDeviceIds : [],
+					exitDeviceIds: Array.isArray(config.exitDeviceIds) ? config.exitDeviceIds : [],
 					cameraDeviceId: config.cameraDeviceId ?? undefined,
 					cameraDeviceIds: Array.isArray(config.cameraDeviceIds)
 						? config.cameraDeviceIds
@@ -1051,11 +1077,11 @@ export function peopleCountingLocationToUnified(
 				systemType,
 				config: {
 					personGroupIds: loc.personGroupIds || [],
-					entryDoorId: loc.entryDoorId,
-					exitDoorId: loc.exitDoorId,
+					entryDoorIds: loc.entryDoorIds || [],
+					exitDoorIds: loc.exitDoorIds || [],
 					dataSource: loc.dataSource ?? "yscp",
-					entryDeviceId: loc.entryDeviceId ?? undefined,
-					exitDeviceId: loc.exitDeviceId ?? undefined,
+					entryDeviceIds: loc.entryDeviceIds || [],
+					exitDeviceIds: loc.exitDeviceIds || [],
 					cameraDeviceId: cameraDeviceIds[0] ?? undefined,
 					cameraDeviceIds: cameraDeviceIds.length ? cameraDeviceIds : undefined,
 					cameraChannelId:

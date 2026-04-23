@@ -499,11 +499,12 @@ const loadAccessControlDevices = async () => {
 }
 
 // 載入可用的 ISAPI 攝影機設備列表（人流攝影機）
-// 規則：取全部 active 設備，讓使用者自行選擇具備 host/username/password 的 ISAPI 設備
+// 規則：只取 active 的 camera，避免混入門禁/控制器等其他設備
 const loadIsapiCameraDevices = async () => {
 	if (props.systemType !== "people_counting") return
 	try {
 		const result = await deviceApi.getDevices({
+			type_code: "camera",
 			status: "active",
 			limit: 200,
 		})

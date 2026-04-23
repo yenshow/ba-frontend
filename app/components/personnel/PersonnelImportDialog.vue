@@ -4,7 +4,6 @@
 			<div
 				v-if="modelValue"
 				class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
-				@click.self="handleClose"
 			>
 				<div
 					class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-2xl flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:p-8"
@@ -22,36 +21,33 @@
 					</header>
 					<div class="space-y-4">
 						<div
-							class="rounded border border-white/20 bg-white/5 p-3 text-base text-white/80 2xl:text-lg"
+							class="rounded border border-white/20 bg-white/5 p-3 text-base text-white/80 2xl:text-lg space-y-2"
 						>
 							<p class="font-medium text-white/90">欄位說明</p>
-							<ul class="mt-2 list-inside list-disc space-y-1">
-								<li>工號／員工編號：<span class="text-white">employeeNo</span></li>
-								<li>姓名：<span class="text-white">fullName</span></li>
-								<li>群組名稱：<span class="text-white">personGroupName</span></li>
+							<ul class="list-inside list-disc space-y-1">
+								<li>工號（必填）：<span class="text-white">工號</span></li>
+								<li>姓名（必填）：<span class="text-white">姓名</span></li>
 								<li>
-									地點名稱：
-									<span class="text-white">locationNames</span>
-									<span class="text-white/70 text-sm 2xl:text-base"
-										>（僅接受「區域/地點」可用逗號分隔多筆）</span
-									>
+									有效起始日（選填）：<span class="text-white">有效起始日</span>
+									<span class="text-white/70 text-sm 2xl:text-base">（yyyy-mm-dd</span>
 								</li>
-								<li>圖片：<span class="text-white">imageFileName</span></li>
+								<li>
+									有效結束日（選填）：<span class="text-white">有效結束日</span>
+									<span class="text-white/70 text-sm 2xl:text-base">（yyyy-mm-dd</span>
+								</li>
+								<li>
+									門禁密碼（選填）：<span class="text-white">門禁密碼</span>（僅數字 4~12 碼）
+								</li>
+								<li>卡號（選填）：<span class="text-white">卡號</span></li>
 							</ul>
-							<div class="mt-3 flex flex-wrap items-center gap-2">
-								<button
-									type="button"
-									class="btn-secondary"
-									:disabled="isDownloadingTemplate"
-									@click="handleDownloadTemplate"
-								>
-									{{ isDownloadingTemplate ? "下載中..." : "下載範例檔" }}
-								</button>
-								<p class="text-sm text-white/60 2xl:text-base">
-									範例檔內附 <span class="text-white">群組清單</span> 與
-									<span class="text-white">地點清單</span> 工作表可查詢「區域/地點」格式
-								</p>
-							</div>
+							<button
+								type="button"
+								class="btn-secondary"
+								:disabled="isDownloadingTemplate"
+								@click="handleDownloadTemplate"
+							>
+								{{ isDownloadingTemplate ? "下載中..." : "下載範例檔" }}
+							</button>
 						</div>
 
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
@@ -67,7 +63,7 @@
 						</label>
 
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-							<span>圖片 zip（選填）</span>
+							<span>圖片 zip（選填，≤ 200KB，JPG/JPEG）</span>
 							<input
 								ref="zipInputRef"
 								type="file"

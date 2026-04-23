@@ -7,7 +7,6 @@
 				role="dialog"
 				aria-modal="true"
 				:aria-label="title"
-				@click.self="handleClose"
 			>
 				<div
 					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-6xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:max-w-7xl 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"

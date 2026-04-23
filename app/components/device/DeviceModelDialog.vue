@@ -219,19 +219,7 @@
 									></textarea>
 								</label>
 
-								<!-- 門禁設備：僅設定設備截圖回傳格式，其餘參數由後端預設 -->
-								<template v-if="deviceTypeCode === 'access_control'">
-									<div class="border-t border-white/10 pt-4">
-										<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-											<span>設備截圖回傳格式 (CaptureFaceData) *</span>
-											<select v-model="captureFaceDataType" required class="form-input form-select">
-												<option value="url">url（AC-07 等，回傳圖片網址）</option>
-												<option value="binary">binary（AC-02 等，回傳二進位）</option>
-											</select>
-											<p class="text-xs text-white/60">AC-02 請選 binary；AC-07 請選 url。</p>
-										</label>
-									</div>
-								</template>
+								<!-- 門禁設備：平台目前僅支援 CaptureFaceData(binary)，不需型號層設定 -->
 
 								<!-- 感測器參數配置（僅當設備類型為 sensor 時顯示） -->
 								<template v-if="deviceTypeCode === 'sensor'">
@@ -407,17 +395,15 @@ const showForm = ref(false);
 const editingModel = ref<DeviceModel | null>(null);
 const isSubmitting = ref(false);
 const formErrorMessage = ref<string | null>(null);
-const currentDeviceTypeId = ref<number | null>(null);
-
 const formData = reactive<{
 	name: string;
-	type_id: number;
+	type_code: DeviceTypeCode;
 	unit_id: number | undefined | null;
 	description: string;
 	config: SensorDeviceModelConfig | Record<string, any>;
 }>({
 	name: "",
-	type_id: 0,
+	type_code: "controller",
 	unit_id: undefined,
 	description: "",
 	config: {}
@@ -443,12 +429,10 @@ const sensorParameters = ref<SensorParameterDefinition[]>([]);
 // 感測器型號統一使用的 Modbus API 方法（型號層級設定一次）
 const sensorRegisterType = ref<ModbusRegisterType>("holding");
 
-// 門禁設備：僅設定 CaptureFaceData 回傳格式，其餘由後端預設
-const captureFaceDataType = ref<"binary" | "url">("url");
 
 const resetForm = () => {
 	formData.name = "";
-	formData.type_id = currentDeviceTypeId.value || 0;
+	formData.type_code = props.deviceTypeCode || "controller";
 	formData.unit_id = undefined;
 	formData.description = "";
 	formData.config = {};
@@ -456,7 +440,6 @@ const resetForm = () => {
 	cameraRtspTemplateCustom.value = "";
 	sensorParameters.value = [];
 	sensorRegisterType.value = "holding";
-	captureFaceDataType.value = "url";
 	formErrorMessage.value = null;
 };
 
@@ -494,16 +477,8 @@ const removeSensorParameter = (index: number) => {
 	sensorParameters.value.splice(index, 1);
 };
 
-const loadDeviceType = async () => {
-	if (!props.deviceTypeCode) return;
-
-	try {
-		const result = await deviceApi.getDeviceTypeByCode(props.deviceTypeCode);
-		currentDeviceTypeId.value = result.device_type.id;
-		formData.type_id = result.device_type.id;
-	} catch (error) {
-		console.error("載入設備類型失敗:", error);
-	}
+const loadDeviceType = () => {
+	formData.type_code = props.deviceTypeCode || "controller";
 };
 
 const handleError = (
@@ -552,15 +527,11 @@ const loadDeviceModels = async (force = false) => {
 const editDeviceModel = (model: DeviceModel) => {
 	editingModel.value = model;
 	formData.name = model.name;
-	formData.type_id = model.type_id;
+	formData.type_code = (model.type_code as DeviceTypeCode) || props.deviceTypeCode || "controller";
 	formData.unit_id = model.unit_id ?? undefined;
 	formData.description = model.description || "";
 
-	if (props.deviceTypeCode === "access_control") {
-		const config = model.config as Record<string, any> | undefined;
-		const c = config?.isapi?.captureFaceData;
-		captureFaceDataType.value = c?.dataType === "binary" ? "binary" : "url";
-	}
+	// access_control：CaptureFaceData 固定 binary，不需要型號層配置
 
 	if (props.deviceTypeCode === "camera") {
 		const config = (model.config as Record<string, any> | undefined) ?? {};
@@ -599,12 +570,11 @@ const editDeviceModel = (model: DeviceModel) => {
 // 表單快照（內層新增/編輯型號表單）
 interface FormSnapshot {
 	name: string;
-	type_id: number;
+	type_code: DeviceTypeCode;
 	unit_id: number | undefined | null;
 	description: string;
 	registerType: ModbusRegisterType;
 	sensorParametersJson: string;
-	captureFaceDataType: "binary" | "url";
 	cameraRtspTemplatePresetKey: string;
 	cameraRtspTemplateCustom: string;
 }
@@ -612,12 +582,11 @@ const formInitialSnapshot = ref<FormSnapshot | null>(null);
 
 const getFormSnapshot = (): FormSnapshot => ({
 	name: formData.name,
-	type_id: formData.type_id,
+	type_code: formData.type_code,
 	unit_id: formData.unit_id,
 	description: formData.description,
 	registerType: sensorRegisterType.value,
 	sensorParametersJson: JSON.stringify(sensorParameters.value),
-	captureFaceDataType: captureFaceDataType.value,
 	cameraRtspTemplatePresetKey: cameraRtspTemplatePresetKey.value,
 	cameraRtspTemplateCustom: cameraRtspTemplateCustom.value
 });
@@ -630,12 +599,11 @@ const formHasUnsavedChanges = computed(() => {
 		const init = formInitialSnapshot.value;
 		return (
 			cur.name !== init.name ||
-			cur.type_id !== init.type_id ||
+			cur.type_code !== init.type_code ||
 			cur.unit_id !== init.unit_id ||
 			cur.description !== init.description ||
 			cur.registerType !== init.registerType ||
 			cur.sensorParametersJson !== init.sensorParametersJson ||
-			cur.captureFaceDataType !== init.captureFaceDataType ||
 			cur.cameraRtspTemplatePresetKey !== init.cameraRtspTemplatePresetKey ||
 			cur.cameraRtspTemplateCustom !== init.cameraRtspTemplateCustom
 		);
@@ -661,7 +629,6 @@ const formChangedFieldsList = computed(() => {
 	if (cur.description !== init.description) fields.push("備註");
 	if (cur.registerType !== init.registerType) fields.push("API 方法 (功能碼)");
 	if (cur.sensorParametersJson !== init.sensorParametersJson) fields.push("感測器參數配置");
-	if (cur.captureFaceDataType !== init.captureFaceDataType) fields.push("設備截圖回傳格式");
 	if (
 		cur.cameraRtspTemplatePresetKey !== init.cameraRtspTemplatePresetKey ||
 		cur.cameraRtspTemplateCustom !== init.cameraRtspTemplateCustom
@@ -792,7 +759,7 @@ const handleFormSubmit = async () => {
 		const toOpt = (v: unknown) => (v !== undefined && v !== null && v !== "" ? Number(v) : undefined);
 		const submitData: CreateDeviceModelData | UpdateDeviceModelData = {
 			name: formData.name,
-			type_id: formData.type_id,
+			type_code: formData.type_code,
 			unit_id: toOpt(formData.unit_id),
 			description: formData.description || undefined
 		};
@@ -809,9 +776,7 @@ const handleFormSubmit = async () => {
 			submitData.config = sensorConfig;
 		}
 		if (props.deviceTypeCode === "access_control") {
-			submitData.config = {
-				isapi: { captureFaceData: { dataType: captureFaceDataType.value } }
-			};
+			submitData.config = {};
 		}
 
 		if (editingModel.value) {

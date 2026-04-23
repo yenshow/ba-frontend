@@ -16,7 +16,6 @@ export interface DeviceType {
 	id: number;
 	name: string;
 	code: DeviceTypeCode;
-	description?: string;
 	created_at?: string;
 	updated_at?: string;
 }
@@ -45,13 +44,10 @@ export interface SensorDeviceModelConfig {
 	sensorParameters?: SensorParameterDefinition[];
 }
 
-/** 門禁設備型號：僅設定 CaptureFaceData 回傳格式，其餘參數由後端預設 */
+/** 門禁設備型號：目前平台僅支援 CaptureFaceData(biary) */
 export interface AccessControlDeviceModelConfig {
 	isapi?: {
-		captureFaceData?: {
-			/** 回傳格式：AC-02 用 binary，AC-07 用 url */
-			dataType?: "binary" | "url";
-		};
+		captureFaceData?: Record<string, never>;
 	};
 }
 
@@ -59,7 +55,7 @@ export interface AccessControlDeviceModelConfig {
 export interface DeviceModel {
 	id: number;
 	name: string;
-	type_id: number;
+	type_code: DeviceTypeCode;
 	port?: number | null; // 端口號（選填，Modbus 標準 502 可留空由設備填寫）
 	unit_id?: number | null; // Unit ID（選填，感測器/控制器每設備可不同）
 	description?: string;
@@ -67,7 +63,6 @@ export interface DeviceModel {
 	// 對於感測器類型，config 應符合 SensorDeviceModelConfig 結構
 	config?: Record<string, any> | SensorDeviceModelConfig;
 	type_name?: string;
-	type_code?: string;
 	created_at?: string;
 	updated_at?: string;
 }
@@ -146,23 +141,22 @@ export interface DeviceStreamStatusResponse {
 export interface Device {
 	id: number;
 	name: string;
-	type_id: number;
+	type_code: DeviceTypeCode;
 	model_id: number; // 必填：設備型號 ID
 	description?: string;
 	status: DeviceStatus;
-	config: DeviceConfig; // JSON 格式儲存，根據 type_id 解析
+	config: DeviceConfig; // JSON 格式儲存，根據 type_code 解析
 	created_at?: string;
 	updated_at?: string;
 	// 關聯資料（從 JOIN 查詢中獲取）
 	model_name?: string;
 	type_name?: string;
-	type_code?: DeviceTypeCode;
 }
 
 // 創建設備資料
 export interface CreateDeviceData {
 	name: string;
-	type_id: number;
+	type_code?: DeviceTypeCode;
 	model_id: number; // 必填：設備型號 ID
 	description?: string;
 	status?: DeviceStatus;
@@ -172,7 +166,7 @@ export interface CreateDeviceData {
 // 更新設備資料
 export interface UpdateDeviceData {
 	name?: string;
-	type_id?: number;
+	type_code?: DeviceTypeCode;
 	model_id?: number; // 可選，但如果提供則必須是有效的 ID（不能為 0 或 null）
 	description?: string;
 	status?: DeviceStatus;
@@ -182,7 +176,7 @@ export interface UpdateDeviceData {
 // 創建設備型號資料
 export interface CreateDeviceModelData {
 	name: string;
-	type_id: number;
+	type_code: DeviceTypeCode;
 	port?: number | null; // 端口號（選填，留空則不設）
 	unit_id?: number | null; // Unit ID（選填，1-255）
 	description?: string;
@@ -192,7 +186,7 @@ export interface CreateDeviceModelData {
 // 更新設備型號資料
 export interface UpdateDeviceModelData {
 	name?: string;
-	type_id?: number;
+	type_code?: DeviceTypeCode;
 	port?: number | null; // 端口號（選填）
 	unit_id?: number | null; // Unit ID（選填，1-255）
 	description?: string;

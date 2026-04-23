@@ -458,20 +458,10 @@ const emit = defineEmits<Emits>()
 const deviceApi = useDeviceApi()
 const deviceModels = ref<DeviceModel[]>([])
 const isLoadingDeviceModels = ref(false)
-const currentDeviceTypeId = ref<number | null>(null)
 const localErrorMessage = ref<string | null>(null)
 
 // 設備型號 ID 字串（用於 FilterDropdown）
 const modelIdString = ref("")
-
-const loadDeviceType = async () => {
-	try {
-		const result = await deviceApi.getDeviceTypeByCode(props.deviceTypeCode)
-		currentDeviceTypeId.value = result.device_type.id
-	} catch (error) {
-		console.error("載入設備類型失敗:", error)
-	}
-}
 
 const localFormData = reactive({
 	name: "",
@@ -863,7 +853,6 @@ watch(
 	() => props.modelValue,
 	(isOpen) => {
 		if (isOpen) {
-			loadDeviceType()
 			loadDeviceModels()
 			nextTick(() => {
 				initialFormSnapshot.value = getFormSnapshot()
@@ -932,12 +921,6 @@ const getCurrentConfig = (): DeviceConfig => {
 const handleSubmit = () => {
 	localErrorMessage.value = null
 
-	// 新增模式才需要 type_id（編輯模式不依賴 currentDeviceTypeId）
-	if (!props.editingDevice && !currentDeviceTypeId.value) {
-		localErrorMessage.value = "設備類型尚未載入完成，請稍後再試"
-		return
-	}
-
 	// 驗證 model_id 必填
 	if (!localFormData.model_id || localFormData.model_id === 0) {
 		localErrorMessage.value = "請選擇設備型號"
@@ -992,7 +975,7 @@ const handleSubmit = () => {
 	} else {
 		const submitData: CreateDeviceData = {
 			name: localFormData.name,
-			type_id: currentDeviceTypeId.value!,
+			type_code: props.deviceTypeCode,
 			model_id: localFormData.model_id,
 			status: localFormData.status === "active" ? "active" : undefined,
 			config: config,
