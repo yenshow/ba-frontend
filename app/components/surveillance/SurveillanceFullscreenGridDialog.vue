@@ -7,7 +7,6 @@
 				role="dialog"
 				aria-modal="true"
 				aria-label="全螢幕監控畫面"
-				@click.self="handleClose"
 			>
 				<div class="absolute inset-0 p-2 sm:p-3">
 					<SurveillanceCameraGrid

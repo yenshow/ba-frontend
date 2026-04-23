@@ -25,15 +25,6 @@
 					</button>
 				</div>
 			</div>
-
-			<button
-				v-if="isOperator"
-				type="button"
-				class="rounded-xl bg-purple-500/80 px-4 py-2 text-base text-white hover:bg-purple-400 disabled:cursor-not-allowed disabled:bg-purple-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
-				@click="showDeviceTypeDialog = true"
-			>
-				設備類型管理
-			</button>
 		</div>
 
 		<!-- 設備列表 -->
@@ -82,7 +73,9 @@
 										/>
 									</th>
 									<th :class="tableHeaderClass">設備型號</th>
-									<th :class="tableHeaderClass">{{ activeTab === "camera" ? "IP 位址" : "配置資訊" }}</th>
+									<th :class="tableHeaderClass">
+										{{ activeTab === "camera" ? "IP 位址" : "配置資訊" }}
+									</th>
 									<th :class="tableHeaderClass">狀態</th>
 									<th :class="tableHeaderClass">
 										<FilterDropdown
@@ -190,13 +183,6 @@
 			@close="showDeviceModelDialog = false"
 			@refresh="handleDeviceModelRefresh"
 		/>
-
-		<!-- 設備類型管理對話框 -->
-		<DeviceTypeDialog
-			v-model="showDeviceTypeDialog"
-			@close="showDeviceTypeDialog = false"
-			@refresh="handleDeviceTypeRefresh"
-		/>
 	</div>
 </template>
 
@@ -207,7 +193,6 @@ import type {
 	UpdateDeviceData,
 	DeviceTypeCode,
 	DeviceConfig,
-	DeviceType,
 	DeviceStatus,
 	CameraDeviceConfig
 } from "~/types/device";
@@ -220,7 +205,6 @@ import type {
 	MonitoringDeviceStatusBatchEvent
 } from "~/types/websocket";
 import DeviceModelDialog from "~/components/device/DeviceModelDialog.vue";
-import DeviceTypeDialog from "~/components/device/DeviceTypeDialog.vue";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import Pagination from "~/components/common/Pagination.vue";
 import { formatDate } from "~/utils/dateUtils";
@@ -230,25 +214,20 @@ import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import { useDeviceWebSocket } from "~/composables/websocket/subscribers/useDeviceWebSocket";
+import { FIXED_DEVICE_TABS } from "~/constants/deviceTypes";
 
 definePageMeta({
-	layout: "auxiliary"
+	layout: "default"
 });
 
-const { isAdmin, isOperator } = useAuth();
+const { isOperator } = useAuth();
 const deviceApi = useDeviceApi();
 const toast = useToast();
 const { handleError: handleApiError } = useErrorHandler();
 const { setupDeviceListeners, removeDeviceListeners } = useDeviceWebSocket();
 
-// 從後端動態讀取的設備類型
-const deviceTypes = ref<DeviceType[]>([]);
-const deviceTabs = computed(() => {
-	return deviceTypes.value.map(type => ({
-		name: type.name,
-		code: type.code as DeviceTypeCode
-	}));
-});
+// 設備類型固定（不提供 CRUD）
+const deviceTabs = computed(() => FIXED_DEVICE_TABS);
 
 const activeTab = ref<DeviceTypeCode | null>(null);
 const currentTabName = computed(() => {
@@ -258,7 +237,6 @@ const currentTabName = computed(() => {
 
 const showCreateDialog = ref(false);
 const showDeviceModelDialog = ref(false);
-const showDeviceTypeDialog = ref(false);
 const refreshDeviceTypes = ref(false);
 
 const showDialog = computed({
@@ -435,21 +413,11 @@ const switchTab = (tabCode: DeviceTypeCode) => {
 	load(getLoadParams(), true);
 };
 
-// 載入設備類型（使用共享快取）
-const loadDeviceTypes = async (force = false) => {
-	try {
-		const types = await deviceApi.getDeviceTypes(force);
-		// 確保 types 是數組，避免 undefined 錯誤
-		deviceTypes.value = Array.isArray(types) ? types : [];
-		// 如果還沒有選中的標籤，選擇第一個
-		if (!activeTab.value && deviceTypes.value.length > 0) {
-			activeTab.value = deviceTypes.value[0].code as DeviceTypeCode;
-		}
-	} catch (error) {
-		// 錯誤處理：確保 deviceTypes.value 保持為空數組，而不是 undefined
-		deviceTypes.value = [];
-		handleError(error, "載入設備類型失敗");
-	}
+const initDefaultTab = () => {
+	if (activeTab.value) return;
+	const first = deviceTabs.value[0];
+	if (!first) return;
+	activeTab.value = first.code;
 };
 
 const editDevice = (device: Device) => {
@@ -558,12 +526,6 @@ const handleDeviceModelRefresh = () => {
 	refreshDeviceTypes.value = !refreshDeviceTypes.value;
 };
 
-// 設備類型變更後刷新（供 DeviceTypeDialog @refresh 使用）
-const handleDeviceTypeRefresh = () => {
-	loadDeviceTypes(true);
-	refreshDeviceTypes.value = !refreshDeviceTypes.value;
-};
-
 // 監聽 tab 切換（僅用於初始載入，手動切換由 switchTab 處理）
 watch(activeTab, (newTab, oldTab) => {
 	if (newTab && oldTab === null) {
@@ -658,12 +620,8 @@ const handleMonitoringStatusBatch = (event: MonitoringDeviceStatusBatchEvent) =>
 };
 
 onMounted(async () => {
-	await loadDeviceTypes();
-	// 設備類型載入後會自動設置第一個 tab，watch 會處理載入設備
-	// 但如果沒有觸發 watch，手動載入一次
-	if (activeTab.value) {
-		load(getLoadParams(), true); // 立即執行
-	}
+	initDefaultTab();
+	if (activeTab.value) load(getLoadParams(), true); // 立即執行
 
 	// 設置設備 WebSocket 事件監聽器
 	setupDeviceListeners({

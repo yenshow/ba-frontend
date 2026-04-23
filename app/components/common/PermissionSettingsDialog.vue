@@ -4,7 +4,6 @@
 			<div
 				v-if="open"
 				class="fixed inset-0 z-[2100] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
-				@click.self="handleClose"
 			>
 				<div
 					class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-lg flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:gap-6 2xl:p-8"
@@ -74,151 +73,152 @@
 </template>
 
 <script setup lang="ts">
-import type { PermissionDefinition, UserPermissionSettings } from "~/types/user";
-import { useUserApi } from "~/composables/systems/users/useUserApi";
-import { useErrorHandler } from "~/composables/core/useErrorHandler";
-import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
-import { MODULE_CATEGORY_LABELS, MODULE_CATEGORY_ORDER } from "~/constants/moduleCategories";
+import type { PermissionDefinition, UserPermissionSettings } from "~/types/user"
+import { useUserApi } from "~/composables/systems/users/useUserApi"
+import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
+import { MODULE_CATEGORY_LABELS, MODULE_CATEGORY_ORDER } from "~/constants/moduleCategories"
 
 const props = defineProps<{
-	open: boolean;
-	userId: number;
-	targetUsername: string;
-}>();
+	open: boolean
+	userId: number
+	targetUsername: string
+}>()
 
 const emit = defineEmits<{
-	(e: "close"): void;
-	(e: "saved"): void;
-}>();
+	(e: "close"): void
+	(e: "saved"): void
+}>()
 
-const userApi = useUserApi();
-const { handleError } = useErrorHandler();
-const moduleRegistry = useModuleRegistry();
+const userApi = useUserApi()
+const { handleError } = useErrorHandler()
+const moduleRegistry = useModuleRegistry()
 
-const isLoading = ref(true);
-const isSaving = ref(false);
-const errorMessage = ref<string | null>(null);
-const definitions = ref<PermissionDefinition[]>([]);
-const settings = ref<UserPermissionSettings | null>(null);
-const localGranted = ref<Record<number, boolean>>({});
+const isLoading = ref(true)
+const isSaving = ref(false)
+const errorMessage = ref<string | null>(null)
+const definitions = ref<PermissionDefinition[]>([])
+const settings = ref<UserPermissionSettings | null>(null)
+const localGranted = ref<Record<number, boolean>>({})
 
 const systemPermissionCategoryByCode = computed(() => {
-	const map = new Map<string, string>();
-	const modules = moduleRegistry.registry.value?.modules ?? [];
+	const map = new Map<string, string>()
+	const modules = moduleRegistry.registry.value?.modules ?? []
 	for (const m of modules) {
-		if (!m.permissionCode) continue;
-		if (!m.category) continue;
-		map.set(m.permissionCode, m.category);
+		if (!m.permissionCode) continue
+		if (!m.category) continue
+		map.set(m.permissionCode, m.category)
 	}
-	return map;
-});
+	return map
+})
 
 const allowedPermissionCodes = computed(() => {
-	const s = new Set<string>();
-	const modules = moduleRegistry.registry.value?.modules ?? [];
+	const s = new Set<string>()
+	const modules = moduleRegistry.registry.value?.modules ?? []
 	for (const m of modules) {
-		if (!m.permissionCode) continue;
-		s.add(m.permissionCode);
+		if (!m.permissionCode) continue
+		s.add(m.permissionCode)
 	}
-	return s;
-});
+	return s
+})
 
 const definitionsByCategory = computed(() => {
-	const map = new Map<string, PermissionDefinition[]>();
-	const systemCategoryMap = systemPermissionCategoryByCode.value;
-	const allowedCodes = allowedPermissionCodes.value;
+	const map = new Map<string, PermissionDefinition[]>()
+	const systemCategoryMap = systemPermissionCategoryByCode.value
+	const allowedCodes = allowedPermissionCodes.value
 
 	for (const d of definitions.value) {
 		// 僅顯示「registry 有宣告 permissionCode」的系統權限，避免顯示不存在的頁面/殘留權限碼
-		if (!allowedCodes.has(d.code)) continue;
-		const categoryKey = systemCategoryMap.get(d.code) ?? "system";
-		if (!map.has(categoryKey)) map.set(categoryKey, []);
-		map.get(categoryKey)!.push(d);
+		if (!allowedCodes.has(d.code)) continue
+		// 依 moduleRegistry 分配到核心基礎/工地監控/…；無對應則落到 "system"（未歸類）
+		const categoryKey = systemCategoryMap.get(d.code) ?? "system"
+
+		if (!map.has(categoryKey)) map.set(categoryKey, [])
+		map.get(categoryKey)!.push(d)
 	}
 
 	for (const [, defs] of map) {
 		defs.sort(
 			(a, b) => a.sort_order - b.sort_order || (a.name || a.code).localeCompare(b.name || b.code)
-		);
+		)
 	}
 
-	return map;
-});
+	return map
+})
 
 const categoryOrder = computed(() => {
-	const keys = new Set(definitionsByCategory.value.keys());
-	const order: string[] = [];
+	const keys = new Set(definitionsByCategory.value.keys())
+	const order: string[] = []
 	for (const key of MODULE_CATEGORY_ORDER) {
-		if (keys.has(key)) order.push(key);
+		if (keys.has(key)) order.push(key)
 	}
-	if (keys.has("system")) order.push("system");
-	return order;
-});
+	if (keys.has("system")) order.push("system")
+	return order
+})
 
 const getCategoryLabel = (cat: string) => {
-	if (cat in MODULE_CATEGORY_LABELS)
-		return MODULE_CATEGORY_LABELS[cat as keyof typeof MODULE_CATEGORY_LABELS];
-	if (cat === "system") return "未歸類";
-	return cat;
-};
+	if (cat in MODULE_CATEGORY_LABELS) return MODULE_CATEGORY_LABELS[cat as keyof typeof MODULE_CATEGORY_LABELS]
+	if (cat === "system") return "未歸類"
+	return cat
+}
 
 const load = async () => {
-	if (!props.userId || !props.open) return;
-	isLoading.value = true;
-	errorMessage.value = null;
+	if (!props.userId || !props.open) return
+	isLoading.value = true
+	errorMessage.value = null
 	try {
-		await moduleRegistry.ensureLoaded();
+		await moduleRegistry.ensureLoaded()
 		const [defRes, settingsRes] = await Promise.all([
 			userApi.getPermissionDefinitions(false),
 			userApi.getUserPermissions(props.userId),
-		]);
-		definitions.value = defRes.definitions;
-		settings.value = settingsRes;
-		const granted: Record<number, boolean> = {};
+		])
+		definitions.value = defRes.definitions
+		settings.value = settingsRes
+		const granted: Record<number, boolean> = {}
 		for (const d of defRes.definitions) {
-			granted[d.id] = settingsRes.effectiveCodes.includes(d.code);
+			granted[d.id] = settingsRes.effectiveCodes.includes(d.code)
 		}
-		localGranted.value = granted;
+		localGranted.value = granted
 	} catch (error) {
-		errorMessage.value = handleError(error, "載入權限設定失敗") || "載入失敗";
+		errorMessage.value = handleError(error, "載入權限設定失敗") || "載入失敗"
 	} finally {
-		isLoading.value = false;
+		isLoading.value = false
 	}
-};
+}
 
 const handleClose = () => {
-	emit("close");
-};
+	emit("close")
+}
 
 const handleSave = async () => {
-	if (!props.userId || !settings.value) return;
-	isSaving.value = true;
-	errorMessage.value = null;
+	if (!props.userId || !settings.value) return
+	isSaving.value = true
+	errorMessage.value = null
 	try {
-		const roleDefaults = settings.value.roleDefaultsByPermId;
-		const overrides: { permission_id: number; granted: boolean }[] = [];
+		const roleDefaults = settings.value.roleDefaultsByPermId
+		const overrides: { permission_id: number; granted: boolean }[] = []
 		for (const [permIdStr, granted] of Object.entries(localGranted.value)) {
-			const permId = Number(permIdStr);
-			const roleDefault = roleDefaults[permId];
+			const permId = Number(permIdStr)
+			const roleDefault = roleDefaults[permId]
 			if (roleDefault !== granted) {
-				overrides.push({ permission_id: permId, granted });
+				overrides.push({ permission_id: permId, granted })
 			}
 		}
-		await userApi.updateUserPermissions(props.userId, overrides);
-		emit("saved");
-		handleClose();
+		await userApi.updateUserPermissions(props.userId, overrides)
+		emit("saved")
+		handleClose()
 	} catch (error) {
-		errorMessage.value = handleError(error, "儲存權限失敗") || "儲存失敗";
+		errorMessage.value = handleError(error, "儲存權限失敗") || "儲存失敗"
 	} finally {
-		isSaving.value = false;
+		isSaving.value = false
 	}
-};
+}
 
 watch(
 	() => [props.open, props.userId] as const,
 	([open, userId]) => {
-		if (open && userId) load();
+		if (open && userId) load()
 	},
 	{ immediate: true }
-);
+)
 </script>

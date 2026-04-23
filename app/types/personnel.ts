@@ -33,6 +33,14 @@ export interface PagedResult<T> {
 	offset: number;
 }
 
+/** 群組成員清單回傳（GET /personnel/groups/:id/members） */
+export interface GroupMembersResult {
+	items: Person[];
+	total: number;
+	limit: number;
+	offset: number;
+}
+
 /** 門禁權限：人員可進出之地點 */
 export interface AccessLocation {
 	location_id: number;
@@ -46,6 +54,24 @@ export interface SyncableLocation {
 	id: number;
 	name: string;
 	zone_name: string;
+}
+
+/** 某可同步地點應寫入設備的候選人（GET sync-candidates） */
+export interface SyncLocationCandidate {
+	employeeNo: string;
+	fullName: string;
+	hasFace: boolean;
+	hasPassword: boolean;
+	hasCard: boolean;
+	fingerprintCount: number;
+	needsSync?: boolean;
+	needsSyncSteps?: Array<"userInfo" | "face" | "card" | "fingerprint" | string>;
+	lastSync?: {
+		userInfo: { status: "never" | "partial" | "success" | "failed" | string; at: number | string | null };
+		face: { status: "never" | "partial" | "success" | "failed" | string; at: number | string | null };
+		card: { status: "never" | "partial" | "success" | "failed" | string; at: number | string | null };
+		fingerprint: { status: "never" | "partial" | "success" | "failed" | string; at: number | string | null };
+	};
 }
 
 /** 取得門禁權限回傳 */
@@ -83,6 +109,8 @@ export interface SyncAllLocationsJob {
 	createdAt: number;
 	startedAt: number | null;
 	finishedAt: number | null;
+	/** 同步全部時，各子地點的逐人／逐 API 事件（帶 locationId） */
+	items?: SyncLocationJobItem[];
 	progress: {
 		total: number;
 		completed: number;
@@ -93,6 +121,23 @@ export interface SyncAllLocationsJob {
 	error: { message: string } | null;
 }
 
+export type SyncLocationJobItemStatus = "running" | "success" | "failed" | "skipped";
+
+export interface SyncLocationJobItem {
+	/** 同步全部 job 的逐筆事件會帶上地點 id */
+	locationId?: number | null;
+	employeeNo: string | null;
+	deviceId: number | null;
+	/** add / update / delete / sync（sync 為子步驟，例如 userInfo/face/card/fingerprint） */
+	action: "add" | "update" | "delete" | "sync" | string;
+	/** person / userInfo / face / card / fingerprint:* / batch:* */
+	stage: string | null;
+	status: SyncLocationJobItemStatus;
+	startedAt: number;
+	finishedAt: number | null;
+	message: string | null;
+}
+
 export interface SyncLocationJob {
 	jobId: string;
 	locationId: number;
@@ -101,6 +146,21 @@ export interface SyncLocationJob {
 	createdAt: number;
 	startedAt: number | null;
 	finishedAt: number | null;
+	progress?: {
+		total: number;
+		attempted: number;
+		completed: number;
+		succeeded: number;
+		failed: number;
+		deviceTotal: number;
+		currentDeviceIndex: number;
+		currentDeviceId: number | null;
+		targetPersonsTotal: number;
+		currentEmployeeNo: string | null;
+		currentAction: string | null;
+		currentStage: string | null;
+	};
+	items?: SyncLocationJobItem[];
 	result: { warnings: SyncWarning[] } | null;
 	error: { message: string } | null;
 }

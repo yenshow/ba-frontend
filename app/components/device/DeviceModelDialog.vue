@@ -407,17 +407,15 @@ const showForm = ref(false);
 const editingModel = ref<DeviceModel | null>(null);
 const isSubmitting = ref(false);
 const formErrorMessage = ref<string | null>(null);
-const currentDeviceTypeId = ref<number | null>(null);
-
 const formData = reactive<{
 	name: string;
-	type_id: number;
+	type_code: DeviceTypeCode;
 	unit_id: number | undefined | null;
 	description: string;
 	config: SensorDeviceModelConfig | Record<string, any>;
 }>({
 	name: "",
-	type_id: 0,
+	type_code: "controller",
 	unit_id: undefined,
 	description: "",
 	config: {}
@@ -448,7 +446,7 @@ const captureFaceDataType = ref<"binary" | "url">("url");
 
 const resetForm = () => {
 	formData.name = "";
-	formData.type_id = currentDeviceTypeId.value || 0;
+	formData.type_code = props.deviceTypeCode || "controller";
 	formData.unit_id = undefined;
 	formData.description = "";
 	formData.config = {};
@@ -494,16 +492,8 @@ const removeSensorParameter = (index: number) => {
 	sensorParameters.value.splice(index, 1);
 };
 
-const loadDeviceType = async () => {
-	if (!props.deviceTypeCode) return;
-
-	try {
-		const result = await deviceApi.getDeviceTypeByCode(props.deviceTypeCode);
-		currentDeviceTypeId.value = result.device_type.id;
-		formData.type_id = result.device_type.id;
-	} catch (error) {
-		console.error("載入設備類型失敗:", error);
-	}
+const loadDeviceType = () => {
+	formData.type_code = props.deviceTypeCode || "controller";
 };
 
 const handleError = (
@@ -552,7 +542,7 @@ const loadDeviceModels = async (force = false) => {
 const editDeviceModel = (model: DeviceModel) => {
 	editingModel.value = model;
 	formData.name = model.name;
-	formData.type_id = model.type_id;
+	formData.type_code = (model.type_code as DeviceTypeCode) || props.deviceTypeCode || "controller";
 	formData.unit_id = model.unit_id ?? undefined;
 	formData.description = model.description || "";
 
@@ -599,7 +589,7 @@ const editDeviceModel = (model: DeviceModel) => {
 // 表單快照（內層新增/編輯型號表單）
 interface FormSnapshot {
 	name: string;
-	type_id: number;
+	type_code: DeviceTypeCode;
 	unit_id: number | undefined | null;
 	description: string;
 	registerType: ModbusRegisterType;
@@ -612,7 +602,7 @@ const formInitialSnapshot = ref<FormSnapshot | null>(null);
 
 const getFormSnapshot = (): FormSnapshot => ({
 	name: formData.name,
-	type_id: formData.type_id,
+	type_code: formData.type_code,
 	unit_id: formData.unit_id,
 	description: formData.description,
 	registerType: sensorRegisterType.value,
@@ -630,7 +620,7 @@ const formHasUnsavedChanges = computed(() => {
 		const init = formInitialSnapshot.value;
 		return (
 			cur.name !== init.name ||
-			cur.type_id !== init.type_id ||
+			cur.type_code !== init.type_code ||
 			cur.unit_id !== init.unit_id ||
 			cur.description !== init.description ||
 			cur.registerType !== init.registerType ||
@@ -792,7 +782,7 @@ const handleFormSubmit = async () => {
 		const toOpt = (v: unknown) => (v !== undefined && v !== null && v !== "" ? Number(v) : undefined);
 		const submitData: CreateDeviceModelData | UpdateDeviceModelData = {
 			name: formData.name,
-			type_id: formData.type_id,
+			type_code: formData.type_code,
 			unit_id: toOpt(formData.unit_id),
 			description: formData.description || undefined
 		};

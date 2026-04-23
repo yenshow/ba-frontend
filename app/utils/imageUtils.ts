@@ -10,10 +10,11 @@
  */
 export const handleImageError = (event: Event, fallbackSrc?: string) => {
 	const img = event.target as HTMLImageElement;
-	
+
 	// 如果已經嘗試過備用圖片，則顯示預設佔位符
 	if (img.dataset.fallbackAttempted === "true") {
-		img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect fill='%23e5e7eb' width='200' height='200'/%3E%3Ctext fill='%239ca3af' font-family='sans-serif' font-size='14' x='50%25' y='50%25' text-anchor='middle' dy='.3em'%3E圖片載入失敗%3C/text%3E%3C/svg%3E";
+		img.src =
+			"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect fill='%23e5e7eb' width='200' height='200'/%3E%3Ctext fill='%239ca3af' font-family='sans-serif' font-size='14' x='50%25' y='50%25' text-anchor='middle' dy='.3em'%3E圖片載入失敗%3C/text%3E%3C/svg%3E";
 		img.alt = "圖片載入失敗";
 		return;
 	}
@@ -26,7 +27,8 @@ export const handleImageError = (event: Event, fallbackSrc?: string) => {
 	}
 
 	// 沒有備用圖片，顯示預設佔位符
-	img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect fill='%23e5e7eb' width='200' height='200'/%3E%3Ctext fill='%239ca3af' font-family='sans-serif' font-size='14' x='50%25' y='50%25' text-anchor='middle' dy='.3em'%3E圖片載入失敗%3C/text%3E%3C/svg%3E";
+	img.src =
+		"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect fill='%23e5e7eb' width='200' height='200'/%3E%3Ctext fill='%239ca3af' font-family='sans-serif' font-size='14' x='50%25' y='50%25' text-anchor='middle' dy='.3em'%3E圖片載入失敗%3C/text%3E%3C/svg%3E";
 	img.alt = "圖片載入失敗";
 };
 
@@ -50,12 +52,36 @@ export const convertBase64ToImageUrl = (base64Data: string): string => {
 	if (base64Data.startsWith("data:image/")) return base64Data;
 
 	// 判斷圖片格式並添加 data URL 前綴
-	const mimeType = base64Data.startsWith("/9j/") 
-		? "image/jpeg" 
-		: base64Data.startsWith("iVBORw0KGgo") 
-			? "image/png" 
+	const mimeType = base64Data.startsWith("/9j/")
+		? "image/jpeg"
+		: base64Data.startsWith("iVBORw0KGgo")
+			? "image/png"
 			: "image/jpeg"; // 預設為 JPEG（YSCP API 返回的是 JPEG）
 
 	return `data:${mimeType};base64,${base64Data}`;
 };
 
+const normalizeImageMimeType = (raw: string | null | undefined): string => {
+	const v = String(raw || "")
+		.split(";")[0]
+		.trim()
+		.toLowerCase();
+	if (v.startsWith("image/")) return v;
+	return "image/jpeg";
+};
+
+export const base64ToFile = (options: {
+	base64: string;
+	filename?: string;
+	mimeType?: string | null;
+}): File => {
+	const mimeType = normalizeImageMimeType(options.mimeType);
+	const base64 = options.base64 || "";
+	const binaryStr = atob(base64);
+	const bytes = new Uint8Array(binaryStr.length);
+	for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+	const blob = new Blob([bytes], { type: mimeType });
+	const ext = mimeType.includes("png") ? "png" : "jpg";
+	const filename = options.filename || `image_${Date.now()}.${ext}`;
+	return new File([blob], filename, { type: blob.type || "image/jpeg" });
+};

@@ -90,8 +90,8 @@ export const usePeopleCountingLocationApi = () => {
 			name: string;
 			zoneId: string;
 			personGroupIds: number[];
-			entryDoorId: number;
-			exitDoorId: number;
+			entryDoorIds: number[];
+			exitDoorIds: number[];
 		}) => {
 			const response = await request<{ message: string; location: PeopleCountingLocation }>(
 				"/people-counting/locations",
@@ -109,8 +109,8 @@ export const usePeopleCountingLocationApi = () => {
 			data: {
 				name?: string;
 				personGroupIds?: number[];
-				entryDoorId?: number;
-				exitDoorId?: number;
+				entryDoorIds?: number[];
+				exitDoorIds?: number[];
 			}
 		) => {
 			const response = await request<{ message: string; location: PeopleCountingLocation }>(

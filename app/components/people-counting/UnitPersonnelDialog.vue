@@ -1,11 +1,7 @@
 <template>
 	<Teleport to="body">
 		<Transition name="dialog-fade">
-			<div
-				v-if="modelValue"
-				class="fixed inset-0 z-[3000] flex items-center justify-center"
-				@click.self="handleClose"
-			>
+			<div v-if="modelValue" class="fixed inset-0 z-[3000] flex items-center justify-center">
 				<div
 					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-xl flex-col gap-4 overflow-hidden rounded-3xl p-8 2xl:max-w-2xl"
 				>
@@ -198,5 +194,4 @@ const handleClose = () => {
 };
 </script>
 
-<style scoped>
-</style>
+<style scoped></style>

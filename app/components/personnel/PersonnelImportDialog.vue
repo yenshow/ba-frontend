@@ -4,7 +4,6 @@
 			<div
 				v-if="modelValue"
 				class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
-				@click.self="handleClose"
 			>
 				<div
 					class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-2xl flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:p-8"
@@ -21,33 +20,34 @@
 						</button>
 					</header>
 					<div class="space-y-4">
-						<div class="rounded border border-white/20 bg-white/5 p-3 text-base text-white/80 2xl:text-lg">
+						<div
+							class="rounded border border-white/20 bg-white/5 p-3 text-base text-white/80 2xl:text-lg space-y-2"
+						>
 							<p class="font-medium text-white/90">欄位說明</p>
-							<ul class="mt-2 list-inside list-disc space-y-1">
-								<li>工號／員工編號：<span class="text-white">employeeNo</span></li>
-								<li>姓名：<span class="text-white">fullName</span></li>
-								<li>群組名稱：<span class="text-white">personGroupName</span></li>
+							<ul class="list-inside list-disc space-y-1">
+								<li>工號（必填）：<span class="text-white">工號</span></li>
+								<li>姓名（必填）：<span class="text-white">姓名</span></li>
 								<li>
-									地點名稱：
-									<span class="text-white">locationNames</span>
-									<span class="text-white/70">（僅接受「區域/地點」，可用逗號分隔多筆）</span>
+									有效起始日（選填）：<span class="text-white">有效起始日</span>
+									<span class="text-white/70 text-sm 2xl:text-base">（yyyy-mm-dd</span>
 								</li>
-								<li>圖片：<span class="text-white">imageFileName</span></li>
+								<li>
+									有效結束日（選填）：<span class="text-white">有效結束日</span>
+									<span class="text-white/70 text-sm 2xl:text-base">（yyyy-mm-dd</span>
+								</li>
+								<li>
+									門禁密碼（選填）：<span class="text-white">門禁密碼</span>（僅數字 4~12 碼）
+								</li>
+								<li>卡號（選填）：<span class="text-white">卡號</span></li>
 							</ul>
-							<div class="mt-3 flex flex-wrap items-center gap-2">
-								<button
-									type="button"
-									class="btn-secondary"
-									:disabled="isDownloadingTemplate"
-									@click="handleDownloadTemplate"
-								>
-									{{ isDownloadingTemplate ? "下載中..." : "下載範例檔" }}
-								</button>
-								<p class="text-sm text-white/60 2xl:text-base">
-									範例檔內附 <span class="text-white">群組清單</span> 與
-									<span class="text-white">地點清單</span> 工作表可查詢「區域/地點」格式
-								</p>
-							</div>
+							<button
+								type="button"
+								class="btn-secondary"
+								:disabled="isDownloadingTemplate"
+								@click="handleDownloadTemplate"
+							>
+								{{ isDownloadingTemplate ? "下載中..." : "下載範例檔" }}
+							</button>
 						</div>
 
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
@@ -63,7 +63,7 @@
 						</label>
 
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-							<span>圖片 zip（選填）</span>
+							<span>圖片 zip（選填，≤ 200KB，JPG/JPEG）</span>
 							<input
 								ref="zipInputRef"
 								type="file"
@@ -75,11 +75,14 @@
 						</label>
 					</div>
 					<p v-if="error" class="text-sm text-rose-300">{{ error }}</p>
-					<div v-if="result" class="rounded border border-white/20 bg-white/5 p-3 text-sm text-white/90">
+					<div
+						v-if="result"
+						class="rounded border border-white/20 bg-white/5 p-3 text-sm text-white/90"
+					>
 						<p>成功：{{ result.created }} 筆</p>
 						<p v-if="result.errors?.length" class="mt-2 text-amber-300">
 							錯誤：{{ result.errors.length }} 筆 —
-							{{ result.errors.map(e => `第${e.row}行 ${e.message}`).join("；") }}
+							{{ result.errors.map((e) => `第${e.row}行 ${e.message}`).join("；") }}
 						</p>
 					</div>
 					<footer class="mt-2 flex gap-3 2xl:gap-4">
@@ -101,76 +104,76 @@
 </template>
 
 <script setup lang="ts">
-import type { ImportResult } from "~/types/personnel";
-import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi";
+import type { ImportResult } from "~/types/personnel"
+import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 
 const props = defineProps<{
-	modelValue: boolean;
-	error: string;
-	result: ImportResult | null;
-	isImporting: boolean;
-}>();
+	modelValue: boolean
+	error: string
+	result: ImportResult | null
+	isImporting: boolean
+}>()
 
 const emit = defineEmits<{
-	"update:modelValue": [value: boolean];
-	submit: [{ excel: File; imagesZip: File | null }];
-}>();
+	"update:modelValue": [value: boolean]
+	submit: [{ excel: File; imagesZip: File | null }]
+}>()
 
-const excelInputRef = ref<HTMLInputElement | null>(null);
-const zipInputRef = ref<HTMLInputElement | null>(null);
-const excelFile = ref<File | null>(null);
-const zipFile = ref<File | null>(null);
-const isDownloadingTemplate = ref(false);
+const excelInputRef = ref<HTMLInputElement | null>(null)
+const zipInputRef = ref<HTMLInputElement | null>(null)
+const excelFile = ref<File | null>(null)
+const zipFile = ref<File | null>(null)
+const isDownloadingTemplate = ref(false)
 
-const personnelApi = usePersonnelApi();
+const personnelApi = usePersonnelApi()
 
 const handleDownloadTemplate = async () => {
-	if (isDownloadingTemplate.value) return;
-	isDownloadingTemplate.value = true;
+	if (isDownloadingTemplate.value) return
+	isDownloadingTemplate.value = true
 	try {
-		const blob = await personnelApi.downloadImportTemplate();
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement("a");
-		a.href = url;
-		a.download = "personnel_import_template.xlsx";
-		a.click();
-		URL.revokeObjectURL(url);
+		const blob = await personnelApi.downloadImportTemplate()
+		const url = URL.createObjectURL(blob)
+		const a = document.createElement("a")
+		a.href = url
+		a.download = "personnel_import_template.xlsx"
+		a.click()
+		URL.revokeObjectURL(url)
 	} finally {
-		isDownloadingTemplate.value = false;
+		isDownloadingTemplate.value = false
 	}
-};
+}
 
 const resetFiles = () => {
-	excelFile.value = null;
-	zipFile.value = null;
-	if (excelInputRef.value) excelInputRef.value.value = "";
-	if (zipInputRef.value) zipInputRef.value.value = "";
-};
+	excelFile.value = null
+	zipFile.value = null
+	if (excelInputRef.value) excelInputRef.value.value = ""
+	if (zipInputRef.value) zipInputRef.value.value = ""
+}
 
 const handleClose = () => {
-	resetFiles();
-	emit("update:modelValue", false);
-};
+	resetFiles()
+	emit("update:modelValue", false)
+}
 
 const handleExcelChange = (e: Event) => {
-	const input = e.target as HTMLInputElement;
-	excelFile.value = input.files?.[0] ?? null;
-};
+	const input = e.target as HTMLInputElement
+	excelFile.value = input.files?.[0] ?? null
+}
 
 const handleZipChange = (e: Event) => {
-	const input = e.target as HTMLInputElement;
-	zipFile.value = input.files?.[0] ?? null;
-};
+	const input = e.target as HTMLInputElement
+	zipFile.value = input.files?.[0] ?? null
+}
 
 const handleSubmit = () => {
-	if (!excelFile.value) return;
-	emit("submit", { excel: excelFile.value, imagesZip: zipFile.value });
-};
+	if (!excelFile.value) return
+	emit("submit", { excel: excelFile.value, imagesZip: zipFile.value })
+}
 
 watch(
 	() => props.modelValue,
 	(v) => {
-		if (!v) resetFiles();
+		if (!v) resetFiles()
 	}
-);
+)
 </script>

@@ -268,7 +268,15 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>();
 
 // 系統適配器
-const adapter = useZoneSystemAdapter<TZone, SystemLocationType>(props.systemType);
+// construction 僅支援 environment / people_counting / vehicle_access；
+// 若外部誤傳入其他 systemType，統一 fallback 到 environment（避免跑到未實作的 adapter 流程）
+const effectiveSystemType = computed<SystemType>(() => {
+	if (props.systemType === "people_counting") return "people_counting";
+	if (props.systemType === "vehicle_access") return "vehicle_access";
+	return "environment";
+});
+
+const adapter = useZoneSystemAdapter<TZone, SystemLocationType>(effectiveSystemType.value);
 
 const {
 	pendingChanges,
@@ -449,11 +457,12 @@ const loadAccessControlDevices = async () => {
 };
 
 // 載入可用的 ISAPI 攝影機設備列表（人流攝影機）
-// 規則：取全部 active 設備，讓使用者自行選擇具備 host/username/password 的 ISAPI 設備
+// 規則：只取 active 的 camera，避免混入門禁/控制器等其他設備
 const loadIsapiCameraDevices = async () => {
 	if (props.systemType !== "people_counting") return;
 	try {
 		const result = await deviceApi.getDevices({
+			type_code: "camera",
 			status: "active",
 			limit: 200
 		});
@@ -494,7 +503,7 @@ const getLocationsCount = (zone: TZone): number => {
 
 // 取得地點標籤（用於顯示；與 central 規則一致：排水／照明等為「點位」，其餘為「地點」— construction 僅下列三系統，皆為「地點」）
 const getLocationLabel = (): string => {
-	const labelMap: Record<SystemType, string> = {
+	const labelMap: Partial<Record<SystemType, string>> = {
 		environment: "地點",
 		people_counting: "地點",
 		vehicle_access: "地點"
