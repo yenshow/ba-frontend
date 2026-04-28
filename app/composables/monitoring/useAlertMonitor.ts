@@ -13,7 +13,7 @@ const MAX_ALERT_TOASTS = 5
 export const SUMMARY_TOAST_KEY = "__alert-summary__"
 
 const sourceRouteMap: Partial<Record<string, string>> = {
-	device: "/core/equipment-management",
+	device: "/core/device",
 	environment: "/construction-monitoring/environment",
 	lighting: "/infrastructure/lighting",
 	drainage: "/infrastructure/drainage",

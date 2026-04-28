@@ -126,7 +126,9 @@
 							<span class="text-xs text-white/90 2xl:text-sm">{{ door.dev_name }}</span>
 						</label>
 					</div>
-					<p v-if="props.doors.length > 0 && !hasExitSelected" :class="warnHintClass">至少需要選擇一個出口設備</p>
+					<p v-if="props.doors.length > 0 && !hasExitSelected" :class="warnHintClass">
+						至少需要選擇一個出口設備
+					</p>
 				</div>
 			</div>
 		</template>
@@ -220,20 +222,7 @@
 			</div>
 		</template>
 
-		<!-- 攝影機人流：Channel（攝影機設備移到下方區塊） -->
-		<template v-else>
-			<label :class="fieldLabelClass">
-				<span>Channel</span>
-				<input
-					v-model="cameraChannelIdString"
-					type="number"
-					min="1"
-					class="form-input-small"
-					placeholder="1"
-					@blur="handleCameraChannelBlur"
-				/>
-			</label>
-		</template>
+		<!-- 攝影機人流（ISAPI PeopleCounting）：channel 固定由後端設定為 1，不提供欄位 -->
 
 		<!-- 人員群組（僅 YSCP 使用；門禁設備之人員與權限改由「人員管理」處理） -->
 		<div class="mt-3 border-t border-white/10 pt-3">
@@ -386,13 +375,10 @@ const selectCardOverlapClass =
 	"border-rose-500 bg-rose-500/15 shadow-[0_0_0_3px_rgba(244,63,94,0.18)]"
 const dangerHintClass =
 	"mt-3 rounded border border-rose-500/60 bg-rose-500/15 p-2 text-xs text-rose-200 2xl:text-sm"
-const warnHintClass =
-	"mt-2 text-xs text-amber-300 2xl:text-sm"
+const warnHintClass = "mt-2 text-xs text-amber-300 2xl:text-sm"
 const dataSource = ref<"yscp" | "access_control" | "isapi_camera">(
 	(props.location.dataSource as "yscp" | "access_control" | "isapi_camera") || "yscp"
 )
-
-const cameraChannelIdString = ref("1")
 
 watch(
 	() => props.location,
@@ -412,9 +398,6 @@ watch(
 		}
 		dataSource.value =
 			(newLocation.dataSource as "yscp" | "access_control" | "isapi_camera") || "yscp"
-		cameraChannelIdString.value = newLocation.cameraChannelId
-			? String(newLocation.cameraChannelId)
-			: "1"
 		if ((newLocation.dataSource as string) === "isapi_camera") {
 			localLocation.value.preferRegion = true
 		}
@@ -458,7 +441,6 @@ const handleDataSourceChange = () => {
 		localLocation.value.exitDoorIds = []
 		localLocation.value.cameraDeviceId = undefined
 		localLocation.value.cameraDeviceIds = undefined
-		localLocation.value.cameraChannelId = undefined
 		localLocation.value.preferRegion = undefined
 		if (!Array.isArray(localLocation.value.entryDeviceIds)) localLocation.value.entryDeviceIds = []
 		if (!Array.isArray(localLocation.value.exitDeviceIds)) localLocation.value.exitDeviceIds = []
@@ -472,16 +454,12 @@ const handleDataSourceChange = () => {
 			localLocation.value.cameraDeviceIds = getEffectiveCameraDeviceIds()
 		}
 		localLocation.value.cameraDeviceId = localLocation.value.cameraDeviceIds[0] ?? undefined
-		localLocation.value.cameraChannelId = cameraChannelIdString.value
-			? Number(cameraChannelIdString.value)
-			: 1
 		localLocation.value.preferRegion = true
 	} else {
 		localLocation.value.entryDeviceIds = []
 		localLocation.value.exitDeviceIds = []
 		localLocation.value.cameraDeviceId = undefined
 		localLocation.value.cameraDeviceIds = undefined
-		localLocation.value.cameraChannelId = undefined
 		localLocation.value.preferRegion = undefined
 		if (!Array.isArray(localLocation.value.entryDoorIds)) localLocation.value.entryDoorIds = []
 		if (!Array.isArray(localLocation.value.exitDoorIds)) localLocation.value.exitDoorIds = []
@@ -590,13 +568,6 @@ const handleToggleCamera = (deviceId: number) => {
 	else ids.push(deviceId)
 
 	localLocation.value.cameraDeviceId = ids[0] ?? undefined
-	handleChange()
-}
-
-const handleCameraChannelBlur = () => {
-	const n = Number(cameraChannelIdString.value)
-	localLocation.value.cameraChannelId = Number.isFinite(n) && n > 0 ? Math.trunc(n) : 1
-	cameraChannelIdString.value = String(localLocation.value.cameraChannelId || 1)
 	handleChange()
 }
 

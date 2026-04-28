@@ -93,6 +93,18 @@
 			v-model:selected-rule-source="ruleFilterSource"
 			v-model:selected-rule-type="ruleFilterType"
 		/>
+
+		<ConfirmDialog
+			v-model="showConfirmDialog"
+			:title="confirmDialogConfig.title"
+			:message="confirmDialogConfig.message"
+			:details="confirmDialogConfig.details"
+			:type="confirmDialogConfig.type"
+			:confirm-text="confirmDialogConfig.confirmText"
+			:cancel-text="confirmDialogConfig.cancelText"
+			@confirm="handleConfirmIgnoreAction"
+			@cancel="handleCancelIgnoreAction"
+		/>
 	</div>
 </template>
 
@@ -113,9 +125,11 @@ import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
 import AlertListSection from "~/components/alerts/AlertListSection.vue"
 import AlertRuleManagement from "~/components/alerts/AlertRuleManagement.vue"
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import { useDataLoader } from "~/composables/monitoring/useDataLoader"
 import { logger } from "~/utils/logger"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 
 const alertLogLogger = logger.createLogger("alert-log")
 
@@ -138,6 +152,15 @@ const {
 	offAlertDailyRollover: busOffAlertDailyRollover,
 } = useAlertEventBus()
 const { handleError: handleApiError } = useErrorHandler()
+
+const confirmDialog = useConfirmDialog()
+const showConfirmDialog = computed({
+	get: () => confirmDialog.showDialog.value,
+	set: (value: boolean) => {
+		confirmDialog.showDialog.value = value
+	},
+})
+const confirmDialogConfig = computed(() => confirmDialog.config.value)
 
 // 攝影機連動彈窗改為全域（layout）；本頁不再管理 popup
 
@@ -251,6 +274,13 @@ const {
 
 const limit = 5
 
+const pendingIgnoreAction = ref<{
+	alert: Alert
+	action: "ignore" | "unignore"
+	successMessage: string
+	errorMessage: string
+} | null>(null)
+
 // 載入未解決警示數量（根據時間範圍篩選）
 const loadUnresolvedCount = async () => {
 	try {
@@ -283,12 +313,23 @@ const handleIgnoreAction = async (
 	successMessage: string,
 	errorMessage: string
 ) => {
-	if (!confirm(confirmMessage)) {
-		return
-	}
+	pendingIgnoreAction.value = { alert, action, successMessage, errorMessage }
+	confirmDialog.show({
+		title: "確認",
+		message: confirmMessage,
+		type: action === "ignore" ? "warning" : "info",
+		confirmText: "確定",
+		cancelText: "取消",
+	})
+}
+
+const handleConfirmIgnoreAction = async () => {
+	const pending = pendingIgnoreAction.value
+	if (!pending) return
 
 	isIgnoring.value = true
 	try {
+		const { alert, action, successMessage, errorMessage } = pending
 		if (action === "ignore") {
 			await alertApi.ignoreAlert(
 				alert.source_id,
@@ -308,10 +349,15 @@ const handleIgnoreAction = async (
 		toast.success(successMessage, 3000)
 		await reloadAfterAction()
 	} catch (error) {
-		handleApiError(error, errorMessage)
+		handleApiError(error, pending.errorMessage)
 	} finally {
 		isIgnoring.value = false
+		pendingIgnoreAction.value = null
 	}
+}
+
+const handleCancelIgnoreAction = () => {
+	pendingIgnoreAction.value = null
 }
 
 // 忽視警示
@@ -319,7 +365,7 @@ const handleIgnore = (alert: Alert) =>
 	handleIgnoreAction(
 		alert,
 		"ignore",
-		"確定要忽視此警示嗎？忽視僅對「當曆日」有效；隔日若仍異常將再次通知。當日內將不再為此來源同類型、同維度建立新警示。",
+		"確定要忽視此警示嗎？\n忽視僅對「當日」有效；隔日若仍異常將再次通知。",
 		"警示已忽視",
 		"忽視警示失敗"
 	)
@@ -329,7 +375,7 @@ const handleUnignore = (alert: Alert) =>
 	handleIgnoreAction(
 		alert,
 		"unignore",
-		"確定要取消忽視此警示嗎？取消後將恢復顯示此來源同類型、同維度的警示。",
+		"確定要取消忽視此警示嗎？\n取消後將恢復顯示此來源相同的警示。",
 		"已取消忽視警示",
 		"取消忽視警示失敗"
 	)

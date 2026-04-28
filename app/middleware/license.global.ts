@@ -2,14 +2,12 @@ import { useAuth } from "~/composables/core/useAuth"
 import { useLicense } from "~/composables/core/useLicense"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import type { FeatureKey } from "~/types/license"
-import {
-	LICENSE_MESSAGE_REDIRECT,
-	PERMISSION_MESSAGE_REDIRECT,
-} from "~/utils/licenseUtils"
+import { LICENSE_MESSAGE_REDIRECT, PERMISSION_MESSAGE_REDIRECT } from "~/utils/licenseUtils"
 import { useToast } from "~/composables/core/useToast"
 
 export default defineNuxtRouteMiddleware(async (to) => {
 	if (to.path === "/login") return
+	if (import.meta.server) return
 
 	// 優先使用後端 module registry（SSOT），若尚未可用則 fallback 到本地 mapping
 	const moduleRegistry = useModuleRegistry()

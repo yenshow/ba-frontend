@@ -150,7 +150,6 @@ export interface PeopleCountingSystemConfig {
 	cameraDeviceId?: number
 	/** ISAPI PeopleCounting 攝影機（devices.id）列表（複選）；**主要欄位** */
 	cameraDeviceIds?: number[]
-	cameraChannelId?: number
 	preferRegion?: boolean
 	/** 門禁人員群組（name + employeeNos），成員限為出入口皆有之人員 */
 	accessControlGroups?: Array<{ name: string; employeeNos: string[] }>

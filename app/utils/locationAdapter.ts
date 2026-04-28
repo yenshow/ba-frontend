@@ -724,7 +724,6 @@ export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZo
 						: config.cameraDeviceId != null
 							? [config.cameraDeviceId]
 							: undefined,
-					cameraChannelId: config.cameraChannelId ?? undefined,
 					preferRegion: config.preferRegion ?? undefined,
 					accessControlGroups: config.accessControlGroups || [],
 				} as PeopleCountingLocation,
@@ -1084,8 +1083,6 @@ export function peopleCountingLocationToUnified(
 					exitDeviceIds: loc.exitDeviceIds || [],
 					cameraDeviceId: cameraDeviceIds[0] ?? undefined,
 					cameraDeviceIds: cameraDeviceIds.length ? cameraDeviceIds : undefined,
-					cameraChannelId:
-						loc.cameraChannelId != null && loc.cameraChannelId > 0 ? loc.cameraChannelId : 1,
 					preferRegion:
 						loc.dataSource === "isapi_camera" ? true : (loc.preferRegion ?? false),
 					accessControlGroups: loc.accessControlGroups ?? [],

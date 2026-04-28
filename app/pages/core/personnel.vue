@@ -23,16 +23,8 @@
 			</div>
 		</div>
 
-		<PersonnelGroupsTab
-			v-show="activeTab === 'groups'"
-			:can-edit="canEdit"
-			:table-header-class="tableHeaderClass"
-			:table-cell-class="tableCellClass"
-			:is-active="activeTab === 'groups'"
-		/>
-
-		<PersonnelPersonsTab
-			v-show="activeTab === 'persons'"
+		<PersonnelManageTab
+			v-show="activeTab === 'manage'"
 			:can-edit="canEdit"
 			:person-status-labels="personStatusLabels"
 			:table-header-class="tableHeaderClass"
@@ -58,46 +50,34 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { usePersonnelApi, type PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useAccessControlApi } from "~/composables/systems/accessControl/useAccessControlApi"
+import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePersonnelPersonsTab"
 import { usePersonnelSyncTab } from "~/composables/systems/personnel/usePersonnelSyncTab"
-import PersonnelGroupsTab from "~/components/personnel/page/PersonnelGroupsTab.vue"
-import PersonnelPersonsTab from "~/components/personnel/page/PersonnelPersonsTab.vue"
-import PersonnelSyncTab from "~/components/personnel/page/PersonnelSyncTab.vue"
+import { PERSON_STATUS_LABELS, getPersonStatusBadgeClass } from "~/utils/personnelUtils"
+import PersonnelManageTab from "~/components/personnel/PersonnelManageTab.vue"
+import PersonnelSyncTab from "~/components/personnel/PersonnelSyncTab.vue"
 
 definePageMeta({ layout: "default" })
 
 const personnelApi: PersonnelApi = usePersonnelApi()
 const deviceApi = useDeviceApi()
 const accessControlApi = useAccessControlApi()
+const locationApi = useLocationApi()
 const toast = useToast()
 const { handleError: handleApiError } = useErrorHandler()
 const { isAdmin, isOperator } = useAuth()
 const canEdit = computed(() => Boolean(isAdmin.value || isOperator.value))
 
-const activeTab = ref<"persons" | "groups" | "sync">("persons")
-const tabs: { id: "persons" | "groups" | "sync"; label: string }[] = [
-	{ id: "persons", label: "人員列表" },
-	{ id: "groups", label: "人員群組" },
-	{ id: "sync", label: "設備同步" },
+const activeTab = ref<"manage" | "sync">("manage")
+const tabs: { id: "manage" | "sync"; label: string }[] = [
+	{ id: "manage", label: "人員列表" },
+	{ id: "sync", label: "門禁權限" },
 ]
 
 const tableHeaderClass = "py-3 2xl:py-4 px-4 2xl:px-6 text-sm 2xl:text-base text-white/80"
 const tableCellClass = "py-3 2xl:py-4 px-4 2xl:px-6"
 
-const personStatusLabels: Record<string, string> = {
-	active: "啟用",
-	inactive: "停用",
-	deleted: "已刪除",
-}
-
-const getPersonStatusBadgeClass = (status: string) => {
-	const classes: Record<string, string> = {
-		active: "bg-emerald-500/20 text-emerald-200",
-		inactive: "bg-yellow-500/20 text-yellow-200",
-		deleted: "bg-gray-500/20 text-gray-200",
-	}
-	return classes[status] || classes.inactive
-}
+const personStatusLabels = PERSON_STATUS_LABELS
 
 const personsTab = usePersonnelPersonsTab({
 	personnelApi,
@@ -106,12 +86,12 @@ const personsTab = usePersonnelPersonsTab({
 	toast,
 	handleApiError,
 })
-const syncTab = usePersonnelSyncTab({ personnelApi, toast, handleApiError, canEdit })
+const syncTab = usePersonnelSyncTab({ personnelApi, locationApi, toast, handleApiError, canEdit })
 
 watch(
 	activeTab,
 	(tab) => {
-		if (tab === "persons") void personsTab.loadPersons()
+		if (tab === "manage") void personsTab.loadPersons()
 		else if (tab === "sync") void syncTab.loadSyncableLocations()
 	},
 	{ immediate: true }

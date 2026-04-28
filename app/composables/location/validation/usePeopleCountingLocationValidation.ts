@@ -125,10 +125,7 @@ export function usePeopleCountingLocationValidation() {
 					if (cameraDeviceError) errors.push(cameraDeviceError)
 				}
 			}
-			if (location.cameraChannelId != null && location.cameraChannelId !== 0) {
-				const channelError = validateDoorId(location.cameraChannelId, "Channel")
-				if (channelError) errors.push(channelError)
-			}
+			// channel 固定由後端設定為 1：不再提供/驗證 channel 欄位
 		} else {
 			const entryIds = Array.isArray(location.entryDoorIds)
 				? location.entryDoorIds.filter((id) => typeof id === "number" && id > 0 && Number.isInteger(id))

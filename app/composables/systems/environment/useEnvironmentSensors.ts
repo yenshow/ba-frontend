@@ -4,7 +4,12 @@ import { useToast } from "~/composables/core/useToast"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi"
 import type { ModbusDeviceConfig } from "~/types/modbus"
-import type { Device, SensorDeviceConfig, SensorDeviceModelConfig } from "~/types/device"
+import type {
+	Device,
+	ModbusRegisterType,
+	SensorDeviceConfig,
+	SensorDeviceModelConfig,
+} from "~/types/device"
 import type {
 	EnvironmentLocation,
 	EnvironmentZone,
@@ -202,14 +207,19 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 		}
 	}
 
-	const batchReadHolding = async (config: ModbusDeviceConfig, address: number, length: number) => {
+	const batchReadRegisters = async (
+		config: ModbusDeviceConfig,
+		registerType: "holding" | "input",
+		address: number,
+		length: number
+	) => {
 		return request<{
 			results: Array<
 				| {
 						ok: true
 						data: number[]
 						device: ModbusDeviceConfig
-						registerType: "holding"
+						registerType: "holding" | "input"
 						address: number
 						length: number
 						meta?: any
@@ -224,7 +234,7 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 						host: config.host,
 						port: config.port,
 						unitId: config.unitId,
-						registerType: "holding",
+						registerType,
 						address,
 						length,
 					},
@@ -255,11 +265,12 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 
 	const readParameterValue = async (
 		modbusConfig: ModbusDeviceConfig,
+		registerType: "holding" | "input",
 		address: number,
 		transform?: string
 	): Promise<number | null> => {
 		try {
-			const response = await batchReadHolding(modbusConfig, address, 1)
+			const response = await batchReadRegisters(modbusConfig, registerType, address, 1)
 			const first = response.results?.[0] as any
 			if (!first?.ok || !Array.isArray(first.data)) return null
 			const rawValue = first.data[0]
@@ -271,6 +282,7 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 
 	const readParametersBatch = async (
 		modbusConfig: ModbusDeviceConfig,
+		registerType: "holding" | "input",
 		paramAddressMap: Map<number, ParameterWithModbusConfig>
 	): Promise<Array<{ type: SensorParameterType; value: number | null; success: boolean }>> => {
 		const addresses = Array.from(paramAddressMap.keys()).sort((a, b) => a - b)
@@ -284,7 +296,7 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 		for (const group of addressGroups) {
 			if (group.length > 1) {
 				readPromises.push(
-					batchReadHolding(modbusConfig, group.start, group.length)
+					batchReadRegisters(modbusConfig, registerType, group.start, group.length)
 						.then((response) => {
 							const first = response.results?.[0] as any
 							if (!first?.ok || !Array.isArray(first.data)) {
@@ -317,6 +329,7 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 									}
 									return readParameterValue(
 										modbusConfig,
+										registerType,
 										paramData.modbusConfig.address,
 										paramData.modbusConfig.transform
 									).then((value) => ({
@@ -338,6 +351,7 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 			readPromises.push(
 				readParameterValue(
 					modbusConfig,
+					registerType,
 					paramData.modbusConfig.address,
 					paramData.modbusConfig.transform
 				).then((value) => [
@@ -398,6 +412,14 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 		return null
 	}
 
+	const normalizeSensorRegisterType = (
+		registerType: ModbusRegisterType | undefined
+	): "holding" | "input" => {
+		const rt = String(registerType || "holding").toLowerCase()
+		if (rt === "input") return "input"
+		return "holding"
+	}
+
 	const loadSensorData = async () => {
 		if (isFetching.value) return
 		if (!options.currentLocationData.value) return
@@ -452,6 +474,10 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 					sharedModelConfig = await findSharedDeviceModelConfig(location, device)
 				}
 
+				const registerType = normalizeSensorRegisterType(
+					modelConfig?.registerType ?? sharedModelConfig?.registerType
+				)
+
 				const paramAddressMapForBatch = new Map<number, ParameterWithModbusConfig>()
 				for (const param of enabledParams) {
 					const modbusCfg = findParameterModbusConfig(param.type, modelConfig, sharedModelConfig)
@@ -463,7 +489,7 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 				}
 				if (paramAddressMapForBatch.size === 0) continue
 
-				const results = await readParametersBatch(modbusConfig, paramAddressMapForBatch)
+				const results = await readParametersBatch(modbusConfig, registerType, paramAddressMapForBatch)
 				for (const { type, value, success } of results) {
 					attemptedParams.add(type)
 					if (success) {
@@ -577,6 +603,10 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 					sharedModelConfig = await findSharedDeviceModelConfig(location, device)
 				}
 
+				const registerType = normalizeSensorRegisterType(
+					modelConfig?.registerType ?? sharedModelConfig?.registerType
+				)
+
 				const paramAddressMapForBatch = new Map<number, ParameterWithModbusConfig>()
 				for (const param of enabledParams) {
 					const modbusCfg = findParameterModbusConfig(param.type, modelConfig, sharedModelConfig)
@@ -587,7 +617,7 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 					})
 				}
 
-				const results = await readParametersBatch(modbusConfig, paramAddressMapForBatch)
+				const results = await readParametersBatch(modbusConfig, registerType, paramAddressMapForBatch)
 				results.forEach(({ type, value, success }) => {
 					if (!success) {
 						totalFail++

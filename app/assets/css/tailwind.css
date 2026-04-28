@@ -536,6 +536,39 @@
 	}
 }
 
+/* 列表操作按鈕（編輯 / 權限 / 刪除）：跨頁面統一 */
+@layer components {
+	.btn-list {
+		@apply rounded px-3 py-1 text-white transition-all duration-200 ease-in-out;
+	}
+
+	.btn-list:hover:not(:disabled) {
+		@apply -translate-y-px;
+	}
+
+	.btn-list:disabled {
+		@apply cursor-not-allowed opacity-50;
+	}
+
+	.btn-list-edit {
+		@apply btn-list bg-blue-500/80 hover:bg-blue-400;
+	}
+
+	.btn-list-permission {
+		@apply btn-list bg-slate-500/80 hover:bg-slate-400;
+	}
+
+	.btn-list-delete {
+		@apply btn-list bg-red-500/80 hover:bg-red-400;
+	}
+
+	@media (min-width: 1536px) {
+		.btn-list {
+			@apply px-4 py-2;
+		}
+	}
+}
+
 /* ========================================
    對話框面板 - 通用彈窗背景
    ======================================== */

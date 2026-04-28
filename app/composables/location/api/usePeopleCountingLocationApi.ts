@@ -17,11 +17,13 @@ const locationNameCache = new Map<number, string | null>();
 
 export interface CreatePeopleCountingZoneData {
 	name: string;
+	sortOrder?: number;
 	locations?: Omit<PeopleCountingLocation, "id">[];
 }
 
 export interface UpdatePeopleCountingZoneData {
 	name?: string;
+	sortOrder?: number;
 	locations?: (PeopleCountingLocation | Omit<PeopleCountingLocation, "id">)[];
 }
 

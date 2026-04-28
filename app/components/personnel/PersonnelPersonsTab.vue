@@ -1,5 +1,5 @@
 <template>
-	<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
+	<section class="flex h-full min-h-0 flex-col rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 			<h2 class="text-xl font-semibold text-white 2xl:text-2xl">人員列表</h2>
 			<div class="flex flex-wrap items-center gap-2">
@@ -40,7 +40,7 @@
 			</div>
 		</div>
 
-		<div class="min-h-[300px]">
+		<div class="min-h-0 flex-1">
 			<table class="w-full text-center">
 				<thead>
 					<tr class="border-b border-white/20">
@@ -92,9 +92,16 @@
 								<div class="flex flex-wrap items-center justify-center gap-1.5">
 									<span
 										class="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-semibold 2xl:text-sm"
-										:class="dataPillClass(getPersonAccessControlDataSummary(p).hasPassword)"
+										:class="dataPillClass(getAccessSummary(p.id).hasFace)"
+										:title="getAccessSummary(p.id).hasFace ? '有人臉' : '未設定人臉'"
+									>
+										人臉
+									</span>
+									<span
+										class="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-semibold 2xl:text-sm"
+										:class="dataPillClass(getAccessSummary(p.id).hasPassword)"
 										:title="
-											getPersonAccessControlDataSummary(p).hasPassword
+											getAccessSummary(p.id).hasPassword
 												? '有設定門禁密碼'
 												: '未設定門禁密碼'
 										"
@@ -103,16 +110,20 @@
 									</span>
 									<span
 										class="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-semibold 2xl:text-sm"
-										:class="dataPillClass(getPersonAccessControlDataSummary(p).hasCard)"
-										:title="getPersonAccessControlDataSummary(p).hasCard ? '有設定卡號' : '未設定卡號'"
+										:class="dataPillClass(getAccessSummary(p.id).hasCard)"
+										:title="
+											getAccessSummary(p.id).hasCard ? '有設定卡號' : '未設定卡號'
+										"
 									>
 										卡片
 									</span>
 									<span
 										class="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-semibold 2xl:text-sm"
-										:class="dataPillClass(getPersonAccessControlDataSummary(p).hasFingerprint)"
+										:class="dataPillClass(getAccessSummary(p.id).hasFingerprint)"
 										:title="
-											getPersonAccessControlDataSummary(p).hasFingerprint ? '有指紋模板' : '未設定指紋模板'
+											getAccessSummary(p.id).hasFingerprint
+												? '有指紋模板'
+												: '未設定指紋模板'
 										"
 									>
 										指紋
@@ -170,33 +181,19 @@
 
 		<PersonnelPersonDialog
 			v-model="showPersonDialog"
-			:editing-person="editingPerson"
-			:form="personForm"
-			:access-control-devices="accessControlDevices"
-			v-model:capture-device-id="captureDeviceId"
-			:is-capturing-face="isCapturingFace"
-			:capture-error-message="captureErrorMessage"
-			v-model:card-device-id="cardDeviceId"
-			:is-capturing-card="isCapturingCard"
-			:card-error-message="cardErrorMessage"
-			v-model:card-no="cardNo"
-			v-model:password="personPassword"
-			v-model:finger-device-id="fingerDeviceId"
-			v-model:finger-print-data="fingerPrintData"
-			v-model:is-long-term="isLongTerm"
-			v-model:valid-begin-date="validBeginDate"
-			v-model:valid-end-date="validEndDate"
-			:is-capturing-finger-print="isCapturingFingerPrint"
-			:finger-print-error-message="fingerPrintErrorMessage"
-			:face-preview-url="personFormFacePreview"
-			:is-submitting="isSubmitting"
-			:error-message="errorMessage"
-			@submit="submitPerson"
-			@face-file-change="handleFaceFileChange"
-			@clear-face="clearFaceUrl"
-			@capture-face="handleCaptureFace"
-			@capture-card="handleCaptureCard"
-			@capture-fingerprint="handleCaptureFingerPrint"
+			:state="personDialogState"
+			@submit="props.personsTab.submitPerson"
+			@face-file-change="props.personsTab.handleFaceFileChange"
+			@clear-face="props.personsTab.clearFaceUrl"
+			@capture-face="props.personsTab.handleCaptureFace"
+			@capture-card="props.personsTab.handleCaptureCard"
+			@capture-fingerprint="props.personsTab.handleCaptureFingerPrint"
+		/>
+
+		<FaceCropDialog
+			v-model="showFaceCropDialog"
+			:file="faceCropSourceFile"
+			@confirm="applyCroppedFace"
 		/>
 
 		<PersonnelImportDialog
@@ -206,6 +203,15 @@
 			:is-importing="isImporting"
 			@submit="submitImport"
 		/>
+
+		<ConfirmDialog
+			v-model="showConfirmDialog"
+			:title="confirmDialogConfig.title"
+			:message="confirmDialogConfig.message"
+			:details="confirmDialogConfig.details"
+			:type="confirmDialogConfig.type"
+			@confirm="handleConfirmDelete"
+		/>
 	</section>
 </template>
 
@@ -213,8 +219,12 @@
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import Pagination from "~/components/common/Pagination.vue"
 import type { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePersonnelPersonsTab"
-import PersonnelImportDialog from "~/components/personnel/PersonnelImportDialog.vue"
-import PersonnelPersonDialog from "~/components/personnel/PersonnelPersonDialog.vue"
+import PersonnelImportDialog from "~/components/personnel/dialogs/PersonnelImportDialog.vue"
+import FaceCropDialog from "~/components/personnel/dialogs/FaceCropDialog.vue"
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
+import PersonnelPersonDialog from "~/components/personnel/dialogs/PersonnelPersonDialog.vue"
+import type { PersonnelPersonDialogState } from "~/types/personnelUi"
 
 const props = defineProps<{
 	canEdit: boolean
@@ -241,42 +251,72 @@ const {
 	goNextPage,
 	openPersonCreate,
 	editPerson,
-	confirmDeletePerson,
+	showPersonDialog,
 	showImportDialog,
 	importError,
 	importResult,
 	isImporting,
 	submitImport,
 
-	showPersonDialog,
-	editingPerson,
-	personForm,
-	accessControlDevices,
-	captureDeviceId,
-	isCapturingFace,
-	captureErrorMessage,
-	cardDeviceId,
-	isCapturingCard,
-	cardErrorMessage,
-	cardNo,
-	personPassword,
-	fingerDeviceId,
-	fingerPrintData,
-	isCapturingFingerPrint,
-	fingerPrintErrorMessage,
-	isLongTerm,
-	validBeginDate,
-	validEndDate,
-	personFormFacePreview,
-	isSubmitting,
-	errorMessage,
-	submitPerson,
-	handleFaceFileChange,
-	clearFaceUrl,
-	handleCaptureFace,
-	handleCaptureCard,
-	handleCaptureFingerPrint,
+	showFaceCropDialog,
+	faceCropSourceFile,
+	applyCroppedFace,
 } = props.personsTab
+
+type PersonAccessControlDataSummary = ReturnType<typeof getPersonAccessControlDataSummary>
+
+const accessControlSummaryByPersonId = computed<Record<number, PersonAccessControlDataSummary>>(() => {
+	const map: Record<number, PersonAccessControlDataSummary> = {}
+	for (const p of persons.value || []) map[p.id] = getPersonAccessControlDataSummary(p)
+	return map
+})
+
+const getAccessSummary = (personId: number): PersonAccessControlDataSummary => {
+	return accessControlSummaryByPersonId.value[personId] ?? {
+		hasFace: false,
+		hasPassword: false,
+		hasCard: false,
+		hasFingerprint: false,
+	}
+}
+
+const confirmDialog = useConfirmDialog()
+const showConfirmDialog = confirmDialog.showDialog
+const confirmDialogConfig = confirmDialog.config
+const pendingDeletePersonId = ref<number | null>(null)
+
+// 以 composable 的 refs 為 SSOT，收斂成單一 state
+const personDialogState: PersonnelPersonDialogState = {
+	editingPerson: props.personsTab.editingPerson,
+	form: props.personsTab.personForm,
+	accessControl: {
+		accessControlDevices: props.personsTab.accessControlDevices,
+		password: props.personsTab.personPassword,
+		isLongTerm: props.personsTab.isLongTerm,
+		validBeginDate: props.personsTab.validBeginDate,
+		validEndDate: props.personsTab.validEndDate,
+		cardNo: props.personsTab.cardNo,
+		fingerPrintData: props.personsTab.fingerPrintData,
+	},
+	capture: {
+		captureDeviceId: props.personsTab.captureDeviceId,
+		isCapturingFace: props.personsTab.isCapturingFace,
+		captureErrorMessage: props.personsTab.captureErrorMessage,
+
+		cardDeviceId: props.personsTab.cardDeviceId,
+		isCapturingCard: props.personsTab.isCapturingCard,
+		cardErrorMessage: props.personsTab.cardErrorMessage,
+
+		fingerDeviceId: props.personsTab.fingerDeviceId,
+		isCapturingFingerPrint: props.personsTab.isCapturingFingerPrint,
+		fingerPrintErrorMessage: props.personsTab.fingerPrintErrorMessage,
+	},
+	ui: {
+		facePreviewUrl: props.personsTab.personFormFacePreview,
+		isSubmitting: props.personsTab.isSubmitting,
+		errorMessage: props.personsTab.errorMessage,
+	},
+}
 
 const handleFilterQInput = (e: Event) => {
 	const value = (e.target as HTMLInputElement | null)?.value ?? ""
@@ -293,5 +333,24 @@ const handleSearch = () => props.personsTab.handleSearch()
 const dataPillClass = (hasData: boolean) => {
 	if (hasData) return "border-emerald-400/30 bg-emerald-500/15 text-emerald-100"
 	return "border-white/15 bg-white/5 text-white/60"
+}
+
+const confirmDeletePerson = (p: { id: number; employee_no: string; full_name?: string | null }) => {
+	pendingDeletePersonId.value = p.id
+	confirmDialog.show({
+		title: "確認刪除",
+		message: `確定要刪除人員「${p.employee_no} ${p.full_name || ""}」嗎？`,
+		details: "此操作無法復原。",
+		type: "danger",
+	})
+}
+
+const handleConfirmDelete = async () => {
+	const id = pendingDeletePersonId.value
+	if (id == null) return
+	const p = persons.value.find((x) => x.id === id)
+	if (!p) return
+	await props.personsTab.deletePerson(p)
+	pendingDeletePersonId.value = null
 }
 </script>

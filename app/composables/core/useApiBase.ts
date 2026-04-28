@@ -131,9 +131,9 @@ export const useApiBase = () => {
 		} catch (error: any) {
 			// 先提取後端返回的錯誤訊息和狀態碼（優先處理 HTTP 狀態碼）
 			const backendErrorMsg =
+				error?.data?.error?.message ||
 				error?.data?.message ||
 				error?.data?.details ||
-				error?.data?.error?.message ||
 				error?.message ||
 				""
 			const statusCode = error?.statusCode || error?.status

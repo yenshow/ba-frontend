@@ -219,7 +219,7 @@
 									></textarea>
 								</label>
 
-								<!-- 門禁設備：平台目前僅支援 CaptureFaceData(binary)，不需型號層設定 -->
+								<!-- 門禁設備：CaptureFaceData 統一使用 binary（由後端處理），型號層不需設定 -->
 
 								<!-- 感測器參數配置（僅當設備類型為 sensor 時顯示） -->
 								<template v-if="deviceTypeCode === 'sensor'">
@@ -813,44 +813,4 @@ watch(
 </script>
 
 <style scoped>
-.btn-list-edit,
-.btn-list-delete {
-	border-radius: 0.5rem;
-	padding: 0.5rem 1rem;
-	font-size: 0.875rem;
-	font-weight: 500;
-	cursor: pointer;
-	transition: all 0.2s ease;
-	border: none;
-}
-
-.btn-list-edit {
-	background: rgba(59, 130, 246, 0.8);
-	color: white;
-}
-
-.btn-list-edit:hover {
-	background: rgba(96, 165, 250, 0.9);
-	transform: translateY(-1px);
-	box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-}
-
-.btn-list-delete {
-	background: rgba(239, 68, 68, 0.8);
-	color: white;
-}
-
-.btn-list-delete:hover {
-	background: rgba(248, 113, 113, 0.9);
-	transform: translateY(-1px);
-	box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
-}
-
-@media (min-width: 1536px) {
-	.btn-list-edit,
-	.btn-list-delete {
-		padding: 0.625rem 1.25rem;
-		font-size: 1rem;
-	}
-}
 </style>

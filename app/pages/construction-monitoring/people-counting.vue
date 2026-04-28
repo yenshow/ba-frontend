@@ -452,10 +452,12 @@ const handleSaveZone = async (zone: PeopleCountingZone) => {
 			const result = isValidId
 				? await peopleCountingLocationApi.updateZone(z.id, {
 						name: z.name,
+						sortOrder: z.sortOrder,
 						locations: z.locations,
 					})
 				: await peopleCountingLocationApi.createZone({
 						name: z.name,
+						sortOrder: z.sortOrder,
 						locations: z.locations,
 					})
 			// 確保返回的 zone 有 id
@@ -471,6 +473,7 @@ const handleSaveZone = async (zone: PeopleCountingZone) => {
 		{
 			// 保存後重新載入地點列表（因為地點變更可能影響地點列表）
 			onAfterSave: async () => {
+				await loadZones()
 				await loadLocations()
 			},
 		}

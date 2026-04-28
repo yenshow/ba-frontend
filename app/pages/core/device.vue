@@ -190,6 +190,18 @@
 			@close="showDeviceModelDialog = false"
 			@refresh="handleDeviceModelRefresh"
 		/>
+
+		<ConfirmDialog
+			v-model="showConfirmDialog"
+			:title="confirmDialogConfig.title"
+			:message="confirmDialogConfig.message"
+			:details="confirmDialogConfig.details"
+			:type="confirmDialogConfig.type"
+			:confirm-text="confirmDialogConfig.confirmText"
+			:cancel-text="confirmDialogConfig.cancelText"
+			@confirm="handleConfirmDeleteDevice"
+			@cancel="handleCancelDeleteDevice"
+		/>
 	</div>
 </template>
 
@@ -214,6 +226,7 @@ import type {
 import DeviceModelDialog from "~/components/device/DeviceModelDialog.vue"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import Pagination from "~/components/common/Pagination.vue"
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import { formatDate } from "~/utils/dateUtils"
 import { useDataLoader } from "~/composables/monitoring/useDataLoader"
 import { useAuth } from "~/composables/core/useAuth"
@@ -221,6 +234,7 @@ import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useDeviceWebSocket } from "~/composables/websocket/subscribers/useDeviceWebSocket"
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { FIXED_DEVICE_TABS } from "~/constants/deviceTypes"
 
 definePageMeta({
@@ -258,6 +272,16 @@ const showDialog = computed({
 const editingDevice = ref<Device | null>(null)
 const isSubmitting = ref(false)
 const errorMessage = ref<string | null>(null)
+
+const confirmDialog = useConfirmDialog()
+const showConfirmDialog = computed({
+	get: () => confirmDialog.showDialog.value,
+	set: (value: boolean) => {
+		confirmDialog.showDialog.value = value
+	},
+})
+const confirmDialogConfig = computed(() => confirmDialog.config.value)
+const pendingDeleteDeviceId = ref<number | null>(null)
 
 // 常數配置
 const limit = 10 // 用於分頁組件
@@ -488,8 +512,24 @@ const handleSubmit = async (data: CreateDeviceData | UpdateDeviceData) => {
 	}
 }
 
-const confirmDeleteDevice = async (device: Device) => {
-	if (!confirm(`確定要刪除設備 "${device.name}" 嗎？此操作無法復原。`)) {
+const confirmDeleteDevice = (device: Device) => {
+	pendingDeleteDeviceId.value = device.id
+	confirmDialog.show({
+		title: "確認刪除",
+		message: `確定要刪除設備「${device.name}」嗎？`,
+		details: "此操作無法復原。",
+		type: "danger",
+		confirmText: "刪除",
+		cancelText: "取消",
+	})
+}
+
+const handleConfirmDeleteDevice = async () => {
+	const id = pendingDeleteDeviceId.value
+	if (id == null) return
+	const device = devices.value.find((d) => d.id === id)
+	if (!device) {
+		pendingDeleteDeviceId.value = null
 		return
 	}
 
@@ -503,7 +543,13 @@ const confirmDeleteDevice = async (device: Device) => {
 		toast.success(result.message || "刪除成功")
 	} catch (error) {
 		handleError(error, "刪除設備失敗")
+	} finally {
+		pendingDeleteDeviceId.value = null
 	}
+}
+
+const handleCancelDeleteDevice = () => {
+	pendingDeleteDeviceId.value = null
 }
 
 const handlePreviousPage = () => {

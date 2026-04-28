@@ -1,5 +1,8 @@
 <template>
-	<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
+	<section
+		class="relative rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8"
+		:aria-busy="isUiLocked || undefined"
+	>
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 			<div>
 				<h2 class="text-xl font-semibold text-white 2xl:text-2xl">可同步地點</h2>
@@ -10,6 +13,17 @@
 					同步全部：{{ allLocationsProgressText }}
 				</p>
 			</div>
+			<button
+				type="button"
+				class="ms-auto rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm text-white/90 hover:bg-white/20 disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
+				:disabled="syncWarnings.length === 0"
+				:aria-label="syncWarnings.length === 0 ? '目前沒有可查看的結果' : '查看同步結果與警告'"
+				@click="openWarningsDialog"
+			>
+				查看結果<span v-if="syncWarnings.length > 0" class="ms-2 text-xs text-amber-200 2xl:text-sm"
+					>({{ syncWarnings.length }})</span
+				>
+			</button>
 			<button
 				v-if="canEdit"
 				type="button"
@@ -26,9 +40,9 @@
 				<table class="w-full text-center">
 					<thead>
 						<tr class="border-b border-white/20">
-							<th :class="tableHeaderClass">區域</th>
-							<th :class="tableHeaderClass">地點名稱</th>
-							<th :class="tableHeaderClass">摘要</th>
+							<th :class="tableHeaderClass">地點</th>
+							<th :class="tableHeaderClass">入口設備</th>
+							<th :class="tableHeaderClass">出口設備</th>
 							<th v-if="canEdit" :class="tableHeaderClass">操作</th>
 						</tr>
 					</thead>
@@ -37,36 +51,35 @@
 							<tr
 								class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
 							>
-								<td :class="tableCellClass">{{ loc.zone_name }}</td>
-								<td :class="tableCellClass">{{ loc.name }}</td>
+								<td :class="tableCellClass">{{ loc.zone_name }} / {{ loc.name }}</td>
 								<td :class="tableCellClass">
-									<div class="flex flex-col items-center justify-center gap-1">
-										<div class="flex flex-wrap items-center justify-center gap-2">
+									<div class="flex flex-wrap items-center justify-center gap-2 text-left">
+										<template v-if="(getLocationDevicesLabel(loc.id).entry || []).length > 0">
 											<span
+												v-for="name in getLocationDevicesLabel(loc.id).entry"
+												:key="`entry-${loc.id}-${name}`"
 												class="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-xs text-white/85 2xl:text-sm"
-												:title="'此地點具門禁權限且啟用的人員數'"
+												:title="name"
 											>
-												人員 {{ getLocationSummary(loc.id).people }}
+												{{ name }}
 											</span>
+										</template>
+										<span v-else class="text-sm text-white/60 2xl:text-base">—</span>
+									</div>
+								</td>
+								<td :class="tableCellClass">
+									<div class="flex flex-wrap items-center justify-center gap-2 text-left">
+										<template v-if="(getLocationDevicesLabel(loc.id).exit || []).length > 0">
 											<span
-												class="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-xs text-white/75 2xl:text-sm"
-												:title="'臉(平台)：face_url 有值的人員數（不是設備端是否已有）'"
+												v-for="name in getLocationDevicesLabel(loc.id).exit"
+												:key="`exit-${loc.id}-${name}`"
+												class="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-xs text-white/85 2xl:text-sm"
+												:title="name"
 											>
-												人臉 {{ getLocationSummary(loc.id).face }}
+												{{ name }}
 											</span>
-											<span
-												class="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-xs text-white/75 2xl:text-sm"
-												:title="'卡(平台)：config.access_control.cardNo 有值的人員數（不是設備端是否已有）'"
-											>
-												卡片 {{ getLocationSummary(loc.id).card }}
-											</span>
-											<span
-												class="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-xs text-white/75 2xl:text-sm"
-												:title="'指(平台)：有指紋模板（fingerData）的人員數（不是設備端是否已有）'"
-											>
-												指紋 {{ getLocationSummary(loc.id).fingerprint }}
-											</span>
-										</div>
+										</template>
+										<span v-else class="text-sm text-white/60 2xl:text-base">—</span>
 									</div>
 								</td>
 								<td v-if="canEdit" :class="tableCellClass">
@@ -74,7 +87,7 @@
 										<button
 											type="button"
 											class="rounded bg-blue-500/80 px-3 py-1 text-white hover:bg-blue-400 2xl:px-4 2xl:py-2"
-											:disabled="false"
+											:disabled="isUiLocked"
 											aria-label="管理門禁名單"
 											@click="handleOpenLocationMembersDialog(loc)"
 										>
@@ -96,7 +109,7 @@
 													loc.id
 												),
 											}"
-											:disabled="false"
+											:disabled="isUiLocked"
 											:aria-expanded="isSyncLocationExpanded(loc.id)"
 											:aria-label="
 												isSyncLocationExpanded(loc.id) ? '收合人員與步驟' : '展開人員與步驟'
@@ -152,7 +165,7 @@
 											</thead>
 											<tbody>
 												<tr
-													v-for="row in getSyncStepRowsForLocation(loc.id)"
+													v-for="row in getSyncPagedRowsCached(loc.id)"
 													:key="row.employeeNo"
 													class="border-b border-white/10"
 												>
@@ -210,6 +223,15 @@
 												</tr>
 											</tbody>
 										</table>
+										<Pagination
+											:total="getSyncPagedTotalCached(loc.id)"
+											:offset="getSyncPagedOffsetCached(loc.id)"
+											:limit="SYNC_CANDIDATES_PAGE_SIZE"
+											:disabled="isUiLocked || isSyncLocationCandidatesLoading(loc.id)"
+											:show="getSyncPagedTotalCached(loc.id) > SYNC_CANDIDATES_PAGE_SIZE"
+											@previous="goPrevSyncPage(loc.id)"
+											@next="goNextSyncPage(loc.id)"
+										/>
 									</div>
 								</td>
 							</tr>
@@ -236,75 +258,33 @@
 			:sync-tab="props.syncTab"
 		/>
 
-		<div class="mt-4 rounded-xl border border-white/15 bg-white/5 p-4">
-			<div class="flex flex-wrap items-center justify-between gap-3">
-				<div class="flex items-center gap-2">
-					<p class="text-sm font-medium text-white/85 2xl:text-base">結果與警告</p>
-					<span
-						class="rounded-full bg-white/10 px-2.5 py-1 text-xs text-white/70 2xl:text-sm"
-						:title="'包含人臉/卡片/指紋或設備清單等部分失敗明細'"
-					>
-						{{ filteredWarnings.length }} / {{ syncWarnings.length }}
-					</span>
-				</div>
-			</div>
+		<PersonnelSyncWarningsDialog
+			v-model="showWarningsDialog"
+			:sync-warnings="syncWarnings"
+			:sync-warning-type-label="syncWarningTypeLabel"
+		/>
 
-			<div class="mt-3 space-y-3">
-				<div class="flex flex-wrap items-center gap-2">
-					<div class="w-full max-w-[260px]">
-						<FilterDropdown
-							v-model="localWarningsLocationFilter"
-							:options="warningsLocationFilterOptions"
-							placeholder="全部地點"
-							text-size="text-sm 2xl:text-base"
-						/>
-					</div>
-					<input
-						:value="warningsQuery"
-						type="text"
-						class="form-input w-full max-w-[320px] border-white/30 bg-white/10 py-1.5 text-xs text-white placeholder:text-white/40 2xl:py-2 2xl:text-sm"
-						placeholder="搜尋工號 / 訊息"
-						aria-label="搜尋警告"
-						@input="handleWarningsQueryInput"
-					/>
-					<button
-						type="button"
-						class="rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-white/80 hover:bg-white/10 2xl:text-sm"
-						:disabled="filteredWarnings.length === 0"
-						@click="handleCopyWarnings"
-					>
-						複製明細
-					</button>
-				</div>
-
-				<div v-if="syncWarnings.length === 0" class="text-sm text-white/50 2xl:text-base">
-					尚無警告（同步完成後，若有部分失敗會顯示在此）
-				</div>
+		<div
+			v-if="isUiLocked"
+			class="absolute inset-0 z-10 flex items-center justify-center rounded-2xl"
+			role="status"
+			aria-live="polite"
+		>
+			<div class="flex items-center gap-3 rounded-xl border border-white/15 bg-white/10 px-4 py-3">
 				<div
-					v-else
-					class="max-h-[240px] overflow-y-auto rounded-lg border border-white/10 bg-white/5 p-3 text-xs text-white/80 2xl:text-sm"
-					role="status"
-				>
-					<ul class="list-inside list-disc space-y-1">
-						<li v-for="(w, i) in filteredWarnings" :key="i" class="break-words">
-							<span v-if="w.locationName" class="text-white/90">{{ w.locationName }}：</span>
-							<span v-if="w.employeeNo" class="text-white/90">員工 {{ w.employeeNo }}</span>
-							<span class="text-amber-200">{{ syncWarningTypeLabel(w.type) }}</span>
-							<span class="text-white/70"> — {{ w.message }}</span>
-						</li>
-					</ul>
-					<div v-if="filteredWarnings.length === 0" class="py-6 text-center text-white/50">
-						無符合篩選結果
-					</div>
-				</div>
+					class="h-6 w-6 animate-spin rounded-full border-2 border-white/30 border-t-white/80 2xl:h-8 2xl:w-8"
+					aria-hidden="true"
+				/>
+				<p class="text-lg text-white/85 2xl:text-xl">同步中，請稍候…</p>
 			</div>
 		</div>
 	</section>
 </template>
 
 <script setup lang="ts">
-import FilterDropdown from "~/components/common/FilterDropdown.vue"
-import LocationMembersDialog from "~/components/personnel/LocationMembersDialog.vue"
+import Pagination from "~/components/common/Pagination.vue"
+import LocationMembersDialog from "~/components/personnel/dialogs/LocationMembersDialog.vue"
+import PersonnelSyncWarningsDialog from "~/components/personnel/dialogs/PersonnelSyncWarningsDialog.vue"
 import type { usePersonnelSyncTab } from "~/composables/systems/personnel/usePersonnelSyncTab"
 
 const props = defineProps<{
@@ -318,16 +298,18 @@ const {
 	syncableLocations,
 	isLoadingSyncable,
 	isSyncingAll,
+	showWarningsDialog,
 	activeSyncAllJob,
 	allLocationsProgressText,
 	isSingleLocationSyncing,
 
-	getLocationSummary,
+	getLocationDevicesLabel,
 	isSyncLocationExpanded,
 	isLocationSyncButtonDisabled,
 	isLocationCurrentlySyncing,
 
 	getSyncStepRowsForLocation,
+	getPagedSyncStepRowsForLocation,
 	syncCandidatesByLocation,
 	isSyncLocationCandidatesLoading,
 
@@ -337,17 +319,19 @@ const {
 	getCandidateLastSyncTitle,
 
 	syncWarnings,
-	filteredWarnings,
 	syncWarningTypeLabel,
-	warningsLocationFilter,
-	warningsLocationFilterOptions,
-	warningsQuery,
-	handleCopyWarnings,
+	openWarningsDialog,
+
+	SYNC_CANDIDATES_PAGE_SIZE,
+	goPrevSyncPage,
+	goNextSyncPage,
 
 	syncAllLocations,
 	syncOneLocation: syncOne,
 	toggleSyncLocationExpand,
 } = props.syncTab
+
+const isUiLocked = computed(() => Boolean(isSyncingAll.value || isSingleLocationSyncing.value))
 
 const lastSyncPillClass = (label: string) => {
 	if (label === "成功") return "border-emerald-400/30 bg-emerald-500/15 text-emerald-100"
@@ -366,13 +350,37 @@ const handleOpenLocationMembersDialog = (loc: { id: number; name: string; zone_n
 	showLocationMembersDialog.value = true
 }
 
-const localWarningsLocationFilter = computed<string>({
-	get: () => warningsLocationFilter.value,
-	set: (v) => (warningsLocationFilter.value = v),
+const getSyncPagedRows = (locationId: number) => getPagedSyncStepRowsForLocation(locationId).rows
+const getSyncPagedTotal = (locationId: number) => getPagedSyncStepRowsForLocation(locationId).total
+const getSyncPagedOffset = (locationId: number) =>
+	getPagedSyncStepRowsForLocation(locationId).offset
+
+const pagedByLocationId = computed(() => {
+	const map: Record<
+		number,
+		{
+			rows: ReturnType<typeof getPagedSyncStepRowsForLocation>["rows"]
+			total: number
+			offset: number
+		}
+	> = {}
+	for (const loc of syncableLocations.value || []) {
+		// 只對展開的地點計算（避免 buildSyncPersonStepRows 被重複觸發）
+		if (!isSyncLocationExpanded(loc.id)) continue
+		map[loc.id] = getPagedSyncStepRowsForLocation(loc.id)
+	}
+	return map
 })
 
-const handleWarningsQueryInput = (e: Event) => {
-	const value = (e.target as HTMLInputElement | null)?.value ?? ""
-	warningsQuery.value = value
-}
+const getSyncPaged = (locationId: number) =>
+	pagedByLocationId.value[locationId] ?? {
+		rows: [],
+		total: 0,
+		offset: 0,
+		limit: SYNC_CANDIDATES_PAGE_SIZE,
+	}
+
+const getSyncPagedRowsCached = (locationId: number) => getSyncPaged(locationId).rows
+const getSyncPagedTotalCached = (locationId: number) => getSyncPaged(locationId).total
+const getSyncPagedOffsetCached = (locationId: number) => getSyncPaged(locationId).offset
 </script>

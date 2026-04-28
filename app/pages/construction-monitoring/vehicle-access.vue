@@ -530,7 +530,7 @@ const loadLogsAndCounts = () => {
 	if (loadDataDebounceTimer) clearTimeout(loadDataDebounceTimer);
 	loadDataDebounceTimer = setTimeout(() => {
 		loadDataDebounceTimer = null;
-		Promise.all([loadLogs(), loadEntryExitOnSiteCounts(), loadVehicleGroups()]);
+		Promise.all([loadLogs(), loadEntryExitOnSiteCounts(), loadOverviewSummaries(), loadVehicleGroups()]);
 	}, DEBOUNCE_MS);
 };
 

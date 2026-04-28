@@ -93,18 +93,10 @@
 								</td>
 								<td :class="tableCellClass">
 									<div class="flex flex-wrap gap-2 2xl:gap-3">
-										<button
-											type="button"
-											class="rounded bg-blue-500/80 px-3 py-1 text-white hover:bg-blue-400 2xl:px-4 2xl:py-2"
-											@click="openEditRuleDialog(rule)"
-										>
+										<button type="button" class="btn-list-edit" @click="openEditRuleDialog(rule)">
 											編輯
 										</button>
-										<button
-											type="button"
-											class="rounded bg-red-500/80 px-3 py-1 text-white hover:bg-red-400 2xl:px-4 2xl:py-2"
-											@click="handleDeleteRule(rule)"
-										>
+										<button type="button" class="btn-list-delete" @click="handleDeleteRule(rule)">
 											刪除
 										</button>
 									</div>
@@ -141,6 +133,18 @@
 			}
 		"
 	/>
+
+	<ConfirmDialog
+		v-model="showConfirmDialog"
+		:title="confirmDialogConfig.title"
+		:message="confirmDialogConfig.message"
+		:details="confirmDialogConfig.details"
+		:type="confirmDialogConfig.type"
+		:confirm-text="confirmDialogConfig.confirmText"
+		:cancel-text="confirmDialogConfig.cancelText"
+		@confirm="handleConfirmDeleteRule"
+		@cancel="handleCancelDeleteRule"
+	/>
 </template>
 
 <script setup lang="ts">
@@ -156,12 +160,14 @@ import type {
 import type { UnifiedZone } from "~/types/location"
 import Pagination from "~/components/common/Pagination.vue"
 import AlertRuleDialog from "~/components/alerts/AlertRuleDialog.vue"
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import { useZonesCache } from "~/composables/location/cache/useZonesCache"
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi"
 import { useAlertRuleIntegrationsStore } from "~/composables/systems/alerts/useAlertRuleIntegrationsStore"
 import { useAlertRules } from "~/composables/monitoring/useAlertRules"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import {
 	alertSourceToSystemType,
 	formatAlertRuleConditionDisplay,
@@ -174,6 +180,16 @@ const integrationsStore = useAlertRuleIntegrationsStore()
 const alertRules = useAlertRules()
 const toast = useToast()
 const { handleError: handleApiError } = useErrorHandler()
+
+const confirmDialog = useConfirmDialog()
+const showConfirmDialog = computed({
+	get: () => confirmDialog.showDialog.value,
+	set: (value: boolean) => {
+		confirmDialog.showDialog.value = value
+	},
+})
+const confirmDialogConfig = computed(() => confirmDialog.config.value)
+const pendingDeleteRuleId = ref<number | null>(null)
 
 const zonesBySource = ref<Partial<Record<AlertSource, UnifiedZone[]>>>({})
 
@@ -337,8 +353,24 @@ const handleSubmitRule = async (payload: {
 	}
 }
 
-const handleDeleteRule = async (rule: AlertRule) => {
-	if (!confirm("確定要刪除此警報定義嗎？")) {
+const handleDeleteRule = (rule: AlertRule) => {
+	pendingDeleteRuleId.value = rule.id
+	confirmDialog.show({
+		title: "確認刪除",
+		message: "確定要刪除此警報設定嗎？",
+		details: "此操作無法復原。",
+		type: "danger",
+		confirmText: "刪除",
+		cancelText: "取消",
+	})
+}
+
+const handleConfirmDeleteRule = async () => {
+	const id = pendingDeleteRuleId.value
+	if (id == null) return
+	const rule = rules.value.find((r) => r.id === id)
+	if (!rule) {
+		pendingDeleteRuleId.value = null
 		return
 	}
 	try {
@@ -349,7 +381,13 @@ const handleDeleteRule = async (rule: AlertRule) => {
 		await loadRules()
 	} catch (error) {
 		handleApiError(error, "刪除警報定義失敗")
+	} finally {
+		pendingDeleteRuleId.value = null
 	}
+}
+
+const handleCancelDeleteRule = () => {
+	pendingDeleteRuleId.value = null
 }
 
 const paginatedRules = computed(() =>
