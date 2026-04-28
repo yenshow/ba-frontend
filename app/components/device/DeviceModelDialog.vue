@@ -219,19 +219,7 @@
 									></textarea>
 								</label>
 
-								<!-- 門禁設備：僅設定設備截圖回傳格式，其餘參數由後端預設 -->
-								<template v-if="deviceTypeCode === 'access_control'">
-									<div class="border-t border-white/10 pt-4">
-										<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-											<span>設備截圖回傳格式 (CaptureFaceData) *</span>
-											<select v-model="captureFaceDataType" required class="form-input form-select">
-												<option value="url">url（AC-07 等，回傳圖片網址）</option>
-												<option value="binary">binary（AC-02 等，回傳二進位）</option>
-											</select>
-											<p class="text-xs text-white/60">AC-02 請選 binary；AC-07 請選 url。</p>
-										</label>
-									</div>
-								</template>
+								<!-- 門禁設備：CaptureFaceData 統一使用 binary（由後端處理），型號層不需設定 -->
 
 								<!-- 感測器參數配置（僅當設備類型為 sensor 時顯示） -->
 								<template v-if="deviceTypeCode === 'sensor'">
@@ -441,8 +429,6 @@ const sensorParameters = ref<SensorParameterDefinition[]>([]);
 // 感測器型號統一使用的 Modbus API 方法（型號層級設定一次）
 const sensorRegisterType = ref<ModbusRegisterType>("holding");
 
-// 門禁設備：僅設定 CaptureFaceData 回傳格式，其餘由後端預設
-const captureFaceDataType = ref<"binary" | "url">("url");
 
 const resetForm = () => {
 	formData.name = "";
@@ -454,7 +440,6 @@ const resetForm = () => {
 	cameraRtspTemplateCustom.value = "";
 	sensorParameters.value = [];
 	sensorRegisterType.value = "holding";
-	captureFaceDataType.value = "url";
 	formErrorMessage.value = null;
 };
 
@@ -546,11 +531,7 @@ const editDeviceModel = (model: DeviceModel) => {
 	formData.unit_id = model.unit_id ?? undefined;
 	formData.description = model.description || "";
 
-	if (props.deviceTypeCode === "access_control") {
-		const config = model.config as Record<string, any> | undefined;
-		const c = config?.isapi?.captureFaceData;
-		captureFaceDataType.value = c?.dataType === "binary" ? "binary" : "url";
-	}
+	// access_control：CaptureFaceData 固定 binary，不需要型號層配置
 
 	if (props.deviceTypeCode === "camera") {
 		const config = (model.config as Record<string, any> | undefined) ?? {};
@@ -594,7 +575,6 @@ interface FormSnapshot {
 	description: string;
 	registerType: ModbusRegisterType;
 	sensorParametersJson: string;
-	captureFaceDataType: "binary" | "url";
 	cameraRtspTemplatePresetKey: string;
 	cameraRtspTemplateCustom: string;
 }
@@ -607,7 +587,6 @@ const getFormSnapshot = (): FormSnapshot => ({
 	description: formData.description,
 	registerType: sensorRegisterType.value,
 	sensorParametersJson: JSON.stringify(sensorParameters.value),
-	captureFaceDataType: captureFaceDataType.value,
 	cameraRtspTemplatePresetKey: cameraRtspTemplatePresetKey.value,
 	cameraRtspTemplateCustom: cameraRtspTemplateCustom.value
 });
@@ -625,7 +604,6 @@ const formHasUnsavedChanges = computed(() => {
 			cur.description !== init.description ||
 			cur.registerType !== init.registerType ||
 			cur.sensorParametersJson !== init.sensorParametersJson ||
-			cur.captureFaceDataType !== init.captureFaceDataType ||
 			cur.cameraRtspTemplatePresetKey !== init.cameraRtspTemplatePresetKey ||
 			cur.cameraRtspTemplateCustom !== init.cameraRtspTemplateCustom
 		);
@@ -651,7 +629,6 @@ const formChangedFieldsList = computed(() => {
 	if (cur.description !== init.description) fields.push("備註");
 	if (cur.registerType !== init.registerType) fields.push("API 方法 (功能碼)");
 	if (cur.sensorParametersJson !== init.sensorParametersJson) fields.push("感測器參數配置");
-	if (cur.captureFaceDataType !== init.captureFaceDataType) fields.push("設備截圖回傳格式");
 	if (
 		cur.cameraRtspTemplatePresetKey !== init.cameraRtspTemplatePresetKey ||
 		cur.cameraRtspTemplateCustom !== init.cameraRtspTemplateCustom
@@ -799,9 +776,7 @@ const handleFormSubmit = async () => {
 			submitData.config = sensorConfig;
 		}
 		if (props.deviceTypeCode === "access_control") {
-			submitData.config = {
-				isapi: { captureFaceData: { dataType: captureFaceDataType.value } }
-			};
+			submitData.config = {};
 		}
 
 		if (editingModel.value) {
@@ -838,44 +813,4 @@ watch(
 </script>
 
 <style scoped>
-.btn-list-edit,
-.btn-list-delete {
-	border-radius: 0.5rem;
-	padding: 0.5rem 1rem;
-	font-size: 0.875rem;
-	font-weight: 500;
-	cursor: pointer;
-	transition: all 0.2s ease;
-	border: none;
-}
-
-.btn-list-edit {
-	background: rgba(59, 130, 246, 0.8);
-	color: white;
-}
-
-.btn-list-edit:hover {
-	background: rgba(96, 165, 250, 0.9);
-	transform: translateY(-1px);
-	box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-}
-
-.btn-list-delete {
-	background: rgba(239, 68, 68, 0.8);
-	color: white;
-}
-
-.btn-list-delete:hover {
-	background: rgba(248, 113, 113, 0.9);
-	transform: translateY(-1px);
-	box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
-}
-
-@media (min-width: 1536px) {
-	.btn-list-edit,
-	.btn-list-delete {
-		padding: 0.625rem 1.25rem;
-		font-size: 1rem;
-	}
-}
 </style>

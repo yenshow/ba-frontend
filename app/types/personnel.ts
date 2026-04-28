@@ -1,7 +1,11 @@
+export type { Paged } from "~/utils/pagingUtils"
+
 /** 人員群組 */
 export interface PersonGroup {
 	id: number;
 	name: string;
+	parent_id?: number | null;
+	children?: PersonGroup[];
 	description?: string | null;
 	created_by?: number | null;
 	created_at?: string;
@@ -26,21 +30,6 @@ export interface Person {
 	updated_at?: string;
 }
 
-export interface PagedResult<T> {
-	items: T[];
-	total: number;
-	limit: number;
-	offset: number;
-}
-
-/** 群組成員清單回傳（GET /personnel/groups/:id/members） */
-export interface GroupMembersResult {
-	items: Person[];
-	total: number;
-	limit: number;
-	offset: number;
-}
-
 /** 門禁權限：人員可進出之地點 */
 export interface AccessLocation {
 	location_id: number;
@@ -58,16 +47,16 @@ export interface SyncableLocation {
 
 /** 某可同步地點應寫入設備的候選人（GET sync-candidates） */
 export interface SyncLocationCandidate {
-	employeeNo: string;
-	fullName: string;
-	hasFace: boolean;
-	hasPassword: boolean;
-	hasCard: boolean;
-	fingerprintCount: number;
-	needsSync?: boolean;
-	needsSyncSteps?: Array<"userInfo" | "face" | "card" | "fingerprint" | string>;
-	lastSync?: {
-		userInfo: { status: "never" | "partial" | "success" | "failed" | string; at: number | string | null };
+	employee_no: string;
+	full_name: string;
+	has_face: boolean;
+	has_password: boolean;
+	has_card: boolean;
+	fingerprint_count: number;
+	needs_sync?: boolean;
+	needs_sync_steps?: Array<"user_info" | "face" | "card" | "fingerprint" | string>;
+	last_sync?: {
+		user_info: { status: "never" | "partial" | "success" | "failed" | string; at: number | string | null };
 		face: { status: "never" | "partial" | "success" | "failed" | string; at: number | string | null };
 		card: { status: "never" | "partial" | "success" | "failed" | string; at: number | string | null };
 		fingerprint: { status: "never" | "partial" | "success" | "failed" | string; at: number | string | null };
@@ -92,7 +81,9 @@ export interface SyncWarning {
 	type: string;
 	employeeNo?: string;
 	deviceId?: number;
+	deviceName?: string | null;
 	message: string;
+	locationId?: number | null;
 	locationName?: string;
 }
 
@@ -160,7 +151,31 @@ export interface SyncLocationJob {
 		currentAction: string | null;
 		currentStage: string | null;
 	};
+	/**
+	 * issues：failed/skipped 明細（不建議輪詢時帶，請用 items API 分頁抓）
+	 * 後端只有在 includeIssues=1 時才會回傳
+	 */
 	items?: SyncLocationJobItem[];
+	/**
+	 * tail：最後 N 筆事件（含 success/running/failed/skipped），供 UI 即時顯示
+	 * 後端只有在 includeTail=1 時才會回傳
+	 */
+	tailItems?: SyncLocationJobItem[];
+	/** job items 的儲存策略摘要（後端固定提供） */
+	itemsMeta?: {
+		issuesTotal: number;
+		tailTotal: number;
+		issuesStored: number;
+		tailStored: number;
+	};
 	result: { warnings: SyncWarning[] } | null;
 	error: { message: string } | null;
+}
+
+export interface SyncLocationJobItemsPage {
+	type: "issues" | "tail";
+	items: SyncLocationJobItem[];
+	total: number;
+	limit: number;
+	offset: number;
 }

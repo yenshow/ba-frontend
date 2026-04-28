@@ -1,14 +1,14 @@
 import type {
 	PersonGroup,
 	Person,
+	Paged,
 	SyncableLocation,
 	ImportResult,
 	SyncWarning,
-	PagedResult,
 	SyncAllLocationsJob,
 	SyncLocationJob,
+	SyncLocationJobItemsPage,
 	SyncLocationCandidate,
-	GroupMembersResult,
 } from "~/types/personnel"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { buildPathWithQuery } from "~/utils/apiUtils"
@@ -17,20 +17,37 @@ const PERSONNEL_PREFIX = "/personnel"
 
 export type PersonnelApi = {
 	// 人員群組
-	getPersonGroups: (params?: { name?: string }) => Promise<PersonGroup[]>
+	getPersonGroups: (params?: {
+		name?: string
+		tree?: boolean
+		parentId?: number
+	}) => Promise<PersonGroup[]>
 	getPersonGroupById: (id: number) => Promise<PersonGroup>
-	createPersonGroup: (body: { name: string; description?: string | null }) => Promise<PersonGroup>
+	createPersonGroup: (body: {
+		name: string
+		parentId?: number | null
+		description?: string | null
+	}) => Promise<PersonGroup>
 	updatePersonGroup: (
 		id: number,
-		body: { name?: string; description?: string | null }
+		body: { name?: string; parentId?: number | null; description?: string | null }
 	) => Promise<PersonGroup>
-	deletePersonGroup: (id: number) => Promise<{ success: boolean }>
-	getPersonGroupMembers: (groupId: number, params?: { limit?: number; offset?: number; status?: string }) => Promise<GroupMembersResult>
-	replacePersonGroupMembers: (groupId: number, memberPersonIds: number[]) => Promise<GroupMembersResult>
+	deletePersonGroup: (id: number) => Promise<{ ok: boolean }>
+	getPersonGroupMembers: (
+		groupId: number,
+		params?: { limit?: number; offset?: number; status?: string; q?: string }
+	) => Promise<Paged<Person>>
+	getPersonGroupMemberIds: (groupId: number) => Promise<{ ids: number[] }>
+	replacePersonGroupMembers: (
+		groupId: number,
+		memberPersonIds: number[]
+	) => Promise<Paged<Person>>
 
 	// 人員
 	getPersons: (params?: {
+		mainGroupId?: number
 		personGroupId?: number
+		personGroupIds?: number[]
 		status?: string
 		employeeNo?: string
 		fullName?: string
@@ -39,7 +56,7 @@ export type PersonnelApi = {
 		sortOrder?: "asc" | "desc"
 		limit?: number
 		offset?: number
-	}) => Promise<PagedResult<Person>>
+	}) => Promise<Paged<Person>>
 	getPersonById: (id: number) => Promise<Person>
 	getPersonByEmployeeNo: (employeeNo: string) => Promise<Person>
 	createPerson: (body: {
@@ -61,18 +78,31 @@ export type PersonnelApi = {
 		personId: number,
 		file: File
 	) => Promise<{ faceUrl: string; person: Person }>
-	deletePerson: (id: number) => Promise<{ success: boolean }>
+	deletePerson: (id: number) => Promise<{ ok: boolean }>
 
 	// 可同步地點與同步
 	getSyncableLocations: () => Promise<SyncableLocation[]>
 	/** 某地點應同步人員名單（人臉/卡/指紋是否有值） */
 	getSyncLocationCandidates: (locationId: number) => Promise<{ persons: SyncLocationCandidate[] }>
 	/** 某地點門禁名單（SSOT: person_location_access） */
-	getLocationMembers: (locationId: number, params?: { limit?: number; offset?: number; q?: string; status?: string }) => Promise<PagedResult<Person>>
-	replaceLocationMembers: (locationId: number, memberPersonIds: number[]) => Promise<PagedResult<Person>>
-	syncLocation: (locationId: number) => Promise<{ success: boolean; warnings: SyncWarning[] }>
+	getLocationMembers: (
+		locationId: number,
+		params?: { limit?: number; offset?: number; q?: string; status?: string }
+	) => Promise<Paged<Person>>
+	getLocationMemberIds: (locationId: number) => Promise<{ ids: number[] }>
+	replaceLocationMembers: (
+		locationId: number,
+		memberPersonIds: number[]
+	) => Promise<Paged<Person>>
 	startSyncLocationJob: (locationId: number) => Promise<{ jobId: string }>
-	getSyncLocationJob: (jobId: string) => Promise<SyncLocationJob>
+	getSyncLocationJob: (
+		jobId: string,
+		params?: { includeIssues?: boolean; includeTail?: boolean; issuesLimit?: number; tailLimit?: number }
+	) => Promise<SyncLocationJob>
+	getSyncLocationJobItems: (
+		jobId: string,
+		params?: { type?: "issues" | "tail"; limit?: number; offset?: number }
+	) => Promise<SyncLocationJobItemsPage>
 	syncAllLocations: () => Promise<{ jobId: string }>
 	getSyncAllLocationsJob: (jobId: string) => Promise<SyncAllLocationsJob>
 
@@ -89,7 +119,7 @@ export type PersonnelApi = {
 			fingerData: string | null
 			password: string | null
 		}
-	) => Promise<{ success: boolean; person: Person }>
+	) => Promise<{ person: Person }>
 }
 
 export const usePersonnelApi = (): PersonnelApi => {
@@ -98,50 +128,62 @@ export const usePersonnelApi = (): PersonnelApi => {
 
 	return {
 		// 人員群組
-		getPersonGroups: (params?: { name?: string }) => {
+		getPersonGroups: (params?: { name?: string; tree?: boolean; parentId?: number }) => {
 			const path = params
 				? buildPathWithQuery(`${PERSONNEL_PREFIX}/groups`, params)
 				: `${PERSONNEL_PREFIX}/groups`
 			return request<PersonGroup[]>(path)
 		},
 		getPersonGroupById: (id: number) => request<PersonGroup>(`${PERSONNEL_PREFIX}/groups/${id}`),
-		createPersonGroup: (body: { name: string; description?: string | null }) =>
+		createPersonGroup: (body: {
+			name: string
+			parentId?: number | null
+			description?: string | null
+		}) =>
 			request<PersonGroup>(`${PERSONNEL_PREFIX}/groups`, {
 				method: "POST",
 				body: JSON.stringify(body),
 			}),
-		updatePersonGroup: (id: number, body: { name?: string; description?: string | null }) =>
+		updatePersonGroup: (
+			id: number,
+			body: { name?: string; parentId?: number | null; description?: string | null }
+		) =>
 			request<PersonGroup>(`${PERSONNEL_PREFIX}/groups/${id}`, {
 				method: "PUT",
 				body: JSON.stringify(body),
 			}),
 		deletePersonGroup: (id: number) =>
-			request<{ success: boolean }>(`${PERSONNEL_PREFIX}/groups/${id}`, {
+			request<{ ok: boolean }>(`${PERSONNEL_PREFIX}/groups/${id}`, {
 				method: "DELETE",
 			}),
 		getPersonGroupMembers: (
 			groupId: number,
-			params?: { limit?: number; offset?: number; status?: string }
+			params?: { limit?: number; offset?: number; status?: string; q?: string }
 		) => {
 			const query: Record<string, string | number> = {}
 			if (params?.limit != null) query.limit = params.limit
 			if (params?.offset != null) query.offset = params.offset
+			if (params?.q) query.q = params.q
 			if (params?.status) query.status = params.status
 			const path =
 				Object.keys(query).length > 0
 					? buildPathWithQuery(`${PERSONNEL_PREFIX}/groups/${groupId}/members`, query)
 					: `${PERSONNEL_PREFIX}/groups/${groupId}/members`
-			return request<GroupMembersResult>(path)
+			return request<Paged<Person>>(path)
 		},
+		getPersonGroupMemberIds: (groupId: number) =>
+			request<{ ids: number[] }>(`${PERSONNEL_PREFIX}/groups/${groupId}/member-ids`),
 		replacePersonGroupMembers: (groupId: number, memberPersonIds: number[]) =>
-			request<GroupMembersResult>(`${PERSONNEL_PREFIX}/groups/${groupId}/members`, {
+			request<Paged<Person>>(`${PERSONNEL_PREFIX}/groups/${groupId}/members`, {
 				method: "PUT",
 				body: JSON.stringify({ memberPersonIds }),
 			}),
 
 		// 人員
 		getPersons: (params?: {
+			mainGroupId?: number
 			personGroupId?: number
+			personGroupIds?: number[]
 			status?: string
 			employeeNo?: string
 			fullName?: string
@@ -152,7 +194,9 @@ export const usePersonnelApi = (): PersonnelApi => {
 			offset?: number
 		}) => {
 			const query: Record<string, string | number> = {}
+			if (params?.mainGroupId != null) query.mainGroupId = params.mainGroupId
 			if (params?.personGroupId != null) query.personGroupId = params.personGroupId
+			if (params?.personGroupIds?.length) query.personGroupIds = params.personGroupIds.join(",")
 			if (params?.status) query.status = params.status
 			if (params?.employeeNo) query.employeeNo = params.employeeNo
 			if (params?.fullName) query.fullName = params.fullName
@@ -164,7 +208,7 @@ export const usePersonnelApi = (): PersonnelApi => {
 			const path = Object.keys(query).length
 				? buildPathWithQuery(`${PERSONNEL_PREFIX}/persons`, query)
 				: `${PERSONNEL_PREFIX}/persons`
-			return request<PagedResult<Person>>(path)
+			return request<Paged<Person>>(path)
 		},
 		getPersonById: (id: number) => request<Person>(`${PERSONNEL_PREFIX}/persons/${id}`),
 		getPersonByEmployeeNo: (employeeNo: string) =>
@@ -208,7 +252,7 @@ export const usePersonnelApi = (): PersonnelApi => {
 			)
 		},
 		deletePerson: (id: number) =>
-			request<{ success: boolean }>(`${PERSONNEL_PREFIX}/persons/${id}`, {
+			request<{ ok: boolean }>(`${PERSONNEL_PREFIX}/persons/${id}`, {
 				method: "DELETE",
 			}),
 
@@ -232,10 +276,12 @@ export const usePersonnelApi = (): PersonnelApi => {
 				Object.keys(query).length > 0
 					? buildPathWithQuery(`${PERSONNEL_PREFIX}/locations/${locationId}/members`, query)
 					: `${PERSONNEL_PREFIX}/locations/${locationId}/members`
-			return request<PagedResult<Person>>(path)
+			return request<Paged<Person>>(path)
 		},
+		getLocationMemberIds: (locationId: number) =>
+			request<{ ids: number[] }>(`${PERSONNEL_PREFIX}/locations/${locationId}/member-ids`),
 		replaceLocationMembers: (locationId: number, memberPersonIds: number[]) =>
-			request<PagedResult<Person>>(`${PERSONNEL_PREFIX}/locations/${locationId}/members`, {
+			request<Paged<Person>>(`${PERSONNEL_PREFIX}/locations/${locationId}/members`, {
 				method: "PUT",
 				body: JSON.stringify({ memberPersonIds }),
 			}),
@@ -244,28 +290,37 @@ export const usePersonnelApi = (): PersonnelApi => {
 				method: "POST",
 				timeout: 15000,
 			}),
-		getSyncLocationJob: (jobId: string) =>
-			request<SyncLocationJob>(
-				`${PERSONNEL_PREFIX}/sync-location/jobs/${encodeURIComponent(jobId)}`
-			),
-		syncLocation: async (locationId: number) => {
-			const { jobId } = await request<{ jobId: string }>(
-				`${PERSONNEL_PREFIX}/sync-location/${locationId}/job`,
-				{ method: "POST", timeout: 15000 }
+		getSyncLocationJob: (
+			jobId: string,
+			params?: { includeIssues?: boolean; includeTail?: boolean; issuesLimit?: number; tailLimit?: number }
+		) => {
+			const query: Record<string, string | number> = {}
+			if (params?.includeIssues) query.includeIssues = 1
+			if (params?.includeTail) query.includeTail = 1
+			if (params?.issuesLimit != null) query.issuesLimit = params.issuesLimit
+			if (params?.tailLimit != null) query.tailLimit = params.tailLimit
+			const p =
+				Object.keys(query).length > 0
+					? buildPathWithQuery(
+							`${PERSONNEL_PREFIX}/sync-location/jobs/${encodeURIComponent(jobId)}`,
+							query
+						)
+					: `${PERSONNEL_PREFIX}/sync-location/jobs/${encodeURIComponent(jobId)}`
+			return request<SyncLocationJob>(p)
+		},
+		getSyncLocationJobItems: (
+			jobId: string,
+			params?: { type?: "issues" | "tail"; limit?: number; offset?: number }
+		) => {
+			const query: Record<string, string | number> = {}
+			if (params?.type) query.type = params.type
+			if (params?.limit != null) query.limit = params.limit
+			if (params?.offset != null) query.offset = params.offset
+			const p = buildPathWithQuery(
+				`${PERSONNEL_PREFIX}/sync-location/jobs/${encodeURIComponent(jobId)}/items`,
+				query
 			)
-			const startedAt = Date.now()
-			for (;;) {
-				const job = await request<SyncLocationJob>(
-					`${PERSONNEL_PREFIX}/sync-location/jobs/${encodeURIComponent(jobId)}`
-				)
-				if (job.status !== "completed") {
-					if (Date.now() - startedAt > 10 * 60 * 1000) throw new Error("同步逾時，請稍後再試")
-					await new Promise((r) => setTimeout(r, 1000))
-					continue
-				}
-				if (job.error?.message) throw new Error(job.error.message)
-				return { success: true, warnings: job.result?.warnings ?? [] }
-			}
+			return request<SyncLocationJobItemsPage>(p)
 		},
 		syncAllLocations: () =>
 			request<{ jobId: string }>(`${PERSONNEL_PREFIX}/sync-all-locations`, {
@@ -315,7 +370,7 @@ export const usePersonnelApi = (): PersonnelApi => {
 				password: string | null
 			}
 		) =>
-			request<{ success: boolean; person: Person }>(
+			request<{ person: Person }>(
 				`${PERSONNEL_PREFIX}/persons/${personId}/access-control-config`,
 				{
 					method: "PUT",

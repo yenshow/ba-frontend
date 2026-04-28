@@ -1,4 +1,26 @@
-import type { Person, SyncLocationCandidate, SyncLocationJobItem } from "~/types/personnel"
+import type { Person, SyncLocationCandidate, SyncLocationJobItem, SyncWarning } from "~/types/personnel"
+
+export const PERSON_STATUS_LABELS: Record<string, string> = {
+	active: "啟用",
+	inactive: "停用",
+	deleted: "已刪除",
+}
+
+export const getPersonStatusLabel = (status: unknown) => PERSON_STATUS_LABELS[String(status)] ?? "已刪除"
+
+export const getPersonStatusBadgeClass = (status: unknown) => {
+	const s = String(status)
+	if (s === "active") return "bg-emerald-500/20 text-emerald-200"
+	if (s === "inactive") return "bg-yellow-500/20 text-yellow-200"
+	return "bg-gray-500/20 text-gray-200"
+}
+
+export const getPersonStatusPillClass = (status: unknown) => {
+	const s = String(status)
+	if (s === "active") return "bg-emerald-500/15 text-emerald-100"
+	if (s === "inactive") return "bg-yellow-500/15 text-yellow-100"
+	return "bg-gray-500/15 text-gray-100"
+}
 
 export type AccessControlConfigSummary = {
 	cardNo: string
@@ -41,11 +63,24 @@ export const getAccessControlConfigSummary = (person: Person | null): AccessCont
 	const isLongTerm = validity?.longTerm === false ? false : true
 	const beginTime = typeof validity?.beginTime === "string" ? validity.beginTime.trim() : ""
 	const endTime = typeof validity?.endTime === "string" ? validity.endTime.trim() : ""
-	const toDate = (s: string) => {
+	const toDateTimeLocal = (s: string, mode: "begin" | "end") => {
 		if (!s) return ""
-		// "YYYY-MM-DDTHH:mm:ss" -> "YYYY-MM-DD"
-		if (s.includes("T")) return s.split("T")[0] || ""
-		return s.length >= 10 ? s.slice(0, 10) : s
+		// 支援後端常見格式：
+		// - "YYYY-MM-DD" -> "YYYY-MM-DDT00:00" or "YYYY-MM-DDT23:59"
+		// - "YYYY-MM-DDTHH:mm" -> 原樣
+		// - "YYYY-MM-DDTHH:mm:ss" -> 去秒
+		// - ISO string -> 盡量轉成本地 datetime-local（到分鐘）
+		if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T${mode === "begin" ? "00:00" : "23:59"}`
+		if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)) return s
+		if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(s)) return s.slice(0, 16)
+		const d = new Date(s)
+		if (Number.isNaN(d.getTime())) return ""
+		const y = d.getFullYear()
+		const m = String(d.getMonth() + 1).padStart(2, "0")
+		const day = String(d.getDate()).padStart(2, "0")
+		const hh = String(d.getHours()).padStart(2, "0")
+		const mm = String(d.getMinutes()).padStart(2, "0")
+		return `${y}-${m}-${day}T${hh}:${mm}`
 	}
 
 	const password = typeof ac.password === "string" ? ac.password.trim() : ""
@@ -54,8 +89,8 @@ export const getAccessControlConfigSummary = (person: Person | null): AccessCont
 		cardNo,
 		fingerPrintData,
 		isLongTerm,
-		validBeginDate: isLongTerm ? "" : toDate(beginTime),
-		validEndDate: isLongTerm ? "" : toDate(endTime),
+		validBeginDate: isLongTerm ? "" : toDateTimeLocal(beginTime, "begin"),
+		validEndDate: isLongTerm ? "" : toDateTimeLocal(endTime, "end"),
 		password,
 	}
 }
@@ -173,12 +208,68 @@ export const buildSyncPersonStepRows = (params: {
 	/** 僅帶入「該地點」的 job items（單一同步或同步全部中已依 locationId 篩選） */
 	candidates: SyncLocationCandidate[]
 	items: SyncLocationJobItem[]
+	warnings?: SyncWarning[]
 }): SyncPersonRow[] => {
-	const { candidates, items } = params
+	const { candidates, items, warnings } = params
+
+	const locationRunFailureMessage = (() => {
+		// 設備/連線層級錯誤：warning type=sync 且沒有 employeeNo（例如讀取設備人員清單失敗）
+		const w = (warnings || []).find(
+			(x) => String(x.type || "") === "sync" && !String(x.employeeNo || "").trim()
+		)
+		if (!w) return null
+		return String(w.message || "").trim() || "設備同步失敗"
+	})()
+
+	const warningByEmployee = (() => {
+		const m = new Map<
+			string,
+			{
+				person: string[]
+				face: string[]
+				card: string[]
+				fingerprint: string[]
+			}
+		>()
+		for (const w of warnings || []) {
+			const emp = (w.employeeNo || "").trim()
+			if (!emp) continue
+			if (!m.has(emp)) m.set(emp, { person: [], face: [], card: [], fingerprint: [] })
+			const bucket = m.get(emp)!
+			const t = String(w.type || "").toLowerCase()
+			const msg = String(w.message || "").trim() || "失敗"
+			if (t.includes("face")) bucket.face.push(msg)
+			else if (t.includes("card")) bucket.card.push(msg)
+			else if (t.includes("fingerprint")) bucket.fingerprint.push(msg)
+			else bucket.person.push(msg)
+		}
+		return m
+	})()
+
+	const stepStatusFromLastSync = (
+		c: SyncLocationCandidate,
+		step: "user_info" | "face" | "card" | "fingerprint"
+	): { status: SyncStepUiStatus; message: string | null } => {
+		const ls = (c as unknown as { last_sync?: unknown }).last_sync as
+			| {
+					user_info?: { status?: string }
+					face?: { status?: string }
+					card?: { status?: string }
+					fingerprint?: { status?: string }
+			  }
+			| undefined
+		const raw = String((ls as any)?.[step]?.status || "").trim()
+		if (raw === "success") return { status: "success", message: null }
+		if (raw === "failed") return { status: "failed", message: "上次同步失敗（可重新同步）" }
+		// never / partial / unknown：不強行顯示失敗，避免誤解
+		return { status: "skipped", message: raw ? `同步狀態：${raw}` : "尚無同步紀錄" }
+	}
 
 	return candidates.map((c) => {
-		const list = collectForEmployee(items, c.employeeNo)
-		const needsSyncStepsRaw = (c as unknown as { needsSyncSteps?: unknown }).needsSyncSteps
+		const emp = String(c.employee_no)
+		const warning = warningByEmployee.get(emp) || null
+		const list = collectForEmployee(items, c.employee_no)
+		const needsSyncStepsRaw = (c as unknown as { needs_sync_steps?: unknown }).needs_sync_steps
 		const needsSyncSteps = Array.isArray(needsSyncStepsRaw) ? needsSyncStepsRaw.map((s) => String(s)) : []
 		const needsSet = new Set(needsSyncSteps)
 		const pUi = (() => {
@@ -199,13 +290,12 @@ export const buildSyncPersonStepRows = (params: {
 				}
 				return { status: m.status, message: m.message }
 			}
-			// UI 精簡：沒有事件一律顯示略過（不區分待處理/處理中）
-			if (needsSet.has("userInfo")) return { status: "pending" as const, message: "待同步" }
-			return { status: "skipped" as const, message: null }
+			if (needsSet.has("user_info")) return { status: "pending" as const, message: "待同步" }
+			return stepStatusFromLastSync(c, "user_info")
 		})()
 
-		const fFace = (() => {
-			if (!c.hasFace) return { status: "skipped" as SyncStepUiStatus, message: null as string | null }
+		const fFaceBase = (() => {
+			if (!c.has_face) return { status: "skipped" as SyncStepUiStatus, message: null as string | null }
 			const u = stageFaceItems(list)
 			if (u.length) {
 				const m = mergeDeviceStatuses(toParts(u))
@@ -215,12 +305,12 @@ export const buildSyncPersonStepRows = (params: {
 				return { status: "skipped" as SyncStepUiStatus, message: "基本資料未成功，略過人臉" }
 			}
 			if (needsSet.has("face")) return { status: "pending" as const, message: "待同步" }
-			// 有人臉資料但沒有任何 face 事件：視為失敗（避免「有資料卻沒處理」被略過掩蓋）
-			return { status: "failed" as SyncStepUiStatus, message: "有大頭照但未寫入設備（請檢查同步紀錄/警告）" }
+			// 沒有本次事件：以後端 last_sync 作為 SSOT，避免「其實已同步但本次沒有寫入事件」被誤判成失敗
+			return stepStatusFromLastSync(c, "face")
 		})()
 
-		const fCard = (() => {
-			if (!c.hasCard) return { status: "skipped" as SyncStepUiStatus, message: null as string | null }
+		const fCardBase = (() => {
+			if (!c.has_card) return { status: "skipped" as SyncStepUiStatus, message: null as string | null }
 			const u = stageCardItems(list)
 			if (u.length) {
 				const m = mergeDeviceStatuses(toParts(u))
@@ -229,11 +319,11 @@ export const buildSyncPersonStepRows = (params: {
 			if (pUi.status === "failed")
 				return { status: "skipped" as SyncStepUiStatus, message: "基本資料未成功，略過卡片" }
 			if (needsSet.has("card")) return { status: "pending" as const, message: "待同步" }
-			return { status: "failed" as SyncStepUiStatus, message: "有卡號但未寫入設備（請檢查同步紀錄/警告）" }
+			return stepStatusFromLastSync(c, "card")
 		})()
 
-		const fFp = (() => {
-			if (c.fingerprintCount <= 0) return { status: "skipped" as SyncStepUiStatus, message: null as string | null }
+		const fFpBase = (() => {
+			if (c.fingerprint_count <= 0) return { status: "skipped" as SyncStepUiStatus, message: null as string | null }
 			const u = stageFingerprintItems(list)
 			if (u.length) {
 				const m = mergeDeviceStatuses(toParts(u))
@@ -242,16 +332,60 @@ export const buildSyncPersonStepRows = (params: {
 			if (pUi.status === "failed")
 				return { status: "skipped" as SyncStepUiStatus, message: "基本資料未成功，略過指紋" }
 			if (needsSet.has("fingerprint")) return { status: "pending" as const, message: "待同步" }
-			return { status: "failed" as SyncStepUiStatus, message: "有指紋但未寫入設備（請檢查同步紀錄/警告）" }
+			return stepStatusFromLastSync(c, "fingerprint")
 		})()
 
+		const overrideFailed = (base: { status: SyncStepUiStatus; message: string | null }, msgs: string[]) => {
+			if (!msgs.length) return base
+			return { status: "failed" as SyncStepUiStatus, message: msgs.join("；") }
+		}
+
+		const pFinal = overrideFailed(pUi, warning?.person || [])
+		let fFace = overrideFailed(fFaceBase, warning?.face || [])
+		let fCard = overrideFailed(fCardBase, warning?.card || [])
+		let fFp = overrideFailed(fFpBase, warning?.fingerprint || [])
+
+		// 一致性規則：若「人員(UserInfo)」非成功，則不應顯示其他步驟為成功（避免誤解）
+		// - 例：歷史上 face 可能 success，但若 userInfo 為 never/partial，代表設備整體狀態仍未完整
+		// - 例：本次同步 userInfo 略過/待同步，也不應讓 face/card/fingerprint 顯示成功
+		if (pFinal.status !== "success") {
+			const clamp = (cell: { status: SyncStepUiStatus; message: string | null }, stepKey: string) => {
+				// 若該步驟本身就是 pending/failed/skipped，維持原狀
+				if (cell.status !== "success") return cell
+				// 若後端判定此步驟需要同步，維持 pending
+				if (needsSet.has(stepKey)) return { status: "pending" as SyncStepUiStatus, message: "待同步" }
+				// 否則視為略過（依賴 userInfo 未完成）
+				return { status: "skipped" as SyncStepUiStatus, message: "基本資料未同步完成" }
+			}
+			fFace = clamp(fFace, "face")
+			fCard = clamp(fCard, "card")
+			fFp = clamp(fFp, "fingerprint")
+		}
+
+		// 設備/連線層級錯誤：如實呈現「本次該地點全部無法同步」
+		if (locationRunFailureMessage) {
+			const msg = locationRunFailureMessage
+			return {
+				employeeNo: emp,
+				fullName: c.full_name,
+				hasPassword: Boolean((c as unknown as { has_password?: unknown }).has_password),
+				hasCard: Boolean(c.has_card),
+				fingerprintCount: Number(c.fingerprint_count) || 0,
+				person: { status: "failed", message: msg },
+				face: c.has_face ? { status: "failed", message: msg } : { status: "skipped", message: null },
+				card: c.has_card ? { status: "failed", message: msg } : { status: "skipped", message: null },
+				fingerprint:
+					Number(c.fingerprint_count) > 0 ? { status: "failed", message: msg } : { status: "skipped", message: null },
+			}
+		}
+
 		return {
-			employeeNo: c.employeeNo,
-			fullName: c.fullName,
-			hasPassword: Boolean((c as unknown as { hasPassword?: unknown }).hasPassword),
-			hasCard: Boolean(c.hasCard),
-			fingerprintCount: Number(c.fingerprintCount) || 0,
-			person: pUi,
+			employeeNo: emp,
+			fullName: c.full_name,
+			hasPassword: Boolean((c as unknown as { has_password?: unknown }).has_password),
+			hasCard: Boolean(c.has_card),
+			fingerprintCount: Number(c.fingerprint_count) || 0,
+			person: pFinal,
 			face: fFace,
 			card: fCard,
 			fingerprint: fFp,

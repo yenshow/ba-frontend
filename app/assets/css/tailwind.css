@@ -38,7 +38,12 @@
 	left: -50%;
 	width: 200%;
 	height: 200%;
-	background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+	background: linear-gradient(
+		45deg,
+		transparent 30%,
+		rgba(255, 255, 255, 0.1) 50%,
+		transparent 70%
+	);
 	transform: rotate(45deg);
 	pointer-events: none;
 	z-index: 0;
@@ -131,6 +136,238 @@
 .dialog-fade-enter-from,
 .dialog-fade-leave-to {
 	opacity: 0;
+}
+
+/* Vue Transition：fade-in（基礎設施頁按鈕／列表進場） */
+.fade-in-enter-active {
+	transition:
+		opacity 0.4s ease-in,
+		transform 0.4s ease-out;
+}
+.fade-in-enter-from {
+	opacity: 0;
+	transform: translateY(-10px);
+}
+.fade-in-enter-to {
+	opacity: 1;
+	transform: translateY(0);
+}
+
+/* Vue Transition：dropdown（編輯模式分類列表） */
+.dropdown-enter-active,
+.dropdown-leave-active {
+	transition: all 0.2s ease;
+}
+.dropdown-enter-from {
+	opacity: 0;
+	transform: translateY(-8px);
+}
+.dropdown-enter-to {
+	opacity: 1;
+	transform: translateY(0);
+}
+.dropdown-leave-from {
+	opacity: 1;
+	transform: translateY(0);
+}
+.dropdown-leave-to {
+	opacity: 0;
+	transform: translateY(-8px);
+}
+
+/* ========================================
+   圖片模糊載入（平面圖、首頁建築圖、登入頁等）
+   ======================================== */
+.image-blur-load {
+	transition:
+		filter 0.6s ease-in-out,
+		opacity 0.6s ease-in-out,
+		transform 0.6s ease-in-out;
+	filter: blur(20px);
+	opacity: 0.6;
+}
+.image-blur-load.image-loaded {
+	filter: blur(0);
+	opacity: 1;
+}
+/* 登入英雄圖：載入前略放大再收回 */
+.image-blur-load--hero:not(.image-loaded) {
+	transform: scale(1.05);
+}
+.image-blur-load--hero.image-loaded {
+	transform: scale(1);
+}
+
+/* ========================================
+   平面圖地點點位（category-dot、全區圖 location-dot）
+   data-status 統一語意（由各系統在元件內對應業務狀態，不在此分系統寫樣式）：
+   - normal：正常（綠）
+   - abnormal：異常（黃，閃爍較柔和）
+   - alarm：警報（紅，閃爍較強）
+   照明等僅兩態者：normal + abnormal 即可。
+   ======================================== */
+.map-location-dots .category-dot-wrapper,
+.map-location-dots .location-dot-wrapper {
+	position: absolute;
+	z-index: 10;
+}
+.map-location-dots .category-dot,
+.map-location-dots .location-dot {
+	position: absolute;
+	width: 48px;
+	height: 48px;
+	border-radius: 9999px;
+	transform: translate(-50%, -50%);
+	border: 2px solid transparent;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	backdrop-filter: blur(3px);
+	-webkit-backdrop-filter: blur(3px);
+	transition:
+		box-shadow 0.2s ease,
+		border-color 0.2s ease,
+		background 0.2s ease;
+}
+.map-location-dots .category-dot::before,
+.map-location-dots .location-dot::before {
+	content: "";
+	position: absolute;
+	inset: 6px;
+	border-radius: inherit;
+	transition: background 0.2s ease;
+}
+.map-location-dots .category-dot::after,
+.map-location-dots .location-dot::after {
+	position: relative;
+	content: "";
+	font-size: 16px;
+	font-weight: 600;
+	color: #ffffff;
+	transition: transform 0.2s ease;
+}
+/* 正常：內圈綠（與 StatusCenter 狀態點一致），外框統一白線（不依選取狀態切換顏色） */
+.map-location-dots .category-dot[data-status="normal"],
+.map-location-dots .location-dot[data-status="normal"] {
+	background: rgba(52, 211, 153, 0.28);
+	border-color: rgba(255, 255, 255, 0.78);
+}
+.map-location-dots .category-dot[data-status="normal"]::before,
+.map-location-dots .location-dot[data-status="normal"]::before {
+	background: #34d399;
+}
+.map-location-dots .category-dot[data-status="normal"]::after,
+.map-location-dots .location-dot[data-status="normal"]::after {
+	content: "✓";
+}
+/* 異常（黃）：琥珀內圈 + 白外框 */
+.map-location-dots .category-dot[data-status="abnormal"],
+.map-location-dots .location-dot[data-status="abnormal"] {
+	background: rgba(245, 158, 11, 0.32);
+	border-color: rgba(255, 255, 255, 0.78);
+}
+.map-location-dots .category-dot[data-status="abnormal"]::before,
+.map-location-dots .location-dot[data-status="abnormal"]::before {
+	background: #f59e0b;
+}
+.map-location-dots .category-dot[data-status="abnormal"]::after,
+.map-location-dots .location-dot[data-status="abnormal"]::after {
+	content: "!";
+}
+/* 警報（紅）：玫瑰內圈 + 白外框 */
+.map-location-dots .category-dot[data-status="alarm"],
+.map-location-dots .location-dot[data-status="alarm"] {
+	background: rgba(245, 101, 101, 0.32);
+	border-color: rgba(255, 255, 255, 0.78);
+}
+.map-location-dots .category-dot[data-status="alarm"]::before,
+.map-location-dots .location-dot[data-status="alarm"]::before {
+	background: #f56565;
+}
+.map-location-dots .category-dot[data-status="alarm"]::after,
+.map-location-dots .location-dot[data-status="alarm"]::after {
+	content: "!";
+}
+.map-location-dots .category-dot:focus-visible,
+.map-location-dots .location-dot:focus-visible {
+	outline: 2px solid #ffffff;
+	outline-offset: 2px;
+}
+.map-location-dots .category-dot.is-editing {
+	cursor: move;
+}
+.map-location-dots .category-dot-wrapper.is-dragging {
+	opacity: 0.5;
+	z-index: 100;
+}
+.map-location-dots .category-dot-wrapper[draggable="true"] {
+	cursor: move;
+}
+
+/* 全區點位圖 location-dot：依 data-flash 決定閃爍節奏（避免僅靠 data-status 造成節奏不一致） */
+.map-location-dots .location-dot[data-flash="slow"] {
+	animation: status-alert-warning-blink 1.6s ease-in-out infinite;
+	will-change: opacity;
+}
+.map-location-dots .location-dot[data-flash="fast"] {
+	animation: status-alert-alarm-blink 0.9s ease-in-out infinite;
+	will-change: opacity;
+}
+/* 監控卡片／工具提示閃爍（對齊 EnvironmentParamCard）：底色固定 + 透明度脈動 */
+@keyframes status-alert-warning-blink {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
+}
+
+@keyframes status-alert-alarm-blink {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
+}
+
+.blink-slow {
+	animation: status-alert-warning-blink 1.6s ease-in-out infinite;
+	will-change: opacity;
+}
+
+.blink-fast {
+	animation: status-alert-alarm-blink 1.6s ease-in-out infinite;
+	will-change: opacity;
+}
+
+/* 警報閃爍節奏與異常一致（保留 class 名稱供既有元件相容） */
+.blink-alarm-fast {
+	animation: status-alert-alarm-blink 1.6s ease-in-out infinite;
+	will-change: opacity;
+}
+
+@keyframes map-dot-alert-amber {
+	0%,
+	100% {
+		box-shadow: 0 0 18px rgba(245, 158, 11, 0.6);
+	}
+	50% {
+		box-shadow: 0 0 28px rgba(245, 158, 11, 0.95);
+	}
+}
+@keyframes map-dot-alert-rose {
+	0%,
+	100% {
+		box-shadow: 0 0 18px rgba(245, 101, 101, 0.6);
+	}
+	50% {
+		box-shadow: 0 0 28px rgba(245, 101, 101, 0.95);
+	}
 }
 
 /* ========================================
@@ -296,6 +533,39 @@
 		padding: 0.4rem 0.65rem;
 		font-size: 1.05rem;
 		min-width: 2.25rem;
+	}
+}
+
+/* 列表操作按鈕（編輯 / 權限 / 刪除）：跨頁面統一 */
+@layer components {
+	.btn-list {
+		@apply rounded px-3 py-1 text-white transition-all duration-200 ease-in-out;
+	}
+
+	.btn-list:hover:not(:disabled) {
+		@apply -translate-y-px;
+	}
+
+	.btn-list:disabled {
+		@apply cursor-not-allowed opacity-50;
+	}
+
+	.btn-list-edit {
+		@apply btn-list bg-blue-500/80 hover:bg-blue-400;
+	}
+
+	.btn-list-permission {
+		@apply btn-list bg-slate-500/80 hover:bg-slate-400;
+	}
+
+	.btn-list-delete {
+		@apply btn-list bg-red-500/80 hover:bg-red-400;
+	}
+
+	@media (min-width: 1536px) {
+		.btn-list {
+			@apply px-4 py-2;
+		}
 	}
 }
 

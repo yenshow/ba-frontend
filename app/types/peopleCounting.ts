@@ -7,7 +7,7 @@ export interface AccessControlGroup {
 /**
  * 人流統計地點（工地位置）
  * 參考 EnvironmentLocation，用於地點管理系統
- *
+ * 
  * 包含配置信息和業務統計信息
  */
 export interface PeopleCountingLocation {
@@ -29,8 +29,6 @@ export interface PeopleCountingLocation {
 	cameraDeviceId?: number;
 	/** 攝影機設備 ID 列表（dataSource 為 isapi_camera 時使用；複選） */
 	cameraDeviceIds?: number[];
-	/** 攝影機 channelId（預設 1） */
-	cameraChannelId?: number;
 	/** 優先使用 RegionList 當作進場單位（true=依區域/單位統計與顯示） */
 	preferRegion?: boolean;
 	/** 門禁人員群組（後端相容保留；門禁設備之人員與權限已改由「人員管理」處理，此地點表單不再編輯此欄） */
@@ -117,3 +115,4 @@ export interface PeopleCountingLog {
 	personnel?: PeopleCountingPersonnel;
 	// 注意：device 已移除（不會有攝影機串流功能）
 }
+

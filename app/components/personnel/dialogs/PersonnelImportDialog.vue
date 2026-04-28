@@ -29,11 +29,11 @@
 								<li>姓名（必填）：<span class="text-white">姓名</span></li>
 								<li>
 									有效起始日（選填）：<span class="text-white">有效起始日</span>
-									<span class="text-white/70 text-sm 2xl:text-base">（yyyy-mm-dd</span>
+									<span class="text-white/70 text-sm 2xl:text-base">（yyyy-mm-ddThh:mm）</span>
 								</li>
 								<li>
 									有效結束日（選填）：<span class="text-white">有效結束日</span>
-									<span class="text-white/70 text-sm 2xl:text-base">（yyyy-mm-dd</span>
+									<span class="text-white/70 text-sm 2xl:text-base">（yyyy-mm-ddThh:mm）</span>
 								</li>
 								<li>
 									門禁密碼（選填）：<span class="text-white">門禁密碼</span>（僅數字 4~12 碼）

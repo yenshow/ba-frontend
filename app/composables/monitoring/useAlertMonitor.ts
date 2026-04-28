@@ -12,12 +12,12 @@ import { useAuth } from "~/composables/core/useAuth";
 const MAX_ALERT_TOASTS = 5;
 export const SUMMARY_TOAST_KEY = "__alert-summary__";
 
-/**
- * Construction 並沒有 Central 的各子系統監控頁（照明/空調/排水/消防/電力/緊急等）。
- * 因此警報一律導回 `/core/alert-log`（可帶 alertId），僅 device 例外導至設備管理。
- */
 const sourceRouteMap: Partial<Record<string, string>> = {
-	device: "/core/equipment-management",
+	device: "/core/device",
+	environment: "/construction-monitoring/environment",
+	people_counting: "/construction-monitoring/people-counting",
+	surveillance: "/construction-monitoring/surveillance",
+	vehicle_access: "/construction-monitoring/vehicle-access"
 };
 
 const getAlertKey = (alertId: number, dimensionKey?: string | null): string =>
@@ -327,5 +327,3 @@ export const useAlertMonitor = () => {
 		stopAlertCountMonitoring
 	};
 };
-
-

@@ -4,57 +4,74 @@ import type {
 	SystemType,
 	SystemConfig,
 	EnvironmentSystemConfig,
+	LightingSystemConfig,
+	DrainageSystemConfig,
+	FireSystemConfig,
 	PeopleCountingSystemConfig,
 	VehicleAccessSystemConfig,
+	PowerSystemConfig,
 	LocationSystem,
 	LocationSystemInput,
-	UnifiedLocationInput
-} from "~/types/location";
-import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment";
-import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting";
-import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess";
-import { pickSortOrder } from "~/utils/sortOrder";
+	UnifiedLocationInput,
+} from "~/types/location"
+import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment"
+import type { LightingZone, LightingLocation } from "~/types/lighting"
+import type { HvacZone, HvacLocation } from "~/types/hvac.ts"
+import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting"
+import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess"
+import type { DrainageZone, DrainageLocation } from "~/types/drainage"
+import type { PowerZone, PowerLocation } from "~/types/power"
+import type { FireZone, FireLocation } from "~/types/fire"
+import type { EmergencyRescueZone, EmergencyRescueLocation } from "~/types/emergency-rescue"
+import { pickSortOrder } from "~/utils/sortOrder"
 
 /**
  * 後端返回的地點格式（新架構：包含 systems 陣列）
  */
 export type BackendLocation = {
-	id: string;
-	zoneId: string;
-	name: string;
-	description?: string;
-	createdAt?: string;
-	sortOrder?: number;
+	id: string
+	zoneId: string
+	name: string
+	description?: string
+	createdAt?: string
+	sortOrder?: number
 	systems: Array<{
-		id: string;
-		systemType: SystemType;
+		id: string
+		systemType: SystemType
 		config: {
 			// environment 系統配置
-			deviceId?: number;
-			parameters?: Array<{ type: string; enabled: boolean }>;
+			deviceId?: number
+			parameters?: Array<{ type: string; enabled: boolean }>
+			// lighting 系統配置
+			location?: { x: number; y: number }
+			modbus?: any
 			// people_counting 系統配置
-			personGroupIds?: number[];
-			entryDoorIds?: number[];
-			exitDoorIds?: number[];
-			entryDeviceIds?: number[];
-			exitDeviceIds?: number[];
+			personGroupIds?: number[]
+			entryDoorIds?: number[]
+			exitDoorIds?: number[]
+			entryDeviceIds?: number[]
+			exitDeviceIds?: number[]
 			// vehicle_access 系統配置（entryLaneId / exitLaneId）
-		};
-	}>;
-};
+			// drainage 系統配置
+			equipmentKind?: string
+			viewCategory?: string
+			statusPoints?: Record<string, unknown>
+		}
+	}>
+}
 
 /**
  * 後端返回的區域格式
  */
 export type BackendZone = {
-	id: string;
-	name: string;
-	buildingId?: number;
-	imageUrl?: string;
-	description?: string;
-	sortOrder?: number;
-	locations: BackendLocation[];
-};
+	id: string
+	name: string
+	buildingId?: number
+	imageUrl?: string
+	description?: string
+	sortOrder?: number
+	locations: BackendLocation[]
+}
 
 /**
  * 將後端返回的區域格式轉換為統一區域格式
@@ -69,45 +86,94 @@ export function backendToUnifiedZone(backendZone: BackendZone): UnifiedZone {
 		imageUrl: backendZone.imageUrl,
 		description: backendZone.description,
 		...pickSortOrder(backendZone.sortOrder),
-		locations: backendZone.locations.map(backendToUnifiedLocation)
-	};
+		locations: backendZone.locations.map(backendToUnifiedLocation),
+	}
 }
 
 /**
  * 類型守衛：檢查是否為環境監測系統配置
  */
 function isEnvironmentSystemConfig(config: unknown): config is EnvironmentSystemConfig {
-	if (!config || typeof config !== "object") return false;
-	const c = config as Record<string, unknown>;
-	return "parameters" in c && Array.isArray(c.parameters);
+	if (!config || typeof config !== "object") return false
+	const c = config as Record<string, unknown>
+	return "parameters" in c && Array.isArray(c.parameters)
 }
 
 /**
  * 類型守衛：檢查是否為排水系統配置（與照明同時具備 location/modbus 時優先判斷）
  */
+function isDrainageSystemConfig(config: unknown): config is DrainageSystemConfig {
+	if (!config || typeof config !== "object") return false
+	const c = config as Record<string, unknown>
+	return "equipmentKind" in c || "viewCategory" in c || "statusPoints" in c
+}
+
+/**
+ * 類型守衛：檢查是否為電力系統配置
+ *
+ * 注意：Power 與 Drainage 結構高度相似，唯一明顯差異是 equipmentKind 的可選值。
+ * - 若 payload 帶有 equipmentKind，必須落在 power 的允許範圍
+ * - 若未帶 equipmentKind，則只要具備任一 power 相關欄位即可視為有效（由 systemType 保證語意）
+ */
+function isPowerSystemConfig(config: unknown): config is PowerSystemConfig {
+	if (!config || typeof config !== "object") return false
+	const c = config as Record<string, unknown>
+
+	if ("equipmentKind" in c) {
+		return c.equipmentKind === "generator" || c.equipmentKind === "oil_level"
+	}
+
+	return (
+		"statusPoints" in c ||
+		"viewCategory" in c ||
+		"location" in c ||
+		"modbus" in c ||
+		"deviceId" in c
+	)
+}
+
+/**
+ * 類型守衛：檢查是否為照明系統配置
+ */
+function isLightingSystemConfig(config: unknown): config is LightingSystemConfig {
+	if (!config || typeof config !== "object") return false
+	if (isDrainageSystemConfig(config)) return false
+	const c = config as Record<string, unknown>
+	return "location" in c || "modbus" in c || "deviceId" in c
+}
+
+/**
+ * 類型守衛：檢查是否為空調（HVAC）系統配置
+ * 注意：HVAC 可沿用照明結構，也可帶 statusPoints（與 drainage/fire 類似）
+ */
+function isHvacSystemConfig(config: unknown): config is import("~/types/location").HvacSystemConfig {
+	if (!config || typeof config !== "object") return false
+	const c = config as Record<string, unknown>
+	return "location" in c || "modbus" in c || "deviceId" in c || "statusPoints" in c
+}
+
 /**
  * 類型守衛：檢查是否為人流統計系統配置
  */
 function isPeopleCountingSystemConfig(config: unknown): config is PeopleCountingSystemConfig {
-	if (!config || typeof config !== "object") return false;
-	const c = config as Record<string, unknown>;
-	if ("personGroupIds" in c && Array.isArray(c.personGroupIds)) return true;
-	if (c.dataSource === "isapi_camera" || c.dataSource === "access_control") return true;
-	if (typeof c.cameraDeviceId === "number" && Number.isFinite(c.cameraDeviceId)) return true;
-	if ("cameraDeviceIds" in c && Array.isArray((c as { cameraDeviceIds?: unknown }).cameraDeviceIds))
-		return true;
-	if ("entryDoorIds" in c || "exitDoorIds" in c) return true;
-	if ("entryDeviceIds" in c || "exitDeviceIds" in c) return true;
-	return false;
+	if (!config || typeof config !== "object") return false
+	const c = config as Record<string, unknown>
+	if ("personGroupIds" in c && Array.isArray(c.personGroupIds)) return true
+	if (c.dataSource === "isapi_camera" || c.dataSource === "access_control") return true
+	if (typeof c.cameraDeviceId === "number" && Number.isFinite(c.cameraDeviceId)) return true
+	if ("cameraDeviceIds" in c && Array.isArray((c as { cameraDeviceIds?: unknown }).cameraDeviceIds)) return true
+	if ("entryDoorIds" in c || "exitDoorIds" in c) return true
+	if ("entryDeviceIds" in c || "exitDeviceIds" in c) return true
+	return false
 }
 
 /**
  * 類型守衛：檢查是否為車輛進出系統配置
  */
 function isVehicleAccessSystemConfig(config: unknown): config is VehicleAccessSystemConfig {
-	if (!config || typeof config !== "object") return false;
-	const c = config as Record<string, unknown>;
-	return "entryLaneId" in c || "exitLaneId" in c;
+	if (!config || typeof config !== "object") return false
+	const c = config as Record<string, unknown>
+	return "entryLaneId" in c || "exitLaneId" in c
 }
 
 /**
@@ -117,19 +183,53 @@ function isVehicleAccessSystemConfig(config: unknown): config is VehicleAccessSy
 function parseSystemConfig(systemType: SystemType, config: unknown): SystemConfig {
 	switch (systemType) {
 		case "environment":
-			if (isEnvironmentSystemConfig(config)) return config;
-			return { parameters: [] };
+			if (isEnvironmentSystemConfig(config)) return config
+			return { parameters: [] }
+		case "lighting":
+			if (isLightingSystemConfig(config)) return config
+			return {}
+		case "hvac":
+			if (isHvacSystemConfig(config)) return config
+			return {}
+		case "drainage":
+			if (isDrainageSystemConfig(config)) return config
+			return {
+				equipmentKind: "pump",
+				viewCategory: "drainage",
+				statusPoints: {},
+			}
+		case "power":
+			if (isPowerSystemConfig(config)) return config
+			return {
+				equipmentKind: "generator",
+				viewCategory: "generator",
+				statusPoints: {},
+			}
+		case "fire":
+			if (isDrainageSystemConfig(config)) return config as FireSystemConfig
+			return {
+				equipmentKind: "pump",
+				viewCategory: "sprinkler",
+				statusPoints: {},
+			}
+		case "emergency_rescue":
+			if (isDrainageSystemConfig(config)) return config as FireSystemConfig
+			return {
+				equipmentKind: "pump",
+				viewCategory: "sos",
+				statusPoints: {},
+			}
 		case "people_counting":
-			if (isPeopleCountingSystemConfig(config)) return config;
-			return { personGroupIds: [] };
+			if (isPeopleCountingSystemConfig(config)) return config
+			return { personGroupIds: [] }
 		case "vehicle_access":
-			if (isVehicleAccessSystemConfig(config)) return config;
-			return { entryLaneId: undefined, exitLaneId: undefined };
+			if (isVehicleAccessSystemConfig(config)) return config
+			return { entryLaneId: undefined, exitLaneId: undefined }
 		default:
 			// SystemType 是有限的聯合類型，理論上不會執行到這裡
 			// 但為了類型安全，返回空配置
-			console.warn(`未知的系統類型: ${systemType}`);
-			return { parameters: [] };
+			console.warn(`未知的系統類型: ${systemType}`)
+			return { parameters: [] }
 	}
 }
 
@@ -146,19 +246,19 @@ function backendToUnifiedLocation(backendLoc: BackendLocation): UnifiedLocation 
 		description: backendLoc.description,
 		...(backendLoc.createdAt && { createdAt: backendLoc.createdAt }),
 		...pickSortOrder(backendLoc.sortOrder),
-		systems: backendLoc.systems.map(sys => ({
+		systems: backendLoc.systems.map((sys) => ({
 			id: sys.id,
 			systemType: sys.systemType,
-			config: parseSystemConfig(sys.systemType, sys.config)
-		}))
-	};
+			config: parseSystemConfig(sys.systemType, sys.config),
+		})),
+	}
 }
 
 /**
  * 將後端返回的區域格式直接轉換為環境監測區域格式
  */
 export function backendToEnvironmentZone(backendZone: BackendZone): EnvironmentZone {
-	return unifiedToEnvironmentZone(backendToUnifiedZone(backendZone));
+	return unifiedToEnvironmentZone(backendToUnifiedZone(backendZone))
 }
 
 /**
@@ -169,18 +269,18 @@ export function unifiedToEnvironmentZone(zone: UnifiedZone): EnvironmentZone {
 		id: zone.id,
 		name: zone.name,
 		...pickSortOrder(zone.sortOrder),
-		locations: zone.locations.flatMap(loc => {
-			const envSystem = loc.systems.find(s => s.systemType === "environment");
+		locations: zone.locations.flatMap((loc) => {
+			const envSystem = loc.systems.find((s) => s.systemType === "environment")
 			if (!envSystem || !isEnvironmentSystemConfig(envSystem.config)) {
-				return [];
+				return []
 			}
 
-			const cfg = envSystem.config;
+			const cfg = envSystem.config
 			const deviceIds = Array.isArray(cfg.deviceIds)
 				? cfg.deviceIds
 				: cfg.deviceId != null
 					? [cfg.deviceId]
-					: [];
+					: []
 			return [
 				{
 					id: loc.id,
@@ -189,11 +289,11 @@ export function unifiedToEnvironmentZone(zone: UnifiedZone): EnvironmentZone {
 					...pickSortOrder(loc.sortOrder),
 					deviceId: cfg.deviceId ?? deviceIds[0],
 					deviceIds: deviceIds.length ? deviceIds : undefined,
-					parameters: cfg.parameters || []
-				} as EnvironmentLocation
-			];
-		})
-	};
+					parameters: cfg.parameters || [],
+				} as EnvironmentLocation,
+			]
+		}),
+	}
 }
 
 /**
@@ -206,32 +306,407 @@ export function environmentToUnifiedZone(
 	return {
 		name: zone.name,
 		...pickSortOrder(zone.sortOrder),
-		locations: zone.locations.map(loc => environmentLocationToUnified(loc, systemType))
-	};
+		locations: zone.locations.map((loc) => environmentLocationToUnified(loc, systemType)),
+	}
+}
+
+/**
+ * 將後端返回的區域格式直接轉換為照明區域格式
+ */
+export function backendToLightingZone(backendZone: BackendZone): LightingZone {
+	return unifiedToLightingZone(backendToUnifiedZone(backendZone))
+}
+
+/**
+ * 將統一區域轉換為照明區域
+ */
+export function unifiedToLightingZone(zone: UnifiedZone): LightingZone {
+	return {
+		id: zone.id,
+		name: zone.name,
+		imageUrl: zone.imageUrl,
+		description: zone.description,
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.flatMap((loc) => {
+			const lightingSystem = loc.systems.find((s) => s.systemType === "lighting")
+			if (!lightingSystem || !isLightingSystemConfig(lightingSystem.config)) {
+				return []
+			}
+
+			return [
+				{
+					id: loc.id,
+					systemId: lightingSystem.id,
+					name: loc.name,
+					...pickSortOrder(loc.sortOrder),
+					location: lightingSystem.config.location,
+					deviceId: lightingSystem.config.deviceId,
+					modbus: lightingSystem.config.modbus,
+				} as LightingLocation,
+			]
+		}),
+	}
+}
+
+/**
+ * 將統一區域轉換為空調（HVAC）區域
+ */
+export function unifiedToHvacZone(zone: UnifiedZone): HvacZone {
+	return {
+		id: zone.id,
+		name: zone.name,
+		imageUrl: zone.imageUrl,
+		description: zone.description,
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.flatMap((loc) => {
+			const hvacSystem = loc.systems.find((s) => s.systemType === "hvac")
+			if (!hvacSystem || !isHvacSystemConfig(hvacSystem.config)) return []
+			return [
+				{
+					id: loc.id,
+					systemId: hvacSystem.id,
+					name: loc.name,
+					...(loc.createdAt && { createdAt: loc.createdAt }),
+					...pickSortOrder(loc.sortOrder),
+					location: hvacSystem.config.location,
+					deviceId: hvacSystem.config.deviceId,
+					modbus: hvacSystem.config.modbus,
+					statusPoints: hvacSystem.config.statusPoints,
+				} as HvacLocation,
+			]
+		}),
+	}
+}
+
+/**
+ * 將照明區域轉換為統一區域（用於傳送給後端）
+ */
+export function lightingToUnifiedZone(
+	zone: LightingZone,
+	systemType: SystemType = "lighting"
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
+	return {
+		name: zone.name,
+		...(zone.imageUrl !== undefined && { imageUrl: zone.imageUrl }),
+		...(zone.description !== undefined && { description: zone.description }),
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.map((location) => lightingLocationToUnified(location, systemType)),
+	}
+}
+
+/**
+ * 將空調（HVAC）區域轉換為統一區域（用於傳送給後端）
+ */
+export function hvacToUnifiedZone(
+	zone: HvacZone,
+	systemType: SystemType = "hvac"
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
+	return {
+		name: zone.name,
+		...(zone.imageUrl !== undefined && { imageUrl: zone.imageUrl }),
+		...(zone.description !== undefined && { description: zone.description }),
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.map((location) => hvacLocationToUnified(location, systemType)),
+	}
+}
+
+/**
+ * 將統一區域轉換為排水區域
+ */
+export function unifiedToDrainageZone(zone: UnifiedZone): DrainageZone {
+	return {
+		id: zone.id,
+		name: zone.name,
+		imageUrl: zone.imageUrl,
+		description: zone.description,
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.flatMap((loc) => {
+			const drainageSystem = loc.systems.find((s) => s.systemType === "drainage")
+			if (!drainageSystem || !isDrainageSystemConfig(drainageSystem.config)) {
+				return []
+			}
+			const cfg = drainageSystem.config
+			return [
+				{
+					id: loc.id,
+					systemId: drainageSystem.id,
+					name: loc.name,
+					...(loc.createdAt && { createdAt: loc.createdAt }),
+					...pickSortOrder(loc.sortOrder),
+					location: cfg.location,
+					deviceId: cfg.deviceId,
+					modbus: cfg.modbus as DrainageLocation["modbus"],
+					equipmentKind: cfg.equipmentKind,
+					viewCategory: cfg.viewCategory,
+					statusPoints: cfg.statusPoints,
+				} as DrainageLocation,
+			]
+		}),
+	}
+}
+
+/**
+ * 將統一區域轉換為電力區域
+ */
+export function unifiedToPowerZone(zone: UnifiedZone): PowerZone {
+	return {
+		id: zone.id,
+		name: zone.name,
+		imageUrl: zone.imageUrl,
+		description: zone.description,
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.flatMap((loc) => {
+			const powerSystem = loc.systems.find((s) => s.systemType === "power")
+			if (!powerSystem || !isPowerSystemConfig(powerSystem.config)) {
+				return []
+			}
+			const cfg = powerSystem.config
+			return [
+				{
+					id: loc.id,
+					systemId: powerSystem.id,
+					name: loc.name,
+					...(loc.createdAt && { createdAt: loc.createdAt }),
+					...pickSortOrder(loc.sortOrder),
+					location: cfg.location,
+					deviceId: cfg.deviceId,
+					modbus: cfg.modbus as PowerLocation["modbus"],
+					equipmentKind: cfg.equipmentKind,
+					viewCategory: cfg.viewCategory,
+					statusPoints: cfg.statusPoints,
+				} as PowerLocation,
+			]
+		}),
+	}
+}
+
+/**
+ * 將統一區域轉換為消防區域
+ */
+export function unifiedToFireZone(zone: UnifiedZone): FireZone {
+	return {
+		id: zone.id,
+		name: zone.name,
+		imageUrl: zone.imageUrl,
+		description: zone.description,
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.flatMap((loc) => {
+			const fireSystem = loc.systems.find((s) => s.systemType === "fire")
+			if (!fireSystem || !isDrainageSystemConfig(fireSystem.config)) {
+				return []
+			}
+			const cfg = fireSystem.config
+			return [
+				{
+					id: loc.id,
+					systemId: fireSystem.id,
+					name: loc.name,
+					...(loc.createdAt && { createdAt: loc.createdAt }),
+					...pickSortOrder(loc.sortOrder),
+					location: cfg.location,
+					deviceId: cfg.deviceId,
+					modbus: cfg.modbus as FireLocation["modbus"],
+					equipmentKind: cfg.equipmentKind,
+					viewCategory: cfg.viewCategory,
+					statusPoints: cfg.statusPoints,
+				} as FireLocation,
+			]
+		}),
+	}
+}
+
+/**
+ * 將消防區域轉換為統一區域（用於傳送給後端）
+ */
+export function fireToUnifiedZone(
+	zone: FireZone,
+	systemType: SystemType = "fire"
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
+	return {
+		name: zone.name,
+		...(zone.imageUrl !== undefined && { imageUrl: zone.imageUrl }),
+		...(zone.description !== undefined && { description: zone.description }),
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.map((location) => fireLocationToUnified(location, systemType)),
+	}
+}
+
+/**
+ * 將消防地點轉換為統一地點格式
+ */
+export function fireLocationToUnified(
+	location: FireLocation | Omit<FireLocation, "id">,
+	systemType: SystemType = "fire"
+): UnifiedLocationInput {
+	const hasId = "id" in location && location.id
+	const hasSystemId = "systemId" in location && location.systemId
+	const statusPoints =
+		location.statusPoints && Object.keys(location.statusPoints).length > 0
+			? location.statusPoints
+			: {}
+	return {
+		...(hasId && { id: location.id! }),
+		name: location.name,
+		...(location.description && { description: location.description }),
+		...(location.createdAt && { createdAt: location.createdAt }),
+		...pickSortOrder(location.sortOrder),
+		systems: [
+			{
+				...(hasSystemId && { id: location.systemId! }),
+				systemType,
+				config: {
+					deviceId: location.deviceId,
+					location: location.location,
+					modbus:
+						location.modbus != null
+							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
+							: undefined,
+					equipmentKind: location.equipmentKind ?? "pump",
+					viewCategory: location.viewCategory ?? "sprinkler",
+					statusPoints,
+				} as FireSystemConfig,
+			},
+		],
+	}
+}
+
+/**
+ * 將統一區域轉換為緊急求救區域
+ */
+export function unifiedToEmergencyRescueZone(zone: UnifiedZone): EmergencyRescueZone {
+	return {
+		id: zone.id,
+		name: zone.name,
+		imageUrl: zone.imageUrl,
+		description: zone.description,
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.flatMap((loc) => {
+			const sys = loc.systems.find((s) => s.systemType === "emergency_rescue")
+			if (!sys || !isDrainageSystemConfig(sys.config)) {
+				return []
+			}
+			const cfg = sys.config
+			return [
+				{
+					id: loc.id,
+					systemId: sys.id,
+					name: loc.name,
+					...(loc.createdAt && { createdAt: loc.createdAt }),
+					...pickSortOrder(loc.sortOrder),
+					location: cfg.location,
+					deviceId: cfg.deviceId,
+					modbus: cfg.modbus as EmergencyRescueLocation["modbus"],
+					equipmentKind: cfg.equipmentKind,
+					viewCategory: cfg.viewCategory,
+					statusPoints: cfg.statusPoints,
+				} as EmergencyRescueLocation,
+			]
+		}),
+	}
+}
+
+export function emergencyRescueToUnifiedZone(
+	zone: EmergencyRescueZone,
+	systemType: SystemType = "emergency_rescue"
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
+	return {
+		name: zone.name,
+		...(zone.imageUrl !== undefined && { imageUrl: zone.imageUrl }),
+		...(zone.description !== undefined && { description: zone.description }),
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.map((location) =>
+			emergencyRescueLocationToUnified(location, systemType)
+		),
+	}
+}
+
+export function emergencyRescueLocationToUnified(
+	location: EmergencyRescueLocation | Omit<EmergencyRescueLocation, "id">,
+	systemType: SystemType = "emergency_rescue"
+): UnifiedLocationInput {
+	const hasId = "id" in location && location.id
+	const hasSystemId = "systemId" in location && location.systemId
+	const statusPoints =
+		location.statusPoints && Object.keys(location.statusPoints).length > 0
+			? location.statusPoints
+			: {}
+	return {
+		...(hasId && { id: location.id! }),
+		name: location.name,
+		...(location.description && { description: location.description }),
+		...(location.createdAt && { createdAt: location.createdAt }),
+		...pickSortOrder(location.sortOrder),
+		systems: [
+			{
+				...(hasSystemId && { id: location.systemId! }),
+				systemType,
+				config: {
+					deviceId: location.deviceId,
+					location: location.location,
+					modbus:
+						location.modbus != null
+							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
+							: undefined,
+					equipmentKind: location.equipmentKind ?? "pump",
+					viewCategory: location.viewCategory ?? "sos",
+					statusPoints,
+				} as FireSystemConfig,
+			},
+		],
+	}
+}
+
+/**
+ * 將排水區域轉換為統一區域（用於傳送給後端）
+ */
+export function drainageToUnifiedZone(
+	zone: DrainageZone,
+	systemType: SystemType = "drainage"
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
+	return {
+		name: zone.name,
+		...(zone.imageUrl !== undefined && { imageUrl: zone.imageUrl }),
+		...(zone.description !== undefined && { description: zone.description }),
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.map((location) => drainageLocationToUnified(location, systemType)),
+	}
+}
+
+export function powerToUnifiedZone(
+	zone: PowerZone,
+	systemType: SystemType = "power"
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
+	return {
+		name: zone.name,
+		...(zone.imageUrl !== undefined && { imageUrl: zone.imageUrl }),
+		...(zone.description !== undefined && { description: zone.description }),
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.map((location) => powerLocationToUnified(location, systemType)),
+	}
 }
 
 /**
  * 將後端返回的區域格式直接轉換為人流統計區域格式
  */
 export function backendToPeopleCountingZone(backendZone: BackendZone): PeopleCountingZone {
-	return unifiedToPeopleCountingZone(backendToUnifiedZone(backendZone));
+	return unifiedToPeopleCountingZone(backendToUnifiedZone(backendZone))
 }
 
 /**
  * 將統一區域轉換為人流統計區域
- * 須包含 dataSource、entryDeviceIds、exitDeviceIds，否則門禁設備（本系統）選項會遺失
+ * 須包含 dataSource、entryDeviceId、exitDeviceId，否則門禁設備（本系統）選項會遺失
  */
 export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZone {
 	return {
 		id: zone.id,
 		name: zone.name,
 		...pickSortOrder(zone.sortOrder),
-		locations: zone.locations.flatMap(loc => {
-			const pcSystem = loc.systems.find(s => s.systemType === "people_counting");
+		locations: zone.locations.flatMap((loc) => {
+			const pcSystem = loc.systems.find((s) => s.systemType === "people_counting")
 			if (!pcSystem || !isPeopleCountingSystemConfig(pcSystem.config)) {
-				return [];
+				return []
 			}
-			const config = pcSystem.config as PeopleCountingSystemConfig;
+			const config = pcSystem.config as PeopleCountingSystemConfig
 			return [
 				{
 					id: loc.id,
@@ -249,13 +724,12 @@ export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZo
 						: config.cameraDeviceId != null
 							? [config.cameraDeviceId]
 							: undefined,
-					cameraChannelId: config.cameraChannelId ?? undefined,
 					preferRegion: config.preferRegion ?? undefined,
-					accessControlGroups: config.accessControlGroups || []
-				} as PeopleCountingLocation
-			];
-		})
-	};
+					accessControlGroups: config.accessControlGroups || [],
+				} as PeopleCountingLocation,
+			]
+		}),
+	}
 }
 
 /**
@@ -268,15 +742,15 @@ export function peopleCountingToUnifiedZone(
 	return {
 		name: zone.name,
 		...pickSortOrder(zone.sortOrder),
-		locations: zone.locations.map(loc => peopleCountingLocationToUnified(loc, systemType))
-	};
+		locations: zone.locations.map((loc) => peopleCountingLocationToUnified(loc, systemType)),
+	}
 }
 
 /**
  * 將後端返回的區域格式直接轉換為車輛進出區域格式
  */
 export function backendToVehicleAccessZone(backendZone: BackendZone): VehicleAccessZone {
-	return unifiedToVehicleAccessZone(backendToUnifiedZone(backendZone));
+	return unifiedToVehicleAccessZone(backendToUnifiedZone(backendZone))
 }
 
 /**
@@ -287,10 +761,10 @@ export function unifiedToVehicleAccessZone(zone: UnifiedZone): VehicleAccessZone
 		id: zone.id,
 		name: zone.name,
 		...pickSortOrder(zone.sortOrder),
-		locations: zone.locations.flatMap(loc => {
-			const vaSystem = loc.systems.find(s => s.systemType === "vehicle_access");
+		locations: zone.locations.flatMap((loc) => {
+			const vaSystem = loc.systems.find((s) => s.systemType === "vehicle_access")
 			if (!vaSystem || !isVehicleAccessSystemConfig(vaSystem.config)) {
-				return [];
+				return []
 			}
 
 			return [
@@ -299,11 +773,11 @@ export function unifiedToVehicleAccessZone(zone: UnifiedZone): VehicleAccessZone
 					name: loc.name,
 					...pickSortOrder(loc.sortOrder),
 					entryLaneId: vaSystem.config.entryLaneId ?? undefined,
-					exitLaneId: vaSystem.config.exitLaneId ?? undefined
-				} as VehicleAccessLocation
-			];
-		})
-	};
+					exitLaneId: vaSystem.config.exitLaneId ?? undefined,
+				} as VehicleAccessLocation,
+			]
+		}),
+	}
 }
 
 /**
@@ -316,8 +790,8 @@ export function vehicleAccessToUnifiedZone(
 	return {
 		name: zone.name,
 		...pickSortOrder(zone.sortOrder),
-		locations: zone.locations.map(loc => vehicleAccessLocationToUnified(loc, systemType))
-	};
+		locations: zone.locations.map((loc) => vehicleAccessLocationToUnified(loc, systemType)),
+	}
 }
 
 /**
@@ -327,7 +801,7 @@ export function vehicleAccessLocationToUnified(
 	loc: VehicleAccessLocation | Omit<VehicleAccessLocation, "id">,
 	systemType: SystemType = "vehicle_access"
 ): UnifiedLocationInput {
-	const hasId = "id" in loc && loc.id;
+	const hasId = "id" in loc && loc.id
 	return {
 		...(hasId && { id: loc.id! }),
 		name: loc.name,
@@ -337,18 +811,18 @@ export function vehicleAccessLocationToUnified(
 				systemType,
 				config: {
 					entryLaneId: loc.entryLaneId ?? undefined,
-					exitLaneId: loc.exitLaneId ?? undefined
-				} as VehicleAccessSystemConfig
-			}
-		]
-	};
+					exitLaneId: loc.exitLaneId ?? undefined,
+				} as VehicleAccessSystemConfig,
+			},
+		],
+	}
 }
 
 /**
  * 輔助函數：檢查地點是否有指定類型的系統
  */
 export function hasSystem(location: UnifiedLocation, systemType: SystemType): boolean {
-	return location.systems.some(s => s.systemType === systemType);
+	return location.systems.some((s) => s.systemType === systemType)
 }
 
 /**
@@ -358,54 +832,47 @@ export function getSystem(
 	location: UnifiedLocation,
 	systemType: SystemType
 ): LocationSystem | undefined {
-	return location.systems.find(s => s.systemType === systemType);
+	return location.systems.find((s) => s.systemType === systemType)
 }
 
-export type SystemCoordinates = { x: number; y: number };
+export type SystemCoordinates = { x: number; y: number }
 
 const isFiniteCoordinate = (v: unknown): v is number => {
-	return typeof v === "number" && Number.isFinite(v);
-};
+	return typeof v === "number" && Number.isFinite(v)
+}
 
-/**
- * 取回某地點在指定系統下的座標（若該系統 config.location 不存在或不合法則回傳 null）。
- * 注意：construction 目前雖未使用座標，但保留此工具以便與 central 同步與未來擴充。
- */
 export const getSystemCoordinates = (
 	location: UnifiedLocation,
 	systemType: SystemType
 ): SystemCoordinates | null => {
-	const sys = getSystem(location, systemType);
-	if (!sys) return null;
-	const cfg = sys.config as Record<string, unknown>;
-	const raw = cfg.location as { x?: unknown; y?: unknown } | undefined;
-	if (!raw) return null;
-	if (!isFiniteCoordinate(raw.x) || !isFiniteCoordinate(raw.y)) return null;
-	return { x: raw.x, y: raw.y };
-};
+	const sys = getSystem(location, systemType)
+	if (!sys) return null
+	const cfg = sys.config as Record<string, unknown>
+	const raw = cfg.location as { x?: unknown; y?: unknown } | undefined
+	if (!raw) return null
+	if (!isFiniteCoordinate(raw.x) || !isFiniteCoordinate(raw.y)) return null
+	return { x: raw.x, y: raw.y }
+}
 
-export const hasCoordinatesForSystem = (
-	location: UnifiedLocation,
-	systemType: SystemType
-): boolean => {
-	return getSystemCoordinates(location, systemType) != null;
-};
+export const hasCoordinatesForSystem = (location: UnifiedLocation, systemType: SystemType): boolean => {
+	return getSystemCoordinates(location, systemType) != null
+}
 
 export const hasAnySystemCoordinates = (location: UnifiedLocation): boolean => {
 	for (const s of location.systems || []) {
-		if (getSystemCoordinates(location, s.systemType)) return true;
+		if (getSystemCoordinates(location, s.systemType)) return true
 	}
-	return false;
-};
+	return false
+}
 
 export const getLocationStyleBySystem = (
 	location: UnifiedLocation,
 	systemType: SystemType
 ): { left: string; top: string } | {} => {
-	const c = getSystemCoordinates(location, systemType);
-	if (!c) return {};
-	return { left: `${c.x}%`, top: `${c.y}%` };
-};
+	const c = getSystemCoordinates(location, systemType)
+	if (!c) return {}
+	return { left: `${c.x}%`, top: `${c.y}%` }
+}
 
 /**
  * 輔助函數：將環境監測地點轉換為統一地點格式
@@ -414,13 +881,13 @@ export function environmentLocationToUnified(
 	loc: EnvironmentLocation | Omit<EnvironmentLocation, "id">,
 	systemType: SystemType = "environment"
 ): UnifiedLocationInput {
-	const hasId = "id" in loc && loc.id;
-	const hasSystemId = "systemId" in loc && loc.systemId;
+	const hasId = "id" in loc && loc.id
+	const hasSystemId = "systemId" in loc && loc.systemId
 	const deviceIds = Array.isArray(loc.deviceIds)
 		? loc.deviceIds
 		: loc.deviceId != null
 			? [loc.deviceId]
-			: [];
+			: []
 	return {
 		...(hasId && { id: loc.id! }),
 		name: loc.name,
@@ -432,29 +899,174 @@ export function environmentLocationToUnified(
 				config: {
 					deviceId: deviceIds[0],
 					deviceIds: deviceIds.length ? deviceIds : undefined,
-					parameters: loc.parameters || []
-				} as EnvironmentSystemConfig
-			}
-		]
-	};
+					parameters: loc.parameters || [],
+				} as EnvironmentSystemConfig,
+			},
+		],
+	}
+}
+
+/**
+ * 輔助函數：將照明地點轉換為統一地點格式
+ */
+export function lightingLocationToUnified(
+	location: LightingLocation | Omit<LightingLocation, "id">,
+	systemType: SystemType = "lighting"
+): UnifiedLocationInput {
+	const hasId = "id" in location && location.id
+	const hasSystemId = "systemId" in location && location.systemId
+	return {
+		...(hasId && { id: location.id! }),
+		name: location.name,
+		...(location.description && { description: location.description }),
+		...pickSortOrder(location.sortOrder),
+		systems: [
+			{
+				...(hasSystemId && { id: location.systemId! }),
+				systemType,
+				config: {
+					deviceId: location.deviceId,
+					location: location.location,
+					// 送出時確保 modbus.deviceId 與 location.deviceId 一致，避免後端存成不一致導致讀寫錯設備
+					modbus:
+						location.modbus != null
+							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
+							: undefined,
+				} as LightingSystemConfig,
+			},
+		],
+	}
+}
+
+/**
+ * 輔助函數：將空調（HVAC）地點轉換為統一地點格式
+ */
+export function hvacLocationToUnified(
+	location: HvacLocation | Omit<HvacLocation, "id">,
+	systemType: SystemType = "hvac"
+): UnifiedLocationInput {
+	const hasId = "id" in location && location.id
+	const hasSystemId = "systemId" in location && location.systemId
+	const statusPoints =
+		location.statusPoints && Object.keys(location.statusPoints).length > 0 ? location.statusPoints : {}
+	return {
+		...(hasId && { id: location.id! }),
+		name: location.name,
+		...(location.description && { description: location.description }),
+		...(location.createdAt && { createdAt: location.createdAt }),
+		...pickSortOrder(location.sortOrder),
+		systems: [
+			{
+				...(hasSystemId && { id: location.systemId! }),
+				systemType,
+				config: {
+					deviceId: location.deviceId,
+					location: location.location,
+					modbus:
+						location.modbus != null
+							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
+							: undefined,
+					statusPoints,
+				} as import("~/types/location").HvacSystemConfig,
+			},
+		],
+	}
+}
+
+/**
+ * 將排水地點轉換為統一地點格式
+ */
+export function drainageLocationToUnified(
+	location: DrainageLocation | Omit<DrainageLocation, "id">,
+	systemType: SystemType = "drainage"
+): UnifiedLocationInput {
+	const hasId = "id" in location && location.id
+	const hasSystemId = "systemId" in location && location.systemId
+	const statusPoints =
+		location.statusPoints && Object.keys(location.statusPoints).length > 0
+			? location.statusPoints
+			: {}
+	return {
+		...(hasId && { id: location.id! }),
+		name: location.name,
+		...(location.description && { description: location.description }),
+		...(location.createdAt && { createdAt: location.createdAt }),
+		...pickSortOrder(location.sortOrder),
+		systems: [
+			{
+				...(hasSystemId && { id: location.systemId! }),
+				systemType,
+				config: {
+					deviceId: location.deviceId,
+					location: location.location,
+					modbus:
+						location.modbus != null
+							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
+							: undefined,
+					equipmentKind: location.equipmentKind ?? "pump",
+					viewCategory: location.viewCategory ?? "drainage",
+					statusPoints,
+				} as DrainageSystemConfig,
+			},
+		],
+	}
+}
+
+/**
+ * 將電力地點轉換為統一地點格式
+ */
+export function powerLocationToUnified(
+	location: PowerLocation | Omit<PowerLocation, "id">,
+	systemType: SystemType = "power"
+): UnifiedLocationInput {
+	const hasId = "id" in location && location.id
+	const hasSystemId = "systemId" in location && location.systemId
+	const statusPoints =
+		location.statusPoints && Object.keys(location.statusPoints).length > 0
+			? location.statusPoints
+			: {}
+	return {
+		...(hasId && { id: location.id! }),
+		name: location.name,
+		...(location.description && { description: location.description }),
+		...(location.createdAt && { createdAt: location.createdAt }),
+		...pickSortOrder(location.sortOrder),
+		systems: [
+			{
+				...(hasSystemId && { id: location.systemId! }),
+				systemType,
+				config: {
+					deviceId: location.deviceId,
+					location: location.location,
+					modbus:
+						location.modbus != null
+							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
+							: undefined,
+					equipmentKind: location.equipmentKind ?? "generator",
+					viewCategory: location.viewCategory ?? "generator",
+					statusPoints,
+				} as PowerSystemConfig,
+			},
+		],
+	}
 }
 
 /**
  * 輔助函數：將人流統計地點轉換為統一地點格式
- * 須送出 dataSource、entryDeviceIds、exitDeviceIds，否則門禁設備（本系統）儲存後會遺失
+ * 須送出 dataSource、entryDeviceId、exitDeviceId，否則門禁設備（本系統）儲存後會遺失
  */
 export function peopleCountingLocationToUnified(
 	loc: PeopleCountingLocation | Omit<PeopleCountingLocation, "id">,
 	systemType: SystemType = "people_counting"
 ): UnifiedLocationInput {
-	const hasId = "id" in loc && loc.id;
+	const hasId = "id" in loc && loc.id
 	const cameraDeviceIds = Array.isArray((loc as PeopleCountingLocation).cameraDeviceIds)
 		? (loc as PeopleCountingLocation).cameraDeviceIds!.filter(
-				id => typeof id === "number" && Number.isFinite(id) && id > 0
+				(id) => typeof id === "number" && Number.isFinite(id) && id > 0
 			)
 		: loc.cameraDeviceId != null
 			? [loc.cameraDeviceId]
-			: [];
+			: []
 	return {
 		...(hasId && { id: loc.id! }),
 		name: loc.name,
@@ -471,14 +1083,13 @@ export function peopleCountingLocationToUnified(
 					exitDeviceIds: loc.exitDeviceIds || [],
 					cameraDeviceId: cameraDeviceIds[0] ?? undefined,
 					cameraDeviceIds: cameraDeviceIds.length ? cameraDeviceIds : undefined,
-					cameraChannelId:
-						loc.cameraChannelId != null && loc.cameraChannelId > 0 ? loc.cameraChannelId : 1,
-					preferRegion: loc.dataSource === "isapi_camera" ? true : (loc.preferRegion ?? false),
-					accessControlGroups: loc.accessControlGroups ?? []
-				} as PeopleCountingSystemConfig
-			}
-		]
-	};
+					preferRegion:
+						loc.dataSource === "isapi_camera" ? true : (loc.preferRegion ?? false),
+					accessControlGroups: loc.accessControlGroups ?? [],
+				} as PeopleCountingSystemConfig,
+			},
+		],
+	}
 }
 
 /**
@@ -492,63 +1103,65 @@ export function peopleCountingLocationToUnified(
 export function buildUnifiedZoneUpdateData<TZone extends { name?: string; locations?: any[] }>(
 	data: Partial<TZone>,
 	options: {
-		systemType: SystemType;
+		systemType: SystemType
 		locationConverter: (
 			location:
 				| EnvironmentLocation
+				| LightingLocation
 				| PeopleCountingLocation
 				| VehicleAccessLocation
 				| Omit<EnvironmentLocation, "id">
+				| Omit<LightingLocation, "id">
 				| Omit<PeopleCountingLocation, "id">
 				| Omit<VehicleAccessLocation, "id">,
 			systemType: SystemType
-		) => UnifiedLocationInput;
+		) => UnifiedLocationInput
 	}
 ): {
-	name?: string;
-	buildingId?: number;
-	imageUrl?: string;
-	description?: string;
-	sortOrder?: number;
-	locations?: (UnifiedLocation | UnifiedLocationInput)[];
+	name?: string
+	buildingId?: number
+	imageUrl?: string
+	description?: string
+	sortOrder?: number
+	locations?: (UnifiedLocation | UnifiedLocationInput)[]
 } {
 	const unifiedData: {
-		name?: string;
-		buildingId?: number;
-		imageUrl?: string;
-		description?: string;
-		sortOrder?: number;
-		locations?: (UnifiedLocation | UnifiedLocationInput)[];
-	} = {};
+		name?: string
+		buildingId?: number
+		imageUrl?: string
+		description?: string
+		sortOrder?: number
+		locations?: (UnifiedLocation | UnifiedLocationInput)[]
+	} = {}
 
 	// 處理基本字段
 	if (data.name !== undefined) {
-		unifiedData.name = data.name;
+		unifiedData.name = data.name
 	}
 
 	// 處理可選字段（使用類型守衛檢查）
 	if ("buildingId" in data && data.buildingId !== undefined) {
-		unifiedData.buildingId = data.buildingId as number;
+		unifiedData.buildingId = data.buildingId as number
 	}
 
 	if ("imageUrl" in data && data.imageUrl !== undefined) {
-		unifiedData.imageUrl = data.imageUrl as string;
+		unifiedData.imageUrl = data.imageUrl as string
 	}
 
 	if ("description" in data && data.description !== undefined) {
-		unifiedData.description = data.description as string;
+		unifiedData.description = data.description as string
 	}
 
-	Object.assign(unifiedData, pickSortOrder((data as { sortOrder?: unknown }).sortOrder));
+	Object.assign(unifiedData, pickSortOrder((data as { sortOrder?: unknown }).sortOrder))
 
 	// 處理地點轉換
 	if ("locations" in data && data.locations !== undefined && Array.isArray(data.locations)) {
-		unifiedData.locations = data.locations.map(loc =>
+		unifiedData.locations = data.locations.map((loc) =>
 			options.locationConverter(loc, options.systemType)
-		);
+		)
 	}
 
-	return unifiedData;
+	return unifiedData
 }
 
 /**
@@ -564,89 +1177,91 @@ export function mergeFullZoneWithSystemUpdate<TZone extends { name?: string; loc
 	fullZone: UnifiedZone,
 	data: Partial<TZone>,
 	options: {
-		systemType: SystemType;
-		locationConverter: (location: any, systemType: SystemType) => UnifiedLocationInput;
+		systemType: SystemType
+		locationConverter: (location: any, systemType: SystemType) => UnifiedLocationInput
 	}
 ): {
-	name?: string;
-	buildingId?: number;
-	imageUrl?: string;
-	description?: string;
-	sortOrder?: number;
-	locations?: (UnifiedLocation | UnifiedLocationInput)[];
+	name?: string
+	buildingId?: number
+	imageUrl?: string
+	description?: string
+	sortOrder?: number
+	locations?: (UnifiedLocation | UnifiedLocationInput)[]
 } {
 	const result: {
-		name?: string;
-		buildingId?: number;
-		imageUrl?: string;
-		description?: string;
-		sortOrder?: number;
-		locations?: (UnifiedLocation | UnifiedLocationInput)[];
-	} = {};
+		name?: string
+		buildingId?: number
+		imageUrl?: string
+		description?: string
+		sortOrder?: number
+		locations?: (UnifiedLocation | UnifiedLocationInput)[]
+	} = {}
 
 	if (data.name !== undefined) {
-		result.name = data.name;
+		result.name = data.name
 	}
 	if ("buildingId" in data && data.buildingId !== undefined) {
-		result.buildingId = data.buildingId as number;
+		result.buildingId = data.buildingId as number
 	}
 	if ("imageUrl" in data && data.imageUrl !== undefined) {
-		result.imageUrl = data.imageUrl as string;
+		result.imageUrl = data.imageUrl as string
 	}
 	if ("description" in data && data.description !== undefined) {
-		result.description = data.description as string;
+		result.description = data.description as string
 	}
-	Object.assign(result, pickSortOrder((data as { sortOrder?: unknown }).sortOrder));
+	Object.assign(result, pickSortOrder((data as { sortOrder?: unknown }).sortOrder))
 
-	const systemType = options.systemType;
-	const locationConverter = options.locationConverter;
-	const fullLocations = fullZone.locations ?? [];
+	const systemType = options.systemType
+	const locationConverter = options.locationConverter
+	const fullLocations = fullZone.locations ?? []
 
 	if ("locations" in data && Array.isArray(data.locations)) {
-		const systemLocations = data.locations;
+		const systemLocations = data.locations
 		const resolveFullLocationMatch = (sl: {
-			id?: string | null;
-			name?: string | null;
+			id?: string | null
+			name?: string | null
 		}): UnifiedLocation | undefined => {
-			const slId = sl.id != null && String(sl.id).trim() !== "" ? String(sl.id) : "";
-			const isPersistedId = Boolean(slId && !slId.startsWith("temp-"));
+			const slId = sl.id != null && String(sl.id).trim() !== "" ? String(sl.id) : ""
+			const isPersistedId = Boolean(slId && !slId.startsWith("temp-"))
 			if (isPersistedId) {
-				const byId = fullLocations.find(fl => fl.id != null && String(fl.id) === slId);
-				if (byId) return byId;
+				const byId = fullLocations.find((fl) => fl.id != null && String(fl.id) === slId)
+				if (byId) return byId
 			}
-			const trimmedName = sl.name != null ? String(sl.name).trim() : "";
-			if (!trimmedName) return undefined;
-			return fullLocations.find(fl => (fl.name || "").trim() === trimmedName);
-		};
+			const trimmedName = sl.name != null ? String(sl.name).trim() : ""
+			if (!trimmedName) return undefined
+			return fullLocations.find((fl) => (fl.name || "").trim() === trimmedName)
+		}
 		const mergedFirst: (UnifiedLocation | UnifiedLocationInput)[] = systemLocations.map(
 			(sl: { id?: string; name?: string }) => {
-				const fullMatch = resolveFullLocationMatch(sl);
+				const fullMatch = resolveFullLocationMatch(sl)
 				if (fullMatch) {
-					const otherSystems = (fullMatch.systems ?? []).filter(s => s.systemType !== systemType);
-					const ourUnified = locationConverter(sl, systemType);
-					const mergedSystems = [...otherSystems, ...(ourUnified.systems ?? [])];
+					const otherSystems = (fullMatch.systems ?? []).filter((s) => s.systemType !== systemType)
+					const ourUnified = locationConverter(sl, systemType)
+					const mergedSystems = [...otherSystems, ...(ourUnified.systems ?? [])]
 					// 地點層欄位（名稱、描述、排序等）必須取自編輯結果，否則只合併 systems 會永遠送出舊 name
 					return {
 						...fullMatch,
 						...(ourUnified.name !== undefined ? { name: ourUnified.name } : {}),
-						...(ourUnified.description !== undefined ? { description: ourUnified.description } : {}),
+						...(ourUnified.description !== undefined
+							? { description: ourUnified.description }
+							: {}),
 						...(ourUnified.createdAt !== undefined ? { createdAt: ourUnified.createdAt } : {}),
 						...pickSortOrder((ourUnified as { sortOrder?: unknown }).sortOrder),
-						systems: mergedSystems
-					};
+						systems: mergedSystems,
+					}
 				}
-				return locationConverter(sl, systemType);
+				return locationConverter(sl, systemType)
 			}
-		);
+		)
 		const mergedIds = new Set(
 			mergedFirst
-				.map(fl => fl.id)
+				.map((fl) => fl.id)
 				.filter(Boolean)
-				.map(id => String(id))
-		);
-		const rest = fullLocations.filter(fl => !mergedIds.has(String(fl.id)));
-		result.locations = [...mergedFirst, ...rest];
+				.map((id) => String(id))
+		)
+		const rest = fullLocations.filter((fl) => !mergedIds.has(String(fl.id)))
+		result.locations = [...mergedFirst, ...rest]
 	}
 
-	return result;
+	return result
 }

@@ -1,6 +1,7 @@
 import type { UnifiedZone, UnifiedLocation, SystemType, LocationSystem, UnifiedLocationInput } from "~/types/location";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPathWithQuery } from "~/utils/apiUtils";
+import type { Device } from "~/types/device";
 
 /**
  * 統一地點管理 API（多系統架構）
@@ -20,6 +21,22 @@ export const useLocationApi = () => {
 	};
 
 	return {
+		/**
+		 * people_counting（門禁來源）可同步地點 + 入口/出口門禁設備（含名稱）
+		 * 用途：人員同步頁/人流統計共用，避免對 /locations/:id 做 N 次請求
+		 */
+		getPeopleCountingSyncableLocationsWithDevices: () => {
+			return request<{
+				locations: Array<{
+					id: number;
+					name: string;
+					zone_name: string;
+					entry_devices: Array<Pick<Device, "id" | "name">>;
+					exit_devices: Array<Pick<Device, "id" | "name">>;
+				}>;
+			}>("/locations/people-counting/syncable-locations");
+		},
+
 		/**
 		 * 取得區域列表
 		 * @param systemType 可選：篩選特定系統類型的地點

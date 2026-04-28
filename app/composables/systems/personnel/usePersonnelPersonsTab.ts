@@ -2,13 +2,18 @@ import type { Device } from "~/types/device"
 import type { ImportResult, Person } from "~/types/personnel"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
-import { useAccessControlApi, type CaptureFaceResult } from "~/composables/systems/accessControl/useAccessControlApi"
+import {
+	useAccessControlApi,
+	type CaptureFaceResult,
+} from "~/composables/systems/accessControl/useAccessControlApi"
 import { base64ToFile, handleImageError } from "~/utils/imageUtils"
 import {
 	getAccessControlConfigSummary,
 	revokeObjectUrl,
 	updatePersonInList as updatePersonInListHelper,
 } from "~/utils/personnelUtils"
+import { getPrevOffset } from "~/composables/systems/personnel/usePersonCandidatesPager"
+import { usePersonsList } from "~/composables/systems/personnel/usePersonsList"
 
 type DeviceApi = ReturnType<typeof useDeviceApi>
 type AccessControlApi = ReturnType<typeof useAccessControlApi>
@@ -21,32 +26,23 @@ export const usePersonnelPersonsTab = (params: {
 	handleApiError: (err: unknown, fallbackMessage: string) => string | void | null
 }) => {
 	const { personnelApi, deviceApi, accessControlApi, toast, handleApiError } = params
-
-	const persons = ref<Person[]>([])
-	const isLoadingPersons = ref(false)
-	const personFilter = reactive<{ q: string }>({ q: "" })
-	const PAGE_SIZE = 10
-	const personsTotal = ref(0)
-	const personsOffset = ref(0)
-
-	type EmployeeNoSort = "asc" | "desc"
-	const employeeNoSort = ref<EmployeeNoSort>("asc")
-
-	const employeeNoSortOptions = computed(() => [
-		{ value: "asc", label: "工號（由小到大）" },
-		{ value: "desc", label: "工號（由大到小）" },
-	])
-
-	const selectedEmployeeNoSort = computed<string>({
-		get: () => employeeNoSort.value,
-		set: (v) => {
-			const next = (v === "asc" || v === "desc" ? v : "asc") as EmployeeNoSort
-			if (next === employeeNoSort.value) return
-			employeeNoSort.value = next
-			personsOffset.value = 0
-			void loadPersons()
-		},
-	})
+	const personsList = usePersonsList({ personnelApi, handleApiError, pageSize: 10 })
+	const {
+		PAGE_SIZE,
+		persons,
+		isLoadingPersons,
+		personFilter,
+		groupFilter,
+		personsTotal,
+		personsOffset,
+		employeeNoSortOptions,
+		selectedEmployeeNoSort,
+		loadPersons,
+		handleSearch,
+		setGroupFilterAll,
+		goPrevPage,
+		goNextPage,
+	} = personsList
 
 	const showPersonDialog = ref(false)
 	const editingPerson = ref<Person | null>(null)
@@ -73,13 +69,16 @@ export const usePersonnelPersonsTab = (params: {
 
 	const pendingFaceFile = ref<File | null>(null)
 	const facePreviewObjectUrl = ref<string | null>(null)
+	const showFaceCropDialog = ref(false)
+	const faceCropSourceFile = ref<File | null>(null)
 
 	const getPersonAccessControlDataSummary = (p: Person) => {
 		const ac = getAccessControlConfigSummary(p)
+		const hasFace = Boolean(getFaceImageSrc(p.face_url))
 		const hasPassword = Boolean(ac.password?.trim())
 		const hasCard = Boolean(ac.cardNo?.trim())
 		const hasFingerprint = Boolean(ac.fingerPrintData?.trim())
-		return { hasPassword, hasCard, hasFingerprint }
+		return { hasFace, hasPassword, hasCard, hasFingerprint }
 	}
 
 	const accessControlDevices = ref<Device[]>([])
@@ -133,9 +132,23 @@ export const usePersonnelPersonsTab = (params: {
 		facePreviewObjectUrl.value = null
 	}
 
+	const openFaceCrop = (file: File) => {
+		faceCropSourceFile.value = file
+		showFaceCropDialog.value = true
+	}
+
+	const applyCroppedFace = async (file: File) => {
+		if (!file) return
+		pendingFaceFile.value = file
+		revokeFacePreviewUrl()
+		facePreviewObjectUrl.value = URL.createObjectURL(file)
+	}
+
 	const clearFaceUrl = async () => {
 		personForm.faceUrl = ""
 		pendingFaceFile.value = null
+		faceCropSourceFile.value = null
+		showFaceCropDialog.value = false
 		revokeFacePreviewUrl()
 	}
 
@@ -143,56 +156,40 @@ export const usePersonnelPersonsTab = (params: {
 		if (!file) return
 
 		const mimeType = String(file.type || "").toLowerCase()
-		if (mimeType !== "image/jpeg" && mimeType !== "image/jpg") {
-			toast.error("大頭照僅支援 JPG（JPEG）格式（設備限制）")
-			return
-		}
-		if (file.size > 200 * 1024) {
-			toast.error("大頭照需小於等於 200KB（設備限制）")
+		if (!mimeType.startsWith("image/")) {
+			toast.error("請選擇圖片檔案")
 			return
 		}
 
-		pendingFaceFile.value = file
-		if (facePreviewObjectUrl.value) URL.revokeObjectURL(facePreviewObjectUrl.value)
-		facePreviewObjectUrl.value = URL.createObjectURL(file)
+		openFaceCrop(file)
 	}
 
-	const loadPersons = async () => {
-		isLoadingPersons.value = true
-		try {
-			const params = {
-				q: personFilter.q?.trim() || undefined,
-				sortBy: "employeeNo" as const,
-				sortOrder: employeeNoSort.value,
-				limit: PAGE_SIZE,
-				offset: personsOffset.value,
-			}
-			const res = await personnelApi.getPersons(params)
-			persons.value = res.items
-			personsTotal.value = res.total
-		} catch (err) {
-			handleApiError(err, "載入人員失敗")
-			persons.value = []
-			personsTotal.value = 0
-		} finally {
-			isLoadingPersons.value = false
-		}
-	}
-
-	const handleSearch = () => {
+	const setGroupFilterByMainGroupId = (mainGroupId: number) => {
+		const id = Number(mainGroupId)
+		if (!Number.isFinite(id)) return
+		groupFilter.value = { mode: "main", id: Math.trunc(id) }
 		personsOffset.value = 0
 		void loadPersons()
 	}
-
-	const goPrevPage = () => {
-		if (personsOffset.value === 0) return
-		personsOffset.value = Math.max(0, personsOffset.value - PAGE_SIZE)
+	const setGroupFilterByChildGroupId = (groupId: number) => {
+		const id = Number(groupId)
+		if (!Number.isFinite(id)) return
+		groupFilter.value = { mode: "single", ids: [Math.trunc(id)] }
+		personsOffset.value = 0
 		void loadPersons()
 	}
-
-	const goNextPage = () => {
-		if (personsOffset.value + PAGE_SIZE >= personsTotal.value) return
-		personsOffset.value = personsOffset.value + PAGE_SIZE
+	const setGroupFilterByChildGroupIds = (groupIds: number[]) => {
+		const ids = Array.from(
+			new Set((groupIds || []).map((x) => Number(x)).filter((x) => Number.isFinite(x)))
+		)
+			.map((x) => Math.trunc(x))
+			.slice(0, 200)
+		if (ids.length === 0) {
+			setGroupFilterAll()
+			return
+		}
+		groupFilter.value = { mode: ids.length === 1 ? "single" : "multiple", ids }
+		personsOffset.value = 0
 		void loadPersons()
 	}
 
@@ -347,6 +344,7 @@ export const usePersonnelPersonsTab = (params: {
 		const s = String(dateStr || "").trim()
 		if (!s) return ""
 		if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T00:00:00`
+		if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)) return `${s}:00`
 		return s
 	}
 
@@ -354,6 +352,7 @@ export const usePersonnelPersonsTab = (params: {
 		const s = String(dateStr || "").trim()
 		if (!s) return ""
 		if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T23:59:59`
+		if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)) return `${s}:59`
 		return s
 	}
 
@@ -361,8 +360,16 @@ export const usePersonnelPersonsTab = (params: {
 
 	const saveAccessControlExtras = async (personId: number) => {
 		const validity = isLongTerm.value
-			? { longTerm: true, beginTime: toBeginTime(todayDateString()), endTime: toEndTime("2035-12-31") }
-			: { longTerm: false, beginTime: toBeginTime(validBeginDate.value), endTime: toEndTime(validEndDate.value) }
+			? {
+					longTerm: true,
+					beginTime: toBeginTime(todayDateString()),
+					endTime: toEndTime("2035-12-31"),
+				}
+			: {
+					longTerm: false,
+					beginTime: toBeginTime(validBeginDate.value),
+					endTime: toEndTime(validEndDate.value),
+				}
 
 		if (!validity.beginTime || !validity.endTime) throw new Error("請設定有效期限起始日與結束日")
 
@@ -375,78 +382,101 @@ export const usePersonnelPersonsTab = (params: {
 		if (res?.person) updatePersonInList(res.person)
 	}
 
-	const submitPerson = async () => {
+	type SavePersonTransactionMode = "create" | "update"
+
+	const savePersonTransaction = async (mode: SavePersonTransactionMode) => {
+		const fail = (err: unknown, fallback: string) => {
+			errorMessage.value = handleApiError(err, fallback) || fallback
+		}
+
 		if (!personForm.fullName.trim()) {
 			errorMessage.value = "姓名為必填"
-			return
+			return { ok: false as const }
+		}
+
+		if (mode === "create" && !personForm.employeeNo.trim()) {
+			errorMessage.value = "工號為必填"
+			return { ok: false as const }
 		}
 
 		isSubmitting.value = true
 		errorMessage.value = null
 		try {
-			if (editingPerson.value) {
-				const updated = await personnelApi.updatePerson(editingPerson.value.id, {
+			const personId =
+				mode === "update"
+					? editingPerson.value?.id ?? null
+					: null
+
+			if (mode === "update") {
+				if (!personId) {
+					errorMessage.value = "找不到要更新的人員"
+					return { ok: false as const }
+				}
+				await personnelApi.updatePerson(personId, {
 					fullName: personForm.fullName || null,
 					status: personForm.status,
 					faceUrl: personForm.faceUrl.trim() || null,
 				})
-				const personId = editingPerson.value.id
+			}
+
+			const created =
+				mode === "create"
+					? await personnelApi.createPerson({
+							employeeNo: personForm.employeeNo.trim(),
+							fullName: personForm.fullName.trim(),
+							status: personForm.status,
+						})
+					: null
+
+			const effectivePersonId = mode === "create" ? created!.id : personId!
+
+			try {
+				await saveAccessControlExtras(effectivePersonId)
+			} catch (err) {
+				fail(err, "儲存門禁設定失敗")
+				return { ok: false as const }
+			}
+
+			if (pendingFaceFile.value) {
 				try {
-					await saveAccessControlExtras(personId)
-				} catch (err) {
-					errorMessage.value = handleApiError(err, "儲存門禁設定失敗") || "儲存門禁設定失敗"
-					return
-				}
-				if (pendingFaceFile.value) {
-					try {
-						const uploadRes = await personnelApi.uploadFaceForPerson(personId, pendingFaceFile.value)
-						pendingFaceFile.value = null
-						revokeFacePreviewUrl()
-						if (uploadRes?.faceUrl) personForm.faceUrl = uploadRes.faceUrl
-						if (uploadRes?.person) updatePersonInList(uploadRes.person)
-					} catch (err) {
-						errorMessage.value = handleApiError(err, "上傳大頭照失敗") || "上傳大頭照失敗"
-						return
-					}
-				}
-				const idx = persons.value.findIndex((x) => x.id === editingPerson.value!.id)
-				if (idx > -1) persons.value[idx] = updated
-				toast.success("已更新人員")
-			} else {
-				const created = await personnelApi.createPerson({
-					employeeNo: personForm.employeeNo.trim(),
-					fullName: personForm.fullName.trim(),
-					status: personForm.status,
-				})
-				try {
-					await saveAccessControlExtras(created.id)
-				} catch (err) {
-					errorMessage.value = handleApiError(err, "儲存門禁設定失敗") || "儲存門禁設定失敗"
-					return
-				}
-				if (pendingFaceFile.value) {
-					const uploadRes = await personnelApi.uploadFaceForPerson(created.id, pendingFaceFile.value)
-					persons.value.push(uploadRes.person)
+					const uploadRes = await personnelApi.uploadFaceForPerson(effectivePersonId, pendingFaceFile.value)
 					pendingFaceFile.value = null
 					revokeFacePreviewUrl()
-				} else {
-					persons.value.push(created)
+					if (uploadRes?.faceUrl) personForm.faceUrl = uploadRes.faceUrl
+					if (uploadRes?.person) updatePersonInList(uploadRes.person)
+				} catch (err) {
+					fail(err, "上傳大頭照失敗")
+					return { ok: false as const }
 				}
-				toast.success("已新增人員")
 			}
+
+			if (mode === "create") personsOffset.value = 0
+			await loadPersons()
+			toast.success(mode === "update" ? "已更新人員" : "已新增人員")
 			showPersonDialog.value = false
+			return { ok: true as const }
 		} catch (err) {
-			errorMessage.value = handleApiError(err, "儲存失敗") || "儲存失敗"
+			fail(err, "儲存失敗")
+			return { ok: false as const }
 		} finally {
 			isSubmitting.value = false
 		}
 	}
 
-	const confirmDeletePerson = async (p: Person) => {
-		if (!confirm(`確定要刪除人員「${p.employee_no} ${p.full_name || ""}」嗎？`)) return
+	const submitPerson = async () => {
+		if (editingPerson.value) await savePersonTransaction("update")
+		else await savePersonTransaction("create")
+	}
+
+	const deletePerson = async (p: Person) => {
 		try {
 			await personnelApi.deletePerson(p.id)
-			persons.value = persons.value.filter((x) => x.id !== p.id)
+			await loadPersons()
+			// 若當前頁被刪到沒資料且不是第一頁，退一頁再抓一次，避免空頁
+			if (personsOffset.value > 0 && persons.value.length === 0) {
+				personsOffset.value = getPrevOffset({ offset: personsOffset.value, limit: PAGE_SIZE })
+				await loadPersons()
+			}
 			toast.success("已刪除人員")
 		} catch (err) {
 			handleApiError(err, "刪除人員失敗")
@@ -499,6 +529,7 @@ export const usePersonnelPersonsTab = (params: {
 		persons,
 		isLoadingPersons,
 		personFilter,
+		groupFilter,
 		PAGE_SIZE,
 		personsTotal,
 		personsOffset,
@@ -508,6 +539,10 @@ export const usePersonnelPersonsTab = (params: {
 		// list actions
 		loadPersons,
 		handleSearch,
+		setGroupFilterAll,
+		setGroupFilterByMainGroupId,
+		setGroupFilterByChildGroupId,
+		setGroupFilterByChildGroupIds,
 		goPrevPage,
 		goNextPage,
 
@@ -532,6 +567,8 @@ export const usePersonnelPersonsTab = (params: {
 		isCapturingFingerPrint,
 		fingerPrintErrorMessage,
 		personFormFacePreview,
+		showFaceCropDialog,
+		faceCropSourceFile,
 		isSubmitting,
 		errorMessage,
 
@@ -539,8 +576,9 @@ export const usePersonnelPersonsTab = (params: {
 		openPersonCreate,
 		editPerson,
 		submitPerson,
-		confirmDeletePerson,
+		deletePerson,
 		handleFaceFileChange,
+		applyCroppedFace,
 		clearFaceUrl,
 		handleCaptureFace,
 		handleCaptureCard,
@@ -559,4 +597,3 @@ export const usePersonnelPersonsTab = (params: {
 		submitImport,
 	}
 }
-

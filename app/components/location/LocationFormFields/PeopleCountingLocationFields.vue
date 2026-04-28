@@ -44,7 +44,9 @@
 						class="h-4 w-4 accent-cyan-400"
 						@change="handleDataSourceChange"
 					/>
-					<span class="text-sm text-white/90 2xl:text-base">攝影機人流（ISAPI PeopleCounting）</span>
+					<span class="text-sm text-white/90 2xl:text-base"
+						>攝影機人流（ISAPI PeopleCounting）</span
+					>
 				</label>
 			</div>
 		</div>
@@ -62,7 +64,7 @@
 							:class="[
 								selectCardBaseClass,
 								isDoorSelected('entry', door.id) && selectCardSelectedClass,
-								isDoorOverlapped(door.id) && selectCardOverlapClass
+								isDoorOverlapped(door.id) && selectCardOverlapClass,
 							]"
 						>
 							<div
@@ -99,7 +101,7 @@
 							:class="[
 								selectCardBaseClass,
 								isDoorSelected('exit', door.id) && selectCardSelectedClass,
-								isDoorOverlapped(door.id) && selectCardOverlapClass
+								isDoorOverlapped(door.id) && selectCardOverlapClass,
 							]"
 						>
 							<div
@@ -146,7 +148,7 @@
 							:class="[
 								selectCardBaseClass,
 								isAccessControlSelected('entry', dev.id) && selectCardSelectedClass,
-								isAccessControlOverlapped(dev.id) && selectCardOverlapClass
+								isAccessControlOverlapped(dev.id) && selectCardOverlapClass,
 							]"
 						>
 							<div
@@ -185,7 +187,7 @@
 							:class="[
 								selectCardBaseClass,
 								isAccessControlSelected('exit', dev.id) && selectCardSelectedClass,
-								isAccessControlOverlapped(dev.id) && selectCardOverlapClass
+								isAccessControlOverlapped(dev.id) && selectCardOverlapClass,
 							]"
 						>
 							<div
@@ -210,27 +212,17 @@
 							<span class="text-xs text-white/90 2xl:text-sm">{{ dev.name }}</span>
 						</label>
 					</div>
-					<p v-if="props.accessControlDevices.length > 0 && !hasExitSelected" :class="warnHintClass">
+					<p
+						v-if="props.accessControlDevices.length > 0 && !hasExitSelected"
+						:class="warnHintClass"
+					>
 						至少需要選擇一個出口設備
 					</p>
 				</div>
 			</div>
 		</template>
 
-		<!-- 攝影機人流：Channel（攝影機設備移到下方區塊） -->
-		<template v-else>
-			<label :class="fieldLabelClass">
-				<span>Channel</span>
-				<input
-					v-model="cameraChannelIdString"
-					type="number"
-					min="1"
-					class="form-input-small"
-					placeholder="1"
-					@blur="handleCameraChannelBlur"
-				/>
-			</label>
-		</template>
+		<!-- 攝影機人流（ISAPI PeopleCounting）：channel 固定由後端設定為 1，不提供欄位 -->
 
 		<!-- 人員群組（僅 YSCP 使用；門禁設備之人員與權限改由「人員管理」處理） -->
 		<div class="mt-3 border-t border-white/10 pt-3">
@@ -250,7 +242,7 @@
 						:key="group.id"
 						class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
 						:class="{
-							'border-cyan-400/50 bg-cyan-500/20': isPersonGroupSelected(group.id)
+							'border-cyan-400/50 bg-cyan-500/20': isPersonGroupSelected(group.id),
 						}"
 					>
 						<input
@@ -300,7 +292,7 @@
 						:key="dev.id"
 						class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
 						:class="{
-							'border-cyan-400/50 bg-cyan-500/20': isCameraSelected(dev.id)
+							'border-cyan-400/50 bg-cyan-500/20': isCameraSelected(dev.id),
 						}"
 					>
 						<input
@@ -332,273 +324,254 @@
 </template>
 
 <script setup lang="ts">
-import type { PeopleCountingLocation } from "~/types/peopleCounting";
-import type { Device } from "~/types/device";
+import type { PeopleCountingLocation } from "~/types/peopleCounting"
+import type { Device } from "~/types/device"
 
 interface PersonGroup {
-	id: number;
-	name: string;
-	is_deleted?: number;
+	id: number
+	name: string
+	is_deleted?: number
 }
 
 interface Door {
-	id: number;
-	device_id: number;
-	dev_name: string;
-	door_index: number;
-	is_deleted?: number;
+	id: number
+	device_id: number
+	dev_name: string
+	door_index: number
+	is_deleted?: number
 }
 
 interface Props {
-	location: PeopleCountingLocation;
-	personGroups?: PersonGroup[];
-	doors?: Door[];
-	accessControlDevices?: Device[];
-	isapiCameraDevices?: Device[];
+	location: PeopleCountingLocation
+	personGroups?: PersonGroup[]
+	doors?: Door[]
+	accessControlDevices?: Device[]
+	isapiCameraDevices?: Device[]
 }
 
 interface Emits {
-	(e: "update", location: PeopleCountingLocation): void;
+	(e: "update", location: PeopleCountingLocation): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	personGroups: () => [],
 	doors: () => [],
 	accessControlDevices: () => [],
-	isapiCameraDevices: () => []
-});
+	isapiCameraDevices: () => [],
+})
 
-const emit = defineEmits<Emits>();
+const emit = defineEmits<Emits>()
 
-const localLocation = ref<PeopleCountingLocation>({ ...props.location });
+const localLocation = ref<PeopleCountingLocation>({ ...props.location })
 
 const fieldLabelClass =
-	"flex min-w-0 flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base";
+	"flex min-w-0 flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 const emptyHintClass =
-	"rounded border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60 2xl:text-sm";
+	"rounded border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60 2xl:text-sm"
 const selectCardBaseClass =
-	"relative flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 pr-10 transition-colors hover:bg-white/10";
-const selectCardSelectedClass = "border-cyan-400/50 bg-cyan-500/20";
+	"relative flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 pr-10 transition-colors hover:bg-white/10"
+const selectCardSelectedClass = "border-cyan-400/50 bg-cyan-500/20"
 const selectCardOverlapClass =
-	"border-rose-500 bg-rose-500/15 shadow-[0_0_0_3px_rgba(244,63,94,0.18)]";
+	"border-rose-500 bg-rose-500/15 shadow-[0_0_0_3px_rgba(244,63,94,0.18)]"
 const dangerHintClass =
-	"mt-3 rounded border border-rose-500/60 bg-rose-500/15 p-2 text-xs text-rose-200 2xl:text-sm";
-const warnHintClass = "mt-2 text-xs text-amber-300 2xl:text-sm";
+	"mt-3 rounded border border-rose-500/60 bg-rose-500/15 p-2 text-xs text-rose-200 2xl:text-sm"
+const warnHintClass = "mt-2 text-xs text-amber-300 2xl:text-sm"
 const dataSource = ref<"yscp" | "access_control" | "isapi_camera">(
 	(props.location.dataSource as "yscp" | "access_control" | "isapi_camera") || "yscp"
-);
-
-const cameraChannelIdString = ref("1");
+)
 
 watch(
 	() => props.location,
-	newLocation => {
-		localLocation.value = { ...newLocation };
-		if (!localLocation.value.personGroupIds) localLocation.value.personGroupIds = [];
-		if (!Array.isArray(localLocation.value.entryDoorIds)) localLocation.value.entryDoorIds = [];
-		if (!Array.isArray(localLocation.value.exitDoorIds)) localLocation.value.exitDoorIds = [];
-		if (!Array.isArray(localLocation.value.entryDeviceIds)) localLocation.value.entryDeviceIds = [];
-		if (!Array.isArray(localLocation.value.exitDeviceIds)) localLocation.value.exitDeviceIds = [];
+	(newLocation) => {
+		localLocation.value = { ...newLocation }
+		if (!localLocation.value.personGroupIds) localLocation.value.personGroupIds = []
+		if (!Array.isArray(localLocation.value.entryDoorIds)) localLocation.value.entryDoorIds = []
+		if (!Array.isArray(localLocation.value.exitDoorIds)) localLocation.value.exitDoorIds = []
+		if (!Array.isArray(localLocation.value.entryDeviceIds)) localLocation.value.entryDeviceIds = []
+		if (!Array.isArray(localLocation.value.exitDeviceIds)) localLocation.value.exitDeviceIds = []
 		if (
 			(newLocation.dataSource as string) === "isapi_camera" &&
 			!Array.isArray(localLocation.value.cameraDeviceIds)
 		) {
 			localLocation.value.cameraDeviceIds =
-				localLocation.value.cameraDeviceId != null ? [localLocation.value.cameraDeviceId] : [];
+				localLocation.value.cameraDeviceId != null ? [localLocation.value.cameraDeviceId] : []
 		}
 		dataSource.value =
-			(newLocation.dataSource as "yscp" | "access_control" | "isapi_camera") || "yscp";
-		cameraChannelIdString.value = newLocation.cameraChannelId
-			? String(newLocation.cameraChannelId)
-			: "1";
+			(newLocation.dataSource as "yscp" | "access_control" | "isapi_camera") || "yscp"
 		if ((newLocation.dataSource as string) === "isapi_camera") {
-			localLocation.value.preferRegion = true;
+			localLocation.value.preferRegion = true
 		}
 	},
 	{ immediate: true, deep: true }
-);
+)
 
 const getEffectiveCameraDeviceIds = (): number[] => {
 	if (Array.isArray(localLocation.value.cameraDeviceIds)) {
-		return localLocation.value.cameraDeviceIds;
+		return localLocation.value.cameraDeviceIds
 	}
 	if (localLocation.value.cameraDeviceId != null) {
-		return [localLocation.value.cameraDeviceId];
+		return [localLocation.value.cameraDeviceId]
 	}
-	return [];
-};
+	return []
+}
 
-const hasSelectedCamera = computed(() => getEffectiveCameraDeviceIds().length > 0);
+const hasSelectedCamera = computed(() => getEffectiveCameraDeviceIds().length > 0)
 
 const isPersonGroupSelected = (groupId: number): boolean => {
-	return localLocation.value.personGroupIds?.includes(groupId) || false;
-};
+	return localLocation.value.personGroupIds?.includes(groupId) || false
+}
 
 const togglePersonGroup = (groupId: number) => {
 	if (!localLocation.value.personGroupIds) {
-		localLocation.value.personGroupIds = [];
+		localLocation.value.personGroupIds = []
 	}
-	const index = localLocation.value.personGroupIds.indexOf(groupId);
+	const index = localLocation.value.personGroupIds.indexOf(groupId)
 	if (index > -1) {
-		localLocation.value.personGroupIds.splice(index, 1);
+		localLocation.value.personGroupIds.splice(index, 1)
 	} else {
-		localLocation.value.personGroupIds.push(groupId);
+		localLocation.value.personGroupIds.push(groupId)
 	}
-	handleChange();
-};
+	handleChange()
+}
 
 const handleDataSourceChange = () => {
-	localLocation.value.dataSource = dataSource.value;
+	localLocation.value.dataSource = dataSource.value
 	if (dataSource.value === "access_control") {
-		localLocation.value.entryDoorIds = [];
-		localLocation.value.exitDoorIds = [];
-		localLocation.value.cameraDeviceId = undefined;
-		localLocation.value.cameraDeviceIds = undefined;
-		localLocation.value.cameraChannelId = undefined;
-		localLocation.value.preferRegion = undefined;
-		if (!Array.isArray(localLocation.value.entryDeviceIds)) localLocation.value.entryDeviceIds = [];
-		if (!Array.isArray(localLocation.value.exitDeviceIds)) localLocation.value.exitDeviceIds = [];
+		localLocation.value.entryDoorIds = []
+		localLocation.value.exitDoorIds = []
+		localLocation.value.cameraDeviceId = undefined
+		localLocation.value.cameraDeviceIds = undefined
+		localLocation.value.preferRegion = undefined
+		if (!Array.isArray(localLocation.value.entryDeviceIds)) localLocation.value.entryDeviceIds = []
+		if (!Array.isArray(localLocation.value.exitDeviceIds)) localLocation.value.exitDeviceIds = []
 	} else if (dataSource.value === "isapi_camera") {
-		localLocation.value.personGroupIds = [];
-		localLocation.value.entryDoorIds = [];
-		localLocation.value.exitDoorIds = [];
-		localLocation.value.entryDeviceIds = [];
-		localLocation.value.exitDeviceIds = [];
+		localLocation.value.personGroupIds = []
+		localLocation.value.entryDoorIds = []
+		localLocation.value.exitDoorIds = []
+		localLocation.value.entryDeviceIds = []
+		localLocation.value.exitDeviceIds = []
 		if (!Array.isArray(localLocation.value.cameraDeviceIds)) {
-			localLocation.value.cameraDeviceIds = getEffectiveCameraDeviceIds();
+			localLocation.value.cameraDeviceIds = getEffectiveCameraDeviceIds()
 		}
-		localLocation.value.cameraDeviceId = localLocation.value.cameraDeviceIds[0] ?? undefined;
-		localLocation.value.cameraChannelId = cameraChannelIdString.value
-			? Number(cameraChannelIdString.value)
-			: 1;
-		localLocation.value.preferRegion = true;
+		localLocation.value.cameraDeviceId = localLocation.value.cameraDeviceIds[0] ?? undefined
+		localLocation.value.preferRegion = true
 	} else {
-		localLocation.value.entryDeviceIds = [];
-		localLocation.value.exitDeviceIds = [];
-		localLocation.value.cameraDeviceId = undefined;
-		localLocation.value.cameraDeviceIds = undefined;
-		localLocation.value.cameraChannelId = undefined;
-		localLocation.value.preferRegion = undefined;
-		if (!Array.isArray(localLocation.value.entryDoorIds)) localLocation.value.entryDoorIds = [];
-		if (!Array.isArray(localLocation.value.exitDoorIds)) localLocation.value.exitDoorIds = [];
+		localLocation.value.entryDeviceIds = []
+		localLocation.value.exitDeviceIds = []
+		localLocation.value.cameraDeviceId = undefined
+		localLocation.value.cameraDeviceIds = undefined
+		localLocation.value.preferRegion = undefined
+		if (!Array.isArray(localLocation.value.entryDoorIds)) localLocation.value.entryDoorIds = []
+		if (!Array.isArray(localLocation.value.exitDoorIds)) localLocation.value.exitDoorIds = []
 	}
-	handleChange();
-};
+	handleChange()
+}
 
 const normalizeIdList = (value: number[] | undefined): number[] => {
-	if (!Array.isArray(value)) return [];
+	if (!Array.isArray(value)) return []
 	return value
-		.map(v => Number(v))
-		.filter(n => Number.isFinite(n) && n > 0)
-		.map(n => Math.trunc(n));
-};
+		.map((v) => Number(v))
+		.filter((n) => Number.isFinite(n) && n > 0)
+		.map((n) => Math.trunc(n))
+}
 
-const normalizedEntryDoorIds = computed(() => normalizeIdList(localLocation.value.entryDoorIds));
-const normalizedExitDoorIds = computed(() => normalizeIdList(localLocation.value.exitDoorIds));
-const normalizedEntryDeviceIds = computed(() =>
-	normalizeIdList(localLocation.value.entryDeviceIds)
-);
-const normalizedExitDeviceIds = computed(() => normalizeIdList(localLocation.value.exitDeviceIds));
+const normalizedEntryDoorIds = computed(() => normalizeIdList(localLocation.value.entryDoorIds))
+const normalizedExitDoorIds = computed(() => normalizeIdList(localLocation.value.exitDoorIds))
+const normalizedEntryDeviceIds = computed(() => normalizeIdList(localLocation.value.entryDeviceIds))
+const normalizedExitDeviceIds = computed(() => normalizeIdList(localLocation.value.exitDeviceIds))
 
 const doorOverlapSet = computed(() => {
-	const entry = new Set(normalizedEntryDoorIds.value);
-	const exit = new Set(normalizedExitDoorIds.value);
-	const overlap = new Set<number>();
+	const entry = new Set(normalizedEntryDoorIds.value)
+	const exit = new Set(normalizedExitDoorIds.value)
+	const overlap = new Set<number>()
 	for (const id of entry) {
-		if (exit.has(id)) overlap.add(id);
+		if (exit.has(id)) overlap.add(id)
 	}
-	return overlap;
-});
+	return overlap
+})
 
-const hasDoorOverlap = computed(() => doorOverlapSet.value.size > 0);
+const hasDoorOverlap = computed(() => doorOverlapSet.value.size > 0)
 
 const isDoorOverlapped = (doorId: number): boolean => {
-	return doorOverlapSet.value.has(Number(doorId));
-};
+	return doorOverlapSet.value.has(Number(doorId))
+}
 
 const isDoorSelected = (role: "entry" | "exit", doorId: number): boolean => {
-	const ids = role === "entry" ? normalizedEntryDoorIds.value : normalizedExitDoorIds.value;
-	return ids.includes(doorId);
-};
+	const ids = role === "entry" ? normalizedEntryDoorIds.value : normalizedExitDoorIds.value
+	return ids.includes(doorId)
+}
 
 const handleToggleDoor = (role: "entry" | "exit", doorId: number) => {
-	const key = role === "entry" ? "entryDoorIds" : "exitDoorIds";
+	const key = role === "entry" ? "entryDoorIds" : "exitDoorIds"
 	const current =
-		role === "entry" ? [...normalizedEntryDoorIds.value] : [...normalizedExitDoorIds.value];
-	const idx = current.indexOf(doorId);
-	if (idx >= 0) current.splice(idx, 1);
-	else current.push(doorId);
-	localLocation.value[key] = current;
-	handleChange();
-};
+		role === "entry" ? [...normalizedEntryDoorIds.value] : [...normalizedExitDoorIds.value]
+	const idx = current.indexOf(doorId)
+	if (idx >= 0) current.splice(idx, 1)
+	else current.push(doorId)
+	localLocation.value[key] = current
+	handleChange()
+}
 
 const isAccessControlSelected = (role: "entry" | "exit", deviceId: number): boolean => {
-	const ids = role === "entry" ? normalizedEntryDeviceIds.value : normalizedExitDeviceIds.value;
-	return ids.includes(deviceId);
-};
+	const ids = role === "entry" ? normalizedEntryDeviceIds.value : normalizedExitDeviceIds.value
+	return ids.includes(deviceId)
+}
 
 const handleToggleAccessControl = (role: "entry" | "exit", deviceId: number) => {
-	const key = role === "entry" ? "entryDeviceIds" : "exitDeviceIds";
+	const key = role === "entry" ? "entryDeviceIds" : "exitDeviceIds"
 	const current =
-		role === "entry" ? [...normalizedEntryDeviceIds.value] : [...normalizedExitDeviceIds.value];
-	const idx = current.indexOf(deviceId);
-	if (idx >= 0) current.splice(idx, 1);
-	else current.push(deviceId);
-	localLocation.value[key] = current;
-	handleChange();
-};
+		role === "entry" ? [...normalizedEntryDeviceIds.value] : [...normalizedExitDeviceIds.value]
+	const idx = current.indexOf(deviceId)
+	if (idx >= 0) current.splice(idx, 1)
+	else current.push(deviceId)
+	localLocation.value[key] = current
+	handleChange()
+}
 
 const accessControlOverlapSet = computed(() => {
-	const entry = new Set(normalizedEntryDeviceIds.value);
-	const exit = new Set(normalizedExitDeviceIds.value);
-	const overlap = new Set<number>();
+	const entry = new Set(normalizedEntryDeviceIds.value)
+	const exit = new Set(normalizedExitDeviceIds.value)
+	const overlap = new Set<number>()
 	for (const id of entry) {
-		if (exit.has(id)) overlap.add(id);
+		if (exit.has(id)) overlap.add(id)
 	}
-	return overlap;
-});
+	return overlap
+})
 
-const hasAccessControlOverlap = computed(() => accessControlOverlapSet.value.size > 0);
+const hasAccessControlOverlap = computed(() => accessControlOverlapSet.value.size > 0)
 
 const isAccessControlOverlapped = (deviceId: number): boolean => {
-	return accessControlOverlapSet.value.has(Number(deviceId));
-};
+	return accessControlOverlapSet.value.has(Number(deviceId))
+}
 
 const hasEntrySelected = computed(() => {
-	if (dataSource.value === "access_control") return normalizedEntryDeviceIds.value.length > 0;
-	return normalizedEntryDoorIds.value.length > 0;
-});
+	if (dataSource.value === "access_control") return normalizedEntryDeviceIds.value.length > 0
+	return normalizedEntryDoorIds.value.length > 0
+})
 
 const hasExitSelected = computed(() => {
-	if (dataSource.value === "access_control") return normalizedExitDeviceIds.value.length > 0;
-	return normalizedExitDoorIds.value.length > 0;
-});
+	if (dataSource.value === "access_control") return normalizedExitDeviceIds.value.length > 0
+	return normalizedExitDoorIds.value.length > 0
+})
 
 const isCameraSelected = (deviceId: number): boolean => {
-	return getEffectiveCameraDeviceIds().includes(deviceId);
-};
+	return getEffectiveCameraDeviceIds().includes(deviceId)
+}
 
 const handleToggleCamera = (deviceId: number) => {
 	if (!Array.isArray(localLocation.value.cameraDeviceIds)) {
-		localLocation.value.cameraDeviceIds = getEffectiveCameraDeviceIds();
+		localLocation.value.cameraDeviceIds = getEffectiveCameraDeviceIds()
 	}
-	const ids = localLocation.value.cameraDeviceIds;
-	const idx = ids.indexOf(deviceId);
-	if (idx >= 0) ids.splice(idx, 1);
-	else ids.push(deviceId);
+	const ids = localLocation.value.cameraDeviceIds
+	const idx = ids.indexOf(deviceId)
+	if (idx >= 0) ids.splice(idx, 1)
+	else ids.push(deviceId)
 
-	localLocation.value.cameraDeviceId = ids[0] ?? undefined;
-	handleChange();
-};
-
-const handleCameraChannelBlur = () => {
-	const n = Number(cameraChannelIdString.value);
-	localLocation.value.cameraChannelId = Number.isFinite(n) && n > 0 ? Math.trunc(n) : 1;
-	cameraChannelIdString.value = String(localLocation.value.cameraChannelId || 1);
-	handleChange();
-};
+	localLocation.value.cameraDeviceId = ids[0] ?? undefined
+	handleChange()
+}
 
 const handleChange = () => {
-	emit("update", { ...localLocation.value });
-};
+	emit("update", { ...localLocation.value })
+}
 </script>

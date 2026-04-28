@@ -308,10 +308,10 @@ const MAIN_NAV_ROUTE_ORDER = [
 
 const mainNavigationItems = computed<SystemModule[]>(() => {
 	const modules = moduleRegistry.getModulesByCategory("construction-monitoring");
-	const byRoute = new Map(modules.map((m) => [m.route, m] as const));
-	const ordered = MAIN_NAV_ROUTE_ORDER.map((r) => byRoute.get(r)).filter(Boolean) as SystemModule[];
+	const byRoute = new Map(modules.map(m => [m.route, m] as const));
+	const ordered = MAIN_NAV_ROUTE_ORDER.map(r => byRoute.get(r)).filter(Boolean) as SystemModule[];
 	// 若 registry 內容有增減（或排序調整），將未列入固定順序者補在後面
-	const leftovers = modules.filter((m) => !MAIN_NAV_ROUTE_ORDER.includes(m.route as any));
+	const leftovers = modules.filter(m => !MAIN_NAV_ROUTE_ORDER.includes(m.route as any));
 	return [...ordered, ...leftovers];
 });
 
@@ -330,9 +330,9 @@ const auxiliaryItemsForActive = [
 // 更多功能下拉項目（設備管理、人員管理）
 const moreFunctionsItems = [
 	{
-		id: "equipment-management",
+		id: "device",
 		name: "設備管理",
-		route: "/core/equipment-management",
+		route: "/core/device",
 		icon: "/layout/devices.svg"
 	},
 	{ id: "personnel", name: "人員管理", route: "/core/personnel", icon: "/layout/user-info.svg" }

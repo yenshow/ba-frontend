@@ -66,7 +66,7 @@
 						</div>
 						<!-- 訊息內容 -->
 						<div class="flex-1">
-							<p class="text-base leading-relaxed text-white/90 2xl:text-lg">
+							<p class="text-base whitespace-pre-line leading-relaxed text-white/90 2xl:text-lg">
 								{{ message }}
 							</p>
 							<!-- 詳細說明（可選） -->
@@ -97,55 +97,53 @@
 
 <script setup lang="ts">
 interface Props {
-	modelValue: boolean;
-	title?: string;
-	message: string;
-	details?: string;
-	type?: "warning" | "danger" | "info";
-	confirmText?: string;
-	cancelText?: string;
+	modelValue: boolean
+	title?: string
+	message: string
+	details?: string
+	type?: "warning" | "danger" | "info"
+	confirmText?: string
+	cancelText?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	title: "確認",
 	type: "warning",
 	confirmText: "確定",
-	cancelText: "取消"
-});
+	cancelText: "取消",
+})
 
 const emit = defineEmits<{
-	(e: "update:modelValue", value: boolean): void;
-	(e: "confirm"): void;
-	(e: "cancel"): void;
-}>();
+	(e: "update:modelValue", value: boolean): void
+	(e: "confirm"): void
+	(e: "cancel"): void
+}>()
 
 const iconClass = computed(() => {
 	const classes: Record<typeof props.type, string> = {
 		warning: "bg-amber-500/20 text-amber-400",
 		danger: "bg-rose-500/20 text-rose-400",
-		info: "bg-blue-500/20 text-blue-400"
-	};
-	return classes[props.type];
-});
+		info: "bg-blue-500/20 text-blue-400",
+	}
+	return classes[props.type]
+})
 
 const confirmButtonClass = computed(() => {
 	if (props.type === "danger") {
-		return "bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700";
+		return "bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700"
 	}
-	return "";
-});
+	return ""
+})
 
 const handleConfirm = () => {
-	emit("confirm");
-	emit("update:modelValue", false);
-};
+	emit("confirm")
+	emit("update:modelValue", false)
+}
 
 const handleCancel = () => {
-	emit("cancel");
-	emit("update:modelValue", false);
-};
+	emit("cancel")
+	emit("update:modelValue", false)
+}
 </script>
 
-<style scoped>
-</style>
-
+<style scoped></style>

@@ -213,10 +213,16 @@ export const useVehicleAccessState = () => {
 		}
 	};
 
-	/** 載入總覽各地點：今日過車筆數、進場／出場／在場（僅計放行） */
+	/** 載入總覽各地點：依當前篩選時間範圍的過車筆數、進場／出場／在場（僅計放行） */
 	const loadOverviewSummaries = async (): Promise<void> => {
 		isLoadingOverview.value = true;
 		try {
+			const tr = filters.value.timeRange || "today";
+			const countTime =
+				tr === "custom" && filters.value.startTime && filters.value.endTime
+					? { startTime: filters.value.startTime, endTime: filters.value.endTime }
+					: { timeRange: tr === "custom" ? ("today" as const) : tr };
+
 			const summaries: VehicleAccessLocationSummary[] = [];
 			for (const zone of vehicleAccessZones.value) {
 				for (const loc of zone.locations || []) {
@@ -227,13 +233,13 @@ export const useVehicleAccessState = () => {
 					if (laneIds.length > 0) {
 						const [entry, exit] = await Promise.all([
 							vehicleAccessApi.getVehicleDataLogCount({
-								timeRange: "today",
+								...countTime,
 								lane_id: laneIds,
 								allow_result: 1,
 								lane_type: 1
 							}),
 							vehicleAccessApi.getVehicleDataLogCount({
-								timeRange: "today",
+								...countTime,
 								lane_id: laneIds,
 								allow_result: 1,
 								lane_type: 2
