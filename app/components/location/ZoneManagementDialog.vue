@@ -258,6 +258,7 @@ import ZoneFormFields from "./ZoneFormFields.vue"
 import EnvironmentLocationManagement from "./LocationManagement/EnvironmentLocationManagement.vue"
 import LightingLocationManagement from "./LocationManagement/LightingLocationManagement.vue"
 import HvacLocationManagement from "./LocationManagement/HvacLocationManagement.vue"
+import AirCirculationLocationManagement from "./LocationManagement/AirCirculationLocationManagement.vue"
 import PeopleCountingLocationManagement from "./LocationManagement/PeopleCountingLocationManagement.vue"
 import VehicleAccessLocationManagement from "./LocationManagement/VehicleAccessLocationManagement.vue"
 import DrainageLocationManagement from "./LocationManagement/DrainageLocationManagement.vue"
@@ -401,6 +402,7 @@ const isapiCameraDevices = ref<Device[]>([])
 const locationManagementComponentMap: Partial<Record<SystemType, Component>> = {
 	lighting: LightingLocationManagement,
 	hvac: HvacLocationManagement,
+	air_circulation: AirCirculationLocationManagement,
 	environment: EnvironmentLocationManagement,
 	people_counting: PeopleCountingLocationManagement,
 	vehicle_access: VehicleAccessLocationManagement,
@@ -548,6 +550,7 @@ const getLocationLabel = (): string => {
 	const labelMap: Record<SystemType, string> = {
 		lighting: "點位",
 		hvac: "點位",
+		air_circulation: "點位",
 		drainage: "點位",
 		power: "點位",
 		fire: "點位",

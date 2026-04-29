@@ -12,7 +12,7 @@
 				:all-zone-locations="allZoneLocations"
 				:current-zone-locations="currentZoneLocations"
 				:zone-plan-image="zonePlanImage"
-				:is-location-normal="isLocationNormal"
+				:get-location-status-type="getLocationStatusType"
 				:get-location-alert-flash="getLocationAlertFlash"
 				@open-zone-management="handleOpenZoneDialog"
 				@toggle-edit-mode="handleToggleEditMode"
@@ -64,6 +64,7 @@ import { useLightingModbusIntegration } from "~/composables/systems/lighting/use
 import { healthStatusToAlertFlash } from "~/utils/alertUtils"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
+import { systemUiStatusToLegacyHealthStatus } from "~/types/monitoring"
 
 definePageMeta({
 	layout: "default",
@@ -121,15 +122,18 @@ const {
 	preloadDeviceInfos,
 	loadAllLocationStatuses,
 	handleLocationToggle,
-	isLocationNormal,
 	startAutoRefresh,
 	stopAutoRefresh,
 	handleVisibilityChange,
 } = useLightingModbusIntegration(lightingZones, selectedZone)
 
 const getLocationAlertFlash = (id: string): "none" | "slow" | "fast" => {
-	return healthStatusToAlertFlash(locationStatuses.value[id]?.status, { whenAbsent: "none" })
+	const status = locationStatuses.value[id]?.status
+	if (!status) return "none"
+	return healthStatusToAlertFlash(systemUiStatusToLegacyHealthStatus(status), { whenAbsent: "none" })
 }
+
+const getLocationStatusType = (id: string) => locationStatuses.value[id]?.status ?? "warning"
 
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone, sortZones } =
 	useZoneManagement<LightingLocation, LightingZone>()

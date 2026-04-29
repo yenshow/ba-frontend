@@ -1,5 +1,6 @@
 import type { CategoryModbusConfig } from "~/types/lighting"
 import type { DrainageStatusPointDef } from "~/types/location"
+import { normalizeSystemUiStatus, type SystemUiStatus } from "~/types/monitoring"
 
 export const trimPowerViewCategory = (raw: string | undefined | null): string =>
 	String(raw ?? "").trim()
@@ -28,7 +29,7 @@ export interface PowerStatusItem {
 	systemId: string
 	equipmentKind: PowerEquipmentKind | string
 	viewCategory: string
-	uiStatus: "normal" | "warning" | "alarm" | "offline" | "unknown"
+	uiStatus: SystemUiStatus
 	raw?: Record<string, boolean | undefined>
 	error?: string
 }
@@ -37,12 +38,12 @@ export interface PowerStatusItem {
 export const derivePowerGeneratorRunStatus = (
 	item: PowerStatusItem | null | undefined
 ): PowerStatusItem["uiStatus"] => {
-	if (!item) return "unknown"
+	if (!item) return "warning"
 	const raw = item.raw || {}
 	if (raw.fault === true) return "alarm"
 	const hasSig =
 		raw.fault !== undefined || raw.running !== undefined
-	return hasSig ? "normal" : "warning"
+	return hasSig ? "normal" : normalizeSystemUiStatus(item.uiStatus)
 }
 
 export const derivePowerGeneratorOilStatus = (
@@ -67,7 +68,7 @@ export const derivePowerGeneratorOilStatus = (
 export const derivePowerOverallUiStatus = (
 	item: PowerStatusItem | null | undefined
 ): PowerStatusItem["uiStatus"] => {
-	if (!item) return "unknown"
+	if (!item) return "warning"
 	const kind = item.equipmentKind === "oil_level" ? "oil_level" : "generator"
 	if (kind === "oil_level") {
 		const raw = item.raw || {}

@@ -111,17 +111,16 @@
 							:class="[{ 'is-editing': isEditMode }]"
 							role="button"
 							tabindex="0"
-							:data-status="
-								isLocationNormal(getLocationIdForDisplay(location)) ? 'normal' : 'abnormal'
-							"
-							:title="`${location.name}：${isLocationNormal(getLocationIdForDisplay(location)) ? '正常' : '異常'}`"
-							:aria-label="`${location.name}：${isLocationNormal(getLocationIdForDisplay(location)) ? '正常' : '異常'}`"
+							:data-status="getTooltipStatusType(location)"
+							:title="`${location.name}：${getStatusLabel(getTooltipStatusType(location))}`"
+							:aria-label="`${location.name}：${getStatusLabel(getTooltipStatusType(location))}`"
 							@click.stop="!isEditMode && handleSelectLocationByLocation(location)"
 						></div>
 						<CategoryTooltip
 							:show="true"
 							:category-name="location.name"
-							:is-normal="isLocationNormal(getLocationIdForDisplay(location))"
+							:is-normal="getTooltipStatusType(location) === 'normal'"
+							:status-type="getTooltipStatusType(location)"
 							:alert-flash="getLocationAlertFlashForTooltip(location)"
 						/>
 					</div>
@@ -136,6 +135,7 @@ import { nextTick, onBeforeUnmount, onMounted, watch } from "vue"
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
 import CategoryList from "~/components/common/CategoryList.vue"
 import type { LightingLocation, LightingZone } from "~/types/lighting"
+import type { SystemUiStatus } from "~/types/monitoring"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 
 interface Props {
@@ -149,7 +149,7 @@ interface Props {
 	allZoneLocations: LightingLocation[]
 	currentZoneLocations: LightingLocation[]
 	zonePlanImage: string | undefined
-	isLocationNormal: (locationId: string) => boolean
+	getLocationStatusType: (locationId: string) => SystemUiStatus
 	/** 與 StatusCenter／環境頁警報閃爍語意一致；未傳則平面圖點位不套用透明度閃爍 */
 	getLocationAlertFlash?: (locationId: string) => "none" | "slow" | "fast"
 }
@@ -211,6 +211,23 @@ const getLocationAlertFlashForTooltip = (location: LightingLocation) => {
 	const id = getLocationIdForDisplay(location)
 	if (!id || !props.getLocationAlertFlash) return "none" as const
 	return props.getLocationAlertFlash(id)
+}
+
+const getTooltipStatusType = (
+	location: LightingLocation
+): "normal" | "abnormal" | "alarm" => {
+	const id = getLocationIdForDisplay(location)
+	if (!id) return "abnormal"
+	const status = props.getLocationStatusType(id)
+	if (status === "normal") return "normal"
+	if (status === "alarm") return "alarm"
+	return "abnormal"
+}
+
+const getStatusLabel = (statusType: "normal" | "abnormal" | "alarm"): string => {
+	if (statusType === "normal") return "正常"
+	if (statusType === "alarm") return "警報"
+	return "異常"
 }
 
 const handleSelectLocationByLocation = (location: LightingLocation) => {

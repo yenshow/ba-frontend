@@ -219,6 +219,7 @@ import { useHvacModbusIntegration } from "~/composables/systems/hvac/useHvacModb
 import { useFireModbusIntegration } from "~/composables/systems/fire/useFireModbusIntegration"
 import { getSystemTypeLabel } from "~/types/location"
 import { getLocationUiKey } from "~/utils/locationUiId"
+import type { SystemUiStatus } from "~/types/monitoring"
 
 definePageMeta({
 	layout: "default",
@@ -406,7 +407,7 @@ const powerUiStatusByLocationId = computed(() => {
 })
 
 const lightingHealthByLocationDbId = computed(() => {
-	const m = new Map<string, { status?: "normal" | "warning" | "error" }>()
+	const m = new Map<string, { status?: SystemUiStatus }>()
 	for (const zone of lightingZones.value || []) {
 		for (let i = 0; i < (zone.locations || []).length; i += 1) {
 			const loc = zone.locations[i] as any
@@ -422,7 +423,7 @@ const lightingHealthByLocationDbId = computed(() => {
 })
 
 const hvacUiStatusByLocationDbId = computed(() => {
-	const m = new Map<string, { uiStatus?: "normal" | "abnormal"; temperatureC?: number | null }>()
+	const m = new Map<string, { uiStatus?: SystemUiStatus; temperatureC?: number | null }>()
 	for (const zone of hvacZones.value || []) {
 		for (let i = 0; i < (zone.locations || []).length; i += 1) {
 			const loc = (zone.locations || [])[i] as any
@@ -568,7 +569,7 @@ const tooltipLabelForLocation = (location: UnifiedLocation): string => {
 	}
 	const lighting = lightingHealthByLocationDbId.value.get(id)?.status
 	if (lighting === "warning") parts.push("照明：異常")
-	if (lighting === "error") parts.push("照明：警報")
+	if (lighting === "alarm") parts.push("照明：警報")
 
 	const hvac = hvacUiStatusByLocationDbId.value.get(id)
 	if (hvac?.uiStatus && hvac.uiStatus !== "normal") {
@@ -580,7 +581,7 @@ const tooltipLabelForLocation = (location: UnifiedLocation): string => {
 	}
 
 	const powerUi = powerUiStatusByLocationId.value.get(id)
-	if (powerUi && powerUi !== "unknown" && powerUi !== "normal") {
+	if (powerUi && powerUi !== "normal") {
 		parts.push(`電力：${uiStatusToDot(powerUi) === "alarm" ? "警報" : "異常"}`)
 	}
 

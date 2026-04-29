@@ -1,7 +1,7 @@
 <template>
 	<div>
 		<div class="flex justify-center gap-6 2xl:gap-8">
-			<HvacZonePlanPanel
+			<AirCirculationZonePlanPanel
 				:selected-zone-name="selectedZoneName"
 				:is-initial-loading="isInitialLoading"
 				:is-operator="isOperator"
@@ -27,14 +27,10 @@
 				class="show-scrollbar flex-[0.8] overflow-y-auto 2xl:flex-[0.7]"
 				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
 			>
-				<HvacStatusCenter
-					:zones="hvacZones"
-					:area-statuses="locationStatuses"
-					:area-disabled-map="locationDisabledMap"
-					:area-toggling="locationToggling"
-					:can-toggle="isOperator"
+				<AirCirculationMonitorCenter
+					:zones="airCirculationZones"
+					:status-items="statusItems"
 					:selected-zone="selectedZone"
-					@toggle="handleLocationToggle"
 					@zone-selected="handleZoneSelected"
 				/>
 			</aside>
@@ -43,8 +39,8 @@
 
 	<ZoneManagementDialog
 		v-model="showZoneManagementDialog"
-		:zones="hvacZones"
-		system-type="hvac"
+		:zones="airCirculationZones"
+		system-type="air_circulation"
 		:require-image-url="true"
 		device-hint="請先在「設備管理」中建立控制器設備"
 		@save="handleSaveZone"
@@ -53,28 +49,28 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, watch } from "vue"
-import HvacZonePlanPanel from "~/components/hvac/HvacZonePlanPanel.vue"
-import HvacStatusCenter from "~/components/hvac/HvacStatusCenter.vue"
+import { onMounted, onBeforeUnmount, watch } from "vue"
+import AirCirculationZonePlanPanel from "~/components/air-circulation/AirCirculationZonePlanPanel.vue"
+import AirCirculationMonitorCenter from "~/components/air-circulation/AirCirculationMonitorCenter.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
-import type { HvacZone, HvacLocation } from "~/types/hvac"
-import { useHvacApi } from "~/composables/systems/hvac/useHvacApi"
+import type { AirCirculationZone, AirCirculationLocation } from "~/types/air-circulation"
+import { useAirCirculationApi } from "~/composables/systems/air-circulation/useAirCirculationApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import { useAuth } from "~/composables/core/useAuth"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
-import { useHvacModbusIntegration } from "~/composables/systems/hvac/useHvacModbusIntegration"
+import { useAirCirculationModbusIntegration } from "~/composables/systems/air-circulation/useAirCirculationModbusIntegration"
 
 definePageMeta({ layout: "default" })
 
 const { isOperator } = useAuth()
-const hvacApi = useHvacApi()
+const airApi = useAirCirculationApi()
 const { handleError } = useErrorHandler()
 
 const leftSectionHeight = ref<number | null>(null)
 
-const hvacZones = ref<HvacZone[]>([])
+const airCirculationZones = ref<AirCirculationZone[]>([])
 const isLoadingZones = ref(false)
 const isInitialLoading = ref(true)
 
@@ -83,7 +79,23 @@ const selectedCategory = ref("")
 const isEditMode = ref(false)
 const showZoneManagementDialog = ref(false)
 
-const zonesById = computed(() => new Map(hvacZones.value.map((zone) => [zone.id || zone.name, zone])))
+const statusItems = ref<
+	Array<{
+		zoneId: string
+		zoneName: string
+		locationId: string
+		locationName: string
+		systemId: string
+		uiStatus: "normal" | "warning" | "alarm" | "offline" | "unknown"
+		raw: Record<string, unknown>
+		error?: string
+	}>
+>([])
+
+const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone, sortZones } =
+	useZoneManagement<AirCirculationLocation, AirCirculationZone>()
+
+const zonesById = computed(() => new Map(airCirculationZones.value.map((z) => [z.id || z.name, z])))
 const selectedZoneName = computed(() => zonesById.value.get(selectedZone.value)?.name || "")
 const selectedZoneData = computed(() => zonesById.value.get(selectedZone.value))
 const zonePlanImage = computed(() => selectedZoneData.value?.imageUrl)
@@ -99,56 +111,65 @@ const allZoneLocations = computed(() => {
 	return selectedZoneData.value?.locations || []
 })
 
-const {
-	locationStatuses,
-	locationToggling,
-	locationDisabledMap,
-	initializeLocationStatuses,
-	preloadDeviceInfos,
-	loadAllLocationStatuses,
-	handleLocationToggle,
-	dotStatusForLocation,
-	startAutoRefresh,
-	stopAutoRefresh,
-	handleVisibilityChange,
-} = useHvacModbusIntegration(hvacZones, selectedZone)
+const statusBySystemId = computed(() => {
+	const m = new Map<string, (typeof statusItems.value)[number]>()
+	for (const it of statusItems.value) {
+		m.set(String(it.systemId), it)
+	}
+	return m
+})
+
+const uiStatusForLocation = (loc: AirCirculationLocation) => {
+	if (!loc.systemId) return "unknown" as const
+	return (statusBySystemId.value.get(String(loc.systemId))?.uiStatus ?? "unknown") as
+		| "normal"
+		| "warning"
+		| "alarm"
+		| "offline"
+		| "unknown"
+}
+
+const dotStatusForLocation = (loc: AirCirculationLocation): "normal" | "abnormal" | "alarm" => {
+	const s = uiStatusForLocation(loc)
+	if (s === "normal") return "normal"
+	if (s === "alarm") return "alarm"
+	return "abnormal"
+}
 
 const getLocationAlertFlash = (locationId: string): "none" | "slow" | "fast" => {
-	const ui = locationStatuses.value[locationId]?.uiStatus
-	if (ui === "normal") return "none"
-	if (ui === "alarm") return "fast"
+	const found = findLocationInCurrentZoneByUiKey(locationId)
+	const s = found?.location ? uiStatusForLocation(found.location) : "unknown"
+	if (s === "normal" || s === "unknown") return "none"
+	if (s === "alarm") return "fast"
 	return "slow"
 }
 
-const dotStatusForLocationId = (locationId: string) => dotStatusForLocation(locationId)
+const dotStatusForLocationId = (locationId: string) => {
+	const found = findLocationInCurrentZoneByUiKey(locationId)
+	if (!found?.location) return "abnormal"
+	return dotStatusForLocation(found.location)
+}
 
 const tooltipTitleByLocationId = (locationId: string) => {
-	const s = locationStatuses.value[locationId]
-	const label =
-		s?.uiStatus === "normal"
-			? "正常"
-			: s?.uiStatus === "alarm"
-					? "警報"
-					: "異常"
-	const temp =
-		s?.temperatureC != null && Number.isFinite(s.temperatureC) ? ` ${Math.round(s.temperatureC)}°C` : ""
 	const found = findLocationInCurrentZoneByUiKey(locationId)
 	const name = found?.location?.name || ""
-	return `${name}：${label}${temp}`
+	const s = found?.location ? uiStatusForLocation(found.location) : "unknown"
+	const label =
+		s === "normal" ? "正常" : s === "warning" ? "異常" : s === "alarm" ? "警報" : s === "offline" ? "離線" : "未知"
+	return `${name}：${label}`
 }
 
 const findLocationInCurrentZoneByUiKey = (locationId: string) => {
 	const zone = selectedZoneData.value
 	if (!zone) return null
-	const idx = zone.locations.findIndex((loc, i) => getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i }) === locationId)
+	const idx = zone.locations.findIndex(
+		(loc, i) => getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i }) === locationId
+	)
 	if (idx === -1) return null
 	return { zone, location: zone.locations[idx]!, locationIndex: idx }
 }
 
-const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone, sortZones } =
-	useZoneManagement<HvacLocation, HvacZone>()
-
-const handleZoneSelected = async (zoneId: string) => {
+const handleZoneSelected = (zoneId: string) => {
 	selectedZone.value = zoneId
 	selectedCategory.value = ""
 }
@@ -157,7 +178,7 @@ const handleSelectCategory = (locationId: string) => {
 	selectedCategory.value = locationId
 }
 
-const selectLocationByLocation = (location: HvacLocation) => {
+const selectLocationByLocation = (location: AirCirculationLocation) => {
 	const zone = selectedZoneData.value
 	if (!zone) return
 	const originalIndex = findLocationIndexInZone(zone as any, location as any)
@@ -165,30 +186,24 @@ const selectLocationByLocation = (location: HvacLocation) => {
 	selectedCategory.value = getLocationUiKey({ zone: zone as any, location: location as any, locationIndex: originalIndex })
 }
 
-const handleSaveLocationPositionFromPanel = (payload: { locationId: string; x: number; y: number }) => {
-	// HVAC 的點位座標持久化由 ZoneManagementDialog 的 updateZone 流程承接；
-	// 這裡沿用照明頁的事件形狀，先直接觸發 zone 更新（單筆 location 座標覆寫）
-	void saveLocationPosition(payload.locationId, payload.x, payload.y)
-}
-
-const saveLocationPosition = async (locationId: string, x: number, y: number) => {
+const handleSaveLocationPositionFromPanel = async (payload: { locationId: string; x: number; y: number }) => {
 	if (!isEditMode.value) return
 	const zone = selectedZoneData.value
 	if (!zone?.id) return
 	const idx = zone.locations.findIndex(
-		(loc, i) => getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i }) === locationId
+		(loc, i) => getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i }) === payload.locationId
 	)
 	if (idx === -1) return
-	const updatedLocations = zone.locations.map((loc, i) => (i === idx ? { ...loc, location: { x, y } } : loc))
+	const updatedLocations = zone.locations.map((loc, i) => (i === idx ? { ...loc, location: { x: payload.x, y: payload.y } } : loc))
 	try {
-		const result = await hvacApi.updateZone(zone.id, {
+		const result = await airApi.updateZone(zone.id, {
 			name: zone.name,
 			imageUrl: zone.imageUrl,
 			sortOrder: zone.sortOrder,
 			locations: updatedLocations,
 		} as any)
-		const zi = hvacZones.value.findIndex((z) => z.id === zone.id)
-		if (zi > -1) hvacZones.value[zi] = result.zone
+		const zi = airCirculationZones.value.findIndex((z) => z.id === zone.id)
+		if (zi > -1) airCirculationZones.value[zi] = result.zone
 	} catch (error) {
 		handleError(error, "更新位置失敗")
 	}
@@ -198,15 +213,12 @@ const loadZonesFromAPI = async () => {
 	if (isLoadingZones.value) return
 	isLoadingZones.value = true
 	try {
-		const result = await hvacApi.getZones()
-		hvacZones.value = result.zones || []
-
-		if (!selectedZone.value && hvacZones.value.length > 0) {
-			const first = sortZones(hvacZones.value as any)[0]!
+		const result = await airApi.getZones()
+		airCirculationZones.value = result.zones || []
+		if (!selectedZone.value && airCirculationZones.value.length > 0) {
+			const first = sortZones(airCirculationZones.value as any)[0]!
 			selectedZone.value = first.id || first.name
 		}
-
-		await preloadDeviceInfos()
 	} catch (error) {
 		handleError(error, "載入區域列表失敗")
 	} finally {
@@ -214,41 +226,47 @@ const loadZonesFromAPI = async () => {
 	}
 }
 
-const handleSaveZone = async (zone: HvacZone) => {
+const { statusItems: computedStatusItems, preloadDeviceInfos, loadStatusSnapshot, startAutoRefresh, stopAutoRefresh, handleVisibilityChange } =
+	useAirCirculationModbusIntegration(airCirculationZones)
+
+watch(
+	computedStatusItems,
+	(next) => {
+		statusItems.value = next
+	},
+	{ immediate: true }
+)
+
+const handleSaveZone = async (zone: AirCirculationZone) => {
 	await baseHandleSaveZone(
-		zone as HvacZone & { id: string },
-		hvacZones as Ref<(HvacZone & { id: string })[]>,
-		async (z: HvacZone & { id: string }) => {
+		zone as AirCirculationZone & { id: string },
+		airCirculationZones as Ref<(AirCirculationZone & { id: string })[]>,
+		async (z: AirCirculationZone & { id: string }) => {
 			const isValidId = z.id && !z.id.startsWith("temp-") && /^\d+$/.test(z.id)
 			const result = isValidId
-				? await hvacApi.updateZone(z.id, {
+				? await airApi.updateZone(z.id, {
 						name: z.name,
 						imageUrl: z.imageUrl,
 						sortOrder: z.sortOrder,
 						locations: z.locations,
 					} as any)
-				: await hvacApi.createZone({
+				: await airApi.createZone({
 						name: z.name,
 						imageUrl: z.imageUrl,
 						sortOrder: z.sortOrder,
 						locations: z.locations,
 					} as any)
-			const zoneWithId = { ...result.zone, id: (result.zone as any).id || z.id } as HvacZone & { id: string }
+			const zoneWithId = { ...result.zone, id: (result.zone as any).id || z.id } as AirCirculationZone & { id: string }
 			return { merged: result.merged, message: result.message, zone: zoneWithId }
 		},
-		{
-			selectedZoneRef: selectedZone,
-			onAfterSave: () => {
-				initializeLocationStatuses()
-			},
-		}
+		{ selectedZoneRef: selectedZone }
 	)
 }
 
 const handleDeleteZone = async (zoneId: string) => {
-	await baseHandleDeleteZone(zoneId, hvacZones as any, hvacApi.deleteZone, {
+	await baseHandleDeleteZone(zoneId, airCirculationZones as any, airApi.deleteZone, {
 		selectedZoneRef: selectedZone,
-		systemType: "hvac" as any,
+		systemType: "air_circulation" as any,
 		onAfterDelete: async () => {
 			await loadZonesFromAPI()
 		},
@@ -256,12 +274,12 @@ const handleDeleteZone = async (zoneId: string) => {
 }
 
 const handleOpenZoneDialog = async () => {
-	if (hvacZones.value.length === 0) await loadZonesFromAPI()
+	if (airCirculationZones.value.length === 0) await loadZonesFromAPI()
 	showZoneManagementDialog.value = true
 }
 
 const handleToggleEditMode = () => {
-	if (!isEditMode.value && hvacZones.value.length === 0) void loadZonesFromAPI()
+	if (!isEditMode.value && airCirculationZones.value.length === 0) void loadZonesFromAPI()
 	isEditMode.value = !isEditMode.value
 }
 
@@ -270,13 +288,14 @@ watch(
 	(newLocations) => {
 		const zone = selectedZoneData.value
 		if (!zone) return
-		const currentLocationExists = newLocations.some((loc, i) => getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i }) === selectedCategory.value)
+		const currentLocationExists = newLocations.some(
+			(loc, i) => getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i }) === selectedCategory.value
+		)
 		if (currentLocationExists) return
 		if (newLocations.length > 0) {
 			const first = newLocations[0]!
 			const idx = findLocationIndexInZone(zone as any, first as any)
-			selectedCategory.value =
-				idx !== -1 ? getLocationUiKey({ zone: zone as any, location: first as any, locationIndex: idx }) : ""
+			selectedCategory.value = idx !== -1 ? getLocationUiKey({ zone: zone as any, location: first as any, locationIndex: idx }) : ""
 		} else {
 			selectedCategory.value = ""
 		}
@@ -287,12 +306,11 @@ watch(
 onMounted(async () => {
 	try {
 		await loadZonesFromAPI()
-		initializeLocationStatuses()
-		await loadAllLocationStatuses({ loadAllZones: true })
+		await preloadDeviceInfos()
+		await loadStatusSnapshot()
 	} finally {
 		isInitialLoading.value = false
 	}
-
 	startAutoRefresh()
 	document.addEventListener("visibilitychange", handleVisibilityChange)
 })

@@ -7,7 +7,6 @@ import { useToast } from "~/composables/core/useToast"
 
 export default defineNuxtRouteMiddleware(async (to) => {
 	if (to.path === "/login") return
-	if (import.meta.server) return
 
 	// 優先使用後端 module registry（SSOT），若尚未可用則 fallback 到本地 mapping
 	const moduleRegistry = useModuleRegistry()

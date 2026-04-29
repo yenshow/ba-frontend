@@ -141,14 +141,14 @@ const statusBySystemId = computed(() => {
 })
 
 const uiStatusForLocation = (loc: PowerLocation): PowerStatusItem["uiStatus"] => {
-	if (!loc.systemId) return "unknown"
+	if (!loc.systemId) return "warning"
 	return derivePowerOverallUiStatus(statusBySystemId.value.get(String(loc.systemId)) ?? null)
 }
 
 const dotStatusForLocation = (loc: PowerLocation): "normal" | "abnormal" | "alarm" => {
 	const s = uiStatusForLocation(loc)
 	if (s === "normal") return "normal"
-	if (s === "warning" || s === "offline" || s === "unknown") return "abnormal"
+	if (s === "warning") return "abnormal"
 	return "alarm"
 }
 
@@ -161,16 +161,7 @@ const getLocationAlertFlash = (loc: PowerLocation): "none" | "slow" | "fast" => 
 
 const tooltipTitle = (loc: PowerLocation) => {
 	const s = uiStatusForLocation(loc)
-	const label =
-		s === "normal"
-			? "正常"
-			: s === "warning"
-				? "異常"
-				: s === "alarm"
-					? "警報"
-					: s === "offline"
-						? "離線"
-						: "未知"
+	const label = s === "normal" ? "正常" : s === "warning" ? "異常" : "警報"
 	return `${loc.name}：${label}`
 }
 

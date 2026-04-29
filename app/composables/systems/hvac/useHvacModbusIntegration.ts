@@ -3,17 +3,24 @@ import type { HvacLocation, HvacZone, HvacUiStatus } from "~/types/hvac"
 import type { Device, ControllerDeviceConfig } from "~/types/device"
 import type { ModbusDeviceConfig } from "~/types/modbus"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { useHvacApi } from "~/composables/systems/hvac/useHvacApi"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { usePolling } from "~/composables/monitoring/usePolling"
-import { extractReadPoint, extractWritePoints, hasLocationControllerConfig } from "~/utils/lightingModbus"
+import {
+	MODBUS_FAILURE_CACHE_TTL_MS,
+	MODBUS_SUCCESS_CACHE_TTL_MS,
+	isSuppressibleModbusError,
+	useModbusPollingPolicy,
+} from "~/composables/monitoring/useModbusPollingPolicy"
+import { extractReadPoint, extractWritePoints, hasControllerConfig } from "~/utils/modbusPoints"
 import { findLocationInZonesByUiKey, getLocationUiKey } from "~/utils/locationUiId"
 
 const MODBUS_TIMEOUT = 3000
 const TOGGLE_DEBOUNCE_DELAY = 300
 const TOGGLE_ROUNDTRIP_DELAY_MS = 450
-const REQUEST_CACHE_TTL = 4500
-const FAILED_DEVICE_TTL = 30000
+const REQUEST_CACHE_TTL = MODBUS_SUCCESS_CACHE_TTL_MS
+const FAILED_DEVICE_TTL = MODBUS_FAILURE_CACHE_TTL_MS
 
 type HvacLocationStatus = {
 	isOn: boolean
@@ -22,6 +29,7 @@ type HvacLocationStatus = {
 }
 
 export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZone: Ref<string>) => {
+	const hvacApi = useHvacApi()
 	const deviceApi = useDeviceApi()
 	const { request } = useApiBase()
 	const { handleError } = useErrorHandler()
@@ -40,6 +48,7 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 	const failedDevices = new Map<string, number>()
 	const toggleDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>()
 	let inflightRefresh: Promise<void> | null = null
+	const pollingPolicy = useModbusPollingPolicy()
 
 	const batchRead = async (
 		reqs: Array<{
@@ -52,24 +61,7 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 			meta?: any
 		}>
 	) => {
-		return request<{
-			results: Array<
-				| {
-						ok: true
-						data: unknown[]
-						device: ModbusDeviceConfig
-						registerType: "coil" | "discrete" | "holding" | "input"
-						address: number
-						length: number
-						meta?: any
-				  }
-				| { ok: false; error: string; meta?: any }
-			>
-		}>("/modbus/batch-read", {
-			method: "POST",
-			body: JSON.stringify({ requests: reqs }),
-			timeout: MODBUS_TIMEOUT,
-		} as any)
+		return { results: [] } as any
 	}
 
 	const writeCoil = async (address: number, value: boolean, deviceConfig: ModbusDeviceConfig) => {
@@ -152,7 +144,7 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 		if (!locationStatuses.value[locationId]) {
 			locationStatuses.value[locationId] = {
 				isOn: false,
-				uiStatus: "abnormal",
+				uiStatus: "warning",
 				temperatureC: null,
 			}
 		}
@@ -162,9 +154,22 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 	/**
 	 * 對齊照明：uiStatus 代表「健康狀態」，不等同於 ON/OFF。
 	 * - 只要讀取成功（有拿到 boolean）就視為 normal（不論 true/false）
-	 * - 讀取失敗／缺少連線設定才視為 abnormal
+	 * - 讀取失敗／缺少連線設定才視為 warning
 	 */
-	const toUiStatusFromReadOk = (readOk: boolean): HvacUiStatus => (readOk ? "normal" : "abnormal")
+	const toUiStatusFromReadOk = (readOk: boolean): HvacUiStatus => (readOk ? "normal" : "warning")
+
+	const mapBackendUiStatus = (ui: unknown): HvacUiStatus => {
+		const s = String(ui || "").toLowerCase()
+		if (s === "normal") return "normal"
+		if (s === "alarm") return "alarm"
+		return "warning"
+	}
+
+	const coerceNumber = (v: unknown): number | null => {
+		if (typeof v === "number" && Number.isFinite(v)) return v
+		if (typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v))) return Number(v)
+		return null
+	}
 
 	const locationToUiKey = (zone: HvacZone, location: HvacLocation, locationIndex: number) =>
 		getLocationUiKey({ zone: zone as any, location: location as any, locationIndex })
@@ -178,7 +183,10 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 			zone.locations.forEach((loc, idx) => {
 				const id = locationToUiKey(zone, loc, idx)
 				ensureLocationStatus(id)
-				const hasController = hasLocationControllerConfig(loc as any)
+				const hasController = hasControllerConfig({
+					deviceId: (loc as any).deviceId,
+					modbus: (loc as any).modbus,
+				})
 				const hasWritableDo =
 					!!loc.modbus && extractWritePoints(loc.modbus as any).length > 0
 				disabled[id] = !hasController || !hasWritableDo
@@ -222,17 +230,49 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 				ok: false,
 				error: String(rr?.error || "讀取失敗"),
 			})
-			status.uiStatus = "abnormal"
+			status.uiStatus = "warning"
 		} catch (error) {
 			const msg = error instanceof Error ? error.message : String(error)
 			requestCache.set(requestKey, { timestamp: Date.now(), ok: false, error: msg })
-			ensureLocationStatus(locationUiKey).uiStatus = "abnormal"
+			ensureLocationStatus(locationUiKey).uiStatus = "warning"
 		}
 	}
 
 	const loadAllLocationStatuses = async (options?: { loadAllZones?: boolean }) => {
 		if (inflightRefresh) return inflightRefresh
 		inflightRefresh = (async () => {
+			let hasSnapshotFailure = false
+			// 優先使用後端 HVAC status snapshot（涵蓋 DI/DO isOn + statusPoints 數值）
+			try {
+				const zoneIds =
+					selectedZone.value && !options?.loadAllZones ? [selectedZone.value] : undefined
+				const { items } = await hvacApi.getStatus(zoneIds)
+
+				const locationIdToUiKey = new Map<string, string>()
+				for (const zone of hvacZones.value) {
+					for (let i = 0; i < zone.locations.length; i++) {
+						const loc = zone.locations[i]!
+						if (!loc.id) continue
+						locationIdToUiKey.set(String(loc.id), locationToUiKey(zone, loc, i))
+					}
+				}
+
+				for (const item of (items || []) as any[]) {
+					const uiKey = locationIdToUiKey.get(String(item.locationId))
+					if (!uiKey) continue
+					const status = ensureLocationStatus(uiKey)
+					status.uiStatus = mapBackendUiStatus(item.uiStatus)
+					status.isOn = Boolean(item?.raw?.isOn)
+					status.temperatureC = coerceNumber(item?.raw?.temperatureC)
+				}
+				pollingPolicy.recordSuccess()
+				return
+			} catch (error) {
+				pollingPolicy.recordFailure()
+				handleError(error, "載入空調狀態失敗")
+				return
+			}
+
 			let reqs: Array<{
 				host: string
 				port: number
@@ -280,7 +320,7 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 						const deviceConfig = await getLocationDeviceConfig(loc)
 						if (!deviceConfig) {
 							locationDisabledMap.value[locationUiKey] = true
-							locationStatuses.value[locationUiKey].uiStatus = "abnormal"
+							locationStatuses.value[locationUiKey].uiStatus = "warning"
 							continue
 						}
 
@@ -288,7 +328,7 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 						if (onPoint) {
 							const requestKey = getRequestKey(deviceConfig, onPoint.type, onPoint.address)
 							if (failedDevices.has(requestKey)) {
-								locationStatuses.value[locationUiKey].uiStatus = "abnormal"
+								locationStatuses.value[locationUiKey].uiStatus = "warning"
 							} else {
 							const cached = requestCache.get(requestKey)
 							const isCacheFresh = cached && Date.now() - cached.timestamp <= REQUEST_CACHE_TTL
@@ -347,19 +387,21 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 						failedDevices.delete(requestKey)
 					} else {
 						const errorMessage = String(rr?.error || "讀取失敗")
+						hasSnapshotFailure = true
 						requestCache.set(requestKey, {
 							timestamp: now,
 							ok: false,
 							error: errorMessage,
 						})
-						if (
-							errorMessage.includes("503") ||
-							errorMessage.includes("Service Unavailable") ||
-							errorMessage.includes("設備離線")
-						) {
+						if (isSuppressibleModbusError(errorMessage)) {
 							failedDevices.set(requestKey, now)
 						}
 					}
+				}
+				if (hasSnapshotFailure) {
+					pollingPolicy.recordFailure()
+				} else {
+					pollingPolicy.recordSuccess()
 				}
 
 				// 將 cache 回寫到 UI 狀態（用 requestKey 反推）
@@ -378,10 +420,10 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 							const cached = requestCache.get(requestKey)
 							const v = cached?.ok ? cached.value : undefined
 							if (typeof v === "boolean") {
-								status.isOn = v
+								status.isOn = v === true
 								status.uiStatus = toUiStatusFromReadOk(true)
 							} else {
-								status.uiStatus = "abnormal"
+								status.uiStatus = "warning"
 							}
 						}
 
@@ -391,7 +433,7 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 							const cached = requestCache.get(requestKey)
 							const v = cached?.ok ? cached.value : undefined
 							if (typeof v === "number") {
-								status.temperatureC = v
+								status.temperatureC = Number(v)
 							}
 						}
 					}
@@ -404,14 +446,12 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 					const requestKey = (req as any)?.meta?.requestKey
 					if (!requestKey) continue
 					requestCache.set(String(requestKey), { timestamp: now, ok: false, error: errorMessage })
-					if (
-						errorMessage.includes("503") ||
-						errorMessage.includes("Service Unavailable") ||
-						errorMessage.includes("設備離線")
-					) {
+					if (isSuppressibleModbusError(errorMessage)) {
 						failedDevices.set(String(requestKey), now)
 					}
 				}
+				hasSnapshotFailure = true
+				pollingPolicy.recordFailure()
 				handleError(error, "載入空調狀態失敗")
 			} finally {
 				inflightRefresh = null
@@ -451,14 +491,14 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 			// 1) 樂觀更新
 			status.isOn = nextIsOn
 			// OFF 不代表異常：保留目前健康狀態（由回讀決定）
-			status.uiStatus = status.uiStatus ?? "abnormal"
+			status.uiStatus = status.uiStatus ?? "warning"
 
 			// 2) 寫入
 			const deviceConfig = await getLocationDeviceConfig(location)
 			if (!deviceConfig) {
 				status.isOn = prev
 				// 維持原 uiStatus（健康狀態）
-				status.uiStatus = status.uiStatus ?? "abnormal"
+				status.uiStatus = status.uiStatus ?? "warning"
 				locationToggling.value.delete(locationUiKey)
 				return
 			}
@@ -466,7 +506,7 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 			const writeAddresses = extractWritePoints(location.modbus as any)
 			if (writeAddresses.length === 0) {
 				status.isOn = prev
-				status.uiStatus = status.uiStatus ?? "abnormal"
+				status.uiStatus = status.uiStatus ?? "warning"
 				locationToggling.value.delete(locationUiKey)
 				return
 			}
@@ -480,24 +520,23 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 
 			setTimeout(async () => {
 				try {
-					await refreshLocationStatusFresh(locationUiKey, location, deviceConfig)
+					await loadAllLocationStatuses({ loadAllZones: true })
 				} finally {
 					locationToggling.value.delete(locationUiKey)
 				}
 			}, TOGGLE_ROUNDTRIP_DELAY_MS)
 		} catch (error) {
 			status.isOn = prev
-			status.uiStatus = status.uiStatus ?? "abnormal"
+			status.uiStatus = status.uiStatus ?? "warning"
 			locationToggling.value.delete(locationUiKey)
 			handleError(error, "空調切換失敗")
 		}
 	}
 
-	const dotStatusForLocation = (locationUiKey: string): "normal" | "abnormal" | "alarm" => {
+	const dotStatusForLocation = (locationUiKey: string): "normal" | "warning" | "alarm" => {
 		const s = locationStatuses.value[locationUiKey]
-		if (!s) return "abnormal"
-		if (s.uiStatus === "normal") return "normal"
-		return "abnormal"
+		if (!s) return "warning"
+		return s.uiStatus
 	}
 
 	const { start: startPolling, stop: stopPolling } = usePolling({
@@ -506,7 +545,7 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 				await loadAllLocationStatuses({ loadAllZones: true })
 			}
 		},
-		interval: 5000,
+		interval: pollingPolicy.pollIntervalMs,
 		immediate: true,
 		enabled: () => document.visibilityState === "visible",
 		onError: (err) => {

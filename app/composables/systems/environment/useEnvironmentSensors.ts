@@ -1,9 +1,7 @@
-import { useApiBase } from "~/composables/core/useApiBase"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useToast } from "~/composables/core/useToast"
-import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi"
-import type { ModbusDeviceConfig } from "~/types/modbus"
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import type {
 	Device,
 	ModbusRegisterType,
@@ -14,10 +12,8 @@ import type {
 	EnvironmentLocation,
 	EnvironmentZone,
 	SensorParameter,
-	SensorParameterType,
 } from "~/types/environment"
 import { getParameterDisplayName, getLocationDeviceIds } from "~/utils/sensorUtils"
-import { applyTransform, groupConsecutiveAddresses } from "~/utils/modbusMath"
 
 export type SensorReadings = {
 	pm25: number | null
@@ -39,9 +35,8 @@ export type EnvironmentSensorsOptions = {
 }
 
 export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
-	const deviceApi = useDeviceApi()
 	const environmentApi = useEnvironmentApi()
-	const { request } = useApiBase()
+	const deviceApi = useDeviceApi()
 	const toast = useToast()
 	const { handleError } = useErrorHandler()
 
@@ -207,167 +202,6 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 		}
 	}
 
-	const batchReadRegisters = async (
-		config: ModbusDeviceConfig,
-		registerType: "holding" | "input",
-		address: number,
-		length: number
-	) => {
-		return request<{
-			results: Array<
-				| {
-						ok: true
-						data: number[]
-						device: ModbusDeviceConfig
-						registerType: "holding" | "input"
-						address: number
-						length: number
-						meta?: any
-				  }
-				| { ok: false; error: string; meta?: any }
-			>
-		}>("/modbus/batch-read", {
-			method: "POST",
-			body: JSON.stringify({
-				requests: [
-					{
-						host: config.host,
-						port: config.port,
-						unitId: config.unitId,
-						registerType,
-						address,
-						length,
-					},
-				],
-			}),
-		} as any)
-	}
-
-	type ParameterWithModbusConfig = {
-		type: SensorParameterType
-		modbusConfig: { address: number; transform?: string }
-	}
-
-	const findParameterModbusConfig = (
-		paramType: SensorParameterType,
-		modelConfig: SensorDeviceModelConfig | null,
-		sharedModelConfig: SensorDeviceModelConfig | null
-	): { address: number; transform?: string } | null => {
-		let paramDef = modelConfig?.sensorParameters?.find((p) => p.type === paramType)
-		if (!paramDef?.modbusConfig?.address && sharedModelConfig?.sensorParameters) {
-			paramDef = sharedModelConfig.sensorParameters.find((p) => p.type === paramType)
-		}
-
-		return paramDef?.modbusConfig?.address !== undefined
-			? { address: paramDef.modbusConfig.address, transform: paramDef.modbusConfig.transform }
-			: null
-	}
-
-	const readParameterValue = async (
-		modbusConfig: ModbusDeviceConfig,
-		registerType: "holding" | "input",
-		address: number,
-		transform?: string
-	): Promise<number | null> => {
-		try {
-			const response = await batchReadRegisters(modbusConfig, registerType, address, 1)
-			const first = response.results?.[0] as any
-			if (!first?.ok || !Array.isArray(first.data)) return null
-			const rawValue = first.data[0]
-			return applyTransform(rawValue, transform)
-		} catch {
-			return null
-		}
-	}
-
-	const readParametersBatch = async (
-		modbusConfig: ModbusDeviceConfig,
-		registerType: "holding" | "input",
-		paramAddressMap: Map<number, ParameterWithModbusConfig>
-	): Promise<Array<{ type: SensorParameterType; value: number | null; success: boolean }>> => {
-		const addresses = Array.from(paramAddressMap.keys()).sort((a, b) => a - b)
-		if (addresses.length === 0) return []
-
-		const addressGroups = groupConsecutiveAddresses(addresses)
-		const readPromises: Promise<
-			Array<{ type: SensorParameterType; value: number | null; success: boolean }>
-		>[] = []
-
-		for (const group of addressGroups) {
-			if (group.length > 1) {
-				readPromises.push(
-					batchReadRegisters(modbusConfig, registerType, group.start, group.length)
-						.then((response) => {
-							const first = response.results?.[0] as any
-							if (!first?.ok || !Array.isArray(first.data)) {
-								throw new Error(String(first?.error || "讀取失敗"))
-							}
-							return group.addresses.map((addr, idx) => {
-								const paramData = paramAddressMap.get(addr)
-								if (!paramData) {
-									return { type: "pm25" as SensorParameterType, value: null, success: false }
-								}
-
-								const rawValue = first.data[idx]
-								return {
-									type: paramData.type,
-									value: applyTransform(rawValue, paramData.modbusConfig.transform),
-									success: true,
-								}
-							})
-						})
-						.catch(() => {
-							return Promise.all(
-								group.addresses.map((addr) => {
-									const paramData = paramAddressMap.get(addr)
-									if (!paramData) {
-										return Promise.resolve({
-											type: "pm25" as SensorParameterType,
-											value: null,
-											success: false,
-										})
-									}
-									return readParameterValue(
-										modbusConfig,
-										registerType,
-										paramData.modbusConfig.address,
-										paramData.modbusConfig.transform
-									).then((value) => ({
-										type: paramData.type,
-										value,
-										success: value !== null,
-									}))
-								})
-							)
-						})
-				)
-				continue
-			}
-
-			const addr = group.addresses[0]
-			const paramData = paramAddressMap.get(addr)
-			if (!paramData) continue
-
-			readPromises.push(
-				readParameterValue(
-					modbusConfig,
-					registerType,
-					paramData.modbusConfig.address,
-					paramData.modbusConfig.transform
-				).then((value) => [
-					{
-						type: paramData.type,
-						value,
-						success: value !== null,
-					},
-				])
-			)
-		}
-
-		const nestedResults = await Promise.all(readPromises)
-		return nestedResults.flat()
-	}
-
 	const findSharedDeviceModelConfig = async (
 		currentLocation: EnvironmentLocation,
 		currentDevice: Device
@@ -428,112 +262,26 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 
 		try {
 			const location = options.currentLocationData.value
-			const deviceIds = getLocationDeviceIds(location)
-			if (deviceIds.length === 0) {
+			if (location.id == null) {
 				clearSensorData()
 				return
 			}
 
+			const { readings } = await environmentApi.getReadings(String(location.id), { limit: 1 })
+			const latest = readings?.[0]
+			const data = (latest?.data || {}) as Record<string, unknown>
 			const enabledParams = location.parameters.filter((param) => param.enabled)
-			if (enabledParams.length === 0) {
-				clearSensorData()
-				return
-			}
-
 			for (const param of enabledParams) {
-				updateSensorData(param.type, null, options.getLocationId(location), location)
-			}
-
-			const providedParams = new Set<SensorParameterType>()
-			const attemptedParams = new Set<SensorParameterType>()
-			let successCount = 0
-			let failCount = 0
-
-			for (const deviceId of deviceIds) {
-				const result = await loadDeviceAndModelConfig(deviceId)
-				if (!result) continue
-
-				const { device, modelConfig } = result
-				const deviceCfg = device.config as SensorDeviceConfig
-				if (deviceCfg.protocol !== "modbus" || !deviceCfg.host || !deviceCfg.port) continue
-
-				const modbusConfig: ModbusDeviceConfig = {
-					host: deviceCfg.host,
-					port: deviceCfg.port,
-					unitId: deviceCfg.unitId || 1,
-				}
-
-				let sharedModelConfig: SensorDeviceModelConfig | null = null
-				const missingParamsForThisDevice = enabledParams.filter(
-					(param) =>
-						!modelConfig?.sensorParameters?.find(
-							(p) => p.type === param.type && p.modbusConfig?.address
-						)
+				const raw = data[param.type]
+				updateSensorData(
+					param.type,
+					typeof raw === "number" && Number.isFinite(raw) ? raw : null,
+					options.getLocationId(location),
+					location
 				)
-				if (missingParamsForThisDevice.length > 0) {
-					sharedModelConfig = await findSharedDeviceModelConfig(location, device)
-				}
-
-				const registerType = normalizeSensorRegisterType(
-					modelConfig?.registerType ?? sharedModelConfig?.registerType
-				)
-
-				const paramAddressMapForBatch = new Map<number, ParameterWithModbusConfig>()
-				for (const param of enabledParams) {
-					const modbusCfg = findParameterModbusConfig(param.type, modelConfig, sharedModelConfig)
-					if (!modbusCfg) continue
-					paramAddressMapForBatch.set(modbusCfg.address, {
-						type: param.type,
-						modbusConfig: modbusCfg,
-					})
-				}
-				if (paramAddressMapForBatch.size === 0) continue
-
-				const results = await readParametersBatch(modbusConfig, registerType, paramAddressMapForBatch)
-				for (const { type, value, success } of results) {
-					attemptedParams.add(type)
-					if (success) {
-						updateSensorData(type, value, options.getLocationId(location), location)
-						providedParams.add(type)
-						successCount++
-						continue
-					}
-
-					if (!providedParams.has(type)) {
-						updateSensorData(type, null, options.getLocationId(location), location)
-					}
-					failCount++
-				}
 			}
 
-			const missingConfigParamNames = enabledParams
-				.filter((p) => !attemptedParams.has(p.type))
-				.map((p) => getParameterDisplayName(p.type))
-
-			if (missingConfigParamNames.length > 0) {
-				const now = Date.now()
-				const shouldShowAlert =
-					!lastValidationAlertTime || now - lastValidationAlertTime >= VALIDATION_ALERT_INTERVAL
-				if (shouldShowAlert) {
-					lastValidationAlertTime = now
-					toast.warning(
-						`以下參數在已勾選的所有設備中都找不到 Modbus 配置：${missingConfigParamNames.join("、")}\n請到「設備型號管理」設定，或在「地點管理」再勾選能提供該參數的設備`,
-						10000
-					)
-				}
-			}
-
-			if (successCount === 0 && failCount > 0) {
-				const now = Date.now()
-				const shouldShowConnectionAlert =
-					!lastConnectionAlertTime || now - lastConnectionAlertTime >= VALIDATION_ALERT_INTERVAL
-				if (shouldShowConnectionAlert) {
-					lastConnectionAlertTime = now
-					toast.warning("設備連線異常或讀取失敗，請檢查設備連線與 Modbus 位址設定", 8000)
-				}
-			}
-
-			if (isSensorOffline.value && successCount > 0) {
+			if (isSensorOffline.value) {
 				isSensorOffline.value = false
 				toast.success("感測器已恢復連線", 5000)
 			}
@@ -555,8 +303,7 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 	}
 
 	const loadLocationSensorDataForOverview = async (location: EnvironmentLocation) => {
-		const deviceIds = getLocationDeviceIds(location)
-		if (deviceIds.length === 0) return
+		if (location.id == null) return
 
 		const locationId = options.getLocationId(location)
 		if (overviewLoadingMap.value.get(locationId)) return
@@ -570,69 +317,21 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 			allLocationsSensorData.value.set(primaryKey, createEmptySensorReadings())
 		}
 
-		let totalSuccess = 0
-		let totalFail = 0
-
 		try {
+			const { readings } = await environmentApi.getReadings(String(location.id), { limit: 1 })
+			const latest = readings?.[0]
+			const data = (latest?.data || {}) as Record<string, unknown>
 			const enabledParams = location.parameters.filter((param) => param.enabled)
-
-			for (const deviceId of deviceIds) {
-				const result = await loadDeviceAndModelConfig(deviceId)
-				if (!result) continue
-
-				const { device, modelConfig } = result
-				if (!modelConfig?.sensorParameters) continue
-
-				const config = device.config as SensorDeviceConfig
-				if (config.protocol !== "modbus" || !config.host || !config.port) continue
-
-				const modbusConfig: ModbusDeviceConfig = {
-					host: config.host,
-					port: config.port,
-					unitId: config.unitId || 1,
-				}
-
-				let sharedModelConfig: SensorDeviceModelConfig | null = null
-				const missingParams = enabledParams.filter(
-					(param) =>
-						!modelConfig.sensorParameters?.find(
-							(p) => p.type === param.type && p.modbusConfig?.address
-						)
+			for (const param of enabledParams) {
+				const raw = data[param.type]
+				updateSensorData(
+					param.type,
+					typeof raw === "number" && Number.isFinite(raw) ? raw : null,
+					locationId,
+					location
 				)
-				if (missingParams.length > 0) {
-					sharedModelConfig = await findSharedDeviceModelConfig(location, device)
-				}
-
-				const registerType = normalizeSensorRegisterType(
-					modelConfig?.registerType ?? sharedModelConfig?.registerType
-				)
-
-				const paramAddressMapForBatch = new Map<number, ParameterWithModbusConfig>()
-				for (const param of enabledParams) {
-					const modbusCfg = findParameterModbusConfig(param.type, modelConfig, sharedModelConfig)
-					if (!modbusCfg) continue
-					paramAddressMapForBatch.set(modbusCfg.address, {
-						type: param.type,
-						modbusConfig: modbusCfg,
-					})
-				}
-
-				const results = await readParametersBatch(modbusConfig, registerType, paramAddressMapForBatch)
-				results.forEach(({ type, value, success }) => {
-					if (!success) {
-						totalFail++
-						return
-					}
-					updateSensorData(type, value, locationId, location)
-					totalSuccess++
-				})
-			}
-
-			if (totalSuccess === 0 && totalFail > 0) {
-				// SSOT：不回報後端 errors（由 background monitor 處理）
 			}
 		} catch (error: unknown) {
-			const errorMessage = error instanceof Error ? error.message : String(error)
 			// SSOT：不回報後端 errors（由 background monitor 處理）
 		} finally {
 			overviewLoadingMap.value.set(locationId, false)

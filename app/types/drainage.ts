@@ -1,5 +1,6 @@
 import type { CategoryModbusConfig } from "~/types/lighting"
 import type { DrainageStatusPointDef } from "~/types/location"
+import { normalizeSystemUiStatus, type SystemUiStatus } from "~/types/monitoring"
 
 /** `viewCategory` 字串正規化（空白視為無分類） */
 export const trimDrainageViewCategory = (raw: string | undefined | null): string =>
@@ -35,7 +36,7 @@ export interface DrainageStatusItem {
 	systemId: string
 	equipmentKind: DrainageEquipmentKind | string
 	viewCategory: string
-	uiStatus: "normal" | "warning" | "alarm" | "offline" | "unknown"
+	uiStatus: SystemUiStatus
 	raw?: Record<string, boolean | undefined>
 	error?: string
 }
@@ -50,10 +51,10 @@ const hasBooleanValue = (value: unknown): value is boolean => typeof value === "
 export const deriveDrainagePumpUiStatus = (
 	item: DrainageStatusItem | null | undefined
 ): DrainageStatusItem["uiStatus"] => {
-	if (!item) return "unknown"
+	if (!item) return "warning"
 	const raw = item.raw || {}
 	if (raw.runningAlarm === true || raw.fault === true || raw.running === true) return "alarm"
-	return item.uiStatus ?? "unknown"
+	return normalizeSystemUiStatus(item.uiStatus)
 }
 
 /** 液位單欄狀態（cover / level） */

@@ -6,6 +6,7 @@
 import type { SystemType } from "~/types/location"
 import type { LightingZone, LightingLocation } from "~/types/lighting"
 import type { HvacZone, HvacLocation } from "~/types/hvac"
+import type { AirCirculationZone, AirCirculationLocation } from "~/types/air-circulation"
 import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment"
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting"
 import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess"
@@ -18,6 +19,7 @@ import { getLocationUiKey } from "~/utils/locationUiId"
 export type SystemZoneType =
 	| LightingZone
 	| HvacZone
+	| AirCirculationZone
 	| EnvironmentZone
 	| PeopleCountingZone
 	| VehicleAccessZone
@@ -28,6 +30,7 @@ export type SystemZoneType =
 export type SystemLocationType =
 	| LightingLocation
 	| HvacLocation
+	| AirCirculationLocation
 	| EnvironmentLocation
 	| PeopleCountingLocation
 	| VehicleAccessLocation
@@ -123,6 +126,41 @@ export function useHvacZoneAdapter(): ZoneSystemAdapter<HvacZone, HvacLocation> 
 			locations: [],
 		}),
 		filterEmptyLocations: (zone: HvacZone): HvacZone => ({
+			...zone,
+			locations: (zone.locations || []).filter((loc) => loc.name && loc.name.trim().length > 0),
+		}),
+		systemConfig,
+		getLocationId: ({ zone, location, locationIndex }): string => {
+			return getLocationUiKey({ zone, location, locationIndex })
+		},
+	}
+}
+
+/**
+ * 空氣循環系統適配器（編輯流程與 HVAC 相同，但型別/命名獨立）
+ */
+export function useAirCirculationZoneAdapter(): ZoneSystemAdapter<
+	AirCirculationZone,
+	AirCirculationLocation
+> {
+	const systemConfig: SystemConfig = {
+		requireImageUrl: true,
+	}
+
+	return {
+		getLocationsProperty: (zone: AirCirculationZone) => zone.locations || [],
+		setLocationsProperty: (zone: AirCirculationZone, locations: AirCirculationLocation[]) => ({
+			...zone,
+			locations,
+		}),
+		createNewLocation: (): AirCirculationLocation => ({
+			name: "",
+		}),
+		createNewZone: (name: string): AirCirculationZone => ({
+			name,
+			locations: [],
+		}),
+		filterEmptyLocations: (zone: AirCirculationZone): AirCirculationZone => ({
 			...zone,
 			locations: (zone.locations || []).filter((loc) => loc.name && loc.name.trim().length > 0),
 		}),
@@ -407,6 +445,8 @@ export function useZoneSystemAdapter<
 			return useLightingZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		case "hvac":
 			return useHvacZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
+		case "air_circulation":
+			return useAirCirculationZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		case "environment":
 			return useEnvironmentZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		case "people_counting":

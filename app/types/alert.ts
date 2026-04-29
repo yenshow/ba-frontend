@@ -6,8 +6,10 @@ export type AlertSource =
 	| "people_counting"
 	| "drainage"
 	| "hvac"
+	| "air_circulation"
 	| "power"
 	| "fire"
+	| "emergency"
 	| "emergency_rescue"
 	| "security"
 

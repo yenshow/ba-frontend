@@ -53,20 +53,16 @@ import AQICard from "~/components/home/AQICard.vue"
 import EnvironmentCard from "~/components/home/EnvironmentCard.vue"
 import BuildingCard from "~/components/home/BuildingCard.vue"
 import SystemModule from "~/components/home/SystemModule.vue"
-import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { usePolling } from "~/composables/monitoring/usePolling"
+import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import type { UnifiedZone, UnifiedLocation, EnvironmentSystemConfig } from "~/types/location"
-import { isDeviceConnectionError } from "~/utils/errorUtils"
 import { firstLocationInSortedZones } from "~/utils/sortOrder"
 import { getLocationUiKey } from "~/utils/locationUiId"
-import type { ModbusDeviceConfig } from "~/types/modbus"
-import type { Device, SensorDeviceConfig, SensorDeviceModelConfig } from "~/types/device"
-import type { SensorParameterType } from "~/types/environment"
 import { calculateAqiScore } from "~/utils/environmentAqi"
 
 definePageMeta({
@@ -75,8 +71,8 @@ definePageMeta({
 
 const locationApi = useLocationApi()
 const { sortZones } = useZoneManagement<UnifiedLocation, UnifiedZone>()
-const deviceApi = useDeviceApi()
-const { request } = useApiBase()
+useApiBase()
+const environmentApi = useEnvironmentApi()
 const toast = useToast()
 const { handleError } = useErrorHandler()
 
@@ -178,9 +174,6 @@ const reconcileHomeLocationSelectionsWithZones = (): void => {
 	if (!selectedEnvironmentLocationId.value) selectedEnvironmentLocationId.value = defaultId
 }
 
-// 設備快取（避免每次輪詢都打設備 API）
-const deviceCache = new Map<number, Device>()
-
 // 區域與地點（統一地點管理）
 const unifiedZones = ref<UnifiedZone[]>([])
 const isLoadingZones = ref(false)
@@ -233,12 +226,10 @@ const findUnifiedLocationByLocationId = (locationId: string): UnifiedLocation | 
 	return null
 }
 
-const getEnvironmentDeviceIdsByLocationId = (locationId: string): number[] => {
+const getEnvironmentDbLocationIdByUiLocationId = (locationId: string): string | null => {
 	const unifiedLocation = findUnifiedLocationByLocationId(locationId)
-	if (!unifiedLocation) return []
-	const env = extractEnvironmentLocation(unifiedLocation)
-	if (!env) return []
-	return env.deviceIds?.length ? env.deviceIds : env.deviceId != null ? [env.deviceId] : []
+	if (!unifiedLocation?.id) return null
+	return String(unifiedLocation.id)
 }
 
 const locationOptions = computed(() => {
@@ -285,207 +276,9 @@ const { start: startPolling } = usePolling({
 	},
 })
 
-const getDeviceByIdCached = async (deviceId: number): Promise<Device | null> => {
-	if (!deviceId || deviceId <= 0) {
-		return null
-	}
-
-	const cached = deviceCache.get(deviceId)
-	if (cached) {
-		return cached
-	}
-
-	const result = await deviceApi.getDevice(deviceId)
-	if (result?.device) {
-		deviceCache.set(deviceId, result.device)
-		return result.device
-	}
-
-	return null
-}
-
-const loadDeviceAndModelConfig = async (
-	deviceId: number
-): Promise<{ device: Device; modelConfig: SensorDeviceModelConfig | null } | null> => {
-	try {
-		const device = await getDeviceByIdCached(deviceId)
-		if (!device || device.type_code !== "sensor") return null
-		const deviceWithModel = device as { model?: { config?: SensorDeviceModelConfig } }
-		let modelConfig: SensorDeviceModelConfig | null =
-			deviceWithModel.model?.config != null ? (deviceWithModel.model!.config as SensorDeviceModelConfig) : null
-		if (!modelConfig && device.model_id) {
-			try {
-				const { device_model } = await deviceApi.getDeviceModel(device.model_id)
-				modelConfig = (device_model?.config as SensorDeviceModelConfig) ?? null
-			} catch {
-				// ignore
-			}
-		}
-		return { device, modelConfig }
-	} catch {
-		return null
-	}
-}
-
-const getParameterModbusConfigFromModel = (
-	paramType: SensorParameterType,
-	modelConfig: SensorDeviceModelConfig | null
-): { address: number; transform?: string } | null => {
-	if (!modelConfig?.sensorParameters) return null
-	const paramDef = modelConfig.sensorParameters.find((p) => p.type === paramType)
-	return paramDef?.modbusConfig?.address !== undefined
-		? { address: paramDef.modbusConfig!.address, transform: paramDef.modbusConfig?.transform }
-		: null
-}
-
-const batchReadHolding = async (modbusConfig: ModbusDeviceConfig, address: number, length: number) => {
-	return request<{
-		results: Array<
-			| {
-					ok: true
-					data: number[]
-					device: ModbusDeviceConfig
-					registerType: "holding"
-					address: number
-					length: number
-					meta?: any
-			  }
-			| { ok: false; error: string; meta?: any }
-		>
-	}>("/modbus/batch-read", {
-		method: "POST",
-		body: JSON.stringify({
-			requests: [
-				{
-					host: modbusConfig.host,
-					port: modbusConfig.port,
-					unitId: modbusConfig.unitId,
-					registerType: "holding",
-					address,
-					length,
-				},
-			],
-		}),
-	} as any)
-}
-
-const applyTransform = (value: number, transform?: string): number => {
-	if (!transform?.trim()) return value
-	try {
-		const trimmed = transform.trim()
-		let formula = ""
-		if (/^[\+\-\*\/]/.test(trimmed)) {
-			if (trimmed.startsWith("-")) {
-				const numPart = trimmed.substring(1).trim()
-				formula = `${value} - ${numPart}`
-			} else {
-				formula = `${value} ${trimmed}`
-			}
-		} else if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
-			formula = `${value} - ${trimmed}`
-		} else {
-			formula = trimmed.replace(/value/gi, String(value))
-		}
-		const result = Function(`"use strict"; return (${formula})`)()
-		return typeof result === "number" && !Number.isNaN(result) ? result : value
-	} catch {
-		return value
-	}
-}
-
-type ParameterWithModbusConfig = { type: SensorParameterType; modbusConfig: { address: number; transform?: string } }
-type BatchResult = { type: SensorParameterType; value: number | null; success: boolean }
-
-const groupConsecutiveAddresses = (addresses: number[]): { start: number; length: number; addresses: number[] }[] => {
-	if (addresses.length === 0) return []
-	const sorted = [...addresses].sort((a, b) => a - b)
-	const groups: { start: number; length: number; addresses: number[] }[] = []
-	let current: number[] = [sorted[0]]
-	for (let i = 1; i < sorted.length; i++) {
-		if (sorted[i] === current[current.length - 1] + 1) {
-			current.push(sorted[i])
-		} else {
-			groups.push({ start: current[0], length: current.length, addresses: [...current] })
-			current = [sorted[i]]
-		}
-	}
-	groups.push({ start: current[0], length: current.length, addresses: current })
-	return groups
-}
-
-const mapParamListToResults = (
-	list: ParameterWithModbusConfig[],
-	rawValue: number,
-	success: boolean
-): BatchResult[] =>
-	list.map((param) => ({
-		type: param.type,
-		value: success ? applyTransform(rawValue, param.modbusConfig.transform) : null,
-		success,
-	}))
-
-const readParametersBatch = async (
-	modbusConfig: ModbusDeviceConfig,
-	paramAddressMap: Map<number, ParameterWithModbusConfig[]>
-): Promise<BatchResult[]> => {
-	const addresses = Array.from(paramAddressMap.keys()).sort((a, b) => a - b)
-	if (addresses.length === 0) return []
-	const addressGroups = groupConsecutiveAddresses(addresses)
-	const readPromises: Promise<BatchResult[]>[] = []
-	for (const group of addressGroups) {
-		if (group.length > 1) {
-			readPromises.push(
-				batchReadHolding(modbusConfig, group.start, group.length)
-					.then((res) => {
-						const first = res.results?.[0] as any
-						if (!first?.ok || !Array.isArray(first.data)) {
-							throw new Error(String(first?.error || "讀取失敗"))
-						}
-						return group.addresses.flatMap((addr, idx) => {
-							const list = paramAddressMap.get(addr)
-							return list?.length ? mapParamListToResults(list, first.data[idx], true) : []
-						})
-					})
-					.catch(async () => {
-						const fallback = await Promise.all(
-							group.addresses.map(async (addr) => {
-								const list = paramAddressMap.get(addr)
-								if (!list?.length) return []
-								try {
-									const res1 = await batchReadHolding(modbusConfig, addr, 1)
-									const first1 = res1.results?.[0] as any
-									const raw = first1?.ok ? first1.data?.[0] : undefined
-									return mapParamListToResults(list, typeof raw === "number" ? raw : 0, typeof raw === "number")
-								} catch {
-									return mapParamListToResults(list, 0, false)
-								}
-							})
-						)
-						return fallback.flat()
-					})
-			)
-		} else {
-			const addr = group.addresses[0]
-			const list = paramAddressMap.get(addr)
-			if (list?.length) {
-				readPromises.push(
-					batchReadHolding(modbusConfig, addr, 1)
-						.then((res) => {
-							const first = res.results?.[0] as any
-							const raw = first?.ok ? first.data?.[0] : undefined
-							return mapParamListToResults(list, typeof raw === "number" ? raw : 0, typeof raw === "number")
-						})
-						.catch(() => mapParamListToResults(list, 0, false))
-				)
-			}
-		}
-	}
-	return (await Promise.all(readPromises)).flat()
-}
-
-const PARAM_KEYS: SensorParameterType[] = [
+const PARAM_KEYS = [
 	"pm25", "pm10", "tvoc", "hcho", "humidity", "temperature", "co2", "noise", "wind",
-]
+] as const
 
 type LoadTarget = "aqi" | "environment"
 const loadSensorDataByLocationId = async (params: {
@@ -498,8 +291,8 @@ const loadSensorDataByLocationId = async (params: {
 }): Promise<void> => {
 	if (params.isFetchingRef.value || !params.locationId) return
 
-	const deviceIds = getEnvironmentDeviceIdsByLocationId(params.locationId)
-	if (deviceIds.length === 0) {
+	const dbLocationId = getEnvironmentDbLocationIdByUiLocationId(params.locationId)
+	if (!dbLocationId) {
 		Object.assign(params.targetSensorData, createEmptySensorReadings())
 		return
 	}
@@ -509,35 +302,13 @@ const loadSensorDataByLocationId = async (params: {
 	Object.assign(params.targetSensorData, createEmptySensorReadings())
 
 	try {
-		for (const deviceId of deviceIds) {
-			const result = await loadDeviceAndModelConfig(deviceId)
-			if (!result) continue
-			const { device, modelConfig } = result
-			const config = device.config as SensorDeviceConfig
-			if (config?.protocol !== "modbus" || !config?.host || !config?.port) continue
-
-			const modbusConfig: ModbusDeviceConfig = {
-				host: config.host,
-				port: config.port,
-				unitId: config.unitId ?? 1,
-			}
-
-			const paramAddressMap = new Map<number, ParameterWithModbusConfig[]>()
-			for (const paramType of PARAM_KEYS) {
-				const modbusCfg = getParameterModbusConfigFromModel(paramType, modelConfig)
-				if (!modbusCfg) continue
-				const existing = paramAddressMap.get(modbusCfg.address) ?? []
-				existing.push({ type: paramType, modbusConfig: modbusCfg })
-				paramAddressMap.set(modbusCfg.address, existing)
-			}
-			if (paramAddressMap.size === 0) continue
-
-			const results = await readParametersBatch(modbusConfig, paramAddressMap)
-			for (const r of results) {
-				if (r.success && r.value != null) {
-					;(params.targetSensorData as Record<string, number | null>)[r.type] = r.value
-				}
-			}
+		const { readings } = await environmentApi.getReadings(dbLocationId, { limit: 1 })
+		const latest = readings?.[0]
+		const data = (latest?.data || {}) as Record<string, unknown>
+		for (const key of PARAM_KEYS) {
+			const value = data[key]
+			;(params.targetSensorData as Record<string, number | null>)[key] =
+				typeof value === "number" && Number.isFinite(value) ? value : null
 		}
 
 		if (params.isOfflineRef.value) {
@@ -547,7 +318,7 @@ const loadSensorDataByLocationId = async (params: {
 		}
 	} catch (error: unknown) {
 		const errorMessage = error instanceof Error ? error.message : String(error)
-		if (isDeviceConnectionError(errorMessage)) {
+		if (errorMessage.includes("503") || errorMessage.includes("設備離線")) {
 			const now = Date.now()
 			const shouldShowAlert =
 				!params.isOfflineRef.value ||

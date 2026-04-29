@@ -51,9 +51,11 @@ export const getSourceLabel = (source: AlertSource | string): string => {
 		drainage: "衛生排水",
 		people_counting: "人流統計",
 		hvac: "空調",
+		air_circulation: "空氣循環",
 		power: "電力",
 		fire: "消防",
-		emergency_rescue: "緊急求救",
+		emergency: "emergency",
+		emergency_rescue: "emergency",
 		security: "安防",
 	}
 	return labels[source] || source
@@ -198,9 +200,11 @@ const SOURCE_SYSTEM_TYPE_MAP: Partial<Record<AlertSource, SystemType>> = {
 	lighting: "lighting",
 	drainage: "drainage",
 	fire: "fire",
+	emergency: "emergency_rescue",
 	emergency_rescue: "emergency_rescue",
 	people_counting: "people_counting",
 	hvac: "hvac",
+	air_circulation: "air_circulation",
 	power: "power",
 }
 

@@ -24,7 +24,7 @@ interface Props {
 	categoryName: string
 	isNormal: boolean
 	/** 可覆寫狀態文案；未傳入時維持既有 isNormal 二態行為 */
-	statusType?: "normal" | "abnormal" | "alarm"
+	statusType?: "normal" | "abnormal" | "alarm" | "offline"
 	/** 與環境監控警報語意一致：無／慢閃／快閃 */
 	alertFlash?: "none" | "slow" | "fast"
 }
@@ -42,9 +42,13 @@ const tooltipAlertClass = computed(() => {
 	return ""
 })
 
-const resolvedStatusType = computed<"normal" | "abnormal" | "alarm">(
-	() => props.statusType ?? (props.isNormal ? "normal" : "abnormal")
-)
+const resolvedStatusType = computed<"normal" | "abnormal" | "alarm">(() => {
+	const statusType = props.statusType ?? (props.isNormal ? "normal" : "abnormal")
+	if (statusType === "offline") return "abnormal"
+	if (statusType === "alarm") return "alarm"
+	if (statusType === "normal") return "normal"
+	return "abnormal"
+})
 
 const resolvedStatusLabel = computed(() => {
 	if (resolvedStatusType.value === "normal") return "正常"

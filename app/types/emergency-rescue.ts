@@ -1,5 +1,6 @@
 import type { CategoryModbusConfig } from "~/types/lighting"
 import type { DrainageStatusPointDef } from "~/types/location"
+import { normalizeSystemUiStatus, type SystemUiStatus } from "~/types/monitoring"
 
 export interface EmergencyRescueStatusItem {
 	zoneId: string
@@ -9,7 +10,7 @@ export interface EmergencyRescueStatusItem {
 	systemId: string
 	equipmentKind: string
 	viewCategory: string
-	uiStatus: "normal" | "warning" | "alarm" | "offline" | "unknown"
+	uiStatus: SystemUiStatus
 	raw?: Record<string, boolean | undefined>
 	error?: string
 }
@@ -18,10 +19,10 @@ export interface EmergencyRescueStatusItem {
 export const deriveEmergencyRescueUiStatus = (
 	item: EmergencyRescueStatusItem | null | undefined
 ): EmergencyRescueStatusItem["uiStatus"] => {
-	if (!item) return "unknown"
+	if (!item) return "warning"
 	const raw = item.raw || {}
 	const keys = Object.keys(raw)
-	if (keys.length === 0) return item.uiStatus ?? "unknown"
+	if (keys.length === 0) return normalizeSystemUiStatus(item.uiStatus)
 
 	const anyRead = keys.some((k) => raw[k] !== undefined && raw[k] !== null)
 	if (!anyRead) return "warning"

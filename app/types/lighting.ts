@@ -1,4 +1,5 @@
 import type { RoomCategory } from "~/types/system"
+import type { SystemUiStatus } from "~/types/monitoring"
 
 // 點位類型
 export type ModbusPointType = "DI" | "DO"
@@ -75,4 +76,19 @@ export interface LightingZoneFormData {
 	name: string
 	imageUrl?: string
 	description?: string
+}
+
+export interface LightingStatusSnapshotItem {
+	zoneId: string
+	zoneName: string
+	locationId: string
+	locationName: string
+	systemId: string
+	deviceId?: number
+	uiStatus: SystemUiStatus
+	raw: {
+		isOn?: boolean
+		[key: string]: unknown
+	}
+	error?: string
 }

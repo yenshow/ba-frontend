@@ -1,5 +1,6 @@
 import type { CategoryModbusConfig } from "~/types/lighting"
 import type { DrainageStatusPointDef } from "~/types/location"
+import { normalizeSystemUiStatus, type SystemUiStatus } from "~/types/monitoring"
 
 export const trimFireViewCategory = (raw: string | undefined | null): string =>
 	String(raw ?? "").trim()
@@ -29,7 +30,7 @@ export interface FireStatusItem {
 	systemId: string
 	equipmentKind: FireEquipmentKind | string
 	viewCategory: string
-	uiStatus: "normal" | "warning" | "alarm" | "offline" | "unknown"
+	uiStatus: SystemUiStatus
 	raw?: Record<string, boolean | undefined>
 	error?: string
 }
@@ -39,10 +40,10 @@ const hasBooleanValue = (value: unknown): value is boolean => typeof value === "
 export const deriveFirePumpUiStatus = (
 	item: FireStatusItem | null | undefined
 ): FireStatusItem["uiStatus"] => {
-	if (!item) return "unknown"
+	if (!item) return "warning"
 	const raw = item.raw || {}
 	if (raw.runningAlarm === true || raw.fault === true || raw.running === true) return "alarm"
-	return item.uiStatus ?? "unknown"
+	return normalizeSystemUiStatus(item.uiStatus)
 }
 
 export const deriveFireTankPartUiStatus = (

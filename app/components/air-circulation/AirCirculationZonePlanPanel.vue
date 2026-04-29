@@ -41,7 +41,7 @@
 								:categories="
 									allZoneLocations.map((location, index) => ({
 										id: getLocationUiKey({
-											zone: selectedZoneData || ({} as HvacZone),
+											zone: selectedZoneData || ({} as AirCirculationZone),
 											location,
 											locationIndex: index,
 										}),
@@ -105,7 +105,7 @@
 							:class="[{ 'is-editing': isEditMode }, getLocationMapDotClass(getLocationIdForDisplay(location))]"
 							role="button"
 							tabindex="0"
-							:data-status="getMapDotStatus(getLocationIdForDisplay(location))"
+							:data-status="dotStatusForLocationId(getLocationIdForDisplay(location))"
 							:title="tooltipTitleByLocationId(getLocationIdForDisplay(location))"
 							:aria-label="tooltipTitleByLocationId(getLocationIdForDisplay(location))"
 							@click.stop="!isEditMode && handleSelectLocationByLocation(location)"
@@ -113,8 +113,8 @@
 						<CategoryTooltip
 							:show="true"
 							:category-name="location.name"
-							:is-normal="getMapDotStatus(getLocationIdForDisplay(location)) === 'normal'"
-							:status-type="getMapDotStatus(getLocationIdForDisplay(location))"
+							:is-normal="dotStatusForLocationId(getLocationIdForDisplay(location)) === 'normal'"
+							:status-type="dotStatusForLocationId(getLocationIdForDisplay(location))"
 							:alert-flash="getLocationAlertFlashForTooltip(location)"
 						/>
 					</div>
@@ -128,7 +128,7 @@
 import { onBeforeUnmount, onMounted } from "vue"
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
 import CategoryList from "~/components/common/CategoryList.vue"
-import type { HvacLocation, HvacZone } from "~/types/hvac"
+import type { AirCirculationLocation, AirCirculationZone } from "~/types/air-circulation"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import { alertFlashModeToMapDotClass } from "~/utils/alertUtils"
 
@@ -138,12 +138,12 @@ interface Props {
 	isOperator: boolean
 	isEditMode: boolean
 	selectedZone: string
-	selectedZoneData: HvacZone | undefined
+	selectedZoneData: AirCirculationZone | undefined
 	selectedCategory: string
-	allZoneLocations: HvacLocation[]
-	currentZoneLocations: HvacLocation[]
+	allZoneLocations: AirCirculationLocation[]
+	currentZoneLocations: AirCirculationLocation[]
 	zonePlanImage: string | undefined
-	dotStatusForLocationId: (locationId: string) => "normal" | "warning" | "alarm"
+	dotStatusForLocationId: (locationId: string) => "normal" | "abnormal" | "alarm"
 	tooltipTitleByLocationId: (locationId: string) => string
 	getLocationAlertFlash?: (locationId: string) => "none" | "slow" | "fast"
 }
@@ -155,7 +155,7 @@ const emit = defineEmits<{
 	"toggle-edit-mode": []
 	"select-category": [locationId: string]
 	"save-location-position": [payload: { locationId: string; x: number; y: number }]
-	"select-location-by-location": [location: HvacLocation]
+	"select-location-by-location": [location: AirCirculationLocation]
 	"section-height": [height: number]
 }>()
 
@@ -178,14 +178,16 @@ const handleOpenZoneDialog = () => emit("open-zone-management")
 const handleToggleEditMode = () => emit("toggle-edit-mode")
 const handleSelectCategory = (locationId: string) => emit("select-category", locationId)
 
-const getLocationIdForDisplay = (location: HvacLocation): string => {
+const getLocationIdForDisplay = (location: AirCirculationLocation): string => {
 	const zone = props.selectedZoneData
 	if (!zone) return ""
 	const originalIndex = findLocationIndexInZone(zone as any, location as any)
-	return originalIndex !== -1 ? getLocationUiKey({ zone: zone as any, location: location as any, locationIndex: originalIndex }) : ""
+	return originalIndex !== -1
+		? getLocationUiKey({ zone: zone as any, location: location as any, locationIndex: originalIndex })
+		: ""
 }
 
-const getLocationAlertFlashForTooltip = (location: HvacLocation) => {
+const getLocationAlertFlashForTooltip = (location: AirCirculationLocation) => {
 	const id = getLocationIdForDisplay(location)
 	if (!id || !props.getLocationAlertFlash) return "none" as const
 	return props.getLocationAlertFlash(id)
@@ -196,13 +198,8 @@ const getLocationMapDotClass = (locationId: string) => {
 	return alertFlashModeToMapDotClass(mode)
 }
 
-const getMapDotStatus = (locationId: string): "normal" | "abnormal" | "alarm" => {
-	const status = props.dotStatusForLocationId(locationId)
-	if (status === "warning") return "abnormal"
-	return status
-}
-
-const handleSelectLocationByLocation = (location: HvacLocation) => emit("select-location-by-location", location)
+const handleSelectLocationByLocation = (location: AirCirculationLocation) =>
+	emit("select-location-by-location", location)
 
 const startDrag = (event: DragEvent, locationId: string, fromCategoryList = false) => {
 	draggingCategoryId.value = locationId
@@ -211,9 +208,13 @@ const startDrag = (event: DragEvent, locationId: string, fromCategoryList = fals
 	if (fromCategoryList) event.dataTransfer!.setData("fromCategoryList", "true")
 }
 
-const handleDotDragStart = (event: DragEvent, location: HvacLocation, locationIndex: number) => {
+const handleDotDragStart = (event: DragEvent, location: AirCirculationLocation, locationIndex: number) => {
 	if (!props.isEditMode || !props.selectedZoneData) return
-	const locationId = getLocationUiKey({ zone: props.selectedZoneData as any, location: location as any, locationIndex })
+	const locationId = getLocationUiKey({
+		zone: props.selectedZoneData as any,
+		location: location as any,
+		locationIndex,
+	})
 	startDrag(event, locationId)
 }
 

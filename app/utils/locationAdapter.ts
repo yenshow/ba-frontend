@@ -11,12 +11,12 @@ import type {
 	VehicleAccessSystemConfig,
 	PowerSystemConfig,
 	LocationSystem,
-	LocationSystemInput,
 	UnifiedLocationInput,
 } from "~/types/location"
 import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment"
 import type { LightingZone, LightingLocation } from "~/types/lighting"
 import type { HvacZone, HvacLocation } from "~/types/hvac.ts"
+import type { AirCirculationZone, AirCirculationLocation } from "~/types/air-circulation"
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting"
 import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess"
 import type { DrainageZone, DrainageLocation } from "~/types/drainage"
@@ -51,7 +51,6 @@ export type BackendLocation = {
 			exitDoorIds?: number[]
 			entryDeviceIds?: number[]
 			exitDeviceIds?: number[]
-			// vehicle_access 系統配置（entryLaneId / exitLaneId）
 			// drainage 系統配置
 			equipmentKind?: string
 			viewCategory?: string
@@ -146,7 +145,17 @@ function isLightingSystemConfig(config: unknown): config is LightingSystemConfig
  * 類型守衛：檢查是否為空調（HVAC）系統配置
  * 注意：HVAC 可沿用照明結構，也可帶 statusPoints（與 drainage/fire 類似）
  */
-function isHvacSystemConfig(config: unknown): config is import("~/types/location").HvacSystemConfig {
+function isHvacSystemConfig(
+	config: unknown
+): config is import("~/types/location").HvacSystemConfig {
+	if (!config || typeof config !== "object") return false
+	const c = config as Record<string, unknown>
+	return "location" in c || "modbus" in c || "deviceId" in c || "statusPoints" in c
+}
+
+function isAirCirculationSystemConfig(
+	config: unknown
+): config is import("~/types/location").AirCirculationSystemConfig {
 	if (!config || typeof config !== "object") return false
 	const c = config as Record<string, unknown>
 	return "location" in c || "modbus" in c || "deviceId" in c || "statusPoints" in c
@@ -161,7 +170,8 @@ function isPeopleCountingSystemConfig(config: unknown): config is PeopleCounting
 	if ("personGroupIds" in c && Array.isArray(c.personGroupIds)) return true
 	if (c.dataSource === "isapi_camera" || c.dataSource === "access_control") return true
 	if (typeof c.cameraDeviceId === "number" && Number.isFinite(c.cameraDeviceId)) return true
-	if ("cameraDeviceIds" in c && Array.isArray((c as { cameraDeviceIds?: unknown }).cameraDeviceIds)) return true
+	if ("cameraDeviceIds" in c && Array.isArray((c as { cameraDeviceIds?: unknown }).cameraDeviceIds))
+		return true
 	if ("entryDoorIds" in c || "exitDoorIds" in c) return true
 	if ("entryDeviceIds" in c || "exitDeviceIds" in c) return true
 	return false
@@ -190,6 +200,9 @@ function parseSystemConfig(systemType: SystemType, config: unknown): SystemConfi
 			return {}
 		case "hvac":
 			if (isHvacSystemConfig(config)) return config
+			return {}
+		case "air_circulation":
+			if (isAirCirculationSystemConfig(config)) return config
 			return {}
 		case "drainage":
 			if (isDrainageSystemConfig(config)) return config
@@ -378,6 +391,33 @@ export function unifiedToHvacZone(zone: UnifiedZone): HvacZone {
 	}
 }
 
+export function unifiedToAirCirculationZone(zone: UnifiedZone): AirCirculationZone {
+	return {
+		id: zone.id,
+		name: zone.name,
+		imageUrl: zone.imageUrl,
+		description: zone.description,
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.flatMap((loc) => {
+			const sys = loc.systems.find((s) => s.systemType === "air_circulation")
+			if (!sys || !isAirCirculationSystemConfig(sys.config)) return []
+			return [
+				{
+					id: loc.id,
+					systemId: sys.id,
+					name: loc.name,
+					...(loc.createdAt && { createdAt: loc.createdAt }),
+					...pickSortOrder(loc.sortOrder),
+					location: sys.config.location,
+					deviceId: sys.config.deviceId,
+					modbus: sys.config.modbus,
+					statusPoints: sys.config.statusPoints,
+				} as AirCirculationLocation,
+			]
+		}),
+	}
+}
+
 /**
  * 將照明區域轉換為統一區域（用於傳送給後端）
  */
@@ -407,6 +447,21 @@ export function hvacToUnifiedZone(
 		...(zone.description !== undefined && { description: zone.description }),
 		...pickSortOrder(zone.sortOrder),
 		locations: zone.locations.map((location) => hvacLocationToUnified(location, systemType)),
+	}
+}
+
+export function airCirculationToUnifiedZone(
+	zone: AirCirculationZone,
+	systemType: SystemType = "air_circulation"
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
+	return {
+		name: zone.name,
+		...(zone.imageUrl !== undefined && { imageUrl: zone.imageUrl }),
+		...(zone.description !== undefined && { description: zone.description }),
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.map((location) =>
+			airCirculationLocationToUnified(location, systemType)
+		),
 	}
 }
 
@@ -854,7 +909,10 @@ export const getSystemCoordinates = (
 	return { x: raw.x, y: raw.y }
 }
 
-export const hasCoordinatesForSystem = (location: UnifiedLocation, systemType: SystemType): boolean => {
+export const hasCoordinatesForSystem = (
+	location: UnifiedLocation,
+	systemType: SystemType
+): boolean => {
 	return getSystemCoordinates(location, systemType) != null
 }
 
@@ -948,7 +1006,9 @@ export function hvacLocationToUnified(
 	const hasId = "id" in location && location.id
 	const hasSystemId = "systemId" in location && location.systemId
 	const statusPoints =
-		location.statusPoints && Object.keys(location.statusPoints).length > 0 ? location.statusPoints : {}
+		location.statusPoints && Object.keys(location.statusPoints).length > 0
+			? location.statusPoints
+			: {}
 	return {
 		...(hasId && { id: location.id! }),
 		name: location.name,
@@ -968,6 +1028,40 @@ export function hvacLocationToUnified(
 							: undefined,
 					statusPoints,
 				} as import("~/types/location").HvacSystemConfig,
+			},
+		],
+	}
+}
+
+export function airCirculationLocationToUnified(
+	location: AirCirculationLocation | Omit<AirCirculationLocation, "id">,
+	systemType: SystemType = "air_circulation"
+): UnifiedLocationInput {
+	const hasId = "id" in location && location.id
+	const hasSystemId = "systemId" in location && location.systemId
+	const statusPoints =
+		location.statusPoints && Object.keys(location.statusPoints).length > 0
+			? location.statusPoints
+			: {}
+	return {
+		...(hasId && { id: location.id! }),
+		name: location.name,
+		...(location.description && { description: location.description }),
+		...(location.createdAt && { createdAt: location.createdAt }),
+		...pickSortOrder(location.sortOrder),
+		systems: [
+			{
+				...(hasSystemId && { id: location.systemId! }),
+				systemType,
+				config: {
+					deviceId: location.deviceId,
+					location: location.location,
+					modbus:
+						location.modbus != null
+							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
+							: undefined,
+					statusPoints,
+				} as import("~/types/location").AirCirculationSystemConfig,
 			},
 		],
 	}
@@ -1083,8 +1177,7 @@ export function peopleCountingLocationToUnified(
 					exitDeviceIds: loc.exitDeviceIds || [],
 					cameraDeviceId: cameraDeviceIds[0] ?? undefined,
 					cameraDeviceIds: cameraDeviceIds.length ? cameraDeviceIds : undefined,
-					preferRegion:
-						loc.dataSource === "isapi_camera" ? true : (loc.preferRegion ?? false),
+					preferRegion: loc.dataSource === "isapi_camera" ? true : (loc.preferRegion ?? false),
 					accessControlGroups: loc.accessControlGroups ?? [],
 				} as PeopleCountingSystemConfig,
 			},

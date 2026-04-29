@@ -204,8 +204,9 @@ const displayedZones = computed(() => {
 
 const getLocationStatus = (locationId: string) => {
 	const s = props.areaStatuses[locationId]
-	const uiStatus: HvacUiStatus = s?.uiStatus ?? "abnormal"
-	const label = uiStatus === "normal" ? "正常" : "異常"
+	const uiStatus: HvacUiStatus = s?.uiStatus ?? "warning"
+	const label =
+		uiStatus === "normal" ? "正常" : uiStatus === "alarm" ? "警報" : "異常"
 	const temperatureLabel =
 		s?.temperatureC != null && Number.isFinite(s.temperatureC)
 			? `${Math.round(s.temperatureC)}°C`
@@ -223,7 +224,7 @@ const isLocationDisabled = (locationId: string): boolean =>
 
 const isAbnormal = (locationId: string) => {
 	const s = getLocationStatus(locationId).uiStatus
-	return s === "abnormal"
+	return s !== "normal"
 }
 
 const getLocationCardBlinkClass = (locationId: string): string =>

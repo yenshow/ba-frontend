@@ -9,6 +9,7 @@ export type SystemType =
 	| "environment"
 	| "lighting"
 	| "hvac"
+	| "air_circulation"
 	| "drainage"
 	| "power"
 	| "fire"
@@ -21,9 +22,10 @@ export const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
 	lighting: "照明系統",
 	drainage: "衛生排水",
 	hvac: "空調系統",
+	air_circulation: "空氣循環系統",
 	power: "電力系統",
 	fire: "消防系統",
-	emergency_rescue: "緊急求救",
+	emergency_rescue: "emergency",
 	people_counting: "人流統計",
 	vehicle_access: "車輛進出",
 }
@@ -38,6 +40,7 @@ export type SystemConfig =
 	| EnvironmentSystemConfig
 	| LightingSystemConfig
 	| HvacSystemConfig
+	| AirCirculationSystemConfig
 	| DrainageSystemConfig
 	| PowerSystemConfig
 	| FireSystemConfig
@@ -84,6 +87,19 @@ export interface LightingSystemConfig {
  * - `statusPoints`：沿用 drainage/fire 的彈性點位定義（可用於溫度等 holding/input）
  */
 export interface HvacSystemConfig {
+	deviceId?: number
+	location?: { x: number; y: number }
+	modbus?: LightingSystemConfig["modbus"]
+	statusPoints?: Record<string, DrainageStatusPointDef>
+}
+
+/**
+ * 空氣循環系統配置（獨立於 HVAC）
+ *
+ * - `modbus`：DI/DO 點位（可用於 ON/OFF 回授與控制）
+ * - `statusPoints`：holding/input 等數值點位（例如溫度、風量、壓差）
+ */
+export interface AirCirculationSystemConfig {
 	deviceId?: number
 	location?: { x: number; y: number }
 	modbus?: LightingSystemConfig["modbus"]

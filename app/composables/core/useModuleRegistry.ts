@@ -1,7 +1,8 @@
 import { useApiBase } from "~/composables/core/useApiBase"
-import type { FeatureKey } from "~/types/license"
+import { LICENSE_FEATURE_KEYS, type FeatureKey } from "~/types/license"
 import type { SystemModule } from "~/types/system"
 import { MODULE_CATEGORY_ORDER } from "~/constants/moduleCategories"
+import { logger } from "~/utils/logger"
 
 type ModuleRegistryItem = {
 	id?: number
@@ -19,6 +20,9 @@ type ModuleRegistryPayload = {
 	profile: "central" | "construction"
 	modules: ModuleRegistryItem[]
 }
+
+const LICENSE_FEATURE_KEY_SET = new Set<string>(LICENSE_FEATURE_KEYS as readonly string[])
+const moduleRegistryLogger = logger.createLogger("module-registry")
 
 const toEntries = (modules: ModuleRegistryItem[]) =>
 	modules
@@ -81,7 +85,17 @@ export const useModuleRegistry = () => {
 
 	const getFeatureKeyByRoute = (routePath: string): FeatureKey | null => {
 		const m = getModuleByRoute(routePath)
-		return (m?.featureKey ?? null) as FeatureKey | null
+		const rawKey = m?.featureKey ?? null
+		if (!rawKey) return null
+		if (!LICENSE_FEATURE_KEY_SET.has(rawKey)) {
+			moduleRegistryLogger.warn("偵測到未知 feature key（已忽略）", {
+				routePath,
+				featureKey: rawKey,
+				routePrefix: m?.routePrefix,
+			})
+			return null
+		}
+		return rawKey as FeatureKey
 	}
 
 	const modules = computed<SystemModule[]>(() => {

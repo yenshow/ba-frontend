@@ -3,6 +3,7 @@ export type FeatureKey =
 	| "people_counting"
 	| "lighting"
 	| "hvac"
+	| "air_circulation"
 	| "drainage"
 	| "power"
 	| "fire"
@@ -16,6 +17,7 @@ export const LICENSE_FEATURE_KEYS: readonly FeatureKey[] = [
 	"people_counting",
 	"lighting",
 	"hvac",
+	"air_circulation",
 	"drainage",
 	"power",
 	"fire",

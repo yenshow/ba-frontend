@@ -138,7 +138,11 @@
 									<div
 										:class="[
 											'h-4 w-4 shrink-0 rounded-full border border-white 2xl:h-5 2xl:w-5',
-											isLocationNormal(row.locationId) ? 'bg-emerald-400' : 'bg-amber-400',
+											getLocationStatus(row.locationId).status === 'alarm'
+												? 'bg-rose-500'
+												: isLocationNormal(row.locationId)
+													? 'bg-emerald-400'
+													: 'bg-amber-400',
 										]"
 										aria-hidden="true"
 									></div>
@@ -157,12 +161,13 @@
 
 <script setup lang="ts">
 import type { LightingZone, LightingLocation } from "~/types/lighting"
+import type { SystemUiStatus } from "~/types/monitoring"
 import { getLocationUiKey } from "~/utils/locationUiId"
 import { compareZonesLoose } from "~/utils/sortOrder"
 
 interface Props {
 	zones: LightingZone[]
-	areaStatuses?: Record<string, { isRunning: boolean; status: "normal" | "warning" | "error" }>
+	areaStatuses?: Record<string, { isRunning: boolean; status: SystemUiStatus }>
 	areaDisabledMap?: Record<string, boolean>
 	areaToggling?: Set<string> // 正在處理切換操作的區域
 	selectedZone?: string
@@ -183,11 +188,10 @@ const emit = defineEmits<{
 	"zone-selected": [zoneId: string]
 }>()
 
-/** 照明監控僅兩種對外語意：正常／異常；warning／error 閃爍節奏相同（.blink-slow） */
-const statusLabels: Record<"normal" | "warning" | "error", string> = {
+const statusLabels: Record<SystemUiStatus, string> = {
 	normal: "正常",
 	warning: "異常",
-	error: "異常",
+	alarm: "警報",
 }
 
 // 獲取指定區域的地點
@@ -234,7 +238,7 @@ const getLocationStatus = (locationId: string) => {
 	}
 	return {
 		isRunning: false,
-		status: "error" as const,
+		status: "warning" as const,
 		healthLabel: "異常",
 	}
 }
@@ -250,13 +254,25 @@ const zoneHasAbnormal = (zone: LightingZone): boolean => {
 }
 
 const getLocationCardBlinkClass = (locationId: string): string =>
-	isLocationNormal(locationId) ? "" : "blink-slow"
+	getLocationStatus(locationId).status === "alarm"
+		? "blink-fast"
+		: isLocationNormal(locationId)
+			? ""
+			: "blink-slow"
 
 const getLocationCardBackgroundClass = (locationId: string): string =>
-	isLocationNormal(locationId) ? "bg-white/10" : "bg-[#FFC801]/60"
+	getLocationStatus(locationId).status === "alarm"
+		? "bg-[#FF0000]/65"
+		: isLocationNormal(locationId)
+			? "bg-white/10"
+			: "bg-[#FFC801]/60"
 
 const getZoneAlertBlinkClass = (zone: LightingZone): string =>
-	getZoneLocationsWithIds(zone).some((row) => !isLocationNormal(row.locationId)) ? "blink-slow" : ""
+	getZoneLocationsWithIds(zone).some((row) => getLocationStatus(row.locationId).status === "alarm")
+		? "blink-fast"
+		: getZoneLocationsWithIds(zone).some((row) => !isLocationNormal(row.locationId))
+			? "blink-slow"
+			: ""
 
 const isLocationDisabled = (locationId: string): boolean => {
 	return props.areaDisabledMap[locationId] ?? false

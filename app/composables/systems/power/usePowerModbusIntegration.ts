@@ -6,12 +6,19 @@ import type { ModbusDeviceConfig } from "~/types/modbus"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { usePolling } from "~/composables/monitoring/usePolling"
+import {
+	MODBUS_FAILURE_CACHE_TTL_MS,
+	MODBUS_SUCCESS_CACHE_TTL_MS,
+	isSuppressibleModbusError,
+	useModbusPollingPolicy,
+} from "~/composables/monitoring/useModbusPollingPolicy"
+import { usePowerApi } from "~/composables/systems/power/usePowerApi"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { normalizeSystemUiStatus } from "~/types/monitoring"
 
 const MODBUS_TIMEOUT = 3000
-const REQUEST_CACHE_TTL = 4500
-const FAILED_DEVICE_TTL = 30000
-const HOT_REFRESH_TTL_MS = 15000
+const REQUEST_CACHE_TTL = MODBUS_SUCCESS_CACHE_TTL_MS
+const FAILED_DEVICE_TTL = MODBUS_FAILURE_CACHE_TTL_MS
 
 type RegisterType = "coil" | "discrete" | "holding" | "input"
 
@@ -57,7 +64,7 @@ const booleanizeRegisterValue = (v: unknown): boolean | undefined => {
 const deriveUiStatusForPowerItem = (item: PowerStatusItem): PowerStatusItem["uiStatus"] => {
 	const raw = item.raw || {}
 	const pointKeys = Object.keys(raw)
-	if (pointKeys.length === 0) return "unknown"
+	if (pointKeys.length === 0) return normalizeSystemUiStatus(item.uiStatus)
 
 	const anyRead = pointKeys.some((k) => raw[k] !== undefined && raw[k] !== null)
 	if (!anyRead) return "warning"
@@ -73,6 +80,7 @@ const deriveUiStatusForPowerItem = (item: PowerStatusItem): PowerStatusItem["uiS
 }
 
 export const usePowerModbusIntegration = (powerZones: Ref<PowerZone[]>) => {
+	const powerApi = usePowerApi()
 	const deviceApi = useDeviceApi()
 	const { request } = useApiBase()
 	const { handleError } = useErrorHandler()
@@ -88,19 +96,7 @@ export const usePowerModbusIntegration = (powerZones: Ref<PowerZone[]>) => {
 	>()
 	const failedDevices = new Map<string, number>()
 	let inflightSnapshot: Promise<void> | null = null
-	const systemHotUntil = new Map<string, number>()
-	const lastRawBySystemId = new Map<string, Record<string, unknown>>()
-
-	const isSystemHot = (systemId: string, now: number) => {
-		const until = systemHotUntil.get(systemId)
-		return until != null && until > now
-	}
-
-	const bumpSystemHot = (systemId: string, now: number, ttlMs: number) => {
-		const next = now + Math.max(0, ttlMs)
-		const prev = systemHotUntil.get(systemId) || 0
-		systemHotUntil.set(systemId, Math.max(prev, next))
-	}
+	const pollingPolicy = useModbusPollingPolicy()
 
 	const extractDeviceConfig = (device: Device): DeviceConn | null => {
 		const config = device.config as ControllerDeviceConfig & Record<string, unknown>
@@ -199,24 +195,7 @@ export const usePowerModbusIntegration = (powerZones: Ref<PowerZone[]>) => {
 			meta?: any
 		}>
 	) => {
-		return request<{
-			results: Array<
-				| {
-						ok: true
-						data: unknown[]
-						device: ModbusDeviceConfig
-						registerType: ModbusReadKind
-						address: number
-						length: number
-						meta?: any
-				  }
-				| { ok: false; error: string; meta?: any }
-			>
-		}>("/modbus/batch-read", {
-			method: "POST",
-			body: JSON.stringify({ requests: reqs }),
-			timeout: MODBUS_TIMEOUT,
-		} as any)
+		return { results: [] } as any
 	}
 
 	const collectRequestsFromZones = async (): Promise<BatchRequest[]> => {
@@ -274,14 +253,21 @@ export const usePowerModbusIntegration = (powerZones: Ref<PowerZone[]>) => {
 
 		inflightSnapshot = (async () => {
 			const now = Date.now()
+			let hasSnapshotFailure = false
+			try {
+				const { items } = await powerApi.getStatus()
+				statusItems.value = items || []
+				pollingPolicy.recordSuccess()
+				return
+			} catch (error) {
+				pollingPolicy.recordFailure()
+				handleError(error, "載入電力狀態失敗")
+				return
+			}
 
 			for (const [key, ts] of failedDevices.entries()) {
 				if (now - ts > FAILED_DEVICE_TTL) failedDevices.delete(key)
 			}
-			for (const [systemId, until] of systemHotUntil.entries()) {
-				if (until <= now) systemHotUntil.delete(systemId)
-			}
-
 			const requests = await collectRequestsFromZones()
 			if (requests.length === 0) {
 				statusItems.value = []
@@ -299,7 +285,7 @@ export const usePowerModbusIntegration = (powerZones: Ref<PowerZone[]>) => {
 						systemId: r.systemId,
 						equipmentKind: r.equipmentKind,
 						viewCategory: r.viewCategory,
-						uiStatus: "unknown",
+						uiStatus: "warning",
 						raw: {},
 					})
 				}
@@ -327,7 +313,7 @@ export const usePowerModbusIntegration = (powerZones: Ref<PowerZone[]>) => {
 				registerType: ModbusReadKind
 				address: number
 				length: number
-				meta: { requestKey: string; noCache?: boolean }
+				meta: { requestKey: string }
 			}> = []
 
 			for (const [requestKey, groupRequests] of grouped.entries()) {
@@ -346,9 +332,7 @@ export const usePowerModbusIntegration = (powerZones: Ref<PowerZone[]>) => {
 					continue
 				}
 
-				const noCache = isSystemHot(first.systemId, now)
-
-				const cached = noCache ? null : requestCache.get(requestKey)
+				const cached = requestCache.get(requestKey)
 				if (cached && now - cached.timestamp < REQUEST_CACHE_TTL) {
 					if (cached.ok) {
 						groupRequests.forEach((gr) => {
@@ -381,7 +365,7 @@ export const usePowerModbusIntegration = (powerZones: Ref<PowerZone[]>) => {
 					registerType: kind,
 					address,
 					length,
-					meta: { requestKey, ...(noCache ? { noCache: true } : {}) },
+					meta: { requestKey },
 				})
 			}
 
@@ -413,13 +397,9 @@ export const usePowerModbusIntegration = (powerZones: Ref<PowerZone[]>) => {
 						}
 
 						const msg = String((r as any).error || "無法讀取電力設備資料")
+						hasSnapshotFailure = true
 						requestCache.set(requestKey, { timestamp: now, ok: false, error: msg })
-						if (
-							msg.includes("503") ||
-							msg.includes("Service Unavailable") ||
-							msg.includes("連接") ||
-							msg.includes("超時")
-						) {
+						if (isSuppressibleModbusError(msg)) {
 							failedDevices.set(requestKey, now)
 						}
 						groupRequests.forEach((gr) => {
@@ -433,16 +413,12 @@ export const usePowerModbusIntegration = (powerZones: Ref<PowerZone[]>) => {
 					}
 				} catch (error) {
 					const msg = error instanceof Error ? error.message : String(error)
+					hasSnapshotFailure = true
 					for (const p of batchPayload) {
 						requestCache.set(p.meta.requestKey, { timestamp: now, ok: false, error: msg })
 					}
 					for (const [requestKey, groupRequests] of grouped.entries()) {
-						if (
-							msg.includes("503") ||
-							msg.includes("Service Unavailable") ||
-							msg.includes("連接") ||
-							msg.includes("超時")
-						) {
+						if (isSuppressibleModbusError(msg)) {
 							failedDevices.set(requestKey, now)
 						}
 						groupRequests.forEach((gr) => {
@@ -454,6 +430,11 @@ export const usePowerModbusIntegration = (powerZones: Ref<PowerZone[]>) => {
 							it.error = it.error || msg || "無法讀取電力設備資料"
 						})
 					}
+				}
+				if (hasSnapshotFailure) {
+					pollingPolicy.recordFailure()
+				} else {
+					pollingPolicy.recordSuccess()
 				}
 			}
 
@@ -467,40 +448,18 @@ export const usePowerModbusIntegration = (powerZones: Ref<PowerZone[]>) => {
 					}
 				}
 				const computedStatus = deriveUiStatusForPowerItem(it)
-				return { ...it, uiStatus: computedStatus }
+				return { ...it, uiStatus: normalizeSystemUiStatus(computedStatus) }
 			})
 
 			statusItems.value = out
 
-			for (const it of out) {
-				const systemId = String(it.systemId)
-				const raw = (it.raw || {}) as Record<string, unknown>
-
-				const last = lastRawBySystemId.get(systemId) || {}
-				let changed = false
-				for (const k of Object.keys(raw)) {
-					const a = raw[k]
-					const b = last[k]
-					if (a !== b) {
-						changed = true
-						break
-					}
-				}
-				lastRawBySystemId.set(systemId, raw)
-
-				if (it.uiStatus === "alarm" || it.uiStatus === "warning") {
-					bumpSystemHot(systemId, now, HOT_REFRESH_TTL_MS)
-					continue
-				}
-				if (changed) {
-					bumpSystemHot(systemId, now, 6000)
-				}
-			}
-
 			for (const [key, value] of requestCache.entries()) {
 				if (now - value.timestamp > REQUEST_CACHE_TTL * 2) requestCache.delete(key)
 			}
-		})().finally(() => {
+		})().catch((error) => {
+			pollingPolicy.recordFailure()
+			throw error
+		}).finally(() => {
 			inflightSnapshot = null
 		})
 
@@ -513,7 +472,7 @@ export const usePowerModbusIntegration = (powerZones: Ref<PowerZone[]>) => {
 			if (document.visibilityState !== "visible") return
 			await loadStatusSnapshot()
 		},
-		interval: 5000,
+		interval: pollingPolicy.pollIntervalMs,
 		immediate: true,
 		enabled: () => typeof document !== "undefined" && document.visibilityState === "visible",
 		onError: (err) => {
@@ -531,19 +490,6 @@ export const usePowerModbusIntegration = (powerZones: Ref<PowerZone[]>) => {
 	watch(
 		() => powerZones.value,
 		async () => {
-			const activeSystemIds = new Set<string>()
-			for (const z of powerZones.value || []) {
-				for (const l of z.locations || []) {
-					if (l.systemId) activeSystemIds.add(String(l.systemId))
-				}
-			}
-			for (const k of systemHotUntil.keys()) {
-				if (!activeSystemIds.has(String(k))) systemHotUntil.delete(String(k))
-			}
-			for (const k of lastRawBySystemId.keys()) {
-				if (!activeSystemIds.has(String(k))) lastRawBySystemId.delete(String(k))
-			}
-
 			await preloadDeviceInfos()
 			void loadStatusSnapshot()
 		},
