@@ -70,12 +70,6 @@
 									<div class="flex flex-wrap items-center justify-center gap-1.5">
 										<template v-if="getIntegrationSummary(rule.id).hasAny">
 											<span
-												v-if="getIntegrationSummary(rule.id).doEnabled"
-												class="rounded bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-100 2xl:text-sm"
-											>
-												DO
-											</span>
-											<span
 												v-if="getIntegrationSummary(rule.id).cameraEnabled"
 												class="rounded bg-sky-500/20 px-2 py-0.5 text-xs text-sky-100 2xl:text-sm"
 											>
@@ -230,14 +224,9 @@ const ruleSourceOptions = [
 	{ value: "", label: "全部系統" },
 	{ value: "device", label: "設備系統" },
 	{ value: "environment", label: "環境系統" },
-	{ value: "lighting", label: "照明系統" },
-	{ value: "drainage", label: "衛生排水系統" },
-	{ value: "power", label: "電力系統" },
 	{ value: "people_counting", label: "人流系統" },
-	{ value: "hvac", label: "空調系統" },
-	{ value: "fire", label: "消防系統" },
-	{ value: "emergency_rescue", label: "緊急求救系統" },
-	{ value: "security", label: "安防系統" },
+	{ value: "surveillance", label: "影像監控系統" },
+	{ value: "vehicle_access", label: "車輛進出系統" },
 ]
 
 const tableHeaderClass = "py-3 2xl:py-4 px-4 2xl:px-6 text-sm 2xl:text-base text-white/80"
@@ -318,7 +307,6 @@ const closeRuleDialog = () => {
 const handleSubmitRule = async (payload: {
 	rule: CreateAlertRulePayload
 	integrations: Partial<{
-		doLinkage: unknown
 		cameraLinkage: unknown
 		emailSubscription: unknown
 	}>
@@ -410,8 +398,6 @@ const getAlertTypeBadgeClass = (type: AlertType) => {
 		offline: "bg-gray-500/20 text-gray-200",
 		error: "bg-red-500/20 text-red-200",
 		threshold: "bg-blue-500/20 text-blue-200",
-		di: "bg-emerald-500/20 text-emerald-200",
-		do: "bg-sky-500/20 text-sky-200",
 	}
 	return classes[type] ?? "bg-gray-500/20 text-gray-200"
 }
@@ -420,8 +406,6 @@ const getAlertTypeLabel = (type: AlertType) => {
 	const labels: Record<AlertType, string> = {
 		offline: "設備狀態警報",
 		threshold: "環境參數警報",
-		di: "DI 警報",
-		do: "DO 警報",
 		error: "系統錯誤警報",
 	}
 	return labels[type] ?? String(type)

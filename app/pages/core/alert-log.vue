@@ -190,7 +190,10 @@ const statusOptions = [
 const sourceOptions = [
 	{ value: "", label: "全部系統" },
 	{ value: "device", label: "設備系統" },
-	{ value: "environment", label: "環境系統" }
+	{ value: "environment", label: "環境系統" },
+	{ value: "people_counting", label: "人流系統" },
+	{ value: "surveillance", label: "影像監控系統" },
+	{ value: "vehicle_access", label: "車輛進出系統" }
 ];
 
 // 時間範圍

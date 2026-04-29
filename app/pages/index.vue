@@ -92,10 +92,10 @@ import EntryExitLog from "~/components/home/EntryExitLog.vue";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
-import { useApiBase } from "~/composables/core/useApiBase";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useToast } from "~/composables/core/useToast";
 import { usePolling } from "~/composables/monitoring/usePolling";
+import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi";
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
 import type { EnvironmentLocation, SensorParameterType } from "~/types/environment";
 import type { UnifiedZone, UnifiedLocation, EnvironmentSystemConfig } from "~/types/location";
@@ -103,10 +103,7 @@ import type {
 	Device,
 	SensorDeviceConfig,
 	SensorDeviceModelConfig,
-	SensorParameterDefinition
 } from "~/types/device";
-import type { ModbusDeviceConfig } from "~/types/modbus";
-import { isDeviceConnectionError } from "~/utils/errorUtils";
 import { firstLocationInSortedZones } from "~/utils/sortOrder";
 import { getLocationDeviceIds } from "~/utils/sensorUtils";
 import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState";
@@ -121,7 +118,7 @@ definePageMeta({
 
 const locationApi = useLocationApi();
 const deviceApi = useDeviceApi();
-const { request } = useApiBase();
+const environmentApi = useEnvironmentApi();
 const { canLoadFeature, isLoaded: licenseLoaded } = useLicense();
 const hasEnvironment = computed(() => canLoadFeature("environment"));
 const hasPeopleCounting = computed(() => canLoadFeature("people_counting"));
@@ -250,19 +247,6 @@ const extractEnvironmentLocation = (
 const sensorDevice = ref<Device | null>(null);
 const deviceModelConfig = ref<SensorDeviceModelConfig | null>(null);
 
-const sensorDeviceConfig = computed<ModbusDeviceConfig | null>(() => {
-	if (!sensorDevice.value || sensorDevice.value.type_code !== "sensor") return null;
-
-	const config = sensorDevice.value.config as SensorDeviceConfig;
-	if (config.protocol !== "modbus" || !config.host || !config.port) return null;
-
-	return {
-		host: config.host,
-		port: config.port,
-		unitId: config.unitId || 1
-	};
-});
-
 // 當前選中的統一地點
 const selectedUnifiedLocation = computed<UnifiedLocation | null>(() => {
 	if (!selectedLocationId.value) return null;
@@ -336,16 +320,6 @@ const sensorData = reactive<SensorReadings>({
 	noise: null,
 	wind: null
 });
-
-// 從指定型號配置取得參數的 Modbus 配置（多設備合併讀取時每台設備各用其型號）
-const getParameterModbusConfigFromModel = (
-	paramType: SensorParameterType,
-	modelConfig: SensorDeviceModelConfig | null
-): SensorParameterDefinition["modbusConfig"] | null => {
-	if (!modelConfig?.sensorParameters) return null;
-	const paramDef = modelConfig.sensorParameters.find(p => p.type === paramType);
-	return paramDef?.modbusConfig ?? null;
-};
 
 const loadDeviceAndModelConfig = async (
 	deviceId: number
@@ -425,185 +399,6 @@ const loadLocationSensorDevice = async (location: EnvironmentLocation) => {
 	}
 };
 
-const batchReadHolding = async (modbusConfig: ModbusDeviceConfig, address: number, length: number) => {
-	return await request<{
-		results: Array<
-			| {
-					ok: true;
-					data: number[];
-					device: ModbusDeviceConfig;
-					registerType: "holding";
-					address: number;
-					length: number;
-					meta?: any;
-			  }
-			| { ok: false; error: string; meta?: any }
-		>;
-	}>("/modbus/batch-read", {
-		method: "POST",
-		body: JSON.stringify({
-			requests: [
-				{
-					host: modbusConfig.host,
-					port: modbusConfig.port,
-					unitId: modbusConfig.unitId,
-					registerType: "holding",
-					address,
-					length
-				}
-			]
-		})
-	} as any);
-};
-
-type AddressGroup = { start: number; length: number; addresses: number[] };
-
-const groupConsecutiveAddresses = (addresses: number[]): AddressGroup[] => {
-	if (addresses.length === 0) return [];
-	const sorted = [...addresses].sort((a, b) => a - b);
-	const groups: AddressGroup[] = [];
-	let current: number[] = [sorted[0]];
-
-	for (let i = 1; i < sorted.length; i++) {
-		if (sorted[i] === current[current.length - 1] + 1) {
-			current.push(sorted[i]);
-		} else {
-			groups.push({ start: current[0], length: current.length, addresses: [...current] });
-			current = [sorted[i]];
-		}
-	}
-	groups.push({ start: current[0], length: current.length, addresses: current });
-	return groups;
-};
-
-type ParameterWithModbusConfig = {
-	type: SensorParameterType;
-	modbusConfig: { address: number; transform?: string };
-};
-
-type BatchResult = { type: SensorParameterType; value: number | null; success: boolean };
-
-const mapParamListToResults = (
-	paramDataList: ParameterWithModbusConfig[],
-	rawValue: number,
-	success: boolean
-): BatchResult[] =>
-	paramDataList.map(paramData => ({
-		type: paramData.type,
-		value: success ? applyTransform(rawValue, paramData.modbusConfig.transform) : null,
-		success
-	}));
-
-const readParametersBatch = async (
-	modbusConfig: ModbusDeviceConfig,
-	paramAddressMap: Map<number, ParameterWithModbusConfig[]>
-): Promise<BatchResult[]> => {
-	const addresses = Array.from(paramAddressMap.keys()).sort((a, b) => a - b);
-	if (addresses.length === 0) return [];
-
-	const addressGroups = groupConsecutiveAddresses(addresses);
-	const readPromises: Promise<BatchResult[]>[] = [];
-
-	for (const group of addressGroups) {
-		if (group.length > 1) {
-			readPromises.push(
-				batchReadHolding(modbusConfig, group.start, group.length)
-					.then(res => {
-						const first = (res as any).results?.[0];
-						if (!first?.ok || !Array.isArray(first.data)) {
-							throw new Error(String(first?.error || "讀取失敗"));
-						}
-						return group.addresses.flatMap((addr, idx) => {
-							const list = paramAddressMap.get(addr);
-							return list?.length ? mapParamListToResults(list, first.data[idx], true) : [];
-						});
-					})
-					.catch(async () => {
-						const fallback = await Promise.all(
-							group.addresses.map(async addr => {
-								const list = paramAddressMap.get(addr);
-								if (!list?.length) return [];
-								try {
-									const res1 = await batchReadHolding(modbusConfig, addr, 1);
-									const first1 = (res1 as any).results?.[0];
-									const raw = first1?.ok ? first1.data?.[0] : undefined;
-									return mapParamListToResults(
-										list,
-										typeof raw === "number" ? raw : 0,
-										typeof raw === "number"
-									);
-								} catch {
-									return mapParamListToResults(list, 0, false);
-								}
-							})
-						);
-						return fallback.flat();
-					})
-			);
-			continue;
-		}
-
-		const addr = group.addresses[0];
-		const list = paramAddressMap.get(addr);
-		if (!list?.length) continue;
-
-		readPromises.push(
-			batchReadHolding(modbusConfig, addr, 1)
-				.then(res => {
-					const first = (res as any).results?.[0];
-					const raw = first?.ok ? first.data?.[0] : undefined;
-					return mapParamListToResults(
-						list,
-						typeof raw === "number" ? raw : 0,
-						typeof raw === "number"
-					);
-				})
-				.catch(() => mapParamListToResults(list, 0, false))
-		);
-	}
-
-	return (await Promise.all(readPromises)).flat();
-};
-
-const applyTransform = (value: number, transform?: string): number => {
-	if (!transform || !transform.trim()) return value;
-
-	try {
-		const trimmed = transform.trim();
-		let formula = "";
-
-		// 檢查是否以運算符開頭（+、-、*、/）
-		if (/^[\+\-\*\/]/.test(trimmed)) {
-			// 確保運算符和數值之間有空格（對於減號需要特別處理）
-			if (trimmed.startsWith("-")) {
-				// "-1" → "value - 1", "- 1" → "value - 1"
-				const numPart = trimmed.substring(1).trim();
-				formula = `${value} - ${numPart}`;
-			} else {
-				// "/ 10" → "value / 10", "* 2" → "value * 2", "+ 5" → "value + 5"
-				formula = `${value} ${trimmed}`;
-			}
-		} else {
-			// 如果不是以運算符開頭，可能是純數值（假設是減法）
-			if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
-				// 純數字：假設為減法操作，例如 "1" → "value - 1"
-				formula = `${value} - ${trimmed}`;
-			} else {
-				// 其他情況，可能是複雜表達式，將 value 替換為實際數值
-				formula = trimmed.replace(/value/gi, String(value));
-			}
-		}
-
-		// 使用 Function 構造函數安全地執行公式（僅允許數學運算）
-		// 注意：生產環境可能需要更嚴格的驗證
-		const result = Function(`"use strict"; return (${formula})`)();
-		return typeof result === "number" && !isNaN(result) ? result : value;
-	} catch (error) {
-		console.warn("[index] 轉換公式執行失敗:", transform, error);
-		return value;
-	}
-};
-
 const OFFLINE_ALERT_INTERVAL = 30000;
 
 const isFetching = ref(false);
@@ -613,54 +408,23 @@ const lastOfflineAlertTime = ref<number | null>(null);
 const loadSensorData = async () => {
 	if (isFetching.value) return;
 	if (!hasEnvironment.value || !selectedLocation.value) return;
-
-	const deviceIds = getLocationDeviceIds(selectedLocation.value);
-	if (deviceIds.length === 0) return;
-
-	const enabledParams = selectedLocation.value.parameters.filter(param => param.enabled);
-	if (enabledParams.length === 0) return;
+	if (!selectedLocation.value.id) return;
 
 	isFetching.value = true;
 
-	// 每輪清空後僅合併成功讀取值
+	const enabledParams = selectedLocation.value.parameters.filter(param => param.enabled);
 	Object.keys(sensorData).forEach(key => {
 		(sensorData as Record<string, number | null>)[key] = null;
 	});
 
 	try {
-		for (const deviceId of deviceIds) {
-			const result = await loadDeviceAndModelConfig(deviceId);
-			if (!result) continue;
-
-			const { device, modelConfig } = result;
-			const config = device.config as SensorDeviceConfig;
-			if (config?.protocol !== "modbus" || !config?.host || !config?.port) continue;
-
-			const modbusConfig: ModbusDeviceConfig = {
-				host: config.host,
-				port: config.port,
-				unitId: config.unitId ?? 1
-			};
-
-			const paramAddressMap = new Map<number, ParameterWithModbusConfig[]>();
-			for (const param of enabledParams) {
-				const modbusCfg = getParameterModbusConfigFromModel(param.type, modelConfig);
-				if (!modbusCfg || modbusCfg.address === undefined) continue;
-
-				const existing = paramAddressMap.get(modbusCfg.address) ?? [];
-				existing.push({
-					type: param.type,
-					modbusConfig: { address: modbusCfg.address, transform: modbusCfg.transform }
-				});
-				paramAddressMap.set(modbusCfg.address, existing);
-			}
-
-			if (paramAddressMap.size === 0) continue;
-
-			const results = await readParametersBatch(modbusConfig, paramAddressMap);
-			for (const r of results) {
-				if (r.success) (sensorData as Record<string, number | null>)[r.type] = r.value;
-			}
+		const { readings } = await environmentApi.getReadings(String(selectedLocation.value.id), { limit: 1 });
+		const latest = readings?.[0];
+		const data = (latest?.data || {}) as Record<string, unknown>;
+		for (const param of enabledParams) {
+			const raw = data[param.type];
+			(sensorData as Record<string, number | null>)[param.type] =
+				typeof raw === "number" && Number.isFinite(raw) ? raw : null;
 		}
 
 		if (isSensorOffline.value) {
@@ -670,9 +434,11 @@ const loadSensorData = async () => {
 		}
 	} catch (error: unknown) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
-
-		// 檢查是否為設備連接相關的錯誤
-		if (isDeviceConnectionError(errorMessage)) {
+		if (
+			errorMessage.includes("503") ||
+			errorMessage.includes("設備離線") ||
+			errorMessage.includes("服務不可用")
+		) {
 			// 設備連接錯誤 - 使用防抖機制避免重複提示
 			const now = Date.now();
 			const shouldShowAlert =

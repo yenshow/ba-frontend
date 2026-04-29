@@ -47,14 +47,9 @@ export const getSourceLabel = (source: AlertSource | string): string => {
 	const labels: Record<string, string> = {
 		device: "設備",
 		environment: "環境",
-		lighting: "照明",
-		drainage: "衛生排水",
 		people_counting: "人流統計",
-		hvac: "空調",
-		power: "電力",
-		fire: "消防",
-		emergency_rescue: "緊急求救",
-		security: "安防"
+		surveillance: "影像監控",
+		vehicle_access: "車輛進出"
 	};
 	return labels[source] || source;
 };
@@ -66,9 +61,7 @@ export const getTypeLabel = (type: AlertType | string): string => {
 	const labels: Record<string, string> = {
 		offline: "離線",
 		error: "錯誤",
-		threshold: "閾值",
-		di: "DI",
-		do: "DO"
+		threshold: "閾值"
 	};
 	return labels[type] || type;
 };
@@ -105,9 +98,7 @@ export const getTypeBadgeClass = (type: AlertType | string): string => {
 	const classes: Record<string, string> = {
 		offline: "bg-gray-500/80 text-white",
 		error: "bg-red-500/80 text-white",
-		threshold: "bg-purple-500/80 text-white",
-		di: "bg-emerald-500/80 text-white",
-		do: "bg-sky-500/80 text-white"
+		threshold: "bg-purple-500/80 text-white"
 	};
 	return classes[type] || "bg-gray-500/80 text-white";
 };
@@ -180,14 +171,6 @@ export const formatAlertRuleConditionDisplay = (rule: AlertRuleConditionDisplayI
 		const n = raw != null && raw !== "" ? Number(raw) : 5;
 		const count = Number.isFinite(n) ? Math.max(1, Math.floor(n)) : 5;
 		return `連續 ${count} 次無法連接`;
-	}
-
-	if (ct === "bit_state") {
-		const bitKey = String(config.bit_key ?? "");
-		const match = bitKey.match(/^(di|do):(\d+)$/i);
-		const addr = match?.[2] ?? (bitKey.replace(/^(di|do):/i, "").trim() || "?");
-		const isDo = rule.alert_type === "do" || String(match?.[1] ?? "").toLowerCase() === "do";
-		return `${isDo ? "DO" : "DI"} 位址 ${addr} 觸發`;
 	}
 
 	return "-";

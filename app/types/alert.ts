@@ -2,14 +2,9 @@
 export type AlertSource =
 	| "device"
 	| "environment"
-	| "lighting"
 	| "people_counting"
-	| "drainage"
-	| "hvac"
-	| "power"
-	| "fire"
-	| "emergency_rescue"
-	| "security";
+	| "surveillance"
+	| "vehicle_access";
 
 export type AlertStatus = "active" | "resolved" | "ignored";
 
@@ -126,19 +121,6 @@ export interface CreateAlertRulePayload {
 }
 
 export type UpdateAlertRulePayload = Partial<CreateAlertRulePayload>;
-
-export interface AlertDoLinkage {
-	id: number;
-	enabled: boolean;
-	rule_id: number;
-	do_device_id: number | null;
-	do_address: number | null;
-	do_output_value: "on" | "off";
-	auto_off_seconds?: number | null;
-	created_by?: number | null;
-	created_at: string;
-	updated_at: string;
-}
 
 export interface AlertCameraLinkage {
 	id: number;

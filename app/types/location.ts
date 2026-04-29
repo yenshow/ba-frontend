@@ -5,25 +5,10 @@
 /**
  * 系統類型
  */
-export type SystemType =
-	| "environment"
-	| "lighting"
-	| "hvac"
-	| "drainage"
-	| "power"
-	| "fire"
-	| "emergency_rescue"
-	| "people_counting"
-	| "vehicle_access";
+export type SystemType = "environment" | "people_counting" | "vehicle_access";
 
 export const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
 	environment: "環境監測",
-	lighting: "照明系統",
-	drainage: "衛生排水",
-	hvac: "空調系統",
-	power: "電力系統",
-	fire: "消防系統",
-	emergency_rescue: "緊急求救",
 	people_counting: "人流統計",
 	vehicle_access: "車輛進出"
 };
@@ -36,12 +21,6 @@ export const getSystemTypeLabel = (systemType: SystemType): string =>
  */
 export type SystemConfig =
 	| EnvironmentSystemConfig
-	| LightingSystemConfig
-	| HvacSystemConfig
-	| DrainageSystemConfig
-	| PowerSystemConfig
-	| FireSystemConfig
-	| EmergencyRescueSystemConfig
 	| PeopleCountingSystemConfig
 	| VehicleAccessSystemConfig;
 
@@ -57,77 +36,6 @@ export interface EnvironmentSystemConfig {
 		enabled: boolean;
 	}>;
 }
-
-/**
- * 照明系統配置
- */
-export interface LightingSystemConfig {
-	deviceId?: number;
-	location?: {
-		x: number;
-		y: number;
-	};
-	modbus?: {
-		deviceId?: number;
-		points?: Array<{
-			address: number;
-			type: "DI" | "DO";
-			note?: string;
-		}>;
-	};
-}
-
-/**
- * 空調（HVAC）系統配置
- *
- * - `modbus`：沿用 lighting 的 DI/DO 點位（可用於 ON/OFF 回授與控制）
- * - `statusPoints`：沿用 drainage/fire 的彈性點位定義（可用於溫度等 holding/input）
- */
-export interface HvacSystemConfig {
-	deviceId?: number;
-	location?: { x: number; y: number };
-	modbus?: LightingSystemConfig["modbus"];
-	statusPoints?: Record<string, DrainageStatusPointDef>;
-}
-
-/** 排水狀態點位（對應後端 status_points）；可每點獨立指定控制器 */
-export interface DrainageStatusPointDef {
-	registerType: "coil" | "discrete" | "holding" | "input";
-	address: number;
-	length?: number;
-	/** 若省略則使用地點層級的 deviceId */
-	deviceId?: number;
-}
-
-/**
- * 衛生排水系統配置
- */
-export interface DrainageSystemConfig {
-	deviceId?: number;
-	location?: { x: number; y: number };
-	modbus?: LightingSystemConfig["modbus"];
-	equipmentKind?: "pump" | "tank";
-	/** 檢視分類（使用者自訂字串；舊資料可能為 pumping／sewage／drainage） */
-	viewCategory?: string;
-	statusPoints?: Record<string, DrainageStatusPointDef>;
-}
-
-/** 電力系統配置（欄位與排水類似；equipmentKind 為發電機／油位） */
-export interface PowerSystemConfig {
-	deviceId?: number;
-	location?: { x: number; y: number };
-	modbus?: LightingSystemConfig["modbus"];
-	equipmentKind?: "generator" | "oil_level";
-	/** 檢視分類（使用者自訂字串） */
-	viewCategory?: string;
-	statusPoints?: Record<string, DrainageStatusPointDef>;
-}
-
-/** 消防系統配置（欄位與排水相同；以 systemType 區分） */
-export type FireSystemConfig = DrainageSystemConfig;
-
-/** 緊急求救（與消防／排水相同點位結構；預設檢視分類 sos） */
-export type EmergencyRescueSystemConfig = DrainageSystemConfig;
 
 /**
  * 人流統計系統配置
