@@ -33,27 +33,18 @@ export interface Zone {
 	level: number;
 }
 
-export interface Room {
+/**
+ * 點位/分類清單項目（舊版曾使用 room/roomIds；現行以 zone/location 為主）
+ * - `location` 允許為 undefined，表示尚未定位
+ */
+export interface LocationCategory {
 	id: string;
-	name: string;
+	name: string; // 分類名稱，如"健身房"、"管委會"
 	zoneId: string;
-	area: string;
-	type: "indoor" | "outdoor";
 	location?: {
 		x: number;
 		y: number;
 	};
-}
-
-export interface RoomCategory {
-	id: string;
-	name: string; // 分類名稱，如"健身房"、"管委會"
-	zoneId: string;
-	location: {
-		x: number;
-		y: number;
-	};
-	roomIds: string[]; // 該分類下的房間 ID 列表
 }
 
 export interface ControlPoint {

@@ -182,7 +182,10 @@ const badgeBaseClass =
 	"inline-block rounded-full px-3 py-1 text-base font-semibold text-white 2xl:px-4 2xl:py-1.5";
 
 const getSourceDisplayName = (alert: Alert): string =>
-	alert.source_name || `${getSourceLabel(alert.source)} #${alert.source_id}`;
+	alert.source_display_name ||
+	alert.location_name ||
+	alert.source_name ||
+	`${getSourceLabel(alert.source)} #${alert.source_id}`;
 
 const getAlertCardClass = (alert: Alert) => {
 	if (isAlertResolved(alert)) return "border-green-500/30 bg-green-500/5";

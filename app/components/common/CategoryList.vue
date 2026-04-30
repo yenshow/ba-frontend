@@ -11,7 +11,7 @@
 					editing
 						? 'cursor-move border-white/40 bg-white/10 hover:bg-white/20'
 						: 'cursor-pointer border-white/20 bg-white/5',
-					!category.location && editing ? 'border-yellow-400/60 bg-yellow-400/10' : '',
+					!category.location && editing ? 'border-yellow-400/60 bg-yellow-400/10' : ''
 				]"
 				:draggable="editing"
 				@click="!editing && $emit('select', category.id)"
@@ -37,33 +37,33 @@
 </template>
 
 <script setup lang="ts">
-import type { RoomCategory } from "~/types/system"
+import type { LocationCategory } from "~/types/system";
 
 interface Props {
-	categories: RoomCategory[]
-	editing?: boolean
-	selectedCategoryId?: string
+	categories: LocationCategory[];
+	editing?: boolean;
+	selectedCategoryId?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	editing: false,
-	selectedCategoryId: "",
-})
+	selectedCategoryId: ""
+});
 
 const emit = defineEmits<{
-	select: [categoryId: string]
-	dragstart: [event: DragEvent, category: RoomCategory]
-	dragend: [event: DragEvent]
-}>()
+	select: [categoryId: string];
+	dragstart: [event: DragEvent, category: LocationCategory];
+	dragend: [event: DragEvent];
+}>();
 
-const handleDragStart = (event: DragEvent, category: RoomCategory) => {
-	emit("dragstart", event, category)
-	event.dataTransfer!.effectAllowed = "move"
-	event.dataTransfer!.setData("areaId", category.id)
-	event.dataTransfer!.setData("fromCategoryList", "true")
-}
+const handleDragStart = (event: DragEvent, category: LocationCategory) => {
+	emit("dragstart", event, category);
+	event.dataTransfer!.effectAllowed = "move";
+	event.dataTransfer!.setData("locationId", category.id);
+	event.dataTransfer!.setData("fromCategoryList", "true");
+};
 
 const handleDragEnd = (event: DragEvent) => {
-	emit("dragend", event)
-}
+	emit("dragend", event);
+};
 </script>

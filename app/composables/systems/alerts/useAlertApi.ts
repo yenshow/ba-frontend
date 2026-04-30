@@ -97,6 +97,7 @@ export const useAlertApi = () => {
 			| "severity"
 			| "start_date"
 			| "end_date"
+			| "time_field"
 		>
 	): Promise<UnresolvedAlertCountResponse> => {
 		const path = buildPathWithQuery("/alerts/unresolved/count", filters as Record<string, unknown>);

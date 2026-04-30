@@ -1,6 +1,5 @@
 import type {
 	Device,
-	DeviceType,
 	DeviceModel,
 	CreateDeviceData,
 	UpdateDeviceData,

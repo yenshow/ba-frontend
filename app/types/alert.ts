@@ -76,6 +76,7 @@ export interface AlertFilters {
 	status?: AlertStatus;
 	start_date?: string;
 	end_date?: string;
+	time_field?: "created_at" | "updated_at";
 	updated_after?: string;
 	limit?: number;
 	offset?: number;
