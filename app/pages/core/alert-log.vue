@@ -116,7 +116,6 @@ import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor"
 import { useAlertEventBus } from "~/composables/monitoring/alertMonitor/useAlertEventBus"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi"
-import { useAlertRuleIntegrationsStore } from "~/composables/systems/alerts/useAlertRuleIntegrationsStore"
 import type { AlertNewEvent, AlertUpdatedEvent } from "~/types/websocket"
 import { getSourceLabel, getTypeLabel, getSeverityLabel } from "~/utils/alertUtils"
 import { getTodayDateRangeUTC, formatDateTime } from "~/utils/dateUtils"
@@ -138,8 +137,6 @@ definePageMeta({
 })
 
 const alertApi = useAlertApi()
-const integrationsStore = useAlertRuleIntegrationsStore()
-const deviceApi = useDeviceApi()
 const toast = useToast()
 const { isAdmin } = useAuth()
 const { removeAlertToast } = useAlertMonitor()
@@ -211,7 +208,8 @@ const sourceOptions = [
 	{ value: "air_circulation", label: "空氣循環系統" },
 	{ value: "power", label: "電力系統" },
 	{ value: "fire", label: "消防系統" },
-	{ value: "emergency_rescue", label: "emergency 系統" },
+	{ value: "smoke_alarm", label: "煙霧警報系統" },
+	{ value: "emergency_rescue", label: "緊急求救系統" },
 	{ value: "security", label: "安防系統" },
 ]
 
@@ -259,6 +257,7 @@ const {
 			source: filterSource.value as AlertSource | undefined,
 			start_date: filterStartDate.value || undefined,
 			end_date: filterEndDate.value || undefined,
+			...({ time_field: "updated_at" } as Record<string, unknown>),
 			limit: params.limit as number,
 			offset: params.offset as number,
 			orderBy: "updated_at",
@@ -289,6 +288,7 @@ const loadUnresolvedCount = async () => {
 			source: (filterSource.value as AlertSource) || undefined,
 			start_date: filterStartDate.value || undefined,
 			end_date: filterEndDate.value || undefined,
+			...({ time_field: "updated_at" } as Record<string, unknown>),
 		})
 		unresolvedCount.value = result.count
 	} catch (error) {
@@ -400,7 +400,7 @@ const matchesFilters = (alert: Alert): boolean => {
 	if (filterSource.value && alert.source !== filterSource.value) return false
 
 	if (startMs.value != null || endMs.value != null) {
-		const alertTime = new Date(alert.created_at).getTime()
+		const alertTime = new Date(alert.updated_at).getTime()
 
 		if (startMs.value != null && alertTime < startMs.value) return false
 		if (endMs.value != null && alertTime > endMs.value) return false
@@ -510,6 +510,7 @@ const handleExport = async () => {
 			source: filterSource.value as AlertSource | undefined,
 			start_date: filterStartDate.value || undefined,
 			end_date: filterEndDate.value || undefined,
+			...({ time_field: "updated_at" } as Record<string, unknown>),
 			limit: 10000,
 			offset: 0,
 			orderBy: "updated_at",
@@ -625,7 +626,7 @@ const handleAlertIdQuery = async () => {
 	try {
 		const result = await alertApi.getAlertById(alertId)
 		const targetAlert = result.alert
-		const alertDate = new Date(targetAlert.created_at)
+		const alertDate = new Date(targetAlert.updated_at)
 		const { start, end } = getTodayDateRangeUTC()
 
 		// 如果警報不在今天，調整時間範圍

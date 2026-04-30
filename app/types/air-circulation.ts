@@ -3,6 +3,32 @@
 import type { LightingSystemConfig, DrainageStatusPointDef } from "~/types/location"
 import type { SystemUiStatus } from "~/types/monitoring"
 
+/** `viewCategory` 字串正規化（空白視為無分類） */
+export const trimAirCirculationViewCategory = (raw: string | undefined | null): string =>
+	String(raw ?? "").trim()
+
+/** 監控中心檢視分類下拉預設值（對齊後端預設值） */
+export const DEFAULT_AIR_CIRCULATION_MONITOR_VIEW_CATEGORY = "air_circulation"
+
+/**
+ * 常見檢視分類鍵 → 顯示用標籤
+ * - 注意：分類值實際以 zone.location[*].viewCategory 為準；此處僅做「常見鍵」友善顯示。
+ */
+export const LEGACY_AIR_CIRCULATION_VIEW_CATEGORY_LABELS: Record<string, string> = {
+	air_circulation: "空氣循環",
+	supply_air: "送風",
+	exhaust_air: "排風",
+	return_air: "回風",
+	fresh_air: "新風",
+} as const
+
+/** 單一儲存字串的顯示標題（未分類、常見鍵友善名、其餘原樣） */
+export const getAirCirculationViewCategoryDisplayLabel = (raw: string): string => {
+	const t = trimAirCirculationViewCategory(raw)
+	if (t === "") return "（未分類）"
+	return LEGACY_AIR_CIRCULATION_VIEW_CATEGORY_LABELS[t] ?? t
+}
+
 export type AirCirculationEquipmentKind = "pump" | "tank"
 
 export interface AirCirculationLocation {
@@ -39,4 +65,58 @@ export interface AirCirculationZone {
 }
 
 export type AirCirculationUiStatus = SystemUiStatus
+
+/** 供排序用：地點 `createdAt`（對應後端 created_at）轉成時間戳，無效則 null */
+export const parseAirCirculationLocationCreatedAtMs = (loc: AirCirculationLocation): number | null => {
+	if (!loc.createdAt) return null
+	const t = Date.parse(loc.createdAt)
+	return Number.isNaN(t) ? null : t
+}
+
+/** 地點是否屬於指定檢視分類（無 `viewCategory` 不算匹配） */
+export const airCirculationLocationInViewCategory = (
+	loc: AirCirculationLocation,
+	categoryId: string
+): boolean => {
+	const t = trimAirCirculationViewCategory(loc.viewCategory)
+	return t !== "" && t === categoryId
+}
+
+export type AirCirculationViewFilterOption = { value: string; label: string }
+
+/**
+ * 監控中心下拉選項：不含「全部」；
+ * 排序為各分類內地點最早 `createdAt` 在上，同序則依 value 字串。
+ */
+export const buildAirCirculationMonitorViewFilterOptions = (
+	zones: AirCirculationZone[]
+): AirCirculationViewFilterOption[] => {
+	const minMsByCategory = new Map<string, number | null>()
+	for (const z of zones || []) {
+		for (const loc of z.locations || []) {
+			const id = trimAirCirculationViewCategory(loc.viewCategory)
+			if (!id) continue
+			const ms = parseAirCirculationLocationCreatedAtMs(loc)
+			const prev = minMsByCategory.get(id)
+			if (ms != null) {
+				if (prev == null || ms < prev) minMsByCategory.set(id, ms)
+			} else if (!minMsByCategory.has(id)) {
+				minMsByCategory.set(id, null)
+			}
+		}
+	}
+
+	const rows = [...minMsByCategory.entries()].map(([value, minMs]) => ({
+		value,
+		label: LEGACY_AIR_CIRCULATION_VIEW_CATEGORY_LABELS[value] || value,
+		minMs,
+	}))
+	rows.sort((a, b) => {
+		if (a.minMs != null && b.minMs != null && a.minMs !== b.minMs) return a.minMs - b.minMs
+		if (a.minMs != null && b.minMs == null) return -1
+		if (a.minMs == null && b.minMs != null) return 1
+		return a.value.localeCompare(b.value, "zh-Hant")
+	})
+	return rows.map(({ value, label }) => ({ value, label }))
+}
 

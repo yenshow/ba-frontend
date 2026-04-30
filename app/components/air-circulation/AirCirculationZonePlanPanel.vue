@@ -38,20 +38,7 @@
 						<Transition name="dropdown">
 							<CategoryList
 								v-if="isEditMode"
-								:categories="
-									allZoneLocations.map((location, index) => ({
-										id: getLocationUiKey({
-											zone: selectedZoneData || ({} as AirCirculationZone),
-											location,
-											locationIndex: index,
-										}),
-										name: location.name,
-										zoneId: selectedZone || '',
-										location: location.location,
-										roomIds: [],
-										modbus: location.modbus as any,
-									}))
-								"
+								:categories="editModeCategoryListItems"
 								:editing="isEditMode"
 								:selected-category-id="selectedCategory"
 								@select="handleSelectCategory"
@@ -125,7 +112,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted } from "vue"
+import { computed, onBeforeUnmount, onMounted } from "vue"
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
 import CategoryList from "~/components/common/CategoryList.vue"
 import type { AirCirculationLocation, AirCirculationZone } from "~/types/air-circulation"
@@ -141,6 +128,7 @@ interface Props {
 	selectedZoneData: AirCirculationZone | undefined
 	selectedCategory: string
 	allZoneLocations: AirCirculationLocation[]
+	/** 目前檢視分類下可見點位（命名沿用歷史 currentZoneLocations） */
 	currentZoneLocations: AirCirculationLocation[]
 	zonePlanImage: string | undefined
 	dotStatusForLocationId: (locationId: string) => "normal" | "abnormal" | "alarm"
@@ -192,6 +180,25 @@ const getLocationAlertFlashForTooltip = (location: AirCirculationLocation) => {
 	if (!id || !props.getLocationAlertFlash) return "none" as const
 	return props.getLocationAlertFlash(id)
 }
+
+/** 與平面圖點位一致：僅目前檢視分類，且 id 使用 zone.locations 原始索引 */
+const editModeCategoryListItems = computed(() => {
+	const zone = props.selectedZoneData
+	if (!zone) return []
+	return props.currentZoneLocations
+		.map((location) => {
+			const originalIndex = findLocationIndexInZone(zone as any, location as any)
+			if (originalIndex === -1) return null
+			return {
+				id: getLocationUiKey({ zone: zone as any, location: location as any, locationIndex: originalIndex }),
+				name: location.name,
+				zoneId: props.selectedZone || "",
+				location: location.location,
+				modbus: location.modbus as any,
+			}
+		})
+		.filter((item): item is NonNullable<typeof item> => item != null)
+})
 
 const getLocationMapDotClass = (locationId: string) => {
 	const mode = props.getLocationAlertFlash?.(locationId) ?? "none"

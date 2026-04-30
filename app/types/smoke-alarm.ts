@@ -2,7 +2,7 @@ import type { CategoryModbusConfig } from "~/types/lighting"
 import type { DrainageStatusPointDef } from "~/types/location"
 import { normalizeSystemUiStatus, type SystemUiStatus } from "~/types/monitoring"
 
-export interface EmergencyRescueStatusItem {
+export interface SmokeAlarmStatusItem {
 	zoneId: string
 	zoneName: string
 	locationId: string
@@ -15,10 +15,10 @@ export interface EmergencyRescueStatusItem {
 	error?: string
 }
 
-/** 與後端 emergencyRescueStatusService 語意對齊 */
-export const deriveEmergencyRescueUiStatus = (
-	item: EmergencyRescueStatusItem | null | undefined
-): EmergencyRescueStatusItem["uiStatus"] => {
+/** 與後端 smokeAlarmStatusService 語意對齊 */
+export const deriveSmokeAlarmUiStatus = (
+	item: SmokeAlarmStatusItem | null | undefined
+): SmokeAlarmStatusItem["uiStatus"] => {
 	if (!item) return "warning"
 	if (item.uiStatus === "alarm") return "alarm"
 	const raw = item.raw || {}
@@ -28,12 +28,12 @@ export const deriveEmergencyRescueUiStatus = (
 	const anyRead = keys.some((k) => raw[k] !== undefined && raw[k] !== null)
 	if (!anyRead) return "warning"
 
-	if (raw.sos === true || raw.trigger === true || raw.running === true || raw.runningAlarm === true) return "alarm"
+	if (raw.smoke === true || raw.alarm === true || raw.trigger === true || raw.runningAlarm === true) return "alarm"
 	if (raw.fault === true) return "warning"
 	return "normal"
 }
 
-export interface EmergencyRescueLocation {
+export interface SmokeAlarmLocation {
 	id?: string
 	systemId?: string
 	name: string
@@ -48,11 +48,12 @@ export interface EmergencyRescueLocation {
 	statusPoints?: Record<string, DrainageStatusPointDef>
 }
 
-export interface EmergencyRescueZone {
+export interface SmokeAlarmZone {
 	id?: string
 	name: string
 	imageUrl?: string
 	sortOrder?: number
-	locations: EmergencyRescueLocation[]
+	locations: SmokeAlarmLocation[]
 	description?: string
 }
+

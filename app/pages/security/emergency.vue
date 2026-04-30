@@ -30,7 +30,11 @@
 					:zones="erZones"
 					:status-items="statusItems"
 					:selected-zone="selectedZone"
+					:manual-issue-targets="manualIssueTargets"
+					:manual-issue-default-target-id="manualIssueDefaultTargetId"
+					:rule-trigger="{ alert_type: 'di', bit_key: 'di:0' }"
 					@zone-selected="handleZoneSelected"
+					@manual-issue-changed="handleManualIssueChanged"
 				/>
 			</aside>
 		</div>
@@ -70,7 +74,7 @@ definePageMeta({
 	layout: "default",
 })
 
-const { isOperator } = useAuth()
+const { isOperator, isAdmin } = useAuth()
 const erApi = useEmergencyRescueApi()
 const { handleError } = useErrorHandler()
 
@@ -99,6 +103,26 @@ const selectedZoneName = computed(() => zonesById.value.get(selectedZone.value)?
 const selectedZoneData = computed(() => zonesById.value.get(selectedZone.value))
 const zonePlanImage = computed(() => selectedZoneData.value?.imageUrl)
 
+const manualIssueTargets = computed(() => {
+	if (!isAdmin.value) return []
+	const out: Array<{ id: string; label: string }> = []
+	for (const zone of erZones.value) {
+		for (const loc of zone.locations || []) {
+			if (!loc.systemId) continue
+			out.push({
+				id: String(loc.systemId),
+				label: `${zone.name} / ${loc.name}（${String(loc.systemId)}）`,
+			})
+		}
+	}
+	return out
+})
+
+const manualIssueDefaultTargetId = computed(() => {
+	const first = manualIssueTargets.value[0]
+	return first?.id || ""
+})
+
 const filteredZoneLocations = computed(() => {
 	if (!selectedZone.value) return []
 	const zone = selectedZoneData.value
@@ -114,14 +138,14 @@ const statusBySystemId = computed(() => {
 })
 
 const uiStatusForLocation = (loc: EmergencyRescueLocation): EmergencyRescueStatusItem["uiStatus"] => {
-	if (!loc.systemId) return "unknown"
+	if (!loc.systemId) return "warning"
 	return deriveEmergencyRescueUiStatus(statusBySystemId.value.get(String(loc.systemId)) ?? null)
 }
 
 const dotStatusForLocation = (loc: EmergencyRescueLocation): "normal" | "abnormal" | "alarm" => {
 	const s = uiStatusForLocation(loc)
 	if (s === "normal") return "normal"
-	if (s === "warning" || s === "offline" || s === "unknown") return "abnormal"
+	if (s === "warning") return "abnormal"
 	return "alarm"
 }
 
@@ -141,9 +165,7 @@ const tooltipTitle = (loc: EmergencyRescueLocation) => {
 				? "異常"
 				: s === "alarm"
 					? "警報"
-					: s === "offline"
-						? "離線"
-						: "未知"
+					: "異常"
 	return `${loc.name}：${label}`
 }
 
@@ -241,6 +263,10 @@ const {
 	stopAutoRefresh,
 	handleVisibilityChange,
 } = useEmergencyRescueModbusIntegration(erZones)
+
+const handleManualIssueChanged = () => {
+	void loadStatusSnapshot()
+}
 
 watch(
 	computedStatusItems,

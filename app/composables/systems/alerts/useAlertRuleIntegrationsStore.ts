@@ -8,9 +8,6 @@ type CameraLinkageResult = {
 
 const FLUSH_DELAY_MS = 50
 
-const integrationsByRuleId = new Map<number, AlertRuleIntegrations | null>()
-const summaryByRuleId = new Map<number, AlertRuleIntegrationSummary>()
-
 const pendingRuleIds = new Set<number>()
 let flushTimer: ReturnType<typeof setTimeout> | null = null
 let flushPromise: Promise<void> | null = null
@@ -23,20 +20,36 @@ const normalizeRuleIds = (ruleIds: number[]): number[] =>
 		.filter((n) => Number.isFinite(n) && n > 0)
 		.slice(0, 1000)
 
-const summarize = (integrations: AlertRuleIntegrations | null | undefined): AlertRuleIntegrationSummary => {
+const summarize = (
+	integrations: AlertRuleIntegrations | null | undefined
+): AlertRuleIntegrationSummary => {
 	const doEnabled = Boolean(integrations?.doLinkage?.enabled)
 	const cameraEnabled = Boolean(integrations?.cameraLinkage?.enabled)
 	const emailEnabled = Boolean(integrations?.emailSubscription?.enabled)
-	return { doEnabled, cameraEnabled, emailEnabled, hasAny: doEnabled || cameraEnabled || emailEnabled }
-}
-
-const setCacheForRule = (ruleId: number, integrations: AlertRuleIntegrations | null) => {
-	integrationsByRuleId.set(ruleId, integrations)
-	summaryByRuleId.set(ruleId, summarize(integrations))
+	return {
+		doEnabled,
+		cameraEnabled,
+		emailEnabled,
+		hasAny: doEnabled || cameraEnabled || emailEnabled,
+	}
 }
 
 export const useAlertRuleIntegrationsStore = () => {
 	const alertApi = useAlertApi()
+
+	/**
+	 * 方案 A（根本解法）：
+	 * Nuxt 4 沒有 Pinia 時，使用 `useState()` 建立 SSR-safe 的全域 reactive store。
+	 * 這能確保 integrations 資料更新時，列表「連動」欄位會自動刷新。
+	 */
+	const integrationsByRuleId = useState<Record<number, AlertRuleIntegrations | null>>(
+		"alertRuleIntegrations:byRuleId",
+		() => ({})
+	)
+	const summaryByRuleId = useState<Record<number, AlertRuleIntegrationSummary>>(
+		"alertRuleIntegrations:summaryByRuleId",
+		() => ({})
+	)
 
 	const flush = async () => {
 		if (flushPromise) {
@@ -51,13 +64,24 @@ export const useAlertRuleIntegrationsStore = () => {
 		flushPromise = (async () => {
 			try {
 				const res = await alertApi.getAlertRuleIntegrationsBatch(ids)
+				const nextIntegrations = { ...integrationsByRuleId.value }
+				const nextSummary = { ...summaryByRuleId.value }
 				for (const id of ids) {
-					setCacheForRule(id, res?.[id] ?? null)
+					const v = res?.[id] ?? null
+					nextIntegrations[id] = v
+					nextSummary[id] = summarize(v)
 				}
+				integrationsByRuleId.value = nextIntegrations
+				summaryByRuleId.value = nextSummary
 			} catch {
+				const nextIntegrations = { ...integrationsByRuleId.value }
+				const nextSummary = { ...summaryByRuleId.value }
 				for (const id of ids) {
-					setCacheForRule(id, null)
+					nextIntegrations[id] = null
+					nextSummary[id] = summarize(null)
 				}
+				integrationsByRuleId.value = nextIntegrations
+				summaryByRuleId.value = nextSummary
 			} finally {
 				flushPromise = null
 			}
@@ -69,7 +93,7 @@ export const useAlertRuleIntegrationsStore = () => {
 	const queue = (ruleId: number) => {
 		const id = Number(ruleId)
 		if (!Number.isFinite(id) || id <= 0) return
-		if (integrationsByRuleId.has(id)) return
+		if (Object.prototype.hasOwnProperty.call(integrationsByRuleId.value, id)) return
 
 		pendingRuleIds.add(id)
 		if (flushTimer) return
@@ -98,14 +122,14 @@ export const useAlertRuleIntegrationsStore = () => {
 
 	const getSummary = (ruleId: number): AlertRuleIntegrationSummary => {
 		const id = Number(ruleId)
-		const cached = summaryByRuleId.get(id)
+		const cached = summaryByRuleId.value[id]
 		if (cached) return cached
 		return { doEnabled: false, cameraEnabled: false, emailEnabled: false, hasAny: false }
 	}
 
 	const getCameraLinkage = (ruleId: number): CameraLinkageResult => {
 		const id = Number(ruleId)
-		const integrations = integrationsByRuleId.get(id)
+		const integrations = integrationsByRuleId.value[id]
 		const enabled = Boolean(integrations?.cameraLinkage?.enabled)
 		const rawIds = integrations?.cameraLinkage?.camera_device_ids
 		const idsFromArray = Array.isArray(rawIds)
@@ -117,7 +141,7 @@ export const useAlertRuleIntegrationsStore = () => {
 
 	const ensureCameraLinkage = async (ruleId: number): Promise<CameraLinkageResult> => {
 		const id = Number(ruleId)
-		if (!integrationsByRuleId.has(id)) {
+		if (!Object.prototype.hasOwnProperty.call(integrationsByRuleId.value, id)) {
 			await prefetch([id])
 		}
 		return getCameraLinkage(id)
@@ -125,16 +149,23 @@ export const useAlertRuleIntegrationsStore = () => {
 
 	const invalidate = (ruleIds?: number[] | number) => {
 		if (ruleIds == null) {
-			integrationsByRuleId.clear()
-			summaryByRuleId.clear()
 			pendingRuleIds.clear()
+			integrationsByRuleId.value = {}
+			summaryByRuleId.value = {}
 			return
 		}
 		const ids = Array.isArray(ruleIds) ? ruleIds : [ruleIds]
-		for (const id of normalizeRuleIds(ids)) {
-			integrationsByRuleId.delete(id)
-			summaryByRuleId.delete(id)
+		const normalized = normalizeRuleIds(ids)
+		if (normalized.length === 0) return
+
+		const nextIntegrations = { ...integrationsByRuleId.value }
+		const nextSummary = { ...summaryByRuleId.value }
+		for (const id of normalized) {
+			delete nextIntegrations[id]
+			delete nextSummary[id]
 		}
+		integrationsByRuleId.value = nextIntegrations
+		summaryByRuleId.value = nextSummary
 	}
 
 	return {
@@ -145,4 +176,3 @@ export const useAlertRuleIntegrationsStore = () => {
 		invalidate,
 	}
 }
-

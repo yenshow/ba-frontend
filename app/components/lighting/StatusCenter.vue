@@ -82,10 +82,8 @@
 									<label
 										class="relative inline-flex select-none items-center"
 										:class="{
-											'cursor-not-allowed':
-												isLocationDisabled(row.locationId) || !props.canToggle,
-											'cursor-pointer':
-												!isLocationDisabled(row.locationId) && props.canToggle,
+											'cursor-not-allowed': isLocationDisabled(row.locationId) || !props.canToggle,
+											'cursor-pointer': !isLocationDisabled(row.locationId) && props.canToggle,
 										}"
 									>
 										<input
@@ -100,9 +98,7 @@
 										<div
 											:class="[
 												'relative h-9 w-[5.125rem] shrink-0 overflow-hidden rounded-full border-2 border-white bg-white/15 transition-colors duration-200 peer-checked:bg-[#5eb8e8] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-white 2xl:h-10 2xl:w-24',
-												isLocationDisabled(row.locationId) || !props.canToggle
-													? 'opacity-50'
-													: '',
+												isLocationDisabled(row.locationId) || !props.canToggle ? 'opacity-50' : '',
 											]"
 										>
 											<span
@@ -156,6 +152,7 @@
 				</div>
 			</div>
 		</div>
+
 	</div>
 </template>
 

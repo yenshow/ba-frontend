@@ -265,6 +265,7 @@ import DrainageLocationManagement from "./LocationManagement/DrainageLocationMan
 import PowerLocationManagement from "./LocationManagement/PowerLocationManagement.vue"
 import EmergencyRescueLocationManagement from "./LocationManagement/EmergencyRescueLocationManagement.vue"
 import FireLocationManagement from "./LocationManagement/FireLocationManagement.vue"
+import SmokeAlarmLocationManagement from "./LocationManagement/SmokeAlarmLocationManagement.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
@@ -410,6 +411,7 @@ const locationManagementComponentMap: Partial<Record<SystemType, Component>> = {
 	power: PowerLocationManagement,
 	fire: FireLocationManagement,
 	emergency_rescue: EmergencyRescueLocationManagement,
+	smoke_alarm: SmokeAlarmLocationManagement,
 }
 
 const locationManagementComponent = computed(() => {
@@ -436,7 +438,8 @@ const loadDevices = async () => {
 			props.systemType === "drainage" ||
 			props.systemType === "power" ||
 			props.systemType === "fire" ||
-			props.systemType === "emergency_rescue"
+			props.systemType === "emergency_rescue" ||
+			props.systemType === "smoke_alarm"
 				? "controller"
 				: "sensor"
 		const result = await deviceApi.getDevices({
@@ -555,6 +558,7 @@ const getLocationLabel = (): string => {
 		power: "點位",
 		fire: "點位",
 		emergency_rescue: "點位",
+		smoke_alarm: "點位",
 		environment: "地點",
 		people_counting: "地點",
 		vehicle_access: "地點",
@@ -649,6 +653,7 @@ const addLocation = (zone: TZone, payload?: { viewCategory?: string }) => {
 	const newLocation = adapter.createNewLocation() as SystemLocationType
 	if (
 		(props.systemType === "drainage" ||
+			props.systemType === "air_circulation" ||
 			props.systemType === "power" ||
 			props.systemType === "fire") &&
 		payload &&
@@ -667,6 +672,7 @@ const handleDrainageRenameViewCategory = (
 ) => {
 	if (
 		props.systemType !== "drainage" &&
+		props.systemType !== "air_circulation" &&
 		props.systemType !== "power" &&
 		props.systemType !== "fire"
 	)
@@ -863,6 +869,7 @@ const handleReorderDrainageViewCategoryBlock = (
 ) => {
 	if (
 		props.systemType !== "drainage" &&
+		props.systemType !== "air_circulation" &&
 		props.systemType !== "power" &&
 		props.systemType !== "fire"
 	)

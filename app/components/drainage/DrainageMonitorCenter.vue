@@ -191,10 +191,20 @@
 				</div>
 			</div>
 		</div>
+
+		<ManualIssuePanel
+			v-if="manualIssueTargets.length > 0"
+			system-route-prefix="drainage"
+			:targets="manualIssueTargets"
+			:default-target-id="manualIssueDefaultTargetId"
+			:rule-trigger="ruleTrigger"
+			@changed="handleManualIssueChanged"
+		/>
 	</div>
 </template>
 
 <script setup lang="ts">
+import ManualIssuePanel from "~/components/common/ManualIssuePanel.vue"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import {
 	type DrainageZone,
@@ -215,6 +225,9 @@ const props = defineProps<{
 	selectedZone: string
 	/** 與地點 viewCategory 相同；不含「全部」 */
 	viewFilterOptions: DrainageViewFilterOption[]
+	manualIssueTargets?: Array<{ id: string; label: string }>
+	manualIssueDefaultTargetId?: string
+	ruleTrigger?: { alert_type: "di" | "do"; bit_key: string } | null
 }>()
 
 const DRAINAGE_ICONS = {
@@ -227,10 +240,19 @@ const DRAINAGE_ICONS = {
 
 const emit = defineEmits<{
 	zoneSelected: [zoneId: string]
+	manualIssueChanged: []
 }>()
 
 const handleZoneClick = (zoneId: string) => {
 	emit("zoneSelected", zoneId)
+}
+
+const manualIssueTargets = computed(() => props.manualIssueTargets ?? [])
+const manualIssueDefaultTargetId = computed(() => props.manualIssueDefaultTargetId ?? "")
+const ruleTrigger = computed(() => props.ruleTrigger ?? null)
+
+const handleManualIssueChanged = () => {
+	emit("manualIssueChanged")
 }
 
 const itemBySystemId = computed(() => {
@@ -274,7 +296,7 @@ const getItemForLocation = (loc: DrainageLocation): DrainageStatusItem | null =>
 const pumpUiStatus = (loc: DrainageLocation): DrainageStatusItem["uiStatus"] =>
 	deriveDrainagePumpUiStatus(getItemForLocation(loc))
 
-const statusLabel = (s: DrainageStatusItem["uiStatus"]) => {
+const statusLabel = (s: string) => {
 	if (s === "normal") return "正常"
 	if (s === "warning" || s === "offline" || s === "unknown") return "異常"
 	if (s === "alarm") return "警報"
@@ -282,7 +304,7 @@ const statusLabel = (s: DrainageStatusItem["uiStatus"]) => {
 }
 
 /** 監控中心狀態點：正常(綠)／異常(黃)／警報(紅)；離線、未知歸在異常層 */
-const statusDotClass = (s: DrainageStatusItem["uiStatus"]) => {
+const statusDotClass = (s: string) => {
 	if (s === "normal") return "bg-emerald-400"
 	if (s === "warning" || s === "offline" || s === "unknown") return "bg-amber-400"
 	if (s === "alarm") return "bg-rose-500"

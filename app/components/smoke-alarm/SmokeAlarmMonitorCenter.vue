@@ -27,7 +27,7 @@
 						]"
 						:aria-label="
 							zoneHasAlarm(zone)
-								? `${zone.name}，此樓層有求救或警報`
+								? `${zone.name}，此樓層有警報`
 								: zoneHasAbnormal(zone)
 									? `${zone.name}，此樓層有異常`
 									: `${zone.name}，選取此樓層`
@@ -64,12 +64,10 @@
 					>
 						<div class="flex min-w-0 items-center gap-3 py-2">
 							<div class="shrink-0">
-								<NuxtImg
-									src="/emergency/sos.png"
-									alt="SOS"
-									class="h-16 w-16 2xl:h-24 2xl:w-24"
-									width="96"
-									height="96"
+								<SmokeIcon
+									:aria-label="`${row.loc.name} 煙霧警報設備圖示`"
+									root-class="h-16 w-16 text-white 2xl:h-24 2xl:w-24"
+									:animate="rowUiStatus(row.loc) === 'alarm'"
 								/>
 							</div>
 							<div class="flex min-w-0 flex-1 flex-col justify-center gap-2">
@@ -77,7 +75,7 @@
 									{{ row.loc.name }}
 								</h4>
 								<div
-									class="flex items-center justify-center gap-2 rounded-full border border-white bg-white/10 mx-1 py-2"
+									class="mx-1 flex items-center justify-center gap-2 rounded-full border border-white bg-white/10 py-2"
 								>
 									<span
 										class="h-4 w-4 shrink-0 rounded-full border border-white 2xl:h-5 2xl:w-5"
@@ -97,7 +95,7 @@
 
 		<ManualIssuePanel
 			v-if="manualIssueTargets.length > 0"
-			system-route-prefix="emergency-rescue"
+			system-route-prefix="smoke-alarm"
 			:targets="manualIssueTargets"
 			:default-target-id="manualIssueDefaultTargetId"
 			:rule-trigger="ruleTrigger"
@@ -108,17 +106,14 @@
 
 <script setup lang="ts">
 import ManualIssuePanel from "~/components/common/ManualIssuePanel.vue"
-import type {
-	EmergencyRescueZone,
-	EmergencyRescueLocation,
-	EmergencyRescueStatusItem,
-} from "~/types/emergency-rescue"
-import { deriveEmergencyRescueUiStatus } from "~/types/emergency-rescue"
+import type { SmokeAlarmZone, SmokeAlarmLocation, SmokeAlarmStatusItem } from "~/types/smoke-alarm"
+import { deriveSmokeAlarmUiStatus } from "~/types/smoke-alarm"
 import { compareZonesLoose } from "~/utils/sortOrder"
+import SmokeIcon from "~/components/smoke-alarm/SmokeIcon.vue"
 
 const props = defineProps<{
-	zones: EmergencyRescueZone[]
-	statusItems: EmergencyRescueStatusItem[]
+	zones: SmokeAlarmZone[]
+	statusItems: SmokeAlarmStatusItem[]
 	selectedZone: string
 	manualIssueTargets?: Array<{ id: string; label: string }>
 	manualIssueDefaultTargetId?: string
@@ -140,21 +135,19 @@ const ruleTrigger = computed(() => props.ruleTrigger ?? null)
 const handleManualIssueChanged = () => emit("manualIssueChanged")
 
 const itemBySystemId = computed(() => {
-	const m = new Map<string, EmergencyRescueStatusItem>()
+	const m = new Map<string, SmokeAlarmStatusItem>()
 	for (const it of props.statusItems) {
 		m.set(String(it.systemId), it)
 	}
 	return m
 })
 
-const rowKey = (zone: EmergencyRescueZone, loc: EmergencyRescueLocation, index: number): string =>
+const rowKey = (zone: SmokeAlarmZone, loc: SmokeAlarmLocation, index: number): string =>
 	loc.id || `location-${zone.id || zone.name}-${index}`
 
-const locationsForZone = (
-	zone: EmergencyRescueZone
-): { loc: EmergencyRescueLocation; rowKey: string }[] => {
+const locationsForZone = (zone: SmokeAlarmZone): { loc: SmokeAlarmLocation; rowKey: string }[] => {
 	const list = zone.locations || []
-	const out: { loc: EmergencyRescueLocation; rowKey: string }[] = []
+	const out: { loc: SmokeAlarmLocation; rowKey: string }[] = []
 	list.forEach((loc, index) => {
 		out.push({ loc, rowKey: rowKey(zone, loc, index) })
 	})
@@ -167,35 +160,37 @@ const displayedZones = computed(() => {
 	return sorted.filter((zone) => locationsForZone(zone).length > 0)
 })
 
-const getItemForLocation = (loc: EmergencyRescueLocation): EmergencyRescueStatusItem | null => {
+const getItemForLocation = (loc: SmokeAlarmLocation): SmokeAlarmStatusItem | null => {
 	if (!loc.systemId) return null
 	return itemBySystemId.value.get(String(loc.systemId)) ?? null
 }
 
-const rowUiStatus = (loc: EmergencyRescueLocation): EmergencyRescueStatusItem["uiStatus"] =>
-	deriveEmergencyRescueUiStatus(getItemForLocation(loc))
+const rowUiStatus = (loc: SmokeAlarmLocation): SmokeAlarmStatusItem["uiStatus"] =>
+	deriveSmokeAlarmUiStatus(getItemForLocation(loc))
 
-const statusLabel = (s: EmergencyRescueStatusItem["uiStatus"]) => {
+const statusLabel = (s: SmokeAlarmStatusItem["uiStatus"]) => {
 	if (s === "normal") return "正常"
 	if (s === "alarm") return "警報"
+	if (s === "warning") return "異常"
 	return "異常"
 }
 
-const statusDotClass = (s: EmergencyRescueStatusItem["uiStatus"]) => {
+const statusDotClass = (s: SmokeAlarmStatusItem["uiStatus"]) => {
 	if (s === "normal") return "bg-emerald-400"
 	if (s === "alarm") return "bg-rose-500"
+	if (s === "warning") return "bg-amber-400"
 	return "bg-amber-400"
 }
 
 type RowFlash = "none" | "slow" | "alarm-fast"
 
-const flashFromUi = (s: EmergencyRescueStatusItem["uiStatus"]): RowFlash => {
+const flashFromUi = (s: SmokeAlarmStatusItem["uiStatus"]): RowFlash => {
 	if (s === "normal") return "none"
 	if (s === "alarm") return "alarm-fast"
 	return "slow"
 }
 
-const rowFlashMode = (_zone: EmergencyRescueZone, loc: EmergencyRescueLocation): RowFlash =>
+const rowFlashMode = (_zone: SmokeAlarmZone, loc: SmokeAlarmLocation): RowFlash =>
 	flashFromUi(rowUiStatus(loc))
 
 const flashModeToClass = (mode: RowFlash): string => {
@@ -204,27 +199,24 @@ const flashModeToClass = (mode: RowFlash): string => {
 	return ""
 }
 
-const zoneHasAbnormal = (zone: EmergencyRescueZone): boolean =>
+const zoneHasAbnormal = (zone: SmokeAlarmZone): boolean =>
 	locationsForZone(zone).some(({ loc }) => rowFlashMode(zone, loc) !== "none")
 
-const zoneHasAlarm = (zone: EmergencyRescueZone): boolean =>
+const zoneHasAlarm = (zone: SmokeAlarmZone): boolean =>
 	locationsForZone(zone).some(({ loc }) => rowUiStatus(loc) === "alarm")
 
-const getZoneAlertBlinkClass = (zone: EmergencyRescueZone): string => {
+const getZoneAlertBlinkClass = (zone: SmokeAlarmZone): string => {
 	const modes = locationsForZone(zone).map(({ loc }) => rowFlashMode(zone, loc))
 	if (modes.includes("alarm-fast")) return "blink-alarm-fast"
 	if (modes.includes("slow")) return "blink-slow"
 	return ""
 }
 
-const locationRowFlashClass = (zone: EmergencyRescueZone, loc: EmergencyRescueLocation): string =>
+const locationRowFlashClass = (zone: SmokeAlarmZone, loc: SmokeAlarmLocation): string =>
 	flashModeToClass(rowFlashMode(zone, loc))
 
-const locationRowBackgroundClass = (
-	zone: EmergencyRescueZone,
-	loc: EmergencyRescueLocation
-): string => {
-	const mode = rowFlashMode(zone, loc)
+const locationRowBackgroundClass = (_zone: SmokeAlarmZone, loc: SmokeAlarmLocation): string => {
+	const mode = rowFlashMode(_zone, loc)
 	if (mode === "alarm-fast") return "bg-[#FF0000]/60"
 	if (mode === "slow") return "bg-[#FFC801]/60"
 	return "bg-white/10"

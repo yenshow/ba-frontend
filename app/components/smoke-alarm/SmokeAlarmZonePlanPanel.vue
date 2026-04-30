@@ -30,9 +30,7 @@
 								type="button"
 								:class="[
 									'whitespace-nowrap rounded-2xl p-3 text-base font-light text-white transition-all 2xl:text-lg',
-									isEditMode
-										? 'border-2 border-white bg-white/10'
-										: 'border-2 border-white/30 bg-transparent',
+									isEditMode ? 'border-2 border-white bg-white/10' : 'border-2 border-white/30 bg-transparent',
 								]"
 								@click="emit('toggle-edit-mode')"
 							>
@@ -75,10 +73,7 @@
 					<span>尚未設定區域平面圖</span>
 				</div>
 
-				<template
-					v-for="location in filteredZoneLocations"
-					:key="getLocationIdForDisplay(location)"
-				>
+				<template v-for="location in filteredZoneLocations" :key="getLocationIdForDisplay(location)">
 					<div
 						v-if="selectedZoneData && location.location"
 						class="category-dot-wrapper"
@@ -122,7 +117,7 @@
 import { nextTick, onBeforeUnmount, onMounted, watch } from "vue"
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
 import CategoryList from "~/components/common/CategoryList.vue"
-import type { DrainageLocation, DrainageZone } from "~/types/drainage"
+import type { SmokeAlarmLocation, SmokeAlarmZone } from "~/types/smoke-alarm"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 
 interface Props {
@@ -131,14 +126,13 @@ interface Props {
 	isOperator: boolean
 	isEditMode: boolean
 	selectedZone: string
-	selectedZoneData: DrainageZone | undefined
+	selectedZoneData: SmokeAlarmZone | undefined
 	selectedCategory: string
-	filteredZoneLocations: DrainageLocation[]
+	filteredZoneLocations: SmokeAlarmLocation[]
 	zonePlanImage: string | undefined
-	dotStatusForLocation: (loc: DrainageLocation) => "normal" | "abnormal" | "alarm"
-	/** 與監控中心一致：正常不閃，其餘慢閃 */
-	getLocationAlertFlash?: (loc: DrainageLocation) => "none" | "slow" | "fast"
-	tooltipTitle: (loc: DrainageLocation) => string
+	dotStatusForLocation: (loc: SmokeAlarmLocation) => "normal" | "abnormal" | "alarm"
+	getLocationAlertFlash?: (loc: SmokeAlarmLocation) => "none" | "slow" | "fast"
+	tooltipTitle: (loc: SmokeAlarmLocation) => string
 }
 
 const props = defineProps<Props>()
@@ -148,7 +142,7 @@ const emit = defineEmits<{
 	"toggle-edit-mode": []
 	"select-category": [locationId: string]
 	"save-location-position": [payload: { locationId: string; x: number; y: number }]
-	"select-location-by-location": [location: DrainageLocation]
+	"select-location-by-location": [location: SmokeAlarmLocation]
 	"section-height": [height: number]
 }>()
 
@@ -170,32 +164,31 @@ const initSectionObserver = () => {
 	sectionResizeObserver.observe(sectionRef.value)
 }
 
-const findLocationOriginalIndex = (zone: DrainageZone, target: DrainageLocation) => {
-	return findLocationIndexInZone(zone, target)
+const findLocationOriginalIndex = (zone: SmokeAlarmZone, target: SmokeAlarmLocation) => {
+	return findLocationIndexInZone(zone as any, target as any)
 }
 
-const getLocationIdForDisplay = (location: DrainageLocation): string => {
+const getLocationIdForDisplay = (location: SmokeAlarmLocation): string => {
 	const zone = props.selectedZoneData
 	if (!zone) return ""
 	const idx = findLocationOriginalIndex(zone, location)
-	return idx !== -1 ? getLocationUiKey({ zone, location, locationIndex: idx }) : ""
+	return idx !== -1 ? getLocationUiKey({ zone: zone as any, location: location as any, locationIndex: idx }) : ""
 }
 
-const getLocationAlertFlashClass = (location: DrainageLocation): string => {
+const getLocationAlertFlashClass = (location: SmokeAlarmLocation): string => {
 	const mode = props.getLocationAlertFlash?.(location) ?? "none"
 	if (mode === "fast") return "blink-alarm-fast"
 	if (mode === "slow") return "blink-slow"
 	return ""
 }
 
-const getTooltipStatusType = (location: DrainageLocation): "normal" | "abnormal" | "alarm" => {
+const getTooltipStatusType = (location: SmokeAlarmLocation): "normal" | "abnormal" | "alarm" => {
 	const dotStatus = props.dotStatusForLocation(location)
 	if (dotStatus === "alarm") return "alarm"
 	if (dotStatus === "abnormal") return "abnormal"
 	return "normal"
 }
 
-/** 與平面圖點位一致：僅目前檢視分類，且 id 使用 zone.locations 原始索引 */
 const editModeCategoryListItems = computed(() => {
 	const zone = props.selectedZoneData
 	if (!zone) return []
@@ -204,7 +197,7 @@ const editModeCategoryListItems = computed(() => {
 			const idx = findLocationOriginalIndex(zone, location)
 			if (idx === -1) return null
 			return {
-				id: getLocationUiKey({ zone, location, locationIndex: idx }),
+				id: getLocationUiKey({ zone: zone as any, location: location as any, locationIndex: idx }),
 				name: location.name,
 				zoneId: props.selectedZone || "",
 				location: location.location,
@@ -218,13 +211,13 @@ const handleSelectCategory = (locationId: string) => {
 	emit("select-category", locationId)
 }
 
-const handleDotDragStart = (
-	event: DragEvent,
-	location: DrainageLocation,
-	locationIndex: number
-) => {
+const handleDotDragStart = (event: DragEvent, location: SmokeAlarmLocation, locationIndex: number) => {
 	if (!props.isEditMode || !props.selectedZoneData) return
-	const locationId = getLocationUiKey({ zone: props.selectedZoneData, location, locationIndex })
+	const locationId = getLocationUiKey({
+		zone: props.selectedZoneData as any,
+		location: location as any,
+		locationIndex,
+	})
 	startDrag(event, locationId)
 }
 
@@ -276,3 +269,4 @@ onBeforeUnmount(() => {
 	}
 })
 </script>
+

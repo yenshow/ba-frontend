@@ -10,7 +10,7 @@
 				:selected-zone-data="selectedZoneData"
 				:selected-category="selectedCategory"
 				:all-zone-locations="allZoneLocations"
-				:current-zone-locations="currentZoneLocations"
+				:current-zone-locations="filteredZoneLocations"
 				:zone-plan-image="zonePlanImage"
 				:dot-status-for-location-id="dotStatusForLocationId"
 				:tooltip-title-by-location-id="tooltipTitleByLocationId"
@@ -28,10 +28,16 @@
 				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
 			>
 				<AirCirculationMonitorCenter
+					v-model:view-filter="selectedViewCategory"
 					:zones="airCirculationZones"
 					:status-items="statusItems"
 					:selected-zone="selectedZone"
+					:view-filter-options="viewFilterOptions"
+					:manual-issue-targets="manualIssueTargets"
+					:manual-issue-default-target-id="manualIssueDefaultTargetId"
+					:rule-trigger="{ alert_type: 'di', bit_key: 'di:0' }"
 					@zone-selected="handleZoneSelected"
+					@manual-issue-changed="handleManualIssueChanged"
 				/>
 			</aside>
 		</div>
@@ -53,7 +59,13 @@ import { onMounted, onBeforeUnmount, watch } from "vue"
 import AirCirculationZonePlanPanel from "~/components/air-circulation/AirCirculationZonePlanPanel.vue"
 import AirCirculationMonitorCenter from "~/components/air-circulation/AirCirculationMonitorCenter.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
-import type { AirCirculationZone, AirCirculationLocation } from "~/types/air-circulation"
+import {
+	type AirCirculationZone,
+	type AirCirculationLocation,
+	buildAirCirculationMonitorViewFilterOptions,
+	airCirculationLocationInViewCategory,
+	DEFAULT_AIR_CIRCULATION_MONITOR_VIEW_CATEGORY,
+} from "~/types/air-circulation"
 import { useAirCirculationApi } from "~/composables/systems/air-circulation/useAirCirculationApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
@@ -64,7 +76,7 @@ import { useAirCirculationModbusIntegration } from "~/composables/systems/air-ci
 
 definePageMeta({ layout: "default" })
 
-const { isOperator } = useAuth()
+const { isOperator, isAdmin } = useAuth()
 const airApi = useAirCirculationApi()
 const { handleError } = useErrorHandler()
 
@@ -95,20 +107,64 @@ const statusItems = ref<
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone, sortZones } =
 	useZoneManagement<AirCirculationLocation, AirCirculationZone>()
 
+const selectedViewCategory = ref<string>(DEFAULT_AIR_CIRCULATION_MONITOR_VIEW_CATEGORY)
+
+const viewFilterOptions = computed(() =>
+	buildAirCirculationMonitorViewFilterOptions(airCirculationZones.value)
+)
+
+watch(
+	viewFilterOptions,
+	(opts) => {
+		const ids = new Set(opts.map((o) => o.value))
+		if (ids.has(selectedViewCategory.value)) return
+		if (ids.has(DEFAULT_AIR_CIRCULATION_MONITOR_VIEW_CATEGORY)) {
+			selectedViewCategory.value = DEFAULT_AIR_CIRCULATION_MONITOR_VIEW_CATEGORY
+		} else if (opts.length > 0) {
+			selectedViewCategory.value = opts[0].value
+		}
+	},
+	{ immediate: true }
+)
+
 const zonesById = computed(() => new Map(airCirculationZones.value.map((z) => [z.id || z.name, z])))
 const selectedZoneName = computed(() => zonesById.value.get(selectedZone.value)?.name || "")
 const selectedZoneData = computed(() => zonesById.value.get(selectedZone.value))
 const zonePlanImage = computed(() => selectedZoneData.value?.imageUrl)
 
-const currentZoneLocations = computed(() => {
-	if (!selectedZone.value) return []
-	const zone = selectedZoneData.value
-	return (zone?.locations || []).filter((loc) => isValidPercentPosition(loc.location))
+const manualIssueTargets = computed(() => {
+	if (!isAdmin.value) return []
+	const out: Array<{ id: string; label: string }> = []
+	for (const zone of airCirculationZones.value) {
+		for (const loc of zone.locations || []) {
+			if (!loc.systemId) continue
+			out.push({
+				id: String(loc.systemId),
+				label: `${zone.name} / ${loc.name}（${String(loc.systemId)}）`,
+			})
+		}
+	}
+	return out
+})
+
+const manualIssueDefaultTargetId = computed(() => {
+	const first = manualIssueTargets.value[0]
+	return first?.id || ""
 })
 
 const allZoneLocations = computed(() => {
 	if (!selectedZone.value) return []
 	return selectedZoneData.value?.locations || []
+})
+
+const filteredZoneLocations = computed(() => {
+	if (!selectedZone.value) return []
+	const zone = selectedZoneData.value
+	return (zone?.locations || []).filter(
+		(loc) =>
+			isValidPercentPosition(loc.location) &&
+			airCirculationLocationInViewCategory(loc, selectedViewCategory.value)
+	)
 })
 
 const statusBySystemId = computed(() => {
@@ -139,7 +195,7 @@ const dotStatusForLocation = (loc: AirCirculationLocation): "normal" | "abnormal
 const getLocationAlertFlash = (locationId: string): "none" | "slow" | "fast" => {
 	const found = findLocationInCurrentZoneByUiKey(locationId)
 	const s = found?.location ? uiStatusForLocation(found.location) : "unknown"
-	if (s === "normal" || s === "unknown") return "none"
+	if (s === "normal") return "none"
 	if (s === "alarm") return "fast"
 	return "slow"
 }
@@ -154,8 +210,7 @@ const tooltipTitleByLocationId = (locationId: string) => {
 	const found = findLocationInCurrentZoneByUiKey(locationId)
 	const name = found?.location?.name || ""
 	const s = found?.location ? uiStatusForLocation(found.location) : "unknown"
-	const label =
-		s === "normal" ? "正常" : s === "warning" ? "異常" : s === "alarm" ? "警報" : s === "offline" ? "離線" : "未知"
+	const label = s === "normal" ? "正常" : s === "alarm" ? "警報" : "異常"
 	return `${name}：${label}`
 }
 
@@ -229,6 +284,10 @@ const loadZonesFromAPI = async () => {
 const { statusItems: computedStatusItems, preloadDeviceInfos, loadStatusSnapshot, startAutoRefresh, stopAutoRefresh, handleVisibilityChange } =
 	useAirCirculationModbusIntegration(airCirculationZones)
 
+const handleManualIssueChanged = () => {
+	void loadStatusSnapshot()
+}
+
 watch(
 	computedStatusItems,
 	(next) => {
@@ -284,21 +343,21 @@ const handleToggleEditMode = () => {
 }
 
 watch(
-	() => currentZoneLocations.value,
-	(newLocations) => {
+	[airCirculationZones, selectedZone, selectedViewCategory],
+	() => {
+		const visible = filteredZoneLocations.value
+		if (visible.length === 0) {
+			selectedCategory.value = ""
+			return
+		}
 		const zone = selectedZoneData.value
 		if (!zone) return
-		const currentLocationExists = newLocations.some(
-			(loc, i) => getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i }) === selectedCategory.value
-		)
-		if (currentLocationExists) return
-		if (newLocations.length > 0) {
-			const first = newLocations[0]!
-			const idx = findLocationIndexInZone(zone as any, first as any)
-			selectedCategory.value = idx !== -1 ? getLocationUiKey({ zone: zone as any, location: first as any, locationIndex: idx }) : ""
-		} else {
-			selectedCategory.value = ""
-		}
+		const exists = visible.some((loc) => getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: findLocationIndexInZone(zone as any, loc as any) }) === selectedCategory.value)
+		if (exists) return
+		const first = visible[0]!
+		const idx = findLocationIndexInZone(zone as any, first as any)
+		selectedCategory.value =
+			idx !== -1 ? getLocationUiKey({ zone: zone as any, location: first as any, locationIndex: idx }) : ""
 	},
 	{ immediate: true }
 )

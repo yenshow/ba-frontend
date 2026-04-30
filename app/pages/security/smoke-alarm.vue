@@ -1,7 +1,7 @@
 <template>
 	<div>
 		<div class="flex justify-center gap-6 2xl:gap-8">
-			<FireZonePlanPanel
+			<SmokeAlarmZonePlanPanel
 				:selected-zone-name="selectedZoneName"
 				:is-initial-loading="isInitialLoading"
 				:is-operator="isOperator"
@@ -26,12 +26,10 @@
 				class="show-scrollbar flex-[0.8] overflow-y-auto 2xl:flex-[0.7]"
 				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
 			>
-				<FireMonitorCenter
-					v-model:view-filter="selectedViewCategory"
-					:zones="fireZones"
+				<SmokeAlarmMonitorCenter
+					:zones="smokeZones"
 					:status-items="statusItems"
 					:selected-zone="selectedZone"
-					:view-filter-options="viewFilterOptions"
 					:manual-issue-targets="manualIssueTargets"
 					:manual-issue-default-target-id="manualIssueDefaultTargetId"
 					:rule-trigger="{ alert_type: 'di', bit_key: 'di:0' }"
@@ -44,8 +42,8 @@
 
 	<ZoneManagementDialog
 		v-model="showZoneManagementDialog"
-		:zones="fireZones"
-		system-type="fire"
+		:zones="smokeZones"
+		system-type="smoke_alarm"
 		:require-image-url="true"
 		device-hint="請先在「設備管理」中建立控制器設備"
 		@save="handleSaveZone"
@@ -54,74 +52,46 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, watch } from "vue"
-import FireMonitorCenter from "~/components/fire/FireMonitorCenter.vue"
-import FireZonePlanPanel from "~/components/fire/FireZonePlanPanel.vue"
+import { onMounted, onBeforeUnmount, watch, type Ref } from "vue"
+import SmokeAlarmMonitorCenter from "~/components/smoke-alarm/SmokeAlarmMonitorCenter.vue"
+import SmokeAlarmZonePlanPanel from "~/components/smoke-alarm/SmokeAlarmZonePlanPanel.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
-import {
-	type FireZone,
-	type FireLocation,
-	type FireStatusItem,
-	buildFireMonitorViewFilterOptions,
-	fireLocationInViewCategory,
-	DEFAULT_FIRE_MONITOR_VIEW_CATEGORY,
-	deriveFirePumpUiStatus,
-	deriveFireTankOverallUiStatus,
-} from "~/types/fire"
-import { useFireApi } from "~/composables/systems/fire/useFireApi"
+import type { SmokeAlarmZone, SmokeAlarmLocation, SmokeAlarmStatusItem } from "~/types/smoke-alarm"
+import { deriveSmokeAlarmUiStatus } from "~/types/smoke-alarm"
+import { useSmokeAlarmApi } from "~/composables/systems/smoke-alarm/useSmokeAlarmApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import { useAuth } from "~/composables/core/useAuth"
 import { getLocationUiKey, findLocationIndexInZone } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
-import { useFireModbusIntegration } from "~/composables/systems/fire/useFireModbusIntegration"
+import { useSmokeAlarmModbusIntegration } from "~/composables/systems/smoke-alarm/useSmokeAlarmModbusIntegration"
 
 definePageMeta({
 	layout: "default",
 })
 
 const { isOperator, isAdmin } = useAuth()
-const fireApi = useFireApi()
+const smokeApi = useSmokeAlarmApi()
 const { handleError } = useErrorHandler()
 
 const leftSectionHeight = ref<number | null>(null)
 
-const fireZones = ref<FireZone[]>([])
+const smokeZones = ref<SmokeAlarmZone[]>([])
 const isLoadingZones = ref(false)
 const isInitialLoading = ref(true)
 const selectedZone = ref("")
 const selectedCategory = ref("")
 const isEditMode = ref(false)
 const showZoneManagementDialog = ref(false)
-const statusItems = ref<FireStatusItem[]>([])
-
-const selectedViewCategory = ref<string>(DEFAULT_FIRE_MONITOR_VIEW_CATEGORY)
+const statusItems = ref<SmokeAlarmStatusItem[]>([])
 
 const {
 	handleSaveZone: baseHandleSaveZone,
 	handleDeleteZone: baseHandleDeleteZone,
 	sortZones,
-} = useZoneManagement<FireLocation, FireZone>()
+} = useZoneManagement<SmokeAlarmLocation, SmokeAlarmZone>()
 
-const viewFilterOptions = computed(() => buildFireMonitorViewFilterOptions(fireZones.value))
-
-watch(
-	viewFilterOptions,
-	(opts) => {
-		const ids = new Set(opts.map((o) => o.value))
-		if (ids.has(selectedViewCategory.value)) return
-		if (ids.has(DEFAULT_FIRE_MONITOR_VIEW_CATEGORY)) {
-			selectedViewCategory.value = DEFAULT_FIRE_MONITOR_VIEW_CATEGORY
-		} else if (opts.length > 0) {
-			selectedViewCategory.value = opts[0].value
-		}
-	},
-	{ immediate: true }
-)
-
-const zonesById = computed(() => {
-	return new Map(fireZones.value.map((z) => [z.id || z.name, z]))
-})
+const zonesById = computed(() => new Map(smokeZones.value.map((z) => [z.id || z.name, z])))
 
 const selectedZoneName = computed(() => zonesById.value.get(selectedZone.value)?.name || "")
 const selectedZoneData = computed(() => zonesById.value.get(selectedZone.value))
@@ -130,7 +100,7 @@ const zonePlanImage = computed(() => selectedZoneData.value?.imageUrl)
 const manualIssueTargets = computed(() => {
 	if (!isAdmin.value) return []
 	const out: Array<{ id: string; label: string }> = []
-	for (const zone of fireZones.value) {
+	for (const zone of smokeZones.value) {
 		for (const loc of zone.locations || []) {
 			if (!loc.systemId) continue
 			out.push({
@@ -150,61 +120,38 @@ const manualIssueDefaultTargetId = computed(() => {
 const filteredZoneLocations = computed(() => {
 	if (!selectedZone.value) return []
 	const zone = selectedZoneData.value
-	return (zone?.locations || []).filter(
-		(loc) =>
-			isValidPercentPosition(loc.location) &&
-			fireLocationInViewCategory(loc, selectedViewCategory.value)
-	)
+	return (zone?.locations || []).filter((loc) => isValidPercentPosition(loc.location))
 })
 
 const statusBySystemId = computed(() => {
-	const m = new Map<string, FireStatusItem>()
-	for (const it of statusItems.value) {
-		m.set(String(it.systemId), it)
-	}
+	const m = new Map<string, SmokeAlarmStatusItem>()
+	for (const it of statusItems.value) m.set(String(it.systemId), it)
 	return m
 })
 
-const pumpUiStatusForLocation = (loc: FireLocation): FireStatusItem["uiStatus"] => {
+const uiStatusForLocation = (loc: SmokeAlarmLocation): SmokeAlarmStatusItem["uiStatus"] => {
 	if (!loc.systemId) return "warning"
-	return deriveFirePumpUiStatus(statusBySystemId.value.get(String(loc.systemId)) ?? null)
+	return deriveSmokeAlarmUiStatus(statusBySystemId.value.get(String(loc.systemId)) ?? null)
 }
 
-const tankUiStatusForLocation = (loc: FireLocation): FireStatusItem["uiStatus"] => {
-	if (!loc.systemId) return "warning"
-	return deriveFireTankOverallUiStatus(statusBySystemId.value.get(String(loc.systemId)) ?? null)
-}
-
-const uiStatusForLocation = (loc: FireLocation): FireStatusItem["uiStatus"] => {
-	const kind = loc.equipmentKind || "pump"
-	if (kind === "pump") return pumpUiStatusForLocation(loc)
-	return tankUiStatusForLocation(loc)
-}
-
-const dotStatusForLocation = (loc: FireLocation): "normal" | "abnormal" | "alarm" => {
+const dotStatusForLocation = (loc: SmokeAlarmLocation): "normal" | "abnormal" | "alarm" => {
 	const s = uiStatusForLocation(loc)
 	if (s === "normal") return "normal"
 	if (s === "warning") return "abnormal"
 	return "alarm"
 }
 
-const getLocationAlertFlash = (loc: FireLocation): "none" | "slow" | "fast" => {
+const getLocationAlertFlash = (loc: SmokeAlarmLocation): "none" | "slow" | "fast" => {
 	const s = uiStatusForLocation(loc)
 	if (s === "normal") return "none"
 	if (s === "alarm") return "fast"
 	return "slow"
 }
 
-const tooltipTitle = (loc: FireLocation) => {
+const tooltipTitle = (loc: SmokeAlarmLocation) => {
 	const s = uiStatusForLocation(loc)
 	const label =
-		s === "normal"
-			? "正常"
-			: s === "warning"
-				? "異常"
-				: s === "alarm"
-					? "警報"
-					: "異常"
+		s === "normal" ? "正常" : s === "warning" ? "異常" : "警報"
 	return `${loc.name}：${label}`
 }
 
@@ -213,65 +160,54 @@ const handleZoneSelected = (zoneId: string) => {
 	selectedCategory.value = ""
 }
 
-const findLocationOriginalIndex = (zone: FireZone, target: FireLocation) => {
-	return findLocationIndexInZone(zone, target)
+const findLocationOriginalIndex = (zone: SmokeAlarmZone, target: SmokeAlarmLocation) => {
+	return findLocationIndexInZone(zone as any, target as any)
 }
 
-const getLocationIdForDisplay = (location: FireLocation): string => {
+const getLocationIdForDisplay = (location: SmokeAlarmLocation): string => {
 	const zone = selectedZoneData.value
 	if (!zone) return ""
 	const idx = findLocationOriginalIndex(zone, location)
-	return idx !== -1 ? getLocationUiKey({ zone, location, locationIndex: idx }) : ""
+	return idx !== -1 ? getLocationUiKey({ zone: zone as any, location: location as any, locationIndex: idx }) : ""
 }
 
-const selectLocationByLocation = (location: FireLocation) => {
+const selectLocationByLocation = (location: SmokeAlarmLocation) => {
 	const zone = selectedZoneData.value
 	if (!zone) return
 	const idx = findLocationOriginalIndex(zone, location)
-	if (idx !== -1) {
-		selectedCategory.value = getLocationUiKey({ zone, location, locationIndex: idx })
-	}
+	if (idx !== -1) selectedCategory.value = getLocationUiKey({ zone: zone as any, location: location as any, locationIndex: idx })
 }
 
 const handleSelectCategory = (locationId: string) => {
 	selectedCategory.value = locationId
 }
 
-const findLocationById = (
-	locationId: string
-): { zone: FireZone; locationIndex: number } | null => {
-	for (const zone of fireZones.value) {
+const findLocationById = (locationId: string): { zone: SmokeAlarmZone; locationIndex: number } | null => {
+	for (const zone of smokeZones.value) {
 		const idx = zone.locations.findIndex(
-			(loc, i) => getLocationUiKey({ zone, location: loc, locationIndex: i }) === locationId
+			(loc, i) => getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i }) === locationId
 		)
 		if (idx !== -1) return { zone, locationIndex: idx }
 	}
 	return null
 }
 
-const handleSaveLocationPositionFromPanel = async (payload: {
-	locationId: string
-	x: number
-	y: number
-}) => {
+const handleSaveLocationPositionFromPanel = async (payload: { locationId: string; x: number; y: number }) => {
 	if (!isEditMode.value) return
-	const locationId = payload.locationId
-	const found = findLocationById(locationId)
+	const found = findLocationById(payload.locationId)
 	if (!found) return
-	const { zone: targetZone, locationIndex: targetLocationIndex } = found
+	const { zone: targetZone, locationIndex } = found
 	const updatedLocations = targetZone.locations.map((location, index) =>
-		index === targetLocationIndex
-			? { ...location, location: { x: payload.x, y: payload.y } }
-			: location
+		index === locationIndex ? { ...location, location: { x: payload.x, y: payload.y } } : location
 	)
 	try {
-		const result = await fireApi.updateZone(targetZone.id!, {
+		const result = await smokeApi.updateZone(targetZone.id!, {
 			name: targetZone.name,
 			imageUrl: targetZone.imageUrl,
 			locations: updatedLocations,
 		})
-		const zi = fireZones.value.findIndex((z) => z.id === targetZone.id)
-		if (zi > -1) fireZones.value[zi] = result.zone
+		const zi = smokeZones.value.findIndex((z) => z.id === targetZone.id)
+		if (zi > -1) smokeZones.value[zi] = result.zone
 	} catch (error) {
 		handleError(error, "更新位置失敗")
 	}
@@ -281,10 +217,10 @@ const loadZonesFromAPI = async () => {
 	if (isLoadingZones.value) return
 	isLoadingZones.value = true
 	try {
-		const result = await fireApi.getZones()
-		fireZones.value = result.zones || []
-		if (!selectedZone.value && fireZones.value.length > 0) {
-			const first = sortZones(fireZones.value)[0]!
+		const result = await smokeApi.getZones()
+		smokeZones.value = result.zones || []
+		if (!selectedZone.value && smokeZones.value.length > 0) {
+			const first = sortZones(smokeZones.value)[0]!
 			selectedZone.value = first.id || first.name
 		}
 	} catch (error) {
@@ -301,7 +237,7 @@ const {
 	startAutoRefresh,
 	stopAutoRefresh,
 	handleVisibilityChange,
-} = useFireModbusIntegration(fireZones)
+} = useSmokeAlarmModbusIntegration(smokeZones)
 
 const handleManualIssueChanged = () => {
 	void loadStatusSnapshot()
@@ -315,28 +251,26 @@ watch(
 	{ immediate: true }
 )
 
-const handleSaveZone = async (zone: FireZone) => {
+const handleSaveZone = async (zone: SmokeAlarmZone) => {
 	await baseHandleSaveZone(
-		zone as FireZone & { id: string },
-		fireZones as Ref<(FireZone & { id: string })[]>,
-		async (z: FireZone & { id: string }) => {
+		zone as SmokeAlarmZone & { id: string },
+		smokeZones as Ref<(SmokeAlarmZone & { id: string })[]>,
+		async (z: SmokeAlarmZone & { id: string }) => {
 			const isValidId = z.id && !z.id.startsWith("temp-") && /^\d+$/.test(z.id)
 			const result = isValidId
-				? await fireApi.updateZone(z.id, {
+				? await smokeApi.updateZone(z.id, {
 						name: z.name,
 						imageUrl: z.imageUrl,
 						sortOrder: z.sortOrder,
 						locations: z.locations,
 					})
-				: await fireApi.createZone({
+				: await smokeApi.createZone({
 						name: z.name,
 						imageUrl: z.imageUrl,
 						sortOrder: z.sortOrder,
 						locations: z.locations,
 					})
-			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as FireZone & {
-				id: string
-			}
+			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as SmokeAlarmZone & { id: string }
 			return { merged: result.merged, message: result.message, zone: zoneWithId }
 		},
 		{ selectedZoneRef: selectedZone }
@@ -344,29 +278,22 @@ const handleSaveZone = async (zone: FireZone) => {
 }
 
 const handleDeleteZone = async (zoneId: string) => {
-	await baseHandleDeleteZone(
-		zoneId,
-		fireZones as Ref<(FireZone & { id: string })[]>,
-		fireApi.deleteZone,
-		{
-			selectedZoneRef: selectedZone,
-			systemType: "fire",
-			onAfterDelete: async () => {
-				await loadZonesFromAPI()
-			},
-		}
-	)
+	await baseHandleDeleteZone(zoneId, smokeZones as Ref<(SmokeAlarmZone & { id: string })[]>, smokeApi.deleteZone, {
+		selectedZoneRef: selectedZone,
+		systemType: "smoke_alarm",
+		onAfterDelete: async () => {
+			await loadZonesFromAPI()
+		},
+	})
 }
 
 const handleOpenZoneDialog = async () => {
-	if (fireZones.value.length === 0) await loadZonesFromAPI()
+	if (smokeZones.value.length === 0) await loadZonesFromAPI()
 	showZoneManagementDialog.value = true
 }
 
 const handleToggleEditMode = () => {
-	if (!isEditMode.value && fireZones.value.length === 0) {
-		void loadZonesFromAPI()
-	}
+	if (!isEditMode.value && smokeZones.value.length === 0) void loadZonesFromAPI()
 	isEditMode.value = !isEditMode.value
 }
 
@@ -380,14 +307,7 @@ const syncSelectedCategoryToVisibleOnMap = () => {
 	if (!exists) selectedCategory.value = getLocationIdForDisplay(visible[0]!)
 }
 
-watch(
-	[fireZones, selectedZone, selectedViewCategory],
-	() => syncSelectedCategoryToVisibleOnMap(),
-	{
-		deep: true,
-		immediate: true,
-	}
-)
+watch([smokeZones, selectedZone], () => syncSelectedCategoryToVisibleOnMap(), { deep: true, immediate: true })
 
 onMounted(async () => {
 	try {
@@ -406,3 +326,4 @@ onBeforeUnmount(() => {
 	document.removeEventListener("visibilitychange", handleVisibilityChange)
 })
 </script>
+

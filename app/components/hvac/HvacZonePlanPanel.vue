@@ -48,7 +48,6 @@
 										name: location.name,
 										zoneId: selectedZone || '',
 										location: location.location,
-										roomIds: [],
 										modbus: location.modbus as any,
 									}))
 								"

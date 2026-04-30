@@ -8,6 +8,7 @@ export type FeatureKey =
 	| "power"
 	| "fire"
 	| "emergency_rescue"
+	| "smoke_alarm"
 	| "environment"
 	| "surveillance"
 	| "vehicle_access"
@@ -22,6 +23,7 @@ export const LICENSE_FEATURE_KEYS: readonly FeatureKey[] = [
 	"power",
 	"fire",
 	"emergency_rescue",
+	"smoke_alarm",
 	"environment",
 	"surveillance",
 	"vehicle_access",

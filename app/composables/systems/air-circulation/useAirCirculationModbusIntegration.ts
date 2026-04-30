@@ -342,9 +342,6 @@ export const useAirCirculationModbusIntegration = (zonesRef: Ref<AirCirculationZ
 				out.push({
 					...it,
 					uiStatus,
-					...(missingDeviceBySystemId.has(String(it.systemId))
-						? { error: "無可用控制器連線設定（deviceId 或 modbus.host/port）" }
-						: {}),
 				})
 			}
 

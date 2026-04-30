@@ -32,7 +32,11 @@
 					:status-items="statusItems"
 					:selected-zone="selectedZone"
 					:view-filter-options="viewFilterOptions"
+					:manual-issue-targets="manualIssueTargets"
+					:manual-issue-default-target-id="manualIssueDefaultTargetId"
+					:rule-trigger="{ alert_type: 'di', bit_key: 'di:0' }"
 					@zone-selected="handleZoneSelected"
+					@manual-issue-changed="handleManualIssueChanged"
 				/>
 			</aside>
 		</div>
@@ -75,7 +79,7 @@ definePageMeta({
 	layout: "default",
 })
 
-const { isOperator } = useAuth()
+const { isOperator, isAdmin } = useAuth()
 const powerApi = usePowerApi()
 const { handleError } = useErrorHandler()
 
@@ -121,6 +125,26 @@ const zonesById = computed(() => {
 const selectedZoneName = computed(() => zonesById.value.get(selectedZone.value)?.name || "")
 const selectedZoneData = computed(() => zonesById.value.get(selectedZone.value))
 const zonePlanImage = computed(() => selectedZoneData.value?.imageUrl)
+
+const manualIssueTargets = computed(() => {
+	if (!isAdmin.value) return []
+	const out: Array<{ id: string; label: string }> = []
+	for (const zone of powerZones.value) {
+		for (const loc of zone.locations || []) {
+			if (!loc.systemId) continue
+			out.push({
+				id: String(loc.systemId),
+				label: `${zone.name} / ${loc.name}（${String(loc.systemId)}）`,
+			})
+		}
+	}
+	return out
+})
+
+const manualIssueDefaultTargetId = computed(() => {
+	const first = manualIssueTargets.value[0]
+	return first?.id || ""
+})
 
 const filteredZoneLocations = computed(() => {
 	if (!selectedZone.value) return []
@@ -259,6 +283,10 @@ const {
 	stopAutoRefresh,
 	handleVisibilityChange,
 } = usePowerModbusIntegration(powerZones)
+
+const handleManualIssueChanged = () => {
+	void loadStatusSnapshot()
+}
 
 watch(
 	computedStatusItems,

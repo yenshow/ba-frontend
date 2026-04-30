@@ -206,7 +206,6 @@ const editModeCategoryListItems = computed(() => {
 				name: location.name,
 				zoneId: props.selectedZone || "",
 				location: location.location,
-				roomIds: [] as string[],
 				modbus: location.modbus,
 			}
 		})

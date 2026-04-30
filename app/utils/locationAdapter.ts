@@ -23,6 +23,7 @@ import type { DrainageZone, DrainageLocation } from "~/types/drainage"
 import type { PowerZone, PowerLocation } from "~/types/power"
 import type { FireZone, FireLocation } from "~/types/fire"
 import type { EmergencyRescueZone, EmergencyRescueLocation } from "~/types/emergency-rescue"
+import type { SmokeAlarmZone, SmokeAlarmLocation } from "~/types/smoke-alarm"
 import { pickSortOrder } from "~/utils/sortOrder"
 
 /**
@@ -158,7 +159,14 @@ function isAirCirculationSystemConfig(
 ): config is import("~/types/location").AirCirculationSystemConfig {
 	if (!config || typeof config !== "object") return false
 	const c = config as Record<string, unknown>
-	return "location" in c || "modbus" in c || "deviceId" in c || "statusPoints" in c
+	return (
+		"location" in c ||
+		"modbus" in c ||
+		"deviceId" in c ||
+		"statusPoints" in c ||
+		"equipmentKind" in c ||
+		"viewCategory" in c
+	)
 }
 
 /**
@@ -230,6 +238,13 @@ function parseSystemConfig(systemType: SystemType, config: unknown): SystemConfi
 			return {
 				equipmentKind: "pump",
 				viewCategory: "sos",
+				statusPoints: {},
+			}
+		case "smoke_alarm":
+			if (isDrainageSystemConfig(config)) return config as FireSystemConfig
+			return {
+				equipmentKind: "pump",
+				viewCategory: "smoke",
 				statusPoints: {},
 			}
 		case "people_counting":
@@ -412,6 +427,8 @@ export function unifiedToAirCirculationZone(zone: UnifiedZone): AirCirculationZo
 					deviceId: sys.config.deviceId,
 					modbus: sys.config.modbus,
 					statusPoints: sys.config.statusPoints,
+					equipmentKind: sys.config.equipmentKind,
+					viewCategory: sys.config.viewCategory,
 				} as AirCirculationLocation,
 			]
 		}),
@@ -704,6 +721,90 @@ export function emergencyRescueLocationToUnified(
 							: undefined,
 					equipmentKind: location.equipmentKind ?? "pump",
 					viewCategory: location.viewCategory ?? "sos",
+					statusPoints,
+				} as FireSystemConfig,
+			},
+		],
+	}
+}
+
+/**
+ * 將統一區域轉換為煙霧警報區域
+ */
+export function unifiedToSmokeAlarmZone(zone: UnifiedZone): SmokeAlarmZone {
+	return {
+		id: zone.id,
+		name: zone.name,
+		imageUrl: zone.imageUrl,
+		description: zone.description,
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.flatMap((loc) => {
+			const sys = loc.systems.find((s) => s.systemType === "smoke_alarm")
+			if (!sys || !isDrainageSystemConfig(sys.config)) {
+				return []
+			}
+			const cfg = sys.config
+			return [
+				{
+					id: loc.id,
+					systemId: sys.id,
+					name: loc.name,
+					...(loc.createdAt && { createdAt: loc.createdAt }),
+					...pickSortOrder(loc.sortOrder),
+					location: cfg.location,
+					deviceId: cfg.deviceId,
+					modbus: cfg.modbus as SmokeAlarmLocation["modbus"],
+					equipmentKind: cfg.equipmentKind,
+					viewCategory: cfg.viewCategory,
+					statusPoints: cfg.statusPoints,
+				} as SmokeAlarmLocation,
+			]
+		}),
+	}
+}
+
+export function smokeAlarmToUnifiedZone(
+	zone: SmokeAlarmZone,
+	systemType: SystemType = "smoke_alarm"
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
+	return {
+		name: zone.name,
+		...(zone.imageUrl !== undefined && { imageUrl: zone.imageUrl }),
+		...(zone.description !== undefined && { description: zone.description }),
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.map((location) => smokeAlarmLocationToUnified(location, systemType)),
+	}
+}
+
+export function smokeAlarmLocationToUnified(
+	location: SmokeAlarmLocation | Omit<SmokeAlarmLocation, "id">,
+	systemType: SystemType = "smoke_alarm"
+): UnifiedLocationInput {
+	const hasId = "id" in location && location.id
+	const hasSystemId = "systemId" in location && location.systemId
+	const statusPoints =
+		location.statusPoints && Object.keys(location.statusPoints).length > 0
+			? location.statusPoints
+			: {}
+	return {
+		...(hasId && { id: location.id! }),
+		name: location.name,
+		...(location.description && { description: location.description }),
+		...(location.createdAt && { createdAt: location.createdAt }),
+		...pickSortOrder(location.sortOrder),
+		systems: [
+			{
+				...(hasSystemId && { id: location.systemId! }),
+				systemType,
+				config: {
+					deviceId: location.deviceId,
+					location: location.location,
+					modbus:
+						location.modbus != null
+							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
+							: undefined,
+					equipmentKind: location.equipmentKind ?? "detector",
+					viewCategory: location.viewCategory ?? "smoke",
 					statusPoints,
 				} as FireSystemConfig,
 			},
@@ -1061,6 +1162,8 @@ export function airCirculationLocationToUnified(
 							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
 							: undefined,
 					statusPoints,
+					equipmentKind: location.equipmentKind ?? "pump",
+					viewCategory: location.viewCategory ?? "air_circulation",
 				} as import("~/types/location").AirCirculationSystemConfig,
 			},
 		],

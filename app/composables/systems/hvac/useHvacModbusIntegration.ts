@@ -8,19 +8,13 @@ import { useApiBase } from "~/composables/core/useApiBase"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { usePolling } from "~/composables/monitoring/usePolling"
 import {
-	MODBUS_FAILURE_CACHE_TTL_MS,
-	MODBUS_SUCCESS_CACHE_TTL_MS,
-	isSuppressibleModbusError,
 	useModbusPollingPolicy,
 } from "~/composables/monitoring/useModbusPollingPolicy"
 import { extractReadPoint, extractWritePoints, hasControllerConfig } from "~/utils/modbusPoints"
 import { findLocationInZonesByUiKey, getLocationUiKey } from "~/utils/locationUiId"
 
-const MODBUS_TIMEOUT = 3000
 const TOGGLE_DEBOUNCE_DELAY = 300
 const TOGGLE_ROUNDTRIP_DELAY_MS = 450
-const REQUEST_CACHE_TTL = MODBUS_SUCCESS_CACHE_TTL_MS
-const FAILED_DEVICE_TTL = MODBUS_FAILURE_CACHE_TTL_MS
 
 type HvacLocationStatus = {
 	isOn: boolean
@@ -40,29 +34,9 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 
 	const deviceCache = ref<Map<number, Device>>(new Map())
 	const deviceConfigCache = ref<Map<number, { host: string; port: number; unitId: number }>>(new Map())
-
-	const requestCache = new Map<
-		string,
-		{ timestamp: number; ok: boolean; value?: unknown; error?: string }
-	>()
-	const failedDevices = new Map<string, number>()
 	const toggleDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>()
 	let inflightRefresh: Promise<void> | null = null
 	const pollingPolicy = useModbusPollingPolicy()
-
-	const batchRead = async (
-		reqs: Array<{
-			host: string
-			port: number
-			unitId: number
-			registerType: "coil" | "discrete" | "holding" | "input"
-			address: number
-			length: number
-			meta?: any
-		}>
-	) => {
-		return { results: [] } as any
-	}
 
 	const writeCoil = async (address: number, value: boolean, deviceConfig: ModbusDeviceConfig) => {
 		const queryParams = new URLSearchParams({
@@ -195,54 +169,11 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 		locationDisabledMap.value = disabled
 	}
 
-	const refreshLocationStatusFresh = async (
-		locationUiKey: string,
-		location: HvacLocation,
-		deviceConfig: { host: string; port: number; unitId: number }
-	) => {
-		if (!location.modbus) return
-		const readPoint = extractReadPoint(location.modbus as any)
-		if (!readPoint) return
-
-		const requestKey = getRequestKey(deviceConfig, readPoint.type, readPoint.address)
-		try {
-			const res = await batchRead([
-				{
-					host: deviceConfig.host,
-					port: deviceConfig.port,
-					unitId: deviceConfig.unitId,
-					registerType: readPoint.type,
-					address: readPoint.address,
-					length: 1,
-					meta: { requestKey, noCache: true },
-				},
-			])
-			const rr = res.results?.[0] as any
-			const status = ensureLocationStatus(locationUiKey)
-			if (rr?.ok && typeof rr.data?.[0] === "boolean") {
-				requestCache.set(requestKey, { timestamp: Date.now(), ok: true, value: rr.data[0] })
-				status.isOn = rr.data[0]
-				status.uiStatus = toUiStatusFromReadOk(true)
-				return
-			}
-			requestCache.set(requestKey, {
-				timestamp: Date.now(),
-				ok: false,
-				error: String(rr?.error || "讀取失敗"),
-			})
-			status.uiStatus = "warning"
-		} catch (error) {
-			const msg = error instanceof Error ? error.message : String(error)
-			requestCache.set(requestKey, { timestamp: Date.now(), ok: false, error: msg })
-			ensureLocationStatus(locationUiKey).uiStatus = "warning"
-		}
-	}
+	// 移除 batch-read 直讀：HVAC 狀態一律以後端 /hvac/status 快照為準
 
 	const loadAllLocationStatuses = async (options?: { loadAllZones?: boolean }) => {
 		if (inflightRefresh) return inflightRefresh
 		inflightRefresh = (async () => {
-			let hasSnapshotFailure = false
-			// 優先使用後端 HVAC status snapshot（涵蓋 DI/DO isOn + statusPoints 數值）
 			try {
 				const zoneIds =
 					selectedZone.value && !options?.loadAllZones ? [selectedZone.value] : undefined
@@ -265,192 +196,9 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 					status.isOn = Boolean(item?.raw?.isOn)
 					status.temperatureC = coerceNumber(item?.raw?.temperatureC)
 				}
+
 				pollingPolicy.recordSuccess()
-				return
 			} catch (error) {
-				pollingPolicy.recordFailure()
-				handleError(error, "載入空調狀態失敗")
-				return
-			}
-
-			let reqs: Array<{
-				host: string
-				port: number
-				unitId: number
-				registerType: "coil" | "discrete" | "holding" | "input"
-				address: number
-				length: number
-				meta?: any
-			}> = []
-			try {
-				const now = Date.now()
-				for (const [requestKey, timestamp] of failedDevices.entries()) {
-					if (now - timestamp > FAILED_DEVICE_TTL) failedDevices.delete(requestKey)
-				}
-
-				const zones = options?.loadAllZones ? hvacZones.value : hvacZones.value
-				reqs = []
-
-				const metaRows: Array<{
-					locationUiKey: string
-					onRegister?: { registerType: "coil" | "discrete"; address: number }
-					tempRegister?: { registerType: "holding" | "input"; address: number; length: number }
-					deviceConfig: { host: string; port: number; unitId: number }
-				}> = []
-
-				for (const zone of zones) {
-					zone.locations.forEach((loc, idx) => {
-						const locationUiKey = locationToUiKey(zone, loc, idx)
-						if (!loc.modbus) return
-						metaRows.push({
-							locationUiKey,
-							deviceConfig: { host: "", port: 0, unitId: 0 } as any,
-						} as any)
-					})
-				}
-
-				// 逐筆取得 device config（避免大量 batch-read 先發後才發現缺 config）
-				for (const zone of zones) {
-					for (let i = 0; i < zone.locations.length; i++) {
-						const loc = zone.locations[i]!
-						const locationUiKey = locationToUiKey(zone, loc, i)
-						ensureLocationStatus(locationUiKey)
-
-						if (!loc.modbus) continue
-						const deviceConfig = await getLocationDeviceConfig(loc)
-						if (!deviceConfig) {
-							locationDisabledMap.value[locationUiKey] = true
-							locationStatuses.value[locationUiKey].uiStatus = "warning"
-							continue
-						}
-
-						const onPoint = extractReadPoint(loc.modbus as any)
-						if (onPoint) {
-							const requestKey = getRequestKey(deviceConfig, onPoint.type, onPoint.address)
-							if (failedDevices.has(requestKey)) {
-								locationStatuses.value[locationUiKey].uiStatus = "warning"
-							} else {
-							const cached = requestCache.get(requestKey)
-							const isCacheFresh = cached && Date.now() - cached.timestamp <= REQUEST_CACHE_TTL
-							if (!isCacheFresh) {
-								reqs.push({
-									host: deviceConfig.host,
-									port: deviceConfig.port,
-									unitId: deviceConfig.unitId,
-									registerType: onPoint.type,
-									address: onPoint.address,
-									length: 1,
-									meta: { requestKey },
-								})
-							}
-							}
-						}
-
-						const tempPoint = loc.statusPoints?.temperatureC
-						if (tempPoint && (tempPoint.registerType === "holding" || tempPoint.registerType === "input")) {
-							const length = tempPoint.length ?? 1
-							const requestKey = getRequestKey(deviceConfig, tempPoint.registerType, tempPoint.address)
-							if (failedDevices.has(requestKey)) {
-								// 讀溫度失敗不影響 ON/OFF 顯示，只跳過本次讀取
-							} else {
-							const cached = requestCache.get(requestKey)
-							const isCacheFresh = cached && Date.now() - cached.timestamp <= REQUEST_CACHE_TTL
-							if (!isCacheFresh) {
-								reqs.push({
-									host: deviceConfig.host,
-									port: deviceConfig.port,
-									unitId: deviceConfig.unitId,
-									registerType: tempPoint.registerType,
-									address: tempPoint.address,
-									length,
-									meta: { requestKey },
-								})
-							}
-							}
-						}
-					}
-				}
-
-				if (reqs.length === 0) return
-				const res = await batchRead(reqs)
-
-				for (const r of res.results ?? []) {
-					const rr: any = r as any
-					const requestKey = rr?.meta?.requestKey as string | undefined
-					if (!requestKey) continue
-					if (rr?.ok) {
-						requestCache.set(requestKey, {
-							timestamp: now,
-							ok: true,
-							value: rr.data?.[0],
-						})
-						failedDevices.delete(requestKey)
-					} else {
-						const errorMessage = String(rr?.error || "讀取失敗")
-						hasSnapshotFailure = true
-						requestCache.set(requestKey, {
-							timestamp: now,
-							ok: false,
-							error: errorMessage,
-						})
-						if (isSuppressibleModbusError(errorMessage)) {
-							failedDevices.set(requestKey, now)
-						}
-					}
-				}
-				if (hasSnapshotFailure) {
-					pollingPolicy.recordFailure()
-				} else {
-					pollingPolicy.recordSuccess()
-				}
-
-				// 將 cache 回寫到 UI 狀態（用 requestKey 反推）
-				for (const zone of hvacZones.value) {
-					for (let i = 0; i < zone.locations.length; i++) {
-						const loc = zone.locations[i]!
-						const locationUiKey = locationToUiKey(zone, loc, i)
-						const status = ensureLocationStatus(locationUiKey)
-						if (!loc.modbus) continue
-						const deviceConfig = await getLocationDeviceConfig(loc)
-						if (!deviceConfig) continue
-
-						const onPoint = extractReadPoint(loc.modbus as any)
-						if (onPoint) {
-							const requestKey = getRequestKey(deviceConfig, onPoint.type, onPoint.address)
-							const cached = requestCache.get(requestKey)
-							const v = cached?.ok ? cached.value : undefined
-							if (typeof v === "boolean") {
-								status.isOn = v === true
-								status.uiStatus = toUiStatusFromReadOk(true)
-							} else {
-								status.uiStatus = "warning"
-							}
-						}
-
-						const tempPoint = loc.statusPoints?.temperatureC
-						if (tempPoint && (tempPoint.registerType === "holding" || tempPoint.registerType === "input")) {
-							const requestKey = getRequestKey(deviceConfig, tempPoint.registerType, tempPoint.address)
-							const cached = requestCache.get(requestKey)
-							const v = cached?.ok ? cached.value : undefined
-							if (typeof v === "number") {
-								status.temperatureC = Number(v)
-							}
-						}
-					}
-				}
-			} catch (error) {
-				const errorMessage = error instanceof Error ? error.message : String(error)
-				// 批次讀取失敗時，將本輪所有 requestKey 記錄為失敗，降低刷爆
-				const now = Date.now()
-				for (const req of reqs || []) {
-					const requestKey = (req as any)?.meta?.requestKey
-					if (!requestKey) continue
-					requestCache.set(String(requestKey), { timestamp: now, ok: false, error: errorMessage })
-					if (isSuppressibleModbusError(errorMessage)) {
-						failedDevices.set(String(requestKey), now)
-					}
-				}
-				hasSnapshotFailure = true
 				pollingPolicy.recordFailure()
 				handleError(error, "載入空調狀態失敗")
 			} finally {
@@ -513,11 +261,7 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 
 			await Promise.all(writeAddresses.map((addr) => writeCoil(addr, nextIsOn, deviceConfig)))
 
-			// 3) 清快取 + 延遲回讀（noCache）
-			const readPoint = extractReadPoint(location.modbus as any)
-			if (readPoint) requestCache.delete(getRequestKey(deviceConfig, readPoint.type, readPoint.address))
-			for (const addr of writeAddresses) requestCache.delete(getRequestKey(deviceConfig, "coil", addr))
-
+			// 3) 延遲回讀：狀態以後端 /hvac/status 快照為準
 			setTimeout(async () => {
 				try {
 					await loadAllLocationStatuses({ loadAllZones: true })
@@ -559,7 +303,6 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 
 	const stopAutoRefresh = () => {
 		stopPolling()
-		requestCache.clear()
 		toggleDebounceTimers.clear()
 	}
 

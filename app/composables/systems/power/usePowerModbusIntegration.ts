@@ -245,7 +245,7 @@ export const usePowerModbusIntegration = (powerZones: Ref<PowerZone[]>) => {
 		return reqs
 	}
 
-	const loadStatusSnapshot = async () => {
+	const loadStatusSnapshot = async (options?: { syncAlerts?: boolean }) => {
 		if (inflightSnapshot) {
 			await inflightSnapshot
 			return
@@ -255,7 +255,8 @@ export const usePowerModbusIntegration = (powerZones: Ref<PowerZone[]>) => {
 			const now = Date.now()
 			let hasSnapshotFailure = false
 			try {
-				const { items } = await powerApi.getStatus()
+				const syncAlerts = options?.syncAlerts ?? true
+				const { items } = await powerApi.getStatus({ syncAlerts })
 				statusItems.value = items || []
 				pollingPolicy.recordSuccess()
 				return
@@ -444,7 +445,6 @@ export const usePowerModbusIntegration = (powerZones: Ref<PowerZone[]>) => {
 					return {
 						...it,
 						uiStatus: "warning",
-						error: it.error || "無可用控制器連線設定（deviceId 或 modbus.host/port）",
 					}
 				}
 				const computedStatus = deriveUiStatusForPowerItem(it)

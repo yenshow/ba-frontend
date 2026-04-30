@@ -245,7 +245,7 @@ export const useFireModbusIntegration = (fireZones: Ref<FireZone[]>) => {
 		return reqs
 	}
 
-	const loadStatusSnapshot = async () => {
+	const loadStatusSnapshot = async (options?: { syncAlerts?: boolean }) => {
 		if (inflightSnapshot) {
 			await inflightSnapshot
 			return
@@ -255,7 +255,8 @@ export const useFireModbusIntegration = (fireZones: Ref<FireZone[]>) => {
 			const now = Date.now()
 			let hasSnapshotFailure = false
 			try {
-				const { items } = await fireApi.getStatus()
+				const syncAlerts = options?.syncAlerts ?? true
+				const { items } = await fireApi.getStatus({ syncAlerts })
 				statusItems.value = items || []
 				pollingPolicy.recordSuccess()
 				return
@@ -445,7 +446,6 @@ export const useFireModbusIntegration = (fireZones: Ref<FireZone[]>) => {
 					return {
 						...it,
 						uiStatus: "warning",
-						error: it.error || "無可用控制器連線設定（deviceId 或 modbus.host/port）",
 					}
 				}
 				const computedStatus = deriveUiStatusForFireItem(it)

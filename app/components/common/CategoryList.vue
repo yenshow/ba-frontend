@@ -37,10 +37,10 @@
 </template>
 
 <script setup lang="ts">
-import type { RoomCategory } from "~/types/system"
+import type { LocationCategory } from "~/types/system"
 
 interface Props {
-	categories: RoomCategory[]
+	categories: LocationCategory[]
 	editing?: boolean
 	selectedCategoryId?: string
 }
@@ -52,14 +52,14 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
 	select: [categoryId: string]
-	dragstart: [event: DragEvent, category: RoomCategory]
+	dragstart: [event: DragEvent, category: LocationCategory]
 	dragend: [event: DragEvent]
 }>()
 
-const handleDragStart = (event: DragEvent, category: RoomCategory) => {
+const handleDragStart = (event: DragEvent, category: LocationCategory) => {
 	emit("dragstart", event, category)
 	event.dataTransfer!.effectAllowed = "move"
-	event.dataTransfer!.setData("areaId", category.id)
+	event.dataTransfer!.setData("locationId", category.id)
 	event.dataTransfer!.setData("fromCategoryList", "true")
 }
 

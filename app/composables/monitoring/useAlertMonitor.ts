@@ -21,6 +21,7 @@ const sourceRouteMap: Partial<Record<string, string>> = {
 	hvac: "/infrastructure/hvac",
 	air_circulation: "/infrastructure/air-circulation",
 	fire: "/security/fire",
+	smoke_alarm: "/security/smoke-alarm",
 	emergency: "/security/emergency",
 	emergency_rescue: "/security/emergency",
 	people_counting: "/construction-monitoring/people-counting",

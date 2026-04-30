@@ -14,6 +14,7 @@ export type SystemType =
 	| "power"
 	| "fire"
 	| "emergency_rescue"
+	| "smoke_alarm"
 	| "people_counting"
 	| "vehicle_access"
 
@@ -26,6 +27,7 @@ export const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
 	power: "電力系統",
 	fire: "消防系統",
 	emergency_rescue: "emergency",
+	smoke_alarm: "煙霧警報",
 	people_counting: "人流統計",
 	vehicle_access: "車輛進出",
 }
@@ -45,6 +47,7 @@ export type SystemConfig =
 	| PowerSystemConfig
 	| FireSystemConfig
 	| EmergencyRescueSystemConfig
+	| SmokeAlarmSystemConfig
 	| PeopleCountingSystemConfig
 	| VehicleAccessSystemConfig
 
@@ -104,6 +107,10 @@ export interface AirCirculationSystemConfig {
 	location?: { x: number; y: number }
 	modbus?: LightingSystemConfig["modbus"]
 	statusPoints?: Record<string, DrainageStatusPointDef>
+	/** 與排水/消防對齊的設備語意（目前後端已支援） */
+	equipmentKind?: "pump" | "tank"
+	/** 檢視分類（使用者自訂字串；後端預設為 air_circulation） */
+	viewCategory?: string
 }
 
 /** 排水狀態點位（對應後端 status_points）；可每點獨立指定控制器 */
@@ -144,6 +151,9 @@ export type FireSystemConfig = DrainageSystemConfig
 
 /** 緊急求救（與消防／排水相同點位結構；預設檢視分類 sos） */
 export type EmergencyRescueSystemConfig = DrainageSystemConfig
+
+/** 煙霧警報（與消防／排水相同點位結構；預設檢視分類 smoke） */
+export type SmokeAlarmSystemConfig = DrainageSystemConfig
 
 /**
  * 人流統計系統配置

@@ -388,6 +388,7 @@ const featureLabels: Record<string, string> = {
 	fire: "消防",
 	emergency_rescue: "緊急求救",
 	environment: "環境品質",
+	smoke_alarm: "煙霧警報",
 	surveillance: "影像監控",
 	vehicle_access: "車輛進出",
 	multimedia: "多媒體資訊",

@@ -1,4 +1,3 @@
-import type { RoomCategory } from "~/types/system"
 import type { SystemUiStatus } from "~/types/monitoring"
 
 // 點位類型
@@ -35,7 +34,11 @@ export interface CategoryModbusConfig {
 	doAddresses?: number[]
 }
 
-export type LightingCategory = RoomCategory & {
+export type LightingCategory = {
+	id: string
+	name: string
+	zoneId: string
+	location?: { x: number; y: number }
 	modbus?: CategoryModbusConfig
 }
 

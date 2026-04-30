@@ -199,10 +199,20 @@
 				</div>
 			</div>
 		</div>
+
+		<ManualIssuePanel
+			v-if="manualIssueTargets.length > 0"
+			system-route-prefix="power"
+			:targets="manualIssueTargets"
+			:default-target-id="manualIssueDefaultTargetId"
+			:rule-trigger="ruleTrigger"
+			@changed="handleManualIssueChanged"
+		/>
 	</div>
 </template>
 
 <script setup lang="ts">
+import ManualIssuePanel from "~/components/common/ManualIssuePanel.vue"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import {
 	type PowerZone,
@@ -222,14 +232,26 @@ const props = defineProps<{
 	statusItems: PowerStatusItem[]
 	selectedZone: string
 	viewFilterOptions: PowerViewFilterOption[]
+	manualIssueTargets?: Array<{ id: string; label: string }>
+	manualIssueDefaultTargetId?: string
+	ruleTrigger?: { alert_type: "di" | "do"; bit_key: string } | null
 }>()
 
 const emit = defineEmits<{
 	zoneSelected: [zoneId: string]
+	manualIssueChanged: []
 }>()
 
 const handleZoneClick = (zoneId: string) => {
 	emit("zoneSelected", zoneId)
+}
+
+const manualIssueTargets = computed(() => props.manualIssueTargets ?? [])
+const manualIssueDefaultTargetId = computed(() => props.manualIssueDefaultTargetId ?? "")
+const ruleTrigger = computed(() => props.ruleTrigger ?? null)
+
+const handleManualIssueChanged = () => {
+	emit("manualIssueChanged")
 }
 
 const itemBySystemId = computed(() => {
@@ -272,14 +294,12 @@ const overallUi = (loc: PowerLocation): PowerStatusItem["uiStatus"] =>
 
 const statusLabel = (s: PowerStatusItem["uiStatus"]) => {
 	if (s === "normal") return "正常"
-	if (s === "warning" || s === "offline" || s === "unknown") return "異常"
 	if (s === "alarm") return "警報"
 	return "異常"
 }
 
 const statusDotClass = (s: PowerStatusItem["uiStatus"]) => {
 	if (s === "normal") return "bg-emerald-400"
-	if (s === "warning" || s === "offline" || s === "unknown") return "bg-amber-400"
 	if (s === "alarm") return "bg-rose-500"
 	return "bg-amber-400"
 }
@@ -291,7 +311,7 @@ const isOilLevelLocation = (loc: PowerLocation) => loc.equipmentKind === "oil_le
 
 const generatorOilUi = (loc: PowerLocation): PowerStatusItem["uiStatus"] => {
 	const it = getItemForLocation(loc)
-	if (!it) return "unknown"
+	if (!it) return "warning"
 	const raw = it.raw || {}
 	const anyRead = Object.keys(raw).some((k) => raw[k] !== undefined && raw[k] !== null)
 	if (!anyRead) return "warning"
@@ -301,7 +321,7 @@ const generatorOilUi = (loc: PowerLocation): PowerStatusItem["uiStatus"] => {
 
 const highOilUi = (loc: PowerLocation): PowerStatusItem["uiStatus"] => {
 	const it = getItemForLocation(loc)
-	if (!it) return "unknown"
+	if (!it) return "warning"
 	const v = it.raw?.highOil
 	if (v === true) return "alarm"
 	if (v === false) return "normal"
@@ -310,7 +330,7 @@ const highOilUi = (loc: PowerLocation): PowerStatusItem["uiStatus"] => {
 
 const lowOilUi = (loc: PowerLocation): PowerStatusItem["uiStatus"] => {
 	const it = getItemForLocation(loc)
-	if (!it) return "unknown"
+	if (!it) return "warning"
 	const v = it.raw?.lowOil
 	if (v === true) return "alarm"
 	if (v === false) return "normal"

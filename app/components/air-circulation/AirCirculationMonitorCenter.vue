@@ -2,7 +2,20 @@
 	<div
 		class="show-scrollbar relative h-full overflow-hidden overflow-y-auto rounded-2xl border-2 border-white/80 bg-white/30 space-y-6 px-3 py-6 2xl:space-y-8 2xl:px-4 2xl:py-8"
 	>
-		<h3 class="ms-[12px] text-center text-2xl tracking-[12px] text-white 2xl:text-3xl">監控中心</h3>
+		<div class="space-y-2">
+			<h3 class="ms-[12px] text-center text-2xl tracking-[12px] text-white 2xl:text-3xl">
+				監控中心
+			</h3>
+
+			<div v-if="viewFilterOptions.length > 0" class="mx-auto w-full max-w-xs">
+				<FilterDropdown
+					v-model="viewFilter"
+					:options="viewFilterOptions"
+					placeholder="請選擇檢視分類"
+					text-size="text-sm 2xl:text-base"
+				/>
+			</div>
+		</div>
 
 		<div v-for="zone in displayedZones" :key="zone.id || zone.name" class="space-y-3 2xl:space-y-4">
 			<div class="flex items-center justify-center gap-3">
@@ -39,48 +52,79 @@
 					</span>
 				</div>
 
-				<div v-if="zoneRows(zone).length > 0" class="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
+				<div
+					v-if="zoneRows(zone).length > 0"
+					class="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2"
+				>
 					<div
 						v-for="row in zoneRows(zone)"
 						:key="row.rowKey"
-						class="flex flex-col rounded-xl border-2 border-white px-3 py-3"
+						class="flex min-w-0 flex-col rounded-xl border-2 border-white px-3 py-2"
 						:class="[rowBackgroundClass(row.uiStatus), rowBlinkClass(row.uiStatus)]"
 					>
-						<h4 class="mb-2 whitespace-nowrap text-center text-lg text-white 2xl:text-xl">
-							{{ row.locationName }}
-						</h4>
-
-						<div
-							class="flex h-9 w-full items-center justify-center gap-2 rounded-full border border-white bg-white/10 px-2 2xl:h-10"
-						>
-							<span
-								class="h-4 w-4 shrink-0 rounded-full border border-white 2xl:h-5 2xl:w-5"
-								:class="statusDotClass(row.uiStatus)"
-								aria-hidden="true"
-							/>
-							<span class="text-sm text-white 2xl:text-base">
-								{{ statusLabel(row.uiStatus) }}
-							</span>
-							<span v-if="row.valueSummary" class="text-sm text-white/85 2xl:text-base">
-								{{ row.valueSummary }}
-							</span>
+						<div class="flex min-w-0 items-center gap-3 py-2">
+							<div class="shrink-0">
+								<FanIcon
+									:aria-label="`${row.locationName} 設備圖示`"
+									root-class="h-16 w-16 text-white 2xl:h-24 2xl:w-24"
+									:spin="row.uiStatus === 'alarm'"
+								/>
+							</div>
+							<div class="flex min-w-0 flex-1 flex-col justify-center gap-2">
+								<h4 class="truncate text-center text-lg text-white 2xl:text-xl">
+									{{ row.locationName }}
+								</h4>
+								<div
+									class="flex items-center justify-center gap-2 rounded-full border border-white bg-white/10 mx-1 py-2"
+								>
+									<span
+										class="h-4 w-4 shrink-0 rounded-full border border-white 2xl:h-5 2xl:w-5"
+										:class="statusDotClass(row.uiStatus)"
+										aria-hidden="true"
+									/>
+									<span class="text-sm text-white 2xl:text-base">
+										{{ statusLabel(row.uiStatus) }}
+									</span>
+									<span v-if="row.valueSummary" class="text-sm text-white/85 2xl:text-base">
+										{{ row.valueSummary }}
+									</span>
+								</div>
+								<p v-if="row.error" class="text-center text-xs text-white/85">
+									{{ row.error }}
+								</p>
+							</div>
 						</div>
-
-						<p v-if="row.error" class="mt-2 text-center text-xs text-white/85">
-							{{ row.error }}
-						</p>
 					</div>
 				</div>
 			</div>
 		</div>
+
+		<ManualIssuePanel
+			v-if="manualIssueTargets.length > 0"
+			system-route-prefix="air-circulation"
+			:targets="manualIssueTargets"
+			:default-target-id="manualIssueDefaultTargetId"
+			:rule-trigger="ruleTrigger"
+			@changed="handleManualIssueChanged"
+		/>
 	</div>
 </template>
 
 <script setup lang="ts">
-import type { AirCirculationZone } from "~/types/air-circulation"
+import ManualIssuePanel from "~/components/common/ManualIssuePanel.vue"
+import FilterDropdown from "~/components/common/FilterDropdown.vue"
+import FanIcon from "~/components/air-circulation/FanIcon.vue"
+import {
+	type AirCirculationZone,
+	type AirCirculationLocation,
+	type AirCirculationViewFilterOption,
+	airCirculationLocationInViewCategory,
+} from "~/types/air-circulation"
 import { compareZonesLoose } from "~/utils/sortOrder"
 
 type UiStatus = "normal" | "warning" | "alarm" | "offline" | "unknown"
+
+const viewFilter = defineModel<string>("viewFilter", { required: true })
 
 const props = defineProps<{
 	zones: AirCirculationZone[]
@@ -95,13 +139,24 @@ const props = defineProps<{
 		error?: string
 	}>
 	selectedZone: string
+	/** 與地點 viewCategory 相同；不含「全部」 */
+	viewFilterOptions: AirCirculationViewFilterOption[]
+	manualIssueTargets?: Array<{ id: string; label: string }>
+	manualIssueDefaultTargetId?: string
+	ruleTrigger?: { alert_type: "di" | "do"; bit_key: string } | null
 }>()
 
 const emit = defineEmits<{
 	zoneSelected: [zoneId: string]
+	manualIssueChanged: []
 }>()
 
 const handleZoneClick = (zoneId: string) => emit("zoneSelected", zoneId)
+
+const manualIssueTargets = computed(() => props.manualIssueTargets ?? [])
+const manualIssueDefaultTargetId = computed(() => props.manualIssueDefaultTargetId ?? "")
+const ruleTrigger = computed(() => props.ruleTrigger ?? null)
+const handleManualIssueChanged = () => emit("manualIssueChanged")
 
 const itemBySystemId = computed(() => {
 	const m = new Map<string, (typeof props.statusItems)[number]>()
@@ -111,17 +166,29 @@ const itemBySystemId = computed(() => {
 	return m
 })
 
+const matchesViewFilter = (loc: AirCirculationLocation): boolean =>
+	airCirculationLocationInViewCategory(loc, viewFilter.value)
+
+const locationsForZone = (zone: AirCirculationZone): AirCirculationLocation[] => {
+	const list = zone.locations || []
+	const out: AirCirculationLocation[] = []
+	list.forEach((loc) => {
+		if (!matchesViewFilter(loc)) return
+		out.push(loc)
+	})
+	return out
+}
+
 const displayedZones = computed(() => {
 	if (!props.zones?.length) return []
 	const sorted = [...props.zones].sort((a, b) => compareZonesLoose(a as any, b as any))
-	return sorted.filter((z) => (z.locations || []).length > 0)
+	return sorted.filter((z) => locationsForZone(z).length > 0)
 })
 
 const statusLabel = (s: UiStatus) => {
 	if (s === "normal") return "正常"
 	if (s === "alarm") return "警報"
-	if (s === "offline") return "離線"
-	if (s === "unknown") return "未知"
+	// warning／offline／unknown：對齊 drainage，皆歸在「異常」層
 	return "異常"
 }
 
@@ -135,25 +202,25 @@ const statusDotClass = (s: UiStatus) => {
 
 const rowBlinkClass = (s: UiStatus) => {
 	if (s === "alarm") return "blink-alarm-fast"
-	if (s === "warning" || s === "offline") return "blink-slow"
+	if (s === "warning" || s === "offline" || s === "unknown") return "blink-slow"
 	return ""
 }
 
 const rowBackgroundClass = (s: UiStatus) => {
 	if (s === "alarm") return "bg-[#FF0000]/60"
-	if (s === "warning" || s === "offline") return "bg-[#FFC801]/60"
+	if (s === "warning" || s === "offline" || s === "unknown") return "bg-[#FFC801]/60"
 	return "bg-white/10"
 }
 
 const zoneHasAbnormal = (zone: AirCirculationZone) =>
-	(zone.locations || []).some((loc) => {
+	locationsForZone(zone).some((loc) => {
 		const it = loc.systemId ? itemBySystemId.value.get(String(loc.systemId)) : null
 		const s = (it?.uiStatus ?? "unknown") as UiStatus
-		return s !== "normal" && s !== "unknown"
+		return s !== "normal"
 	})
 
 const zoneHasAlarm = (zone: AirCirculationZone) =>
-	(zone.locations || []).some((loc) => {
+	locationsForZone(zone).some((loc) => {
 		const it = loc.systemId ? itemBySystemId.value.get(String(loc.systemId)) : null
 		return (it?.uiStatus ?? "unknown") === "alarm"
 	})
@@ -180,8 +247,9 @@ const zoneRows = (zone: AirCirculationZone) => {
 		error?: string
 	}> = []
 
-	for (let i = 0; i < (zone.locations || []).length; i += 1) {
-		const loc = zone.locations[i]!
+	const locs = locationsForZone(zone)
+	for (let i = 0; i < locs.length; i += 1) {
+		const loc = locs[i]!
 		const systemId = loc.systemId ? String(loc.systemId) : ""
 		const it = systemId ? itemBySystemId.value.get(systemId) : null
 		const uiStatus = (it?.uiStatus ?? "unknown") as UiStatus
@@ -196,4 +264,3 @@ const zoneRows = (zone: AirCirculationZone) => {
 	return out
 }
 </script>
-

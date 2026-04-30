@@ -14,6 +14,7 @@ import type { DrainageZone, DrainageLocation } from "~/types/drainage"
 import type { PowerZone, PowerLocation } from "~/types/power"
 import type { FireZone, FireLocation } from "~/types/fire"
 import type { EmergencyRescueZone, EmergencyRescueLocation } from "~/types/emergency-rescue"
+import type { SmokeAlarmZone, SmokeAlarmLocation } from "~/types/smoke-alarm"
 import { getLocationUiKey } from "~/utils/locationUiId"
 
 export type SystemZoneType =
@@ -27,6 +28,7 @@ export type SystemZoneType =
 	| PowerZone
 	| FireZone
 	| EmergencyRescueZone
+	| SmokeAlarmZone
 export type SystemLocationType =
 	| LightingLocation
 	| HvacLocation
@@ -38,6 +40,7 @@ export type SystemLocationType =
 	| PowerLocation
 	| FireLocation
 	| EmergencyRescueLocation
+	| SmokeAlarmLocation
 
 /**
  * 系統配置
@@ -399,6 +402,42 @@ export function useFireZoneAdapter(): ZoneSystemAdapter<FireZone, FireLocation> 
 }
 
 /**
+ * 煙霧警報系統適配器（資料形狀同消防/排水，預設檢視分類為 smoke）
+ */
+export function useSmokeAlarmZoneAdapter(): ZoneSystemAdapter<SmokeAlarmZone, SmokeAlarmLocation> {
+	const systemConfig: SystemConfig = {
+		requireImageUrl: true,
+	}
+
+	return {
+		getLocationsProperty: (zone: SmokeAlarmZone) => zone.locations || [],
+		setLocationsProperty: (zone: SmokeAlarmZone, locations: SmokeAlarmLocation[]) => ({
+			...zone,
+			locations,
+		}),
+		createNewLocation: (): SmokeAlarmLocation => ({
+			name: "",
+			equipmentKind: "detector",
+			viewCategory: "smoke",
+			statusPoints: {},
+			createdAt: new Date().toISOString(),
+		}),
+		createNewZone: (name: string): SmokeAlarmZone => ({
+			name,
+			locations: [],
+		}),
+		filterEmptyLocations: (zone: SmokeAlarmZone): SmokeAlarmZone => ({
+			...zone,
+			locations: (zone.locations || []).filter((loc) => loc.name && loc.name.trim().length > 0),
+		}),
+		systemConfig,
+		getLocationId: ({ zone, location, locationIndex }): string => {
+			return getLocationUiKey({ zone: zone as any, location: location as any, locationIndex })
+		},
+	}
+}
+
+/**
  * 車輛進出系統適配器
  */
 export function useVehicleAccessZoneAdapter(): ZoneSystemAdapter<
@@ -461,6 +500,8 @@ export function useZoneSystemAdapter<
 			return useFireZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		case "emergency_rescue":
 			return useEmergencyRescueZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
+		case "smoke_alarm":
+			return useSmokeAlarmZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		default:
 			throw new Error(`不支援的系統類型: ${systemType}`)
 	}

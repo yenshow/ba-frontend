@@ -191,10 +191,20 @@
 				</div>
 			</div>
 		</div>
+
+		<ManualIssuePanel
+			v-if="manualIssueTargets.length > 0"
+			system-route-prefix="fire"
+			:targets="manualIssueTargets"
+			:default-target-id="manualIssueDefaultTargetId"
+			:rule-trigger="ruleTrigger"
+			@changed="handleManualIssueChanged"
+		/>
 	</div>
 </template>
 
 <script setup lang="ts">
+import ManualIssuePanel from "~/components/common/ManualIssuePanel.vue"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import {
 	type FireZone,
@@ -215,6 +225,9 @@ const props = defineProps<{
 	selectedZone: string
 	/** 與地點 viewCategory 相同；不含「全部」 */
 	viewFilterOptions: FireViewFilterOption[]
+	manualIssueTargets?: Array<{ id: string; label: string }>
+	manualIssueDefaultTargetId?: string
+	ruleTrigger?: { alert_type: "di" | "do"; bit_key: string } | null
 }>()
 
 const FIRE_ICONS = {
@@ -227,10 +240,19 @@ const FIRE_ICONS = {
 
 const emit = defineEmits<{
 	zoneSelected: [zoneId: string]
+	manualIssueChanged: []
 }>()
 
 const handleZoneClick = (zoneId: string) => {
 	emit("zoneSelected", zoneId)
+}
+
+const manualIssueTargets = computed(() => props.manualIssueTargets ?? [])
+const manualIssueDefaultTargetId = computed(() => props.manualIssueDefaultTargetId ?? "")
+const ruleTrigger = computed(() => props.ruleTrigger ?? null)
+
+const handleManualIssueChanged = () => {
+	emit("manualIssueChanged")
 }
 
 const itemBySystemId = computed(() => {
@@ -276,7 +298,6 @@ const pumpUiStatus = (loc: FireLocation): FireStatusItem["uiStatus"] =>
 
 const statusLabel = (s: FireStatusItem["uiStatus"]) => {
 	if (s === "normal") return "正常"
-	if (s === "warning" || s === "offline" || s === "unknown") return "異常"
 	if (s === "alarm") return "警報"
 	return "異常"
 }
@@ -284,7 +305,6 @@ const statusLabel = (s: FireStatusItem["uiStatus"]) => {
 /** 監控中心狀態點：正常(綠)／異常(黃)／警報(紅)；離線、未知歸在異常層 */
 const statusDotClass = (s: FireStatusItem["uiStatus"]) => {
 	if (s === "normal") return "bg-emerald-400"
-	if (s === "warning" || s === "offline" || s === "unknown") return "bg-amber-400"
 	if (s === "alarm") return "bg-rose-500"
 	return "bg-amber-400"
 }

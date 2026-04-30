@@ -83,6 +83,8 @@ interface AddressIssue {
 
 interface Props {
 	location: AirCirculationLocation
+	/** 由分類區塊控制，與 drainage 對齊：地點 viewCategory 由 groupViewCategory 決定 */
+	groupViewCategory?: string
 	allLocations?: AirCirculationLocation[]
 	currentIndex?: number
 	devices?: Device[]
@@ -94,6 +96,7 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+	groupViewCategory: "",
 	allLocations: () => [],
 	currentIndex: -1,
 	devices: () => [],
@@ -132,9 +135,9 @@ const ensureModbusConfig = (location: AirCirculationLocation) => {
 }
 
 watch(
-	() => props.location,
-	(newLocation) => {
-		localLocation.value = { ...newLocation }
+	() => [props.location, props.groupViewCategory] as const,
+	([newLocation]) => {
+		localLocation.value = { ...newLocation, viewCategory: props.groupViewCategory }
 		ensureModbusConfig(localLocation.value)
 		deviceIdString.value =
 			localLocation.value.deviceId && localLocation.value.deviceId > 0
@@ -159,7 +162,7 @@ const modbusAddressIssue = computed((): AddressIssue | null => {
 })
 
 const handleChange = () => {
-	emit("update", { ...localLocation.value })
+	emit("update", { ...localLocation.value, viewCategory: props.groupViewCategory })
 }
 
 const deviceOptions = computed(() => {

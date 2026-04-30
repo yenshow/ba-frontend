@@ -247,7 +247,7 @@ export const useDrainageModbusIntegration = (drainageZones: Ref<DrainageZone[]>)
 		return reqs
 	}
 
-	const loadStatusSnapshot = async () => {
+	const loadStatusSnapshot = async (options?: { syncAlerts?: boolean }) => {
 		if (inflightSnapshot) {
 			await inflightSnapshot
 			return
@@ -257,7 +257,8 @@ export const useDrainageModbusIntegration = (drainageZones: Ref<DrainageZone[]>)
 			const now = Date.now()
 			let hasSnapshotFailure = false
 			try {
-				const { items } = await drainageApi.getStatus()
+				const syncAlerts = options?.syncAlerts ?? true
+				const { items } = await drainageApi.getStatus({ syncAlerts })
 				statusItems.value = items || []
 				pollingPolicy.recordSuccess()
 				return
@@ -447,7 +448,6 @@ export const useDrainageModbusIntegration = (drainageZones: Ref<DrainageZone[]>)
 					return {
 						...it,
 						uiStatus: "warning",
-						error: it.error || "無可用控制器連線設定（deviceId 或 modbus.host/port）",
 					}
 				}
 				const computedStatus = deriveUiStatusForDrainageItem(it)

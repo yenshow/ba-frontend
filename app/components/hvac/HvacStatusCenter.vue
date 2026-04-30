@@ -152,6 +152,7 @@
 				</div>
 			</div>
 		</div>
+
 	</div>
 </template>
 
@@ -205,8 +206,7 @@ const displayedZones = computed(() => {
 const getLocationStatus = (locationId: string) => {
 	const s = props.areaStatuses[locationId]
 	const uiStatus: HvacUiStatus = s?.uiStatus ?? "warning"
-	const label =
-		uiStatus === "normal" ? "正常" : uiStatus === "alarm" ? "警報" : "異常"
+	const label = uiStatus === "normal" ? "正常" : uiStatus === "alarm" ? "警報" : "異常"
 	const temperatureLabel =
 		s?.temperatureC != null && Number.isFinite(s.temperatureC)
 			? `${Math.round(s.temperatureC)}°C`

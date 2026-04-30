@@ -21,15 +21,21 @@ export const useEmergencyRescueApi = () => {
 
 	const { request } = useApiBase()
 
+	type StatusQuery = { zoneIds?: string[]; syncAlerts?: boolean }
+
 	return {
 		getZones: zoneApi.getZones,
 		getZone: zoneApi.getZone,
 		createZone: zoneApi.createZone,
 		updateZone: zoneApi.updateZone,
 		deleteZone: zoneApi.deleteZone,
-		getStatus: (zoneIds?: string[]) => {
-			const q =
-				zoneIds && zoneIds.length > 0 ? `?zoneIds=${zoneIds.map(encodeURIComponent).join(",")}` : ""
+		getStatus: (query?: StatusQuery) => {
+			const zoneIds = query?.zoneIds
+			const syncAlerts = query?.syncAlerts
+			const params = new URLSearchParams()
+			if (zoneIds && zoneIds.length > 0) params.set("zoneIds", zoneIds.join(","))
+			if (syncAlerts !== undefined) params.set("syncAlerts", syncAlerts ? "true" : "false")
+			const q = params.toString() ? `?${params.toString()}` : ""
 			return request<{ items: EmergencyRescueStatusItem[] }>(`/emergency-rescue/status${q}`)
 		},
 		getZoneStatus: (zoneId: string) =>

@@ -1,20 +1,19 @@
 import { computed, ref, watch, type Ref } from "vue"
-import type { EmergencyRescueStatusItem, EmergencyRescueZone } from "~/types/emergency-rescue"
+import type { SmokeAlarmZone, SmokeAlarmStatusItem } from "~/types/smoke-alarm"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { usePolling } from "~/composables/monitoring/usePolling"
-import {
-	useModbusPollingPolicy,
-} from "~/composables/monitoring/useModbusPollingPolicy"
-import { useEmergencyRescueApi } from "~/composables/systems/emergency-rescue/useEmergencyRescueApi"
+import { useModbusPollingPolicy } from "~/composables/monitoring/useModbusPollingPolicy"
+import { useSmokeAlarmApi } from "~/composables/systems/smoke-alarm/useSmokeAlarmApi"
 
-export const useEmergencyRescueModbusIntegration = (zones: Ref<EmergencyRescueZone[]>) => {
-	const emergencyRescueApi = useEmergencyRescueApi()
+export const useSmokeAlarmModbusIntegration = (zones: Ref<SmokeAlarmZone[]>) => {
+	const smokeAlarmApi = useSmokeAlarmApi()
 	const { handleError } = useErrorHandler()
 
-	const statusItems = ref<EmergencyRescueStatusItem[]>([])
+	const statusItems = ref<SmokeAlarmStatusItem[]>([])
 	let inflightSnapshot: Promise<void> | null = null
 	const pollingPolicy = useModbusPollingPolicy()
-	// 保留同名 API：頁面初始化流程仍會先呼叫（但 emergency-rescue 現在只依賴後端 /status 快照）
+
+	// 保留同名 API：頁面初始化流程仍會先呼叫（但 smoke-alarm 現在只依賴後端 /status 快照）
 	const preloadDeviceInfos = async () => {}
 
 	const loadStatusSnapshot = async (options?: { syncAlerts?: boolean }) => {
@@ -26,12 +25,12 @@ export const useEmergencyRescueModbusIntegration = (zones: Ref<EmergencyRescueZo
 		inflightSnapshot = (async () => {
 			try {
 				const syncAlerts = options?.syncAlerts ?? true
-				const { items } = await emergencyRescueApi.getStatus({ syncAlerts })
+				const { items } = await smokeAlarmApi.getStatus({ syncAlerts })
 				statusItems.value = items || []
 				pollingPolicy.recordSuccess()
 			} catch (error) {
 				pollingPolicy.recordFailure()
-				handleError(error, "載入 emergency 狀態失敗")
+				handleError(error, "載入 smoke-alarm 狀態失敗")
 			}
 		})()
 			.catch((error) => {
@@ -55,7 +54,7 @@ export const useEmergencyRescueModbusIntegration = (zones: Ref<EmergencyRescueZo
 		immediate: true,
 		enabled: () => typeof document !== "undefined" && document.visibilityState === "visible",
 		onError: (err) => {
-			handleError(err, "載入 emergency 狀態失敗")
+			handleError(err, "載入 smoke-alarm 狀態失敗")
 		},
 	})
 
@@ -86,3 +85,4 @@ export const useEmergencyRescueModbusIntegration = (zones: Ref<EmergencyRescueZo
 		handleVisibilityChange,
 	}
 }
+

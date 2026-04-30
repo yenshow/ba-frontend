@@ -237,7 +237,8 @@ const ruleSourceOptions = [
 	{ value: "hvac", label: "空調系統" },
 	{ value: "air_circulation", label: "空氣循環系統" },
 	{ value: "fire", label: "消防系統" },
-	{ value: "emergency_rescue", label: "emergency 系統" },
+	{ value: "smoke_alarm", label: "煙霧警報系統" },
+	{ value: "emergency", label: "緊急求救系統" },
 	{ value: "security", label: "安防系統" },
 ]
 

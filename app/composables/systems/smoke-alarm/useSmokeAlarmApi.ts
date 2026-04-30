@@ -1,14 +1,18 @@
-import type { FireZone, FireLocation, FireStatusItem } from "~/types/fire"
+import type { SmokeAlarmZone, SmokeAlarmLocation, SmokeAlarmStatusItem } from "~/types/smoke-alarm"
 import { useSystemLocationApiFactory } from "~/composables/location/api/useSystemLocationApiFactory"
-import { unifiedToFireZone, fireToUnifiedZone, fireLocationToUnified } from "~/utils/locationAdapter"
+import {
+	unifiedToSmokeAlarmZone,
+	smokeAlarmToUnifiedZone,
+	smokeAlarmLocationToUnified,
+} from "~/utils/locationAdapter"
 import { useApiBase } from "~/composables/core/useApiBase"
 
-export const useFireApi = () => {
-	const zoneApi = useSystemLocationApiFactory<FireZone, FireLocation>({
-		systemType: "fire",
-		unifiedToSystemZone: unifiedToFireZone,
-		systemToUnifiedZone: (zone) => fireToUnifiedZone(zone, "fire"),
-		locationToUnified: fireLocationToUnified,
+export const useSmokeAlarmApi = () => {
+	const zoneApi = useSystemLocationApiFactory<SmokeAlarmZone, SmokeAlarmLocation>({
+		systemType: "smoke_alarm",
+		unifiedToSystemZone: unifiedToSmokeAlarmZone,
+		systemToUnifiedZone: (zone) => smokeAlarmToUnifiedZone(zone, "smoke_alarm"),
+		locationToUnified: smokeAlarmLocationToUnified,
 	})
 
 	const { request } = useApiBase()
@@ -28,9 +32,10 @@ export const useFireApi = () => {
 			if (zoneIds && zoneIds.length > 0) params.set("zoneIds", zoneIds.join(","))
 			if (syncAlerts !== undefined) params.set("syncAlerts", syncAlerts ? "true" : "false")
 			const q = params.toString() ? `?${params.toString()}` : ""
-			return request<{ items: FireStatusItem[] }>(`/fire/status${q}`)
+			return request<{ items: SmokeAlarmStatusItem[] }>(`/smoke-alarm/status${q}`)
 		},
 		getZoneStatus: (zoneId: string) =>
-			request<{ zoneId: string; items: FireStatusItem[] }>(`/fire/zones/${zoneId}/status`),
+			request<{ zoneId: string; items: SmokeAlarmStatusItem[] }>(`/smoke-alarm/zones/${zoneId}/status`),
 	}
 }
+
