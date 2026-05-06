@@ -850,7 +850,7 @@ const getStatusTextClass = (type: string, value: number | null): string => {
 	const ui = monitoringStatusTextToUiStatus(status);
 
 	if (ui === "normal") return "text-green-300";
-	if (ui === "abnormal") return "text-yellow-300";
+	if (ui === "warning") return "text-yellow-300";
 	if (ui === "alarm") return "text-red-300";
 	if (ui === "offline") return "text-white/60";
 	return "text-white/70";
@@ -861,7 +861,7 @@ const getReportCellClass = (type: string, value: number | null): string => {
 	const status = normalizeMonitoringStatusText(getStatusText(type, value));
 	const ui: MonitoringUiStatus = monitoringStatusTextToUiStatus(status);
 
-	if (ui === "abnormal") return "bg-yellow-500/30";
+	if (ui === "warning") return "bg-yellow-500/30";
 	if (ui === "alarm") return "bg-red-500/30";
 	return "";
 };

@@ -71,7 +71,7 @@ const statusType = computed<"normal" | "warning" | "alarm" | "offline">(() => {
 	const ui = monitoringStatusTextToUiStatus(statusText.value);
 	if (ui === "offline") return "offline";
 	if (ui === "alarm") return "alarm";
-	if (ui === "abnormal") return "warning";
+	if (ui === "warning") return "warning";
 	return "normal";
 });
 
