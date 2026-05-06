@@ -9,7 +9,7 @@ export type UiHealthStatus = "normal" | "warning" | "error";
 
 /**
  * 健康狀態 → 閃爍節奏
- * @param whenAbsent 未帶 `status` 時：`fast` ＝監控卡片視為需強調（與 StatusCenter 一致）；`none` ＝不閃（例如平面圖點位尚未寫入狀態）
+ * @param whenAbsent 未帶 `status` 時：`fast` ＝監控卡片視為需強調；`none` ＝不閃（例如平面圖點位尚未寫入狀態）
  */
 export const healthStatusToAlertFlash = (
 	status: UiHealthStatus | undefined | null,
