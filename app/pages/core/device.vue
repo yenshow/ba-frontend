@@ -171,6 +171,7 @@
 
 		<!-- 建立/編輯設備對話框 -->
 		<DeviceDialog
+			v-if="activeTab"
 			v-model="showDialog"
 			:editing-device="editingDevice"
 			:device-type-code="activeTab"

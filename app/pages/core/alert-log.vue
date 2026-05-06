@@ -201,16 +201,12 @@ const sourceOptions = [
 	{ value: "", label: "全部系統" },
 	{ value: "device", label: "設備系統" },
 	{ value: "environment", label: "環境系統" },
-	{ value: "lighting", label: "照明系統" },
 	{ value: "drainage", label: "衛生排水系統" },
-	{ value: "people_counting", label: "人流系統" },
-	{ value: "hvac", label: "空調系統" },
 	{ value: "air_circulation", label: "空氣循環系統" },
 	{ value: "power", label: "電力系統" },
 	{ value: "fire", label: "消防系統" },
 	{ value: "smoke_alarm", label: "煙霧警報系統" },
 	{ value: "emergency_rescue", label: "緊急求救系統" },
-	{ value: "security", label: "安防系統" },
 ]
 
 // 時間範圍

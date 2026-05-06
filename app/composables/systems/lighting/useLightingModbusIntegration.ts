@@ -8,12 +8,18 @@ import { useApiBase } from "~/composables/core/useApiBase"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { usePolling } from "~/composables/monitoring/usePolling"
 import { useModbusPollingPolicy } from "~/composables/monitoring/useModbusPollingPolicy"
-import { extractWritePoints, filterDoPoints, hasLocationControllerConfig, needsModbusConnection } from "~/utils/modbusPoints"
+import {
+	extractWritePoints,
+	filterDoPoints,
+	hasLocationControllerConfig,
+	needsModbusConnection,
+} from "~/utils/modbusPoints"
 import { findLocationInZonesByUiKey, getLocationUiKey } from "~/utils/locationUiId"
 import { normalizeSystemUiStatus, type SystemUiStatus } from "~/utils/monitoringStatus"
 
 const TOGGLE_DEBOUNCE_DELAY = 300
 const TOGGLE_ROUNDTRIP_DELAY_MS = 450
+const TOGGLE_SNAPSHOT_HOLD_MS = 8000
 
 type LightingLocationStatus = {
 	isRunning: boolean
@@ -31,11 +37,28 @@ export const useLightingModbusIntegration = (
 
 	const locationStatuses = ref<Record<string, LightingLocationStatus>>({})
 	const locationToggling = ref<Set<string>>(new Set())
+	// 切換後短時間內避免輪詢用舊快照覆寫 UI（等快照追上再解除）
+	const snapshotHoldUntilByLocationId = ref<Record<string, number>>({})
 	const deviceCache = ref<Map<number, Device>>(new Map())
-	const deviceConfigCache = ref<Map<number, { host: string; port: number; unitId: number }>>(new Map())
+	const deviceConfigCache = ref<Map<number, { host: string; port: number; unitId: number }>>(
+		new Map()
+	)
 	const toggleDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>()
 	let inflightStatusRefresh: Promise<void> | null = null
 	const pollingPolicy = useModbusPollingPolicy()
+
+	const setSnapshotHold = (locationId: string) => {
+		snapshotHoldUntilByLocationId.value = {
+			...snapshotHoldUntilByLocationId.value,
+			[locationId]: Date.now() + TOGGLE_SNAPSHOT_HOLD_MS,
+		}
+	}
+
+	const clearSnapshotHold = (locationId: string) => {
+		if (!snapshotHoldUntilByLocationId.value[locationId]) return
+		const { [locationId]: _removed, ...rest } = snapshotHoldUntilByLocationId.value
+		snapshotHoldUntilByLocationId.value = rest
+	}
 
 	const writeCoil = async (address: number, value: boolean, deviceConfig: ModbusDeviceConfig) => {
 		const queryParams = new URLSearchParams({
@@ -43,13 +66,15 @@ export const useLightingModbusIntegration = (
 			port: String(deviceConfig.port),
 			unitId: String(deviceConfig.unitId),
 		})
-		return request<{ address: number; value: boolean; success: boolean; device: ModbusDeviceConfig }>(
-			`/modbus/coils?${queryParams.toString()}`,
-			{
-				method: "PUT",
-				body: JSON.stringify({ address, value }),
-			}
-		)
+		return request<{
+			address: number
+			value: boolean
+			success: boolean
+			device: ModbusDeviceConfig
+		}>(`/modbus/coils?${queryParams.toString()}`, {
+			method: "PUT",
+			body: JSON.stringify({ address, value }),
+		})
 	}
 
 	const ensureLocationStatus = (
@@ -162,6 +187,7 @@ export const useLightingModbusIntegration = (
 			if (item.systemId) statusBySystemId.set(String(item.systemId), item)
 		})
 
+		const now = Date.now()
 		lightingZones.value.forEach((zone) => {
 			zone.locations.forEach((location, locationIndex) => {
 				const locationId = getLocationUiKey({ zone, location, locationIndex })
@@ -175,14 +201,31 @@ export const useLightingModbusIntegration = (
 					return
 				}
 
-				status.isRunning = snapshot.raw?.isOn === true
+				const holdUntil = snapshotHoldUntilByLocationId.value[locationId] ?? 0
+				const nextIsRunning = snapshot.raw?.isOn === true
+				if (holdUntil > now) {
+					// 若快照仍與目前狀態相反，先不覆寫（避免 UI 跳回）
+					if (status.isRunning !== nextIsRunning) {
+						return
+					}
+					// 快照已追上 → 解除 hold
+					clearSnapshotHold(locationId)
+				} else if (holdUntil > 0) {
+					// hold 已過期：清掉避免累積
+					clearSnapshotHold(locationId)
+				}
+
+				status.isRunning = nextIsRunning
 				status.status =
 					snapshot.error && normalizedUiStatus === "normal" ? "warning" : normalizedUiStatus
 			})
 		})
 	}
 
-	const loadAllLocationStatuses = async (options?: { silent?: boolean; loadAllZones?: boolean }) => {
+	const loadAllLocationStatuses = async (options?: {
+		silent?: boolean
+		loadAllZones?: boolean
+	}) => {
 		if (inflightStatusRefresh) {
 			return inflightStatusRefresh
 		}
@@ -285,6 +328,7 @@ export const useLightingModbusIntegration = (
 		if (locationToggling.value.has(locationId)) return
 
 		locationToggling.value.add(locationId)
+		setSnapshotHold(locationId)
 		const currentStatus = locationStatuses.value[locationId]
 		const currentValue = currentStatus?.isRunning ?? false
 
@@ -293,16 +337,20 @@ export const useLightingModbusIntegration = (
 			const deviceConfig = await getLocationDeviceConfig(location)
 			if (!deviceConfig) {
 				ensureLocationStatus(locationId).isRunning = currentValue
+				clearSnapshotHold(locationId)
 				return
 			}
 
 			const writeAddresses = extractWritePoints(location.modbus)
 			if (writeAddresses.length === 0) {
 				ensureLocationStatus(locationId).isRunning = currentValue
+				clearSnapshotHold(locationId)
 				return
 			}
 
-			await Promise.all(writeAddresses.map((address) => writeCoil(address, targetValue, deviceConfig)))
+			await Promise.all(
+				writeAddresses.map((address) => writeCoil(address, targetValue, deviceConfig))
+			)
 
 			setTimeout(async () => {
 				try {
@@ -315,6 +363,7 @@ export const useLightingModbusIntegration = (
 			ensureLocationStatus(locationId).isRunning = currentValue
 			ensureLocationStatus(locationId).status = "warning"
 			handleError(error, `控制 ${location.name} 失敗`)
+			clearSnapshotHold(locationId)
 			locationToggling.value.delete(locationId)
 		}
 	}

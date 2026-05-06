@@ -260,8 +260,7 @@ export const useApiBase = () => {
 			}
 
 			if (isNetworkError) {
-				// 避免在「設備連線/點位問題」已知時，再額外噴出「無法連接到後端伺服器」造成噪音
-				throw new ApiRequestError(backendErrorMsg || "連線異常，請稍後再試", {
+				throw new ApiRequestError("無法連線後端伺服器，請稍後再試", {
 					code: "NETWORK_ERROR",
 					originalMessage: backendErrorMsg || errorMessage,
 				})

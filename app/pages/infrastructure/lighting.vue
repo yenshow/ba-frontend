@@ -26,7 +26,7 @@
 				class="show-scrollbar flex-[0.8] overflow-y-auto 2xl:flex-[0.7]"
 				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
 			>
-				<StatusCenter
+				<LightStatusCenter
 					:zones="lightingZones"
 					:area-statuses="locationStatuses"
 					:area-disabled-map="locationDisabledMap"
@@ -52,7 +52,7 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, watch } from "vue"
-import StatusCenter from "~/components/lighting/StatusCenter.vue"
+import LightStatusCenter from "~/components/lighting/LightStatusCenter.vue"
 import LightingZonePlanPanel from "~/components/lighting/LightingZonePlanPanel.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
 import type { LightingZone, LightingLocation } from "~/types/lighting"
@@ -130,13 +130,18 @@ const {
 const getLocationAlertFlash = (id: string): "none" | "slow" | "fast" => {
 	const status = locationStatuses.value[id]?.status
 	if (!status) return "none"
-	return healthStatusToAlertFlash(systemUiStatusToLegacyHealthStatus(status), { whenAbsent: "none" })
+	return healthStatusToAlertFlash(systemUiStatusToLegacyHealthStatus(status), {
+		whenAbsent: "none",
+	})
 }
 
 const getLocationStatusType = (id: string) => locationStatuses.value[id]?.status ?? "warning"
 
-const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone, sortZones } =
-	useZoneManagement<LightingLocation, LightingZone>()
+const {
+	handleSaveZone: baseHandleSaveZone,
+	handleDeleteZone: baseHandleDeleteZone,
+	sortZones,
+} = useZoneManagement<LightingLocation, LightingZone>()
 
 const handleZoneSelected = async (zoneId: string) => {
 	selectedZone.value = zoneId
@@ -170,10 +175,13 @@ const saveLocationPosition = async (locationId: string, x: number, y: number) =>
 	const zone = selectedZoneData.value
 	if (!zone?.id) return
 	const idx = zone.locations.findIndex(
-		(loc, i) => getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i }) === locationId
+		(loc, i) =>
+			getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i }) === locationId
 	)
 	if (idx === -1) return
-	const updatedLocations = zone.locations.map((loc, i) => (i === idx ? { ...loc, location: { x, y } } : loc))
+	const updatedLocations = zone.locations.map((loc, i) =>
+		i === idx ? { ...loc, location: { x, y } } : loc
+	)
 	try {
 		const result = await lightingApi.updateZone(zone.id, {
 			name: zone.name,
@@ -192,7 +200,9 @@ const getLocationIdForDisplay = (location: LightingLocation): string => {
 	const zone = selectedZoneData.value
 	if (!zone) return ""
 	const originalIndex = findLocationIndexInZone(zone, location)
-	return originalIndex !== -1 ? getLocationUiKey({ zone, location, locationIndex: originalIndex }) : ""
+	return originalIndex !== -1
+		? getLocationUiKey({ zone, location, locationIndex: originalIndex })
+		: ""
 }
 
 watch(

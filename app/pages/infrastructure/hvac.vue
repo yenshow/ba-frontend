@@ -83,7 +83,9 @@ const selectedCategory = ref("")
 const isEditMode = ref(false)
 const showZoneManagementDialog = ref(false)
 
-const zonesById = computed(() => new Map(hvacZones.value.map((zone) => [zone.id || zone.name, zone])))
+const zonesById = computed(
+	() => new Map(hvacZones.value.map((zone) => [zone.id || zone.name, zone]))
+)
 const selectedZoneName = computed(() => zonesById.value.get(selectedZone.value)?.name || "")
 const selectedZoneData = computed(() => zonesById.value.get(selectedZone.value))
 const zonePlanImage = computed(() => selectedZoneData.value?.imageUrl)
@@ -116,7 +118,7 @@ const {
 const getLocationAlertFlash = (locationId: string): "none" | "slow" | "fast" => {
 	const ui = locationStatuses.value[locationId]?.uiStatus
 	if (ui === "normal") return "none"
-	if (ui === "alarm") return "fast"
+	// HVAC 對外僅 normal / warning（alarm 視為 warning）
 	return "slow"
 }
 
@@ -124,14 +126,12 @@ const dotStatusForLocationId = (locationId: string) => dotStatusForLocation(loca
 
 const tooltipTitleByLocationId = (locationId: string) => {
 	const s = locationStatuses.value[locationId]
-	const label =
-		s?.uiStatus === "normal"
-			? "正常"
-			: s?.uiStatus === "alarm"
-					? "警報"
-					: "異常"
+	// HVAC 對外僅 normal / warning（alarm 視為 warning）
+	const label = s?.uiStatus === "normal" ? "正常" : "異常"
 	const temp =
-		s?.temperatureC != null && Number.isFinite(s.temperatureC) ? ` ${Math.round(s.temperatureC)}°C` : ""
+		s?.temperatureC != null && Number.isFinite(s.temperatureC)
+			? ` ${Math.round(s.temperatureC)}°C`
+			: ""
 	const found = findLocationInCurrentZoneByUiKey(locationId)
 	const name = found?.location?.name || ""
 	return `${name}：${label}${temp}`
@@ -140,13 +140,19 @@ const tooltipTitleByLocationId = (locationId: string) => {
 const findLocationInCurrentZoneByUiKey = (locationId: string) => {
 	const zone = selectedZoneData.value
 	if (!zone) return null
-	const idx = zone.locations.findIndex((loc, i) => getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i }) === locationId)
+	const idx = zone.locations.findIndex(
+		(loc, i) =>
+			getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i }) === locationId
+	)
 	if (idx === -1) return null
 	return { zone, location: zone.locations[idx]!, locationIndex: idx }
 }
 
-const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone, sortZones } =
-	useZoneManagement<HvacLocation, HvacZone>()
+const {
+	handleSaveZone: baseHandleSaveZone,
+	handleDeleteZone: baseHandleDeleteZone,
+	sortZones,
+} = useZoneManagement<HvacLocation, HvacZone>()
 
 const handleZoneSelected = async (zoneId: string) => {
 	selectedZone.value = zoneId
@@ -162,10 +168,18 @@ const selectLocationByLocation = (location: HvacLocation) => {
 	if (!zone) return
 	const originalIndex = findLocationIndexInZone(zone as any, location as any)
 	if (originalIndex === -1) return
-	selectedCategory.value = getLocationUiKey({ zone: zone as any, location: location as any, locationIndex: originalIndex })
+	selectedCategory.value = getLocationUiKey({
+		zone: zone as any,
+		location: location as any,
+		locationIndex: originalIndex,
+	})
 }
 
-const handleSaveLocationPositionFromPanel = (payload: { locationId: string; x: number; y: number }) => {
+const handleSaveLocationPositionFromPanel = (payload: {
+	locationId: string
+	x: number
+	y: number
+}) => {
 	// HVAC 的點位座標持久化由 ZoneManagementDialog 的 updateZone 流程承接；
 	// 這裡沿用照明頁的事件形狀，先直接觸發 zone 更新（單筆 location 座標覆寫）
 	void saveLocationPosition(payload.locationId, payload.x, payload.y)
@@ -176,10 +190,13 @@ const saveLocationPosition = async (locationId: string, x: number, y: number) =>
 	const zone = selectedZoneData.value
 	if (!zone?.id) return
 	const idx = zone.locations.findIndex(
-		(loc, i) => getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i }) === locationId
+		(loc, i) =>
+			getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i }) === locationId
 	)
 	if (idx === -1) return
-	const updatedLocations = zone.locations.map((loc, i) => (i === idx ? { ...loc, location: { x, y } } : loc))
+	const updatedLocations = zone.locations.map((loc, i) =>
+		i === idx ? { ...loc, location: { x, y } } : loc
+	)
 	try {
 		const result = await hvacApi.updateZone(zone.id, {
 			name: zone.name,
@@ -233,7 +250,9 @@ const handleSaveZone = async (zone: HvacZone) => {
 						sortOrder: z.sortOrder,
 						locations: z.locations,
 					} as any)
-			const zoneWithId = { ...result.zone, id: (result.zone as any).id || z.id } as HvacZone & { id: string }
+			const zoneWithId = { ...result.zone, id: (result.zone as any).id || z.id } as HvacZone & {
+				id: string
+			}
 			return { merged: result.merged, message: result.message, zone: zoneWithId }
 		},
 		{
@@ -270,13 +289,19 @@ watch(
 	(newLocations) => {
 		const zone = selectedZoneData.value
 		if (!zone) return
-		const currentLocationExists = newLocations.some((loc, i) => getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i }) === selectedCategory.value)
+		const currentLocationExists = newLocations.some(
+			(loc, i) =>
+				getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i }) ===
+				selectedCategory.value
+		)
 		if (currentLocationExists) return
 		if (newLocations.length > 0) {
 			const first = newLocations[0]!
 			const idx = findLocationIndexInZone(zone as any, first as any)
 			selectedCategory.value =
-				idx !== -1 ? getLocationUiKey({ zone: zone as any, location: first as any, locationIndex: idx }) : ""
+				idx !== -1
+					? getLocationUiKey({ zone: zone as any, location: first as any, locationIndex: idx })
+					: ""
 		} else {
 			selectedCategory.value = ""
 		}
@@ -302,4 +327,3 @@ onBeforeUnmount(() => {
 	document.removeEventListener("visibilitychange", handleVisibilityChange)
 })
 </script>
-

@@ -59,7 +59,7 @@
 								v-model="draft.name"
 								type="text"
 								class="form-input-small"
-								placeholder="例如：送風、排風、回風"
+								placeholder="例如：送風、排風、導流風機"
 							/>
 						</label>
 					</div>
@@ -310,7 +310,10 @@ interface Emits {
 	(e: "update-location", index: number, location: AirCirculationLocation): void
 	(e: "reorder-location", payload: { index: number; direction: "up" | "down" }): void
 	(e: "rename-view-category", payload: { oldCategory: string; newCategory: string }): void
-	(e: "reorder-view-category-block", payload: { categoryKey: string; direction: "up" | "down" }): void
+	(
+		e: "reorder-view-category-block",
+		payload: { categoryKey: string; direction: "up" | "down" }
+	): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -478,4 +481,3 @@ const handleLocationUpdate = (locationIndex: number, updatedLocation: AirCircula
 	emit("update-location", locationIndex, updatedLocation)
 }
 </script>
-

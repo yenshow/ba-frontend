@@ -22,7 +22,8 @@
 							<Transition name="fade-in">
 								<button
 									v-if="
-										!isInitialLoading && (isAdmin || hasPermission(LOCATION_MANAGEMENT_PERMISSION_CODE))
+										!isInitialLoading &&
+										(isAdmin || hasPermission(LOCATION_MANAGEMENT_PERMISSION_CODE))
 									"
 									type="button"
 									@click="handleOpenZoneDialog"
@@ -219,7 +220,11 @@ import { useHvacModbusIntegration } from "~/composables/systems/hvac/useHvacModb
 import { useFireModbusIntegration } from "~/composables/systems/fire/useFireModbusIntegration"
 import { getSystemTypeLabel } from "~/types/location"
 import { getLocationUiKey } from "~/utils/locationUiId"
-import { normalizeSystemUiStatus, type MapDotStatus, type SystemUiStatus } from "~/utils/monitoringStatus"
+import {
+	normalizeSystemUiStatus,
+	type MapDotStatus,
+	type SystemUiStatus,
+} from "~/utils/monitoringStatus"
 
 definePageMeta({
 	layout: "default",
@@ -228,8 +233,10 @@ definePageMeta({
 const { isAdmin, hasPermission } = useAuth()
 const locationApi = useLocationApi()
 const { handleError } = useErrorHandler()
-const { handleDeleteZone: baseHandleDeleteZone, sortZones } =
-	useZoneManagement<UnifiedLocation, UnifiedZone>()
+const { handleDeleteZone: baseHandleDeleteZone, sortZones } = useZoneManagement<
+	UnifiedLocation,
+	UnifiedZone
+>()
 
 const LOCATION_MANAGEMENT_PERMISSION_CODE = "system.area_point_map"
 
@@ -392,7 +399,9 @@ const buildUiStatusMap = (items: unknown[]): Map<string, string> => {
 	return m
 }
 
-const drainageUiStatusByLocationId = computed(() => buildUiStatusMap(drainageStatusItems.value || []))
+const drainageUiStatusByLocationId = computed(() =>
+	buildUiStatusMap(drainageStatusItems.value || [])
+)
 const fireUiStatusByLocationId = computed(() => buildUiStatusMap(fireStatusItems.value || []))
 
 const powerUiStatusByLocationId = computed(() => {
@@ -455,8 +464,10 @@ const getModbusUiStatus = (locationId: string): string | null => {
 	if (selectedSystemType.value === "drainage") {
 		return drainageUiStatusByLocationId.value.get(locationId) ?? "unknown"
 	}
-	if (selectedSystemType.value === "fire") return fireUiStatusByLocationId.value.get(locationId) ?? "unknown"
-	if (selectedSystemType.value === "power") return powerUiStatusByLocationId.value.get(locationId) ?? "unknown"
+	if (selectedSystemType.value === "fire")
+		return fireUiStatusByLocationId.value.get(locationId) ?? "unknown"
+	if (selectedSystemType.value === "power")
+		return powerUiStatusByLocationId.value.get(locationId) ?? "unknown"
 	return null
 }
 
@@ -532,7 +543,7 @@ const flashModeForLocation = (location: UnifiedLocation): FlashMode => {
 
 	if (selectedSystemType.value === "lighting") {
 		const s = lightingHealthByLocationDbId.value.get(id)?.status
-		// 照明監控僅兩態：正常不閃，其餘慢閃（與 lighting StatusCenter 一致）
+		// 照明監控僅兩態：正常不閃，其餘慢閃
 		if (s === "normal") return "none"
 		return "slow"
 	}
@@ -577,7 +588,9 @@ const tooltipLabelForLocation = (location: UnifiedLocation): string => {
 		parts.push(`電力：${uiStatusToDot(powerUi) === "alarm" ? "警報" : "異常"}`)
 	}
 
-	return parts.length ? `${location.name}：${label}\n${parts.join("、")}` : `${location.name}：${label}`
+	return parts.length
+		? `${location.name}：${label}\n${parts.join("、")}`
+		: `${location.name}：${label}`
 }
 
 const currentZoneLocations = computed(() => {
@@ -879,5 +892,4 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style scoped>
-</style>
+<style scoped></style>

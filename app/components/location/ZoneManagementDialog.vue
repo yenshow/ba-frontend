@@ -435,6 +435,7 @@ const loadDevices = async () => {
 		const deviceType =
 			props.systemType === "lighting" ||
 			props.systemType === "hvac" ||
+				props.systemType === "air_circulation" ||
 			props.systemType === "drainage" ||
 			props.systemType === "power" ||
 			props.systemType === "fire" ||

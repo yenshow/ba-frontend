@@ -7,15 +7,14 @@ import { useHvacApi } from "~/composables/systems/hvac/useHvacApi"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { usePolling } from "~/composables/monitoring/usePolling"
-import {
-	useModbusPollingPolicy,
-} from "~/composables/monitoring/useModbusPollingPolicy"
-import { extractReadPoint, extractWritePoints, hasControllerConfig } from "~/utils/modbusPoints"
+import { useModbusPollingPolicy } from "~/composables/monitoring/useModbusPollingPolicy"
+import { extractWritePoints, hasControllerConfig } from "~/utils/modbusPoints"
 import { findLocationInZonesByUiKey, getLocationUiKey } from "~/utils/locationUiId"
 import type { MapDotStatus } from "~/utils/monitoringStatus"
 
 const TOGGLE_DEBOUNCE_DELAY = 300
 const TOGGLE_ROUNDTRIP_DELAY_MS = 450
+const TOGGLE_SNAPSHOT_HOLD_MS = 8000
 
 type HvacLocationStatus = {
 	isOn: boolean
@@ -32,12 +31,29 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 	const locationStatuses = ref<Record<string, HvacLocationStatus>>({})
 	const locationToggling = ref<Set<string>>(new Set())
 	const locationDisabledMap = ref<Record<string, boolean>>({})
+	// 切換後短時間內避免輪詢用舊快照覆寫 UI（等快照追上再解除）
+	const snapshotHoldUntilByUiKey = ref<Record<string, number>>({})
 
 	const deviceCache = ref<Map<number, Device>>(new Map())
-	const deviceConfigCache = ref<Map<number, { host: string; port: number; unitId: number }>>(new Map())
+	const deviceConfigCache = ref<Map<number, { host: string; port: number; unitId: number }>>(
+		new Map()
+	)
 	const toggleDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>()
 	let inflightRefresh: Promise<void> | null = null
 	const pollingPolicy = useModbusPollingPolicy()
+
+	const setSnapshotHold = (uiKey: string) => {
+		snapshotHoldUntilByUiKey.value = {
+			...snapshotHoldUntilByUiKey.value,
+			[uiKey]: Date.now() + TOGGLE_SNAPSHOT_HOLD_MS,
+		}
+	}
+
+	const clearSnapshotHold = (uiKey: string) => {
+		if (!snapshotHoldUntilByUiKey.value[uiKey]) return
+		const { [uiKey]: _removed, ...rest } = snapshotHoldUntilByUiKey.value
+		snapshotHoldUntilByUiKey.value = rest
+	}
 
 	const writeCoil = async (address: number, value: boolean, deviceConfig: ModbusDeviceConfig) => {
 		const queryParams = new URLSearchParams({
@@ -45,20 +61,25 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 			port: String(deviceConfig.port),
 			unitId: String(deviceConfig.unitId),
 		})
-		return request<{ address: number; value: boolean; success: boolean; device: ModbusDeviceConfig }>(
-			`/modbus/coils?${queryParams.toString()}`,
-			{
-				method: "PUT",
-				body: JSON.stringify({ address, value }),
-			}
-		)
+		return request<{
+			address: number
+			value: boolean
+			success: boolean
+			device: ModbusDeviceConfig
+		}>(`/modbus/coils?${queryParams.toString()}`, {
+			method: "PUT",
+			body: JSON.stringify({ address, value }),
+		})
 	}
 
-	const extractDeviceConfig = (device: Device): { host: string; port: number; unitId: number } | null => {
+	const extractDeviceConfig = (
+		device: Device
+	): { host: string; port: number; unitId: number } | null => {
 		const config = device.config as ControllerDeviceConfig & Record<string, unknown>
 		if (!config?.host || config.port === undefined || config.unitId === undefined) return null
 		const isController =
-			config.type === "controller" || (device as Device & { type_code?: string }).type_code === "controller"
+			config.type === "controller" ||
+			(device as Device & { type_code?: string }).type_code === "controller"
 		if (!isController) return null
 		return { host: String(config.host), port: Number(config.port), unitId: Number(config.unitId) }
 	}
@@ -103,17 +124,12 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 			}
 			return null
 		}
-		if (deviceConfigCache.value.has(effectiveDeviceId)) return deviceConfigCache.value.get(effectiveDeviceId)!
+		if (deviceConfigCache.value.has(effectiveDeviceId))
+			return deviceConfigCache.value.get(effectiveDeviceId)!
 		const device = await loadDeviceInfo(effectiveDeviceId)
 		if (!device) return null
 		return deviceConfigCache.value.get(effectiveDeviceId) || null
 	}
-
-	const getRequestKey = (
-		deviceConfig: { host: string; port: number; unitId: number },
-		registerType: "coil" | "discrete" | "holding" | "input",
-		address: number
-	) => `${deviceConfig.host}:${deviceConfig.port}:${deviceConfig.unitId}:${registerType}:${address}`
 
 	const ensureLocationStatus = (locationId: string): HvacLocationStatus => {
 		if (!locationStatuses.value[locationId]) {
@@ -126,17 +142,11 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 		return locationStatuses.value[locationId]
 	}
 
-	/**
-	 * 對齊照明：uiStatus 代表「健康狀態」，不等同於 ON/OFF。
-	 * - 只要讀取成功（有拿到 boolean）就視為 normal（不論 true/false）
-	 * - 讀取失敗／缺少連線設定才視為 warning
-	 */
-	const toUiStatusFromReadOk = (readOk: boolean): HvacUiStatus => (readOk ? "normal" : "warning")
-
 	const mapBackendUiStatus = (ui: unknown): HvacUiStatus => {
 		const s = String(ui || "").toLowerCase()
 		if (s === "normal") return "normal"
-		if (s === "alarm") return "alarm"
+		// HVAC 對外不提供 alarm：一律視為 warning 層
+		if (s === "alarm") return "warning"
 		return "warning"
 	}
 
@@ -162,8 +172,7 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 					deviceId: (loc as any).deviceId,
 					modbus: (loc as any).modbus,
 				})
-				const hasWritableDo =
-					!!loc.modbus && extractWritePoints(loc.modbus as any).length > 0
+				const hasWritableDo = !!loc.modbus && extractWritePoints(loc.modbus as any).length > 0
 				disabled[id] = !hasController || !hasWritableDo
 			})
 		}
@@ -189,12 +198,26 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 					}
 				}
 
+				const now = Date.now()
 				for (const item of (items || []) as any[]) {
 					const uiKey = locationIdToUiKey.get(String(item.locationId))
 					if (!uiKey) continue
 					const status = ensureLocationStatus(uiKey)
 					status.uiStatus = mapBackendUiStatus(item.uiStatus)
-					status.isOn = Boolean(item?.raw?.isOn)
+					const holdUntil = snapshotHoldUntilByUiKey.value[uiKey] ?? 0
+					const nextIsOn = Boolean(item?.raw?.isOn)
+					if (holdUntil > now) {
+						// 若快照仍與目前狀態相反，先不覆寫（避免 UI 跳回）
+						if (status.isOn !== nextIsOn) {
+							continue
+						}
+						// 快照已追上 → 解除 hold
+						clearSnapshotHold(uiKey)
+					} else if (holdUntil > 0) {
+						// hold 已過期：清掉避免累積
+						clearSnapshotHold(uiKey)
+					}
+					status.isOn = nextIsOn
 					status.temperatureC = coerceNumber(item?.raw?.temperatureC)
 				}
 
@@ -232,6 +255,7 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 		if (locationToggling.value.has(locationUiKey)) return
 
 		locationToggling.value.add(locationUiKey)
+		setSnapshotHold(locationUiKey)
 
 		const status = ensureLocationStatus(locationUiKey)
 		const prev = status.isOn
@@ -248,6 +272,7 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 				status.isOn = prev
 				// 維持原 uiStatus（健康狀態）
 				status.uiStatus = status.uiStatus ?? "warning"
+				clearSnapshotHold(locationUiKey)
 				locationToggling.value.delete(locationUiKey)
 				return
 			}
@@ -256,6 +281,7 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 			if (writeAddresses.length === 0) {
 				status.isOn = prev
 				status.uiStatus = status.uiStatus ?? "warning"
+				clearSnapshotHold(locationUiKey)
 				locationToggling.value.delete(locationUiKey)
 				return
 			}
@@ -273,6 +299,7 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 		} catch (error) {
 			status.isOn = prev
 			status.uiStatus = status.uiStatus ?? "warning"
+			clearSnapshotHold(locationUiKey)
 			locationToggling.value.delete(locationUiKey)
 			handleError(error, "空調切換失敗")
 		}
@@ -339,4 +366,3 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 		handleVisibilityChange,
 	}
 }
-

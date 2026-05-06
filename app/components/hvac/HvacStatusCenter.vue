@@ -85,10 +85,10 @@
 									>
 										<input
 											type="checkbox"
-											:checked="getLocationStatus(row.locationId).isOn"
+											:checked="getEffectiveIsOn(row.locationId)"
 											class="peer sr-only"
 											:disabled="isLocationDisabled(row.locationId) || !props.canToggle"
-											@change="handleToggle(row.locationId, getLocationStatus(row.locationId).isOn)"
+											@change="handleToggle(row.locationId, getEffectiveIsOn(row.locationId))"
 										/>
 										<div
 											:class="[
@@ -99,7 +99,7 @@
 											<span
 												class="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2 text-[10px] font-semibold tracking-wide text-white transition-opacity duration-200 2xl:left-2.5 2xl:text-xs"
 												:class="
-													getLocationStatus(row.locationId).isOn ? 'opacity-100' : 'opacity-0'
+													getEffectiveIsOn(row.locationId) ? 'opacity-100' : 'opacity-0'
 												"
 											>
 												ON
@@ -107,7 +107,7 @@
 											<span
 												class="pointer-events-none absolute right-2 top-1/2 z-10 -translate-y-1/2 text-[10px] font-semibold tracking-wide text-white transition-opacity duration-200 2xl:right-2.5 2xl:text-xs"
 												:class="
-													getLocationStatus(row.locationId).isOn ? 'opacity-0' : 'opacity-100'
+													getEffectiveIsOn(row.locationId) ? 'opacity-0' : 'opacity-100'
 												"
 											>
 												OFF
@@ -115,7 +115,7 @@
 											<span
 												class="pointer-events-none absolute top-1/2 block h-7 w-7 -translate-y-1/2 rounded-full bg-white shadow-sm transition-[left] duration-200 ease-out 2xl:h-8 2xl:w-8"
 												:class="
-													getLocationStatus(row.locationId).isOn
+													getEffectiveIsOn(row.locationId)
 														? 'left-[calc(100%-1.75rem-0.25rem)] 2xl:left-[calc(100%-2rem-0.25rem)]'
 														: 'left-1'
 												"
@@ -130,9 +130,7 @@
 									<div
 										:class="[
 											'h-4 w-4 shrink-0 rounded-full border border-white 2xl:h-5 2xl:w-5',
-											getLocationStatus(row.locationId).uiStatus === 'normal'
-												? 'bg-emerald-400'
-												: 'bg-amber-400',
+											isLocationNormal(row.locationId) ? 'bg-emerald-400' : 'bg-amber-400',
 										]"
 										aria-hidden="true"
 									></div>
@@ -152,7 +150,6 @@
 				</div>
 			</div>
 		</div>
-
 	</div>
 </template>
 
@@ -187,6 +184,40 @@ const emit = defineEmits<{
 	"zone-selected": [zoneId: string]
 }>()
 
+type PendingToggleState = {
+	nextIsOn: boolean
+	expiresAt: number
+}
+
+// Modbus/快照落地有時 > 2.5s，避免 pending 過早失效造成跳回舊狀態
+const PENDING_TOGGLE_EXPIRE_MS = 8000
+const pendingToggles = ref<Record<string, PendingToggleState>>({})
+
+const setPendingToggle = (locationId: string, nextIsOn: boolean) => {
+	pendingToggles.value = {
+		...pendingToggles.value,
+		[locationId]: {
+			nextIsOn,
+			expiresAt: Date.now() + PENDING_TOGGLE_EXPIRE_MS,
+		},
+	}
+}
+
+const clearPendingToggle = (locationId: string) => {
+	if (!pendingToggles.value[locationId]) return
+	const { [locationId]: _removed, ...rest } = pendingToggles.value
+	pendingToggles.value = rest
+}
+
+const pruneExpiredPendingToggles = () => {
+	const now = Date.now()
+	const next: Record<string, PendingToggleState> = {}
+	for (const [id, state] of Object.entries(pendingToggles.value)) {
+		if (state.expiresAt > now) next[id] = state
+	}
+	pendingToggles.value = next
+}
+
 const getZoneLocations = (zone: HvacZone): HvacLocation[] => zone.locations || []
 
 const getZoneLocationsWithIds = (zone: HvacZone) =>
@@ -205,8 +236,9 @@ const displayedZones = computed(() => {
 
 const getLocationStatus = (locationId: string) => {
 	const s = props.areaStatuses[locationId]
-	const uiStatus: HvacUiStatus = s?.uiStatus ?? "warning"
-	const label = uiStatus === "normal" ? "正常" : uiStatus === "alarm" ? "警報" : "異常"
+	// 對外僅兩態：normal / warning（alarm 視為 warning）
+	const uiStatus: HvacUiStatus = s?.uiStatus === "alarm" ? "warning" : s?.uiStatus ?? "warning"
+	const label = uiStatus === "normal" ? "正常" : "異常"
 	const temperatureLabel =
 		s?.temperatureC != null && Number.isFinite(s.temperatureC)
 			? `${Math.round(s.temperatureC)}°C`
@@ -219,13 +251,24 @@ const getLocationStatus = (locationId: string) => {
 	}
 }
 
-const isLocationDisabled = (locationId: string): boolean =>
-	(props.areaDisabledMap[locationId] ?? false) || props.areaToggling.has(locationId)
-
-const isWarning = (locationId: string) => {
-	const s = getLocationStatus(locationId).uiStatus
-	return s !== "normal"
+const getEffectiveIsOn = (locationId: string) => {
+	pruneExpiredPendingToggles()
+	const pending = pendingToggles.value[locationId]
+	if (pending) return pending.nextIsOn
+	return getLocationStatus(locationId).isOn
 }
+
+const isLocationNormal = (locationId: string): boolean => getLocationStatus(locationId).uiStatus === "normal"
+
+const isLocationDisabled = (locationId: string): boolean => {
+	return (
+		(props.areaDisabledMap[locationId] ?? false) ||
+		props.areaToggling.has(locationId) ||
+		!!pendingToggles.value[locationId]
+	)
+}
+
+const isWarning = (locationId: string) => !isLocationNormal(locationId)
 
 const getLocationCardBlinkClass = (locationId: string): string =>
 	isWarning(locationId) ? "blink-slow" : ""
@@ -240,8 +283,24 @@ const getZoneBlinkClass = (zone: HvacZone): string => (zoneHasWarning(zone) ? "b
 
 const handleToggle = (areaId: string, isOn: boolean) => {
 	if (!props.canToggle) return
+	if (isLocationDisabled(areaId)) return
+	setPendingToggle(areaId, !isOn)
 	emit("toggle", areaId, !isOn)
 }
 
 const handleZoneClick = (zoneId: string) => emit("zone-selected", zoneId)
+
+watch(
+	() => [props.areaToggling, props.areaStatuses] as const,
+	() => {
+		for (const [locationId, pending] of Object.entries(pendingToggles.value)) {
+			const actual = props.areaStatuses[locationId]?.isOn
+			if (actual === pending.nextIsOn) {
+				clearPendingToggle(locationId)
+			}
+		}
+		pruneExpiredPendingToggles()
+	},
+	{ deep: true }
+)
 </script>

@@ -10,7 +10,7 @@ export type UiHealthStatus = "normal" | "warning" | "error"
 
 /**
  * 健康狀態 → 閃爍節奏
- * @param whenAbsent 未帶 `status` 時：`fast` ＝監控卡片視為需強調（與 StatusCenter 一致）；`none` ＝不閃（例如平面圖點位尚未寫入狀態）
+ * @param whenAbsent 未帶 `status` 時：`fast` ＝監控卡片視為需強調；`none` ＝不閃（例如平面圖點位尚未寫入狀態）
  */
 export const healthStatusToAlertFlash = (
 	status: UiHealthStatus | undefined | null,
@@ -48,17 +48,12 @@ export const getSourceLabel = (source: AlertSource | string): string => {
 	const labels: Record<string, string> = {
 		device: "設備",
 		environment: "環境",
-		lighting: "照明",
 		drainage: "衛生排水",
-		people_counting: "人流統計",
-		hvac: "空調",
 		air_circulation: "空氣循環",
 		power: "電力",
 		fire: "消防",
 		smoke_alarm: "煙霧警報",
-		emergency: "緊急求救",
 		emergency_rescue: "緊急求救",
-		security: "安防",
 	}
 	return labels[source] || source
 }
@@ -199,14 +194,10 @@ export const formatAlertRuleConditionDisplay = (rule: AlertRuleConditionDisplayI
 
 const SOURCE_SYSTEM_TYPE_MAP: Partial<Record<AlertSource, SystemType>> = {
 	environment: "environment",
-	lighting: "lighting",
 	drainage: "drainage",
 	fire: "fire",
 	smoke_alarm: "smoke_alarm",
-	emergency: "emergency_rescue",
 	emergency_rescue: "emergency_rescue",
-	people_counting: "people_counting",
-	hvac: "hvac",
 	air_circulation: "air_circulation",
 	power: "power",
 }

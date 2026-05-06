@@ -88,12 +88,10 @@
 									>
 										<input
 											type="checkbox"
-											:checked="getLocationStatus(row.locationId).isRunning"
+											:checked="getEffectiveIsRunning(row.locationId)"
 											class="peer sr-only"
 											:disabled="isLocationDisabled(row.locationId) || !props.canToggle"
-											@change="
-												handleToggle(row.locationId, getLocationStatus(row.locationId).isRunning)
-											"
+											@change="handleToggle(row.locationId, getEffectiveIsRunning(row.locationId))"
 										/>
 										<div
 											:class="[
@@ -103,24 +101,20 @@
 										>
 											<span
 												class="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2 text-[10px] font-semibold tracking-wide text-white transition-opacity duration-200 2xl:left-2.5 2xl:text-xs"
-												:class="
-													getLocationStatus(row.locationId).isRunning ? 'opacity-100' : 'opacity-0'
-												"
+												:class="getEffectiveIsRunning(row.locationId) ? 'opacity-100' : 'opacity-0'"
 											>
 												ON
 											</span>
 											<span
 												class="pointer-events-none absolute right-2 top-1/2 z-10 -translate-y-1/2 text-[10px] font-semibold tracking-wide text-white transition-opacity duration-200 2xl:right-2.5 2xl:text-xs"
-												:class="
-													getLocationStatus(row.locationId).isRunning ? 'opacity-0' : 'opacity-100'
-												"
+												:class="getEffectiveIsRunning(row.locationId) ? 'opacity-0' : 'opacity-100'"
 											>
 												OFF
 											</span>
 											<span
 												class="pointer-events-none absolute top-1/2 block h-7 w-7 -translate-y-1/2 rounded-full bg-white shadow-sm transition-[left] duration-200 ease-out 2xl:h-8 2xl:w-8"
 												:class="
-													getLocationStatus(row.locationId).isRunning
+													getEffectiveIsRunning(row.locationId)
 														? 'left-[calc(100%-1.75rem-0.25rem)] 2xl:left-[calc(100%-2rem-0.25rem)]'
 														: 'left-1'
 												"
@@ -134,11 +128,7 @@
 									<div
 										:class="[
 											'h-4 w-4 shrink-0 rounded-full border border-white 2xl:h-5 2xl:w-5',
-											getLocationStatus(row.locationId).status === 'alarm'
-												? 'bg-rose-500'
-												: isLocationNormal(row.locationId)
-													? 'bg-emerald-400'
-													: 'bg-amber-400',
+											isLocationNormal(row.locationId) ? 'bg-emerald-400' : 'bg-amber-400',
 										]"
 										aria-hidden="true"
 									></div>
@@ -152,7 +142,6 @@
 				</div>
 			</div>
 		</div>
-
 	</div>
 </template>
 
@@ -188,7 +177,42 @@ const emit = defineEmits<{
 const statusLabels: Record<SystemUiStatus, string> = {
 	normal: "正常",
 	warning: "異常",
-	alarm: "警報",
+	// 對外僅兩態：normal / warning（alarm 視為 warning）
+	alarm: "異常",
+}
+
+type PendingToggleState = {
+	nextIsRunning: boolean
+	expiresAt: number
+}
+
+// Modbus/快照落地有時 > 2.5s，避免 pending 過早失效造成跳回舊狀態
+const PENDING_TOGGLE_EXPIRE_MS = 8000
+const pendingToggles = ref<Record<string, PendingToggleState>>({})
+
+const setPendingToggle = (locationId: string, nextIsRunning: boolean) => {
+	pendingToggles.value = {
+		...pendingToggles.value,
+		[locationId]: {
+			nextIsRunning,
+			expiresAt: Date.now() + PENDING_TOGGLE_EXPIRE_MS,
+		},
+	}
+}
+
+const clearPendingToggle = (locationId: string) => {
+	if (!pendingToggles.value[locationId]) return
+	const { [locationId]: _removed, ...rest } = pendingToggles.value
+	pendingToggles.value = rest
+}
+
+const pruneExpiredPendingToggles = () => {
+	const now = Date.now()
+	const next: Record<string, PendingToggleState> = {}
+	for (const [id, state] of Object.entries(pendingToggles.value)) {
+		if (state.expiresAt > now) next[id] = state
+	}
+	pendingToggles.value = next
 }
 
 // 獲取指定區域的地點
@@ -227,10 +251,11 @@ const displayedZones = computed(() => {
 const getLocationStatus = (locationId: string) => {
 	const status = props.areaStatuses[locationId]
 	if (status) {
+		const normalizedStatus: SystemUiStatus = status.status === "alarm" ? "warning" : status.status
 		return {
 			isRunning: status.isRunning,
-			status: status.status,
-			healthLabel: statusLabels[status.status],
+			status: normalizedStatus,
+			healthLabel: statusLabels[normalizedStatus],
 		}
 	}
 	return {
@@ -240,47 +265,60 @@ const getLocationStatus = (locationId: string) => {
 	}
 }
 
-// 判斷地點是否正常
-const isLocationNormal = (locationId: string): boolean => {
-	const status = props.areaStatuses[locationId]
-	return !!status && status.status === "normal"
+const getEffectiveIsRunning = (locationId: string) => {
+	pruneExpiredPendingToggles()
+	const pending = pendingToggles.value[locationId]
+	if (pending) return pending.nextIsRunning
+	return getLocationStatus(locationId).isRunning
 }
+
+const isLocationNormal = (locationId: string): boolean => getLocationStatus(locationId).status === "normal"
 
 const zoneHasWarning = (zone: LightingZone): boolean => {
 	return getZoneLocationsWithIds(zone).some((row) => !isLocationNormal(row.locationId))
 }
 
 const getLocationCardBlinkClass = (locationId: string): string =>
-	getLocationStatus(locationId).status === "alarm"
-		? "blink-fast"
-		: isLocationNormal(locationId)
-			? ""
-			: "blink-slow"
+	isLocationNormal(locationId) ? "" : "blink-slow"
 
 const getLocationCardBackgroundClass = (locationId: string): string =>
-	getLocationStatus(locationId).status === "alarm"
-		? "bg-[#FF0000]/65"
-		: isLocationNormal(locationId)
-			? "bg-white/10"
-			: "bg-[#FFC801]/60"
+	isLocationNormal(locationId) ? "bg-white/10" : "bg-[#FFC801]/60"
 
-const getZoneAlertBlinkClass = (zone: LightingZone): string =>
-	getZoneLocationsWithIds(zone).some((row) => getLocationStatus(row.locationId).status === "alarm")
-		? "blink-fast"
-		: getZoneLocationsWithIds(zone).some((row) => !isLocationNormal(row.locationId))
-			? "blink-slow"
-			: ""
+const getZoneAlertBlinkClass = (zone: LightingZone): string => (zoneHasWarning(zone) ? "blink-slow" : "")
 
 const isLocationDisabled = (locationId: string): boolean => {
-	return props.areaDisabledMap[locationId] ?? false
+	// 切換中也要禁用，避免連點造成狀態競態（UI 與實際狀態落差）
+	return (
+		(props.areaDisabledMap[locationId] ?? false) ||
+		props.areaToggling.has(locationId) ||
+		!!pendingToggles.value[locationId]
+	)
 }
 
 const handleToggle = (areaId: string, isRunning: boolean) => {
 	if (!props.canToggle) return
+	if (isLocationDisabled(areaId)) return
+	setPendingToggle(areaId, !isRunning)
 	emit("toggle", areaId, !isRunning)
 }
 
 const handleZoneClick = (zoneId: string) => {
 	emit("zone-selected", zoneId)
 }
+
+watch(
+	() => [props.areaToggling, props.areaStatuses] as const,
+	() => {
+		// 1) 後端／父層狀態已追上 pending → 清掉 pending
+		// 2) 開始進入 toggling（父層 debounce 後）→ 仍維持 pending；結束後會由 (1) 清掉
+		for (const [locationId, pending] of Object.entries(pendingToggles.value)) {
+			const actual = props.areaStatuses[locationId]?.isRunning
+			if (actual === pending.nextIsRunning) {
+				clearPendingToggle(locationId)
+			}
+		}
+		pruneExpiredPendingToggles()
+	},
+	{ deep: true }
+)
 </script>

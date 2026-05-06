@@ -197,7 +197,7 @@
 	color: #ffffff;
 	transition: transform 0.2s ease;
 }
-/* 正常：內圈綠（與 StatusCenter 狀態點一致），外框統一白線（不依選取狀態切換顏色） */
+/* 正常：內圈綠，外框統一白線 */
 .map-location-dots .category-dot[data-status="normal"],
 .map-location-dots .location-dot[data-status="normal"] {
 	background: rgba(52, 211, 153, 0.28);

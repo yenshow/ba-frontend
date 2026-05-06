@@ -18,8 +18,7 @@ export const LEGACY_AIR_CIRCULATION_VIEW_CATEGORY_LABELS: Record<string, string>
 	air_circulation: "空氣循環",
 	supply_air: "送風",
 	exhaust_air: "排風",
-	return_air: "回風",
-	fresh_air: "新風",
+	return_air: "導流風機",
 } as const
 
 /** 單一儲存字串的顯示標題（未分類、常見鍵友善名、其餘原樣） */

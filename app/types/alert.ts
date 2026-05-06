@@ -2,17 +2,12 @@
 export type AlertSource =
 	| "device"
 	| "environment"
-	| "lighting"
-	| "people_counting"
 	| "drainage"
-	| "hvac"
 	| "air_circulation"
 	| "power"
 	| "fire"
 	| "smoke_alarm"
-	| "emergency"
 	| "emergency_rescue"
-	| "security"
 
 export type AlertStatus = "active" | "resolved" | "ignored"
 
