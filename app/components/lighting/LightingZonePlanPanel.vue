@@ -134,7 +134,7 @@ import { nextTick, onBeforeUnmount, onMounted, watch } from "vue"
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
 import CategoryList from "~/components/common/CategoryList.vue"
 import type { LightingLocation, LightingZone } from "~/types/lighting"
-import type { SystemUiStatus } from "~/types/monitoring"
+import type { MapDotStatus, SystemUiStatus } from "~/utils/monitoringStatus"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 
 interface Props {
@@ -212,18 +212,16 @@ const getLocationAlertFlashForTooltip = (location: LightingLocation) => {
 	return props.getLocationAlertFlash(id)
 }
 
-const getTooltipStatusType = (
-	location: LightingLocation
-): "normal" | "abnormal" | "alarm" => {
+const getTooltipStatusType = (location: LightingLocation): MapDotStatus => {
 	const id = getLocationIdForDisplay(location)
-	if (!id) return "abnormal"
+	if (!id) return "warning"
 	const status = props.getLocationStatusType(id)
 	if (status === "normal") return "normal"
 	if (status === "alarm") return "alarm"
-	return "abnormal"
+	return "warning"
 }
 
-const getStatusLabel = (statusType: "normal" | "abnormal" | "alarm"): string => {
+const getStatusLabel = (statusType: MapDotStatus): string => {
 	if (statusType === "normal") return "正常"
 	if (statusType === "alarm") return "警報"
 	return "異常"

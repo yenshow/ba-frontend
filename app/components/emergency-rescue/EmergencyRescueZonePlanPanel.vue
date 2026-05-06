@@ -107,8 +107,8 @@
 						<CategoryTooltip
 							:show="true"
 							:category-name="location.name"
-							:is-normal="getTooltipStatusType(location) === 'normal'"
-							:status-type="getTooltipStatusType(location)"
+							:is-normal="dotStatusForLocation(location) === 'normal'"
+							:status-type="dotStatusForLocation(location)"
 							:alert-flash="getLocationAlertFlash ? getLocationAlertFlash(location) : 'none'"
 						/>
 					</div>
@@ -122,6 +122,7 @@
 import { nextTick, onBeforeUnmount, onMounted, watch } from "vue"
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
 import CategoryList from "~/components/common/CategoryList.vue"
+import type { MapDotStatus } from "~/utils/monitoringStatus"
 import type { EmergencyRescueLocation, EmergencyRescueZone } from "~/types/emergency-rescue"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 
@@ -135,7 +136,7 @@ interface Props {
 	selectedCategory: string
 	filteredZoneLocations: EmergencyRescueLocation[]
 	zonePlanImage: string | undefined
-	dotStatusForLocation: (loc: EmergencyRescueLocation) => "normal" | "abnormal" | "alarm"
+	dotStatusForLocation: (loc: EmergencyRescueLocation) => MapDotStatus
 	/** 與監控中心一致：正常不閃，其餘慢閃 */
 	getLocationAlertFlash?: (loc: EmergencyRescueLocation) => "none" | "slow" | "fast"
 	tooltipTitle: (loc: EmergencyRescueLocation) => string
@@ -183,16 +184,9 @@ const getLocationIdForDisplay = (location: EmergencyRescueLocation): string => {
 
 const getLocationAlertFlashClass = (location: EmergencyRescueLocation): string => {
 	const mode = props.getLocationAlertFlash?.(location) ?? "none"
-	if (mode === "fast") return "blink-alarm-fast"
+	if (mode === "fast") return "blink-fast"
 	if (mode === "slow") return "blink-slow"
 	return ""
-}
-
-const getTooltipStatusType = (location: EmergencyRescueLocation): "normal" | "abnormal" | "alarm" => {
-	const dotStatus = props.dotStatusForLocation(location)
-	if (dotStatus === "alarm") return "alarm"
-	if (dotStatus === "abnormal") return "abnormal"
-	return "normal"
 }
 
 /** 與平面圖點位一致：僅目前檢視分類，且 id 使用 zone.locations 原始索引 */

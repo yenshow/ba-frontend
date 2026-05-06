@@ -1,6 +1,10 @@
 import type { CategoryModbusConfig } from "~/types/lighting"
-import type { DrainageStatusPointDef } from "~/types/location"
-import { normalizeSystemUiStatus, type SystemUiStatus } from "~/types/monitoring"
+import type { ModbusStatusPointDef } from "~/types/location"
+import {
+	isSnapshotAlarm,
+	normalizeSystemUiStatus,
+	type SystemUiStatus,
+} from "~/utils/monitoringStatus"
 
 export interface SmokeAlarmStatusItem {
 	zoneId: string
@@ -15,22 +19,13 @@ export interface SmokeAlarmStatusItem {
 	error?: string
 }
 
-/** 與後端 smokeAlarmStatusService 語意對齊 */
+/** 與後端對齊：`uiStatus` 已含連線／讀值語意；勿用 raw.running===false 推論為正常（離線時後端仍會正規化成 { running:false }）。 */
 export const deriveSmokeAlarmUiStatus = (
 	item: SmokeAlarmStatusItem | null | undefined
 ): SmokeAlarmStatusItem["uiStatus"] => {
 	if (!item) return "warning"
-	if (item.uiStatus === "alarm") return "alarm"
-	const raw = item.raw || {}
-	const keys = Object.keys(raw)
-	if (keys.length === 0) return normalizeSystemUiStatus(item.uiStatus)
-
-	const anyRead = keys.some((k) => raw[k] !== undefined && raw[k] !== null)
-	if (!anyRead) return "warning"
-
-	if (raw.smoke === true || raw.alarm === true || raw.trigger === true || raw.runningAlarm === true) return "alarm"
-	if (raw.fault === true) return "warning"
-	return "normal"
+	if (isSnapshotAlarm(item)) return "alarm"
+	return normalizeSystemUiStatus(item.uiStatus)
 }
 
 export interface SmokeAlarmLocation {
@@ -45,7 +40,7 @@ export interface SmokeAlarmLocation {
 	modbus?: CategoryModbusConfig
 	equipmentKind?: string
 	viewCategory?: string
-	statusPoints?: Record<string, DrainageStatusPointDef>
+	statusPoints?: Record<string, ModbusStatusPointDef>
 }
 
 export interface SmokeAlarmZone {
@@ -56,4 +51,3 @@ export interface SmokeAlarmZone {
 	locations: SmokeAlarmLocation[]
 	description?: string
 }
-

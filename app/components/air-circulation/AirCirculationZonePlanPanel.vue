@@ -115,6 +115,7 @@
 import { computed, onBeforeUnmount, onMounted } from "vue"
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
 import CategoryList from "~/components/common/CategoryList.vue"
+import type { MapDotStatus } from "~/utils/monitoringStatus"
 import type { AirCirculationLocation, AirCirculationZone } from "~/types/air-circulation"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import { alertFlashModeToMapDotClass } from "~/utils/alertUtils"
@@ -131,7 +132,7 @@ interface Props {
 	/** 目前檢視分類下可見點位（命名沿用歷史 currentZoneLocations） */
 	currentZoneLocations: AirCirculationLocation[]
 	zonePlanImage: string | undefined
-	dotStatusForLocationId: (locationId: string) => "normal" | "abnormal" | "alarm"
+	dotStatusForLocationId: (locationId: string) => MapDotStatus
 	tooltipTitleByLocationId: (locationId: string) => string
 	getLocationAlertFlash?: (locationId: string) => "none" | "slow" | "fast"
 }

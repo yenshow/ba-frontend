@@ -35,7 +35,8 @@ export const useSmokeAlarmApi = () => {
 			return request<{ items: SmokeAlarmStatusItem[] }>(`/smoke-alarm/status${q}`)
 		},
 		getZoneStatus: (zoneId: string) =>
-			request<{ zoneId: string; items: SmokeAlarmStatusItem[] }>(`/smoke-alarm/zones/${zoneId}/status`),
+			request<{ zoneId: string; items: SmokeAlarmStatusItem[] }>(
+				`/smoke-alarm/zones/${zoneId}/status`
+			),
 	}
 }
-

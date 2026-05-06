@@ -1,7 +1,7 @@
 import { computed, ref, watch, type Ref } from "vue"
 import type { LightingLocation, LightingStatusSnapshotItem, LightingZone } from "~/types/lighting"
 import type { ControllerDeviceConfig, Device } from "~/types/device"
-import type { ModbusDeviceConfig } from "~/types/modbus"
+import type { ModbusDeviceConfig } from "~/utils/modbusPoints"
 import { useLightingApi } from "~/composables/systems/lighting/useLightingApi"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useApiBase } from "~/composables/core/useApiBase"
@@ -10,7 +10,7 @@ import { usePolling } from "~/composables/monitoring/usePolling"
 import { useModbusPollingPolicy } from "~/composables/monitoring/useModbusPollingPolicy"
 import { extractWritePoints, filterDoPoints, hasLocationControllerConfig, needsModbusConnection } from "~/utils/modbusPoints"
 import { findLocationInZonesByUiKey, getLocationUiKey } from "~/utils/locationUiId"
-import { normalizeSystemUiStatus, type SystemUiStatus } from "~/types/monitoring"
+import { normalizeSystemUiStatus, type SystemUiStatus } from "~/utils/monitoringStatus"
 
 const TOGGLE_DEBOUNCE_DELAY = 300
 const TOGGLE_ROUNDTRIP_DELAY_MS = 450

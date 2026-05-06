@@ -30,7 +30,7 @@
 								: 'bg-transparent text-white',
 							zoneHasAlarm(zone)
 								? 'ring-2 ring-red-500/90 ring-offset-2 ring-offset-transparent'
-								: zoneHasAbnormal(zone)
+								: zoneHasWarning(zone)
 									? 'ring-2 ring-amber-400/90 ring-offset-2 ring-offset-transparent'
 									: '',
 							getZoneAlertBlinkClass(zone),
@@ -38,7 +38,7 @@
 						:aria-label="
 							zoneHasAlarm(zone)
 								? `${zone.name}，此區域有地點警報`
-								: zoneHasAbnormal(zone)
+								: zoneHasWarning(zone)
 									? `${zone.name}，此區域有地點異常`
 									: `${zone.name}，選取此樓層`
 						"
@@ -48,7 +48,7 @@
 						</h4>
 					</button>
 					<span
-						v-if="zoneHasAbnormal(zone)"
+						v-if="zoneHasWarning(zone)"
 						class="pointer-events-none absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[9px] font-bold leading-none 2xl:h-5 2xl:min-w-5 2xl:text-[10px]"
 						:class="zoneHasAlarm(zone) ? 'bg-red-500 text-white' : 'bg-amber-400 text-teal-950'"
 						aria-hidden="true"
@@ -106,7 +106,7 @@
 								</div>
 							</template>
 
-							<!-- 液位：橫向大圖 + 三欄數據（附圖版型） -->
+							<!-- 液位：水箱蓋／水位／高／低（raw 細項 + running 聚合） -->
 							<template v-else>
 								<div class="flex min-w-0 flex-row items-stretch gap-3 2xl:gap-4">
 									<div
@@ -197,7 +197,7 @@
 			system-route-prefix="drainage"
 			:targets="manualIssueTargets"
 			:default-target-id="manualIssueDefaultTargetId"
-			:rule-trigger="ruleTrigger"
+			:rule-bit-options-by-target-id="ruleBitOptionsByTargetId"
 			@changed="handleManualIssueChanged"
 		/>
 	</div>
@@ -205,6 +205,7 @@
 
 <script setup lang="ts">
 import ManualIssuePanel from "~/components/common/ManualIssuePanel.vue"
+import type { ManualIssueChangedPayload, ManualIssueRuleBitOption } from "~/utils/alertUtils"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import {
 	type DrainageZone,
@@ -213,6 +214,7 @@ import {
 	type DrainageViewFilterOption,
 	drainageLocationInViewCategory,
 	deriveDrainagePumpUiStatus,
+	deriveDrainageTankOverallUiStatus,
 	deriveDrainageTankPartUiStatus,
 } from "~/types/drainage"
 import { compareZonesLoose } from "~/utils/sortOrder"
@@ -227,7 +229,7 @@ const props = defineProps<{
 	viewFilterOptions: DrainageViewFilterOption[]
 	manualIssueTargets?: Array<{ id: string; label: string }>
 	manualIssueDefaultTargetId?: string
-	ruleTrigger?: { alert_type: "di" | "do"; bit_key: string } | null
+	ruleBitOptionsByTargetId?: Record<string, ManualIssueRuleBitOption[]>
 }>()
 
 const DRAINAGE_ICONS = {
@@ -240,7 +242,7 @@ const DRAINAGE_ICONS = {
 
 const emit = defineEmits<{
 	zoneSelected: [zoneId: string]
-	manualIssueChanged: []
+	manualIssueChanged: [payload?: ManualIssueChangedPayload]
 }>()
 
 const handleZoneClick = (zoneId: string) => {
@@ -249,10 +251,10 @@ const handleZoneClick = (zoneId: string) => {
 
 const manualIssueTargets = computed(() => props.manualIssueTargets ?? [])
 const manualIssueDefaultTargetId = computed(() => props.manualIssueDefaultTargetId ?? "")
-const ruleTrigger = computed(() => props.ruleTrigger ?? null)
+const ruleBitOptionsByTargetId = computed(() => props.ruleBitOptionsByTargetId ?? {})
 
-const handleManualIssueChanged = () => {
-	emit("manualIssueChanged")
+const handleManualIssueChanged = (payload?: ManualIssueChangedPayload) => {
+	emit("manualIssueChanged", payload)
 }
 
 const itemBySystemId = computed(() => {
@@ -337,6 +339,9 @@ const tankLabel = (loc: DrainageLocation, part: "cover" | "level") => {
 	return "正常"
 }
 
+const tankUiStatus = (loc: DrainageLocation): DrainageStatusItem["uiStatus"] =>
+	deriveDrainageTankOverallUiStatus(getItemForLocation(loc))
+
 const isPumpLocation = (loc: DrainageLocation) => (loc.equipmentKind || "pump") === "pump"
 const isTankLocation = (loc: DrainageLocation) => !isPumpLocation(loc)
 
@@ -357,16 +362,16 @@ const drainageRowFlashMode = (zone: DrainageZone, loc: DrainageLocation): Draina
 	if (tankDerived(loc, "cover") === "alarm" || tankDerived(loc, "level") === "alarm") {
 		return "alarm-fast"
 	}
-	return pumpFlashFromUiStatus(pumpUiStatus(loc))
+	return pumpFlashFromUiStatus(tankUiStatus(loc))
 }
 
 const flashModeToClass = (mode: DrainageRowFlash): string => {
-	if (mode === "alarm-fast") return "blink-alarm-fast"
+	if (mode === "alarm-fast") return "blink-fast"
 	if (mode === "slow") return "blink-slow"
 	return ""
 }
 
-const zoneHasAbnormal = (zone: DrainageZone): boolean =>
+const zoneHasWarning = (zone: DrainageZone): boolean =>
 	locationsForZone(zone).some(({ loc }) => drainageRowFlashMode(zone, loc) !== "none")
 
 const zoneHasAlarm = (zone: DrainageZone): boolean =>
@@ -377,7 +382,7 @@ const zoneHasAlarm = (zone: DrainageZone): boolean =>
 
 const getZoneAlertBlinkClass = (zone: DrainageZone): string => {
 	const modes = locationsForZone(zone).map(({ loc }) => drainageRowFlashMode(zone, loc))
-	if (modes.includes("alarm-fast")) return "blink-alarm-fast"
+	if (modes.includes("alarm-fast")) return "blink-fast"
 	if (modes.includes("slow")) return "blink-slow"
 	return ""
 }
@@ -392,7 +397,6 @@ const locationRowBackgroundClass = (zone: DrainageZone, loc: DrainageLocation): 
 	return "bg-white/10"
 }
 
-/** 高／低水位藥丸：觸發時白框強調（對齊監控附圖），未觸發則淡化 */
 const highLowClass = (loc: DrainageLocation, which: "high" | "low") => {
 	const it = loc.systemId ? itemBySystemId.value.get(String(loc.systemId)) : undefined
 	const raw = it?.raw || {}

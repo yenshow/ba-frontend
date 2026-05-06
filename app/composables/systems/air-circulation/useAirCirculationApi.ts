@@ -1,4 +1,8 @@
-import type { AirCirculationZone, AirCirculationLocation } from "~/types/air-circulation"
+import type {
+	AirCirculationZone,
+	AirCirculationLocation,
+	AirCirculationStatusItem,
+} from "~/types/air-circulation"
 import { useSystemLocationApiFactory } from "~/composables/location/api/useSystemLocationApiFactory"
 import {
 	unifiedToAirCirculationZone,
@@ -11,7 +15,7 @@ export const useAirCirculationApi = () => {
 	const zoneApi = useSystemLocationApiFactory<AirCirculationZone, AirCirculationLocation>({
 		systemType: "air_circulation",
 		unifiedToSystemZone: unifiedToAirCirculationZone,
-		systemToUnifiedZone: (zone) => airCirculationToUnifiedZone(zone as any, "air_circulation"),
+		systemToUnifiedZone: (zone) => airCirculationToUnifiedZone(zone, "air_circulation"),
 		locationToUnified: airCirculationLocationToUnified,
 	})
 
@@ -32,9 +36,11 @@ export const useAirCirculationApi = () => {
 			if (zoneIds && zoneIds.length > 0) params.set("zoneIds", zoneIds.join(","))
 			if (syncAlerts !== undefined) params.set("syncAlerts", syncAlerts ? "true" : "false")
 			const q = params.toString() ? `?${params.toString()}` : ""
-			return request<{ items: any[] }>(`/air-circulation/status${q}`)
+			return request<{ items: AirCirculationStatusItem[] }>(`/air-circulation/status${q}`)
 		},
-		getZoneStatus: (zoneId: string) => request<{ zoneId: string; items: any[] }>(`/air-circulation/zones/${zoneId}/status`),
+		getZoneStatus: (zoneId: string) =>
+			request<{ zoneId: string; items: AirCirculationStatusItem[] }>(
+				`/air-circulation/zones/${zoneId}/status`
+			),
 	}
 }
-

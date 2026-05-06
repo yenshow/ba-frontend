@@ -35,7 +35,7 @@
 					:view-filter-options="viewFilterOptions"
 					:manual-issue-targets="manualIssueTargets"
 					:manual-issue-default-target-id="manualIssueDefaultTargetId"
-					:rule-trigger="{ alert_type: 'di', bit_key: 'di:0' }"
+					:rule-bit-options-by-target-id="ruleBitOptionsByTargetId"
 					@zone-selected="handleZoneSelected"
 					@manual-issue-changed="handleManualIssueChanged"
 				/>
@@ -55,17 +55,19 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, watch } from "vue"
+import { onMounted, onBeforeUnmount, watch, type Ref } from "vue"
 import AirCirculationZonePlanPanel from "~/components/air-circulation/AirCirculationZonePlanPanel.vue"
 import AirCirculationMonitorCenter from "~/components/air-circulation/AirCirculationMonitorCenter.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
 import {
 	type AirCirculationZone,
 	type AirCirculationLocation,
+	type AirCirculationStatusItem,
 	buildAirCirculationMonitorViewFilterOptions,
 	airCirculationLocationInViewCategory,
 	DEFAULT_AIR_CIRCULATION_MONITOR_VIEW_CATEGORY,
 } from "~/types/air-circulation"
+import { normalizeSystemUiStatus, type SystemUiStatus } from "~/utils/monitoringStatus"
 import { useAirCirculationApi } from "~/composables/systems/air-circulation/useAirCirculationApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
@@ -73,6 +75,8 @@ import { useAuth } from "~/composables/core/useAuth"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
 import { useAirCirculationModbusIntegration } from "~/composables/systems/air-circulation/useAirCirculationModbusIntegration"
+import type { ManualIssueChangedPayload } from "~/utils/alertUtils"
+import { useManualIssueDiDoRules } from "~/composables/systems/alerts/useManualIssueDiDoRules"
 
 definePageMeta({ layout: "default" })
 
@@ -83,6 +87,13 @@ const { handleError } = useErrorHandler()
 const leftSectionHeight = ref<number | null>(null)
 
 const airCirculationZones = ref<AirCirculationZone[]>([])
+
+const { ruleBitOptionsByTargetId } = useManualIssueDiDoRules({
+	alertRulesSource: "air_circulation",
+	zones: airCirculationZones,
+	isAdmin,
+})
+
 const isLoadingZones = ref(false)
 const isInitialLoading = ref(true)
 
@@ -91,18 +102,7 @@ const selectedCategory = ref("")
 const isEditMode = ref(false)
 const showZoneManagementDialog = ref(false)
 
-const statusItems = ref<
-	Array<{
-		zoneId: string
-		zoneName: string
-		locationId: string
-		locationName: string
-		systemId: string
-		uiStatus: "normal" | "warning" | "alarm" | "offline" | "unknown"
-		raw: Record<string, unknown>
-		error?: string
-	}>
->([])
+const statusItems = ref<AirCirculationStatusItem[]>([])
 
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone, sortZones } =
 	useZoneManagement<AirCirculationLocation, AirCirculationZone>()
@@ -168,33 +168,22 @@ const filteredZoneLocations = computed(() => {
 })
 
 const statusBySystemId = computed(() => {
-	const m = new Map<string, (typeof statusItems.value)[number]>()
+	const m = new Map<string, AirCirculationStatusItem>()
 	for (const it of statusItems.value) {
 		m.set(String(it.systemId), it)
 	}
 	return m
 })
 
-const uiStatusForLocation = (loc: AirCirculationLocation) => {
-	if (!loc.systemId) return "unknown" as const
-	return (statusBySystemId.value.get(String(loc.systemId))?.uiStatus ?? "unknown") as
-		| "normal"
-		| "warning"
-		| "alarm"
-		| "offline"
-		| "unknown"
-}
-
-const dotStatusForLocation = (loc: AirCirculationLocation): "normal" | "abnormal" | "alarm" => {
-	const s = uiStatusForLocation(loc)
-	if (s === "normal") return "normal"
-	if (s === "alarm") return "alarm"
-	return "abnormal"
+const uiStatusForLocation = (loc: AirCirculationLocation): SystemUiStatus => {
+	if (!loc.systemId) return "warning"
+	const raw = statusBySystemId.value.get(String(loc.systemId))?.uiStatus
+	return normalizeSystemUiStatus(raw ?? "warning")
 }
 
 const getLocationAlertFlash = (locationId: string): "none" | "slow" | "fast" => {
 	const found = findLocationInCurrentZoneByUiKey(locationId)
-	const s = found?.location ? uiStatusForLocation(found.location) : "unknown"
+	const s = found?.location ? uiStatusForLocation(found.location) : "warning"
 	if (s === "normal") return "none"
 	if (s === "alarm") return "fast"
 	return "slow"
@@ -202,23 +191,27 @@ const getLocationAlertFlash = (locationId: string): "none" | "slow" | "fast" => 
 
 const dotStatusForLocationId = (locationId: string) => {
 	const found = findLocationInCurrentZoneByUiKey(locationId)
-	if (!found?.location) return "abnormal"
-	return dotStatusForLocation(found.location)
+	if (!found?.location) return "warning"
+	return uiStatusForLocation(found.location)
 }
 
 const tooltipTitleByLocationId = (locationId: string) => {
 	const found = findLocationInCurrentZoneByUiKey(locationId)
 	const name = found?.location?.name || ""
-	const s = found?.location ? uiStatusForLocation(found.location) : "unknown"
+	const s = found?.location ? uiStatusForLocation(found.location) : "warning"
 	const label = s === "normal" ? "正常" : s === "alarm" ? "警報" : "異常"
 	return `${name}：${label}`
+}
+
+const findLocationOriginalIndex = (zone: AirCirculationZone, target: AirCirculationLocation) => {
+	return findLocationIndexInZone(zone, target)
 }
 
 const findLocationInCurrentZoneByUiKey = (locationId: string) => {
 	const zone = selectedZoneData.value
 	if (!zone) return null
 	const idx = zone.locations.findIndex(
-		(loc, i) => getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i }) === locationId
+		(loc, i) => getLocationUiKey({ zone, location: loc, locationIndex: i }) === locationId
 	)
 	if (idx === -1) return null
 	return { zone, location: zone.locations[idx]!, locationIndex: idx }
@@ -233,31 +226,51 @@ const handleSelectCategory = (locationId: string) => {
 	selectedCategory.value = locationId
 }
 
+const getLocationIdForDisplay = (location: AirCirculationLocation): string => {
+	const zone = selectedZoneData.value
+	if (!zone) return ""
+	const idx = findLocationOriginalIndex(zone, location)
+	return idx !== -1 ? getLocationUiKey({ zone, location, locationIndex: idx }) : ""
+}
+
 const selectLocationByLocation = (location: AirCirculationLocation) => {
 	const zone = selectedZoneData.value
 	if (!zone) return
-	const originalIndex = findLocationIndexInZone(zone as any, location as any)
-	if (originalIndex === -1) return
-	selectedCategory.value = getLocationUiKey({ zone: zone as any, location: location as any, locationIndex: originalIndex })
+	const idx = findLocationOriginalIndex(zone, location)
+	if (idx !== -1) {
+		selectedCategory.value = getLocationUiKey({ zone, location, locationIndex: idx })
+	}
+}
+
+const findLocationById = (
+	locationId: string
+): { zone: AirCirculationZone; locationIndex: number } | null => {
+	for (const zone of airCirculationZones.value) {
+		const idx = zone.locations.findIndex(
+			(loc, i) => getLocationUiKey({ zone, location: loc, locationIndex: i }) === locationId
+		)
+		if (idx !== -1) return { zone, locationIndex: idx }
+	}
+	return null
 }
 
 const handleSaveLocationPositionFromPanel = async (payload: { locationId: string; x: number; y: number }) => {
 	if (!isEditMode.value) return
-	const zone = selectedZoneData.value
-	if (!zone?.id) return
-	const idx = zone.locations.findIndex(
-		(loc, i) => getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i }) === payload.locationId
+	const found = findLocationById(payload.locationId)
+	if (!found) return
+	const { zone: targetZone, locationIndex: targetLocationIndex } = found
+	if (!targetZone.id) return
+	const updatedLocations = targetZone.locations.map((location, index) =>
+		index === targetLocationIndex ? { ...location, location: { x: payload.x, y: payload.y } } : location
 	)
-	if (idx === -1) return
-	const updatedLocations = zone.locations.map((loc, i) => (i === idx ? { ...loc, location: { x: payload.x, y: payload.y } } : loc))
 	try {
-		const result = await airApi.updateZone(zone.id, {
-			name: zone.name,
-			imageUrl: zone.imageUrl,
-			sortOrder: zone.sortOrder,
+		const result = await airApi.updateZone(targetZone.id, {
+			name: targetZone.name,
+			imageUrl: targetZone.imageUrl,
+			sortOrder: targetZone.sortOrder,
 			locations: updatedLocations,
-		} as any)
-		const zi = airCirculationZones.value.findIndex((z) => z.id === zone.id)
+		})
+		const zi = airCirculationZones.value.findIndex((z) => z.id === targetZone.id)
 		if (zi > -1) airCirculationZones.value[zi] = result.zone
 	} catch (error) {
 		handleError(error, "更新位置失敗")
@@ -271,7 +284,7 @@ const loadZonesFromAPI = async () => {
 		const result = await airApi.getZones()
 		airCirculationZones.value = result.zones || []
 		if (!selectedZone.value && airCirculationZones.value.length > 0) {
-			const first = sortZones(airCirculationZones.value as any)[0]!
+			const first = sortZones(airCirculationZones.value)[0]!
 			selectedZone.value = first.id || first.name
 		}
 	} catch (error) {
@@ -281,11 +294,25 @@ const loadZonesFromAPI = async () => {
 	}
 }
 
-const { statusItems: computedStatusItems, preloadDeviceInfos, loadStatusSnapshot, startAutoRefresh, stopAutoRefresh, handleVisibilityChange } =
-	useAirCirculationModbusIntegration(airCirculationZones)
+const {
+	statusItems: computedStatusItems,
+	preloadDeviceInfos,
+	loadStatusSnapshot,
+	patchOptimistic,
+	startAutoRefresh,
+	stopAutoRefresh,
+	handleVisibilityChange,
+} = useAirCirculationModbusIntegration(airCirculationZones)
 
-const handleManualIssueChanged = () => {
-	void loadStatusSnapshot()
+const handleManualIssueChanged = (payload?: ManualIssueChangedPayload) => {
+	if (payload?.action === "clear") {
+		void loadStatusSnapshot({ force: true })
+		return
+	}
+	if (payload?.systemId) {
+		patchOptimistic(payload.systemId, "alarm")
+	}
+	void loadStatusSnapshot({ force: true })
 }
 
 watch(
@@ -308,14 +335,14 @@ const handleSaveZone = async (zone: AirCirculationZone) => {
 						imageUrl: z.imageUrl,
 						sortOrder: z.sortOrder,
 						locations: z.locations,
-					} as any)
+					})
 				: await airApi.createZone({
 						name: z.name,
 						imageUrl: z.imageUrl,
 						sortOrder: z.sortOrder,
 						locations: z.locations,
-					} as any)
-			const zoneWithId = { ...result.zone, id: (result.zone as any).id || z.id } as AirCirculationZone & { id: string }
+					})
+			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as AirCirculationZone & { id: string }
 			return { merged: result.merged, message: result.message, zone: zoneWithId }
 		},
 		{ selectedZoneRef: selectedZone }
@@ -323,13 +350,18 @@ const handleSaveZone = async (zone: AirCirculationZone) => {
 }
 
 const handleDeleteZone = async (zoneId: string) => {
-	await baseHandleDeleteZone(zoneId, airCirculationZones as any, airApi.deleteZone, {
-		selectedZoneRef: selectedZone,
-		systemType: "air_circulation" as any,
-		onAfterDelete: async () => {
-			await loadZonesFromAPI()
-		},
-	})
+	await baseHandleDeleteZone(
+		zoneId,
+		airCirculationZones as Ref<(AirCirculationZone & { id: string })[]>,
+		airApi.deleteZone,
+		{
+			selectedZoneRef: selectedZone,
+			systemType: "air_circulation",
+			onAfterDelete: async () => {
+				await loadZonesFromAPI()
+			},
+		}
+	)
 }
 
 const handleOpenZoneDialog = async () => {
@@ -342,24 +374,20 @@ const handleToggleEditMode = () => {
 	isEditMode.value = !isEditMode.value
 }
 
+const syncSelectedCategoryToVisibleOnMap = () => {
+	const visible = filteredZoneLocations.value
+	if (visible.length === 0) {
+		selectedCategory.value = ""
+		return
+	}
+	const exists = visible.some((loc) => getLocationIdForDisplay(loc) === selectedCategory.value)
+	if (!exists) selectedCategory.value = getLocationIdForDisplay(visible[0]!)
+}
+
 watch(
 	[airCirculationZones, selectedZone, selectedViewCategory],
-	() => {
-		const visible = filteredZoneLocations.value
-		if (visible.length === 0) {
-			selectedCategory.value = ""
-			return
-		}
-		const zone = selectedZoneData.value
-		if (!zone) return
-		const exists = visible.some((loc) => getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: findLocationIndexInZone(zone as any, loc as any) }) === selectedCategory.value)
-		if (exists) return
-		const first = visible[0]!
-		const idx = findLocationIndexInZone(zone as any, first as any)
-		selectedCategory.value =
-			idx !== -1 ? getLocationUiKey({ zone: zone as any, location: first as any, locationIndex: idx }) : ""
-	},
-	{ immediate: true }
+	() => syncSelectedCategoryToVisibleOnMap(),
+	{ deep: true, immediate: true }
 )
 
 onMounted(async () => {

@@ -1,6 +1,10 @@
 import type { CategoryModbusConfig } from "~/types/lighting"
-import type { DrainageStatusPointDef } from "~/types/location"
-import { normalizeSystemUiStatus, type SystemUiStatus } from "~/types/monitoring"
+import type { ModbusStatusPointDef } from "~/types/location"
+import {
+	isSnapshotAlarm,
+	normalizeSystemUiStatus,
+	type SystemUiStatus,
+} from "~/utils/monitoringStatus"
 
 export interface EmergencyRescueStatusItem {
 	zoneId: string
@@ -15,22 +19,13 @@ export interface EmergencyRescueStatusItem {
 	error?: string
 }
 
-/** 與後端 emergencyRescueStatusService 語意對齊 */
+/** 與後端對齊：見 smoke-alarm `deriveSmokeAlarmUiStatus` 註解。 */
 export const deriveEmergencyRescueUiStatus = (
 	item: EmergencyRescueStatusItem | null | undefined
 ): EmergencyRescueStatusItem["uiStatus"] => {
 	if (!item) return "warning"
-	if (item.uiStatus === "alarm") return "alarm"
-	const raw = item.raw || {}
-	const keys = Object.keys(raw)
-	if (keys.length === 0) return normalizeSystemUiStatus(item.uiStatus)
-
-	const anyRead = keys.some((k) => raw[k] !== undefined && raw[k] !== null)
-	if (!anyRead) return "warning"
-
-	if (raw.sos === true || raw.trigger === true || raw.running === true || raw.runningAlarm === true) return "alarm"
-	if (raw.fault === true) return "warning"
-	return "normal"
+	if (isSnapshotAlarm(item)) return "alarm"
+	return normalizeSystemUiStatus(item.uiStatus)
 }
 
 export interface EmergencyRescueLocation {
@@ -45,7 +40,7 @@ export interface EmergencyRescueLocation {
 	modbus?: CategoryModbusConfig
 	equipmentKind?: string
 	viewCategory?: string
-	statusPoints?: Record<string, DrainageStatusPointDef>
+	statusPoints?: Record<string, ModbusStatusPointDef>
 }
 
 export interface EmergencyRescueZone {

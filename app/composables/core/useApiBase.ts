@@ -82,8 +82,8 @@ export const useApiBase = () => {
 			...(options.headers as Record<string, string>),
 		}
 
-		// 設置超時時間（預設 10 秒，可通過 options.timeout 自定義）
-		const timeout = options.timeout ?? 10000
+		// 設置超時時間（預設 5 秒，可通過 options.timeout 自定義）
+		const timeout = options.timeout ?? 5000
 		// 從 options 中移除 timeout，避免傳遞給 fetcher 時出現問題
 		const { timeout: _timeout, ...fetcherOptions } = options
 		const contentType = String(headers["Content-Type"] || headers["content-type"] || "")
@@ -204,7 +204,7 @@ export const useApiBase = () => {
 
 				if (statusCode === 503) {
 					// 503 Service Unavailable - 通常表示設備離線或服務暫時不可用
-					// 使用後端返回的詳細錯誤訊息（如 "連接超時: 無法在 10000ms 內連接到..."）
+					// 使用後端返回的詳細錯誤訊息（如 "連接超時: 無法在 5000ms 內連接到..."）
 					throw new ApiRequestError(backendErrorMsg || "設備離線或服務暫時不可用", {
 						statusCode,
 						code: "HTTP_503",
@@ -260,17 +260,9 @@ export const useApiBase = () => {
 			}
 
 			if (isNetworkError) {
-				const targetHost = url.match(/https?:\/\/([^\/:]+)/)?.[1] || "未知"
-				throw new ApiRequestError(`無法連接到後端伺服器 (${targetHost})`, {
+				// 避免在「設備連線/點位問題」已知時，再額外噴出「無法連接到後端伺服器」造成噪音
+				throw new ApiRequestError(backendErrorMsg || "連線異常，請稍後再試", {
 					code: "NETWORK_ERROR",
-					originalMessage: backendErrorMsg || errorMessage,
-				})
-			}
-
-			// 處理請求超時（沒有狀態碼的情況）
-			if (errorMessage.includes("timeout") || error?.name === "TimeoutError") {
-				throw new ApiRequestError(`請求超時 (${url})，請檢查網路連線或稍後再試`, {
-					code: "TIMEOUT",
 					originalMessage: backendErrorMsg || errorMessage,
 				})
 			}

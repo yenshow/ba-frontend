@@ -1,7 +1,7 @@
 import { ref, watch, type Ref } from "vue"
 import type { HvacLocation, HvacZone, HvacUiStatus } from "~/types/hvac"
 import type { Device, ControllerDeviceConfig } from "~/types/device"
-import type { ModbusDeviceConfig } from "~/types/modbus"
+import type { ModbusDeviceConfig } from "~/utils/modbusPoints"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useHvacApi } from "~/composables/systems/hvac/useHvacApi"
 import { useApiBase } from "~/composables/core/useApiBase"
@@ -12,6 +12,7 @@ import {
 } from "~/composables/monitoring/useModbusPollingPolicy"
 import { extractReadPoint, extractWritePoints, hasControllerConfig } from "~/utils/modbusPoints"
 import { findLocationInZonesByUiKey, getLocationUiKey } from "~/utils/locationUiId"
+import type { MapDotStatus } from "~/utils/monitoringStatus"
 
 const TOGGLE_DEBOUNCE_DELAY = 300
 const TOGGLE_ROUNDTRIP_DELAY_MS = 450
@@ -277,7 +278,7 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 		}
 	}
 
-	const dotStatusForLocation = (locationUiKey: string): "normal" | "warning" | "alarm" => {
+	const dotStatusForLocation = (locationUiKey: string): MapDotStatus => {
 		const s = locationStatuses.value[locationUiKey]
 		if (!s) return "warning"
 		return s.uiStatus

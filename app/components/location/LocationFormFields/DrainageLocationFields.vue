@@ -1,6 +1,5 @@
 <template>
 	<div class="flex w-full min-w-0 flex-col gap-3">
-		<!-- 列 1：點位名稱 / 設備類型（檢視分類由分組列設定，不在此顯示） -->
 		<div class="flex min-w-0 flex-wrap items-end gap-2">
 			<label
 				class="flex min-w-[7rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
@@ -29,7 +28,7 @@
 			</label>
 		</div>
 
-		<!-- 列 2 起：馬達＝單組 控制器／類型／地址；液位＝三組（高水位／低水位／水箱蓋） -->
+		<!-- 馬達：statusPoints.running -->
 		<template v-if="localLocation.equipmentKind === 'pump'">
 			<div class="flex min-w-0 flex-wrap items-end gap-2">
 				<label
@@ -95,6 +94,7 @@
 			</div>
 		</template>
 
+		<!-- 液位：水箱蓋／高水位／低水位 -->
 		<template v-else>
 			<div class="space-y-3 rounded border border-white/10 bg-white/5 p-3">
 				<div
@@ -173,15 +173,15 @@
 <script setup lang="ts">
 import type { DrainageLocation } from "~/types/drainage"
 import type { Device } from "~/types/device"
-import type { DrainageStatusPointDef } from "~/types/location"
+import type { ModbusStatusPointDef } from "~/types/location"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import {
 	useDrainageLocationValidation,
 	type DrainageModbusTuple,
+	type DrainageTankPointKey,
 } from "~/composables/location/validation/useDrainageLocationValidation"
-
-type DiDo = "DI" | "DO"
-type TankRoleKey = "highLevel" | "lowLevel" | "coverAlarm"
+import type { DiDo } from "~/utils/modbusPoints"
+import { mapDiDoToRegisterType, registerTypeToDiDo } from "~/utils/modbusPoints"
 
 interface ModbusRowState {
 	deviceIdStr: string
@@ -195,9 +195,7 @@ interface AddressIssue {
 
 interface Props {
 	location: DrainageLocation
-	/** 所屬檢視分類（由分組列決定；空字串為未分類） */
 	groupViewCategory: string
-	/** 同區域內所有點位（供地址重複檢查，對齊照明） */
 	allLocations?: DrainageLocation[]
 	currentIndex?: number
 	devices?: Device[]
@@ -246,7 +244,7 @@ const motorTupleFromForm = (): DrainageModbusTuple | null => {
 	}
 }
 
-const tankTupleFromForm = (role: TankRoleKey): DrainageModbusTuple | null => {
+const tankTupleFromForm = (role: DrainageTankPointKey): DrainageModbusTuple | null => {
 	const row = tankRows.value[role]
 	const id = Number(row.deviceIdStr)
 	if (!id || id <= 0) return null
@@ -282,8 +280,8 @@ const motorAddressIssue = computed((): AddressIssue | null => {
 	return null
 })
 
-const tankAddressIssues = computed((): Record<TankRoleKey, AddressIssue | null> => {
-	const out: Record<TankRoleKey, AddressIssue | null> = {
+const tankAddressIssues = computed((): Record<DrainageTankPointKey, AddressIssue | null> => {
+	const out: Record<DrainageTankPointKey, AddressIssue | null> = {
 		highLevel: null,
 		lowLevel: null,
 		coverAlarm: null,
@@ -320,14 +318,13 @@ const equipmentKindOptions = [
 	{ value: "tank", label: "液位" },
 ]
 
-const tankRoles: { key: TankRoleKey; label: string }[] = [
+const tankRoles: { key: DrainageTankPointKey; label: string }[] = [
 	{ key: "coverAlarm", label: "水箱蓋" },
 	{ key: "highLevel", label: "高水位" },
 	{ key: "lowLevel", label: "低水位" },
 ]
 
 const localLocation = ref<DrainageLocation>({ ...props.location })
-const pumpPointKey = ref<"running" | "fault">("running")
 
 const emptyRow = (): ModbusRowState => ({
 	deviceIdStr: "",
@@ -336,22 +333,11 @@ const emptyRow = (): ModbusRowState => ({
 })
 
 const motorRow = ref<ModbusRowState>(emptyRow())
-const tankRows = ref<Record<TankRoleKey, ModbusRowState>>({
+const tankRows = ref<Record<DrainageTankPointKey, ModbusRowState>>({
 	highLevel: emptyRow(),
 	lowLevel: emptyRow(),
 	coverAlarm: emptyRow(),
 })
-
-const mapDiDoToRegisterType = (t: DiDo): DrainageStatusPointDef["registerType"] => {
-	return t === "DO" ? "coil" : "discrete"
-}
-
-const registerTypeToDiDo = (def: DrainageStatusPointDef | undefined): DiDo => {
-	if (!def) return "DI"
-	const rt = String(def.registerType || "").toLowerCase()
-	if (rt === "coil") return "DO"
-	return "DI"
-}
 
 const hydrateFromLocation = (loc: DrainageLocation) => {
 	const kind = loc.equipmentKind === "tank" ? "tank" : "pump"
@@ -366,7 +352,7 @@ const hydrateFromLocation = (loc: DrainageLocation) => {
 	if (kind === "tank") {
 		for (const { key } of tankRoles) {
 			const def = loc.statusPoints?.[key] as
-				| (DrainageStatusPointDef & { deviceId?: number })
+				| (ModbusStatusPointDef & { deviceId?: number })
 				| undefined
 			tankRows.value[key] = def
 				? {
@@ -385,15 +371,9 @@ const hydrateFromLocation = (loc: DrainageLocation) => {
 		return
 	}
 
-	const sp = loc.statusPoints || {}
-	let key: "running" | "fault" = "running"
-	let def = sp.running as (DrainageStatusPointDef & { deviceId?: number }) | undefined
-	if (!def && sp.fault) {
-		key = "fault"
-		def = sp.fault as (DrainageStatusPointDef & { deviceId?: number }) | undefined
-	}
-	pumpPointKey.value = key
-
+	const def = loc.statusPoints?.running as
+		| (ModbusStatusPointDef & { deviceId?: number })
+		| undefined
 	if (def) {
 		const did =
 			def.deviceId != null && def.deviceId > 0
@@ -413,8 +393,8 @@ const hydrateFromLocation = (loc: DrainageLocation) => {
 			address: 0,
 		}
 	}
-	for (const { key: rk } of tankRoles) {
-		tankRows.value[rk] = emptyRow()
+	for (const { key } of tankRoles) {
+		tankRows.value[key] = emptyRow()
 	}
 }
 
@@ -432,7 +412,7 @@ const buildDrainageLocation = (): DrainageLocation => {
 		base.deviceId = id > 0 ? id : undefined
 		if (id > 0 && Number.isFinite(motorRow.value.address) && motorRow.value.address >= 0) {
 			base.statusPoints = {
-				[pumpPointKey.value]: {
+				running: {
 					registerType: mapDiDoToRegisterType(motorRow.value.type),
 					address: motorRow.value.address,
 				},
@@ -441,7 +421,7 @@ const buildDrainageLocation = (): DrainageLocation => {
 		return base
 	}
 
-	const sp: Record<string, DrainageStatusPointDef & { deviceId?: number }> = {}
+	const sp: Record<string, ModbusStatusPointDef & { deviceId?: number }> = {}
 	let primaryDevice = 0
 	for (const { key } of tankRoles) {
 		const row = tankRows.value[key]
@@ -499,7 +479,6 @@ const handleEquipmentKindChange = (value: string) => {
 		for (const { key } of tankRoles) {
 			tankRows.value[key] = emptyRow()
 		}
-		pumpPointKey.value = "running"
 		motorRow.value = emptyRow()
 	}
 	handleChange()

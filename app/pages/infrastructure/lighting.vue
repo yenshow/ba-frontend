@@ -64,7 +64,7 @@ import { useLightingModbusIntegration } from "~/composables/systems/lighting/use
 import { healthStatusToAlertFlash } from "~/utils/alertUtils"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
-import { systemUiStatusToLegacyHealthStatus } from "~/types/monitoring"
+import { systemUiStatusToLegacyHealthStatus } from "~/utils/monitoringStatus"
 
 definePageMeta({
 	layout: "default",

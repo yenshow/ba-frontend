@@ -1,6 +1,8 @@
 <template>
 	<div class="flex min-w-0 flex-1 items-end gap-2">
-		<label class="flex flex-1 min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+		<label
+			class="flex flex-1 min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+		>
 			<span>點位名稱 *</span>
 			<input
 				v-model="localLocation.name"
@@ -12,7 +14,9 @@
 			/>
 		</label>
 
-		<label class="flex flex-1 min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+		<label
+			class="flex flex-1 min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+		>
 			<span>控制器</span>
 			<FilterDropdown
 				v-model="deviceIdString"
@@ -23,16 +27,28 @@
 		</label>
 
 		<template v-if="localLocation.deviceId && localLocation.deviceId > 0">
-			<div class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/70 2xl:gap-2.5 2xl:text-base">
-				<span>類型</span>
-				<span class="form-input-small flex items-center justify-center bg-white/5 text-white/80">DI</span>
-			</div>
+			<label
+				class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+			>
+				<span>類型 *</span>
+				<select
+					v-model="runningType"
+					class="form-input-small form-select w-full"
+					required
+					@change="handleChange"
+				>
+					<option value="DO">DO</option>
+					<option value="DI">DI</option>
+				</select>
+			</label>
 
-			<label class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+			<label
+				class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+			>
 				<span>地址 *</span>
 				<div class="relative w-full">
 					<input
-						v-model.number="smokeAddress"
+						v-model.number="runningAddress"
 						type="number"
 						min="0"
 						placeholder="地址"
@@ -70,7 +86,9 @@ import { ref, watch, computed } from "vue"
 import type { SmokeAlarmLocation } from "~/types/smoke-alarm"
 import type { Device } from "~/types/device"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
-import type { DrainageStatusPointDef } from "~/types/location"
+import type { ModbusStatusPointDef } from "~/types/location"
+import type { DiDo } from "~/utils/modbusPoints"
+import { mapDiDoToRegisterType, registerTypeToDiDo } from "~/utils/modbusPoints"
 
 interface Props {
 	location: SmokeAlarmLocation
@@ -95,15 +113,20 @@ const emit = defineEmits<Emits>()
 
 const localLocation = ref<SmokeAlarmLocation>({ ...props.location })
 const deviceIdString = ref("")
-const smokeAddress = ref(0)
+const runningAddress = ref(0)
+const runningType = ref<DiDo>("DI")
 
 const deviceOptions = computed(() => {
 	if (props.isLoadingDevices) return [{ value: "", label: "載入中..." }]
 	if (props.devices.length === 0) return [{ value: "", label: "尚無可用控制器" }]
-	return [{ value: "", label: "請選擇控制器" }, ...props.devices.map((d) => ({ value: String(d.id), label: d.name }))]
+	return [
+		{ value: "", label: "請選擇控制器" },
+		...props.devices.map((d) => ({ value: String(d.id), label: d.name })),
+	]
 })
 
-const tupleKey = (args: { deviceId: number; address: number }) => `DI:${args.deviceId}:${args.address}`
+const tupleKey = (args: { deviceId: number; type: DiDo; address: number }) =>
+	`${args.deviceId}:${args.type}:${args.address}`
 
 const otherTupleKeys = computed(() => {
 	const set = new Set<string>()
@@ -112,10 +135,15 @@ const otherTupleKeys = computed(() => {
 		if (i === props.currentIndex) continue
 		const loc = props.allLocations[i]!
 		const deviceId = typeof loc.deviceId === "number" ? loc.deviceId : 0
-		const address = Number(loc.statusPoints?.smoke?.address)
+		const sp = loc.statusPoints || {}
+		const def = (sp.running || sp.smoke || sp.alarm || sp.trigger) as
+			| ModbusStatusPointDef
+			| undefined
+		const address = Number(def?.address ?? sp.running?.address)
+		const t = registerTypeToDiDo(def)
 		if (!deviceId || deviceId <= 0) continue
 		if (!Number.isFinite(address) || address < 0) continue
-		set.add(tupleKey({ deviceId, address }))
+		set.add(tupleKey({ deviceId, type: t, address }))
 	}
 	return set
 })
@@ -123,7 +151,11 @@ const otherTupleKeys = computed(() => {
 const hasDuplicateAddress = computed(() => {
 	if (!localLocation.value.deviceId || localLocation.value.deviceId <= 0) return false
 	if (props.currentIndex < 0) return false
-	const k = tupleKey({ deviceId: Number(localLocation.value.deviceId), address: smokeAddress.value })
+	const k = tupleKey({
+		deviceId: Number(localLocation.value.deviceId),
+		type: runningType.value,
+		address: runningAddress.value,
+	})
 	return otherTupleKeys.value.has(k)
 })
 
@@ -133,12 +165,18 @@ watch(
 		localLocation.value = { ...next }
 		deviceIdString.value = localLocation.value.deviceId ? String(localLocation.value.deviceId) : ""
 		const sp = localLocation.value.statusPoints || {}
+		const runningDef = (sp.running || sp.smoke || sp.alarm || sp.trigger) as
+			| ModbusStatusPointDef
+			| undefined
 		const resolved =
+			Number(runningDef?.address) ||
+			Number(sp.running?.address) ||
 			Number(sp.smoke?.address) ||
 			Number(sp.alarm?.address) ||
 			Number(sp.trigger?.address) ||
 			0
-		smokeAddress.value = Number.isFinite(resolved) ? resolved : 0
+		runningAddress.value = Number.isFinite(resolved) ? resolved : 0
+		runningType.value = registerTypeToDiDo(runningDef)
 	},
 	{ immediate: true, deep: true }
 )
@@ -147,10 +185,10 @@ const handleChange = () => {
 	const next: SmokeAlarmLocation = { ...localLocation.value }
 	if (next.deviceId && next.deviceId > 0) {
 		next.statusPoints = {
-			smoke: {
-				registerType: "discrete",
-				address: Math.max(0, Math.floor(Number(smokeAddress.value) || 0)),
-			} satisfies DrainageStatusPointDef,
+			running: {
+				registerType: mapDiDoToRegisterType(runningType.value),
+				address: Math.max(0, Math.floor(Number(runningAddress.value) || 0)),
+			} satisfies ModbusStatusPointDef,
 		}
 	} else next.statusPoints = {}
 
@@ -163,4 +201,3 @@ const handleDeviceChange = (value: string) => {
 	handleChange()
 }
 </script>
-

@@ -6,9 +6,6 @@ const BASE_INTERVAL_MS = 5000
 const BACKOFF_STEPS_MS = [5000, 10000, 20000, 40000, 60000] as const
 const OFFLINE_LEVEL_INDEX = 3
 
-export const MODBUS_SUCCESS_CACHE_TTL_MS = 10000
-export const MODBUS_FAILURE_CACHE_TTL_MS = 30000
-
 const normalizeErrorMessage = (error: unknown): string => {
 	if (typeof error === "string") return error
 	if (error instanceof Error) return error.message

@@ -9,6 +9,19 @@ export type ModbusRegisterType = "coil" | "discrete" | "holding" | "input"
 
 export type ModbusPointKind = "DI" | "DO"
 
+/** 表單顯示用 DI／DO，對應 Modbus discrete／coil */
+export type DiDo = "DI" | "DO"
+
+export const mapDiDoToRegisterType = (t: DiDo): ModbusRegisterType =>
+	t === "DO" ? "coil" : "discrete"
+
+export const registerTypeToDiDo = (def: { registerType?: unknown } | undefined): DiDo => {
+	if (!def) return "DI"
+	const rt = String(def.registerType || "").toLowerCase()
+	if (rt === "coil") return "DO"
+	return "DI"
+}
+
 export type ModbusPointLike = {
 	type?: string
 	method?: string
@@ -43,6 +56,27 @@ export type ModbusConfigLike = {
 export type ControllerConfigLike = {
 	deviceId?: number | string | null
 	modbus?: ModbusConfigLike | null
+}
+
+export interface ModbusHealth {
+	isOpen: boolean
+	host: string
+	port: number
+	unitId: number
+	lastConnectedAt: string | null
+}
+
+export interface ModbusDeviceConfig {
+	host: string
+	port: number
+	unitId: number
+}
+
+export interface ModbusDataResponse<T = number | boolean> {
+	address: number
+	length: number
+	data: T[]
+	device?: ModbusDeviceConfig
 }
 
 export const hasInlineModbusDeviceConfig = (modbus: ModbusConfigLike | null | undefined): boolean => {

@@ -11,7 +11,7 @@
 				:selected-category="selectedCategory"
 				:filtered-zone-locations="filteredZoneLocations"
 				:zone-plan-image="zonePlanImage"
-				:dot-status-for-location="dotStatusForLocation"
+				:dot-status-for-location="uiStatusForLocation"
 				:get-location-alert-flash="getLocationAlertFlash"
 				:tooltip-title="tooltipTitle"
 				@open-zone-management="handleOpenZoneDialog"
@@ -32,7 +32,7 @@
 					:selected-zone="selectedZone"
 					:manual-issue-targets="manualIssueTargets"
 					:manual-issue-default-target-id="manualIssueDefaultTargetId"
-					:rule-trigger="{ alert_type: 'di', bit_key: 'di:0' }"
+					:rule-bit-options-by-target-id="ruleBitOptionsByTargetId"
 					@zone-selected="handleZoneSelected"
 					@manual-issue-changed="handleManualIssueChanged"
 				/>
@@ -65,6 +65,8 @@ import { useAuth } from "~/composables/core/useAuth"
 import { getLocationUiKey, findLocationIndexInZone } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
 import { useSmokeAlarmModbusIntegration } from "~/composables/systems/smoke-alarm/useSmokeAlarmModbusIntegration"
+import type { ManualIssueChangedPayload } from "~/utils/alertUtils"
+import { useManualIssueDiDoRules } from "~/composables/systems/alerts/useManualIssueDiDoRules"
 
 definePageMeta({
 	layout: "default",
@@ -77,6 +79,13 @@ const { handleError } = useErrorHandler()
 const leftSectionHeight = ref<number | null>(null)
 
 const smokeZones = ref<SmokeAlarmZone[]>([])
+
+const { ruleBitOptionsByTargetId } = useManualIssueDiDoRules({
+	alertRulesSource: "smoke_alarm",
+	zones: smokeZones,
+	isAdmin,
+})
+
 const isLoadingZones = ref(false)
 const isInitialLoading = ref(true)
 const selectedZone = ref("")
@@ -134,13 +143,6 @@ const uiStatusForLocation = (loc: SmokeAlarmLocation): SmokeAlarmStatusItem["uiS
 	return deriveSmokeAlarmUiStatus(statusBySystemId.value.get(String(loc.systemId)) ?? null)
 }
 
-const dotStatusForLocation = (loc: SmokeAlarmLocation): "normal" | "abnormal" | "alarm" => {
-	const s = uiStatusForLocation(loc)
-	if (s === "normal") return "normal"
-	if (s === "warning") return "abnormal"
-	return "alarm"
-}
-
 const getLocationAlertFlash = (loc: SmokeAlarmLocation): "none" | "slow" | "fast" => {
 	const s = uiStatusForLocation(loc)
 	if (s === "normal") return "none"
@@ -161,21 +163,23 @@ const handleZoneSelected = (zoneId: string) => {
 }
 
 const findLocationOriginalIndex = (zone: SmokeAlarmZone, target: SmokeAlarmLocation) => {
-	return findLocationIndexInZone(zone as any, target as any)
+	return findLocationIndexInZone(zone, target)
 }
 
 const getLocationIdForDisplay = (location: SmokeAlarmLocation): string => {
 	const zone = selectedZoneData.value
 	if (!zone) return ""
 	const idx = findLocationOriginalIndex(zone, location)
-	return idx !== -1 ? getLocationUiKey({ zone: zone as any, location: location as any, locationIndex: idx }) : ""
+	return idx !== -1 ? getLocationUiKey({ zone, location, locationIndex: idx }) : ""
 }
 
 const selectLocationByLocation = (location: SmokeAlarmLocation) => {
 	const zone = selectedZoneData.value
 	if (!zone) return
 	const idx = findLocationOriginalIndex(zone, location)
-	if (idx !== -1) selectedCategory.value = getLocationUiKey({ zone: zone as any, location: location as any, locationIndex: idx })
+	if (idx !== -1) {
+		selectedCategory.value = getLocationUiKey({ zone, location, locationIndex: idx })
+	}
 }
 
 const handleSelectCategory = (locationId: string) => {
@@ -185,7 +189,7 @@ const handleSelectCategory = (locationId: string) => {
 const findLocationById = (locationId: string): { zone: SmokeAlarmZone; locationIndex: number } | null => {
 	for (const zone of smokeZones.value) {
 		const idx = zone.locations.findIndex(
-			(loc, i) => getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i }) === locationId
+			(loc, i) => getLocationUiKey({ zone, location: loc, locationIndex: i }) === locationId
 		)
 		if (idx !== -1) return { zone, locationIndex: idx }
 	}
@@ -234,13 +238,22 @@ const {
 	statusItems: computedStatusItems,
 	preloadDeviceInfos,
 	loadStatusSnapshot,
+	patchOptimistic,
 	startAutoRefresh,
 	stopAutoRefresh,
 	handleVisibilityChange,
 } = useSmokeAlarmModbusIntegration(smokeZones)
 
-const handleManualIssueChanged = () => {
-	void loadStatusSnapshot()
+const handleManualIssueChanged = (payload?: ManualIssueChangedPayload) => {
+	// 清除：不做樂觀「正常」— 真實狀態可能是觸發前的「異常」，應完全依強制快照還原
+	if (payload?.action === "clear") {
+		void loadStatusSnapshot({ force: true })
+		return
+	}
+	if (payload?.systemId) {
+		patchOptimistic(payload.systemId, "alarm")
+	}
+	void loadStatusSnapshot({ force: true })
 }
 
 watch(

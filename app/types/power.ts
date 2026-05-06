@@ -1,6 +1,10 @@
 import type { CategoryModbusConfig } from "~/types/lighting"
-import type { DrainageStatusPointDef } from "~/types/location"
-import { normalizeSystemUiStatus, type SystemUiStatus } from "~/types/monitoring"
+import type { ModbusStatusPointDef } from "~/types/location"
+import {
+	isSnapshotAlarm,
+	normalizeSystemUiStatus,
+	type SystemUiStatus,
+} from "~/utils/monitoringStatus"
 
 export const trimPowerViewCategory = (raw: string | undefined | null): string =>
 	String(raw ?? "").trim()
@@ -34,53 +38,37 @@ export interface PowerStatusItem {
 	error?: string
 }
 
-/** 發電機：子狀態（供監控中心列與 tooltip；彙總仍用單一 uiStatus） */
+/** 發電機運轉／故障欄（對應 raw.fault）；後端 `uiStatus===warning` 時勿被 raw.fault===false 誤判為正常。 */
 export const derivePowerGeneratorRunStatus = (
 	item: PowerStatusItem | null | undefined
 ): PowerStatusItem["uiStatus"] => {
 	if (!item) return "warning"
+	const top = normalizeSystemUiStatus(item.uiStatus)
+	if (top === "warning") return "warning"
 	const raw = item.raw || {}
 	if (raw.fault === true) return "alarm"
-	const hasSig =
-		raw.fault !== undefined || raw.running !== undefined
-	return hasSig ? "normal" : normalizeSystemUiStatus(item.uiStatus)
+	return "normal"
 }
 
+/** 發電機油位欄（高／低油位 DI）；同上依後端連線狀態為準。 */
 export const derivePowerGeneratorOilStatus = (
 	item: PowerStatusItem | null | undefined
 ): PowerStatusItem["uiStatus"] => {
 	if (!item) return "warning"
+	const top = normalizeSystemUiStatus(item.uiStatus)
+	if (top === "warning") return "warning"
 	const raw = item.raw || {}
-	if (
-		raw.lowOil === true ||
-		raw.highOil === true ||
-		raw.oilLevelAlarm === true
-	) {
-		return "alarm"
-	}
-	const hasAny =
-		raw.lowOil !== undefined ||
-		raw.highOil !== undefined ||
-		raw.oilLevelAlarm !== undefined
-	return hasAny ? "normal" : "warning"
+	if (raw.highOil === true || raw.lowOil === true) return "alarm"
+	return "normal"
 }
 
+/** 發電機／獨立油位：與排水幫浦一致，以快照頂層 `uiStatus` 為準。 */
 export const derivePowerOverallUiStatus = (
 	item: PowerStatusItem | null | undefined
 ): PowerStatusItem["uiStatus"] => {
 	if (!item) return "warning"
-	const kind = item.equipmentKind === "oil_level" ? "oil_level" : "generator"
-	if (kind === "oil_level") {
-		const raw = item.raw || {}
-		if (raw.oilLevelAlarm === true) return "alarm"
-		const anyRead = Object.keys(raw).some((k) => raw[k] !== undefined && raw[k] !== null)
-		return anyRead ? "normal" : "warning"
-	}
-	const run = derivePowerGeneratorRunStatus(item)
-	const oil = derivePowerGeneratorOilStatus(item)
-	if (run === "alarm" || oil === "alarm") return "alarm"
-	if (run === "warning" || oil === "warning") return "warning"
-	return "normal"
+	if (isSnapshotAlarm(item)) return "alarm"
+	return normalizeSystemUiStatus(item.uiStatus)
 }
 
 export interface PowerLocation {
@@ -95,7 +83,7 @@ export interface PowerLocation {
 	modbus?: CategoryModbusConfig
 	equipmentKind?: PowerEquipmentKind | string
 	viewCategory?: string
-	statusPoints?: Record<string, DrainageStatusPointDef>
+	statusPoints?: Record<string, ModbusStatusPointDef>
 }
 
 export interface PowerZone {

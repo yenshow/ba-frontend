@@ -136,7 +136,7 @@ const getParamStatusType = (param: Param): "normal" | "warning" | "alarm" | "off
 	const normalized = normalizeMonitoringStatusText(props.getStatusText(param.type, param.rawValue))
 	const ui = monitoringStatusTextToUiStatus(normalized)
 	if (ui === "alarm") return "alarm"
-	if (ui === "abnormal") return "warning"
+	if (ui === "warning") return "warning"
 	if (ui === "offline") return "offline"
 	return "normal"
 }
@@ -163,7 +163,7 @@ const getParamBlinkClass = (param: Param) => {
 	const statusType = getParamStatusType(param)
 	if (statusType === "offline") return ""
 	if (statusType === "alarm") return monitoringUiStatusToBlinkClass("alarm")
-	if (statusType === "warning") return monitoringUiStatusToBlinkClass("abnormal")
+	if (statusType === "warning") return monitoringUiStatusToBlinkClass("warning")
 	return ""
 }
 </script>

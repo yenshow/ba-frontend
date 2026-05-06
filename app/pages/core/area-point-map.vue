@@ -219,7 +219,7 @@ import { useHvacModbusIntegration } from "~/composables/systems/hvac/useHvacModb
 import { useFireModbusIntegration } from "~/composables/systems/fire/useFireModbusIntegration"
 import { getSystemTypeLabel } from "~/types/location"
 import { getLocationUiKey } from "~/utils/locationUiId"
-import type { SystemUiStatus } from "~/types/monitoring"
+import { normalizeSystemUiStatus, type MapDotStatus, type SystemUiStatus } from "~/utils/monitoringStatus"
 
 definePageMeta({
 	layout: "default",
@@ -374,12 +374,11 @@ const sortedZones = computed(() => sortZones(zones.value))
 // 區域示意圖
 const zonePlanImage = computed(() => selectedZoneData.value?.imageUrl)
 
-type DotStatus = "normal" | "abnormal" | "alarm"
 type FlashMode = "none" | "slow" | "fast"
 
-const dotSeverity = (s: DotStatus): 0 | 1 | 2 => {
+const dotSeverity = (s: MapDotStatus): 0 | 1 | 2 => {
 	if (s === "alarm") return 2
-	if (s === "abnormal") return 1
+	if (s === "warning") return 1
 	return 0
 }
 
@@ -438,14 +437,7 @@ const hvacUiStatusByLocationDbId = computed(() => {
 	return m
 })
 
-const uiStatusToDot = (s: string): DotStatus => {
-	// 與各系統頁一致：warning/offline/unknown => abnormal，alarm => alarm
-	const t = String(s || "unknown")
-	if (t === "normal") return "normal"
-	if (t === "alarm") return "alarm"
-	if (t === "warning" || t === "offline" || t === "unknown") return "abnormal"
-	return "abnormal"
-}
+const uiStatusToDot = (s: string): MapDotStatus => normalizeSystemUiStatus(s || "unknown")
 
 const uiStatusToFlash = (s: string): FlashMode => {
 	const t = String(s || "unknown")
@@ -468,11 +460,11 @@ const getModbusUiStatus = (locationId: string): string | null => {
 	return null
 }
 
-const dotStatusForLocation = (location: UnifiedLocation): DotStatus => {
+const dotStatusForLocation = (location: UnifiedLocation): MapDotStatus => {
 	const id = String(location.id || "")
 
 	if (!selectedSystemType.value) {
-		let best: DotStatus = "normal"
+		let best: MapDotStatus = "normal"
 
 		if (locationHasSystemType(location, "drainage")) {
 			const s = uiStatusToDot(drainageUiStatusByLocationId.value.get(id) ?? "unknown")
@@ -489,15 +481,15 @@ const dotStatusForLocation = (location: UnifiedLocation): DotStatus => {
 			if (lighting === "normal") {
 				// no-op
 			} else {
-				// 照明對外僅兩態：normal / abnormal（warning、error、缺值都算異常）
-				best = dotSeverity(best) >= 1 ? best : "abnormal"
+				// 照明對外僅兩態：normal / warning（warning、error、缺值都算異常）
+				best = dotSeverity(best) >= 1 ? best : "warning"
 			}
 		}
 
 		if (locationHasSystemType(location, "hvac")) {
 			const hvac = hvacUiStatusByLocationDbId.value.get(id)?.uiStatus
 			if (hvac !== "normal") {
-				best = dotSeverity(best) >= 1 ? best : "abnormal"
+				best = dotSeverity(best) >= 1 ? best : "warning"
 			}
 		}
 
@@ -515,12 +507,12 @@ const dotStatusForLocation = (location: UnifiedLocation): DotStatus => {
 	if (selectedSystemType.value === "lighting") {
 		const s = lightingHealthByLocationDbId.value.get(id)?.status
 		if (s === "normal") return "normal"
-		// 照明對外僅兩態：normal / abnormal（warning、error、缺值都算異常）
-		return "abnormal"
+		// 照明對外僅兩態：normal / warning（warning、error、缺值都算異常）
+		return "warning"
 	}
 	if (selectedSystemType.value === "hvac") {
 		const s = hvacUiStatusByLocationDbId.value.get(id)?.uiStatus
-		return s === "normal" ? "normal" : "abnormal"
+		return s === "normal" ? "normal" : "warning"
 	}
 	return "normal"
 }
@@ -531,7 +523,7 @@ const flashModeForLocation = (location: UnifiedLocation): FlashMode => {
 	if (!selectedSystemType.value) {
 		const s = dotStatusForLocation(location)
 		if (s === "alarm") return "fast"
-		if (s === "abnormal") return "slow"
+		if (s === "warning") return "slow"
 		return "none"
 	}
 

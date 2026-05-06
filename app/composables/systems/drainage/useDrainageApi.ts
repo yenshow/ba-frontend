@@ -6,6 +6,7 @@ import {
 	drainageLocationToUnified,
 } from "~/utils/locationAdapter"
 import { useApiBase } from "~/composables/core/useApiBase"
+import { STATUS_SNAPSHOT_REQUEST_TIMEOUT_MS } from "~/composables/monitoring/statusSnapshotPolicy"
 
 export const useDrainageApi = () => {
 	const zoneApi = useSystemLocationApiFactory<DrainageZone, DrainageLocation>({
@@ -32,10 +33,14 @@ export const useDrainageApi = () => {
 			if (zoneIds && zoneIds.length > 0) params.set("zoneIds", zoneIds.join(","))
 			if (syncAlerts !== undefined) params.set("syncAlerts", syncAlerts ? "true" : "false")
 			const q = params.toString() ? `?${params.toString()}` : ""
-			return request<{ items: DrainageStatusItem[] }>(`/drainage/status${q}`)
+			return request<{ items: DrainageStatusItem[] }>(`/drainage/status${q}`, {
+				timeout: STATUS_SNAPSHOT_REQUEST_TIMEOUT_MS,
+			})
 		},
 		getZoneStatus: (zoneId: string) =>
-			request<{ zoneId: string; items: DrainageStatusItem[] }>(`/drainage/zones/${zoneId}/status`),
+			request<{ zoneId: string; items: DrainageStatusItem[] }>(
+				`/drainage/zones/${zoneId}/status`,
+				{ timeout: STATUS_SNAPSHOT_REQUEST_TIMEOUT_MS },
+			),
 	}
 }
-

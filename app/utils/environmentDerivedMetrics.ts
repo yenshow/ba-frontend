@@ -1,6 +1,6 @@
 import { calculateAqiScore } from "~/utils/environmentAqi"
 
-export type DerivedMetricStatus = "normal" | "abnormal" | "alarm" | "offline"
+export type DerivedMetricStatus = "normal" | "warning" | "alarm" | "offline"
 
 export type HeatIndexResult = {
 	/** Heat Index (°C) */
@@ -19,7 +19,7 @@ export const getAqiDerivedStatus = (
 
 	// UI 需求：AQI 0~100 視為正常（與現場常見判讀一致）
 	if (aqi <= 100) return { aqi, status: "normal" }
-	if (aqi <= 150) return { aqi, status: "abnormal" }
+	if (aqi <= 150) return { aqi, status: "warning" }
 	return { aqi, status: "alarm" }
 }
 
@@ -61,7 +61,7 @@ export const getHeatIndexDerivedResult = (
 	else if (valueC >= 27) level = 2
 
 	const status: DerivedMetricStatus =
-		level <= 2 ? "normal" : level === 3 ? "abnormal" : "alarm"
+		level <= 2 ? "normal" : level === 3 ? "warning" : "alarm"
 
 	return { valueC, level, status }
 }

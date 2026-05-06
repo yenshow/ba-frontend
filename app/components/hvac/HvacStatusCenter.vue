@@ -15,7 +15,7 @@
 							props.selectedZone === (zone.id || zone.name)
 								? 'bg-white text-black/50'
 								: 'bg-transparent text-white',
-							zoneHasAbnormal(zone)
+							zoneHasWarning(zone)
 								? 'ring-2 ring-amber-400/90 ring-offset-2 ring-offset-transparent'
 								: '',
 							getZoneBlinkClass(zone),
@@ -27,7 +27,7 @@
 						</h4>
 					</button>
 					<span
-						v-if="zoneHasAbnormal(zone)"
+						v-if="zoneHasWarning(zone)"
 						class="pointer-events-none absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[9px] font-bold leading-none text-teal-950 2xl:h-5 2xl:min-w-5 2xl:text-[10px]"
 						:class="'bg-amber-400'"
 						aria-hidden="true"
@@ -222,21 +222,21 @@ const getLocationStatus = (locationId: string) => {
 const isLocationDisabled = (locationId: string): boolean =>
 	(props.areaDisabledMap[locationId] ?? false) || props.areaToggling.has(locationId)
 
-const isAbnormal = (locationId: string) => {
+const isWarning = (locationId: string) => {
 	const s = getLocationStatus(locationId).uiStatus
 	return s !== "normal"
 }
 
 const getLocationCardBlinkClass = (locationId: string): string =>
-	isAbnormal(locationId) ? "blink-slow" : ""
+	isWarning(locationId) ? "blink-slow" : ""
 
 const getLocationCardBackgroundClass = (locationId: string): string =>
-	isAbnormal(locationId) ? "bg-[#FFC801]/60" : "bg-white/10"
+	isWarning(locationId) ? "bg-[#FFC801]/60" : "bg-white/10"
 
-const zoneHasAbnormal = (zone: HvacZone) =>
-	getZoneLocationsWithIds(zone).some((row) => isAbnormal(row.locationId))
+const zoneHasWarning = (zone: HvacZone) =>
+	getZoneLocationsWithIds(zone).some((row) => isWarning(row.locationId))
 
-const getZoneBlinkClass = (zone: HvacZone): string => (zoneHasAbnormal(zone) ? "blink-slow" : "")
+const getZoneBlinkClass = (zone: HvacZone): string => (zoneHasWarning(zone) ? "blink-slow" : "")
 
 const handleToggle = (areaId: string, isOn: boolean) => {
 	if (!props.canToggle) return

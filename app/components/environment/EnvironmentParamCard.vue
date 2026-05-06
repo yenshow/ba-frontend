@@ -129,7 +129,7 @@ const backgroundClass = computed(() => {
 		case "normal":
 			return monitoringUiStatusToCardBackgroundClass("normal")
 		case "warning":
-			return monitoringUiStatusToCardBackgroundClass("abnormal")
+			return monitoringUiStatusToCardBackgroundClass("warning")
 		case "alarm":
 			return monitoringUiStatusToCardBackgroundClass("alarm")
 		default:
@@ -160,7 +160,7 @@ const statusDotStyle = computed(() => {
 	if (statusType.value === "normal")
 		return { backgroundColor: monitoringUiStatusToDotColor("normal") }
 	if (statusType.value === "warning")
-		return { backgroundColor: monitoringUiStatusToDotColor("abnormal") }
+		return { backgroundColor: monitoringUiStatusToDotColor("warning") }
 	if (statusType.value === "alarm")
 		return { backgroundColor: monitoringUiStatusToDotColor("alarm") }
 	return { backgroundColor: monitoringUiStatusToDotColor("offline") }

@@ -11,7 +11,7 @@
 				:selected-category="selectedCategory"
 				:filtered-zone-locations="filteredZoneLocations"
 				:zone-plan-image="zonePlanImage"
-				:dot-status-for-location="dotStatusForLocation"
+				:dot-status-for-location="uiStatusForLocation"
 				:get-location-alert-flash="getLocationAlertFlash"
 				:tooltip-title="tooltipTitle"
 				@open-zone-management="handleOpenZoneDialog"
@@ -34,7 +34,7 @@
 					:view-filter-options="viewFilterOptions"
 					:manual-issue-targets="manualIssueTargets"
 					:manual-issue-default-target-id="manualIssueDefaultTargetId"
-					:rule-trigger="{ alert_type: 'di', bit_key: 'di:0' }"
+					:rule-bit-options-by-target-id="ruleBitOptionsByTargetId"
 					@zone-selected="handleZoneSelected"
 					@manual-issue-changed="handleManualIssueChanged"
 				/>
@@ -78,6 +78,8 @@ import { unifiedToDrainageZone } from "~/utils/locationAdapter"
 import { getLocationUiKey, findLocationIndexInZone } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
 import { useDrainageModbusIntegration } from "~/composables/systems/drainage/useDrainageModbusIntegration"
+import type { ManualIssueChangedPayload } from "~/utils/alertUtils"
+import { useManualIssueDiDoRules } from "~/composables/systems/alerts/useManualIssueDiDoRules"
 
 definePageMeta({
 	layout: "default",
@@ -91,6 +93,13 @@ const { handleError } = useErrorHandler()
 const leftSectionHeight = ref<number | null>(null)
 
 const drainageZones = ref<DrainageZone[]>([])
+
+const { ruleBitOptionsByTargetId } = useManualIssueDiDoRules({
+	alertRulesSource: "drainage",
+	zones: drainageZones,
+	isAdmin,
+})
+
 const isLoadingZones = ref(false)
 const isInitialLoading = ref(true)
 const selectedZone = ref("")
@@ -185,13 +194,6 @@ const uiStatusForLocation = (loc: DrainageLocation): DrainageStatusItem["uiStatu
 	return tankUiStatusForLocation(loc)
 }
 
-const dotStatusForLocation = (loc: DrainageLocation): "normal" | "abnormal" | "alarm" => {
-	const s = uiStatusForLocation(loc)
-	if (s === "normal") return "normal"
-	if (s === "warning") return "abnormal"
-	return "alarm"
-}
-
 const getLocationAlertFlash = (loc: DrainageLocation): "none" | "slow" | "fast" => {
 	const s = uiStatusForLocation(loc)
 	if (s === "normal") return "none"
@@ -201,14 +203,7 @@ const getLocationAlertFlash = (loc: DrainageLocation): "none" | "slow" | "fast" 
 
 const tooltipTitle = (loc: DrainageLocation) => {
 	const s = uiStatusForLocation(loc)
-	const label =
-		s === "normal"
-			? "正常"
-			: s === "warning"
-				? "異常"
-				: s === "alarm"
-					? "警報"
-					: "異常"
+	const label = s === "normal" ? "正常" : s === "warning" ? "異常" : s === "alarm" ? "警報" : "異常"
 	return `${loc.name}：${label}`
 }
 
@@ -302,13 +297,21 @@ const {
 	statusItems: computedStatusItems,
 	preloadDeviceInfos,
 	loadStatusSnapshot,
+	patchOptimisticManualAlarm,
 	startAutoRefresh,
 	stopAutoRefresh,
 	handleVisibilityChange,
 } = useDrainageModbusIntegration(drainageZones)
 
-const handleManualIssueChanged = () => {
-	void loadStatusSnapshot()
+const handleManualIssueChanged = (payload?: ManualIssueChangedPayload) => {
+	if (payload?.action === "clear") {
+		void loadStatusSnapshot({ force: true })
+		return
+	}
+	if (payload?.systemId) {
+		patchOptimisticManualAlarm(payload.systemId, payload.rule)
+	}
+	void loadStatusSnapshot({ force: true })
 }
 
 watch(

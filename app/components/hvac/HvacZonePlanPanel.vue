@@ -104,7 +104,7 @@
 							:class="[{ 'is-editing': isEditMode }, getLocationMapDotClass(getLocationIdForDisplay(location))]"
 							role="button"
 							tabindex="0"
-							:data-status="getMapDotStatus(getLocationIdForDisplay(location))"
+							:data-status="dotStatusForLocationId(getLocationIdForDisplay(location))"
 							:title="tooltipTitleByLocationId(getLocationIdForDisplay(location))"
 							:aria-label="tooltipTitleByLocationId(getLocationIdForDisplay(location))"
 							@click.stop="!isEditMode && handleSelectLocationByLocation(location)"
@@ -112,8 +112,8 @@
 						<CategoryTooltip
 							:show="true"
 							:category-name="location.name"
-							:is-normal="getMapDotStatus(getLocationIdForDisplay(location)) === 'normal'"
-							:status-type="getMapDotStatus(getLocationIdForDisplay(location))"
+							:is-normal="dotStatusForLocationId(getLocationIdForDisplay(location)) === 'normal'"
+							:status-type="dotStatusForLocationId(getLocationIdForDisplay(location))"
 							:alert-flash="getLocationAlertFlashForTooltip(location)"
 						/>
 					</div>
@@ -127,6 +127,7 @@
 import { onBeforeUnmount, onMounted } from "vue"
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
 import CategoryList from "~/components/common/CategoryList.vue"
+import type { MapDotStatus } from "~/utils/monitoringStatus"
 import type { HvacLocation, HvacZone } from "~/types/hvac"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import { alertFlashModeToMapDotClass } from "~/utils/alertUtils"
@@ -142,7 +143,7 @@ interface Props {
 	allZoneLocations: HvacLocation[]
 	currentZoneLocations: HvacLocation[]
 	zonePlanImage: string | undefined
-	dotStatusForLocationId: (locationId: string) => "normal" | "warning" | "alarm"
+	dotStatusForLocationId: (locationId: string) => MapDotStatus
 	tooltipTitleByLocationId: (locationId: string) => string
 	getLocationAlertFlash?: (locationId: string) => "none" | "slow" | "fast"
 }
@@ -193,12 +194,6 @@ const getLocationAlertFlashForTooltip = (location: HvacLocation) => {
 const getLocationMapDotClass = (locationId: string) => {
 	const mode = props.getLocationAlertFlash?.(locationId) ?? "none"
 	return alertFlashModeToMapDotClass(mode)
-}
-
-const getMapDotStatus = (locationId: string): "normal" | "abnormal" | "alarm" => {
-	const status = props.dotStatusForLocationId(locationId)
-	if (status === "warning") return "abnormal"
-	return status
 }
 
 const handleSelectLocationByLocation = (location: HvacLocation) => emit("select-location-by-location", location)

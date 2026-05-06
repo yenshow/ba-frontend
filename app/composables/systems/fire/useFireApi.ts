@@ -1,7 +1,12 @@
 import type { FireZone, FireLocation, FireStatusItem } from "~/types/fire"
 import { useSystemLocationApiFactory } from "~/composables/location/api/useSystemLocationApiFactory"
-import { unifiedToFireZone, fireToUnifiedZone, fireLocationToUnified } from "~/utils/locationAdapter"
+import {
+	unifiedToFireZone,
+	fireToUnifiedZone,
+	fireLocationToUnified,
+} from "~/utils/locationAdapter"
 import { useApiBase } from "~/composables/core/useApiBase"
+import { STATUS_SNAPSHOT_REQUEST_TIMEOUT_MS } from "~/composables/monitoring/statusSnapshotPolicy"
 
 export const useFireApi = () => {
 	const zoneApi = useSystemLocationApiFactory<FireZone, FireLocation>({
@@ -28,9 +33,13 @@ export const useFireApi = () => {
 			if (zoneIds && zoneIds.length > 0) params.set("zoneIds", zoneIds.join(","))
 			if (syncAlerts !== undefined) params.set("syncAlerts", syncAlerts ? "true" : "false")
 			const q = params.toString() ? `?${params.toString()}` : ""
-			return request<{ items: FireStatusItem[] }>(`/fire/status${q}`)
+			return request<{ items: FireStatusItem[] }>(`/fire/status${q}`, {
+				timeout: STATUS_SNAPSHOT_REQUEST_TIMEOUT_MS,
+			})
 		},
 		getZoneStatus: (zoneId: string) =>
-			request<{ zoneId: string; items: FireStatusItem[] }>(`/fire/zones/${zoneId}/status`),
+			request<{ zoneId: string; items: FireStatusItem[] }>(`/fire/zones/${zoneId}/status`, {
+				timeout: STATUS_SNAPSHOT_REQUEST_TIMEOUT_MS,
+			}),
 	}
 }

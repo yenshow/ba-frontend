@@ -7,11 +7,7 @@ import { resolveUploadUrl } from "~/utils/apiUtils"
 import { formatClockDisplay, formatDateInput } from "~/utils/dateUtils"
 import type { EnvironmentLocation, EnvironmentZone } from "~/types/environment"
 import type { AlertRule } from "~/types/alert"
-import {
-	getAqiDerivedStatus,
-	getHeatIndexDerivedResult,
-	type DerivedMetricStatus,
-} from "~/utils/environmentDerivedMetrics"
+import { getAqiDerivedStatus, getHeatIndexDerivedResult } from "~/utils/environmentDerivedMetrics"
 import {
 	normalizeMonitoringStatusText,
 	monitoringStatusTextToUiStatus,
@@ -311,17 +307,10 @@ export const useMultimediaWallDashboard = () => {
 		getHeatIndexDerivedResult(getReading("temperature"), getReading("humidity"))
 	)
 
-	const derivedStatusToUiStatus = (s: DerivedMetricStatus): MonitoringUiStatus => {
-		if (s === "offline") return "offline"
-		if (s === "alarm") return "alarm"
-		if (s === "abnormal") return "abnormal"
-		return "normal"
-	}
-
 	const getMetricStatus = (type: string, value: number | null): MonitoringUiStatus => {
 		// 計算型指標：不走警報規則，避免重複告警（由基礎指標 pm25/pm10/temperature/humidity 等負責）
-		if (type === "aqi") return derivedStatusToUiStatus(aqiDerived.value.status)
-		if (type === "heatIndex") return derivedStatusToUiStatus(heatIndexDerived.value.status)
+		if (type === "aqi") return aqiDerived.value.status
+		if (type === "heatIndex") return heatIndexDerived.value.status
 
 		if (value === null) return "offline"
 		if (rulesLoaded.value) {

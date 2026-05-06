@@ -7,7 +7,6 @@
 				監控中心
 			</h3>
 
-			<!-- 對齊 DrainageMonitorCenter：標題下僅顯示檢視分類下拉 -->
 			<div v-if="viewFilterOptions.length > 0" class="mx-auto w-full max-w-xs">
 				<FilterDropdown
 					v-model="viewFilter"
@@ -31,7 +30,7 @@
 								: 'bg-transparent text-white',
 							zoneHasAlarm(zone)
 								? 'ring-2 ring-red-500/90 ring-offset-2 ring-offset-transparent'
-								: zoneHasAbnormal(zone)
+								: zoneHasWarning(zone)
 									? 'ring-2 ring-amber-400/90 ring-offset-2 ring-offset-transparent'
 									: '',
 							getZoneAlertBlinkClass(zone),
@@ -39,7 +38,7 @@
 						:aria-label="
 							zoneHasAlarm(zone)
 								? `${zone.name}，此區域有地點警報`
-								: zoneHasAbnormal(zone)
+								: zoneHasWarning(zone)
 									? `${zone.name}，此區域有地點異常`
 									: `${zone.name}，選取此樓層`
 						"
@@ -49,7 +48,7 @@
 						</h4>
 					</button>
 					<span
-						v-if="zoneHasAbnormal(zone)"
+						v-if="zoneHasWarning(zone)"
 						class="pointer-events-none absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[9px] font-bold leading-none 2xl:h-5 2xl:min-w-5 2xl:text-[10px]"
 						:class="zoneHasAlarm(zone) ? 'bg-red-500 text-white' : 'bg-amber-400 text-teal-950'"
 						aria-hidden="true"
@@ -72,7 +71,7 @@
 								isGeneratorLocation(row.loc) ? 'sm:col-span-2' : '',
 							]"
 						>
-							<!-- 油位：小卡（對齊排水泵卡） -->
+							<!-- 獨立油位：小卡 -->
 							<template v-if="isOilLevelLocation(row.loc)">
 								<div class="flex min-w-0 items-center gap-2 py-2">
 									<div class="flex w-[4.5rem] shrink-0 items-center justify-center 2xl:w-[5.5rem]">
@@ -104,7 +103,7 @@
 								</div>
 							</template>
 
-							<!-- 發電機：長卡（對齊排水液位卡 + 草圖） -->
+							<!-- 發電機：發電機狀態／油位狀態／高／低油位 -->
 							<template v-else>
 								<div class="flex min-w-0 flex-row items-stretch gap-3 2xl:gap-4">
 									<div
@@ -162,11 +161,19 @@
 												>
 													<span
 														class="h-4 w-4 shrink-0 rounded-full border border-white 2xl:h-5 2xl:w-5"
-														:class="statusDotClass(generatorOilUi(row.loc))"
+														:class="
+															statusDotClass(
+																derivePowerGeneratorOilStatus(getItemForLocation(row.loc))
+															)
+														"
 														aria-hidden="true"
 													/>
 													<span class="text-xs text-white 2xl:text-sm">
-														{{ statusLabel(generatorOilUi(row.loc)) }}
+														{{
+															statusLabel(
+																derivePowerGeneratorOilStatus(getItemForLocation(row.loc))
+															)
+														}}
 													</span>
 												</div>
 											</div>
@@ -205,7 +212,7 @@
 			system-route-prefix="power"
 			:targets="manualIssueTargets"
 			:default-target-id="manualIssueDefaultTargetId"
-			:rule-trigger="ruleTrigger"
+			:rule-bit-options-by-target-id="ruleBitOptionsByTargetId"
 			@changed="handleManualIssueChanged"
 		/>
 	</div>
@@ -213,6 +220,7 @@
 
 <script setup lang="ts">
 import ManualIssuePanel from "~/components/common/ManualIssuePanel.vue"
+import type { ManualIssueChangedPayload, ManualIssueRuleBitOption } from "~/utils/alertUtils"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import {
 	type PowerZone,
@@ -221,6 +229,7 @@ import {
 	type PowerViewFilterOption,
 	powerLocationInViewCategory,
 	derivePowerGeneratorRunStatus,
+	derivePowerGeneratorOilStatus,
 	derivePowerOverallUiStatus,
 } from "~/types/power"
 import { compareZonesLoose } from "~/utils/sortOrder"
@@ -234,12 +243,12 @@ const props = defineProps<{
 	viewFilterOptions: PowerViewFilterOption[]
 	manualIssueTargets?: Array<{ id: string; label: string }>
 	manualIssueDefaultTargetId?: string
-	ruleTrigger?: { alert_type: "di" | "do"; bit_key: string } | null
+	ruleBitOptionsByTargetId?: Record<string, ManualIssueRuleBitOption[]>
 }>()
 
 const emit = defineEmits<{
 	zoneSelected: [zoneId: string]
-	manualIssueChanged: []
+	manualIssueChanged: [payload?: ManualIssueChangedPayload]
 }>()
 
 const handleZoneClick = (zoneId: string) => {
@@ -248,10 +257,10 @@ const handleZoneClick = (zoneId: string) => {
 
 const manualIssueTargets = computed(() => props.manualIssueTargets ?? [])
 const manualIssueDefaultTargetId = computed(() => props.manualIssueDefaultTargetId ?? "")
-const ruleTrigger = computed(() => props.ruleTrigger ?? null)
+const ruleBitOptionsByTargetId = computed(() => props.ruleBitOptionsByTargetId ?? {})
 
-const handleManualIssueChanged = () => {
-	emit("manualIssueChanged")
+const handleManualIssueChanged = (payload?: ManualIssueChangedPayload) => {
+	emit("manualIssueChanged", payload)
 }
 
 const itemBySystemId = computed(() => {
@@ -309,35 +318,6 @@ const isGeneratorLocation = (loc: PowerLocation) =>
 
 const isOilLevelLocation = (loc: PowerLocation) => loc.equipmentKind === "oil_level"
 
-const generatorOilUi = (loc: PowerLocation): PowerStatusItem["uiStatus"] => {
-	const it = getItemForLocation(loc)
-	if (!it) return "warning"
-	const raw = it.raw || {}
-	const anyRead = Object.keys(raw).some((k) => raw[k] !== undefined && raw[k] !== null)
-	if (!anyRead) return "warning"
-	if (raw.highOil === true || raw.lowOil === true || raw.oilLevelAlarm === true) return "alarm"
-	return "normal"
-}
-
-const highOilUi = (loc: PowerLocation): PowerStatusItem["uiStatus"] => {
-	const it = getItemForLocation(loc)
-	if (!it) return "warning"
-	const v = it.raw?.highOil
-	if (v === true) return "alarm"
-	if (v === false) return "normal"
-	return "warning"
-}
-
-const lowOilUi = (loc: PowerLocation): PowerStatusItem["uiStatus"] => {
-	const it = getItemForLocation(loc)
-	if (!it) return "warning"
-	const v = it.raw?.lowOil
-	if (v === true) return "alarm"
-	if (v === false) return "normal"
-	return "warning"
-}
-
-/** 對齊排水：觸發時白框強調，未觸發則淡化 */
 const highLowWarnClass = (loc: PowerLocation, which: "high" | "low") => {
 	const it = loc.systemId ? itemBySystemId.value.get(String(loc.systemId)) : undefined
 	const raw = it?.raw || {}
@@ -355,17 +335,26 @@ const flashFromUiStatus = (s: PowerStatusItem["uiStatus"]): RowFlash => {
 	return "slow"
 }
 
-const powerRowFlashMode = (loc: PowerLocation): RowFlash => {
+const generatorDetailFlashMode = (loc: PowerLocation): RowFlash => {
+	const item = getItemForLocation(loc)
+	const run = derivePowerGeneratorRunStatus(item)
+	const oil = derivePowerGeneratorOilStatus(item)
+	if (run === "alarm" || oil === "alarm") return "alarm-fast"
 	return flashFromUiStatus(overallUi(loc))
 }
 
+const powerRowFlashMode = (loc: PowerLocation): RowFlash => {
+	if (isOilLevelLocation(loc)) return flashFromUiStatus(overallUi(loc))
+	return generatorDetailFlashMode(loc)
+}
+
 const flashModeToClass = (mode: RowFlash): string => {
-	if (mode === "alarm-fast") return "blink-alarm-fast"
+	if (mode === "alarm-fast") return "blink-fast"
 	if (mode === "slow") return "blink-slow"
 	return ""
 }
 
-const zoneHasAbnormal = (zone: PowerZone): boolean =>
+const zoneHasWarning = (zone: PowerZone): boolean =>
 	locationsForZone(zone).some(({ loc }) => powerRowFlashMode(loc) !== "none")
 
 const zoneHasAlarm = (zone: PowerZone): boolean =>
@@ -373,7 +362,7 @@ const zoneHasAlarm = (zone: PowerZone): boolean =>
 
 const getZoneAlertBlinkClass = (zone: PowerZone): string => {
 	const modes = locationsForZone(zone).map(({ loc }) => powerRowFlashMode(loc))
-	if (modes.includes("alarm-fast")) return "blink-alarm-fast"
+	if (modes.includes("alarm-fast")) return "blink-fast"
 	if (modes.includes("slow")) return "blink-slow"
 	return ""
 }
@@ -387,6 +376,4 @@ const locationRowBackgroundClass = (_zone: PowerZone, loc: PowerLocation): strin
 	if (mode === "slow") return "bg-[#FFC801]/60"
 	return "bg-white/10"
 }
-
-// oilWarnClass 已不再使用（改為三欄狀態點顯示）
 </script>

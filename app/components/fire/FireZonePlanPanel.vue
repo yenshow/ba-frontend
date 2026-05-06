@@ -107,8 +107,8 @@
 						<CategoryTooltip
 							:show="true"
 							:category-name="location.name"
-							:is-normal="getTooltipStatusType(location) === 'normal'"
-							:status-type="getTooltipStatusType(location)"
+							:is-normal="dotStatusForLocation(location) === 'normal'"
+							:status-type="dotStatusForLocation(location)"
 							:alert-flash="getLocationAlertFlash ? getLocationAlertFlash(location) : 'none'"
 						/>
 					</div>
@@ -122,6 +122,7 @@
 import { nextTick, onBeforeUnmount, onMounted, watch } from "vue"
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
 import CategoryList from "~/components/common/CategoryList.vue"
+import type { MapDotStatus } from "~/utils/monitoringStatus"
 import type { FireLocation, FireZone } from "~/types/fire"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 
@@ -135,7 +136,7 @@ interface Props {
 	selectedCategory: string
 	filteredZoneLocations: FireLocation[]
 	zonePlanImage: string | undefined
-	dotStatusForLocation: (loc: FireLocation) => "normal" | "abnormal" | "alarm"
+	dotStatusForLocation: (loc: FireLocation) => MapDotStatus
 	/** 與監控中心一致：正常不閃，其餘慢閃 */
 	getLocationAlertFlash?: (loc: FireLocation) => "none" | "slow" | "fast"
 	tooltipTitle: (loc: FireLocation) => string
@@ -183,16 +184,9 @@ const getLocationIdForDisplay = (location: FireLocation): string => {
 
 const getLocationAlertFlashClass = (location: FireLocation): string => {
 	const mode = props.getLocationAlertFlash?.(location) ?? "none"
-	if (mode === "fast") return "blink-alarm-fast"
+	if (mode === "fast") return "blink-fast"
 	if (mode === "slow") return "blink-slow"
 	return ""
-}
-
-const getTooltipStatusType = (location: FireLocation): "normal" | "abnormal" | "alarm" => {
-	const dotStatus = props.dotStatusForLocation(location)
-	if (dotStatus === "alarm") return "alarm"
-	if (dotStatus === "abnormal") return "abnormal"
-	return "normal"
 }
 
 /** 與平面圖點位一致：僅目前檢視分類，且 id 使用 zone.locations 原始索引 */
@@ -218,11 +212,7 @@ const handleSelectCategory = (locationId: string) => {
 	emit("select-category", locationId)
 }
 
-const handleDotDragStart = (
-	event: DragEvent,
-	location: FireLocation,
-	locationIndex: number
-) => {
+const handleDotDragStart = (event: DragEvent, location: FireLocation, locationIndex: number) => {
 	if (!props.isEditMode || !props.selectedZoneData) return
 	const locationId = getLocationUiKey({ zone: props.selectedZoneData, location, locationIndex })
 	startDrag(event, locationId)

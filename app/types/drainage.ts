@@ -1,6 +1,10 @@
 import type { CategoryModbusConfig } from "~/types/lighting"
-import type { DrainageStatusPointDef } from "~/types/location"
-import { normalizeSystemUiStatus, type SystemUiStatus } from "~/types/monitoring"
+import type { ModbusStatusPointDef } from "~/types/location"
+import {
+	isSnapshotAlarm,
+	normalizeSystemUiStatus,
+	type SystemUiStatus,
+} from "~/utils/monitoringStatus"
 
 /** `viewCategory` 字串正規化（空白視為無分類） */
 export const trimDrainageViewCategory = (raw: string | undefined | null): string =>
@@ -41,51 +45,43 @@ export interface DrainageStatusItem {
 	error?: string
 }
 
-const hasBooleanValue = (value: unknown): value is boolean => typeof value === "boolean"
-
-/**
- * 幫浦狀態判斷（前端相容層）：
- * - 優先採用後端 uiStatus
- * - 若後端尚未升級，支援 runningAlarm/fault/running 位元回推 alarm
- */
+/** 幫浦：後端已將觸發聚合為 raw.running；warning 僅表示未連線（頂層 uiStatus） */
 export const deriveDrainagePumpUiStatus = (
 	item: DrainageStatusItem | null | undefined
 ): DrainageStatusItem["uiStatus"] => {
 	if (!item) return "warning"
+	if (isSnapshotAlarm(item)) return "alarm"
 	const raw = item.raw || {}
-	if (raw.runningAlarm === true || raw.fault === true || raw.running === true) return "alarm"
+	if (raw.running === true) return "alarm"
 	return normalizeSystemUiStatus(item.uiStatus)
 }
 
-/** 液位單欄狀態（cover / level） */
+/** 液位：水箱蓋／水位（高或低任一） */
 export const deriveDrainageTankPartUiStatus = (
 	item: DrainageStatusItem | null | undefined,
 	part: "cover" | "level"
 ): DrainageStatusItem["uiStatus"] => {
 	if (!item) return "warning"
+	const top = normalizeSystemUiStatus(item.uiStatus)
+	if (top === "warning") return top
 	const raw = item.raw || {}
-
 	if (part === "cover") {
 		if (raw.coverAlarm === true) return "alarm"
-		if (!hasBooleanValue(raw.coverAlarm)) return "warning"
 		return "normal"
 	}
-
-	if (raw.levelOk === false || raw.highLevel === true || raw.lowLevel === true) return "alarm"
-	const hasAnyLevelSignal =
-		hasBooleanValue(raw.levelOk) || hasBooleanValue(raw.highLevel) || hasBooleanValue(raw.lowLevel)
-	return hasAnyLevelSignal ? "normal" : "warning"
+	if (raw.highLevel === true || raw.lowLevel === true) return "alarm"
+	return "normal"
 }
 
-/** 液位整體狀態（cover + level 合併） */
+/** 液位整體：聚合 raw.running（後端 = 蓋／高／低任一） */
 export const deriveDrainageTankOverallUiStatus = (
 	item: DrainageStatusItem | null | undefined
 ): DrainageStatusItem["uiStatus"] => {
-	const cover = deriveDrainageTankPartUiStatus(item, "cover")
-	const level = deriveDrainageTankPartUiStatus(item, "level")
-	if (cover === "alarm" || level === "alarm") return "alarm"
-	if (cover === "warning" || level === "warning") return "warning"
-	return "normal"
+	if (!item) return "warning"
+	if (isSnapshotAlarm(item)) return "alarm"
+	const raw = item.raw || {}
+	if (raw.running === true) return "alarm"
+	return normalizeSystemUiStatus(item.uiStatus)
 }
 
 export interface DrainageLocation {
@@ -102,7 +98,7 @@ export interface DrainageLocation {
 	modbus?: CategoryModbusConfig
 	equipmentKind?: DrainageEquipmentKind
 	viewCategory?: string
-	statusPoints?: Record<string, DrainageStatusPointDef>
+	statusPoints?: Record<string, ModbusStatusPointDef>
 }
 
 /** 供排序用：地點 `createdAt`（對應後端 created_at）轉成時間戳，無效則 null */

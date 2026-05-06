@@ -16,13 +16,13 @@
 							props.selectedZone === (zone.id || zone.name)
 								? 'bg-white text-black/50'
 								: 'bg-transparent text-white',
-							zoneHasAbnormal(zone)
+							zoneHasWarning(zone)
 								? 'ring-2 ring-amber-400/90 ring-offset-2 ring-offset-transparent'
 								: '',
 							getZoneAlertBlinkClass(zone),
 						]"
 						:aria-label="
-							zoneHasAbnormal(zone) ? `${zone.name}，此區域有地點異常` : `${zone.name}，選取此樓層`
+							zoneHasWarning(zone) ? `${zone.name}，此區域有地點異常` : `${zone.name}，選取此樓層`
 						"
 					>
 						<h4 class="w-[48px] p-2 text-xl font-semibold tracking-wider 2xl:text-2xl">
@@ -30,7 +30,7 @@
 						</h4>
 					</button>
 					<span
-						v-if="zoneHasAbnormal(zone)"
+						v-if="zoneHasWarning(zone)"
 						class="pointer-events-none absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-0.5 text-[9px] font-bold leading-none text-teal-950 2xl:h-5 2xl:min-w-5 2xl:text-[10px]"
 						aria-hidden="true"
 						title="此區域有地點異常"
@@ -158,7 +158,7 @@
 
 <script setup lang="ts">
 import type { LightingZone, LightingLocation } from "~/types/lighting"
-import type { SystemUiStatus } from "~/types/monitoring"
+import type { SystemUiStatus } from "~/utils/monitoringStatus"
 import { getLocationUiKey } from "~/utils/locationUiId"
 import { compareZonesLoose } from "~/utils/sortOrder"
 
@@ -246,7 +246,7 @@ const isLocationNormal = (locationId: string): boolean => {
 	return !!status && status.status === "normal"
 }
 
-const zoneHasAbnormal = (zone: LightingZone): boolean => {
+const zoneHasWarning = (zone: LightingZone): boolean => {
 	return getZoneLocationsWithIds(zone).some((row) => !isLocationNormal(row.locationId))
 }
 

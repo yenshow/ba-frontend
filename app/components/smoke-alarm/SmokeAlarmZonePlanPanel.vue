@@ -30,7 +30,9 @@
 								type="button"
 								:class="[
 									'whitespace-nowrap rounded-2xl p-3 text-base font-light text-white transition-all 2xl:text-lg',
-									isEditMode ? 'border-2 border-white bg-white/10' : 'border-2 border-white/30 bg-transparent',
+									isEditMode
+										? 'border-2 border-white bg-white/10'
+										: 'border-2 border-white/30 bg-transparent',
 								]"
 								@click="emit('toggle-edit-mode')"
 							>
@@ -73,7 +75,10 @@
 					<span>尚未設定區域平面圖</span>
 				</div>
 
-				<template v-for="location in filteredZoneLocations" :key="getLocationIdForDisplay(location)">
+				<template
+					v-for="location in filteredZoneLocations"
+					:key="getLocationIdForDisplay(location)"
+				>
 					<div
 						v-if="selectedZoneData && location.location"
 						class="category-dot-wrapper"
@@ -102,8 +107,8 @@
 						<CategoryTooltip
 							:show="true"
 							:category-name="location.name"
-							:is-normal="getTooltipStatusType(location) === 'normal'"
-							:status-type="getTooltipStatusType(location)"
+							:is-normal="dotStatusForLocation(location) === 'normal'"
+							:status-type="dotStatusForLocation(location)"
 							:alert-flash="getLocationAlertFlash ? getLocationAlertFlash(location) : 'none'"
 						/>
 					</div>
@@ -117,6 +122,7 @@
 import { nextTick, onBeforeUnmount, onMounted, watch } from "vue"
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
 import CategoryList from "~/components/common/CategoryList.vue"
+import type { MapDotStatus } from "~/utils/monitoringStatus"
 import type { SmokeAlarmLocation, SmokeAlarmZone } from "~/types/smoke-alarm"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 
@@ -130,7 +136,7 @@ interface Props {
 	selectedCategory: string
 	filteredZoneLocations: SmokeAlarmLocation[]
 	zonePlanImage: string | undefined
-	dotStatusForLocation: (loc: SmokeAlarmLocation) => "normal" | "abnormal" | "alarm"
+	dotStatusForLocation: (loc: SmokeAlarmLocation) => MapDotStatus
 	getLocationAlertFlash?: (loc: SmokeAlarmLocation) => "none" | "slow" | "fast"
 	tooltipTitle: (loc: SmokeAlarmLocation) => string
 }
@@ -172,21 +178,16 @@ const getLocationIdForDisplay = (location: SmokeAlarmLocation): string => {
 	const zone = props.selectedZoneData
 	if (!zone) return ""
 	const idx = findLocationOriginalIndex(zone, location)
-	return idx !== -1 ? getLocationUiKey({ zone: zone as any, location: location as any, locationIndex: idx }) : ""
+	return idx !== -1
+		? getLocationUiKey({ zone: zone as any, location: location as any, locationIndex: idx })
+		: ""
 }
 
 const getLocationAlertFlashClass = (location: SmokeAlarmLocation): string => {
 	const mode = props.getLocationAlertFlash?.(location) ?? "none"
-	if (mode === "fast") return "blink-alarm-fast"
+	if (mode === "fast") return "blink-fast"
 	if (mode === "slow") return "blink-slow"
 	return ""
-}
-
-const getTooltipStatusType = (location: SmokeAlarmLocation): "normal" | "abnormal" | "alarm" => {
-	const dotStatus = props.dotStatusForLocation(location)
-	if (dotStatus === "alarm") return "alarm"
-	if (dotStatus === "abnormal") return "abnormal"
-	return "normal"
 }
 
 const editModeCategoryListItems = computed(() => {
@@ -211,7 +212,11 @@ const handleSelectCategory = (locationId: string) => {
 	emit("select-category", locationId)
 }
 
-const handleDotDragStart = (event: DragEvent, location: SmokeAlarmLocation, locationIndex: number) => {
+const handleDotDragStart = (
+	event: DragEvent,
+	location: SmokeAlarmLocation,
+	locationIndex: number
+) => {
 	if (!props.isEditMode || !props.selectedZoneData) return
 	const locationId = getLocationUiKey({
 		zone: props.selectedZoneData as any,
@@ -269,4 +274,3 @@ onBeforeUnmount(() => {
 	}
 })
 </script>
-

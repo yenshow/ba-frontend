@@ -1,7 +1,7 @@
 // 空氣循環系統（Air Circulation）— 前端型別 SSOT（獨立於 HVAC）
 
-import type { LightingSystemConfig, DrainageStatusPointDef } from "~/types/location"
-import type { SystemUiStatus } from "~/types/monitoring"
+import type { ModbusStatusPointDef } from "~/types/location"
+import type { SystemUiStatus } from "~/utils/monitoringStatus"
 
 /** `viewCategory` 字串正規化（空白視為無分類） */
 export const trimAirCirculationViewCategory = (raw: string | undefined | null): string =>
@@ -43,12 +43,15 @@ export interface AirCirculationLocation {
 	location?: { x: number; y: number }
 	description?: string
 
-	/** 控制器設備 ID（建議與 modbus.deviceId 一致） */
+	/** 控制器設備 ID */
 	deviceId?: number
-	/** DI/DO 點位（沿用照明的 modbus 結構） */
-	modbus?: LightingSystemConfig["modbus"]
-	/** 可選：溫度/風量/壓差等 holding/input 點位 */
-	statusPoints?: Record<string, DrainageStatusPointDef>
+	/** 後端若仍回傳舊欄位時可能出現；新資料請勿依賴，請用 `statusPoints.running` */
+	modbus?: {
+		deviceId?: number
+		points?: Array<{ address: number; type: "DI" | "DO" }>
+	}
+	/** 監控讀點：與煙霧／緊急求救相同，為 `running`（discrete／coil） */
+	statusPoints?: Record<string, ModbusStatusPointDef>
 	/** 與 fire/drainage 對齊的設備語意 */
 	equipmentKind?: AirCirculationEquipmentKind
 	/** 監控中心分組語意（可選） */
@@ -66,8 +69,25 @@ export interface AirCirculationZone {
 
 export type AirCirculationUiStatus = SystemUiStatus
 
+/** 與 GET /air-circulation/status 單筆設備快照一致（對齊 drainage/power 等 status item） */
+export interface AirCirculationStatusItem {
+	zoneId: string
+	zoneName: string
+	locationId: string
+	locationName: string
+	systemId: string
+	equipmentKind?: string
+	viewCategory?: string
+	uiStatus: SystemUiStatus
+	/** 與煙霧／緊急求救一致：通常僅 `{ running?: boolean }` */
+	raw?: Record<string, boolean | undefined>
+	error?: string
+}
+
 /** 供排序用：地點 `createdAt`（對應後端 created_at）轉成時間戳，無效則 null */
-export const parseAirCirculationLocationCreatedAtMs = (loc: AirCirculationLocation): number | null => {
+export const parseAirCirculationLocationCreatedAtMs = (
+	loc: AirCirculationLocation
+): number | null => {
 	if (!loc.createdAt) return null
 	const t = Date.parse(loc.createdAt)
 	return Number.isNaN(t) ? null : t
@@ -119,4 +139,3 @@ export const buildAirCirculationMonitorViewFilterOptions = (
 	})
 	return rows.map(({ value, label }) => ({ value, label }))
 }
-

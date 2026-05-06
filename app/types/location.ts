@@ -26,7 +26,7 @@ export const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
 	air_circulation: "空氣循環系統",
 	power: "電力系統",
 	fire: "消防系統",
-	emergency_rescue: "emergency",
+	emergency_rescue: "緊急求救",
 	smoke_alarm: "煙霧警報",
 	people_counting: "人流統計",
 	vehicle_access: "車輛進出",
@@ -93,20 +93,23 @@ export interface HvacSystemConfig {
 	deviceId?: number
 	location?: { x: number; y: number }
 	modbus?: LightingSystemConfig["modbus"]
-	statusPoints?: Record<string, DrainageStatusPointDef>
+	statusPoints?: Record<string, ModbusStatusPointDef>
 }
 
 /**
  * 空氣循環系統配置（獨立於 HVAC）
  *
- * - `modbus`：DI/DO 點位（可用於 ON/OFF 回授與控制）
- * - `statusPoints`：holding/input 等數值點位（例如溫度、風量、壓差）
+ * - `statusPoints`：監控主讀點（通常 `running`，discrete／coil），對齊緊急求救／煙霧警報
+ * - `modbus`：僅相容舊版照明式 `points[]`；新資料請以 `status_points` 為準
  */
 export interface AirCirculationSystemConfig {
 	deviceId?: number
 	location?: { x: number; y: number }
-	modbus?: LightingSystemConfig["modbus"]
-	statusPoints?: Record<string, DrainageStatusPointDef>
+	modbus?: {
+		deviceId?: number
+		points?: Array<{ address: number; type: "DI" | "DO" }>
+	}
+	statusPoints?: Record<string, ModbusStatusPointDef>
 	/** 與排水/消防對齊的設備語意（目前後端已支援） */
 	equipmentKind?: "pump" | "tank"
 	/** 檢視分類（使用者自訂字串；後端預設為 air_circulation） */
@@ -114,7 +117,7 @@ export interface AirCirculationSystemConfig {
 }
 
 /** 排水狀態點位（對應後端 status_points）；可每點獨立指定控制器 */
-export interface DrainageStatusPointDef {
+export interface ModbusStatusPointDef {
 	registerType: "coil" | "discrete" | "holding" | "input"
 	address: number
 	length?: number
@@ -132,7 +135,7 @@ export interface DrainageSystemConfig {
 	equipmentKind?: "pump" | "tank"
 	/** 檢視分類（使用者自訂字串；舊資料可能為 pumping／sewage／drainage） */
 	viewCategory?: string
-	statusPoints?: Record<string, DrainageStatusPointDef>
+	statusPoints?: Record<string, ModbusStatusPointDef>
 }
 
 /** 電力系統配置（欄位與排水類似；equipmentKind 為發電機／油位） */
@@ -143,7 +146,7 @@ export interface PowerSystemConfig {
 	equipmentKind?: "generator" | "oil_level"
 	/** 檢視分類（使用者自訂字串） */
 	viewCategory?: string
-	statusPoints?: Record<string, DrainageStatusPointDef>
+	statusPoints?: Record<string, ModbusStatusPointDef>
 }
 
 /** 消防系統配置（欄位與排水相同；以 systemType 區分） */

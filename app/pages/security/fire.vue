@@ -11,7 +11,7 @@
 				:selected-category="selectedCategory"
 				:filtered-zone-locations="filteredZoneLocations"
 				:zone-plan-image="zonePlanImage"
-				:dot-status-for-location="dotStatusForLocation"
+				:dot-status-for-location="uiStatusForLocation"
 				:get-location-alert-flash="getLocationAlertFlash"
 				:tooltip-title="tooltipTitle"
 				@open-zone-management="handleOpenZoneDialog"
@@ -34,7 +34,7 @@
 					:view-filter-options="viewFilterOptions"
 					:manual-issue-targets="manualIssueTargets"
 					:manual-issue-default-target-id="manualIssueDefaultTargetId"
-					:rule-trigger="{ alert_type: 'di', bit_key: 'di:0' }"
+					:rule-bit-options-by-target-id="ruleBitOptionsByTargetId"
 					@zone-selected="handleZoneSelected"
 					@manual-issue-changed="handleManualIssueChanged"
 				/>
@@ -75,6 +75,8 @@ import { useAuth } from "~/composables/core/useAuth"
 import { getLocationUiKey, findLocationIndexInZone } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
 import { useFireModbusIntegration } from "~/composables/systems/fire/useFireModbusIntegration"
+import type { ManualIssueChangedPayload } from "~/utils/alertUtils"
+import { useManualIssueDiDoRules } from "~/composables/systems/alerts/useManualIssueDiDoRules"
 
 definePageMeta({
 	layout: "default",
@@ -87,6 +89,13 @@ const { handleError } = useErrorHandler()
 const leftSectionHeight = ref<number | null>(null)
 
 const fireZones = ref<FireZone[]>([])
+
+const { ruleBitOptionsByTargetId } = useManualIssueDiDoRules({
+	alertRulesSource: "fire",
+	zones: fireZones,
+	isAdmin,
+})
+
 const isLoadingZones = ref(false)
 const isInitialLoading = ref(true)
 const selectedZone = ref("")
@@ -181,13 +190,6 @@ const uiStatusForLocation = (loc: FireLocation): FireStatusItem["uiStatus"] => {
 	return tankUiStatusForLocation(loc)
 }
 
-const dotStatusForLocation = (loc: FireLocation): "normal" | "abnormal" | "alarm" => {
-	const s = uiStatusForLocation(loc)
-	if (s === "normal") return "normal"
-	if (s === "warning") return "abnormal"
-	return "alarm"
-}
-
 const getLocationAlertFlash = (loc: FireLocation): "none" | "slow" | "fast" => {
 	const s = uiStatusForLocation(loc)
 	if (s === "normal") return "none"
@@ -197,14 +199,7 @@ const getLocationAlertFlash = (loc: FireLocation): "none" | "slow" | "fast" => {
 
 const tooltipTitle = (loc: FireLocation) => {
 	const s = uiStatusForLocation(loc)
-	const label =
-		s === "normal"
-			? "正常"
-			: s === "warning"
-				? "異常"
-				: s === "alarm"
-					? "警報"
-					: "異常"
+	const label = s === "normal" ? "正常" : s === "warning" ? "異常" : s === "alarm" ? "警報" : "異常"
 	return `${loc.name}：${label}`
 }
 
@@ -237,9 +232,7 @@ const handleSelectCategory = (locationId: string) => {
 	selectedCategory.value = locationId
 }
 
-const findLocationById = (
-	locationId: string
-): { zone: FireZone; locationIndex: number } | null => {
+const findLocationById = (locationId: string): { zone: FireZone; locationIndex: number } | null => {
 	for (const zone of fireZones.value) {
 		const idx = zone.locations.findIndex(
 			(loc, i) => getLocationUiKey({ zone, location: loc, locationIndex: i }) === locationId
@@ -298,13 +291,21 @@ const {
 	statusItems: computedStatusItems,
 	preloadDeviceInfos,
 	loadStatusSnapshot,
+	patchOptimisticManualAlarm,
 	startAutoRefresh,
 	stopAutoRefresh,
 	handleVisibilityChange,
 } = useFireModbusIntegration(fireZones)
 
-const handleManualIssueChanged = () => {
-	void loadStatusSnapshot()
+const handleManualIssueChanged = (payload?: ManualIssueChangedPayload) => {
+	if (payload?.action === "clear") {
+		void loadStatusSnapshot({ force: true })
+		return
+	}
+	if (payload?.systemId) {
+		patchOptimisticManualAlarm(payload.systemId, payload.rule)
+	}
+	void loadStatusSnapshot({ force: true })
 }
 
 watch(
@@ -380,14 +381,10 @@ const syncSelectedCategoryToVisibleOnMap = () => {
 	if (!exists) selectedCategory.value = getLocationIdForDisplay(visible[0]!)
 }
 
-watch(
-	[fireZones, selectedZone, selectedViewCategory],
-	() => syncSelectedCategoryToVisibleOnMap(),
-	{
-		deep: true,
-		immediate: true,
-	}
-)
+watch([fireZones, selectedZone, selectedViewCategory], () => syncSelectedCategoryToVisibleOnMap(), {
+	deep: true,
+	immediate: true,
+})
 
 onMounted(async () => {
 	try {

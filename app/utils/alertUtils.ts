@@ -1,5 +1,6 @@
 import type { AlertSource, AlertType, AlertSeverity } from "~/types/alert"
-import type { SystemType } from "~/types/location"
+import type { ModbusStatusPointDef, SystemType } from "~/types/location"
+import type { AlertRule } from "~/types/alert"
 
 /** 與環境／照明監控一致：透明度脈動頻率（對應 tailwind.css `.blink-slow` / `.blink-fast`、地圖點 `.alert-dot-flash-*`） */
 export type AlertFlashMode = "none" | "slow" | "fast"
@@ -212,3 +213,226 @@ const SOURCE_SYSTEM_TYPE_MAP: Partial<Record<AlertSource, SystemType>> = {
 
 export const alertSourceToSystemType = (source: AlertSource): SystemType | null =>
 	SOURCE_SYSTEM_TYPE_MAP[source] ?? null
+
+/** 手動警報 rule 模式：與 ManualIssuePanel 送出給後端的 bit_state 一致 */
+export type ManualIssueRuleTriggerPayload = {
+	alert_type: "di" | "do"
+	bit_key: string
+}
+
+/** 手動警報面板：操作完成後回報給父層，供 optimistic UI / 強制刷新快照 */
+export type ManualIssueChangedPayload = {
+	systemId: string
+	action: "trigger" | "clear"
+	/** rule 模式時帶上，供前端依 status_points 與後端語意對齊（避免僅頂層 alarm、細項慢一拍） */
+	rule?: ManualIssueRuleTriggerPayload
+}
+
+const normalizePointRegisterTypeForManualRule = (pointDef: ModbusStatusPointDef): string => {
+	// 相容舊資料：部分來源可能仍使用 `type: "DI" | "DO"`（非 ModbusStatusPointDef 的 SSOT 介面）
+	const legacyType =
+		pointDef && typeof pointDef === "object" && "type" in pointDef
+			? (pointDef as { type?: unknown }).type
+			: undefined
+	let registerType = String(pointDef?.registerType || legacyType || "")
+		.toLowerCase()
+		.trim()
+	if (registerType === "di") registerType = "discrete"
+	if (registerType === "do") registerType = "coil"
+	return registerType
+}
+
+/** DI/DO bit_key → status_points 語意鍵（對齊後端 matchBitStateRuleToStatusPointKey） */
+const matchManualBitRuleToStatusPointSemanticKey = (
+	alertType: "di" | "do",
+	bitKey: string,
+	statusPoints: Record<string, ModbusStatusPointDef | undefined>,
+	candidateKeys: string[]
+): string | null => {
+	const bk = String(bitKey || "")
+		.trim()
+		.toLowerCase()
+	const m = bk.match(/^(di|do|discrete|coil):(\d+)$/)
+	if (!m) return null
+	const prefix = m[1].toLowerCase()
+	const addr = Number(m[2])
+	if (!Number.isFinite(addr)) return null
+
+	let expectedRt: string | null = null
+	if (prefix === "di" || prefix === "discrete") expectedRt = "discrete"
+	else if (prefix === "do" || prefix === "coil") expectedRt = "coil"
+	else return null
+
+	const at = String(alertType || "")
+		.trim()
+		.toLowerCase()
+	if (at === "di" && expectedRt !== "discrete") return null
+	if (at === "do" && expectedRt !== "coil") return null
+
+	for (const key of candidateKeys) {
+		const def = statusPoints[key]
+		if (!def || typeof def !== "object") continue
+		const rt = normalizePointRegisterTypeForManualRule(def)
+		if (rt !== expectedRt) continue
+		const a = Number(def.address)
+		if (!Number.isFinite(a) || a !== addr) continue
+		return key
+	}
+	return null
+}
+
+export type ManualSemanticAlertSource = "drainage" | "fire" | "power"
+
+/**
+ * 手動觸發當下可 OR 進快照 raw 的語意旗標（與 mergeRuleSemantics 鍵名一致）
+ */
+export const resolveManualBitRuleSemanticRawPatch = (params: {
+	alertSource: ManualSemanticAlertSource
+	equipmentKind?: string
+	statusPoints?: Record<string, ModbusStatusPointDef | undefined> | null
+	rule?: ManualIssueRuleTriggerPayload
+}): Record<string, true> | null => {
+	const { alertSource, equipmentKind, statusPoints, rule } = params
+	if (!rule) return null
+	const sp = statusPoints || {}
+	const ek = String(equipmentKind || "")
+		.trim()
+		.toLowerCase()
+
+	let allowed: string[]
+	if (alertSource === "drainage" || alertSource === "fire") {
+		allowed = ek === "tank" ? ["coverAlarm", "highLevel", "lowLevel"] : ["running"]
+	} else {
+		allowed = ek === "oil_level" || ek === "ats" ? ["running"] : ["fault", "highOil", "lowOil"]
+	}
+
+	const configured = allowed.filter((k) => sp[k] != null && typeof sp[k] === "object")
+	if (configured.length === 0) return null
+
+	const key = matchManualBitRuleToStatusPointSemanticKey(
+		rule.alert_type,
+		rule.bit_key,
+		sp,
+		configured
+	)
+	if (!key) return null
+	return { [key]: true }
+}
+
+/** 各監控頁 zones/locations 最小結構（供對齊規則 target） */
+export type ManualIssueZoneLike = {
+	id?: string
+	locations?: Array<{ id?: string; systemId?: string | number | undefined }>
+}
+
+export type ManualIssueScope = {
+	systemId: number
+	locationId: number
+	zoneId: number
+}
+
+/** 與後端 systemAlertHelper.ruleAppliesToScope 對齊（含 system target） */
+export const ruleAppliesToManualIssueScope = (
+	rule: AlertRule,
+	scope: ManualIssueScope
+): boolean => {
+	const t = String(rule.target_type ?? "")
+		.trim()
+		.toLowerCase()
+	const tid = rule.target_id != null ? Number(rule.target_id) : null
+	if (!t) return true
+	if (!Number.isFinite(tid)) return false
+	if (t === "location") {
+		return Number.isFinite(scope.locationId) && scope.locationId === tid
+	}
+	if (t === "zone") {
+		return Number.isFinite(scope.zoneId) && scope.zoneId === tid
+	}
+	if (t === "system") {
+		return Number.isFinite(scope.systemId) && scope.systemId === tid
+	}
+	return true
+}
+
+export type ManualIssueRuleBitOption = {
+	ruleId: number
+	alert_type: "di" | "do"
+	bit_key: string
+	label: string
+}
+
+export const normalizeDiDoBitKeyFromRule = (rule: AlertRule): string | null => {
+	const raw = rule.condition_config?.bit_key
+	const bk = typeof raw === "string" ? raw.trim().toLowerCase() : ""
+	if (!/^(di|do|discrete|coil):\d+$/.test(bk)) return null
+	return bk
+}
+
+const bitKeySortKey = (bk: string): number => {
+	const m = bk.match(/:(\d+)$/)
+	return m ? Number(m[1]) : 0
+}
+
+/**
+ * 依目前區域／地點樹狀資料，算出每個 location_system id 可用的 DI/DO bit_state 規則選項。
+ */
+export const buildManualIssueRuleBitOptionsBySystemId = (
+	rules: AlertRule[],
+	zones: ManualIssueZoneLike[]
+): Record<string, ManualIssueRuleBitOption[]> => {
+	const diDoRules = rules.filter(
+		(r) =>
+			(r.enabled ?? true) &&
+			(r.alert_type === "di" || r.alert_type === "do") &&
+			r.condition_type === "bit_state"
+	)
+
+	const out: Record<string, ManualIssueRuleBitOption[]> = {}
+
+	for (const zone of zones || []) {
+		const zoneId = Number(zone.id)
+		const zoneIdOk = Number.isFinite(zoneId)
+		for (const loc of zone.locations || []) {
+			const sidRaw = loc.systemId
+			if (sidRaw === undefined || sidRaw === null || sidRaw === "") continue
+			const systemId = Number(sidRaw)
+			if (!Number.isFinite(systemId)) continue
+
+			const lid = Number(loc.id)
+			const scope: ManualIssueScope = {
+				systemId,
+				locationId: Number.isFinite(lid) ? lid : Number.NaN,
+				zoneId: zoneIdOk ? zoneId : Number.NaN,
+			}
+
+			const opts: ManualIssueRuleBitOption[] = []
+			for (const rule of diDoRules) {
+				const bk = normalizeDiDoBitKeyFromRule(rule)
+				if (!bk) continue
+				if (!ruleAppliesToManualIssueScope(rule, scope)) continue
+				const name =
+					typeof rule.name === "string" && rule.name.trim().length > 0 ? rule.name.trim() : ""
+				const label = name || bk
+				opts.push({
+					ruleId: rule.id,
+					alert_type: rule.alert_type as "di" | "do",
+					bit_key: bk,
+					label,
+				})
+			}
+
+			opts.sort((a, b) => {
+				const da = bitKeySortKey(a.bit_key)
+				const db = bitKeySortKey(b.bit_key)
+				if (da !== db) return da - db
+				return a.ruleId - b.ruleId
+			})
+
+			if (opts.length > 0) {
+				out[String(systemId)] = opts
+			}
+		}
+	}
+
+	return out
+}

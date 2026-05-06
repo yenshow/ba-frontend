@@ -1,4 +1,4 @@
-import type { SystemUiStatus } from "~/types/monitoring"
+import type { SystemUiStatus } from "~/utils/monitoringStatus"
 
 // 點位類型
 export type ModbusPointType = "DI" | "DO"

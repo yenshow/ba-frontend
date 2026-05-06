@@ -170,16 +170,17 @@
 
 <script setup lang="ts">
 import type { FireLocation } from "~/types/fire"
+import type { DrainageLocation } from "~/types/drainage"
 import type { Device } from "~/types/device"
-import type { DrainageStatusPointDef } from "~/types/location"
+import type { ModbusStatusPointDef } from "~/types/location"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import {
 	useDrainageLocationValidation,
 	type DrainageModbusTuple,
+	type DrainageTankPointKey,
 } from "~/composables/location/validation/useDrainageLocationValidation"
-
-type DiDo = "DI" | "DO"
-type TankRoleKey = "highLevel" | "lowLevel" | "coverAlarm"
+import type { DiDo } from "~/utils/modbusPoints"
+import { mapDiDoToRegisterType, registerTypeToDiDo } from "~/utils/modbusPoints"
 
 interface ModbusRowState {
 	deviceIdStr: string
@@ -214,6 +215,8 @@ const props = withDefaults(defineProps<Props>(), {
 const { validateModbusAddress, tuplesFromDrainageLocation, drainageTupleKey } =
 	useDrainageLocationValidation()
 
+const asDrainageLoc = (loc: FireLocation): DrainageLocation => loc as unknown as DrainageLocation
+
 const addressIssueFieldClass = (issue: AddressIssue | null): string =>
 	issue
 		? "animate-pulse border-2 border-rose-500 bg-rose-500/20 pr-10 shadow-[0_0_0_3px_rgba(244,63,94,0.2)] focus:border-rose-500 focus:bg-rose-500/25 focus:shadow-[0_0_0_3px_rgba(244,63,94,0.3)]"
@@ -224,7 +227,7 @@ const otherModbusKeys = computed(() => {
 	if (props.currentIndex < 0) return set
 	props.allLocations.forEach((loc, i) => {
 		if (i === props.currentIndex) return
-		for (const t of tuplesFromDrainageLocation(loc as any)) {
+		for (const t of tuplesFromDrainageLocation(asDrainageLoc(loc))) {
 			set.add(drainageTupleKey(t))
 		}
 	})
@@ -242,7 +245,7 @@ const motorTupleFromForm = (): DrainageModbusTuple | null => {
 	}
 }
 
-const tankTupleFromForm = (role: TankRoleKey): DrainageModbusTuple | null => {
+const tankTupleFromForm = (role: DrainageTankPointKey): DrainageModbusTuple | null => {
 	const row = tankRows.value[role]
 	const id = Number(row.deviceIdStr)
 	if (!id || id <= 0) return null
@@ -278,8 +281,8 @@ const motorAddressIssue = computed((): AddressIssue | null => {
 	return null
 })
 
-const tankAddressIssues = computed((): Record<TankRoleKey, AddressIssue | null> => {
-	const out: Record<TankRoleKey, AddressIssue | null> = {
+const tankAddressIssues = computed((): Record<DrainageTankPointKey, AddressIssue | null> => {
+	const out: Record<DrainageTankPointKey, AddressIssue | null> = {
 		highLevel: null,
 		lowLevel: null,
 		coverAlarm: null,
@@ -316,14 +319,13 @@ const equipmentKindOptions = [
 	{ value: "tank", label: "液位" },
 ]
 
-const tankRoles: { key: TankRoleKey; label: string }[] = [
+const tankRoles: { key: DrainageTankPointKey; label: string }[] = [
 	{ key: "coverAlarm", label: "水箱蓋" },
 	{ key: "highLevel", label: "高水位" },
 	{ key: "lowLevel", label: "低水位" },
 ]
 
 const localLocation = ref<FireLocation>({ ...props.location })
-const pumpPointKey = ref<"running" | "fault">("running")
 
 const emptyRow = (): ModbusRowState => ({
 	deviceIdStr: "",
@@ -332,22 +334,11 @@ const emptyRow = (): ModbusRowState => ({
 })
 
 const motorRow = ref<ModbusRowState>(emptyRow())
-const tankRows = ref<Record<TankRoleKey, ModbusRowState>>({
+const tankRows = ref<Record<DrainageTankPointKey, ModbusRowState>>({
 	highLevel: emptyRow(),
 	lowLevel: emptyRow(),
 	coverAlarm: emptyRow(),
 })
-
-const mapDiDoToRegisterType = (t: DiDo): DrainageStatusPointDef["registerType"] => {
-	return t === "DO" ? "coil" : "discrete"
-}
-
-const registerTypeToDiDo = (def: DrainageStatusPointDef | undefined): DiDo => {
-	if (!def) return "DI"
-	const rt = String(def.registerType || "").toLowerCase()
-	if (rt === "coil") return "DO"
-	return "DI"
-}
 
 const hydrateFromLocation = (loc: FireLocation) => {
 	const kind = loc.equipmentKind === "tank" ? "tank" : "pump"
@@ -362,7 +353,7 @@ const hydrateFromLocation = (loc: FireLocation) => {
 	if (kind === "tank") {
 		for (const { key } of tankRoles) {
 			const def = loc.statusPoints?.[key] as
-				| (DrainageStatusPointDef & { deviceId?: number })
+				| (ModbusStatusPointDef & { deviceId?: number })
 				| undefined
 			tankRows.value[key] = def
 				? {
@@ -381,15 +372,9 @@ const hydrateFromLocation = (loc: FireLocation) => {
 		return
 	}
 
-	const sp = loc.statusPoints || {}
-	let key: "running" | "fault" = "running"
-	let def = sp.running as (DrainageStatusPointDef & { deviceId?: number }) | undefined
-	if (!def && sp.fault) {
-		key = "fault"
-		def = sp.fault as (DrainageStatusPointDef & { deviceId?: number }) | undefined
-	}
-	pumpPointKey.value = key
-
+	const def = loc.statusPoints?.running as
+		| (ModbusStatusPointDef & { deviceId?: number })
+		| undefined
 	if (def) {
 		const did =
 			def.deviceId != null && def.deviceId > 0
@@ -409,8 +394,8 @@ const hydrateFromLocation = (loc: FireLocation) => {
 			address: 0,
 		}
 	}
-	for (const { key: rk } of tankRoles) {
-		tankRows.value[rk] = emptyRow()
+	for (const { key } of tankRoles) {
+		tankRows.value[key] = emptyRow()
 	}
 }
 
@@ -428,7 +413,7 @@ const buildFireLocation = (): FireLocation => {
 		base.deviceId = id > 0 ? id : undefined
 		if (id > 0 && Number.isFinite(motorRow.value.address) && motorRow.value.address >= 0) {
 			base.statusPoints = {
-				[pumpPointKey.value]: {
+				running: {
 					registerType: mapDiDoToRegisterType(motorRow.value.type),
 					address: motorRow.value.address,
 				},
@@ -437,7 +422,7 @@ const buildFireLocation = (): FireLocation => {
 		return base
 	}
 
-	const sp: Record<string, DrainageStatusPointDef & { deviceId?: number }> = {}
+	const sp: Record<string, ModbusStatusPointDef & { deviceId?: number }> = {}
 	let primaryDevice = 0
 	for (const { key } of tankRoles) {
 		const row = tankRows.value[key]
@@ -495,7 +480,6 @@ const handleEquipmentKindChange = (value: string) => {
 		for (const { key } of tankRoles) {
 			tankRows.value[key] = emptyRow()
 		}
-		pumpPointKey.value = "running"
 		motorRow.value = emptyRow()
 	}
 	handleChange()

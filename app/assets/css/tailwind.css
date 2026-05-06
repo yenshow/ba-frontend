@@ -59,19 +59,6 @@
    Glass 變體
    ======================================== */
 
-/* Glass Bubble - 小型壓克力泡泡（用於圖示容器） */
-.glass-bubble {
-	--glass-bg: rgba(255, 255, 255, 0.15);
-	--glass-blur: 12px;
-	--glass-border-width: 1px;
-	--glass-border-color: rgba(255, 255, 255, 0.3);
-	--glass-shadow-outer-1: 0 8px 32px rgba(0, 0, 0, 0.2);
-	--glass-shadow-outer-2: 0 4px 16px rgba(0, 0, 0, 0.15);
-	--glass-shadow-inner-top: inset 0 1px 0 rgba(255, 255, 255, 0.4);
-	--glass-shadow-inner-bottom: inset 0 -1px 4px rgba(0, 0, 0, 0.2);
-	--glass-shadow-inner-highlight: inset 0 2px 8px rgba(255, 255, 255, 0.2);
-}
-
 /* Glass Card - 大型壓克力卡片（用於表單容器） */
 .glass-card {
 	--glass-bg: linear-gradient(-35deg, #7dc1cb 0%, rgba(0, 97, 145, 0.7) 100%);
@@ -138,43 +125,6 @@
 	opacity: 0;
 }
 
-/* Vue Transition：fade-in（基礎設施頁按鈕／列表進場） */
-.fade-in-enter-active {
-	transition:
-		opacity 0.4s ease-in,
-		transform 0.4s ease-out;
-}
-.fade-in-enter-from {
-	opacity: 0;
-	transform: translateY(-10px);
-}
-.fade-in-enter-to {
-	opacity: 1;
-	transform: translateY(0);
-}
-
-/* Vue Transition：dropdown（編輯模式分類列表） */
-.dropdown-enter-active,
-.dropdown-leave-active {
-	transition: all 0.2s ease;
-}
-.dropdown-enter-from {
-	opacity: 0;
-	transform: translateY(-8px);
-}
-.dropdown-enter-to {
-	opacity: 1;
-	transform: translateY(0);
-}
-.dropdown-leave-from {
-	opacity: 1;
-	transform: translateY(0);
-}
-.dropdown-leave-to {
-	opacity: 0;
-	transform: translateY(-8px);
-}
-
 /* ========================================
    圖片模糊載入（平面圖、首頁建築圖、登入頁等）
    ======================================== */
@@ -202,9 +152,9 @@
    平面圖地點點位（category-dot、全區圖 location-dot）
    data-status 統一語意（由各系統在元件內對應業務狀態，不在此分系統寫樣式）：
    - normal：正常（綠）
-   - abnormal：異常（黃，閃爍較柔和）
+   - warning：異常（黃，閃爍較柔和）
    - alarm：警報（紅，閃爍較強）
-   照明等僅兩態者：normal + abnormal 即可。
+   照明等僅兩態者：normal + warning 即可。
    ======================================== */
 .map-location-dots .category-dot-wrapper,
 .map-location-dots .location-dot-wrapper {
@@ -262,17 +212,17 @@
 	content: "✓";
 }
 /* 異常（黃）：琥珀內圈 + 白外框 */
-.map-location-dots .category-dot[data-status="abnormal"],
-.map-location-dots .location-dot[data-status="abnormal"] {
+.map-location-dots .category-dot[data-status="warning"],
+.map-location-dots .location-dot[data-status="warning"] {
 	background: rgba(245, 158, 11, 0.32);
 	border-color: rgba(255, 255, 255, 0.78);
 }
-.map-location-dots .category-dot[data-status="abnormal"]::before,
-.map-location-dots .location-dot[data-status="abnormal"]::before {
+.map-location-dots .category-dot[data-status="warning"]::before,
+.map-location-dots .location-dot[data-status="warning"]::before {
 	background: #f59e0b;
 }
-.map-location-dots .category-dot[data-status="abnormal"]::after,
-.map-location-dots .location-dot[data-status="abnormal"]::after {
+.map-location-dots .category-dot[data-status="warning"]::after,
+.map-location-dots .location-dot[data-status="warning"]::after {
 	content: "!";
 }
 /* 警報（紅）：玫瑰內圈 + 白外框 */
@@ -314,6 +264,7 @@
 	animation: status-alert-alarm-blink 0.9s ease-in-out infinite;
 	will-change: opacity;
 }
+
 /* 監控卡片／工具提示閃爍（對齊 EnvironmentParamCard）：底色固定 + 透明度脈動 */
 @keyframes status-alert-warning-blink {
 	0%,
@@ -343,31 +294,6 @@
 .blink-fast {
 	animation: status-alert-alarm-blink 1.6s ease-in-out infinite;
 	will-change: opacity;
-}
-
-/* 警報閃爍節奏與異常一致（保留 class 名稱供既有元件相容） */
-.blink-alarm-fast {
-	animation: status-alert-alarm-blink 1.6s ease-in-out infinite;
-	will-change: opacity;
-}
-
-@keyframes map-dot-alert-amber {
-	0%,
-	100% {
-		box-shadow: 0 0 18px rgba(245, 158, 11, 0.6);
-	}
-	50% {
-		box-shadow: 0 0 28px rgba(245, 158, 11, 0.95);
-	}
-}
-@keyframes map-dot-alert-rose {
-	0%,
-	100% {
-		box-shadow: 0 0 18px rgba(245, 101, 101, 0.6);
-	}
-	50% {
-		box-shadow: 0 0 28px rgba(245, 101, 101, 0.95);
-	}
 }
 
 /* ========================================
@@ -498,7 +424,7 @@
 	cursor: not-allowed;
 }
 
-/* 區域管理／點位列表：上下排序箭頭（集中樣式，略大於舊版 text-xs） */
+/* 區域管理／點位列表：上下排序箭頭 */
 .btn-reorder-stack {
 	display: flex;
 	flex-direction: column;

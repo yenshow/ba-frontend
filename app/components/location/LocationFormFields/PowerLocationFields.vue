@@ -28,7 +28,7 @@
 			</label>
 		</div>
 
-		<!-- 油位：單一控制器點位（oilLevelAlarm） -->
+		<!-- 油位：statusPoints.running -->
 		<template v-if="localLocation.equipmentKind === 'oil_level'">
 			<div class="flex min-w-0 flex-wrap items-end gap-2">
 				<label
@@ -169,17 +169,17 @@
 <script setup lang="ts">
 import type { PowerLocation } from "~/types/power"
 import type { Device } from "~/types/device"
-import type { DrainageStatusPointDef } from "~/types/location"
+import type { ModbusStatusPointDef } from "~/types/location"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import {
 	usePowerLocationValidation,
 	type PowerModbusTuple,
+	type PowerGeneratorPointKey,
 	powerTupleKey,
 	tuplesFromPowerLocation,
 } from "~/composables/location/validation/usePowerLocationValidation"
-
-type DiDo = "DI" | "DO"
-type GenRoleKey = "fault" | "highOil" | "lowOil"
+import type { DiDo } from "~/utils/modbusPoints"
+import { mapDiDoToRegisterType, registerTypeToDiDo } from "~/utils/modbusPoints"
 
 interface ModbusRowState {
 	deviceIdStr: string
@@ -239,7 +239,7 @@ const tupleFromOilLevelForm = (): PowerModbusTuple | null => {
 	return { deviceId: id, type: oilLevelRow.value.type, address: oilLevelRow.value.address }
 }
 
-const tupleFromGeneratorForm = (role: GenRoleKey): PowerModbusTuple | null => {
+const tupleFromGeneratorForm = (role: PowerGeneratorPointKey): PowerModbusTuple | null => {
 	const row = generatorRows.value[role]
 	const id = Number(row.deviceIdStr)
 	if (!id || id <= 0) return null
@@ -271,8 +271,8 @@ const oilLevelAddressIssue = computed((): AddressIssue | null => {
 	return null
 })
 
-const generatorAddressIssues = computed((): Record<GenRoleKey, AddressIssue | null> => {
-	const out: Record<GenRoleKey, AddressIssue | null> = {
+const generatorAddressIssues = computed((): Record<PowerGeneratorPointKey, AddressIssue | null> => {
+	const out: Record<PowerGeneratorPointKey, AddressIssue | null> = {
 		fault: null,
 		highOil: null,
 		lowOil: null,
@@ -308,7 +308,7 @@ const equipmentKindOptions = [
 	{ value: "oil_level", label: "油位" },
 ]
 
-const generatorRoles: { key: GenRoleKey; label: string }[] = [
+const generatorRoles: { key: PowerGeneratorPointKey; label: string }[] = [
 	{ key: "fault", label: "故障" },
 	{ key: "highOil", label: "高油位" },
 	{ key: "lowOil", label: "低油位" },
@@ -322,21 +322,11 @@ const emptyRow = (): ModbusRowState => ({
 
 const localLocation = ref<PowerLocation>({ ...props.location })
 const oilLevelRow = ref<ModbusRowState>(emptyRow())
-const generatorRows = ref<Record<GenRoleKey, ModbusRowState>>({
+const generatorRows = ref<Record<PowerGeneratorPointKey, ModbusRowState>>({
 	fault: emptyRow(),
 	highOil: emptyRow(),
 	lowOil: emptyRow(),
 })
-
-const mapDiDoToRegisterType = (t: DiDo): DrainageStatusPointDef["registerType"] =>
-	t === "DO" ? "coil" : "discrete"
-
-const registerTypeToDiDo = (def: DrainageStatusPointDef | undefined): DiDo => {
-	if (!def) return "DI"
-	const rt = String(def.registerType || "").toLowerCase()
-	if (rt === "coil") return "DO"
-	return "DI"
-}
 
 const hydrateFromLocation = (loc: PowerLocation) => {
 	const kind = loc.equipmentKind === "oil_level" ? "oil_level" : "generator"
@@ -349,8 +339,8 @@ const hydrateFromLocation = (loc: PowerLocation) => {
 	}
 
 	if (kind === "oil_level") {
-		const def = loc.statusPoints?.oilLevelAlarm as
-			| (DrainageStatusPointDef & { deviceId?: number })
+		const def = loc.statusPoints?.running as
+			| (ModbusStatusPointDef & { deviceId?: number })
 			| undefined
 		if (def) {
 			const did =
@@ -376,7 +366,7 @@ const hydrateFromLocation = (loc: PowerLocation) => {
 	oilLevelRow.value = emptyRow()
 	for (const { key } of generatorRoles) {
 		const def = loc.statusPoints?.[key] as
-			| (DrainageStatusPointDef & { deviceId?: number })
+			| (ModbusStatusPointDef & { deviceId?: number })
 			| undefined
 		generatorRows.value[key] = def
 			? {
@@ -407,7 +397,7 @@ const buildPowerLocation = (): PowerLocation => {
 		base.deviceId = id > 0 ? id : undefined
 		if (id > 0 && Number.isFinite(oilLevelRow.value.address) && oilLevelRow.value.address >= 0) {
 			base.statusPoints = {
-				oilLevelAlarm: {
+				running: {
 					registerType: mapDiDoToRegisterType(oilLevelRow.value.type),
 					address: oilLevelRow.value.address,
 				},
@@ -416,7 +406,7 @@ const buildPowerLocation = (): PowerLocation => {
 		return base
 	}
 
-	const sp: Record<string, DrainageStatusPointDef & { deviceId?: number }> = {}
+	const sp: Record<string, ModbusStatusPointDef & { deviceId?: number }> = {}
 	let primaryDevice = 0
 	for (const { key } of generatorRoles) {
 		const row = generatorRows.value[key]

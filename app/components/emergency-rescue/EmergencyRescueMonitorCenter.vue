@@ -20,16 +20,16 @@
 								: 'bg-transparent text-white',
 							zoneHasAlarm(zone)
 								? 'ring-2 ring-red-500/90 ring-offset-2 ring-offset-transparent'
-								: zoneHasAbnormal(zone)
+								: zoneHasWarning(zone)
 									? 'ring-2 ring-amber-400/90 ring-offset-2 ring-offset-transparent'
 									: '',
 							getZoneAlertBlinkClass(zone),
 						]"
 						:aria-label="
 							zoneHasAlarm(zone)
-								? `${zone.name}，此樓層有求救或警報`
-								: zoneHasAbnormal(zone)
-									? `${zone.name}，此樓層有異常`
+								? `${zone.name}，此區域有地點求救或警報`
+								: zoneHasWarning(zone)
+									? `${zone.name}，此區域有地點異常`
 									: `${zone.name}，選取此樓層`
 						"
 						@click="handleZoneClick(zone.id || zone.name || '')"
@@ -39,11 +39,11 @@
 						</h4>
 					</button>
 					<span
-						v-if="zoneHasAbnormal(zone)"
+						v-if="zoneHasWarning(zone)"
 						class="pointer-events-none absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[9px] font-bold leading-none 2xl:h-5 2xl:min-w-5 2xl:text-[10px]"
 						:class="zoneHasAlarm(zone) ? 'bg-red-500 text-white' : 'bg-amber-400 text-teal-950'"
 						aria-hidden="true"
-						:title="zoneHasAlarm(zone) ? '此樓層有警報' : '此樓層有異常'"
+						:title="zoneHasAlarm(zone) ? '此區域有地點求救或警報' : '此區域有地點異常'"
 					>
 						!
 					</span>
@@ -64,12 +64,10 @@
 					>
 						<div class="flex min-w-0 items-center gap-3 py-2">
 							<div class="shrink-0">
-								<NuxtImg
-									src="/emergency/sos.png"
-									alt="SOS"
-									class="h-16 w-16 2xl:h-24 2xl:w-24"
-									width="96"
-									height="96"
+								<SosIcon
+									:aria-label="`${row.loc.name} 緊急求救設備圖示`"
+									root-class="h-16 w-16 text-white 2xl:h-24 2xl:w-24"
+									:animate="rowUiStatus(row.loc) === 'alarm'"
 								/>
 							</div>
 							<div class="flex min-w-0 flex-1 flex-col justify-center gap-2">
@@ -100,7 +98,7 @@
 			system-route-prefix="emergency-rescue"
 			:targets="manualIssueTargets"
 			:default-target-id="manualIssueDefaultTargetId"
-			:rule-trigger="ruleTrigger"
+			:rule-bit-options-by-target-id="ruleBitOptionsByTargetId"
 			@changed="handleManualIssueChanged"
 		/>
 	</div>
@@ -108,6 +106,8 @@
 
 <script setup lang="ts">
 import ManualIssuePanel from "~/components/common/ManualIssuePanel.vue"
+import SosIcon from "~/components/emergency-rescue/SosIcon.vue"
+import type { ManualIssueChangedPayload, ManualIssueRuleBitOption } from "~/utils/alertUtils"
 import type {
 	EmergencyRescueZone,
 	EmergencyRescueLocation,
@@ -122,12 +122,12 @@ const props = defineProps<{
 	selectedZone: string
 	manualIssueTargets?: Array<{ id: string; label: string }>
 	manualIssueDefaultTargetId?: string
-	ruleTrigger?: { alert_type: "di" | "do"; bit_key: string } | null
+	ruleBitOptionsByTargetId?: Record<string, ManualIssueRuleBitOption[]>
 }>()
 
 const emit = defineEmits<{
 	zoneSelected: [zoneId: string]
-	manualIssueChanged: []
+	manualIssueChanged: [payload?: ManualIssueChangedPayload]
 }>()
 
 const handleZoneClick = (zoneId: string) => {
@@ -136,8 +136,9 @@ const handleZoneClick = (zoneId: string) => {
 
 const manualIssueTargets = computed(() => props.manualIssueTargets ?? [])
 const manualIssueDefaultTargetId = computed(() => props.manualIssueDefaultTargetId ?? "")
-const ruleTrigger = computed(() => props.ruleTrigger ?? null)
-const handleManualIssueChanged = () => emit("manualIssueChanged")
+const ruleBitOptionsByTargetId = computed(() => props.ruleBitOptionsByTargetId ?? {})
+const handleManualIssueChanged = (payload?: ManualIssueChangedPayload) =>
+	emit("manualIssueChanged", payload)
 
 const itemBySystemId = computed(() => {
 	const m = new Map<string, EmergencyRescueStatusItem>()
@@ -199,12 +200,12 @@ const rowFlashMode = (_zone: EmergencyRescueZone, loc: EmergencyRescueLocation):
 	flashFromUi(rowUiStatus(loc))
 
 const flashModeToClass = (mode: RowFlash): string => {
-	if (mode === "alarm-fast") return "blink-alarm-fast"
+	if (mode === "alarm-fast") return "blink-fast"
 	if (mode === "slow") return "blink-slow"
 	return ""
 }
 
-const zoneHasAbnormal = (zone: EmergencyRescueZone): boolean =>
+const zoneHasWarning = (zone: EmergencyRescueZone): boolean =>
 	locationsForZone(zone).some(({ loc }) => rowFlashMode(zone, loc) !== "none")
 
 const zoneHasAlarm = (zone: EmergencyRescueZone): boolean =>
@@ -212,7 +213,7 @@ const zoneHasAlarm = (zone: EmergencyRescueZone): boolean =>
 
 const getZoneAlertBlinkClass = (zone: EmergencyRescueZone): string => {
 	const modes = locationsForZone(zone).map(({ loc }) => rowFlashMode(zone, loc))
-	if (modes.includes("alarm-fast")) return "blink-alarm-fast"
+	if (modes.includes("alarm-fast")) return "blink-fast"
 	if (modes.includes("slow")) return "blink-slow"
 	return ""
 }

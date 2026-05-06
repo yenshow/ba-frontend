@@ -140,7 +140,7 @@ export function useHvacZoneAdapter(): ZoneSystemAdapter<HvacZone, HvacLocation> 
 }
 
 /**
- * 空氣循環系統適配器（編輯流程與 HVAC 相同，但型別/命名獨立）
+ * 空氣循環系統適配器（區域／分類編輯與排水類似；點位以 `statusPoints.running` 為主）
  */
 export function useAirCirculationZoneAdapter(): ZoneSystemAdapter<
 	AirCirculationZone,

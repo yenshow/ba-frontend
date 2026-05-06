@@ -11,7 +11,7 @@
 				:selected-category="selectedCategory"
 				:filtered-zone-locations="filteredZoneLocations"
 				:zone-plan-image="zonePlanImage"
-				:dot-status-for-location="dotStatusForLocation"
+				:dot-status-for-location="uiStatusForLocation"
 				:get-location-alert-flash="getLocationAlertFlash"
 				:tooltip-title="tooltipTitle"
 				@open-zone-management="handleOpenZoneDialog"
@@ -34,7 +34,7 @@
 					:view-filter-options="viewFilterOptions"
 					:manual-issue-targets="manualIssueTargets"
 					:manual-issue-default-target-id="manualIssueDefaultTargetId"
-					:rule-trigger="{ alert_type: 'di', bit_key: 'di:0' }"
+					:rule-bit-options-by-target-id="ruleBitOptionsByTargetId"
 					@zone-selected="handleZoneSelected"
 					@manual-issue-changed="handleManualIssueChanged"
 				/>
@@ -74,6 +74,8 @@ import { useAuth } from "~/composables/core/useAuth"
 import { getLocationUiKey, findLocationIndexInZone } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
 import { usePowerModbusIntegration } from "~/composables/systems/power/usePowerModbusIntegration"
+import type { ManualIssueChangedPayload } from "~/utils/alertUtils"
+import { useManualIssueDiDoRules } from "~/composables/systems/alerts/useManualIssueDiDoRules"
 
 definePageMeta({
 	layout: "default",
@@ -86,6 +88,12 @@ const { handleError } = useErrorHandler()
 const leftSectionHeight = ref<number | null>(null)
 
 const powerZones = ref<PowerZone[]>([])
+
+const { ruleBitOptionsByTargetId } = useManualIssueDiDoRules({
+	alertRulesSource: "power",
+	zones: powerZones,
+	isAdmin,
+})
 const isLoadingZones = ref(false)
 const isInitialLoading = ref(true)
 const selectedZone = ref("")
@@ -167,13 +175,6 @@ const statusBySystemId = computed(() => {
 const uiStatusForLocation = (loc: PowerLocation): PowerStatusItem["uiStatus"] => {
 	if (!loc.systemId) return "warning"
 	return derivePowerOverallUiStatus(statusBySystemId.value.get(String(loc.systemId)) ?? null)
-}
-
-const dotStatusForLocation = (loc: PowerLocation): "normal" | "abnormal" | "alarm" => {
-	const s = uiStatusForLocation(loc)
-	if (s === "normal") return "normal"
-	if (s === "warning") return "abnormal"
-	return "alarm"
 }
 
 const getLocationAlertFlash = (loc: PowerLocation): "none" | "slow" | "fast" => {
@@ -279,13 +280,21 @@ const {
 	statusItems: computedStatusItems,
 	preloadDeviceInfos,
 	loadStatusSnapshot,
+	patchOptimisticManualAlarm,
 	startAutoRefresh,
 	stopAutoRefresh,
 	handleVisibilityChange,
 } = usePowerModbusIntegration(powerZones)
 
-const handleManualIssueChanged = () => {
-	void loadStatusSnapshot()
+const handleManualIssueChanged = (payload?: ManualIssueChangedPayload) => {
+	if (payload?.action === "clear") {
+		void loadStatusSnapshot({ force: true })
+		return
+	}
+	if (payload?.systemId) {
+		patchOptimisticManualAlarm(payload.systemId, payload.rule)
+	}
+	void loadStatusSnapshot({ force: true })
 }
 
 watch(

@@ -1,6 +1,10 @@
 import type { CategoryModbusConfig } from "~/types/lighting"
-import type { DrainageStatusPointDef } from "~/types/location"
-import { normalizeSystemUiStatus, type SystemUiStatus } from "~/types/monitoring"
+import type { ModbusStatusPointDef } from "~/types/location"
+import {
+	isSnapshotAlarm,
+	normalizeSystemUiStatus,
+	type SystemUiStatus,
+} from "~/utils/monitoringStatus"
 
 export const trimFireViewCategory = (raw: string | undefined | null): string =>
 	String(raw ?? "").trim()
@@ -35,14 +39,13 @@ export interface FireStatusItem {
 	error?: string
 }
 
-const hasBooleanValue = (value: unknown): value is boolean => typeof value === "boolean"
-
 export const deriveFirePumpUiStatus = (
 	item: FireStatusItem | null | undefined
 ): FireStatusItem["uiStatus"] => {
 	if (!item) return "warning"
+	if (isSnapshotAlarm(item)) return "alarm"
 	const raw = item.raw || {}
-	if (raw.runningAlarm === true || raw.fault === true || raw.running === true) return "alarm"
+	if (raw.running === true) return "alarm"
 	return normalizeSystemUiStatus(item.uiStatus)
 }
 
@@ -51,28 +54,25 @@ export const deriveFireTankPartUiStatus = (
 	part: "cover" | "level"
 ): FireStatusItem["uiStatus"] => {
 	if (!item) return "warning"
+	const top = normalizeSystemUiStatus(item.uiStatus)
+	if (top === "warning") return top
 	const raw = item.raw || {}
-
 	if (part === "cover") {
 		if (raw.coverAlarm === true) return "alarm"
-		if (!hasBooleanValue(raw.coverAlarm)) return "warning"
 		return "normal"
 	}
-
-	if (raw.levelOk === false || raw.highLevel === true || raw.lowLevel === true) return "alarm"
-	const hasAnyLevelSignal =
-		hasBooleanValue(raw.levelOk) || hasBooleanValue(raw.highLevel) || hasBooleanValue(raw.lowLevel)
-	return hasAnyLevelSignal ? "normal" : "warning"
+	if (raw.highLevel === true || raw.lowLevel === true) return "alarm"
+	return "normal"
 }
 
 export const deriveFireTankOverallUiStatus = (
 	item: FireStatusItem | null | undefined
 ): FireStatusItem["uiStatus"] => {
-	const cover = deriveFireTankPartUiStatus(item, "cover")
-	const level = deriveFireTankPartUiStatus(item, "level")
-	if (cover === "alarm" || level === "alarm") return "alarm"
-	if (cover === "warning" || level === "warning") return "warning"
-	return "normal"
+	if (!item) return "warning"
+	if (isSnapshotAlarm(item)) return "alarm"
+	const raw = item.raw || {}
+	if (raw.running === true) return "alarm"
+	return normalizeSystemUiStatus(item.uiStatus)
 }
 
 export interface FireLocation {
@@ -87,7 +87,7 @@ export interface FireLocation {
 	modbus?: CategoryModbusConfig
 	equipmentKind?: FireEquipmentKind
 	viewCategory?: string
-	statusPoints?: Record<string, DrainageStatusPointDef>
+	statusPoints?: Record<string, ModbusStatusPointDef>
 }
 
 export const parseFireLocationCreatedAtMs = (loc: FireLocation): number | null => {
