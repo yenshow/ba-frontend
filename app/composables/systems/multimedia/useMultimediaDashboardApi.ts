@@ -1,5 +1,5 @@
 import { useApiBase } from "~/composables/core/useApiBase"
-import type { MultimediaDashboardSettings } from "~/types/multimedia"
+import type { MultimediaDashboardSettings, MultimediaEnvReadingsSnapshotResponse } from "~/types/multimedia"
 
 export const useMultimediaDashboardApi = () => {
 	const { request } = useApiBase()
@@ -26,6 +26,10 @@ export const useMultimediaDashboardApi = () => {
 		} as any)
 	}
 
-	return { getSettings, updateSettings, uploadMedia }
+	const getEnvReadingsSnapshot = async (): Promise<MultimediaEnvReadingsSnapshotResponse> => {
+		return request("/multimedia/dashboard/env-readings", { method: "GET" } as any)
+	}
+
+	return { getSettings, updateSettings, uploadMedia, getEnvReadingsSnapshot }
 }
 

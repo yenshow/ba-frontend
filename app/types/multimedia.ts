@@ -35,3 +35,19 @@ export type MultimediaEnvironmentSnapshot = {
 	timestamp: string | null
 	data: Record<string, unknown>
 }
+
+export type MultimediaEnvDeviceStatus = {
+	deviceId: number
+	status: "online" | "offline"
+	reason?: string
+}
+
+export type MultimediaEnvReadingsSnapshot = {
+	timestamp: string
+	data: Record<string, unknown>
+	devices: MultimediaEnvDeviceStatus[]
+}
+
+export type MultimediaEnvReadingsSnapshotResponse = {
+	snapshot: MultimediaEnvReadingsSnapshot
+}

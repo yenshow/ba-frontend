@@ -1,11 +1,9 @@
 import { usePolling } from "~/composables/monitoring/usePolling"
 import { useMultimediaDashboardApi } from "~/composables/systems/multimedia/useMultimediaDashboardApi"
-import { useEnvironmentSensors } from "~/composables/systems/environment/useEnvironmentSensors"
 import { useAlertRules } from "~/composables/monitoring/useAlertRules"
-import type { MultimediaDashboardSettings } from "~/types/multimedia"
+import type { MultimediaDashboardSettings, MultimediaEnvReadingsSnapshot } from "~/types/multimedia"
 import { resolveUploadUrl } from "~/utils/apiUtils"
 import { formatClockDisplay, formatDateInput } from "~/utils/dateUtils"
-import type { EnvironmentLocation, EnvironmentZone } from "~/types/environment"
 import type { AlertRule } from "~/types/alert"
 import { getAqiDerivedStatus, getHeatIndexDerivedResult } from "~/utils/environmentDerivedMetrics"
 import {
@@ -83,13 +81,6 @@ export const useMultimediaWallDashboard = () => {
 		VIDEO_EXTS.has(getUrlExt(heroUrl.value || settings.heroImageUrl || ""))
 	)
 
-	const environmentZones = ref<EnvironmentZone[]>([])
-	const selectedLocationId = computed(() => {
-		const ids = settings.envDeviceIds || []
-		return ids.length ? `multimedia:${ids.join(",")}` : ""
-	})
-	const getLocationId = (location: EnvironmentLocation) => String(location.id ?? "")
-
 	const displayMetricKeys = computed<EnvironmentMetricKey[]>(() => {
 		const configured = (settings.envDisplayParameters || [])
 			.map((k) => String(k || "").trim())
@@ -116,21 +107,17 @@ export const useMultimediaWallDashboard = () => {
 		return next
 	})
 
-	const currentLocationData = computed<EnvironmentLocation | null>(() => {
-		const deviceIds = (settings.envDeviceIds || []).filter((n) => Number.isFinite(n) && n > 0)
-		if (deviceIds.length === 0) return null
-		const types = enabledSensorTypes.value
-		if (!types.size) return null
-		const parameters = [...types].map((t) => ({ type: t as any, enabled: true }))
-		return { id: "multimedia", name: "多媒體資訊牆", deviceIds, parameters } as any
-	})
+	const envSnapshot = ref<MultimediaEnvReadingsSnapshot | null>(null)
 
-	const { sensorData, loadSensorData } = useEnvironmentSensors({
-		environmentZones,
-		selectedLocationId: computed(() => selectedLocationId.value),
-		currentLocationData,
-		getLocationId,
-	})
+	const loadEnvSnapshot = async () => {
+		const ids = (settings.envDeviceIds || []).filter((n) => Number.isFinite(n) && n > 0)
+		if (ids.length === 0) {
+			envSnapshot.value = { timestamp: new Date().toISOString(), data: {}, devices: [] }
+			return
+		}
+		const res = await api.getEnvReadingsSnapshot()
+		envSnapshot.value = res.snapshot || null
+	}
 
 	const { getRules, getStatusText: getStatusTextFromRules } = useAlertRules()
 	const alertRules = ref<AlertRule[]>([])
@@ -298,7 +285,7 @@ export const useMultimediaWallDashboard = () => {
 	)
 
 	const getReading = (key: string): number | null => {
-		const v = (sensorData as any)[key]
+		const v = (envSnapshot.value?.data || ({} as any))[key]
 		return typeof v === "number" && Number.isFinite(v) ? v : null
 	}
 
@@ -372,7 +359,7 @@ export const useMultimediaWallDashboard = () => {
 
 	const { start: startPolling, stop: stopPolling } = usePolling({
 		callback: async () => {
-			await loadSensorData()
+			await loadEnvSnapshot()
 		},
 		interval: 30000,
 		immediate: true,
