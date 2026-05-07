@@ -77,6 +77,7 @@
 										{{ activeTab === "camera" ? "IP 位址" : "配置資訊" }}
 									</th>
 									<th :class="tableHeaderClass">狀態</th>
+									<th :class="tableHeaderClass">連線</th>
 									<th :class="tableHeaderClass">
 										<FilterDropdown
 											:model-value="dateSortOrder"
@@ -113,6 +114,26 @@
 											:class="[getStatusBadgeClass(device.status), 'rounded px-2 py-1 2xl:px-3 2xl:py-1.5']"
 										>
 											{{ statusLabels[device.status] }}
+										</span>
+									</td>
+									<td :class="tableCellClass">
+										<span
+											:class="[
+												deviceConnectivity.getBadgeClass(deviceConnectivity.getStatus(device.id)),
+												'rounded px-2 py-1 text-sm 2xl:px-3 2xl:py-1.5 2xl:text-base'
+											]"
+										>
+											<span
+												v-if="deviceConnectivity.isLoading(device.id)"
+												class="inline-flex min-w-[32px] items-center justify-center gap-2"
+											>
+												<span
+													class="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white/80"
+												></span>
+											</span>
+											<span v-else>
+												{{ connectivityLabels[deviceConnectivity.getStatus(device.id)] }}
+											</span>
 										</span>
 									</td>
 									<td :class="[tableCellClass, 'text-white/70']">
@@ -227,12 +248,13 @@ import { useAuth } from "~/composables/core/useAuth";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
+import { useDeviceConnectivity } from "~/composables/systems/devices/useDeviceConnectivity";
 import { useDeviceWebSocket } from "~/composables/websocket/subscribers/useDeviceWebSocket";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import { FIXED_DEVICE_TABS } from "~/constants/deviceTypes";
 
 definePageMeta({
-	layout: "default"
+	layout: "auxiliary"
 });
 
 const { isOperator } = useAuth();
@@ -283,6 +305,8 @@ const dateSortOrder = ref<"asc" | "desc">("desc");
 const cameraGroupFilter = ref<string>("");
 const cameraGroups = ref<string[]>([]);
 
+const deviceConnectivity = useDeviceConnectivity({ debounceMs: 150 });
+
 // 使用 useDataLoader 統一管理數據載入
 const {
 	data: devices,
@@ -325,12 +349,19 @@ const {
 	}
 });
 
+const deviceIdsInPage = computed(() =>
+	(devices.value || []).map(d => d.id).filter(n => Number.isFinite(n))
+);
+deviceConnectivity.bindDeviceIds(deviceIdsInPage);
+
 // 標籤映射
 const statusLabels: Record<string, string> = {
 	active: "啟用",
 	inactive: "停用",
 	error: "錯誤"
 };
+
+const connectivityLabels = computed(() => deviceConnectivity.labels.value);
 
 // 統一樣式類
 const tableHeaderClass = "py-3 2xl:py-4 px-4 2xl:px-6 text-sm 2xl:text-base text-white/80";
@@ -429,6 +460,7 @@ const switchTab = (tabCode: DeviceTypeCode) => {
 	// 立即清空舊資料，觸發過渡動畫
 	devices.value.length = 0;
 	total.value = 0;
+	deviceConnectivity.reset();
 
 	// 切換 tab 並重置分頁
 	activeTab.value = tabCode;
@@ -583,16 +615,8 @@ watch(activeTab, (newTab, oldTab) => {
 	}
 });
 
-// 更新設備監控狀態的共用邏輯
-const updateDeviceMonitoringStatus = (deviceId: number, status: "online" | "offline") => {
-	const device = devices.value.find(d => d.id === deviceId);
-	if (device) {
-		if (status === "offline" && device.status === "active") {
-			device.status = "error";
-		} else if (status === "online" && device.status === "error") {
-			device.status = "active";
-		}
-	}
+const updateDeviceConnectivityStatus = (deviceId: number, status: "online" | "offline") => {
+	deviceConnectivity.applyWsStatus(deviceId, status);
 };
 
 // 處理設備創建事件
@@ -640,6 +664,7 @@ const handleDeviceDeleted = (event: DeviceDeletedEvent) => {
 		devices.value.splice(index, 1);
 		total.value = Math.max(0, total.value - 1);
 	}
+	deviceConnectivity.removeDevice(event.deviceId);
 };
 
 // 處理設備狀態變更事件
@@ -652,17 +677,18 @@ const handleDeviceStatusChanged = (event: DeviceStatusChangedEvent) => {
 
 // 處理設備監控狀態事件（設備上線/離線）
 const handleMonitoringStatus = (event: MonitoringDeviceStatusEvent) => {
-	// 優先使用 deviceId，如果沒有則使用 sourceId（向後兼容）
+	// 方案 A：設備管理頁只顯示「設備本體」連線
+	if (event.system !== "device") return;
 	const deviceId = event.deviceId || event.sourceId;
-	updateDeviceMonitoringStatus(deviceId, event.status);
+	updateDeviceConnectivityStatus(deviceId, event.status);
 };
 
 // 處理設備批次監控狀態事件
 const handleMonitoringStatusBatch = (event: MonitoringDeviceStatusBatchEvent) => {
+	if (event.system !== "device") return;
 	event.updates.forEach(({ sourceId, deviceId }) => {
-		// 優先使用 deviceId，如果沒有則使用 sourceId（向後兼容）
 		const id = deviceId || sourceId;
-		updateDeviceMonitoringStatus(id, event.status);
+		updateDeviceConnectivityStatus(id, event.status);
 	});
 };
 

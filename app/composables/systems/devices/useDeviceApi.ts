@@ -7,7 +7,8 @@ import type {
 	UpdateDeviceModelData,
 	DeviceTypeCode,
 	DeviceStreamStartResponse,
-	DeviceStreamStatusResponse
+	DeviceStreamStatusResponse,
+	DeviceConnectivitySnapshotResponse
 } from "~/types/device";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPaginationParams, buildPathWithQuery, mergeQueryParams } from "~/utils/apiUtils";
@@ -65,6 +66,19 @@ export const useDeviceApi = () => {
 		// 取得單一設備
 		getDevice: (id: number) => {
 			return request<{ device: Device }>(`/devices/${id}`);
+		},
+
+		// 取得設備連線狀態快照（不落 DB）
+		getDeviceConnectivity: (params?: { type_code?: DeviceTypeCode; device_ids?: number[] }) => {
+			const filterParams: Record<string, unknown> = {};
+			if (params?.type_code) filterParams.type_code = params.type_code;
+			if (params?.device_ids && params.device_ids.length > 0) {
+				// 固定排序，避免 watch 造成的 URL 抖動/重複請求
+				filterParams.device_ids = [...params.device_ids].sort((a, b) => a - b).join(",");
+			}
+			const path = buildPathWithQuery("/devices/connectivity", filterParams);
+			// 連線探測可能需要比一般 API 更久（例如同頁多台設備分批探測）
+			return request<DeviceConnectivitySnapshotResponse>(path, { timeout: 20000 });
 		},
 
 		// 啟動攝影機串流（MediaMTX path），回傳 webrtcUrl
