@@ -11,6 +11,20 @@ export type DeviceTypeCode =
 // 設備狀態
 export type DeviceStatus = "active" | "inactive" | "error";
 
+// 設備連線狀態（設備本體；不等同於啟用/停用）
+// UI 僅顯示線上/離線；讀取中由前端 spinner 呈現
+export type DeviceConnectivityStatus = "online" | "offline";
+
+export interface DeviceConnectivitySnapshotItem {
+	device_id: number;
+	status: DeviceConnectivityStatus;
+	updated_at: string | null;
+}
+
+export interface DeviceConnectivitySnapshotResponse {
+	items: DeviceConnectivitySnapshotItem[];
+}
+
 // 設備類型
 export interface DeviceType {
 	id: number;

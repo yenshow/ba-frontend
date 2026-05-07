@@ -41,7 +41,7 @@
 								type="text"
 								required
 								class="form-input"
-								placeholder="例如：DDC 控制器 1"
+								placeholder="例如：控制器"
 							/>
 						</label>
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
@@ -73,7 +73,7 @@
 
 						<template v-if="deviceTypeCode === 'controller'">
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>主機位址 (IP) *</span>
+								<span>主機位址 *</span>
 								<input
 									v-model="controllerConfig.host"
 									type="text"
@@ -115,7 +115,7 @@
 								/>
 							</label>
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>設備登入帳號 *</span>
+								<span>帳號 *</span>
 								<input
 									v-model="cameraUsername"
 									type="text"
@@ -126,7 +126,7 @@
 								/>
 							</label>
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>設備登入密碼 *</span>
+								<span>密碼 *</span>
 								<div class="relative w-full">
 									<input
 										v-model="cameraPassword"
@@ -198,7 +198,7 @@
 							</label>
 							<template v-if="sensorConfig.protocol === 'modbus'">
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>主機位址 (IP) *</span>
+									<span>主機位址 *</span>
 									<input
 										v-model="sensorConfig.host"
 										type="text"
@@ -269,7 +269,7 @@
 
 						<template v-if="deviceTypeCode === 'access_control'">
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>主機位址 (IP 或網域名稱) *</span>
+								<span>主機位址 *</span>
 								<input
 									v-model="accessControlConfig.host"
 									type="text"
@@ -290,7 +290,7 @@
 								/>
 							</label>
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>密碼 (Digest Auth) *</span>
+								<span>密碼 *</span>
 								<div class="relative w-full">
 									<input
 										v-model="accessControlConfig.password"

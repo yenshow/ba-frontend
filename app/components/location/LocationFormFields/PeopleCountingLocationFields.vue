@@ -34,7 +34,7 @@
 						class="h-4 w-4 accent-cyan-400"
 						@change="handleDataSourceChange"
 					/>
-					<span class="text-sm text-white/90 2xl:text-base">門禁設備（本系統）</span>
+					<span class="text-sm text-white/90 2xl:text-base">門禁設備</span>
 				</label>
 				<label class="flex cursor-pointer items-center gap-2">
 					<input
