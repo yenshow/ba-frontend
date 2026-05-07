@@ -56,6 +56,99 @@ const normalizeSvgRoot = () => {
 	// 避免原始 width/height 造成不易響應式（保留 viewBox）
 	svg.removeAttribute("width")
 	svg.removeAttribute("height")
+
+	setupLineSweep(svg)
+}
+
+const setupLineSweep = (svg: SVGSVGElement) => {
+	const lineGroup = svg.querySelector<SVGGElement>("#line")
+	if (!lineGroup) return
+
+	// 解析 viewBox（用來算 sweep 移動距離）
+	const viewBox = svg.getAttribute("viewBox")?.trim() ?? ""
+	const [minX, minY, vbWidth, vbHeight] = viewBox.split(/\s+/).map((v) => Number(v))
+	if (![minX, minY, vbWidth, vbHeight].every((n) => Number.isFinite(n))) return
+
+	const defs =
+		svg.querySelector("defs") ??
+		(() => {
+			const newDefs = document.createElementNS("http://www.w3.org/2000/svg", "defs")
+			svg.insertBefore(newDefs, svg.firstChild)
+			return newDefs
+		})()
+
+	const maskId = "hero-line-sweep-mask"
+	const gradientId = "hero-line-sweep-gradient"
+	const sweepRectId = "hero-line-sweep-rect"
+	const sweepGroupId = "line_sweep"
+
+	// 避免重複注入（同頁多次 mount / watch 時）
+	if (svg.querySelector(`#${sweepGroupId}`) || svg.querySelector(`#${maskId}`)) return
+
+	const sweepWidth = Math.max(140, Math.round(vbWidth * 0.18))
+	const travel = Math.round(vbWidth + sweepWidth * 2)
+
+	svg.style.setProperty("--hero-line-sweep-travel", `${travel}px`)
+
+	// gradient（中間最亮、左右淡出）
+	const gradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient")
+	gradient.setAttribute("id", gradientId)
+	gradient.setAttribute("x1", "0")
+	gradient.setAttribute("y1", "0")
+	gradient.setAttribute("x2", "1")
+	gradient.setAttribute("y2", "0")
+
+	const stop0 = document.createElementNS("http://www.w3.org/2000/svg", "stop")
+	stop0.setAttribute("offset", "0%")
+	stop0.setAttribute("stop-color", "white")
+	stop0.setAttribute("stop-opacity", "0")
+
+	const stop1 = document.createElementNS("http://www.w3.org/2000/svg", "stop")
+	stop1.setAttribute("offset", "50%")
+	stop1.setAttribute("stop-color", "white")
+	stop1.setAttribute("stop-opacity", "1")
+
+	const stop2 = document.createElementNS("http://www.w3.org/2000/svg", "stop")
+	stop2.setAttribute("offset", "100%")
+	stop2.setAttribute("stop-color", "white")
+	stop2.setAttribute("stop-opacity", "0")
+
+	gradient.append(stop0, stop1, stop2)
+	defs.appendChild(gradient)
+
+	// mask
+	const mask = document.createElementNS("http://www.w3.org/2000/svg", "mask")
+	mask.setAttribute("id", maskId)
+	mask.setAttribute("maskUnits", "userSpaceOnUse")
+	mask.setAttribute("x", String(minX))
+	mask.setAttribute("y", String(minY))
+	mask.setAttribute("width", String(vbWidth))
+	mask.setAttribute("height", String(vbHeight))
+
+	const maskBase = document.createElementNS("http://www.w3.org/2000/svg", "rect")
+	maskBase.setAttribute("x", String(minX))
+	maskBase.setAttribute("y", String(minY))
+	maskBase.setAttribute("width", String(vbWidth))
+	maskBase.setAttribute("height", String(vbHeight))
+	maskBase.setAttribute("fill", "black")
+
+	const sweepRect = document.createElementNS("http://www.w3.org/2000/svg", "rect")
+	sweepRect.setAttribute("id", sweepRectId)
+	sweepRect.setAttribute("x", String(minX - sweepWidth))
+	sweepRect.setAttribute("y", String(minY))
+	sweepRect.setAttribute("width", String(sweepWidth))
+	sweepRect.setAttribute("height", String(vbHeight))
+	sweepRect.setAttribute("fill", `url(#${gradientId})`)
+
+	mask.append(maskBase, sweepRect)
+	defs.appendChild(mask)
+
+	// 疊一層「高亮複本」讓掃光更明顯、也更不像 ground
+	const sweepGroup = lineGroup.cloneNode(true) as SVGGElement
+	sweepGroup.setAttribute("id", sweepGroupId)
+	sweepGroup.setAttribute("mask", `url(#${maskId})`)
+	sweepGroup.setAttribute("opacity", "0.95")
+	lineGroup.insertAdjacentElement("afterend", sweepGroup)
 }
 
 onMounted(async () => {
@@ -93,6 +186,8 @@ watch([ariaLabel, rootClass], async () => {
 	height: 100%;
 	max-width: 100%;
 	max-height: 100%;
+	/* 全部動畫的主節奏（讓 line/ground/beam/ball/文字時間對齊） */
+	--hero-heroic-cycle: 4.8s;
 }
 
 /* 動畫基礎：讓 transform 以自身 bounding box 為基準 */
@@ -103,7 +198,8 @@ watch([ariaLabel, rootClass], async () => {
 .hero-pic-inline.is-animate :deep(#ball),
 .hero-pic-inline.is-animate :deep(#card),
 .hero-pic-inline.is-animate :deep(#beam),
-.hero-pic-inline.is-animate :deep(#others),
+.hero-pic-inline.is-animate :deep(#ground),
+.hero-pic-inline.is-animate :deep(#line),
 .hero-pic-inline.is-animate :deep(#w),
 .hero-pic-inline.is-animate :deep(#o),
 .hero-pic-inline.is-animate :deep(#h),
@@ -139,7 +235,7 @@ watch([ariaLabel, rootClass], async () => {
 
 /* 3) ball 上下浮動 */
 .hero-pic-inline.is-animate :deep(#ball) {
-	animation: heroFloat 4s ease-in-out infinite;
+	animation: heroFloat var(--hero-heroic-cycle) ease-in-out infinite;
 }
 
 /* 5) card 微小浮動 */
@@ -149,46 +245,64 @@ watch([ariaLabel, rootClass], async () => {
 
 /* beam：發光脈衝 */
 .hero-pic-inline.is-animate :deep(#beam) {
-	animation: heroBeamGlow 4s ease-in-out infinite;
+	animation: heroBeamGlow var(--hero-heroic-cycle) ease-in-out infinite;
 }
 
-/* others：光波傳遞（用水平位移的光暈近似掃過） */
-.hero-pic-inline.is-animate :deep(#others) {
-	animation: heroWaveTransmit 3.2s ease-in-out infinite;
+/* ground：光波傳遞（用水平位移的光暈近似掃過） */
+.hero-pic-inline.is-animate :deep(#ground) {
+	animation: heroWaveTransmit var(--hero-heroic-cycle) ease-in-out infinite;
 	mix-blend-mode: screen;
+}
+
+/* line：底層只做輕微呼吸，避免跟 ground 太像（主效果交給 sweep） */
+.hero-pic-inline.is-animate :deep(#line) {
+	animation: heroLineBreath var(--hero-heroic-cycle) ease-in-out infinite;
+	opacity: 0.65;
+}
+
+/* line_sweep：掃光高亮層（mask 從左掃到右） */
+.hero-pic-inline.is-animate :deep(#line_sweep) {
+	mix-blend-mode: screen;
+	filter: brightness(1.35) drop-shadow(0 0 14px rgba(154, 252, 255, 0.45));
+	pointer-events: none;
+}
+
+.hero-pic-inline.is-animate :deep(#hero-line-sweep-rect) {
+	animation: heroLineSweepX var(--hero-heroic-cycle) linear infinite;
+	will-change: transform;
 }
 
 /* 6) Yenshow 各字母波浪浮動 */
 .hero-pic-inline.is-animate :deep(#icon) {
-	animation: heroLetterFloat 2.6s ease-in-out infinite;
+	animation: heroLetterFloat var(--hero-heroic-cycle) ease-in-out infinite;
 }
 
 .hero-pic-inline.is-animate :deep(#y) {
-	animation: heroLetterFloat 2.6s ease-in-out infinite;
+	animation: heroLetterFloat var(--hero-heroic-cycle) ease-in-out infinite;
 	animation-delay: 0.15s;
 }
 .hero-pic-inline.is-animate :deep(#e) {
-	animation: heroLetterFloat 2.6s ease-in-out infinite;
+	animation: heroLetterFloat var(--hero-heroic-cycle) ease-in-out infinite;
 	animation-delay: 0.3s;
 }
 .hero-pic-inline.is-animate :deep(#n) {
-	animation: heroLetterFloat 2.6s ease-in-out infinite;
+	animation: heroLetterFloat var(--hero-heroic-cycle) ease-in-out infinite;
 	animation-delay: 0.45s;
 }
 .hero-pic-inline.is-animate :deep(#s) {
-	animation: heroLetterFloat 2.6s ease-in-out infinite;
+	animation: heroLetterFloat var(--hero-heroic-cycle) ease-in-out infinite;
 	animation-delay: 0.6s;
 }
 .hero-pic-inline.is-animate :deep(#h) {
-	animation: heroLetterFloat 2.6s ease-in-out infinite;
+	animation: heroLetterFloat var(--hero-heroic-cycle) ease-in-out infinite;
 	animation-delay: 0.75s;
 }
 .hero-pic-inline.is-animate :deep(#o) {
-	animation: heroLetterFloat 2.6s ease-in-out infinite;
+	animation: heroLetterFloat var(--hero-heroic-cycle) ease-in-out infinite;
 	animation-delay: 0.9s;
 }
 .hero-pic-inline.is-animate :deep(#w) {
-	animation: heroLetterFloat 2.6s ease-in-out infinite;
+	animation: heroLetterFloat var(--hero-heroic-cycle) ease-in-out infinite;
 	animation-delay: 1.05s;
 }
 
@@ -279,12 +393,42 @@ watch([ariaLabel, rootClass], async () => {
 	}
 }
 
+@keyframes heroLineBreath {
+	0% {
+		opacity: 0.55;
+		filter: brightness(1);
+	}
+	50% {
+		opacity: 0.85;
+		filter: brightness(1.12);
+	}
+	100% {
+		opacity: 0.55;
+		filter: brightness(1);
+	}
+}
+
+@keyframes heroLineSweepX {
+	0% {
+		transform: translateX(0);
+	}
+	100% {
+		transform: translateX(var(--hero-line-sweep-travel, 1060px));
+	}
+}
+
 @keyframes heroLetterFloat {
 	0%,
 	100% {
 		transform: translateY(0);
 	}
+	25% {
+		transform: translateY(-8px);
+	}
 	50% {
+		transform: translateY(0);
+	}
+	75% {
 		transform: translateY(-8px);
 	}
 }
@@ -297,7 +441,9 @@ watch([ariaLabel, rootClass], async () => {
 	.hero-pic-inline.is-animate :deep(#ball),
 	.hero-pic-inline.is-animate :deep(#card),
 	.hero-pic-inline.is-animate :deep(#beam),
-	.hero-pic-inline.is-animate :deep(#others),
+	.hero-pic-inline.is-animate :deep(#ground),
+	.hero-pic-inline.is-animate :deep(#line),
+	.hero-pic-inline.is-animate :deep(#hero-line-sweep-rect),
 	.hero-pic-inline.is-animate :deep(#w),
 	.hero-pic-inline.is-animate :deep(#o),
 	.hero-pic-inline.is-animate :deep(#h),
