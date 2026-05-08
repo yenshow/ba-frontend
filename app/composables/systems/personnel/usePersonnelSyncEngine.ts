@@ -84,6 +84,7 @@ export const usePersonnelSyncEngine = (params: {
 				finishedAt: number | null
 				locationRunFailure: boolean
 				warningsByEmployeeNo: Record<string, true>
+				processedByEmployeeNo: Record<string, true>
 			}
 		>
 	>({})
@@ -110,11 +111,25 @@ export const usePersonnelSyncEngine = (params: {
 		return 2000
 	}
 
-	const updateLastCompletedCacheForLocation = (locationId: number, job: SyncLocationJob, warnings: SyncWarning[]) => {
+	const updateLastCompletedCacheForLocation = (params: {
+		locationId: number
+		job: SyncLocationJob
+		warnings: SyncWarning[]
+		tailItems: SyncLocationJobItem[]
+	}) => {
+		const { locationId, job, warnings, tailItems } = params
 		const byEmp: Record<string, true> = {}
 		for (const w of warnings || []) {
 			const emp = String(w.employeeNo || "").trim()
 			if (emp) byEmp[emp] = true
+		}
+		const processed: Record<string, true> = {}
+		for (const it of tailItems || []) {
+			const emp = String(it.employeeNo || "").trim()
+			if (!emp) continue
+			// 只要有完成事件（success/failed/unchanged）就算「這次 job 確實處理過」
+			const st = String(it.status || "").trim()
+			if (st === "success" || st === "failed" || st === "unchanged") processed[emp] = true
 		}
 		const locationRunFailure = (warnings || []).some(
 			(w) => String(w.type || "") === "sync" && !String(w.employeeNo || "").trim()
@@ -123,6 +138,7 @@ export const usePersonnelSyncEngine = (params: {
 			finishedAt: job.finishedAt ?? null,
 			locationRunFailure,
 			warningsByEmployeeNo: byEmp,
+			processedByEmployeeNo: processed,
 		}
 	}
 
@@ -169,7 +185,12 @@ export const usePersonnelSyncEngine = (params: {
 				}))
 
 				if (locId != null) {
-					updateLastCompletedCacheForLocation(locId, job, syncWarnings.value)
+					updateLastCompletedCacheForLocation({
+						locationId: locId,
+						job,
+						warnings: syncWarnings.value,
+						tailItems: activeSyncJobTailItems.value ?? [],
+					})
 				}
 
 				if ((syncWarnings.value || []).length > 0) {
@@ -306,8 +327,9 @@ export const usePersonnelSyncEngine = (params: {
 		const s = cell.status
 		if (s === "pending") return "待同步"
 		if (s === "success") return "成功"
+		if (s === "unchanged") return "成功"
 		if (s === "failed") return "失敗"
-		return "略過"
+		return "無資料"
 	}
 
 	const syncStepPillClass = (status: SyncStepUiStatus) => {
@@ -315,7 +337,8 @@ export const usePersonnelSyncEngine = (params: {
 			pending: "bg-amber-500/15 text-amber-100 border border-amber-400/30",
 			success: "bg-emerald-500/15 text-emerald-100 border border-emerald-400/30",
 			failed: "bg-rose-500/15 text-rose-100 border border-rose-400/30",
-			skipped: "bg-white/5 text-white/45 border border-white/10",
+			unchanged: "bg-emerald-500/15 text-emerald-100 border border-emerald-400/30",
+			no_data: "bg-white/5 text-white/45 border border-white/10",
 		}
 		return m[status] ?? "bg-white/5 text-white/60 border border-white/10"
 	}

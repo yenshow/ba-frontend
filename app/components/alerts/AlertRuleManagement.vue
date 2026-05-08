@@ -17,7 +17,7 @@
 								<th :class="tableHeaderClass">目標</th>
 								<th :class="tableHeaderClass">條件</th>
 								<th :class="tableHeaderClass">類型</th>
-								<th :class="tableHeaderClass">狀態</th>
+								<th :class="tableHeaderClass">層級</th>
 								<th :class="tableHeaderClass">狀態</th>
 								<th :class="tableHeaderClass">連動</th>
 								<th :class="tableHeaderClass">操作</th>
@@ -237,7 +237,7 @@ const ruleSourceOptions = [
 	{ value: "air_circulation", label: "空氣循環系統" },
 	{ value: "fire", label: "消防系統" },
 	{ value: "smoke_alarm", label: "煙霧警報系統" },
-	{ value: "emergency", label: "緊急求救系統" },
+	{ value: "emergency_rescue", label: "緊急求救系統" },
 ]
 
 const tableHeaderClass = "py-3 2xl:py-4 px-4 2xl:px-6 text-sm 2xl:text-base text-white/80"

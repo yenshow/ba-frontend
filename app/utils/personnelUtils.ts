@@ -126,7 +126,7 @@ export const SYNC_WARNING_LABELS: Record<string, string> = {
 }
 
 /** 人員／圖片／卡片／指紋 欄顯示狀態 */
-export type SyncStepUiStatus = "pending" | "success" | "failed" | "skipped"
+export type SyncStepUiStatus = "pending" | "success" | "failed" | "unchanged" | "no_data"
 
 export type SyncPersonRow = {
 	employeeNo: string
@@ -146,16 +146,17 @@ const mergeDeviceStatuses = (parts: { status: SyncLocationJobItem["status"]; mes
 		const msg = failed.map((f) => f.message).filter(Boolean).join("；")
 		return { status: "failed" as const, message: msg || null }
 	}
-	const skipped = parts.filter((p) => p.status === "skipped")
-	if (skipped.length) {
-		// 只要有任一設備顯示 skipped，就用 skipped（避免誤判成 pending）
-		return { status: "skipped" as const, message: null as string | null }
+	const unchanged = parts.filter((p) => p.status === "unchanged")
+	if (unchanged.length) {
+		// 只要有任一設備顯示 unchanged，就用 unchanged（避免誤判成 pending）
+		return { status: "unchanged" as const, message: null as string | null }
 	}
 	const ok = parts.filter((p) => p.status === "success")
 	if (ok.length) {
 		return { status: "success" as const, message: null as string | null }
 	}
-	return { status: "skipped" as const, message: null as string | null }
+	// 沒有事件時，留給上層用 last_sync / needs_sync 判斷；這裡視為 unchanged（避免被解讀成 pending）
+	return { status: "unchanged" as const, message: null as string | null }
 }
 
 const normalizeStepStatus = (params: {
@@ -164,10 +165,12 @@ const normalizeStepStatus = (params: {
 	emptyMessageWhenHasData?: string
 }) => {
 	const { hasData, merged, emptyMessageWhenHasData } = params
-	// 規則：略過只代表「沒有資料」；若有資料但後端回 skipped（通常是未變更而略過寫入），視為成功
-	if (!hasData) return { status: "skipped" as SyncStepUiStatus, message: null as string | null }
-	if (merged.status === "skipped") {
-		return { status: "success" as SyncStepUiStatus, message: merged.message || emptyMessageWhenHasData || "未變更，略過寫入" }
+	if (!hasData) return { status: "no_data" as SyncStepUiStatus, message: null as string | null }
+	if (merged.status === "unchanged") {
+		return {
+			status: "unchanged" as SyncStepUiStatus,
+			message: merged.message || emptyMessageWhenHasData || "未變更",
+		}
 	}
 	return merged
 }
@@ -261,8 +264,10 @@ export const buildSyncPersonStepRows = (params: {
 		const raw = String((ls as any)?.[step]?.status || "").trim()
 		if (raw === "success") return { status: "success", message: null }
 		if (raw === "failed") return { status: "failed", message: "上次同步失敗（可重新同步）" }
-		// never / partial / unknown：不強行顯示失敗，避免誤解
-		return { status: "skipped", message: raw ? `同步狀態：${raw}` : "尚無同步紀錄" }
+		if (raw === "unchanged") return { status: "unchanged", message: "未變更" }
+		if (raw === "no_data") return { status: "no_data", message: "無資料" }
+		// unknown：不強行顯示失敗，避免誤解
+		return { status: "unchanged", message: raw ? `同步狀態：${raw}` : "尚無同步紀錄" }
 	}
 
 	return candidates.map((c) => {
@@ -295,14 +300,14 @@ export const buildSyncPersonStepRows = (params: {
 		})()
 
 		const fFaceBase = (() => {
-			if (!c.has_face) return { status: "skipped" as SyncStepUiStatus, message: null as string | null }
+			if (!c.has_face) return { status: "no_data" as SyncStepUiStatus, message: null as string | null }
 			const u = stageFaceItems(list)
 			if (u.length) {
 				const m = mergeDeviceStatuses(toParts(u))
 				return normalizeStepStatus({ hasData: true, merged: m })
 			}
 			if (pUi.status === "failed") {
-				return { status: "skipped" as SyncStepUiStatus, message: "基本資料未成功，略過人臉" }
+				return { status: "unchanged" as SyncStepUiStatus, message: "基本資料未成功，人臉不處理" }
 			}
 			if (needsSet.has("face")) return { status: "pending" as const, message: "待同步" }
 			// 沒有本次事件：以後端 last_sync 作為 SSOT，避免「其實已同步但本次沒有寫入事件」被誤判成失敗
@@ -310,27 +315,27 @@ export const buildSyncPersonStepRows = (params: {
 		})()
 
 		const fCardBase = (() => {
-			if (!c.has_card) return { status: "skipped" as SyncStepUiStatus, message: null as string | null }
+			if (!c.has_card) return { status: "no_data" as SyncStepUiStatus, message: null as string | null }
 			const u = stageCardItems(list)
 			if (u.length) {
 				const m = mergeDeviceStatuses(toParts(u))
 				return normalizeStepStatus({ hasData: true, merged: m })
 			}
 			if (pUi.status === "failed")
-				return { status: "skipped" as SyncStepUiStatus, message: "基本資料未成功，略過卡片" }
+				return { status: "unchanged" as SyncStepUiStatus, message: "基本資料未成功，卡片不處理" }
 			if (needsSet.has("card")) return { status: "pending" as const, message: "待同步" }
 			return stepStatusFromLastSync(c, "card")
 		})()
 
 		const fFpBase = (() => {
-			if (c.fingerprint_count <= 0) return { status: "skipped" as SyncStepUiStatus, message: null as string | null }
+			if (c.fingerprint_count <= 0) return { status: "no_data" as SyncStepUiStatus, message: null as string | null }
 			const u = stageFingerprintItems(list)
 			if (u.length) {
 				const m = mergeDeviceStatuses(toParts(u))
 				return normalizeStepStatus({ hasData: true, merged: m })
 			}
 			if (pUi.status === "failed")
-				return { status: "skipped" as SyncStepUiStatus, message: "基本資料未成功，略過指紋" }
+				return { status: "unchanged" as SyncStepUiStatus, message: "基本資料未成功，指紋不處理" }
 			if (needsSet.has("fingerprint")) return { status: "pending" as const, message: "待同步" }
 			return stepStatusFromLastSync(c, "fingerprint")
 		})()
@@ -350,12 +355,12 @@ export const buildSyncPersonStepRows = (params: {
 		// - 例：本次同步 userInfo 略過/待同步，也不應讓 face/card/fingerprint 顯示成功
 		if (pFinal.status !== "success") {
 			const clamp = (cell: { status: SyncStepUiStatus; message: string | null }, stepKey: string) => {
-				// 若該步驟本身就是 pending/failed/skipped，維持原狀
+				// 若該步驟本身就是 pending/failed/unchanged/no_data，維持原狀
 				if (cell.status !== "success") return cell
 				// 若後端判定此步驟需要同步，維持 pending
 				if (needsSet.has(stepKey)) return { status: "pending" as SyncStepUiStatus, message: "待同步" }
-				// 否則視為略過（依賴 userInfo 未完成）
-				return { status: "skipped" as SyncStepUiStatus, message: "基本資料未同步完成" }
+				// 否則視為未變更（依賴 userInfo 未完成）
+				return { status: "unchanged" as SyncStepUiStatus, message: "基本資料未同步完成" }
 			}
 			fFace = clamp(fFace, "face")
 			fCard = clamp(fCard, "card")
@@ -372,10 +377,10 @@ export const buildSyncPersonStepRows = (params: {
 				hasCard: Boolean(c.has_card),
 				fingerprintCount: Number(c.fingerprint_count) || 0,
 				person: { status: "failed", message: msg },
-				face: c.has_face ? { status: "failed", message: msg } : { status: "skipped", message: null },
-				card: c.has_card ? { status: "failed", message: msg } : { status: "skipped", message: null },
+				face: c.has_face ? { status: "failed", message: msg } : { status: "no_data", message: null },
+				card: c.has_card ? { status: "failed", message: msg } : { status: "no_data", message: null },
 				fingerprint:
-					Number(c.fingerprint_count) > 0 ? { status: "failed", message: msg } : { status: "skipped", message: null },
+					Number(c.fingerprint_count) > 0 ? { status: "failed", message: msg } : { status: "no_data", message: null },
 			}
 		}
 

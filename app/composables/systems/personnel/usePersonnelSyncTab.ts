@@ -298,10 +298,16 @@ export const usePersonnelSyncTab = (params: {
 		{
 			const cached = lastCompletedSyncByLocationId[locationId]
 			if (cached) {
-				const at = cached.finishedAt != null ? formatAt(cached.finishedAt) : null
+				// 避免「上一輪同步」誤套用到「此刻才出現的人員」
+				// 只有該 employeeNo 在本次 job tail items 中出現過（完成事件）才可用快取判定 success/failed
 				const emp = String(employeeNo)
+				if (!cached.processedByEmployeeNo?.[emp] && !cached.locationRunFailure) {
+					// 不在本次 job 處理範圍：回到 candidates SSOT（needs_sync / last_sync）
+				} else {
+				const at = cached.finishedAt != null ? formatAt(cached.finishedAt) : null
 				const empFailed = Boolean(cached.warningsByEmployeeNo[emp])
 				return { status: cached.locationRunFailure || empFailed ? "failed" : "success", at }
+				}
 			}
 		}
 
@@ -326,8 +332,8 @@ export const usePersonnelSyncTab = (params: {
 			: []
 		const cand = list.find((c) => String(c.employee_no) === String(employeeNo))
 		const s = cand?.last_sync
-		// 第一次載入/尚未同步：不應顯示失敗（避免誤解），改為略過
-		if (!s) return { status: "skipped", at: null }
+		// 第一次載入/尚未同步：不要直接判失敗，回到「待同步」邏輯（由外層 label 決定）
+		if (!s) return { status: "success", at: null }
 		const statuses = [
 			s.user_info?.status,
 			s.face?.status,
@@ -338,16 +344,13 @@ export const usePersonnelSyncTab = (params: {
 			.map(formatAt)
 			.filter(Boolean)
 		const at = atCandidates.length ? atCandidates[0] : null
-		// 收束判斷：只需要 success / failed / skipped
+		// 收束判斷：只需要 success / failed（其他由 label 用 needs_sync / last_sync 顯示未變更/無資料）
 		// - failed：任一步驟 failed
-		// - success：沒有 failed 且至少 userInfo success
-		// - skipped：其他（含 never / partial / 尚未同步完整）
-		// 已同步欄位只顯示 success / failed / skipped（避免第一次就顯示失敗）
+		// - success：沒有 failed
 		if (locationRunFailure) return { status: "failed", at }
 		if (empHasWarning) return { status: "failed", at }
 		if (statuses.includes("failed")) return { status: "failed", at }
-		if (s.user_info?.status === "success") return { status: "success", at }
-		return { status: "skipped", at }
+		return { status: "success", at }
 	}
 
 	const getCandidateLastSyncLabel = (locationId: number, employeeNo: string) => {
@@ -366,8 +369,11 @@ export const usePersonnelSyncTab = (params: {
 		if (cand?.needs_sync) return "待同步"
 		if (!cand?.last_sync) return "待同步"
 		const v = aggregateCandidateLastSync(locationId, employeeNo)
-		if (v.status === "success") return "成功"
-		return "失敗"
+		if (v.status === "failed") return "失敗"
+		// 無需同步時：用 user_info 做摘要（SSOT：人員基本資料）
+		const ui = String(cand.last_sync?.user_info?.status || "").trim()
+		if (ui === "no_data") return "無資料"
+		return "成功"
 	}
 
 	const getCandidateLastSyncTitle = (locationId: number, employeeNo: string) => {
