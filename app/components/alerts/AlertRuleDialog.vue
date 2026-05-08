@@ -244,7 +244,7 @@
 
 									<div v-if="email.enabled" class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
 										<label class="flex flex-col gap-2 text-sm text-white/80 md:col-span-2">
-											<span>SMTP Host *</span>
+											<span>SMTP Host (主機) *</span>
 											<input
 												v-model="email.smtp_host"
 												type="text"
@@ -253,7 +253,7 @@
 											/>
 										</label>
 										<label class="flex flex-col gap-2 text-sm text-white/80">
-											<span>SMTP Port *</span>
+											<span>SMTP Port (連接埠) *</span>
 											<input
 												v-model.number="email.smtp_port"
 												type="number"
@@ -272,7 +272,7 @@
 											/>
 										</label>
 										<label class="flex flex-col gap-2 text-sm text-white/80">
-											<span>寄件人 Email（必填）</span>
+											<span>寄件人 Email *</span>
 											<input
 												v-model="email.smtp_user"
 												type="text"
@@ -309,7 +309,7 @@
 												aria-label="寄送 SMTP 測試信"
 												@click="handleEmailSmtpTestClick"
 											>
-												{{ isEmailSmtpTestLoading ? "寄送中..." : "寄送 SMTP 測試信" }}
+												{{ isEmailSmtpTestLoading ? "寄送中..." : "寄送測試信" }}
 											</button>
 											<p v-if="!props.editingRule?.id" class="text-xs text-white/55">
 												請先建立並儲存規則（取得規則 ID）後，才能寄送測試信。
@@ -514,9 +514,9 @@ const cameraLinkage = reactive({
 });
 
 const smtpSecurityOptions: OptionItem[] = [
-	{ value: "none", label: "無（不強制加密）" },
-	{ value: "ssl", label: "SSL（SMTPS）" },
-	{ value: "tls", label: "TLS（STARTTLS）" }
+	{ value: "none", label: "無" },
+	{ value: "ssl", label: "SSL" },
+	{ value: "tls", label: "TLS" }
 ];
 
 const email = reactive({

@@ -1,4 +1,4 @@
-export type { Paged } from "~/utils/pagingUtils"
+export type { Paged } from "~/utils/pagingUtils";
 
 /** 人員群組 */
 export interface PersonGroup {
@@ -56,10 +56,22 @@ export interface SyncLocationCandidate {
 	needs_sync?: boolean;
 	needs_sync_steps?: Array<"user_info" | "face" | "card" | "fingerprint" | string>;
 	last_sync?: {
-		user_info: { status: "never" | "partial" | "success" | "failed" | string; at: number | string | null };
-		face: { status: "never" | "partial" | "success" | "failed" | string; at: number | string | null };
-		card: { status: "never" | "partial" | "success" | "failed" | string; at: number | string | null };
-		fingerprint: { status: "never" | "partial" | "success" | "failed" | string; at: number | string | null };
+		user_info: {
+			status: "success" | "failed" | "unchanged" | "no_data" | string;
+			at: number | string | null;
+		};
+		face: {
+			status: "success" | "failed" | "unchanged" | "no_data" | string;
+			at: number | string | null;
+		};
+		card: {
+			status: "success" | "failed" | "unchanged" | "no_data" | string;
+			at: number | string | null;
+		};
+		fingerprint: {
+			status: "success" | "failed" | "unchanged" | "no_data" | string;
+			at: number | string | null;
+		};
 	};
 }
 
@@ -112,7 +124,7 @@ export interface SyncAllLocationsJob {
 	error: { message: string } | null;
 }
 
-export type SyncLocationJobItemStatus = "running" | "success" | "failed" | "skipped";
+export type SyncLocationJobItemStatus = "running" | "success" | "failed" | "unchanged";
 
 export interface SyncLocationJobItem {
 	/** 同步全部 job 的逐筆事件會帶上地點 id */
@@ -152,12 +164,12 @@ export interface SyncLocationJob {
 		currentStage: string | null;
 	};
 	/**
-	 * issues：failed/skipped 明細（不建議輪詢時帶，請用 items API 分頁抓）
+	 * issues：failed 明細（不建議輪詢時帶，請用 items API 分頁抓）
 	 * 後端只有在 includeIssues=1 時才會回傳
 	 */
 	items?: SyncLocationJobItem[];
 	/**
-	 * tail：最後 N 筆事件（含 success/running/failed/skipped），供 UI 即時顯示
+	 * tail：最後 N 筆事件（含 success/running/failed/unchanged），供 UI 即時顯示
 	 * 後端只有在 includeTail=1 時才會回傳
 	 */
 	tailItems?: SyncLocationJobItem[];

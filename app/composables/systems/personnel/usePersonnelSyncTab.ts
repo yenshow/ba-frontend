@@ -1,77 +1,77 @@
-import type { Ref } from "vue"
-import type {
-	SyncableLocation,
-} from "~/types/personnel"
-import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
-import type { useLocationApi } from "~/composables/location/api/useLocationApi"
+import type { Ref } from "vue";
+import type { SyncableLocation } from "~/types/personnel";
+import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi";
+import type { useLocationApi } from "~/composables/location/api/useLocationApi";
+import { SYNC_WARNING_LABELS } from "~/utils/personnelUtils";
+import { usePersonnelSyncEngine } from "~/composables/systems/personnel/usePersonnelSyncEngine";
 import {
-	SYNC_WARNING_LABELS,
-} from "~/utils/personnelUtils"
-import { usePersonnelSyncEngine } from "~/composables/systems/personnel/usePersonnelSyncEngine"
-import { clampOffset, getNextOffset, getPrevOffset } from "~/composables/systems/personnel/usePersonCandidatesPager"
-import type { Person } from "~/types/personnel"
-import { fetchAllPersonnelCandidates } from "~/composables/systems/personnel/usePersonnelCandidatesLoader"
+	clampOffset,
+	getNextOffset,
+	getPrevOffset
+} from "~/composables/systems/personnel/usePersonCandidatesPager";
+import type { Person } from "~/types/personnel";
+import { fetchAllPersonnelCandidates } from "~/composables/systems/personnel/usePersonnelCandidatesLoader";
 
-type LocationId = number
+type LocationId = number;
 
 export const usePersonnelSyncTab = (params: {
-	personnelApi: PersonnelApi
-	locationApi: ReturnType<typeof useLocationApi>
-	toast: { success: (msg: string) => void; error: (msg: string) => void }
-	handleApiError: (err: unknown, fallbackMessage: string) => string | void | null
-	canEdit: Ref<boolean>
+	personnelApi: PersonnelApi;
+	locationApi: ReturnType<typeof useLocationApi>;
+	toast: { success: (msg: string) => void; error: (msg: string) => void };
+	handleApiError: (err: unknown, fallbackMessage: string) => string | void | null;
+	canEdit: Ref<boolean>;
 }) => {
-	const { personnelApi, locationApi, toast, handleApiError, canEdit } = params
+	const { personnelApi, locationApi, toast, handleApiError, canEdit } = params;
 
-	const syncableLocations = ref<SyncableLocation[]>([])
-	const isLoadingSyncable = ref(false)
-	const syncWarningTypeLabel = (type: string) => SYNC_WARNING_LABELS[type] ?? type
+	const syncableLocations = ref<SyncableLocation[]>([]);
+	const isLoadingSyncable = ref(false);
+	const syncWarningTypeLabel = (type: string) => SYNC_WARNING_LABELS[type] ?? type;
 
 	// ---------- 地點對應門禁設備（顯示用） ----------
-	const syncDevicesByLocationId = reactive<Record<number, { entry: string[]; exit: string[] }>>({})
+	const syncDevicesByLocationId = reactive<Record<number, { entry: string[]; exit: string[] }>>({});
 
 	const loadLocationSyncDevicesLabels = async () => {
 		try {
-			const res = await locationApi.getPeopleCountingSyncableLocationsWithDevices()
-			const list = Array.isArray(res?.locations) ? res.locations : []
+			const res = await locationApi.getPeopleCountingSyncableLocationsWithDevices();
+			const list = Array.isArray(res?.locations) ? res.locations : [];
 			for (const loc of list) {
-				const id = Number(loc.id)
-				if (!Number.isFinite(id)) continue
+				const id = Number(loc.id);
+				if (!Number.isFinite(id)) continue;
 				const entry = Array.isArray(loc.entry_devices)
-					? loc.entry_devices.map((d) => String(d?.name || "").trim()).filter(Boolean)
-					: []
+					? loc.entry_devices.map(d => String(d?.name || "").trim()).filter(Boolean)
+					: [];
 				const exit = Array.isArray(loc.exit_devices)
-					? loc.exit_devices.map((d) => String(d?.name || "").trim()).filter(Boolean)
-					: []
-				syncDevicesByLocationId[Math.trunc(id)] = { entry, exit }
+					? loc.exit_devices.map(d => String(d?.name || "").trim()).filter(Boolean)
+					: [];
+				syncDevicesByLocationId[Math.trunc(id)] = { entry, exit };
 			}
 		} catch {
 			// fallback：忽略錯誤，顯示為「—」
 		}
-	}
+	};
 
 	const getLocationDevicesLabel = (locationId: number) => {
-		const v = syncDevicesByLocationId[locationId] || { entry: [], exit: [] }
+		const v = syncDevicesByLocationId[locationId] || { entry: [], exit: [] };
 		return {
 			entry: Array.isArray(v.entry) ? v.entry : [],
-			exit: Array.isArray(v.exit) ? v.exit : [],
-		}
-	}
+			exit: Array.isArray(v.exit) ? v.exit : []
+		};
+	};
 
 	// ---------- 同步（各地點展開：人員列 + UserInfo／圖片／卡片／指紋） ----------
-	const syncExpandedLocationIds = ref<Set<number>>(new Set())
-	const SYNC_CANDIDATES_PAGE_SIZE = 10
-	const syncCandidatesOffsetByLocation = reactive<Record<number, number>>({})
+	const syncExpandedLocationIds = ref<Set<number>>(new Set());
+	const SYNC_CANDIDATES_PAGE_SIZE = 10;
+	const syncCandidatesOffsetByLocation = reactive<Record<number, number>>({});
 
 	const isSyncLocationExpanded = (locationId: number) =>
-		syncExpandedLocationIds.value.has(locationId)
+		syncExpandedLocationIds.value.has(locationId);
 	const syncEngine = usePersonnelSyncEngine({
 		personnelApi,
 		toast,
 		handleApiError,
 		canEdit,
-		syncableLocations,
-	})
+		syncableLocations
+	});
 	const {
 		syncCandidatesByLocation,
 		isSyncCandidatesLoading,
@@ -93,350 +93,366 @@ export const usePersonnelSyncTab = (params: {
 		isLocationSyncJobRunning,
 		getSyncStepRowsForLocation,
 		syncStepPillClass,
-		syncStepShortLabel,
-	} = syncEngine
+		syncStepShortLabel
+	} = syncEngine;
 
-	const isSingleLocationSyncing = computed(() => isPollingSyncJob.value)
+	const isSingleLocationSyncing = computed(() => isPollingSyncJob.value);
 
 	// ---------- 地點成員管理（門禁名單；SSOT: person_location_access） ----------
-	const locationMembersLoading = reactive<Record<LocationId, boolean>>({})
-	const locationMembersApplying = reactive<Record<LocationId, boolean>>({})
-	const locationMembersError = reactive<Record<LocationId, string | null>>({})
-	const locationMembersSuccess = reactive<Record<LocationId, string | null>>({})
-	const locationMembersKeptIds = reactive<Record<LocationId, number[]>>({})
+	const locationMembersLoading = reactive<Record<LocationId, boolean>>({});
+	const locationMembersApplying = reactive<Record<LocationId, boolean>>({});
+	const locationMembersError = reactive<Record<LocationId, string | null>>({});
+	const locationMembersSuccess = reactive<Record<LocationId, string | null>>({});
+	const locationMembersKeptIds = reactive<Record<LocationId, number[]>>({});
 
-	const locationCandidatesLoading = reactive<Record<LocationId, boolean>>({})
-	const locationCandidatesError = reactive<Record<LocationId, string | null>>({})
-	const locationCandidatesItems = reactive<Record<LocationId, Person[]>>({})
-	const locationCandidatesQuery = reactive<Record<LocationId, string>>({})
+	const locationCandidatesLoading = reactive<Record<LocationId, boolean>>({});
+	const locationCandidatesError = reactive<Record<LocationId, string | null>>({});
+	const locationCandidatesItems = reactive<Record<LocationId, Person[]>>({});
+	const locationCandidatesQuery = reactive<Record<LocationId, string>>({});
 
-	const isLocationMembersLoading = (locationId: number) => Boolean(locationMembersLoading[locationId])
-	const isLocationMembersApplying = (locationId: number) => Boolean(locationMembersApplying[locationId])
-	const getLocationMembersError = (locationId: number) => (locationMembersError[locationId] || "").trim() || null
+	const isLocationMembersLoading = (locationId: number) =>
+		Boolean(locationMembersLoading[locationId]);
+	const isLocationMembersApplying = (locationId: number) =>
+		Boolean(locationMembersApplying[locationId]);
+	const getLocationMembersError = (locationId: number) =>
+		(locationMembersError[locationId] || "").trim() || null;
 	const getLocationMembersSuccess = (locationId: number) =>
-		(locationMembersSuccess[locationId] || "").trim() || null
+		(locationMembersSuccess[locationId] || "").trim() || null;
 
-	const getLocationMemberKeptIds = (locationId: number) => locationMembersKeptIds[locationId] ?? []
-	const getLocationMembersSelectedCount = (locationId: number) => getLocationMemberKeptIds(locationId).length
+	const getLocationMemberKeptIds = (locationId: number) => locationMembersKeptIds[locationId] ?? [];
+	const getLocationMembersSelectedCount = (locationId: number) =>
+		getLocationMemberKeptIds(locationId).length;
 	const isLocationMemberKept = (locationId: number, personId: number) =>
-		getLocationMemberKeptIds(locationId).includes(personId)
+		getLocationMemberKeptIds(locationId).includes(personId);
 
 	const clearLocationMemberKeptIds = (locationId: number) => {
-		locationMembersKeptIds[locationId] = []
-	}
+		locationMembersKeptIds[locationId] = [];
+	};
 
 	const toggleManyLocationMembers = (locationId: number, personIds: number[], checked: boolean) => {
-		const current = getLocationMemberKeptIds(locationId)
-		const set = new Set(current)
+		const current = getLocationMemberKeptIds(locationId);
+		const set = new Set(current);
 		for (const id of personIds || []) {
-			const n = Number(id)
-			if (!Number.isFinite(n)) continue
-			if (checked) set.add(Math.trunc(n))
-			else set.delete(Math.trunc(n))
+			const n = Number(id);
+			if (!Number.isFinite(n)) continue;
+			if (checked) set.add(Math.trunc(n));
+			else set.delete(Math.trunc(n));
 		}
-		locationMembersKeptIds[locationId] = Array.from(set)
-	}
+		locationMembersKeptIds[locationId] = Array.from(set);
+	};
 
 	const toggleKeepLocationMember = (locationId: number, personId: number, e: Event) => {
-		const checked = (e.target as HTMLInputElement | null)?.checked ?? false
-		const current = getLocationMemberKeptIds(locationId)
-		const set = new Set(current)
-		if (checked) set.add(personId)
-		else set.delete(personId)
-		locationMembersKeptIds[locationId] = Array.from(set)
-	}
+		const checked = (e.target as HTMLInputElement | null)?.checked ?? false;
+		const current = getLocationMemberKeptIds(locationId);
+		const set = new Set(current);
+		if (checked) set.add(personId);
+		else set.delete(personId);
+		locationMembersKeptIds[locationId] = Array.from(set);
+	};
 
-	const isLocationCandidatesLoading = (locationId: number) => Boolean(locationCandidatesLoading[locationId])
+	const isLocationCandidatesLoading = (locationId: number) =>
+		Boolean(locationCandidatesLoading[locationId]);
 	const getLocationCandidatesError = (locationId: number) =>
-		(locationCandidatesError[locationId] || "").trim() || null
-	const getLocationCandidatesItems = (locationId: number) => locationCandidatesItems[locationId] ?? []
-	const getLocationCandidatesQuery = (locationId: number) => (locationCandidatesQuery[locationId] || "").trim()
+		(locationCandidatesError[locationId] || "").trim() || null;
+	const getLocationCandidatesItems = (locationId: number) =>
+		locationCandidatesItems[locationId] ?? [];
+	const getLocationCandidatesQuery = (locationId: number) =>
+		(locationCandidatesQuery[locationId] || "").trim();
 	const setLocationCandidatesQuery = (locationId: number, next: string) => {
-		locationCandidatesQuery[locationId] = String(next || "")
-	}
+		locationCandidatesQuery[locationId] = String(next || "");
+	};
 
 	const loadLocationCandidates = async (locationId: number) => {
-		locationCandidatesError[locationId] = null
-		locationCandidatesLoading[locationId] = true
+		locationCandidatesError[locationId] = null;
+		locationCandidatesLoading[locationId] = true;
 		try {
 			const all = await fetchAllPersonnelCandidates({
 				personnelApi,
-				query: getLocationCandidatesQuery(locationId),
-			})
-			locationCandidatesItems[locationId] = Array.isArray(all) ? all : []
+				query: getLocationCandidatesQuery(locationId)
+			});
+			locationCandidatesItems[locationId] = Array.isArray(all) ? all : [];
 		} catch (err) {
-			locationCandidatesItems[locationId] = []
-			locationCandidatesError[locationId] = err instanceof Error ? err.message : "載入人員失敗"
+			locationCandidatesItems[locationId] = [];
+			locationCandidatesError[locationId] = err instanceof Error ? err.message : "載入人員失敗";
 		} finally {
-			locationCandidatesLoading[locationId] = false
+			locationCandidatesLoading[locationId] = false;
 		}
-	}
+	};
 
 	const loadAllLocationMembers = async (locationId: number) => {
-		locationMembersError[locationId] = null
-		locationMembersSuccess[locationId] = null
-		locationMembersLoading[locationId] = true
+		locationMembersError[locationId] = null;
+		locationMembersSuccess[locationId] = null;
+		locationMembersLoading[locationId] = true;
 		try {
-			const res = await personnelApi.getLocationMemberIds(locationId)
-			const ids = Array.isArray(res?.ids) ? res.ids : []
-			locationMembersKeptIds[locationId] = ids
-			locationCandidatesQuery[locationId] = locationCandidatesQuery[locationId] ?? ""
-			await loadLocationCandidates(locationId)
+			const res = await personnelApi.getLocationMemberIds(locationId);
+			const ids = Array.isArray(res?.ids) ? res.ids : [];
+			locationMembersKeptIds[locationId] = ids;
+			locationCandidatesQuery[locationId] = locationCandidatesQuery[locationId] ?? "";
+			await loadLocationCandidates(locationId);
 		} catch (err) {
-			locationMembersKeptIds[locationId] = []
-			locationMembersError[locationId] = err instanceof Error ? err.message : "載入門禁名單失敗"
+			locationMembersKeptIds[locationId] = [];
+			locationMembersError[locationId] = err instanceof Error ? err.message : "載入門禁名單失敗";
 		} finally {
-			locationMembersLoading[locationId] = false
+			locationMembersLoading[locationId] = false;
 		}
-	}
+	};
 
 	const reloadLocationMembers = async (locationId: number) => {
-		await loadAllLocationMembers(locationId)
-		await ensureSyncCandidates(locationId)
-	}
+		await loadAllLocationMembers(locationId);
+		await ensureSyncCandidates(locationId);
+	};
 
 	const applyLocationMembers = async (locationId: number) => {
-		locationMembersError[locationId] = null
-		locationMembersSuccess[locationId] = null
-		locationMembersApplying[locationId] = true
+		locationMembersError[locationId] = null;
+		locationMembersSuccess[locationId] = null;
+		locationMembersApplying[locationId] = true;
 		try {
-			const kept = getLocationMemberKeptIds(locationId)
-			const next = Array.from(new Set((kept || []).map((x) => Number(x)).filter((x) => Number.isFinite(x)))).map(
-				(x) => Math.trunc(x)
-			)
-			await personnelApi.replaceLocationMembers(locationId, next)
-			locationMembersSuccess[locationId] = "已套用變更"
-			await reloadLocationMembers(locationId)
+			const kept = getLocationMemberKeptIds(locationId);
+			const next = Array.from(
+				new Set((kept || []).map(x => Number(x)).filter(x => Number.isFinite(x)))
+			).map(x => Math.trunc(x));
+			await personnelApi.replaceLocationMembers(locationId, next);
+			locationMembersSuccess[locationId] = "已套用變更";
+			await reloadLocationMembers(locationId);
 		} catch (err) {
-			locationMembersError[locationId] = err instanceof Error ? err.message : "套用失敗"
-			handleApiError(err, "套用失敗")
+			locationMembersError[locationId] = err instanceof Error ? err.message : "套用失敗";
+			handleApiError(err, "套用失敗");
 		} finally {
-			locationMembersApplying[locationId] = false
+			locationMembersApplying[locationId] = false;
 		}
-	}
+	};
 
 	const toggleSyncLocationExpand = async (locationId: number) => {
-		const next = new Set(syncExpandedLocationIds.value)
+		const next = new Set(syncExpandedLocationIds.value);
 		if (next.has(locationId)) {
-			next.delete(locationId)
+			next.delete(locationId);
 		} else {
-			next.add(locationId)
-			await ensureSyncCandidates(locationId)
+			next.add(locationId);
+			await ensureSyncCandidates(locationId);
 		}
-		syncExpandedLocationIds.value = next
-	}
+		syncExpandedLocationIds.value = next;
+	};
 
 	const isSyncLocationCandidatesLoading = (locationId: number) =>
-		isSyncCandidatesLoading(locationId)
+		isSyncCandidatesLoading(locationId);
 
 	const getLocationSummary = (
 		locationId: number
 	): { people: string; face: string; card: string; fingerprint: string } => {
-		const loading = isSyncLocationCandidatesLoading(locationId)
-		const list = syncCandidatesByLocation[locationId]
+		const loading = isSyncLocationCandidatesLoading(locationId);
+		const list = syncCandidatesByLocation[locationId];
 		if (!Array.isArray(list)) {
-			if (loading) return { people: "…", face: "…", card: "…", fingerprint: "…" }
-			return { people: "—", face: "—", card: "—", fingerprint: "—" }
+			if (loading) return { people: "…", face: "…", card: "…", fingerprint: "…" };
+			return { people: "—", face: "—", card: "—", fingerprint: "—" };
 		}
-		const people = list.length
-		const face = list.filter((p) => p.has_face).length
-		const card = list.filter((p) => p.has_card).length
-		const fingerprint = list.filter((p) => Number(p.fingerprint_count) > 0).length
+		const people = list.length;
+		const face = list.filter(p => p.has_face).length;
+		const card = list.filter(p => p.has_card).length;
+		const fingerprint = list.filter(p => Number(p.fingerprint_count) > 0).length;
 		return {
 			people: String(people),
 			face: String(face),
 			card: String(card),
-			fingerprint: String(fingerprint),
-		}
-	}
+			fingerprint: String(fingerprint)
+		};
+	};
 
 	const getSyncOffset = (locationId: number) =>
-		Math.max(0, Math.trunc(Number(syncCandidatesOffsetByLocation[locationId] ?? 0)))
+		Math.max(0, Math.trunc(Number(syncCandidatesOffsetByLocation[locationId] ?? 0)));
 	const setSyncOffset = (locationId: number, nextOffset: number) => {
-		const total = (syncCandidatesByLocation[locationId] ?? []).length
+		const total = (syncCandidatesByLocation[locationId] ?? []).length;
 		syncCandidatesOffsetByLocation[locationId] = clampOffset({
 			offset: nextOffset,
 			total,
-			limit: SYNC_CANDIDATES_PAGE_SIZE,
-		})
-	}
+			limit: SYNC_CANDIDATES_PAGE_SIZE
+		});
+	};
 	const goPrevSyncPage = (locationId: number) => {
-		setSyncOffset(locationId, getPrevOffset({ offset: getSyncOffset(locationId), limit: SYNC_CANDIDATES_PAGE_SIZE }))
-	}
+		setSyncOffset(
+			locationId,
+			getPrevOffset({ offset: getSyncOffset(locationId), limit: SYNC_CANDIDATES_PAGE_SIZE })
+		);
+	};
 	const goNextSyncPage = (locationId: number) => {
-		const total = (syncCandidatesByLocation[locationId] ?? []).length
+		const total = (syncCandidatesByLocation[locationId] ?? []).length;
 		setSyncOffset(
 			locationId,
 			getNextOffset({ offset: getSyncOffset(locationId), total, limit: SYNC_CANDIDATES_PAGE_SIZE })
-		)
-	}
+		);
+	};
 	const getPagedSyncStepRowsForLocation = (locationId: number) => {
-		const all = getSyncStepRowsForLocation(locationId)
-		const total = all.length
-		const limit = SYNC_CANDIDATES_PAGE_SIZE
-		const offset = clampOffset({ offset: getSyncOffset(locationId), total, limit })
-		const rows = all.slice(offset, offset + limit)
-		return { rows, total, offset, limit }
-	}
+		const all = getSyncStepRowsForLocation(locationId);
+		const total = all.length;
+		const limit = SYNC_CANDIDATES_PAGE_SIZE;
+		const offset = clampOffset({ offset: getSyncOffset(locationId), total, limit });
+		const rows = all.slice(offset, offset + limit);
+		return { rows, total, offset, limit };
+	};
 
 	// syncStepShortLabel / syncStepPillClass 由 sync engine 提供
 
 	const formatAt = (v: unknown) => {
-		if (!v) return null
-		const d = v instanceof Date ? v : new Date(String(v))
-		if (Number.isNaN(d.getTime())) return null
-		const yyyy = d.getFullYear()
-		const mm = String(d.getMonth() + 1).padStart(2, "0")
-		const dd = String(d.getDate()).padStart(2, "0")
-		const hh = String(d.getHours()).padStart(2, "0")
-		const mi = String(d.getMinutes()).padStart(2, "0")
-		return `${yyyy}-${mm}-${dd} ${hh}:${mi}`
-	}
+		if (!v) return null;
+		const d = v instanceof Date ? v : new Date(String(v));
+		if (Number.isNaN(d.getTime())) return null;
+		const yyyy = d.getFullYear();
+		const mm = String(d.getMonth() + 1).padStart(2, "0");
+		const dd = String(d.getDate()).padStart(2, "0");
+		const hh = String(d.getHours()).padStart(2, "0");
+		const mi = String(d.getMinutes()).padStart(2, "0");
+		return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+	};
 
 	const aggregateCandidateLastSync = (locationId: number, employeeNo: string) => {
 		// 以本次 job 的摘要（warnings + finishedAt）為主，不依賴 sync-candidates.last_sync
 		{
-			const cached = lastCompletedSyncByLocationId[locationId]
+			const cached = lastCompletedSyncByLocationId[locationId];
 			if (cached) {
-				const at = cached.finishedAt != null ? formatAt(cached.finishedAt) : null
-				const emp = String(employeeNo)
-				const empFailed = Boolean(cached.warningsByEmployeeNo[emp])
-				return { status: cached.locationRunFailure || empFailed ? "failed" : "success", at }
+				// 避免「上一輪同步」誤套用到「此刻才出現的人員」
+				// 只有該 employeeNo 在本次 job tail items 中出現過（完成事件）才可用快取判定 success/failed
+				const emp = String(employeeNo);
+				if (!cached.processedByEmployeeNo?.[emp] && !cached.locationRunFailure) {
+					// 不在本次 job 處理範圍：回到 candidates SSOT（needs_sync / last_sync）
+				} else {
+					const at = cached.finishedAt != null ? formatAt(cached.finishedAt) : null;
+					const empFailed = Boolean(cached.warningsByEmployeeNo[emp]);
+					return { status: cached.locationRunFailure || empFailed ? "failed" : "success", at };
+				}
 			}
 		}
 
-		const locWarnings = getWarningsForLocation(locationId)
+		const locWarnings = getWarningsForLocation(locationId);
 		const locationRunFailure = locWarnings.some(
-			(w) => String(w.type || "") === "sync" && !String(w.employeeNo || "").trim()
-		)
-		const empHasWarning = locWarnings.some((w) => String(w.employeeNo || "") === String(employeeNo))
+			w => String(w.type || "") === "sync" && !String(w.employeeNo || "").trim()
+		);
+		const empHasWarning = locWarnings.some(w => String(w.employeeNo || "") === String(employeeNo));
 		// 本次 job 優先：以 warningsCount=0 作為唯一成功判準
 		{
 			const isCurrentLocationJob =
-				activeSyncLocationId.value === locationId && activeSyncJob.value?.status === "completed"
+				activeSyncLocationId.value === locationId && activeSyncJob.value?.status === "completed";
 			if (isCurrentLocationJob) {
-				const at = activeSyncJob.value?.finishedAt ? formatAt(activeSyncJob.value.finishedAt) : null
-				return { status: locationRunFailure || empHasWarning ? "failed" : "success", at }
+				const at = activeSyncJob.value?.finishedAt ? formatAt(activeSyncJob.value.finishedAt) : null;
+				return { status: locationRunFailure || empHasWarning ? "failed" : "success", at };
 			}
 		}
 
 		// fallback：僅在「已經載入」sync-candidates 時才使用（不主動觸發讀取）
 		const list = Object.prototype.hasOwnProperty.call(syncCandidatesByLocation, locationId)
 			? (syncCandidatesByLocation[locationId] ?? [])
-			: []
-		const cand = list.find((c) => String(c.employee_no) === String(employeeNo))
-		const s = cand?.last_sync
-		// 第一次載入/尚未同步：不應顯示失敗（避免誤解），改為略過
-		if (!s) return { status: "skipped", at: null }
+			: [];
+		const cand = list.find(c => String(c.employee_no) === String(employeeNo));
+		const s = cand?.last_sync;
+		// 第一次載入/尚未同步：不要直接判失敗，回到「待同步」邏輯（由外層 label 決定）
+		if (!s) return { status: "success", at: null };
 		const statuses = [
 			s.user_info?.status,
 			s.face?.status,
 			s.card?.status,
-			s.fingerprint?.status,
-		].filter(Boolean)
+			s.fingerprint?.status
+		].filter(Boolean);
 		const atCandidates = [s.user_info?.at, s.face?.at, s.card?.at, s.fingerprint?.at]
 			.map(formatAt)
-			.filter(Boolean)
-		const at = atCandidates.length ? atCandidates[0] : null
-		// 收束判斷：只需要 success / failed / skipped
+			.filter(Boolean);
+		const at = atCandidates.length ? atCandidates[0] : null;
+		// 收束判斷：只需要 success / failed（其他由 label 用 needs_sync / last_sync 顯示未變更/無資料）
 		// - failed：任一步驟 failed
-		// - success：沒有 failed 且至少 userInfo success
-		// - skipped：其他（含 never / partial / 尚未同步完整）
-		// 已同步欄位只顯示 success / failed / skipped（避免第一次就顯示失敗）
-		if (locationRunFailure) return { status: "failed", at }
-		if (empHasWarning) return { status: "failed", at }
-		if (statuses.includes("failed")) return { status: "failed", at }
-		if (s.user_info?.status === "success") return { status: "success", at }
-		return { status: "skipped", at }
-	}
+		// - success：沒有 failed
+		if (locationRunFailure) return { status: "failed", at };
+		if (empHasWarning) return { status: "failed", at };
+		if (statuses.includes("failed")) return { status: "failed", at };
+		return { status: "success", at };
+	};
 
 	const getCandidateLastSyncLabel = (locationId: number, employeeNo: string) => {
 		// 若已有 job 完成快取：完全以快取為準（避免依賴 sync-candidates）
 		if (lastCompletedSyncByLocationId[locationId]) {
-			const v = aggregateCandidateLastSync(locationId, employeeNo)
-			if (v.status === "success") return "成功"
-			if (v.status === "failed") return "失敗"
+			const v = aggregateCandidateLastSync(locationId, employeeNo);
+			if (v.status === "success") return "成功";
+			if (v.status === "failed") return "失敗";
 		}
 
 		const list = Object.prototype.hasOwnProperty.call(syncCandidatesByLocation, locationId)
 			? (syncCandidatesByLocation[locationId] ?? [])
-			: []
-		const cand = list.find((c) => String(c.employee_no) === String(employeeNo))
+			: [];
+		const cand = list.find(c => String(c.employee_no) === String(employeeNo));
 		// 設備可能被手動重置/清空；未同步前不應顯示失敗，優先顯示待同步
-		if (cand?.needs_sync) return "待同步"
-		if (!cand?.last_sync) return "待同步"
-		const v = aggregateCandidateLastSync(locationId, employeeNo)
-		if (v.status === "success") return "成功"
-		return "失敗"
-	}
+		if (cand?.needs_sync) return "待同步";
+		if (!cand?.last_sync) return "待同步";
+		const v = aggregateCandidateLastSync(locationId, employeeNo);
+		if (v.status === "failed") return "失敗";
+		// 無需同步時：用 user_info 做摘要（SSOT：人員基本資料）
+		const ui = String(cand.last_sync?.user_info?.status || "").trim();
+		if (ui === "no_data") return "無資料";
+		return "成功";
+	};
 
 	const getCandidateLastSyncTitle = (locationId: number, employeeNo: string) => {
-		const list = syncCandidatesByLocation[locationId] ?? []
-		const cand = list.find((c) => String(c.employee_no) === String(employeeNo))
-		const s = cand?.last_sync
-		if (!s) return null
+		const list = syncCandidatesByLocation[locationId] ?? [];
+		const cand = list.find(c => String(c.employee_no) === String(employeeNo));
+		const s = cand?.last_sync;
+		if (!s) return null;
 		const parts = [
 			`人員: ${s.user_info?.status || "—"}${s.user_info?.at ? ` @ ${formatAt(s.user_info.at)}` : ""}`,
 			`圖片: ${s.face?.status || "—"}${s.face?.at ? ` @ ${formatAt(s.face.at)}` : ""}`,
 			`卡片: ${s.card?.status || "—"}${s.card?.at ? ` @ ${formatAt(s.card.at)}` : ""}`,
-			`指紋: ${s.fingerprint?.status || "—"}${s.fingerprint?.at ? ` @ ${formatAt(s.fingerprint.at)}` : ""}`,
-		]
-		return parts.join("\n")
-	}
+			`指紋: ${s.fingerprint?.status || "—"}${s.fingerprint?.at ? ` @ ${formatAt(s.fingerprint.at)}` : ""}`
+		];
+		return parts.join("\n");
+	};
 
-	const isLocationCurrentlySyncing = (locationId: number) => isLocationSyncJobRunning(locationId)
+	const isLocationCurrentlySyncing = (locationId: number) => isLocationSyncJobRunning(locationId);
 
 	// ---------- 結果與警告（dialog） ----------
 
 	const isLocationSyncButtonDisabled = (locationId: number) => {
-		if (!canEdit.value) return true
-		if (isSyncingAll.value) return true
-		if (isPollingSyncJob.value && activeSyncLocationId.value === locationId) return true
+		if (!canEdit.value) return true;
+		if (isSyncingAll.value) return true;
+		if (isPollingSyncJob.value && activeSyncLocationId.value === locationId) return true;
 		if (
 			isPollingSyncJob.value &&
 			activeSyncLocationId.value !== null &&
 			activeSyncLocationId.value !== locationId
 		)
-			return true
-		return false
-	}
+			return true;
+		return false;
+	};
 
 	const allLocationsProgressText = computed(() => {
-		const j = activeSyncAllJob.value
-		if (!j?.progress) return ""
-		const t = j.progress.total ?? 0
-		const c = j.progress.completed ?? 0
-		const name = j.progress.currentLocationName
-		const id = j.progress.currentLocationId
-		if (j.status === "completed") return `已完成（共 ${c} 個地點）`
-		if (t <= 0) return "準備中…"
-		const cur = id != null && name ? `目前：${name}（#${id}）` : ""
-		return `進度 ${c} / ${t} 個地點 ${cur}`.trim()
-	})
+		const j = activeSyncAllJob.value;
+		if (!j?.progress) return "";
+		const t = j.progress.total ?? 0;
+		const c = j.progress.completed ?? 0;
+		const name = j.progress.currentLocationName;
+		const id = j.progress.currentLocationId;
+		if (j.status === "completed") return `已完成（共 ${c} 個地點）`;
+		if (t <= 0) return "準備中…";
+		const cur = id != null && name ? `目前：${name}（#${id}）` : "";
+		return `進度 ${c} / ${t} 個地點 ${cur}`.trim();
+	});
 
 	const syncOneLocationAndExpand = async (locationId: number) => {
-		const exp = new Set(syncExpandedLocationIds.value)
-		exp.add(locationId)
-		syncExpandedLocationIds.value = exp
-		await syncOneLocation(locationId)
-	}
+		const exp = new Set(syncExpandedLocationIds.value);
+		exp.add(locationId);
+		syncExpandedLocationIds.value = exp;
+		await syncOneLocation(locationId);
+	};
 
 	const loadSyncableLocations = async () => {
-		isLoadingSyncable.value = true
+		isLoadingSyncable.value = true;
 		try {
-			syncableLocations.value = await personnelApi.getSyncableLocations()
+			syncableLocations.value = await personnelApi.getSyncableLocations();
 			// 不預設全展開，避免初次載入就大量抓取 sync-candidates（效能）
-			syncExpandedLocationIds.value = new Set()
+			syncExpandedLocationIds.value = new Set();
 			// 顯示設備名稱用：後端一次回傳（避免 /api/locations/:id N 次）
-			await loadLocationSyncDevicesLabels()
+			await loadLocationSyncDevicesLabels();
 		} catch (err) {
-			handleApiError(err, "載入可同步地點失敗")
-			syncableLocations.value = []
-			syncExpandedLocationIds.value = new Set()
+			handleApiError(err, "載入可同步地點失敗");
+			syncableLocations.value = [];
+			syncExpandedLocationIds.value = new Set();
 		} finally {
-			isLoadingSyncable.value = false
+			isLoadingSyncable.value = false;
 		}
-	}
+	};
 
 	// 不再在載入地點後全量 prefetch（由使用者展開地點時再載入）
 
@@ -499,6 +515,6 @@ export const usePersonnelSyncTab = (params: {
 		setLocationCandidatesQuery,
 		loadLocationCandidates,
 		applyLocationMembers,
-		reloadLocationMembers,
-	}
-}
+		reloadLocationMembers
+	};
+};
