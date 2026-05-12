@@ -388,8 +388,7 @@ watch(
 			(newLocation.dataSource as string) === "isapi_camera" &&
 			!Array.isArray(localLocation.value.cameraDeviceIds)
 		) {
-			localLocation.value.cameraDeviceIds =
-				localLocation.value.cameraDeviceId != null ? [localLocation.value.cameraDeviceId] : [];
+			localLocation.value.cameraDeviceIds = [];
 		}
 		dataSource.value =
 			(newLocation.dataSource as "yscp" | "access_control" | "isapi_camera") || "yscp";
@@ -401,13 +400,9 @@ watch(
 );
 
 const getEffectiveCameraDeviceIds = (): number[] => {
-	if (Array.isArray(localLocation.value.cameraDeviceIds)) {
-		return localLocation.value.cameraDeviceIds;
-	}
-	if (localLocation.value.cameraDeviceId != null) {
-		return [localLocation.value.cameraDeviceId];
-	}
-	return [];
+	return Array.isArray(localLocation.value.cameraDeviceIds)
+		? localLocation.value.cameraDeviceIds
+		: [];
 };
 
 const hasSelectedCamera = computed(() => getEffectiveCameraDeviceIds().length > 0);
@@ -434,7 +429,6 @@ const handleDataSourceChange = () => {
 	if (dataSource.value === "access_control") {
 		localLocation.value.entryDoorIds = [];
 		localLocation.value.exitDoorIds = [];
-		localLocation.value.cameraDeviceId = undefined;
 		localLocation.value.cameraDeviceIds = undefined;
 		localLocation.value.preferRegion = undefined;
 		if (!Array.isArray(localLocation.value.entryDeviceIds)) localLocation.value.entryDeviceIds = [];
@@ -446,14 +440,12 @@ const handleDataSourceChange = () => {
 		localLocation.value.entryDeviceIds = [];
 		localLocation.value.exitDeviceIds = [];
 		if (!Array.isArray(localLocation.value.cameraDeviceIds)) {
-			localLocation.value.cameraDeviceIds = getEffectiveCameraDeviceIds();
+			localLocation.value.cameraDeviceIds = [];
 		}
-		localLocation.value.cameraDeviceId = localLocation.value.cameraDeviceIds[0] ?? undefined;
 		localLocation.value.preferRegion = true;
 	} else {
 		localLocation.value.entryDeviceIds = [];
 		localLocation.value.exitDeviceIds = [];
-		localLocation.value.cameraDeviceId = undefined;
 		localLocation.value.cameraDeviceIds = undefined;
 		localLocation.value.preferRegion = undefined;
 		if (!Array.isArray(localLocation.value.entryDoorIds)) localLocation.value.entryDoorIds = [];
@@ -564,7 +556,6 @@ const handleToggleCamera = (deviceId: number) => {
 	if (idx >= 0) ids.splice(idx, 1);
 	else ids.push(deviceId);
 
-	localLocation.value.cameraDeviceId = ids[0] ?? undefined;
 	handleChange();
 };
 

@@ -26,7 +26,7 @@
 						<tr class="text-white/90">
 							<th class="whitespace-nowrap border border-white/20 p-2">區域-地點</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">區間起點</th>
-							<th v-for="col in paramCols" :key="col" class="whitespace-nowrap border border-white/20 p-2">
+							<th v-for="col in allCols" :key="col" class="whitespace-nowrap border border-white/20 p-2">
 								{{ col }}
 							</th>
 						</tr>
@@ -40,10 +40,10 @@
 							<td class="border border-white/20 p-2">{{ row["區域-地點"] }}</td>
 							<td class="border border-white/20 p-2">{{ row.區間起點 }}</td>
 							<td
-								v-for="col in paramCols"
+								v-for="col in allCols"
 								:key="col"
 								class="border border-white/20 p-2"
-								:class="(row._cellClasses as Record<string, string>)?.[col]"
+								:class="(row._cellClasses as Record<string, string>)?.[col] || ''"
 							>
 								{{ row[col] }}
 							</td>
@@ -68,7 +68,7 @@
 					<tr class="text-white/90">
 						<th class="whitespace-nowrap border border-white/20 p-2">區域-地點</th>
 						<th class="whitespace-nowrap border border-white/20 p-2">記錄時間</th>
-						<th v-for="col in paramCols" :key="col" class="whitespace-nowrap border border-white/20 p-2">
+						<th v-for="col in allCols" :key="col" class="whitespace-nowrap border border-white/20 p-2">
 							{{ col }}
 						</th>
 					</tr>
@@ -82,10 +82,10 @@
 						<td class="border border-white/20 p-2">{{ row["區域-地點"] }}</td>
 						<td class="border border-white/20 p-2">{{ row.記錄時間 }}</td>
 						<td
-							v-for="col in paramCols"
+							v-for="col in allCols"
 							:key="col"
 							class="border border-white/20 p-2"
-							:class="(row._cellClasses as Record<string, string>)?.[col]"
+							:class="(row._cellClasses as Record<string, string>)?.[col] || ''"
 						>
 							{{ row[col] }}
 						</td>
@@ -115,13 +115,16 @@ const paramCols = [
 	"溫度"
 ] as const;
 
+const derivedCols = ["AQI", "體感溫度"] as const;
+const allCols = [...paramCols, ...derivedCols] as const;
+
 type EnvTableRow = {
 	key: string;
 	"區域-地點": string;
 	區間起點?: string;
 	記錄時間?: string;
 	_cellClasses?: Record<string, string>;
-} & Record<(typeof paramCols)[number], string>;
+} & Record<(typeof allCols)[number], string>;
 
 const props = defineProps<{
 	summaryReadings: SensorReading[];
@@ -179,6 +182,8 @@ const PARAM_KEYS = [
 	"temperature"
 ] as const;
 
+const DERIVED_KEYS = ["aqi", "heatIndex"] as const;
+
 /**
  * 依時間區間合併多筆讀數（同一區間內多設備的資料合併為一筆，同一參數取平均）
  * @param bucketMinutes 區間分鐘數。詳細資料建議 5（與後端寫入週期一致），同一地點多設備會整合在同一列
@@ -201,6 +206,12 @@ function mergeReadingsByTime(
 	for (const [timeMs, list] of groups) {
 		const data: SensorReading["data"] = {};
 		for (const key of PARAM_KEYS) {
+			const values = list
+				.map(r => r.data?.[key])
+				.filter((v): v is number => v != null && typeof v === "number" && !Number.isNaN(v));
+			if (values.length > 0) data[key] = values.reduce((a, b) => a + b, 0) / values.length;
+		}
+		for (const key of DERIVED_KEYS) {
 			const values = list
 				.map(r => r.data?.[key])
 				.filter((v): v is number => v != null && typeof v === "number" && !Number.isNaN(v));
@@ -250,6 +261,15 @@ const paramTypeMap: Record<(typeof paramCols)[number], SensorParameterType> = {
 	溫度: "temperature"
 };
 
+const formatDerivedValue = (
+	key: (typeof DERIVED_KEYS)[number],
+	value: number | null | undefined
+): string => {
+	if (value == null || typeof value !== "number" || Number.isNaN(value)) return "";
+	if (key === "aqi") return String(Math.round(value));
+	return String(Math.round(value * 10) / 10);
+};
+
 function readingToRow(
 	r: { timestamp: string; data: SensorReading["data"] },
 	index: number,
@@ -270,7 +290,9 @@ function readingToRow(
 		風速: formatValue("wind", d.wind),
 		噪音值: formatValue("noise", d.noise),
 		濕度: formatValue("humidity", d.humidity),
-		溫度: formatValue("temperature", d.temperature)
+		溫度: formatValue("temperature", d.temperature),
+		AQI: formatDerivedValue("aqi", d.aqi),
+		體感溫度: formatDerivedValue("heatIndex", d.heatIndex)
 	};
 	if (props.getCellClass) {
 		row._cellClasses = {};
@@ -289,8 +311,8 @@ const detailTableRows = computed(() =>
 	mergedDetailReadings.value.map((r, i) => readingToRow(r, i, "記錄時間"))
 );
 
-const CSV_HEADERS_SUMMARY = ["區域-地點", "區間起點", ...paramCols];
-const CSV_HEADERS_DETAIL = ["區域-地點", "記錄時間", ...paramCols];
+const CSV_HEADERS_SUMMARY = ["區域-地點", "區間起點", ...allCols];
+const CSV_HEADERS_DETAIL = ["區域-地點", "記錄時間", ...allCols];
 
 const handleExportCsv = () => {
 	const dateStr = props.timeRange.startDate.slice(0, 10);

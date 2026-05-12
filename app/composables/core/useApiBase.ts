@@ -1,6 +1,13 @@
 import { useRequestFetch } from "#app";
 import { useAuth } from "~/composables/core/useAuth";
-import { ApiRequestError, isDeviceApiRequest, isDeviceConnectionError } from "~/utils/errorUtils";
+import {
+	ApiRequestError,
+	extractBackendApiErrorText,
+	isDeviceApiRequest,
+	isDeviceConnectionError,
+	resolveFetchHttpStatus,
+	USER_FACING_EXTERNAL_DB_ERROR
+} from "~/utils/errorUtils";
 
 // GET 同 URL 同時間去重（避免多個元件/多個 watch 同步觸發造成 burst）
 const inFlightGetRequests = new Map<string, Promise<unknown>>();
@@ -130,13 +137,8 @@ export const useApiBase = () => {
 			return response as T;
 		} catch (error: any) {
 			// 先提取後端返回的錯誤訊息和狀態碼（優先處理 HTTP 狀態碼）
-			const backendErrorMsg =
-				error?.data?.error?.message ||
-				error?.data?.message ||
-				error?.data?.details ||
-				error?.message ||
-				"";
-			const statusCode = error?.statusCode || error?.status;
+			const backendErrorMsg = extractBackendApiErrorText(error);
+			const statusCode = resolveFetchHttpStatus(error);
 
 			// 如果有 HTTP 狀態碼，優先處理狀態碼錯誤（而不是網路錯誤）
 			// 這樣可以正確處理 503 等服務錯誤，而不是誤判為後端連接錯誤
@@ -189,8 +191,13 @@ export const useApiBase = () => {
 					});
 				}
 
+				const isExternalDataQuery = path.includes("/external-data/");
+
 				if (statusCode === 500) {
-					throw new ApiRequestError(`伺服器錯誤 (500): ${backendErrorMsg || "Internal Server Error"}`, {
+					const userMessage = isExternalDataQuery
+						? USER_FACING_EXTERNAL_DB_ERROR
+						: `伺服器錯誤 (500): ${backendErrorMsg || "Internal Server Error"}`;
+					throw new ApiRequestError(userMessage, {
 						statusCode,
 						code: "HTTP_500",
 						originalMessage: backendErrorMsg
@@ -198,9 +205,10 @@ export const useApiBase = () => {
 				}
 
 				if (statusCode === 503) {
-					// 503 Service Unavailable - 通常表示設備離線或服務暫時不可用
-					// 使用後端返回的詳細錯誤訊息（如 "連接超時: 無法在 5000ms 內連接到..."）
-					throw new ApiRequestError(backendErrorMsg || "設備離線或服務暫時不可用", {
+					const userMessage = isExternalDataQuery
+						? USER_FACING_EXTERNAL_DB_ERROR
+						: backendErrorMsg || "設備離線或服務暫時不可用";
+					throw new ApiRequestError(userMessage, {
 						statusCode,
 						code: "HTTP_503",
 						originalMessage: backendErrorMsg

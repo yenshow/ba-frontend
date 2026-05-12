@@ -31,12 +31,14 @@ export type BackendLocation = {
 			// environment 系統配置
 			deviceId?: number;
 			parameters?: Array<{ type: string; enabled: boolean }>;
-			// people_counting 系統配置
+			// people_counting 系統配置（與後端 formatSystem 對齊）
+			dataSource?: string;
 			personGroupIds?: number[];
 			entryDoorIds?: number[];
 			exitDoorIds?: number[];
 			entryDeviceIds?: number[];
 			exitDeviceIds?: number[];
+			cameraDeviceIds?: number[];
 		};
 	}>;
 };
@@ -88,7 +90,6 @@ function isPeopleCountingSystemConfig(config: unknown): config is PeopleCounting
 	const c = config as Record<string, unknown>;
 	if ("personGroupIds" in c && Array.isArray(c.personGroupIds)) return true;
 	if (c.dataSource === "isapi_camera" || c.dataSource === "access_control") return true;
-	if (typeof c.cameraDeviceId === "number" && Number.isFinite(c.cameraDeviceId)) return true;
 	if ("cameraDeviceIds" in c && Array.isArray((c as { cameraDeviceIds?: unknown }).cameraDeviceIds))
 		return true;
 	if ("entryDoorIds" in c || "exitDoorIds" in c) return true;
@@ -238,12 +239,7 @@ export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZo
 					dataSource: config.dataSource ?? "yscp",
 					entryDeviceIds: Array.isArray(config.entryDeviceIds) ? config.entryDeviceIds : [],
 					exitDeviceIds: Array.isArray(config.exitDeviceIds) ? config.exitDeviceIds : [],
-					cameraDeviceId: config.cameraDeviceId ?? undefined,
-					cameraDeviceIds: Array.isArray(config.cameraDeviceIds)
-						? config.cameraDeviceIds
-						: config.cameraDeviceId != null
-							? [config.cameraDeviceId]
-							: undefined,
+					cameraDeviceIds: Array.isArray(config.cameraDeviceIds) ? config.cameraDeviceIds : undefined,
 					preferRegion: config.preferRegion ?? undefined,
 					accessControlGroups: config.accessControlGroups || []
 				} as PeopleCountingLocation
@@ -442,9 +438,7 @@ export function peopleCountingLocationToUnified(
 		? (loc as PeopleCountingLocation).cameraDeviceIds!.filter(
 				id => typeof id === "number" && Number.isFinite(id) && id > 0
 			)
-		: loc.cameraDeviceId != null
-			? [loc.cameraDeviceId]
-			: [];
+		: [];
 	return {
 		...(hasId && { id: loc.id! }),
 		name: loc.name,
@@ -459,7 +453,6 @@ export function peopleCountingLocationToUnified(
 					dataSource: loc.dataSource ?? "yscp",
 					entryDeviceIds: loc.entryDeviceIds || [],
 					exitDeviceIds: loc.exitDeviceIds || [],
-					cameraDeviceId: cameraDeviceIds[0] ?? undefined,
 					cameraDeviceIds: cameraDeviceIds.length ? cameraDeviceIds : undefined,
 					preferRegion: loc.dataSource === "isapi_camera" ? true : (loc.preferRegion ?? false),
 					accessControlGroups: loc.accessControlGroups ?? []

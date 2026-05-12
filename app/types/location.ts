@@ -39,7 +39,7 @@ export interface EnvironmentSystemConfig {
 
 /**
  * 人流統計系統配置
- * dataSource 為 access_control 時使用 entryDeviceId / exitDeviceId；yscp 時使用 entryDoorId / exitDoorId；isapi_camera 時使用 cameraDeviceId 等。
+ * dataSource 為 access_control 時使用 entryDeviceIds / exitDeviceIds；yscp 時使用 entryDoorIds / exitDoorIds；isapi_camera 時使用 cameraDeviceIds。
  */
 export interface PeopleCountingSystemConfig {
 	personGroupIds?: number[];
@@ -50,13 +50,7 @@ export interface PeopleCountingSystemConfig {
 	/** 本系統門禁設備 ID（devices.id），dataSource 為 access_control 時使用 */
 	entryDeviceIds?: number[];
 	exitDeviceIds?: number[];
-	/**
-	 * ISAPI PeopleCounting 攝影機（devices.id）單值（相容欄位）
-	 * - **僅作 fallback**：舊資料/舊前端可能只存此欄位
-	 * - 新版請以 cameraDeviceIds 為準
-	 */
-	cameraDeviceId?: number;
-	/** ISAPI PeopleCounting 攝影機（devices.id）列表（複選）；**主要欄位** */
+	/** ISAPI PeopleCounting 攝影機（devices.id）列表 */
 	cameraDeviceIds?: number[];
 	preferRegion?: boolean;
 	/** 門禁人員群組（name + employeeNos），成員限為出入口皆有之人員 */

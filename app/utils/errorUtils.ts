@@ -61,6 +61,67 @@ export class ApiRequestError extends Error {
 	}
 }
 
+/** 外部資料庫查詢失敗時對使用者顯示的固定文案（與後端 errorHandler 對齊） */
+export const USER_FACING_EXTERNAL_DB_ERROR = "資料庫查詢錯誤" as const;
+
+/** 從 ofetch 預設字串列（含 URL）解析 500／503，例如 `[GET] "…/external-data/…" : 503 …` */
+const parseExternalDataHttpStatusFromMessage = (message: string): number | undefined => {
+	const m = String(message || "");
+	if (!m.includes("external-data")) return undefined;
+	const g = m.match(/:\s*(\d{3})\b/);
+	if (!g) return undefined;
+	const code = parseInt(g[1], 10);
+	return code === 500 || code === 503 ? code : undefined;
+};
+
+const coerceHttpStatusCode = (error: unknown): number | undefined => {
+	const e = error as any;
+	const raw = e?.statusCode ?? e?.status ?? e?.response?.status;
+	if (raw === undefined || raw === null || raw === "") return undefined;
+	const n = typeof raw === "string" ? parseInt(raw, 10) : Number(raw);
+	return Number.isFinite(n) ? n : undefined;
+};
+
+/** 合併 error 上的 status 與 ofetch 訊息列（供 useApiBase、嚴重度） */
+export const resolveFetchHttpStatus = (error: unknown): number | undefined =>
+	coerceHttpStatusCode(error) ??
+	parseExternalDataHttpStatusFromMessage(String((error as any)?.message ?? ""));
+
+export const extractBackendApiErrorText = (error: unknown): string => {
+	const e = error as any;
+	const data = e?.data ?? e?.response?._data ?? e?.response?.data;
+	if (typeof data === "string") {
+		try {
+			const parsed = JSON.parse(data) as Record<string, unknown>;
+			if (parsed && typeof parsed === "object") {
+				const errObj = parsed.error as Record<string, unknown> | undefined;
+				return String(
+					(typeof errObj?.message === "string" && errObj.message) ||
+						(typeof parsed.message === "string" && parsed.message) ||
+						(typeof parsed.details === "string" && parsed.details) ||
+						""
+				);
+			}
+		} catch {
+			return data;
+		}
+	}
+	if (data && typeof data === "object") {
+		const errObj = (data as any).error;
+		return String(errObj?.message ?? (data as any).message ?? (data as any).details ?? "");
+	}
+	return String(e?.message ?? "");
+};
+
+/** Toast 最後防線：長 URL、表名、技術句改為固定分類 */
+export const simplifyUserFacingToastMessage = (msg: string): string => {
+	const s = String(msg || "").trim();
+	if (!s) return s;
+	if (parseExternalDataHttpStatusFromMessage(s) !== undefined) return USER_FACING_EXTERNAL_DB_ERROR;
+	if (/查詢\s+[\w.]+\s+/.test(s) && /失敗\s*:/.test(s)) return USER_FACING_EXTERNAL_DB_ERROR;
+	return s;
+};
+
 export const severityToToastType = (
 	severity: AppSeverity
 ): { type: "error" | "warning" | "info"; duration: number } => {
@@ -71,12 +132,7 @@ export const severityToToastType = (
 
 export const inferSeverityFromApiError = (error: unknown): AppSeverity => {
 	const e = error as any;
-	const statusCode: number | undefined =
-		typeof e?.statusCode === "number"
-			? e.statusCode
-			: typeof e?.status === "number"
-				? e.status
-				: undefined;
+	const statusCode = resolveFetchHttpStatus(error);
 
 	if (statusCode === 400) return "warning";
 	if (statusCode === 401 || statusCode === 403 || statusCode === 404) return "error";
@@ -104,6 +160,7 @@ export const inferSeverityFromApiError = (error: unknown): AppSeverity => {
 	if (message.includes("cors") || message.includes("cross-origin")) return "error";
 	return "warning";
 };
+
 /**
  * 檢查是否為設備連接錯誤
  * @param errorMessage - 錯誤訊息
