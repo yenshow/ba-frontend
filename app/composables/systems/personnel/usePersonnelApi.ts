@@ -341,7 +341,7 @@ export const usePersonnelApi = (): PersonnelApi => {
 			}),
 
 		downloadImportTemplate: async () => {
-			const apiBase = (config.public.apiBase as string) || "http://localhost:4000/api"
+			const apiBase = (config.public.apiBase as string) || "/api"
 			const url = `${apiBase}${PERSONNEL_PREFIX}/import-template`
 			const cookie = useCookie<string | null>("auth_token")
 			const token = cookie.value

@@ -11,7 +11,7 @@ export const useAuth = () => {
 	// - https://backend.yenshow.com (Cloudflare tunnel) → secure: true
 	// - http://192.168.2.8:4000 (本地) → secure: false（HTTP 無法設置 secure cookie）
 	// 可透過 NUXT_PUBLIC_SECURE_COOKIE 強制覆寫（true/false）
-	const apiBase = config.public.apiBase || "http://localhost:4000/api";
+	const apiBase = config.public.apiBase || "/api";
 	const secureOverride = (config.public as { secureCookie?: string }).secureCookie;
 	const isSecure =
 		secureOverride !== undefined && secureOverride !== ""

@@ -19,11 +19,12 @@ const globalEventListeners = new Map<string, Set<Function>>();
 
 export const useWebSocket = () => {
 	const config = useRuntimeConfig();
-	const apiBase = config.public.apiBase || "http://localhost:4000/api";
+	const apiBase = config.public.apiBase || "/api";
 	const tokenCookie = useCookie<string | null>("auth_token");
 
 	// 從 API Base 推導 WebSocket URL（移除 /api 後綴）
-	const websocketUrl = String(config.public.websocketUrl || apiBase.replace("/api", ""));
+	const apiOrigin = apiBase.startsWith("http") ? apiBase : (process.client ? window.location.origin : "");
+	const websocketUrl = String(config.public.websocketUrl || apiOrigin);
 
 	// 使用全局狀態（單例模式）
 	const status = globalStatus;
