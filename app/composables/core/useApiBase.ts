@@ -26,7 +26,7 @@ export const useApiBase = () => {
 	const fetcher = useRequestFetch()
 
 	// 使用環境變數配置的 API base URL
-	const apiBase = config.public.apiBase || "http://localhost:4000/api"
+	const apiBase = config.public.apiBase || "/api"
 
 	// 取得認證 headers
 	// 注意：此函數可能在非 Vue 上下文中調用（如定時器回調），

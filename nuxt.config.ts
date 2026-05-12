@@ -62,9 +62,18 @@ export default defineNuxtConfig({
 
 	runtimeConfig: {
 		public: {
-			apiBase: process.env.NUXT_PUBLIC_API_BASE || "http://192.168.2.8:4000/api",
+			// 同機部署：前端一律打同源 /api，由 Nitro 反向代理到後端
+			apiBase: process.env.NUXT_PUBLIC_API_BASE || "/api",
 			secureCookie: undefined,
 			licenseOpenAllFeatures: process.env.NUXT_PUBLIC_LICENSE_OPEN_ALL_FEATURES === "true",
+		},
+	},
+
+	nitro: {
+		routeRules: {
+			"/api/**": {
+				proxy: process.env.NUXT_API_PROXY_TARGET || "http://127.0.0.1:4000/api/**",
+			},
 		},
 	},
 })
