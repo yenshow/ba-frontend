@@ -25,9 +25,7 @@ export interface PeopleCountingLocation {
 	/** 本系統門禁設備 IDs（dataSource 為 access_control 時使用） */
 	entryDeviceIds?: number[];
 	exitDeviceIds?: number[];
-	/** 攝影機設備 ID（dataSource 為 isapi_camera 時使用） */
-	cameraDeviceId?: number;
-	/** 攝影機設備 ID 列表（dataSource 為 isapi_camera 時使用；複選） */
+	/** 攝影機設備 IDs（dataSource 為 isapi_camera 時使用） */
 	cameraDeviceIds?: number[];
 	/** 優先使用 RegionList 當作進場單位（true=依區域/單位統計與顯示） */
 	preferRegion?: boolean;

@@ -14,8 +14,8 @@ import {
 	hasLocationControllerConfig,
 	needsModbusConnection,
 } from "~/utils/modbusPoints"
-import { findLocationInZonesByUiKey, getLocationUiKey } from "~/utils/locationUiId"
-import { normalizeSystemUiStatus, type SystemUiStatus } from "~/utils/monitoringStatus"
+import { findLocationInZonesByUiKey, getLocationUiKey, getZoneUiKey } from "~/utils/locationUiId"
+import type { SystemUiStatus } from "~/utils/monitoringStatus"
 
 const TOGGLE_DEBOUNCE_DELAY = 300
 const TOGGLE_ROUNDTRIP_DELAY_MS = 450
@@ -90,6 +90,14 @@ export const useLightingModbusIntegration = (
 		return locationStatuses.value[locationId]
 	}
 
+	/** 與 useHvacModbusIntegration 一致：後端 offline/unknown 等均視為 warning；alarm 對外併入 warning */
+	const mapBackendSnapshotUiStatus = (ui: unknown): SystemUiStatus => {
+		const s = String(ui || "").toLowerCase()
+		if (s === "normal") return "normal"
+		if (s === "alarm") return "warning"
+		return "warning"
+	}
+
 	const extractDeviceConfig = (
 		device: Device
 	): { host: string; port: number; unitId: number } | null => {
@@ -130,8 +138,9 @@ export const useLightingModbusIntegration = (
 		const deviceIds = new Set<number>()
 		lightingZones.value.forEach((zone) => {
 			zone.locations.forEach((location) => {
-				if (location.modbus?.deviceId) {
-					deviceIds.add(location.modbus.deviceId)
+				const devId = location.deviceId ?? location.modbus?.deviceId
+				if (typeof devId === "number" && Number.isFinite(devId)) {
+					deviceIds.add(devId)
 				}
 			})
 		})
@@ -170,13 +179,12 @@ export const useLightingModbusIntegration = (
 
 	const getActiveZoneIdsForSnapshot = (options?: { loadAllZones?: boolean }) => {
 		if (options?.loadAllZones) return []
+		const sel = String(selectedZone.value ?? "").trim()
+		if (!sel) return []
 		return lightingZones.value
-			.filter((zone) => {
-				const zoneKey = zone.id || zone.name
-				return zoneKey === selectedZone.value
-			})
+			.filter((zone) => getZoneUiKey(zone) === sel)
 			.map((zone) => zone.id)
-			.filter((id): id is string => Boolean(id))
+			.filter((id): id is string => id != null && String(id).trim() !== "")
 			.map((id) => Number(id))
 			.filter((id) => Number.isFinite(id))
 	}
@@ -195,16 +203,18 @@ export const useLightingModbusIntegration = (
 					? statusBySystemId.get(String(location.systemId))
 					: undefined
 				const status = ensureLocationStatus(locationId, "warning")
-				const normalizedUiStatus = normalizeSystemUiStatus(snapshot?.uiStatus)
 				if (!snapshot) {
 					status.status = "warning"
 					return
 				}
 
+				// 連線／警報層級永遠跟後端快照（與空調一致）；勿在 toggle hold 期間卡住而一直顯示異常
+				status.status = mapBackendSnapshotUiStatus(snapshot.uiStatus)
+
 				const holdUntil = snapshotHoldUntilByLocationId.value[locationId] ?? 0
 				const nextIsRunning = snapshot.raw?.isOn === true
 				if (holdUntil > now) {
-					// 若快照仍與目前狀態相反，先不覆寫（避免 UI 跳回）
+					// 若快照仍與目前開關狀態相反，只延後 isRunning 同步（避免 UI 跳回），健康狀態已於上列更新
 					if (status.isRunning !== nextIsRunning) {
 						return
 					}
@@ -216,8 +226,6 @@ export const useLightingModbusIntegration = (
 				}
 
 				status.isRunning = nextIsRunning
-				status.status =
-					snapshot.error && normalizedUiStatus === "normal" ? "warning" : normalizedUiStatus
 			})
 		})
 	}
@@ -272,10 +280,18 @@ export const useLightingModbusIntegration = (
 				const locationId = getLocationUiKey({ zone, location, locationIndex })
 				const hasController = hasLocationControllerConfig(location)
 				const existingStatus = locationStatuses.value[locationId]
-				locationStatuses.value[locationId] = {
+				const nextStatus: LightingLocationStatus = {
 					isRunning: hasController ? (existingStatus?.isRunning ?? false) : false,
 					status: hasController ? (existingStatus?.status ?? "normal") : "warning",
 				}
+				if (
+					existingStatus &&
+					existingStatus.isRunning === nextStatus.isRunning &&
+					existingStatus.status === nextStatus.status
+				) {
+					return
+				}
+				locationStatuses.value[locationId] = nextStatus
 			})
 		})
 	}
@@ -408,14 +424,29 @@ export const useLightingModbusIntegration = (
 		}
 	}
 
+	const zonesSignature = computed(() => {
+		return lightingZones.value
+			.map((zone) => {
+				const zoneKey = zone.id || zone.name
+				const locationKeys = (zone.locations || [])
+					.map((location, locationIndex) => {
+						const k = getLocationUiKey({ zone, location, locationIndex })
+						const sid = location.systemId ?? ""
+						return `${k}@${sid}`
+					})
+					.join("|")
+				return `${zoneKey}:${locationKeys}`
+			})
+			.join(";;")
+	})
+
 	watch(
-		() => lightingZones.value,
+		() => zonesSignature.value,
 		async () => {
 			initializeLocationStatuses()
 			await preloadDeviceInfos()
 			void loadAllLocationStatuses({ silent: true, loadAllZones: true })
-		},
-		{ deep: true }
+		}
 	)
 
 	return {

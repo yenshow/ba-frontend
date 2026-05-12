@@ -114,13 +114,11 @@ export function usePeopleCountingLocationValidation() {
 			const cameraDeviceIds = Array.isArray(location.cameraDeviceIds)
 				? location.cameraDeviceIds.filter((id) => typeof id === "number" && id > 0 && Number.isInteger(id))
 				: []
-			const fallbackSingle = location.cameraDeviceId != null ? [location.cameraDeviceId] : []
-			const effectiveIds = cameraDeviceIds.length ? cameraDeviceIds : fallbackSingle
 
-			if (effectiveIds.length === 0) {
+			if (cameraDeviceIds.length === 0) {
 				errors.push("請選擇攝影機設備（ISAPI PeopleCounting）")
 			} else {
-				for (const id of effectiveIds) {
+				for (const id of cameraDeviceIds) {
 					const cameraDeviceError = validateDoorId(id, "攝影機設備 ID")
 					if (cameraDeviceError) errors.push(cameraDeviceError)
 				}

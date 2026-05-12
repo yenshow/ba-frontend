@@ -77,6 +77,10 @@ export interface SensorReading {
 		co2?: number | null;
 		noise?: number | null;
 		wind?: number | null;
+		/** derived：由後端在寫 raw 時落地；彙總/備份會跟著 data 流 */
+		aqi?: number | null;
+		/** derived：攝氏體感溫度（Heat Index） */
+		heatIndex?: number | null;
 	};
 }
 
