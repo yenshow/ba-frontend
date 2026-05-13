@@ -359,6 +359,7 @@ import type {
 	ModbusRegisterType
 } from "~/types/device";
 import type { SensorParameterType } from "~/types/environment";
+import { resolveUserFacingCatchMessage } from "~/utils/errorUtils";
 
 interface Props {
 	modelValue: boolean;
@@ -486,13 +487,13 @@ const handleError = (
 	defaultMsg: string,
 	target: "errorMessage" | "formErrorMessage" = "errorMessage"
 ) => {
-	const errorMsg = error instanceof Error ? error.message : defaultMsg;
+	const safeMsg = resolveUserFacingCatchMessage(error, defaultMsg);
 	if (target === "errorMessage") {
-		errorMessage.value = errorMsg;
+		errorMessage.value = safeMsg;
 	} else {
-		formErrorMessage.value = errorMsg;
+		formErrorMessage.value = safeMsg;
 	}
-	toast.error(errorMsg);
+	toast.error(safeMsg);
 };
 
 const loadDeviceModels = async (force = false) => {

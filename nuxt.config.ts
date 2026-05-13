@@ -64,6 +64,9 @@ export default defineNuxtConfig({
 		public: {
 			// 同機部署：前端一律打同源 /api，由 Nitro 反向代理到後端
 			apiBase: process.env.NUXT_PUBLIC_API_BASE || "/api",
+			// 相對 apiBase 時 Socket.IO 直連後端（未設則用「頁面 hostname + 下列 port」）
+			websocketUrl: process.env.NUXT_PUBLIC_WEBSOCKET_URL || "",
+			backendHttpPort: Number(process.env.NUXT_PUBLIC_BACKEND_HTTP_PORT || 4000) || 4000,
 			secureCookie: undefined,
 			licenseOpenAllFeatures: process.env.NUXT_PUBLIC_LICENSE_OPEN_ALL_FEATURES === "true",
 		},

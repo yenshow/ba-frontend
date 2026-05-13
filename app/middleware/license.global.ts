@@ -8,6 +8,16 @@ import { useToast } from "~/composables/core/useToast"
 export default defineNuxtRouteMiddleware(async (to) => {
 	if (to.path === "/login") return
 
+	// 環境設定：不在 module registry，必須僅 admin 可進入（與後端 requireAdmin 對齊）
+	if (to.path === "/core/env") {
+		const { isAdmin } = useAuth()
+		if (!isAdmin.value) {
+			if (process.client) useToast().warning("僅管理員（admin）可存取環境設定")
+			return navigateTo("/")
+		}
+		return
+	}
+
 	// 優先使用後端 module registry（SSOT），若尚未可用則 fallback 到本地 mapping
 	const moduleRegistry = useModuleRegistry()
 	await moduleRegistry.ensureLoaded()

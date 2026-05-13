@@ -17,6 +17,10 @@ const resolveBackendAssetUrl = (raw: string, apiBase: string): string => {
 	const base = String(apiBase || "").trim()
 	// apiBase 通常是 http://host:4000/api → assetBase = http://host:4000
 	const assetBase = base.endsWith("/api") ? base.slice(0, -4) : base
+	// apiBase 為相對 /api 時：走 Nitro 已代理的 /api/uploads
+	if (!assetBase || assetBase === "/") {
+		return `/api${v}`
+	}
 	return `${assetBase}${v}`
 }
 

@@ -17,14 +17,37 @@ let globalStatus = ref<WebSocketStatus>("disconnected");
 let globalConnectionError = ref<string | null>(null);
 const globalEventListeners = new Map<string, Set<Function>>();
 
+const stripTrailingApi = (u: string) => u.replace(/\/api\/?$/, "");
+
 export const useWebSocket = () => {
 	const config = useRuntimeConfig();
-	const apiBase = config.public.apiBase || "/api";
 	const tokenCookie = useCookie<string | null>("auth_token");
 
-	// 從 API Base 推導 WebSocket URL（移除 /api 後綴）
-	const apiOrigin = apiBase.startsWith("http") ? apiBase : (process.client ? window.location.origin : "");
-	const websocketUrl = String(config.public.websocketUrl || apiOrigin);
+	/** 相對 /api 時不可連頁面 origin（Nuxt 無 Socket.IO）；需直連後端或設 NUXT_PUBLIC_WEBSOCKET_URL */
+	const resolveWebsocketConnectUrl = (): string => {
+		const explicit = String(config.public.websocketUrl || "").trim();
+		if (explicit) {
+			return explicit;
+		}
+
+		const apiBase = String(config.public.apiBase || "/api");
+		if (apiBase.startsWith("http")) {
+			try {
+				return new URL(stripTrailingApi(apiBase)).origin;
+			} catch {
+				return stripTrailingApi(apiBase);
+			}
+		}
+
+		if (process.client) {
+			const port = Number(config.public.backendHttpPort) || 4000;
+			return `${window.location.protocol}//${window.location.hostname}:${port}`;
+		}
+
+		return "";
+	};
+
+	const websocketUrl = computed(() => resolveWebsocketConnectUrl());
 
 	// 使用全局狀態（單例模式）
 	const status = globalStatus;
@@ -60,8 +83,15 @@ export const useWebSocket = () => {
 		connectionError.value = null;
 
 		try {
+			const url = resolveWebsocketConnectUrl();
+			if (!url) {
+				status.value = "error";
+				connectionError.value = "無法解析 WebSocket 位址";
+				wsLogger.error("無法解析 WebSocket 位址（SSR 或未設定）");
+				return;
+			}
 			// 創建新的 Socket 實例並保存到全局變數（單例模式）
-			globalSocket = io(websocketUrl, {
+			globalSocket = io(url, {
 				transports: ["websocket"],
 				auth: {
 					// 後端用於 WS 連線後的 permission rooms join（不依賴 license）
@@ -209,7 +239,7 @@ export const useWebSocket = () => {
 		isConnected: readonly(isConnected),
 		isConnecting: readonly(isConnecting),
 		connectionError: readonly(connectionError),
-		websocketUrl,
+		websocketUrl: readonly(websocketUrl),
 
 		// 連接管理
 		connect,
