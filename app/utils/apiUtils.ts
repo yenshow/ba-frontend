@@ -15,7 +15,11 @@ export const resolveUploadUrl = (src: string, apiBase: string): string => {
 	const trimmed = src?.trim() ?? "";
 	if (!trimmed) return "";
 	if (trimmed.startsWith("/uploads/")) {
-		const base = apiBase.replace(/\/api\/?$/, "");
+		const base = apiBase.replace(/\/api\/?$/, "").trim();
+		// apiBase 為相對 /api 時：走 Nitro 已代理的 /api/uploads（後端與 /uploads 同源靜態）
+		if (!base) {
+			return `/api${trimmed}`;
+		}
 		return `${base}${trimmed}`;
 	}
 	return trimmed;

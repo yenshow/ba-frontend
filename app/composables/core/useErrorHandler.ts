@@ -93,24 +93,23 @@ export const useErrorHandler = () => {
 	 * 這裡避免再重複 Toast 造成干擾。
 	 */
 	const shouldSilenceOperationalError = (error: unknown, errorMsg: string): boolean => {
-		const msg = String(errorMsg || "").toLowerCase();
+		const e = error as { originalMessage?: string; message?: string };
+		const haystack = [errorMsg, String(e?.originalMessage ?? ""), String(e?.message ?? "")]
+			.join("\n")
+			.toLowerCase();
 		const isSnapshotPolling =
-			msg.includes("/status") || msg.includes("/readings") || msg.includes("/aggregated");
+			haystack.includes("/status") ||
+			haystack.includes("/readings") ||
+			haystack.includes("/aggregated");
 		if (!isSnapshotPolling) return false;
 
-		const hasNoResponseTimeout =
-			msg.includes("<no response>") ||
-			msg.includes("timeouterror") ||
-			msg.includes("timed out") ||
-			msg.includes("timeout") ||
-			msg.includes("請求超時");
-		if (!hasNoResponseTimeout) return false;
-
-		const code = String((error as any)?.code || "");
-		const errorName = String((error as any)?.name || "").toLowerCase();
-		if (code === "TIMEOUT" || errorName === "timeouterror") return true;
-
-		return true;
+		return (
+			haystack.includes("<no response>") ||
+			haystack.includes("timeouterror") ||
+			haystack.includes("timed out") ||
+			haystack.includes("timeout") ||
+			haystack.includes("請求超時")
+		);
 	};
 
 	/**

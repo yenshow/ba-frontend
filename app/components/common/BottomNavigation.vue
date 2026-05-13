@@ -230,6 +230,16 @@
 											授權管理
 										</button>
 
+										<!-- 環境設定（僅管理員） -->
+										<button
+											v-if="isAdmin"
+											class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
+											@click="handleBackendEnvFile"
+											aria-label="環境設定"
+										>
+											環境設定
+										</button>
+
 										<!-- 登入登出 -->
 										<button
 											class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
@@ -512,6 +522,11 @@ const handleUserManagement = () => {
 const handleLicenseManagement = () => {
 	closeAllMenus();
 	navigateToRouteInNewTab("/core/license");
+};
+
+const handleBackendEnvFile = () => {
+	closeAllMenus();
+	navigateToRouteInNewTab("/core/env");
 };
 
 const handleLogout = async () => {

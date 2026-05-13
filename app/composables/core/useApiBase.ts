@@ -5,8 +5,11 @@ import {
 	extractBackendApiErrorText,
 	isDeviceApiRequest,
 	isDeviceConnectionError,
+	mapHttpStatusToUserFacingError,
 	resolveFetchHttpStatus,
-	USER_FACING_EXTERNAL_DB_ERROR
+	USER_FACING_API_UNAUTHORIZED,
+	USER_FACING_API_UNEXPECTED,
+	USER_FACING_CONNECTION_ERROR
 } from "~/utils/errorUtils";
 
 // GET 同 URL 同時間去重（避免多個元件/多個 watch 同步觸發造成 burst）
@@ -136,28 +139,17 @@ export const useApiBase = () => {
 			const response = await promise;
 			return response as T;
 		} catch (error: any) {
-			// 先提取後端返回的錯誤訊息和狀態碼（優先處理 HTTP 狀態碼）
 			const backendErrorMsg = extractBackendApiErrorText(error);
 			const statusCode = resolveFetchHttpStatus(error);
+			const isExternalDataQuery = path.includes("/external-data/");
 
-			// 如果有 HTTP 狀態碼，優先處理狀態碼錯誤（而不是網路錯誤）
-			// 這樣可以正確處理 503 等服務錯誤，而不是誤判為後端連接錯誤
 			if (statusCode !== undefined && statusCode !== null) {
-				if (statusCode === 400) {
-					throw new ApiRequestError(backendErrorMsg || "請求參數錯誤", {
-						statusCode,
-						code: "HTTP_400",
-						originalMessage: backendErrorMsg
-					});
-				}
-
 				if (statusCode === 401) {
 					const { logout } = useAuth();
 					logout();
 					if (process.client) {
 						const router = useRouter();
 						const currentPath = router.currentRoute.value?.fullPath || "/";
-						// 避免 redirect 迴圈：若已在登入頁或 redirect 已含 /login，改導向首頁
 						const redirectPath =
 							currentPath.startsWith("/login") || currentPath.includes("/login?") ? "/" : currentPath;
 						await router.push({
@@ -167,70 +159,24 @@ export const useApiBase = () => {
 							}
 						});
 					}
-					// 使用統一的錯誤訊息，讓 useErrorHandler 處理 Toast 顯示
-					throw new ApiRequestError("登入已過期，請重新登入", {
+					throw new ApiRequestError(USER_FACING_API_UNAUTHORIZED, {
 						statusCode,
 						code: "HTTP_401",
 						originalMessage: backendErrorMsg
 					});
 				}
 
-				if (statusCode === 403) {
-					throw new ApiRequestError(backendErrorMsg || "權限不足，無法執行此操作", {
-						statusCode,
-						code: "HTTP_403",
-						originalMessage: backendErrorMsg
-					});
-				}
-
-				if (statusCode === 404) {
-					throw new ApiRequestError(backendErrorMsg || "請求的資源不存在", {
-						statusCode,
-						code: "HTTP_404",
-						originalMessage: backendErrorMsg
-					});
-				}
-
-				const isExternalDataQuery = path.includes("/external-data/");
-
-				if (statusCode === 500) {
-					const userMessage = isExternalDataQuery
-						? USER_FACING_EXTERNAL_DB_ERROR
-						: `伺服器錯誤 (500): ${backendErrorMsg || "Internal Server Error"}`;
-					throw new ApiRequestError(userMessage, {
-						statusCode,
-						code: "HTTP_500",
-						originalMessage: backendErrorMsg
-					});
-				}
-
-				if (statusCode === 503) {
-					const userMessage = isExternalDataQuery
-						? USER_FACING_EXTERNAL_DB_ERROR
-						: backendErrorMsg || "設備離線或服務暫時不可用";
-					throw new ApiRequestError(userMessage, {
-						statusCode,
-						code: "HTTP_503",
-						originalMessage: backendErrorMsg
-					});
-				}
-
-				// 其他狀態碼
-				throw new ApiRequestError(
-					`API 請求失敗 (${statusCode}): ${backendErrorMsg || error?.message || "Unknown error"}`,
-					{
-						statusCode,
-						code: "UNKNOWN",
-						originalMessage: backendErrorMsg
-					}
-				);
+				const { message, code } = mapHttpStatusToUserFacingError(statusCode, isExternalDataQuery);
+				throw new ApiRequestError(message, {
+					statusCode,
+					code,
+					originalMessage: backendErrorMsg
+				});
 			}
 
-			// 如果沒有狀態碼，先檢查是否為設備連接錯誤（優先於網路錯誤判斷）
 			const errorMessage = error?.message || "";
 			const isDeviceRequest = isDeviceApiRequest(path);
 
-			// 檢查是否為真正的網路錯誤（後端連接錯誤）
 			const isNetworkError =
 				errorMessage.includes("ERR_ADDRESS_UNREACHABLE") ||
 				errorMessage.includes("ERR_CONNECTION_REFUSED") ||
@@ -245,45 +191,40 @@ export const useApiBase = () => {
 					error?.status === undefined &&
 					errorMessage.includes("<no response>"));
 
-			// 如果是設備 API 請求，優先判斷為設備連接錯誤
 			if (isDeviceRequest) {
 				const isDeviceConn =
 					isDeviceConnectionError(errorMessage) ||
 					(errorMessage.includes("無法連接到後端伺服器") && !isNetworkError);
 
 				if (isDeviceConn) {
-					throw new ApiRequestError(backendErrorMsg || errorMessage || "設備連接失敗，請檢查設備狀態", {
-						code: "DEVICE_CONNECTION_ERROR",
+					throw new ApiRequestError(USER_FACING_CONNECTION_ERROR, {
+						code: "NETWORK_ERROR",
 						originalMessage: backendErrorMsg || errorMessage
 					});
 				}
 			}
 
 			if (isNetworkError) {
-				// 避免在「設備連線/點位問題」已知時，再額外噴出「無法連接到後端伺服器」造成噪音
-				throw new ApiRequestError(backendErrorMsg || "連線異常，請稍後再試", {
+				throw new ApiRequestError(USER_FACING_CONNECTION_ERROR, {
 					code: "NETWORK_ERROR",
 					originalMessage: backendErrorMsg || errorMessage
 				});
 			}
 
-			// 處理 CORS 錯誤
 			if (
 				errorMessage.includes("CORS") ||
 				errorMessage.includes("cross-origin") ||
 				errorMessage.includes("Access-Control") ||
 				(error?.statusCode === 0 && !isNetworkError)
 			) {
-				const targetHost = url.match(/https?:\/\/([^\/:]+)/)?.[1] || "未知";
-				throw new ApiRequestError(`CORS 錯誤：無法連接到後端 API (${targetHost})`, {
-					code: "CORS",
+				throw new ApiRequestError(USER_FACING_CONNECTION_ERROR, {
+					code: "NETWORK_ERROR",
 					originalMessage: backendErrorMsg || errorMessage
 				});
 			}
 
-			// 如果以上都不匹配，處理其他錯誤
 			if (error instanceof Error) {
-				throw new ApiRequestError(`API 請求失敗: ${error.message}`, {
+				throw new ApiRequestError(USER_FACING_API_UNEXPECTED, {
 					code: "UNKNOWN",
 					originalMessage: backendErrorMsg || errorMessage
 				});
