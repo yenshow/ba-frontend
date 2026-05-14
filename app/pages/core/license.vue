@@ -129,7 +129,7 @@
 						</div>
 
 						<div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
-							<label class="flex flex-1 flex-col gap-1.5 text-sm text-white/80 2xl:text-base">
+							<label class="flex flex-1 flex-col gap-2.5 text-sm text-white/80 2xl:text-base">
 								<span>License Key（LK）</span>
 								<input
 									v-model="requestFileLicenseKeyInput"
@@ -143,7 +143,7 @@
 							</label>
 							<button
 								type="button"
-								class="rounded-xl bg-emerald-500/85 px-4 py-2 text-sm text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
+								class="rounded-xl border border-white/20 bg-emerald-500/85 px-3 py-2 text-base text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
 								:disabled="showLicensePlaceholder || isGeneratingRequestFile || !canGenerateRequestFile"
 								aria-label="產生並下載 request file"
 								@click="handleGenerateRequestFile"
@@ -185,11 +185,11 @@
 									class="hidden"
 									@change="handleOfflineResponseFileChange"
 								/>
-								<span>上傳 JSON</span>
+								<span>上傳回應檔</span>
 							</label>
 							<button
 								type="button"
-								class="rounded-xl bg-emerald-500/85 px-4 py-2 text-sm text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
+								class="rounded-xl border border-white/20 bg-emerald-500/85 px-3 py-2 text-base text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
 								:disabled="isSubmittingOffline || !offlineResponsePayload"
 								aria-label="驗簽並匯入"
 								@click="handleImportOffline"
