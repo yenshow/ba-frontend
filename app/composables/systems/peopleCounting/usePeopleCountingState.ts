@@ -70,6 +70,7 @@ export const usePeopleCountingState = () => {
 					selectedLocation.value = {
 						...selectedLocation.value,
 						dataSource: updatedLocation.dataSource,
+						logDisplayColumns: updatedLocation.logDisplayColumns,
 						entryCount: updatedLocation.entryCount,
 						exitCount: updatedLocation.exitCount,
 						units:

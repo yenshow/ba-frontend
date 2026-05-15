@@ -7,7 +7,7 @@ export interface AccessControlGroup {
 /**
  * 人流統計地點（工地位置）
  * 參考 EnvironmentLocation，用於地點管理系統
- *
+ * 
  * 包含配置信息和業務統計信息
  */
 export interface PeopleCountingLocation {
@@ -31,6 +31,8 @@ export interface PeopleCountingLocation {
 	preferRegion?: boolean;
 	/** 門禁人員群組（後端相容保留；門禁設備之人員與權限已改由「人員管理」處理，此地點表單不再編輯此欄） */
 	accessControlGroups?: AccessControlGroup[];
+	/** 進出紀錄表格顯示欄位（順序固定，僅控制顯示與否） */
+	logDisplayColumns?: string[];
 
 	// 業務統計信息（來自業務 API）
 	locationId?: number; // 業務層的地點 ID（數字格式，用於 API 調用）
@@ -99,6 +101,10 @@ export interface PeopleCountingLog {
 	personnelId?: number; // 如果是名單內人員
 	deviceId: number; // 攝影機設備 ID
 	eventType: "entry" | "exit" | "failed"; // 進入 / 離開 / 失敗（未註冊或無法判定）
+	/** 事件欄顯示文字（進入/離開/飲酒/醉酒/失敗等） */
+	eventLabel?: string;
+	/** 驗證方式顯示（僅門禁：人臉/卡片/指紋） */
+	verifyMethod?: string | null;
 	employeeId?: string; // 工號（用於非名單人員）
 	personName?: string; // 姓名
 	deviceScreenshotUrl?: string; // 設備截圖
@@ -113,3 +119,4 @@ export interface PeopleCountingLog {
 	personnel?: PeopleCountingPersonnel;
 	// 注意：device 已移除（不會有攝影機串流功能）
 }
+

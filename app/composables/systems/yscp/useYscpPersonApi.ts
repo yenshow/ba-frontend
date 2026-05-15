@@ -38,53 +38,46 @@ export const useYscpPersonApi = () => {
 	const { request } = useApiBase();
 
 	const getPersonInfo = async (personId: string | number): Promise<YscpPersonInfo> => {
-		const data = await request<YscpPersonInfo>(
+		return request<YscpPersonInfo>(
 			buildPathWithQuery("/yscp/person/info", { personId: String(personId) })
 		);
-		return data;
 	};
 
 	const getPersonPicture = async (
 		personId: string | number,
 		picUri: string
 	): Promise<string> => {
-		const data = await request<string>(
+		return request<string>(
 			buildPathWithQuery("/yscp/person/picture", {
 				personId: String(personId),
 				picUri,
 			})
 		);
-		return data;
 	};
 
 	/**
 	 * 批次取得人員資訊（含大頭照），與人流統計「人員名單」同一 YSCP 來源
-	 * @param personIds - 人員 ID 列表
-	 * @param includePicture - 是否包含圖片（true 時回傳 picture 為 base64）
 	 */
 	const getBatchPersonInfo = async (
 		personIds: number[],
 		includePicture = false
 	): Promise<YscpBatchPersonResult[]> => {
 		if (!personIds?.length) return [];
-		const raw = await request<{ code: string; data?: { results: YscpBatchPersonResult[] } }>(
-			"/yscp/person/batch-info",
-			{
-				method: "POST",
-				body: JSON.stringify({
-					personIds: [...new Set(personIds)].filter((id) => id != null && id > 0 && !Number.isNaN(id)),
-					includePicture
-				})
-			}
-		);
-		const results = (raw && typeof raw === "object" && (raw as { data?: { results?: YscpBatchPersonResult[] } }).data?.results) ?? [];
-		return results;
+		const data = await request<{ results?: YscpBatchPersonResult[] }>("/yscp/person/batch-info", {
+			method: "POST",
+			body: {
+				personIds: [...new Set(personIds)].filter(
+					(id) => id != null && id > 0 && !Number.isNaN(id)
+				),
+				includePicture,
+			},
+		});
+		return data?.results ?? [];
 	};
 
 	return {
 		getPersonInfo,
 		getPersonPicture,
-		getBatchPersonInfo
+		getBatchPersonInfo,
 	};
 };
-

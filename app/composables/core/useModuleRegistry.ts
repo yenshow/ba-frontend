@@ -16,9 +16,14 @@ type ModuleRegistryItem = {
 	enabled?: boolean;
 };
 
+type ModuleRegistryServerFeatures = {
+	enableYscpPeopleCounting?: boolean;
+};
+
 type ModuleRegistryPayload = {
 	profile: "central" | "construction";
 	modules: ModuleRegistryItem[];
+	serverFeatures?: ModuleRegistryServerFeatures;
 };
 
 const LICENSE_FEATURE_KEY_SET = new Set<string>(LICENSE_FEATURE_KEYS as readonly string[]);
@@ -33,6 +38,7 @@ const normalizeRegistryForConstructionApp = (payload: ModuleRegistryPayload): Mo
 	return {
 		profile: "construction",
 		modules: filteredModules,
+		serverFeatures: payload.serverFeatures,
 	};
 };
 
@@ -130,9 +136,14 @@ export const useModuleRegistry = () => {
 
 	const categoryOrder = MODULE_CATEGORY_ORDER;
 
+	const enableYscpPeopleCounting = computed(
+		() => registry.value?.serverFeatures?.enableYscpPeopleCounting !== false
+	);
+
 	return {
 		registry: readonly(registry),
 		isLoading: readonly(isLoading),
+		enableYscpPeopleCounting: readonly(enableYscpPeopleCounting),
 		ensureLoaded,
 		getPermissionCodeByRoute,
 		getFeatureKeyByRoute,

@@ -65,6 +65,12 @@
 								>
 									{{ field.key }}
 								</label>
+								<p
+									v-if="field.hint"
+									class="text-xs leading-snug text-white/55 2xl:text-sm"
+								>
+									{{ field.hint }}
+								</p>
 								<select
 									v-if="field.kind === 'select'"
 									:id="`env-field-${field.key}`"

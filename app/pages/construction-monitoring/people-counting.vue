@@ -52,12 +52,17 @@
 									:entry-count="selectedLocation.entryCount || 0"
 									:exit-count="selectedLocation.exitCount || 0"
 									:current-count="currentCount"
+									:logs="logs"
+									:show-log-table="false"
 								/>
 							</div>
 							<!-- 左下、右下：記錄表 + 單位列表 -->
 							<div class="grid grid-cols-2 gap-4">
 								<!-- 左下：進出場記錄表 -->
-								<EntryExitLogTable :logs="logs" />
+								<EntryExitLogTable
+									:logs="logs"
+									:display-columns="selectedLocation.logDisplayColumns"
+								/>
 								<!-- 右下：進場單位列表 -->
 								<div class="space-y-4">
 									<h3 class="bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
@@ -222,6 +227,7 @@
 	<SimulationFrame v-model="showSimulationFrame" title="人流統計 - 完整報表">
 		<PeopleCountingSimulation
 			:logs="simulationLogs"
+			:display-columns="selectedLocation?.logDisplayColumns"
 			:data-source="selectedLocation?.dataSource"
 			:site-summary="
 				selectedLocation

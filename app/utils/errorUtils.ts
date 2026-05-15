@@ -2,12 +2,14 @@
  * 錯誤處理相關工具函數
  */
 
+import { parseBackendApiFailure } from "~/utils/parseBackendApiFailure";
+
 export type AppSeverity = "warning" | "error" | "critical";
 
 export const APP_SEVERITY_RANK: Record<AppSeverity, number> = {
 	warning: 1,
 	error: 2,
-	critical: 3
+	critical: 3,
 } as const;
 
 /**
@@ -26,7 +28,7 @@ export const CONNECTION_ERROR_TOKENS = [
 	"設備離線",
 	"設備連接失敗",
 	"服務不可用",
-	"service unavailable"
+	"service unavailable",
 ] as const;
 
 export const TIMEOUT_ERROR_TOKENS = ["timeout", "timed out", "etimedout", "請求超時"] as const;
@@ -40,22 +42,34 @@ export type ApiErrorCode =
 	| "HTTP_503"
 	| "NETWORK_ERROR"
 	| "TIMEOUT"
+	| "BACKEND_CODE"
 	| "UNKNOWN";
+
+export type ApiRequestErrorMeta = {
+	statusCode?: number;
+	code?: ApiErrorCode;
+	backendCode?: string;
+	originalMessage?: string;
+	details?: unknown;
+};
 
 export class ApiRequestError extends Error {
 	statusCode?: number;
+	/** 前端分類（HTTP fallback / NETWORK 等） */
 	code?: ApiErrorCode;
+	/** 後端語意碼（error.code 或 YSCP code） */
+	backendCode?: string;
 	originalMessage?: string;
+	details?: unknown;
 
-	constructor(
-		message: string,
-		meta?: { statusCode?: number; code?: ApiErrorCode; originalMessage?: string }
-	) {
+	constructor(message: string, meta?: ApiRequestErrorMeta) {
 		super(message);
 		this.name = "ApiRequestError";
 		this.statusCode = meta?.statusCode;
 		this.code = meta?.code;
+		this.backendCode = meta?.backendCode;
 		this.originalMessage = meta?.originalMessage;
+		this.details = meta?.details;
 	}
 }
 
@@ -69,6 +83,8 @@ export const USER_FACING_API_FORBIDDEN = "權限不足，無法執行此操作" 
 export const USER_FACING_API_NOT_FOUND = "找不到要求的資料" as const;
 export const USER_FACING_API_SERVER_ERROR = "伺服器異常，請稍後再試" as const;
 export const USER_FACING_API_GENERIC_CLIENT_ERROR = "無法完成請求，請稍後再試" as const;
+export const USER_FACING_API_CONFLICT = "資料衝突，請確認後再試" as const;
+export const USER_FACING_API_BAD_GATEWAY = "外部服務暫時無法連線，請稍後再試" as const;
 export const USER_FACING_API_UNEXPECTED = "發生錯誤，請稍後再試" as const;
 export const USER_FACING_CONNECTION_ERROR = "連線異常，請稍後再試" as const;
 
@@ -80,12 +96,14 @@ export const mapHttpStatusToUserFacingError = (
 	if (statusCode === 400) return { message: USER_FACING_API_BAD_REQUEST, code: "HTTP_400" };
 	if (statusCode === 403) return { message: USER_FACING_API_FORBIDDEN, code: "HTTP_403" };
 	if (statusCode === 404) return { message: USER_FACING_API_NOT_FOUND, code: "HTTP_404" };
+	if (statusCode === 409) return { message: USER_FACING_API_CONFLICT, code: "HTTP_400" };
+	if (statusCode === 502) return { message: USER_FACING_API_BAD_GATEWAY, code: "HTTP_500" };
 
 	if (statusCode >= 500 && statusCode < 600) {
 		if (isExternalDataQuery) {
 			return {
 				message: USER_FACING_EXTERNAL_DB_ERROR,
-				code: statusCode === 503 ? "HTTP_503" : "HTTP_500"
+				code: statusCode === 503 ? "HTTP_503" : "HTTP_500",
 			};
 		}
 		return { message: USER_FACING_API_SERVER_ERROR, code: "HTTP_500" };
@@ -146,33 +164,9 @@ export const resolveFetchHttpStatus = (error: unknown): number | undefined =>
 	coerceHttpStatusCode(error) ??
 	parseExternalDataHttpStatusFromMessage(String((error as any)?.message ?? ""));
 
-export const extractBackendApiErrorText = (error: unknown): string => {
-	const e = error as any;
-	const data = e?.data ?? e?.response?._data ?? e?.response?.data;
-	if (typeof data === "string") {
-		try {
-			const parsed = JSON.parse(data) as Record<string, unknown>;
-			if (parsed && typeof parsed === "object") {
-				const errObj = parsed.error as Record<string, unknown> | undefined;
-				return clipUserFacingApiErrorText(
-					(typeof errObj?.message === "string" && errObj.message) ||
-						(typeof parsed.message === "string" && parsed.message) ||
-						(typeof parsed.details === "string" && parsed.details) ||
-						""
-				);
-			}
-		} catch {
-			return clipUserFacingApiErrorText(data);
-		}
-		return clipUserFacingApiErrorText(data);
-	}
-	if (data && typeof data === "object") {
-		const errObj = (data as any).error;
-		return clipUserFacingApiErrorText(
-			errObj?.message ?? (data as any).message ?? (data as any).details ?? ""
-		);
-	}
-	return clipUserFacingApiErrorText(e?.message ?? "");
+export const extractBackendApiErrorText = (error: unknown, path?: string): string => {
+	const failure = parseBackendApiFailure(error, path ? { path } : undefined);
+	return clipUserFacingApiErrorText(failure.message ?? "");
 };
 
 const looksLikeOfetchDebugLine = (s: string): boolean => {
@@ -213,9 +207,32 @@ export const severityToToastType = (
 	return { type: "info", duration: 5000 };
 };
 
+const isCriticalBackendCode = (backendCode: string | undefined): boolean => {
+	if (!backendCode) return false;
+	if (backendCode.startsWith("MODBUS_")) return true;
+	if (backendCode.startsWith("DEVICE_CONNECTIVITY_")) return true;
+	if (backendCode === "LICENSE_CHECK_FAILED") return true;
+	if (backendCode === "SERVICE_UNAVAILABLE") return true;
+	return false;
+};
+
+const isWarningBackendCode = (backendCode: string | undefined): boolean => {
+	if (!backendCode) return false;
+	return backendCode.startsWith("VALIDATION_");
+};
+
 export const inferSeverityFromApiError = (error: unknown): AppSeverity => {
-	const e = error as any;
-	const statusCode = resolveFetchHttpStatus(error);
+	const e = error as ApiRequestError & { code?: string };
+	const backendCode =
+		e instanceof ApiRequestError ? e.backendCode : (e as { backendCode?: string })?.backendCode;
+
+	if (isWarningBackendCode(backendCode)) return "warning";
+	if (isCriticalBackendCode(backendCode)) return "critical";
+
+	const statusCode =
+		e instanceof ApiRequestError && e.statusCode != null
+			? e.statusCode
+			: resolveFetchHttpStatus(error);
 
 	if (statusCode === 400) return "warning";
 	if (statusCode !== undefined && statusCode >= 400 && statusCode < 500) return "error";
@@ -226,10 +243,10 @@ export const inferSeverityFromApiError = (error: unknown): AppSeverity => {
 	if (code === "TIMEOUT") return "error";
 
 	const message = String(e?.message ?? "").toLowerCase();
-	if (CONNECTION_ERROR_TOKENS.some(t => message.includes(String(t).toLowerCase()))) {
+	if (CONNECTION_ERROR_TOKENS.some((t) => message.includes(String(t).toLowerCase()))) {
 		return "critical";
 	}
-	if (TIMEOUT_ERROR_TOKENS.some(t => message.includes(String(t).toLowerCase()))) {
+	if (TIMEOUT_ERROR_TOKENS.some((t) => message.includes(String(t).toLowerCase()))) {
 		return "error";
 	}
 	if (
@@ -246,16 +263,22 @@ export const inferSeverityFromApiError = (error: unknown): AppSeverity => {
 
 /**
  * 檢查是否為設備連接錯誤
- * @param errorMessage - 錯誤訊息
- * @returns 是否為設備連接錯誤
  */
-export const isDeviceConnectionError = (errorMessage: string): boolean => {
-	const msg = String(errorMessage || "");
+export const isDeviceConnectionError = (errorOrMessage: unknown): boolean => {
+	if (errorOrMessage instanceof ApiRequestError) {
+		const bc = errorOrMessage.backendCode;
+		if (bc?.startsWith("MODBUS_") || bc?.startsWith("DEVICE_CONNECTIVITY_")) return true;
+	}
+
+	const msg =
+		errorOrMessage instanceof ApiRequestError
+			? String(errorOrMessage.originalMessage || errorOrMessage.message || "")
+			: String(errorOrMessage || "");
 	const lower = msg.toLowerCase();
 	const hasIp = Boolean(lower.match(/\d+\.\d+\.\d+\.\d+:\d+/));
 	const isDeviceApi = lower.includes("/modbus/") || lower.includes("/device/");
 
-	if (CONNECTION_ERROR_TOKENS.some(t => lower.includes(String(t).toLowerCase()))) {
+	if (CONNECTION_ERROR_TOKENS.some((t) => lower.includes(String(t).toLowerCase()))) {
 		return true;
 	}
 

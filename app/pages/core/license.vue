@@ -614,7 +614,7 @@ const handleActivateOnline = async () => {
 		await refreshLicense();
 		toast.success("線上啟用成功");
 	} catch (error) {
-		handleError(error, "線上啟用失敗");
+		handleError(error, "線上啟用失敗", { preferBackendMessage: true });
 	} finally {
 		isSubmittingOnline.value = false;
 	}
@@ -697,7 +697,7 @@ const handleGenerateRequestFile = async () => {
 		clearOfflineResponseSelection();
 		offlineStep.value = 2;
 	} catch (error) {
-		handleError(error, "產生 request file 失敗");
+		handleError(error, "產生 request file 失敗", { preferBackendMessage: true });
 	} finally {
 		isGeneratingRequestFile.value = false;
 	}
@@ -716,7 +716,7 @@ const handleImportOffline = async () => {
 		clearOfflineResponseSelection();
 		toast.success("離線授權匯入成功");
 	} catch (error) {
-		handleError(error, "離線授權匯入失敗");
+		handleError(error, "離線授權匯入失敗", { preferBackendMessage: true });
 	} finally {
 		isSubmittingOffline.value = false;
 	}

@@ -12,6 +12,8 @@ export type EnvFormField = {
 	kind: EnvFormFieldKind;
 	options?: EnvFormFieldOption[];
 	placeholder?: string;
+	/** 欄位說明（顯示於 env 設定頁） */
+	hint?: string;
 };
 
 export type EnvFormSection = {
@@ -30,6 +32,25 @@ export const LICENSE_PRESERVE_ORDER = [
 ] as const;
 
 const LICENSE_PRESERVE_SET = new Set<string>(LICENSE_PRESERVE_ORDER);
+
+/** 舊備份 env 鍵：載入時遷移至新鍵，儲存時不再寫回 */
+const BACKUP_ENV_LEGACY_ALIASES: Record<string, string> = {
+	BACKUP_DATABASE_CUTOFF_DAYS: "BACKUP_RETENTION_DAYS",
+	BACKUP_ARCHIVE_FILE_RETENTION_DAYS: "BACKUP_FILE_RETENTION_DAYS",
+};
+
+const BACKUP_ENV_LEGACY_KEYS = new Set<string>(Object.values(BACKUP_ENV_LEGACY_ALIASES));
+
+const applyBackupEnvAliases = (
+	values: Record<string, string>,
+	all: Record<string, string>,
+): void => {
+	for (const [newKey, legacyKey] of Object.entries(BACKUP_ENV_LEGACY_ALIASES)) {
+		if (!values[newKey]?.trim() && all[legacyKey]?.trim()) {
+			values[newKey] = all[legacyKey];
+		}
+	}
+};
 
 export const ENV_FORM_SECTIONS: EnvFormSection[] = [
 	{
@@ -120,11 +141,27 @@ export const ENV_FORM_SECTIONS: EnvFormSection[] = [
 	},
 	{
 		title: "備份排程",
-		fileHeader: "備份排程",
+		fileHeader:
+			"備份排程（環境僅歸檔 raw；啟動後立即執行一輪；變更後請 PM2 重啟）",
 		fields: [
-			{ key: "BACKUP_RETENTION_DAYS", kind: "number", placeholder: "30" },
-			{ key: "BACKUP_FILE_RETENTION_DAYS", kind: "number", placeholder: "365" },
-			{ key: "BACKUP_SCHEDULER_INTERVAL", kind: "number", placeholder: "86400000" },
+			{
+				key: "BACKUP_DATABASE_CUTOFF_DAYS",
+				kind: "number",
+				placeholder: "30",
+				hint: "線上 DB 熱資料天數；逾期列匯出 CSV，驗證通過後才刪除",
+			},
+			{
+				key: "BACKUP_ARCHIVE_FILE_RETENTION_DAYS",
+				kind: "number",
+				placeholder: "365",
+				hint: "backups/ 目錄內 CSV 保留天數（依檔案修改時間）",
+			},
+			{
+				key: "BACKUP_SCHEDULER_INTERVAL",
+				kind: "number",
+				placeholder: "86400000",
+				hint: "排程間隔（毫秒）；預設 86400000 = 24 小時",
+			},
 		],
 	},
 ];
@@ -211,11 +248,15 @@ export const parseEnvFileContent = (content: string): ParsedEnvFile => {
 			values[key] = val;
 		} else if (LICENSE_PRESERVE_SET.has(key)) {
 			preservedLicense[key] = val;
+		} else if (BACKUP_ENV_LEGACY_KEYS.has(key)) {
+			// 舊鍵：略過 unknown，於下方 migrate 至新鍵
 		} else if (!seenUnknown.has(key)) {
 			seenUnknown.add(key);
 			unknownOrder.push(key);
 		}
 	}
+
+	applyBackupEnvAliases(values, all);
 
 	return { values, unknownKeys: unknownOrder, preservedLicense };
 };
@@ -307,17 +348,20 @@ export const validateEnvFormValues = (form: Record<string, string>): string | nu
 		const raw = form[k]?.trim() ?? "";
 		if (raw && !portOk(raw)) return `${k} 須為 1–65535 的整數`;
 	}
-	const nn = (raw: string) => {
+	const positiveInt = (raw: string) => {
 		const n = Number(raw);
-		return Number.isFinite(n) && Number.isInteger(n) && n >= 0;
+		return Number.isFinite(n) && Number.isInteger(n) && n >= 1;
 	};
 	for (const k of [
-		"BACKUP_RETENTION_DAYS",
-		"BACKUP_FILE_RETENTION_DAYS",
-		"BACKUP_SCHEDULER_INTERVAL",
+		"BACKUP_DATABASE_CUTOFF_DAYS",
+		"BACKUP_ARCHIVE_FILE_RETENTION_DAYS",
 	] as const) {
 		const raw = form[k]?.trim() ?? "";
-		if (raw && !nn(raw)) return `${k} 須為非負整數`;
+		if (raw && !positiveInt(raw)) return `${k} 須為大於 0 的整數`;
+	}
+	const intervalRaw = form.BACKUP_SCHEDULER_INTERVAL?.trim() ?? "";
+	if (intervalRaw && !positiveInt(intervalRaw)) {
+		return "BACKUP_SCHEDULER_INTERVAL 須為大於 0 的整數（毫秒）";
 	}
 	const h = form.ALERT_DAILY_ROLLOVER_LOCAL_HOUR?.trim() ?? "";
 	if (h) {

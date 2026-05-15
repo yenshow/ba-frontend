@@ -71,7 +71,10 @@
 					<p class="text-sm text-white/60 xl:text-base">載入中...</p>
 				</div>
 				<div v-else-if="hasPeopleCounting" class="min-w-0">
-					<EntryExitLog :logs="filteredLocationLogs" />
+					<EntryExitLog
+						:logs="filteredLocationLogs"
+						:display-columns="homeLogDisplayColumns"
+					/>
 				</div>
 				<div
 					v-else
@@ -110,7 +113,9 @@ import { usePeopleCountingState } from "~/composables/systems/peopleCounting/use
 import { usePeopleCountingWebSocket } from "~/composables/systems/peopleCounting/usePeopleCountingWebSocket";
 import { usePeopleCountingApi } from "~/composables/systems/peopleCounting/usePeopleCountingApi";
 import { useLicense } from "~/composables/core/useLicense";
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 import type { PeopleCountingLog } from "~/types/peopleCounting";
+import { normalizeLogDisplayColumns } from "~/utils/peopleCountingLogColumns";
 
 definePageMeta({
 	layout: "default"
@@ -120,6 +125,7 @@ const locationApi = useLocationApi();
 const deviceApi = useDeviceApi();
 const environmentApi = useEnvironmentApi();
 const { canLoadFeature, isLoaded: licenseLoaded } = useLicense();
+const { ensureLoaded: ensureModuleRegistryLoaded } = useModuleRegistry();
 const hasEnvironment = computed(() => canLoadFeature("environment"));
 const hasPeopleCounting = computed(() => canLoadFeature("people_counting"));
 // 僅在客戶端 mount 後才依授權切換內容，避免 SSR 與 hydration 時 state 不同步導致節點不匹配
@@ -295,6 +301,10 @@ const filteredPeopleCountingLocations = computed(() => {
 });
 
 const filteredLocationLogs = computed(() => locationLogs.value);
+
+const homeLogDisplayColumns = computed(() =>
+	normalizeLogDisplayColumns(matchedPeopleCountingLocation.value?.logDisplayColumns)
+);
 
 // 感測器資料
 type SensorReadings = {
@@ -513,6 +523,7 @@ const refreshCurrentLocationLogs = async () => {
 
 onMounted(async () => {
 	isMounted.value = true;
+	await ensureModuleRegistryLoaded();
 	cleanupWebSocket = setupEventListeners(async () => {
 		if (hasPeopleCounting.value) {
 			await loadPeopleCountingLocations();
