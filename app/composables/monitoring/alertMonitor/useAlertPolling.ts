@@ -14,7 +14,8 @@ const pollingLogger = logger.createLogger("AlertPolling");
  */
 export const useAlertPolling = () => {
 	const alertApi = useAlertApi();
-	const { currentSeverity, handleError } = useErrorHandler();
+	const { getErrorSeverity, handleError } = useErrorHandler();
+	const lastPollErrorSeverity = ref<"warning" | "error" | "critical" | null>(null);
 
 	// 上次檢查時間（用於增量查詢）
 	const lastCheckTime = ref<Date | null>(null);
@@ -42,7 +43,10 @@ export const useAlertPolling = () => {
 		}
 
 		// 高優先級錯誤時延長間隔（減少後端負擔）
-		if (currentSeverity.value === "error" || currentSeverity.value === "critical") {
+		if (
+			lastPollErrorSeverity.value === "error" ||
+			lastPollErrorSeverity.value === "critical"
+		) {
 			return 60000; // 1 分鐘
 		}
 
@@ -100,8 +104,9 @@ export const useAlertPolling = () => {
 
 			// 更新最後檢查時間（用於下次增量查詢）
 			lastCheckTime.value = new Date();
+			lastPollErrorSeverity.value = null;
 		} catch (error) {
-			// 使用統一錯誤處理
+			lastPollErrorSeverity.value = getErrorSeverity(error);
 			handleError(error, "檢查新警示失敗");
 		} finally {
 			isChecking.value = false;

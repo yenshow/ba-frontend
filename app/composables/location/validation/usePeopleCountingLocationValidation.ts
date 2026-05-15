@@ -5,6 +5,8 @@
 
 import type { PeopleCountingLocation } from "~/types/peopleCounting"
 import { useLocationValidation } from "~/composables/location/validation/useBaseValidation"
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
+import { resolvePeopleCountingDataSource } from "~/utils/peopleCountingDataSource"
 
 export interface PeopleCountingLocationValidationResult {
 	isValid: boolean
@@ -14,6 +16,7 @@ export interface PeopleCountingLocationValidationResult {
 
 export function usePeopleCountingLocationValidation() {
 	const { validateLocationName } = useLocationValidation()
+	const { enableYscpPeopleCounting } = useModuleRegistry()
 
 	/**
 	 * 驗證 personGroupIds（YSCP 時必填至少一個；門禁設備時選填）
@@ -80,7 +83,10 @@ export function usePeopleCountingLocationValidation() {
 	): PeopleCountingLocationValidationResult => {
 		const errors: string[] = []
 		const warnings: string[] = []
-		const dataSource = location.dataSource ?? "yscp"
+		const dataSource = resolvePeopleCountingDataSource(
+			location.dataSource,
+			enableYscpPeopleCounting.value
+		)
 
 		const nameError = validateLocationName(location.name)
 		if (nameError) errors.push(nameError)
@@ -142,8 +148,6 @@ export function usePeopleCountingLocationValidation() {
 				if (entrySet.has(id)) errors.push("入口與出口請勿選擇同一設備")
 			}
 		}
-
-		// 出入口皆必填（yscp / access_control）；不再用 warnings 提示半套設定
 
 		return {
 			isValid: errors.length === 0,

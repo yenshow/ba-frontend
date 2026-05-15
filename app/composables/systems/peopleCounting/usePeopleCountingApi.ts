@@ -16,6 +16,7 @@ import { buildPathWithQuery } from "~/utils/apiUtils";
 import { logger } from "~/utils/logger";
 import { formatDateTime } from "~/utils/dateUtils";
 import { extractRegionFromZoneName, convertApiLogToFrontend } from "~/utils/peopleCountingAdapter";
+import { normalizeLogDisplayColumns } from "~/utils/peopleCountingLogColumns";
 
 const apiLogger = logger.createLogger("PeopleCounting API");
 
@@ -61,27 +62,28 @@ export const usePeopleCountingApi = () => {
 			]);
 
 			const zones = zonesResponse.zones || [];
-			const locationMap = new Map<number, { zoneName: string }>();
+			const locationConfigMap = new Map<number, PeopleCountingLocation & { zoneName: string }>();
 
 			zones.forEach(zone => {
 				zone.locations?.forEach(location => {
 					const locationId = location.id ? Number(location.id) : undefined;
 					if (locationId) {
-						locationMap.set(locationId, { zoneName: zone.name });
+						locationConfigMap.set(locationId, { ...location, zoneName: zone.name });
 					}
 				});
 			});
 
 			const locations = locationsResponse.sites.map(site => {
-				const locationInfo = locationMap.get(site.id);
-				const region = locationInfo
-					? extractRegionFromZoneName(locationInfo.zoneName) || "未分類"
+				const cfg = locationConfigMap.get(site.id);
+				const region = cfg
+					? extractRegionFromZoneName(cfg.zoneName) || "未分類"
 					: "未分類";
 
 				return {
 					locationId: site.id,
 					name: site.name,
-					dataSource: site.dataSource,
+					dataSource: site.dataSource ?? cfg?.dataSource,
+					logDisplayColumns: normalizeLogDisplayColumns(cfg?.logDisplayColumns),
 					region,
 					status: "active" as const,
 					entryCount: site.entryCount,
@@ -250,6 +252,8 @@ export const usePeopleCountingApi = () => {
 					unitName: string;
 					employeeId?: string | null;
 					eventType: "entry" | "exit" | "failed";
+					eventLabel?: string | null;
+					verifyMethod?: string | null;
 					timestamp: string;
 					deviceScreenshotUrl: string;
 					deviceName?: string;
@@ -298,6 +302,8 @@ export const usePeopleCountingApi = () => {
 					unitName: string;
 					employeeId?: string | null;
 					eventType: "entry" | "exit" | "failed";
+					eventLabel?: string | null;
+					verifyMethod?: string | null;
 					timestamp: string;
 					deviceScreenshotUrl: string;
 					deviceName?: string;

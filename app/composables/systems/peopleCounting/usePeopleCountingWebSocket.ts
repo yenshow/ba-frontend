@@ -5,6 +5,7 @@
 
 import type { YscpEventPayload } from "~/types/websocket";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 import { logger } from "~/utils/logger";
 import { ref, watch } from "vue";
 
@@ -16,6 +17,7 @@ const ISAPI_CAMERA_EVENT = "people-counting:isapi-camera:event";
 
 export const usePeopleCountingWebSocket = () => {
 	const { isConnected, on, off } = useWebSocket();
+	const { enableYscpPeopleCounting } = useModuleRegistry();
 
 	/**
 	 * 設置事件監聽（帶防抖）
@@ -48,25 +50,27 @@ export const usePeopleCountingWebSocket = () => {
 		const handleAccessControlEvent = () => triggerRefetch();
 		const handleIsapiCameraEvent = () => triggerRefetch();
 
-		watch(
-			isConnected,
-			connected => {
-				if (connected) {
-					on(YSCP_ACS_EVENT, handleYscpEvent);
-					on(ACCESS_CONTROL_EVENT, handleAccessControlEvent);
-					on(ISAPI_CAMERA_EVENT, handleIsapiCameraEvent);
-				} else {
-					off(YSCP_ACS_EVENT, handleYscpEvent);
-					off(ACCESS_CONTROL_EVENT, handleAccessControlEvent);
-					off(ISAPI_CAMERA_EVENT, handleIsapiCameraEvent);
-					if (debounceTimer) {
-						clearTimeout(debounceTimer);
-						debounceTimer = null;
-					}
+		const syncListeners = () => {
+			off(YSCP_ACS_EVENT, handleYscpEvent);
+			off(ACCESS_CONTROL_EVENT, handleAccessControlEvent);
+			off(ISAPI_CAMERA_EVENT, handleIsapiCameraEvent);
+
+			if (!isConnected.value) {
+				if (debounceTimer) {
+					clearTimeout(debounceTimer);
+					debounceTimer = null;
 				}
-			},
-			{ immediate: true }
-		);
+				return;
+			}
+
+			if (enableYscpPeopleCounting.value) {
+				on(YSCP_ACS_EVENT, handleYscpEvent);
+			}
+			on(ACCESS_CONTROL_EVENT, handleAccessControlEvent);
+			on(ISAPI_CAMERA_EVENT, handleIsapiCameraEvent);
+		};
+
+		watch([isConnected, enableYscpPeopleCounting], syncListeners, { immediate: true });
 
 		return () => {
 			off(YSCP_ACS_EVENT, handleYscpEvent);

@@ -16,9 +16,14 @@ type ModuleRegistryItem = {
 	enabled?: boolean
 }
 
+type ModuleRegistryServerFeatures = {
+	enableYscpPeopleCounting?: boolean
+}
+
 type ModuleRegistryPayload = {
 	profile: "central" | "construction"
 	modules: ModuleRegistryItem[]
+	serverFeatures?: ModuleRegistryServerFeatures
 }
 
 const LICENSE_FEATURE_KEY_SET = new Set<string>(LICENSE_FEATURE_KEYS as readonly string[])
@@ -117,9 +122,15 @@ export const useModuleRegistry = () => {
 
 	const categoryOrder = MODULE_CATEGORY_ORDER
 
+	/** 與後端 ENABLE_YSCP_PEOPLE_COUNTING 同步；未載入 registry 前預設 true（與後端預設一致） */
+	const enableYscpPeopleCounting = computed(
+		() => registry.value?.serverFeatures?.enableYscpPeopleCounting !== false
+	)
+
 	return {
 		registry: readonly(registry),
 		isLoading: readonly(isLoading),
+		enableYscpPeopleCounting: readonly(enableYscpPeopleCounting),
 		ensureLoaded,
 		getPermissionCodeByRoute,
 		getFeatureKeyByRoute,

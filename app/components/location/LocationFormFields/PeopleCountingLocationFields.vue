@@ -16,7 +16,7 @@
 
 			<span class="text-sm font-medium text-white/80 2xl:text-base">資料來源 *</span>
 			<div class="flex flex-wrap gap-4">
-				<label class="flex cursor-pointer items-center gap-2">
+				<label v-if="enableYscpPeopleCounting" class="flex cursor-pointer items-center gap-2">
 					<input
 						v-model="dataSource"
 						type="radio"
@@ -224,93 +224,101 @@
 
 		<!-- 攝影機人流（ISAPI PeopleCounting）：channel 固定由後端設定為 1，不提供欄位 -->
 
-		<!-- 人員群組（僅 YSCP 使用；門禁設備之人員與權限改由「人員管理」處理） -->
+		<div v-if="dataSource === 'yscp'" class="mt-3 border-t border-white/10 pt-3">
+			<div class="mb-3">
+				<span class="text-sm font-medium text-white/80 2xl:text-base">人員群組 *</span>
+			</div>
+			<div
+				v-if="personGroups.length === 0"
+				class="py-2 text-center text-xs text-white/50 2xl:text-sm"
+			>
+				載入中...
+			</div>
+			<div v-else class="grid grid-cols-2 gap-2">
+				<label
+					v-for="group in personGroups"
+					:key="group.id"
+					class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
+					:class="{
+						'border-cyan-400/50 bg-cyan-500/20': isPersonGroupSelected(group.id),
+					}"
+				>
+					<input
+						type="checkbox"
+						:checked="isPersonGroupSelected(group.id)"
+						@change="togglePersonGroup(group.id)"
+						class="h-4 w-4 cursor-pointer accent-cyan-400"
+					/>
+					<span class="text-xs text-white/90 2xl:text-sm">{{ group.name }}</span>
+				</label>
+			</div>
+			<p
+				v-if="
+					(!localLocation.personGroupIds || localLocation.personGroupIds.length === 0) &&
+					personGroups.length > 0
+				"
+				class="mt-2 text-xs text-amber-300 2xl:text-sm"
+			>
+				至少需要選擇一個人員群組
+			</p>
+		</div>
+
+		<div v-else-if="dataSource === 'isapi_camera'" class="mt-3 border-t border-white/10 pt-3">
+			<div class="mb-3">
+				<span class="text-sm font-medium text-white/80 2xl:text-base">攝影機設備（可複選）*</span>
+			</div>
+			<div
+				v-if="isapiCameraDevices.length === 0"
+				class="rounded border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60 2xl:text-sm"
+			>
+				請先在設備管理新增支援 ISAPI 的攝影機
+			</div>
+			<div v-else class="grid grid-cols-2 gap-2">
+				<label
+					v-for="dev in isapiCameraDevices"
+					:key="dev.id"
+					class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
+					:class="{
+						'border-cyan-400/50 bg-cyan-500/20': isCameraSelected(dev.id),
+					}"
+				>
+					<input
+						type="checkbox"
+						:checked="isCameraSelected(dev.id)"
+						class="h-4 w-4 cursor-pointer accent-cyan-400"
+						@change="handleToggleCamera(dev.id)"
+					/>
+					<span class="text-xs text-white/90 2xl:text-sm">{{ dev.name }}</span>
+				</label>
+			</div>
+			<p
+				v-if="isapiCameraDevices.length > 0 && !hasSelectedCamera"
+				class="mt-2 text-xs text-amber-300 2xl:text-sm"
+			>
+				至少需要選擇一台攝影機設備
+			</p>
+		</div>
+
 		<div class="mt-3 border-t border-white/10 pt-3">
-			<template v-if="dataSource === 'yscp'">
-				<div class="mb-3">
-					<span class="text-sm font-medium text-white/80 2xl:text-base">人員群組 *</span>
-				</div>
-				<div
-					v-if="personGroups.length === 0"
-					class="py-2 text-center text-xs text-white/50 2xl:text-sm"
+			<span class="text-sm font-medium text-white/80 2xl:text-base">進出紀錄顯示欄位</span>
+			<div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+				<label
+					v-for="colKey in TOGGLEABLE_LOG_COLUMN_KEYS"
+					:key="colKey"
+					class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 px-2 py-1.5 transition-colors hover:bg-white/10"
+					:class="{ 'border-cyan-400/50 bg-cyan-500/15': isLogColumnSelected(colKey) }"
 				>
-					載入中...
-				</div>
-				<div v-else class="grid grid-cols-2 gap-2">
-					<label
-						v-for="group in personGroups"
-						:key="group.id"
-						class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
-						:class="{
-							'border-cyan-400/50 bg-cyan-500/20': isPersonGroupSelected(group.id),
-						}"
-					>
-						<input
-							type="checkbox"
-							:checked="isPersonGroupSelected(group.id)"
-							@change="togglePersonGroup(group.id)"
-							class="h-4 w-4 cursor-pointer accent-cyan-400"
-						/>
-						<span class="text-xs text-white/90 2xl:text-sm">{{ group.name }}</span>
-					</label>
-				</div>
-				<p
-					v-if="
-						(!localLocation.personGroupIds || localLocation.personGroupIds.length === 0) &&
-						personGroups.length > 0
-					"
-					class="mt-2 text-xs text-amber-300 2xl:text-sm"
-				>
-					至少需要選擇一個人員群組
-				</p>
-			</template>
-			<template v-else-if="dataSource === 'access_control'">
-				<!-- 門禁設備（本系統）：人員與可進出權限改由「人員管理」設定與同步，此地點僅綁定入口／出口設備；事件由後端佈防訂閱 -->
-				<div
-					class="rounded border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-sm text-cyan-100/90 2xl:text-base"
-				>
-					<p class="font-medium">人員與門禁權限由「人員管理」處理</p>
-					<p class="mt-1 text-white/70">
-						此地點僅需綁定上方入口／出口設備。人員的新增、群組與「可進出此地點」的權限請至<strong>「人員管理」</strong>設定，並使用「設備同步」將人員寫入門禁設備。門禁事件由後端自動訂閱，不需在門禁機上設定事件監聽主機。
-					</p>
-				</div>
-			</template>
-			<template v-else>
-				<!-- 攝影機人流：攝影機設備（可複選） -->
-				<div class="mb-3">
-					<span class="text-sm font-medium text-white/80 2xl:text-base">攝影機設備（可複選）*</span>
-				</div>
-				<div
-					v-if="isapiCameraDevices.length === 0"
-					class="rounded border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60 2xl:text-sm"
-				>
-					請先在設備管理新增支援 ISAPI 的攝影機
-				</div>
-				<div v-else class="grid grid-cols-2 gap-2">
-					<label
-						v-for="dev in isapiCameraDevices"
-						:key="dev.id"
-						class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
-						:class="{
-							'border-cyan-400/50 bg-cyan-500/20': isCameraSelected(dev.id),
-						}"
-					>
-						<input
-							type="checkbox"
-							:checked="isCameraSelected(dev.id)"
-							class="h-4 w-4 cursor-pointer accent-cyan-400"
-							@change="handleToggleCamera(dev.id)"
-						/>
-						<span class="text-xs text-white/90 2xl:text-sm">{{ dev.name }}</span>
-					</label>
-				</div>
-				<p
-					v-if="isapiCameraDevices.length > 0 && !hasSelectedCamera"
-					class="mt-2 text-xs text-amber-300 2xl:text-sm"
-				>
-					至少需要選擇一台攝影機設備
-				</p>
-			</template>
+					<input
+						type="checkbox"
+						class="h-4 w-4 accent-cyan-400"
+						:checked="isLogColumnSelected(colKey)"
+						@change="handleToggleLogColumn(colKey)"
+					/>
+					<span class="text-xs text-white/90 2xl:text-sm">
+						{{ PEOPLE_COUNTING_LOG_COLUMN_LABELS[colKey] }}
+					</span>
+				</label>
+			</div>
 		</div>
 
 		<!-- 警告提示 -->
@@ -326,6 +334,15 @@
 <script setup lang="ts">
 import type { PeopleCountingLocation } from "~/types/peopleCounting"
 import type { Device } from "~/types/device"
+import {
+	PEOPLE_COUNTING_LOG_COLUMN_LABELS,
+	TOGGLEABLE_LOG_COLUMN_KEYS,
+	normalizeLogDisplayColumns,
+	type PeopleCountingLogColumnKey,
+	toStoredLogDisplayColumns,
+} from "~/utils/peopleCountingLogColumns"
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
+import { resolvePeopleCountingDataSource } from "~/utils/peopleCountingDataSource"
 
 interface PersonGroup {
 	id: number
@@ -362,6 +379,8 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
+const { enableYscpPeopleCounting } = useModuleRegistry()
+
 const localLocation = ref<PeopleCountingLocation>({ ...props.location })
 
 const fieldLabelClass =
@@ -376,36 +395,31 @@ const selectCardOverlapClass =
 const dangerHintClass =
 	"mt-3 rounded border border-rose-500/60 bg-rose-500/15 p-2 text-xs text-rose-200 2xl:text-sm"
 const warnHintClass = "mt-2 text-xs text-amber-300 2xl:text-sm"
-const dataSource = ref<"yscp" | "access_control" | "isapi_camera">(
-	(props.location.dataSource as "yscp" | "access_control" | "isapi_camera") || "yscp"
+const dataSource = ref(
+	resolvePeopleCountingDataSource(props.location.dataSource, enableYscpPeopleCounting.value)
 )
 
-watch(
-	() => props.location,
-	(newLocation) => {
-		localLocation.value = { ...newLocation }
-		if (!localLocation.value.personGroupIds) localLocation.value.personGroupIds = []
-		if (!Array.isArray(localLocation.value.entryDoorIds)) localLocation.value.entryDoorIds = []
-		if (!Array.isArray(localLocation.value.exitDoorIds)) localLocation.value.exitDoorIds = []
-		if (!Array.isArray(localLocation.value.entryDeviceIds)) localLocation.value.entryDeviceIds = []
-		if (!Array.isArray(localLocation.value.exitDeviceIds)) localLocation.value.exitDeviceIds = []
-		if (
-			(newLocation.dataSource as string) === "isapi_camera" &&
-			!Array.isArray(localLocation.value.cameraDeviceIds)
-		) {
-			localLocation.value.cameraDeviceIds = []
-		}
-		dataSource.value =
-			(newLocation.dataSource as "yscp" | "access_control" | "isapi_camera") || "yscp"
-		if ((newLocation.dataSource as string) === "isapi_camera") {
-			localLocation.value.preferRegion = true
-		}
-	},
-	{ immediate: true, deep: true }
+const activeLogColumns = computed(() =>
+	normalizeLogDisplayColumns(localLocation.value.logDisplayColumns)
 )
+
+const isLogColumnSelected = (key: PeopleCountingLogColumnKey): boolean =>
+	activeLogColumns.value.includes(key)
+
+const handleToggleLogColumn = (key: PeopleCountingLogColumnKey) => {
+	const next = new Set(activeLogColumns.value)
+	if (next.has(key)) next.delete(key)
+	else next.add(key)
+	localLocation.value.logDisplayColumns = toStoredLogDisplayColumns(
+		normalizeLogDisplayColumns([...next])
+	)
+	handleChange()
+}
 
 const getEffectiveCameraDeviceIds = (): number[] => {
-	return Array.isArray(localLocation.value.cameraDeviceIds) ? localLocation.value.cameraDeviceIds : []
+	return Array.isArray(localLocation.value.cameraDeviceIds)
+		? localLocation.value.cameraDeviceIds
+		: []
 }
 
 const hasSelectedCamera = computed(() => getEffectiveCameraDeviceIds().length > 0)
@@ -456,6 +470,40 @@ const handleDataSourceChange = () => {
 	}
 	handleChange()
 }
+
+watch(
+	() => [props.location, enableYscpPeopleCounting.value] as const,
+	([newLocation]) => {
+		localLocation.value = { ...newLocation }
+		const normalized = normalizeLogDisplayColumns(localLocation.value.logDisplayColumns)
+		localLocation.value.logDisplayColumns = toStoredLogDisplayColumns(normalized)
+		if (!localLocation.value.personGroupIds) localLocation.value.personGroupIds = []
+		if (!Array.isArray(localLocation.value.entryDoorIds)) localLocation.value.entryDoorIds = []
+		if (!Array.isArray(localLocation.value.exitDoorIds)) localLocation.value.exitDoorIds = []
+		if (!Array.isArray(localLocation.value.entryDeviceIds)) localLocation.value.entryDeviceIds = []
+		if (!Array.isArray(localLocation.value.exitDeviceIds)) localLocation.value.exitDeviceIds = []
+		if (
+			(newLocation.dataSource as string) === "isapi_camera" &&
+			!Array.isArray(localLocation.value.cameraDeviceIds)
+		) {
+			localLocation.value.cameraDeviceIds = []
+		}
+		const next = resolvePeopleCountingDataSource(
+			newLocation.dataSource,
+			enableYscpPeopleCounting.value
+		)
+		if (dataSource.value !== next || localLocation.value.dataSource !== next) {
+			dataSource.value = next
+			handleDataSourceChange()
+		} else {
+			dataSource.value = next
+		}
+		if ((newLocation.dataSource as string) === "isapi_camera") {
+			localLocation.value.preferRegion = true
+		}
+	},
+	{ immediate: true, deep: true }
+)
 
 const normalizeIdList = (value: number[] | undefined): number[] => {
 	if (!Array.isArray(value)) return []

@@ -123,8 +123,7 @@ export type PersonnelApi = {
 }
 
 export const usePersonnelApi = (): PersonnelApi => {
-	const { request } = useApiBase()
-	const config = useRuntimeConfig()
+	const { request, requestBlob } = useApiBase()
 
 	return {
 		// 人員群組
@@ -340,26 +339,7 @@ export const usePersonnelApi = (): PersonnelApi => {
 				timeout: 120000,
 			}),
 
-		downloadImportTemplate: async () => {
-			const apiBase = (config.public.apiBase as string) || "/api"
-			const url = `${apiBase}${PERSONNEL_PREFIX}/import-template`
-			const cookie = useCookie<string | null>("auth_token")
-			const token = cookie.value
-
-			const headers: HeadersInit = {}
-			if (token) headers.Authorization = `Bearer ${token}`
-
-			const res = await fetch(url, {
-				method: "GET",
-				headers,
-				credentials: "include",
-			})
-			if (!res.ok) {
-				const msg = `下載範例檔失敗（${res.status}）`
-				throw new Error(msg)
-			}
-			return await res.blob()
-		},
+		downloadImportTemplate: () => requestBlob(`${PERSONNEL_PREFIX}/import-template`),
 
 		setPersonAccessControlConfig: (
 			personId: number,

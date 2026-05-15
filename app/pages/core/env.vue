@@ -63,7 +63,7 @@
 									class="text-sm font-medium text-white/85 2xl:text-base"
 									:for="`env-field-${field.key}`"
 								>
-									{{ field.key }}
+									{{ field.label }}
 								</label>
 								<select
 									v-if="field.kind === 'select'"
@@ -71,7 +71,7 @@
 									v-model="form[field.key]"
 									class="rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-white focus:border-teal-400/60 focus:outline-none focus:ring-1 focus:ring-teal-400/40 2xl:text-base"
 									:disabled="formDisabled"
-									:aria-label="field.key"
+									:aria-label="field.label"
 								>
 									<option v-for="opt in field.options" :key="opt.value" :value="opt.value">
 										{{ opt.label }}
@@ -84,17 +84,15 @@
 									rows="3"
 									spellcheck="false"
 									autocomplete="off"
-									class="min-h-[88px] w-full resize-y rounded-lg border border-white/20 bg-black/30 px-3 py-2 font-mono text-sm text-white placeholder:text-white/40 focus:border-teal-400/60 focus:outline-none focus:ring-1 focus:ring-teal-400/40 2xl:text-base"
+									class="min-h-[88px] w-full resize-y rounded-lg border border-white/20 bg-black/30 px-3 py-2 font-mono text-sm text-white focus:border-teal-400/60 focus:outline-none focus:ring-1 focus:ring-teal-400/40 2xl:text-base"
 									:disabled="formDisabled"
-									:placeholder="field.placeholder"
-									:aria-label="field.key"
+									:aria-label="field.label"
 								/>
 								<EnvDeploymentPasswordInput
 									v-else-if="field.kind === 'password'"
 									:model-value="form[field.key] ?? ''"
 									:input-id="`env-field-${field.key}`"
-									:ariaLabel="field.key"
-									:placeholder="field.placeholder"
+									:ariaLabel="field.label"
 									:disabled="formDisabled"
 									@update:model-value="(v) => (form[field.key] = v)"
 								/>
@@ -106,10 +104,9 @@
 									:pattern="field.kind === 'number' ? '[0-9]*' : undefined"
 									spellcheck="false"
 									autocomplete="off"
-									class="rounded-lg border border-white/20 bg-black/30 px-3 py-2 font-mono text-sm text-white placeholder:text-white/40 focus:border-teal-400/60 focus:outline-none focus:ring-1 focus:ring-teal-400/40 2xl:text-base"
+									class="rounded-lg border border-white/20 bg-black/30 px-3 py-2 font-mono text-sm text-white focus:border-teal-400/60 focus:outline-none focus:ring-1 focus:ring-teal-400/40 2xl:text-base"
 									:disabled="formDisabled"
-									:placeholder="field.placeholder"
-									:aria-label="field.key"
+									:aria-label="field.label"
 								/>
 							</div>
 						</div>

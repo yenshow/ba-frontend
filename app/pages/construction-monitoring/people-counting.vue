@@ -53,6 +53,7 @@
 									:exit-count="selectedLocation.exitCount || 0"
 									:current-count="currentCount"
 									:logs="logs"
+									:display-columns="selectedLocation.logDisplayColumns"
 								/>
 							</div>
 							<!-- 左側-右：單位列表 + 人員名單 -->
@@ -183,6 +184,7 @@
 	<SimulationFrame v-model="showSimulationFrame" title="人流統計 - 完整報表">
 		<PeopleCountingSimulation
 			:logs="simulationLogs"
+			:display-columns="selectedLocation?.logDisplayColumns"
 			:data-source="selectedLocation?.dataSource"
 			:site-summary="
 				selectedLocation

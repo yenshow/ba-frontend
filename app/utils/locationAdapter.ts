@@ -25,6 +25,10 @@ import type { FireZone, FireLocation } from "~/types/fire"
 import type { EmergencyRescueZone, EmergencyRescueLocation } from "~/types/emergency-rescue"
 import type { SmokeAlarmZone, SmokeAlarmLocation } from "~/types/smoke-alarm"
 import { pickSortOrder } from "~/utils/sortOrder"
+import {
+	normalizeLogDisplayColumns,
+	toStoredLogDisplayColumns,
+} from "~/utils/peopleCountingLogColumns"
 
 /**
  * 後端返回的地點格式（新架構：包含 systems 陣列）
@@ -880,6 +884,9 @@ export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZo
 						: undefined,
 					preferRegion: config.preferRegion ?? undefined,
 					accessControlGroups: config.accessControlGroups || [],
+					logDisplayColumns: Array.isArray(config.logDisplayColumns)
+						? config.logDisplayColumns
+						: undefined,
 				} as PeopleCountingLocation,
 			]
 		}),
@@ -1277,6 +1284,12 @@ export function peopleCountingLocationToUnified(
 					cameraDeviceIds: cameraDeviceIds.length ? cameraDeviceIds : undefined,
 					preferRegion: loc.dataSource === "isapi_camera" ? true : (loc.preferRegion ?? false),
 					accessControlGroups: loc.accessControlGroups ?? [],
+					logDisplayColumns: (() => {
+						const stored = toStoredLogDisplayColumns(
+							normalizeLogDisplayColumns(loc.logDisplayColumns)
+						)
+						return stored.length > 0 ? stored : undefined
+					})(),
 				} as PeopleCountingSystemConfig,
 			},
 		],

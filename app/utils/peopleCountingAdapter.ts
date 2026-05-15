@@ -122,6 +122,8 @@ export const convertApiLogToFrontend = (
 		unitName: string;
 		employeeId?: string | null;
 		eventType: "entry" | "exit" | "failed";
+		eventLabel?: string | null;
+		verifyMethod?: string | null;
 		timestamp: string;
 		deviceScreenshotUrl: string;
 		deviceName?: string;
@@ -137,6 +139,11 @@ export const convertApiLogToFrontend = (
 		personnelId,
 		deviceId: 0,
 		eventType: log.eventType,
+		eventLabel: log.eventLabel?.trim() || undefined,
+		verifyMethod:
+			log.verifyMethod != null && String(log.verifyMethod).trim() !== ""
+				? String(log.verifyMethod).trim()
+				: undefined,
 		count: typeof log.count === "number" && Number.isFinite(log.count) ? log.count : undefined,
 		employeeId:
 			log.employeeId != null && String(log.employeeId).trim() !== ""

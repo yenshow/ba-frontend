@@ -254,6 +254,7 @@ import { useLocationValidationPipeline } from "~/composables/location/validation
 import { useZoneDrafts } from "~/composables/location/ui/useZoneDrafts"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useExternalDataApi } from "~/composables/systems/externalData/useExternalDataApi"
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import ZoneFormFields from "./ZoneFormFields.vue"
 import EnvironmentLocationManagement from "./LocationManagement/EnvironmentLocationManagement.vue"
 import LightingLocationManagement from "./LocationManagement/LightingLocationManagement.vue"
@@ -386,6 +387,8 @@ const isLoadingDevices = ref(false)
 
 // 人員群組和門禁設備（僅用於人流統計系統）
 const externalDataApi = useExternalDataApi()
+const { enableYscpPeopleCounting, ensureLoaded: ensureModuleRegistryLoaded } =
+	useModuleRegistry()
 const personGroups = ref<Array<{ id: number; name: string; is_deleted?: number }>>([])
 const doors = ref<
 	Array<{
@@ -523,13 +526,18 @@ const loadIsapiCameraDevices = async () => {
 // 當對話框打開時載入設備列表和相關資料
 watch(
 	() => props.modelValue,
-	(newValue) => {
+	async newValue => {
 		if (newValue) {
 			loadDevices()
-			// 僅在人流統計系統時載入人員群組和門禁設備
 			if (props.systemType === "people_counting") {
-				loadPersonGroups()
-				loadDoors()
+				await ensureModuleRegistryLoaded()
+				if (enableYscpPeopleCounting.value) {
+					loadPersonGroups()
+					loadDoors()
+				} else {
+					personGroups.value = []
+					doors.value = []
+				}
 				loadAccessControlDevices()
 				loadIsapiCameraDevices()
 			}

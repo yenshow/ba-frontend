@@ -163,12 +163,13 @@
 				>
 					<thead class="bg-white/20">
 						<tr class="text-white/90">
-							<th class="whitespace-nowrap border border-white/20 p-2">區域-地點</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">單位名稱</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">人員姓名</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">出入口名稱</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">刷卡時間</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">方向</th>
+							<th
+								v-for="header in detailHeaders"
+								:key="header"
+								class="whitespace-nowrap border border-white/20 p-2"
+							>
+								{{ header }}
+							</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -178,12 +179,13 @@
 							class="border-b border-white/10 text-white"
 							:class="row.isEntryOnly ? 'bg-red-500/80' : ''"
 						>
-							<td class="border border-white/20 p-2">{{ row["區域-地點"] }}</td>
-							<td class="border border-white/20 p-2">{{ row.單位名稱 }}</td>
-							<td class="border border-white/20 p-2">{{ row.人員姓名 }}</td>
-							<td class="border border-white/20 p-2">{{ row.出入口名稱 }}</td>
-							<td class="border border-white/20 p-2">{{ row.刷卡時間 }}</td>
-							<td class="border border-white/20 p-2">{{ row.方向 }}</td>
+							<td
+								v-for="(cell, cellIdx) in row.cells"
+								:key="`${row.key}-${cellIdx}`"
+								class="border border-white/20 p-2"
+							>
+								{{ cell }}
+							</td>
 						</tr>
 					</tbody>
 				</table>
@@ -230,10 +232,17 @@ import {
 	getEntryOnlyPersonsForDay,
 	getUnitStatsForDay,
 } from "~/utils/peopleCountingAdapter"
+import {
+	normalizeLogDisplayColumns,
+	buildLogDetailRow,
+	PEOPLE_COUNTING_LOG_COLUMN_LABELS,
+	type PeopleCountingLogColumnKey,
+} from "~/utils/peopleCountingLogColumns"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
 
 const props = defineProps<{
 	logs: PeopleCountingLog[]
+	displayColumns?: PeopleCountingLogColumnKey[] | string[] | null
 	dataSource?: "yscp" | "access_control" | "isapi_camera"
 	siteSummary?: {
 		entryCount: number
@@ -326,8 +335,10 @@ const groupsByDate = computed(() => {
 	return g
 })
 
-const directionLabel = (log: PeopleCountingLog) =>
-	log.eventType === "entry" ? "進場" : log.eventType === "exit" ? "出場" : "失敗"
+const displayColumns = computed(() => normalizeLogDisplayColumns(props.displayColumns))
+const detailHeaders = computed(() =>
+	displayColumns.value.map((k) => PEOPLE_COUNTING_LOG_COLUMN_LABELS[k])
+)
 
 const statsTableRows = computed(() => {
 	const zl = zoneLocationLabel.value
@@ -415,17 +426,9 @@ const unitStatsTableRows = computed((): UnitStatsRow[] => {
 
 const detailTableRows = computed(() => {
 	const zl = zoneLocationLabel.value
+	const cols = displayColumns.value
 	const datesDesc = [...groupsByDate.value.keys()].sort((a, b) => b.localeCompare(a))
-	type DetailRow = {
-		key: string
-		isEntryOnly: boolean
-		"區域-地點": string
-		單位名稱: string
-		人員姓名: string
-		出入口名稱: string
-		刷卡時間: string
-		方向: string
-	}
+	type DetailRow = { key: string; isEntryOnly: boolean; cells: string[] }
 	const rows: DetailRow[] = []
 	for (const dateStr of datesDesc) {
 		const dayLogs = groupsByDate.value.get(dateStr)!
@@ -443,19 +446,21 @@ const detailTableRows = computed(() => {
 			const unitName = (log.unit?.name ?? log.unitName ?? "").trim() || "－"
 			if (filterZoneLocationDetail.value && zl !== filterZoneLocationDetail.value) continue
 			if (filterUnitName.value && unitName !== filterUnitName.value) continue
+			const labeled = buildLogDetailRow(log, cols)
+			const cells = cols.map((col) => labeled[PEOPLE_COUNTING_LOG_COLUMN_LABELS[col]] ?? "—")
 			rows.push({
 				key: `log-${log.id ?? dateStr}-${personKey}-${log.timestamp}`,
 				isEntryOnly: isEntryOnly && lastEntryLog === log,
-				"區域-地點": zl,
-				單位名稱: unitName,
-				人員姓名: log.personName ?? "",
-				出入口名稱: log.deviceName ?? "",
-				刷卡時間: log.timestamp ? formatDateTime(log.timestamp, true) : "",
-				方向: directionLabel(log),
+				cells,
 			})
 		}
 	}
-	return rows.sort((a, b) => (b.刷卡時間 || "").localeCompare(a.刷卡時間 || ""))
+	return rows.sort((a, b) => {
+		const timeIdx = cols.indexOf("time")
+		const ta = timeIdx >= 0 ? a.cells[timeIdx] || "" : ""
+		const tb = timeIdx >= 0 ? b.cells[timeIdx] || "" : ""
+		return tb.localeCompare(ta)
+	})
 })
 
 const DETAIL_PAGE_SIZE = 10
@@ -489,7 +494,6 @@ const handleDetailNextPage = () => {
 
 const STATS_HEADERS = ["日期", "區域-地點", "進場人數", "出場人數", "在場人數"]
 const UNIT_STATS_HEADERS = ["日期", "區域-地點", "單位名稱", "進場人數", "出場人數", "在場人數"]
-const DETAIL_HEADERS = ["區域-地點", "單位名稱", "人員姓名", "出入口名稱", "刷卡時間", "方向"]
 
 const firstDateStr = computed(() => (props.logs.length > 0 ? getDateKey(props.logs[0]) : ""))
 
@@ -517,17 +521,17 @@ const handleExportCsv = () => {
 	)
 	parts.push("")
 	parts.push("進出紀錄")
+	const detailHeadersCsv = detailHeaders.value
 	parts.push(
 		buildCsvSection(
-			DETAIL_HEADERS,
-			detailTableRows.value.map((r) => ({
-				"區域-地點": r["區域-地點"],
-				單位名稱: r.單位名稱,
-				人員姓名: r.人員姓名,
-				出入口名稱: r.出入口名稱,
-				刷卡時間: r.刷卡時間,
-				方向: r.方向,
-			})),
+			detailHeadersCsv,
+			detailTableRows.value.map((r) => {
+				const obj: Record<string, string> = {}
+				detailHeadersCsv.forEach((h, i) => {
+					obj[h] = r.cells[i] ?? ""
+				})
+				return obj
+			}),
 			{ backupStyle: true }
 		)
 	)

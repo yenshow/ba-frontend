@@ -505,7 +505,8 @@ export const usePersonnelPersonsTab = (params: {
 			}
 			if (result.errors?.length) toast.error(`部分失敗：${result.errors.length} 筆`)
 		} catch (err) {
-			importError.value = handleApiError(err, "匯入失敗") || "匯入失敗"
+			importError.value =
+				handleApiError(err, "匯入失敗", { preferBackendMessage: true }) || "匯入失敗"
 		} finally {
 			isImporting.value = false
 		}
