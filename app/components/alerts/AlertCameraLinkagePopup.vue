@@ -74,7 +74,11 @@
 								<div class="absolute left-2 top-2 z-10 rounded bg-black/60 px-2 py-1 text-xs text-white/90">
 									{{ s.deviceName || `設備 ${s.deviceId}` }}
 								</div>
-								<VideoPlayer :webrtc-url="s.webrtcUrl" :stream-status="s.streamStatus" />
+								<VideoPlayer
+									:webrtc-url="s.webrtcUrl"
+									:webrtc-port="s.webrtcPort"
+									:stream-status="s.streamStatus"
+								/>
 								<p
 									v-if="s.error"
 									class="absolute inset-x-0 bottom-0 z-10 bg-black/60 p-2 text-xs text-rose-300"
@@ -105,6 +109,7 @@ export type CameraStreamState = {
 	deviceId: number
 	deviceName: string
 	webrtcUrl: string
+	webrtcPort?: number
 	streamStatus: "running" | "stopped" | "loading" | "error"
 	error: string
 }

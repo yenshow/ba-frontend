@@ -23,6 +23,7 @@ export const useStreamStatus = () => {
 				deviceId,
 				position: views.length,
 				webrtcUrl: existing.webrtcUrl,
+				webrtcPort: existing.webrtcPort,
 				streamId: existing.streamId,
 				streamStatus: "running"
 			});
@@ -37,6 +38,7 @@ export const useStreamStatus = () => {
 			const data = await surveillanceApi.startCameraStream(deviceId);
 			monitorViews.updateMonitorView(deviceId, {
 				webrtcUrl: data.webrtcUrl,
+				webrtcPort: data.webrtcPort,
 				streamId: data.streamId,
 				streamStatus: "running"
 			});

@@ -165,6 +165,7 @@ const toast = useToast()
 const { handleError } = useErrorHandler()
 
 const form = reactive(createEmptyEnvFormValues())
+const preservedHidden = ref<Record<string, string>>({})
 const preservedLicense = ref<Record<string, string>>({})
 const unknownKeys = ref<string[]>([])
 const isLoading = ref(true)
@@ -186,6 +187,7 @@ watch(
 const applyParsedToForm = (content: string) => {
 	const parsed = parseEnvFileContent(content)
 	unknownKeys.value = parsed.unknownKeys
+	preservedHidden.value = { ...parsed.preservedHidden }
 	preservedLicense.value = { ...parsed.preservedLicense }
 	Object.assign(form, normalizeEnvFormValuesFromParsed(parsed.values))
 }
@@ -217,7 +219,7 @@ const handleSave = async () => {
 	}
 	validationMessage.value = validateEnvFormValues(form)
 	if (validationMessage.value) return
-	const content = serializeEnvFormValues(form, preservedLicense.value)
+	const content = serializeEnvFormValues(form, preservedHidden.value, preservedLicense.value)
 	if (!content.trim()) {
 		toast.warning("內容不可為空白")
 		return

@@ -141,6 +141,7 @@ export interface DeviceStreamStartResponse {
 	streamId: string;
 	pathName: string;
 	webrtcUrl: string;
+	webrtcPort?: number;
 	status: string;
 }
 
@@ -148,6 +149,7 @@ export interface DeviceStreamStartResponse {
 export interface DeviceStreamStatusResponse {
 	streamId: string;
 	webrtcUrl: string;
+	webrtcPort?: number;
 	status: "running" | "stopped";
 }
 

@@ -1,6 +1,6 @@
 /**
  * 環境設定表單：欄位定義與 .env 互轉。僅管理列出的鍵；儲存會重寫表單涵蓋的區塊。
- * LICENSE_* 不由表單編輯；自原檔讀取並於儲存時原樣寫回（不經表單修改）。
+ * 伺服器／JWT／主資料庫與 LICENSE_* 不由表單編輯；自原檔讀取並於儲存時原樣寫回。
  */
 
 export type EnvFormFieldKind = "text" | "password" | "textarea" | "number" | "select"
@@ -32,6 +32,26 @@ export const LICENSE_PRESERVE_ORDER = [
 
 const LICENSE_PRESERVE_SET = new Set<string>(LICENSE_PRESERVE_ORDER)
 
+/** 自 .env 讀寫但不在表單顯示（安裝精靈／預設 .env 管理） */
+const ENV_HIDDEN_PRESERVE_SECTIONS = [
+	{
+		fileHeader: "伺服器",
+		keys: ["HOST", "PORT", "CORS_ORIGINS"] as const,
+	},
+	{
+		fileHeader: "JWT（正式環境務必改為強隨機字串）",
+		keys: ["JWT_SECRET", "JWT_EXPIRES_IN"] as const,
+	},
+	{
+		fileHeader: "主資料庫（PostgreSQL）",
+		keys: ["DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD"] as const,
+	},
+] as const
+
+const ENV_HIDDEN_PRESERVE_KEYS = new Set<string>(
+	ENV_HIDDEN_PRESERVE_SECTIONS.flatMap((s) => s.keys)
+)
+
 /** 舊備份 env 鍵：載入時遷移至新鍵，儲存時不再寫回 */
 const BACKUP_ENV_LEGACY_ALIASES: Record<string, string> = {
 	BACKUP_DATABASE_CUTOFF_DAYS: "BACKUP_RETENTION_DAYS",
@@ -42,7 +62,7 @@ const BACKUP_ENV_LEGACY_KEYS = new Set<string>(Object.values(BACKUP_ENV_LEGACY_A
 
 const applyBackupEnvAliases = (
 	values: Record<string, string>,
-	all: Record<string, string>,
+	all: Record<string, string>
 ): void => {
 	for (const [newKey, legacyKey] of Object.entries(BACKUP_ENV_LEGACY_ALIASES)) {
 		if (!values[newKey]?.trim() && all[legacyKey]?.trim()) {
@@ -53,62 +73,19 @@ const applyBackupEnvAliases = (
 
 export const ENV_FORM_SECTIONS: EnvFormSection[] = [
 	{
-		title: "伺服器",
-		fileHeader: "伺服器",
-		layoutGroup: 1,
-		fields: [
-			{ key: "HOST", label: "監聽位址", kind: "text" },
-			{ key: "PORT", label: "埠號", kind: "number" },
-			{ key: "CORS_ORIGINS", label: "跨域來源", kind: "textarea" },
-		],
-	},
-	{
-		title: "JWT",
-		fileHeader: "JWT（正式環境務必改為強隨機字串）",
-		layoutGroup: 1,
-		fields: [
-			{ key: "JWT_SECRET", label: "JWT 密鑰", kind: "password" },
-			{ key: "JWT_EXPIRES_IN", label: "JWT 有效期限", kind: "text" },
-		],
-	},
-	{
-		title: "主資料庫（PostgreSQL）",
-		fileHeader: "主資料庫（PostgreSQL）",
-		layoutGroup: 2,
-		fields: [
-			{ key: "DB_HOST", label: "資料庫主機", kind: "text" },
-			{ key: "DB_PORT", label: "資料庫埠號", kind: "number" },
-			{ key: "DB_NAME", label: "資料庫名稱", kind: "text" },
-			{ key: "DB_USER", label: "資料庫使用者", kind: "text" },
-			{ key: "DB_PASSWORD", label: "資料庫密碼", kind: "password" },
-		],
-	},
-	{
-		title: "外部資料庫",
-		fileHeader: "外部資料庫",
-		layoutGroup: 2,
-		fields: [
-			{ key: "EXTERNAL_DB_HOST", label: "外部資料庫主機", kind: "text" },
-			{ key: "EXTERNAL_DB_PORT", label: "外部資料庫埠號", kind: "number" },
-			{ key: "EXTERNAL_DB_USER", label: "外部資料庫使用者", kind: "text" },
-			{ key: "EXTERNAL_DB_PASSWORD", label: "外部資料庫密碼", kind: "password" },
-			{ key: "EXTERNAL_DB_NAME", label: "外部資料庫名稱", kind: "text" },
-		],
-	},
-	{
 		title: "YSCP",
 		fileHeader: "YSCP",
 		fields: [
-			{ key: "YSCP_HOST", label: "YSCP 主機", kind: "text" },
+			{ key: "YSCP_HOST", label: "主機", kind: "text" },
+			{ key: "YSCP_DB_PASSWORD", label: "資料庫密碼", kind: "password" },
 			{ key: "YSCP_AK", label: "存取金鑰（AK）", kind: "password" },
 			{ key: "YSCP_SK", label: "私密金鑰（SK）", kind: "password" },
-			{ key: "YSCP_API_VER", label: "API 版本", kind: "text" },
 		],
 	},
 	{
 		title: "功能開關",
 		fileHeader: "功能開關（布林；未設定時為 true）",
-		layoutGroup: 3,
+		layoutGroup: 1,
 		fields: [
 			{
 				key: "ENABLE_YSCP_PEOPLE_COUNTING",
@@ -124,10 +101,10 @@ export const ENV_FORM_SECTIONS: EnvFormSection[] = [
 	{
 		title: "MediaMTX（串流）",
 		fileHeader: "MediaMTX（串流）",
-		layoutGroup: 3,
+		layoutGroup: 1,
 		fields: [
-			{ key: "MEDIAMTX_API_BASE_URL", label: "API 基礎網址", kind: "text" },
-			{ key: "MEDIAMTX_WEBRTC_BASE_URL", label: "WebRTC 基礎網址", kind: "text" },
+			{ key: "MEDIAMTX_API_PORT", label: "Control API 埠", kind: "number" },
+			{ key: "MEDIAMTX_WEBRTC_PORT", label: "WebRTC 埠", kind: "number" },
 		],
 	},
 	{
@@ -141,8 +118,7 @@ export const ENV_FORM_SECTIONS: EnvFormSection[] = [
 	},
 	{
 		title: "備份排程",
-		fileHeader:
-			"備份排程（環境僅歸檔 raw；啟動後立即執行一輪；變更後請 PM2 重啟）",
+		fileHeader: "備份排程（環境僅歸檔 raw；啟動後立即執行一輪；變更後請 PM2 重啟）",
 		fields: [
 			{ key: "BACKUP_DATABASE_CUTOFF_DAYS", label: "線上資料保留天數", kind: "number" },
 			{ key: "BACKUP_ARCHIVE_FILE_RETENTION_DAYS", label: "備份檔保留天數", kind: "number" },
@@ -151,10 +127,12 @@ export const ENV_FORM_SECTIONS: EnvFormSection[] = [
 	},
 ]
 
-export const KNOWN_ENV_FORM_KEYS = new Set(ENV_FORM_SECTIONS.flatMap((s) => s.fields.map((f) => f.key)))
+export const KNOWN_ENV_FORM_KEYS = new Set(
+	ENV_FORM_SECTIONS.flatMap((s) => s.fields.map((f) => f.key))
+)
 
 const ENV_FORM_FIELD_LABELS = new Map(
-	ENV_FORM_SECTIONS.flatMap((s) => s.fields.map((f) => [f.key, f.label] as const)),
+	ENV_FORM_SECTIONS.flatMap((s) => s.fields.map((f) => [f.key, f.label] as const))
 )
 
 export const getEnvFormFieldLabel = (key: string): string => ENV_FORM_FIELD_LABELS.get(key) ?? key
@@ -224,12 +202,14 @@ const parseAllAssignments = (content: string): Record<string, string> => {
 export type ParsedEnvFile = {
 	values: Record<string, string>
 	unknownKeys: string[]
+	preservedHidden: Record<string, string>
 	preservedLicense: Record<string, string>
 }
 
 export const parseEnvFileContent = (content: string): ParsedEnvFile => {
 	const all = parseAllAssignments(content)
 	const values: Record<string, string> = {}
+	const preservedHidden: Record<string, string> = {}
 	const preservedLicense: Record<string, string> = {}
 	const unknownOrder: string[] = []
 	const seenUnknown = new Set<string>()
@@ -237,6 +217,8 @@ export const parseEnvFileContent = (content: string): ParsedEnvFile => {
 	for (const [key, val] of Object.entries(all)) {
 		if (KNOWN_ENV_FORM_KEYS.has(key)) {
 			values[key] = val
+		} else if (ENV_HIDDEN_PRESERVE_KEYS.has(key)) {
+			preservedHidden[key] = val
 		} else if (LICENSE_PRESERVE_SET.has(key)) {
 			preservedLicense[key] = val
 		} else if (BACKUP_ENV_LEGACY_KEYS.has(key)) {
@@ -249,7 +231,7 @@ export const parseEnvFileContent = (content: string): ParsedEnvFile => {
 
 	applyBackupEnvAliases(values, all)
 
-	return { values, unknownKeys: unknownOrder, preservedLicense }
+	return { values, unknownKeys: unknownOrder, preservedHidden, preservedLicense }
 }
 
 const needsEnvQuoting = (v: string): boolean =>
@@ -261,11 +243,29 @@ const escapeEnvValue = (v: string): string => {
 	return `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r")}"`
 }
 
+const appendEnvPreserveSections = (
+	lines: string[],
+	sections: ReadonlyArray<{ fileHeader: string; keys: readonly string[] }>,
+	preserved: Record<string, string>
+): void => {
+	for (const section of sections) {
+		const keys = section.keys.filter((k) => k in preserved)
+		if (keys.length === 0) continue
+		lines.push(`# --- ${section.fileHeader} ---`)
+		for (const key of section.keys) {
+			lines.push(`${key}=${escapeEnvValue(preserved[key] ?? "")}`)
+		}
+		lines.push("")
+	}
+}
+
 export const serializeEnvFormValues = (
 	values: Record<string, string>,
-	preservedLicense: Record<string, string> = {},
+	preservedHidden: Record<string, string> = {},
+	preservedLicense: Record<string, string> = {}
 ): string => {
 	const lines: string[] = []
+	appendEnvPreserveSections(lines, ENV_HIDDEN_PRESERVE_SECTIONS, preservedHidden)
 	for (const section of ENV_FORM_SECTIONS) {
 		lines.push(`# --- ${section.fileHeader} ---`)
 		for (const field of section.fields) {
@@ -273,14 +273,11 @@ export const serializeEnvFormValues = (
 		}
 		lines.push("")
 	}
-	const licenseKeys = LICENSE_PRESERVE_ORDER.filter((k) => k in preservedLicense)
-	if (licenseKeys.length > 0) {
-		lines.push("# --- 授權 ---")
-		for (const key of licenseKeys) {
-			lines.push(`${key}=${escapeEnvValue(preservedLicense[key] ?? "")}`)
-		}
-		lines.push("")
-	}
+	appendEnvPreserveSections(
+		lines,
+		[{ fileHeader: "授權", keys: LICENSE_PRESERVE_ORDER }],
+		preservedLicense
+	)
 	return lines.join("\n").replace(/\s+$/, "\n")
 }
 
@@ -323,7 +320,9 @@ const clusterEnvFormSectionsForLayout = (sections: EnvFormSection[]): EnvFormSec
 
 export const ENV_FORM_SECTION_ROWS = clusterEnvFormSectionsForLayout(ENV_FORM_SECTIONS)
 
-export const normalizeEnvFormValuesFromParsed = (parsed: Record<string, string>): Record<string, string> => {
+export const normalizeEnvFormValuesFromParsed = (
+	parsed: Record<string, string>
+): Record<string, string> => {
 	const merged = { ...createEmptyEnvFormValues(), ...parsed }
 	const y = merged.ENABLE_YSCP_PEOPLE_COUNTING?.trim().toLowerCase()
 	merged.ENABLE_YSCP_PEOPLE_COUNTING = y === "false" || y === "0" || y === "no" ? "false" : "true"
@@ -331,22 +330,11 @@ export const normalizeEnvFormValuesFromParsed = (parsed: Record<string, string>)
 }
 
 export const validateEnvFormValues = (form: Record<string, string>): string | null => {
-	const portOk = (raw: string) => {
-		const n = Number(raw)
-		return Number.isInteger(n) && n >= 1 && n <= 65535
-	}
-	for (const k of ["PORT", "DB_PORT", "EXTERNAL_DB_PORT"] as const) {
-		const raw = form[k]?.trim() ?? ""
-		if (raw && !portOk(raw)) return `${getEnvFormFieldLabel(k)} 須為 1–65535 的整數`
-	}
 	const positiveInt = (raw: string) => {
 		const n = Number(raw)
 		return Number.isFinite(n) && Number.isInteger(n) && n >= 1
 	}
-	for (const k of [
-		"BACKUP_DATABASE_CUTOFF_DAYS",
-		"BACKUP_ARCHIVE_FILE_RETENTION_DAYS",
-	] as const) {
+	for (const k of ["BACKUP_DATABASE_CUTOFF_DAYS", "BACKUP_ARCHIVE_FILE_RETENTION_DAYS"] as const) {
 		const raw = form[k]?.trim() ?? ""
 		if (raw && !positiveInt(raw)) return `${getEnvFormFieldLabel(k)} 須為大於 0 的整數`
 	}
