@@ -18,8 +18,8 @@ export type GridLayout = "1" | "4" | "9" | "16";
 export interface MonitorView {
 	deviceId: number;
 	position: number;
-	/** WebRTC WHEP URL（由 POST /api/devices/:id/stream/start 取得） */
 	webrtcUrl?: string;
+	webrtcPort?: number;
 	/** 串流 path 名稱（與後端 MediaMTX path 對應） */
 	streamId?: string;
 	/** 串流狀態 */

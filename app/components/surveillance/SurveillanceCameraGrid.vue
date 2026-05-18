@@ -21,6 +21,7 @@
 					<SurveillanceVideoPlayer
 						:key="`player-${view.deviceId}-${view.position}-${index}`"
 						:webrtc-url="view.webrtcUrl"
+						:webrtc-port="view.webrtcPort"
 						:stream-status="view.streamStatus"
 						class="h-full w-full"
 					/>

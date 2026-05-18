@@ -48,6 +48,7 @@ export const useAlertCameraLinkagePopup = () => {
 			deviceId,
 			deviceName: "",
 			webrtcUrl: "",
+			webrtcPort: undefined,
 			streamStatus: "loading",
 			error: ""
 		}));
@@ -61,9 +62,11 @@ export const useAlertCameraLinkagePopup = () => {
 				if (status.status !== "running") {
 					const startedRes = await deviceApi.startStream(s.deviceId);
 					s.webrtcUrl = startedRes.webrtcUrl || "";
+					s.webrtcPort = startedRes.webrtcPort;
 					s.streamStatus = "running";
 				} else {
 					s.webrtcUrl = status.webrtcUrl || "";
+					s.webrtcPort = status.webrtcPort;
 					s.streamStatus = status.status;
 				}
 			} catch (e) {

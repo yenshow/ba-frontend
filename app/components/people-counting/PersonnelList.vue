@@ -1,6 +1,6 @@
 <template>
 	<div class="space-y-4">
-		<h3 class="font-semibold text-lg bg-white/20 text-white text-center 2xl:text-xl py-1">
+		<h3 class="bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
 			人員名單
 		</h3>
 		<div
@@ -11,15 +11,15 @@
 		</div>
 
 		<div v-else class="space-y-4">
-			<div class="grid grid-cols-1 2xl:grid-cols-2 gap-4 w-[240px] 2xl:w-full mx-auto">
+			<div class="mx-auto grid w-[240px] grid-cols-1 gap-4 2xl:w-full 2xl:grid-cols-2">
 				<div
 					v-for="person in paginatedPersonnel"
 					:key="person.id"
-					class="flex items-start gap-3 border-2 border-white/30 p-3"
+					class="flex min-h-[100px] items-start gap-3 border-2 border-white/30 p-3 2xl:min-h-[130px]"
 					:class="[person.isPresent ? 'bg-white/20' : 'bg-black/20']"
 				>
 					<!-- 照片（/uploads/ 改為後端完整 URL） -->
-					<div class="relative overflow-hidden rounded-full bg-white/10 h-16 w-16 mt-2 2xl:mt-4">
+					<div class="relative mt-2 h-16 w-16 overflow-hidden rounded-full bg-white/10 2xl:mt-4">
 						<Transition name="fade">
 							<img
 								v-if="resolvePhotoUrl(person.photoUrl) && !imageErrorStates[person.id]"
@@ -54,7 +54,7 @@
 
 					<!-- 資訊 -->
 					<div class="min-w-0 2xl:flex-1">
-						<div class="font-medium text-white text-base 2xl:text-xl border-b border-white/30 pb-1">
+						<div class="border-b border-white/30 pb-1 text-base font-medium text-white 2xl:text-xl">
 							{{ person.name }}
 						</div>
 						<div class="mt-2 space-y-0.5 text-xs text-white/60 2xl:text-sm">
@@ -100,116 +100,116 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from "vue"
-import type { PeopleCountingPersonnel } from "~/types/peopleCounting"
-import Pagination from "~/components/common/Pagination.vue"
-import { resolveUploadUrl } from "~/utils/apiUtils"
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import type { PeopleCountingPersonnel } from "~/types/peopleCounting";
+import Pagination from "~/components/common/Pagination.vue";
+import { resolveUploadUrl } from "~/utils/apiUtils";
 
 interface Props {
-	personnel: PeopleCountingPersonnel[]
+	personnel: PeopleCountingPersonnel[];
 }
 
-const props = defineProps<Props>()
+const props = defineProps<Props>();
 
 // 追蹤圖片錯誤狀態
-const imageErrorStates = ref<Record<string | number, boolean>>({})
+const imageErrorStates = ref<Record<string | number, boolean>>({});
 
 // 追蹤視窗寬度以實現響應式
-const windowWidth = ref(1024)
+const windowWidth = ref(1024);
 
 // 根據螢幕尺寸計算每頁顯示的人員數量
 const itemsPerPage = computed(() => {
 	// 2xl: 1536px
 	if (windowWidth.value >= 1536) {
-		return 4 // 2xl: 2列 × 2行 = 4個
+		return 4; // 2xl: 2列 × 2行 = 4個
 	} else {
-		return 2 // 一般尺寸: 1列 × 2行 = 2個
+		return 2; // 一般尺寸: 1列 × 2行 = 2個
 	}
-})
+});
 
 // 當前分頁偏移量
-const offset = ref(0)
+const offset = ref(0);
 
 // 計算當前頁顯示的人員
 const paginatedPersonnel = computed(() => {
-	const start = offset.value
-	const end = start + itemsPerPage.value
-	return props.personnel.slice(start, end)
-})
+	const start = offset.value;
+	const end = start + itemsPerPage.value;
+	return props.personnel.slice(start, end);
+});
 
 // 監聽 personnel 變化，確保 offset 不會超出範圍
 watch(
 	() => props.personnel.length,
-	(newLength) => {
+	newLength => {
 		if (offset.value >= newLength) {
-			offset.value = 0
+			offset.value = 0;
 		}
 	}
-)
+);
 
 const handlePrevious = () => {
-	offset.value = Math.max(0, offset.value - itemsPerPage.value)
-}
+	offset.value = Math.max(0, offset.value - itemsPerPage.value);
+};
 
 const handleNext = () => {
 	if (offset.value + itemsPerPage.value < props.personnel.length) {
-		offset.value += itemsPerPage.value
+		offset.value += itemsPerPage.value;
 	}
-}
+};
 
-let handleResize: (() => void) | null = null
-let lastItemsPerPage = 2
+let handleResize: (() => void) | null = null;
+let lastItemsPerPage = 2;
 
 onMounted(() => {
-	if (!process.client) return
+	if (!process.client) return;
 
-	windowWidth.value = window.innerWidth
-	lastItemsPerPage = itemsPerPage.value
+	windowWidth.value = window.innerWidth;
+	lastItemsPerPage = itemsPerPage.value;
 
 	handleResize = () => {
-		windowWidth.value = window.innerWidth
-		const newItemsPerPage = itemsPerPage.value
+		windowWidth.value = window.innerWidth;
+		const newItemsPerPage = itemsPerPage.value;
 		if (newItemsPerPage !== lastItemsPerPage) {
-			offset.value = 0
-			lastItemsPerPage = newItemsPerPage
+			offset.value = 0;
+			lastItemsPerPage = newItemsPerPage;
 		}
-	}
+	};
 
-	window.addEventListener("resize", handleResize)
-})
+	window.addEventListener("resize", handleResize);
+});
 
 onUnmounted(() => {
 	if (handleResize && process.client) {
-		window.removeEventListener("resize", handleResize)
+		window.removeEventListener("resize", handleResize);
 	}
-})
+});
 
 const parseTimeToSeconds = (time?: string | null) => {
-	if (!time) return null
-	const m = time.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)
-	if (!m) return null
-	const hh = Number(m[1])
-	const mm = Number(m[2])
-	const ss = m[3] ? Number(m[3]) : 0
-	if (Number.isNaN(hh) || Number.isNaN(mm) || Number.isNaN(ss)) return null
-	return hh * 3600 + mm * 60 + ss
-}
+	if (!time) return null;
+	const m = time.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+	if (!m) return null;
+	const hh = Number(m[1]);
+	const mm = Number(m[2]);
+	const ss = m[3] ? Number(m[3]) : 0;
+	if (Number.isNaN(hh) || Number.isNaN(mm) || Number.isNaN(ss)) return null;
+	return hh * 3600 + mm * 60 + ss;
+};
 
 const shouldHideExitTime = (person: PeopleCountingPersonnel) => {
-	const entrySec = parseTimeToSeconds(person.entryTime)
-	const exitSec = parseTimeToSeconds(person.exitTime)
-	if (entrySec == null || exitSec == null) return false
-	return entrySec > exitSec
-}
+	const entrySec = parseTimeToSeconds(person.entryTime);
+	const exitSec = parseTimeToSeconds(person.exitTime);
+	if (entrySec == null || exitSec == null) return false;
+	return entrySec > exitSec;
+};
 
-const config = useRuntimeConfig()
-const apiBase = (config.public.apiBase as string) || ""
+const config = useRuntimeConfig();
+const apiBase = (config.public.apiBase as string) || "";
 const resolvePhotoUrl = (url: string | undefined | null): string =>
-	resolveUploadUrl(url ?? "", apiBase)
+	resolveUploadUrl(url ?? "", apiBase);
 
 const handleImageError = (_event: Event, personId: string | number) => {
-	imageErrorStates.value[personId] = true
-}
+	imageErrorStates.value[personId] = true;
+};
 </script>
 
 <style scoped>

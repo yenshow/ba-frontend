@@ -4,12 +4,10 @@
 			<slot />
 		</main>
 		<BottomNavigation />
-		<ToastContainer />
 	</div>
 </template>
 
 <script setup lang="ts">
-import ToastContainer from "~/components/common/ToastContainer.vue";
 import type { MonitoringDeviceStatusBatchEvent } from "~/types/websocket";
 import { useTheme } from "~/composables/core/useTheme";
 import { useAuth } from "~/composables/core/useAuth";

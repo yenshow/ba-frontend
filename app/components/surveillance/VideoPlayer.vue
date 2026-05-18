@@ -33,11 +33,13 @@
 <script setup lang="ts">
 interface Props {
 	webrtcUrl?: string;
+	webrtcPort?: number;
 	streamStatus?: "running" | "stopped" | "loading" | "error";
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	webrtcUrl: "",
+	webrtcPort: undefined,
 	streamStatus: "stopped"
 });
 
@@ -80,8 +82,8 @@ const connectWhep = async (whepUrl: string) => {
 };
 
 watch(
-	() => props.webrtcUrl,
-	async url => {
+	() => [props.webrtcUrl, props.webrtcPort] as const,
+	async ([url, port]) => {
 		error.value = "";
 		if (pc) {
 			pc.close();
@@ -93,8 +95,9 @@ watch(
 		if (!url) return;
 		await nextTick();
 		if (!videoRef.value) return;
+		const whepUrl = resolveWebrtcWhepUrl(url, port);
 		try {
-			await connectWhep(url);
+			await connectWhep(whepUrl);
 		} catch (e) {
 			error.value = e instanceof Error ? e.message : "WebRTC 連線失敗，請檢查 MediaMTX";
 		}

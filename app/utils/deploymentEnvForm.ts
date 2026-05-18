@@ -1,6 +1,6 @@
 /**
  * 環境設定表單：欄位定義與 .env 互轉。僅管理列出的鍵；儲存會重寫表單涵蓋的區塊。
- * LICENSE_* 不由表單編輯；自原檔讀取並於儲存時原樣寫回（不經表單修改）。
+ * 伺服器／JWT／主資料庫與 LICENSE_* 不由表單編輯；自原檔讀取並於儲存時原樣寫回。
  */
 
 export type EnvFormFieldKind = "text" | "password" | "textarea" | "number" | "select";
@@ -9,11 +9,10 @@ export type EnvFormFieldOption = { value: string; label: string };
 
 export type EnvFormField = {
 	key: string;
+	/** 表單顯示用中文標籤 */
+	label: string;
 	kind: EnvFormFieldKind;
 	options?: EnvFormFieldOption[];
-	placeholder?: string;
-	/** 欄位說明（顯示於 env 設定頁） */
-	hint?: string;
 };
 
 export type EnvFormSection = {
@@ -28,22 +27,40 @@ export const LICENSE_PRESERVE_ORDER = [
 	"LICENSE_DEPLOYMENT_PROFILE",
 	"LICENSE_OPEN_ALL_FEATURES",
 	"LICENSE_PLATFORM_API_BASE_URL",
-	"LICENSE_SIGN_SECRET",
+	"LICENSE_SIGN_SECRET"
 ] as const;
 
 const LICENSE_PRESERVE_SET = new Set<string>(LICENSE_PRESERVE_ORDER);
 
+/** 自 .env 讀寫但不在表單顯示（安裝精靈／預設 .env 管理） */
+const ENV_HIDDEN_PRESERVE_SECTIONS = [
+	{
+		fileHeader: "伺服器",
+		keys: ["HOST", "PORT", "CORS_ORIGINS"] as const
+	},
+	{
+		fileHeader: "JWT（正式環境務必改為強隨機字串）",
+		keys: ["JWT_SECRET", "JWT_EXPIRES_IN"] as const
+	},
+	{
+		fileHeader: "主資料庫（PostgreSQL）",
+		keys: ["DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD"] as const
+	}
+] as const;
+
+const ENV_HIDDEN_PRESERVE_KEYS = new Set<string>(ENV_HIDDEN_PRESERVE_SECTIONS.flatMap(s => s.keys));
+
 /** 舊備份 env 鍵：載入時遷移至新鍵，儲存時不再寫回 */
 const BACKUP_ENV_LEGACY_ALIASES: Record<string, string> = {
 	BACKUP_DATABASE_CUTOFF_DAYS: "BACKUP_RETENTION_DAYS",
-	BACKUP_ARCHIVE_FILE_RETENTION_DAYS: "BACKUP_FILE_RETENTION_DAYS",
+	BACKUP_ARCHIVE_FILE_RETENTION_DAYS: "BACKUP_FILE_RETENTION_DAYS"
 };
 
 const BACKUP_ENV_LEGACY_KEYS = new Set<string>(Object.values(BACKUP_ENV_LEGACY_ALIASES));
 
 const applyBackupEnvAliases = (
 	values: Record<string, string>,
-	all: Record<string, string>,
+	all: Record<string, string>
 ): void => {
 	for (const [newKey, legacyKey] of Object.entries(BACKUP_ENV_LEGACY_ALIASES)) {
 		if (!values[newKey]?.trim() && all[legacyKey]?.trim()) {
@@ -54,119 +71,69 @@ const applyBackupEnvAliases = (
 
 export const ENV_FORM_SECTIONS: EnvFormSection[] = [
 	{
-		title: "伺服器",
-		fileHeader: "伺服器",
-		layoutGroup: 1,
-		fields: [
-			{ key: "HOST", kind: "text", placeholder: "0.0.0.0" },
-			{ key: "PORT", kind: "number", placeholder: "4000" },
-			{ key: "CORS_ORIGINS", kind: "textarea", placeholder: "http://localhost:3000,http://localhost:3001" },
-		],
-	},
-	{
-		title: "JWT",
-		fileHeader: "JWT（正式環境務必改為強隨機字串）",
-		layoutGroup: 1,
-		fields: [
-			{ key: "JWT_SECRET", kind: "password" },
-			{ key: "JWT_EXPIRES_IN", kind: "text", placeholder: "7d" },
-		],
-	},
-	{
-		title: "主資料庫（PostgreSQL）",
-		fileHeader: "主資料庫（PostgreSQL）",
-		layoutGroup: 2,
-		fields: [
-			{ key: "DB_HOST", kind: "text", placeholder: "127.0.0.1" },
-			{ key: "DB_PORT", kind: "number", placeholder: "5433" },
-			{ key: "DB_NAME", kind: "text", placeholder: "ba_system" },
-			{ key: "DB_USER", kind: "text", placeholder: "postgres" },
-			{ key: "DB_PASSWORD", kind: "password" },
-		],
-	},
-	{
-		title: "外部資料庫",
-		fileHeader: "外部資料庫",
-		layoutGroup: 2,
-		fields: [
-			{ key: "EXTERNAL_DB_HOST", kind: "text" },
-			{ key: "EXTERNAL_DB_PORT", kind: "number", placeholder: "5432" },
-			{ key: "EXTERNAL_DB_USER", kind: "text", placeholder: "postgres" },
-			{ key: "EXTERNAL_DB_PASSWORD", kind: "password" },
-			{ key: "EXTERNAL_DB_NAME", kind: "text", placeholder: "cms" },
-		],
-	},
-	{
 		title: "YSCP",
 		fileHeader: "YSCP",
 		fields: [
-			{ key: "YSCP_HOST", kind: "text" },
-			{ key: "YSCP_AK", kind: "password" },
-			{ key: "YSCP_SK", kind: "password" },
-			{ key: "YSCP_API_VER", kind: "text", placeholder: "v1" },
-		],
+			{ key: "YSCP_HOST", label: "主機", kind: "text" },
+			{ key: "YSCP_DB_PASSWORD", label: "資料庫密碼", kind: "password" },
+			{ key: "YSCP_AK", label: "存取金鑰（AK）", kind: "password" },
+			{ key: "YSCP_SK", label: "私密金鑰（SK）", kind: "password" }
+		]
 	},
 	{
 		title: "功能開關",
 		fileHeader: "功能開關（布林；未設定時為 true）",
-		layoutGroup: 3,
+		layoutGroup: 1,
 		fields: [
 			{
 				key: "ENABLE_YSCP_PEOPLE_COUNTING",
+				label: "啟用 YSCP 人流",
 				kind: "select",
 				options: [
-					{ value: "true", label: "true（讀取 YSCP 人流）" },
-					{ value: "false", label: "false（略過 YSCP 人流）" },
-				],
-			},
-		],
+					{ value: "true", label: "是（讀取 YSCP 人流）" },
+					{ value: "false", label: "否（略過 YSCP 人流）" }
+				]
+			}
+		]
 	},
 	{
 		title: "MediaMTX（串流）",
 		fileHeader: "MediaMTX（串流）",
-		layoutGroup: 3,
+		layoutGroup: 1,
 		fields: [
-			{ key: "MEDIAMTX_API_BASE_URL", kind: "text", placeholder: "http://127.0.0.1:9997" },
-			{ key: "MEDIAMTX_WEBRTC_BASE_URL", kind: "text", placeholder: "http://127.0.0.1:8889" },
-		],
+			{ key: "MEDIAMTX_API_PORT", label: "Control API 埠", kind: "number" },
+			{ key: "MEDIAMTX_WEBRTC_PORT", label: "WebRTC 埠", kind: "number" }
+		]
 	},
 	{
 		title: "警報日界線",
 		fileHeader: "警報日界線（每日批次 active→resolved、連動 DO 復歸；忽視僅當曆日阻擋）",
 		fields: [
-			{ key: "ALERT_DAILY_ROLLOVER_TZ", kind: "text", placeholder: "Asia/Taipei" },
-			{ key: "ALERT_DAILY_ROLLOVER_LOCAL_HOUR", kind: "number", placeholder: "0" },
-			{ key: "ALERT_DAILY_ROLLOVER_LOCAL_MINUTE", kind: "number", placeholder: "5" },
-		],
+			{ key: "ALERT_DAILY_ROLLOVER_TZ", label: "時區", kind: "text" },
+			{ key: "ALERT_DAILY_ROLLOVER_LOCAL_HOUR", label: "本地小時", kind: "number" },
+			{ key: "ALERT_DAILY_ROLLOVER_LOCAL_MINUTE", label: "本地分鐘", kind: "number" }
+		]
 	},
 	{
 		title: "備份排程",
-		fileHeader:
-			"備份排程（環境僅歸檔 raw；啟動後立即執行一輪；變更後請 PM2 重啟）",
+		fileHeader: "備份排程（環境僅歸檔 raw；啟動後立即執行一輪；變更後請 PM2 重啟）",
 		fields: [
-			{
-				key: "BACKUP_DATABASE_CUTOFF_DAYS",
-				kind: "number",
-				placeholder: "30",
-				hint: "線上 DB 熱資料天數；逾期列匯出 CSV，驗證通過後才刪除",
-			},
-			{
-				key: "BACKUP_ARCHIVE_FILE_RETENTION_DAYS",
-				kind: "number",
-				placeholder: "365",
-				hint: "backups/ 目錄內 CSV 保留天數（依檔案修改時間）",
-			},
-			{
-				key: "BACKUP_SCHEDULER_INTERVAL",
-				kind: "number",
-				placeholder: "86400000",
-				hint: "排程間隔（毫秒）；預設 86400000 = 24 小時",
-			},
-		],
-	},
+			{ key: "BACKUP_DATABASE_CUTOFF_DAYS", label: "線上資料保留天數", kind: "number" },
+			{ key: "BACKUP_ARCHIVE_FILE_RETENTION_DAYS", label: "備份檔保留天數", kind: "number" },
+			{ key: "BACKUP_SCHEDULER_INTERVAL", label: "排程間隔（毫秒）", kind: "number" }
+		]
+	}
 ];
 
-export const KNOWN_ENV_FORM_KEYS = new Set(ENV_FORM_SECTIONS.flatMap(s => s.fields.map(f => f.key)));
+export const KNOWN_ENV_FORM_KEYS = new Set(
+	ENV_FORM_SECTIONS.flatMap(s => s.fields.map(f => f.key))
+);
+
+const ENV_FORM_FIELD_LABELS = new Map(
+	ENV_FORM_SECTIONS.flatMap(s => s.fields.map(f => [f.key, f.label] as const))
+);
+
+export const getEnvFormFieldLabel = (key: string): string => ENV_FORM_FIELD_LABELS.get(key) ?? key;
 
 const parseQuotedDouble = (raw: string): string => {
 	let out = "";
@@ -233,12 +200,14 @@ const parseAllAssignments = (content: string): Record<string, string> => {
 export type ParsedEnvFile = {
 	values: Record<string, string>;
 	unknownKeys: string[];
+	preservedHidden: Record<string, string>;
 	preservedLicense: Record<string, string>;
 };
 
 export const parseEnvFileContent = (content: string): ParsedEnvFile => {
 	const all = parseAllAssignments(content);
 	const values: Record<string, string> = {};
+	const preservedHidden: Record<string, string> = {};
 	const preservedLicense: Record<string, string> = {};
 	const unknownOrder: string[] = [];
 	const seenUnknown = new Set<string>();
@@ -246,6 +215,8 @@ export const parseEnvFileContent = (content: string): ParsedEnvFile => {
 	for (const [key, val] of Object.entries(all)) {
 		if (KNOWN_ENV_FORM_KEYS.has(key)) {
 			values[key] = val;
+		} else if (ENV_HIDDEN_PRESERVE_KEYS.has(key)) {
+			preservedHidden[key] = val;
 		} else if (LICENSE_PRESERVE_SET.has(key)) {
 			preservedLicense[key] = val;
 		} else if (BACKUP_ENV_LEGACY_KEYS.has(key)) {
@@ -258,7 +229,7 @@ export const parseEnvFileContent = (content: string): ParsedEnvFile => {
 
 	applyBackupEnvAliases(values, all);
 
-	return { values, unknownKeys: unknownOrder, preservedLicense };
+	return { values, unknownKeys: unknownOrder, preservedHidden, preservedLicense };
 };
 
 const needsEnvQuoting = (v: string): boolean =>
@@ -270,11 +241,29 @@ const escapeEnvValue = (v: string): string => {
 	return `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r")}"`;
 };
 
+const appendEnvPreserveSections = (
+	lines: string[],
+	sections: ReadonlyArray<{ fileHeader: string; keys: readonly string[] }>,
+	preserved: Record<string, string>
+): void => {
+	for (const section of sections) {
+		const keys = section.keys.filter(k => k in preserved);
+		if (keys.length === 0) continue;
+		lines.push(`# --- ${section.fileHeader} ---`);
+		for (const key of section.keys) {
+			lines.push(`${key}=${escapeEnvValue(preserved[key] ?? "")}`);
+		}
+		lines.push("");
+	}
+};
+
 export const serializeEnvFormValues = (
 	values: Record<string, string>,
-	preservedLicense: Record<string, string> = {},
+	preservedHidden: Record<string, string> = {},
+	preservedLicense: Record<string, string> = {}
 ): string => {
 	const lines: string[] = [];
+	appendEnvPreserveSections(lines, ENV_HIDDEN_PRESERVE_SECTIONS, preservedHidden);
 	for (const section of ENV_FORM_SECTIONS) {
 		lines.push(`# --- ${section.fileHeader} ---`);
 		for (const field of section.fields) {
@@ -282,14 +271,11 @@ export const serializeEnvFormValues = (
 		}
 		lines.push("");
 	}
-	const licenseKeys = LICENSE_PRESERVE_ORDER.filter(k => k in preservedLicense);
-	if (licenseKeys.length > 0) {
-		lines.push("# --- 授權 ---");
-		for (const key of licenseKeys) {
-			lines.push(`${key}=${escapeEnvValue(preservedLicense[key] ?? "")}`);
-		}
-		lines.push("");
-	}
+	appendEnvPreserveSections(
+		lines,
+		[{ fileHeader: "授權", keys: LICENSE_PRESERVE_ORDER }],
+		preservedLicense
+	);
 	return lines.join("\n").replace(/\s+$/, "\n");
 };
 
@@ -332,7 +318,9 @@ const clusterEnvFormSectionsForLayout = (sections: EnvFormSection[]): EnvFormSec
 
 export const ENV_FORM_SECTION_ROWS = clusterEnvFormSectionsForLayout(ENV_FORM_SECTIONS);
 
-export const normalizeEnvFormValuesFromParsed = (parsed: Record<string, string>): Record<string, string> => {
+export const normalizeEnvFormValuesFromParsed = (
+	parsed: Record<string, string>
+): Record<string, string> => {
 	const merged = { ...createEmptyEnvFormValues(), ...parsed };
 	const y = merged.ENABLE_YSCP_PEOPLE_COUNTING?.trim().toLowerCase();
 	merged.ENABLE_YSCP_PEOPLE_COUNTING = y === "false" || y === "0" || y === "no" ? "false" : "true";
@@ -340,38 +328,31 @@ export const normalizeEnvFormValuesFromParsed = (parsed: Record<string, string>)
 };
 
 export const validateEnvFormValues = (form: Record<string, string>): string | null => {
-	const portOk = (raw: string) => {
-		const n = Number(raw);
-		return Number.isInteger(n) && n >= 1 && n <= 65535;
-	};
-	for (const k of ["PORT", "DB_PORT", "EXTERNAL_DB_PORT"] as const) {
-		const raw = form[k]?.trim() ?? "";
-		if (raw && !portOk(raw)) return `${k} 須為 1–65535 的整數`;
-	}
 	const positiveInt = (raw: string) => {
 		const n = Number(raw);
 		return Number.isFinite(n) && Number.isInteger(n) && n >= 1;
 	};
-	for (const k of [
-		"BACKUP_DATABASE_CUTOFF_DAYS",
-		"BACKUP_ARCHIVE_FILE_RETENTION_DAYS",
-	] as const) {
+	for (const k of ["BACKUP_DATABASE_CUTOFF_DAYS", "BACKUP_ARCHIVE_FILE_RETENTION_DAYS"] as const) {
 		const raw = form[k]?.trim() ?? "";
-		if (raw && !positiveInt(raw)) return `${k} 須為大於 0 的整數`;
+		if (raw && !positiveInt(raw)) return `${getEnvFormFieldLabel(k)} 須為大於 0 的整數`;
 	}
 	const intervalRaw = form.BACKUP_SCHEDULER_INTERVAL?.trim() ?? "";
 	if (intervalRaw && !positiveInt(intervalRaw)) {
-		return "BACKUP_SCHEDULER_INTERVAL 須為大於 0 的整數（毫秒）";
+		return `${getEnvFormFieldLabel("BACKUP_SCHEDULER_INTERVAL")} 須為大於 0 的整數（毫秒）`;
 	}
 	const h = form.ALERT_DAILY_ROLLOVER_LOCAL_HOUR?.trim() ?? "";
 	if (h) {
 		const n = Number(h);
-		if (!Number.isInteger(n) || n < 0 || n > 23) return "ALERT_DAILY_ROLLOVER_LOCAL_HOUR 須為 0–23";
+		if (!Number.isInteger(n) || n < 0 || n > 23) {
+			return `${getEnvFormFieldLabel("ALERT_DAILY_ROLLOVER_LOCAL_HOUR")} 須為 0–23`;
+		}
 	}
 	const m = form.ALERT_DAILY_ROLLOVER_LOCAL_MINUTE?.trim() ?? "";
 	if (m) {
 		const n = Number(m);
-		if (!Number.isInteger(n) || n < 0 || n > 59) return "ALERT_DAILY_ROLLOVER_LOCAL_MINUTE 須為 0–59";
+		if (!Number.isInteger(n) || n < 0 || n > 59) {
+			return `${getEnvFormFieldLabel("ALERT_DAILY_ROLLOVER_LOCAL_MINUTE")} 須為 0–59`;
+		}
 	}
 	return null;
 };
