@@ -245,8 +245,14 @@
 				<div class="mt-6 min-h-0 flex-1 overflow-hidden">
 					<ClientOnly>
 						<div class="show-scrollbar h-full overflow-auto pr-1">
+							<AsyncPanel
+								v-if="overviewTab === 'quota'"
+								panel-size="dense"
+								:loading="showLicensePlaceholder"
+								:empty="!showLicensePlaceholder && quotaDetailRows.length === 0"
+								empty-title="尚無配額資料"
+							>
 							<div
-								v-show="overviewTab === 'quota'"
 								id="license-panel-quota"
 								role="tabpanel"
 								aria-labelledby="license-tab-quota"
@@ -288,19 +294,22 @@
 									</table>
 								</div>
 							</div>
+							</AsyncPanel>
 
+							<AsyncPanel
+								v-if="overviewTab === 'keys'"
+								panel-size="dense"
+								:loading="showLicensePlaceholder"
+								:empty="!showLicensePlaceholder && licenseListRows.length === 0"
+								empty-title="尚無授權記錄"
+								empty-description="無主／副 LK 資料"
+							>
 							<div
-								v-show="overviewTab === 'keys'"
 								id="license-panel-keys"
 								role="tabpanel"
 								aria-labelledby="license-tab-keys"
 								class="space-y-4"
 							>
-								<p v-if="showLicensePlaceholder" class="text-sm text-white/60 2xl:text-base">載入中...</p>
-								<template v-else>
-									<p v-if="licenseListRows.length === 0" class="text-sm text-white/60 2xl:text-base">
-										尚無授權記錄（無主／副 LK 資料）。
-									</p>
 									<div
 										v-for="entry in licenseListRows"
 										:key="entry.id"
@@ -327,12 +336,12 @@
 											</span>
 										</div>
 									</div>
-								</template>
 							</div>
+							</AsyncPanel>
 						</div>
 
 						<template #fallback>
-							<p class="text-sm text-white/60 2xl:text-base">載入中...</p>
+							<AsyncPanel loading panel-size="dense" />
 						</template>
 					</ClientOnly>
 				</div>
@@ -361,6 +370,7 @@ import { useLicense } from "~/composables/core/useLicense";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
+import AsyncPanel from "~/components/common/AsyncPanel.vue";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import { formatMaxDevicesText, normalizeMaxDevices, toNonNegativeInt } from "~/utils/licenseFormat";
 

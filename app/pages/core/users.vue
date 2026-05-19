@@ -19,10 +19,14 @@
 
 		<!-- 用戶列表 -->
 		<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
-			<!-- 用戶列表表格：使用過渡動畫 -->
-			<div class="min-h-[500px]">
-				<Transition name="fade" mode="out-in">
-					<div v-if="visibleUsers.length > 0" :key="`users-${offset}-${visibleUsers.length}`">
+			<AsyncPanel
+				:loading="isLoading"
+				:empty="!isLoading && visibleUsers.length === 0"
+				:error="listLoadError"
+				empty-title="尚無用戶資料"
+				empty-description="點擊「新增用戶」建立第一個帳號"
+			>
+					<div :key="`users-${offset}-${visibleUsers.length}`">
 						<table class="w-full text-center">
 							<thead>
 								<tr class="border-b border-white/20">
@@ -103,8 +107,7 @@
 							@next="handleNextPage"
 						/>
 					</div>
-				</Transition>
-			</div>
+			</AsyncPanel>
 		</section>
 
 		<!-- 建立/編輯用戶對話框 -->
@@ -218,6 +221,7 @@
 <script setup lang="ts">
 import type { User } from "~/types/user";
 import Pagination from "~/components/common/Pagination.vue";
+import AsyncPanel from "~/components/common/AsyncPanel.vue";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import PermissionSettingsDialog from "~/components/common/PermissionSettingsDialog.vue";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
@@ -263,6 +267,7 @@ const {
 	total,
 	offset,
 	isLoading,
+	errorMessage: listLoadError,
 	load,
 	nextPage,
 	prevPage,
@@ -279,11 +284,7 @@ const {
 	},
 	debounce: 300,
 	pageSize: 20,
-	minLoadingDelay: 300, // 防止畫面閃爍
-	onError: err => {
-		const errorMsg = handleApiError(err, "載入用戶列表失敗");
-		errorMessage.value = errorMsg || "載入用戶列表失敗";
-	}
+	onError: err => handleApiError(err, "載入用戶列表失敗") || "載入用戶列表失敗"
 });
 
 const limit = 20; // 用於分頁組件

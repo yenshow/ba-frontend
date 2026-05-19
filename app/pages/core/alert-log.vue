@@ -68,6 +68,7 @@
 			:offset="offset"
 			:limit="limit"
 			:is-loading="isLoading"
+			:error="listLoadError"
 			:is-ignoring="isIgnoring"
 			:is-admin="isAdmin"
 			@ignore="handleIgnore"
@@ -229,6 +230,7 @@ const {
 	total: totalAlerts,
 	offset,
 	isLoading,
+	errorMessage: listLoadError,
 	load,
 	nextPage,
 	prevPage,
@@ -250,9 +252,7 @@ const {
 	},
 	debounce: 150,
 	pageSize: 5,
-	onError: err => {
-		handleApiError(err, "載入警示列表失敗");
-	}
+	onError: err => handleApiError(err, "載入警示列表失敗") || "載入警示列表失敗"
 });
 
 const limit = 5;

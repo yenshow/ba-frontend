@@ -46,7 +46,7 @@ interface Props {
 	getStatusDotClass: (type: string, value: number | null) => string;
 	getStatusText: (type: string, value: number | null) => string;
 	getStatusTextClass: (type: string, value: number | null) => string;
-	toFixedNumber: (value: number | null, fractionDigits?: number) => number;
+	toFixedNumber: (value: number | null, fractionDigits?: number) => number | string;
 	level?: number; // 熱指數等級
 	showLevel?: boolean; // 是否顯示等級
 }
@@ -59,7 +59,8 @@ const props = withDefaults(defineProps<Props>(), {
 
 const displayValue = computed(() => {
 	if (props.value === null) return "--";
-	return props.toFixedNumber(props.value, props.fractionDigits ?? 0);
+	const formatted = props.toFixedNumber(props.value, props.fractionDigits ?? 0);
+	return typeof formatted === "string" ? formatted : String(formatted);
 });
 
 const statusText = computed(() =>

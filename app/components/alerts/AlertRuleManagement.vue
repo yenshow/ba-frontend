@@ -1,14 +1,11 @@
 <template>
 	<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
-		<div class="min-h-[500px]">
-			<div v-if="isRulesLoading" class="py-16 text-center text-white/70">警報定義載入中...</div>
-			<div
-				v-else-if="rules.length === 0"
-				class="flex min-h-[500px] items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-10 text-center text-white/80"
-			>
-				目前沒有警報定義
-			</div>
-			<Transition v-else name="fade" mode="out-in">
+		<AsyncPanel
+			:loading="isRulesLoading"
+			:empty="!isRulesLoading && !rulesLoadError && rules.length === 0"
+			:error="rulesLoadError"
+			empty-title="目前沒有警報定義"
+		>
 				<div :key="`rules-${ruleOffset}-${rules.length}`">
 					<table class="w-full text-center">
 						<thead>
@@ -103,8 +100,7 @@
 						@next="goToNextRulePage"
 					/>
 				</div>
-			</Transition>
-		</div>
+		</AsyncPanel>
 	</section>
 
 	<AlertRuleDialog
@@ -146,6 +142,7 @@ import type {
 	UpdateAlertRulePayload
 } from "~/types/alert";
 import type { UnifiedZone } from "~/types/location";
+import AsyncPanel from "~/components/common/AsyncPanel.vue";
 import Pagination from "~/components/common/Pagination.vue";
 import AlertRuleDialog from "~/components/alerts/AlertRuleDialog.vue";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
@@ -207,6 +204,7 @@ const selectedRuleType = defineModel<"" | AlertType>("selectedRuleType", {
 });
 
 const isRulesLoading = ref(false);
+const rulesLoadError = ref<string | null>(null);
 const isRuleSaving = ref(false);
 const rules = ref<AlertRule[]>([]);
 const showRuleDialog = ref(false);
@@ -231,6 +229,7 @@ const getIntegrationSummary = (ruleId: number): AlertRuleIntegrationSummary =>
 
 const loadRules = async () => {
 	isRulesLoading.value = true;
+	rulesLoadError.value = null;
 	try {
 		const shouldLoadAllSources = selectedRuleSource.value === "";
 		const mergedRules = shouldLoadAllSources
@@ -251,7 +250,7 @@ const loadRules = async () => {
 			});
 		ruleOffset.value = 0;
 	} catch (error) {
-		handleApiError(error, "載入警報規則失敗");
+		rulesLoadError.value = handleApiError(error, "載入警報規則失敗") || "載入警報規則失敗";
 	} finally {
 		isRulesLoading.value = false;
 	}

@@ -55,10 +55,18 @@
 				</div>
 			</div>
 
-			<!-- 設備列表表格：使用過渡動畫 -->
-			<div class="min-h-[500px]">
-				<Transition name="fade" mode="out-in">
-					<div v-if="devices.length > 0" :key="`devices-${activeTab}-${offset}`">
+			<AsyncPanel
+				:loading="isLoading"
+				:empty="!isLoading && devices.length === 0"
+				:error="listLoadError"
+				empty-title="尚無設備資料"
+				:empty-description="
+					isOperator && currentTabName
+						? `點擊「新增設備」開始建立 ${currentTabName}`
+						: ''
+				"
+			>
+					<div :key="`devices-${activeTab}-${offset}`">
 						<table class="w-full text-center">
 							<thead>
 								<tr class="border-b border-white/20">
@@ -172,15 +180,7 @@
 							@next="handleNextPage"
 						/>
 					</div>
-					<!-- 無數據提示 -->
-					<div v-else key="empty" class="py-8 text-center text-white/60">
-						<p class="text-lg 2xl:text-xl">尚無設備資料</p>
-						<p v-if="isOperator" class="mt-2 text-sm 2xl:text-base">
-							點擊「新增設備」開始建立 {{ currentTabName }}
-						</p>
-					</div>
-				</Transition>
-			</div>
+			</AsyncPanel>
 		</section>
 
 		<!-- 建立/編輯設備對話框 -->
@@ -239,6 +239,7 @@ import type {
 	MonitoringDeviceStatusBatchEvent
 } from "~/types/websocket";
 import DeviceModelDialog from "~/components/device/DeviceModelDialog.vue";
+import AsyncPanel from "~/components/common/AsyncPanel.vue";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import Pagination from "~/components/common/Pagination.vue";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
@@ -313,6 +314,7 @@ const {
 	total,
 	offset,
 	isLoading,
+	errorMessage: listLoadError,
 	load,
 	nextPage,
 	prevPage,
@@ -343,10 +345,7 @@ const {
 	},
 	debounce: 300,
 	pageSize: 10,
-	onError: err => {
-		const errorMsg = handleApiError(err, "載入設備列表失敗");
-		errorMessage.value = errorMsg || "載入設備列表失敗";
-	}
+	onError: err => handleApiError(err, "載入設備列表失敗") || "載入設備列表失敗"
 });
 
 const deviceIdsInPage = computed(() =>

@@ -24,7 +24,7 @@
 					<div class="my-1 h-px w-2/3 bg-white/80 2xl:my-2"></div>
 					<Transition name="fade" mode="out-in">
 						<div :key="aqi ?? 'empty'" class="text-3xl text-white 2xl:text-5xl">
-							{{ aqi ?? "—" }}
+							{{ aqi ?? "--" }}
 						</div>
 					</Transition>
 				</div>
@@ -164,21 +164,3 @@ const getParamBlinkClass = (param: Param) => {
 	return "";
 };
 </script>
-
-<style scoped>
-/* Transition 淡入淡出效果 */
-.fade-enter-active,
-.fade-leave-active {
-	transition: opacity 0.3s ease-in-out;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-	opacity: 0;
-}
-
-.fade-enter-to,
-.fade-leave-from {
-	opacity: 1;
-}
-</style>

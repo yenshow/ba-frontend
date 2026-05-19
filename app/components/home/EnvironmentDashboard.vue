@@ -36,7 +36,11 @@
 						<!-- 數值（中間）：以級數呈現，避免與溫度重複 -->
 						<div class="mb-2 flex items-baseline gap-1 text-white">
 							<div class="text-4xl 2xl:text-5xl">
-								{{ heatIndex.valueC === null ? "--" : heatIndex.valueC.toFixed(1) }}
+								{{
+									props.sensorOffline || heatIndex.valueC === null
+										? "--"
+										: heatIndex.valueC.toFixed(1)
+								}}
 							</div>
 							<div class="text-lg 2xl:text-xl">°C</div>
 						</div>
@@ -169,6 +173,7 @@ import {
 	getParameterFractionDigits,
 	formatSensorValue
 } from "~/utils/sensorUtils";
+import { formatSensorDisplayValue } from "~/utils/environmentLiveReadings";
 
 interface Props {
 	location: EnvironmentLocation;
@@ -184,9 +189,12 @@ interface Props {
 		wind: number | null;
 	};
 	deviceModelConfig: SensorDeviceModelConfig | null;
+	sensorOffline?: boolean;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+	sensorOffline: false
+});
 
 const { getRules, getStatusText: getStatusTextFromRules } = useAlertRules();
 const alertRules = ref<AlertRule[]>([]);
@@ -268,6 +276,7 @@ const getParamValue = (type: SensorParameterType): number | null => {
 };
 
 const getFormattedValue = (type: SensorParameterType, value: number | null): string => {
+	if (props.sensorOffline) return "--";
 	return formatSensorValue(type, value, { fallback: "--" });
 };
 
@@ -297,6 +306,7 @@ const getStatusDotClass = (type: string, value: number | null): string => {
 };
 
 const getStatusText = (type: string, value: number | null): string => {
+	if (props.sensorOffline) return "離線";
 	if (value === null) return "離線";
 
 	// 熱指數：使用 derived 的 valueC 做規則判斷（規則仍以 parameter=heatIndex）
@@ -315,7 +325,7 @@ const getStatusText = (type: string, value: number | null): string => {
 };
 
 const getStatusTextClass = (type: string, value: number | null): string => {
-	if (value === null) return "text-white/50";
+	if (props.sensorOffline || value === null) return "text-white/50";
 
 	const status = getStatusText(type, value);
 	if (status === "正常") return "text-green-300";
@@ -325,11 +335,11 @@ const getStatusTextClass = (type: string, value: number | null): string => {
 	return "text-white/70";
 };
 
-// 數字格式化函數
-const toFixedNumber = (value: number | null, fractionDigits?: number): number => {
-	if (value === null) return 0;
-	const digits = fractionDigits ?? 0;
-	return Number(value.toFixed(digits));
+const toFixedNumber = (value: number | null, fractionDigits?: number): number | string => {
+	return formatSensorDisplayValue(value, {
+		offline: props.sensorOffline,
+		fractionDigits: fractionDigits ?? 0
+	});
 };
 
 // 圓弧計算相關常數

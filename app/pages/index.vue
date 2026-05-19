@@ -15,6 +15,7 @@
 						:location="selectedLocation"
 						:sensor-data="sensorData"
 						:device-model-config="deviceModelConfig"
+						:sensor-offline="isSensorOffline"
 					/>
 					<div
 						v-else-if="selectedUnifiedLocation"
@@ -96,9 +97,10 @@ import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
-import { useToast } from "~/composables/core/useToast";
 import { usePolling } from "~/composables/monitoring/usePolling";
 import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi";
+import { useDeviceConnectivity } from "~/composables/systems/devices/useDeviceConnectivity";
+import { isEnvironmentLocationLive } from "~/utils/environmentLiveReadings";
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
 import type { EnvironmentLocation, SensorParameterType } from "~/types/environment";
 import type { UnifiedZone, UnifiedLocation, EnvironmentSystemConfig } from "~/types/location";
@@ -124,6 +126,7 @@ definePageMeta({
 const locationApi = useLocationApi();
 const deviceApi = useDeviceApi();
 const environmentApi = useEnvironmentApi();
+const deviceConnectivity = useDeviceConnectivity();
 const { canLoadFeature, isLoaded: licenseLoaded } = useLicense();
 const { ensureLoaded: ensureModuleRegistryLoaded } = useModuleRegistry();
 const hasEnvironment = computed(() => canLoadFeature("environment"));
@@ -134,7 +137,6 @@ const showLicensePlaceholder = computed(
 	() => !isMounted.value || !licenseLoaded.value
 );
 const { handleError } = useErrorHandler();
-const toast = useToast();
 const { sortZones } = useZoneManagement<UnifiedLocation, UnifiedZone>();
 
 // 人流統計相關
@@ -269,6 +271,25 @@ const selectedLocation = computed<EnvironmentLocation | null>(() => {
 	if (!selectedUnifiedLocation.value) return null;
 	return extractEnvironmentLocation(selectedUnifiedLocation.value);
 });
+
+const collectEnvironmentDeviceIds = (): number[] => {
+	const ids = new Set<number>();
+	for (const zone of unifiedZones.value) {
+		for (const location of zone.locations) {
+			const envLoc = extractEnvironmentLocation(location);
+			getLocationDeviceIds(envLoc).forEach((id) => ids.add(id));
+		}
+	}
+	return [...ids].sort((a, b) => a - b);
+};
+
+watch(
+	() => collectEnvironmentDeviceIds().join(","),
+	() => {
+		void deviceConnectivity.refresh(collectEnvironmentDeviceIds());
+	},
+	{ immediate: true }
+);
 
 const locationOptions = computed(() =>
 	unifiedZones.value.flatMap(zone =>
@@ -409,11 +430,8 @@ const loadLocationSensorDevice = async (location: EnvironmentLocation) => {
 	}
 };
 
-const OFFLINE_ALERT_INTERVAL = 30000;
-
 const isFetching = ref(false);
 const isSensorOffline = ref(false);
-const lastOfflineAlertTime = ref<number | null>(null);
 
 const loadSensorData = async () => {
 	if (isFetching.value) return;
@@ -428,8 +446,23 @@ const loadSensorData = async () => {
 	});
 
 	try {
-		const { readings } = await environmentApi.getReadings(String(selectedLocation.value.id), { limit: 1 });
+		const deviceIds = getLocationDeviceIds(selectedLocation.value);
+		const { readings } = await environmentApi.getReadings(String(selectedLocation.value.id), {
+			limit: 1,
+			order: "desc"
+		});
 		const latest = readings?.[0];
+		const isLive = isEnvironmentLocationLive({
+			deviceIds,
+			readingTimestamp: latest?.timestamp,
+			getDeviceStatus: deviceConnectivity.getStatus
+		});
+
+		if (!isLive) {
+			isSensorOffline.value = true;
+			return;
+		}
+
 		const data = (latest?.data || {}) as Record<string, unknown>;
 		for (const param of enabledParams) {
 			const raw = data[param.type];
@@ -437,11 +470,7 @@ const loadSensorData = async () => {
 				typeof raw === "number" && Number.isFinite(raw) ? raw : null;
 		}
 
-		if (isSensorOffline.value) {
-			isSensorOffline.value = false;
-			toast.success("感測器已恢復連線", 5000);
-			lastOfflineAlertTime.value = null;
-		}
+		isSensorOffline.value = false;
 	} catch (error: unknown) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		if (
@@ -449,18 +478,7 @@ const loadSensorData = async () => {
 			errorMessage.includes("設備離線") ||
 			errorMessage.includes("服務不可用")
 		) {
-			// 設備連接錯誤 - 使用防抖機制避免重複提示
-			const now = Date.now();
-			const shouldShowAlert =
-				!isSensorOffline.value ||
-				lastOfflineAlertTime.value === null ||
-				now - lastOfflineAlertTime.value >= OFFLINE_ALERT_INTERVAL;
-
-			if (shouldShowAlert) {
-				isSensorOffline.value = true;
-				lastOfflineAlertTime.value = now;
-				toast.warning("感測器離線，無法讀取資料", 8000);
-			}
+			isSensorOffline.value = true;
 		} else {
 			// 其他錯誤（真正的後端連接錯誤、CORS 等）- 只在感測器在線時顯示，避免重複提示
 			// 使用統一錯誤處理（會自動去重和優先級判斷）
@@ -476,9 +494,13 @@ const loadSensorData = async () => {
 const SENSOR_POLLING_INTERVAL = 30000;
 
 const { start: startPolling } = usePolling({
-	callback: () => loadSensorData(),
+	callback: async () => {
+		const ids = collectEnvironmentDeviceIds();
+		if (ids.length > 0) await deviceConnectivity.refresh(ids);
+		await loadSensorData();
+	},
 	interval: SENSOR_POLLING_INTERVAL,
-	immediate: true,
+	immediate: false,
 	onError: err => handleError(err, "載入感測器資料失敗")
 });
 
@@ -544,6 +566,10 @@ onMounted(async () => {
 
 		const parallelTasks: Promise<void>[] = [];
 		if (zonesResult.status === "fulfilled" && hasEnvironment.value) {
+			const ids = collectEnvironmentDeviceIds();
+			if (ids.length > 0) {
+				parallelTasks.push(deviceConnectivity.refresh(ids).then(() => undefined).catch(console.error));
+			}
 			parallelTasks.push(initializeLocationData().catch(console.error));
 		}
 		if (peopleCountingResult.status === "fulfilled" && hasPeopleCounting.value) {
