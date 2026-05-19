@@ -191,7 +191,7 @@
 					? {
 							entryCount: selectedLocation.entryCount ?? 0,
 							exitCount: selectedLocation.exitCount ?? 0,
-							units: selectedLocation.units ?? []
+							units: selectedLocation.units ?? [],
 						}
 					: undefined
 			"
@@ -223,10 +223,8 @@ import { usePeopleCountingLocationApi } from "~/composables/location/api/usePeop
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { usePeopleCountingApi } from "~/composables/systems/peopleCounting/usePeopleCountingApi"
-import { unifiedToPeopleCountingZone } from "~/utils/locationAdapter"
 import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter"
 import { getTodayDateRangeUTC } from "~/utils/dateUtils"
-import type { UnifiedZone } from "~/types/location"
 import { useAuth } from "~/composables/core/useAuth"
 import {
 	firstFlatSiteMatchingSortedZoneLocations,
@@ -592,15 +590,3 @@ onBeforeUnmount(() => {
 	}
 })
 </script>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-	transition: opacity 0.3s ease-in-out;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-	opacity: 0;
-}
-</style>

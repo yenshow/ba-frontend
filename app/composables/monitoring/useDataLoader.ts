@@ -11,13 +11,26 @@ export interface UseDataLoaderOptions<T, P extends Record<string, unknown>> {
   debounce?: number;
   /** 每頁筆數，預設 20 */
   pageSize?: number;
-  /** 最小載入延遲時間（ms），防止畫面閃爍，預設 0 */
+  /** 最小載入延遲時間（ms），防止畫面閃爍，預設 DATA_LOADER_MIN_LOADING_DELAY_MS（150） */
   minLoadingDelay?: number;
   /** 載入時是否清空數據，預設 false */
   clearOnLoad?: boolean;
-  /** 自訂錯誤處理 */
-  onError?: (err: unknown) => void;
+  /** 自訂錯誤處理；可回傳字串作為區塊錯誤訊息（供 AsyncPanel） */
+  onError?: (err: unknown) => string | void;
 }
+
+/** 列表／表格載入最小顯示時間（全站預設） */
+export const DATA_LOADER_MIN_LOADING_DELAY_MS = 150;
+
+const resolveLoadErrorMessage = (
+  err: unknown,
+  onError?: (err: unknown) => string | void
+): string => {
+  const fromHandler = onError?.(err);
+  if (typeof fromHandler === "string" && fromHandler.trim()) return fromHandler.trim();
+  if (err instanceof Error && err.message.trim()) return err.message;
+  return "載入失敗";
+};
 
 export const useDataLoader = <T, P extends Record<string, unknown>>(
   options: UseDataLoaderOptions<T, P>
@@ -26,7 +39,7 @@ export const useDataLoader = <T, P extends Record<string, unknown>>(
     fetcher,
     debounce = 300,
     pageSize = 20,
-    minLoadingDelay = 0,
+    minLoadingDelay = DATA_LOADER_MIN_LOADING_DELAY_MS,
     clearOnLoad = false,
     onError
   } = options;
@@ -68,7 +81,7 @@ export const useDataLoader = <T, P extends Record<string, unknown>>(
       data.value = items;
       if (typeof t === "number") total.value = t;
     } catch (err) {
-      onError?.(err);
+      errorMessage.value = resolveLoadErrorMessage(err, onError);
     } finally {
       isLoading.value = false;
       isRequesting = false;

@@ -100,13 +100,14 @@
 }
 
 /* ========================================
-   過渡動畫 - 統一樣式系統
+   過渡動畫 - 統一樣式系統（Vue <Transition name="…">）
+   時長 token：--motion-fast 0.2s
    ======================================== */
 
-/* Fade 淡入淡出動畫 - 通用內容切換 */
+/* Fade - 通用內容切換、Tab 面板、列表分頁 */
 .fade-enter-active,
 .fade-leave-active {
-	transition: opacity 0.2s ease;
+	transition: opacity var(--motion-fast, 0.2s) ease;
 }
 
 .fade-enter-from,
@@ -114,15 +115,88 @@
 	opacity: 0;
 }
 
-/* Dialog Fade 對話框淡入淡出動畫 - 用於彈窗 */
+/* Dialog Fade - Modal / Teleport 彈層 */
 .dialog-fade-enter-active,
 .dialog-fade-leave-active {
-	transition: opacity 0.2s ease;
+	transition: opacity var(--motion-fast, 0.2s) ease;
 }
 
 .dialog-fade-enter-from,
 .dialog-fade-leave-to {
 	opacity: 0;
+}
+
+/* Fade-in - 平面圖側欄按鈕等漸顯（語意同 fade） */
+.fade-in-enter-active,
+.fade-in-leave-active {
+	transition: opacity var(--motion-fast, 0.2s) ease;
+}
+
+.fade-in-enter-from,
+.fade-in-leave-to {
+	opacity: 0;
+}
+
+/* Dropdown - 編輯模式分類列表展開 */
+.dropdown-enter-active,
+.dropdown-leave-active {
+	transition:
+		opacity var(--motion-fast, 0.2s) ease,
+		transform var(--motion-fast, 0.2s) ease;
+	overflow: hidden;
+}
+
+.dropdown-enter-from,
+.dropdown-leave-to {
+	opacity: 0;
+	transform: translateY(-4px);
+}
+
+/* Expand - 手風琴 / 可折疊列 */
+.expand-enter-active,
+.expand-leave-active {
+	transition: all var(--motion-fast, 0.2s) ease;
+	overflow: hidden;
+}
+
+.expand-enter-from,
+.expand-leave-to {
+	opacity: 0;
+	max-height: 0;
+}
+
+.expand-enter-to,
+.expand-leave-from {
+	opacity: 1;
+	max-height: 1000px;
+}
+
+/* Lightbox Fade - 圖片預覽 */
+.lightbox-fade-enter-active,
+.lightbox-fade-leave-active {
+	transition: opacity var(--motion-fast, 0.2s) ease;
+}
+
+.lightbox-fade-enter-from,
+.lightbox-fade-leave-to {
+	opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.fade-enter-active,
+	.fade-leave-active,
+	.dialog-fade-enter-active,
+	.dialog-fade-leave-active,
+	.fade-in-enter-active,
+	.fade-in-leave-active,
+	.dropdown-enter-active,
+	.dropdown-leave-active,
+	.expand-enter-active,
+	.expand-leave-active,
+	.lightbox-fade-enter-active,
+	.lightbox-fade-leave-active {
+		transition-duration: 0.01ms !important;
+	}
 }
 
 /* ========================================
@@ -294,6 +368,21 @@
 .blink-fast {
 	animation: status-alert-alarm-blink 1.6s ease-in-out infinite;
 	will-change: opacity;
+}
+
+/* 環境參數卡離線：底部黃黑條紋捲動（EnvironmentParamCard .offline-hazard-bar） */
+@keyframes monitoring-offline-hazard-scroll {
+	0% {
+		background-position: 0 0;
+	}
+	100% {
+		background-position: 40px 0;
+	}
+}
+
+.offline-hazard-bar {
+	animation: monitoring-offline-hazard-scroll 1.5s linear infinite;
+	will-change: background-position;
 }
 
 /* ========================================

@@ -86,7 +86,7 @@
 							:device-error="isSensorOffline"
 							:get-status-text="getStatusText"
 							:get-status-text-class="getStatusTextClass"
-							:to-fixed-number="toFixedNumber"
+							:to-fixed-number="formatParamDisplay"
 						/>
 					</div>
 					<div
@@ -244,6 +244,7 @@ import { getTodayDateRangeUTC, getTimeRangeUTC } from "~/utils/dateUtils"
 import { compareZonesLoose } from "~/utils/sortOrder"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import { calculateAqiScore } from "~/utils/environmentAqi"
+import { formatSensorDisplayValue } from "~/utils/environmentLiveReadings"
 import {
 	normalizeMonitoringStatusText,
 	monitoringStatusTextToUiStatus,
@@ -401,6 +402,9 @@ const {
 	getLocationSensorData,
 	isFetching,
 	isSensorOffline,
+	isLocationOfflineForDisplay,
+	applyWebSocketReading,
+	refreshAllDeviceConnectivity,
 	overviewLoadingMap,
 	loadSensorData,
 	loadLocationSensorData,
@@ -412,9 +416,13 @@ const {
 	getLocationId,
 })
 
-// 噪音值和風速（使用 computed 從 sensorData 中取得，避免重複）
-const noiseValue = computed(() => sensorData.noise)
-const windSpeed = computed(() => sensorData.wind)
+const noiseValue = computed(() => (isSensorOffline.value ? null : sensorData.noise))
+
+const formatParamDisplay = (value: number | null, fractionDigits = 0) =>
+	formatSensorDisplayValue(value, {
+		fractionDigits,
+		offline: isSensorOffline.value,
+	})
 
 // 總覽面板收縮狀態
 const isOverviewCollapsed = ref(false)
@@ -464,29 +472,10 @@ const enabledParameters = computed(() => {
 
 // getLocationZone / getLocationId 已於上方宣告，供 composable 與 currentLocationData 共用
 
-// 處理環境讀數新事件
+// 處理環境讀數新事件（Monitor 成功讀取後推送，視為即時）
 const handleEnvironmentReadingNew = (event: EnvironmentReadingNewEvent) => {
-	const { locationId, reading } = event
-	const locationIdStr = String(locationId)
-
-	// 更新當前選中地點的資料
-	if (currentLocationData.value?.id === locationIdStr) {
-		Object.keys(reading).forEach((key) => {
-			if (key in sensorData) {
-				;(sensorData as any)[key] = reading[key]
-			}
-		})
-	}
-
-	// 更新總覽面板的資料
-	const existingData =
-		allLocationsSensorData.value.get(locationIdStr) || createEmptySensorReadings()
-	Object.keys(reading).forEach((key) => {
-		if (key in existingData) {
-			;(existingData as any)[key] = reading[key]
-		}
-	})
-	allLocationsSensorData.value.set(locationIdStr, existingData)
+	const locationIdStr = String(event.locationId)
+	applyWebSocketReading(locationIdStr, event.reading as Record<string, unknown>)
 }
 
 // 選擇地點
@@ -494,7 +483,7 @@ const selectLocation = (location: EnvironmentLocation) => {
 	selectedLocationId.value = getLocationId(location)
 
 	// 載入該地點的感測器資料
-	void loadLocationSensorData(location)
+	void loadLocationSensorData()
 }
 
 // 總覽面板載入狀態追蹤由 useEnvironmentSensors 管理
@@ -518,9 +507,10 @@ const getOverviewLoadPromises = (): Promise<void>[] => {
 // 使用 usePolling 統一管理輪詢：總覽會讀取「所有地點」的感測器資料（含大門口等）
 const { start: startPolling, stop: stopPolling } = usePolling({
 	callback: async () => {
+		await refreshAllDeviceConnectivity()
 		const promises: Promise<void>[] = []
 		if (selectedLocationId.value && currentLocationData.value) {
-			promises.push(loadSensorData())
+			promises.push(loadSensorData({ skipConnectivityRefresh: true }))
 		}
 		promises.push(...getOverviewLoadPromises())
 		await Promise.allSettled(promises)
@@ -664,6 +654,23 @@ const isCurrentLocation = (location: EnvironmentLocation): boolean => {
 
 // 獲取地點的顯示資料（支援所有地點，不僅限於當前選中）
 const getLocationDisplayData = (location: EnvironmentLocation) => {
+	const locationParams = location.parameters.filter((param) => param.enabled)
+
+	if (isLocationOfflineForDisplay(location)) {
+		return {
+			params: locationParams.map((param) => ({
+				label: getParameterDisplayName(param.type),
+				value: "--",
+				unit: getParameterUnit(param.type),
+				alertClass: getStatusTextClass(param.type, null),
+				type: param.type,
+				rawValue: null as number | null,
+			})),
+			aqi: null,
+			noise: null,
+		}
+	}
+
 	// 優先使用資料庫 ID（與 WebSocket 一致），key 統一字串
 	const locationId = location.id != null ? String(location.id) : getLocationId(location)
 	const locationSensorData = getLocationSensorData(locationId)
@@ -677,19 +684,21 @@ const getLocationDisplayData = (location: EnvironmentLocation) => {
 		}
 	}
 
-	// 取得該地點的啟用參數
-	const locationParams = location.parameters.filter((param) => param.enabled)
-
 	return {
 		params: locationParams.map((param) => {
 			const value = dataSource[param.type]
 			return {
 				label: getParameterDisplayName(param.type),
-				value: value !== null ? toFixedNumber(value, getParameterFractionDigits(param.type)) : "--",
+				value:
+					value !== null
+						? formatSensorDisplayValue(value, {
+								fractionDigits: getParameterFractionDigits(param.type),
+							})
+						: "--",
 				unit: getParameterUnit(param.type),
 				alertClass: getStatusTextClass(param.type, value),
-				type: param.type, // 傳遞參數類型用於狀態判斷
-				rawValue: value, // 傳遞原始數值用於狀態判斷
+				type: param.type,
+				rawValue: value,
 			}
 		}),
 		aqi: calculateAQI(dataSource),
@@ -703,6 +712,7 @@ const getOverviewLocationCardBindings = (location: EnvironmentLocation) => {
 		aqi: displayData.aqi,
 		noise: displayData.noise,
 		params: displayData.params,
+		getStatusText: getStatusTextForLocation(location),
 	}
 }
 
@@ -744,10 +754,10 @@ onMounted(async () => {
 	// 載入區域和地點資料（從環境 API）
 	await loadZonesFromAPI()
 
-	// 進站時並行載入：選中地點主面板 + 總覽所有地點
+	await refreshAllDeviceConnectivity()
 	const initialLoadPromises: Promise<void>[] = []
 	if (currentLocationData.value && getLocationDeviceIds(currentLocationData.value).length > 0) {
-		initialLoadPromises.push(loadLocationSensorData(currentLocationData.value))
+		initialLoadPromises.push(loadSensorData({ skipConnectivityRefresh: true }))
 	}
 	initialLoadPromises.push(...getOverviewLoadPromises())
 	await Promise.allSettled(initialLoadPromises)
@@ -775,13 +785,6 @@ onBeforeUnmount(() => {
 	}
 })
 
-const toFixedNumber = (value: number | null, fractionDigits = 0) => {
-	if (value === null || Number.isNaN(value)) {
-		return 0
-	}
-	return Number(value.toFixed(fractionDigits))
-}
-
 // 計算 AQI（共用函數）
 const calculateAQI = (data: SensorReadings): number | null => {
 	return calculateAqiScore({ pm25: data.pm25, pm10: data.pm10 })
@@ -790,50 +793,26 @@ const calculateAQI = (data: SensorReadings): number | null => {
 // 當沒有設備時，AQI 和溫度應該為 null
 const aqiScore = computed(() => {
 	if (!getLocationDeviceIds(currentLocationData.value).length) return null
+	if (isSensorOffline.value) return null
 	return calculateAQI(sensorData)
 })
 
 const currentTemperature = computed(() => {
 	if (!getLocationDeviceIds(currentLocationData.value).length) return null
+	if (isSensorOffline.value) return null
 	return sensorData.temperature
 })
 
 // 取得當前地點的顯示字串（共用函數）
-const getCurrentLocationString = (): string => {
-	if (!currentLocationData.value) return "請選擇地點"
-	const zoneName = getLocationZone(currentLocationData.value)
-	return `${zoneName || ""} / ${currentLocationData.value.name}`
-}
-
-const aqiData = computed(() => ({
-	value: aqiScore.value,
-	location: getCurrentLocationString(),
-	metrics: [
-		{ label: "PM2.5", value: toFixedNumber(sensorData.pm25), unit: "µg/m³" },
-		{ label: "PM10", value: toFixedNumber(sensorData.pm10), unit: "µg/m³" },
-		{ label: "CO₂", value: toFixedNumber(sensorData.co2), unit: "ppm" },
-		{ label: "TVOC", value: toFixedNumber(sensorData.tvoc, 1), unit: "ppm" },
-		{ label: "HCHO", value: toFixedNumber(sensorData.hcho), unit: "ppm" },
-		{ label: "濕度", value: toFixedNumber(sensorData.humidity, 1), unit: "%" },
-	],
-}))
-
-const environmentData = computed(() => ({
-	temperature: toFixedNumber(sensorData.temperature, 1),
-	location: getCurrentLocationString(),
-	metrics: [
-		{
-			label: "溫度",
-			value: toFixedNumber(sensorData.temperature, 1),
-			unit: "°C",
-			icon: "temperature",
-		},
-		{ label: "濕度", value: toFixedNumber(sensorData.humidity, 1), unit: "%", icon: "humidity" },
-		{ label: "CO₂", value: toFixedNumber(sensorData.co2), unit: "ppm", icon: "CO₂" },
-	],
-}))
+const getStatusTextForLocation =
+	(location: EnvironmentLocation) =>
+	(type: string, value: number | null): string => {
+		if (isLocationOfflineForDisplay(location)) return "離線"
+		return getStatusText(type, value)
+	}
 
 const getStatusText = (type: string, value: number | null): string => {
+	if (isSensorOffline.value) return "離線"
 	if (value === null) return "離線"
 
 	// 如果規則已載入，使用規則判斷
@@ -871,15 +850,3 @@ const getReportCellClass = (type: string, value: number | null): string => {
 	return ""
 }
 </script>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-	transition: opacity 0.3s ease-in-out;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-	opacity: 0;
-}
-</style>

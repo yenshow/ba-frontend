@@ -1,56 +1,39 @@
 <template>
-	<div class="space-y-6">
-		<div class="flex items-center justify-between">
-			<h1 class="text-3xl 2xl:text-4xl font-semibold tracking-[8px] text-white">資訊牆管理</h1>
-			<div class="flex items-center gap-3">
-				<NuxtLink
-					to="/multimedia/dashboard"
-					target="_blank"
-					rel="noopener noreferrer"
-					class="rounded-xl bg-white/10 px-4 py-2 text-base text-white hover:bg-white/20 2xl:px-6 2xl:py-3 2xl:text-lg"
-					aria-label="前往資訊看板"
-				>
-					資訊看板
-				</NuxtLink>
-				<button
-					type="button"
-					class="rounded-xl bg-purple-500/80 px-4 py-2 text-base text-white hover:bg-purple-400 disabled:cursor-not-allowed disabled:bg-purple-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
-					:disabled="isSaving"
-					@click="handleSave"
-				>
-					{{ isSaving ? "儲存中..." : "儲存" }}
-				</button>
+	<PageTabs
+		v-model="activeTab"
+		:tabs="multimediaTabs"
+		layout="stacked"
+		root-class="space-y-6"
+		aria-label="資訊牆管理分頁"
+		id-prefix="multimedia-tab"
+	>
+		<template #prefix>
+			<div class="flex items-center justify-between">
+				<h1 class="text-3xl font-semibold tracking-[8px] text-white 2xl:text-4xl">資訊牆管理</h1>
+				<div class="flex items-center gap-3">
+					<NuxtLink
+						to="/multimedia/dashboard"
+						target="_blank"
+						rel="noopener noreferrer"
+						class="rounded-xl bg-white/10 px-4 py-2 text-base text-white hover:bg-white/20 2xl:px-6 2xl:py-3 2xl:text-lg"
+						aria-label="前往資訊看板"
+					>
+						資訊看板
+					</NuxtLink>
+					<button
+						type="button"
+						class="rounded-xl bg-purple-500/80 px-4 py-2 text-base text-white hover:bg-purple-400 disabled:cursor-not-allowed disabled:bg-purple-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
+						:disabled="isSaving"
+						@click="handleSave"
+					>
+						{{ isSaving ? "儲存中..." : "儲存" }}
+					</button>
+				</div>
 			</div>
-		</div>
+		</template>
 
-		<div class="flex items-center gap-2">
-			<button
-				type="button"
-				class="whitespace-nowrap rounded-2xl border-2 px-4 py-2 text-base text-white transition-all 2xl:text-lg"
-				:class="
-					activeTab === 'basic'
-						? 'border-white bg-white/10 hover:bg-white/15'
-						: 'border-white/30 bg-transparent hover:bg-white/10'
-				"
-				@click="activeTab = 'basic'"
-			>
-				基本設定
-			</button>
-			<button
-				type="button"
-				class="whitespace-nowrap rounded-2xl border-2 px-4 py-2 text-base text-white transition-all 2xl:text-lg"
-				:class="
-					activeTab === 'content'
-						? 'border-white bg-white/10 hover:bg-white/15'
-						: 'border-white/30 bg-transparent hover:bg-white/10'
-				"
-				@click="activeTab = 'content'"
-			>
-				公告 / 排程
-			</button>
-		</div>
-
-		<div v-show="activeTab === 'basic'" class="grid grid-cols-12 gap-4">
+		<template #basic>
+			<div class="grid grid-cols-12 gap-4">
 			<!-- 圖片 -->
 			<div class="col-span-7 space-y-4">
 				<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
@@ -193,8 +176,10 @@
 				</section>
 			</div>
 		</div>
+		</template>
 
-		<div v-show="activeTab === 'content'" class="grid grid-cols-12 gap-6">
+		<template #content>
+			<div class="grid grid-cols-12 gap-6">
 			<div class="col-span-7 space-y-6">
 				<section
 					class="min-h-[420px] rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white"
@@ -387,10 +372,12 @@
 				</section>
 			</div>
 		</div>
-	</div>
+		</template>
+	</PageTabs>
 </template>
 
 <script setup lang="ts">
+import PageTabs from "~/components/common/PageTabs.vue"
 import { useAuth } from "~/composables/core/useAuth"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
@@ -416,6 +403,10 @@ const deviceApi = useDeviceApi()
 
 const isSaving = ref(false)
 const activeTab = ref<"basic" | "content">("basic")
+const multimediaTabs = [
+	{ id: "basic" as const, label: "基本設定" },
+	{ id: "content" as const, label: "公告 / 排程" },
+]
 
 const FIXED_ENV_SKELETON_KEYS = [
 	"temperature",

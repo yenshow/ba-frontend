@@ -54,11 +54,15 @@ import EnvironmentCard from "~/components/home/EnvironmentCard.vue"
 import BuildingCard from "~/components/home/BuildingCard.vue"
 import SystemModule from "~/components/home/SystemModule.vue"
 import { useApiBase } from "~/composables/core/useApiBase"
-import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { usePolling } from "~/composables/monitoring/usePolling"
 import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi"
+import { useDeviceConnectivity } from "~/composables/systems/devices/useDeviceConnectivity"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
+import {
+	formatSensorDisplayValue,
+	isEnvironmentLocationLive,
+} from "~/utils/environmentLiveReadings"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import type { UnifiedZone, UnifiedLocation, EnvironmentSystemConfig } from "~/types/location"
 import { firstLocationInSortedZones } from "~/utils/sortOrder"
@@ -73,7 +77,7 @@ const locationApi = useLocationApi()
 const { sortZones } = useZoneManagement<UnifiedLocation, UnifiedZone>()
 useApiBase()
 const environmentApi = useEnvironmentApi()
-const toast = useToast()
+const deviceConnectivity = useDeviceConnectivity()
 const { handleError } = useErrorHandler()
 
 type SensorReadings = {
@@ -87,8 +91,6 @@ type SensorReadings = {
 	noise: number | null
 	wind: number | null
 }
-
-const OFFLINE_ALERT_INTERVAL = 30000 // 每 30 秒最多顯示一次離線警報
 
 const createEmptySensorReadings = (): SensorReadings => ({
 	pm25: null,
@@ -111,9 +113,6 @@ const isFetchingEnvironment = ref(false)
 
 const isAqiSensorOffline = ref(false)
 const isEnvironmentSensorOffline = ref(false)
-
-const lastAqiOfflineAlertTime = ref<number | null>(null)
-const lastEnvironmentOfflineAlertTime = ref<number | null>(null)
 
 // 區域地點選擇（AQI / 環境可分開選；會寫入 localStorage 以固定下次進入首頁的選擇）
 const selectedAqiLocationId = ref<string>("")
@@ -232,6 +231,32 @@ const getEnvironmentDbLocationIdByUiLocationId = (locationId: string): string | 
 	return String(unifiedLocation.id)
 }
 
+const getDeviceIdsForUiLocationId = (locationId: string): number[] => {
+	const unifiedLocation = findUnifiedLocationByLocationId(locationId)
+	if (!unifiedLocation) return []
+	const envLoc = extractEnvironmentLocation(unifiedLocation)
+	return envLoc?.deviceIds ?? []
+}
+
+const collectAllEnvironmentDeviceIds = (): number[] => {
+	const ids = new Set<number>()
+	for (const zone of unifiedZones.value) {
+		for (const location of zone.locations || []) {
+			const envLoc = extractEnvironmentLocation(location)
+			envLoc?.deviceIds.forEach((id) => ids.add(id))
+		}
+	}
+	return [...ids].sort((a, b) => a - b)
+}
+
+watch(
+	() => collectAllEnvironmentDeviceIds().join(","),
+	() => {
+		void deviceConnectivity.refresh(collectAllEnvironmentDeviceIds())
+	},
+	{ immediate: true }
+)
+
 const locationOptions = computed(() => {
 	const options: Array<{ value: string; label: string }> = []
 
@@ -267,6 +292,8 @@ const loadZones = async (): Promise<void> => {
 // 使用 usePolling 統一管理輪詢
 const { start: startPolling } = usePolling({
 	callback: async () => {
+		const ids = collectAllEnvironmentDeviceIds()
+		if (ids.length > 0) await deviceConnectivity.refresh(ids)
 		await Promise.allSettled([loadAqiSensorData(), loadEnvironmentSensorData()])
 	},
 	interval: 30000, // 每 30 秒執行一次
@@ -280,14 +307,11 @@ const PARAM_KEYS = [
 	"pm25", "pm10", "tvoc", "hcho", "humidity", "temperature", "co2", "noise", "wind",
 ] as const
 
-type LoadTarget = "aqi" | "environment"
 const loadSensorDataByLocationId = async (params: {
-	target: LoadTarget
 	locationId: string
 	targetSensorData: SensorReadings
 	isFetchingRef: Ref<boolean>
 	isOfflineRef: Ref<boolean>
-	lastOfflineAlertTimeRef: Ref<number | null>
 }): Promise<void> => {
 	if (params.isFetchingRef.value || !params.locationId) return
 
@@ -302,8 +326,23 @@ const loadSensorDataByLocationId = async (params: {
 	Object.assign(params.targetSensorData, createEmptySensorReadings())
 
 	try {
-		const { readings } = await environmentApi.getReadings(dbLocationId, { limit: 1 })
+		const deviceIds = getDeviceIdsForUiLocationId(params.locationId)
+		const { readings } = await environmentApi.getReadings(dbLocationId, {
+			limit: 1,
+			order: "desc",
+		})
 		const latest = readings?.[0]
+		const isLive = isEnvironmentLocationLive({
+			deviceIds,
+			readingTimestamp: latest?.timestamp,
+			getDeviceStatus: deviceConnectivity.getStatus,
+		})
+
+		if (!isLive) {
+			params.isOfflineRef.value = true
+			return
+		}
+
 		const data = (latest?.data || {}) as Record<string, unknown>
 		for (const key of PARAM_KEYS) {
 			const value = data[key]
@@ -311,24 +350,11 @@ const loadSensorDataByLocationId = async (params: {
 				typeof value === "number" && Number.isFinite(value) ? value : null
 		}
 
-		if (params.isOfflineRef.value) {
-			params.isOfflineRef.value = false
-			params.lastOfflineAlertTimeRef.value = null
-			toast.success(`${params.target === "aqi" ? "AQI" : "環境"} 感測器已恢復連線`, 5000)
-		}
+		params.isOfflineRef.value = false
 	} catch (error: unknown) {
 		const errorMessage = error instanceof Error ? error.message : String(error)
 		if (errorMessage.includes("503") || errorMessage.includes("設備離線")) {
-			const now = Date.now()
-			const shouldShowAlert =
-				!params.isOfflineRef.value ||
-				params.lastOfflineAlertTimeRef.value === null ||
-				now - params.lastOfflineAlertTimeRef.value >= OFFLINE_ALERT_INTERVAL
-			if (shouldShowAlert) {
-				params.isOfflineRef.value = true
-				params.lastOfflineAlertTimeRef.value = now
-				toast.warning(`${params.target === "aqi" ? "AQI" : "環境"} 感測器離線，無法讀取資料`, 8000)
-			}
+			params.isOfflineRef.value = true
 			return
 		}
 		if (!params.isOfflineRef.value) {
@@ -339,25 +365,30 @@ const loadSensorDataByLocationId = async (params: {
 	}
 }
 
+const formatAqiDisplay = (value: number | null, fractionDigits = 0) =>
+	formatSensorDisplayValue(value, { offline: isAqiSensorOffline.value, fractionDigits })
+
+const formatEnvironmentDisplay = (value: number | null, fractionDigits = 0) =>
+	formatSensorDisplayValue(value, {
+		offline: isEnvironmentSensorOffline.value,
+		fractionDigits,
+	})
+
 const loadAqiSensorData = async () => {
 	return loadSensorDataByLocationId({
-		target: "aqi",
 		locationId: selectedAqiLocationId.value,
 		targetSensorData: aqiSensorData,
 		isFetchingRef: isFetchingAqi,
 		isOfflineRef: isAqiSensorOffline,
-		lastOfflineAlertTimeRef: lastAqiOfflineAlertTime,
 	})
 }
 
 const loadEnvironmentSensorData = async () => {
 	return loadSensorDataByLocationId({
-		target: "environment",
 		locationId: selectedEnvironmentLocationId.value,
 		targetSensorData: environmentSensorData,
 		isFetchingRef: isFetchingEnvironment,
 		isOfflineRef: isEnvironmentSensorOffline,
-		lastOfflineAlertTimeRef: lastEnvironmentOfflineAlertTime,
 	})
 }
 
@@ -392,89 +423,49 @@ onMounted(async () => {
 	} finally {
 		isHydratingHomeLocationSelections.value = false
 	}
+	const ids = collectAllEnvironmentDeviceIds()
+	if (ids.length > 0) await deviceConnectivity.refresh(ids)
 	await Promise.allSettled([loadAqiSensorData(), loadEnvironmentSensorData()])
 	startPolling()
 })
-
-const toFixedNumber = (value: number | null, fractionDigits = 0) => {
-	if (value === null || Number.isNaN(value)) {
-		return 0
-	}
-	return Number(value.toFixed(fractionDigits))
-}
 
 const getSelectedLocationLabel = (locationId: string) => {
 	const option = locationOptions.value.find((opt) => opt.value === locationId)
 	return option?.label || "未選擇地點"
 }
 
-const aqiScore = computed(() => {
-	const score = calculateAqiScore({ pm25: aqiSensorData.pm25, pm10: aqiSensorData.pm10 })
-	return score ?? 0
-})
-
 const aqiData = computed(() => ({
-	value: aqiScore.value,
+	value: formatAqiDisplay(calculateAqiScore({ pm25: aqiSensorData.pm25, pm10: aqiSensorData.pm10 })),
 	location: getSelectedLocationLabel(selectedAqiLocationId.value),
 	metrics: [
-		{
-			label: "PM2.5",
-			value: toFixedNumber(aqiSensorData.pm25),
-			unit: "µg/m³",
-			icon: "PM2.5",
-		},
-		{
-			label: "PM10",
-			value: toFixedNumber(aqiSensorData.pm10),
-			unit: "µg/m³",
-			icon: "PM10",
-		},
-		{
-			label: "溫度",
-			value: toFixedNumber(aqiSensorData.temperature, 1),
-			unit: "°C",
-			icon: "temperature",
-		},
-		{
-			label: "濕度",
-			value: toFixedNumber(aqiSensorData.humidity, 1),
-			unit: "%",
-			icon: "humidity",
-		},
-		{
-			label: "風速",
-			value: toFixedNumber(aqiSensorData.wind, 1),
-			unit: "m/s",
-			icon: "wind",
-		},
-		{
-			label: "噪音",
-			value: toFixedNumber(aqiSensorData.noise),
-			unit: "dB",
-			icon: "noise",
-		},
+		{ label: "PM2.5", value: formatAqiDisplay(aqiSensorData.pm25), unit: "µg/m³", icon: "PM2.5" },
+		{ label: "PM10", value: formatAqiDisplay(aqiSensorData.pm10), unit: "µg/m³", icon: "PM10" },
+		{ label: "溫度", value: formatAqiDisplay(aqiSensorData.temperature, 1), unit: "°C", icon: "temperature" },
+		{ label: "濕度", value: formatAqiDisplay(aqiSensorData.humidity, 1), unit: "%", icon: "humidity" },
+		{ label: "風速", value: formatAqiDisplay(aqiSensorData.wind, 1), unit: "m/s", icon: "wind" },
+		{ label: "噪音", value: formatAqiDisplay(aqiSensorData.noise), unit: "dB", icon: "noise" },
 	],
 }))
 
 const environmentData = computed(() => ({
-	temperature: toFixedNumber(environmentSensorData.temperature, 1),
+	temperature: formatEnvironmentDisplay(environmentSensorData.temperature, 1),
 	location: getSelectedLocationLabel(selectedEnvironmentLocationId.value),
 	metrics: [
 		{
 			label: "濕度",
-			value: toFixedNumber(environmentSensorData.humidity, 1),
+			value: formatEnvironmentDisplay(environmentSensorData.humidity, 1),
 			unit: "%",
 			icon: "humidity",
 		},
 		{
 			label: "CO₂",
-			value: toFixedNumber(environmentSensorData.co2),
+			value: formatEnvironmentDisplay(environmentSensorData.co2),
 			unit: "ppm",
 			icon: "CO2",
 		},
 		{
 			label: "PM2.5",
-			value: toFixedNumber(environmentSensorData.pm25),
+			value: formatEnvironmentDisplay(environmentSensorData.pm25),
 			unit: "µg/m³",
 			icon: "PM2.5",
 		},

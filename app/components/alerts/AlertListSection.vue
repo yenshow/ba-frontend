@@ -11,42 +11,23 @@
 			</div>
 		</div>
 
-		<div class="min-h-[500px]">
-			<Transition name="fade" mode="out-in">
-				<div :key="`content-${offset}-${alerts.length}`">
-					<div
-						v-if="alerts.length === 0"
-						class="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
-					>
-						<div>
-							<svg
-								class="mx-auto mb-4 h-16 w-16 text-white/60"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-								/>
-							</svg>
-							<p class="text-2xl font-medium text-white/90 2xl:text-3xl">目前沒有警示紀錄</p>
-							<p class="mt-2 text-sm text-white/70 2xl:text-base">請調整篩選條件或稍後再查看</p>
-						</div>
-					</div>
-
-					<div v-else class="space-y-4">
-						<div
-							v-for="alert in alerts"
-							:key="`${alert.id}:${alert.dimension_key || 'default'}`"
-							:id="`alert-${alert.id}`"
-							:class="['rounded-xl border-2 p-4 transition-all 2xl:p-6', getAlertCardClass(alert)]"
-						>
-							<div class="flex items-start justify-between gap-4">
-								<div class="flex-1">
-									<div class="mb-2 flex flex-wrap items-center gap-2">
+		<AsyncPanel
+			:loading="isLoading"
+			:empty="!isLoading && alerts.length === 0"
+			:error="error"
+			empty-title="目前沒有警示紀錄"
+			empty-description="請調整篩選條件或稍後再查看"
+		>
+			<div class="space-y-4">
+				<div
+					v-for="alert in alerts"
+					:key="`${alert.id}:${alert.dimension_key || 'default'}`"
+					:id="`alert-${alert.id}`"
+					:class="['rounded-xl border-2 p-4 transition-all 2xl:p-6', getAlertCardClass(alert)]"
+				>
+					<div class="flex items-start justify-between gap-4">
+						<div class="flex-1">
+							<div class="mb-2 flex flex-wrap items-center gap-2">
 										<span :class="[badgeBaseClass, 'bg-blue-500/80']">{{
 											getSourceLabel(alert.source)
 										}}</span>
@@ -131,23 +112,22 @@
 						</div>
 					</div>
 
-					<Pagination
-						v-if="totalAlerts > limit"
-						:total="totalAlerts"
-						:offset="offset"
-						:limit="limit"
-						:disabled="isLoading"
-						@previous="emit('previous')"
-						@next="emit('next')"
-					/>
-				</div>
-			</Transition>
-		</div>
+			<Pagination
+				v-if="totalAlerts > limit"
+				:total="totalAlerts"
+				:offset="offset"
+				:limit="limit"
+				:disabled="isLoading"
+				@previous="emit('previous')"
+				@next="emit('next')"
+			/>
+		</AsyncPanel>
 	</section>
 </template>
 
 <script setup lang="ts">
 import type { Alert } from "~/types/alert"
+import AsyncPanel from "~/components/common/AsyncPanel.vue"
 import Pagination from "~/components/common/Pagination.vue"
 import {
 	getSourceLabel,
@@ -167,6 +147,7 @@ defineProps<{
 	offset: number
 	limit: number
 	isLoading: boolean
+	error?: string | null
 	isIgnoring: boolean
 	isAdmin: boolean
 }>()

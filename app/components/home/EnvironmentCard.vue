@@ -86,11 +86,11 @@
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 
 interface EnvironmentData {
-	temperature: number;
+	temperature: number | string;
 	location: string;
 	metrics: Array<{
 		label: string;
-		value: number;
+		value: number | string;
 		unit: string;
 		icon: string;
 	}>;
@@ -124,9 +124,16 @@ const selectedLocationId = computed({
 	set: (value: string) => emit("update:modelValue", value)
 });
 
+const numericTemperature = computed((): number | null => {
+	const temp = props.data.temperature;
+	if (typeof temp !== "number" || !Number.isFinite(temp)) return null;
+	return temp;
+});
+
 // 計算溫度指示器的顏色（純色，無漸變）
 const temperatureColor = computed(() => {
-	const temp = props.data.temperature;
+	const temp = numericTemperature.value;
+	if (temp === null) return "#6b7280";
 
 	if (temp <= 20) return "#3B82F6"; // 藍色 - 冷
 	if (temp <= 28) return "#10B981"; // 綠色 - 舒適
@@ -149,7 +156,8 @@ const arcAngleRange = arcEndAngle - arcStartAngle; // 270 度
 
 // 根據溫度值計算弧長百分比（0-100%，最大值 50°C）
 const temperaturePercentage = computed(() => {
-	const temp = props.data.temperature;
+	const temp = numericTemperature.value;
+	if (temp === null) return 0;
 	const maxTemp = 50;
 	return Math.min((temp / maxTemp) * 100, 100);
 });
@@ -180,9 +188,7 @@ const arcDashOffset = computed(() => {
 });
 
 // 檢查資料是否已準備好（避免初始渲染時的動畫問題）
-const isDataReady = computed(() => {
-	return props.data.temperature >= 0;
-});
+const isDataReady = computed(() => numericTemperature.value !== null);
 
 const getMetricIcon = (iconName: string) => {
 	const iconMap: Record<string, string> = {

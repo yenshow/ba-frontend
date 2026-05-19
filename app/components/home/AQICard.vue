@@ -83,11 +83,11 @@
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 
 interface AQIData {
-	value: number;
+	value: number | string;
 	location: string;
 	metrics: Array<{
 		label: string;
-		value: number;
+		value: number | string;
 		unit: string;
 		icon?: string;
 	}>;
@@ -155,9 +155,16 @@ const getMetricIcon = (metric: AQIMetric) => {
 	return "/environment/PM2.5.png";
 };
 
+const numericAqi = computed((): number | null => {
+	const value = props.aqi.value;
+	if (typeof value !== "number" || !Number.isFinite(value)) return null;
+	return value;
+});
+
 // 計算弧形指示器的顏色
 const arcColor = computed(() => {
-	const value = props.aqi.value;
+	const value = numericAqi.value;
+	if (value === null) return "#6b7280";
 	if (value < 10) return "#001Eff";
 	if (value <= 50) return "#00ffb4";
 	if (value <= 100) return "#FFC701";
@@ -178,7 +185,8 @@ const arcAngleRange = arcEndAngle - arcStartAngle; // 270 度
 
 // 根據 AQI 值計算弧長百分比（0-100%，最大值 150）
 const arcPercentage = computed(() => {
-	const value = props.aqi.value;
+	const value = numericAqi.value;
+	if (value === null) return 0;
 	const maxValue = 150;
 	return Math.min((value / maxValue) * 100, 100);
 });
@@ -209,7 +217,5 @@ const arcDashOffset = computed(() => {
 });
 
 // 檢查資料是否已準備好（避免初始渲染時的動畫問題）
-const isDataReady = computed(() => {
-	return props.aqi.value >= 0;
-});
+const isDataReady = computed(() => numericAqi.value !== null);
 </script>

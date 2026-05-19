@@ -18,10 +18,14 @@ export interface UpdateEnvironmentZoneData {
 	locations?: (EnvironmentLocation | Omit<EnvironmentLocation, "id">)[]
 }
 
+export type EnvironmentReadingsOrder = "asc" | "desc"
+
 export interface GetReadingsOptions {
 	startTime?: string
 	endTime?: string
 	limit?: number
+	/** 預設 asc（歷史序列）；即時快照請用 desc + limit 1 */
+	order?: EnvironmentReadingsOrder
 }
 
 export type AggregatedBucket = "hour" | "day" | "month"
@@ -53,6 +57,7 @@ export const useEnvironmentApi = () => {
 			if (options?.startTime) params.startTime = options.startTime
 			if (options?.endTime) params.endTime = options.endTime
 			if (options?.limit) params.limit = options.limit
+			if (options?.order) params.order = options.order
 
 			const path = buildPathWithQuery(`/environment/readings/${locationId}`, params)
 			return request<{ readings: SensorReading[] }>(path)

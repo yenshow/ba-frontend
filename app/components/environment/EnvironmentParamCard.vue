@@ -6,7 +6,7 @@
 		<!-- 警告條（設備異常/離線時顯示） -->
 		<div
 			v-if="props.deviceError || statusText === '離線'"
-			class="blink-animation absolute bottom-0 left-0 right-0 h-2 rounded-b-xl"
+			class="offline-hazard-bar absolute bottom-0 left-0 right-0 h-2.5 rounded-b-xl"
 			:style="warningBarStyle"
 		></div>
 
@@ -87,7 +87,7 @@ interface Props {
 	getStatusDotClass?: (type: string, value: number | null) => string
 	getStatusText: (type: string, value: number | null) => string
 	getStatusTextClass: (type: string, value: number | null) => string
-	toFixedNumber: (value: number | null, fractionDigits?: number) => number
+	toFixedNumber: (value: number | null, fractionDigits?: number) => number | string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -96,7 +96,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const displayValue = computed(() => {
-	if (props.value === null) return "--"
+	if (props.deviceError || props.value === null) return "--"
 	return props.toFixedNumber(props.value, props.fractionDigits ?? 0)
 })
 
@@ -144,12 +144,11 @@ const blinkAnimationClass = computed(() => {
 })
 
 // 警告條樣式（黃黑條紋）
-const warningBarStyle = computed(() => {
-	return {
-		backgroundImage:
-			"repeating-linear-gradient(90deg, #FFC801 0px, #FFC801 10px, #000000 10px, #000000 20px)",
-	}
-})
+const warningBarStyle = computed(() => ({
+	backgroundImage:
+		"repeating-linear-gradient(90deg, #FFC801 0px, #FFC801 10px, #000000 10px, #000000 20px)",
+	backgroundSize: "40px 100%",
+}))
 
 // 狀態燈內聯樣式
 const statusDotStyle = computed(() => {
@@ -167,25 +166,3 @@ const statusDotStyle = computed(() => {
 })
 </script>
 
-<style scoped>
-/* 設備警告條：中等速度閃爍（1.5秒） */
-.blink-animation {
-	animation: status-alert-warning-blink 1.5s ease-in-out infinite;
-}
-
-/* Transition 淡入淡出效果 */
-.fade-enter-active,
-.fade-leave-active {
-	transition: opacity 0.3s ease-in-out;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-	opacity: 0;
-}
-
-.fade-enter-to,
-.fade-leave-from {
-	opacity: 1;
-}
-</style>

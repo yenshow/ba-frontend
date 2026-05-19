@@ -40,7 +40,14 @@
 			</div>
 		</div>
 
-		<div class="min-h-0 flex-1">
+		<AsyncPanel
+			class="min-h-0 flex-1"
+			panel-size="compact"
+			:loading="isLoadingPersons"
+			:empty="!isLoadingPersons && persons.length === 0"
+			:error="personsLoadError"
+			empty-title="尚無人員"
+		>
 			<table class="w-full text-center">
 				<thead>
 					<tr class="border-b border-white/20">
@@ -62,9 +69,8 @@
 					</tr>
 				</thead>
 				<tbody>
-					<template v-if="persons.length > 0">
-						<tr
-							v-for="p in persons"
+					<tr
+						v-for="p in persons"
 							:key="p.id"
 							class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
 						>
@@ -159,25 +165,19 @@
 								</div>
 							</td>
 						</tr>
-					</template>
-					<tr v-else class="text-white/60">
-						<td :colspan="canEdit ? 6 : 5" class="py-12 text-center text-base 2xl:text-lg">
-							{{ isLoadingPersons ? "載入中..." : "尚無人員" }}
-						</td>
-					</tr>
 				</tbody>
 			</table>
-		</div>
 
-		<Pagination
-			:total="personsTotal"
-			:offset="personsOffset"
-			:limit="PAGE_SIZE"
-			:disabled="isLoadingPersons"
-			:show="personsTotal > PAGE_SIZE"
-			@previous="goPrevPage"
-			@next="goNextPage"
-		/>
+			<Pagination
+				:total="personsTotal"
+				:offset="personsOffset"
+				:limit="PAGE_SIZE"
+				:disabled="isLoadingPersons"
+				:show="personsTotal > PAGE_SIZE"
+				@previous="goPrevPage"
+				@next="goNextPage"
+			/>
+		</AsyncPanel>
 
 		<PersonnelPersonDialog
 			v-model="showPersonDialog"
@@ -216,6 +216,7 @@
 </template>
 
 <script setup lang="ts">
+import AsyncPanel from "~/components/common/AsyncPanel.vue"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import Pagination from "~/components/common/Pagination.vue"
 import type { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePersonnelPersonsTab"
@@ -238,6 +239,7 @@ const props = defineProps<{
 const {
 	persons,
 	isLoadingPersons,
+	personsLoadError,
 	personFilter,
 	selectedEmployeeNoSort,
 	employeeNoSortOptions,

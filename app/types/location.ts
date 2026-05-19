@@ -23,7 +23,7 @@ export const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
 	lighting: "照明系統",
 	drainage: "衛生排水",
 	hvac: "空調系統",
-	air_circulation: "空氣循環系統",
+	air_circulation: "空氣循環",
 	power: "電力系統",
 	fire: "消防系統",
 	emergency_rescue: "緊急求救",

@@ -1,19 +1,8 @@
-import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { useToast } from "~/composables/core/useToast"
 import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi"
-import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
-import type {
-	Device,
-	ModbusRegisterType,
-	SensorDeviceConfig,
-	SensorDeviceModelConfig,
-} from "~/types/device"
-import type {
-	EnvironmentLocation,
-	EnvironmentZone,
-	SensorParameter,
-} from "~/types/environment"
-import { getParameterDisplayName, getLocationDeviceIds } from "~/utils/sensorUtils"
+import { useDeviceConnectivity } from "~/composables/systems/devices/useDeviceConnectivity"
+import { isEnvironmentLocationLive } from "~/utils/environmentLiveReadings"
+import type { EnvironmentLocation, EnvironmentZone, SensorParameter } from "~/types/environment"
+import { getLocationDeviceIds } from "~/utils/sensorUtils"
 
 export type SensorReadings = {
 	pm25: number | null
@@ -36,9 +25,7 @@ export type EnvironmentSensorsOptions = {
 
 export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 	const environmentApi = useEnvironmentApi()
-	const deviceApi = useDeviceApi()
-	const toast = useToast()
-	const { handleError } = useErrorHandler()
+	const deviceConnectivity = useDeviceConnectivity()
 
 	const createEmptySensorReadings = (): SensorReadings => ({
 		pm25: null,
@@ -54,45 +41,106 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 
 	const sensorData = reactive<SensorReadings>(createEmptySensorReadings())
 	const allLocationsSensorData = ref<Map<string, SensorReadings>>(new Map())
+	const overviewLoadingMap = ref<Map<string, boolean>>(new Map())
+	const locationOfflineMap = ref<Map<string, boolean>>(new Map())
+	const isFetching = ref(false)
+	const isSensorOffline = ref(false)
 
-	const deviceModelConfigCache = ref<
-		Map<number, { device: Device; modelConfig: SensorDeviceModelConfig | null; timestamp: number }>
-	>(new Map())
-	const CONFIG_CACHE_TTL = 5 * 60 * 1000
-	const sharedConfigCache = ref<Map<string, SensorDeviceModelConfig | null>>(new Map())
+	const collectAllDeviceIds = (): number[] => {
+		const ids = new Set<number>()
+		for (const zone of options.environmentZones.value) {
+			for (const location of zone.locations) {
+				getLocationDeviceIds(location).forEach((id) => ids.add(id))
+			}
+		}
+		return [...ids].sort((a, b) => a - b)
+	}
+
+	const refreshAllDeviceConnectivity = async () => {
+		const ids = collectAllDeviceIds()
+		if (ids.length > 0) {
+			await deviceConnectivity.refresh(ids)
+		}
+	}
+
+	watch(
+		() => collectAllDeviceIds().join(","),
+		() => {
+			void refreshAllDeviceConnectivity()
+		},
+		{ immediate: true }
+	)
+
+	watch(
+		() => options.selectedLocationId.value,
+		() => {
+			Object.assign(sensorData, createEmptySensorReadings())
+		}
+	)
+
+	const markLocationOffline = (location: EnvironmentLocation, offline: boolean) => {
+		const next = new Map(locationOfflineMap.value)
+		if (location.id != null) next.set(String(location.id), offline)
+		next.set(options.getLocationId(location), offline)
+		locationOfflineMap.value = next
+	}
+
+	const isLocationOffline = (location: EnvironmentLocation): boolean => {
+		if (location.id != null && locationOfflineMap.value.get(String(location.id))) {
+			return true
+		}
+		return locationOfflineMap.value.get(options.getLocationId(location)) ?? false
+	}
+
+	const isLocationOfflineForDisplay = (location: EnvironmentLocation): boolean => {
+		const current = options.currentLocationData.value
+		if (
+			current &&
+			(current.id === location.id ||
+				options.getLocationId(current) === options.getLocationId(location))
+		) {
+			return isSensorOffline.value
+		}
+		return isLocationOffline(location)
+	}
+
+	const findLocationByDbId = (dbLocationId: string): EnvironmentLocation | null => {
+		for (const zone of options.environmentZones.value) {
+			const found = zone.locations.find((loc) => loc.id != null && String(loc.id) === dbLocationId)
+			if (found) return found
+		}
+		return null
+	}
+
+	const extractReadingValues = (reading: Record<string, unknown>): Record<string, unknown> => {
+		const nested = reading.data
+		if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+			return nested as Record<string, unknown>
+		}
+		return reading
+	}
 
 	const clearSensorData = () => {
 		Object.assign(sensorData, createEmptySensorReadings())
 	}
 
-	watch(
-		() => options.selectedLocationId.value,
-		() => {
-			clearSensorData()
-			deviceModelConfigCache.value.clear()
-			sharedConfigCache.value.clear()
+	const clearLocationSensorEntries = (location: EnvironmentLocation) => {
+		const empty = createEmptySensorReadings()
+		for (const key of [
+			location.id != null ? String(location.id) : "",
+			options.getLocationId(location),
+		].filter(Boolean)) {
+			allLocationsSensorData.value.set(key, { ...empty })
 		}
-	)
-
-	const overviewLoadingMap = ref<Map<string, boolean>>(new Map())
-	const isFetching = ref(false)
-	const isSensorOffline = ref(false)
-	const VALIDATION_ALERT_INTERVAL = 30000
-	let lastValidationAlertTime: number | null = null
-	let lastConnectionAlertTime: number | null = null
-
-	const isOfflineError = (errorMessage: string): boolean => {
-		return (
-			errorMessage.includes("503") ||
-			errorMessage.includes("服務不可用") ||
-			errorMessage.includes("設備離線")
-		)
+		const current = options.currentLocationData.value
+		if (
+			current &&
+			(current.id === location.id ||
+				options.getLocationId(current) === options.getLocationId(location))
+		) {
+			clearSensorData()
+		}
 	}
-
-	/**
-	 * 重要：環境系統的「連線錯誤追蹤 / 警報建立」以後端背景監控為準（SSOT）。
-	 * 前端頁面讀取失敗只做 UI 提示，不再呼叫 /systems/:id/errors，避免「點開頁面才會累積達閾值」。
-	 */
 
 	const updateSensorData = (
 		type: SensorParameter["type"],
@@ -112,30 +160,86 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 
 		if (!locationId) return
 
-		const keyStr = (v: string | number | undefined) => (v == null ? "" : String(v))
-		const primaryKey = keyStr(location?.id || locationId)
-
-		if (primaryKey && !allLocationsSensorData.value.has(primaryKey)) {
+		const primaryKey = String(location?.id ?? locationId)
+		if (!allLocationsSensorData.value.has(primaryKey)) {
 			allLocationsSensorData.value.set(primaryKey, createEmptySensorReadings())
 		}
-		if (primaryKey) {
-			const locationData = allLocationsSensorData.value.get(primaryKey)!
-			locationData[type] = value
-		}
+		allLocationsSensorData.value.get(primaryKey)![type] = value
 
 		const syntheticId = location ? options.getLocationId(location) : ""
 		if (location?.id && syntheticId && syntheticId !== primaryKey) {
 			if (!allLocationsSensorData.value.has(syntheticId)) {
 				allLocationsSensorData.value.set(syntheticId, createEmptySensorReadings())
 			}
-			const syntheticData = allLocationsSensorData.value.get(syntheticId)!
-			syntheticData[type] = value
+			allLocationsSensorData.value.get(syntheticId)![type] = value
 		}
 	}
 
-	const getLocationSensorData = (
-		locationId: string | number | undefined
-	): SensorReadings | null => {
+	const applyReadingToLocation = (
+		location: EnvironmentLocation,
+		data: Record<string, unknown>,
+		locationKey?: string
+	) => {
+		for (const param of location.parameters.filter((p) => p.enabled)) {
+			const raw = data[param.type]
+			updateSensorData(
+				param.type,
+				typeof raw === "number" && Number.isFinite(raw) ? raw : null,
+				locationKey ?? options.getLocationId(location),
+				location
+			)
+		}
+	}
+
+	const applyWebSocketReading = (dbLocationId: string, reading: Record<string, unknown>) => {
+		const location = findLocationByDbId(dbLocationId)
+		if (!location) return
+
+		markLocationOffline(location, false)
+		applyReadingToLocation(location, extractReadingValues(reading), dbLocationId)
+
+		if (String(options.currentLocationData.value?.id) === dbLocationId) {
+			isSensorOffline.value = false
+		}
+	}
+
+	const evaluateAndApplyLiveReading = async (
+		location: EnvironmentLocation,
+		opts?: { updateCurrentOfflineFlag?: boolean }
+	): Promise<boolean> => {
+		if (location.id == null) return false
+
+		const deviceIds = getLocationDeviceIds(location)
+		const { readings } = await environmentApi.getReadings(String(location.id), {
+			limit: 1,
+			order: "desc",
+		})
+		const latest = readings?.[0]
+		const isLive = isEnvironmentLocationLive({
+			deviceIds,
+			readingTimestamp: latest?.timestamp,
+			getDeviceStatus: deviceConnectivity.getStatus,
+		})
+
+		markLocationOffline(location, !isLive)
+
+		if (!isLive) {
+			clearLocationSensorEntries(location)
+			if (opts?.updateCurrentOfflineFlag) isSensorOffline.value = true
+			return false
+		}
+
+		if (latest?.data) {
+			applyReadingToLocation(location, latest.data as Record<string, unknown>)
+		}
+		if (opts?.updateCurrentOfflineFlag) isSensorOffline.value = false
+		return true
+	}
+
+	const isOfflineError = (message: string): boolean =>
+		message.includes("503") || message.includes("服務不可用") || message.includes("設備離線")
+
+	const getLocationSensorData = (locationId: string | number | undefined): SensorReadings | null => {
 		if (locationId == null || locationId === "") return null
 		const idStr = String(locationId)
 
@@ -147,158 +251,40 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 				const dbId = location.id != null ? String(location.id) : ""
 				const syntheticId = options.getLocationId(location)
 				if (dbId === idStr || syntheticId === idStr) {
-					if (dbId) {
-						data = allLocationsSensorData.value.get(dbId)
-						if (data) return data
-					}
-					data = allLocationsSensorData.value.get(syntheticId)
+					data = allLocationsSensorData.value.get(dbId) ?? allLocationsSensorData.value.get(syntheticId)
 					if (data) return data
 				}
 			}
 		}
-
 		return null
 	}
 
-	const loadDeviceAndModelConfig = async (
-		deviceId: number,
-		useCache = true
-	): Promise<{ device: Device; modelConfig: SensorDeviceModelConfig | null } | null> => {
-		if (useCache) {
-			const cached = deviceModelConfigCache.value.get(deviceId)
-			if (cached && Date.now() - cached.timestamp < CONFIG_CACHE_TTL) {
-				return { device: cached.device, modelConfig: cached.modelConfig }
-			}
-		}
+	const loadSensorData = async (opts?: { skipConnectivityRefresh?: boolean }) => {
+		if (isFetching.value || !options.currentLocationData.value) return
 
-		try {
-			const result = await deviceApi.getDevice(deviceId)
-			const device = result.device
-			if (!device || device.type_code !== "sensor") return null
-
-			let modelConfig: SensorDeviceModelConfig | null = null
-
-			const deviceWithModel = device as any
-			if (deviceWithModel.model?.config) {
-				const config = deviceWithModel.model.config as SensorDeviceModelConfig | undefined
-				if (config?.sensorParameters) modelConfig = config || null
-			}
-
-			if (!modelConfig && device.model_id) {
-				try {
-					const modelResult = await deviceApi.getDeviceModel(device.model_id)
-					modelConfig =
-						(modelResult.device_model.config as SensorDeviceModelConfig | undefined) || null
-				} catch {
-					modelConfig = null
-				}
-			}
-
-			deviceModelConfigCache.value.set(deviceId, { device, modelConfig, timestamp: Date.now() })
-			return { device, modelConfig }
-		} catch (error) {
-			handleError(error, "載入設備失敗")
-			return null
-		}
-	}
-
-	const findSharedDeviceModelConfig = async (
-		currentLocation: EnvironmentLocation,
-		currentDevice: Device
-	): Promise<SensorDeviceModelConfig | null> => {
-		const currentConfig = currentDevice.config as SensorDeviceConfig
-		if (currentConfig.protocol !== "modbus" || !currentConfig.host || !currentConfig.port) {
-			return null
-		}
-
-		const cacheKey = `${currentConfig.host}:${currentConfig.port}`
-		const cachedConfig = sharedConfigCache.value.get(cacheKey)
-		if (cachedConfig !== undefined) return cachedConfig
-
-		for (const zone of options.environmentZones.value) {
-			for (const otherLocation of zone.locations) {
-				if (otherLocation.id === currentLocation.id) continue
-				const otherDeviceIds = getLocationDeviceIds(otherLocation)
-				const otherPrimaryDeviceId = otherDeviceIds[0]
-				if (!otherPrimaryDeviceId) continue
-
-				try {
-					const result = await loadDeviceAndModelConfig(otherPrimaryDeviceId)
-					if (!result) continue
-
-					const { device, modelConfig } = result
-					const otherConfig = device.config as SensorDeviceConfig
-					if (
-						otherConfig.protocol === "modbus" &&
-						otherConfig.host === currentConfig.host &&
-						otherConfig.port === currentConfig.port
-					) {
-						sharedConfigCache.value.set(cacheKey, modelConfig)
-						return modelConfig
-					}
-				} catch {
-					continue
-				}
-			}
-		}
-
-		sharedConfigCache.value.set(cacheKey, null)
-		return null
-	}
-
-	const normalizeSensorRegisterType = (
-		registerType: ModbusRegisterType | undefined
-	): "holding" | "input" => {
-		const rt = String(registerType || "holding").toLowerCase()
-		if (rt === "input") return "input"
-		return "holding"
-	}
-
-	const loadSensorData = async () => {
-		if (isFetching.value) return
-		if (!options.currentLocationData.value) return
-
+		const location = options.currentLocationData.value
 		isFetching.value = true
 
 		try {
-			const location = options.currentLocationData.value
 			if (location.id == null) {
 				clearSensorData()
 				return
 			}
-
-			const { readings } = await environmentApi.getReadings(String(location.id), { limit: 1 })
-			const latest = readings?.[0]
-			const data = (latest?.data || {}) as Record<string, unknown>
-			const enabledParams = location.parameters.filter((param) => param.enabled)
-			for (const param of enabledParams) {
-				const raw = data[param.type]
-				updateSensorData(
-					param.type,
-					typeof raw === "number" && Number.isFinite(raw) ? raw : null,
-					options.getLocationId(location),
-					location
-				)
+			if (!opts?.skipConnectivityRefresh) {
+				await refreshAllDeviceConnectivity()
 			}
-
-			if (isSensorOffline.value) {
-				isSensorOffline.value = false
-				toast.success("感測器已恢復連線", 5000)
-			}
+			await evaluateAndApplyLiveReading(location, { updateCurrentOfflineFlag: true })
 		} catch (error: unknown) {
-			const errorMessage = error instanceof Error ? error.message : String(error)
-			const offline = isOfflineError(errorMessage)
-			if (offline && !isSensorOffline.value) isSensorOffline.value = true
-
-			// SSOT：不回報後端 errors（由 background monitor 處理）
+			const message = error instanceof Error ? error.message : String(error)
+			clearLocationSensorEntries(location)
+			markLocationOffline(location, true)
+			if (isOfflineError(message)) isSensorOffline.value = true
 		} finally {
 			isFetching.value = false
 		}
 	}
 
-	const loadLocationSensorData = async (location: EnvironmentLocation) => {
-		// `loadSensorData()` 會依 currentLocationData 讀取多台設備並處理清空／離線等狀態
-		// 這裡只需確保「當前地點」已切換即可（由 page 先更新 selectedLocationId）
+	const loadLocationSensorData = async () => {
 		await loadSensorData()
 	}
 
@@ -309,30 +295,11 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 		if (overviewLoadingMap.value.get(locationId)) return
 		overviewLoadingMap.value.set(locationId, true)
 
-		const primaryKey = location.id != null ? String(location.id) : locationId
-		const existing = allLocationsSensorData.value.get(primaryKey)
-		if (existing) {
-			Object.assign(existing, createEmptySensorReadings())
-		} else {
-			allLocationsSensorData.value.set(primaryKey, createEmptySensorReadings())
-		}
-
 		try {
-			const { readings } = await environmentApi.getReadings(String(location.id), { limit: 1 })
-			const latest = readings?.[0]
-			const data = (latest?.data || {}) as Record<string, unknown>
-			const enabledParams = location.parameters.filter((param) => param.enabled)
-			for (const param of enabledParams) {
-				const raw = data[param.type]
-				updateSensorData(
-					param.type,
-					typeof raw === "number" && Number.isFinite(raw) ? raw : null,
-					locationId,
-					location
-				)
-			}
-		} catch (error: unknown) {
-			// SSOT：不回報後端 errors（由 background monitor 處理）
+			await evaluateAndApplyLiveReading(location)
+		} catch {
+			clearLocationSensorEntries(location)
+			markLocationOffline(location, true)
 		} finally {
 			overviewLoadingMap.value.set(locationId, false)
 		}
@@ -345,6 +312,10 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 		getLocationSensorData,
 		isFetching,
 		isSensorOffline,
+		isLocationOffline,
+		isLocationOfflineForDisplay,
+		applyWebSocketReading,
+		refreshAllDeviceConnectivity,
 		overviewLoadingMap,
 		loadSensorData,
 		loadLocationSensorData,

@@ -214,48 +214,28 @@
 				:style="rightPanelStyle"
 				aria-label="授權總覽"
 			>
-				<div class="flex justify-between">
-					<h2 class="text-xl font-semibold text-white 2xl:text-2xl">授權總覽</h2>
+				<PageTabs
+					v-model="overviewTab"
+					:tabs="overviewTabs"
+					layout="section"
+					root-class="flex min-h-0 flex-1 flex-col"
+					content-class="mt-6 min-h-0 flex-1 overflow-hidden"
+					aria-label="授權總覽分頁"
+					id-prefix="license-tab"
+				>
+					<template #section-leading>
+						<h2 class="text-xl font-semibold text-white 2xl:text-2xl">授權總覽</h2>
+					</template>
 
-					<div class="flex flex-wrap gap-2" role="tablist" aria-label="授權總覽分頁">
-						<button
-							id="license-tab-quota"
-							type="button"
-							role="tab"
-							:aria-selected="overviewTab === 'quota'"
-							:tabindex="overviewTab === 'quota' ? 0 : -1"
-							aria-controls="license-panel-quota"
-							class="rounded-xl border px-4 py-2 text-sm font-medium transition-colors 2xl:px-5 2xl:py-2.5 2xl:text-base"
-							:class="getPillButtonClass(overviewTab === 'quota')"
-							@click="overviewTab = 'quota'"
-						>
-							配額詳情
-						</button>
-						<button
-							id="license-tab-keys"
-							type="button"
-							role="tab"
-							:aria-selected="overviewTab === 'keys'"
-							:tabindex="overviewTab === 'keys' ? 0 : -1"
-							aria-controls="license-panel-keys"
-							class="rounded-xl border px-4 py-2 text-sm font-medium transition-colors 2xl:px-5 2xl:py-2.5 2xl:text-base"
-							:class="getPillButtonClass(overviewTab === 'keys')"
-							@click="overviewTab = 'keys'"
-						>
-							授權清單
-						</button>
-					</div>
-				</div>
-
-				<div class="mt-6 min-h-0 flex-1 overflow-hidden">
-					<ClientOnly>
-						<div class="show-scrollbar h-full overflow-auto pr-1">
-							<div
-								v-show="overviewTab === 'quota'"
-								id="license-panel-quota"
-								role="tabpanel"
-								aria-labelledby="license-tab-quota"
+					<template #quota>
+						<ClientOnly>
+							<AsyncPanel
+								panel-size="dense"
+								:loading="showLicensePlaceholder"
+								:empty="!showLicensePlaceholder && quotaDetailRows.length === 0"
+								empty-title="尚無配額資料"
 							>
+							<div class="show-scrollbar h-full overflow-auto pr-1">
 								<div class="mt-4 overflow-hidden rounded-xl border border-white/15">
 									<table class="w-full border-collapse">
 										<thead class="sticky top-0 z-10 bg-white/5 backdrop-blur">
@@ -293,24 +273,24 @@
 									</table>
 								</div>
 							</div>
+							</AsyncPanel>
 
-							<div
-								v-show="overviewTab === 'keys'"
-								id="license-panel-keys"
-								role="tabpanel"
-								aria-labelledby="license-tab-keys"
-								class="space-y-4"
+							<template #fallback>
+								<AsyncPanel loading panel-size="dense" />
+							</template>
+						</ClientOnly>
+					</template>
+
+					<template #keys>
+						<ClientOnly>
+							<AsyncPanel
+								panel-size="dense"
+								:loading="showLicensePlaceholder"
+								:empty="!showLicensePlaceholder && licenseListRows.length === 0"
+								empty-title="尚無授權記錄"
+								empty-description="無主／副 LK 資料"
 							>
-								<p v-if="showLicensePlaceholder" class="text-sm text-white/60 2xl:text-base">
-									載入中...
-								</p>
-								<template v-else>
-									<p
-										v-if="licenseListRows.length === 0"
-										class="text-sm text-white/60 2xl:text-base"
-									>
-										尚無授權記錄（無主／副 LK 資料）。
-									</p>
+							<div class="show-scrollbar h-full overflow-auto pr-1 space-y-4">
 									<div
 										v-for="entry in licenseListRows"
 										:key="entry.id"
@@ -337,15 +317,15 @@
 											</span>
 										</div>
 									</div>
-								</template>
 							</div>
-						</div>
+							</AsyncPanel>
 
-						<template #fallback>
-							<p class="text-sm text-white/60 2xl:text-base">載入中...</p>
-						</template>
-					</ClientOnly>
-				</div>
+							<template #fallback>
+								<AsyncPanel loading panel-size="dense" />
+							</template>
+						</ClientOnly>
+					</template>
+				</PageTabs>
 			</section>
 		</div>
 	</div>
@@ -372,6 +352,8 @@ import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
+import AsyncPanel from "~/components/common/AsyncPanel.vue"
+import PageTabs from "~/components/common/PageTabs.vue"
 import { formatMaxDevicesText, normalizeMaxDevices, toNonNegativeInt } from "~/utils/licenseFormat"
 
 definePageMeta({
@@ -425,6 +407,10 @@ const resetConfirmStep = ref<ResetConfirmStep>("idle")
 
 const offlineStep = ref<1 | 2>(1)
 const overviewTab = ref<"quota" | "keys">("quota")
+const overviewTabs = [
+	{ id: "quota" as const, label: "配額詳情" },
+	{ id: "keys" as const, label: "授權清單" },
+]
 
 const getPillButtonClass = (isActive: boolean) => {
 	return isActive

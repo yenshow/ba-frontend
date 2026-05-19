@@ -15,13 +15,14 @@
 		</header>
 
 		<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
-			<div
-				v-if="loadError"
-				class="rounded-lg border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-100"
+			<AsyncPanel
+				:loading="isLoading"
+				:error="loadError"
+				:empty="!isLoading && !loadError && !schema"
+				empty-title="無可顯示的設定"
+				error-title="載入營運設定失敗"
 			>
-				{{ loadError }}
-			</div>
-			<div v-else-if="schema" class="space-y-6">
+			<div v-if="schema" class="space-y-6">
 				<div
 					v-for="(row, rowIdx) in sectionRows"
 					:key="`runtime-row-${rowIdx}`"
@@ -92,11 +93,13 @@
 					</button>
 				</div>
 			</div>
+			</AsyncPanel>
 		</section>
 	</div>
 </template>
 
 <script setup lang="ts">
+import AsyncPanel from "~/components/common/AsyncPanel.vue"
 import EnvDeploymentPasswordInput from "~/components/common/EnvDeploymentPasswordInput.vue"
 import { useRuntimeConfigPage } from "~/composables/core/useRuntimeConfigPage"
 
@@ -105,6 +108,15 @@ definePageMeta({
 	middleware: ["admin"],
 })
 
-const { schema, form, isSaving, loadError, formDisabled, sectionRows, handleReload, handleSave } =
-	useRuntimeConfigPage()
+const {
+	schema,
+	form,
+	isLoading,
+	isSaving,
+	loadError,
+	formDisabled,
+	sectionRows,
+	handleReload,
+	handleSave,
+} = useRuntimeConfigPage()
 </script>

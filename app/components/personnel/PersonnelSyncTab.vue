@@ -35,8 +35,14 @@
 			</button>
 		</div>
 
-		<Transition name="fade" mode="out-in">
-			<div v-if="syncableLocations.length > 0" key="sync-list" class="min-h-[200px] w-full">
+		<AsyncPanel
+			panel-size="compact"
+			:loading="isLoadingSyncable"
+			:empty="!isLoadingSyncable && syncableLocations.length === 0"
+			empty-title="尚無可同步地點"
+			empty-description="請先在人流統計中建立區域與地點並配對門禁設備"
+		>
+			<div class="w-full">
 				<table class="w-full text-center">
 					<thead>
 						<tr class="border-b border-white/20">
@@ -239,16 +245,7 @@
 					</tbody>
 				</table>
 			</div>
-			<div v-else key="empty-sync" class="min-h-[200px] py-12 text-center text-white/60">
-				<p class="text-base 2xl:text-lg">
-					{{
-						isLoadingSyncable
-							? "載入中…"
-							: "尚無可同步地點，請先在人流統計中建立區域與地點並配對門禁設備"
-					}}
-				</p>
-			</div>
-		</Transition>
+		</AsyncPanel>
 
 		<LocationMembersDialog
 			v-model="showLocationMembersDialog"
@@ -282,6 +279,7 @@
 </template>
 
 <script setup lang="ts">
+import AsyncPanel from "~/components/common/AsyncPanel.vue"
 import Pagination from "~/components/common/Pagination.vue"
 import LocationMembersDialog from "~/components/personnel/dialogs/LocationMembersDialog.vue"
 import PersonnelSyncWarningsDialog from "~/components/personnel/dialogs/PersonnelSyncWarningsDialog.vue"

@@ -261,22 +261,3 @@ const getPassResultTagClass = (log: VehicleDataLog): string => {
 	return "bg-white/20 text-white/80";
 };
 </script>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-	transition: opacity 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-	opacity: 0;
-}
-.lightbox-fade-enter-active,
-.lightbox-fade-leave-active {
-	transition: opacity 0.2s ease;
-}
-.lightbox-fade-enter-from,
-.lightbox-fade-leave-to {
-	opacity: 0;
-}
-</style>

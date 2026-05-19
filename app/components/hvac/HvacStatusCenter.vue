@@ -211,10 +211,17 @@ const clearPendingToggle = (locationId: string) => {
 
 const pruneExpiredPendingToggles = () => {
 	const now = Date.now()
+	const current = pendingToggles.value
+	let changed = false
 	const next: Record<string, PendingToggleState> = {}
-	for (const [id, state] of Object.entries(pendingToggles.value)) {
-		if (state.expiresAt > now) next[id] = state
+	for (const [id, state] of Object.entries(current)) {
+		if (state.expiresAt > now) {
+			next[id] = state
+			continue
+		}
+		changed = true
 	}
+	if (!changed) return
 	pendingToggles.value = next
 }
 
@@ -252,7 +259,6 @@ const getLocationStatus = (locationId: string) => {
 }
 
 const getEffectiveIsOn = (locationId: string) => {
-	pruneExpiredPendingToggles()
 	const pending = pendingToggles.value[locationId]
 	if (pending) return pending.nextIsOn
 	return getLocationStatus(locationId).isOn
@@ -303,4 +309,18 @@ watch(
 	},
 	{ deep: true }
 )
+
+let pruneTimer: number | null = null
+onMounted(() => {
+	// 避免在 render 階段 mutate reactive；改用定時清理過期 pending
+	pruneTimer = window.setInterval(() => {
+		pruneExpiredPendingToggles()
+	}, 1000)
+})
+
+onBeforeUnmount(() => {
+	if (pruneTimer == null) return
+	window.clearInterval(pruneTimer)
+	pruneTimer = null
+})
 </script>

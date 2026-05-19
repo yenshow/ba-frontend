@@ -208,16 +208,25 @@ import type { DrainageZone } from "~/types/drainage"
 import type { PowerZone, PowerStatusItem } from "~/types/power"
 import type { HvacZone } from "~/types/hvac"
 import type { FireZone } from "~/types/fire"
+import type { AirCirculationZone } from "~/types/air-circulation"
+import type { SmokeAlarmZone } from "~/types/smoke-alarm"
+import type { EmergencyRescueZone } from "~/types/emergency-rescue"
 import { useLightingApi } from "~/composables/systems/lighting/useLightingApi"
 import { useDrainageApi } from "~/composables/systems/drainage/useDrainageApi"
 import { usePowerApi } from "~/composables/systems/power/usePowerApi"
 import { useHvacApi } from "~/composables/systems/hvac/useHvacApi"
 import { useFireApi } from "~/composables/systems/fire/useFireApi"
+import { useAirCirculationApi } from "~/composables/systems/air-circulation/useAirCirculationApi"
+import { useSmokeAlarmApi } from "~/composables/systems/smoke-alarm/useSmokeAlarmApi"
+import { useEmergencyRescueApi } from "~/composables/systems/emergency-rescue/useEmergencyRescueApi"
 import { useLightingModbusIntegration } from "~/composables/systems/lighting/useLightingModbusIntegration"
 import { useDrainageModbusIntegration } from "~/composables/systems/drainage/useDrainageModbusIntegration"
 import { usePowerModbusIntegration } from "~/composables/systems/power/usePowerModbusIntegration"
 import { useHvacModbusIntegration } from "~/composables/systems/hvac/useHvacModbusIntegration"
 import { useFireModbusIntegration } from "~/composables/systems/fire/useFireModbusIntegration"
+import { useAirCirculationModbusIntegration } from "~/composables/systems/air-circulation/useAirCirculationModbusIntegration"
+import { useSmokeAlarmModbusIntegration } from "~/composables/systems/smoke-alarm/useSmokeAlarmModbusIntegration"
+import { useEmergencyRescueModbusIntegration } from "~/composables/systems/emergency-rescue/useEmergencyRescueModbusIntegration"
 import { getSystemTypeLabel } from "~/types/location"
 import { getLocationUiKey } from "~/utils/locationUiId"
 import {
@@ -279,12 +288,18 @@ const drainageApi = useDrainageApi()
 const fireApi = useFireApi()
 const powerApi = usePowerApi()
 const hvacApi = useHvacApi()
+const airCirculationApi = useAirCirculationApi()
+const smokeAlarmApi = useSmokeAlarmApi()
+const emergencyRescueApi = useEmergencyRescueApi()
 
 const lightingZones = ref<LightingZone[]>([])
 const drainageZones = ref<DrainageZone[]>([])
 const fireZones = ref<FireZone[]>([])
 const powerZones = ref<PowerZone[]>([])
 const hvacZones = ref<HvacZone[]>([])
+const airCirculationZones = ref<AirCirculationZone[]>([])
+const smokeAlarmZones = ref<SmokeAlarmZone[]>([])
+const emergencyRescueZones = ref<EmergencyRescueZone[]>([])
 
 const lightingSelectedZoneKey = computed(() => selectedZone.value)
 const {
@@ -334,6 +349,33 @@ const {
 	stopAutoRefresh: stopHvacAutoRefresh,
 	handleVisibilityChange: handleHvacVisibilityChange,
 } = useHvacModbusIntegration(hvacZones, hvacSelectedZoneKey)
+
+const {
+	statusItems: airCirculationStatusItems,
+	preloadDeviceInfos: preloadAirCirculationDevices,
+	loadStatusSnapshot: loadAirCirculationSnapshot,
+	startAutoRefresh: startAirCirculationAutoRefresh,
+	stopAutoRefresh: stopAirCirculationAutoRefresh,
+	handleVisibilityChange: handleAirCirculationVisibilityChange,
+} = useAirCirculationModbusIntegration(airCirculationZones)
+
+const {
+	statusItems: smokeAlarmStatusItems,
+	preloadDeviceInfos: preloadSmokeAlarmDevices,
+	loadStatusSnapshot: loadSmokeAlarmSnapshot,
+	startAutoRefresh: startSmokeAlarmAutoRefresh,
+	stopAutoRefresh: stopSmokeAlarmAutoRefresh,
+	handleVisibilityChange: handleSmokeAlarmVisibilityChange,
+} = useSmokeAlarmModbusIntegration(smokeAlarmZones)
+
+const {
+	statusItems: emergencyRescueStatusItems,
+	preloadDeviceInfos: preloadEmergencyRescueDevices,
+	loadStatusSnapshot: loadEmergencyRescueSnapshot,
+	startAutoRefresh: startEmergencyRescueAutoRefresh,
+	stopAutoRefresh: stopEmergencyRescueAutoRefresh,
+	handleVisibilityChange: handleEmergencyRescueVisibilityChange,
+} = useEmergencyRescueModbusIntegration(emergencyRescueZones)
 
 // 其他狀態
 const isZonePlanLoaded = ref(false)
@@ -403,6 +445,15 @@ const drainageUiStatusByLocationId = computed(() =>
 	buildUiStatusMap(drainageStatusItems.value || [])
 )
 const fireUiStatusByLocationId = computed(() => buildUiStatusMap(fireStatusItems.value || []))
+const airCirculationUiStatusByLocationId = computed(() =>
+	buildUiStatusMap(airCirculationStatusItems.value || [])
+)
+const smokeAlarmUiStatusByLocationId = computed(() =>
+	buildUiStatusMap(smokeAlarmStatusItems.value || [])
+)
+const emergencyRescueUiStatusByLocationId = computed(() =>
+	buildUiStatusMap(emergencyRescueStatusItems.value || [])
+)
 
 const powerUiStatusByLocationId = computed(() => {
 	const m = new Map<string, PowerStatusItem["uiStatus"]>()
@@ -461,14 +512,27 @@ const locationHasSystemType = (location: UnifiedLocation, systemType: SystemType
 }
 
 const getModbusUiStatus = (locationId: string): string | null => {
-	if (selectedSystemType.value === "drainage") {
-		return drainageUiStatusByLocationId.value.get(locationId) ?? "unknown"
-	}
-	if (selectedSystemType.value === "fire")
-		return fireUiStatusByLocationId.value.get(locationId) ?? "unknown"
-	if (selectedSystemType.value === "power")
-		return powerUiStatusByLocationId.value.get(locationId) ?? "unknown"
+	const t = selectedSystemType.value
+	if (t === "drainage") return drainageUiStatusByLocationId.value.get(locationId) ?? "unknown"
+	if (t === "fire") return fireUiStatusByLocationId.value.get(locationId) ?? "unknown"
+	if (t === "power") return powerUiStatusByLocationId.value.get(locationId) ?? "unknown"
+	if (t === "air_circulation")
+		return airCirculationUiStatusByLocationId.value.get(locationId) ?? "unknown"
+	if (t === "smoke_alarm") return smokeAlarmUiStatusByLocationId.value.get(locationId) ?? "unknown"
+	if (t === "emergency_rescue")
+		return emergencyRescueUiStatusByLocationId.value.get(locationId) ?? "unknown"
 	return null
+}
+
+const mergeModbusDotStatus = (
+	best: MapDotStatus,
+	location: UnifiedLocation,
+	systemType: SystemType,
+	statusMap: Map<string, string>
+): MapDotStatus => {
+	if (!locationHasSystemType(location, systemType)) return best
+	const s = uiStatusToDot(statusMap.get(String(location.id || "")) ?? "unknown")
+	return dotSeverity(s) > dotSeverity(best) ? s : best
 }
 
 const dotStatusForLocation = (location: UnifiedLocation): MapDotStatus => {
@@ -508,6 +572,15 @@ const dotStatusForLocation = (location: UnifiedLocation): MapDotStatus => {
 			const s = uiStatusToDot(powerUiStatusByLocationId.value.get(id) ?? "unknown")
 			if (dotSeverity(s) > dotSeverity(best)) best = s
 		}
+
+		best = mergeModbusDotStatus(best, location, "air_circulation", airCirculationUiStatusByLocationId.value)
+		best = mergeModbusDotStatus(best, location, "smoke_alarm", smokeAlarmUiStatusByLocationId.value)
+		best = mergeModbusDotStatus(
+			best,
+			location,
+			"emergency_rescue",
+			emergencyRescueUiStatusByLocationId.value
+		)
 
 		return best
 	}
@@ -587,6 +660,16 @@ const tooltipLabelForLocation = (location: UnifiedLocation): string => {
 	if (powerUi && powerUi !== "normal") {
 		parts.push(`電力：${uiStatusToDot(powerUi) === "alarm" ? "警報" : "異常"}`)
 	}
+
+	const appendModbusTooltip = (systemType: SystemType, statusMap: Map<string, string>) => {
+		const ui = statusMap.get(id)
+		if (!ui || ui === "unknown" || ui === "normal") return
+		const label = getSystemTypeLabel(systemType)
+		parts.push(`${label}：${uiStatusToDot(ui) === "alarm" ? "警報" : "異常"}`)
+	}
+	appendModbusTooltip("air_circulation", airCirculationUiStatusByLocationId.value)
+	appendModbusTooltip("smoke_alarm", smokeAlarmUiStatusByLocationId.value)
+	appendModbusTooltip("emergency_rescue", emergencyRescueUiStatusByLocationId.value)
 
 	return parts.length
 		? `${location.name}：${label}\n${parts.join("、")}`
@@ -673,6 +756,9 @@ const stopAllSystemAutoRefresh = () => {
 	stopFireAutoRefresh()
 	stopPowerAutoRefresh()
 	stopHvacAutoRefresh()
+	stopAirCirculationAutoRefresh()
+	stopSmokeAlarmAutoRefresh()
+	stopEmergencyRescueAutoRefresh()
 }
 
 const hasLoadedLightingSnapshot = ref(false)
@@ -680,6 +766,9 @@ const hasLoadedDrainageSnapshot = ref(false)
 const hasLoadedFireSnapshot = ref(false)
 const hasLoadedPowerSnapshot = ref(false)
 const hasLoadedHvacSnapshot = ref(false)
+const hasLoadedAirCirculationSnapshot = ref(false)
+const hasLoadedSmokeAlarmSnapshot = ref(false)
+const hasLoadedEmergencyRescueSnapshot = ref(false)
 
 const overviewRefreshIntervalId = ref<ReturnType<typeof setInterval> | null>(null)
 
@@ -721,6 +810,24 @@ const refreshOverviewStatuses = async () => {
 		await loadHvacStatusSnapshot({ autoRefresh: false })
 	} else {
 		await loadAllHvacStatuses({ loadAllZones: true })
+	}
+
+	if (!hasLoadedAirCirculationSnapshot.value) {
+		await loadAirCirculationStatusSnapshot({ autoRefresh: false })
+	} else {
+		await loadAirCirculationSnapshot()
+	}
+
+	if (!hasLoadedSmokeAlarmSnapshot.value) {
+		await loadSmokeAlarmStatusSnapshot({ autoRefresh: false })
+	} else {
+		await loadSmokeAlarmSnapshot()
+	}
+
+	if (!hasLoadedEmergencyRescueSnapshot.value) {
+		await loadEmergencyRescueStatusSnapshot({ autoRefresh: false })
+	} else {
+		await loadEmergencyRescueSnapshot()
 	}
 }
 
@@ -781,12 +888,44 @@ const loadHvacStatusSnapshot = async (options: { autoRefresh: boolean }) => {
 	if (options.autoRefresh) startHvacAutoRefresh()
 }
 
+const loadAirCirculationStatusSnapshot = async (options: { autoRefresh: boolean }) => {
+	const result = await airCirculationApi.getZones()
+	airCirculationZones.value = result.zones || []
+	await preloadAirCirculationDevices()
+	await loadAirCirculationSnapshot()
+	hasLoadedAirCirculationSnapshot.value = true
+	if (options.autoRefresh) startAirCirculationAutoRefresh()
+}
+
+const loadSmokeAlarmStatusSnapshot = async (options: { autoRefresh: boolean }) => {
+	const result = await smokeAlarmApi.getZones()
+	smokeAlarmZones.value = result.zones || []
+	await preloadSmokeAlarmDevices()
+	await loadSmokeAlarmSnapshot()
+	hasLoadedSmokeAlarmSnapshot.value = true
+	if (options.autoRefresh) startSmokeAlarmAutoRefresh()
+}
+
+const loadEmergencyRescueStatusSnapshot = async (options: { autoRefresh: boolean }) => {
+	const result = await emergencyRescueApi.getZones()
+	emergencyRescueZones.value = result.zones || []
+	await preloadEmergencyRescueDevices()
+	await loadEmergencyRescueSnapshot()
+	hasLoadedEmergencyRescueSnapshot.value = true
+	if (options.autoRefresh) startEmergencyRescueAutoRefresh()
+}
+
 const ensureAllStatusSnapshotsLoaded = async () => {
 	if (!hasLoadedLightingSnapshot.value) await loadLightingStatusSnapshot({ autoRefresh: false })
 	if (!hasLoadedDrainageSnapshot.value) await loadDrainageStatusSnapshot({ autoRefresh: false })
 	if (!hasLoadedFireSnapshot.value) await loadFireStatusSnapshot({ autoRefresh: false })
 	if (!hasLoadedPowerSnapshot.value) await loadPowerStatusSnapshot({ autoRefresh: false })
 	if (!hasLoadedHvacSnapshot.value) await loadHvacStatusSnapshot({ autoRefresh: false })
+	if (!hasLoadedAirCirculationSnapshot.value)
+		await loadAirCirculationStatusSnapshot({ autoRefresh: false })
+	if (!hasLoadedSmokeAlarmSnapshot.value) await loadSmokeAlarmStatusSnapshot({ autoRefresh: false })
+	if (!hasLoadedEmergencyRescueSnapshot.value)
+		await loadEmergencyRescueStatusSnapshot({ autoRefresh: false })
 }
 
 watch(
@@ -820,6 +959,18 @@ watch(
 			await loadHvacStatusSnapshot({ autoRefresh: true })
 			return
 		}
+		if (next === "air_circulation") {
+			await loadAirCirculationStatusSnapshot({ autoRefresh: true })
+			return
+		}
+		if (next === "smoke_alarm") {
+			await loadSmokeAlarmStatusSnapshot({ autoRefresh: true })
+			return
+		}
+		if (next === "emergency_rescue") {
+			await loadEmergencyRescueStatusSnapshot({ autoRefresh: true })
+			return
+		}
 	},
 	{ immediate: true }
 )
@@ -850,6 +1001,9 @@ const handleVisibilityChange = () => {
 		if (selectedSystemType.value === "fire") handleFireVisibilityChange()
 		if (selectedSystemType.value === "power") handlePowerVisibilityChange()
 		if (selectedSystemType.value === "hvac") handleHvacVisibilityChange()
+		if (selectedSystemType.value === "air_circulation") handleAirCirculationVisibilityChange()
+		if (selectedSystemType.value === "smoke_alarm") handleSmokeAlarmVisibilityChange()
+		if (selectedSystemType.value === "emergency_rescue") handleEmergencyRescueVisibilityChange()
 	}
 }
 

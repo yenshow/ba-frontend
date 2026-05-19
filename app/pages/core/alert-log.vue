@@ -1,111 +1,97 @@
 <template>
-	<div class="space-y-6 2xl:space-y-8">
-		<div class="flex items-center justify-between">
-			<header class="flex flex-col gap-1 2xl:gap-2 me-4">
-				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">警示紀錄</h1>
-				<p class="text-base text-white/80 2xl:text-xl">查看與管理系統警示訊息</p>
-			</header>
+	<PageTabs
+		v-model="currentMode"
+		:tabs="alertModeTabs"
+		layout="header"
+		root-class="space-y-6 2xl:space-y-8"
+		tab-list-class="me-auto"
+			aria-label="警示紀錄分頁"
+			id-prefix="alert-log-tab"
+		>
+			<template #prefix>
+				<header class="me-4 flex flex-col gap-1 2xl:gap-2">
+					<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">警示紀錄</h1>
+					<p class="text-base text-white/80 2xl:text-xl">查看與管理系統警示訊息</p>
+				</header>
+			</template>
 
-			<!-- 僅 admin 可切換「警示紀錄／規則管理」 -->
-			<div
-				v-if="isAdmin"
-				class="rounded-xl border border-white/20 bg-white/5 p-1 space-x-2 me-auto"
-			>
-				<button
-					type="button"
-					@click="currentMode = 'alerts'"
-					:class="[
-						'rounded-lg px-3 py-1.5 text-base transition-colors 2xl:text-lg',
-						currentMode === 'alerts' ? 'bg-cyan-500 text-white' : 'text-white/80 hover:bg-white/10',
-					]"
-				>
-					警示紀錄
-				</button>
-				<button
-					type="button"
-					@click="handleSwitchToRules"
-					:class="[
-						'rounded-lg px-3 py-1.5 text-base transition-colors 2xl:text-lg',
-						currentMode === 'rules' ? 'bg-cyan-500 text-white' : 'text-white/80 hover:bg-white/10',
-					]"
-				>
-					警報設定
-				</button>
-			</div>
+			<template #suffix>
+				<div class="flex items-center gap-3 2xl:gap-4">
+					<template v-if="currentMode === 'alerts'">
+						<FilterDropdown v-model="filterStatus" :options="statusOptions" placeholder="全部狀態" />
+						<FilterDropdown v-model="filterSource" :options="sourceOptions" placeholder="全部系統" />
+						<TimeRangePicker v-model="timeRange" :presets="timeRangePresets" />
 
-			<div class="flex items-center gap-3 2xl:gap-4">
-				<template v-if="currentMode === 'alerts'">
-					<FilterDropdown v-model="filterStatus" :options="statusOptions" placeholder="全部狀態" />
-					<FilterDropdown v-model="filterSource" :options="sourceOptions" placeholder="全部系統" />
-					<TimeRangePicker v-model="timeRange" :presets="timeRangePresets" />
+						<button
+							type="button"
+							@click="handleExport"
+							:disabled="isLoading || alerts.length === 0"
+							class="rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
+						>
+							匯出 CSV
+						</button>
+					</template>
+					<template v-else-if="currentMode === 'rules'">
+						<FilterDropdown
+							v-model="ruleFilterSource"
+							:options="sourceOptions"
+							placeholder="全部系統"
+						/>
+						<FilterDropdown
+							v-model="ruleFilterType"
+							:options="ruleTypeOptions"
+							placeholder="全部類型"
+						/>
 
-					<button
-						type="button"
-						@click="handleExport"
-						:disabled="isLoading || alerts.length === 0"
-						class="rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
-					>
-						匯出 CSV
-					</button>
-				</template>
-				<template v-else-if="currentMode === 'rules'">
-					<FilterDropdown
-						v-model="ruleFilterSource"
-						:options="sourceOptions"
-						placeholder="全部系統"
-					/>
-					<FilterDropdown
-						v-model="ruleFilterType"
-						:options="ruleTypeOptions"
-						placeholder="全部類型"
-					/>
+						<button
+							type="button"
+							@click="handleOpenCreateRule"
+							class="rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors hover:bg-green-400 2xl:px-6 2xl:py-3 2xl:text-base"
+						>
+							新增警報
+						</button>
+					</template>
+				</div>
+			</template>
 
-					<button
-						type="button"
-						@click="handleOpenCreateRule"
-						class="rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors hover:bg-green-400 2xl:px-6 2xl:py-3 2xl:text-base"
-					>
-						新增警報
-					</button>
-				</template>
-			</div>
-		</div>
+			<template #alerts>
+				<AlertListSection
+					:alerts="alerts"
+					:total-alerts="totalAlerts"
+					:unresolved-count="unresolvedCount"
+					:offset="offset"
+					:limit="limit"
+					:is-loading="isLoading"
+					:error="listLoadError"
+					:is-ignoring="isIgnoring"
+					:is-admin="isAdmin"
+					@ignore="handleIgnore"
+					@unignore="handleUnignore"
+					@previous="goToPreviousPage"
+					@next="goToNextPage"
+				/>
+			</template>
 
-		<AlertListSection
-			v-if="currentMode === 'alerts'"
-			:alerts="alerts"
-			:total-alerts="totalAlerts"
-			:unresolved-count="unresolvedCount"
-			:offset="offset"
-			:limit="limit"
-			:is-loading="isLoading"
-			:is-ignoring="isIgnoring"
-			:is-admin="isAdmin"
-			@ignore="handleIgnore"
-			@unignore="handleUnignore"
-			@previous="goToPreviousPage"
-			@next="goToNextPage"
-		/>
+			<template #rules>
+				<AlertRuleManagement
+					ref="ruleManagementRef"
+					v-model:selected-rule-source="ruleFilterSource"
+					v-model:selected-rule-type="ruleFilterType"
+				/>
+			</template>
+	</PageTabs>
 
-		<AlertRuleManagement
-			v-else-if="currentMode === 'rules' && isAdmin"
-			ref="ruleManagementRef"
-			v-model:selected-rule-source="ruleFilterSource"
-			v-model:selected-rule-type="ruleFilterType"
-		/>
-
-		<ConfirmDialog
-			v-model="showConfirmDialog"
-			:title="confirmDialogConfig.title"
-			:message="confirmDialogConfig.message"
-			:details="confirmDialogConfig.details"
-			:type="confirmDialogConfig.type"
-			:confirm-text="confirmDialogConfig.confirmText"
-			:cancel-text="confirmDialogConfig.cancelText"
-			@confirm="handleConfirmIgnoreAction"
-			@cancel="handleCancelIgnoreAction"
-		/>
-	</div>
+	<ConfirmDialog
+		v-model="showConfirmDialog"
+		:title="confirmDialogConfig.title"
+		:message="confirmDialogConfig.message"
+		:details="confirmDialogConfig.details"
+		:type="confirmDialogConfig.type"
+		:confirm-text="confirmDialogConfig.confirmText"
+		:cancel-text="confirmDialogConfig.cancelText"
+		@confirm="handleConfirmIgnoreAction"
+		@cancel="handleCancelIgnoreAction"
+	/>
 </template>
 
 <script setup lang="ts">
@@ -125,6 +111,7 @@ import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
 import AlertListSection from "~/components/alerts/AlertListSection.vue"
 import AlertRuleManagement from "~/components/alerts/AlertRuleManagement.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
+import PageTabs from "~/components/common/PageTabs.vue"
 import { useDataLoader } from "~/composables/monitoring/useDataLoader"
 import { logger } from "~/utils/logger"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
@@ -165,6 +152,15 @@ const confirmDialogConfig = computed(() => confirmDialog.config.value)
 const isIgnoring = ref(false)
 const unresolvedCount = ref(0)
 const currentMode = ref<"alerts" | "rules">("alerts")
+
+const alertModeTabs = computed(() =>
+	isAdmin.value
+		? [
+				{ id: "alerts" as const, label: "警示紀錄" },
+				{ id: "rules" as const, label: "警報設定" },
+			]
+		: [],
+)
 
 const ruleManagementRef = ref<{ openCreateRuleDialog: () => void } | null>(null)
 const ruleFilterSource = ref<"" | AlertSource>("")
@@ -242,6 +238,7 @@ const {
 	total: totalAlerts,
 	offset,
 	isLoading,
+	errorMessage: listLoadError,
 	load,
 	nextPage,
 	prevPage,
@@ -263,9 +260,7 @@ const {
 	},
 	debounce: 150,
 	pageSize: 5,
-	onError: (err) => {
-		handleApiError(err, "載入警示列表失敗")
-	},
+	onError: (err) => handleApiError(err, "載入警示列表失敗") || "載入警示列表失敗",
 })
 
 const limit = 5
@@ -290,10 +285,6 @@ const loadUnresolvedCount = async () => {
 	} catch (error) {
 		alertLogLogger.warn("載入未解決警示數量失敗", error)
 	}
-}
-
-const handleSwitchToRules = () => {
-	currentMode.value = "rules"
 }
 
 // 處理警報操作後的重新載入

@@ -1,46 +1,40 @@
 <template>
-	<div class="space-y-6 2xl:space-y-8">
-		<div class="flex flex-wrap items-center justify-between gap-4">
-			<header class="flex flex-col gap-1 2xl:gap-2 me-4">
+	<PageTabs
+		v-model="activeTab"
+		:tabs="tabs"
+		layout="header"
+		root-class="space-y-6 2xl:space-y-8"
+		tab-list-class="me-auto"
+		aria-label="人員管理分頁"
+		id-prefix="personnel-tab"
+	>
+		<template #prefix>
+			<header class="me-4 flex flex-col gap-1 2xl:gap-2">
 				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">人員管理</h1>
 				<p class="text-base text-white/80 2xl:text-xl">管理人員資料、人員群組、與門禁權限</p>
 			</header>
+		</template>
 
-			<div class="rounded-xl border border-white/20 bg-white/5 p-1 space-x-2 me-auto">
-				<button
-					v-for="tab in tabs"
-					:key="tab.id"
-					type="button"
-					@click="activeTab = tab.id"
-					:class="[
-						'rounded-lg px-3 py-1.5 text-base transition-colors 2xl:text-lg',
-						activeTab === tab.id ? 'bg-cyan-500 text-white' : 'text-white/80 hover:bg-white/10',
-					]"
-					:aria-label="tab.label"
-				>
-					{{ tab.label }}
-				</button>
-			</div>
-		</div>
+		<template #manage>
+			<PersonnelManageTab
+				:can-edit="canEdit"
+				:person-status-labels="personStatusLabels"
+				:table-header-class="tableHeaderClass"
+				:table-cell-class="tableCellClass"
+				:get-person-status-badge-class="getPersonStatusBadgeClass"
+				:persons-tab="personsTab"
+			/>
+		</template>
 
-		<PersonnelManageTab
-			v-show="activeTab === 'manage'"
-			:can-edit="canEdit"
-			:person-status-labels="personStatusLabels"
-			:table-header-class="tableHeaderClass"
-			:table-cell-class="tableCellClass"
-			:get-person-status-badge-class="getPersonStatusBadgeClass"
-			:persons-tab="personsTab"
-		/>
-
-		<PersonnelSyncTab
-			v-show="activeTab === 'sync'"
-			:can-edit="canEdit"
-			:table-header-class="tableHeaderClass"
-			:table-cell-class="tableCellClass"
-			:sync-tab="syncTab"
-		/>
-	</div>
+		<template #sync>
+			<PersonnelSyncTab
+				:can-edit="canEdit"
+				:table-header-class="tableHeaderClass"
+				:table-cell-class="tableCellClass"
+				:sync-tab="syncTab"
+			/>
+		</template>
+	</PageTabs>
 </template>
 
 <script setup lang="ts">
@@ -54,6 +48,7 @@ import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePersonnelPersonsTab"
 import { usePersonnelSyncTab } from "~/composables/systems/personnel/usePersonnelSyncTab"
 import { PERSON_STATUS_LABELS, getPersonStatusBadgeClass } from "~/utils/personnelUtils"
+import PageTabs from "~/components/common/PageTabs.vue"
 import PersonnelManageTab from "~/components/personnel/PersonnelManageTab.vue"
 import PersonnelSyncTab from "~/components/personnel/PersonnelSyncTab.vue"
 
@@ -94,6 +89,6 @@ watch(
 		if (tab === "manage") void personsTab.loadPersons()
 		else if (tab === "sync") void syncTab.loadSyncableLocations()
 	},
-	{ immediate: true }
+	{ immediate: true },
 )
 </script>

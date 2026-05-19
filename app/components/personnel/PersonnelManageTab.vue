@@ -30,19 +30,14 @@
 					</button>
 				</div>
 
-				<div v-if="groupTreeLoading" class="py-6 text-center text-sm text-white/60 2xl:text-base">
-					載入群組中…
-				</div>
-				<p v-else-if="groupTreeError" class="py-2 text-sm text-rose-300" role="alert">
-					{{ groupTreeError }}
-				</p>
-				<div
-					v-else-if="groupTree.length === 0"
-					class="py-6 text-center text-sm text-white/60 2xl:text-base"
+				<AsyncPanel
+					panel-size="sidebar"
+					:loading="groupTreeLoading"
+					:empty="!groupTreeLoading && groupTree.length === 0"
+					:error="groupTreeError"
+					empty-title="尚無群組"
 				>
-					尚無群組
-				</div>
-				<div v-else class="space-y-4">
+				<div class="space-y-4">
 					<div
 						v-for="main in groupTree"
 						:key="main.id"
@@ -94,6 +89,7 @@
 						</div>
 					</div>
 				</div>
+				</AsyncPanel>
 
 				<PersonnelGroupsDialog
 					v-if="canEdit"
@@ -119,6 +115,7 @@
 
 <script setup lang="ts">
 import type { PersonGroup } from "~/types/personnel"
+import AsyncPanel from "~/components/common/AsyncPanel.vue"
 import PersonnelPersonsTab from "~/components/personnel/PersonnelPersonsTab.vue"
 import PersonnelGroupsDialog from "~/components/personnel/dialogs/PersonnelGroupsDialog.vue"
 import { usePersonnelGroupTree } from "~/composables/systems/personnel/usePersonnelGroupTree"

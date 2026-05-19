@@ -1,34 +1,25 @@
 <template>
-	<div class="space-y-6 2xl:space-y-8">
-		<div class="flex items-center justify-between">
-			<header class="flex flex-col gap-2">
-				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">設備管理</h1>
-				<p class="text-base text-white/80 2xl:text-xl">管理各類型設備配置與配對</p>
-			</header>
+	<div>
+		<PageTabs
+			v-if="deviceTabItems.length"
+			v-model="activeTabModel"
+			:tabs="deviceTabItems"
+			layout="header"
+			root-class="space-y-6 2xl:space-y-8"
+			single-panel
+			:panel-transition="false"
+			tab-list-class="show-scrollbar max-w-full flex-nowrap overflow-x-auto"
+			aria-label="設備類型"
+			id-prefix="device-tab"
+		>
+			<template #prefix>
+				<header class="me-4 flex flex-col self-end space-y-2 2xl:space-y-4">
+					<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">設備管理</h1>
+					<p class="text-base text-white/80 2xl:text-xl">管理各類型設備配置與配對</p>
+				</header>
+			</template>
 
-			<!-- Tab 切換 -->
-			<div class="rounded-2xl border border-white/20 bg-white/15 p-1">
-				<div class="show-scrollbar flex gap-2 overflow-x-auto">
-					<button
-						v-for="tab in deviceTabs"
-						:key="tab.code"
-						type="button"
-						:class="[
-							'whitespace-nowrap rounded-xl px-4 py-2 text-lg font-medium transition-all 2xl:px-6 2xl:py-3 2xl:text-xl',
-							activeTab === tab.code
-								? 'bg-blue-500/80 text-white shadow-lg'
-								: 'text-white/70 hover:bg-white/10 hover:text-white',
-						]"
-						@click="switchTab(tab.code)"
-					>
-						{{ tab.name }}
-					</button>
-				</div>
-			</div>
-		</div>
-
-		<!-- 設備列表 -->
-		<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
+			<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
 			<!-- Tab 標題和操作按鈕 -->
 			<div class="mb-6 flex flex-wrap items-center justify-between gap-4 2xl:gap-6">
 				<h2 class="text-xl font-semibold text-white 2xl:text-2xl">
@@ -55,10 +46,18 @@
 				</div>
 			</div>
 
-			<!-- 設備列表表格：使用過渡動畫 -->
-			<div class="min-h-[500px]">
-				<Transition name="fade" mode="out-in">
-					<div v-if="devices.length > 0" :key="`devices-${activeTab}-${offset}`">
+			<AsyncPanel
+				:loading="isLoading"
+				:empty="!isLoading && devices.length === 0"
+				:error="listLoadError"
+				empty-title="尚無設備資料"
+				:empty-description="
+					isOperator && currentTabName
+						? `點擊「新增設備」開始建立 ${currentTabName}`
+						: ''
+				"
+			>
+					<div :key="`devices-${activeTab}-${offset}`">
 						<table class="w-full text-center">
 							<thead>
 								<tr class="border-b border-white/20">
@@ -179,16 +178,9 @@
 							@next="handleNextPage"
 						/>
 					</div>
-					<!-- 無數據提示 -->
-					<div v-else key="empty" class="py-8 text-center text-white/60">
-						<p class="text-lg 2xl:text-xl">尚無設備資料</p>
-						<p v-if="isOperator" class="mt-2 text-sm 2xl:text-base">
-							點擊「新增設備」開始建立 {{ currentTabName }}
-						</p>
-					</div>
-				</Transition>
-			</div>
-		</section>
+			</AsyncPanel>
+			</section>
+		</PageTabs>
 
 		<!-- 建立/編輯設備對話框 -->
 		<DeviceDialog
@@ -249,6 +241,8 @@ import DeviceModelDialog from "~/components/device/DeviceModelDialog.vue"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import Pagination from "~/components/common/Pagination.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
+import PageTabs from "~/components/common/PageTabs.vue"
+import AsyncPanel from "~/components/common/AsyncPanel.vue"
 import { formatDate } from "~/utils/dateUtils"
 import { useDataLoader } from "~/composables/monitoring/useDataLoader"
 import { useAuth } from "~/composables/core/useAuth"
@@ -273,7 +267,19 @@ const { setupDeviceListeners, removeDeviceListeners } = useDeviceWebSocket()
 // 設備類型固定（不提供 CRUD）
 const deviceTabs = computed(() => FIXED_DEVICE_TABS)
 
+const deviceTabItems = computed(() =>
+	deviceTabs.value.map((tab) => ({ id: tab.code, label: tab.name })),
+)
+
 const activeTab = ref<DeviceTypeCode | null>(null)
+
+const activeTabModel = computed({
+	get: () => activeTab.value ?? deviceTabs.value[0]?.code ?? ("" as DeviceTypeCode),
+	set: (code: DeviceTypeCode) => {
+		if (!code) return
+		switchTab(code)
+	},
+})
 const currentTabName = computed(() => {
 	const tab = deviceTabs.value.find((tab) => tab.code === activeTab.value)
 	return tab?.name || ""
@@ -320,6 +326,7 @@ const {
 	total,
 	offset,
 	isLoading,
+	errorMessage: listLoadError,
 	load,
 	nextPage,
 	prevPage,
@@ -350,10 +357,7 @@ const {
 	},
 	debounce: 300,
 	pageSize: 10,
-	onError: (err) => {
-		const errorMsg = handleApiError(err, "載入設備列表失敗")
-		errorMessage.value = errorMsg || "載入設備列表失敗"
-	},
+	onError: (err) => handleApiError(err, "載入設備列表失敗") || "載入設備列表失敗",
 })
 
 const deviceIdsInPage = computed(() =>

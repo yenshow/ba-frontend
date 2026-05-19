@@ -1,5 +1,6 @@
 import type { Person, Paged } from "~/types/personnel"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
+import { DATA_LOADER_MIN_LOADING_DELAY_MS } from "~/composables/monitoring/useDataLoader"
 
 type EmployeeNoSort = "asc" | "desc"
 
@@ -13,6 +14,7 @@ export const usePersonsList = (params: {
 
 	const persons = ref<Person[]>([])
 	const isLoadingPersons = ref(false)
+	const personsLoadError = ref<string | null>(null)
 	const personFilter = reactive<{ q: string }>({ q: "" })
 	const groupFilter = ref<
 		| { mode: "all"; ids: number[] }
@@ -50,6 +52,8 @@ export const usePersonsList = (params: {
 
 	const loadPersons = async () => {
 		isLoadingPersons.value = true
+		personsLoadError.value = null
+		const startTime = Date.now()
 		try {
 			const params = {
 				q: personFilter.q?.trim() || undefined,
@@ -60,10 +64,20 @@ export const usePersonsList = (params: {
 				...resolveGroupParams(),
 			}
 			const res = (await personnelApi.getPersons(params)) as Paged<Person>
+			const elapsed = Date.now() - startTime
+			const remainingDelay = Math.max(0, DATA_LOADER_MIN_LOADING_DELAY_MS - elapsed)
+			if (remainingDelay > 0) {
+				await new Promise((resolve) => setTimeout(resolve, remainingDelay))
+			}
+
 			persons.value = Array.isArray(res.items) ? res.items : []
 			personsTotal.value = Number.isFinite(Number(res.total)) ? Number(res.total) : 0
 		} catch (err) {
-			handleApiError(err, "載入人員失敗")
+			const fromHandler = handleApiError(err, "載入人員失敗")
+			personsLoadError.value =
+				(typeof fromHandler === "string" && fromHandler.trim()) ||
+				(err instanceof Error && err.message) ||
+				"載入人員失敗"
 			persons.value = []
 			personsTotal.value = 0
 		} finally {
@@ -98,6 +112,7 @@ export const usePersonsList = (params: {
 		PAGE_SIZE,
 		persons,
 		isLoadingPersons,
+		personsLoadError,
 		personFilter,
 		groupFilter,
 		personsTotal,

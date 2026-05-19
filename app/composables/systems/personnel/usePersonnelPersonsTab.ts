@@ -31,6 +31,7 @@ export const usePersonnelPersonsTab = (params: {
 		PAGE_SIZE,
 		persons,
 		isLoadingPersons,
+		personsLoadError,
 		personFilter,
 		groupFilter,
 		personsTotal,
@@ -529,6 +530,7 @@ export const usePersonnelPersonsTab = (params: {
 		// list state
 		persons,
 		isLoadingPersons,
+		personsLoadError,
 		personFilter,
 		groupFilter,
 		PAGE_SIZE,
