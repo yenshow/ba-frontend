@@ -36,7 +36,7 @@
 				</h2>
 				<div class="flex items-center gap-3 2xl:gap-4">
 					<button
-						v-if="isOperator"
+						v-if="isOperator && !deviceModelsLocked"
 						type="button"
 						:disabled="!activeTab"
 						class="rounded-xl bg-blue-500/80 px-4 py-2 text-base text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-blue-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
@@ -199,7 +199,7 @@
 
 		<!-- 設備型號管理對話框 -->
 		<DeviceModelDialog
-			v-if="activeTab"
+			v-if="activeTab && !deviceModelsLocked"
 			v-model="showDeviceModelDialog"
 			:device-type-code="activeTab"
 			@close="showDeviceModelDialog = false"
@@ -260,6 +260,8 @@ definePageMeta({
 
 const { isOperator } = useAuth();
 const deviceApi = useDeviceApi();
+const runtimeConfig = useRuntimeConfig();
+const deviceModelsLocked = computed(() => String(runtimeConfig.public.deviceModelsLocked || "1") !== "0");
 const toast = useToast();
 const { handleError: handleApiError } = useErrorHandler();
 const { setupDeviceListeners, removeDeviceListeners } = useDeviceWebSocket();

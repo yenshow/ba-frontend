@@ -1,8 +1,46 @@
 <template>
 	<div class="grid grid-cols-3">
 		<!-- 左側：品牌標識 -->
-		<div class="col-span-1 flex items-center justify-center">
-			<img src="/layout/yenshow-logo.svg" alt="YENSHOW" class="h-20 object-contain 2xl:h-24" />
+		<div class="group col-span-1 flex items-center justify-center">
+			<div class="relative flex items-center justify-center">
+				<img
+					src="/layout/yenshow-logo.svg"
+					alt="YENSHOW"
+					class="h-[var(--brand-logo-h)] object-contain"
+					:style="brandLogoStyle"
+				/>
+
+				<template v-if="isOperator">
+					<button
+						type="button"
+						class="absolute -right-2 -top-2 hidden rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 group-hover:block 2xl:text-base"
+						aria-label="編輯品牌標識高度"
+						@click="isBrandLogoHeightEditOpen = true"
+						@keydown.enter="isBrandLogoHeightEditOpen = true"
+						@keydown.space.prevent="isBrandLogoHeightEditOpen = true"
+					>
+						編輯
+					</button>
+				</template>
+			</div>
+
+			<template v-if="isOperator">
+				<EditMockDialog
+					v-model="isBrandLogoHeightEditOpen"
+					title="編輯品牌標識高度"
+					:value="brandLogoHeightRaw"
+					input-mode="range"
+					placeholder="48 - 96（px）"
+					:range-label="'高度'"
+					:range-min="BRAND_LOGO_HEIGHT_MIN"
+					:range-max="BRAND_LOGO_HEIGHT_MAX"
+					:range-step="1"
+					range-unit="px"
+					range-preview-src="/layout/yenshow-logo.svg"
+					@save="handleSaveBrandLogoHeight"
+					@reset="resetBrandLogoHeight"
+				/>
+			</template>
 		</div>
 
 		<!-- 中間：專案資訊 -->
@@ -41,8 +79,10 @@
 					title="編輯專案圖片"
 					:value="projectImageSrcRaw"
 					input-mode="image"
+					:crop-aspect-ratio="HOME_IMAGE_CROP.constructionProjectHeader"
 					placeholder="例如：https://... 或上傳圖片"
 					preview-alt="專案圖片預覽"
+					:hint="IMAGE_UPLOAD_HINT"
 					@save="saveProjectImageSrc"
 					@reset="resetProjectImageSrc"
 					@upload="handleUploadProjectImage"
@@ -73,13 +113,30 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import EditMockDialog from "~/components/common/EditMockDialog.vue";
-import { useAppSettings } from "~/composables/core/useAppSettings";
+import { useAppSettings, IMAGE_UPLOAD_HINT } from "~/composables/core/useAppSettings";
+import { HOME_IMAGE_CROP } from "~/utils/imageCropUtils";
 import { useUploadBaseUrl } from "~/composables/core/useUploadBaseUrl";
 import { resolveUploadUrl } from "~/utils/apiUtils";
 import { createSafeFileName } from "~/utils/fileUtils";
 import { useAuth } from "~/composables/core/useAuth";
 
 // --- 專案圖片設定 ---
+
+const BRAND_LOGO_HEIGHT_MIN = 48;
+const BRAND_LOGO_HEIGHT_MAX = 96;
+const BRAND_LOGO_HEIGHT_DEFAULT = 80;
+
+const clampBrandLogoHeight = (value: number) =>
+	Math.min(BRAND_LOGO_HEIGHT_MAX, Math.max(BRAND_LOGO_HEIGHT_MIN, value));
+
+const {
+	value: brandLogoHeightRaw,
+	save: saveBrandLogoHeightRaw,
+	reset: resetBrandLogoHeight
+} = useAppSettings({
+	key: "home_header_brand_logo_height",
+	defaultValue: String(BRAND_LOGO_HEIGHT_DEFAULT)
+});
 
 const {
 	value: projectImageSrcRaw,
@@ -93,10 +150,35 @@ const {
 
 const { isOperator } = useAuth();
 
+const isBrandLogoHeightEditOpen = ref(false);
+
+const brandLogoHeight = computed(() => {
+	const parsed = Number.parseInt(String(brandLogoHeightRaw.value ?? ""), 10);
+	if (!Number.isFinite(parsed)) {
+		return BRAND_LOGO_HEIGHT_DEFAULT;
+	}
+	return clampBrandLogoHeight(parsed);
+});
+
+const brandLogoStyle = computed(() => ({
+	"--brand-logo-h": `${brandLogoHeight.value}px`
+}));
+
+const handleSaveBrandLogoHeight = async (nextValue: string) => {
+	const parsed = Number.parseInt(String(nextValue ?? "").trim(), 10);
+	if (!Number.isFinite(parsed)) {
+		await resetBrandLogoHeight();
+		isBrandLogoHeightEditOpen.value = false;
+		return;
+	}
+
+	const clamped = clampBrandLogoHeight(parsed);
+	await saveBrandLogoHeightRaw(String(clamped));
+	isBrandLogoHeightEditOpen.value = false;
+};
+
 const apiBase = useUploadBaseUrl();
-const projectImageSrc = computed(() =>
-	resolveUploadUrl(projectImageSrcRaw.value ?? "", apiBase)
-);
+const projectImageSrc = computed(() => resolveUploadUrl(projectImageSrcRaw.value ?? "", apiBase));
 const isProjectImageEditOpen = ref(false);
 
 const handleUploadProjectImage = async (file: File) => {

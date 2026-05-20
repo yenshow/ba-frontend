@@ -62,7 +62,7 @@
 				:value="videoSrcRaw"
 				input-mode="video"
 				placeholder="例如：https://www.youtube.com/embed/xxx"
-				hint="可貼上 YouTube 嵌入網址、觀看網址，或點「上傳影片」上傳檔案。"
+				:hint="VIDEO_UPLOAD_HINT"
 				@save="saveVideoSrc"
 				@reset="resetVideoSrc"
 				@upload="handleUploadVideo"
@@ -73,7 +73,7 @@
 
 <script setup lang="ts">
 import EditMockDialog from "~/components/common/EditMockDialog.vue";
-import { useAppSettings } from "~/composables/core/useAppSettings";
+import { useAppSettings, VIDEO_UPLOAD_HINT } from "~/composables/core/useAppSettings";
 import { useUploadBaseUrl } from "~/composables/core/useUploadBaseUrl";
 import { resolveUploadUrl } from "~/utils/apiUtils";
 import { createSafeFileName } from "~/utils/fileUtils";

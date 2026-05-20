@@ -3,6 +3,14 @@ import { useApiBase } from "~/composables/core/useApiBase";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 
+/** 圖片上傳說明（與後端 10MB 上限一致） */
+export const IMAGE_UPLOAD_HINT =
+	"支援 JPG、PNG、WEBP，單檔 10MB 以內；\n可貼上圖片 URL 或點「上傳圖片」。";
+
+/** 影片上傳說明（與後端 100MB 上限一致） */
+export const VIDEO_UPLOAD_HINT =
+	"可貼上 YouTube 嵌入／觀看網址，或上傳影片檔案（MP4、WEBM、OGG，單檔 100MB 以內）。";
+
 export type UseAppSettingsOptions = {
 	key: string;
 	defaultValue: string;
@@ -103,15 +111,15 @@ export const useAppSettings = (options: UseAppSettingsOptions) => {
 			}
 			// 注意：不設定 Content-Type，讓瀏覽器自動設定（包含 boundary）
 
-			const response = await fetcher<{ success: boolean; data: { setting: { value: string }; file: { url: string } } }>(
-				`${apiBase}/settings/upload`,
-				{
-					method: "POST",
-					headers,
-					body: formData,
-					credentials: "include"
-				}
-			);
+			const response = await fetcher<{
+				success: boolean;
+				data: { setting: { value: string }; file: { url: string } };
+			}>(`${apiBase}/settings/upload`, {
+				method: "POST",
+				headers,
+				body: formData,
+				credentials: "include"
+			});
 
 			// 處理響應格式
 			const settingValue =

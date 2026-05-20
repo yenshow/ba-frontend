@@ -49,7 +49,7 @@
 													{{ model.description }}
 												</p>
 											</div>
-											<div class="flex gap-2 2xl:gap-3">
+											<div v-if="!deviceModelsLocked" class="flex gap-2 2xl:gap-3">
 												<button type="button" class="btn-list-edit" @click="editDeviceModel(model)">
 													編輯
 												</button>
@@ -74,7 +74,9 @@
 					<footer class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8">
 						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
 						<div class="flex-1"></div>
-						<button type="button" class="btn-primary" @click="openAddForm">新增型號</button>
+						<button v-if="!deviceModelsLocked" type="button" class="btn-primary" @click="openAddForm">
+							新增型號
+						</button>
 					</footer>
 				</div>
 
@@ -377,6 +379,8 @@ const emit = defineEmits<Emits>();
 
 const deviceApi = useDeviceApi();
 const toast = useToast();
+const runtimeConfig = useRuntimeConfig();
+const deviceModelsLocked = computed(() => String(runtimeConfig.public.deviceModelsLocked || "1") !== "0");
 
 const deviceTypeNameMap: Record<string, string> = {
 	camera: "影像設備",
