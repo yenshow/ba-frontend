@@ -67,7 +67,7 @@
 								v-if="deviceModels.length === 0 && !isLoadingDeviceModels"
 								class="mt-1 text-xs text-amber-300"
 							>
-								請先在「設備型號管理」中建立設備型號
+								{{ deviceModelsLocked ? "目前無可用型號，請聯繫維運人員新增預設型號" : "請先在「設備型號管理」中建立設備型號" }}
 							</p>
 						</label>
 
@@ -456,6 +456,8 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 const deviceApi = useDeviceApi()
+const runtimeConfig = useRuntimeConfig()
+const deviceModelsLocked = computed(() => String(runtimeConfig.public.deviceModelsLocked || "1") !== "0")
 const deviceModels = ref<DeviceModel[]>([])
 const isLoadingDeviceModels = ref(false)
 const localErrorMessage = ref<string | null>(null)

@@ -71,6 +71,12 @@ export default defineNuxtConfig({
 			licenseOpenAllFeatures: process.env.NUXT_PUBLIC_LICENSE_OPEN_ALL_FEATURES === "true",
 			productCode: process.env.NUXT_PUBLIC_PRODUCT_CODE || "YS One Platform",
 			appVersion: process.env.NUXT_PUBLIC_APP_VERSION || "1.0.0",
+			// 設備型號管理鎖定（隱藏新增/編輯/刪除入口）
+			// - production 預設鎖定
+			// - dev/staging 可用 env 覆寫
+			deviceModelsLocked:
+				process.env.NUXT_PUBLIC_DEVICE_MODELS_LOCKED ??
+				(process.env.NODE_ENV === "production" ? "1" : "0"),
 		},
 	},
 
