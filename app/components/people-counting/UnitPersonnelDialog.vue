@@ -49,12 +49,6 @@
 											class="h-full w-full object-cover"
 											@error="handleImageError($event)"
 										/>
-										<img
-											v-else
-											src="/people-counting/no-photo-placeholder.png"
-											alt="未設照片"
-											class="h-full w-full object-cover"
-										/>
 									</div>
 
 									<!-- 資訊 -->

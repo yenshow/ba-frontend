@@ -1,10 +1,11 @@
 <template>
 	<div class="min-h-screen relative">
 		<div class="absolute inset-0">
-			<img
+			<NuxtImg
 				v-if="settings.backgroundImageUrl"
 				:src="bgUrl"
 				alt="背景"
+				sizes="100vw"
 				class="h-full w-full object-cover"
 			/>
 		</div>
@@ -16,10 +17,11 @@
 			</div>
 
 			<div class="col-span-1 flex items-center justify-center pt-6">
-				<img
+				<NuxtImg
 					v-if="settings.projectImageUrl"
 					:src="projectImageUrl"
 					alt="專案圖片"
+					sizes="128px"
 					class="h-28 object-contain 2xl:h-32"
 				/>
 			</div>
@@ -45,7 +47,7 @@
 		<slot />
 
 		<footer class="flex items-center bg-black/90 p-4 gap-4 absolute bottom-0 left-0 right-0">
-			<img src="/multiMedia/banner.png" alt="Banner" class="px-4 h-12 w-auto object-contain" />
+			<NuxtImg src="/multiMedia/banner.png" alt="Banner" class="px-4 h-12 w-auto object-contain" />
 			<div
 				v-if="bannerText"
 				class="flex items-center justify-center text-center text-3xl font-semibold tracking-[4px] 2xl:text-5xl"
@@ -59,5 +61,6 @@
 
 <script setup lang="ts">
 import { useMultimediaWallDashboard } from "~/composables/systems/multimedia/useMultimediaWallDashboard"
+
 const { settings, bgUrl, bannerText, projectImageUrl, formattedDate } = useMultimediaWallDashboard()
 </script>

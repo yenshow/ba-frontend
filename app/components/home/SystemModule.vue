@@ -41,7 +41,7 @@
 									<div
 										class="relative flex h-24 w-24 items-center justify-center 2xl:h-28 2xl:w-28"
 									>
-										<img
+										<NuxtImg
 											:src="`/system/${module.icon}.png`"
 											:alt="module.name"
 											class="h-full w-full object-contain"

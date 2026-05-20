@@ -31,7 +31,7 @@
 				playsinline
 				aria-label="影片預覽"
 			/>
-			<img
+			<NuxtImg
 				v-else-if="resolvedValue"
 				:src="resolvedValue"
 				:alt="label"

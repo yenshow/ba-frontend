@@ -17,7 +17,7 @@
 						>
 							<div class="min-w-0 px-4">
 								<div class="flex items-center gap-2 text-xl 2xl:text-2xl font-semibold">
-									<img
+									<NuxtImg
 										v-if="a.pinned"
 										src="/multiMedia/ping.png"
 										alt="置頂"
@@ -67,10 +67,11 @@
 						controls
 						aria-label="右側影片"
 					/>
-					<img
+					<NuxtImg
 						v-else-if="settings.heroImageUrl"
 						:src="heroUrl"
 						alt="右側圖片"
+						sizes="(min-width: 1280px) 40vw, 100vw"
 						class="min-h-[400px] h-full aspect-[16/9] object-cover"
 					/>
 					<div v-else class="flex min-h-[400px] items-center justify-center">尚未設定圖片</div>

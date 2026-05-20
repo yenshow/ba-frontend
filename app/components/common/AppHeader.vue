@@ -28,8 +28,6 @@
 						:src="`/system/${currentModule.icon}.png`"
 						:alt="currentModule.name"
 						class="system-title-module-icon h-10 w-10 flex-shrink-0 object-contain 2xl:h-11 2xl:w-11"
-						width="200"
-						height="200"
 					/>
 					<span class="text-3xl font-semibold tracking-[8px] 2xl:text-4xl 2xl:tracking-[16px]">
 						{{ currentModule.name }}
@@ -42,7 +40,7 @@
 				<!-- 1. 警示紀錄 -->
 				<button :class="['icon-button relative', { 'icon-button-active': isAlertLogActive }]">
 					<NuxtLink to="/core/alert-log">
-						<img
+						<NuxtImg
 							:src="isDark ? '/layout/alert-logo-white.png' : '/layout/alert-log.png'"
 							alt="警示紀錄"
 							class="h-12 w-12 2xl:h-14 2xl:w-14"
@@ -107,8 +105,6 @@
 															:src="`/system/${module.icon}.png`"
 															:alt="module.name"
 															class="icon-dark h-8 w-8 object-contain"
-															width="200"
-															height="200"
 														/>
 													</div>
 													<span class="text-sm text-gray-700 2xl:text-base">{{ module.name }}</span>
@@ -128,8 +124,6 @@
 															:src="`/system/${module.icon}.png`"
 															:alt="module.name"
 															class="icon-dark h-8 w-8 object-contain"
-															width="200"
-															height="200"
 														/>
 														<span
 															class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-gray-300"
