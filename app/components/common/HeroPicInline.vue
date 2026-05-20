@@ -18,16 +18,22 @@ type Props = {
 	animate?: boolean;
 	/** 來源 svg（預設 public/heroPic.svg） */
 	src?: string;
+	/** 掃光目標群組 id（預設 line，對應 svg 內 #line） */
+	lineGroupId?: string;
+	/** mask／gradient 等 id 前綴（同頁多個 inline svg 時避免衝突） */
+	sweepIdPrefix?: string;
 };
 
 const props = withDefaults(defineProps<Props>(), {
 	ariaLabel: "首頁主視覺插圖",
 	rootClass: "",
 	animate: true,
-	src: "/heroPic.svg"
+	src: "/heroPic.svg",
+	lineGroupId: "line",
+	sweepIdPrefix: "hero-line-sweep"
 });
 
-const { ariaLabel, rootClass, animate, src } = toRefs(props);
+const { ariaLabel, rootClass, animate, src, lineGroupId, sweepIdPrefix } = toRefs(props);
 
 const svgMarkup = ref<string | null>(null);
 const containerEl = ref<HTMLElement | null>(null);
@@ -61,7 +67,7 @@ const normalizeSvgRoot = () => {
 };
 
 const setupLineSweep = (svg: SVGSVGElement) => {
-	const lineGroup = svg.querySelector<SVGGElement>("#line");
+	const lineGroup = svg.querySelector<SVGGElement>(`#${CSS.escape(lineGroupId.value)}`);
 	if (!lineGroup) return;
 
 	// 解析 viewBox（用來算 sweep 移動距離）
@@ -77,13 +83,17 @@ const setupLineSweep = (svg: SVGSVGElement) => {
 			return newDefs;
 		})();
 
-	const maskId = "hero-line-sweep-mask";
-	const gradientId = "hero-line-sweep-gradient";
-	const sweepRectId = "hero-line-sweep-rect";
-	const sweepGroupId = "line_sweep";
+	const prefix = sweepIdPrefix.value;
+	const maskId = `${prefix}-mask`;
+	const gradientId = `${prefix}-gradient`;
+	const sweepGroupId = `${prefix}-layer`;
 
 	// 避免重複注入（同頁多次 mount / watch 時）
-	if (svg.querySelector(`#${sweepGroupId}`) || svg.querySelector(`#${maskId}`)) return;
+	if (
+		svg.querySelector(`#${CSS.escape(sweepGroupId)}`) ||
+		svg.querySelector(`#${CSS.escape(maskId)}`)
+	)
+		return;
 
 	const sweepWidth = Math.max(140, Math.round(vbWidth * 0.18));
 	const travel = Math.round(vbWidth + sweepWidth * 2);
@@ -133,7 +143,7 @@ const setupLineSweep = (svg: SVGSVGElement) => {
 	maskBase.setAttribute("fill", "black");
 
 	const sweepRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-	sweepRect.setAttribute("id", sweepRectId);
+	sweepRect.setAttribute("class", "line-sweep-rect");
 	sweepRect.setAttribute("x", String(minX - sweepWidth));
 	sweepRect.setAttribute("y", String(minY));
 	sweepRect.setAttribute("width", String(sweepWidth));
@@ -146,6 +156,7 @@ const setupLineSweep = (svg: SVGSVGElement) => {
 	// 疊一層「高亮複本」讓掃光更明顯、也更不像 ground
 	const sweepGroup = lineGroup.cloneNode(true) as SVGGElement;
 	sweepGroup.setAttribute("id", sweepGroupId);
+	sweepGroup.setAttribute("class", "line-sweep-layer");
 	sweepGroup.setAttribute("mask", `url(#${maskId})`);
 	sweepGroup.setAttribute("opacity", "0.95");
 	lineGroup.insertAdjacentElement("afterend", sweepGroup);
@@ -154,7 +165,6 @@ const setupLineSweep = (svg: SVGSVGElement) => {
 onMounted(async () => {
 	try {
 		const response = await fetch(src.value, {
-			cache: "no-cache",
 			credentials: "same-origin"
 		});
 		if (!response.ok) return;
@@ -171,7 +181,7 @@ onMounted(async () => {
 	}
 });
 
-watch([ariaLabel, rootClass], async () => {
+watch([ariaLabel, rootClass, lineGroupId, sweepIdPrefix], async () => {
 	if (!svgMarkup.value) return;
 	await nextTick();
 	normalizeSvgRoot();
@@ -261,13 +271,13 @@ watch([ariaLabel, rootClass], async () => {
 }
 
 /* line_sweep：掃光高亮層（mask 從左掃到右） */
-.hero-pic-inline.is-animate :deep(#line_sweep) {
+.hero-pic-inline.is-animate :deep(.line-sweep-layer) {
 	mix-blend-mode: screen;
 	filter: brightness(1.35) drop-shadow(0 0 14px rgba(154, 252, 255, 0.45));
 	pointer-events: none;
 }
 
-.hero-pic-inline.is-animate :deep(#hero-line-sweep-rect) {
+.hero-pic-inline.is-animate :deep(.line-sweep-rect) {
 	animation: heroLineSweepX var(--hero-heroic-cycle) linear infinite;
 	will-change: transform;
 }
@@ -443,7 +453,7 @@ watch([ariaLabel, rootClass], async () => {
 	.hero-pic-inline.is-animate :deep(#beam),
 	.hero-pic-inline.is-animate :deep(#ground),
 	.hero-pic-inline.is-animate :deep(#line),
-	.hero-pic-inline.is-animate :deep(#hero-line-sweep-rect),
+	.hero-pic-inline.is-animate :deep(.line-sweep-rect),
 	.hero-pic-inline.is-animate :deep(#w),
 	.hero-pic-inline.is-animate :deep(#o),
 	.hero-pic-inline.is-animate :deep(#h),

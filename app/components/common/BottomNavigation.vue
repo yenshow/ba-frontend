@@ -25,17 +25,26 @@
 					@click.stop="navigateToRoute(currentActiveItem?.route || '/')"
 					:aria-label="currentActiveItem?.name || '首頁'"
 				>
-					<NuxtImg
+					<img
+						v-if="currentActiveItem?.isSvg ?? true"
 						:src="currentActiveItem?.iconPath || '/layout/home.svg'"
 						:alt="currentActiveItem?.name || '首頁'"
 						:class="[
 							'h-8 w-8 2xl:h-10 2xl:w-10',
-							(currentActiveItem?.isSvg ?? true) && 'brightness-0 invert'
+							'brightness-0 invert'
 						]"
-						width="200"
-						height="200"
-						quality="90"
-						loading="lazy"
+					/>
+					<NuxtImg
+						v-else-if="currentActiveItem"
+						:src="currentActiveItem.iconPath"
+						:alt="currentActiveItem.name"
+						class="h-8 w-8 2xl:h-10 2xl:w-10"
+					/>
+					<img
+						v-else
+						src="/layout/home.svg"
+						alt="首頁"
+						class="h-8 w-8 brightness-0 invert 2xl:h-10 2xl:w-10"
 					/>
 				</button>
 			</div>
@@ -62,10 +71,6 @@
 								:src="`/system/${item.icon}.png`"
 								:alt="item.name"
 								class="h-12 w-12 2xl:h-16 2xl:w-16"
-								width="200"
-								height="200"
-								quality="90"
-								loading="lazy"
 							/>
 							<!-- 鎖頭（未授權） -->
 							<div
@@ -99,10 +104,6 @@
 								src="/layout/alert-logo-white.png"
 								alt="警示紀錄"
 								class="h-12 w-12 2xl:h-16 2xl:w-16"
-								width="200"
-								height="200"
-								quality="90"
-								loading="lazy"
 							/>
 							<span
 								v-if="unresolvedAlertCount > 0"
@@ -121,14 +122,10 @@
 							@click.stop="toggleMoreFunctionsMenu"
 							aria-label="更多功能"
 						>
-							<NuxtImg
+							<img
 								src="/layout/more-functions.svg"
 								alt="更多功能"
 								class="h-12 w-12 brightness-0 invert 2xl:h-16 2xl:w-16"
-								width="200"
-								height="200"
-								quality="90"
-								loading="lazy"
 							/>
 						</button>
 						<Teleport to="body">
@@ -153,12 +150,10 @@
 										@click="navigateToRouteInNewTab(item.route)"
 										:aria-label="`${item.name}`"
 									>
-										<NuxtImg
+										<img
 											:src="item.icon"
 											:alt="item.name"
 											class="h-5 w-5 brightness-0 invert"
-											width="20"
-											height="20"
 										/>
 										{{ item.name }}
 									</button>
@@ -176,14 +171,10 @@
 							@click.stop="toggleUserMenu"
 							aria-label="用戶設定"
 						>
-							<NuxtImg
+							<img
 								src="/layout/setting.svg"
 								alt="用戶設定"
 								class="h-12 w-12 brightness-0 invert 2xl:h-16 2xl:w-16"
-								width="200"
-								height="200"
-								quality="90"
-								loading="lazy"
 							/>
 						</button>
 						<Teleport to="body">
@@ -268,14 +259,10 @@
 						@click.stop="navigateToRoute('/')"
 						aria-label="首頁"
 					>
-						<NuxtImg
+						<img
 							src="/layout/home.svg"
 							alt="首頁"
 							class="h-12 w-12 brightness-0 invert 2xl:h-16 2xl:w-16"
-							width="200"
-							height="200"
-							quality="90"
-							loading="lazy"
 						/>
 					</button>
 				</div>

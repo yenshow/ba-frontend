@@ -2,9 +2,9 @@
 	<div
 		class="flex min-h-screen items-center justify-center bg-[linear-gradient(155deg,#7dc1cb_0%,#006191_100%)]"
 	>
-		<div class="flex items-center justify-center gap-8">
+		<div class="flex translate-x-[-24px] items-center justify-center gap-[48px]">
 			<!-- Hero Image/Illustration -->
-			<div class="hidden items-center lg:flex lg:h-[800px]">
+			<div class="hidden items-center lg:flex lg:h-[840px]">
 				<ClientOnly>
 					<HeroPicInline
 						aria-label="BA System"
@@ -18,31 +18,29 @@
 			</div>
 
 			<!-- Right Side - Login Form -->
-			<div class="mx-auto w-full max-w-md">
+			<div class="mx-auto w-full max-w-[480px]">
 				<!-- Login Card -->
-				<div class="glass glass-card rounded-3xl p-8">
+				<div class="glass glass-card rounded-3xl px-8 py-16">
 					<!-- Welcome Header -->
 					<div class="mb-4 text-center">
-						<div class="mx-auto mb-2 flex h-24 w-24 items-center justify-center rounded-full bg-white/30">
-							<svg
-								class="h-20 w-20 text-white"
-								fill="currentColor"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+						<div class="mx-auto mb-8 flex h-36 w-36 items-center justify-center">
+							<ClientOnly>
+								<HeroPicInline
+									aria-label="YSOP"
+									src="/YSOS.svg"
+									line-group-id="line"
+									sweep-id-prefix="ysop-logo-line-sweep"
+									root-class="h-full w-full"
+									:animate="true"
+									class="h-36 w-36"
 								/>
-							</svg>
+							</ClientOnly>
 						</div>
-						<h2 class="text-3xl text-white">歡迎</h2>
+						<h2 class="text-3xl text-white">歡迎使用</h2>
 					</div>
 
 					<!-- Login Form -->
-					<form @submit.prevent="handleLogin" class="space-y-4">
+					<form @submit.prevent="handleLogin" class="space-y-6">
 						<!-- Account Input -->
 						<div>
 							<label class="text-md mb-2 block text-white/80" :for="accountInputId">帳號</label>
@@ -210,68 +208,38 @@
 					</form>
 
 					<!-- Divider -->
-					<div class="my-6 h-px bg-white/20"></div>
+					<div class="my-8 h-px bg-white/20"></div>
 
 					<!-- Contact Info -->
 					<div class="mx-auto w-fit text-center">
-						<p class="mb-2 text-base text-white/70">需要協助？請聯絡我們</p>
-						<div class="space-y-1 text-sm text-white/70">
-							<div class="flex items-center gap-2">
-								<span class="text-white/60">專線│</span>
-								<a
-									href="tel:0222233355"
-									tabindex="0"
-									class="font-semibold text-white/90 underline-offset-4 hover:underline"
-									aria-label="撥打專線 02-222-333-55"
+						<p class="text-base text-white/80">
+							需要協助？
+							<span
+								class="group relative inline-block cursor-default underline decoration-white/40 underline-offset-2 transition-colors hover:text-white hover:decoration-white"
+								tabindex="0"
+								role="button"
+								aria-label="請聯絡我們，滑鼠移入顯示聯絡 QR Code"
+							>
+								請聯絡我們
+								<span
+									class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 w-40 -translate-x-1/2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100"
+									aria-hidden="true"
 								>
-									02-222-333-55
-								</a>
-							</div>
-							<div class="flex items-center gap-2">
-								<span class="text-white/60">Email│</span>
-								<a
-									href="mailto:jerry@yenshow.com"
-									tabindex="0"
-									class="font-semibold text-white/90 underline-offset-4 hover:underline"
-									aria-label="寄信到 jerry@yenshow.com"
-								>
-									jerry@yenshow.com
-								</a>
-							</div>
-							<div class="flex items-center gap-2">
-								<span class="text-white/60">線上表單│</span>
-								<a
-									href="https://www.yenshow.com/contact"
-									target="_blank"
-									rel="noreferrer"
-									tabindex="0"
-									class="inline-flex w-fit items-center gap-1 font-medium text-white/95 underline decoration-white/40 underline-offset-[3px] transition-colors hover:text-white hover:decoration-white"
-									aria-label="開啟線上聯絡表單（另開新視窗）"
-								>
-									前往填寫
-									<svg
-										class="h-3.5 w-3.5 shrink-0 opacity-80"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-										aria-hidden="true"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-										/>
-									</svg>
-								</a>
-							</div>
-						</div>
+									<NuxtImg
+										src="/yenshow_contact.png"
+										alt="聯絡表單"
+										loading="lazy"
+										class="block size-40 max-w-none shrink-0 rounded-lg bg-white p-2 shadow-xl ring-1 ring-white/20"
+									/>
+								</span>
+							</span>
+						</p>
 					</div>
 				</div>
 
 				<!-- Version Info -->
-				<div class="mt-8 text-center text-white/40">
-					<p class="text-xl">BA System v1.6.0</p>
+				<div class="mt-8 text-center font-bold text-gray-700">
+					<p class="text-xl">{{ productVersionDisplay }}</p>
 					<p class="text-sm">© 2026 YENSHOW Technology</p>
 				</div>
 			</div>
@@ -284,10 +252,13 @@ import { useAuth } from "~/composables/core/useAuth";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import HeroPicInline from "~/components/common/HeroPicInline.vue";
+import { useProductVersionDisplay } from "~/composables/core/useProductVersionDisplay";
 
 definePageMeta({
 	layout: false
 });
+
+const productVersionDisplay = useProductVersionDisplay();
 
 const { login, isAuthenticated } = useAuth();
 const router = useRouter();
@@ -306,7 +277,6 @@ const passwordInputRef = ref<HTMLInputElement | null>(null);
 
 // 如果已經登入，自動重定向（等待插件初始化完成）
 onMounted(async () => {
-	// 等待下一個 tick 確保認證狀態已恢復
 	await nextTick();
 	if (isAuthenticated.value) {
 		const redirectPath = sanitizeRedirectPath(route.query.redirect);

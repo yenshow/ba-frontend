@@ -21,10 +21,6 @@
 						:src="iconSrc"
 						:alt="label"
 						class="absolute inset-0 h-16 w-16 object-contain 2xl:h-20 2xl:w-20"
-						width="80"
-						height="80"
-						quality="90"
-						loading="lazy"
 					/>
 				</Transition>
 			</div>
