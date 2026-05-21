@@ -186,7 +186,7 @@
 							<div class="py-1">
 								<!-- 用戶管理 (僅管理員顯示) -->
 								<NuxtLink
-									v-if="isAdmin"
+									v-if="canWrite"
 									to="/core/users"
 									@click="closeUserMenu"
 									class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 2xl:text-base"
@@ -210,7 +210,7 @@
 
 								<!-- 授權管理 (僅管理員顯示) -->
 								<NuxtLink
-									v-if="isAdmin"
+									v-if="canWrite"
 									to="/core/license"
 									@click="closeUserMenu"
 									class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 2xl:text-base"
@@ -359,7 +359,7 @@ const isMoreMenuOpen = ref(false)
 const moreMenuRef = ref<HTMLElement | null>(null)
 
 // 認證狀態
-const { user, isAdmin, hasModulePermission, logout: authLogout } = useAuth()
+const { user, isAdmin, canWrite, hasModulePermission, logout: authLogout } = useAuth()
 const { isModuleLocked: isModuleLockedByLicense } = useLicense()
 const toast = useToast()
 

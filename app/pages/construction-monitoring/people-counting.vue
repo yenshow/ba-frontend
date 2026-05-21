@@ -26,7 +26,7 @@
 					</div>
 
 					<button
-						v-if="isOperator"
+						v-if="canWrite"
 						type="button"
 						class="absolute left-8 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
 						aria-label="地點管理"
@@ -231,7 +231,7 @@ import {
 	sortFlatSitesBySortedZoneLocations,
 } from "~/utils/sortOrder"
 
-const { isOperator } = useAuth()
+const { canWrite } = useAuth()
 
 // 使用統一的狀態管理
 const {

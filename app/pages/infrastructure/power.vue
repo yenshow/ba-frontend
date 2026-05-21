@@ -4,7 +4,7 @@
 			<PowerZonePlanPanel
 				:selected-zone-name="selectedZoneName"
 				:is-initial-loading="isInitialLoading"
-				:is-operator="isOperator"
+				:can-write="canWrite"
 				:is-edit-mode="isEditMode"
 				:selected-zone="selectedZone"
 				:selected-zone-data="selectedZoneData"
@@ -81,7 +81,7 @@ definePageMeta({
 	layout: "default",
 })
 
-const { isOperator, isAdmin } = useAuth()
+const { canWrite, isAdmin } = useAuth()
 const powerApi = usePowerApi()
 const { handleError } = useErrorHandler()
 

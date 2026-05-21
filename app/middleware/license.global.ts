@@ -8,11 +8,11 @@ import { useToast } from "~/composables/core/useToast"
 export default defineNuxtRouteMiddleware(async (to) => {
 	if (to.path === "/login") return
 
-	// 環境設定：不在 module registry，必須僅 admin 可進入（與後端 requireAdmin 對齊）
-	if (to.path === "/core/env") {
-		const { isAdmin } = useAuth()
-		if (!isAdmin.value) {
-			if (process.client) useToast().warning("僅管理員（admin）可存取環境設定")
+	// 核心管理頁：僅 admin / operator（registry 無 permissionCode）
+	if (to.path === "/core/users" || to.path === "/core/license" || to.path === "/core/env") {
+		const { canWrite } = useAuth()
+		if (!canWrite.value) {
+			if (process.client) useToast().warning("僅管理員或操作員可存取此頁面")
 			return navigateTo("/")
 		}
 		return

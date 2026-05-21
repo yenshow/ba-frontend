@@ -41,8 +41,11 @@ export const useAuth = () => {
 	// 計算屬性
 	const isAuthenticated = computed(() => !!token.value && !!user.value);
 	const isAdmin = computed(() => user.value?.role === "admin");
-	const isOperator = computed(() => user.value?.role === "operator" || user.value?.role === "admin");
-	const isViewer = computed(() => user.value?.role === "viewer" || isOperator.value);
+	/** 可寫入（頁面操作）：admin 或 operator */
+	const canWrite = computed(
+		() => user.value?.role === "admin" || user.value?.role === "operator"
+	);
+	const isViewer = computed(() => user.value?.role === "viewer");
 
 	/** 是否具備指定權限（admin 視為擁有全部；其餘依 user.permissions） */
 	const hasPermission = (code: string): boolean => {
@@ -53,9 +56,9 @@ export const useAuth = () => {
 	};
 
 	/** 是否具備該模組（系統）的存取權限：若該路由需權限則檢查 hasPermission，否則視為有權限 */
-	const hasModulePermission = (module: { route: string }): boolean => {
+	const hasModulePermission = (module: { route: string; permissionCode?: string }): boolean => {
 		const moduleRegistry = useModuleRegistry();
-		const code = moduleRegistry.getPermissionCodeByRoute(module.route);
+		const code = module.permissionCode ?? moduleRegistry.getPermissionCodeByRoute(module.route);
 		if (!code) return true;
 		return hasPermission(code);
 	};
@@ -101,22 +104,19 @@ export const useAuth = () => {
 		}
 	};
 
-	// 初始化：檢查是否有已儲存的認證資訊
+	// 初始化：還原 token，並以 /users/me 同步 permissions（避免僅依舊 cookie 導致模組全鎖）
 	const init = async () => {
-		// 如果有 token 但沒有用戶資訊，嘗試從 Cookie 恢復
-		if (tokenCookie.value && !user.value) {
+		if (tokenCookie.value) {
 			token.value = tokenCookie.value;
 		}
 		if (userCookie.value && !user.value) {
 			user.value = userCookie.value;
 		}
-
-		// 如果兩者都存在，可選擇性地驗證 token 是否仍然有效
-		// 為了避免每次刷新都調用 API，這裡只檢查是否有 token 和用戶資訊
-		// Token 的有效性會在實際 API 調用時由後端驗證（401 錯誤處理）
-		if (token.value && user.value) {
-			// 可選：在後台靜默驗證 token（不影響用戶體驗）
-			// 如果不需要即時驗證，可以跳過這個檢查
+		if (!token.value) return;
+		try {
+			await fetchUser();
+		} catch {
+			// fetchUser 失敗時已 logout
 		}
 	};
 
@@ -125,7 +125,7 @@ export const useAuth = () => {
 		token: readonly(token),
 		isAuthenticated,
 		isAdmin,
-		isOperator,
+		canWrite,
 		isViewer,
 		hasPermission,
 		hasModulePermission,

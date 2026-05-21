@@ -13,7 +13,7 @@
 
 					<Transition name="fade-in">
 						<button
-							v-if="!isInitialLoading && isOperator"
+							v-if="!isInitialLoading && canWrite"
 							type="button"
 							class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base font-light text-white transition-all hover:bg-white/10 2xl:text-lg"
 							title="樓層管理"
@@ -26,7 +26,7 @@
 					<div class="relative">
 						<Transition name="fade-in">
 							<button
-								v-if="!isInitialLoading && isOperator"
+								v-if="!isInitialLoading && canWrite"
 								type="button"
 								:class="[
 									'whitespace-nowrap rounded-2xl p-3 text-base font-light text-white transition-all 2xl:text-lg',
@@ -129,7 +129,7 @@ import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 interface Props {
 	selectedZoneName: string
 	isInitialLoading: boolean
-	isOperator: boolean
+	canWrite: boolean
 	isEditMode: boolean
 	selectedZone: string
 	selectedZoneData: EmergencyRescueZone | undefined

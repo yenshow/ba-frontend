@@ -395,7 +395,7 @@ import type {
 
 definePageMeta({ layout: "default" })
 
-const { isOperator } = useAuth()
+const { canWrite } = useAuth()
 const toast = useToast()
 const { handleError } = useErrorHandler()
 const api = useMultimediaDashboardApi()
@@ -755,7 +755,7 @@ const loadSettings = async () => {
 }
 
 const handleSave = async () => {
-	if (!isOperator.value) {
+	if (!canWrite.value) {
 		toast.warning("權限不足")
 		return
 	}

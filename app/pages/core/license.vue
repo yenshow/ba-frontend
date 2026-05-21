@@ -26,6 +26,7 @@
 					</div>
 				</div>
 				<button
+					v-if="isAdmin"
 					type="button"
 					class="rounded-xl border border-white/25 bg-white/10 px-4 py-2 text-sm text-white/85 transition-colors hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
 					:disabled="showLicensePlaceholder || isResettingLicense"
@@ -38,12 +39,21 @@
 		</header>
 
 		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start 2xl:gap-8">
-			<div ref="leftColumnRef" class="flex flex-col gap-6 2xl:gap-8">
+			<div
+				ref="leftColumnRef"
+				class="flex flex-col gap-6 transition-opacity duration-200 2xl:gap-8"
+				:class="isAdmin ? '' : 'cursor-not-allowed opacity-50 saturate-[0.85]'"
+				:aria-disabled="!isAdmin || undefined"
+			>
 				<div class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
 					<h2 class="text-xl font-semibold text-white 2xl:text-2xl">線上啟用（LK）</h2>
+					<p v-if="!isAdmin" class="mt-2 text-sm text-white/50 2xl:text-base">
+						僅管理員可啟用或匯入授權
+					</p>
 
+					<fieldset :disabled="!isAdmin" class="mt-5 min-w-0 border-0 p-0 2xl:mt-6">
 					<form
-						class="mt-5 flex flex-col gap-4 2xl:mt-6 2xl:gap-5"
+						class="flex flex-col gap-4 2xl:gap-5"
 						@submit.prevent="handleActivateOnline"
 					>
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
@@ -77,12 +87,17 @@
 							</button>
 						</div>
 					</form>
+					</fieldset>
 				</div>
 
 				<div class="flex flex-col rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
 					<h2 class="text-xl font-semibold text-white 2xl:text-2xl">離線授權</h2>
+					<p v-if="!isAdmin" class="mt-2 text-sm text-white/50 2xl:text-base">
+						僅管理員可產生請求檔或匯入回應檔
+					</p>
 
-					<nav class="mt-5 flex items-center gap-2" aria-label="離線授權步驟切換">
+					<fieldset :disabled="!isAdmin" class="mt-5 min-w-0 border-0 p-0">
+					<nav class="flex items-center gap-2" aria-label="離線授權步驟切換">
 						<button
 							type="button"
 							class="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors 2xl:text-base"
@@ -206,6 +221,7 @@
 							已選擇：{{ offlineResponseFileName }}
 						</p>
 					</div>
+					</fieldset>
 				</div>
 			</div>
 
@@ -377,16 +393,6 @@ const featureLabels: Record<string, string> = {
 }
 
 const { isAdmin } = useAuth()
-const router = useRouter()
-
-watch(
-	() => isAdmin.value,
-	async (val) => {
-		if (val) return
-		await router.replace("/")
-	},
-	{ immediate: true }
-)
 
 const { request } = useApiBase()
 const { license, fetchLicense, isLoaded } = useLicense()
@@ -607,6 +613,7 @@ const clearOfflineResponseSelection = () => {
 }
 
 const handleActivateOnline = async () => {
+	if (!isAdmin.value) return
 	if (!canSubmitLicenseKey.value) return
 	if (isSubmittingOnline.value) return
 	isSubmittingOnline.value = true
@@ -681,6 +688,7 @@ const handleConfirmDialogCancel = () => {
 }
 
 const handleGenerateRequestFile = async () => {
+	if (!isAdmin.value) return
 	if (!canGenerateRequestFile.value || isGeneratingRequestFile.value) return
 	isGeneratingRequestFile.value = true
 	try {
@@ -709,6 +717,7 @@ const handleGenerateRequestFile = async () => {
 }
 
 const handleImportOffline = async () => {
+	if (!isAdmin.value) return
 	const payload = offlineResponsePayload.value
 	if (!payload || isSubmittingOffline.value) return
 	isSubmittingOffline.value = true
@@ -728,12 +737,14 @@ const handleImportOffline = async () => {
 }
 
 const handleOfflineFileLabelKeyDown = (e: KeyboardEvent) => {
+	if (!isAdmin.value) return
 	if (e.key !== "Enter" && e.key !== " ") return
 	e.preventDefault()
 	offlineResponseFileInputRef.value?.click()
 }
 
 const handleOfflineResponseFileChange = async (e: Event) => {
+	if (!isAdmin.value) return
 	const input = e.target as HTMLInputElement | null
 	const file = input?.files?.[0]
 	if (!file) return

@@ -60,8 +60,8 @@ const accessControlApi = useAccessControlApi()
 const locationApi = useLocationApi()
 const toast = useToast()
 const { handleError: handleApiError } = useErrorHandler()
-const { isAdmin, isOperator } = useAuth()
-const canEdit = computed(() => Boolean(isAdmin.value || isOperator.value))
+const { canWrite } = useAuth()
+const canEdit = canWrite
 
 const activeTab = ref<"manage" | "sync">("manage")
 const tabs: { id: "manage" | "sync"; label: string }[] = [

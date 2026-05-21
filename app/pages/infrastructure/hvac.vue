@@ -4,7 +4,7 @@
 			<HvacZonePlanPanel
 				:selected-zone-name="selectedZoneName"
 				:is-initial-loading="isInitialLoading"
-				:is-operator="isOperator"
+				:can-write="canWrite"
 				:is-edit-mode="isEditMode"
 				:selected-zone="selectedZone"
 				:selected-zone-data="selectedZoneData"
@@ -32,7 +32,7 @@
 					:area-statuses="locationStatuses"
 					:area-disabled-map="locationDisabledMap"
 					:area-toggling="locationToggling"
-					:can-toggle="isOperator"
+					:can-toggle="canWrite"
 					:selected-zone="selectedZone"
 					@toggle="handleLocationToggle"
 					@zone-selected="handleZoneSelected"
@@ -68,7 +68,7 @@ import { useHvacModbusIntegration } from "~/composables/systems/hvac/useHvacModb
 
 definePageMeta({ layout: "default" })
 
-const { isOperator } = useAuth()
+const { canWrite } = useAuth()
 const hvacApi = useHvacApi()
 const { handleError } = useErrorHandler()
 

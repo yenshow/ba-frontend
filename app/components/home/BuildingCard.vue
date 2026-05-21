@@ -16,7 +16,7 @@
 					尚未設定建案主圖
 				</div>
 
-				<template v-if="isOperator">
+				<template v-if="canWrite">
 					<button
 						type="button"
 						class="absolute right-3 top-3 hidden rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 group-hover:block 2xl:text-base"
@@ -47,7 +47,7 @@
 					尚未設定建案名稱圖
 				</div>
 
-				<template v-if="isOperator">
+				<template v-if="canWrite">
 					<button
 						type="button"
 						class="absolute right-3 top-3 hidden rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 group-hover:block 2xl:text-base"
@@ -62,7 +62,7 @@
 			</div>
 		</div>
 
-		<template v-if="isOperator">
+		<template v-if="canWrite">
 			<EditMockDialog
 				v-model="isBuildingEditOpen"
 				title="編輯建案主圖"
@@ -100,7 +100,7 @@ import { useAuth } from "~/composables/core/useAuth"
 import { IMAGE_UPLOAD_HINT, useAppSettingImage } from "~/composables/core/useAppSettings"
 import { HOME_IMAGE_CROP } from "~/utils/imageCropUtils"
 
-const { isOperator } = useAuth()
+const { canWrite } = useAuth()
 
 const {
 	raw: buildingRaw,

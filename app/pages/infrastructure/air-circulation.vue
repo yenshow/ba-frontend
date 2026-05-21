@@ -4,7 +4,7 @@
 			<AirCirculationZonePlanPanel
 				:selected-zone-name="selectedZoneName"
 				:is-initial-loading="isInitialLoading"
-				:is-operator="isOperator"
+				:can-write="canWrite"
 				:is-edit-mode="isEditMode"
 				:selected-zone="selectedZone"
 				:selected-zone-data="selectedZoneData"
@@ -80,7 +80,7 @@ import { useManualIssueDiDoRules } from "~/composables/systems/alerts/useManualI
 
 definePageMeta({ layout: "default" })
 
-const { isOperator, isAdmin } = useAuth()
+const { canWrite, isAdmin } = useAuth()
 const airApi = useAirCirculationApi()
 const { handleError } = useErrorHandler()
 
