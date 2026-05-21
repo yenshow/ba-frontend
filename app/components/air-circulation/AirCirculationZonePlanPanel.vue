@@ -28,7 +28,9 @@
 								type="button"
 								:class="[
 									'whitespace-nowrap rounded-2xl p-3 text-base font-light text-white transition-all 2xl:text-lg',
-									isEditMode ? 'border-2 border-white bg-white/10' : 'border-2 border-white/30 bg-transparent',
+									isEditMode
+										? 'border-2 border-white bg-white/10'
+										: 'border-2 border-white/30 bg-transparent',
 								]"
 								@click="handleToggleEditMode"
 							>
@@ -89,7 +91,10 @@
 					>
 						<div
 							class="category-dot"
-							:class="[{ 'is-editing': isEditMode }, getLocationMapDotClass(getLocationIdForDisplay(location))]"
+							:class="[
+								{ 'is-editing': isEditMode },
+								getLocationMapDotClass(getLocationIdForDisplay(location)),
+							]"
 							role="button"
 							tabindex="0"
 							:data-status="dotStatusForLocationId(getLocationIdForDisplay(location))"
@@ -172,7 +177,11 @@ const getLocationIdForDisplay = (location: AirCirculationLocation): string => {
 	if (!zone) return ""
 	const originalIndex = findLocationIndexInZone(zone as any, location as any)
 	return originalIndex !== -1
-		? getLocationUiKey({ zone: zone as any, location: location as any, locationIndex: originalIndex })
+		? getLocationUiKey({
+				zone: zone as any,
+				location: location as any,
+				locationIndex: originalIndex,
+			})
 		: ""
 }
 
@@ -191,7 +200,11 @@ const editModeCategoryListItems = computed(() => {
 			const originalIndex = findLocationIndexInZone(zone as any, location as any)
 			if (originalIndex === -1) return null
 			return {
-				id: getLocationUiKey({ zone: zone as any, location: location as any, locationIndex: originalIndex }),
+				id: getLocationUiKey({
+					zone: zone as any,
+					location: location as any,
+					locationIndex: originalIndex,
+				}),
 				name: location.name,
 				zoneId: props.selectedZone || "",
 				location: location.location,
@@ -216,7 +229,11 @@ const startDrag = (event: DragEvent, locationId: string, fromCategoryList = fals
 	if (fromCategoryList) event.dataTransfer!.setData("fromCategoryList", "true")
 }
 
-const handleDotDragStart = (event: DragEvent, location: AirCirculationLocation, locationIndex: number) => {
+const handleDotDragStart = (
+	event: DragEvent,
+	location: AirCirculationLocation,
+	locationIndex: number
+) => {
 	if (!props.isEditMode || !props.selectedZoneData) return
 	const locationId = getLocationUiKey({
 		zone: props.selectedZoneData as any,
@@ -254,4 +271,3 @@ const handleZonePlanImageLoad = () => {
 onMounted(() => initSectionObserver())
 onBeforeUnmount(() => sectionResizeObserver?.disconnect())
 </script>
-
