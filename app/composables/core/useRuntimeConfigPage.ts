@@ -15,8 +15,7 @@ type RuntimeConfigResponse = {
 
 export const useRuntimeConfigPage = () => {
 	const { request } = useApiBase();
-	const { isAdmin } = useAuth();
-	const router = useRouter();
+	const { canWrite } = useAuth();
 	const toast = useToast();
 	const { handleError } = useErrorHandler();
 
@@ -26,18 +25,9 @@ export const useRuntimeConfigPage = () => {
 	const isSaving = ref(false);
 	const loadError = ref<string | null>(null);
 
-	const formDisabled = computed(() => isLoading.value || isSaving.value || !isAdmin.value);
+	const formDisabled = computed(() => isLoading.value || isSaving.value || !canWrite.value);
 	const sectionRows = computed(() =>
 		schema.value ? getRuntimeSectionRows(schema.value) : [],
-	);
-
-	watch(
-		() => isAdmin.value,
-		async (val) => {
-			if (val) return;
-			await router.replace("/");
-		},
-		{ immediate: true },
 	);
 
 	const applyPayload = (data: RuntimeConfigResponse) => {
@@ -46,7 +36,7 @@ export const useRuntimeConfigPage = () => {
 	};
 
 	const fetchRuntimeConfig = async () => {
-		if (!isAdmin.value) return;
+		if (!canWrite.value) return;
 		isLoading.value = true;
 		loadError.value = null;
 		try {
@@ -67,8 +57,8 @@ export const useRuntimeConfigPage = () => {
 	};
 
 	const handleSave = async () => {
-		if (!isAdmin.value) {
-			toast.warning("僅管理員（admin）可儲存營運設定");
+		if (!canWrite.value) {
+			toast.warning("僅管理員或操作員可儲存營運設定");
 			return;
 		}
 		if (!schema.value) return;

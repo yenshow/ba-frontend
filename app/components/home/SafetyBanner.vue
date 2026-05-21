@@ -1,6 +1,6 @@
 <template>
 	<div class="group relative bg-red-600 py-2">
-		<template v-if="isOperator">
+		<template v-if="canWrite">
 			<button
 				type="button"
 				class="absolute right-3 top-1/2 z-10 hidden -translate-y-1/2 rounded-lg bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 group-hover:block 2xl:text-base"
@@ -27,7 +27,7 @@
 			</div>
 		</div>
 
-		<template v-if="isOperator">
+		<template v-if="canWrite">
 			<EditMockDialog
 				v-model="isEditOpen"
 				title="編輯跑馬燈文字"
@@ -52,7 +52,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
-const { isOperator } = useAuth();
+const { canWrite } = useAuth();
 
 const {
 	value: bannerMessage,

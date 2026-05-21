@@ -10,7 +10,7 @@
 					:style="brandLogoStyle"
 				/>
 
-				<template v-if="isOperator">
+				<template v-if="canWrite">
 					<button
 						type="button"
 						class="absolute -right-2 -top-2 hidden rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 group-hover:block 2xl:text-base"
@@ -24,7 +24,7 @@
 				</template>
 			</div>
 
-			<template v-if="isOperator">
+			<template v-if="canWrite">
 				<EditMockDialog
 					v-model="isBrandLogoHeightEditOpen"
 					title="編輯品牌標識高度"
@@ -59,7 +59,7 @@
 					請上傳或設定專案圖片
 				</div>
 
-				<template v-if="isOperator">
+				<template v-if="canWrite">
 					<button
 						type="button"
 						class="absolute -right-2 -top-2 hidden rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 group-hover:block 2xl:text-base"
@@ -73,7 +73,7 @@
 				</template>
 			</div>
 
-			<template v-if="isOperator">
+			<template v-if="canWrite">
 				<EditMockDialog
 					v-model="isProjectImageEditOpen"
 					title="編輯專案圖片"
@@ -148,7 +148,7 @@ const {
 	defaultValue: ""
 });
 
-const { isOperator } = useAuth();
+const { canWrite } = useAuth();
 
 const isBrandLogoHeightEditOpen = ref(false);
 

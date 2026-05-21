@@ -25,7 +25,7 @@
 					</div>
 
 					<button
-						v-if="isOperator"
+						v-if="canWrite"
 						type="button"
 						class="absolute left-8 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
 						aria-label="地點管理"
@@ -214,7 +214,7 @@
 	</div>
 
 	<ZoneManagementDialog
-		v-if="isOperator"
+		v-if="canWrite"
 		v-model="showLocationManagementDialog"
 		:zones="vehicleAccessZones"
 		system-type="vehicle_access"
@@ -269,7 +269,7 @@ import type { UnifiedZone } from "~/types/location";
 import { getTodayDateRangeUTC } from "~/utils/dateUtils";
 import { useAuth } from "~/composables/core/useAuth";
 
-const { isOperator } = useAuth();
+const { canWrite } = useAuth();
 
 const {
 	filters,

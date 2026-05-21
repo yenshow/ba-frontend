@@ -41,7 +41,7 @@
 				請新增影片連結或上傳影片
 			</div>
 
-			<template v-if="isOperator">
+			<template v-if="canWrite">
 				<button
 					type="button"
 					class="absolute right-0 top-0 z-10 hidden rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 group-hover:block 2xl:text-base"
@@ -55,7 +55,7 @@
 			</template>
 		</div>
 
-		<template v-if="isOperator">
+		<template v-if="canWrite">
 			<EditMockDialog
 				v-model="isEditOpen"
 				title="編輯影片"
@@ -89,7 +89,7 @@ const {
 	defaultValue: ""
 });
 
-const { isOperator } = useAuth();
+const { canWrite } = useAuth();
 
 const isEditOpen = ref(false);
 const videoRef = ref<HTMLVideoElement | null>(null);

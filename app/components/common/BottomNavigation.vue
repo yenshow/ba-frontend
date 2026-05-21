@@ -115,7 +115,7 @@
 					</button>
 
 					<!-- 2. 更多功能（下拉：設備管理、人員管理） -->
-					<div v-if="isOperator" class="relative z-[100]" data-more-functions-menu>
+					<div v-if="canWrite" class="relative z-[100]" data-more-functions-menu>
 						<button
 							ref="moreFunctionsButtonRef"
 							:class="getButtonClasses(showMoreFunctionsMenu)"
@@ -203,7 +203,7 @@
 									<div class="space-y-1">
 										<!-- 用戶管理（管理員與操作員可見） -->
 										<button
-											v-if="isAdmin || isOperator"
+											v-if="canWrite"
 											class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
 											@click="handleUserManagement"
 											aria-label="用戶管理"
@@ -211,9 +211,8 @@
 											用戶管理
 										</button>
 
-										<!-- 授權管理（僅管理員可見） -->
 										<button
-											v-if="isAdmin"
+											v-if="canWrite"
 											class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
 											@click="handleLicenseManagement"
 											aria-label="授權管理"
@@ -221,9 +220,8 @@
 											授權管理
 										</button>
 
-										<!-- 環境設定（僅管理員） -->
 										<button
-											v-if="isAdmin"
+											v-if="canWrite"
 											class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
 											@click="handleBackendEnvFile"
 											aria-label="環境設定"
@@ -283,7 +281,7 @@ import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 
 const route = useRoute();
 const router = useRouter();
-const { user, isAuthenticated, isAdmin, isOperator, hasModulePermission, logout } = useAuth();
+const { user, isAuthenticated, canWrite, hasModulePermission, logout } = useAuth();
 const toast = useToast();
 const { isModuleLocked: isModuleLockedByLicense } = useLicense();
 const moduleRegistry = useModuleRegistry();

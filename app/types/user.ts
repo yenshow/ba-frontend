@@ -1,15 +1,24 @@
 export interface User {
+
 	id: number;
+
 	username: string;
+
 	role: "admin" | "operator" | "viewer";
+
 	status: "active" | "inactive" | "suspended";
-	/** 有效權限代碼（登入／me 由後端計算：角色預設 + 用戶覆寫） */
+
+	/** 有效權限代碼（admin 全部；其餘僅 user_permission_overrides，見 auth-rbac.md） */
 	permissions?: string[];
+
 	created_at?: string;
+
 	updated_at?: string;
+
 }
 
-/** 權限定義（與後端 permission_definitions 對齊） */
+
+
 export interface PermissionDefinition {
 	id: number;
 	code: string;
@@ -17,33 +26,72 @@ export interface PermissionDefinition {
 	parent_id: number | null;
 	name: string | null;
 	sort_order: number;
-	children?: PermissionDefinition[];
 }
 
-/** 某用戶的權限設定（管理員取得／寫入用） */
-export interface UserPermissionSettings {
+export interface PermissionDefinitionsResponse {
 	definitions: PermissionDefinition[];
-	roleDefaultsByPermId: Record<number, boolean>;
+}
+
+export interface UserPermissionOverridesResponse {
 	overridesByPermId: Record<number, boolean>;
-	effectiveCodes: string[];
-	role: string;
 }
 
 export interface LoginCredentials {
+
 	username: string;
+
 	password: string;
+
 }
 
+
+
 export interface RegisterData {
+
 	username: string;
+
 	password: string;
+
 	role?: "admin" | "operator" | "viewer";
+
+}
+
+
+
+export interface CreateManagedUserData {
+
+	username: string;
+
+	password: string;
+
+	role?: "admin" | "operator" | "viewer";
+	overrides?: { permission_id: number; granted: boolean }[];
+}
+
+export interface CreateManagedUserResponse {
+
+	user: User;
+
+}
+
+
+
+export interface UpdateUserData {
+
+	username?: string;
+
+	role?: "admin" | "operator" | "viewer";
+
+	status?: "active" | "inactive" | "suspended";
 }
 
 export interface LoginResponse {
-	message: string;
-	user: User;
-	token: string;
-}
 
+	message: string;
+
+	user: User;
+
+	token: string;
+
+}
 

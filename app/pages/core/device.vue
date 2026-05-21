@@ -36,7 +36,7 @@
 				</h2>
 				<div class="flex items-center gap-3 2xl:gap-4">
 					<button
-						v-if="isOperator && !deviceModelsLocked"
+						v-if="canWrite && !deviceModelsLocked"
 						type="button"
 						:disabled="!activeTab"
 						class="rounded-xl bg-blue-500/80 px-4 py-2 text-base text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-blue-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
@@ -45,7 +45,7 @@
 						型號管理
 					</button>
 					<button
-						v-if="isOperator"
+						v-if="canWrite"
 						type="button"
 						class="rounded-xl bg-emerald-500/80 px-4 py-2 text-base text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
 						@click="showCreateDialog = true"
@@ -61,7 +61,7 @@
 				:error="listLoadError"
 				empty-title="尚無設備資料"
 				:empty-description="
-					isOperator && currentTabName
+					canWrite && currentTabName
 						? `點擊「新增設備」開始建立 ${currentTabName}`
 						: ''
 				"
@@ -95,7 +95,7 @@
 											@update:model-value="onDateSortUpdate"
 										/>
 									</th>
-									<th v-if="isOperator" :class="tableHeaderClass">操作</th>
+									<th v-if="canWrite" :class="tableHeaderClass">操作</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -147,7 +147,7 @@
 									<td :class="[tableCellClass, 'text-white/70']">
 										{{ formatDate(device.created_at) }}
 									</td>
-									<td v-if="isOperator" :class="tableCellClass">
+									<td v-if="canWrite" :class="tableCellClass">
 										<div class="flex gap-2 2xl:gap-3">
 											<button
 												type="button"
@@ -189,7 +189,7 @@
 			v-model="showDialog"
 			:editing-device="editingDevice"
 			:device-type-code="activeTab"
-			:is-admin="isOperator"
+			:is-admin="canWrite"
 			:is-submitting="isSubmitting"
 			:error-message="errorMessage"
 			:refresh-device-types="refreshDeviceTypes"
@@ -258,7 +258,7 @@ definePageMeta({
 	layout: "auxiliary"
 });
 
-const { isOperator } = useAuth();
+const { canWrite } = useAuth();
 const deviceApi = useDeviceApi();
 const runtimeConfig = useRuntimeConfig();
 const deviceModelsLocked = computed(() => String(runtimeConfig.public.deviceModelsLocked || "1") !== "0");
