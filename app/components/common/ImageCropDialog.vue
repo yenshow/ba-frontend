@@ -9,7 +9,9 @@
 				:aria-label="title"
 				@keydown.esc.prevent.stop="handleCancel"
 			>
-				<div class="dialog-panel-bg flex w-full max-w-4xl flex-col gap-4 rounded-3xl p-6 2xl:gap-6 2xl:p-8">
+				<div
+					class="dialog-panel-bg flex w-full max-w-4xl flex-col gap-4 rounded-3xl p-6 2xl:gap-6 2xl:p-8"
+				>
 					<header class="flex items-center justify-between">
 						<div class="space-y-1">
 							<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">{{ title }}</h3>
@@ -54,12 +56,15 @@
 										v-if="mask === 'ellipse'"
 										class="absolute inset-0 bg-black/30 [mask-image:radial-gradient(ellipse_40%_50%_at_50%_50%,transparent_60%,black_60%)]"
 									></div>
-									<div v-else class="absolute inset-0 bg-black/30 [mask-image:linear-gradient(#000,#000)]"></div>
+									<div
+										v-else
+										class="absolute inset-0 bg-black/30 [mask-image:linear-gradient(#000,#000)]"
+									></div>
 								</div>
 							</div>
 						</div>
 
-						<div class="mt-4 flex justify-center items-center gap-3">
+						<div class="mt-4 flex items-center justify-center gap-3">
 							<label class="flex items-center gap-3">
 								<span class="shrink-0 text-sm text-white/70 2xl:text-base">縮放</span>
 								<input
@@ -98,7 +103,12 @@
 							{{ errorText }}
 						</p>
 						<div class="flex-1"></div>
-						<button type="button" class="btn-primary" :disabled="!isReady || isSaving" @click="handleConfirm">
+						<button
+							type="button"
+							class="btn-primary"
+							:disabled="!isReady || isSaving"
+							@click="handleConfirm"
+						>
 							{{ isSaving ? "儲存中..." : "儲存" }}
 						</button>
 					</footer>
@@ -109,35 +119,35 @@
 </template>
 
 <script setup lang="ts">
-import { useImageCrop, type ImageCropMask } from "~/composables/common/useImageCrop"
+import { useImageCrop, type ImageCropMask } from "~/composables/core/useImageCrop";
 
 const props = withDefaults(
 	defineProps<{
-		modelValue: boolean
-		file: File | null
-		title?: string
-		description?: string
-		canvasWidth: number
-		canvasHeight: number
-		mask?: ImageCropMask
-		maxOutputBytes?: number
-		outputMaxLongEdge?: number
+		modelValue: boolean;
+		file: File | null;
+		title?: string;
+		description?: string;
+		canvasWidth: number;
+		canvasHeight: number;
+		mask?: ImageCropMask;
+		maxOutputBytes?: number;
+		outputMaxLongEdge?: number;
 	}>(),
 	{
 		title: "裁切圖片",
 		description: "",
 		mask: "rect",
 		maxOutputBytes: undefined,
-		outputMaxLongEdge: 1280,
+		outputMaxLongEdge: 1280
 	}
-)
+);
 
 const emit = defineEmits<{
-	"update:modelValue": [value: boolean]
-	confirm: [file: File]
-}>()
+	"update:modelValue": [value: boolean];
+	confirm: [file: File];
+}>();
 
-const canvasRef = ref<HTMLCanvasElement | null>(null)
+const canvasRef = ref<HTMLCanvasElement | null>(null);
 
 const {
 	canvasWidth,
@@ -156,60 +166,59 @@ const {
 	handleReset,
 	loadFile,
 	createCroppedBlob,
-	revokeImageUrl,
+	revokeImageUrl
 } = useImageCrop({
 	canvasRef,
 	getCanvasSize: () => ({ width: props.canvasWidth, height: props.canvasHeight }),
 	outputMaxLongEdge: props.outputMaxLongEdge ?? 1280,
 	maxOutputBytes: props.maxOutputBytes,
-	mask: props.mask,
-})
+	mask: props.mask
+});
 
-const handleZoomUiInput = () => applyZoomUi(zoomUi.value)
+const handleZoomUiInput = () => applyZoomUi(zoomUi.value);
 
-const handleCancel = () => emit("update:modelValue", false)
+const handleCancel = () => emit("update:modelValue", false);
 
 const handleConfirm = async () => {
-	if (!props.file) return
-	if (!isReady.value) return
-	if (isSaving.value) return
+	if (!props.file) return;
+	if (!isReady.value) return;
+	if (isSaving.value) return;
 
-	isSaving.value = true
-	errorText.value = null
+	isSaving.value = true;
+	errorText.value = null;
 	try {
-		const blob = await createCroppedBlob("image/jpeg")
+		const blob = await createCroppedBlob("image/jpeg");
 		const nextFile = new File([blob], props.file.name.replace(/\.(png|webp|jpeg|jpg)$/i, ".jpg"), {
-			type: "image/jpeg",
-		})
-		emit("confirm", nextFile)
-		emit("update:modelValue", false)
+			type: "image/jpeg"
+		});
+		emit("confirm", nextFile);
+		emit("update:modelValue", false);
 	} catch (err) {
-		const msg = err instanceof Error ? err.message : "儲存失敗，請稍後再試"
-		errorText.value = msg
+		const msg = err instanceof Error ? err.message : "儲存失敗，請稍後再試";
+		errorText.value = msg;
 	} finally {
-		isSaving.value = false
+		isSaving.value = false;
 	}
-}
+};
 
 watch(
 	() => props.modelValue,
-	(v) => {
-		if (v) return
-		errorText.value = null
-		revokeImageUrl()
+	v => {
+		if (v) return;
+		errorText.value = null;
+		revokeImageUrl();
 	}
-)
+);
 
 watch(
 	() => props.file,
-	(file) => {
-		if (!props.modelValue) return
-		if (!file) return
+	file => {
+		if (!props.modelValue) return;
+		if (!file) return;
 		void loadFile(file).catch(() => {
 			// ignore
-		})
+		});
 	},
 	{ immediate: true }
-)
+);
 </script>
-

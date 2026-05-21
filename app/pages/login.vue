@@ -26,7 +26,7 @@
 						<div class="mx-auto mb-8 flex h-36 w-36 items-center justify-center">
 							<ClientOnly>
 								<HeroPicInline
-									aria-label="YSOP"
+									aria-label="YSOS"
 									src="/YSOS.svg"
 									line-group-id="line"
 									sweep-id-prefix="ysop-logo-line-sweep"

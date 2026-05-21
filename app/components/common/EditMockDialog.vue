@@ -164,11 +164,14 @@
 											@keydown.left.prevent="crop.handleNudge(-6, 0)"
 											@keydown.right.prevent="crop.handleNudge(6, 0)"
 										/>
-										<div class="pointer-events-none absolute inset-0 rounded-lg ring-1 ring-white/55" aria-hidden="true"></div>
+										<div
+											class="pointer-events-none absolute inset-0 rounded-lg ring-1 ring-white/55"
+											aria-hidden="true"
+										></div>
 									</div>
 								</div>
 
-								<div class="mt-3 flex flex-wrap justify-center items-center gap-3">
+								<div class="mt-3 flex flex-wrap items-center justify-center gap-3">
 									<label class="flex items-center gap-3">
 										<span class="shrink-0 text-sm text-white/70 2xl:text-base">縮放</span>
 										<input
@@ -257,13 +260,12 @@
 			</div>
 		</Transition>
 	</Teleport>
-
 </template>
 
 <script setup lang="ts">
 import { useUploadBaseUrl } from "~/composables/core/useUploadBaseUrl";
 import { resolveUploadUrl } from "~/utils/apiUtils";
-import { useImageCrop } from "~/composables/common/useImageCrop";
+import { useImageCrop } from "~/composables/core/useImageCrop";
 import { formatCropAspectLabel, getCropCanvasSize } from "~/utils/imageCropUtils";
 
 type InputMode = "text" | "range" | "image" | "video";
@@ -315,7 +317,8 @@ const textInputRef = ref<HTMLInputElement | null>(null);
 const rangeInputRef = ref<HTMLInputElement | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
-const clampNumber = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+const clampNumber = (value: number, min: number, max: number) =>
+	Math.min(max, Math.max(min, value));
 
 const rangeLabel = computed(() => props.rangeLabel ?? "內容");
 const rangeMin = computed(() => Number(props.rangeMin ?? 0));
@@ -342,9 +345,7 @@ const handleSyncDraftFromRange = () => {
 };
 
 const apiBase = useUploadBaseUrl();
-const previewResolvedUrl = computed(() =>
-	resolveUploadUrl(draftValue.value ?? "", apiBase)
-);
+const previewResolvedUrl = computed(() => resolveUploadUrl(draftValue.value ?? "", apiBase));
 
 const cropFile = ref<File | null>(null);
 const cropCanvasRef = ref<HTMLCanvasElement | null>(null);
@@ -363,7 +364,7 @@ const crop = useImageCrop({
 	canvasRef: cropCanvasRef,
 	getCanvasSize: () => cropCanvas.value,
 	outputMaxLongEdge: 1280,
-	mask: "rect",
+	mask: "rect"
 });
 
 const handleClearCrop = () => {
@@ -452,9 +453,13 @@ const handleUploadCroppedImage = async () => {
 		const blob = await crop.createCroppedBlob(cropOutputMime.value);
 		const mime = cropOutputMime.value;
 		const ext = mime === "image/png" ? "png" : "jpg";
-		const nextFile = new File([blob], cropFile.value.name.replace(/\.(png|webp|jpeg|jpg)$/i, `.${ext}`), {
-			type: mime,
-		});
+		const nextFile = new File(
+			[blob],
+			cropFile.value.name.replace(/\.(png|webp|jpeg|jpg)$/i, `.${ext}`),
+			{
+				type: mime
+			}
+		);
 		emit("upload", nextFile);
 		emit("update:modelValue", false);
 	} finally {
@@ -510,5 +515,4 @@ const handleFileChange = async (event: Event) => {
 };
 </script>
 
-<style scoped>
-</style>
+<style scoped></style>
