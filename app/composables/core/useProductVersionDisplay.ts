@@ -1,4 +1,4 @@
-const DEFAULT_PRODUCT_CODE = "YSOP"
+const DEFAULT_PRODUCT_CODE = "YS One Platform"
 const DEFAULT_APP_VERSION = "1.0.0"
 
 const formatProductVersion = (productCode: string, appVersion: string) =>

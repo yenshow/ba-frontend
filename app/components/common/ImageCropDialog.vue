@@ -9,10 +9,14 @@
 				:aria-label="title"
 				@keydown.esc.prevent.stop="handleCancel"
 			>
-				<div class="dialog-panel-bg flex w-full max-w-4xl flex-col gap-4 rounded-3xl p-6 2xl:gap-6 2xl:p-8">
+				<div
+					class="dialog-panel-bg flex w-full max-w-4xl flex-col gap-4 rounded-3xl p-6 2xl:gap-6 2xl:p-8"
+				>
 					<header class="flex items-center justify-between">
 						<div class="space-y-1">
-							<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">{{ title }}</h3>
+							<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">
+								{{ title }}
+							</h3>
 							<p v-if="description" class="text-sm text-white/80 2xl:text-base">
 								{{ description }}
 							</p>
@@ -54,7 +58,10 @@
 										v-if="mask === 'ellipse'"
 										class="absolute inset-0 bg-black/30 [mask-image:radial-gradient(ellipse_40%_50%_at_50%_50%,transparent_60%,black_60%)]"
 									></div>
-									<div v-else class="absolute inset-0 bg-black/30 [mask-image:linear-gradient(#000,#000)]"></div>
+									<div
+										v-else
+										class="absolute inset-0 bg-black/30 [mask-image:linear-gradient(#000,#000)]"
+									></div>
 								</div>
 							</div>
 						</div>
@@ -98,7 +105,12 @@
 							{{ errorText }}
 						</p>
 						<div class="flex-1"></div>
-						<button type="button" class="btn-primary" :disabled="!isReady || isSaving" @click="handleConfirm">
+						<button
+							type="button"
+							class="btn-primary"
+							:disabled="!isReady || isSaving"
+							@click="handleConfirm"
+						>
 							{{ isSaving ? "儲存中..." : "儲存" }}
 						</button>
 					</footer>
@@ -109,7 +121,7 @@
 </template>
 
 <script setup lang="ts">
-import { useImageCrop, type ImageCropMask } from "~/composables/common/useImageCrop"
+import { useImageCrop, type ImageCropMask } from "~/composables/core/useImageCrop"
 
 const props = withDefaults(
 	defineProps<{
@@ -212,4 +224,3 @@ watch(
 	{ immediate: true }
 )
 </script>
-

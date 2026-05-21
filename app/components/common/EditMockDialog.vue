@@ -9,10 +9,15 @@
 				:aria-labelledby="titleId"
 				@keydown.esc="handleClose"
 			>
-				<div class="dialog-panel-bg flex w-full max-w-md flex-col gap-4 rounded-3xl p-6 2xl:max-w-xl 2xl:gap-6 2xl:p-8">
+				<div
+					class="dialog-panel-bg flex w-full max-w-md flex-col gap-4 rounded-3xl p-6 2xl:max-w-xl 2xl:gap-6 2xl:p-8"
+				>
 					<header class="flex items-start justify-between gap-4">
 						<div class="min-w-0">
-							<h3 :id="titleId" class="text-xl font-semibold tracking-[2px] text-white 2xl:text-2xl">
+							<h3
+								:id="titleId"
+								class="text-xl font-semibold tracking-[2px] text-white 2xl:text-2xl"
+							>
 								{{ title }}
 							</h3>
 							<p v-if="description" class="mt-2 text-sm text-white/60 2xl:text-base">
@@ -31,7 +36,9 @@
 
 					<div class="space-y-4">
 						<div v-if="inputMode === 'text'">
-							<label class="block text-base font-medium text-white/80 2xl:text-lg" :for="inputId">內容</label>
+							<label class="block text-base font-medium text-white/80 2xl:text-lg" :for="inputId"
+								>內容</label
+							>
 							<input
 								:id="inputId"
 								ref="textInputRef"
@@ -58,7 +65,13 @@
 									:placeholder="placeholder"
 									class="form-input-small min-w-0 flex-1"
 								/>
-								<input ref="fileInputRef" type="file" accept="image/*" class="hidden" @change="handleFileChange" />
+								<input
+									ref="fileInputRef"
+									type="file"
+									accept="image/*"
+									class="hidden"
+									@change="handleFileChange"
+								/>
 								<button
 									type="button"
 									class="btn-secondary flex-shrink-0 whitespace-nowrap text-sm 2xl:text-base"
@@ -69,9 +82,16 @@
 								</button>
 							</div>
 
-							<div v-if="draftValue?.trim()" class="mt-4 overflow-hidden rounded-xl border border-white/20 bg-white/10 p-3">
+							<div
+								v-if="draftValue?.trim()"
+								class="mt-4 overflow-hidden rounded-xl border border-white/20 bg-white/10 p-3"
+							>
 								<div class="text-sm text-white/60 2xl:text-base">預覽</div>
-								<img :src="previewResolvedUrl" :alt="previewAlt" class="mt-2 max-h-40 w-full rounded-lg object-contain" />
+								<img
+									:src="previewResolvedUrl"
+									:alt="previewAlt"
+									class="mt-2 max-h-40 w-full rounded-lg object-contain"
+								/>
 							</div>
 
 							<div
@@ -80,7 +100,9 @@
 							>
 								<div class="text-sm text-white/60 2xl:text-base">
 									裁切
-									<span v-if="cropAspectLabel" class="text-white/45">（{{ cropAspectLabel }}）</span>
+									<span v-if="cropAspectLabel" class="text-white/45"
+										>（{{ cropAspectLabel }}）</span
+									>
 								</div>
 								<div class="mt-2 flex items-center justify-center">
 									<div class="relative w-full max-w-[520px]">
@@ -101,7 +123,10 @@
 											@keydown.left.prevent="crop.handleNudge(-6, 0)"
 											@keydown.right.prevent="crop.handleNudge(6, 0)"
 										/>
-										<div class="pointer-events-none absolute inset-0 rounded-lg ring-1 ring-white/55" aria-hidden="true"></div>
+										<div
+											class="pointer-events-none absolute inset-0 rounded-lg ring-1 ring-white/55"
+											aria-hidden="true"
+										></div>
 									</div>
 								</div>
 
@@ -145,7 +170,9 @@
 						</div>
 
 						<div v-else>
-							<label class="block text-base font-medium text-white/80 2xl:text-lg" :for="inputId">影片（連結或上傳）</label>
+							<label class="block text-base font-medium text-white/80 2xl:text-lg" :for="inputId"
+								>影片（連結或上傳）</label
+							>
 							<div class="mt-2 flex items-center gap-3">
 								<input
 									:id="inputId"
@@ -179,22 +206,32 @@
 					</div>
 
 					<footer class="flex items-center gap-3 border-t border-white/20 pt-4">
-						<button type="button" class="btn-secondary" aria-label="重設為預設值" @click="handleReset">重設</button>
+						<button
+							type="button"
+							class="btn-secondary"
+							aria-label="重設為預設值"
+							@click="handleReset"
+						>
+							重設
+						</button>
 						<div class="flex-1"></div>
-						<button type="button" class="btn-secondary" aria-label="取消" @click="handleClose">取消</button>
-						<button type="button" class="btn-primary" aria-label="儲存" @click="handleSave">儲存</button>
+						<button type="button" class="btn-secondary" aria-label="取消" @click="handleClose">
+							取消
+						</button>
+						<button type="button" class="btn-primary" aria-label="儲存" @click="handleSave">
+							儲存
+						</button>
 					</footer>
 				</div>
 			</div>
 		</Transition>
 	</Teleport>
-
 </template>
 
 <script setup lang="ts">
 import { useUploadBaseUrl } from "~/composables/core/useUploadBaseUrl"
 import { resolveUploadUrl } from "~/utils/apiUtils"
-import { useImageCrop } from "~/composables/common/useImageCrop"
+import { useImageCrop } from "~/composables/core/useImageCrop"
 import { formatCropAspectLabel, getCropCanvasSize } from "~/utils/imageCropUtils"
 
 type InputMode = "text" | "image" | "video"
@@ -326,9 +363,13 @@ const handleUploadCroppedImage = async () => {
 		const blob = await crop.createCroppedBlob(cropOutputMime.value)
 		const mime = cropOutputMime.value
 		const ext = mime === "image/png" ? "png" : "jpg"
-		const nextFile = new File([blob], cropFile.value.name.replace(/\.(png|webp|jpeg|jpg)$/i, `.${ext}`), {
-			type: mime,
-		})
+		const nextFile = new File(
+			[blob],
+			cropFile.value.name.replace(/\.(png|webp|jpeg|jpg)$/i, `.${ext}`),
+			{
+				type: mime,
+			}
+		)
 		emit("upload", nextFile)
 		emit("update:modelValue", false)
 	} finally {
@@ -379,4 +420,3 @@ const handleFileChange = async (event: Event) => {
 	}
 }
 </script>
-
