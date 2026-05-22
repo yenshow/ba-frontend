@@ -53,22 +53,12 @@
 					</button>
 				</div>
 
-				<button
-					type="button"
-					class="ml-auto flex-shrink-0 p-2 text-rose-400 transition-colors hover:text-rose-300"
-					@click="handleRemoveLocation(locationIndex)"
+				<IconTrashButton
+					button-class="ml-auto flex-shrink-0"
 					title="刪除點位"
 					aria-label="刪除此點位"
-				>
-					<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-						/>
-					</svg>
-				</button>
+					@click="handleRemoveLocation(locationIndex)"
+				/>
 			</div>
 		</div>
 
@@ -83,6 +73,7 @@ import type { HvacZone, HvacLocation } from "~/types/hvac"
 import type { Device } from "~/types/device"
 import HvacLocationFields from "../LocationFormFields/HvacLocationFields.vue"
 import { getLocationUiKey } from "~/utils/locationUiId"
+import IconTrashButton from "~/components/common/IconTrashButton.vue"
 
 interface Props {
 	zone: HvacZone

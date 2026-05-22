@@ -16,7 +16,7 @@
 					</button>
 				</div>
 
-				<div class="mb-4 flex flex-wrap gap-2 font-semibold">
+				<div class="mb-4 flex flex-col gap-2 font-semibold">
 					<button
 						type="button"
 						:class="[
@@ -28,6 +28,17 @@
 					>
 						全部人員
 					</button>
+					<button
+						type="button"
+						:class="[
+							groupButtonBaseClass,
+							isUngroupedSelected ? groupButtonSelectedClass : groupButtonIdleClass,
+						]"
+						@click="handleSelectUngrouped"
+						aria-label="僅顯示未分組人員"
+					>
+						未分組
+					</button>
 				</div>
 
 				<AsyncPanel
@@ -37,58 +48,58 @@
 					:error="groupTreeError"
 					empty-title="尚無群組"
 				>
-				<div class="space-y-4">
-					<div
-						v-for="main in groupTree"
-						:key="main.id"
-						:class="[
-							mainGroupCardBaseClass,
-							isMainSelected(main.id) ? mainGroupCardSelectedClass : mainGroupCardIdleClass,
-						]"
-					>
-						<div class="flex items-center justify-between gap-2 px-3 py-2">
-							<button
-								type="button"
-								class="flex min-w-0 flex-1 items-center gap-2 text-left text-white/90 hover:text-white"
-								@click="handleSelectMain(main)"
-								:aria-label="`選取主群組：${main.name}`"
-							>
-								<span
-									class="truncate text-lg 2xl:text-xl"
-									:class="{ 'font-semibold': isMainSelected(main.id) }"
-									>{{ main.name }}</span
+					<div class="space-y-4">
+						<div
+							v-for="main in groupTree"
+							:key="main.id"
+							:class="[
+								mainGroupCardBaseClass,
+								isMainSelected(main.id) ? mainGroupCardSelectedClass : mainGroupCardIdleClass,
+							]"
+						>
+							<div class="flex items-center justify-between gap-2 px-3 py-2">
+								<button
+									type="button"
+									class="flex min-w-0 flex-1 items-center gap-2 text-left text-white/90 hover:text-white"
+									@click="handleSelectMain(main)"
+									:aria-label="`選取主群組：${main.name}`"
 								>
-							</button>
-						</div>
-
-						<div v-if="expandedMainIds.has(main.id)" class="border-t border-white/30 px-3 py-2">
-							<div v-if="(main.children || []).length === 0" class="py-2 text-sm text-white/60">
-								尚無子群組
-							</div>
-							<div v-else class="space-y-1">
-								<div
-									v-for="child in main.children"
-									:key="child.id"
-									class="flex items-center justify-between gap-2 rounded-lg px-2 py-2 hover:bg-white/5"
-									:class="{
-										'bg-cyan-500/25 ring-2 ring-cyan-400/40': isChildSelected(child.id),
-									}"
-								>
-									<button
-										type="button"
-										class="min-w-0 flex-1 truncate text-left text-sm text-white/85 hover:text-white 2xl:text-base"
-										@click="handleSelectChild(child)"
-										:aria-label="`選取子群組：${child.name}`"
+									<span
+										class="truncate text-lg 2xl:text-xl"
+										:class="{ 'font-semibold': isMainSelected(main.id) }"
+										>{{ main.name }}</span
 									>
-										<span :class="{ 'font-semibold text-white': isChildSelected(child.id) }">{{
-											child.name
-										}}</span>
-									</button>
+								</button>
+							</div>
+
+							<div v-if="expandedMainIds.has(main.id)" class="border-t border-white/30 px-3 py-2">
+								<div v-if="(main.children || []).length === 0" class="py-2 text-sm text-white/60">
+									尚無子群組
+								</div>
+								<div v-else class="space-y-1">
+									<div
+										v-for="child in main.children"
+										:key="child.id"
+										class="flex items-center justify-between gap-2 rounded-lg px-2 py-2 hover:bg-white/5"
+										:class="{
+											'bg-cyan-500/25 ring-2 ring-cyan-400/40': isChildSelected(child.id),
+										}"
+									>
+										<button
+											type="button"
+											class="min-w-0 flex-1 truncate text-left text-sm text-white/85 hover:text-white 2xl:text-base"
+											@click="handleSelectChild(child)"
+											:aria-label="`選取子群組：${child.name}`"
+										>
+											<span :class="{ 'font-semibold text-white': isChildSelected(child.id) }">{{
+												child.name
+											}}</span>
+										</button>
+									</div>
 								</div>
 							</div>
 						</div>
 					</div>
-				</div>
 				</AsyncPanel>
 
 				<PersonnelGroupsDialog
@@ -108,6 +119,9 @@
 				:table-cell-class="tableCellClass"
 				:get-person-status-badge-class="getPersonStatusBadgeClass"
 				:persons-tab="personsTab"
+				:selected-main-group-id="resolvedMainGroupId"
+				:group-tree="groupTree"
+				@changed="handleGroupsChanged"
 			/>
 		</div>
 	</section>
@@ -120,6 +134,7 @@ import PersonnelPersonsTab from "~/components/personnel/PersonnelPersonsTab.vue"
 import PersonnelGroupsDialog from "~/components/personnel/dialogs/PersonnelGroupsDialog.vue"
 import { usePersonnelGroupTree } from "~/composables/systems/personnel/usePersonnelGroupTree"
 import { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePersonnelPersonsTab"
+import { isSidebarGroupKeyValid, resolveMainGroupIdFromSidebarKey } from "~/utils/personnelGroups"
 
 const props = defineProps<{
 	canEdit: boolean
@@ -153,13 +168,23 @@ const {
 	refresh: refreshGroupTree,
 } = usePersonnelGroupTree()
 
+const resolvedMainGroupId = computed(() =>
+	resolveMainGroupIdFromSidebarKey(selectedKey.value, groupTree.value || [])
+)
+
 const isAllSelected = computed(() => selectedKey.value === "all")
+const isUngroupedSelected = computed(() => selectedKey.value === "ungrouped")
 const isMainSelected = (mainId: number) => selectedKey.value === `main:${mainId}`
 const isChildSelected = (childId: number) => selectedKey.value === `child:${childId}`
 
 const handleSelectAll = () => {
 	selectedKey.value = "all"
 	props.personsTab.setGroupFilterAll()
+}
+
+const handleSelectUngrouped = () => {
+	selectedKey.value = "ungrouped"
+	props.personsTab.setGroupFilterUngrouped()
 }
 
 const handleSelectMain = (main: PersonGroup) => {
@@ -178,9 +203,11 @@ const handleSelectChild = (child: PersonGroup) => {
 	props.personsTab.setGroupFilterByChildGroupId(child.id)
 }
 
-const handleGroupsChanged = () => {
-	void refreshGroupTree()
-	// 群組/成員變更後，右側列表也同步刷新，避免顯示與篩選狀態不一致
+const handleGroupsChanged = async () => {
+	await refreshGroupTree()
+	if (!isSidebarGroupKeyValid(selectedKey.value, groupTree.value || [])) {
+		handleSelectAll()
+	}
 	void props.personsTab.loadPersons()
 }
 

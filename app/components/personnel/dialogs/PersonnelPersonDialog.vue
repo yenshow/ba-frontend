@@ -115,7 +115,12 @@
 						<div class="space-y-3">
 							<label class="flex flex-col gap-2 text-white/80 text-base">
 								<span>姓名 *</span>
-								<input v-model="state.form.fullName" type="text" required class="form-input-small" />
+								<input
+									v-model="state.form.fullName"
+									type="text"
+									required
+									class="form-input-small"
+								/>
 							</label>
 
 							<label class="flex flex-col gap-2 text-white/80 text-base">
@@ -129,17 +134,16 @@
 								/>
 							</label>
 
-							<label class="flex flex-col gap-2 text-white/80 text-base">
-								<span>密碼設定</span>
-								<input
-									:value="localPassword"
-									type="text"
-									inputmode="numeric"
-									pattern="[0-9]*"
-									class="form-input-small"
-									placeholder="僅數字（4~12 碼）"
-									aria-label="門禁密碼"
-									@input="handlePasswordInput"
+							<label
+								v-if="state.editingPerson"
+								class="flex flex-col gap-2 text-white/80 text-base col-span-2"
+							>
+								<span>群組</span>
+								<FilterDropdown
+									v-model="localPersonGroupId"
+									:options="childGroupOptions"
+									placeholder="未分組"
+									text-size="text-sm 2xl:text-base"
 								/>
 							</label>
 						</div>
@@ -281,6 +285,20 @@
 							</div>
 						</div>
 
+						<label class="flex flex-col gap-2 text-white/80 text-base">
+							<span>密碼設定</span>
+							<input
+								:value="localPassword"
+								type="text"
+								inputmode="numeric"
+								pattern="[0-9]*"
+								class="form-input-small"
+								placeholder="僅數字（4~12 碼）"
+								aria-label="門禁密碼"
+								@input="handlePasswordInput"
+							/>
+						</label>
+
 						<div
 							class="flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base col-span-2"
 						>
@@ -322,12 +340,14 @@
 </template>
 
 <script setup lang="ts">
-import type { PersonnelPersonDialogState } from "~/types/personnelUi"
+import type { PersonnelPersonDialogState, PersonGroup } from "~/types/personnel"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
+import { buildPersonnelChildGroupOptions } from "~/utils/personnelGroups"
 
 const props = defineProps<{
 	modelValue: boolean
 	state: PersonnelPersonDialogState
+	groupTree: PersonGroup[]
 }>()
 
 const emit = defineEmits<{
@@ -341,6 +361,15 @@ const emit = defineEmits<{
 }>()
 
 const faceFileInputRef = ref<HTMLInputElement | null>(null)
+
+const childGroupOptions = computed(() => buildPersonnelChildGroupOptions(props.groupTree || []))
+
+const localPersonGroupId = computed<string>({
+	get: () => props.state.form.personGroupId || "",
+	set: (v) => {
+		props.state.form.personGroupId = v
+	},
+})
 
 const resolvedFaceUrl = computed(() => {
 	const url = props.state.ui.facePreviewUrl.value || props.state.form.faceUrl || null
@@ -357,11 +386,17 @@ const hasAccessControlDevices = computed(
 
 const isCapturingFace = computed(() => Boolean(props.state.capture.isCapturingFace.value))
 const isCapturingCard = computed(() => Boolean(props.state.capture.isCapturingCard.value))
-const isCapturingFingerPrint = computed(() => Boolean(props.state.capture.isCapturingFingerPrint.value))
+const isCapturingFingerPrint = computed(() =>
+	Boolean(props.state.capture.isCapturingFingerPrint.value)
+)
 const isSubmitting = computed(() => Boolean(props.state.ui.isSubmitting.value))
 
-const captureErrorText = computed(() => (props.state.capture.captureErrorMessage.value || "").trim() || null)
-const cardErrorText = computed(() => (props.state.capture.cardErrorMessage.value || "").trim() || null)
+const captureErrorText = computed(
+	() => (props.state.capture.captureErrorMessage.value || "").trim() || null
+)
+const cardErrorText = computed(
+	() => (props.state.capture.cardErrorMessage.value || "").trim() || null
+)
 
 const accessControlDeviceOptions = computed(() => {
 	return (props.state.accessControl.accessControlDevices.value || []).map((d) => ({
@@ -372,7 +407,9 @@ const accessControlDeviceOptions = computed(() => {
 
 const localCaptureDeviceIdString = computed<string>({
 	get: () =>
-		props.state.capture.captureDeviceId.value == null ? "" : String(props.state.capture.captureDeviceId.value),
+		props.state.capture.captureDeviceId.value == null
+			? ""
+			: String(props.state.capture.captureDeviceId.value),
 	set: (v) => (props.state.capture.captureDeviceId.value = v ? Number(v) : null),
 })
 
@@ -380,7 +417,9 @@ const hasSelectedCaptureDevice = computed(() => props.state.capture.captureDevic
 
 const localCardDeviceIdString = computed<string>({
 	get: () =>
-		props.state.capture.cardDeviceId.value == null ? "" : String(props.state.capture.cardDeviceId.value),
+		props.state.capture.cardDeviceId.value == null
+			? ""
+			: String(props.state.capture.cardDeviceId.value),
 	set: (v) => (props.state.capture.cardDeviceId.value = v ? Number(v) : null),
 })
 
@@ -393,7 +432,9 @@ const localCardNo = computed<string>({
 
 const localFingerDeviceIdString = computed<string>({
 	get: () =>
-		props.state.capture.fingerDeviceId.value == null ? "" : String(props.state.capture.fingerDeviceId.value),
+		props.state.capture.fingerDeviceId.value == null
+			? ""
+			: String(props.state.capture.fingerDeviceId.value),
 	set: (v) => (props.state.capture.fingerDeviceId.value = v ? Number(v) : null),
 })
 
@@ -432,7 +473,9 @@ const localValidEndDate = computed<string>({
 	set: (v) => (props.state.accessControl.validEndDate.value = v),
 })
 
-const fingerPrintErrorText = computed(() => (props.state.capture.fingerPrintErrorMessage.value || "").trim() || null)
+const fingerPrintErrorText = computed(
+	() => (props.state.capture.fingerPrintErrorMessage.value || "").trim() || null
+)
 
 const handleClose = () => emit("update:modelValue", false)
 const handleSubmit = () => emit("submit")

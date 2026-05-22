@@ -252,21 +252,12 @@
 											>
 												<div class="mb-2 flex items-center justify-between">
 													<span class="text-sm font-medium text-white">參數 {{ index + 1 }}</span>
-													<button
-														type="button"
-														class="p-1 text-rose-400 transition-colors hover:text-rose-300"
-														@click="removeSensorParameter(index)"
+													<IconTrashButton
+														size="sm"
 														title="刪除參數"
-													>
-														<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-															/>
-														</svg>
-													</button>
+														aria-label="刪除參數"
+														@click="removeSensorParameter(index)"
+													/>
 												</div>
 
 												<div class="space-y-3">
@@ -349,6 +340,7 @@ import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import { useToast } from "~/composables/core/useToast";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
+import IconTrashButton from "~/components/common/IconTrashButton.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import type {

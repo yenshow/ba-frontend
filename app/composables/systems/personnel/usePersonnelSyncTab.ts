@@ -11,9 +11,13 @@ import {
 	resolveOverallSyncStatus,
 } from "~/utils/personnelUtils"
 import { usePersonnelSyncEngine } from "~/composables/systems/personnel/usePersonnelSyncEngine"
-import { clampOffset, getNextOffset, getPrevOffset } from "~/composables/systems/personnel/usePersonCandidatesPager"
+import {
+	clampOffset,
+	fetchAllPersonnelCandidates,
+	getNextOffset,
+	getPrevOffset,
+} from "~/composables/systems/personnel/personnelList"
 import type { Person } from "~/types/personnel"
-import { fetchAllPersonnelCandidates } from "~/composables/systems/personnel/usePersonnelCandidatesLoader"
 
 type LocationId = number
 

@@ -12,7 +12,7 @@ import {
 	buildSyncPersonStepRows,
 	type SyncStepUiStatus,
 } from "~/utils/personnelUtils"
-import { clampOffset, getNextOffset, getPrevOffset } from "~/composables/systems/personnel/usePersonCandidatesPager"
+import { clampOffset, getNextOffset, getPrevOffset } from "~/composables/systems/personnel/personnelList"
 
 export const usePersonnelSyncEngine = (params: {
 	personnelApi: PersonnelApi

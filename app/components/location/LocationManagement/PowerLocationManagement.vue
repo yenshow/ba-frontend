@@ -4,7 +4,11 @@
 			<div>
 				<span class="text-base font-medium 2xl:text-lg">點位列表</span>
 			</div>
-			<button type="button" class="btn-secondary shrink-0 text-sm 2xl:text-base" @click="handleAddDraftCategory">
+			<button
+				type="button"
+				class="btn-secondary shrink-0 text-sm 2xl:text-base"
+				@click="handleAddDraftCategory"
+			>
 				新增分類
 			</button>
 		</div>
@@ -51,7 +55,12 @@
 
 					<div class="min-w-0 flex-1" @click.stop>
 						<label class="flex min-w-0 flex-col gap-1 text-sm text-white/75 2xl:text-base">
-							<input v-model="draft.name" type="text" class="form-input-small" :placeholder="categoryPlaceholder" />
+							<input
+								v-model="draft.name"
+								type="text"
+								class="form-input-small"
+								:placeholder="categoryPlaceholder"
+							/>
 						</label>
 					</div>
 
@@ -79,29 +88,25 @@
 							</button>
 						</div>
 						<span class="rounded-full bg-white/20 px-2 py-0.5 text-xs text-white/90">0 點</span>
-						<button type="button" class="btn-secondary text-xs 2xl:text-sm" @click="handleAddPointInDraft(draft)">
-							新增點位
-						</button>
 						<button
 							type="button"
-							class="p-2 text-rose-400 hover:text-rose-300"
+							class="btn-secondary text-xs 2xl:text-sm"
+							@click="handleAddPointInDraft(draft)"
+						>
+							新增點位
+						</button>
+						<IconTrashButton
 							title="移除此分類"
 							aria-label="移除此分類草稿"
 							@click="removeDraft(draft.id)"
-						>
-							<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-								/>
-							</svg>
-						</button>
+						/>
 					</div>
 				</div>
 
-				<div v-show="isDraftExpanded(draft.id)" class="px-3 py-4 text-center text-sm text-white/50 2xl:text-base">
+				<div
+					v-show="isDraftExpanded(draft.id)"
+					class="px-3 py-4 text-center text-sm text-white/50 2xl:text-base"
+				>
 					輸入分類名稱後，按「此分類新增點位」加入第一個點位
 				</div>
 			</div>
@@ -230,22 +235,12 @@
 							</button>
 						</div>
 
-						<button
-							type="button"
-							class="ml-auto flex-shrink-0 p-2 text-rose-400 hover:text-rose-300"
-							@click="handleRemoveLocation(item.globalIndex)"
+						<IconTrashButton
+							button-class="ml-auto flex-shrink-0"
 							title="刪除點位"
 							aria-label="刪除此點位"
-						>
-							<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-								/>
-							</svg>
-						</button>
+							@click="handleRemoveLocation(item.globalIndex)"
+						/>
 					</div>
 				</div>
 			</div>
@@ -259,6 +254,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, watch, ref } from "vue"
+import IconTrashButton from "~/components/common/IconTrashButton.vue"
 import type { PowerZone, PowerLocation } from "~/types/power"
 import { getPowerViewCategoryDisplayLabel } from "~/types/power"
 import type { Device } from "~/types/device"
@@ -294,7 +290,10 @@ interface Emits {
 	(e: "update-location", index: number, location: PowerLocation): void
 	(e: "rename-view-category", payload: { oldCategory: string; newCategory: string }): void
 	(e: "reorder-location", payload: { index: number; direction: "up" | "down" }): void
-	(e: "reorder-view-category-block", payload: { categoryKey: string; direction: "up" | "down" }): void
+	(
+		e: "reorder-view-category-block",
+		payload: { categoryKey: string; direction: "up" | "down" }
+	): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -380,7 +379,8 @@ const handleReorderLocation = (globalIndex: number, direction: "up" | "down") =>
 	emit("reorder-location", { index: globalIndex, direction })
 }
 
-const isFirstGroupedCategory = (group: GroupRow) => groupedLocations.value.findIndex((g) => g.key === group.key) <= 0
+const isFirstGroupedCategory = (group: GroupRow) =>
+	groupedLocations.value.findIndex((g) => g.key === group.key) <= 0
 const isLastGroupedCategory = (group: GroupRow) => {
 	const i = groupedLocations.value.findIndex((g) => g.key === group.key)
 	return i < 0 || i >= groupedLocations.value.length - 1
@@ -457,4 +457,3 @@ const handleLocationUpdate = (locationIndex: number, updatedLocation: PowerLocat
 	emit("update-location", locationIndex, updatedLocation)
 }
 </script>
-

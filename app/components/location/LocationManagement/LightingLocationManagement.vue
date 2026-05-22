@@ -57,22 +57,12 @@
 				</div>
 
 				<!-- 刪除按鈕 -->
-				<button
-					type="button"
-					class="ml-auto flex-shrink-0 p-2 text-rose-400 transition-colors hover:text-rose-300"
-					@click="handleRemoveLocation(locationIndex)"
+				<IconTrashButton
+					button-class="ml-auto flex-shrink-0"
 					title="刪除點位"
 					aria-label="刪除此點位"
-				>
-					<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-						/>
-					</svg>
-				</button>
+					@click="handleRemoveLocation(locationIndex)"
+				/>
 			</div>
 		</div>
 
@@ -84,6 +74,7 @@
 </template>
 
 <script setup lang="ts">
+import IconTrashButton from "~/components/common/IconTrashButton.vue"
 import type { LightingZone, LightingLocation } from "~/types/lighting"
 import type { Device } from "~/types/device"
 import LightingLocationFields from "../LocationFormFields/LightingLocationFields.vue"
@@ -118,7 +109,11 @@ const getLocations = (zone: LightingZone): LightingLocation[] => {
 
 // 取得地點 ID
 const getLocationId = (location: LightingLocation, index: number): string => {
-	return getLocationUiKey({ zone: props.zone as any, location: location as any, locationIndex: index })
+	return getLocationUiKey({
+		zone: props.zone as any,
+		location: location as any,
+		locationIndex: index,
+	})
 }
 
 // 處理新增地點

@@ -1,12 +1,17 @@
-import type { Person, SyncLocationCandidate, SyncLocationJobItem, SyncWarning } from "~/types/personnel"
+import type {
+	Person,
+	SyncLocationCandidate,
+	SyncLocationJobItem,
+	SyncWarning,
+} from "~/types/personnel"
 
 export const PERSON_STATUS_LABELS: Record<string, string> = {
 	active: "啟用",
 	inactive: "停用",
-	deleted: "已刪除",
 }
 
-export const getPersonStatusLabel = (status: unknown) => PERSON_STATUS_LABELS[String(status)] ?? "已刪除"
+export const getPersonStatusLabel = (status: unknown) =>
+	PERSON_STATUS_LABELS[String(status)] ?? String(status || "未知")
 
 export const getPersonStatusBadgeClass = (status: unknown) => {
 	const s = String(status)
@@ -36,7 +41,9 @@ const asRecord = (v: unknown): Record<string, unknown> | null => {
 	return v as Record<string, unknown>
 }
 
-export const getAccessControlConfigSummary = (person: Person | null): AccessControlConfigSummary => {
+export const getAccessControlConfigSummary = (
+	person: Person | null
+): AccessControlConfigSummary => {
 	const config = asRecord(person?.config)
 	const ac = asRecord(config?.access_control)
 	if (!ac)
@@ -159,7 +166,9 @@ export const lastSyncStatusLabel = (raw: unknown) => {
 	return s || "—"
 }
 
-export const lastSyncAtFromCandidate = (cand: { last_sync?: SyncLocationCandidate["last_sync"] } | null) => {
+export const lastSyncAtFromCandidate = (
+	cand: { last_sync?: SyncLocationCandidate["last_sync"] } | null
+) => {
 	const s = cand?.last_sync
 	if (!s) return null
 	const atCandidates = [s.user_info?.at, s.face?.at, s.card?.at, s.fingerprint?.at]
@@ -196,7 +205,10 @@ export const resolveOverallSyncStatus = (input: {
 
 	const cached = input.lastCompletedCache
 	if (cached?.locationRunFailure) {
-		return { status: "failed", at: cached.finishedAt != null ? formatSyncAt(cached.finishedAt) : null }
+		return {
+			status: "failed",
+			at: cached.finishedAt != null ? formatSyncAt(cached.finishedAt) : null,
+		}
 	}
 	if (cached?.processedByEmployeeNo?.[emp]) {
 		const cacheAt = cached.finishedAt != null ? formatSyncAt(cached.finishedAt) : null
@@ -207,7 +219,12 @@ export const resolveOverallSyncStatus = (input: {
 	if (locationRunFailure || empHasWarning) return { status: "failed", at }
 
 	const statuses = cand?.last_sync
-		? [cand.last_sync.user_info?.status, cand.last_sync.face?.status, cand.last_sync.card?.status, cand.last_sync.fingerprint?.status]
+		? [
+				cand.last_sync.user_info?.status,
+				cand.last_sync.face?.status,
+				cand.last_sync.card?.status,
+				cand.last_sync.fingerprint?.status,
+			]
 				.map((x) => String(x || "").trim())
 				.filter(Boolean)
 		: []
@@ -259,10 +276,15 @@ export type SyncPersonRow = {
 	fingerprint: { status: SyncStepUiStatus; message: string | null }
 }
 
-const mergeDeviceStatuses = (parts: { status: SyncLocationJobItem["status"]; message: string | null }[]) => {
+const mergeDeviceStatuses = (
+	parts: { status: SyncLocationJobItem["status"]; message: string | null }[]
+) => {
 	const failed = parts.filter((p) => p.status === "failed")
 	if (failed.length) {
-		const msg = failed.map((f) => f.message).filter(Boolean).join("；")
+		const msg = failed
+			.map((f) => f.message)
+			.filter(Boolean)
+			.join("；")
 		return { status: "failed" as const, message: msg || null }
 	}
 	const unchanged = parts.filter((p) => p.status === "unchanged")
@@ -308,11 +330,14 @@ const stageCardItems = (list: SyncLocationJobItem[]) => {
 	return list.filter((it) => it.action === "sync" && it.stage === "card")
 }
 const stageFingerprintItems = (list: SyncLocationJobItem[]) => {
-	return list.filter((it) => it.action === "sync" && String(it.stage || "").startsWith("fingerprint:"))
+	return list.filter(
+		(it) => it.action === "sync" && String(it.stage || "").startsWith("fingerprint:")
+	)
 }
 const personWrapperItems = (list: SyncLocationJobItem[]) => {
 	return list.filter(
-		(it) => (it.action === "add" || it.action === "update") && (it.stage === "person" || it.stage == null)
+		(it) =>
+			(it.action === "add" || it.action === "update") && (it.stage === "person" || it.stage == null)
 	)
 }
 
@@ -407,7 +432,9 @@ export const buildSyncPersonStepRows = (params: {
 		const warning = warningByEmployee.get(emp) || null
 		const list = collectForEmployee(items, c.employee_no)
 		const needsSyncStepsRaw = (c as unknown as { needs_sync_steps?: unknown }).needs_sync_steps
-		const needsSyncSteps = Array.isArray(needsSyncStepsRaw) ? needsSyncStepsRaw.map((s) => String(s)) : []
+		const needsSyncSteps = Array.isArray(needsSyncStepsRaw)
+			? needsSyncStepsRaw.map((s) => String(s))
+			: []
 		const needsSet = new Set(needsSyncSteps)
 		const pUi = (() => {
 			const u = stageUserInfoItems(list)
@@ -431,7 +458,8 @@ export const buildSyncPersonStepRows = (params: {
 		})()
 
 		const fFaceBase = (() => {
-			if (!c.has_face) return { status: "no_data" as SyncStepUiStatus, message: null as string | null }
+			if (!c.has_face)
+				return { status: "no_data" as SyncStepUiStatus, message: null as string | null }
 			const u = stageFaceItems(list)
 			if (u.length) {
 				const m = mergeDeviceStatuses(toParts(u))
@@ -444,7 +472,8 @@ export const buildSyncPersonStepRows = (params: {
 		})()
 
 		const fCardBase = (() => {
-			if (!c.has_card) return { status: "no_data" as SyncStepUiStatus, message: null as string | null }
+			if (!c.has_card)
+				return { status: "no_data" as SyncStepUiStatus, message: null as string | null }
 			const u = stageCardItems(list)
 			if (u.length) {
 				const m = mergeDeviceStatuses(toParts(u))
@@ -456,7 +485,8 @@ export const buildSyncPersonStepRows = (params: {
 		})()
 
 		const fFpBase = (() => {
-			if (c.fingerprint_count <= 0) return { status: "no_data" as SyncStepUiStatus, message: null as string | null }
+			if (c.fingerprint_count <= 0)
+				return { status: "no_data" as SyncStepUiStatus, message: null as string | null }
 			const u = stageFingerprintItems(list)
 			if (u.length) {
 				const m = mergeDeviceStatuses(toParts(u))
@@ -467,7 +497,10 @@ export const buildSyncPersonStepRows = (params: {
 			return stepStatusWhenIdle(c, "fingerprint", needsSet, "fingerprint")
 		})()
 
-		const overrideFailed = (base: { status: SyncStepUiStatus; message: string | null }, msgs: string[]) => {
+		const overrideFailed = (
+			base: { status: SyncStepUiStatus; message: string | null },
+			msgs: string[]
+		) => {
 			if (!msgs.length) return base
 			return { status: "failed" as SyncStepUiStatus, message: msgs.join("；") }
 		}
@@ -481,11 +514,15 @@ export const buildSyncPersonStepRows = (params: {
 		// - 例：歷史上 face 可能 success，但若 userInfo 為 never/partial，代表設備整體狀態仍未完整
 		// - 例：本次同步 userInfo 略過/待同步，也不應讓 face/card/fingerprint 顯示成功
 		if (pFinal.status !== "success") {
-			const clamp = (cell: { status: SyncStepUiStatus; message: string | null }, stepKey: string) => {
+			const clamp = (
+				cell: { status: SyncStepUiStatus; message: string | null },
+				stepKey: string
+			) => {
 				// 若該步驟本身就是 pending/failed/unchanged/no_data，維持原狀
 				if (cell.status !== "success") return cell
 				// 若後端判定此步驟需要同步，維持 pending
-				if (needsSet.has(stepKey)) return { status: "pending" as SyncStepUiStatus, message: "待同步" }
+				if (needsSet.has(stepKey))
+					return { status: "pending" as SyncStepUiStatus, message: "待同步" }
 				// 否則視為未變更（依賴 userInfo 未完成）
 				return { status: "unchanged" as SyncStepUiStatus, message: "基本資料未同步完成" }
 			}
@@ -504,10 +541,16 @@ export const buildSyncPersonStepRows = (params: {
 				hasCard: Boolean(c.has_card),
 				fingerprintCount: Number(c.fingerprint_count) || 0,
 				person: { status: "failed", message: msg },
-				face: c.has_face ? { status: "failed", message: msg } : { status: "no_data", message: null },
-				card: c.has_card ? { status: "failed", message: msg } : { status: "no_data", message: null },
+				face: c.has_face
+					? { status: "failed", message: msg }
+					: { status: "no_data", message: null },
+				card: c.has_card
+					? { status: "failed", message: msg }
+					: { status: "no_data", message: null },
 				fingerprint:
-					Number(c.fingerprint_count) > 0 ? { status: "failed", message: msg } : { status: "no_data", message: null },
+					Number(c.fingerprint_count) > 0
+						? { status: "failed", message: msg }
+						: { status: "no_data", message: null },
 			}
 		}
 
@@ -524,4 +567,3 @@ export const buildSyncPersonStepRows = (params: {
 		}
 	})
 }
-

@@ -12,8 +12,13 @@ import {
 	revokeObjectUrl,
 	updatePersonInList as updatePersonInListHelper,
 } from "~/utils/personnelUtils"
-import { getPrevOffset } from "~/composables/systems/personnel/usePersonCandidatesPager"
 import { usePersonsList } from "~/composables/systems/personnel/usePersonsList"
+import { parsePersonGroupIdFromForm } from "~/utils/personnelGroups"
+import {
+	PERSONNEL_API_ERROR_OPTS,
+	type PersonnelHandleApiError,
+} from "~/composables/systems/personnel/usePersonnelApi"
+import { getPrevOffset } from "~/composables/systems/personnel/personnelList"
 
 type DeviceApi = ReturnType<typeof useDeviceApi>
 type AccessControlApi = ReturnType<typeof useAccessControlApi>
@@ -23,7 +28,7 @@ export const usePersonnelPersonsTab = (params: {
 	deviceApi: DeviceApi
 	accessControlApi: AccessControlApi
 	toast: { success: (msg: string) => void; error: (msg: string) => void }
-	handleApiError: (err: unknown, fallbackMessage: string) => string | void | null
+	handleApiError: PersonnelHandleApiError
 }) => {
 	const { personnelApi, deviceApi, accessControlApi, toast, handleApiError } = params
 	const personsList = usePersonsList({ personnelApi, handleApiError, pageSize: 10 })
@@ -41,6 +46,9 @@ export const usePersonnelPersonsTab = (params: {
 		loadPersons,
 		handleSearch,
 		setGroupFilterAll,
+		setGroupFilterUngrouped,
+		setGroupFilterByMainGroupId,
+		setGroupFilterByChildGroupId,
 		goPrevPage,
 		goNextPage,
 	} = personsList
@@ -55,7 +63,8 @@ export const usePersonnelPersonsTab = (params: {
 		fullName: string
 		status: "active" | "inactive"
 		faceUrl: string
-	}>({ employeeNo: "", fullName: "", status: "active", faceUrl: "" })
+		personGroupId: string
+	}>({ employeeNo: "", fullName: "", status: "active", faceUrl: "", personGroupId: "" })
 
 	const config = useRuntimeConfig()
 	const getFaceImageSrc = (url: string | null | undefined): string | null => {
@@ -165,35 +174,6 @@ export const usePersonnelPersonsTab = (params: {
 		openFaceCrop(file)
 	}
 
-	const setGroupFilterByMainGroupId = (mainGroupId: number) => {
-		const id = Number(mainGroupId)
-		if (!Number.isFinite(id)) return
-		groupFilter.value = { mode: "main", id: Math.trunc(id) }
-		personsOffset.value = 0
-		void loadPersons()
-	}
-	const setGroupFilterByChildGroupId = (groupId: number) => {
-		const id = Number(groupId)
-		if (!Number.isFinite(id)) return
-		groupFilter.value = { mode: "single", ids: [Math.trunc(id)] }
-		personsOffset.value = 0
-		void loadPersons()
-	}
-	const setGroupFilterByChildGroupIds = (groupIds: number[]) => {
-		const ids = Array.from(
-			new Set((groupIds || []).map((x) => Number(x)).filter((x) => Number.isFinite(x)))
-		)
-			.map((x) => Math.trunc(x))
-			.slice(0, 200)
-		if (ids.length === 0) {
-			setGroupFilterAll()
-			return
-		}
-		groupFilter.value = { mode: ids.length === 1 ? "single" : "multiple", ids }
-		personsOffset.value = 0
-		void loadPersons()
-	}
-
 	const resetPersonDialogState = () => {
 		pendingFaceFile.value = null
 		captureDeviceId.value = null
@@ -218,6 +198,7 @@ export const usePersonnelPersonsTab = (params: {
 		personForm.fullName = ""
 		personForm.status = "active"
 		personForm.faceUrl = ""
+		personForm.personGroupId = ""
 		resetPersonDialogState()
 		void loadAccessControlDevices()
 		showPersonDialog.value = true
@@ -229,6 +210,10 @@ export const usePersonnelPersonsTab = (params: {
 		personForm.fullName = p.full_name ?? ""
 		personForm.status = p.status === "active" ? "active" : "inactive"
 		personForm.faceUrl = p.face_url ?? ""
+		personForm.personGroupId =
+			p.person_group_id != null && Number.isFinite(Number(p.person_group_id))
+				? String(Math.trunc(Number(p.person_group_id)))
+				: ""
 		resetPersonDialogState()
 		{
 			const ac = getAccessControlConfigSummary(p)
@@ -387,7 +372,8 @@ export const usePersonnelPersonsTab = (params: {
 
 	const savePersonTransaction = async (mode: SavePersonTransactionMode) => {
 		const fail = (err: unknown, fallback: string) => {
-			errorMessage.value = handleApiError(err, fallback) || fallback
+			errorMessage.value =
+				handleApiError(err, fallback, PERSONNEL_API_ERROR_OPTS) || fallback
 		}
 
 		if (!personForm.fullName.trim()) {
@@ -403,11 +389,13 @@ export const usePersonnelPersonsTab = (params: {
 		isSubmitting.value = true
 		errorMessage.value = null
 		try {
-			const personId =
-				mode === "update"
-					? editingPerson.value?.id ?? null
-					: null
+			const parsedGroup = parsePersonGroupIdFromForm(personForm.personGroupId)
+			if (!parsedGroup.ok) {
+				errorMessage.value = "群組選擇無效"
+				return { ok: false as const }
+			}
 
+			const personId = mode === "update" ? editingPerson.value?.id ?? null : null
 			if (mode === "update") {
 				if (!personId) {
 					errorMessage.value = "找不到要更新的人員"
@@ -417,6 +405,7 @@ export const usePersonnelPersonsTab = (params: {
 					fullName: personForm.fullName || null,
 					status: personForm.status,
 					faceUrl: personForm.faceUrl.trim() || null,
+					personGroupId: parsedGroup.personGroupId,
 				})
 			}
 
@@ -426,6 +415,7 @@ export const usePersonnelPersonsTab = (params: {
 							employeeNo: personForm.employeeNo.trim(),
 							fullName: personForm.fullName.trim(),
 							status: personForm.status,
+							personGroupId: parsedGroup.personGroupId,
 						})
 					: null
 
@@ -480,7 +470,7 @@ export const usePersonnelPersonsTab = (params: {
 			}
 			toast.success("已刪除人員")
 		} catch (err) {
-			handleApiError(err, "刪除人員失敗")
+			handleApiError(err, "刪除人員失敗", PERSONNEL_API_ERROR_OPTS)
 		}
 	}
 
@@ -507,7 +497,7 @@ export const usePersonnelPersonsTab = (params: {
 			if (result.errors?.length) toast.error(`部分失敗：${result.errors.length} 筆`)
 		} catch (err) {
 			importError.value =
-				handleApiError(err, "匯入失敗", { preferBackendMessage: true }) || "匯入失敗"
+				handleApiError(err, "匯入失敗", PERSONNEL_API_ERROR_OPTS) || "匯入失敗"
 		} finally {
 			isImporting.value = false
 		}
@@ -543,9 +533,9 @@ export const usePersonnelPersonsTab = (params: {
 		loadPersons,
 		handleSearch,
 		setGroupFilterAll,
+		setGroupFilterUngrouped,
 		setGroupFilterByMainGroupId,
 		setGroupFilterByChildGroupId,
-		setGroupFilterByChildGroupIds,
 		goPrevPage,
 		goNextPage,
 
