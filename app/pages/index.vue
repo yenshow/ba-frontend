@@ -98,9 +98,12 @@ import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { usePolling } from "~/composables/monitoring/usePolling";
-import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi";
-import { useDeviceConnectivity } from "~/composables/systems/devices/useDeviceConnectivity";
-import { isEnvironmentLocationLive } from "~/utils/environmentLiveReadings";
+import {
+	createEmptyHomeSensorReadings,
+	useEnvironmentHomeSensors,
+	useEnvironmentReadingSubscription
+} from "~/composables/systems/environment/useEnvironmentLive";
+import { ENVIRONMENT_STALE_CHECK_INTERVAL_MS } from "~/utils/environmentLive";
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
 import type { EnvironmentLocation, SensorParameterType } from "~/types/environment";
 import type { UnifiedZone, UnifiedLocation, EnvironmentSystemConfig } from "~/types/location";
@@ -125,8 +128,7 @@ definePageMeta({
 
 const locationApi = useLocationApi();
 const deviceApi = useDeviceApi();
-const environmentApi = useEnvironmentApi();
-const deviceConnectivity = useDeviceConnectivity();
+const homeSensors = useEnvironmentHomeSensors();
 const { canLoadFeature, isLoaded: licenseLoaded } = useLicense();
 const { ensureLoaded: ensureModuleRegistryLoaded } = useModuleRegistry();
 const hasEnvironment = computed(() => canLoadFeature("environment"));
@@ -272,25 +274,6 @@ const selectedLocation = computed<EnvironmentLocation | null>(() => {
 	return extractEnvironmentLocation(selectedUnifiedLocation.value);
 });
 
-const collectEnvironmentDeviceIds = (): number[] => {
-	const ids = new Set<number>();
-	for (const zone of unifiedZones.value) {
-		for (const location of zone.locations) {
-			const envLoc = extractEnvironmentLocation(location);
-			getLocationDeviceIds(envLoc).forEach((id) => ids.add(id));
-		}
-	}
-	return [...ids].sort((a, b) => a - b);
-};
-
-watch(
-	() => collectEnvironmentDeviceIds().join(","),
-	() => {
-		void deviceConnectivity.refresh(collectEnvironmentDeviceIds());
-	},
-	{ immediate: true }
-);
-
 const locationOptions = computed(() =>
 	unifiedZones.value.flatMap(zone =>
 		zone.locations.map(location => ({
@@ -327,30 +310,7 @@ const homeLogDisplayColumns = computed(() =>
 	normalizeLogDisplayColumns(matchedPeopleCountingLocation.value?.logDisplayColumns)
 );
 
-// 感測器資料
-type SensorReadings = {
-	pm25: number | null;
-	pm10: number | null;
-	tvoc: number | null;
-	hcho: number | null;
-	humidity: number | null;
-	temperature: number | null;
-	co2: number | null;
-	noise: number | null;
-	wind: number | null;
-};
-
-const sensorData = reactive<SensorReadings>({
-	pm25: null,
-	pm10: null,
-	tvoc: null,
-	hcho: null,
-	humidity: null,
-	temperature: null,
-	co2: null,
-	noise: null,
-	wind: null
-});
+const sensorData = reactive(createEmptyHomeSensorReadings());
 
 const loadDeviceAndModelConfig = async (
 	deviceId: number
@@ -433,81 +393,31 @@ const loadLocationSensorDevice = async (location: EnvironmentLocation) => {
 const isFetching = ref(false);
 const isSensorOffline = ref(false);
 
-const loadSensorData = async () => {
-	if (isFetching.value) return;
-	if (!hasEnvironment.value || !selectedLocation.value) return;
-	if (!selectedLocation.value.id) return;
-
-	isFetching.value = true;
-
-	const enabledParams = selectedLocation.value.parameters.filter(param => param.enabled);
-	Object.keys(sensorData).forEach(key => {
-		(sensorData as Record<string, number | null>)[key] = null;
-	});
-
-	try {
-		const deviceIds = getLocationDeviceIds(selectedLocation.value);
-		const { readings } = await environmentApi.getReadings(String(selectedLocation.value.id), {
-			limit: 1,
-			order: "desc"
-		});
-		const latest = readings?.[0];
-		const isLive = isEnvironmentLocationLive({
-			deviceIds,
-			readingTimestamp: latest?.timestamp,
-			getDeviceStatus: deviceConnectivity.getStatus
-		});
-
-		if (!isLive) {
-			isSensorOffline.value = true;
-			return;
-		}
-
-		const data = (latest?.data || {}) as Record<string, unknown>;
-		for (const param of enabledParams) {
-			const raw = data[param.type];
-			(sensorData as Record<string, number | null>)[param.type] =
-				typeof raw === "number" && Number.isFinite(raw) ? raw : null;
-		}
-
-		isSensorOffline.value = false;
-	} catch (error: unknown) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		if (
-			errorMessage.includes("503") ||
-			errorMessage.includes("設備離線") ||
-			errorMessage.includes("服務不可用")
-		) {
-			isSensorOffline.value = true;
-		} else {
-			// 其他錯誤（真正的後端連接錯誤、CORS 等）- 只在感測器在線時顯示，避免重複提示
-			// 使用統一錯誤處理（會自動去重和優先級判斷）
-			if (!isSensorOffline.value) {
-				handleError(error, "讀取感測器資料失敗");
-			}
-		}
-	} finally {
-		isFetching.value = false;
-	}
+const environmentHomeCard = {
+	uiLocationId: selectedLocationId,
+	getDbLocationId: (_uiId: string) =>
+		selectedLocation.value?.id != null ? String(selectedLocation.value.id) : null,
+	getDeviceIds: (_uiId: string) => getLocationDeviceIds(selectedLocation.value),
+	sensorData,
+	isOffline: isSensorOffline,
+	isFetching
 };
 
-const SENSOR_POLLING_INTERVAL = 30000;
+useEnvironmentReadingSubscription(event => homeSensors.handleReadingEvent(event, [environmentHomeCard]));
 
-const { start: startPolling } = usePolling({
-	callback: async () => {
-		const ids = collectEnvironmentDeviceIds();
-		if (ids.length > 0) await deviceConnectivity.refresh(ids);
-		await loadSensorData();
-	},
-	interval: SENSOR_POLLING_INTERVAL,
-	immediate: false,
-	onError: err => handleError(err, "載入感測器資料失敗")
+const loadSensorData = () => homeSensors.bootstrapCard(environmentHomeCard);
+
+const { start: startStaleCheck, stop: stopStaleCheck } = usePolling({
+	callback: () => homeSensors.syncCard(environmentHomeCard),
+	interval: ENVIRONMENT_STALE_CHECK_INTERVAL_MS,
+	immediate: false
 });
 
 const initializeLocationData = async () => {
 	if (!hasEnvironment.value || !selectedLocation.value) return;
 	await loadLocationSensorDevice(selectedLocation.value);
 	await nextTick();
+	homeSensors.syncCard(environmentHomeCard);
 	await loadSensorData();
 };
 
@@ -566,10 +476,6 @@ onMounted(async () => {
 
 		const parallelTasks: Promise<void>[] = [];
 		if (zonesResult.status === "fulfilled" && hasEnvironment.value) {
-			const ids = collectEnvironmentDeviceIds();
-			if (ids.length > 0) {
-				parallelTasks.push(deviceConnectivity.refresh(ids).then(() => undefined).catch(console.error));
-			}
 			parallelTasks.push(initializeLocationData().catch(console.error));
 		}
 		if (peopleCountingResult.status === "fulfilled" && hasPeopleCounting.value) {
@@ -579,7 +485,7 @@ onMounted(async () => {
 	} finally {
 		isHydratingHomeLocation.value = false;
 	}
-	startPolling();
+	startStaleCheck();
 });
 
 watch(
@@ -591,6 +497,7 @@ watch(
 );
 
 onBeforeUnmount(() => {
+	stopStaleCheck();
 	if (cleanupWebSocket) {
 		cleanupWebSocket();
 		cleanupWebSocket = null;

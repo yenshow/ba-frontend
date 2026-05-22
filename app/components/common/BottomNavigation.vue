@@ -29,10 +29,7 @@
 						v-if="currentActiveItem?.isSvg ?? true"
 						:src="currentActiveItem?.iconPath || '/layout/home.svg'"
 						:alt="currentActiveItem?.name || '首頁'"
-						:class="[
-							'h-8 w-8 2xl:h-10 2xl:w-10',
-							'brightness-0 invert'
-						]"
+						:class="['h-8 w-8 2xl:h-10 2xl:w-10', 'brightness-0 invert']"
 					/>
 					<NuxtImg
 						v-else-if="currentActiveItem"
@@ -150,11 +147,7 @@
 										@click="navigateToRouteInNewTab(item.route)"
 										:aria-label="`${item.name}`"
 									>
-										<img
-											:src="item.icon"
-											:alt="item.name"
-											class="h-5 w-5 brightness-0 invert"
-										/>
+										<img :src="item.icon" :alt="item.name" class="h-5 w-5 brightness-0 invert" />
 										{{ item.name }}
 									</button>
 								</div>

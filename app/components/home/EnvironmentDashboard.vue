@@ -173,7 +173,7 @@ import {
 	getParameterFractionDigits,
 	formatSensorValue
 } from "~/utils/sensorUtils";
-import { formatSensorDisplayValue } from "~/utils/environmentLiveReadings";
+import { formatSensorDisplayValue } from "~/utils/environmentLive";
 
 interface Props {
 	location: EnvironmentLocation;
