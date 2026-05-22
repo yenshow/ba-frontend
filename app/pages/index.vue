@@ -56,13 +56,13 @@ import SystemModule from "~/components/home/SystemModule.vue"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { usePolling } from "~/composables/monitoring/usePolling"
-import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi"
-import { useDeviceConnectivity } from "~/composables/systems/devices/useDeviceConnectivity"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import {
-	formatSensorDisplayValue,
-	isEnvironmentLocationLive,
-} from "~/utils/environmentLiveReadings"
+	createEmptyHomeSensorReadings,
+	useEnvironmentHomeSensors,
+	useEnvironmentReadingSubscription,
+} from "~/composables/systems/environment/useEnvironmentLive"
+import { ENVIRONMENT_STALE_CHECK_INTERVAL_MS, formatSensorDisplayValue } from "~/utils/environmentLive"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import type { UnifiedZone, UnifiedLocation, EnvironmentSystemConfig } from "~/types/location"
 import { firstLocationInSortedZones } from "~/utils/sortOrder"
@@ -76,37 +76,12 @@ definePageMeta({
 const locationApi = useLocationApi()
 const { sortZones } = useZoneManagement<UnifiedLocation, UnifiedZone>()
 useApiBase()
-const environmentApi = useEnvironmentApi()
-const deviceConnectivity = useDeviceConnectivity()
 const { handleError } = useErrorHandler()
-
-type SensorReadings = {
-	pm25: number | null
-	pm10: number | null
-	tvoc: number | null
-	hcho: number | null
-	humidity: number | null
-	temperature: number | null
-	co2: number | null
-	noise: number | null
-	wind: number | null
-}
-
-const createEmptySensorReadings = (): SensorReadings => ({
-	pm25: null,
-	pm10: null,
-	tvoc: null,
-	hcho: null,
-	humidity: null,
-	temperature: null,
-	co2: null,
-	noise: null,
-	wind: null,
-})
+const homeSensors = useEnvironmentHomeSensors()
 
 // 兩張卡片可各自選擇不同地點，因此拆成兩份感測器資料與狀態
-const aqiSensorData = reactive<SensorReadings>(createEmptySensorReadings())
-const environmentSensorData = reactive<SensorReadings>(createEmptySensorReadings())
+const aqiSensorData = reactive(createEmptyHomeSensorReadings())
+const environmentSensorData = reactive(createEmptyHomeSensorReadings())
 
 const isFetchingAqi = ref(false)
 const isFetchingEnvironment = ref(false)
@@ -238,25 +213,6 @@ const getDeviceIdsForUiLocationId = (locationId: string): number[] => {
 	return envLoc?.deviceIds ?? []
 }
 
-const collectAllEnvironmentDeviceIds = (): number[] => {
-	const ids = new Set<number>()
-	for (const zone of unifiedZones.value) {
-		for (const location of zone.locations || []) {
-			const envLoc = extractEnvironmentLocation(location)
-			envLoc?.deviceIds.forEach((id) => ids.add(id))
-		}
-	}
-	return [...ids].sort((a, b) => a - b)
-}
-
-watch(
-	() => collectAllEnvironmentDeviceIds().join(","),
-	() => {
-		void deviceConnectivity.refresh(collectAllEnvironmentDeviceIds())
-	},
-	{ immediate: true }
-)
-
 const locationOptions = computed(() => {
 	const options: Array<{ value: string; label: string }> = []
 
@@ -289,81 +245,33 @@ const loadZones = async (): Promise<void> => {
 	}
 }
 
-// 使用 usePolling 統一管理輪詢
-const { start: startPolling } = usePolling({
-	callback: async () => {
-		const ids = collectAllEnvironmentDeviceIds()
-		if (ids.length > 0) await deviceConnectivity.refresh(ids)
-		await Promise.allSettled([loadAqiSensorData(), loadEnvironmentSensorData()])
-	},
-	interval: 30000, // 每 30 秒執行一次
-	immediate: false, // 不在啟動時立即執行（因為 onMounted 會手動執行一次）
-	onError: (err) => {
-		handleError(err, "載入感測器資料失敗")
-	},
-})
-
-const PARAM_KEYS = [
-	"pm25", "pm10", "tvoc", "hcho", "humidity", "temperature", "co2", "noise", "wind",
-] as const
-
-const loadSensorDataByLocationId = async (params: {
-	locationId: string
-	targetSensorData: SensorReadings
-	isFetchingRef: Ref<boolean>
-	isOfflineRef: Ref<boolean>
-}): Promise<void> => {
-	if (params.isFetchingRef.value || !params.locationId) return
-
-	const dbLocationId = getEnvironmentDbLocationIdByUiLocationId(params.locationId)
-	if (!dbLocationId) {
-		Object.assign(params.targetSensorData, createEmptySensorReadings())
-		return
-	}
-
-	params.isFetchingRef.value = true
-	// 每輪清空後僅合併成功讀取值（多設備時風速等可來自不同設備）
-	Object.assign(params.targetSensorData, createEmptySensorReadings())
-
-	try {
-		const deviceIds = getDeviceIdsForUiLocationId(params.locationId)
-		const { readings } = await environmentApi.getReadings(dbLocationId, {
-			limit: 1,
-			order: "desc",
-		})
-		const latest = readings?.[0]
-		const isLive = isEnvironmentLocationLive({
-			deviceIds,
-			readingTimestamp: latest?.timestamp,
-			getDeviceStatus: deviceConnectivity.getStatus,
-		})
-
-		if (!isLive) {
-			params.isOfflineRef.value = true
-			return
-		}
-
-		const data = (latest?.data || {}) as Record<string, unknown>
-		for (const key of PARAM_KEYS) {
-			const value = data[key]
-			;(params.targetSensorData as Record<string, number | null>)[key] =
-				typeof value === "number" && Number.isFinite(value) ? value : null
-		}
-
-		params.isOfflineRef.value = false
-	} catch (error: unknown) {
-		const errorMessage = error instanceof Error ? error.message : String(error)
-		if (errorMessage.includes("503") || errorMessage.includes("設備離線")) {
-			params.isOfflineRef.value = true
-			return
-		}
-		if (!params.isOfflineRef.value) {
-			handleError(error, "讀取感測器資料失敗")
-		}
-	} finally {
-		params.isFetchingRef.value = false
-	}
+const aqiCard = {
+	uiLocationId: selectedAqiLocationId,
+	getDbLocationId: getEnvironmentDbLocationIdByUiLocationId,
+	getDeviceIds: getDeviceIdsForUiLocationId,
+	sensorData: aqiSensorData,
+	isOffline: isAqiSensorOffline,
+	isFetching: isFetchingAqi,
 }
+
+const environmentCard = {
+	uiLocationId: selectedEnvironmentLocationId,
+	getDbLocationId: getEnvironmentDbLocationIdByUiLocationId,
+	getDeviceIds: getDeviceIdsForUiLocationId,
+	sensorData: environmentSensorData,
+	isOffline: isEnvironmentSensorOffline,
+	isFetching: isFetchingEnvironment,
+}
+
+const homeSensorCards = [aqiCard, environmentCard]
+
+useEnvironmentReadingSubscription((event) => homeSensors.handleReadingEvent(event, homeSensorCards))
+
+const { start: startStaleCheck, stop: stopStaleCheck } = usePolling({
+	callback: () => homeSensors.syncCards(homeSensorCards),
+	interval: ENVIRONMENT_STALE_CHECK_INTERVAL_MS,
+	immediate: false,
+})
 
 const formatAqiDisplay = (value: number | null, fractionDigits = 0) =>
 	formatSensorDisplayValue(value, { offline: isAqiSensorOffline.value, fractionDigits })
@@ -374,30 +282,16 @@ const formatEnvironmentDisplay = (value: number | null, fractionDigits = 0) =>
 		fractionDigits,
 	})
 
-const loadAqiSensorData = async () => {
-	return loadSensorDataByLocationId({
-		locationId: selectedAqiLocationId.value,
-		targetSensorData: aqiSensorData,
-		isFetchingRef: isFetchingAqi,
-		isOfflineRef: isAqiSensorOffline,
-	})
-}
+const loadAqiSensorData = async () => homeSensors.bootstrapCard(aqiCard)
 
-const loadEnvironmentSensorData = async () => {
-	return loadSensorDataByLocationId({
-		locationId: selectedEnvironmentLocationId.value,
-		targetSensorData: environmentSensorData,
-		isFetchingRef: isFetchingEnvironment,
-		isOfflineRef: isEnvironmentSensorOffline,
-	})
-}
+const loadEnvironmentSensorData = async () => homeSensors.bootstrapCard(environmentCard)
 
 watch(
 	() => selectedAqiLocationId.value,
 	async () => {
 		persistHomeAqiLocationId()
 		if (isHydratingHomeLocationSelections.value) return
-		Object.assign(aqiSensorData, createEmptySensorReadings())
+		homeSensors.syncCard(aqiCard)
 		await loadAqiSensorData()
 	}
 )
@@ -407,7 +301,7 @@ watch(
 	async () => {
 		persistHomeEnvironmentLocationId()
 		if (isHydratingHomeLocationSelections.value) return
-		Object.assign(environmentSensorData, createEmptySensorReadings())
+		homeSensors.syncCard(environmentCard)
 		await loadEnvironmentSensorData()
 	}
 )
@@ -423,10 +317,13 @@ onMounted(async () => {
 	} finally {
 		isHydratingHomeLocationSelections.value = false
 	}
-	const ids = collectAllEnvironmentDeviceIds()
-	if (ids.length > 0) await deviceConnectivity.refresh(ids)
 	await Promise.allSettled([loadAqiSensorData(), loadEnvironmentSensorData()])
-	startPolling()
+	homeSensors.syncCards(homeSensorCards)
+	startStaleCheck()
+})
+
+onBeforeUnmount(() => {
+	stopStaleCheck()
 })
 
 const getSelectedLocationLabel = (locationId: string) => {

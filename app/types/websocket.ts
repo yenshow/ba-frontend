@@ -75,24 +75,23 @@ export interface MonitoringDeviceStatusBatchEvent {
 	timestamp: string
 }
 
+export type EnvironmentReadingDeviceStatus = {
+	deviceId: number
+	status: "online" | "offline"
+}
+
 /**
- * 環境監控相關事件類型
+ * 環境監控 WS 契約（方案 B：Monitor 統一推送讀數 + 設備連線）
  */
 export interface EnvironmentReadingNewEvent {
 	locationId: number
-	reading: {
-		pm25?: number | null
-		pm10?: number | null
-		tvoc?: number | null
-		hcho?: number | null
-		humidity?: number | null
-		temperature?: number | null
-		co2?: number | null
-		noise?: number | null
-		wind?: number | null
-		[key: string]: number | null | undefined
-	}
+	recordedAt: string
+	data: Record<string, number | null | undefined>
+	devices: EnvironmentReadingDeviceStatus[]
+	/** 事件推送時間（非讀數時間） */
 	timestamp: string
+	/** @deprecated 舊版巢狀 reading，新客戶端請用 recordedAt + data */
+	reading?: Record<string, unknown>
 }
 
 /**

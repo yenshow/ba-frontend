@@ -211,17 +211,16 @@ import SimulationFrame from "~/components/common/SimulationFrame.vue"
 import EnvironmentSimulation from "~/components/environment/EnvironmentSimulation.vue"
 import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
-import { useWebSocket } from "~/composables/websocket/useWebSocket"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { usePolling } from "~/composables/monitoring/usePolling"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import { useAlertRules } from "~/composables/monitoring/useAlertRules"
 import { useAuth } from "~/composables/core/useAuth"
 import {
+	useEnvironmentReadingSubscription,
 	useEnvironmentSensors,
 	type SensorReadings,
-} from "~/composables/systems/environment/useEnvironmentSensors"
-import type { EnvironmentReadingNewEvent } from "~/types/websocket"
+} from "~/composables/systems/environment/useEnvironmentLive"
 import type { AlertRule } from "~/types/alert"
 import {
 	getParameterDisplayName,
@@ -244,7 +243,7 @@ import { getTodayDateRangeUTC, getTimeRangeUTC } from "~/utils/dateUtils"
 import { compareZonesLoose } from "~/utils/sortOrder"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import { calculateAqiScore } from "~/utils/environmentAqi"
-import { formatSensorDisplayValue } from "~/utils/environmentLiveReadings"
+import { ENVIRONMENT_STALE_CHECK_INTERVAL_MS, formatSensorDisplayValue } from "~/utils/environmentLive"
 import {
 	normalizeMonitoringStatusText,
 	monitoringStatusTextToUiStatus,
@@ -259,7 +258,6 @@ const { canWrite } = useAuth()
 
 const environmentApi = useEnvironmentApi()
 const locationApi = useLocationApi()
-const { isConnected, on, off } = useWebSocket()
 const { handleError } = useErrorHandler()
 const { getRules, getStatusText: getStatusTextFromRules } = useAlertRules()
 
@@ -396,19 +394,14 @@ const currentLocationData = computed<EnvironmentLocation | null>(() => {
 })
 
 const {
-	createEmptySensorReadings,
 	sensorData,
-	allLocationsSensorData,
 	getLocationSensorData,
-	isFetching,
 	isSensorOffline,
-	isLocationOfflineForDisplay,
-	applyWebSocketReading,
-	refreshAllDeviceConnectivity,
-	overviewLoadingMap,
+	isLocationOffline,
+	handleReadingEvent,
+	syncAllLocationsFromSnapshots,
+	bootstrapAllLocations,
 	loadSensorData,
-	loadLocationSensorData,
-	loadLocationSensorDataForOverview,
 } = useEnvironmentSensors({
 	environmentZones,
 	selectedLocationId,
@@ -472,59 +465,18 @@ const enabledParameters = computed(() => {
 
 // getLocationZone / getLocationId 已於上方宣告，供 composable 與 currentLocationData 共用
 
-// 處理環境讀數新事件（Monitor 成功讀取後推送，視為即時）
-const handleEnvironmentReadingNew = (event: EnvironmentReadingNewEvent) => {
-	const locationIdStr = String(event.locationId)
-	applyWebSocketReading(locationIdStr, event.reading as Record<string, unknown>)
-}
+useEnvironmentReadingSubscription(handleReadingEvent)
 
-// 選擇地點
 const selectLocation = (location: EnvironmentLocation) => {
 	selectedLocationId.value = getLocationId(location)
-
-	// 載入該地點的感測器資料
-	void loadLocationSensorData()
+	void loadSensorData()
 }
 
-// 總覽面板載入狀態追蹤由 useEnvironmentSensors 管理
-
-// 輪詢間隔：每 30 秒
-const POLLING_INTERVAL = 30000
-
-// 取得「總覽用」的載入 promise 列表（所有有設備且非選中地點）
-const getOverviewLoadPromises = (): Promise<void>[] => {
-	const promises: Promise<void>[] = []
-	for (const zone of environmentZones.value) {
-		for (const location of zone.locations) {
-			if (getLocationDeviceIds(location).length === 0) continue
-			if (getLocationId(location) === selectedLocationId.value) continue
-			promises.push(loadLocationSensorDataForOverview(location))
-		}
-	}
-	return promises
-}
-
-// 使用 usePolling 統一管理輪詢：總覽會讀取「所有地點」的感測器資料（含大門口等）
-const { start: startPolling, stop: stopPolling } = usePolling({
-	callback: async () => {
-		await refreshAllDeviceConnectivity()
-		const promises: Promise<void>[] = []
-		if (selectedLocationId.value && currentLocationData.value) {
-			promises.push(loadSensorData({ skipConnectivityRefresh: true }))
-		}
-		promises.push(...getOverviewLoadPromises())
-		await Promise.allSettled(promises)
-	},
-	interval: POLLING_INTERVAL,
-	immediate: true, // 進站時先跑一輪，讓選中地點與總覽所有地點都有資料
-	onError: (err) => {
-		handleError(err, "載入感測器資料失敗")
-	},
+const { start: startStaleCheck, stop: stopStaleCheck } = usePolling({
+	callback: () => syncAllLocationsFromSnapshots(),
+	interval: ENVIRONMENT_STALE_CHECK_INTERVAL_MS,
+	immediate: false,
 })
-
-// 感測器讀值／總覽資料查找已由 useEnvironmentSensors 統一處理
-
-// cleanLocation 和 cleanZone 已從 composable 導入
 
 // 載入區域和地點資料
 const loadZonesFromAPI = async () => {
@@ -549,11 +501,11 @@ const loadZonesFromAPI = async () => {
 }
 
 const startAutoRefresh = () => {
-	startPolling()
+	startStaleCheck()
 }
 
 const stopAutoRefresh = () => {
-	stopPolling()
+	stopStaleCheck()
 }
 
 // 使用區域管理 composable
@@ -656,7 +608,7 @@ const isCurrentLocation = (location: EnvironmentLocation): boolean => {
 const getLocationDisplayData = (location: EnvironmentLocation) => {
 	const locationParams = location.parameters.filter((param) => param.enabled)
 
-	if (isLocationOfflineForDisplay(location)) {
+	if (isLocationOffline(location)) {
 		return {
 			params: locationParams.map((param) => ({
 				label: getParameterDisplayName(param.type),
@@ -716,27 +668,6 @@ const getOverviewLocationCardBindings = (location: EnvironmentLocation) => {
 	}
 }
 
-// 監聽 WebSocket 連接狀態
-watch(
-	isConnected,
-	(connected) => {
-		if (connected) {
-			// 設置事件監聽器
-			on("environment:reading:new", handleEnvironmentReadingNew)
-		} else {
-			// 移除事件監聽器
-			off("environment:reading:new", handleEnvironmentReadingNew)
-		}
-
-		// 重新啟動自動刷新（根據連接狀態調整間隔）
-		stopAutoRefresh()
-		startAutoRefresh()
-	},
-	{ immediate: true }
-)
-
-// 注意：環境感測器讀數現在會自動推送給所有客戶端，不需要房間訂閱
-
 // 載入警報規則（`useAlertRules`：單次 GET 全量後依 threshold 過濾，失敗回空陣列）
 const loadAlertRules = async () => {
 	const rules = await getRules("environment", "threshold")
@@ -753,16 +684,8 @@ onMounted(async () => {
 
 	// 載入區域和地點資料（從環境 API）
 	await loadZonesFromAPI()
-
-	await refreshAllDeviceConnectivity()
-	const initialLoadPromises: Promise<void>[] = []
-	if (currentLocationData.value && getLocationDeviceIds(currentLocationData.value).length > 0) {
-		initialLoadPromises.push(loadSensorData({ skipConnectivityRefresh: true }))
-	}
-	initialLoadPromises.push(...getOverviewLoadPromises())
-	await Promise.allSettled(initialLoadPromises)
-
-	// 啟動輪詢（immediate: true 會再跑一輪，之後每 30 秒讀取所有地點）
+	await bootstrapAllLocations()
+	syncAllLocationsFromSnapshots()
 	startAutoRefresh()
 
 	// 更新左側高度（初始化）
@@ -773,9 +696,6 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
 	stopAutoRefresh()
-
-	// 移除 WebSocket 監聽器
-	off("environment:reading:new", handleEnvironmentReadingNew)
 
 	// 釋放 ResizeObserver
 	if (leftSectionResizeObserver && leftSectionRef.value) {
@@ -807,7 +727,7 @@ const currentTemperature = computed(() => {
 const getStatusTextForLocation =
 	(location: EnvironmentLocation) =>
 	(type: string, value: number | null): string => {
-		if (isLocationOfflineForDisplay(location)) return "離線"
+		if (isLocationOffline(location)) return "離線"
 		return getStatusText(type, value)
 	}
 
