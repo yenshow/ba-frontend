@@ -2,7 +2,12 @@ import type { Ref } from "vue";
 import type { SyncableLocation } from "~/types/personnel";
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi";
 import type { useLocationApi } from "~/composables/location/api/useLocationApi";
-import { SYNC_WARNING_LABELS } from "~/utils/personnelUtils";
+import {
+	SYNC_WARNING_LABELS,
+	buildOverallSyncTitle,
+	getOverallSyncDisplayLabel,
+	resolveOverallSyncStatus
+} from "~/utils/personnelUtils";
 import { usePersonnelSyncEngine } from "~/composables/systems/personnel/usePersonnelSyncEngine";
 import {
 	clampOffset,
@@ -291,114 +296,30 @@ export const usePersonnelSyncTab = (params: {
 
 	// syncStepShortLabel / syncStepPillClass 由 sync engine 提供
 
-	const formatAt = (v: unknown) => {
-		if (!v) return null;
-		const d = v instanceof Date ? v : new Date(String(v));
-		if (Number.isNaN(d.getTime())) return null;
-		const yyyy = d.getFullYear();
-		const mm = String(d.getMonth() + 1).padStart(2, "0");
-		const dd = String(d.getDate()).padStart(2, "0");
-		const hh = String(d.getHours()).padStart(2, "0");
-		const mi = String(d.getMinutes()).padStart(2, "0");
-		return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
-	};
-
-	const aggregateCandidateLastSync = (locationId: number, employeeNo: string) => {
-		// 以本次 job 的摘要（warnings + finishedAt）為主，不依賴 sync-candidates.last_sync
-		{
-			const cached = lastCompletedSyncByLocationId[locationId];
-			if (cached) {
-				// 避免「上一輪同步」誤套用到「此刻才出現的人員」
-				// 只有該 employeeNo 在本次 job tail items 中出現過（完成事件）才可用快取判定 success/failed
-				const emp = String(employeeNo);
-				if (!cached.processedByEmployeeNo?.[emp] && !cached.locationRunFailure) {
-					// 不在本次 job 處理範圍：回到 candidates SSOT（needs_sync / last_sync）
-				} else {
-					const at = cached.finishedAt != null ? formatAt(cached.finishedAt) : null;
-					const empFailed = Boolean(cached.warningsByEmployeeNo[emp]);
-					return { status: cached.locationRunFailure || empFailed ? "failed" : "success", at };
-				}
-			}
-		}
-
-		const locWarnings = getWarningsForLocation(locationId);
-		const locationRunFailure = locWarnings.some(
-			w => String(w.type || "") === "sync" && !String(w.employeeNo || "").trim()
-		);
-		const empHasWarning = locWarnings.some(w => String(w.employeeNo || "") === String(employeeNo));
-		// 本次 job 優先：以 warningsCount=0 作為唯一成功判準
-		{
-			const isCurrentLocationJob =
-				activeSyncLocationId.value === locationId && activeSyncJob.value?.status === "completed";
-			if (isCurrentLocationJob) {
-				const at = activeSyncJob.value?.finishedAt ? formatAt(activeSyncJob.value.finishedAt) : null;
-				return { status: locationRunFailure || empHasWarning ? "failed" : "success", at };
-			}
-		}
-
-		// fallback：僅在「已經載入」sync-candidates 時才使用（不主動觸發讀取）
+	const findSyncCandidate = (locationId: number, employeeNo: string) => {
 		const list = Object.prototype.hasOwnProperty.call(syncCandidatesByLocation, locationId)
 			? (syncCandidatesByLocation[locationId] ?? [])
 			: [];
-		const cand = list.find(c => String(c.employee_no) === String(employeeNo));
-		const s = cand?.last_sync;
-		// 第一次載入/尚未同步：不要直接判失敗，回到「待同步」邏輯（由外層 label 決定）
-		if (!s) return { status: "success", at: null };
-		const statuses = [
-			s.user_info?.status,
-			s.face?.status,
-			s.card?.status,
-			s.fingerprint?.status
-		].filter(Boolean);
-		const atCandidates = [s.user_info?.at, s.face?.at, s.card?.at, s.fingerprint?.at]
-			.map(formatAt)
-			.filter(Boolean);
-		const at = atCandidates.length ? atCandidates[0] : null;
-		// 收束判斷：只需要 success / failed（其他由 label 用 needs_sync / last_sync 顯示未變更/無資料）
-		// - failed：任一步驟 failed
-		// - success：沒有 failed
-		if (locationRunFailure) return { status: "failed", at };
-		if (empHasWarning) return { status: "failed", at };
-		if (statuses.includes("failed")) return { status: "failed", at };
-		return { status: "success", at };
+		return list.find(c => String(c.employee_no) === String(employeeNo)) ?? null;
 	};
 
 	const getCandidateLastSyncLabel = (locationId: number, employeeNo: string) => {
-		// 若已有 job 完成快取：完全以快取為準（避免依賴 sync-candidates）
-		if (lastCompletedSyncByLocationId[locationId]) {
-			const v = aggregateCandidateLastSync(locationId, employeeNo);
-			if (v.status === "success") return "成功";
-			if (v.status === "failed") return "失敗";
-		}
-
-		const list = Object.prototype.hasOwnProperty.call(syncCandidatesByLocation, locationId)
-			? (syncCandidatesByLocation[locationId] ?? [])
-			: [];
-		const cand = list.find(c => String(c.employee_no) === String(employeeNo));
-		// 設備可能被手動重置/清空；未同步前不應顯示失敗，優先顯示待同步
-		if (cand?.needs_sync) return "待同步";
-		if (!cand?.last_sync) return "待同步";
-		const v = aggregateCandidateLastSync(locationId, employeeNo);
-		if (v.status === "failed") return "失敗";
-		// 無需同步時：用 user_info 做摘要（SSOT：人員基本資料）
-		const ui = String(cand.last_sync?.user_info?.status || "").trim();
-		if (ui === "no_data") return "無資料";
-		return "成功";
+		const cand = findSyncCandidate(locationId, employeeNo);
+		const resolved = resolveOverallSyncStatus({
+			employeeNo,
+			candidate: cand,
+			warnings: getWarningsForLocation(locationId),
+			locationId,
+			activeSyncLocationId: activeSyncLocationId.value,
+			activeSyncJobStatus: activeSyncJob.value?.status ?? null,
+			activeSyncJobFinishedAt: activeSyncJob.value?.finishedAt,
+			lastCompletedCache: lastCompletedSyncByLocationId[locationId]
+		});
+		return getOverallSyncDisplayLabel(resolved, cand);
 	};
 
-	const getCandidateLastSyncTitle = (locationId: number, employeeNo: string) => {
-		const list = syncCandidatesByLocation[locationId] ?? [];
-		const cand = list.find(c => String(c.employee_no) === String(employeeNo));
-		const s = cand?.last_sync;
-		if (!s) return null;
-		const parts = [
-			`人員: ${s.user_info?.status || "—"}${s.user_info?.at ? ` @ ${formatAt(s.user_info.at)}` : ""}`,
-			`圖片: ${s.face?.status || "—"}${s.face?.at ? ` @ ${formatAt(s.face.at)}` : ""}`,
-			`卡片: ${s.card?.status || "—"}${s.card?.at ? ` @ ${formatAt(s.card.at)}` : ""}`,
-			`指紋: ${s.fingerprint?.status || "—"}${s.fingerprint?.at ? ` @ ${formatAt(s.fingerprint.at)}` : ""}`
-		];
-		return parts.join("\n");
-	};
+	const getCandidateLastSyncTitle = (locationId: number, employeeNo: string) =>
+		buildOverallSyncTitle(findSyncCandidate(locationId, employeeNo));
 
 	const isLocationCurrentlySyncing = (locationId: number) => isLocationSyncJobRunning(locationId);
 

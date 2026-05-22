@@ -46,17 +46,10 @@ export interface LoginCredentials {
 
 
 
-export interface RegisterData {
-
-	username: string;
-
-	password: string;
-
-	role?: "admin" | "operator" | "viewer";
-
+export interface ChangePasswordData {
+	oldPassword?: string;
+	newPassword: string;
 }
-
-
 
 export interface CreateManagedUserData {
 

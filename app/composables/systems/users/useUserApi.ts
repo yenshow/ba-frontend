@@ -1,7 +1,7 @@
 import type {
 	User,
 	LoginCredentials,
-	RegisterData,
+	ChangePasswordData,
 	LoginResponse,
 	UserPermissionOverridesResponse,
 	PermissionDefinitionsResponse,
@@ -41,13 +41,6 @@ export const useUserApi = () => {
 	};
 
 	return {
-		register: (data: RegisterData) => {
-			return request<{ message: string; user: User }>("/users/register", {
-				method: "POST",
-				body: JSON.stringify(data)
-			});
-		},
-
 		createUser: (data: CreateManagedUserData) => {
 			return request<CreateManagedUserResponse>("/users", {
 				method: "POST",
@@ -119,6 +112,13 @@ export const useUserApi = () => {
 			return request<{ message: string }>(`/users/${userId}/permissions`, {
 				method: "PUT",
 				body: JSON.stringify({ overrides })
+			});
+		},
+
+		updatePassword: (userId: number, data: ChangePasswordData) => {
+			return request<{ message: string }>(`/users/${userId}/password`, {
+				method: "PUT",
+				body: JSON.stringify(data)
 			});
 		}
 	};

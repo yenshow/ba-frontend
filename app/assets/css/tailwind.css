@@ -216,6 +216,17 @@
 	cursor: not-allowed;
 }
 
+.form-input-readonly {
+	cursor: default;
+	background: rgba(255, 255, 255, 0.06);
+	color: rgba(247, 251, 255, 0.85);
+}
+
+.form-input-readonly:focus {
+	border-color: rgba(255, 255, 255, 0.35);
+	background: rgba(255, 255, 255, 0.06);
+}
+
 .form-input::placeholder {
 	color: rgba(255, 255, 255, 0.5);
 }
@@ -379,6 +390,10 @@
 
 	.btn-list-delete {
 		@apply btn-list bg-red-500/80 hover:bg-red-400;
+	}
+
+	.btn-list-reset {
+		@apply btn-list bg-amber-500/80 hover:bg-amber-400;
 	}
 
 	@media (min-width: 1536px) {

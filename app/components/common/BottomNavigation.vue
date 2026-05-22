@@ -194,6 +194,15 @@
 									</div>
 
 									<div class="space-y-1">
+										<button
+											v-if="showAccountSettingsLink"
+											class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
+											@click="handleAccountSettings"
+											aria-label="帳號設定"
+										>
+											帳號設定
+										</button>
+
 										<!-- 用戶管理（管理員與操作員可見） -->
 										<button
 											v-if="canWrite"
@@ -271,10 +280,12 @@ import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 import { useLicense } from "~/composables/core/useLicense";
 import { LICENSE_MESSAGE_LOCKED, PERMISSION_MESSAGE_LOCKED } from "~/utils/licenseUtils";
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
+import { canAccessAccountPage } from "~/composables/systems/users/useAccountSettings";
 
 const route = useRoute();
 const router = useRouter();
 const { user, isAuthenticated, canWrite, hasModulePermission, logout } = useAuth();
+const showAccountSettingsLink = computed(() => canAccessAccountPage(user.value));
 const toast = useToast();
 const { isModuleLocked: isModuleLockedByLicense } = useLicense();
 const moduleRegistry = useModuleRegistry();
@@ -490,6 +501,11 @@ const navigateToRouteInNewTab = (routePath: string) => {
 		const url = routePath.startsWith("http") ? routePath : `${window.location.origin}${routePath}`;
 		window.open(url, "_blank", "noopener,noreferrer");
 	}
+};
+
+const handleAccountSettings = () => {
+	closeAllMenus();
+	navigateToRouteInNewTab("/core/account");
 };
 
 const handleUserManagement = () => {

@@ -136,6 +136,128 @@ export const SYNC_WARNING_LABELS: Record<string, string> = {
 /** 人員／圖片／卡片／指紋 欄顯示狀態 */
 export type SyncStepUiStatus = "pending" | "success" | "failed" | "unchanged" | "no_data";
 
+export type OverallSyncUiStatus = "pending" | "success" | "failed";
+
+export type LastCompletedSyncCache = {
+	finishedAt: unknown;
+	locationRunFailure: boolean;
+	warningsByEmployeeNo: Record<string, true>;
+	processedByEmployeeNo: Record<string, true>;
+};
+
+export const formatSyncAt = (v: unknown): string | null => {
+	if (!v) return null;
+	const d = v instanceof Date ? v : new Date(String(v));
+	if (Number.isNaN(d.getTime())) return null;
+	const yyyy = d.getFullYear();
+	const mm = String(d.getMonth() + 1).padStart(2, "0");
+	const dd = String(d.getDate()).padStart(2, "0");
+	const hh = String(d.getHours()).padStart(2, "0");
+	const mi = String(d.getMinutes()).padStart(2, "0");
+	return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+};
+
+export const lastSyncStatusLabel = (raw: unknown) => {
+	const s = String(raw || "").trim();
+	if (s === "success") return "成功";
+	if (s === "failed") return "失敗";
+	if (s === "unchanged") return "未變更";
+	if (s === "no_data") return "無資料";
+	return s || "—";
+};
+
+export const lastSyncAtFromCandidate = (cand: { last_sync?: SyncLocationCandidate["last_sync"] } | null) => {
+	const s = cand?.last_sync;
+	if (!s) return null;
+	const atCandidates = [s.user_info?.at, s.face?.at, s.card?.at, s.fingerprint?.at]
+		.map(formatSyncAt)
+		.filter(Boolean);
+	return atCandidates.length ? atCandidates[0]! : null;
+};
+
+export const resolveOverallSyncStatus = (input: {
+	employeeNo: string;
+	candidate: SyncLocationCandidate | null;
+	warnings: SyncWarning[];
+	locationId: number;
+	activeSyncLocationId: number | null;
+	activeSyncJobStatus: string | null;
+	activeSyncJobFinishedAt: unknown;
+	lastCompletedCache: LastCompletedSyncCache | undefined;
+}): { status: OverallSyncUiStatus; at: string | null } => {
+	const emp = String(input.employeeNo);
+	const { candidate: cand, warnings, locationId } = input;
+	const at = lastSyncAtFromCandidate(cand);
+
+	const locationRunFailure = warnings.some(
+		w => String(w.type || "") === "sync" && !String(w.employeeNo || "").trim()
+	);
+	const empHasWarning = warnings.some(w => String(w.employeeNo || "") === emp);
+
+	if (input.activeSyncLocationId === locationId && input.activeSyncJobStatus === "completed") {
+		const jobAt = input.activeSyncJobFinishedAt ? formatSyncAt(input.activeSyncJobFinishedAt) : null;
+		if (locationRunFailure || empHasWarning) return { status: "failed", at: jobAt };
+		return { status: "success", at: jobAt };
+	}
+
+	const cached = input.lastCompletedCache;
+	if (cached?.locationRunFailure) {
+		return { status: "failed", at: cached.finishedAt != null ? formatSyncAt(cached.finishedAt) : null };
+	}
+	if (cached?.processedByEmployeeNo?.[emp]) {
+		const cacheAt = cached.finishedAt != null ? formatSyncAt(cached.finishedAt) : null;
+		if (cached.warningsByEmployeeNo[emp]) return { status: "failed", at: cacheAt };
+		return { status: "success", at: cacheAt };
+	}
+
+	if (locationRunFailure || empHasWarning) return { status: "failed", at };
+
+	const statuses = cand?.last_sync
+		? [
+				cand.last_sync.user_info?.status,
+				cand.last_sync.face?.status,
+				cand.last_sync.card?.status,
+				cand.last_sync.fingerprint?.status
+			]
+				.map(x => String(x || "").trim())
+				.filter(Boolean)
+		: [];
+	if (statuses.includes("failed")) return { status: "failed", at };
+
+	if (cand?.needs_sync) return { status: "pending", at };
+	if (!cand?.last_sync) return { status: "pending", at: null };
+
+	return { status: "success", at };
+};
+
+export const getOverallSyncDisplayLabel = (
+	resolved: { status: OverallSyncUiStatus },
+	candidate: SyncLocationCandidate | null
+): string => {
+	if (resolved.status === "pending") return "待同步";
+	if (resolved.status === "failed") return "失敗";
+	if (String(candidate?.last_sync?.user_info?.status || "").trim() === "no_data") return "無資料";
+	return "成功";
+};
+
+export const buildOverallSyncTitle = (candidate: SyncLocationCandidate | null): string | null => {
+	const s = candidate?.last_sync;
+	if (!s) return null;
+	const parts = [
+		`人員: ${lastSyncStatusLabel(s.user_info?.status)}${s.user_info?.at ? ` @ ${formatSyncAt(s.user_info.at)}` : ""}`,
+		`圖片: ${lastSyncStatusLabel(s.face?.status)}${s.face?.at ? ` @ ${formatSyncAt(s.face.at)}` : ""}`,
+		`卡片: ${lastSyncStatusLabel(s.card?.status)}${s.card?.at ? ` @ ${formatSyncAt(s.card.at)}` : ""}`,
+		`指紋: ${lastSyncStatusLabel(s.fingerprint?.status)}${s.fingerprint?.at ? ` @ ${formatSyncAt(s.fingerprint.at)}` : ""}`
+	];
+	if (candidate?.needs_sync) {
+		const steps = Array.isArray(candidate.needs_sync_steps)
+			? candidate.needs_sync_steps.map(x => String(x)).filter(Boolean)
+			: [];
+		if (steps.length) parts.unshift(`待同步步驟: ${steps.join(", ")}`);
+	}
+	return parts.join("\n");
+};
+
 export type SyncPersonRow = {
 	employeeNo: string;
 	fullName: string;
@@ -286,6 +408,18 @@ export const buildSyncPersonStepRows = (params: {
 		return { status: "unchanged", message: raw ? `同步狀態：${raw}` : "尚無同步紀錄" };
 	};
 
+	const stepStatusWhenIdle = (
+		c: SyncLocationCandidate,
+		step: "user_info" | "face" | "card" | "fingerprint",
+		needsSet: Set<string>,
+		needsStepKey: string
+	): { status: SyncStepUiStatus; message: string | null } => {
+		const fromLast = stepStatusFromLastSync(c, step);
+		if (fromLast.status === "failed") return fromLast;
+		if (needsSet.has(needsStepKey)) return { status: "pending", message: "待同步" };
+		return fromLast;
+	};
+
 	return candidates.map(c => {
 		const emp = String(c.employee_no);
 		const warning = warningByEmployee.get(emp) || null;
@@ -313,8 +447,7 @@ export const buildSyncPersonStepRows = (params: {
 				}
 				return { status: m.status, message: m.message };
 			}
-			if (needsSet.has("user_info")) return { status: "pending" as const, message: "待同步" };
-			return stepStatusFromLastSync(c, "user_info");
+			return stepStatusWhenIdle(c, "user_info", needsSet, "user_info");
 		})();
 
 		const fFaceBase = (() => {
@@ -328,9 +461,7 @@ export const buildSyncPersonStepRows = (params: {
 			if (pUi.status === "failed") {
 				return { status: "unchanged" as SyncStepUiStatus, message: "基本資料未成功，人臉不處理" };
 			}
-			if (needsSet.has("face")) return { status: "pending" as const, message: "待同步" };
-			// 沒有本次事件：以後端 last_sync 作為 SSOT，避免「其實已同步但本次沒有寫入事件」被誤判成失敗
-			return stepStatusFromLastSync(c, "face");
+			return stepStatusWhenIdle(c, "face", needsSet, "face");
 		})();
 
 		const fCardBase = (() => {
@@ -343,8 +474,7 @@ export const buildSyncPersonStepRows = (params: {
 			}
 			if (pUi.status === "failed")
 				return { status: "unchanged" as SyncStepUiStatus, message: "基本資料未成功，卡片不處理" };
-			if (needsSet.has("card")) return { status: "pending" as const, message: "待同步" };
-			return stepStatusFromLastSync(c, "card");
+			return stepStatusWhenIdle(c, "card", needsSet, "card");
 		})();
 
 		const fFpBase = (() => {
@@ -357,8 +487,7 @@ export const buildSyncPersonStepRows = (params: {
 			}
 			if (pUi.status === "failed")
 				return { status: "unchanged" as SyncStepUiStatus, message: "基本資料未成功，指紋不處理" };
-			if (needsSet.has("fingerprint")) return { status: "pending" as const, message: "待同步" };
-			return stepStatusFromLastSync(c, "fingerprint");
+			return stepStatusWhenIdle(c, "fingerprint", needsSet, "fingerprint");
 		})();
 
 		const overrideFailed = (

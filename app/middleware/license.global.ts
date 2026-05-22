@@ -4,9 +4,19 @@ import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 import type { FeatureKey } from "~/types/license";
 import { LICENSE_MESSAGE_REDIRECT, PERMISSION_MESSAGE_REDIRECT } from "~/utils/licenseUtils";
 import { useToast } from "~/composables/core/useToast";
+import { canAccessAccountPage } from "~/composables/systems/users/useAccountSettings";
 
 export default defineNuxtRouteMiddleware(async to => {
 	if (to.path === "/login") return;
+
+	if (to.path === "/core/account") {
+		const { user } = useAuth();
+		if (!canAccessAccountPage(user.value)) {
+			if (process.client) useToast().warning("管理員請使用用戶管理重設密碼");
+			return navigateTo("/");
+		}
+		return;
+	}
 
 	// 核心管理頁：僅 admin / operator
 	if (to.path === "/core/users" || to.path === "/core/license" || to.path === "/core/env") {
