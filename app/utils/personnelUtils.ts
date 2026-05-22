@@ -7,12 +7,11 @@ import type {
 
 export const PERSON_STATUS_LABELS: Record<string, string> = {
 	active: "啟用",
-	inactive: "停用",
-	deleted: "已刪除"
+	inactive: "停用"
 };
 
 export const getPersonStatusLabel = (status: unknown) =>
-	PERSON_STATUS_LABELS[String(status)] ?? "已刪除";
+	PERSON_STATUS_LABELS[String(status)] ?? String(status || "未知");
 
 export const getPersonStatusBadgeClass = (status: unknown) => {
 	const s = String(status);
@@ -136,6 +135,7 @@ export const SYNC_WARNING_LABELS: Record<string, string> = {
 /** 人員／圖片／卡片／指紋 欄顯示狀態 */
 export type SyncStepUiStatus = "pending" | "success" | "failed" | "unchanged" | "no_data";
 
+/** 「已同步」欄整體狀態（見 docs/40-systems/personnel.md §7.2） */
 export type OverallSyncUiStatus = "pending" | "success" | "failed";
 
 export type LastCompletedSyncCache = {
@@ -166,7 +166,9 @@ export const lastSyncStatusLabel = (raw: unknown) => {
 	return s || "—";
 };
 
-export const lastSyncAtFromCandidate = (cand: { last_sync?: SyncLocationCandidate["last_sync"] } | null) => {
+export const lastSyncAtFromCandidate = (
+	cand: { last_sync?: SyncLocationCandidate["last_sync"] } | null
+) => {
 	const s = cand?.last_sync;
 	if (!s) return null;
 	const atCandidates = [s.user_info?.at, s.face?.at, s.card?.at, s.fingerprint?.at]
@@ -175,6 +177,7 @@ export const lastSyncAtFromCandidate = (cand: { last_sync?: SyncLocationCandidat
 	return atCandidates.length ? atCandidates[0]! : null;
 };
 
+/** 失敗優先於待同步（方案 1） */
 export const resolveOverallSyncStatus = (input: {
 	employeeNo: string;
 	candidate: SyncLocationCandidate | null;
@@ -202,7 +205,10 @@ export const resolveOverallSyncStatus = (input: {
 
 	const cached = input.lastCompletedCache;
 	if (cached?.locationRunFailure) {
-		return { status: "failed", at: cached.finishedAt != null ? formatSyncAt(cached.finishedAt) : null };
+		return {
+			status: "failed",
+			at: cached.finishedAt != null ? formatSyncAt(cached.finishedAt) : null
+		};
 	}
 	if (cached?.processedByEmployeeNo?.[emp]) {
 		const cacheAt = cached.finishedAt != null ? formatSyncAt(cached.finishedAt) : null;
@@ -408,6 +414,7 @@ export const buildSyncPersonStepRows = (params: {
 		return { status: "unchanged", message: raw ? `同步狀態：${raw}` : "尚無同步紀錄" };
 	};
 
+	/** 無本次 job 事件：失敗優先於待同步（與「已同步」欄一致） */
 	const stepStatusWhenIdle = (
 		c: SyncLocationCandidate,
 		step: "user_info" | "face" | "card" | "fingerprint",

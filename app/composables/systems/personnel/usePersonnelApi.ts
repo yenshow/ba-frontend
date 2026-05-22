@@ -10,10 +10,36 @@ import type {
 	SyncLocationJobItemsPage,
 	SyncLocationCandidate,
 } from "~/types/personnel"
+import type { HandleErrorOptions } from "~/composables/core/useErrorHandler"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { buildPathWithQuery } from "~/utils/apiUtils"
 
 const PERSONNEL_PREFIX = "/personnel"
+
+/** GET /personnel/persons 查詢參數 */
+export type GetPersonsParams = {
+	mainGroupId?: number
+	personGroupId?: number
+	personGroupIds?: number[]
+	/** 僅 person_group_id IS NULL（與群組篩選互斥，由後端處理） */
+	ungroupedOnly?: boolean
+	status?: string
+	employeeNo?: string
+	fullName?: string
+	q?: string
+	sortOrder?: "asc" | "desc"
+	limit?: number
+	offset?: number
+}
+
+export type PersonnelHandleApiError = (
+	err: unknown,
+	fallbackMessage: string,
+	options?: HandleErrorOptions
+) => string | void | null
+
+/** 人員主檔 API：優先顯示後端 message */
+export const PERSONNEL_API_ERROR_OPTS: HandleErrorOptions = { preferBackendMessage: true }
 
 export type PersonnelApi = {
 	// 人員群組
@@ -23,14 +49,10 @@ export type PersonnelApi = {
 		parentId?: number
 	}) => Promise<PersonGroup[]>
 	getPersonGroupById: (id: number) => Promise<PersonGroup>
-	createPersonGroup: (body: {
-		name: string
-		parentId?: number | null
-		description?: string | null
-	}) => Promise<PersonGroup>
+	createPersonGroup: (body: { name: string; parentId?: number | null }) => Promise<PersonGroup>
 	updatePersonGroup: (
 		id: number,
-		body: { name?: string; parentId?: number | null; description?: string | null }
+		body: { name?: string; parentId?: number | null }
 	) => Promise<PersonGroup>
 	deletePersonGroup: (id: number) => Promise<{ ok: boolean }>
 	getPersonGroupMembers: (
@@ -44,34 +66,24 @@ export type PersonnelApi = {
 	) => Promise<Paged<Person>>
 
 	// 人員
-	getPersons: (params?: {
-		mainGroupId?: number
-		personGroupId?: number
-		personGroupIds?: number[]
-		status?: string
-		employeeNo?: string
-		fullName?: string
-		q?: string
-		sortBy?: "employeeNo" | "employee_no"
-		sortOrder?: "asc" | "desc"
-		limit?: number
-		offset?: number
-	}) => Promise<Paged<Person>>
+	getPersons: (params?: GetPersonsParams) => Promise<Paged<Person>>
 	getPersonById: (id: number) => Promise<Person>
 	getPersonByEmployeeNo: (employeeNo: string) => Promise<Person>
 	createPerson: (body: {
 		employeeNo: string
 		fullName?: string | null
-		status?: "active" | "inactive" | "deleted"
+		status?: "active" | "inactive"
 		faceUrl?: string | null
+		personGroupId?: number | null
 	}) => Promise<Person>
 	updatePerson: (
 		id: number,
 		body: Partial<{
 			employeeNo: string
 			fullName: string | null
-			status: "active" | "inactive" | "deleted"
+			status: "active" | "inactive"
 			faceUrl: string | null
+			personGroupId: number | null
 		}>
 	) => Promise<Person>
 	uploadFaceForPerson: (
@@ -134,19 +146,12 @@ export const usePersonnelApi = (): PersonnelApi => {
 			return request<PersonGroup[]>(path)
 		},
 		getPersonGroupById: (id: number) => request<PersonGroup>(`${PERSONNEL_PREFIX}/groups/${id}`),
-		createPersonGroup: (body: {
-			name: string
-			parentId?: number | null
-			description?: string | null
-		}) =>
+		createPersonGroup: (body: { name: string; parentId?: number | null }) =>
 			request<PersonGroup>(`${PERSONNEL_PREFIX}/groups`, {
 				method: "POST",
 				body: JSON.stringify(body),
 			}),
-		updatePersonGroup: (
-			id: number,
-			body: { name?: string; parentId?: number | null; description?: string | null }
-		) =>
+		updatePersonGroup: (id: number, body: { name?: string; parentId?: number | null }) =>
 			request<PersonGroup>(`${PERSONNEL_PREFIX}/groups/${id}`, {
 				method: "PUT",
 				body: JSON.stringify(body),
@@ -179,28 +184,16 @@ export const usePersonnelApi = (): PersonnelApi => {
 			}),
 
 		// 人員
-		getPersons: (params?: {
-			mainGroupId?: number
-			personGroupId?: number
-			personGroupIds?: number[]
-			status?: string
-			employeeNo?: string
-			fullName?: string
-			q?: string
-			sortBy?: "employeeNo" | "employee_no"
-			sortOrder?: "asc" | "desc"
-			limit?: number
-			offset?: number
-		}) => {
+		getPersons: (params?: GetPersonsParams) => {
 			const query: Record<string, string | number> = {}
 			if (params?.mainGroupId != null) query.mainGroupId = params.mainGroupId
 			if (params?.personGroupId != null) query.personGroupId = params.personGroupId
 			if (params?.personGroupIds?.length) query.personGroupIds = params.personGroupIds.join(",")
+			if (params?.ungroupedOnly) query.ungroupedOnly = "true"
 			if (params?.status) query.status = params.status
 			if (params?.employeeNo) query.employeeNo = params.employeeNo
 			if (params?.fullName) query.fullName = params.fullName
 			if (params?.q) query.q = params.q
-			if (params?.sortBy) query.sortBy = params.sortBy
 			if (params?.sortOrder) query.sortOrder = params.sortOrder
 			if (params?.limit != null) query.limit = params.limit
 			if (params?.offset != null) query.offset = params.offset
@@ -217,8 +210,9 @@ export const usePersonnelApi = (): PersonnelApi => {
 		createPerson: (body: {
 			employeeNo: string
 			fullName?: string | null
-			status?: "active" | "inactive" | "deleted"
+			status?: "active" | "inactive"
 			faceUrl?: string | null
+			personGroupId?: number | null
 		}) =>
 			request<Person>(`${PERSONNEL_PREFIX}/persons`, {
 				method: "POST",
@@ -229,8 +223,9 @@ export const usePersonnelApi = (): PersonnelApi => {
 			body: Partial<{
 				employeeNo: string
 				fullName: string | null
-				status: "active" | "inactive" | "deleted"
+				status: "active" | "inactive"
 				faceUrl: string | null
+				personGroupId: number | null
 			}>
 		) =>
 			request<Person>(`${PERSONNEL_PREFIX}/persons/${id}`, {

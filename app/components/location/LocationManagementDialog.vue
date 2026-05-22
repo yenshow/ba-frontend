@@ -18,22 +18,12 @@
 								:changed-fields="changedFieldsList"
 								:message="changeSummary"
 							/>
-							<button
+							<IconTrashButton
 								v-if="canDelete && zone && zone.id"
-								type="button"
-								class="p-2 text-rose-400 transition-colors hover:text-rose-300"
-								@click="handleDeleteZone"
 								title="刪除區域"
-							>
-								<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-									/>
-								</svg>
-							</button>
+								aria-label="刪除區域"
+								@click="handleDeleteZone"
+							/>
 							<button
 								type="button"
 								class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
@@ -154,22 +144,13 @@
 															{{ getLocationSystemsLabel(location) || "無系統" }}
 														</div>
 													</label>
-													<button
+													<IconTrashButton
 														v-if="canDelete"
-														type="button"
-														class="ml-auto flex-shrink-0 p-2 text-rose-400 transition-colors hover:text-rose-300"
-														@click="removeLocation(locationIndex)"
+														button-class="ml-auto flex-shrink-0"
 														title="刪除地點"
-													>
-														<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-															/>
-														</svg>
-													</button>
+														aria-label="刪除地點"
+														@click="removeLocation(locationIndex)"
+													/>
 												</div>
 											</div>
 										</div>
@@ -226,6 +207,7 @@
 import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location";
 import { ZONE_IMAGE_ACCEPT_ATTR } from "~/composables/location/validation/useBaseValidation";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
+import IconTrashButton from "~/components/common/IconTrashButton.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
@@ -248,7 +230,7 @@ interface Props {
 	readOnly?: boolean;
 	/**
 	 * full：完整管理（可新增/編輯/儲存，是否可刪由 allowDelete 決定）
-	 * delete-only：只允許刪除（與 central 行為一致；construction 目前無專用彙整頁）
+	 * delete-only：只允許刪除（用於全區點位圖彙整頁）
 	 */
 	mode?: "full" | "delete-only";
 	/** 可選：即使可編輯，也可關閉刪除功能（例如只允許 admin 刪除） */
@@ -277,11 +259,7 @@ const { pendingZone, hasUnsavedChanges, changedFieldsList, changeSummary, resetT
 	useUnifiedZoneDraft({
 		sourceZone: computed(() => props.zone)
 	});
-const {
-	fileInputRef,
-	triggerImageInput: triggerZoneImageInput,
-	handleZoneImageChange
-} = useZoneImageUpload({
+const { triggerImageInput: triggerZoneImageInput, handleZoneImageChange } = useZoneImageUpload({
 	onImageReady: imageUrl => {
 		if (!pendingZone.value) return;
 		pendingZone.value.imageUrl = imageUrl;
@@ -460,5 +438,3 @@ const saveChanges = async () => {
 	resetToSource();
 };
 </script>
-
-<style scoped></style>

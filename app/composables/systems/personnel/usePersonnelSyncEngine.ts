@@ -1,78 +1,77 @@
-import type { Ref } from "vue";
+import type { Ref } from "vue"
 import type {
 	SyncAllLocationsJob,
 	SyncLocationCandidate,
 	SyncLocationJob,
 	SyncLocationJobItem,
 	SyncWarning,
-	SyncableLocation
-} from "~/types/personnel";
-import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi";
-import { buildSyncPersonStepRows, type SyncStepUiStatus } from "~/utils/personnelUtils";
+	SyncableLocation,
+} from "~/types/personnel"
+import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import {
-	clampOffset,
-	getNextOffset,
-	getPrevOffset
-} from "~/composables/systems/personnel/usePersonCandidatesPager";
+	buildSyncPersonStepRows,
+	type SyncStepUiStatus,
+} from "~/utils/personnelUtils"
+import { clampOffset, getNextOffset, getPrevOffset } from "~/composables/systems/personnel/personnelList"
 
 export const usePersonnelSyncEngine = (params: {
-	personnelApi: PersonnelApi;
-	toast: { success: (msg: string) => void; error: (msg: string) => void };
-	handleApiError: (err: unknown, fallbackMessage: string) => string | void | null;
-	canEdit: Ref<boolean>;
-	syncableLocations: Ref<SyncableLocation[]>;
+	personnelApi: PersonnelApi
+	toast: { success: (msg: string) => void; error: (msg: string) => void }
+	handleApiError: (err: unknown, fallbackMessage: string) => string | void | null
+	canEdit: Ref<boolean>
+	syncableLocations: Ref<SyncableLocation[]>
 }) => {
-	const { personnelApi, toast, handleApiError, canEdit, syncableLocations } = params;
+	const { personnelApi, toast, handleApiError, canEdit, syncableLocations } = params
 
 	// ---------- candidates cache + prefetch ----------
-	const syncCandidatesByLocation = reactive<Record<number, SyncLocationCandidate[]>>({});
-	const syncCandidatesLoading = reactive<Record<number, boolean>>({});
-	const isSyncCandidatesLoading = (locationId: number) => Boolean(syncCandidatesLoading[locationId]);
+	const syncCandidatesByLocation = reactive<Record<number, SyncLocationCandidate[]>>({})
+	const syncCandidatesLoading = reactive<Record<number, boolean>>({})
+	const isSyncCandidatesLoading = (locationId: number) => Boolean(syncCandidatesLoading[locationId])
 
 	const ensureSyncCandidates = async (locationId: number) => {
-		syncCandidatesLoading[locationId] = true;
+		syncCandidatesLoading[locationId] = true
 		try {
-			const res = await personnelApi.getSyncLocationCandidates(locationId);
-			syncCandidatesByLocation[locationId] = res?.persons ?? [];
+			const res = await personnelApi.getSyncLocationCandidates(locationId)
+			syncCandidatesByLocation[locationId] = res?.persons ?? []
 		} catch (err) {
-			handleApiError(err, "載入可同步人員失敗");
-			syncCandidatesByLocation[locationId] = [];
+			handleApiError(err, "載入可同步人員失敗")
+			syncCandidatesByLocation[locationId] = []
 		} finally {
-			syncCandidatesLoading[locationId] = false;
+			syncCandidatesLoading[locationId] = false
 		}
-	};
+	}
 
 	const prefetchSyncSummaries = async () => {
-		const ids = syncableLocations.value.map(x => x.id);
-		const concurrency = 3;
-		let idx = 0;
+		const ids = syncableLocations.value.map((x) => x.id)
+		const concurrency = 3
+		let idx = 0
 		const worker = async () => {
 			for (;;) {
-				const i = idx++;
-				if (i >= ids.length) return;
-				const id = ids[i];
-				if (Object.prototype.hasOwnProperty.call(syncCandidatesByLocation, id)) continue;
-				if (syncCandidatesLoading[id]) continue;
-				await ensureSyncCandidates(id);
+				const i = idx++
+				if (i >= ids.length) return
+				const id = ids[i]
+				if (Object.prototype.hasOwnProperty.call(syncCandidatesByLocation, id)) continue
+				if (syncCandidatesLoading[id]) continue
+				await ensureSyncCandidates(id)
 			}
-		};
-		await Promise.all(Array.from({ length: Math.min(concurrency, ids.length) }).map(worker));
-	};
+		}
+		await Promise.all(Array.from({ length: Math.min(concurrency, ids.length) }).map(worker))
+	}
 
 	// ---------- job polling/backoff + tail/items page ----------
-	const isSyncingAll = ref(false);
-	const syncWarnings = ref<SyncWarning[]>([]);
-	const showWarningsDialog = ref(false);
+	const isSyncingAll = ref(false)
+	const syncWarnings = ref<SyncWarning[]>([])
+	const showWarningsDialog = ref(false)
 	const openWarningsDialog = () => {
-		if ((syncWarnings.value || []).length <= 0) return;
-		showWarningsDialog.value = true;
-	};
+		if ((syncWarnings.value || []).length <= 0) return
+		showWarningsDialog.value = true
+	}
 
-	const activeSyncLocationId = ref<number | null>(null);
-	const activeSyncJob = ref<SyncLocationJob | null>(null);
-	const activeSyncAllJob = ref<SyncAllLocationsJob | null>(null);
-	const isPollingSyncJob = ref(false);
-	const activeSyncJobTailItems = ref<SyncLocationJobItem[]>([]);
+	const activeSyncLocationId = ref<number | null>(null)
+	const activeSyncJob = ref<SyncLocationJob | null>(null)
+	const activeSyncAllJob = ref<SyncAllLocationsJob | null>(null)
+	const isPollingSyncJob = ref(false)
+	const activeSyncJobTailItems = ref<SyncLocationJobItem[]>([])
 
 	/**
 	 * 只用於「判斷最後同步成功/失敗」與降低 sync-candidates 的依賴：
@@ -82,92 +81,92 @@ export const usePersonnelSyncEngine = (params: {
 		Record<
 			number,
 			{
-				finishedAt: number | null;
-				locationRunFailure: boolean;
-				warningsByEmployeeNo: Record<string, true>;
-				processedByEmployeeNo: Record<string, true>;
+				finishedAt: number | null
+				locationRunFailure: boolean
+				warningsByEmployeeNo: Record<string, true>
+				processedByEmployeeNo: Record<string, true>
 			}
 		>
-	>({});
+	>({})
 
 	const waitUntilVisible = async () => {
-		if (!process.client) return;
-		if (!document.hidden) return;
-		await new Promise<void>(resolve => {
+		if (!process.client) return
+		if (!document.hidden) return
+		await new Promise<void>((resolve) => {
 			const handler = () => {
 				if (!document.hidden) {
-					document.removeEventListener("visibilitychange", handler);
-					resolve();
+					document.removeEventListener("visibilitychange", handler)
+					resolve()
 				}
-			};
-			document.addEventListener("visibilitychange", handler);
-		});
-	};
+			}
+			document.addEventListener("visibilitychange", handler)
+		})
+	}
 
 	const computeBasePollMs = (job: SyncLocationJob | null) => {
-		const totalOps = Number(job?.progress?.total ?? 0);
-		const target = Number(job?.progress?.targetPersonsTotal ?? 0);
-		if (totalOps >= 5000 || target >= 1000) return 5000;
-		if (totalOps >= 2000 || target >= 500) return 4000;
-		return 2000;
-	};
+		const totalOps = Number(job?.progress?.total ?? 0)
+		const target = Number(job?.progress?.targetPersonsTotal ?? 0)
+		if (totalOps >= 5000 || target >= 1000) return 5000
+		if (totalOps >= 2000 || target >= 500) return 4000
+		return 2000
+	}
 
 	const updateLastCompletedCacheForLocation = (params: {
-		locationId: number;
-		job: SyncLocationJob;
-		warnings: SyncWarning[];
-		tailItems: SyncLocationJobItem[];
+		locationId: number
+		job: SyncLocationJob
+		warnings: SyncWarning[]
+		tailItems: SyncLocationJobItem[]
 	}) => {
-		const { locationId, job, warnings, tailItems } = params;
-		const byEmp: Record<string, true> = {};
+		const { locationId, job, warnings, tailItems } = params
+		const byEmp: Record<string, true> = {}
 		for (const w of warnings || []) {
-			const emp = String(w.employeeNo || "").trim();
-			if (emp) byEmp[emp] = true;
+			const emp = String(w.employeeNo || "").trim()
+			if (emp) byEmp[emp] = true
 		}
-		const processed: Record<string, true> = {};
+		const processed: Record<string, true> = {}
 		for (const it of tailItems || []) {
-			const emp = String(it.employeeNo || "").trim();
-			if (!emp) continue;
+			const emp = String(it.employeeNo || "").trim()
+			if (!emp) continue
 			// 只要有完成事件（success/failed/unchanged）就算「這次 job 確實處理過」
-			const st = String(it.status || "").trim();
-			if (st === "success" || st === "failed" || st === "unchanged") processed[emp] = true;
+			const st = String(it.status || "").trim()
+			if (st === "success" || st === "failed" || st === "unchanged") processed[emp] = true
 		}
 		const locationRunFailure = (warnings || []).some(
-			w => String(w.type || "") === "sync" && !String(w.employeeNo || "").trim()
-		);
+			(w) => String(w.type || "") === "sync" && !String(w.employeeNo || "").trim()
+		)
 		lastCompletedSyncByLocationId[locationId] = {
 			finishedAt: job.finishedAt ?? null,
 			locationRunFailure,
 			warningsByEmployeeNo: byEmp,
-			processedByEmployeeNo: processed
-		};
-	};
+			processedByEmployeeNo: processed,
+		}
+	}
 
 	const pollSyncLocationJob = async (jobId: string) => {
-		isPollingSyncJob.value = true;
-		activeSyncJobTailItems.value = [];
-		const startedAt = Date.now();
-		let lastCompleted = -1;
-		let pollMs = 2000;
-		let tick = 0;
+		isPollingSyncJob.value = true
+		activeSyncJobTailItems.value = []
+		const startedAt = Date.now()
+		let lastCompleted = -1
+		let pollMs = 2000
+		let tick = 0
 		for (;;) {
-			await waitUntilVisible();
+			await waitUntilVisible()
 
-			const job = await personnelApi.getSyncLocationJob(jobId);
-			activeSyncJob.value = job;
+			const job = await personnelApi.getSyncLocationJob(jobId)
+			activeSyncJob.value = job
 
 			// tail items：小 payload，供 UI 顯示逐步狀態；避免每次都拉，改成節流
 			{
-				tick += 1;
-				const shouldFetchTail = tick === 1 || tick % 2 === 0 || job.status === "completed";
+				tick += 1
+				const shouldFetchTail = tick === 1 || tick % 2 === 0 || job.status === "completed"
 				if (shouldFetchTail) {
 					try {
 						const page = await personnelApi.getSyncLocationJobItems(jobId, {
 							type: "tail",
 							limit: 200,
-							offset: 0
-						});
-						activeSyncJobTailItems.value = page.items ?? [];
+							offset: 0,
+						})
+						activeSyncJobTailItems.value = page.items ?? []
 					} catch {
 						// ignore tail failure; keep polling summary
 					}
@@ -175,140 +174,137 @@ export const usePersonnelSyncEngine = (params: {
 			}
 
 			if (job.status === "completed") {
-				const rawWarnings = job.result?.warnings ?? [];
-				const locId = activeSyncLocationId.value;
+				const rawWarnings = job.result?.warnings ?? []
+				const locId = activeSyncLocationId.value
 				const loc =
-					locId != null ? (syncableLocations.value || []).find(x => x.id === locId) || null : null;
-				const locLabel = loc ? `${loc.zone_name} / ${loc.name}` : undefined;
-				syncWarnings.value = rawWarnings.map(w => ({
+					locId != null ? (syncableLocations.value || []).find((x) => x.id === locId) || null : null
+				const locLabel = loc ? `${loc.zone_name} / ${loc.name}` : undefined
+				syncWarnings.value = rawWarnings.map((w) => ({
 					...w,
-					locationName: w.locationName || locLabel
-				}));
+					locationName: w.locationName || locLabel,
+				}))
 
 				if (locId != null) {
 					updateLastCompletedCacheForLocation({
 						locationId: locId,
 						job,
 						warnings: syncWarnings.value,
-						tailItems: activeSyncJobTailItems.value ?? []
-					});
-					await ensureSyncCandidates(locId);
+						tailItems: activeSyncJobTailItems.value ?? [],
+					})
+					await ensureSyncCandidates(locId)
 				}
 
 				if ((syncWarnings.value || []).length > 0) {
-					toast.error(`同步完成（含 ${syncWarnings.value.length} 筆警告）`);
-					showWarningsDialog.value = true;
+					toast.error(`同步完成（含 ${syncWarnings.value.length} 筆警告）`)
+					showWarningsDialog.value = true
 				} else {
-					toast.success("同步完成");
+					toast.success("同步完成")
 				}
-				break;
+				break
 			}
-			if (Date.now() - startedAt > 10 * 60 * 1000) throw new Error("同步逾時，請稍後再試");
+			if (Date.now() - startedAt > 10 * 60 * 1000) throw new Error("同步逾時，請稍後再試")
 
 			// backoff：
 			// - 若 progress.completed 沒變：逐步拉長（最多 5s）
 			// - 一旦有進度：回到 base（2~5s）
 			{
-				const base = computeBasePollMs(job);
-				const completed = Number(job.progress?.completed ?? 0);
+				const base = computeBasePollMs(job)
+				const completed = Number(job.progress?.completed ?? 0)
 				if (completed === lastCompleted) {
-					pollMs = Math.min(5000, Math.round(Math.max(base, pollMs) * 1.35));
+					pollMs = Math.min(5000, Math.round(Math.max(base, pollMs) * 1.35))
 				} else {
-					pollMs = base;
-					lastCompleted = completed;
+					pollMs = base
+					lastCompleted = completed
 				}
 			}
 
-			await new Promise(r => setTimeout(r, pollMs));
+			await new Promise((r) => setTimeout(r, pollMs))
 		}
-		isPollingSyncJob.value = false;
-	};
+		isPollingSyncJob.value = false
+	}
 
 	const syncOneLocation = async (locationId: number) => {
-		if (!canEdit.value) return;
-		activeSyncLocationId.value = locationId;
-		activeSyncAllJob.value = null;
-		activeSyncJob.value = null;
-		syncWarnings.value = [];
-		await ensureSyncCandidates(locationId);
+		if (!canEdit.value) return
+		activeSyncLocationId.value = locationId
+		activeSyncAllJob.value = null
+		activeSyncJob.value = null
+		syncWarnings.value = []
+		await ensureSyncCandidates(locationId)
 		try {
-			const { jobId } = await personnelApi.startSyncLocationJob(locationId);
-			await pollSyncLocationJob(jobId);
+			const { jobId } = await personnelApi.startSyncLocationJob(locationId)
+			await pollSyncLocationJob(jobId)
 		} catch (err) {
-			handleApiError(err, "同步失敗");
+			handleApiError(err, "同步失敗")
 		} finally {
-			isPollingSyncJob.value = false;
+			isPollingSyncJob.value = false
 		}
-	};
+	}
 
 	const syncAllLocations = async () => {
-		if (!canEdit.value) return;
-		isSyncingAll.value = true;
-		activeSyncLocationId.value = null;
-		activeSyncJob.value = null;
-		activeSyncAllJob.value = null;
-		syncWarnings.value = [];
+		if (!canEdit.value) return
+		isSyncingAll.value = true
+		activeSyncLocationId.value = null
+		activeSyncJob.value = null
+		activeSyncAllJob.value = null
+		syncWarnings.value = []
 		try {
-			const { jobId } = await personnelApi.syncAllLocations();
-			const startedAt = Date.now();
+			const { jobId } = await personnelApi.syncAllLocations()
+			const startedAt = Date.now()
 			for (;;) {
-				const job = await personnelApi.getSyncAllLocationsJob(jobId);
-				activeSyncAllJob.value = job;
+				const job = await personnelApi.getSyncAllLocationsJob(jobId)
+				activeSyncAllJob.value = job
 				if (job.status === "completed") {
-					if (job.error?.message) throw new Error(job.error.message);
-					const result = job.result;
-					const locLabelById = new Map<number, string>();
+					if (job.error?.message) throw new Error(job.error.message)
+					const result = job.result
+					const locLabelById = new Map<number, string>()
 					for (const loc of syncableLocations.value || []) {
-						locLabelById.set(loc.id, `${loc.zone_name} / ${loc.name}`);
+						locLabelById.set(loc.id, `${loc.zone_name} / ${loc.name}`)
 					}
-					const allWarnings = (result?.results ?? []).flatMap(r => {
-						const label = locLabelById.get(Number(r.locationId)) || r.locationName || undefined;
-						return (r.warnings ?? []).map(w => ({ ...w, locationName: label }));
-					});
-					syncWarnings.value = allWarnings;
+					const allWarnings = (result?.results ?? []).flatMap((r) => {
+						const label = locLabelById.get(Number(r.locationId)) || r.locationName || undefined
+						return (r.warnings ?? []).map((w) => ({ ...w, locationName: label }))
+					})
+					syncWarnings.value = allWarnings
 					if ((syncWarnings.value || []).length > 0) {
-						toast.error(`同步全部完成（含 ${syncWarnings.value.length} 筆警告）`);
-						showWarningsDialog.value = true;
+						toast.error(`同步全部完成（含 ${syncWarnings.value.length} 筆警告）`)
+						showWarningsDialog.value = true
 					} else {
-						toast.success("同步全部完成");
+						toast.success("同步全部完成")
 					}
-					break;
+					break
 				}
-				if (Date.now() - startedAt > 10 * 60 * 1000) throw new Error("同步逾時，請稍後再試");
-				await new Promise(r => setTimeout(r, 1000));
+				if (Date.now() - startedAt > 10 * 60 * 1000) throw new Error("同步逾時，請稍後再試")
+				await new Promise((r) => setTimeout(r, 1000))
 			}
 		} catch (err) {
-			handleApiError(err, "同步全部失敗");
+			handleApiError(err, "同步全部失敗")
 		} finally {
-			isSyncingAll.value = false;
+			isSyncingAll.value = false
 		}
-	};
+	}
 
 	// ---------- step rows + paging + pill ----------
 	const getItemsForLocation = (locationId: number): SyncLocationJobItem[] => {
-		if (activeSyncLocationId.value === locationId && activeSyncJob.value)
-			return activeSyncJobTailItems.value ?? [];
-		const j = activeSyncAllJob.value;
+		if (activeSyncLocationId.value === locationId && activeSyncJob.value) return activeSyncJobTailItems.value ?? []
+		const j = activeSyncAllJob.value
 		if (j?.items?.length) {
-			return j.items.filter(
-				it => it.locationId == null || Number(it.locationId) === Number(locationId)
-			);
+			return j.items.filter((it) => it.locationId == null || Number(it.locationId) === Number(locationId))
 		}
-		return [];
-	};
+		return []
+	}
 
 	const getWarningsForLocation = (locationId: number) => {
-		return (syncWarnings.value || []).filter(w => Number(w.locationId) === Number(locationId));
-	};
+		return (syncWarnings.value || []).filter((w) => Number(w.locationId) === Number(locationId))
+	}
 
 	const getLocationLabel = (locationId: number) => {
-		const loc = (syncableLocations.value || []).find(x => x.id === locationId) || null;
-		return loc ? `${loc.zone_name} / ${loc.name}` : null;
-	};
+		const loc = (syncableLocations.value || []).find((x) => x.id === locationId) || null
+		return loc ? `${loc.zone_name} / ${loc.name}` : null
+	}
 
 	const isLocationSyncJobRunning = (locationId: number): boolean => {
 		if (activeSyncLocationId.value === locationId && isPollingSyncJob.value) {
-			return activeSyncJob.value != null && activeSyncJob.value.status !== "completed";
+			return activeSyncJob.value != null && activeSyncJob.value.status !== "completed"
 		}
 		if (
 			isSyncingAll.value &&
@@ -316,26 +312,26 @@ export const usePersonnelSyncEngine = (params: {
 			activeSyncAllJob.value.status !== "completed" &&
 			activeSyncAllJob.value.progress?.currentLocationId === locationId
 		) {
-			return true;
+			return true
 		}
-		return false;
-	};
+		return false
+	}
 
 	const getSyncStepRowsForLocation = (locationId: number) => {
-		const candidates = syncCandidatesByLocation[locationId] ?? [];
-		const items = getItemsForLocation(locationId);
-		const warnings = getWarningsForLocation(locationId);
-		return buildSyncPersonStepRows({ candidates, items, warnings });
-	};
+		const candidates = syncCandidatesByLocation[locationId] ?? []
+		const items = getItemsForLocation(locationId)
+		const warnings = getWarningsForLocation(locationId)
+		return buildSyncPersonStepRows({ candidates, items, warnings })
+	}
 
 	const syncStepShortLabel = (cell: { status: SyncStepUiStatus }) => {
-		const s = cell.status;
-		if (s === "pending") return "待同步";
-		if (s === "success") return "成功";
-		if (s === "unchanged") return "未變更";
-		if (s === "failed") return "失敗";
-		return "無資料";
-	};
+		const s = cell.status
+		if (s === "pending") return "待同步"
+		if (s === "success") return "成功"
+		if (s === "unchanged") return "未變更"
+		if (s === "failed") return "失敗"
+		return "無資料"
+	}
 
 	const syncStepPillClass = (status: SyncStepUiStatus) => {
 		const m: Record<SyncStepUiStatus, string> = {
@@ -343,10 +339,10 @@ export const usePersonnelSyncEngine = (params: {
 			success: "bg-emerald-500/15 text-emerald-100 border border-emerald-400/30",
 			failed: "bg-rose-500/15 text-rose-100 border border-rose-400/30",
 			unchanged: "bg-slate-500/15 text-slate-200 border border-slate-400/25",
-			no_data: "bg-white/5 text-white/45 border border-white/10"
-		};
-		return m[status] ?? "bg-white/5 text-white/60 border border-white/10";
-	};
+			no_data: "bg-white/5 text-white/45 border border-white/10",
+		}
+		return m[status] ?? "bg-white/5 text-white/60 border border-white/10"
+	}
 
 	return {
 		// candidates
@@ -375,6 +371,7 @@ export const usePersonnelSyncEngine = (params: {
 		isLocationSyncJobRunning,
 		getSyncStepRowsForLocation,
 		syncStepPillClass,
-		syncStepShortLabel
-	};
-};
+		syncStepShortLabel,
+	}
+}
+

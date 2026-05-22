@@ -16,17 +16,28 @@
 					</button>
 				</div>
 
-				<div class="mb-4 flex flex-wrap gap-2 font-semibold">
+				<div class="mb-4 flex flex-col gap-2 font-semibold">
 					<button
 						type="button"
 						:class="[
 							groupButtonBaseClass,
-							isAllSelected ? groupButtonSelectedClass : groupButtonIdleClass
+							isAllSelected ? groupButtonSelectedClass : groupButtonIdleClass,
 						]"
 						@click="handleSelectAll"
 						aria-label="顯示全部人員"
 					>
 						全部人員
+					</button>
+					<button
+						type="button"
+						:class="[
+							groupButtonBaseClass,
+							isUngroupedSelected ? groupButtonSelectedClass : groupButtonIdleClass,
+						]"
+						@click="handleSelectUngrouped"
+						aria-label="僅顯示未分組人員"
+					>
+						未分組
 					</button>
 				</div>
 
@@ -43,7 +54,7 @@
 							:key="main.id"
 							:class="[
 								mainGroupCardBaseClass,
-								isMainSelected(main.id) ? mainGroupCardSelectedClass : mainGroupCardIdleClass
+								isMainSelected(main.id) ? mainGroupCardSelectedClass : mainGroupCardIdleClass,
 							]"
 						>
 							<div class="flex items-center justify-between gap-2 px-3 py-2">
@@ -71,7 +82,7 @@
 										:key="child.id"
 										class="flex items-center justify-between gap-2 rounded-lg px-2 py-2 hover:bg-white/5"
 										:class="{
-											'bg-cyan-500/25 ring-2 ring-cyan-400/40': isChildSelected(child.id)
+											'bg-cyan-500/25 ring-2 ring-cyan-400/40': isChildSelected(child.id),
 										}"
 									>
 										<button
@@ -108,84 +119,99 @@
 				:table-cell-class="tableCellClass"
 				:get-person-status-badge-class="getPersonStatusBadgeClass"
 				:persons-tab="personsTab"
+				:selected-main-group-id="resolvedMainGroupId"
+				:group-tree="groupTree"
+				@changed="handleGroupsChanged"
 			/>
 		</div>
 	</section>
 </template>
 
 <script setup lang="ts">
-import type { PersonGroup } from "~/types/personnel";
-import AsyncPanel from "~/components/common/AsyncPanel.vue";
-import PersonnelPersonsTab from "~/components/personnel/PersonnelPersonsTab.vue";
-import PersonnelGroupsDialog from "~/components/personnel/dialogs/PersonnelGroupsDialog.vue";
-import { usePersonnelGroupTree } from "~/composables/systems/personnel/usePersonnelGroupTree";
-import { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePersonnelPersonsTab";
+import type { PersonGroup } from "~/types/personnel"
+import AsyncPanel from "~/components/common/AsyncPanel.vue"
+import PersonnelPersonsTab from "~/components/personnel/PersonnelPersonsTab.vue"
+import PersonnelGroupsDialog from "~/components/personnel/dialogs/PersonnelGroupsDialog.vue"
+import { usePersonnelGroupTree } from "~/composables/systems/personnel/usePersonnelGroupTree"
+import { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePersonnelPersonsTab"
+import { isSidebarGroupKeyValid, resolveMainGroupIdFromSidebarKey } from "~/utils/personnelGroups"
 
 const props = defineProps<{
-	canEdit: boolean;
-	personStatusLabels: Record<string, string>;
-	tableHeaderClass: string;
-	tableCellClass: string;
-	getPersonStatusBadgeClass: (status: string) => string;
-	personsTab: ReturnType<typeof usePersonnelPersonsTab>;
-}>();
+	canEdit: boolean
+	personStatusLabels: Record<string, string>
+	tableHeaderClass: string
+	tableCellClass: string
+	getPersonStatusBadgeClass: (status: string) => string
+	personsTab: ReturnType<typeof usePersonnelPersonsTab>
+}>()
 
-const selectedKey = ref<string>("all");
-const expandedMainIds = ref<Set<number>>(new Set());
-const showGroupsDialog = ref(false);
+const selectedKey = ref<string>("all")
+const expandedMainIds = ref<Set<number>>(new Set())
+const showGroupsDialog = ref(false)
 
 const panelClass =
-	"flex h-full min-h-0 flex-col rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8";
+	"flex h-full min-h-0 flex-col rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8"
 const actionButtonClass =
-	"rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-base";
+	"rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-base"
 const groupButtonBaseClass =
-	"w-full rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-lg text-white/85 hover:bg-white/10 2xl:text-xl";
-const groupButtonIdleClass = "";
-const groupButtonSelectedClass =
-	"border-cyan-300/60 bg-cyan-500/35 text-white ring-2 ring-cyan-400";
-const mainGroupCardBaseClass = "rounded-xl border bg-white/5";
-const mainGroupCardIdleClass = "border-white/10";
-const mainGroupCardSelectedClass = "border-cyan-300/50 bg-cyan-500/20 ring-2 ring-cyan-400";
+	"w-full rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-lg text-white/85 hover:bg-white/10 2xl:text-xl"
+const groupButtonIdleClass = ""
+const groupButtonSelectedClass = "border-cyan-300/60 bg-cyan-500/35 text-white ring-2 ring-cyan-400"
+const mainGroupCardBaseClass = "rounded-xl border bg-white/5"
+const mainGroupCardIdleClass = "border-white/10"
+const mainGroupCardSelectedClass = "border-cyan-300/50 bg-cyan-500/20 ring-2 ring-cyan-400"
 
 const {
 	groupTree,
 	isLoading: groupTreeLoading,
 	errorMessage: groupTreeError,
-	refresh: refreshGroupTree
-} = usePersonnelGroupTree();
+	refresh: refreshGroupTree,
+} = usePersonnelGroupTree()
 
-const isAllSelected = computed(() => selectedKey.value === "all");
-const isMainSelected = (mainId: number) => selectedKey.value === `main:${mainId}`;
-const isChildSelected = (childId: number) => selectedKey.value === `child:${childId}`;
+const resolvedMainGroupId = computed(() =>
+	resolveMainGroupIdFromSidebarKey(selectedKey.value, groupTree.value || [])
+)
+
+const isAllSelected = computed(() => selectedKey.value === "all")
+const isUngroupedSelected = computed(() => selectedKey.value === "ungrouped")
+const isMainSelected = (mainId: number) => selectedKey.value === `main:${mainId}`
+const isChildSelected = (childId: number) => selectedKey.value === `child:${childId}`
 
 const handleSelectAll = () => {
-	selectedKey.value = "all";
-	props.personsTab.setGroupFilterAll();
-};
+	selectedKey.value = "all"
+	props.personsTab.setGroupFilterAll()
+}
+
+const handleSelectUngrouped = () => {
+	selectedKey.value = "ungrouped"
+	props.personsTab.setGroupFilterUngrouped()
+}
 
 const handleSelectMain = (main: PersonGroup) => {
-	selectedKey.value = `main:${main.id}`;
-	props.personsTab.setGroupFilterByMainGroupId(main.id);
+	selectedKey.value = `main:${main.id}`
+	props.personsTab.setGroupFilterByMainGroupId(main.id)
 
 	// 點選主群組：同時切換子群組展開/收合（維持原行為）
-	const next = new Set(expandedMainIds.value);
-	if (next.has(main.id)) next.delete(main.id);
-	else next.add(main.id);
-	expandedMainIds.value = next;
-};
+	const next = new Set(expandedMainIds.value)
+	if (next.has(main.id)) next.delete(main.id)
+	else next.add(main.id)
+	expandedMainIds.value = next
+}
 
 const handleSelectChild = (child: PersonGroup) => {
-	selectedKey.value = `child:${child.id}`;
-	props.personsTab.setGroupFilterByChildGroupId(child.id);
-};
+	selectedKey.value = `child:${child.id}`
+	props.personsTab.setGroupFilterByChildGroupId(child.id)
+}
 
-const handleGroupsChanged = () => {
-	void refreshGroupTree();
-	// 群組/成員變更後，右側列表也同步刷新，避免顯示與篩選狀態不一致
-	void props.personsTab.loadPersons();
-};
+const handleGroupsChanged = async () => {
+	await refreshGroupTree()
+	if (!isSidebarGroupKeyValid(selectedKey.value, groupTree.value || [])) {
+		handleSelectAll()
+	}
+	void props.personsTab.loadPersons()
+}
 
 onMounted(() => {
-	void refreshGroupTree();
-});
+	void refreshGroupTree()
+})
 </script>

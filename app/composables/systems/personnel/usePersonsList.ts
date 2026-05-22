@@ -1,12 +1,22 @@
 import type { Person, Paged } from "~/types/personnel"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
+import {
+	PERSONNEL_API_ERROR_OPTS,
+	type PersonnelHandleApiError,
+} from "~/composables/systems/personnel/usePersonnelApi"
 import { DATA_LOADER_MIN_LOADING_DELAY_MS } from "~/composables/monitoring/useDataLoader"
 
 type EmployeeNoSort = "asc" | "desc"
 
+export type PersonsGroupFilter =
+	| { mode: "all" }
+	| { mode: "ungrouped" }
+	| { mode: "child"; id: number }
+	| { mode: "main"; id: number }
+
 export const usePersonsList = (params: {
 	personnelApi: PersonnelApi
-	handleApiError: (err: unknown, fallbackMessage: string) => string | void | null
+	handleApiError: PersonnelHandleApiError
 	pageSize?: number
 }) => {
 	const { personnelApi, handleApiError } = params
@@ -16,12 +26,7 @@ export const usePersonsList = (params: {
 	const isLoadingPersons = ref(false)
 	const personsLoadError = ref<string | null>(null)
 	const personFilter = reactive<{ q: string }>({ q: "" })
-	const groupFilter = ref<
-		| { mode: "all"; ids: number[] }
-		| { mode: "single"; ids: number[] }
-		| { mode: "multiple"; ids: number[] }
-		| { mode: "main"; id: number }
-	>({ mode: "all", ids: [] })
+	const groupFilter = ref<PersonsGroupFilter>({ mode: "all" })
 	const personsTotal = ref(0)
 	const personsOffset = ref(0)
 
@@ -43,11 +48,17 @@ export const usePersonsList = (params: {
 	})
 
 	const resolveGroupParams = () => {
-		if (groupFilter.value.mode === "main") return { mainGroupId: groupFilter.value.id }
-		const groupIds = groupFilter.value.ids.filter((x) => Number.isFinite(Number(x)))
-		if (groupFilter.value.mode === "single" && groupIds.length === 1) return { personGroupId: groupIds[0] }
-		if (groupFilter.value.mode === "multiple" && groupIds.length > 0) return { personGroupIds: groupIds }
+		const f = groupFilter.value
+		if (f.mode === "ungrouped") return { ungroupedOnly: true as const }
+		if (f.mode === "main") return { mainGroupId: f.id }
+		if (f.mode === "child") return { personGroupId: f.id }
 		return {}
+	}
+
+	const applyGroupFilter = (next: PersonsGroupFilter) => {
+		groupFilter.value = next
+		personsOffset.value = 0
+		void loadPersons()
 	}
 
 	const loadPersons = async () => {
@@ -55,15 +66,13 @@ export const usePersonsList = (params: {
 		personsLoadError.value = null
 		const startTime = Date.now()
 		try {
-			const params = {
+			const res = (await personnelApi.getPersons({
 				q: personFilter.q?.trim() || undefined,
-				sortBy: "employeeNo" as const,
 				sortOrder: employeeNoSort.value,
 				limit: PAGE_SIZE,
 				offset: personsOffset.value,
 				...resolveGroupParams(),
-			}
-			const res = (await personnelApi.getPersons(params)) as Paged<Person>
+			})) as Paged<Person>
 			const elapsed = Date.now() - startTime
 			const remainingDelay = Math.max(0, DATA_LOADER_MIN_LOADING_DELAY_MS - elapsed)
 			if (remainingDelay > 0) {
@@ -73,7 +82,7 @@ export const usePersonsList = (params: {
 			persons.value = Array.isArray(res.items) ? res.items : []
 			personsTotal.value = Number.isFinite(Number(res.total)) ? Number(res.total) : 0
 		} catch (err) {
-			const fromHandler = handleApiError(err, "載入人員失敗")
+			const fromHandler = handleApiError(err, "載入人員失敗", PERSONNEL_API_ERROR_OPTS)
 			personsLoadError.value =
 				(typeof fromHandler === "string" && fromHandler.trim()) ||
 				(err instanceof Error && err.message) ||
@@ -90,24 +99,6 @@ export const usePersonsList = (params: {
 		void loadPersons()
 	}
 
-	const setGroupFilterAll = () => {
-		groupFilter.value = { mode: "all", ids: [] }
-		personsOffset.value = 0
-		void loadPersons()
-	}
-
-	const goPrevPage = () => {
-		if (personsOffset.value <= 0) return
-		personsOffset.value = Math.max(0, personsOffset.value - PAGE_SIZE)
-		void loadPersons()
-	}
-
-	const goNextPage = () => {
-		if (personsOffset.value + PAGE_SIZE >= personsTotal.value) return
-		personsOffset.value = personsOffset.value + PAGE_SIZE
-		void loadPersons()
-	}
-
 	return {
 		PAGE_SIZE,
 		persons,
@@ -121,9 +112,25 @@ export const usePersonsList = (params: {
 		selectedEmployeeNoSort,
 		loadPersons,
 		handleSearch,
-		setGroupFilterAll,
-		goPrevPage,
-		goNextPage,
+		setGroupFilterAll: () => applyGroupFilter({ mode: "all" }),
+		setGroupFilterUngrouped: () => applyGroupFilter({ mode: "ungrouped" }),
+		setGroupFilterByMainGroupId: (id: number) => {
+			if (!Number.isFinite(id)) return
+			applyGroupFilter({ mode: "main", id: Math.trunc(id) })
+		},
+		setGroupFilterByChildGroupId: (id: number) => {
+			if (!Number.isFinite(id)) return
+			applyGroupFilter({ mode: "child", id: Math.trunc(id) })
+		},
+		goPrevPage: () => {
+			if (personsOffset.value <= 0) return
+			personsOffset.value = Math.max(0, personsOffset.value - PAGE_SIZE)
+			void loadPersons()
+		},
+		goNextPage: () => {
+			if (personsOffset.value + PAGE_SIZE >= personsTotal.value) return
+			personsOffset.value = personsOffset.value + PAGE_SIZE
+			void loadPersons()
+		},
 	}
 }
-

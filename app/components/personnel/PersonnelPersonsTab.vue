@@ -3,7 +3,17 @@
 		class="flex h-full min-h-0 flex-col rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8"
 	>
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-			<h2 class="text-xl font-semibold text-white 2xl:text-2xl">人員列表</h2>
+			<div class="flex items-center gap-2">
+				<h2 class="text-xl font-semibold text-white 2xl:text-2xl">人員列表</h2>
+				<button
+					v-if="canEdit && selectedMainGroupId != null"
+					type="button"
+					class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white hover:bg-white/30 2xl:px-6 2xl:py-3 2xl:text-base"
+					@click="showGroupMembersDialog = true"
+				>
+					群組成員
+				</button>
+			</div>
 			<div class="flex flex-wrap items-center gap-2">
 				<div class="flex items-center gap-2">
 					<input
@@ -65,6 +75,7 @@
 							</div>
 						</th>
 						<th :class="tableHeaderClass">姓名</th>
+						<th :class="tableHeaderClass">群組</th>
 						<th :class="tableHeaderClass">資料（平台）</th>
 						<th :class="tableHeaderClass">狀態</th>
 						<th v-if="canEdit" :class="tableHeaderClass">操作</th>
@@ -96,6 +107,7 @@
 						</td>
 						<td :class="tableCellClass">{{ p.employee_no }}</td>
 						<td :class="tableCellClass">{{ p.full_name || "—" }}</td>
+						<td :class="tableCellClass">{{ p.group_name?.trim() || "未分組" }}</td>
 						<td :class="tableCellClass">
 							<div class="flex flex-wrap items-center justify-center gap-1.5">
 								<span
@@ -130,7 +142,10 @@
 						</td>
 						<td :class="tableCellClass">
 							<span
-								:class="[getPersonStatusBadgeClass(p.status), 'rounded px-2 py-1 2xl:px-3 2xl:py-1.5']"
+								:class="[
+									getPersonStatusBadgeClass(p.status),
+									'rounded px-2 py-1 2xl:px-3 2xl:py-1.5',
+								]"
 							>
 								{{ personStatusLabels[p.status] }}
 							</span>
@@ -170,6 +185,7 @@
 
 		<PersonnelPersonDialog
 			v-model="showPersonDialog"
+			:group-tree="groupTree"
 			:state="personDialogState"
 			@submit="props.personsTab.submitPerson"
 			@face-file-change="props.personsTab.handleFaceFileChange"
@@ -183,6 +199,14 @@
 			v-model="showFaceCropDialog"
 			:file="faceCropSourceFile"
 			@confirm="applyCroppedFace"
+		/>
+
+		<PersonnelGroupMembersDialog
+			v-if="canEdit && selectedMainGroupId != null"
+			v-model="showGroupMembersDialog"
+			:main-group-id="selectedMainGroupId"
+			:group-tree="groupTree"
+			@changed="emit('changed')"
 		/>
 
 		<PersonnelImportDialog
@@ -205,25 +229,40 @@
 </template>
 
 <script setup lang="ts">
-import AsyncPanel from "~/components/common/AsyncPanel.vue";
-import FilterDropdown from "~/components/common/FilterDropdown.vue";
-import Pagination from "~/components/common/Pagination.vue";
-import type { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePersonnelPersonsTab";
-import PersonnelImportDialog from "~/components/personnel/dialogs/PersonnelImportDialog.vue";
-import FaceCropDialog from "~/components/personnel/dialogs/FaceCropDialog.vue";
-import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
-import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
-import PersonnelPersonDialog from "~/components/personnel/dialogs/PersonnelPersonDialog.vue";
-import type { PersonnelPersonDialogState } from "~/types/personnelUi";
+import AsyncPanel from "~/components/common/AsyncPanel.vue"
+import FilterDropdown from "~/components/common/FilterDropdown.vue"
+import Pagination from "~/components/common/Pagination.vue"
+import type { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePersonnelPersonsTab"
+import PersonnelImportDialog from "~/components/personnel/dialogs/PersonnelImportDialog.vue"
+import PersonnelGroupMembersDialog from "~/components/personnel/dialogs/PersonnelGroupMembersDialog.vue"
+import type { PersonGroup } from "~/types/personnel"
+import FaceCropDialog from "~/components/personnel/dialogs/FaceCropDialog.vue"
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
+import PersonnelPersonDialog from "~/components/personnel/dialogs/PersonnelPersonDialog.vue"
+import type { PersonnelPersonDialogState } from "~/types/personnel"
 
 const props = defineProps<{
-	canEdit: boolean;
-	personStatusLabels: Record<string, string>;
-	tableHeaderClass: string;
-	tableCellClass: string;
-	getPersonStatusBadgeClass: (status: string) => string;
-	personsTab: ReturnType<typeof usePersonnelPersonsTab>;
-}>();
+	canEdit: boolean
+	personStatusLabels: Record<string, string>
+	tableHeaderClass: string
+	tableCellClass: string
+	getPersonStatusBadgeClass: (status: string) => string
+	personsTab: ReturnType<typeof usePersonnelPersonsTab>
+	selectedMainGroupId: number | null
+	groupTree: PersonGroup[]
+}>()
+
+const emit = defineEmits<{ changed: [] }>()
+
+const showGroupMembersDialog = ref(false)
+
+watch(
+	() => props.selectedMainGroupId,
+	(id) => {
+		if (id == null) showGroupMembersDialog.value = false
+	}
+)
 
 const {
 	persons,
@@ -251,18 +290,18 @@ const {
 
 	showFaceCropDialog,
 	faceCropSourceFile,
-	applyCroppedFace
-} = props.personsTab;
+	applyCroppedFace,
+} = props.personsTab
 
-type PersonAccessControlDataSummary = ReturnType<typeof getPersonAccessControlDataSummary>;
+type PersonAccessControlDataSummary = ReturnType<typeof getPersonAccessControlDataSummary>
 
 const accessControlSummaryByPersonId = computed<Record<number, PersonAccessControlDataSummary>>(
 	() => {
-		const map: Record<number, PersonAccessControlDataSummary> = {};
-		for (const p of persons.value || []) map[p.id] = getPersonAccessControlDataSummary(p);
-		return map;
+		const map: Record<number, PersonAccessControlDataSummary> = {}
+		for (const p of persons.value || []) map[p.id] = getPersonAccessControlDataSummary(p)
+		return map
 	}
-);
+)
 
 const getAccessSummary = (personId: number): PersonAccessControlDataSummary => {
 	return (
@@ -270,15 +309,15 @@ const getAccessSummary = (personId: number): PersonAccessControlDataSummary => {
 			hasFace: false,
 			hasPassword: false,
 			hasCard: false,
-			hasFingerprint: false
+			hasFingerprint: false,
 		}
-	);
-};
+	)
+}
 
-const confirmDialog = useConfirmDialog();
-const showConfirmDialog = confirmDialog.showDialog;
-const confirmDialogConfig = confirmDialog.config;
-const pendingDeletePersonId = ref<number | null>(null);
+const confirmDialog = useConfirmDialog()
+const showConfirmDialog = confirmDialog.showDialog
+const confirmDialogConfig = confirmDialog.config
+const pendingDeletePersonId = ref<number | null>(null)
 
 // 以 composable 的 refs 為 SSOT，收斂成單一 state
 const personDialogState: PersonnelPersonDialogState = {
@@ -291,7 +330,7 @@ const personDialogState: PersonnelPersonDialogState = {
 		validBeginDate: props.personsTab.validBeginDate,
 		validEndDate: props.personsTab.validEndDate,
 		cardNo: props.personsTab.cardNo,
-		fingerPrintData: props.personsTab.fingerPrintData
+		fingerPrintData: props.personsTab.fingerPrintData,
 	},
 	capture: {
 		captureDeviceId: props.personsTab.captureDeviceId,
@@ -304,48 +343,48 @@ const personDialogState: PersonnelPersonDialogState = {
 
 		fingerDeviceId: props.personsTab.fingerDeviceId,
 		isCapturingFingerPrint: props.personsTab.isCapturingFingerPrint,
-		fingerPrintErrorMessage: props.personsTab.fingerPrintErrorMessage
+		fingerPrintErrorMessage: props.personsTab.fingerPrintErrorMessage,
 	},
 	ui: {
 		facePreviewUrl: props.personsTab.personFormFacePreview,
 		isSubmitting: props.personsTab.isSubmitting,
-		errorMessage: props.personsTab.errorMessage
-	}
-};
+		errorMessage: props.personsTab.errorMessage,
+	},
+}
 
 const handleFilterQInput = (e: Event) => {
-	const value = (e.target as HTMLInputElement | null)?.value ?? "";
-	personFilter.q = value;
-};
+	const value = (e.target as HTMLInputElement | null)?.value ?? ""
+	personFilter.q = value
+}
 
 const localEmployeeNoSort = computed<string>({
 	get: () => selectedEmployeeNoSort.value,
-	set: v => (selectedEmployeeNoSort.value = v)
-});
+	set: (v) => (selectedEmployeeNoSort.value = v),
+})
 
-const handleSearch = () => props.personsTab.handleSearch();
+const handleSearch = () => props.personsTab.handleSearch()
 
 const dataPillClass = (hasData: boolean) => {
-	if (hasData) return "border-emerald-400/30 bg-emerald-500/15 text-emerald-100";
-	return "border-white/15 bg-white/5 text-white/60";
-};
+	if (hasData) return "border-emerald-400/30 bg-emerald-500/15 text-emerald-100"
+	return "border-white/15 bg-white/5 text-white/60"
+}
 
 const confirmDeletePerson = (p: { id: number; employee_no: string; full_name?: string | null }) => {
-	pendingDeletePersonId.value = p.id;
+	pendingDeletePersonId.value = p.id
 	confirmDialog.show({
 		title: "確認刪除",
 		message: `確定要刪除人員「${p.employee_no} ${p.full_name || ""}」嗎？`,
 		details: "此操作無法復原。",
-		type: "danger"
-	});
-};
+		type: "danger",
+	})
+}
 
 const handleConfirmDelete = async () => {
-	const id = pendingDeletePersonId.value;
-	if (id == null) return;
-	const p = persons.value.find(x => x.id === id);
-	if (!p) return;
-	await props.personsTab.deletePerson(p);
-	pendingDeletePersonId.value = null;
-};
+	const id = pendingDeletePersonId.value
+	if (id == null) return
+	const p = persons.value.find((x) => x.id === id)
+	if (!p) return
+	await props.personsTab.deletePerson(p)
+	pendingDeletePersonId.value = null
+}
 </script>

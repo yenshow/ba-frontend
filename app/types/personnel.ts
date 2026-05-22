@@ -1,3 +1,6 @@
+import type { Ref, ComputedRef } from "vue";
+import type { Device } from "~/types/device";
+
 export type { Paged } from "~/utils/pagingUtils";
 
 /** 人員群組 */
@@ -6,7 +9,6 @@ export interface PersonGroup {
 	name: string;
 	parent_id?: number | null;
 	children?: PersonGroup[];
-	description?: string | null;
 	created_by?: number | null;
 	created_at?: string;
 	updated_at?: string;
@@ -19,7 +21,7 @@ export interface Person {
 	full_name?: string | null;
 	person_group_id?: number | null;
 	group_name?: string | null;
-	status: "active" | "inactive" | "deleted";
+	status: "active" | "inactive";
 	face_url?: string | null;
 	/** 後端 getPersonsPaged 會附上門禁權限摘要（JSON array） */
 	access_locations?: AccessLocation[] | null;
@@ -191,3 +193,51 @@ export interface SyncLocationJobItemsPage {
 	limit: number;
 	offset: number;
 }
+
+// ---------- 人員編輯 Dialog UI 狀態 ----------
+
+export type PersonnelPersonForm = {
+	employeeNo: string;
+	fullName: string;
+	status: "active" | "inactive";
+	faceUrl: string;
+	/** FilterDropdown value；空字串 = 未分組 */
+	personGroupId: string;
+};
+
+export type PersonnelPersonAccessControlState = {
+	accessControlDevices: Ref<Device[]>;
+	password: Ref<string>;
+	isLongTerm: Ref<boolean>;
+	validBeginDate: Ref<string>;
+	validEndDate: Ref<string>;
+	cardNo: Ref<string>;
+	fingerPrintData: Ref<string>;
+};
+
+export type PersonnelPersonCaptureState = {
+	captureDeviceId: Ref<number | null>;
+	isCapturingFace: Ref<boolean>;
+	captureErrorMessage: Ref<string | null>;
+	cardDeviceId: Ref<number | null>;
+	isCapturingCard: Ref<boolean>;
+	cardErrorMessage: Ref<string | null>;
+	fingerDeviceId: Ref<number | null>;
+	isCapturingFingerPrint: Ref<boolean>;
+	fingerPrintErrorMessage: Ref<string | null>;
+};
+
+export type PersonnelPersonDialogUiState = {
+	isSubmitting: Ref<boolean>;
+	errorMessage: Ref<string | null>;
+	facePreviewUrl: ComputedRef<string | null>;
+};
+
+/** 人員編輯 Dialog 的 UI State（供 Container 與 Dialog 共用） */
+export type PersonnelPersonDialogState = {
+	editingPerson: Ref<Person | null>;
+	form: PersonnelPersonForm;
+	accessControl: PersonnelPersonAccessControlState;
+	capture: PersonnelPersonCaptureState;
+	ui: PersonnelPersonDialogUiState;
+};

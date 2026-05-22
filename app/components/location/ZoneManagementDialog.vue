@@ -112,21 +112,11 @@
 															↓
 														</button>
 													</div>
-													<button
-														type="button"
-														class="p-2 text-rose-400 transition-colors hover:text-rose-300"
-														@click.stop="handleDeleteZone(getZoneId(zone))"
+													<IconTrashButton
 														title="刪除區域"
-													>
-														<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-															/>
-														</svg>
-													</button>
+														aria-label="刪除區域"
+														@click.stop="handleDeleteZone(getZoneId(zone))"
+													/>
 												</div>
 											</div>
 
@@ -237,6 +227,7 @@ import EnvironmentLocationManagement from "./LocationManagement/EnvironmentLocat
 import PeopleCountingLocationManagement from "./LocationManagement/PeopleCountingLocationManagement.vue";
 import VehicleAccessLocationManagement from "./LocationManagement/VehicleAccessLocationManagement.vue";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
+import IconTrashButton from "~/components/common/IconTrashButton.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import { nextTick, type Component } from "vue";
@@ -364,8 +355,7 @@ const isLoadingDevices = ref(false);
 
 // 人員群組和門禁設備（僅用於人流統計系統）
 const externalDataApi = useExternalDataApi();
-const { enableYscpPeopleCounting, ensureLoaded: ensureModuleRegistryLoaded } =
-	useModuleRegistry();
+const { enableYscpPeopleCounting, ensureLoaded: ensureModuleRegistryLoaded } = useModuleRegistry();
 const personGroups = ref<Array<{ id: number; name: string; is_deleted?: number }>>([]);
 const doors = ref<
 	Array<{
