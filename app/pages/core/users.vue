@@ -84,6 +84,14 @@
 											編輯
 										</button>
 										<button
+											v-if="canShowResetPasswordButton(user)"
+											type="button"
+											class="btn-list-reset"
+											@click="confirmResetPassword(user)"
+										>
+											重設密碼
+										</button>
+										<button
 											v-if="canShowDeleteButton(user)"
 											type="button"
 											class="btn-list-delete"
@@ -245,6 +253,10 @@ import {
 	permissionGrantedMapsEqual,
 	permissionOverridesFromGranted,
 } from "~/composables/systems/users/useUserPermissionDraft"
+import {
+	canResetPasswordForUser,
+	DEFAULT_RESET_PASSWORD,
+} from "~/composables/systems/users/useAccountSettings"
 
 definePageMeta({
 	layout: "default",
@@ -269,8 +281,8 @@ const showConfirmDialog = computed({
 	},
 })
 const confirmDialogConfig = computed(() => confirmDialog.config.value)
-const pendingDeleteUserId = ref<number | null>(null)
-const confirmMode = ref<"delete">("delete")
+const pendingActionUserId = ref<number | null>(null)
+const confirmMode = ref<"delete" | "resetPassword">("delete")
 
 const permissionDefinitions = ref<PermissionDefinition[]>([])
 const permissionGranted = ref<Record<number, boolean>>({})
@@ -362,6 +374,9 @@ const getStatusBadgeClass = (status: string) => {
 	}
 	return classes[status as keyof typeof classes] || classes.inactive
 }
+
+const canShowResetPasswordButton = (user: User) =>
+	canResetPasswordForUser(currentUser.value, user)
 
 const canShowDeleteButton = (user: User) => {
 	if (!canWrite.value) {
@@ -539,7 +554,8 @@ const handleSubmit = async () => {
 }
 
 const confirmDeleteUser = (user: User) => {
-	pendingDeleteUserId.value = user.id
+	pendingActionUserId.value = user.id
+	confirmMode.value = "delete"
 	confirmDialog.show({
 		title: "確認刪除",
 		message: `確定要刪除用戶「${user.username}」嗎？`,
@@ -550,29 +566,56 @@ const confirmDeleteUser = (user: User) => {
 	})
 }
 
+const confirmResetPassword = (user: User) => {
+	pendingActionUserId.value = user.id
+	confirmMode.value = "resetPassword"
+	confirmDialog.show({
+		title: "重設密碼",
+		message: `確定要將「${user.username}」的密碼重設為預設值嗎？`,
+		details: `新密碼將設為 ${DEFAULT_RESET_PASSWORD}。對方需使用新密碼重新登入。`,
+		type: "warning",
+		confirmText: "重設",
+		cancelText: "取消",
+	})
+}
+
 const handleConfirmDialog = async () => {
-	const id = pendingDeleteUserId.value
+	const id = pendingActionUserId.value
 	if (id == null) return
-	const user = users.value.find((u) => u.id === id)
-	if (!user) {
-		pendingDeleteUserId.value = null
+	const target = users.value.find((u) => u.id === id)
+	if (!target) {
+		pendingActionUserId.value = null
+		return
+	}
+
+	if (confirmMode.value === "resetPassword") {
+		try {
+			const result = await userApi.updatePassword(id, {
+				newPassword: DEFAULT_RESET_PASSWORD,
+			})
+			toast.success(result.message || "密碼已重設")
+		} catch (error) {
+			handleError(error, "重設密碼失敗")
+		} finally {
+			pendingActionUserId.value = null
+		}
 		return
 	}
 
 	try {
-		const result = await userApi.deleteUser(user.id)
-		users.value = users.value.filter((u) => u.id !== user.id)
+		const result = await userApi.deleteUser(target.id)
+		users.value = users.value.filter((u) => u.id !== target.id)
 		total.value = Math.max(0, total.value - 1)
 		toast.success(result.message || "刪除成功")
 	} catch (error) {
 		handleError(error, "刪除用戶失敗")
 	} finally {
-		pendingDeleteUserId.value = null
+		pendingActionUserId.value = null
 	}
 }
 
 const handleCancelConfirmDialog = () => {
-	pendingDeleteUserId.value = null
+	pendingActionUserId.value = null
 }
 
 const handlePreviousPage = () => {

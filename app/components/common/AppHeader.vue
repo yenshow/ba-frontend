@@ -184,6 +184,29 @@
 
 							<!-- Menu Items -->
 							<div class="py-1">
+								<NuxtLink
+									v-if="showAccountSettingsLink"
+									to="/core/account"
+									@click="closeUserMenu"
+									class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 2xl:text-base"
+								>
+									<svg
+										class="h-8 w-8 flex-shrink-0 text-gray-400"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+										aria-hidden="true"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+										/>
+									</svg>
+									帳號設定
+								</NuxtLink>
+
 								<!-- 用戶管理 (僅管理員顯示) -->
 								<NuxtLink
 									v-if="canWrite"
@@ -349,6 +372,7 @@ import {
 	MODULE_CATEGORY_LABELS,
 	MODULE_CATEGORY_ORDER,
 } from "~/constants/moduleCategories"
+import { canAccessAccountPage } from "~/composables/systems/users/useAccountSettings"
 
 // 用戶選單狀態
 const isUserMenuOpen = ref(false)
@@ -360,6 +384,7 @@ const moreMenuRef = ref<HTMLElement | null>(null)
 
 // 認證狀態
 const { user, isAdmin, canWrite, hasModulePermission, logout: authLogout } = useAuth()
+const showAccountSettingsLink = computed(() => canAccessAccountPage(user.value))
 const { isModuleLocked: isModuleLockedByLicense } = useLicense()
 const toast = useToast()
 

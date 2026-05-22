@@ -191,6 +191,7 @@ export const usePersonnelSyncEngine = (params: {
 						warnings: syncWarnings.value,
 						tailItems: activeSyncJobTailItems.value ?? [],
 					})
+					await ensureSyncCandidates(locId)
 				}
 
 				if ((syncWarnings.value || []).length > 0) {
@@ -327,7 +328,7 @@ export const usePersonnelSyncEngine = (params: {
 		const s = cell.status
 		if (s === "pending") return "待同步"
 		if (s === "success") return "成功"
-		if (s === "unchanged") return "成功"
+		if (s === "unchanged") return "未變更"
 		if (s === "failed") return "失敗"
 		return "無資料"
 	}
@@ -337,7 +338,7 @@ export const usePersonnelSyncEngine = (params: {
 			pending: "bg-amber-500/15 text-amber-100 border border-amber-400/30",
 			success: "bg-emerald-500/15 text-emerald-100 border border-emerald-400/30",
 			failed: "bg-rose-500/15 text-rose-100 border border-rose-400/30",
-			unchanged: "bg-emerald-500/15 text-emerald-100 border border-emerald-400/30",
+			unchanged: "bg-slate-500/15 text-slate-200 border border-slate-400/25",
 			no_data: "bg-white/5 text-white/45 border border-white/10",
 		}
 		return m[status] ?? "bg-white/5 text-white/60 border border-white/10"
