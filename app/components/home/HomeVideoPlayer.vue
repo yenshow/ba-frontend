@@ -74,7 +74,6 @@
 <script setup lang="ts">
 import EditMockDialog from "~/components/common/EditMockDialog.vue";
 import { useAppSettings, VIDEO_UPLOAD_HINT } from "~/composables/core/useAppSettings";
-import { useUploadBaseUrl } from "~/composables/core/useUploadBaseUrl";
 import { resolveUploadUrl } from "~/utils/apiUtils";
 import { createSafeFileName } from "~/utils/fileUtils";
 import { useAuth } from "~/composables/core/useAuth";
@@ -93,7 +92,8 @@ const { canWrite } = useAuth();
 
 const isEditOpen = ref(false);
 const videoRef = ref<HTMLVideoElement | null>(null);
-const apiBase = useUploadBaseUrl();
+const config = useRuntimeConfig();
+const apiBase = (config.public.apiBase as string) || "";
 
 /** 影片結束時重播（搭配 loop，確保自動重播） */
 const handleVideoEnded = () => {

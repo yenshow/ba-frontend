@@ -1,7 +1,7 @@
-import type { Ref, ComputedRef } from "vue";
-import type { Device } from "~/types/device";
+import type { Ref, ComputedRef } from "vue"
+import type { Device } from "~/types/device"
 
-export type { Paged } from "~/utils/pagingUtils";
+export type { Paged } from "~/utils/pagingUtils"
 
 /** 人員群組 */
 export interface PersonGroup {
@@ -58,22 +58,10 @@ export interface SyncLocationCandidate {
 	needs_sync?: boolean;
 	needs_sync_steps?: Array<"user_info" | "face" | "card" | "fingerprint" | string>;
 	last_sync?: {
-		user_info: {
-			status: "success" | "failed" | "unchanged" | "no_data" | string;
-			at: number | string | null;
-		};
-		face: {
-			status: "success" | "failed" | "unchanged" | "no_data" | string;
-			at: number | string | null;
-		};
-		card: {
-			status: "success" | "failed" | "unchanged" | "no_data" | string;
-			at: number | string | null;
-		};
-		fingerprint: {
-			status: "success" | "failed" | "unchanged" | "no_data" | string;
-			at: number | string | null;
-		};
+		user_info: { status: "success" | "failed" | "unchanged" | "no_data" | string; at: number | string | null };
+		face: { status: "success" | "failed" | "unchanged" | "no_data" | string; at: number | string | null };
+		card: { status: "success" | "failed" | "unchanged" | "no_data" | string; at: number | string | null };
+		fingerprint: { status: "success" | "failed" | "unchanged" | "no_data" | string; at: number | string | null };
 	};
 }
 

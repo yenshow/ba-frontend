@@ -263,7 +263,6 @@
 </template>
 
 <script setup lang="ts">
-import { useUploadBaseUrl } from "~/composables/core/useUploadBaseUrl";
 import { resolveUploadUrl } from "~/utils/apiUtils";
 import { useImageCrop } from "~/composables/core/useImageCrop";
 import { formatCropAspectLabel, getCropCanvasSize } from "~/utils/imageCropUtils";
@@ -344,7 +343,8 @@ const handleSyncDraftFromRange = () => {
 	draftValue.value = String(clamped);
 };
 
-const apiBase = useUploadBaseUrl();
+const config = useRuntimeConfig();
+const apiBase = (config.public.apiBase as string) || "";
 const previewResolvedUrl = computed(() => resolveUploadUrl(draftValue.value ?? "", apiBase));
 
 const cropFile = ref<File | null>(null);

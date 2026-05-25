@@ -10,7 +10,9 @@
 				>
 					<header class="flex items-center justify-between gap-3 pr-7 2xl:pr-8">
 						<div class="flex min-w-0 items-center gap-3">
-							<h3 class="min-w-0 truncate text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">
+							<h3
+								class="min-w-0 truncate text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl"
+							>
 								{{ dialogTitle }}
 							</h3>
 							<FormChangeIndicator
@@ -28,6 +30,7 @@
 							&times;
 						</button>
 					</header>
+
 					<div class="mb-3 flex flex-wrap items-center gap-2">
 						<input
 							v-model="candidatesQuery"
@@ -37,7 +40,9 @@
 							aria-label="搜尋人員"
 							@keydown.enter="loadCandidates"
 						/>
-						<button type="button" class="btn-secondary text-sm" @click="loadCandidates">搜尋</button>
+						<button type="button" class="btn-secondary text-sm" @click="loadCandidates">
+							搜尋
+						</button>
 					</div>
 
 					<div class="show-scrollbar flex-1 overflow-y-auto pr-7 2xl:pr-8">
@@ -76,7 +81,12 @@
 											viewBox="0 0 24 24"
 											aria-hidden="true"
 										>
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M9 5l7 7-7 7"
+											/>
 										</svg>
 										<span class="truncate text-base font-medium text-white 2xl:text-lg">{{
 											child.name
@@ -95,7 +105,10 @@
 										<p v-else-if="candidatesErrorText" class="text-sm text-rose-300" role="alert">
 											{{ candidatesErrorText }}
 										</p>
-										<div v-else class="grid max-h-[320px] grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
+										<div
+											v-else
+											class="grid max-h-[320px] grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2"
+										>
 											<label
 												v-for="p in candidatesItems"
 												:key="`${child.id}-${p.id}`"
@@ -108,7 +121,11 @@
 														:checked="isMemberSelected(child.id, p.id)"
 														:aria-label="`子群組 ${child.name}：${p.employee_no} ${p.full_name || ''}`"
 														@change="
-															handleToggleMember(child.id, p.id, ($event.target as HTMLInputElement).checked)
+															handleToggleMember(
+																child.id,
+																p.id,
+																($event.target as HTMLInputElement).checked
+															)
 														"
 													/>
 													<span class="min-w-0 truncate text-sm text-white/90">
@@ -131,7 +148,9 @@
 						</div>
 					</div>
 
-					<footer class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8">
+					<footer
+						class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8"
+					>
 						<button type="button" class="btn-secondary" @click="requestClose">關閉</button>
 						<div class="flex-1"></div>
 						<button
@@ -160,21 +179,21 @@
 </template>
 
 <script setup lang="ts">
-import type { PersonGroup } from "~/types/personnel";
-import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
-import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
-import { useToast } from "~/composables/core/useToast";
-import { useErrorHandler } from "~/composables/core/useErrorHandler";
-import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi";
-import { usePersonnelGroupMembersDialog } from "~/composables/systems/personnel/usePersonnelGroupMembersDialog";
+import type { PersonGroup } from "~/types/personnel"
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
+import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
+import { useToast } from "~/composables/core/useToast"
+import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
+import { usePersonnelGroupMembersDialog } from "~/composables/systems/personnel/usePersonnelGroupMembersDialog"
 
 const props = defineProps<{
-	modelValue: boolean;
-	mainGroupId: number;
-	groupTree: PersonGroup[];
-}>();
+	modelValue: boolean
+	mainGroupId: number
+	groupTree: PersonGroup[]
+}>()
 
-const emit = defineEmits<{ "update:modelValue": [value: boolean]; changed: [] }>();
+const emit = defineEmits<{ "update:modelValue": [value: boolean]; changed: [] }>()
 
 const {
 	dialogTitle,
@@ -199,18 +218,18 @@ const {
 	requestClose,
 	showConfirmDialog,
 	confirmDialogConfig,
-	confirmDismiss
+	confirmDismiss,
 } = usePersonnelGroupMembersDialog({
 	personnelApi: usePersonnelApi(),
 	mainGroupId: toRef(props, "mainGroupId"),
 	groupTree: toRef(props, "groupTree"),
 	modelValue: toRef(props, "modelValue"),
 	onSaved: () => {
-		emit("changed");
-		emit("update:modelValue", false);
+		emit("changed")
+		emit("update:modelValue", false)
 	},
 	dismissDialog: () => emit("update:modelValue", false),
 	handleApiError: useErrorHandler().handleError,
-	toast: useToast()
-});
+	toast: useToast(),
+})
 </script>

@@ -6,40 +6,43 @@
 				<p class="text-base text-white/80 2xl:text-xl">管理人員資料、人員群組、與門禁權限</p>
 			</header>
 
-			<div class="me-auto space-x-2 rounded-xl border border-white/20 bg-white/5 p-1">
-				<button
-					v-for="tab in tabs"
-					:key="tab.id"
-					type="button"
-					@click="activeTab = tab.id"
-					:class="[
-						'rounded-lg px-3 py-1.5 text-base transition-colors 2xl:text-lg',
-						activeTab === tab.id ? 'bg-cyan-500 text-white' : 'text-white/80 hover:bg-white/10'
-					]"
-					:aria-label="tab.label"
-				>
-					{{ tab.label }}
-				</button>
-			</div>
+			<PageTabs
+				v-model="activeTab"
+				:tabs="tabs"
+				:panels="false"
+				list-class="me-auto"
+				aria-label="人員管理分頁"
+				id-prefix="personnel-tab"
+			/>
 		</div>
 
-		<PersonnelManageTab
-			v-show="activeTab === 'manage'"
-			:can-edit="canEdit"
-			:person-status-labels="personStatusLabels"
-			:table-header-class="tableHeaderClass"
-			:table-cell-class="tableCellClass"
-			:get-person-status-badge-class="getPersonStatusBadgeClass"
-			:persons-tab="personsTab"
-		/>
+		<PageTabs
+			v-model="activeTab"
+			:tabs="tabs"
+			:list="false"
+			aria-label="人員管理分頁"
+			id-prefix="personnel-tab"
+		>
+			<template #manage>
+				<PersonnelManageTab
+					:can-edit="canEdit"
+					:person-status-labels="personStatusLabels"
+					:table-header-class="tableHeaderClass"
+					:table-cell-class="tableCellClass"
+					:get-person-status-badge-class="getPersonStatusBadgeClass"
+					:persons-tab="personsTab"
+				/>
+			</template>
 
-		<PersonnelSyncTab
-			v-show="activeTab === 'sync'"
-			:can-edit="canEdit"
-			:table-header-class="tableHeaderClass"
-			:table-cell-class="tableCellClass"
-			:sync-tab="syncTab"
-		/>
+			<template #sync>
+				<PersonnelSyncTab
+					:can-edit="canEdit"
+					:table-header-class="tableHeaderClass"
+					:table-cell-class="tableCellClass"
+					:sync-tab="syncTab"
+				/>
+			</template>
+		</PageTabs>
 	</div>
 </template>
 
@@ -57,6 +60,7 @@ import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePersonnelPersonsTab";
 import { usePersonnelSyncTab } from "~/composables/systems/personnel/usePersonnelSyncTab";
 import { PERSON_STATUS_LABELS, getPersonStatusBadgeClass } from "~/utils/personnelUtils";
+import PageTabs from "~/components/common/PageTabs.vue";
 import PersonnelManageTab from "~/components/personnel/PersonnelManageTab.vue";
 import PersonnelSyncTab from "~/components/personnel/PersonnelSyncTab.vue";
 

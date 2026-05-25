@@ -10,7 +10,9 @@ import type {
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import {
 	buildSyncPersonStepRows,
-	type SyncStepUiStatus,
+	enrichSyncWarningsWithLocation,
+	filterWarningsForLocation,
+	isDeviceLevelSyncWarning,
 } from "~/utils/personnelUtils"
 import { clampOffset, getNextOffset, getPrevOffset } from "~/composables/systems/personnel/personnelList"
 
@@ -131,9 +133,7 @@ export const usePersonnelSyncEngine = (params: {
 			const st = String(it.status || "").trim()
 			if (st === "success" || st === "failed" || st === "unchanged") processed[emp] = true
 		}
-		const locationRunFailure = (warnings || []).some(
-			(w) => String(w.type || "") === "sync" && !String(w.employeeNo || "").trim()
-		)
+		const locationRunFailure = (warnings || []).some(isDeviceLevelSyncWarning)
 		lastCompletedSyncByLocationId[locationId] = {
 			finishedAt: job.finishedAt ?? null,
 			locationRunFailure,
@@ -179,10 +179,10 @@ export const usePersonnelSyncEngine = (params: {
 				const loc =
 					locId != null ? (syncableLocations.value || []).find((x) => x.id === locId) || null : null
 				const locLabel = loc ? `${loc.zone_name} / ${loc.name}` : undefined
-				syncWarnings.value = rawWarnings.map((w) => ({
-					...w,
-					locationName: w.locationName || locLabel,
-				}))
+				syncWarnings.value = enrichSyncWarningsWithLocation(rawWarnings, {
+					locationId: locId ?? null,
+					locationName: locLabel,
+				})
 
 				if (locId != null) {
 					updateLastCompletedCacheForLocation({
@@ -261,8 +261,11 @@ export const usePersonnelSyncEngine = (params: {
 						locLabelById.set(loc.id, `${loc.zone_name} / ${loc.name}`)
 					}
 					const allWarnings = (result?.results ?? []).flatMap((r) => {
-						const label = locLabelById.get(Number(r.locationId)) || r.locationName || undefined
-						return (r.warnings ?? []).map((w) => ({ ...w, locationName: label }))
+						const lid = Number(r.locationId)
+						return enrichSyncWarningsWithLocation(r.warnings ?? [], {
+							locationId: Number.isFinite(lid) ? lid : null,
+							locationName: locLabelById.get(lid) || r.locationName,
+						})
 					})
 					syncWarnings.value = allWarnings
 					if ((syncWarnings.value || []).length > 0) {
@@ -293,9 +296,8 @@ export const usePersonnelSyncEngine = (params: {
 		return []
 	}
 
-	const getWarningsForLocation = (locationId: number) => {
-		return (syncWarnings.value || []).filter((w) => Number(w.locationId) === Number(locationId))
-	}
+	const getWarningsForLocation = (locationId: number) =>
+		filterWarningsForLocation(syncWarnings.value, locationId, activeSyncLocationId.value)
 
 	const getLocationLabel = (locationId: number) => {
 		const loc = (syncableLocations.value || []).find((x) => x.id === locationId) || null
@@ -324,26 +326,6 @@ export const usePersonnelSyncEngine = (params: {
 		return buildSyncPersonStepRows({ candidates, items, warnings })
 	}
 
-	const syncStepShortLabel = (cell: { status: SyncStepUiStatus }) => {
-		const s = cell.status
-		if (s === "pending") return "待同步"
-		if (s === "success") return "成功"
-		if (s === "unchanged") return "未變更"
-		if (s === "failed") return "失敗"
-		return "無資料"
-	}
-
-	const syncStepPillClass = (status: SyncStepUiStatus) => {
-		const m: Record<SyncStepUiStatus, string> = {
-			pending: "bg-amber-500/15 text-amber-100 border border-amber-400/30",
-			success: "bg-emerald-500/15 text-emerald-100 border border-emerald-400/30",
-			failed: "bg-rose-500/15 text-rose-100 border border-rose-400/30",
-			unchanged: "bg-slate-500/15 text-slate-200 border border-slate-400/25",
-			no_data: "bg-white/5 text-white/45 border border-white/10",
-		}
-		return m[status] ?? "bg-white/5 text-white/60 border border-white/10"
-	}
-
 	return {
 		// candidates
 		syncCandidatesByLocation,
@@ -370,8 +352,6 @@ export const usePersonnelSyncEngine = (params: {
 		getWarningsForLocation,
 		isLocationSyncJobRunning,
 		getSyncStepRowsForLocation,
-		syncStepPillClass,
-		syncStepShortLabel,
 	}
 }
 

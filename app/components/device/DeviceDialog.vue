@@ -180,11 +180,12 @@
 						<template v-if="deviceTypeCode === 'sensor'">
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 								<span>通訊協定 *</span>
-								<select v-model="sensorConfig.protocol" required class="form-input form-select">
-									<option value="modbus">Modbus / TCP</option>
-									<option value="http">HTTP</option>
-									<option value="mqtt">MQTT</option>
-								</select>
+								<FilterDropdown
+									v-model="sensorConfig.protocol"
+									:options="sensorProtocolOptions"
+									placeholder="請選擇協定"
+									text-size="text-sm 2xl:text-base"
+								/>
 							</label>
 							<template v-if="sensorConfig.protocol === 'modbus'">
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
@@ -482,6 +483,12 @@ const cameraRtspPreview = computed(() =>
 		cameraPassword.value
 	)
 );
+
+const sensorProtocolOptions = [
+	{ value: "modbus", label: "Modbus / TCP" },
+	{ value: "http", label: "HTTP" },
+	{ value: "mqtt", label: "MQTT" },
+];
 
 const sensorConfig = reactive<SensorDeviceConfig>({
 	type: "sensor",

@@ -299,13 +299,15 @@ export const useApiBase = () => {
 	}
 
 	const requestBlob = async (path: string, options: RequestOptions = {}): Promise<Blob> => {
-		const { url, method, headers, fetcherOptions } = buildRequestInit(path, options)
+		const { url, method, headers, fetcherOptions, finalBody } = buildRequestInit(path, options)
+		const { body: _body, ...fetcherOptionsWithoutBody } = fetcherOptions
 
 		try {
 			const response = await fetch(url, {
-				...fetcherOptions,
+				...fetcherOptionsWithoutBody,
 				method,
 				headers,
+				body: finalBody as BodyInit | null | undefined,
 				credentials: "include",
 			})
 

@@ -6,7 +6,7 @@ export interface User {
 
 	role: "admin" | "operator" | "viewer";
 
-	status: "active" | "inactive" | "suspended";
+	status: "active" | "inactive";
 
 	/** 有效權限代碼（admin 全部；其餘僅 user_permission_overrides，見 auth-rbac.md） */
 	permissions?: string[];
@@ -75,7 +75,7 @@ export interface UpdateUserData {
 
 	role?: "admin" | "operator" | "viewer";
 
-	status?: "active" | "inactive" | "suspended";
+	status?: "active" | "inactive";
 }
 
 export interface LoginResponse {

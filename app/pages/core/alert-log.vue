@@ -1,34 +1,19 @@
 <template>
 	<div class="space-y-6 2xl:space-y-8">
-		<div class="flex items-center justify-between">
+		<div class="flex flex-wrap items-center justify-between gap-4">
 			<header class="me-4 flex flex-col gap-1 2xl:gap-2">
 				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">警示紀錄</h1>
 				<p class="text-base text-white/80 2xl:text-xl">查看與管理系統警示訊息</p>
 			</header>
 
-			<!-- 僅 admin 可切換「警示紀錄／規則管理」 -->
-			<div v-if="isAdmin" class="me-auto space-x-2 rounded-xl border border-white/20 bg-white/5 p-1">
-				<button
-					type="button"
-					@click="currentMode = 'alerts'"
-					:class="[
-						'rounded-lg px-3 py-1.5 text-base transition-colors 2xl:text-lg',
-						currentMode === 'alerts' ? 'bg-cyan-500 text-white' : 'text-white/80 hover:bg-white/10'
-					]"
-				>
-					警示紀錄
-				</button>
-				<button
-					type="button"
-					@click="handleSwitchToRules"
-					:class="[
-						'rounded-lg px-3 py-1.5 text-base transition-colors 2xl:text-lg',
-						currentMode === 'rules' ? 'bg-cyan-500 text-white' : 'text-white/80 hover:bg-white/10'
-					]"
-				>
-					警報設定
-				</button>
-			</div>
+			<PageTabs
+				v-model="currentMode"
+				:tabs="alertModeTabs"
+				:panels="false"
+				list-class="me-auto"
+				aria-label="警示紀錄分頁"
+				id-prefix="alert-log-tab"
+			/>
 
 			<div class="flex items-center gap-3 2xl:gap-4">
 				<template v-if="currentMode === 'alerts'">
@@ -60,42 +45,52 @@
 			</div>
 		</div>
 
-		<AlertListSection
-			v-if="currentMode === 'alerts'"
-			:alerts="alerts"
-			:total-alerts="totalAlerts"
-			:unresolved-count="unresolvedCount"
-			:offset="offset"
-			:limit="limit"
-			:is-loading="isLoading"
-			:error="listLoadError"
-			:is-ignoring="isIgnoring"
-			:is-admin="isAdmin"
-			@ignore="handleIgnore"
-			@unignore="handleUnignore"
-			@previous="goToPreviousPage"
-			@next="goToNextPage"
-		/>
+		<PageTabs
+			v-model="currentMode"
+			:tabs="alertModeTabs"
+			:list="false"
+			aria-label="警示紀錄分頁"
+			id-prefix="alert-log-tab"
+		>
+			<template #alerts>
+				<AlertListSection
+					:alerts="alerts"
+					:total-alerts="totalAlerts"
+					:unresolved-count="unresolvedCount"
+					:offset="offset"
+					:limit="limit"
+					:is-loading="isLoading"
+					:error="listLoadError"
+					:is-ignoring="isIgnoring"
+					:is-admin="isAdmin"
+					@ignore="handleIgnore"
+					@unignore="handleUnignore"
+					@previous="goToPreviousPage"
+					@next="goToNextPage"
+				/>
+			</template>
 
-		<AlertRuleManagement
-			v-else-if="currentMode === 'rules' && isAdmin"
-			ref="ruleManagementRef"
-			v-model:selected-rule-source="ruleFilterSource"
-			v-model:selected-rule-type="ruleFilterType"
-		/>
-
-		<ConfirmDialog
-			v-model="showConfirmDialog"
-			:title="confirmDialogConfig.title"
-			:message="confirmDialogConfig.message"
-			:details="confirmDialogConfig.details"
-			:type="confirmDialogConfig.type"
-			:confirm-text="confirmDialogConfig.confirmText"
-			:cancel-text="confirmDialogConfig.cancelText"
-			@confirm="handleConfirmIgnoreAction"
-			@cancel="handleCancelIgnoreAction"
-		/>
+			<template #rules>
+				<AlertRuleManagement
+					ref="ruleManagementRef"
+					v-model:selected-rule-source="ruleFilterSource"
+					v-model:selected-rule-type="ruleFilterType"
+				/>
+			</template>
+		</PageTabs>
 	</div>
+
+	<ConfirmDialog
+		v-model="showConfirmDialog"
+		:title="confirmDialogConfig.title"
+		:message="confirmDialogConfig.message"
+		:details="confirmDialogConfig.details"
+		:type="confirmDialogConfig.type"
+		:confirm-text="confirmDialogConfig.confirmText"
+		:cancel-text="confirmDialogConfig.cancelText"
+		@confirm="handleConfirmIgnoreAction"
+		@cancel="handleCancelIgnoreAction"
+	/>
 </template>
 
 <script setup lang="ts">
@@ -106,7 +101,6 @@ import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 import { useAlertEventBus } from "~/composables/monitoring/alertMonitor/useAlertEventBus";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi";
-import { useAlertRuleIntegrationsStore } from "~/composables/systems/alerts/useAlertRuleIntegrationsStore";
 import type { AlertNewEvent, AlertUpdatedEvent } from "~/types/websocket";
 import { getSourceLabel, getTypeLabel, getSeverityLabel } from "~/utils/alertUtils";
 import { getTodayDateRangeUTC, formatDateTime } from "~/utils/dateUtils";
@@ -116,9 +110,9 @@ import TimeRangePicker from "~/components/common/TimeRangePicker.vue";
 import AlertListSection from "~/components/alerts/AlertListSection.vue";
 import AlertRuleManagement from "~/components/alerts/AlertRuleManagement.vue";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
+import PageTabs from "~/components/common/PageTabs.vue";
 import { useDataLoader } from "~/composables/monitoring/useDataLoader";
 import { logger } from "~/utils/logger";
-import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 
 const alertLogLogger = logger.createLogger("alert-log");
@@ -128,8 +122,6 @@ definePageMeta({
 });
 
 const alertApi = useAlertApi();
-const integrationsStore = useAlertRuleIntegrationsStore();
-const deviceApi = useDeviceApi();
 const toast = useToast();
 const { isAdmin } = useAuth();
 const { removeAlertToast } = useAlertMonitor();
@@ -158,6 +150,15 @@ const confirmDialogConfig = computed(() => confirmDialog.config.value);
 const isIgnoring = ref(false);
 const unresolvedCount = ref(0);
 const currentMode = ref<"alerts" | "rules">("alerts");
+
+const alertModeTabs = computed(() =>
+	isAdmin.value
+		? [
+				{ id: "alerts" as const, label: "警示紀錄" },
+				{ id: "rules" as const, label: "警報設定" }
+			]
+		: []
+);
 
 const ruleManagementRef = ref<{ openCreateRuleDialog: () => void } | null>(null);
 const ruleFilterSource = ref<"" | AlertSource>("");
@@ -271,16 +272,12 @@ const loadUnresolvedCount = async () => {
 			source: (filterSource.value as AlertSource) || undefined,
 			start_date: filterStartDate.value || undefined,
 			end_date: filterEndDate.value || undefined,
-			...({ time_field: "updated_at" } as Record<string, unknown>),
+			...({ time_field: "updated_at" } as Record<string, unknown>)
 		});
 		unresolvedCount.value = result.count;
 	} catch (error) {
 		alertLogLogger.warn("載入未解決警示數量失敗", error);
 	}
-};
-
-const handleSwitchToRules = () => {
-	currentMode.value = "rules";
 };
 
 // 處理警報操作後的重新載入

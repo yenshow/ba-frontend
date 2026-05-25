@@ -31,16 +31,14 @@
 				</h3>
 				<div v-if="zoneLocationOptions.length > 1" class="mb-2 flex items-center gap-2">
 					<label class="text-sm text-white/70 2xl:text-base">區域-地點：</label>
-					<select
-						v-model="filterZoneLocation"
-						class="filter-select rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white focus:border-white/40 focus:outline-none 2xl:py-2.5 2xl:text-base"
-						aria-label="篩選區域-地點"
-					>
-						<option value="">全部</option>
-						<option v-for="opt in zoneLocationOptions" :key="opt" :value="opt">
-							{{ opt }}
-						</option>
-					</select>
+					<div class="min-w-[10rem]">
+						<FilterDropdown
+							v-model="filterZoneLocation"
+							:options="zoneLocationFilterOptions"
+							placeholder="全部"
+							text-size="text-sm 2xl:text-base"
+						/>
+					</div>
 				</div>
 				<table
 					class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base"
@@ -77,16 +75,14 @@
 				</h3>
 				<div v-if="zoneLocationOptions.length > 1" class="mb-2 flex items-center gap-2">
 					<label class="text-sm text-white/70 2xl:text-base">區域-地點：</label>
-					<select
-						v-model="filterZoneLocationUnit"
-						class="filter-select rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white focus:border-white/40 focus:outline-none 2xl:py-2.5 2xl:text-base"
-						aria-label="篩選區域-地點（單位統計）"
-					>
-						<option value="">全部</option>
-						<option v-for="opt in zoneLocationOptions" :key="opt" :value="opt">
-							{{ opt }}
-						</option>
-					</select>
+					<div class="min-w-[10rem]">
+						<FilterDropdown
+							v-model="filterZoneLocationUnit"
+							:options="zoneLocationFilterOptions"
+							placeholder="全部"
+							text-size="text-sm 2xl:text-base"
+						/>
+					</div>
 				</div>
 				<table
 					class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base"
@@ -132,29 +128,25 @@
 					<div class="flex flex-wrap items-center gap-4">
 						<div v-if="zoneLocationOptions.length >= 1" class="flex items-center gap-2">
 							<label class="text-sm text-white/70 2xl:text-base">區域-地點：</label>
-							<select
-								v-model="filterZoneLocationDetail"
-								class="filter-select rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white focus:border-white/40 focus:outline-none 2xl:py-2.5 2xl:text-base"
-								aria-label="篩選區域-地點"
-							>
-								<option value="">全部</option>
-								<option v-for="opt in zoneLocationOptions" :key="opt" :value="opt">
-									{{ opt }}
-								</option>
-							</select>
+							<div class="min-w-[10rem]">
+								<FilterDropdown
+									v-model="filterZoneLocationDetail"
+									:options="zoneLocationFilterOptions"
+									placeholder="全部"
+									text-size="text-sm 2xl:text-base"
+								/>
+							</div>
 						</div>
 						<div class="flex items-center gap-2">
 							<label class="text-sm text-white/70 2xl:text-base">單位名稱：</label>
-							<select
-								v-model="filterUnitName"
-								class="filter-select rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white focus:border-white/40 focus:outline-none 2xl:py-2.5 2xl:text-base"
-								aria-label="篩選單位名稱"
-							>
-								<option value="">全部</option>
-								<option v-for="opt in unitNameOptions" :key="opt" :value="opt">
-									{{ opt }}
-								</option>
-							</select>
+							<div class="min-w-[10rem]">
+								<FilterDropdown
+									v-model="filterUnitName"
+									:options="unitNameFilterOptions"
+									placeholder="全部"
+									text-size="text-sm 2xl:text-base"
+								/>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -239,6 +231,7 @@ import {
 	type PeopleCountingLogColumnKey,
 } from "~/utils/peopleCountingLogColumns"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
+import FilterDropdown from "~/components/common/FilterDropdown.vue"
 
 const props = defineProps<{
 	logs: PeopleCountingLog[]
@@ -308,6 +301,11 @@ const zoneLocationOptions = computed(() =>
 	zoneLocationLabel.value ? [zoneLocationLabel.value] : []
 )
 
+const zoneLocationFilterOptions = computed(() => [
+	{ value: "", label: "全部" },
+	...zoneLocationOptions.value.map((value) => ({ value, label: value })),
+])
+
 const unitNameOptions = computed(() => {
 	const set = new Set<string>()
 	for (const log of props.logs) {
@@ -316,6 +314,11 @@ const unitNameOptions = computed(() => {
 	}
 	return [...set].sort()
 })
+
+const unitNameFilterOptions = computed(() => [
+	{ value: "", label: "全部" },
+	...unitNameOptions.value.map((value) => ({ value, label: value })),
+])
 
 const getDateKey = (log: PeopleCountingLog): string => {
 	if (!log.timestamp) return ""
@@ -548,10 +551,3 @@ const handleExportCsv = () => {
 	URL.revokeObjectURL(url)
 }
 </script>
-
-<style scoped>
-.filter-select option {
-	background: rgb(30 41 59);
-	color: rgb(248 250 252);
-}
-</style>

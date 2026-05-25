@@ -59,19 +59,12 @@
 								<td :class="tableCellClass">{{ offset + index + 1 }}</td>
 								<td :class="tableCellClass">{{ user.username }}</td>
 								<td :class="tableCellClass">
-									<span
-										:class="[getRoleBadgeClass(user.role), 'rounded px-2 py-1 2xl:px-3 2xl:py-1.5']"
-									>
+									<span :class="[getRoleBadgeClass(user.role), 'rounded px-2 py-1 2xl:px-3 2xl:py-1.5']">
 										{{ roleLabels[user.role] }}
 									</span>
 								</td>
 								<td :class="tableCellClass">
-									<span
-										:class="[
-											getStatusBadgeClass(user.status),
-											'rounded px-2 py-1 2xl:px-3 2xl:py-1.5',
-										]"
-									>
+									<span :class="[getStatusBadgeClass(user.status), 'rounded px-2 py-1 2xl:px-3 2xl:py-1.5']">
 										{{ statusLabels[user.status] }}
 									</span>
 								</td>
@@ -80,9 +73,7 @@
 								</td>
 								<td v-if="canWrite" :class="tableCellClass">
 									<div class="flex flex-wrap gap-2 2xl:gap-3">
-										<button type="button" class="btn-list-edit" @click="editUser(user)">
-											編輯
-										</button>
+										<button type="button" class="btn-list-edit" @click="editUser(user)">編輯</button>
 										<button
 											v-if="canShowResetPasswordButton(user)"
 											type="button"
@@ -128,7 +119,7 @@
 					@click.self="closeDialog"
 				>
 					<div
-						class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-2xl flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:gap-6 2xl:p-8"
+						class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-lg flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:gap-6 2xl:p-8"
 					>
 						<header class="flex items-center justify-between">
 							<h3 class="text-lg font-semibold tracking-[4px] text-white 2xl:text-xl">
@@ -168,15 +159,13 @@
 									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 								>
 									<span>角色</span>
-									<select
+									<FilterDropdown
 										v-model="formData.role"
-										class="form-input form-select"
-										@change="handleRoleSelectChange"
-									>
-										<option value="viewer">檢視者</option>
-										<option value="operator">操作員</option>
-										<option v-if="isAdmin" value="admin">管理員</option>
-									</select>
+										:options="roleFormOptions"
+										placeholder="請選擇角色"
+										text-size="text-sm 2xl:text-base"
+										@update:model-value="handleRoleFilterChange"
+									/>
 								</label>
 								<div
 									v-if="canWrite && formData.role !== 'admin'"
@@ -192,14 +181,25 @@
 								</div>
 								<label
 									v-if="canWrite && editingUser"
-									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+									class="flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base"
 								>
-									<span>狀態</span>
-									<select v-model="formData.status" class="form-input form-select">
-										<option value="active">啟用</option>
-										<option value="inactive">停用</option>
-										<option value="suspended">暫停</option>
-									</select>
+									<label class="relative inline-flex cursor-pointer items-center">
+										<input
+											v-model="formData.status"
+											type="checkbox"
+											value="active"
+											true-value="active"
+											false-value="inactive"
+											class="peer sr-only"
+											aria-label="用戶啟用狀態"
+										/>
+										<div
+											class="peer h-6 w-11 rounded-full bg-white/20 after:absolute after:left-[4px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-emerald-500 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none 2xl:h-7 2xl:w-14 2xl:after:h-6 2xl:after:w-6"
+										></div>
+										<span class="ml-3 text-sm 2xl:text-base">{{
+											formData.status === "active" ? "已啟用" : "已停用"
+										}}</span>
+									</label>
 								</label>
 							</div>
 
@@ -235,64 +235,64 @@
 </template>
 
 <script setup lang="ts">
-import type { PermissionDefinition, User } from "~/types/user"
-import Pagination from "~/components/common/Pagination.vue"
-import FilterDropdown from "~/components/common/FilterDropdown.vue"
-import UserPermissionEditor from "~/components/common/UserPermissionEditor.vue"
-import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
-import { formatDate } from "~/utils/dateUtils"
-import AsyncPanel from "~/components/common/AsyncPanel.vue"
-import { useDataLoader } from "~/composables/monitoring/useDataLoader"
-import { useAuth } from "~/composables/core/useAuth"
-import { useToast } from "~/composables/core/useToast"
-import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { useUserApi } from "~/composables/systems/users/useUserApi"
-import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
+import type { PermissionDefinition, User } from "~/types/user";
+import Pagination from "~/components/common/Pagination.vue";
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
+import UserPermissionEditor from "~/components/common/UserPermissionEditor.vue";
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
+import { formatDate } from "~/utils/dateUtils";
+import AsyncPanel from "~/components/common/AsyncPanel.vue";
+import { useDataLoader } from "~/composables/monitoring/useDataLoader";
+import { useAuth } from "~/composables/core/useAuth";
+import { useToast } from "~/composables/core/useToast";
+import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import { useUserApi } from "~/composables/systems/users/useUserApi";
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import {
 	buildGrantedMap,
 	permissionGrantedMapsEqual,
-	permissionOverridesFromGranted,
+	permissionOverridesFromGranted
 } from "~/composables/systems/users/useUserPermissionDraft";
 import {
 	canResetPasswordForUser,
-	DEFAULT_RESET_PASSWORD,
+	DEFAULT_RESET_PASSWORD
 } from "~/composables/systems/users/useAccountSettings";
 
 definePageMeta({
-	layout: "default",
-})
+	layout: "auxiliary"
+});
 
-const { user: currentUser, isAdmin, canWrite, fetchUser } = useAuth()
-const userApi = useUserApi()
-const toast = useToast()
-const { handleError: handleApiError } = useErrorHandler()
+const { user: currentUser, isAdmin, canWrite, fetchUser } = useAuth();
+const userApi = useUserApi();
+const toast = useToast();
+const { handleError: handleApiError } = useErrorHandler();
 
-const dateSortOrder = ref<"asc" | "desc">("asc") // 預設由舊到新
-const showCreateDialog = ref(false)
-const editingUser = ref<User | null>(null)
-const isSubmitting = ref(false)
-const errorMessage = ref<string | null>(null)
+const dateSortOrder = ref<"asc" | "desc">("asc"); // 預設由舊到新
+const showCreateDialog = ref(false);
+const editingUser = ref<User | null>(null);
+const isSubmitting = ref(false);
+const errorMessage = ref<string | null>(null);
 
-const confirmDialog = useConfirmDialog()
+const confirmDialog = useConfirmDialog();
 const showConfirmDialog = computed({
 	get: () => confirmDialog.showDialog.value,
 	set: (value: boolean) => {
-		confirmDialog.showDialog.value = value
-	},
-})
-const confirmDialogConfig = computed(() => confirmDialog.config.value)
+		confirmDialog.showDialog.value = value;
+	}
+});
+const confirmDialogConfig = computed(() => confirmDialog.config.value);
 const pendingActionUserId = ref<number | null>(null);
 const confirmMode = ref<"delete" | "resetPassword">("delete");
 
-const permissionDefinitions = ref<PermissionDefinition[]>([])
-const permissionGranted = ref<Record<number, boolean>>({})
-const permissionInitialGranted = ref<Record<number, boolean>>({})
-const permissionLoading = ref(false)
-const initialRoleOnEdit = ref<"admin" | "operator" | "viewer" | null>(null)
+const permissionDefinitions = ref<PermissionDefinition[]>([]);
+const permissionGranted = ref<Record<number, boolean>>({});
+const permissionInitialGranted = ref<Record<number, boolean>>({});
+const permissionLoading = ref(false);
+const initialRoleOnEdit = ref<"admin" | "operator" | "viewer" | null>(null);
 
 const isPermissionDirty = computed(
 	() => !permissionGrantedMapsEqual(permissionGranted.value, permissionInitialGranted.value)
-)
+);
 
 // 使用 useDataLoader 統一管理數據載入
 const {
@@ -304,254 +304,259 @@ const {
 	load,
 	nextPage,
 	prevPage,
-	resetPage,
+	resetPage
 } = useDataLoader<User, { order: "asc" | "desc"; limit?: number; offset?: number }>({
-	fetcher: async (params) => {
+	fetcher: async params => {
 		const result = await userApi.getUsers({
 			limit: params.limit ?? 20,
 			offset: params.offset ?? 0,
 			orderBy: "id",
-			order: params.order,
-		})
-		return { items: result.users, total: result.total }
+			order: params.order
+		});
+		return { items: result.users, total: result.total };
 	},
 	debounce: 300,
 	pageSize: 20,
-	onError: (err) => handleApiError(err, "載入用戶列表失敗") || "載入用戶列表失敗",
-})
+	onError: err => handleApiError(err, "載入用戶列表失敗") || "載入用戶列表失敗"
+});
 
-const limit = 20 // 用於分頁組件
+const limit = 20; // 用於分頁組件
 
 // operator 不顯示 admin；admin 則可看到全部
 const visibleUsers = computed(() =>
-	isAdmin.value ? users.value : users.value.filter((u) => u.role !== "admin")
-)
+	isAdmin.value ? users.value : users.value.filter(u => u.role !== "admin")
+);
 
 // 標籤映射
 const roleLabels: Record<string, string> = {
 	admin: "管理員",
 	operator: "操作員",
-	viewer: "檢視者",
-}
+	viewer: "檢視者"
+};
 
-const statusLabels: Record<string, string> = {
+const statusLabels: Record<"active" | "inactive", string> = {
 	active: "啟用",
-	inactive: "停用",
-	suspended: "暫停",
-}
+	inactive: "停用"
+};
+
+const roleFormOptions = computed(() => {
+	const options = [
+		{ value: "viewer", label: "檢視者" },
+		{ value: "operator", label: "操作員" }
+	];
+	if (isAdmin.value) {
+		options.push({ value: "admin", label: "管理員" });
+	}
+	return options;
+});
 
 // 日期排序篩選選項（供 FilterDropdown 使用）
 const dateSortOptions = [
 	{ value: "asc", label: "由舊到新" },
-	{ value: "desc", label: "由新到舊" },
-]
+	{ value: "desc", label: "由新到舊" }
+];
 
 // 統一樣式類
-const tableHeaderClass = "py-3 2xl:py-4 px-4 2xl:px-6 text-sm 2xl:text-base text-white/80"
-const tableCellClass = "py-3 2xl:py-4 px-4 2xl:px-6"
+const tableHeaderClass = "py-3 2xl:py-4 px-4 2xl:px-6 text-sm 2xl:text-base text-white/80";
+const tableCellClass = "py-3 2xl:py-4 px-4 2xl:px-6";
 
 const formData = reactive({
 	username: "",
 	password: "",
 	role: "viewer" as "admin" | "operator" | "viewer",
-	status: "active" as "active" | "inactive" | "suspended",
-})
+	status: "active" as "active" | "inactive"
+});
 
 const getRoleBadgeClass = (role: string) => {
 	const classes = {
 		admin: "bg-red-500/20 text-red-200",
 		operator: "bg-blue-500/20 text-blue-200",
-		viewer: "bg-gray-500/20 text-gray-200",
-	}
-	return classes[role as keyof typeof classes] || classes.viewer
-}
+		viewer: "bg-gray-500/20 text-gray-200"
+	};
+	return classes[role as keyof typeof classes] || classes.viewer;
+};
 
 const getStatusBadgeClass = (status: string) => {
 	const classes = {
 		active: "bg-emerald-500/20 text-emerald-200",
-		inactive: "bg-yellow-500/20 text-yellow-200",
-		suspended: "bg-red-500/20 text-red-200",
-	}
-	return classes[status as keyof typeof classes] || classes.inactive
-}
+		inactive: "bg-yellow-500/20 text-yellow-200"
+	};
+	return classes[status as keyof typeof classes] ?? classes.inactive;
+};
 
-const canShowResetPasswordButton = (user: User) =>
-	canResetPasswordForUser(currentUser.value, user);
+const canShowResetPasswordButton = (user: User) => canResetPasswordForUser(currentUser.value, user);
 
 const canShowDeleteButton = (user: User) => {
 	if (!canWrite.value) {
-		return false
+		return false;
 	}
 	// 不顯示刪除自己的按鈕
 	if (currentUser.value && user.id === currentUser.value.id) {
-		return false
+		return false;
 	}
 	// 操作員不可刪除 admin（雖然列表已不顯示 admin，仍加雙重保護）
 	if (!isAdmin.value && user.role === "admin") {
-		return false
+		return false;
 	}
-	return true
-}
+	return true;
+};
 
 // 業務邏輯函數：統一錯誤處理（同時更新頁面錯誤訊息）
 const handleError = (error: unknown, defaultMessage: string) => {
-	const errorMsg = handleApiError(error, defaultMessage)
-	errorMessage.value = errorMsg || defaultMessage
-	return errorMsg
-}
+	const errorMsg = handleApiError(error, defaultMessage);
+	errorMessage.value = errorMsg || defaultMessage;
+	return errorMsg;
+};
 
 const resetPermissionDraft = () => {
-	permissionDefinitions.value = []
-	permissionGranted.value = {}
-	permissionInitialGranted.value = {}
-	initialRoleOnEdit.value = null
-}
+	permissionDefinitions.value = [];
+	permissionGranted.value = {};
+	permissionInitialGranted.value = {};
+	initialRoleOnEdit.value = null;
+};
 
 const resetForm = () => {
-	formData.username = ""
-	formData.password = ""
-	formData.role = "viewer"
-	formData.status = "active"
-	resetPermissionDraft()
-}
+	formData.username = "";
+	formData.password = "";
+	formData.role = "viewer";
+	formData.status = "active";
+	resetPermissionDraft();
+};
 
 const setPermissionGrantedSnapshot = (granted: Record<number, boolean>) => {
-	permissionGranted.value = granted
-	permissionInitialGranted.value = { ...granted }
-}
+	permissionGranted.value = granted;
+	permissionInitialGranted.value = { ...granted };
+};
 
 const ensurePermissionDefinitions = async () => {
-	if (permissionDefinitions.value.length > 0) return
-	const res = await userApi.getPermissionDefinitions()
-	permissionDefinitions.value = res.definitions
-}
+	if (permissionDefinitions.value.length > 0) return;
+	const res = await userApi.getPermissionDefinitions();
+	permissionDefinitions.value = res.definitions;
+};
 
 const loadPermissionDraft = async (userId?: number) => {
 	if (formData.role === "admin") {
-		resetPermissionDraft()
-		return
+		resetPermissionDraft();
+		return;
 	}
-	permissionLoading.value = true
+	permissionLoading.value = true;
 	try {
-		await ensurePermissionDefinitions()
+		await ensurePermissionDefinitions();
 		if (userId != null) {
-			const { overridesByPermId } = await userApi.getUserPermissionOverrides(userId)
-			setPermissionGrantedSnapshot(
-				buildGrantedMap(permissionDefinitions.value, overridesByPermId)
-			)
+			const { overridesByPermId } = await userApi.getUserPermissionOverrides(userId);
+			setPermissionGrantedSnapshot(buildGrantedMap(permissionDefinitions.value, overridesByPermId));
 		} else {
-			setPermissionGrantedSnapshot(buildGrantedMap(permissionDefinitions.value))
+			setPermissionGrantedSnapshot(buildGrantedMap(permissionDefinitions.value));
 		}
 	} catch (error) {
-		handleError(error, userId != null ? "載入權限設定失敗" : "載入權限清單失敗")
+		handleError(error, userId != null ? "載入權限設定失敗" : "載入權限清單失敗");
 	} finally {
-		permissionLoading.value = false
+		permissionLoading.value = false;
 	}
-}
+};
 
-const handleRoleSelectChange = async () => {
+const handleRoleFilterChange = async () => {
 	if (formData.role === "admin") {
-		resetPermissionDraft()
-		return
+		resetPermissionDraft();
+		return;
 	}
 	try {
-		await ensurePermissionDefinitions()
-		setPermissionGrantedSnapshot(buildGrantedMap(permissionDefinitions.value))
+		await ensurePermissionDefinitions();
+		setPermissionGrantedSnapshot(buildGrantedMap(permissionDefinitions.value));
 	} catch (error) {
-		handleError(error, "載入權限清單失敗")
+		handleError(error, "載入權限清單失敗");
 	}
-}
+};
 
 const editUser = async (user: User) => {
-	editingUser.value = user
-	formData.username = user.username
-	formData.role = user.role
-	formData.status = user.status
-	formData.password = ""
-	initialRoleOnEdit.value = user.role
-	errorMessage.value = null
-	await loadPermissionDraft(user.id)
-}
+	editingUser.value = user;
+	formData.username = user.username;
+	formData.role = user.role;
+	formData.status = user.status;
+	formData.password = "";
+	initialRoleOnEdit.value = user.role;
+	errorMessage.value = null;
+	await loadPermissionDraft(user.id);
+};
 
 const closeDialog = () => {
-	showCreateDialog.value = false
-	editingUser.value = null
-	resetForm()
-	errorMessage.value = null
-}
+	showCreateDialog.value = false;
+	editingUser.value = null;
+	resetForm();
+	errorMessage.value = null;
+};
 
-watch(showCreateDialog, async (open) => {
+watch(showCreateDialog, async open => {
 	if (open) {
-		resetForm()
-		formData.role = "viewer"
-		await loadPermissionDraft()
+		resetForm();
+		formData.role = "viewer";
+		await loadPermissionDraft();
 	}
-})
+});
 
 const executeSubmit = async () => {
-	isSubmitting.value = true
-	errorMessage.value = null
+	isSubmitting.value = true;
+	errorMessage.value = null;
 
 	try {
 		if (editingUser.value) {
-			const userId = editingUser.value.id
-			const roleChanged =
-				initialRoleOnEdit.value != null && formData.role !== initialRoleOnEdit.value
+			const userId = editingUser.value.id;
+			const roleChanged = initialRoleOnEdit.value != null && formData.role !== initialRoleOnEdit.value;
 
 			const updateRes = await userApi.updateUser(userId, {
 				username: formData.username,
 				role: formData.role,
-				status: formData.status,
-			})
+				status: formData.status
+			});
 
 			if (formData.role !== "admin") {
 				const overrides = permissionOverridesFromGranted(
 					permissionDefinitions.value,
 					permissionGranted.value
-				)
-				await userApi.updateUserPermissions(userId, overrides)
+				);
+				await userApi.updateUserPermissions(userId, overrides);
 				if (currentUser.value?.id === userId) {
-					await fetchUser()
+					await fetchUser();
 				}
 			}
 
-			const index = users.value.findIndex((u) => u.id === userId)
+			const index = users.value.findIndex(u => u.id === userId);
 			if (index > -1) {
-				users.value[index] = updateRes.user
+				users.value[index] = updateRes.user;
 			}
-			closeDialog()
+			closeDialog();
 			toast.success(
 				currentUser.value?.id === userId
 					? "用戶已更新"
 					: "用戶已更新；對方需重新整理或重新登入後權限才會生效"
-			)
-			return
+			);
+			return;
 		}
 
 		const overrides =
 			formData.role === "admin"
 				? []
-				: permissionOverridesFromGranted(permissionDefinitions.value, permissionGranted.value)
+				: permissionOverridesFromGranted(permissionDefinitions.value, permissionGranted.value);
 		const createRes = await userApi.createUser({
 			username: formData.username,
 			password: formData.password,
 			role: formData.role,
-			overrides,
-		})
-		users.value.push(createRes.user)
-		total.value += 1
-		closeDialog()
-		toast.success("用戶已建立")
+			overrides
+		});
+		users.value.push(createRes.user);
+		total.value += 1;
+		closeDialog();
+		toast.success("用戶已建立");
 	} catch (error) {
-		handleError(error, "操作失敗")
+		handleError(error, "操作失敗");
 	} finally {
-		isSubmitting.value = false
+		isSubmitting.value = false;
 	}
-}
+};
 
 const handleSubmit = async () => {
-	await executeSubmit()
-}
+	await executeSubmit();
+};
 
 const confirmDeleteUser = (user: User) => {
 	pendingActionUserId.value = user.id;
@@ -562,7 +567,7 @@ const confirmDeleteUser = (user: User) => {
 		details: "此操作無法復原。",
 		type: "danger",
 		confirmText: "刪除",
-		cancelText: "取消",
+		cancelText: "取消"
 	});
 };
 
@@ -575,14 +580,14 @@ const confirmResetPassword = (user: User) => {
 		details: `新密碼將設為 ${DEFAULT_RESET_PASSWORD}。對方需使用新密碼重新登入。`,
 		type: "warning",
 		confirmText: "重設",
-		cancelText: "取消",
+		cancelText: "取消"
 	});
 };
 
 const handleConfirmDialog = async () => {
 	const id = pendingActionUserId.value;
 	if (id == null) return;
-	const target = users.value.find((u) => u.id === id);
+	const target = users.value.find(u => u.id === id);
 	if (!target) {
 		pendingActionUserId.value = null;
 		return;
@@ -591,7 +596,7 @@ const handleConfirmDialog = async () => {
 	if (confirmMode.value === "resetPassword") {
 		try {
 			const result = await userApi.updatePassword(id, {
-				newPassword: DEFAULT_RESET_PASSWORD,
+				newPassword: DEFAULT_RESET_PASSWORD
 			});
 			toast.success(result.message || "密碼已重設");
 		} catch (error) {
@@ -604,7 +609,7 @@ const handleConfirmDialog = async () => {
 
 	try {
 		const result = await userApi.deleteUser(target.id);
-		users.value = users.value.filter((u) => u.id !== target.id);
+		users.value = users.value.filter(u => u.id !== target.id);
 		total.value = Math.max(0, total.value - 1);
 		toast.success(result.message || "刪除成功");
 	} catch (error) {
@@ -619,21 +624,21 @@ const handleCancelConfirmDialog = () => {
 };
 
 const handlePreviousPage = () => {
-	prevPage({ order: dateSortOrder.value })
-}
+	prevPage({ order: dateSortOrder.value });
+};
 
 const handleNextPage = () => {
-	nextPage({ order: dateSortOrder.value })
-}
+	nextPage({ order: dateSortOrder.value });
+};
 
 const handleSortChange = () => {
-	resetPage()
-	load({ order: dateSortOrder.value }, true) // 立即執行
-}
+	resetPage();
+	load({ order: dateSortOrder.value }, true); // 立即執行
+};
 
 onMounted(() => {
-	load({ order: dateSortOrder.value }, true) // 立即執行
-})
+	load({ order: dateSortOrder.value }, true); // 立即執行
+});
 </script>
 
 <style scoped>
@@ -652,14 +657,5 @@ onMounted(() => {
 	border-color: #5be7f1;
 	background: rgba(255, 255, 255, 0.18);
 	outline: none;
-}
-
-.form-select {
-	cursor: pointer;
-}
-
-.form-select option {
-	background: rgba(20, 64, 92, 0.98);
-	color: #f7fbff;
 }
 </style>

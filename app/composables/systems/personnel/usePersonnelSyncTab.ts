@@ -7,8 +7,11 @@ import type { useLocationApi } from "~/composables/location/api/useLocationApi"
 import {
 	SYNC_WARNING_LABELS,
 	buildOverallSyncTitle,
+	findSyncCandidateByEmployeeNo,
 	getOverallSyncDisplayLabel,
 	resolveOverallSyncStatus,
+	syncStepPillClass,
+	syncStepShortLabel,
 } from "~/utils/personnelUtils"
 import { usePersonnelSyncEngine } from "~/composables/systems/personnel/usePersonnelSyncEngine"
 import {
@@ -99,8 +102,6 @@ export const usePersonnelSyncTab = (params: {
 		getWarningsForLocation,
 		isLocationSyncJobRunning,
 		getSyncStepRowsForLocation,
-		syncStepPillClass,
-		syncStepShortLabel,
 	} = syncEngine
 
 	const isSingleLocationSyncing = computed(() => isPollingSyncJob.value)
@@ -286,17 +287,13 @@ export const usePersonnelSyncTab = (params: {
 		return { rows, total, offset, limit }
 	}
 
-	// syncStepShortLabel / syncStepPillClass 由 sync engine 提供
-
-	const findSyncCandidate = (locationId: number, employeeNo: string) => {
-		const list = Object.prototype.hasOwnProperty.call(syncCandidatesByLocation, locationId)
+	const getSyncCandidatesForLocation = (locationId: number) =>
+		Object.prototype.hasOwnProperty.call(syncCandidatesByLocation, locationId)
 			? (syncCandidatesByLocation[locationId] ?? [])
 			: []
-		return list.find((c) => String(c.employee_no) === String(employeeNo)) ?? null
-	}
 
 	const getCandidateLastSyncLabel = (locationId: number, employeeNo: string) => {
-		const cand = findSyncCandidate(locationId, employeeNo)
+		const cand = findSyncCandidateByEmployeeNo(getSyncCandidatesForLocation(locationId), employeeNo)
 		const resolved = resolveOverallSyncStatus({
 			employeeNo,
 			candidate: cand,
@@ -311,7 +308,9 @@ export const usePersonnelSyncTab = (params: {
 	}
 
 	const getCandidateLastSyncTitle = (locationId: number, employeeNo: string) =>
-		buildOverallSyncTitle(findSyncCandidate(locationId, employeeNo))
+		buildOverallSyncTitle(
+			findSyncCandidateByEmployeeNo(getSyncCandidatesForLocation(locationId), employeeNo)
+		)
 
 	const isLocationCurrentlySyncing = (locationId: number) => isLocationSyncJobRunning(locationId)
 
