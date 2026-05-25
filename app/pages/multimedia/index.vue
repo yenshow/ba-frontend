@@ -1,38 +1,44 @@
 <template>
-	<PageTabs
-		v-model="activeTab"
-		:tabs="multimediaTabs"
-		layout="stacked"
-		root-class="space-y-6"
-		aria-label="資訊牆管理分頁"
-		id-prefix="multimedia-tab"
-	>
-		<template #prefix>
-			<div class="flex items-center justify-between">
-				<h1 class="text-3xl font-semibold tracking-[8px] text-white 2xl:text-4xl">資訊牆管理</h1>
-				<div class="flex items-center gap-3">
-					<NuxtLink
-						to="/multimedia/dashboard"
-						target="_blank"
-						rel="noopener noreferrer"
-						class="rounded-xl bg-white/10 px-4 py-2 text-base text-white hover:bg-white/20 2xl:px-6 2xl:py-3 2xl:text-lg"
-						aria-label="前往資訊看板"
-					>
-						資訊看板
-					</NuxtLink>
-					<button
-						type="button"
-						class="rounded-xl bg-purple-500/80 px-4 py-2 text-base text-white hover:bg-purple-400 disabled:cursor-not-allowed disabled:bg-purple-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
-						:disabled="isSaving"
-						@click="handleSave"
-					>
-						{{ isSaving ? "儲存中..." : "儲存" }}
-					</button>
-				</div>
+	<div class="space-y-6">
+		<div class="flex items-center justify-between">
+			<h1 class="text-3xl font-semibold tracking-[8px] text-white 2xl:text-4xl">資訊牆管理</h1>
+			<div class="flex items-center gap-3">
+				<NuxtLink
+					to="/multimedia/dashboard"
+					target="_blank"
+					rel="noopener noreferrer"
+					class="rounded-xl bg-white/10 px-4 py-2 text-base text-white hover:bg-white/20 2xl:px-6 2xl:py-3 2xl:text-lg"
+					aria-label="前往資訊看板"
+				>
+					資訊看板
+				</NuxtLink>
+				<button
+					type="button"
+					class="rounded-xl bg-purple-500/80 px-4 py-2 text-base text-white hover:bg-purple-400 disabled:cursor-not-allowed disabled:bg-purple-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
+					:disabled="isSaving"
+					@click="handleSave"
+				>
+					{{ isSaving ? "儲存中..." : "儲存" }}
+				</button>
 			</div>
-		</template>
+		</div>
 
-		<template #basic>
+		<PageTabs
+			v-model="activeTab"
+			:tabs="multimediaTabs"
+			:panels="false"
+			aria-label="資訊牆管理分頁"
+			id-prefix="multimedia-tab"
+		/>
+
+		<PageTabs
+			v-model="activeTab"
+			:tabs="multimediaTabs"
+			:list="false"
+			aria-label="資訊牆管理分頁"
+			id-prefix="multimedia-tab"
+		>
+			<template #basic>
 			<div class="grid grid-cols-12 gap-4">
 			<!-- 圖片 -->
 			<div class="col-span-7 space-y-4">
@@ -372,8 +378,9 @@
 				</section>
 			</div>
 		</div>
-		</template>
-	</PageTabs>
+			</template>
+		</PageTabs>
+	</div>
 </template>
 
 <script setup lang="ts">

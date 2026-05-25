@@ -1,59 +1,65 @@
 <template>
-	<PageTabs
-		v-model="currentMode"
-		:tabs="alertModeTabs"
-		layout="header"
-		root-class="space-y-6 2xl:space-y-8"
-		tab-list-class="me-auto"
+	<div class="space-y-6 2xl:space-y-8">
+		<div class="flex flex-wrap items-center justify-between gap-4">
+			<header class="me-4 flex flex-col gap-1 2xl:gap-2">
+				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">警示紀錄</h1>
+				<p class="text-base text-white/80 2xl:text-xl">查看與管理系統警示訊息</p>
+			</header>
+
+			<PageTabs
+				v-model="currentMode"
+				:tabs="alertModeTabs"
+				:panels="false"
+				list-class="me-auto"
+				aria-label="警示紀錄分頁"
+				id-prefix="alert-log-tab"
+			/>
+
+			<div class="flex items-center gap-3 2xl:gap-4">
+				<template v-if="currentMode === 'alerts'">
+					<FilterDropdown v-model="filterStatus" :options="statusOptions" placeholder="全部狀態" />
+					<FilterDropdown v-model="filterSource" :options="sourceOptions" placeholder="全部系統" />
+					<TimeRangePicker v-model="timeRange" :presets="timeRangePresets" />
+
+					<button
+						type="button"
+						@click="handleExport"
+						:disabled="isLoading || alerts.length === 0"
+						class="rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
+					>
+						匯出 CSV
+					</button>
+				</template>
+				<template v-else-if="currentMode === 'rules'">
+					<FilterDropdown
+						v-model="ruleFilterSource"
+						:options="sourceOptions"
+						placeholder="全部系統"
+					/>
+					<FilterDropdown
+						v-model="ruleFilterType"
+						:options="ruleTypeOptions"
+						placeholder="全部類型"
+					/>
+
+					<button
+						type="button"
+						@click="handleOpenCreateRule"
+						class="rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors hover:bg-green-400 2xl:px-6 2xl:py-3 2xl:text-base"
+					>
+						新增警報
+					</button>
+				</template>
+			</div>
+		</div>
+
+		<PageTabs
+			v-model="currentMode"
+			:tabs="alertModeTabs"
+			:list="false"
 			aria-label="警示紀錄分頁"
 			id-prefix="alert-log-tab"
 		>
-			<template #prefix>
-				<header class="me-4 flex flex-col gap-1 2xl:gap-2">
-					<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">警示紀錄</h1>
-					<p class="text-base text-white/80 2xl:text-xl">查看與管理系統警示訊息</p>
-				</header>
-			</template>
-
-			<template #suffix>
-				<div class="flex items-center gap-3 2xl:gap-4">
-					<template v-if="currentMode === 'alerts'">
-						<FilterDropdown v-model="filterStatus" :options="statusOptions" placeholder="全部狀態" />
-						<FilterDropdown v-model="filterSource" :options="sourceOptions" placeholder="全部系統" />
-						<TimeRangePicker v-model="timeRange" :presets="timeRangePresets" />
-
-						<button
-							type="button"
-							@click="handleExport"
-							:disabled="isLoading || alerts.length === 0"
-							class="rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
-						>
-							匯出 CSV
-						</button>
-					</template>
-					<template v-else-if="currentMode === 'rules'">
-						<FilterDropdown
-							v-model="ruleFilterSource"
-							:options="sourceOptions"
-							placeholder="全部系統"
-						/>
-						<FilterDropdown
-							v-model="ruleFilterType"
-							:options="ruleTypeOptions"
-							placeholder="全部類型"
-						/>
-
-						<button
-							type="button"
-							@click="handleOpenCreateRule"
-							class="rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors hover:bg-green-400 2xl:px-6 2xl:py-3 2xl:text-base"
-						>
-							新增警報
-						</button>
-					</template>
-				</div>
-			</template>
-
 			<template #alerts>
 				<AlertListSection
 					:alerts="alerts"
@@ -79,7 +85,8 @@
 					v-model:selected-rule-type="ruleFilterType"
 				/>
 			</template>
-	</PageTabs>
+		</PageTabs>
+	</div>
 
 	<ConfirmDialog
 		v-model="showConfirmDialog"
@@ -114,7 +121,6 @@ import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import PageTabs from "~/components/common/PageTabs.vue"
 import { useDataLoader } from "~/composables/monitoring/useDataLoader"
 import { logger } from "~/utils/logger"
-import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 
 const alertLogLogger = logger.createLogger("alert-log")
@@ -146,8 +152,6 @@ const showConfirmDialog = computed({
 })
 const confirmDialogConfig = computed(() => confirmDialog.config.value)
 
-// 攝影機連動彈窗改為全域（layout）；本頁不再管理 popup
-
 // 狀態
 const isIgnoring = ref(false)
 const unresolvedCount = ref(0)
@@ -159,7 +163,7 @@ const alertModeTabs = computed(() =>
 				{ id: "alerts" as const, label: "警示紀錄" },
 				{ id: "rules" as const, label: "警報設定" },
 			]
-		: [],
+		: []
 )
 
 const ruleManagementRef = ref<{ openCreateRuleDialog: () => void } | null>(null)

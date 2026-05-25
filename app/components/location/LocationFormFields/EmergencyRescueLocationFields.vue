@@ -31,15 +31,15 @@
 				class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 			>
 				<span>類型 *</span>
-				<select
+				<FilterDropdown
 					v-model="runningType"
-					class="form-input-small form-select w-full"
-					required
-					@change="handleChange"
-				>
-					<option value="DO">DO</option>
-					<option value="DI">DI</option>
-				</select>
+					:options="[
+						{ value: 'DO', label: 'DO' },
+						{ value: 'DI', label: 'DI' },
+					]"
+					text-size="text-sm 2xl:text-base"
+					@update:model-value="handleChange"
+				/>
 			</label>
 
 			<label

@@ -2,7 +2,6 @@ import { useRequestFetch } from "#app"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { useUploadBaseUrl } from "~/composables/core/useUploadBaseUrl"
 import { resolveUploadUrl } from "~/utils/apiUtils"
 import { createSafeFileName } from "~/utils/fileUtils"
 
@@ -161,7 +160,8 @@ export const useAppSettingImage = (options: UseAppSettingImageOptions) => {
 
 	const { value: raw, save, reset, uploadFile } = useAppSettings({ key, defaultValue })
 
-	const apiBase = useUploadBaseUrl()
+	const config = useRuntimeConfig()
+	const apiBase = (config.public.apiBase as string) || ""
 	const displaySrc = computed(() => resolveUploadUrl(raw.value ?? "", apiBase))
 
 	const isEditOpen = ref(false)

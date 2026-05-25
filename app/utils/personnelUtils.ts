@@ -145,6 +145,65 @@ export type LastCompletedSyncCache = {
 	processedByEmployeeNo: Record<string, true>
 }
 
+/** 設備／連線層級警告（type=sync 且無 employeeNo） */
+export const isDeviceLevelSyncWarning = (w: SyncWarning) =>
+	String(w.type || "") === "sync" && !String(w.employeeNo || "").trim()
+
+export const hasLocationLevelSyncFailure = (
+	warnings: SyncWarning[],
+	cached?: Pick<LastCompletedSyncCache, "locationRunFailure">
+) => Boolean(cached?.locationRunFailure) || warnings.some(isDeviceLevelSyncWarning)
+
+export const filterWarningsForLocation = (
+	warnings: SyncWarning[] | null | undefined,
+	locationId: number,
+	activeSyncLocationId: number | null
+) => {
+	const lid = Number(locationId)
+	return (warnings || []).filter((w) => {
+		if (w.locationId != null && Number(w.locationId) === lid) return true
+		if (w.locationId == null && activeSyncLocationId === lid && isDeviceLevelSyncWarning(w)) {
+			return true
+		}
+		return false
+	})
+}
+
+export const enrichSyncWarningsWithLocation = (
+	raw: SyncWarning[] | null | undefined,
+	ctx: { locationId: number | null; locationName?: string }
+): SyncWarning[] =>
+	(raw || []).map((w) => ({
+		...w,
+		locationId: w.locationId ?? ctx.locationId ?? null,
+		locationName: w.locationName || ctx.locationName,
+	}))
+
+export const findSyncCandidateByEmployeeNo = (
+	candidates: SyncLocationCandidate[],
+	employeeNo: string
+) => candidates.find((c) => String(c.employee_no) === String(employeeNo)) ?? null
+
+const SYNC_STEP_PILL_CLASS: Record<SyncStepUiStatus, string> = {
+	pending: "bg-amber-500/15 text-amber-100 border border-amber-400/30",
+	success: "bg-emerald-500/15 text-emerald-100 border border-emerald-400/30",
+	failed: "bg-rose-500/15 text-rose-100 border border-rose-400/30",
+	unchanged: "bg-slate-500/15 text-slate-200 border border-slate-400/25",
+	no_data: "bg-white/5 text-white/45 border border-white/10",
+}
+
+export const syncStepShortLabel = (cell: { status: SyncStepUiStatus }) => {
+	const s = cell.status
+	if (s === "pending") return "待同步"
+	if (s === "success") return "成功"
+	if (s === "unchanged") return "未變更"
+	if (s === "failed") return "失敗"
+	return "無資料"
+}
+
+export const syncStepPillClass = (status: SyncStepUiStatus) =>
+	SYNC_STEP_PILL_CLASS[status] ?? "bg-white/5 text-white/60 border border-white/10"
+
 export const formatSyncAt = (v: unknown): string | null => {
 	if (!v) return null
 	const d = v instanceof Date ? v : new Date(String(v))
@@ -192,31 +251,34 @@ export const resolveOverallSyncStatus = (input: {
 	const { candidate: cand, warnings, locationId } = input
 	const at = lastSyncAtFromCandidate(cand)
 
-	const locationRunFailure = warnings.some(
-		(w) => String(w.type || "") === "sync" && !String(w.employeeNo || "").trim()
-	)
+	const cached = input.lastCompletedCache
+	const locationRunFailure = hasLocationLevelSyncFailure(warnings, cached)
 	const empHasWarning = warnings.some((w) => String(w.employeeNo || "") === emp)
+
+	// 地點／設備層級失敗：該地點所有列「已同步」皆為失敗（優先於 job 完成快取的成功）
+	if (locationRunFailure) {
+		return {
+			status: "failed",
+			at:
+				(cached?.finishedAt != null ? formatSyncAt(cached.finishedAt) : null) ??
+				(input.activeSyncJobFinishedAt ? formatSyncAt(input.activeSyncJobFinishedAt) : null) ??
+				at,
+		}
+	}
 
 	if (input.activeSyncLocationId === locationId && input.activeSyncJobStatus === "completed") {
 		const jobAt = input.activeSyncJobFinishedAt ? formatSyncAt(input.activeSyncJobFinishedAt) : null
-		if (locationRunFailure || empHasWarning) return { status: "failed", at: jobAt }
+		if (empHasWarning) return { status: "failed", at: jobAt }
 		return { status: "success", at: jobAt }
 	}
 
-	const cached = input.lastCompletedCache
-	if (cached?.locationRunFailure) {
-		return {
-			status: "failed",
-			at: cached.finishedAt != null ? formatSyncAt(cached.finishedAt) : null,
-		}
-	}
 	if (cached?.processedByEmployeeNo?.[emp]) {
 		const cacheAt = cached.finishedAt != null ? formatSyncAt(cached.finishedAt) : null
 		if (cached.warningsByEmployeeNo[emp]) return { status: "failed", at: cacheAt }
 		return { status: "success", at: cacheAt }
 	}
 
-	if (locationRunFailure || empHasWarning) return { status: "failed", at }
+	if (empHasWarning) return { status: "failed", at }
 
 	const statuses = cand?.last_sync
 		? [
@@ -360,10 +422,7 @@ export const buildSyncPersonStepRows = (params: {
 	const { candidates, items, warnings } = params
 
 	const locationRunFailureMessage = (() => {
-		// 設備/連線層級錯誤：warning type=sync 且沒有 employeeNo（例如讀取設備人員清單失敗）
-		const w = (warnings || []).find(
-			(x) => String(x.type || "") === "sync" && !String(x.employeeNo || "").trim()
-		)
+		const w = (warnings || []).find(isDeviceLevelSyncWarning)
 		if (!w) return null
 		return String(w.message || "").trim() || "設備同步失敗"
 	})()

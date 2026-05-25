@@ -1,121 +1,102 @@
 <template>
-	<div :class="rootClass">
-		<!-- header：標題列 + Tab + 右側操作 -->
-		<div
-			v-if="layout === 'header' && (hasTabBar || $slots.prefix || $slots.suffix)"
-			class="flex flex-wrap items-center justify-between gap-4"
+	<div
+		v-if="showList"
+		role="tablist"
+		:aria-label="ariaLabel"
+		:class="mergedListClass"
+	>
+		<button
+			v-for="(tab, index) in tabs"
+			:key="tab.id"
+			:id="tabButtonId(tab.id)"
+			type="button"
+			role="tab"
+			:aria-selected="modelValue === tab.id"
+			:aria-controls="tabPanelId(tab.id)"
+			:tabindex="modelValue === tab.id ? 0 : -1"
+			:class="resolveButtonClass(modelValue === tab.id)"
+			@click="selectTab(tab.id)"
+			@keydown="(event) => handleTabKeydown(event, index)"
 		>
-			<slot name="prefix" />
-			<PageTabList
-				v-if="hasTabBar"
-				:model-value="modelValue"
-				:tabs="tabs"
-				:ariaLabel="ariaLabel"
-				:id-prefix="idPrefix"
-				:wrapper-class="tabListWrapperClass"
-				:class="tabListClass"
-				@update:model-value="selectTab"
-			/>
-			<slot name="suffix" />
-		</div>
+			{{ tab.label }}
+		</button>
+	</div>
 
-		<!-- section：區塊標題列 + Tab -->
-		<div
-			v-else-if="layout === 'section' && (hasTabBar || $slots['section-leading'])"
-			class="flex flex-wrap items-center justify-between gap-4"
-		>
-			<slot name="section-leading" />
-			<PageTabList
-				v-if="hasTabBar"
-				:model-value="modelValue"
-				:tabs="tabs"
-				:ariaLabel="ariaLabel"
-				:id-prefix="idPrefix"
-				:wrapper-class="tabListWrapperClass"
-				:class="tabListClass"
-				@update:model-value="selectTab"
-			/>
-		</div>
-
-		<!-- stacked：可選 prefix + Tab 列 -->
-		<slot v-if="layout === 'stacked' && $slots.prefix" name="prefix" />
-		<PageTabList
-			v-if="layout === 'stacked' && hasTabBar"
-			:model-value="modelValue"
-			:tabs="tabs"
-			:ariaLabel="ariaLabel"
-			:id-prefix="idPrefix"
-			:wrapper-class="tabListWrapperClass"
-			:class="tabListClass"
-			@update:model-value="selectTab"
-		/>
-
-		<div :class="contentClass">
-			<!-- 單一面板（設備管理等）：可關閉外層過渡，由頁面自行處理列表動畫 -->
-			<template v-if="singlePanel">
-				<Transition v-if="panelTransition" name="fade" mode="out-in">
-					<div
-						:key="String(modelValue)"
-						:id="tabPanelId(modelValue)"
-						role="tabpanel"
-						:aria-labelledby="tabButtonId(modelValue)"
-					>
-						<slot />
-					</div>
-				</Transition>
-				<div
-					v-else
-					:id="tabPanelId(modelValue)"
-					role="tabpanel"
-					:aria-labelledby="tabButtonId(modelValue)"
-				>
-					<slot />
-				</div>
-			</template>
-
-			<!-- 多面板：具名 slot 對應 tab id -->
-			<Transition v-else name="fade" mode="out-in">
+	<template v-if="showPanels">
+		<template v-if="singlePanel">
+			<Transition v-if="panelTransition" name="fade" mode="out-in">
 				<div
 					:key="String(modelValue)"
 					:id="tabPanelId(modelValue)"
 					role="tabpanel"
+					:class="panelClass"
 					:aria-labelledby="tabButtonId(modelValue)"
 				>
-					<slot :name="modelValue" />
+					<slot />
 				</div>
 			</Transition>
-		</div>
-	</div>
+			<div
+				v-else
+				:id="tabPanelId(modelValue)"
+				role="tabpanel"
+				:class="panelClass"
+				:aria-labelledby="tabButtonId(modelValue)"
+			>
+				<slot />
+			</div>
+		</template>
+
+		<Transition v-else name="fade" mode="out-in">
+			<div
+				:key="String(modelValue)"
+				:id="tabPanelId(modelValue)"
+				role="tabpanel"
+				:class="panelClass"
+				:aria-labelledby="tabButtonId(modelValue)"
+			>
+				<slot :name="modelValue" />
+			</div>
+		</Transition>
+	</template>
 </template>
 
 <script setup lang="ts" generic="T extends string">
-import PageTabList, { type PageTabItem } from "~/components/common/PageTabList.vue"
+export type PageTabItem<T extends string = string> = {
+	id: T
+	label: string
+}
 
-export type { PageTabItem }
+const LIST_CLASS = "flex gap-1 rounded-xl border border-white/20 bg-white/5 p-1"
+const BUTTON_CLASS =
+	"whitespace-nowrap rounded-lg px-3 py-1.5 text-base font-medium transition-colors 2xl:text-lg"
 
 const props = withDefaults(
 	defineProps<{
 		modelValue: T
 		tabs: PageTabItem<T>[]
-		layout?: "header" | "section" | "stacked"
-		/** 單一面板：使用 default slot，適用同一區塊僅資料隨 tab 切換 */
+		list?: boolean
+		panels?: boolean
 		singlePanel?: boolean
-		/** 單一面板時是否套用 fade 過渡（設備頁列表已有 Transition 時可關閉） */
 		panelTransition?: boolean
+		hideListWhenSingle?: boolean
 		ariaLabel?: string
-		tabListClass?: string
-		contentClass?: string
-		rootClass?: string
+		/** 附加在預設 tab 外框（如 me-auto、overflow-x-auto） */
+		listClass?: string
+		/** 附加在預設 tab 按鈕 */
+		buttonClass?: string
+		panelClass?: string
 		idPrefix?: string
 	}>(),
 	{
-		layout: "stacked",
+		list: true,
+		panels: true,
 		singlePanel: false,
 		panelTransition: true,
+		hideListWhenSingle: true,
 		ariaLabel: "分頁",
-		tabListClass: "",
-		contentClass: "",
-		rootClass: "",
+		listClass: "",
+		buttonClass: "",
+		panelClass: "",
 		idPrefix: "page-tab",
 	},
 )
@@ -124,15 +105,58 @@ const emit = defineEmits<{
 	"update:modelValue": [value: T]
 }>()
 
-const hasTabBar = computed(() => props.tabs.length > 1)
+const showList = computed(
+	() =>
+		props.list &&
+		props.tabs.length > 0 &&
+		(!props.hideListWhenSingle || props.tabs.length > 1),
+)
 
-const tabListWrapperClass =
-	"flex flex-wrap gap-1 rounded-xl border border-white/20 bg-white/5 p-1"
+const showPanels = computed(() => props.panels)
+
+const mergedListClass = computed(() =>
+	[LIST_CLASS, props.listClass].filter(Boolean).join(" "),
+)
+
+const resolveButtonClass = (active: boolean) =>
+	[
+		BUTTON_CLASS,
+		props.buttonClass,
+		active ? "bg-cyan-500 text-white" : "text-white/80 hover:bg-white/10",
+	]
+		.filter(Boolean)
+		.join(" ")
 
 const tabButtonId = (id: T) => `${props.idPrefix}-${id}`
 const tabPanelId = (id: T) => `${props.idPrefix}-panel-${id}`
 
 const selectTab = (id: T) => {
 	emit("update:modelValue", id)
+}
+
+const handleTabKeydown = (event: KeyboardEvent, index: number) => {
+	if (props.tabs.length === 0) return
+
+	let nextIndex = index
+	if (event.key === "ArrowRight") {
+		event.preventDefault()
+		nextIndex = (index + 1) % props.tabs.length
+	} else if (event.key === "ArrowLeft") {
+		event.preventDefault()
+		nextIndex = (index - 1 + props.tabs.length) % props.tabs.length
+	} else if (event.key === "Home") {
+		event.preventDefault()
+		nextIndex = 0
+	} else if (event.key === "End") {
+		event.preventDefault()
+		nextIndex = props.tabs.length - 1
+	} else {
+		return
+	}
+
+	const nextTab = props.tabs[nextIndex]
+	if (!nextTab) return
+	selectTab(nextTab.id)
+	document.getElementById(tabButtonId(nextTab.id))?.focus()
 }
 </script>

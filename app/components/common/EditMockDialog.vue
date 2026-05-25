@@ -229,7 +229,6 @@
 </template>
 
 <script setup lang="ts">
-import { useUploadBaseUrl } from "~/composables/core/useUploadBaseUrl"
 import { resolveUploadUrl } from "~/utils/apiUtils"
 import { useImageCrop } from "~/composables/core/useImageCrop"
 import { formatCropAspectLabel, getCropCanvasSize } from "~/utils/imageCropUtils"
@@ -271,7 +270,8 @@ const draftValue = ref<string>(props.value ?? "")
 const textInputRef = ref<HTMLInputElement | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
-const apiBase = useUploadBaseUrl()
+const config = useRuntimeConfig()
+const apiBase = (config.public.apiBase as string) || ""
 const previewResolvedUrl = computed(() => resolveUploadUrl(draftValue.value ?? "", apiBase))
 
 const isYouTubeLink = computed(() => {

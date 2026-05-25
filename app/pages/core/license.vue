@@ -230,20 +230,27 @@
 				:style="rightPanelStyle"
 				aria-label="授權總覽"
 			>
-				<PageTabs
-					v-model="overviewTab"
-					:tabs="overviewTabs"
-					layout="section"
-					root-class="flex min-h-0 flex-1 flex-col"
-					content-class="mt-6 min-h-0 flex-1 overflow-hidden"
-					aria-label="授權總覽分頁"
-					id-prefix="license-tab"
-				>
-					<template #section-leading>
+				<div class="flex min-h-0 flex-1 flex-col">
+					<div class="flex flex-wrap items-center justify-between gap-4">
 						<h2 class="text-xl font-semibold text-white 2xl:text-2xl">授權總覽</h2>
-					</template>
+						<PageTabs
+							v-model="overviewTab"
+							:tabs="overviewTabs"
+							:panels="false"
+							aria-label="授權總覽分頁"
+							id-prefix="license-tab"
+						/>
+					</div>
 
-					<template #quota>
+					<PageTabs
+						v-model="overviewTab"
+						:tabs="overviewTabs"
+						:list="false"
+						panel-class="mt-6 min-h-0 flex-1 overflow-hidden"
+						aria-label="授權總覽分頁"
+						id-prefix="license-tab"
+					>
+						<template #quota>
 						<ClientOnly>
 							<AsyncPanel
 								panel-size="dense"
@@ -340,8 +347,9 @@
 								<AsyncPanel loading panel-size="dense" />
 							</template>
 						</ClientOnly>
-					</template>
-				</PageTabs>
+						</template>
+					</PageTabs>
+				</div>
 			</section>
 		</div>
 	</div>

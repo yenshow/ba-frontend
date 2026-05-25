@@ -1,8 +1,16 @@
 import { useApiBase } from "~/composables/core/useApiBase"
 import { LICENSE_FEATURE_KEYS, type FeatureKey } from "~/types/license"
 import type { SystemModule } from "~/types/system"
-import { MODULE_CATEGORY_ORDER } from "~/constants/moduleCategories"
 import { logger } from "~/utils/logger"
+
+const MODULE_CATEGORY_ORDER = [
+	"core",
+	"construction-monitoring",
+	"infrastructure",
+	"security",
+	"business",
+	"multimedia",
+] as const satisfies readonly SystemModule["category"][]
 
 type ModuleRegistryItem = {
 	id?: number

@@ -25,15 +25,15 @@
 		<template v-if="localLocation.deviceId && localLocation.deviceId > 0 && localLocation.modbus?.points?.[0]">
 			<label class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 				<span>類型 *</span>
-				<select
+				<FilterDropdown
 					v-model="localLocation.modbus.points[0].type"
-					class="form-input-small form-select w-full"
-					required
-					@change="handleChange"
-				>
-					<option value="DO">DO</option>
-					<option value="DI">DI</option>
-				</select>
+					:options="[
+						{ value: 'DO', label: 'DO' },
+						{ value: 'DI', label: 'DI' },
+					]"
+					text-size="text-sm 2xl:text-base"
+					@update:model-value="handleChange"
+				/>
 			</label>
 
 			<label class="flex min-w-[5rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base sm:max-w-[8rem]">

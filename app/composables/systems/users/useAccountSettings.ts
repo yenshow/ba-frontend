@@ -33,10 +33,9 @@ const ROLE_LABELS: Record<string, string> = {
 	viewer: "檢視者",
 }
 
-const STATUS_LABELS: Record<string, string> = {
+const STATUS_LABELS: Record<"active" | "inactive", string> = {
 	active: "啟用",
 	inactive: "停用",
-	suspended: "暫停",
 }
 
 export const useAccountSettings = () => {
@@ -49,7 +48,7 @@ export const useAccountSettings = () => {
 		user.value?.role ? ROLE_LABELS[user.value.role] ?? user.value.role : "—"
 	)
 	const statusLabel = computed(() =>
-		user.value?.status ? STATUS_LABELS[user.value.status] ?? user.value.status : "—"
+		user.value?.status ? STATUS_LABELS[user.value.status] : "—"
 	)
 
 	const form = reactive({

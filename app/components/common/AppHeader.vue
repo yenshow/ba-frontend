@@ -255,9 +255,9 @@
 									授權管理
 								</NuxtLink>
 
-								<!-- 環境設定（僅管理員顯示） -->
+								<!-- 環境設定（管理員與操作員） -->
 								<NuxtLink
-									v-if="isAdmin"
+									v-if="canWrite"
 									to="/core/env"
 									@click="closeUserMenu"
 									class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 2xl:text-base"
@@ -367,12 +367,34 @@ import { hexRelativeLuminance, hexToRgba } from "~/utils/colorUtils"
 import { LICENSE_MESSAGE_LOCKED, PERMISSION_MESSAGE_LOCKED } from "~/utils/licenseUtils"
 import type { SystemModule } from "~/types/system"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
-import {
-	MODULE_CATEGORY_ACCENT_HEX,
-	MODULE_CATEGORY_LABELS,
-	MODULE_CATEGORY_ORDER,
-} from "~/constants/moduleCategories"
 import { canAccessAccountPage } from "~/composables/systems/users/useAccountSettings"
+
+const MODULE_CATEGORY_LABELS: Record<SystemModule["category"], string> = {
+	core: "核心基礎",
+	"construction-monitoring": "工地監控",
+	infrastructure: "基礎設施",
+	security: "安全相關",
+	business: "業務管理",
+	multimedia: "多媒體",
+}
+
+const MODULE_CATEGORY_ORDER = [
+	"core",
+	"construction-monitoring",
+	"infrastructure",
+	"security",
+	"business",
+	"multimedia",
+] as const satisfies readonly SystemModule["category"][]
+
+const MODULE_CATEGORY_ACCENT_HEX: Record<SystemModule["category"], string> = {
+	core: "#005064",
+	"construction-monitoring": "#0096DC",
+	infrastructure: "#4BC8C8",
+	security: "#962328",
+	business: "#00D296",
+	multimedia: "#640082",
+}
 
 // 用戶選單狀態
 const isUserMenuOpen = ref(false)
@@ -458,7 +480,7 @@ const getMoreMenuCategoryLabelStyle = (category: SystemModule["category"]) => {
 	}
 }
 
-// 按分類分組的模組（標籤／順序與 SSOT `moduleCategories` 一致）
+// 按分類分組的模組
 const categoryGroups = computed(() => {
 	return MODULE_CATEGORY_ORDER.map((category) => {
 		const modules = systemModulesApi.getModulesByCategory(category)

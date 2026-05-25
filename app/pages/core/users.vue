@@ -128,7 +128,7 @@
 					@click.self="closeDialog"
 				>
 					<div
-						class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-2xl flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:gap-6 2xl:p-8"
+						class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-lg flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:gap-6 2xl:p-8"
 					>
 						<header class="flex items-center justify-between">
 							<h3 class="text-lg font-semibold tracking-[4px] text-white 2xl:text-xl">
@@ -168,15 +168,13 @@
 									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 								>
 									<span>角色</span>
-									<select
+									<FilterDropdown
 										v-model="formData.role"
-										class="form-input form-select"
-										@change="handleRoleSelectChange"
-									>
-										<option value="viewer">檢視者</option>
-										<option value="operator">操作員</option>
-										<option v-if="isAdmin" value="admin">管理員</option>
-									</select>
+										:options="roleFormOptions"
+										placeholder="請選擇角色"
+										text-size="text-sm 2xl:text-base"
+										@update:model-value="handleRoleFilterChange"
+									/>
 								</label>
 								<div
 									v-if="canWrite && formData.role !== 'admin'"
@@ -192,14 +190,25 @@
 								</div>
 								<label
 									v-if="canWrite && editingUser"
-									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+									class="flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base"
 								>
-									<span>狀態</span>
-									<select v-model="formData.status" class="form-input form-select">
-										<option value="active">啟用</option>
-										<option value="inactive">停用</option>
-										<option value="suspended">暫停</option>
-									</select>
+									<label class="relative inline-flex cursor-pointer items-center">
+										<input
+											v-model="formData.status"
+											type="checkbox"
+											value="active"
+											true-value="active"
+											false-value="inactive"
+											class="peer sr-only"
+											aria-label="用戶啟用狀態"
+										/>
+										<div
+											class="peer h-6 w-11 rounded-full bg-white/20 after:absolute after:left-[4px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-emerald-500 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none 2xl:h-7 2xl:w-14 2xl:after:h-6 2xl:after:w-6"
+										></div>
+										<span class="ml-3 text-sm 2xl:text-base">{{
+											formData.status === "active" ? "已啟用" : "已停用"
+										}}</span>
+									</label>
 								</label>
 							</div>
 
@@ -334,11 +343,21 @@ const roleLabels: Record<string, string> = {
 	viewer: "檢視者",
 }
 
-const statusLabels: Record<string, string> = {
+const statusLabels: Record<"active" | "inactive", string> = {
 	active: "啟用",
 	inactive: "停用",
-	suspended: "暫停",
 }
+
+const roleFormOptions = computed(() => {
+	const options = [
+		{ value: "viewer", label: "檢視者" },
+		{ value: "operator", label: "操作員" },
+	]
+	if (isAdmin.value) {
+		options.push({ value: "admin", label: "管理員" })
+	}
+	return options
+})
 
 // 日期排序篩選選項（供 FilterDropdown 使用）
 const dateSortOptions = [
@@ -354,7 +373,7 @@ const formData = reactive({
 	username: "",
 	password: "",
 	role: "viewer" as "admin" | "operator" | "viewer",
-	status: "active" as "active" | "inactive" | "suspended",
+	status: "active" as "active" | "inactive",
 })
 
 const getRoleBadgeClass = (role: string) => {
@@ -370,13 +389,11 @@ const getStatusBadgeClass = (status: string) => {
 	const classes = {
 		active: "bg-emerald-500/20 text-emerald-200",
 		inactive: "bg-yellow-500/20 text-yellow-200",
-		suspended: "bg-red-500/20 text-red-200",
 	}
-	return classes[status as keyof typeof classes] || classes.inactive
+	return classes[status as keyof typeof classes] ?? classes.inactive
 }
 
-const canShowResetPasswordButton = (user: User) =>
-	canResetPasswordForUser(currentUser.value, user)
+const canShowResetPasswordButton = (user: User) => canResetPasswordForUser(currentUser.value, user)
 
 const canShowDeleteButton = (user: User) => {
 	if (!canWrite.value) {
@@ -436,9 +453,7 @@ const loadPermissionDraft = async (userId?: number) => {
 		await ensurePermissionDefinitions()
 		if (userId != null) {
 			const { overridesByPermId } = await userApi.getUserPermissionOverrides(userId)
-			setPermissionGrantedSnapshot(
-				buildGrantedMap(permissionDefinitions.value, overridesByPermId)
-			)
+			setPermissionGrantedSnapshot(buildGrantedMap(permissionDefinitions.value, overridesByPermId))
 		} else {
 			setPermissionGrantedSnapshot(buildGrantedMap(permissionDefinitions.value))
 		}
@@ -449,7 +464,7 @@ const loadPermissionDraft = async (userId?: number) => {
 	}
 }
 
-const handleRoleSelectChange = async () => {
+const handleRoleFilterChange = async () => {
 	if (formData.role === "admin") {
 		resetPermissionDraft()
 		return
@@ -652,14 +667,5 @@ onMounted(() => {
 	border-color: #5be7f1;
 	background: rgba(255, 255, 255, 0.18);
 	outline: none;
-}
-
-.form-select {
-	cursor: pointer;
-}
-
-.form-select option {
-	background: rgba(20, 64, 92, 0.98);
-	color: #f7fbff;
 }
 </style>
