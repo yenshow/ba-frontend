@@ -6,8 +6,7 @@ import {
 	type ManualSemanticAlertSource,
 } from "~/utils/alertUtils"
 
-/** 後端 Modbus 快照 GET 可能明顯長於 useApiBase 預設 5s，避免 TimeoutError 造成輪詢長期無資料 */
-export const STATUS_SNAPSHOT_REQUEST_TIMEOUT_MS = 30_000
+/** Modbus 快照 GET 逾時：各 `use*Api` 的 `getStatus` / `getZoneStatus` 固定 `timeout: 30_000`（高於 useApiBase 預設 5s） */
 
 const findLocationBySystemIdInZones = <L extends { systemId?: string | number | undefined }>(
 	zones: Array<{ locations?: L[] }>,

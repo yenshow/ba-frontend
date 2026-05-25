@@ -35,12 +35,15 @@ export const useLightingApi = () => {
 			query.set("zoneIds", zoneIds.map((id) => String(id)).join(","))
 		}
 		const suffix = query.toString() ? `?${query.toString()}` : ""
-		return request<{ items: LightingStatusSnapshotItem[] }>(`/lighting/status${suffix}`)
+		return request<{ items: LightingStatusSnapshotItem[] }>(`/lighting/status${suffix}`, {
+			timeout: 30_000,
+		})
 	}
 
 	const getZoneStatus = async (zoneId: string | number) => {
 		return request<{ zoneId: string; items: LightingStatusSnapshotItem[] }>(
-			`/lighting/zones/${zoneId}/status`
+			`/lighting/zones/${zoneId}/status`,
+			{ timeout: 30_000 }
 		)
 	}
 

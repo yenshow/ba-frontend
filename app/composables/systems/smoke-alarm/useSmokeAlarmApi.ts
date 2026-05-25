@@ -32,11 +32,14 @@ export const useSmokeAlarmApi = () => {
 			if (zoneIds && zoneIds.length > 0) params.set("zoneIds", zoneIds.join(","))
 			if (syncAlerts !== undefined) params.set("syncAlerts", syncAlerts ? "true" : "false")
 			const q = params.toString() ? `?${params.toString()}` : ""
-			return request<{ items: SmokeAlarmStatusItem[] }>(`/smoke-alarm/status${q}`)
+			return request<{ items: SmokeAlarmStatusItem[] }>(`/smoke-alarm/status${q}`, {
+				timeout: 30_000,
+			})
 		},
 		getZoneStatus: (zoneId: string) =>
 			request<{ zoneId: string; items: SmokeAlarmStatusItem[] }>(
-				`/smoke-alarm/zones/${zoneId}/status`
+				`/smoke-alarm/zones/${zoneId}/status`,
+				{ timeout: 30_000 }
 			),
 	}
 }

@@ -1,8 +1,8 @@
 <template>
-	<div class="flex min-w-0 flex-1 items-end gap-2">
+	<div class="flex min-w-0 flex-1 flex-wrap items-end gap-2">
 		<!-- 點位名稱 -->
 		<label
-			class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0"
+			class="flex min-w-[7rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 		>
 			<span>點位名稱 *</span>
 			<input
@@ -17,7 +17,7 @@
 
 		<!-- 控制器 -->
 		<label
-			class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0"
+			class="flex min-w-[8rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 		>
 			<span>控制器</span>
 			<FilterDropdown
@@ -36,7 +36,7 @@
 		>
 			<!-- Modbus 類型 -->
 			<label
-				class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+				class="flex w-24 min-w-0 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 			>
 				<span>類型 *</span>
 				<FilterDropdown
@@ -52,7 +52,7 @@
 
 			<!-- Modbus 地址 -->
 			<label
-				class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+				class="flex min-w-[5rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base sm:max-w-[8rem]"
 			>
 				<span>地址 *</span>
 				<div class="relative w-full">

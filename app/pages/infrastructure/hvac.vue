@@ -64,7 +64,7 @@ import { useZoneManagement } from "~/composables/location/management/useZoneMana
 import { useAuth } from "~/composables/core/useAuth"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
-import { useHvacModbusIntegration } from "~/composables/systems/hvac/useHvacModbusIntegration"
+import { useHvacModbusIntegration } from "~/composables/monitoring/modbus/toggleModbusIntegrations"
 
 definePageMeta({ layout: "default" })
 

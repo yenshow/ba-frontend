@@ -219,14 +219,18 @@ import { useFireApi } from "~/composables/systems/fire/useFireApi"
 import { useAirCirculationApi } from "~/composables/systems/air-circulation/useAirCirculationApi"
 import { useSmokeAlarmApi } from "~/composables/systems/smoke-alarm/useSmokeAlarmApi"
 import { useEmergencyRescueApi } from "~/composables/systems/emergency-rescue/useEmergencyRescueApi"
-import { useLightingModbusIntegration } from "~/composables/systems/lighting/useLightingModbusIntegration"
-import { useDrainageModbusIntegration } from "~/composables/systems/drainage/useDrainageModbusIntegration"
-import { usePowerModbusIntegration } from "~/composables/systems/power/usePowerModbusIntegration"
-import { useHvacModbusIntegration } from "~/composables/systems/hvac/useHvacModbusIntegration"
-import { useFireModbusIntegration } from "~/composables/systems/fire/useFireModbusIntegration"
-import { useAirCirculationModbusIntegration } from "~/composables/systems/air-circulation/useAirCirculationModbusIntegration"
-import { useSmokeAlarmModbusIntegration } from "~/composables/systems/smoke-alarm/useSmokeAlarmModbusIntegration"
-import { useEmergencyRescueModbusIntegration } from "~/composables/systems/emergency-rescue/useEmergencyRescueModbusIntegration"
+import {
+	useAirCirculationModbusIntegration,
+	useDrainageModbusIntegration,
+	useEmergencyRescueModbusIntegration,
+	useFireModbusIntegration,
+	usePowerModbusIntegration,
+	useSmokeAlarmModbusIntegration,
+} from "~/composables/monitoring/modbus/snapshotModbusIntegrations"
+import {
+	useHvacModbusIntegration,
+	useLightingModbusIntegration,
+} from "~/composables/monitoring/modbus/toggleModbusIntegrations"
 import { getSystemTypeLabel } from "~/types/location"
 import { getLocationUiKey } from "~/utils/locationUiId"
 import {

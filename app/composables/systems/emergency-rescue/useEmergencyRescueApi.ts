@@ -36,11 +36,14 @@ export const useEmergencyRescueApi = () => {
 			if (zoneIds && zoneIds.length > 0) params.set("zoneIds", zoneIds.join(","))
 			if (syncAlerts !== undefined) params.set("syncAlerts", syncAlerts ? "true" : "false")
 			const q = params.toString() ? `?${params.toString()}` : ""
-			return request<{ items: EmergencyRescueStatusItem[] }>(`/emergency-rescue/status${q}`)
+			return request<{ items: EmergencyRescueStatusItem[] }>(`/emergency-rescue/status${q}`, {
+				timeout: 30_000,
+			})
 		},
 		getZoneStatus: (zoneId: string) =>
 			request<{ zoneId: string; items: EmergencyRescueStatusItem[] }>(
-				`/emergency-rescue/zones/${zoneId}/status`
+				`/emergency-rescue/zones/${zoneId}/status`,
+				{ timeout: 30_000 }
 			),
 	}
 }

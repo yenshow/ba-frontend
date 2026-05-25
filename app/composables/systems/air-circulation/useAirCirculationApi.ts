@@ -36,11 +36,14 @@ export const useAirCirculationApi = () => {
 			if (zoneIds && zoneIds.length > 0) params.set("zoneIds", zoneIds.join(","))
 			if (syncAlerts !== undefined) params.set("syncAlerts", syncAlerts ? "true" : "false")
 			const q = params.toString() ? `?${params.toString()}` : ""
-			return request<{ items: AirCirculationStatusItem[] }>(`/air-circulation/status${q}`)
+			return request<{ items: AirCirculationStatusItem[] }>(`/air-circulation/status${q}`, {
+				timeout: 30_000,
+			})
 		},
 		getZoneStatus: (zoneId: string) =>
 			request<{ zoneId: string; items: AirCirculationStatusItem[] }>(
-				`/air-circulation/zones/${zoneId}/status`
+				`/air-circulation/zones/${zoneId}/status`,
+				{ timeout: 30_000 }
 			),
 	}
 }

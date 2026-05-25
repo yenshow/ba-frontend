@@ -74,7 +74,7 @@ import { useZoneManagement } from "~/composables/location/management/useZoneMana
 import { useAuth } from "~/composables/core/useAuth"
 import { getLocationUiKey, findLocationIndexInZone } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
-import { useFireModbusIntegration } from "~/composables/systems/fire/useFireModbusIntegration"
+import { useFireModbusIntegration } from "~/composables/monitoring/modbus/snapshotModbusIntegrations"
 import type { ManualIssueChangedPayload } from "~/utils/alertUtils"
 import { useManualIssueDiDoRules } from "~/composables/systems/alerts/useManualIssueDiDoRules"
 

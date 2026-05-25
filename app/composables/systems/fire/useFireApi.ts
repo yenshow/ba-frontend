@@ -6,7 +6,6 @@ import {
 	fireLocationToUnified,
 } from "~/utils/locationAdapter"
 import { useApiBase } from "~/composables/core/useApiBase"
-import { STATUS_SNAPSHOT_REQUEST_TIMEOUT_MS } from "~/composables/monitoring/statusSnapshotPolicy"
 
 export const useFireApi = () => {
 	const zoneApi = useSystemLocationApiFactory<FireZone, FireLocation>({
@@ -34,12 +33,12 @@ export const useFireApi = () => {
 			if (syncAlerts !== undefined) params.set("syncAlerts", syncAlerts ? "true" : "false")
 			const q = params.toString() ? `?${params.toString()}` : ""
 			return request<{ items: FireStatusItem[] }>(`/fire/status${q}`, {
-				timeout: STATUS_SNAPSHOT_REQUEST_TIMEOUT_MS,
+				timeout: 30_000,
 			})
 		},
 		getZoneStatus: (zoneId: string) =>
 			request<{ zoneId: string; items: FireStatusItem[] }>(`/fire/zones/${zoneId}/status`, {
-				timeout: STATUS_SNAPSHOT_REQUEST_TIMEOUT_MS,
+				timeout: 30_000,
 			}),
 	}
 }

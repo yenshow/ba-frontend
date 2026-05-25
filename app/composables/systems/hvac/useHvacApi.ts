@@ -35,12 +35,15 @@ export const useHvacApi = () => {
 		createZone: zoneApi.createZone,
 		updateZone: zoneApi.updateZone,
 		deleteZone: zoneApi.deleteZone,
-		getStatus: (zoneIds?: string[]) => {
+		getStatus: (params?: { zoneIds?: string[] }) => {
+			const zoneIds = params?.zoneIds ?? []
 			const q =
-				zoneIds && zoneIds.length > 0 ? `?zoneIds=${zoneIds.map(encodeURIComponent).join(",")}` : ""
-			return request<{ items: any[] }>(`/hvac/status${q}`)
+				zoneIds.length > 0 ? `?zoneIds=${zoneIds.map(encodeURIComponent).join(",")}` : ""
+			return request<{ items: any[] }>(`/hvac/status${q}`, { timeout: 30_000 })
 		},
 		getZoneStatus: (zoneId: string) =>
-			request<{ zoneId: string; items: any[] }>(`/hvac/zones/${zoneId}/status`),
+			request<{ zoneId: string; items: any[] }>(`/hvac/zones/${zoneId}/status`, {
+				timeout: 30_000,
+			}),
 	}
 }

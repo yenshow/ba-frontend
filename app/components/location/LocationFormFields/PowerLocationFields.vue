@@ -44,7 +44,7 @@
 				</label>
 				<template v-if="oilLevelRow.deviceIdStr">
 					<label
-						class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+						class="flex w-24 min-w-0 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 					>
 						<span>類型 *</span>
 						<FilterDropdown
@@ -114,7 +114,7 @@
 						</label>
 						<template v-if="generatorRows[role.key].deviceIdStr">
 							<label
-								class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+								class="flex w-24 min-w-0 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 							>
 								<span>類型 *</span>
 								<FilterDropdown

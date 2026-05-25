@@ -15,7 +15,12 @@ import { usePeopleCountingLocationApi } from "~/composables/location/api/usePeop
 import { buildPathWithQuery } from "~/utils/apiUtils";
 import { logger } from "~/utils/logger";
 import { formatDateTime } from "~/utils/dateUtils";
-import { extractRegionFromZoneName, convertApiLogToFrontend } from "~/utils/peopleCountingAdapter";
+import {
+	extractRegionFromZoneName,
+	convertApiLogToFrontend,
+	mapUnitPersonnelFromApi,
+	type UnitPersonnelApiRow
+} from "~/utils/peopleCountingAdapter";
 import { normalizeLogDisplayColumns } from "~/utils/peopleCountingLogColumns";
 
 const apiLogger = logger.createLogger("PeopleCounting API");
@@ -188,19 +193,7 @@ export const usePeopleCountingApi = () => {
 				: `/people-counting/units/${unitId}/personnel`;
 
 			const response = await request<{
-				personnel: Array<{
-					id: number;
-					employeeId: string;
-					name: string;
-					photoUrl?: string;
-					isInside: boolean;
-					lastEntryTime: string | null;
-					lastExitTime: string | null;
-					lastEntryDate: string | null;
-					entryTime: string | null;
-					exitTime: string | null;
-					isTodayEntry?: boolean;
-				}>;
+				personnel: UnitPersonnelApiRow[];
 				entryCount: number;
 				exitCount: number;
 			}>(url);
@@ -208,22 +201,7 @@ export const usePeopleCountingApi = () => {
 			const { personnel } = response;
 			if (!Array.isArray(personnel)) return [];
 
-			return personnel.map(person => {
-				return {
-					id: person.id,
-					unitId,
-					employeeId: person.employeeId,
-					name: person.name,
-					photoUrl: person.photoUrl || undefined,
-					lastEntryTime: person.lastEntryTime ? formatDateTime(person.lastEntryTime) : undefined,
-					lastExitTime: person.lastExitTime ? formatDateTime(person.lastExitTime) : undefined,
-					lastEntryDate: person.lastEntryDate || undefined,
-					entryTime: person.entryTime || undefined,
-					exitTime: person.exitTime || undefined,
-					isPresent: person.isInside ?? false,
-					isTodayEntry: person.isTodayEntry ?? false
-				};
-			});
+			return personnel.map(person => mapUnitPersonnelFromApi(person, unitId));
 		} catch (error) {
 			apiLogger.error("取得單位人員失敗", { unitId, locationId, error });
 			throw error;

@@ -79,7 +79,9 @@ export interface ModbusDataResponse<T = number | boolean> {
 	device?: ModbusDeviceConfig
 }
 
-export const hasInlineModbusDeviceConfig = (modbus: ModbusConfigLike | null | undefined): boolean => {
+export const hasInlineModbusDeviceConfig = (
+	modbus: ModbusConfigLike | null | undefined
+): boolean => {
 	if (!modbus) return false
 	return Boolean(modbus.host && modbus.port != null && modbus.unitId !== undefined)
 }
@@ -95,7 +97,9 @@ export const hasControllerConfig = (cfg: ControllerConfigLike | null | undefined
  * 與舊命名相容：傳入 { deviceId, modbus } 的 location-like 物件即可。
  * - 主要給 Lighting 舊邏輯使用，避免大量重命名
  */
-export const hasLocationControllerConfig = (location: { deviceId?: unknown; modbus?: unknown } | null | undefined): boolean => {
+export const hasLocationControllerConfig = (
+	location: { deviceId?: unknown; modbus?: unknown } | null | undefined
+): boolean => {
 	if (!location) return false
 	return hasControllerConfig({
 		deviceId: (location as any).deviceId as any,
@@ -103,7 +107,9 @@ export const hasLocationControllerConfig = (location: { deviceId?: unknown; modb
 	})
 }
 
-export const needsModbusConnection = (location: { modbus?: unknown } | null | undefined): boolean => {
+export const needsModbusConnection = (
+	location: { modbus?: unknown } | null | undefined
+): boolean => {
 	return Boolean(location && (location as any).modbus)
 }
 
@@ -111,7 +117,8 @@ export const filterDoPoints = (points: ModbusPointLike[] | undefined) => {
 	if (!points || points.length === 0) return []
 	return points.filter((p) => {
 		if (p.type === "DO" || p.type === "do") return true
-		if (p.method === "writeCoil" || p.method === "writeCoils" || p.method === "getCoils") return true
+		if (p.method === "writeCoil" || p.method === "writeCoils" || p.method === "getCoils")
+			return true
 		return false
 	})
 }
@@ -182,4 +189,3 @@ export const extractWritePoints = (modbus: ModbusConfigLike): number[] => {
 	}
 	return extractDoAddresses(modbus)
 }
-

@@ -1,4 +1,4 @@
-import type { StatusSnapshotFetchOptions } from "~/composables/monitoring/statusSnapshotPolicy"
+import type { StatusSnapshotFetchOptions } from "~/composables/monitoring/modbus/statusSnapshotPolicy"
 
 export type SnapshotRaceContext = {
 	isStale: () => boolean

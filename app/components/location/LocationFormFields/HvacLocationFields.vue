@@ -23,7 +23,7 @@
 		</label>
 
 		<template v-if="localLocation.deviceId && localLocation.deviceId > 0 && localLocation.modbus?.points?.[0]">
-			<label class="flex w-24 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+			<label class="flex w-24 min-w-0 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 				<span>類型 *</span>
 				<FilterDropdown
 					v-model="localLocation.modbus.points[0].type"
