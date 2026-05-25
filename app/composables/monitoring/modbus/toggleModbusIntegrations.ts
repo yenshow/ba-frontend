@@ -3,10 +3,9 @@ import type { HvacLocation, HvacUiStatus, HvacZone } from "~/types/hvac"
 import type { LightingLocation, LightingStatusSnapshotItem, LightingZone } from "~/types/lighting"
 import {
 	filterDoPoints,
-	hasLocationControllerConfig,
+	hasControllerConfig,
 	needsModbusConnection,
 	extractWritePoints,
-	hasControllerConfig,
 } from "~/utils/modbusPoints"
 import { findLocationInZonesByUiKey, getLocationUiKey } from "~/utils/locationUiId"
 import type { MapDotStatus, SystemUiStatus } from "~/utils/monitoringStatus"
@@ -16,6 +15,7 @@ import {
 	coerceToggleSnapshotNumber,
 	mapToggleBackendUiStatus,
 } from "~/composables/monitoring/modbus/modbusIntegrationShared"
+import { normalizeOptionalDeviceId } from "~/utils/deviceIdUtils"
 import { useLightingApi } from "~/composables/systems/lighting/useLightingApi"
 import { useHvacApi } from "~/composables/systems/hvac/useHvacApi"
 
@@ -73,7 +73,7 @@ export const useLightingModbusIntegration = (
 				zone.locations.forEach((location, locationIndex) => {
 					const locationId = getLocationUiKey({ zone, location, locationIndex })
 					const isToggling = toggling.value.has(locationId)
-					const hasDeviceReference = hasLocationControllerConfig(location)
+					const hasDeviceReference = hasControllerConfig(location)
 					if (!hasDeviceReference) {
 						map[locationId] = true
 						return
@@ -82,7 +82,7 @@ export const useLightingModbusIntegration = (
 						map[locationId] = filterDoPoints(location.modbus.points).length === 0 || isToggling
 						return
 					}
-					if (location.modbus?.deviceId) {
+					if (normalizeOptionalDeviceId(location.deviceId)) {
 						const hasDoAddresses = !(
 							!location.modbus.doAddresses &&
 							!location.modbus.doAddress &&
@@ -108,7 +108,7 @@ export const useLightingModbusIntegration = (
 			lightingZones.value.forEach((zone) => {
 				zone.locations.forEach((location, locationIndex) => {
 					const locationId = getLocationUiKey({ zone, location, locationIndex })
-					const hasController = hasLocationControllerConfig(location)
+					const hasController = hasControllerConfig(location)
 					const existing = store.value[locationId]
 					store.value[locationId] = {
 						isRunning: hasController ? (existing?.isRunning ?? false) : false,

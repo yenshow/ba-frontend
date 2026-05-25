@@ -15,7 +15,6 @@ export interface HvacLocation {
 	location?: { x: number; y: number }
 	description?: string
 
-	/** 控制器設備 ID（建議與 modbus.deviceId 一致） */
 	deviceId?: number
 	/** DI/DO 點位（沿用照明的 modbus 結構） */
 	modbus?: LightingSystemConfig["modbus"]

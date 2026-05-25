@@ -29,6 +29,11 @@ import {
 	normalizeLogDisplayColumns,
 	toStoredLogDisplayColumns,
 } from "~/utils/peopleCountingLogColumns"
+import {
+	controllerConfigForApiWrite,
+	normalizeControllerFields,
+	normalizeOptionalDeviceId,
+} from "~/utils/deviceIdUtils"
 
 /**
  * 後端返回的地點格式（新架構：包含 systems 陣列）
@@ -320,7 +325,9 @@ export function unifiedToEnvironmentZone(zone: UnifiedZone): EnvironmentZone {
 					systemId: envSystem.id,
 					name: loc.name,
 					...pickSortOrder(loc.sortOrder),
-					deviceId: cfg.deviceId ?? deviceIds[0],
+					deviceId:
+						normalizeOptionalDeviceId(cfg.deviceId) ??
+						normalizeOptionalDeviceId(deviceIds[0]),
 					deviceIds: deviceIds.length ? deviceIds : undefined,
 					parameters: cfg.parameters || [],
 				} as EnvironmentLocation,
@@ -366,6 +373,7 @@ export function unifiedToLightingZone(zone: UnifiedZone): LightingZone {
 				return []
 			}
 
+			const ctrl = normalizeControllerFields(lightingSystem.config)
 			return [
 				{
 					id: loc.id,
@@ -373,9 +381,8 @@ export function unifiedToLightingZone(zone: UnifiedZone): LightingZone {
 					name: loc.name,
 					...pickSortOrder(loc.sortOrder),
 					location: lightingSystem.config.location,
-					deviceId: lightingSystem.config.deviceId,
-					modbus: lightingSystem.config.modbus,
-				} as LightingLocation,
+					...ctrl,
+				} satisfies LightingLocation,
 			]
 		}),
 	}
@@ -394,6 +401,7 @@ export function unifiedToHvacZone(zone: UnifiedZone): HvacZone {
 		locations: zone.locations.flatMap((loc) => {
 			const hvacSystem = loc.systems.find((s) => s.systemType === "hvac")
 			if (!hvacSystem || !isHvacSystemConfig(hvacSystem.config)) return []
+			const ctrl = normalizeControllerFields(hvacSystem.config)
 			return [
 				{
 					id: loc.id,
@@ -402,9 +410,7 @@ export function unifiedToHvacZone(zone: UnifiedZone): HvacZone {
 					...(loc.createdAt && { createdAt: loc.createdAt }),
 					...pickSortOrder(loc.sortOrder),
 					location: hvacSystem.config.location,
-					deviceId: hvacSystem.config.deviceId,
-					modbus: hvacSystem.config.modbus,
-					statusPoints: hvacSystem.config.statusPoints,
+					...ctrl,
 				} as HvacLocation,
 			]
 		}),
@@ -421,6 +427,7 @@ export function unifiedToAirCirculationZone(zone: UnifiedZone): AirCirculationZo
 		locations: zone.locations.flatMap((loc) => {
 			const sys = loc.systems.find((s) => s.systemType === "air_circulation")
 			if (!sys || !isAirCirculationSystemConfig(sys.config)) return []
+			const ctrl = normalizeControllerFields(sys.config)
 			return [
 				{
 					id: loc.id,
@@ -429,9 +436,7 @@ export function unifiedToAirCirculationZone(zone: UnifiedZone): AirCirculationZo
 					...(loc.createdAt && { createdAt: loc.createdAt }),
 					...pickSortOrder(loc.sortOrder),
 					location: sys.config.location,
-					deviceId: sys.config.deviceId,
-					modbus: sys.config.modbus,
-					statusPoints: sys.config.statusPoints,
+					...ctrl,
 					equipmentKind: sys.config.equipmentKind,
 					viewCategory: sys.config.viewCategory,
 				} as AirCirculationLocation,
@@ -503,6 +508,7 @@ export function unifiedToDrainageZone(zone: UnifiedZone): DrainageZone {
 				return []
 			}
 			const cfg = drainageSystem.config
+			const ctrl = normalizeControllerFields(cfg)
 			return [
 				{
 					id: loc.id,
@@ -511,11 +517,9 @@ export function unifiedToDrainageZone(zone: UnifiedZone): DrainageZone {
 					...(loc.createdAt && { createdAt: loc.createdAt }),
 					...pickSortOrder(loc.sortOrder),
 					location: cfg.location,
-					deviceId: cfg.deviceId,
-					modbus: cfg.modbus as DrainageLocation["modbus"],
+					...ctrl,
 					equipmentKind: cfg.equipmentKind,
 					viewCategory: cfg.viewCategory,
-					statusPoints: cfg.statusPoints,
 				} as DrainageLocation,
 			]
 		}),
@@ -538,6 +542,7 @@ export function unifiedToPowerZone(zone: UnifiedZone): PowerZone {
 				return []
 			}
 			const cfg = powerSystem.config
+			const ctrl = normalizeControllerFields(cfg)
 			return [
 				{
 					id: loc.id,
@@ -546,11 +551,9 @@ export function unifiedToPowerZone(zone: UnifiedZone): PowerZone {
 					...(loc.createdAt && { createdAt: loc.createdAt }),
 					...pickSortOrder(loc.sortOrder),
 					location: cfg.location,
-					deviceId: cfg.deviceId,
-					modbus: cfg.modbus as PowerLocation["modbus"],
+					...ctrl,
 					equipmentKind: cfg.equipmentKind,
 					viewCategory: cfg.viewCategory,
-					statusPoints: cfg.statusPoints,
 				} as PowerLocation,
 			]
 		}),
@@ -573,6 +576,7 @@ export function unifiedToFireZone(zone: UnifiedZone): FireZone {
 				return []
 			}
 			const cfg = fireSystem.config
+			const ctrl = normalizeControllerFields(cfg)
 			return [
 				{
 					id: loc.id,
@@ -581,11 +585,9 @@ export function unifiedToFireZone(zone: UnifiedZone): FireZone {
 					...(loc.createdAt && { createdAt: loc.createdAt }),
 					...pickSortOrder(loc.sortOrder),
 					location: cfg.location,
-					deviceId: cfg.deviceId,
-					modbus: cfg.modbus as FireLocation["modbus"],
+					...ctrl,
 					equipmentKind: cfg.equipmentKind,
 					viewCategory: cfg.viewCategory,
-					statusPoints: cfg.statusPoints,
 				} as FireLocation,
 			]
 		}),
@@ -617,10 +619,6 @@ export function fireLocationToUnified(
 ): UnifiedLocationInput {
 	const hasId = "id" in location && location.id
 	const hasSystemId = "systemId" in location && location.systemId
-	const statusPoints =
-		location.statusPoints && Object.keys(location.statusPoints).length > 0
-			? location.statusPoints
-			: {}
 	return {
 		...(hasId && { id: location.id! }),
 		name: location.name,
@@ -631,17 +629,14 @@ export function fireLocationToUnified(
 			{
 				...(hasSystemId && { id: location.systemId! }),
 				systemType,
-				config: {
-					deviceId: location.deviceId,
-					location: location.location,
-					modbus:
-						location.modbus != null
-							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
-							: undefined,
-					equipmentKind: location.equipmentKind ?? "pump",
-					viewCategory: location.viewCategory ?? "sprinkler",
-					statusPoints,
-				} as FireSystemConfig,
+				config: controllerConfigForApiWrite(
+					location,
+					{
+						equipmentKind: location.equipmentKind ?? "pump",
+						viewCategory: location.viewCategory ?? "sprinkler",
+					},
+					true
+				) as FireSystemConfig,
 			},
 		],
 	}
@@ -663,6 +658,7 @@ export function unifiedToEmergencyRescueZone(zone: UnifiedZone): EmergencyRescue
 				return []
 			}
 			const cfg = sys.config
+			const ctrl = normalizeControllerFields(cfg)
 			return [
 				{
 					id: loc.id,
@@ -671,11 +667,9 @@ export function unifiedToEmergencyRescueZone(zone: UnifiedZone): EmergencyRescue
 					...(loc.createdAt && { createdAt: loc.createdAt }),
 					...pickSortOrder(loc.sortOrder),
 					location: cfg.location,
-					deviceId: cfg.deviceId,
-					modbus: cfg.modbus as EmergencyRescueLocation["modbus"],
+					...ctrl,
 					equipmentKind: cfg.equipmentKind,
 					viewCategory: cfg.viewCategory,
-					statusPoints: cfg.statusPoints,
 				} as EmergencyRescueLocation,
 			]
 		}),
@@ -703,10 +697,6 @@ export function emergencyRescueLocationToUnified(
 ): UnifiedLocationInput {
 	const hasId = "id" in location && location.id
 	const hasSystemId = "systemId" in location && location.systemId
-	const statusPoints =
-		location.statusPoints && Object.keys(location.statusPoints).length > 0
-			? location.statusPoints
-			: {}
 	return {
 		...(hasId && { id: location.id! }),
 		name: location.name,
@@ -717,17 +707,14 @@ export function emergencyRescueLocationToUnified(
 			{
 				...(hasSystemId && { id: location.systemId! }),
 				systemType,
-				config: {
-					deviceId: location.deviceId,
-					location: location.location,
-					modbus:
-						location.modbus != null
-							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
-							: undefined,
-					equipmentKind: location.equipmentKind ?? "pump",
-					viewCategory: location.viewCategory ?? "sos",
-					statusPoints,
-				} as FireSystemConfig,
+				config: controllerConfigForApiWrite(
+					location,
+					{
+						equipmentKind: location.equipmentKind ?? "pump",
+						viewCategory: location.viewCategory ?? "sos",
+					},
+					true
+				) as FireSystemConfig,
 			},
 		],
 	}
@@ -749,6 +736,7 @@ export function unifiedToSmokeAlarmZone(zone: UnifiedZone): SmokeAlarmZone {
 				return []
 			}
 			const cfg = sys.config
+			const ctrl = normalizeControllerFields(cfg)
 			return [
 				{
 					id: loc.id,
@@ -757,11 +745,9 @@ export function unifiedToSmokeAlarmZone(zone: UnifiedZone): SmokeAlarmZone {
 					...(loc.createdAt && { createdAt: loc.createdAt }),
 					...pickSortOrder(loc.sortOrder),
 					location: cfg.location,
-					deviceId: cfg.deviceId,
-					modbus: cfg.modbus as SmokeAlarmLocation["modbus"],
+					...ctrl,
 					equipmentKind: cfg.equipmentKind,
 					viewCategory: cfg.viewCategory,
-					statusPoints: cfg.statusPoints,
 				} as SmokeAlarmLocation,
 			]
 		}),
@@ -787,10 +773,6 @@ export function smokeAlarmLocationToUnified(
 ): UnifiedLocationInput {
 	const hasId = "id" in location && location.id
 	const hasSystemId = "systemId" in location && location.systemId
-	const statusPoints =
-		location.statusPoints && Object.keys(location.statusPoints).length > 0
-			? location.statusPoints
-			: {}
 	return {
 		...(hasId && { id: location.id! }),
 		name: location.name,
@@ -801,17 +783,14 @@ export function smokeAlarmLocationToUnified(
 			{
 				...(hasSystemId && { id: location.systemId! }),
 				systemType,
-				config: {
-					deviceId: location.deviceId,
-					location: location.location,
-					modbus:
-						location.modbus != null
-							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
-							: undefined,
-					equipmentKind: location.equipmentKind ?? "detector",
-					viewCategory: location.viewCategory ?? "smoke",
-					statusPoints,
-				} as FireSystemConfig,
+				config: controllerConfigForApiWrite(
+					location,
+					{
+						equipmentKind: location.equipmentKind ?? "detector",
+						viewCategory: location.viewCategory ?? "smoke",
+					},
+					true
+				) as FireSystemConfig,
 			},
 		],
 	}
@@ -1088,15 +1067,7 @@ export function lightingLocationToUnified(
 			{
 				...(hasSystemId && { id: location.systemId! }),
 				systemType,
-				config: {
-					deviceId: location.deviceId,
-					location: location.location,
-					// 送出時確保 modbus.deviceId 與 location.deviceId 一致，避免後端存成不一致導致讀寫錯設備
-					modbus:
-						location.modbus != null
-							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
-							: undefined,
-				} as LightingSystemConfig,
+				config: controllerConfigForApiWrite(location) as LightingSystemConfig,
 			},
 		],
 	}
@@ -1111,10 +1082,6 @@ export function hvacLocationToUnified(
 ): UnifiedLocationInput {
 	const hasId = "id" in location && location.id
 	const hasSystemId = "systemId" in location && location.systemId
-	const statusPoints =
-		location.statusPoints && Object.keys(location.statusPoints).length > 0
-			? location.statusPoints
-			: {}
 	return {
 		...(hasId && { id: location.id! }),
 		name: location.name,
@@ -1125,15 +1092,7 @@ export function hvacLocationToUnified(
 			{
 				...(hasSystemId && { id: location.systemId! }),
 				systemType,
-				config: {
-					deviceId: location.deviceId,
-					location: location.location,
-					modbus:
-						location.modbus != null
-							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
-							: undefined,
-					statusPoints,
-				} as import("~/types/location").HvacSystemConfig,
+				config: controllerConfigForApiWrite(location, undefined, true) as import("~/types/location").HvacSystemConfig,
 			},
 		],
 	}
@@ -1145,10 +1104,6 @@ export function airCirculationLocationToUnified(
 ): UnifiedLocationInput {
 	const hasId = "id" in location && location.id
 	const hasSystemId = "systemId" in location && location.systemId
-	const statusPoints =
-		location.statusPoints && Object.keys(location.statusPoints).length > 0
-			? location.statusPoints
-			: {}
 	return {
 		...(hasId && { id: location.id! }),
 		name: location.name,
@@ -1159,17 +1114,14 @@ export function airCirculationLocationToUnified(
 			{
 				...(hasSystemId && { id: location.systemId! }),
 				systemType,
-				config: {
-					deviceId: location.deviceId,
-					location: location.location,
-					modbus:
-						location.modbus != null
-							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
-							: undefined,
-					statusPoints,
-					equipmentKind: location.equipmentKind ?? "pump",
-					viewCategory: location.viewCategory ?? "air_circulation",
-				} as import("~/types/location").AirCirculationSystemConfig,
+				config: controllerConfigForApiWrite(
+					location,
+					{
+						equipmentKind: location.equipmentKind ?? "pump",
+						viewCategory: location.viewCategory ?? "air_circulation",
+					},
+					true
+				) as import("~/types/location").AirCirculationSystemConfig,
 			},
 		],
 	}
@@ -1184,10 +1136,6 @@ export function drainageLocationToUnified(
 ): UnifiedLocationInput {
 	const hasId = "id" in location && location.id
 	const hasSystemId = "systemId" in location && location.systemId
-	const statusPoints =
-		location.statusPoints && Object.keys(location.statusPoints).length > 0
-			? location.statusPoints
-			: {}
 	return {
 		...(hasId && { id: location.id! }),
 		name: location.name,
@@ -1198,17 +1146,14 @@ export function drainageLocationToUnified(
 			{
 				...(hasSystemId && { id: location.systemId! }),
 				systemType,
-				config: {
-					deviceId: location.deviceId,
-					location: location.location,
-					modbus:
-						location.modbus != null
-							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
-							: undefined,
-					equipmentKind: location.equipmentKind ?? "pump",
-					viewCategory: location.viewCategory ?? "drainage",
-					statusPoints,
-				} as DrainageSystemConfig,
+				config: controllerConfigForApiWrite(
+					location,
+					{
+						equipmentKind: location.equipmentKind ?? "pump",
+						viewCategory: location.viewCategory ?? "drainage",
+					},
+					true
+				) as DrainageSystemConfig,
 			},
 		],
 	}
@@ -1223,10 +1168,6 @@ export function powerLocationToUnified(
 ): UnifiedLocationInput {
 	const hasId = "id" in location && location.id
 	const hasSystemId = "systemId" in location && location.systemId
-	const statusPoints =
-		location.statusPoints && Object.keys(location.statusPoints).length > 0
-			? location.statusPoints
-			: {}
 	return {
 		...(hasId && { id: location.id! }),
 		name: location.name,
@@ -1237,17 +1178,14 @@ export function powerLocationToUnified(
 			{
 				...(hasSystemId && { id: location.systemId! }),
 				systemType,
-				config: {
-					deviceId: location.deviceId,
-					location: location.location,
-					modbus:
-						location.modbus != null
-							? { ...location.modbus, deviceId: location.deviceId ?? location.modbus.deviceId }
-							: undefined,
-					equipmentKind: location.equipmentKind ?? "generator",
-					viewCategory: location.viewCategory ?? "generator",
-					statusPoints,
-				} as PowerSystemConfig,
+				config: controllerConfigForApiWrite(
+					location,
+					{
+						equipmentKind: location.equipmentKind ?? "generator",
+						viewCategory: location.viewCategory ?? "generator",
+					},
+					true
+				) as PowerSystemConfig,
 			},
 		],
 	}

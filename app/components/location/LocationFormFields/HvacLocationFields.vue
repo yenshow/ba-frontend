@@ -118,12 +118,7 @@ const deviceIdString = ref("")
 const ensureModbusConfig = (location: HvacLocation) => {
 	if (location.deviceId && location.deviceId > 0) {
 		if (!location.modbus) {
-			location.modbus = {
-				deviceId: location.deviceId,
-				points: [],
-			}
-		} else {
-			location.modbus.deviceId = location.deviceId
+			location.modbus = { points: [] }
 		}
 		if (!location.modbus.points || location.modbus.points.length === 0) {
 			location.modbus.points = [{ address: 0, type: "DO" }]

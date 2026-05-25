@@ -15,8 +15,8 @@ export interface ModbusPointConfig {
 }
 
 export interface CategoryModbusConfig {
-	// 引用已建立的 Modbus 設備 ID
-	deviceId: number
+	/** 舊版 modbus 內嵌設備 ID；讀寫 API 以地點層級 `deviceId` 為準，modbus 區塊不再含此欄 */
+	deviceId?: number
 	// 點位配置列表（包含 DI/DO 等所有點位）
 	points?: ModbusPointConfig[]
 	// 保留舊格式以向後兼容（如果 deviceId 不存在，則使用這些欄位）

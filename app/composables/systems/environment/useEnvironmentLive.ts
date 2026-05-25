@@ -44,9 +44,14 @@ const useLiveSnapshots = () => {
 
 	const environmentApi = useEnvironmentApi()
 
-	const bootstrapLocationFromApi = async (dbLocationId: string, deviceIds: number[]) => {
-		if (deviceIds.length === 0 || isLocationLive(dbLocationId, deviceIds)) {
-			return isLocationLive(dbLocationId, deviceIds)
+	const bootstrapLocationFromApi = async (
+		dbLocationId: string,
+		deviceIds: number[],
+		force = false
+	) => {
+		if (deviceIds.length === 0) return false
+		if (!force && isLocationLive(dbLocationId, deviceIds)) {
+			return true
 		}
 		try {
 			const { readings } = await environmentApi.getReadings(dbLocationId, { limit: 1, order: "desc" })
@@ -65,7 +70,12 @@ const useLiveSnapshots = () => {
 		}
 	}
 
-	return { getSnapshot, applyReadingEvent, isLocationLive, bootstrapLocationFromApi }
+	return {
+		getSnapshot,
+		applyReadingEvent,
+		isLocationLive,
+		bootstrapLocationFromApi,
+	}
 }
 
 /** 訂閱 environment:reading:new；卸載時自動 off */
@@ -160,7 +170,6 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 	const snapshots = useLiveSnapshots()
 	const sensorData = reactive<EnvironmentSensorReadings>(createEmptySensorReadings())
 	const allLocationsSensorData = ref<Map<string, EnvironmentSensorReadings>>(new Map())
-	const isFetching = ref(false)
 
 	const locationMapKeys = (location: EnvironmentLocation) =>
 		[location.id != null ? String(location.id) : "", options.getLocationId(location)].filter(Boolean)
@@ -250,43 +259,58 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 		return null
 	}
 
-	const bootstrapLocation = async (location: EnvironmentLocation) => {
+	const bootstrapLocation = async (location: EnvironmentLocation, force = false) => {
 		if (location.id == null || getLocationDeviceIds(location).length === 0) return
-		await snapshots.bootstrapLocationFromApi(String(location.id), getLocationDeviceIds(location))
+		await snapshots.bootstrapLocationFromApi(
+			String(location.id),
+			getLocationDeviceIds(location),
+			force
+		)
 		syncLocationFromSnapshot(location)
 	}
 
-	const bootstrapAllLocations = async () => {
+	const bootstrapAllLocations = async (force = false) => {
 		await Promise.allSettled(
 			options.environmentZones.value.flatMap((zone) =>
 				zone.locations
 					.filter((loc) => getLocationDeviceIds(loc).length > 0)
-					.map((loc) => bootstrapLocation(loc))
+					.map((loc) => bootstrapLocation(loc, force))
 			)
 		)
 	}
 
-	const loadSensorData = async () => {
-		const location = options.currentLocationData.value
-		if (!location || isFetching.value) return
-		isFetching.value = true
-		try {
-			await bootstrapLocation(location)
-		} finally {
-			isFetching.value = false
-		}
+	const reconcileStaleLocations = async () => {
+		const staleLocations = options.environmentZones.value.flatMap((zone) =>
+			zone.locations.filter((loc) => {
+				if (loc.id == null || getLocationDeviceIds(loc).length === 0) return false
+				return !snapshots.isLocationLive(String(loc.id), getLocationDeviceIds(loc))
+			})
+		)
+		if (staleLocations.length === 0) return
+		await Promise.allSettled(
+			staleLocations.map((loc) => bootstrapLocation(loc, true))
+		)
 	}
 
 	watch(
 		() => options.selectedLocationId.value,
-		() => {
+		async () => {
 			const location = options.currentLocationData.value
 			if (!location) {
 				Object.assign(sensorData, createEmptySensorReadings())
 				return
 			}
-			syncLocationFromSnapshot(location)
-			if (isLocationOffline(location)) void bootstrapLocation(location)
+			const dbId = location.id != null ? String(location.id) : ""
+			const deviceIds = getLocationDeviceIds(location)
+			if (
+				dbId &&
+				deviceIds.length > 0 &&
+				!snapshots.isLocationLive(dbId, deviceIds)
+			) {
+				await bootstrapLocation(location, true)
+			} else {
+				syncLocationFromSnapshot(location)
+			}
 		}
 	)
 
@@ -294,12 +318,12 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 		sensorData,
 		allLocationsSensorData,
 		getLocationSensorData,
-		isFetching,
 		isSensorOffline,
 		isLocationOffline,
 		handleReadingEvent,
 		syncAllLocationsFromSnapshots,
 		bootstrapAllLocations,
-		loadSensorData,
+		reconcileStaleLocations,
+		bootstrapLocation,
 	}
 }

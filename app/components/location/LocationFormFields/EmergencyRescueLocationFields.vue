@@ -15,7 +15,7 @@
 		</label>
 
 		<label
-			class="flex min-w-[8rem] flex-1 min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+			class="flex min-w-[8rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 		>
 			<span>控制器</span>
 			<FilterDropdown

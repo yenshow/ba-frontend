@@ -1,5 +1,6 @@
 import { computed, ref, watch, type Ref } from "vue"
 import { extractWritePoints, type ModbusDeviceConfig } from "~/utils/modbusPoints"
+import { normalizeOptionalDeviceId } from "~/utils/deviceIdUtils"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { usePolling } from "~/composables/monitoring/usePolling"
@@ -137,12 +138,12 @@ export const createToggleModbusIntegration = <
 
 	const getLocationDeviceConfig = async (location: TLocation): Promise<ModbusDeviceConn | null> => {
 		const modbus = location.modbus as
-			| ({ deviceId?: number; host?: string; port?: number; unitId?: number } & Record<string, unknown>)
+			| ({ host?: string; port?: number; unitId?: number } & Record<string, unknown>)
 			| undefined
 			| null
 		if (!modbus) return null
 
-		const effectiveDeviceId = location.deviceId ?? modbus.deviceId
+		const effectiveDeviceId = normalizeOptionalDeviceId(location.deviceId)
 		if (!effectiveDeviceId) {
 			if (resolveInlineDeviceConfig) return resolveInlineDeviceConfig(location)
 			if (modbus.host && modbus.port !== undefined && modbus.unitId !== undefined) {

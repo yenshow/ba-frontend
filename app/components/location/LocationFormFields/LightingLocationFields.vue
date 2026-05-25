@@ -125,17 +125,10 @@ const localLocation = ref<LightingLocation>({ ...props.location })
 // 設備 ID 字串（用於 FilterDropdown）
 const deviceIdString = ref("")
 
-// 初始化 modbus 配置的輔助函數（確保 deviceId 與 location.deviceId 一致，避免讀寫錯設備）
 const ensureModbusConfig = (location: LightingLocation) => {
 	if (location.deviceId && location.deviceId > 0) {
 		if (!location.modbus) {
-			location.modbus = {
-				deviceId: location.deviceId,
-				points: [],
-			}
-		} else {
-			// 同步 modbus.deviceId 與 location.deviceId，否則照明狀態會用錯設備讀寫
-			location.modbus.deviceId = location.deviceId
+			location.modbus = { points: [] }
 		}
 		if (!location.modbus.points || location.modbus.points.length === 0) {
 			location.modbus.points = [

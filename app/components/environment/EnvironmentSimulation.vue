@@ -271,7 +271,10 @@ const paramTypeMap: Record<(typeof paramCols)[number], SensorParameterType> = {
 	溫度: "temperature",
 }
 
-const formatDerivedValue = (key: (typeof DERIVED_KEYS)[number], value: number | null | undefined): string => {
+const formatDerivedValue = (
+	key: (typeof DERIVED_KEYS)[number],
+	value: number | null | undefined
+): string => {
 	if (value == null || typeof value !== "number" || Number.isNaN(value)) return ""
 	if (key === "aqi") return String(Math.round(value))
 	return String(Math.round(value * 10) / 10)

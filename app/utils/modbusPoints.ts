@@ -1,3 +1,5 @@
+import { normalizeOptionalDeviceId } from "~/utils/deviceIdUtils"
+
 /**
  * 系統無關的 Modbus 點位工具（DI/DO 為主，供多系統共用）
  *
@@ -88,23 +90,9 @@ export const hasInlineModbusDeviceConfig = (
 
 export const hasControllerConfig = (cfg: ControllerConfigLike | null | undefined): boolean => {
 	if (!cfg) return false
-	if (cfg.deviceId) return true
+	if (normalizeOptionalDeviceId(cfg.deviceId)) return true
 	if (!cfg.modbus) return false
-	return Boolean(cfg.modbus.deviceId || hasInlineModbusDeviceConfig(cfg.modbus))
-}
-
-/**
- * 與舊命名相容：傳入 { deviceId, modbus } 的 location-like 物件即可。
- * - 主要給 Lighting 舊邏輯使用，避免大量重命名
- */
-export const hasLocationControllerConfig = (
-	location: { deviceId?: unknown; modbus?: unknown } | null | undefined
-): boolean => {
-	if (!location) return false
-	return hasControllerConfig({
-		deviceId: (location as any).deviceId as any,
-		modbus: (location as any).modbus as any,
-	})
+	return hasInlineModbusDeviceConfig(cfg.modbus)
 }
 
 export const needsModbusConnection = (

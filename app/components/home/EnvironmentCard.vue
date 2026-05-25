@@ -84,6 +84,7 @@
 
 <script setup lang="ts">
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
+import { parseSensorGaugeValue } from "~/utils/environmentLive";
 
 interface EnvironmentData {
 	temperature: number | string;
@@ -124,11 +125,9 @@ const selectedLocationId = computed({
 	set: (value: string) => emit("update:modelValue", value)
 });
 
-const numericTemperature = computed((): number | null => {
-	const temp = props.data.temperature;
-	if (typeof temp !== "number" || !Number.isFinite(temp)) return null;
-	return temp;
-});
+const numericTemperature = computed((): number | null =>
+	parseSensorGaugeValue(props.data.temperature)
+);
 
 // 計算溫度指示器的顏色（純色，無漸變）
 const temperatureColor = computed(() => {

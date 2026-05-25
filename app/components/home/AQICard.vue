@@ -81,6 +81,7 @@
 
 <script setup lang="ts">
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
+import { parseSensorGaugeValue } from "~/utils/environmentLive";
 
 interface AQIData {
 	value: number | string;
@@ -155,11 +156,7 @@ const getMetricIcon = (metric: AQIMetric) => {
 	return "/environment/PM2.5.png";
 };
 
-const numericAqi = computed((): number | null => {
-	const value = props.aqi.value;
-	if (typeof value !== "number" || !Number.isFinite(value)) return null;
-	return value;
-});
+const numericAqi = computed((): number | null => parseSensorGaugeValue(props.aqi.value));
 
 // 計算弧形指示器的顏色
 const arcColor = computed(() => {

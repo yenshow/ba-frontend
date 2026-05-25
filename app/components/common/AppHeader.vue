@@ -35,7 +35,7 @@
 				</div>
 			</div>
 
-			<!-- Right Icons：由左至右 1.警示紀錄 2.更多功能 | 3.用戶設定 4.首頁 -->
+			<!-- Right Icons：由左至右 1.警示紀錄 2.系統總覽 | 3.系統設定 4.首頁 -->
 			<div class="flex items-center space-x-6 2xl:space-x-8">
 				<!-- 1. 警示紀錄 -->
 				<button :class="['icon-button relative', { 'icon-button-active': isAlertLogActive }]">
@@ -54,15 +54,16 @@
 						</span>
 					</NuxtLink>
 				</button>
-				<!-- 2. 更多功能 -->
+				<!-- 2. 系統總覽 -->
 				<div class="relative flex items-center" ref="moreMenuRef">
 					<button
 						@click.stop="toggleMoreMenu"
 						:class="['icon-button', { 'icon-button-active': isMoreMenuOpen }]"
+						aria-label="系統總覽"
 					>
 						<img
 							src="/layout/more-functions.svg"
-							alt="更多功能"
+							alt="系統總覽"
 							:class="['h-12 w-12 2xl:h-14 2xl:w-14', isDark ? 'icon-svg-dark' : 'icon-svg-light']"
 						/>
 					</button>
@@ -81,10 +82,10 @@
 						>
 							<div class="show-scrollbar flex-1 overflow-y-auto">
 								<template
-									v-for="(categoryGroup, index) in categoryGroups"
+									v-for="categoryGroup in centralOverviewCategoryGroups"
 									:key="categoryGroup.category"
 								>
-									<div v-if="categoryGroup.modules.length">
+									<div>
 										<p
 											class="px-4 py-2 text-sm font-medium 2xl:text-base opacity-80"
 											:style="getMoreMenuCategoryLabelStyle(categoryGroup.category)"
@@ -144,16 +145,16 @@
 				<!-- 分隔線 -->
 				<div class="h-12 w-[2px] 2xl:h-14" :class="isDark ? 'bg-white/30' : 'bg-black/30'"></div>
 
-				<!-- 3. 用戶設定 -->
+				<!-- 3. 系統設定 -->
 				<div class="relative flex items-center" ref="userMenuRef">
 					<button
 						@click.stop="toggleUserMenu"
 						:class="['icon-button', { 'icon-button-active': isUserMenuOpen }]"
-						aria-label="用戶設定"
+						aria-label="系統設定"
 					>
 						<img
 							src="/layout/setting.svg"
-							alt="用戶設定"
+							alt="系統設定"
 							:class="['h-12 w-12 2xl:h-14 2xl:w-14', isDark ? 'icon-svg-dark' : 'icon-svg-light']"
 						/>
 					</button>
@@ -170,7 +171,7 @@
 						<div
 							v-if="isUserMenuOpen"
 							@click.stop
-							class="absolute right-0 top-full z-50 mt-2 w-40 rounded-lg border border-gray-200 bg-white py-2 shadow-lg"
+							class="absolute right-0 top-full z-50 mt-2 w-52 rounded-lg border border-gray-200 bg-white py-2 shadow-lg"
 						>
 							<!-- 使用者資訊區 -->
 							<div class="flex justify-around border-b border-gray-100 py-2">
@@ -182,161 +183,103 @@
 								</p>
 							</div>
 
-							<!-- Menu Items -->
 							<div class="py-1">
-								<NuxtLink
-									v-if="showAccountSettingsLink"
-									to="/core/account"
-									@click="closeUserMenu"
-									class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 2xl:text-base"
-								>
-									<svg
-										class="h-8 w-8 flex-shrink-0 text-gray-400"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-										aria-hidden="true"
+								<template v-for="(group, groupIndex) in systemSettingsSections" :key="group.section">
+									<p
+										v-if="group.section !== 'session' && systemSettingsSectionLabels[group.section]"
+										class="px-4 pt-2 text-xs font-medium uppercase tracking-wide text-gray-400 2xl:text-sm"
 									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-										/>
-									</svg>
-									帳號設定
-								</NuxtLink>
-
-								<!-- 用戶管理 (僅管理員顯示) -->
-								<NuxtLink
-									v-if="canWrite"
-									to="/core/users"
-									@click="closeUserMenu"
-									class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 2xl:text-base"
-								>
-									<svg
-										class="h-8 w-8 flex-shrink-0 text-gray-400"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-										aria-hidden="true"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-										/>
-									</svg>
-									用戶管理
-								</NuxtLink>
-
-								<!-- 授權管理 (僅管理員顯示) -->
-								<NuxtLink
-									v-if="canWrite"
-									to="/core/license"
-									@click="closeUserMenu"
-									class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 2xl:text-base"
-								>
-									<svg
-										class="h-8 w-8 flex-shrink-0 text-gray-400"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-										aria-hidden="true"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-										/>
-									</svg>
-									授權管理
-								</NuxtLink>
-
-								<!-- 環境設定（管理員與操作員） -->
-								<NuxtLink
-									v-if="canWrite"
-									to="/core/env"
-									@click="closeUserMenu"
-									class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 2xl:text-base"
-								>
-									<svg
-										class="h-8 w-8 flex-shrink-0 text-gray-400"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-										aria-hidden="true"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-										/>
-									</svg>
-									環境設定
-								</NuxtLink>
-
-								<!-- Theme -->
-								<a
-									href="#"
-									@click.prevent="handleMenuItemClick('theme')"
-									class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 2xl:text-base"
-								>
-									<svg
-										v-if="theme === 'light'"
-										class="h-8 w-8 text-gray-400"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-										/>
-									</svg>
-									<svg
-										v-else
-										class="h-8 w-8 text-gray-400"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-										/>
-									</svg>
-									{{ theme === "light" ? "黑暗模式" : "明亮模式" }}
-								</a>
-
-								<!-- 登入登出 -->
-								<a
-									href="#"
-									@click.prevent="handleMenuItemClick('logout')"
-									class="mt-1 flex items-center gap-3 border-t border-gray-100 px-4 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 2xl:text-base"
-								>
-									<svg
-										class="h-8 w-8 text-red-400"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-										/>
-									</svg>
-									登出
-								</a>
+										{{ systemSettingsSectionLabels[group.section] }}
+									</p>
+									<template v-for="item in group.items" :key="item.id">
+										<NuxtLink
+											v-if="item.kind === 'route' && item.route"
+											:to="item.route"
+											@click="closeUserMenu"
+											class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 2xl:text-base"
+										>
+											<svg
+												v-if="SYSTEM_SETTINGS_ROUTE_ICON_D[item.id]"
+												class="h-8 w-8 flex-shrink-0 text-gray-400"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+												aria-hidden="true"
+											>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													:d="SYSTEM_SETTINGS_ROUTE_ICON_D[item.id]"
+												/>
+											</svg>
+											{{ item.label }}
+										</NuxtLink>
+										<a
+											v-else-if="item.kind === 'theme'"
+											href="#"
+											@click.prevent="handleMenuItemClick('theme')"
+											class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 2xl:text-base"
+										>
+											<svg
+												v-if="theme === 'light'"
+												class="h-8 w-8 flex-shrink-0 text-gray-400"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+												aria-hidden="true"
+											>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+												/>
+											</svg>
+											<svg
+												v-else
+												class="h-8 w-8 flex-shrink-0 text-gray-400"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+												aria-hidden="true"
+											>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+												/>
+											</svg>
+											{{ theme === "light" ? "黑暗模式" : "明亮模式" }}
+										</a>
+										<a
+											v-else-if="item.kind === 'logout'"
+											href="#"
+											@click.prevent="handleMenuItemClick('logout')"
+											:class="[
+												'flex items-center gap-3 px-4 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 2xl:text-base',
+												groupIndex > 0 ? 'mt-1 border-t border-gray-100' : '',
+											]"
+										>
+											<svg
+												class="h-8 w-8 flex-shrink-0 text-red-400"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+												aria-hidden="true"
+											>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+												/>
+											</svg>
+											{{ item.label }}
+										</a>
+									</template>
+								</template>
 							</div>
 						</div>
 					</Transition>
@@ -367,46 +310,28 @@ import { hexRelativeLuminance, hexToRgba } from "~/utils/colorUtils"
 import { LICENSE_MESSAGE_LOCKED, PERMISSION_MESSAGE_LOCKED } from "~/utils/licenseUtils"
 import type { SystemModule } from "~/types/system"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
-import { canAccessAccountPage } from "~/composables/systems/users/useAccountSettings"
-
-const MODULE_CATEGORY_LABELS: Record<SystemModule["category"], string> = {
-	core: "核心基礎",
-	"construction-monitoring": "工地監控",
-	infrastructure: "基礎設施",
-	security: "安全相關",
-	business: "業務管理",
-	multimedia: "多媒體",
-}
-
-const MODULE_CATEGORY_ORDER = [
-	"core",
-	"construction-monitoring",
-	"infrastructure",
-	"security",
-	"business",
-	"multimedia",
-] as const satisfies readonly SystemModule["category"][]
-
-const MODULE_CATEGORY_ACCENT_HEX: Record<SystemModule["category"], string> = {
-	core: "#005064",
-	"construction-monitoring": "#0096DC",
-	infrastructure: "#4BC8C8",
-	security: "#962328",
-	business: "#00D296",
-	multimedia: "#640082",
-}
+import { useAppShellNavigation } from "~/composables/core/useAppShellNavigation"
+import {
+	SYSTEM_SETTINGS_ROUTE_ICON_D,
+	SYSTEM_SETTINGS_SECTION_LABELS,
+} from "~/utils/appShellNavigationUtils"
 
 // 用戶選單狀態
 const isUserMenuOpen = ref(false)
 const userMenuRef = ref<HTMLElement | null>(null)
 
-// 更多功能選單狀態
+// 系統總覽選單狀態
 const isMoreMenuOpen = ref(false)
 const moreMenuRef = ref<HTMLElement | null>(null)
 
 // 認證狀態
-const { user, isAdmin, canWrite, hasModulePermission, logout: authLogout } = useAuth()
-const showAccountSettingsLink = computed(() => canAccessAccountPage(user.value))
+const { user, hasModulePermission, logout: authLogout } = useAuth()
+const {
+	centralOverviewCategoryGroups,
+	moduleCategoryAccentHex,
+	systemSettingsSections,
+} = useAppShellNavigation()
+const systemSettingsSectionLabels = SYSTEM_SETTINGS_SECTION_LABELS
 const { isModuleLocked: isModuleLockedByLicense } = useLicense()
 const toast = useToast()
 
@@ -446,7 +371,7 @@ const defaultHeaderBorderAccent = { dark: "#007878", light: "#00BAC2" } as const
 
 const moduleAccentHex = computed(() => {
 	const m = currentModule.value
-	return m ? MODULE_CATEGORY_ACCENT_HEX[m.category] : null
+	return m ? moduleCategoryAccentHex[m.category] : null
 })
 
 const { theme, isDark, toggleTheme } = useTheme()
@@ -473,24 +398,12 @@ const systemTitleChrome = computed(() => {
 })
 
 const getMoreMenuCategoryLabelStyle = (category: SystemModule["category"]) => {
-	const hex = MODULE_CATEGORY_ACCENT_HEX[category]
+	const hex = moduleCategoryAccentHex[category]
 	return {
 		backgroundColor: hex,
 		color: hexRelativeLuminance(hex) > 0.55 ? "#1a1a1a" : "#ffffff",
 	}
 }
-
-// 按分類分組的模組
-const categoryGroups = computed(() => {
-	return MODULE_CATEGORY_ORDER.map((category) => {
-		const modules = systemModulesApi.getModulesByCategory(category)
-		return {
-			category,
-			label: MODULE_CATEGORY_LABELS[category],
-			modules,
-		}
-	}).filter((group) => group.modules.length > 0)
-})
 
 // Active 狀態判斷
 const isAlertLogActive = computed(() => route.path === "/core/alert-log")
@@ -514,7 +427,6 @@ const toggleUserMenu = () => {
 	}
 }
 
-// 切換更多功能選單
 const toggleMoreMenu = () => {
 	isMoreMenuOpen.value = !isMoreMenuOpen.value
 	if (isMoreMenuOpen.value) {

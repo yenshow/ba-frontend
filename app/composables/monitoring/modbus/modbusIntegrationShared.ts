@@ -5,12 +5,13 @@ import type { SystemUiStatus } from "~/utils/monitoringStatus"
 import { getZoneUiKey, type ZoneUiKeyable } from "~/utils/locationUiId"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { addNormalizedDeviceId } from "~/utils/deviceIdUtils"
 
 export type ModbusDeviceConn = { host: string; port: number; unitId: number }
 
 export type ModbusIntegrationZoneLocation = {
 	deviceId?: number
-	modbus?: { deviceId?: unknown } | null
+	modbus?: unknown
 	statusPoints?: Record<string, ModbusStatusPointDef | undefined> | null
 }
 
@@ -24,18 +25,15 @@ export type ToggleSnapshotZoneFilterOptions = {
 
 export type ToggleModbusSnapshotApplyResult = "applied" | "hold" | "skip"
 
+/** 設備 ID 以地點 `deviceId` 為 SSOT；statusPoints 可覆寫每點設備 */
 export const collectDeviceIdsFromZones = (zones: ModbusIntegrationZone[]): number[] => {
 	const ids = new Set<number>()
 	for (const zone of zones) {
 		for (const loc of zone.locations) {
-			if (typeof loc.deviceId === "number" && Number.isFinite(loc.deviceId)) ids.add(loc.deviceId)
-			const mbId = loc.modbus?.deviceId
-			if (typeof mbId === "number" && Number.isFinite(mbId)) ids.add(mbId)
-			const points = loc.statusPoints || {}
-			Object.values(points).forEach((p) => {
-				const pid = p?.deviceId
-				if (typeof pid === "number" && Number.isFinite(pid)) ids.add(pid)
-			})
+			addNormalizedDeviceId(ids, loc.deviceId)
+			for (const p of Object.values(loc.statusPoints || {})) {
+				addNormalizedDeviceId(ids, p?.deviceId)
+			}
 		}
 	}
 	return Array.from(ids)

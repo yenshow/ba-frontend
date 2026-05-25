@@ -44,7 +44,11 @@
 		</div>
 
 		<!-- 趨勢圖區域 -->
-		<SensorTrendChart :type="type" :location-id="locationId || null" />
+		<SensorTrendChart
+			:type="type"
+			:location-id="locationId ?? null"
+			:refresh-key="refreshKey"
+		/>
 	</div>
 </template>
 
@@ -58,11 +62,14 @@ interface Props {
 	type: GaugeType;
 	value: number | null;
 	size?: GaugeSize; // 預設為 "normal"，中間的 AQI 可以使用 "large"
-	locationId?: string | null; // 地點 ID，用於載入趨勢圖資料
+	locationId?: string | number | null;
+	/** 與頁面 hydrate 同步，遞增時重載趨勢 */
+	refreshKey?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-	size: "normal"
+	size: "normal",
+	refreshKey: 0,
 });
 
 // 統一的尺寸配置
