@@ -67,40 +67,31 @@ export function getTimeRangeUTC(preset: string): { start: Date; end: Date } {
 	return { start, end };
 }
 
-/** 趨勢圖用時間範圍（UTC）：日／週／月／年，與後端 aggregated API 對齊 */
-export function getTimeRangeForTrendUTC(
+/**
+ * 趨勢圖用時間範圍（本地日界）
+ * - 「日」與完整報表「今天」一致（getTimeRangeUTC('today')）
+ * - 週／月／年以本地日曆 00:00 為界
+ */
+export function getTimeRangeForTrend(
 	period: "day" | "week" | "month" | "year"
 ): { start: Date; end: Date } {
-	const { start: todayStart, end: tomorrowStart } = getTodayDateRangeUTC();
-	const todayEnd = new Date(tomorrowStart.getTime() - 1);
-
+	if (period === "day") {
+		return getTimeRangeUTC("today");
+	}
 	const now = new Date();
+	const y = now.getFullYear();
+	const m = now.getMonth();
+	const d = now.getDate();
+	const end = new Date(y, m, d + 1, 0, 0, 0, 0);
 	switch (period) {
-		case "day":
-			return { start: new Date(todayStart), end: todayEnd };
 		case "week":
-			return {
-				start: new Date(
-					Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 6, 0, 0, 0, 0)
-				),
-				end: todayEnd
-			};
+			return { start: new Date(y, m, d - 6, 0, 0, 0, 0), end };
 		case "month":
-			return {
-				start: new Date(
-					Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 29, 0, 0, 0, 0)
-				),
-				end: todayEnd
-			};
+			return { start: new Date(y, m, d - 29, 0, 0, 0, 0), end };
 		case "year":
-			return {
-				start: new Date(
-					Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, now.getUTCDate(), 0, 0, 0, 0)
-				),
-				end: todayEnd
-			};
+			return { start: new Date(y, m - 11, d, 0, 0, 0, 0), end };
 		default:
-			return { start: new Date(todayStart), end: todayEnd };
+			return getTimeRangeUTC("today");
 	}
 }
 

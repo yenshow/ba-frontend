@@ -88,7 +88,7 @@
 				<!-- 分隔線 -->
 				<div class="h-12 w-px bg-white/20"></div>
 
-				<!-- 輔助功能區：由左至右 1.警示紀錄 2.更多功能 3.用戶設定 4.首頁 -->
+				<!-- 輔助功能區：由左至右 1.警示紀錄 2.系統總覽 3.系統設定 4.首頁 -->
 				<div class="flex items-center gap-3">
 					<!-- 1. 警示紀錄 -->
 					<button
@@ -111,17 +111,17 @@
 						</div>
 					</button>
 
-					<!-- 2. 更多功能（下拉：設備管理、人員管理） -->
-					<div v-if="canWrite" class="relative z-[100]" data-more-functions-menu>
+					<!-- 2. 系統總覽（core 模組；權限與 Central 相同） -->
+					<div v-if="hasConstructionOverviewMenu" class="relative z-[100]" data-more-functions-menu>
 						<button
 							ref="moreFunctionsButtonRef"
 							:class="getButtonClasses(showMoreFunctionsMenu)"
 							@click.stop="toggleMoreFunctionsMenu"
-							aria-label="更多功能"
+							aria-label="系統總覽"
 						>
 							<img
 								src="/layout/more-functions.svg"
-								alt="更多功能"
+								alt="系統總覽"
 								class="h-12 w-12 brightness-0 invert 2xl:h-16 2xl:w-16"
 							/>
 						</button>
@@ -138,35 +138,54 @@
 									v-if="showMoreFunctionsMenu"
 									data-more-functions-dropdown
 									:style="moreFunctionsMenuStyle"
-									class="fixed z-[9999] w-48 rounded-lg border border-white/20 bg-slate-900/95 p-2 shadow-xl backdrop-blur-md"
+									class="fixed z-[9999] w-52 rounded-lg border border-white/20 bg-slate-900/95 p-2 shadow-xl backdrop-blur-md"
 								>
 									<button
-										v-for="item in visibleMoreFunctionsItems"
-										:key="item.id"
-										class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
-										@click="navigateToRouteInNewTab(item.route)"
-										:aria-label="`${item.name}`"
+										v-for="module in constructionOverviewModules"
+										:key="module.id"
+										type="button"
+										:class="[
+											'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-all duration-200',
+											isModuleLocked(module)
+												? 'cursor-not-allowed text-white/50 opacity-60'
+												: 'text-white/80 hover:bg-white/10 hover:text-white',
+										]"
+										@click="handleOverviewModuleClick(module)"
+										:aria-label="module.name"
 									>
-										<img :src="item.icon" :alt="item.name" class="h-5 w-5 brightness-0 invert" />
-										{{ item.name }}
+										<div class="relative flex h-8 w-8 flex-shrink-0 items-center justify-center">
+											<NuxtImg
+												:src="`/system/${module.icon}.png`"
+												:alt="module.name"
+												class="h-8 w-8 object-contain"
+											/>
+											<div
+												v-if="isModuleLocked(module)"
+												class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-black/40"
+												aria-hidden="true"
+											>
+												<CommonLicenseLockIcon class="h-3 w-3 text-white" />
+											</div>
+										</div>
+										{{ module.name }}
 									</button>
 								</div>
 							</Transition>
 						</Teleport>
 					</div>
 
-					<!-- 3. 用戶設定（下拉：使用者資訊區、用戶管理、登入登出） -->
+					<!-- 3. 系統設定 -->
 					<div class="relative z-[100]">
 						<button
 							ref="userMenuButtonRef"
 							data-user-menu
 							:class="getButtonClasses(showUserMenu)"
 							@click.stop="toggleUserMenu"
-							aria-label="用戶設定"
+							aria-label="系統設定"
 						>
 							<img
 								src="/layout/setting.svg"
-								alt="用戶設定"
+								alt="系統設定"
 								class="h-12 w-12 brightness-0 invert 2xl:h-16 2xl:w-16"
 							/>
 						</button>
@@ -194,59 +213,55 @@
 									</div>
 
 									<div class="space-y-1">
-										<button
-											v-if="showAccountSettingsLink"
-											class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
-											@click="handleAccountSettings"
-											aria-label="帳號設定"
+										<template
+											v-for="(group, groupIndex) in systemSettingsSections"
+											:key="group.section"
 										>
-											帳號設定
-										</button>
-
-										<!-- 用戶管理（管理員與操作員可見） -->
-										<button
-											v-if="canWrite"
-											class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
-											@click="handleUserManagement"
-											aria-label="用戶管理"
-										>
-											用戶管理
-										</button>
-
-										<button
-											v-if="canWrite"
-											class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
-											@click="handleLicenseManagement"
-											aria-label="授權管理"
-										>
-											授權管理
-										</button>
-
-										<button
-											v-if="canWrite"
-											class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
-											@click="handleBackendEnvFile"
-											aria-label="環境設定"
-										>
-											環境設定
-										</button>
-
-										<!-- 登入登出 -->
-										<button
-											class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
-											@click="handleLogout"
-											aria-label="登出"
-										>
-											<svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-												/>
-											</svg>
-											登出
-										</button>
+											<p
+												v-if="
+													group.section !== 'session' &&
+													systemSettingsSectionLabels[group.section]
+												"
+												class="px-3 pt-2 text-xs font-medium uppercase tracking-wide text-white/40"
+											>
+												{{ systemSettingsSectionLabels[group.section] }}
+											</p>
+											<template v-for="item in group.items" :key="item.id">
+												<button
+													v-if="item.kind === 'route' && item.route"
+													class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
+													@click="navigateToRouteInNewTab(item.route)"
+													:aria-label="item.label"
+												>
+													{{ item.label }}
+												</button>
+												<button
+													v-else-if="item.kind === 'logout'"
+													:class="[
+														'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white',
+														groupIndex > 0 ? 'mt-1 border-t border-white/10 pt-3' : '',
+													]"
+													@click="handleLogout"
+													:aria-label="item.label"
+												>
+													<svg
+														class="h-4 w-4 shrink-0"
+														fill="none"
+														stroke="currentColor"
+														viewBox="0 0 24 24"
+														aria-hidden="true"
+													>
+														<path
+															stroke-linecap="round"
+															stroke-linejoin="round"
+															stroke-width="2"
+															d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+														/>
+													</svg>
+													{{ item.label }}
+												</button>
+											</template>
+										</template>
 									</div>
 								</div>
 							</Transition>
@@ -280,12 +295,20 @@ import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 import { useLicense } from "~/composables/core/useLicense";
 import { LICENSE_MESSAGE_LOCKED, PERMISSION_MESSAGE_LOCKED } from "~/utils/licenseUtils";
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
-import { canAccessAccountPage } from "~/composables/systems/users/useAccountSettings";
+import {
+	useAppShellNavigation,
+	SYSTEM_SETTINGS_SECTION_LABELS,
+} from "~/composables/core/useAppShellNavigation";
 
 const route = useRoute();
 const router = useRouter();
-const { user, isAuthenticated, canWrite, hasModulePermission, logout } = useAuth();
-const showAccountSettingsLink = computed(() => canAccessAccountPage(user.value));
+const { user, isAuthenticated, hasModulePermission, logout } = useAuth();
+const {
+	constructionOverviewModules,
+	hasConstructionOverviewMenu,
+	systemSettingsSections,
+} = useAppShellNavigation();
+const systemSettingsSectionLabels = SYSTEM_SETTINGS_SECTION_LABELS;
 const toast = useToast();
 const { isModuleLocked: isModuleLockedByLicense } = useLicense();
 const moduleRegistry = useModuleRegistry();
@@ -326,19 +349,6 @@ const auxiliaryItemsForActive = [
 	{ id: "home", name: "首頁", route: "/", icon: "/layout/home.svg", isSvg: true }
 ] as const;
 
-// 更多功能下拉項目（設備管理、人員管理）
-const moreFunctionsItems = [
-	{
-		id: "device",
-		name: "設備管理",
-		route: "/core/device",
-		icon: "/layout/devices.svg"
-	},
-	{ id: "personnel", name: "人員管理", route: "/core/personnel", icon: "/layout/user-info.svg" }
-] as const;
-
-const visibleMoreFunctionsItems = computed(() => moreFunctionsItems);
-
 // 展開/收縮狀態
 const isExpanded = ref(false);
 const showUserMenu = ref(false);
@@ -374,8 +384,13 @@ const currentActiveItem = computed<ActiveNavItem | null>(() => {
 			false
 		);
 	}
-	const moreActive = moreFunctionsItems.find(item => isActive(item.route));
-	if (moreActive) return toActiveItem(moreActive, true);
+	const moreActive = constructionOverviewModules.value.find(item => isActive(item.route));
+	if (moreActive) {
+		return toActiveItem(
+			{ ...moreActive, id: String(moreActive.id), icon: `/system/${moreActive.icon}.png` },
+			false
+		);
+	}
 	const auxActive = auxiliaryItemsForActive.find(item => isActive(item.route));
 	return auxActive ? toActiveItem(auxActive, auxActive.isSvg) : null;
 });
@@ -495,32 +510,28 @@ const handleModuleClick = (module: SystemModule) => {
 	navigateToRoute(module.route);
 };
 
+const handleOverviewModuleClick = (module: SystemModule) => {
+	if (!hasModulePermission(module)) {
+		toast.warning(PERMISSION_MESSAGE_LOCKED);
+		closeAllMenus();
+		return;
+	}
+
+	if (isModuleLockedByLicense(module)) {
+		toast.warning(LICENSE_MESSAGE_LOCKED);
+		closeAllMenus();
+		return;
+	}
+
+	navigateToRouteInNewTab(module.route);
+};
+
 const navigateToRouteInNewTab = (routePath: string) => {
 	closeAllMenus();
 	if (import.meta.client) {
 		const url = routePath.startsWith("http") ? routePath : `${window.location.origin}${routePath}`;
 		window.open(url, "_blank", "noopener,noreferrer");
 	}
-};
-
-const handleAccountSettings = () => {
-	closeAllMenus();
-	navigateToRouteInNewTab("/core/account");
-};
-
-const handleUserManagement = () => {
-	closeAllMenus();
-	navigateToRouteInNewTab("/core/users");
-};
-
-const handleLicenseManagement = () => {
-	closeAllMenus();
-	navigateToRouteInNewTab("/core/license");
-};
-
-const handleBackendEnvFile = () => {
-	closeAllMenus();
-	navigateToRouteInNewTab("/core/env");
 };
 
 const handleLogout = async () => {

@@ -36,6 +36,18 @@ export interface GetReadingsAggregatedOptions {
 	endTime?: string;
 }
 
+export type EnvironmentAggregatedSource = "aggregated" | "raw_computed";
+
+export interface EnvironmentReadingsAggregatedMeta {
+	source: EnvironmentAggregatedSource;
+	count: number;
+}
+
+export interface EnvironmentReadingsAggregatedResponse {
+	readings: SensorReading[];
+	meta?: EnvironmentReadingsAggregatedMeta;
+}
+
 export const useEnvironmentApi = () => {
 	const { request } = useApiBase();
 
@@ -67,7 +79,7 @@ export const useEnvironmentApi = () => {
 			if (options.startTime) params.startTime = options.startTime;
 			if (options.endTime) params.endTime = options.endTime;
 			const path = buildPathWithQuery(`/environment/readings/${locationId}/aggregated`, params);
-			return request<{ readings: SensorReading[] }>(path);
+			return request<EnvironmentReadingsAggregatedResponse>(path);
 		}
 	};
 };

@@ -1,5 +1,6 @@
 import type { EnvironmentReadingNewEvent } from "~/types/websocket"
 
+/** 快照視為 live、以及 bootstrap 可採用 reading 的最大年齡（兩者共用，避免先 bootstrap 再被判定離線） */
 export const ENVIRONMENT_READING_STALE_MS = 10 * 60 * 1000
 export const ENVIRONMENT_STALE_CHECK_INTERVAL_MS = 30_000
 export const SENSOR_DISPLAY_OFFLINE = "--"
@@ -132,7 +133,10 @@ export const isEnvironmentSnapshotLive = (
 	const recordedAt = Date.parse(snapshot.recordedAt)
 	if (!Number.isFinite(recordedAt) || nowMs - recordedAt >= staleMs) return false
 
-	return deviceIds.every((id) => snapshot.devices[id] === "online")
+	// 僅當「所有」綁定設備皆被 WS 標為 offline 時視為離線（單台讀取失敗不拖垮整地點）
+	if (deviceIds.every((id) => snapshot.devices[id] === "offline")) return false
+
+	return true
 }
 
 export const formatSensorDisplayValue = (
@@ -150,7 +154,10 @@ export const buildBootstrapSnapshot = (params: {
 	data: Record<string, unknown>
 }): EnvironmentLocationSnapshot | null => {
 	const recordedMs = Date.parse(params.timestamp)
-	if (!Number.isFinite(recordedMs) || Date.now() - recordedMs >= ENVIRONMENT_READING_STALE_MS) {
+	if (
+		!Number.isFinite(recordedMs) ||
+		Date.now() - recordedMs >= ENVIRONMENT_READING_STALE_MS
+	) {
 		return null
 	}
 	return {

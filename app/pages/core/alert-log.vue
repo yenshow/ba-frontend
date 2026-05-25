@@ -1,43 +1,68 @@
 <template>
 	<div class="space-y-6 2xl:space-y-8">
-		<div class="flex flex-wrap items-center justify-between gap-4">
-			<header class="me-4 flex flex-col gap-1 2xl:gap-2">
-				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">警示紀錄</h1>
-				<p class="text-base text-white/80 2xl:text-xl">查看與管理系統警示訊息</p>
-			</header>
+		<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+			<div class="flex shrink-0 flex-wrap items-center gap-4 2xl:gap-6">
+				<header class="flex flex-col gap-1 2xl:gap-2">
+					<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">警示紀錄</h1>
+					<p class="text-base text-white/80 2xl:text-xl">查看與管理系統警示訊息</p>
+				</header>
 
-			<PageTabs
-				v-model="currentMode"
-				:tabs="alertModeTabs"
-				:panels="false"
-				list-class="me-auto"
-				aria-label="警示紀錄分頁"
-				id-prefix="alert-log-tab"
-			/>
+				<PageTabs
+					v-model="currentMode"
+					:tabs="alertModeTabs"
+					:panels="false"
+					aria-label="警示紀錄分頁"
+					id-prefix="alert-log-tab"
+				/>
+			</div>
 
-			<div class="flex items-center gap-3 2xl:gap-4">
+			<div class="flex shrink-0 flex-wrap items-center gap-3 2xl:gap-4">
 				<template v-if="currentMode === 'alerts'">
-					<FilterDropdown v-model="filterStatus" :options="statusOptions" placeholder="全部狀態" />
-					<FilterDropdown v-model="filterSource" :options="sourceOptions" placeholder="全部系統" />
+					<div class="w-36 shrink-0 2xl:w-40">
+						<FilterDropdown
+							v-model="filterStatus"
+							:options="statusOptions"
+							placeholder="全部狀態"
+						/>
+					</div>
+					<div class="w-36 shrink-0 2xl:w-40">
+						<FilterDropdown
+							v-model="filterSource"
+							:options="sourceOptions"
+							placeholder="全部系統"
+						/>
+					</div>
 					<TimeRangePicker v-model="timeRange" :presets="timeRangePresets" />
 
 					<button
 						type="button"
 						@click="handleExport"
 						:disabled="isLoading || alerts.length === 0"
-						class="rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
+						class="shrink-0 whitespace-nowrap rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
 					>
 						匯出 CSV
 					</button>
 				</template>
 				<template v-else-if="currentMode === 'rules'">
-					<FilterDropdown v-model="ruleFilterSource" :options="sourceOptions" placeholder="全部系統" />
-					<FilterDropdown v-model="ruleFilterType" :options="ruleTypeOptions" placeholder="全部類型" />
+					<div class="w-36 shrink-0 2xl:w-40">
+						<FilterDropdown
+							v-model="ruleFilterSource"
+							:options="sourceOptions"
+							placeholder="全部系統"
+						/>
+					</div>
+					<div class="w-36 shrink-0 2xl:w-40">
+						<FilterDropdown
+							v-model="ruleFilterType"
+							:options="ruleTypeOptions"
+							placeholder="全部類型"
+						/>
+					</div>
 
 					<button
 						type="button"
 						@click="handleOpenCreateRule"
-						class="rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors hover:bg-green-400 2xl:px-6 2xl:py-3 2xl:text-base"
+						class="shrink-0 whitespace-nowrap rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors hover:bg-green-400 2xl:px-6 2xl:py-3 2xl:text-base"
 					>
 						新增警報
 					</button>

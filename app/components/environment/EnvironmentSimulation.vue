@@ -16,6 +16,14 @@
 			</div>
 		</div>
 
+		<p
+			v-if="hasSummaryTable && summaryTableRows.length === 0 && detailTableRows.length > 0"
+			class="mb-3 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm text-white/70"
+			role="status"
+		>
+			小時摘要產生中，以下為原始讀數明細。
+		</p>
+
 		<template v-if="hasSummaryTable && summaryTableRows.length > 0">
 			<h3 class="mb-3 w-fit border-b-2 border-white/70 text-lg text-white/90 2xl:text-xl">
 				{{ summaryTitle }}

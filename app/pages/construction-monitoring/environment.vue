@@ -48,7 +48,8 @@
 						<EnvironmentGauge
 							type="noise"
 							:value="noiseValue"
-							:location-id="currentLocationData?.id || null"
+							:location-id="currentLocationData?.id ?? null"
+							:refresh-key="trendReloadKey"
 							class="border-r border-white/30"
 						/>
 
@@ -57,14 +58,16 @@
 							type="aqi"
 							:value="aqiScore"
 							size="large"
-							:location-id="currentLocationData?.id || null"
+							:location-id="currentLocationData?.id ?? null"
+							:refresh-key="trendReloadKey"
 						/>
 
 						<!-- 溫度儀表 -->
 						<EnvironmentGauge
 							type="temperature"
 							:value="currentTemperature"
-							:location-id="currentLocationData?.id || null"
+							:location-id="currentLocationData?.id ?? null"
+							:refresh-key="trendReloadKey"
 							class="border-l border-white/30"
 						/>
 					</div>
@@ -83,7 +86,7 @@
 							:label="getParameterDisplayName(param.type)"
 							:unit="getParameterUnit(param.type)"
 							:fraction-digits="getParameterFractionDigits(param.type)"
-							:device-error="isSensorOffline"
+							:device-error="showSensorOffline"
 							:get-status-text="getStatusText"
 							:get-status-text-class="getStatusTextClass"
 							:to-fixed-number="formatParamDisplay"
@@ -207,15 +210,12 @@ import EnvironmentSimulation from "~/components/environment/EnvironmentSimulatio
 import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi";
 import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
-import { usePolling } from "~/composables/monitoring/usePolling";
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
 import { useAlertRules } from "~/composables/monitoring/useAlertRules";
 import { useAuth } from "~/composables/core/useAuth";
-import {
-	useEnvironmentReadingSubscription,
-	useEnvironmentSensors,
-	type SensorReadings
-} from "~/composables/systems/environment/useEnvironmentLive";
+import { useEnvironmentReadingSubscription } from "~/composables/systems/environment/useEnvironmentLive";
+import { useEnvironmentDataCoordinator } from "~/composables/systems/environment/useEnvironmentDataCoordinator";
+import type { SensorReadings } from "~/composables/systems/environment/useEnvironmentLive";
 import type { AlertRule } from "~/types/alert";
 import {
 	getParameterDisplayName,
@@ -234,14 +234,11 @@ import type {
 } from "~/types/environment";
 import type { UnifiedZone } from "~/types/location";
 import { unifiedToEnvironmentZone } from "~/utils/locationAdapter";
-import { getTodayDateRangeUTC, getTimeRangeUTC } from "~/utils/dateUtils";
+import { getTimeRangeUTC } from "~/utils/dateUtils";
 import { compareZonesLoose } from "~/utils/sortOrder";
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId";
 import { calculateAqiScore } from "~/utils/environmentAqi";
-import {
-	ENVIRONMENT_STALE_CHECK_INTERVAL_MS,
-	formatSensorDisplayValue
-} from "~/utils/environmentLive";
+import { formatSensorDisplayValue } from "~/utils/environmentLive";
 import {
 	normalizeMonitoringStatusText,
 	monitoringStatusTextToUiStatus,
@@ -272,7 +269,7 @@ const simulationReadingsSummary = ref<SensorReading[]>([]);
 const simulationReadingsDetail = ref<SensorReading[]>([]);
 const selectedLocationId = ref<string>("");
 
-const { start: todayStart, end: todayEnd } = getTodayDateRangeUTC();
+const { start: todayStart, end: todayEnd } = getTimeRangeUTC("today");
 const simulationTimeRange = ref({
 	startDate: todayStart.toISOString(),
 	endDate: todayEnd.toISOString(),
@@ -339,7 +336,7 @@ const handleSimulationTimeRangeUpdate = (v: {
 };
 
 const handleOpenSimulation = async () => {
-	const { start, end } = getTodayDateRangeUTC();
+	const { start, end } = getTimeRangeUTC("today");
 	simulationTimeRange.value = {
 		startDate: start.toISOString(),
 		endDate: end.toISOString(),
@@ -396,23 +393,28 @@ const {
 	getLocationSensorData,
 	isSensorOffline,
 	isLocationOffline,
+	isHydrating,
 	handleReadingEvent,
-	syncAllLocationsFromSnapshots,
-	bootstrapAllLocations,
-	loadSensorData
-} = useEnvironmentSensors({
+	trendReloadKey,
+	hydrateAllLocations,
+	startReconcilePolling,
+	stopReconcilePolling,
+} = useEnvironmentDataCoordinator({
 	environmentZones,
 	selectedLocationId,
 	currentLocationData,
-	getLocationId
+	getLocationId,
 });
 
-const noiseValue = computed(() => (isSensorOffline.value ? null : sensorData.noise));
+/** hydrate 期間不顯示離線，避免先離線後有值 */
+const showSensorOffline = computed(() => !isHydrating.value && isSensorOffline.value);
+
+const noiseValue = computed(() => (showSensorOffline.value ? null : sensorData.noise));
 
 const formatParamDisplay = (value: number | null, fractionDigits = 0) =>
 	formatSensorDisplayValue(value, {
 		fractionDigits,
-		offline: isSensorOffline.value
+		offline: showSensorOffline.value
 	});
 
 // 總覽面板收縮狀態
@@ -467,14 +469,7 @@ useEnvironmentReadingSubscription(handleReadingEvent);
 
 const selectLocation = (location: EnvironmentLocation) => {
 	selectedLocationId.value = getLocationId(location);
-	void loadSensorData();
 };
-
-const { start: startStaleCheck, stop: stopStaleCheck } = usePolling({
-	callback: () => syncAllLocationsFromSnapshots(),
-	interval: ENVIRONMENT_STALE_CHECK_INTERVAL_MS,
-	immediate: false
-});
 
 // 載入區域和地點資料
 const loadZonesFromAPI = async () => {
@@ -487,23 +482,11 @@ const loadZonesFromAPI = async () => {
 			compareZonesLoose(a, b)
 		);
 		environmentZones.value = sortedZones;
-		if (!selectedLocationId.value) {
-			const first = sortedZones.find(z => z.locations?.length)?.locations?.[0];
-			if (first) selectLocation(first);
-		}
 	} catch (error) {
 		handleError(error, "載入區域列表失敗");
 	} finally {
 		isLoadingZones.value = false;
 	}
-};
-
-const startAutoRefresh = () => {
-	startStaleCheck();
-};
-
-const stopAutoRefresh = () => {
-	stopStaleCheck();
 };
 
 // 使用區域管理 composable
@@ -606,7 +589,7 @@ const isCurrentLocation = (location: EnvironmentLocation): boolean => {
 const getLocationDisplayData = (location: EnvironmentLocation) => {
 	const locationParams = location.parameters.filter(param => param.enabled);
 
-	if (isLocationOffline(location)) {
+	if (!isHydrating.value && isLocationOffline(location)) {
 		return {
 			params: locationParams.map(param => ({
 				label: getParameterDisplayName(param.type),
@@ -682,9 +665,12 @@ onMounted(async () => {
 
 	// 載入區域和地點資料（從環境 API）
 	await loadZonesFromAPI();
-	await bootstrapAllLocations();
-	syncAllLocationsFromSnapshots();
-	startAutoRefresh();
+	await hydrateAllLocations(true);
+	if (!selectedLocationId.value) {
+		const first = environmentZones.value.find(z => z.locations?.length)?.locations?.[0];
+		if (first) selectedLocationId.value = getLocationId(first);
+	}
+	startReconcilePolling();
 
 	// 更新左側高度（初始化）
 	nextTick(() => {
@@ -693,7 +679,7 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
-	stopAutoRefresh();
+	stopReconcilePolling();
 
 	// 釋放 ResizeObserver
 	if (leftSectionResizeObserver && leftSectionRef.value) {
@@ -711,13 +697,13 @@ const calculateAQI = (data: SensorReadings): number | null => {
 // 當沒有設備時，AQI 和溫度應該為 null
 const aqiScore = computed(() => {
 	if (!getLocationDeviceIds(currentLocationData.value).length) return null;
-	if (isSensorOffline.value) return null;
+	if (showSensorOffline.value) return null;
 	return calculateAQI(sensorData);
 });
 
 const currentTemperature = computed(() => {
 	if (!getLocationDeviceIds(currentLocationData.value).length) return null;
-	if (isSensorOffline.value) return null;
+	if (showSensorOffline.value) return null;
 	return sensorData.temperature;
 });
 
@@ -725,12 +711,14 @@ const currentTemperature = computed(() => {
 const getStatusTextForLocation =
 	(location: EnvironmentLocation) =>
 	(type: string, value: number | null): string => {
+		if (isHydrating.value) return "載入中";
 		if (isLocationOffline(location)) return "離線";
 		return getStatusText(type, value);
 	};
 
 const getStatusText = (type: string, value: number | null): string => {
-	if (isSensorOffline.value) return "離線";
+	if (isHydrating.value) return "載入中";
+	if (showSensorOffline.value) return "離線";
 	if (value === null) return "離線";
 
 	// 如果規則已載入，使用規則判斷
