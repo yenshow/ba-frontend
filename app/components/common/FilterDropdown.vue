@@ -1,11 +1,11 @@
 <template>
-	<div ref="dropdownRef" class="filter-dropdown relative">
-		<div class="flex items-center gap-2">
+	<div ref="dropdownRef" class="filter-dropdown relative w-full min-w-0">
+		<div class="flex min-w-0 items-center gap-2">
 			<input
 				:value="displayValue"
 				readonly
 				@click="toggleDropdown"
-				:class="['select-filter flex-1 cursor-pointer text-center', textSize]"
+				:class="['select-filter min-w-0 flex-1 cursor-pointer text-center', textSize]"
 				:placeholder="placeholder"
 			/>
 			<svg

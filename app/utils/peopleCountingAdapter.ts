@@ -4,7 +4,7 @@
  * - 進出場計數與後端 countEntryExitFromSorted 同一規則（同人連續同向只計一次，首筆為出場不計）
  */
 
-import type { PeopleCountingLog } from "~/types/peopleCounting";
+import type { PeopleCountingLog, PeopleCountingPersonnel } from "~/types/peopleCounting";
 import { formatDateTime } from "~/utils/dateUtils";
 
 /** 同人連續同向只計一次；無 personnel／工號時（攝影機）依單位合成鍵，避免每筆 log.id 不同導致「出場」全被略過 */
@@ -109,6 +109,40 @@ export const extractRegionFromZoneName = (zoneName: string): string | null => {
 	}
 	return null;
 };
+
+/** GET /people-counting/units/:id/personnel 單筆人員列 */
+export type UnitPersonnelApiRow = {
+	id: number;
+	employeeId: string;
+	name: string;
+	photoUrl?: string;
+	isInside?: boolean;
+	lastEntryTime: string | null;
+	lastExitTime: string | null;
+	lastEntryDate: string | null;
+	entryTime: string | null;
+	exitTime: string | null;
+	isTodayEntry?: boolean;
+};
+
+/** 單位人員 API → 前端 PeopleCountingPersonnel（isInside → isPresent） */
+export const mapUnitPersonnelFromApi = (
+	person: UnitPersonnelApiRow,
+	unitId: number
+): PeopleCountingPersonnel => ({
+	id: person.id,
+	unitId,
+	employeeId: person.employeeId,
+	name: person.name,
+	photoUrl: person.photoUrl || undefined,
+	lastEntryTime: person.lastEntryTime ? formatDateTime(person.lastEntryTime) : undefined,
+	lastExitTime: person.lastExitTime ? formatDateTime(person.lastExitTime) : undefined,
+	lastEntryDate: person.lastEntryDate || undefined,
+	entryTime: person.entryTime || undefined,
+	exitTime: person.exitTime || undefined,
+	isPresent: !!person.isInside,
+	isTodayEntry: person.isTodayEntry ?? false
+});
 
 /**
  * 將後端 API 返回的記錄轉換為前端格式（YSCP / access_control 同一結構）
