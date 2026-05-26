@@ -2,7 +2,7 @@ import { useRequestFetch } from "#app"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { resolveUploadUrl } from "~/utils/apiUtils"
+import { useImageCenter } from "~/composables/core/useImageCenter"
 import { createSafeFileName } from "~/utils/fileUtils"
 
 /** 圖片上傳說明（與後端 10MB 上限一致） */
@@ -160,9 +160,8 @@ export const useAppSettingImage = (options: UseAppSettingImageOptions) => {
 
 	const { value: raw, save, reset, uploadFile } = useAppSettings({ key, defaultValue })
 
-	const config = useRuntimeConfig()
-	const apiBase = (config.public.apiBase as string) || ""
-	const displaySrc = computed(() => resolveUploadUrl(raw.value ?? "", apiBase))
+	const { useDisplaySrc } = useImageCenter()
+	const displaySrc = useDisplaySrc(raw)
 
 	const isEditOpen = ref(false)
 	const isLoaded = ref(false)

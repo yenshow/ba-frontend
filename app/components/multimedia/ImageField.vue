@@ -45,7 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import { resolveUploadUrl } from "~/utils/apiUtils"
+import { useImageCenter } from "~/composables/core/useImageCenter"
 
 interface Props {
 	label: string
@@ -60,10 +60,9 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-const { apiBase } = useRuntimeConfig().public as { apiBase: string }
+const { useDisplaySrc } = useImageCenter()
+const resolvedValue = useDisplaySrc(() => props.value)
 const fileInputRef = ref<HTMLInputElement | null>(null)
-
-const resolvedValue = computed(() => resolveUploadUrl(props.value, apiBase))
 
 const accept = computed(() => props.accept || "image/*")
 

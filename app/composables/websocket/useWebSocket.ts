@@ -1,6 +1,13 @@
 import { io, Socket } from "socket.io-client";
+import { watch, type Ref } from "vue";
 import { logger } from "~/utils/logger";
-import type { WebSocketStatus } from "~/types/websocket"
+import type { WebSocketStatus } from "~/types/websocket";
+
+export type WsRefetchBinding = {
+	event: string;
+	accept?: (payload?: unknown) => boolean;
+	enabled?: Ref<boolean> | (() => boolean);
+};
 
 const wsLogger = logger.createLogger("WebSocket");
 
@@ -112,10 +119,10 @@ export const useWebSocket = () => {
 				connectionError.value = null;
 				wsLogger.log("連接成功", { socketId: globalSocket?.id });
 
-				// WS rooms：識別 app（後端會將 client 從 app:legacy 移到 app:central）
+				// WS rooms：識別 app（後端會將 client 從 app:legacy 移到 app:construction）
 				// 向下相容：後端若未實作此事件，也不影響既有功能
 				try {
-					globalSocket?.emit("client:hello", { app: "central" });
+					globalSocket?.emit("client:hello", { app: "construction" });
 				} catch (_e) {}
 			});
 
@@ -251,5 +258,78 @@ export const useWebSocket = () => {
 
 		// 清理
 		cleanup
+	};
+};
+
+/**
+ * 訂閱 WebSocket 事件並防抖重拉（人流／車輛等模組共用）
+ */
+export const setupDebouncedRefetchListeners = (
+	onRefetch: () => void | Promise<void>,
+	bindings: WsRefetchBinding[],
+	debounceMs = 500,
+	logLabel = "WebSocket"
+) => {
+	const log = logger.createLogger(logLabel);
+	const { isConnected, on, off } = useWebSocket();
+	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+	const isLoading = ref(false);
+
+	const triggerRefetch = () => {
+		if (isLoading.value) return;
+		if (debounceTimer) clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => {
+			if (process.dev) log.log("觸發資料重新載入（防抖後）");
+			isLoading.value = true;
+			Promise.resolve(onRefetch()).finally(() => {
+				isLoading.value = false;
+			});
+		}, debounceMs);
+	};
+
+	const wrappedHandlers = bindings.map(b => ({
+		event: b.event,
+		enabled: b.enabled,
+		fn: (payload?: unknown) => {
+			if (b.accept && !b.accept(payload)) return;
+			triggerRefetch();
+		}
+	}));
+
+	const isEnabled = (enabled?: WsRefetchBinding["enabled"]) => {
+		if (!enabled) return true;
+		return typeof enabled === "function" ? enabled() : enabled.value;
+	};
+
+	const syncListeners = () => {
+		for (const { event, fn } of wrappedHandlers) {
+			off(event, fn);
+		}
+		if (!isConnected.value) {
+			if (debounceTimer) {
+				clearTimeout(debounceTimer);
+				debounceTimer = null;
+			}
+			return;
+		}
+		for (const { event, fn, enabled } of wrappedHandlers) {
+			if (isEnabled(enabled)) on(event, fn);
+		}
+	};
+
+	watch(
+		[isConnected, ...bindings.flatMap(b => (b.enabled ? [b.enabled] : []))],
+		syncListeners,
+		{ immediate: true }
+	);
+
+	return () => {
+		for (const { event, fn } of wrappedHandlers) {
+			off(event, fn);
+		}
+		if (debounceTimer) {
+			clearTimeout(debounceTimer);
+			debounceTimer = null;
+		}
 	};
 };

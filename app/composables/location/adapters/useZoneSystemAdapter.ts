@@ -456,6 +456,8 @@ export function useVehicleAccessZoneAdapter(): ZoneSystemAdapter<
 		}),
 		createNewLocation: (): VehicleAccessLocation => ({
 			name: "",
+			vehicleGroupIds: [],
+			personGroupIds: [],
 		}),
 		createNewZone: (name: string): VehicleAccessZone => ({
 			name,

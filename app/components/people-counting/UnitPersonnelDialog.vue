@@ -43,8 +43,8 @@
 									<!-- 照片（/uploads/ 改為後端完整 URL） -->
 									<div class="mt-4 h-16 w-16 overflow-hidden rounded-full bg-white/10">
 										<img
-											v-if="resolvePhotoUrl(person.photoUrl)"
-											:src="resolvePhotoUrl(person.photoUrl)"
+											v-if="resolveUrl(person.photoUrl)"
+											:src="resolveUrl(person.photoUrl)"
 											:alt="person.name"
 											class="h-full w-full object-cover"
 											@error="handleImageError($event)"
@@ -106,7 +106,7 @@
 import { ref, computed, watch } from "vue";
 import type { PeopleCountingPersonnel } from "~/types/peopleCounting";
 import Pagination from "~/components/common/Pagination.vue";
-import { resolveUploadUrl } from "~/utils/apiUtils";
+import { useImageCenter } from "~/composables/core/useImageCenter";
 
 interface Props {
 	modelValue: boolean;
@@ -175,10 +175,7 @@ const shouldHideExitTime = (person: PeopleCountingPersonnel) => {
 	return entrySec > exitSec;
 };
 
-const config = useRuntimeConfig();
-const apiBase = (config.public.apiBase as string) || "";
-const resolvePhotoUrl = (url: string | undefined | null): string =>
-	resolveUploadUrl(url ?? "", apiBase);
+const { resolveUrl } = useImageCenter();
 
 const handleImageError = (event: Event) => {
 	const img = event.target as HTMLImageElement;

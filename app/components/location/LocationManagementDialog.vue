@@ -65,7 +65,7 @@
 													v-if="pendingZone.imageUrl"
 													type="button"
 													class="btn-secondary text-sm 2xl:text-base"
-													@click.stop="openZoneSchematicPreview(pendingZone.imageUrl)"
+													@click.stop="openPreviewWindow(pendingZone.imageUrl, '區域示意圖')"
 												>
 													查看示意圖
 												</button>
@@ -225,10 +225,8 @@ import { buildDeleteLocationConfirmCopy, buildDeleteZoneConfirmCopy } from "~/ut
 import { getLocationUiKey } from "~/utils/locationUiId"
 import { useLocationValidationPipeline } from "~/composables/location/validation/useLocationValidationPipeline"
 import { useUnifiedZoneDraft } from "~/composables/location/ui/useZoneDrafts"
-import {
-	useZoneImageUpload,
-	openZoneSchematicPreview,
-} from "~/composables/location/ui/useZoneImage"
+import { useZoneImageUpload } from "~/composables/location/ui/useZoneImage"
+import { useImageCenter } from "~/composables/core/useImageCenter"
 import { getSystemTypeLabel } from "~/types/location"
 
 interface Props {
@@ -263,6 +261,8 @@ const errorMessage = ref("")
 
 const { handleError } = useErrorHandler()
 const { validateUnifiedZoneForSave } = useLocationValidationPipeline()
+
+const { openPreviewWindow } = useImageCenter()
 
 const { pendingZone, hasUnsavedChanges, changedFieldsList, changeSummary, resetToSource } =
 	useUnifiedZoneDraft({

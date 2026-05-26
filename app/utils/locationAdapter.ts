@@ -30,6 +30,10 @@ import {
 	toStoredLogDisplayColumns,
 } from "~/utils/peopleCountingLogColumns"
 import {
+	normalizeVehicleLogDisplayColumns,
+	toStoredVehicleLogDisplayColumns,
+} from "~/utils/vehicleAccessLogColumns"
+import {
 	controllerConfigForApiWrite,
 	normalizeControllerFields,
 	normalizeOptionalDeviceId,
@@ -206,7 +210,10 @@ function isVehicleAccessSystemConfig(config: unknown): config is VehicleAccessSy
 		"exitLaneId" in c ||
 		"dataSource" in c ||
 		"entryCameraDeviceIds" in c ||
-		"exitCameraDeviceIds" in c
+		"exitCameraDeviceIds" in c ||
+		"vehicleGroupIds" in c ||
+		"personGroupIds" in c ||
+		"logDisplayColumns" in c
 	)
 }
 
@@ -268,7 +275,7 @@ function parseSystemConfig(systemType: SystemType, config: unknown): SystemConfi
 			return { personGroupIds: [] }
 		case "vehicle_access":
 			if (isVehicleAccessSystemConfig(config)) return config
-			return { entryLaneId: undefined, exitLaneId: undefined }
+			return { vehicleGroupIds: [], personGroupIds: [] }
 		default:
 			// SystemType 是有限的聯合類型，理論上不會執行到這裡
 			// 但為了類型安全，返回空配置
@@ -924,6 +931,11 @@ export function unifiedToVehicleAccessZone(zone: UnifiedZone): VehicleAccessZone
 					entryCameraDeviceIds: vaSystem.config.entryCameraDeviceIds ?? [],
 					exitCameraDeviceIds: vaSystem.config.exitCameraDeviceIds ?? [],
 					cameraChannelId: vaSystem.config.cameraChannelId ?? 1,
+					vehicleGroupIds: vaSystem.config.vehicleGroupIds ?? [],
+					personGroupIds: vaSystem.config.personGroupIds ?? [],
+					logDisplayColumns: normalizeVehicleLogDisplayColumns(
+						vaSystem.config.logDisplayColumns
+					),
 				} as VehicleAccessLocation,
 			]
 		}),
@@ -966,6 +978,11 @@ export function vehicleAccessLocationToUnified(
 					entryCameraDeviceIds: loc.entryCameraDeviceIds ?? [],
 					exitCameraDeviceIds: loc.exitCameraDeviceIds ?? [],
 					cameraChannelId: loc.cameraChannelId ?? 1,
+					vehicleGroupIds: loc.vehicleGroupIds ?? [],
+					personGroupIds: loc.personGroupIds ?? [],
+					logDisplayColumns: toStoredVehicleLogDisplayColumns(
+						normalizeVehicleLogDisplayColumns(loc.logDisplayColumns)
+					),
 				} as VehicleAccessSystemConfig,
 			},
 		],

@@ -145,6 +145,12 @@ export interface VehicleAccessLocation {
 	/** ISAPI 出口攝影機 devices.id */
 	exitCameraDeviceIds?: number[];
 	cameraChannelId?: number;
+	/** YSCP：anpr.vehicle_custom_list 群組 ID（地點表單勾選） */
+	vehicleGroupIds?: number[];
+	/** ISAPI：platform.person_group 群組 ID（地點表單勾選） */
+	personGroupIds?: number[];
+	/** 過車紀錄表格顯示欄位 keys */
+	logDisplayColumns?: string[];
 	/** 業務層地點 ID（字串來自 loc.id，數字為舊版相容） */
 	locationId?: number | string;
 }

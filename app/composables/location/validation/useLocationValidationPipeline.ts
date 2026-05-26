@@ -12,7 +12,11 @@ import {
 import { useEnvironmentLocationValidation } from "~/composables/location/validation/useEnvironmentLocationValidation"
 import { useLightingLocationValidation } from "~/composables/location/validation/useLightingLocationValidation"
 import { usePeopleCountingLocationValidation } from "~/composables/location/validation/usePeopleCountingLocationValidation"
+import { useVehicleAccessLocationValidation } from "~/composables/location/validation/useVehicleAccessLocationValidation"
+import type { VehicleAccessLocation } from "~/types/vehicleAccess"
 import { getSystemTypeLabel } from "~/types/location"
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
+import { shouldHideVehicleAccessWhenYscpOff } from "~/utils/vehicleAccessDataSource"
 
 export type ValidationPipelineResult = {
 	isValid: boolean
@@ -73,6 +77,8 @@ export function useLocationValidationPipeline() {
 	const env = useEnvironmentLocationValidation()
 	const lighting = useLightingLocationValidation()
 	const pc = usePeopleCountingLocationValidation()
+	const va = useVehicleAccessLocationValidation()
+	const { enableYscpVehicleAccess } = useModuleRegistry()
 
 	const validateZoneBase = (args: {
 		zone: { name?: string | null; imageUrl?: string | null; description?: string | null }
@@ -145,7 +151,21 @@ export function useLocationValidationPipeline() {
 					break
 				}
 				case "vehicle_access": {
-					// 目前無專用 validation composable：先以名稱必填為硬規則，其餘留給欄位層
+					if (
+						shouldHideVehicleAccessWhenYscpOff(
+							(loc as VehicleAccessLocation).dataSource,
+							enableYscpVehicleAccess.value
+						)
+					) {
+						break
+					}
+					const r = va.validateVehicleAccessLocation(loc as VehicleAccessLocation)
+					if (!r.isValid) {
+						errors.push(...r.errors.map((e) => `地點「${loc.name}」：${e}`))
+					}
+					if (r.warnings?.length) {
+						warnings.push(...r.warnings.map((w) => `地點「${loc.name}」：${w}`))
+					}
 					break
 				}
 				case "drainage":

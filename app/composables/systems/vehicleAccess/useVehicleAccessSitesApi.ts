@@ -56,9 +56,8 @@ export const useVehicleAccessSitesApi = () => {
 		return request(`/vehicle-access/sites/${siteId}/logs${qs ? `?${qs}` : ""}`);
 	};
 
-	return {
-		getSites,
-		getSiteStats,
-		getSiteLogs,
-	};
+	return { getSites, getSiteStats, getSiteLogs };
 };
+
+/** 完整報表單次上限（與後端 provider 一致） */
+export const VEHICLE_ACCESS_FULL_REPORT_LIMIT = 10000;

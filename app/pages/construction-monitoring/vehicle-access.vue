@@ -54,34 +54,18 @@
 							</div>
 							<!-- 當日記錄表 + 車輛群組 -->
 							<div class="grid grid-cols-2 gap-4">
-								<!-- 當日過車記錄表 -->
+								<!-- 當日過車記錄表（最新 5 筆，與人流一致） -->
 								<div class="space-y-3">
-									<!-- 時間篩選：今日／昨日 -->
-									<div class="flex flex-wrap items-center gap-2">
-										<span class="text-sm text-white/80 2xl:text-base">時間：</span>
-										<button
-											v-for="opt in timeRangeOptions"
-											:key="opt.value"
-											type="button"
-											class="rounded-lg px-4 py-2 text-sm font-medium transition-colors 2xl:text-base"
-											:class="
-												filters.timeRange === opt.value
-													? 'bg-cyan-500/80 text-white'
-													: 'bg-white/20 text-white hover:bg-white/30'
-											"
-											:aria-label="`篩選${opt.label}`"
-											@click="handleTimeRangeChange(opt.value)"
-										>
-											{{ opt.label }}
-										</button>
-									</div>
 									<div v-if="isLoadingLogs" class="flex justify-center py-8">
 										<div
 											class="h-10 w-10 animate-spin rounded-full border-2 border-white/30 border-t-white/80"
 										></div>
 									</div>
 									<div v-else>
-										<VehicleDataLogTable :logs="logs" />
+										<VehicleDataLogTable
+											:logs="logs"
+											:display-columns="selectedLocation?.logDisplayColumns"
+										/>
 									</div>
 								</div>
 								<!-- 車輛群組（工程部、行銷部等，點開顯示該群組過車記錄） -->
@@ -249,7 +233,6 @@ import type {
 	VehicleAccessLocationSummary,
 	VehicleDataLog
 } from "~/types/vehicleAccess";
-import type { VehicleAccessTimeRange } from "~/composables/systems/vehicleAccess/useVehicleAccessState";
 import VehicleStatsPanel from "~/components/vehicle-access/VehicleStatsPanel.vue";
 import VehicleDataLogTable from "~/components/vehicle-access/VehicleDataLogTable.vue";
 import VehicleOrganizationGroupPanel from "~/components/vehicle-access/VehicleOrganizationGroupPanel.vue";
@@ -259,8 +242,6 @@ import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue
 import SimulationFrame from "~/components/common/SimulationFrame.vue";
 import VehicleAccessSimulation from "~/components/vehicle-access/VehicleAccessSimulation.vue";
 import { useVehicleAccessState } from "~/composables/systems/vehicleAccess/useVehicleAccessState";
-import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi";
-import { useVehicleAccessWebSocket } from "~/composables/systems/vehicleAccess/useVehicleAccessWebSocket";
 import { useVehicleAccessLocationApi } from "~/composables/location/api/useVehicleAccessLocationApi";
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
 import { useLocationApi } from "~/composables/location/api/useLocationApi";
@@ -276,7 +257,7 @@ const {
 	vehicleAccessZones,
 	locations,
 	selectedLocation,
-	selectedLaneIds,
+	isIsapiCamera,
 	logs,
 	overviewSummaries,
 	entryCount,
@@ -291,13 +272,14 @@ const {
 	isLoadingVehicleGroups,
 	loadZones,
 	loadLogs,
-	loadVehicleGroups,
+	loadOrganizationData,
+	loadPersonGroupVehicleList,
+	loadFullReportLogs,
 	loadEntryExitOnSiteCounts,
 	loadOverviewSummaries,
-	getLocationZone
+	getLocationZone,
+	setupEventListeners
 } = useVehicleAccessState();
-
-const vehicleAccessApi = useVehicleAccessApi();
 
 const showSimulationFrame = ref(false);
 const { start: todayStart, end: todayEnd } = getTodayDateRangeUTC();
@@ -313,22 +295,16 @@ const simulationLocationName = computed(() => selectedLocation.value?.name ?? ""
 const simulationLogs = ref<VehicleDataLog[]>([]);
 
 const loadSimulationLogs = async () => {
-	const laneIds = selectedLaneIds.value;
-	if (!laneIds?.length) {
+	if (!selectedLocation.value) {
 		simulationLogs.value = [];
 		return;
 	}
 	const { startDate, endDate } = simulationTimeRange.value;
 	try {
-		const result = await vehicleAccessApi.getVehicleDataLogList({
-			lane_id: laneIds,
+		simulationLogs.value = await loadFullReportLogs({
 			startTime: startDate,
-			endTime: endDate,
-			limit: 50000,
-			orderBy: "trigger_time",
-			orderDirection: "ASC"
+			endTime: endDate
 		});
-		simulationLogs.value = result.data ?? [];
 	} catch {
 		simulationLogs.value = [];
 	}
@@ -363,24 +339,16 @@ const selectedOrganizationGroupName = computed(() => {
 	return g?.personGroupName ?? "";
 });
 
-const handleOrganizationGroupSelect = (groupKey: string) => {
+const handleOrganizationGroupSelect = async (groupKey: string) => {
 	setSelectedOrganizationKey(groupKey);
+	if (isIsapiCamera.value) {
+		await loadPersonGroupVehicleList(groupKey);
+	}
 	isGroupDialogOpen.value = true;
 };
 
 const handleOrganizationDialogClose = () => {
 	setSelectedOrganizationKey(null);
-};
-
-/** 時間篩選選項：今日、昨日 */
-const timeRangeOptions: { value: VehicleAccessTimeRange; label: string }[] = [
-	{ value: "today", label: "今日" },
-	{ value: "yesterday", label: "昨日" }
-];
-const handleTimeRangeChange = (value: VehicleAccessTimeRange) => {
-	if (filters.value.timeRange === value) return;
-	filters.value = { ...filters.value, timeRange: value };
-	loadLogsAndCounts();
 };
 
 const selectedLocationIdRef = ref<string>("");
@@ -520,7 +488,6 @@ const handleDeleteZone = async (zoneId: string) => {
 	});
 };
 
-const { setupEventListeners } = useVehicleAccessWebSocket();
 let cleanupWebSocket: (() => void) | null = null;
 
 /** 防抖：避免 locationId 變更時重複請求 */
@@ -530,7 +497,12 @@ const loadLogsAndCounts = () => {
 	if (loadDataDebounceTimer) clearTimeout(loadDataDebounceTimer);
 	loadDataDebounceTimer = setTimeout(() => {
 		loadDataDebounceTimer = null;
-		Promise.all([loadLogs(), loadEntryExitOnSiteCounts(), loadOverviewSummaries(), loadVehicleGroups()]);
+		Promise.all([
+			loadLogs(),
+			loadEntryExitOnSiteCounts(),
+			loadOverviewSummaries(),
+			loadOrganizationData()
+		]);
 	}, DEBOUNCE_MS);
 };
 
@@ -545,11 +517,12 @@ onMounted(async () => {
 	initLeftSectionObserver();
 
 	cleanupWebSocket = setupEventListeners(async () => {
+		const locationId = filters.value.locationId;
 		await Promise.allSettled([
+			loadOverviewSummaries(),
 			loadLogs(),
 			loadEntryExitOnSiteCounts(),
-			loadOverviewSummaries(),
-			loadVehicleGroups()
+			locationId ? loadOrganizationData() : Promise.resolve()
 		]);
 		await nextTick();
 		updateLeftSectionHeight();
@@ -558,7 +531,6 @@ onMounted(async () => {
 	try {
 		await loadZones();
 		await loadOverviewSummaries();
-		await loadVehicleGroups();
 		if (!filters.value.locationId && locations.value.length > 0) {
 			const first = locations.value[0];
 			const firstId = first?.id ?? first?.locationId;
@@ -588,3 +560,14 @@ onBeforeUnmount(() => {
 	}
 });
 </script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+	transition: opacity 0.3s ease-in-out;
+}
+.fade-enter-from,
+.fade-leave-to {
+	opacity: 0;
+}
+</style>

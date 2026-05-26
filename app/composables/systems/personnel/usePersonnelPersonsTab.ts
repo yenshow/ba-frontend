@@ -6,6 +6,7 @@ import {
 	useAccessControlApi,
 	type CaptureFaceResult,
 } from "~/composables/systems/accessControl/useAccessControlApi"
+import { useImageCenter } from "~/composables/core/useImageCenter"
 import { base64ToFile, handleImageError } from "~/utils/imageUtils"
 import {
 	getAccessControlConfigSummary,
@@ -74,15 +75,12 @@ export const usePersonnelPersonsTab = (params: {
 		licensePlates: []
 	})
 
-	const config = useRuntimeConfig()
+	const { resolveDirectUrl } = useImageCenter()
 	const getFaceImageSrc = (url: string | null | undefined): string | null => {
 		if (!url) return null
-		if (url.startsWith("http")) return url
-		const normalizedPath = url.startsWith("/") ? url : `/${url}`
-		const apiBase = (config.public.apiBase as string) || ""
-		if (normalizedPath.startsWith("/uploads/")) return `${apiBase}${normalizedPath}`
-		const origin = apiBase.replace(/\/api\/?$/, "")
-		return `${origin}${normalizedPath}`
+		if (url.startsWith("data:")) return url
+		const normalized = url.startsWith("/") ? url : `/${url}`
+		return resolveDirectUrl(normalized)
 	}
 
 	const pendingFaceFile = ref<File | null>(null)
@@ -96,7 +94,10 @@ export const usePersonnelPersonsTab = (params: {
 		const hasPassword = Boolean(ac.password?.trim())
 		const hasCard = Boolean(ac.cardNo?.trim())
 		const hasFingerprint = Boolean(ac.fingerPrintData?.trim())
-		return { hasFace, hasPassword, hasCard, hasFingerprint }
+		const plateCount =
+			p.license_plate_count ?? p.license_plates?.filter(pl => pl.plate_number?.trim()).length ?? 0
+		const hasLicensePlate = plateCount > 0
+		return { hasFace, hasPassword, hasCard, hasFingerprint, hasLicensePlate }
 	}
 
 	const accessControlDevices = ref<Device[]>([])
@@ -213,7 +214,7 @@ export const usePersonnelPersonsTab = (params: {
 		showPersonDialog.value = true
 	}
 
-	const editPerson = (p: Person) => {
+	const applyPersonToEditForm = (p: Person) => {
 		editingPerson.value = p
 		personForm.employeeNo = p.employee_no
 		personForm.fullName = p.full_name ?? ""
@@ -225,15 +226,24 @@ export const usePersonnelPersonsTab = (params: {
 				: ""
 		personForm.licensePlates = (p.license_plates ?? []).map(pl => pl.plate_number).filter(Boolean)
 		resetPersonDialogState()
-		{
-			const ac = getAccessControlConfigSummary(p)
-			cardNo.value = ac.cardNo
-			fingerPrintData.value = ac.fingerPrintData
-			isLongTerm.value = ac.isLongTerm
-			validBeginDate.value = ac.validBeginDate
-			validEndDate.value = ac.validEndDate
-			personPassword.value = ac.password
+		const ac = getAccessControlConfigSummary(p)
+		cardNo.value = ac.cardNo
+		fingerPrintData.value = ac.fingerPrintData
+		isLongTerm.value = ac.isLongTerm
+		validBeginDate.value = ac.validBeginDate
+		validEndDate.value = ac.validEndDate
+		personPassword.value = ac.password
+	}
+
+	const editPerson = async (p: Person) => {
+		let full: Person
+		try {
+			full = await personnelApi.getPersonById(p.id)
+		} catch (err) {
+			handleApiError(err, "載入人員資料失敗", PERSONNEL_API_ERROR_OPTS)
+			return
 		}
+		applyPersonToEditForm(full)
 		showPersonDialog.value = true
 		void loadAccessControlDevices()
 	}

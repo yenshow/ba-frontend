@@ -2,7 +2,7 @@ import { usePolling } from "~/composables/monitoring/usePolling"
 import { useMultimediaDashboardApi } from "~/composables/systems/multimedia/useMultimediaDashboardApi"
 import { useAlertRules } from "~/composables/monitoring/useAlertRules"
 import type { MultimediaDashboardSettings, MultimediaEnvReadingsSnapshot } from "~/types/multimedia"
-import { resolveUploadUrl } from "~/utils/apiUtils"
+import { useImageCenter } from "~/composables/core/useImageCenter"
 import { formatClockDisplay, formatDateInput } from "~/utils/dateUtils"
 import type { AlertRule } from "~/types/alert"
 import { getAqiDerivedStatus, getHeatIndexDerivedResult } from "~/utils/environmentDerivedMetrics"
@@ -61,7 +61,7 @@ const getEnvironmentMetricMeta = (key: EnvironmentMetricKey): { label: string; u
 
 export const useMultimediaWallDashboard = () => {
 	const api = useMultimediaDashboardApi()
-	const { apiBase } = useRuntimeConfig().public as { apiBase: string }
+	const { resolveUrl } = useImageCenter()
 
 	const settings = reactive<MultimediaDashboardSettings>({
 		backgroundImageUrl: "",
@@ -74,9 +74,9 @@ export const useMultimediaWallDashboard = () => {
 		schedules: [],
 	})
 
-	const bgUrl = computed(() => resolveUploadUrl(settings.backgroundImageUrl, apiBase))
-	const projectImageUrl = computed(() => resolveUploadUrl(settings.projectImageUrl, apiBase))
-	const heroUrl = computed(() => resolveUploadUrl(settings.heroImageUrl, apiBase))
+	const bgUrl = computed(() => resolveUrl(settings.backgroundImageUrl))
+	const projectImageUrl = computed(() => resolveUrl(settings.projectImageUrl))
+	const heroUrl = computed(() => resolveUrl(settings.heroImageUrl))
 	const isHeroVideo = computed(() =>
 		VIDEO_EXTS.has(getUrlExt(heroUrl.value || settings.heroImageUrl || ""))
 	)

@@ -22,6 +22,8 @@
 				<div class="min-w-0 flex-1">
 					<VehicleAccessLocationFields
 						:location="location"
+						:vehicle-custom-groups="vehicleCustomGroups"
+						:platform-person-groups="platformPersonGroups"
 						@update="handleLocationUpdate(locationIndex, $event)"
 					/>
 				</div>
@@ -69,8 +71,20 @@ import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { filterVehicleAccessZoneLocations } from "~/utils/vehicleAccessDataSource"
 import { computed } from "vue"
 
+interface VehicleCustomGroupOption {
+	id: number
+	list_name: string
+}
+
+interface PlatformPersonGroupOption {
+	id: number
+	name: string
+}
+
 interface Props {
 	zone: VehicleAccessZone
+	vehicleCustomGroups?: VehicleCustomGroupOption[]
+	platformPersonGroups?: PlatformPersonGroupOption[]
 	reorderableLocations?: boolean
 }
 
@@ -82,6 +96,8 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+	vehicleCustomGroups: () => [],
+	platformPersonGroups: () => [],
 	reorderableLocations: false,
 })
 const emit = defineEmits<Emits>()

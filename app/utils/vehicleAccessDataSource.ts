@@ -23,6 +23,13 @@ export const filterVehicleAccessZoneLocations = <T extends { dataSource?: string
 		.map((location, locationIndex) => ({ location, locationIndex }))
 		.filter(({ location }) => !shouldHideVehicleAccessWhenYscpOff(location.dataSource, yscpEnabled));
 
+/** 區域儲存：YSCP 關閉時不送出 yscp 地點（避免觸發後端驗證／覆寫） */
+export const filterVehicleAccessLocationsForSave = <T extends { dataSource?: string }>(
+	locations: T[],
+	yscpEnabled: boolean
+): T[] =>
+	locations.filter((loc) => !shouldHideVehicleAccessWhenYscpOff(loc.dataSource, yscpEnabled))
+
 /** 監控頁／表單驗證：YSCP 關閉時預設 isapi_camera */
 export const resolveVehicleAccessDataSource = (
 	raw: VehicleAccessDataSource | string | undefined,

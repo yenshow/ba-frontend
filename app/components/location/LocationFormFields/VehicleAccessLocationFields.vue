@@ -83,7 +83,7 @@
 							class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2"
 							:class="{
 								'border-cyan-400/50 bg-cyan-500/20': isEntryCameraSelected(dev.id),
-								'border-rose-400/40': isExitCameraSelected(dev.id)
+								'border-rose-400/40': isExitCameraSelected(dev.id),
 							}"
 						>
 							<input
@@ -109,7 +109,7 @@
 							class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2"
 							:class="{
 								'border-cyan-400/50 bg-cyan-500/20': isExitCameraSelected(dev.id),
-								'border-rose-400/40': isEntryCameraSelected(dev.id)
+								'border-rose-400/40': isEntryCameraSelected(dev.id),
 							}"
 						>
 							<input
@@ -128,134 +128,289 @@
 				至少需要選擇一台入口攝影機
 			</p>
 		</template>
+
+		<div v-if="dataSource === 'yscp'" class="mt-3 border-t border-white/10 pt-3">
+			<div class="mb-3">
+				<span class="text-sm font-medium text-white/80 2xl:text-base">車輛群組（選填）</span>
+				<p class="mt-1 text-xs text-white/55 2xl:text-sm">
+					YSCP 群組來自外部資料表；未勾選時儀表板顯示全部車輛群組
+				</p>
+			</div>
+			<div
+				v-if="vehicleCustomGroups.length === 0"
+				class="py-2 text-center text-xs text-white/50 2xl:text-sm"
+			>
+				載入中...
+			</div>
+			<div v-else class="grid grid-cols-2 gap-2">
+				<label
+					v-for="group in vehicleCustomGroups"
+					:key="group.id"
+					class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
+					:class="{
+						'border-cyan-400/50 bg-cyan-500/20': isGroupIdSelected('vehicleGroupIds', group.id),
+					}"
+				>
+					<input
+						type="checkbox"
+						:checked="isGroupIdSelected('vehicleGroupIds', group.id)"
+						class="h-4 w-4 cursor-pointer accent-cyan-400"
+						@change="handleToggleGroupId('vehicleGroupIds', group.id)"
+					/>
+					<span class="text-xs text-white/90 2xl:text-sm">{{ group.list_name }}</span>
+				</label>
+			</div>
+		</div>
+
+		<div v-else class="mt-3 border-t border-white/10 pt-3">
+			<div class="mb-3">
+				<span class="text-sm font-medium text-white/80 2xl:text-base">人員群組 *</span>
+			</div>
+			<div
+				v-if="platformPersonGroups.length === 0"
+				class="py-2 text-center text-xs text-white/50 2xl:text-sm"
+			>
+				載入中...
+			</div>
+			<div v-else class="grid grid-cols-2 gap-2">
+				<label
+					v-for="group in platformPersonGroups"
+					:key="group.id"
+					class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
+					:class="{
+						'border-cyan-400/50 bg-cyan-500/20': isGroupIdSelected('personGroupIds', group.id),
+					}"
+				>
+					<input
+						type="checkbox"
+						:checked="isGroupIdSelected('personGroupIds', group.id)"
+						class="h-4 w-4 cursor-pointer accent-cyan-400"
+						@change="handleToggleGroupId('personGroupIds', group.id)"
+					/>
+					<span class="text-xs text-white/90 2xl:text-sm">{{ group.name }}</span>
+				</label>
+			</div>
+			<p
+				v-if="
+					(!localLocation.personGroupIds || localLocation.personGroupIds.length === 0) &&
+					platformPersonGroups.length > 0
+				"
+				class="mt-2 text-xs text-amber-300 2xl:text-sm"
+			>
+				至少需要選擇一個人員群組
+			</p>
+		</div>
+
+		<div class="mt-3 border-t border-white/10 pt-3">
+			<span class="text-sm font-medium text-white/80 2xl:text-base">過車紀錄顯示欄位</span>
+			<div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+				<label
+					v-for="colKey in TOGGLEABLE_VEHICLE_LOG_COLUMN_KEYS"
+					:key="colKey"
+					class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 px-2 py-1.5 transition-colors hover:bg-white/10"
+					:class="{ 'border-cyan-400/50 bg-cyan-500/15': isLogColumnSelected(colKey) }"
+				>
+					<input
+						type="checkbox"
+						class="h-4 w-4 accent-cyan-400"
+						:checked="isLogColumnSelected(colKey)"
+						@change="handleToggleLogColumn(colKey)"
+					/>
+					<span class="text-xs text-white/90 2xl:text-sm">
+						{{ VEHICLE_ACCESS_LOG_COLUMN_LABELS[colKey] }}
+					</span>
+				</label>
+			</div>
+		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
-import type { VehicleAccessLocation } from "~/types/vehicleAccess";
-import type { LaneInfo } from "~/types/vehicleAccess";
-import type { Device } from "~/types/device";
-import FilterDropdown from "~/components/common/FilterDropdown.vue";
-import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi";
-import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
-import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
-import { storedVehicleAccessDataSource } from "~/utils/vehicleAccessDataSource";
-import { ref, watch, computed, onMounted } from "vue";
+import type { VehicleAccessLocation } from "~/types/vehicleAccess"
+import type { LaneInfo } from "~/types/vehicleAccess"
+import type { Device } from "~/types/device"
+import FilterDropdown from "~/components/common/FilterDropdown.vue"
+import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi"
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
+import { storedVehicleAccessDataSource } from "~/utils/vehicleAccessDataSource"
+import {
+	VEHICLE_ACCESS_LOG_COLUMN_LABELS,
+	TOGGLEABLE_VEHICLE_LOG_COLUMN_KEYS,
+	normalizeVehicleLogDisplayColumns,
+	toStoredVehicleLogDisplayColumns,
+	type VehicleAccessLogColumnKey,
+} from "~/utils/vehicleAccessLogColumns"
+import { ref, watch, computed, onMounted } from "vue"
+
+interface VehicleCustomGroupOption {
+	id: number
+	list_name: string
+}
+
+interface PlatformPersonGroupOption {
+	id: number
+	name: string
+}
 
 interface Props {
-	location: VehicleAccessLocation;
+	location: VehicleAccessLocation
+	vehicleCustomGroups?: VehicleCustomGroupOption[]
+	platformPersonGroups?: PlatformPersonGroupOption[]
 }
 
 interface Emits {
-	(e: "update", location: VehicleAccessLocation): void;
+	(e: "update", location: VehicleAccessLocation): void
 }
 
-const props = defineProps<Props>();
-const emit = defineEmits<Emits>();
+const props = withDefaults(defineProps<Props>(), {
+	vehicleCustomGroups: () => [],
+	platformPersonGroups: () => [],
+})
 
-const vehicleAccessApi = useVehicleAccessApi();
-const deviceApi = useDeviceApi();
-const { enableYscpVehicleAccess } = useModuleRegistry();
+const emit = defineEmits<Emits>()
+
+const vehicleAccessApi = useVehicleAccessApi()
+const deviceApi = useDeviceApi()
+const { enableYscpVehicleAccess } = useModuleRegistry()
 
 const localLocation = ref<VehicleAccessLocation>({
 	...props.location,
-	dataSource: storedVehicleAccessDataSource(props.location.dataSource)
-});
-const dataSource = ref(storedVehicleAccessDataSource(props.location.dataSource));
-const entryLaneIdString = ref("");
-const exitLaneIdString = ref("");
-const laneList = ref<LaneInfo[]>([]);
-const cameraDevices = ref<Device[]>([]);
+	dataSource: storedVehicleAccessDataSource(props.location.dataSource),
+	vehicleGroupIds: props.location.vehicleGroupIds ?? [],
+	personGroupIds: props.location.personGroupIds ?? [],
+})
+const dataSource = ref(storedVehicleAccessDataSource(props.location.dataSource))
+const entryLaneIdString = ref("")
+const exitLaneIdString = ref("")
+const laneList = ref<LaneInfo[]>([])
+const cameraDevices = ref<Device[]>([])
+
+const activeLogColumns = computed(() =>
+	normalizeVehicleLogDisplayColumns(localLocation.value.logDisplayColumns)
+)
+
+const isLogColumnSelected = (key: VehicleAccessLogColumnKey): boolean =>
+	activeLogColumns.value.includes(key)
+
+const handleToggleLogColumn = (key: VehicleAccessLogColumnKey) => {
+	const next = new Set(activeLogColumns.value)
+	if (next.has(key)) next.delete(key)
+	else next.add(key)
+	localLocation.value.logDisplayColumns = toStoredVehicleLogDisplayColumns(
+		normalizeVehicleLogDisplayColumns([...next])
+	)
+	handleChange()
+}
 
 onMounted(async () => {
 	if (!enableYscpVehicleAccess.value) {
-		laneList.value = [];
+		laneList.value = []
 	} else {
 		try {
-			const list = await vehicleAccessApi.getLaneInfoList();
-			laneList.value = list || [];
+			const list = await vehicleAccessApi.getLaneInfoList()
+			laneList.value = list || []
 		} catch {
-			laneList.value = [];
+			laneList.value = []
 		}
 	}
 	try {
-		const res = await deviceApi.getDevices({ type_code: "camera", limit: 200, offset: 0 });
-		cameraDevices.value = Array.isArray(res?.devices) ? res.devices : [];
+		const res = await deviceApi.getDevices({ type_code: "camera", limit: 200, offset: 0 })
+		cameraDevices.value = Array.isArray(res?.devices) ? res.devices : []
 	} catch {
-		cameraDevices.value = [];
+		cameraDevices.value = []
 	}
-});
+})
 
 const entryLaneOptions = computed(() => {
 	const options = laneList.value
-		.filter(l => l.lane_type === 1)
-		.map(lane => ({ value: String(lane.id), label: lane.lane_name ?? `車道 ${lane.id}` }));
-	return [{ value: "", label: "無" }, ...options];
-});
+		.filter((l) => l.lane_type === 1)
+		.map((lane) => ({ value: String(lane.id), label: lane.lane_name ?? `車道 ${lane.id}` }))
+	return [{ value: "", label: "無" }, ...options]
+})
 
 const exitLaneOptions = computed(() => {
 	const options = laneList.value
-		.filter(l => l.lane_type === 2)
-		.map(lane => ({ value: String(lane.id), label: lane.lane_name ?? `車道 ${lane.id}` }));
-	return [{ value: "", label: "無" }, ...options];
-});
+		.filter((l) => l.lane_type === 2)
+		.map((lane) => ({ value: String(lane.id), label: lane.lane_name ?? `車道 ${lane.id}` }))
+	return [{ value: "", label: "無" }, ...options]
+})
 
-const entryCameraIds = computed(() => localLocation.value.entryCameraDeviceIds ?? []);
-const exitCameraIds = computed(() => localLocation.value.exitCameraDeviceIds ?? []);
-const hasEntryCamera = computed(() => entryCameraIds.value.length > 0);
+const entryCameraIds = computed(() => localLocation.value.entryCameraDeviceIds ?? [])
+const exitCameraIds = computed(() => localLocation.value.exitCameraDeviceIds ?? [])
+const hasEntryCamera = computed(() => entryCameraIds.value.length > 0)
 
-const isEntryCameraSelected = (id: number) => entryCameraIds.value.includes(id);
-const isExitCameraSelected = (id: number) => exitCameraIds.value.includes(id);
+const isEntryCameraSelected = (id: number) => entryCameraIds.value.includes(id)
+const isExitCameraSelected = (id: number) => exitCameraIds.value.includes(id)
+
+type LocationGroupIdsKey = "vehicleGroupIds" | "personGroupIds"
+
+const isGroupIdSelected = (key: LocationGroupIdsKey, id: number) =>
+	(localLocation.value[key] ?? []).includes(id)
+
+const handleToggleGroupId = (key: LocationGroupIdsKey, id: number) => {
+	const ids = new Set(localLocation.value[key] ?? [])
+	if (ids.has(id)) ids.delete(id)
+	else ids.add(id)
+	localLocation.value[key] = [...ids]
+	handleChange()
+}
 
 watch(
 	() => props.location,
 	(newLocation) => {
-		const ds = storedVehicleAccessDataSource(newLocation.dataSource);
+		const ds = storedVehicleAccessDataSource(newLocation.dataSource)
 		localLocation.value = {
 			...newLocation,
 			dataSource: ds,
 			entryCameraDeviceIds: newLocation.entryCameraDeviceIds ?? [],
-			exitCameraDeviceIds: newLocation.exitCameraDeviceIds ?? []
-		};
-		dataSource.value = ds;
-		entryLaneIdString.value = newLocation.entryLaneId != null ? String(newLocation.entryLaneId) : "";
-		exitLaneIdString.value = newLocation.exitLaneId != null ? String(newLocation.exitLaneId) : "";
+			exitCameraDeviceIds: newLocation.exitCameraDeviceIds ?? [],
+			vehicleGroupIds: newLocation.vehicleGroupIds ?? [],
+			personGroupIds: newLocation.personGroupIds ?? [],
+			logDisplayColumns: toStoredVehicleLogDisplayColumns(
+				normalizeVehicleLogDisplayColumns(newLocation.logDisplayColumns)
+			),
+		}
+		dataSource.value = ds
+		entryLaneIdString.value =
+			newLocation.entryLaneId != null ? String(newLocation.entryLaneId) : ""
+		exitLaneIdString.value = newLocation.exitLaneId != null ? String(newLocation.exitLaneId) : ""
 	},
 	{ immediate: true, deep: true }
-);
+)
 
 const handleChange = () => {
-	emit("update", { ...localLocation.value, dataSource: dataSource.value });
-};
+	emit("update", { ...localLocation.value, dataSource: dataSource.value })
+}
 
 const handleDataSourceChange = () => {
-	localLocation.value.dataSource = dataSource.value;
-	handleChange();
-};
+	localLocation.value.dataSource = dataSource.value
+	handleChange()
+}
 
 const handleEntryLaneChange = (value: string) => {
-	localLocation.value.entryLaneId = value ? Number(value) : undefined;
-	handleChange();
-};
+	localLocation.value.entryLaneId = value ? Number(value) : undefined
+	handleChange()
+}
 
 const handleExitLaneChange = (value: string) => {
-	localLocation.value.exitLaneId = value ? Number(value) : undefined;
-	handleChange();
-};
+	localLocation.value.exitLaneId = value ? Number(value) : undefined
+	handleChange()
+}
 
 const handleToggleEntryCamera = (id: number) => {
-	const ids = new Set(entryCameraIds.value);
-	if (ids.has(id)) ids.delete(id);
-	else ids.add(id);
-	localLocation.value.entryCameraDeviceIds = [...ids];
-	handleChange();
-};
+	const ids = new Set(entryCameraIds.value)
+	if (ids.has(id)) ids.delete(id)
+	else ids.add(id)
+	localLocation.value.entryCameraDeviceIds = [...ids]
+	handleChange()
+}
 
 const handleToggleExitCamera = (id: number) => {
-	const ids = new Set(exitCameraIds.value);
-	if (ids.has(id)) ids.delete(id);
-	else ids.add(id);
-	localLocation.value.exitCameraDeviceIds = [...ids];
-	handleChange();
-};
+	const ids = new Set(exitCameraIds.value)
+	if (ids.has(id)) ids.delete(id)
+	else ids.add(id)
+	localLocation.value.exitCameraDeviceIds = [...ids]
+	handleChange()
+}
 </script>

@@ -25,7 +25,7 @@
 					v-if="zone.imageUrl"
 					type="button"
 					class="btn-secondary text-sm 2xl:text-base whitespace-nowrap"
-					@click.stop="openZoneSchematicPreview(zone.imageUrl)"
+					@click.stop="openPreviewWindow(zone.imageUrl, '區域示意圖')"
 				>
 					查看示意圖
 				</button>
@@ -63,7 +63,8 @@
 import type { UnifiedZone } from "~/types/location";
 import { useZoneValidation } from "~/composables/location/validation/useBaseValidation";
 import { ZONE_IMAGE_ACCEPT_ATTR } from "~/composables/location/validation/useBaseValidation";
-import { useZoneImageUpload, openZoneSchematicPreview } from "~/composables/location/ui/useZoneImage";
+import { useZoneImageUpload } from "~/composables/location/ui/useZoneImage";
+import { useImageCenter } from "~/composables/core/useImageCenter";
 
 interface Props {
 	zone: UnifiedZone;
@@ -79,6 +80,8 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<Emits>();
+
+const { openPreviewWindow } = useImageCenter();
 
 const { validateZoneName } = useZoneValidation();
 const errorMessage = ref("");
