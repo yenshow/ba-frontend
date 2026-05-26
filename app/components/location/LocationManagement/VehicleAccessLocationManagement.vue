@@ -8,14 +8,14 @@
 		</div>
 
 		<div
-			v-if="getLocations(zone).length === 0"
+			v-if="visibleLocations.length === 0"
 			class="py-4 text-center text-sm text-white/60 2xl:text-base"
 		>
 			尚無地點，請新增地點
 		</div>
 		<div v-else class="space-y-2">
 			<div
-				v-for="(location, locationIndex) in getLocations(zone)"
+				v-for="({ location, locationIndex }) in visibleLocations"
 				:key="getLocationId(location, locationIndex)"
 				class="flex min-w-0 items-start gap-2 rounded border border-white/10 bg-white/5 p-2"
 			>
@@ -40,7 +40,7 @@
 					<button
 						type="button"
 						class="btn-reorder-arrow"
-						:disabled="locationIndex >= getLocations(zone).length - 1"
+						:disabled="locationIndex >= visibleLocations.length - 1"
 						title="下移"
 						aria-label="此地點下移"
 						@click="emit('reorder-location', { index: locationIndex, direction: 'down' })"
@@ -49,7 +49,6 @@
 					</button>
 				</div>
 
-				<!-- 刪除按鈕 -->
 				<IconTrashButton
 					button-class="ml-auto flex-shrink-0"
 					title="刪除地點"
@@ -66,6 +65,9 @@ import IconTrashButton from "~/components/common/IconTrashButton.vue"
 import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess"
 import VehicleAccessLocationFields from "../LocationFormFields/VehicleAccessLocationFields.vue"
 import { getLocationUiKey } from "~/utils/locationUiId"
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
+import { filterVehicleAccessZoneLocations } from "~/utils/vehicleAccessDataSource"
+import { computed } from "vue"
 
 interface Props {
 	zone: VehicleAccessZone
@@ -84,9 +86,10 @@ const props = withDefaults(defineProps<Props>(), {
 })
 const emit = defineEmits<Emits>()
 
-const getLocations = (zone: VehicleAccessZone): VehicleAccessLocation[] => {
-	return zone.locations || []
-}
+const { enableYscpVehicleAccess } = useModuleRegistry()
+const visibleLocations = computed(() =>
+	filterVehicleAccessZoneLocations(props.zone.locations || [], enableYscpVehicleAccess.value)
+)
 
 const getLocationId = (location: VehicleAccessLocation, index: number): string =>
 	getLocationUiKey({ zone: props.zone as any, location: location as any, locationIndex: index })

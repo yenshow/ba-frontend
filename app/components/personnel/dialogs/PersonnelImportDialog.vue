@@ -39,6 +39,10 @@
 									門禁密碼（選填）：<span class="text-white">門禁密碼</span>（僅數字 4~12 碼）
 								</li>
 								<li>卡號（選填）：<span class="text-white">卡號</span></li>
+								<li>
+									車牌（選填，可多筆）：<span class="text-white">車牌</span>
+									<span class="text-white/70 text-sm 2xl:text-base">（以逗號、分號分隔）</span>
+								</li>
 							</ul>
 							<button
 								type="button"
@@ -50,29 +54,53 @@
 							</button>
 						</div>
 
-						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
+						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
 							<span>Excel 檔（.xlsx）*</span>
-							<input
-								ref="excelInputRef"
-								type="file"
-								accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-								class="form-input-small"
-								aria-label="選擇 Excel 檔"
-								@change="handleExcelChange"
-							/>
-						</label>
+							<div class="flex flex-wrap items-center gap-3">
+								<input
+									ref="excelInputRef"
+									type="file"
+									accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+									class="hidden"
+									aria-label="選擇 Excel 檔"
+									@change="handleFileChange($event, 'excel')"
+								/>
+								<button
+									type="button"
+									class="btn-secondary whitespace-nowrap text-sm 2xl:text-base"
+									@click="pickFile('excel')"
+								>
+									選擇檔案
+								</button>
+								<p class="min-w-0 flex-1 truncate text-white/60">
+									{{ excelFile?.name ?? "尚未選擇檔案" }}
+								</p>
+							</div>
+						</div>
 
-						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
+						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
 							<span>圖片 zip（選填，≤ 200KB，JPG/JPEG）</span>
-							<input
-								ref="zipInputRef"
-								type="file"
-								accept=".zip,application/zip"
-								class="form-input-small"
-								aria-label="選擇圖片 zip 檔"
-								@change="handleZipChange"
-							/>
-						</label>
+							<div class="flex flex-wrap items-center gap-3">
+								<input
+									ref="zipInputRef"
+									type="file"
+									accept=".zip,application/zip"
+									class="hidden"
+									aria-label="選擇圖片 zip 檔"
+									@change="handleFileChange($event, 'zip')"
+								/>
+								<button
+									type="button"
+									class="btn-secondary whitespace-nowrap text-sm 2xl:text-base"
+									@click="pickFile('zip')"
+								>
+									選擇檔案
+								</button>
+								<p class="min-w-0 flex-1 truncate text-white/60">
+									{{ zipFile?.name ?? "尚未選擇檔案" }}
+								</p>
+							</div>
+						</div>
 					</div>
 					<p v-if="error" class="text-sm text-rose-300">{{ error }}</p>
 					<div
@@ -150,19 +178,19 @@ const resetFiles = () => {
 	if (zipInputRef.value) zipInputRef.value.value = ""
 }
 
-const handleClose = () => {
-	resetFiles()
-	emit("update:modelValue", false)
+const handleClose = () => emit("update:modelValue", false)
+
+type ImportFileKind = "excel" | "zip"
+
+const pickFile = (kind: ImportFileKind) => {
+	const inputRef = kind === "excel" ? excelInputRef : zipInputRef
+	inputRef.value?.click()
 }
 
-const handleExcelChange = (e: Event) => {
-	const input = e.target as HTMLInputElement
-	excelFile.value = input.files?.[0] ?? null
-}
-
-const handleZipChange = (e: Event) => {
-	const input = e.target as HTMLInputElement
-	zipFile.value = input.files?.[0] ?? null
+const handleFileChange = (e: Event, kind: ImportFileKind) => {
+	const file = (e.target as HTMLInputElement).files?.[0] ?? null
+	if (kind === "excel") excelFile.value = file
+	else zipFile.value = file
 }
 
 const handleSubmit = () => {

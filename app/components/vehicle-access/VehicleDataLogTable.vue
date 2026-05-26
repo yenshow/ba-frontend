@@ -82,7 +82,7 @@
 						{{ log.license_plate?.trim() || "-" }}
 					</td>
 					<td class="p-2 text-sm 2xl:text-base">
-						{{ log.lane_name?.trim() || "-" }}
+						{{ log.anpr_line?.trim() || log.lane_name?.trim() || "-" }}
 					</td>
 					<td class="p-2 text-sm 2xl:text-base">
 						{{ log.owner_name?.trim() || "-" }}

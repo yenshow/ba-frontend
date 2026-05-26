@@ -75,6 +75,7 @@ export type PersonnelApi = {
 		status?: "active" | "inactive"
 		faceUrl?: string | null
 		personGroupId?: number | null
+		licensePlates?: string[]
 	}) => Promise<Person>
 	updatePerson: (
 		id: number,
@@ -84,6 +85,7 @@ export type PersonnelApi = {
 			status: "active" | "inactive"
 			faceUrl: string | null
 			personGroupId: number | null
+			licensePlates: string[]
 		}>
 	) => Promise<Person>
 	uploadFaceForPerson: (
@@ -213,6 +215,7 @@ export const usePersonnelApi = (): PersonnelApi => {
 			status?: "active" | "inactive"
 			faceUrl?: string | null
 			personGroupId?: number | null
+			licensePlates?: string[]
 		}) =>
 			request<Person>(`${PERSONNEL_PREFIX}/persons`, {
 				method: "POST",
@@ -226,6 +229,7 @@ export const usePersonnelApi = (): PersonnelApi => {
 				status: "active" | "inactive"
 				faceUrl: string | null
 				personGroupId: number | null
+				licensePlates: string[]
 			}>
 		) =>
 			request<Person>(`${PERSONNEL_PREFIX}/persons/${id}`, {

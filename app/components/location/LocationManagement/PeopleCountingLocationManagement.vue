@@ -10,14 +10,14 @@
 
 		<!-- 地點項目 -->
 		<div
-			v-if="getLocations(zone).length === 0"
+			v-if="visibleLocations.length === 0"
 			class="py-4 text-center text-sm text-white/60 2xl:text-base"
 		>
 			尚無地點，請新增地點
 		</div>
 		<div v-else class="space-y-2">
 			<div
-				v-for="(location, locationIndex) in getLocations(zone)"
+				v-for="({ location, locationIndex }) in visibleLocations"
 				:key="getLocationId(location, locationIndex)"
 				class="flex min-w-0 items-start gap-2 rounded border border-white/10 bg-white/5 p-2"
 			>
@@ -47,7 +47,7 @@
 					<button
 						type="button"
 						class="btn-reorder-arrow"
-						:disabled="locationIndex >= getLocations(zone).length - 1"
+						:disabled="locationIndex >= visibleLocations.length - 1"
 						title="下移"
 						aria-label="此地點下移"
 						@click="emit('reorder-location', { index: locationIndex, direction: 'down' })"
@@ -74,6 +74,9 @@ import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleC
 import type { Device } from "~/types/device"
 import PeopleCountingLocationFields from "../LocationFormFields/PeopleCountingLocationFields.vue"
 import { getLocationUiKey } from "~/utils/locationUiId"
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
+import { filterPeopleCountingZoneLocations } from "~/utils/peopleCountingDataSource"
+import { computed } from "vue"
 
 interface PersonGroup {
 	id: number
@@ -115,10 +118,10 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
-// 取得地點列表
-const getLocations = (zone: PeopleCountingZone): PeopleCountingLocation[] => {
-	return zone.locations || []
-}
+const { enableYscpPeopleCounting } = useModuleRegistry()
+const visibleLocations = computed(() =>
+	filterPeopleCountingZoneLocations(props.zone.locations || [], enableYscpPeopleCounting.value)
+)
 
 // 取得地點 ID
 const getLocationId = (location: PeopleCountingLocation, index: number): string => {

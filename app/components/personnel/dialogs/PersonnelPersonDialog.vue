@@ -21,7 +21,7 @@
 							&times;
 						</button>
 					</header>
-					<form class="grid gap-4 2xl:gap-6 grid-cols-2" @submit.prevent="handleSubmit">
+					<form class="grid grid-cols-2 gap-4 2xl:gap-6" @submit.prevent="handleSubmit">
 						<div
 							v-if="!hasAccessControlDevices"
 							class="col-span-2 rounded-lg border border-white/20 bg-white/5 p-3 text-xs text-white/70 2xl:text-sm"
@@ -32,8 +32,8 @@
 
 						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
 							<p>大頭照</p>
-							<div class="rounded-xl border border-white/10 bg-white/5 p-3">
-								<div class="flex items-center gap-4">
+							<div class="rounded-xl border border-white/10 bg-white/5 p-4">
+								<div class="flex items-center gap-4 pt-2.5">
 									<div
 										class="flex h-24 w-24 shrink-0 overflow-hidden rounded-full border border-white/20 bg-white/10 2xl:h-28 2xl:w-28"
 									>
@@ -79,7 +79,7 @@
 									</div>
 								</div>
 
-								<div class="mt-6 flex gap-3 items-center">
+								<div class="mt-6 flex items-center gap-3">
 									<div class="w-full md:max-w-[240px]">
 										<FilterDropdown
 											v-model="localCaptureDeviceIdString"
@@ -90,7 +90,7 @@
 									</div>
 									<button
 										type="button"
-										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white hover:bg-cyan-400 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-cyan-300/50"
+										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white hover:bg-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-300/50 disabled:opacity-50"
 										:disabled="
 											isCapturingFace || !hasSelectedCaptureDevice || !hasAccessControlDevices
 										"
@@ -113,7 +113,7 @@
 						</div>
 
 						<div class="space-y-3">
-							<label class="flex flex-col gap-2 text-white/80 text-base">
+							<label class="flex flex-col gap-2 text-base text-white/80">
 								<span>姓名 *</span>
 								<input
 									v-model="state.form.fullName"
@@ -123,7 +123,7 @@
 								/>
 							</label>
 
-							<label class="flex flex-col gap-2 text-white/80 text-base">
+							<label class="flex flex-col gap-2 text-base text-white/80">
 								<span>工號 *</span>
 								<input
 									v-model="state.form.employeeNo"
@@ -131,13 +131,11 @@
 									required
 									class="form-input-small"
 									:readonly="!!state.editingPerson"
+									:title="state.editingPerson ? '建立後無法修改工號' : undefined"
 								/>
 							</label>
 
-							<label
-								v-if="state.editingPerson"
-								class="flex flex-col gap-2 text-white/80 text-base col-span-2"
-							>
+							<label v-if="state.editingPerson" class="flex flex-col gap-2 text-base text-white/80">
 								<span>群組</span>
 								<FilterDropdown
 									v-model="localPersonGroupId"
@@ -148,9 +146,58 @@
 							</label>
 						</div>
 
-						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base col-span-2">
+						<label class="col-span-2 flex flex-col gap-2 text-base text-white/80">
+							<span>密碼設定</span>
+							<input
+								:value="localPassword"
+								type="text"
+								inputmode="numeric"
+								pattern="[0-9]*"
+								class="form-input-small"
+								placeholder="僅數字（4~12 碼）"
+								aria-label="門禁密碼"
+								@input="handlePasswordInput"
+							/>
+						</label>
+
+						<div class="col-span-2 flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
+							<p>車牌（可多筆）</p>
+							<div
+								class="form-input-small flex min-h-[2.75rem] cursor-text flex-wrap items-center gap-2 py-1.5"
+								role="group"
+								aria-label="車牌標籤"
+							>
+								<span
+									v-for="(plate, idx) in state.form.licensePlates"
+									:key="`plate-${plate}-${idx}`"
+									class="inline-flex max-w-full items-center gap-1 rounded-full border border-cyan-400/50 bg-cyan-500/20 py-1 pl-2.5 pr-1 text-sm text-white"
+								>
+									<span class="truncate">{{ plate }}</span>
+									<button
+										type="button"
+										class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/20 hover:text-white"
+										:aria-label="`移除車牌 ${plate}`"
+										@click="state.form.licensePlates.splice(idx, 1)"
+									>
+										&times;
+									</button>
+								</span>
+								<input
+									v-model="plateInput"
+									type="text"
+									class="min-w-[8rem] flex-1 border-none bg-transparent py-1 text-sm text-white placeholder:text-white/40 focus:outline-none 2xl:text-base"
+									placeholder="例如 ABC1234"
+									aria-label="新增車牌"
+									@keydown="handlePlateInputKeydown"
+									@blur="commitPlatesFromInput()"
+									@paste="handlePlateInputPaste"
+								/>
+							</div>
+						</div>
+
+						<div class="col-span-2 flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
 							<p>有效期限</p>
-							<div class="rounded-xl border border-white/10 bg-white/5 p-3 space-y-3">
+							<div class="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
 								<label class="relative inline-flex cursor-pointer items-center">
 									<input
 										v-model="localIsLongTerm"
@@ -161,9 +208,7 @@
 									<div
 										class="peer h-6 w-11 rounded-full bg-white/20 after:absolute after:left-[4px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-cyan-500 peer-checked:after:translate-x-full peer-focus:outline-none 2xl:h-7 2xl:w-14 2xl:after:h-6 2xl:after:w-6"
 									></div>
-									<span class="ml-3 text-sm 2xl:text-base">{{
-										localIsLongTerm ? "永久授權" : "指定有效期限"
-									}}</span>
+									<span class="ml-3 text-sm 2xl:text-base">永久授權</span>
 								</label>
 
 								<div v-if="!localIsLongTerm" class="grid grid-cols-2 gap-3">
@@ -285,22 +330,8 @@
 							</div>
 						</div>
 
-						<label class="flex flex-col gap-2 text-white/80 text-base">
-							<span>密碼設定</span>
-							<input
-								:value="localPassword"
-								type="text"
-								inputmode="numeric"
-								pattern="[0-9]*"
-								class="form-input-small"
-								placeholder="僅數字（4~12 碼）"
-								aria-label="門禁密碼"
-								@input="handlePasswordInput"
-							/>
-						</label>
-
 						<div
-							class="flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base col-span-2"
+							class="col-span-2 flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base"
 						>
 							<label class="relative inline-flex cursor-pointer items-center">
 								<input
@@ -321,11 +352,11 @@
 							</label>
 						</div>
 
-						<p v-if="state.ui.errorMessage" class="text-sm text-rose-300 col-span-2">
+						<p v-if="state.ui.errorMessage" class="col-span-2 text-sm text-rose-300">
 							{{ state.ui.errorMessage }}
 						</p>
 
-						<footer class="mt-2 flex gap-3 2xl:gap-4 col-span-2">
+						<footer class="col-span-2 mt-2 flex gap-3 2xl:gap-4">
 							<button type="button" class="btn-secondary" @click="handleClose">取消</button>
 							<div class="flex-1"></div>
 							<button type="submit" class="btn-primary" :disabled="isSubmitting">
@@ -361,6 +392,10 @@ const emit = defineEmits<{
 }>()
 
 const faceFileInputRef = ref<HTMLInputElement | null>(null)
+const plateInput = ref("")
+
+const PLATE_SEPARATORS = /[,;，；\n]+/
+const isPlateCommitKey = (key: string) => key === "Enter" || /^[,;，；]$/.test(key)
 
 const childGroupOptions = computed(() => buildPersonnelChildGroupOptions(props.groupTree || []))
 
@@ -450,6 +485,38 @@ const localPassword = computed<string>({
 	set: (v) => (props.state.accessControl.password.value = v),
 })
 
+const commitPlatesFromInput = (raw?: string) => {
+	const text = (raw ?? plateInput.value).trim()
+	if (!text) return
+
+	const plates = props.state.form.licensePlates
+	for (const part of text.split(PLATE_SEPARATORS)) {
+		const value = part.trim()
+		if (!value) continue
+		if (plates.some((p) => p.toLowerCase() === value.toLowerCase())) continue
+		plates.push(value)
+	}
+	plateInput.value = ""
+}
+
+const handlePlateInputKeydown = (e: KeyboardEvent) => {
+	if (isPlateCommitKey(e.key)) {
+		e.preventDefault()
+		commitPlatesFromInput()
+		return
+	}
+	if (e.key === "Backspace" && !plateInput.value && props.state.form.licensePlates.length > 0) {
+		props.state.form.licensePlates.pop()
+	}
+}
+
+const handlePlateInputPaste = (e: ClipboardEvent) => {
+	const text = e.clipboardData?.getData("text") ?? ""
+	if (!PLATE_SEPARATORS.test(text)) return
+	e.preventDefault()
+	commitPlatesFromInput(text)
+}
+
 const handlePasswordInput = (e: Event) => {
 	const input = e.target as HTMLInputElement | null
 	if (!input) return
@@ -495,8 +562,10 @@ const handleClearFace = () => emit("clear-face")
 
 watch(
 	() => props.modelValue,
-	(v) => {
-		if (!v && faceFileInputRef.value) faceFileInputRef.value.value = ""
+	(open) => {
+		if (open) return
+		plateInput.value = ""
+		if (faceFileInputRef.value) faceFileInputRef.value.value = ""
 	}
 )
 </script>

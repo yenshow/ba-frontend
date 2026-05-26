@@ -201,7 +201,13 @@ function isPeopleCountingSystemConfig(config: unknown): config is PeopleCounting
 function isVehicleAccessSystemConfig(config: unknown): config is VehicleAccessSystemConfig {
 	if (!config || typeof config !== "object") return false
 	const c = config as Record<string, unknown>
-	return "entryLaneId" in c || "exitLaneId" in c
+	return (
+		"entryLaneId" in c ||
+		"exitLaneId" in c ||
+		"dataSource" in c ||
+		"entryCameraDeviceIds" in c ||
+		"exitCameraDeviceIds" in c
+	)
 }
 
 /**
@@ -912,8 +918,12 @@ export function unifiedToVehicleAccessZone(zone: UnifiedZone): VehicleAccessZone
 					id: loc.id,
 					name: loc.name,
 					...pickSortOrder(loc.sortOrder),
+					dataSource: vaSystem.config.dataSource ?? "yscp",
 					entryLaneId: vaSystem.config.entryLaneId ?? undefined,
 					exitLaneId: vaSystem.config.exitLaneId ?? undefined,
+					entryCameraDeviceIds: vaSystem.config.entryCameraDeviceIds ?? [],
+					exitCameraDeviceIds: vaSystem.config.exitCameraDeviceIds ?? [],
+					cameraChannelId: vaSystem.config.cameraChannelId ?? 1,
 				} as VehicleAccessLocation,
 			]
 		}),
@@ -950,8 +960,12 @@ export function vehicleAccessLocationToUnified(
 			{
 				systemType,
 				config: {
+					dataSource: loc.dataSource ?? "yscp",
 					entryLaneId: loc.entryLaneId ?? undefined,
 					exitLaneId: loc.exitLaneId ?? undefined,
+					entryCameraDeviceIds: loc.entryCameraDeviceIds ?? [],
+					exitCameraDeviceIds: loc.exitCameraDeviceIds ?? [],
+					cameraChannelId: loc.cameraChannelId ?? 1,
 				} as VehicleAccessSystemConfig,
 			},
 		],

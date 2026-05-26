@@ -2,9 +2,14 @@
  * 車輛進出系統類型（對齊後端 vehiclebiz.passageway_log_data）
  */
 
+export type VehicleAccessDataSource = "yscp" | "isapi_camera";
+
 export interface VehicleDataLog {
 	id: number;
 	lane_name: string | null;
+	/** ISAPI：線別（ANPR.line） */
+	anpr_line?: string | null;
+	data_source?: VehicleAccessDataSource;
 	/** 車道 ID（vehiclebiz.lane_info.id；用於依選中地點篩選過車記錄） */
 	lane_id?: number | null;
 	/** 放行結果：1=放行、0=未放行（未放行顯示「拒絕」） */
@@ -130,10 +135,16 @@ export interface VehicleAccessLocation {
 	/** 同區域內地點排序（小者在前） */
 	sortOrder?: number;
 	name: string;
+	dataSource?: VehicleAccessDataSource;
 	/** 入口車道 ID（vehiclebiz.lane_info，lane_type=1） */
 	entryLaneId?: number | null;
 	/** 出口車道 ID（vehiclebiz.lane_info，lane_type=2） */
 	exitLaneId?: number | null;
+	/** ISAPI 入口攝影機 devices.id */
+	entryCameraDeviceIds?: number[];
+	/** ISAPI 出口攝影機 devices.id */
+	exitCameraDeviceIds?: number[];
+	cameraChannelId?: number;
 	/** 業務層地點 ID（字串來自 loc.id，數字為舊版相容） */
 	locationId?: number | string;
 }

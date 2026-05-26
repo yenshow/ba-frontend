@@ -5,13 +5,16 @@
 import type { YscpEventPayload } from "~/types/websocket";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import { logger } from "~/utils/logger";
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 import { ref, watch } from "vue";
 
 const YSCP_VEHICLE_EVENT = "yscp:event:vehicle";
+const ISAPI_VEHICLE_EVENT = "vehicle-access:isapi-camera:event";
 const wsLogger = logger.createLogger("VehicleAccess WS");
 
 export const useVehicleAccessWebSocket = () => {
 	const { isConnected, on, off } = useWebSocket();
+	const { enableYscpVehicleAccess } = useModuleRegistry();
 
 	const setupEventListeners = (
 		onYscpEvent: (event: YscpEventPayload) => void,
@@ -20,8 +23,8 @@ export const useVehicleAccessWebSocket = () => {
 		let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 		const isLoading = ref(false);
 
-		const handleYscpEvent = (data: YscpEventPayload) => {
-			if (data.type !== "vehicle_access") return;
+		const handleRefresh = (data?: YscpEventPayload) => {
+			if (data && data.type && data.type !== "vehicle_access") return;
 			if (isLoading.value) {
 				if (process.dev) wsLogger.log("資料載入中，跳過本次事件", { type: data.type });
 				return;
@@ -30,30 +33,33 @@ export const useVehicleAccessWebSocket = () => {
 			debounceTimer = setTimeout(() => {
 				if (process.dev) wsLogger.log("觸發車輛進出資料重新載入（防抖後）", { type: data.type });
 				isLoading.value = true;
-				Promise.resolve(onYscpEvent(data)).finally(() => {
+				Promise.resolve(onYscpEvent(data as YscpEventPayload)).finally(() => {
 					isLoading.value = false;
 				});
 			}, debounceMs);
 		};
 
-		watch(
-			isConnected,
-			connected => {
-				if (connected) {
-					on(YSCP_VEHICLE_EVENT, handleYscpEvent);
-				} else {
-					off(YSCP_VEHICLE_EVENT, handleYscpEvent);
-					if (debounceTimer) {
-						clearTimeout(debounceTimer);
-						debounceTimer = null;
-					}
+		const syncListeners = () => {
+			off(YSCP_VEHICLE_EVENT, handleRefresh);
+			off(ISAPI_VEHICLE_EVENT, handleRefresh);
+			if (!isConnected.value) {
+				if (debounceTimer) {
+					clearTimeout(debounceTimer);
+					debounceTimer = null;
 				}
-			},
-			{ immediate: true }
-		);
+				return;
+			}
+			if (enableYscpVehicleAccess.value) {
+				on(YSCP_VEHICLE_EVENT, handleRefresh);
+			}
+			on(ISAPI_VEHICLE_EVENT, handleRefresh);
+		};
+
+		watch([isConnected, enableYscpVehicleAccess], syncListeners, { immediate: true });
 
 		return () => {
-			off(YSCP_VEHICLE_EVENT, handleYscpEvent);
+			off(YSCP_VEHICLE_EVENT, handleRefresh);
+			off(ISAPI_VEHICLE_EVENT, handleRefresh);
 			if (debounceTimer) {
 				clearTimeout(debounceTimer);
 				debounceTimer = null;

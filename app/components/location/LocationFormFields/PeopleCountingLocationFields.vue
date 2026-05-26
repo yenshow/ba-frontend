@@ -342,7 +342,7 @@ import {
 	toStoredLogDisplayColumns,
 } from "~/utils/peopleCountingLogColumns"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
-import { resolvePeopleCountingDataSource } from "~/utils/peopleCountingDataSource"
+import { storedPeopleCountingDataSource } from "~/utils/peopleCountingDataSource"
 
 interface PersonGroup {
 	id: number
@@ -395,9 +395,7 @@ const selectCardOverlapClass =
 const dangerHintClass =
 	"mt-3 rounded border border-rose-500/60 bg-rose-500/15 p-2 text-xs text-rose-200 2xl:text-sm"
 const warnHintClass = "mt-2 text-xs text-amber-300 2xl:text-sm"
-const dataSource = ref(
-	resolvePeopleCountingDataSource(props.location.dataSource, enableYscpPeopleCounting.value)
-)
+const dataSource = ref(storedPeopleCountingDataSource(props.location.dataSource))
 
 const activeLogColumns = computed(() =>
 	normalizeLogDisplayColumns(localLocation.value.logDisplayColumns)
@@ -488,16 +486,9 @@ watch(
 		) {
 			localLocation.value.cameraDeviceIds = []
 		}
-		const next = resolvePeopleCountingDataSource(
-			newLocation.dataSource,
-			enableYscpPeopleCounting.value
-		)
-		if (dataSource.value !== next || localLocation.value.dataSource !== next) {
-			dataSource.value = next
-			handleDataSourceChange()
-		} else {
-			dataSource.value = next
-		}
+		const next = storedPeopleCountingDataSource(newLocation.dataSource)
+		dataSource.value = next
+		localLocation.value.dataSource = next
 		if ((newLocation.dataSource as string) === "isapi_camera") {
 			localLocation.value.preferRegion = true
 		}
