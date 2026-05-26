@@ -58,7 +58,7 @@
 											:src="imageUrls[log.id]"
 											:alt="`${log.personName || '未知'} 設備截圖`"
 											class="absolute inset-0 h-full w-full object-cover"
-											@error="handleImageError($event, log.id)"
+											@error="onImageError($event, log.id)"
 										/>
 									</Transition>
 									<Transition name="fade">
@@ -163,12 +163,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, computed } from "vue"
+import { ref, nextTick, computed, toRef } from "vue"
 import type { PeopleCountingLog } from "~/types/peopleCounting"
-import { useExternalDataApi } from "~/composables/systems/externalData/useExternalDataApi"
-import { convertBase64ToImageUrl } from "~/utils/imageUtils"
 import { formatDate, formatTime } from "~/utils/dateUtils"
-import { resolveUploadUrl } from "~/utils/apiUtils"
+import { useResolvedMediaList } from "~/composables/core/useImageCenter"
 import {
 	PEOPLE_COUNTING_LOG_COLUMN_LABELS,
 	normalizeLogDisplayColumns,
@@ -190,11 +188,16 @@ const props = withDefaults(defineProps<Props>(), {
 
 const displayColumns = computed(() => normalizeLogDisplayColumns(props.displayColumns))
 
-const { getBatchPicturesByUri } = useExternalDataApi()
-const imageUrls = ref<Record<string | number, string>>({})
-const imageLoadingStates = ref<Record<string | number, boolean>>({})
-const imageErrorStates = ref<Record<string | number, boolean>>({})
-const imageCache = new Map<string, string>()
+const {
+	urls: imageUrls,
+	loading: imageLoadingStates,
+	errors: imageErrorStates,
+	onImageError,
+} = useResolvedMediaList(toRef(props, "logs"), {
+	getRaw: (log) => log.deviceScreenshotUrl,
+	getId: (log) => log.id,
+})
+
 const lightboxImageUrl = ref<string | null>(null)
 const lightboxRef = ref<HTMLElement | null>(null)
 
@@ -207,83 +210,6 @@ const openLightbox = (url: string | undefined) => {
 const closeLightbox = () => {
 	lightboxImageUrl.value = null
 }
-
-const handleImageError = (_event: Event, logId: string | number) => {
-	imageErrorStates.value[logId] = true
-	delete imageUrls.value[logId]
-}
-
-const uploadConfig = useRuntimeConfig()
-const apiBase = (uploadConfig.public.apiBase as string) || ""
-const getUploadsImageUrl = (path: string): string => resolveUploadUrl(path, apiBase)
-
-const loadAllImages = async () => {
-	const logsToLoad = props.logs.filter(
-		(log) =>
-			log.deviceScreenshotUrl && !imageUrls.value[log.id] && !imageLoadingStates.value[log.id]
-	)
-
-	if (logsToLoad.length === 0) return
-
-	const picUris: string[] = []
-	const logIdMap = new Map<string, string | number>()
-
-	for (const log of logsToLoad) {
-		const picUri = log.deviceScreenshotUrl!.trim()
-		if (picUri.startsWith("/uploads/")) {
-			const fullUrl = getUploadsImageUrl(picUri)
-			imageUrls.value[log.id] = fullUrl
-			imageCache.set(picUri, fullUrl)
-			continue
-		}
-		if (imageCache.has(picUri)) {
-			imageUrls.value[log.id] = imageCache.get(picUri)!
-		} else {
-			picUris.push(picUri)
-			logIdMap.set(picUri, log.id)
-		}
-	}
-
-	if (picUris.length === 0) return
-
-	for (const picUri of picUris) {
-		const logId = logIdMap.get(picUri)
-		if (logId) {
-			imageLoadingStates.value[logId] = true
-		}
-	}
-
-	try {
-		const result = await getBatchPicturesByUri(picUris)
-
-		if (result.success && result.data?.results) {
-			result.data.results.forEach((item) => {
-				if (item.success && item.image) {
-					const logId = logIdMap.get(item.picUri)
-					if (logId) {
-						const imageUrl = convertBase64ToImageUrl(item.image)
-						imageUrls.value[logId] = imageUrl
-						imageCache.set(item.picUri, imageUrl)
-					}
-				}
-			})
-		}
-	} catch (error) {
-		console.error("批次載入圖片失敗:", error)
-	} finally {
-		for (const logId of logIdMap.values()) {
-			imageLoadingStates.value[logId] = false
-		}
-	}
-}
-
-watch(
-	() => props.logs,
-	() => {
-		loadAllImages()
-	},
-	{ immediate: true, deep: true }
-)
 </script>
 
 <style scoped>

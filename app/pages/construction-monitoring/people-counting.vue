@@ -268,11 +268,13 @@ import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue
 import SimulationFrame from "~/components/common/SimulationFrame.vue";
 import PeopleCountingSimulation from "~/components/people-counting/PeopleCountingSimulation.vue";
 import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState";
-import { usePeopleCountingWebSocket } from "~/composables/systems/peopleCounting/usePeopleCountingWebSocket";
 import { usePeopleCountingLocationApi } from "~/composables/location/api/usePeopleCountingLocationApi";
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
 import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter";
-import { usePeopleCountingApi } from "~/composables/systems/peopleCounting/usePeopleCountingApi";
+import {
+	usePeopleCountingApi,
+	PEOPLE_COUNTING_FULL_REPORT_LIMIT
+} from "~/composables/systems/peopleCounting/usePeopleCountingApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useAuth } from "~/composables/core/useAuth";
 import type { PeopleCountingUnit, PeopleCountingPersonnel } from "~/types/peopleCounting";
@@ -293,7 +295,8 @@ const {
 	loadLocations,
 	loadLocationDetail,
 	loadZones,
-	getLocationZone
+	getLocationZone,
+	setupEventListeners
 } = usePeopleCountingState();
 
 // 單位人員對話框相關
@@ -335,9 +338,6 @@ const currentCount = computed(() => {
 	}
 	return selectedLocation.value.units.reduce((sum, unit) => sum + (unit.currentCount || 0), 0);
 });
-
-// WebSocket 事件處理
-const { setupEventListeners } = usePeopleCountingWebSocket();
 
 // 左側區域的 ref 和高度
 const leftSectionRef = ref<HTMLElement | null>(null);
@@ -397,7 +397,7 @@ const loadSimulationLogs = async () => {
 	const { startDate, endDate } = simulationTimeRange.value;
 	try {
 		simulationLogs.value = await peopleCountingApi.getLocationLogs(loc.locationId, {
-			limit: 50000,
+			limit: PEOPLE_COUNTING_FULL_REPORT_LIMIT,
 			...(startDate && { startTime: startDate }),
 			...(endDate && { endTime: endDate })
 		});

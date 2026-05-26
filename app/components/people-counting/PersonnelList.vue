@@ -22,9 +22,9 @@
 					<div class="relative mt-2 h-16 w-16 overflow-hidden rounded-full bg-white/10 2xl:mt-4">
 						<Transition name="fade">
 							<img
-								v-if="resolvePhotoUrl(person.photoUrl) && !imageErrorStates[person.id]"
+								v-if="resolveUrl(person.photoUrl) && !imageErrorStates[person.id]"
 								key="photo"
-								:src="resolvePhotoUrl(person.photoUrl)"
+								:src="resolveUrl(person.photoUrl)"
 								:alt="person.name"
 								class="absolute inset-0 h-full w-full object-cover"
 								@error="handleImageError($event, person.id)"
@@ -32,7 +32,7 @@
 						</Transition>
 						<Transition name="fade">
 							<div
-								v-if="!resolvePhotoUrl(person.photoUrl) || imageErrorStates[person.id]"
+								v-if="!resolveUrl(person.photoUrl) || imageErrorStates[person.id]"
 								class="absolute inset-0 flex items-center justify-center"
 							>
 								<svg
@@ -103,13 +103,14 @@
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import type { PeopleCountingPersonnel } from "~/types/peopleCounting";
 import Pagination from "~/components/common/Pagination.vue";
-import { resolveUploadUrl } from "~/utils/apiUtils";
+import { useImageCenter } from "~/composables/core/useImageCenter";
 
 interface Props {
 	personnel: PeopleCountingPersonnel[];
 }
 
 const props = defineProps<Props>();
+const { resolveUrl } = useImageCenter();
 
 // 追蹤圖片錯誤狀態
 const imageErrorStates = ref<Record<string | number, boolean>>({});
@@ -201,11 +202,6 @@ const shouldHideExitTime = (person: PeopleCountingPersonnel) => {
 	if (entrySec == null || exitSec == null) return false;
 	return entrySec > exitSec;
 };
-
-const config = useRuntimeConfig();
-const apiBase = (config.public.apiBase as string) || "";
-const resolvePhotoUrl = (url: string | undefined | null): string =>
-	resolveUploadUrl(url ?? "", apiBase);
 
 const handleImageError = (_event: Event, personId: string | number) => {
 	imageErrorStates.value[personId] = true;

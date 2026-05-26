@@ -68,6 +68,14 @@ export const useDeviceApi = () => {
 			return request<{ device: Device }>(`/devices/${id}`);
 		},
 
+		/** ISAPI 佈防訂閱狀態（deviceId → profile keys） */
+		getIsapiSubscribeStatus: () => {
+			return request<{
+				hubStarted: boolean;
+				byDevice: Record<string, string[]>;
+			}>("/devices/isapi-subscribe-status");
+		},
+
 		// 取得設備連線狀態快照（不落 DB）
 		getDeviceConnectivity: (params?: { type_code?: DeviceTypeCode; device_ids?: number[] }) => {
 			const filterParams: Record<string, unknown> = {};

@@ -19,7 +19,6 @@ export interface PersonLicensePlate {
 	person_id: number;
 	plate_number: string;
 	plate_normalized: string;
-	is_primary: boolean;
 }
 
 /** 人員 */
@@ -38,6 +37,8 @@ export interface Person {
 	user_id?: number | null;
 	created_at?: string;
 	updated_at?: string;
+	/** 列表 API（getPersonsPaged）附帶 */
+	license_plate_count?: number;
 	license_plates?: PersonLicensePlate[];
 }
 

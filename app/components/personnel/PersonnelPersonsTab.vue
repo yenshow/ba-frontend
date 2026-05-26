@@ -138,6 +138,13 @@
 								>
 									指紋
 								</span>
+								<span
+									class="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-semibold 2xl:text-sm"
+									:class="dataPillClass(getAccessSummary(p.id).hasLicensePlate)"
+									:title="getAccessSummary(p.id).hasLicensePlate ? '有設定車牌' : '未設定車牌'"
+								>
+									車牌
+								</span>
 							</div>
 						</td>
 						<td :class="tableCellClass">

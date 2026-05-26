@@ -81,6 +81,7 @@
 								</th>
 								<th :class="tableHeaderClass">狀態</th>
 								<th :class="tableHeaderClass">連線</th>
+								<th v-if="showSubscribeColumn" :class="tableHeaderClass">佈防</th>
 								<th :class="tableHeaderClass">
 									<FilterDropdown
 										:model-value="dateSortOrder"
@@ -137,6 +138,18 @@
 										<span v-else>
 											{{ connectivityLabels[deviceConnectivity.getStatus(device.id)] }}
 										</span>
+									</span>
+								</td>
+								<td v-if="showSubscribeColumn" :class="tableCellClass">
+									<span
+										class="text-sm 2xl:text-base"
+										:class="
+											getIsapiSubscribeLabel(device.id) === '—'
+												? 'text-white/50'
+												: 'text-cyan-200'
+										"
+									>
+										{{ getIsapiSubscribeLabel(device.id) }}
 									</span>
 								</td>
 								<td :class="[tableCellClass, 'text-white/70']">
@@ -325,6 +338,34 @@ const cameraGroups = ref<string[]>([]);
 
 const deviceConnectivity = useDeviceConnectivity({ debounceMs: 150 });
 
+const ISAPI_SUBSCRIBE_LABELS: Record<string, string> = {
+	access_control: "門禁",
+	people_counting: "人流",
+	vehicle_anpr: "車輛"
+};
+
+const isapiSubscribeByDevice = ref<Record<string, string[]>>({});
+
+const showSubscribeColumn = computed(
+	() => activeTab.value === "camera" || activeTab.value === "access_control"
+);
+
+const loadIsapiSubscribeStatus = async () => {
+	if (!showSubscribeColumn.value) return;
+	try {
+		const res = await deviceApi.getIsapiSubscribeStatus();
+		isapiSubscribeByDevice.value = res.byDevice ?? {};
+	} catch {
+		isapiSubscribeByDevice.value = {};
+	}
+};
+
+const getIsapiSubscribeLabel = (deviceId: number): string => {
+	const profiles = isapiSubscribeByDevice.value[String(deviceId)] ?? [];
+	if (!profiles.length) return "—";
+	return profiles.map(p => ISAPI_SUBSCRIBE_LABELS[p] ?? p).join("、");
+};
+
 // 使用 useDataLoader 統一管理數據載入
 const {
 	data: devices,
@@ -484,6 +525,7 @@ const switchTab = (tabCode: DeviceTypeCode) => {
 
 	// 立即載入新資料（不使用防抖）
 	load(getLoadParams(), true);
+	void loadIsapiSubscribeStatus();
 };
 
 const initDefaultTab = () => {
@@ -710,7 +752,10 @@ const handleMonitoringStatusBatch = (event: MonitoringDeviceStatusBatchEvent) =>
 
 onMounted(async () => {
 	initDefaultTab();
-	if (activeTab.value) load(getLoadParams(), true); // 立即執行
+	if (activeTab.value) {
+		load(getLoadParams(), true);
+		void loadIsapiSubscribeStatus();
+	}
 
 	// 設置設備 WebSocket 事件監聽器
 	setupDeviceListeners({

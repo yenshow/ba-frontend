@@ -74,7 +74,7 @@
 <script setup lang="ts">
 import EditMockDialog from "~/components/common/EditMockDialog.vue";
 import { useAppSettings, VIDEO_UPLOAD_HINT } from "~/composables/core/useAppSettings";
-import { resolveUploadUrl } from "~/utils/apiUtils";
+import { useImageCenter } from "~/composables/core/useImageCenter";
 import { createSafeFileName } from "~/utils/fileUtils";
 import { useAuth } from "~/composables/core/useAuth";
 
@@ -92,8 +92,8 @@ const { canWrite } = useAuth();
 
 const isEditOpen = ref(false);
 const videoRef = ref<HTMLVideoElement | null>(null);
-const config = useRuntimeConfig();
-const apiBase = (config.public.apiBase as string) || "";
+const { useDisplaySrc } = useImageCenter();
+const videoDisplaySrc = useDisplaySrc(() => videoSrcRaw.value ?? "");
 
 /** 影片結束時重播（搭配 loop，確保自動重播） */
 const handleVideoEnded = () => {
@@ -103,11 +103,6 @@ const handleVideoEnded = () => {
 		el.play().catch(() => {});
 	}
 };
-
-/** 顯示用影片 URL：上傳檔案路徑需加上 API base */
-const videoDisplaySrc = computed(() =>
-	resolveUploadUrl(videoSrcRaw.value ?? "", apiBase)
-);
 
 /** 是否為 YouTube 連結（嵌入或觀看網址） */
 const isYouTube = computed(() => {

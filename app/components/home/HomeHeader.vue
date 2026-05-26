@@ -115,7 +115,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import EditMockDialog from "~/components/common/EditMockDialog.vue";
 import { useAppSettings, IMAGE_UPLOAD_HINT } from "~/composables/core/useAppSettings";
 import { HOME_IMAGE_CROP } from "~/utils/imageCropUtils";
-import { resolveUploadUrl } from "~/utils/apiUtils";
+import { useImageCenter } from "~/composables/core/useImageCenter";
 import { createSafeFileName } from "~/utils/fileUtils";
 import { formatClockDisplay } from "~/utils/dateUtils";
 import { useAuth } from "~/composables/core/useAuth";
@@ -177,9 +177,8 @@ const handleSaveBrandLogoHeight = async (nextValue: string) => {
 	isBrandLogoHeightEditOpen.value = false;
 };
 
-const config = useRuntimeConfig();
-const apiBase = (config.public.apiBase as string) || "";
-const projectImageSrc = computed(() => resolveUploadUrl(projectImageSrcRaw.value ?? "", apiBase));
+const { useDisplaySrc } = useImageCenter();
+const projectImageSrc = useDisplaySrc(() => projectImageSrcRaw.value ?? "");
 const isProjectImageEditOpen = ref(false);
 
 const handleUploadProjectImage = async (file: File) => {

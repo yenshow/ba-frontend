@@ -263,7 +263,7 @@
 </template>
 
 <script setup lang="ts">
-import { resolveUploadUrl } from "~/utils/apiUtils";
+import { useImageCenter } from "~/composables/core/useImageCenter";
 import { useImageCrop } from "~/composables/core/useImageCrop";
 import { formatCropAspectLabel, getCropCanvasSize } from "~/utils/imageCropUtils";
 
@@ -343,9 +343,8 @@ const handleSyncDraftFromRange = () => {
 	draftValue.value = String(clamped);
 };
 
-const config = useRuntimeConfig();
-const apiBase = (config.public.apiBase as string) || "";
-const previewResolvedUrl = computed(() => resolveUploadUrl(draftValue.value ?? "", apiBase));
+const { useDisplaySrc } = useImageCenter();
+const previewResolvedUrl = useDisplaySrc(() => draftValue.value ?? "");
 
 const cropFile = ref<File | null>(null);
 const cropCanvasRef = ref<HTMLCanvasElement | null>(null);

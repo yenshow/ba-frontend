@@ -7,6 +7,8 @@ import type { SystemType, UnifiedZone, UnifiedLocationInput } from "~/types/loca
 import type { SystemZoneType, SystemLocationType } from "~/composables/location/adapters/useZoneSystemAdapter"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { buildUnifiedZoneUpdateData, mergeFullZoneWithSystemUpdate } from "~/utils/locationAdapter"
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
+import { filterVehicleAccessLocationsForSave } from "~/utils/vehicleAccessDataSource"
 
 /**
  * 系統 API 配置
@@ -48,6 +50,20 @@ export function useSystemLocationApiFactory<
 	TLocation extends SystemLocationType,
 >(config: SystemApiConfig<TZone, TLocation>) {
 	const locationApi = useLocationApi()
+	const { enableYscpVehicleAccess } = useModuleRegistry()
+
+	const filterSaveData = <T extends { locations?: unknown[] }>(data: T): T => {
+		if (config.systemType !== "vehicle_access" || !Array.isArray(data.locations)) {
+			return data
+		}
+		return {
+			...data,
+			locations: filterVehicleAccessLocationsForSave(
+				data.locations as { dataSource?: string }[],
+				enableYscpVehicleAccess.value
+			),
+		}
+	}
 
 	return {
 		/**
@@ -74,10 +90,9 @@ export function useSystemLocationApiFactory<
 		 * 建立區域
 		 */
 		createZone: async (data: CreateZoneData<TZone>) => {
-			// 類型轉換：將系統特定類型轉換為統一格式
-			const zoneData = data as Omit<TZone, "id"> & {
-				locations?: (TLocation | Omit<TLocation, "id">)[]
-			}
+			const zoneData = filterSaveData(
+				data as Omit<TZone, "id"> & { locations?: (TLocation | Omit<TLocation, "id">)[] }
+			)
 			const unifiedData = config.systemToUnifiedZone(zoneData)
 			const response = await locationApi.createZone(unifiedData)
 			return {
@@ -92,18 +107,20 @@ export function useSystemLocationApiFactory<
 		 * 先取得完整區域（含所有系統），再與當前系統的編輯資料合併後送出，避免覆蓋其他系統的地點/系統資料。
 		 */
 		updateZone: async (id: string, data: UpdateZoneData<TZone>) => {
-			const hasLocations = "locations" in data && Array.isArray(data.locations)
+			const saveData = filterSaveData(data as { locations?: unknown[] }) as UpdateZoneData<TZone>
+
+			const hasLocations = "locations" in saveData && Array.isArray(saveData.locations)
 			let unifiedData: Parameters<typeof locationApi.updateZone>[1]
 
 			if (hasLocations) {
 				const fullZoneResponse = await locationApi.getZone(id)
 				const fullZone = fullZoneResponse.zone
-				unifiedData = mergeFullZoneWithSystemUpdate(fullZone, data as Partial<TZone>, {
+				unifiedData = mergeFullZoneWithSystemUpdate(fullZone, saveData as Partial<TZone>, {
 					systemType: config.systemType,
 					locationConverter: config.locationToUnified,
 				})
 			} else {
-				unifiedData = buildUnifiedZoneUpdateData(data, {
+				unifiedData = buildUnifiedZoneUpdateData(saveData, {
 					systemType: config.systemType,
 					locationConverter: config.locationToUnified,
 				})

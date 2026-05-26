@@ -141,6 +141,8 @@
 														:is-loading-devices="isLoadingDevices"
 														:device-hint="deviceHint"
 														:person-groups="personGroups"
+														:vehicle-custom-groups="vehicleCustomGroups"
+														:platform-person-groups="platformPersonGroups"
 														:doors="doors"
 														:access-control-devices="accessControlDevices"
 														:isapi-camera-devices="isapiCameraDevices"
@@ -221,6 +223,8 @@ import { useLocationValidationPipeline } from "~/composables/location/validation
 import { useZoneDrafts } from "~/composables/location/ui/useZoneDrafts";
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import { useExternalDataApi } from "~/composables/systems/externalData/useExternalDataApi";
+import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi";
+import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi";
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 import ZoneFormFields from "./ZoneFormFields.vue";
 import EnvironmentLocationManagement from "./LocationManagement/EnvironmentLocationManagement.vue";
@@ -355,7 +359,11 @@ const isLoadingDevices = ref(false);
 
 // 人員群組和門禁設備（僅用於人流統計系統）
 const externalDataApi = useExternalDataApi();
-const { enableYscpPeopleCounting, ensureLoaded: ensureModuleRegistryLoaded } = useModuleRegistry();
+const {
+	enableYscpPeopleCounting,
+	enableYscpVehicleAccess,
+	ensureLoaded: ensureModuleRegistryLoaded
+} = useModuleRegistry();
 const personGroups = ref<Array<{ id: number; name: string; is_deleted?: number }>>([]);
 const doors = ref<
 	Array<{
@@ -368,6 +376,10 @@ const doors = ref<
 >([]);
 const accessControlDevices = ref<Device[]>([]);
 const isapiCameraDevices = ref<Device[]>([]);
+const vehicleCustomGroups = ref<Array<{ id: number; list_name: string }>>([]);
+const platformPersonGroups = ref<Array<{ id: number; name: string }>>([]);
+const vehicleAccessApi = useVehicleAccessApi();
+const personnelApi = usePersonnelApi();
 
 // 地點管理組件映射（與 central 相同結構；construction 僅啟用下列 systemType）
 const locationManagementComponentMap: Partial<Record<SystemType, Component>> = {
@@ -451,6 +463,39 @@ const loadAccessControlDevices = async () => {
 
 // 載入可用的 ISAPI 攝影機設備列表（人流攝影機）
 // 規則：只取 active 的 camera，避免混入門禁/控制器等其他設備
+const loadVehicleAccessFormGroups = async () => {
+	if (props.systemType !== "vehicle_access") return;
+
+	if (enableYscpVehicleAccess.value) {
+		try {
+			const result = await vehicleAccessApi.getVehicleGroups();
+			vehicleCustomGroups.value = (result.groups ?? [])
+				.filter(g => (g.id ?? 0) > 0)
+				.map(g => ({
+					id: g.id ?? 0,
+					list_name: g.list_name?.trim() || `群組 ${g.id}`
+				}));
+		} catch (error) {
+			console.error("載入車輛群組列表失敗:", error);
+			vehicleCustomGroups.value = [];
+		}
+	} else {
+		vehicleCustomGroups.value = [];
+	}
+
+	try {
+		const groups = await personnelApi.getPersonGroups({ tree: false });
+		platformPersonGroups.value = Array.isArray(groups)
+			? groups
+					.filter(g => g.id != null && g.name?.trim())
+					.map(g => ({ id: g.id!, name: g.name!.trim() }))
+			: [];
+	} catch (error) {
+		console.error("載入人員群組列表失敗:", error);
+		platformPersonGroups.value = [];
+	}
+};
+
 const loadIsapiCameraDevices = async () => {
 	if (props.systemType !== "people_counting") return;
 	try {
@@ -482,6 +527,10 @@ watch(
 				}
 				loadAccessControlDevices();
 				loadIsapiCameraDevices();
+			}
+			if (props.systemType === "vehicle_access") {
+				await ensureModuleRegistryLoaded();
+				await loadVehicleAccessFormGroups();
 			}
 			clearAllDrafts();
 			errorMessage.value = "";

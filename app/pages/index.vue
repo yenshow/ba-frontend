@@ -115,7 +115,6 @@ import type {
 import { firstLocationInSortedZones } from "~/utils/sortOrder";
 import { getLocationDeviceIds } from "~/utils/sensorUtils";
 import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState";
-import { usePeopleCountingWebSocket } from "~/composables/systems/peopleCounting/usePeopleCountingWebSocket";
 import { usePeopleCountingApi } from "~/composables/systems/peopleCounting/usePeopleCountingApi";
 import { useLicense } from "~/composables/core/useLicense";
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
@@ -142,8 +141,11 @@ const { handleError } = useErrorHandler();
 const { sortZones } = useZoneManagement<UnifiedLocation, UnifiedZone>();
 
 // 人流統計相關
-const { locations: peopleCountingLocations, loadLocations: loadPeopleCountingLocations } =
-	usePeopleCountingState();
+const {
+	locations: peopleCountingLocations,
+	loadLocations: loadPeopleCountingLocations,
+	setupEventListeners
+} = usePeopleCountingState();
 
 const peopleCountingApi = usePeopleCountingApi();
 
@@ -437,7 +439,6 @@ watch(
 	}
 );
 
-const { setupEventListeners } = usePeopleCountingWebSocket();
 let cleanupWebSocket: (() => void) | null = null;
 
 const refreshCurrentLocationLogs = async () => {

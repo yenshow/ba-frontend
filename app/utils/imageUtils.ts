@@ -1,6 +1,6 @@
 /**
- * 圖片錯誤處理工具函數
- * 提供統一的圖片載入錯誤處理機制
+ * 圖片工具（base64、錯誤處理、File 轉換）
+ * 顯示 URL 與批次取圖請用 ~/composables/core/useImageCenter
  */
 
 /**

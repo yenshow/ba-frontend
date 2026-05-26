@@ -22,12 +22,18 @@ import {
 	type UnitPersonnelApiRow
 } from "~/utils/peopleCountingAdapter";
 import { normalizeLogDisplayColumns } from "~/utils/peopleCountingLogColumns";
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
+import { shouldHidePeopleCountingWhenYscpOff } from "~/utils/peopleCountingDataSource";
+
+/** 完整報表單次上限（與後端 provider 一致） */
+export const PEOPLE_COUNTING_FULL_REPORT_LIMIT = 10000;
 
 const apiLogger = logger.createLogger("PeopleCounting API");
 
 export const usePeopleCountingApi = () => {
 	const { request } = useApiBase();
 	const peopleCountingLocationApi = usePeopleCountingLocationApi();
+	const { enableYscpPeopleCounting } = useModuleRegistry();
 
 	/**
 	 * 取得所有地點列表（含統計）
@@ -78,34 +84,45 @@ export const usePeopleCountingApi = () => {
 				});
 			});
 
-			const locations = locationsResponse.sites.map(site => {
-				const cfg = locationConfigMap.get(site.id);
-				const region = cfg
-					? extractRegionFromZoneName(cfg.zoneName) || "未分類"
-					: "未分類";
+			const yscpOn = enableYscpPeopleCounting.value;
+			const visibleSite = (ds: string | undefined) =>
+				!shouldHidePeopleCountingWhenYscpOff(ds, yscpOn);
 
-				return {
-					locationId: site.id,
-					name: site.name,
-					dataSource: site.dataSource ?? cfg?.dataSource,
-					logDisplayColumns: normalizeLogDisplayColumns(cfg?.logDisplayColumns),
-					region,
-					status: "active" as const,
-					entryCount: site.entryCount,
-					exitCount: site.exitCount,
-					units: site.units.map(unit => ({
-						id: unit.id,
+			const locations = locationsResponse.sites
+				.filter(site => visibleSite(site.dataSource ?? locationConfigMap.get(site.id)?.dataSource))
+				.map(site => {
+					const cfg = locationConfigMap.get(site.id);
+					const region = cfg
+						? extractRegionFromZoneName(cfg.zoneName) || "未分類"
+						: "未分類";
+
+					return {
 						locationId: site.id,
-						name: unit.name,
-						capacity: unit.totalCount,
-						currentCount: unit.currentCount,
-						entryCount: unit.entryCount,
-						exitCount: unit.exitCount,
-					}))
-				} as PeopleCountingLocation;
-			});
+						name: site.name,
+						dataSource: site.dataSource ?? cfg?.dataSource,
+						logDisplayColumns: normalizeLogDisplayColumns(cfg?.logDisplayColumns),
+						region,
+						status: "active" as const,
+						entryCount: site.entryCount,
+						exitCount: site.exitCount,
+						units: site.units.map(unit => ({
+							id: unit.id,
+							locationId: site.id,
+							name: unit.name,
+							capacity: unit.totalCount,
+							currentCount: unit.currentCount,
+							entryCount: unit.entryCount,
+							exitCount: unit.exitCount,
+						}))
+					} as PeopleCountingLocation;
+				});
 
-			return { locations, zones };
+			const filteredZones = zones.map(zone => ({
+				...zone,
+				locations: (zone.locations || []).filter(loc => visibleSite(loc.dataSource))
+			}));
+
+			return { locations, zones: filteredZones };
 		} catch (error) {
 			apiLogger.error("取得地點列表失敗", { error });
 			throw error;

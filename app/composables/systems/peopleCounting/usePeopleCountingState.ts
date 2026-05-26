@@ -9,6 +9,8 @@
  */
 
 import { ref } from "vue";
+import { setupDebouncedRefetchListeners } from "~/composables/websocket/useWebSocket";
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 import type {
 	PeopleCountingLocation,
 	PeopleCountingPersonnel,
@@ -22,6 +24,10 @@ import { logger } from "~/utils/logger";
 
 const stateLogger = logger.createLogger("PeopleCounting State");
 
+const YSCP_ACS_EVENT = "yscp:event:acs";
+const ACCESS_CONTROL_EVENT = "people-counting:access-control:event";
+const ISAPI_CAMERA_EVENT = "people-counting:isapi-camera:event";
+
 /**
  * 人流統計狀態管理
  */
@@ -29,6 +35,7 @@ export const usePeopleCountingState = () => {
 	const peopleCountingApi = usePeopleCountingApi();
 	const peopleCountingLocationApi = usePeopleCountingLocationApi();
 	const { handleError } = useErrorHandler();
+	const { enableYscpPeopleCounting } = useModuleRegistry();
 
 	// 狀態定義
 	const locations = ref<PeopleCountingLocation[]>([]);
@@ -206,6 +213,18 @@ export const usePeopleCountingState = () => {
 		return zone?.name || null;
 	};
 
+	const setupEventListeners = (onRefetch: () => void | Promise<void>, debounceMs = 500) =>
+		setupDebouncedRefetchListeners(
+			onRefetch,
+			[
+				{ event: YSCP_ACS_EVENT, enabled: enableYscpPeopleCounting },
+				{ event: ACCESS_CONTROL_EVENT },
+				{ event: ISAPI_CAMERA_EVENT }
+			],
+			debounceMs,
+			"PeopleCounting WebSocket"
+		);
+
 	return {
 		// 狀態
 		locations,
@@ -226,6 +245,7 @@ export const usePeopleCountingState = () => {
 		loadLocationLogs,
 		loadZones,
 		handleUnitSelect,
-		getLocationZone
+		getLocationZone,
+		setupEventListeners
 	};
 };
