@@ -1,38 +1,34 @@
 <template>
 	<div class="show-scrollbar flex h-full flex-col space-y-8 overflow-y-auto">
 		<!-- 今日統計 -->
-		<div class="flex items-center justify-center gap-4 min-h-[220px]">
+		<div class="flex min-h-[220px] items-center justify-center gap-4">
 			<div class="flex h-40 w-40 items-center justify-center 2xl:h-48 2xl:w-48">
-				<img
-					src="/people-counting/status-indicator-green.svg"
-					alt="進場"
-					class="h-full w-full object-contain"
-				/>
+				<img :src="statusIndicatorSrc" alt="工地狀態" class="h-full w-full object-contain" />
 			</div>
-			<div class="text-white space-y-2">
+			<div class="space-y-2 text-white">
 				<div class="flex items-center justify-center gap-4">
-					<div class="text-lg 2xl:text-2xl font-semibold">進場人數</div>
-					<div class="text-2xl 2xl:text-3xl bg-black/20 w-[100px] 2xl:w-[120px] text-center">
+					<div class="text-lg font-semibold 2xl:text-2xl">進場人數</div>
+					<div class="w-[100px] bg-black/20 text-center text-2xl 2xl:w-[120px] 2xl:text-3xl">
 						{{ entryCount || 0 }}
 					</div>
 				</div>
 
 				<div class="flex items-center justify-center gap-4">
-					<div class="text-lg 2xl:text-2xl font-semibold">出場人數</div>
-					<div class="text-2xl 2xl:text-3xl bg-black/20 w-[100px] 2xl:w-[120px] text-center">
+					<div class="text-lg font-semibold 2xl:text-2xl">出場人數</div>
+					<div class="w-[100px] bg-black/20 text-center text-2xl 2xl:w-[120px] 2xl:text-3xl">
 						{{ exitCount || 0 }}
 					</div>
 				</div>
 
 				<div class="flex items-center justify-center gap-4">
-					<div class="text-lg 2xl:text-2xl font-semibold">在場人數</div>
-					<div class="text-2xl 2xl:text-3xl bg-black/20 w-[100px] 2xl:w-[120px] text-center">
+					<div class="text-lg font-semibold 2xl:text-2xl">在場人數</div>
+					<div class="w-[100px] bg-black/20 text-center text-2xl 2xl:w-[120px] 2xl:text-3xl">
 						{{ currentCount || 0 }}
 					</div>
 				</div>
 			</div>
 		</div>
-		<!-- 進出場記錄表（最新 5 筆） -->
+		<!-- 進出場記錄表 -->
 		<EntryExitLogTable :logs="logs" :display-columns="displayColumns" />
 	</div>
 </template>
@@ -51,5 +47,6 @@ interface Props {
 }
 
 defineProps<Props>()
-</script>
 
+const statusIndicatorSrc = "/people-counting/status-indicator-green.svg"
+</script>

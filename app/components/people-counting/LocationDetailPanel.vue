@@ -9,14 +9,19 @@
 		/>
 
 		<!-- 人員名單：如果有選中的單位，則顯示（即使沒有人員資料也顯示空狀態） -->
-		<PersonnelList v-if="selectedUnitId !== null" :personnel="personnel" />
+		<PersonnelList
+			v-if="selectedUnitId !== null && location.dataSource !== 'isapi_camera'"
+			:personnel="personnel"
+			:unit-name="selectedUnitName"
+		/>
 	</div>
 </template>
 
 <script setup lang="ts">
-import type { PeopleCountingLocation, PeopleCountingPersonnel } from "~/types/peopleCounting";
-import UnitList from "~/components/people-counting/UnitList.vue";
-import PersonnelList from "~/components/people-counting/PersonnelList.vue";
+import { computed } from "vue"
+import type { PeopleCountingLocation, PeopleCountingPersonnel } from "~/types/peopleCounting"
+import UnitList from "~/components/people-counting/UnitList.vue"
+import PersonnelList from "~/components/people-counting/PersonnelList.vue"
 
 interface Props {
 	location: PeopleCountingLocation;
@@ -25,14 +30,18 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-	selectedUnitId: null
-});
+	selectedUnitId: null,
+})
 
 const emit = defineEmits<{
-	"unit-select": [unitId: number | null];
-}>();
+	"unit-select": [unitId: number | null]
+}>()
 
-// 注意：personnel 已經由頁面根據選中的單位載入，不需要再次過濾
+const selectedUnitName = computed(() => {
+	if (props.selectedUnitId == null) return null
+	const unit = (props.location.units || []).find((u) => u.id === props.selectedUnitId)
+	return unit?.name ?? null
+})
 
 const handleUnitSelect = (unitId: number) => {
 	// 確保點擊後一定有選取狀態，不會取消選取

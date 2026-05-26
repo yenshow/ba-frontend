@@ -1,7 +1,7 @@
 <template>
 	<div class="space-y-4">
-		<h3 class="font-semibold text-lg bg-white/20 text-white text-center 2xl:text-xl py-1">
-			人員名單
+		<h3 class="bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
+			{{ listTitle }}
 		</h3>
 		<div
 			v-if="personnel.length === 0"
@@ -107,9 +107,14 @@ import { useImageCenter } from "~/composables/core/useImageCenter"
 
 interface Props {
 	personnel: PeopleCountingPersonnel[]
+	unitName?: string | null
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+	unitName: null,
+})
+
+const listTitle = computed(() => (props.unitName ? `${props.unitName} 人員名單` : "人員名單"))
 const { resolveUrl } = useImageCenter()
 
 // 追蹤圖片錯誤狀態

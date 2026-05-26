@@ -1,7 +1,7 @@
 <template>
 	<div>
 		<!-- 人流統計系統頁面內容 -->
-		<div class="flex justify-center gap-4 xl:gap-6 2xl:gap-8">
+		<div class="flex justify-center gap-6 2xl:gap-8">
 			<!-- 左側：詳細工地資訊（主要內容 - 大） -->
 			<section class="relative flex-[1.2] 2xl:flex-[1.3]" ref="leftSectionRef">
 				<div
@@ -43,78 +43,25 @@
 						完整報表
 					</button>
 
-					<!-- 左側內容：分為上、左下、右下三區塊 -->
+					<!-- 左側內容：左欄（統計＋記錄表）、右欄（單位＋人員名單） -->
 					<template v-if="selectedLocation">
-						<div class="mt-16 flex flex-col gap-12">
-							<!-- 上：統計 -->
-							<div class="flex-1">
+						<div class="mt-16 flex min-h-0 flex-1">
+							<div class="min-w-0 flex-1">
 								<LocationStatsPanel
 									:entry-count="selectedLocation.entryCount || 0"
 									:exit-count="selectedLocation.exitCount || 0"
 									:current-count="currentCount"
 									:logs="logs"
-									:show-log-table="false"
-								/>
-							</div>
-							<!-- 左下、右下：記錄表 + 單位列表 -->
-							<div class="grid grid-cols-2 gap-4">
-								<!-- 左下：進出場記錄表 -->
-								<EntryExitLogTable
-									:logs="logs"
 									:display-columns="selectedLocation.logDisplayColumns"
 								/>
-								<!-- 右下：進場單位列表 -->
-								<div class="space-y-4">
-									<h3 class="bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
-										進場單位
-									</h3>
-									<div
-										v-if="!selectedLocation.units || selectedLocation.units.length === 0"
-										class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
-									>
-										<p class="text-sm text-white/60 xl:text-base">尚無單位資料</p>
-									</div>
-									<div v-else class="grid grid-cols-3 gap-4 2xl:grid-cols-4">
-										<div
-											v-for="unit in selectedLocation.units"
-											:key="unit.id"
-											class="flex flex-col items-center justify-center border-2 border-white/0 py-2 transition-all"
-											:class="[
-												{
-													'bg-white/20': (unit.currentCount || 0) > 0,
-													'bg-black/20': (unit.currentCount || 0) === 0
-												},
-												isIsapiCamera ? '' : 'cursor-pointer'
-											]"
-											:tabindex="isIsapiCamera ? undefined : 0"
-											:role="isIsapiCamera ? undefined : 'button'"
-											:aria-label="isIsapiCamera ? `${unit.name}，進出統計` : `查看 ${unit.name} 人員名單`"
-											@click="handleUnitCardActivate(unit)"
-											@keydown.enter="handleUnitCardActivate(unit)"
-											@keydown.space.prevent="handleUnitCardActivate(unit)"
-										>
-											<div class="text-base font-semibold tracking-wide text-white 2xl:text-lg">
-												{{ unit.name }}
-											</div>
-											<!-- 攝影機：顯示進場/出場人數 -->
-											<template v-if="isIsapiCamera">
-												<div class="space-x-0.5 text-sm text-white 2xl:text-base">
-													<span class="text-green-400">進 {{ unit.entryCount ?? 0 }}</span>
-													<span>/</span>
-													<span class="text-blue-300">出 {{ unit.exitCount ?? 0 }}</span>
-												</div>
-											</template>
-											<!-- YSCP / 門禁：顯示在場人數/容量 -->
-											<template v-else>
-												<div class="space-x-0.5 text-base text-white 2xl:text-lg">
-													<span class="text-green-400">{{ unit.currentCount || 0 }}</span>
-													<span>/</span>
-													<span>{{ unit.capacity || 0 }}</span>
-												</div>
-											</template>
-										</div>
-									</div>
-								</div>
+							</div>
+							<div class="ms-4 min-w-0 flex-1 border-l-2 border-white/30 ps-4">
+								<LocationDetailPanel
+									:location="selectedLocation"
+									:personnel="personnel"
+									:selected-unit-id="selectedUnitId"
+									@unit-select="handleUnitSelect"
+								/>
 							</div>
 						</div>
 					</template>
@@ -244,13 +191,6 @@
 			@update:time-range="handleSimulationTimeRangeUpdate"
 		/>
 	</SimulationFrame>
-	<UnitPersonnelDialog
-		v-model="isUnitDialogOpen"
-		:unit-name="selectedUnitName"
-		:personnel="unitPersonnel"
-		:is-loading="isLoadingUnitPersonnel"
-		@close="handleUnitDialogClose"
-	/>
 </template>
 
 <script setup lang="ts">
@@ -261,9 +201,8 @@ import type {
 	PeopleCountingLog
 } from "~/types/peopleCounting";
 import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue";
+import LocationDetailPanel from "~/components/people-counting/LocationDetailPanel.vue";
 import LocationOverviewCard from "~/components/people-counting/LocationOverviewCard.vue";
-import EntryExitLogTable from "~/components/people-counting/EntryExitLogTable.vue";
-import UnitPersonnelDialog from "~/components/people-counting/UnitPersonnelDialog.vue";
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
 import SimulationFrame from "~/components/common/SimulationFrame.vue";
 import PeopleCountingSimulation from "~/components/people-counting/PeopleCountingSimulation.vue";
@@ -275,9 +214,7 @@ import {
 	usePeopleCountingApi,
 	PEOPLE_COUNTING_FULL_REPORT_LIMIT
 } from "~/composables/systems/peopleCounting/usePeopleCountingApi";
-import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useAuth } from "~/composables/core/useAuth";
-import type { PeopleCountingUnit, PeopleCountingPersonnel } from "~/types/peopleCounting";
 import { getTodayDateRangeUTC } from "~/utils/dateUtils";
 import {
 	firstFlatSiteMatchingSortedZoneLocations,
@@ -290,22 +227,19 @@ const { canWrite } = useAuth();
 const {
 	locations,
 	selectedLocation,
+	personnel,
 	logs,
 	peopleCountingZones,
+	selectedUnitId,
 	loadLocations,
 	loadLocationDetail,
 	loadZones,
+	handleUnitSelect,
 	getLocationZone,
 	setupEventListeners
 } = usePeopleCountingState();
 
-// 單位人員對話框相關
 const peopleCountingApi = usePeopleCountingApi();
-const { handleError } = useErrorHandler();
-const isUnitDialogOpen = ref(false);
-const selectedUnitName = ref("");
-const unitPersonnel = ref<PeopleCountingPersonnel[]>([]);
-const isLoadingUnitPersonnel = ref(false);
 
 // 右側總覽：顯示 zone 名稱（不影響詳情載入）
 const locationsForOverview = computed(() => {
@@ -319,13 +253,7 @@ const locationsForOverview = computed(() => {
 	}));
 });
 
-// 判斷是否為攝影機資料來源
 const isIsapiCamera = computed(() => selectedLocation.value?.dataSource === "isapi_camera");
-
-const handleUnitCardActivate = (unit: PeopleCountingUnit) => {
-	if (isIsapiCamera.value) return;
-	void handleUnitClick(unit);
-};
 
 // 計算在場人數：所有單位的 currentCount 總和
 const currentCount = computed(() => {
@@ -548,34 +476,6 @@ const handleOpenLocationDialog = async () => {
 	}
 	// 打開對話框
 	showLocationManagementDialog.value = true;
-};
-
-// 處理單位點擊事件（打開人員對話框；攝影機人流無人員名單，不提供點選）
-const handleUnitClick = async (unit: PeopleCountingUnit) => {
-	if (!unit || !unit.name) return;
-	if (selectedLocation.value?.dataSource === "isapi_camera") return;
-
-	selectedUnitName.value = unit.name;
-	isUnitDialogOpen.value = true;
-	isLoadingUnitPersonnel.value = true;
-	unitPersonnel.value = [];
-
-	try {
-		const locationId = selectedLocation.value?.locationId;
-		const unitPersonnelList = await peopleCountingApi.getUnitPersonnel(unit.id, locationId);
-		unitPersonnel.value = unitPersonnelList;
-	} catch (error) {
-		handleError(error, `載入 ${unit.name} 人員列表失敗`);
-		unitPersonnel.value = [];
-	} finally {
-		isLoadingUnitPersonnel.value = false;
-	}
-};
-
-// 處理單位對話框關閉
-const handleUnitDialogClose = () => {
-	selectedUnitName.value = "";
-	unitPersonnel.value = [];
 };
 
 // 監聽對話框打開狀態，載入區域數據
