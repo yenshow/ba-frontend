@@ -117,6 +117,7 @@ import { useAppSettings, IMAGE_UPLOAD_HINT } from "~/composables/core/useAppSett
 import { HOME_IMAGE_CROP } from "~/utils/imageCropUtils";
 import { resolveUploadUrl } from "~/utils/apiUtils";
 import { createSafeFileName } from "~/utils/fileUtils";
+import { formatClockDisplay } from "~/utils/dateUtils";
 import { useAuth } from "~/composables/core/useAuth";
 
 // --- 專案圖片設定 ---
@@ -193,33 +194,8 @@ const handleUploadProjectImage = async (file: File) => {
 
 // --- 日期時間邏輯 ---
 
-const formatDateTime = (date: Date) => {
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, "0");
-	const day = String(date.getDate()).padStart(2, "0");
-
-	const weekdays = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
-	const weekday = weekdays[date.getDay()];
-
-	const hours = date.getHours();
-	const minutes = String(date.getMinutes()).padStart(2, "0");
-	const seconds = String(date.getSeconds()).padStart(2, "0");
-
-	const period = hours < 12 ? "上午" : "下午";
-	// 12小時制顯示
-	const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
-	const time = `${String(displayHours).padStart(2, "0")}:${minutes}:${seconds}`;
-
-	return {
-		date: `${year}/${month}/${day}`,
-		weekday,
-		period,
-		time
-	};
-};
-
 const currentDateTime = ref(new Date());
-const formattedDate = computed(() => formatDateTime(currentDateTime.value));
+const formattedDate = computed(() => formatClockDisplay(currentDateTime.value));
 
 let timeInterval: ReturnType<typeof setInterval> | null = null;
 
