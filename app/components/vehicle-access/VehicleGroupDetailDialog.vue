@@ -37,7 +37,7 @@
 							<div class="mx-auto grid w-full grid-cols-2 gap-4">
 								<div
 									v-for="vehicle in paginatedList"
-									:key="vehicle.id"
+									:key="`${vehicle.id}-${vehicle.plate_license ?? ''}`"
 									class="flex min-h-[135px] items-start gap-3 border-2 border-white/30 p-3 2xl:min-h-[155px]"
 									:class="[vehicle.isPresent ? 'bg-white/20' : 'bg-black/20']"
 								>

@@ -393,13 +393,25 @@ export const useVehicleAccessState = () => {
 		}
 	};
 
+	const loadTodayReleasedLogsForGroupDialog = async (): Promise<VehicleDataLog[]> => {
+		const siteId = resolveSiteId(selectedLocation.value);
+		if (isIsapiCamera.value && siteId != null) {
+			const result = await vehicleAccessSitesApi.getSiteLogs(siteId, {
+				limit: VEHICLE_ACCESS_FULL_REPORT_LIMIT,
+				...TODAY_TIME
+			});
+			return releasedLogs(result.logs || []);
+		}
+		return releasedLogs(logs.value);
+	};
+
 	const loadPersonGroupVehicleList = async (groupKey: string | null): Promise<void> => {
 		personGroupVehicleList.value = [];
 		if (!groupKey?.startsWith("pg_")) return;
 		const groupId = Number(groupKey.slice(3));
 		if (!Number.isFinite(groupId)) return;
 
-		const valid = releasedLogs(logs.value);
+		const valid = await loadTodayReleasedLogsForGroupDialog();
 		try {
 			const page = await personnelApi.getPersonGroupMembers(groupId, { limit: 500, status: "active" });
 			const items: VehicleGroupMemberItem[] = [];
