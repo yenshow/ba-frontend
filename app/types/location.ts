@@ -184,8 +184,12 @@ export interface PeopleCountingSystemConfig {
  * 車輛進出系統配置（車道來自 vehiclebiz.lane_info；entry_lane_id／exit_lane_id 對應入口／出口車道）
  */
 export interface VehicleAccessSystemConfig {
+	dataSource?: "yscp" | "isapi_camera";
 	entryLaneId?: number | null;
 	exitLaneId?: number | null;
+	entryCameraDeviceIds?: number[];
+	exitCameraDeviceIds?: number[];
+	cameraChannelId?: number;
 }
 
 /**

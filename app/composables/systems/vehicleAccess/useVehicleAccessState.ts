@@ -13,12 +13,16 @@ import type {
 	VehicleGroupFromApi
 } from "~/types/vehicleAccess";
 import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi";
+import { useVehicleAccessSitesApi } from "~/composables/systems/vehicleAccess/useVehicleAccessSitesApi";
+import type { VehicleAccessDataSource } from "~/types/vehicleAccess";
 import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { unifiedToVehicleAccessZone } from "~/utils/locationAdapter";
 import { normalizePlate } from "~/utils/vehicleAccessUtils";
 import type { UnifiedZone } from "~/types/location";
 import { compareZonesLoose } from "~/utils/sortOrder";
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
+import { shouldHideVehicleAccessWhenYscpOff } from "~/utils/vehicleAccessDataSource";
 
 /** 時間範圍：今日、昨日、自訂 */
 export type VehicleAccessTimeRange = "today" | "yesterday" | "custom";
@@ -60,10 +64,23 @@ function getLaneIdsForLocation(loc: VehicleAccessLocation | null | undefined): n
 	return ids;
 }
 
+const getLocationDataSource = (
+	loc: VehicleAccessLocation | null | undefined
+): VehicleAccessDataSource => (loc?.dataSource === "isapi_camera" ? "isapi_camera" : "yscp");
+
+const resolveSiteId = (loc: VehicleAccessLocation | null | undefined): number | null => {
+	if (!loc) return null;
+	const raw = loc.id ?? loc.locationId;
+	const n = Number(raw);
+	return Number.isFinite(n) ? n : null;
+};
+
 export const useVehicleAccessState = () => {
 	const vehicleAccessApi = useVehicleAccessApi();
+	const vehicleAccessSitesApi = useVehicleAccessSitesApi();
 	const locationApi = useLocationApi();
 	const { handleError } = useErrorHandler();
+	const { enableYscpVehicleAccess } = useModuleRegistry();
 
 	const filters = ref<VehicleAccessFilters>(getDefaultFilters());
 	const vehicleAccessZones = ref<VehicleAccessZone[]>([]);
@@ -89,17 +106,22 @@ export const useVehicleAccessState = () => {
 	const isLoadingOverview = ref(false);
 	const isLoadingCounts = ref(false);
 
-	/** 有 vehicle_access 的地點列表（扁平化；區域依 sort_order／名稱慣例排序） */
+	/** 有 vehicle_access 的地點列表（扁平化；YSCP 關閉時略過 yscp 地點，與後端 getSites 一致） */
 	const locations = computed(() =>
 		[...vehicleAccessZones.value]
 			.sort((a, b) => compareZonesLoose(a, b))
 			.flatMap(zone =>
-				(zone.locations || []).map(loc => ({
-					...loc,
-					zoneId: zone.id,
-					zoneName: zone.name,
-					locationId: loc.id
-				}))
+				(zone.locations || [])
+					.filter(
+						loc =>
+							!shouldHideVehicleAccessWhenYscpOff(loc.dataSource, enableYscpVehicleAccess.value)
+					)
+					.map(loc => ({
+						...loc,
+						zoneId: zone.id,
+						zoneName: zone.name,
+						locationId: loc.id
+					}))
 			)
 	);
 
@@ -139,29 +161,41 @@ export const useVehicleAccessState = () => {
 	const loadLogs = async (): Promise<void> => {
 		isLoadingLogs.value = true;
 		try {
+			const loc = selectedLocation.value;
+			const siteId = resolveSiteId(loc);
 			const tr = filters.value.timeRange || "today";
-			const params: Record<string, unknown> = {
-				limit: 10,
-				offset: 0,
-				orderBy: "trigger_time",
-				orderDirection: "DESC"
-			};
-			if (tr === "custom" && filters.value.startTime && filters.value.endTime) {
-				params.startTime = filters.value.startTime;
-				params.endTime = filters.value.endTime;
-			} else {
-				params.timeRange = tr === "custom" ? "today" : tr;
-			}
-			if (selectedLaneIds.value?.length) {
-				params.lane_id = selectedLaneIds.value;
-			}
-			if (filters.value.search) {
-				params.search = filters.value.search;
-			}
+			const timeParams =
+				tr === "custom" && filters.value.startTime && filters.value.endTime
+					? { startTime: filters.value.startTime, endTime: filters.value.endTime }
+					: { timeRange: tr === "custom" ? ("today" as const) : tr };
 
-			const result = await vehicleAccessApi.getVehicleDataLogList(params as any);
-			logs.value = result.data || [];
-			totalCount.value = result.total ?? result.data?.length ?? 0;
+			if (getLocationDataSource(loc) === "isapi_camera" && siteId != null) {
+				const result = await vehicleAccessSitesApi.getSiteLogs(siteId, {
+					limit: 10,
+					offset: 0,
+					...timeParams,
+					search: filters.value.search || undefined
+				});
+				logs.value = result.logs || [];
+				totalCount.value = result.total ?? logs.value.length;
+			} else {
+				const params: Record<string, unknown> = {
+					limit: 10,
+					offset: 0,
+					orderBy: "trigger_time",
+					orderDirection: "DESC",
+					...timeParams
+				};
+				if (selectedLaneIds.value?.length) {
+					params.lane_id = selectedLaneIds.value;
+				}
+				if (filters.value.search) {
+					params.search = filters.value.search;
+				}
+				const result = await vehicleAccessApi.getVehicleDataLogList(params as any);
+				logs.value = result.data || [];
+				totalCount.value = result.total ?? result.data?.length ?? 0;
+			}
 		} catch (error) {
 			handleError(error, "載入過車記錄失敗");
 			throw error;
@@ -172,7 +206,39 @@ export const useVehicleAccessState = () => {
 
 	/** 載入當日進場／出場／在場數量（僅計放行 allow_result=1 + lane_type） */
 	const loadEntryExitOnSiteCounts = async (): Promise<void> => {
+		const loc = selectedLocation.value;
+		const siteId = resolveSiteId(loc);
 		const laneIds = selectedLaneIds.value;
+		const tr = filters.value.timeRange || "today";
+		const countTime =
+			tr === "custom" && filters.value.startTime && filters.value.endTime
+				? { startTime: filters.value.startTime, endTime: filters.value.endTime }
+				: { timeRange: tr === "custom" ? ("today" as const) : tr };
+
+		if (getLocationDataSource(loc) === "isapi_camera") {
+			if (siteId == null) {
+				entryCount.value = 0;
+				exitCount.value = 0;
+				onSiteCount.value = 0;
+				return;
+			}
+			isLoadingCounts.value = true;
+			try {
+				const stats = await vehicleAccessSitesApi.getSiteStats(siteId, countTime);
+				entryCount.value = stats.entryCount;
+				exitCount.value = stats.exitCount;
+				onSiteCount.value = stats.currentCount;
+			} catch (error) {
+				handleError(error, "載入進出場數量失敗");
+				entryCount.value = 0;
+				exitCount.value = 0;
+				onSiteCount.value = 0;
+			} finally {
+				isLoadingCounts.value = false;
+			}
+			return;
+		}
+
 		if (!laneIds?.length) {
 			entryCount.value = 0;
 			exitCount.value = 0;
@@ -180,11 +246,6 @@ export const useVehicleAccessState = () => {
 			return;
 		}
 		isLoadingCounts.value = true;
-		const tr = filters.value.timeRange || "today";
-		const countTime =
-			tr === "custom" && filters.value.startTime && filters.value.endTime
-				? { startTime: filters.value.startTime, endTime: filters.value.endTime }
-				: { timeRange: tr === "custom" ? ("today" as const) : tr };
 		try {
 			const [entry, exit] = await Promise.all([
 				vehicleAccessApi.getVehicleDataLogCount({
@@ -217,50 +278,67 @@ export const useVehicleAccessState = () => {
 	const loadOverviewSummaries = async (): Promise<void> => {
 		isLoadingOverview.value = true;
 		try {
-			const tr = filters.value.timeRange || "today";
-			const countTime =
-				tr === "custom" && filters.value.startTime && filters.value.endTime
-					? { startTime: filters.value.startTime, endTime: filters.value.endTime }
-					: { timeRange: tr === "custom" ? ("today" as const) : tr };
-
+			const { sites } = await vehicleAccessSitesApi.getSites();
+			const siteById = new Map(sites.map(s => [s.id, s]));
 			const summaries: VehicleAccessLocationSummary[] = [];
 			for (const zone of vehicleAccessZones.value) {
 				for (const loc of zone.locations || []) {
-					const laneIds = getLaneIdsForLocation(loc);
-					let todayPassCount = 0;
-					let entryCountVal = 0;
-					let exitCountVal = 0;
-					if (laneIds.length > 0) {
-						const [entry, exit] = await Promise.all([
-							vehicleAccessApi.getVehicleDataLogCount({
-								...countTime,
-								lane_id: laneIds,
-								allow_result: 1,
-								lane_type: 1
-							}),
-							vehicleAccessApi.getVehicleDataLogCount({
-								...countTime,
-								lane_id: laneIds,
-								allow_result: 1,
-								lane_type: 2
-							})
-						]);
-						entryCountVal = entry;
-						exitCountVal = exit;
-						todayPassCount = entry + exit;
+					if (shouldHideVehicleAccessWhenYscpOff(loc.dataSource, enableYscpVehicleAccess.value)) {
+						continue;
 					}
-					const currentCountVal = Math.max(0, entryCountVal - exitCountVal);
-					summaries.push({
-						id: loc.id || `${zone.id}-${loc.name}`,
-						zoneId: zone.id || "",
-						zoneName: zone.name,
-						locationId: loc.id || "",
-						name: loc.name,
-						todayPassCount,
-						entryCount: entryCountVal,
-						exitCount: exitCountVal,
-						currentCount: currentCountVal
-					});
+					const siteId = resolveSiteId(loc);
+					const site = siteId != null ? siteById.get(siteId) : undefined;
+					if (site) {
+						summaries.push({
+							id: loc.id || `${zone.id}-${loc.name}`,
+							zoneId: zone.id || "",
+							zoneName: zone.name,
+							locationId: loc.id || "",
+							name: loc.name,
+							todayPassCount: site.entryCount + site.exitCount,
+							entryCount: site.entryCount,
+							exitCount: site.exitCount,
+							currentCount: site.currentCount
+						});
+					} else {
+						const laneIds = getLaneIdsForLocation(loc);
+						let entryCountVal = 0;
+						let exitCountVal = 0;
+						if (laneIds.length > 0) {
+							const tr = filters.value.timeRange || "today";
+							const countTime =
+								tr === "custom" && filters.value.startTime && filters.value.endTime
+									? { startTime: filters.value.startTime, endTime: filters.value.endTime }
+									: { timeRange: tr === "custom" ? ("today" as const) : tr };
+							const [entry, exit] = await Promise.all([
+								vehicleAccessApi.getVehicleDataLogCount({
+									...countTime,
+									lane_id: laneIds,
+									allow_result: 1,
+									lane_type: 1
+								}),
+								vehicleAccessApi.getVehicleDataLogCount({
+									...countTime,
+									lane_id: laneIds,
+									allow_result: 1,
+									lane_type: 2
+								})
+							]);
+							entryCountVal = entry;
+							exitCountVal = exit;
+						}
+						summaries.push({
+							id: loc.id || `${zone.id}-${loc.name}`,
+							zoneId: zone.id || "",
+							zoneName: zone.name,
+							locationId: loc.id || "",
+							name: loc.name,
+							todayPassCount: entryCountVal + exitCountVal,
+							entryCount: entryCountVal,
+							exitCount: exitCountVal,
+							currentCount: Math.max(0, entryCountVal - exitCountVal)
+						});
+					}
 				}
 			}
 			overviewSummaries.value = summaries;
@@ -285,7 +363,12 @@ export const useVehicleAccessState = () => {
 		);
 		const logList = logs.value;
 		const laneIds = selectedLaneIds.value;
-		const laneSet = laneIds?.length ? new Set(laneIds) : null;
+		const laneSet =
+			getLocationDataSource(selectedLocation.value) === "isapi_camera"
+				? null
+				: laneIds?.length
+					? new Set(laneIds)
+					: null;
 
 		const result: VehicleOrganizationGroupItem[] = [];
 

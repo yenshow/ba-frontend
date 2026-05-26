@@ -12,7 +12,7 @@
 				<tr class="text-center text-xs font-semibold text-white/80 2xl:text-sm">
 					<th class="p-2">車牌圖片</th>
 					<th class="p-2">車牌</th>
-					<th class="p-2">車道名稱</th>
+					<th class="p-2">車道／線別</th>
 					<th class="p-2">車主名稱</th>
 					<th class="p-2">放行結果</th>
 					<th class="p-2">時間</th>
@@ -82,7 +82,7 @@
 						{{ log.license_plate?.trim() || "-" }}
 					</td>
 					<td class="p-2 text-sm 2xl:text-base">
-						{{ log.lane_name?.trim() || "-" }}
+						{{ log.anpr_line?.trim() || log.lane_name?.trim() || "-" }}
 					</td>
 					<td class="p-2 text-sm 2xl:text-base">
 						{{ log.owner_name?.trim() || "-" }}

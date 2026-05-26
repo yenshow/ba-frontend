@@ -14,6 +14,14 @@ export interface PersonGroup {
 	updated_at?: string;
 }
 
+export interface PersonLicensePlate {
+	id: number;
+	person_id: number;
+	plate_number: string;
+	plate_normalized: string;
+	is_primary: boolean;
+}
+
 /** 人員 */
 export interface Person {
 	id: number;
@@ -30,6 +38,7 @@ export interface Person {
 	user_id?: number | null;
 	created_at?: string;
 	updated_at?: string;
+	license_plates?: PersonLicensePlate[];
 }
 
 /** 門禁權限：人員可進出之地點 */
@@ -191,6 +200,7 @@ export type PersonnelPersonForm = {
 	faceUrl: string;
 	/** FilterDropdown value；空字串 = 未分組 */
 	personGroupId: string;
+	licensePlates: string[];
 };
 
 export type PersonnelPersonAccessControlState = {

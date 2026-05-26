@@ -1,6 +1,28 @@
 export type PeopleCountingDataSource = "yscp" | "access_control" | "isapi_camera"
 
-/** 依後端 ENABLE_YSCP_PEOPLE_COUNTING 正規化資料來源（yscp 關閉時改為 access_control） */
+const isYscpStored = (raw: PeopleCountingDataSource | string | undefined) =>
+	raw === "yscp" || raw === undefined || raw === ""
+
+export const shouldHidePeopleCountingWhenYscpOff = (
+	raw: PeopleCountingDataSource | string | undefined,
+	yscpEnabled: boolean
+) => !yscpEnabled && isYscpStored(raw)
+
+export const storedPeopleCountingDataSource = (
+	raw: PeopleCountingDataSource | string | undefined
+): PeopleCountingDataSource => {
+	if (raw === "access_control" || raw === "isapi_camera") return raw
+	return "yscp"
+}
+
+export const filterPeopleCountingZoneLocations = <T extends { dataSource?: string }>(
+	locations: T[],
+	yscpEnabled: boolean
+) =>
+	locations
+		.map((location, locationIndex) => ({ location, locationIndex }))
+		.filter(({ location }) => !shouldHidePeopleCountingWhenYscpOff(location.dataSource, yscpEnabled))
+
 export const resolvePeopleCountingDataSource = (
 	raw: PeopleCountingDataSource | string | undefined,
 	yscpEnabled: boolean

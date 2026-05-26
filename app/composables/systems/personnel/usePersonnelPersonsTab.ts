@@ -64,7 +64,15 @@ export const usePersonnelPersonsTab = (params: {
 		status: "active" | "inactive"
 		faceUrl: string
 		personGroupId: string
-	}>({ employeeNo: "", fullName: "", status: "active", faceUrl: "", personGroupId: "" })
+		licensePlates: string[]
+	}>({
+		employeeNo: "",
+		fullName: "",
+		status: "active",
+		faceUrl: "",
+		personGroupId: "",
+		licensePlates: []
+	})
 
 	const config = useRuntimeConfig()
 	const getFaceImageSrc = (url: string | null | undefined): string | null => {
@@ -199,6 +207,7 @@ export const usePersonnelPersonsTab = (params: {
 		personForm.status = "active"
 		personForm.faceUrl = ""
 		personForm.personGroupId = ""
+		personForm.licensePlates = []
 		resetPersonDialogState()
 		void loadAccessControlDevices()
 		showPersonDialog.value = true
@@ -214,6 +223,7 @@ export const usePersonnelPersonsTab = (params: {
 			p.person_group_id != null && Number.isFinite(Number(p.person_group_id))
 				? String(Math.trunc(Number(p.person_group_id)))
 				: ""
+		personForm.licensePlates = (p.license_plates ?? []).map(pl => pl.plate_number).filter(Boolean)
 		resetPersonDialogState()
 		{
 			const ac = getAccessControlConfigSummary(p)
@@ -406,6 +416,7 @@ export const usePersonnelPersonsTab = (params: {
 					status: personForm.status,
 					faceUrl: personForm.faceUrl.trim() || null,
 					personGroupId: parsedGroup.personGroupId,
+					licensePlates: personForm.licensePlates
 				})
 			}
 
@@ -416,6 +427,7 @@ export const usePersonnelPersonsTab = (params: {
 							fullName: personForm.fullName.trim(),
 							status: personForm.status,
 							personGroupId: parsedGroup.personGroupId,
+							licensePlates: personForm.licensePlates
 						})
 					: null
 

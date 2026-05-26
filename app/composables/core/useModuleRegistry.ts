@@ -22,6 +22,7 @@ type ModuleRegistryItem = {
 
 type ModuleRegistryServerFeatures = {
 	enableYscpPeopleCounting?: boolean;
+	enableYscpVehicleAccess?: boolean;
 };
 
 type ModuleRegistryPayload = {
@@ -144,10 +145,15 @@ export const useModuleRegistry = () => {
 		() => registry.value?.serverFeatures?.enableYscpPeopleCounting !== false
 	);
 
+	const enableYscpVehicleAccess = computed(
+		() => registry.value?.serverFeatures?.enableYscpVehicleAccess !== false
+	);
+
 	return {
 		registry: readonly(registry),
 		isLoading: readonly(isLoading),
 		enableYscpPeopleCounting: readonly(enableYscpPeopleCounting),
+		enableYscpVehicleAccess: readonly(enableYscpVehicleAccess),
 		ensureLoaded,
 		getPermissionCodeByRoute,
 		getFeatureKeyByRoute,
