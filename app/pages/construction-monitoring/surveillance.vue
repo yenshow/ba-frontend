@@ -133,21 +133,36 @@
 							key="content"
 							class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4"
 						>
-							<!-- 攝影機卡片列表 -->
-							<div class="space-y-3">
+							<!-- 攝影機卡片列表（依型號分類分組，不篩選設備） -->
+							<div class="space-y-6">
 								<div
-									v-if="filteredCameras.length === 0"
+									v-if="filteredCameraCategoryGroups.length === 0"
 									class="h-full py-8 text-center text-sm text-white/60 xl:text-base"
 								>
 									{{ cameras.length === 0 ? "沒有攝影機" : "此群組無攝影機" }}
 								</div>
-								<SurveillanceCameraCard
-									v-for="camera in filteredCameras"
-									:key="camera.id"
-									:camera="camera"
-									:is-selected="selectedCameraIds.includes(camera.id)"
-									@select="handleCameraSelect"
-								/>
+								<section
+									v-for="(group, groupIndex) in filteredCameraCategoryGroups"
+									:key="group.code"
+									:class="[
+										'space-y-3',
+										groupIndex > 0 ? 'border-t border-white/20 pt-6' : '',
+									]"
+								>
+									<h3 class="text-sm font-medium text-cyan-200/90 2xl:text-base">
+										{{ group.label }}
+										<span class="ml-1.5 text-xs font-normal text-white/50 2xl:text-sm">
+											({{ group.items.length }})
+										</span>
+									</h3>
+									<SurveillanceCameraCard
+										v-for="camera in group.items"
+										:key="camera.id"
+										:camera="camera"
+										:is-selected="selectedCameraIds.includes(camera.id)"
+										@select="handleCameraSelect"
+									/>
+								</section>
 							</div>
 						</div>
 					</Transition>
@@ -178,6 +193,7 @@ import SurveillanceControlPanel from "~/components/surveillance/SurveillanceCont
 import SurveillanceCameraGrid from "~/components/surveillance/SurveillanceCameraGrid.vue";
 import SurveillanceCameraCard from "~/components/surveillance/SurveillanceCameraCard.vue";
 import SurveillanceFullscreenGridDialog from "~/components/surveillance/SurveillanceFullscreenGridDialog.vue";
+import { groupDevicesByModelCategory } from "~/utils/cameraModelCategories";
 
 const toast = useToast();
 const { handleError } = useErrorHandler();
@@ -231,6 +247,10 @@ const filteredCameras = computed(() => {
 		? cameras.value.filter(c => (c.config as CameraDeviceConfig)?.group?.trim() === group)
 		: cameras.value;
 });
+
+const filteredCameraCategoryGroups = computed(() =>
+	groupDevicesByModelCategory(filteredCameras.value)
+);
 
 // 布局管理
 const gridLayout = ref<GridLayout>("1");

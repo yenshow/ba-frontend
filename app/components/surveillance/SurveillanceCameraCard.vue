@@ -24,9 +24,10 @@
 					</span>
 				</div>
 				<div
-					v-if="displayAddress || displayGroup"
+					v-if="displayModelName || displayAddress || displayGroup"
 					class="mt-2 flex flex-wrap items-center gap-2 text-xs text-white/60 2xl:text-sm"
 				>
+					<span v-if="displayModelName" class="text-white/70">{{ displayModelName }}</span>
 					<span v-if="displayAddress">{{ displayAddress }}</span>
 					<span
 						v-if="displayGroup"
@@ -62,11 +63,12 @@ const props = withDefaults(defineProps<Props>(), {
 	showThumbnail: false
 });
 
+const displayModelName = computed(() => props.camera.model_name?.trim() || "");
+
 const displayAddress = computed(() => {
 	const config = props.camera.config as CameraDeviceConfig;
 
 	if (config.host) return config.host;
-	if (config.ip_address) return config.ip_address;
 	if (!config.rtsp_url) return "";
 
 	try {

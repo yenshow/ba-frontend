@@ -75,13 +75,13 @@
 												@update:model-value="onCameraGroupFilterUpdate"
 											/>
 										</th>
+										<th v-if="activeTab === 'camera'" :class="tableHeaderClass">型號分類</th>
 										<th :class="tableHeaderClass">設備型號</th>
 										<th :class="tableHeaderClass">
 											{{ activeTab === "camera" ? "IP 位址" : "配置資訊" }}
 										</th>
 										<th :class="tableHeaderClass">狀態</th>
 										<th :class="tableHeaderClass">連線</th>
-										<th v-if="showSubscribeColumn" :class="tableHeaderClass">佈防</th>
 										<th :class="tableHeaderClass">
 											<FilterDropdown
 												:model-value="dateSortOrder"
@@ -103,6 +103,11 @@
 										<td :class="tableCellClass">{{ device.name }}</td>
 										<td v-if="activeTab === 'camera'" :class="tableCellClass">
 											<span class="text-white/80">{{ getCameraGroup(device) }}</span>
+										</td>
+										<td v-if="activeTab === 'camera'" :class="tableCellClass">
+											<span class="text-sm text-white/80 2xl:text-base">{{
+												getModelCategoryLabel(device)
+											}}</span>
 										</td>
 										<td :class="tableCellClass">
 											<span v-if="device.model_name" class="text-white/90">{{
@@ -145,18 +150,6 @@
 												<span v-else>
 													{{ connectivityLabels[deviceConnectivity.getStatus(device.id)] }}
 												</span>
-											</span>
-										</td>
-										<td v-if="showSubscribeColumn" :class="tableCellClass">
-											<span
-												class="text-sm 2xl:text-base"
-												:class="
-													getIsapiSubscribeLabel(device.id) === '—'
-														? 'text-white/50'
-														: 'text-cyan-200'
-												"
-											>
-												{{ getIsapiSubscribeLabel(device.id) }}
 											</span>
 										</td>
 										<td :class="[tableCellClass, 'text-white/70']">
@@ -270,6 +263,7 @@ import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useDeviceConnectivity } from "~/composables/systems/devices/useDeviceConnectivity"
 import { useDeviceWebSocket } from "~/composables/websocket/subscribers/useDeviceWebSocket"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
+import { getCameraModelCategoryLabel } from "~/utils/cameraModelCategories"
 definePageMeta({
 	layout: "default",
 })
@@ -345,33 +339,8 @@ const cameraGroups = ref<string[]>([])
 
 const deviceConnectivity = useDeviceConnectivity({ debounceMs: 150 })
 
-const ISAPI_SUBSCRIBE_LABELS: Record<string, string> = {
-	access_control: "門禁",
-	people_counting: "人流",
-	vehicle_anpr: "車輛"
-};
-
-const isapiSubscribeByDevice = ref<Record<string, string[]>>({});
-
-const showSubscribeColumn = computed(
-	() => activeTab.value === "camera" || activeTab.value === "access_control"
-)
-
-const loadIsapiSubscribeStatus = async () => {
-	if (!showSubscribeColumn.value) return
-	try {
-		const res = await deviceApi.getIsapiSubscribeStatus()
-		isapiSubscribeByDevice.value = res.byDevice ?? {}
-	} catch {
-		isapiSubscribeByDevice.value = {}
-	}
-}
-
-const getIsapiSubscribeLabel = (deviceId: number): string => {
-	const profiles = isapiSubscribeByDevice.value[String(deviceId)] ?? [];
-	if (!profiles.length) return "—";
-	return profiles.map(p => ISAPI_SUBSCRIBE_LABELS[p] ?? p).join("、");
-};
+const getModelCategoryLabel = (device: Device): string =>
+	getCameraModelCategoryLabel(device.model_category_code)
 
 // 使用 useDataLoader 統一管理數據載入
 const {
@@ -463,7 +432,6 @@ const getCameraIp = (device: Device): string => {
 	const config = device.config as CameraDeviceConfig | undefined
 	if (!config) return "-"
 	if (config.host) return config.host
-	if (config.ip_address) return config.ip_address
 	if (!config.rtsp_url) return "-"
 	try {
 		const url = new URL(config.rtsp_url)
@@ -480,7 +448,7 @@ const formatDeviceConfig = (config: DeviceConfig): string => {
 			return `${config.host}`
 		case "camera": {
 			const c = config as CameraDeviceConfig
-			return c.host || c.ip_address || (c.rtsp_url ? "RTSP" : "-")
+			return c.host || (c.rtsp_url ? "RTSP" : "-")
 		}
 		case "sensor":
 			if (config.protocol === "modbus") {
@@ -532,7 +500,6 @@ const switchTab = (tabCode: DeviceTypeCode) => {
 
 	// 立即載入新資料（不使用防抖）
 	load(getLoadParams(), true)
-	void loadIsapiSubscribeStatus()
 }
 
 const initDefaultTab = () => {
@@ -553,17 +520,6 @@ const closeDialog = () => {
 	errorMessage.value = null
 }
 
-// 將後端 getDeviceById 結構正規化為列表用（保留 model_name / type_name / type_code）
-const normalizeDeviceForList = (
-	raw: Device & { model?: { name?: string }; type_name?: string; type_code?: string },
-	fallback?: Device
-): Device => ({
-	...raw,
-	model_name: raw.model?.name ?? fallback?.model_name,
-	type_name: raw.type_name ?? fallback?.type_name,
-	type_code: raw.type_code ?? fallback?.type_code,
-})
-
 const handleSubmit = async (data: CreateDeviceData | UpdateDeviceData) => {
 	if (isSubmitting.value) return
 	isSubmitting.value = true
@@ -577,11 +533,7 @@ const handleSubmit = async (data: CreateDeviceData | UpdateDeviceData) => {
 		if (editingDevice.value) {
 			const index = devices.value.findIndex((d) => d.id === editingDevice.value!.id)
 			if (index > -1) {
-				// 後端 PUT 回傳 getDeviceById 結構（含 model 物件），正規化為列表用欄位以即時顯示
-				devices.value[index] = normalizeDeviceForList(
-					result.device as Device & { model?: { name?: string } },
-					devices.value[index]
-				)
+				devices.value[index] = result.device
 			}
 		} else {
 			// 新增後重新載入列表，避免重複顯示（雙擊或事件觸發兩次時仍只會顯示後端一份）
@@ -709,10 +661,7 @@ const handleDeviceUpdated = (event: DeviceUpdatedEvent) => {
 	if (device.type_code === activeTab.value) {
 		const index = devices.value.findIndex((d) => d.id === device.id)
 		if (index !== -1) {
-			devices.value[index] = normalizeDeviceForList(
-				device as Device & { model?: { name?: string } },
-				devices.value[index]
-			)
+			devices.value[index] = device
 		} else {
 			// 如果不在當前列表，重新載入
 			if (activeTab.value) {
@@ -761,7 +710,6 @@ onMounted(async () => {
 	initDefaultTab()
 	if (activeTab.value) {
 		load(getLoadParams(), true)
-		void loadIsapiSubscribeStatus()
 	}
 
 	// 設置設備 WebSocket 事件監聽器

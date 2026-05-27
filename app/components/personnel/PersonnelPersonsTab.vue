@@ -109,43 +109,7 @@
 						<td :class="tableCellClass">{{ p.full_name || "—" }}</td>
 						<td :class="tableCellClass">{{ p.group_name?.trim() || "未分組" }}</td>
 						<td :class="tableCellClass">
-							<div class="flex flex-wrap items-center justify-center gap-1.5">
-								<span
-									class="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-semibold 2xl:text-sm"
-									:class="dataPillClass(getAccessSummary(p.id).hasFace)"
-									:title="getAccessSummary(p.id).hasFace ? '有人臉' : '未設定人臉'"
-								>
-									人臉
-								</span>
-								<span
-									class="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-semibold 2xl:text-sm"
-									:class="dataPillClass(getAccessSummary(p.id).hasPassword)"
-									:title="getAccessSummary(p.id).hasPassword ? '有設定門禁密碼' : '未設定門禁密碼'"
-								>
-									密碼
-								</span>
-								<span
-									class="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-semibold 2xl:text-sm"
-									:class="dataPillClass(getAccessSummary(p.id).hasCard)"
-									:title="getAccessSummary(p.id).hasCard ? '有設定卡號' : '未設定卡號'"
-								>
-									卡片
-								</span>
-								<span
-									class="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-semibold 2xl:text-sm"
-									:class="dataPillClass(getAccessSummary(p.id).hasFingerprint)"
-									:title="getAccessSummary(p.id).hasFingerprint ? '有指紋模板' : '未設定指紋模板'"
-								>
-									指紋
-								</span>
-								<span
-									class="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-semibold 2xl:text-sm"
-									:class="dataPillClass(getAccessSummary(p.id).hasLicensePlate)"
-									:title="getAccessSummary(p.id).hasLicensePlate ? '有設定車牌' : '未設定車牌'"
-								>
-									車牌
-								</span>
-							</div>
+							<PersonnelAccessDataIndicators :summary="getPersonAccessControlDataSummary(p)" />
 						</td>
 						<td :class="tableCellClass">
 							<span
@@ -300,27 +264,6 @@ const {
 	applyCroppedFace,
 } = props.personsTab
 
-type PersonAccessControlDataSummary = ReturnType<typeof getPersonAccessControlDataSummary>
-
-const accessControlSummaryByPersonId = computed<Record<number, PersonAccessControlDataSummary>>(
-	() => {
-		const map: Record<number, PersonAccessControlDataSummary> = {}
-		for (const p of persons.value || []) map[p.id] = getPersonAccessControlDataSummary(p)
-		return map
-	}
-)
-
-const getAccessSummary = (personId: number): PersonAccessControlDataSummary => {
-	return (
-		accessControlSummaryByPersonId.value[personId] ?? {
-			hasFace: false,
-			hasPassword: false,
-			hasCard: false,
-			hasFingerprint: false,
-		}
-	)
-}
-
 const confirmDialog = useConfirmDialog()
 const showConfirmDialog = confirmDialog.showDialog
 const confirmDialogConfig = confirmDialog.config
@@ -370,11 +313,6 @@ const localEmployeeNoSort = computed<string>({
 })
 
 const handleSearch = () => props.personsTab.handleSearch()
-
-const dataPillClass = (hasData: boolean) => {
-	if (hasData) return "border-emerald-400/30 bg-emerald-500/15 text-emerald-100"
-	return "border-white/15 bg-white/5 text-white/60"
-}
 
 const confirmDeletePerson = (p: { id: number; employee_no: string; full_name?: string | null }) => {
 	pendingDeletePersonId.value = p.id

@@ -55,19 +55,38 @@
 								aria-label="攝影機群組"
 							/>
 						</label>
+						<label
+							v-if="deviceTypeCode === 'camera'"
+							class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+						>
+							<span>型號分類 *</span>
+							<FilterDropdown
+								v-model="cameraCategoryCode"
+								:options="cameraCategoryOptions"
+								placeholder="請選擇型號分類"
+								@update:modelValue="onCameraCategoryChange"
+							/>
+						</label>
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 							<span>設備型號 *</span>
 							<FilterDropdown
 								v-model="modelIdString"
 								:options="deviceModelOptions"
-								:placeholder="isLoadingDeviceModels ? '載入中...' : '請選擇設備型號'"
+								:placeholder="cameraModelPlaceholder"
+								:disabled="deviceTypeCode === 'camera' && !cameraCategoryCode"
 								@update:modelValue="onModelChange"
 							/>
 							<p
-								v-if="deviceModels.length === 0 && !isLoadingDeviceModels"
+								v-if="filteredDeviceModels.length === 0 && !isLoadingDeviceModels"
 								class="mt-1 text-xs text-amber-300"
 							>
-								{{ deviceModelsLocked ? "目前無可用型號，請聯繫維運人員新增預設型號" : "請先在「設備型號管理」中建立設備型號" }}
+								{{
+									deviceTypeCode === "camera" && !cameraCategoryCode
+										? "請先選擇型號分類"
+										: deviceModelsLocked
+											? "目前無可用型號，請聯繫維運人員新增預設型號"
+											: "請先在「設備型號管理」中建立設備型號"
+								}}
 							</p>
 						</label>
 
@@ -432,6 +451,7 @@ import {
 	previewCameraRtspTemplate,
 	parseCameraRtspUrl,
 } from "~/utils/cameraRtspUtils"
+import { CAMERA_MODEL_CATEGORY_OPTIONS } from "~/utils/cameraModelCategories"
 
 interface Props {
 	modelValue: boolean
@@ -488,7 +508,27 @@ const cameraIp = ref<string>("")
 const cameraUsername = ref<string>("admin")
 const cameraPassword = ref<string>("")
 const cameraGroup = ref<string>("")
+const cameraCategoryCode = ref("")
 const showCameraPassword = ref(false)
+
+const cameraCategoryOptions = computed(() => [
+	{ value: "", label: "請選擇型號分類" },
+	...CAMERA_MODEL_CATEGORY_OPTIONS,
+])
+
+const filteredDeviceModels = computed(() => {
+	if (props.deviceTypeCode !== "camera") return deviceModels.value
+	if (!cameraCategoryCode.value) return []
+	return deviceModels.value.filter(
+		(m) => String(m.category_code || "") === cameraCategoryCode.value
+	)
+})
+
+const cameraModelPlaceholder = computed(() => {
+	if (isLoadingDeviceModels.value) return "載入中..."
+	if (props.deviceTypeCode === "camera" && !cameraCategoryCode.value) return "請先選擇型號分類"
+	return "請選擇設備型號"
+})
 const showAccessControlPassword = ref(false)
 
 const selectedCameraRtspTemplate = computed(() => {
@@ -572,7 +612,9 @@ const deviceModelOptions = computed(() => {
 	if (deviceModels.value.length === 0) {
 		return [{ value: "", label: "無可用設備型號" }]
 	}
-	const options = deviceModels.value.map((model) => ({
+	const source =
+		props.deviceTypeCode === "camera" ? filteredDeviceModels.value : deviceModels.value
+	const options = source.map((model) => ({
 		value: String(model.id),
 		label: model.name,
 	}))
@@ -598,6 +640,11 @@ const inheritFromModel = () => {
 		if (model.port != null) sensorConfig.port = model.port
 		if (model.unit_id != null) sensorConfig.unitId = model.unit_id
 	}
+}
+
+const onCameraCategoryChange = () => {
+	localFormData.model_id = 0
+	modelIdString.value = ""
 }
 
 const onModelChange = (value: string) => {
@@ -656,6 +703,7 @@ const resetForm = () => {
 	cameraUsername.value = "admin"
 	cameraPassword.value = ""
 	cameraGroup.value = ""
+	cameraCategoryCode.value = ""
 	showCameraPassword.value = false
 
 	sensorConfig.protocol = "modbus"
@@ -850,6 +898,7 @@ watch(
 			localFormData.name = device.name
 			localFormData.model_id = device.model_id // model_id 現在是必填的
 			localFormData.status = device.status
+			cameraCategoryCode.value = String(device.model_category_code || "")
 			loadConfigFromDevice(device)
 		} else {
 			resetForm()
@@ -904,7 +953,6 @@ const getCurrentConfig = (): DeviceConfig => {
 				type: "camera",
 				rtsp_url: rtspUrl,
 				host: ip || cameraConfig.host,
-				ip_address: ip || cameraConfig.ip_address,
 				username: user,
 				password: pwd || cameraConfig.password,
 				group: cameraGroup.value.trim() || undefined,
@@ -929,6 +977,11 @@ const getCurrentConfig = (): DeviceConfig => {
 
 const handleSubmit = () => {
 	localErrorMessage.value = null
+
+	if (props.deviceTypeCode === "camera" && !cameraCategoryCode.value.trim()) {
+		localErrorMessage.value = "請選擇型號分類"
+		return
+	}
 
 	// 驗證 model_id 必填
 	if (!localFormData.model_id || localFormData.model_id === 0) {
