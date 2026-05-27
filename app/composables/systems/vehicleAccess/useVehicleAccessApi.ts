@@ -59,18 +59,6 @@ export const useVehicleAccessApi = () => {
 		return { success: true, data, total };
 	};
 
-	const getVehicleDataLogCount = async (
-		filters: Omit<VehicleDataLogListFilters, "limit" | "offset" | "orderBy" | "orderDirection"> = {}
-	): Promise<number> => {
-		const result = await externalDataApi.getCount(
-			SCHEMA,
-			TABLE_PASSAGEWAY,
-			toQueryParams(filters as Record<string, unknown>)
-		);
-		const raw = result.data;
-		return typeof raw === "number" ? raw : ((raw as { count?: number })?.count ?? 0);
-	};
-
 	const getVehicleDataLogById = async (id: number): Promise<VehicleDataLog | null> => {
 		try {
 			const result = await externalDataApi.getById<VehicleDataLog>(SCHEMA, TABLE_PASSAGEWAY, id);
@@ -104,7 +92,6 @@ export const useVehicleAccessApi = () => {
 
 	return {
 		getVehicleDataLogList,
-		getVehicleDataLogCount,
 		getVehicleDataLogById,
 		getLaneInfoList,
 		getVehicleGroups

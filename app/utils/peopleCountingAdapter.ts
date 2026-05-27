@@ -1,101 +1,17 @@
 /**
- * 人流統計數據轉換與統計工具
- * - 轉換邏輯與後端一致
- * - 進出場計數與後端 countEntryExitFromSorted 同一規則（同人連續同向只計一次，首筆為出場不計）
+ * 人流 API 轉換；進出統計見 utils/peopleCountingTransition.ts
  */
 
 import type { PeopleCountingLog, PeopleCountingPersonnel } from "~/types/peopleCounting";
 import { formatDateTime } from "~/utils/dateUtils";
 
-/** 同人連續同向只計一次；無 personnel／工號時（攝影機）依單位合成鍵，避免每筆 log.id 不同導致「出場」全被略過 */
-export function countingPersonKey(log: PeopleCountingLog): string {
-	if (log.personnelId != null) return String(log.personnelId);
-	const emp = log.employeeId != null ? String(log.employeeId).trim() : "";
-	if (emp !== "") return emp;
-	const unit = (log.unit?.name ?? log.unitName ?? "").trim();
-	return unit !== "" ? `__anon__:${unit}` : "__anon__";
-}
-
-/**
- * 依時間升序計數進場/出場（與後端 countEntryExitFromSorted 一致）
- */
-export function countEntryExitForDay(dayLogs: PeopleCountingLog[]): {
-	entry: number;
-	exit: number;
-} {
-	const sorted = [...dayLogs].sort(
-		(a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-	);
-	const lastByPerson = new Map<string, "entry" | "exit">();
-	let entryCount = 0;
-	let exitCount = 0;
-	for (const log of sorted) {
-		const dir = log.eventType === "entry" ? "entry" : log.eventType === "exit" ? "exit" : null;
-		if (dir !== "entry" && dir !== "exit") continue;
-		const personKey = countingPersonKey(log);
-		const prev = lastByPerson.get(personKey);
-		if (prev === undefined && dir === "exit") continue;
-		if (prev !== dir) {
-			if (dir === "entry") entryCount++;
-			else exitCount++;
-			lastByPerson.set(personKey, dir);
-		}
-	}
-	return { entry: entryCount, exit: exitCount };
-}
-
-/**
- * 當日依「單位」分組後，每組依時間升序計數進場/出場，回傳各單位進場、出場、在場人數（在場 = 進場 - 出場）
- */
-export function getUnitStatsForDay(
-	dayLogs: PeopleCountingLog[]
-): Array<{ unitName: string; entry: number; exit: number; current: number }> {
-	const byUnit = new Map<string, PeopleCountingLog[]>();
-	for (const log of dayLogs) {
-		const name = log.unit?.name ?? log.unitName ?? "";
-		const key = String(name);
-		if (!byUnit.has(key)) byUnit.set(key, []);
-		byUnit.get(key)!.push(log);
-	}
-	const result: Array<{ unitName: string; entry: number; exit: number; current: number }> = [];
-	for (const [unitKey, logs] of byUnit) {
-		const unitName = unitKey.trim();
-		if (!unitName) continue;
-		const { entry, exit } = countEntryExitForDay(logs);
-		result.push({
-			unitName,
-			entry,
-			exit,
-			current: Math.max(0, entry - exit)
-		});
-	}
-	return result.sort((a, b) => a.unitName.localeCompare(b.unitName));
-}
-
-/**
- * 當日依時間升序掃描後，最後一筆為「進場」的人員（進場但未出場），回傳其最後一筆 log 供顯示。
- */
-export function getEntryOnlyPersonsForDay(dayLogs: PeopleCountingLog[]): PeopleCountingLog[] {
-	const sorted = [...dayLogs].sort(
-		(a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-	);
-	const lastByPerson = new Map<string, "entry" | "exit">();
-	const lastLogByPerson = new Map<string, PeopleCountingLog>();
-	for (const log of sorted) {
-		const dir = log.eventType === "entry" ? "entry" : log.eventType === "exit" ? "exit" : null;
-		if (dir !== "entry" && dir !== "exit") continue;
-		const personKey = countingPersonKey(log);
-		const prev = lastByPerson.get(personKey);
-		if (prev === undefined && dir === "exit") continue;
-		if (prev !== dir) {
-			lastByPerson.set(personKey, dir);
-			lastLogByPerson.set(personKey, log);
-		}
-	}
-	return [...lastLogByPerson.entries()]
-		.filter(([personKey]) => lastByPerson.get(personKey) === "entry")
-		.map(([, log]) => log);
-}
+export {
+	countingPersonKey,
+	countEntryExitForDay,
+	cumulativePresenceFromTotals,
+	getUnitStatsForDay,
+	getEntryOnlyPersonsForDay
+} from "~/utils/peopleCountingTransition";
 
 /**
  * 從樓層名稱提取區域資訊
@@ -125,7 +41,7 @@ export type UnitPersonnelApiRow = {
 	isTodayEntry?: boolean;
 };
 
-/** 單位人員 API → 前端 PeopleCountingPersonnel（isInside → isPresent） */
+/** 單位人員 API → 前端 PeopleCountingPersonnel */
 export const mapUnitPersonnelFromApi = (
 	person: UnitPersonnelApiRow,
 	unitId: number
@@ -144,9 +60,6 @@ export const mapUnitPersonnelFromApi = (
 	isTodayEntry: person.isTodayEntry ?? false
 });
 
-/**
- * 將後端 API 返回的記錄轉換為前端格式（YSCP / access_control 同一結構）
- */
 export const convertApiLogToFrontend = (
 	log: {
 		id: string;

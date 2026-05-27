@@ -20,6 +20,7 @@ import {
 	useVehicleAccessSitesApi,
 	VEHICLE_ACCESS_FULL_REPORT_LIMIT
 } from "~/composables/systems/vehicleAccess/useVehicleAccessSitesApi";
+import { buildLogsTimeQuery } from "~/utils/entryExitTimeRange";
 import type { VehicleAccessDataSource } from "~/types/vehicleAccess";
 import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
@@ -27,7 +28,7 @@ import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi
 import { unifiedToVehicleAccessZone } from "~/utils/locationAdapter";
 import { normalizePlate } from "~/utils/vehicleAccessUtils";
 import {
-	buildGroupMemberFromLogs,
+	buildGroupMemberPresenceFromLogs,
 	countReleasedPassages
 } from "~/utils/vehicleAccessPassageStats";
 import type { UnifiedZone } from "~/types/location";
@@ -70,6 +71,24 @@ const releasedLogs = (logList: VehicleDataLog[]) =>
 
 const toOptionalIdSet = (ids?: number[]) => (ids?.length ? new Set(ids) : null);
 
+const buildGroupMemberFromLogs = (
+	plate: string,
+	ownerName: string | null,
+	personId: number,
+	validLogs: VehicleDataLog[]
+): VehicleGroupMemberItem => {
+	const presence = buildGroupMemberPresenceFromLogs(plate, validLogs);
+	return {
+		id: personId,
+		plate_license: plate,
+		owner_name: ownerName,
+		lastEntryDate: presence.lastEntryDate,
+		entryTime: presence.entryTime,
+		exitTime: presence.exitTime,
+		isPresent: presence.isPresent
+	};
+};
+
 export const useVehicleAccessState = () => {
 	const vehicleAccessApi = useVehicleAccessApi();
 	const vehicleAccessSitesApi = useVehicleAccessSitesApi();
@@ -88,6 +107,7 @@ export const useVehicleAccessState = () => {
 
 	const vehicleGroupsFromApi = ref<VehicleGroupFromApi>({ groups: [] });
 	const personGroupsForVehicle = ref<PersonGroup[]>([]);
+	const personGroupVehicleCountById = ref<Record<number, number>>({});
 	const personGroupVehicleList = ref<VehicleGroupMemberItem[]>([]);
 	const selectedOrganizationKey = ref<string | null>(null);
 	const isLoadingVehicleGroups = ref(false);
@@ -172,33 +192,7 @@ export const useVehicleAccessState = () => {
 
 	const loadEntryExitOnSiteCounts = async (): Promise<void> => {
 		const siteId = resolveSiteId(selectedLocation.value);
-		const ids = laneIds.value;
-
-		if (isIsapiCamera.value) {
-			if (siteId == null) {
-				entryCount.value = 0;
-				exitCount.value = 0;
-				onSiteCount.value = 0;
-				return;
-			}
-			isLoadingCounts.value = true;
-			try {
-				const stats = await vehicleAccessSitesApi.getSiteStats(siteId, TODAY_TIME);
-				entryCount.value = stats.entryCount;
-				exitCount.value = stats.exitCount;
-				onSiteCount.value = stats.currentCount;
-			} catch (error) {
-				handleError(error, "載入進出場數量失敗");
-				entryCount.value = 0;
-				exitCount.value = 0;
-				onSiteCount.value = 0;
-			} finally {
-				isLoadingCounts.value = false;
-			}
-			return;
-		}
-
-		if (!ids.length) {
+		if (siteId == null) {
 			entryCount.value = 0;
 			exitCount.value = 0;
 			onSiteCount.value = 0;
@@ -206,23 +200,10 @@ export const useVehicleAccessState = () => {
 		}
 		isLoadingCounts.value = true;
 		try {
-			const [entry, exit] = await Promise.all([
-				vehicleAccessApi.getVehicleDataLogCount({
-					...TODAY_TIME,
-					lane_id: ids,
-					allow_result: 1,
-					lane_type: 1
-				}),
-				vehicleAccessApi.getVehicleDataLogCount({
-					...TODAY_TIME,
-					lane_id: ids,
-					allow_result: 1,
-					lane_type: 2
-				})
-			]);
-			entryCount.value = entry;
-			exitCount.value = exit;
-			onSiteCount.value = Math.max(0, entry - exit);
+			const stats = await vehicleAccessSitesApi.getSiteStats(siteId, TODAY_TIME);
+			entryCount.value = stats.entryCount;
+			exitCount.value = stats.exitCount;
+			onSiteCount.value = stats.currentCount;
 		} catch (error) {
 			handleError(error, "載入進出場數量失敗");
 			entryCount.value = 0;
@@ -247,51 +228,16 @@ export const useVehicleAccessState = () => {
 					}
 					const siteId = resolveSiteId(loc);
 					const site = siteId != null ? siteById.get(siteId) : undefined;
-					if (site) {
-						summaries.push({
-							id: loc.id || `${zone.id}-${loc.name}`,
-							zoneId: zone.id || "",
-							zoneName: zone.name,
-							locationId: loc.id || "",
-							name: loc.name,
-							todayPassCount: site.entryCount + site.exitCount,
-							entryCount: site.entryCount,
-							exitCount: site.exitCount,
-							currentCount: site.currentCount
-						});
-						continue;
-					}
-					const ids = getLaneIds(loc);
-					let entryCountVal = 0;
-					let exitCountVal = 0;
-					if (ids.length > 0) {
-						const [entry, exit] = await Promise.all([
-							vehicleAccessApi.getVehicleDataLogCount({
-								...TODAY_TIME,
-								lane_id: ids,
-								allow_result: 1,
-								lane_type: 1
-							}),
-							vehicleAccessApi.getVehicleDataLogCount({
-								...TODAY_TIME,
-								lane_id: ids,
-								allow_result: 1,
-								lane_type: 2
-							})
-						]);
-						entryCountVal = entry;
-						exitCountVal = exit;
-					}
 					summaries.push({
 						id: loc.id || `${zone.id}-${loc.name}`,
 						zoneId: zone.id || "",
 						zoneName: zone.name,
 						locationId: loc.id || "",
 						name: loc.name,
-						todayPassCount: entryCountVal + exitCountVal,
-						entryCount: entryCountVal,
-						exitCount: exitCountVal,
-						currentCount: Math.max(0, entryCountVal - exitCountVal)
+						todayPassCount: (site?.entryCount ?? 0) + (site?.exitCount ?? 0),
+						entryCount: site?.entryCount ?? 0,
+						exitCount: site?.exitCount ?? 0,
+						currentCount: site?.currentCount ?? 0
 					});
 				}
 			}
@@ -322,7 +268,7 @@ export const useVehicleAccessState = () => {
 					groupKey: `pg_${g.id}`,
 					personGroupId: g.id,
 					personGroupName: g.name ?? `群組 ${g.id}`,
-					vehicleCount: 0,
+					vehicleCount: personGroupVehicleCountById.value[g.id] ?? 0,
 					...stats
 				};
 			});
@@ -381,12 +327,32 @@ export const useVehicleAccessState = () => {
 				personGroupsForVehicle.value = Array.isArray(groups)
 					? groups.filter(g => g.id != null && g.name?.trim())
 					: [];
+
+				// 分母（vehicleCount）：以「群組內人員數」作為群組名單大小（避免 0/0）
+				const countPairs = await Promise.all(
+					personGroupsForVehicle.value.map(async g => {
+						try {
+							const page = await personnelApi.getPersonGroupMembers(g.id, {
+								limit: 1,
+								offset: 0,
+								status: "active",
+							});
+							return [g.id, Number(page?.total) || 0] as const;
+						} catch {
+							return [g.id, 0] as const;
+						}
+					}),
+				);
+				personGroupVehicleCountById.value = Object.fromEntries(countPairs);
 			} else {
 				vehicleGroupsFromApi.value = (await vehicleAccessApi.getVehicleGroups()) ?? { groups: [] };
 			}
 		} catch (error) {
 			handleError(error, isIsapiCamera.value ? "載入人員群組失敗" : "載入車輛群組失敗");
-			if (isIsapiCamera.value) personGroupsForVehicle.value = [];
+			if (isIsapiCamera.value) {
+				personGroupsForVehicle.value = [];
+				personGroupVehicleCountById.value = {};
+			}
 			else vehicleGroupsFromApi.value = { groups: [] };
 		} finally {
 			isLoadingVehicleGroups.value = false;
@@ -422,27 +388,23 @@ export const useVehicleAccessState = () => {
 		}
 	};
 
-	const loadFullReportLogs = async (options: { startTime: string; endTime: string }): Promise<VehicleDataLog[]> => {
+	const loadFullReportLogs = async (options: {
+		startTime: string;
+		endTime: string;
+		preset?: string;
+	}): Promise<VehicleDataLog[]> => {
 		const siteId = resolveSiteId(selectedLocation.value);
-		if (isIsapiCamera.value && siteId != null) {
-			const result = await vehicleAccessSitesApi.getSiteLogs(siteId, {
-				limit: VEHICLE_ACCESS_FULL_REPORT_LIMIT,
-				startTime: options.startTime,
-				endTime: options.endTime
-			});
-			return result.logs || [];
-		}
-		const ids = laneIds.value;
-		if (!ids.length) return [];
-		const result = await vehicleAccessApi.getVehicleDataLogList({
-			lane_id: ids,
-			startTime: options.startTime,
-			endTime: options.endTime,
+		if (siteId == null) return [];
+		const timeQuery = buildLogsTimeQuery(
+			options.preset ?? "custom",
+			options.startTime,
+			options.endTime
+		);
+		const result = await vehicleAccessSitesApi.getSiteLogs(siteId, {
 			limit: VEHICLE_ACCESS_FULL_REPORT_LIMIT,
-			orderBy: "trigger_time",
-			orderDirection: "ASC"
+			...timeQuery
 		});
-		return result.data ?? [];
+		return result.logs || [];
 	};
 
 	const setupEventListeners = (onRefetch: () => void | Promise<void>, debounceMs = 500) =>

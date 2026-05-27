@@ -247,8 +247,13 @@ import { useZoneManagement } from "~/composables/location/management/useZoneMana
 import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter";
 import type { UnifiedZone } from "~/types/location";
-import { getTodayDateRangeUTC } from "~/utils/dateUtils";
 import { useAuth } from "~/composables/core/useAuth";
+import { useApiBase } from "~/composables/core/useApiBase";
+import {
+	buildLogsTimeQuery,
+	toSimulationTimeRange,
+	type OperationalDayRangeResponse
+} from "~/utils/entryExitTimeRange";
 
 const { canWrite } = useAuth();
 
@@ -282,10 +287,16 @@ const {
 } = useVehicleAccessState();
 
 const showSimulationFrame = ref(false);
-const { start: todayStart, end: todayEnd } = getTodayDateRangeUTC();
+const { request } = useApiBase();
+const fetchTodaySimulationRange = async () => {
+	const range = await request<OperationalDayRangeResponse>(
+		`/entry-exit/time-range?preset=today`
+	);
+	return toSimulationTimeRange(range, "today");
+};
 const simulationTimeRange = ref({
-	startDate: todayStart.toISOString(),
-	endDate: todayEnd.toISOString(),
+	startDate: "",
+	endDate: "",
 	preset: "today"
 });
 const simulationZoneName = computed(() =>
@@ -299,11 +310,12 @@ const loadSimulationLogs = async () => {
 		simulationLogs.value = [];
 		return;
 	}
-	const { startDate, endDate } = simulationTimeRange.value;
+	const { startDate, endDate, preset } = simulationTimeRange.value;
 	try {
 		simulationLogs.value = await loadFullReportLogs({
 			startTime: startDate,
-			endTime: endDate
+			endTime: endDate,
+			preset
 		});
 	} catch {
 		simulationLogs.value = [];
@@ -320,12 +332,7 @@ const handleSimulationTimeRangeUpdate = (v: {
 };
 
 const handleOpenSimulation = async () => {
-	const { start, end } = getTodayDateRangeUTC();
-	simulationTimeRange.value = {
-		startDate: start.toISOString(),
-		endDate: end.toISOString(),
-		preset: "today"
-	};
+	simulationTimeRange.value = await fetchTodaySimulationRange();
 	showSimulationFrame.value = true;
 	await loadSimulationLogs();
 };

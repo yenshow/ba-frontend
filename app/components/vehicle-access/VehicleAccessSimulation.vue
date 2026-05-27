@@ -173,6 +173,7 @@ import type { VehicleDataLog } from "~/types/vehicleAccess"
 import { formatDate, formatDateTime, TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtils"
 import { buildCsvSection } from "~/utils/csvExport"
 import { getEntryOnlyLogIds } from "~/utils/vehicleAccessUtils"
+import { passageTransitionTotals } from "~/utils/vehicleAccessPassageStats"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
 
 const props = defineProps<{
@@ -215,19 +216,15 @@ const groupsByDate = computed(() => {
 
 const datesDesc = computed(() => [...groupsByDate.value.keys()].sort((a, b) => b.localeCompare(a)))
 
-/** 依 allow_result=1 與 lane_type 計算進場／出場／在場 */
-const entryExitCurrent = (logList: VehicleDataLog[]) => {
-	const entry = logList.filter((l) => l.allow_result === 1 && l.lane_type === 1).length
-	const exit = logList.filter((l) => l.allow_result === 1 && l.lane_type === 2).length
-	return { entry, exit, current: Math.max(0, entry - exit) }
-}
+/** 放行紀錄 transition 統計（與後端 entryExit 一致） */
+const passageStats = passageTransitionTotals
 
 const statsTableRows = computed(() => {
 	const zl = zoneLocationLabel.value
 	const rows: Array<Record<string, string> & { key: string }> = []
 	for (const dateStr of datesDesc.value) {
 		const dayLogs = groupsByDate.value.get(dateStr)!
-		const { entry, exit, current } = entryExitCurrent(dayLogs)
+		const { entry, exit, current } = passageStats(dayLogs)
 		rows.push({
 			key: `stats-${dateStr}-${zl}`,
 			日期: dateStr,
@@ -266,7 +263,7 @@ const groupStatsTableRows = computed((): GroupStatsRow[] => {
 			byGroup.get(name)!.push(log)
 		}
 		for (const groupName of [...byGroup.keys()].sort()) {
-			const { entry, exit, current } = entryExitCurrent(byGroup.get(groupName)!)
+			const { entry, exit, current } = passageStats(byGroup.get(groupName)!)
 			rows.push({
 				key: `group-${dateStr}-${groupName}`,
 				日期: dateStr,

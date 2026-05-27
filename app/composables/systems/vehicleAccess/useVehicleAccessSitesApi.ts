@@ -19,7 +19,7 @@ export interface VehicleAccessLogsFilters {
 	offset?: number;
 	startTime?: string;
 	endTime?: string;
-	timeRange?: "today" | "yesterday" | "custom";
+	timeRange?: "today" | "yesterday" | "last7days";
 	search?: string;
 }
 
@@ -59,5 +59,5 @@ export const useVehicleAccessSitesApi = () => {
 	return { getSites, getSiteStats, getSiteLogs };
 };
 
-/** 完整報表單次上限（與後端 provider 一致） */
-export const VEHICLE_ACCESS_FULL_REPORT_LIMIT = 10000;
+/** 完整報表單次上限（與後端 ENTRY_EXIT_MAX_RECORDS 一致） */
+export { ENTRY_EXIT_FULL_REPORT_LIMIT as VEHICLE_ACCESS_FULL_REPORT_LIMIT } from "~/utils/entryExitTimeRange";

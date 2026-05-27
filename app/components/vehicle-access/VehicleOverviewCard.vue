@@ -94,14 +94,8 @@ const emit = defineEmits<{
 	(e: "click", locationId: string): void;
 }>();
 
-/** 在場車輛數：優先使用 summary.currentCount，否則以 進場－出場 計算（與人流 LocationOverviewCard 一致） */
-const currentCount = computed(() => {
-	const s = props.summary;
-	if (s.currentCount != null) return s.currentCount;
-	const entry = s.entryCount ?? 0;
-	const exit = s.exitCount ?? 0;
-	return Math.max(0, entry - exit);
-});
+/** 在場車輛：以 API currentCount 為準（transition） */
+const currentCount = computed(() => props.summary.currentCount ?? 0);
 
 /** 3x4 群組格，不足補空（對齊 LocationOverviewCard displayUnits） */
 const TOTAL_GRID_CELLS = 12;
