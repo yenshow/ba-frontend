@@ -221,6 +221,7 @@ import { buildCsvSection } from "~/utils/csvExport"
 import {
 	countingPersonKey,
 	countEntryExitForDay,
+	cumulativePresenceFromTotals,
 	getEntryOnlyPersonsForDay,
 	getUnitStatsForDay,
 } from "~/utils/peopleCountingAdapter"
@@ -352,15 +353,17 @@ const statsTableRows = computed(() => {
 		const dayLogs = groupsByDate.value.get(dateStr)!
 		let entry: number
 		let exit: number
+		let current: number
 		if (useIsapiSnapshotTotals.value && effectiveSnapshot.value && datesDesc.length === 1) {
 			entry = effectiveSnapshot.value.entryCount
 			exit = effectiveSnapshot.value.exitCount
+			current = cumulativePresenceFromTotals(entry, exit)
 		} else {
 			const r = countEntryExitForDay(dayLogs)
 			entry = r.entry
 			exit = r.exit
+			current = r.current
 		}
-		const current = Math.max(0, entry - exit)
 		rows.push({
 			key: `stats-${dateStr}-${zl}`,
 			日期: dateStr,

@@ -278,11 +278,17 @@ import {
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useAuth } from "~/composables/core/useAuth";
 import type { PeopleCountingUnit, PeopleCountingPersonnel } from "~/types/peopleCounting";
-import { getTodayDateRangeUTC } from "~/utils/dateUtils";
+import { useApiBase } from "~/composables/core/useApiBase";
+import {
+	buildLogsTimeQuery,
+	toSimulationTimeRange,
+	type OperationalDayRangeResponse
+} from "~/utils/entryExitTimeRange";
 import {
 	firstFlatSiteMatchingSortedZoneLocations,
 	sortFlatSitesBySortedZoneLocations
 } from "~/utils/sortOrder";
+import { computeCumulativePresence } from "~/utils/entryExitStats";
 
 const { canWrite } = useAuth();
 
@@ -301,6 +307,13 @@ const {
 
 // 單位人員對話框相關
 const peopleCountingApi = usePeopleCountingApi();
+const { request } = useApiBase();
+const fetchTodaySimulationRange = async () => {
+	const range = await request<OperationalDayRangeResponse>(
+		`/entry-exit/time-range?preset=today`
+	);
+	return toSimulationTimeRange(range, "today");
+};
 const { handleError } = useErrorHandler();
 const isUnitDialogOpen = ref(false);
 const selectedUnitName = ref("");
@@ -327,15 +340,18 @@ const handleUnitCardActivate = (unit: PeopleCountingUnit) => {
 	void handleUnitClick(unit);
 };
 
-// 計算在場人數：所有單位的 currentCount 總和
 const currentCount = computed(() => {
-	if (!selectedLocation.value?.units) return 0;
-	// 攝影機：站點在場數以站點總計（entryCount - exitCount）為準，避免用分區加總造成口徑不一致
+	if (!selectedLocation.value) return 0;
 	if (isIsapiCamera.value) {
-		const entry = selectedLocation.value.entryCount ?? 0;
-		const exit = selectedLocation.value.exitCount ?? 0;
-		return Math.max(0, entry - exit);
+		return computeCumulativePresence(
+			selectedLocation.value.entryCount ?? 0,
+			selectedLocation.value.exitCount ?? 0
+		);
 	}
+	if (selectedLocation.value.currentCount != null) {
+		return selectedLocation.value.currentCount;
+	}
+	if (!selectedLocation.value.units) return 0;
 	return selectedLocation.value.units.reduce((sum, unit) => sum + (unit.currentCount || 0), 0);
 });
 
@@ -373,10 +389,9 @@ const isSidebarCollapsed = ref(false);
 const showLocationManagementDialog = ref(false);
 const showSimulationFrame = ref(false);
 
-const { start: todayStart, end: todayEnd } = getTodayDateRangeUTC();
 const simulationTimeRange = ref({
-	startDate: todayStart.toISOString(),
-	endDate: todayEnd.toISOString(),
+	startDate: "",
+	endDate: "",
 	preset: "today"
 });
 
@@ -394,12 +409,12 @@ const loadSimulationLogs = async () => {
 		simulationLogs.value = [];
 		return;
 	}
-	const { startDate, endDate } = simulationTimeRange.value;
+	const { startDate, endDate, preset } = simulationTimeRange.value;
+	const timeQuery = buildLogsTimeQuery(preset, startDate, endDate);
 	try {
 		simulationLogs.value = await peopleCountingApi.getLocationLogs(loc.locationId, {
 			limit: PEOPLE_COUNTING_FULL_REPORT_LIMIT,
-			...(startDate && { startTime: startDate }),
-			...(endDate && { endTime: endDate })
+			...timeQuery
 		});
 	} catch {
 		simulationLogs.value = [];
@@ -416,12 +431,7 @@ const handleSimulationTimeRangeUpdate = (v: {
 };
 
 const handleOpenSimulation = async () => {
-	const { start, end } = getTodayDateRangeUTC();
-	simulationTimeRange.value = {
-		startDate: start.toISOString(),
-		endDate: end.toISOString(),
-		preset: "today"
-	};
+	simulationTimeRange.value = await fetchTodaySimulationRange();
 	showSimulationFrame.value = true;
 	await loadSimulationLogs();
 };

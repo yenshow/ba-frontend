@@ -75,7 +75,7 @@ export default defineNuxtConfig({
 			// - dev/staging 可用 env 覆寫
 			deviceModelsLocked:
 				process.env.NUXT_PUBLIC_DEVICE_MODELS_LOCKED ??
-				(process.env.NODE_ENV === "production" ? "1" : "0"),
+				(process.env.NODE_ENV === "production" ? "1" : "0")
 		}
 	},
 

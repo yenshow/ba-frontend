@@ -72,6 +72,7 @@
 <script setup lang="ts">
 import type { PeopleCountingLocation } from "~/types/peopleCounting";
 import { computed, toRefs } from "vue";
+import { computeCumulativePresence } from "~/utils/entryExitStats";
 
 interface Props {
 	location: PeopleCountingLocation & { overviewZoneName?: string | null };
@@ -86,8 +87,18 @@ defineEmits<{
 
 const regionText = computed(() => location.value.overviewZoneName || "未分類");
 
-// 計算在場人數：所有單位的 currentCount 總和
+const isIsapiCamera = computed(() => location.value.dataSource === "isapi_camera");
+
 const currentCount = computed(() => {
+	if (isIsapiCamera.value) {
+		return computeCumulativePresence(
+			location.value.entryCount ?? 0,
+			location.value.exitCount ?? 0
+		);
+	}
+	if (location.value.currentCount != null) {
+		return location.value.currentCount;
+	}
 	if (!location.value.units) return 0;
 	return location.value.units.reduce((sum, unit) => sum + (unit.currentCount || 0), 0);
 });

@@ -25,8 +25,8 @@ import { normalizeLogDisplayColumns } from "~/utils/peopleCountingLogColumns";
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 import { shouldHidePeopleCountingWhenYscpOff } from "~/utils/peopleCountingDataSource";
 
-/** 完整報表單次上限（與後端 provider 一致） */
-export const PEOPLE_COUNTING_FULL_REPORT_LIMIT = 10000;
+/** 完整報表單次上限（與後端 ENTRY_EXIT_MAX_RECORDS 一致） */
+export { ENTRY_EXIT_FULL_REPORT_LIMIT as PEOPLE_COUNTING_FULL_REPORT_LIMIT } from "~/utils/entryExitTimeRange";
 
 const apiLogger = logger.createLogger("PeopleCounting API");
 
@@ -275,6 +275,7 @@ export const usePeopleCountingApi = () => {
 			unitId?: number;
 			startTime?: string;
 			endTime?: string;
+			timeRange?: "today" | "yesterday" | "last7days";
 			offset?: number;
 		}
 	): Promise<PeopleCountingLog[]> => {
@@ -284,6 +285,7 @@ export const usePeopleCountingApi = () => {
 			if (options?.unitId) q.unitId = String(options.unitId);
 			if (options?.startTime) q.startTime = options.startTime;
 			if (options?.endTime) q.endTime = options.endTime;
+			if (options?.timeRange) q.timeRange = options.timeRange;
 			if (options?.offset != null && options.offset > 0) q.offset = String(options.offset);
 			const queryString = new URLSearchParams(q).toString();
 			const url = `/people-counting/sites/${locationId}/logs${queryString ? `?${queryString}` : ""}`;
