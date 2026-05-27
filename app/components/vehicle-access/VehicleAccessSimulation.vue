@@ -172,8 +172,7 @@
 import type { VehicleDataLog } from "~/types/vehicleAccess"
 import { formatDate, formatDateTime, TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtils"
 import { buildCsvSection } from "~/utils/csvExport"
-import { getEntryOnlyLogIds } from "~/utils/vehicleAccessUtils"
-import { passageTransitionTotals } from "~/utils/vehicleAccessPassageStats"
+import { getOnSitePassageLogIds, passageTransitionTotals } from "~/utils/vehicleAccessPassageStats"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
 
 const props = defineProps<{
@@ -286,7 +285,7 @@ const directionLabel = (log: VehicleDataLog): string =>
 	log.lane_type === 1 ? "進場" : log.lane_type === 2 ? "出場" : "-"
 
 /** 進場未出場的紀錄 ID 集合（用於表格背景凸顯） */
-const entryOnlyLogIds = computed(() => getEntryOnlyLogIds(props.logs))
+const onSiteLogIds = computed(() => getOnSitePassageLogIds(props.logs))
 
 type DetailRow = {
 	key: string
@@ -303,7 +302,7 @@ type DetailRow = {
 
 const detailTableRows = computed((): DetailRow[] => {
 	const zl = zoneLocationLabel.value
-	const ids = entryOnlyLogIds.value
+	const ids = onSiteLogIds.value
 	const rows: DetailRow[] = []
 	for (const dateStr of datesDesc.value) {
 		const dayLogs = groupsByDate.value.get(dateStr)!

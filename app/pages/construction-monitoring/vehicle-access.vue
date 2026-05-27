@@ -211,6 +211,7 @@
 		v-model="isGroupDialogOpen"
 		:group-name="selectedOrganizationGroupName"
 		:vehicle-list="organizationGroupVehicleList"
+		:list-variant="isIsapiCamera ? 'personnel' : 'vehicle'"
 		@close="handleOrganizationDialogClose"
 	/>
 
@@ -278,7 +279,6 @@ const {
 	loadZones,
 	loadLogs,
 	loadOrganizationData,
-	loadPersonGroupVehicleList,
 	loadFullReportLogs,
 	loadEntryExitOnSiteCounts,
 	loadOverviewSummaries,
@@ -346,11 +346,8 @@ const selectedOrganizationGroupName = computed(() => {
 	return g?.personGroupName ?? "";
 });
 
-const handleOrganizationGroupSelect = async (groupKey: string) => {
+const handleOrganizationGroupSelect = (groupKey: string) => {
 	setSelectedOrganizationKey(groupKey);
-	if (isIsapiCamera.value) {
-		await loadPersonGroupVehicleList(groupKey);
-	}
 	isGroupDialogOpen.value = true;
 };
 
@@ -502,14 +499,11 @@ const DEBOUNCE_MS = 200;
 let loadDataDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 const loadLogsAndCounts = () => {
 	if (loadDataDebounceTimer) clearTimeout(loadDataDebounceTimer);
-	loadDataDebounceTimer = setTimeout(() => {
+	loadDataDebounceTimer = setTimeout(async () => {
 		loadDataDebounceTimer = null;
-		Promise.all([
-			loadLogs(),
-			loadEntryExitOnSiteCounts(),
-			loadOverviewSummaries(),
-			loadOrganizationData()
-		]);
+		await Promise.all([loadEntryExitOnSiteCounts(), loadOverviewSummaries()]);
+		await loadOrganizationData();
+		await loadLogs();
 	}, DEBOUNCE_MS);
 };
 
@@ -525,12 +519,11 @@ onMounted(async () => {
 
 	cleanupWebSocket = setupEventListeners(async () => {
 		const locationId = filters.value.locationId;
-		await Promise.allSettled([
-			loadOverviewSummaries(),
-			loadLogs(),
-			loadEntryExitOnSiteCounts(),
-			locationId ? loadOrganizationData() : Promise.resolve()
-		]);
+		await Promise.allSettled([loadOverviewSummaries(), loadEntryExitOnSiteCounts()]);
+		if (locationId) {
+			await loadOrganizationData();
+			await loadLogs();
+		}
 		await nextTick();
 		updateLeftSectionHeight();
 	}, 500);
