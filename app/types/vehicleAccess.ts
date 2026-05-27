@@ -98,11 +98,15 @@ export interface VehicleOrganizationGroupItem {
 	onSiteCount: number;
 }
 
-/** 群組彈窗內單一車輛（車主-車牌、進出場時間；無圖片欄位） */
+/** 群組彈窗內單一成員（ISAPI 人員群組對齊人流 PersonnelList；YSCP 為車輛列） */
 export interface VehicleGroupMemberItem {
 	id: number;
+	/** 顯示名稱（人員姓名或車主） */
+	name?: string | null;
 	plate_license: string | null;
 	owner_name: string | null;
+	/** 人員照片（face_url，與人流 photoUrl 相同語意） */
+	photoUrl?: string | null;
 	/** 最近進場日期（如 2026/02/24） */
 	lastEntryDate?: string | null;
 	/** 進場時間（如 17:00:41） */

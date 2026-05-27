@@ -21,7 +21,7 @@ const vehicleDirection = (log: VehiclePassageLogLike): "entry" | "exit" | null =
 	return null;
 };
 
-const releasedLogs = <T extends VehiclePassageLogLike>(logs: T[]) =>
+export const releasedLogs = <T extends VehiclePassageLogLike>(logs: T[]) =>
 	logs.filter(log => vehicleDirection(log) != null);
 
 export const countReleasedPassages = <T extends VehiclePassageLogLike>(

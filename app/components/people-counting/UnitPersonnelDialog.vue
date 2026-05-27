@@ -74,7 +74,9 @@
 											<!-- 如果是今日進場，顯示今日的離場時間；如果今日沒有離場，顯示 "- -" -->
 											<div v-if="person.lastEntryDate || person.entryTime">
 												<span>離場時間：</span>
-												<span v-if="person.exitTime && !shouldHideExitTime(person)">
+												<span
+													v-if="person.exitTime && !shouldHideExitTime(person.entryTime, person.exitTime)"
+												>
 													{{ person.exitTime }}
 												</span>
 												<span v-else> - - </span>
@@ -110,6 +112,7 @@ import { ref, computed, watch } from "vue";
 import type { PeopleCountingPersonnel } from "~/types/peopleCounting";
 import Pagination from "~/components/common/Pagination.vue";
 import { useImageCenter } from "~/composables/core/useImageCenter";
+import { shouldHideExitTime } from "~/utils/entryExit/displayTime";
 
 interface Props {
 	modelValue: boolean;
@@ -158,24 +161,6 @@ const handleNext = () => {
 	if (offset.value + itemsPerPage < props.personnel.length) {
 		offset.value += itemsPerPage;
 	}
-};
-
-const parseTimeToSeconds = (time?: string | null) => {
-	if (!time) return null;
-	const m = time.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-	if (!m) return null;
-	const hh = Number(m[1]);
-	const mm = Number(m[2]);
-	const ss = m[3] ? Number(m[3]) : 0;
-	if (Number.isNaN(hh) || Number.isNaN(mm) || Number.isNaN(ss)) return null;
-	return hh * 3600 + mm * 60 + ss;
-};
-
-const shouldHideExitTime = (person: PeopleCountingPersonnel) => {
-	const entrySec = parseTimeToSeconds(person.entryTime);
-	const exitSec = parseTimeToSeconds(person.exitTime);
-	if (entrySec == null || exitSec == null) return false;
-	return entrySec > exitSec;
 };
 
 const { resolveUrl } = useImageCenter();

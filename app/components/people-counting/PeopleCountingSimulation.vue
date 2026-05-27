@@ -224,7 +224,7 @@ import {
 	cumulativePresenceFromTotals,
 	getEntryOnlyPersonsForDay,
 	getUnitStatsForDay,
-} from "~/utils/peopleCountingAdapter"
+} from "~/utils/peopleCountingTransition"
 import {
 	normalizeLogDisplayColumns,
 	buildLogDetailRow,

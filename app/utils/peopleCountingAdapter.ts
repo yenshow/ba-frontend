@@ -5,14 +5,6 @@
 import type { PeopleCountingLog, PeopleCountingPersonnel } from "~/types/peopleCounting";
 import { formatDateTime } from "~/utils/dateUtils";
 
-export {
-	countingPersonKey,
-	countEntryExitForDay,
-	cumulativePresenceFromTotals,
-	getUnitStatsForDay,
-	getEntryOnlyPersonsForDay
-} from "~/utils/peopleCountingTransition";
-
 /**
  * 從樓層名稱提取區域資訊
  */
