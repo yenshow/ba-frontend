@@ -241,6 +241,7 @@ import { buildDeleteLocationConfirmCopy } from "~/utils/confirmCopy";
 import { getLocationUiKey } from "~/utils/locationUiId";
 import { pickSortOrder, zoneSortOrderValue } from "~/utils/sortOrder";
 import { getZoneUiKey } from "~/utils/locationUiId";
+import { filterPeopleCountingCameraDevices } from "~/utils/cameraModelCategories";
 
 interface Props {
 	modelValue: boolean;
@@ -504,7 +505,7 @@ const loadIsapiCameraDevices = async () => {
 			status: "active",
 			limit: 200
 		});
-		isapiCameraDevices.value = result.devices || [];
+		isapiCameraDevices.value = filterPeopleCountingCameraDevices(result.devices || []);
 	} catch {
 		isapiCameraDevices.value = [];
 	}

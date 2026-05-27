@@ -70,6 +70,8 @@ export interface DeviceModel {
 	id: number;
 	name: string;
 	type_code: DeviceTypeCode;
+	/** 型號分類（互斥單選；供各系統抓取） */
+	category_code?: string | null;
 	port?: number | null; // 端口號（選填，Modbus 標準 502 可留空由設備填寫）
 	unit_id?: number | null; // Unit ID（選填，感測器/控制器每設備可不同）
 	description?: string;
@@ -166,7 +168,17 @@ export interface Device {
 	updated_at?: string;
 	// 關聯資料（從 JOIN 查詢中獲取）
 	model_name?: string;
+	/** 型號分類（由後端 devices list join device_models 帶出） */
+	model_category_code?: string | null;
 	type_name?: string;
+	/** 單筆查詢（GET /devices/:id）時附帶的型號詳情 */
+	model?: {
+		id: number;
+		name?: string;
+		port?: number | null;
+		category_code?: string | null;
+		config?: SensorDeviceModelConfig | Record<string, unknown>;
+	};
 }
 
 // 創建設備資料
@@ -193,6 +205,7 @@ export interface UpdateDeviceData {
 export interface CreateDeviceModelData {
 	name: string;
 	type_code: DeviceTypeCode;
+	category_code?: string | null;
 	port?: number | null; // 端口號（選填，留空則不設）
 	unit_id?: number | null; // Unit ID（選填，1-255）
 	description?: string;
@@ -203,6 +216,7 @@ export interface CreateDeviceModelData {
 export interface UpdateDeviceModelData {
 	name?: string;
 	type_code?: DeviceTypeCode;
+	category_code?: string | null;
 	port?: number | null; // 端口號（選填）
 	unit_id?: number | null; // Unit ID（選填，1-255）
 	description?: string;

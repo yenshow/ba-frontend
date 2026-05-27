@@ -68,14 +68,6 @@ export const useDeviceApi = () => {
 			return request<{ device: Device }>(`/devices/${id}`);
 		},
 
-		/** ISAPI 佈防訂閱狀態（deviceId → profile keys） */
-		getIsapiSubscribeStatus: () => {
-			return request<{
-				hubStarted: boolean;
-				byDevice: Record<string, string[]>;
-			}>("/devices/isapi-subscribe-status");
-		},
-
 		// 取得設備連線狀態快照（不落 DB）
 		getDeviceConnectivity: (params?: { type_code?: DeviceTypeCode; device_ids?: number[] }) => {
 			const filterParams: Record<string, unknown> = {};
@@ -123,10 +115,11 @@ export const useDeviceApi = () => {
 			});
 		},
 
-		// 取得所有設備型號（支援按類型篩選）
-		getDeviceModels: (params?: { type_code?: DeviceTypeCode; _t?: string }) => {
+		// 取得所有設備型號（支援按類型/分類篩選）
+		getDeviceModels: (params?: { type_code?: DeviceTypeCode; category_code?: string; _t?: string }) => {
 			const filterParams: Record<string, unknown> = {};
 			if (params?.type_code) filterParams.type_code = params.type_code;
+			if (params?.category_code) filterParams.category_code = params.category_code;
 			if (params?._t) filterParams._t = params._t; // 時間戳用於強制刷新
 
 			const path = buildPathWithQuery("/devices/models", filterParams);

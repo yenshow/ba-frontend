@@ -321,19 +321,8 @@ const loadDeviceAndModelConfig = async (
 		const { device } = await deviceApi.getDevice(deviceId);
 		if (!device || device.type_code !== "sensor") return null;
 
-		const deviceWithModel = device as { model?: { config?: SensorDeviceModelConfig } };
-		let modelConfig: SensorDeviceModelConfig | null = deviceWithModel.model?.config?.sensorParameters
-			? (deviceWithModel.model.config as SensorDeviceModelConfig)
-			: null;
-
-		if (!modelConfig && device.model_id) {
-			try {
-				const { device_model } = await deviceApi.getDeviceModel(device.model_id);
-				modelConfig = (device_model?.config as SensorDeviceModelConfig | undefined) ?? null;
-			} catch {
-				// 忽略型號載入失敗
-			}
-		}
+		const modelConfig =
+			(device.model?.config as SensorDeviceModelConfig | undefined) ?? null;
 		return { device, modelConfig };
 	} catch {
 		return null;
@@ -371,20 +360,8 @@ const loadLocationSensorDevice = async (location: EnvironmentLocation) => {
 
 		sensorDevice.value = device;
 
-		const deviceWithModel = device as { model?: { config?: SensorDeviceModelConfig } };
-		let modelConfig: SensorDeviceModelConfig | null = deviceWithModel.model?.config?.sensorParameters
-			? (deviceWithModel.model.config as SensorDeviceModelConfig)
-			: null;
-
-		if (!modelConfig && device.model_id) {
-			try {
-				const { device_model } = await deviceApi.getDeviceModel(device.model_id);
-				modelConfig = (device_model?.config as SensorDeviceModelConfig | undefined) ?? null;
-			} catch (error) {
-				console.warn("[index] 載入設備型號配置失敗:", error);
-			}
-		}
-		deviceModelConfig.value = modelConfig;
+		deviceModelConfig.value =
+			(device.model?.config as SensorDeviceModelConfig | undefined) ?? null;
 	} catch (error) {
 		console.error("[index] 載入設備失敗:", error);
 		sensorDevice.value = null;

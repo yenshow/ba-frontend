@@ -232,6 +232,7 @@ import type { Device } from "~/types/device"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { filterLicensePlateCameraDevices } from "~/utils/cameraModelCategories"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { storedVehicleAccessDataSource } from "~/utils/vehicleAccessDataSource"
 import {
@@ -316,7 +317,8 @@ onMounted(async () => {
 	}
 	try {
 		const res = await deviceApi.getDevices({ type_code: "camera", limit: 200, offset: 0 })
-		cameraDevices.value = Array.isArray(res?.devices) ? res.devices : []
+		const devices = Array.isArray(res?.devices) ? res.devices : []
+		cameraDevices.value = filterLicensePlateCameraDevices(devices)
 	} catch {
 		cameraDevices.value = []
 	}

@@ -26,7 +26,53 @@
 						<div class="min-h-[200px]">
 							<Transition name="fade" mode="out-in">
 								<div v-if="deviceModels && deviceModels.length > 0" :key="`models-${deviceModels.length}`">
-									<div class="space-y-3">
+									<div v-if="deviceTypeCode === 'camera' && cameraModelGroups.length" class="space-y-6">
+										<section
+											v-for="group in cameraModelGroups"
+											:key="group.code"
+											class="space-y-3"
+										>
+											<h4 class="text-sm font-medium text-cyan-200/90 2xl:text-base">
+												{{ group.label }}
+											</h4>
+											<div
+												v-for="model in group.items"
+												:key="model.id"
+												class="flex items-center justify-between rounded-lg border border-white/20 bg-white/10 p-4 transition-colors hover:bg-white/15"
+											>
+												<div class="flex-1">
+													<div class="flex items-center gap-3">
+														<h4 class="text-base font-medium text-white 2xl:text-lg">
+															{{ model.name }}
+														</h4>
+													</div>
+													<p
+														v-if="model.description"
+														class="mt-1 text-sm text-white/60 2xl:text-base"
+													>
+														{{ model.description }}
+													</p>
+												</div>
+												<div v-if="!deviceModelsLocked" class="flex gap-2 2xl:gap-3">
+													<button
+														type="button"
+														class="btn-list-edit"
+														@click="editDeviceModel(model)"
+													>
+														編輯
+													</button>
+													<button
+														type="button"
+														class="btn-list-delete"
+														@click="confirmDelete(model)"
+													>
+														刪除
+													</button>
+												</div>
+											</div>
+										</section>
+									</div>
+									<div v-else class="space-y-3">
 										<div
 											v-for="model in deviceModels"
 											:key="model.id"
@@ -122,6 +168,17 @@
 										required
 										class="form-input"
 										placeholder="例如：展廳測試"
+									/>
+								</label>
+								<label
+									v-if="deviceTypeCode === 'camera'"
+									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+								>
+									<span>型號分類 *</span>
+									<FilterDropdown
+										v-model="formData.category_code"
+										:options="cameraCategoryOptions"
+										placeholder="請選擇分類"
 									/>
 								</label>
 								<template v-if="deviceTypeCode === 'sensor'">
@@ -354,6 +411,10 @@ import type {
 } from "~/types/device";
 import type { SensorParameterType } from "~/types/environment";
 import { resolveUserFacingCatchMessage } from "~/utils/errorUtils";
+import {
+	CAMERA_MODEL_CATEGORY_OPTIONS,
+	groupByCameraModelCategory,
+} from "~/utils/cameraModelCategories";
 
 interface Props {
 	modelValue: boolean;
@@ -397,15 +458,24 @@ const formErrorMessage = ref<string | null>(null);
 const formData = reactive<{
 	name: string;
 	type_code: DeviceTypeCode;
+	category_code: string;
 	unit_id: number | undefined | null;
 	description: string;
 	config: SensorDeviceModelConfig | Record<string, any>;
 }>({
 	name: "",
 	type_code: "controller",
+	category_code: "",
 	unit_id: undefined,
 	description: "",
 	config: {}
+});
+
+const cameraCategoryOptions = CAMERA_MODEL_CATEGORY_OPTIONS;
+
+const cameraModelGroups = computed(() => {
+	if (props.deviceTypeCode !== "camera") return [];
+	return groupByCameraModelCategory(deviceModels.value, (m) => String(m.category_code || ""));
 });
 
 // 攝影機型號：RTSP URL 樣板（存放在 config.rtsp_url_template）
@@ -431,6 +501,7 @@ const sensorRegisterType = ref<ModbusRegisterType>("holding");
 const resetForm = () => {
 	formData.name = "";
 	formData.type_code = props.deviceTypeCode || "controller";
+	formData.category_code = "";
 	formData.unit_id = undefined;
 	formData.description = "";
 	formData.config = {};
@@ -526,6 +597,7 @@ const editDeviceModel = (model: DeviceModel) => {
 	editingModel.value = model;
 	formData.name = model.name;
 	formData.type_code = (model.type_code as DeviceTypeCode) || props.deviceTypeCode || "controller";
+	formData.category_code = String(model.category_code || "");
 	formData.unit_id = model.unit_id ?? undefined;
 	formData.description = model.description || "";
 
@@ -742,6 +814,10 @@ const handleFormSubmit = async () => {
 	formErrorMessage.value = null;
 
 	try {
+		if (props.deviceTypeCode === "camera" && !formData.category_code.trim()) {
+			formErrorMessage.value = "請選擇型號分類";
+			return;
+		}
 		if (props.deviceTypeCode === "camera") {
 			const tpl = cameraRtspTemplateEffective.value.trim();
 			if (!tpl) {
@@ -758,6 +834,7 @@ const handleFormSubmit = async () => {
 		const submitData: CreateDeviceModelData | UpdateDeviceModelData = {
 			name: formData.name,
 			type_code: formData.type_code,
+			category_code: formData.category_code.trim() || undefined,
 			unit_id: toOpt(formData.unit_id),
 			description: formData.description || undefined
 		};

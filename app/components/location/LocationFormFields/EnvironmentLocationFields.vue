@@ -178,16 +178,9 @@ watch(
 			try {
 				const result = await deviceApi.getDevice(deviceId);
 				const fullDevice = result.device;
-				const modelConfig = (fullDevice as any).model?.config;
-				if (modelConfig?.sensorParameters) {
-					deviceParameterDefinitions.value.set(deviceId, modelConfig.sensorParameters);
-				} else if (fullDevice.model_id) {
-					const modelResult = await deviceApi.getDeviceModel(fullDevice.model_id);
-					const model = modelResult.device_model;
-					const config = model?.config;
-					if (config?.sensorParameters) {
-						deviceParameterDefinitions.value.set(deviceId, config.sensorParameters);
-					}
+				const sensorParameters = fullDevice.model?.config?.sensorParameters;
+				if (sensorParameters) {
+					deviceParameterDefinitions.value.set(deviceId, sensorParameters);
 				}
 			} catch (error) {
 				console.error(`載入設備 ${deviceId} 的參數定義失敗:`, error);
