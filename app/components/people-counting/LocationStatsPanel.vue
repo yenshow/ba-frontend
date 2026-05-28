@@ -29,21 +29,19 @@
 			</div>
 		</div>
 		<!-- 進出場記錄表 -->
-		<EntryExitLogTable :logs="logs" :display-columns="displayColumns" />
+		<EntryExitLogTable :logs="logs" />
 	</div>
 </template>
 
 <script setup lang="ts">
 import type { PeopleCountingLog } from "~/types/peopleCounting"
 import EntryExitLogTable from "~/components/people-counting/EntryExitLogTable.vue"
-import type { PeopleCountingLogColumnKey } from "~/utils/peopleCountingLogColumns"
 
 interface Props {
 	entryCount: number
 	exitCount: number
 	currentCount: number
 	logs: PeopleCountingLog[]
-	displayColumns?: PeopleCountingLogColumnKey[] | string[] | null
 }
 
 defineProps<Props>()

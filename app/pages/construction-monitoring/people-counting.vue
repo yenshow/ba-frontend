@@ -52,7 +52,6 @@
 									:exit-count="selectedLocation.exitCount || 0"
 									:current-count="currentCount"
 									:logs="logs"
-									:display-columns="selectedLocation.logDisplayColumns"
 								/>
 							</div>
 							<div class="ms-4 min-w-0 flex-1 border-l-2 border-white/30 ps-4">
@@ -174,7 +173,6 @@
 	<SimulationFrame v-model="showSimulationFrame" title="人流統計 - 完整報表">
 		<PeopleCountingSimulation
 			:logs="simulationLogs"
-			:display-columns="selectedLocation?.logDisplayColumns"
 			:data-source="selectedLocation?.dataSource"
 			:site-summary="
 				selectedLocation

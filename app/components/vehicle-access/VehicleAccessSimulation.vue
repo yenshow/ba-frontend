@@ -108,13 +108,12 @@
 					<thead class="bg-white/20">
 						<tr class="text-white/90">
 							<th class="whitespace-nowrap border border-white/20 p-2">區域-地點</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">車牌</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">過車時間</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">車道名稱</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">人員群組</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">車主名稱</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">車輛群組</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">車牌</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">車道名稱</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">過車時間</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">放行結果</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">方向</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -125,13 +124,12 @@
 							:class="row.isEntryOnly ? 'bg-red-500/80' : ''"
 						>
 							<td class="border border-white/20 p-2">{{ row["區域-地點"] }}</td>
-							<td class="border border-white/20 p-2">{{ row.車牌 }}</td>
-							<td class="border border-white/20 p-2">{{ row.過車時間 }}</td>
-							<td class="border border-white/20 p-2">{{ row.車道名稱 }}</td>
+							<td class="border border-white/20 p-2">{{ row.人員群組 }}</td>
 							<td class="border border-white/20 p-2">{{ row.車主名稱 }}</td>
-							<td class="border border-white/20 p-2">{{ row.車輛群組 }}</td>
+							<td class="border border-white/20 p-2">{{ row.車牌 }}</td>
+							<td class="border border-white/20 p-2">{{ row.車道名稱 }}</td>
+							<td class="border border-white/20 p-2">{{ row.過車時間 }}</td>
 							<td class="border border-white/20 p-2">{{ row.放行結果 }}</td>
-							<td class="border border-white/20 p-2">{{ row.方向 }}</td>
 						</tr>
 					</tbody>
 				</table>
@@ -173,6 +171,7 @@ import type { VehicleDataLog } from "~/types/vehicleAccess"
 import { formatDate, formatDateTime, TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtils"
 import { buildCsvSection } from "~/utils/csvExport"
 import { getOnSitePassageLogIds, passageTransitionTotals } from "~/utils/vehicleAccessPassageStats"
+import { formatVehicleLogLaneOrEmpty } from "~/utils/vehicleAccessLogColumns"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
 
 const props = defineProps<{
@@ -278,11 +277,15 @@ const groupStatsTableRows = computed((): GroupStatsRow[] => {
 	return rows
 })
 
-const allowResultLabel = (log: VehicleDataLog): string =>
-	log.allow_result === 1 ? "放行" : "未放行"
-
-const directionLabel = (log: VehicleDataLog): string =>
-	log.lane_type === 1 ? "進場" : log.lane_type === 2 ? "出場" : "-"
+const allowResultLabel = (log: VehicleDataLog): string => {
+	if (log.allow_result === 1) {
+		if (log.lane_type === 1) return "進入"
+		if (log.lane_type === 2) return "離開"
+		return "放行"
+	}
+	if (log.allow_result === 0) return "拒絕"
+	return "陌生"
+}
 
 /** 進場未出場的紀錄 ID 集合（用於表格背景凸顯） */
 const onSiteLogIds = computed(() => getOnSitePassageLogIds(props.logs))
@@ -291,13 +294,12 @@ type DetailRow = {
 	key: string
 	isEntryOnly: boolean
 	"區域-地點": string
-	車牌: string
-	過車時間: string
-	車道名稱: string
+	人員群組: string
 	車主名稱: string
-	車輛群組: string
+	車牌: string
+	車道名稱: string
+	過車時間: string
 	放行結果: string
-	方向: string
 }
 
 const detailTableRows = computed((): DetailRow[] => {
@@ -314,13 +316,12 @@ const detailTableRows = computed((): DetailRow[] => {
 				key: `log-${log.id}-${log.trigger_time}`,
 				isEntryOnly: ids.has(log.id),
 				"區域-地點": zl,
-				車牌: log.license_plate?.trim() ?? "",
-				過車時間: log.trigger_time ? formatDateTime(log.trigger_time, true) : "",
-				車道名稱: log.lane_name?.trim() ?? "",
+				人員群組: getGroupName(log),
 				車主名稱: log.owner_name?.trim() ?? "",
-				車輛群組: log.vehicle_list_name?.trim() ?? "",
+				車牌: log.license_plate?.trim() ?? "",
+				車道名稱: formatVehicleLogLaneOrEmpty(log),
+				過車時間: log.trigger_time ? formatDateTime(log.trigger_time, true) : "",
 				放行結果: allowResultLabel(log),
-				方向: directionLabel(log),
 			})
 		}
 	}
@@ -356,13 +357,12 @@ const STATS_HEADERS = ["日期", "區域-地點", "進場車輛", "出場車輛"
 const GROUP_STATS_HEADERS = ["日期", "區域-地點", "群組名稱", "進場車輛", "出場車輛", "在場車輛"]
 const DETAIL_HEADERS = [
 	"區域-地點",
-	"車牌",
-	"過車時間",
-	"車道名稱",
+	"人員群組",
 	"車主名稱",
-	"車輛群組",
+	"車牌",
+	"車道名稱",
+	"過車時間",
 	"放行結果",
-	"方向",
 ]
 
 const firstDateStr = computed(() => statsTableRows.value[0]?.日期?.replace(/\//g, "-") ?? "")
@@ -396,13 +396,12 @@ const handleExportCsv = () => {
 			DETAIL_HEADERS,
 			detailTableRows.value.map((r) => ({
 				"區域-地點": r["區域-地點"],
-				車牌: r.車牌,
-				過車時間: r.過車時間,
-				車道名稱: r.車道名稱,
+				人員群組: r.人員群組,
 				車主名稱: r.車主名稱,
-				車輛群組: r.車輛群組,
+				車牌: r.車牌,
+				車道名稱: r.車道名稱,
+				過車時間: r.過車時間,
 				放行結果: r.放行結果,
-				方向: r.方向,
 			})),
 			{ backupStyle: true }
 		)

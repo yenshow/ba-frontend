@@ -61,34 +61,33 @@ export const normalizeVehicleLogDisplayColumns = (
 /** 寫入 API／DB：不含固定的 pass_result、time */
 export const toStoredVehicleLogDisplayColumns = (
 	normalized: VehicleAccessLogColumnKey[]
-): VehicleAccessLogColumnKey[] =>
-	normalized.filter((k) => !REQUIRED_LOG_COLUMN_KEYS.includes(k))
-
-const getLaneType = (log: VehicleDataLog): number | null => log.lane_type ?? null
+): VehicleAccessLogColumnKey[] => normalized.filter((k) => !REQUIRED_LOG_COLUMN_KEYS.includes(k))
 
 export const getVehiclePassResultLabel = (log: VehicleDataLog): string => {
-	if (log.allow_result === 0) return "拒絕"
 	if (log.allow_result === 1) {
-		const lt = getLaneType(log)
-		if (lt === 1) return "進入"
-		if (lt === 2) return "離開"
+		if (log.lane_type === 1) return "進入"
+		if (log.lane_type === 2) return "離開"
 		return "放行"
 	}
-	return "-"
+	if (log.allow_result === 0) return "拒絕"
+	return "陌生"
 }
 
 export const getVehiclePassResultTagClass = (log: VehicleDataLog): string => {
-	if (log.allow_result === 0) return "bg-red-500/70 text-red-200"
 	if (log.allow_result === 1) {
-		const lt = getLaneType(log)
-		if (lt === 1) return "bg-green-500/30 text-green-200"
-		if (lt === 2) return "bg-cyan-500/30 text-cyan-200"
+		if (log.lane_type === 1) return "bg-green-500/30 text-green-200"
+		if (log.lane_type === 2) return "bg-cyan-500/30 text-cyan-200"
+		return "bg-emerald-500/30 text-emerald-100"
 	}
-	return "bg-white/20 text-white/80"
+	if (log.allow_result === 0) return "bg-rose-500/70 text-rose-100"
+	return "bg-amber-400/55 text-white font-semibold ring-1 ring-amber-200/60"
 }
 
+export const formatVehicleLogLaneOrEmpty = (log: VehicleDataLog): string =>
+	log.lane_name?.trim() || ""
+
 export const formatVehicleLogLane = (log: VehicleDataLog): string =>
-	log.lane_name?.trim() || "-"
+	formatVehicleLogLaneOrEmpty(log) || "-"
 
 export const formatVehicleLogText = (value: string | null | undefined): string => {
 	const s = value != null ? String(value).trim() : ""

@@ -138,7 +138,7 @@
 							</div>
 						</div>
 						<div class="flex items-center gap-2">
-							<label class="text-sm text-white/70 2xl:text-base">單位名稱：</label>
+							<label class="text-sm text-white/70 2xl:text-base">人員群組：</label>
 							<div class="min-w-[10rem]">
 								<FilterDropdown
 									v-model="filterUnitName"
@@ -156,7 +156,7 @@
 					<thead class="bg-white/20">
 						<tr class="text-white/90">
 							<th
-								v-for="header in detailHeaders"
+								v-for="header in DETAIL_HEADERS"
 								:key="header"
 								class="whitespace-nowrap border border-white/20 p-2"
 							>
@@ -171,13 +171,14 @@
 							class="border-b border-white/10 text-white"
 							:class="row.isEntryOnly ? 'bg-red-500/80' : ''"
 						>
-							<td
-								v-for="(cell, cellIdx) in row.cells"
-								:key="`${row.key}-${cellIdx}`"
-								class="border border-white/20 p-2"
-							>
-								{{ cell }}
-							</td>
+							<td class="border border-white/20 p-2">{{ row["區域-地點"] }}</td>
+							<td class="border border-white/20 p-2">{{ row.人員群組 }}</td>
+							<td class="border border-white/20 p-2">{{ row.ID }}</td>
+							<td class="border border-white/20 p-2">{{ row.姓名 }}</td>
+							<td class="border border-white/20 p-2">{{ row.出入口名稱 }}</td>
+							<td class="border border-white/20 p-2">{{ row.刷卡時間 }}</td>
+							<td class="border border-white/20 p-2">{{ row.方式 }}</td>
+							<td class="border border-white/20 p-2">{{ row.事件 }}</td>
 						</tr>
 					</tbody>
 				</table>
@@ -225,18 +226,12 @@ import {
 	getEntryOnlyPersonsForDay,
 	getUnitStatsForDay,
 } from "~/utils/peopleCountingTransition"
-import {
-	normalizeLogDisplayColumns,
-	buildLogDetailRow,
-	PEOPLE_COUNTING_LOG_COLUMN_LABELS,
-	type PeopleCountingLogColumnKey,
-} from "~/utils/peopleCountingLogColumns"
+import { formatLogEventLabel, formatLogVerifyMethod, formatLogText } from "~/utils/peopleCountingLogColumns"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 
 const props = defineProps<{
 	logs: PeopleCountingLog[]
-	displayColumns?: PeopleCountingLogColumnKey[] | string[] | null
 	dataSource?: "yscp" | "access_control" | "isapi_camera"
 	siteSummary?: {
 		entryCount: number
@@ -339,11 +334,6 @@ const groupsByDate = computed(() => {
 	return g
 })
 
-const displayColumns = computed(() => normalizeLogDisplayColumns(props.displayColumns))
-const detailHeaders = computed(() =>
-	displayColumns.value.map((k) => PEOPLE_COUNTING_LOG_COLUMN_LABELS[k])
-)
-
 const statsTableRows = computed(() => {
 	const zl = zoneLocationLabel.value
 	if (filterZoneLocation.value && zl !== filterZoneLocation.value) return []
@@ -430,11 +420,33 @@ const unitStatsTableRows = computed((): UnitStatsRow[] => {
 	return rows
 })
 
-const detailTableRows = computed(() => {
+type DetailRow = {
+	key: string
+	isEntryOnly: boolean
+	"區域-地點": string
+	人員群組: string
+	ID: string
+	姓名: string
+	出入口名稱: string
+	方式: string
+	刷卡時間: string
+	事件: string
+}
+
+const DETAIL_HEADERS = [
+	"區域-地點",
+	"人員群組",
+	"ID",
+	"姓名",
+	"出入口名稱",
+	"方式",
+	"刷卡時間",
+	"事件",
+] as const
+
+const detailTableRows = computed((): DetailRow[] => {
 	const zl = zoneLocationLabel.value
-	const cols = displayColumns.value
 	const datesDesc = [...groupsByDate.value.keys()].sort((a, b) => b.localeCompare(a))
-	type DetailRow = { key: string; isEntryOnly: boolean; cells: string[] }
 	const rows: DetailRow[] = []
 	for (const dateStr of datesDesc) {
 		const dayLogs = groupsByDate.value.get(dateStr)!
@@ -449,24 +461,25 @@ const detailTableRows = computed(() => {
 			const personKey = countingPersonKey(log)
 			const isEntryOnly = entryOnlyLastLogMap.has(personKey)
 			const lastEntryLog = entryOnlyLastLogMap.get(personKey)
-			const unitName = (log.unit?.name ?? log.unitName ?? "").trim() || "－"
+			const unitName = (log.unit?.name ?? log.unitName ?? "").trim() || "—"
 			if (filterZoneLocationDetail.value && zl !== filterZoneLocationDetail.value) continue
 			if (filterUnitName.value && unitName !== filterUnitName.value) continue
-			const labeled = buildLogDetailRow(log, cols)
-			const cells = cols.map((col) => labeled[PEOPLE_COUNTING_LOG_COLUMN_LABELS[col]] ?? "—")
+
 			rows.push({
 				key: `log-${log.id ?? dateStr}-${personKey}-${log.timestamp}`,
 				isEntryOnly: isEntryOnly && lastEntryLog === log,
-				cells,
+				"區域-地點": zl,
+				人員群組: unitName,
+				ID: formatLogText(log.employeeId),
+				姓名: formatLogText(log.personName),
+				出入口名稱: formatLogText(log.deviceName),
+				方式: formatLogVerifyMethod(log),
+				刷卡時間: formatLogText(log.timestamp),
+				事件: formatLogEventLabel(log),
 			})
 		}
 	}
-	return rows.sort((a, b) => {
-		const timeIdx = cols.indexOf("time")
-		const ta = timeIdx >= 0 ? a.cells[timeIdx] || "" : ""
-		const tb = timeIdx >= 0 ? b.cells[timeIdx] || "" : ""
-		return tb.localeCompare(ta)
-	})
+	return rows.sort((a, b) => (b.刷卡時間 || "").localeCompare(a.刷卡時間 || ""))
 })
 
 const DETAIL_PAGE_SIZE = 10
@@ -527,17 +540,19 @@ const handleExportCsv = () => {
 	)
 	parts.push("")
 	parts.push("進出紀錄")
-	const detailHeadersCsv = detailHeaders.value
 	parts.push(
 		buildCsvSection(
-			detailHeadersCsv,
-			detailTableRows.value.map((r) => {
-				const obj: Record<string, string> = {}
-				detailHeadersCsv.forEach((h, i) => {
-					obj[h] = r.cells[i] ?? ""
-				})
-				return obj
-			}),
+			[...DETAIL_HEADERS],
+			detailTableRows.value.map((r) => ({
+				"區域-地點": r["區域-地點"],
+				人員群組: r.人員群組,
+				ID: r.ID,
+				姓名: r.姓名,
+				出入口名稱: r.出入口名稱,
+				方式: r.方式,
+				刷卡時間: r.刷卡時間,
+				事件: r.事件,
+			})),
 			{ backupStyle: true }
 		)
 	)
