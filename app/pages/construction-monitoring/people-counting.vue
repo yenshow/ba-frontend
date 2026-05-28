@@ -54,6 +54,8 @@
 									:current-count="currentCount"
 									:logs="logs"
 									:show-log-table="false"
+									:data-source="selectedLocation?.dataSource"
+									:display-columns="selectedLocation?.logDisplayColumns"
 								/>
 							</div>
 							<!-- 左下、右下：記錄表 + 單位列表 -->
@@ -61,11 +63,13 @@
 								<!-- 左下：進出場記錄表 -->
 								<EntryExitLogTable
 									:logs="logs"
+									:data-source="selectedLocation?.dataSource"
+									:display-columns="selectedLocation?.logDisplayColumns"
 								/>
-								<!-- 右下：進場單位列表 -->
+								<!-- 右下：人員群組列表 -->
 								<div class="space-y-4">
 									<h3 class="bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
-										進場單位
+										人員群組
 									</h3>
 									<div
 										v-if="!selectedLocation.units || selectedLocation.units.length === 0"
@@ -226,18 +230,9 @@
 	<SimulationFrame v-model="showSimulationFrame" title="人流統計 - 完整報表">
 		<PeopleCountingSimulation
 			:logs="simulationLogs"
-			:data-source="selectedLocation?.dataSource"
-			:site-summary="
-				selectedLocation
-					? {
-							entryCount: selectedLocation.entryCount ?? 0,
-							exitCount: selectedLocation.exitCount ?? 0,
-							units: selectedLocation.units ?? []
-						}
-					: undefined
-			"
-			:zone-name="simulationZoneName"
-			:location-name="simulationLocationName"
+			:location-options="simulationLocationOptions"
+			:location-summaries="simulationLocationSummaries"
+			:location-display-columns="simulationLocationDisplayColumns"
 			:time-range="simulationTimeRange"
 			@update:time-range="handleSimulationTimeRangeUpdate"
 		/>
@@ -346,9 +341,6 @@ const currentCount = computed(() => {
 			selectedLocation.value.exitCount ?? 0
 		);
 	}
-	if (selectedLocation.value.currentCount != null) {
-		return selectedLocation.value.currentCount;
-	}
 	if (!selectedLocation.value.units) return 0;
 	return selectedLocation.value.units.reduce((sum, unit) => sum + (unit.currentCount || 0), 0);
 });
@@ -393,24 +385,73 @@ const simulationTimeRange = ref({
 	preset: "today"
 });
 
-const simulationZoneName = computed(() =>
-	selectedLocation.value ? (getLocationZone(selectedLocation.value) ?? "") : ""
-);
-const simulationLocationName = computed(() => selectedLocation.value?.name ?? "");
-
 const simulationLogs = ref<PeopleCountingLog[]>([]);
 
-/** 完整報表一次載入全部資料（含超過 500 筆），供畫面與 CSV 匯出使用 */
-const loadSimulationLogs = async () => {
-	const loc = selectedLocation.value;
-	if (!loc?.locationId) {
-		simulationLogs.value = [];
-		return;
+type SimulationLocationOption = {
+	locationId: number;
+	label: string;
+	zoneName: string;
+	locationName: string;
+	dataSource?: PeopleCountingLocation["dataSource"];
+};
+
+const simulationLocationOptions = computed((): SimulationLocationOption[] => {
+	const opts: SimulationLocationOption[] = [];
+	for (const zone of peopleCountingZones.value) {
+		for (const loc of zone.locations ?? []) {
+			const locationId = loc.id != null ? Number(loc.id) : NaN;
+			if (!Number.isFinite(locationId)) continue;
+			const zoneName = zone.name || "";
+			const locationName = loc.name || "";
+			opts.push({
+				locationId,
+				label: [zoneName, locationName].filter(Boolean).join("-") || String(locationId),
+				zoneName,
+				locationName,
+				dataSource: loc.dataSource
+			});
+		}
 	}
+	return opts;
+});
+
+const simulationLocationSummaries = computed(() => {
+	const map: Record<
+		number,
+		{
+			entryCount: number;
+			exitCount: number;
+			units: PeopleCountingLocation["units"];
+			dataSource?: PeopleCountingLocation["dataSource"];
+		}
+	> = {};
+	for (const loc of locations.value) {
+		if (loc.locationId == null) continue;
+		map[loc.locationId] = {
+			entryCount: loc.entryCount ?? 0,
+			exitCount: loc.exitCount ?? 0,
+			units: loc.units ?? [],
+			dataSource: loc.dataSource
+		};
+	}
+	return map;
+});
+
+const simulationLocationDisplayColumns = computed(() => {
+	const map: Record<number, string[] | null | undefined> = {};
+	for (const loc of locations.value) {
+		if (loc.locationId == null) continue;
+		map[loc.locationId] = loc.logDisplayColumns ?? null;
+	}
+	return map;
+});
+
+/** 完整報表：跨地點載入時間區間內紀錄 */
+const loadSimulationLogs = async () => {
 	const { startDate, endDate, preset } = simulationTimeRange.value;
 	const timeQuery = buildLogsTimeQuery(preset, startDate, endDate);
 	try {
-		simulationLogs.value = await peopleCountingApi.getLocationLogs(loc.locationId, {
+		simulationLogs.value = await peopleCountingApi.getAllLocationLogs({
 			limit: PEOPLE_COUNTING_FULL_REPORT_LIMIT,
 			...timeQuery
 		});

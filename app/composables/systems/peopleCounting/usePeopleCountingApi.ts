@@ -225,6 +225,37 @@ export const usePeopleCountingApi = () => {
 		}
 	};
 
+	type PeopleCountingApiLogRow = {
+		id: string;
+		personId: number;
+		personName: string;
+		unitId: number | null;
+		unitName: string;
+		employeeId?: string | null;
+		eventType: "entry" | "exit" | "failed";
+		eventLabel?: string | null;
+		verifyMethod?: string | null;
+		timestamp: string;
+		deviceScreenshotUrl: string;
+		deviceName?: string;
+		count?: number;
+		locationId?: number;
+	};
+
+	const mapApiLogsToFrontend = (
+		logs: PeopleCountingApiLogRow[],
+		defaultLocationId?: number
+	): PeopleCountingLog[] =>
+		logs.map(log => {
+			const locId =
+				log.locationId != null
+					? Number(log.locationId)
+					: defaultLocationId != null
+						? defaultLocationId
+						: 0;
+			return convertApiLogToFrontend(log, locId);
+		});
+
 	/** 取得地點最新 5 筆進出場記錄（主畫面固定顯示 5 筆） */
 	const getLocationLatestLogs = async (
 		locationId: number,
@@ -238,26 +269,8 @@ export const usePeopleCountingApi = () => {
 			const queryString = new URLSearchParams(q).toString();
 			const url = `/people-counting/sites/${locationId}/logs/latest${queryString ? `?${queryString}` : ""}`;
 
-			const response = await request<{
-				logs: Array<{
-					id: string;
-					personId: number;
-					personName: string;
-					unitId: number | null;
-					unitName: string;
-					employeeId?: string | null;
-					eventType: "entry" | "exit" | "failed";
-					eventLabel?: string | null;
-					verifyMethod?: string | null;
-					timestamp: string;
-					deviceScreenshotUrl: string;
-					deviceName?: string;
-					count?: number;
-				}>;
-			}>(url);
-
-			const logs = response.logs || [];
-			return logs.map(log => convertApiLogToFrontend(log, locationId));
+			const response = await request<{ logs: PeopleCountingApiLogRow[] }>(url);
+			return mapApiLogsToFrontend(response.logs || [], locationId);
 		} catch (error) {
 			apiLogger.error("取得最新進出場記錄失敗", { locationId, options, error });
 			throw error;
@@ -290,28 +303,41 @@ export const usePeopleCountingApi = () => {
 			const queryString = new URLSearchParams(q).toString();
 			const url = `/people-counting/sites/${locationId}/logs${queryString ? `?${queryString}` : ""}`;
 
-			const response = await request<{
-				logs: Array<{
-					id: string;
-					personId: number;
-					personName: string;
-					unitId: number | null;
-					unitName: string;
-					employeeId?: string | null;
-					eventType: "entry" | "exit" | "failed";
-					eventLabel?: string | null;
-					verifyMethod?: string | null;
-					timestamp: string;
-					deviceScreenshotUrl: string;
-					deviceName?: string;
-					count?: number;
-				}>;
-			}>(url);
-
-			const logs = response.logs || [];
-			return logs.map(log => convertApiLogToFrontend(log, locationId));
+			const response = await request<{ logs: PeopleCountingApiLogRow[] }>(url);
+			return mapApiLogsToFrontend(response.logs || [], locationId);
 		} catch (error) {
 			apiLogger.error("取得進出場記錄失敗", { locationId, options, error });
+			throw error;
+		}
+	};
+
+	/**
+	 * 跨地點進出場記錄（完整報表）
+	 */
+	const getAllLocationLogs = async (options?: {
+		limit?: number;
+		siteId?: number;
+		startTime?: string;
+		endTime?: string;
+		timeRange?: "today" | "yesterday" | "last7days";
+		offset?: number;
+		search?: string;
+	}): Promise<PeopleCountingLog[]> => {
+		try {
+			const q: Record<string, string> = {};
+			if (options?.limit) q.limit = String(options.limit);
+			if (options?.siteId) q.siteId = String(options.siteId);
+			if (options?.startTime) q.startTime = options.startTime;
+			if (options?.endTime) q.endTime = options.endTime;
+			if (options?.timeRange) q.timeRange = options.timeRange;
+			if (options?.offset != null && options.offset > 0) q.offset = String(options.offset);
+			if (options?.search?.trim()) q.search = options.search.trim();
+			const queryString = new URLSearchParams(q).toString();
+			const url = `/people-counting/logs${queryString ? `?${queryString}` : ""}`;
+			const response = await request<{ logs: PeopleCountingApiLogRow[] }>(url);
+			return mapApiLogsToFrontend(response.logs || []);
+		} catch (error) {
+			apiLogger.error("取得跨地點進出場記錄失敗", { options, error });
 			throw error;
 		}
 	};
@@ -322,6 +348,7 @@ export const usePeopleCountingApi = () => {
 		getPersonnelList,
 		getUnitPersonnel,
 		getLocationLatestLogs,
-		getLocationLogs
+		getLocationLogs,
+		getAllLocationLogs
 	};
 };

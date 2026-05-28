@@ -93,3 +93,39 @@ export const formatVehicleLogText = (value: string | null | undefined): string =
 	const s = value != null ? String(value).trim() : "";
 	return s || "-";
 };
+
+export const buildVehicleLogDetailRow = (
+	log: VehicleDataLog,
+	columns: VehicleAccessLogColumnKey[]
+): Record<string, string> => {
+	const row: Record<string, string> = {};
+	for (const col of columns) {
+		switch (col) {
+			case "plate_image":
+				row[VEHICLE_ACCESS_LOG_COLUMN_LABELS.plate_image] = log.plate_license_image_url?.trim()
+					? "有"
+					: "—";
+				break;
+			case "license_plate":
+				row[VEHICLE_ACCESS_LOG_COLUMN_LABELS.license_plate] = formatVehicleLogText(
+					log.license_plate
+				);
+				break;
+			case "lane":
+				row[VEHICLE_ACCESS_LOG_COLUMN_LABELS.lane] = formatVehicleLogLane(log);
+				break;
+			case "owner_name":
+				row[VEHICLE_ACCESS_LOG_COLUMN_LABELS.owner_name] = formatVehicleLogText(log.owner_name);
+				break;
+			case "pass_result":
+				row[VEHICLE_ACCESS_LOG_COLUMN_LABELS.pass_result] = getVehiclePassResultLabel(log);
+				break;
+			case "time":
+				row[VEHICLE_ACCESS_LOG_COLUMN_LABELS.time] = log.trigger_time
+					? `${formatDate(log.trigger_time)} ${formatTime(log.trigger_time)}`
+					: "—";
+				break;
+		}
+	}
+	return row;
+};

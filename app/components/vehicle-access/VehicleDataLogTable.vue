@@ -187,11 +187,10 @@ const {
 const lightboxImageUrl = ref<string | null>(null)
 const lightboxRef = ref<HTMLElement | null>(null)
 
-const openLightbox = (url: string) => {
-	if (url) {
-		lightboxImageUrl.value = url
-		nextTick(() => lightboxRef.value?.focus())
-	}
+const openLightbox = (url: string | undefined) => {
+	if (!url) return
+	lightboxImageUrl.value = url
+	nextTick(() => lightboxRef.value?.focus())
 }
 
 const closeLightbox = () => {

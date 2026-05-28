@@ -7,11 +7,10 @@ import { formatDateTime } from "~/utils/dateUtils"
 
 export const PEOPLE_COUNTING_LOG_COLUMN_KEYS = [
 	"screenshot",
-	"unit",
-	"employee_id",
+	"device_name",
 	"name",
-	"event",
 	"verify_method",
+	"event",
 	"time",
 ] as const
 
@@ -19,11 +18,10 @@ export type PeopleCountingLogColumnKey = (typeof PEOPLE_COUNTING_LOG_COLUMN_KEYS
 
 export const PEOPLE_COUNTING_LOG_COLUMN_LABELS: Record<PeopleCountingLogColumnKey, string> = {
 	screenshot: "設備截圖",
-	unit: "進場單位",
-	employee_id: "ID",
+	device_name: "出入口名稱",
 	name: "姓名",
-	event: "事件",
 	verify_method: "方式",
+	event: "事件",
 	time: "時間",
 }
 
@@ -105,16 +103,11 @@ export const buildLogDetailRow = (
 					? "有"
 					: "—"
 				break
-			case "unit":
-				row[PEOPLE_COUNTING_LOG_COLUMN_LABELS.unit] = formatLogText(
-					log.unit?.name ?? log.unitName
-				)
-				break
-			case "employee_id":
-				row[PEOPLE_COUNTING_LOG_COLUMN_LABELS.employee_id] = formatLogText(log.employeeId)
-				break
 			case "name":
 				row[PEOPLE_COUNTING_LOG_COLUMN_LABELS.name] = formatLogText(log.personName)
+				break
+			case "device_name":
+				row[PEOPLE_COUNTING_LOG_COLUMN_LABELS.device_name] = formatLogText(log.deviceName)
 				break
 			case "event":
 				row[PEOPLE_COUNTING_LOG_COLUMN_LABELS.event] = formatLogEventLabel(log)

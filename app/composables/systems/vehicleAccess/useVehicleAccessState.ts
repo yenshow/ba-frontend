@@ -128,10 +128,6 @@ export const useVehicleAccessState = () => {
 			.sort((a, b) => compareZonesLoose(a, b))
 			.flatMap(zone =>
 				(zone.locations || [])
-					.filter(
-						loc =>
-							!shouldHideVehicleAccessWhenYscpOff(loc.dataSource, enableYscpVehicleAccess.value)
-					)
 					.map(loc => ({ ...loc, zoneId: zone.id, zoneName: zone.name, locationId: loc.id }))
 			)
 	);
@@ -160,7 +156,16 @@ export const useVehicleAccessState = () => {
 		isLoadingZones.value = true;
 		try {
 			const result = await locationApi.getZones("vehicle_access");
-			const zones = (result.zones || []).map((z: UnifiedZone) => unifiedToVehicleAccessZone(z));
+			const yscpOn = enableYscpVehicleAccess.value;
+			const zones = (result.zones || [])
+				.map((z: UnifiedZone) => unifiedToVehicleAccessZone(z))
+				.map((z: VehicleAccessZone) => ({
+					...z,
+					locations: (z.locations || []).filter(
+						(loc: VehicleAccessLocation) =>
+							!shouldHideVehicleAccessWhenYscpOff(loc.dataSource, yscpOn)
+					)
+				}));
 			vehicleAccessZones.value = [...zones].sort((a, b) => compareZonesLoose(a, b));
 		} catch (error) {
 			handleError(error, "載入區域列表失敗");
@@ -256,9 +261,6 @@ export const useVehicleAccessState = () => {
 
 			for (const zone of vehicleAccessZones.value) {
 				for (const loc of zone.locations || []) {
-					if (shouldHideVehicleAccessWhenYscpOff(loc.dataSource, enableYscpVehicleAccess.value)) {
-						continue;
-					}
 					const siteId = resolveSiteId(loc);
 					const site = siteId != null ? siteById.get(siteId) : undefined;
 					summaries.push({
@@ -421,14 +423,12 @@ export const useVehicleAccessState = () => {
 		endTime: string;
 		preset?: string;
 	}): Promise<VehicleDataLog[]> => {
-		const siteId = resolveSiteId(selectedLocation.value);
-		if (siteId == null) return [];
 		const timeQuery = buildLogsTimeQuery(
 			options.preset ?? "custom",
 			options.startTime,
 			options.endTime
 		);
-		const result = await vehicleAccessSitesApi.getSiteLogs(siteId, {
+		const result = await vehicleAccessSitesApi.getAllSiteLogs({
 			limit: VEHICLE_ACCESS_FULL_REPORT_LIMIT,
 			...timeQuery
 		});

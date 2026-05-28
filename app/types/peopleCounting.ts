@@ -7,7 +7,7 @@ export interface AccessControlGroup {
 /**
  * 人流統計地點（工地位置）
  * 參考 EnvironmentLocation，用於地點管理系統
- * 
+ *
  * 包含配置信息和業務統計信息
  */
 export interface PeopleCountingLocation {
@@ -27,7 +27,7 @@ export interface PeopleCountingLocation {
 	exitDeviceIds?: number[];
 	/** 攝影機設備 IDs（dataSource 為 isapi_camera 時使用） */
 	cameraDeviceIds?: number[];
-	/** 優先使用 RegionList 當作進場單位（true=依區域/單位統計與顯示） */
+	/** 優先使用 RegionList 當作人員群組（true=依區域/單位統計與顯示） */
 	preferRegion?: boolean;
 	/** 門禁人員群組（後端相容保留；門禁設備之人員與權限已改由「人員管理」處理，此地點表單不再編輯此欄） */
 	accessControlGroups?: AccessControlGroup[];
@@ -40,6 +40,8 @@ export interface PeopleCountingLocation {
 	status?: "active" | "equipment_anomaly" | "intrusion_detected"; // 狀態：正常、設備異常、非名單入侵
 	entryCount?: number; // 今日進場人數
 	exitCount?: number; // 今日出場人數
+	/** 門禁／YSCP：今日在場人數（後端可能直接回傳） */
+	currentCount?: number;
 	units?: PeopleCountingUnit[]; // 關聯的單位
 	// 注意：cameras 已移除（不會有攝影機串流功能）
 }
@@ -57,7 +59,7 @@ export interface PeopleCountingZone {
 }
 
 /**
- * 進場單位
+ * 人員群組
  */
 export interface PeopleCountingUnit {
 	id: number;
@@ -69,6 +71,8 @@ export interface PeopleCountingUnit {
 	entryCount?: number;
 	/** 攝影機（isapi_camera）各 Region 累計出場人數 */
 	exitCount?: number;
+	/** 允許帶額外欄位（讓完整報表 snapshot 型別可直接復用） */
+	[key: string]: unknown;
 }
 
 /**
@@ -115,8 +119,7 @@ export interface PeopleCountingLog {
 	timestamp: string;
 	// 關聯資料
 	unit?: PeopleCountingUnit;
-	unitName?: string; // 進場單位名稱（支援直接提供，避免需要關聯查詢）
+	unitName?: string; // 人員群組名稱（支援直接提供，避免需要關聯查詢）
 	personnel?: PeopleCountingPersonnel;
 	// 注意：device 已移除（不會有攝影機串流功能）
 }
-

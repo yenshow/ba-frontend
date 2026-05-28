@@ -36,6 +36,8 @@
 		<EntryExitLogTable
 			v-if="showLogTable"
 			:logs="logs"
+			:data-source="dataSource"
+			:display-columns="displayColumns"
 		/>
 	</div>
 </template>
@@ -49,6 +51,8 @@ interface Props {
 	exitCount: number
 	currentCount: number
 	logs: PeopleCountingLog[]
+	dataSource?: "yscp" | "access_control" | "isapi_camera"
+	displayColumns?: string[] | null
 	/** false：僅顯示統計（人流頁分欄版面） */
 	showLogTable?: boolean
 }
