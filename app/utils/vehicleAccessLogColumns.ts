@@ -7,6 +7,7 @@ import { formatDate, formatTime } from "~/utils/dateUtils";
 
 export const VEHICLE_ACCESS_LOG_COLUMN_KEYS = [
 	"plate_image",
+	"person_group",
 	"license_plate",
 	"lane",
 	"owner_name",
@@ -18,6 +19,7 @@ export type VehicleAccessLogColumnKey = (typeof VEHICLE_ACCESS_LOG_COLUMN_KEYS)[
 
 export const VEHICLE_ACCESS_LOG_COLUMN_LABELS: Record<VehicleAccessLogColumnKey, string> = {
 	plate_image: "車牌圖片",
+	person_group: "人員群組",
 	license_plate: "車牌",
 	lane: "車道",
 	owner_name: "車主名稱",
@@ -105,6 +107,10 @@ export const buildVehicleLogDetailRow = (
 				row[VEHICLE_ACCESS_LOG_COLUMN_LABELS.plate_image] = log.plate_license_image_url?.trim()
 					? "有"
 					: "—";
+				break;
+			case "person_group":
+				row[VEHICLE_ACCESS_LOG_COLUMN_LABELS.person_group] =
+					log.vehicle_list_name?.trim() || log.person_group_name?.trim() || "—";
 				break;
 			case "license_plate":
 				row[VEHICLE_ACCESS_LOG_COLUMN_LABELS.license_plate] = formatVehicleLogText(

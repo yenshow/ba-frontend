@@ -4,7 +4,13 @@
 		<div class="group col-span-1 flex items-center justify-center">
 			<div class="relative flex items-center justify-center">
 				<img
-					src="/layout/yenshow-logo.svg"
+					src="/layout/cloud.png"
+					alt="YENSHOW"
+					class="h-[var(--brand-logo-h)] object-contain"
+					:style="brandLogoStyle"
+				/>
+				<img
+					src="/layout/golden.png"
 					alt="YENSHOW"
 					class="h-[var(--brand-logo-h)] object-contain"
 					:style="brandLogoStyle"
@@ -36,7 +42,7 @@
 					:range-max="BRAND_LOGO_HEIGHT_MAX"
 					:range-step="1"
 					range-unit="px"
-					range-preview-src="/layout/yenshow-logo.svg"
+					:range-preview-src="brandLogoPreviewSrc"
 					@save="handleSaveBrandLogoHeight"
 					@reset="resetBrandLogoHeight"
 				/>
@@ -111,7 +117,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import EditMockDialog from "~/components/common/EditMockDialog.vue";
 import { useAppSettings, IMAGE_UPLOAD_HINT } from "~/composables/core/useAppSettings";
 import { HOME_IMAGE_CROP } from "~/utils/imageCropUtils";
@@ -151,6 +157,12 @@ const {
 const { canWrite } = useAuth();
 
 const isBrandLogoHeightEditOpen = ref(false);
+const brandLogoPreviewBuster = ref<number>(Date.now());
+
+watch(isBrandLogoHeightEditOpen, isOpen => {
+	if (!isOpen) return;
+	brandLogoPreviewBuster.value = Date.now();
+});
 
 const brandLogoHeight = computed(() => {
 	const parsed = Number.parseInt(String(brandLogoHeightRaw.value ?? ""), 10);
@@ -163,6 +175,8 @@ const brandLogoHeight = computed(() => {
 const brandLogoStyle = computed(() => ({
 	"--brand-logo-h": `${brandLogoHeight.value}px`
 }));
+
+const brandLogoPreviewSrc = computed(() => `/layout/cloud.png?t=${brandLogoPreviewBuster.value}`);
 
 const handleSaveBrandLogoHeight = async (nextValue: string) => {
 	const parsed = Number.parseInt(String(nextValue ?? "").trim(), 10);

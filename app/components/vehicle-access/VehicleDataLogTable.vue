@@ -75,6 +75,11 @@
 								</Transition>
 							</button>
 						</template>
+						<template v-else-if="col === 'person_group'">
+							<span class="text-sm 2xl:text-base">{{
+								log.vehicle_list_name?.trim() || log.person_group_name?.trim() || "-"
+							}}</span>
+						</template>
 						<template v-else-if="col === 'license_plate'">
 							<span class="text-sm font-medium 2xl:text-base">
 								{{ formatVehicleLogText(log.license_plate) }}
