@@ -1,19 +1,18 @@
 <template>
 	<section class="min-h-[664px] rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-			<p class="text-base text-white/70 2xl:text-lg">共 {{ locationFilteredLogs.length }} 筆紀錄</p>
-			<div class="flex flex-wrap items-center gap-3 2xl:gap-4">
-				<div v-if="locationFilterOptions.length > 1" class="flex items-center gap-2">
-					<label class="text-sm text-white/70 2xl:text-base">區域-地點：</label>
-					<div class="min-w-[10rem]">
-						<FilterDropdown
-							v-model="filterLocationId"
-							:options="locationFilterOptions"
-							placeholder="全部"
-							text-size="text-sm 2xl:text-base"
-						/>
-					</div>
+			<div v-if="locationFilterOptions.length > 1" class="flex items-center gap-2">
+				<label class="text-lg font-semibold 2xl:text-xl">地點：</label>
+				<div class="min-w-[10rem]">
+					<FilterDropdown
+						v-model="filterLocationId"
+						:options="locationFilterOptions"
+						placeholder="全部"
+						text-size="text-sm 2xl:text-base"
+					/>
 				</div>
+			</div>
+			<div class="flex flex-wrap items-center gap-3 2xl:gap-4">
 				<TimeRangePicker v-model="timeRangeModel" :presets="[...TIME_RANGE_PRESETS_FULL_REPORT]" />
 				<button
 					type="button"
@@ -71,7 +70,7 @@
 			<!-- 2. 單位統計 -->
 			<div class="show-scrollbar max-h-[40vh] overflow-y-auto">
 				<h3 class="mb-3 w-fit border-b-2 border-white/70 text-lg text-white/90 2xl:text-xl">
-					單位統計
+					群組統計
 				</h3>
 				<table
 					class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base"
@@ -80,7 +79,7 @@
 						<tr class="text-white/90">
 							<th class="whitespace-nowrap border border-white/20 p-2">日期</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">區域-地點</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">單位名稱</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">群組名稱</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">進場人數</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">出場人數</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">在場人數</th>
@@ -94,7 +93,7 @@
 						>
 							<td class="border border-white/20 p-2">{{ row.日期 }}</td>
 							<td class="border border-white/20 p-2">{{ row["區域-地點"] }}</td>
-							<td class="border border-white/20 p-2">{{ row.單位名稱 }}</td>
+							<td class="border border-white/20 p-2">{{ row.群組名稱 }}</td>
 							<td class="border border-white/20 p-2">{{ row.進場人數 }}</td>
 							<td class="border border-white/20 p-2">{{ row.出場人數 }}</td>
 							<td
@@ -114,42 +113,14 @@
 					<h3 class="w-fit border-b-2 border-white/70 text-lg text-white/90 2xl:text-xl">
 						進出紀錄
 					</h3>
-					<div class="flex items-center gap-2">
-						<label for="people-counting-report-search" class="sr-only">搜尋工號或姓名</label>
-						<div class="relative">
-							<input
-								id="people-counting-report-search"
-								v-model="searchQuery"
-								type="search"
-								placeholder="工號或姓名"
-								class="min-w-[10rem] rounded-xl border border-white/20 bg-white/10 py-2 pe-10 ps-3 text-sm text-white placeholder:text-white/50 focus:border-cyan-400/60 focus:outline-none 2xl:min-w-[12rem] 2xl:py-2.5 2xl:text-base"
-								autocomplete="off"
-								aria-label="搜尋工號或姓名"
-							/>
-							<button
-								v-if="searchQuery.trim()"
-								type="button"
-								class="absolute inset-y-0 end-2 my-auto flex h-7 w-7 items-center justify-center rounded-full text-white hover:bg-white/10 2xl:h-8 2xl:w-8"
-								aria-label="清除搜尋"
-								@click="handleClearSearch"
-							>
-								<svg
-									viewBox="0 0 24 24"
-									fill="none"
-									class="h-4 w-4 2xl:h-5 2xl:w-5"
-									aria-hidden="true"
-								>
-									<path
-										d="M6 6l12 12M18 6L6 18"
-										stroke="currentColor"
-										stroke-width="2"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									/>
-								</svg>
-							</button>
-						</div>
-					</div>
+					<SearchInput
+						v-model="searchQuery"
+						input-id="people-counting-report-search"
+						label="搜尋工號或姓名"
+						placeholder="搜尋 ID / 姓名"
+						aria-label="搜尋工號或姓名"
+						type="search"
+					/>
 				</div>
 				<table
 					class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base"
@@ -227,13 +198,13 @@ import {
 	getUnitStatsForDay,
 } from "~/utils/peopleCountingTransition"
 import {
-	DEFAULT_LOG_DISPLAY_COLUMNS,
 	normalizeLogDisplayColumns,
 	PEOPLE_COUNTING_LOG_COLUMN_LABELS,
 	buildLogDetailRow,
 } from "~/utils/peopleCountingLogColumns"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
+import SearchInput from "~/components/common/SearchInput.vue"
 
 export type PeopleCountingSimulationLocationOption = {
 	locationId: number
@@ -362,9 +333,13 @@ const groupsByDateAndLocation = computed(() => {
 	return g
 })
 
+const groupKeysDesc = computed(() =>
+	[...groupsByDateAndLocation.value.keys()].sort((a, b) => b.localeCompare(a))
+)
+
 const statsTableRows = computed(() => {
 	const rows: Array<Record<string, string> & { key: string }> = []
-	const keys = [...groupsByDateAndLocation.value.keys()].sort((a, b) => b.localeCompare(a))
+	const keys = groupKeysDesc.value
 
 	for (const groupKey of keys) {
 		const dayLogs = groupsByDateAndLocation.value.get(groupKey)!
@@ -406,7 +381,7 @@ type UnitStatsRow = {
 	key: string
 	日期: string
 	"區域-地點": string
-	單位名稱: string
+	群組名稱: string
 	進場人數: string
 	出場人數: string
 	在場人數: string
@@ -415,7 +390,7 @@ type UnitStatsRow = {
 
 const unitStatsTableRows = computed((): UnitStatsRow[] => {
 	const rows: UnitStatsRow[] = []
-	const keys = [...groupsByDateAndLocation.value.keys()].sort((a, b) => b.localeCompare(a))
+	const keys = groupKeysDesc.value
 
 	for (const groupKey of keys) {
 		const dayLogs = groupsByDateAndLocation.value.get(groupKey)!
@@ -434,7 +409,7 @@ const unitStatsTableRows = computed((): UnitStatsRow[] => {
 					key: `unit-${groupKey}-${u.name}`,
 					日期: dateStr,
 					"區域-地點": zl,
-					單位名稱: u.name,
+					群組名稱: u.name,
 					進場人數: String(u.entryCount ?? 0),
 					出場人數: String(u.exitCount ?? 0),
 					在場人數: String(u.currentCount ?? 0),
@@ -448,7 +423,7 @@ const unitStatsTableRows = computed((): UnitStatsRow[] => {
 					key: `unit-${groupKey}-${u.unitName}`,
 					日期: dateStr,
 					"區域-地點": zl,
-					單位名稱: u.unitName,
+					群組名稱: u.unitName,
 					進場人數: String(u.entry),
 					出場人數: String(u.exit),
 					在場人數: String(u.current),
@@ -474,10 +449,12 @@ const effectiveDisplayColumns = computed(() => {
 })
 
 const detailHeaders = computed(() => {
-	const fixed = ["區域-地點", "人員群組"]
+	const fixed = ["區域-地點", "群組名稱"]
 	const dynamic = effectiveDisplayColumns.value.map((k) => PEOPLE_COUNTING_LOG_COLUMN_LABELS[k])
 	return [...fixed, ...dynamic]
 })
+
+const dateKeysDesc = (m: Map<string, unknown>): string[] => [...m.keys()].sort((a, b) => b.localeCompare(a))
 
 const detailTableRows = computed((): DetailRow[] => {
 	const rows: DetailRow[] = []
@@ -488,7 +465,7 @@ const detailTableRows = computed((): DetailRow[] => {
 		if (!byDate.has(d)) byDate.set(d, [])
 		byDate.get(d)!.push(log)
 	}
-	const datesDesc = [...byDate.keys()].sort((a, b) => b.localeCompare(a))
+	const datesDesc = dateKeysDesc(byDate)
 
 	for (const dateStr of datesDesc) {
 		const dayLogs = byDate.get(dateStr)!
@@ -508,7 +485,7 @@ const detailTableRows = computed((): DetailRow[] => {
 			const labeled = buildLogDetailRow(log, effectiveDisplayColumns.value)
 			const cells = detailHeaders.value.map((h) => {
 				if (h === "區域-地點") return zl
-				if (h === "人員群組") return unitName
+				if (h === "群組名稱") return unitName
 				return labeled[h] ?? "—"
 			})
 
@@ -559,15 +536,11 @@ const handleDetailNextPage = () => {
 }
 
 const STATS_HEADERS = ["日期", "區域-地點", "進場人數", "出場人數", "在場人數"]
-const UNIT_STATS_HEADERS = ["日期", "區域-地點", "單位名稱", "進場人數", "出場人數", "在場人數"]
+const UNIT_STATS_HEADERS = ["日期", "區域-地點", "群組名稱", "進場人數", "出場人數", "在場人數"]
 
 const firstDateStr = computed(() =>
 	locationFilteredLogs.value.length > 0 ? getDateKey(locationFilteredLogs.value[0]!) : ""
 )
-
-const handleClearSearch = () => {
-	searchQuery.value = ""
-}
 
 const handleExportCsv = () => {
 	if (locationFilteredLogs.value.length === 0) return
@@ -576,14 +549,14 @@ const handleExportCsv = () => {
 	parts.push("進出統計")
 	parts.push(buildCsvSection(STATS_HEADERS, statsTableRows.value, { backupStyle: true }))
 	parts.push("")
-	parts.push("單位統計")
+	parts.push("群組統計")
 	parts.push(
 		buildCsvSection(
 			UNIT_STATS_HEADERS,
 			unitStatsTableRows.value.map((r) => ({
 				日期: r.日期,
 				"區域-地點": r["區域-地點"],
-				單位名稱: r.單位名稱,
+				群組名稱: r.群組名稱,
 				進場人數: r.進場人數,
 				出場人數: r.出場人數,
 				在場人數: r.在場人數,

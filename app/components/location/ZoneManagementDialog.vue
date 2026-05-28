@@ -695,6 +695,21 @@ const handleLocationUpdate = (
 // 新增地點（從 LocationManagement 組件接收；排水可帶 viewCategory）
 const addLocation = (zone: TZone, payload?: { viewCategory?: string }) => {
 	const newLocation = adapter.createNewLocation() as SystemLocationType
+
+	// 人流統計 / 車輛進出：若 dataSource 未設，且 YSCP 關閉會導致新列被列表過濾掉 → 依 feature 開關給合理預設
+	if (props.systemType === "people_counting") {
+		const loc = newLocation as { dataSource?: string }
+		if (!loc.dataSource) {
+			loc.dataSource = enableYscpPeopleCounting.value ? "yscp" : "access_control"
+		}
+	}
+	if (props.systemType === "vehicle_access") {
+		const loc = newLocation as { dataSource?: string }
+		if (!loc.dataSource) {
+			loc.dataSource = enableYscpVehicleAccess.value ? "yscp" : "isapi_camera"
+		}
+	}
+
 	if (
 		(props.systemType === "drainage" ||
 			props.systemType === "air_circulation" ||
@@ -1042,10 +1057,13 @@ const handleDeleteZone = (zoneId: string) => {
 
 // 確認刪除
 const handleConfirmDelete = () => {
-	if (pendingDeleteZoneId.value) {
-		emit("delete", pendingDeleteZoneId.value)
-		deleteDraft(pendingDeleteZoneId.value)
-		pendingDeleteZoneId.value = null
+	const zoneId = pendingDeleteZoneId.value
+	if (!zoneId) return
+
+	if (!zoneId.startsWith("temp-")) {
+		emit("delete", zoneId)
 	}
+	deleteDraft(zoneId)
+	pendingDeleteZoneId.value = null
 }
 </script>

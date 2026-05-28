@@ -15,24 +15,14 @@
 				</button>
 			</div>
 			<div class="flex flex-wrap items-center gap-2">
-				<div class="flex items-center gap-2">
-					<input
-						:value="personFilter.q"
-						type="text"
-						class="form-input w-[220px] border-white/30 bg-white/10 py-1.5 text-sm text-white placeholder:text-white/40 2xl:w-[260px] 2xl:py-2 2xl:text-base"
-						placeholder="搜尋 ID / 姓名"
-						aria-label="搜尋 ID 或姓名"
-						@input="handleFilterQInput"
-						@keydown.enter="handleSearch"
-					/>
-					<button
-						type="button"
-						class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white hover:bg-white/30 2xl:px-6 2xl:py-3 2xl:text-base"
-						@click="handleSearch"
-					>
-						搜尋
-					</button>
-				</div>
+				<SearchInput
+					v-model="personFilter.q"
+					input-id="personnel-persons-search"
+					label="搜尋 ID 或姓名"
+					placeholder="搜尋 ID / 姓名"
+					aria-label="搜尋 ID 或姓名"
+					@search="handleSearch"
+				/>
 				<button
 					v-if="canEdit"
 					type="button"
@@ -212,6 +202,7 @@ import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import PersonnelPersonDialog from "~/components/personnel/dialogs/PersonnelPersonDialog.vue"
 import type { PersonnelPersonDialogState } from "~/types/personnel"
+import SearchInput from "~/components/common/SearchInput.vue"
 
 const props = defineProps<{
 	canEdit: boolean
@@ -300,11 +291,6 @@ const personDialogState: PersonnelPersonDialogState = {
 		isSubmitting: props.personsTab.isSubmitting,
 		errorMessage: props.personsTab.errorMessage,
 	},
-}
-
-const handleFilterQInput = (e: Event) => {
-	const value = (e.target as HTMLInputElement | null)?.value ?? ""
-	personFilter.q = value
 }
 
 const localEmployeeNoSort = computed<string>({

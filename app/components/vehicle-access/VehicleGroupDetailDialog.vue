@@ -1,17 +1,12 @@
 <template>
 	<Teleport to="body">
 		<Transition name="dialog-fade">
-			<div
-				v-if="modelValue"
-				class="fixed inset-0 z-[3000] flex items-center justify-center"
-			>
+			<div v-if="modelValue" class="fixed inset-0 z-[3000] flex items-center justify-center">
 				<div
 					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-xl flex-col gap-4 overflow-hidden rounded-3xl p-8 2xl:max-w-2xl"
 				>
 					<header class="flex items-center justify-between">
-						<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">
-							{{ listTitle }}
-						</h3>
+						<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">人員名單</h3>
 						<button
 							type="button"
 							class="cursor-pointer text-[32px] leading-none text-white transition-opacity hover:opacity-70"
@@ -34,9 +29,7 @@
 						</div>
 
 						<div v-else class="space-y-4">
-							<div
-								class="mx-auto grid w-[240px] grid-cols-1 gap-4 2xl:w-full 2xl:grid-cols-2"
-							>
+							<div class="mx-auto grid w-[240px] grid-cols-1 gap-4 2xl:w-full 2xl:grid-cols-2">
 								<div
 									v-for="item in paginatedList"
 									:key="itemKey(item)"
@@ -87,13 +80,17 @@
 											{{ memberDisplayName(item) }}
 										</div>
 										<div class="mt-2 space-y-0.5 text-xs text-white/60 2xl:text-sm">
-											<div v-if="isPersonnelList && item.plate_license?.trim() && item.plate_license !== '—'">
+											<div
+												v-if="
+													isPersonnelList &&
+													item.plate_license?.trim() &&
+													item.plate_license !== '—'
+												"
+											>
 												<span>車牌號碼：</span>
 												<span>{{ item.plate_license }}</span>
 											</div>
-											<div
-												v-if="!isPersonnelList && item.owner_name?.trim()"
-											>
+											<div v-if="!isPersonnelList && item.owner_name?.trim()">
 												<span>車主姓名：</span>
 												<span>{{ item.owner_name?.trim() }}</span>
 											</div>
@@ -107,7 +104,9 @@
 											</div>
 											<div v-if="item.lastEntryDate || item.entryTime">
 												<span>離場時間：</span>
-												<span v-if="item.exitTime && !shouldHideExitTime(item.entryTime, item.exitTime)">
+												<span
+													v-if="item.exitTime && !shouldHideExitTime(item.entryTime, item.exitTime)"
+												>
 													{{ item.exitTime }}
 												</span>
 												<span v-else> - - </span>
@@ -139,136 +138,126 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import type { VehicleGroupMemberItem } from "~/types/vehicleAccess";
-import Pagination from "~/components/common/Pagination.vue";
-import { useImageCenter } from "~/composables/core/useImageCenter";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue"
+import type { VehicleGroupMemberItem } from "~/types/vehicleAccess"
+import Pagination from "~/components/common/Pagination.vue"
+import { useImageCenter } from "~/composables/core/useImageCenter"
 
 const shouldHideExitTime = (entryTime?: string | null, exitTime?: string | null): boolean => {
 	const parseTimeToSeconds = (time?: string | null) => {
-		if (!time) return null;
-		const m = time.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-		if (!m) return null;
-		const hh = Number(m[1]);
-		const mm = Number(m[2]);
-		const ss = m[3] ? Number(m[3]) : 0;
-		if (Number.isNaN(hh) || Number.isNaN(mm) || Number.isNaN(ss)) return null;
-		return hh * 3600 + mm * 60 + ss;
-	};
+		if (!time) return null
+		const m = time.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)
+		if (!m) return null
+		const hh = Number(m[1])
+		const mm = Number(m[2])
+		const ss = m[3] ? Number(m[3]) : 0
+		if (Number.isNaN(hh) || Number.isNaN(mm) || Number.isNaN(ss)) return null
+		return hh * 3600 + mm * 60 + ss
+	}
 
-	const entrySec = parseTimeToSeconds(entryTime);
-	const exitSec = parseTimeToSeconds(exitTime);
-	if (entrySec == null || exitSec == null) return false;
-	return entrySec > exitSec;
-};
+	const entrySec = parseTimeToSeconds(entryTime)
+	const exitSec = parseTimeToSeconds(exitTime)
+	if (entrySec == null || exitSec == null) return false
+	return entrySec > exitSec
+}
 
 interface Props {
-	modelValue: boolean;
-	groupName: string;
-	vehicleList: VehicleGroupMemberItem[];
-	/** 人員群組（ISAPI）對齊人流 PersonnelList；預設為車輛名單 */
-	listVariant?: "personnel" | "vehicle";
+	modelValue: boolean
+	groupName: string
+	vehicleList: VehicleGroupMemberItem[]
+	/** 群組成員（ISAPI）對齊人流 PersonnelList；預設為車輛名單 */
+	listVariant?: "personnel" | "vehicle"
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	listVariant: "vehicle",
-});
+})
 
 const emit = defineEmits<{
-	(e: "update:modelValue", value: boolean): void;
-	(e: "close"): void;
-}>();
+	(e: "update:modelValue", value: boolean): void
+	(e: "close"): void
+}>()
 
-const isPersonnelList = computed(() => props.listVariant === "personnel");
+const isPersonnelList = computed(() => props.listVariant === "personnel")
 
-const listTitle = computed(() => {
-	const name = props.groupName?.trim();
-	if (isPersonnelList.value) {
-		return name ? `${name} 人員名單` : "人員名單";
-	}
-	return name ? `${name} - 車輛名單` : "車輛名單";
-});
+const emptyText = computed(() => (isPersonnelList.value ? "尚無人員資料" : "尚無車輛資料"))
 
-const emptyText = computed(() =>
-	isPersonnelList.value ? "尚無人員資料" : "尚無車輛資料"
-);
+const { resolveUrl } = useImageCenter()
+const imageErrorStates = ref<Record<string | number, boolean>>({})
 
-const { resolveUrl } = useImageCenter();
-const imageErrorStates = ref<Record<string | number, boolean>>({});
-
-const windowWidth = ref(1024);
-const itemsPerPage = computed(() => (windowWidth.value >= 1536 ? 4 : 2));
-const offset = ref(0);
+const windowWidth = ref(1024)
+const itemsPerPage = computed(() => (windowWidth.value >= 1536 ? 4 : 2))
+const offset = ref(0)
 
 const paginatedList = computed(() => {
-	const start = offset.value;
-	return props.vehicleList.slice(start, start + itemsPerPage.value);
-});
+	const start = offset.value
+	return props.vehicleList.slice(start, start + itemsPerPage.value)
+})
 
 watch(
 	() => props.vehicleList.length,
-	newLength => {
+	(newLength) => {
 		if (offset.value >= newLength) {
-			offset.value = 0;
+			offset.value = 0
 		}
 	}
-);
+)
 
 const memberDisplayName = (item: VehicleGroupMemberItem): string => {
-	const name = item.name?.trim() || item.owner_name?.trim() || "";
+	const name = item.name?.trim() || item.owner_name?.trim() || ""
 	if (isPersonnelList.value) {
-		return name || "—";
+		return name || "—"
 	}
-	const plate = item.plate_license?.trim() || "";
-	if (name && plate) return plate;
-	return plate || name || "—";
-};
+	const plate = item.plate_license?.trim() || ""
+	if (name && plate) return plate
+	return plate || name || "—"
+}
 
 const itemKey = (item: VehicleGroupMemberItem) =>
-	isPersonnelList.value ? item.id : `${item.id}-${item.plate_license ?? ""}`;
+	isPersonnelList.value ? item.id : `${item.id}-${item.plate_license ?? ""}`
 
 const handleImageError = (_event: Event, personId: string | number) => {
-	imageErrorStates.value[personId] = true;
-};
+	imageErrorStates.value[personId] = true
+}
 
 const handlePrevious = () => {
-	offset.value = Math.max(0, offset.value - itemsPerPage.value);
-};
+	offset.value = Math.max(0, offset.value - itemsPerPage.value)
+}
 
 const handleNext = () => {
 	if (offset.value + itemsPerPage.value < props.vehicleList.length) {
-		offset.value += itemsPerPage.value;
+		offset.value += itemsPerPage.value
 	}
-};
+}
 
 const handleClose = () => {
-	emit("update:modelValue", false);
-	emit("close");
-};
+	emit("update:modelValue", false)
+	emit("close")
+}
 
-let handleResize: (() => void) | null = null;
-let lastItemsPerPage = 2;
+let handleResize: (() => void) | null = null
+let lastItemsPerPage = 2
 
 onMounted(() => {
-	if (!process.client) return;
-	windowWidth.value = window.innerWidth;
-	lastItemsPerPage = itemsPerPage.value;
+	if (!process.client) return
+	windowWidth.value = window.innerWidth
+	lastItemsPerPage = itemsPerPage.value
 	handleResize = () => {
-		windowWidth.value = window.innerWidth;
-		const next = itemsPerPage.value;
+		windowWidth.value = window.innerWidth
+		const next = itemsPerPage.value
 		if (next !== lastItemsPerPage) {
-			offset.value = 0;
-			lastItemsPerPage = next;
+			offset.value = 0
+			lastItemsPerPage = next
 		}
-	};
-	window.addEventListener("resize", handleResize);
-});
+	}
+	window.addEventListener("resize", handleResize)
+})
 
 onUnmounted(() => {
 	if (handleResize && process.client) {
-		window.removeEventListener("resize", handleResize);
+		window.removeEventListener("resize", handleResize)
 	}
-});
+})
 </script>
 
 <style scoped>

@@ -1,7 +1,7 @@
 <template>
 	<div class="space-y-4">
 		<h3 class="bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
-			{{ listTitle }}
+			人員名單
 		</h3>
 		<div
 			v-if="personnel.length === 0"
@@ -134,7 +134,6 @@ const props = withDefaults(defineProps<Props>(), {
 	unitName: null,
 })
 
-const listTitle = computed(() => (props.unitName ? `${props.unitName} 人員名單` : "人員名單"))
 const { resolveUrl } = useImageCenter()
 
 // 追蹤圖片錯誤狀態
@@ -214,7 +213,6 @@ const handleImageError = (_event: Event, personId: string | number) => {
 	imageErrorStates.value[personId] = true
 }
 </script>
-
 <style scoped>
 .fade-enter-active,
 .fade-leave-active {
