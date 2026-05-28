@@ -1,17 +1,12 @@
 <template>
 	<Teleport to="body">
 		<Transition name="dialog-fade">
-			<div
-				v-if="modelValue"
-				class="fixed inset-0 z-[3000] flex items-center justify-center"
-			>
+			<div v-if="modelValue" class="fixed inset-0 z-[3000] flex items-center justify-center">
 				<div
 					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-xl flex-col gap-4 overflow-hidden rounded-3xl p-8 2xl:max-w-2xl"
 				>
 					<header class="flex items-center justify-between">
-						<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">
-							{{ listTitle }}
-						</h3>
+						<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">人員名單</h3>
 						<button
 							type="button"
 							class="cursor-pointer text-[32px] leading-none text-white transition-opacity hover:opacity-70"
@@ -34,9 +29,7 @@
 						</div>
 
 						<div v-else class="space-y-4">
-							<div
-								class="mx-auto grid w-[240px] grid-cols-1 gap-4 2xl:w-full 2xl:grid-cols-2"
-							>
+							<div class="mx-auto grid w-[240px] grid-cols-1 gap-4 2xl:w-full 2xl:grid-cols-2">
 								<div
 									v-for="item in paginatedList"
 									:key="itemKey(item)"
@@ -81,9 +74,7 @@
 									</div>
 
 									<div class="min-w-0 2xl:flex-1">
-										<div
-											class="border-b border-white/30 pb-1 text-base font-medium text-white 2xl:text-xl"
-										>
+										<div class="border-b border-white/30 pb-1 text-base font-medium text-white 2xl:text-xl">
 											{{ memberDisplayName(item) }}
 										</div>
 										<div class="mt-2 space-y-0.5 text-xs text-white/60 2xl:text-sm">
@@ -91,9 +82,7 @@
 												<span>車牌號碼：</span>
 												<span>{{ item.plate_license }}</span>
 											</div>
-											<div
-												v-if="!isPersonnelList && item.owner_name?.trim()"
-											>
+											<div v-if="!isPersonnelList && item.owner_name?.trim()">
 												<span>車主姓名：</span>
 												<span>{{ item.owner_name?.trim() }}</span>
 											</div>
@@ -166,12 +155,12 @@ interface Props {
 	modelValue: boolean;
 	groupName: string;
 	vehicleList: VehicleGroupMemberItem[];
-	/** 人員群組（ISAPI）對齊人流 PersonnelList；預設為車輛名單 */
+	/** 群組成員（ISAPI）對齊人流 PersonnelList；預設為車輛名單 */
 	listVariant?: "personnel" | "vehicle";
 }
 
 const props = withDefaults(defineProps<Props>(), {
-	listVariant: "vehicle",
+	listVariant: "vehicle"
 });
 
 const emit = defineEmits<{
@@ -181,17 +170,7 @@ const emit = defineEmits<{
 
 const isPersonnelList = computed(() => props.listVariant === "personnel");
 
-const listTitle = computed(() => {
-	const name = props.groupName?.trim();
-	if (isPersonnelList.value) {
-		return name ? `${name} 人員名單` : "人員名單";
-	}
-	return name ? `${name} - 車輛名單` : "車輛名單";
-});
-
-const emptyText = computed(() =>
-	isPersonnelList.value ? "尚無人員資料" : "尚無車輛資料"
-);
+const emptyText = computed(() => (isPersonnelList.value ? "尚無人員資料" : "尚無車輛資料"));
 
 const { resolveUrl } = useImageCenter();
 const imageErrorStates = ref<Record<string | number, boolean>>({});

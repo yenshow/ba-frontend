@@ -57,6 +57,11 @@ export const deleteZoneWithSystemAwareness = async (args: {
 		throw new Error("zoneId 不能為空")
 	}
 
+	// 未存檔（temp-）的區域不應打後端 API；由呼叫端自行做本地移除
+	if (zoneId.startsWith("temp-")) {
+		return { action: "deleted-zone" }
+	}
+
 	const locationApi = useLocationApi()
 
 	if (!args.systemType) {

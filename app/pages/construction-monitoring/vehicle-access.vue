@@ -247,13 +247,10 @@ import VehicleAccessSimulation, {
 import { useVehicleAccessState } from "~/composables/systems/vehicleAccess/useVehicleAccessState";
 import { useVehicleAccessLocationApi } from "~/composables/location/api/useVehicleAccessLocationApi";
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
-import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter";
-import type { UnifiedZone } from "~/types/location";
 import { useAuth } from "~/composables/core/useAuth";
 import { useApiBase } from "~/composables/core/useApiBase";
 import {
-	buildLogsTimeQuery,
 	toSimulationTimeRange,
 	type OperationalDayRangeResponse
 } from "~/utils/entryExitTimeRange";
@@ -277,7 +274,6 @@ const {
 	setSelectedOrganizationKey,
 	isLoadingZones,
 	isLoadingLogs,
-	isLoadingVehicleGroups,
 	loadZones,
 	loadLogs,
 	loadOrganizationData,
@@ -291,9 +287,7 @@ const {
 const showSimulationFrame = ref(false);
 const { request } = useApiBase();
 const fetchTodaySimulationRange = async () => {
-	const range = await request<OperationalDayRangeResponse>(
-		`/entry-exit/time-range?preset=today`
-	);
+	const range = await request<OperationalDayRangeResponse>(`/entry-exit/time-range?preset=today`);
 	return toSimulationTimeRange(range, "today");
 };
 const simulationTimeRange = ref({
@@ -360,7 +354,7 @@ const handleOpenSimulation = async () => {
 };
 
 const isGroupDialogOpen = ref(false);
-/** 彈窗標題：選中單位名稱（工程部、行銷部等） */
+
 const selectedOrganizationGroupName = computed(() => {
 	const key = selectedOrganizationKey.value;
 	if (!key) return "";
@@ -423,25 +417,24 @@ const isSidebarCollapsed = ref(false);
 const showLocationManagementDialog = ref(false);
 
 const vehicleAccessLocationApi = useVehicleAccessLocationApi();
-const locationApi = useLocationApi();
 const adapter = useZoneSystemAdapter<VehicleAccessZone, VehicleAccessLocation>("vehicle_access");
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
 	useZoneManagement<VehicleAccessLocation, VehicleAccessZone>();
 
 const getLocationId = (location: VehicleAccessLocation & { zoneName?: string }): string => {
 	const zone =
-		vehicleAccessZones.value.find((z) =>
-			(z.locations || []).some((l) => l === location || (l.id && location.id && l.id === location.id))
-		) ?? null
-	const zoneName = location.zoneName ?? zone?.name ?? null
+		vehicleAccessZones.value.find(z =>
+			(z.locations || []).some(l => l === location || (l.id && location.id && l.id === location.id))
+		) ?? null;
+	const zoneName = location.zoneName ?? zone?.name ?? null;
 	if (!zone || !adapter.getLocationId) {
-		return `${zoneName ?? "unknown"}-${location.name}`
+		return `${zoneName ?? "unknown"}-${location.name}`;
 	}
 	const idx = (zone.locations || []).findIndex(
-		(l) => l === location || (l.id && location.id && l.id === location.id)
-	)
-	if (idx < 0) return `${zoneName ?? "unknown"}-${location.name}`
-	return adapter.getLocationId({ zone, location, locationIndex: idx })
+		l => l === location || (l.id && location.id && l.id === location.id)
+	);
+	if (idx < 0) return `${zoneName ?? "unknown"}-${location.name}`;
+	return adapter.getLocationId({ zone, location, locationIndex: idx });
 };
 
 // 與 environment 一致：僅以單一 id 判斷選定，確保總覽只有一卡高亮
@@ -477,12 +470,12 @@ const handleSaveZone = async (zone: VehicleAccessZone) => {
 				? await vehicleAccessLocationApi.updateZone(z.id, {
 						name: z.name,
 						sortOrder: (z as unknown as { sortOrder?: number }).sortOrder,
-						locations: z.locations,
+						locations: z.locations
 					})
 				: await vehicleAccessLocationApi.createZone({
 						name: z.name,
 						sortOrder: (z as unknown as { sortOrder?: number }).sortOrder,
-						locations: z.locations,
+						locations: z.locations
 					});
 			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as VehicleAccessZone & {
 				id: string;
