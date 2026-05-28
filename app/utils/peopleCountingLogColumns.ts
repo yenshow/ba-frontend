@@ -7,6 +7,7 @@ import { formatDateTime } from "~/utils/dateUtils"
 
 export const PEOPLE_COUNTING_LOG_COLUMN_KEYS = [
 	"screenshot",
+	"unit",
 	"device_name",
 	"name",
 	"verify_method",
@@ -18,6 +19,7 @@ export type PeopleCountingLogColumnKey = (typeof PEOPLE_COUNTING_LOG_COLUMN_KEYS
 
 export const PEOPLE_COUNTING_LOG_COLUMN_LABELS: Record<PeopleCountingLogColumnKey, string> = {
 	screenshot: "設備截圖",
+	unit: "人員群組",
 	device_name: "出入口名稱",
 	name: "姓名",
 	verify_method: "方式",
@@ -102,6 +104,11 @@ export const buildLogDetailRow = (
 				row[PEOPLE_COUNTING_LOG_COLUMN_LABELS.screenshot] = log.deviceScreenshotUrl?.trim()
 					? "有"
 					: "—"
+				break
+			case "unit":
+				row[PEOPLE_COUNTING_LOG_COLUMN_LABELS.unit] = formatLogText(
+					log.unit?.name ?? log.unitName
+				)
 				break
 			case "name":
 				row[PEOPLE_COUNTING_LOG_COLUMN_LABELS.name] = formatLogText(log.personName)

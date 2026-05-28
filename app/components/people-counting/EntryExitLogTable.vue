@@ -86,6 +86,11 @@
 									</Transition>
 								</button>
 							</template>
+							<template v-else-if="col === 'unit_group'">
+								<span class="text-sm 2xl:text-base">{{
+									formatLogText(log.unit?.name || log.unitName)
+								}}</span>
+							</template>
 							<template v-else-if="col === 'name'">
 								<span class="text-sm 2xl:text-base">{{ formatLogText(log.personName) }}</span>
 							</template>
@@ -172,6 +177,7 @@ import {
 
 type PeopleCountingRecordColumnKey =
 	| "screenshot"
+	| "unit_group"
 	| "name"
 	| "device_name"
 	| "verify_method"
@@ -192,6 +198,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const FIXED_RECORD_COLUMNS: PeopleCountingRecordColumnKey[] = [
 	"screenshot",
+	"unit_group",
 	"name",
 	"device_name",
 	"verify_method",
@@ -201,6 +208,7 @@ const FIXED_RECORD_COLUMNS: PeopleCountingRecordColumnKey[] = [
 
 const recordColumnLabels: Record<PeopleCountingRecordColumnKey, string> = {
 	screenshot: "設備截圖",
+	unit_group: "人員群組",
 	name: "姓名",
 	device_name: "出入口名稱",
 	verify_method: "方式",
@@ -214,6 +222,7 @@ const cameraColumnsFromZoneForm = computed((): PeopleCountingRecordColumnKey[] =
 	const out: PeopleCountingRecordColumnKey[] = []
 	for (const k of picked) {
 		if (k === "screenshot") out.push("screenshot")
+		else if (k === "unit") out.push("unit_group")
 		if (k === "name") out.push("name")
 		else if (k === "device_name") out.push("device_name")
 		else if (k === "verify_method") out.push("verify_method")
