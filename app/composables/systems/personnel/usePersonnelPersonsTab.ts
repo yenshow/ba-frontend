@@ -402,7 +402,7 @@ export const usePersonnelPersonsTab = (params: {
 		}
 
 		if (mode === "create" && !personForm.employeeNo.trim()) {
-			errorMessage.value = "工號為必填"
+			errorMessage.value = "ID 為必填"
 			return { ok: false as const }
 		}
 

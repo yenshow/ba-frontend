@@ -25,7 +25,7 @@
 						>
 							<p class="font-medium text-white/90">欄位說明</p>
 							<ul class="list-inside list-disc space-y-1">
-								<li>工號（必填）：<span class="text-white">工號</span></li>
+								<li>ID（必填）：<span class="text-white">工號</span></li>
 								<li>姓名（必填）：<span class="text-white">姓名</span></li>
 								<li>
 									有效起始日（選填）：<span class="text-white">有效起始日</span>

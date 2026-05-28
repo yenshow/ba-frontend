@@ -36,7 +36,7 @@
 							v-model="candidatesQuery"
 							type="text"
 							class="form-input w-full max-w-[240px]"
-							placeholder="搜尋工號 / 姓名"
+							placeholder="搜尋 ID / 姓名"
 							aria-label="搜尋人員"
 							@keydown.enter="loadCandidates"
 						/>

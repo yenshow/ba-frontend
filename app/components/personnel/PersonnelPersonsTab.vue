@@ -20,8 +20,8 @@
 						:value="personFilter.q"
 						type="text"
 						class="form-input w-[220px] border-white/30 bg-white/10 py-1.5 text-sm text-white placeholder:text-white/40 2xl:w-[260px] 2xl:py-2 2xl:text-base"
-						placeholder="搜尋工號 / 姓名"
-						aria-label="搜尋工號或姓名"
+						placeholder="搜尋 ID / 姓名"
+						aria-label="搜尋 ID 或姓名"
 						@input="handleFilterQInput"
 						@keydown.enter="handleSearch"
 					/>
@@ -69,7 +69,7 @@
 								<FilterDropdown
 									v-model="localEmployeeNoSort"
 									:options="employeeNoSortOptions"
-									placeholder="工號（由小到大）"
+									placeholder="ID（由小到大）"
 									text-size="text-sm 2xl:text-base"
 								/>
 							</div>

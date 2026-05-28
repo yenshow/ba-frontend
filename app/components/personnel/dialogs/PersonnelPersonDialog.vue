@@ -117,14 +117,14 @@
 							</label>
 
 							<label class="flex flex-col gap-2 text-base text-white/80">
-								<span>工號 *</span>
+								<span>ID *</span>
 								<input
 									v-model="state.form.employeeNo"
 									type="text"
 									required
 									class="form-input-small"
 									:readonly="!!state.editingPerson"
-									:title="state.editingPerson ? '建立後無法修改工號' : undefined"
+									:title="state.editingPerson ? '建立後無法修改 ID' : undefined"
 								/>
 							</label>
 

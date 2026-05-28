@@ -88,7 +88,7 @@ export const getVehiclePassResultTagClass = (log: VehicleDataLog): string => {
 };
 
 export const formatVehicleLogLane = (log: VehicleDataLog): string =>
-	log.anpr_line?.trim() || log.lane_name?.trim() || "-";
+	log.lane_name?.trim() || "-";
 
 export const formatVehicleLogText = (value: string | null | undefined): string => {
 	const s = value != null ? String(value).trim() : "";
