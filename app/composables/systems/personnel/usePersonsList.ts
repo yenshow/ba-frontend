@@ -32,8 +32,8 @@ export const usePersonsList = (params: {
 
 	const employeeNoSort = ref<EmployeeNoSort>("asc")
 	const employeeNoSortOptions = computed(() => [
-		{ value: "asc", label: "工號（由小到大）" },
-		{ value: "desc", label: "工號（由大到小）" },
+		{ value: "asc", label: "ID（由小到大）" },
+		{ value: "desc", label: "ID（由大到小）" },
 	])
 
 	const selectedEmployeeNoSort = computed<string>({

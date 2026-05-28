@@ -7,6 +7,8 @@ export type VehicleAccessDataSource = "yscp" | "isapi_camera";
 export interface VehicleDataLog {
 	id: number;
 	lane_name: string | null;
+	/** 外部資料：通道/攝影機名稱（vehiclebiz.passageway_log_data.passageway_name） */
+	passageway_name?: string | null;
 	/** ISAPI：線別（ANPR.line） */
 	anpr_line?: string | null;
 	data_source?: VehicleAccessDataSource;

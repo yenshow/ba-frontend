@@ -107,7 +107,7 @@
 											</div>
 											<div v-if="item.lastEntryDate || item.entryTime">
 												<span>離場時間：</span>
-												<span v-if="item.exitTime && !shouldHideExitTime(item)">
+												<span v-if="item.exitTime && !shouldHideExitTime(item.entryTime, item.exitTime)">
 													{{ item.exitTime }}
 												</span>
 												<span v-else> - - </span>
@@ -143,6 +143,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import type { VehicleGroupMemberItem } from "~/types/vehicleAccess";
 import Pagination from "~/components/common/Pagination.vue";
 import { useImageCenter } from "~/composables/core/useImageCenter";
+import { shouldHideExitTime } from "~/utils/entryExit/displayTime";
 
 interface Props {
 	modelValue: boolean;
@@ -208,24 +209,6 @@ const memberDisplayName = (item: VehicleGroupMemberItem): string => {
 
 const itemKey = (item: VehicleGroupMemberItem) =>
 	isPersonnelList.value ? item.id : `${item.id}-${item.plate_license ?? ""}`;
-
-const parseTimeToSeconds = (time?: string | null) => {
-	if (!time) return null;
-	const m = time.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-	if (!m) return null;
-	const hh = Number(m[1]);
-	const mm = Number(m[2]);
-	const ss = m[3] ? Number(m[3]) : 0;
-	if (Number.isNaN(hh) || Number.isNaN(mm) || Number.isNaN(ss)) return null;
-	return hh * 3600 + mm * 60 + ss;
-};
-
-const shouldHideExitTime = (item: VehicleGroupMemberItem) => {
-	const entrySec = parseTimeToSeconds(item.entryTime);
-	const exitSec = parseTimeToSeconds(item.exitTime ?? null);
-	if (entrySec == null || exitSec == null) return false;
-	return entrySec > exitSec;
-};
 
 const handleImageError = (_event: Event, personId: string | number) => {
 	imageErrorStates.value[personId] = true;

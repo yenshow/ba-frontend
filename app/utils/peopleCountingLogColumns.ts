@@ -20,7 +20,7 @@ export type PeopleCountingLogColumnKey = (typeof PEOPLE_COUNTING_LOG_COLUMN_KEYS
 export const PEOPLE_COUNTING_LOG_COLUMN_LABELS: Record<PeopleCountingLogColumnKey, string> = {
 	screenshot: "設備截圖",
 	unit: "進場單位",
-	employee_id: "工號",
+	employee_id: "ID",
 	name: "姓名",
 	event: "事件",
 	verify_method: "方式",

@@ -150,7 +150,7 @@
 										>
 											<thead>
 												<tr class="border-b border-white/15 text-white/70">
-													<th class="py-2 pe-2">工號</th>
+													<th class="py-2 pe-2">ID</th>
 													<th class="py-2 pe-2">姓名</th>
 													<th class="py-2 pe-2">
 														<span title="此人員在此地點（所有綁定設備）的最後同步狀態">已同步</span>

@@ -51,7 +51,7 @@
 									v-model="candidatesQuery"
 									type="text"
 									class="form-input w-full md:max-w-[200px]"
-									placeholder="搜尋工號 / 姓名"
+									placeholder="搜尋 ID / 姓名"
 									aria-label="搜尋可選人員"
 									@keydown.enter="handleSearchCandidates"
 								/>
