@@ -6,6 +6,8 @@ export type VehicleAccessDataSource = "yscp" | "isapi_camera";
 
 export interface VehicleDataLog {
 	id: number;
+	/** 完整報表跨地點查詢時由後端帶入 */
+	locationId?: number;
 	/** 顯示名稱（YSCP：車道名；ISAPI：channelName 或 devices.name，由後端正規化） */
 	lane_name: string | null;
 	data_source?: VehicleAccessDataSource;

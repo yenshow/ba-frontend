@@ -29,7 +29,7 @@
 			</div>
 		</div>
 		<!-- 進出場記錄表 -->
-		<EntryExitLogTable :logs="logs" />
+		<EntryExitLogTable :logs="logs" :data-source="dataSource" :display-columns="displayColumns" />
 	</div>
 </template>
 
@@ -42,6 +42,8 @@ interface Props {
 	exitCount: number
 	currentCount: number
 	logs: PeopleCountingLog[]
+	dataSource?: "yscp" | "access_control" | "isapi_camera"
+	displayColumns?: string[] | null
 }
 
 defineProps<Props>()

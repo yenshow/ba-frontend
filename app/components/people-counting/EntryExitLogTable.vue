@@ -86,14 +86,6 @@
 									</Transition>
 								</button>
 							</template>
-							<template v-else-if="col === 'unit_group'">
-								<span class="text-sm 2xl:text-base">{{
-									formatLogText(log.unit?.name || log.unitName)
-								}}</span>
-							</template>
-							<template v-else-if="col === 'employee_id'">
-								<span class="text-sm 2xl:text-base">{{ formatLogText(log.employeeId) }}</span>
-							</template>
 							<template v-else-if="col === 'name'">
 								<span class="text-sm 2xl:text-base">{{ formatLogText(log.personName) }}</span>
 							</template>
@@ -102,6 +94,22 @@
 							</template>
 							<template v-else-if="col === 'verify_method'">
 								<span class="text-sm 2xl:text-base">{{ formatLogVerifyMethod(log) }}</span>
+							</template>
+							<template v-else-if="col === 'event'">
+								<span
+									:class="[
+										'inline-block rounded-full px-2 py-0.5 text-xs font-medium 2xl:text-sm',
+										getLogEventBadgeClass(log),
+									]"
+								>
+									{{ formatLogEventLabel(log) }}
+								</span>
+							</template>
+							<template v-else-if="col === 'time'">
+								<div class="flex flex-col items-center gap-1 text-xs 2xl:text-sm">
+									<span>{{ parseTimestamp(log.timestamp).date }}</span>
+									<span>{{ parseTimestamp(log.timestamp).time || "—" }}</span>
+								</div>
 							</template>
 						</td>
 					</tr>
@@ -150,44 +158,88 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, toRef } from "vue"
+import { ref, nextTick, toRef, computed } from "vue"
 import type { PeopleCountingLog } from "~/types/peopleCounting"
 import { useResolvedMediaList } from "~/composables/core/useImageCenter"
 import {
+	formatLogEventLabel,
 	formatLogVerifyMethod,
 	formatLogText,
+	getLogEventBadgeClass,
+	normalizeLogDisplayColumns,
+	type PeopleCountingLogColumnKey,
 } from "~/utils/peopleCountingLogColumns"
 
 type PeopleCountingRecordColumnKey =
 	| "screenshot"
-	| "unit_group"
-	| "employee_id"
 	| "name"
 	| "device_name"
 	| "verify_method"
+	| "event"
+	| "time"
 
 interface Props {
 	logs: PeopleCountingLog[]
+	dataSource?: "yscp" | "access_control" | "isapi_camera"
+	/** 僅攝影機人流：套用區域表單勾選的欄位 */
+	displayColumns?: PeopleCountingLogColumnKey[] | string[] | null
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+	dataSource: undefined,
+	displayColumns: null,
+})
 
-const recordColumns: PeopleCountingRecordColumnKey[] = [
+const FIXED_RECORD_COLUMNS: PeopleCountingRecordColumnKey[] = [
 	"screenshot",
-	"unit_group",
-	"employee_id",
 	"name",
 	"device_name",
 	"verify_method",
+	"event",
+	"time",
 ]
 
 const recordColumnLabels: Record<PeopleCountingRecordColumnKey, string> = {
 	screenshot: "設備截圖",
-	unit_group: "人員群組",
-	employee_id: "ID",
 	name: "姓名",
 	device_name: "出入口名稱",
 	verify_method: "方式",
+	event: "事件",
+	time: "時間",
+}
+
+const cameraColumnsFromZoneForm = computed((): PeopleCountingRecordColumnKey[] => {
+	// 區域表單存的是 PeopleCountingLogColumnKey（screenshot/unit/employee_id/name/verify_method...）
+	const picked = normalizeLogDisplayColumns(props.displayColumns)
+	const out: PeopleCountingRecordColumnKey[] = []
+	for (const k of picked) {
+		if (k === "screenshot") out.push("screenshot")
+		if (k === "name") out.push("name")
+		else if (k === "device_name") out.push("device_name")
+		else if (k === "verify_method") out.push("verify_method")
+		// event/time 固定顯示（不受勾選影響）
+	}
+	// 若全部被忽略，至少給一個可用欄位，避免空表頭
+	const pickedCols: PeopleCountingRecordColumnKey[] = out.length
+		? out
+		: ["screenshot", "name"]
+	return [...new Set<PeopleCountingRecordColumnKey>([...pickedCols, "event", "time"])]
+})
+
+const recordColumns = computed((): PeopleCountingRecordColumnKey[] => {
+	// 只要外層有傳 displayColumns（地點管理勾選欄位），就以該設定為準
+	if (Array.isArray(props.displayColumns) && props.displayColumns.length > 0) {
+		return cameraColumnsFromZoneForm.value
+	}
+	return FIXED_RECORD_COLUMNS
+})
+
+const parseTimestamp = (ts: string | null | undefined): { date: string; time: string } => {
+	const raw = (ts ?? "").trim()
+	if (!raw) return { date: "—", time: "—" }
+	const i = raw.indexOf(" ")
+	if (i === -1) return { date: raw, time: "" }
+	return { date: raw.slice(0, i), time: raw.slice(i + 1) }
 }
 
 const {

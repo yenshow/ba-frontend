@@ -41,6 +41,20 @@ export const useVehicleAccessSitesApi = () => {
 		return request(`/vehicle-access/sites/${siteId}/stats${qs ? `?${qs}` : ""}`);
 	};
 
+	const getAllSiteLogs = async (
+		filters: VehicleAccessLogsFilters = {}
+	): Promise<{ logs: VehicleDataLog[] }> => {
+		const q = new URLSearchParams();
+		if (filters.limit != null) q.set("limit", String(filters.limit));
+		if (filters.offset != null) q.set("offset", String(filters.offset));
+		if (filters.startTime) q.set("startTime", filters.startTime);
+		if (filters.endTime) q.set("endTime", filters.endTime);
+		if (filters.timeRange) q.set("timeRange", filters.timeRange);
+		if (filters.search) q.set("search", filters.search);
+		const qs = q.toString();
+		return request(`/vehicle-access/logs${qs ? `?${qs}` : ""}`);
+	};
+
 	const getSiteLogs = async (
 		siteId: number,
 		filters: VehicleAccessLogsFilters = {}
@@ -56,7 +70,7 @@ export const useVehicleAccessSitesApi = () => {
 		return request(`/vehicle-access/sites/${siteId}/logs${qs ? `?${qs}` : ""}`);
 	};
 
-	return { getSites, getSiteStats, getSiteLogs };
+	return { getSites, getSiteStats, getAllSiteLogs, getSiteLogs };
 };
 
 /** 完整報表單次上限（與後端 ENTRY_EXIT_MAX_RECORDS 一致） */

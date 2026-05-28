@@ -218,8 +218,8 @@
 	<SimulationFrame v-model="showSimulationFrame" title="車輛進出 - 完整報表">
 		<VehicleAccessSimulation
 			:logs="simulationLogs"
-			:zone-name="simulationZoneName"
-			:location-name="simulationLocationName"
+			:location-options="simulationLocationOptions"
+			:location-display-columns="simulationLocationDisplayColumns"
 			:time-range="simulationTimeRange"
 			@update:time-range="handleSimulationTimeRangeUpdate"
 		/>
@@ -241,7 +241,9 @@ import VehicleOverviewCard from "~/components/vehicle-access/VehicleOverviewCard
 import VehicleGroupDetailDialog from "~/components/vehicle-access/VehicleGroupDetailDialog.vue";
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
 import SimulationFrame from "~/components/common/SimulationFrame.vue";
-import VehicleAccessSimulation from "~/components/vehicle-access/VehicleAccessSimulation.vue";
+import VehicleAccessSimulation, {
+	type VehicleAccessSimulationLocationOption
+} from "~/components/vehicle-access/VehicleAccessSimulation.vue";
 import { useVehicleAccessState } from "~/composables/systems/vehicleAccess/useVehicleAccessState";
 import { useVehicleAccessLocationApi } from "~/composables/location/api/useVehicleAccessLocationApi";
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
@@ -299,17 +301,37 @@ const simulationTimeRange = ref({
 	endDate: "",
 	preset: "today"
 });
-const simulationZoneName = computed(() =>
-	selectedLocation.value ? (getLocationZone(selectedLocation.value) ?? "") : ""
-);
-const simulationLocationName = computed(() => selectedLocation.value?.name ?? "");
 const simulationLogs = ref<VehicleDataLog[]>([]);
 
-const loadSimulationLogs = async () => {
-	if (!selectedLocation.value) {
-		simulationLogs.value = [];
-		return;
+const simulationLocationOptions = computed((): VehicleAccessSimulationLocationOption[] => {
+	const opts: VehicleAccessSimulationLocationOption[] = [];
+	for (const loc of locations.value) {
+		const locationId = loc.id != null ? Number(loc.id) : Number(loc.locationId);
+		if (!Number.isFinite(locationId)) continue;
+		const zoneName = loc.zoneName || "";
+		const locationName = loc.name || "";
+		opts.push({
+			locationId,
+			label: [zoneName, locationName].filter(Boolean).join("-") || String(locationId),
+			zoneName,
+			locationName
+		});
 	}
+	return opts;
+});
+
+const simulationLocationDisplayColumns = computed(() => {
+	const map: Record<number, string[] | null | undefined> = {};
+	for (const loc of locations.value) {
+		const id = loc.id != null ? Number(loc.id) : Number(loc.locationId);
+		if (!Number.isFinite(id)) continue;
+		map[id] = loc.logDisplayColumns ?? null;
+	}
+	return map;
+});
+
+/** 完整報表：跨地點載入時間區間內紀錄 */
+const loadSimulationLogs = async () => {
 	const { startDate, endDate, preset } = simulationTimeRange.value;
 	try {
 		simulationLogs.value = await loadFullReportLogs({

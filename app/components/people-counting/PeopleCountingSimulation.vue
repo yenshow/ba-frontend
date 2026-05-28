@@ -1,12 +1,23 @@
 <template>
 	<section class="min-h-[664px] rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-			<p class="text-base text-white/70 2xl:text-lg">共 {{ logs.length }} 筆紀錄</p>
-			<div class="flex items-center gap-3 2xl:gap-4">
+			<p class="text-base text-white/70 2xl:text-lg">共 {{ locationFilteredLogs.length }} 筆紀錄</p>
+			<div class="flex flex-wrap items-center gap-3 2xl:gap-4">
+				<div v-if="locationFilterOptions.length > 1" class="flex items-center gap-2">
+					<label class="text-sm text-white/70 2xl:text-base">區域-地點：</label>
+					<div class="min-w-[10rem]">
+						<FilterDropdown
+							v-model="filterLocationId"
+							:options="locationFilterOptions"
+							placeholder="全部"
+							text-size="text-sm 2xl:text-base"
+						/>
+					</div>
+				</div>
 				<TimeRangePicker v-model="timeRangeModel" :presets="[...TIME_RANGE_PRESETS_FULL_REPORT]" />
 				<button
 					type="button"
-					:disabled="logs.length === 0"
+					:disabled="locationFilteredLogs.length === 0"
 					class="rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
 					aria-label="匯出 CSV"
 					@click="handleExportCsv"
@@ -17,7 +28,7 @@
 		</div>
 
 		<div
-			v-if="logs.length === 0"
+			v-if="locationFilteredLogs.length === 0"
 			class="flex min-h-[200px] items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-8 text-center"
 		>
 			<p class="text-base text-white/70 2xl:text-lg">尚無進出場紀錄</p>
@@ -29,17 +40,6 @@
 				<h3 class="mb-3 w-fit border-b-2 border-white/70 text-lg text-white/90 2xl:text-xl">
 					進出統計
 				</h3>
-				<div v-if="zoneLocationOptions.length > 1" class="mb-2 flex items-center gap-2">
-					<label class="text-sm text-white/70 2xl:text-base">區域-地點：</label>
-					<div class="min-w-[10rem]">
-						<FilterDropdown
-							v-model="filterZoneLocation"
-							:options="zoneLocationFilterOptions"
-							placeholder="全部"
-							text-size="text-sm 2xl:text-base"
-						/>
-					</div>
-				</div>
 				<table
 					class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base"
 				>
@@ -73,17 +73,6 @@
 				<h3 class="mb-3 w-fit border-b-2 border-white/70 text-lg text-white/90 2xl:text-xl">
 					單位統計
 				</h3>
-				<div v-if="zoneLocationOptions.length > 1" class="mb-2 flex items-center gap-2">
-					<label class="text-sm text-white/70 2xl:text-base">區域-地點：</label>
-					<div class="min-w-[10rem]">
-						<FilterDropdown
-							v-model="filterZoneLocationUnit"
-							:options="zoneLocationFilterOptions"
-							placeholder="全部"
-							text-size="text-sm 2xl:text-base"
-						/>
-					</div>
-				</div>
 				<table
 					class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base"
 				>
@@ -125,28 +114,40 @@
 					<h3 class="w-fit border-b-2 border-white/70 text-lg text-white/90 2xl:text-xl">
 						進出紀錄
 					</h3>
-					<div class="flex flex-wrap items-center gap-4">
-						<div v-if="zoneLocationOptions.length >= 1" class="flex items-center gap-2">
-							<label class="text-sm text-white/70 2xl:text-base">區域-地點：</label>
-							<div class="min-w-[10rem]">
-								<FilterDropdown
-									v-model="filterZoneLocationDetail"
-									:options="zoneLocationFilterOptions"
-									placeholder="全部"
-									text-size="text-sm 2xl:text-base"
-								/>
-							</div>
-						</div>
-						<div class="flex items-center gap-2">
-							<label class="text-sm text-white/70 2xl:text-base">人員群組：</label>
-							<div class="min-w-[10rem]">
-								<FilterDropdown
-									v-model="filterUnitName"
-									:options="unitNameFilterOptions"
-									placeholder="全部"
-									text-size="text-sm 2xl:text-base"
-								/>
-							</div>
+					<div class="flex items-center gap-2">
+						<label for="people-counting-report-search" class="sr-only">搜尋工號或姓名</label>
+						<div class="relative">
+							<input
+								id="people-counting-report-search"
+								v-model="searchQuery"
+								type="search"
+								placeholder="工號或姓名"
+								class="min-w-[10rem] rounded-xl border border-white/20 bg-white/10 py-2 pe-10 ps-3 text-sm text-white placeholder:text-white/50 focus:border-cyan-400/60 focus:outline-none 2xl:min-w-[12rem] 2xl:py-2.5 2xl:text-base"
+								autocomplete="off"
+								aria-label="搜尋工號或姓名"
+							/>
+							<button
+								v-if="searchQuery.trim()"
+								type="button"
+								class="absolute inset-y-0 end-2 my-auto flex h-7 w-7 items-center justify-center rounded-full text-white hover:bg-white/10 2xl:h-8 2xl:w-8"
+								aria-label="清除搜尋"
+								@click="handleClearSearch"
+							>
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									class="h-4 w-4 2xl:h-5 2xl:w-5"
+									aria-hidden="true"
+								>
+									<path
+										d="M6 6l12 12M18 6L6 18"
+										stroke="currentColor"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+									/>
+								</svg>
+							</button>
 						</div>
 					</div>
 				</div>
@@ -156,7 +157,7 @@
 					<thead class="bg-white/20">
 						<tr class="text-white/90">
 							<th
-								v-for="header in DETAIL_HEADERS"
+								v-for="header in detailHeaders"
 								:key="header"
 								class="whitespace-nowrap border border-white/20 p-2"
 							>
@@ -171,14 +172,13 @@
 							class="border-b border-white/10 text-white"
 							:class="row.isEntryOnly ? 'bg-red-500/80' : ''"
 						>
-							<td class="border border-white/20 p-2">{{ row["區域-地點"] }}</td>
-							<td class="border border-white/20 p-2">{{ row.人員群組 }}</td>
-							<td class="border border-white/20 p-2">{{ row.ID }}</td>
-							<td class="border border-white/20 p-2">{{ row.姓名 }}</td>
-							<td class="border border-white/20 p-2">{{ row.出入口名稱 }}</td>
-							<td class="border border-white/20 p-2">{{ row.刷卡時間 }}</td>
-							<td class="border border-white/20 p-2">{{ row.方式 }}</td>
-							<td class="border border-white/20 p-2">{{ row.事件 }}</td>
+							<td
+								v-for="(cell, idx) in row.cells"
+								:key="`${row.key}-${idx}`"
+								class="border border-white/20 p-2"
+							>
+								{{ cell }}
+							</td>
 						</tr>
 					</tbody>
 				</table>
@@ -217,7 +217,7 @@
 
 <script setup lang="ts">
 import type { PeopleCountingLog } from "~/types/peopleCounting"
-import { formatDate, formatDateTime, TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtils"
+import { formatDate, TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtils"
 import { buildCsvSection } from "~/utils/csvExport"
 import {
 	countingPersonKey,
@@ -226,39 +226,41 @@ import {
 	getEntryOnlyPersonsForDay,
 	getUnitStatsForDay,
 } from "~/utils/peopleCountingTransition"
-import { formatLogEventLabel, formatLogVerifyMethod, formatLogText } from "~/utils/peopleCountingLogColumns"
+import {
+	DEFAULT_LOG_DISPLAY_COLUMNS,
+	normalizeLogDisplayColumns,
+	PEOPLE_COUNTING_LOG_COLUMN_LABELS,
+	buildLogDetailRow,
+} from "~/utils/peopleCountingLogColumns"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 
-const props = defineProps<{
-	logs: PeopleCountingLog[]
-	dataSource?: "yscp" | "access_control" | "isapi_camera"
-	siteSummary?: {
-		entryCount: number
-		exitCount: number
-		units?: Array<{
-			name: string
-			entryCount?: number
-			exitCount?: number
-			currentCount?: number
-			// 允許帶額外欄位（如 id/capacity 等），避免呼叫端型別不相容
-			[key: string]: unknown
-		}>
-	} | null
-	/** 相容：舊頁面用 site-summary 綁定 */
-	siteSnapshot?: {
-		entryCount: number
-		exitCount: number
-		units?: Array<{
-			name: string
-			entryCount?: number
-			exitCount?: number
-			currentCount?: number
-			[key: string]: unknown
-		}>
-	} | null
+export type PeopleCountingSimulationLocationOption = {
+	locationId: number
+	label: string
 	zoneName: string
 	locationName: string
+	dataSource?: "yscp" | "access_control" | "isapi_camera"
+}
+
+export type PeopleCountingSimulationLocationSummary = {
+	entryCount: number
+	exitCount: number
+	units?: Array<{
+		name: string
+		entryCount?: number
+		exitCount?: number
+		currentCount?: number
+		[key: string]: unknown
+	}>
+	dataSource?: "yscp" | "access_control" | "isapi_camera"
+}
+
+const props = defineProps<{
+	logs: PeopleCountingLog[]
+	locationOptions: PeopleCountingSimulationLocationOption[]
+	locationSummaries?: Record<number, PeopleCountingSimulationLocationSummary>
+	locationDisplayColumns?: Record<number, string[] | null | undefined>
 	timeRange: { startDate: string; endDate: string; preset: string }
 }>()
 
@@ -271,50 +273,74 @@ const timeRangeModel = computed({
 	set: (v) => emit("update:timeRange", v),
 })
 
-const zoneLocationLabel = computed(() => {
-	const z = props.zoneName || ""
-	const l = props.locationName || ""
-	return [z, l].filter(Boolean).join("-") || "-"
-})
+const filterLocationId = ref("")
+const searchQuery = ref("")
 
-const filterZoneLocation = ref("")
-const filterZoneLocationUnit = ref("")
-const filterZoneLocationDetail = ref("")
-const filterUnitName = ref("")
-
-const isIsapiCameraReport = computed(() => props.dataSource === "isapi_camera")
-
-const effectiveSnapshot = computed(() => props.siteSnapshot ?? props.siteSummary ?? null)
-
-const useIsapiSnapshotTotals = computed(
-	() =>
-		isIsapiCameraReport.value &&
-		effectiveSnapshot.value != null &&
-		props.timeRange.preset === "today"
-)
-
-const zoneLocationOptions = computed(() =>
-	zoneLocationLabel.value ? [zoneLocationLabel.value] : []
-)
-
-const zoneLocationFilterOptions = computed(() => [
-	{ value: "", label: "全部" },
-	...zoneLocationOptions.value.map((value) => ({ value, label: value })),
-])
-
-const unitNameOptions = computed(() => {
-	const set = new Set<string>()
-	for (const log of props.logs) {
-		const name = (log.unit?.name ?? log.unitName ?? "").trim()
-		if (name) set.add(name)
+const locationLabelById = computed(() => {
+	const map = new Map<number, string>()
+	for (const opt of props.locationOptions) {
+		map.set(opt.locationId, opt.label)
 	}
-	return [...set].sort()
+	return map
 })
 
-const unitNameFilterOptions = computed(() => [
+const locationFilterOptions = computed(() => [
 	{ value: "", label: "全部" },
-	...unitNameOptions.value.map((value) => ({ value, label: value })),
+	...props.locationOptions.map((opt) => ({
+		value: String(opt.locationId),
+		label: opt.label,
+	})),
 ])
+
+const getZoneLocationLabel = (log: PeopleCountingLog): string => {
+	const fromMap = locationLabelById.value.get(log.locationId)
+	if (fromMap) return fromMap
+	return String(log.locationId)
+}
+
+const matchesSearch = (log: PeopleCountingLog, query: string): boolean => {
+	const q = query.trim().toLowerCase()
+	if (!q) return true
+	const emp = log.employeeId != null ? String(log.employeeId).trim().toLowerCase() : ""
+	const name = log.personName != null ? String(log.personName).trim().toLowerCase() : ""
+	return emp.includes(q) || name.includes(q)
+}
+
+/** 地點篩選：影響全部區塊 */
+const locationFilteredLogs = computed(() => {
+	const locFilter = filterLocationId.value
+	return props.logs.filter((log) => {
+		if (locFilter && String(log.locationId) !== locFilter) return false
+		return true
+	})
+})
+
+/** 搜尋：僅影響進出紀錄 */
+const detailFilteredLogs = computed(() => {
+	const q = searchQuery.value
+	return locationFilteredLogs.value.filter((log) => matchesSearch(log, q))
+})
+
+const selectedLocationIdNum = computed(() => {
+	const v = filterLocationId.value
+	if (!v) return null
+	const n = Number(v)
+	return Number.isFinite(n) ? n : null
+})
+
+const useIsapiSnapshotTotals = computed(() => {
+	if (props.timeRange.preset !== "today") return false
+	const locId = selectedLocationIdNum.value
+	if (locId == null) return false
+	const summary = props.locationSummaries?.[locId]
+	return summary?.dataSource === "isapi_camera" && summary != null
+})
+
+const effectiveSnapshot = computed(() => {
+	const locId = selectedLocationIdNum.value
+	if (locId == null) return null
+	return props.locationSummaries?.[locId] ?? null
+})
 
 const getDateKey = (log: PeopleCountingLog): string => {
 	if (!log.timestamp) return ""
@@ -323,28 +349,37 @@ const getDateKey = (log: PeopleCountingLog): string => {
 	return i !== -1 ? s.slice(0, i) : formatDate(s)
 }
 
-const groupsByDate = computed(() => {
+/** 依日期 + 地點分組 */
+const groupsByDateAndLocation = computed(() => {
 	const g = new Map<string, PeopleCountingLog[]>()
-	for (const log of props.logs) {
+	for (const log of locationFilteredLogs.value) {
 		const d = getDateKey(log)
 		if (!d) continue
-		if (!g.has(d)) g.set(d, [])
-		g.get(d)!.push(log)
+		const key = `${d}::${log.locationId}`
+		if (!g.has(key)) g.set(key, [])
+		g.get(key)!.push(log)
 	}
 	return g
 })
 
 const statsTableRows = computed(() => {
-	const zl = zoneLocationLabel.value
-	if (filterZoneLocation.value && zl !== filterZoneLocation.value) return []
-	const datesDesc = [...groupsByDate.value.keys()].sort((a, b) => b.localeCompare(a))
 	const rows: Array<Record<string, string> & { key: string }> = []
-	for (const dateStr of datesDesc) {
-		const dayLogs = groupsByDate.value.get(dateStr)!
+	const keys = [...groupsByDateAndLocation.value.keys()].sort((a, b) => b.localeCompare(a))
+
+	for (const groupKey of keys) {
+		const dayLogs = groupsByDateAndLocation.value.get(groupKey)!
+		const dateStr = groupKey.split("::")[0] ?? ""
+		const zl = getZoneLocationLabel(dayLogs[0]!)
 		let entry: number
 		let exit: number
 		let current: number
-		if (useIsapiSnapshotTotals.value && effectiveSnapshot.value && datesDesc.length === 1) {
+
+		if (
+			useIsapiSnapshotTotals.value &&
+			effectiveSnapshot.value &&
+			keys.length === 1 &&
+			selectedLocationIdNum.value === dayLogs[0]?.locationId
+		) {
 			entry = effectiveSnapshot.value.entryCount
 			exit = effectiveSnapshot.value.exitCount
 			current = cumulativePresenceFromTotals(entry, exit)
@@ -354,8 +389,9 @@ const statsTableRows = computed(() => {
 			exit = r.exit
 			current = r.current
 		}
+
 		rows.push({
-			key: `stats-${dateStr}-${zl}`,
+			key: `stats-${groupKey}`,
 			日期: dateStr,
 			"區域-地點": zl,
 			進場人數: String(entry),
@@ -378,20 +414,24 @@ type UnitStatsRow = {
 }
 
 const unitStatsTableRows = computed((): UnitStatsRow[] => {
-	const zl = zoneLocationLabel.value
-	if (filterZoneLocationUnit.value && zl !== filterZoneLocationUnit.value) return []
-	const datesDesc = [...groupsByDate.value.keys()].sort((a, b) => b.localeCompare(a))
 	const rows: UnitStatsRow[] = []
-	for (const dateStr of datesDesc) {
-		const dayLogs = groupsByDate.value.get(dateStr)!
+	const keys = [...groupsByDateAndLocation.value.keys()].sort((a, b) => b.localeCompare(a))
+
+	for (const groupKey of keys) {
+		const dayLogs = groupsByDateAndLocation.value.get(groupKey)!
+		const dateStr = groupKey.split("::")[0] ?? ""
+		const zl = getZoneLocationLabel(dayLogs[0]!)
+		const locId = dayLogs[0]?.locationId
+
 		if (
 			useIsapiSnapshotTotals.value &&
 			effectiveSnapshot.value?.units?.length &&
-			datesDesc.length === 1
+			keys.length === 1 &&
+			selectedLocationIdNum.value === locId
 		) {
 			for (const u of effectiveSnapshot.value.units!) {
 				rows.push({
-					key: `unit-${dateStr}-${u.name}`,
+					key: `unit-${groupKey}-${u.name}`,
 					日期: dateStr,
 					"區域-地點": zl,
 					單位名稱: u.name,
@@ -405,7 +445,7 @@ const unitStatsTableRows = computed((): UnitStatsRow[] => {
 			const unitStats = getUnitStatsForDay(dayLogs)
 			for (const u of unitStats) {
 				rows.push({
-					key: `unit-${dateStr}-${u.unitName}`,
+					key: `unit-${groupKey}-${u.unitName}`,
 					日期: dateStr,
 					"區域-地點": zl,
 					單位名稱: u.unitName,
@@ -423,33 +463,35 @@ const unitStatsTableRows = computed((): UnitStatsRow[] => {
 type DetailRow = {
 	key: string
 	isEntryOnly: boolean
-	"區域-地點": string
-	人員群組: string
-	ID: string
-	姓名: string
-	出入口名稱: string
-	方式: string
-	刷卡時間: string
-	事件: string
+	cells: string[]
 }
 
-const DETAIL_HEADERS = [
-	"區域-地點",
-	"人員群組",
-	"ID",
-	"姓名",
-	"出入口名稱",
-	"方式",
-	"刷卡時間",
-	"事件",
-] as const
+const effectiveDisplayColumns = computed(() => {
+	const locId = selectedLocationIdNum.value
+	const raw = locId == null ? null : (props.locationDisplayColumns?.[locId] ?? null)
+	// 完整報表：不顯示「設備截圖」
+	return normalizeLogDisplayColumns(raw).filter((k) => k !== "screenshot")
+})
+
+const detailHeaders = computed(() => {
+	const fixed = ["區域-地點", "人員群組"]
+	const dynamic = effectiveDisplayColumns.value.map((k) => PEOPLE_COUNTING_LOG_COLUMN_LABELS[k])
+	return [...fixed, ...dynamic]
+})
 
 const detailTableRows = computed((): DetailRow[] => {
-	const zl = zoneLocationLabel.value
-	const datesDesc = [...groupsByDate.value.keys()].sort((a, b) => b.localeCompare(a))
 	const rows: DetailRow[] = []
+	const byDate = new Map<string, PeopleCountingLog[]>()
+	for (const log of detailFilteredLogs.value) {
+		const d = getDateKey(log)
+		if (!d) continue
+		if (!byDate.has(d)) byDate.set(d, [])
+		byDate.get(d)!.push(log)
+	}
+	const datesDesc = [...byDate.keys()].sort((a, b) => b.localeCompare(a))
+
 	for (const dateStr of datesDesc) {
-		const dayLogs = groupsByDate.value.get(dateStr)!
+		const dayLogs = byDate.get(dateStr)!
 		const entryOnlyLastLogMap = new Map<string, PeopleCountingLog>()
 		for (const log of getEntryOnlyPersonsForDay(dayLogs)) {
 			entryOnlyLastLogMap.set(countingPersonKey(log), log)
@@ -462,30 +504,35 @@ const detailTableRows = computed((): DetailRow[] => {
 			const isEntryOnly = entryOnlyLastLogMap.has(personKey)
 			const lastEntryLog = entryOnlyLastLogMap.get(personKey)
 			const unitName = (log.unit?.name ?? log.unitName ?? "").trim() || "—"
-			if (filterZoneLocationDetail.value && zl !== filterZoneLocationDetail.value) continue
-			if (filterUnitName.value && unitName !== filterUnitName.value) continue
+			const zl = getZoneLocationLabel(log)
+			const labeled = buildLogDetailRow(log, effectiveDisplayColumns.value)
+			const cells = detailHeaders.value.map((h) => {
+				if (h === "區域-地點") return zl
+				if (h === "人員群組") return unitName
+				return labeled[h] ?? "—"
+			})
 
 			rows.push({
 				key: `log-${log.id ?? dateStr}-${personKey}-${log.timestamp}`,
 				isEntryOnly: isEntryOnly && lastEntryLog === log,
-				"區域-地點": zl,
-				人員群組: unitName,
-				ID: formatLogText(log.employeeId),
-				姓名: formatLogText(log.personName),
-				出入口名稱: formatLogText(log.deviceName),
-				方式: formatLogVerifyMethod(log),
-				刷卡時間: formatLogText(log.timestamp),
-				事件: formatLogEventLabel(log),
+				cells,
 			})
 		}
 	}
-	return rows.sort((a, b) => (b.刷卡時間 || "").localeCompare(a.刷卡時間 || ""))
+	const timeHeader = PEOPLE_COUNTING_LOG_COLUMN_LABELS.time
+	const timeIdx = detailHeaders.value.indexOf(timeHeader)
+	if (timeIdx < 0) return rows
+	return rows.sort((a, b) => {
+		const ta = a.cells[timeIdx] ?? ""
+		const tb = b.cells[timeIdx] ?? ""
+		return String(tb).localeCompare(String(ta))
+	})
 })
 
 const DETAIL_PAGE_SIZE = 10
 const detailPage = ref(1)
 
-watch([filterZoneLocationDetail, filterUnitName], () => {
+watch([filterLocationId, searchQuery], () => {
 	detailPage.value = 1
 })
 
@@ -514,10 +561,16 @@ const handleDetailNextPage = () => {
 const STATS_HEADERS = ["日期", "區域-地點", "進場人數", "出場人數", "在場人數"]
 const UNIT_STATS_HEADERS = ["日期", "區域-地點", "單位名稱", "進場人數", "出場人數", "在場人數"]
 
-const firstDateStr = computed(() => (props.logs.length > 0 ? getDateKey(props.logs[0]) : ""))
+const firstDateStr = computed(() =>
+	locationFilteredLogs.value.length > 0 ? getDateKey(locationFilteredLogs.value[0]!) : ""
+)
+
+const handleClearSearch = () => {
+	searchQuery.value = ""
+}
 
 const handleExportCsv = () => {
-	if (props.logs.length === 0) return
+	if (locationFilteredLogs.value.length === 0) return
 	const dateStr = firstDateStr.value.replace(/\//g, "-") || new Date().toISOString().slice(0, 10)
 	const parts: string[] = []
 	parts.push("進出統計")
@@ -542,17 +595,10 @@ const handleExportCsv = () => {
 	parts.push("進出紀錄")
 	parts.push(
 		buildCsvSection(
-			[...DETAIL_HEADERS],
-			detailTableRows.value.map((r) => ({
-				"區域-地點": r["區域-地點"],
-				人員群組: r.人員群組,
-				ID: r.ID,
-				姓名: r.姓名,
-				出入口名稱: r.出入口名稱,
-				方式: r.方式,
-				刷卡時間: r.刷卡時間,
-				事件: r.事件,
-			})),
+			detailHeaders.value,
+			detailTableRows.value.map((r) =>
+				Object.fromEntries(detailHeaders.value.map((h, i) => [h, r.cells[i] ?? ""]))
+			),
 			{ backupStyle: true }
 		)
 	)

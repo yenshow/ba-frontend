@@ -1,6 +1,6 @@
 <template>
 	<div class="show-scrollbar flex h-full flex-col space-y-8 overflow-y-auto">
-		<!-- 進場單位列表 -->
+		<!-- 人員群組列表 -->
 		<UnitList
 			:units="location.units || []"
 			:selected-unit-id="selectedUnitId"
@@ -24,9 +24,9 @@ import UnitList from "~/components/people-counting/UnitList.vue"
 import PersonnelList from "~/components/people-counting/PersonnelList.vue"
 
 interface Props {
-	location: PeopleCountingLocation;
-	personnel: PeopleCountingPersonnel[];
-	selectedUnitId?: number | null;
+	location: PeopleCountingLocation
+	personnel: PeopleCountingPersonnel[]
+	selectedUnitId?: number | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -45,7 +45,6 @@ const selectedUnitName = computed(() => {
 
 const handleUnitSelect = (unitId: number) => {
 	// 確保點擊後一定有選取狀態，不會取消選取
-	emit("unit-select", unitId);
-};
+	emit("unit-select", unitId)
+}
 </script>
-
