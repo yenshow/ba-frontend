@@ -11,7 +11,7 @@ export const VEHICLE_ACCESS_LOG_COLUMN_KEYS = [
 	"lane",
 	"owner_name",
 	"pass_result",
-	"time",
+	"time"
 ] as const;
 
 export type VehicleAccessLogColumnKey = (typeof VEHICLE_ACCESS_LOG_COLUMN_KEYS)[number];
@@ -22,18 +22,18 @@ export const VEHICLE_ACCESS_LOG_COLUMN_LABELS: Record<VehicleAccessLogColumnKey,
 	lane: "車道",
 	owner_name: "車主名稱",
 	pass_result: "放行結果",
-	time: "時間",
+	time: "時間"
 };
 
 const REQUIRED_LOG_COLUMN_KEYS: VehicleAccessLogColumnKey[] = ["pass_result", "time"];
 
 /** 地點表單可勾選欄位（放行結果、時間固定顯示） */
 export const TOGGLEABLE_VEHICLE_LOG_COLUMN_KEYS = VEHICLE_ACCESS_LOG_COLUMN_KEYS.filter(
-	(k) => !REQUIRED_LOG_COLUMN_KEYS.includes(k)
+	k => !REQUIRED_LOG_COLUMN_KEYS.includes(k)
 );
 
 export const DEFAULT_VEHICLE_LOG_DISPLAY_COLUMNS: VehicleAccessLogColumnKey[] = [
-	...VEHICLE_ACCESS_LOG_COLUMN_KEYS,
+	...VEHICLE_ACCESS_LOG_COLUMN_KEYS
 ];
 
 export const normalizeVehicleLogDisplayColumns = (
@@ -55,40 +55,39 @@ export const normalizeVehicleLogDisplayColumns = (
 	for (const req of REQUIRED_LOG_COLUMN_KEYS) {
 		if (!seen.has(req)) picked.push(req);
 	}
-	return VEHICLE_ACCESS_LOG_COLUMN_KEYS.filter((k) => picked.includes(k));
+	return VEHICLE_ACCESS_LOG_COLUMN_KEYS.filter(k => picked.includes(k));
 };
 
 /** 寫入 API／DB：不含固定的 pass_result、time */
 export const toStoredVehicleLogDisplayColumns = (
 	normalized: VehicleAccessLogColumnKey[]
-): VehicleAccessLogColumnKey[] =>
-	normalized.filter((k) => !REQUIRED_LOG_COLUMN_KEYS.includes(k));
-
-const getLaneType = (log: VehicleDataLog): number | null => log.lane_type ?? null;
+): VehicleAccessLogColumnKey[] => normalized.filter(k => !REQUIRED_LOG_COLUMN_KEYS.includes(k));
 
 export const getVehiclePassResultLabel = (log: VehicleDataLog): string => {
-	if (log.allow_result === 0) return "拒絕";
 	if (log.allow_result === 1) {
-		const lt = getLaneType(log);
-		if (lt === 1) return "進入";
-		if (lt === 2) return "離開";
+		if (log.lane_type === 1) return "進入";
+		if (log.lane_type === 2) return "離開";
 		return "放行";
 	}
-	return "-";
+	if (log.allow_result === 0) return "拒絕";
+	return "陌生";
 };
 
 export const getVehiclePassResultTagClass = (log: VehicleDataLog): string => {
-	if (log.allow_result === 0) return "bg-red-500/70 text-red-200";
 	if (log.allow_result === 1) {
-		const lt = getLaneType(log);
-		if (lt === 1) return "bg-green-500/30 text-green-200";
-		if (lt === 2) return "bg-cyan-500/30 text-cyan-200";
+		if (log.lane_type === 1) return "bg-green-500/30 text-green-200";
+		if (log.lane_type === 2) return "bg-cyan-500/30 text-cyan-200";
+		return "bg-emerald-500/30 text-emerald-100";
 	}
-	return "bg-white/20 text-white/80";
+	if (log.allow_result === 0) return "bg-rose-500/70 text-rose-100";
+	return "bg-amber-400/55 text-white font-semibold ring-1 ring-amber-200/60";
 };
 
+export const formatVehicleLogLaneOrEmpty = (log: VehicleDataLog): string =>
+	log.lane_name?.trim() || "";
+
 export const formatVehicleLogLane = (log: VehicleDataLog): string =>
-	log.lane_name?.trim() || "-";
+	formatVehicleLogLaneOrEmpty(log) || "-";
 
 export const formatVehicleLogText = (value: string | null | undefined): string => {
 	const s = value != null ? String(value).trim() : "";

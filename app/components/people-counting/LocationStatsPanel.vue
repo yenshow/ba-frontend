@@ -36,7 +36,6 @@
 		<EntryExitLogTable
 			v-if="showLogTable"
 			:logs="logs"
-			:display-columns="displayColumns"
 		/>
 	</div>
 </template>
@@ -44,14 +43,12 @@
 <script setup lang="ts">
 import type { PeopleCountingLog } from "~/types/peopleCounting"
 import EntryExitLogTable from "~/components/people-counting/EntryExitLogTable.vue"
-import type { PeopleCountingLogColumnKey } from "~/utils/peopleCountingLogColumns"
 
 interface Props {
 	entryCount: number
 	exitCount: number
 	currentCount: number
 	logs: PeopleCountingLog[]
-	displayColumns?: PeopleCountingLogColumnKey[] | string[] | null
 	/** false：僅顯示統計（人流頁分欄版面） */
 	showLogTable?: boolean
 }

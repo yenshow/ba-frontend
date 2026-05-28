@@ -11,8 +11,8 @@
 			<table class="w-full border-b-2 border-l-2 border-r-2 border-white/20">
 				<thead class="bg-white/20">
 					<tr class="text-center text-xs font-semibold text-white/80 2xl:text-sm">
-						<th v-for="col in displayColumns" :key="col" class="p-2">
-							{{ PEOPLE_COUNTING_LOG_COLUMN_LABELS[col] }}
+						<th v-for="col in recordColumns" :key="col" class="p-2">
+							{{ recordColumnLabels[col] }}
 						</th>
 					</tr>
 				</thead>
@@ -23,7 +23,7 @@
 						class="border-b border-white/10 text-center text-white"
 					>
 						<td
-							v-for="col in displayColumns"
+							v-for="col in recordColumns"
 							:key="`${log.id}-${col}`"
 							class="p-2"
 							:class="col === 'screenshot' ? 'flex items-center justify-center' : ''"
@@ -86,7 +86,7 @@
 									</Transition>
 								</button>
 							</template>
-							<template v-else-if="col === 'unit'">
+							<template v-else-if="col === 'unit_group'">
 								<span class="text-sm 2xl:text-base">{{
 									formatLogText(log.unit?.name || log.unitName)
 								}}</span>
@@ -97,24 +97,11 @@
 							<template v-else-if="col === 'name'">
 								<span class="text-sm 2xl:text-base">{{ formatLogText(log.personName) }}</span>
 							</template>
-							<template v-else-if="col === 'event'">
-								<span
-									:class="[
-										'inline-block rounded-full px-2 py-0.5 text-xs font-medium 2xl:text-sm',
-										getLogEventBadgeClass(log),
-									]"
-								>
-									{{ formatLogEventLabel(log) }}
-								</span>
+							<template v-else-if="col === 'device_name'">
+								<span class="text-sm 2xl:text-base">{{ formatLogText(log.deviceName) }}</span>
 							</template>
 							<template v-else-if="col === 'verify_method'">
 								<span class="text-sm 2xl:text-base">{{ formatLogVerifyMethod(log) }}</span>
-							</template>
-							<template v-else-if="col === 'time'">
-								<div class="flex flex-col items-center gap-1 text-xs 2xl:text-sm">
-									<span>{{ formatDate(log.timestamp) }}</span>
-									<span>{{ formatTime(log.timestamp) }}</span>
-								</div>
 							</template>
 						</td>
 					</tr>
@@ -163,30 +150,45 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, computed, toRef } from "vue"
+import { ref, nextTick, toRef } from "vue"
 import type { PeopleCountingLog } from "~/types/peopleCounting"
-import { formatDate, formatTime } from "~/utils/dateUtils"
 import { useResolvedMediaList } from "~/composables/core/useImageCenter"
 import {
-	PEOPLE_COUNTING_LOG_COLUMN_LABELS,
-	normalizeLogDisplayColumns,
-	formatLogEventLabel,
 	formatLogVerifyMethod,
 	formatLogText,
-	getLogEventBadgeClass,
-	type PeopleCountingLogColumnKey,
 } from "~/utils/peopleCountingLogColumns"
+
+type PeopleCountingRecordColumnKey =
+	| "screenshot"
+	| "unit_group"
+	| "employee_id"
+	| "name"
+	| "device_name"
+	| "verify_method"
 
 interface Props {
 	logs: PeopleCountingLog[]
-	displayColumns?: PeopleCountingLogColumnKey[] | string[] | null
 }
 
-const props = withDefaults(defineProps<Props>(), {
-	displayColumns: () => [],
-})
+const props = defineProps<Props>()
 
-const displayColumns = computed(() => normalizeLogDisplayColumns(props.displayColumns))
+const recordColumns: PeopleCountingRecordColumnKey[] = [
+	"screenshot",
+	"unit_group",
+	"employee_id",
+	"name",
+	"device_name",
+	"verify_method",
+]
+
+const recordColumnLabels: Record<PeopleCountingRecordColumnKey, string> = {
+	screenshot: "設備截圖",
+	unit_group: "人員群組",
+	employee_id: "ID",
+	name: "姓名",
+	device_name: "出入口名稱",
+	verify_method: "方式",
+}
 
 const {
 	urls: imageUrls,

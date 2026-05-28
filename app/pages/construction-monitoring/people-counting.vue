@@ -61,7 +61,6 @@
 								<!-- 左下：進出場記錄表 -->
 								<EntryExitLogTable
 									:logs="logs"
-									:display-columns="selectedLocation.logDisplayColumns"
 								/>
 								<!-- 右下：進場單位列表 -->
 								<div class="space-y-4">
@@ -227,7 +226,6 @@
 	<SimulationFrame v-model="showSimulationFrame" title="人流統計 - 完整報表">
 		<PeopleCountingSimulation
 			:logs="simulationLogs"
-			:display-columns="selectedLocation?.logDisplayColumns"
 			:data-source="selectedLocation?.dataSource"
 			:site-summary="
 				selectedLocation
