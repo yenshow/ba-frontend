@@ -1,13 +1,13 @@
 <template>
 	<div
-		class="flex min-w-[200px] flex-col gap-2"
+		class="flex min-w-[200px] flex-col gap-2 rounded-lg border-2 border-white/20 p-2"
 		role="group"
 		aria-label="道閘控制"
 		@click.stop
 		@keydown.stop
 	>
 		<div class="flex items-center justify-between gap-1">
-			<span class="text-[10px] font-medium text-white/70 2xl:text-xs">道閘</span>
+			<span class="text-[10px] font-medium text-white/70 2xl:text-xs">柵欄機</span>
 			<span
 				class="rounded-full px-1.5 py-0.5 text-[10px] 2xl:text-xs"
 				:class="statusBadgeClass"
@@ -16,7 +16,7 @@
 				{{ statusShort }}
 			</span>
 		</div>
-		<div class="grid grid-cols-2 gap-1">
+		<div class="flex gap-1">
 			<button
 				type="button"
 				class="rounded bg-emerald-500/20 px-1 py-1.5 text-[10px] font-medium text-emerald-100 hover:bg-emerald-500/35 disabled:opacity-50 2xl:text-xs"
@@ -67,17 +67,11 @@ const props = defineProps<{
 	active?: boolean;
 }>();
 
-const {
-	entryDeviceId,
-	statusText,
-	statusShort,
-	statusBadgeClass,
-	isControlling,
-	control,
-} = useVehicleBarrierGate({
-	location: () => props.location,
-	active: () => props.active,
-});
+const { entryDeviceId, statusText, statusShort, statusBadgeClass, isControlling, control } =
+	useVehicleBarrierGate({
+		location: () => props.location,
+		active: () => props.active
+	});
 
 const handleControl = (ctrlMode: BarrierGateCtrlMode) => {
 	void control(ctrlMode, Boolean(props.canWrite));
