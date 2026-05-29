@@ -81,7 +81,7 @@
 			<aside
 				:class="[
 					'flex flex-col transition-all duration-500 ease-in-out',
-					isSidebarCollapsed ? 'flex-[0.05]' : 'flex-[0.8] 2xl:flex-[0.7]'
+					isSidebarCollapsed ? 'flex-[0.05]' : 'flex-[0.8] 2xl:flex-[0.7]',
 				]"
 				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
 			>
@@ -90,7 +90,11 @@
 				>
 					<!-- 標題與收縮按鈕 -->
 					<Transition name="fade">
-						<div v-if="!isSidebarCollapsed" key="title" class="mb-4 border-b border-white/30 px-4 pb-4">
+						<div
+							v-if="!isSidebarCollapsed"
+							key="title"
+							class="mb-4 border-b border-white/30 px-4 pb-4"
+						>
 							<div class="flex flex-col gap-4">
 								<div class="flex items-center justify-center">
 									<h2 class="text-2xl font-semibold text-white 2xl:text-3xl">攝影機列表</h2>
@@ -122,7 +126,12 @@
 							stroke="currentColor"
 							viewBox="0 0 24 24"
 						>
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M9 5l7 7-7 7"
+							/>
 						</svg>
 					</button>
 
@@ -144,10 +153,7 @@
 								<section
 									v-for="(group, groupIndex) in filteredCameraCategoryGroups"
 									:key="group.code"
-									:class="[
-										'space-y-3',
-										groupIndex > 0 ? 'border-t border-white/20 pt-6' : '',
-									]"
+									:class="['space-y-3', groupIndex > 0 ? 'border-t border-white/20 pt-6' : '']"
 								>
 									<h3 class="text-sm font-medium text-cyan-200/90 2xl:text-base">
 										{{ group.label }}
@@ -181,193 +187,181 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, watch } from "vue";
-import type { GridLayout, MonitorView } from "~/types/surveillance";
-import type { CameraDeviceConfig } from "~/types/device";
-import { useToast } from "~/composables/core/useToast";
-import { useErrorHandler } from "~/composables/core/useErrorHandler";
-import { useStreamStatus } from "~/composables/monitoring/useStreamStatus";
-import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
-import FilterDropdown from "~/components/common/FilterDropdown.vue";
-import SurveillanceControlPanel from "~/components/surveillance/SurveillanceControlPanel.vue";
-import SurveillanceCameraGrid from "~/components/surveillance/SurveillanceCameraGrid.vue";
-import SurveillanceCameraCard from "~/components/surveillance/SurveillanceCameraCard.vue";
-import SurveillanceFullscreenGridDialog from "~/components/surveillance/SurveillanceFullscreenGridDialog.vue";
-import { groupDevicesByModelCategory } from "~/utils/cameraModelCategories";
+import { onMounted, onBeforeUnmount, watch } from "vue"
+import type { GridLayout, MonitorView } from "~/types/surveillance"
+import type { CameraDeviceConfig } from "~/types/device"
+import { useToast } from "~/composables/core/useToast"
+import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { useStreamStatus } from "~/composables/monitoring/useStreamStatus"
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import FilterDropdown from "~/components/common/FilterDropdown.vue"
+import SurveillanceControlPanel from "~/components/surveillance/SurveillanceControlPanel.vue"
+import SurveillanceCameraGrid from "~/components/surveillance/SurveillanceCameraGrid.vue"
+import SurveillanceCameraCard from "~/components/surveillance/SurveillanceCameraCard.vue"
+import SurveillanceFullscreenGridDialog from "~/components/surveillance/SurveillanceFullscreenGridDialog.vue"
+import { groupDevicesByModelCategory } from "~/utils/cameraModelCategories"
 
-const toast = useToast();
-const { handleError } = useErrorHandler();
+const toast = useToast()
+const { handleError } = useErrorHandler()
 
 // 使用統一的串流狀態管理
-const streamStatus = useStreamStatus();
+const streamStatus = useStreamStatus()
 
 // 左側區域參考與高度（用於使右側同高）
-const leftSectionRef = ref<HTMLElement | null>(null);
-const leftSectionHeight = ref<number | null>(null);
+const leftSectionRef = ref<HTMLElement | null>(null)
+const leftSectionHeight = ref<number | null>(null)
 
 // ResizeObserver 監聽左側高度
-let leftSectionResizeObserver: ResizeObserver | null = null;
+let leftSectionResizeObserver: ResizeObserver | null = null
 
 const updateLeftSectionHeight = () => {
 	if (leftSectionRef.value) {
-		leftSectionHeight.value = leftSectionRef.value.offsetHeight;
+		leftSectionHeight.value = leftSectionRef.value.offsetHeight
 	}
-};
+}
 
 const initLeftSectionObserver = () => {
-	if (typeof ResizeObserver === "undefined" || !leftSectionRef.value) return;
+	if (typeof ResizeObserver === "undefined" || !leftSectionRef.value) return
 
 	// 先設定一次初始高度
-	updateLeftSectionHeight();
+	updateLeftSectionHeight()
 
 	// ResizeObserver 會自動監聽所有尺寸變化（內容變化、布局變化等）
 	leftSectionResizeObserver = new ResizeObserver(() => {
-		updateLeftSectionHeight();
-	});
-	leftSectionResizeObserver.observe(leftSectionRef.value);
-};
+		updateLeftSectionHeight()
+	})
+	leftSectionResizeObserver.observe(leftSectionRef.value)
+}
 
 // 狀態管理（使用統一的串流狀態管理）
-const loadError = ref<string | null>(null);
+const loadError = ref<string | null>(null)
 
 // 從統一的狀態管理獲取狀態（只讀）
-const cameras = computed(() => streamStatus.cameras.value);
-const monitorViews = computed(() => streamStatus.monitorViews.value);
+const cameras = computed(() => streamStatus.cameras.value)
+const monitorViews = computed(() => streamStatus.monitorViews.value)
 
-const deviceApi = useDeviceApi();
-const surveillanceGroupFilter = ref<string>("");
-const cameraGroups = ref<string[]>([]);
+const deviceApi = useDeviceApi()
+const surveillanceGroupFilter = ref<string>("")
+const cameraGroups = ref<string[]>([])
 const surveillanceGroupFilterOptions = computed(() => [
 	{ value: "", label: "全部" },
-	...cameraGroups.value.map(g => ({ value: g, label: g }))
-]);
+	...cameraGroups.value.map((g) => ({ value: g, label: g })),
+])
 const filteredCameras = computed(() => {
-	const group = surveillanceGroupFilter.value?.trim();
+	const group = surveillanceGroupFilter.value?.trim()
 	return group
-		? cameras.value.filter(c => (c.config as CameraDeviceConfig)?.group?.trim() === group)
-		: cameras.value;
-});
+		? cameras.value.filter((c) => (c.config as CameraDeviceConfig)?.group?.trim() === group)
+		: cameras.value
+})
 
 const filteredCameraCategoryGroups = computed(() =>
-	groupDevicesByModelCategory(filteredCameras.value)
-);
+	groupDevicesByModelCategory([...filteredCameras.value])
+)
 
 // 布局管理
-const gridLayout = ref<GridLayout>("1");
-const selectedCameraIds = computed(() => monitorViews.value.map(view => view.deviceId));
+const gridLayout = ref<GridLayout>("1")
+const selectedCameraIds = computed(() => monitorViews.value.map((view) => view.deviceId))
 
-const isFullscreenOpen = ref(false);
+const isFullscreenOpen = ref(false)
 
 // 側邊欄收縮狀態
-const isSidebarCollapsed = ref(false);
+const isSidebarCollapsed = ref(false)
 
 const loadCameraGroups = async () => {
 	try {
-		const res = await deviceApi.getCameraGroups();
-		cameraGroups.value = res.groups ?? [];
+		const res = await deviceApi.getCameraGroups()
+		cameraGroups.value = res.groups ?? []
 	} catch {
-		cameraGroups.value = [];
+		cameraGroups.value = []
 	}
-};
+}
 
 // 載入攝影機列表
 const loadCameras = async () => {
-	loadError.value = null;
+	loadError.value = null
 
 	try {
-		await streamStatus.loadCameras();
+		await streamStatus.loadCameras()
 	} catch (error) {
-		const errorMsg = handleError(error, "載入攝影機列表失敗");
-		loadError.value = errorMsg || "載入攝影機列表失敗";
+		const errorMsg = handleError(error, "載入攝影機列表失敗")
+		loadError.value = errorMsg || "載入攝影機列表失敗"
 	}
-};
+}
 
 const refreshStatus = async () => {
 	try {
-		await streamStatus.loadCameras();
-		toast.success("已重新載入");
+		await streamStatus.loadCameras()
+		toast.success("已重新載入")
 	} catch (error) {
-		handleError(error, "重新載入失敗");
+		handleError(error, "重新載入失敗")
 	}
-};
+}
 
 // 處理攝影機選擇：加入或移除監控畫面（加入時呼叫 stream/start 取得 webrtcUrl）
 const handleCameraSelect = async (deviceId: number) => {
-	const existing = monitorViews.value.find(v => v.deviceId === deviceId);
+	const existing = monitorViews.value.find((v) => v.deviceId === deviceId)
 	if (existing) {
-		streamStatus.removeMonitorView(deviceId);
-		return;
+		streamStatus.removeMonitorView(deviceId)
+		return
 	}
 
-	const maxViews = parseInt(gridLayout.value);
+	const maxViews = parseInt(gridLayout.value)
 	if (monitorViews.value.length >= maxViews) {
-		toast.warning(`最多只能顯示 ${maxViews} 個畫面`);
-		return;
+		toast.warning(`最多只能顯示 ${maxViews} 個畫面`)
+		return
 	}
 
 	try {
-		await streamStatus.addMonitorView(deviceId);
-		toast.success("已加入監控畫面");
+		await streamStatus.addMonitorView(deviceId)
+		toast.success("已加入監控畫面")
 	} catch (error) {
-		handleError(error, "啟動串流失敗");
+		handleError(error, "啟動串流失敗")
 	}
-};
+}
 
 const handleRemoveView = (deviceId: number) => {
-	streamStatus.removeMonitorView(deviceId);
-};
+	streamStatus.removeMonitorView(deviceId)
+}
 
 // 監聽布局變化，調整畫面數量
-watch(gridLayout, newLayout => {
-	const maxViews = parseInt(newLayout);
+watch(gridLayout, (newLayout) => {
+	const maxViews = parseInt(newLayout)
 	if (monitorViews.value.length > maxViews) {
 		// 移除超出數量的視圖
-		const viewsToRemove = monitorViews.value.slice(maxViews);
-		viewsToRemove.forEach(view => {
-			streamStatus.removeMonitorView(view.deviceId);
-		});
+		const viewsToRemove = monitorViews.value.slice(maxViews)
+		viewsToRemove.forEach((view) => {
+			streamStatus.removeMonitorView(view.deviceId)
+		})
 	}
 	// ResizeObserver 會自動監聽尺寸變化，無需手動更新
-});
+})
 
 watch(
 	() => isFullscreenOpen.value,
-	isOpen => {
-		if (!isOpen) return;
+	(isOpen) => {
+		if (!isOpen) return
 		if (gridLayout.value !== "9" && gridLayout.value !== "16") {
-			isFullscreenOpen.value = false;
+			isFullscreenOpen.value = false
 		}
 	}
-);
+)
 
 onBeforeUnmount(() => {
 	if (leftSectionResizeObserver && leftSectionRef.value) {
-		leftSectionResizeObserver.unobserve(leftSectionRef.value);
-		leftSectionResizeObserver.disconnect();
-		leftSectionResizeObserver = null;
+		leftSectionResizeObserver.unobserve(leftSectionRef.value)
+		leftSectionResizeObserver.disconnect()
+		leftSectionResizeObserver = null
 	}
-});
+})
 
 onMounted(async () => {
-	initLeftSectionObserver();
-	void loadCameraGroups();
+	initLeftSectionObserver()
+	void loadCameraGroups()
 
 	try {
-		await loadCameras();
+		await loadCameras()
 	} catch (error) {
-		handleError(error, "初始化失敗");
+		handleError(error, "初始化失敗")
 	}
-});
+})
 </script>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-	transition: opacity 0.3s ease-in-out;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-	opacity: 0;
-}
-</style>

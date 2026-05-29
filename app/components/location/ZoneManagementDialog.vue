@@ -926,14 +926,4 @@ const handleConfirmDelete = () => {
 	max-height: 1000px;
 }
 
-/* 淡入淡出動畫 */
-.fade-enter-active,
-.fade-leave-active {
-	transition: opacity 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-	opacity: 0;
-}
 </style>

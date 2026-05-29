@@ -32,98 +32,98 @@
 
 <script setup lang="ts">
 interface Props {
-	webrtcUrl?: string;
-	webrtcPort?: number;
-	streamStatus?: "running" | "stopped" | "loading" | "error";
+	webrtcUrl?: string
+	webrtcPort?: number
+	streamStatus?: "running" | "stopped" | "loading" | "error"
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	webrtcUrl: "",
 	webrtcPort: undefined,
-	streamStatus: "stopped"
-});
+	streamStatus: "stopped",
+})
 
-const videoRef = ref<HTMLVideoElement | null>(null);
-const error = ref<string>("");
-let pc: RTCPeerConnection | null = null;
+const videoRef = ref<HTMLVideoElement | null>(null)
+const error = ref<string>("")
+let pc: RTCPeerConnection | null = null
 
 /** 分頁不可見時暫停 video，省 CPU／電量 */
 const updatePausedByVisibility = () => {
-	if (!videoRef.value) return;
+	if (!videoRef.value) return
 	if (document.hidden) {
-		videoRef.value.pause();
+		videoRef.value.pause()
 	} else {
-		videoRef.value.play().catch(() => {});
+		videoRef.value.play().catch(() => {})
 	}
-};
+}
 
 const connectWhep = async (whepUrl: string) => {
-	if (!videoRef.value) return;
-	pc = new RTCPeerConnection();
-	pc.ontrack = e => {
+	if (!videoRef.value) return
+	pc = new RTCPeerConnection()
+	pc.ontrack = (e) => {
 		if (videoRef.value && e.streams[0]) {
-			videoRef.value.srcObject = e.streams[0];
+			videoRef.value.srcObject = e.streams[0]
 		}
-	};
-	pc.addTransceiver("video", { direction: "recvonly" });
-	pc.addTransceiver("audio", { direction: "recvonly" });
-	const offer = await pc.createOffer();
-	await pc.setLocalDescription(offer);
+	}
+	pc.addTransceiver("video", { direction: "recvonly" })
+	pc.addTransceiver("audio", { direction: "recvonly" })
+	const offer = await pc.createOffer()
+	await pc.setLocalDescription(offer)
 	const response = await fetch(whepUrl, {
 		method: "POST",
 		headers: { "Content-Type": "application/sdp" },
-		body: offer.sdp
-	});
+		body: offer.sdp,
+	})
 	if (!response.ok) {
-		throw new Error(`WHEP 失敗: ${response.status}`);
+		throw new Error(`WHEP 失敗: ${response.status}`)
 	}
-	const answerSdp = await response.text();
-	await pc.setRemoteDescription(new RTCSessionDescription({ type: "answer", sdp: answerSdp }));
-};
+	const answerSdp = await response.text()
+	await pc.setRemoteDescription(new RTCSessionDescription({ type: "answer", sdp: answerSdp }))
+}
 
 watch(
 	() => [props.webrtcUrl, props.webrtcPort] as const,
 	async ([url, port]) => {
-		error.value = "";
+		error.value = ""
 		if (pc) {
-			pc.close();
-			pc = null;
+			pc.close()
+			pc = null
 		}
 		if (videoRef.value) {
-			videoRef.value.srcObject = null;
+			videoRef.value.srcObject = null
 		}
-		if (!url) return;
-		await nextTick();
-		if (!videoRef.value) return;
-		const whepUrl = resolveWebrtcWhepUrl(url, port);
+		if (!url) return
+		await nextTick()
+		if (!videoRef.value) return
+		const whepUrl = resolveWebrtcWhepUrl(url, port)
 		try {
-			await connectWhep(whepUrl);
+			await connectWhep(whepUrl)
 		} catch (e) {
-			error.value = e instanceof Error ? e.message : "WebRTC 連線失敗，請檢查 MediaMTX";
+			error.value = e instanceof Error ? e.message : "WebRTC 連線失敗，請檢查 MediaMTX"
 		}
 	},
 	{ immediate: true }
-);
+)
 
 onMounted(() => {
 	if (typeof document !== "undefined") {
-		document.addEventListener("visibilitychange", updatePausedByVisibility);
-		updatePausedByVisibility();
+		document.addEventListener("visibilitychange", updatePausedByVisibility)
+		updatePausedByVisibility()
 	}
-});
+})
 
 onBeforeUnmount(() => {
 	if (typeof document !== "undefined") {
-		document.removeEventListener("visibilitychange", updatePausedByVisibility);
+		document.removeEventListener("visibilitychange", updatePausedByVisibility)
 	}
 	if (pc) {
-		pc.close();
-		pc = null;
+		pc.close()
+		pc = null
 	}
 	if (videoRef.value) {
-		videoRef.value.srcObject = null;
+		videoRef.value.srcObject = null
 	}
-});
+})
 </script>
 
 <style scoped>

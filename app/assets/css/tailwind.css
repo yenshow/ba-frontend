@@ -120,6 +120,17 @@
 	opacity: 0;
 }
 
+/* Lightbox Fade 全螢幕圖片預覽 */
+.lightbox-fade-enter-active,
+.lightbox-fade-leave-active {
+	transition: opacity 0.2s ease;
+}
+
+.lightbox-fade-enter-from,
+.lightbox-fade-leave-to {
+	opacity: 0;
+}
+
 /* ========================================
    圖片模糊載入（平面圖、首頁建築圖、登入頁等）
    ======================================== */

@@ -38,20 +38,40 @@
 									:class="[person.isPresent ? 'bg-white/20' : 'bg-black/20']"
 								>
 									<!-- 照片（/uploads/ 改為後端完整 URL） -->
-									<div class="mt-4 h-16 w-16 overflow-hidden rounded-full bg-white/10">
-										<img
-											v-if="resolveUrl(person.photoUrl)"
-											:src="resolveUrl(person.photoUrl)"
-											:alt="person.name"
-											class="h-full w-full object-cover"
-											@error="handleImageError($event)"
-										/>
-										<img
-											v-else
-											src="/people-counting/no-photo-placeholder.png"
-											alt="未設照片"
-											class="h-full w-full object-cover"
-										/>
+									<div
+										class="relative mt-4 h-16 w-16 shrink-0 overflow-hidden rounded-full bg-white/10"
+									>
+										<Transition name="fade">
+											<img
+												v-if="resolveUrl(person.photoUrl) && !imageErrorStates[person.id]"
+												key="photo"
+												:src="resolveUrl(person.photoUrl)"
+												:alt="person.name"
+												class="absolute inset-0 h-full w-full object-cover"
+												@error="handleImageError($event, person.id)"
+											/>
+										</Transition>
+										<Transition name="fade">
+											<div
+												v-if="!resolveUrl(person.photoUrl) || imageErrorStates[person.id]"
+												class="absolute inset-0 flex items-center justify-center"
+												aria-hidden="true"
+											>
+												<svg
+													class="h-12 w-12 text-white"
+													fill="currentColor"
+													stroke="currentColor"
+													viewBox="0 0 24 24"
+												>
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+													/>
+												</svg>
+											</div>
+										</Transition>
 									</div>
 
 									<!-- 資訊 -->
@@ -182,9 +202,10 @@ const handleNext = () => {
 
 const { resolveUrl } = useImageCenter();
 
-const handleImageError = (event: Event) => {
-	const img = event.target as HTMLImageElement;
-	img.src = "/people-counting/no-photo-placeholder.png";
+const imageErrorStates = ref<Record<string | number, boolean>>({});
+
+const handleImageError = (_event: Event, personId: string | number) => {
+	imageErrorStates.value[personId] = true;
 };
 
 const handleClose = () => {
@@ -192,5 +213,3 @@ const handleClose = () => {
 	emit("close");
 };
 </script>
-
-<style scoped></style>

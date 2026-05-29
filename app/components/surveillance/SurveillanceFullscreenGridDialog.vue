@@ -35,52 +35,40 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted } from "vue";
-import type { GridLayout, MonitorView, SurveillanceCamera } from "~/types/surveillance";
-import SurveillanceCameraGrid from "~/components/surveillance/SurveillanceCameraGrid.vue";
+import { onBeforeUnmount, onMounted } from "vue"
+import type { GridLayout, MonitorView, SurveillanceCamera } from "~/types/surveillance"
+import SurveillanceCameraGrid from "~/components/surveillance/SurveillanceCameraGrid.vue"
 
 interface Props {
-	modelValue: boolean;
-	cameras: readonly SurveillanceCamera[];
-	views: readonly MonitorView[];
-	layout: GridLayout;
+	modelValue: boolean
+	cameras: readonly SurveillanceCamera[]
+	views: readonly MonitorView[]
+	layout: GridLayout
 }
 
-const props = defineProps<Props>();
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
-	"update:modelValue": [value: boolean];
-	remove: [deviceId: number];
-}>();
+	"update:modelValue": [value: boolean]
+	remove: [deviceId: number]
+}>()
 
-const handleClose = () => emit("update:modelValue", false);
+const handleClose = () => emit("update:modelValue", false)
 
 const handleKeyDown = (e: KeyboardEvent) => {
-	if (!props.modelValue) return;
-	if (e.key !== "Escape") return;
-	e.preventDefault();
-	handleClose();
-};
+	if (!props.modelValue) return
+	if (e.key !== "Escape") return
+	e.preventDefault()
+	handleClose()
+}
 
 onMounted(() => {
-	if (typeof document === "undefined") return;
-	document.addEventListener("keydown", handleKeyDown);
-});
+	if (typeof document === "undefined") return
+	document.addEventListener("keydown", handleKeyDown)
+})
 
 onBeforeUnmount(() => {
-	if (typeof document === "undefined") return;
-	document.removeEventListener("keydown", handleKeyDown);
-});
+	if (typeof document === "undefined") return
+	document.removeEventListener("keydown", handleKeyDown)
+})
 </script>
-
-<style scoped>
-.dialog-fade-enter-active,
-.dialog-fade-leave-active {
-	transition: opacity 0.18s ease;
-}
-.dialog-fade-enter-from,
-.dialog-fade-leave-to {
-	opacity: 0;
-}
-</style>
-

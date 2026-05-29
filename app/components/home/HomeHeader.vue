@@ -4,14 +4,8 @@
 		<div class="group col-span-1 flex items-center justify-center">
 			<div class="relative flex items-center justify-center">
 				<img
-					src="/layout/cloud.png"
-					alt="YENSHOW"
-					class="h-[var(--brand-logo-h)] object-contain"
-					:style="brandLogoStyle"
-				/>
-				<img
 					src="/layout/golden.png"
-					alt="YENSHOW"
+					alt="震旦雲X金儀"
 					class="h-[var(--brand-logo-h)] object-contain"
 					:style="brandLogoStyle"
 				/>
@@ -129,7 +123,7 @@ import { useAuth } from "~/composables/core/useAuth";
 // --- 專案圖片設定 ---
 
 const BRAND_LOGO_HEIGHT_MIN = 48;
-const BRAND_LOGO_HEIGHT_MAX = 96;
+const BRAND_LOGO_HEIGHT_MAX = 192;
 const BRAND_LOGO_HEIGHT_DEFAULT = 80;
 
 const clampBrandLogoHeight = (value: number) =>
@@ -176,7 +170,7 @@ const brandLogoStyle = computed(() => ({
 	"--brand-logo-h": `${brandLogoHeight.value}px`
 }));
 
-const brandLogoPreviewSrc = computed(() => `/layout/cloud.png?t=${brandLogoPreviewBuster.value}`);
+const brandLogoPreviewSrc = computed(() => `/layout/golden.png?t=${brandLogoPreviewBuster.value}`);
 
 const handleSaveBrandLogoHeight = async (nextValue: string) => {
 	const parsed = Number.parseInt(String(nextValue ?? "").trim(), 10);
