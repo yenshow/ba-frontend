@@ -1,5 +1,10 @@
 import type { Device } from "~/types/device"
-import type { ImportResult, Person } from "~/types/personnel"
+import type { ImportResult, Person, PersonLicensePlateFormItem, VehiclePlateSyncResult } from "~/types/personnel"
+import {
+	licensePlateItemsToPayload,
+	mapPersonLicensePlatesToForm,
+	validateLicensePlateFormItems,
+} from "~/utils/licensePlateFormUtils"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import {
@@ -20,15 +25,58 @@ import {
 	type PersonnelHandleApiError,
 } from "~/composables/systems/personnel/usePersonnelApi"
 import { getPrevOffset } from "~/composables/systems/personnel/personnelList"
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 
 type DeviceApi = ReturnType<typeof useDeviceApi>
 type AccessControlApi = ReturnType<typeof useAccessControlApi>
+
+/** 人員大頭照裁切 Dialog（PersonnelPersonsTab + ImageCropDialog） */
+export const PERSONNEL_FACE_CROP_DIALOG_PROPS = {
+	title: "上傳圖片",
+	description: "圖片用於臉型比對或臉型驗證，建議上傳五官清晰正面照。",
+	canvasWidth: 520,
+	canvasHeight: 520,
+	mask: "ellipse" as const,
+	maxOutputBytes: 200 * 1024,
+	outputMaxLongEdge: 320,
+}
+
+const PERSON_DIALOG_UNSAVED_CLOSE_CONFIRM = {
+	title: "確認關閉",
+	message: "您有未保存的變更，確定要關閉嗎？",
+	details: "未保存的變更將會遺失。",
+	type: "warning" as const,
+}
+
+type PersonDialogSnapshot = {
+	employeeNo: string
+	fullName: string
+	status: "active" | "inactive"
+	faceUrl: string
+	personGroupId: string
+	licensePlateItemsJson: string
+	password: string
+	isLongTerm: boolean
+	validBeginDate: string
+	validEndDate: string
+	cardNo: string
+	fingerPrintData: string
+	hasPendingFace: boolean
+}
+
+const normalizeLicensePlatesForSnapshot = (items: PersonLicensePlateFormItem[]) =>
+	items.map((i) => ({
+		plateNumber: i.plateNumber.trim(),
+		listType: i.listType,
+		effectiveBegin: i.effectiveBegin,
+		effectiveEnd: i.effectiveEnd,
+	}))
 
 export const usePersonnelPersonsTab = (params: {
 	personnelApi: PersonnelApi
 	deviceApi: DeviceApi
 	accessControlApi: AccessControlApi
-	toast: { success: (msg: string) => void; error: (msg: string) => void }
+	toast: { success: (msg: string) => void; error: (msg: string) => void; warning: (msg: string) => void }
 	handleApiError: PersonnelHandleApiError
 }) => {
 	const { personnelApi, deviceApi, accessControlApi, toast, handleApiError } = params
@@ -65,15 +113,26 @@ export const usePersonnelPersonsTab = (params: {
 		status: "active" | "inactive"
 		faceUrl: string
 		personGroupId: string
-		licensePlates: string[]
+		licensePlateItems: PersonLicensePlateFormItem[]
 	}>({
 		employeeNo: "",
 		fullName: "",
 		status: "active",
 		faceUrl: "",
 		personGroupId: "",
-		licensePlates: []
+		licensePlateItems: [],
 	})
+
+	const showVehiclePlateSyncNotice = (sync?: VehiclePlateSyncResult) => {
+		if (!sync) return
+		if (sync.warnings?.length) {
+			toast.warning(sync.warnings.join("；"))
+			return
+		}
+		if (sync.status === "failed" && sync.failures?.length) {
+			toast.warning(sync.failures.map((f) => f.message).join("；"))
+		}
+	}
 
 	const { resolveDirectUrl } = useImageCenter()
 	const getFaceImageSrc = (url: string | null | undefined): string | null => {
@@ -119,6 +178,75 @@ export const usePersonnelPersonsTab = (params: {
 	const validBeginDate = ref<string>("")
 	const validEndDate = ref<string>("")
 	const personPassword = ref<string>("")
+
+	const personDialogSnapshot = ref<PersonDialogSnapshot | null>(null)
+	const personCloseConfirm = useConfirmDialog()
+
+	const buildPersonDialogSnapshot = (): PersonDialogSnapshot => ({
+		employeeNo: personForm.employeeNo.trim(),
+		fullName: personForm.fullName.trim(),
+		status: personForm.status,
+		faceUrl: personForm.faceUrl.trim(),
+		personGroupId: personForm.personGroupId,
+		licensePlateItemsJson: JSON.stringify(
+			normalizeLicensePlatesForSnapshot(personForm.licensePlateItems),
+		),
+		password: personPassword.value.trim(),
+		isLongTerm: isLongTerm.value,
+		validBeginDate: validBeginDate.value,
+		validEndDate: validEndDate.value,
+		cardNo: cardNo.value.trim(),
+		fingerPrintData: fingerPrintData.value.trim(),
+		hasPendingFace: pendingFaceFile.value != null || facePreviewObjectUrl.value != null,
+	})
+
+	const capturePersonDialogSnapshot = () => {
+		personDialogSnapshot.value = buildPersonDialogSnapshot()
+	}
+
+	const personChangedFieldsList = computed(() => {
+		const snap = personDialogSnapshot.value
+		if (!snap) return []
+		const cur = buildPersonDialogSnapshot()
+		const fields: string[] = []
+		if (cur.fullName !== snap.fullName) fields.push("姓名")
+		if (cur.employeeNo !== snap.employeeNo) fields.push("ID")
+		if (cur.status !== snap.status) fields.push("狀態")
+		if (cur.personGroupId !== snap.personGroupId) fields.push("群組")
+		if (cur.faceUrl !== snap.faceUrl || cur.hasPendingFace !== snap.hasPendingFace) {
+			fields.push("大頭照")
+		}
+		if (cur.password !== snap.password) fields.push("密碼設定")
+		if (
+			cur.isLongTerm !== snap.isLongTerm ||
+			cur.validBeginDate !== snap.validBeginDate ||
+			cur.validEndDate !== snap.validEndDate
+		) {
+			fields.push("有效期限")
+		}
+		if (cur.cardNo !== snap.cardNo) fields.push("卡號")
+		if (cur.fingerPrintData !== snap.fingerPrintData) fields.push("指紋")
+		if (cur.licensePlateItemsJson !== snap.licensePlateItemsJson) fields.push("車牌設定")
+		return fields
+	})
+
+	const hasUnsavedPersonChanges = computed(() => personChangedFieldsList.value.length > 0)
+
+	const closePersonDialog = () => {
+		showPersonDialog.value = false
+	}
+
+	const requestClosePersonDialog = () => {
+		if (hasUnsavedPersonChanges.value) {
+			personCloseConfirm.show(PERSON_DIALOG_UNSAVED_CLOSE_CONFIRM)
+			return
+		}
+		closePersonDialog()
+	}
+
+	const confirmPersonDialogDismiss = () => {
+		closePersonDialog()
+	}
 
 	const updatePersonInList = (next: Person) => {
 		editingPerson.value = updatePersonInListHelper({
@@ -208,9 +336,10 @@ export const usePersonnelPersonsTab = (params: {
 		personForm.status = "active"
 		personForm.faceUrl = ""
 		personForm.personGroupId = ""
-		personForm.licensePlates = []
+		personForm.licensePlateItems = []
 		resetPersonDialogState()
 		void loadAccessControlDevices()
+		capturePersonDialogSnapshot()
 		showPersonDialog.value = true
 	}
 
@@ -224,7 +353,7 @@ export const usePersonnelPersonsTab = (params: {
 			p.person_group_id != null && Number.isFinite(Number(p.person_group_id))
 				? String(Math.trunc(Number(p.person_group_id)))
 				: ""
-		personForm.licensePlates = (p.license_plates ?? []).map(pl => pl.plate_number).filter(Boolean)
+		personForm.licensePlateItems = mapPersonLicensePlatesToForm(p)
 		resetPersonDialogState()
 		const ac = getAccessControlConfigSummary(p)
 		cardNo.value = ac.cardNo
@@ -244,8 +373,9 @@ export const usePersonnelPersonsTab = (params: {
 			return
 		}
 		applyPersonToEditForm(full)
-		showPersonDialog.value = true
 		void loadAccessControlDevices()
+		capturePersonDialogSnapshot()
+		showPersonDialog.value = true
 	}
 
 	const handleCaptureFace = async () => {
@@ -406,6 +536,12 @@ export const usePersonnelPersonsTab = (params: {
 			return { ok: false as const }
 		}
 
+		const licensePlateError = validateLicensePlateFormItems(personForm.licensePlateItems)
+		if (licensePlateError) {
+			errorMessage.value = licensePlateError
+			return { ok: false as const }
+		}
+
 		isSubmitting.value = true
 		errorMessage.value = null
 		try {
@@ -415,19 +551,23 @@ export const usePersonnelPersonsTab = (params: {
 				return { ok: false as const }
 			}
 
+			const platePayload = licensePlateItemsToPayload(personForm.licensePlateItems)
+			let vehiclePlateSync: VehiclePlateSyncResult | undefined
+
 			const personId = mode === "update" ? editingPerson.value?.id ?? null : null
 			if (mode === "update") {
 				if (!personId) {
 					errorMessage.value = "找不到要更新的人員"
 					return { ok: false as const }
 				}
-				await personnelApi.updatePerson(personId, {
+				const updated = await personnelApi.updatePerson(personId, {
 					fullName: personForm.fullName || null,
 					status: personForm.status,
 					faceUrl: personForm.faceUrl.trim() || null,
 					personGroupId: parsedGroup.personGroupId,
-					licensePlates: personForm.licensePlates
+					licensePlates: platePayload,
 				})
+				vehiclePlateSync = updated.vehicle_plate_sync
 			}
 
 			const created =
@@ -437,9 +577,13 @@ export const usePersonnelPersonsTab = (params: {
 							fullName: personForm.fullName.trim(),
 							status: personForm.status,
 							personGroupId: parsedGroup.personGroupId,
-							licensePlates: personForm.licensePlates
+							licensePlates: platePayload,
 						})
 					: null
+
+			if (mode === "create") {
+				vehiclePlateSync = created?.vehicle_plate_sync
+			}
 
 			const effectivePersonId = mode === "create" ? created!.id : personId!
 
@@ -465,6 +609,7 @@ export const usePersonnelPersonsTab = (params: {
 
 			if (mode === "create") personsOffset.value = 0
 			await loadPersons()
+			showVehiclePlateSyncNotice(vehiclePlateSync)
 			toast.success(mode === "update" ? "已更新人員" : "已新增人員")
 			showPersonDialog.value = false
 			return { ok: true as const }
@@ -530,6 +675,7 @@ export const usePersonnelPersonsTab = (params: {
 		revokeFacePreviewUrl()
 		editingPerson.value = null
 		errorMessage.value = null
+		personDialogSnapshot.value = null
 	})
 
 	watch(showImportDialog, (v) => {
@@ -584,8 +730,15 @@ export const usePersonnelPersonsTab = (params: {
 		personFormFacePreview,
 		showFaceCropDialog,
 		faceCropSourceFile,
+		faceCropDialogProps: PERSONNEL_FACE_CROP_DIALOG_PROPS,
 		isSubmitting,
 		errorMessage,
+		hasUnsavedPersonChanges,
+		personChangedFieldsList,
+		requestClosePersonDialog,
+		showPersonCloseConfirmDialog: personCloseConfirm.showDialog,
+		personCloseConfirmConfig: personCloseConfirm.config,
+		confirmPersonDialogDismiss,
 
 		// dialog actions
 		openPersonCreate,

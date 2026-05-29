@@ -14,11 +14,33 @@ export interface PersonGroup {
 	updated_at?: string;
 }
 
+export type PersonLicensePlateListType = "allowList" | "blockList";
+export type PersonLicensePlateSyncStatus = "pending" | "synced" | "partial" | "failed";
+
 export interface PersonLicensePlate {
 	id: number;
 	person_id: number;
 	plate_number: string;
 	plate_normalized: string;
+	list_type?: PersonLicensePlateListType;
+	effective_begin?: string | null;
+	effective_end?: string | null;
+	isapi_sync_status?: PersonLicensePlateSyncStatus;
+	isapi_sync_error?: string | null;
+	isapi_synced_at?: string | null;
+}
+
+export interface PersonLicensePlateFormItem {
+	plateNumber: string;
+	listType: PersonLicensePlateListType;
+	effectiveBegin: string;
+	effectiveEnd: string;
+}
+
+export interface VehiclePlateSyncResult {
+	status: "synced" | "partial" | "pending" | "failed" | "skipped" | string;
+	warnings: string[];
+	failures: Array<{ plateNumber?: string; deviceId?: number; message: string }>;
 }
 
 /** 人員 */
@@ -40,6 +62,7 @@ export interface Person {
 	/** 列表 API（getPersonsPaged）附帶 */
 	license_plate_count?: number;
 	license_plates?: PersonLicensePlate[];
+	vehicle_plate_sync?: VehiclePlateSyncResult;
 }
 
 /** 門禁權限：人員可進出之地點 */
@@ -201,7 +224,7 @@ export type PersonnelPersonForm = {
 	faceUrl: string;
 	/** FilterDropdown value；空字串 = 未分組 */
 	personGroupId: string;
-	licensePlates: string[];
+	licensePlateItems: PersonLicensePlateFormItem[];
 };
 
 export type PersonnelPersonAccessControlState = {
@@ -230,6 +253,9 @@ export type PersonnelPersonDialogUiState = {
 	isSubmitting: Ref<boolean>;
 	errorMessage: Ref<string | null>;
 	facePreviewUrl: ComputedRef<string | null>;
+	hasUnsavedChanges: ComputedRef<boolean>;
+	changedFieldsList: ComputedRef<string[]>;
+	requestClose: () => void;
 };
 
 /** 人員編輯 Dialog 的 UI State（供 Container 與 Dialog 共用） */

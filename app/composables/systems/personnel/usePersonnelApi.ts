@@ -9,6 +9,7 @@ import type {
 	SyncLocationJob,
 	SyncLocationJobItemsPage,
 	SyncLocationCandidate,
+	PersonLicensePlateListType,
 } from "~/types/personnel"
 import type { HandleErrorOptions } from "~/composables/core/useErrorHandler"
 import { useApiBase } from "~/composables/core/useApiBase"
@@ -40,6 +41,13 @@ export type PersonnelHandleApiError = (
 
 /** 人員主檔 API：優先顯示後端 message */
 export const PERSONNEL_API_ERROR_OPTS: HandleErrorOptions = { preferBackendMessage: true }
+
+export type PersonLicensePlatePayload = {
+	plateNumber: string
+	listType?: PersonLicensePlateListType
+	effectiveBegin?: string
+	effectiveEnd?: string
+}
 
 export type PersonnelApi = {
 	// 人員群組
@@ -75,7 +83,7 @@ export type PersonnelApi = {
 		status?: "active" | "inactive"
 		faceUrl?: string | null
 		personGroupId?: number | null
-		licensePlates?: string[]
+		licensePlates?: PersonLicensePlatePayload[] | string[]
 	}) => Promise<Person>
 	updatePerson: (
 		id: number,
@@ -85,7 +93,7 @@ export type PersonnelApi = {
 			status: "active" | "inactive"
 			faceUrl: string | null
 			personGroupId: number | null
-			licensePlates: string[]
+			licensePlates?: PersonLicensePlatePayload[] | string[]
 		}>
 	) => Promise<Person>
 	uploadFaceForPerson: (
@@ -134,6 +142,16 @@ export type PersonnelApi = {
 			password: string | null
 		}
 	) => Promise<{ person: Person }>
+
+	getLicensePlateBindings: (plates: string[]) => Promise<{
+		items: Array<{
+			plate_normalized: string;
+			plate_number: string;
+			person_id: number;
+			employee_no: string;
+			full_name: string | null;
+		}>;
+	}>
 }
 
 export const usePersonnelApi = (): PersonnelApi => {
@@ -215,7 +233,7 @@ export const usePersonnelApi = (): PersonnelApi => {
 			status?: "active" | "inactive"
 			faceUrl?: string | null
 			personGroupId?: number | null
-			licensePlates?: string[]
+			licensePlates?: PersonLicensePlatePayload[] | string[]
 		}) =>
 			request<Person>(`${PERSONNEL_PREFIX}/persons`, {
 				method: "POST",
@@ -229,7 +247,7 @@ export const usePersonnelApi = (): PersonnelApi => {
 				status: "active" | "inactive"
 				faceUrl: string | null
 				personGroupId: number | null
-				licensePlates: string[]
+				licensePlates?: PersonLicensePlatePayload[] | string[]
 			}>
 		) =>
 			request<Person>(`${PERSONNEL_PREFIX}/persons/${id}`, {
@@ -357,5 +375,22 @@ export const usePersonnelApi = (): PersonnelApi => {
 					timeout: 15000,
 				}
 			),
+		getLicensePlateBindings: (plates: string[]) => {
+			const list = plates.map((p) => String(p).trim()).filter(Boolean)
+			if (list.length === 0) return Promise.resolve({ items: [] })
+			return request<{
+				items: Array<{
+					plate_normalized: string
+					plate_number: string
+					person_id: number
+					employee_no: string
+					full_name: string | null
+				}>
+			}>(
+				buildPathWithQuery(`${PERSONNEL_PREFIX}/license-plates/bindings`, {
+					plates: list.join(","),
+				})
+			)
+		},
 	}
 }

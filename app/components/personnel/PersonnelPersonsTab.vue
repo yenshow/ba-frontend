@@ -153,9 +153,10 @@
 			@capture-fingerprint="props.personsTab.handleCaptureFingerPrint"
 		/>
 
-		<FaceCropDialog
+		<ImageCropDialog
 			v-model="showFaceCropDialog"
 			:file="faceCropSourceFile"
+			v-bind="faceCropDialogProps"
 			@confirm="applyCroppedFace"
 		/>
 
@@ -183,6 +184,15 @@
 			:type="confirmDialogConfig.type"
 			@confirm="handleConfirmDelete"
 		/>
+
+		<ConfirmDialog
+			v-model="showPersonCloseConfirmDialog"
+			:title="personCloseConfirmConfig.title"
+			:message="personCloseConfirmConfig.message"
+			:details="personCloseConfirmConfig.details"
+			:type="personCloseConfirmConfig.type"
+			@confirm="confirmPersonDialogDismiss"
+		/>
 	</section>
 </template>
 
@@ -194,7 +204,7 @@ import type { usePersonnelPersonsTab } from "~/composables/systems/personnel/use
 import PersonnelImportDialog from "~/components/personnel/dialogs/PersonnelImportDialog.vue";
 import PersonnelGroupMembersDialog from "~/components/personnel/dialogs/PersonnelGroupMembersDialog.vue";
 import type { PersonGroup } from "~/types/personnel";
-import FaceCropDialog from "~/components/personnel/dialogs/FaceCropDialog.vue";
+import ImageCropDialog from "~/components/common/ImageCropDialog.vue";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import PersonnelPersonDialog from "~/components/personnel/dialogs/PersonnelPersonDialog.vue";
@@ -249,7 +259,11 @@ const {
 
 	showFaceCropDialog,
 	faceCropSourceFile,
-	applyCroppedFace
+	faceCropDialogProps,
+	applyCroppedFace,
+	showPersonCloseConfirmDialog,
+	personCloseConfirmConfig,
+	confirmPersonDialogDismiss,
 } = props.personsTab;
 
 const confirmDialog = useConfirmDialog();
@@ -286,8 +300,11 @@ const personDialogState: PersonnelPersonDialogState = {
 	ui: {
 		facePreviewUrl: props.personsTab.personFormFacePreview,
 		isSubmitting: props.personsTab.isSubmitting,
-		errorMessage: props.personsTab.errorMessage
-	}
+		errorMessage: props.personsTab.errorMessage,
+		hasUnsavedChanges: props.personsTab.hasUnsavedPersonChanges,
+		changedFieldsList: props.personsTab.personChangedFieldsList,
+		requestClose: props.personsTab.requestClosePersonDialog,
+	},
 };
 
 const localEmployeeNoSort = computed<string>({
