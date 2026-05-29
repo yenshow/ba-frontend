@@ -1,5 +1,10 @@
 import { ref, watch, computed, type MaybeRefOrGetter, toValue } from "vue";
-import { resolveDirectDisplayUrl, resolveDisplayUrl } from "~/utils/imageCenter";
+import {
+	isAbsoluteUrl,
+	isApiProxiedUploadPath,
+	resolveDirectDisplayUrl,
+	resolveDisplayUrl,
+} from "~/utils/imageCenter";
 import { convertBase64ToImageUrl } from "~/utils/imageUtils";
 import { useExternalDataApi } from "~/composables/systems/externalData/useExternalDataApi";
 
@@ -83,11 +88,24 @@ const fetchPicUris = async (
 	return result;
 };
 
+/**
+ * 將 /api/uploads 轉成同源絕對 URL，讓 NuxtImg 略過 IPX（未列入 domains 時直連 Nitro 代理）。
+ */
+const toSameOriginAbsoluteApiUpload = (url: string): string => {
+	if (!isApiProxiedUploadPath(url)) return url;
+	if (isAbsoluteUrl(url)) return url;
+	const origin = import.meta.client
+		? window.location.origin
+		: useRequestURL().origin;
+	return `${origin}${url}`;
+};
+
 export const useImageCenter = () => {
 	const apiBase = String(useRuntimeConfig().public.apiBase || "");
 	const externalDataApi = useExternalDataApi();
 
-	const resolveUrl = (raw: string | null | undefined): string => resolveDisplayUrl(raw, apiBase);
+	const resolveUrl = (raw: string | null | undefined): string =>
+		toSameOriginAbsoluteApiUpload(resolveDisplayUrl(raw, apiBase));
 
 	const resolveDirectUrl = (raw: string | null | undefined): string | null =>
 		resolveDirectDisplayUrl(raw, apiBase);

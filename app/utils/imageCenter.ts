@@ -37,6 +37,22 @@ export const isPicUri = (raw: string | null | undefined): boolean => {
  * - 其他 /path → 後端 origin
  * - picUri → 原樣回傳（由 useImageCenter 非同步取圖）
  */
+/** Nitro 代理的上傳路徑（/api/uploads）；IPX 無法當成本機檔案讀取 */
+export const isApiProxiedUploadPath = (url: string): boolean => {
+	const v = trim(url);
+	if (!v) return false;
+	if (v.startsWith("/api/uploads/")) return true;
+	if (isAbsoluteUrl(v)) {
+		try {
+			const u = new URL(v);
+			return u.pathname.startsWith("/api/uploads/");
+		} catch {
+			return false;
+		}
+	}
+	return false;
+};
+
 export const resolveDisplayUrl = (
 	raw: string | null | undefined,
 	apiBase: string
