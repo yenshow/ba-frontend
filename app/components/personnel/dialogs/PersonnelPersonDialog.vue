@@ -8,10 +8,17 @@
 				<div
 					class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-3xl flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:gap-6 2xl:p-8"
 				>
-					<header class="flex items-center justify-between">
-						<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">
-							{{ state.editingPerson ? "編輯人員" : "新增人員" }}
-						</h3>
+					<header class="flex items-center justify-between gap-3">
+						<div class="flex min-w-0 items-center gap-3">
+							<h3 class="min-w-0 truncate text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">
+								{{ state.editingPerson ? "編輯人員" : "新增人員" }}
+							</h3>
+							<FormChangeIndicator
+								v-if="state.ui.hasUnsavedChanges.value"
+								:has-changes="state.ui.hasUnsavedChanges.value"
+								:changed-fields="state.ui.changedFieldsList.value"
+							/>
+						</div>
 						<button
 							type="button"
 							class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
@@ -32,8 +39,8 @@
 
 						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
 							<p>大頭照</p>
-							<div class="rounded-xl border border-white/10 bg-white/5 p-4">
-								<div class="flex items-center gap-4 pt-2.5">
+							<div class="gap-2 rounded-xl border border-white/10 bg-white/5 p-3">
+								<div class="flex items-center gap-4">
 									<div
 										class="flex h-24 w-24 shrink-0 overflow-hidden rounded-full border border-white/20 bg-white/10 2xl:h-28 2xl:w-28"
 									>
@@ -79,7 +86,7 @@
 									</div>
 								</div>
 
-								<div class="mt-6 flex items-center gap-3">
+								<div class="flex items-center gap-3 pt-3">
 									<div class="w-full md:max-w-[240px]">
 										<FilterDropdown
 											v-model="localCaptureDeviceIdString"
@@ -91,9 +98,7 @@
 									<button
 										type="button"
 										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white hover:bg-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-300/50 disabled:opacity-50"
-										:disabled="
-											isCapturingFace || !hasSelectedCaptureDevice || !hasAccessControlDevices
-										"
+										:disabled="isCapturingFace || !hasSelectedCaptureDevice || !hasAccessControlDevices"
 										aria-label="從設備截圖"
 										@click="handleCaptureFace"
 									>
@@ -112,15 +117,10 @@
 							</div>
 						</div>
 
-						<div class="space-y-3">
+						<div class="flex flex-col justify-center gap-3">
 							<label class="flex flex-col gap-2 text-base text-white/80">
 								<span>姓名 *</span>
-								<input
-									v-model="state.form.fullName"
-									type="text"
-									required
-									class="form-input-small"
-								/>
+								<input v-model="state.form.fullName" type="text" required class="form-input-small" />
 							</label>
 
 							<label class="flex flex-col gap-2 text-base text-white/80">
@@ -134,19 +134,9 @@
 									:title="state.editingPerson ? '建立後無法修改 ID' : undefined"
 								/>
 							</label>
-
-							<label v-if="state.editingPerson" class="flex flex-col gap-2 text-base text-white/80">
-								<span>群組</span>
-								<FilterDropdown
-									v-model="localPersonGroupId"
-									:options="childGroupOptions"
-									placeholder="未分組"
-									text-size="text-sm 2xl:text-base"
-								/>
-							</label>
 						</div>
 
-						<label class="col-span-2 flex flex-col gap-2 text-base text-white/80">
+						<label class="flex flex-col gap-2 text-base text-white/80">
 							<span>密碼設定</span>
 							<input
 								:value="localPassword"
@@ -160,40 +150,15 @@
 							/>
 						</label>
 
-						<div class="col-span-2 flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-							<p>車牌（可多筆）</p>
-							<div
-								class="form-input-small flex min-h-[2.75rem] cursor-text flex-wrap items-center gap-2 py-1.5"
-								role="group"
-								aria-label="車牌標籤"
-							>
-								<span
-									v-for="(plate, idx) in state.form.licensePlates"
-									:key="`plate-${plate}-${idx}`"
-									class="inline-flex max-w-full items-center gap-1 rounded-full border border-cyan-400/50 bg-cyan-500/20 py-1 pl-2.5 pr-1 text-sm text-white"
-								>
-									<span class="truncate">{{ plate }}</span>
-									<button
-										type="button"
-										class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/20 hover:text-white"
-										:aria-label="`移除車牌 ${plate}`"
-										@click="state.form.licensePlates.splice(idx, 1)"
-									>
-										&times;
-									</button>
-								</span>
-								<input
-									v-model="plateInput"
-									type="text"
-									class="min-w-[8rem] flex-1 border-none bg-transparent py-1 text-sm text-white placeholder:text-white/40 focus:outline-none 2xl:text-base"
-									placeholder="例如 ABC1234"
-									aria-label="新增車牌"
-									@keydown="handlePlateInputKeydown"
-									@blur="commitPlatesFromInput()"
-									@paste="handlePlateInputPaste"
-								/>
-							</div>
-						</div>
+						<label v-if="state.editingPerson" class="flex flex-col gap-2 text-base text-white/80">
+							<span>群組</span>
+							<FilterDropdown
+								v-model="localPersonGroupId"
+								:options="childGroupOptions"
+								placeholder="未分組"
+								text-size="text-sm 2xl:text-base"
+							/>
+						</label>
 
 						<div class="col-span-2 flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
 							<p>有效期限</p>
@@ -253,9 +218,7 @@
 									<button
 										type="button"
 										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white hover:bg-cyan-400 disabled:opacity-50 md:w-auto"
-										:disabled="
-											isCapturingCard || !hasSelectedCardDevice || !hasAccessControlDevices
-										"
+										:disabled="isCapturingCard || !hasSelectedCardDevice || !hasAccessControlDevices"
 										aria-label="從設備讀取卡號"
 										@click="handleCaptureCard"
 									>
@@ -300,9 +263,7 @@
 									<button
 										type="button"
 										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white hover:bg-cyan-400 disabled:opacity-50"
-										:disabled="
-											isCapturingFingerPrint || !hasSelectedFingerDevice || !hasAccessControlDevices
-										"
+										:disabled="isCapturingFingerPrint || !hasSelectedFingerDevice || !hasAccessControlDevices"
 										aria-label="讀取指紋模板"
 										@click="handleCaptureFingerPrint"
 									>
@@ -330,9 +291,88 @@
 							</div>
 						</div>
 
-						<div
-							class="col-span-2 flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base"
-						>
+						<div class="col-span-2 flex flex-col gap-3 text-sm text-white/80 2xl:text-base">
+							<div class="flex items-center justify-between gap-2">
+								<p>車牌設定</p>
+								<button
+									type="button"
+									class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white hover:bg-cyan-400 disabled:opacity-50 md:w-auto"
+									@click="handleAddLicensePlateRow"
+								>
+									新增車牌
+								</button>
+							</div>
+
+							<p
+								v-if="state.form.licensePlateItems.length === 0"
+								class="rounded-xl border border-dashed border-white/15 bg-white/5 px-3 py-4 text-sm text-white/50"
+							>
+								尚無車牌，請按「新增車牌」加入。
+							</p>
+
+							<div
+								v-for="(row, idx) in state.form.licensePlateItems"
+								:key="`plate-row-${idx}`"
+								class="relative space-y-3 rounded-xl border border-white/10 bg-white/5 p-3"
+							>
+								<div class="absolute right-2 top-2">
+									<IconTrashButton
+										size="md"
+										button-class="flex-shrink-0"
+										title="移除車牌"
+										:aria-label="`移除第 ${idx + 1} 筆車牌`"
+										@click="handleRemoveLicensePlateRow(idx)"
+									/>
+								</div>
+
+								<div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+									<label class="flex flex-col gap-2">
+										<span>車牌 *</span>
+										<input
+											v-model="row.plateNumber"
+											type="text"
+											required
+											class="form-input-small"
+											placeholder="例如 ABC1234"
+											:aria-label="`第 ${idx + 1} 筆車牌`"
+										/>
+									</label>
+									<label class="flex flex-col gap-2">
+										<span>名單類型 *</span>
+										<FilterDropdown
+											v-model="row.listType"
+											:options="LICENSE_PLATE_LIST_TYPE_OPTIONS"
+											placeholder="請選擇名單類型"
+											text-size="text-sm 2xl:text-base"
+										/>
+									</label>
+									<label class="flex flex-col gap-2">
+										<span>開始時間 *</span>
+										<input
+											v-model="row.effectiveBegin"
+											type="datetime-local"
+											step="60"
+											required
+											class="form-input-small"
+											:aria-label="`第 ${idx + 1} 筆開始時間`"
+										/>
+									</label>
+									<label class="flex flex-col gap-2">
+										<span>結束時間 *</span>
+										<input
+											v-model="row.effectiveEnd"
+											type="datetime-local"
+											step="60"
+											required
+											class="form-input-small"
+											:aria-label="`第 ${idx + 1} 筆結束時間`"
+										/>
+									</label>
+								</div>
+							</div>
+						</div>
+
+						<div class="col-span-2 flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base">
 							<label class="relative inline-flex cursor-pointer items-center">
 								<input
 									v-model="state.form.status"
@@ -371,201 +411,178 @@
 </template>
 
 <script setup lang="ts">
-import type { PersonnelPersonDialogState, PersonGroup } from "~/types/personnel"
-import FilterDropdown from "~/components/common/FilterDropdown.vue"
-import { buildPersonnelChildGroupOptions } from "~/utils/personnelGroups"
+import type { PersonnelPersonDialogState, PersonGroup } from "~/types/personnel";
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
+import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
+import IconTrashButton from "~/components/common/IconTrashButton.vue";
+import { buildPersonnelChildGroupOptions } from "~/utils/personnelGroups";
+import {
+	createEmptyLicensePlateFormItem,
+	LICENSE_PLATE_LIST_TYPE_OPTIONS,
+} from "~/utils/licensePlateFormUtils";
 
 const props = defineProps<{
-	modelValue: boolean
-	state: PersonnelPersonDialogState
-	groupTree: PersonGroup[]
-}>()
+	modelValue: boolean;
+	state: PersonnelPersonDialogState;
+	groupTree: PersonGroup[];
+}>();
 
 const emit = defineEmits<{
-	"update:modelValue": [value: boolean]
-	submit: []
-	"face-file-change": [file: File]
-	"clear-face": []
-	"capture-face": []
-	"capture-card": []
-	"capture-fingerprint": []
-}>()
+	"update:modelValue": [value: boolean];
+	submit: [];
+	"face-file-change": [file: File];
+	"clear-face": [];
+	"capture-face": [];
+	"capture-card": [];
+	"capture-fingerprint": [];
+}>();
 
-const faceFileInputRef = ref<HTMLInputElement | null>(null)
-const plateInput = ref("")
+const faceFileInputRef = ref<HTMLInputElement | null>(null);
 
-const PLATE_SEPARATORS = /[,;，；\n]+/
-const isPlateCommitKey = (key: string) => key === "Enter" || /^[,;，；]$/.test(key)
+const handleAddLicensePlateRow = () => {
+	props.state.form.licensePlateItems.push(createEmptyLicensePlateFormItem());
+};
 
-const childGroupOptions = computed(() => buildPersonnelChildGroupOptions(props.groupTree || []))
+const handleRemoveLicensePlateRow = (idx: number) => {
+	props.state.form.licensePlateItems.splice(idx, 1);
+};
+
+const childGroupOptions = computed(() => buildPersonnelChildGroupOptions(props.groupTree || []));
 
 const localPersonGroupId = computed<string>({
 	get: () => props.state.form.personGroupId || "",
-	set: (v) => {
-		props.state.form.personGroupId = v
-	},
-})
+	set: v => {
+		props.state.form.personGroupId = v;
+	}
+});
 
 const resolvedFaceUrl = computed(() => {
-	const url = props.state.ui.facePreviewUrl.value || props.state.form.faceUrl || null
-	if (!url) return null
-	const trimmed = String(url).trim()
-	return trimmed ? trimmed : null
-})
+	const url = props.state.ui.facePreviewUrl.value || props.state.form.faceUrl || null;
+	if (!url) return null;
+	const trimmed = String(url).trim();
+	return trimmed ? trimmed : null;
+});
 
 const hasAccessControlDevices = computed(
 	() =>
 		Array.isArray(props.state.accessControl.accessControlDevices.value) &&
 		props.state.accessControl.accessControlDevices.value.length > 0
-)
+);
 
-const isCapturingFace = computed(() => Boolean(props.state.capture.isCapturingFace.value))
-const isCapturingCard = computed(() => Boolean(props.state.capture.isCapturingCard.value))
+const isCapturingFace = computed(() => Boolean(props.state.capture.isCapturingFace.value));
+const isCapturingCard = computed(() => Boolean(props.state.capture.isCapturingCard.value));
 const isCapturingFingerPrint = computed(() =>
 	Boolean(props.state.capture.isCapturingFingerPrint.value)
-)
-const isSubmitting = computed(() => Boolean(props.state.ui.isSubmitting.value))
+);
+const isSubmitting = computed(() => Boolean(props.state.ui.isSubmitting.value));
 
 const captureErrorText = computed(
 	() => (props.state.capture.captureErrorMessage.value || "").trim() || null
-)
+);
 const cardErrorText = computed(
 	() => (props.state.capture.cardErrorMessage.value || "").trim() || null
-)
+);
 
 const accessControlDeviceOptions = computed(() => {
-	return (props.state.accessControl.accessControlDevices.value || []).map((d) => ({
+	return (props.state.accessControl.accessControlDevices.value || []).map(d => ({
 		value: String(d.id),
-		label: d.name,
-	}))
-})
+		label: d.name
+	}));
+});
 
 const localCaptureDeviceIdString = computed<string>({
 	get: () =>
 		props.state.capture.captureDeviceId.value == null
 			? ""
 			: String(props.state.capture.captureDeviceId.value),
-	set: (v) => (props.state.capture.captureDeviceId.value = v ? Number(v) : null),
-})
+	set: v => (props.state.capture.captureDeviceId.value = v ? Number(v) : null)
+});
 
-const hasSelectedCaptureDevice = computed(() => props.state.capture.captureDeviceId.value != null)
+const hasSelectedCaptureDevice = computed(() => props.state.capture.captureDeviceId.value != null);
 
 const localCardDeviceIdString = computed<string>({
 	get: () =>
 		props.state.capture.cardDeviceId.value == null
 			? ""
 			: String(props.state.capture.cardDeviceId.value),
-	set: (v) => (props.state.capture.cardDeviceId.value = v ? Number(v) : null),
-})
+	set: v => (props.state.capture.cardDeviceId.value = v ? Number(v) : null)
+});
 
-const hasSelectedCardDevice = computed(() => props.state.capture.cardDeviceId.value != null)
+const hasSelectedCardDevice = computed(() => props.state.capture.cardDeviceId.value != null);
 
 const localCardNo = computed<string>({
 	get: () => props.state.accessControl.cardNo.value || "",
-	set: (v) => (props.state.accessControl.cardNo.value = v),
-})
+	set: v => (props.state.accessControl.cardNo.value = v)
+});
 
 const localFingerDeviceIdString = computed<string>({
 	get: () =>
 		props.state.capture.fingerDeviceId.value == null
 			? ""
 			: String(props.state.capture.fingerDeviceId.value),
-	set: (v) => (props.state.capture.fingerDeviceId.value = v ? Number(v) : null),
-})
+	set: v => (props.state.capture.fingerDeviceId.value = v ? Number(v) : null)
+});
 
-const hasSelectedFingerDevice = computed(() => props.state.capture.fingerDeviceId.value != null)
+const hasSelectedFingerDevice = computed(() => props.state.capture.fingerDeviceId.value != null);
 
 const localFingerPrintData = computed<string>({
 	get: () => props.state.accessControl.fingerPrintData.value || "",
-	set: (v) => (props.state.accessControl.fingerPrintData.value = v),
-})
+	set: v => (props.state.accessControl.fingerPrintData.value = v)
+});
 
 const localPassword = computed<string>({
 	get: () => props.state.accessControl.password.value || "",
-	set: (v) => (props.state.accessControl.password.value = v),
-})
-
-const commitPlatesFromInput = (raw?: string) => {
-	const text = (raw ?? plateInput.value).trim()
-	if (!text) return
-
-	const plates = props.state.form.licensePlates
-	for (const part of text.split(PLATE_SEPARATORS)) {
-		const value = part.trim()
-		if (!value) continue
-		if (plates.some((p) => p.toLowerCase() === value.toLowerCase())) continue
-		plates.push(value)
-	}
-	plateInput.value = ""
-}
-
-const handlePlateInputKeydown = (e: KeyboardEvent) => {
-	if (isPlateCommitKey(e.key)) {
-		e.preventDefault()
-		commitPlatesFromInput()
-		return
-	}
-	if (e.key === "Backspace" && !plateInput.value && props.state.form.licensePlates.length > 0) {
-		props.state.form.licensePlates.pop()
-	}
-}
-
-const handlePlateInputPaste = (e: ClipboardEvent) => {
-	const text = e.clipboardData?.getData("text") ?? ""
-	if (!PLATE_SEPARATORS.test(text)) return
-	e.preventDefault()
-	commitPlatesFromInput(text)
-}
+	set: v => (props.state.accessControl.password.value = v)
+});
 
 const handlePasswordInput = (e: Event) => {
-	const input = e.target as HTMLInputElement | null
-	if (!input) return
-	const next = String(input.value || "").replace(/\D+/g, "")
-	if (next !== input.value) input.value = next
-	localPassword.value = next
-}
+	const input = e.target as HTMLInputElement | null;
+	if (!input) return;
+	const next = String(input.value || "").replace(/\D+/g, "");
+	if (next !== input.value) input.value = next;
+	localPassword.value = next;
+};
 
 const localIsLongTerm = computed<boolean>({
 	get: () => Boolean(props.state.accessControl.isLongTerm.value),
-	set: (v) => (props.state.accessControl.isLongTerm.value = Boolean(v)),
-})
+	set: v => (props.state.accessControl.isLongTerm.value = Boolean(v))
+});
 
 const localValidBeginDate = computed<string>({
 	get: () => props.state.accessControl.validBeginDate.value || "",
-	set: (v) => (props.state.accessControl.validBeginDate.value = v),
-})
+	set: v => (props.state.accessControl.validBeginDate.value = v)
+});
 
 const localValidEndDate = computed<string>({
 	get: () => props.state.accessControl.validEndDate.value || "",
-	set: (v) => (props.state.accessControl.validEndDate.value = v),
-})
+	set: v => (props.state.accessControl.validEndDate.value = v)
+});
 
 const fingerPrintErrorText = computed(
 	() => (props.state.capture.fingerPrintErrorMessage.value || "").trim() || null
-)
+);
 
-const handleClose = () => emit("update:modelValue", false)
-const handleSubmit = () => emit("submit")
-const triggerFaceFileSelect = () => faceFileInputRef.value?.click()
-const handleCaptureFace = () => emit("capture-face")
-const handleCaptureCard = () => emit("capture-card")
-const handleCaptureFingerPrint = () => emit("capture-fingerprint")
+const handleClose = () => props.state.ui.requestClose();
+const handleSubmit = () => emit("submit");
+const triggerFaceFileSelect = () => faceFileInputRef.value?.click();
+const handleCaptureFace = () => emit("capture-face");
+const handleCaptureCard = () => emit("capture-card");
+const handleCaptureFingerPrint = () => emit("capture-fingerprint");
 
 const handleFaceFileChange = (e: Event) => {
-	const input = e.target as HTMLInputElement
-	const file = input.files?.[0]
-	if (file) emit("face-file-change", file)
-	input.value = ""
-}
+	const input = e.target as HTMLInputElement;
+	const file = input.files?.[0];
+	if (file) emit("face-file-change", file);
+	input.value = "";
+};
 
-const handleClearFace = () => emit("clear-face")
+const handleClearFace = () => emit("clear-face");
 
 watch(
 	() => props.modelValue,
-	(open) => {
-		if (open) return
-		plateInput.value = ""
-		if (faceFileInputRef.value) faceFileInputRef.value.value = ""
+	open => {
+		if (open) return;
+		if (faceFileInputRef.value) faceFileInputRef.value.value = "";
 	}
-)
+);
 </script>

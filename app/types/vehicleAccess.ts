@@ -167,3 +167,45 @@ export interface VehicleAccessZone {
 	sortOrder?: number;
 	locations: VehicleAccessLocation[];
 }
+
+/** ISAPI 設備端車牌名單（allowList / blockList） */
+export type VehicleLicensePlateListType = "allowList" | "blockList";
+
+export interface VehicleLicensePlateAuditItem {
+	id: string;
+	licensePlate: string;
+	listType: VehicleLicensePlateListType;
+	createTime: string | null;
+	effectiveTime: string | null;
+	/** 人員主檔綁定（查詢後 enrich） */
+	bindPersonId?: number | null;
+	bindPersonLabel?: string | null;
+}
+
+export type VehicleLicensePlateOperationType = "add" | "modify";
+
+export interface VehicleLicensePlateUpsertPayload {
+	id?: string;
+	licensePlate: string;
+	listType: VehicleLicensePlateListType;
+	createTime?: string;
+	effectiveTime?: string;
+	operationType: VehicleLicensePlateOperationType;
+	/** 可選：寫回人員主檔（授權／拒絕名單皆可） */
+	bindPersonId?: number;
+}
+
+export interface VehicleLicensePlateSearchResult {
+	channelId: number;
+	items: VehicleLicensePlateAuditItem[];
+	numOfMatches?: number;
+	totalMatches?: number;
+}
+
+export type BarrierGateCtrlMode = "open" | "close" | "lock" | "unlock";
+
+export interface BarrierGateStatus {
+	channelId: number;
+	status: number;
+	label: string;
+}

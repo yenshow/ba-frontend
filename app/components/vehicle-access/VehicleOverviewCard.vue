@@ -8,7 +8,6 @@
 		@keydown.enter="handleClick"
 		@keydown.space.prevent="handleClick"
 	>
-		<!-- 左側：區域標籤（與人流 LocationOverviewCard 一致） -->
 		<div
 			class="my-4 flex w-[36px] items-center justify-center bg-white px-2 text-xl 2xl:text-xl"
 			style="clip-path: polygon(0 0, 100% calc(0% + 24px), 100% calc(100% - 24px), 0 100%)"
@@ -16,13 +15,11 @@
 			{{ summary.zoneName || "－" }}
 		</div>
 
-		<!-- 右側：內容（進場／出場／在場車輛 + 車輛群組格，對齊人流 LocationOverviewCard） -->
 		<div class="flex flex-1 flex-col items-center pr-2">
 			<div class="mb-2 flex w-[160px] items-center justify-center border-b border-white/80 pb-px">
 				<h3 class="text-base text-white 2xl:text-lg">{{ summary.name }}</h3>
 			</div>
 			<div class="flex items-center gap-8 py-2 text-white">
-				<!-- 進場車輛、出場車輛、在場車輛 -->
 				<div
 					class="flex min-w-[140px] flex-col gap-3 border-r-2 border-white/50 pr-8 2xl:min-w-[160px]"
 				>
@@ -46,8 +43,13 @@
 					</div>
 				</div>
 
-				<!-- 車輛群組格（3x4，對齊 LocationOverviewCard 單位格） -->
-				<div class="grid grid-cols-3 gap-2 overflow-hidden">
+				<VehicleOverviewBarrierGrid
+					v-if="isIsapiLocation"
+					:location="location"
+					:can-write="canWrite"
+					:active="isActive"
+				/>
+				<div v-else class="grid grid-cols-3 gap-2 overflow-hidden">
 					<div
 						v-for="(group, index) in displayGroups"
 						:key="group ? group.groupKey : `empty-${index}`"
@@ -56,7 +58,7 @@
 							'bg-white/20': group && (group.onSiteCount || 0) > 0,
 							'bg-black/20': !group || (group.onSiteCount || 0) === 0,
 							'text-white/90': group,
-							'text-white/30': !group
+							'text-white/30': !group,
 						}"
 						:title="group ? group.personGroupName : ''"
 					>
@@ -76,33 +78,43 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type {
+	VehicleAccessLocation,
 	VehicleAccessLocationSummary,
-	VehicleOrganizationGroupItem
+	VehicleOrganizationGroupItem,
 } from "~/types/vehicleAccess";
+import VehicleOverviewBarrierGrid from "~/components/vehicle-access/VehicleOverviewBarrierGrid.vue";
 
-interface Props {
-	summary: VehicleAccessLocationSummary & { zoneName?: string };
-	/** 車輛群組列表（工程部、行銷部等），對齊 LocationOverviewCard 的 units 網格 */
-	groups?: VehicleOrganizationGroupItem[];
-}
-
-const props = withDefaults(defineProps<Props>(), {
-	groups: () => []
-});
+const props = withDefaults(
+	defineProps<{
+		summary: VehicleAccessLocationSummary & { zoneName?: string };
+		groups?: VehicleOrganizationGroupItem[];
+		location?: VehicleAccessLocation | null;
+		canWrite?: boolean;
+		isActive?: boolean;
+	}>(),
+	{
+		groups: () => [],
+		location: null,
+		canWrite: false,
+		isActive: false,
+	},
+);
 
 const emit = defineEmits<{
 	(e: "click", locationId: string): void;
 }>();
 
-/** 在場車輛：以 API currentCount 為準（transition） */
 const currentCount = computed(() => props.summary.currentCount ?? 0);
 
-/** 3x4 群組格，不足補空（對齊 LocationOverviewCard displayUnits） */
+const isIsapiLocation = computed(
+	() => props.location?.dataSource === "isapi_camera",
+);
+
 const TOTAL_GRID_CELLS = 12;
 
 const displayGroups = computed(() => {
 	const list = (props.groups ?? []).slice(0, TOTAL_GRID_CELLS);
-	const emptyCells = Array(TOTAL_GRID_CELLS - list.length).fill(null);
+	const emptyCells = Array.from({ length: TOTAL_GRID_CELLS - list.length }, () => null);
 	return [...list, ...emptyCells];
 });
 

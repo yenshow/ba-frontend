@@ -103,10 +103,7 @@
 						</td>
 						<td :class="tableCellClass">
 							<span
-								:class="[
-									getPersonStatusBadgeClass(p.status),
-									'rounded px-2 py-1 2xl:px-3 2xl:py-1.5',
-								]"
+								:class="[getPersonStatusBadgeClass(p.status), 'rounded px-2 py-1 2xl:px-3 2xl:py-1.5']"
 							>
 								{{ personStatusLabels[p.status] }}
 							</span>
@@ -156,9 +153,10 @@
 			@capture-fingerprint="props.personsTab.handleCaptureFingerPrint"
 		/>
 
-		<FaceCropDialog
+		<ImageCropDialog
 			v-model="showFaceCropDialog"
 			:file="faceCropSourceFile"
+			v-bind="faceCropDialogProps"
 			@confirm="applyCroppedFace"
 		/>
 
@@ -186,45 +184,54 @@
 			:type="confirmDialogConfig.type"
 			@confirm="handleConfirmDelete"
 		/>
+
+		<ConfirmDialog
+			v-model="showPersonCloseConfirmDialog"
+			:title="personCloseConfirmConfig.title"
+			:message="personCloseConfirmConfig.message"
+			:details="personCloseConfirmConfig.details"
+			:type="personCloseConfirmConfig.type"
+			@confirm="confirmPersonDialogDismiss"
+		/>
 	</section>
 </template>
 
 <script setup lang="ts">
-import AsyncPanel from "~/components/common/AsyncPanel.vue"
-import FilterDropdown from "~/components/common/FilterDropdown.vue"
-import Pagination from "~/components/common/Pagination.vue"
-import type { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePersonnelPersonsTab"
-import PersonnelImportDialog from "~/components/personnel/dialogs/PersonnelImportDialog.vue"
-import PersonnelGroupMembersDialog from "~/components/personnel/dialogs/PersonnelGroupMembersDialog.vue"
-import type { PersonGroup } from "~/types/personnel"
-import FaceCropDialog from "~/components/personnel/dialogs/FaceCropDialog.vue"
-import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
-import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
-import PersonnelPersonDialog from "~/components/personnel/dialogs/PersonnelPersonDialog.vue"
-import type { PersonnelPersonDialogState } from "~/types/personnel"
-import SearchInput from "~/components/common/SearchInput.vue"
+import AsyncPanel from "~/components/common/AsyncPanel.vue";
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
+import Pagination from "~/components/common/Pagination.vue";
+import type { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePersonnelPersonsTab";
+import PersonnelImportDialog from "~/components/personnel/dialogs/PersonnelImportDialog.vue";
+import PersonnelGroupMembersDialog from "~/components/personnel/dialogs/PersonnelGroupMembersDialog.vue";
+import type { PersonGroup } from "~/types/personnel";
+import ImageCropDialog from "~/components/common/ImageCropDialog.vue";
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
+import PersonnelPersonDialog from "~/components/personnel/dialogs/PersonnelPersonDialog.vue";
+import type { PersonnelPersonDialogState } from "~/types/personnel";
+import SearchInput from "~/components/common/SearchInput.vue";
 
 const props = defineProps<{
-	canEdit: boolean
-	personStatusLabels: Record<string, string>
-	tableHeaderClass: string
-	tableCellClass: string
-	getPersonStatusBadgeClass: (status: string) => string
-	personsTab: ReturnType<typeof usePersonnelPersonsTab>
-	selectedMainGroupId: number | null
-	groupTree: PersonGroup[]
-}>()
+	canEdit: boolean;
+	personStatusLabels: Record<string, string>;
+	tableHeaderClass: string;
+	tableCellClass: string;
+	getPersonStatusBadgeClass: (status: string) => string;
+	personsTab: ReturnType<typeof usePersonnelPersonsTab>;
+	selectedMainGroupId: number | null;
+	groupTree: PersonGroup[];
+}>();
 
-const emit = defineEmits<{ changed: [] }>()
+const emit = defineEmits<{ changed: [] }>();
 
-const showGroupMembersDialog = ref(false)
+const showGroupMembersDialog = ref(false);
 
 watch(
 	() => props.selectedMainGroupId,
-	(id) => {
-		if (id == null) showGroupMembersDialog.value = false
+	id => {
+		if (id == null) showGroupMembersDialog.value = false;
 	}
-)
+);
 
 const {
 	persons,
@@ -252,13 +259,17 @@ const {
 
 	showFaceCropDialog,
 	faceCropSourceFile,
+	faceCropDialogProps,
 	applyCroppedFace,
-} = props.personsTab
+	showPersonCloseConfirmDialog,
+	personCloseConfirmConfig,
+	confirmPersonDialogDismiss,
+} = props.personsTab;
 
-const confirmDialog = useConfirmDialog()
-const showConfirmDialog = confirmDialog.showDialog
-const confirmDialogConfig = confirmDialog.config
-const pendingDeletePersonId = ref<number | null>(null)
+const confirmDialog = useConfirmDialog();
+const showConfirmDialog = confirmDialog.showDialog;
+const confirmDialogConfig = confirmDialog.config;
+const pendingDeletePersonId = ref<number | null>(null);
 
 // 以 composable 的 refs 為 SSOT，收斂成單一 state
 const personDialogState: PersonnelPersonDialogState = {
@@ -271,7 +282,7 @@ const personDialogState: PersonnelPersonDialogState = {
 		validBeginDate: props.personsTab.validBeginDate,
 		validEndDate: props.personsTab.validEndDate,
 		cardNo: props.personsTab.cardNo,
-		fingerPrintData: props.personsTab.fingerPrintData,
+		fingerPrintData: props.personsTab.fingerPrintData
 	},
 	capture: {
 		captureDeviceId: props.personsTab.captureDeviceId,
@@ -284,38 +295,41 @@ const personDialogState: PersonnelPersonDialogState = {
 
 		fingerDeviceId: props.personsTab.fingerDeviceId,
 		isCapturingFingerPrint: props.personsTab.isCapturingFingerPrint,
-		fingerPrintErrorMessage: props.personsTab.fingerPrintErrorMessage,
+		fingerPrintErrorMessage: props.personsTab.fingerPrintErrorMessage
 	},
 	ui: {
 		facePreviewUrl: props.personsTab.personFormFacePreview,
 		isSubmitting: props.personsTab.isSubmitting,
 		errorMessage: props.personsTab.errorMessage,
+		hasUnsavedChanges: props.personsTab.hasUnsavedPersonChanges,
+		changedFieldsList: props.personsTab.personChangedFieldsList,
+		requestClose: props.personsTab.requestClosePersonDialog,
 	},
-}
+};
 
 const localEmployeeNoSort = computed<string>({
 	get: () => selectedEmployeeNoSort.value,
-	set: (v) => (selectedEmployeeNoSort.value = v),
-})
+	set: v => (selectedEmployeeNoSort.value = v)
+});
 
-const handleSearch = () => props.personsTab.handleSearch()
+const handleSearch = () => props.personsTab.handleSearch();
 
 const confirmDeletePerson = (p: { id: number; employee_no: string; full_name?: string | null }) => {
-	pendingDeletePersonId.value = p.id
+	pendingDeletePersonId.value = p.id;
 	confirmDialog.show({
 		title: "確認刪除",
 		message: `確定要刪除人員「${p.employee_no} ${p.full_name || ""}」嗎？`,
 		details: "此操作無法復原。",
-		type: "danger",
-	})
-}
+		type: "danger"
+	});
+};
 
 const handleConfirmDelete = async () => {
-	const id = pendingDeletePersonId.value
-	if (id == null) return
-	const p = persons.value.find((x) => x.id === id)
-	if (!p) return
-	await props.personsTab.deletePerson(p)
-	pendingDeletePersonId.value = null
-}
+	const id = pendingDeletePersonId.value;
+	if (id == null) return;
+	const p = persons.value.find(x => x.id === id);
+	if (!p) return;
+	await props.personsTab.deletePerson(p);
+	pendingDeletePersonId.value = null;
+};
 </script>

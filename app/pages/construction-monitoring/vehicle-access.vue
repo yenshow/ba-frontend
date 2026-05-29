@@ -34,6 +34,15 @@
 						地點管理
 					</button>
 					<button
+						v-if="canWrite && isIsapiCamera && selectedLocation"
+						type="button"
+						class="absolute left-36 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:left-44 2xl:text-base"
+						aria-label="車牌管理"
+						@click="showIsapiManageDialog = true"
+					>
+						車牌管理
+					</button>
+					<button
 						type="button"
 						class="absolute right-8 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
 						aria-label="開啟完整報表"
@@ -52,9 +61,8 @@
 									:current-count="onSiteCount"
 								/>
 							</div>
-							<!-- 當日記錄表 + 車輛群組 -->
+							<!-- 當日過車記錄表 + 車輛群組（ISAPI 道閘在右側總覽卡） -->
 							<div class="grid grid-cols-2 gap-4">
-								<!-- 當日過車記錄表（最新 5 筆，與人流一致） -->
 								<div class="space-y-3">
 									<div v-if="isLoadingLogs" class="flex justify-center py-8">
 										<div
@@ -68,7 +76,6 @@
 										/>
 									</div>
 								</div>
-								<!-- 車輛群組（工程部、行銷部等，點開顯示該群組過車記錄） -->
 								<VehicleOrganizationGroupPanel
 									:groups="organizationGroups ?? []"
 									:selected-group-key="selectedOrganizationKey ?? undefined"
@@ -188,6 +195,9 @@
 									:key="summary.id"
 									:summary="summary"
 									:groups="organizationGroups ?? []"
+									:location="findLocationForSummary(summary)"
+									:can-write="canWrite"
+									:is-active="isCurrentSummary(summary)"
 									:class="{
 										'ring-2 ring-cyan-400': isCurrentSummary(summary),
 										'cursor-pointer transition-all hover:ring-2 hover:ring-cyan-300/50': true,
@@ -224,6 +234,12 @@
 		@close="handleOrganizationDialogClose"
 	/>
 
+	<VehicleAccessIsapiManageDialog
+		v-model="showIsapiManageDialog"
+		:location="selectedLocation"
+		:can-write="canWrite"
+	/>
+
 	<SimulationFrame v-model="showSimulationFrame" title="車輛進出 - 完整報表">
 		<VehicleAccessSimulation
 			:logs="simulationLogs"
@@ -248,6 +264,7 @@ import VehicleDataLogTable from "~/components/vehicle-access/VehicleDataLogTable
 import VehicleOrganizationGroupPanel from "~/components/vehicle-access/VehicleOrganizationGroupPanel.vue"
 import VehicleOverviewCard from "~/components/vehicle-access/VehicleOverviewCard.vue"
 import VehicleGroupDetailDialog from "~/components/vehicle-access/VehicleGroupDetailDialog.vue"
+import VehicleAccessIsapiManageDialog from "~/components/vehicle-access/VehicleAccessIsapiManageDialog.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
 import SimulationFrame from "~/components/common/SimulationFrame.vue"
 import VehicleAccessSimulation, {
@@ -360,6 +377,7 @@ const handleOpenSimulation = async () => {
 }
 
 const isGroupDialogOpen = ref(false)
+const showIsapiManageDialog = ref(false)
 
 const selectedOrganizationGroupName = computed(() => {
 	const key = selectedOrganizationKey.value
@@ -443,6 +461,21 @@ const getLocationId = (location: VehicleAccessLocation & { zoneName?: string }):
 	)
 	if (idx < 0) return `${zoneName ?? "unknown"}-${location.name}`
 	return adapter.getLocationId({ zone, location, locationIndex: idx })
+}
+
+const findLocationForSummary = (
+	summary: VehicleAccessLocationSummary,
+): VehicleAccessLocation | null => {
+	const id = String(summary.id ?? summary.locationId ?? "")
+	for (const zone of vehicleAccessZones.value) {
+		for (const loc of zone.locations || []) {
+			const locId = getLocationId(loc as VehicleAccessLocation & { zoneName?: string })
+			if (locId === id || String(loc.id ?? "") === id) {
+				return loc
+			}
+		}
+	}
+	return null
 }
 
 // 與 environment 一致：僅以單一 id 判斷選定，確保總覽只有一卡高亮

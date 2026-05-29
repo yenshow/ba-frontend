@@ -1,7 +1,20 @@
 <template>
 	<div class="space-y-6">
 		<div class="flex items-center justify-between">
-			<h1 class="text-3xl font-semibold tracking-[8px] text-white 2xl:text-4xl">資訊牆管理</h1>
+			<div class="flex items-center gap-3">
+				<header class="me-4 flex flex-col gap-1 2xl:gap-2">
+					<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">資訊牆管理</h1>
+					<p class="text-base text-white/80 2xl:text-xl">管理資訊牆基本設定與公告 / 排程</p>
+				</header>
+				<PageTabs
+					v-model="activeTab"
+					list-class="w-fit"
+					:tabs="multimediaTabs"
+					:panels="false"
+					aria-label="資訊牆管理分頁"
+					id-prefix="multimedia-tab"
+				/>
+			</div>
 			<div class="flex items-center gap-3">
 				<NuxtLink
 					to="/multimedia/dashboard"
@@ -26,358 +39,352 @@
 		<PageTabs
 			v-model="activeTab"
 			:tabs="multimediaTabs"
-			:panels="false"
-			aria-label="資訊牆管理分頁"
-			id-prefix="multimedia-tab"
-		/>
-
-		<PageTabs
-			v-model="activeTab"
-			:tabs="multimediaTabs"
 			:list="false"
 			aria-label="資訊牆管理分頁"
 			id-prefix="multimedia-tab"
 		>
 			<template #basic>
-			<div class="grid grid-cols-12 gap-4">
-			<!-- 圖片 -->
-			<div class="col-span-7 space-y-4">
-				<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
-					<h2 class="text-2xl font-semibold tracking-[4px]">圖片設定</h2>
+				<div class="grid grid-cols-12 gap-4">
+					<!-- 圖片 -->
+					<div class="col-span-7 space-y-4">
+						<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
+							<h2 class="text-2xl font-semibold tracking-[4px]">圖片設定</h2>
 
-					<div class="mt-4 grid grid-cols-3 gap-4">
-						<ImageField
-							label="背景圖"
-							:value="draft.backgroundImageUrl"
-							accept="image/*"
-							@upload="(f) => handleUpload(f, (url) => (draft.backgroundImageUrl = url))"
-						/>
-						<ImageField
-							label="LOGO"
-							:value="draft.projectImageUrl"
-							accept="image/*"
-							@upload="(f) => handleUpload(f, (url) => (draft.projectImageUrl = url))"
-						/>
-						<ImageField
-							label="多媒體影音"
-							:value="draft.heroImageUrl"
-							accept="image/*,video/*"
-							@upload="(f) => handleUpload(f, (url) => (draft.heroImageUrl = url))"
-						/>
-					</div>
-				</section>
-
-				<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
-					<h2 class="text-2xl font-semibold tracking-[4px]">佈告文案</h2>
-					<div class="mt-4">
-						<textarea
-							v-model="draft.bannerMarqueeText"
-							rows="4"
-							class="form-input-small w-full"
-							placeholder="看板文字"
-						/>
-					</div>
-				</section>
-			</div>
-
-			<!-- Right -->
-			<div class="col-span-5 space-y-4">
-				<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
-					<h2 class="text-2xl font-semibold tracking-[4px]">環境資料來源</h2>
-
-					<div class="mt-4">
-						<div v-if="isLoadingSensorDevices" class="py-4 text-center text-base text-white/60">
-							載入中...
-						</div>
-						<div
-							v-else-if="sensorDevices.length === 0"
-							class="py-4 text-center text-base text-amber-300"
-						>
-							尚無可用感測器，請先在「設備管理」中建立感測器設備
-						</div>
-						<div v-else class="grid grid-cols-2 gap-2">
-							<label
-								v-for="device in sensorDevices"
-								:key="device.id"
-								class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
-								:class="{ 'border-cyan-400/50 bg-cyan-500/20': isEnvDeviceSelected(device.id) }"
-							>
-								<input
-									type="checkbox"
-									:checked="isEnvDeviceSelected(device.id)"
-									@change="handleToggleEnvDevice(device.id)"
-									class="h-4 w-4 cursor-pointer accent-cyan-400"
-									:aria-label="`勾選感測器：${device.name}`"
+							<div class="mt-4 grid grid-cols-3 gap-4">
+								<ImageField
+									label="背景圖"
+									:value="draft.backgroundImageUrl"
+									accept="image/*"
+									@upload="(f) => handleUpload(f, (url) => (draft.backgroundImageUrl = url))"
 								/>
-								<span class="text-base text-white">{{ device.name }}</span>
-							</label>
-						</div>
-					</div>
-
-					<div class="mt-5 border-t border-white/50 pt-4">
-						<div class="grid grid-cols-2 gap-2">
-							<div
-								v-for="item in fixedEnvSkeleton"
-								:key="item.key"
-								class="flex items-center gap-2 rounded border border-white/10 bg-white/5 p-2"
-							>
-								<span
-									class="h-2.5 w-2.5 rounded-full"
-									:class="item.isSupported ? 'bg-emerald-400' : 'bg-white/25'"
-									:title="item.isSupported ? '設備已支援' : '設備未支援 / 無資料'"
+								<ImageField
+									label="LOGO"
+									:value="draft.projectImageUrl"
+									accept="image/*"
+									@upload="(f) => handleUpload(f, (url) => (draft.projectImageUrl = url))"
 								/>
-								<span class="text-base text-white">{{ item.label }}</span>
-								<span class="ml-auto text-sm text-white/50">{{ item.unit }}</span>
+								<ImageField
+									label="多媒體影音"
+									:value="draft.heroImageUrl"
+									accept="image/*,video/*"
+									@upload="(f) => handleUpload(f, (url) => (draft.heroImageUrl = url))"
+								/>
 							</div>
-						</div>
-					</div>
-				</section>
+						</section>
 
-				<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
-					<h2 class="text-2xl font-semibold tracking-[4px]">看板分頁 / 輪播</h2>
-					<div class="mt-4 grid grid-cols-2 gap-4">
-						<label class="block">
-							<div class="mb-1 text-sm text-white/80">公告每頁筆數</div>
-							<input
-								v-model.number="draft.wallAnnouncementsPerPage"
-								type="number"
-								min="1"
-								max="20"
-								class="form-input-small w-full"
-							/>
-						</label>
-						<label class="block">
-							<div class="mb-1 text-sm text-white/80">排程每頁筆數</div>
-							<input
-								v-model.number="draft.wallSchedulesPerPage"
-								type="number"
-								min="1"
-								max="20"
-								class="form-input-small w-full"
-							/>
-						</label>
+						<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
+							<h2 class="text-2xl font-semibold tracking-[4px]">佈告文案</h2>
+							<div class="mt-4">
+								<textarea
+									v-model="draft.bannerMarqueeText"
+									rows="4"
+									class="form-input-small w-full"
+									placeholder="看板文字"
+								/>
+							</div>
+						</section>
 					</div>
-					<div class="mt-4 grid grid-cols-2 gap-4">
-						<label class="block">
-							<div class="mb-1 text-sm text-white/80">公告自動切頁（秒）</div>
-							<input
-								v-model.number="wallAnnouncementAutoPageIntervalSec"
-								type="number"
-								min="1"
-								max="120"
-								class="form-input-small w-full"
-							/>
-						</label>
-						<label class="block">
-							<div class="mb-1 text-sm text-white/80">排程自動切頁（秒）</div>
-							<input
-								v-model.number="wallScheduleAutoPageIntervalSec"
-								type="number"
-								min="1"
-								max="120"
-								class="form-input-small w-full"
-							/>
-						</label>
-					</div>
-				</section>
-			</div>
-		</div>
-		</template>
 
-		<template #content>
-			<div class="grid grid-cols-12 gap-6">
-			<div class="col-span-7 space-y-6">
-				<section
-					class="min-h-[420px] rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white"
-				>
-					<div class="flex items-center justify-between gap-3">
-						<h2 class="text-xl font-semibold tracking-[6px]">社區公告</h2>
-						<button
-							type="button"
-							class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-base"
-							@click="handleAddAnnouncement"
-						>
-							新增公告
-						</button>
-					</div>
-					<div class="mt-4 space-y-4">
-						<div
-							v-for="(a, idx) in pagedAnnouncements"
-							:key="a.id"
-							class="rounded-xl border border-white/15 bg-black/15 p-4"
-						>
-							<div class="flex items-center justify-between gap-3">
-								<div class="flex items-center gap-3">
-									<label class="flex items-center gap-2 text-xl text-white/80">
-										<input v-model="a.pinned" type="checkbox" class="h-4 w-4" />
-										置頂
-									</label>
-									<label class="flex items-center gap-2 text-xl text-white/80">
-										<input v-model="a.enabled" type="checkbox" class="h-4 w-4" />
-										啟用
-									</label>
+					<!-- Right -->
+					<div class="col-span-5 space-y-4">
+						<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
+							<h2 class="text-2xl font-semibold tracking-[4px]">環境資料來源</h2>
+
+							<div class="mt-4">
+								<div v-if="isLoadingSensorDevices" class="py-4 text-center text-base text-white/60">
+									載入中...
 								</div>
-								<div class="flex items-center gap-2">
-									<div class="btn-reorder-stack">
-										<button
-											type="button"
-											class="btn-reorder-arrow"
-											:disabled="announcementOffset + idx <= 0"
-											title="上移"
-											aria-label="此公告上移"
-											@click="handleReorderAnnouncement(announcementOffset + idx, 'up')"
-										>
-											↑
-										</button>
-										<button
-											type="button"
-											class="btn-reorder-arrow"
-											:disabled="announcementOffset + idx >= (draft.announcements || []).length - 1"
-											title="下移"
-											aria-label="此公告下移"
-											@click="handleReorderAnnouncement(announcementOffset + idx, 'down')"
-										>
-											↓
-										</button>
-									</div>
-									<button
-										type="button"
-										class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent px-3 py-2 text-sm font-light text-white transition-all hover:bg-white/10"
-										@click="handleRemoveAnnouncement(announcementOffset + idx)"
+								<div
+									v-else-if="sensorDevices.length === 0"
+									class="py-4 text-center text-base text-amber-300"
+								>
+									尚無可用感測器，請先在「設備管理」中建立感測器設備
+								</div>
+								<div v-else class="grid grid-cols-2 gap-2">
+									<label
+										v-for="device in sensorDevices"
+										:key="device.id"
+										class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
+										:class="{ 'border-cyan-400/50 bg-cyan-500/20': isEnvDeviceSelected(device.id) }"
 									>
-										刪除
-									</button>
+										<input
+											type="checkbox"
+											:checked="isEnvDeviceSelected(device.id)"
+											@change="handleToggleEnvDevice(device.id)"
+											class="h-4 w-4 cursor-pointer accent-cyan-400"
+											:aria-label="`勾選感測器：${device.name}`"
+										/>
+										<span class="text-base text-white">{{ device.name }}</span>
+									</label>
 								</div>
 							</div>
 
-							<div class="mt-3 grid grid-cols-2 gap-3">
-								<label class="block">
-									<div class="mb-1 text-sm text-white/80">開始日期</div>
-									<input v-model="a.startDate" type="date" class="form-input-small w-full" />
-								</label>
-								<label class="block">
-									<div class="mb-1 text-sm text-white/80">結束日期</div>
-									<input v-model="a.endDate" type="date" class="form-input-small w-full" />
-								</label>
+							<div class="mt-5 border-t border-white/50 pt-4">
+								<div class="grid grid-cols-2 gap-2">
+									<div
+										v-for="item in fixedEnvSkeleton"
+										:key="item.key"
+										class="flex items-center gap-2 rounded border border-white/10 bg-white/5 p-2"
+									>
+										<span
+											class="h-2.5 w-2.5 rounded-full"
+											:class="item.isSupported ? 'bg-emerald-400' : 'bg-white/25'"
+											:title="item.isSupported ? '設備已支援' : '設備未支援 / 無資料'"
+										/>
+										<span class="text-base text-white">{{ item.label }}</span>
+										<span class="ml-auto text-sm text-white/50">{{ item.unit }}</span>
+									</div>
+								</div>
 							</div>
+						</section>
 
-							<div class="mt-3 grid grid-cols-1 gap-3">
+						<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
+							<h2 class="text-2xl font-semibold tracking-[4px]">看板分頁 / 輪播</h2>
+							<div class="mt-4 grid grid-cols-2 gap-4">
 								<label class="block">
-									<div class="mb-1 text-sm text-white/80">內容</div>
-									<textarea
-										v-model="a.title"
-										rows="2"
+									<div class="mb-1 text-sm text-white/80">公告每頁筆數</div>
+									<input
+										v-model.number="draft.wallAnnouncementsPerPage"
+										type="number"
+										min="1"
+										max="20"
 										class="form-input-small w-full"
-										placeholder="例如：設備施工公告"
+									/>
+								</label>
+								<label class="block">
+									<div class="mb-1 text-sm text-white/80">排程每頁筆數</div>
+									<input
+										v-model.number="draft.wallSchedulesPerPage"
+										type="number"
+										min="1"
+										max="20"
+										class="form-input-small w-full"
 									/>
 								</label>
 							</div>
-						</div>
-						<Pagination
-							:total="draft.announcements.length"
-							:offset="announcementOffset"
-							:limit="ITEMS_PER_PAGE"
-							:show="draft.announcements.length > ITEMS_PER_PAGE"
-							@previous="handleAnnouncementPrevious"
-							@next="handleAnnouncementNext"
-						/>
+							<div class="mt-4 grid grid-cols-2 gap-4">
+								<label class="block">
+									<div class="mb-1 text-sm text-white/80">公告自動切頁（秒）</div>
+									<input
+										v-model.number="wallAnnouncementAutoPageIntervalSec"
+										type="number"
+										min="1"
+										max="120"
+										class="form-input-small w-full"
+									/>
+								</label>
+								<label class="block">
+									<div class="mb-1 text-sm text-white/80">排程自動切頁（秒）</div>
+									<input
+										v-model.number="wallScheduleAutoPageIntervalSec"
+										type="number"
+										min="1"
+										max="120"
+										class="form-input-small w-full"
+									/>
+								</label>
+							</div>
+						</section>
 					</div>
-				</section>
-			</div>
+				</div>
+			</template>
 
-			<div class="col-span-5 space-y-6">
-				<section
-					class="min-h-[420px] rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white"
-				>
-					<div class="flex items-center justify-between gap-3">
-						<h2 class="text-xl font-semibold tracking-[6px]">今日社區排程</h2>
-						<button
-							type="button"
-							class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-base"
-							@click="handleAddSchedule"
-						>
-							新增排程
-						</button>
-					</div>
-					<div class="mt-4 space-y-4">
-						<div
-							v-for="(s, idx) in pagedSchedules"
-							:key="s.id"
-							class="rounded-xl border border-white/15 bg-black/15 p-4"
+			<template #content>
+				<div class="grid grid-cols-12 gap-6">
+					<div class="col-span-7 space-y-6">
+						<section
+							class="min-h-[420px] rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white"
 						>
 							<div class="flex items-center justify-between gap-3">
-								<div class="flex items-center gap-3">
-									<label class="flex items-center gap-2 text-xl text-white/80">
-										<input v-model="s.enabled" type="checkbox" class="h-4 w-4" />
-										啟用
+								<h2 class="text-xl font-semibold tracking-[6px]">社區公告</h2>
+								<button
+									type="button"
+									class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-base"
+									@click="handleAddAnnouncement"
+								>
+									新增公告
+								</button>
+							</div>
+							<div class="mt-4 space-y-4">
+								<div
+									v-for="(a, idx) in pagedAnnouncements"
+									:key="a.id"
+									class="rounded-xl border border-white/15 bg-black/15 p-4"
+								>
+									<div class="flex items-center justify-between gap-3">
+										<div class="flex items-center gap-3">
+											<label class="flex items-center gap-2 text-xl text-white/80">
+												<input v-model="a.pinned" type="checkbox" class="h-4 w-4" />
+												置頂
+											</label>
+											<label class="flex items-center gap-2 text-xl text-white/80">
+												<input v-model="a.enabled" type="checkbox" class="h-4 w-4" />
+												啟用
+											</label>
+										</div>
+										<div class="flex items-center gap-2">
+											<div class="btn-reorder-stack">
+												<button
+													type="button"
+													class="btn-reorder-arrow"
+													:disabled="announcementOffset + idx <= 0"
+													title="上移"
+													aria-label="此公告上移"
+													@click="handleReorderAnnouncement(announcementOffset + idx, 'up')"
+												>
+													↑
+												</button>
+												<button
+													type="button"
+													class="btn-reorder-arrow"
+													:disabled="
+														announcementOffset + idx >= (draft.announcements || []).length - 1
+													"
+													title="下移"
+													aria-label="此公告下移"
+													@click="handleReorderAnnouncement(announcementOffset + idx, 'down')"
+												>
+													↓
+												</button>
+											</div>
+											<button
+												type="button"
+												class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent px-3 py-2 text-sm font-light text-white transition-all hover:bg-white/10"
+												@click="handleRemoveAnnouncement(announcementOffset + idx)"
+											>
+												刪除
+											</button>
+										</div>
+									</div>
+
+									<div class="mt-3 grid grid-cols-2 gap-3">
+										<label class="block">
+											<div class="mb-1 text-sm text-white/80">開始日期</div>
+											<input v-model="a.startDate" type="date" class="form-input-small w-full" />
+										</label>
+										<label class="block">
+											<div class="mb-1 text-sm text-white/80">結束日期</div>
+											<input v-model="a.endDate" type="date" class="form-input-small w-full" />
+										</label>
+									</div>
+
+									<div class="mt-3 grid grid-cols-1 gap-3">
+										<label class="block">
+											<div class="mb-1 text-sm text-white/80">內容</div>
+											<textarea
+												v-model="a.title"
+												rows="2"
+												class="form-input-small w-full"
+												placeholder="例如：設備施工公告"
+											/>
+										</label>
+									</div>
+								</div>
+								<Pagination
+									:total="draft.announcements.length"
+									:offset="announcementOffset"
+									:limit="ITEMS_PER_PAGE"
+									:show="draft.announcements.length > ITEMS_PER_PAGE"
+									@previous="handleAnnouncementPrevious"
+									@next="handleAnnouncementNext"
+								/>
+							</div>
+						</section>
+					</div>
+
+					<div class="col-span-5 space-y-6">
+						<section
+							class="min-h-[420px] rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white"
+						>
+							<div class="flex items-center justify-between gap-3">
+								<h2 class="text-xl font-semibold tracking-[6px]">今日社區排程</h2>
+								<button
+									type="button"
+									class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-base"
+									@click="handleAddSchedule"
+								>
+									新增排程
+								</button>
+							</div>
+							<div class="mt-4 space-y-4">
+								<div
+									v-for="(s, idx) in pagedSchedules"
+									:key="s.id"
+									class="rounded-xl border border-white/15 bg-black/15 p-4"
+								>
+									<div class="flex items-center justify-between gap-3">
+										<div class="flex items-center gap-3">
+											<label class="flex items-center gap-2 text-xl text-white/80">
+												<input v-model="s.enabled" type="checkbox" class="h-4 w-4" />
+												啟用
+											</label>
+										</div>
+										<div class="flex items-center gap-2">
+											<div class="btn-reorder-stack">
+												<button
+													type="button"
+													class="btn-reorder-arrow"
+													:disabled="scheduleOffset + idx <= 0"
+													title="上移"
+													aria-label="此排程上移"
+													@click="handleReorderSchedule(scheduleOffset + idx, 'up')"
+												>
+													↑
+												</button>
+												<button
+													type="button"
+													class="btn-reorder-arrow"
+													:disabled="scheduleOffset + idx >= (draft.schedules || []).length - 1"
+													title="下移"
+													aria-label="此排程下移"
+													@click="handleReorderSchedule(scheduleOffset + idx, 'down')"
+												>
+													↓
+												</button>
+											</div>
+											<button
+												type="button"
+												class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent px-3 py-2 text-sm font-light text-white transition-all hover:bg-white/10"
+												@click="handleRemoveSchedule(scheduleOffset + idx)"
+											>
+												刪除
+											</button>
+										</div>
+									</div>
+
+									<div class="mt-3 grid grid-cols-2 gap-3">
+										<label class="block">
+											<div class="mb-1 text-sm text-white/80">開始</div>
+											<input v-model="s.startTime" type="time" class="form-input-small w-full" />
+										</label>
+										<label class="block">
+											<div class="mb-1 text-sm text-white/80">結束</div>
+											<input v-model="s.endTime" type="time" class="form-input-small w-full" />
+										</label>
+									</div>
+
+									<label class="mt-3 block">
+										<div class="mb-1 text-sm text-white/80">內容</div>
+										<input
+											v-model="s.title"
+											type="text"
+											class="form-input-small w-full"
+											placeholder="例如：社區園藝維護"
+										/>
 									</label>
 								</div>
-								<div class="flex items-center gap-2">
-									<div class="btn-reorder-stack">
-										<button
-											type="button"
-											class="btn-reorder-arrow"
-											:disabled="scheduleOffset + idx <= 0"
-											title="上移"
-											aria-label="此排程上移"
-											@click="handleReorderSchedule(scheduleOffset + idx, 'up')"
-										>
-											↑
-										</button>
-										<button
-											type="button"
-											class="btn-reorder-arrow"
-											:disabled="scheduleOffset + idx >= (draft.schedules || []).length - 1"
-											title="下移"
-											aria-label="此排程下移"
-											@click="handleReorderSchedule(scheduleOffset + idx, 'down')"
-										>
-											↓
-										</button>
-									</div>
-									<button
-										type="button"
-										class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent px-3 py-2 text-sm font-light text-white transition-all hover:bg-white/10"
-										@click="handleRemoveSchedule(scheduleOffset + idx)"
-									>
-										刪除
-									</button>
-								</div>
-							</div>
-
-							<div class="mt-3 grid grid-cols-2 gap-3">
-								<label class="block">
-									<div class="mb-1 text-sm text-white/80">開始</div>
-									<input v-model="s.startTime" type="time" class="form-input-small w-full" />
-								</label>
-								<label class="block">
-									<div class="mb-1 text-sm text-white/80">結束</div>
-									<input v-model="s.endTime" type="time" class="form-input-small w-full" />
-								</label>
-							</div>
-
-							<label class="mt-3 block">
-								<div class="mb-1 text-sm text-white/80">內容</div>
-								<input
-									v-model="s.title"
-									type="text"
-									class="form-input-small w-full"
-									placeholder="例如：社區園藝維護"
+								<Pagination
+									:total="draft.schedules.length"
+									:offset="scheduleOffset"
+									:limit="ITEMS_PER_PAGE"
+									:show="draft.schedules.length > ITEMS_PER_PAGE"
+									@previous="handleSchedulePrevious"
+									@next="handleScheduleNext"
 								/>
-							</label>
-						</div>
-						<Pagination
-							:total="draft.schedules.length"
-							:offset="scheduleOffset"
-							:limit="ITEMS_PER_PAGE"
-							:show="draft.schedules.length > ITEMS_PER_PAGE"
-							@previous="handleSchedulePrevious"
-							@next="handleScheduleNext"
-						/>
+							</div>
+						</section>
 					</div>
-				</section>
-			</div>
-		</div>
+				</div>
 			</template>
 		</PageTabs>
 	</div>
