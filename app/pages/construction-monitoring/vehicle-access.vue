@@ -36,7 +36,7 @@
 					<button
 						v-if="canWrite && isIsapiCamera && selectedLocation"
 						type="button"
-						class="absolute left-36 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:left-44 2xl:text-base"
+						class="absolute left-36 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
 						aria-label="車牌管理"
 						@click="showIsapiManageDialog = true"
 					>
@@ -464,7 +464,7 @@ const getLocationId = (location: VehicleAccessLocation & { zoneName?: string }):
 }
 
 const findLocationForSummary = (
-	summary: VehicleAccessLocationSummary,
+	summary: VehicleAccessLocationSummary
 ): VehicleAccessLocation | null => {
 	const id = String(summary.id ?? summary.locationId ?? "")
 	for (const zone of vehicleAccessZones.value) {

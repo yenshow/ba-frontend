@@ -80,18 +80,11 @@
 													{{ opt.label }}
 												</h4>
 											</div>
-											<div class="min-w-0 flex-1">
-												<div class="flex items-center gap-3">
-													<span
-														class="rounded-full bg-white/25 px-3 py-1 text-sm font-medium text-white 2xl:text-base"
-													>
-														{{ getPlateCountLabel(opt.id) }}
-													</span>
-													<span class="text-sm text-white/60 2xl:text-base">
-														{{ opt.laneRole }} · 通道 {{ channelId }}
-													</span>
-												</div>
-											</div>
+											<span
+												class="rounded-full bg-white/25 px-3 py-1 text-sm font-medium text-white 2xl:text-base"
+											>
+												{{ getPlateCountLabel(opt.id) }}
+											</span>
 										</div>
 									</div>
 
@@ -102,29 +95,17 @@
 										>
 											<div class="flex items-center justify-between">
 												<span class="text-base font-medium 2xl:text-lg">車牌名單</span>
-												<div v-if="canWrite" class="flex flex-wrap gap-2 2xl:gap-3">
-													<button
-														type="button"
-														class="btn-secondary"
-														@click="handleOpenPlateForm(opt.id)"
-													>
-														新增車牌
-													</button>
-													<button
-														type="button"
-														class="btn-secondary"
-														:disabled="isLoadingDevice(opt.id)"
-														@click="loadPlatesForDevice(opt.id)"
-													>
-														重新載入
-													</button>
-												</div>
+												<button
+													v-if="canWrite"
+													type="button"
+													class="btn-secondary"
+													@click="handleOpenPlateForm(opt.id)"
+												>
+													新增車牌
+												</button>
 											</div>
 
-											<div
-												v-if="isLoadingDevice(opt.id)"
-												class="flex justify-center py-8"
-											>
+											<div v-if="isLoadingDevice(opt.id)" class="flex justify-center py-8">
 												<div
 													class="h-10 w-10 animate-spin rounded-full border-2 border-white/30 border-t-white/80"
 												></div>
@@ -145,14 +126,16 @@
 												v-else
 												class="overflow-x-auto rounded border border-white/10 bg-white/5 p-2"
 											>
-												<table class="w-full min-w-[520px] text-left text-sm text-white/90 2xl:text-base">
+												<table
+													class="w-full min-w-[520px] text-left text-base text-white/90 2xl:text-lg"
+												>
 													<thead>
 														<tr class="border-b border-white/15 text-white/60">
 															<th class="px-2 py-2 font-medium">車牌</th>
-															<th class="px-2 py-2 font-medium">名單</th>
-															<th class="px-2 py-2 font-medium">綁定人員</th>
-															<th class="px-2 py-2 font-medium">開始</th>
-															<th class="px-2 py-2 font-medium">結束</th>
+															<th class="px-2 py-2 font-medium">車主姓名</th>
+															<th class="px-2 py-2 font-medium">名單類型</th>
+															<th class="px-2 py-2 font-medium">開始時間</th>
+															<th class="px-2 py-2 font-medium">結束時間</th>
 															<th v-if="canWrite" class="px-2 py-2 font-medium">操作</th>
 														</tr>
 													</thead>
@@ -163,6 +146,9 @@
 															class="border-b border-white/10 last:border-b-0"
 														>
 															<td class="px-2 py-2">{{ row.licensePlate }}</td>
+															<td class="px-2 py-2 text-white/70">
+																{{ row.bindPersonLabel || "—" }}
+															</td>
 															<td class="px-2 py-2">
 																<span
 																	class="rounded-full px-2 py-0.5 text-xs 2xl:text-sm"
@@ -172,17 +158,14 @@
 																			: 'bg-rose-500/20 text-rose-200'
 																	"
 																>
-																	{{ row.listType === "allowList" ? "授權" : "拒絕" }}
+																	{{ licensePlateListTypeShortLabel(row.listType) }}
 																</span>
 															</td>
 															<td class="px-2 py-2 text-white/70">
-																{{ row.bindPersonLabel || "—" }}
+																{{ formatLicensePlateDisplayTime(row.createTime) }}
 															</td>
 															<td class="px-2 py-2 text-white/70">
-																{{ formatDisplayTime(row.createTime) }}
-															</td>
-															<td class="px-2 py-2 text-white/70">
-																{{ formatDisplayTime(row.effectiveTime) }}
+																{{ formatLicensePlateDisplayTime(row.effectiveTime) }}
 															</td>
 															<td v-if="canWrite" class="px-2 py-2">
 																<button
@@ -204,161 +187,50 @@
 													</tbody>
 												</table>
 											</div>
-
-											<Transition name="expand">
-												<div
-													v-if="formDeviceId === opt.id && showPlateForm"
-													class="flex min-w-0 items-start gap-2 rounded border border-white/10 bg-white/5 p-2"
-												>
-													<div class="min-w-0 flex-1">
-														<button
-															type="button"
-															class="mb-3 flex w-full items-center justify-between text-left"
-															:aria-expanded="plateFormExpanded"
-															@click="plateFormExpanded = !plateFormExpanded"
-														>
-															<span class="text-base font-medium text-white/90 2xl:text-lg">
-																{{ plateFormMode === "add" ? "新增車牌" : "編輯車牌" }}
-															</span>
-															<svg
-																class="h-5 w-5 text-white/70 transition-transform"
-																:class="{ 'rotate-90': plateFormExpanded }"
-																fill="none"
-																stroke="currentColor"
-																viewBox="0 0 24 24"
-																aria-hidden="true"
-															>
-																<path
-																	stroke-linecap="round"
-																	stroke-linejoin="round"
-																	stroke-width="2"
-																	d="M9 5l7 7-7 7"
-																/>
-															</svg>
-														</button>
-														<Transition name="expand">
-															<div v-if="plateFormExpanded" class="flex flex-col gap-3">
-																<div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-																	<label
-																		class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-																	>
-																		<span>車牌 *</span>
-																		<input
-																			v-model="plateForm.licensePlate"
-																			type="text"
-																			class="form-input-small"
-																			placeholder="例如：ABC1234"
-																			:disabled="plateFormMode === 'modify'"
-																		/>
-																	</label>
-																	<label
-																		class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-																	>
-																		<span>名單類型</span>
-																		<select
-																			v-model="plateForm.listType"
-																			class="form-input-small"
-																		>
-																			<option value="allowList">授權名單</option>
-																			<option value="blockList">拒絕名單</option>
-																		</select>
-																	</label>
-																	<label
-																		class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-																	>
-																		<span>開始時間</span>
-																		<input
-																			v-model="plateForm.createTimeLocal"
-																			type="datetime-local"
-																			class="form-input-small"
-																		/>
-																	</label>
-																	<label
-																		class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-																	>
-																		<span>結束時間</span>
-																		<input
-																			v-model="plateForm.effectiveTimeLocal"
-																			type="datetime-local"
-																			class="form-input-small"
-																		/>
-																	</label>
-																	<label
-																		class="col-span-full flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-																	>
-																		<span>綁定人員（選填）</span>
-																		<FilterDropdown
-																			v-model="plateForm.bindPersonId"
-																			:options="personBindOptions"
-																			placeholder="不綁定人員"
-																			:disabled="isLoadingPersonOptions"
-																			text-size="text-sm 2xl:text-base"
-																		/>
-																	</label>
-																</div>
-																<div class="flex flex-wrap gap-2 2xl:gap-3">
-																	<button
-																		type="button"
-																		class="btn-secondary"
-																		:disabled="isSavingPlate"
-																		@click="handleSavePlate(opt.id)"
-																	>
-																		儲存
-																	</button>
-																	<button
-																		type="button"
-																		class="btn-secondary"
-																		@click="handleCancelPlateForm"
-																	>
-																		取消
-																	</button>
-																</div>
-															</div>
-														</Transition>
-													</div>
-												</div>
-											</Transition>
 										</div>
 									</Transition>
 								</div>
 							</div>
 						</div>
 					</div>
-
-					<footer
-						class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8"
-					>
-						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
-					</footer>
 				</div>
 			</div>
 		</Transition>
 	</Teleport>
+
+	<VehicleAccessIsapiPlateFormDialog
+		v-if="formDeviceId != null"
+		v-model:form="plateForm"
+		:mode="plateFormMode"
+		:person-bind-options="personBindOptions"
+		:is-loading-person-options="isLoadingPersonOptions"
+		:is-saving="isSavingPlate"
+		@save="handleSavePlate(formDeviceId)"
+		@cancel="handleCancelPlateForm"
+	/>
 </template>
 
 <script setup lang="ts">
-import type {
-	VehicleAccessLocation,
-	VehicleLicensePlateAuditItem,
-	VehicleLicensePlateListType,
-} from "~/types/vehicleAccess"
+import type { VehicleAccessLocation, VehicleLicensePlateAuditItem } from "~/types/vehicleAccess"
 import { useVehicleAccessIsapiDeviceApi } from "~/composables/systems/vehicleAccess/useVehicleAccessIsapiDeviceApi"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { useToast } from "~/composables/core/useToast"
 import { resolveUserFacingCatchMessage } from "~/utils/errorUtils"
 import {
-	datetimeLocalToIsapi,
-	defaultLicensePlateEndLocal,
+	buildIsapiPlateUpsertEntry,
+	createDefaultIsapiPlateForm,
+	formatLicensePlateDisplayTime,
 	formatPersonBindLabel,
-	isoToDatetimeLocal,
+	isapiPlateFormFromAuditRow,
+	licensePlateListTypeShortLabel,
+	type IsapiPlateFormModel,
 } from "~/utils/licensePlateFormUtils"
-import FilterDropdown from "~/components/common/FilterDropdown.vue"
+import VehicleAccessIsapiPlateFormDialog from "~/components/vehicle-access/VehicleAccessIsapiPlateFormDialog.vue"
 
 interface DeviceOption {
 	id: number
 	label: string
-	laneRole: string
 }
 
 const props = defineProps<{
@@ -383,18 +255,9 @@ const loadingByDevice = ref<Record<number, boolean>>({})
 const errorByDevice = ref<Record<number, string>>({})
 
 const formDeviceId = ref<number | null>(null)
-const showPlateForm = ref(false)
-const plateFormExpanded = ref(true)
 const plateFormMode = ref<"add" | "modify">("add")
 const isSavingPlate = ref(false)
-
-const plateForm = ref({
-	licensePlate: "",
-	listType: "allowList" as VehicleLicensePlateListType,
-	createTimeLocal: "",
-	effectiveTimeLocal: "",
-	bindPersonId: "" as string,
-})
+const plateForm = ref<IsapiPlateFormModel>(createDefaultIsapiPlateForm())
 
 const personBindOptions = ref<Array<{ value: string; label: string }>>([])
 const isLoadingPersonOptions = ref(false)
@@ -405,14 +268,6 @@ const siteId = computed(() => {
 	return Number.isFinite(n) ? n : undefined
 })
 
-const channelId = computed(() => {
-	const ch = props.location?.cameraChannelId
-	return ch != null && Number.isFinite(Number(ch)) ? Math.trunc(Number(ch)) : 1
-})
-
-const entrySet = computed(() => new Set((props.location?.entryCameraDeviceIds ?? []).map(Number)))
-const exitSet = computed(() => new Set((props.location?.exitCameraDeviceIds ?? []).map(Number)))
-
 const deviceIds = computed(() => {
 	const entry = props.location?.entryCameraDeviceIds ?? []
 	const exit = props.location?.exitCameraDeviceIds ?? []
@@ -420,21 +275,14 @@ const deviceIds = computed(() => {
 })
 
 const deviceOptions = computed((): DeviceOption[] =>
-	deviceIds.value.map((id) => {
-		const name = deviceNameMap.value[id] || `設備 #${id}`
-		const isEntry = entrySet.value.has(id)
-		const isExit = exitSet.value.has(id)
-		let laneRole = "攝影機"
-		if (isEntry && isExit) laneRole = "入口／出口"
-		else if (isEntry) laneRole = "入口"
-		else if (isExit) laneRole = "出口"
-		return { id, label: name, laneRole }
-	})
+	deviceIds.value.map((id) => ({
+		id,
+		label: deviceNameMap.value[id] || `設備 #${id}`,
+	}))
 )
 
 const apiParams = computed(() => ({
 	siteId: siteId.value,
-	channelId: channelId.value,
 }))
 
 const isDeviceExpanded = (deviceId: number) => expandedDevices.value.has(deviceId)
@@ -451,14 +299,6 @@ const getPlateCountLabel = (deviceId: number) => {
 	if (errorByDevice.value[deviceId]) return "載入失敗"
 	if (!expandedDevices.value.has(deviceId) && count === 0) return "0 筆"
 	return `${count} 筆`
-}
-
-const formatDisplayTime = (iso?: string | null): string => {
-	if (!iso?.trim()) return "—"
-	const d = new Date(iso)
-	if (Number.isNaN(d.getTime())) return iso
-	const pad = (n: number) => String(n).padStart(2, "0")
-	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 const loadPersonBindOptions = async () => {
@@ -495,27 +335,24 @@ const ensurePersonBindOption = (personId: number, label: string) => {
 }
 
 const enrichPlatesWithBindings = async (
-	items: VehicleLicensePlateAuditItem[],
+	items: VehicleLicensePlateAuditItem[]
 ): Promise<VehicleLicensePlateAuditItem[]> => {
 	const plateNumbers = items.map((i) => i.licensePlate).filter(Boolean)
 	if (plateNumbers.length === 0) return items
 	try {
 		const res = await personnelApi.getLicensePlateBindings(plateNumbers)
 		const map = new Map(
-			(res.items ?? []).map((b) => [
-				String(b.plate_normalized || b.plate_number).toUpperCase(),
-				b,
-			]),
+			(res.items ?? []).map((b) => [String(b.plate_normalized || b.plate_number).toUpperCase(), b])
 		)
 		return items.map((item) => {
 			const key = item.licensePlate.trim().toUpperCase()
 			const b = map.get(key)
 			if (!b) return item
-			const label = formatPersonBindLabel(b.employee_no, b.full_name)
+			const name = b.full_name?.trim()
 			return {
 				...item,
 				bindPersonId: b.person_id,
-				bindPersonLabel: label,
+				...(name ? { bindPersonLabel: name } : {}),
 			}
 		})
 	} catch {
@@ -572,70 +409,47 @@ const handleToggleDevice = async (deviceId: number) => {
 	expandedDevices.value = next
 }
 
-const handleOpenPlateForm = (deviceId: number, row?: VehicleLicensePlateAuditItem) => {
-	formDeviceId.value = deviceId
-	plateFormExpanded.value = true
-	if (!expandedDevices.value.has(deviceId)) {
-		expandedDevices.value = new Set([...expandedDevices.value, deviceId])
-		if (!platesByDevice.value[deviceId]) void loadPlatesForDevice(deviceId)
+const ensureDeviceExpanded = async (deviceId: number) => {
+	if (expandedDevices.value.has(deviceId)) return
+	expandedDevices.value = new Set([...expandedDevices.value, deviceId])
+	if (platesByDevice.value[deviceId] === undefined && !loadingByDevice.value[deviceId]) {
+		await loadPlatesForDevice(deviceId)
 	}
+}
+
+const handleOpenPlateForm = async (deviceId: number, row?: VehicleLicensePlateAuditItem) => {
+	formDeviceId.value = deviceId
+	await ensureDeviceExpanded(deviceId)
 	if (row) {
 		plateFormMode.value = "modify"
-		const bindId =
-			row.bindPersonId != null && Number.isFinite(Number(row.bindPersonId))
-				? String(row.bindPersonId)
-				: ""
-		if (bindId && row.bindPersonLabel) {
+		if (row.bindPersonId != null && row.bindPersonLabel) {
 			ensurePersonBindOption(Number(row.bindPersonId), row.bindPersonLabel)
 		}
-		plateForm.value = {
-			licensePlate: row.licensePlate,
-			listType: row.listType,
-			createTimeLocal: isoToDatetimeLocal(row.createTime),
-			effectiveTimeLocal: isoToDatetimeLocal(row.effectiveTime),
-			bindPersonId: bindId,
-		}
+		plateForm.value = isapiPlateFormFromAuditRow(row)
 	} else {
 		plateFormMode.value = "add"
-		plateForm.value = {
-			licensePlate: "",
-			listType: "allowList",
-			createTimeLocal: isoToDatetimeLocal(new Date().toISOString()),
-			effectiveTimeLocal: defaultLicensePlateEndLocal(),
-			bindPersonId: "",
-		}
+		plateForm.value = createDefaultIsapiPlateForm()
 	}
-	showPlateForm.value = true
 }
 
 const handleCancelPlateForm = () => {
-	showPlateForm.value = false
 	formDeviceId.value = null
 }
 
 const handleSavePlate = async (deviceId: number) => {
-	const plate = plateForm.value.licensePlate.trim()
-	if (!plate) {
-		toast.warning("請輸入車牌")
+	const built = buildIsapiPlateUpsertEntry(
+		plateForm.value,
+		plateFormMode.value === "add" ? "add" : "modify"
+	)
+	if ("error" in built) {
+		toast.warning(built.error)
 		return
 	}
 	isSavingPlate.value = true
 	try {
-		const bindRaw = plateForm.value.bindPersonId?.trim()
-		const bindPersonId = bindRaw ? Number.parseInt(bindRaw, 10) : undefined
 		await isapiApi.upsertLicensePlates(deviceId, {
 			...apiParams.value,
-			plates: [
-				{
-					id: plate,
-					licensePlate: plate,
-					listType: plateForm.value.listType,
-					operationType: plateFormMode.value === "add" ? "add" : "modify",
-					createTime: datetimeLocalToIsapi(plateForm.value.createTimeLocal),
-					effectiveTime: datetimeLocalToIsapi(plateForm.value.effectiveTimeLocal),
-					...(Number.isFinite(bindPersonId) ? { bindPersonId } : {}),
-				},
-			],
+			plates: [built.entry],
 		})
 		toast.success("已儲存車牌名單")
 		handleCancelPlateForm()
