@@ -42,6 +42,48 @@
 			</div>
 		</div>
 
+		<div v-if="dataSource === 'isapi_camera'" class="mt-2">
+			<span class="text-sm font-medium text-white/80 2xl:text-base">營運模式 *</span>
+			<div class="mt-2 flex flex-wrap gap-4">
+				<label class="flex cursor-pointer items-center gap-2">
+					<input
+						v-model="operationMode"
+						type="radio"
+						value="construction_flow"
+						class="h-4 w-4 accent-cyan-400"
+						@change="handleOperationModeChange"
+					/>
+					<span class="text-sm text-white/90 2xl:text-base">車流統計（營運日進出）</span>
+				</label>
+				<label class="flex cursor-pointer items-center gap-2">
+					<input
+						v-model="operationMode"
+						type="radio"
+						value="parking"
+						class="h-4 w-4 accent-cyan-400"
+						@change="handleOperationModeChange"
+					/>
+					<span class="text-sm text-white/90 2xl:text-base">停車場管理（session 進出／持續在場）</span>
+				</label>
+			</div>
+			<label
+				v-if="operationMode === 'parking'"
+				class="mt-3 flex max-w-xs flex-col gap-2 text-sm text-white/80 2xl:text-base"
+			>
+				<span>在場車輛上限 *</span>
+				<input
+					v-model.number="parkingCapacityInput"
+					type="number"
+					min="1"
+					max="99999"
+					required
+					class="form-input-small"
+					placeholder="例如：30"
+					@blur="handleParkingCapacityChange"
+				/>
+			</label>
+		</div>
+
 		<template v-if="dataSource === 'yscp'">
 			<div class="flex min-w-0 flex-wrap items-end gap-2">
 				<label
@@ -282,6 +324,14 @@ const localLocation = ref<VehicleAccessLocation>({
 	personGroupIds: props.location.personGroupIds ?? [],
 })
 const dataSource = ref(storedVehicleAccessDataSource(props.location.dataSource))
+const operationMode = ref<"construction_flow" | "parking">(
+	props.location.operationMode === "parking" ? "parking" : "construction_flow"
+)
+const parkingCapacityInput = ref<number | "">(
+	props.location.parkingCapacity != null && props.location.parkingCapacity > 0
+		? props.location.parkingCapacity
+		: ""
+)
 const entryLaneIdString = ref("")
 const exitLaneIdString = ref("")
 const laneList = ref<LaneInfo[]>([])
@@ -374,6 +424,15 @@ watch(
 			),
 		}
 		dataSource.value = ds
+		operationMode.value =
+			newLocation.operationMode === "parking" ? "parking" : "construction_flow"
+		if (ds === "yscp") {
+			operationMode.value = "construction_flow"
+		}
+		parkingCapacityInput.value =
+			newLocation.parkingCapacity != null && newLocation.parkingCapacity > 0
+				? newLocation.parkingCapacity
+				: ""
 		entryLaneIdString.value =
 			newLocation.entryLaneId != null ? String(newLocation.entryLaneId) : ""
 		exitLaneIdString.value = newLocation.exitLaneId != null ? String(newLocation.exitLaneId) : ""
@@ -381,12 +440,45 @@ watch(
 	{ immediate: true, deep: true }
 )
 
+const syncParkingCapacityToLocation = () => {
+	if (operationMode.value !== "parking") {
+		localLocation.value.parkingCapacity = undefined
+		return
+	}
+	const n = Number(parkingCapacityInput.value)
+	localLocation.value.parkingCapacity =
+		Number.isFinite(n) && n >= 1 ? Math.trunc(n) : undefined
+}
+
 const handleChange = () => {
-	emit("update", { ...localLocation.value, dataSource: dataSource.value })
+	syncParkingCapacityToLocation()
+	emit("update", {
+		...localLocation.value,
+		dataSource: dataSource.value,
+		operationMode: operationMode.value,
+	})
+}
+
+const handleParkingCapacityChange = () => {
+	syncParkingCapacityToLocation()
+	handleChange()
 }
 
 const handleDataSourceChange = () => {
 	localLocation.value.dataSource = dataSource.value
+	if (dataSource.value === "yscp") {
+		operationMode.value = "construction_flow"
+		localLocation.value.operationMode = "construction_flow"
+	}
+	handleChange()
+}
+
+const handleOperationModeChange = () => {
+	localLocation.value.operationMode = operationMode.value
+	if (operationMode.value !== "parking") {
+		parkingCapacityInput.value = ""
+	}
+	syncParkingCapacityToLocation()
 	handleChange()
 }
 

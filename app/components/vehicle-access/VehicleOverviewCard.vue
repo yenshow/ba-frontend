@@ -43,12 +43,27 @@
 					</div>
 				</div>
 
-				<VehicleOverviewBarrierGrid
+				<div
 					v-if="isIsapiLocation"
-					:location="location"
-					:can-write="canWrite"
-					:active="isActive"
-				/>
+					class="flex max-h-[220px] flex-col gap-2 overflow-y-auto"
+					@click.stop
+				>
+					<VehicleOverviewBarrierGrid
+						v-for="dev in barrierDevices"
+						:key="dev.id"
+						:location="location"
+						:device-id="dev.id"
+						:device-name="dev.label"
+						:can-write="canWrite"
+						:active="isActive"
+					/>
+					<p
+						v-if="barrierDevices.length === 0"
+						class="min-w-[200px] rounded-lg border border-dashed border-white/20 p-3 text-center text-xs text-white/50"
+					>
+						未設定攝影機
+					</p>
+				</div>
 				<div v-else class="grid grid-cols-3 gap-2 overflow-hidden">
 					<div
 						v-for="(group, index) in displayGroups"
@@ -83,6 +98,7 @@ import type {
 	VehicleOrganizationGroupItem,
 } from "~/types/vehicleAccess";
 import VehicleOverviewBarrierGrid from "~/components/vehicle-access/VehicleOverviewBarrierGrid.vue";
+import { useVehicleAccessIsapiBarrierDevices } from "~/composables/systems/vehicleAccess/useVehicleAccessIsapiBarrierDevices";
 
 const props = withDefaults(
 	defineProps<{
@@ -109,6 +125,8 @@ const currentCount = computed(() => props.summary.currentCount ?? 0);
 const isIsapiLocation = computed(
 	() => props.location?.dataSource === "isapi_camera",
 );
+
+const { devices: barrierDevices } = useVehicleAccessIsapiBarrierDevices(() => props.location);
 
 const TOTAL_GRID_CELLS = 12;
 

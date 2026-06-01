@@ -28,20 +28,36 @@
 			</div>
 			<div
 				class="flex min-w-[120px] items-center justify-center bg-black/20 text-[48px] leading-none 2xl:min-w-[200px] 2xl:text-[96px]"
+				:class="isAtOrOverCapacity ? 'text-amber-200' : ''"
 			>
-				{{ currentCount ?? 0 }}
+				{{ onSiteDisplay }}
 			</div>
 		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
-/** 與人流 LocationStatsPanel 一致：entryCount / exitCount / currentCount */
+import { computed } from "vue";
+
 interface Props {
 	entryCount: number;
 	exitCount: number;
 	currentCount: number;
+	onSiteCapacity?: number | null;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
+
+const onSiteDisplay = computed(() => {
+	const n = props.currentCount ?? 0;
+	const cap = props.onSiteCapacity;
+	if (cap != null && cap > 0) return `${n}/${cap}`;
+	return String(n);
+});
+
+const isAtOrOverCapacity = computed(() => {
+	const cap = props.onSiteCapacity;
+	if (cap == null || cap < 1) return false;
+	return (props.currentCount ?? 0) >= cap;
+});
 </script>

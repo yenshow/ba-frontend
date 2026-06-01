@@ -20,6 +20,12 @@ const collectPlates = (person: Person): string[] =>
 		.map(p => p.plate_number?.trim())
 		.filter(Boolean) as string[];
 
+const isPersonPresentFromPlates = (person: Person, presentPlates: Set<string>): boolean => {
+	const plates = collectPlates(person);
+	if (!plates.length || presentPlates.size === 0) return false;
+	return plates.some(plate => presentPlates.has(normalizePlate(plate)));
+};
+
 const isPersonPresent = (person: Person, validLogs: VehicleDataLog[]): boolean => {
 	const plates = collectPlates(person);
 	if (!plates.length) return false;
@@ -29,12 +35,16 @@ const isPersonPresent = (person: Person, validLogs: VehicleDataLog[]): boolean =
 /** 多車牌合併：任一車牌在場即視為在場；時間取最近一筆進場所屬車牌 */
 export const buildPersonGroupMemberItem = (
 	person: Person,
-	validLogs: VehicleDataLog[]
+	validLogs: VehicleDataLog[],
+	presentPlates?: Set<string>
 ): VehicleGroupMemberItem => {
 	const name = person.full_name?.trim() || person.employee_no || "—";
 	const photoUrl = normalizePersonPhotoUrl(person.face_url);
 	const plates = collectPlates(person);
-	const isPresent = isPersonPresent(person, validLogs);
+	const isPresent =
+		presentPlates != null
+			? isPersonPresentFromPlates(person, presentPlates)
+			: isPersonPresent(person, validLogs);
 
 	if (!plates.length) {
 		return { id: person.id, name, owner_name: name, plate_license: "—", photoUrl, isPresent: false };
@@ -80,5 +90,7 @@ export const buildPersonGroupMemberItem = (
 
 export const buildPersonGroupMemberItems = (
 	members: Person[],
-	validLogs: VehicleDataLog[]
-): VehicleGroupMemberItem[] => members.map(p => buildPersonGroupMemberItem(p, validLogs));
+	validLogs: VehicleDataLog[],
+	presentPlates?: Set<string>
+): VehicleGroupMemberItem[] =>
+	members.map(p => buildPersonGroupMemberItem(p, validLogs, presentPlates));

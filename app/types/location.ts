@@ -183,8 +183,16 @@ export interface PeopleCountingSystemConfig {
 /**
  * 車輛進出系統配置（車道來自 vehiclebiz.lane_info；entry_lane_id／exit_lane_id 對應入口／出口車道）
  */
+export type VehicleAccessOperationMode = "construction_flow" | "parking";
+
 export interface VehicleAccessSystemConfig {
 	dataSource?: "yscp" | "isapi_camera";
+	/** 營運模式：車流統計（營運日）| 停車場（session + 持續在場） */
+	operationMode?: VehicleAccessOperationMode;
+	statsEpochStartedAt?: string;
+	statsResetAt?: string;
+	/** 停車場：在場車輛上限 */
+	parkingCapacity?: number;
 	entryLaneId?: number | null;
 	exitLaneId?: number | null;
 	entryCameraDeviceIds?: number[];

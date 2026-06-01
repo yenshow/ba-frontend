@@ -69,6 +69,9 @@ const getLaneIds = (loc: VehicleAccessLocation | null | undefined): number[] => 
 const getDataSource = (loc: VehicleAccessLocation | null | undefined): VehicleAccessDataSource =>
 	loc?.dataSource === "isapi_camera" ? "isapi_camera" : "yscp";
 
+const getOperationMode = (loc: VehicleAccessLocation | null | undefined) =>
+	loc?.operationMode === "parking" ? "parking" : "construction_flow";
+
 const resolveSiteId = (loc: VehicleAccessLocation | null | undefined): number | null => {
 	const n = Number(loc?.id ?? loc?.locationId);
 	return Number.isFinite(n) ? n : null;
@@ -112,10 +115,12 @@ export const useVehicleAccessState = () => {
 	const entryCount = ref(0);
 	const exitCount = ref(0);
 	const onSiteCount = ref(0);
+	const onSiteCapacity = ref<number | null>(null);
 
 	const vehicleGroupsFromApi = ref<VehicleGroupFromApi>({ groups: [] });
 	const personGroupsForVehicle = ref<PersonGroup[]>([]);
 	const personGroupCacheById = ref<Record<number, PersonGroupCacheEntry>>({});
+	const presentPlatesSet = ref<Set<string>>(new Set());
 	const selectedOrganizationKey = ref<string | null>(null);
 	const isLoadingVehicleGroups = ref(false);
 	const isLoadingZones = ref(false);
@@ -141,6 +146,9 @@ export const useVehicleAccessState = () => {
 	const laneIds = computed(() => getLaneIds(selectedLocation.value));
 
 	const isIsapiCamera = computed(() => getDataSource(selectedLocation.value) === "isapi_camera");
+	const isParkingMode = computed(
+		() => isIsapiCamera.value && getOperationMode(selectedLocation.value) === "parking"
+	);
 
 	const filterTodayLogsForLanes = (logList: VehicleDataLog[]) => {
 		const laneSet = laneIds.value.length ? new Set(laneIds.value) : null;
@@ -187,11 +195,18 @@ export const useVehicleAccessState = () => {
 		}
 		try {
 			if (isIsapiCamera.value) {
-				const result = await vehicleAccessSitesApi.getSiteLogs(siteId, {
-					limit: VEHICLE_ACCESS_FULL_REPORT_LIMIT,
-					...TODAY_TIME
-				});
-				todayPassageLogs.value = result.logs || [];
+				if (isParkingMode.value) {
+					const result = await vehicleAccessSitesApi.getSiteLogs(siteId, {
+						limit: VEHICLE_ACCESS_FULL_REPORT_LIMIT
+					});
+					todayPassageLogs.value = result.logs || [];
+				} else {
+					const result = await vehicleAccessSitesApi.getSiteLogs(siteId, {
+						limit: VEHICLE_ACCESS_FULL_REPORT_LIMIT,
+						...TODAY_TIME
+					});
+					todayPassageLogs.value = result.logs || [];
+				}
 			} else {
 				const ids = laneIds.value;
 				if (!ids.length) {
@@ -234,19 +249,31 @@ export const useVehicleAccessState = () => {
 			entryCount.value = 0;
 			exitCount.value = 0;
 			onSiteCount.value = 0;
+			onSiteCapacity.value = null;
 			return;
 		}
 		isLoadingCounts.value = true;
 		try {
-			const stats = await vehicleAccessSitesApi.getSiteStats(siteId, TODAY_TIME);
-			entryCount.value = stats.entryCount;
-			exitCount.value = stats.exitCount;
-			onSiteCount.value = stats.currentCount;
+			if (isParkingMode.value) {
+				const session = await vehicleAccessSitesApi.getSiteSessionStats(siteId);
+				entryCount.value = session.entryCount;
+				exitCount.value = session.exitCount;
+				const presence = await vehicleAccessSitesApi.getSitePresence(siteId);
+				onSiteCount.value = presence.currentCount;
+				onSiteCapacity.value = presence.capacity;
+			} else {
+				const stats = await vehicleAccessSitesApi.getSiteStats(siteId, TODAY_TIME);
+				entryCount.value = stats.entryCount;
+				exitCount.value = stats.exitCount;
+				onSiteCount.value = stats.currentCount;
+				onSiteCapacity.value = null;
+			}
 		} catch (error) {
 			handleError(error, "載入進出場數量失敗");
 			entryCount.value = 0;
 			exitCount.value = 0;
 			onSiteCount.value = 0;
+			onSiteCapacity.value = null;
 		} finally {
 			isLoadingCounts.value = false;
 		}
@@ -372,12 +399,27 @@ export const useVehicleAccessState = () => {
 			await loadTodayPassageLogs(true);
 
 			if (isIsapiCamera.value) {
+				const siteId = resolveSiteId(selectedLocation.value);
+				if (isParkingMode.value && siteId != null) {
+					try {
+						const { plates } = await vehicleAccessSitesApi.getPresencePlates(siteId);
+						presentPlatesSet.value = new Set(
+							(plates || []).map(p => normalizePlate(p)).filter(Boolean)
+						);
+					} catch {
+						presentPlatesSet.value = new Set();
+					}
+				} else {
+					presentPlatesSet.value = new Set();
+				}
+
 				const groups = await personnelApi.getPersonGroups({ tree: false });
 				personGroupsForVehicle.value = Array.isArray(groups)
 					? groups.filter(g => g.id != null && g.name?.trim())
 					: [];
 
 				const validToday = todayReleasedLogs.value;
+				const platesForPresence = isParkingMode.value ? presentPlatesSet.value : undefined;
 				const cacheEntries = await Promise.all(
 					personGroupsForVehicle.value.map(async g => {
 						try {
@@ -387,7 +429,11 @@ export const useVehicleAccessState = () => {
 								status: "active"
 							});
 							const members = page.items ?? [];
-							const items = buildPersonGroupMemberItems(members, validToday);
+							const items = buildPersonGroupMemberItems(
+								members,
+								validToday,
+								platesForPresence
+							);
 							return [
 								g.id,
 								{
@@ -435,6 +481,25 @@ export const useVehicleAccessState = () => {
 		return result.logs || [];
 	};
 
+	const clearUiForSelectedSite = (): void => {
+		entryCount.value = 0;
+		exitCount.value = 0;
+		onSiteCount.value = 0;
+		onSiteCapacity.value = null;
+		logs.value = [];
+		todayPassageLogs.value = [];
+		todayPassageSiteId.value = null;
+		personGroupCacheById.value = {};
+		presentPlatesSet.value = new Set();
+	};
+
+	const resetParkingStatsForSelectedSite = async (): Promise<void> => {
+		const siteId = resolveSiteId(selectedLocation.value);
+		if (siteId == null || !isParkingMode.value) return;
+		await vehicleAccessSitesApi.resetSiteStats(siteId);
+		clearUiForSelectedSite();
+	};
+
 	const setupEventListeners = (onRefetch: () => void | Promise<void>, debounceMs = 500) =>
 		setupDebouncedRefetchListeners(
 			onRefetch,
@@ -459,11 +524,13 @@ export const useVehicleAccessState = () => {
 		locations,
 		selectedLocation,
 		isIsapiCamera,
+		isParkingMode,
 		logs,
 		overviewSummaries,
 		entryCount,
 		exitCount,
 		onSiteCount,
+		onSiteCapacity,
 		organizationGroups,
 		selectedOrganizationKey,
 		organizationGroupVehicleList,
@@ -480,6 +547,8 @@ export const useVehicleAccessState = () => {
 		loadEntryExitOnSiteCounts,
 		loadOverviewSummaries,
 		getLocationZone,
+		clearUiForSelectedSite,
+		resetParkingStatsForSelectedSite,
 		setupEventListeners
 	};
 };

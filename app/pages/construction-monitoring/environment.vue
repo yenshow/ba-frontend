@@ -25,9 +25,9 @@
 					</div>
 
 					<button
-						v-if="canWrite"
+						v-if="isAdmin"
 						type="button"
-						class="absolute left-8 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
+						class="absolute left-8 top-2 rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-4 py-2 text-sm text-white transition-all hover:from-cyan-400/40 hover:to-blue-500/40 2xl:text-base"
 						aria-label="地點管理"
 						@click="showLocationManagementDialog = true"
 					>
@@ -35,7 +35,7 @@
 					</button>
 					<button
 						type="button"
-						class="absolute right-8 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
+						class="absolute right-8 top-2 rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-4 py-2 text-sm text-white transition-all hover:from-cyan-400/40 hover:to-blue-500/40 2xl:text-base"
 						aria-label="開啟完整報表"
 						@click="handleOpenSimulation"
 					>
@@ -177,7 +177,7 @@
 		</div>
 	</div>
 	<ZoneManagementDialog
-		v-if="canWrite"
+		v-if="isAdmin"
 		v-model="showLocationManagementDialog"
 		:zones="environmentZones"
 		system-type="environment"
@@ -249,7 +249,7 @@ definePageMeta({
 	layout: "default"
 });
 
-const { canWrite } = useAuth();
+const { isAdmin } = useAuth();
 
 const environmentApi = useEnvironmentApi();
 const locationApi = useLocationApi();

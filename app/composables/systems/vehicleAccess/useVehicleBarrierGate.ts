@@ -20,22 +20,18 @@ export const barrierGateStatusBadgeClass = (status: number | null): string => {
 	}
 };
 
-export const barrierGateStatusShort = (
-	status: number | null,
-	statusText: string,
-	hasDevice: boolean,
-): string => {
-	if (!hasDevice) return "未設定";
+export const barrierGateStatusShort = (status: number | null, statusText: string): string => {
 	if (status === 2) return "開";
 	if (status === 1) return "關";
 	if (status === 0) return "無訊號";
 	return statusText?.slice(0, 4) || "—";
 };
 
-/** ISAPI 地點道閘：解析入口設備、輪詢狀態、送控制指令 */
+/** ISAPI 單台攝影機道閘：輪詢狀態、送控制指令 */
 export const useVehicleBarrierGate = (options: {
 	location: MaybeRefOrGetter<VehicleAccessLocation | null>;
-	/** 僅 active 時輪詢，避免總覽多卡同時打設備 */
+	deviceId: MaybeRefOrGetter<number | null>;
+	/** true 時每 8s 輪詢；false 仍會先抓一次狀態 */
 	active?: MaybeRefOrGetter<boolean>;
 }) => {
 	const isapiApi = useVehicleAccessIsapiDeviceApi();
@@ -49,10 +45,9 @@ export const useVehicleBarrierGate = (options: {
 	const location = computed(() => toValue(options.location));
 	const active = computed(() => toValue(options.active) ?? false);
 
-	const entryDeviceId = computed(() => {
-		const ids = location.value?.entryCameraDeviceIds ?? [];
-		const first = ids.find((id) => Number.isFinite(Number(id)));
-		return first != null ? Number(first) : null;
+	const deviceId = computed(() => {
+		const id = toValue(options.deviceId);
+		return id != null && Number.isFinite(Number(id)) ? Number(id) : null;
 	});
 
 	const siteId = computed(() => {
@@ -72,20 +67,16 @@ export const useVehicleBarrierGate = (options: {
 	}));
 
 	const statusShort = computed(() =>
-		barrierGateStatusShort(
-			gateStatus.value,
-			statusText.value,
-			entryDeviceId.value != null,
-		),
+		barrierGateStatusShort(gateStatus.value, statusText.value),
 	);
 
 	const statusBadgeClass = computed(() => barrierGateStatusBadgeClass(gateStatus.value));
 
 	const refreshStatus = async () => {
-		const deviceId = entryDeviceId.value;
-		if (deviceId == null) return;
+		const id = deviceId.value;
+		if (id == null) return;
 		try {
-			const res = await isapiApi.getBarrierGateStatus(deviceId, apiParams.value);
+			const res = await isapiApi.getBarrierGateStatus(id, apiParams.value);
 			gateStatus.value = res.status;
 			statusText.value = res.label || "—";
 		} catch {
@@ -101,19 +92,21 @@ export const useVehicleBarrierGate = (options: {
 		}
 	};
 
-	const startPolling = () => {
+	const syncStatus = () => {
 		stopPolling();
-		if (!active.value || entryDeviceId.value == null) return;
+		if (deviceId.value == null) return;
 		void refreshStatus();
-		pollTimer = setInterval(() => void refreshStatus(), POLL_MS);
+		if (active.value) {
+			pollTimer = setInterval(() => void refreshStatus(), POLL_MS);
+		}
 	};
 
 	const control = async (ctrlMode: BarrierGateCtrlMode, canWrite: boolean) => {
-		const deviceId = entryDeviceId.value;
-		if (deviceId == null || !canWrite) return;
+		const id = deviceId.value;
+		if (id == null || !canWrite) return;
 		isControlling.value = true;
 		try {
-			await isapiApi.controlBarrierGate(deviceId, { ...apiParams.value, ctrlMode });
+			await isapiApi.controlBarrierGate(id, { ...apiParams.value, ctrlMode });
 			toast.success("已送出道閘指令");
 			await refreshStatus();
 		} catch (e) {
@@ -124,20 +117,12 @@ export const useVehicleBarrierGate = (options: {
 	};
 
 	watch(
-		() => [active.value, entryDeviceId.value, siteId.value] as const,
-		() => startPolling(),
+		() => [active.value, deviceId.value, siteId.value] as const,
+		() => syncStatus(),
 		{ immediate: true },
 	);
 
 	onBeforeUnmount(() => stopPolling());
 
-	return {
-		entryDeviceId,
-		gateStatus,
-		statusText,
-		statusShort,
-		statusBadgeClass,
-		isControlling,
-		control,
-	};
+	return { statusText, statusShort, statusBadgeClass, isControlling, control };
 };
