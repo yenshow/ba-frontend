@@ -6,21 +6,12 @@
 		@click.stop
 		@keydown.stop
 	>
-		<div class="flex items-center justify-between gap-1">
-			<span
-				class="line-clamp-2 min-w-0 flex-1 text-[10px] font-medium text-white/70 2xl:text-xs"
-				:title="deviceName"
-			>
-				{{ deviceName }}
-			</span>
-			<span
-				class="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] 2xl:text-xs"
-				:class="statusBadgeClass"
-				:title="statusText"
-			>
-				{{ statusShort }}
-			</span>
-		</div>
+		<span
+			class="line-clamp-2 text-[10px] font-medium text-white/70 2xl:text-xs"
+			:title="deviceName"
+		>
+			{{ deviceName }}
+		</span>
 		<div class="flex gap-1">
 			<button
 				type="button"
@@ -71,13 +62,11 @@ const props = defineProps<{
 	deviceId: number;
 	deviceName: string;
 	canWrite?: boolean;
-	active?: boolean;
 }>();
 
-const { statusText, statusShort, statusBadgeClass, isControlling, control } = useVehicleBarrierGate({
+const { isControlling, control } = useVehicleBarrierGate({
 	location: () => props.location,
 	deviceId: () => props.deviceId,
-	active: () => props.active,
 });
 
 const handleControl = (ctrlMode: BarrierGateCtrlMode) => {

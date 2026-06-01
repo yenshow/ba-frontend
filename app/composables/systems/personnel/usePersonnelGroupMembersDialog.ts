@@ -4,7 +4,8 @@ import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { fetchAllPersonnelCandidates } from "~/composables/systems/personnel/personnelList"
 import { findMainGroupById } from "~/utils/personnelGroups"
 
-const cloneMemberMap = (map: Record<number, number[]>) => structuredClone(map)
+const cloneMemberMap = (map: Record<number, number[]>): Record<number, number[]> =>
+	Object.fromEntries(Object.entries(map).map(([id, ids]) => [Number(id), [...ids]]))
 
 const memberIdSetsEqual = (a: number[], b: number[]) => {
 	if (a.length !== b.length) return false
