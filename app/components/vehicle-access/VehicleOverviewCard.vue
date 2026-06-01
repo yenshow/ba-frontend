@@ -55,7 +55,6 @@
 						:device-id="dev.id"
 						:device-name="dev.label"
 						:can-write="canWrite"
-						:active="isActive"
 					/>
 					<p
 						v-if="barrierDevices.length === 0"

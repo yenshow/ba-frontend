@@ -3,7 +3,6 @@
  */
 import type {
 	BarrierGateCtrlMode,
-	BarrierGateStatus,
 	VehicleLicensePlateSearchResult,
 	VehicleLicensePlateUpsertPayload,
 } from "~/types/vehicleAccess";
@@ -68,14 +67,6 @@ export const useVehicleAccessIsapiDeviceApi = () => {
 			}
 		);
 
-	const getBarrierGateStatus = async (
-		deviceId: number,
-		params?: VehicleAccessIsapiDeviceParams
-	): Promise<BarrierGateStatus> =>
-		request<BarrierGateStatus>(
-			`/vehicle-access/devices/${deviceId}/barrier-gate/status${buildQuery(params)}`
-		);
-
 	const controlBarrierGate = async (
 		deviceId: number,
 		body: VehicleAccessIsapiDeviceParams & { ctrlMode: BarrierGateCtrlMode }
@@ -92,7 +83,6 @@ export const useVehicleAccessIsapiDeviceApi = () => {
 		searchLicensePlates,
 		upsertLicensePlates,
 		deleteLicensePlates,
-		getBarrierGateStatus,
 		controlBarrierGate,
 	};
 };

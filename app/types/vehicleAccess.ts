@@ -211,9 +211,3 @@ export interface VehicleLicensePlateSearchResult {
 }
 
 export type BarrierGateCtrlMode = "open" | "close" | "lock" | "unlock";
-
-export interface BarrierGateStatus {
-	channelId: number;
-	status: number;
-	label: string;
-}
