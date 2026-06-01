@@ -12,7 +12,7 @@
 					</div>
 					<Transition name="fade-in">
 						<button
-							v-if="!isInitialLoading && canWrite"
+							v-if="!isInitialLoading && canManageZones"
 							type="button"
 							class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base font-light text-white transition-all hover:bg-white/10 2xl:text-lg"
 							title="樓層管理"
@@ -136,6 +136,7 @@ interface Props {
 	selectedZoneName: string
 	isInitialLoading: boolean
 	canWrite: boolean
+	canManageZones?: boolean
 	isEditMode: boolean
 	selectedZone: string
 	selectedZoneData: HvacZone | undefined

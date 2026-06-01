@@ -4,6 +4,9 @@
 
 export type VehicleAccessDataSource = "yscp" | "isapi_camera";
 
+/** 地點營運模式（對齊 system_config.operation_mode） */
+export type VehicleAccessOperationMode = "construction_flow" | "parking";
+
 export interface VehicleDataLog {
 	id: number;
 	/** 完整報表跨地點查詢時由後端帶入 */
@@ -141,6 +144,9 @@ export interface VehicleAccessLocation {
 	sortOrder?: number;
 	name: string;
 	dataSource?: VehicleAccessDataSource;
+	operationMode?: VehicleAccessOperationMode;
+	statsEpochStartedAt?: string;
+	statsResetAt?: string;
 	/** 入口車道 ID（vehiclebiz.lane_info，lane_type=1） */
 	entryLaneId?: number | null;
 	/** 出口車道 ID（vehiclebiz.lane_info，lane_type=2） */
@@ -154,6 +160,8 @@ export interface VehicleAccessLocation {
 	vehicleGroupIds?: number[];
 	/** ISAPI：platform.person_group 群組 ID（地點表單勾選） */
 	personGroupIds?: number[];
+	/** 停車場模式：在場車輛上限 */
+	parkingCapacity?: number;
 	/** 過車紀錄表格顯示欄位 keys */
 	logDisplayColumns?: string[];
 	/** 業務層地點 ID（字串來自 loc.id，數字為舊版相容） */

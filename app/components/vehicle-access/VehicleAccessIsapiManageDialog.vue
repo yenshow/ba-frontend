@@ -295,10 +295,8 @@ const getDeviceError = (deviceId: number) => errorByDevice.value[deviceId] ?? ""
 
 const getPlateCountLabel = (deviceId: number) => {
 	if (isLoadingDevice(deviceId)) return "載入中…"
-	const count = getDevicePlates(deviceId).length
 	if (errorByDevice.value[deviceId]) return "載入失敗"
-	if (!expandedDevices.value.has(deviceId) && count === 0) return "0 筆"
-	return `${count} 筆`
+	return `${getDevicePlates(deviceId).length} 筆`
 }
 
 const loadPersonBindOptions = async () => {
@@ -374,6 +372,10 @@ const loadDeviceNames = async () => {
 	}
 }
 
+const loadAllDevicePlates = async () => {
+	await Promise.all(deviceIds.value.map((id) => loadPlatesForDevice(id)))
+}
+
 const loadPlatesForDevice = async (deviceId: number) => {
 	loadingByDevice.value = { ...loadingByDevice.value, [deviceId]: true }
 	errorByDevice.value = { ...errorByDevice.value, [deviceId]: "" }
@@ -402,7 +404,7 @@ const handleToggleDevice = async (deviceId: number) => {
 		if (formDeviceId.value === deviceId) handleCancelPlateForm()
 	} else {
 		next.add(deviceId)
-		if (!platesByDevice.value[deviceId] && !loadingByDevice.value[deviceId]) {
+		if (platesByDevice.value[deviceId] === undefined) {
 			await loadPlatesForDevice(deviceId)
 		}
 	}
@@ -412,7 +414,7 @@ const handleToggleDevice = async (deviceId: number) => {
 const ensureDeviceExpanded = async (deviceId: number) => {
 	if (expandedDevices.value.has(deviceId)) return
 	expandedDevices.value = new Set([...expandedDevices.value, deviceId])
-	if (platesByDevice.value[deviceId] === undefined && !loadingByDevice.value[deviceId]) {
+	if (platesByDevice.value[deviceId] === undefined) {
 		await loadPlatesForDevice(deviceId)
 	}
 }
@@ -493,13 +495,11 @@ watch(
 	async (open) => {
 		if (!open) return
 		resetState()
-		await loadDeviceNames()
-		await loadPersonBindOptions()
-		const first = deviceIds.value[0]
-		if (first != null) {
-			expandedDevices.value = new Set([first])
-			await loadPlatesForDevice(first)
-		}
+		await Promise.all([loadDeviceNames(), loadPersonBindOptions()])
+		const ids = deviceIds.value
+		if (ids.length === 0) return
+		expandedDevices.value = new Set([ids[0]])
+		await loadAllDevicePlates()
 	}
 )
 </script>

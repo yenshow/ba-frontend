@@ -18,13 +18,10 @@
 									{{ selectedZoneName }}
 								</span>
 							</div>
-							<!-- 區域管理按鈕（依權限 system.area_point_map 或 admin） -->
+							<!-- 區域管理按鈕（僅 admin） -->
 							<Transition name="fade-in">
 								<button
-									v-if="
-										!isInitialLoading &&
-										(isAdmin || hasPermission(LOCATION_MANAGEMENT_PERMISSION_CODE))
-									"
+									v-if="!isInitialLoading && isAdmin"
 									type="button"
 									@click="handleOpenZoneDialog"
 									:class="[
@@ -180,6 +177,7 @@
 
 	<!-- 地點管理對話框（有篩選系統時傳入 systemType，刪除地點僅從該系統移除） -->
 	<LocationManagementDialog
+		v-if="isAdmin"
 		v-model="showLocationManagementDialog"
 		:zone="selectedZoneData"
 		:system-type="selectedSystemType ?? undefined"
@@ -243,15 +241,13 @@ definePageMeta({
 	layout: "default",
 })
 
-const { isAdmin, hasPermission } = useAuth()
+const { isAdmin } = useAuth()
 const locationApi = useLocationApi()
 const { handleError } = useErrorHandler()
 const { handleDeleteZone: baseHandleDeleteZone, sortZones } = useZoneManagement<
 	UnifiedLocation,
 	UnifiedZone
 >()
-
-const LOCATION_MANAGEMENT_PERMISSION_CODE = "system.area_point_map"
 
 // 左側區域參考與高度（用於使右側面板同高）
 const leftSectionRef = ref<HTMLElement | null>(null)
@@ -983,6 +979,7 @@ const getLocationTypeLabel = getSystemTypeLabel
 
 // 處理打開區域管理對話框
 const handleOpenZoneDialog = async () => {
+	if (!isAdmin.value) return
 	if (zones.value.length === 0) {
 		await loadZones()
 	}

@@ -5,6 +5,7 @@
 				:selected-zone-name="selectedZoneName"
 				:is-initial-loading="isInitialLoading"
 				:can-write="canWrite"
+				:can-manage-zones="isAdmin"
 				:is-edit-mode="isEditMode"
 				:selected-zone="selectedZone"
 				:selected-zone-data="selectedZoneData"
@@ -40,6 +41,7 @@
 		</div>
 	</div>
 	<ZoneManagementDialog
+		v-if="isAdmin"
 		v-model="showZoneManagementDialog"
 		:zones="lightingZones"
 		system-type="lighting"
@@ -70,7 +72,7 @@ definePageMeta({
 	layout: "default",
 })
 
-const { canWrite } = useAuth()
+const { canWrite, isAdmin } = useAuth()
 const lightingApi = useLightingApi()
 const { handleError } = useErrorHandler()
 
@@ -226,6 +228,7 @@ watch(
 )
 
 const handleOpenZoneDialog = async () => {
+	if (!isAdmin.value) return
 	if (lightingZones.value.length === 0) {
 		await loadZonesFromAPI()
 	}

@@ -5,6 +5,7 @@
 				:selected-zone-name="selectedZoneName"
 				:is-initial-loading="isInitialLoading"
 				:can-write="canWrite"
+				:can-manage-zones="isAdmin"
 				:is-edit-mode="isEditMode"
 				:selected-zone="selectedZone"
 				:selected-zone-data="selectedZoneData"
@@ -42,6 +43,7 @@
 	</div>
 
 	<ZoneManagementDialog
+		v-if="isAdmin"
 		v-model="showZoneManagementDialog"
 		:zones="hvacZones"
 		system-type="hvac"
@@ -68,7 +70,7 @@ import { useHvacModbusIntegration } from "~/composables/monitoring/modbus/toggle
 
 definePageMeta({ layout: "default" })
 
-const { canWrite } = useAuth()
+const { canWrite, isAdmin } = useAuth()
 const hvacApi = useHvacApi()
 const { handleError } = useErrorHandler()
 
@@ -275,6 +277,7 @@ const handleDeleteZone = async (zoneId: string) => {
 }
 
 const handleOpenZoneDialog = async () => {
+	if (!isAdmin.value) return
 	if (hvacZones.value.length === 0) await loadZonesFromAPI()
 	showZoneManagementDialog.value = true
 }

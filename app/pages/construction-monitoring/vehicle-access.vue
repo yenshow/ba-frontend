@@ -23,28 +23,36 @@
 							</span>
 						</div>
 					</div>
-
-					<button
-						v-if="canWrite"
-						type="button"
-						class="absolute left-8 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
-						aria-label="地點管理"
-						@click="handleOpenLocationDialog"
-					>
-						地點管理
-					</button>
 					<button
 						v-if="canWrite && isIsapiCamera && selectedLocation"
 						type="button"
-						class="absolute left-36 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
+						class="absolute left-8 top-2 rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-4 py-2 text-sm text-white transition-all hover:from-cyan-400/40 hover:to-blue-500/40 2xl:text-base"
 						aria-label="車牌管理"
 						@click="showIsapiManageDialog = true"
 					>
 						車牌管理
 					</button>
 					<button
+						v-if="isAdmin"
 						type="button"
-						class="absolute right-8 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
+						class="absolute left-36 top-2 rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-4 py-2 text-sm text-white transition-all hover:from-cyan-400/40 hover:to-blue-500/40 2xl:text-base"
+						aria-label="地點管理"
+						@click="handleOpenLocationDialog"
+					>
+						地點管理
+					</button>
+					<button
+						v-if="canWrite && isParkingMode"
+						type="button"
+						class="absolute right-36 top-2 rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-4 py-2 text-sm text-white transition-all hover:from-cyan-400/40 hover:to-blue-500/40 2xl:text-base"
+						aria-label="重製停車場統計"
+						@click="handleResetParkingStats"
+					>
+						重製統計
+					</button>
+					<button
+						type="button"
+						class="absolute right-8 top-2 rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-4 py-2 text-sm text-white transition-all hover:from-cyan-400/40 hover:to-blue-500/40 2xl:text-base"
 						aria-label="開啟完整報表"
 						@click="handleOpenSimulation"
 					>
@@ -59,6 +67,7 @@
 									:entry-count="entryCount"
 									:exit-count="exitCount"
 									:current-count="onSiteCount"
+									:on-site-capacity="onSiteCapacity"
 								/>
 							</div>
 							<!-- 當日過車記錄表 + 車輛群組（ISAPI 道閘在右側總覽卡） -->
@@ -217,7 +226,7 @@
 	</div>
 
 	<ZoneManagementDialog
-		v-if="canWrite"
+		v-if="isAdmin"
 		v-model="showLocationManagementDialog"
 		:zones="vehicleAccessZones"
 		system-type="vehicle_access"
@@ -275,10 +284,11 @@ import { useVehicleAccessLocationApi } from "~/composables/location/api/useVehic
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter"
 import { useAuth } from "~/composables/core/useAuth"
+import { useToast } from "~/composables/core/useToast"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { toSimulationTimeRange, type OperationalDayRangeResponse } from "~/utils/entryExitTimeRange"
 
-const { canWrite } = useAuth()
+const { canWrite, isAdmin } = useAuth()
 
 const {
 	filters,
@@ -286,11 +296,13 @@ const {
 	locations,
 	selectedLocation,
 	isIsapiCamera,
+	isParkingMode,
 	logs,
 	overviewSummaries,
 	entryCount,
 	exitCount,
 	onSiteCount,
+	onSiteCapacity,
 	organizationGroups,
 	selectedOrganizationKey,
 	organizationGroupVehicleList,
@@ -305,7 +317,10 @@ const {
 	loadOverviewSummaries,
 	getLocationZone,
 	setupEventListeners,
+	resetParkingStatsForSelectedSite,
 } = useVehicleAccessState()
+
+const { showToast } = useToast()
 
 const showSimulationFrame = ref(false)
 const { request } = useApiBase()
@@ -494,7 +509,22 @@ const handleOverviewClick = (locationId: string) => {
 	filters.value = { ...filters.value, locationId: locationId || null }
 }
 
+const handleResetParkingStats = async () => {
+	if (!isParkingMode.value) return
+	const confirmed = window.confirm(
+		"確定要重製此停車場的進場、出場與在場統計？過車紀錄不會刪除，完整報表仍可查詢歷史。"
+	)
+	if (!confirmed) return
+	try {
+		await resetParkingStatsForSelectedSite()
+		showToast("success", "已重製停車場統計")
+	} catch (error) {
+		showToast("error", error instanceof Error ? error.message : "重製失敗")
+	}
+}
+
 const handleOpenLocationDialog = async () => {
+	if (!isAdmin.value) return
 	if (vehicleAccessZones.value.length === 0) {
 		await loadZones()
 	}

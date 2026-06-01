@@ -5,6 +5,7 @@
 				:selected-zone-name="selectedZoneName"
 				:is-initial-loading="isInitialLoading"
 				:can-write="canWrite"
+				:can-manage-zones="isAdmin"
 				:is-edit-mode="isEditMode"
 				:selected-zone="selectedZone"
 				:selected-zone-data="selectedZoneData"
@@ -43,6 +44,7 @@
 	</div>
 
 	<ZoneManagementDialog
+		v-if="isAdmin"
 		v-model="showZoneManagementDialog"
 		:zones="fireZones"
 		system-type="fire"
@@ -360,6 +362,7 @@ const handleDeleteZone = async (zoneId: string) => {
 }
 
 const handleOpenZoneDialog = async () => {
+	if (!isAdmin.value) return
 	if (fireZones.value.length === 0) await loadZonesFromAPI()
 	showZoneManagementDialog.value = true
 }

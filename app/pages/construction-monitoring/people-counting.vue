@@ -26,9 +26,9 @@
 					</div>
 
 					<button
-						v-if="canWrite"
+						v-if="isAdmin"
 						type="button"
-						class="absolute left-8 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
+						class="absolute left-8 top-2 rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-4 py-2 text-sm text-white transition-all hover:from-cyan-400/40 hover:to-blue-500/40 2xl:text-base"
 						aria-label="地點管理"
 						@click="handleOpenLocationDialog"
 					>
@@ -36,7 +36,7 @@
 					</button>
 					<button
 						type="button"
-						class="absolute right-8 top-2 rounded-lg border-2 border-white/30 bg-transparent px-4 py-2 text-sm text-white transition-all hover:bg-white/10 2xl:text-base"
+						class="absolute right-8 top-2 rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-4 py-2 text-sm text-white transition-all hover:from-cyan-400/40 hover:to-blue-500/40 2xl:text-base"
 						aria-label="開啟完整報表"
 						@click="handleOpenSimulation"
 					>
@@ -164,7 +164,7 @@
 		</div>
 	</div>
 	<ZoneManagementDialog
-		v-if="canWrite"
+		v-if="isAdmin"
 		v-model="showLocationManagementDialog"
 		:zones="peopleCountingZones"
 		system-type="people_counting"
@@ -218,7 +218,7 @@ import {
 } from "~/utils/sortOrder";
 import { computeCumulativePresence } from "~/utils/entryExitStats";
 
-const { canWrite } = useAuth();
+const { isAdmin } = useAuth();
 
 // 使用統一的狀態管理
 const {
@@ -521,6 +521,7 @@ const handleDeleteZone = async (zoneId: string) => {
 
 // 處理打開地點管理對話框
 const handleOpenLocationDialog = async () => {
+	if (!isAdmin.value) return
 	// 如果還沒有載入區域數據，先載入
 	if (peopleCountingZones.value.length === 0) {
 		await loadZones();
