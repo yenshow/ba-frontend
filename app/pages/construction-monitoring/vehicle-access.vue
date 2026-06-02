@@ -1,8 +1,37 @@
 <template>
 	<div>
-		<div class="flex justify-center gap-4 xl:gap-6 2xl:gap-8">
-			<!-- 左側：主要內容 -->
-			<section class="relative flex-[1.2] 2xl:flex-[1.3]" ref="leftSectionRef">
+		<div
+			class="flex min-w-0 items-stretch justify-center"
+			:class="isOverviewCollapsed ? 'gap-0' : 'gap-4 xl:gap-6 2xl:gap-8'"
+		>
+			<section class="relative min-w-0 flex-1 2xl:flex-[1.3]">
+				<Transition name="fade" mode="out-in">
+					<button
+						v-if="isOverviewCollapsed"
+						key="overview-expand-tab"
+						type="button"
+						class="absolute -right-px top-24 z-20 flex flex-col items-center gap-2 rounded-l-xl border-2 border-r-0 border-white/80 bg-white/30 px-2.5 py-4 text-white shadow-md transition-colors hover:bg-white/40 2xl:top-32"
+						aria-label="展開總覽"
+						title="展開總覽"
+						@click="isOverviewCollapsed = false"
+					>
+						<span
+							class="text-sm font-semibold tracking-[0.35em] text-white xl:text-base"
+							style="writing-mode: vertical-rl"
+						>
+							總覽
+						</span>
+						<svg
+							class="h-5 w-5 shrink-0 2xl:h-6 2xl:w-6"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+							aria-hidden="true"
+						>
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+						</svg>
+					</button>
+				</Transition>
 				<div
 					class="relative flex min-h-[664px] flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 2xl:min-h-[848px] 2xl:p-6"
 				>
@@ -59,9 +88,8 @@
 						完整報表
 					</button>
 
-					<template v-if="selectedLocation">
-						<div class="mt-16 flex flex-col gap-12">
-							<!-- 統計：進場／出場／在場車輛 -->
+					<Transition name="fade" mode="out-in">
+						<div v-if="selectedLocation" :key="detailPanelKey" class="mt-16 flex flex-col gap-12">
 							<div class="flex-1">
 								<VehicleStatsPanel
 									:entry-count="entryCount"
@@ -92,122 +120,123 @@
 								/>
 							</div>
 						</div>
-					</template>
 
-					<!-- 未選地點：請從右側選擇 -->
-					<div
-						v-else-if="locations.length > 0"
-						class="mt-12 flex min-h-[600px] w-full items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
-					>
-						<div>
-							<svg
-								class="mx-auto mb-4 h-16 w-16 text-white/60"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0zM13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1h-1m-6-1a1 1 0 001-1V7m8 10v3m0 0v-3m0 0h-3m3 0h3"
-								/>
-							</svg>
-							<p class="text-xl font-medium text-white/90 xl:text-2xl 2xl:text-3xl">請選擇地點</p>
-							<p class="mt-2 text-sm text-white/70 xl:text-base">請從右側列表點選地點以查看詳細資訊</p>
+						<div
+							v-else-if="locations.length > 0"
+							key="pick-location"
+							class="mt-12 flex min-h-[600px] w-full items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
+						>
+							<div>
+								<svg
+									class="mx-auto mb-4 h-16 w-16 text-white/60"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0zM13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1h-1m-6-1a1 1 0 001-1V7m8 10v3m0 0v-3m0 0h-3m3 0h3"
+									/>
+								</svg>
+								<p class="text-xl font-medium text-white/90 xl:text-2xl 2xl:text-3xl">請選擇地點</p>
+								<p class="mt-2 text-sm text-white/70 xl:text-base">請從右側列表點選地點以查看詳細資訊</p>
+							</div>
 						</div>
-					</div>
-					<!-- 尚無地點 -->
-					<div
-						v-else-if="locations.length === 0 && !isLoadingZones"
-						class="mt-12 flex min-h-[400px] w-full items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
-					>
-						<div>
-							<svg
-								class="mx-auto mb-4 h-16 w-16 text-white/60"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0zM13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1h-1m-6-1a1 1 0 001-1V7m8 10v3m0 0v-3m0 0h-3m3 0h3"
-								/>
-							</svg>
-							<p class="text-xl font-medium text-white/90 xl:text-2xl 2xl:text-3xl">尚無車輛進出地點</p>
-							<p class="mt-2 text-sm text-white/70 xl:text-base">
-								請在「地點管理」中新增含車輛進出系統的地點
-							</p>
+
+						<div
+							v-else-if="locations.length === 0 && !isLoadingZones"
+							key="no-locations"
+							class="mt-12 flex min-h-[400px] w-full items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
+						>
+							<div>
+								<svg
+									class="mx-auto mb-4 h-16 w-16 text-white/60"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0zM13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1h-1m-6-1a1 1 0 001-1V7m8 10v3m0 0v-3m0 0h-3m3 0h3"
+									/>
+								</svg>
+								<p class="text-xl font-medium text-white/90 xl:text-2xl 2xl:text-3xl">尚無車輛進出地點</p>
+								<p class="mt-2 text-sm text-white/70 xl:text-base">
+									請在「地點管理」中新增含車輛進出系統的地點
+								</p>
+							</div>
 						</div>
-					</div>
+					</Transition>
 				</div>
 			</section>
 
-			<!-- 右側：總覽 -->
 			<aside
-				:class="[
-					'flex flex-col transition-all duration-500 ease-in-out',
-					isSidebarCollapsed ? 'flex-[0.05]' : 'flex-[0.8] 2xl:flex-[0.7]'
-				]"
-				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
+				class="overview-sidebar"
+				:class="isOverviewCollapsed ? 'overview-sidebar--collapsed' : 'overview-sidebar--expanded'"
+				:aria-hidden="isOverviewCollapsed"
 			>
 				<div
-					class="show-scrollbar relative flex h-full min-w-[72px] flex-col overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8 transition-all duration-500 ease-in-out 2xl:min-w-[84px]"
+					class="relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8"
 				>
-					<Transition name="fade">
-						<h2
-							v-if="!isSidebarCollapsed"
-							key="title"
-							class="mb-4 text-center text-xl font-semibold tracking-[12px] text-white xl:text-2xl 2xl:text-3xl"
-							style="padding-left: 12px"
-						>
-							總覽
-						</h2>
-					</Transition>
-					<button
-						type="button"
-						class="absolute right-4 top-6 z-10 flex h-8 w-8 items-center justify-center rounded-lg border border-white/80 text-white transition-colors hover:bg-white/20 2xl:h-12 2xl:w-12"
-						:title="isSidebarCollapsed ? '展開列表' : '收縮列表'"
-						@click="isSidebarCollapsed = !isSidebarCollapsed"
-					>
-						<svg
-							class="h-5 w-5 xl:h-6 xl:w-6 2xl:h-7 2xl:w-7"
-							:class="{ 'rotate-180': isSidebarCollapsed }"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-						</svg>
-					</button>
-
-					<Transition name="fade">
+					<Transition name="fade" mode="out-in">
 						<div
-							v-if="!isSidebarCollapsed"
-							key="content"
-							class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
+							v-if="!isOverviewCollapsed"
+							key="overview-panel"
+							class="flex h-full min-h-0 flex-col overflow-hidden"
 						>
-							<template v-if="overviewSummariesWithZone.length > 0">
-								<VehicleOverviewCard
-									v-for="summary in overviewSummariesWithZone"
-									:key="summary.id"
-									:summary="summary"
-									:groups="organizationGroups ?? []"
-									:location="findLocationForSummary(summary)"
-									:can-write="canWrite"
-									:is-active="isCurrentSummary(summary)"
-									:class="{
-										'ring-2 ring-cyan-400': isCurrentSummary(summary),
-										'cursor-pointer transition-all hover:ring-2 hover:ring-cyan-300/50': true
-									}"
-									@click="handleOverviewClick(summary.id)"
-								/>
-							</template>
-							<div v-else class="py-8 text-center text-white/60">
-								<p class="text-base 2xl:text-lg">尚無地點資料</p>
-								<p class="mt-2 text-sm 2xl:text-base">請在「地點管理」中新增地點</p>
+							<button
+								type="button"
+								class="absolute right-4 top-6 z-10 flex h-8 w-8 items-center justify-center rounded-lg border border-white/80 text-white transition-colors hover:bg-white/20 2xl:h-12 2xl:w-12"
+								aria-expanded="true"
+								aria-label="收縮總覽"
+								title="收縮總覽"
+								@click="isOverviewCollapsed = true"
+							>
+								<svg
+									class="h-5 w-5 xl:h-6 xl:w-6 2xl:h-7 2xl:w-7"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+									aria-hidden="true"
+								>
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+								</svg>
+							</button>
+
+							<h2
+								class="mb-4 text-center text-xl font-semibold tracking-[12px] text-white xl:text-2xl 2xl:text-3xl"
+								style="padding-left: 12px"
+							>
+								總覽
+							</h2>
+
+							<div
+								ref="overviewListRef"
+								class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4"
+							>
+								<template v-if="overviewSummariesWithZone.length > 0">
+									<VehicleOverviewCard
+										v-for="summary in overviewSummariesWithZone"
+										:key="getSummaryCanonicalId(summary)"
+										:data-overview-location-id="getSummaryCanonicalId(summary)"
+										:summary="summary"
+										:groups="organizationGroups ?? []"
+										:location="findLocationForSummary(summary)"
+										:can-write="canWrite"
+										:is-active="isCurrentSummary(summary)"
+										class="cursor-pointer transition-all hover:ring-2 hover:ring-cyan-300/50"
+										:class="{ 'ring-2 ring-cyan-400': isCurrentSummary(summary) }"
+										@click="handleOverviewClick(summary)"
+									/>
+								</template>
+								<div v-else class="py-8 text-center text-white/60">
+									<p class="text-base 2xl:text-lg">尚無地點資料</p>
+									<p class="mt-2 text-sm 2xl:text-base">請在「地點管理」中新增地點</p>
+								</div>
 							</div>
 						</div>
 					</Transition>
@@ -425,28 +454,9 @@ const overviewSummariesWithZone = computed(() =>
 	}))
 );
 
-const leftSectionRef = ref<HTMLElement | null>(null);
-const leftSectionHeight = ref<number | null>(null);
-let leftSectionResizeObserver: ResizeObserver | null = null;
-
-const updateLeftSectionHeight = () => {
-	if (leftSectionRef.value) {
-		leftSectionHeight.value = leftSectionRef.value.offsetHeight;
-	}
-};
-
-const initLeftSectionObserver = () => {
-	if (typeof ResizeObserver === "undefined") return;
-	if (!leftSectionRef.value) return;
-	leftSectionResizeObserver = new ResizeObserver(entries => {
-		if (entries.length) {
-			leftSectionHeight.value = entries[0].contentRect.height;
-		}
-	});
-	leftSectionResizeObserver.observe(leftSectionRef.value);
-};
-
-const isSidebarCollapsed = ref(false);
+const isOverviewCollapsed = ref(false);
+const overviewListRef = ref<HTMLElement | null>(null);
+const detailPanelKey = computed(() => filters.value.locationId ?? "__none__");
 const showLocationManagementDialog = ref(false);
 
 const vehicleAccessLocationApi = useVehicleAccessLocationApi();
@@ -485,20 +495,32 @@ const findLocationForSummary = (
 	return null;
 };
 
-// 與 environment 一致：僅以單一 id 判斷選定，確保總覽只有一卡高亮
-const isCurrentSummary = (summary: VehicleAccessLocationSummary): boolean => {
-	const selectedId = filters.value.locationId ?? "";
-	if (!selectedId) return false;
-	return String(summary.id ?? "") === String(selectedId);
+const getSummaryCanonicalId = (summary: VehicleAccessLocationSummary): string => {
+	const loc = findLocationForSummary(summary);
+	if (loc) return getLocationId(loc as VehicleAccessLocation & { zoneName?: string });
+	return String(summary.id ?? summary.locationId ?? "");
 };
 
-/** 與人流統計一致：地點／列表變更時更新右側高度 */
-watch([selectedLocation, locations, vehicleAccessZones], () => {
-	nextTick(() => updateLeftSectionHeight());
-});
+const isCurrentSummary = (summary: VehicleAccessLocationSummary): boolean => {
+	const selectedId = filters.value.locationId;
+	return !!selectedId && getSummaryCanonicalId(summary) === selectedId;
+};
 
-const handleOverviewClick = (locationId: string) => {
-	filters.value = { ...filters.value, locationId: locationId || null };
+const scrollActiveOverviewIntoView = () => {
+	const id = filters.value.locationId;
+	if (!id || isOverviewCollapsed.value) return;
+	const root = overviewListRef.value;
+	if (!root) return;
+	root.querySelector(`[data-overview-location-id="${CSS.escape(id)}"]`)?.scrollIntoView({
+		block: "nearest",
+		behavior: "smooth"
+	});
+};
+
+const handleOverviewClick = (summary: VehicleAccessLocationSummary) => {
+	const nextId = getSummaryCanonicalId(summary) || null;
+	if (filters.value.locationId === nextId) return;
+	filters.value = { ...filters.value, locationId: nextId };
 };
 
 const handleResetParkingStats = async () => {
@@ -589,12 +611,15 @@ watch(
 	() => filters.value.locationId,
 	() => {
 		loadLogsAndCounts();
+		nextTick(() => scrollActiveOverviewIntoView());
 	}
 );
 
-onMounted(async () => {
-	initLeftSectionObserver();
+watch(isOverviewCollapsed, collapsed => {
+	if (!collapsed) nextTick(() => scrollActiveOverviewIntoView());
+});
 
+onMounted(async () => {
 	cleanupWebSocket = setupEventListeners(async () => {
 		const locationId = filters.value.locationId;
 		await Promise.allSettled([loadOverviewSummaries(), loadEntryExitOnSiteCounts()]);
@@ -602,8 +627,6 @@ onMounted(async () => {
 			await loadOrganizationData();
 			await loadLogs();
 		}
-		await nextTick();
-		updateLeftSectionHeight();
 	}, 500);
 
 	try {
@@ -611,26 +634,24 @@ onMounted(async () => {
 		await loadOverviewSummaries();
 		if (!filters.value.locationId && locations.value.length > 0) {
 			const first = locations.value[0];
-			const firstId = first?.id ?? first?.locationId;
-			if (firstId != null) {
-				filters.value = { ...filters.value, locationId: String(firstId) };
+			if (first) {
+				filters.value = {
+					...filters.value,
+					locationId: getLocationId(first as VehicleAccessLocation & { zoneName?: string })
+				};
 			}
 		}
 	} catch {
 		// 錯誤已在 composable 處理
 	}
-	nextTick(() => updateLeftSectionHeight());
+	await nextTick();
+	scrollActiveOverviewIntoView();
 });
 
 onBeforeUnmount(() => {
 	if (loadDataDebounceTimer) {
 		clearTimeout(loadDataDebounceTimer);
 		loadDataDebounceTimer = null;
-	}
-	if (leftSectionResizeObserver && leftSectionRef.value) {
-		leftSectionResizeObserver.unobserve(leftSectionRef.value);
-		leftSectionResizeObserver.disconnect();
-		leftSectionResizeObserver = null;
 	}
 	if (cleanupWebSocket) {
 		cleanupWebSocket();

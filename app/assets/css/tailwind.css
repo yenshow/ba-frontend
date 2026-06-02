@@ -131,6 +131,54 @@
 	opacity: 0;
 }
 
+@media (prefers-reduced-motion: reduce) {
+	.fade-enter-active,
+	.fade-leave-active,
+	.dialog-fade-enter-active,
+	.dialog-fade-leave-active,
+	.lightbox-fade-enter-active,
+	.lightbox-fade-leave-active,
+	.overview-sidebar {
+		transition-duration: 0.01ms !important;
+	}
+}
+
+/* 工地監控：右側總覽（收合 w-0；與左欄 items-stretch 等高） */
+.overview-sidebar {
+	flex-shrink: 0;
+	align-self: stretch;
+	min-height: 0;
+	overflow: hidden;
+	transition:
+		width var(--motion-fast, 0.2s) ease,
+		opacity var(--motion-fast, 0.2s) ease;
+}
+
+.overview-sidebar--collapsed {
+	width: 0;
+	min-width: 0;
+	max-width: 0;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.overview-sidebar--expanded {
+	width: min(42vw, 28rem);
+	opacity: 1;
+}
+
+@media (min-width: 1280px) {
+	.overview-sidebar--expanded {
+		width: min(36vw, 32rem);
+	}
+}
+
+@media (min-width: 1536px) {
+	.overview-sidebar--expanded {
+		width: min(32vw, 36rem);
+	}
+}
+
 /* ========================================
    圖片模糊載入（平面圖、首頁建築圖、登入頁等）
    ======================================== */

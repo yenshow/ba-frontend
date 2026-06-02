@@ -1,9 +1,38 @@
 <template>
 	<div>
 		<!-- 人流統計系統頁面內容 -->
-		<div class="flex justify-center gap-4 xl:gap-6 2xl:gap-8">
-			<!-- 左側：詳細工地資訊（主要內容 - 大） -->
-			<section class="relative flex-[1.2] 2xl:flex-[1.3]" ref="leftSectionRef">
+		<div
+			class="flex min-w-0 items-stretch justify-center"
+			:class="isOverviewCollapsed ? 'gap-0' : 'gap-4 xl:gap-6 2xl:gap-8'"
+		>
+			<section class="relative min-w-0 flex-1 2xl:flex-[1.3]">
+				<Transition name="fade" mode="out-in">
+					<button
+						v-if="isOverviewCollapsed"
+						key="overview-expand-tab"
+						type="button"
+						class="absolute -right-px top-24 z-20 flex flex-col items-center gap-2 rounded-l-xl border-2 border-r-0 border-white/80 bg-white/30 px-2.5 py-4 text-white shadow-md transition-colors hover:bg-white/40 2xl:top-32"
+						aria-label="展開總覽"
+						title="展開總覽"
+						@click="isOverviewCollapsed = false"
+					>
+						<span
+							class="text-sm font-semibold tracking-[0.35em] text-white xl:text-base"
+							style="writing-mode: vertical-rl"
+						>
+							總覽
+						</span>
+						<svg
+							class="h-5 w-5 shrink-0 2xl:h-6 2xl:w-6"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+							aria-hidden="true"
+						>
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+						</svg>
+					</button>
+				</Transition>
 				<div
 					class="relative flex min-h-[664px] flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 2xl:min-h-[848px] 2xl:p-6"
 				>
@@ -43,168 +72,174 @@
 						完整報表
 					</button>
 
-					<!-- 左側內容：分為上、左下、右下三區塊 -->
-					<template v-if="selectedLocation">
-						<div class="mt-16 flex flex-col gap-12">
-							<!-- 上：統計 -->
-							<div class="flex-1">
-								<LocationStatsPanel
-									:entry-count="selectedLocation.entryCount || 0"
-									:exit-count="selectedLocation.exitCount || 0"
-									:current-count="currentCount"
-									:logs="logs"
-									:show-log-table="false"
-									:data-source="selectedLocation?.dataSource"
-									:display-columns="selectedLocation?.logDisplayColumns"
-								/>
+					<Transition name="fade" mode="out-in">
+						<div
+							v-if="selectedLocation || isLoadingLocation"
+							:key="detailPanelKey"
+							class="mt-16 flex flex-col gap-12"
+						>
+							<div
+								v-if="isLoadingLocation"
+								class="grid min-h-[480px] flex-1 grid-cols-2 gap-4"
+								aria-busy="true"
+								aria-label="載入地點詳情"
+							>
+								<div class="h-full animate-pulse rounded-xl bg-white/10" />
+								<div class="h-full animate-pulse rounded-xl bg-white/10" />
 							</div>
-							<!-- 左下、右下：記錄表 + 單位列表 -->
-							<div class="grid grid-cols-2 gap-4">
-								<!-- 左下：進出場記錄表 -->
-								<EntryExitLogTable
-									:logs="logs"
-									:data-source="selectedLocation?.dataSource"
-									:display-columns="selectedLocation?.logDisplayColumns"
-								/>
-								<!-- 右下：人員群組列表 -->
-								<div class="space-y-4">
-									<h3 class="bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
-										人員群組
-									</h3>
-									<div
-										v-if="!selectedLocation.units || selectedLocation.units.length === 0"
-										class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
-									>
-										<p class="text-sm text-white/60 xl:text-base">尚無單位資料</p>
-									</div>
-									<div v-else class="grid grid-cols-3 gap-4 2xl:grid-cols-4">
+							<template v-else-if="selectedLocation">
+								<!-- 上：統計 -->
+								<div class="flex-1">
+									<LocationStatsPanel
+										:entry-count="selectedLocation.entryCount || 0"
+										:exit-count="selectedLocation.exitCount || 0"
+										:current-count="currentCount"
+									/>
+								</div>
+								<!-- 左下、右下：記錄表 + 單位列表 -->
+								<div class="grid grid-cols-2 gap-4">
+									<!-- 左下：進出場記錄表 -->
+									<EntryExitLogTable
+										:logs="logs"
+										:data-source="selectedLocation?.dataSource"
+										:display-columns="selectedLocation?.logDisplayColumns"
+									/>
+									<!-- 右下：人員群組列表 -->
+									<div class="space-y-4">
+										<h3 class="bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
+											人員群組
+										</h3>
 										<div
-											v-for="unit in selectedLocation.units"
-											:key="unit.id"
-											class="flex flex-col items-center justify-center border-2 border-white/0 py-2 transition-all"
-											:class="[
-												{
-													'bg-white/20': (unit.currentCount || 0) > 0,
-													'bg-black/20': (unit.currentCount || 0) === 0
-												},
-												isIsapiCamera ? '' : 'cursor-pointer'
-											]"
-											:tabindex="isIsapiCamera ? undefined : 0"
-											:role="isIsapiCamera ? undefined : 'button'"
-											:aria-label="isIsapiCamera ? `${unit.name}，進出統計` : `查看 ${unit.name} 人員名單`"
-											@click="handleUnitCardActivate(unit)"
-											@keydown.enter="handleUnitCardActivate(unit)"
-											@keydown.space.prevent="handleUnitCardActivate(unit)"
+											v-if="!selectedLocation.units || selectedLocation.units.length === 0"
+											class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
 										>
-											<div class="text-base font-semibold tracking-wide text-white 2xl:text-lg">
-												{{ unit.name }}
+											<p class="text-sm text-white/60 xl:text-base">尚無單位資料</p>
+										</div>
+										<div v-else class="grid grid-cols-3 gap-4 2xl:grid-cols-4">
+											<div
+												v-for="unit in selectedLocation.units"
+												:key="unit.id"
+												class="flex flex-col items-center justify-center border-2 border-white/0 py-2 transition-all"
+												:class="[
+													{
+														'bg-white/20': (unit.currentCount || 0) > 0,
+														'bg-black/20': (unit.currentCount || 0) === 0
+													},
+													isIsapiCamera ? '' : 'cursor-pointer'
+												]"
+												:tabindex="isIsapiCamera ? undefined : 0"
+												:role="isIsapiCamera ? undefined : 'button'"
+												:aria-label="isIsapiCamera ? `${unit.name}，進出統計` : `查看 ${unit.name} 人員名單`"
+												@click="handleUnitCardActivate(unit)"
+												@keydown.enter="handleUnitCardActivate(unit)"
+												@keydown.space.prevent="handleUnitCardActivate(unit)"
+											>
+												<div class="text-base font-semibold tracking-wide text-white 2xl:text-lg">
+													{{ unit.name }}
+												</div>
+												<!-- 攝影機：顯示進場/出場人數 -->
+												<template v-if="isIsapiCamera">
+													<div class="space-x-0.5 text-sm text-white 2xl:text-base">
+														<span class="text-green-400">進 {{ unit.entryCount ?? 0 }}</span>
+														<span>/</span>
+														<span class="text-blue-300">出 {{ unit.exitCount ?? 0 }}</span>
+													</div>
+												</template>
+												<!-- YSCP / 門禁：顯示在場人數/容量 -->
+												<template v-else>
+													<div class="space-x-0.5 text-base text-white 2xl:text-lg">
+														<span class="text-green-400">{{ unit.currentCount || 0 }}</span>
+														<span>/</span>
+														<span>{{ unit.capacity || 0 }}</span>
+													</div>
+												</template>
 											</div>
-											<!-- 攝影機：顯示進場/出場人數 -->
-											<template v-if="isIsapiCamera">
-												<div class="space-x-0.5 text-sm text-white 2xl:text-base">
-													<span class="text-green-400">進 {{ unit.entryCount ?? 0 }}</span>
-													<span>/</span>
-													<span class="text-blue-300">出 {{ unit.exitCount ?? 0 }}</span>
-												</div>
-											</template>
-											<!-- YSCP / 門禁：顯示在場人數/容量 -->
-											<template v-else>
-												<div class="space-x-0.5 text-base text-white 2xl:text-lg">
-													<span class="text-green-400">{{ unit.currentCount || 0 }}</span>
-													<span>/</span>
-													<span>{{ unit.capacity || 0 }}</span>
-												</div>
-											</template>
 										</div>
 									</div>
 								</div>
+							</template>
+						</div>
+
+						<div
+							v-else-if="locations.length > 0"
+							key="pick-location"
+							class="mt-12 flex min-h-[600px] w-full items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
+						>
+							<div>
+								<svg
+									class="mx-auto mb-4 h-16 w-16 text-white/60"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+									/>
+								</svg>
+								<p class="text-xl font-medium text-white/90 xl:text-2xl 2xl:text-3xl">請選擇地點</p>
+								<p class="mt-2 text-sm text-white/70 xl:text-base">請從右側總覽點選地點以查看詳細資訊</p>
 							</div>
 						</div>
-					</template>
-
-					<!-- 提示：選擇地點 -->
-					<div
-						v-else
-						class="mt-12 flex h-full min-h-[600px] w-full items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
-					>
-						<div>
-							<svg
-								class="mx-auto mb-4 h-16 w-16 text-white/60"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-								/>
-							</svg>
-							<p class="text-xl font-medium text-white/90 xl:text-2xl 2xl:text-3xl">請選擇地點</p>
-							<p class="mt-2 text-sm text-white/70 xl:text-base">請從右側列表點選地點以查看詳細資訊</p>
-						</div>
-					</div>
+					</Transition>
 				</div>
 			</section>
 
-			<!-- 右側：工地總覽列表（可收縮） -->
 			<aside
-				:class="[
-					'flex flex-col transition-all duration-500 ease-in-out',
-					isSidebarCollapsed ? 'flex-[0.05]' : 'flex-[0.8] 2xl:flex-[0.7]'
-				]"
-				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
+				class="overview-sidebar"
+				:class="isOverviewCollapsed ? 'overview-sidebar--collapsed' : 'overview-sidebar--expanded'"
+				:aria-hidden="isOverviewCollapsed"
 			>
 				<div
-					class="show-scrollbar relative h-full min-w-[72px] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8 transition-all duration-500 ease-in-out 2xl:min-w-[84px]"
+					class="relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8"
 				>
-					<!-- 標題與收縮按鈕 -->
-					<Transition name="fade">
-						<h2
-							v-if="!isSidebarCollapsed"
-							key="title"
-							class="mb-4 text-center text-xl font-semibold tracking-[12px] text-white xl:text-2xl 2xl:text-3xl"
-							style="padding-left: 12px"
-						>
-							總覽
-						</h2>
-					</Transition>
-					<button
-						type="button"
-						class="absolute right-4 top-6 z-10 flex h-8 w-8 items-center justify-center rounded-lg border border-white/80 text-white hover:bg-white/20 2xl:h-12 2xl:w-12"
-						@click="isSidebarCollapsed = !isSidebarCollapsed"
-						:title="isSidebarCollapsed ? '展開列表' : '收縮列表'"
-					>
-						<svg
-							class="h-5 w-5 xl:h-6 xl:w-6 2xl:h-7 2xl:w-7"
-							:class="{ 'rotate-180': isSidebarCollapsed }"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-						</svg>
-					</button>
-
-					<!-- 側邊欄內容 -->
-					<Transition name="fade">
+					<Transition name="fade" mode="out-in">
 						<div
-							v-if="!isSidebarCollapsed"
-							key="content"
-							class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
+							v-if="!isOverviewCollapsed"
+							key="overview-panel"
+							class="flex h-full min-h-0 flex-col overflow-hidden"
 						>
-							<div class="space-y-4">
-								<template v-if="locations.length > 0">
+							<button
+								type="button"
+								class="absolute right-4 top-6 z-10 flex h-8 w-8 items-center justify-center rounded-lg border border-white/80 text-white transition-colors hover:bg-white/20 2xl:h-12 2xl:w-12"
+								aria-expanded="true"
+								aria-label="收縮總覽"
+								title="收縮總覽"
+								@click="isOverviewCollapsed = true"
+							>
+								<svg
+									class="h-5 w-5 xl:h-6 xl:w-6 2xl:h-7 2xl:w-7"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+									aria-hidden="true"
+								>
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+								</svg>
+							</button>
+
+							<h2
+								class="mb-4 text-center text-xl font-semibold tracking-[12px] text-white xl:text-2xl 2xl:text-3xl"
+								style="padding-left: 12px"
+							>
+								總覽
+							</h2>
+
+							<div
+								ref="overviewListRef"
+								class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4"
+							>
+								<template v-if="locationsForOverview.length > 0">
 									<LocationOverviewCard
 										v-for="location in locationsForOverview"
 										:key="getLocationId(location)"
+										:data-overview-location-id="getLocationId(location)"
 										:location="location"
+										class="cursor-pointer transition-all hover:ring-2 hover:ring-cyan-300/50"
+										:class="{ 'ring-2 ring-cyan-400': isCurrentLocation(location) }"
 										@click="handleLocationSelect"
-										:class="{
-											'ring-2 ring-cyan-400': isCurrentLocation(location),
-											'cursor-pointer transition-all hover:ring-2 hover:ring-cyan-300/50': true
-										}"
 									/>
 								</template>
 								<div v-else class="py-8 text-center text-white/60">
@@ -295,16 +330,15 @@ const {
 	loadLocationDetail,
 	loadZones,
 	getLocationZone,
-	setupEventListeners
+	setupEventListeners,
+	isLoadingLocation
 } = usePeopleCountingState();
 
 // 單位人員對話框相關
 const peopleCountingApi = usePeopleCountingApi();
 const { request } = useApiBase();
 const fetchTodaySimulationRange = async () => {
-	const range = await request<OperationalDayRangeResponse>(
-		`/entry-exit/time-range?preset=today`
-	);
+	const range = await request<OperationalDayRangeResponse>(`/entry-exit/time-range?preset=today`);
 	return toSimulationTimeRange(range, "today");
 };
 const { handleError } = useErrorHandler();
@@ -345,35 +379,8 @@ const currentCount = computed(() => {
 	return selectedLocation.value.units.reduce((sum, unit) => sum + (unit.currentCount || 0), 0);
 });
 
-// 左側區域的 ref 和高度
-const leftSectionRef = ref<HTMLElement | null>(null);
-const leftSectionHeight = ref<number | null>(null);
-
-// ResizeObserver 用於動態監聽左側區域高度變化
-let leftSectionResizeObserver: ResizeObserver | null = null;
-
-// 更新左側高度
-const updateLeftSectionHeight = () => {
-	if (leftSectionRef.value) {
-		leftSectionHeight.value = leftSectionRef.value.offsetHeight;
-	}
-};
-
-// 初始化 ResizeObserver
-const initLeftSectionObserver = () => {
-	if (typeof ResizeObserver === "undefined") return;
-	if (!leftSectionRef.value) return;
-
-	leftSectionResizeObserver = new ResizeObserver(entries => {
-		if (entries.length) {
-			leftSectionHeight.value = entries[0].contentRect.height;
-		}
-	});
-	leftSectionResizeObserver.observe(leftSectionRef.value);
-};
-
-// 側邊欄收縮狀態
-const isSidebarCollapsed = ref(false);
+const isOverviewCollapsed = ref(false);
+const overviewListRef = ref<HTMLElement | null>(null);
 
 // 地點管理與模擬框狀態
 const showLocationManagementDialog = ref(false);
@@ -477,6 +484,7 @@ const handleOpenSimulation = async () => {
 
 // 選中地點 ID（用於刪除邏輯，與環境品質保持一致）
 const selectedLocationId = ref<string>("");
+const detailPanelKey = computed(() => selectedLocationId.value || "__none__");
 
 // 取得適配器（用於獲取統一的 getLocationId 方法）
 const adapter = useZoneSystemAdapter<PeopleCountingZone, PeopleCountingLocation>("people_counting");
@@ -506,11 +514,23 @@ watch(
 	{ immediate: true }
 );
 
-// 監聽左側區域高度變化由 ResizeObserver 處理，僅需在地點變化時更新一次
-watch([selectedLocation, locations, peopleCountingZones], () => {
-	nextTick(() => {
-		updateLeftSectionHeight();
+const scrollActiveOverviewIntoView = () => {
+	const id = selectedLocationId.value;
+	if (!id || isOverviewCollapsed.value) return;
+	const root = overviewListRef.value;
+	if (!root) return;
+	root.querySelector(`[data-overview-location-id="${CSS.escape(id)}"]`)?.scrollIntoView({
+		block: "nearest",
+		behavior: "smooth"
 	});
+};
+
+watch(selectedLocationId, () => {
+	nextTick(() => scrollActiveOverviewIntoView());
+});
+
+watch(isOverviewCollapsed, collapsed => {
+	if (!collapsed) nextTick(() => scrollActiveOverviewIntoView());
 });
 
 // 檢查是否為當前選中的地點（與 environment 一致：使用單一 canonical id，僅一卡高亮）
@@ -518,11 +538,10 @@ const isCurrentLocation = (location: PeopleCountingLocation): boolean => {
 	return getLocationId(location) === selectedLocationId.value;
 };
 
-// 處理地點選擇
 const handleLocationSelect = async (locationId: number) => {
-	if (selectedLocation.value?.locationId === locationId) {
-		return; // 已經選中，不需要重新載入
-	}
+	if (selectedLocation.value?.locationId === locationId) return;
+	const loc = locationsForOverview.value.find(l => l.locationId === locationId);
+	if (loc) selectedLocationId.value = getLocationId(loc);
 	await loadLocationDetail(locationId);
 };
 
@@ -640,9 +659,6 @@ watch(
 
 // 初始化
 onMounted(async () => {
-	// 初始化左側 ResizeObserver
-	initLeftSectionObserver();
-
 	// 設置 WebSocket 事件監聽：收到 YSCP 事件後重新載入資料
 	// 使用防抖優化（500ms），避免短時間內多次觸發
 	cleanupWebSocket = setupEventListeners(async () => {
@@ -659,9 +675,6 @@ onMounted(async () => {
 		// 確保所有計算屬性和元件在資料載入後重新計算
 		// 使用 nextTick 確保 Vue 響應式系統完成所有更新
 		await nextTick();
-
-		// 更新左側區域高度（因為資料變化可能影響佈局）
-		updateLeftSectionHeight();
 	}, 500); // 防抖延遲 500ms
 
 	try {
@@ -683,25 +696,15 @@ onMounted(async () => {
 				await handleLocationSelect(hit.locationId);
 			}
 		}
-	} catch (error) {
+	} catch {
 		// 錯誤已在 composable 中處理
 	}
 
-	// 更新左側高度（初始化）
-	nextTick(() => {
-		updateLeftSectionHeight();
-	});
+	await nextTick();
+	scrollActiveOverviewIntoView();
 });
 
-// 清理函數
 onBeforeUnmount(() => {
-	// 清理 ResizeObserver
-	if (leftSectionResizeObserver && leftSectionRef.value) {
-		leftSectionResizeObserver.unobserve(leftSectionRef.value);
-		leftSectionResizeObserver.disconnect();
-		leftSectionResizeObserver = null;
-	}
-
 	// 清理 WebSocket 事件監聽器
 	if (cleanupWebSocket) {
 		cleanupWebSocket();

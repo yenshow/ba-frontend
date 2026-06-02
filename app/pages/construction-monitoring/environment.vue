@@ -1,8 +1,38 @@
 <template>
 	<div>
-		<div class="flex justify-center gap-6 2xl:gap-8">
-			<!-- 左側：詳細視圖 -->
-			<section class="relative flex-[1.2] 2xl:flex-[1.3]" ref="leftSectionRef">
+		<div
+			class="flex min-w-0 items-stretch justify-center"
+			:class="isOverviewCollapsed ? 'gap-0' : 'gap-4 xl:gap-6 2xl:gap-8'"
+		>
+			<section class="relative min-w-0 flex-1 2xl:flex-[1.3]">
+				<Transition name="fade" mode="out-in">
+					<button
+						v-if="isOverviewCollapsed"
+						key="overview-expand-tab"
+						type="button"
+						class="absolute -right-px top-24 z-20 flex flex-col items-center gap-2 rounded-l-xl border-2 border-r-0 border-white/80 bg-white/30 px-2.5 py-4 text-white shadow-md transition-colors hover:bg-white/40 2xl:top-32"
+						aria-label="展開總覽"
+						title="展開總覽"
+						@click="isOverviewCollapsed = false"
+					>
+						<span
+							class="text-sm font-semibold tracking-[0.35em] text-white xl:text-base"
+							style="writing-mode: vertical-rl"
+						>
+							總覽
+						</span>
+						<svg
+							class="h-5 w-5 shrink-0 2xl:h-6 2xl:w-6"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+							aria-hidden="true"
+						>
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+						</svg>
+					</button>
+				</Transition>
+
 				<div
 					class="relative flex min-h-[664px] flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 2xl:min-h-[848px] 2xl:p-6"
 				>
@@ -42,127 +72,135 @@
 						完整報表
 					</button>
 
-					<!-- 三個大儀表（包含趨勢圖） -->
-					<div class="mt-16 grid grid-cols-3 gap-4 border-b border-white/80 pb-2 2xl:gap-6">
-						<!-- 噪音值儀表 -->
-						<EnvironmentGauge
-							type="noise"
-							:value="noiseValue"
-							:location-id="currentLocationData?.id ?? null"
-							:refresh-key="trendReloadKey"
-							class="border-r border-white/30"
-						/>
+					<Transition name="fade" mode="out-in">
+						<div v-if="currentLocationData" :key="detailPanelKey" class="mt-16" :aria-busy="isHydrating">
+							<div class="grid grid-cols-3 gap-4 border-b border-white/80 pb-2 2xl:gap-6">
+								<!-- 噪音值儀表 -->
+								<EnvironmentGauge
+									type="noise"
+									:value="noiseValue"
+									:location-id="currentLocationData?.id ?? null"
+									:refresh-key="trendReloadKey"
+									class="border-r border-white/30"
+								/>
 
-						<!-- AQI 儀表（中間，較大） -->
-						<EnvironmentGauge
-							type="aqi"
-							:value="aqiScore"
-							size="large"
-							:location-id="currentLocationData?.id ?? null"
-							:refresh-key="trendReloadKey"
-						/>
+								<!-- AQI 儀表（中間，較大） -->
+								<EnvironmentGauge
+									type="aqi"
+									:value="aqiScore"
+									size="large"
+									:location-id="currentLocationData?.id ?? null"
+									:refresh-key="trendReloadKey"
+								/>
 
-						<!-- 溫度儀表 -->
-						<EnvironmentGauge
-							type="temperature"
-							:value="currentTemperature"
-							:location-id="currentLocationData?.id ?? null"
-							:refresh-key="trendReloadKey"
-							class="border-l border-white/30"
-						/>
-					</div>
+								<!-- 溫度儀表 -->
+								<EnvironmentGauge
+									type="temperature"
+									:value="currentTemperature"
+									:location-id="currentLocationData?.id ?? null"
+									:refresh-key="trendReloadKey"
+									class="border-l border-white/30"
+								/>
+							</div>
 
-					<!-- 環境參數網格 -->
-					<div
-						v-if="currentLocationData && currentLocationData.parameters.length > 0"
-						class="mt-8 grid grid-cols-3 gap-2 2xl:grid-cols-4"
-					>
-						<EnvironmentParamCard
-							v-for="param in enabledParameters"
-							:key="param.type"
-							:type="param.type"
-							:value="getParameterValue(param.type)"
-							:icon-src="getParameterIcon(param.type)"
-							:label="getParameterDisplayName(param.type)"
-							:unit="getParameterUnit(param.type)"
-							:fraction-digits="getParameterFractionDigits(param.type)"
-							:device-error="showSensorOffline"
-							:get-status-text="getStatusText"
-							:get-status-text-class="getStatusTextClass"
-							:to-fixed-number="formatParamDisplay"
-						/>
-					</div>
-					<div
-						v-else
-						class="flex min-h-[248px] flex-col items-center justify-center py-8 text-center text-white/60"
-					>
-						<p class="text-base 2xl:text-lg">尚未配置感測器參數</p>
-						<p class="mt-2 text-sm 2xl:text-base">請在「地點管理」中新增參數</p>
-					</div>
+							<!-- 環境參數網格 -->
+							<div
+								v-if="currentLocationData && currentLocationData.parameters.length > 0"
+								class="mt-8 grid grid-cols-3 gap-2 2xl:grid-cols-4"
+							>
+								<EnvironmentParamCard
+									v-for="param in enabledParameters"
+									:key="param.type"
+									:type="param.type"
+									:value="getParameterValue(param.type)"
+									:icon-src="getParameterIcon(param.type)"
+									:label="getParameterDisplayName(param.type)"
+									:unit="getParameterUnit(param.type)"
+									:fraction-digits="getParameterFractionDigits(param.type)"
+									:device-error="showSensorOffline"
+									:get-status-text="getStatusText"
+									:get-status-text-class="getStatusTextClass"
+									:to-fixed-number="formatParamDisplay"
+								/>
+							</div>
+							<div
+								v-else
+								class="flex min-h-[248px] flex-col items-center justify-center py-8 text-center text-white/60"
+							>
+								<p class="text-base 2xl:text-lg">尚未配置感測器參數</p>
+								<p class="mt-2 text-sm 2xl:text-base">請在「地點管理」中新增參數</p>
+							</div>
+						</div>
+
+						<div
+							v-else-if="sortedLocations.length > 0"
+							key="pick-location"
+							class="mt-12 flex min-h-[600px] w-full items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
+						>
+							<p class="text-xl font-medium text-white/90 2xl:text-3xl">請選擇地點</p>
+							<p class="mt-2 text-sm text-white/70">請從右側總覽點選地點以查看詳細資訊</p>
+						</div>
+					</Transition>
 				</div>
 			</section>
 
-			<!-- 右側：總覽面板 -->
 			<aside
-				:class="[
-					'flex flex-col transition-all duration-500 ease-in-out',
-					isOverviewCollapsed ? 'flex-[0.05]' : 'flex-[0.8] 2xl:flex-[0.7]'
-				]"
-				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
+				class="overview-sidebar"
+				:class="isOverviewCollapsed ? 'overview-sidebar--collapsed' : 'overview-sidebar--expanded'"
+				:aria-hidden="isOverviewCollapsed"
 			>
 				<div
-					class="show-scrollbar relative h-full min-w-[72px] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8 transition-all duration-500 ease-in-out 2xl:min-w-[84px]"
+					class="relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8"
 				>
-					<!-- 標題與收縮按鈕 -->
-					<Transition name="fade">
-						<h2
-							v-if="!isOverviewCollapsed"
-							key="title"
-							class="mb-4 text-center text-2xl font-semibold tracking-[12px] text-white 2xl:text-3xl"
-							style="padding-left: 12px"
-						>
-							總覽
-						</h2>
-					</Transition>
-					<button
-						type="button"
-						class="absolute right-4 top-6 z-10 flex h-8 w-8 items-center justify-center rounded-lg border border-white/80 text-white hover:bg-white/20 2xl:h-12 2xl:w-12"
-						@click="isOverviewCollapsed = !isOverviewCollapsed"
-						:title="isOverviewCollapsed ? '展開總覽' : '收縮總覽'"
-					>
-						<svg
-							class="h-6 w-6 2xl:h-7 2xl:w-7"
-							:class="{ 'rotate-180': isOverviewCollapsed }"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-						</svg>
-					</button>
-
-					<!-- 總覽內容 -->
-					<Transition name="fade">
+					<Transition name="fade" mode="out-in">
 						<div
 							v-if="!isOverviewCollapsed"
-							key="content"
-							class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
+							key="overview-panel"
+							class="flex h-full min-h-0 flex-col overflow-hidden"
 						>
-							<div class="space-y-4">
+							<button
+								type="button"
+								class="absolute right-4 top-6 z-10 flex h-8 w-8 items-center justify-center rounded-lg border border-white/80 text-white transition-colors hover:bg-white/20 2xl:h-12 2xl:w-12"
+								aria-expanded="true"
+								aria-label="收縮總覽"
+								title="收縮總覽"
+								@click="isOverviewCollapsed = true"
+							>
+								<svg
+									class="h-5 w-5 xl:h-6 xl:w-6 2xl:h-7 2xl:w-7"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+									aria-hidden="true"
+								>
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+								</svg>
+							</button>
+
+							<h2
+								class="mb-4 text-center text-xl font-semibold tracking-[12px] text-white xl:text-2xl 2xl:text-3xl"
+								style="padding-left: 12px"
+							>
+								總覽
+							</h2>
+
+							<div
+								ref="overviewListRef"
+								class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4"
+							>
 								<template v-if="sortedLocations.length > 0">
 									<OverviewLocationCard
 										v-for="location in sortedLocations"
 										:key="getLocationId(location)"
+										:data-overview-location-id="getLocationId(location)"
 										:name="location.name"
 										:zone="getLocationZone(location) || ''"
 										v-bind="getOverviewLocationCardBindings(location)"
 										:disabled="!getLocationDeviceIds(location).length"
 										:get-status-text="getStatusText"
+										class="cursor-pointer transition-all hover:ring-2 hover:ring-cyan-300/50"
+										:class="{ 'ring-2 ring-cyan-400': isCurrentLocation(location) }"
 										@click="selectLocation(location)"
-										:class="{
-											'ring-2 ring-cyan-400': isCurrentLocation(location),
-											'cursor-pointer transition-all hover:ring-2 hover:ring-cyan-300/50': true
-										}"
 									/>
 								</template>
 								<div v-else class="py-8 text-center text-white/60">
@@ -398,12 +436,12 @@ const {
 	trendReloadKey,
 	hydrateAllLocations,
 	startReconcilePolling,
-	stopReconcilePolling,
+	stopReconcilePolling
 } = useEnvironmentDataCoordinator({
 	environmentZones,
 	selectedLocationId,
 	currentLocationData,
-	getLocationId,
+	getLocationId
 });
 
 /** hydrate 期間不顯示離線，避免先離線後有值 */
@@ -417,41 +455,27 @@ const formatParamDisplay = (value: number | null, fractionDigits = 0) =>
 		offline: showSensorOffline.value
 	});
 
-// 總覽面板收縮狀態
 const isOverviewCollapsed = ref(false);
+const overviewListRef = ref<HTMLElement | null>(null);
+const detailPanelKey = computed(() => selectedLocationId.value || "__none__");
 
-// 左側區域的 ref 和高度
-const leftSectionRef = ref<HTMLElement | null>(null);
-const leftSectionHeight = ref<number | null>(null);
-
-// ResizeObserver 用於動態監聽左側區域高度變化
-let leftSectionResizeObserver: ResizeObserver | null = null;
-
-// 更新左側高度
-const updateLeftSectionHeight = () => {
-	if (leftSectionRef.value) {
-		leftSectionHeight.value = leftSectionRef.value.offsetHeight;
-	}
+const scrollActiveOverviewIntoView = () => {
+	const id = selectedLocationId.value;
+	if (!id || isOverviewCollapsed.value) return;
+	const root = overviewListRef.value;
+	if (!root) return;
+	root.querySelector(`[data-overview-location-id="${CSS.escape(id)}"]`)?.scrollIntoView({
+		block: "nearest",
+		behavior: "smooth"
+	});
 };
 
-// 初始化 ResizeObserver
-const initLeftSectionObserver = () => {
-	if (typeof ResizeObserver === "undefined") return;
-	if (!leftSectionRef.value) return;
+watch(selectedLocationId, () => {
+	nextTick(() => scrollActiveOverviewIntoView());
+});
 
-	leftSectionResizeObserver = new ResizeObserver(entries => {
-		if (entries.length) {
-			leftSectionHeight.value = entries[0].contentRect.height;
-		}
-	});
-	leftSectionResizeObserver.observe(leftSectionRef.value);
-};
-
-// 監聽左側區域高度變化由 ResizeObserver 處理，僅需在區域/地點變化時更新一次
-watch([currentLocationData, environmentZones], () => {
-	nextTick(() => {
-		updateLeftSectionHeight();
-	});
+watch(isOverviewCollapsed, collapsed => {
+	if (!collapsed) nextTick(() => scrollActiveOverviewIntoView());
 });
 
 // 與 environmentZones 順序一致（區域已依 sort_order／名稱慣例排序，地點依後端陣列序）
@@ -657,13 +681,7 @@ const loadAlertRules = async () => {
 };
 
 onMounted(async () => {
-	// 載入警報規則（優先載入，確保狀態判斷使用正確的規則）
 	await loadAlertRules();
-
-	// 初始化左側 ResizeObserver
-	initLeftSectionObserver();
-
-	// 載入區域和地點資料（從環境 API）
 	await loadZonesFromAPI();
 	await hydrateAllLocations(true);
 	if (!selectedLocationId.value) {
@@ -671,22 +689,12 @@ onMounted(async () => {
 		if (first) selectedLocationId.value = getLocationId(first);
 	}
 	startReconcilePolling();
-
-	// 更新左側高度（初始化）
-	nextTick(() => {
-		updateLeftSectionHeight();
-	});
+	await nextTick();
+	scrollActiveOverviewIntoView();
 });
 
 onBeforeUnmount(() => {
 	stopReconcilePolling();
-
-	// 釋放 ResizeObserver
-	if (leftSectionResizeObserver && leftSectionRef.value) {
-		leftSectionResizeObserver.unobserve(leftSectionRef.value);
-		leftSectionResizeObserver.disconnect();
-		leftSectionResizeObserver = null;
-	}
 });
 
 // 計算 AQI（共用函數）
