@@ -37,7 +37,7 @@
 						:checked="isLocked(dev.id)"
 						class="peer sr-only"
 						:disabled="isDisabled"
-						:aria-label="`${dev.label} ${isLocked(dev.id) ? '鎖定' : '解鎖'}`"
+						:aria-label="`${dev.label} ${isLocked(dev.id) ? '常開' : '常關'}`"
 						@change="handleLockToggle(dev.id, $event)"
 					/>
 					<div
@@ -50,13 +50,13 @@
 							class="pointer-events-none absolute left-1.5 top-1/2 z-10 -translate-y-1/2 text-[10px] font-semibold text-white transition-opacity duration-200 2xl:text-[12px]"
 							:class="isLocked(dev.id) ? 'opacity-100' : 'opacity-0'"
 						>
-							鎖定
+							常開
 						</span>
 						<span
 							class="pointer-events-none absolute right-1.5 top-1/2 z-10 -translate-y-1/2 text-[10px] font-semibold text-white transition-opacity duration-200 2xl:text-[12px]"
 							:class="isLocked(dev.id) ? 'opacity-0' : 'opacity-100'"
 						>
-							解鎖
+							常關
 						</span>
 						<span
 							class="pointer-events-none absolute top-1/2 block h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow-sm transition-[left] duration-200 ease-out 2xl:h-6 2xl:w-6"
@@ -109,7 +109,7 @@ const props = defineProps<{
 
 const { devices } = useVehicleAccessIsapiBarrierDevices(() => props.location);
 
-/** 預設解鎖；僅使用者切換鎖定開關時送 lock / unlock */
+/** 預設常關；僅使用者切換常開常關開關時送 lock / unlock */
 const lockedByDeviceId = ref<Record<number, boolean>>({});
 
 const barrierDeviceId = ref<number | null>(null);
