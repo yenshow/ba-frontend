@@ -1,6 +1,6 @@
 <template>
 	<div
-		class="relative flex flex-col rounded-xl px-2 py-3 transition-all"
+		class="env-param-card relative flex flex-col rounded-xl px-2 py-3 transition-all"
 		:class="[backgroundClass, blinkAnimationClass]"
 	>
 		<!-- 警告條（設備異常/離線時顯示） -->
@@ -13,34 +13,38 @@
 		<!-- 內容區域：水平排版（由左到右） -->
 		<div class="relative z-10 flex flex-1 items-center gap-2">
 			<!-- 左側：圖標 -->
-			<div class="relative flex h-16 w-16 shrink-0 items-center justify-center 2xl:h-20 2xl:w-20">
+			<div
+				class="env-param-icon relative flex h-16 w-16 shrink-0 items-center justify-center 2xl:h-20 2xl:w-20"
+			>
 				<Transition name="fade">
 					<NuxtImg
 						v-if="iconSrc"
 						key="icon"
 						:src="iconSrc"
 						:alt="label"
-						class="absolute inset-0 h-16 w-16 object-contain 2xl:h-20 2xl:w-20"
+						class="env-param-icon absolute inset-0 h-16 w-16 object-contain 2xl:h-20 2xl:w-20"
 					/>
 				</Transition>
 			</div>
 
 			<!-- 分隔線 -->
-			<div class="h-20 w-[6px] bg-white/20"></div>
+			<div class="env-param-divider h-20 w-[6px] bg-white/20"></div>
 
 			<!-- 中間：參數標籤、數值和單位 -->
 			<div class="flex flex-col justify-center">
 				<!-- 參數標籤 -->
-				<div class="mb-2 text-lg font-medium tracking-widest text-white">{{ label }}</div>
+				<div class="env-param-label mb-2 text-lg font-medium tracking-widest text-white">
+					{{ label }}
+				</div>
 
 				<!-- 數值和單位 -->
 				<div class="flex items-baseline gap-2">
 					<div
-						class="flex min-w-[80px] items-center justify-center rounded-lg bg-white/10 px-3 py-1 text-2xl text-white 2xl:text-3xl"
+						class="env-param-value flex min-w-[80px] items-center justify-center rounded-lg bg-white/10 px-3 py-1 text-2xl text-white 2xl:text-3xl"
 					>
 						{{ displayValue }}
 					</div>
-					<div class="text-sm text-white/80 2xl:text-base">{{ unit }}</div>
+					<div class="env-param-unit text-sm text-white/80 2xl:text-base">{{ unit }}</div>
 				</div>
 			</div>
 
@@ -52,7 +56,10 @@
 					class="h-3 w-3 rounded-full border-2 border-white 2xl:h-4 2xl:w-4"
 					:style="statusDotStyle"
 				></div>
-				<div class="text-sm font-medium text-white 2xl:text-base" :class="statusTextClass">
+				<div
+					class="env-param-status text-sm font-medium text-white 2xl:text-base"
+					:class="statusTextClass"
+				>
 					{{ statusText }}
 				</div>
 			</div>

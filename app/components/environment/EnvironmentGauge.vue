@@ -2,7 +2,10 @@
 	<div class="flex h-full flex-col justify-end space-y-4">
 		<!-- 儀表區域 -->
 		<div class="flex flex-col items-center space-y-4">
-			<div class="relative aspect-square w-full" :class="gaugeSizeClass">
+			<div
+				class="env-gauge relative aspect-square w-full"
+				:class="[gaugeSizeClass, size === 'large' ? 'env-gauge--large' : '']"
+			>
 				<!-- SVG 弧形指示器 -->
 				<svg
 					class="absolute inset-0 z-20 h-full w-full -rotate-90 transform"
@@ -27,18 +30,18 @@
 					class="absolute inset-0 z-10 flex h-full w-full flex-col items-center justify-end rounded-full border-4 border-white pb-4"
 				>
 					<Transition name="fade" mode="out-in">
-						<div :key="displayValue" :class="valueSizeClass">
+						<div :key="displayValue" :class="[valueSizeClass, 'env-gauge-value']">
 							{{ displayValue }}
 						</div>
 					</Transition>
 					<Transition name="fade" mode="out-in">
-						<div v-if="unit" :key="unit" :class="unitSizeClass">
+						<div v-if="unit" :key="unit" :class="[unitSizeClass, 'env-gauge-unit']">
 							{{ unit }}
 						</div>
-						<div v-else key="no-unit" :class="unitSizeClass">--</div>
+						<div v-else key="no-unit" :class="[unitSizeClass, 'env-gauge-unit']">--</div>
 					</Transition>
 					<div class="my-2 h-px w-3/4 bg-white/80"></div>
-					<div :class="titleSizeClass">{{ title }}</div>
+					<div :class="[titleSizeClass, 'env-gauge-title']">{{ title }}</div>
 				</div>
 			</div>
 		</div>

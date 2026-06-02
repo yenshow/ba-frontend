@@ -73,8 +73,19 @@
 					</button>
 
 					<Transition name="fade" mode="out-in">
-						<div v-if="currentLocationData" :key="detailPanelKey" class="mt-16" :aria-busy="isHydrating">
-							<div class="grid grid-cols-3 gap-4 border-b border-white/80 pb-2 2xl:gap-6">
+						<div
+							v-if="currentLocationData"
+							:key="detailPanelKey"
+							class="mt-16"
+							:class="[
+								isOverviewCollapsed && 'mx-auto w-full max-w-[1400px] 2xl:max-w-[1600px]',
+								isOverviewCollapsed && 'monitoring-detail-enlarged',
+							]"
+							:aria-busy="isHydrating"
+						>
+							<div
+								class="env-gauge-row grid grid-cols-3 gap-4 border-b border-white/80 pb-2 2xl:gap-6"
+							>
 								<!-- 噪音值儀表 -->
 								<EnvironmentGauge
 									type="noise"
@@ -106,7 +117,7 @@
 							<!-- 環境參數網格 -->
 							<div
 								v-if="currentLocationData && currentLocationData.parameters.length > 0"
-								class="mt-8 grid grid-cols-3 gap-2 2xl:grid-cols-4"
+								class="env-param-grid mt-8 grid grid-cols-3 gap-2 2xl:grid-cols-4"
 							>
 								<EnvironmentParamCard
 									v-for="param in enabledParameters"
@@ -127,8 +138,8 @@
 								v-else
 								class="flex min-h-[248px] flex-col items-center justify-center py-8 text-center text-white/60"
 							>
-								<p class="text-base 2xl:text-lg">尚未配置感測器參數</p>
-								<p class="mt-2 text-sm 2xl:text-base">請在「地點管理」中新增參數</p>
+								<p class="env-detail-empty text-base 2xl:text-lg">尚未配置感測器參數</p>
+								<p class="env-detail-empty mt-2 text-sm 2xl:text-base">請在「地點管理」中新增參數</p>
 							</div>
 						</div>
 
