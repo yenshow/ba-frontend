@@ -124,7 +124,6 @@ export const useVehicleAccessState = () => {
 	const selectedOrganizationKey = ref<string | null>(null);
 	const isLoadingVehicleGroups = ref(false);
 	const isLoadingZones = ref(false);
-	const isLoadingLogs = ref(false);
 	const isLoadingOverview = ref(false);
 	const isLoadingCounts = ref(false);
 
@@ -234,15 +233,12 @@ export const useVehicleAccessState = () => {
 	};
 
 	const loadLogs = async (): Promise<void> => {
-		isLoadingLogs.value = true;
 		try {
 			await loadTodayPassageLogs();
 			logs.value = todayPassageLogs.value.slice(0, MAIN_LOG_LIMIT);
 		} catch (error) {
 			handleError(error, "載入過車記錄失敗");
 			throw error;
-		} finally {
-			isLoadingLogs.value = false;
 		}
 	};
 
@@ -554,7 +550,6 @@ export const useVehicleAccessState = () => {
 			selectedOrganizationKey.value = key;
 		},
 		isLoadingZones,
-		isLoadingLogs,
 		loadZones,
 		loadLogs,
 		loadEntryExitOnSiteCounts,

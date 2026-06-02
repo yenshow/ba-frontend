@@ -1,12 +1,14 @@
 <template>
-	<div
-		v-if="logs.length === 0"
-		class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
-	>
-		<p class="vehicle-log-empty text-base text-white/60 2xl:text-lg">尚無過車記錄</p>
-	</div>
+	<div class="monitoring-log-panel flex min-h-[320px] w-full min-w-0 flex-col 2xl:min-h-[400px]">
+		<div
+			v-if="logs.length === 0"
+			class="flex flex-1 items-center justify-center rounded-lg border-2 border-white/20 bg-white/5 p-8"
+			role="status"
+		>
+			<MonitoringLogEmptyState message="尚無過車記錄" />
+		</div>
 
-	<div v-else class="vehicle-log-table show-scrollbar overflow-x-auto">
+		<div v-else class="vehicle-log-table show-scrollbar overflow-x-auto">
 		<table class="w-full border-b-2 border-l-2 border-r-2 border-white/20">
 			<thead class="bg-white/20">
 				<tr class="vehicle-log-th text-center text-xs font-semibold text-white/80 2xl:text-sm">
@@ -114,6 +116,7 @@
 				</tr>
 			</tbody>
 		</table>
+		</div>
 	</div>
 
 	<Teleport to="body">
@@ -157,6 +160,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick, toRef, computed } from "vue";
+import MonitoringLogEmptyState from "~/components/monitoring/MonitoringLogEmptyState.vue";
 import type { VehicleDataLog } from "~/types/vehicleAccess";
 import { formatDate, formatTime } from "~/utils/dateUtils";
 import { useResolvedMediaList } from "~/composables/core/useImageCenter";
