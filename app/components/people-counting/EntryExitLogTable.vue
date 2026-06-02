@@ -1,10 +1,11 @@
 <template>
-	<div>
+	<div class="monitoring-log-panel flex min-h-[320px] w-full min-w-0 flex-col 2xl:min-h-[400px]">
 		<div
 			v-if="logs.length === 0"
-			class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
+			class="flex flex-1 items-center justify-center rounded-lg border-2 border-white/20 bg-white/5 p-8"
+			role="status"
 		>
-			<p class="people-log-empty text-base text-white/60 2xl:text-lg">尚無進出場記錄</p>
+			<MonitoringLogEmptyState message="尚無進出場記錄" />
 		</div>
 
 		<div v-else>
@@ -170,6 +171,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick, toRef, computed } from "vue"
+import MonitoringLogEmptyState from "~/components/monitoring/MonitoringLogEmptyState.vue"
 import type { PeopleCountingLog } from "~/types/peopleCounting"
 import { useResolvedMediaList } from "~/composables/core/useImageCenter"
 import {

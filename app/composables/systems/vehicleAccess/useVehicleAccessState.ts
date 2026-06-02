@@ -125,11 +125,8 @@ export const useVehicleAccessState = () => {
 	const selectedOrganizationKey = ref<string | null>(null);
 	const isLoadingVehicleGroups = ref(false);
 	const isLoadingZones = ref(false);
-	const isLoadingLogs = ref(false);
 	const isLoadingOverview = ref(false);
 	const isLoadingCounts = ref(false);
-	const isLoadingLocationDetail = ref(false);
-	let locationDetailLoadGeneration = 0;
 
 	const locations = computed(() =>
 		[...vehicleAccessZones.value]
@@ -243,15 +240,12 @@ export const useVehicleAccessState = () => {
 	};
 
 	const loadLogs = async (): Promise<void> => {
-		isLoadingLogs.value = true;
 		try {
 			await loadTodayPassageLogs();
 			logs.value = todayPassageLogs.value.slice(0, MAIN_LOG_LIMIT);
 		} catch (error) {
 			handleError(error, "載入過車記錄失敗");
 			throw error;
-		} finally {
-			isLoadingLogs.value = false;
 		}
 	};
 
@@ -523,25 +517,15 @@ export const useVehicleAccessState = () => {
 
 	/** 切換地點後載入詳情（統計、群組、過車表）；總覽摘要請另行 loadOverviewSummaries */
 	const loadLocationDetail = async (): Promise<void> => {
-		const locationId = filters.value.locationId;
-		if (!locationId) {
-			isLoadingLocationDetail.value = false;
-			return;
-		}
-		const generation = ++locationDetailLoadGeneration;
-		isLoadingLocationDetail.value = true;
+		if (!filters.value.locationId) return;
 		try {
 			await Promise.all([
 				loadEntryExitOnSiteCounts(),
 				loadOrganizationData(),
-				loadLogs()
+				loadLogs(),
 			]);
 		} catch {
 			// 錯誤已在各 loader 處理
-		} finally {
-			if (generation === locationDetailLoadGeneration) {
-				isLoadingLocationDetail.value = false;
-			}
 		}
 	};
 
@@ -587,8 +571,6 @@ export const useVehicleAccessState = () => {
 			selectedOrganizationKey.value = key;
 		},
 		isLoadingZones,
-		isLoadingLogs,
-		isLoadingLocationDetail,
 		loadZones,
 		loadLogs,
 		loadLocationDetail,

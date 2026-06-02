@@ -77,17 +77,16 @@
 						完整報表
 					</button>
 
-					<Transition name="fade" mode="out-in">
-						<div
-							v-if="currentLocationData"
-							:key="detailPanelKey"
-							class="mt-16"
-							:class="[
-								isOverviewCollapsed && 'mx-auto w-full max-w-[1400px] 2xl:max-w-[1600px]',
-								isOverviewCollapsed && 'monitoring-detail-enlarged',
-							]"
-							:aria-busy="isHydrating"
-						>
+					<MonitoringDetailShell
+						:empty="detailEmpty"
+						:enlarged="isOverviewCollapsed"
+						:content-class="
+							[isOverviewCollapsed && 'monitoring-detail-enlarged'].filter(Boolean).join(' ')
+						"
+						empty-title="尚無環境地點"
+						empty-description="請在「地點管理」中新增含環境監測系統的地點"
+					>
+						<div v-if="currentLocationData" :aria-busy="isHydrating">
 							<div
 								class="env-gauge-row grid grid-cols-3 gap-4 border-b border-white/80 pb-2 2xl:gap-6"
 							>
@@ -149,16 +148,7 @@
 								</p>
 							</div>
 						</div>
-
-						<div
-							v-else-if="sortedLocations.length > 0"
-							key="pick-location"
-							class="mt-12 flex min-h-[600px] w-full items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
-						>
-							<p class="text-xl font-medium text-white/90 2xl:text-3xl">請選擇地點</p>
-							<p class="mt-2 text-sm text-white/70">請從右側總覽點選地點以查看詳細資訊</p>
-						</div>
-					</Transition>
+					</MonitoringDetailShell>
 				</div>
 			</section>
 
@@ -262,6 +252,7 @@
 </template>
 
 <script setup lang="ts">
+import MonitoringDetailShell from "~/components/monitoring/MonitoringDetailShell.vue"
 import EnvironmentGauge from "~/components/environment/EnvironmentGauge.vue"
 import EnvironmentParamCard from "~/components/environment/EnvironmentParamCard.vue"
 import OverviewLocationCard from "~/components/environment/OverviewLocationCard.vue"
@@ -305,7 +296,6 @@ import {
 	monitoringStatusTextToUiStatus,
 	type MonitoringUiStatus,
 } from "~/utils/monitoringStatus"
-
 definePageMeta({
 	layout: "default",
 })
@@ -479,8 +469,6 @@ const formatParamDisplay = (value: number | null, fractionDigits = 0) =>
 
 const isOverviewCollapsed = ref(false)
 const overviewListRef = ref<HTMLElement | null>(null)
-const detailPanelKey = computed(() => selectedLocationId.value || "__none__")
-
 const scrollActiveOverviewIntoView = () => {
 	const id = selectedLocationId.value
 	if (!id || isOverviewCollapsed.value) return
@@ -502,6 +490,10 @@ watch(isOverviewCollapsed, (collapsed) => {
 
 // 與 environmentZones 順序一致（區域已依 sort_order／名稱慣例排序，地點依後端陣列序）
 const sortedLocations = computed(() => environmentZones.value.flatMap((zone) => zone.locations))
+
+const detailEmpty = computed(
+	() => sortedLocations.value.length === 0 && !isLoadingZones.value,
+)
 
 // 啟用的參數（用於顯示）
 const enabledParameters = computed(() => {

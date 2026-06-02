@@ -78,59 +78,36 @@
 						完整報表
 					</button>
 
-					<Transition name="fade" mode="out-in">
+					<MonitoringDetailShell
+						:empty="detailEmpty"
+						:enlarged="isOverviewCollapsed"
+						content-class="flex min-h-0 flex-1 flex-col"
+					>
 						<div
-							v-if="selectedLocation || isLoadingLocation"
-							:key="detailPanelKey"
-							class="mt-16 flex min-h-0 flex-1 flex-col"
-							:class="isOverviewCollapsed && 'mx-auto w-full max-w-[1400px] 2xl:max-w-[1600px]'"
+							v-if="selectedLocation"
+							class="flex min-h-0 flex-1"
+							:class="{ 'monitoring-detail-enlarged': isOverviewCollapsed }"
 						>
-							<div
-								v-if="isLoadingLocation"
-								class="grid min-h-[480px] flex-1 grid-cols-2 gap-4"
-								aria-busy="true"
-								aria-label="載入地點詳情"
-							>
-								<div class="h-full animate-pulse rounded-xl bg-white/10" />
-								<div class="h-full animate-pulse rounded-xl bg-white/10" />
+							<div class="min-w-0 flex-1">
+								<LocationStatsPanel
+									:entry-count="selectedLocation?.entryCount || 0"
+									:exit-count="selectedLocation?.exitCount || 0"
+									:current-count="currentCount"
+									:logs="logs"
+									:data-source="selectedLocation?.dataSource"
+									:display-columns="selectedLocation?.logDisplayColumns"
+								/>
 							</div>
-							<div
-								v-else-if="selectedLocation"
-								class="flex min-h-0 flex-1"
-								:class="{ 'monitoring-detail-enlarged': isOverviewCollapsed }"
-							>
-								<div class="min-w-0 flex-1">
-									<LocationStatsPanel
-										:entry-count="selectedLocation.entryCount || 0"
-										:exit-count="selectedLocation.exitCount || 0"
-										:current-count="currentCount"
-										:logs="logs"
-										:data-source="selectedLocation?.dataSource"
-										:display-columns="selectedLocation?.logDisplayColumns"
-									/>
-								</div>
-								<div class="ms-4 min-w-0 flex-1 border-l-2 border-white/30 ps-4">
-									<LocationDetailPanel
-										:location="selectedLocation"
-										:personnel="personnel"
-										:selected-unit-id="selectedUnitId"
-										@unit-select="handleUnitSelect"
-									/>
-								</div>
+							<div class="ms-4 min-w-0 flex-1 border-l-2 border-white/30 ps-4">
+								<LocationDetailPanel
+									:location="selectedLocation"
+									:personnel="personnel"
+									:selected-unit-id="selectedUnitId"
+									@unit-select="handleUnitSelect"
+								/>
 							</div>
 						</div>
-
-						<div
-							v-else-if="locations.length > 0"
-							key="pick-location"
-							class="mt-12 flex min-h-[600px] w-full items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
-						>
-							<p class="text-xl font-medium text-white/90 xl:text-2xl 2xl:text-3xl">請選擇地點</p>
-							<p class="mt-2 text-sm text-white/70 xl:text-base">
-								請從右側總覽點選地點以查看詳細資訊
-							</p>
-						</div>
-					</Transition>
+					</MonitoringDetailShell>
 				</div>
 			</section>
 
@@ -233,6 +210,7 @@ import type {
 	PeopleCountingLocation,
 	PeopleCountingLog,
 } from "~/types/peopleCounting"
+import MonitoringDetailShell from "~/components/monitoring/MonitoringDetailShell.vue"
 import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue"
 import LocationDetailPanel from "~/components/people-counting/LocationDetailPanel.vue"
 import LocationOverviewCard from "~/components/people-counting/LocationOverviewCard.vue"
@@ -259,7 +237,6 @@ import {
 	sortFlatSitesBySortedZoneLocations,
 } from "~/utils/sortOrder"
 import { computeCumulativePresence } from "~/utils/entryExitStats"
-
 const { isAdmin } = useAuth()
 
 // 使用統一的狀態管理
@@ -276,8 +253,16 @@ const {
 	handleUnitSelect,
 	getLocationZone,
 	setupEventListeners,
-	isLoadingLocation,
+	isLoadingLocations,
+	isLoadingZones,
 } = usePeopleCountingState()
+
+const detailEmpty = computed(
+	() =>
+		locations.value.length === 0 &&
+		!isLoadingLocations.value &&
+		!isLoadingZones.value,
+)
 
 const peopleCountingApi = usePeopleCountingApi()
 const { request } = useApiBase()
@@ -318,8 +303,6 @@ const currentCount = computed(() => {
 
 const isOverviewCollapsed = ref(false)
 const overviewListRef = ref<HTMLElement | null>(null)
-const detailPanelKey = computed(() => selectedLocationId.value || "__none__")
-
 // 地點管理與模擬框狀態
 const showLocationManagementDialog = ref(false)
 const showSimulationFrame = ref(false)

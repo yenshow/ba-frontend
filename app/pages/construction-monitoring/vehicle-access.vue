@@ -94,104 +94,35 @@
 						完整報表
 					</button>
 
-					<Transition name="fade" mode="out-in">
-						<div
-							v-if="selectedLocation"
-							:key="detailPanelKey"
-							class="mt-16 flex flex-col gap-12"
-							:class="
-								isOverviewCollapsed &&
-								'mx-auto w-full max-w-[1400px] monitoring-detail-enlarged 2xl:max-w-[1600px]'
-							"
-						>
-							<VehicleStatsPanel
-								:entry-count="entryCount"
-								:exit-count="exitCount"
-								:current-count="onSiteCount"
-								:on-site-capacity="onSiteCapacity"
-							/>
-							<div class="grid min-w-0 grid-cols-2 gap-4">
-								<div class="min-w-0">
-									<div
-										v-if="isLoadingLocationDetail"
-										class="flex justify-center py-8"
-										aria-busy="true"
-										aria-label="載入過車記錄"
-									>
-										<div
-											class="h-10 w-10 animate-spin rounded-full border-2 border-white/30 border-t-white/80"
-										/>
-									</div>
-									<VehicleDataLogTable
-										v-else
-										:logs="logs"
-										:display-columns="selectedLocation?.logDisplayColumns"
-									/>
-								</div>
-								<VehicleOrganizationGroupPanel
-									:groups="organizationGroups ?? []"
-									:selected-group-key="selectedOrganizationKey ?? undefined"
-									@select="handleOrganizationGroupSelect"
+					<MonitoringDetailShell
+						:empty="detailEmpty"
+						:enlarged="isOverviewCollapsed"
+						:content-class="vehicleDetailContentClass"
+						empty-title="尚無車輛進出地點"
+						empty-description="請在「地點管理」中新增含車輛進出系統的地點"
+					>
+						<template v-if="selectedLocation">
+						<VehicleStatsPanel
+							:entry-count="entryCount"
+							:exit-count="exitCount"
+							:current-count="onSiteCount"
+							:on-site-capacity="onSiteCapacity"
+						/>
+						<div class="grid min-w-0 grid-cols-2 items-stretch gap-4">
+							<div class="flex min-w-0 flex-col">
+								<VehicleDataLogTable
+									:logs="logs"
+									:display-columns="selectedLocation?.logDisplayColumns"
 								/>
 							</div>
+							<VehicleOrganizationGroupPanel
+								:groups="organizationGroups ?? []"
+								:selected-group-key="selectedOrganizationKey ?? undefined"
+								@select="handleOrganizationGroupSelect"
+							/>
 						</div>
-
-						<div
-							v-else-if="locations.length > 0"
-							key="pick-location"
-							class="mt-12 flex min-h-[600px] w-full items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
-						>
-							<div>
-								<svg
-									class="mx-auto mb-4 h-16 w-16 text-white/60"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-									aria-hidden="true"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0zM13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1h-1m-6-1a1 1 0 001-1V7m8 10v3m0 0v-3m0 0h-3m3 0h3"
-									/>
-								</svg>
-								<p class="text-xl font-medium text-white/90 xl:text-2xl 2xl:text-3xl">請選擇地點</p>
-								<p class="mt-2 text-sm text-white/70 xl:text-base">
-									請從右側列表點選地點以查看詳細資訊
-								</p>
-							</div>
-						</div>
-
-						<div
-							v-else-if="locations.length === 0 && !isLoadingZones"
-							key="no-locations"
-							class="mt-12 flex min-h-[400px] w-full items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
-						>
-							<div>
-								<svg
-									class="mx-auto mb-4 h-16 w-16 text-white/60"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-									aria-hidden="true"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0zM13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1h-1m-6-1a1 1 0 001-1V7m8 10v3m0 0v-3m0 0h-3m3 0h3"
-									/>
-								</svg>
-								<p class="text-xl font-medium text-white/90 xl:text-2xl 2xl:text-3xl">
-									尚無車輛進出地點
-								</p>
-								<p class="mt-2 text-sm text-white/70 xl:text-base">
-									請在「地點管理」中新增含車輛進出系統的地點
-								</p>
-							</div>
-						</div>
-					</Transition>
+						</template>
+					</MonitoringDetailShell>
 				</div>
 			</section>
 
@@ -313,6 +244,7 @@ import type {
 	VehicleAccessLocationSummary,
 	VehicleDataLog,
 } from "~/types/vehicleAccess"
+import MonitoringDetailShell from "~/components/monitoring/MonitoringDetailShell.vue"
 import VehicleStatsPanel from "~/components/vehicle-access/VehicleStatsPanel.vue"
 import VehicleDataLogTable from "~/components/vehicle-access/VehicleDataLogTable.vue"
 import VehicleOrganizationGroupPanel from "~/components/vehicle-access/VehicleOrganizationGroupPanel.vue"
@@ -332,7 +264,6 @@ import { useAuth } from "~/composables/core/useAuth"
 import { useToast } from "~/composables/core/useToast"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { toSimulationTimeRange, type OperationalDayRangeResponse } from "~/utils/entryExitTimeRange"
-
 const { canWrite, isAdmin } = useAuth()
 
 const {
@@ -354,7 +285,6 @@ const {
 	organizationGroupVehicleList,
 	setSelectedOrganizationKey,
 	isLoadingZones,
-	isLoadingLocationDetail,
 	loadZones,
 	loadLocationDetail,
 	loadFullReportLogs,
@@ -363,6 +293,16 @@ const {
 	setupEventListeners,
 	resetParkingStatsForSelectedSite,
 } = useVehicleAccessState()
+
+const detailEmpty = computed(
+	() => locations.value.length === 0 && !isLoadingZones.value,
+)
+
+const vehicleDetailContentClass = computed(() =>
+	["flex flex-col gap-12", isOverviewCollapsed.value && "monitoring-detail-enlarged"]
+		.filter(Boolean)
+		.join(" "),
+)
 
 const { showToast } = useToast()
 const { request } = useApiBase()
@@ -381,8 +321,6 @@ const vehicleAccessLocationApi = useVehicleAccessLocationApi()
 const adapter = useZoneSystemAdapter<VehicleAccessZone, VehicleAccessLocation>("vehicle_access")
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
 	useZoneManagement<VehicleAccessLocation, VehicleAccessZone>()
-
-const detailPanelKey = computed(() => filters.value.locationId ?? "__none__")
 
 const selectedLocationIdRef = computed({
 	get: () => filters.value.locationId ?? "",
