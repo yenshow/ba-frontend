@@ -89,29 +89,33 @@
 					</button>
 
 					<Transition name="fade" mode="out-in">
-						<div v-if="selectedLocation" :key="detailPanelKey" class="mt-16 flex flex-col gap-12">
-							<div class="flex-1">
-								<VehicleStatsPanel
-									:entry-count="entryCount"
-									:exit-count="exitCount"
-									:current-count="onSiteCount"
-									:on-site-capacity="onSiteCapacity"
-								/>
-							</div>
-							<!-- 當日過車記錄表 + 車輛群組（ISAPI 道閘在右側總覽卡） -->
-							<div class="grid grid-cols-2 gap-4">
-								<div class="space-y-3">
+						<div
+							v-if="selectedLocation"
+							:key="detailPanelKey"
+							class="mt-16 flex flex-col gap-12"
+							:class="[
+								isOverviewCollapsed && 'mx-auto w-full max-w-[1400px] 2xl:max-w-[1600px]',
+								isOverviewCollapsed && 'monitoring-detail-enlarged',
+							]"
+						>
+							<VehicleStatsPanel
+								:entry-count="entryCount"
+								:exit-count="exitCount"
+								:current-count="onSiteCount"
+								:on-site-capacity="onSiteCapacity"
+							/>
+							<div class="grid min-w-0 grid-cols-2 gap-4">
+								<div class="min-w-0">
 									<div v-if="isLoadingLogs" class="flex justify-center py-8">
 										<div
 											class="h-10 w-10 animate-spin rounded-full border-2 border-white/30 border-t-white/80"
-										></div>
-									</div>
-									<div v-else>
-										<VehicleDataLogTable
-											:logs="logs"
-											:display-columns="selectedLocation?.logDisplayColumns"
 										/>
 									</div>
+									<VehicleDataLogTable
+										v-else
+										:logs="logs"
+										:display-columns="selectedLocation?.logDisplayColumns"
+									/>
 								</div>
 								<VehicleOrganizationGroupPanel
 									:groups="organizationGroups ?? []"
@@ -456,6 +460,7 @@ const overviewSummariesWithZone = computed(() =>
 
 const isOverviewCollapsed = ref(false);
 const overviewListRef = ref<HTMLElement | null>(null);
+
 const detailPanelKey = computed(() => filters.value.locationId ?? "__none__");
 const showLocationManagementDialog = ref(false);
 

@@ -3,14 +3,14 @@
 		v-if="logs.length === 0"
 		class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
 	>
-		<p class="text-base text-white/60 2xl:text-lg">尚無過車記錄</p>
+		<p class="vehicle-log-empty text-base text-white/60 2xl:text-lg">尚無過車記錄</p>
 	</div>
 
-	<div v-else class="show-scrollbar overflow-x-auto">
+	<div v-else class="vehicle-log-table show-scrollbar overflow-x-auto">
 		<table class="w-full border-b-2 border-l-2 border-r-2 border-white/20">
 			<thead class="bg-white/20">
-				<tr class="text-center text-xs font-semibold text-white/80 2xl:text-sm">
-					<th v-for="col in displayColumns" :key="col" class="p-2">
+				<tr class="vehicle-log-th text-center text-xs font-semibold text-white/80 2xl:text-sm">
+					<th v-for="col in displayColumns" :key="col" class="vehicle-log-cell-pad p-2">
 						{{ VEHICLE_ACCESS_LOG_COLUMN_LABELS[col] }}
 					</th>
 				</tr>
@@ -20,13 +20,13 @@
 					<td
 						v-for="col in displayColumns"
 						:key="`${log.id}-${col}`"
-						class="p-2"
+						class="vehicle-log-cell-pad p-2"
 						:class="col === 'plate_image' ? 'flex items-center justify-center' : ''"
 					>
 						<template v-if="col === 'plate_image'">
 							<button
 								type="button"
-								class="relative block h-12 w-12 overflow-hidden rounded bg-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-400 2xl:h-16 2xl:w-16"
+								class="vehicle-log-plate relative block h-12 w-12 overflow-hidden rounded bg-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-400 2xl:h-16 2xl:w-16"
 								:aria-label="`放大檢視 ${log.license_plate ?? ''} 車牌圖片`"
 								:disabled="!imageUrls[log.id] || imageLoading[log.id] || imageErrors[log.id]"
 								@click="openLightbox(imageUrls[log.id])"
@@ -76,25 +76,27 @@
 							</button>
 						</template>
 						<template v-else-if="col === 'person_group'">
-							<span class="text-sm 2xl:text-base">{{
+							<span class="vehicle-log-cell text-sm 2xl:text-base">{{
 								log.vehicle_list_name?.trim() || log.person_group_name?.trim() || "-"
 							}}</span>
 						</template>
 						<template v-else-if="col === 'license_plate'">
-							<span class="text-sm font-medium 2xl:text-base">
+							<span class="vehicle-log-cell text-sm font-medium 2xl:text-base">
 								{{ formatVehicleLogText(log.license_plate) }}
 							</span>
 						</template>
 						<template v-else-if="col === 'lane'">
-							<span class="text-sm 2xl:text-base">{{ formatVehicleLogLane(log) }}</span>
+							<span class="vehicle-log-cell text-sm 2xl:text-base">{{ formatVehicleLogLane(log) }}</span>
 						</template>
 						<template v-else-if="col === 'owner_name'">
-							<span class="text-sm 2xl:text-base">{{ formatVehicleLogText(log.owner_name) }}</span>
+							<span class="vehicle-log-cell text-sm 2xl:text-base">{{
+								formatVehicleLogText(log.owner_name)
+							}}</span>
 						</template>
 						<template v-else-if="col === 'pass_result'">
 							<span
 								:class="[
-									'inline-block rounded-full px-2 py-0.5 text-xs font-medium 2xl:text-sm',
+									'vehicle-log-tag inline-block rounded-full px-2 py-0.5 text-xs font-medium 2xl:text-sm',
 									getVehiclePassResultTagClass(log),
 								]"
 								:aria-label="getVehiclePassResultLabel(log)"
@@ -103,7 +105,7 @@
 							</span>
 						</template>
 						<template v-else-if="col === 'time'">
-							<div class="flex flex-col items-center gap-0.5 text-xs 2xl:text-sm">
+							<div class="vehicle-log-time flex flex-col items-center gap-0.5 text-xs 2xl:text-sm">
 								<span>{{ formatDate(log.trigger_time) }}</span>
 								<span>{{ formatTime(log.trigger_time) }}</span>
 							</div>
@@ -154,10 +156,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, toRef, computed } from "vue"
-import type { VehicleDataLog } from "~/types/vehicleAccess"
-import { formatDate, formatTime } from "~/utils/dateUtils"
-import { useResolvedMediaList } from "~/composables/core/useImageCenter"
+import { ref, nextTick, toRef, computed } from "vue";
+import type { VehicleDataLog } from "~/types/vehicleAccess";
+import { formatDate, formatTime } from "~/utils/dateUtils";
+import { useResolvedMediaList } from "~/composables/core/useImageCenter";
 import {
 	VEHICLE_ACCESS_LOG_COLUMN_LABELS,
 	normalizeVehicleLogDisplayColumns,
@@ -166,18 +168,18 @@ import {
 	getVehiclePassResultLabel,
 	getVehiclePassResultTagClass,
 	type VehicleAccessLogColumnKey,
-} from "~/utils/vehicleAccessLogColumns"
+} from "~/utils/vehicleAccessLogColumns";
 
 interface Props {
-	logs: VehicleDataLog[]
-	displayColumns?: VehicleAccessLogColumnKey[] | string[] | null
+	logs: VehicleDataLog[];
+	displayColumns?: VehicleAccessLogColumnKey[] | string[] | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	displayColumns: () => [],
-})
+});
 
-const displayColumns = computed(() => normalizeVehicleLogDisplayColumns(props.displayColumns))
+const displayColumns = computed(() => normalizeVehicleLogDisplayColumns(props.displayColumns));
 
 const {
 	urls: imageUrls,
@@ -187,18 +189,18 @@ const {
 } = useResolvedMediaList(toRef(props, "logs"), {
 	getRaw: (log) => log.plate_license_image_url,
 	getId: (log) => log.id,
-})
+});
 
-const lightboxImageUrl = ref<string | null>(null)
-const lightboxRef = ref<HTMLElement | null>(null)
+const lightboxImageUrl = ref<string | null>(null);
+const lightboxRef = ref<HTMLElement | null>(null);
 
 const openLightbox = (url: string | undefined) => {
-	if (!url) return
-	lightboxImageUrl.value = url
-	nextTick(() => lightboxRef.value?.focus())
-}
+	if (!url) return;
+	lightboxImageUrl.value = url;
+	nextTick(() => lightboxRef.value?.focus());
+};
 
 const closeLightbox = () => {
-	lightboxImageUrl.value = null
-}
+	lightboxImageUrl.value = null;
+};
 </script>

@@ -179,6 +179,54 @@
 	}
 }
 
+/* 工地監控詳情：總覽收合時放大車流統計數字灰底與下方記錄表／群組字級（車輛、人流等） */
+.monitoring-detail-enlarged .vehicle-stats-value {
+	@apply min-w-[180px] 2xl:min-w-[320px];
+}
+.monitoring-detail-enlarged .vehicle-log-empty,
+.monitoring-detail-enlarged .people-log-empty {
+	@apply text-lg 2xl:text-xl;
+}
+.monitoring-detail-enlarged .vehicle-log-th,
+.monitoring-detail-enlarged .people-log-th {
+	@apply text-sm 2xl:text-base;
+}
+.monitoring-detail-enlarged .vehicle-log-cell,
+.monitoring-detail-enlarged .people-log-cell {
+	@apply text-base 2xl:text-lg;
+}
+.monitoring-detail-enlarged .vehicle-log-tag,
+.monitoring-detail-enlarged .people-log-tag {
+	@apply text-sm 2xl:text-base;
+}
+.monitoring-detail-enlarged .vehicle-log-time,
+.monitoring-detail-enlarged .people-log-time {
+	@apply text-sm 2xl:text-base;
+}
+.monitoring-detail-enlarged .vehicle-log-plate,
+.monitoring-detail-enlarged .people-log-shot {
+	@apply h-14 w-14 2xl:h-20 2xl:w-20;
+}
+.monitoring-detail-enlarged .vehicle-log-cell-pad,
+.monitoring-detail-enlarged .people-log-cell-pad {
+	@apply p-2.5 2xl:p-3;
+}
+.monitoring-detail-enlarged .vehicle-org-title,
+.monitoring-detail-enlarged .people-unit-title {
+	@apply text-xl 2xl:text-2xl;
+}
+.monitoring-detail-enlarged .vehicle-org-name,
+.monitoring-detail-enlarged .people-unit-name {
+	@apply text-lg 2xl:text-xl;
+}
+.monitoring-detail-enlarged .vehicle-org-count,
+.monitoring-detail-enlarged .people-unit-count {
+	@apply text-base 2xl:text-lg;
+}
+.monitoring-detail-enlarged .people-unit-empty {
+	@apply text-base xl:text-lg;
+}
+
 /* ========================================
    圖片模糊載入（平面圖、首頁建築圖、登入頁等）
    ======================================== */

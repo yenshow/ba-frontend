@@ -77,10 +77,13 @@
 							v-if="selectedLocation || isLoadingLocation"
 							:key="detailPanelKey"
 							class="mt-16 flex flex-col gap-12"
+							:class="
+								isOverviewCollapsed && 'mx-auto w-full max-w-[1400px] 2xl:max-w-[1600px]'
+							"
 						>
 							<div
 								v-if="isLoadingLocation"
-								class="grid min-h-[480px] flex-1 grid-cols-2 gap-4"
+								class="grid min-h-[480px] min-w-0 grid-cols-2 gap-4"
 								aria-busy="true"
 								aria-label="載入地點詳情"
 							>
@@ -88,16 +91,15 @@
 								<div class="h-full animate-pulse rounded-xl bg-white/10" />
 							</div>
 							<template v-else-if="selectedLocation">
-								<!-- 上：統計 -->
-								<div class="flex-1">
-									<LocationStatsPanel
-										:entry-count="selectedLocation.entryCount || 0"
-										:exit-count="selectedLocation.exitCount || 0"
-										:current-count="currentCount"
-									/>
-								</div>
-								<!-- 左下、右下：記錄表 + 單位列表 -->
-								<div class="grid grid-cols-2 gap-4">
+								<LocationStatsPanel
+									:entry-count="selectedLocation.entryCount || 0"
+									:exit-count="selectedLocation.exitCount || 0"
+									:current-count="currentCount"
+								/>
+								<div
+									class="grid min-w-0 grid-cols-2 gap-4"
+									:class="{ 'monitoring-detail-enlarged': isOverviewCollapsed }"
+								>
 									<!-- 左下：進出場記錄表 -->
 									<EntryExitLogTable
 										:logs="logs"
@@ -106,14 +108,18 @@
 									/>
 									<!-- 右下：人員群組列表 -->
 									<div class="space-y-4">
-										<h3 class="bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
+										<h3
+											class="people-unit-title bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
+										>
 											人員群組
 										</h3>
 										<div
 											v-if="!selectedLocation.units || selectedLocation.units.length === 0"
 											class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
 										>
-											<p class="text-sm text-white/60 xl:text-base">尚無單位資料</p>
+											<p class="people-unit-empty text-sm text-white/60 xl:text-base">
+												尚無單位資料
+											</p>
 										</div>
 										<div v-else class="grid grid-cols-3 gap-4 2xl:grid-cols-4">
 											<div
@@ -134,12 +140,16 @@
 												@keydown.enter="handleUnitCardActivate(unit)"
 												@keydown.space.prevent="handleUnitCardActivate(unit)"
 											>
-												<div class="text-base font-semibold tracking-wide text-white 2xl:text-lg">
+												<div
+													class="people-unit-name text-base font-semibold tracking-wide text-white 2xl:text-lg"
+												>
 													{{ unit.name }}
 												</div>
 												<!-- 攝影機：顯示進場/出場人數 -->
 												<template v-if="isIsapiCamera">
-													<div class="space-x-0.5 text-sm text-white 2xl:text-base">
+													<div
+														class="people-unit-count space-x-0.5 text-sm text-white 2xl:text-base"
+													>
 														<span class="text-green-400">進 {{ unit.entryCount ?? 0 }}</span>
 														<span>/</span>
 														<span class="text-blue-300">出 {{ unit.exitCount ?? 0 }}</span>
@@ -147,7 +157,9 @@
 												</template>
 												<!-- YSCP / 門禁：顯示在場人數/容量 -->
 												<template v-else>
-													<div class="space-x-0.5 text-base text-white 2xl:text-lg">
+													<div
+														class="people-unit-count space-x-0.5 text-base text-white 2xl:text-lg"
+													>
 														<span class="text-green-400">{{ unit.currentCount || 0 }}</span>
 														<span>/</span>
 														<span>{{ unit.capacity || 0 }}</span>

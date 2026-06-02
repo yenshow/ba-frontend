@@ -1,11 +1,11 @@
 <template>
-	<div class="mx-auto grid max-w-[90%] grid-cols-3 gap-8 rounded-lg text-white">
+	<div class="mx-auto grid w-full max-w-6xl grid-cols-3 gap-6 rounded-lg text-white xl:gap-8">
 		<div class="flex flex-col items-center justify-center gap-4 bg-white/20 py-4">
 			<div class="whitespace-nowrap text-[24px] font-semibold leading-none 2xl:text-[36px]">
 				進場車輛
 			</div>
 			<div
-				class="flex min-w-[120px] items-center justify-center bg-black/20 text-[48px] leading-none 2xl:min-w-[200px] 2xl:text-[96px]"
+				class="vehicle-stats-value flex min-w-[120px] items-center justify-center bg-black/20 text-[48px] leading-none 2xl:min-w-[200px] 2xl:text-[96px]"
 			>
 				{{ entryCount ?? 0 }}
 			</div>
@@ -16,7 +16,7 @@
 				出場車輛
 			</div>
 			<div
-				class="flex min-w-[120px] items-center justify-center bg-black/20 text-[48px] leading-none 2xl:min-w-[200px] 2xl:text-[96px]"
+				class="vehicle-stats-value flex min-w-[120px] items-center justify-center bg-black/20 text-[48px] leading-none 2xl:min-w-[200px] 2xl:text-[96px]"
 			>
 				{{ exitCount ?? 0 }}
 			</div>
@@ -24,13 +24,13 @@
 
 		<div class="flex flex-col items-center justify-center gap-4 bg-white/20 py-4">
 			<div class="whitespace-nowrap text-[24px] font-semibold leading-none 2xl:text-[36px]">
-				在場車輛
+				{{ thirdColumnLabel }}
 			</div>
 			<div
-				class="flex min-w-[120px] items-center justify-center bg-black/20 text-[48px] leading-none 2xl:min-w-[200px] 2xl:text-[96px]"
+				class="vehicle-stats-value flex min-w-[120px] items-center justify-center bg-black/20 text-[48px] leading-none 2xl:min-w-[200px] 2xl:text-[96px]"
 				:class="isAtOrOverCapacity ? 'text-amber-200' : ''"
 			>
-				{{ onSiteDisplay }}
+				{{ thirdColumnDisplay }}
 			</div>
 		</div>
 	</div>
@@ -48,11 +48,21 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const onSiteDisplay = computed(() => {
-	const n = props.currentCount ?? 0;
+const hasParkingCapacity = computed(() => {
 	const cap = props.onSiteCapacity;
-	if (cap != null && cap > 0) return `${n}/${cap}`;
-	return String(n);
+	return cap != null && cap > 0;
+});
+
+const thirdColumnLabel = computed(() =>
+	hasParkingCapacity.value ? "剩餘車位" : "在場車輛",
+);
+
+/** 停車場：顯示剩餘車位；其餘模式：顯示在場車輛數（統計仍由 currentCount 計算） */
+const thirdColumnDisplay = computed(() => {
+	const onSite = props.currentCount ?? 0;
+	const cap = props.onSiteCapacity;
+	if (cap != null && cap > 0) return String(Math.max(0, cap - onSite));
+	return String(onSite);
 });
 
 const isAtOrOverCapacity = computed(() => {

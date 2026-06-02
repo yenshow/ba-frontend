@@ -1,5 +1,5 @@
 <template>
-	<div class="mx-auto grid max-w-[90%] grid-cols-3 gap-8 rounded-lg text-white">
+	<div class="mx-auto grid w-full max-w-6xl grid-cols-3 gap-6 rounded-lg text-white xl:gap-8">
 		<div class="flex flex-col items-center justify-center gap-4 bg-white/20 py-4">
 			<div class="whitespace-nowrap text-[24px] font-semibold leading-none 2xl:text-[36px]">
 				進場人數
