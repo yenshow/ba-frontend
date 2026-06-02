@@ -37,28 +37,27 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed } from "vue"
 
 interface Props {
-	entryCount: number;
-	exitCount: number;
-	currentCount: number;
-	/** 停車場模式：在場上限，顯示為「目前/上限」 */
-	onSiteCapacity?: number | null;
+	entryCount: number
+	exitCount: number
+	currentCount: number
+	onSiteCapacity?: number | null
 }
 
-const props = defineProps<Props>();
+const props = defineProps<Props>()
 
 const onSiteDisplay = computed(() => {
-	const n = props.currentCount ?? 0;
-	const cap = props.onSiteCapacity;
-	if (cap != null && cap > 0) return `${n}/${cap}`;
-	return String(n);
-});
+	const n = props.currentCount ?? 0
+	const cap = props.onSiteCapacity
+	if (cap != null && cap > 0) return `${n}/${cap}`
+	return String(n)
+})
 
 const isAtOrOverCapacity = computed(() => {
-	const cap = props.onSiteCapacity;
-	if (cap == null || cap < 1) return false;
-	return (props.currentCount ?? 0) >= cap;
-});
+	const cap = props.onSiteCapacity
+	if (cap == null || cap < 1) return false
+	return (props.currentCount ?? 0) >= cap
+})
 </script>

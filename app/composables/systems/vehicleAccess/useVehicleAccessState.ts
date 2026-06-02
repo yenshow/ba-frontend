@@ -128,6 +128,8 @@ export const useVehicleAccessState = () => {
 	const isLoadingLogs = ref(false);
 	const isLoadingOverview = ref(false);
 	const isLoadingCounts = ref(false);
+	const isLoadingLocationDetail = ref(false);
+	let locationDetailLoadGeneration = 0;
 
 	const locations = computed(() =>
 		[...vehicleAccessZones.value]
@@ -141,7 +143,13 @@ export const useVehicleAccessState = () => {
 	const selectedLocation = computed(() => {
 		const id = filters.value.locationId;
 		if (!id) return null;
-		return locations.value.find(loc => loc.id === id || loc.locationId === id);
+		return locations.value.find(
+			loc =>
+				loc.id === id ||
+				loc.locationId === id ||
+				String(loc.id ?? "") === id ||
+				String(loc.locationId ?? "") === id
+		);
 	});
 
 	const laneIds = computed(() => getLaneIds(selectedLocation.value));
@@ -501,6 +509,30 @@ export const useVehicleAccessState = () => {
 		clearUiForSelectedSite();
 	};
 
+	/** 切換地點後載入詳情（統計、群組、過車表）；總覽摘要請另行 loadOverviewSummaries */
+	const loadLocationDetail = async (): Promise<void> => {
+		const locationId = filters.value.locationId;
+		if (!locationId) {
+			isLoadingLocationDetail.value = false;
+			return;
+		}
+		const generation = ++locationDetailLoadGeneration;
+		isLoadingLocationDetail.value = true;
+		try {
+			await Promise.all([
+				loadEntryExitOnSiteCounts(),
+				loadOrganizationData(),
+				loadLogs()
+			]);
+		} catch {
+			// 錯誤已在各 loader 處理
+		} finally {
+			if (generation === locationDetailLoadGeneration) {
+				isLoadingLocationDetail.value = false;
+			}
+		}
+	};
+
 	const setupEventListeners = (onRefetch: () => void | Promise<void>, debounceMs = 500) =>
 		setupDebouncedRefetchListeners(
 			onRefetch,
@@ -543,8 +575,10 @@ export const useVehicleAccessState = () => {
 		},
 		isLoadingZones,
 		isLoadingLogs,
+		isLoadingLocationDetail,
 		loadZones,
 		loadLogs,
+		loadLocationDetail,
 		loadEntryExitOnSiteCounts,
 		loadOverviewSummaries,
 		getLocationZone,

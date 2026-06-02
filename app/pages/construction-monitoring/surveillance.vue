@@ -1,12 +1,46 @@
 <template>
 	<div>
 		<!-- 影像監視系統頁面內容 - 參考照明系統排版 -->
-		<div class="flex justify-center gap-6 2xl:gap-8">
-			<!-- 左側：監控畫面（主要內容 - 大） -->
-			<section class="relative flex-[1.2] 2xl:flex-[1.3]">
+		<div
+			class="flex min-w-0 items-stretch justify-center"
+			:class="isOverviewCollapsed ? 'gap-0' : 'gap-4 xl:gap-6 2xl:gap-8'"
+		>
+			<section class="relative min-w-0 flex-1 2xl:flex-[1.3]">
+				<Transition name="fade" mode="out-in">
+					<button
+						v-if="isOverviewCollapsed"
+						key="overview-expand-tab"
+						type="button"
+						class="absolute -right-px top-24 z-20 flex flex-col items-center gap-2 rounded-l-xl border-2 border-r-0 border-white/80 bg-white/30 px-2.5 py-4 text-white shadow-md transition-colors hover:bg-white/40 2xl:top-28"
+						aria-label="展開列表"
+						title="展開列表"
+						@click="isOverviewCollapsed = false"
+					>
+						<span
+							class="text-sm font-semibold tracking-[0.35em] text-white xl:text-base"
+							style="writing-mode: vertical-rl"
+						>
+							列表
+						</span>
+						<svg
+							class="h-5 w-5 shrink-0 2xl:h-6 2xl:w-6"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+							aria-hidden="true"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M15 19l-7-7 7-7"
+							/>
+						</svg>
+					</button>
+				</Transition>
+
 				<div
-					ref="leftSectionRef"
-					class="flex flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-6 2xl:p-8"
+					class="flex min-h-[664px] flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-6 2xl:min-h-[848px] 2xl:p-8"
 				>
 					<!-- 控制面板 -->
 					<div class="mb-4">
@@ -77,76 +111,69 @@
 				</div>
 			</section>
 
-			<!-- 右側：攝影機列表（可收縮） -->
 			<aside
-				:class="[
-					'flex flex-col transition-all duration-500 ease-in-out',
-					isSidebarCollapsed ? 'flex-[0.05]' : 'flex-[0.8] 2xl:flex-[0.7]',
-				]"
-				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
+				class="overview-sidebar"
+				:class="isOverviewCollapsed ? 'overview-sidebar--collapsed' : 'overview-sidebar--expanded'"
+				:aria-hidden="isOverviewCollapsed"
 			>
 				<div
-					class="show-scrollbar relative h-full min-w-[72px] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8 transition-all duration-500 ease-in-out 2xl:min-w-[84px]"
+					class="relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8"
 				>
-					<!-- 標題與收縮按鈕 -->
-					<Transition name="fade">
+					<Transition name="fade" mode="out-in">
 						<div
-							v-if="!isSidebarCollapsed"
-							key="title"
-							class="mb-4 border-b border-white/30 px-4 pb-4"
+							v-if="!isOverviewCollapsed"
+							key="overview-panel"
+							class="flex h-full min-h-0 flex-col overflow-hidden"
 						>
-							<div class="flex flex-col gap-4">
-								<div class="flex items-center justify-center">
-									<h2 class="text-2xl font-semibold text-white 2xl:text-3xl">攝影機列表</h2>
-									<span
-										class="ml-2 rounded-full bg-white/20 px-2.5 py-0.5 text-base font-medium text-white backdrop-blur-sm 2xl:text-lg"
-									>
-										{{ filteredCameras.length }}
-									</span>
-								</div>
-								<FilterDropdown
-									v-model="surveillanceGroupFilter"
-									:options="surveillanceGroupFilterOptions"
-									placeholder="全部"
-									text-size="text-sm 2xl:text-base"
-								/>
-							</div>
-						</div>
-					</Transition>
-					<button
-						type="button"
-						class="absolute right-4 top-6 z-10 flex h-8 w-8 items-center justify-center rounded-lg border border-white/80 text-white hover:bg-white/20 2xl:h-12 2xl:w-12"
-						@click="isSidebarCollapsed = !isSidebarCollapsed"
-						:title="isSidebarCollapsed ? '展開列表' : '收縮列表'"
-					>
-						<svg
-							class="h-6 w-6 2xl:h-7 2xl:w-7"
-							:class="{ 'rotate-180': isSidebarCollapsed }"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9 5l7 7-7 7"
-							/>
-						</svg>
-					</button>
+							<button
+								type="button"
+								class="absolute right-4 top-6 z-10 flex h-8 w-8 items-center justify-center rounded-lg border border-white/80 text-white transition-colors hover:bg-white/20 2xl:h-12 2xl:w-12"
+								aria-expanded="true"
+								aria-label="收縮列表"
+								title="收縮列表"
+								@click="isOverviewCollapsed = true"
+							>
+								<svg
+									class="h-5 w-5 xl:h-6 xl:w-6 2xl:h-7 2xl:w-7"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+									aria-hidden="true"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M9 5l7 7-7 7"
+									/>
+								</svg>
+							</button>
 
-					<!-- 側邊欄內容 -->
-					<Transition name="fade">
-						<div
-							v-if="!isSidebarCollapsed"
-							key="content"
-							class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4"
-						>
-							<!-- 攝影機卡片列表（依型號分類分組，不篩選設備） -->
-							<div class="space-y-6">
+							<div class="mb-4 border-b border-white/30 px-4 pb-4">
+								<div class="flex flex-col gap-4">
+									<div class="flex items-center justify-center">
+										<h2 class="text-xl font-semibold text-white xl:text-2xl 2xl:text-3xl">
+											攝影機列表
+										</h2>
+										<span
+											class="ml-2 rounded-full bg-white/20 px-2.5 py-0.5 text-base font-medium text-white backdrop-blur-sm 2xl:text-lg"
+										>
+											{{ filteredCameras.length }}
+										</span>
+									</div>
+									<FilterDropdown
+										v-model="surveillanceGroupFilter"
+										:options="surveillanceGroupFilterOptions"
+										placeholder="全部"
+										text-size="text-sm 2xl:text-base"
+									/>
+								</div>
+							</div>
+
+							<div class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4">
 								<div
 									v-if="filteredCameraCategoryGroups.length === 0"
-									class="h-full py-8 text-center text-sm text-white/60 xl:text-base"
+									class="py-8 text-center text-sm text-white/60 xl:text-base"
 								>
 									{{ cameras.length === 0 ? "沒有攝影機" : "此群組無攝影機" }}
 								</div>
@@ -187,7 +214,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, watch } from "vue"
+import { onMounted, watch, ref } from "vue"
 import type { GridLayout, MonitorView } from "~/types/surveillance"
 import type { CameraDeviceConfig } from "~/types/device"
 import { useToast } from "~/composables/core/useToast"
@@ -206,32 +233,6 @@ const { handleError } = useErrorHandler()
 
 // 使用統一的串流狀態管理
 const streamStatus = useStreamStatus()
-
-// 左側區域參考與高度（用於使右側同高）
-const leftSectionRef = ref<HTMLElement | null>(null)
-const leftSectionHeight = ref<number | null>(null)
-
-// ResizeObserver 監聽左側高度
-let leftSectionResizeObserver: ResizeObserver | null = null
-
-const updateLeftSectionHeight = () => {
-	if (leftSectionRef.value) {
-		leftSectionHeight.value = leftSectionRef.value.offsetHeight
-	}
-}
-
-const initLeftSectionObserver = () => {
-	if (typeof ResizeObserver === "undefined" || !leftSectionRef.value) return
-
-	// 先設定一次初始高度
-	updateLeftSectionHeight()
-
-	// ResizeObserver 會自動監聽所有尺寸變化（內容變化、布局變化等）
-	leftSectionResizeObserver = new ResizeObserver(() => {
-		updateLeftSectionHeight()
-	})
-	leftSectionResizeObserver.observe(leftSectionRef.value)
-}
 
 // 狀態管理（使用統一的串流狀態管理）
 const loadError = ref<string | null>(null)
@@ -264,8 +265,7 @@ const selectedCameraIds = computed(() => monitorViews.value.map((view) => view.d
 
 const isFullscreenOpen = ref(false)
 
-// 側邊欄收縮狀態
-const isSidebarCollapsed = ref(false)
+const isOverviewCollapsed = ref(false)
 
 const loadCameraGroups = async () => {
 	try {
@@ -333,7 +333,6 @@ watch(gridLayout, (newLayout) => {
 			streamStatus.removeMonitorView(view.deviceId)
 		})
 	}
-	// ResizeObserver 會自動監聽尺寸變化，無需手動更新
 })
 
 watch(
@@ -346,16 +345,7 @@ watch(
 	}
 )
 
-onBeforeUnmount(() => {
-	if (leftSectionResizeObserver && leftSectionRef.value) {
-		leftSectionResizeObserver.unobserve(leftSectionRef.value)
-		leftSectionResizeObserver.disconnect()
-		leftSectionResizeObserver = null
-	}
-})
-
 onMounted(async () => {
-	initLeftSectionObserver()
 	void loadCameraGroups()
 
 	try {
