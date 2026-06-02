@@ -1,6 +1,6 @@
 <template>
-	<div class="min-h-[220px] space-y-4">
-		<h3 class="bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
+	<div class="vehicle-org-panel min-h-[220px] space-y-4">
+		<h3 class="vehicle-org-title bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
 			車輛群組
 		</h3>
 		<div class="grid grid-cols-3 gap-4 2xl:grid-cols-4">
@@ -12,7 +12,7 @@
 				:class="{
 					'border-white/70': selectedGroupKey === group.groupKey,
 					'bg-white/20': (group.onSiteCount || 0) > 0,
-					'bg-black/20': (group.onSiteCount || 0) === 0
+					'bg-black/20': (group.onSiteCount || 0) === 0,
 				}"
 				tabindex="0"
 				role="button"
@@ -22,11 +22,11 @@
 				@keydown.space.prevent="handleSelect(group)"
 			>
 				<div
-					class="max-w-full truncate px-1 text-base font-semibold tracking-wide text-white 2xl:text-lg"
+					class="vehicle-org-name max-w-full truncate px-1 text-base font-semibold tracking-wide text-white 2xl:text-lg"
 				>
 					{{ group.personGroupName }}
 				</div>
-				<div class="mt-0.5 flex items-center gap-1 text-sm text-white 2xl:text-base">
+				<div class="vehicle-org-count mt-0.5 flex items-center gap-1 text-sm text-white 2xl:text-base">
 					<span class="text-green-400">{{ group.onSiteCount || 0 }}</span>
 					<span>/</span>
 					<span>{{ group.vehicleCount || 0 }}</span>
@@ -37,20 +37,18 @@
 </template>
 
 <script setup lang="ts">
-import type { VehicleOrganizationGroupItem } from "~/types/vehicleAccess";
+import type { VehicleOrganizationGroupItem } from "~/types/vehicleAccess"
 
-interface Props {
-	groups: VehicleOrganizationGroupItem[];
-	selectedGroupKey?: string;
-}
-
-defineProps<Props>();
+defineProps<{
+	groups: VehicleOrganizationGroupItem[]
+	selectedGroupKey?: string
+}>()
 
 const emit = defineEmits<{
-	(e: "select", groupKey: string): void;
-}>();
+	(e: "select", groupKey: string): void
+}>()
 
 const handleSelect = (group: VehicleOrganizationGroupItem) => {
-	if (group.groupKey) emit("select", group.groupKey);
-};
+	if (group.groupKey) emit("select", group.groupKey)
+}
 </script>

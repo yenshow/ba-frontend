@@ -1,6 +1,8 @@
 <template>
 	<div class="space-y-4 min-h-[220px]">
-		<h3 class="font-semibold text-lg bg-white/20 text-white text-center 2xl:text-xl py-1">
+		<h3
+			class="people-unit-title bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
+		>
 			人員群組
 		</h3>
 		<div class="grid grid-cols-3 2xl:grid-cols-4 gap-2 2xl:gap-4">
@@ -21,18 +23,18 @@
 				@keydown.enter="handleUnitActivate(unit.id)"
 				@keydown.space.prevent="handleUnitActivate(unit.id)"
 			>
-				<div class="text-base font-semibold text-white 2xl:text-lg tracking-wide">
+				<div class="people-unit-name text-base font-semibold tracking-wide text-white 2xl:text-lg">
 					{{ unit.name }}
 				</div>
 				<template v-if="isIsapiCamera">
-					<div class="text-sm text-white 2xl:text-base space-x-0.5">
+					<div class="people-unit-count space-x-0.5 text-sm text-white 2xl:text-base">
 						<span class="text-green-400">進 {{ unit.entryCount ?? 0 }}</span>
 						<span>/</span>
 						<span class="text-blue-300">出 {{ unit.exitCount ?? 0 }}</span>
 					</div>
 				</template>
 				<template v-else>
-					<div class="text-base text-white 2xl:text-lg space-x-0.5">
+					<div class="people-unit-count space-x-0.5 text-base text-white 2xl:text-lg">
 						<span class="text-green-400">{{ unit.currentCount || 0 }}</span>
 						<span>/</span>
 						<span>{{ unit.capacity || 0 }}</span>

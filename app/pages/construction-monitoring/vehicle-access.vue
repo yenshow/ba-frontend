@@ -95,44 +95,45 @@
 					</button>
 
 					<Transition name="fade" mode="out-in">
-						<div v-if="selectedLocation" :key="detailPanelKey" class="mt-16 flex flex-col gap-12">
-							<div
-								v-if="isLoadingLocationDetail"
-								class="space-y-12"
-								aria-busy="true"
-								aria-label="載入地點詳情"
-							>
-								<div class="grid grid-cols-3 gap-4">
+						<div
+							v-if="selectedLocation"
+							:key="detailPanelKey"
+							class="mt-16 flex flex-col gap-12"
+							:class="[
+								isOverviewCollapsed && 'mx-auto w-full max-w-[1400px] 2xl:max-w-[1600px]',
+								isOverviewCollapsed && 'monitoring-detail-enlarged',
+							]"
+						>
+							<VehicleStatsPanel
+								:entry-count="entryCount"
+								:exit-count="exitCount"
+								:current-count="onSiteCount"
+								:on-site-capacity="onSiteCapacity"
+							/>
+							<div class="grid min-w-0 grid-cols-2 gap-4">
+								<div class="min-w-0">
 									<div
-										v-for="i in 3"
-										:key="`stat-skeleton-${i}`"
-										class="h-28 animate-pulse rounded-xl bg-white/10 2xl:h-32"
-									/>
-								</div>
-								<div class="grid grid-cols-2 gap-4">
-									<div class="h-48 animate-pulse rounded-xl bg-white/10" />
-									<div class="h-48 animate-pulse rounded-xl bg-white/10" />
-								</div>
-							</div>
-							<template v-else>
-								<VehicleStatsPanel
-									:entry-count="entryCount"
-									:exit-count="exitCount"
-									:current-count="onSiteCount"
-									:on-site-capacity="onSiteCapacity"
-								/>
-								<div class="grid grid-cols-2 gap-4">
+										v-if="isLoadingLocationDetail"
+										class="flex justify-center py-8"
+										aria-busy="true"
+										aria-label="載入過車記錄"
+									>
+										<div
+											class="h-10 w-10 animate-spin rounded-full border-2 border-white/30 border-t-white/80"
+										/>
+									</div>
 									<VehicleDataLogTable
+										v-else
 										:logs="logs"
 										:display-columns="selectedLocation?.logDisplayColumns"
 									/>
-									<VehicleOrganizationGroupPanel
-										:groups="organizationGroups ?? []"
-										:selected-group-key="selectedOrganizationKey ?? undefined"
-										@select="handleOrganizationGroupSelect"
-									/>
 								</div>
-							</template>
+								<VehicleOrganizationGroupPanel
+									:groups="organizationGroups ?? []"
+									:selected-group-key="selectedOrganizationKey ?? undefined"
+									@select="handleOrganizationGroupSelect"
+								/>
+							</div>
 						</div>
 
 						<div
@@ -371,6 +372,7 @@ const isGroupDialogOpen = ref(false)
 const showIsapiManageDialog = ref(false)
 const isOverviewCollapsed = ref(false)
 const showLocationManagementDialog = ref(false)
+
 const overviewListRef = ref<HTMLElement | null>(null)
 const simulationLogs = ref<VehicleDataLog[]>([])
 const simulationTimeRange = ref({ startDate: "", endDate: "", preset: "today" })

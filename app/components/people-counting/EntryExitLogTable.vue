@@ -4,14 +4,14 @@
 			v-if="logs.length === 0"
 			class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
 		>
-			<p class="text-base text-white/60 2xl:text-lg">尚無進出場記錄</p>
+			<p class="people-log-empty text-base text-white/60 2xl:text-lg">尚無進出場記錄</p>
 		</div>
 
 		<div v-else>
 			<table class="w-full border-b-2 border-l-2 border-r-2 border-white/20">
 				<thead class="bg-white/20">
-					<tr class="text-center text-xs font-semibold text-white/80 2xl:text-sm">
-						<th v-for="col in recordColumns" :key="col" class="p-2">
+					<tr class="people-log-th text-center text-xs font-semibold text-white/80 2xl:text-sm">
+						<th v-for="col in recordColumns" :key="col" class="people-log-cell-pad p-2">
 							{{ recordColumnLabels[col] }}
 						</th>
 					</tr>
@@ -25,13 +25,13 @@
 						<td
 							v-for="col in recordColumns"
 							:key="`${log.id}-${col}`"
-							class="p-2"
+							class="people-log-cell-pad p-2"
 							:class="col === 'screenshot' ? 'flex items-center justify-center' : ''"
 						>
 							<template v-if="col === 'screenshot'">
 								<button
 									type="button"
-									class="relative block h-12 w-12 overflow-hidden rounded bg-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-400 2xl:h-16 2xl:w-16"
+									class="people-log-shot relative block h-12 w-12 overflow-hidden rounded bg-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-400 2xl:h-16 2xl:w-16"
 									:aria-label="`放大檢視 ${log.personName || '未知'} 設備截圖`"
 									:disabled="
 										!imageUrls[log.id] || imageLoadingStates[log.id] || imageErrorStates[log.id]
@@ -87,23 +87,29 @@
 								</button>
 							</template>
 							<template v-else-if="col === 'unit_group'">
-								<span class="text-sm 2xl:text-base">{{
+								<span class="people-log-cell text-sm 2xl:text-base">{{
 									formatLogText(log.unit?.name || log.unitName)
 								}}</span>
 							</template>
 							<template v-else-if="col === 'name'">
-								<span class="text-sm 2xl:text-base">{{ formatLogText(log.personName) }}</span>
+								<span class="people-log-cell text-sm 2xl:text-base">{{
+									formatLogText(log.personName)
+								}}</span>
 							</template>
 							<template v-else-if="col === 'device_name'">
-								<span class="text-sm 2xl:text-base">{{ formatLogText(log.deviceName) }}</span>
+								<span class="people-log-cell text-sm 2xl:text-base">{{
+									formatLogText(log.deviceName)
+								}}</span>
 							</template>
 							<template v-else-if="col === 'verify_method'">
-								<span class="text-sm 2xl:text-base">{{ formatLogVerifyMethod(log) }}</span>
+								<span class="people-log-cell text-sm 2xl:text-base">{{
+									formatLogVerifyMethod(log)
+								}}</span>
 							</template>
 							<template v-else-if="col === 'event'">
 								<span
 									:class="[
-										'inline-block rounded-full px-2 py-0.5 text-xs font-medium 2xl:text-sm',
+										'people-log-tag inline-block rounded-full px-2 py-0.5 text-xs font-medium 2xl:text-sm',
 										getLogEventBadgeClass(log),
 									]"
 								>
@@ -111,7 +117,7 @@
 								</span>
 							</template>
 							<template v-else-if="col === 'time'">
-								<div class="flex flex-col items-center gap-1 text-xs 2xl:text-sm">
+								<div class="people-log-time flex flex-col items-center gap-1 text-xs 2xl:text-sm">
 									<span>{{ parseTimestamp(log.timestamp).date }}</span>
 									<span>{{ parseTimestamp(log.timestamp).time || "—" }}</span>
 								</div>

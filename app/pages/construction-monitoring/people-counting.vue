@@ -83,6 +83,9 @@
 							v-if="selectedLocation || isLoadingLocation"
 							:key="detailPanelKey"
 							class="mt-16 flex min-h-0 flex-1 flex-col"
+							:class="
+								isOverviewCollapsed && 'mx-auto w-full max-w-[1400px] 2xl:max-w-[1600px]'
+							"
 						>
 							<div
 								v-if="isLoadingLocation"
@@ -93,7 +96,11 @@
 								<div class="h-full animate-pulse rounded-xl bg-white/10" />
 								<div class="h-full animate-pulse rounded-xl bg-white/10" />
 							</div>
-							<div v-else-if="selectedLocation" class="flex min-h-0 flex-1">
+							<div
+								v-else-if="selectedLocation"
+								class="flex min-h-0 flex-1"
+								:class="{ 'monitoring-detail-enlarged': isOverviewCollapsed }"
+							>
 								<div class="min-w-0 flex-1">
 									<LocationStatsPanel
 										:entry-count="selectedLocation.entryCount || 0"
