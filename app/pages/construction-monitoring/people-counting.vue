@@ -77,9 +77,7 @@
 							v-if="selectedLocation || isLoadingLocation"
 							:key="detailPanelKey"
 							class="mt-16 flex flex-col gap-12"
-							:class="
-								isOverviewCollapsed && 'mx-auto w-full max-w-[1400px] 2xl:max-w-[1600px]'
-							"
+							:class="isOverviewCollapsed && 'mx-auto w-full max-w-[1400px] 2xl:max-w-[1600px]'"
 						>
 							<div
 								v-if="isLoadingLocation"
@@ -117,9 +115,7 @@
 											v-if="!selectedLocation.units || selectedLocation.units.length === 0"
 											class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
 										>
-											<p class="people-unit-empty text-sm text-white/60 xl:text-base">
-												尚無單位資料
-											</p>
+											<p class="people-unit-empty text-sm text-white/60 xl:text-base">尚無單位資料</p>
 										</div>
 										<div v-else class="grid grid-cols-3 gap-4 2xl:grid-cols-4">
 											<div
@@ -147,9 +143,7 @@
 												</div>
 												<!-- 攝影機：顯示進場/出場人數 -->
 												<template v-if="isIsapiCamera">
-													<div
-														class="people-unit-count space-x-0.5 text-sm text-white 2xl:text-base"
-													>
+													<div class="people-unit-count space-x-0.5 text-sm text-white 2xl:text-base">
 														<span class="text-green-400">進 {{ unit.entryCount ?? 0 }}</span>
 														<span>/</span>
 														<span class="text-blue-300">出 {{ unit.exitCount ?? 0 }}</span>
@@ -157,9 +151,7 @@
 												</template>
 												<!-- YSCP / 門禁：顯示在場人數/容量 -->
 												<template v-else>
-													<div
-														class="people-unit-count space-x-0.5 text-base text-white 2xl:text-lg"
-													>
+													<div class="people-unit-count space-x-0.5 text-base text-white 2xl:text-lg">
 														<span class="text-green-400">{{ unit.currentCount || 0 }}</span>
 														<span>/</span>
 														<span>{{ unit.capacity || 0 }}</span>

@@ -1,19 +1,25 @@
 import type { MaybeRefOrGetter } from "vue";
-import { toValue } from "vue";
+import { computed, onScopeDispose, ref, toValue } from "vue";
 import type { VehicleAccessLocation, BarrierGateCtrlMode } from "~/types/vehicleAccess";
 import { useVehicleAccessIsapiDeviceApi } from "~/composables/systems/vehicleAccess/useVehicleAccessIsapiDeviceApi";
 import { useToast } from "~/composables/core/useToast";
 import { resolveUserFacingCatchMessage } from "~/utils/errorUtils";
 
+const CONTROL_COOLDOWN_MS = 1500;
+
 /** ISAPI 單台攝影機道閘：送控制指令（設備不提供可靠狀態查詢） */
 export const useVehicleBarrierGate = (options: {
 	location: MaybeRefOrGetter<VehicleAccessLocation | null>;
 	deviceId: MaybeRefOrGetter<number | null>;
+	cooldownMs?: number;
 }) => {
 	const isapiApi = useVehicleAccessIsapiDeviceApi();
 	const toast = useToast();
 
 	const isControlling = ref(false);
+	const isCooldown = ref(false);
+	let cooldownTimer: ReturnType<typeof setTimeout> | null = null;
+	const cooldownMs = options.cooldownMs ?? CONTROL_COOLDOWN_MS;
 
 	const location = computed(() => toValue(options.location));
 
@@ -38,9 +44,31 @@ export const useVehicleBarrierGate = (options: {
 		channelId: channelId.value,
 	}));
 
+	const isBusy = computed(() => isControlling.value || isCooldown.value);
+
+	const clearCooldown = () => {
+		if (cooldownTimer != null) {
+			clearTimeout(cooldownTimer);
+			cooldownTimer = null;
+		}
+		isCooldown.value = false;
+	};
+
+	const startCooldown = () => {
+		clearCooldown();
+		isCooldown.value = true;
+		cooldownTimer = setTimeout(() => {
+			isCooldown.value = false;
+			cooldownTimer = null;
+		}, cooldownMs);
+	};
+
+	onScopeDispose(clearCooldown);
+
 	const control = async (ctrlMode: BarrierGateCtrlMode, canWrite: boolean) => {
 		const id = deviceId.value;
-		if (id == null || !canWrite) return;
+		if (id == null || !canWrite || isBusy.value) return;
+		startCooldown();
 		isControlling.value = true;
 		try {
 			await isapiApi.controlBarrierGate(id, { ...apiParams.value, ctrlMode });
@@ -52,5 +80,5 @@ export const useVehicleBarrierGate = (options: {
 		}
 	};
 
-	return { isControlling, control };
+	return { isControlling, isBusy, control, clearCooldown };
 };

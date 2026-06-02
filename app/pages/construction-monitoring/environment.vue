@@ -79,13 +79,11 @@
 							class="mt-16"
 							:class="[
 								isOverviewCollapsed && 'mx-auto w-full max-w-[1400px] 2xl:max-w-[1600px]',
-								isOverviewCollapsed && 'monitoring-detail-enlarged',
+								isOverviewCollapsed && 'monitoring-detail-enlarged'
 							]"
 							:aria-busy="isHydrating"
 						>
-							<div
-								class="env-gauge-row grid grid-cols-3 gap-4 border-b border-white/80 pb-2 2xl:gap-6"
-							>
+							<div class="env-gauge-row grid grid-cols-3 gap-4 border-b border-white/80 pb-2 2xl:gap-6">
 								<!-- 噪音值儀表 -->
 								<EnvironmentGauge
 									type="noise"
