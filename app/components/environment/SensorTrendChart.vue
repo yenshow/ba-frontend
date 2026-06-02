@@ -1,6 +1,8 @@
 <template>
 	<div class="space-y-2 px-4 text-center">
-		<div class="ms-auto flex w-fit gap-2 border-b border-white/80 px-2 pb-px text-xs text-white/70">
+		<div
+			class="env-trend-period ms-auto flex w-fit gap-2 border-b border-white/80 px-2 pb-px text-xs text-white/70"
+		>
 			<button
 				v-for="period in periods"
 				:key="period.value"
@@ -16,7 +18,7 @@
 			</button>
 		</div>
 
-		<div ref="chartContainer" class="relative h-24 w-full">
+		<div ref="chartContainer" class="env-trend-chart relative h-24 w-full">
 			<Transition name="fade" mode="out-in">
 				<div
 					v-if="isLoading"
@@ -47,7 +49,7 @@
 				></canvas>
 			</Transition>
 		</div>
-		<div class="text-xs tracking-widest text-white">{{ chartTitle }}</div>
+		<div class="env-trend-title text-xs tracking-widest text-white">{{ chartTitle }}</div>
 	</div>
 </template>
 

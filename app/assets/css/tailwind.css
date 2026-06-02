@@ -284,6 +284,68 @@
 	@apply text-base xl:text-lg;
 }
 
+/* 環境品質：總覽收合時放大儀表、參數卡與趨勢圖 */
+.monitoring-detail-enlarged .env-gauge-row {
+	@apply gap-6 2xl:gap-8;
+}
+.monitoring-detail-enlarged .env-gauge {
+	@apply max-w-[180px] 2xl:max-w-[240px];
+}
+.monitoring-detail-enlarged .env-gauge--large {
+	@apply max-w-[220px] 2xl:max-w-[280px];
+}
+.monitoring-detail-enlarged .env-gauge-value {
+	@apply text-5xl 2xl:text-7xl;
+}
+.monitoring-detail-enlarged .env-gauge--large .env-gauge-value {
+	@apply text-6xl 2xl:text-8xl;
+}
+.monitoring-detail-enlarged .env-gauge-unit {
+	@apply text-xl 2xl:text-2xl;
+}
+.monitoring-detail-enlarged .env-gauge--large .env-gauge-unit {
+	@apply text-2xl 2xl:text-3xl;
+}
+.monitoring-detail-enlarged .env-gauge-title {
+	@apply text-xl 2xl:text-2xl tracking-[5px];
+}
+.monitoring-detail-enlarged .env-gauge--large .env-gauge-title {
+	@apply text-3xl 2xl:text-4xl tracking-[8px];
+}
+.monitoring-detail-enlarged .env-trend-period {
+	@apply text-sm;
+}
+.monitoring-detail-enlarged .env-trend-chart {
+	@apply h-28 2xl:h-32;
+}
+.monitoring-detail-enlarged .env-trend-title {
+	@apply text-sm 2xl:text-base;
+}
+.monitoring-detail-enlarged .env-param-grid {
+	@apply gap-3 2xl:gap-4;
+}
+.monitoring-detail-enlarged .env-param-label {
+	@apply text-xl 2xl:text-2xl;
+}
+.monitoring-detail-enlarged .env-param-value {
+	@apply min-w-[96px] text-3xl 2xl:text-4xl;
+}
+.monitoring-detail-enlarged .env-param-unit {
+	@apply text-base 2xl:text-lg;
+}
+.monitoring-detail-enlarged .env-param-status {
+	@apply text-base 2xl:text-lg;
+}
+.monitoring-detail-enlarged .env-param-icon {
+	@apply h-20 w-20 2xl:h-24 2xl:w-24;
+}
+.monitoring-detail-enlarged .env-param-divider {
+	@apply h-24;
+}
+.monitoring-detail-enlarged .env-detail-empty {
+	@apply text-lg 2xl:text-xl;
+}
+
 /* ========================================
    圖片模糊載入（平面圖、首頁建築圖、登入頁等）
    ======================================== */
