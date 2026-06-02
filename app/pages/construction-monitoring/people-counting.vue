@@ -83,9 +83,7 @@
 							v-if="selectedLocation || isLoadingLocation"
 							:key="detailPanelKey"
 							class="mt-16 flex min-h-0 flex-1 flex-col"
-							:class="
-								isOverviewCollapsed && 'mx-auto w-full max-w-[1400px] 2xl:max-w-[1600px]'
-							"
+							:class="isOverviewCollapsed && 'mx-auto w-full max-w-[1400px] 2xl:max-w-[1600px]'"
 						>
 							<div
 								v-if="isLoadingLocation"

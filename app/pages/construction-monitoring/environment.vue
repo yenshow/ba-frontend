@@ -144,7 +144,9 @@
 								class="flex min-h-[248px] flex-col items-center justify-center py-8 text-center text-white/60"
 							>
 								<p class="env-detail-empty text-base 2xl:text-lg">尚未配置感測器參數</p>
-								<p class="env-detail-empty mt-2 text-sm 2xl:text-base">請在「地點管理」中新增參數</p>
+								<p class="env-detail-empty mt-2 text-sm 2xl:text-base">
+									請在「地點管理」中新增參數
+								</p>
 							</div>
 						</div>
 

@@ -159,11 +159,14 @@ export const useVehicleAccessState = () => {
 		() => isIsapiCamera.value && getOperationMode(selectedLocation.value) === "parking"
 	);
 
-	const filterTodayLogsForLanes = (logList: VehicleDataLog[]) => {
-		const laneSet = laneIds.value.length ? new Set(laneIds.value) : null;
+	const filterLogsByLaneIds = (logList: VehicleDataLog[], ids: number[]) => {
+		const laneSet = ids.length ? new Set(ids) : null;
 		if (laneSet == null) return logList;
 		return logList.filter(log => log.lane_id == null || laneSet.has(log.lane_id));
 	};
+
+	const filterTodayLogsForLanes = (logList: VehicleDataLog[]) =>
+		filterLogsByLaneIds(logList, laneIds.value);
 
 	const todayReleasedLogs = computed(() =>
 		releasedPassageLogs(filterTodayLogsForLanes(todayPassageLogs.value))
@@ -325,11 +328,13 @@ export const useVehicleAccessState = () => {
 		vehicleAccessZones.value.find(z => z.locations?.some(l => l.id === location.id))?.name ??
 		null;
 
-	const organizationGroups = computed<VehicleOrganizationGroupItem[]>(() => {
-		const loc = selectedLocation.value;
+	const getOrganizationGroupsForLocation = (
+		loc: VehicleAccessLocation | null | undefined
+	): VehicleOrganizationGroupItem[] => {
+		if (!loc) return [];
 
-		if (isIsapiCamera.value) {
-			const personGroupFilter = toOptionalIdSet(loc?.personGroupIds);
+		if (getDataSource(loc) === "isapi_camera") {
+			const personGroupFilter = toOptionalIdSet(loc.personGroupIds);
 			return personGroupsForVehicle.value
 				.filter(g => !personGroupFilter || personGroupFilter.has(g.id))
 				.map(g => {
@@ -346,9 +351,12 @@ export const useVehicleAccessState = () => {
 				});
 		}
 
-		const logList = filterTodayLogsForLanes(todayPassageLogs.value);
-		const laneSet = laneIds.value.length ? new Set(laneIds.value) : null;
-		const vehicleGroupFilter = toOptionalIdSet(loc?.vehicleGroupIds);
+		const locLaneIds = getLaneIds(loc);
+		const laneSet = locLaneIds.length ? new Set(locLaneIds) : null;
+		const logList = releasedPassageLogs(
+			filterLogsByLaneIds(todayPassageLogs.value, getLaneIds(loc))
+		);
+		const vehicleGroupFilter = toOptionalIdSet(loc.vehicleGroupIds);
 		return (vehicleGroupsFromApi.value.groups ?? [])
 			.filter(g => (g.id ?? 0) !== 0)
 			.filter(g => !vehicleGroupFilter || vehicleGroupFilter.has(g.id ?? 0))
@@ -369,7 +377,11 @@ export const useVehicleAccessState = () => {
 					...stats
 				};
 			});
-	});
+	};
+
+	const organizationGroups = computed<VehicleOrganizationGroupItem[]>(() =>
+		getOrganizationGroupsForLocation(selectedLocation.value)
+	);
 
 	const organizationGroupVehicleList = computed<VehicleGroupMemberItem[]>(() => {
 		if (isIsapiCamera.value) {
@@ -565,6 +577,7 @@ export const useVehicleAccessState = () => {
 		onSiteCount,
 		onSiteCapacity,
 		organizationGroups,
+		getOrganizationGroupsForLocation,
 		selectedOrganizationKey,
 		organizationGroupVehicleList,
 		isLoadingVehicleGroups,

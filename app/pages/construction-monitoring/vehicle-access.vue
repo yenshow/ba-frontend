@@ -99,10 +99,10 @@
 							v-if="selectedLocation"
 							:key="detailPanelKey"
 							class="mt-16 flex flex-col gap-12"
-							:class="[
-								isOverviewCollapsed && 'mx-auto w-full max-w-[1400px] 2xl:max-w-[1600px]',
-								isOverviewCollapsed && 'monitoring-detail-enlarged',
-							]"
+							:class="
+								isOverviewCollapsed &&
+								'mx-auto w-full max-w-[1400px] monitoring-detail-enlarged 2xl:max-w-[1600px]'
+							"
 						>
 							<VehicleStatsPanel
 								:entry-count="entryCount"
@@ -250,10 +250,9 @@
 										:key="getSummaryCanonicalId(summary)"
 										:data-overview-location-id="getSummaryCanonicalId(summary)"
 										:summary="summary"
-										:groups="organizationGroups ?? []"
+										:groups="getOrganizationGroupsForLocation(findLocationForSummary(summary))"
 										:location="findLocationForSummary(summary)"
 										:can-write="canWrite"
-										:is-active="isCurrentSummary(summary)"
 										class="cursor-pointer transition-all hover:ring-2 hover:ring-cyan-300/50"
 										:class="{ 'ring-2 ring-cyan-400': isCurrentSummary(summary) }"
 										@click="handleOverviewClick(summary)"
@@ -350,6 +349,7 @@ const {
 	onSiteCount,
 	onSiteCapacity,
 	organizationGroups,
+	getOrganizationGroupsForLocation,
 	selectedOrganizationKey,
 	organizationGroupVehicleList,
 	setSelectedOrganizationKey,
