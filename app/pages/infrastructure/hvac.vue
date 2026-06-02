@@ -1,5 +1,11 @@
 <template>
-	<div>
+	<div class="relative">
+		<div class="absolute right-4 top-4 z-20">
+			<PollingHealthBadge
+				:state="pollingState"
+				:last-success-at="lastSuccessAt"
+			/>
+		</div>
 		<div class="flex justify-center gap-6 2xl:gap-8">
 			<HvacZonePlanPanel
 				:selected-zone-name="selectedZoneName"
@@ -55,11 +61,13 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, watch } from "vue"
+import { onMounted, watch } from "vue"
 import HvacZonePlanPanel from "~/components/hvac/HvacZonePlanPanel.vue"
 import HvacStatusCenter from "~/components/hvac/HvacStatusCenter.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
+import PollingHealthBadge from "~/components/common/PollingHealthBadge.vue"
 import type { HvacZone, HvacLocation } from "~/types/hvac"
+import { useVisibilityAutoRefresh } from "~/composables/monitoring/useVisibilityAutoRefresh"
 import { useHvacApi } from "~/composables/systems/hvac/useHvacApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
@@ -104,6 +112,9 @@ const allZoneLocations = computed(() => {
 })
 
 const {
+	pollingState,
+	lastSuccessAt,
+	lastFailureAt,
 	locationStatuses,
 	locationToggling,
 	locationDisabledMap,
@@ -116,6 +127,12 @@ const {
 	stopAutoRefresh,
 	handleVisibilityChange,
 } = useHvacModbusIntegration(hvacZones, selectedZone)
+
+const autoRefresh = useVisibilityAutoRefresh({
+	start: startAutoRefresh,
+	stop: stopAutoRefresh,
+	onVisible: handleVisibilityChange,
+})
 
 const getLocationAlertFlash = (locationId: string): "none" | "slow" | "fast" => {
 	const ui = locationStatuses.value[locationId]?.uiStatus
@@ -316,17 +333,12 @@ onMounted(async () => {
 	try {
 		await loadZonesFromAPI()
 		initializeLocationStatuses()
-		await loadAllLocationStatuses({ loadAllZones: true })
+		await loadAllLocationStatuses()
 	} finally {
 		isInitialLoading.value = false
 	}
 
-	startAutoRefresh()
-	document.addEventListener("visibilitychange", handleVisibilityChange)
+	autoRefresh.start()
 })
 
-onBeforeUnmount(() => {
-	stopAutoRefresh()
-	document.removeEventListener("visibilitychange", handleVisibilityChange)
-})
 </script>

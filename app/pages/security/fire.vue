@@ -1,5 +1,11 @@
 <template>
-	<div>
+	<div class="relative">
+		<div class="absolute right-4 top-4 z-20">
+			<PollingHealthBadge
+				:state="pollingState"
+				:last-success-at="lastSuccessAt"
+			/>
+		</div>
 		<div class="flex justify-center gap-6 2xl:gap-8">
 			<FireZonePlanPanel
 				:selected-zone-name="selectedZoneName"
@@ -56,10 +62,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, watch } from "vue"
+import { onMounted, watch } from "vue"
 import FireMonitorCenter from "~/components/fire/FireMonitorCenter.vue"
 import FireZonePlanPanel from "~/components/fire/FireZonePlanPanel.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
+import PollingHealthBadge from "~/components/common/PollingHealthBadge.vue"
 import {
 	type FireZone,
 	type FireLocation,
@@ -79,6 +86,7 @@ import { isValidPercentPosition } from "~/utils/mapPosition"
 import { useFireModbusIntegration } from "~/composables/monitoring/modbus/snapshotModbusIntegrations"
 import type { ManualIssueChangedPayload } from "~/utils/alertUtils"
 import { useManualIssueDiDoRules } from "~/composables/systems/alerts/useManualIssueDiDoRules"
+import { useVisibilityAutoRefresh } from "~/composables/monitoring/useVisibilityAutoRefresh"
 
 definePageMeta({
 	layout: "default",
@@ -290,6 +298,9 @@ const loadZonesFromAPI = async () => {
 }
 
 const {
+	pollingState,
+	lastSuccessAt,
+	lastFailureAt,
 	statusItems: computedStatusItems,
 	preloadDeviceInfos,
 	loadStatusSnapshot,
@@ -297,7 +308,13 @@ const {
 	startAutoRefresh,
 	stopAutoRefresh,
 	handleVisibilityChange,
-} = useFireModbusIntegration(fireZones)
+} = useFireModbusIntegration(fireZones, selectedZone)
+
+const autoRefresh = useVisibilityAutoRefresh({
+	start: startAutoRefresh,
+	stop: stopAutoRefresh,
+	onVisible: handleVisibilityChange,
+})
 
 const handleManualIssueChanged = (payload?: ManualIssueChangedPayload) => {
 	if (payload?.action === "clear") {
@@ -397,12 +414,7 @@ onMounted(async () => {
 	} finally {
 		isInitialLoading.value = false
 	}
-	startAutoRefresh()
-	document.addEventListener("visibilitychange", handleVisibilityChange)
+	autoRefresh.start()
 })
 
-onBeforeUnmount(() => {
-	stopAutoRefresh()
-	document.removeEventListener("visibilitychange", handleVisibilityChange)
-})
 </script>

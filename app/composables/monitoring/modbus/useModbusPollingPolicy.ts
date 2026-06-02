@@ -32,6 +32,8 @@ export const isSuppressibleModbusError = (error: unknown): boolean => {
 export const useModbusPollingPolicy = () => {
 	const failureLevel = ref(0)
 	const pollIntervalMs = ref(BASE_INTERVAL_MS)
+	const lastSuccessAt = ref<number | null>(null)
+	const lastFailureAt = ref<number | null>(null)
 
 	const state = computed<PollingHealthState>(() => {
 		if (failureLevel.value >= OFFLINE_LEVEL_INDEX) return "OFFLINE"
@@ -42,17 +44,22 @@ export const useModbusPollingPolicy = () => {
 	const recordSuccess = () => {
 		failureLevel.value = 0
 		pollIntervalMs.value = BASE_INTERVAL_MS
+		lastSuccessAt.value = Date.now()
 	}
 
 	const recordFailure = () => {
 		const next = Math.min(failureLevel.value + 1, BACKOFF_STEPS_MS.length - 1)
 		failureLevel.value = next
 		pollIntervalMs.value = BACKOFF_STEPS_MS[next] ?? BASE_INTERVAL_MS
+		lastFailureAt.value = Date.now()
 	}
 
 	return {
 		state,
+		failureLevel,
 		pollIntervalMs,
+		lastSuccessAt,
+		lastFailureAt,
 		recordSuccess,
 		recordFailure,
 	}

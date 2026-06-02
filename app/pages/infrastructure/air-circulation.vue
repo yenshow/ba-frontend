@@ -1,5 +1,11 @@
 <template>
-	<div>
+	<div class="relative">
+		<div class="absolute right-4 top-4 z-20">
+			<PollingHealthBadge
+				:state="pollingState"
+				:last-success-at="lastSuccessAt"
+			/>
+		</div>
 		<div class="flex justify-center gap-6 2xl:gap-8">
 			<AirCirculationZonePlanPanel
 				:selected-zone-name="selectedZoneName"
@@ -57,10 +63,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, watch, type Ref } from "vue"
+import { onMounted, watch, type Ref } from "vue"
 import AirCirculationZonePlanPanel from "~/components/air-circulation/AirCirculationZonePlanPanel.vue"
 import AirCirculationMonitorCenter from "~/components/air-circulation/AirCirculationMonitorCenter.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
+import PollingHealthBadge from "~/components/common/PollingHealthBadge.vue"
 import {
 	type AirCirculationZone,
 	type AirCirculationLocation,
@@ -79,6 +86,7 @@ import { isValidPercentPosition } from "~/utils/mapPosition"
 import { useAirCirculationModbusIntegration } from "~/composables/monitoring/modbus/snapshotModbusIntegrations"
 import type { ManualIssueChangedPayload } from "~/utils/alertUtils"
 import { useManualIssueDiDoRules } from "~/composables/systems/alerts/useManualIssueDiDoRules"
+import { useVisibilityAutoRefresh } from "~/composables/monitoring/useVisibilityAutoRefresh"
 
 definePageMeta({ layout: "default" })
 
@@ -297,6 +305,9 @@ const loadZonesFromAPI = async () => {
 }
 
 const {
+	pollingState,
+	lastSuccessAt,
+	lastFailureAt,
 	statusItems: computedStatusItems,
 	preloadDeviceInfos,
 	loadStatusSnapshot,
@@ -304,7 +315,13 @@ const {
 	startAutoRefresh,
 	stopAutoRefresh,
 	handleVisibilityChange,
-} = useAirCirculationModbusIntegration(airCirculationZones)
+} = useAirCirculationModbusIntegration(airCirculationZones, selectedZone)
+
+const autoRefresh = useVisibilityAutoRefresh({
+	start: startAutoRefresh,
+	stop: stopAutoRefresh,
+	onVisible: handleVisibilityChange,
+})
 
 const handleManualIssueChanged = (payload?: ManualIssueChangedPayload) => {
 	if (payload?.action === "clear") {
@@ -401,13 +418,8 @@ onMounted(async () => {
 	} finally {
 		isInitialLoading.value = false
 	}
-	startAutoRefresh()
-	document.addEventListener("visibilitychange", handleVisibilityChange)
+	autoRefresh.start()
 })
 
-onBeforeUnmount(() => {
-	stopAutoRefresh()
-	document.removeEventListener("visibilitychange", handleVisibilityChange)
-})
 </script>
 

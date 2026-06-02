@@ -194,6 +194,11 @@ export const createToggleModbusIntegration = <
 		}
 	}
 
+	const applySnapshotItems = (items: TSnapshotItem[]) => {
+		applyBackendSnapshotItems(items || [])
+		pollingPolicy.recordSuccess()
+	}
+
 	const resolveZoneIds = (options?: ToggleSnapshotZoneFilterOptions) =>
 		resolveToggleSnapshotZoneIds(zones.value, selectedZone.value, options)
 
@@ -316,18 +321,24 @@ export const createToggleModbusIntegration = <
 		async () => {
 			initializeLocationStatuses?.(locationStatuses)
 			await preloadDeviceInfos(zones.value, collectDeviceIds)
-			void loadAllLocationStatuses({ loadAllZones: true })
+			// zones 變更後：預設以「當前 selectedZone」範圍補一輪狀態
+			void loadAllLocationStatuses()
 		},
 		{ deep: true }
 	)
 
 	return {
+		pollingState: pollingPolicy.state,
+		pollIntervalMs: pollingPolicy.pollIntervalMs,
+		lastSuccessAt: pollingPolicy.lastSuccessAt,
+		lastFailureAt: pollingPolicy.lastFailureAt,
 		locationStatuses,
 		locationToggling,
 		locationDisabledMap,
 		initializeLocationStatuses: () => initializeLocationStatuses?.(locationStatuses),
 		preloadDeviceInfos: () => preloadDeviceInfos(zones.value, collectDeviceIds),
 		loadAllLocationStatuses,
+		applySnapshotItems,
 		handleLocationToggle,
 		startAutoRefresh,
 		stopAutoRefresh,

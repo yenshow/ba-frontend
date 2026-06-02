@@ -217,6 +217,8 @@ import { useFireApi } from "~/composables/systems/fire/useFireApi"
 import { useAirCirculationApi } from "~/composables/systems/air-circulation/useAirCirculationApi"
 import { useSmokeAlarmApi } from "~/composables/systems/smoke-alarm/useSmokeAlarmApi"
 import { useEmergencyRescueApi } from "~/composables/systems/emergency-rescue/useEmergencyRescueApi"
+import { useVisibilityAutoRefresh } from "~/composables/monitoring/useVisibilityAutoRefresh"
+import { useMonitoringOverviewApi } from "~/composables/monitoring/useMonitoringOverviewApi"
 import {
 	useAirCirculationModbusIntegration,
 	useDrainageModbusIntegration,
@@ -291,6 +293,7 @@ const hvacApi = useHvacApi()
 const airCirculationApi = useAirCirculationApi()
 const smokeAlarmApi = useSmokeAlarmApi()
 const emergencyRescueApi = useEmergencyRescueApi()
+const monitoringOverviewApi = useMonitoringOverviewApi()
 
 const lightingZones = ref<LightingZone[]>([])
 const drainageZones = ref<DrainageZone[]>([])
@@ -307,6 +310,7 @@ const {
 	initializeLocationStatuses: initializeLightingStatuses,
 	preloadDeviceInfos: preloadLightingDevices,
 	loadAllLocationStatuses: loadAllLightingStatuses,
+	applySnapshotItems: applyLightingSnapshotItems,
 	startAutoRefresh: startLightingAutoRefresh,
 	stopAutoRefresh: stopLightingAutoRefresh,
 	handleVisibilityChange: handleLightingVisibilityChange,
@@ -316,6 +320,7 @@ const {
 	statusItems: drainageStatusItems,
 	preloadDeviceInfos: preloadDrainageDevices,
 	loadStatusSnapshot: loadDrainageSnapshot,
+	setStatusItems: setDrainageStatusItems,
 	startAutoRefresh: startDrainageAutoRefresh,
 	stopAutoRefresh: stopDrainageAutoRefresh,
 	handleVisibilityChange: handleDrainageVisibilityChange,
@@ -325,6 +330,7 @@ const {
 	statusItems: fireStatusItems,
 	preloadDeviceInfos: preloadFireDevices,
 	loadStatusSnapshot: loadFireSnapshot,
+	setStatusItems: setFireStatusItems,
 	startAutoRefresh: startFireAutoRefresh,
 	stopAutoRefresh: stopFireAutoRefresh,
 	handleVisibilityChange: handleFireVisibilityChange,
@@ -334,6 +340,7 @@ const {
 	statusItems: powerStatusItems,
 	preloadDeviceInfos: preloadPowerDevices,
 	loadStatusSnapshot: loadPowerSnapshot,
+	setStatusItems: setPowerStatusItems,
 	startAutoRefresh: startPowerAutoRefresh,
 	stopAutoRefresh: stopPowerAutoRefresh,
 	handleVisibilityChange: handlePowerVisibilityChange,
@@ -345,6 +352,7 @@ const {
 	initializeLocationStatuses: initializeHvacStatuses,
 	preloadDeviceInfos: preloadHvacDevices,
 	loadAllLocationStatuses: loadAllHvacStatuses,
+	applySnapshotItems: applyHvacSnapshotItems,
 	startAutoRefresh: startHvacAutoRefresh,
 	stopAutoRefresh: stopHvacAutoRefresh,
 	handleVisibilityChange: handleHvacVisibilityChange,
@@ -354,6 +362,7 @@ const {
 	statusItems: airCirculationStatusItems,
 	preloadDeviceInfos: preloadAirCirculationDevices,
 	loadStatusSnapshot: loadAirCirculationSnapshot,
+	setStatusItems: setAirCirculationStatusItems,
 	startAutoRefresh: startAirCirculationAutoRefresh,
 	stopAutoRefresh: stopAirCirculationAutoRefresh,
 	handleVisibilityChange: handleAirCirculationVisibilityChange,
@@ -363,6 +372,7 @@ const {
 	statusItems: smokeAlarmStatusItems,
 	preloadDeviceInfos: preloadSmokeAlarmDevices,
 	loadStatusSnapshot: loadSmokeAlarmSnapshot,
+	setStatusItems: setSmokeAlarmStatusItems,
 	startAutoRefresh: startSmokeAlarmAutoRefresh,
 	stopAutoRefresh: stopSmokeAlarmAutoRefresh,
 	handleVisibilityChange: handleSmokeAlarmVisibilityChange,
@@ -372,6 +382,7 @@ const {
 	statusItems: emergencyRescueStatusItems,
 	preloadDeviceInfos: preloadEmergencyRescueDevices,
 	loadStatusSnapshot: loadEmergencyRescueSnapshot,
+	setStatusItems: setEmergencyRescueStatusItems,
 	startAutoRefresh: startEmergencyRescueAutoRefresh,
 	stopAutoRefresh: stopEmergencyRescueAutoRefresh,
 	handleVisibilityChange: handleEmergencyRescueVisibilityChange,
@@ -770,75 +781,183 @@ const hasLoadedAirCirculationSnapshot = ref(false)
 const hasLoadedSmokeAlarmSnapshot = ref(false)
 const hasLoadedEmergencyRescueSnapshot = ref(false)
 
-const overviewRefreshIntervalId = ref<ReturnType<typeof setInterval> | null>(null)
+const OVERVIEW_STAGGER_TICK_MS = 1800
+const OVERVIEW_AGGREGATE_INTERVAL_MS = 15000
+const overviewAggregateEnabled = ref(true)
+const overviewAggregateTimerId = ref<ReturnType<typeof setInterval> | null>(null)
+const overviewRefreshTimerId = ref<ReturnType<typeof setInterval> | null>(null)
+const overviewRefreshCursor = ref(0)
+const isOverviewTickRunning = ref(false)
 
 const stopOverviewAutoRefresh = () => {
-	if (!overviewRefreshIntervalId.value) return
-	clearInterval(overviewRefreshIntervalId.value)
-	overviewRefreshIntervalId.value = null
+	if (overviewAggregateTimerId.value) {
+		clearInterval(overviewAggregateTimerId.value)
+		overviewAggregateTimerId.value = null
+	}
+	if (!overviewRefreshTimerId.value) return
+	clearInterval(overviewRefreshTimerId.value)
+	overviewRefreshTimerId.value = null
 }
 
-const refreshOverviewStatuses = async () => {
+const refreshOverviewFromAggregateApi = async () => {
+	if (selectedSystemType.value) return
+	if (typeof document !== "undefined" && document.visibilityState !== "visible") return
+
+	const result = await monitoringOverviewApi.getOverviewStatus({ syncAlerts: false })
+	const systems = result.systems || {}
+
+	if (systems.lighting) {
+		lightingZones.value = (systems.lighting.zones || []) as any
+		if (!hasLoadedLightingSnapshot.value) {
+			initializeLightingStatuses()
+			await preloadLightingDevices()
+			hasLoadedLightingSnapshot.value = true
+		}
+		applyLightingSnapshotItems((systems.lighting.items || []) as any)
+	}
+
+	if (systems.hvac) {
+		hvacZones.value = (systems.hvac.zones || []) as any
+		if (!hasLoadedHvacSnapshot.value) {
+			initializeHvacStatuses()
+			await preloadHvacDevices()
+			hasLoadedHvacSnapshot.value = true
+		}
+		applyHvacSnapshotItems((systems.hvac.items || []) as any)
+	}
+
+	if (systems.power) {
+		powerZones.value = (systems.power.zones || []) as any
+		if (!hasLoadedPowerSnapshot.value) {
+			await preloadPowerDevices()
+			hasLoadedPowerSnapshot.value = true
+		}
+		setPowerStatusItems((systems.power.items || []) as any)
+	}
+
+	if (systems.drainage) {
+		drainageZones.value = (systems.drainage.zones || []) as any
+		if (!hasLoadedDrainageSnapshot.value) {
+			await preloadDrainageDevices()
+			hasLoadedDrainageSnapshot.value = true
+		}
+		setDrainageStatusItems((systems.drainage.items || []) as any)
+	}
+
+	if (systems.fire) {
+		fireZones.value = (systems.fire.zones || []) as any
+		if (!hasLoadedFireSnapshot.value) {
+			await preloadFireDevices()
+			hasLoadedFireSnapshot.value = true
+		}
+		setFireStatusItems((systems.fire.items || []) as any)
+	}
+
+	if (systems.air_circulation) {
+		airCirculationZones.value = (systems.air_circulation.zones || []) as any
+		if (!hasLoadedAirCirculationSnapshot.value) {
+			await preloadAirCirculationDevices()
+			hasLoadedAirCirculationSnapshot.value = true
+		}
+		setAirCirculationStatusItems((systems.air_circulation.items || []) as any)
+	}
+
+	if (systems.smoke_alarm) {
+		smokeAlarmZones.value = (systems.smoke_alarm.zones || []) as any
+		if (!hasLoadedSmokeAlarmSnapshot.value) {
+			await preloadSmokeAlarmDevices()
+			hasLoadedSmokeAlarmSnapshot.value = true
+		}
+		setSmokeAlarmStatusItems((systems.smoke_alarm.items || []) as any)
+	}
+
+	if (systems.emergency_rescue) {
+		emergencyRescueZones.value = (systems.emergency_rescue.zones || []) as any
+		if (!hasLoadedEmergencyRescueSnapshot.value) {
+			await preloadEmergencyRescueDevices()
+			hasLoadedEmergencyRescueSnapshot.value = true
+		}
+		setEmergencyRescueStatusItems((systems.emergency_rescue.items || []) as any)
+	}
+}
+
+const refreshOverviewOneSystem = async () => {
 	// 未選系統也要維持狀態更新，避免與各系統頁資訊不一致
 	if (selectedSystemType.value) return
+	if (typeof document !== "undefined" && document.visibilityState !== "visible") return
 
-	if (!hasLoadedLightingSnapshot.value) {
-		await loadLightingStatusSnapshot({ autoRefresh: false })
-	} else {
-		await loadAllLightingStatuses({ loadAllZones: true })
-	}
+	const idx = overviewRefreshCursor.value % 8
+	overviewRefreshCursor.value += 1
 
-	if (!hasLoadedDrainageSnapshot.value) {
-		await loadDrainageStatusSnapshot({ autoRefresh: false })
-	} else {
-		await loadDrainageSnapshot()
+	if (idx === 0) {
+		if (!hasLoadedLightingSnapshot.value) return loadLightingStatusSnapshot({ autoRefresh: false })
+		if (lightingZones.value.length === 0) return
+		return loadAllLightingStatuses({ loadAllZones: true })
 	}
-
-	if (!hasLoadedFireSnapshot.value) {
-		await loadFireStatusSnapshot({ autoRefresh: false })
-	} else {
-		await loadFireSnapshot()
+	if (idx === 1) {
+		if (!hasLoadedDrainageSnapshot.value) return loadDrainageStatusSnapshot({ autoRefresh: false })
+		if (drainageZones.value.length === 0) return
+		return loadDrainageSnapshot()
 	}
-
-	if (!hasLoadedPowerSnapshot.value) {
-		await loadPowerStatusSnapshot({ autoRefresh: false })
-	} else {
-		await loadPowerSnapshot()
+	if (idx === 2) {
+		if (!hasLoadedFireSnapshot.value) return loadFireStatusSnapshot({ autoRefresh: false })
+		if (fireZones.value.length === 0) return
+		return loadFireSnapshot()
 	}
-
-	if (!hasLoadedHvacSnapshot.value) {
-		await loadHvacStatusSnapshot({ autoRefresh: false })
-	} else {
-		await loadAllHvacStatuses({ loadAllZones: true })
+	if (idx === 3) {
+		if (!hasLoadedPowerSnapshot.value) return loadPowerStatusSnapshot({ autoRefresh: false })
+		if (powerZones.value.length === 0) return
+		return loadPowerSnapshot()
 	}
-
-	if (!hasLoadedAirCirculationSnapshot.value) {
-		await loadAirCirculationStatusSnapshot({ autoRefresh: false })
-	} else {
-		await loadAirCirculationSnapshot()
+	if (idx === 4) {
+		if (!hasLoadedHvacSnapshot.value) return loadHvacStatusSnapshot({ autoRefresh: false })
+		if (hvacZones.value.length === 0) return
+		return loadAllHvacStatuses({ loadAllZones: true })
 	}
-
-	if (!hasLoadedSmokeAlarmSnapshot.value) {
-		await loadSmokeAlarmStatusSnapshot({ autoRefresh: false })
-	} else {
-		await loadSmokeAlarmSnapshot()
+	if (idx === 5) {
+		if (!hasLoadedAirCirculationSnapshot.value)
+			return loadAirCirculationStatusSnapshot({ autoRefresh: false })
+		if (airCirculationZones.value.length === 0) return
+		return loadAirCirculationSnapshot()
 	}
-
-	if (!hasLoadedEmergencyRescueSnapshot.value) {
-		await loadEmergencyRescueStatusSnapshot({ autoRefresh: false })
-	} else {
-		await loadEmergencyRescueSnapshot()
+	if (idx === 6) {
+		if (!hasLoadedSmokeAlarmSnapshot.value) return loadSmokeAlarmStatusSnapshot({ autoRefresh: false })
+		if (smokeAlarmZones.value.length === 0) return
+		return loadSmokeAlarmSnapshot()
 	}
+	if (!hasLoadedEmergencyRescueSnapshot.value) return loadEmergencyRescueStatusSnapshot({ autoRefresh: false })
+	if (emergencyRescueZones.value.length === 0) return
+	return loadEmergencyRescueSnapshot()
 }
 
 const startOverviewAutoRefresh = () => {
 	stopOverviewAutoRefresh()
 	if (selectedSystemType.value) return
-	overviewRefreshIntervalId.value = setInterval(() => {
-		if (typeof document === "undefined") return
-		if (document.visibilityState !== "visible") return
-		void refreshOverviewStatuses()
-	}, 15000)
+	if (overviewAggregateEnabled.value) {
+		overviewAggregateTimerId.value = setInterval(() => {
+			if (typeof document !== "undefined" && document.visibilityState !== "visible") return
+			refreshOverviewFromAggregateApi().catch(() => {
+				overviewAggregateEnabled.value = false
+				stopOverviewAutoRefresh()
+				startOverviewAutoRefresh()
+			})
+		}, OVERVIEW_AGGREGATE_INTERVAL_MS)
+		void refreshOverviewFromAggregateApi().catch(() => {
+			overviewAggregateEnabled.value = false
+			stopOverviewAutoRefresh()
+			startOverviewAutoRefresh()
+		})
+		return
+	}
+	overviewRefreshTimerId.value = setInterval(async () => {
+		if (isOverviewTickRunning.value) return
+		isOverviewTickRunning.value = true
+		try {
+			await refreshOverviewOneSystem()
+		} finally {
+			isOverviewTickRunning.value = false
+		}
+	}, OVERVIEW_STAGGER_TICK_MS)
 }
 
 const loadLightingStatusSnapshot = async (options: { autoRefresh: boolean }) => {
@@ -1008,6 +1127,12 @@ const handleVisibilityChange = () => {
 	}
 }
 
+const visibilityRefresh = useVisibilityAutoRefresh({
+	start: () => {},
+	stop: () => {},
+	onVisible: handleVisibilityChange,
+})
+
 // 初始化載入
 onMounted(async () => {
 	// 初始化左側 ResizeObserver
@@ -1031,12 +1156,12 @@ onMounted(async () => {
 	}
 
 	// 監聽頁面可見性變化
-	document.addEventListener("visibilitychange", handleVisibilityChange)
+	visibilityRefresh.start()
 })
 
 // 清理
 onBeforeUnmount(() => {
-	document.removeEventListener("visibilitychange", handleVisibilityChange)
+	visibilityRefresh.stop()
 	stopOverviewAutoRefresh()
 	stopAllSystemAutoRefresh()
 	if (leftSectionResizeObserver && leftSectionRef.value) {

@@ -64,95 +64,6 @@ const normalizeSvgRoot = () => {
 	svg.removeAttribute("height")
 
 	setupLineSweep(svg)
-	ensureLineLayerOrder(svg)
-	setupLinePlatformMask(svg)
-}
-
-/** line／掃光層固定在 #background（或 #ground）之下，避免透出平台或疊在 ground 上 */
-const ensureLineLayerOrder = (svg: SVGSVGElement) => {
-	const heroPic = svg.querySelector<SVGGElement>("#heroPic")
-	const lineGroup = svg.querySelector<SVGGElement>(`#${CSS.escape(lineGroupId.value)}`)
-	if (!heroPic || !lineGroup) return
-
-	const platformLayer =
-		heroPic.querySelector<SVGGElement>("#background") ?? heroPic.querySelector<SVGGElement>("#ground")
-	if (!platformLayer) return
-
-	const lineLayers: SVGGElement[] = [lineGroup]
-	heroPic.querySelectorAll<SVGGElement>(".line-sweep-layer").forEach((layer) => {
-		if (!lineLayers.includes(layer)) lineLayers.push(layer)
-	})
-
-	for (const layer of lineLayers) {
-		if (!heroPic.contains(layer)) continue
-		heroPic.insertBefore(layer, platformLayer)
-	}
-}
-
-/** 以 #background 實心區塊遮罩 line，避免線條畫在平台／陰影上（含 ground 的 screen 混色） */
-const setupLinePlatformMask = (svg: SVGSVGElement) => {
-	const heroPic = svg.querySelector<SVGGElement>("#heroPic")
-	const lineGroup = svg.querySelector<SVGGElement>(`#${CSS.escape(lineGroupId.value)}`)
-	const background = heroPic?.querySelector<SVGGElement>("#background")
-	if (!heroPic || !lineGroup || !background) return
-
-	const viewBox = svg.getAttribute("viewBox")?.trim() ?? ""
-	const [minX, minY, vbWidth, vbHeight] = viewBox.split(/\s+/).map((v) => Number(v))
-	if (![minX, minY, vbWidth, vbHeight].every((n) => Number.isFinite(n))) return
-
-	const prefix = sweepIdPrefix.value
-	const platformMaskId = `${prefix}-platform-mask`
-	const maskUrl = `url(#${platformMaskId})`
-
-	const defs =
-		svg.querySelector("defs") ??
-		(() => {
-			const newDefs = document.createElementNS("http://www.w3.org/2000/svg", "defs")
-			svg.insertBefore(newDefs, svg.firstChild)
-			return newDefs
-		})()
-
-	let mask = defs.querySelector<SVGMaskElement>(`#${CSS.escape(platformMaskId)}`)
-	if (!mask) {
-		mask = document.createElementNS("http://www.w3.org/2000/svg", "mask")
-		mask.setAttribute("id", platformMaskId)
-		mask.setAttribute("maskUnits", "userSpaceOnUse")
-		mask.setAttribute("x", String(minX))
-		mask.setAttribute("y", String(minY))
-		mask.setAttribute("width", String(vbWidth))
-		mask.setAttribute("height", String(vbHeight))
-
-		const maskVisible = document.createElementNS("http://www.w3.org/2000/svg", "rect")
-		maskVisible.setAttribute("x", String(minX))
-		maskVisible.setAttribute("y", String(minY))
-		maskVisible.setAttribute("width", String(vbWidth))
-		maskVisible.setAttribute("height", String(vbHeight))
-		maskVisible.setAttribute("fill", "white")
-
-		mask.appendChild(maskVisible)
-		defs.appendChild(mask)
-	}
-
-	const appendPlatformHoles = (targetMask: SVGMaskElement) => {
-		if (targetMask.dataset.platformHoles === "1") return
-		background.querySelectorAll<SVGGraphicsElement>("path, rect").forEach((shape) => {
-			const hole = shape.cloneNode(true) as SVGGraphicsElement
-			hole.removeAttribute("id")
-			hole.removeAttribute("opacity")
-			hole.setAttribute("fill", "black")
-			hole.removeAttribute("stroke")
-			targetMask.appendChild(hole)
-		})
-		targetMask.dataset.platformHoles = "1"
-	}
-
-	lineGroup.setAttribute("mask", maskUrl)
-	appendPlatformHoles(mask)
-
-	const sweepMask = defs.querySelector<SVGMaskElement>(
-		`#${CSS.escape(`${prefix}-mask`)}`,
-	)
-	if (sweepMask) appendPlatformHoles(sweepMask)
 }
 
 const setupLineSweep = (svg: SVGSVGElement) => {
@@ -178,7 +89,10 @@ const setupLineSweep = (svg: SVGSVGElement) => {
 	const sweepGroupId = `${prefix}-layer`
 
 	// 避免重複注入（同頁多次 mount / watch 時）
-	if (svg.querySelector(`#${CSS.escape(sweepGroupId)}`) || svg.querySelector(`#${CSS.escape(maskId)}`))
+	if (
+		svg.querySelector(`#${CSS.escape(sweepGroupId)}`) ||
+		svg.querySelector(`#${CSS.escape(maskId)}`)
+	)
 		return
 
 	const sweepWidth = Math.max(140, Math.round(vbWidth * 0.18))
@@ -245,15 +159,7 @@ const setupLineSweep = (svg: SVGSVGElement) => {
 	sweepGroup.setAttribute("class", "line-sweep-layer")
 	sweepGroup.setAttribute("mask", `url(#${maskId})`)
 	sweepGroup.setAttribute("opacity", "0.95")
-
-	const heroPic = lineGroup.closest("#heroPic")
-	const platformLayer =
-		heroPic?.querySelector<SVGGElement>("#background") ?? heroPic?.querySelector<SVGGElement>("#ground")
-	if (platformLayer && heroPic) {
-		heroPic.insertBefore(sweepGroup, platformLayer)
-	} else {
-		lineGroup.insertAdjacentElement("afterend", sweepGroup)
-	}
+	lineGroup.insertAdjacentElement("afterend", sweepGroup)
 }
 
 onMounted(async () => {
@@ -352,9 +258,10 @@ watch([ariaLabel, rootClass, lineGroupId, sweepIdPrefix], async () => {
 	animation: heroBeamGlow var(--hero-heroic-cycle) ease-in-out infinite;
 }
 
-/* ground：光波傳遞（用水平位移的光暈近似掃過；勿用 screen，否則會與下層 line 混色透出） */
+/* ground：光波傳遞（用水平位移的光暈近似掃過） */
 .hero-pic-inline.is-animate :deep(#ground) {
 	animation: heroWaveTransmit var(--hero-heroic-cycle) ease-in-out infinite;
+	mix-blend-mode: screen;
 }
 
 /* line：底層只做輕微呼吸，避免跟 ground 太像（主效果交給 sweep） */
@@ -363,8 +270,9 @@ watch([ariaLabel, rootClass, lineGroupId, sweepIdPrefix], async () => {
 	opacity: 0.65;
 }
 
-/* line_sweep：掃光高亮層（mask 從左掃到右；僅與 line 疊合，不蓋過 platform） */
+/* line_sweep：掃光高亮層（mask 從左掃到右） */
 .hero-pic-inline.is-animate :deep(.line-sweep-layer) {
+	mix-blend-mode: screen;
 	filter: brightness(1.35) drop-shadow(0 0 14px rgba(154, 252, 255, 0.45));
 	pointer-events: none;
 }
