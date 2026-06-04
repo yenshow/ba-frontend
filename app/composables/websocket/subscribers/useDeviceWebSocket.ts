@@ -2,7 +2,6 @@ import type {
 	DeviceCreatedEvent,
 	DeviceUpdatedEvent,
 	DeviceDeletedEvent,
-	DeviceStatusChangedEvent,
 	MonitoringDeviceStatusEvent,
 	MonitoringDeviceStatusBatchEvent,
 } from "~/types/websocket"
@@ -20,7 +19,6 @@ export const useDeviceWebSocket = () => {
 		onDeviceCreated?: (event: DeviceCreatedEvent) => void
 		onDeviceUpdated?: (event: DeviceUpdatedEvent) => void
 		onDeviceDeleted?: (event: DeviceDeletedEvent) => void
-		onDeviceStatusChanged?: (event: DeviceStatusChangedEvent) => void
 		onMonitoringStatus?: (event: MonitoringDeviceStatusEvent) => void
 		onMonitoringStatusBatch?: (event: MonitoringDeviceStatusBatchEvent) => void
 	} = {}
@@ -45,12 +43,6 @@ export const useDeviceWebSocket = () => {
 				logMessage: (e: DeviceDeletedEvent) => `設備刪除: ID ${e.deviceId}`,
 			},
 			{
-				event: "device:status:changed",
-				handler: (e: DeviceStatusChangedEvent) => callbacks.onDeviceStatusChanged?.(e),
-				logMessage: (e: DeviceStatusChangedEvent) =>
-					`設備狀態變更: ID ${e.deviceId}, ${e.oldStatus} → ${e.newStatus}`,
-			},
-			{
 				event: "monitoring:device:status",
 				handler: (e: MonitoringDeviceStatusEvent) => callbacks.onMonitoringStatus?.(e),
 				logMessage: (e: MonitoringDeviceStatusEvent) =>
@@ -70,7 +62,6 @@ export const useDeviceWebSocket = () => {
 			"device:created",
 			"device:updated",
 			"device:deleted",
-			"device:status:changed",
 			"monitoring:device:status",
 			"monitoring:device:status:batch",
 		])

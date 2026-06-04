@@ -8,10 +8,7 @@ export type DeviceTypeCode =
 	| "di_do"
 	| string;
 
-// 設備狀態
-export type DeviceStatus = "active" | "inactive" | "error";
-
-// 設備連線狀態（設備本體；不等同於啟用/停用）
+// 設備連線狀態（設備本體）
 // UI 僅顯示線上/離線；讀取中由前端 spinner 呈現
 export type DeviceConnectivityStatus = "online" | "offline";
 
@@ -162,7 +159,6 @@ export interface Device {
 	type_code: DeviceTypeCode;
 	model_id: number; // 必填：設備型號 ID
 	description?: string;
-	status: DeviceStatus;
 	config: DeviceConfig; // JSON 格式儲存，根據 type_code 解析
 	created_at?: string;
 	updated_at?: string;
@@ -187,7 +183,6 @@ export interface CreateDeviceData {
 	type_code?: DeviceTypeCode;
 	model_id: number; // 必填：設備型號 ID
 	description?: string;
-	status?: DeviceStatus;
 	config: DeviceConfig;
 }
 
@@ -197,7 +192,6 @@ export interface UpdateDeviceData {
 	type_code?: DeviceTypeCode;
 	model_id?: number; // 可選，但如果提供則必須是有效的 ID（不能為 0 或 null）
 	description?: string;
-	status?: DeviceStatus;
 	config?: Partial<DeviceConfig>;
 }
 

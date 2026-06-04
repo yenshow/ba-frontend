@@ -28,7 +28,6 @@ export const useDeviceApi = () => {
 		// 取得設備列表（支援按類型、群組篩選）
 		getDevices: async (params?: {
 			type_code?: DeviceTypeCode;
-			status?: string;
 			group?: string;
 			limit?: number;
 			offset?: number;
@@ -38,7 +37,6 @@ export const useDeviceApi = () => {
 			// 構建篩選參數
 			const filterParams: Record<string, unknown> = {};
 			if (params?.type_code) filterParams.type_code = params.type_code;
-			if (params?.status) filterParams.status = params.status;
 			if (params?.group != null && params.group !== "") filterParams.group = params.group;
 
 			// 構建分頁參數

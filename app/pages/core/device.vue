@@ -80,7 +80,6 @@
 								<th :class="tableHeaderClass">
 									{{ activeTab === "camera" ? "IP 位址" : "配置資訊" }}
 								</th>
-								<th :class="tableHeaderClass">狀態</th>
 								<th :class="tableHeaderClass">連線</th>
 								<th :class="tableHeaderClass">
 									<FilterDropdown
@@ -117,13 +116,6 @@
 									<span class="text-sm text-white/80 2xl:text-base">{{
 										activeTab === "camera" ? getCameraIp(device) : formatDeviceConfig(device.config)
 									}}</span>
-								</td>
-								<td :class="tableCellClass">
-									<span
-										:class="[getStatusBadgeClass(device.status), 'rounded px-2 py-1 2xl:px-3 2xl:py-1.5']"
-									>
-										{{ statusLabels[device.status] }}
-									</span>
 								</td>
 								<td :class="tableCellClass">
 									<span
@@ -230,14 +222,12 @@ import type {
 	UpdateDeviceData,
 	DeviceTypeCode,
 	DeviceConfig,
-	DeviceStatus,
 	CameraDeviceConfig
 } from "~/types/device";
 import type {
 	DeviceCreatedEvent,
 	DeviceUpdatedEvent,
 	DeviceDeletedEvent,
-	DeviceStatusChangedEvent,
 	MonitoringDeviceStatusEvent,
 	MonitoringDeviceStatusBatchEvent
 } from "~/types/websocket";
@@ -380,13 +370,6 @@ const deviceIdsInPage = computed(() =>
 );
 deviceConnectivity.bindDeviceIds(deviceIdsInPage);
 
-// 標籤映射
-const statusLabels: Record<string, string> = {
-	active: "啟用",
-	inactive: "停用",
-	error: "錯誤"
-};
-
 const connectivityLabels = computed(() => deviceConnectivity.labels.value);
 
 // 統一樣式類
@@ -453,15 +436,6 @@ const formatDeviceConfig = (config: DeviceConfig): string => {
 		default:
 			return "-";
 	}
-};
-
-const getStatusBadgeClass = (status: string) => {
-	const classes = {
-		active: "bg-emerald-500/20 text-emerald-200",
-		inactive: "bg-yellow-500/20 text-yellow-200",
-		error: "bg-red-500/20 text-red-200"
-	};
-	return classes[status as keyof typeof classes] || classes.inactive;
 };
 
 const getLoadParams = () => ({
@@ -674,14 +648,6 @@ const handleDeviceDeleted = (event: DeviceDeletedEvent) => {
 	deviceConnectivity.removeDevice(event.deviceId);
 };
 
-// 處理設備狀態變更事件
-const handleDeviceStatusChanged = (event: DeviceStatusChangedEvent) => {
-	const device = devices.value.find(d => d.id === event.deviceId);
-	if (device) {
-		device.status = event.newStatus;
-	}
-};
-
 // 處理設備監控狀態事件（設備上線/離線）
 const handleMonitoringStatus = (event: MonitoringDeviceStatusEvent) => {
 	// 方案 A：設備管理頁只顯示「設備本體」連線
@@ -710,7 +676,6 @@ onMounted(async () => {
 		onDeviceCreated: handleDeviceCreated,
 		onDeviceUpdated: handleDeviceUpdated,
 		onDeviceDeleted: handleDeviceDeleted,
-		onDeviceStatusChanged: handleDeviceStatusChanged,
 		onMonitoringStatus: handleMonitoringStatus,
 		onMonitoringStatusBatch: handleMonitoringStatusBatch
 	});

@@ -347,28 +347,6 @@
 							</label>
 						</template>
 
-						<label
-							v-if="isAdmin"
-							class="flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base"
-						>
-							<label class="relative inline-flex cursor-pointer items-center">
-								<input
-									v-model="localFormData.status"
-									type="checkbox"
-									value="active"
-									true-value="active"
-									false-value="inactive"
-									class="peer sr-only"
-								/>
-								<div
-									class="peer h-6 w-11 rounded-full bg-white/20 after:absolute after:left-[4px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-emerald-500 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none 2xl:h-7 2xl:w-14 2xl:after:h-6 2xl:after:w-6"
-								></div>
-								<span class="ml-3 text-sm 2xl:text-base">{{
-									localFormData.status === "active" ? "已啟用" : "已停用"
-								}}</span>
-							</label>
-						</label>
-
 						<p v-if="displayErrorMessage" class="text-sm text-rose-300 2xl:text-base">
 							{{ displayErrorMessage }}
 						</p>
@@ -466,8 +444,7 @@ const modelIdString = ref("");
 
 const localFormData = reactive({
 	name: "",
-	model_id: 0,
-	status: "active" as "active" | "inactive" | "error"
+	model_id: 0
 });
 
 const controllerConfig = reactive<ControllerDeviceConfig>({
@@ -670,7 +647,6 @@ watch(
 const resetForm = () => {
 	localFormData.name = "";
 	localFormData.model_id = 0;
-	localFormData.status = "active";
 	controllerConfig.host = "";
 	controllerConfig.port = undefined;
 	controllerConfig.unitId = undefined;
@@ -707,7 +683,6 @@ const displayErrorMessage = computed(() => {
 interface FormSnapshot {
 	name: string;
 	model_id: number;
-	status: string;
 	config: DeviceConfig;
 }
 const initialFormSnapshot = ref<FormSnapshot | null>(null);
@@ -715,7 +690,6 @@ const initialFormSnapshot = ref<FormSnapshot | null>(null);
 const getFormSnapshot = (): FormSnapshot => ({
 	name: localFormData.name,
 	model_id: localFormData.model_id,
-	status: localFormData.status,
 	config: getCurrentConfig()
 });
 
@@ -754,7 +728,6 @@ const hasUnsavedChanges = computed(() => {
 		return (
 			current.name !== initial.name ||
 			current.model_id !== initial.model_id ||
-			current.status !== initial.status ||
 			JSON.stringify(current.config) !== JSON.stringify(initial.config)
 		);
 	}
@@ -771,9 +744,6 @@ const changedFieldsList = computed(() => {
 	}
 	if (current.model_id !== initial.model_id) {
 		fields.push("設備型號");
-	}
-	if (current.status !== initial.status) {
-		fields.push("啟用狀態");
 	}
 	if (JSON.stringify(current.config) !== JSON.stringify(initial.config)) {
 		fields.push("連線設定");
@@ -874,7 +844,6 @@ watch(
 		if (device) {
 			localFormData.name = device.name;
 			localFormData.model_id = device.model_id; // model_id 現在是必填的
-			localFormData.status = device.status;
 			cameraCategoryCode.value = String(device.model_category_code || "");
 			loadConfigFromDevice(device);
 		} else {
@@ -1007,7 +976,6 @@ const handleSubmit = () => {
 		emit("submit", {
 			name: localFormData.name,
 			model_id: localFormData.model_id,
-			status: localFormData.status,
 			config: config
 		} as UpdateDeviceData);
 	} else {
@@ -1015,7 +983,6 @@ const handleSubmit = () => {
 			name: localFormData.name,
 			type_code: props.deviceTypeCode,
 			model_id: localFormData.model_id,
-			status: localFormData.status === "active" ? "active" : undefined,
 			config: config
 		};
 		emit("submit", submitData);
