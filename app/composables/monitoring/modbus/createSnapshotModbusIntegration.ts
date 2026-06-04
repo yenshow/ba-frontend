@@ -5,10 +5,10 @@ import { useModbusPollingPolicy, type PollingHealthState } from "~/composables/m
 import type { StatusSnapshotFetchOptions } from "~/composables/monitoring/modbus/statusSnapshotPolicy"
 import {
 	resolveToggleSnapshotZoneIds,
-	type ZoneUiKeyable,
 	type ModbusIntegrationZone,
 	useModbusIntegrationDeviceCache,
 } from "~/composables/monitoring/modbus/modbusIntegrationShared"
+import type { ZoneUiKeyable } from "~/utils/locationUiId"
 import {
 	patchOptimisticManualAlarmForZones,
 	patchOptimisticUiStatusBySystemId,
@@ -59,7 +59,7 @@ export type SnapshotModbusIntegrationConfig<
 	manualAlarmSystemType?: ManualSemanticAlertSource
 }
 
-/** 快照整合 composable 對外介面（含 manualAlarm / uiStatus 兩種樂觀更新，未啟用者為 no-op） */
+/** 快照整合 composable 對外介面（含 manualAlarm / uiStatus 兩種樂觀更新；未使用該模式者為 no-op） */
 export type SnapshotModbusIntegrationHandle<
 	TItem extends { systemId: string | number; uiStatus: unknown },
 > = {

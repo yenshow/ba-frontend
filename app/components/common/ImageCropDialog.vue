@@ -152,8 +152,6 @@ const emit = defineEmits<{
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 
 const {
-	canvasWidth,
-	canvasHeight,
 	mask,
 	isSaving,
 	errorText,

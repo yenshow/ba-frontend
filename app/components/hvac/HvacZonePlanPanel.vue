@@ -14,20 +14,18 @@
 						<PermissionActionButton
 							v-show="!isInitialLoading"
 							:allowed="canManageZones ?? false"
-							aria-label="????"
+							aria-label="樓層管理"
 							class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base font-light text-white transition-all 2xl:text-lg"
 							enabled-hover-class="hover:bg-white/10"
 							@click="handleOpenZoneDialog"
-						>
-							????
-						</PermissionActionButton>
+						>樓層管理</PermissionActionButton>
 					</Transition>
 					<div class="relative">
 						<Transition name="fade-in">
 							<PermissionActionButton
 								v-show="!isInitialLoading"
 								:allowed="canWrite"
-								aria-label="????"
+								aria-label="編輯定位"
 								:class="[
 									'whitespace-nowrap rounded-2xl p-3 text-base font-light text-white transition-all 2xl:text-lg',
 									isEditMode
@@ -37,7 +35,7 @@
 								enabled-hover-class="hover:bg-white/10"
 								@click="handleToggleEditMode"
 							>
-								{{ isEditMode ? "????" : "????" }}
+								{{ isEditMode ? "完成編輯" : "編輯定位" }}
 							</PermissionActionButton>
 						</Transition>
 						<Transition name="dropdown">
@@ -77,7 +75,7 @@
 				<NuxtImg
 					v-if="zonePlanImage"
 					:src="zonePlanImage"
-					alt="?�?�??��?"
+					alt="區域平面圖"
 					class="image-blur-load pointer-events-none h-full w-full object-contain"
 					:class="{ 'image-loaded': isZonePlanLoaded }"
 					width="auto"
@@ -85,7 +83,7 @@
 					@load="handleZonePlanImageLoad"
 				/>
 				<div v-else class="flex h-full w-full items-center justify-center text-white/50">
-					<span>???�??�?�??��?</span>
+					<span>尚未設定區域平面圖</span>
 				</div>
 
 				<template v-for="location in currentZoneLocations" :key="getLocationIdForDisplay(location)">

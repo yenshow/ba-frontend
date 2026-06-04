@@ -1,5 +1,6 @@
 import { io, Socket } from "socket.io-client";
 import { watch, type Ref } from "vue";
+import { useAuth } from "~/composables/core/useAuth";
 import { logger } from "~/utils/logger";
 import type { WebSocketStatus } from "~/types/websocket";
 
@@ -114,6 +115,15 @@ export const useWebSocket = () => {
 			});
 
 			// 連接成功
+			globalSocket.on("permissions:updated", async () => {
+				try {
+					const { fetchUser } = useAuth()
+					await fetchUser()
+				} catch (_e) {
+					/* ignore */
+				}
+			})
+
 			globalSocket.on("connect", () => {
 				status.value = "connected";
 				connectionError.value = null;

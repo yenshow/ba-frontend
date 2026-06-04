@@ -382,7 +382,6 @@ import { formatMaxDevicesText, normalizeMaxDevices, toNonNegativeInt } from "~/u
 
 definePageMeta({
 	layout: "default",
-	middleware: "admin",
 })
 
 const featureLabels: Record<string, string> = {

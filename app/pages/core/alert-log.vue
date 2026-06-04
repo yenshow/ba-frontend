@@ -124,7 +124,7 @@
 <script setup lang="ts">
 import { useToast } from "~/composables/core/useToast"
 import type { Alert, AlertStatus, AlertSource, AlertType } from "~/types/alert"
-import { useAlertLogRbac } from "~/composables/core/useModuleRbac"
+import { useAlertLogRbac } from "~/composables/core/useAccessGate"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor"
 import { useAlertEventBus } from "~/composables/monitoring/alertMonitor/useAlertEventBus"
@@ -152,12 +152,7 @@ definePageMeta({
 
 const alertApi = useAlertApi()
 const toast = useToast()
-const {
-	canIgnoreAlert,
-	canExportReport,
-	canCreateAlert,
-	canManageRules,
-} = useAlertLogRbac()
+const { canIgnoreAlert, canExportReport, canCreateAlert, canManageRules } = useAlertLogRbac()
 const { removeAlertToast } = useAlertMonitor()
 const {
 	onAlertNew: busOnAlertNew,
@@ -184,9 +179,7 @@ const unresolvedCount = ref(0)
 const currentMode = ref<"alerts" | "rules">("alerts")
 
 const alertModeTabs = computed(() => {
-	const tabs: { id: "alerts" | "rules"; label: string }[] = [
-		{ id: "alerts", label: "警示紀錄" },
-	]
+	const tabs: { id: "alerts" | "rules"; label: string }[] = [{ id: "alerts", label: "警示紀錄" }]
 	if (canManageRules.value) {
 		tabs.push({ id: "rules", label: "警報設定" })
 	}

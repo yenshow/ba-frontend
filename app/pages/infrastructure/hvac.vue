@@ -70,7 +70,7 @@ import { useVisibilityAutoRefresh } from "~/composables/monitoring/useVisibility
 import { useHvacApi } from "~/composables/systems/hvac/useHvacApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
-import { useSnapshotSystemPageRbac } from "~/composables/core/useModuleRbac"
+import { useSnapshotSystemPageRbac } from "~/composables/core/useAccessGate"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
 import { useHvacModbusIntegration } from "~/composables/monitoring/modbus/toggleModbusIntegrations"
@@ -137,7 +137,7 @@ const autoRefresh = useVisibilityAutoRefresh({
 const getLocationAlertFlash = (locationId: string): "none" | "slow" | "fast" => {
 	const ui = locationStatuses.value[locationId]?.uiStatus
 	if (ui === "normal") return "none"
-	// HVAC 對外僅 normal / warning（alarm 視為 warning）
+	// HVAC 對外僅有 normal / warning（alarm 視為 warning）
 	return "slow"
 }
 
@@ -145,7 +145,7 @@ const dotStatusForLocationId = (locationId: string) => dotStatusForLocation(loca
 
 const tooltipTitleByLocationId = (locationId: string) => {
 	const s = locationStatuses.value[locationId]
-	// HVAC 對外僅 normal / warning（alarm 視為 warning）
+	// HVAC 對外僅有 normal / warning（alarm 視為 warning）
 	const label = s?.uiStatus === "normal" ? "正常" : "異常"
 	const temp =
 		s?.temperatureC != null && Number.isFinite(s.temperatureC)
@@ -153,7 +153,7 @@ const tooltipTitleByLocationId = (locationId: string) => {
 			: ""
 	const found = findLocationInCurrentZoneByUiKey(locationId)
 	const name = found?.location?.name || ""
-	return `${name}：${label}${temp}`
+	return `${name}（${label}）${temp}`
 }
 
 const findLocationInCurrentZoneByUiKey = (locationId: string) => {
@@ -199,8 +199,7 @@ const handleSaveLocationPositionFromPanel = (payload: {
 	x: number
 	y: number
 }) => {
-	// HVAC 的點位座標持久化由 ZoneManagementDialog 的 updateZone 流程承接；
-	// 這裡沿用照明頁的事件形狀，先直接觸發 zone 更新（單筆 location 座標覆寫）
+	// HVAC 地點座標持久化走 ZoneManagementDialog 的 updateZone 流程，不在此直接觸發 zone 更新
 	void saveLocationPosition(payload.locationId, payload.x, payload.y)
 }
 

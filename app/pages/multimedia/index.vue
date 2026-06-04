@@ -3,15 +3,15 @@
 		<div class="flex items-center justify-between">
 			<div class="flex items-center gap-3">
 				<header class="me-4 flex flex-col gap-1 2xl:gap-2">
-					<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">資訊牆管理</h1>
-					<p class="text-base text-white/80 2xl:text-xl">管理資訊牆基本設定與公告 / 排程</p>
+					<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">多媒體資訊</h1>
+					<p class="text-base text-white/80 2xl:text-xl">管理資訊牆基礎設定、公告與班表</p>
 				</header>
 				<PageTabs
 					v-model="activeTab"
 					list-class="w-fit"
 					:tabs="multimediaTabs"
 					:panels="false"
-					aria-label="資訊牆管理分頁"
+					aria-label="多媒體資訊分頁"
 					id-prefix="multimedia-tab"
 				/>
 			</div>
@@ -21,9 +21,9 @@
 					target="_blank"
 					rel="noopener noreferrer"
 					class="rounded-xl bg-white/10 px-4 py-2 text-base text-white hover:bg-white/20 2xl:px-6 2xl:py-3 2xl:text-lg"
-					aria-label="前往資訊看板"
+					aria-label="開啟資訊牆看板"
 				>
-					資訊看板
+					資訊牆看板
 				</NuxtLink>
 				<button
 					type="button"
@@ -40,15 +40,15 @@
 			v-model="activeTab"
 			:tabs="multimediaTabs"
 			:list="false"
-			aria-label="資訊牆管理分頁"
+			aria-label="多媒體資訊分頁"
 			id-prefix="multimedia-tab"
 		>
 			<template #basic>
 				<div class="grid grid-cols-12 gap-4">
-					<!-- 圖片 -->
+					<!-- Left -->
 					<div class="col-span-7 space-y-4">
 						<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
-							<h2 class="text-2xl font-semibold tracking-[4px]">圖片設定</h2>
+							<h2 class="text-2xl font-semibold tracking-[4px]">基本設定</h2>
 
 							<div class="mt-4 grid grid-cols-3 gap-4">
 								<ImageField
@@ -64,7 +64,7 @@
 									@upload="(f) => handleUpload(f, (url) => (draft.projectImageUrl = url))"
 								/>
 								<ImageField
-									label="多媒體影音"
+									label="多媒體影像"
 									:value="draft.heroImageUrl"
 									accept="image/*,video/*"
 									@upload="(f) => handleUpload(f, (url) => (draft.heroImageUrl = url))"
@@ -73,13 +73,13 @@
 						</section>
 
 						<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
-							<h2 class="text-2xl font-semibold tracking-[4px]">佈告文案</h2>
+							<h2 class="text-2xl font-semibold tracking-[4px]">布局橫幅</h2>
 							<div class="mt-4">
 								<textarea
 									v-model="draft.bannerMarqueeText"
 									rows="4"
 									class="form-input-small w-full"
-									placeholder="看板文字"
+									placeholder="例如：社區水泵維護"
 								/>
 							</div>
 						</section>
@@ -88,7 +88,7 @@
 					<!-- Right -->
 					<div class="col-span-5 space-y-4">
 						<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
-							<h2 class="text-2xl font-semibold tracking-[4px]">環境資料來源</h2>
+							<h2 class="text-2xl font-semibold tracking-[4px]">環境資訊來源</h2>
 
 							<div class="mt-4">
 								<div v-if="isLoadingSensorDevices" class="py-4 text-center text-base text-white/60">
@@ -112,7 +112,7 @@
 											:checked="isEnvDeviceSelected(device.id)"
 											@change="handleToggleEnvDevice(device.id)"
 											class="h-4 w-4 cursor-pointer accent-cyan-400"
-											:aria-label="`勾選感測器：${device.name}`"
+											:aria-label="`勾選感測器 ${device.name}`"
 										/>
 										<span class="text-base text-white">{{ device.name }}</span>
 									</label>
@@ -129,7 +129,7 @@
 										<span
 											class="h-2.5 w-2.5 rounded-full"
 											:class="item.isSupported ? 'bg-emerald-400' : 'bg-white/25'"
-											:title="item.isSupported ? '設備已支援' : '設備未支援 / 無資料'"
+											:title="item.isSupported ? '設備已支援' : '設備不支援 / 未選取'"
 										/>
 										<span class="text-base text-white">{{ item.label }}</span>
 										<span class="ml-auto text-sm text-white/50">{{ item.unit }}</span>
@@ -139,7 +139,7 @@
 						</section>
 
 						<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
-							<h2 class="text-2xl font-semibold tracking-[4px]">看板分頁 / 輪播</h2>
+							<h2 class="text-2xl font-semibold tracking-[4px]">資訊牆分頁 / 輪播</h2>
 							<div class="mt-4 grid grid-cols-2 gap-4">
 								<label class="block">
 									<div class="mb-1 text-sm text-white/80">公告每頁筆數</div>
@@ -152,7 +152,7 @@
 									/>
 								</label>
 								<label class="block">
-									<div class="mb-1 text-sm text-white/80">排程每頁筆數</div>
+									<div class="mb-1 text-sm text-white/80">班表每頁筆數</div>
 									<input
 										v-model.number="draft.wallSchedulesPerPage"
 										type="number"
@@ -164,7 +164,7 @@
 							</div>
 							<div class="mt-4 grid grid-cols-2 gap-4">
 								<label class="block">
-									<div class="mb-1 text-sm text-white/80">公告自動切頁（秒）</div>
+									<div class="mb-1 text-sm text-white/80">公告輪播間隔（秒）</div>
 									<input
 										v-model.number="wallAnnouncementAutoPageIntervalSec"
 										type="number"
@@ -174,7 +174,7 @@
 									/>
 								</label>
 								<label class="block">
-									<div class="mb-1 text-sm text-white/80">排程自動切頁（秒）</div>
+									<div class="mb-1 text-sm text-white/80">班表輪播間隔（秒）</div>
 									<input
 										v-model.number="wallScheduleAutoPageIntervalSec"
 										type="number"
@@ -232,8 +232,7 @@
 													aria-label="此公告上移"
 													@click="handleReorderAnnouncement(announcementOffset + idx, 'up')"
 												>
-													↑
-												</button>
+													↑</button>
 												<button
 													type="button"
 													class="btn-reorder-arrow"
@@ -244,8 +243,7 @@
 													aria-label="此公告下移"
 													@click="handleReorderAnnouncement(announcementOffset + idx, 'down')"
 												>
-													↓
-												</button>
+													↓</button>
 											</div>
 											<button
 												type="button"
@@ -270,12 +268,12 @@
 
 									<div class="mt-3 grid grid-cols-1 gap-3">
 										<label class="block">
-											<div class="mb-1 text-sm text-white/80">內容</div>
+										<div class="mb-1 text-sm text-white/80">內容</div>
 											<textarea
 												v-model="a.title"
 												rows="2"
 												class="form-input-small w-full"
-												placeholder="例如：設備施工公告"
+												placeholder="例如：社區水泵維護"
 											/>
 										</label>
 									</div>
@@ -297,13 +295,13 @@
 							class="min-h-[420px] rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white"
 						>
 							<div class="flex items-center justify-between gap-3">
-								<h2 class="text-xl font-semibold tracking-[6px]">今日社區排程</h2>
+								<h2 class="text-xl font-semibold tracking-[6px]">今日社區班表</h2>
 								<button
 									type="button"
 									class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-base"
 									@click="handleAddSchedule"
 								>
-									新增排程
+									新增班表
 								</button>
 							</div>
 							<div class="mt-4 space-y-4">
@@ -326,21 +324,19 @@
 													class="btn-reorder-arrow"
 													:disabled="scheduleOffset + idx <= 0"
 													title="上移"
-													aria-label="此排程上移"
+													aria-label="此班表上移"
 													@click="handleReorderSchedule(scheduleOffset + idx, 'up')"
 												>
-													↑
-												</button>
+													↑</button>
 												<button
 													type="button"
 													class="btn-reorder-arrow"
 													:disabled="scheduleOffset + idx >= (draft.schedules || []).length - 1"
 													title="下移"
-													aria-label="此排程下移"
+													aria-label="此班表下移"
 													@click="handleReorderSchedule(scheduleOffset + idx, 'down')"
 												>
-													↓
-												</button>
+													↓</button>
 											</div>
 											<button
 												type="button"
@@ -369,7 +365,7 @@
 											v-model="s.title"
 											type="text"
 											class="form-input-small w-full"
-											placeholder="例如：社區園藝維護"
+											placeholder="例如：社區水泵維護"
 										/>
 									</label>
 								</div>
@@ -409,7 +405,7 @@ import type {
 
 definePageMeta({ layout: "default" })
 
-import { useMultimediaRbac } from "~/composables/core/useModuleRbac"
+import { useMultimediaRbac } from "~/composables/core/useAccessGate"
 const { canWrite } = useMultimediaRbac()
 const toast = useToast()
 const { handleError } = useErrorHandler()
@@ -420,7 +416,7 @@ const isSaving = ref(false)
 const activeTab = ref<"basic" | "content">("basic")
 const multimediaTabs = [
 	{ id: "basic" as const, label: "基本設定" },
-	{ id: "content" as const, label: "公告 / 排程" },
+	{ id: "content" as const, label: "公告 / 班表" },
 ]
 
 const FIXED_ENV_SKELETON_KEYS = [
@@ -677,18 +673,18 @@ const validateDraft = (): { ok: true } | { ok: false; message: string } => {
 		const endKey = (a as any)?.endDate
 		const start = toDateKeyOrEmpty(startKey)
 		const end = toDateKeyOrEmpty(endKey)
-		if (startKey && !start) return { ok: false, message: `公告第 ${i + 1} 筆：開始日期格式不正確` }
-		if (endKey && !end) return { ok: false, message: `公告第 ${i + 1} 筆：結束日期格式不正確` }
+		if (startKey && !start) return { ok: false, message: `公告第 ${i + 1} 筆開始日期格式不正確` }
+		if (endKey && !end) return { ok: false, message: `公告第 ${i + 1} 筆結束日期格式不正確` }
 		if (start && end && start > end)
-			return { ok: false, message: `公告第 ${i + 1} 筆：開始日期不可晚於結束日期` }
+			return { ok: false, message: `公告第 ${i + 1} 筆開始日期不可晚於結束日期` }
 	}
 
 	for (const [i, s] of (draft.schedules || []).entries()) {
 		const start = toTimeKeyOrEmpty((s as any)?.startTime)
 		const end = toTimeKeyOrEmpty((s as any)?.endTime)
-		if (!start) return { ok: false, message: `排程第 ${i + 1} 筆：開始時間格式不正確` }
-		if (!end) return { ok: false, message: `排程第 ${i + 1} 筆：結束時間格式不正確` }
-		if (start >= end) return { ok: false, message: `排程第 ${i + 1} 筆：開始時間需早於結束時間` }
+		if (!start) return { ok: false, message: `班表第 ${i + 1} 筆開始時間格式不正確` }
+		if (!end) return { ok: false, message: `班表第 ${i + 1} 筆結束時間格式不正確` }
+		if (start >= end) return { ok: false, message: `班表第 ${i + 1} 筆開始時間不可晚於或等於結束時間` }
 	}
 
 	return { ok: true }

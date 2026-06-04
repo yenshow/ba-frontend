@@ -457,7 +457,7 @@ const loadDevices = async () => {
 		const deviceType =
 			props.systemType === "lighting" ||
 			props.systemType === "hvac" ||
-				props.systemType === "air_circulation" ||
+			props.systemType === "air_circulation" ||
 			props.systemType === "drainage" ||
 			props.systemType === "power" ||
 			props.systemType === "fire" ||
@@ -467,7 +467,6 @@ const loadDevices = async () => {
 				: "sensor"
 		const result = await deviceApi.getDevices({
 			type_code: deviceType,
-			status: "active",
 			limit: 100,
 		})
 		devices.value = result.devices
@@ -516,7 +515,6 @@ const loadAccessControlDevices = async () => {
 	try {
 		const result = await deviceApi.getDevices({
 			type_code: "access_control",
-			status: "active",
 			limit: 100,
 		})
 		accessControlDevices.value = result.devices || []
@@ -566,7 +564,6 @@ const loadIsapiCameraDevices = async () => {
 	try {
 		const result = await deviceApi.getDevices({
 			type_code: "camera",
-			status: "active",
 			limit: 200,
 		})
 		isapiCameraDevices.value = filterPeopleCountingCameraDevices(result.devices || [])
@@ -578,7 +575,7 @@ const loadIsapiCameraDevices = async () => {
 // 當對話框打開時載入設備列表和相關資料
 watch(
 	() => props.modelValue,
-	async newValue => {
+	async (newValue) => {
 		if (newValue) {
 			loadDevices()
 			if (props.systemType === "people_counting") {

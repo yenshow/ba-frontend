@@ -1,4 +1,5 @@
-/** 與後端 permissionCatalog 對齊 */
+// AUTO-GENERATED — do not edit; run: npm run gen:perm (ba-backend)
+/** Profile: central — aligned with permissionCatalog.js */
 
 export const PERM = {
 	home: { module: "system.home" },
@@ -33,7 +34,7 @@ export const PERM = {
 		locationUpdate: "system.people_counting.location.update",
 		locationDelete: "system.people_counting.location.delete",
 		reportFull: "system.people_counting.report.full",
-		reportExport: "system.people_counting.report.export",
+		export: "system.people_counting.report.export",
 	},
 	environment: {
 		module: "system.environment",
@@ -41,7 +42,7 @@ export const PERM = {
 		locationUpdate: "system.environment.location.update",
 		locationDelete: "system.environment.location.delete",
 		reportFull: "system.environment.report.full",
-		reportExport: "system.environment.report.export",
+		export: "system.environment.report.export",
 	},
 	vehicleAccess: {
 		module: "system.vehicle_access",
@@ -53,7 +54,7 @@ export const PERM = {
 		plateUpdate: "system.vehicle_access.plate.update",
 		plateDelete: "system.vehicle_access.plate.delete",
 		reportFull: "system.vehicle_access.report.full",
-		reportExport: "system.vehicle_access.report.export",
+		export: "system.vehicle_access.report.export",
 		statisticsReset: "system.vehicle_access.statistics.reset",
 		barrierControl: "system.vehicle_access.barrier.control",
 	},

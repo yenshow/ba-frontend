@@ -189,7 +189,7 @@
 <script setup lang="ts">
 import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
-import { useAreaPointMapRbac } from "~/composables/core/useModuleRbac"
+import { useAreaPointMapRbac } from "~/composables/core/useAccessGate"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import {
@@ -242,16 +242,11 @@ definePageMeta({
 	layout: "default",
 })
 
-const {
-	canDeleteZone,
-	canDeleteLocation,
-	canManageOperations,
-	canDeleteLocationForSystem,
-} = useAreaPointMapRbac()
-
+const { canDeleteZone, canDeleteLocation, canManageOperations, canDeleteLocationForSystem } =
+	useAreaPointMapRbac()
 
 const canDeleteLocationInDialog = computed(() =>
-	canDeleteLocationForSystem(selectedSystemType.value),
+	canDeleteLocationForSystem(selectedSystemType.value)
 )
 const locationApi = useLocationApi()
 const { handleError } = useErrorHandler()
@@ -593,7 +588,12 @@ const dotStatusForLocation = (location: UnifiedLocation): MapDotStatus => {
 			if (dotSeverity(s) > dotSeverity(best)) best = s
 		}
 
-		best = mergeModbusDotStatus(best, location, "air_circulation", airCirculationUiStatusByLocationId.value)
+		best = mergeModbusDotStatus(
+			best,
+			location,
+			"air_circulation",
+			airCirculationUiStatusByLocationId.value
+		)
 		best = mergeModbusDotStatus(best, location, "smoke_alarm", smokeAlarmUiStatusByLocationId.value)
 		best = mergeModbusDotStatus(
 			best,
@@ -931,11 +931,13 @@ const refreshOverviewOneSystem = async () => {
 		return loadAirCirculationSnapshot()
 	}
 	if (idx === 6) {
-		if (!hasLoadedSmokeAlarmSnapshot.value) return loadSmokeAlarmStatusSnapshot({ autoRefresh: false })
+		if (!hasLoadedSmokeAlarmSnapshot.value)
+			return loadSmokeAlarmStatusSnapshot({ autoRefresh: false })
 		if (smokeAlarmZones.value.length === 0) return
 		return loadSmokeAlarmSnapshot()
 	}
-	if (!hasLoadedEmergencyRescueSnapshot.value) return loadEmergencyRescueStatusSnapshot({ autoRefresh: false })
+	if (!hasLoadedEmergencyRescueSnapshot.value)
+		return loadEmergencyRescueStatusSnapshot({ autoRefresh: false })
 	if (emergencyRescueZones.value.length === 0) return
 	return loadEmergencyRescueSnapshot()
 }

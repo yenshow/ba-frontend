@@ -53,7 +53,7 @@
 						class="h-4 w-4 accent-cyan-400"
 						@change="handleOperationModeChange"
 					/>
-					<span class="text-sm text-white/90 2xl:text-base">車流統計（營運日進出）</span>
+					<span class="text-sm text-white/90 2xl:text-base">車流統計</span>
 				</label>
 				<label class="flex cursor-pointer items-center gap-2">
 					<input
@@ -63,7 +63,7 @@
 						class="h-4 w-4 accent-cyan-400"
 						@change="handleOperationModeChange"
 					/>
-					<span class="text-sm text-white/90 2xl:text-base">停車場管理（session 進出／持續在場）</span>
+					<span class="text-sm text-white/90 2xl:text-base">停車場管理</span>
 				</label>
 			</div>
 			<label
@@ -424,8 +424,7 @@ watch(
 			),
 		}
 		dataSource.value = ds
-		operationMode.value =
-			newLocation.operationMode === "parking" ? "parking" : "construction_flow"
+		operationMode.value = newLocation.operationMode === "parking" ? "parking" : "construction_flow"
 		if (ds === "yscp") {
 			operationMode.value = "construction_flow"
 		}
@@ -433,8 +432,7 @@ watch(
 			newLocation.parkingCapacity != null && newLocation.parkingCapacity > 0
 				? newLocation.parkingCapacity
 				: ""
-		entryLaneIdString.value =
-			newLocation.entryLaneId != null ? String(newLocation.entryLaneId) : ""
+		entryLaneIdString.value = newLocation.entryLaneId != null ? String(newLocation.entryLaneId) : ""
 		exitLaneIdString.value = newLocation.exitLaneId != null ? String(newLocation.exitLaneId) : ""
 	},
 	{ immediate: true, deep: true }
@@ -446,8 +444,7 @@ const syncParkingCapacityToLocation = () => {
 		return
 	}
 	const n = Number(parkingCapacityInput.value)
-	localLocation.value.parkingCapacity =
-		Number.isFinite(n) && n >= 1 ? Math.trunc(n) : undefined
+	localLocation.value.parkingCapacity = Number.isFinite(n) && n >= 1 ? Math.trunc(n) : undefined
 }
 
 const handleChange = () => {

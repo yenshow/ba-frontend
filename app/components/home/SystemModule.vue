@@ -87,29 +87,23 @@
 </template>
 
 <script setup lang="ts">
-import { useLicense } from "~/composables/core/useLicense"
+import { useAccessGate } from "~/composables/core/useAccessGate"
 import { useToast } from "~/composables/core/useToast"
-import { LICENSE_MESSAGE_LOCKED, PERMISSION_MESSAGE_LOCKED } from "~/utils/licenseUtils"
+import { PERMISSION_MESSAGE_LOCKED } from "~/utils/errorUtils"
 import type { SystemModule } from "~/types/system"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 
 const moduleRegistry = useModuleRegistry()
-const { isModuleLocked: isModuleLockedByLicense } = useLicense()
+const accessGate = useAccessGate()
 const toast = useToast()
 
-/** 模組是否鎖住：授權不足或無該系統權限 */
-const isModuleLocked = (module: SystemModule) =>
-	isModuleLockedByLicense(module) || !moduleRegistry.canAccessModule(module)
+const isModuleLocked = (module: SystemModule) => accessGate.isModuleLocked(module)
 
 const systemModules = computed(() => moduleRegistry.getAllModules())
 
 const handleModuleClick = (module: SystemModule) => {
-	if (!moduleRegistry.canAccessModule(module)) {
+	if (!accessGate.canAccessModule(module)) {
 		toast.warning(PERMISSION_MESSAGE_LOCKED)
-		return
-	}
-	if (isModuleLockedByLicense(module)) {
-		toast.warning(LICENSE_MESSAGE_LOCKED)
 		return
 	}
 	navigateTo(module.route)

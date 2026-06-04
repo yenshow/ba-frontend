@@ -1,6 +1,6 @@
 <template>
 	<div>
-		<!-- 影像監視系統頁面內容 - 參考照明系統排版 -->
+		<!-- 影像監控系統頁面內容 - 參考其他系統版面 -->
 		<div
 			class="flex min-w-0 items-stretch justify-center"
 			:class="isOverviewCollapsed ? 'gap-0' : 'gap-4 xl:gap-6 2xl:gap-8'"
@@ -54,7 +54,7 @@
 						/>
 					</div>
 
-					<!-- 監控網格區域 -->
+					<!-- 監控網格區 -->
 					<div class="min-h-[400px] flex-1">
 						<Transition name="fade" mode="out-in">
 							<!-- 錯誤狀態 -->
@@ -80,7 +80,7 @@
 								/>
 							</div>
 
-							<!-- 提示：如何新增攝影機到監控畫面 -->
+							<!-- 提示：如何將攝影機加入監控畫面 -->
 							<div
 								v-else
 								key="empty"
@@ -100,9 +100,9 @@
 											d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
 										/>
 									</svg>
-									<p class="text-2xl text-white/90 2xl:text-3xl">尚未選擇攝影機</p>
+									<p class="text-2xl text-white/90 2xl:text-3xl">尚未加入攝影機</p>
 									<p class="mt-2 text-base text-white/70 2xl:text-lg">
-										請從右側列表點選攝影機以加入到監控畫面
+										請於側邊列表點選攝影機以加入監控畫面
 									</p>
 								</div>
 							</div>
@@ -129,8 +129,8 @@
 								type="button"
 								class="absolute right-4 top-6 z-10 flex h-8 w-8 items-center justify-center rounded-lg border border-white/80 text-white transition-colors hover:bg-white/20 2xl:h-12 2xl:w-12"
 								aria-expanded="true"
-								aria-label="收縮列表"
-								title="收縮列表"
+								aria-label="收合列表"
+								title="收合列表"
 								@click="isOverviewCollapsed = true"
 							>
 								<svg
@@ -193,6 +193,8 @@
 										:key="camera.id"
 										:camera="camera"
 										:is-selected="selectedCameraIds.includes(camera.id)"
+										:connectivity-status="deviceConnectivity.getStatus(camera.id)"
+										:connectivity-loading="deviceConnectivity.isLoading(camera.id)"
 										@select="handleCameraSelect"
 									/>
 								</section>
@@ -221,27 +223,36 @@ import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useStreamStatus } from "~/composables/monitoring/useStreamStatus"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { useDeviceConnectivity } from "~/composables/systems/devices/useDeviceConnectivity"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import SurveillanceControlPanel from "~/components/surveillance/SurveillanceControlPanel.vue"
 import SurveillanceCameraGrid from "~/components/surveillance/SurveillanceCameraGrid.vue"
 import SurveillanceCameraCard from "~/components/surveillance/SurveillanceCameraCard.vue"
 import SurveillanceFullscreenGridDialog from "~/components/surveillance/SurveillanceFullscreenGridDialog.vue"
 import { groupDevicesByModelCategory } from "~/utils/cameraModelCategories"
-import { useSurveillanceRbac } from "~/composables/core/useModuleRbac"
+import { useSurveillanceRbac } from "~/composables/core/useAccessGate"
 
 const { canControlStream } = useSurveillanceRbac()
 const toast = useToast()
 const { handleError } = useErrorHandler()
 
-// 使用統一的串流狀態管理
+// 使用統一串流狀態管理
 const streamStatus = useStreamStatus()
 
-// 狀態管理（使用統一的串流狀態管理）
+// 載入錯誤狀態
 const loadError = ref<string | null>(null)
 
-// 從統一的狀態管理獲取狀態（只讀）
+// 從統一串流狀態管理取得資料
 const cameras = computed(() => streamStatus.cameras.value)
 const monitorViews = computed(() => streamStatus.monitorViews.value)
+
+const deviceConnectivity = useDeviceConnectivity({ debounceMs: 150 })
+
+watch(
+	() => cameras.value.map((c) => c.id),
+	(ids) => deviceConnectivity.refreshDebounced(ids),
+	{ immediate: true }
+)
 
 const deviceApi = useDeviceApi()
 const surveillanceGroupFilter = ref<string>("")
@@ -278,7 +289,6 @@ const loadCameraGroups = async () => {
 	}
 }
 
-// 載入攝影機列表
 const loadCameras = async () => {
 	loadError.value = null
 
@@ -293,13 +303,15 @@ const loadCameras = async () => {
 const refreshStatus = async () => {
 	try {
 		await streamStatus.loadCameras()
-		toast.success("已重新載入")
+		const ids = cameras.value.map((c) => c.id)
+		await deviceConnectivity.refresh(ids)
+		toast.success("已重新整理")
 	} catch (error) {
 		handleError(error, "重新載入失敗")
 	}
 }
 
-// 處理攝影機選擇：加入或移除監控畫面（加入時呼叫 stream/start 取得 webrtcUrl）
+// 選擇攝影機會加入或移除監控畫面（呼叫 stream/start）
 const handleCameraSelect = async (deviceId: number) => {
 	const existing = monitorViews.value.find((v) => v.deviceId === deviceId)
 	if (existing) {
@@ -330,11 +342,11 @@ const handleRemoveView = (deviceId: number) => {
 	streamStatus.removeMonitorView(deviceId)
 }
 
-// 監聽布局變化，調整畫面數量
+// 當布局變更時，調整畫面數量
 watch(gridLayout, (newLayout) => {
 	const maxViews = parseInt(newLayout)
 	if (monitorViews.value.length > maxViews) {
-		// 移除超出數量的視圖
+		// 移除超出上限的畫面
 		const viewsToRemove = monitorViews.value.slice(maxViews)
 		viewsToRemove.forEach((view) => {
 			streamStatus.removeMonitorView(view.deviceId)

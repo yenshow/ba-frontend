@@ -53,7 +53,9 @@
 									<Transition name="fade">
 										<img
 											v-if="
-												imageUrls[log.id] && !imageLoadingStates[log.id] && !imageErrorStates[log.id]
+												imageUrls[log.id] &&
+												!imageLoadingStates[log.id] &&
+												!imageErrorStates[log.id]
 											"
 											key="image"
 											:src="imageUrls[log.id]"
@@ -65,7 +67,8 @@
 									<Transition name="fade">
 										<div
 											v-if="
-												(!imageUrls[log.id] || imageErrorStates[log.id]) && !imageLoadingStates[log.id]
+												(!imageUrls[log.id] || imageErrorStates[log.id]) &&
+												!imageLoadingStates[log.id]
 											"
 											class="absolute inset-0 flex items-center justify-center text-white/50"
 											aria-hidden="true"
@@ -171,7 +174,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick, toRef, computed } from "vue"
-import MonitoringLogEmptyState from "~/components/monitoring/MonitoringLogEmptyState.vue"
+import MonitoringLogEmptyState from "~/components/common/MonitoringLogEmptyState.vue"
 import type { PeopleCountingLog } from "~/types/peopleCounting"
 import { useResolvedMediaList } from "~/composables/core/useImageCenter"
 import {
@@ -237,9 +240,7 @@ const cameraColumnsFromZoneForm = computed((): PeopleCountingRecordColumnKey[] =
 		// event/time 固定顯示（不受勾選影響）
 	}
 	// 若全部被忽略，至少給一個可用欄位，避免空表頭
-	const pickedCols: PeopleCountingRecordColumnKey[] = out.length
-		? out
-		: ["screenshot", "name"]
+	const pickedCols: PeopleCountingRecordColumnKey[] = out.length ? out : ["screenshot", "name"]
 	return [...new Set<PeopleCountingRecordColumnKey>([...pickedCols, "event", "time"])]
 })
 

@@ -79,7 +79,7 @@ import {
 import { useFireApi } from "~/composables/systems/fire/useFireApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
-import { useSnapshotSystemPageRbac } from "~/composables/core/useModuleRbac"
+import { useSnapshotSystemPageRbac } from "~/composables/core/useAccessGate"
 import { getLocationUiKey, findLocationIndexInZone } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
 import { useFireModbusIntegration } from "~/composables/monitoring/modbus/snapshotModbusIntegrations"
@@ -154,7 +154,7 @@ const manualIssueTargets = computed(() => {
 			if (!loc.systemId) continue
 			out.push({
 				id: String(loc.systemId),
-				label: `${zone.name} / ${loc.name}（${String(loc.systemId)}）`,
+				label: `${zone.name} / ${loc.name}（#${String(loc.systemId)}）`,
 			})
 		}
 	}
@@ -210,7 +210,7 @@ const getLocationAlertFlash = (loc: FireLocation): "none" | "slow" | "fast" => {
 const tooltipTitle = (loc: FireLocation) => {
 	const s = uiStatusForLocation(loc)
 	const label = s === "normal" ? "正常" : s === "warning" ? "異常" : s === "alarm" ? "警報" : "異常"
-	return `${loc.name}：${label}`
+	return `${loc.name}（${label}）`
 }
 
 const handleZoneSelected = (zoneId: string) => {

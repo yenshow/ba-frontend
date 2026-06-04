@@ -213,7 +213,7 @@ import type {
 	PeopleCountingLocation,
 	PeopleCountingLog,
 } from "~/types/peopleCounting"
-import MonitoringDetailShell from "~/components/monitoring/MonitoringDetailShell.vue"
+import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue"
 import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue"
 import LocationDetailPanel from "~/components/people-counting/LocationDetailPanel.vue"
 import LocationOverviewCard from "~/components/people-counting/LocationOverviewCard.vue"
@@ -228,7 +228,7 @@ import {
 	usePeopleCountingApi,
 	PEOPLE_COUNTING_FULL_REPORT_LIMIT,
 } from "~/composables/systems/peopleCounting/usePeopleCountingApi"
-import { useLocationModuleRbac } from "~/composables/core/useModuleRbac"
+import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { useApiBase } from "~/composables/core/useApiBase"
 import {
 	buildLogsTimeQuery,
@@ -273,10 +273,7 @@ const {
 } = usePeopleCountingState()
 
 const detailEmpty = computed(
-	() =>
-		locations.value.length === 0 &&
-		!isLoadingLocations.value &&
-		!isLoadingZones.value,
+	() => locations.value.length === 0 && !isLoadingLocations.value && !isLoadingZones.value
 )
 
 const peopleCountingApi = usePeopleCountingApi()

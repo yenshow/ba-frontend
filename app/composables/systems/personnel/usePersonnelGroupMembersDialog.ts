@@ -30,8 +30,16 @@ export const usePersonnelGroupMembersDialog = (params: {
 	handleApiError: (err: unknown, fallback: string) => string | void | null
 	toast: { success: (msg: string) => void }
 }) => {
-	const { personnelApi, mainGroupId, groupTree, modelValue, onSaved, dismissDialog, handleApiError, toast } =
-		params
+	const {
+		personnelApi,
+		mainGroupId,
+		groupTree,
+		modelValue,
+		onSaved,
+		dismissDialog,
+		handleApiError,
+		toast,
+	} = params
 
 	const confirmDialog = useConfirmDialog()
 
@@ -56,11 +64,12 @@ export const usePersonnelGroupMembersDialog = (params: {
 
 	const changedFieldsList = computed(() =>
 		childGroups.value
-			.filter((child) =>
-				!memberIdSetsEqual(
-					memberIdsByChildId.value[child.id] ?? [],
-					initialMemberIdsByChildId.value[child.id] ?? []
-				)
+			.filter(
+				(child) =>
+					!memberIdSetsEqual(
+						memberIdsByChildId.value[child.id] ?? [],
+						initialMemberIdsByChildId.value[child.id] ?? []
+					)
 			)
 			.map((child) => child.name?.trim() || `子群組 ${child.id}`)
 	)

@@ -105,25 +105,25 @@
 						empty-description="請在「地點管理」中新增含車輛進出系統的地點"
 					>
 						<template v-if="selectedLocation">
-						<VehicleStatsPanel
-							:entry-count="entryCount"
-							:exit-count="exitCount"
-							:current-count="onSiteCount"
-							:on-site-capacity="onSiteCapacity"
-						/>
-						<div class="grid min-w-0 grid-cols-2 items-stretch gap-4">
-							<div class="flex min-w-0 flex-col">
-								<VehicleDataLogTable
-									:logs="logs"
-									:display-columns="selectedLocation?.logDisplayColumns"
+							<VehicleStatsPanel
+								:entry-count="entryCount"
+								:exit-count="exitCount"
+								:current-count="onSiteCount"
+								:on-site-capacity="onSiteCapacity"
+							/>
+							<div class="grid min-w-0 grid-cols-2 items-stretch gap-4">
+								<div class="flex min-w-0 flex-col">
+									<VehicleDataLogTable
+										:logs="logs"
+										:display-columns="selectedLocation?.logDisplayColumns"
+									/>
+								</div>
+								<VehicleOrganizationGroupPanel
+									:groups="organizationGroups ?? []"
+									:selected-group-key="selectedOrganizationKey ?? undefined"
+									@select="handleOrganizationGroupSelect"
 								/>
 							</div>
-							<VehicleOrganizationGroupPanel
-								:groups="organizationGroups ?? []"
-								:selected-group-key="selectedOrganizationKey ?? undefined"
-								@select="handleOrganizationGroupSelect"
-							/>
-						</div>
 						</template>
 					</MonitoringDetailShell>
 				</div>
@@ -251,7 +251,7 @@ import type {
 	VehicleAccessLocationSummary,
 	VehicleDataLog,
 } from "~/types/vehicleAccess"
-import MonitoringDetailShell from "~/components/monitoring/MonitoringDetailShell.vue"
+import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue"
 import VehicleStatsPanel from "~/components/vehicle-access/VehicleStatsPanel.vue"
 import VehicleDataLogTable from "~/components/vehicle-access/VehicleDataLogTable.vue"
 import VehicleOrganizationGroupPanel from "~/components/vehicle-access/VehicleOrganizationGroupPanel.vue"
@@ -267,7 +267,7 @@ import { useVehicleAccessState } from "~/composables/systems/vehicleAccess/useVe
 import { useVehicleAccessLocationApi } from "~/composables/location/api/useVehicleAccessLocationApi"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter"
-import { useLocationModuleRbac, useVehicleAccessRbac } from "~/composables/core/useModuleRbac"
+import { useLocationModuleRbac, useVehicleAccessRbac } from "~/composables/core/useAccessGate"
 import { useToast } from "~/composables/core/useToast"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { toSimulationTimeRange, type OperationalDayRangeResponse } from "~/utils/entryExitTimeRange"
@@ -284,13 +284,8 @@ const {
 	canDeleteLocation,
 	canFullReport,
 } = useLocationModuleRbac(PERM.vehicleAccess)
-const {
-	canCreatePlate,
-	canUpdatePlate,
-	canDeletePlate,
-	canResetStatistics,
-	canBarrierControl,
-} = useVehicleAccessRbac()
+const { canCreatePlate, canUpdatePlate, canDeletePlate, canResetStatistics, canBarrierControl } =
+	useVehicleAccessRbac()
 const {
 	filters,
 	vehicleAccessZones,
@@ -319,14 +314,12 @@ const {
 	resetParkingStatsForSelectedSite,
 } = useVehicleAccessState()
 
-const detailEmpty = computed(
-	() => locations.value.length === 0 && !isLoadingZones.value,
-)
+const detailEmpty = computed(() => locations.value.length === 0 && !isLoadingZones.value)
 
 const vehicleDetailContentClass = computed(() =>
 	["flex flex-col gap-12", isOverviewCollapsed.value && "monitoring-detail-enlarged"]
 		.filter(Boolean)
-		.join(" "),
+		.join(" ")
 )
 
 const { showToast } = useToast()

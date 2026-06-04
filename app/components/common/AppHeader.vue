@@ -306,11 +306,10 @@
 <script setup lang="ts">
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor"
 import { useAuth } from "~/composables/core/useAuth"
-import { useLicense } from "~/composables/core/useLicense"
+import { useAccessGate } from "~/composables/core/useAccessGate"
 import { useToast } from "~/composables/core/useToast"
 import { useTheme } from "~/composables/core/useTheme"
-import { hexRelativeLuminance, hexToRgba } from "~/utils/colorUtils"
-import { LICENSE_MESSAGE_LOCKED, PERMISSION_MESSAGE_LOCKED } from "~/utils/licenseUtils"
+import { PERMISSION_MESSAGE_LOCKED } from "~/utils/errorUtils"
 import type { SystemModule } from "~/types/system"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { useAppShellNavigation } from "~/composables/core/useAppShellNavigation"
@@ -318,6 +317,31 @@ import {
 	SYSTEM_SETTINGS_ROUTE_ICON_D,
 	SYSTEM_SETTINGS_SECTION_LABELS,
 } from "~/utils/appShellNavigationUtils"
+
+const parseHexRgb = (hex: string) => {
+	const raw = hex.replace("#", "")
+	const full = raw.length === 3 ? raw.split("").map((c) => c + c).join("") : raw
+	return {
+		r: Number.parseInt(full.slice(0, 2), 16),
+		g: Number.parseInt(full.slice(2, 4), 16),
+		b: Number.parseInt(full.slice(4, 6), 16),
+	}
+}
+
+const hexToRgba = (hex: string, alpha: number) => {
+	const { r, g, b } = parseHexRgb(hex)
+	return `rgba(${r},${g},${b},${alpha})`
+}
+
+/** sRGB 相對亮度（WCAG），用於淺／深底對比 */
+const hexRelativeLuminance = (hex: string) => {
+	const { r, g, b } = parseHexRgb(hex)
+	const lin = (c: number) => {
+		const x = c / 255
+		return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4)
+	}
+	return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+}
 
 // 用戶選單狀態
 const isUserMenuOpen = ref(false)
@@ -332,23 +356,18 @@ const { user, logout: authLogout } = useAuth()
 const { centralOverviewCategoryGroups, moduleCategoryAccentHex, systemSettingsSections } =
 	useAppShellNavigation()
 const systemSettingsSectionLabels = SYSTEM_SETTINGS_SECTION_LABELS
-const { isModuleLocked: isModuleLockedByLicense } = useLicense()
+const accessGate = useAccessGate()
 const toast = useToast()
 
-/** 模組是否鎖住：授權不足或無該系統權限 */
-const isModuleLocked = (module: SystemModule) =>
-	isModuleLockedByLicense(module) || !systemModulesApi.canAccessModule(module)
+const isModuleLocked = (module: SystemModule) => accessGate.isModuleLocked(module)
 
 const handleModuleClick = (module: SystemModule) => {
-	if (!systemModulesApi.canAccessModule(module)) {
+	if (!accessGate.canAccessModule(module)) {
 		toast.warning(PERMISSION_MESSAGE_LOCKED)
 		closeMoreMenu()
 		return
 	}
-	if (isModuleLockedByLicense(module)) {
-		toast.warning(LICENSE_MESSAGE_LOCKED)
-		closeMoreMenu()
-	}
+	closeMoreMenu()
 }
 
 const roleLabels: Record<string, string> = {

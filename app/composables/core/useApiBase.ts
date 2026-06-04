@@ -10,6 +10,7 @@ import {
 	USER_FACING_API_UNEXPECTED,
 	USER_FACING_CONNECTION_ERROR,
 	type ApiErrorCode,
+	resolveUserFacingApiError,
 } from "~/utils/errorUtils"
 import {
 	assertYscpResponseSuccess,
@@ -18,10 +19,11 @@ import {
 	unwrapYscpSuccessData,
 	YscpApiBusinessError,
 } from "~/utils/parseBackendApiFailure"
-import { resolveUserFacingApiError } from "~/utils/resolveUserFacingApiError"
 
 // GET 同 URL 同時間去重（避免多個元件/多個 watch 同步觸發造成 burst）
 const inFlightGetRequests = new Map<string, Promise<unknown>>()
+
+let permissionRefreshInFlight: Promise<void> | null = null
 
 type RequestOptions = Omit<RequestInit, "body"> & {
 	timeout?: number
@@ -47,9 +49,12 @@ const toApiErrorCode = (code: string): ApiErrorCode => {
 }
 
 export const useApiBase = () => {
+	const nuxtApp = useNuxtApp()
 	const config = useRuntimeConfig()
 	const fetcher = useRequestFetch()
 	const apiBase = config.public.apiBase || "/api"
+
+	const runWithNuxtContext = <T>(fn: () => T): T => nuxtApp.runWithContext(fn)
 
 	const getAuthHeaders = (): HeadersInit => {
 		let token: string | null = null
@@ -88,11 +93,29 @@ export const useApiBase = () => {
 		const originalMessage =
 			failure.message || extractBackendApiErrorText(error, path) || undefined
 
+		if (
+			statusCode === 403 &&
+			failure.backendCode === "PERMISSION_DENIED" &&
+			process.client
+		) {
+			const { fetchUser } = runWithNuxtContext(() => useAuth())
+			if (!permissionRefreshInFlight) {
+				permissionRefreshInFlight = fetchUser()
+					.catch(() => undefined)
+					.finally(() => {
+						permissionRefreshInFlight = null
+					}) as Promise<void>
+			}
+			await permissionRefreshInFlight
+		}
+
 		if (statusCode === 401) {
-			const { logout } = useAuth()
-			logout()
+			runWithNuxtContext(() => {
+				const { logout } = useAuth()
+				logout()
+			})
 			if (process.client) {
-				const router = useRouter()
+				const router = runWithNuxtContext(() => useRouter())
 				const currentPath = router.currentRoute.value?.fullPath || "/"
 				const redirectPath =
 					currentPath.startsWith("/login") || currentPath.includes("/login?")

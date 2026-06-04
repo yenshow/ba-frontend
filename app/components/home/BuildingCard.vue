@@ -1,24 +1,24 @@
 <template>
 	<div class="group flex h-full min-h-0 flex-col">
-		<!-- 建案主圖：占滿 -->
+		<!-- 建物主視：可捲動 -->
 		<div class="relative flex-1 min-h-0 w-full px-6 py-4 2xl:px-12 2xl:py-6">
 			<div class="relative h-full w-full overflow-hidden rounded-3xl">
 				<img
 					v-if="buildingDisplaySrc"
 					:src="buildingDisplaySrc"
-					alt="建案主圖"
+					alt="建物主視"
 					class="absolute inset-0 h-full w-full object-cover"
 				/>
 				<div
 					v-else
 					class="absolute inset-0 flex items-center justify-center bg-white/5 text-sm text-white/70"
 				>
-					尚未設定建案主圖
+					尚未設定建物主視
 				</div>
 
 				<PermissionActionButton
 					:allowed="canWrite"
-					aria-label="編輯建案主圖"
+					aria-label="編輯建物主視"
 					class="absolute right-3 top-3 rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur 2xl:text-base"
 					enabled-hover-class="hover:bg-black/50"
 					@click="isBuildingEditOpen = true"
@@ -28,25 +28,25 @@
 			</div>
 		</div>
 
-		<!-- 建案名稱：固定高度 -->
+		<!-- 建物品牌：固定高度 -->
 		<div class="relative w-full px-6 pb-4 2xl:px-12 2xl:pb-6">
 			<div class="relative h-[96px] w-full overflow-hidden rounded-2xl 2xl:h-[112px]">
 				<img
 					v-if="brandDisplaySrc"
 					:src="brandDisplaySrc"
-					alt="建案名稱"
+					alt="建物品牌"
 					class="absolute inset-0 h-full w-full object-contain"
 				/>
 				<div
 					v-else
 					class="absolute inset-0 flex items-center justify-center bg-white/5 text-sm text-white/70"
 				>
-					尚未設定建案名稱圖
+					尚未設定建物品牌圖
 				</div>
 
 				<PermissionActionButton
 					:allowed="canWrite"
-					aria-label="編輯建案名稱圖"
+					aria-label="編輯建物品牌圖"
 					class="absolute right-3 top-3 rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur 2xl:text-base"
 					enabled-hover-class="hover:bg-black/50"
 					@click="isBrandEditOpen = true"
@@ -58,12 +58,12 @@
 
 		<EditMockDialog
 			v-model="isBuildingEditOpen"
-			title="編輯建案主圖"
+			title="編輯建物主視"
 			:value="buildingRaw"
 			input-mode="image"
 			:crop-aspect-ratio="HOME_IMAGE_CROP.centralBuildingMain"
 			placeholder="例如：https://... 或上傳圖片"
-			preview-alt="建案主圖預覽"
+			preview-alt="建物主視預覽"
 			:hint="IMAGE_UPLOAD_HINT"
 			@save="saveBuildingRaw"
 			@reset="resetBuildingRaw"
@@ -72,12 +72,12 @@
 
 		<EditMockDialog
 			v-model="isBrandEditOpen"
-			title="編輯建案名稱圖"
+			title="編輯建物品牌圖"
 			:value="brandRaw"
 			input-mode="image"
 			:crop-aspect-ratio="HOME_IMAGE_CROP.centralBuildingBrand"
 			placeholder="例如：https://... 或上傳圖片"
-			preview-alt="建案名稱圖預覽"
+			preview-alt="建物品牌圖預覽"
 			:hint="IMAGE_UPLOAD_HINT"
 			@save="saveBrandRaw"
 			@reset="resetBrandRaw"
@@ -89,7 +89,7 @@
 <script setup lang="ts">
 import EditMockDialog from "~/components/common/EditMockDialog.vue"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
-import { useHomeRbac } from "~/composables/core/useModuleRbac"
+import { useHomeRbac } from "~/composables/core/useAccessGate"
 import { IMAGE_UPLOAD_HINT, useAppSettingImage } from "~/composables/core/useAppSettings"
 import { HOME_IMAGE_CROP } from "~/utils/imageCropUtils"
 

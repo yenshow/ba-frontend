@@ -14,20 +14,18 @@
 						<PermissionActionButton
 							v-show="!isInitialLoading"
 							:allowed="canManageZones ?? false"
-							aria-label="????"
+							aria-label="æ¨“å±¤ç®¡ç†"
 							class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base font-light text-white transition-all 2xl:text-lg"
 							enabled-hover-class="hover:bg-white/10"
 							@click="handleOpenZoneDialog"
-						>
-							????
-						</PermissionActionButton>
+						>æ¨“å±¤ç®¡ç†</PermissionActionButton>
 					</Transition>
 					<div class="relative">
 						<Transition name="fade-in">
 							<PermissionActionButton
 								v-show="!isInitialLoading"
 								:allowed="canWrite"
-								aria-label="????"
+								aria-label="ç·¨è¼¯å®šä½"
 								:class="[
 									'whitespace-nowrap rounded-2xl p-3 text-base font-light text-white transition-all 2xl:text-lg',
 									isEditMode
@@ -37,7 +35,7 @@
 								enabled-hover-class="hover:bg-white/10"
 								@click="handleToggleEditMode"
 							>
-								{{ isEditMode ? "????" : "????" }}
+								{{ isEditMode ? "å®Œæˆç·¨è¼¯" : "ç·¨è¼¯å®šä½" }}
 							</PermissionActionButton>
 						</Transition>
 						<Transition name="dropdown">
@@ -65,7 +63,7 @@
 				<NuxtImg
 					v-if="zonePlanImage"
 					:src="zonePlanImage"
-					alt="?????"
+					alt="å€åŸŸå¹³é¢åœ–"
 					class="image-blur-load pointer-events-none h-full w-full object-contain"
 					:class="{ 'image-loaded': isZonePlanLoaded }"
 					width="auto"
@@ -73,7 +71,7 @@
 					@load="handleZonePlanImageLoad"
 				/>
 				<div v-else class="flex h-full w-full items-center justify-center text-white/50">
-					<span>?????????</span>
+					<span>å°šæœªè¨­å®šå€åŸŸå¹³é¢åœ–</span>
 				</div>
 
 				<template v-for="location in currentZoneLocations" :key="getLocationIdForDisplay(location)">
@@ -139,7 +137,7 @@ interface Props {
 	selectedZoneData: AirCirculationZone | undefined
 	selectedCategory: string
 	allZoneLocations: AirCirculationLocation[]
-	/** ?????????????????? currentZoneLocations?*/
+	/** ç·¨è¼¯æ¨¡å¼åˆ†é¡åˆ—è¡¨åƒ…å« currentZoneLocations */
 	currentZoneLocations: AirCirculationLocation[]
 	zonePlanImage: string | undefined
 	dotStatusForLocationId: (locationId: string) => MapDotStatus
@@ -196,7 +194,7 @@ const getLocationAlertFlashForTooltip = (location: AirCirculationLocation) => {
 	return props.getLocationAlertFlash(id)
 }
 
-/** ??????????????????id ?? zone.locations ???? */
+/** ä»¥ location å°æ‡‰ zone.locations ç´¢å¼•ç”¢ç”Ÿç©©å®š id */
 const editModeCategoryListItems = computed(() => {
 	const zone = props.selectedZoneData
 	if (!zone) return []

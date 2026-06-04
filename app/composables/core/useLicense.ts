@@ -1,7 +1,6 @@
 import type { FeatureKey, LicenseState } from "~/types/license"
 import { useAuth } from "~/composables/core/useAuth"
 import { useApiBase } from "~/composables/core/useApiBase"
-import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 
 const DEFAULT_LICENSE: LicenseState = {
 	features: [],
@@ -21,6 +20,9 @@ const DEFAULT_LICENSE: LicenseState = {
 export const useLicense = () => {
 	const { isAuthenticated } = useAuth()
 	const { request } = useApiBase()
+	const runtimeConfig = useRuntimeConfig()
+	const licenseOpenAll =
+		(runtimeConfig.public as { licenseOpenAllFeatures?: boolean }).licenseOpenAllFeatures === true
 
 	const license = useState<LicenseState>("license_state", () => DEFAULT_LICENSE)
 	const isLoading = useState<boolean>("license_is_loading", () => false)
@@ -37,9 +39,7 @@ export const useLicense = () => {
 		isLoading.value = false
 	}
 
-	const isOpenAll = () =>
-		(useRuntimeConfig().public as { licenseOpenAllFeatures?: boolean }).licenseOpenAllFeatures ===
-		true
+	const isOpenAll = () => licenseOpenAll
 
 	const fetchLicense = async (options: { force?: boolean } = {}) => {
 		if (!isAuthenticated.value) {
@@ -73,14 +73,6 @@ export const useLicense = () => {
 		return license.value.features.includes(featureKey)
 	}
 
-	/** 依模組 route 判斷是否為授權控管模組且未授權（用於鎖頭、點擊攔截） */
-	const isModuleLocked = (module: { route: string }) => {
-		const moduleRegistry = useModuleRegistry()
-		const featureKey = moduleRegistry.getFeatureKeyByRoute(module.route)
-		if (!featureKey) return false
-		return !hasFeature(featureKey)
-	}
-
 	const isLoaded = computed(() => lastLoadedAt.value > 0)
 
 	return {
@@ -91,6 +83,5 @@ export const useLicense = () => {
 		clearLicense,
 		hasFeature,
 		canLoadFeature,
-		isModuleLocked,
 	}
 }

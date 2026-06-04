@@ -25,102 +25,102 @@
 					:id="`alert-${alert.id}`"
 					:class="['rounded-xl border-2 p-4 transition-all 2xl:p-6', getAlertCardClass(alert)]"
 				>
-					<div class="flex items-start justify-between gap-4">
+					<div class="flex items-center justify-between gap-4">
 						<div class="flex-1">
 							<div class="mb-2 flex flex-wrap items-center gap-2">
-										<span :class="[badgeBaseClass, 'bg-blue-500/80']">{{
-											getSourceLabel(alert.source)
-										}}</span>
-										<span :class="[badgeBaseClass, getSeverityBadgeClass(alert.severity)]">{{
-											getSeverityLabel(alert.severity)
-										}}</span>
-										<span :class="[badgeBaseClass, getTypeBadgeClass(alert.alert_type)]">{{
-											getTypeLabel(alert.alert_type)
-										}}</span>
-										<span v-if="isAlertResolved(alert)" :class="[badgeBaseClass, 'bg-green-500/80']"
-											>已解決</span
-										>
-										<span v-if="isAlertIgnored(alert)" :class="[badgeBaseClass, 'bg-gray-500/80']"
-											>已忽視</span
-										>
+								<span :class="[badgeBaseClass, 'bg-blue-500/80']">{{
+									getSourceLabel(alert.source)
+								}}</span>
+								<span :class="[badgeBaseClass, getSeverityBadgeClass(alert.severity)]">{{
+									getSeverityLabel(alert.severity)
+								}}</span>
+								<span :class="[badgeBaseClass, getTypeBadgeClass(alert.alert_type)]">{{
+									getTypeLabel(alert.alert_type)
+								}}</span>
+								<span v-if="isAlertResolved(alert)" :class="[badgeBaseClass, 'bg-green-500/80']">
+									已解決
+								</span>
+								<span v-if="isAlertIgnored(alert)" :class="[badgeBaseClass, 'bg-gray-500/80']">
+									已忽視
+								</span>
+							</div>
+
+							<p class="mb-4 text-base text-white 2xl:text-lg">{{ alert.message }}</p>
+
+							<div class="mb-3 rounded-lg border border-white/10 bg-white/5 p-3 2xl:p-4">
+								<div class="grid grid-cols-4 gap-3 2xl:gap-4">
+									<div class="flex items-start gap-2">
+										<div class="min-w-0 flex-1">
+											<div class="text-sm text-white/60">
+												{{ getSourceLabel(alert.source) }}
+											</div>
+											<div class="mt-0.5 truncate text-base font-semibold text-white">
+												<span v-if="alert.zone_name">{{ alert.zone_name }} - </span
+												>{{ getSourceDisplayName(alert) }}
+											</div>
+										</div>
 									</div>
-
-									<p class="mb-4 text-base text-white 2xl:text-lg">{{ alert.message }}</p>
-
-									<div class="mb-3 rounded-lg border border-white/10 bg-white/5 p-3 2xl:p-4">
-										<div class="grid grid-cols-4 gap-3 2xl:gap-4">
-											<div class="flex items-start gap-2">
-												<div class="min-w-0 flex-1">
-													<div class="text-sm text-white/60">
-														{{ getSourceLabel(alert.source) }}
-													</div>
-													<div class="mt-0.5 truncate text-base font-semibold text-white">
-														<span v-if="alert.zone_name">{{ alert.zone_name }} - </span
-														>{{ getSourceDisplayName(alert) }}
-													</div>
-												</div>
+									<div v-if="alert.device_type_name" class="flex items-start gap-2">
+										<div class="min-w-0 flex-1">
+											<div class="text-sm text-white/60">類型</div>
+											<div class="mt-0.5 text-base font-medium text-white">
+												{{ alert.device_type_name }}
 											</div>
-											<div v-if="alert.device_type_name" class="flex items-start gap-2">
-												<div class="min-w-0 flex-1">
-													<div class="text-sm text-white/60">類型</div>
-													<div class="mt-0.5 text-base font-medium text-white">
-														{{ alert.device_type_name }}
-													</div>
-												</div>
+										</div>
+									</div>
+									<div class="flex items-start gap-2">
+										<div class="min-w-0 flex-1">
+											<div class="text-sm text-white/60">創建時間</div>
+											<div class="mt-0.5 text-base text-white">
+												{{ formatDateTime(alert.created_at) }}
 											</div>
-											<div class="flex items-start gap-2">
-												<div class="min-w-0 flex-1">
-													<div class="text-sm text-white/60">創建時間</div>
-													<div class="mt-0.5 text-base text-white">
-														{{ formatDateTime(alert.created_at) }}
-													</div>
-												</div>
-											</div>
-											<div class="flex items-start gap-2">
-												<div class="min-w-0 flex-1">
-													<div class="text-sm text-white/60">更新時間</div>
-													<div class="mt-0.5 text-base text-white">
-														{{ formatDateTime(alert.updated_at) }}
-													</div>
-												</div>
+										</div>
+									</div>
+									<div class="flex items-start gap-2">
+										<div class="min-w-0 flex-1">
+											<div class="text-sm text-white/60">更新時間</div>
+											<div class="mt-0.5 text-base text-white">
+												{{ formatDateTime(alert.updated_at) }}
 											</div>
 										</div>
 									</div>
 								</div>
-
-								<div class="flex h-[160px] flex-col justify-center gap-2">
-									<PermissionActionButton
-										:allowed="alert.status === 'active' && canIgnore && !isIgnoring"
-										aria-label="忽視警示"
-										class="rounded-lg bg-gray-500/80 px-3 py-1.5 text-base text-white disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
-										enabled-hover-class="hover:opacity-80"
-										@click="emit('ignore', alert)"
-									>
-										忽視
-									</PermissionActionButton>
-									<PermissionActionButton
-										:allowed="isAlertIgnored(alert) && canIgnore && !isIgnoring"
-										aria-label="取消忽視"
-										class="rounded-lg bg-blue-500/80 px-3 py-1.5 text-base text-white disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
-										enabled-hover-class="hover:opacity-80"
-										@click="emit('unignore', alert)"
-									>
-										取消忽視
-									</PermissionActionButton>
-								</div>
 							</div>
 						</div>
-					</div>
 
-			<Pagination
-				v-if="totalAlerts > limit"
-				:total="totalAlerts"
-				:offset="offset"
-				:limit="limit"
-				:disabled="isLoading"
-				@previous="emit('previous')"
-				@next="emit('next')"
-			/>
+						<div class="flex h-[160px] flex-col justify-center gap-2">
+							<PermissionActionButton
+								:allowed="alert.status === 'active' && canIgnore && !isIgnoring"
+								aria-label="忽視警示"
+								class="rounded-lg bg-gray-500/80 px-3 py-1.5 text-base text-white disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
+								enabled-hover-class="hover:opacity-80"
+								@click="emit('ignore', alert)"
+							>
+								忽視
+							</PermissionActionButton>
+							<PermissionActionButton
+								:allowed="isAlertIgnored(alert) && canIgnore && !isIgnoring"
+								aria-label="取消忽視"
+								class="rounded-lg bg-blue-500/80 px-3 py-1.5 text-base text-white disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
+								enabled-hover-class="hover:opacity-80"
+								@click="emit('unignore', alert)"
+							>
+								取消忽視
+							</PermissionActionButton>
+						</div>
+					</div>
+				</div>
+
+				<Pagination
+					v-if="totalAlerts > limit"
+					:total="totalAlerts"
+					:offset="offset"
+					:limit="limit"
+					:disabled="isLoading"
+					@previous="emit('previous')"
+					@next="emit('next')"
+				/>
+			</div>
 		</AsyncPanel>
 	</section>
 </template>

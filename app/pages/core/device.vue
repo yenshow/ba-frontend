@@ -4,7 +4,7 @@
 			<div class="flex flex-wrap items-center justify-between gap-4">
 				<header class="me-4 flex flex-col gap-1 2xl:gap-2">
 					<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">設備管理</h1>
-					<p class="text-base text-white/80 2xl:text-xl">管理各類型設備配置與配對</p>
+					<p class="text-base text-white/80 2xl:text-xl">管理各類型設備配置與狀態</p>
 				</header>
 
 				<PageTabs
@@ -59,9 +59,7 @@
 						:error="listLoadError"
 						empty-title="尚無設備資料"
 						:empty-description="
-							canCreateDevice && currentTabName
-								? `點擊「新增設備」開始建立 ${currentTabName}`
-								: ''
+							canCreateDevice && currentTabName ? `點擊「新增設備」開始建立 ${currentTabName}` : ''
 						"
 					>
 						<div :key="`devices-${activeTab}-${offset}`">
@@ -257,20 +255,16 @@ import { useDeviceConnectivity } from "~/composables/systems/devices/useDeviceCo
 import { useDeviceWebSocket } from "~/composables/websocket/subscribers/useDeviceWebSocket"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { getCameraModelCategoryLabel } from "~/utils/cameraModelCategories"
-import { useEquipmentRbac } from "~/composables/core/useModuleRbac"
+import { useEquipmentRbac } from "~/composables/core/useAccessGate"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 definePageMeta({
 	layout: "default",
 })
 
-const {
-	canCreateDevice,
-	canUpdateDevice,
-	canDeleteDevice,
-	canManageDeviceModels,
-} = useEquipmentRbac()
+const { canCreateDevice, canUpdateDevice, canDeleteDevice, canManageDeviceModels } =
+	useEquipmentRbac()
 const canWriteDevice = computed(() =>
-	editingDevice.value ? canUpdateDevice.value : canCreateDevice.value,
+	editingDevice.value ? canUpdateDevice.value : canCreateDevice.value
 )
 const deviceApi = useDeviceApi()
 const runtimeConfig = useRuntimeConfig()
@@ -289,9 +283,7 @@ const deviceTabs = [
 	{ name: "門禁設備", code: "access_control" },
 ] as const
 
-const deviceTabItems = computed(() =>
-	deviceTabs.map((tab) => ({ id: tab.code, label: tab.name }))
-)
+const deviceTabItems = computed(() => deviceTabs.map((tab) => ({ id: tab.code, label: tab.name })))
 
 const activeTab = ref<DeviceTypeCode | null>(null)
 

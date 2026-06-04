@@ -73,7 +73,7 @@ import { deriveEmergencyRescueUiStatus } from "~/types/emergency-rescue"
 import { useEmergencyRescueApi } from "~/composables/systems/emergency-rescue/useEmergencyRescueApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
-import { useSnapshotSystemPageRbac } from "~/composables/core/useModuleRbac"
+import { useSnapshotSystemPageRbac } from "~/composables/core/useAccessGate"
 import { getLocationUiKey, findLocationIndexInZone } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
 import { useEmergencyRescueModbusIntegration } from "~/composables/monitoring/modbus/snapshotModbusIntegrations"
@@ -130,7 +130,7 @@ const manualIssueTargets = computed(() => {
 			if (!loc.systemId) continue
 			out.push({
 				id: String(loc.systemId),
-				label: `${zone.name} / ${loc.name}（${String(loc.systemId)}）`,
+				label: `${zone.name} / ${loc.name}（#${String(loc.systemId)}）`,
 			})
 		}
 	}
@@ -178,7 +178,7 @@ const tooltipTitle = (loc: EmergencyRescueLocation) => {
 				: s === "alarm"
 					? "警報"
 					: "異常"
-	return `${loc.name}：${label}`
+	return `${loc.name}（${label}）`
 }
 
 const handleZoneSelected = (zoneId: string) => {

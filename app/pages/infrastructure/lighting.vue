@@ -68,7 +68,7 @@ import { useVisibilityAutoRefresh } from "~/composables/monitoring/useVisibility
 import { useLightingApi } from "~/composables/systems/lighting/useLightingApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
-import { useSnapshotSystemPageRbac } from "~/composables/core/useModuleRbac"
+import { useSnapshotSystemPageRbac } from "~/composables/core/useAccessGate"
 import { useLightingModbusIntegration } from "~/composables/monitoring/modbus/toggleModbusIntegrations"
 import { healthStatusToAlertFlash } from "~/utils/alertUtils"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"

@@ -54,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { usePersonnelRbac } from "~/composables/core/useModuleRbac"
+import { usePersonnelRbac } from "~/composables/core/useAccessGate"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { usePersonnelApi, type PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
@@ -91,7 +91,7 @@ const {
 const activeTab = ref<"manage" | "sync">("manage")
 const tabs: { id: "manage" | "sync"; label: string }[] = [
 	{ id: "manage", label: "人員列表" },
-	{ id: "sync", label: "門禁權限" },
+	{ id: "sync", label: "門禁同步" },
 ]
 
 const tableHeaderClass = "py-3 2xl:py-4 px-4 2xl:px-6 text-sm 2xl:text-base text-white/80"

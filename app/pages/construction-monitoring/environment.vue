@@ -255,7 +255,7 @@
 </template>
 
 <script setup lang="ts">
-import MonitoringDetailShell from "~/components/monitoring/MonitoringDetailShell.vue"
+import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue"
 import EnvironmentGauge from "~/components/environment/EnvironmentGauge.vue"
 import EnvironmentParamCard from "~/components/environment/EnvironmentParamCard.vue"
 import OverviewLocationCard from "~/components/environment/OverviewLocationCard.vue"
@@ -267,7 +267,7 @@ import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import { useAlertRules } from "~/composables/monitoring/useAlertRules"
-import { useLocationModuleRbac } from "~/composables/core/useModuleRbac"
+import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { useEnvironmentReadingSubscription } from "~/composables/systems/environment/useEnvironmentLive"
 import { useEnvironmentDataCoordinator } from "~/composables/systems/environment/useEnvironmentDataCoordinator"
 import type { SensorReadings } from "~/composables/systems/environment/useEnvironmentLive"
@@ -404,7 +404,7 @@ const handleSimulationTimeRangeUpdate = (v: {
 const handleOpenLocationDialog = async () => {
 	if (!canManageLocation.value) return
 	if (environmentZones.value.length === 0) {
-		await loadZones()
+		await loadZonesFromAPI()
 	}
 	showLocationManagementDialog.value = true
 }
@@ -515,9 +515,7 @@ watch(isOverviewCollapsed, (collapsed) => {
 // 與 environmentZones 順序一致（區域已依 sort_order／名稱慣例排序，地點依後端陣列序）
 const sortedLocations = computed(() => environmentZones.value.flatMap((zone) => zone.locations))
 
-const detailEmpty = computed(
-	() => sortedLocations.value.length === 0 && !isLoadingZones.value,
-)
+const detailEmpty = computed(() => sortedLocations.value.length === 0 && !isLoadingZones.value)
 
 // 啟用的參數（用於顯示）
 const enabledParameters = computed(() => {

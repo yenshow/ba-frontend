@@ -69,7 +69,7 @@ import { deriveSmokeAlarmUiStatus } from "~/types/smoke-alarm"
 import { useSmokeAlarmApi } from "~/composables/systems/smoke-alarm/useSmokeAlarmApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
-import { useSnapshotSystemPageRbac } from "~/composables/core/useModuleRbac"
+import { useSnapshotSystemPageRbac } from "~/composables/core/useAccessGate"
 import { getLocationUiKey, findLocationIndexInZone } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
 import { useSmokeAlarmModbusIntegration } from "~/composables/monitoring/modbus/snapshotModbusIntegrations"
@@ -124,7 +124,7 @@ const manualIssueTargets = computed(() => {
 			if (!loc.systemId) continue
 			out.push({
 				id: String(loc.systemId),
-				label: `${zone.name} / ${loc.name}（${String(loc.systemId)}）`,
+				label: `${zone.name} / ${loc.name}（#${String(loc.systemId)}）`,
 			})
 		}
 	}
@@ -164,7 +164,7 @@ const tooltipTitle = (loc: SmokeAlarmLocation) => {
 	const s = uiStatusForLocation(loc)
 	const label =
 		s === "normal" ? "正常" : s === "warning" ? "異常" : "警報"
-	return `${loc.name}：${label}`
+	return `${loc.name}（${label}）`
 }
 
 const handleZoneSelected = (zoneId: string) => {
@@ -264,7 +264,7 @@ const autoRefresh = useVisibilityAutoRefresh({
 })
 
 const handleManualIssueChanged = (payload?: ManualIssueChangedPayload) => {
-	// 清除：不做樂觀「正常」— 真實狀態可能是觸發前的「異常」，應完全依強制快照還原
+	// 清除：�??��?觀?�正常」�??�實?�?�可?�是觸發?��??�異常」�??��??��?強制快照?��?
 	if (payload?.action === "clear") {
 		void loadStatusSnapshot({ force: true })
 		return

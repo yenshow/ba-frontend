@@ -79,7 +79,7 @@ import { normalizeSystemUiStatus, type SystemUiStatus } from "~/utils/monitoring
 import { useAirCirculationApi } from "~/composables/systems/air-circulation/useAirCirculationApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
-import { useSnapshotSystemPageRbac } from "~/composables/core/useModuleRbac"
+import { useSnapshotSystemPageRbac } from "~/composables/core/useAccessGate"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
 import { useAirCirculationModbusIntegration } from "~/composables/monitoring/modbus/snapshotModbusIntegrations"
@@ -150,7 +150,7 @@ const manualIssueTargets = computed(() => {
 			if (!loc.systemId) continue
 			out.push({
 				id: String(loc.systemId),
-				label: `${zone.name} / ${loc.name}（${String(loc.systemId)}）`,
+				label: `${zone.name} / ${loc.name}（#${String(loc.systemId)}）`,
 			})
 		}
 	}
@@ -210,7 +210,7 @@ const tooltipTitleByLocationId = (locationId: string) => {
 	const name = found?.location?.name || ""
 	const s = found?.location ? uiStatusForLocation(found.location) : "warning"
 	const label = s === "normal" ? "正常" : s === "alarm" ? "警報" : "異常"
-	return `${name}：${label}`
+	return `${name}（${label}）`
 }
 
 const findLocationOriginalIndex = (zone: AirCirculationZone, target: AirCirculationLocation) => {
