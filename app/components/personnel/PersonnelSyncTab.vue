@@ -24,15 +24,20 @@
 					>({{ syncWarnings.length }})</span
 				>
 			</button>
-			<button
-				v-if="canEdit"
-				type="button"
-				class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white hover:bg-emerald-400 disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
-				:disabled="isSyncingAll || isSingleLocationSyncing || syncableLocations.length === 0"
+			<PermissionActionButton
+				:allowed="
+					canDeviceSync &&
+					!isSyncingAll &&
+					!isSingleLocationSyncing &&
+					syncableLocations.length > 0
+				"
+				aria-label="同步全部地點"
+				class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
+				enabled-hover-class="hover:bg-emerald-400"
 				@click="syncAllLocations"
 			>
 				{{ isSyncingAll ? "同步中…" : "同步全部" }}
-			</button>
+			</PermissionActionButton>
 		</div>
 
 		<AsyncPanel
@@ -49,7 +54,7 @@
 							<th :class="tableHeaderClass">地點</th>
 							<th :class="tableHeaderClass">入口設備</th>
 							<th :class="tableHeaderClass">出口設備</th>
-							<th v-if="canEdit" :class="tableHeaderClass">操作</th>
+							<th :class="tableHeaderClass">操作</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -88,25 +93,26 @@
 										<span v-else class="text-sm text-white/60 2xl:text-base">—</span>
 									</div>
 								</td>
-								<td v-if="canEdit" :class="tableCellClass">
+								<td :class="tableCellClass">
 									<div class="flex flex-wrap justify-center gap-2">
-										<button
-											type="button"
-											class="rounded bg-blue-500/80 px-3 py-1 text-white hover:bg-blue-400 2xl:px-4 2xl:py-2"
-											:disabled="isUiLocked"
+										<PermissionActionButton
+											:allowed="canSyncEdit && !isUiLocked"
 											aria-label="管理門禁名單"
+											class="rounded bg-blue-500/80 px-3 py-1 text-white disabled:bg-blue-500/40 2xl:px-4 2xl:py-2"
+											enabled-hover-class="hover:bg-blue-400"
 											@click="handleOpenLocationMembersDialog(loc)"
 										>
 											編輯
-										</button>
-										<button
-											type="button"
-											class="rounded bg-cyan-500/80 px-3 py-1 text-white hover:bg-cyan-400 disabled:opacity-50 2xl:px-4 2xl:py-2"
-											:disabled="isLocationSyncButtonDisabled(loc.id)"
+										</PermissionActionButton>
+										<PermissionActionButton
+											:allowed="canDeviceSync && !isLocationSyncButtonDisabled(loc.id)"
+											aria-label="同步此地點"
+											class="rounded bg-cyan-500/80 px-3 py-1 text-white disabled:opacity-50 2xl:px-4 2xl:py-2"
+											enabled-hover-class="hover:bg-cyan-400"
 											@click="syncOne(loc.id)"
 										>
 											{{ isLocationCurrentlySyncing(loc.id) ? "同步中…" : "同步" }}
-										</button>
+										</PermissionActionButton>
 										<button
 											type="button"
 											class="rounded border border-white/20 bg-white/10 px-3 py-1 text-white/90 hover:bg-white/20 2xl:px-4 2xl:py-2"
@@ -130,7 +136,7 @@
 
 							<tr v-if="isSyncLocationExpanded(loc.id)" class="border-b border-white/10 bg-white/5">
 								<td
-									:colspan="canEdit ? 4 : 3"
+									colspan="4"
 									class="px-4 py-3 text-left text-sm 2xl:px-6 2xl:py-4 2xl:text-base"
 								>
 									<!-- 門禁名單管理已改為「操作」欄的 Dialog（管理按鈕） -->
@@ -251,7 +257,7 @@
 			v-model="showLocationMembersDialog"
 			:location-id="activeLocationMembersLocationId"
 			:location-name="activeLocationMembersLocationName"
-			:can-edit="canEdit"
+			:can-edit="canSyncEdit"
 			:sync-tab="props.syncTab"
 		/>
 
@@ -280,13 +286,15 @@
 
 <script setup lang="ts">
 import AsyncPanel from "~/components/common/AsyncPanel.vue"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import Pagination from "~/components/common/Pagination.vue"
 import LocationMembersDialog from "~/components/personnel/dialogs/LocationMembersDialog.vue"
 import PersonnelSyncWarningsDialog from "~/components/personnel/dialogs/PersonnelSyncWarningsDialog.vue"
 import type { usePersonnelSyncTab } from "~/composables/systems/personnel/usePersonnelSyncTab"
 
 const props = defineProps<{
-	canEdit: boolean
+	canDeviceSync: boolean
+	canSyncEdit: boolean
 	tableHeaderClass: string
 	tableCellClass: string
 	syncTab: ReturnType<typeof usePersonnelSyncTab>

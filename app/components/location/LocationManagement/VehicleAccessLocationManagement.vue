@@ -2,9 +2,14 @@
 	<div class="space-y-3">
 		<div class="flex items-center justify-between">
 			<span class="text-base font-medium 2xl:text-lg">地點</span>
-			<button type="button" class="btn-secondary text-sm 2xl:text-base" @click="handleAddLocation">
+			<PermissionActionButton
+				:allowed="allowCreateLocation"
+				aria-label="新增地點"
+				class="btn-secondary text-sm 2xl:text-base"
+				@click="handleAddLocation"
+			>
 				新增地點
-			</button>
+			</PermissionActionButton>
 		</div>
 
 		<div
@@ -52,6 +57,7 @@
 				</div>
 
 				<IconTrashButton
+					:disabled="!allowDeleteLocation"
 					button-class="ml-auto flex-shrink-0"
 					title="刪除地點"
 					aria-label="刪除此地點"
@@ -63,62 +69,68 @@
 </template>
 
 <script setup lang="ts">
-import IconTrashButton from "~/components/common/IconTrashButton.vue";
-import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess";
-import VehicleAccessLocationFields from "../LocationFormFields/VehicleAccessLocationFields.vue";
-import { getLocationUiKey } from "~/utils/locationUiId";
-import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
-import { filterVehicleAccessZoneLocations } from "~/utils/vehicleAccessDataSource";
-import { computed } from "vue";
+import IconTrashButton from "~/components/common/IconTrashButton.vue"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+
+import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess"
+import VehicleAccessLocationFields from "../LocationFormFields/VehicleAccessLocationFields.vue"
+import { getLocationUiKey } from "~/utils/locationUiId"
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
+import { filterVehicleAccessZoneLocations } from "~/utils/vehicleAccessDataSource"
+import { computed } from "vue"
 
 interface VehicleCustomGroupOption {
-	id: number;
-	list_name: string;
+	id: number
+	list_name: string
 }
 
 interface PlatformPersonGroupOption {
-	id: number;
-	name: string;
+	id: number
+	name: string
 }
 
 interface Props {
-	zone: VehicleAccessZone;
-	vehicleCustomGroups?: VehicleCustomGroupOption[];
-	platformPersonGroups?: PlatformPersonGroupOption[];
-	reorderableLocations?: boolean;
+	zone: VehicleAccessZone
+	vehicleCustomGroups?: VehicleCustomGroupOption[]
+	platformPersonGroups?: PlatformPersonGroupOption[]
+	reorderableLocations?: boolean
+	allowCreateLocation?: boolean
+	allowDeleteLocation?: boolean
 }
 
 interface Emits {
-	(e: "add-location"): void;
-	(e: "remove-location", index: number): void;
-	(e: "update-location", index: number, location: VehicleAccessLocation): void;
-	(e: "reorder-location", payload: { index: number; direction: "up" | "down" }): void;
+	(e: "add-location"): void
+	(e: "remove-location", index: number): void
+	(e: "update-location", index: number, location: VehicleAccessLocation): void
+	(e: "reorder-location", payload: { index: number; direction: "up" | "down" }): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
+	allowCreateLocation: true,
+	allowDeleteLocation: true,
 	vehicleCustomGroups: () => [],
 	platformPersonGroups: () => [],
-	reorderableLocations: false
-});
-const emit = defineEmits<Emits>();
+	reorderableLocations: false,
+})
+const emit = defineEmits<Emits>()
 
-const { enableYscpVehicleAccess } = useModuleRegistry();
+const { enableYscpVehicleAccess } = useModuleRegistry()
 const visibleLocations = computed(() =>
 	filterVehicleAccessZoneLocations(props.zone.locations || [], enableYscpVehicleAccess.value)
-);
+)
 
 const getLocationId = (location: VehicleAccessLocation, index: number): string =>
-	getLocationUiKey({ zone: props.zone as any, location: location as any, locationIndex: index });
+	getLocationUiKey({ zone: props.zone as any, location: location as any, locationIndex: index })
 
 const handleAddLocation = () => {
-	emit("add-location");
-};
+	emit("add-location")
+}
 
 const handleRemoveLocation = (locationIndex: number) => {
-	emit("remove-location", locationIndex);
-};
+	emit("remove-location", locationIndex)
+}
 
 const handleLocationUpdate = (locationIndex: number, updatedLocation: VehicleAccessLocation) => {
-	emit("update-location", locationIndex, updatedLocation);
-};
+	emit("update-location", locationIndex, updatedLocation)
+}
 </script>

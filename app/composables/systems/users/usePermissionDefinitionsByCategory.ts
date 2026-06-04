@@ -1,28 +1,36 @@
-import type { Ref } from "vue"
-import type { PermissionDefinition } from "~/types/user"
-export type PermissionCategoryGroup = {
-	key: string
-	label: string
-	items: PermissionDefinition[]
-}
+import type { Ref } from "vue";
+import type { PermissionDefinition } from "~/types/user";
 
-/** 權限定義分組（用於 UserPermissionEditor） */
+export type PermissionModuleGroup = {
+	parent: PermissionDefinition;
+	children: PermissionDefinition[];
+};
+
+/** 權限定義分組：父層模組 + 子層動作（用於 UserPermissionEditor） */
 export const usePermissionDefinitionsByCategory = (
 	definitionsRef: Ref<PermissionDefinition[]>
 ) => {
-	const groups = computed<PermissionCategoryGroup[]>(() => {
-		const defs = definitionsRef.value
-		if (!defs.length) return []
+	const groups = computed<PermissionModuleGroup[]>(() => {
+		const defs = definitionsRef.value;
+		if (!defs.length) return [];
 
-		const sorted = [...defs].sort((a, b) => a.sort_order - b.sort_order)
-		return [
-			{
-				key: "modules",
-				label: "模組頁面",
-				items: sorted,
-			},
-		]
-	})
+		const sorted = [...defs].sort((a, b) => a.sort_order - b.sort_order);
+		const parents = sorted.filter(d => d.parent_id == null);
+		const childrenByParent = new Map<number, PermissionDefinition[]>();
+		for (const d of sorted) {
+			if (d.parent_id == null) continue;
+			const list = childrenByParent.get(d.parent_id) ?? [];
+			list.push(d);
+			childrenByParent.set(d.parent_id, list);
+		}
 
-	return { groups }
-}
+		return parents.map(parent => ({
+			parent,
+			children: (childrenByParent.get(parent.id) ?? []).sort(
+				(a, b) => a.sort_order - b.sort_order
+			)
+		}));
+	});
+
+	return { groups };
+};

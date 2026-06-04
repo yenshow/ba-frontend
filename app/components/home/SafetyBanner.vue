@@ -1,17 +1,14 @@
 <template>
 	<div class="group relative bg-red-600 py-2">
-		<template v-if="canWrite">
-			<button
-				type="button"
-				class="absolute right-3 top-1/2 z-10 hidden -translate-y-1/2 rounded-lg bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 group-hover:block 2xl:text-base"
-				aria-label="編輯跑馬燈文字"
-				@click="isEditOpen = true"
-				@keydown.enter="isEditOpen = true"
-				@keydown.space.prevent="isEditOpen = true"
-			>
-				編輯
-			</button>
-		</template>
+		<PermissionActionButton
+					:allowed="canWrite"
+					aria-label="編輯跑馬燈文字"
+					class="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-lg bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 2xl:text-base"
+					enabled-hover-class="hover:bg-black/50"
+					@click="isEditOpen = true"
+				>
+					編輯
+				</PermissionActionButton>
 
 		<div class="marquee-wrapper">
 			<div class="marquee-content" :style="animationStyle">
@@ -27,8 +24,7 @@
 			</div>
 		</div>
 
-		<template v-if="canWrite">
-			<EditMockDialog
+		<EditMockDialog
 				v-model="isEditOpen"
 				title="編輯跑馬燈文字"
 				:value="bannerMessage"
@@ -37,22 +33,23 @@
 				hint="💡 建議輸入 20-30 字，以確保跑馬燈效果流暢。"
 				@save="saveBannerMessage"
 				@reset="resetBannerMessage"
-			/>
-		</template>
+		/>
 	</div>
 </template>
 
 <script setup lang="ts">
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import EditMockDialog from "~/components/common/EditMockDialog.vue";
 import { useAppSettings } from "~/composables/core/useAppSettings";
 import { useAuth } from "~/composables/core/useAuth";
+import { useHomeRbac } from "~/composables/core/useModuleRbac";
 
 interface Props {
 	message?: string;
 }
 
 const props = defineProps<Props>();
-const { canWrite } = useAuth();
+const { canWrite } = useHomeRbac();
 
 const {
 	value: bannerMessage,

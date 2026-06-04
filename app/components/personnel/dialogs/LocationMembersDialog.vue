@@ -123,9 +123,14 @@
 									{{ successText }}
 								</p>
 							</div>
-							<button type="submit" class="btn-primary" :disabled="!canEdit || isApplying">
+							<PermissionActionButton
+								native-type="submit"
+								:allowed="canEdit && !isApplying"
+								aria-label="套用門禁名單變更"
+								class="btn-primary"
+							>
 								{{ isApplying ? "處理中..." : "套用變更" }}
-							</button>
+							</PermissionActionButton>
 						</footer>
 					</form>
 				</div>
@@ -135,6 +140,7 @@
 </template>
 
 <script setup lang="ts">
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import type { Person } from "~/types/personnel"
 import { usePersonnelSyncTab } from "~/composables/systems/personnel/usePersonnelSyncTab"
 import { usePageSelectAll } from "~/composables/systems/personnel/usePageSelectAll"

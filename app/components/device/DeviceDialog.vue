@@ -34,6 +34,7 @@
 						@submit.prevent="handleSubmit"
 						class="show-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto pb-4 pr-7 2xl:gap-6 2xl:pb-6 2xl:pr-8"
 					>
+						<fieldset :disabled="!canWrite" class="flex min-w-0 flex-col gap-4 border-0 p-0 2xl:gap-6">
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 							<span>設備名稱 *</span>
 							<input
@@ -350,6 +351,7 @@
 						<p v-if="displayErrorMessage" class="text-sm text-rose-300 2xl:text-base">
 							{{ displayErrorMessage }}
 						</p>
+						</fieldset>
 					</form>
 
 					<footer class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8">
@@ -359,7 +361,7 @@
 							type="button"
 							class="btn-primary"
 							:class="{ 'cursor-not-allowed opacity-50': editingDevice && !hasUnsavedChanges }"
-							:disabled="isSubmitting || (editingDevice && !hasUnsavedChanges)"
+							:disabled="!canWrite || isSubmitting || (editingDevice && !hasUnsavedChanges)"
 							@click="handleSubmit"
 						>
 							{{ isSubmitting ? "處理中..." : editingDevice ? "儲存變更" : "建立" }}
@@ -413,7 +415,7 @@ interface Props {
 	modelValue: boolean;
 	editingDevice: Device | null;
 	deviceTypeCode: DeviceTypeCode;
-	isAdmin: boolean;
+	canWrite: boolean;
 	isSubmitting?: boolean;
 	errorMessage?: string | null;
 	refreshDeviceTypes?: boolean;
@@ -426,6 +428,7 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+	canWrite: false,
 	isSubmitting: false,
 	errorMessage: null
 });
@@ -922,6 +925,8 @@ const getCurrentConfig = (): DeviceConfig => {
 };
 
 const handleSubmit = () => {
+	if (!props.canWrite) return;
+
 	localErrorMessage.value = null;
 
 	if (props.deviceTypeCode === "camera" && !cameraCategoryCode.value.trim()) {

@@ -3,9 +3,14 @@
 		<!-- 地點列表標題 -->
 		<div class="flex items-center justify-between">
 			<span class="text-base font-medium 2xl:text-lg">地點</span>
-			<button type="button" class="btn-secondary text-sm 2xl:text-base" @click="handleAddLocation">
+			<PermissionActionButton
+				:allowed="allowCreateLocation"
+				aria-label="新增地點"
+				class="btn-secondary text-sm 2xl:text-base"
+				@click="handleAddLocation"
+			>
 				新增地點
-			</button>
+			</PermissionActionButton>
 		</div>
 
 		<!-- 地點項目 -->
@@ -55,6 +60,7 @@
 				</div>
 
 				<IconTrashButton
+					:disabled="!allowDeleteLocation"
 					button-class="ml-auto flex-shrink-0"
 					title="刪除地點"
 					aria-label="刪除此地點"
@@ -71,60 +77,62 @@
 </template>
 
 <script setup lang="ts">
-import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment";
-import type { Device } from "~/types/device";
-import IconTrashButton from "~/components/common/IconTrashButton.vue";
-import EnvironmentLocationFields from "../LocationFormFields/EnvironmentLocationFields.vue";
-import { getLocationUiKey } from "~/utils/locationUiId";
+import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment"
+import type { Device } from "~/types/device"
+import IconTrashButton from "~/components/common/IconTrashButton.vue"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+
+import EnvironmentLocationFields from "../LocationFormFields/EnvironmentLocationFields.vue"
+import { getLocationUiKey } from "~/utils/locationUiId"
 
 interface Props {
-	zone: EnvironmentZone;
-	devices: Device[];
-	isLoadingDevices: boolean;
-	deviceHint?: string;
-	reorderableLocations?: boolean;
+	zone: EnvironmentZone
+	devices: Device[]
+	isLoadingDevices: boolean
+	deviceHint?: string
+	reorderableLocations?: boolean
+	allowCreateLocation?: boolean
+	allowDeleteLocation?: boolean
 }
 
 interface Emits {
-	(e: "add-location"): void;
-	(e: "remove-location", index: number): void;
-	(e: "update-location", index: number, location: EnvironmentLocation): void;
-	(e: "reorder-location", payload: { index: number; direction: "up" | "down" }): void;
+	(e: "add-location"): void
+	(e: "remove-location", index: number): void
+	(e: "update-location", index: number, location: EnvironmentLocation): void
+	(e: "reorder-location", payload: { index: number; direction: "up" | "down" }): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
+	allowCreateLocation: true,
+	allowDeleteLocation: true,
 	deviceHint: "請先在「設備管理」中建立感測器設備",
-	reorderableLocations: false
-});
+	reorderableLocations: false,
+})
 
-const emit = defineEmits<Emits>();
+const emit = defineEmits<Emits>()
 
 // 取得地點列表
 const getLocations = (zone: EnvironmentZone): EnvironmentLocation[] => {
-	return zone.locations || [];
-};
+	return zone.locations || []
+}
 
 // 取得地點 ID
 const getLocationId = (location: EnvironmentLocation, index: number): string => {
-	return getLocationUiKey({
-		zone: props.zone as any,
-		location: location as any,
-		locationIndex: index
-	});
-};
+	return getLocationUiKey({ zone: props.zone as any, location: location as any, locationIndex: index })
+}
 
 // 處理新增地點
 const handleAddLocation = () => {
-	emit("add-location");
-};
+	emit("add-location")
+}
 
 // 處理刪除地點
 const handleRemoveLocation = (locationIndex: number) => {
-	emit("remove-location", locationIndex);
-};
+	emit("remove-location", locationIndex)
+}
 
 // 處理地點更新
 const handleLocationUpdate = (locationIndex: number, updatedLocation: EnvironmentLocation) => {
-	emit("update-location", locationIndex, updatedLocation);
-};
+	emit("update-location", locationIndex, updatedLocation)
+}
 </script>

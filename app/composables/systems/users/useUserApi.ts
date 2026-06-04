@@ -97,9 +97,8 @@ export const useUserApi = () => {
 			});
 		},
 
-		getPermissionDefinitions: () => {
-			return request<PermissionDefinitionsResponse>("/users/permission-definitions");
-		},
+		getPermissionDefinitions: () =>
+			request<PermissionDefinitionsResponse>("/users/permission-definitions"),
 
 		getUserPermissionOverrides: (userId: number) => {
 			return request<UserPermissionOverridesResponse>(`/users/${userId}/permissions`);

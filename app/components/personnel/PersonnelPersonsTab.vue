@@ -5,14 +5,15 @@
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 			<div class="flex items-center gap-2">
 				<h2 class="text-xl font-semibold text-white 2xl:text-2xl">人員列表</h2>
-				<button
-					v-if="canEdit && selectedMainGroupId != null"
-					type="button"
-					class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white hover:bg-white/30 2xl:px-6 2xl:py-3 2xl:text-base"
+				<PermissionActionButton
+					:allowed="canUpdateGroup && selectedMainGroupId != null"
+					aria-label="群組成員"
+					class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white 2xl:px-6 2xl:py-3 2xl:text-base"
+					enabled-hover-class="hover:bg-white/30"
 					@click="showGroupMembersDialog = true"
 				>
 					群組成員
-				</button>
+				</PermissionActionButton>
 			</div>
 			<div class="flex flex-wrap items-center gap-2">
 				<SearchInput
@@ -23,22 +24,24 @@
 					aria-label="搜尋 ID 或姓名"
 					@search="handleSearch"
 				/>
-				<button
-					v-if="canEdit"
-					type="button"
-					class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white hover:bg-white/30 2xl:px-6 2xl:py-3 2xl:text-base"
+				<PermissionActionButton
+					:allowed="canCreatePerson"
+					aria-label="批次匯入"
+					class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white 2xl:px-6 2xl:py-3 2xl:text-base"
+					enabled-hover-class="hover:bg-white/30"
 					@click="showImportDialog = true"
 				>
 					批次匯入
-				</button>
-				<button
-					v-if="canEdit"
-					type="button"
-					class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-base"
+				</PermissionActionButton>
+				<PermissionActionButton
+					:allowed="canCreatePerson"
+					aria-label="新增人員"
+					class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white 2xl:px-6 2xl:py-3 2xl:text-base"
+					enabled-hover-class="hover:bg-emerald-400"
 					@click="openPersonCreate"
 				>
 					新增人員
-				</button>
+				</PermissionActionButton>
 			</div>
 		</div>
 
@@ -68,7 +71,7 @@
 						<th :class="tableHeaderClass">群組</th>
 						<th :class="tableHeaderClass">資料（平台）</th>
 						<th :class="tableHeaderClass">狀態</th>
-						<th v-if="canEdit" :class="tableHeaderClass">操作</th>
+						<th :class="tableHeaderClass">操作</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -108,22 +111,26 @@
 								{{ personStatusLabels[p.status] }}
 							</span>
 						</td>
-						<td v-if="canEdit" :class="tableCellClass">
+						<td :class="tableCellClass">
 							<div class="flex flex-wrap justify-center gap-2 2xl:gap-3">
-								<button
-									type="button"
-									class="rounded bg-blue-500/80 px-3 py-1 text-white hover:bg-blue-400 2xl:px-4 2xl:py-2"
+								<PermissionActionButton
+									:allowed="canUpdatePerson"
+									aria-label="編輯人員"
+									class="rounded bg-blue-500/80 px-3 py-1 text-white disabled:bg-blue-500/40 2xl:px-4 2xl:py-2"
+									enabled-hover-class="hover:bg-blue-400"
 									@click="editPerson(p)"
 								>
 									編輯
-								</button>
-								<button
-									type="button"
-									class="rounded bg-red-500/80 px-3 py-1 text-white hover:bg-red-400 2xl:px-4 2xl:py-2"
+								</PermissionActionButton>
+								<PermissionActionButton
+									:allowed="canDeletePerson"
+									aria-label="刪除人員"
+									class="rounded bg-red-500/80 px-3 py-1 text-white disabled:bg-red-500/40 2xl:px-4 2xl:py-2"
+									enabled-hover-class="hover:bg-red-400"
 									@click="confirmDeletePerson(p)"
 								>
 									刪除
-								</button>
+								</PermissionActionButton>
 							</div>
 						</td>
 					</tr>
@@ -161,7 +168,7 @@
 		/>
 
 		<PersonnelGroupMembersDialog
-			v-if="canEdit && selectedMainGroupId != null"
+			v-if="showGroupMembersDialog && selectedMainGroupId != null"
 			v-model="showGroupMembersDialog"
 			:main-group-id="selectedMainGroupId"
 			:group-tree="groupTree"
@@ -197,6 +204,7 @@
 </template>
 
 <script setup lang="ts">
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import AsyncPanel from "~/components/common/AsyncPanel.vue";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import Pagination from "~/components/common/Pagination.vue";
@@ -212,7 +220,10 @@ import type { PersonnelPersonDialogState } from "~/types/personnel";
 import SearchInput from "~/components/common/SearchInput.vue";
 
 const props = defineProps<{
-	canEdit: boolean;
+	canCreatePerson: boolean;
+	canUpdatePerson: boolean;
+	canDeletePerson: boolean;
+	canUpdateGroup: boolean;
 	personStatusLabels: Record<string, string>;
 	tableHeaderClass: string;
 	tableCellClass: string;

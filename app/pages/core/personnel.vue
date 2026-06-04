@@ -25,7 +25,13 @@
 		>
 			<template #manage>
 				<PersonnelManageTab
-					:can-edit="canEdit"
+					:can-manage-groups="canManageGroups"
+					:can-create-group="canCreateGroup"
+					:can-update-group="canUpdateGroup"
+					:can-delete-group="canDeleteGroup"
+					:can-create-person="canCreatePerson"
+					:can-update-person="canUpdatePerson"
+					:can-delete-person="canDeletePerson"
 					:person-status-labels="personStatusLabels"
 					:table-header-class="tableHeaderClass"
 					:table-cell-class="tableCellClass"
@@ -36,7 +42,8 @@
 
 			<template #sync>
 				<PersonnelSyncTab
-					:can-edit="canEdit"
+					:can-device-sync="canDeviceSync"
+					:can-sync-edit="canSyncEdit"
 					:table-header-class="tableHeaderClass"
 					:table-cell-class="tableCellClass"
 					:sync-tab="syncTab"
@@ -47,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { useAuth } from "~/composables/core/useAuth";
+import { usePersonnelRbac } from "~/composables/core/useModuleRbac";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import {
@@ -72,8 +79,17 @@ const accessControlApi = useAccessControlApi();
 const locationApi = useLocationApi();
 const toast = useToast();
 const { handleError: handleApiError } = useErrorHandler();
-const { canWrite } = useAuth();
-const canEdit = canWrite;
+const {
+	canManageGroups,
+	canCreateGroup,
+	canUpdateGroup,
+	canDeleteGroup,
+	canCreatePerson,
+	canUpdatePerson,
+	canDeletePerson,
+	canDeviceSync,
+	canSyncEdit,
+} = usePersonnelRbac();
 
 const activeTab = ref<"manage" | "sync">("manage");
 const tabs: { id: "manage" | "sync"; label: string }[] = [
@@ -93,7 +109,13 @@ const personsTab = usePersonnelPersonsTab({
 	toast,
 	handleApiError
 });
-const syncTab = usePersonnelSyncTab({ personnelApi, locationApi, toast, handleApiError, canEdit });
+const syncTab = usePersonnelSyncTab({
+	personnelApi,
+	locationApi,
+	toast,
+	handleApiError,
+	canDeviceSync,
+});
 
 watch(
 	activeTab,

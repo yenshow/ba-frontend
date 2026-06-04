@@ -148,7 +148,7 @@
 											'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-all duration-200',
 											isModuleLocked(module)
 												? 'cursor-not-allowed text-white/50 opacity-60'
-												: 'text-white/80 hover:bg-white/10 hover:text-white',
+												: 'text-white/80 hover:bg-white/10 hover:text-white'
 										]"
 										@click="handleOverviewModuleClick(module)"
 										:aria-label="module.name"
@@ -208,20 +208,14 @@
 									<div class="mb-2 border-b border-white/10 px-3 py-2">
 										<p class="text-sm font-semibold text-white">{{ user?.username || "使用者" }}</p>
 										<p class="text-xs text-white/60">
-											{{ user?.role === "admin" ? "管理員" : user?.role === "operator" ? "操作員" : "檢視者" }}
+											{{ user?.role === "admin" ? "管理員" : "使用者" }}
 										</p>
 									</div>
 
 									<div class="space-y-1">
-										<template
-											v-for="(group, groupIndex) in systemSettingsSections"
-											:key="group.section"
-										>
+										<template v-for="(group, groupIndex) in systemSettingsSections" :key="group.section">
 											<p
-												v-if="
-													group.section !== 'session' &&
-													systemSettingsSectionLabels[group.section]
-												"
+												v-if="group.section !== 'session' && systemSettingsSectionLabels[group.section]"
 												class="px-3 pt-2 text-xs font-medium uppercase tracking-wide text-white/40"
 											>
 												{{ systemSettingsSectionLabels[group.section] }}
@@ -239,7 +233,7 @@
 													v-else-if="item.kind === 'logout'"
 													:class="[
 														'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white',
-														groupIndex > 0 ? 'mt-1 border-t border-white/10 pt-3' : '',
+														groupIndex > 0 ? 'mt-1 border-t border-white/10 pt-3' : ''
 													]"
 													@click="handleLogout"
 													:aria-label="item.label"
@@ -297,17 +291,14 @@ import { LICENSE_MESSAGE_LOCKED, PERMISSION_MESSAGE_LOCKED } from "~/utils/licen
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 import {
 	useAppShellNavigation,
-	SYSTEM_SETTINGS_SECTION_LABELS,
+	SYSTEM_SETTINGS_SECTION_LABELS
 } from "~/composables/core/useAppShellNavigation";
 
 const route = useRoute();
 const router = useRouter();
-const { user, isAuthenticated, hasModulePermission, logout } = useAuth();
-const {
-	constructionOverviewModules,
-	hasConstructionOverviewMenu,
-	systemSettingsSections,
-} = useAppShellNavigation();
+const { user, isAuthenticated, logout } = useAuth();
+const { constructionOverviewModules, hasConstructionOverviewMenu, systemSettingsSections } =
+	useAppShellNavigation();
 const systemSettingsSectionLabels = SYSTEM_SETTINGS_SECTION_LABELS;
 const toast = useToast();
 const { isModuleLocked: isModuleLockedByLicense } = useLicense();
@@ -493,11 +484,11 @@ const navigateToRoute = (routePath: string) => {
 };
 
 const isModuleLocked = (module: SystemModule) => {
-	return isModuleLockedByLicense(module) || !hasModulePermission(module);
+	return isModuleLockedByLicense(module) || !moduleRegistry.canAccessModule(module);
 };
 
 const handleModuleClick = (module: SystemModule) => {
-	if (!hasModulePermission(module)) {
+	if (!moduleRegistry.canAccessModule(module)) {
 		toast.warning(PERMISSION_MESSAGE_LOCKED);
 		return;
 	}
@@ -511,7 +502,7 @@ const handleModuleClick = (module: SystemModule) => {
 };
 
 const handleOverviewModuleClick = (module: SystemModule) => {
-	if (!hasModulePermission(module)) {
+	if (!moduleRegistry.canAccessModule(module)) {
 		toast.warning(PERMISSION_MESSAGE_LOCKED);
 		closeAllMenus();
 		return;

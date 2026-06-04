@@ -52,41 +52,44 @@
 							</span>
 						</div>
 					</div>
-					<button
-						v-if="canWrite && isIsapiCamera && selectedLocation"
-						type="button"
-						class="absolute left-8 top-2 rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-4 py-2 text-sm text-white transition-all hover:from-cyan-400/40 hover:to-blue-500/40 2xl:text-base"
+					<PermissionActionButton
+						v-show="isIsapiCamera && selectedLocation"
+						:allowed="canCreatePlate || canUpdatePlate || canDeletePlate"
 						aria-label="車牌管理"
+						:class="['absolute left-8 top-2', MONITORING_ACTION_BTN_CLASS]"
+						:enabled-hover-class="MONITORING_ACTION_BTN_HOVER_CLASS"
 						@click="showIsapiManageDialog = true"
 					>
 						車牌管理
-					</button>
-					<button
-						v-if="isAdmin"
-						type="button"
-						class="absolute left-36 top-2 rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-4 py-2 text-sm text-white transition-all hover:from-cyan-400/40 hover:to-blue-500/40 2xl:text-base"
+					</PermissionActionButton>
+					<PermissionActionButton
+						:allowed="canManageLocation"
 						aria-label="地點管理"
+						:class="['absolute left-36 top-2', MONITORING_ACTION_BTN_CLASS]"
+						:enabled-hover-class="MONITORING_ACTION_BTN_HOVER_CLASS"
 						@click="handleOpenLocationDialog"
 					>
 						地點管理
-					</button>
-					<button
-						v-if="canWrite && isParkingMode"
-						type="button"
-						class="absolute right-36 top-2 rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-4 py-2 text-sm text-white transition-all hover:from-cyan-400/40 hover:to-blue-500/40 2xl:text-base"
+					</PermissionActionButton>
+					<PermissionActionButton
+						v-show="isParkingMode"
+						:allowed="canResetStatistics"
 						aria-label="重製停車場統計"
+						:class="['absolute right-36 top-2', MONITORING_ACTION_BTN_CLASS]"
+						:enabled-hover-class="MONITORING_ACTION_BTN_HOVER_CLASS"
 						@click="handleResetParkingStats"
 					>
 						重製統計
-					</button>
-					<button
-						type="button"
-						class="absolute right-8 top-2 rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-4 py-2 text-sm text-white transition-all hover:from-cyan-400/40 hover:to-blue-500/40 2xl:text-base"
+					</PermissionActionButton>
+					<PermissionActionButton
+						:allowed="canFullReport"
 						aria-label="開啟完整報表"
+						:class="['absolute right-8 top-2', MONITORING_ACTION_BTN_CLASS]"
+						:enabled-hover-class="MONITORING_ACTION_BTN_HOVER_CLASS"
 						@click="handleOpenSimulation"
 					>
 						完整報表
-					</button>
+					</PermissionActionButton>
 
 					<MonitoringDetailShell
 						:empty="detailEmpty"
@@ -172,7 +175,7 @@
 										:summary="summary"
 										:groups="getOrganizationGroupsForLocation(findLocationForSummary(summary))"
 										:location="findLocationForSummary(summary)"
-										:can-write="canWrite"
+										:can-write="canBarrierControl"
 										class="cursor-pointer transition-all hover:ring-2 hover:ring-cyan-300/50"
 										:class="{ 'ring-2 ring-cyan-400': isCurrentSummary(summary) }"
 										@click="handleOverviewClick(summary)"
@@ -191,11 +194,13 @@
 	</div>
 
 	<ZoneManagementDialog
-		v-if="isAdmin"
 		v-model="showLocationManagementDialog"
 		:zones="vehicleAccessZones"
 		system-type="vehicle_access"
 		:require-image-url="false"
+		:can-create-zone="canCreateLocation"
+		:can-update-zone="canUpdateLocation"
+		:can-delete-zone="canDeleteLocation"
 		@save="handleSaveZone"
 		@delete="handleDeleteZone"
 	/>
@@ -211,7 +216,9 @@
 	<VehicleAccessIsapiManageDialog
 		v-model="showIsapiManageDialog"
 		:location="selectedLocation"
-		:can-write="canWrite"
+		:can-create-plate="canCreatePlate"
+		:can-update-plate="canUpdatePlate"
+		:can-delete-plate="canDeletePlate"
 	/>
 
 	<SimulationFrame v-model="showSimulationFrame" title="車輛進出 - 完整報表">
@@ -249,14 +256,28 @@ import { useVehicleAccessState } from "~/composables/systems/vehicleAccess/useVe
 import { useVehicleAccessLocationApi } from "~/composables/location/api/useVehicleAccessLocationApi";
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
 import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter";
-import { useAuth } from "~/composables/core/useAuth";
 import { useToast } from "~/composables/core/useToast";
 import { useApiBase } from "~/composables/core/useApiBase";
 import {
 	toSimulationTimeRange,
 	type OperationalDayRangeResponse
 } from "~/utils/entryExitTimeRange";
-const { canWrite, isAdmin } = useAuth();
+import { PERM } from "~/config/permissionCodes";
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
+import {
+	MONITORING_ACTION_BTN_CLASS,
+	MONITORING_ACTION_BTN_HOVER_CLASS
+} from "~/composables/core/usePermissionUi";
+import { useLocationModuleRbac, useVehicleAccessRbac } from "~/composables/core/useModuleRbac";
+const {
+	canManageLocation,
+	canCreateLocation,
+	canUpdateLocation,
+	canDeleteLocation,
+	canFullReport,
+} = useLocationModuleRbac(PERM.vehicleAccess);
+const { canCreatePlate, canUpdatePlate, canDeletePlate, canResetStatistics, canBarrierControl } =
+	useVehicleAccessRbac();
 
 const {
 	filters,
@@ -364,6 +385,7 @@ const handleSimulationTimeRangeUpdate = (v: {
 };
 
 const handleOpenSimulation = async () => {
+	if (!canFullReport.value) return;
 	simulationTimeRange.value = await fetchTodaySimulationRange();
 	showSimulationFrame.value = true;
 	await loadSimulationLogs();
@@ -493,7 +515,7 @@ const handleResetParkingStats = async () => {
 };
 
 const handleOpenLocationDialog = async () => {
-	if (!isAdmin.value) return;
+	if (!canManageLocation.value) return;
 	if (vehicleAccessZones.value.length === 0) {
 		await loadZones();
 	}

@@ -100,7 +100,8 @@ import EnvDeploymentPasswordInput from "~/components/common/EnvDeploymentPasswor
 import { useRuntimeConfigPage } from "~/composables/core/useRuntimeConfigPage";
 
 definePageMeta({
-	layout: "auxiliary"
+	layout: "auxiliary",
+	middleware: "admin",
 });
 
 const {

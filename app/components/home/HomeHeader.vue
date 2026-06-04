@@ -10,22 +10,18 @@
 					:style="brandLogoStyle"
 				/>
 
-				<template v-if="canWrite">
-					<button
-						type="button"
-						class="absolute -right-2 -top-2 hidden rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 group-hover:block 2xl:text-base"
-						aria-label="編輯品牌標識高度"
-						@click="isBrandLogoHeightEditOpen = true"
-						@keydown.enter="isBrandLogoHeightEditOpen = true"
-						@keydown.space.prevent="isBrandLogoHeightEditOpen = true"
-					>
-						編輯
-					</button>
-				</template>
+				<PermissionActionButton
+					:allowed="canWrite"
+					aria-label="編輯品牌標識高度"
+					class="absolute -right-2 -top-2 rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 2xl:text-base"
+					enabled-hover-class="hover:bg-black/50"
+					@click="isBrandLogoHeightEditOpen = true"
+				>
+					編輯
+				</PermissionActionButton>
 			</div>
 
-			<template v-if="canWrite">
-				<EditMockDialog
+			<EditMockDialog
 					v-model="isBrandLogoHeightEditOpen"
 					title="編輯品牌標識高度"
 					:value="brandLogoHeightRaw"
@@ -40,7 +36,6 @@
 					@save="handleSaveBrandLogoHeight"
 					@reset="resetBrandLogoHeight"
 				/>
-			</template>
 		</div>
 
 		<!-- 中間：專案資訊 -->
@@ -59,22 +54,18 @@
 					請上傳或設定專案圖片
 				</div>
 
-				<template v-if="canWrite">
-					<button
-						type="button"
-						class="absolute -right-2 -top-2 hidden rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 group-hover:block 2xl:text-base"
-						aria-label="編輯專案圖片"
-						@click="isProjectImageEditOpen = true"
-						@keydown.enter="isProjectImageEditOpen = true"
-						@keydown.space.prevent="isProjectImageEditOpen = true"
-					>
-						編輯
-					</button>
-				</template>
+				<PermissionActionButton
+					:allowed="canWrite"
+					aria-label="編輯專案圖片"
+					class="absolute -right-2 -top-2 rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 2xl:text-base"
+					enabled-hover-class="hover:bg-black/50"
+					@click="isProjectImageEditOpen = true"
+				>
+					編輯
+				</PermissionActionButton>
 			</div>
 
-			<template v-if="canWrite">
-				<EditMockDialog
+			<EditMockDialog
 					v-model="isProjectImageEditOpen"
 					title="編輯專案圖片"
 					:value="projectImageSrcRaw"
@@ -87,7 +78,6 @@
 					@reset="resetProjectImageSrc"
 					@upload="handleUploadProjectImage"
 				/>
-			</template>
 		</div>
 
 		<!-- 右側：日期時間 -->
@@ -119,6 +109,7 @@ import { useImageCenter } from "~/composables/core/useImageCenter";
 import { createSafeFileName } from "~/utils/fileUtils";
 import { formatClockDisplay } from "~/utils/dateUtils";
 import { useAuth } from "~/composables/core/useAuth";
+import { useHomeRbac } from "~/composables/core/useModuleRbac";
 
 // --- 專案圖片設定 ---
 
@@ -148,7 +139,7 @@ const {
 	defaultValue: ""
 });
 
-const { canWrite } = useAuth();
+const { canWrite } = useHomeRbac();
 
 const isBrandLogoHeightEditOpen = ref(false);
 const brandLogoPreviewBuster = ref<number>(Date.now());

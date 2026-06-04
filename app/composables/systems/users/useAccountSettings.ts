@@ -7,10 +7,9 @@ import { useUserApi } from "~/composables/systems/users/useUserApi";
 /** 管理端一鍵重設密碼（與後端最小長度 6 一致） */
 export const DEFAULT_RESET_PASSWORD = "12345678";
 
-/** `/core/account` 僅 operator / viewer 可進入 */
-export const canAccessAccountPage = (
-	actor: Pick<User, "role"> | null | undefined
-): boolean => !!actor && actor.role !== "admin";
+/** `/core/account` 僅非 admin 可進入 */
+export const canAccessAccountPage = (actor: Pick<User, "role"> | null | undefined): boolean =>
+	!!actor && actor.role !== "admin";
 
 /** 用戶管理列表是否顯示「重設密碼」 */
 export const canResetPasswordForUser = (
@@ -19,24 +18,20 @@ export const canResetPasswordForUser = (
 ): boolean => {
 	if (!actor || actor.id === target.id) return false;
 	if (actor.role === "admin") {
-		return target.role === "operator" || target.role === "viewer";
-	}
-	if (actor.role === "operator") {
-		return target.role === "viewer";
+		return target.role === "user";
 	}
 	return false;
 };
 
 const ROLE_LABELS: Record<string, string> = {
 	admin: "管理員",
-	operator: "操作員",
-	viewer: "檢視者",
+	user: "使用者"
 };
 
 const STATUS_LABELS: Record<"active" | "inactive", string> = {
 	active: "啟用",
-	inactive: "停用",
-}
+	inactive: "停用"
+};
 
 export const useAccountSettings = () => {
 	const { user, logout } = useAuth();
@@ -45,16 +40,14 @@ export const useAccountSettings = () => {
 	const { handleError: handleApiError } = useErrorHandler();
 
 	const roleLabel = computed(() =>
-		user.value?.role ? ROLE_LABELS[user.value.role] ?? user.value.role : "—"
+		user.value?.role ? (ROLE_LABELS[user.value.role] ?? user.value.role) : "—"
 	);
-	const statusLabel = computed(() =>
-		user.value?.status ? STATUS_LABELS[user.value.status] : "—"
-	);
+	const statusLabel = computed(() => (user.value?.status ? STATUS_LABELS[user.value.status] : "—"));
 
 	const form = reactive({
 		oldPassword: "",
 		newPassword: "",
-		confirmPassword: "",
+		confirmPassword: ""
 	});
 
 	const isSubmitting = ref(false);
@@ -74,7 +67,7 @@ export const useAccountSettings = () => {
 		try {
 			await userApi.updatePassword(user.value.id, {
 				oldPassword: form.oldPassword,
-				newPassword: form.newPassword,
+				newPassword: form.newPassword
 			});
 			toast.success("密碼已更新，請重新登入");
 			logout();
@@ -93,6 +86,6 @@ export const useAccountSettings = () => {
 		form,
 		isSubmitting,
 		errorMessage,
-		handleSubmit,
+		handleSubmit
 	};
 };

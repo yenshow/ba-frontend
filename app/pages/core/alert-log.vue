@@ -34,14 +34,15 @@
 					</div>
 					<TimeRangePicker v-model="timeRange" :presets="timeRangePresets" />
 
-					<button
-						type="button"
+					<PermissionActionButton
+						:allowed="canExportReport && !isLoading && alerts.length > 0"
+						aria-label="匯出 CSV"
+						class="shrink-0 whitespace-nowrap rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
+						enabled-hover-class="hover:bg-green-400"
 						@click="handleExport"
-						:disabled="isLoading || alerts.length === 0"
-						class="shrink-0 whitespace-nowrap rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
 					>
 						匯出 CSV
-					</button>
+					</PermissionActionButton>
 				</template>
 				<template v-else-if="currentMode === 'rules'">
 					<div class="w-36 shrink-0 2xl:w-40">
@@ -59,13 +60,15 @@
 						/>
 					</div>
 
-					<button
-						type="button"
+					<PermissionActionButton
+						:allowed="canCreateAlert"
+						aria-label="新增警報"
+						class="shrink-0 whitespace-nowrap rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors disabled:bg-green-500/40 2xl:px-6 2xl:py-3 2xl:text-base"
+						enabled-hover-class="hover:bg-green-400"
 						@click="handleOpenCreateRule"
-						class="shrink-0 whitespace-nowrap rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors hover:bg-green-400 2xl:px-6 2xl:py-3 2xl:text-base"
 					>
 						新增警報
-					</button>
+					</PermissionActionButton>
 				</template>
 			</div>
 		</div>
@@ -87,7 +90,7 @@
 					:is-loading="isLoading"
 					:error="listLoadError"
 					:is-ignoring="isIgnoring"
-					:is-admin="isAdmin"
+					:can-ignore="canIgnoreAlert"
 					@ignore="handleIgnore"
 					@unignore="handleUnignore"
 					@previous="goToPreviousPage"
@@ -121,7 +124,7 @@
 <script setup lang="ts">
 import { useToast } from "~/composables/core/useToast";
 import type { Alert, AlertStatus, AlertSource, AlertType } from "~/types/alert";
-import { useAuth } from "~/composables/core/useAuth";
+import { useAlertLogRbac } from "~/composables/core/useModuleRbac";
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 import { useAlertEventBus } from "~/composables/monitoring/alertMonitor/useAlertEventBus";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
@@ -136,6 +139,7 @@ import AlertListSection from "~/components/alerts/AlertListSection.vue";
 import AlertRuleManagement from "~/components/alerts/AlertRuleManagement.vue";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import PageTabs from "~/components/common/PageTabs.vue";
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
 import { useDataLoader } from "~/composables/monitoring/useDataLoader";
 import { logger } from "~/utils/logger";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
@@ -148,7 +152,12 @@ definePageMeta({
 
 const alertApi = useAlertApi();
 const toast = useToast();
-const { isAdmin } = useAuth();
+const {
+	canIgnoreAlert,
+	canExportReport,
+	canCreateAlert,
+	canManageRules,
+} = useAlertLogRbac();
 const { removeAlertToast } = useAlertMonitor();
 const {
 	onAlertNew: busOnAlertNew,
@@ -176,14 +185,15 @@ const isIgnoring = ref(false);
 const unresolvedCount = ref(0);
 const currentMode = ref<"alerts" | "rules">("alerts");
 
-const alertModeTabs = computed(() =>
-	isAdmin.value
-		? [
-				{ id: "alerts" as const, label: "警示紀錄" },
-				{ id: "rules" as const, label: "警報設定" }
-			]
-		: []
-);
+const alertModeTabs = computed(() => {
+	const tabs: { id: "alerts" | "rules"; label: string }[] = [
+		{ id: "alerts", label: "警示紀錄" }
+	];
+	if (canManageRules.value) {
+		tabs.push({ id: "rules", label: "警報設定" });
+	}
+	return tabs;
+});
 
 const ruleManagementRef = ref<{ openCreateRuleDialog: () => void } | null>(null);
 const ruleFilterSource = ref<"" | AlertSource>("");
@@ -576,8 +586,8 @@ watch([filterStatus, filterSource, filterStartDate, filterEndDate], () => {
 	loadUnresolvedCount();
 });
 
-watch(isAdmin, admin => {
-	if (!admin && currentMode.value !== "alerts") {
+watch(canManageRules, can => {
+	if (!can && currentMode.value !== "alerts") {
 		currentMode.value = "alerts";
 	}
 });

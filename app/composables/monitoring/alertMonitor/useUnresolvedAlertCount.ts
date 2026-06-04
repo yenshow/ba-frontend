@@ -12,6 +12,7 @@ import { logger } from "~/utils/logger";
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import { useAuth } from "~/composables/core/useAuth";
+import { PERM } from "~/config/permissionCodes";
 import { watch } from "vue";
 
 const countLogger = logger.createLogger("UnresolvedAlertCount");
@@ -36,7 +37,7 @@ export const useUnresolvedAlertCount = () => {
 	let latestCountPayload: AlertCountEvent | null = null;
 
 	const loadUnresolvedAlertCount = async (filters?: { source?: AlertSource }) => {
-		if (!hasPermission("system.alert_log")) {
+		if (!hasPermission(PERM.alertLog.module)) {
 			unresolvedAlertCount.value = 0;
 			return;
 		}
@@ -104,7 +105,7 @@ export const useUnresolvedAlertCount = () => {
 
 	const startAlertCountMonitoring = () => {
 		stopAlertCountMonitoring();
-		if (!hasPermission("system.alert_log")) {
+		if (!hasPermission(PERM.alertLog.module)) {
 			unresolvedAlertCount.value = 0;
 			return;
 		}

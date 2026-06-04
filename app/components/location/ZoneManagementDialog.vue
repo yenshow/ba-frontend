@@ -113,6 +113,7 @@
 														</button>
 													</div>
 													<IconTrashButton
+														:disabled="!canRemoveZone"
 														title="刪除區域"
 														aria-label="刪除區域"
 														@click.stop="handleDeleteZone(getZoneId(zone))"
@@ -147,6 +148,8 @@
 														:access-control-devices="accessControlDevices"
 														:isapi-camera-devices="isapiCameraDevices"
 														:reorderable-locations="true"
+														:allow-create-location="canAddZone"
+														:allow-delete-location="canRemoveZone"
 														@add-location="() => addLocation(zone)"
 														@remove-location="(index: number) => removeLocation(getZoneId(zone), index)"
 														@reorder-location="
@@ -178,16 +181,22 @@
 					<footer class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8">
 						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
 						<div class="flex-1"></div>
-						<button
-							type="button"
+						<PermissionActionButton
+							:allowed="canSaveZones && hasUnsavedChanges"
+							aria-label="儲存變更"
 							class="btn-primary"
-							:class="{ 'cursor-not-allowed opacity-50': !hasUnsavedChanges }"
-							:disabled="!hasUnsavedChanges"
 							@click="saveAllChanges"
 						>
 							儲存變更
-						</button>
-						<button type="button" class="btn-primary" @click="addNewZone">新增區域</button>
+						</PermissionActionButton>
+						<PermissionActionButton
+							:allowed="canAddZone"
+							aria-label="新增區域"
+							class="btn-primary"
+							@click="addNewZone"
+						>
+							新增區域
+						</PermissionActionButton>
 					</footer>
 				</div>
 			</div>
@@ -226,6 +235,7 @@ import { useExternalDataApi } from "~/composables/systems/externalData/useExtern
 import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi";
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi";
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
 import ZoneFormFields from "./ZoneFormFields.vue";
 import EnvironmentLocationManagement from "./LocationManagement/EnvironmentLocationManagement.vue";
 import PeopleCountingLocationManagement from "./LocationManagement/PeopleCountingLocationManagement.vue";
@@ -234,7 +244,7 @@ import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import IconTrashButton from "~/components/common/IconTrashButton.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
-import { nextTick, type Component } from "vue";
+import { computed, nextTick, type Component } from "vue";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { removeLocationFromSystemOrDelete } from "~/composables/location/locationSystemActions";
 import { buildDeleteLocationConfirmCopy } from "~/utils/confirmCopy";
@@ -249,6 +259,9 @@ interface Props {
 	systemType: SystemType;
 	requireImageUrl?: boolean;
 	deviceHint?: string;
+	canCreateZone?: boolean;
+	canUpdateZone?: boolean;
+	canDeleteZone?: boolean;
 }
 
 interface Emits {
@@ -258,11 +271,18 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+	canCreateZone: true,
+	canUpdateZone: true,
+	canDeleteZone: true,
 	requireImageUrl: false,
 	deviceHint: "請先在「設備管理」中建立設備"
 });
 
 const emit = defineEmits<Emits>();
+
+const canAddZone = computed(() => props.canCreateZone !== false);
+const canSaveZones = computed(() => props.canUpdateZone !== false);
+const canRemoveZone = computed(() => props.canDeleteZone !== false);
 
 // 系統適配器
 // construction 僅支援 environment / people_counting / vehicle_access；
@@ -643,6 +663,7 @@ const handleLocationUpdate = (
 
 // 新增地點（從 LocationManagement 組件接收；與 central 一致：新列接在列表尾端）
 const addLocation = (zone: TZone) => {
+	if (!canAddZone.value) return;
 	const newLocation = adapter.createNewLocation() as SystemLocationType;
 	// 人流統計 / 車輛進出：若 dataSource 未設，且 YSCP 關閉會導致新列被列表過濾掉 → 依 feature 開關給合理預設
 	if (props.systemType === "people_counting") {
@@ -664,6 +685,7 @@ const addLocation = (zone: TZone) => {
 
 // 刪除地點（僅從當前系統移除）
 const removeLocation = (zoneId: string, locationIndex: number) => {
+	if (!canRemoveZone.value) return;
 	const zone = sortedZones.value.find(z => getZoneId(z) === zoneId);
 	if (!zone) return;
 	const locations = adapter.getLocationsProperty(zone);

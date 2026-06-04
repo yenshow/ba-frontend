@@ -32,23 +32,24 @@
 					{{ currentTabName ? `${currentTabName}管理` : "設備管理" }}
 				</h2>
 				<div class="flex items-center gap-3 2xl:gap-4">
-					<button
-						v-if="canWrite && !deviceModelsLocked"
-						type="button"
-						:disabled="!activeTab"
-						class="rounded-xl bg-blue-500/80 px-4 py-2 text-base text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-blue-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
+					<PermissionActionButton
+						:allowed="canManageDeviceModels && !deviceModelsLocked && !!activeTab"
+						aria-label="型號管理"
+						class="rounded-xl bg-blue-500/80 px-4 py-2 text-base text-white disabled:bg-blue-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
+						enabled-hover-class="hover:bg-blue-400"
 						@click="showDeviceModelDialog = true"
 					>
 						型號管理
-					</button>
-					<button
-						v-if="canWrite"
-						type="button"
-						class="rounded-xl bg-emerald-500/80 px-4 py-2 text-base text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
+					</PermissionActionButton>
+					<PermissionActionButton
+						:allowed="canCreateDevice"
+						aria-label="新增設備"
+						class="rounded-xl bg-emerald-500/80 px-4 py-2 text-base text-white disabled:bg-emerald-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
+						enabled-hover-class="hover:bg-emerald-400"
 						@click="showCreateDialog = true"
 					>
 						新增設備
-					</button>
+					</PermissionActionButton>
 				</div>
 			</div>
 
@@ -58,7 +59,9 @@
 				:error="listLoadError"
 				empty-title="尚無設備資料"
 				:empty-description="
-					canWrite && currentTabName ? `點擊「新增設備」開始建立 ${currentTabName}` : ''
+					canCreateDevice && currentTabName
+						? `點擊「新增設備」開始建立 ${currentTabName}`
+						: ''
 				"
 			>
 				<div :key="`devices-${activeTab}-${offset}`">
@@ -90,7 +93,7 @@
 										@update:model-value="onDateSortUpdate"
 									/>
 								</th>
-								<th v-if="canWrite" :class="tableHeaderClass">操作</th>
+										<th :class="tableHeaderClass">操作</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -140,22 +143,26 @@
 								<td :class="[tableCellClass, 'text-white/70']">
 									{{ formatDate(device.created_at) }}
 								</td>
-								<td v-if="canWrite" :class="tableCellClass">
+								<td :class="tableCellClass">
 									<div class="flex gap-2 2xl:gap-3">
-										<button
-											type="button"
-											class="rounded bg-blue-500/80 px-3 py-1 text-white hover:bg-blue-400 2xl:px-4 2xl:py-2"
+										<PermissionActionButton
+											:allowed="canUpdateDevice"
+											aria-label="編輯設備"
+											class="rounded bg-blue-500/80 px-3 py-1 text-white disabled:bg-blue-500/40 2xl:px-4 2xl:py-2"
+											enabled-hover-class="hover:bg-blue-400"
 											@click="editDevice(device)"
 										>
 											編輯
-										</button>
-										<button
-											type="button"
-											class="rounded bg-red-500/80 px-3 py-1 text-white hover:bg-red-400 2xl:px-4 2xl:py-2"
+										</PermissionActionButton>
+										<PermissionActionButton
+											:allowed="canDeleteDevice"
+											aria-label="刪除設備"
+											class="rounded bg-red-500/80 px-3 py-1 text-white disabled:bg-red-500/40 2xl:px-4 2xl:py-2"
+											enabled-hover-class="hover:bg-red-400"
 											@click="confirmDeleteDevice(device)"
 										>
 											刪除
-										</button>
+										</PermissionActionButton>
 									</div>
 								</td>
 							</tr>
@@ -184,7 +191,7 @@
 			v-model="showDialog"
 			:editing-device="editingDevice"
 			:device-type-code="activeTab"
-			:is-admin="canWrite"
+			:can-write="canWriteDevice"
 			:is-submitting="isSubmitting"
 			:error-message="errorMessage"
 			:refresh-device-types="refreshDeviceTypes"
@@ -239,7 +246,6 @@ import Pagination from "~/components/common/Pagination.vue";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import { formatDate } from "~/utils/dateUtils";
 import { useDataLoader } from "~/composables/monitoring/useDataLoader";
-import { useAuth } from "~/composables/core/useAuth";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
@@ -247,11 +253,21 @@ import { useDeviceConnectivity } from "~/composables/systems/devices/useDeviceCo
 import { useDeviceWebSocket } from "~/composables/websocket/subscribers/useDeviceWebSocket";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import { getCameraModelCategoryLabel } from "~/utils/cameraModelCategories";
+import { useEquipmentRbac } from "~/composables/core/useModuleRbac";
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
 definePageMeta({
 	layout: "auxiliary"
 });
 
-const { canWrite } = useAuth();
+const {
+	canCreateDevice,
+	canUpdateDevice,
+	canDeleteDevice,
+	canManageDeviceModels,
+} = useEquipmentRbac();
+const canWriteDevice = computed(() =>
+	editingDevice.value ? canUpdateDevice.value : canCreateDevice.value
+);
 const deviceApi = useDeviceApi();
 const runtimeConfig = useRuntimeConfig();
 const deviceModelsLocked = computed(

@@ -13,13 +13,14 @@
 						<div class="flex items-center gap-3">
 							<!-- 變更提示 -->
 							<FormChangeIndicator
-								v-if="canEdit && hasUnsavedChanges"
+								v-if="hasUnsavedChanges"
 								:has-changes="hasUnsavedChanges"
 								:changed-fields="changedFieldsList"
 								:message="changeSummary"
 							/>
 							<IconTrashButton
-								v-if="canDelete && zone && zone.id"
+								v-if="zone && zone.id"
+								:disabled="!canDelete"
 								title="刪除區域"
 								aria-label="刪除區域"
 								@click="handleDeleteZone"
@@ -54,7 +55,6 @@
 													@input="updateZoneName(($event.target as HTMLInputElement).value)"
 												/>
 												<input
-													v-if="canEdit"
 													ref="fileInputRef"
 													type="file"
 													:accept="ZONE_IMAGE_ACCEPT_ATTR"
@@ -69,20 +69,20 @@
 												>
 													查看示意圖
 												</button>
-												<button
-													v-if="canEdit"
-													type="button"
+												<PermissionActionButton
+													:allowed="canEdit"
+													aria-label="上傳或更換區域示意圖"
 													class="btn-secondary text-sm 2xl:text-base"
 													@click.stop="triggerZoneImageInput"
 												>
 													{{ pendingZone.imageUrl ? "更換" : "上傳" }}示意圖
-												</button>
-												<button
-													v-if="canEdit && pendingZone.imageUrl"
-													type="button"
-													class="p-2 text-rose-400 transition-colors hover:text-rose-300"
+												</PermissionActionButton>
+												<PermissionActionButton
+													:allowed="canEdit && !!pendingZone.imageUrl"
+													aria-label="移除區域示意圖"
+													class="p-2 text-rose-400 transition-colors"
+													enabled-hover-class="hover:text-rose-300"
 													@click.stop="removeZoneImage"
-													title="移除圖片"
 												>
 													<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 														<path
@@ -92,7 +92,7 @@
 															d="M6 18L18 6M6 6l12 12"
 														/>
 													</svg>
-												</button>
+												</PermissionActionButton>
 											</div>
 										</div>
 
@@ -100,14 +100,14 @@
 										<div class="overflow-hidden rounded-lg border border-white/20 bg-white/10 p-4">
 											<div class="mb-3 flex items-center justify-between">
 												<span class="text-base font-medium 2xl:text-lg">地點列表</span>
-												<button
-													v-if="canEdit"
-													type="button"
+												<PermissionActionButton
+													:allowed="canEdit"
+													aria-label="新增地點"
 													class="btn-secondary text-sm 2xl:text-base"
 													@click="addLocation"
 												>
 													新增地點
-												</button>
+												</PermissionActionButton>
 											</div>
 
 											<!-- 地點項目 -->
@@ -145,7 +145,7 @@
 														</div>
 													</label>
 													<IconTrashButton
-														v-if="canDelete"
+														:disabled="!canDelete"
 														button-class="ml-auto flex-shrink-0"
 														title="刪除地點"
 														aria-label="刪除地點"
@@ -170,16 +170,14 @@
 					<footer class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8">
 						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
 						<div class="flex-1"></div>
-						<button
-							v-if="canEdit"
-							type="button"
+						<PermissionActionButton
+							:allowed="canEdit && hasUnsavedChanges"
+							aria-label="儲存變更"
 							class="btn-primary"
-							:class="{ 'cursor-not-allowed opacity-50': !hasUnsavedChanges }"
-							:disabled="!hasUnsavedChanges"
 							@click="saveChanges"
 						>
 							儲存變更
-						</button>
+						</PermissionActionButton>
 					</footer>
 				</div>
 			</div>
@@ -208,6 +206,7 @@ import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location"
 import { ZONE_IMAGE_ACCEPT_ATTR } from "~/composables/location/validation/useBaseValidation";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import IconTrashButton from "~/components/common/IconTrashButton.vue";
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";

@@ -41,22 +41,18 @@
 				請新增影片連結或上傳影片
 			</div>
 
-			<template v-if="canWrite">
-				<button
-					type="button"
-					class="absolute right-0 top-0 z-10 hidden rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 group-hover:block 2xl:text-base"
+			<PermissionActionButton
+					:allowed="canWrite"
 					aria-label="編輯影片"
+					class="absolute right-0 top-0 z-10 rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 2xl:text-base"
+					enabled-hover-class="hover:bg-black/50"
 					@click="isEditOpen = true"
-					@keydown.enter="isEditOpen = true"
-					@keydown.space.prevent="isEditOpen = true"
 				>
 					編輯
-				</button>
-			</template>
+				</PermissionActionButton>
 		</div>
 
-		<template v-if="canWrite">
-			<EditMockDialog
+		<EditMockDialog
 				v-model="isEditOpen"
 				title="編輯影片"
 				:value="videoSrcRaw"
@@ -66,17 +62,18 @@
 				@save="saveVideoSrc"
 				@reset="resetVideoSrc"
 				@upload="handleUploadVideo"
-			/>
-		</template>
+		/>
 	</div>
 </template>
 
 <script setup lang="ts">
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import EditMockDialog from "~/components/common/EditMockDialog.vue";
 import { useAppSettings, VIDEO_UPLOAD_HINT } from "~/composables/core/useAppSettings";
 import { useImageCenter } from "~/composables/core/useImageCenter";
 import { createSafeFileName } from "~/utils/fileUtils";
 import { useAuth } from "~/composables/core/useAuth";
+import { useHomeRbac } from "~/composables/core/useModuleRbac";
 
 const {
 	value: videoSrcRaw,
@@ -88,7 +85,7 @@ const {
 	defaultValue: ""
 });
 
-const { canWrite } = useAuth();
+const { canWrite } = useHomeRbac();
 
 const isEditOpen = ref(false);
 const videoRef = ref<HTMLVideoElement | null>(null);

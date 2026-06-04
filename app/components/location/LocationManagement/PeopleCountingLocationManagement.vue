@@ -3,9 +3,14 @@
 		<!-- 地點列表標題 -->
 		<div class="flex items-center justify-between">
 			<span class="text-base font-medium 2xl:text-lg">地點</span>
-			<button type="button" class="btn-secondary text-sm 2xl:text-base" @click="handleAddLocation">
+			<PermissionActionButton
+				:allowed="allowCreateLocation"
+				aria-label="新增地點"
+				class="btn-secondary text-sm 2xl:text-base"
+				@click="handleAddLocation"
+			>
 				新增地點
-			</button>
+			</PermissionActionButton>
 		</div>
 
 		<!-- 地點項目 -->
@@ -58,6 +63,7 @@
 
 				<!-- 刪除按鈕 -->
 				<IconTrashButton
+					:disabled="!allowDeleteLocation"
 					button-class="ml-auto flex-shrink-0"
 					title="刪除地點"
 					aria-label="刪除此地點"
@@ -69,81 +75,87 @@
 </template>
 
 <script setup lang="ts">
-import IconTrashButton from "~/components/common/IconTrashButton.vue";
-import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting";
-import type { Device } from "~/types/device";
-import PeopleCountingLocationFields from "../LocationFormFields/PeopleCountingLocationFields.vue";
-import { getLocationUiKey } from "~/utils/locationUiId";
-import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
-import { filterPeopleCountingZoneLocations } from "~/utils/peopleCountingDataSource";
-import { computed } from "vue";
+import IconTrashButton from "~/components/common/IconTrashButton.vue"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+
+import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting"
+import type { Device } from "~/types/device"
+import PeopleCountingLocationFields from "../LocationFormFields/PeopleCountingLocationFields.vue"
+import { getLocationUiKey } from "~/utils/locationUiId"
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
+import { filterPeopleCountingZoneLocations } from "~/utils/peopleCountingDataSource"
+import { computed } from "vue"
 
 interface PersonGroup {
-	id: number;
-	name: string;
-	is_deleted?: number;
+	id: number
+	name: string
+	is_deleted?: number
 }
 
 interface Door {
-	id: number;
-	device_id: number;
-	dev_name: string;
-	door_index: number;
-	is_deleted?: number;
+	id: number
+	device_id: number
+	dev_name: string
+	door_index: number
+	is_deleted?: number
 }
 
 interface Props {
-	zone: PeopleCountingZone;
-	personGroups?: PersonGroup[];
-	doors?: Door[];
-	accessControlDevices?: Device[];
-	isapiCameraDevices?: Device[];
-	reorderableLocations?: boolean;
+	zone: PeopleCountingZone
+	personGroups?: PersonGroup[]
+	doors?: Door[]
+	accessControlDevices?: Device[]
+	isapiCameraDevices?: Device[]
+	reorderableLocations?: boolean
+	allowCreateLocation?: boolean
+	allowDeleteLocation?: boolean
 }
 
 interface Emits {
-	(e: "add-location"): void;
-	(e: "remove-location", index: number): void;
-	(e: "update-location", index: number, location: PeopleCountingLocation): void;
-	(e: "reorder-location", payload: { index: number; direction: "up" | "down" }): void;
+	(e: "add-location"): void
+	(e: "remove-location", index: number): void
+	(e: "update-location", index: number, location: PeopleCountingLocation): void
+	(e: "reorder-location", payload: { index: number; direction: "up" | "down" }): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
+	allowCreateLocation: true,
+	allowDeleteLocation: true,
 	personGroups: () => [],
 	doors: () => [],
 	accessControlDevices: () => [],
 	isapiCameraDevices: () => [],
-	reorderableLocations: false
-});
+	reorderableLocations: false,
+})
 
-const emit = defineEmits<Emits>();
+const emit = defineEmits<Emits>()
 
-const { enableYscpPeopleCounting } = useModuleRegistry();
+const { enableYscpPeopleCounting } = useModuleRegistry()
 const visibleLocations = computed(() =>
 	filterPeopleCountingZoneLocations(props.zone.locations || [], enableYscpPeopleCounting.value)
-);
+)
 
 // 取得地點 ID
 const getLocationId = (location: PeopleCountingLocation, index: number): string => {
 	return getLocationUiKey({
 		zone: props.zone as any,
 		location: location as any,
-		locationIndex: index
-	});
-};
+		locationIndex: index,
+	})
+}
 
 // 處理新增地點
 const handleAddLocation = () => {
-	emit("add-location");
-};
+	emit("add-location")
+}
 
 // 處理刪除地點
 const handleRemoveLocation = (locationIndex: number) => {
-	emit("remove-location", locationIndex);
-};
+	emit("remove-location", locationIndex)
+}
 
 // 處理地點更新
 const handleLocationUpdate = (locationIndex: number, updatedLocation: PeopleCountingLocation) => {
-	emit("update-location", locationIndex, updatedLocation);
-};
+	emit("update-location", locationIndex, updatedLocation)
+}
 </script>

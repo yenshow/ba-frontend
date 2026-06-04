@@ -1,23 +1,13 @@
 export interface User {
-
 	id: number;
-
 	username: string;
-
-	role: "admin" | "operator" | "viewer";
-
+	role: "admin" | "user";
 	status: "active" | "inactive";
-
-	/** 有效權限代碼（admin 全部；其餘僅 user_permission_overrides，見 auth-rbac.md） */
+	/** 有效權限代碼（admin 全部；user 僅 overrides） */
 	permissions?: string[];
-
 	created_at?: string;
-
 	updated_at?: string;
-
 }
-
-
 
 export interface PermissionDefinition {
 	id: number;
@@ -37,14 +27,9 @@ export interface UserPermissionOverridesResponse {
 }
 
 export interface LoginCredentials {
-
 	username: string;
-
 	password: string;
-
 }
-
-
 
 export interface ChangePasswordData {
 	oldPassword?: string;
@@ -52,39 +37,24 @@ export interface ChangePasswordData {
 }
 
 export interface CreateManagedUserData {
-
 	username: string;
-
 	password: string;
-
-	role?: "admin" | "operator" | "viewer";
+	role?: "admin" | "user";
 	overrides?: { permission_id: number; granted: boolean }[];
 }
 
 export interface CreateManagedUserResponse {
-
 	user: User;
-
 }
 
-
-
 export interface UpdateUserData {
-
 	username?: string;
-
-	role?: "admin" | "operator" | "viewer";
-
+	role?: "admin" | "user";
 	status?: "active" | "inactive";
 }
 
 export interface LoginResponse {
-
 	message: string;
-
 	user: User;
-
 	token: string;
-
 }
-

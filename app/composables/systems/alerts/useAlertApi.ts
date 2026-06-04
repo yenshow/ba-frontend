@@ -125,7 +125,7 @@ export const useAlertApi = () => {
 	};
 
 	/**
-	 * 建立警報規則（admin/operator）
+	 * 建立警報規則（需 alert.create 權限）
 	 */
 	const createAlertRule = async (payload: CreateAlertRulePayload): Promise<{ rule: AlertRule }> => {
 		return await request<{ rule: AlertRule }>("/alerts/rules", {
@@ -135,7 +135,7 @@ export const useAlertApi = () => {
 	};
 
 	/**
-	 * 更新警報規則（admin/operator）
+	 * 更新警報規則（需 alert.update 權限）
 	 */
 	const updateAlertRule = async (
 		id: number,
@@ -148,7 +148,7 @@ export const useAlertApi = () => {
 	};
 
 	/**
-	 * 刪除警報規則（admin/operator）
+	 * 刪除警報規則（需 alert.delete 權限）
 	 */
 	const deleteAlertRule = async (id: number): Promise<{ rule: AlertRule }> => {
 		return await request<{ rule: AlertRule }>(`/alerts/rules/${id}`, {

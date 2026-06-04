@@ -1,4 +1,4 @@
-import { useAuth } from "~/composables/core/useAuth"
+import { useAuth, useAdminOnly } from "~/composables/core/useAuth"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { canAccessAccountPage } from "~/composables/systems/users/useAccountSettings"
 import type { SystemModule } from "~/types/system"
@@ -44,7 +44,7 @@ const toSystemSettingsSections = (items: SystemSettingsMenuItem[]) =>
 
 const buildSystemSettingsItems = (
 	user: Pick<User, "role"> | null | undefined,
-	canWrite: boolean
+	canAdmin: boolean
 ): SystemSettingsMenuItem[] => {
 	const items: SystemSettingsMenuItem[] = []
 
@@ -57,7 +57,7 @@ const buildSystemSettingsItems = (
 			section: "personal",
 		})
 	}
-	if (canWrite) {
+	if (canAdmin) {
 		items.push(
 			{
 				id: "users",
@@ -90,7 +90,8 @@ const buildSystemSettingsItems = (
 /** Construction 殼層導航：系統總覽（底欄）與系統設定 */
 export const useAppShellNavigation = () => {
 	const moduleRegistry = useModuleRegistry()
-	const { user, canWrite } = useAuth()
+	const { user } = useAuth()
+	const canAdmin = useAdminOnly()
 
 	const constructionOverviewModules = computed(() =>
 		filterOverviewModules(moduleRegistry.getModulesByCategory(OVERVIEW_CATEGORY))
@@ -101,7 +102,7 @@ export const useAppShellNavigation = () => {
 	)
 
 	const systemSettingsSections = computed(() =>
-		toSystemSettingsSections(buildSystemSettingsItems(user.value, canWrite.value))
+		toSystemSettingsSections(buildSystemSettingsItems(user.value, canAdmin.value))
 	)
 
 	return {
