@@ -95,14 +95,14 @@
 										>
 											<div class="flex items-center justify-between">
 												<span class="text-base font-medium 2xl:text-lg">車牌名單</span>
-												<button
-													v-if="canWrite"
-													type="button"
+												<PermissionActionButton
+													:allowed="canCreatePlate"
+													aria-label="新增車牌"
 													class="btn-secondary"
 													@click="handleOpenPlateForm(opt.id)"
 												>
 													新增車牌
-												</button>
+												</PermissionActionButton>
 											</div>
 
 											<div v-if="isLoadingDevice(opt.id)" class="flex justify-center py-8">
@@ -136,7 +136,7 @@
 															<th class="px-2 py-2 font-medium">名單類型</th>
 															<th class="px-2 py-2 font-medium">開始時間</th>
 															<th class="px-2 py-2 font-medium">結束時間</th>
-															<th v-if="canWrite" class="px-2 py-2 font-medium">操作</th>
+															<th class="px-2 py-2 font-medium">操作</th>
 														</tr>
 													</thead>
 													<tbody>
@@ -167,21 +167,25 @@
 															<td class="px-2 py-2 text-white/70">
 																{{ formatLicensePlateDisplayTime(row.effectiveTime) }}
 															</td>
-															<td v-if="canWrite" class="px-2 py-2">
-																<button
-																	type="button"
-																	class="mr-3 text-cyan-300 hover:underline"
+															<td class="px-2 py-2">
+																<PermissionActionButton
+																	:allowed="canUpdatePlate"
+																	aria-label="編輯車牌"
+																	class="mr-3 text-cyan-300 disabled:opacity-50"
+																	enabled-hover-class="hover:underline"
 																	@click="handleOpenPlateForm(opt.id, row)"
 																>
 																	編輯
-																</button>
-																<button
-																	type="button"
-																	class="text-rose-300 hover:underline"
+																</PermissionActionButton>
+																<PermissionActionButton
+																	:allowed="canDeletePlate"
+																	aria-label="刪除車牌"
+																	class="text-rose-300 disabled:opacity-50"
+																	enabled-hover-class="hover:underline"
 																	@click="handleDeletePlate(opt.id, row)"
 																>
 																	刪除
-																</button>
+																</PermissionActionButton>
 															</td>
 														</tr>
 													</tbody>
@@ -227,6 +231,7 @@ import {
 	type IsapiPlateFormModel,
 } from "~/utils/licensePlateFormUtils"
 import VehicleAccessIsapiPlateFormDialog from "~/components/vehicle-access/VehicleAccessIsapiPlateFormDialog.vue"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 
 interface DeviceOption {
 	id: number
@@ -236,7 +241,9 @@ interface DeviceOption {
 const props = defineProps<{
 	modelValue: boolean
 	location: VehicleAccessLocation | null
-	canWrite?: boolean
+	canCreatePlate?: boolean
+	canUpdatePlate?: boolean
+	canDeletePlate?: boolean
 }>()
 
 const emit = defineEmits<{

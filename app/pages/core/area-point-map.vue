@@ -18,20 +18,18 @@
 									{{ selectedZoneName }}
 								</span>
 							</div>
-							<!-- 區域管理按鈕（僅 admin） -->
+							<!-- 區域管理（RBAC；無權限時禁用以保留排版） -->
 							<Transition name="fade-in">
-								<button
-									v-if="!isInitialLoading && isAdmin"
-									type="button"
+								<PermissionActionButton
+									v-show="!isInitialLoading"
+									:allowed="canManageOperations"
+									ariaLabel="區域管理"
+									class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base text-white transition-all 2xl:text-lg"
+									enabled-hover-class="hover:bg-white/10"
 									@click="handleOpenZoneDialog"
-									:class="[
-										'whitespace-nowrap rounded-2xl p-3 text-base text-white transition-all 2xl:text-lg',
-										'border-2 border-white/30 bg-transparent hover:bg-white/10',
-									]"
-									title="區域管理"
 								>
 									區域管理
-								</button>
+								</PermissionActionButton>
 							</Transition>
 							<!-- 系統列表（篩選該樓層的系統顯示） -->
 							<Transition name="fade-in">
@@ -177,13 +175,13 @@
 
 	<!-- 地點管理對話框（有篩選系統時傳入 systemType，刪除地點僅從該系統移除） -->
 	<LocationManagementDialog
-		v-if="isAdmin"
 		v-model="showLocationManagementDialog"
 		:zone="selectedZoneData"
 		:system-type="selectedSystemType ?? undefined"
 		mode="delete-only"
 		:read-only="true"
-		:allow-delete="isAdmin"
+		:allow-delete-zone="canDeleteZone"
+		:allow-delete-location="canDeleteLocationInDialog"
 		@delete="handleDeleteUnifiedZone"
 	/>
 </template>
@@ -191,7 +189,8 @@
 <script setup lang="ts">
 import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
-import { useAuth } from "~/composables/core/useAuth"
+import { useAreaPointMapRbac } from "~/composables/core/useModuleRbac"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import {
 	getLocationStyleBySystem,
@@ -243,7 +242,17 @@ definePageMeta({
 	layout: "default",
 })
 
-const { isAdmin } = useAuth()
+const {
+	canDeleteZone,
+	canDeleteLocation,
+	canManageOperations,
+	canDeleteLocationForSystem,
+} = useAreaPointMapRbac()
+
+
+const canDeleteLocationInDialog = computed(() =>
+	canDeleteLocationForSystem(selectedSystemType.value),
+)
 const locationApi = useLocationApi()
 const { handleError } = useErrorHandler()
 const { handleDeleteZone: baseHandleDeleteZone, sortZones } = useZoneManagement<
@@ -732,13 +741,14 @@ const loadZones = async () => {
 }
 
 const handleDeleteUnifiedZone = async (zoneId: string) => {
-	if (!isAdmin.value) return
+	if (!canDeleteZone.value) return
 
 	await baseHandleDeleteZone(zoneId, zones, locationApi.deleteZone, {
 		selectedZoneRef: selectedZone,
 		selectedLocationRef: selectedLocation,
 		findEarliestZone: firstZoneByDisplayOrder,
 		getLocationId: (loc) => String(loc.id || ""),
+		systemType: selectedSystemType.value ?? undefined,
 		reloadZones: async () => {
 			await loadZones()
 			showLocationManagementDialog.value = false
@@ -1098,7 +1108,7 @@ const getLocationTypeLabel = getSystemTypeLabel
 
 // 處理打開區域管理對話框
 const handleOpenZoneDialog = async () => {
-	if (!isAdmin.value) return
+	if (!canManageOperations.value) return
 	if (zones.value.length === 0) {
 		await loadZones()
 	}

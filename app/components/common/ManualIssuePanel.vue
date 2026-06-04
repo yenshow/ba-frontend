@@ -1,6 +1,5 @@
 <template>
 	<section
-		v-if="isAdmin"
 		class="mb-4 rounded-2xl border border-amber-300/30 bg-amber-500/10 p-4 text-white/90"
 		aria-label="手動警報測試面板"
 	>
@@ -9,6 +8,7 @@
 			<h3 class="text-xl font-semibold tracking-[4px]">手動警報</h3>
 		</header>
 
+		<fieldset :disabled="!canAdmin" class="min-w-0 border-0 p-0">
 		<label class="block">
 			<span class="mb-2 block text-base text-white/75">目標點位</span>
 			<FilterDropdown
@@ -46,25 +46,24 @@
 		</p>
 
 		<div class="mt-3 flex flex-wrap items-center gap-2">
-			<button
-				type="button"
+			<PermissionActionButton
+				:allowed="canSubmit"
+				aria-label="觸發警報"
 				class="btn-primary"
-				:disabled="!canSubmit"
-				:aria-busy="isBusy"
 				@click="handleTriggerAlert"
 			>
 				觸發警報
-			</button>
-			<button
-				type="button"
+			</PermissionActionButton>
+			<PermissionActionButton
+				:allowed="canSubmit"
+				aria-label="清除警報"
 				class="btn-secondary"
-				:disabled="!canSubmit"
-				:aria-busy="isBusy"
 				@click="handleClearAlert"
 			>
 				清除警報
-			</button>
+			</PermissionActionButton>
 		</div>
+		</fieldset>
 	</section>
 </template>
 
@@ -72,7 +71,8 @@
 import { computed, ref, watch } from "vue"
 import type { ManualIssueChangedPayload, ManualIssueRuleBitOption } from "~/utils/alertUtils"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
-import { useAuth } from "~/composables/core/useAuth"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+import { useAdminOnly } from "~/composables/core/useAuth"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useSystemManualAlertApi } from "~/composables/systems/alerts/useSystemManualAlertApi"
 
@@ -96,7 +96,7 @@ const emit = defineEmits<{
 	(e: "changed", payload: ManualIssueChangedPayload): void
 }>()
 
-const { isAdmin } = useAuth()
+const canAdmin = useAdminOnly()
 const { handleError } = useErrorHandler()
 const manualAlertApi = useSystemManualAlertApi(props.systemRoutePrefix)
 
@@ -165,7 +165,6 @@ watch([selectedTargetId, selectedRuleOptions], () => {
 })
 
 const handleTriggerAlert = async () => {
-	if (!isAdmin.value) return
 	if (!selectedTargetId.value) return
 	if (!canSubmit.value) return
 	isBusy.value = true
@@ -194,7 +193,6 @@ const handleTriggerAlert = async () => {
 }
 
 const handleClearAlert = async () => {
-	if (!isAdmin.value) return
 	if (!selectedTargetId.value) return
 	if (!canSubmit.value) return
 	isBusy.value = true

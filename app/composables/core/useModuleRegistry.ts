@@ -1,4 +1,6 @@
 import { useApiBase } from "~/composables/core/useApiBase"
+import { useAdminOnly, useAuth } from "~/composables/core/useAuth"
+import { matchesPlatformAdminRoute } from "~/config/platformAdminRoutes"
 import { LICENSE_FEATURE_KEYS, type FeatureKey } from "~/types/license"
 import type { SystemModule } from "~/types/system"
 import { logger } from "~/utils/logger"
@@ -140,6 +142,22 @@ export const useModuleRegistry = () => {
 		() => registry.value?.serverFeatures?.enableYscpVehicleAccess !== false
 	)
 
+	const resolveModulePermissionCode = (module: {
+		route: string
+		permissionCode?: string
+	}): string | null =>
+		module.permissionCode ?? getPermissionCodeByRoute(module.route) ?? null
+
+	const canAccessModule = (module: { route: string; permissionCode?: string }): boolean => {
+		if (matchesPlatformAdminRoute(module.route)) {
+			return useAdminOnly().value
+		}
+		const code = resolveModulePermissionCode(module)
+		if (!code) return true
+		const { hasPermission } = useAuth()
+		return hasPermission(code)
+	}
+
 	return {
 		registry: readonly(registry),
 		isLoading: readonly(isLoading),
@@ -147,6 +165,7 @@ export const useModuleRegistry = () => {
 		enableYscpVehicleAccess: readonly(enableYscpVehicleAccess),
 		ensureLoaded,
 		getPermissionCodeByRoute,
+		canAccessModule,
 		getFeatureKeyByRoute,
 		modules: readonly(modules),
 		getAllModules,

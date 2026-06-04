@@ -116,6 +116,7 @@
 														</button>
 													</div>
 													<IconTrashButton
+														:disabled="!canRemoveZone"
 														title="刪除區域"
 														aria-label="刪除區域"
 														@click.stop="handleDeleteZone(getZoneId(zone))"
@@ -151,6 +152,8 @@
 														:access-control-devices="accessControlDevices"
 														:isapi-camera-devices="isapiCameraDevices"
 														:reorderable-locations="true"
+														:allow-create-location="canAddZone"
+														:allow-delete-location="canRemoveZone"
 														@add-location="
 															(payload?: { viewCategory?: string }) => addLocation(zone, payload)
 														"
@@ -196,16 +199,22 @@
 					>
 						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
 						<div class="flex-1"></div>
-						<button
-							type="button"
+						<PermissionActionButton
+							:allowed="canSaveZones && hasUnsavedChanges"
+							aria-label="儲存變更"
 							class="btn-primary"
-							:class="{ 'cursor-not-allowed opacity-50': !hasUnsavedChanges }"
-							:disabled="!hasUnsavedChanges"
 							@click="saveAllChanges"
 						>
 							儲存變更
-						</button>
-						<button type="button" class="btn-primary" @click="addNewZone">新增區域</button>
+						</PermissionActionButton>
+						<PermissionActionButton
+							:allowed="canAddZone"
+							aria-label="新增區域"
+							class="btn-primary"
+							@click="addNewZone"
+						>
+							新增區域
+						</PermissionActionButton>
 					</footer>
 				</div>
 			</div>
@@ -244,6 +253,7 @@ import { useExternalDataApi } from "~/composables/systems/externalData/useExtern
 import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi"
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import ZoneFormFields from "./ZoneFormFields.vue"
 import EnvironmentLocationManagement from "./LocationManagement/EnvironmentLocationManagement.vue"
 import LightingLocationManagement from "./LocationManagement/LightingLocationManagement.vue"
@@ -275,6 +285,10 @@ interface Props {
 	systemType: SystemType
 	requireImageUrl?: boolean
 	deviceHint?: string
+	/** 未傳則視為可建立（向後相容 admin 區域管理） */
+	canCreateZone?: boolean
+	canUpdateZone?: boolean
+	canDeleteZone?: boolean
 }
 
 interface Emits {
@@ -284,11 +298,18 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+	canCreateZone: true,
+	canUpdateZone: true,
+	canDeleteZone: true,
 	requireImageUrl: false,
 	deviceHint: "請先在「設備管理」中建立設備",
 })
 
 const emit = defineEmits<Emits>()
+
+const canAddZone = computed(() => props.canCreateZone !== false)
+const canSaveZones = computed(() => props.canUpdateZone !== false)
+const canRemoveZone = computed(() => props.canDeleteZone !== false)
 
 // 系統適配器
 const adapter = useZoneSystemAdapter<TZone, SystemLocationType>(props.systemType)
@@ -694,6 +715,7 @@ const handleLocationUpdate = (
 
 // 新增地點（從 LocationManagement 組件接收；排水可帶 viewCategory）
 const addLocation = (zone: TZone, payload?: { viewCategory?: string }) => {
+	if (!canAddZone.value) return
 	const newLocation = adapter.createNewLocation() as SystemLocationType
 
 	// 人流統計 / 車輛進出：若 dataSource 未設，且 YSCP 關閉會導致新列被列表過濾掉 → 依 feature 開關給合理預設
@@ -755,6 +777,7 @@ const handleDrainageRenameViewCategory = (
 
 // 刪除地點（僅從當前系統移除）
 const removeLocation = (zoneId: string, locationIndex: number) => {
+	if (!canRemoveZone.value) return
 	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
 	if (!zone) return
 	const locations = adapter.getLocationsProperty(zone)

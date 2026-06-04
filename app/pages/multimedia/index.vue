@@ -409,7 +409,8 @@ import type {
 
 definePageMeta({ layout: "default" })
 
-const { canWrite } = useAuth()
+import { useMultimediaRbac } from "~/composables/core/useModuleRbac"
+const { canWrite } = useMultimediaRbac()
 const toast = useToast()
 const { handleError } = useErrorHandler()
 const api = useMultimediaDashboardApi()

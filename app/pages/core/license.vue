@@ -25,16 +25,15 @@
 						}}</span>
 					</div>
 				</div>
-				<button
-					v-if="isAdmin"
-					type="button"
-					class="rounded-xl border border-white/25 bg-white/10 px-4 py-2 text-sm text-white/85 transition-colors hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
-					:disabled="showLicensePlaceholder || isResettingLicense"
+				<PermissionActionButton
+					:allowed="canAdmin && !showLicensePlaceholder && !isResettingLicense"
 					aria-label="重置本地授權"
+					class="rounded-xl border border-white/25 bg-white/10 px-4 py-2 text-sm text-white/85 transition-colors disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
+					enabled-hover-class="hover:bg-white/15"
 					@click="handleRequestResetLicense"
 				>
 					{{ isResettingLicense ? "重置中..." : "重置授權" }}
-				</button>
+				</PermissionActionButton>
 			</div>
 		</header>
 
@@ -42,16 +41,16 @@
 			<div
 				ref="leftColumnRef"
 				class="flex flex-col gap-6 transition-opacity duration-200 2xl:gap-8"
-				:class="isAdmin ? '' : 'cursor-not-allowed opacity-50 saturate-[0.85]'"
-				:aria-disabled="!isAdmin || undefined"
+				:class="canAdmin ? '' : 'cursor-not-allowed opacity-50 saturate-[0.85]'"
+				:aria-disabled="!canAdmin || undefined"
 			>
 				<div class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
 					<h2 class="text-xl font-semibold text-white 2xl:text-2xl">線上啟用（LK）</h2>
-					<p v-if="!isAdmin" class="mt-2 text-sm text-white/50 2xl:text-base">
+					<p v-show="!canAdmin" class="mt-2 text-sm text-white/50 2xl:text-base">
 						僅管理員可啟用或匯入授權
 					</p>
 
-					<fieldset :disabled="!isAdmin" class="mt-5 min-w-0 border-0 p-0 2xl:mt-6">
+					<fieldset :disabled="!canAdmin" class="mt-5 min-w-0 border-0 p-0 2xl:mt-6">
 					<form
 						class="flex flex-col gap-4 2xl:gap-5"
 						@submit.prevent="handleActivateOnline"
@@ -92,11 +91,11 @@
 
 				<div class="flex flex-col rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
 					<h2 class="text-xl font-semibold text-white 2xl:text-2xl">離線授權</h2>
-					<p v-if="!isAdmin" class="mt-2 text-sm text-white/50 2xl:text-base">
+					<p v-show="!canAdmin" class="mt-2 text-sm text-white/50 2xl:text-base">
 						僅管理員可產生請求檔或匯入回應檔
 					</p>
 
-					<fieldset :disabled="!isAdmin" class="mt-5 min-w-0 border-0 p-0">
+					<fieldset :disabled="!canAdmin" class="mt-5 min-w-0 border-0 p-0">
 					<nav class="flex items-center gap-2" aria-label="離線授權步驟切換">
 						<button
 							type="button"
@@ -370,9 +369,10 @@
 <script setup lang="ts">
 import { LICENSE_FEATURE_KEYS, type FeatureKey, type LicenseState } from "~/types/license"
 import { useApiBase } from "~/composables/core/useApiBase"
-import { useAuth } from "~/composables/core/useAuth"
+import { useAdminOnly } from "~/composables/core/useAuth"
 import { useLicense } from "~/composables/core/useLicense"
 import { useToast } from "~/composables/core/useToast"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
@@ -382,6 +382,7 @@ import { formatMaxDevicesText, normalizeMaxDevices, toNonNegativeInt } from "~/u
 
 definePageMeta({
 	layout: "default",
+	middleware: "admin",
 })
 
 const featureLabels: Record<string, string> = {
@@ -400,7 +401,7 @@ const featureLabels: Record<string, string> = {
 	multimedia: "多媒體資訊",
 }
 
-const { isAdmin } = useAuth()
+const canAdmin = useAdminOnly()
 
 const { request } = useApiBase()
 const { license, fetchLicense, isLoaded } = useLicense()
@@ -621,7 +622,7 @@ const clearOfflineResponseSelection = () => {
 }
 
 const handleActivateOnline = async () => {
-	if (!isAdmin.value) return
+	if (!canAdmin.value) return
 	if (!canSubmitLicenseKey.value) return
 	if (isSubmittingOnline.value) return
 	isSubmittingOnline.value = true
@@ -696,7 +697,7 @@ const handleConfirmDialogCancel = () => {
 }
 
 const handleGenerateRequestFile = async () => {
-	if (!isAdmin.value) return
+	if (!canAdmin.value) return
 	if (!canGenerateRequestFile.value || isGeneratingRequestFile.value) return
 	isGeneratingRequestFile.value = true
 	try {
@@ -725,7 +726,7 @@ const handleGenerateRequestFile = async () => {
 }
 
 const handleImportOffline = async () => {
-	if (!isAdmin.value) return
+	if (!canAdmin.value) return
 	const payload = offlineResponsePayload.value
 	if (!payload || isSubmittingOffline.value) return
 	isSubmittingOffline.value = true
@@ -745,14 +746,14 @@ const handleImportOffline = async () => {
 }
 
 const handleOfflineFileLabelKeyDown = (e: KeyboardEvent) => {
-	if (!isAdmin.value) return
+	if (!canAdmin.value) return
 	if (e.key !== "Enter" && e.key !== " ") return
 	e.preventDefault()
 	offlineResponseFileInputRef.value?.click()
 }
 
 const handleOfflineResponseFileChange = async (e: Event) => {
-	if (!isAdmin.value) return
+	if (!canAdmin.value) return
 	const input = e.target as HTMLInputElement | null
 	const file = input?.files?.[0]
 	if (!file) return

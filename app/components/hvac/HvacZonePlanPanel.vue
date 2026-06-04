@@ -11,29 +11,34 @@
 						</span>
 					</div>
 					<Transition name="fade-in">
-						<button
-							v-if="!isInitialLoading && canManageZones"
-							type="button"
-							class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base font-light text-white transition-all hover:bg-white/10 2xl:text-lg"
-							title="樓層管理"
+						<PermissionActionButton
+							v-show="!isInitialLoading"
+							:allowed="canManageZones ?? false"
+							aria-label="????"
+							class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base font-light text-white transition-all 2xl:text-lg"
+							enabled-hover-class="hover:bg-white/10"
 							@click="handleOpenZoneDialog"
 						>
-							樓層管理
-						</button>
+							????
+						</PermissionActionButton>
 					</Transition>
 					<div class="relative">
 						<Transition name="fade-in">
-							<button
-								v-if="!isInitialLoading && canWrite"
-								type="button"
+							<PermissionActionButton
+								v-show="!isInitialLoading"
+								:allowed="canWrite"
+								aria-label="????"
 								:class="[
 									'whitespace-nowrap rounded-2xl p-3 text-base font-light text-white transition-all 2xl:text-lg',
-									isEditMode ? 'border-2 border-white bg-white/10' : 'border-2 border-white/30 bg-transparent',
+									isEditMode
+										? 'border-2 border-white bg-white/10'
+										: 'border-2 border-white/30 bg-transparent',
 								]"
+								enabled-hover-class="hover:bg-white/10"
 								@click="handleToggleEditMode"
 							>
-								{{ isEditMode ? "完成編輯" : "編輯定位" }}
-							</button>
+								{{ isEditMode ? "????" : "????" }}
+							</PermissionActionButton>
 						</Transition>
 						<Transition name="dropdown">
 							<CategoryList
@@ -72,7 +77,7 @@
 				<NuxtImg
 					v-if="zonePlanImage"
 					:src="zonePlanImage"
-					alt="區域平面圖"
+					alt="?�?�??��?"
 					class="image-blur-load pointer-events-none h-full w-full object-contain"
 					:class="{ 'image-loaded': isZonePlanLoaded }"
 					width="auto"
@@ -80,7 +85,7 @@
 					@load="handleZonePlanImageLoad"
 				/>
 				<div v-else class="flex h-full w-full items-center justify-center text-white/50">
-					<span>尚未設定區域平面圖</span>
+					<span>???�??�?�??��?</span>
 				</div>
 
 				<template v-for="location in currentZoneLocations" :key="getLocationIdForDisplay(location)">
@@ -127,6 +132,7 @@
 import { onBeforeUnmount, onMounted } from "vue"
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
 import CategoryList from "~/components/common/CategoryList.vue"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import type { MapDotStatus } from "~/utils/monitoringStatus"
 import type { HvacLocation, HvacZone } from "~/types/hvac"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"

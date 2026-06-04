@@ -2,9 +2,14 @@
 	<div class="space-y-3">
 		<div class="flex items-center justify-between">
 			<span class="text-base font-medium 2xl:text-lg">點位列表</span>
-			<button type="button" class="btn-secondary text-sm 2xl:text-base" @click="handleAddLocation">
+			<PermissionActionButton
+				:allowed="allowCreateLocation"
+				aria-label="新增點位"
+				class="btn-secondary text-sm 2xl:text-base"
+				@click="handleAddLocation"
+			>
 				新增點位
-			</button>
+			</PermissionActionButton>
 		</div>
 
 		<div
@@ -54,6 +59,7 @@
 				</div>
 
 				<IconTrashButton
+					:disabled="!allowDeleteLocation"
 					button-class="ml-auto flex-shrink-0"
 					title="刪除點位"
 					aria-label="刪除此點位"
@@ -74,6 +80,8 @@ import type { Device } from "~/types/device"
 import HvacLocationFields from "../LocationFormFields/HvacLocationFields.vue"
 import { getLocationUiKey } from "~/utils/locationUiId"
 import IconTrashButton from "~/components/common/IconTrashButton.vue"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+
 
 interface Props {
 	zone: HvacZone
@@ -81,6 +89,8 @@ interface Props {
 	isLoadingDevices: boolean
 	deviceHint?: string
 	reorderableLocations?: boolean
+	allowCreateLocation?: boolean
+	allowDeleteLocation?: boolean
 }
 
 interface Emits {
@@ -91,6 +101,8 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+	allowCreateLocation: true,
+	allowDeleteLocation: true,
 	deviceHint: "請先在「設備管理」中建立控制器設備",
 	reorderableLocations: false,
 })

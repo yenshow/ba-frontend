@@ -89,24 +89,24 @@
 								</div>
 
 								<div class="flex h-[160px] flex-col justify-center gap-2">
-									<button
-										v-if="alert.status === 'active' && isAdmin"
-										type="button"
+									<PermissionActionButton
+										:allowed="alert.status === 'active' && canIgnore && !isIgnoring"
+										aria-label="忽視警示"
+										class="rounded-lg bg-gray-500/80 px-3 py-1.5 text-base text-white disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
+										enabled-hover-class="hover:opacity-80"
 										@click="emit('ignore', alert)"
-										:disabled="isIgnoring"
-										class="rounded-lg bg-gray-500/80 px-3 py-1.5 text-base text-white transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
 									>
 										忽視
-									</button>
-									<button
-										v-if="isAlertIgnored(alert) && isAdmin"
-										type="button"
+									</PermissionActionButton>
+									<PermissionActionButton
+										:allowed="isAlertIgnored(alert) && canIgnore && !isIgnoring"
+										aria-label="取消忽視"
+										class="rounded-lg bg-blue-500/80 px-3 py-1.5 text-base text-white disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
+										enabled-hover-class="hover:opacity-80"
 										@click="emit('unignore', alert)"
-										:disabled="isIgnoring"
-										class="rounded-lg bg-blue-500/80 px-3 py-1.5 text-base text-white transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
 									>
 										取消忽視
-									</button>
+									</PermissionActionButton>
 								</div>
 							</div>
 						</div>
@@ -126,6 +126,7 @@
 </template>
 
 <script setup lang="ts">
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import type { Alert } from "~/types/alert"
 import AsyncPanel from "~/components/common/AsyncPanel.vue"
 import Pagination from "~/components/common/Pagination.vue"
@@ -149,7 +150,7 @@ defineProps<{
 	isLoading: boolean
 	error?: string | null
 	isIgnoring: boolean
-	isAdmin: boolean
+	canIgnore: boolean
 }>()
 
 const emit = defineEmits<{

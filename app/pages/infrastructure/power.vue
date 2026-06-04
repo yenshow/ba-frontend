@@ -11,7 +11,7 @@
 				:selected-zone-name="selectedZoneName"
 				:is-initial-loading="isInitialLoading"
 				:can-write="canWrite"
-				:can-manage-zones="isAdmin"
+				:can-manage-zones="canAdmin"
 				:is-edit-mode="isEditMode"
 				:selected-zone="selectedZone"
 				:selected-zone-data="selectedZoneData"
@@ -50,7 +50,6 @@
 	</div>
 
 	<ZoneManagementDialog
-		v-if="isAdmin"
 		v-model="showZoneManagementDialog"
 		:zones="powerZones"
 		system-type="power"
@@ -79,7 +78,7 @@ import {
 import { usePowerApi } from "~/composables/systems/power/usePowerApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
-import { useAuth } from "~/composables/core/useAuth"
+import { useSnapshotSystemPageRbac } from "~/composables/core/useModuleRbac"
 import { getLocationUiKey, findLocationIndexInZone } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
 import { usePowerModbusIntegration } from "~/composables/monitoring/modbus/snapshotModbusIntegrations"
@@ -91,7 +90,8 @@ definePageMeta({
 	layout: "default",
 })
 
-const { canWrite, isAdmin } = useAuth()
+import { PERM } from "~/config/permissionCodes"
+const { canAdmin, canWrite } = useSnapshotSystemPageRbac(PERM.power.module)
 const powerApi = usePowerApi()
 const { handleError } = useErrorHandler()
 
@@ -102,7 +102,7 @@ const powerZones = ref<PowerZone[]>([])
 const { ruleBitOptionsByTargetId } = useManualIssueDiDoRules({
 	alertRulesSource: "power",
 	zones: powerZones,
-	isAdmin,
+	canAdmin,
 })
 const isLoadingZones = ref(false)
 const isInitialLoading = ref(true)
@@ -145,7 +145,7 @@ const selectedZoneData = computed(() => zonesById.value.get(selectedZone.value))
 const zonePlanImage = computed(() => selectedZoneData.value?.imageUrl)
 
 const manualIssueTargets = computed(() => {
-	if (!isAdmin.value) return []
+	if (!canAdmin.value) return []
 	const out: Array<{ id: string; label: string }> = []
 	for (const zone of powerZones.value) {
 		for (const loc of zone.locations || []) {
@@ -368,7 +368,7 @@ const handleDeleteZone = async (zoneId: string) => {
 }
 
 const handleOpenZoneDialog = async () => {
-	if (!isAdmin.value) return
+	if (!canAdmin.value) return
 	if (powerZones.value.length === 0) await loadZonesFromAPI()
 	showZoneManagementDialog.value = true
 }

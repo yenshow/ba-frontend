@@ -16,18 +16,15 @@
 					尚未設定建案主圖
 				</div>
 
-				<template v-if="canWrite">
-					<button
-						type="button"
-						class="absolute right-3 top-3 hidden rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 group-hover:block 2xl:text-base"
-						aria-label="編輯建案主圖"
-						@click="isBuildingEditOpen = true"
-						@keydown.enter="isBuildingEditOpen = true"
-						@keydown.space.prevent="isBuildingEditOpen = true"
-					>
-						編輯
-					</button>
-				</template>
+				<PermissionActionButton
+					:allowed="canWrite"
+					aria-label="編輯建案主圖"
+					class="absolute right-3 top-3 rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur 2xl:text-base"
+					enabled-hover-class="hover:bg-black/50"
+					@click="isBuildingEditOpen = true"
+				>
+					編輯
+				</PermissionActionButton>
 			</div>
 		</div>
 
@@ -47,60 +44,56 @@
 					尚未設定建案名稱圖
 				</div>
 
-				<template v-if="canWrite">
-					<button
-						type="button"
-						class="absolute right-3 top-3 hidden rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 group-hover:block 2xl:text-base"
-						aria-label="編輯建案名稱圖"
-						@click="isBrandEditOpen = true"
-						@keydown.enter="isBrandEditOpen = true"
-						@keydown.space.prevent="isBrandEditOpen = true"
-					>
-						編輯
-					</button>
-				</template>
+				<PermissionActionButton
+					:allowed="canWrite"
+					aria-label="編輯建案名稱圖"
+					class="absolute right-3 top-3 rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur 2xl:text-base"
+					enabled-hover-class="hover:bg-black/50"
+					@click="isBrandEditOpen = true"
+				>
+					編輯
+				</PermissionActionButton>
 			</div>
 		</div>
 
-		<template v-if="canWrite">
-			<EditMockDialog
-				v-model="isBuildingEditOpen"
-				title="編輯建案主圖"
-				:value="buildingRaw"
-				input-mode="image"
-				:crop-aspect-ratio="HOME_IMAGE_CROP.centralBuildingMain"
-				placeholder="例如：https://... 或上傳圖片"
-				preview-alt="建案主圖預覽"
-				:hint="IMAGE_UPLOAD_HINT"
-				@save="saveBuildingRaw"
-				@reset="resetBuildingRaw"
-				@upload="uploadBuilding"
-			/>
+		<EditMockDialog
+			v-model="isBuildingEditOpen"
+			title="編輯建案主圖"
+			:value="buildingRaw"
+			input-mode="image"
+			:crop-aspect-ratio="HOME_IMAGE_CROP.centralBuildingMain"
+			placeholder="例如：https://... 或上傳圖片"
+			preview-alt="建案主圖預覽"
+			:hint="IMAGE_UPLOAD_HINT"
+			@save="saveBuildingRaw"
+			@reset="resetBuildingRaw"
+			@upload="uploadBuilding"
+		/>
 
-			<EditMockDialog
-				v-model="isBrandEditOpen"
-				title="編輯建案名稱圖"
-				:value="brandRaw"
-				input-mode="image"
-				:crop-aspect-ratio="HOME_IMAGE_CROP.centralBuildingBrand"
-				placeholder="例如：https://... 或上傳圖片"
-				preview-alt="建案名稱圖預覽"
-				:hint="IMAGE_UPLOAD_HINT"
-				@save="saveBrandRaw"
-				@reset="resetBrandRaw"
-				@upload="uploadBrand"
-			/>
-		</template>
+		<EditMockDialog
+			v-model="isBrandEditOpen"
+			title="編輯建案名稱圖"
+			:value="brandRaw"
+			input-mode="image"
+			:crop-aspect-ratio="HOME_IMAGE_CROP.centralBuildingBrand"
+			placeholder="例如：https://... 或上傳圖片"
+			preview-alt="建案名稱圖預覽"
+			:hint="IMAGE_UPLOAD_HINT"
+			@save="saveBrandRaw"
+			@reset="resetBrandRaw"
+			@upload="uploadBrand"
+		/>
 	</div>
 </template>
 
 <script setup lang="ts">
 import EditMockDialog from "~/components/common/EditMockDialog.vue"
-import { useAuth } from "~/composables/core/useAuth"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+import { useHomeRbac } from "~/composables/core/useModuleRbac"
 import { IMAGE_UPLOAD_HINT, useAppSettingImage } from "~/composables/core/useAppSettings"
 import { HOME_IMAGE_CROP } from "~/utils/imageCropUtils"
 
-const { canWrite } = useAuth()
+const { canWrite } = useHomeRbac()
 
 const {
 	raw: buildingRaw,

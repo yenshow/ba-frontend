@@ -11,7 +11,7 @@
 				:selected-zone-name="selectedZoneName"
 				:is-initial-loading="isInitialLoading"
 				:can-write="canWrite"
-				:can-manage-zones="isAdmin"
+				:can-manage-zones="canAdmin"
 				:is-edit-mode="isEditMode"
 				:selected-zone="selectedZone"
 				:selected-zone-data="selectedZoneData"
@@ -50,7 +50,6 @@
 	</div>
 
 	<ZoneManagementDialog
-		v-if="isAdmin"
 		v-model="showZoneManagementDialog"
 		:zones="drainageZones"
 		system-type="drainage"
@@ -81,7 +80,7 @@ import { useDrainageApi } from "~/composables/systems/drainage/useDrainageApi"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
-import { useAuth } from "~/composables/core/useAuth"
+import { useSnapshotSystemPageRbac } from "~/composables/core/useModuleRbac"
 import { getLocationUiKey, findLocationIndexInZone } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
 import { useDrainageModbusIntegration } from "~/composables/monitoring/modbus/snapshotModbusIntegrations"
@@ -93,7 +92,8 @@ definePageMeta({
 	layout: "default",
 })
 
-const { canWrite, isAdmin } = useAuth()
+import { PERM } from "~/config/permissionCodes"
+const { canAdmin, canWrite } = useSnapshotSystemPageRbac(PERM.drainage.module)
 const drainageApi = useDrainageApi()
 const locationApi = useLocationApi()
 const { handleError } = useErrorHandler()
@@ -105,7 +105,7 @@ const drainageZones = ref<DrainageZone[]>([])
 const { ruleBitOptionsByTargetId } = useManualIssueDiDoRules({
 	alertRulesSource: "drainage",
 	zones: drainageZones,
-	isAdmin,
+	canAdmin,
 })
 
 const isLoadingZones = ref(false)
@@ -149,7 +149,7 @@ const selectedZoneData = computed(() => zonesById.value.get(selectedZone.value))
 const zonePlanImage = computed(() => selectedZoneData.value?.imageUrl)
 
 const manualIssueTargets = computed(() => {
-	if (!isAdmin.value) return []
+	if (!canAdmin.value) return []
 	const out: Array<{ id: string; label: string }> = []
 	for (const zone of drainageZones.value) {
 		for (const loc of zone.locations || []) {
@@ -383,7 +383,7 @@ const handleDeleteZone = async (zoneId: string) => {
 }
 
 const handleOpenZoneDialog = async () => {
-	if (!isAdmin.value) return
+	if (!canAdmin.value) return
 	if (drainageZones.value.length === 0) await loadZonesFromAPI()
 	showZoneManagementDialog.value = true
 }

@@ -60,23 +60,24 @@
 						</div>
 					</div>
 
-					<button
-						v-if="isAdmin"
-						type="button"
-						class="absolute left-8 top-2 rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-4 py-2 text-sm text-white transition-all hover:from-cyan-400/40 hover:to-blue-500/40 2xl:text-base"
+					<PermissionActionButton
+						:allowed="canManageLocation"
 						aria-label="地點管理"
+						:class="['absolute left-8 top-2', MONITORING_ACTION_BTN_CLASS]"
+						:enabled-hover-class="MONITORING_ACTION_BTN_HOVER_CLASS"
 						@click="handleOpenLocationDialog"
 					>
 						地點管理
-					</button>
-					<button
-						type="button"
-						class="absolute right-8 top-2 rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-4 py-2 text-sm text-white transition-all hover:from-cyan-400/40 hover:to-blue-500/40 2xl:text-base"
+					</PermissionActionButton>
+					<PermissionActionButton
+						:allowed="canFullReport"
 						aria-label="開啟完整報表"
+						:class="['absolute right-8 top-2', MONITORING_ACTION_BTN_CLASS]"
+						:enabled-hover-class="MONITORING_ACTION_BTN_HOVER_CLASS"
 						@click="handleOpenSimulation"
 					>
 						完整報表
-					</button>
+					</PermissionActionButton>
 
 					<MonitoringDetailShell
 						:empty="detailEmpty"
@@ -183,11 +184,13 @@
 		</div>
 	</div>
 	<ZoneManagementDialog
-		v-if="isAdmin"
 		v-model="showLocationManagementDialog"
 		:zones="peopleCountingZones"
 		system-type="people_counting"
 		:require-image-url="false"
+		:can-create-zone="canCreateLocation"
+		:can-update-zone="canUpdateLocation"
+		:can-delete-zone="canDeleteLocation"
 		@save="handleSaveZone"
 		@delete="handleDeleteZone"
 	/>
@@ -225,7 +228,7 @@ import {
 	usePeopleCountingApi,
 	PEOPLE_COUNTING_FULL_REPORT_LIMIT,
 } from "~/composables/systems/peopleCounting/usePeopleCountingApi"
-import { useAuth } from "~/composables/core/useAuth"
+import { useLocationModuleRbac } from "~/composables/core/useModuleRbac"
 import { useApiBase } from "~/composables/core/useApiBase"
 import {
 	buildLogsTimeQuery,
@@ -237,7 +240,19 @@ import {
 	sortFlatSitesBySortedZoneLocations,
 } from "~/utils/sortOrder"
 import { computeCumulativePresence } from "~/utils/entryExitStats"
-const { isAdmin } = useAuth()
+import { PERM } from "~/config/permissionCodes"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+import {
+	MONITORING_ACTION_BTN_CLASS,
+	MONITORING_ACTION_BTN_HOVER_CLASS,
+} from "~/composables/core/usePermissionUi"
+const {
+	canManageLocation,
+	canCreateLocation,
+	canUpdateLocation,
+	canDeleteLocation,
+	canFullReport,
+} = useLocationModuleRbac(PERM.peopleCounting)
 
 // 使用統一的狀態管理
 const {
@@ -398,6 +413,7 @@ const handleSimulationTimeRangeUpdate = (v: {
 }
 
 const handleOpenSimulation = async () => {
+	if (!canFullReport.value) return
 	simulationTimeRange.value = await fetchTodaySimulationRange()
 	showSimulationFrame.value = true
 	await loadSimulationLogs()
@@ -530,7 +546,7 @@ const handleDeleteZone = async (zoneId: string) => {
 
 // 處理打開地點管理對話框
 const handleOpenLocationDialog = async () => {
-	if (!isAdmin.value) return
+	if (!canManageLocation.value) return
 	// 如果還沒有載入區域數據，先載入
 	if (peopleCountingZones.value.length === 0) {
 		await loadZones()

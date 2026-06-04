@@ -29,9 +29,9 @@ export const usePersonnelSyncTab = (params: {
 	locationApi: ReturnType<typeof useLocationApi>
 	toast: { success: (msg: string) => void; error: (msg: string) => void }
 	handleApiError: (err: unknown, fallbackMessage: string) => string | void | null
-	canEdit: Ref<boolean>
+	canDeviceSync: Ref<boolean>
 }) => {
-	const { personnelApi, locationApi, toast, handleApiError, canEdit } = params
+	const { personnelApi, locationApi, toast, handleApiError, canDeviceSync } = params
 
 	const syncableLocations = ref<SyncableLocation[]>([])
 	const isLoadingSyncable = ref(false)
@@ -79,7 +79,7 @@ export const usePersonnelSyncTab = (params: {
 		personnelApi,
 		toast,
 		handleApiError,
-		canEdit,
+		canDeviceSync,
 		syncableLocations,
 	})
 	const {
@@ -317,7 +317,7 @@ export const usePersonnelSyncTab = (params: {
 	// ---------- 結果與警告（dialog） ----------
 
 	const isLocationSyncButtonDisabled = (locationId: number) => {
-		if (!canEdit.value) return true
+		if (!canDeviceSync.value) return true
 		if (isSyncingAll.value) return true
 		if (isPollingSyncJob.value && activeSyncLocationId.value === locationId) return true
 		if (

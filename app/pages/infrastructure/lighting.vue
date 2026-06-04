@@ -11,7 +11,7 @@
 				:selected-zone-name="selectedZoneName"
 				:is-initial-loading="isInitialLoading"
 				:can-write="canWrite"
-				:can-manage-zones="isAdmin"
+				:can-manage-zones="canAdmin"
 				:is-edit-mode="isEditMode"
 				:selected-zone="selectedZone"
 				:selected-zone-data="selectedZoneData"
@@ -47,7 +47,6 @@
 		</div>
 	</div>
 	<ZoneManagementDialog
-		v-if="isAdmin"
 		v-model="showZoneManagementDialog"
 		:zones="lightingZones"
 		system-type="lighting"
@@ -69,7 +68,7 @@ import { useVisibilityAutoRefresh } from "~/composables/monitoring/useVisibility
 import { useLightingApi } from "~/composables/systems/lighting/useLightingApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
-import { useAuth } from "~/composables/core/useAuth"
+import { useSnapshotSystemPageRbac } from "~/composables/core/useModuleRbac"
 import { useLightingModbusIntegration } from "~/composables/monitoring/modbus/toggleModbusIntegrations"
 import { healthStatusToAlertFlash } from "~/utils/alertUtils"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
@@ -80,7 +79,8 @@ definePageMeta({
 	layout: "default",
 })
 
-const { canWrite, isAdmin } = useAuth()
+import { PERM } from "~/config/permissionCodes"
+const { canAdmin, canWrite } = useSnapshotSystemPageRbac(PERM.lighting.module)
 const lightingApi = useLightingApi()
 const { handleError } = useErrorHandler()
 
@@ -245,7 +245,7 @@ watch(
 )
 
 const handleOpenZoneDialog = async () => {
-	if (!isAdmin.value) return
+	if (!canAdmin.value) return
 	if (lightingZones.value.length === 0) {
 		await loadZonesFromAPI()
 	}

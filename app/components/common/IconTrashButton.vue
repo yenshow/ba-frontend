@@ -1,7 +1,13 @@
 <template>
 	<button
 		type="button"
-		:class="[size === 'sm' ? 'p-1' : 'p-2', 'text-rose-400 transition-colors hover:text-rose-300', buttonClass]"
+		:disabled="disabled"
+		:class="[
+			size === 'sm' ? 'p-1' : 'p-2',
+			'text-rose-400 transition-colors hover:text-rose-300',
+			disabled ? 'cursor-not-allowed opacity-50 hover:text-rose-400' : '',
+			buttonClass,
+		]"
 		:title="title"
 		:aria-label="ariaLabel ?? title"
 		@click="$emit('click', $event)"
@@ -30,8 +36,9 @@ withDefaults(
 		ariaLabel?: string
 		buttonClass?: string
 		size?: "sm" | "md"
+		disabled?: boolean
 	}>(),
-	{ buttonClass: "", size: "md" }
+	{ buttonClass: "", size: "md", disabled: false }
 )
 
 defineEmits<{ click: [event: MouseEvent] }>()

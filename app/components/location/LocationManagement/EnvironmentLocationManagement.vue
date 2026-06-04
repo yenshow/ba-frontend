@@ -3,9 +3,14 @@
 		<!-- 地點列表標題 -->
 		<div class="flex items-center justify-between">
 			<span class="text-base font-medium 2xl:text-lg">地點</span>
-			<button type="button" class="btn-secondary text-sm 2xl:text-base" @click="handleAddLocation">
+			<PermissionActionButton
+				:allowed="allowCreateLocation"
+				aria-label="新增地點"
+				class="btn-secondary text-sm 2xl:text-base"
+				@click="handleAddLocation"
+			>
 				新增地點
-			</button>
+			</PermissionActionButton>
 		</div>
 
 		<!-- 地點項目 -->
@@ -55,6 +60,7 @@
 				</div>
 
 				<IconTrashButton
+					:disabled="!allowDeleteLocation"
 					button-class="ml-auto flex-shrink-0"
 					title="刪除地點"
 					aria-label="刪除此地點"
@@ -74,6 +80,8 @@
 import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment"
 import type { Device } from "~/types/device"
 import IconTrashButton from "~/components/common/IconTrashButton.vue"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+
 import EnvironmentLocationFields from "../LocationFormFields/EnvironmentLocationFields.vue"
 import { getLocationUiKey } from "~/utils/locationUiId"
 
@@ -83,6 +91,8 @@ interface Props {
 	isLoadingDevices: boolean
 	deviceHint?: string
 	reorderableLocations?: boolean
+	allowCreateLocation?: boolean
+	allowDeleteLocation?: boolean
 }
 
 interface Emits {
@@ -93,6 +103,8 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+	allowCreateLocation: true,
+	allowDeleteLocation: true,
 	deviceHint: "請先在「設備管理」中建立感測器設備",
 	reorderableLocations: false,
 })

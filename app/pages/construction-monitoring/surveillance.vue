@@ -227,7 +227,9 @@ import SurveillanceCameraGrid from "~/components/surveillance/SurveillanceCamera
 import SurveillanceCameraCard from "~/components/surveillance/SurveillanceCameraCard.vue"
 import SurveillanceFullscreenGridDialog from "~/components/surveillance/SurveillanceFullscreenGridDialog.vue"
 import { groupDevicesByModelCategory } from "~/utils/cameraModelCategories"
+import { useSurveillanceRbac } from "~/composables/core/useModuleRbac"
 
+const { canControlStream } = useSurveillanceRbac()
 const toast = useToast()
 const { handleError } = useErrorHandler()
 
@@ -302,6 +304,11 @@ const handleCameraSelect = async (deviceId: number) => {
 	const existing = monitorViews.value.find((v) => v.deviceId === deviceId)
 	if (existing) {
 		streamStatus.removeMonitorView(deviceId)
+		return
+	}
+
+	if (!canControlStream.value) {
+		toast.warning("無串流控制權限")
 		return
 	}
 

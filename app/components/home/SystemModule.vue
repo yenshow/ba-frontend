@@ -2,8 +2,10 @@
 	<div class="relative">
 		<!-- 左側切換按鈕 -->
 		<button
-			v-if="canNavigatePrevious && !isLoading"
-			class="absolute left-0 top-1/2 z-10 flex h-14 w-14 -translate-x-11 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white/80 text-white transition-all hover:bg-white/10 2xl:h-20 2xl:w-20 2xl:-translate-x-20"
+			type="button"
+			class="absolute left-0 top-1/2 z-10 flex h-14 w-14 -translate-x-11 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white/80 text-white transition-all hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50 2xl:h-20 2xl:w-20 2xl:-translate-x-20"
+			:disabled="!canNavigatePrevious || isLoading"
+			aria-label="上一頁模組"
 			@click="previousPage"
 		>
 			<svg class="h-8 w-8 2xl:h-12 2xl:w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,8 +73,10 @@
 
 		<!-- 右側切換按鈕 -->
 		<button
-			v-if="canNavigateNext && !isLoading"
-			class="absolute right-0 top-1/2 z-10 flex h-14 w-14 -translate-y-1/2 translate-x-11 items-center justify-center rounded-full border-2 border-white/80 text-white transition-all hover:bg-white/10 2xl:h-20 2xl:w-20 2xl:translate-x-20"
+			type="button"
+			class="absolute right-0 top-1/2 z-10 flex h-14 w-14 -translate-y-1/2 translate-x-11 items-center justify-center rounded-full border-2 border-white/80 text-white transition-all hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50 2xl:h-20 2xl:w-20 2xl:translate-x-20"
+			:disabled="!canNavigateNext || isLoading"
+			aria-label="下一頁模組"
 			@click="nextPage"
 		>
 			<svg class="h-8 w-8 2xl:h-12 2xl:w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -83,26 +87,24 @@
 </template>
 
 <script setup lang="ts">
-import { useAuth } from "~/composables/core/useAuth"
 import { useLicense } from "~/composables/core/useLicense"
 import { useToast } from "~/composables/core/useToast"
 import { LICENSE_MESSAGE_LOCKED, PERMISSION_MESSAGE_LOCKED } from "~/utils/licenseUtils"
 import type { SystemModule } from "~/types/system"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 
-const { hasModulePermission } = useAuth()
+const moduleRegistry = useModuleRegistry()
 const { isModuleLocked: isModuleLockedByLicense } = useLicense()
 const toast = useToast()
-const moduleRegistry = useModuleRegistry()
 
 /** 模組是否鎖住：授權不足或無該系統權限 */
 const isModuleLocked = (module: SystemModule) =>
-	isModuleLockedByLicense(module) || !hasModulePermission(module)
+	isModuleLockedByLicense(module) || !moduleRegistry.canAccessModule(module)
 
 const systemModules = computed(() => moduleRegistry.getAllModules())
 
 const handleModuleClick = (module: SystemModule) => {
-	if (!hasModulePermission(module)) {
+	if (!moduleRegistry.canAccessModule(module)) {
 		toast.warning(PERMISSION_MESSAGE_LOCKED)
 		return
 	}

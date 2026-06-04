@@ -13,7 +13,7 @@ import {
 export const useManualIssueDiDoRules = (params: {
 	alertRulesSource: AlertSource
 	zones: Ref<ManualIssueZoneLike[]>
-	isAdmin: Ref<boolean>
+	canAdmin: Ref<boolean>
 }) => {
 	const alertApi = useAlertApi()
 	const { handleError } = useErrorHandler()
@@ -22,7 +22,7 @@ export const useManualIssueDiDoRules = (params: {
 	const loadedOnce = ref(false)
 
 	const loadRules = async () => {
-		if (!unref(params.isAdmin)) return
+		if (!unref(params.canAdmin)) return
 		if (loadedOnce.value) return
 		try {
 			const res = await alertApi.getAlertRules(params.alertRulesSource)
@@ -34,7 +34,7 @@ export const useManualIssueDiDoRules = (params: {
 	}
 
 	watch(
-		() => unref(params.isAdmin),
+		() => unref(params.canAdmin),
 		(admin) => (admin ? void loadRules() : undefined),
 		{ immediate: true }
 	)

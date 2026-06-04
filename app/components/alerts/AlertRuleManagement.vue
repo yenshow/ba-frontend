@@ -90,12 +90,22 @@
 								</td>
 								<td :class="tableCellClass">
 									<div class="flex flex-wrap gap-2 2xl:gap-3">
-										<button type="button" class="btn-list-edit" @click="openEditRuleDialog(rule)">
+										<PermissionActionButton
+											:allowed="canUpdateRule"
+											aria-label="編輯警報規則"
+											class="btn-list-edit"
+											@click="openEditRuleDialog(rule)"
+										>
 											編輯
-										</button>
-										<button type="button" class="btn-list-delete" @click="handleDeleteRule(rule)">
+										</PermissionActionButton>
+										<PermissionActionButton
+											:allowed="canDeleteRule"
+											aria-label="刪除警報規則"
+											class="btn-list-delete"
+											@click="handleDeleteRule(rule)"
+										>
 											刪除
-										</button>
+										</PermissionActionButton>
 									</div>
 								</td>
 							</tr>
@@ -144,6 +154,7 @@
 </template>
 
 <script setup lang="ts">
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import type {
 	AlertSource,
 	AlertRule,
@@ -170,6 +181,9 @@ import {
 	formatAlertRuleConditionDisplay,
 	getSeverityLabel,
 } from "~/utils/alertUtils"
+import { useAlertLogRbac } from "~/composables/core/useModuleRbac"
+
+const { canUpdateRule, canDeleteRule } = useAlertLogRbac()
 
 const alertApi = useAlertApi()
 const zonesCache = useZonesCache()

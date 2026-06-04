@@ -69,6 +69,7 @@
 											</span>
 										</div>
 										<IconTrashButton
+											:disabled="!canDeleteGroup"
 											button-class="shrink-0"
 											title="刪除主群組"
 											aria-label="刪除主群組"
@@ -88,6 +89,7 @@
 													v-model="main.name"
 													type="text"
 													required
+													:disabled="!canUpdateGroup && !isNewPersonnelGroupDraftMain(main)"
 													class="form-input-small flex-1"
 													placeholder="例如：遠岫科技"
 													aria-label="主群組名稱"
@@ -96,13 +98,14 @@
 
 											<div class="mb-3 mt-3 flex items-center justify-between gap-2">
 												<span class="text-base font-medium text-white 2xl:text-lg">子群組列表</span>
-												<button
-													type="button"
+												<PermissionActionButton
+													:allowed="canCreateGroup"
+													aria-label="新增子群組"
 													class="btn-secondary text-sm 2xl:text-base"
 													@click="addChild(main.uiKey)"
 												>
 													新增子群組
-												</button>
+												</PermissionActionButton>
 											</div>
 
 											<div
@@ -134,6 +137,7 @@
 														/>
 													</label>
 													<IconTrashButton
+														:disabled="!canDeleteGroup"
 														button-class="ml-auto flex-shrink-0"
 														title="刪除子群組"
 														:aria-label="`刪除子群組 ${child.name || '未命名'}`"
@@ -162,16 +166,22 @@
 					>
 						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
 						<div class="flex-1"></div>
-						<button type="button" class="btn-secondary" @click="addMain">新增主群組</button>
-						<button
-							type="button"
+						<PermissionActionButton
+							:allowed="canCreateGroup"
+							aria-label="新增主群組"
+							class="btn-secondary"
+							@click="addMain"
+						>
+							新增主群組
+						</PermissionActionButton>
+						<PermissionActionButton
+							:allowed="canSaveGroups && hasUnsavedChanges && !isSaving"
+							aria-label="儲存群組變更"
 							class="btn-primary"
-							:class="{ 'cursor-not-allowed opacity-50': !hasUnsavedChanges }"
-							:disabled="!hasUnsavedChanges || isSaving"
 							@click="handleSaveAll"
 						>
 							{{ isSaving ? "儲存中…" : "儲存變更" }}
-						</button>
+						</PermissionActionButton>
 					</footer>
 				</div>
 			</div>
@@ -203,13 +213,21 @@ import { usePersonnelGroupTree } from "~/composables/systems/personnel/usePerson
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
 import IconTrashButton from "~/components/common/IconTrashButton.vue"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import {
 	buildDeletePersonnelChildGroupConfirmCopy,
 	buildDeletePersonnelMainGroupConfirmCopy,
 } from "~/utils/personnelGroups"
 
-const props = defineProps<{ modelValue: boolean }>()
+const props = defineProps<{
+	modelValue: boolean
+	canCreateGroup: boolean
+	canUpdateGroup: boolean
+	canDeleteGroup: boolean
+}>()
+
+const canSaveGroups = computed(() => props.canCreateGroup || props.canUpdateGroup)
 const emit = defineEmits<{ "update:modelValue": [value: boolean]; changed: [] }>()
 
 const toast = useToast()

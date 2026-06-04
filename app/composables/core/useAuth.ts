@@ -1,137 +1,124 @@
-import type { User, LoginCredentials } from "~/types/user";
-import { useUserApi } from "~/composables/systems/users/useUserApi";
-import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
+import type { User, LoginCredentials } from "~/types/user"
+import { useUserApi } from "~/composables/systems/users/useUserApi"
+
+const isAdminRole = (role: string | undefined | null): boolean => role === "admin"
 
 export const useAuth = () => {
-	const userApi = useUserApi();
-	const config = useRuntimeConfig();
+	const userApi = useUserApi()
+	const config = useRuntimeConfig()
 
-	// 使用 cookie 儲存 token 和用戶資訊
-	// secure: 依 API 協定決定
-	// - https://backend.yenshow.com (Cloudflare tunnel) → secure: true
-	// - http://192.168.2.8:4000 (本地) → secure: false（HTTP 無法設置 secure cookie）
-	// 可透過 NUXT_PUBLIC_SECURE_COOKIE 強制覆寫（true/false）
-	const apiBase = config.public.apiBase || "/api";
-	const secureOverride = (config.public as { secureCookie?: string }).secureCookie;
+	const apiBase = config.public.apiBase || "/api"
+	const secureOverride = (config.public as { secureCookie?: string }).secureCookie
 	const isSecure =
 		secureOverride !== undefined && secureOverride !== ""
 			? secureOverride === "true"
-			: apiBase.startsWith("https://");
+			: apiBase.startsWith("https://")
 
 	const tokenCookie = useCookie<string | null>("auth_token", {
 		default: () => null,
 		secure: isSecure,
 		sameSite: "strict",
-		maxAge: 60 * 60 * 24 * 7, // 7 天
-		httpOnly: false // 需要在前端 JavaScript 中訪問
-	});
+		maxAge: 60 * 60 * 24 * 7,
+		httpOnly: false,
+	})
 
 	const userCookie = useCookie<User | null>("auth_user", {
 		default: () => null,
 		secure: isSecure,
 		sameSite: "strict",
-		maxAge: 60 * 60 * 24 * 7, // 7 天
-		httpOnly: false // 需要在前端 JavaScript 中訪問
-	});
+		maxAge: 60 * 60 * 24 * 7,
+		httpOnly: false,
+	})
 
-	// 響應式狀態
-	const user = useState<User | null>("auth_user", () => userCookie.value);
-	const token = useState<string | null>("auth_token", () => tokenCookie.value);
+	const user = useState<User | null>("auth_user", () => userCookie.value)
+	const token = useState<string | null>("auth_token", () => tokenCookie.value)
 
-	// 計算屬性
-	const isAuthenticated = computed(() => !!token.value && !!user.value);
-	const isAdmin = computed(() => user.value?.role === "admin");
-	/** 可寫入（頁面操作）：admin 或 operator */
-	const canWrite = computed(
-		() => user.value?.role === "admin" || user.value?.role === "operator"
-	);
-	const isViewer = computed(() => user.value?.role === "viewer");
+	const isAuthenticated = computed(() => !!token.value && !!user.value)
 
-	/** 是否具備指定權限（admin 視為擁有全部；其餘依 user.permissions） */
 	const hasPermission = (code: string): boolean => {
-		const u = user.value;
-		if (!u) return false;
-		if (u.role === "admin") return true;
-		return Array.isArray(u.permissions) && u.permissions.includes(code);
-	};
+		const u = user.value
+		if (!u) return false
+		if (isAdminRole(u.role)) return true
+		return Array.isArray(u.permissions) && u.permissions.includes(code)
+	}
 
-	/** 是否具備該模組（系統）的存取權限：若該路由需權限則檢查 hasPermission，否則視為有權限 */
-	const hasModulePermission = (module: { route: string; permissionCode?: string }): boolean => {
-		const moduleRegistry = useModuleRegistry();
-		const code = module.permissionCode ?? moduleRegistry.getPermissionCodeByRoute(module.route);
-		if (!code) return true;
-		return hasPermission(code);
-	};
+	const hasAnyPermission = (...codes: string[]): boolean =>
+		codes.some((code) => hasPermission(code))
 
-	// 登入
+	const useHasPermission = (code: string) => computed(() => hasPermission(code))
+
+	const useHasAnyPermission = (...codes: string[]) =>
+		computed(() => hasAnyPermission(...codes))
+
+	/** 模組父層權限（PERM.xxx.module） */
+	const useCanWriteModule = (moduleCode: string) => useHasPermission(moduleCode)
+
 	const login = async (credentials: LoginCredentials) => {
 		try {
-			const response = await userApi.login(credentials);
-
-			// 儲存 token 和用戶資訊
-			tokenCookie.value = response.token;
-			userCookie.value = response.user;
-			token.value = response.token;
-			user.value = response.user;
-
-			return response;
+			const response = await userApi.login(credentials)
+			tokenCookie.value = response.token
+			userCookie.value = response.user
+			token.value = response.token
+			user.value = response.user
+			return response
 		} catch (error) {
-			// 清除狀態
-			logout();
-			throw error;
+			logout()
+			throw error
 		}
-	};
+	}
 
-	// 登出
 	const logout = () => {
-		tokenCookie.value = null;
-		userCookie.value = null;
-		token.value = null;
-		user.value = null;
-	};
+		tokenCookie.value = null
+		userCookie.value = null
+		token.value = null
+		user.value = null
+	}
 
-	// 取得當前用戶資訊（從 API）- 用於手動刷新用戶資訊
 	const fetchUser = async () => {
 		try {
-			const currentUser = await userApi.getMe();
-			userCookie.value = currentUser;
-			user.value = currentUser;
-			return currentUser;
+			const currentUser = await userApi.getMe()
+			userCookie.value = currentUser
+			user.value = currentUser
+			return currentUser
 		} catch (error) {
-			// 如果取得失敗，清除認證狀態
-			logout();
-			throw error;
+			logout()
+			throw error
 		}
-	};
+	}
 
-	// 初始化：還原 token，並以 /users/me 同步 permissions（避免僅依舊 cookie 導致模組全鎖）
 	const init = async () => {
 		if (tokenCookie.value) {
-			token.value = tokenCookie.value;
+			token.value = tokenCookie.value
 		}
 		if (userCookie.value && !user.value) {
-			user.value = userCookie.value;
+			user.value = userCookie.value
 		}
-		if (!token.value) return;
+		if (!token.value) return
 		try {
-			await fetchUser();
+			await fetchUser()
 		} catch {
 			// fetchUser 失敗時已 logout
 		}
-	};
+	}
 
 	return {
 		user: readonly(user),
 		token: readonly(token),
 		isAuthenticated,
-		isAdmin,
-		canWrite,
-		isViewer,
 		hasPermission,
-		hasModulePermission,
+		hasAnyPermission,
+		useHasPermission,
+		useHasAnyPermission,
+		useCanWriteModule,
 		login,
 		logout,
 		fetchUser,
-		init
-	};
-};
+		init,
+	}
+}
+
+/** 平台管理員角色（users / license / env 等；見 config/platformAdminRoutes.ts） */
+export const useAdminOnly = () => {
+	const { user } = useAuth()
+	return computed(() => isAdminRole(user.value?.role))
+}

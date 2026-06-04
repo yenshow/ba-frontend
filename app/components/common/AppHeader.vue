@@ -184,7 +184,10 @@
 							</div>
 
 							<div class="py-1">
-								<template v-for="(group, groupIndex) in systemSettingsSections" :key="group.section">
+								<template
+									v-for="(group, groupIndex) in systemSettingsSections"
+									:key="group.section"
+								>
 									<p
 										v-if="group.section !== 'session' && systemSettingsSectionLabels[group.section]"
 										class="px-4 pt-2 text-xs font-medium uppercase tracking-wide text-gray-400 2xl:text-sm"
@@ -325,22 +328,19 @@ const isMoreMenuOpen = ref(false)
 const moreMenuRef = ref<HTMLElement | null>(null)
 
 // 認證狀態
-const { user, hasModulePermission, logout: authLogout } = useAuth()
-const {
-	centralOverviewCategoryGroups,
-	moduleCategoryAccentHex,
-	systemSettingsSections,
-} = useAppShellNavigation()
+const { user, logout: authLogout } = useAuth()
+const { centralOverviewCategoryGroups, moduleCategoryAccentHex, systemSettingsSections } =
+	useAppShellNavigation()
 const systemSettingsSectionLabels = SYSTEM_SETTINGS_SECTION_LABELS
 const { isModuleLocked: isModuleLockedByLicense } = useLicense()
 const toast = useToast()
 
 /** 模組是否鎖住：授權不足或無該系統權限 */
 const isModuleLocked = (module: SystemModule) =>
-	isModuleLockedByLicense(module) || !hasModulePermission(module)
+	isModuleLockedByLicense(module) || !systemModulesApi.canAccessModule(module)
 
 const handleModuleClick = (module: SystemModule) => {
-	if (!hasModulePermission(module)) {
+	if (!systemModulesApi.canAccessModule(module)) {
 		toast.warning(PERMISSION_MESSAGE_LOCKED)
 		closeMoreMenu()
 		return
@@ -353,8 +353,7 @@ const handleModuleClick = (module: SystemModule) => {
 
 const roleLabels: Record<string, string> = {
 	admin: "管理員",
-	operator: "操作員",
-	viewer: "檢視者",
+	user: "使用者",
 }
 
 const userInfo = computed(() => ({

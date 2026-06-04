@@ -1,5 +1,5 @@
 import { useApiBase } from "~/composables/core/useApiBase"
-import { useAuth } from "~/composables/core/useAuth"
+import { useAdminOnly } from "~/composables/core/useAuth"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import {
@@ -15,7 +15,7 @@ type RuntimeConfigResponse = {
 
 export const useRuntimeConfigPage = () => {
 	const { request } = useApiBase()
-	const { canWrite } = useAuth()
+	const canAdmin = useAdminOnly()
 	const toast = useToast()
 	const { handleError } = useErrorHandler()
 
@@ -25,7 +25,7 @@ export const useRuntimeConfigPage = () => {
 	const isSaving = ref(false)
 	const loadError = ref<string | null>(null)
 
-	const formDisabled = computed(() => isLoading.value || isSaving.value || !canWrite.value)
+	const formDisabled = computed(() => isLoading.value || isSaving.value || !canAdmin.value)
 	const sectionRows = computed(() =>
 		schema.value ? getRuntimeSectionRows(schema.value) : [],
 	)
@@ -36,7 +36,7 @@ export const useRuntimeConfigPage = () => {
 	}
 
 	const fetchRuntimeConfig = async () => {
-		if (!canWrite.value) return
+		if (!canAdmin.value) return
 		isLoading.value = true
 		loadError.value = null
 		try {
@@ -57,8 +57,8 @@ export const useRuntimeConfigPage = () => {
 	}
 
 	const handleSave = async () => {
-		if (!canWrite.value) {
-			toast.warning("僅管理員或操作員可儲存營運設定")
+		if (!canAdmin.value) {
+			toast.warning("僅管理員可儲存營運設定")
 			return
 		}
 		if (!schema.value) return

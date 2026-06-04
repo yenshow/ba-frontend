@@ -5,15 +5,15 @@
 			<div :class="panelClass">
 				<div class="mb-4 flex items-center justify-between gap-3">
 					<h2 class="text-xl font-semibold text-white 2xl:text-2xl">群組列表</h2>
-					<button
-						v-if="canEdit"
-						type="button"
-						:class="actionButtonClass"
-						@click="showGroupsDialog = true"
+					<PermissionActionButton
+						:allowed="canManageGroups"
 						aria-label="管理群組"
+						:class="actionButtonClass"
+						enabled-hover-class="hover:bg-white/30"
+						@click="showGroupsDialog = true"
 					>
 						管理群組
-					</button>
+					</PermissionActionButton>
 				</div>
 
 				<div class="mb-4 flex flex-col gap-2 font-semibold">
@@ -103,8 +103,10 @@
 				</AsyncPanel>
 
 				<PersonnelGroupsDialog
-					v-if="canEdit"
 					v-model="showGroupsDialog"
+					:can-create-group="canCreateGroup"
+					:can-update-group="canUpdateGroup"
+					:can-delete-group="canDeleteGroup"
 					@changed="handleGroupsChanged"
 				/>
 			</div>
@@ -113,7 +115,10 @@
 		<!-- 右：人員列表（9/12） -->
 		<div class="col-span-9 h-full">
 			<PersonnelPersonsTab
-				:can-edit="canEdit"
+				:can-create-person="canCreatePerson"
+				:can-update-person="canUpdatePerson"
+				:can-delete-person="canDeletePerson"
+				:can-update-group="canUpdateGroup"
 				:person-status-labels="personStatusLabels"
 				:table-header-class="tableHeaderClass"
 				:table-cell-class="tableCellClass"
@@ -130,6 +135,7 @@
 <script setup lang="ts">
 import type { PersonGroup } from "~/types/personnel"
 import AsyncPanel from "~/components/common/AsyncPanel.vue"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import PersonnelPersonsTab from "~/components/personnel/PersonnelPersonsTab.vue"
 import PersonnelGroupsDialog from "~/components/personnel/dialogs/PersonnelGroupsDialog.vue"
 import { usePersonnelGroupTree } from "~/composables/systems/personnel/usePersonnelGroupTree"
@@ -137,7 +143,13 @@ import { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePerso
 import { isSidebarGroupKeyValid, resolveMainGroupIdFromSidebarKey } from "~/utils/personnelGroups"
 
 const props = defineProps<{
-	canEdit: boolean
+	canManageGroups: boolean
+	canCreateGroup: boolean
+	canUpdateGroup: boolean
+	canDeleteGroup: boolean
+	canCreatePerson: boolean
+	canUpdatePerson: boolean
+	canDeletePerson: boolean
 	personStatusLabels: Record<string, string>
 	tableHeaderClass: string
 	tableCellClass: string

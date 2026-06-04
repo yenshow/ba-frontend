@@ -20,10 +20,10 @@ export const usePersonnelSyncEngine = (params: {
 	personnelApi: PersonnelApi
 	toast: { success: (msg: string) => void; error: (msg: string) => void }
 	handleApiError: (err: unknown, fallbackMessage: string) => string | void | null
-	canEdit: Ref<boolean>
+	canDeviceSync: Ref<boolean>
 	syncableLocations: Ref<SyncableLocation[]>
 }) => {
-	const { personnelApi, toast, handleApiError, canEdit, syncableLocations } = params
+	const { personnelApi, toast, handleApiError, canDeviceSync, syncableLocations } = params
 
 	// ---------- candidates cache + prefetch ----------
 	const syncCandidatesByLocation = reactive<Record<number, SyncLocationCandidate[]>>({})
@@ -224,7 +224,7 @@ export const usePersonnelSyncEngine = (params: {
 	}
 
 	const syncOneLocation = async (locationId: number) => {
-		if (!canEdit.value) return
+		if (!canDeviceSync.value) return
 		activeSyncLocationId.value = locationId
 		activeSyncAllJob.value = null
 		activeSyncJob.value = null
@@ -241,7 +241,7 @@ export const usePersonnelSyncEngine = (params: {
 	}
 
 	const syncAllLocations = async () => {
-		if (!canEdit.value) return
+		if (!canDeviceSync.value) return
 		isSyncingAll.value = true
 		activeSyncLocationId.value = null
 		activeSyncJob.value = null

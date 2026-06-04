@@ -11,7 +11,7 @@
 				:selected-zone-name="selectedZoneName"
 				:is-initial-loading="isInitialLoading"
 				:can-write="canWrite"
-				:can-manage-zones="isAdmin"
+				:can-manage-zones="canAdmin"
 				:is-edit-mode="isEditMode"
 				:selected-zone="selectedZone"
 				:selected-zone-data="selectedZoneData"
@@ -48,7 +48,6 @@
 	</div>
 
 	<ZoneManagementDialog
-		v-if="isAdmin"
 		v-model="showZoneManagementDialog"
 		:zones="erZones"
 		system-type="emergency_rescue"
@@ -74,7 +73,7 @@ import { deriveEmergencyRescueUiStatus } from "~/types/emergency-rescue"
 import { useEmergencyRescueApi } from "~/composables/systems/emergency-rescue/useEmergencyRescueApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
-import { useAuth } from "~/composables/core/useAuth"
+import { useSnapshotSystemPageRbac } from "~/composables/core/useModuleRbac"
 import { getLocationUiKey, findLocationIndexInZone } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
 import { useEmergencyRescueModbusIntegration } from "~/composables/monitoring/modbus/snapshotModbusIntegrations"
@@ -86,7 +85,8 @@ definePageMeta({
 	layout: "default",
 })
 
-const { canWrite, isAdmin } = useAuth()
+import { PERM } from "~/config/permissionCodes"
+const { canAdmin, canWrite } = useSnapshotSystemPageRbac(PERM.emergencyRescue.module)
 const erApi = useEmergencyRescueApi()
 const { handleError } = useErrorHandler()
 
@@ -97,7 +97,7 @@ const erZones = ref<EmergencyRescueZone[]>([])
 const { ruleBitOptionsByTargetId } = useManualIssueDiDoRules({
 	alertRulesSource: "emergency_rescue",
 	zones: erZones,
-	isAdmin,
+	canAdmin,
 })
 
 const isLoadingZones = ref(false)
@@ -123,7 +123,7 @@ const selectedZoneData = computed(() => zonesById.value.get(selectedZone.value))
 const zonePlanImage = computed(() => selectedZoneData.value?.imageUrl)
 
 const manualIssueTargets = computed(() => {
-	if (!isAdmin.value) return []
+	if (!canAdmin.value) return []
 	const out: Array<{ id: string; label: string }> = []
 	for (const zone of erZones.value) {
 		for (const loc of zone.locations || []) {
@@ -349,7 +349,7 @@ const handleDeleteZone = async (zoneId: string) => {
 }
 
 const handleOpenZoneDialog = async () => {
-	if (!isAdmin.value) return
+	if (!canAdmin.value) return
 	if (erZones.value.length === 0) await loadZonesFromAPI()
 	showZoneManagementDialog.value = true
 }

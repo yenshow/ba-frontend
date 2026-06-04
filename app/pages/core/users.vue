@@ -4,18 +4,19 @@
 			<div class="space-y-2 2xl:space-y-4">
 				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">用戶管理</h1>
 				<p class="text-base text-white/80 2xl:text-xl">
-					管理系統用戶帳號、角色與各模組<strong class="font-normal text-white">頁面進入</strong>權限
+					管理系統用戶帳號、角色與各模組<strong class="font-normal text-white">功能權限</strong>
 				</p>
 			</div>
 			<div class="flex items-center">
-				<button
-					v-if="canWrite"
-					type="button"
-					class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-500/40 2xl:px-6 2xl:py-3 2xl:text-base"
+				<PermissionActionButton
+					:allowed="canAdmin"
+					aria-label="新增用戶"
+					class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white disabled:bg-emerald-500/40 2xl:px-6 2xl:py-3 2xl:text-base"
+					enabled-hover-class="hover:bg-emerald-400"
 					@click="showCreateDialog = true"
 				>
 					新增用戶
-				</button>
+				</PermissionActionButton>
 			</div>
 		</header>
 
@@ -47,7 +48,7 @@
 										/>
 									</div>
 								</th>
-								<th v-if="canWrite" :class="tableHeaderClass">操作</th>
+								<th :class="tableHeaderClass">操作</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -78,27 +79,27 @@
 								<td :class="[tableCellClass, 'text-white/70']">
 									{{ formatDate(user.created_at) }}
 								</td>
-								<td v-if="canWrite" :class="tableCellClass">
+								<td :class="tableCellClass">
 									<div class="flex flex-wrap gap-2 2xl:gap-3">
 										<button type="button" class="btn-list-edit" @click="editUser(user)">
 											編輯
 										</button>
-										<button
-											v-if="canShowResetPasswordButton(user)"
-											type="button"
+										<PermissionActionButton
+											:allowed="canShowResetPasswordButton(user)"
+											aria-label="重設密碼"
 											class="btn-list-reset"
 											@click="confirmResetPassword(user)"
 										>
 											重設密碼
-										</button>
-										<button
-											v-if="canShowDeleteButton(user)"
-											type="button"
+										</PermissionActionButton>
+										<PermissionActionButton
+											:allowed="canShowDeleteButton(user)"
+											aria-label="刪除用戶"
 											class="btn-list-delete"
 											@click="confirmDeleteUser(user)"
 										>
 											刪除
-										</button>
+										</PermissionActionButton>
 									</div>
 								</td>
 							</tr>
@@ -145,7 +146,7 @@
 						</header>
 
 						<form class="flex flex-col gap-4 2xl:gap-6" @submit.prevent="handleSubmit">
-							<div class="flex flex-col gap-4 2xl:gap-6">
+							<fieldset :disabled="!canAdmin" class="flex min-w-0 flex-col gap-4 border-0 p-0 2xl:gap-6">
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>用戶名</span>
 									<input v-model="formData.username" type="text" required class="form-input" />
@@ -163,10 +164,7 @@
 										class="form-input"
 									/>
 								</label>
-								<label
-									v-if="canWrite"
-									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-								>
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>角色</span>
 									<FilterDropdown
 										v-model="formData.role"
@@ -177,10 +175,10 @@
 									/>
 								</label>
 								<div
-									v-if="canWrite && formData.role !== 'admin'"
+									v-show="formData.role !== 'admin'"
 									class="flex flex-col gap-2 border-t border-white/15 pt-4"
 								>
-									<span class="text-sm font-medium text-white/90 2xl:text-base">頁面進入權限</span>
+									<span class="text-sm font-medium text-white/90 2xl:text-base">功能權限</span>
 									<span class="text-xs text-white/50">請手動勾選可進入的模組（預設皆不勾選）</span>
 									<UserPermissionEditor
 										v-model="permissionGranted"
@@ -189,7 +187,7 @@
 									/>
 								</div>
 								<label
-									v-if="canWrite && editingUser"
+									v-show="!!editingUser"
 									class="flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base"
 								>
 									<label class="relative inline-flex cursor-pointer items-center">
@@ -210,7 +208,7 @@
 										}}</span>
 									</label>
 								</label>
-							</div>
+							</fieldset>
 
 							<p v-if="errorMessage" class="mt-4 text-sm text-rose-300 2xl:mt-5 2xl:text-base">
 								{{ errorMessage }}
@@ -219,9 +217,14 @@
 							<footer class="mt-2 flex items-center gap-3 2xl:mt-3 2xl:gap-4">
 								<button type="button" class="btn-secondary" @click="closeDialog">取消</button>
 								<div class="flex-1"></div>
-								<button type="submit" class="btn-primary" :disabled="isSubmitting">
+								<PermissionActionButton
+									native-type="submit"
+									:allowed="canAdmin && !isSubmitting"
+									aria-label="儲存用戶"
+									class="btn-primary"
+								>
 									{{ isSubmitting ? "處理中..." : editingUser ? "更新" : "建立" }}
-								</button>
+								</PermissionActionButton>
 							</footer>
 						</form>
 					</div>
@@ -244,6 +247,7 @@
 </template>
 
 <script setup lang="ts">
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import type { PermissionDefinition, User } from "~/types/user"
 import Pagination from "~/components/common/Pagination.vue"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
@@ -252,7 +256,7 @@ import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import { formatDate } from "~/utils/dateUtils"
 import AsyncPanel from "~/components/common/AsyncPanel.vue"
 import { useDataLoader } from "~/composables/monitoring/useDataLoader"
-import { useAuth } from "~/composables/core/useAuth"
+import { useAuth, useAdminOnly } from "~/composables/core/useAuth"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useUserApi } from "~/composables/systems/users/useUserApi"
@@ -269,9 +273,11 @@ import {
 
 definePageMeta({
 	layout: "default",
+	middleware: "admin",
 })
 
-const { user: currentUser, isAdmin, canWrite, fetchUser } = useAuth()
+const { user: currentUser, fetchUser } = useAuth()
+const canAdmin = useAdminOnly()
 const userApi = useUserApi()
 const toast = useToast()
 const { handleError: handleApiError } = useErrorHandler()
@@ -297,7 +303,7 @@ const permissionDefinitions = ref<PermissionDefinition[]>([])
 const permissionGranted = ref<Record<number, boolean>>({})
 const permissionInitialGranted = ref<Record<number, boolean>>({})
 const permissionLoading = ref(false)
-const initialRoleOnEdit = ref<"admin" | "operator" | "viewer" | null>(null)
+const initialRoleOnEdit = ref<"admin" | "user" | null>(null)
 
 const isPermissionDirty = computed(
 	() => !permissionGrantedMapsEqual(permissionGranted.value, permissionInitialGranted.value)
@@ -331,16 +337,11 @@ const {
 
 const limit = 20 // 用於分頁組件
 
-// operator 不顯示 admin；admin 則可看到全部
-const visibleUsers = computed(() =>
-	isAdmin.value ? users.value : users.value.filter((u) => u.role !== "admin")
-)
+const visibleUsers = computed(() => users.value)
 
-// 標籤映射
 const roleLabels: Record<string, string> = {
 	admin: "管理員",
-	operator: "操作員",
-	viewer: "檢視者",
+	user: "使用者",
 }
 
 const statusLabels: Record<"active" | "inactive", string> = {
@@ -348,16 +349,10 @@ const statusLabels: Record<"active" | "inactive", string> = {
 	inactive: "停用",
 }
 
-const roleFormOptions = computed(() => {
-	const options = [
-		{ value: "viewer", label: "檢視者" },
-		{ value: "operator", label: "操作員" },
-	]
-	if (isAdmin.value) {
-		options.push({ value: "admin", label: "管理員" })
-	}
-	return options
-})
+const roleFormOptions = computed(() => [
+	{ value: "user", label: "使用者" },
+	{ value: "admin", label: "管理員" },
+])
 
 // 日期排序篩選選項（供 FilterDropdown 使用）
 const dateSortOptions = [
@@ -372,17 +367,16 @@ const tableCellClass = "py-3 2xl:py-4 px-4 2xl:px-6"
 const formData = reactive({
 	username: "",
 	password: "",
-	role: "viewer" as "admin" | "operator" | "viewer",
+	role: "user" as "admin" | "user",
 	status: "active" as "active" | "inactive",
 })
 
 const getRoleBadgeClass = (role: string) => {
 	const classes = {
 		admin: "bg-red-500/20 text-red-200",
-		operator: "bg-blue-500/20 text-blue-200",
-		viewer: "bg-gray-500/20 text-gray-200",
+		user: "bg-gray-500/20 text-gray-200",
 	}
-	return classes[role as keyof typeof classes] || classes.viewer
+	return classes[role as keyof typeof classes] || classes.user
 }
 
 const getStatusBadgeClass = (status: string) => {
@@ -396,17 +390,8 @@ const getStatusBadgeClass = (status: string) => {
 const canShowResetPasswordButton = (user: User) => canResetPasswordForUser(currentUser.value, user)
 
 const canShowDeleteButton = (user: User) => {
-	if (!canWrite.value) {
-		return false
-	}
-	// 不顯示刪除自己的按鈕
-	if (currentUser.value && user.id === currentUser.value.id) {
-		return false
-	}
-	// 操作員不可刪除 admin（雖然列表已不顯示 admin，仍加雙重保護）
-	if (!isAdmin.value && user.role === "admin") {
-		return false
-	}
+	if (!canAdmin.value) return false
+	if (currentUser.value && user.id === currentUser.value.id) return false
 	return true
 }
 
@@ -427,7 +412,7 @@ const resetPermissionDraft = () => {
 const resetForm = () => {
 	formData.username = ""
 	formData.password = ""
-	formData.role = "viewer"
+	formData.role = "user"
 	formData.status = "active"
 	resetPermissionDraft()
 }
@@ -498,7 +483,7 @@ const closeDialog = () => {
 watch(showCreateDialog, async (open) => {
 	if (open) {
 		resetForm()
-		formData.role = "viewer"
+		formData.role = "user"
 		await loadPermissionDraft()
 	}
 })

@@ -11,7 +11,7 @@
 				:selected-zone-name="selectedZoneName"
 				:is-initial-loading="isInitialLoading"
 				:can-write="canWrite"
-				:can-manage-zones="isAdmin"
+				:can-manage-zones="canAdmin"
 				:is-edit-mode="isEditMode"
 				:selected-zone="selectedZone"
 				:selected-zone-data="selectedZoneData"
@@ -51,7 +51,6 @@
 	</div>
 
 	<ZoneManagementDialog
-		v-if="isAdmin"
 		v-model="showZoneManagementDialog"
 		:zones="airCirculationZones"
 		system-type="air_circulation"
@@ -80,7 +79,7 @@ import { normalizeSystemUiStatus, type SystemUiStatus } from "~/utils/monitoring
 import { useAirCirculationApi } from "~/composables/systems/air-circulation/useAirCirculationApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
-import { useAuth } from "~/composables/core/useAuth"
+import { useSnapshotSystemPageRbac } from "~/composables/core/useModuleRbac"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
 import { useAirCirculationModbusIntegration } from "~/composables/monitoring/modbus/snapshotModbusIntegrations"
@@ -90,7 +89,8 @@ import { useVisibilityAutoRefresh } from "~/composables/monitoring/useVisibility
 
 definePageMeta({ layout: "default" })
 
-const { canWrite, isAdmin } = useAuth()
+import { PERM } from "~/config/permissionCodes"
+const { canAdmin, canWrite } = useSnapshotSystemPageRbac(PERM.airCirculation.module)
 const airApi = useAirCirculationApi()
 const { handleError } = useErrorHandler()
 
@@ -101,7 +101,7 @@ const airCirculationZones = ref<AirCirculationZone[]>([])
 const { ruleBitOptionsByTargetId } = useManualIssueDiDoRules({
 	alertRulesSource: "air_circulation",
 	zones: airCirculationZones,
-	isAdmin,
+	canAdmin,
 })
 
 const isLoadingZones = ref(false)
@@ -143,7 +143,7 @@ const selectedZoneData = computed(() => zonesById.value.get(selectedZone.value))
 const zonePlanImage = computed(() => selectedZoneData.value?.imageUrl)
 
 const manualIssueTargets = computed(() => {
-	if (!isAdmin.value) return []
+	if (!canAdmin.value) return []
 	const out: Array<{ id: string; label: string }> = []
 	for (const zone of airCirculationZones.value) {
 		for (const loc of zone.locations || []) {
@@ -384,7 +384,7 @@ const handleDeleteZone = async (zoneId: string) => {
 }
 
 const handleOpenZoneDialog = async () => {
-	if (!isAdmin.value) return
+	if (!canAdmin.value) return
 	if (airCirculationZones.value.length === 0) await loadZonesFromAPI()
 	showZoneManagementDialog.value = true
 }

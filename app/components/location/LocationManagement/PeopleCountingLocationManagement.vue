@@ -3,9 +3,14 @@
 		<!-- 地點列表標題 -->
 		<div class="flex items-center justify-between">
 			<span class="text-base font-medium 2xl:text-lg">地點</span>
-			<button type="button" class="btn-secondary text-sm 2xl:text-base" @click="handleAddLocation">
+			<PermissionActionButton
+				:allowed="allowCreateLocation"
+				aria-label="新增地點"
+				class="btn-secondary text-sm 2xl:text-base"
+				@click="handleAddLocation"
+			>
 				新增地點
-			</button>
+			</PermissionActionButton>
 		</div>
 
 		<!-- 地點項目 -->
@@ -58,6 +63,7 @@
 
 				<!-- 刪除按鈕 -->
 				<IconTrashButton
+					:disabled="!allowDeleteLocation"
 					button-class="ml-auto flex-shrink-0"
 					title="刪除地點"
 					aria-label="刪除此地點"
@@ -70,6 +76,8 @@
 
 <script setup lang="ts">
 import IconTrashButton from "~/components/common/IconTrashButton.vue"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting"
 import type { Device } from "~/types/device"
 import PeopleCountingLocationFields from "../LocationFormFields/PeopleCountingLocationFields.vue"
@@ -99,6 +107,8 @@ interface Props {
 	accessControlDevices?: Device[]
 	isapiCameraDevices?: Device[]
 	reorderableLocations?: boolean
+	allowCreateLocation?: boolean
+	allowDeleteLocation?: boolean
 }
 
 interface Emits {
@@ -109,6 +119,8 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+	allowCreateLocation: true,
+	allowDeleteLocation: true,
 	personGroups: () => [],
 	doors: () => [],
 	accessControlDevices: () => [],

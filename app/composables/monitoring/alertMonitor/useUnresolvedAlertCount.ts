@@ -12,6 +12,7 @@ import { logger } from "~/utils/logger";
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import { useAuth } from "~/composables/core/useAuth";
+import { PERM } from "~/config/permissionCodes";
 import { watch } from "vue";
 
 const countLogger = logger.createLogger("UnresolvedAlertCount");
@@ -40,7 +41,7 @@ export const useUnresolvedAlertCount = () => {
 	 * 透過 REST 載入未解決數（所有 status=active，與 alert:count 一致）
 	 */
 	const loadUnresolvedAlertCount = async (filters?: { source?: AlertSource }) => {
-		if (!hasPermission("system.alert_log")) {
+		if (!hasPermission(PERM.alertLog.module)) {
 			unresolvedAlertCount.value = 0;
 			return;
 		}
@@ -121,7 +122,7 @@ export const useUnresolvedAlertCount = () => {
 
 	const startAlertCountMonitoring = () => {
 		stopAlertCountMonitoring();
-		if (!hasPermission("system.alert_log")) {
+		if (!hasPermission(PERM.alertLog.module)) {
 			unresolvedAlertCount.value = 0;
 			return;
 		}

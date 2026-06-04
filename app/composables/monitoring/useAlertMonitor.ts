@@ -7,6 +7,7 @@ import { useAlertPolling } from "~/composables/monitoring/alertMonitor/useAlertP
 import { useAlertEventBus } from "~/composables/monitoring/alertMonitor/useAlertEventBus"
 import { useUnresolvedAlertCount } from "~/composables/monitoring/alertMonitor/useUnresolvedAlertCount"
 import { useAuth } from "~/composables/core/useAuth"
+import { PERM } from "~/config/permissionCodes"
 import { getSourceLabel, getSeverityLabel } from "~/utils/alertUtils"
 
 const MAX_ALERT_TOASTS = 5
@@ -280,7 +281,7 @@ export const useAlertMonitor = () => {
 	const startMonitoring = () => {
 		if (!process.client || isMonitoring.value) return
 		// 無警示紀錄權限：不要建立 websocket/polling，避免 403 噪音
-		if (!hasPermission("system.alert_log")) {
+		if (!hasPermission(PERM.alertLog.module)) {
 			return
 		}
 

@@ -11,7 +11,7 @@
 				:selected-zone-name="selectedZoneName"
 				:is-initial-loading="isInitialLoading"
 				:can-write="canWrite"
-				:can-manage-zones="isAdmin"
+				:can-manage-zones="canAdmin"
 				:is-edit-mode="isEditMode"
 				:selected-zone="selectedZone"
 				:selected-zone-data="selectedZoneData"
@@ -49,7 +49,6 @@
 	</div>
 
 	<ZoneManagementDialog
-		v-if="isAdmin"
 		v-model="showZoneManagementDialog"
 		:zones="hvacZones"
 		system-type="hvac"
@@ -71,14 +70,15 @@ import { useVisibilityAutoRefresh } from "~/composables/monitoring/useVisibility
 import { useHvacApi } from "~/composables/systems/hvac/useHvacApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
-import { useAuth } from "~/composables/core/useAuth"
+import { useSnapshotSystemPageRbac } from "~/composables/core/useModuleRbac"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
 import { useHvacModbusIntegration } from "~/composables/monitoring/modbus/toggleModbusIntegrations"
 
 definePageMeta({ layout: "default" })
 
-const { canWrite, isAdmin } = useAuth()
+import { PERM } from "~/config/permissionCodes"
+const { canAdmin, canWrite } = useSnapshotSystemPageRbac(PERM.hvac.module)
 const hvacApi = useHvacApi()
 const { handleError } = useErrorHandler()
 
@@ -294,7 +294,7 @@ const handleDeleteZone = async (zoneId: string) => {
 }
 
 const handleOpenZoneDialog = async () => {
-	if (!isAdmin.value) return
+	if (!canAdmin.value) return
 	if (hvacZones.value.length === 0) await loadZonesFromAPI()
 	showZoneManagementDialog.value = true
 }

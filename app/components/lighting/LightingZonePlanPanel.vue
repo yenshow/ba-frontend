@@ -11,31 +11,34 @@
 						</span>
 					</div>
 					<Transition name="fade-in">
-						<button
-							v-if="!isInitialLoading && canManageZones"
-							type="button"
-							class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base font-light text-white transition-all hover:bg-white/10 2xl:text-lg"
-							title="樓層管理"
+						<PermissionActionButton
+							v-show="!isInitialLoading"
+							:allowed="canManageZones ?? false"
+							aria-label="樓層管理"
+							class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base font-light text-white transition-all 2xl:text-lg"
+							enabled-hover-class="hover:bg-white/10"
 							@click="handleOpenZoneDialog"
 						>
 							樓層管理
-						</button>
+						</PermissionActionButton>
 					</Transition>
 					<div class="relative">
 						<Transition name="fade-in">
-							<button
-								v-if="!isInitialLoading && canWrite"
-								type="button"
+							<PermissionActionButton
+								v-show="!isInitialLoading"
+								:allowed="canWrite"
+								aria-label="編輯定位"
 								:class="[
 									'whitespace-nowrap rounded-2xl p-3 text-base font-light text-white transition-all 2xl:text-lg',
 									isEditMode
 										? 'border-2 border-white bg-white/10'
 										: 'border-2 border-white/30 bg-transparent',
 								]"
+								enabled-hover-class="hover:bg-white/10"
 								@click="handleToggleEditMode"
 							>
 								{{ isEditMode ? "完成編輯" : "編輯定位" }}
-							</button>
+							</PermissionActionButton>
 						</Transition>
 						<Transition name="dropdown">
 							<CategoryList
@@ -133,6 +136,7 @@
 import { nextTick, onBeforeUnmount, onMounted, watch } from "vue"
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
 import CategoryList from "~/components/common/CategoryList.vue"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import type { LightingLocation, LightingZone } from "~/types/lighting"
 import type { MapDotStatus, SystemUiStatus } from "~/utils/monitoringStatus"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"

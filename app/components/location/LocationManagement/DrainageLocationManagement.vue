@@ -4,13 +4,14 @@
 			<div>
 				<span class="text-base font-medium 2xl:text-lg">點位列表</span>
 			</div>
-			<button
-				type="button"
+			<PermissionActionButton
+				:allowed="allowCreateLocation"
+				aria-label="新增分類"
 				class="btn-secondary shrink-0 text-sm 2xl:text-base"
 				@click="handleAddDraftCategory"
 			>
 				新增分類
-			</button>
+			</PermissionActionButton>
 		</div>
 
 		<div
@@ -88,14 +89,16 @@
 							</button>
 						</div>
 						<span class="rounded-full bg-white/20 px-2 py-0.5 text-xs text-white/90">0 點</span>
-						<button
-							type="button"
-							class="btn-secondary text-xs 2xl:text-sm"
-							@click="handleAddPointInDraft(draft)"
-						>
-							新增點位
-						</button>
+						<PermissionActionButton
+				:allowed="allowCreateLocation"
+				aria-label="新增點位"
+				class="btn-secondary text-xs 2xl:text-sm"
+				@click="handleAddPointInDraft(draft)"
+			>
+				新增點位
+			</PermissionActionButton>
 						<IconTrashButton
+					:disabled="!allowDeleteLocation"
 							title="移除此分類"
 							aria-label="移除此分類草稿"
 							@click="removeDraft(draft.id)"
@@ -183,14 +186,14 @@
 						<span class="rounded-full bg-white/20 px-2 py-0.5 text-xs text-white/90 2xl:text-sm">
 							{{ group.items.length }} 點
 						</span>
-						<button
-							v-if="group.key !== EMPTY_KEY"
-							type="button"
+						<PermissionActionButton
+							:allowed="allowCreateLocation && group.key !== EMPTY_KEY"
+							aria-label="新增點位"
 							class="btn-secondary text-xs 2xl:text-sm"
 							@click="handleAddPointInGroup(group)"
 						>
 							新增點位
-						</button>
+						</PermissionActionButton>
 					</div>
 				</div>
 
@@ -236,6 +239,7 @@
 						</div>
 
 						<IconTrashButton
+					:disabled="!allowDeleteLocation"
 							button-class="ml-auto flex-shrink-0"
 							title="刪除點位"
 							aria-label="刪除此點位"
@@ -265,6 +269,8 @@ import DrainageLocationFields from "../LocationFormFields/DrainageLocationFields
 import { useToast } from "~/composables/core/useToast"
 import { getLocationUiKey } from "~/utils/locationUiId"
 import IconTrashButton from "~/components/common/IconTrashButton.vue"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+
 const EMPTY_KEY = "__empty__"
 
 type DrainageLikeLocation = DrainageLocation | FireLocation
@@ -289,6 +295,8 @@ interface Props {
 	reorderableLocations?: boolean
 	/** 消防與排水共用此元件；僅影響分類顯示標籤與提示用字 */
 	variant?: "drainage" | "fire"
+	allowCreateLocation?: boolean
+	allowDeleteLocation?: boolean
 }
 
 interface Emits {
@@ -304,6 +312,8 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+	allowCreateLocation: true,
+	allowDeleteLocation: true,
 	deviceHint: "請先在「設備管理」中建立控制器設備",
 	reorderableLocations: false,
 	variant: "drainage",

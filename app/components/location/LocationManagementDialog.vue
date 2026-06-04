@@ -13,14 +13,15 @@
 						<div class="flex items-center gap-3">
 							<!-- 變更提示 -->
 							<FormChangeIndicator
-								v-if="canEdit && hasUnsavedChanges"
+								v-if="hasUnsavedChanges"
 								:has-changes="hasUnsavedChanges"
 								:changed-fields="changedFieldsList"
 								:message="changeSummary"
 							/>
 							<IconTrashButton
-								v-if="canDelete && zone && zone.id"
-								title="刪除區域"
+								v-if="zone && zone.id"
+								:disabled="!canDeleteZone"
+								:title="canDeleteZone ? '刪除區域' : '權限不足'"
 								aria-label="刪除區域"
 								@click="handleDeleteZone"
 							/>
@@ -54,7 +55,6 @@
 													@input="updateZoneName(($event.target as HTMLInputElement).value)"
 												/>
 												<input
-													v-if="canEdit"
 													ref="fileInputRef"
 													type="file"
 													:accept="ZONE_IMAGE_ACCEPT_ATTR"
@@ -69,20 +69,20 @@
 												>
 													查看示意圖
 												</button>
-												<button
-													v-if="canEdit"
-													type="button"
+												<PermissionActionButton
+													:allowed="canEdit"
+													aria-label="上傳或更換區域示意圖"
 													class="btn-secondary text-sm 2xl:text-base"
 													@click.stop="triggerZoneImageInput"
 												>
 													{{ pendingZone.imageUrl ? "更換" : "上傳" }}示意圖
-												</button>
-												<button
-													v-if="canEdit && pendingZone.imageUrl"
-													type="button"
-													class="p-2 text-rose-400 transition-colors hover:text-rose-300"
+												</PermissionActionButton>
+												<PermissionActionButton
+													:allowed="canEdit && !!pendingZone.imageUrl"
+													aria-label="移除區域示意圖"
+													class="p-2 text-rose-400 transition-colors"
+													enabled-hover-class="hover:text-rose-300"
 													@click.stop="removeZoneImage"
-													title="移除圖片"
 												>
 													<svg
 														class="h-5 w-5"
@@ -97,7 +97,7 @@
 															d="M6 18L18 6M6 6l12 12"
 														/>
 													</svg>
-												</button>
+												</PermissionActionButton>
 											</div>
 										</div>
 
@@ -105,14 +105,14 @@
 										<div class="overflow-hidden rounded-lg border border-white/20 bg-white/10 p-4">
 											<div class="mb-3 flex items-center justify-between">
 												<span class="text-base font-medium 2xl:text-lg">地點列表</span>
-												<button
-													v-if="canEdit"
-													type="button"
+												<PermissionActionButton
+													:allowed="canEdit"
+													aria-label="新增地點"
 													class="btn-secondary text-sm 2xl:text-base"
 													@click="addLocation"
 												>
 													新增地點
-												</button>
+												</PermissionActionButton>
 											</div>
 
 											<!-- 地點項目 -->
@@ -152,9 +152,9 @@
 														</div>
 													</label>
 													<IconTrashButton
-														v-if="canDelete"
 														button-class="ml-auto flex-shrink-0"
-														title="刪除地點"
+														:disabled="!canDeleteLocation"
+														:title="canDeleteLocation ? '刪除地點' : '權限不足'"
 														aria-label="刪除地點"
 														@click="removeLocation(locationIndex)"
 													/>
@@ -179,16 +179,14 @@
 					>
 						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
 						<div class="flex-1"></div>
-						<button
-							v-if="canEdit"
-							type="button"
+						<PermissionActionButton
+							:allowed="canEdit && hasUnsavedChanges"
+							aria-label="儲存變更"
 							class="btn-primary"
-							:class="{ 'cursor-not-allowed opacity-50': !hasUnsavedChanges }"
-							:disabled="!hasUnsavedChanges"
 							@click="saveChanges"
 						>
 							儲存變更
-						</button>
+						</PermissionActionButton>
 					</footer>
 				</div>
 			</div>
@@ -217,6 +215,7 @@ import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location"
 import { ZONE_IMAGE_ACCEPT_ATTR } from "~/composables/location/validation/useBaseValidation"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import IconTrashButton from "~/components/common/IconTrashButton.vue"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
@@ -240,8 +239,10 @@ interface Props {
 	 * delete-only：只允許刪除（用於全區點位圖彙整頁）
 	 */
 	mode?: "full" | "delete-only"
-	/** 可選：即使可編輯，也可關閉刪除功能（例如只允許 admin 刪除） */
+	/** @deprecated 請改用 allowDeleteZone / allowDeleteLocation */
 	allowDelete?: boolean
+	allowDeleteZone?: boolean
+	allowDeleteLocation?: boolean
 }
 
 interface Emits {
@@ -255,7 +256,12 @@ const emit = defineEmits<Emits>()
 const mode = computed(() => props.mode ?? "full")
 const isReadOnly = computed(() => props.readOnly === true)
 const canEdit = computed(() => !isReadOnly.value && mode.value === "full")
-const canDelete = computed(() => props.allowDelete !== false)
+const canDeleteZone = computed(
+	() => props.allowDeleteZone !== false && props.allowDelete !== false,
+)
+const canDeleteLocation = computed(
+	() => props.allowDeleteLocation !== false && props.allowDelete !== false,
+)
 
 const errorMessage = ref("")
 
@@ -352,7 +358,7 @@ const addLocation = () => {
 }
 
 const removeLocation = (locationIndex: number) => {
-	if (!canDelete.value) return
+	if (!canDeleteLocation.value) return
 	if (!pendingZone.value) return
 	const location = pendingZone.value.locations?.[locationIndex]
 	const locationUiKey = getLocationUiKey({
@@ -374,7 +380,7 @@ const removeLocation = (locationIndex: number) => {
 
 // 確認刪除地點
 const handleConfirmDeleteLocation = async () => {
-	if (!canDelete.value) return
+	if (!canDeleteLocation.value) return
 	if (!pendingZone.value || !pendingDeleteLocationUiKey.value) return
 
 	const resolvedIndex = (pendingZone.value.locations || []).findIndex((loc, idx) => {
@@ -412,7 +418,7 @@ const handleConfirmDeleteLocation = async () => {
 
 // 刪除區域
 const handleDeleteZone = () => {
-	if (!canDelete.value) return
+	if (!canDeleteZone.value) return
 	if (!props.zone || !props.zone.id) return
 
 	confirmAction.value = "delete"

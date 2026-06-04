@@ -11,7 +11,7 @@
 				:selected-zone-name="selectedZoneName"
 				:is-initial-loading="isInitialLoading"
 				:can-write="canWrite"
-				:can-manage-zones="isAdmin"
+				:can-manage-zones="canAdmin"
 				:is-edit-mode="isEditMode"
 				:selected-zone="selectedZone"
 				:selected-zone-data="selectedZoneData"
@@ -50,7 +50,6 @@
 	</div>
 
 	<ZoneManagementDialog
-		v-if="isAdmin"
 		v-model="showZoneManagementDialog"
 		:zones="fireZones"
 		system-type="fire"
@@ -80,7 +79,7 @@ import {
 import { useFireApi } from "~/composables/systems/fire/useFireApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
-import { useAuth } from "~/composables/core/useAuth"
+import { useSnapshotSystemPageRbac } from "~/composables/core/useModuleRbac"
 import { getLocationUiKey, findLocationIndexInZone } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
 import { useFireModbusIntegration } from "~/composables/monitoring/modbus/snapshotModbusIntegrations"
@@ -92,7 +91,8 @@ definePageMeta({
 	layout: "default",
 })
 
-const { canWrite, isAdmin } = useAuth()
+import { PERM } from "~/config/permissionCodes"
+const { canAdmin, canWrite } = useSnapshotSystemPageRbac(PERM.fire.module)
 const fireApi = useFireApi()
 const { handleError } = useErrorHandler()
 
@@ -103,7 +103,7 @@ const fireZones = ref<FireZone[]>([])
 const { ruleBitOptionsByTargetId } = useManualIssueDiDoRules({
 	alertRulesSource: "fire",
 	zones: fireZones,
-	isAdmin,
+	canAdmin,
 })
 
 const isLoadingZones = ref(false)
@@ -147,7 +147,7 @@ const selectedZoneData = computed(() => zonesById.value.get(selectedZone.value))
 const zonePlanImage = computed(() => selectedZoneData.value?.imageUrl)
 
 const manualIssueTargets = computed(() => {
-	if (!isAdmin.value) return []
+	if (!canAdmin.value) return []
 	const out: Array<{ id: string; label: string }> = []
 	for (const zone of fireZones.value) {
 		for (const loc of zone.locations || []) {
@@ -379,7 +379,7 @@ const handleDeleteZone = async (zoneId: string) => {
 }
 
 const handleOpenZoneDialog = async () => {
-	if (!isAdmin.value) return
+	if (!canAdmin.value) return
 	if (fireZones.value.length === 0) await loadZonesFromAPI()
 	showZoneManagementDialog.value = true
 }

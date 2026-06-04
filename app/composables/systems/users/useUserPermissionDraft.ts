@@ -1,25 +1,18 @@
 import type { PermissionDefinition } from "~/types/user"
 
-/** 依定義清單與勾選來源建立 granted map（預設皆 false） */
 export const buildGrantedMap = (
 	definitions: PermissionDefinition[],
 	grantedById: Record<number, boolean> = {}
-): Record<number, boolean> => {
-	const map: Record<number, boolean> = {}
-	for (const d of definitions) {
-		map[d.id] = Boolean(grantedById[d.id])
-	}
-	return map
-}
+): Record<number, boolean> =>
+	Object.fromEntries(definitions.map((d) => [d.id, Boolean(grantedById[d.id])]))
 
 export const permissionOverridesFromGranted = (
 	definitions: PermissionDefinition[],
 	granted: Record<number, boolean>
 ): { permission_id: number; granted: boolean }[] =>
-	definitions.map((d) => ({
-		permission_id: d.id,
-		granted: Boolean(granted[d.id]),
-	}))
+	definitions
+		.filter((d) => granted[d.id])
+		.map((d) => ({ permission_id: d.id, granted: true }))
 
 export const permissionGrantedMapsEqual = (
 	a: Record<number, boolean>,
