@@ -4,7 +4,7 @@
 			<div class="flex flex-wrap items-center justify-between gap-4">
 				<header class="me-4 flex flex-col gap-1 2xl:gap-2">
 					<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">設備管理</h1>
-					<p class="text-base text-white/80 2xl:text-xl">管理各類型設備配置與配對</p>
+					<p class="text-base text-white/80 2xl:text-xl">管理各類型設備配置與狀態</p>
 				</header>
 
 				<PageTabs
@@ -26,161 +26,159 @@
 				id-prefix="device-tab"
 			>
 				<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
-			<!-- Tab 標題和操作按鈕 -->
-			<div class="mb-6 flex flex-wrap items-center justify-between gap-4 2xl:gap-6">
-				<h2 class="text-xl font-semibold text-white 2xl:text-2xl">
-					{{ currentTabName ? `${currentTabName}管理` : "設備管理" }}
-				</h2>
-				<div class="flex items-center gap-3 2xl:gap-4">
-					<PermissionActionButton
-						:allowed="canManageDeviceModels && !deviceModelsLocked && !!activeTab"
-						aria-label="型號管理"
-						class="rounded-xl bg-blue-500/80 px-4 py-2 text-base text-white disabled:bg-blue-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
-						enabled-hover-class="hover:bg-blue-400"
-						@click="showDeviceModelDialog = true"
-					>
-						型號管理
-					</PermissionActionButton>
-					<PermissionActionButton
-						:allowed="canCreateDevice"
-						aria-label="新增設備"
-						class="rounded-xl bg-emerald-500/80 px-4 py-2 text-base text-white disabled:bg-emerald-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
-						enabled-hover-class="hover:bg-emerald-400"
-						@click="showCreateDialog = true"
-					>
-						新增設備
-					</PermissionActionButton>
-				</div>
-			</div>
-
-			<AsyncPanel
-				:loading="isLoading"
-				:empty="!isLoading && devices.length === 0"
-				:error="listLoadError"
-				empty-title="尚無設備資料"
-				:empty-description="
-					canCreateDevice && currentTabName
-						? `點擊「新增設備」開始建立 ${currentTabName}`
-						: ''
-				"
-			>
-				<div :key="`devices-${activeTab}-${offset}`">
-					<table class="w-full text-center">
-						<thead>
-							<tr class="border-b border-white/20">
-								<th :class="tableHeaderClass">設備名稱</th>
-								<th v-if="activeTab === 'camera'" :class="tableHeaderClass">
-									<FilterDropdown
-										:model-value="cameraGroupFilter"
-										:options="cameraGroupFilterOptions"
-										placeholder="全部"
-										text-size="text-sm 2xl:text-base"
-										@update:model-value="onCameraGroupFilterUpdate"
-									/>
-								</th>
-								<th v-if="activeTab === 'camera'" :class="tableHeaderClass">型號分類</th>
-								<th :class="tableHeaderClass">設備型號</th>
-								<th :class="tableHeaderClass">
-									{{ activeTab === "camera" ? "IP 位址" : "配置資訊" }}
-								</th>
-								<th :class="tableHeaderClass">連線</th>
-								<th :class="tableHeaderClass">
-									<FilterDropdown
-										:model-value="dateSortOrder"
-										:options="dateSortOptions"
-										placeholder="由新到舊"
-										text-size="text-sm 2xl:text-base"
-										@update:model-value="onDateSortUpdate"
-									/>
-								</th>
-										<th :class="tableHeaderClass">操作</th>
-							</tr>
-						</thead>
-						<tbody>
-							<tr
-								v-for="device in devices"
-								:key="device.id"
-								class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
+					<!-- Tab 標題和操作按鈕 -->
+					<div class="mb-6 flex flex-wrap items-center justify-between gap-4 2xl:gap-6">
+						<h2 class="text-xl font-semibold text-white 2xl:text-2xl">
+							{{ currentTabName ? `${currentTabName}管理` : "設備管理" }}
+						</h2>
+						<div class="flex items-center gap-3 2xl:gap-4">
+							<PermissionActionButton
+								:allowed="canManageDeviceModels && !deviceModelsLocked && !!activeTab"
+								aria-label="型號管理"
+								class="rounded-xl bg-blue-500/80 px-4 py-2 text-base text-white disabled:bg-blue-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
+								enabled-hover-class="hover:bg-blue-400"
+								@click="showDeviceModelDialog = true"
 							>
-								<td :class="tableCellClass">{{ device.name }}</td>
-								<td v-if="activeTab === 'camera'" :class="tableCellClass">
-									<span class="text-white/80">{{ getCameraGroup(device) }}</span>
-								</td>
-								<td v-if="activeTab === 'camera'" :class="tableCellClass">
-									<span class="text-sm text-white/80 2xl:text-base">{{
-										getModelCategoryLabel(device)
-									}}</span>
-								</td>
-								<td :class="tableCellClass">
-									<span v-if="device.model_name" class="text-white/90">{{ device.model_name }}</span>
-									<span v-else class="text-white/50">-</span>
-								</td>
-								<td :class="tableCellClass">
-									<span class="text-sm text-white/80 2xl:text-base">{{
-										activeTab === "camera" ? getCameraIp(device) : formatDeviceConfig(device.config)
-									}}</span>
-								</td>
-								<td :class="tableCellClass">
-									<span
-										:class="[
-											deviceConnectivity.getBadgeClass(deviceConnectivity.getStatus(device.id)),
-											'rounded px-2 py-1 text-sm 2xl:px-3 2xl:py-1.5 2xl:text-base'
-										]"
-									>
-										<span
-											v-if="deviceConnectivity.isLoading(device.id)"
-											class="inline-flex min-w-[32px] items-center justify-center gap-2"
-										>
-											<span
-												class="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white/80"
-											></span>
-										</span>
-										<span v-else>
-											{{ connectivityLabels[deviceConnectivity.getStatus(device.id)] }}
-										</span>
-									</span>
-								</td>
-								<td :class="[tableCellClass, 'text-white/70']">
-									{{ formatDate(device.created_at) }}
-								</td>
-								<td :class="tableCellClass">
-									<div class="flex gap-2 2xl:gap-3">
-										<PermissionActionButton
-											:allowed="canUpdateDevice"
-											aria-label="編輯設備"
-											class="rounded bg-blue-500/80 px-3 py-1 text-white disabled:bg-blue-500/40 2xl:px-4 2xl:py-2"
-											enabled-hover-class="hover:bg-blue-400"
-											@click="editDevice(device)"
-										>
-											編輯
-										</PermissionActionButton>
-										<PermissionActionButton
-											:allowed="canDeleteDevice"
-											aria-label="刪除設備"
-											class="rounded bg-red-500/80 px-3 py-1 text-white disabled:bg-red-500/40 2xl:px-4 2xl:py-2"
-											enabled-hover-class="hover:bg-red-400"
-											@click="confirmDeleteDevice(device)"
-										>
-											刪除
-										</PermissionActionButton>
-									</div>
-								</td>
-							</tr>
-						</tbody>
-					</table>
+								型號管理
+							</PermissionActionButton>
+							<PermissionActionButton
+								:allowed="canCreateDevice"
+								aria-label="新增設備"
+								class="rounded-xl bg-emerald-500/80 px-4 py-2 text-base text-white disabled:bg-emerald-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
+								enabled-hover-class="hover:bg-emerald-400"
+								@click="showCreateDialog = true"
+							>
+								新增設備
+							</PermissionActionButton>
+						</div>
+					</div>
 
-					<!-- 分頁 -->
-					<Pagination
-						:show="total > limit"
-						:total="total"
-						:offset="offset"
-						:limit="limit"
-						:disabled="isLoading"
-						@previous="handlePreviousPage"
-						@next="handleNextPage"
-					/>
-				</div>
-			</AsyncPanel>
+					<AsyncPanel
+						:loading="isLoading"
+						:empty="!isLoading && devices.length === 0"
+						:error="listLoadError"
+						empty-title="尚無設備資料"
+						:empty-description="
+							canCreateDevice && currentTabName ? `點擊「新增設備」開始建立 ${currentTabName}` : ''
+						"
+					>
+						<div :key="`devices-${activeTab}-${offset}`">
+							<table class="w-full text-center">
+								<thead>
+									<tr class="border-b border-white/20">
+										<th :class="tableHeaderClass">設備名稱</th>
+										<th v-if="activeTab === 'camera'" :class="tableHeaderClass">
+											<FilterDropdown
+												:model-value="cameraGroupFilter"
+												:options="cameraGroupFilterOptions"
+												placeholder="全部"
+												text-size="text-sm 2xl:text-base"
+												@update:model-value="onCameraGroupFilterUpdate"
+											/>
+										</th>
+										<th v-if="activeTab === 'camera'" :class="tableHeaderClass">型號分類</th>
+										<th :class="tableHeaderClass">設備型號</th>
+										<th :class="tableHeaderClass">
+											{{ activeTab === "camera" ? "IP 位址" : "配置資訊" }}
+										</th>
+										<th :class="tableHeaderClass">連線</th>
+										<th :class="tableHeaderClass">
+											<FilterDropdown
+												:model-value="dateSortOrder"
+												:options="dateSortOptions"
+												placeholder="由新到舊"
+												text-size="text-sm 2xl:text-base"
+												@update:model-value="onDateSortUpdate"
+											/>
+										</th>
+										<th :class="tableHeaderClass">操作</th>
+									</tr>
+								</thead>
+								<tbody>
+									<tr
+										v-for="device in devices"
+										:key="device.id"
+										class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
+									>
+										<td :class="tableCellClass">{{ device.name }}</td>
+										<td v-if="activeTab === 'camera'" :class="tableCellClass">
+											<span class="text-white/80">{{ getCameraGroup(device) }}</span>
+										</td>
+										<td v-if="activeTab === 'camera'" :class="tableCellClass">
+											<span class="text-sm text-white/80 2xl:text-base">{{
+												getModelCategoryLabel(device)
+											}}</span>
+										</td>
+										<td :class="tableCellClass">
+											<span v-if="device.model_name" class="text-white/90">{{ device.model_name }}</span>
+											<span v-else class="text-white/50">-</span>
+										</td>
+										<td :class="tableCellClass">
+											<span class="text-sm text-white/80 2xl:text-base">{{
+												activeTab === "camera" ? getCameraIp(device) : formatDeviceConfig(device.config)
+											}}</span>
+										</td>
+										<td :class="tableCellClass">
+											<span
+												:class="[
+													deviceConnectivity.getBadgeClass(deviceConnectivity.getStatus(device.id)),
+													'rounded px-2 py-1 text-sm 2xl:px-3 2xl:py-1.5 2xl:text-base'
+												]"
+											>
+												<span
+													v-if="deviceConnectivity.isLoading(device.id)"
+													class="inline-flex min-w-[32px] items-center justify-center gap-2"
+												>
+													<span
+														class="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white/80"
+													></span>
+												</span>
+												<span v-else>
+													{{ connectivityLabels[deviceConnectivity.getStatus(device.id)] }}
+												</span>
+											</span>
+										</td>
+										<td :class="[tableCellClass, 'text-white/70']">
+											{{ formatDate(device.created_at) }}
+										</td>
+										<td :class="tableCellClass">
+											<div class="flex gap-2 2xl:gap-3">
+												<PermissionActionButton
+													:allowed="canUpdateDevice"
+													aria-label="編輯設備"
+													class="rounded bg-blue-500/80 px-3 py-1 text-white disabled:bg-blue-500/40 2xl:px-4 2xl:py-2"
+													enabled-hover-class="hover:bg-blue-400"
+													@click="editDevice(device)"
+												>
+													編輯
+												</PermissionActionButton>
+												<PermissionActionButton
+													:allowed="canDeleteDevice"
+													aria-label="刪除設備"
+													class="rounded bg-red-500/80 px-3 py-1 text-white disabled:bg-red-500/40 2xl:px-4 2xl:py-2"
+													enabled-hover-class="hover:bg-red-400"
+													@click="confirmDeleteDevice(device)"
+												>
+													刪除
+												</PermissionActionButton>
+											</div>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+
+							<!-- 分頁 -->
+							<Pagination
+								:show="total > limit"
+								:total="total"
+								:offset="offset"
+								:limit="limit"
+								:disabled="isLoading"
+								@previous="handlePreviousPage"
+								@next="handleNextPage"
+							/>
+						</div>
+					</AsyncPanel>
 				</section>
 			</PageTabs>
 		</div>
@@ -239,11 +237,11 @@ import type {
 	MonitoringDeviceStatusBatchEvent
 } from "~/types/websocket";
 import DeviceModelDialog from "~/components/device/DeviceModelDialog.vue";
-import PageTabs from "~/components/common/PageTabs.vue";
-import AsyncPanel from "~/components/common/AsyncPanel.vue";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import Pagination from "~/components/common/Pagination.vue";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
+import PageTabs from "~/components/common/PageTabs.vue";
+import AsyncPanel from "~/components/common/AsyncPanel.vue";
 import { formatDate } from "~/utils/dateUtils";
 import { useDataLoader } from "~/composables/monitoring/useDataLoader";
 import { useToast } from "~/composables/core/useToast";
@@ -253,18 +251,14 @@ import { useDeviceConnectivity } from "~/composables/systems/devices/useDeviceCo
 import { useDeviceWebSocket } from "~/composables/websocket/subscribers/useDeviceWebSocket";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import { getCameraModelCategoryLabel } from "~/utils/cameraModelCategories";
-import { useEquipmentRbac } from "~/composables/core/useModuleRbac";
+import { useEquipmentRbac } from "~/composables/core/useAccessGate";
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
 definePageMeta({
 	layout: "auxiliary"
 });
 
-const {
-	canCreateDevice,
-	canUpdateDevice,
-	canDeleteDevice,
-	canManageDeviceModels,
-} = useEquipmentRbac();
+const { canCreateDevice, canUpdateDevice, canDeleteDevice, canManageDeviceModels } =
+	useEquipmentRbac();
 const canWriteDevice = computed(() =>
 	editingDevice.value ? canUpdateDevice.value : canCreateDevice.value
 );
@@ -282,12 +276,10 @@ const deviceTabs = [
 	{ name: "攝影機", code: "camera" },
 	{ name: "感測器", code: "sensor" },
 	{ name: "控制器", code: "controller" },
-	{ name: "門禁設備", code: "access_control" },
+	{ name: "門禁設備", code: "access_control" }
 ] as const;
 
-const deviceTabItems = computed(() =>
-	deviceTabs.map((tab) => ({ id: tab.code, label: tab.name }))
-);
+const deviceTabItems = computed(() => deviceTabs.map(tab => ({ id: tab.code, label: tab.name })));
 
 const activeTab = ref<DeviceTypeCode | null>(null);
 
@@ -296,7 +288,7 @@ const activeTabModel = computed({
 	set: (code: DeviceTypeCode) => {
 		if (!code) return;
 		switchTab(code);
-	},
+	}
 });
 const currentTabName = computed(() => {
 	const tab = deviceTabs.find(tab => tab.code === activeTab.value);

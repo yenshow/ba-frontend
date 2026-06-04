@@ -101,7 +101,6 @@ import { useRuntimeConfigPage } from "~/composables/core/useRuntimeConfigPage";
 
 definePageMeta({
 	layout: "auxiliary",
-	middleware: "admin",
 });
 
 const {

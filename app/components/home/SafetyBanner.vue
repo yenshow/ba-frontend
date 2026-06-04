@@ -1,71 +1,70 @@
 <template>
 	<div class="group relative bg-red-600 py-2">
 		<PermissionActionButton
-					:allowed="canWrite"
-					aria-label="編輯跑馬燈文字"
-					class="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-lg bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 2xl:text-base"
-					enabled-hover-class="hover:bg-black/50"
-					@click="isEditOpen = true"
-				>
-					編輯
-				</PermissionActionButton>
+			:allowed="canWrite"
+			aria-label="編輯跑馬燈訊息"
+			class="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-lg bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 2xl:text-base"
+			enabled-hover-class="hover:bg-black/50"
+			@click="isEditOpen = true"
+		>
+			編輯
+		</PermissionActionButton>
 
 		<div class="marquee-wrapper">
 			<div class="marquee-content" :style="animationStyle">
 				<span class="marquee-item">
-					{{ bannerMessage || "請新增跑馬燈文字" }}
+					{{ bannerMessage || "請新增跑馬燈訊息" }}
 				</span>
 				<span class="marquee-item">
-					{{ bannerMessage || "請新增跑馬燈文字" }}
+					{{ bannerMessage || "請新增跑馬燈訊息" }}
 				</span>
 				<span class="marquee-item">
-					{{ bannerMessage || "請新增跑馬燈文字" }}
+					{{ bannerMessage || "請新增跑馬燈訊息" }}
 				</span>
 			</div>
 		</div>
 
 		<EditMockDialog
-				v-model="isEditOpen"
-				title="編輯跑馬燈文字"
-				:value="bannerMessage"
-				input-mode="text"
-				placeholder="請輸入跑馬燈文字"
-				hint="💡 建議輸入 20-30 字，以確保跑馬燈效果流暢。"
-				@save="saveBannerMessage"
-				@reset="resetBannerMessage"
+			v-model="isEditOpen"
+			title="編輯跑馬燈訊息"
+			:value="bannerMessage"
+			input-mode="text"
+			placeholder="請輸入跑馬燈訊息"
+			hint="※ 建議輸入 20-30 字，以確保跑馬燈播放流暢"
+			@save="saveBannerMessage"
+			@reset="resetBannerMessage"
 		/>
 	</div>
 </template>
 
 <script setup lang="ts">
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
-import EditMockDialog from "~/components/common/EditMockDialog.vue";
-import { useAppSettings } from "~/composables/core/useAppSettings";
-import { useAuth } from "~/composables/core/useAuth";
-import { useHomeRbac } from "~/composables/core/useModuleRbac";
+import EditMockDialog from "~/components/common/EditMockDialog.vue"
+import { useAppSettings } from "~/composables/core/useAppSettings"
+import { useHomeRbac } from "~/composables/core/useAccessGate"
 
 interface Props {
-	message?: string;
+	message?: string
 }
 
-const props = defineProps<Props>();
-const { canWrite } = useHomeRbac();
+const props = defineProps<Props>()
+const { canWrite } = useHomeRbac()
 
 const {
 	value: bannerMessage,
 	save: saveBannerMessage,
-	reset: resetBannerMessage
+	reset: resetBannerMessage,
 } = useAppSettings({
 	key: "safety_banner_message",
-	defaultValue: props.message ?? ""
-});
+	defaultValue: props.message ?? "",
+})
 
-const isEditOpen = ref(false);
+const isEditOpen = ref(false)
 
 const animationStyle = {
 	animation: "marquee-scroll 30s linear infinite",
-	WebkitAnimation: "marquee-scroll 30s linear infinite"
-};
+	WebkitAnimation: "marquee-scroll 30s linear infinite",
+}
 </script>
 
 <style>

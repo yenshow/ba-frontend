@@ -79,76 +79,76 @@
 						content-class="flex flex-col gap-12"
 					>
 						<template v-if="selectedLocation">
-						<LocationStatsPanel
-							:entry-count="selectedLocation.entryCount || 0"
-							:exit-count="selectedLocation.exitCount || 0"
-							:current-count="currentCount"
-						/>
-						<div
-							class="grid min-w-0 grid-cols-2 items-stretch gap-4"
-							:class="{ 'monitoring-detail-enlarged': isOverviewCollapsed }"
-						>
-							<div class="flex min-w-0 flex-col">
-								<EntryExitLogTable
-									:logs="logs"
-									:data-source="selectedLocation?.dataSource"
-									:display-columns="selectedLocation?.logDisplayColumns"
-								/>
-							</div>
-							<div class="space-y-4">
-								<h3
-									class="people-unit-title bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
-								>
-									人員群組
-								</h3>
-								<div
-									v-if="!selectedLocation?.units || selectedLocation.units.length === 0"
-									class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
-								>
-									<p class="people-unit-empty text-sm text-white/60 xl:text-base">尚無單位資料</p>
+							<LocationStatsPanel
+								:entry-count="selectedLocation.entryCount || 0"
+								:exit-count="selectedLocation.exitCount || 0"
+								:current-count="currentCount"
+							/>
+							<div
+								class="grid min-w-0 grid-cols-2 items-stretch gap-4"
+								:class="{ 'monitoring-detail-enlarged': isOverviewCollapsed }"
+							>
+								<div class="flex min-w-0 flex-col">
+									<EntryExitLogTable
+										:logs="logs"
+										:data-source="selectedLocation?.dataSource"
+										:display-columns="selectedLocation?.logDisplayColumns"
+									/>
 								</div>
-								<div v-else class="grid grid-cols-3 gap-4 2xl:grid-cols-4">
-									<div
-										v-for="unit in selectedLocation.units"
-										:key="unit.id"
-										class="flex flex-col items-center justify-center border-2 border-white/0 py-2 transition-all"
-										:class="[
-											{
-												'bg-white/20': (unit.currentCount || 0) > 0,
-												'bg-black/20': (unit.currentCount || 0) === 0
-											},
-											isIsapiCamera ? '' : 'cursor-pointer'
-										]"
-										:tabindex="isIsapiCamera ? undefined : 0"
-										:role="isIsapiCamera ? undefined : 'button'"
-										:aria-label="isIsapiCamera ? `${unit.name}，進出統計` : `查看 ${unit.name} 人員名單`"
-										@click="handleUnitCardActivate(unit)"
-										@keydown.enter="handleUnitCardActivate(unit)"
-										@keydown.space.prevent="handleUnitCardActivate(unit)"
+								<div class="space-y-4">
+									<h3
+										class="people-unit-title bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
 									>
+										人員群組
+									</h3>
+									<div
+										v-if="!selectedLocation?.units || selectedLocation.units.length === 0"
+										class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
+									>
+										<p class="people-unit-empty text-sm text-white/60 xl:text-base">尚無單位資料</p>
+									</div>
+									<div v-else class="grid grid-cols-3 gap-4 2xl:grid-cols-4">
 										<div
-											class="people-unit-name text-base font-semibold tracking-wide text-white 2xl:text-lg"
+											v-for="unit in selectedLocation.units"
+											:key="unit.id"
+											class="flex flex-col items-center justify-center border-2 border-white/0 py-2 transition-all"
+											:class="[
+												{
+													'bg-white/20': (unit.currentCount || 0) > 0,
+													'bg-black/20': (unit.currentCount || 0) === 0
+												},
+												isIsapiCamera ? '' : 'cursor-pointer'
+											]"
+											:tabindex="isIsapiCamera ? undefined : 0"
+											:role="isIsapiCamera ? undefined : 'button'"
+											:aria-label="isIsapiCamera ? `${unit.name}，進出統計` : `查看 ${unit.name} 人員名單`"
+											@click="handleUnitCardActivate(unit)"
+											@keydown.enter="handleUnitCardActivate(unit)"
+											@keydown.space.prevent="handleUnitCardActivate(unit)"
 										>
-											{{ unit.name }}
+											<div
+												class="people-unit-name text-base font-semibold tracking-wide text-white 2xl:text-lg"
+											>
+												{{ unit.name }}
+											</div>
+											<template v-if="isIsapiCamera">
+												<div class="people-unit-count space-x-0.5 text-sm text-white 2xl:text-base">
+													<span class="text-green-400">進 {{ unit.entryCount ?? 0 }}</span>
+													<span>/</span>
+													<span class="text-blue-300">出 {{ unit.exitCount ?? 0 }}</span>
+												</div>
+											</template>
+											<template v-else>
+												<div class="people-unit-count space-x-0.5 text-base text-white 2xl:text-lg">
+													<span class="text-green-400">{{ unit.currentCount || 0 }}</span>
+													<span>/</span>
+													<span>{{ unit.capacity || 0 }}</span>
+												</div>
+											</template>
 										</div>
-										<template v-if="isIsapiCamera">
-											<div class="people-unit-count space-x-0.5 text-sm text-white 2xl:text-base">
-												<span class="text-green-400">進 {{ unit.entryCount ?? 0 }}</span>
-												<span>/</span>
-												<span class="text-blue-300">出 {{ unit.exitCount ?? 0 }}</span>
-											</div>
-										</template>
-										<template v-else>
-											<div class="people-unit-count space-x-0.5 text-base text-white 2xl:text-lg">
-												<span class="text-green-400">{{ unit.currentCount || 0 }}</span>
-												<span>/</span>
-												<span>{{ unit.capacity || 0 }}</span>
-											</div>
-										</template>
 									</div>
 								</div>
 							</div>
-						</div>
 						</template>
 					</MonitoringDetailShell>
 				</div>
@@ -257,7 +257,7 @@ import type {
 	PeopleCountingLocation,
 	PeopleCountingLog
 } from "~/types/peopleCounting";
-import MonitoringDetailShell from "~/components/monitoring/MonitoringDetailShell.vue";
+import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue";
 import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue";
 import LocationOverviewCard from "~/components/people-counting/LocationOverviewCard.vue";
 import EntryExitLogTable from "~/components/people-counting/EntryExitLogTable.vue";
@@ -274,7 +274,7 @@ import {
 	PEOPLE_COUNTING_FULL_REPORT_LIMIT
 } from "~/composables/systems/peopleCounting/usePeopleCountingApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
-import { useLocationModuleRbac } from "~/composables/core/useModuleRbac";
+import { useLocationModuleRbac } from "~/composables/core/useAccessGate";
 import type { PeopleCountingUnit, PeopleCountingPersonnel } from "~/types/peopleCounting";
 import { useApiBase } from "~/composables/core/useApiBase";
 import {
@@ -298,7 +298,7 @@ const {
 	canCreateLocation,
 	canUpdateLocation,
 	canDeleteLocation,
-	canFullReport,
+	canFullReport
 } = useLocationModuleRbac(PERM.peopleCounting);
 
 // 使用統一的狀態管理
@@ -317,10 +317,7 @@ const {
 } = usePeopleCountingState();
 
 const detailEmpty = computed(
-	() =>
-		locations.value.length === 0 &&
-		!isLoadingLocations.value &&
-		!isLoadingZones.value
+	() => locations.value.length === 0 && !isLoadingLocations.value && !isLoadingZones.value
 );
 
 // 單位人員對話框相關

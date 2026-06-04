@@ -273,7 +273,6 @@ import {
 
 definePageMeta({
 	layout: "default",
-	middleware: "admin",
 })
 
 const { user: currentUser, fetchUser } = useAuth()

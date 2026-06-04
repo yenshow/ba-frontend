@@ -508,6 +508,20 @@ export const useVehicleAccessState = () => {
 		clearUiForSelectedSite();
 	};
 
+	/** 切換地點後載入詳情（統計、群組、過車表）；總覽摘要請另行 loadOverviewSummaries */
+	const loadLocationDetail = async (): Promise<void> => {
+		if (!filters.value.locationId) return;
+		try {
+			await Promise.all([
+				loadEntryExitOnSiteCounts(),
+				loadOrganizationData(),
+				loadLogs(),
+			]);
+		} catch {
+			// 錯誤已在各 loader 處理
+		}
+	};
+
 	const setupEventListeners = (onRefetch: () => void | Promise<void>, debounceMs = 500) =>
 		setupDebouncedRefetchListeners(
 			onRefetch,
@@ -552,6 +566,7 @@ export const useVehicleAccessState = () => {
 		isLoadingZones,
 		loadZones,
 		loadLogs,
+		loadLocationDetail,
 		loadEntryExitOnSiteCounts,
 		loadOverviewSummaries,
 		getLocationZone,

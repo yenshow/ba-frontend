@@ -1,5 +1,5 @@
 <template>
-	<div :class="['bg-ba-gradient', { 'bg-ba-gradient-dark': isDark }]" class="min-h-screen">
+	<div class="bg-ba-gradient min-h-screen">
 		<!-- 頂部橫幅（紅色警告區域） -->
 		<div
 			class="absolute left-0 top-0 -translate-x-[48px] overflow-hidden"
@@ -34,7 +34,6 @@
 import ToastContainer from "~/components/common/ToastContainer.vue";
 import AlertCameraLinkagePopup from "~/components/alerts/AlertCameraLinkagePopup.vue";
 import type { MonitoringDeviceStatusBatchEvent } from "~/types/websocket";
-import { useTheme } from "~/composables/core/useTheme";
 import { useAuth } from "~/composables/core/useAuth";
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 import { useAlertCameraLinkagePopup } from "~/composables/monitoring/useAlertCameraLinkagePopup";
@@ -43,7 +42,6 @@ import BottomNavigation from "~/components/common/BottomNavigation.vue";
 import SafetyBanner from "~/components/home/SafetyBanner.vue";
 import HomeHeader from "~/components/home/HomeHeader.vue";
 
-const { isDark } = useTheme();
 const { user } = useAuth();
 const { startMonitoring, stopMonitoring } = useAlertMonitor();
 const { isConnected, on, off } = useWebSocket();
@@ -132,9 +130,5 @@ onBeforeUnmount(() => {
 <style scoped>
 .bg-ba-gradient {
 	background: linear-gradient(155deg, #13a6a9 0%, #002247 100%);
-}
-
-.bg-ba-gradient-dark {
-	background: linear-gradient(155deg, #006473 0%, #000028 100%);
 }
 </style>

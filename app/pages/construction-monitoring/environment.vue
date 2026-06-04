@@ -219,10 +219,10 @@
 		:zones="environmentZones"
 		system-type="environment"
 		:require-image-url="false"
-		device-hint="請先在「設備管理」中建立感測器設備"
 		:can-create-zone="canCreateLocation"
 		:can-update-zone="canUpdateLocation"
 		:can-delete-zone="canDeleteLocation"
+		device-hint="請先在「設備管理」中建立感測器設備"
 		@save="handleSaveZone"
 		@delete="handleDeleteZone"
 	/>
@@ -241,7 +241,7 @@
 </template>
 
 <script setup lang="ts">
-import MonitoringDetailShell from "~/components/monitoring/MonitoringDetailShell.vue";
+import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue";
 import EnvironmentGauge from "~/components/environment/EnvironmentGauge.vue";
 import EnvironmentParamCard from "~/components/environment/EnvironmentParamCard.vue";
 import OverviewLocationCard from "~/components/environment/OverviewLocationCard.vue";
@@ -253,7 +253,7 @@ import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
 import { useAlertRules } from "~/composables/monitoring/useAlertRules";
-import { useLocationModuleRbac } from "~/composables/core/useModuleRbac";
+import { useLocationModuleRbac } from "~/composables/core/useAccessGate";
 import { useEnvironmentReadingSubscription } from "~/composables/systems/environment/useEnvironmentLive";
 import { useEnvironmentDataCoordinator } from "~/composables/systems/environment/useEnvironmentDataCoordinator";
 import type { SensorReadings } from "~/composables/systems/environment/useEnvironmentLive";
@@ -295,13 +295,12 @@ import {
 	MONITORING_ACTION_BTN_CLASS,
 	MONITORING_ACTION_BTN_HOVER_CLASS
 } from "~/composables/core/usePermissionUi";
-import { useLocationModuleRbac } from "~/composables/core/useModuleRbac";
 const {
 	canManageLocation,
 	canCreateLocation,
 	canUpdateLocation,
 	canDeleteLocation,
-	canFullReport,
+	canFullReport
 } = useLocationModuleRbac(PERM.environment);
 
 const environmentApi = useEnvironmentApi();
@@ -391,7 +390,7 @@ const handleSimulationTimeRangeUpdate = (v: {
 const handleOpenLocationDialog = async () => {
 	if (!canManageLocation.value) return;
 	if (environmentZones.value.length === 0) {
-		await loadZones();
+		await loadZonesFromAPI();
 	}
 	showLocationManagementDialog.value = true;
 };
@@ -468,7 +467,6 @@ const {
 	getLocationId
 });
 
-/** hydrate 期間不顯示離線，避免先離線後有值 */
 const showSensorOffline = computed(() => !isHydrating.value && isSensorOffline.value);
 
 const noiseValue = computed(() => (showSensorOffline.value ? null : sensorData.noise));
@@ -503,9 +501,7 @@ watch(isOverviewCollapsed, collapsed => {
 // 與 environmentZones 順序一致（區域已依 sort_order／名稱慣例排序，地點依後端陣列序）
 const sortedLocations = computed(() => environmentZones.value.flatMap(zone => zone.locations));
 
-const detailEmpty = computed(
-	() => sortedLocations.value.length === 0 && !isLoadingZones.value
-);
+const detailEmpty = computed(() => sortedLocations.value.length === 0 && !isLoadingZones.value);
 
 // 啟用的參數（用於顯示）
 const enabledParameters = computed(() => {

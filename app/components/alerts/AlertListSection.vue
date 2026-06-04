@@ -25,92 +25,88 @@
 					:id="`alert-${alert.id}`"
 					:class="['rounded-xl border-2 p-4 transition-all 2xl:p-6', getAlertCardClass(alert)]"
 				>
-					<div class="flex items-start justify-between gap-4">
+					<div class="flex items-center justify-between gap-4">
 						<div class="flex-1">
 							<div class="mb-2 flex flex-wrap items-center gap-2">
-										<span :class="[badgeBaseClass, 'bg-blue-500/80']">{{
-											getSourceLabel(alert.source)
-										}}</span>
-										<span :class="[badgeBaseClass, getSeverityBadgeClass(alert.severity)]">{{
-											getSeverityLabel(alert.severity)
-										}}</span>
-										<span :class="[badgeBaseClass, getTypeBadgeClass(alert.alert_type)]">{{
-											getTypeLabel(alert.alert_type)
-										}}</span>
-										<span v-if="isAlertResolved(alert)" :class="[badgeBaseClass, 'bg-green-500/80']"
-											>已解決</span
-										>
-										<span v-if="isAlertIgnored(alert)" :class="[badgeBaseClass, 'bg-gray-500/80']"
-											>已忽視</span
-										>
+								<span :class="[badgeBaseClass, 'bg-blue-500/80']">{{ getSourceLabel(alert.source) }}</span>
+								<span :class="[badgeBaseClass, getSeverityBadgeClass(alert.severity)]">{{
+									getSeverityLabel(alert.severity)
+								}}</span>
+								<span :class="[badgeBaseClass, getTypeBadgeClass(alert.alert_type)]">{{
+									getTypeLabel(alert.alert_type)
+								}}</span>
+								<span v-if="isAlertResolved(alert)" :class="[badgeBaseClass, 'bg-green-500/80']"
+									>已解決</span
+								>
+								<span v-if="isAlertIgnored(alert)" :class="[badgeBaseClass, 'bg-gray-500/80']">已忽視</span>
+							</div>
+
+							<p class="mb-4 text-base text-white 2xl:text-lg">{{ alert.message }}</p>
+
+							<div class="mb-3 rounded-lg border border-white/10 bg-white/5 p-3 2xl:p-4">
+								<div class="grid grid-cols-4 gap-3 2xl:gap-4">
+									<div class="flex items-start gap-2">
+										<div class="min-w-0 flex-1">
+											<div class="text-sm text-white/60">
+												{{ getSourceLabel(alert.source) }}
+											</div>
+											<div class="mt-0.5 truncate text-base font-semibold text-white">
+												<span v-if="alert.zone_name">{{ alert.zone_name }} - </span
+												>{{ getSourceDisplayName(alert) }}
+											</div>
+										</div>
 									</div>
-
-									<p class="mb-4 text-base text-white 2xl:text-lg">{{ alert.message }}</p>
-
-									<div class="mb-3 rounded-lg border border-white/10 bg-white/5 p-3 2xl:p-4">
-										<div class="grid grid-cols-4 gap-3 2xl:gap-4">
-											<div class="flex items-start gap-2">
-												<div class="min-w-0 flex-1">
-													<div class="text-sm text-white/60">
-														{{ getSourceLabel(alert.source) }}
-													</div>
-													<div class="mt-0.5 truncate text-base font-semibold text-white">
-														<span v-if="alert.zone_name">{{ alert.zone_name }} - </span
-														>{{ getSourceDisplayName(alert) }}
-													</div>
-												</div>
+									<div v-if="alert.device_type_name" class="flex items-start gap-2">
+										<div class="min-w-0 flex-1">
+											<div class="text-sm text-white/60">類型</div>
+											<div class="mt-0.5 text-base font-medium text-white">
+												{{ alert.device_type_name }}
 											</div>
-											<div v-if="alert.device_type_name" class="flex items-start gap-2">
-												<div class="min-w-0 flex-1">
-													<div class="text-sm text-white/60">類型</div>
-													<div class="mt-0.5 text-base font-medium text-white">
-														{{ alert.device_type_name }}
-													</div>
-												</div>
+										</div>
+									</div>
+									<div class="flex items-start gap-2">
+										<div class="min-w-0 flex-1">
+											<div class="text-sm text-white/60">創建時間</div>
+											<div class="mt-0.5 text-base text-white">
+												{{ formatDateTime(alert.created_at) }}
 											</div>
-											<div class="flex items-start gap-2">
-												<div class="min-w-0 flex-1">
-													<div class="text-sm text-white/60">創建時間</div>
-													<div class="mt-0.5 text-base text-white">
-														{{ formatDateTime(alert.created_at) }}
-													</div>
-												</div>
-											</div>
-											<div class="flex items-start gap-2">
-												<div class="min-w-0 flex-1">
-													<div class="text-sm text-white/60">更新時間</div>
-													<div class="mt-0.5 text-base text-white">
-														{{ formatDateTime(alert.updated_at) }}
-													</div>
-												</div>
+										</div>
+									</div>
+									<div class="flex items-start gap-2">
+										<div class="min-w-0 flex-1">
+											<div class="text-sm text-white/60">更新時間</div>
+											<div class="mt-0.5 text-base text-white">
+												{{ formatDateTime(alert.updated_at) }}
 											</div>
 										</div>
 									</div>
 								</div>
-
-								<div class="flex h-[160px] flex-col justify-center gap-2">
-									<PermissionActionButton
-										:allowed="alert.status === 'active' && canIgnore && !isIgnoring"
-										aria-label="忽視警示"
-										class="rounded-lg bg-gray-500/80 px-3 py-1.5 text-base text-white disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
-										enabled-hover-class="hover:opacity-80"
-										@click="emit('ignore', alert)"
-									>
-										忽視
-									</PermissionActionButton>
-									<PermissionActionButton
-										:allowed="isAlertIgnored(alert) && canIgnore && !isIgnoring"
-										aria-label="取消忽視"
-										class="rounded-lg bg-blue-500/80 px-3 py-1.5 text-base text-white disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
-										enabled-hover-class="hover:opacity-80"
-										@click="emit('unignore', alert)"
-									>
-										取消忽視
-									</PermissionActionButton>
-								</div>
 							</div>
 						</div>
+
+						<div class="flex h-[160px] flex-col justify-center gap-2">
+							<PermissionActionButton
+								:allowed="alert.status === 'active' && canIgnore && !isIgnoring"
+								aria-label="忽視警示"
+								class="rounded-lg bg-gray-500/80 px-3 py-1.5 text-base text-white disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
+								enabled-hover-class="hover:opacity-80"
+								@click="emit('ignore', alert)"
+							>
+								忽視
+							</PermissionActionButton>
+							<PermissionActionButton
+								:allowed="isAlertIgnored(alert) && canIgnore && !isIgnoring"
+								aria-label="取消忽視"
+								class="rounded-lg bg-blue-500/80 px-3 py-1.5 text-base text-white disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
+								enabled-hover-class="hover:opacity-80"
+								@click="emit('unignore', alert)"
+							>
+								取消忽視
+							</PermissionActionButton>
+						</div>
 					</div>
+				</div>
+			</div>
 
 			<Pagination
 				v-if="totalAlerts > limit"
@@ -126,10 +122,10 @@
 </template>
 
 <script setup lang="ts">
-import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
-import type { Alert } from "~/types/alert"
-import AsyncPanel from "~/components/common/AsyncPanel.vue"
-import Pagination from "~/components/common/Pagination.vue"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
+import type { Alert } from "~/types/alert";
+import AsyncPanel from "~/components/common/AsyncPanel.vue";
+import Pagination from "~/components/common/Pagination.vue";
 import {
 	getSourceLabel,
 	getTypeLabel,
@@ -137,45 +133,45 @@ import {
 	getSeverityBadgeClass,
 	getTypeBadgeClass,
 	isAlertResolved,
-	isAlertIgnored,
-} from "~/utils/alertUtils"
-import { formatDateTime } from "~/utils/dateUtils"
+	isAlertIgnored
+} from "~/utils/alertUtils";
+import { formatDateTime } from "~/utils/dateUtils";
 
 defineProps<{
-	alerts: Alert[]
-	totalAlerts: number
-	unresolvedCount: number
-	offset: number
-	limit: number
-	isLoading: boolean
-	error?: string | null
-	isIgnoring: boolean
-	canIgnore: boolean
-}>()
+	alerts: Alert[];
+	totalAlerts: number;
+	unresolvedCount: number;
+	offset: number;
+	limit: number;
+	isLoading: boolean;
+	error?: string | null;
+	isIgnoring: boolean;
+	canIgnore: boolean;
+}>();
 
 const emit = defineEmits<{
-	(e: "ignore", alert: Alert): void
-	(e: "unignore", alert: Alert): void
-	(e: "previous"): void
-	(e: "next"): void
-}>()
+	(e: "ignore", alert: Alert): void;
+	(e: "unignore", alert: Alert): void;
+	(e: "previous"): void;
+	(e: "next"): void;
+}>();
 
 const badgeBaseClass =
-	"inline-block rounded-full px-3 py-1 text-base font-semibold text-white 2xl:px-4 2xl:py-1.5"
+	"inline-block rounded-full px-3 py-1 text-base font-semibold text-white 2xl:px-4 2xl:py-1.5";
 
 const getSourceDisplayName = (alert: Alert): string =>
 	alert.source_display_name ||
 	alert.location_name ||
 	alert.source_name ||
-	`${getSourceLabel(alert.source)} #${alert.source_id}`
+	`${getSourceLabel(alert.source)} #${alert.source_id}`;
 
 const getAlertCardClass = (alert: Alert) => {
-	if (isAlertResolved(alert)) return "border-green-500/30 bg-green-500/5"
-	if (isAlertIgnored(alert)) return "border-gray-500/30 bg-gray-500/5"
+	if (isAlertResolved(alert)) return "border-green-500/30 bg-green-500/5";
+	if (isAlertIgnored(alert)) return "border-gray-500/30 bg-gray-500/5";
 	const severityClasses: Record<string, string> = {
 		warning: "border-yellow-500 bg-yellow-500/30",
-		critical: "border-red-500 bg-red-500/30",
-	}
-	return severityClasses[alert.severity] || "border-white/20 bg-white/5"
-}
+		critical: "border-red-500 bg-red-500/30"
+	};
+	return severityClasses[alert.severity] || "border-white/20 bg-white/5";
+};
 </script>

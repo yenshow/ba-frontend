@@ -6,122 +6,113 @@
 			:error="rulesLoadError"
 			empty-title="目前沒有警報定義"
 		>
-				<div :key="`rules-${ruleOffset}-${rules.length}`">
-					<table class="w-full text-center">
-						<thead>
-							<tr class="border-b border-white/20">
-								<th :class="tableHeaderClass">#</th>
-								<th :class="tableHeaderClass">目標</th>
-								<th :class="tableHeaderClass">條件</th>
-								<th :class="tableHeaderClass">類型</th>
-								<th :class="tableHeaderClass">層級</th>
-								<th :class="tableHeaderClass">狀態</th>
-								<th :class="tableHeaderClass">連動</th>
-								<th :class="tableHeaderClass">操作</th>
-							</tr>
-						</thead>
-						<tbody>
-							<tr
-								v-for="(rule, index) in paginatedRules"
-								:key="rule.id"
-								class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
-							>
-								<td :class="tableCellClass">{{ ruleOffset + index + 1 }}</td>
-								<td :class="[tableCellClass, 'text-white/70']">
-									{{ getRuleTargetText(rule) }}
-								</td>
-								<td :class="[tableCellClass, 'text-white/70']">
-									{{ formatAlertRuleConditionDisplay(rule) }}
-								</td>
-								<td :class="tableCellClass">
-									<span
-										:class="[
-											getAlertTypeBadgeClass(rule.alert_type),
-											'rounded px-2 py-1 2xl:px-3 2xl:py-1.5',
-										]"
-									>
-										{{ getAlertTypeLabel(rule.alert_type) }}
-									</span>
-								</td>
-								<td :class="tableCellClass">
-									<span
-										:class="[
-											getSeverityBadgeClass(rule.severity),
-											'rounded px-2 py-1 2xl:px-3 2xl:py-1.5',
-										]"
-									>
-										{{ getSeverityLabel(rule.severity) }}
-									</span>
-								</td>
-								<td :class="tableCellClass">
-									<span
-										:class="[
-											getRuleStatusBadgeClass(rule.enabled),
-											'rounded px-2 py-1 2xl:px-3 2xl:py-1.5',
-										]"
-									>
-										{{ rule.enabled ? "啟用" : "停用" }}
-									</span>
-								</td>
-								<td :class="tableCellClass">
-									<div class="flex flex-wrap items-center justify-center gap-1.5">
-										<template v-if="getIntegrationSummary(rule.id).hasAny">
-											<span
-												v-if="getIntegrationSummary(rule.id).doEnabled"
-												class="rounded bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-100 2xl:text-sm"
-											>
-												DO
-											</span>
-											<span
-												v-if="getIntegrationSummary(rule.id).cameraEnabled"
-												class="rounded bg-sky-500/20 px-2 py-0.5 text-xs text-sky-100 2xl:text-sm"
-											>
-												攝影機
-											</span>
-											<span
-												v-if="getIntegrationSummary(rule.id).emailEnabled"
-												class="rounded bg-violet-500/20 px-2 py-0.5 text-xs text-violet-100 2xl:text-sm"
-											>
-												Email
-											</span>
-										</template>
-										<span v-else class="text-sm text-white/40">—</span>
-									</div>
-								</td>
-								<td :class="tableCellClass">
-									<div class="flex flex-wrap gap-2 2xl:gap-3">
-										<PermissionActionButton
-											:allowed="canUpdateRule"
-											aria-label="編輯警報規則"
-											class="btn-list-edit"
-											@click="openEditRuleDialog(rule)"
+			<div :key="`rules-${ruleOffset}-${rules.length}`">
+				<table class="w-full text-center">
+					<thead>
+						<tr class="border-b border-white/20">
+							<th :class="tableHeaderClass">#</th>
+							<th :class="tableHeaderClass">目標</th>
+							<th :class="tableHeaderClass">條件</th>
+							<th :class="tableHeaderClass">類型</th>
+							<th :class="tableHeaderClass">層級</th>
+							<th :class="tableHeaderClass">狀態</th>
+							<th :class="tableHeaderClass">連動</th>
+							<th :class="tableHeaderClass">操作</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr
+							v-for="(rule, index) in paginatedRules"
+							:key="rule.id"
+							class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
+						>
+							<td :class="tableCellClass">{{ ruleOffset + index + 1 }}</td>
+							<td :class="[tableCellClass, 'text-white/70']">
+								{{ getRuleTargetText(rule) }}
+							</td>
+							<td :class="[tableCellClass, 'text-white/70']">
+								{{ formatAlertRuleConditionDisplay(rule) }}
+							</td>
+							<td :class="tableCellClass">
+								<span
+									:class="[
+										getAlertTypeBadgeClass(rule.alert_type),
+										'rounded px-2 py-1 2xl:px-3 2xl:py-1.5',
+									]"
+								>
+									{{ getAlertTypeLabel(rule.alert_type) }}
+								</span>
+							</td>
+							<td :class="tableCellClass">
+								<span
+									:class="[
+										getSeverityBadgeClass(rule.severity),
+										'rounded px-2 py-1 2xl:px-3 2xl:py-1.5',
+									]"
+								>
+									{{ getSeverityLabel(rule.severity) }}
+								</span>
+							</td>
+							<td :class="tableCellClass">
+								<span
+									:class="[
+										getRuleStatusBadgeClass(rule.enabled),
+										'rounded px-2 py-1 2xl:px-3 2xl:py-1.5',
+									]"
+								>
+									{{ rule.enabled ? "啟用" : "停用" }}
+								</span>
+							</td>
+							<td :class="tableCellClass">
+								<div class="flex flex-wrap items-center justify-center gap-1.5">
+									<template v-if="getIntegrationSummary(rule.id).hasAny">
+										<span
+											v-if="getIntegrationSummary(rule.id).cameraEnabled"
+											class="rounded bg-sky-500/20 px-2 py-0.5 text-xs text-sky-100 2xl:text-sm"
+											>攝影機</span
 										>
-											編輯
-										</PermissionActionButton>
-										<PermissionActionButton
-											:allowed="canDeleteRule"
-											aria-label="刪除警報規則"
-											class="btn-list-delete"
-											@click="handleDeleteRule(rule)"
+										<span
+											v-if="getIntegrationSummary(rule.id).emailEnabled"
+											class="rounded bg-violet-500/20 px-2 py-0.5 text-xs text-violet-100 2xl:text-sm"
 										>
-											刪除
-										</PermissionActionButton>
-									</div>
-								</td>
-							</tr>
-						</tbody>
-					</table>
+											Email
+										</span>
+									</template>
+									<span v-else class="text-sm text-white/40">—</span>
+								</div>
+							</td>
+							<td :class="tableCellClass">
+								<div class="flex flex-wrap gap-2 2xl:gap-3">
+									<PermissionActionButton
+										:allowed="canUpdateRule"
+										aria-label="編輯警報規則"
+										class="btn-list-edit"
+										@click="openEditRuleDialog(rule)"
+										>編輯</PermissionActionButton
+									>
+									<PermissionActionButton
+										:allowed="canDeleteRule"
+										aria-label="刪除警報規則"
+										class="btn-list-delete"
+										@click="handleDeleteRule(rule)"
+										>刪除</PermissionActionButton
+									>
+								</div>
+							</td>
+						</tr>
+					</tbody>
+				</table>
 
-					<Pagination
-						v-if="rules.length > ruleLimit"
-						:total="rules.length"
-						:offset="ruleOffset"
-						:limit="ruleLimit"
-						:disabled="isRulesLoading"
-						@previous="goToPreviousRulePage"
-						@next="goToNextRulePage"
-					/>
-				</div>
+				<Pagination
+					v-if="rules.length > ruleLimit"
+					:total="rules.length"
+					:offset="ruleOffset"
+					:limit="ruleLimit"
+					:disabled="isRulesLoading"
+					@previous="goToPreviousRulePage"
+					@next="goToNextRulePage"
+				/>
+			</div>
 		</AsyncPanel>
 	</section>
 
@@ -181,7 +172,7 @@ import {
 	formatAlertRuleConditionDisplay,
 	getSeverityLabel,
 } from "~/utils/alertUtils"
-import { useAlertLogRbac } from "~/composables/core/useModuleRbac"
+import { useAlertLogRbac } from "~/composables/core/useAccessGate"
 
 const { canUpdateRule, canDeleteRule } = useAlertLogRbac()
 
@@ -242,14 +233,9 @@ const ruleSourceOptions = [
 	{ value: "", label: "全部系統" },
 	{ value: "device", label: "設備系統" },
 	{ value: "environment", label: "環境系統" },
-	{ value: "lighting", label: "照明系統" },
-	{ value: "drainage", label: "衛生排水系統" },
-	{ value: "power", label: "電力系統" },
-	{ value: "hvac", label: "空調系統" },
-	{ value: "air_circulation", label: "空氣循環系統" },
-	{ value: "fire", label: "消防系統" },
-	{ value: "smoke_alarm", label: "煙霧警報系統" },
-	{ value: "emergency_rescue", label: "緊急求救系統" },
+	{ value: "people_counting", label: "人流統計" },
+	{ value: "surveillance", label: "影像監控" },
+	{ value: "vehicle_access", label: "車輛進出" },
 ]
 
 const tableHeaderClass = "py-3 2xl:py-4 px-4 2xl:px-6 text-sm 2xl:text-base text-white/80"
@@ -331,7 +317,6 @@ const closeRuleDialog = () => {
 const handleSubmitRule = async (payload: {
 	rule: CreateAlertRulePayload
 	integrations: Partial<{
-		doLinkage: unknown
 		cameraLinkage: unknown
 		emailSubscription: unknown
 	}>
@@ -423,8 +408,6 @@ const getAlertTypeBadgeClass = (type: AlertType) => {
 		offline: "bg-gray-500/20 text-gray-200",
 		error: "bg-red-500/20 text-red-200",
 		threshold: "bg-blue-500/20 text-blue-200",
-		di: "bg-emerald-500/20 text-emerald-200",
-		do: "bg-sky-500/20 text-sky-200",
 	}
 	return classes[type] ?? "bg-gray-500/20 text-gray-200"
 }
@@ -433,14 +416,11 @@ const getAlertTypeLabel = (type: AlertType) => {
 	const labels: Record<AlertType, string> = {
 		offline: "設備狀態警報",
 		threshold: "環境參數警報",
-		di: "DI 警報",
-		do: "DO 警報",
 		error: "系統錯誤警報",
 	}
 	return labels[type] ?? String(type)
 }
 
-/** 與 users.vue 狀態徽章色階一致之嚴重度區分 */
 const getSeverityBadgeClass = (severity: AlertSeverity) => {
 	const classes: Record<AlertSeverity, string> = {
 		warning: "bg-yellow-500/20 text-yellow-200",

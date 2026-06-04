@@ -286,8 +286,8 @@ import type { SystemModule } from "~/types/system";
 import { useAuth } from "~/composables/core/useAuth";
 import { useToast } from "~/composables/core/useToast";
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
-import { useLicense } from "~/composables/core/useLicense";
-import { LICENSE_MESSAGE_LOCKED, PERMISSION_MESSAGE_LOCKED } from "~/utils/licenseUtils";
+import { useAccessGate } from "~/composables/core/useAccessGate";
+import { PERMISSION_MESSAGE_LOCKED } from "~/utils/errorUtils";
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 import {
 	useAppShellNavigation,
@@ -301,7 +301,7 @@ const { constructionOverviewModules, hasConstructionOverviewMenu, systemSettings
 	useAppShellNavigation();
 const systemSettingsSectionLabels = SYSTEM_SETTINGS_SECTION_LABELS;
 const toast = useToast();
-const { isModuleLocked: isModuleLockedByLicense } = useLicense();
+const accessGate = useAccessGate();
 const moduleRegistry = useModuleRegistry();
 
 // 未解決警報數量（參考 AppHeader 顯示）
@@ -483,18 +483,11 @@ const navigateToRoute = (routePath: string) => {
 	router.push(routePath);
 };
 
-const isModuleLocked = (module: SystemModule) => {
-	return isModuleLockedByLicense(module) || !moduleRegistry.canAccessModule(module);
-};
+const isModuleLocked = (module: SystemModule) => accessGate.isModuleLocked(module);
 
 const handleModuleClick = (module: SystemModule) => {
-	if (!moduleRegistry.canAccessModule(module)) {
+	if (!accessGate.canAccessModule(module)) {
 		toast.warning(PERMISSION_MESSAGE_LOCKED);
-		return;
-	}
-
-	if (isModuleLockedByLicense(module)) {
-		toast.warning(LICENSE_MESSAGE_LOCKED);
 		return;
 	}
 
@@ -502,14 +495,8 @@ const handleModuleClick = (module: SystemModule) => {
 };
 
 const handleOverviewModuleClick = (module: SystemModule) => {
-	if (!moduleRegistry.canAccessModule(module)) {
+	if (!accessGate.canAccessModule(module)) {
 		toast.warning(PERMISSION_MESSAGE_LOCKED);
-		closeAllMenus();
-		return;
-	}
-
-	if (isModuleLockedByLicense(module)) {
-		toast.warning(LICENSE_MESSAGE_LOCKED);
 		closeAllMenus();
 		return;
 	}

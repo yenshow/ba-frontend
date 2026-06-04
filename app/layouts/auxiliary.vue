@@ -1,5 +1,5 @@
 <template>
-	<div :class="['bg-ba-gradient', { 'bg-ba-gradient-dark': isDark }]" class="min-h-screen">
+	<div class="bg-ba-gradient min-h-screen">
 		<main class="p-8 2xl:px-12 2xl:py-16">
 			<slot />
 		</main>
@@ -9,13 +9,11 @@
 
 <script setup lang="ts">
 import type { MonitoringDeviceStatusBatchEvent } from "~/types/websocket";
-import { useTheme } from "~/composables/core/useTheme";
 import { useAuth } from "~/composables/core/useAuth";
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import BottomNavigation from "~/components/common/BottomNavigation.vue";
 
-const { isDark } = useTheme();
 const { user } = useAuth();
 const { startMonitoring, stopMonitoring } = useAlertMonitor();
 const { isConnected, on, off } = useWebSocket();
@@ -101,9 +99,5 @@ onBeforeUnmount(() => {
 <style scoped>
 .bg-ba-gradient {
 	background: linear-gradient(155deg, #13a6a9 0%, #002247 100%);
-}
-
-.bg-ba-gradient-dark {
-	background: linear-gradient(155deg, #006473 0%, #000028 100%);
 }
 </style>

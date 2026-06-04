@@ -50,9 +50,6 @@ export const useAuth = () => {
 	const useHasAnyPermission = (...codes: string[]) =>
 		computed(() => hasAnyPermission(...codes));
 
-	/** 模組父層權限（PERM.xxx.module） */
-	const useCanWriteModule = (moduleCode: string) => useHasPermission(moduleCode);
-
 	const login = async (credentials: LoginCredentials) => {
 		try {
 			const response = await userApi.login(credentials);
@@ -109,7 +106,6 @@ export const useAuth = () => {
 		hasAnyPermission,
 		useHasPermission,
 		useHasAnyPermission,
-		useCanWriteModule,
 		login,
 		logout,
 		fetchUser,
@@ -117,7 +113,7 @@ export const useAuth = () => {
 	};
 };
 
-/** 平台管理員角色（users / license / env 等；見 config/platformAdminRoutes.ts） */
+/** 平台管理員角色（users / license / env 等；見 useAccessGate PLATFORM_ADMIN_ROUTES） */
 export const useAdminOnly = () => {
 	const { user } = useAuth();
 	return computed(() => isAdminRole(user.value?.role));

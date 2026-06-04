@@ -10,6 +10,7 @@ import {
 	USER_FACING_API_UNEXPECTED,
 	USER_FACING_CONNECTION_ERROR,
 	type ApiErrorCode,
+	resolveUserFacingApiError,
 } from "~/utils/errorUtils"
 import {
 	assertYscpResponseSuccess,
@@ -18,10 +19,11 @@ import {
 	unwrapYscpSuccessData,
 	YscpApiBusinessError,
 } from "~/utils/parseBackendApiFailure"
-import { resolveUserFacingApiError } from "~/utils/resolveUserFacingApiError"
 
 // GET 同 URL 同時間去重（避免多個元件/多個 watch 同步觸發造成 burst）
 const inFlightGetRequests = new Map<string, Promise<unknown>>()
+
+let permissionRefreshInFlight: Promise<void> | null = null
 
 type RequestOptions = Omit<RequestInit, "body"> & {
 	timeout?: number
@@ -87,6 +89,22 @@ export const useApiBase = () => {
 		const statusCode = resolveFetchHttpStatus(error) ?? options?.fallbackStatus
 		const originalMessage =
 			failure.message || extractBackendApiErrorText(error, path) || undefined
+
+		if (
+			statusCode === 403 &&
+			failure.backendCode === "PERMISSION_DENIED" &&
+			process.client
+		) {
+			const { fetchUser } = useAuth()
+			if (!permissionRefreshInFlight) {
+				permissionRefreshInFlight = fetchUser()
+					.catch(() => undefined)
+					.finally(() => {
+						permissionRefreshInFlight = null
+					}) as Promise<void>
+			}
+			await permissionRefreshInFlight
+		}
 
 		if (statusCode === 401) {
 			const { logout } = useAuth()

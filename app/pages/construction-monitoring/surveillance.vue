@@ -59,8 +59,8 @@
 						<Transition name="fade" mode="out-in">
 							<!-- 錯誤狀態 -->
 							<div v-if="loadError" key="error" class="flex h-full items-center justify-center">
-								<div class="rounded-lg bg-red-50/90 p-6 text-center dark:bg-red-900/30">
-									<p class="text-red-600 dark:text-red-400">{{ loadError }}</p>
+								<div class="rounded-lg bg-red-50/90 p-6 text-center">
+									<p class="text-red-600">{{ loadError }}</p>
 									<button
 										@click="loadCameras"
 										class="mt-4 rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600"

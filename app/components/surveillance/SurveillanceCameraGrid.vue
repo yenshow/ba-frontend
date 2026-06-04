@@ -10,7 +10,7 @@
 					isFullscreen ? 'rounded-none border-0' : 'rounded-lg border-2',
 					isSelected(view.deviceId)
 						? 'border-blue-500 ring-2 ring-blue-500'
-						: 'border-gray-300 dark:border-gray-700'
+						: 'border-gray-300'
 				]"
 				:style="{ aspectRatio: '16/9' }"
 			>
@@ -60,10 +60,10 @@
 					'flex aspect-video items-center justify-center',
 					isFullscreen
 						? 'bg-black'
-						: 'rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-800'
+						: 'rounded-lg border-2 border-dashed border-gray-300 bg-gray-50'
 				]"
 			>
-				<p v-if="!isFullscreen" class="text-sm text-gray-400 2xl:text-base dark:text-gray-500">空位</p>
+				<p v-if="!isFullscreen" class="text-sm text-gray-400 2xl:text-base">空位</p>
 			</div>
 		</div>
 	</div>
