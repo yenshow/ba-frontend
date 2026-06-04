@@ -1,5 +1,5 @@
 import type { Alert } from "~/types/alert"
-import type { Device, DeviceStatus } from "~/types/device"
+import type { Device } from "~/types/device"
 
 /**
  * WebSocket 連接狀態
@@ -50,13 +50,6 @@ export interface DeviceUpdatedEvent {
 export interface DeviceDeletedEvent {
 	deviceId: number
 	userId: number
-	timestamp: string
-}
-
-export interface DeviceStatusChangedEvent {
-	deviceId: number
-	oldStatus: DeviceStatus
-	newStatus: DeviceStatus
 	timestamp: string
 }
 
