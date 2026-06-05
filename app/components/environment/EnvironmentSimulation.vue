@@ -1,8 +1,18 @@
 <template>
 	<section class="min-h-[664px] rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-			<p class="text-base text-white/70 2xl:text-lg">共 {{ mergedDetailReadings.length }} 筆讀數</p>
-			<div class="flex items-center gap-3 2xl:gap-4">
+			<div v-if="locationFilterOptions.length > 1" class="flex items-center gap-2">
+				<label class="text-lg font-semibold 2xl:text-xl">地點：</label>
+				<div class="min-w-[10rem]">
+					<FilterDropdown
+						v-model="filterLocationId"
+						:options="locationFilterOptions"
+						placeholder="全部"
+						text-size="text-sm 2xl:text-base"
+					/>
+				</div>
+			</div>
+			<div class="flex flex-wrap items-center gap-3 2xl:gap-4">
 				<TimeRangePicker v-model="timeRangeModel" :presets="[...TIME_RANGE_PRESETS_FULL_REPORT]" />
 				<button
 					type="button"
@@ -112,6 +122,14 @@ import { formatDateTime, TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtil
 import { buildCsvSection } from "~/utils/csvExport"
 import { formatSensorValue } from "~/utils/sensorUtils"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
+import FilterDropdown from "~/components/common/FilterDropdown.vue"
+
+export type EnvironmentSimulationLocationOption = {
+	locationId: string
+	label: string
+	zoneName: string
+	locationName: string
+}
 
 const paramCols = [
 	"CO2",
@@ -136,12 +154,17 @@ type EnvTableRow = {
 	_cellClasses?: Record<string, string>
 } & Record<(typeof allCols)[number], string>
 
+type NormalizedReading = {
+	timestamp: string
+	locationId: string
+	data: SensorReading["data"]
+}
+
 const props = defineProps<{
 	summaryReadings: SensorReading[]
 	detailReadings: SensorReading[]
 	preset: string
-	zoneName: string
-	locationName: string
+	locationOptions: EnvironmentSimulationLocationOption[]
 	timeRange: { startDate: string; endDate: string; preset: string }
 	getCellClass?: (type: SensorParameterType, value: number | null) => string
 }>()
@@ -155,11 +178,32 @@ const timeRangeModel = computed({
 	set: (v) => emit("update:timeRange", v),
 })
 
-const zoneLocationLabel = computed(() => {
-	const z = props.zoneName || ""
-	const l = props.locationName || ""
-	return [z, l].filter(Boolean).join("-") || "-"
+const filterLocationId = ref("")
+
+const locationLabelById = computed(() => {
+	const map = new Map<string, string>()
+	for (const opt of props.locationOptions) {
+		map.set(String(opt.locationId), opt.label)
+	}
+	return map
 })
+
+const locationFilterOptions = computed(() => [
+	{ value: "", label: "全部" },
+	...props.locationOptions.map((opt) => ({
+		value: String(opt.locationId),
+		label: opt.label,
+	})),
+])
+
+const getZoneLocationLabel = (locationId: string): string =>
+	locationLabelById.value.get(String(locationId)) || locationId || "-"
+
+const filterReadingsByLocation = (readings: SensorReading[]): SensorReading[] => {
+	const locFilter = filterLocationId.value
+	if (!locFilter) return readings
+	return readings.filter((r) => String(r.locationId) === locFilter)
+}
 
 const hasSummaryTable = computed(() => {
 	const p = props.preset
@@ -173,7 +217,6 @@ const summaryTitle = computed(() => {
 
 const detailTitle = computed(() => {
 	if (props.preset === "today" || props.preset === "yesterday") return "詳細資料"
-	// 週／月：頁面已改為 aggregated day（每日平均）
 	return "每日平均"
 })
 
@@ -194,26 +237,24 @@ const PARAM_KEYS = [
 
 const DERIVED_KEYS = ["aqi", "heatIndex"] as const
 
-/**
- * 依時間區間合併多筆讀數（同一區間內多設備的資料合併為一筆，同一參數取平均）
- * @param bucketMinutes 區間分鐘數。詳細資料建議 5（與後端寫入週期一致），同一地點多設備會整合在同一列
- */
 function mergeReadingsByTime(
-	readings: SensorReading[],
+	readings: NormalizedReading[],
 	bucketMinutes: number = 1
-): Array<{ timestamp: string; data: SensorReading["data"] }> {
+): NormalizedReading[] {
 	if (readings.length === 0) return []
 	const msPerBucket = bucketMinutes * 60 * 1000
 	const roundToBucket = (ts: string) =>
 		Math.floor(new Date(ts).getTime() / msPerBucket) * msPerBucket
-	const groups = new Map<number, SensorReading[]>()
+	const groups = new Map<string, NormalizedReading[]>()
 	for (const r of readings) {
-		const key = roundToBucket(r.timestamp)
-		if (!groups.has(key)) groups.set(key, [])
-		groups.get(key)!.push(r)
+		const groupKey = `${r.locationId}::${roundToBucket(r.timestamp)}`
+		if (!groups.has(groupKey)) groups.set(groupKey, [])
+		groups.get(groupKey)!.push(r)
 	}
-	const merged: Array<{ timestamp: string; data: SensorReading["data"] }> = []
-	for (const [timeMs, list] of groups) {
+	const merged: NormalizedReading[] = []
+	for (const [groupKey, list] of groups) {
+		const locationId = groupKey.split("::")[0] ?? ""
+		const timeMs = Number(groupKey.split("::")[1])
 		const data: SensorReading["data"] = {}
 		for (const key of PARAM_KEYS) {
 			const values = list
@@ -227,34 +268,35 @@ function mergeReadingsByTime(
 				.filter((v): v is number => v != null && typeof v === "number" && !Number.isNaN(v))
 			if (values.length > 0) data[key] = values.reduce((a, b) => a + b, 0) / values.length
 		}
-		merged.push({ timestamp: new Date(timeMs).toISOString(), data })
+		merged.push({ timestamp: new Date(timeMs).toISOString(), locationId, data })
 	}
 	return merged
 }
 
-const normalizeReadings = (
-	readings: SensorReading[]
-): Array<{ timestamp: string; data: SensorReading["data"] }> =>
-	(readings || []).map((r) => ({ timestamp: r.timestamp, data: r.data || {} }))
+const normalizeReadings = (readings: SensorReading[]): NormalizedReading[] =>
+	(readings || []).map((r) => ({
+		timestamp: r.timestamp,
+		locationId: String(r.locationId ?? ""),
+		data: r.data || {},
+	}))
 
 const mergedSummaryReadings = computed(() => {
 	if (!hasSummaryTable.value) return []
-	const rows = normalizeReadings(props.summaryReadings)
+	const rows = normalizeReadings(filterReadingsByLocation(props.summaryReadings))
 	rows.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 	return rows
 })
 
 const mergedDetailReadings = computed(() => {
+	const filtered = filterReadingsByLocation(props.detailReadings)
 	const isDayRange = props.preset === "today" || props.preset === "yesterday"
 	if (isDayRange) {
-		// raw：以 5 分鐘區間合併，與後端寫入週期一致，同一地點多設備的資料會整合在同一列
-		const merged = mergeReadingsByTime(props.detailReadings, 5)
+		const merged = mergeReadingsByTime(normalizeReadings(filtered), 5)
 		merged.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 		return merged
 	}
 
-	// aggregated（day）：不需要再做分鐘 bucket 合併，只需排序
-	const rows = normalizeReadings(props.detailReadings)
+	const rows = normalizeReadings(filtered)
 	rows.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 	return rows
 })
@@ -281,16 +323,16 @@ const formatDerivedValue = (
 }
 
 function readingToRow(
-	r: { timestamp: string; data: SensorReading["data"] },
+	r: NormalizedReading,
 	index: number,
 	timeLabel: "區間起點" | "記錄時間"
 ): EnvTableRow {
 	const d = r.data || {}
-	const key = `env-${index}-${r.timestamp}`
+	const key = `env-${index}-${r.locationId}-${r.timestamp}`
 	const timeVal = r.timestamp ? formatDateTime(r.timestamp, true) : ""
 	const row: EnvTableRow = {
 		key,
-		"區域-地點": zoneLocationLabel.value,
+		"區域-地點": getZoneLocationLabel(r.locationId),
 		[timeLabel]: timeVal,
 		CO2: formatValue("co2", d.co2),
 		HCHO: formatValue("hcho", d.hcho),

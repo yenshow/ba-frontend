@@ -2,7 +2,7 @@
 	<div class="group flex h-full min-h-0 flex-col">
 		<!-- 建物主視：可捲動 -->
 		<div class="relative flex-1 min-h-0 w-full px-6 py-4 2xl:px-12 2xl:py-6">
-			<div class="relative h-full w-full overflow-hidden rounded-3xl">
+			<div class="group relative h-full w-full overflow-hidden rounded-3xl">
 				<img
 					v-if="buildingDisplaySrc"
 					:src="buildingDisplaySrc"
@@ -19,7 +19,7 @@
 				<PermissionActionButton
 					:allowed="canWrite"
 					aria-label="編輯建物主視"
-					class="absolute right-3 top-3 rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur enabled:hover:bg-black/50 2xl:text-base"
+					class="absolute right-3 top-3 rounded-full bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100 enabled:hover:bg-black/50 2xl:text-base"
 					@click="isBuildingEditOpen = true"
 				>
 					編輯
@@ -29,7 +29,7 @@
 
 		<!-- 建物品牌：固定高度 -->
 		<div class="relative w-full px-6 pb-4 2xl:px-12 2xl:pb-6">
-			<div class="relative h-[96px] w-full overflow-hidden rounded-2xl 2xl:h-[112px]">
+			<div class="group relative h-[96px] w-full overflow-hidden rounded-2xl 2xl:h-[112px]">
 				<img
 					v-if="brandDisplaySrc"
 					:src="brandDisplaySrc"
@@ -46,7 +46,7 @@
 				<PermissionActionButton
 					:allowed="canWrite"
 					aria-label="編輯建物品牌圖"
-					class="absolute right-3 top-3 rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur enabled:hover:bg-black/50 2xl:text-base"
+					class="absolute right-3 top-3 rounded-full bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100 enabled:hover:bg-black/50 2xl:text-base"
 					@click="isBrandEditOpen = true"
 				>
 					編輯

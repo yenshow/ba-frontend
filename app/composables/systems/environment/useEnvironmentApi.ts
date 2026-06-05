@@ -26,6 +26,8 @@ export interface GetReadingsOptions {
 	limit?: number;
 	/** 預設 asc（歷史序列）；即時快照請用 desc + limit 1 */
 	order?: EnvironmentReadingsOrder;
+	/** 完整報表模擬框；後端另檢查 system.environment.report.full */
+	reportScope?: "full";
 }
 
 export type AggregatedBucket = "hour" | "day" | "month";
@@ -34,6 +36,8 @@ export interface GetReadingsAggregatedOptions {
 	bucket: AggregatedBucket;
 	startTime?: string;
 	endTime?: string;
+	/** 完整報表模擬框；後端另檢查 system.environment.report.full */
+	reportScope?: "full";
 }
 
 export type EnvironmentAggregatedSource = "aggregated" | "raw_computed";
@@ -70,6 +74,7 @@ export const useEnvironmentApi = () => {
 			if (options?.endTime) params.endTime = options.endTime;
 			if (options?.limit) params.limit = options.limit;
 			if (options?.order) params.order = options.order;
+			if (options?.reportScope) params.reportScope = options.reportScope;
 
 			const path = buildPathWithQuery(`/environment/readings/${locationId}`, params);
 			return request<{ readings: SensorReading[] }>(path);
@@ -78,6 +83,7 @@ export const useEnvironmentApi = () => {
 			const params: Record<string, unknown> = { bucket: options.bucket };
 			if (options.startTime) params.startTime = options.startTime;
 			if (options.endTime) params.endTime = options.endTime;
+			if (options.reportScope) params.reportScope = options.reportScope;
 			const path = buildPathWithQuery(`/environment/readings/${locationId}/aggregated`, params);
 			return request<EnvironmentReadingsAggregatedResponse>(path);
 		}

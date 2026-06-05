@@ -2,6 +2,7 @@ import { computed } from "vue"
 import { useAdminOnly, useAuth } from "~/composables/core/useAuth"
 import { useLicense } from "~/composables/core/useLicense"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
+import { useToast } from "~/composables/core/useToast"
 import { canAccessAccountPage } from "~/composables/systems/users/useAccountSettings"
 import { LOCATION_DELETE_BY_SYSTEM_TYPE, PERM } from "~/config/permissionCodes"
 import type { FeatureKey } from "~/types/license"
@@ -26,13 +27,24 @@ export type RouteAccessResult = {
 	redirectMessage?: string
 }
 
+export type CheckRouteAccessOptions = {
+	/** middleware：僅用快取，不觸發可能 401 的 API；interactive：完整檢查（UI 互動） */
+	mode?: "middleware" | "interactive"
+}
+
 export const useAccessGate = () => {
 	const { hasPermission, isAuthenticated, user } = useAuth()
 	const canAdmin = useAdminOnly()
 	const moduleRegistry = useModuleRegistry()
 	const { hasFeature, fetchLicense, isLoaded } = useLicense()
 
-	const checkRouteAccess = async (path: string): Promise<RouteAccessResult> => {
+	const checkRouteAccess = async (
+		path: string,
+		options: CheckRouteAccessOptions = {},
+	): Promise<RouteAccessResult> => {
+		const mode = options.mode ?? "interactive"
+		const isMiddlewareMode = mode === "middleware"
+
 		if (path === "/login") return { ok: true, reason: "ok" }
 
 		if (!isAuthenticated.value) {
@@ -53,7 +65,14 @@ export const useAccessGate = () => {
 			return { ok: true, reason: "ok" }
 		}
 
-		await moduleRegistry.ensureLoaded()
+		if (isMiddlewareMode) {
+			if (!moduleRegistry.registry.value?.modules?.length) {
+				return { ok: true, reason: "ok" }
+			}
+		} else {
+			await moduleRegistry.ensureLoaded()
+		}
+
 		const permissionCode = moduleRegistry.getPermissionCodeByRoute(path)
 		if (permissionCode && !hasPermission(permissionCode)) {
 			return {
@@ -65,6 +84,10 @@ export const useAccessGate = () => {
 
 		const featureKey = moduleRegistry.getFeatureKeyByRoute(path) as FeatureKey | null
 		if (!featureKey) return { ok: true, reason: "ok" }
+
+		if (isMiddlewareMode && !isLoaded.value) {
+			return { ok: true, reason: "ok" }
+		}
 
 		if (!isLoaded.value) await fetchLicense()
 		if (hasFeature(featureKey)) return { ok: true, reason: "ok" }
@@ -90,8 +113,29 @@ export const useAccessGate = () => {
 
 	const isModuleLocked = (module: Pick<SystemModule, "route">) => !canAccessModule(module)
 
+	const handleAccessDenied = (path: string, result: RouteAccessResult) => {
+		if (result.ok || path === "/") return
+
+		if (result.reason === "account") {
+			if (process.client) useToast().warning("管理員請使用用戶管理重設密碼")
+			return navigateTo("/")
+		}
+
+		if (result.reason === "admin") {
+			if (process.client) useToast().warning("僅管理員可存取此頁面")
+			return navigateTo("/")
+		}
+
+		if (result.redirectMessage && process.client) {
+			useToast().warning(result.redirectMessage)
+		}
+
+		return navigateTo("/")
+	}
+
 	return {
 		checkRouteAccess,
+		handleAccessDenied,
 		canAccessModule,
 		isModuleLocked,
 	}

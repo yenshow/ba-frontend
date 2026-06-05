@@ -17,7 +17,7 @@ export const useAuth = () => {
 	const tokenCookie = useCookie<string | null>("auth_token", {
 		default: () => null,
 		secure: isSecure,
-		sameSite: "strict",
+		sameSite: "lax",
 		maxAge: 60 * 60 * 24 * 7,
 		httpOnly: false,
 	})
@@ -25,7 +25,7 @@ export const useAuth = () => {
 	const userCookie = useCookie<User | null>("auth_user", {
 		default: () => null,
 		secure: isSecure,
-		sameSite: "strict",
+		sameSite: "lax",
 		maxAge: 60 * 60 * 24 * 7,
 		httpOnly: false,
 	})
@@ -47,8 +47,7 @@ export const useAuth = () => {
 
 	const useHasPermission = (code: string) => computed(() => hasPermission(code))
 
-	const useHasAnyPermission = (...codes: string[]) =>
-		computed(() => hasAnyPermission(...codes))
+	const useHasAnyPermission = (...codes: string[]) => computed(() => hasAnyPermission(...codes))
 
 	const login = async (credentials: LoginCredentials) => {
 		try {
