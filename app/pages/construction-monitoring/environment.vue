@@ -57,7 +57,7 @@
 					<PermissionActionButton
 						:allowed="canManageLocation"
 						aria-label="地點管理"
-						class="absolute left-8 top-2 btn-monitoring-overlay"
+						class="btn-monitoring-overlay absolute left-8 top-2"
 						@click="handleOpenLocationDialog"
 					>
 						地點管理
@@ -65,7 +65,7 @@
 					<PermissionActionButton
 						:allowed="canFullReport"
 						aria-label="開啟完整報表"
-						class="absolute right-8 top-2 btn-monitoring-overlay"
+						class="btn-monitoring-overlay absolute right-8 top-2"
 						@click="handleOpenSimulation"
 					>
 						完整報表
@@ -229,8 +229,7 @@
 			:summary-readings="simulationReadingsSummary"
 			:detail-readings="simulationReadingsDetail"
 			:preset="simulationTimeRange.preset"
-			:zone-name="simulationZoneName"
-			:location-name="simulationLocationName"
+			:location-options="simulationLocationOptions"
 			:time-range="simulationTimeRange"
 			:get-cell-class="getReportCellClass"
 			@update:time-range="handleSimulationTimeRangeUpdate"
@@ -245,7 +244,9 @@ import EnvironmentParamCard from "~/components/environment/EnvironmentParamCard.
 import OverviewLocationCard from "~/components/environment/OverviewLocationCard.vue";
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
 import SimulationFrame from "~/components/common/SimulationFrame.vue";
-import EnvironmentSimulation from "~/components/environment/EnvironmentSimulation.vue";
+import EnvironmentSimulation, {
+	type EnvironmentSimulationLocationOption
+} from "~/components/environment/EnvironmentSimulation.vue";
 import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi";
 import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
@@ -322,49 +323,78 @@ const simulationTimeRange = ref({
 	preset: "today"
 });
 
-// 模擬框用：區域名、地點名、設備配置字串
-const simulationZoneName = computed(() =>
-	currentLocationData.value ? (getLocationZone(currentLocationData.value) ?? "") : ""
-);
-const simulationLocationName = computed(() => currentLocationData.value?.name ?? "");
+const simulationLocationOptions = computed((): EnvironmentSimulationLocationOption[] => {
+	const opts: EnvironmentSimulationLocationOption[] = [];
+	for (const zone of environmentZones.value) {
+		for (const loc of zone.locations ?? []) {
+			if (!loc.id) continue;
+			const zoneName = zone.name || "";
+			const locationName = loc.name || "";
+			opts.push({
+				locationId: String(loc.id),
+				label: [zoneName, locationName].filter(Boolean).join("-") || String(loc.id),
+				zoneName,
+				locationName
+			});
+		}
+	}
+	return opts;
+});
 
+const tagReadingsWithLocationId = (
+	readings: SensorReading[] | undefined,
+	locationId: string
+): SensorReading[] => (readings ?? []).map(r => ({ ...r, locationId: String(locationId) }));
+
+/** 完整報表：跨地點載入時間區間內讀數 */
 const loadSimulationReadings = async () => {
-	const loc = currentLocationData.value;
 	const preset = simulationTimeRange.value.preset;
 	const startDate = simulationTimeRange.value.startDate;
 	const endDate = simulationTimeRange.value.endDate;
-	if (!loc?.id || !startDate || !endDate) {
+	const locations = simulationLocationOptions.value;
+	if (locations.length === 0 || !startDate || !endDate) {
 		simulationReadingsSummary.value = [];
 		simulationReadingsDetail.value = [];
 		return;
 	}
 	try {
 		const isDayRange = preset === "today" || preset === "yesterday";
-		if (isDayRange) {
-			const [summaryRes, detailRes] = await Promise.all([
-				environmentApi.getReadingsAggregated(loc.id, {
-					bucket: "hour",
-					startTime: startDate,
-					endTime: endDate
-				}),
-				environmentApi.getReadings(loc.id, {
+		const results = await Promise.all(
+			locations.map(async loc => {
+				if (isDayRange) {
+					const [summaryRes, detailRes] = await Promise.all([
+						environmentApi.getReadingsAggregated(loc.locationId, {
+							bucket: "hour",
+							startTime: startDate,
+							endTime: endDate,
+							reportScope: "full"
+						}),
+						environmentApi.getReadings(loc.locationId, {
+							startTime: startDate,
+							endTime: endDate,
+							limit: 500,
+							reportScope: "full"
+						})
+					]);
+					return {
+						summary: tagReadingsWithLocationId(summaryRes.readings, loc.locationId),
+						detail: tagReadingsWithLocationId(detailRes.readings, loc.locationId)
+					};
+				}
+				const result = await environmentApi.getReadingsAggregated(loc.locationId, {
+					bucket: "day",
 					startTime: startDate,
 					endTime: endDate,
-					limit: 500
-				})
-			]);
-			simulationReadingsSummary.value = summaryRes.readings ?? [];
-			simulationReadingsDetail.value = detailRes.readings ?? [];
-		} else {
-			// 週／月（與其他較長區間）一律用「每日平均」避免 raw 的單次 limit 截斷
-			const result = await environmentApi.getReadingsAggregated(loc.id, {
-				bucket: "day",
-				startTime: startDate,
-				endTime: endDate
-			});
-			simulationReadingsSummary.value = [];
-			simulationReadingsDetail.value = result.readings ?? [];
-		}
+					reportScope: "full"
+				});
+				return {
+					summary: [] as SensorReading[],
+					detail: tagReadingsWithLocationId(result.readings, loc.locationId)
+				};
+			})
+		);
+		simulationReadingsSummary.value = results.flatMap(r => r.summary);
+		simulationReadingsDetail.value = results.flatMap(r => r.detail);
 	} catch (error) {
 		handleError(error, "載入環境讀數失敗");
 		simulationReadingsSummary.value = [];
@@ -391,6 +421,9 @@ const handleOpenLocationDialog = async () => {
 
 const handleOpenSimulation = async () => {
 	if (!canFullReport.value) return;
+	if (environmentZones.value.length === 0) {
+		await loadZonesFromAPI();
+	}
 	const { start, end } = getTimeRangeUTC("today");
 	simulationTimeRange.value = {
 		startDate: start.toISOString(),

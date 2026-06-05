@@ -18,12 +18,12 @@
 			<div class="flex min-h-[150px] items-center gap-2 2xl:min-h-[200px]">
 				<!-- AQI 儀表 -->
 				<div
-					class="flex aspect-square h-[100px] w-[100px] flex-col items-center justify-center rounded-full border-2 border-white/80 2xl:h-[140px] 2xl:w-[140px]"
+					class="flex aspect-square h-[84px] w-[84px] flex-col items-center justify-center rounded-full border-2 border-white/80 xl:h-[92px] xl:w-[92px] 2xl:h-[120px] 2xl:w-[120px]"
 				>
-					<div class="ps-[2px] text-2xl tracking-[2px] text-white 2xl:text-3xl">AQI</div>
+					<div class="ps-[2px] text-xl tracking-[2px] text-white 2xl:text-2xl">AQI</div>
 					<div class="my-1 h-px w-2/3 bg-white/80 2xl:my-2"></div>
 					<Transition name="fade" mode="out-in">
-						<div :key="aqi ?? 'empty'" class="text-3xl text-white 2xl:text-5xl">
+						<div :key="aqi ?? 'empty'" class="text-3xl text-white 2xl:text-4xl">
 							{{ aqi ?? "--" }}
 						</div>
 					</Transition>
@@ -31,12 +31,12 @@
 
 				<!-- 噪音值儀表 -->
 				<div
-					class="flex aspect-square h-[100px] w-[100px] flex-col items-center justify-center rounded-full border-2 border-white/80 2xl:h-[140px] 2xl:w-[140px]"
+					class="flex aspect-square h-[84px] w-[84px] flex-col items-center justify-center rounded-full border-2 border-white/80 xl:h-[92px] xl:w-[92px] 2xl:h-[120px] 2xl:w-[120px]"
 				>
-					<div class="ps-[2px] text-lg tracking-[2px] text-white 2xl:text-2xl">噪音值</div>
+					<div class="ps-[2px] text-base tracking-[2px] text-white xl:text-lg 2xl:text-2xl">噪音值</div>
 					<div class="my-1 h-px w-2/3 bg-white/80 2xl:my-2"></div>
 					<Transition name="fade" mode="out-in">
-						<div :key="noise ?? 'empty'" class="text-3xl text-white 2xl:text-5xl">
+						<div :key="noise ?? 'empty'" class="text-3xl text-white xl:text-4xl 2xl:text-5xl">
 							{{ noise ?? "--" }}
 						</div>
 					</Transition>

@@ -4,8 +4,8 @@
 		<div class="group col-span-1 flex items-center justify-center">
 			<div class="relative flex items-center justify-center">
 				<img
-					src="/layout/golden.png"
-					alt="遠昇 LOGO"
+					src="/layout/yenshow-logo.svg"
+					alt="遠岫 LOGO"
 					class="h-[var(--brand-logo-h)] object-contain"
 					:style="brandLogoStyle"
 				/>
@@ -13,7 +13,7 @@
 				<PermissionActionButton
 					:allowed="canWrite"
 					aria-label="編輯品牌標誌高度"
-					class="absolute -right-2 -top-2 rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition enabled:hover:bg-black/50 2xl:text-base"
+					class="absolute -right-2 -top-2 rounded-full bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100 enabled:hover:bg-black/50 2xl:text-base"
 					@click="isBrandLogoHeightEditOpen = true"
 				>
 					編輯
@@ -56,7 +56,7 @@
 				<PermissionActionButton
 					:allowed="canWrite"
 					aria-label="編輯專案圖片"
-					class="absolute -right-2 -top-2 rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition enabled:hover:bg-black/50 2xl:text-base"
+					class="absolute -right-2 -top-2 rounded-full bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100 enabled:hover:bg-black/50 2xl:text-base"
 					@click="isProjectImageEditOpen = true"
 				>
 					編輯
@@ -99,109 +99,111 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue"
-import EditMockDialog from "~/components/common/EditMockDialog.vue"
-import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
-import { useAppSettings, IMAGE_UPLOAD_HINT } from "~/composables/core/useAppSettings"
-import { HOME_IMAGE_CROP } from "~/utils/imageCropUtils"
-import { useImageCenter } from "~/composables/core/useImageCenter"
-import { createSafeFileName } from "~/utils/fileUtils"
-import { formatClockDisplay } from "~/utils/dateUtils"
-import { useHomeRbac } from "~/composables/core/useAccessGate"
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
+import EditMockDialog from "~/components/common/EditMockDialog.vue";
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
+import { useAppSettings, IMAGE_UPLOAD_HINT } from "~/composables/core/useAppSettings";
+import { HOME_IMAGE_CROP } from "~/utils/imageCropUtils";
+import { useImageCenter } from "~/composables/core/useImageCenter";
+import { createSafeFileName } from "~/utils/fileUtils";
+import { formatClockDisplay } from "~/utils/dateUtils";
+import { useHomeRbac } from "~/composables/core/useAccessGate";
 
-const BRAND_LOGO_HEIGHT_MIN = 48
-const BRAND_LOGO_HEIGHT_MAX = 192
-const BRAND_LOGO_HEIGHT_DEFAULT = 80
+const BRAND_LOGO_HEIGHT_MIN = 48;
+const BRAND_LOGO_HEIGHT_MAX = 192;
+const BRAND_LOGO_HEIGHT_DEFAULT = 80;
 
 const clampBrandLogoHeight = (value: number) =>
-	Math.min(BRAND_LOGO_HEIGHT_MAX, Math.max(BRAND_LOGO_HEIGHT_MIN, value))
+	Math.min(BRAND_LOGO_HEIGHT_MAX, Math.max(BRAND_LOGO_HEIGHT_MIN, value));
 
 const {
 	value: brandLogoHeightRaw,
 	save: saveBrandLogoHeightRaw,
-	reset: resetBrandLogoHeight,
+	reset: resetBrandLogoHeight
 } = useAppSettings({
 	key: "home_header_brand_logo_height",
-	defaultValue: String(BRAND_LOGO_HEIGHT_DEFAULT),
-})
+	defaultValue: String(BRAND_LOGO_HEIGHT_DEFAULT)
+});
 
 const {
 	value: projectImageSrcRaw,
 	save: saveProjectImageSrc,
 	reset: resetProjectImageSrc,
-	uploadFile: uploadProjectImage,
+	uploadFile: uploadProjectImage
 } = useAppSettings({
 	key: "home_header_project_image",
-	defaultValue: "",
-})
+	defaultValue: ""
+});
 
-const { canWrite } = useHomeRbac()
+const { canWrite } = useHomeRbac();
 
-const isBrandLogoHeightEditOpen = ref(false)
-const brandLogoPreviewBuster = ref<number>(Date.now())
+const isBrandLogoHeightEditOpen = ref(false);
+const brandLogoPreviewBuster = ref<number>(Date.now());
 
-watch(isBrandLogoHeightEditOpen, (isOpen) => {
-	if (!isOpen) return
-	brandLogoPreviewBuster.value = Date.now()
-})
+watch(isBrandLogoHeightEditOpen, isOpen => {
+	if (!isOpen) return;
+	brandLogoPreviewBuster.value = Date.now();
+});
 
 const brandLogoHeight = computed(() => {
-	const parsed = Number.parseInt(String(brandLogoHeightRaw.value ?? ""), 10)
+	const parsed = Number.parseInt(String(brandLogoHeightRaw.value ?? ""), 10);
 	if (!Number.isFinite(parsed)) {
-		return BRAND_LOGO_HEIGHT_DEFAULT
+		return BRAND_LOGO_HEIGHT_DEFAULT;
 	}
-	return clampBrandLogoHeight(parsed)
-})
+	return clampBrandLogoHeight(parsed);
+});
 
 const brandLogoStyle = computed(() => ({
-	"--brand-logo-h": `${brandLogoHeight.value}px`,
-}))
+	"--brand-logo-h": `${brandLogoHeight.value}px`
+}));
 
-const brandLogoPreviewSrc = computed(() => `/layout/golden.png?t=${brandLogoPreviewBuster.value}`)
+const brandLogoPreviewSrc = computed(
+	() => `/layout/yenshow-logo.svg?t=${brandLogoPreviewBuster.value}`
+);
 
 const handleSaveBrandLogoHeight = async (nextValue: string) => {
-	const parsed = Number.parseInt(String(nextValue ?? "").trim(), 10)
+	const parsed = Number.parseInt(String(nextValue ?? "").trim(), 10);
 	if (!Number.isFinite(parsed)) {
-		await resetBrandLogoHeight()
-		isBrandLogoHeightEditOpen.value = false
-		return
+		await resetBrandLogoHeight();
+		isBrandLogoHeightEditOpen.value = false;
+		return;
 	}
 
-	const clamped = clampBrandLogoHeight(parsed)
-	await saveBrandLogoHeightRaw(String(clamped))
-	isBrandLogoHeightEditOpen.value = false
-}
+	const clamped = clampBrandLogoHeight(parsed);
+	await saveBrandLogoHeightRaw(String(clamped));
+	isBrandLogoHeightEditOpen.value = false;
+};
 
-const { useDisplaySrc } = useImageCenter()
-const projectImageSrc = useDisplaySrc(() => projectImageSrcRaw.value ?? "")
-const isProjectImageEditOpen = ref(false)
+const { useDisplaySrc } = useImageCenter();
+const projectImageSrc = useDisplaySrc(() => projectImageSrcRaw.value ?? "");
+const isProjectImageEditOpen = ref(false);
 
 const handleUploadProjectImage = async (file: File) => {
 	try {
-		const safeFile = createSafeFileName("project-header", file, "png")
-		await uploadProjectImage(safeFile)
-		isProjectImageEditOpen.value = false
+		const safeFile = createSafeFileName("project-header", file, "png");
+		await uploadProjectImage(safeFile);
+		isProjectImageEditOpen.value = false;
 	} catch (error) {
-		console.error("Upload failed:", error)
+		console.error("Upload failed:", error);
 	}
-}
+};
 
-const currentDateTime = ref(new Date())
-const formattedDate = computed(() => formatClockDisplay(currentDateTime.value))
+const currentDateTime = ref(new Date());
+const formattedDate = computed(() => formatClockDisplay(currentDateTime.value));
 
-let timeInterval: ReturnType<typeof setInterval> | null = null
+let timeInterval: ReturnType<typeof setInterval> | null = null;
 
 onMounted(() => {
-	currentDateTime.value = new Date()
+	currentDateTime.value = new Date();
 	timeInterval = setInterval(() => {
-		currentDateTime.value = new Date()
-	}, 1000)
-})
+		currentDateTime.value = new Date();
+	}, 1000);
+});
 
 onBeforeUnmount(() => {
 	if (timeInterval) {
-		clearInterval(timeInterval)
-		timeInterval = null
+		clearInterval(timeInterval);
+		timeInterval = null;
 	}
-})
+});
 </script>
