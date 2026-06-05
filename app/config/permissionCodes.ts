@@ -1,5 +1,5 @@
 // AUTO-GENERATED — do not edit; run: npm run gen:perm (ba-backend)
-/** Profile: central — aligned with permissionCatalog.js */
+/** Profile: central — aligned with access/catalog.js */
 
 export const PERM = {
 	home: { module: "system.home" },
