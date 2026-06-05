@@ -6,7 +6,6 @@
 				role="dialog"
 				aria-modal="true"
 				aria-labelledby="vehicle-isapi-plate-form-title"
-				@click.self="emit('cancel')"
 			>
 				<div
 					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-lg flex-col gap-4 overflow-hidden rounded-3xl p-7 2xl:max-w-xl 2xl:gap-6 2xl:p-8"

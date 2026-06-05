@@ -57,8 +57,7 @@
 						v-show="isIsapiCamera && selectedLocation"
 						:allowed="canCreatePlate || canUpdatePlate || canDeletePlate"
 						aria-label="車牌管理"
-						:class="['absolute left-8 top-2', MONITORING_ACTION_BTN_CLASS]"
-						:enabled-hover-class="MONITORING_ACTION_BTN_HOVER_CLASS"
+						class="absolute left-8 top-2 btn-monitoring-overlay"
 						@click="showIsapiManageDialog = true"
 					>
 						車牌管理
@@ -66,8 +65,7 @@
 					<PermissionActionButton
 						:allowed="canManageLocation"
 						aria-label="地點管理"
-						:class="['absolute left-36 top-2', MONITORING_ACTION_BTN_CLASS]"
-						:enabled-hover-class="MONITORING_ACTION_BTN_HOVER_CLASS"
+						class="absolute left-36 top-2 btn-monitoring-overlay"
 						@click="handleOpenLocationDialog"
 					>
 						地點管理
@@ -76,8 +74,7 @@
 						v-show="isParkingMode"
 						:allowed="canResetStatistics"
 						aria-label="重製停車場統計"
-						:class="['absolute right-36 top-2', MONITORING_ACTION_BTN_CLASS]"
-						:enabled-hover-class="MONITORING_ACTION_BTN_HOVER_CLASS"
+						class="absolute right-36 top-2 btn-monitoring-overlay"
 						@click="handleResetParkingStats"
 					>
 						重製統計
@@ -85,8 +82,7 @@
 					<PermissionActionButton
 						:allowed="canFullReport"
 						aria-label="開啟完整報表"
-						:class="['absolute right-8 top-2', MONITORING_ACTION_BTN_CLASS]"
-						:enabled-hover-class="MONITORING_ACTION_BTN_HOVER_CLASS"
+						class="absolute right-8 top-2 btn-monitoring-overlay"
 						@click="handleOpenSimulation"
 					>
 						完整報表
@@ -263,10 +259,6 @@ import {
 } from "~/utils/entryExitTimeRange";
 import { PERM } from "~/config/permissionCodes";
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
-import {
-	MONITORING_ACTION_BTN_CLASS,
-	MONITORING_ACTION_BTN_HOVER_CLASS
-} from "~/composables/core/usePermissionUi";
 const {
 	canManageLocation,
 	canCreateLocation,

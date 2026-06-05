@@ -80,8 +80,7 @@
 												<PermissionActionButton
 													:allowed="canEdit && !!pendingZone.imageUrl"
 													aria-label="移除區域示意圖"
-													class="p-2 text-rose-400 transition-colors"
-													enabled-hover-class="hover:text-rose-300"
+													class="p-2 text-rose-400 transition-colors enabled:hover:text-rose-300"
 													@click.stop="removeZoneImage"
 												>
 													<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

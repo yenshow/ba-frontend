@@ -35,8 +35,7 @@
 							<PermissionActionButton
 								:allowed="canManageDeviceModels && !deviceModelsLocked && !!activeTab"
 								aria-label="型號管理"
-								class="rounded-xl bg-blue-500/80 px-4 py-2 text-base text-white disabled:bg-blue-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
-								enabled-hover-class="hover:bg-blue-400"
+								class="rounded-xl bg-blue-500/80 px-4 py-2 text-base text-white enabled:hover:bg-blue-400 2xl:px-6 2xl:py-3 2xl:text-lg"
 								@click="showDeviceModelDialog = true"
 							>
 								型號管理
@@ -44,8 +43,7 @@
 							<PermissionActionButton
 								:allowed="canCreateDevice"
 								aria-label="新增設備"
-								class="rounded-xl bg-emerald-500/80 px-4 py-2 text-base text-white disabled:bg-emerald-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
-								enabled-hover-class="hover:bg-emerald-400"
+								class="rounded-xl bg-emerald-500/80 px-4 py-2 text-base text-white enabled:hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-lg"
 								@click="showCreateDialog = true"
 							>
 								新增設備
@@ -146,8 +144,7 @@
 												<PermissionActionButton
 													:allowed="canUpdateDevice"
 													aria-label="編輯設備"
-													class="rounded bg-blue-500/80 px-3 py-1 text-white disabled:bg-blue-500/40 2xl:px-4 2xl:py-2"
-													enabled-hover-class="hover:bg-blue-400"
+													class="rounded bg-blue-500/80 px-3 py-1 text-white enabled:hover:bg-blue-400 2xl:px-4 2xl:py-2"
 													@click="editDevice(device)"
 												>
 													編輯
@@ -155,8 +152,7 @@
 												<PermissionActionButton
 													:allowed="canDeleteDevice"
 													aria-label="刪除設備"
-													class="rounded bg-red-500/80 px-3 py-1 text-white disabled:bg-red-500/40 2xl:px-4 2xl:py-2"
-													enabled-hover-class="hover:bg-red-400"
+													class="rounded bg-red-500/80 px-3 py-1 text-white enabled:hover:bg-red-400 2xl:px-4 2xl:py-2"
 													@click="confirmDeleteDevice(device)"
 												>
 													刪除

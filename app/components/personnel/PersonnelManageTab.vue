@@ -9,8 +9,7 @@
 						:allowed="canManageGroups"
 						aria-label="管理群組"
 						:class="actionButtonClass"
-						enabled-hover-class="hover:bg-white/30"
-						@click="showGroupsDialog = true"
+@click="showGroupsDialog = true"
 					>
 						管理群組
 					</PermissionActionButton>
@@ -164,7 +163,7 @@ const showGroupsDialog = ref(false)
 const panelClass =
 	"flex h-full min-h-0 flex-col rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8"
 const actionButtonClass =
-	"rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-base"
+	"rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white enabled:hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-base"
 const groupButtonBaseClass =
 	"w-full rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-lg text-white/85 hover:bg-white/10 2xl:text-xl"
 const groupButtonIdleClass = ""

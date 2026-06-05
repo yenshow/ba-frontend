@@ -37,8 +37,7 @@
 					<PermissionActionButton
 						:allowed="canExportReport && !isLoading && alerts.length > 0"
 						aria-label="匯出 CSV"
-						class="shrink-0 whitespace-nowrap rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
-						enabled-hover-class="hover:bg-green-400"
+						class="shrink-0 whitespace-nowrap rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors enabled:hover:bg-green-400 2xl:px-6 2xl:py-3 2xl:text-base"
 						@click="handleExport"
 					>
 						匯出 CSV
@@ -63,8 +62,7 @@
 					<PermissionActionButton
 						:allowed="canCreateAlert"
 						aria-label="新增警報"
-						class="shrink-0 whitespace-nowrap rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors disabled:bg-green-500/40 2xl:px-6 2xl:py-3 2xl:text-base"
-						enabled-hover-class="hover:bg-green-400"
+						class="shrink-0 whitespace-nowrap rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors enabled:hover:bg-green-400 2xl:px-6 2xl:py-3 2xl:text-base"
 						@click="handleOpenCreateRule"
 					>
 						新增警報

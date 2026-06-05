@@ -28,8 +28,7 @@
 				<PermissionActionButton
 					:allowed="canAdmin && !showLicensePlaceholder && !isResettingLicense"
 					aria-label="重置本地授權"
-					class="rounded-xl border border-white/25 bg-white/10 px-4 py-2 text-sm text-white/85 transition-colors disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
-					enabled-hover-class="hover:bg-white/15"
+					class="rounded-xl border border-white/25 bg-white/10 px-4 py-2 text-sm text-white/85 transition-colors enabled:hover:bg-white/15 2xl:px-6 2xl:py-3 2xl:text-base"
 					@click="handleRequestResetLicense"
 				>
 					{{ isResettingLicense ? "重置中..." : "重置授權" }}

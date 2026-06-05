@@ -13,8 +13,7 @@
 				<PermissionActionButton
 					:allowed="canWrite"
 					aria-label="編輯品牌標誌高度"
-					class="absolute -right-2 -top-2 rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 2xl:text-base"
-					enabled-hover-class="hover:bg-black/50"
+					class="absolute -right-2 -top-2 rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition enabled:hover:bg-black/50 2xl:text-base"
 					@click="isBrandLogoHeightEditOpen = true"
 				>
 					編輯
@@ -57,8 +56,7 @@
 				<PermissionActionButton
 					:allowed="canWrite"
 					aria-label="編輯專案圖片"
-					class="absolute -right-2 -top-2 rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 2xl:text-base"
-					enabled-hover-class="hover:bg-black/50"
+					class="absolute -right-2 -top-2 rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition enabled:hover:bg-black/50 2xl:text-base"
 					@click="isProjectImageEditOpen = true"
 				>
 					編輯

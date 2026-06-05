@@ -8,8 +8,7 @@
 				<PermissionActionButton
 					:allowed="canUpdateGroup && selectedMainGroupId != null"
 					aria-label="群組成員"
-					class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white 2xl:px-6 2xl:py-3 2xl:text-base"
-					enabled-hover-class="hover:bg-white/30"
+					class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white enabled:hover:bg-white/30 2xl:px-6 2xl:py-3 2xl:text-base"
 					@click="showGroupMembersDialog = true"
 				>
 					群組成員
@@ -27,8 +26,7 @@
 				<PermissionActionButton
 					:allowed="canCreatePerson"
 					aria-label="批次匯入"
-					class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white 2xl:px-6 2xl:py-3 2xl:text-base"
-					enabled-hover-class="hover:bg-white/30"
+					class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white enabled:hover:bg-white/30 2xl:px-6 2xl:py-3 2xl:text-base"
 					@click="showImportDialog = true"
 				>
 					批次匯入
@@ -36,8 +34,7 @@
 				<PermissionActionButton
 					:allowed="canCreatePerson"
 					aria-label="新增人員"
-					class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white 2xl:px-6 2xl:py-3 2xl:text-base"
-					enabled-hover-class="hover:bg-emerald-400"
+					class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white enabled:hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-base"
 					@click="openPersonCreate"
 				>
 					新增人員
@@ -116,8 +113,7 @@
 								<PermissionActionButton
 									:allowed="canUpdatePerson"
 									aria-label="編輯人員"
-									class="rounded bg-blue-500/80 px-3 py-1 text-white disabled:bg-blue-500/40 2xl:px-4 2xl:py-2"
-									enabled-hover-class="hover:bg-blue-400"
+									class="rounded bg-blue-500/80 px-3 py-1 text-white enabled:hover:bg-blue-400 2xl:px-4 2xl:py-2"
 									@click="editPerson(p)"
 								>
 									編輯
@@ -125,8 +121,7 @@
 								<PermissionActionButton
 									:allowed="canDeletePerson"
 									aria-label="刪除人員"
-									class="rounded bg-red-500/80 px-3 py-1 text-white disabled:bg-red-500/40 2xl:px-4 2xl:py-2"
-									enabled-hover-class="hover:bg-red-400"
+									class="rounded bg-red-500/80 px-3 py-1 text-white enabled:hover:bg-red-400 2xl:px-4 2xl:py-2"
 									@click="confirmDeletePerson(p)"
 								>
 									刪除

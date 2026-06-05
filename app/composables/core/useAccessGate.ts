@@ -103,8 +103,7 @@ export type LocationPermCodes = {
 	locationCreate: string;
 	locationUpdate: string;
 	locationDelete: string;
-	reportFull: string;
-	reportExport?: string;
+	reportFull?: string;
 };
 
 export const useLocationModuleRbac = (perm: LocationPermCodes) => {
@@ -118,9 +117,8 @@ export const useLocationModuleRbac = (perm: LocationPermCodes) => {
 			perm.locationUpdate,
 			perm.locationDelete,
 		),
-		canFullReport: useHasPermission(perm.reportFull),
-		canExportReport: perm.reportExport
-			? useHasPermission(perm.reportExport)
+		canFullReport: perm.reportFull
+			? useHasPermission(perm.reportFull)
 			: computed(() => false),
 	};
 };
@@ -195,12 +193,3 @@ export const useSurveillanceRbac = () => {
 	};
 };
 
-/** 快照子系統：canWrite=父層模組碼；canAdmin=平台 admin（zone CRUD） */
-export const useSnapshotSystemPageRbac = (moduleCode: string) => {
-	const canAdmin = useAdminOnly();
-	const { useHasPermission } = useAuth();
-	return {
-		canAdmin,
-		canWrite: useHasPermission(moduleCode),
-	};
-};

@@ -1,10 +1,14 @@
 <template>
 	<button
 		:type="nativeType"
-		:disabled="buttonState.disabled"
-		:title="buttonState.title"
+		:disabled="!allowed"
+		:title="allowed ? undefined : '權限不足'"
 		:aria-label="resolvedAriaLabel"
-		:class="[userClass, buttonState.class, enabledHoverClass && !buttonState.disabled ? enabledHoverClass : '']"
+		:class="[
+			'transition-opacity duration-200',
+			userClass,
+			!allowed && 'cursor-not-allowed opacity-30',
+		]"
 		@click="emit('click')"
 	>
 		<slot />
@@ -13,14 +17,12 @@
 
 <script setup lang="ts">
 import { computed, useAttrs } from "vue";
-import { usePermissionButtonState } from "~/composables/core/usePermissionUi";
 
 const props = withDefaults(
 	defineProps<{
 		allowed: boolean;
 		ariaLabel?: string;
 		"aria-label"?: string;
-		enabledHoverClass?: string;
 		nativeType?: "button" | "submit";
 	}>(),
 	{ nativeType: "button" },
@@ -34,6 +36,4 @@ const emit = defineEmits<{ click: [] }>();
 
 const attrs = useAttrs();
 const userClass = computed(() => attrs.class);
-
-const buttonState = usePermissionButtonState(() => props.allowed);
 </script>

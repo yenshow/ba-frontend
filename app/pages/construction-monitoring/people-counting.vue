@@ -57,8 +57,7 @@
 					<PermissionActionButton
 						:allowed="canManageLocation"
 						aria-label="地點管理"
-						:class="['absolute left-8 top-2', MONITORING_ACTION_BTN_CLASS]"
-						:enabled-hover-class="MONITORING_ACTION_BTN_HOVER_CLASS"
+						class="absolute left-8 top-2 btn-monitoring-overlay"
 						@click="handleOpenLocationDialog"
 					>
 						地點管理
@@ -66,8 +65,7 @@
 					<PermissionActionButton
 						:allowed="canFullReport"
 						aria-label="開啟完整報表"
-						:class="['absolute right-8 top-2', MONITORING_ACTION_BTN_CLASS]"
-						:enabled-hover-class="MONITORING_ACTION_BTN_HOVER_CLASS"
+						class="absolute right-8 top-2 btn-monitoring-overlay"
 						@click="handleOpenSimulation"
 					>
 						完整報表
@@ -289,10 +287,6 @@ import {
 import { computeCumulativePresence } from "~/utils/entryExitStats";
 import { PERM } from "~/config/permissionCodes";
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
-import {
-	MONITORING_ACTION_BTN_CLASS,
-	MONITORING_ACTION_BTN_HOVER_CLASS
-} from "~/composables/core/usePermissionUi";
 const {
 	canManageLocation,
 	canCreateLocation,

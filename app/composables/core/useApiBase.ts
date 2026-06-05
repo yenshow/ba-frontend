@@ -9,6 +9,8 @@ import {
 	USER_FACING_API_UNAUTHORIZED,
 	USER_FACING_API_UNEXPECTED,
 	USER_FACING_CONNECTION_ERROR,
+	USER_FACING_REQUEST_TIMEOUT,
+	isApiRequestTimeout,
 	type ApiErrorCode,
 	resolveUserFacingApiError,
 } from "~/utils/errorUtils"
@@ -148,6 +150,16 @@ export const useApiBase = () => {
 
 		const errorMessage =
 			error instanceof Error ? error.message : String((error as { message?: string })?.message ?? "")
+
+		if (isApiRequestTimeout({ message: errorMessage, originalMessage })) {
+			throw new ApiRequestError(USER_FACING_REQUEST_TIMEOUT, {
+				code: "TIMEOUT",
+				backendCode: failure.backendCode,
+				originalMessage: originalMessage || errorMessage,
+				details: failure.details,
+			})
+		}
+
 		const isDeviceRequest = isDeviceApiRequest(path)
 
 		const isNetworkError =

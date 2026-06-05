@@ -84,22 +84,22 @@
 							</div>
 						</div>
 
-						<div class="flex h-[160px] flex-col justify-center gap-2">
+						<div class="flex h-[160px] flex-col justify-center">
 							<PermissionActionButton
+								v-if="!isAlertIgnored(alert)"
 								:allowed="alert.status === 'active' && canIgnore && !isIgnoring"
 								aria-label="忽視警示"
-								class="rounded-lg bg-gray-500/80 px-3 py-1.5 text-base text-white disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
-								enabled-hover-class="hover:opacity-80"
-								@click="emit('ignore', alert)"
+								class="rounded-lg bg-gray-500/80 px-3 py-1.5 text-base text-white enabled:hover:opacity-80 2xl:px-4 2xl:py-2 2xl:text-lg"
+@click="emit('ignore', alert)"
 							>
 								忽視
 							</PermissionActionButton>
 							<PermissionActionButton
-								:allowed="isAlertIgnored(alert) && canIgnore && !isIgnoring"
+								v-else
+								:allowed="canIgnore && !isIgnoring"
 								aria-label="取消忽視"
-								class="rounded-lg bg-blue-500/80 px-3 py-1.5 text-base text-white disabled:opacity-40 2xl:px-4 2xl:py-2 2xl:text-lg"
-								enabled-hover-class="hover:opacity-80"
-								@click="emit('unignore', alert)"
+								class="rounded-lg bg-blue-500/80 px-3 py-1.5 text-base text-white enabled:hover:opacity-80 2xl:px-4 2xl:py-2 2xl:text-lg"
+@click="emit('unignore', alert)"
 							>
 								取消忽視
 							</PermissionActionButton>

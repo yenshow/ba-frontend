@@ -41,8 +41,7 @@
 			<PermissionActionButton
 				:allowed="canWrite"
 				aria-label="編輯影片"
-				class="absolute right-0 top-0 z-10 rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition hover:bg-black/50 2xl:text-base"
-				enabled-hover-class="hover:bg-black/50"
+				class="absolute right-0 top-0 z-10 rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition enabled:hover:bg-black/50 2xl:text-base"
 				@click="isEditOpen = true"
 			>
 				編輯
