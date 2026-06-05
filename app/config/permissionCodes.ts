@@ -1,5 +1,5 @@
 // AUTO-GENERATED — do not edit; run: npm run gen:perm (ba-backend)
-/** Profile: construction — aligned with permissionCatalog.js */
+/** Profile: construction — aligned with access/catalog.js */
 
 export const PERM = {
 	home: { module: "system.home" },
@@ -7,7 +7,7 @@ export const PERM = {
 		module: "system.equipment_management",
 		deviceCreate: "system.equipment_management.device.create",
 		deviceUpdate: "system.equipment_management.device.update",
-		deviceDelete: "system.equipment_management.device.delete"
+		deviceDelete: "system.equipment_management.device.delete",
 	},
 	personnel: {
 		module: "system.personnel",
@@ -18,7 +18,7 @@ export const PERM = {
 		personUpdate: "system.personnel.person.update",
 		personDelete: "system.personnel.person.delete",
 		deviceSync: "system.personnel.device_sync",
-		syncEdit: "system.personnel.sync.edit"
+		syncEdit: "system.personnel.sync.edit",
 	},
 	alertLog: {
 		module: "system.alert_log",
@@ -26,7 +26,7 @@ export const PERM = {
 		export: "system.alert_log.report.export",
 		create: "system.alert_log.alert.create",
 		update: "system.alert_log.alert.update",
-		delete: "system.alert_log.alert.delete"
+		delete: "system.alert_log.alert.delete",
 	},
 	peopleCounting: {
 		module: "system.people_counting",
@@ -57,6 +57,6 @@ export const PERM = {
 	},
 	videoSurveillance: {
 		module: "system.video_surveillance",
-		streamControl: "system.video_surveillance.stream.control"
-	}
-} as const;
+		streamControl: "system.video_surveillance.stream.control",
+	},
+} as const
