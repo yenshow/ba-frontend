@@ -62,8 +62,7 @@
 					<PermissionActionButton
 						:allowed="canManageLocation"
 						aria-label="地點管理"
-						:class="['absolute left-8 top-2', MONITORING_ACTION_BTN_CLASS]"
-						:enabled-hover-class="MONITORING_ACTION_BTN_HOVER_CLASS"
+						class="absolute left-8 top-2 btn-monitoring-overlay"
 						@click="handleOpenLocationDialog"
 					>
 						地點管理
@@ -71,8 +70,7 @@
 					<PermissionActionButton
 						:allowed="canFullReport"
 						aria-label="開啟完整報表"
-						:class="['absolute right-8 top-2', MONITORING_ACTION_BTN_CLASS]"
-						:enabled-hover-class="MONITORING_ACTION_BTN_HOVER_CLASS"
+						class="absolute right-8 top-2 btn-monitoring-overlay"
 						@click="handleOpenSimulation"
 					>
 						完整報表
@@ -263,7 +261,6 @@ import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue
 import SimulationFrame from "~/components/common/SimulationFrame.vue"
 import EnvironmentSimulation from "~/components/environment/EnvironmentSimulation.vue"
 import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi"
-import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import { useAlertRules } from "~/composables/monitoring/useAlertRules"
@@ -284,11 +281,8 @@ import type {
 	EnvironmentZone,
 	EnvironmentLocation,
 	SensorParameter,
-	SensorParameterType,
 	SensorReading,
 } from "~/types/environment"
-import type { UnifiedZone } from "~/types/location"
-import { unifiedToEnvironmentZone } from "~/utils/locationAdapter"
 import { getTimeRangeUTC } from "~/utils/dateUtils"
 import { compareZonesLoose } from "~/utils/sortOrder"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
@@ -305,10 +299,7 @@ definePageMeta({
 
 import { PERM } from "~/config/permissionCodes"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
-import {
-	MONITORING_ACTION_BTN_CLASS,
-	MONITORING_ACTION_BTN_HOVER_CLASS,
-} from "~/composables/core/usePermissionUi"
+
 const {
 	canManageLocation,
 	canCreateLocation,
@@ -318,7 +309,6 @@ const {
 } = useLocationModuleRbac(PERM.environment)
 
 const environmentApi = useEnvironmentApi()
-const locationApi = useLocationApi()
 const { handleError } = useErrorHandler()
 const { getRules, getStatusText: getStatusTextFromRules } = useAlertRules()
 

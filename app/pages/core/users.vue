@@ -11,8 +11,7 @@
 				<PermissionActionButton
 					:allowed="canAdmin"
 					aria-label="新增用戶"
-					class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white disabled:bg-emerald-500/40 2xl:px-6 2xl:py-3 2xl:text-base"
-					enabled-hover-class="hover:bg-emerald-400"
+					class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white enabled:hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-base"
 					@click="showCreateDialog = true"
 				>
 					新增用戶
@@ -126,7 +125,6 @@
 				<div
 					v-if="showCreateDialog || editingUser"
 					class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
-					@click.self="closeDialog"
 				>
 					<div
 						class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-lg flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:gap-6 2xl:p-8"
@@ -146,7 +144,10 @@
 						</header>
 
 						<form class="flex flex-col gap-4 2xl:gap-6" @submit.prevent="handleSubmit">
-							<fieldset :disabled="!canAdmin" class="flex min-w-0 flex-col gap-4 border-0 p-0 2xl:gap-6">
+							<fieldset
+								:disabled="!canAdmin"
+								class="flex min-w-0 flex-col gap-4 border-0 p-0 2xl:gap-6"
+							>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>用戶名</span>
 									<input v-model="formData.username" type="text" required class="form-input" />
@@ -179,7 +180,6 @@
 									class="flex flex-col gap-2 border-t border-white/15 pt-4"
 								>
 									<span class="text-sm font-medium text-white/90 2xl:text-base">功能權限</span>
-									<span class="text-xs text-white/50">請手動勾選可進入的模組（預設皆不勾選）</span>
 									<UserPermissionEditor
 										v-model="permissionGranted"
 										:definitions="permissionDefinitions"

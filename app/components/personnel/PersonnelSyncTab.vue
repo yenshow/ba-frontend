@@ -32,9 +32,8 @@
 					syncableLocations.length > 0
 				"
 				aria-label="同步全部地點"
-				class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
-				enabled-hover-class="hover:bg-emerald-400"
-				@click="syncAllLocations"
+				class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white enabled:hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-base"
+					@click="syncAllLocations"
 			>
 				{{ isSyncingAll ? "同步中…" : "同步全部" }}
 			</PermissionActionButton>
@@ -98,18 +97,16 @@
 										<PermissionActionButton
 											:allowed="canSyncEdit && !isUiLocked"
 											aria-label="管理門禁名單"
-											class="rounded bg-blue-500/80 px-3 py-1 text-white disabled:bg-blue-500/40 2xl:px-4 2xl:py-2"
-											enabled-hover-class="hover:bg-blue-400"
-											@click="handleOpenLocationMembersDialog(loc)"
+											class="rounded bg-blue-500/80 px-3 py-1 text-white enabled:hover:bg-blue-400 2xl:px-4 2xl:py-2"
+									@click="handleOpenLocationMembersDialog(loc)"
 										>
 											編輯
 										</PermissionActionButton>
 										<PermissionActionButton
 											:allowed="canDeviceSync && !isLocationSyncButtonDisabled(loc.id)"
 											aria-label="同步此地點"
-											class="rounded bg-cyan-500/80 px-3 py-1 text-white disabled:opacity-50 2xl:px-4 2xl:py-2"
-											enabled-hover-class="hover:bg-cyan-400"
-											@click="syncOne(loc.id)"
+											class="rounded bg-cyan-500/80 px-3 py-1 text-white enabled:hover:bg-cyan-400 2xl:px-4 2xl:py-2"
+									@click="syncOne(loc.id)"
 										>
 											{{ isLocationCurrentlySyncing(loc.id) ? "同步中…" : "同步" }}
 										</PermissionActionButton>

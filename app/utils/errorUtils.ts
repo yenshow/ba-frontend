@@ -42,6 +42,33 @@ export const CONNECTION_ERROR_TOKENS = [
 
 export const TIMEOUT_ERROR_TOKENS = ["timeout", "timed out", "etimedout", "請求超時"] as const;
 
+export const USER_FACING_REQUEST_TIMEOUT = "請求逾時，請稍後再試";
+
+/** 判斷 fetch / ofetch 逾時（含 <no response> + TimeoutError） */
+export const isApiRequestTimeout = (error: unknown): boolean => {
+	if (error instanceof ApiRequestError && error.code === "TIMEOUT") return true;
+
+	const parts: string[] = [];
+	if (error instanceof ApiRequestError) {
+		if (error.originalMessage) parts.push(error.originalMessage);
+		if (error.message) parts.push(error.message);
+	} else if (error instanceof Error) {
+		parts.push(error.message);
+	} else if (error && typeof error === "object") {
+		const r = error as { code?: string; message?: string; originalMessage?: string };
+		if (r.code === "TIMEOUT") return true;
+		if (r.originalMessage) parts.push(r.originalMessage);
+		if (r.message) parts.push(r.message);
+	} else if (error != null) {
+		parts.push(String(error));
+	}
+
+	const lower = parts.join("\n").toLowerCase();
+	return (
+		TIMEOUT_ERROR_TOKENS.some((token) => lower.includes(token)) || lower.includes("timeouterror")
+	);
+};
+
 export type ApiErrorCode =
 	| "HTTP_400"
 	| "HTTP_401"

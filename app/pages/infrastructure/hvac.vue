@@ -10,8 +10,8 @@
 			<HvacZonePlanPanel
 				:selected-zone-name="selectedZoneName"
 				:is-initial-loading="isInitialLoading"
-				:can-write="canWrite"
-				:can-manage-zones="canAdmin"
+				:can-write="canUpdateLocation"
+				:can-manage-zones="canManageLocation"
 				:is-edit-mode="isEditMode"
 				:selected-zone="selectedZone"
 				:selected-zone-data="selectedZoneData"
@@ -39,7 +39,7 @@
 					:area-statuses="locationStatuses"
 					:area-disabled-map="locationDisabledMap"
 					:area-toggling="locationToggling"
-					:can-toggle="canWrite"
+					:can-toggle="canControlDevice"
 					:selected-zone="selectedZone"
 					@toggle="handleLocationToggle"
 					@zone-selected="handleZoneSelected"
@@ -53,6 +53,9 @@
 		:zones="hvacZones"
 		system-type="hvac"
 		:require-image-url="true"
+		:can-create-zone="canCreateLocation"
+		:can-update-zone="canUpdateLocation"
+		:can-delete-zone="canDeleteLocation"
 		device-hint="請先在「設備管理」中建立控制器設備"
 		@save="handleSaveZone"
 		@delete="handleDeleteZone"
@@ -70,7 +73,7 @@ import { useVisibilityAutoRefresh } from "~/composables/monitoring/useVisibility
 import { useHvacApi } from "~/composables/systems/hvac/useHvacApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
-import { useSnapshotSystemPageRbac } from "~/composables/core/useAccessGate"
+import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
 import { useHvacModbusIntegration } from "~/composables/monitoring/modbus/toggleModbusIntegrations"
@@ -78,7 +81,13 @@ import { useHvacModbusIntegration } from "~/composables/monitoring/modbus/toggle
 definePageMeta({ layout: "default" })
 
 import { PERM } from "~/config/permissionCodes"
-const { canAdmin, canWrite } = useSnapshotSystemPageRbac(PERM.hvac.module)
+const {
+	canControlDevice,
+	canManageLocation,
+	canCreateLocation,
+	canUpdateLocation,
+	canDeleteLocation,
+} = useLocationModuleRbac(PERM.hvac)
 const hvacApi = useHvacApi()
 const { handleError } = useErrorHandler()
 
@@ -293,7 +302,7 @@ const handleDeleteZone = async (zoneId: string) => {
 }
 
 const handleOpenZoneDialog = async () => {
-	if (!canAdmin.value) return
+	if (!canManageLocation.value) return
 	if (hvacZones.value.length === 0) await loadZonesFromAPI()
 	showZoneManagementDialog.value = true
 }

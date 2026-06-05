@@ -171,8 +171,7 @@
 																<PermissionActionButton
 																	:allowed="canUpdatePlate"
 																	aria-label="編輯車牌"
-																	class="mr-3 text-cyan-300 disabled:opacity-50"
-																	enabled-hover-class="hover:underline"
+																	class="mr-3 text-cyan-300 enabled:hover:underline"
 																	@click="handleOpenPlateForm(opt.id, row)"
 																>
 																	編輯
@@ -180,8 +179,7 @@
 																<PermissionActionButton
 																	:allowed="canDeletePlate"
 																	aria-label="刪除車牌"
-																	class="text-rose-300 disabled:opacity-50"
-																	enabled-hover-class="hover:underline"
+																	class="text-rose-300 enabled:hover:underline"
 																	@click="handleDeletePlate(opt.id, row)"
 																>
 																	刪除
@@ -458,6 +456,7 @@ const handleSavePlate = async (deviceId: number) => {
 	try {
 		await isapiApi.upsertLicensePlates(deviceId, {
 			...apiParams.value,
+			mutation: plateFormMode.value === "add" ? "create" : "update",
 			plates: [built.entry],
 		})
 		toast.success("已儲存車牌名單")

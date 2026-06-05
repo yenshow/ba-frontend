@@ -10,8 +10,8 @@
 			<AirCirculationZonePlanPanel
 				:selected-zone-name="selectedZoneName"
 				:is-initial-loading="isInitialLoading"
-				:can-write="canWrite"
-				:can-manage-zones="canAdmin"
+				:can-write="canUpdateLocation"
+				:can-manage-zones="canManageLocation"
 				:is-edit-mode="isEditMode"
 				:selected-zone="selectedZone"
 				:selected-zone-data="selectedZoneData"
@@ -55,6 +55,9 @@
 		:zones="airCirculationZones"
 		system-type="air_circulation"
 		:require-image-url="true"
+		:can-create-zone="canCreateLocation"
+		:can-update-zone="canUpdateLocation"
+		:can-delete-zone="canDeleteLocation"
 		device-hint="請先在「設備管理」中建立控制器設備"
 		@save="handleSaveZone"
 		@delete="handleDeleteZone"
@@ -79,7 +82,8 @@ import { normalizeSystemUiStatus, type SystemUiStatus } from "~/utils/monitoring
 import { useAirCirculationApi } from "~/composables/systems/air-circulation/useAirCirculationApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
-import { useSnapshotSystemPageRbac } from "~/composables/core/useAccessGate"
+import { useAdminOnly } from "~/composables/core/useAuth"
+import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
 import { useAirCirculationModbusIntegration } from "~/composables/monitoring/modbus/snapshotModbusIntegrations"
@@ -90,7 +94,9 @@ import { useVisibilityAutoRefresh } from "~/composables/monitoring/useVisibility
 definePageMeta({ layout: "default" })
 
 import { PERM } from "~/config/permissionCodes"
-const { canAdmin, canWrite } = useSnapshotSystemPageRbac(PERM.airCirculation.module)
+const canAdmin = useAdminOnly()
+const { canManageLocation, canCreateLocation, canUpdateLocation, canDeleteLocation } =
+	useLocationModuleRbac(PERM.airCirculation)
 const airApi = useAirCirculationApi()
 const { handleError } = useErrorHandler()
 
@@ -384,7 +390,7 @@ const handleDeleteZone = async (zoneId: string) => {
 }
 
 const handleOpenZoneDialog = async () => {
-	if (!canAdmin.value) return
+	if (!canManageLocation.value) return
 	if (airCirculationZones.value.length === 0) await loadZonesFromAPI()
 	showZoneManagementDialog.value = true
 }

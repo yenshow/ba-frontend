@@ -17,6 +17,15 @@ import { buildPathWithQuery } from "~/utils/apiUtils"
 
 const PERSONNEL_PREFIX = "/personnel"
 
+/** 新增/更新人員若觸發 ISAPI 車牌同步，可能需對多台設備寫入 */
+export const PERSON_WITH_VEHICLE_SYNC_TIMEOUT_MS = 120_000
+
+const personWriteRequestInit = (method: "POST" | "PUT", body: unknown) => ({
+	method,
+	body: JSON.stringify(body),
+	timeout: PERSON_WITH_VEHICLE_SYNC_TIMEOUT_MS,
+})
+
 /** GET /personnel/persons 查詢參數 */
 export type GetPersonsParams = {
 	mainGroupId?: number
@@ -234,11 +243,7 @@ export const usePersonnelApi = (): PersonnelApi => {
 			faceUrl?: string | null
 			personGroupId?: number | null
 			licensePlates?: PersonLicensePlatePayload[] | string[]
-		}) =>
-			request<Person>(`${PERSONNEL_PREFIX}/persons`, {
-				method: "POST",
-				body: JSON.stringify(body),
-			}),
+		}) => request<Person>(`${PERSONNEL_PREFIX}/persons`, personWriteRequestInit("POST", body)),
 		updatePerson: (
 			id: number,
 			body: Partial<{
@@ -250,10 +255,10 @@ export const usePersonnelApi = (): PersonnelApi => {
 				licensePlates?: PersonLicensePlatePayload[] | string[]
 			}>
 		) =>
-			request<Person>(`${PERSONNEL_PREFIX}/persons/${id}`, {
-				method: "PUT",
-				body: JSON.stringify(body),
-			}),
+			request<Person>(
+				`${PERSONNEL_PREFIX}/persons/${id}`,
+				personWriteRequestInit("PUT", body)
+			),
 		/** 上傳該人員大頭照（檔名由後端依姓名/工號組成，並自動更新 face_url） */
 		uploadFaceForPerson: (personId: number, file: File) => {
 			const form = new FormData()

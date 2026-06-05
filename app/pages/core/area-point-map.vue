@@ -24,8 +24,7 @@
 									v-show="!isInitialLoading"
 									:allowed="canManageOperations"
 									ariaLabel="區域管理"
-									class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base text-white transition-all 2xl:text-lg"
-									enabled-hover-class="hover:bg-white/10"
+									class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base text-white transition-all enabled:hover:bg-white/10 2xl:text-lg"
 									@click="handleOpenZoneDialog"
 								>
 									區域管理
@@ -190,53 +189,14 @@
 import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { useAreaPointMapRbac } from "~/composables/core/useAccessGate"
+import { useAreaPointMap } from "~/composables/monitoring/useAreaPointMap"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import {
-	getLocationStyleBySystem,
-	hasAnySystemCoordinates,
-	hasCoordinatesForSystem,
-} from "~/utils/locationAdapter"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import LocationManagementDialog from "~/components/location/LocationManagementDialog.vue"
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
-import type { LightingZone } from "~/types/lighting"
-import type { DrainageZone } from "~/types/drainage"
-import type { PowerZone, PowerStatusItem } from "~/types/power"
-import type { HvacZone } from "~/types/hvac"
-import type { FireZone } from "~/types/fire"
-import type { AirCirculationZone } from "~/types/air-circulation"
-import type { SmokeAlarmZone } from "~/types/smoke-alarm"
-import type { EmergencyRescueZone } from "~/types/emergency-rescue"
-import { useLightingApi } from "~/composables/systems/lighting/useLightingApi"
-import { useDrainageApi } from "~/composables/systems/drainage/useDrainageApi"
-import { usePowerApi } from "~/composables/systems/power/usePowerApi"
-import { useHvacApi } from "~/composables/systems/hvac/useHvacApi"
-import { useFireApi } from "~/composables/systems/fire/useFireApi"
-import { useAirCirculationApi } from "~/composables/systems/air-circulation/useAirCirculationApi"
-import { useSmokeAlarmApi } from "~/composables/systems/smoke-alarm/useSmokeAlarmApi"
-import { useEmergencyRescueApi } from "~/composables/systems/emergency-rescue/useEmergencyRescueApi"
 import { useVisibilityAutoRefresh } from "~/composables/monitoring/useVisibilityAutoRefresh"
-import { useMonitoringOverviewApi } from "~/composables/monitoring/useMonitoringOverviewApi"
-import {
-	useAirCirculationModbusIntegration,
-	useDrainageModbusIntegration,
-	useEmergencyRescueModbusIntegration,
-	useFireModbusIntegration,
-	usePowerModbusIntegration,
-	useSmokeAlarmModbusIntegration,
-} from "~/composables/monitoring/modbus/snapshotModbusIntegrations"
-import {
-	useHvacModbusIntegration,
-	useLightingModbusIntegration,
-} from "~/composables/monitoring/modbus/toggleModbusIntegrations"
 import { getSystemTypeLabel } from "~/types/location"
-import { getLocationUiKey } from "~/utils/locationUiId"
-import {
-	normalizeSystemUiStatus,
-	type MapDotStatus,
-	type SystemUiStatus,
-} from "~/utils/monitoringStatus"
 
 definePageMeta({
 	layout: "default",
@@ -288,436 +248,40 @@ const selectedLocation = ref<string>("")
 // 選中的系統類型（用於篩選）
 const selectedSystemType = ref<SystemType | null>(null)
 
-// 選系統時才載入對應系統的狀態（避免總覽時打爆 API/輪詢）
-const lightingApi = useLightingApi()
-const drainageApi = useDrainageApi()
-const fireApi = useFireApi()
-const powerApi = usePowerApi()
-const hvacApi = useHvacApi()
-const airCirculationApi = useAirCirculationApi()
-const smokeAlarmApi = useSmokeAlarmApi()
-const emergencyRescueApi = useEmergencyRescueApi()
-const monitoringOverviewApi = useMonitoringOverviewApi()
-
-const lightingZones = ref<LightingZone[]>([])
-const drainageZones = ref<DrainageZone[]>([])
-const fireZones = ref<FireZone[]>([])
-const powerZones = ref<PowerZone[]>([])
-const hvacZones = ref<HvacZone[]>([])
-const airCirculationZones = ref<AirCirculationZone[]>([])
-const smokeAlarmZones = ref<SmokeAlarmZone[]>([])
-const emergencyRescueZones = ref<EmergencyRescueZone[]>([])
-
-const lightingSelectedZoneKey = computed(() => selectedZone.value)
-const {
-	locationStatuses: lightingLocationStatuses,
-	initializeLocationStatuses: initializeLightingStatuses,
-	preloadDeviceInfos: preloadLightingDevices,
-	loadAllLocationStatuses: loadAllLightingStatuses,
-	applySnapshotItems: applyLightingSnapshotItems,
-	startAutoRefresh: startLightingAutoRefresh,
-	stopAutoRefresh: stopLightingAutoRefresh,
-	handleVisibilityChange: handleLightingVisibilityChange,
-} = useLightingModbusIntegration(lightingZones, lightingSelectedZoneKey)
-
-const {
-	statusItems: drainageStatusItems,
-	preloadDeviceInfos: preloadDrainageDevices,
-	loadStatusSnapshot: loadDrainageSnapshot,
-	setStatusItems: setDrainageStatusItems,
-	startAutoRefresh: startDrainageAutoRefresh,
-	stopAutoRefresh: stopDrainageAutoRefresh,
-	handleVisibilityChange: handleDrainageVisibilityChange,
-} = useDrainageModbusIntegration(drainageZones)
-
-const {
-	statusItems: fireStatusItems,
-	preloadDeviceInfos: preloadFireDevices,
-	loadStatusSnapshot: loadFireSnapshot,
-	setStatusItems: setFireStatusItems,
-	startAutoRefresh: startFireAutoRefresh,
-	stopAutoRefresh: stopFireAutoRefresh,
-	handleVisibilityChange: handleFireVisibilityChange,
-} = useFireModbusIntegration(fireZones)
-
-const {
-	statusItems: powerStatusItems,
-	preloadDeviceInfos: preloadPowerDevices,
-	loadStatusSnapshot: loadPowerSnapshot,
-	setStatusItems: setPowerStatusItems,
-	startAutoRefresh: startPowerAutoRefresh,
-	stopAutoRefresh: stopPowerAutoRefresh,
-	handleVisibilityChange: handlePowerVisibilityChange,
-} = usePowerModbusIntegration(powerZones)
-
-const hvacSelectedZoneKey = computed(() => selectedZone.value)
-const {
-	locationStatuses: hvacLocationStatuses,
-	initializeLocationStatuses: initializeHvacStatuses,
-	preloadDeviceInfos: preloadHvacDevices,
-	loadAllLocationStatuses: loadAllHvacStatuses,
-	applySnapshotItems: applyHvacSnapshotItems,
-	startAutoRefresh: startHvacAutoRefresh,
-	stopAutoRefresh: stopHvacAutoRefresh,
-	handleVisibilityChange: handleHvacVisibilityChange,
-} = useHvacModbusIntegration(hvacZones, hvacSelectedZoneKey)
-
-const {
-	statusItems: airCirculationStatusItems,
-	preloadDeviceInfos: preloadAirCirculationDevices,
-	loadStatusSnapshot: loadAirCirculationSnapshot,
-	setStatusItems: setAirCirculationStatusItems,
-	startAutoRefresh: startAirCirculationAutoRefresh,
-	stopAutoRefresh: stopAirCirculationAutoRefresh,
-	handleVisibilityChange: handleAirCirculationVisibilityChange,
-} = useAirCirculationModbusIntegration(airCirculationZones)
-
-const {
-	statusItems: smokeAlarmStatusItems,
-	preloadDeviceInfos: preloadSmokeAlarmDevices,
-	loadStatusSnapshot: loadSmokeAlarmSnapshot,
-	setStatusItems: setSmokeAlarmStatusItems,
-	startAutoRefresh: startSmokeAlarmAutoRefresh,
-	stopAutoRefresh: stopSmokeAlarmAutoRefresh,
-	handleVisibilityChange: handleSmokeAlarmVisibilityChange,
-} = useSmokeAlarmModbusIntegration(smokeAlarmZones)
-
-const {
-	statusItems: emergencyRescueStatusItems,
-	preloadDeviceInfos: preloadEmergencyRescueDevices,
-	loadStatusSnapshot: loadEmergencyRescueSnapshot,
-	setStatusItems: setEmergencyRescueStatusItems,
-	startAutoRefresh: startEmergencyRescueAutoRefresh,
-	stopAutoRefresh: stopEmergencyRescueAutoRefresh,
-	handleVisibilityChange: handleEmergencyRescueVisibilityChange,
-} = useEmergencyRescueModbusIntegration(emergencyRescueZones)
-
-// 其他狀態
-const isZonePlanLoaded = ref(false)
-const showLocationManagementDialog = ref(false)
-
 // 選中的區域資料
 const selectedZoneData = computed(() => {
 	if (!selectedZone.value) return undefined
 	return zones.value.find((zone) => zone.id === selectedZone.value)
 })
 
+const {
+	zoneSystemTypes,
+	getZoneSystemTypes,
+	currentZoneLocations,
+	getLocationDotStyle,
+	dotStatusForLocation,
+	flashModeForLocation,
+	tooltipLabelForLocation,
+	handleSystemTypeToggle,
+	stopOverviewAutoRefresh,
+	stopAllSystemAutoRefresh,
+	handleRuntimeVisibility,
+} = useAreaPointMap({ selectedZone, selectedSystemType, selectedZoneData })
+
+// 其他狀態
+const isZonePlanLoaded = ref(false)
+const showLocationManagementDialog = ref(false)
+
 // 選中的區域名稱
 const selectedZoneName = computed(() => {
 	return selectedZoneData.value?.name || ""
 })
-
-// 提取樓層的所有系統類型（共用函數）
-const extractSystemTypes = (locations: UnifiedLocation[]): SystemType[] => {
-	if (!locations || locations.length === 0) return []
-
-	const systemTypes = new Set<SystemType>()
-	locations.forEach((location) => {
-		location.systems?.forEach((system) => {
-			systemTypes.add(system.systemType)
-		})
-	})
-	return Array.from(systemTypes)
-}
-
-// 選中區域的所有系統類型（去重）
-const zoneSystemTypes = computed(() => {
-	if (!selectedZoneData.value?.locations) return []
-	return extractSystemTypes(selectedZoneData.value.locations)
-})
-
-// 取得指定區域的所有系統類型（用於總覽顯示）
-const getZoneSystemTypes = (zone: UnifiedZone): SystemType[] => {
-	if (!zone?.locations) return []
-	return extractSystemTypes(zone.locations)
-}
 
 // 排序的區域列表
 const sortedZones = computed(() => sortZones(zones.value))
 
 // 區域示意圖
 const zonePlanImage = computed(() => selectedZoneData.value?.imageUrl)
-
-type FlashMode = "none" | "slow" | "fast"
-
-const dotSeverity = (s: MapDotStatus): 0 | 1 | 2 => {
-	if (s === "alarm") return 2
-	if (s === "warning") return 1
-	return 0
-}
-
-const buildUiStatusMap = (items: unknown[]): Map<string, string> => {
-	const m = new Map<string, string>()
-	for (const it of items) {
-		const locationId = String((it as any).locationId || "")
-		if (!locationId) continue
-		m.set(locationId, String((it as any).uiStatus || "unknown"))
-	}
-	return m
-}
-
-const drainageUiStatusByLocationId = computed(() =>
-	buildUiStatusMap(drainageStatusItems.value || [])
-)
-const fireUiStatusByLocationId = computed(() => buildUiStatusMap(fireStatusItems.value || []))
-const airCirculationUiStatusByLocationId = computed(() =>
-	buildUiStatusMap(airCirculationStatusItems.value || [])
-)
-const smokeAlarmUiStatusByLocationId = computed(() =>
-	buildUiStatusMap(smokeAlarmStatusItems.value || [])
-)
-const emergencyRescueUiStatusByLocationId = computed(() =>
-	buildUiStatusMap(emergencyRescueStatusItems.value || [])
-)
-
-const powerUiStatusByLocationId = computed(() => {
-	const m = new Map<string, PowerStatusItem["uiStatus"]>()
-	for (const it of powerStatusItems.value || []) {
-		const locationId = String((it as any).locationId || "")
-		if (!locationId) continue
-		m.set(locationId, String((it as any).uiStatus || "unknown") as any)
-	}
-	return m
-})
-
-const lightingHealthByLocationDbId = computed(() => {
-	const m = new Map<string, { status?: SystemUiStatus }>()
-	for (const zone of lightingZones.value || []) {
-		for (let i = 0; i < (zone.locations || []).length; i += 1) {
-			const loc = zone.locations[i] as any
-			const dbId = loc?.id ? String(loc.id) : ""
-			if (!dbId) continue
-			// lighting integration 的 key 是 UI key（含 index）；以相同算法取回 status，再映射到 dbId
-			const uiKey = getLocationUiKey({ zone, location: loc, locationIndex: i })
-			const s = lightingLocationStatuses.value[uiKey]?.status
-			m.set(dbId, { status: s })
-		}
-	}
-	return m
-})
-
-const hvacUiStatusByLocationDbId = computed(() => {
-	const m = new Map<string, { uiStatus?: SystemUiStatus; temperatureC?: number | null }>()
-	for (const zone of hvacZones.value || []) {
-		for (let i = 0; i < (zone.locations || []).length; i += 1) {
-			const loc = (zone.locations || [])[i] as any
-			const dbId = loc?.id ? String(loc.id) : ""
-			if (!dbId) continue
-			const uiKey = getLocationUiKey({ zone: zone as any, location: loc as any, locationIndex: i })
-			const s = hvacLocationStatuses.value[uiKey]
-			if (!s) continue
-			m.set(dbId, { uiStatus: s.uiStatus, temperatureC: (s as any).temperatureC ?? null })
-		}
-	}
-	return m
-})
-
-const uiStatusToDot = (s: string): MapDotStatus => normalizeSystemUiStatus(s || "unknown")
-
-const uiStatusToFlash = (s: string): FlashMode => {
-	const t = String(s || "unknown")
-	if (t === "normal") return "none"
-	if (t === "alarm") return "fast"
-	return "slow"
-}
-
-const locationHasSystemType = (location: UnifiedLocation, systemType: SystemType): boolean => {
-	const systems = location.systems || []
-	return systems.some((s) => s?.systemType === systemType)
-}
-
-const getModbusUiStatus = (locationId: string): string | null => {
-	const t = selectedSystemType.value
-	if (t === "drainage") return drainageUiStatusByLocationId.value.get(locationId) ?? "unknown"
-	if (t === "fire") return fireUiStatusByLocationId.value.get(locationId) ?? "unknown"
-	if (t === "power") return powerUiStatusByLocationId.value.get(locationId) ?? "unknown"
-	if (t === "air_circulation")
-		return airCirculationUiStatusByLocationId.value.get(locationId) ?? "unknown"
-	if (t === "smoke_alarm") return smokeAlarmUiStatusByLocationId.value.get(locationId) ?? "unknown"
-	if (t === "emergency_rescue")
-		return emergencyRescueUiStatusByLocationId.value.get(locationId) ?? "unknown"
-	return null
-}
-
-const mergeModbusDotStatus = (
-	best: MapDotStatus,
-	location: UnifiedLocation,
-	systemType: SystemType,
-	statusMap: Map<string, string>
-): MapDotStatus => {
-	if (!locationHasSystemType(location, systemType)) return best
-	const s = uiStatusToDot(statusMap.get(String(location.id || "")) ?? "unknown")
-	return dotSeverity(s) > dotSeverity(best) ? s : best
-}
-
-const dotStatusForLocation = (location: UnifiedLocation): MapDotStatus => {
-	const id = String(location.id || "")
-
-	if (!selectedSystemType.value) {
-		let best: MapDotStatus = "normal"
-
-		if (locationHasSystemType(location, "drainage")) {
-			const s = uiStatusToDot(drainageUiStatusByLocationId.value.get(id) ?? "unknown")
-			if (dotSeverity(s) > dotSeverity(best)) best = s
-		}
-
-		if (locationHasSystemType(location, "fire")) {
-			const s = uiStatusToDot(fireUiStatusByLocationId.value.get(id) ?? "unknown")
-			if (dotSeverity(s) > dotSeverity(best)) best = s
-		}
-
-		if (locationHasSystemType(location, "lighting")) {
-			const lighting = lightingHealthByLocationDbId.value.get(id)?.status
-			if (lighting === "normal") {
-				// no-op
-			} else {
-				// 照明對外僅兩態：normal / warning（warning、error、缺值都算異常）
-				best = dotSeverity(best) >= 1 ? best : "warning"
-			}
-		}
-
-		if (locationHasSystemType(location, "hvac")) {
-			const hvac = hvacUiStatusByLocationDbId.value.get(id)?.uiStatus
-			if (hvac !== "normal") {
-				best = dotSeverity(best) >= 1 ? best : "warning"
-			}
-		}
-
-		if (locationHasSystemType(location, "power")) {
-			const s = uiStatusToDot(powerUiStatusByLocationId.value.get(id) ?? "unknown")
-			if (dotSeverity(s) > dotSeverity(best)) best = s
-		}
-
-		best = mergeModbusDotStatus(
-			best,
-			location,
-			"air_circulation",
-			airCirculationUiStatusByLocationId.value
-		)
-		best = mergeModbusDotStatus(best, location, "smoke_alarm", smokeAlarmUiStatusByLocationId.value)
-		best = mergeModbusDotStatus(
-			best,
-			location,
-			"emergency_rescue",
-			emergencyRescueUiStatusByLocationId.value
-		)
-
-		return best
-	}
-
-	const modbusStatus = getModbusUiStatus(id)
-	if (modbusStatus !== null) return uiStatusToDot(modbusStatus)
-
-	if (selectedSystemType.value === "lighting") {
-		const s = lightingHealthByLocationDbId.value.get(id)?.status
-		if (s === "normal") return "normal"
-		// 照明對外僅兩態：normal / warning（warning、error、缺值都算異常）
-		return "warning"
-	}
-	if (selectedSystemType.value === "hvac") {
-		const s = hvacUiStatusByLocationDbId.value.get(id)?.uiStatus
-		return s === "normal" ? "normal" : "warning"
-	}
-	return "normal"
-}
-
-const flashModeForLocation = (location: UnifiedLocation): FlashMode => {
-	const id = String(location.id || "")
-
-	if (!selectedSystemType.value) {
-		const s = dotStatusForLocation(location)
-		if (s === "alarm") return "fast"
-		if (s === "warning") return "slow"
-		return "none"
-	}
-
-	const modbusStatus = getModbusUiStatus(id)
-	if (modbusStatus !== null) return uiStatusToFlash(modbusStatus)
-
-	if (selectedSystemType.value === "lighting") {
-		const s = lightingHealthByLocationDbId.value.get(id)?.status
-		// 照明監控僅兩態：正常不閃，其餘慢閃
-		if (s === "normal") return "none"
-		return "slow"
-	}
-	if (selectedSystemType.value === "hvac") {
-		const s = hvacUiStatusByLocationDbId.value.get(id)?.uiStatus
-		if (s === "normal") return "none"
-		return "slow"
-	}
-	return "none"
-}
-
-const tooltipLabelForLocation = (location: UnifiedLocation): string => {
-	const status = dotStatusForLocation(location)
-	const label = status === "normal" ? "正常" : status === "alarm" ? "警報" : "異常"
-	if (selectedSystemType.value) return `${location.name}：${label}`
-
-	const id = String(location.id || "")
-	const parts: string[] = []
-	const drainageUi = drainageUiStatusByLocationId.value.get(id)
-	if (drainageUi && drainageUi !== "unknown" && drainageUi !== "normal") {
-		parts.push(`衛生排水：${uiStatusToDot(drainageUi) === "alarm" ? "警報" : "異常"}`)
-	}
-	const fireUi = fireUiStatusByLocationId.value.get(id)
-	if (fireUi && fireUi !== "unknown" && fireUi !== "normal") {
-		parts.push(`消防：${uiStatusToDot(fireUi) === "alarm" ? "警報" : "異常"}`)
-	}
-	const lighting = lightingHealthByLocationDbId.value.get(id)?.status
-	if (lighting === "warning") parts.push("照明：異常")
-	if (lighting === "alarm") parts.push("照明：警報")
-
-	const hvac = hvacUiStatusByLocationDbId.value.get(id)
-	if (hvac?.uiStatus && hvac.uiStatus !== "normal") {
-		const temp =
-			hvac.temperatureC != null && Number.isFinite(hvac.temperatureC)
-				? `（${Math.round(hvac.temperatureC)}°C）`
-				: ""
-		parts.push(`空調：異常${temp}`)
-	}
-
-	const powerUi = powerUiStatusByLocationId.value.get(id)
-	if (powerUi && powerUi !== "normal") {
-		parts.push(`電力：${uiStatusToDot(powerUi) === "alarm" ? "警報" : "異常"}`)
-	}
-
-	const appendModbusTooltip = (systemType: SystemType, statusMap: Map<string, string>) => {
-		const ui = statusMap.get(id)
-		if (!ui || ui === "unknown" || ui === "normal") return
-		const label = getSystemTypeLabel(systemType)
-		parts.push(`${label}：${uiStatusToDot(ui) === "alarm" ? "警報" : "異常"}`)
-	}
-	appendModbusTooltip("air_circulation", airCirculationUiStatusByLocationId.value)
-	appendModbusTooltip("smoke_alarm", smokeAlarmUiStatusByLocationId.value)
-	appendModbusTooltip("emergency_rescue", emergencyRescueUiStatusByLocationId.value)
-
-	return parts.length
-		? `${location.name}：${label}\n${parts.join("、")}`
-		: `${location.name}：${label}`
-}
-
-const currentZoneLocations = computed(() => {
-	if (!selectedZone.value) return []
-	const zone = selectedZoneData.value
-	if (!zone) return []
-
-	return (zone.locations || []).filter((loc) => {
-		if (selectedSystemType.value) return hasCoordinatesForSystem(loc, selectedSystemType.value)
-		return hasAnySystemCoordinates(loc)
-	})
-})
-
-const getLocationDotStyle = (location: UnifiedLocation): Record<string, string> => {
-	if (!selectedSystemType.value) {
-		// 未選系統：依序找第一個有座標的系統作為顯示座標
-		for (const s of location.systems || []) {
-			const style = getLocationStyleBySystem(location, s.systemType)
-			if ("left" in style && "top" in style) return style as Record<string, string>
-		}
-		return {}
-	}
-	return getLocationStyleBySystem(location, selectedSystemType.value) as Record<string, string>
-}
 
 const firstZoneByDisplayOrder = (zs: UnifiedZone[]) => sortZones(zs)[0] ?? null
 
@@ -763,348 +327,9 @@ const handleZoneSelected = (zoneId: string) => {
 	selectedSystemType.value = null
 }
 
-const handleSystemTypeToggle = (systemType: SystemType) => {
-	selectedSystemType.value = selectedSystemType.value === systemType ? null : systemType
-}
-
 const selectLocation = (location: UnifiedLocation) => {
 	selectedLocation.value = location.id
 }
-
-const stopAllSystemAutoRefresh = () => {
-	stopLightingAutoRefresh()
-	stopDrainageAutoRefresh()
-	stopFireAutoRefresh()
-	stopPowerAutoRefresh()
-	stopHvacAutoRefresh()
-	stopAirCirculationAutoRefresh()
-	stopSmokeAlarmAutoRefresh()
-	stopEmergencyRescueAutoRefresh()
-}
-
-const hasLoadedLightingSnapshot = ref(false)
-const hasLoadedDrainageSnapshot = ref(false)
-const hasLoadedFireSnapshot = ref(false)
-const hasLoadedPowerSnapshot = ref(false)
-const hasLoadedHvacSnapshot = ref(false)
-const hasLoadedAirCirculationSnapshot = ref(false)
-const hasLoadedSmokeAlarmSnapshot = ref(false)
-const hasLoadedEmergencyRescueSnapshot = ref(false)
-
-const OVERVIEW_STAGGER_TICK_MS = 1800
-const OVERVIEW_AGGREGATE_INTERVAL_MS = 15000
-const overviewAggregateEnabled = ref(true)
-const overviewAggregateTimerId = ref<ReturnType<typeof setInterval> | null>(null)
-const overviewRefreshTimerId = ref<ReturnType<typeof setInterval> | null>(null)
-const overviewRefreshCursor = ref(0)
-const isOverviewTickRunning = ref(false)
-
-const stopOverviewAutoRefresh = () => {
-	if (overviewAggregateTimerId.value) {
-		clearInterval(overviewAggregateTimerId.value)
-		overviewAggregateTimerId.value = null
-	}
-	if (!overviewRefreshTimerId.value) return
-	clearInterval(overviewRefreshTimerId.value)
-	overviewRefreshTimerId.value = null
-}
-
-const refreshOverviewFromAggregateApi = async () => {
-	if (selectedSystemType.value) return
-	if (typeof document !== "undefined" && document.visibilityState !== "visible") return
-
-	const result = await monitoringOverviewApi.getOverviewStatus({ syncAlerts: false })
-	const systems = result.systems || {}
-
-	if (systems.lighting) {
-		lightingZones.value = (systems.lighting.zones || []) as any
-		if (!hasLoadedLightingSnapshot.value) {
-			initializeLightingStatuses()
-			await preloadLightingDevices()
-			hasLoadedLightingSnapshot.value = true
-		}
-		applyLightingSnapshotItems((systems.lighting.items || []) as any)
-	}
-
-	if (systems.hvac) {
-		hvacZones.value = (systems.hvac.zones || []) as any
-		if (!hasLoadedHvacSnapshot.value) {
-			initializeHvacStatuses()
-			await preloadHvacDevices()
-			hasLoadedHvacSnapshot.value = true
-		}
-		applyHvacSnapshotItems((systems.hvac.items || []) as any)
-	}
-
-	if (systems.power) {
-		powerZones.value = (systems.power.zones || []) as any
-		if (!hasLoadedPowerSnapshot.value) {
-			await preloadPowerDevices()
-			hasLoadedPowerSnapshot.value = true
-		}
-		setPowerStatusItems((systems.power.items || []) as any)
-	}
-
-	if (systems.drainage) {
-		drainageZones.value = (systems.drainage.zones || []) as any
-		if (!hasLoadedDrainageSnapshot.value) {
-			await preloadDrainageDevices()
-			hasLoadedDrainageSnapshot.value = true
-		}
-		setDrainageStatusItems((systems.drainage.items || []) as any)
-	}
-
-	if (systems.fire) {
-		fireZones.value = (systems.fire.zones || []) as any
-		if (!hasLoadedFireSnapshot.value) {
-			await preloadFireDevices()
-			hasLoadedFireSnapshot.value = true
-		}
-		setFireStatusItems((systems.fire.items || []) as any)
-	}
-
-	if (systems.air_circulation) {
-		airCirculationZones.value = (systems.air_circulation.zones || []) as any
-		if (!hasLoadedAirCirculationSnapshot.value) {
-			await preloadAirCirculationDevices()
-			hasLoadedAirCirculationSnapshot.value = true
-		}
-		setAirCirculationStatusItems((systems.air_circulation.items || []) as any)
-	}
-
-	if (systems.smoke_alarm) {
-		smokeAlarmZones.value = (systems.smoke_alarm.zones || []) as any
-		if (!hasLoadedSmokeAlarmSnapshot.value) {
-			await preloadSmokeAlarmDevices()
-			hasLoadedSmokeAlarmSnapshot.value = true
-		}
-		setSmokeAlarmStatusItems((systems.smoke_alarm.items || []) as any)
-	}
-
-	if (systems.emergency_rescue) {
-		emergencyRescueZones.value = (systems.emergency_rescue.zones || []) as any
-		if (!hasLoadedEmergencyRescueSnapshot.value) {
-			await preloadEmergencyRescueDevices()
-			hasLoadedEmergencyRescueSnapshot.value = true
-		}
-		setEmergencyRescueStatusItems((systems.emergency_rescue.items || []) as any)
-	}
-}
-
-const refreshOverviewOneSystem = async () => {
-	// 未選系統也要維持狀態更新，避免與各系統頁資訊不一致
-	if (selectedSystemType.value) return
-	if (typeof document !== "undefined" && document.visibilityState !== "visible") return
-
-	const idx = overviewRefreshCursor.value % 8
-	overviewRefreshCursor.value += 1
-
-	if (idx === 0) {
-		if (!hasLoadedLightingSnapshot.value) return loadLightingStatusSnapshot({ autoRefresh: false })
-		if (lightingZones.value.length === 0) return
-		return loadAllLightingStatuses({ loadAllZones: true })
-	}
-	if (idx === 1) {
-		if (!hasLoadedDrainageSnapshot.value) return loadDrainageStatusSnapshot({ autoRefresh: false })
-		if (drainageZones.value.length === 0) return
-		return loadDrainageSnapshot()
-	}
-	if (idx === 2) {
-		if (!hasLoadedFireSnapshot.value) return loadFireStatusSnapshot({ autoRefresh: false })
-		if (fireZones.value.length === 0) return
-		return loadFireSnapshot()
-	}
-	if (idx === 3) {
-		if (!hasLoadedPowerSnapshot.value) return loadPowerStatusSnapshot({ autoRefresh: false })
-		if (powerZones.value.length === 0) return
-		return loadPowerSnapshot()
-	}
-	if (idx === 4) {
-		if (!hasLoadedHvacSnapshot.value) return loadHvacStatusSnapshot({ autoRefresh: false })
-		if (hvacZones.value.length === 0) return
-		return loadAllHvacStatuses({ loadAllZones: true })
-	}
-	if (idx === 5) {
-		if (!hasLoadedAirCirculationSnapshot.value)
-			return loadAirCirculationStatusSnapshot({ autoRefresh: false })
-		if (airCirculationZones.value.length === 0) return
-		return loadAirCirculationSnapshot()
-	}
-	if (idx === 6) {
-		if (!hasLoadedSmokeAlarmSnapshot.value)
-			return loadSmokeAlarmStatusSnapshot({ autoRefresh: false })
-		if (smokeAlarmZones.value.length === 0) return
-		return loadSmokeAlarmSnapshot()
-	}
-	if (!hasLoadedEmergencyRescueSnapshot.value)
-		return loadEmergencyRescueStatusSnapshot({ autoRefresh: false })
-	if (emergencyRescueZones.value.length === 0) return
-	return loadEmergencyRescueSnapshot()
-}
-
-const startOverviewAutoRefresh = () => {
-	stopOverviewAutoRefresh()
-	if (selectedSystemType.value) return
-	if (overviewAggregateEnabled.value) {
-		overviewAggregateTimerId.value = setInterval(() => {
-			if (typeof document !== "undefined" && document.visibilityState !== "visible") return
-			refreshOverviewFromAggregateApi().catch(() => {
-				overviewAggregateEnabled.value = false
-				stopOverviewAutoRefresh()
-				startOverviewAutoRefresh()
-			})
-		}, OVERVIEW_AGGREGATE_INTERVAL_MS)
-		void refreshOverviewFromAggregateApi().catch(() => {
-			overviewAggregateEnabled.value = false
-			stopOverviewAutoRefresh()
-			startOverviewAutoRefresh()
-		})
-		return
-	}
-	overviewRefreshTimerId.value = setInterval(async () => {
-		if (isOverviewTickRunning.value) return
-		isOverviewTickRunning.value = true
-		try {
-			await refreshOverviewOneSystem()
-		} finally {
-			isOverviewTickRunning.value = false
-		}
-	}, OVERVIEW_STAGGER_TICK_MS)
-}
-
-const loadLightingStatusSnapshot = async (options: { autoRefresh: boolean }) => {
-	const result = await lightingApi.getZones()
-	lightingZones.value = result.zones || []
-	initializeLightingStatuses()
-	await preloadLightingDevices()
-	await loadAllLightingStatuses({ loadAllZones: true })
-	hasLoadedLightingSnapshot.value = true
-	if (options.autoRefresh) startLightingAutoRefresh()
-}
-
-const loadDrainageStatusSnapshot = async (options: { autoRefresh: boolean }) => {
-	const result = await drainageApi.getZones()
-	drainageZones.value = result.zones || []
-	await preloadDrainageDevices()
-	await loadDrainageSnapshot()
-	hasLoadedDrainageSnapshot.value = true
-	if (options.autoRefresh) startDrainageAutoRefresh()
-}
-
-const loadFireStatusSnapshot = async (options: { autoRefresh: boolean }) => {
-	const result = await fireApi.getZones()
-	fireZones.value = result.zones || []
-	await preloadFireDevices()
-	await loadFireSnapshot()
-	hasLoadedFireSnapshot.value = true
-	if (options.autoRefresh) startFireAutoRefresh()
-}
-
-const loadPowerStatusSnapshot = async (options: { autoRefresh: boolean }) => {
-	const result = await powerApi.getZones()
-	powerZones.value = result.zones || []
-	await preloadPowerDevices()
-	await loadPowerSnapshot()
-	hasLoadedPowerSnapshot.value = true
-	if (options.autoRefresh) startPowerAutoRefresh()
-}
-
-const loadHvacStatusSnapshot = async (options: { autoRefresh: boolean }) => {
-	const result = await hvacApi.getZones()
-	hvacZones.value = result.zones || []
-	initializeHvacStatuses()
-	await preloadHvacDevices()
-	await loadAllHvacStatuses({ loadAllZones: true })
-	hasLoadedHvacSnapshot.value = true
-	if (options.autoRefresh) startHvacAutoRefresh()
-}
-
-const loadAirCirculationStatusSnapshot = async (options: { autoRefresh: boolean }) => {
-	const result = await airCirculationApi.getZones()
-	airCirculationZones.value = result.zones || []
-	await preloadAirCirculationDevices()
-	await loadAirCirculationSnapshot()
-	hasLoadedAirCirculationSnapshot.value = true
-	if (options.autoRefresh) startAirCirculationAutoRefresh()
-}
-
-const loadSmokeAlarmStatusSnapshot = async (options: { autoRefresh: boolean }) => {
-	const result = await smokeAlarmApi.getZones()
-	smokeAlarmZones.value = result.zones || []
-	await preloadSmokeAlarmDevices()
-	await loadSmokeAlarmSnapshot()
-	hasLoadedSmokeAlarmSnapshot.value = true
-	if (options.autoRefresh) startSmokeAlarmAutoRefresh()
-}
-
-const loadEmergencyRescueStatusSnapshot = async (options: { autoRefresh: boolean }) => {
-	const result = await emergencyRescueApi.getZones()
-	emergencyRescueZones.value = result.zones || []
-	await preloadEmergencyRescueDevices()
-	await loadEmergencyRescueSnapshot()
-	hasLoadedEmergencyRescueSnapshot.value = true
-	if (options.autoRefresh) startEmergencyRescueAutoRefresh()
-}
-
-const ensureAllStatusSnapshotsLoaded = async () => {
-	if (!hasLoadedLightingSnapshot.value) await loadLightingStatusSnapshot({ autoRefresh: false })
-	if (!hasLoadedDrainageSnapshot.value) await loadDrainageStatusSnapshot({ autoRefresh: false })
-	if (!hasLoadedFireSnapshot.value) await loadFireStatusSnapshot({ autoRefresh: false })
-	if (!hasLoadedPowerSnapshot.value) await loadPowerStatusSnapshot({ autoRefresh: false })
-	if (!hasLoadedHvacSnapshot.value) await loadHvacStatusSnapshot({ autoRefresh: false })
-	if (!hasLoadedAirCirculationSnapshot.value)
-		await loadAirCirculationStatusSnapshot({ autoRefresh: false })
-	if (!hasLoadedSmokeAlarmSnapshot.value) await loadSmokeAlarmStatusSnapshot({ autoRefresh: false })
-	if (!hasLoadedEmergencyRescueSnapshot.value)
-		await loadEmergencyRescueStatusSnapshot({ autoRefresh: false })
-}
-
-watch(
-	() => selectedSystemType.value,
-	async (next) => {
-		stopOverviewAutoRefresh()
-		stopAllSystemAutoRefresh()
-
-		if (!next) {
-			await ensureAllStatusSnapshotsLoaded()
-			startOverviewAutoRefresh()
-			return
-		}
-		if (next === "lighting") {
-			await loadLightingStatusSnapshot({ autoRefresh: true })
-			return
-		}
-		if (next === "drainage") {
-			await loadDrainageStatusSnapshot({ autoRefresh: true })
-			return
-		}
-		if (next === "fire") {
-			await loadFireStatusSnapshot({ autoRefresh: true })
-			return
-		}
-		if (next === "power") {
-			await loadPowerStatusSnapshot({ autoRefresh: true })
-			return
-		}
-		if (next === "hvac") {
-			await loadHvacStatusSnapshot({ autoRefresh: true })
-			return
-		}
-		if (next === "air_circulation") {
-			await loadAirCirculationStatusSnapshot({ autoRefresh: true })
-			return
-		}
-		if (next === "smoke_alarm") {
-			await loadSmokeAlarmStatusSnapshot({ autoRefresh: true })
-			return
-		}
-		if (next === "emergency_rescue") {
-			await loadEmergencyRescueStatusSnapshot({ autoRefresh: true })
-			return
-		}
-	},
-	{ immediate: true }
-)
 
 const getLocationTypeLabel = getSystemTypeLabel
 
@@ -1122,20 +347,7 @@ const handleVisibilityChange = () => {
 	if (document.visibilityState === "visible") {
 		// 頁面可見時，重新載入區域資料以確保資料同步
 		void loadZones()
-		// 未選系統：補一次快照，避免點位狀態與點擊後不一致
-		if (!selectedSystemType.value) {
-			void ensureAllStatusSnapshotsLoaded()
-			startOverviewAutoRefresh()
-		}
-		// 若當前有選系統，讓該系統的輪詢也補一輪
-		if (selectedSystemType.value === "lighting") handleLightingVisibilityChange()
-		if (selectedSystemType.value === "drainage") handleDrainageVisibilityChange()
-		if (selectedSystemType.value === "fire") handleFireVisibilityChange()
-		if (selectedSystemType.value === "power") handlePowerVisibilityChange()
-		if (selectedSystemType.value === "hvac") handleHvacVisibilityChange()
-		if (selectedSystemType.value === "air_circulation") handleAirCirculationVisibilityChange()
-		if (selectedSystemType.value === "smoke_alarm") handleSmokeAlarmVisibilityChange()
-		if (selectedSystemType.value === "emergency_rescue") handleEmergencyRescueVisibilityChange()
+		handleRuntimeVisibility()
 	}
 }
 
@@ -1151,11 +363,8 @@ onMounted(async () => {
 	initLeftSectionObserver()
 
 	try {
-		// 載入區域列表
+		// 載入區域列表（狀態快照與輪詢由 useAreaPointMap watch immediate 啟動）
 		await loadZones()
-		// 未選系統預設也要能顯示異常/警報：先取一次快照（不輪詢）
-		await ensureAllStatusSnapshotsLoaded()
-		startOverviewAutoRefresh()
 
 		// 同步右側高度
 		await nextTick()

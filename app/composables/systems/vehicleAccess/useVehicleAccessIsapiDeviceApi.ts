@@ -13,10 +13,15 @@ export interface VehicleAccessIsapiDeviceParams {
 	channelId?: number;
 }
 
-const buildQuery = (params?: VehicleAccessIsapiDeviceParams) => {
+export type PlateUpsertMutation = "create" | "update";
+
+const buildQuery = (
+	params?: VehicleAccessIsapiDeviceParams & { mutation?: PlateUpsertMutation },
+) => {
 	const q = new URLSearchParams();
 	if (params?.siteId != null) q.set("siteId", String(params.siteId));
 	if (params?.channelId != null) q.set("channelId", String(params.channelId));
+	if (params?.mutation) q.set("mutation", params.mutation);
 	const qs = q.toString();
 	return qs ? `?${qs}` : "";
 };
@@ -45,14 +50,21 @@ export const useVehicleAccessIsapiDeviceApi = () => {
 
 	const upsertLicensePlates = async (
 		deviceId: number,
-		body: VehicleAccessIsapiDeviceParams & { plates: VehicleLicensePlateUpsertPayload[] }
+		body: VehicleAccessIsapiDeviceParams & {
+			plates: VehicleLicensePlateUpsertPayload[];
+			mutation: PlateUpsertMutation;
+		},
 	) =>
 		request<{ success: boolean; channelId: number; count: number }>(
-			`/vehicle-access/devices/${deviceId}/license-plates${buildQuery(body)}`,
+			`/vehicle-access/devices/${deviceId}/license-plates${buildQuery({
+				siteId: body.siteId,
+				channelId: body.channelId,
+				mutation: body.mutation,
+			})}`,
 			{
 				method: "PUT",
 				body,
-			}
+			},
 		);
 
 	const deleteLicensePlates = async (

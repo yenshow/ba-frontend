@@ -3,7 +3,7 @@ import { useAdminOnly, useAuth } from "~/composables/core/useAuth"
 import { useLicense } from "~/composables/core/useLicense"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { canAccessAccountPage } from "~/composables/systems/users/useAccountSettings"
-import { PERM } from "~/config/permissionCodes"
+import { LOCATION_DELETE_BY_SYSTEM_TYPE, PERM } from "~/config/permissionCodes"
 import type { FeatureKey } from "~/types/license"
 import { LICENSE_MESSAGE_REDIRECT, PERMISSION_MESSAGE_REDIRECT } from "~/utils/errorUtils"
 import type { SystemModule } from "~/types/system"
@@ -99,12 +99,13 @@ export const useAccessGate = () => {
 
 // --- 模組 RBAC（按鈕／操作權限）---
 
+/** 含地點 CRUD 的模組權限碼；deviceControl 供照明／空調開關；reportFull 供工地監控完整報表 */
 export type LocationPermCodes = {
 	locationCreate: string
 	locationUpdate: string
 	locationDelete: string
-	reportFull: string
-	reportExport?: string
+	deviceControl?: string
+	reportFull?: string
 }
 
 export const useLocationModuleRbac = (perm: LocationPermCodes) => {
@@ -118,9 +119,11 @@ export const useLocationModuleRbac = (perm: LocationPermCodes) => {
 			perm.locationUpdate,
 			perm.locationDelete,
 		),
-		canFullReport: useHasPermission(perm.reportFull),
-		canExportReport: perm.reportExport
-			? useHasPermission(perm.reportExport)
+		canControlDevice: perm.deviceControl
+			? useHasPermission(perm.deviceControl)
+			: computed(() => false),
+		canFullReport: perm.reportFull
+			? useHasPermission(perm.reportFull)
 			: computed(() => false),
 	}
 }
@@ -197,16 +200,8 @@ export const useSurveillanceRbac = () => {
 
 export const useMultimediaRbac = () => {
 	const { useHasPermission } = useAuth()
-	return { canWrite: useHasPermission(PERM.multimedia.module) }
-}
-
-/** 快照子系統：canWrite=父層模組碼；canAdmin=平台 admin（zone CRUD） */
-export const useSnapshotSystemPageRbac = (moduleCode: string) => {
-	const canAdmin = useAdminOnly()
-	const { useHasPermission } = useAuth()
 	return {
-		canAdmin,
-		canWrite: useHasPermission(moduleCode),
+		canUpdateSettings: useHasPermission(PERM.multimedia.settingsUpdate),
 	}
 }
 
@@ -214,29 +209,15 @@ export const useAreaPointMapRbac = () => {
 	const { useHasPermission, useHasAnyPermission, hasPermission } = useAuth()
 	const p = PERM.areaPointMap
 	const canDeleteZone = useHasPermission(p.zoneDelete)
-	const canUpdateZone = useHasPermission(p.zoneUpdate)
-	const canCreateZone = useHasPermission(p.zoneCreate)
 	const canDeleteLocation = useHasPermission(p.locationDelete)
-	const canManageOperations = useHasAnyPermission(
-		p.zoneDelete,
-		p.zoneUpdate,
-		p.zoneCreate,
-		p.locationDelete,
-	)
+	const canManageOperations = useHasAnyPermission(p.zoneDelete, p.locationDelete)
 	const canDeleteLocationForSystem = (systemType: string | null | undefined) => {
 		if (!systemType) return canDeleteLocation.value
-		const map: Record<string, string> = {
-			people_counting: PERM.peopleCounting.locationDelete,
-			environment: PERM.environment.locationDelete,
-			vehicle_access: PERM.vehicleAccess.locationDelete,
-		}
-		const code = map[String(systemType)]
+		const code = LOCATION_DELETE_BY_SYSTEM_TYPE[String(systemType)]
 		if (code && hasPermission(code)) return true
-		return canDeleteLocation.value || canUpdateZone.value
+		return canDeleteLocation.value
 	}
 	return {
-		canCreateZone,
-		canUpdateZone,
 		canDeleteZone,
 		canDeleteLocation,
 		canManageOperations,

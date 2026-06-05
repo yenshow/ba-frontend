@@ -28,7 +28,7 @@
 				<button
 					type="button"
 					class="rounded-xl bg-purple-500/80 px-4 py-2 text-base text-white hover:bg-purple-400 disabled:cursor-not-allowed disabled:bg-purple-500/40 2xl:px-6 2xl:py-3 2xl:text-lg"
-					:disabled="isSaving"
+					:disabled="isSaving || !canUpdateSettings"
 					@click="handleSave"
 				>
 					{{ isSaving ? "儲存中..." : "儲存" }}
@@ -36,6 +36,7 @@
 			</div>
 		</div>
 
+		<fieldset :disabled="!canUpdateSettings" class="min-w-0 border-0 p-0">
 		<PageTabs
 			v-model="activeTab"
 			:tabs="multimediaTabs"
@@ -383,12 +384,12 @@
 				</div>
 			</template>
 		</PageTabs>
+		</fieldset>
 	</div>
 </template>
 
 <script setup lang="ts">
 import PageTabs from "~/components/common/PageTabs.vue"
-import { useAuth } from "~/composables/core/useAuth"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
@@ -406,7 +407,7 @@ import type {
 definePageMeta({ layout: "default" })
 
 import { useMultimediaRbac } from "~/composables/core/useAccessGate"
-const { canWrite } = useMultimediaRbac()
+const { canUpdateSettings } = useMultimediaRbac()
 const toast = useToast()
 const { handleError } = useErrorHandler()
 const api = useMultimediaDashboardApi()
@@ -722,6 +723,10 @@ const handleRemoveSchedule = (index: number) => {
 }
 
 const handleUpload = async (file: File, onSuccess: (url: string) => void) => {
+	if (!canUpdateSettings.value) {
+		toast.warning("權限不足")
+		return
+	}
 	try {
 		const res = await api.uploadMedia(file)
 		if (res?.file?.url) {
@@ -766,7 +771,7 @@ const loadSettings = async () => {
 }
 
 const handleSave = async () => {
-	if (!canWrite.value) {
+	if (!canUpdateSettings.value) {
 		toast.warning("權限不足")
 		return
 	}

@@ -33,14 +33,19 @@ export const defineSnapshotModbusIntegration = <
 		getStatus: (options: { syncAlerts: boolean; zoneIds?: string[] }) => Promise<SnapshotStatusResult<TItem>>
 	},
 	patch: SnapshotPatchConfig
-): ((zonesRef: Ref<TZone[]>, selectedZone?: Ref<string>) => SnapshotModbusIntegrationHandle<TItem>) => {
-	return (zonesRef: Ref<TZone[]>, selectedZone?: Ref<string>) => {
+): ((
+	zonesRef: Ref<TZone[]>,
+	selectedZone?: Ref<string>,
+	options?: { shouldFetchOnZonesChange?: () => boolean }
+) => SnapshotModbusIntegrationHandle<TItem>) => {
+	return (zonesRef, selectedZone, options) => {
 		const api = useApiHook()
 		return createSnapshotModbusIntegration<TItem, TZone>({
 			zonesRef,
 			selectedZone,
 			loadErrorLabel,
 			fetchStatus: (options) => api.getStatus(options),
+			shouldFetchOnZonesChange: options?.shouldFetchOnZonesChange,
 			...patch,
 		})
 	}
@@ -57,6 +62,8 @@ export type SnapshotModbusIntegrationConfig<
 	optimisticPatch: "manualAlarm" | "uiStatus"
 	/** `optimisticPatch: "manualAlarm"` 時必填（對應 `patchOptimisticManualAlarmForZones` 的 alertSource） */
 	manualAlarmSystemType?: ManualSemanticAlertSource
+	/** 為 false 時 zones 變更不觸發 preload／status 請求（全區點位聚合快照用） */
+	shouldFetchOnZonesChange?: () => boolean
 }
 
 /** 快照整合 composable 對外介面（含 manualAlarm / uiStatus 兩種樂觀更新；未使用該模式者為 no-op） */
@@ -84,8 +91,15 @@ export const createSnapshotModbusIntegration = <
 >(
 	config: SnapshotModbusIntegrationConfig<TItem, TZone>
 ): SnapshotModbusIntegrationHandle<TItem> => {
-	const { zonesRef, selectedZone, loadErrorLabel, fetchStatus, optimisticPatch, manualAlarmSystemType } =
-		config
+	const {
+		zonesRef,
+		selectedZone,
+		loadErrorLabel,
+		fetchStatus,
+		optimisticPatch,
+		manualAlarmSystemType,
+		shouldFetchOnZonesChange,
+	} = config
 	const { handleError } = useErrorHandler()
 	const race = createStatusSnapshotRaceChannel()
 	const { preloadDeviceInfos } = useModbusIntegrationDeviceCache()
@@ -156,6 +170,7 @@ export const createSnapshotModbusIntegration = <
 	watch(
 		() => zonesRef.value,
 		async () => {
+			if (shouldFetchOnZonesChange && !shouldFetchOnZonesChange()) return
 			await preloadDeviceInfos(zonesRef.value)
 			void loadStatusSnapshot()
 		},

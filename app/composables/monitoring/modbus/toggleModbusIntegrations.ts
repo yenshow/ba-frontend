@@ -26,7 +26,8 @@ type LightingLocationStatus = {
 
 export const useLightingModbusIntegration = (
 	lightingZones: Ref<LightingZone[]>,
-	selectedZone: Ref<string>
+	selectedZone: Ref<string>,
+	options?: { shouldFetchOnZonesChange?: () => boolean }
 ) => {
 	const lightingApi = useLightingApi()
 
@@ -37,6 +38,7 @@ export const useLightingModbusIntegration = (
 		LightingLocationStatus
 	>({
 		loadErrorLabel: "載入照明狀態失敗",
+		controlScope: "lighting",
 		zones: lightingZones,
 		selectedZone,
 		fetchSnapshot: (zoneIds) => lightingApi.getStatus(zoneIds ? { zoneIds } : undefined),
@@ -123,6 +125,7 @@ export const useLightingModbusIntegration = (
 				return !!status && status.status === "normal"
 			},
 		}),
+		shouldFetchOnZonesChange: options?.shouldFetchOnZonesChange,
 	})
 }
 
@@ -138,11 +141,16 @@ type HvacLocationStatus = {
 	temperatureC: number | null
 }
 
-export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZone: Ref<string>) => {
+export const useHvacModbusIntegration = (
+	hvacZones: Ref<HvacZone[]>,
+	selectedZone: Ref<string>,
+	options?: { shouldFetchOnZonesChange?: () => boolean }
+) => {
 	const hvacApi = useHvacApi()
 
 	return createToggleModbusIntegration<HvacLocation, HvacZone, HvacSnapshotItem, HvacLocationStatus>({
 		loadErrorLabel: "載入空調狀態失敗",
+		controlScope: "hvac",
 		zones: hvacZones,
 		selectedZone,
 		fetchSnapshot: (zoneIds) => hvacApi.getStatus(zoneIds ? { zoneIds } : undefined),
@@ -210,5 +218,6 @@ export const useHvacModbusIntegration = (hvacZones: Ref<HvacZone[]>, selectedZon
 				return s.uiStatus
 			},
 		}),
+		shouldFetchOnZonesChange: options?.shouldFetchOnZonesChange,
 	})
 }

@@ -3,7 +3,42 @@ import type {
 	SyncLocationCandidate,
 	SyncLocationJobItem,
 	SyncWarning,
+	VehiclePlateSyncResult,
 } from "~/types/personnel"
+import { isApiRequestTimeout } from "~/utils/errorUtils"
+
+/** 人員儲存 API 逾時：主檔可能已寫入，設備同步結果未知（對話框保留不關閉） */
+export const PERSON_SAVE_TIMEOUT_MESSAGE =
+	"請求逾時：人員資料可能已寫入平台，但設備車牌同步結果未知。請關閉對話框後重新開啟該人員確認，或至車牌管理檢查設備名單。"
+
+export const isPersonSaveRequestTimeout = isApiRequestTimeout
+
+const collectVehiclePlateSyncFailureMessages = (sync: VehiclePlateSyncResult): string[] =>
+	sync.failures?.map((f) => f.message).filter((m): m is string => Boolean(m?.trim())) ?? []
+
+/** 人員已儲存後，設備車牌同步結果的提示文案（無則 null） */
+export const getVehiclePlateSyncNoticeMessage = (
+	sync?: VehiclePlateSyncResult
+): string | null => {
+	if (!sync) return null
+	if (sync.warnings?.length) return sync.warnings.join("；")
+
+	const failureMessages = collectVehiclePlateSyncFailureMessages(sync)
+	if (!failureMessages.length) return null
+
+	const detail = failureMessages.join("；")
+	if (sync.status === "partial") return `人員已儲存，部分設備車牌同步失敗：${detail}`
+	if (sync.status === "failed") return `人員已儲存，設備車牌同步失敗：${detail}`
+	return null
+}
+
+export const showVehiclePlateSyncNotice = (
+	toast: { warning: (message: string) => void },
+	sync?: VehiclePlateSyncResult
+): void => {
+	const message = getVehiclePlateSyncNoticeMessage(sync)
+	if (message) toast.warning(message)
+}
 
 export const PERSON_STATUS_LABELS: Record<string, string> = {
 	active: "啟用",

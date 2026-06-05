@@ -1,5 +1,5 @@
 import type { Device } from "~/types/device"
-import type { ImportResult, Person, PersonLicensePlateFormItem, VehiclePlateSyncResult } from "~/types/personnel"
+import type { ImportResult, Person, PersonLicensePlateFormItem } from "~/types/personnel"
 import {
 	licensePlateItemsToPayload,
 	mapPersonLicensePlatesToForm,
@@ -15,7 +15,10 @@ import { useImageCenter } from "~/composables/core/useImageCenter"
 import { base64ToFile, handleImageError } from "~/utils/imageUtils"
 import {
 	getAccessControlConfigSummary,
+	isPersonSaveRequestTimeout,
+	PERSON_SAVE_TIMEOUT_MESSAGE,
 	revokeObjectUrl,
+	showVehiclePlateSyncNotice,
 	updatePersonInList as updatePersonInListHelper,
 } from "~/utils/personnelUtils"
 import { usePersonsList } from "~/composables/systems/personnel/usePersonsList"
@@ -122,17 +125,6 @@ export const usePersonnelPersonsTab = (params: {
 		personGroupId: "",
 		licensePlateItems: [],
 	})
-
-	const showVehiclePlateSyncNotice = (sync?: VehiclePlateSyncResult) => {
-		if (!sync) return
-		if (sync.warnings?.length) {
-			toast.warning(sync.warnings.join("；"))
-			return
-		}
-		if (sync.status === "failed" && sync.failures?.length) {
-			toast.warning(sync.failures.map((f) => f.message).join("；"))
-		}
-	}
 
 	const { resolveDirectUrl } = useImageCenter()
 	const getFaceImageSrc = (url: string | null | undefined): string | null => {
@@ -551,41 +543,35 @@ export const usePersonnelPersonsTab = (params: {
 				return { ok: false as const }
 			}
 
-			const platePayload = licensePlateItemsToPayload(personForm.licensePlateItems)
-			let vehiclePlateSync: VehiclePlateSyncResult | undefined
+			const licensePlates = licensePlateItemsToPayload(personForm.licensePlateItems)
+			const personGroupId = parsedGroup.personGroupId
 
-			const personId = mode === "update" ? editingPerson.value?.id ?? null : null
+			let saved: Person
 			if (mode === "update") {
+				const personId = editingPerson.value?.id ?? null
 				if (!personId) {
 					errorMessage.value = "找不到要更新的人員"
 					return { ok: false as const }
 				}
-				const updated = await personnelApi.updatePerson(personId, {
+				saved = await personnelApi.updatePerson(personId, {
 					fullName: personForm.fullName || null,
 					status: personForm.status,
 					faceUrl: personForm.faceUrl.trim() || null,
-					personGroupId: parsedGroup.personGroupId,
-					licensePlates: platePayload,
+					personGroupId,
+					licensePlates,
 				})
-				vehiclePlateSync = updated.vehicle_plate_sync
+			} else {
+				saved = await personnelApi.createPerson({
+					employeeNo: personForm.employeeNo.trim(),
+					fullName: personForm.fullName.trim(),
+					status: personForm.status,
+					personGroupId,
+					licensePlates,
+				})
 			}
 
-			const created =
-				mode === "create"
-					? await personnelApi.createPerson({
-							employeeNo: personForm.employeeNo.trim(),
-							fullName: personForm.fullName.trim(),
-							status: personForm.status,
-							personGroupId: parsedGroup.personGroupId,
-							licensePlates: platePayload,
-						})
-					: null
-
-			if (mode === "create") {
-				vehiclePlateSync = created?.vehicle_plate_sync
-			}
-
-			const effectivePersonId = mode === "create" ? created!.id : personId!
+			const effectivePersonId = saved.id
+			const vehiclePlateSync = saved.vehicle_plate_sync
 
 			try {
 				await saveAccessControlExtras(effectivePersonId)
@@ -609,11 +595,16 @@ export const usePersonnelPersonsTab = (params: {
 
 			if (mode === "create") personsOffset.value = 0
 			await loadPersons()
-			showVehiclePlateSyncNotice(vehiclePlateSync)
+			showVehiclePlateSyncNotice(toast, vehiclePlateSync)
 			toast.success(mode === "update" ? "已更新人員" : "已新增人員")
 			showPersonDialog.value = false
 			return { ok: true as const }
 		} catch (err) {
+			if (isPersonSaveRequestTimeout(err)) {
+				await loadPersons()
+				errorMessage.value = PERSON_SAVE_TIMEOUT_MESSAGE
+				return { ok: false as const }
+			}
 			fail(err, "儲存失敗")
 			return { ok: false as const }
 		} finally {

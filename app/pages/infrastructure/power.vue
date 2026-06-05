@@ -10,8 +10,8 @@
 			<PowerZonePlanPanel
 				:selected-zone-name="selectedZoneName"
 				:is-initial-loading="isInitialLoading"
-				:can-write="canWrite"
-				:can-manage-zones="canAdmin"
+				:can-write="canUpdateLocation"
+				:can-manage-zones="canManageLocation"
 				:is-edit-mode="isEditMode"
 				:selected-zone="selectedZone"
 				:selected-zone-data="selectedZoneData"
@@ -54,6 +54,9 @@
 		:zones="powerZones"
 		system-type="power"
 		:require-image-url="true"
+		:can-create-zone="canCreateLocation"
+		:can-update-zone="canUpdateLocation"
+		:can-delete-zone="canDeleteLocation"
 		device-hint="請先在「設備管理」中建立控制器設備"
 		@save="handleSaveZone"
 		@delete="handleDeleteZone"
@@ -78,7 +81,8 @@ import {
 import { usePowerApi } from "~/composables/systems/power/usePowerApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
-import { useSnapshotSystemPageRbac } from "~/composables/core/useAccessGate"
+import { useAdminOnly } from "~/composables/core/useAuth"
+import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { getLocationUiKey, findLocationIndexInZone } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
 import { usePowerModbusIntegration } from "~/composables/monitoring/modbus/snapshotModbusIntegrations"
@@ -91,7 +95,9 @@ definePageMeta({
 })
 
 import { PERM } from "~/config/permissionCodes"
-const { canAdmin, canWrite } = useSnapshotSystemPageRbac(PERM.power.module)
+const canAdmin = useAdminOnly()
+const { canManageLocation, canCreateLocation, canUpdateLocation, canDeleteLocation } =
+	useLocationModuleRbac(PERM.power)
 const powerApi = usePowerApi()
 const { handleError } = useErrorHandler()
 
@@ -368,7 +374,7 @@ const handleDeleteZone = async (zoneId: string) => {
 }
 
 const handleOpenZoneDialog = async () => {
-	if (!canAdmin.value) return
+	if (!canManageLocation.value) return
 	if (powerZones.value.length === 0) await loadZonesFromAPI()
 	showZoneManagementDialog.value = true
 }

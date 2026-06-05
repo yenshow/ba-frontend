@@ -62,6 +62,10 @@ export type CreateToggleModbusIntegrationConfig<
 	buildExtraReturns?: (ctx: {
 		locationStatuses: Ref<Record<string, TLocationStatus>>
 	}) => Record<string, unknown>
+	/** 為 false 時 zones 變更不觸發 preload／status 請求（全區點位聚合快照用） */
+	shouldFetchOnZonesChange?: () => boolean
+	/** Modbus 寫入權限範圍（lighting / hvac） */
+	controlScope: "lighting" | "hvac"
 }
 
 export const createToggleModbusIntegration = <
@@ -90,6 +94,8 @@ export const createToggleModbusIntegration = <
 		initializeLocationStatuses,
 		resolveInlineDeviceConfig,
 		buildExtraReturns,
+		shouldFetchOnZonesChange,
+		controlScope,
 	} = config
 
 	const { request } = useApiBase()
@@ -124,6 +130,7 @@ export const createToggleModbusIntegration = <
 			host: deviceConfig.host,
 			port: String(deviceConfig.port),
 			unitId: String(deviceConfig.unitId),
+			controlScope,
 		})
 		return request<{
 			address: number
@@ -319,6 +326,7 @@ export const createToggleModbusIntegration = <
 	watch(
 		() => zones.value,
 		async () => {
+			if (shouldFetchOnZonesChange && !shouldFetchOnZonesChange()) return
 			initializeLocationStatuses?.(locationStatuses)
 			await preloadDeviceInfos(zones.value, collectDeviceIds)
 			// zones 變更後：預設以「當前 selectedZone」範圍補一輪狀態

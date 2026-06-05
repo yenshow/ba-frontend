@@ -15,8 +15,7 @@
 							v-show="!isInitialLoading"
 							:allowed="canManageZones ?? false"
 							aria-label="樓層管理"
-							class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base font-light text-white transition-all 2xl:text-lg"
-							enabled-hover-class="hover:bg-white/10"
+							class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base font-light text-white transition-all enabled:hover:bg-white/10 2xl:text-lg"
 							@click="handleOpenZoneDialog"
 						>
 							樓層管理
@@ -29,12 +28,11 @@
 								:allowed="canWrite"
 								aria-label="編輯定位"
 								:class="[
-									'whitespace-nowrap rounded-2xl p-3 text-base font-light text-white transition-all 2xl:text-lg',
+									'whitespace-nowrap rounded-2xl p-3 text-base font-light text-white transition-all enabled:hover:bg-white/10 2xl:text-lg',
 									isEditMode
 										? 'border-2 border-white bg-white/10'
 										: 'border-2 border-white/30 bg-transparent',
 								]"
-								enabled-hover-class="hover:bg-white/10"
 								@click="handleToggleEditMode"
 							>
 								{{ isEditMode ? "完成編輯" : "編輯定位" }}

@@ -10,8 +10,8 @@
 			<LightingZonePlanPanel
 				:selected-zone-name="selectedZoneName"
 				:is-initial-loading="isInitialLoading"
-				:can-write="canWrite"
-				:can-manage-zones="canAdmin"
+				:can-write="canUpdateLocation"
+				:can-manage-zones="canManageLocation"
 				:is-edit-mode="isEditMode"
 				:selected-zone="selectedZone"
 				:selected-zone-data="selectedZoneData"
@@ -38,7 +38,7 @@
 					:area-statuses="locationStatuses"
 					:area-disabled-map="locationDisabledMap"
 					:area-toggling="locationToggling"
-					:can-toggle="canWrite"
+					:can-toggle="canControlDevice"
 					:selected-zone="selectedZone"
 					@toggle="handleLocationToggle"
 					@zone-selected="handleZoneSelected"
@@ -51,6 +51,9 @@
 		:zones="lightingZones"
 		system-type="lighting"
 		:require-image-url="true"
+		:can-create-zone="canCreateLocation"
+		:can-update-zone="canUpdateLocation"
+		:can-delete-zone="canDeleteLocation"
 		device-hint="請先在「設備管理」中建立控制器設備"
 		@save="handleSaveZone"
 		@delete="handleDeleteZone"
@@ -68,7 +71,7 @@ import { useVisibilityAutoRefresh } from "~/composables/monitoring/useVisibility
 import { useLightingApi } from "~/composables/systems/lighting/useLightingApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
-import { useSnapshotSystemPageRbac } from "~/composables/core/useAccessGate"
+import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { useLightingModbusIntegration } from "~/composables/monitoring/modbus/toggleModbusIntegrations"
 import { healthStatusToAlertFlash } from "~/utils/alertUtils"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
@@ -80,7 +83,13 @@ definePageMeta({
 })
 
 import { PERM } from "~/config/permissionCodes"
-const { canAdmin, canWrite } = useSnapshotSystemPageRbac(PERM.lighting.module)
+const {
+	canControlDevice,
+	canManageLocation,
+	canCreateLocation,
+	canUpdateLocation,
+	canDeleteLocation,
+} = useLocationModuleRbac(PERM.lighting)
 const lightingApi = useLightingApi()
 const { handleError } = useErrorHandler()
 
@@ -245,7 +254,7 @@ watch(
 )
 
 const handleOpenZoneDialog = async () => {
-	if (!canAdmin.value) return
+	if (!canManageLocation.value) return
 	if (lightingZones.value.length === 0) {
 		await loadZonesFromAPI()
 	}
