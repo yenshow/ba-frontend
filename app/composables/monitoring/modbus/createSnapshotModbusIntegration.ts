@@ -12,7 +12,6 @@ import type { ZoneUiKeyable } from "~/utils/locationUiId"
 import {
 	patchOptimisticManualAlarmForZones,
 	patchOptimisticUiStatusBySystemId,
-	resolveStatusSnapshotSyncAlerts,
 } from "~/composables/monitoring/modbus/statusSnapshotPolicy"
 import type { ManualIssueRuleTriggerPayload, ManualSemanticAlertSource } from "~/utils/alertUtils"
 import { createStatusSnapshotRaceChannel } from "~/composables/monitoring/modbus/useStatusSnapshotRaceChannel"
@@ -30,7 +29,7 @@ export const defineSnapshotModbusIntegration = <
 >(
 	loadErrorLabel: string,
 	useApiHook: () => {
-		getStatus: (options: { syncAlerts: boolean; zoneIds?: string[] }) => Promise<SnapshotStatusResult<TItem>>
+		getStatus: (options: { zoneIds?: string[] }) => Promise<SnapshotStatusResult<TItem>>
 	},
 	patch: SnapshotPatchConfig
 ): ((
@@ -58,7 +57,7 @@ export type SnapshotModbusIntegrationConfig<
 	zonesRef: Ref<TZone[]>
 	selectedZone?: Ref<string>
 	loadErrorLabel: string
-	fetchStatus: (options: { syncAlerts: boolean; zoneIds?: string[] }) => Promise<SnapshotStatusResult<TItem>>
+	fetchStatus: (options: { zoneIds?: string[] }) => Promise<SnapshotStatusResult<TItem>>
 	optimisticPatch: "manualAlarm" | "uiStatus"
 	/** `optimisticPatch: "manualAlarm"` 時必填（對應 `patchOptimisticManualAlarmForZones` 的 alertSource） */
 	manualAlarmSystemType?: ManualSemanticAlertSource
@@ -112,13 +111,12 @@ export const createSnapshotModbusIntegration = <
 	}
 
 	const loadStatusSnapshot = async (options?: StatusSnapshotFetchOptions) => {
-		const syncAlerts = resolveStatusSnapshotSyncAlerts(options)
 		const zoneIds = selectedZone
 			? resolveToggleSnapshotZoneIds(zonesRef.value, selectedZone.value)
 			: undefined
 		await race.runSnapshotLoad(options, async ({ isStale }) => {
 			try {
-				const result = await fetchStatus({ syncAlerts, zoneIds })
+				const result = await fetchStatus({ zoneIds })
 				if (isStale()) return
 				statusItems.value = result.items || []
 				pollingPolicy.recordSuccess()

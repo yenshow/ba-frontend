@@ -17,7 +17,7 @@ export const usePowerApi = () => {
 
 	const { request } = useApiBase()
 
-	type StatusQuery = { zoneIds?: string[]; syncAlerts?: boolean }
+	type StatusQuery = { zoneIds?: string[] }
 
 	return {
 		getZones: zoneApi.getZones,
@@ -27,10 +27,8 @@ export const usePowerApi = () => {
 		deleteZone: zoneApi.deleteZone,
 		getStatus: (query?: StatusQuery) => {
 			const zoneIds = query?.zoneIds
-			const syncAlerts = query?.syncAlerts
 			const params = new URLSearchParams()
 			if (zoneIds && zoneIds.length > 0) params.set("zoneIds", zoneIds.join(","))
-			if (syncAlerts !== undefined) params.set("syncAlerts", syncAlerts ? "true" : "false")
 			const q = params.toString() ? `?${params.toString()}` : ""
 			return request<{ items: PowerStatusItem[] }>(`/power/status${q}`, {
 				timeout: 30_000,

@@ -57,23 +57,22 @@
 							</span>
 						</div>
 					</div>
-
+					<PermissionActionButton
+						:allowed="canManageLocation"
+						aria-label="地點管理"
+						class="absolute left-8 top-2 btn-monitoring-overlay"
+						@click="handleOpenLocationDialog"
+					>
+						地點管理
+					</PermissionActionButton>
 					<PermissionActionButton
 						v-show="isIsapiCamera && selectedLocation"
 						:allowed="canCreatePlate || canUpdatePlate || canDeletePlate"
 						aria-label="車牌管理"
-						class="absolute left-8 top-2 btn-monitoring-overlay"
+						class="absolute left-36 top-2 btn-monitoring-overlay"
 						@click="showIsapiManageDialog = true"
 					>
 						車牌管理
-					</PermissionActionButton>
-					<PermissionActionButton
-						:allowed="canManageLocation"
-						aria-label="地點管理"
-						class="absolute left-36 top-2 btn-monitoring-overlay"
-						@click="handleOpenLocationDialog"
-					>
-						地點管理
 					</PermissionActionButton>
 					<PermissionActionButton
 						v-show="isParkingMode"

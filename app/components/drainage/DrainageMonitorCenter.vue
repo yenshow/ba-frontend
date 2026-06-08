@@ -7,10 +7,10 @@
 				監控中心
 			</h3>
 
-			<div v-if="viewFilterOptions.length > 0" class="mx-auto w-full max-w-xs">
+			<div v-if="viewFilterOptionsWithStatus.length > 0" class="mx-auto w-full max-w-xs">
 				<FilterDropdown
 					v-model="viewFilter"
-					:options="viewFilterOptions"
+					:options="viewFilterOptionsWithStatus"
 					placeholder="請選擇檢視分類"
 					text-size="text-sm 2xl:text-base"
 				/>
@@ -218,6 +218,7 @@ import {
 	deriveDrainageTankPartUiStatus,
 } from "~/types/drainage"
 import { compareZonesLoose } from "~/utils/sortOrder"
+import { buildViewCategoryStatusById } from "~/utils/monitorViewCategoryStatus"
 
 const viewFilter = defineModel<string>("viewFilter", { required: true })
 
@@ -365,6 +366,31 @@ const drainageRowFlashMode = (zone: DrainageZone, loc: DrainageLocation): Draina
 	return pumpFlashFromUiStatus(tankUiStatus(loc))
 }
 
+const evaluateDrainageLocationStatus = (zone: DrainageZone, loc: DrainageLocation) => {
+	const flash = drainageRowFlashMode(zone, loc)
+	const isAlarm = isPumpLocation(loc)
+		? pumpUiStatus(loc) === "alarm"
+		: tankDerived(loc, "cover") === "alarm" || tankDerived(loc, "level") === "alarm"
+	return { flash, isAlarm }
+}
+
+const viewCategoryStatusById = computed(() =>
+	buildViewCategoryStatusById({
+		zones: props.zones,
+		categoryIds: props.viewFilterOptions.map((o) => o.value),
+		getZoneLocations: (zone) => zone.locations || [],
+		locationInCategory: (loc, categoryId) => drainageLocationInViewCategory(loc, categoryId),
+		evaluateLocation: evaluateDrainageLocationStatus,
+	})
+)
+
+const viewFilterOptionsWithStatus = computed(() =>
+	props.viewFilterOptions.map((opt) => ({
+		...opt,
+		status: viewCategoryStatusById.value[opt.value] ?? "normal",
+	}))
+)
+
 const flashModeToClass = (mode: DrainageRowFlash): string => {
 	if (mode === "alarm-fast") return "blink-fast"
 	if (mode === "slow") return "blink-slow"
@@ -375,10 +401,7 @@ const zoneHasWarning = (zone: DrainageZone): boolean =>
 	locationsForZone(zone).some(({ loc }) => drainageRowFlashMode(zone, loc) !== "none")
 
 const zoneHasAlarm = (zone: DrainageZone): boolean =>
-	locationsForZone(zone).some(({ loc }) => {
-		if (isPumpLocation(loc)) return pumpUiStatus(loc) === "alarm"
-		return tankDerived(loc, "cover") === "alarm" || tankDerived(loc, "level") === "alarm"
-	})
+	locationsForZone(zone).some(({ loc }) => evaluateDrainageLocationStatus(zone, loc).isAlarm)
 
 const getZoneAlertBlinkClass = (zone: DrainageZone): string => {
 	const modes = locationsForZone(zone).map(({ loc }) => drainageRowFlashMode(zone, loc))

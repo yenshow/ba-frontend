@@ -3,11 +3,11 @@
 		<Transition name="dialog-fade">
 			<div
 				v-if="modelValue"
-				class="fixed inset-0 z-[3000] flex items-center justify-center"
+				class="fixed inset-0 z-[3000] flex items-center justify-center px-4"
 				@click.self="handleCancel"
 			>
 				<div
-					class="dialog-panel-bg flex max-w-md flex-col gap-4 rounded-3xl p-6 2xl:max-w-xl 2xl:gap-6 2xl:p-8"
+					class="dialog-panel-bg flex w-full min-w-[18rem] max-w-sm flex-col gap-4 rounded-3xl p-6 2xl:min-w-[20rem] 2xl:max-w-md 2xl:gap-6 2xl:p-8"
 				>
 					<header class="flex items-center justify-between">
 						<h3 class="text-xl font-semibold tracking-[2px] text-white 2xl:text-2xl">

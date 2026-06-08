@@ -30,12 +30,6 @@ export type MultimediaDashboardSettings = {
 	schedules: MultimediaSchedule[]
 }
 
-export type MultimediaEnvironmentSnapshot = {
-	locationId: number | null
-	timestamp: string | null
-	data: Record<string, unknown>
-}
-
 export type MultimediaEnvDeviceStatus = {
 	deviceId: number
 	status: "online" | "offline"

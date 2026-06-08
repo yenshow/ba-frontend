@@ -1,6 +1,12 @@
 <template>
 	<div ref="dropdownRef" class="filter-dropdown relative w-full min-w-0">
 		<div class="flex min-w-0 items-center gap-2">
+			<span
+				v-if="selectedStatus && selectedStatus !== 'normal'"
+				class="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-white shadow-[0_0_0_2px_rgba(0,0,0,0.25)]"
+				:class="statusDotClass(selectedStatus)"
+				:aria-label="statusAriaLabel(selectedStatus)"
+			/>
 			<input
 				:value="displayValue"
 				readonly
@@ -19,7 +25,6 @@
 			</svg>
 		</div>
 
-		<!-- 下拉選單（使用 Teleport 避免被容器裁剪） -->
 		<Teleport to="body">
 			<Transition name="fade">
 				<div
@@ -36,12 +41,19 @@
 								type="button"
 								@click="selectOption(option.value)"
 								:class="[
-									'w-full rounded px-3 py-2 text-center text-white transition-colors',
+									'flex w-full items-center justify-center gap-2 rounded px-3 py-2 text-white transition-colors',
 									textSize,
 									isSelected(option.value) ? 'bg-blue-500/80 text-white' : 'hover:bg-white/10',
 								]"
 							>
-								{{ option.label }}
+								<span
+									v-if="option.status && option.status !== 'normal'"
+									class="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-white shadow-[0_0_0_2px_rgba(0,0,0,0.25)]"
+									:class="statusDotClass(option.status)"
+									aria-hidden="true"
+								/>
+								<span v-else class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+								<span>{{ option.label }}</span>
 							</button>
 						</div>
 						<slot name="custom-content" />
@@ -53,9 +65,14 @@
 </template>
 
 <script setup lang="ts">
+import type { MonitorCategoryStatus } from "~/utils/monitorViewCategoryStatus"
+
+export type FilterOptionStatus = MonitorCategoryStatus
+
 interface FilterOption {
 	value: string
 	label: string
+	status?: FilterOptionStatus
 }
 
 interface Props {
@@ -77,9 +94,23 @@ const emit = defineEmits<{
 const showDropdown = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const dropdownMenuRef = ref<HTMLElement | null>(null)
+const positionTick = ref(0)
 
-// 計算下拉選單位置
+const statusDotClass = (status: FilterOptionStatus): string => {
+	if (status === "alarm") return "bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.65)]"
+	if (status === "warning") return "bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.65)]"
+	return "bg-transparent"
+}
+
+const statusAriaLabel = (status: FilterOptionStatus): string => {
+	if (status === "alarm") return "此分類有警報"
+	if (status === "warning") return "此分類有異常"
+	return ""
+}
+
 const dropdownStyle = computed(() => {
+	// 讓 scroll/resize 時能重新計算位置（不必改動 DOM）
+	positionTick.value
 	if (!dropdownRef.value || !showDropdown.value) {
 		return {}
 	}
@@ -87,23 +118,18 @@ const dropdownStyle = computed(() => {
 	const rect = dropdownRef.value.getBoundingClientRect()
 	const dropdownWidth = rect.width
 
-	// 計算位置：在輸入框下方，左對齊
-	// getBoundingClientRect() 返回的是相對於視口的座標，fixed 定位也是相對於視口
 	return {
-		top: `${rect.bottom + 8}px`, // 8px = mt-2
+		top: `${rect.bottom + 8}px`,
 		left: `${rect.left}px`,
 		width: `${dropdownWidth}px`,
 	}
 })
 
-// 切換下拉選單
 const toggleDropdown = () => {
 	showDropdown.value = !showDropdown.value
 }
 
-// 檢查選項是否被選中
 const isSelected = (value: string): boolean => {
-	// 處理空值比較
 	if (
 		(props.modelValue === "" || props.modelValue === null || props.modelValue === undefined) &&
 		(value === "" || value === null || value === undefined)
@@ -113,19 +139,17 @@ const isSelected = (value: string): boolean => {
 	return props.modelValue === value
 }
 
-// 計算顯示值
-const displayValue = computed(() => {
-	const selectedOption = props.options.find((opt) => isSelected(opt.value))
-	return selectedOption?.label || props.placeholder
-})
+const selectedOption = computed(() => props.options.find((opt) => isSelected(opt.value)))
 
-// 選擇選項
+const selectedStatus = computed(() => selectedOption.value?.status)
+
+const displayValue = computed(() => selectedOption.value?.label || props.placeholder)
+
 const selectOption = (value: string) => {
 	emit("update:modelValue", value)
 	showDropdown.value = false
 }
 
-// 點擊外部關閉下拉選單
 const handleClickOutside = (event: MouseEvent) => {
 	const target = event.target as HTMLElement
 	if (
@@ -137,14 +161,9 @@ const handleClickOutside = (event: MouseEvent) => {
 	}
 }
 
-// 監聽滾動和調整大小，更新位置
 const updatePosition = () => {
-	if (showDropdown.value) {
-		// 觸發重新計算位置（通過響應式更新）
-		nextTick(() => {
-			// 位置會自動通過 computed 更新
-		})
-	}
+	if (!showDropdown.value) return
+	positionTick.value += 1
 }
 
 onMounted(() => {

@@ -60,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import { useMultimediaWallDashboard } from "~/composables/systems/multimedia/useMultimediaWallDashboard"
+import { useMultimediaWallShell } from "~/composables/systems/multimedia/multimediaWallShared"
 
-const { settings, bgUrl, bannerText, projectImageUrl, formattedDate } = useMultimediaWallDashboard()
+const { settings, bgUrl, bannerText, projectImageUrl, formattedDate } = useMultimediaWallShell()
 </script>

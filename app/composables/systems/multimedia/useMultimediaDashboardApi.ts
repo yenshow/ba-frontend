@@ -27,7 +27,10 @@ export const useMultimediaDashboardApi = () => {
 	}
 
 	const getEnvReadingsSnapshot = async (): Promise<MultimediaEnvReadingsSnapshotResponse> => {
-		return request("/multimedia/dashboard/env-readings", { method: "GET" } as any)
+		return request("/multimedia/dashboard/env-readings", {
+			method: "GET",
+			timeout: 30_000,
+		} as any)
 	}
 
 	return { getSettings, updateSettings, uploadMedia, getEnvReadingsSnapshot }

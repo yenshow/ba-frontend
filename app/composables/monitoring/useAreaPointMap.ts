@@ -493,7 +493,7 @@ export const useAreaPointMap = (options: {
 		if (selectedSystemType.value) return
 		if (typeof document !== "undefined" && document.visibilityState !== "visible") return
 
-		const result = await monitoringOverviewApi.getOverviewStatus({ syncAlerts: false })
+		const result = await monitoringOverviewApi.getOverviewStatus()
 		const systems = result.systems || {}
 
 		for (const system of AREA_POINT_MODBUS_SYSTEMS) {

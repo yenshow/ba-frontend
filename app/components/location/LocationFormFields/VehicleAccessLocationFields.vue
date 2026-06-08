@@ -27,7 +27,7 @@
 						class="h-4 w-4 accent-cyan-400"
 						@change="handleDataSourceChange"
 					/>
-					<span class="text-sm text-white/90 2xl:text-base">YSCP 車道（外部資料庫）</span>
+					<span class="text-sm text-white/90 2xl:text-base">車道資料</span>
 				</label>
 				<label class="flex cursor-pointer items-center gap-2">
 					<input
@@ -37,7 +37,7 @@
 						class="h-4 w-4 accent-cyan-400"
 						@change="handleDataSourceChange"
 					/>
-					<span class="text-sm text-white/90 2xl:text-base">ISAPI 車牌攝影機</span>
+					<span class="text-sm text-white/90 2xl:text-base">車牌辨識</span>
 				</label>
 			</div>
 		</div>
@@ -63,7 +63,7 @@
 						class="h-4 w-4 accent-cyan-400"
 						@change="handleOperationModeChange"
 					/>
-					<span class="text-sm text-white/90 2xl:text-base">停車場管理</span>
+					<span class="text-sm text-white/90 2xl:text-base">停車管理</span>
 				</label>
 			</div>
 			<label

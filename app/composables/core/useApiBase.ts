@@ -260,8 +260,13 @@ export const useApiBase = () => {
 			if ("success" in response && "data" in response && (response as { success: boolean }).success === true) {
 				return (response as { data: T }).data
 			}
-			if ("timestamp" in response) {
-				const { timestamp: _ts, ...data } = response as Record<string, unknown>
+			const obj = response as Record<string, unknown>
+			// 勿剝除業務 payload 的 timestamp（例如 multimedia env-readings snapshot）
+			// - snapshot 可能是 `{ timestamp, data, devices }` 或 `{ snapshot: { ... } }`
+			const hasDevicesArray = Array.isArray(obj.devices)
+			const hasSnapshotWrapper = !!obj.snapshot && typeof obj.snapshot === "object"
+			if ("timestamp" in obj && !hasDevicesArray && !hasSnapshotWrapper) {
+				const { timestamp: _ts, ...data } = obj
 				return data as T
 			}
 		}

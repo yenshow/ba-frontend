@@ -1,7 +1,11 @@
 <template>
-	<div
-		class="env-param-card relative flex flex-col rounded-xl px-2 py-3 transition-all"
-		:class="[backgroundClass, blinkAnimationClass]"
+	<button
+		type="button"
+		class="env-param-card relative flex w-full cursor-pointer flex-col rounded-xl px-2 py-3 text-left transition-all hover:brightness-110"
+		:class="[backgroundClass, blinkAnimationClass, selected && 'ring-2 ring-sky-400/90']"
+		:aria-label="`更換主顯示指標：${label}`"
+		:aria-pressed="selected"
+		@click="emit('select', type)"
 	>
 		<!-- 警告條（設備異常/離線時顯示） -->
 		<div
@@ -68,7 +72,7 @@
 				</div>
 			</div>
 		</div>
-	</div>
+	</button>
 </template>
 
 <script setup lang="ts">
@@ -88,6 +92,7 @@ interface Props {
 	unit: string
 	fractionDigits?: number
 	deviceError?: boolean // 設備本身是否異常（用於顯示黃黑警告條）
+	selected?: boolean
 	// 注意：getStatusClass 和 getStatusDotClass 已不再使用，組件內部根據 statusText 決定樣式
 	// 保留這些 props 僅為了向後兼容，但實際上不會被使用
 	getStatusClass?: (type: string, value: number | null) => string
@@ -100,7 +105,12 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
 	iconSrc: "",
 	deviceError: false,
+	selected: false,
 })
+
+const emit = defineEmits<{
+	select: [type: string]
+}>()
 
 const displayValue = computed(() => {
 	if (props.deviceError || props.value === null) return "--"
@@ -172,4 +182,3 @@ const statusDotStyle = computed(() => {
 	return { backgroundColor: monitoringUiStatusToDotColor("offline") }
 })
 </script>
-

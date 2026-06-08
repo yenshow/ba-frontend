@@ -7,10 +7,10 @@
 				監控中心
 			</h3>
 
-			<div v-if="viewFilterOptions.length > 0" class="mx-auto w-full max-w-xs">
+			<div v-if="viewFilterOptionsWithStatus.length > 0" class="mx-auto w-full max-w-xs">
 				<FilterDropdown
 					v-model="viewFilter"
-					:options="viewFilterOptions"
+					:options="viewFilterOptionsWithStatus"
 					placeholder="請選擇檢視分類"
 					text-size="text-sm 2xl:text-base"
 				/>
@@ -233,6 +233,7 @@ import {
 	derivePowerOverallUiStatus,
 } from "~/types/power"
 import { compareZonesLoose } from "~/utils/sortOrder"
+import { buildViewCategoryStatusById } from "~/utils/monitorViewCategoryStatus"
 
 const viewFilter = defineModel<string>("viewFilter", { required: true })
 
@@ -347,6 +348,28 @@ const powerRowFlashMode = (loc: PowerLocation): RowFlash => {
 	if (isOilLevelLocation(loc)) return flashFromUiStatus(overallUi(loc))
 	return generatorDetailFlashMode(loc)
 }
+
+const evaluatePowerLocationStatus = (_zone: PowerZone, loc: PowerLocation) => ({
+	flash: powerRowFlashMode(loc),
+	isAlarm: overallUi(loc) === "alarm",
+})
+
+const viewCategoryStatusById = computed(() =>
+	buildViewCategoryStatusById({
+		zones: props.zones,
+		categoryIds: props.viewFilterOptions.map((o) => o.value),
+		getZoneLocations: (zone) => zone.locations || [],
+		locationInCategory: (loc, categoryId) => powerLocationInViewCategory(loc, categoryId),
+		evaluateLocation: evaluatePowerLocationStatus,
+	})
+)
+
+const viewFilterOptionsWithStatus = computed(() =>
+	props.viewFilterOptions.map((opt) => ({
+		...opt,
+		status: viewCategoryStatusById.value[opt.value] ?? "normal",
+	}))
+)
 
 const flashModeToClass = (mode: RowFlash): string => {
 	if (mode === "alarm-fast") return "blink-fast"

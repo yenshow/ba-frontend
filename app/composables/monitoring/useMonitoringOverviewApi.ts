@@ -13,17 +13,10 @@ export type MonitoringOverviewStatusResponse = {
 export const useMonitoringOverviewApi = () => {
 	const { request } = useApiBase()
 
-	const getOverviewStatus = (options?: { syncAlerts?: boolean }) => {
-		const params = new URLSearchParams()
-		if (options?.syncAlerts !== undefined) {
-			params.set("syncAlerts", options.syncAlerts ? "true" : "false")
-		}
-		const q = params.toString() ? `?${params.toString()}` : ""
-		return request<MonitoringOverviewStatusResponse>(`/monitoring/overview/status${q}`, {
+	const getOverviewStatus = () =>
+		request<MonitoringOverviewStatusResponse>(`/monitoring/overview/status`, {
 			timeout: 30_000,
 		})
-	}
 
 	return { getOverviewStatus }
 }
-

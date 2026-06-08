@@ -86,35 +86,33 @@
 						empty-description="請在「地點管理」中新增含環境監測系統的地點"
 					>
 						<div v-if="currentLocationData" :aria-busy="isHydrating">
-							<div
-								class="env-gauge-row grid grid-cols-3 gap-4 border-b border-white/80 pb-2 2xl:gap-6"
-							>
-								<!-- 噪音值儀表 -->
-								<EnvironmentGauge
-									type="noise"
-									:value="noiseValue"
-									:location-id="currentLocationData?.id ?? null"
-									:refresh-key="trendReloadKey"
-									class="border-r border-white/30"
-								/>
-
-								<!-- AQI 儀表（中間，較大） -->
-								<EnvironmentGauge
-									type="aqi"
-									:value="aqiScore"
-									size="large"
-									:location-id="currentLocationData?.id ?? null"
-									:refresh-key="trendReloadKey"
-								/>
-
-								<!-- 溫度儀表 -->
-								<EnvironmentGauge
-									type="temperature"
-									:value="currentTemperature"
-									:location-id="currentLocationData?.id ?? null"
-									:refresh-key="trendReloadKey"
-									class="border-l border-white/30"
-								/>
+							<div class="border-b border-white/80 pb-2">
+								<div class="env-gauge-row grid grid-cols-3 gap-4 2xl:gap-6">
+									<div
+										v-for="(gaugeType, gaugeIndex) in featuredGaugeTypes"
+										:key="gaugeIndex"
+										class="flex flex-col items-center"
+										:class="{
+											'border-r border-white/30': gaugeIndex === 0,
+											'border-l border-white/30': gaugeIndex === 2,
+										}"
+									>
+										<EnvironmentGauge
+											v-if="gaugeType"
+											:type="gaugeType"
+											:value="showSensorOffline ? null : getParameterValue(gaugeType)"
+											:size="gaugeIndex === 1 ? 'large' : 'normal'"
+											:location-id="currentLocationData?.id ?? null"
+											:refresh-key="trendReloadKey"
+											:get-status-text="getStatusText"
+											class="w-full"
+										/>
+										<div v-else class="min-h-[200px] w-full 2xl:min-h-[240px]" aria-hidden="true" />
+									</div>
+								</div>
+								<p class="mt-2 text-center text-xs tracking-wider text-white/50 2xl:text-sm">
+									點擊下方卡片更換主顯示指標
+								</p>
 							</div>
 
 							<!-- 環境參數網格 -->
@@ -132,9 +130,11 @@
 									:unit="getParameterUnit(param.type)"
 									:fraction-digits="getParameterFractionDigits(param.type)"
 									:device-error="showSensorOffline"
+									:selected="isFeaturedType(param.type)"
 									:get-status-text="getStatusText"
 									:get-status-text-class="getStatusTextClass"
 									:to-fixed-number="formatParamDisplay"
+									@select="handleParamCardClick"
 								/>
 							</div>
 							<div
@@ -268,6 +268,7 @@ import { useAlertRules } from "~/composables/monitoring/useAlertRules"
 import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { useEnvironmentReadingSubscription } from "~/composables/systems/environment/useEnvironmentLive"
 import { useEnvironmentDataCoordinator } from "~/composables/systems/environment/useEnvironmentDataCoordinator"
+import { useEnvironmentFeaturedGauges } from "~/composables/systems/environment/useEnvironmentFeaturedGauges"
 import type { SensorReadings } from "~/composables/systems/environment/useEnvironmentLive"
 import type { AlertRule } from "~/types/alert"
 import {
@@ -354,8 +355,7 @@ const simulationLocationOptions = computed((): EnvironmentSimulationLocationOpti
 const tagReadingsWithLocationId = (
 	readings: SensorReading[] | undefined,
 	locationId: string
-): SensorReading[] =>
-	(readings ?? []).map((r) => ({ ...r, locationId: String(locationId) }))
+): SensorReading[] => (readings ?? []).map((r) => ({ ...r, locationId: String(locationId) }))
 
 /** 完整報表：跨地點載入時間區間內讀數 */
 const loadSimulationReadings = async () => {
@@ -507,8 +507,6 @@ const {
 
 const showSensorOffline = computed(() => !isHydrating.value && isSensorOffline.value)
 
-const noiseValue = computed(() => (showSensorOffline.value ? null : sensorData.noise))
-
 const formatParamDisplay = (value: number | null, fractionDigits = 0) =>
 	formatSensorDisplayValue(value, {
 		fractionDigits,
@@ -546,6 +544,9 @@ const enabledParameters = computed(() => {
 	if (!currentLocationData.value) return []
 	return currentLocationData.value.parameters.filter((param) => param.enabled)
 })
+
+const { featuredGaugeTypes, isFeaturedType, handleParamCardClick } =
+	useEnvironmentFeaturedGauges(selectedLocationId, enabledParameters)
 
 // getLocationZone / getLocationId 已於上方宣告，供 composable 與 currentLocationData 共用
 
@@ -761,19 +762,6 @@ onBeforeUnmount(() => {
 const calculateAQI = (data: SensorReadings): number | null => {
 	return calculateAqiScore({ pm25: data.pm25, pm10: data.pm10 })
 }
-
-// 當沒有設備時，AQI 和溫度應該為 null
-const aqiScore = computed(() => {
-	if (!getLocationDeviceIds(currentLocationData.value).length) return null
-	if (showSensorOffline.value) return null
-	return calculateAQI(sensorData)
-})
-
-const currentTemperature = computed(() => {
-	if (!getLocationDeviceIds(currentLocationData.value).length) return null
-	if (showSensorOffline.value) return null
-	return sensorData.temperature
-})
 
 // 取得當前地點的顯示字串（共用函數）
 const getStatusTextForLocation =

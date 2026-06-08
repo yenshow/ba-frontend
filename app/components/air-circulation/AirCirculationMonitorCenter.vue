@@ -7,10 +7,10 @@
 				監控中心
 			</h3>
 
-			<div v-if="viewFilterOptions.length > 0" class="mx-auto w-full max-w-xs">
+			<div v-if="viewFilterOptionsWithStatus.length > 0" class="mx-auto w-full max-w-xs">
 				<FilterDropdown
 					v-model="viewFilter"
-					:options="viewFilterOptions"
+					:options="viewFilterOptionsWithStatus"
 					placeholder="請選擇檢視分類"
 					text-size="text-sm 2xl:text-base"
 				/>
@@ -124,6 +124,7 @@ import {
 } from "~/types/air-circulation"
 import type { SystemUiStatus } from "~/utils/monitoringStatus"
 import { compareZonesLoose } from "~/utils/sortOrder"
+import { buildViewCategoryStatusById } from "~/utils/monitorViewCategoryStatus"
 
 const viewFilter = defineModel<string>("viewFilter", { required: true })
 
@@ -172,6 +173,11 @@ const locationsForZone = (zone: AirCirculationZone): AirCirculationLocation[] =>
 	return out
 }
 
+const uiStatusForLocation = (loc: AirCirculationLocation): SystemUiStatus => {
+	const it = loc.systemId ? itemBySystemId.value.get(String(loc.systemId)) : null
+	return it?.uiStatus ?? "warning"
+}
+
 const displayedZones = computed(() => {
 	if (!props.zones?.length) return []
 	const sorted = [...props.zones].sort((a, b) => compareZonesLoose(a, b))
@@ -202,18 +208,40 @@ const rowBackgroundClass = (s: SystemUiStatus) => {
 	return "bg-white/10"
 }
 
-const zoneHasWarning = (zone: AirCirculationZone) =>
-	locationsForZone(zone).some((loc) => {
-		const it = loc.systemId ? itemBySystemId.value.get(String(loc.systemId)) : null
-		const s: SystemUiStatus = it?.uiStatus ?? "warning"
-		return s !== "normal"
+const evaluateAirCirculationLocationStatus = (
+	_zone: AirCirculationZone,
+	loc: AirCirculationLocation
+) => {
+	const s = uiStatusForLocation(loc)
+	return {
+		flash: s === "alarm" ? ("alarm-fast" as const) : s !== "normal" ? ("slow" as const) : ("none" as const),
+		isAlarm: s === "alarm",
+	}
+}
+
+const viewCategoryStatusById = computed(() =>
+	buildViewCategoryStatusById({
+		zones: props.zones,
+		categoryIds: props.viewFilterOptions.map((o) => o.value),
+		getZoneLocations: (zone) => zone.locations || [],
+		locationInCategory: (loc, categoryId) =>
+			airCirculationLocationInViewCategory(loc, categoryId),
+		evaluateLocation: evaluateAirCirculationLocationStatus,
 	})
+)
+
+const viewFilterOptionsWithStatus = computed(() =>
+	props.viewFilterOptions.map((opt) => ({
+		...opt,
+		status: viewCategoryStatusById.value[opt.value] ?? "normal",
+	}))
+)
+
+const zoneHasWarning = (zone: AirCirculationZone) =>
+	locationsForZone(zone).some((loc) => uiStatusForLocation(loc) !== "normal")
 
 const zoneHasAlarm = (zone: AirCirculationZone) =>
-	locationsForZone(zone).some((loc) => {
-		const it = loc.systemId ? itemBySystemId.value.get(String(loc.systemId)) : null
-		return (it?.uiStatus ?? "warning") === "alarm"
-	})
+	locationsForZone(zone).some((loc) => uiStatusForLocation(loc) === "alarm")
 
 const getZoneBlinkClass = (zone: AirCirculationZone) => {
 	if (zoneHasAlarm(zone)) return "blink-fast"
@@ -231,9 +259,7 @@ const zoneRows = (zone: AirCirculationZone) => {
 	const locs = locationsForZone(zone)
 	for (let i = 0; i < locs.length; i += 1) {
 		const loc = locs[i]!
-		const systemId = loc.systemId ? String(loc.systemId) : ""
-		const it = systemId ? itemBySystemId.value.get(systemId) : null
-		const uiStatus: SystemUiStatus = it?.uiStatus ?? "warning"
+		const uiStatus = uiStatusForLocation(loc)
 		out.push({
 			rowKey: loc.id || `${zone.id || zone.name}-${i}`,
 			locationName: loc.name,

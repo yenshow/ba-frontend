@@ -7,10 +7,10 @@
 				監控中心
 			</h3>
 
-			<div v-if="viewFilterOptions.length > 0" class="mx-auto w-full max-w-xs">
+			<div v-if="viewFilterOptionsWithStatus.length > 0" class="mx-auto w-full max-w-xs">
 				<FilterDropdown
 					v-model="viewFilter"
-					:options="viewFilterOptions"
+					:options="viewFilterOptionsWithStatus"
 					placeholder="請選擇檢視分類"
 					text-size="text-sm 2xl:text-base"
 				/>
@@ -217,6 +217,7 @@ import {
 	deriveFireTankPartUiStatus,
 } from "~/types/fire"
 import { compareZonesLoose } from "~/utils/sortOrder"
+import { buildViewCategoryStatusById } from "~/utils/monitorViewCategoryStatus"
 
 const viewFilter = defineModel<string>("viewFilter", { required: true })
 
@@ -359,6 +360,31 @@ const fireRowFlashMode = (zone: FireZone, loc: FireLocation): FireRowFlash => {
 	return pumpFlashFromUiStatus(tankUiStatus(loc))
 }
 
+const evaluateFireLocationStatus = (zone: FireZone, loc: FireLocation) => {
+	const flash = fireRowFlashMode(zone, loc)
+	const isAlarm = isPumpLocation(loc)
+		? pumpUiStatus(loc) === "alarm"
+		: tankDerived(loc, "cover") === "alarm" || tankDerived(loc, "level") === "alarm"
+	return { flash, isAlarm }
+}
+
+const viewCategoryStatusById = computed(() =>
+	buildViewCategoryStatusById({
+		zones: props.zones,
+		categoryIds: props.viewFilterOptions.map((o) => o.value),
+		getZoneLocations: (zone) => zone.locations || [],
+		locationInCategory: (loc, categoryId) => fireLocationInViewCategory(loc, categoryId),
+		evaluateLocation: evaluateFireLocationStatus,
+	})
+)
+
+const viewFilterOptionsWithStatus = computed(() =>
+	props.viewFilterOptions.map((opt) => ({
+		...opt,
+		status: viewCategoryStatusById.value[opt.value] ?? "normal",
+	}))
+)
+
 const flashModeToClass = (mode: FireRowFlash): string => {
 	if (mode === "alarm-fast") return "blink-fast"
 	if (mode === "slow") return "blink-slow"
@@ -369,10 +395,7 @@ const zoneHasWarning = (zone: FireZone): boolean =>
 	locationsForZone(zone).some(({ loc }) => fireRowFlashMode(zone, loc) !== "none")
 
 const zoneHasAlarm = (zone: FireZone): boolean =>
-	locationsForZone(zone).some(({ loc }) => {
-		if (isPumpLocation(loc)) return pumpUiStatus(loc) === "alarm"
-		return tankDerived(loc, "cover") === "alarm" || tankDerived(loc, "level") === "alarm"
-	})
+	locationsForZone(zone).some(({ loc }) => evaluateFireLocationStatus(zone, loc).isAlarm)
 
 const getZoneAlertBlinkClass = (zone: FireZone): string => {
 	const modes = locationsForZone(zone).map(({ loc }) => fireRowFlashMode(zone, loc))

@@ -21,19 +21,9 @@ const findLocationBySystemIdInZones = <L extends { systemId?: string | number | 
 	return null
 }
 
-/** loadStatusSnapshot：force＝手動後強制重抓；syncAlerts 未指定時見 resolveStatusSnapshotSyncAlerts */
+/** loadStatusSnapshot：force＝手動後強制重抓（略過 race 合併） */
 export type StatusSnapshotFetchOptions = {
 	force?: boolean
-	syncAlerts?: boolean
-}
-
-/**
- * 預設：一般輪詢 syncAlerts=false（較快）；force=true（手動後）syncAlerts=true（與警報表一致）。
- * 覆寫：傳入 syncAlerts 明確指定。
- */
-export function resolveStatusSnapshotSyncAlerts(options?: StatusSnapshotFetchOptions): boolean {
-	if (options?.syncAlerts !== undefined) return options.syncAlerts
-	return options?.force === true
 }
 
 export function patchOptimisticUiStatusBySystemId<
