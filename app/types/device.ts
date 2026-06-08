@@ -55,6 +55,14 @@ export interface SensorDeviceModelConfig {
 	sensorParameters?: SensorParameterDefinition[];
 }
 
+export const getSensorParametersFromModelConfig = (
+	config: SensorDeviceModelConfig | Record<string, unknown> | undefined
+): SensorParameterDefinition[] => {
+	if (!config || typeof config !== "object") return [];
+	const parameters = (config as SensorDeviceModelConfig).sensorParameters;
+	return Array.isArray(parameters) ? parameters : [];
+};
+
 /** 門禁設備型號：目前平台僅支援 CaptureFaceData(biary) */
 export interface AccessControlDeviceModelConfig {
 	isapi?: {

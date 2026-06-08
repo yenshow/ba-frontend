@@ -54,27 +54,27 @@
 					</div>
 
 					<PermissionActionButton
-						v-show="isIsapiCamera && selectedLocation"
-						:allowed="canCreatePlate || canUpdatePlate || canDeletePlate"
-						aria-label="車牌管理"
-						class="absolute left-8 top-2 btn-monitoring-overlay"
-						@click="showIsapiManageDialog = true"
-					>
-						車牌管理
-					</PermissionActionButton>
-					<PermissionActionButton
 						:allowed="canManageLocation"
 						aria-label="地點管理"
-						class="absolute left-36 top-2 btn-monitoring-overlay"
+						class="btn-monitoring-overlay absolute left-8 top-2"
 						@click="handleOpenLocationDialog"
 					>
 						地點管理
 					</PermissionActionButton>
 					<PermissionActionButton
+						v-show="isIsapiCamera && selectedLocation"
+						:allowed="canCreatePlate || canUpdatePlate || canDeletePlate"
+						aria-label="車牌管理"
+						class="btn-monitoring-overlay absolute left-36 top-2"
+						@click="showIsapiManageDialog = true"
+					>
+						車牌管理
+					</PermissionActionButton>
+					<PermissionActionButton
 						v-show="isParkingMode"
 						:allowed="canResetStatistics"
 						aria-label="重製停車場統計"
-						class="absolute right-36 top-2 btn-monitoring-overlay"
+						class="btn-monitoring-overlay absolute right-36 top-2"
 						@click="handleResetParkingStats"
 					>
 						重製統計
@@ -82,7 +82,7 @@
 					<PermissionActionButton
 						:allowed="canFullReport"
 						aria-label="開啟完整報表"
-						class="absolute right-8 top-2 btn-monitoring-overlay"
+						class="btn-monitoring-overlay absolute right-8 top-2"
 						@click="handleOpenSimulation"
 					>
 						完整報表

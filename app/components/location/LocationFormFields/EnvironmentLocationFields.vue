@@ -109,7 +109,11 @@
 
 <script setup lang="ts">
 import type { EnvironmentLocation, SensorParameterType } from "~/types/environment";
-import type { Device, SensorParameterDefinition } from "~/types/device";
+import {
+	type Device,
+	type SensorParameterDefinition,
+	getSensorParametersFromModelConfig,
+} from "~/types/device";
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import { getParameterDisplayName } from "~/utils/sensorUtils";
 
@@ -178,8 +182,8 @@ watch(
 			try {
 				const result = await deviceApi.getDevice(deviceId);
 				const fullDevice = result.device;
-				const sensorParameters = fullDevice.model?.config?.sensorParameters;
-				if (sensorParameters) {
+				const sensorParameters = getSensorParametersFromModelConfig(fullDevice.model?.config);
+				if (sensorParameters.length > 0) {
 					deviceParameterDefinitions.value.set(deviceId, sensorParameters);
 				}
 			} catch (error) {

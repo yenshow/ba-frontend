@@ -197,9 +197,13 @@ export const usePersonnelGroupMembersDialog = (params: {
 		}
 	};
 
-	watch([modelValue, mainGroupId], ([open]) => {
-		if (open) void initDialog();
-	});
+	watch(
+		[modelValue, mainGroupId],
+		([open]) => {
+			if (open) void initDialog();
+		},
+		{ immediate: true }
+	);
 
 	return {
 		dialogTitle,

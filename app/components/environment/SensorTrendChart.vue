@@ -55,6 +55,7 @@ import {
 	type TrendPeriod,
 	type TrendLoadStatus
 } from "~/composables/systems/environment/useEnvironmentTrendSeries";
+import { getParameterDisplayName } from "~/utils/sensorUtils";
 
 Chart.register(...registerables);
 
@@ -83,18 +84,7 @@ let chartInstance: Chart | null = null;
 
 const { loadTrend } = useEnvironmentTrendSeries();
 
-const chartTitle = computed(() => {
-	switch (props.type) {
-		case "noise":
-			return "噪音值趨勢圖";
-		case "aqi":
-			return "AQI指數趨勢圖";
-		case "temperature":
-			return "溫度趨勢圖";
-		default:
-			return "";
-	}
-});
+const chartTitle = computed(() => `${getParameterDisplayName(props.type)}趨勢圖`);
 
 const loadHistoricalData = async () => {
 	const locId = props.locationId != null && props.locationId !== "" ? props.locationId : null;

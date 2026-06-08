@@ -1,9 +1,8 @@
 import { useEnvironmentApi, type AggregatedBucket } from "~/composables/systems/environment/useEnvironmentApi"
-import { calculateAqiScore } from "~/utils/environmentAqi"
 import { getTimeRangeForTrend } from "~/utils/dateUtils"
-import type { SensorReading } from "~/types/environment"
+import type { SensorParameterType, SensorReading } from "~/types/environment"
 
-export type TrendGaugeType = "noise" | "aqi" | "temperature"
+export type TrendGaugeType = SensorParameterType
 export type TrendPeriod = "day" | "week" | "month" | "year"
 export type TrendLoadStatus = "ok" | "no_data" | "error" | "loading"
 
@@ -19,13 +18,8 @@ const resolveTrendValue = (
 	data: Record<string, number | null | undefined> | undefined
 ): number | null => {
 	if (!data) return null
-	if (type === "aqi") {
-		if (typeof data.aqi === "number" && Number.isFinite(data.aqi)) return data.aqi
-		return calculateAqiScore({ pm25: data.pm25 ?? null, pm10: data.pm10 ?? null })
-	}
-	const key = type === "noise" ? "noise" : "temperature"
-	const v = data[key]
-	return typeof v === "number" && Number.isFinite(v) ? v : null
+	const value = data[type]
+	return typeof value === "number" && Number.isFinite(value) ? value : null
 }
 
 const formatTrendLabel = (timestamp: string, period: TrendPeriod): string => {
