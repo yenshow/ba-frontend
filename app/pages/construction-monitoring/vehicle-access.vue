@@ -116,6 +116,7 @@
 								<VehicleOrganizationGroupPanel
 									:groups="organizationGroups ?? []"
 									:selected-group-key="selectedOrganizationKey ?? undefined"
+									:panel-title="isIsapiCamera ? '人員群組' : '車輛群組'"
 									@select="handleOrganizationGroupSelect"
 								/>
 							</div>
@@ -225,6 +226,9 @@
 		:can-create-plate="canCreatePlate"
 		:can-update-plate="canUpdatePlate"
 		:can-delete-plate="canDeletePlate"
+		:can-edit-members="canSyncEdit"
+		:access-sync="accessSync"
+		@members-updated="handleVehicleMembersUpdated"
 	/>
 
 	<SimulationFrame v-model="showSimulationFrame" title="車輛進出 - 完整報表">
@@ -262,8 +266,12 @@ import { useVehicleAccessState } from "~/composables/systems/vehicleAccess/useVe
 import { useVehicleAccessLocationApi } from "~/composables/location/api/useVehicleAccessLocationApi"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter"
-import { useLocationModuleRbac, useVehicleAccessRbac } from "~/composables/core/useAccessGate"
+import { useLocationModuleRbac, usePersonnelRbac, useVehicleAccessRbac } from "~/composables/core/useAccessGate"
+import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
+import { useLocationApi } from "~/composables/location/api/useLocationApi"
+import { useLocationAccessSync } from "~/composables/systems/personnel/useLocationAccessSync"
 import { useToast } from "~/composables/core/useToast"
+import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { toSimulationTimeRange, type OperationalDayRangeResponse } from "~/utils/entryExitTimeRange"
 import { PERM } from "~/config/permissionCodes"
@@ -278,6 +286,18 @@ const {
 } = useLocationModuleRbac(PERM.vehicleAccess)
 const { canCreatePlate, canUpdatePlate, canDeletePlate, canResetStatistics, canBarrierControl } =
 	useVehicleAccessRbac()
+const { canSyncEdit, canDeviceSync } = usePersonnelRbac()
+const personnelApi = usePersonnelApi()
+const locationApi = useLocationApi()
+const { showToast } = useToast()
+const { handleError: handleApiError } = useErrorHandler()
+const accessSync = useLocationAccessSync({
+	personnelApi,
+	locationApi,
+	toast: { success: (m: string) => showToast("success", m), error: (m: string) => showToast("error", m) },
+	handleApiError,
+	canDeviceSync,
+})
 const {
 	filters,
 	vehicleAccessZones,
@@ -301,6 +321,7 @@ const {
 	loadLocationDetail,
 	loadFullReportLogs,
 	loadOverviewSummaries,
+	loadOrganizationData,
 	getLocationZone,
 	setupEventListeners,
 	resetParkingStatsForSelectedSite,
@@ -314,12 +335,15 @@ const vehicleDetailContentClass = computed(() =>
 		.join(" ")
 )
 
-const { showToast } = useToast()
 const { request } = useApiBase()
 
 const showSimulationFrame = ref(false)
 const isGroupDialogOpen = ref(false)
 const showIsapiManageDialog = ref(false)
+
+const handleVehicleMembersUpdated = async () => {
+	await loadOrganizationData()
+}
 const isOverviewCollapsed = ref(false)
 const showLocationManagementDialog = ref(false)
 

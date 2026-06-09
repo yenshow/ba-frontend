@@ -596,7 +596,11 @@ export const usePersonnelPersonsTab = (params: {
 			if (mode === "create") personsOffset.value = 0
 			await loadPersons()
 			showVehiclePlateSyncNotice(toast, vehiclePlateSync)
-			toast.success(mode === "update" ? "已更新人員" : "已新增人員")
+			toast.success(
+				mode === "update"
+					? "已更新人員；請至人流統計 → 門禁管理加入地點名單並同步設備"
+					: "已新增人員；請至人流統計 → 門禁管理加入地點名單並同步設備"
+			)
 			showPersonDialog.value = false
 			return { ok: true as const }
 		} catch (err) {

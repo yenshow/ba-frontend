@@ -48,12 +48,8 @@ export function useVehicleAccessLocationValidation() {
 		if (dataSource === "yscp") {
 			const groupError = validateGroupIds(location.vehicleGroupIds, "車輛群組", false)
 			if (groupError) errors.push(groupError)
-		} else {
-			const groupError = validateGroupIds(location.personGroupIds, "人員群組", true)
-			if (groupError) errors.push(groupError)
-			if ((location.entryCameraDeviceIds ?? []).length === 0) {
-				errors.push("至少需要選擇一台入口攝影機")
-			}
+		} else if ((location.entryCameraDeviceIds ?? []).length === 0) {
+			errors.push("至少需要選擇一台入口攝影機")
 		}
 
 		return {

@@ -42,7 +42,7 @@
 			</div>
 		</div>
 
-		<div v-if="dataSource === 'isapi_camera'" class="mt-2">
+		<div v-if="dataSource === 'isapi_camera'">
 			<span class="text-sm font-medium text-white/80 2xl:text-base">營運模式 *</span>
 			<div class="mt-2 flex flex-wrap gap-4">
 				<label class="flex cursor-pointer items-center gap-2">
@@ -190,14 +190,14 @@
 					:key="group.id"
 					class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
 					:class="{
-						'border-cyan-400/50 bg-cyan-500/20': isGroupIdSelected('vehicleGroupIds', group.id),
+						'border-cyan-400/50 bg-cyan-500/20': isVehicleGroupSelected(group.id),
 					}"
 				>
 					<input
 						type="checkbox"
-						:checked="isGroupIdSelected('vehicleGroupIds', group.id)"
+						:checked="isVehicleGroupSelected(group.id)"
 						class="h-4 w-4 cursor-pointer accent-cyan-400"
-						@change="handleToggleGroupId('vehicleGroupIds', group.id)"
+						@change="handleToggleVehicleGroupId(group.id)"
 					/>
 					<span class="text-xs text-white/90 2xl:text-sm">{{ group.list_name }}</span>
 				</label>
@@ -205,41 +205,8 @@
 		</div>
 
 		<div v-else class="mt-3 border-t border-white/10 pt-3">
-			<div class="mb-3">
-				<span class="text-sm font-medium text-white/80 2xl:text-base">人員群組 *</span>
-			</div>
-			<div
-				v-if="platformPersonGroups.length === 0"
-				class="py-2 text-center text-xs text-white/50 2xl:text-sm"
-			>
-				載入中...
-			</div>
-			<div v-else class="grid grid-cols-2 gap-2">
-				<label
-					v-for="group in platformPersonGroups"
-					:key="group.id"
-					class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
-					:class="{
-						'border-cyan-400/50 bg-cyan-500/20': isGroupIdSelected('personGroupIds', group.id),
-					}"
-				>
-					<input
-						type="checkbox"
-						:checked="isGroupIdSelected('personGroupIds', group.id)"
-						class="h-4 w-4 cursor-pointer accent-cyan-400"
-						@change="handleToggleGroupId('personGroupIds', group.id)"
-					/>
-					<span class="text-xs text-white/90 2xl:text-sm">{{ group.name }}</span>
-				</label>
-			</div>
-			<p
-				v-if="
-					(!localLocation.personGroupIds || localLocation.personGroupIds.length === 0) &&
-					platformPersonGroups.length > 0
-				"
-				class="mt-2 text-xs text-amber-300 2xl:text-sm"
-			>
-				至少需要選擇一個人員群組
+			<p class="text-xs text-white/60 2xl:text-sm">
+				人員群組依「地點名單」內人員自動顯示；請至車輛管理 → 車牌管理維護名單與車牌同步。
 			</p>
 		</div>
 
@@ -291,15 +258,9 @@ interface VehicleCustomGroupOption {
 	list_name: string
 }
 
-interface PlatformPersonGroupOption {
-	id: number
-	name: string
-}
-
 interface Props {
 	location: VehicleAccessLocation
 	vehicleCustomGroups?: VehicleCustomGroupOption[]
-	platformPersonGroups?: PlatformPersonGroupOption[]
 }
 
 interface Emits {
@@ -308,7 +269,6 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
 	vehicleCustomGroups: () => [],
-	platformPersonGroups: () => [],
 })
 
 const emit = defineEmits<Emits>()
@@ -321,7 +281,6 @@ const localLocation = ref<VehicleAccessLocation>({
 	...props.location,
 	dataSource: storedVehicleAccessDataSource(props.location.dataSource),
 	vehicleGroupIds: props.location.vehicleGroupIds ?? [],
-	personGroupIds: props.location.personGroupIds ?? [],
 })
 const dataSource = ref(storedVehicleAccessDataSource(props.location.dataSource))
 const operationMode = ref<"construction_flow" | "parking">(
@@ -395,16 +354,14 @@ const hasEntryCamera = computed(() => entryCameraIds.value.length > 0)
 const isEntryCameraSelected = (id: number) => entryCameraIds.value.includes(id)
 const isExitCameraSelected = (id: number) => exitCameraIds.value.includes(id)
 
-type LocationGroupIdsKey = "vehicleGroupIds" | "personGroupIds"
+const isVehicleGroupSelected = (id: number) =>
+	(localLocation.value.vehicleGroupIds ?? []).includes(id)
 
-const isGroupIdSelected = (key: LocationGroupIdsKey, id: number) =>
-	(localLocation.value[key] ?? []).includes(id)
-
-const handleToggleGroupId = (key: LocationGroupIdsKey, id: number) => {
-	const ids = new Set(localLocation.value[key] ?? [])
+const handleToggleVehicleGroupId = (id: number) => {
+	const ids = new Set(localLocation.value.vehicleGroupIds ?? [])
 	if (ids.has(id)) ids.delete(id)
 	else ids.add(id)
-	localLocation.value[key] = [...ids]
+	localLocation.value.vehicleGroupIds = [...ids]
 	handleChange()
 }
 
@@ -418,7 +375,6 @@ watch(
 			entryCameraDeviceIds: newLocation.entryCameraDeviceIds ?? [],
 			exitCameraDeviceIds: newLocation.exitCameraDeviceIds ?? [],
 			vehicleGroupIds: newLocation.vehicleGroupIds ?? [],
-			personGroupIds: newLocation.personGroupIds ?? [],
 			logDisplayColumns: toStoredVehicleLogDisplayColumns(
 				normalizeVehicleLogDisplayColumns(newLocation.logDisplayColumns)
 			),

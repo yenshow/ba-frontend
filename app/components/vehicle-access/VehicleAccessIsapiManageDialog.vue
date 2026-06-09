@@ -31,8 +31,76 @@
 						</button>
 					</header>
 
+					<div class="flex gap-2 pr-7 2xl:pr-8">
+						<button
+							v-for="tab in dialogTabs"
+							:key="tab.id"
+							type="button"
+							class="rounded-lg border px-4 py-2 text-sm transition-colors 2xl:text-base"
+							:class="
+								activeDialogTab === tab.id
+									? 'border-cyan-400/60 bg-cyan-500/20 text-white'
+									: 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10'
+							"
+							@click="activeDialogTab = tab.id"
+						>
+							{{ tab.label }}
+						</button>
+					</div>
+
 					<div class="show-scrollbar flex-1 overflow-y-auto pr-7 2xl:pr-8">
-						<div class="min-h-[200px]">
+						<div v-if="activeDialogTab === 'members'" class="min-h-[200px] space-y-4">
+							<p class="text-xs text-white/60 2xl:text-sm">
+								名單變更後將自動同步此地點相關車牌至攝影機。
+							</p>
+							<div v-if="locationNumericId == null" class="py-8 text-center text-white/60">
+								無法解析地點
+							</div>
+							<template v-else>
+								<div class="flex flex-wrap items-center gap-2">
+									<input
+										v-model="membersQuery"
+										type="text"
+										class="form-input w-full md:max-w-[220px]"
+										placeholder="搜尋 ID / 姓名"
+										@keydown.enter="handleSearchMembers"
+									/>
+									<button type="button" class="btn-secondary text-xs" @click="handleSearchMembers">
+										搜尋
+									</button>
+								</div>
+								<div class="grid max-h-[420px] grid-cols-2 gap-2 overflow-y-auto">
+									<label
+										v-for="p in memberCandidates"
+										:key="p.id"
+										class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 px-2 py-2"
+									>
+										<input
+											type="checkbox"
+											class="h-4 w-4 accent-cyan-400"
+											:checked="isMemberKept(p.id)"
+											:disabled="!canEditMembers || isApplyingMembers"
+											@change="toggleMember(p.id, $event)"
+										/>
+										<span class="truncate text-sm text-white/90">
+											<span class="font-mono">{{ p.employee_no }}</span>
+											{{ p.full_name || "—" }}
+										</span>
+									</label>
+								</div>
+								<div class="flex justify-end">
+									<PermissionActionButton
+										:allowed="canEditMembers && !isApplyingMembers"
+										class="btn-primary"
+										@click="handleApplyMembers"
+									>
+										{{ isApplyingMembers ? "處理中…" : "套用名單" }}
+									</PermissionActionButton>
+								</div>
+							</template>
+						</div>
+
+						<div v-else class="min-h-[200px]">
 							<div v-if="deviceOptions.length === 0" class="py-8 text-center text-white/60">
 								<p class="text-base 2xl:text-lg">此地點尚未設定入口或出口攝影機</p>
 								<p class="mt-2 text-sm 2xl:text-base">請至「地點管理」設定 ISAPI 攝影機</p>
@@ -230,6 +298,8 @@ import {
 } from "~/utils/licensePlateFormUtils"
 import VehicleAccessIsapiPlateFormDialog from "~/components/vehicle-access/VehicleAccessIsapiPlateFormDialog.vue"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+import type { useLocationAccessSync } from "~/composables/systems/personnel/useLocationAccessSync"
+import type { Person } from "~/types/personnel"
 
 interface DeviceOption {
 	id: number
@@ -242,11 +312,68 @@ const props = defineProps<{
 	canCreatePlate?: boolean
 	canUpdatePlate?: boolean
 	canDeletePlate?: boolean
+	canEditMembers?: boolean
+	accessSync?: ReturnType<typeof useLocationAccessSync>
 }>()
 
 const emit = defineEmits<{
 	"update:modelValue": [value: boolean]
+	membersUpdated: []
 }>()
+
+const activeDialogTab = ref<"plates" | "members">("plates")
+const dialogTabs = [
+	{ id: "plates" as const, label: "車牌名單" },
+	{ id: "members" as const, label: "地點名單" },
+]
+
+const locationNumericId = computed(() => siteId.value ?? null)
+
+const memberCandidates = computed<Person[]>(() => {
+	const id = locationNumericId.value
+	if (id == null || !props.accessSync) return []
+	return props.accessSync.getLocationCandidatesItems(id)
+})
+const membersQuery = computed({
+	get: () => {
+		const id = locationNumericId.value
+		if (id == null || !props.accessSync) return ""
+		return props.accessSync.getLocationCandidatesQuery(id)
+	},
+	set: (v: string) => {
+		const id = locationNumericId.value
+		if (id == null || !props.accessSync) return
+		props.accessSync.setLocationCandidatesQuery(id, v)
+	},
+})
+const isApplyingMembers = computed(() => {
+	const id = locationNumericId.value
+	if (id == null || !props.accessSync) return false
+	return props.accessSync.isLocationMembersApplying(id)
+})
+const isMemberKept = (personId: number) => {
+	const id = locationNumericId.value
+	if (id == null || !props.accessSync) return false
+	return props.accessSync.isLocationMemberKept(id, personId)
+}
+const toggleMember = (personId: number, e: Event) => {
+	const id = locationNumericId.value
+	if (id == null || !props.accessSync) return
+	props.accessSync.toggleKeepLocationMember(id, personId, e)
+}
+const handleSearchMembers = async () => {
+	const id = locationNumericId.value
+	if (id == null || !props.accessSync) return
+	await props.accessSync.loadLocationCandidates(id)
+}
+const handleApplyMembers = async () => {
+	const id = locationNumericId.value
+	if (id == null || !props.accessSync) return
+	await props.accessSync.applyLocationMembers(id)
+	if (!props.accessSync.getLocationMembersError(id)) {
+		emit("membersUpdated")
+	}
+}
 
 const isapiApi = useVehicleAccessIsapiDeviceApi()
 const deviceApi = useDeviceApi()
@@ -305,18 +432,14 @@ const getPlateCountLabel = (deviceId: number) => {
 }
 
 const loadPersonBindOptions = async () => {
-	const groupIds = props.location?.personGroupIds ?? []
-	if (groupIds.length === 0) {
+	const locationId = siteId.value
+	if (locationId == null) {
 		personBindOptions.value = []
 		return
 	}
 	isLoadingPersonOptions.value = true
 	try {
-		const res = await personnelApi.getPersons({
-			personGroupIds: groupIds,
-			limit: 200,
-			offset: 0,
-		})
+		const res = await personnelApi.getLocationMembers(locationId, { limit: 500, offset: 0 })
 		personBindOptions.value = (res.items ?? []).map((p) => ({
 			value: String(p.id),
 			label: formatPersonBindLabel(p.employee_no, p.full_name) || `人員 #${p.id}`,
@@ -500,7 +623,12 @@ watch(
 	() => props.modelValue,
 	async (open) => {
 		if (!open) return
+		activeDialogTab.value = "plates"
 		resetState()
+		const id = locationNumericId.value
+		if (id != null && props.accessSync) {
+			await props.accessSync.prepareLocationDialog(id)
+		}
 		await Promise.all([loadDeviceNames(), loadPersonBindOptions()])
 		const ids = deviceIds.value
 		if (ids.length === 0) return

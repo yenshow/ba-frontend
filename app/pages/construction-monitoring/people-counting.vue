@@ -69,6 +69,15 @@
 						地點管理
 					</PermissionActionButton>
 					<PermissionActionButton
+						v-show="isAccessControl && selectedLocation"
+						:allowed="canDeviceSync || canSyncEdit"
+						aria-label="門禁管理"
+						class="absolute left-36 top-2 btn-monitoring-overlay"
+						@click="showAccessManageDialog = true"
+					>
+						門禁管理
+					</PermissionActionButton>
+					<PermissionActionButton
 						:allowed="canFullReport"
 						aria-label="開啟完整報表"
 						class="absolute right-8 top-2 btn-monitoring-overlay"
@@ -192,6 +201,17 @@
 		@save="handleSaveZone"
 		@delete="handleDeleteZone"
 	/>
+	<PeopleCountingAccessManageDialog
+		v-model="showAccessManageDialog"
+		:location-id="selectedLocationNumericId"
+		:location-name="selectedLocationDisplayName"
+		:can-edit="canSyncEdit"
+		:can-device-sync="canDeviceSync"
+		:access-sync="accessSync"
+		@synced="handleAccessManageSynced"
+		@members-updated="handleAccessManageSynced"
+	/>
+
 	<SimulationFrame v-model="showSimulationFrame" title="人流統計 - 完整報表">
 		<PeopleCountingSimulation
 			:logs="simulationLogs"
@@ -226,7 +246,13 @@ import {
 	usePeopleCountingApi,
 	PEOPLE_COUNTING_FULL_REPORT_LIMIT,
 } from "~/composables/systems/peopleCounting/usePeopleCountingApi"
-import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
+import { useLocationModuleRbac, usePersonnelRbac } from "~/composables/core/useAccessGate"
+import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
+import { useLocationApi } from "~/composables/location/api/useLocationApi"
+import { useToast } from "~/composables/core/useToast"
+import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { useLocationAccessSync } from "~/composables/systems/personnel/useLocationAccessSync"
+import PeopleCountingAccessManageDialog from "~/components/people-counting/PeopleCountingAccessManageDialog.vue"
 import { useApiBase } from "~/composables/core/useApiBase"
 import {
 	buildLogsTimeQuery,
@@ -248,6 +274,18 @@ const {
 	canDeleteLocation,
 	canFullReport,
 } = useLocationModuleRbac(PERM.peopleCounting)
+const { canDeviceSync, canSyncEdit } = usePersonnelRbac()
+const personnelApi = usePersonnelApi()
+const locationApi = useLocationApi()
+const toast = useToast()
+const { handleError: handleApiError } = useErrorHandler()
+const accessSync = useLocationAccessSync({
+	personnelApi,
+	locationApi,
+	toast,
+	handleApiError,
+	canDeviceSync,
+})
 
 // 使用統一的狀態管理
 const {
@@ -291,6 +329,25 @@ const locationsForOverview = computed(() => {
 })
 
 const isIsapiCamera = computed(() => selectedLocation.value?.dataSource === "isapi_camera")
+const isAccessControl = computed(() => selectedLocation.value?.dataSource === "access_control")
+const showAccessManageDialog = ref(false)
+const selectedLocationNumericId = computed(() => {
+	const id = selectedLocation.value?.locationId ?? selectedLocation.value?.id
+	const n = Number(id)
+	return Number.isFinite(n) ? n : null
+})
+const selectedLocationDisplayName = computed(() => {
+	if (!selectedLocation.value) return null
+	const zone = getLocationZone(selectedLocation.value)
+	const name = selectedLocation.value.name
+	return zone ? `${zone} / ${name}` : name
+})
+
+const handleAccessManageSynced = async () => {
+	const id = selectedLocationNumericId.value
+	if (id == null) return
+	await loadLocationDetail(id)
+}
 
 // 在場：transition 以 API currentCount 為準；攝影機以進−出
 const currentCount = computed(() => {

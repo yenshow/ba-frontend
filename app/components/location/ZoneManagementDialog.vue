@@ -147,7 +147,6 @@
 														:device-hint="deviceHint"
 														:person-groups="personGroups"
 														:vehicle-custom-groups="vehicleCustomGroups"
-														:platform-person-groups="platformPersonGroups"
 														:doors="doors"
 														:access-control-devices="accessControlDevices"
 														:isapi-camera-devices="isapiCameraDevices"
@@ -251,7 +250,6 @@ import { useZoneDrafts } from "~/composables/location/ui/useZoneDrafts"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useExternalDataApi } from "~/composables/systems/externalData/useExternalDataApi"
 import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi"
-import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import ZoneFormFields from "./ZoneFormFields.vue"
@@ -417,9 +415,7 @@ const doors = ref<
 const accessControlDevices = ref<Device[]>([])
 const isapiCameraDevices = ref<Device[]>([])
 const vehicleCustomGroups = ref<Array<{ id: number; list_name: string }>>([])
-const platformPersonGroups = ref<Array<{ id: number; name: string }>>([])
 const vehicleAccessApi = useVehicleAccessApi()
-const personnelApi = usePersonnelApi()
 
 // 地點管理組件映射
 const locationManagementComponentMap: Partial<Record<SystemType, Component>> = {
@@ -544,18 +540,6 @@ const loadVehicleAccessFormGroups = async () => {
 		}
 	} else {
 		vehicleCustomGroups.value = []
-	}
-
-	try {
-		const groups = await personnelApi.getPersonGroups({ tree: false })
-		platformPersonGroups.value = Array.isArray(groups)
-			? groups
-					.filter((g) => g.id != null && g.name?.trim())
-					.map((g) => ({ id: g.id!, name: g.name!.trim() }))
-			: []
-	} catch (error) {
-		console.error("載入人員群組列表失敗:", error)
-		platformPersonGroups.value = []
 	}
 }
 
