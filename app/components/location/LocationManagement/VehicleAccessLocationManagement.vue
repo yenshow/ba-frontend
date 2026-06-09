@@ -28,7 +28,6 @@
 					<VehicleAccessLocationFields
 						:location="location"
 						:vehicle-custom-groups="vehicleCustomGroups"
-						:platform-person-groups="platformPersonGroups"
 						@update="handleLocationUpdate(locationIndex, $event)"
 					/>
 				</div>
@@ -84,15 +83,9 @@ interface VehicleCustomGroupOption {
 	list_name: string
 }
 
-interface PlatformPersonGroupOption {
-	id: number
-	name: string
-}
-
 interface Props {
 	zone: VehicleAccessZone
 	vehicleCustomGroups?: VehicleCustomGroupOption[]
-	platformPersonGroups?: PlatformPersonGroupOption[]
 	reorderableLocations?: boolean
 	allowCreateLocation?: boolean
 	allowDeleteLocation?: boolean
@@ -109,7 +102,6 @@ const props = withDefaults(defineProps<Props>(), {
 	allowCreateLocation: true,
 	allowDeleteLocation: true,
 	vehicleCustomGroups: () => [],
-	platformPersonGroups: () => [],
 	reorderableLocations: false,
 })
 const emit = defineEmits<Emits>()

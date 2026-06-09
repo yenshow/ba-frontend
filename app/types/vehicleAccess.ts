@@ -158,8 +158,6 @@ export interface VehicleAccessLocation {
 	cameraChannelId?: number;
 	/** YSCP：anpr.vehicle_custom_list 群組 ID（地點表單勾選） */
 	vehicleGroupIds?: number[];
-	/** ISAPI：platform.person_group 群組 ID（地點表單勾選） */
-	personGroupIds?: number[];
 	/** 停車場模式：在場車輛上限 */
 	parkingCapacity?: number;
 	/** 過車紀錄表格顯示欄位 keys */

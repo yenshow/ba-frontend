@@ -207,7 +207,6 @@ function isVehicleAccessSystemConfig(config: unknown): config is VehicleAccessSy
 		"entryCameraDeviceIds" in c ||
 		"exitCameraDeviceIds" in c ||
 		"vehicleGroupIds" in c ||
-		"personGroupIds" in c ||
 		"logDisplayColumns" in c
 	)
 }
@@ -270,7 +269,7 @@ function parseSystemConfig(systemType: SystemType, config: unknown): SystemConfi
 			return { personGroupIds: [] }
 		case "vehicle_access":
 			if (isVehicleAccessSystemConfig(config)) return config
-			return { vehicleGroupIds: [], personGroupIds: [] }
+			return { vehicleGroupIds: [] }
 		default:
 			// SystemType 是有限的聯合類型，理論上不會執行到這裡
 			// 但為了類型安全，返回空配置
@@ -957,7 +956,6 @@ export function unifiedToVehicleAccessZone(zone: UnifiedZone): VehicleAccessZone
 					exitCameraDeviceIds: vaSystem.config.exitCameraDeviceIds ?? [],
 					cameraChannelId: vaSystem.config.cameraChannelId ?? 1,
 					vehicleGroupIds: vaSystem.config.vehicleGroupIds ?? [],
-					personGroupIds: vaSystem.config.personGroupIds ?? [],
 					logDisplayColumns: normalizeVehicleLogDisplayColumns(
 						vaSystem.config.logDisplayColumns
 					),
@@ -1008,7 +1006,6 @@ export function vehicleAccessLocationToUnified(
 					exitCameraDeviceIds: loc.exitCameraDeviceIds ?? [],
 					cameraChannelId: loc.cameraChannelId ?? 1,
 					vehicleGroupIds: loc.vehicleGroupIds ?? [],
-					personGroupIds: loc.personGroupIds ?? [],
 					logDisplayColumns: toStoredVehicleLogDisplayColumns(
 						normalizeVehicleLogDisplayColumns(loc.logDisplayColumns)
 					),

@@ -14,7 +14,6 @@ import type {
 	VehicleGroupMemberItem,
 	VehicleGroupFromApi
 } from "~/types/vehicleAccess";
-import type { PersonGroup } from "~/types/personnel";
 import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi";
 import {
 	useVehicleAccessSitesApi,
@@ -24,7 +23,6 @@ import { buildLogsTimeQuery } from "~/utils/entryExitTimeRange";
 import type { VehicleAccessDataSource } from "~/types/vehicleAccess";
 import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
-import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi";
 import { unifiedToVehicleAccessZone } from "~/utils/locationAdapter";
 import {
 	buildGroupMemberPresenceFromLogs,
@@ -32,7 +30,6 @@ import {
 	normalizePlate,
 	releasedLogs as releasedPassageLogs
 } from "~/utils/vehicleAccessPassageStats";
-import { buildPersonGroupMemberItems } from "~/utils/vehicleAccessPersonGroup";
 import type { UnifiedZone } from "~/types/location";
 import { compareZonesLoose } from "~/utils/sortOrder";
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
@@ -44,10 +41,24 @@ const TODAY_TIME = { timeRange: "today" as const };
 const YSCP_VEHICLE_EVENT = "yscp:event:vehicle";
 const ISAPI_VEHICLE_EVENT = "vehicle-access:isapi-camera:event";
 
-type PersonGroupCacheEntry = {
-	total: number;
-	onSite: number;
-	items: VehicleGroupMemberItem[];
+type IsapiOrganizationGroupFromApi = {
+	groupKey: string;
+	personGroupId: number;
+	personGroupName: string;
+	vehicleCount: number;
+	onSiteCount: number;
+	entryCount?: number;
+	exitCount?: number;
+	members?: Array<{
+		id: number;
+		name: string;
+		photoUrl?: string | null;
+		plates?: string[];
+		isPresent?: boolean;
+		lastEntryDate?: string | null;
+		entryTime?: string | null;
+		exitTime?: string | null;
+	}>;
 };
 
 export interface VehicleAccessFilters {
@@ -102,7 +113,6 @@ export const useVehicleAccessState = () => {
 	const vehicleAccessApi = useVehicleAccessApi();
 	const vehicleAccessSitesApi = useVehicleAccessSitesApi();
 	const locationApi = useLocationApi();
-	const personnelApi = usePersonnelApi();
 	const { handleError } = useErrorHandler();
 	const { enableYscpVehicleAccess } = useModuleRegistry();
 
@@ -115,11 +125,11 @@ export const useVehicleAccessState = () => {
 	const entryCount = ref(0);
 	const exitCount = ref(0);
 	const onSiteCount = ref(0);
+	/** 停車場在場上限（主畫面顯示 n/capacity） */
 	const onSiteCapacity = ref<number | null>(null);
 
 	const vehicleGroupsFromApi = ref<VehicleGroupFromApi>({ groups: [] });
-	const personGroupsForVehicle = ref<PersonGroup[]>([]);
-	const personGroupCacheById = ref<Record<number, PersonGroupCacheEntry>>({});
+	const isapiOrganizationGroups = ref<IsapiOrganizationGroupFromApi[]>([]);
 	const presentPlatesSet = ref<Set<string>>(new Set());
 	const selectedOrganizationKey = ref<string | null>(null);
 	const isLoadingVehicleGroups = ref(false);
@@ -139,7 +149,13 @@ export const useVehicleAccessState = () => {
 	const selectedLocation = computed(() => {
 		const id = filters.value.locationId;
 		if (!id) return null;
-		return locations.value.find(loc => loc.id === id || loc.locationId === id);
+		return locations.value.find(
+			loc =>
+				loc.id === id ||
+				loc.locationId === id ||
+				String(loc.id ?? "") === id ||
+				String(loc.locationId ?? "") === id
+		);
 	});
 
 	const laneIds = computed(() => getLaneIds(selectedLocation.value));
@@ -321,21 +337,15 @@ export const useVehicleAccessState = () => {
 		if (!loc) return [];
 
 		if (getDataSource(loc) === "isapi_camera") {
-			const personGroupFilter = toOptionalIdSet(loc.personGroupIds);
-			return personGroupsForVehicle.value
-				.filter(g => !personGroupFilter || personGroupFilter.has(g.id))
-				.map(g => {
-					const cache = personGroupCacheById.value[g.id];
-					return {
-						groupKey: `pg_${g.id}`,
-						personGroupId: g.id,
-						personGroupName: g.name ?? `群組 ${g.id}`,
-						vehicleCount: cache?.total ?? 0,
-						entryCount: 0,
-						exitCount: 0,
-						onSiteCount: cache?.onSite ?? 0
-					};
-				});
+			return (isapiOrganizationGroups.value ?? []).map(g => ({
+				groupKey: g.groupKey,
+				personGroupId: g.personGroupId,
+				personGroupName: g.personGroupName,
+				vehicleCount: g.vehicleCount,
+				entryCount: g.entryCount ?? 0,
+				exitCount: g.exitCount ?? 0,
+				onSiteCount: g.onSiteCount ?? 0
+			}));
 		}
 
 		const locLaneIds = getLaneIds(loc);
@@ -373,9 +383,19 @@ export const useVehicleAccessState = () => {
 	const organizationGroupVehicleList = computed<VehicleGroupMemberItem[]>(() => {
 		if (isIsapiCamera.value) {
 			const key = selectedOrganizationKey.value;
-			if (!key?.startsWith("pg_")) return [];
-			const groupId = Number(key.slice(3));
-			return personGroupCacheById.value[groupId]?.items ?? [];
+			if (!key) return [];
+			const group = (isapiOrganizationGroups.value ?? []).find(g => g.groupKey === key);
+			return (group?.members ?? []).map(m => ({
+				id: m.id,
+				name: m.name,
+				owner_name: m.name,
+				plate_license: (m.plates ?? []).join("、") || "—",
+				photoUrl: m.photoUrl ?? undefined,
+				lastEntryDate: m.lastEntryDate ?? undefined,
+				entryTime: m.entryTime ?? undefined,
+				exitTime: m.exitTime ?? undefined,
+				isPresent: Boolean(m.isPresent)
+			}));
 		}
 
 		const key = selectedOrganizationKey.value;
@@ -408,62 +428,19 @@ export const useVehicleAccessState = () => {
 
 			if (isIsapiCamera.value) {
 				const siteId = resolveSiteId(selectedLocation.value);
-				if (isParkingMode.value && siteId != null) {
-					try {
-						const { plates } = await vehicleAccessSitesApi.getPresencePlates(siteId);
-						presentPlatesSet.value = new Set(
-							(plates || []).map(p => normalizePlate(p)).filter(Boolean)
-						);
-					} catch {
-						presentPlatesSet.value = new Set();
-					}
+				if (siteId != null) {
+					const { groups } = await vehicleAccessSitesApi.getOrganizationGroups(siteId);
+					isapiOrganizationGroups.value = Array.isArray(groups) ? groups : [];
 				} else {
-					presentPlatesSet.value = new Set();
+					isapiOrganizationGroups.value = [];
 				}
-
-				const groups = await personnelApi.getPersonGroups({ tree: false });
-				personGroupsForVehicle.value = Array.isArray(groups)
-					? groups.filter(g => g.id != null && g.name?.trim())
-					: [];
-
-				const validToday = todayReleasedLogs.value;
-				const platesForPresence = isParkingMode.value ? presentPlatesSet.value : undefined;
-				const cacheEntries = await Promise.all(
-					personGroupsForVehicle.value.map(async g => {
-						try {
-							const page = await personnelApi.getPersonGroupMembers(g.id, {
-								limit: 500,
-								offset: 0,
-								status: "active"
-							});
-							const members = page.items ?? [];
-							const items = buildPersonGroupMemberItems(
-								members,
-								validToday,
-								platesForPresence
-							);
-							return [
-								g.id,
-								{
-									total: Number(page?.total) || members.length,
-									onSite: items.filter(i => i.isPresent).length,
-									items
-								}
-							] as const;
-						} catch {
-							return [g.id, { total: 0, onSite: 0, items: [] }] as const;
-						}
-					})
-				);
-				personGroupCacheById.value = Object.fromEntries(cacheEntries);
 			} else {
 				vehicleGroupsFromApi.value = (await vehicleAccessApi.getVehicleGroups()) ?? { groups: [] };
 			}
 		} catch (error) {
 			handleError(error, isIsapiCamera.value ? "載入人員群組失敗" : "載入車輛群組失敗");
 			if (isIsapiCamera.value) {
-				personGroupsForVehicle.value = [];
-				personGroupCacheById.value = {};
+				isapiOrganizationGroups.value = [];
 			} else {
 				vehicleGroupsFromApi.value = { groups: [] };
 			}
@@ -497,7 +474,7 @@ export const useVehicleAccessState = () => {
 		logs.value = [];
 		todayPassageLogs.value = [];
 		todayPassageSiteId.value = null;
-		personGroupCacheById.value = {};
+		isapiOrganizationGroups.value = [];
 		presentPlatesSet.value = new Set();
 	};
 

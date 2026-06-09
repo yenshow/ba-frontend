@@ -28,7 +28,12 @@
 							viewBox="0 0 24 24"
 							aria-hidden="true"
 						>
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M15 19l-7-7 7-7"
+							/>
 						</svg>
 					</button>
 				</Transition>
@@ -52,11 +57,10 @@
 							</span>
 						</div>
 					</div>
-
 					<PermissionActionButton
 						:allowed="canManageLocation"
 						aria-label="地點管理"
-						class="btn-monitoring-overlay absolute left-8 top-2"
+						class="absolute left-8 top-2 btn-monitoring-overlay"
 						@click="handleOpenLocationDialog"
 					>
 						地點管理
@@ -65,7 +69,7 @@
 						v-show="isIsapiCamera && selectedLocation"
 						:allowed="canCreatePlate || canUpdatePlate || canDeletePlate"
 						aria-label="車牌管理"
-						class="btn-monitoring-overlay absolute left-36 top-2"
+						class="absolute left-36 top-2 btn-monitoring-overlay"
 						@click="showIsapiManageDialog = true"
 					>
 						車牌管理
@@ -74,7 +78,7 @@
 						v-show="isParkingMode"
 						:allowed="canResetStatistics"
 						aria-label="重製停車場統計"
-						class="btn-monitoring-overlay absolute right-36 top-2"
+						class="absolute right-36 top-2 btn-monitoring-overlay"
 						@click="handleResetParkingStats"
 					>
 						重製統計
@@ -82,7 +86,7 @@
 					<PermissionActionButton
 						:allowed="canFullReport"
 						aria-label="開啟完整報表"
-						class="btn-monitoring-overlay absolute right-8 top-2"
+						class="absolute right-8 top-2 btn-monitoring-overlay"
 						@click="handleOpenSimulation"
 					>
 						完整報表
@@ -104,11 +108,15 @@
 							/>
 							<div class="grid min-w-0 grid-cols-2 items-stretch gap-4">
 								<div class="flex min-w-0 flex-col">
-									<VehicleDataLogTable :logs="logs" :display-columns="selectedLocation?.logDisplayColumns" />
+									<VehicleDataLogTable
+										:logs="logs"
+										:display-columns="selectedLocation?.logDisplayColumns"
+									/>
 								</div>
 								<VehicleOrganizationGroupPanel
 									:groups="organizationGroups ?? []"
 									:selected-group-key="selectedOrganizationKey ?? undefined"
+									:panel-title="isIsapiCamera ? '人員群組' : '車輛群組'"
 									@select="handleOrganizationGroupSelect"
 								/>
 							</div>
@@ -146,7 +154,12 @@
 									viewBox="0 0 24 24"
 									aria-hidden="true"
 								>
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M9 5l7 7-7 7"
+									/>
 								</svg>
 							</button>
 
@@ -213,6 +226,9 @@
 		:can-create-plate="canCreatePlate"
 		:can-update-plate="canUpdatePlate"
 		:can-delete-plate="canDeletePlate"
+		:can-edit-members="canSyncEdit"
+		:access-sync="accessSync"
+		@members-updated="handleVehicleMembersUpdated"
 	/>
 
 	<SimulationFrame v-model="showSimulationFrame" title="車輛進出 - 完整報表">
@@ -227,47 +243,61 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, watch, nextTick, computed, ref } from "vue";
+import { onMounted, onBeforeUnmount, watch, nextTick, computed, ref } from "vue"
 import type {
 	VehicleAccessZone,
 	VehicleAccessLocation,
 	VehicleAccessLocationSummary,
-	VehicleDataLog
-} from "~/types/vehicleAccess";
-import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue";
-import VehicleStatsPanel from "~/components/vehicle-access/VehicleStatsPanel.vue";
-import VehicleDataLogTable from "~/components/vehicle-access/VehicleDataLogTable.vue";
-import VehicleOrganizationGroupPanel from "~/components/vehicle-access/VehicleOrganizationGroupPanel.vue";
-import VehicleOverviewCard from "~/components/vehicle-access/VehicleOverviewCard.vue";
-import VehicleGroupDetailDialog from "~/components/vehicle-access/VehicleGroupDetailDialog.vue";
-import VehicleAccessIsapiManageDialog from "~/components/vehicle-access/VehicleAccessIsapiManageDialog.vue";
-import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
-import SimulationFrame from "~/components/common/SimulationFrame.vue";
+	VehicleDataLog,
+} from "~/types/vehicleAccess"
+import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue"
+import VehicleStatsPanel from "~/components/vehicle-access/VehicleStatsPanel.vue"
+import VehicleDataLogTable from "~/components/vehicle-access/VehicleDataLogTable.vue"
+import VehicleOrganizationGroupPanel from "~/components/vehicle-access/VehicleOrganizationGroupPanel.vue"
+import VehicleOverviewCard from "~/components/vehicle-access/VehicleOverviewCard.vue"
+import VehicleGroupDetailDialog from "~/components/vehicle-access/VehicleGroupDetailDialog.vue"
+import VehicleAccessIsapiManageDialog from "~/components/vehicle-access/VehicleAccessIsapiManageDialog.vue"
+import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
+import SimulationFrame from "~/components/common/SimulationFrame.vue"
 import VehicleAccessSimulation, {
-	type VehicleAccessSimulationLocationOption
-} from "~/components/vehicle-access/VehicleAccessSimulation.vue";
-import { useVehicleAccessState } from "~/composables/systems/vehicleAccess/useVehicleAccessState";
-import { useVehicleAccessLocationApi } from "~/composables/location/api/useVehicleAccessLocationApi";
-import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
-import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter";
-import { useLocationModuleRbac, useVehicleAccessRbac } from "~/composables/core/useAccessGate";
-import { useToast } from "~/composables/core/useToast";
-import { useApiBase } from "~/composables/core/useApiBase";
-import {
-	toSimulationTimeRange,
-	type OperationalDayRangeResponse
-} from "~/utils/entryExitTimeRange";
-import { PERM } from "~/config/permissionCodes";
-import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
+	type VehicleAccessSimulationLocationOption,
+} from "~/components/vehicle-access/VehicleAccessSimulation.vue"
+import { useVehicleAccessState } from "~/composables/systems/vehicleAccess/useVehicleAccessState"
+import { useVehicleAccessLocationApi } from "~/composables/location/api/useVehicleAccessLocationApi"
+import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
+import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter"
+import { useLocationModuleRbac, usePersonnelRbac, useVehicleAccessRbac } from "~/composables/core/useAccessGate"
+import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
+import { useLocationApi } from "~/composables/location/api/useLocationApi"
+import { useLocationAccessSync } from "~/composables/systems/personnel/useLocationAccessSync"
+import { useToast } from "~/composables/core/useToast"
+import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { useApiBase } from "~/composables/core/useApiBase"
+import { toSimulationTimeRange, type OperationalDayRangeResponse } from "~/utils/entryExitTimeRange"
+import { PERM } from "~/config/permissionCodes"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+
 const {
 	canManageLocation,
 	canCreateLocation,
 	canUpdateLocation,
 	canDeleteLocation,
-	canFullReport
-} = useLocationModuleRbac(PERM.vehicleAccess);
+	canFullReport,
+} = useLocationModuleRbac(PERM.vehicleAccess)
 const { canCreatePlate, canUpdatePlate, canDeletePlate, canResetStatistics, canBarrierControl } =
-	useVehicleAccessRbac();
+	useVehicleAccessRbac()
+const { canSyncEdit, canDeviceSync } = usePersonnelRbac()
+const personnelApi = usePersonnelApi()
+const locationApi = useLocationApi()
+const { showToast } = useToast()
+const { handleError: handleApiError } = useErrorHandler()
+const accessSync = useLocationAccessSync({
+	personnelApi,
+	locationApi,
+	toast: { success: (m: string) => showToast("success", m), error: (m: string) => showToast("error", m) },
+	handleApiError,
+	canDeviceSync,
+})
 const {
 	filters,
 	vehicleAccessZones,
@@ -291,234 +321,240 @@ const {
 	loadLocationDetail,
 	loadFullReportLogs,
 	loadOverviewSummaries,
+	loadOrganizationData,
 	getLocationZone,
 	setupEventListeners,
-	resetParkingStatsForSelectedSite
-} = useVehicleAccessState();
+	resetParkingStatsForSelectedSite,
+} = useVehicleAccessState()
 
-const detailEmpty = computed(() => locations.value.length === 0 && !isLoadingZones.value);
+const detailEmpty = computed(() => locations.value.length === 0 && !isLoadingZones.value)
 
 const vehicleDetailContentClass = computed(() =>
 	["flex flex-col gap-12", isOverviewCollapsed.value && "monitoring-detail-enlarged"]
 		.filter(Boolean)
 		.join(" ")
-);
+)
 
-const { showToast } = useToast();
-const { request } = useApiBase();
+const { request } = useApiBase()
 
-const showSimulationFrame = ref(false);
-const isGroupDialogOpen = ref(false);
-const showIsapiManageDialog = ref(false);
-const isOverviewCollapsed = ref(false);
-const showLocationManagementDialog = ref(false);
+const showSimulationFrame = ref(false)
+const isGroupDialogOpen = ref(false)
+const showIsapiManageDialog = ref(false)
 
-const overviewListRef = ref<HTMLElement | null>(null);
-const simulationLogs = ref<VehicleDataLog[]>([]);
-const simulationTimeRange = ref({ startDate: "", endDate: "", preset: "today" });
+const handleVehicleMembersUpdated = async () => {
+	await loadOrganizationData()
+}
+const isOverviewCollapsed = ref(false)
+const showLocationManagementDialog = ref(false)
 
-const vehicleAccessLocationApi = useVehicleAccessLocationApi();
-const adapter = useZoneSystemAdapter<VehicleAccessZone, VehicleAccessLocation>("vehicle_access");
+const overviewListRef = ref<HTMLElement | null>(null)
+const simulationLogs = ref<VehicleDataLog[]>([])
+const simulationTimeRange = ref({ startDate: "", endDate: "", preset: "today" })
+
+const vehicleAccessLocationApi = useVehicleAccessLocationApi()
+const adapter = useZoneSystemAdapter<VehicleAccessZone, VehicleAccessLocation>("vehicle_access")
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
-	useZoneManagement<VehicleAccessLocation, VehicleAccessZone>();
+	useZoneManagement<VehicleAccessLocation, VehicleAccessZone>()
 
 const selectedLocationIdRef = computed({
 	get: () => filters.value.locationId ?? "",
 	set: (id: string) => {
-		filters.value = { ...filters.value, locationId: id || null };
-	}
-});
+		filters.value = { ...filters.value, locationId: id || null }
+	},
+})
 
 const overviewSummariesWithZone = computed(() =>
-	overviewSummaries.value.map(s => ({
+	overviewSummaries.value.map((s) => ({
 		...s,
-		zoneName: s.zoneName ?? vehicleAccessZones.value.find(z => z.id === s.zoneId)?.name ?? null
+		zoneName: s.zoneName ?? vehicleAccessZones.value.find((z) => z.id === s.zoneId)?.name ?? null,
 	}))
-);
+)
 
 const selectedOrganizationGroupName = computed(() => {
-	const key = selectedOrganizationKey.value;
-	if (!key) return "";
-	return organizationGroups.value.find(gr => gr.groupKey === key)?.personGroupName ?? "";
-});
+	const key = selectedOrganizationKey.value
+	if (!key) return ""
+	return organizationGroups.value.find((gr) => gr.groupKey === key)?.personGroupName ?? ""
+})
 
 const simulationLocationOptions = computed((): VehicleAccessSimulationLocationOption[] => {
-	const opts: VehicleAccessSimulationLocationOption[] = [];
+	const opts: VehicleAccessSimulationLocationOption[] = []
 	for (const loc of locations.value) {
-		const locationId = loc.id != null ? Number(loc.id) : Number(loc.locationId);
-		if (!Number.isFinite(locationId)) continue;
-		const zoneName = loc.zoneName || "";
-		const locationName = loc.name || "";
+		const locationId = loc.id != null ? Number(loc.id) : Number(loc.locationId)
+		if (!Number.isFinite(locationId)) continue
+		const zoneName = loc.zoneName || ""
+		const locationName = loc.name || ""
 		opts.push({
 			locationId,
 			label: [zoneName, locationName].filter(Boolean).join("-") || String(locationId),
 			zoneName,
-			locationName
-		});
+			locationName,
+		})
 	}
-	return opts;
-});
+	return opts
+})
 
 const simulationLocationDisplayColumns = computed(() => {
-	const map: Record<number, string[] | null | undefined> = {};
+	const map: Record<number, string[] | null | undefined> = {}
 	for (const loc of locations.value) {
-		const id = loc.id != null ? Number(loc.id) : Number(loc.locationId);
-		if (!Number.isFinite(id)) continue;
-		map[id] = loc.logDisplayColumns ?? null;
+		const id = loc.id != null ? Number(loc.id) : Number(loc.locationId)
+		if (!Number.isFinite(id)) continue
+		map[id] = loc.logDisplayColumns ?? null
 	}
-	return map;
-});
+	return map
+})
 
 const getLocationId = (location: VehicleAccessLocation & { zoneName?: string }): string => {
 	const zone =
-		vehicleAccessZones.value.find(z =>
-			(z.locations || []).some(l => l === location || (l.id && location.id && l.id === location.id))
-		) ?? null;
-	const zoneName = location.zoneName ?? zone?.name ?? null;
+		vehicleAccessZones.value.find((z) =>
+			(z.locations || []).some(
+				(l) => l === location || (l.id && location.id && l.id === location.id)
+			)
+		) ?? null
+	const zoneName = location.zoneName ?? zone?.name ?? null
 	if (!zone || !adapter.getLocationId) {
-		return `${zoneName ?? "unknown"}-${location.name}`;
+		return `${zoneName ?? "unknown"}-${location.name}`
 	}
 	const idx = (zone.locations || []).findIndex(
-		l => l === location || (l.id && location.id && l.id === location.id)
-	);
-	if (idx < 0) return `${zoneName ?? "unknown"}-${location.name}`;
-	return adapter.getLocationId({ zone, location, locationIndex: idx });
-};
+		(l) => l === location || (l.id && location.id && l.id === location.id)
+	)
+	if (idx < 0) return `${zoneName ?? "unknown"}-${location.name}`
+	return adapter.getLocationId({ zone, location, locationIndex: idx })
+}
 
 const findLocationForSummary = (
 	summary: VehicleAccessLocationSummary
 ): VehicleAccessLocation | null => {
-	const id = String(summary.id ?? summary.locationId ?? "");
+	const id = String(summary.id ?? summary.locationId ?? "")
 	for (const zone of vehicleAccessZones.value) {
 		for (const loc of zone.locations || []) {
-			const locId = getLocationId(loc as VehicleAccessLocation & { zoneName?: string });
-			if (locId === id || String(loc.id ?? "") === id) return loc;
+			const locId = getLocationId(loc as VehicleAccessLocation & { zoneName?: string })
+			if (locId === id || String(loc.id ?? "") === id) return loc
 		}
 	}
-	return null;
-};
+	return null
+}
 
 const getSummaryCanonicalId = (summary: VehicleAccessLocationSummary): string => {
-	const loc = findLocationForSummary(summary);
-	if (loc) return getLocationId(loc as VehicleAccessLocation & { zoneName?: string });
-	return String(summary.id ?? summary.locationId ?? "");
-};
+	const loc = findLocationForSummary(summary)
+	if (loc) return getLocationId(loc as VehicleAccessLocation & { zoneName?: string })
+	return String(summary.id ?? summary.locationId ?? "")
+}
 
 const isCurrentSummary = (summary: VehicleAccessLocationSummary): boolean => {
-	const selectedId = filters.value.locationId;
-	return !!selectedId && getSummaryCanonicalId(summary) === selectedId;
-};
+	const selectedId = filters.value.locationId
+	return !!selectedId && getSummaryCanonicalId(summary) === selectedId
+}
 
 const scrollActiveOverviewIntoView = () => {
-	const id = filters.value.locationId;
-	if (!id || isOverviewCollapsed.value) return;
-	const root = overviewListRef.value;
-	if (!root) return;
+	const id = filters.value.locationId
+	if (!id || isOverviewCollapsed.value) return
+	const root = overviewListRef.value
+	if (!root) return
 	root.querySelector(`[data-overview-location-id="${CSS.escape(id)}"]`)?.scrollIntoView({
 		block: "nearest",
-		behavior: "smooth"
-	});
-};
+		behavior: "smooth",
+	})
+}
 
 const fetchTodaySimulationRange = async () => {
-	const range = await request<OperationalDayRangeResponse>(`/entry-exit/time-range?preset=today`);
-	return toSimulationTimeRange(range, "today");
-};
+	const range = await request<OperationalDayRangeResponse>(`/entry-exit/time-range?preset=today`)
+	return toSimulationTimeRange(range, "today")
+}
 
 const loadSimulationLogs = async () => {
-	const { startDate, endDate, preset } = simulationTimeRange.value;
+	const { startDate, endDate, preset } = simulationTimeRange.value
 	try {
 		simulationLogs.value = await loadFullReportLogs({
 			startTime: startDate,
 			endTime: endDate,
-			preset
-		});
+			preset,
+		})
 	} catch {
-		simulationLogs.value = [];
+		simulationLogs.value = []
 	}
-};
+}
 
 const handleSimulationTimeRangeUpdate = (v: {
-	startDate: string;
-	endDate: string;
-	preset: string;
+	startDate: string
+	endDate: string
+	preset: string
 }) => {
-	simulationTimeRange.value = v;
-	void loadSimulationLogs();
-};
+	simulationTimeRange.value = v
+	void loadSimulationLogs()
+}
 
 const handleOpenSimulation = async () => {
-	if (!canFullReport.value) return;
-	simulationTimeRange.value = await fetchTodaySimulationRange();
-	showSimulationFrame.value = true;
-	await loadSimulationLogs();
-};
+	if (!canFullReport.value) return
+	simulationTimeRange.value = await fetchTodaySimulationRange()
+	showSimulationFrame.value = true
+	await loadSimulationLogs()
+}
 
 const handleOrganizationGroupSelect = (groupKey: string) => {
-	setSelectedOrganizationKey(groupKey);
-	isGroupDialogOpen.value = true;
-};
+	setSelectedOrganizationKey(groupKey)
+	isGroupDialogOpen.value = true
+}
 
 const handleOrganizationDialogClose = () => {
-	setSelectedOrganizationKey(null);
-};
+	setSelectedOrganizationKey(null)
+}
 
 const handleOverviewClick = (summary: VehicleAccessLocationSummary) => {
-	const nextId = getSummaryCanonicalId(summary) || null;
-	if (filters.value.locationId === nextId) return;
-	filters.value = { ...filters.value, locationId: nextId };
-};
+	const nextId = getSummaryCanonicalId(summary) || null
+	if (filters.value.locationId === nextId) return
+	filters.value = { ...filters.value, locationId: nextId }
+}
 
 const handleResetParkingStats = async () => {
-	if (!isParkingMode.value) return;
+	if (!isParkingMode.value) return
 	const confirmed = window.confirm(
 		"確定要重製此停車場的進場、出場與在場統計？過車紀錄不會刪除，完整報表仍可查詢歷史。"
-	);
-	if (!confirmed) return;
+	)
+	if (!confirmed) return
 	try {
-		await resetParkingStatsForSelectedSite();
-		showToast("success", "已重製停車場統計");
+		await resetParkingStatsForSelectedSite()
+		showToast("success", "已重製停車場統計")
 	} catch (error) {
-		showToast("error", error instanceof Error ? error.message : "重製失敗");
+		showToast("error", error instanceof Error ? error.message : "重製失敗")
 	}
-};
+}
 
 const handleOpenLocationDialog = async () => {
-	if (!canManageLocation.value) return;
-	if (vehicleAccessZones.value.length === 0) await loadZones();
-	showLocationManagementDialog.value = true;
-};
+	if (!canManageLocation.value) return
+	if (vehicleAccessZones.value.length === 0) await loadZones()
+	showLocationManagementDialog.value = true
+}
 
 const handleSaveZone = async (zone: VehicleAccessZone) => {
 	await baseHandleSaveZone(
 		zone,
 		vehicleAccessZones,
 		async (z: VehicleAccessZone) => {
-			const isValidId = z.id && !z.id.startsWith("temp-") && /^\d+$/.test(z.id);
+			const isValidId = z.id && !z.id.startsWith("temp-") && /^\d+$/.test(z.id)
 			const result = isValidId
 				? await vehicleAccessLocationApi.updateZone(z.id, {
 						name: z.name,
 						sortOrder: (z as unknown as { sortOrder?: number }).sortOrder,
-						locations: z.locations
+						locations: z.locations,
 					})
 				: await vehicleAccessLocationApi.createZone({
 						name: z.name,
 						sortOrder: (z as unknown as { sortOrder?: number }).sortOrder,
-						locations: z.locations
-					});
+						locations: z.locations,
+					})
 			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as VehicleAccessZone & {
-				id: string;
-			};
-			return { merged: result.merged, message: result.message, zone: zoneWithId };
+				id: string
+			}
+			return { merged: result.merged, message: result.message, zone: zoneWithId }
 		},
 		{
 			onAfterSave: async () => {
-				await loadZones();
-				await loadOverviewSummaries();
-			}
+				await loadZones()
+				await loadOverviewSummaries()
+			},
 		}
-	);
-};
+	)
+}
 
 const handleDeleteZone = async (zoneId: string) => {
 	await baseHandleDeleteZone(zoneId, vehicleAccessZones, vehicleAccessLocationApi.deleteZone, {
@@ -526,61 +562,61 @@ const handleDeleteZone = async (zoneId: string) => {
 		getLocationId: (loc: VehicleAccessLocation) => getLocationId(loc),
 		systemType: "vehicle_access",
 		onAfterDelete: async () => {
-			await loadZones();
-			await loadOverviewSummaries();
-		}
-	});
-};
+			await loadZones()
+			await loadOverviewSummaries()
+		},
+	})
+}
 
-let cleanupWebSocket: (() => void) | null = null;
+let cleanupWebSocket: (() => void) | null = null
 
 watch(
 	() => filters.value.locationId,
-	locationId => {
-		if (!locationId) return;
-		void loadLocationDetail();
-		nextTick(() => scrollActiveOverviewIntoView());
+	(locationId) => {
+		if (!locationId) return
+		void loadLocationDetail()
+		nextTick(() => scrollActiveOverviewIntoView())
 	},
 	{ immediate: true }
-);
+)
 
-watch(isOverviewCollapsed, collapsed => {
-	if (!collapsed) nextTick(() => scrollActiveOverviewIntoView());
-});
+watch(isOverviewCollapsed, (collapsed) => {
+	if (!collapsed) nextTick(() => scrollActiveOverviewIntoView())
+})
 
 onMounted(async () => {
 	cleanupWebSocket = setupEventListeners(async () => {
-		const locationId = filters.value.locationId;
+		const locationId = filters.value.locationId
 		await Promise.allSettled([
 			loadOverviewSummaries(),
-			locationId ? loadLocationDetail() : Promise.resolve()
-		]);
-	}, 500);
+			locationId ? loadLocationDetail() : Promise.resolve(),
+		])
+	}, 500)
 
 	try {
-		await loadZones();
-		await loadOverviewSummaries();
+		await loadZones()
+		await loadOverviewSummaries()
 		if (!filters.value.locationId && locations.value.length > 0) {
-			const first = locations.value[0];
+			const first = locations.value[0]
 			if (first) {
 				filters.value = {
 					...filters.value,
-					locationId: getLocationId(first as VehicleAccessLocation & { zoneName?: string })
-				};
+					locationId: getLocationId(first as VehicleAccessLocation & { zoneName?: string }),
+				}
 			}
 		}
 	} catch {
 		// 錯誤已在 composable 處理
 	}
 
-	await nextTick();
-	scrollActiveOverviewIntoView();
-});
+	await nextTick()
+	scrollActiveOverviewIntoView()
+})
 
 onBeforeUnmount(() => {
 	if (cleanupWebSocket) {
-		cleanupWebSocket();
-		cleanupWebSocket = null;
+		cleanupWebSocket()
+		cleanupWebSocket = null
 	}
-});
+})
 </script>

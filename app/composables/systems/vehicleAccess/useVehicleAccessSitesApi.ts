@@ -57,6 +57,28 @@ export const useVehicleAccessSitesApi = () => {
 	const getPresencePlates = async (siteId: number): Promise<{ plates: string[] }> =>
 		request(`/vehicle-access/sites/${siteId}/presence/plates`);
 
+	const getOrganizationGroups = async (
+		siteId: number
+	): Promise<{
+		groups: Array<{
+			groupKey: string
+			personGroupId: number
+			personGroupName: string
+			vehicleCount: number
+			onSiteCount: number
+			members?: Array<{
+				id: number
+				name: string
+				photoUrl?: string | null
+				plates?: string[]
+				isPresent?: boolean
+				lastEntryDate?: string | null
+				entryTime?: string | null
+				exitTime?: string | null
+			}>
+		}>
+	}> => request(`/vehicle-access/sites/${siteId}/organization-groups`);
+
 	const resetSiteStats = async (
 		siteId: number
 	): Promise<{ statsResetAt: string }> =>
@@ -111,6 +133,7 @@ export const useVehicleAccessSitesApi = () => {
 		getSiteSessionStats,
 		getSitePresence,
 		getPresencePlates,
+		getOrganizationGroups,
 		resetSiteStats,
 		getAllSiteLogs,
 		getSiteLogs,

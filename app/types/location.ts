@@ -199,7 +199,6 @@ export interface VehicleAccessSystemConfig {
 	exitCameraDeviceIds?: number[];
 	cameraChannelId?: number;
 	vehicleGroupIds?: number[];
-	personGroupIds?: number[];
 	logDisplayColumns?: string[];
 }
 

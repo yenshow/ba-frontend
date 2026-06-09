@@ -1,7 +1,5 @@
-import type { Ref } from "vue"
-import type {
-	SyncableLocation,
-} from "~/types/personnel"
+import { computed, reactive, ref, type Ref } from "vue"
+import type { Person } from "~/types/personnel"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import type { useLocationApi } from "~/composables/location/api/useLocationApi"
 import {
@@ -20,11 +18,10 @@ import {
 	getNextOffset,
 	getPrevOffset,
 } from "~/composables/systems/personnel/personnelList"
-import type { Person } from "~/types/personnel"
 
 type LocationId = number
 
-export const usePersonnelSyncTab = (params: {
+export const useLocationAccessSync = (params: {
 	personnelApi: PersonnelApi
 	locationApi: ReturnType<typeof useLocationApi>
 	toast: { success: (msg: string) => void; error: (msg: string) => void }
@@ -33,11 +30,7 @@ export const usePersonnelSyncTab = (params: {
 }) => {
 	const { personnelApi, locationApi, toast, handleApiError, canDeviceSync } = params
 
-	const syncableLocations = ref<SyncableLocation[]>([])
-	const isLoadingSyncable = ref(false)
 	const syncWarningTypeLabel = (type: string) => SYNC_WARNING_LABELS[type] ?? type
-
-	// ---------- 地點對應門禁設備（顯示用） ----------
 	const syncDevicesByLocationId = reactive<Record<number, { entry: string[]; exit: string[] }>>({})
 
 	const loadLocationSyncDevicesLabels = async () => {
@@ -56,7 +49,7 @@ export const usePersonnelSyncTab = (params: {
 				syncDevicesByLocationId[Math.trunc(id)] = { entry, exit }
 			}
 		} catch {
-			// fallback：忽略錯誤，顯示為「—」
+			// ignore
 		}
 	}
 
@@ -68,37 +61,29 @@ export const usePersonnelSyncTab = (params: {
 		}
 	}
 
-	// ---------- 同步（各地點展開：人員列 + UserInfo／圖片／卡片／指紋） ----------
-	const syncExpandedLocationIds = ref<Set<number>>(new Set())
 	const SYNC_CANDIDATES_PAGE_SIZE = 10
 	const syncCandidatesOffsetByLocation = reactive<Record<number, number>>({})
 
-	const isSyncLocationExpanded = (locationId: number) =>
-		syncExpandedLocationIds.value.has(locationId)
 	const syncEngine = usePersonnelSyncEngine({
 		personnelApi,
 		toast,
 		handleApiError,
 		canDeviceSync,
-		syncableLocations,
+		syncableLocations: ref([]),
 	})
+
 	const {
 		syncCandidatesByLocation,
 		isSyncCandidatesLoading,
 		ensureSyncCandidates,
-		isSyncingAll,
 		syncWarnings,
 		showWarningsDialog,
 		openWarningsDialog,
-		activeSyncAllJob,
 		activeSyncLocationId,
 		activeSyncJob,
 		isPollingSyncJob,
-		activeSyncJobTailItems,
 		lastCompletedSyncByLocationId,
 		syncOneLocation,
-		syncAllLocations,
-		getLocationLabel,
 		getWarningsForLocation,
 		isLocationSyncJobRunning,
 		getSyncStepRowsForLocation,
@@ -106,7 +91,6 @@ export const usePersonnelSyncTab = (params: {
 
 	const isSingleLocationSyncing = computed(() => isPollingSyncJob.value)
 
-	// ---------- 地點成員管理（門禁名單；SSOT: person_location_access） ----------
 	const locationMembersLoading = reactive<Record<LocationId, boolean>>({})
 	const locationMembersApplying = reactive<Record<LocationId, boolean>>({})
 	const locationMembersError = reactive<Record<LocationId, string | null>>({})
@@ -128,10 +112,6 @@ export const usePersonnelSyncTab = (params: {
 	const getLocationMembersSelectedCount = (locationId: number) => getLocationMemberKeptIds(locationId).length
 	const isLocationMemberKept = (locationId: number, personId: number) =>
 		getLocationMemberKeptIds(locationId).includes(personId)
-
-	const clearLocationMemberKeptIds = (locationId: number) => {
-		locationMembersKeptIds[locationId] = []
-	}
 
 	const toggleManyLocationMembers = (locationId: number, personIds: number[], checked: boolean) => {
 		const current = getLocationMemberKeptIds(locationId)
@@ -223,40 +203,8 @@ export const usePersonnelSyncTab = (params: {
 		}
 	}
 
-	const toggleSyncLocationExpand = async (locationId: number) => {
-		const next = new Set(syncExpandedLocationIds.value)
-		if (next.has(locationId)) {
-			next.delete(locationId)
-		} else {
-			next.add(locationId)
-			await ensureSyncCandidates(locationId)
-		}
-		syncExpandedLocationIds.value = next
-	}
-
 	const isSyncLocationCandidatesLoading = (locationId: number) =>
 		isSyncCandidatesLoading(locationId)
-
-	const getLocationSummary = (
-		locationId: number
-	): { people: string; face: string; card: string; fingerprint: string } => {
-		const loading = isSyncLocationCandidatesLoading(locationId)
-		const list = syncCandidatesByLocation[locationId]
-		if (!Array.isArray(list)) {
-			if (loading) return { people: "…", face: "…", card: "…", fingerprint: "…" }
-			return { people: "—", face: "—", card: "—", fingerprint: "—" }
-		}
-		const people = list.length
-		const face = list.filter((p) => p.has_face).length
-		const card = list.filter((p) => p.has_card).length
-		const fingerprint = list.filter((p) => Number(p.fingerprint_count) > 0).length
-		return {
-			people: String(people),
-			face: String(face),
-			card: String(card),
-			fingerprint: String(fingerprint),
-		}
-	}
 
 	const getSyncOffset = (locationId: number) =>
 		Math.max(0, Math.trunc(Number(syncCandidatesOffsetByLocation[locationId] ?? 0)))
@@ -314,85 +262,33 @@ export const usePersonnelSyncTab = (params: {
 
 	const isLocationCurrentlySyncing = (locationId: number) => isLocationSyncJobRunning(locationId)
 
-	// ---------- 結果與警告（dialog） ----------
-
 	const isLocationSyncButtonDisabled = (locationId: number) => {
 		if (!canDeviceSync.value) return true
-		if (isSyncingAll.value) return true
 		if (isPollingSyncJob.value && activeSyncLocationId.value === locationId) return true
-		if (
-			isPollingSyncJob.value &&
-			activeSyncLocationId.value !== null &&
-			activeSyncLocationId.value !== locationId
-		)
+		if (isPollingSyncJob.value && activeSyncLocationId.value !== null && activeSyncLocationId.value !== locationId)
 			return true
 		return false
 	}
 
-	const allLocationsProgressText = computed(() => {
-		const j = activeSyncAllJob.value
-		if (!j?.progress) return ""
-		const t = j.progress.total ?? 0
-		const c = j.progress.completed ?? 0
-		const name = j.progress.currentLocationName
-		const id = j.progress.currentLocationId
-		if (j.status === "completed") return `已完成（共 ${c} 個地點）`
-		if (t <= 0) return "準備中…"
-		const cur = id != null && name ? `目前：${name}（#${id}）` : ""
-		return `進度 ${c} / ${t} 個地點 ${cur}`.trim()
-	})
-
-	const syncOneLocationAndExpand = async (locationId: number) => {
-		const exp = new Set(syncExpandedLocationIds.value)
-		exp.add(locationId)
-		syncExpandedLocationIds.value = exp
-		await syncOneLocation(locationId)
+	const prepareLocationDialog = async (locationId: number) => {
+		await loadLocationSyncDevicesLabels()
+		await reloadLocationMembers(locationId)
 	}
-
-	const loadSyncableLocations = async () => {
-		isLoadingSyncable.value = true
-		try {
-			syncableLocations.value = await personnelApi.getSyncableLocations()
-			// 不預設全展開，避免初次載入就大量抓取 sync-candidates（效能）
-			syncExpandedLocationIds.value = new Set()
-			// 顯示設備名稱用：後端一次回傳（避免 /api/locations/:id N 次）
-			await loadLocationSyncDevicesLabels()
-		} catch (err) {
-			handleApiError(err, "載入可同步地點失敗")
-			syncableLocations.value = []
-			syncExpandedLocationIds.value = new Set()
-		} finally {
-			isLoadingSyncable.value = false
-		}
-	}
-
-	// 不再在載入地點後全量 prefetch（由使用者展開地點時再載入）
 
 	return {
-		// sync tab state
-		syncableLocations,
-		isLoadingSyncable,
-		isSyncingAll,
-		showWarningsDialog,
-		activeSyncAllJob,
-		activeSyncLocationId,
-		activeSyncJob,
-		isSingleLocationSyncing,
-		allLocationsProgressText,
-
-		// sync actions
-		loadSyncableLocations,
-		syncOneLocation: syncOneLocationAndExpand,
-		syncAllLocations,
-		toggleSyncLocationExpand,
-		ensureSyncCandidates,
-
-		// sync ui helpers
-		syncCandidatesByLocation,
 		SYNC_CANDIDATES_PAGE_SIZE,
-		isSyncLocationExpanded,
-		isSyncLocationCandidatesLoading,
+		isSingleLocationSyncing,
+		showWarningsDialog,
+		syncWarnings,
+		syncWarningTypeLabel,
+		openWarningsDialog,
+		loadLocationSyncDevicesLabels,
 		getLocationDevicesLabel,
+		prepareLocationDialog,
+		syncOneLocation,
+		ensureSyncCandidates,
+		syncCandidatesByLocation,
+		isSyncLocationCandidatesLoading,
 		getSyncStepRowsForLocation,
 		getPagedSyncStepRowsForLocation,
 		syncStepPillClass,
@@ -403,13 +299,6 @@ export const usePersonnelSyncTab = (params: {
 		isLocationSyncButtonDisabled,
 		goPrevSyncPage,
 		goNextSyncPage,
-
-		// warnings
-		syncWarnings,
-		syncWarningTypeLabel,
-		openWarningsDialog,
-
-		// location members panel
 		isLocationMembersLoading,
 		isLocationMembersApplying,
 		getLocationMembersError,
@@ -418,8 +307,6 @@ export const usePersonnelSyncTab = (params: {
 		isLocationMemberKept,
 		toggleManyLocationMembers,
 		toggleKeepLocationMember,
-		getLocationMemberKeptIds,
-		clearLocationMemberKeptIds,
 		isLocationCandidatesLoading,
 		getLocationCandidatesError,
 		getLocationCandidatesItems,

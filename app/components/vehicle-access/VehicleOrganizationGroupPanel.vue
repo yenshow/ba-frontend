@@ -1,7 +1,7 @@
 <template>
 	<div class="vehicle-org-panel min-h-[220px] space-y-4">
 		<h3 class="vehicle-org-title bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
-			車輛群組
+			{{ panelTitle }}
 		</h3>
 		<div class="grid grid-cols-3 gap-4 2xl:grid-cols-4">
 			<button
@@ -37,18 +37,22 @@
 </template>
 
 <script setup lang="ts">
-import type { VehicleOrganizationGroupItem } from "~/types/vehicleAccess";
+import type { VehicleOrganizationGroupItem } from "~/types/vehicleAccess"
 
-defineProps<{
-	groups: VehicleOrganizationGroupItem[];
-	selectedGroupKey?: string;
-}>();
+withDefaults(
+	defineProps<{
+		groups: VehicleOrganizationGroupItem[]
+		selectedGroupKey?: string
+		panelTitle?: string
+	}>(),
+	{ panelTitle: "車輛群組" }
+)
 
 const emit = defineEmits<{
-	(e: "select", groupKey: string): void;
-}>();
+	(e: "select", groupKey: string): void
+}>()
 
 const handleSelect = (group: VehicleOrganizationGroupItem) => {
-	if (group.groupKey) emit("select", group.groupKey);
-};
+	if (group.groupKey) emit("select", group.groupKey)
+}
 </script>
