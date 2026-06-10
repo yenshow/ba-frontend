@@ -44,7 +44,7 @@ export interface PersonLadderCard {
 	person_id?: number;
 	card_no: string;
 	home_floor?: number;
-	floors?: number[];
+	floors?: number[] | { byLocation?: Record<string, number[]>; _legacy?: number[] };
 	card_type?: number;
 	floor_mode?: string;
 	card_password?: string | null;
@@ -56,17 +56,11 @@ export interface PersonLadderCard {
 	sdk_synced_at?: string | null;
 }
 
-export interface PersonLadderCardFormItem {
-	cardNo: string;
-	homeFloor: number;
-	floorsText: string;
-	cardType: number;
-	floorMode: string;
-	cardPassword: string;
-	validEnabled: boolean;
-	validBegin: string;
-	validEnd: string;
-}
+export type {
+	LadderFloorDefaultsByLocation,
+	PersonLadderLocationFormItem,
+	ElevatorLocationFloorOption,
+} from "~/utils/ladderFloorFormUtils";
 
 export interface VehiclePlateSyncResult {
 	status: "synced" | "partial" | "pending" | "failed" | "skipped" | string;
@@ -93,6 +87,8 @@ export interface Person {
 	/** 列表 API（getPersonsPaged）附帶 */
 	license_plate_count?: number;
 	license_plates?: PersonLicensePlate[];
+	/** 列表 API（getPersonsPaged）附帶 */
+	has_ladder_card?: boolean;
 	ladder_card?: PersonLadderCard | null;
 	/** 儲存人員時若觸發 ISAPI 車牌同步，API 可能附帶 */
 	vehicle_plate_sync?: VehiclePlateSyncResult;
@@ -261,17 +257,12 @@ export type PersonnelPersonForm = {
 };
 
 export type PersonnelPersonLadderCardState = {
-	enabled: Ref<boolean>;
-	cardNo: Ref<string>;
-	homeFloor: Ref<number>;
-	floorsText: Ref<string>;
-	cardType: Ref<number>;
-	floorMode: Ref<string>;
-	cardPassword: Ref<string>;
-	validEnabled: Ref<boolean>;
-	validBegin: Ref<string>;
-	validEnd: Ref<string>;
-	syncStatus: Ref<string>;
+	elevatorLocationOptions: Ref<ElevatorLocationFloorOption[]>;
+	locationItems: Ref<PersonLadderLocationFormItem[]>;
+	toggleFloor: (locationId: number, floorIndex: number, checked: boolean) => void;
+	isFloorChecked: (locationId: number, floorIndex: number) => boolean;
+	addLocationRow: () => void;
+	removeLocationRow: (index: number) => void;
 };
 
 export type PersonnelPersonAccessControlState = {

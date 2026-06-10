@@ -280,15 +280,7 @@ export const usePersonnelApi = (): PersonnelApi => {
 		replacePersonLadderCard: (
 			id: number,
 			body: {
-				cardNo?: string
-				floors?: number[]
-				homeFloor?: number
-				cardType?: number
-				floorMode?: string
-				cardPassword?: string | null
-				validEnabled?: boolean
-				validBegin?: string | null
-				validEnd?: string | null
+				floors?: number[] | { byLocation?: Record<string, number[]> }
 				clear?: boolean
 			} | null,
 		) =>

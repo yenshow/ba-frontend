@@ -14,17 +14,35 @@
 				此地點尚未綁定梯控設備
 			</div>
 
+			<div
+				v-else-if="floors.length === 0"
+				class="flex min-h-[120px] items-center justify-center text-base text-white/60 2xl:text-lg"
+			>
+				此地點尚未設定樓層
+			</div>
+
 			<template v-else>
-				<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-					<span>樓層（gatewayIndex）</span>
-					<input
-						v-model.number="gatewayIndex"
-						type="number"
-						min="1"
-						class="form-input-small"
-						aria-label="樓層編號"
-					/>
-				</label>
+				<div class="space-y-2">
+					<p class="text-sm text-white/80 2xl:text-base">選擇樓層</p>
+					<div class="grid grid-cols-2 gap-2 2xl:gap-3">
+						<button
+							v-for="floor in floors"
+							:key="floor.index"
+							type="button"
+							class="rounded-lg border px-3 py-2 text-sm font-semibold transition-colors 2xl:py-3 2xl:text-base"
+							:class="
+								selectedFloorIndex === floor.index
+									? 'border-cyan-300 bg-cyan-500/80 text-white'
+									: 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+							"
+							:aria-pressed="selectedFloorIndex === floor.index"
+							:aria-label="`選擇樓層 ${floor.label}`"
+							@click="selectedFloorIndex = floor.index"
+						>
+							{{ floor.label }}
+						</button>
+					</div>
+				</div>
 
 				<div class="grid grid-cols-2 gap-2 2xl:gap-4">
 					<button
@@ -33,7 +51,7 @@
 						type="button"
 						class="rounded-lg bg-cyan-500/80 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-cyan-400 disabled:opacity-50 2xl:py-3 2xl:text-base"
 						:disabled="isSubmitting || !canControl"
-						:aria-label="cmd.label"
+						:aria-label="`${cmd.label} ${selectedFloorLabel}`"
 						@click="handleControl(cmd.value)"
 					>
 						{{ cmd.label }}
@@ -52,28 +70,59 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue"
+import { computed, ref, watch } from "vue"
 import type { ElevatorControlCommand } from "~/types/elevator"
 import { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { defaultElevatorFloorLabel } from "~/utils/ladderFloorFormUtils"
 
 interface Props {
 	deviceId?: number | null
 	canControl?: boolean
+	floorCount?: number
+	floorNames?: string[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	deviceId: null,
 	canControl: false,
+	floorCount: 0,
+	floorNames: () => [],
 })
 
 const elevatorApi = useElevatorApi()
 const { handleError } = useErrorHandler()
 
-const gatewayIndex = ref(1)
+const selectedFloorIndex = ref(1)
 const isSubmitting = ref(false)
 const errorText = ref<string | null>(null)
 const successText = ref<string | null>(null)
+
+const floors = computed(() => {
+	const count = Number(props.floorCount) || 0
+	const names = props.floorNames ?? []
+	if (count < 1) return []
+	return Array.from({ length: count }, (_, i) => {
+		const index = i + 1
+		return {
+			index,
+			label: defaultElevatorFloorLabel(index, names),
+		}
+	})
+})
+
+const selectedFloorLabel = computed(
+	() => floors.value.find((f) => f.index === selectedFloorIndex.value)?.label ?? "",
+)
+
+watch(
+	() => [props.floorCount, props.floorNames] as const,
+	() => {
+		const first = floors.value[0]?.index
+		selectedFloorIndex.value = first ?? 1
+	},
+	{ immediate: true },
+)
 
 const commands: Array<{ value: ElevatorControlCommand; label: string }> = [
 	{ value: "open", label: "開門" },
@@ -83,13 +132,13 @@ const commands: Array<{ value: ElevatorControlCommand; label: string }> = [
 ]
 
 const handleControl = async (command: ElevatorControlCommand) => {
-	if (!props.deviceId || !props.canControl) return
+	if (!props.deviceId || !props.canControl || floors.value.length === 0) return
 	isSubmitting.value = true
 	errorText.value = null
 	successText.value = null
 	try {
 		await elevatorApi.controlGateway(props.deviceId, {
-			gatewayIndex: gatewayIndex.value,
+			gatewayIndex: selectedFloorIndex.value,
 			command,
 		})
 		successText.value = "指令已送出"

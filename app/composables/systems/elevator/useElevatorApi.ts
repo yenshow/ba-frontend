@@ -1,4 +1,16 @@
-import type { ElevatorLocation, ElevatorLog, ElevatorSyncJob, ElevatorZone } from "~/types/elevator"
+import type {
+	ElevatorFloorAccessResponse,
+	ElevatorLocation,
+	ElevatorLog,
+	ElevatorSyncCandidate,
+	ElevatorSyncJob,
+	ElevatorZone,
+} from "~/types/elevator"
+import { useApiBase } from "~/composables/core/useApiBase"
+import { useElevatorLocationApi } from "~/composables/location/api/useElevatorLocationApi"
+import { buildPathWithQuery } from "~/utils/apiUtils"
+import { normalizeElevatorLogDisplayColumns } from "~/utils/elevatorLogColumns"
+import { extractRegionFromZoneName } from "~/utils/peopleCountingAdapter"
 
 type ElevatorSiteDetailResponse = {
 	location: {
@@ -7,25 +19,6 @@ type ElevatorSiteDetailResponse = {
 	}
 	latestLogs?: ElevatorLog[]
 }
-
-type DeviceCardListItem = { cardNo: string; name?: string }
-
-const normalizeDeviceCards = (res: unknown): DeviceCardListItem[] => {
-	const raw =
-		(res as { cards?: Array<{ cardNo?: string; name?: string }> })?.cards ??
-		(Array.isArray(res) ? res : [])
-	return raw
-		.map((c) => ({
-			cardNo: String(c.cardNo || "").trim(),
-			name: c.name,
-		}))
-		.filter((c) => c.cardNo)
-}
-import { useApiBase } from "~/composables/core/useApiBase"
-import { useElevatorLocationApi } from "~/composables/location/api/useElevatorLocationApi"
-import { buildPathWithQuery } from "~/utils/apiUtils"
-import { normalizeElevatorLogDisplayColumns } from "~/utils/elevatorLogColumns"
-import { extractRegionFromZoneName } from "~/utils/peopleCountingAdapter"
 
 export const ELEVATOR_FULL_REPORT_LIMIT = 500
 
@@ -68,6 +61,8 @@ export const useElevatorApi = () => {
 				name: site.name,
 				region,
 				deviceIds: site.deviceIds,
+				floorCount: cfg?.floorCount,
+				floorNames: cfg?.floorNames,
 				todayEventCount: site.todayEventCount,
 				logDisplayColumns: normalizeElevatorLogDisplayColumns(cfg?.logDisplayColumns),
 			}
@@ -87,6 +82,9 @@ export const useElevatorApi = () => {
 		const sys = loc.systems?.find((s) => s.systemType === "elevator")
 		const config = (sys?.config || {}) as {
 			deviceIds?: number[]
+			accessDeviceIds?: number[]
+			floorCount?: number
+			floorNames?: string[]
 			logDisplayColumns?: string[]
 		}
 
@@ -96,6 +94,9 @@ export const useElevatorApi = () => {
 			id: String(locationId),
 			name: loc.name || base?.name || "",
 			deviceIds: config.deviceIds || base?.deviceIds || [],
+			accessDeviceIds: config.accessDeviceIds || base?.accessDeviceIds || [],
+			floorCount: config.floorCount ?? base?.floorCount,
+			floorNames: config.floorNames ?? base?.floorNames,
 			logDisplayColumns: normalizeElevatorLogDisplayColumns(
 				config.logDisplayColumns || base?.logDisplayColumns,
 			),
@@ -142,25 +143,34 @@ export const useElevatorApi = () => {
 		})
 	}
 
-	const startCardSyncJob = async (locationId: number) => {
+	const getFloorAccess = async (locationId: number) => {
+		return request<ElevatorFloorAccessResponse>(`/elevator/locations/${locationId}/floor-access`)
+	}
+
+	const replaceFloorAccess = async (
+		locationId: number,
+		assignments: Array<{ floorIndex: number; personIds: number[] }>,
+	) => {
+		return request<ElevatorFloorAccessResponse>(`/elevator/locations/${locationId}/floor-access`, {
+			method: "PUT",
+			body: { assignments },
+		})
+	}
+
+	const getSyncCandidates = async (locationId: number) => {
+		return request<{ persons: ElevatorSyncCandidate[]; hasAccessDevices?: boolean }>(
+			`/elevator/locations/${locationId}/sync-candidates`,
+		)
+	}
+
+	const startFloorSyncJob = async (locationId: number) => {
 		return request<{ jobId: string }>(`/elevator/sync-location/${locationId}/job`, {
 			method: "POST",
 		})
 	}
 
-	const getCardSyncJob = async (jobId: string) => {
+	const getFloorSyncJob = async (jobId: string) => {
 		return request<{ job: ElevatorSyncJob }>(`/elevator/sync-location/jobs/${jobId}`)
-	}
-
-	const listDeviceCards = async (deviceId: number): Promise<DeviceCardListItem[]> => {
-		const res = await request(`/ladder-sdk/devices/${deviceId}/cards`)
-		return normalizeDeviceCards(res)
-	}
-
-	const deleteDeviceCard = async (deviceId: number, cardNo: string) => {
-		return request(`/ladder-sdk/devices/${deviceId}/cards/${encodeURIComponent(cardNo)}`, {
-			method: "DELETE",
-		})
 	}
 
 	return {
@@ -170,9 +180,10 @@ export const useElevatorApi = () => {
 		getLocationLogs,
 		getFullReportLogs,
 		controlGateway,
-		startCardSyncJob,
-		getCardSyncJob,
-		listDeviceCards,
-		deleteDeviceCard,
+		getFloorAccess,
+		replaceFloorAccess,
+		getSyncCandidates,
+		startFloorSyncJob,
+		getFloorSyncJob,
 	}
 }

@@ -61,12 +61,18 @@ export const mapPersonLicensePlatesToForm = (p: Person): PersonLicensePlateFormI
 		effectiveEnd: isoToDatetimeLocal(pl.effective_end) || defaultLicensePlateEndLocal(),
 	}));
 
-/** 人員 Dialog 車牌列：任一筆存在時，四欄皆必填 */
+const isLicensePlateRowEmpty = (row: PersonLicensePlateFormItem): boolean =>
+	!row.plateNumber.trim() &&
+	!row.effectiveBegin?.trim() &&
+	!row.effectiveEnd?.trim();
+
+/** 人員 Dialog 車牌列：有填車牌號者，其餘欄位皆必填 */
 export const validateLicensePlateFormItems = (
 	items: PersonLicensePlateFormItem[],
 ): string | null => {
-	for (let i = 0; i < items.length; i++) {
-		const row = items[i];
+	const rows = items.filter((row) => !isLicensePlateRowEmpty(row));
+	for (let i = 0; i < rows.length; i++) {
+		const row = rows[i];
 		const n = i + 1;
 		if (!row.plateNumber.trim()) return `第 ${n} 筆車牌：請填寫車牌`;
 		if (!row.listType || !VALID_PLATE_LIST_TYPES.has(row.listType)) {
@@ -86,7 +92,9 @@ export const validateLicensePlateFormItems = (
 
 /** 須先通過 validateLicensePlateFormItems */
 export const licensePlateItemsToPayload = (items: PersonLicensePlateFormItem[]) =>
-	items.map((i) => ({
+	items
+		.filter((row) => row.plateNumber.trim())
+		.map((i) => ({
 		plateNumber: i.plateNumber.trim(),
 		listType: i.listType,
 		effectiveBegin: new Date(i.effectiveBegin).toISOString(),

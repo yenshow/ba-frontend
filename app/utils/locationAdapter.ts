@@ -1523,6 +1523,7 @@ export function unifiedToElevatorZone(zone: UnifiedZone): ElevatorZone {
 			if (!elSystem) return []
 			const cfg = (elSystem.config || {}) as {
 				deviceIds?: number[]
+				accessDeviceIds?: number[]
 				logDisplayColumns?: string[]
 				floorCount?: number
 				floorNames?: string[]
@@ -1533,6 +1534,7 @@ export function unifiedToElevatorZone(zone: UnifiedZone): ElevatorZone {
 					name: loc.name,
 					...pickSortOrder(loc.sortOrder),
 					deviceIds: Array.isArray(cfg.deviceIds) ? cfg.deviceIds : [],
+					accessDeviceIds: Array.isArray(cfg.accessDeviceIds) ? cfg.accessDeviceIds : [],
 					floorCount: cfg.floorCount,
 					floorNames: cfg.floorNames,
 					logDisplayColumns: cfg.logDisplayColumns,
@@ -1561,6 +1563,9 @@ export function elevatorLocationToUnified(
 	const deviceIds = Array.isArray(loc.deviceIds)
 		? loc.deviceIds.filter((id) => Number.isFinite(id) && id > 0)
 		: []
+	const accessDeviceIds = Array.isArray(loc.accessDeviceIds)
+		? loc.accessDeviceIds.filter((id) => Number.isFinite(id) && id > 0)
+		: []
 	const floorCount = normalizeElevatorFloorCount(loc.floorCount) ?? undefined
 	const resolvedFloorNames =
 		floorCount != null && deviceIds.length > 0
@@ -1575,6 +1580,7 @@ export function elevatorLocationToUnified(
 				systemType,
 				config: {
 					deviceIds,
+					accessDeviceIds,
 					...(resolvedFloorNames
 						? {
 								floorCount,

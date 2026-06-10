@@ -68,12 +68,12 @@
 					</PermissionActionButton>
 					<PermissionActionButton
 						v-show="selectedLocation"
-						:allowed="canCardManage"
-						aria-label="卡片管理"
+						:allowed="canFloorManage"
+						aria-label="樓層管理"
 						class="absolute left-36 top-2 btn-monitoring-overlay"
-						@click="showCardManageDialog = true"
+						@click="showFloorManageDialog = true"
 					>
-						卡片管理
+						樓層管理
 					</PermissionActionButton>
 					<PermissionActionButton
 						:allowed="canFullReport"
@@ -96,7 +96,6 @@
 						>
 							<div class="min-w-0 flex-1">
 								<ElevatorStatsPanel
-									:today-event-count="selectedLocation.todayEventCount ?? 0"
 									:logs="logs"
 									:display-columns="selectedLocation.logDisplayColumns"
 								/>
@@ -105,6 +104,8 @@
 								<ElevatorFloorControlPanel
 									:device-id="primaryDeviceId"
 									:can-control="canControlDevice"
+									:floor-count="selectedLocation.floorCount"
+									:floor-names="selectedLocation.floorNames"
 								/>
 							</div>
 						</div>
@@ -191,16 +192,15 @@
 		@delete="handleDeleteZone"
 	/>
 
-	<ElevatorCardManageDialog
-		v-model="showCardManageDialog"
+	<ElevatorFloorManageDialog
+		v-model="showFloorManageDialog"
 		:location-id="selectedLocationNumericId"
 		:location-name="selectedLocationDisplayName"
-		:device-id="primaryDeviceId"
-		:can-edit-members="canSyncEdit"
-		:can-card-manage="canCardManage"
-		:access-sync="accessSync"
-		@synced="handleCardManageSynced"
-		@members-updated="handleCardManageSynced"
+		:can-edit-floors="canSyncEdit"
+		:can-device-sync="canFloorManage"
+		:floor-sync="floorSync"
+		@synced="handleFloorManageSynced"
+		@floors-updated="handleFloorManageSynced"
 	/>
 
 	<SimulationFrame v-model="showSimulationFrame" title="電梯系統 - 完整報表">
@@ -223,18 +223,16 @@ import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue
 import ElevatorStatsPanel from "~/components/elevator/ElevatorStatsPanel.vue"
 import ElevatorFloorControlPanel from "~/components/elevator/ElevatorFloorControlPanel.vue"
 import ElevatorLocationOverviewCard from "~/components/elevator/ElevatorLocationOverviewCard.vue"
-import ElevatorCardManageDialog from "~/components/elevator/ElevatorCardManageDialog.vue"
+import ElevatorFloorManageDialog from "~/components/elevator/ElevatorFloorManageDialog.vue"
 import ElevatorEventSimulation from "~/components/elevator/ElevatorEventSimulation.vue"
 import { useElevatorState } from "~/composables/systems/elevator/useElevatorState"
 import { useElevatorApi, ELEVATOR_FULL_REPORT_LIMIT } from "~/composables/systems/elevator/useElevatorApi"
 import { useElevatorLocationApi } from "~/composables/location/api/useElevatorLocationApi"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import { useLocationModuleRbac, usePersonnelRbac } from "~/composables/core/useAccessGate"
-import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
-import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { useLocationAccessSync } from "~/composables/systems/personnel/useLocationAccessSync"
+import { useElevatorSyncEngine } from "~/composables/systems/elevator/useElevatorSyncEngine"
 import { useApiBase } from "~/composables/core/useApiBase"
 import {
 	buildLogsTimeQuery,
@@ -254,20 +252,18 @@ const {
 	canDeleteLocation,
 	canFullReport,
 	canControlDevice,
-	canCardManage,
+	canFloorManage,
 } = useLocationModuleRbac(PERM.elevator)
 
 const { canSyncEdit } = usePersonnelRbac()
-const personnelApi = usePersonnelApi()
-const locationApi = useLocationApi()
 const toast = useToast()
 const { handleError: handleApiError } = useErrorHandler()
-const accessSync = useLocationAccessSync({
-	personnelApi,
-	locationApi,
+const elevatorApi = useElevatorApi()
+const floorSync = useElevatorSyncEngine({
+	elevatorApi,
 	toast,
 	handleApiError,
-	canDeviceSync: canCardManage,
+	canDeviceSync: canFloorManage,
 })
 
 const {
@@ -284,7 +280,6 @@ const {
 	isLoadingZones,
 } = useElevatorState()
 
-const elevatorApi = useElevatorApi()
 const { request } = useApiBase()
 
 const detailEmpty = computed(
@@ -293,7 +288,7 @@ const detailEmpty = computed(
 
 const isOverviewCollapsed = ref(false)
 const showLocationManagementDialog = ref(false)
-const showCardManageDialog = ref(false)
+const showFloorManageDialog = ref(false)
 const showSimulationFrame = ref(false)
 
 const locationsForOverview = computed(() => {
@@ -331,7 +326,7 @@ const handleLocationSelect = async (locationId: number) => {
 	await loadLocationDetail(locationId)
 }
 
-const handleCardManageSynced = async () => {
+const handleFloorManageSynced = async () => {
 	const id = selectedLocationNumericId.value
 	if (id == null) return
 	await loadLocationDetail(id)

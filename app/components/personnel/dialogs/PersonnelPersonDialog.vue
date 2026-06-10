@@ -10,7 +10,9 @@
 				>
 					<header class="flex items-center justify-between gap-3">
 						<div class="flex min-w-0 items-center gap-3">
-							<h3 class="min-w-0 truncate text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">
+							<h3
+								class="min-w-0 truncate text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl"
+							>
 								{{ state.editingPerson ? "編輯人員" : "新增人員" }}
 							</h3>
 							<FormChangeIndicator
@@ -98,7 +100,9 @@
 									<button
 										type="button"
 										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white hover:bg-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-300/50 disabled:opacity-50"
-										:disabled="isCapturingFace || !hasSelectedCaptureDevice || !hasAccessControlDevices"
+										:disabled="
+											isCapturingFace || !hasSelectedCaptureDevice || !hasAccessControlDevices
+										"
 										aria-label="從設備截圖"
 										@click="handleCaptureFace"
 									>
@@ -120,7 +124,12 @@
 						<div class="flex flex-col justify-center gap-3">
 							<label class="flex flex-col gap-2 text-base text-white/80">
 								<span>姓名 *</span>
-								<input v-model="state.form.fullName" type="text" required class="form-input-small" />
+								<input
+									v-model="state.form.fullName"
+									type="text"
+									required
+									class="form-input-small"
+								/>
 							</label>
 
 							<label class="flex flex-col gap-2 text-base text-white/80">
@@ -218,7 +227,9 @@
 									<button
 										type="button"
 										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white hover:bg-cyan-400 disabled:opacity-50 md:w-auto"
-										:disabled="isCapturingCard || !hasSelectedCardDevice || !hasAccessControlDevices"
+										:disabled="
+											isCapturingCard || !hasSelectedCardDevice || !hasAccessControlDevices
+										"
 										aria-label="從設備讀取卡號"
 										@click="handleCaptureCard"
 									>
@@ -263,7 +274,9 @@
 									<button
 										type="button"
 										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white hover:bg-cyan-400 disabled:opacity-50"
-										:disabled="isCapturingFingerPrint || !hasSelectedFingerDevice || !hasAccessControlDevices"
+										:disabled="
+											isCapturingFingerPrint || !hasSelectedFingerDevice || !hasAccessControlDevices
+										"
 										aria-label="讀取指紋模板"
 										@click="handleCaptureFingerPrint"
 									>
@@ -294,87 +307,83 @@
 						<div class="col-span-2 flex flex-col gap-3 text-sm text-white/80 2xl:text-base">
 							<div class="flex items-center justify-between gap-2">
 								<p>梯控卡設定</p>
-								<label class="relative inline-flex cursor-pointer items-center">
-									<input
-										v-model="localLadderCardEnabled"
-										type="checkbox"
-										class="peer sr-only"
-										aria-label="啟用梯控卡"
-									/>
-									<div
-										class="peer h-6 w-11 rounded-full bg-white/20 after:absolute after:left-[4px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-cyan-500 peer-checked:after:translate-x-full"
-									></div>
-									<span class="ml-3 text-sm">啟用</span>
-								</label>
-							</div>
-							<div
-								v-if="localLadderCardEnabled"
-								class="grid grid-cols-1 gap-3 rounded-xl border border-white/10 bg-white/5 p-3 lg:grid-cols-2"
-							>
-								<label class="flex flex-col gap-2">
-									<span>卡號 *</span>
-									<input v-model="localLadderCardNo" type="text" class="form-input-small" />
-								</label>
-								<label class="flex flex-col gap-2">
-									<span>歸屬樓層</span>
-									<input
-										v-model.number="localLadderHomeFloor"
-										type="number"
-										min="1"
-										class="form-input-small"
-									/>
-								</label>
-								<label class="col-span-2 flex flex-col gap-2">
-									<span>授權樓層 *（逗號分隔）</span>
-									<input
-										v-model="localLadderFloorsText"
-										type="text"
-										class="form-input-small"
-										placeholder="例如 1,2,3"
-									/>
-								</label>
-								<label class="flex flex-col gap-2">
-									<span>卡類型</span>
-									<input
-										v-model.number="localLadderCardType"
-										type="number"
-										min="1"
-										class="form-input-small"
-									/>
-								</label>
-								<label class="flex flex-col gap-2">
-									<span>樓層模式</span>
-									<input v-model="localLadderFloorMode" type="text" class="form-input-small" />
-								</label>
-								<label class="flex flex-col gap-2">
-									<span>卡密碼</span>
-									<input v-model="localLadderCardPassword" type="text" class="form-input-small" />
-								</label>
-								<label class="flex flex-col gap-2">
-									<span>有效起始</span>
-									<input
-										v-model="localLadderValidBegin"
-										type="datetime-local"
-										step="60"
-										class="form-input-small"
-									/>
-								</label>
-								<label class="flex flex-col gap-2">
-									<span>有效結束</span>
-									<input
-										v-model="localLadderValidEnd"
-										type="datetime-local"
-										step="60"
-										class="form-input-small"
-									/>
-								</label>
-								<p
-									v-if="localLadderSyncStatus && state.editingPerson"
-									class="col-span-2 text-xs text-white/60"
+								<button
+									v-if="elevatorLocationOptions.length > 0"
+									type="button"
+									class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white hover:bg-cyan-400 disabled:opacity-50 md:w-auto"
+									:disabled="!canAddLadderLocationRow"
+									@click="state.ladderCard.addLocationRow()"
 								>
-									同步狀態：{{ localLadderSyncStatus }}
-								</p>
+									新增地點
+								</button>
 							</div>
+
+							<div
+								v-if="elevatorLocationOptions.length === 0"
+								class="rounded-xl border border-dashed border-white/15 bg-white/5 px-3 py-4 text-sm text-white/50"
+							>
+								尚無電梯地點或地點尚未設定樓層，請先於電梯系統區域管理設定。
+							</div>
+
+							<template v-else>
+								<div
+									v-for="(row, idx) in state.ladderCard.locationItems.value"
+									:key="`ladder-loc-row-${idx}`"
+									class="relative space-y-3 rounded-xl border border-white/10 bg-white/5 p-3"
+								>
+									<div
+										v-if="state.ladderCard.locationItems.value.length > 1"
+										class="absolute right-2 top-2"
+									>
+										<IconTrashButton
+											size="md"
+											button-class="flex-shrink-0"
+											title="移除此地點"
+											:aria-label="`移除第 ${idx + 1} 筆地點`"
+											@click="state.ladderCard.removeLocationRow(idx)"
+										/>
+									</div>
+
+									<label class="flex flex-col gap-2">
+										<span>地點 *</span>
+										<FilterDropdown
+											v-model="row.locationId"
+											:options="ladderLocationOptionsForRow(idx)"
+											placeholder="選擇電梯地點"
+											text-size="text-sm 2xl:text-base"
+										/>
+									</label>
+
+									<div v-if="resolveElevatorLocation(row.locationId)" class="flex flex-col gap-2">
+										<span>授權樓層</span>
+										<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+											<label
+												v-for="floor in buildFloorOptionsForLocation(
+													resolveElevatorLocation(row.locationId)!
+												)"
+												:key="`ladder-floor-${row.locationId}-${floor.index}`"
+												class="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 hover:bg-white/10"
+											>
+												<input
+													type="checkbox"
+													class="h-4 w-4 shrink-0 accent-cyan-400"
+													:checked="isLadderFloorChecked(Number(row.locationId), floor.index)"
+													:aria-label="`授權樓層 ${floor.label}`"
+													@change="
+														state.ladderCard.toggleFloor(
+															Number(row.locationId),
+															floor.index,
+															($event.target as HTMLInputElement).checked
+														)
+													"
+												/>
+												<span class="text-sm text-white/90">{{ floor.label }}</span>
+											</label>
+										</div>
+									</div>
+								</div>
+
+							</template>
 						</div>
 
 						<div class="col-span-2 flex flex-col gap-3 text-sm text-white/80 2xl:text-base">
@@ -389,19 +398,12 @@
 								</button>
 							</div>
 
-							<p
-								v-if="state.form.licensePlateItems.length === 0"
-								class="rounded-xl border border-dashed border-white/15 bg-white/5 px-3 py-4 text-sm text-white/50"
-							>
-								尚無車牌，請按「新增車牌」加入。
-							</p>
-
 							<div
 								v-for="(row, idx) in state.form.licensePlateItems"
 								:key="`plate-row-${idx}`"
 								class="relative space-y-3 rounded-xl border border-white/10 bg-white/5 p-3"
 							>
-								<div class="absolute right-2 top-2">
+								<div v-if="state.form.licensePlateItems.length > 1" class="absolute right-2 top-2">
 									<IconTrashButton
 										size="md"
 										button-class="flex-shrink-0"
@@ -458,7 +460,9 @@
 							</div>
 						</div>
 
-						<div class="col-span-2 flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base">
+						<div
+							class="col-span-2 flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base"
+						>
 							<label class="relative inline-flex cursor-pointer items-center">
 								<input
 									v-model="state.form.status"
@@ -497,216 +501,218 @@
 </template>
 
 <script setup lang="ts">
-import type { PersonnelPersonDialogState, PersonGroup } from "~/types/personnel";
-import FilterDropdown from "~/components/common/FilterDropdown.vue";
-import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
-import IconTrashButton from "~/components/common/IconTrashButton.vue";
-import { buildPersonnelChildGroupOptions } from "~/utils/personnelGroups";
+import type { PersonnelPersonDialogState, PersonGroup } from "~/types/personnel"
+import FilterDropdown from "~/components/common/FilterDropdown.vue"
+import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
+import IconTrashButton from "~/components/common/IconTrashButton.vue"
+import { buildPersonnelChildGroupOptions } from "~/utils/personnelGroups"
 import {
 	createEmptyLicensePlateFormItem,
 	LICENSE_PLATE_LIST_TYPE_OPTIONS,
-} from "~/utils/licensePlateFormUtils";
+} from "~/utils/licensePlateFormUtils"
+import { buildFloorOptionsForLocation } from "~/utils/ladderFloorFormUtils"
 
 const props = defineProps<{
-	modelValue: boolean;
-	state: PersonnelPersonDialogState;
-	groupTree: PersonGroup[];
-}>();
+	modelValue: boolean
+	state: PersonnelPersonDialogState
+	groupTree: PersonGroup[]
+}>()
 
 const emit = defineEmits<{
-	"update:modelValue": [value: boolean];
-	submit: [];
-	"face-file-change": [file: File];
-	"clear-face": [];
-	"capture-face": [];
-	"capture-card": [];
-	"capture-fingerprint": [];
-}>();
+	"update:modelValue": [value: boolean]
+	submit: []
+	"face-file-change": [file: File]
+	"clear-face": []
+	"capture-face": []
+	"capture-card": []
+	"capture-fingerprint": []
+}>()
 
-const faceFileInputRef = ref<HTMLInputElement | null>(null);
+const faceFileInputRef = ref<HTMLInputElement | null>(null)
 
 const handleAddLicensePlateRow = () => {
-	props.state.form.licensePlateItems.push(createEmptyLicensePlateFormItem());
-};
+	props.state.form.licensePlateItems.push(createEmptyLicensePlateFormItem())
+}
 
 const handleRemoveLicensePlateRow = (idx: number) => {
-	props.state.form.licensePlateItems.splice(idx, 1);
-};
+	if (props.state.form.licensePlateItems.length <= 1) return
+	props.state.form.licensePlateItems.splice(idx, 1)
+}
 
-const childGroupOptions = computed(() => buildPersonnelChildGroupOptions(props.groupTree || []));
+const childGroupOptions = computed(() => buildPersonnelChildGroupOptions(props.groupTree || []))
 
 const localPersonGroupId = computed<string>({
 	get: () => props.state.form.personGroupId || "",
-	set: v => {
-		props.state.form.personGroupId = v;
-	}
-});
+	set: (v) => {
+		props.state.form.personGroupId = v
+	},
+})
 
 const resolvedFaceUrl = computed(() => {
-	const url = props.state.ui.facePreviewUrl.value || props.state.form.faceUrl || null;
-	if (!url) return null;
-	const trimmed = String(url).trim();
-	return trimmed ? trimmed : null;
-});
+	const url = props.state.ui.facePreviewUrl.value || props.state.form.faceUrl || null
+	if (!url) return null
+	const trimmed = String(url).trim()
+	return trimmed ? trimmed : null
+})
 
 const hasAccessControlDevices = computed(
 	() =>
 		Array.isArray(props.state.accessControl.accessControlDevices.value) &&
 		props.state.accessControl.accessControlDevices.value.length > 0
-);
+)
 
-const isCapturingFace = computed(() => Boolean(props.state.capture.isCapturingFace.value));
-const isCapturingCard = computed(() => Boolean(props.state.capture.isCapturingCard.value));
+const isCapturingFace = computed(() => Boolean(props.state.capture.isCapturingFace.value))
+const isCapturingCard = computed(() => Boolean(props.state.capture.isCapturingCard.value))
 const isCapturingFingerPrint = computed(() =>
 	Boolean(props.state.capture.isCapturingFingerPrint.value)
-);
-const isSubmitting = computed(() => Boolean(props.state.ui.isSubmitting.value));
+)
+const isSubmitting = computed(() => Boolean(props.state.ui.isSubmitting.value))
 
 const captureErrorText = computed(
 	() => (props.state.capture.captureErrorMessage.value || "").trim() || null
-);
+)
 const cardErrorText = computed(
 	() => (props.state.capture.cardErrorMessage.value || "").trim() || null
-);
+)
 
 const accessControlDeviceOptions = computed(() => {
-	return (props.state.accessControl.accessControlDevices.value || []).map(d => ({
+	return (props.state.accessControl.accessControlDevices.value || []).map((d) => ({
 		value: String(d.id),
-		label: d.name
-	}));
-});
+		label: d.name,
+	}))
+})
 
 const localCaptureDeviceIdString = computed<string>({
 	get: () =>
 		props.state.capture.captureDeviceId.value == null
 			? ""
 			: String(props.state.capture.captureDeviceId.value),
-	set: v => (props.state.capture.captureDeviceId.value = v ? Number(v) : null)
-});
+	set: (v) => (props.state.capture.captureDeviceId.value = v ? Number(v) : null),
+})
 
-const hasSelectedCaptureDevice = computed(() => props.state.capture.captureDeviceId.value != null);
+const hasSelectedCaptureDevice = computed(() => props.state.capture.captureDeviceId.value != null)
 
 const localCardDeviceIdString = computed<string>({
 	get: () =>
 		props.state.capture.cardDeviceId.value == null
 			? ""
 			: String(props.state.capture.cardDeviceId.value),
-	set: v => (props.state.capture.cardDeviceId.value = v ? Number(v) : null)
-});
+	set: (v) => (props.state.capture.cardDeviceId.value = v ? Number(v) : null),
+})
 
-const hasSelectedCardDevice = computed(() => props.state.capture.cardDeviceId.value != null);
+const hasSelectedCardDevice = computed(() => props.state.capture.cardDeviceId.value != null)
 
 const localCardNo = computed<string>({
 	get: () => props.state.accessControl.cardNo.value || "",
-	set: v => (props.state.accessControl.cardNo.value = v)
-});
+	set: (v) => (props.state.accessControl.cardNo.value = v),
+})
 
-const localLadderCardEnabled = computed({
-	get: () => props.state.ladderCard.enabled.value,
-	set: v => (props.state.ladderCard.enabled.value = v),
-});
-const localLadderCardNo = computed({
-	get: () => props.state.ladderCard.cardNo.value,
-	set: v => (props.state.ladderCard.cardNo.value = v),
-});
-const localLadderHomeFloor = computed({
-	get: () => props.state.ladderCard.homeFloor.value,
-	set: v => (props.state.ladderCard.homeFloor.value = Number(v) || 1),
-});
-const localLadderFloorsText = computed({
-	get: () => props.state.ladderCard.floorsText.value,
-	set: v => (props.state.ladderCard.floorsText.value = v),
-});
-const localLadderCardType = computed({
-	get: () => props.state.ladderCard.cardType.value,
-	set: v => (props.state.ladderCard.cardType.value = Number(v) || 1),
-});
-const localLadderFloorMode = computed({
-	get: () => props.state.ladderCard.floorMode.value,
-	set: v => (props.state.ladderCard.floorMode.value = v),
-});
-const localLadderCardPassword = computed({
-	get: () => props.state.ladderCard.cardPassword.value,
-	set: v => (props.state.ladderCard.cardPassword.value = v),
-});
-const localLadderValidBegin = computed({
-	get: () => props.state.ladderCard.validBegin.value,
-	set: v => (props.state.ladderCard.validBegin.value = v),
-});
-const localLadderValidEnd = computed({
-	get: () => props.state.ladderCard.validEnd.value,
-	set: v => (props.state.ladderCard.validEnd.value = v),
-});
-const localLadderSyncStatus = computed(() => props.state.ladderCard.syncStatus.value || "");
+const elevatorLocationOptions = computed(
+	() => props.state.ladderCard.elevatorLocationOptions.value || []
+)
+
+const resolveElevatorLocation = (locationId: string) => {
+	const id = Number(locationId)
+	if (!Number.isFinite(id) || id <= 0) return null
+	return elevatorLocationOptions.value.find((loc) => loc.id === id) ?? null
+}
+
+const usedLadderLocationIds = (excludeRowIndex: number) => {
+	const used = new Set<string>()
+	for (let i = 0; i < props.state.ladderCard.locationItems.value.length; i++) {
+		if (i === excludeRowIndex) continue
+		const id = props.state.ladderCard.locationItems.value[i]?.locationId?.trim()
+		if (id) used.add(id)
+	}
+	return used
+}
+
+const ladderLocationOptionsForRow = (rowIndex: number) => {
+	const used = usedLadderLocationIds(rowIndex)
+	return elevatorLocationOptions.value
+		.filter((loc) => !used.has(String(loc.id)))
+		.map((loc) => ({
+			value: String(loc.id),
+			label: `${loc.zoneName} / ${loc.name}`,
+		}))
+}
+
+const canAddLadderLocationRow = computed(
+	() =>
+		props.state.ladderCard.locationItems.value.length < elevatorLocationOptions.value.length,
+)
+
+const isLadderFloorChecked = (locationId: number, floorIndex: number) =>
+	props.state.ladderCard.isFloorChecked(locationId, floorIndex)
 
 const localFingerDeviceIdString = computed<string>({
 	get: () =>
 		props.state.capture.fingerDeviceId.value == null
 			? ""
 			: String(props.state.capture.fingerDeviceId.value),
-	set: v => (props.state.capture.fingerDeviceId.value = v ? Number(v) : null)
-});
+	set: (v) => (props.state.capture.fingerDeviceId.value = v ? Number(v) : null),
+})
 
-const hasSelectedFingerDevice = computed(() => props.state.capture.fingerDeviceId.value != null);
+const hasSelectedFingerDevice = computed(() => props.state.capture.fingerDeviceId.value != null)
 
 const localFingerPrintData = computed<string>({
 	get: () => props.state.accessControl.fingerPrintData.value || "",
-	set: v => (props.state.accessControl.fingerPrintData.value = v)
-});
+	set: (v) => (props.state.accessControl.fingerPrintData.value = v),
+})
 
 const localPassword = computed<string>({
 	get: () => props.state.accessControl.password.value || "",
-	set: v => (props.state.accessControl.password.value = v)
-});
+	set: (v) => (props.state.accessControl.password.value = v),
+})
 
 const handlePasswordInput = (e: Event) => {
-	const input = e.target as HTMLInputElement | null;
-	if (!input) return;
-	const next = String(input.value || "").replace(/\D+/g, "");
-	if (next !== input.value) input.value = next;
-	localPassword.value = next;
-};
+	const input = e.target as HTMLInputElement | null
+	if (!input) return
+	const next = String(input.value || "").replace(/\D+/g, "")
+	if (next !== input.value) input.value = next
+	localPassword.value = next
+}
 
 const localIsLongTerm = computed<boolean>({
 	get: () => Boolean(props.state.accessControl.isLongTerm.value),
-	set: v => (props.state.accessControl.isLongTerm.value = Boolean(v))
-});
+	set: (v) => (props.state.accessControl.isLongTerm.value = Boolean(v)),
+})
 
 const localValidBeginDate = computed<string>({
 	get: () => props.state.accessControl.validBeginDate.value || "",
-	set: v => (props.state.accessControl.validBeginDate.value = v)
-});
+	set: (v) => (props.state.accessControl.validBeginDate.value = v),
+})
 
 const localValidEndDate = computed<string>({
 	get: () => props.state.accessControl.validEndDate.value || "",
-	set: v => (props.state.accessControl.validEndDate.value = v)
-});
+	set: (v) => (props.state.accessControl.validEndDate.value = v),
+})
 
 const fingerPrintErrorText = computed(
 	() => (props.state.capture.fingerPrintErrorMessage.value || "").trim() || null
-);
+)
 
-const handleClose = () => props.state.ui.requestClose();
-const handleSubmit = () => emit("submit");
-const triggerFaceFileSelect = () => faceFileInputRef.value?.click();
-const handleCaptureFace = () => emit("capture-face");
-const handleCaptureCard = () => emit("capture-card");
-const handleCaptureFingerPrint = () => emit("capture-fingerprint");
+const handleClose = () => props.state.ui.requestClose()
+const handleSubmit = () => emit("submit")
+const triggerFaceFileSelect = () => faceFileInputRef.value?.click()
+const handleCaptureFace = () => emit("capture-face")
+const handleCaptureCard = () => emit("capture-card")
+const handleCaptureFingerPrint = () => emit("capture-fingerprint")
 
 const handleFaceFileChange = (e: Event) => {
-	const input = e.target as HTMLInputElement;
-	const file = input.files?.[0];
-	if (file) emit("face-file-change", file);
-	input.value = "";
-};
+	const input = e.target as HTMLInputElement
+	const file = input.files?.[0]
+	if (file) emit("face-file-change", file)
+	input.value = ""
+}
 
-const handleClearFace = () => emit("clear-face");
+const handleClearFace = () => emit("clear-face")
 
 watch(
 	() => props.modelValue,
-	open => {
-		if (open) return;
-		if (faceFileInputRef.value) faceFileInputRef.value.value = "";
+	(open) => {
+		if (open) return
+		if (faceFileInputRef.value) faceFileInputRef.value.value = ""
 	}
-);
+)
 </script>

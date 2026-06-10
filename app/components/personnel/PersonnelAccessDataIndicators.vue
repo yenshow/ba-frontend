@@ -55,6 +55,18 @@ const ACCESS_ICONS = {
 			d: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z",
 		},
 	},
+	ladderCard: {
+		viewBox: "0 0 24 24",
+		iconClass: iconSize,
+		path: {
+			fill: "none",
+			stroke: "currentColor",
+			"stroke-width": "2",
+			"stroke-linecap": "round",
+			"stroke-linejoin": "round",
+			d: "M5 2h14a1 1 0 011 1v18a1 1 0 01-1 1H5a1 1 0 01-1-1V3a1 1 0 011-1zm7 1v18M8 7.5l4-3.5 4 3.5M8 16.5l4 3.5 4-3.5",
+		},
+	},
 	fingerprint: {
 		viewBox: "0 -960 960 960",
 		iconClass: iconSize,
@@ -77,6 +89,7 @@ const props = defineProps<{
 	summary: {
 		hasPassword: boolean
 		hasCard: boolean
+		hasLadderCard: boolean
 		hasFingerprint: boolean
 		hasLicensePlate: boolean
 	}
@@ -96,6 +109,12 @@ const items = computed(() => {
 			active: s.hasCard,
 			label: s.hasCard ? "有設定卡號" : "未設定卡號",
 			...ACCESS_ICONS.card,
+		},
+		{
+			key: "ladderCard",
+			active: s.hasLadderCard,
+			label: s.hasLadderCard ? "有設定梯控卡" : "未設定梯控卡",
+			...ACCESS_ICONS.ladderCard,
 		},
 		{
 			key: "fingerprint",

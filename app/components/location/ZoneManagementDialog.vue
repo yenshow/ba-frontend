@@ -507,9 +507,9 @@ const loadDoors = async () => {
 	}
 }
 
-// 載入本系統門禁設備列表（僅用於人流統計系統「門禁設備」資料來源）
+// 載入本系統門禁設備列表（人流統計、電梯地點門禁同步）
 const loadAccessControlDevices = async () => {
-	if (props.systemType !== "people_counting") return
+	if (props.systemType !== "people_counting" && props.systemType !== "elevator") return
 
 	try {
 		const result = await deviceApi.getDevices({
@@ -580,6 +580,9 @@ watch(
 			if (props.systemType === "vehicle_access") {
 				await ensureModuleRegistryLoaded()
 				await loadVehicleAccessFormGroups()
+			}
+			if (props.systemType === "elevator") {
+				loadAccessControlDevices()
 			}
 			clearAllDrafts()
 			errorMessage.value = ""

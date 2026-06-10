@@ -150,7 +150,7 @@ export type LocationPermCodes = {
 	locationDelete: string
 	deviceControl?: string
 	reportFull?: string
-	cardManage?: string
+	floorManage?: string
 }
 
 export const useLocationModuleRbac = (perm: LocationPermCodes) => {
@@ -170,8 +170,8 @@ export const useLocationModuleRbac = (perm: LocationPermCodes) => {
 		canFullReport: perm.reportFull
 			? useHasPermission(perm.reportFull)
 			: computed(() => false),
-		canCardManage: perm.cardManage
-			? useHasPermission(perm.cardManage)
+		canFloorManage: perm.floorManage
+			? useHasPermission(perm.floorManage)
 			: computed(() => false),
 	}
 }

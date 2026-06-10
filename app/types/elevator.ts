@@ -8,6 +8,7 @@ export interface ElevatorLocation {
 	name: string
 	locationType?: "elevator"
 	deviceIds?: number[]
+	accessDeviceIds?: number[]
 	floorCount?: number
 	floorNames?: string[]
 	logDisplayColumns?: string[]
@@ -54,5 +55,41 @@ export interface ElevatorSyncJob {
 	status?: ElevatorSyncJobStatus
 	error?: string | null
 	progress?: { doneOps?: number; totalOps?: number }
-	result?: { warnings?: ElevatorSyncWarning[]; deviceId?: number }
+	result?: { warnings?: ElevatorSyncWarning[]; deviceId?: number; deviceIds?: number[] }
+}
+
+export interface ElevatorFloorAccessSlot {
+	index: number
+	name: string
+	personIds: number[]
+}
+
+export interface ElevatorFloorAccessResponse {
+	floors: ElevatorFloorAccessSlot[]
+	defaultsApplied?: boolean
+	hasStoredAccess?: boolean
+}
+
+export type ElevatorAccessSyncStepStatus = {
+	status: string
+	at: string | number | null
+}
+
+export interface ElevatorSyncCandidate {
+	employee_no: string
+	full_name: string
+	has_ladder_card: boolean
+	authorized_floors: number[]
+	needs_sync?: boolean
+	needs_ladder_sync?: boolean
+	needs_access_sync?: boolean
+	last_sync?: {
+		card: ElevatorAccessSyncStepStatus
+		access?: {
+			user_info: ElevatorAccessSyncStepStatus
+			face: ElevatorAccessSyncStepStatus
+			card: ElevatorAccessSyncStepStatus
+			fingerprint: ElevatorAccessSyncStepStatus
+		}
+	}
 }

@@ -1,10 +1,25 @@
 import type { Device } from "~/types/device"
 import type { ImportResult, Person, PersonLicensePlateFormItem } from "~/types/personnel"
 import {
+	createEmptyLicensePlateFormItem,
 	licensePlateItemsToPayload,
 	mapPersonLicensePlatesToForm,
 	validateLicensePlateFormItems,
 } from "~/utils/licensePlateFormUtils"
+import {
+	type ElevatorLocationFloorOption,
+	type LadderFloorDefaultsByLocation,
+	type PersonLadderLocationFormItem,
+	remapLegacyLadderFloorKey,
+	buildElevatorLocationFloorOptions,
+	createEmptyLadderLocationFormItem,
+	hasAnyLadderFloorSelection,
+	ladderFloorFormMapToPayload,
+	mapLadderCardFloorsToForm,
+	mapLadderFloorsToLocationItems,
+	personHasLadderCard,
+} from "~/utils/ladderFloorFormUtils"
+import { useElevatorLocationApi } from "~/composables/location/api/useElevatorLocationApi"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import {
@@ -65,10 +80,13 @@ type PersonDialogSnapshot = {
 	cardNo: string
 	fingerPrintData: string
 	hasPendingFace: boolean
+	ladderFloorsJson: string
 }
 
 const normalizeLicensePlatesForSnapshot = (items: PersonLicensePlateFormItem[]) =>
-	items.map((i) => ({
+	items
+		.filter((i) => i.plateNumber.trim())
+		.map((i) => ({
 		plateNumber: i.plateNumber.trim(),
 		listType: i.listType,
 		effectiveBegin: i.effectiveBegin,
@@ -148,7 +166,8 @@ export const usePersonnelPersonsTab = (params: {
 		const plateCount =
 			p.license_plate_count ?? p.license_plates?.filter(pl => pl.plate_number?.trim()).length ?? 0
 		const hasLicensePlate = plateCount > 0
-		return { hasFace, hasPassword, hasCard, hasFingerprint, hasLicensePlate }
+		const hasLadderCard = personHasLadderCard(p)
+		return { hasFace, hasPassword, hasCard, hasFingerprint, hasLicensePlate, hasLadderCard }
 	}
 
 	const accessControlDevices = ref<Device[]>([])
@@ -171,55 +190,63 @@ export const usePersonnelPersonsTab = (params: {
 	const validEndDate = ref<string>("")
 	const personPassword = ref<string>("")
 
-	const ladderCardEnabled = ref(false)
-	const ladderCardNo = ref("")
-	const ladderHomeFloor = ref(1)
-	const ladderFloorsText = ref("")
-	const ladderCardType = ref(1)
-	const ladderFloorMode = ref("byte")
-	const ladderCardPassword = ref("")
-	const ladderValidEnabled = ref(false)
-	const ladderValidBegin = ref("")
-	const ladderValidEnd = ref("")
-	const ladderSyncStatus = ref("")
-
-	const parseLadderFloors = (text: string): number[] =>
-		text
-			.split(/[,，\s]+/)
-			.map((v) => Number(v.trim()))
-			.filter((n) => Number.isFinite(n) && n > 0)
-
+	const elevatorLocationApi = useElevatorLocationApi()
+	const elevatorLocationOptions = ref<ElevatorLocationFloorOption[]>([])
+	const ladderFloorDefaultsByLocation = ref<LadderFloorDefaultsByLocation>({})
+	const ladderLocationItems = ref<PersonLadderLocationFormItem[]>([
+		createEmptyLadderLocationFormItem(),
+	])
 	const resetLadderCardForm = () => {
-		ladderCardEnabled.value = false
-		ladderCardNo.value = ""
-		ladderHomeFloor.value = 1
-		ladderFloorsText.value = ""
-		ladderCardType.value = 1
-		ladderFloorMode.value = "byte"
-		ladderCardPassword.value = ""
-		ladderValidEnabled.value = false
-		ladderValidBegin.value = ""
-		ladderValidEnd.value = ""
-		ladderSyncStatus.value = ""
+		ladderFloorDefaultsByLocation.value = {}
+		ladderLocationItems.value = [createEmptyLadderLocationFormItem()]
 	}
 
 	const applyLadderCardToForm = (card: Person["ladder_card"]) => {
-		if (!card?.card_no) {
-			resetLadderCardForm()
-			return
-		}
-		ladderCardEnabled.value = true
-		ladderCardNo.value = card.card_no
-		ladderHomeFloor.value = card.home_floor ?? 1
-		ladderFloorsText.value = (card.floors || []).join(", ")
-		ladderCardType.value = card.card_type ?? 1
-		ladderFloorMode.value = card.floor_mode || "byte"
-		ladderCardPassword.value = card.card_password || ""
-		ladderValidEnabled.value = !!card.valid_enabled
-		ladderValidBegin.value = card.valid_begin || ""
-		ladderValidEnd.value = card.valid_end || ""
-		ladderSyncStatus.value = card.sdk_sync_status || ""
+		const firstLocationId = elevatorLocationOptions.value[0]?.id
+		const map = remapLegacyLadderFloorKey(mapLadderCardFloorsToForm(card), firstLocationId)
+		ladderFloorDefaultsByLocation.value = map
+		ladderLocationItems.value = mapLadderFloorsToLocationItems(map)
 	}
+
+	const addLadderLocationRow = () => {
+		ladderLocationItems.value.push(createEmptyLadderLocationFormItem())
+	}
+
+	const removeLadderLocationRow = (index: number) => {
+		if (ladderLocationItems.value.length <= 1) return
+		const removed = ladderLocationItems.value[index]
+		if (removed?.locationId) {
+			const locId = Number(removed.locationId)
+			if (Number.isFinite(locId) && locId > 0) {
+				const next = { ...ladderFloorDefaultsByLocation.value }
+				delete next[locId]
+				ladderFloorDefaultsByLocation.value = next
+			}
+		}
+		ladderLocationItems.value.splice(index, 1)
+	}
+
+	const loadElevatorLocationOptions = async () => {
+		try {
+			const { zones } = await elevatorLocationApi.getZones()
+			elevatorLocationOptions.value = buildElevatorLocationFloorOptions(zones || [])
+		} catch {
+			elevatorLocationOptions.value = []
+		}
+	}
+
+	const toggleLadderFloor = (locationId: number, floorIndex: number, checked: boolean) => {
+		const current = new Set(ladderFloorDefaultsByLocation.value[locationId] || [])
+		if (checked) current.add(floorIndex)
+		else current.delete(floorIndex)
+		ladderFloorDefaultsByLocation.value = {
+			...ladderFloorDefaultsByLocation.value,
+			[locationId]: [...current].sort((a, b) => a - b),
+		}
+	}
+
+	const isLadderFloorChecked = (locationId: number, floorIndex: number) =>
+		(ladderFloorDefaultsByLocation.value[locationId] || []).includes(floorIndex)
 
 	const personDialogSnapshot = ref<PersonDialogSnapshot | null>(null)
 	const personCloseConfirm = useConfirmDialog()
@@ -240,6 +267,7 @@ export const usePersonnelPersonsTab = (params: {
 		cardNo: cardNo.value.trim(),
 		fingerPrintData: fingerPrintData.value.trim(),
 		hasPendingFace: pendingFaceFile.value != null || facePreviewObjectUrl.value != null,
+		ladderFloorsJson: JSON.stringify(ladderFloorDefaultsByLocation.value),
 	})
 
 	const capturePersonDialogSnapshot = () => {
@@ -269,6 +297,7 @@ export const usePersonnelPersonsTab = (params: {
 		if (cur.cardNo !== snap.cardNo) fields.push("卡號")
 		if (cur.fingerPrintData !== snap.fingerPrintData) fields.push("指紋")
 		if (cur.licensePlateItemsJson !== snap.licensePlateItemsJson) fields.push("車牌設定")
+		if (cur.ladderFloorsJson !== snap.ladderFloorsJson) fields.push("梯控授權樓層")
 		return fields
 	})
 
@@ -353,22 +382,26 @@ export const usePersonnelPersonsTab = (params: {
 		openFaceCrop(file)
 	}
 
-	const resetPersonDialogState = () => {
+	const resetCaptureState = () => {
 		pendingFaceFile.value = null
 		captureDeviceId.value = null
 		captureErrorMessage.value = null
 		cardDeviceId.value = null
 		cardErrorMessage.value = null
-		cardNo.value = ""
 		fingerDeviceId.value = null
-		fingerPrintData.value = ""
 		fingerPrintErrorMessage.value = null
+		revokeFacePreviewUrl()
+	}
+
+	const resetPersonDialogState = () => {
+		resetCaptureState()
+		cardNo.value = ""
+		fingerPrintData.value = ""
 		isLongTerm.value = true
 		validBeginDate.value = ""
 		validEndDate.value = ""
 		personPassword.value = ""
 		resetLadderCardForm()
-		revokeFacePreviewUrl()
 		errorMessage.value = null
 	}
 
@@ -379,9 +412,10 @@ export const usePersonnelPersonsTab = (params: {
 		personForm.status = "active"
 		personForm.faceUrl = ""
 		personForm.personGroupId = ""
-		personForm.licensePlateItems = []
+		personForm.licensePlateItems = [createEmptyLicensePlateFormItem()]
 		resetPersonDialogState()
 		void loadAccessControlDevices()
+		void loadElevatorLocationOptions()
 		capturePersonDialogSnapshot()
 		showPersonDialog.value = true
 	}
@@ -396,9 +430,10 @@ export const usePersonnelPersonsTab = (params: {
 			p.person_group_id != null && Number.isFinite(Number(p.person_group_id))
 				? String(Math.trunc(Number(p.person_group_id)))
 				: ""
-		personForm.licensePlateItems = mapPersonLicensePlatesToForm(p)
-		applyLadderCardToForm(p.ladder_card)
-		resetPersonDialogState()
+		resetCaptureState()
+		const plates = mapPersonLicensePlatesToForm(p)
+		personForm.licensePlateItems =
+			plates.length > 0 ? plates : [createEmptyLicensePlateFormItem()]
 		const ac = getAccessControlConfigSummary(p)
 		cardNo.value = ac.cardNo
 		fingerPrintData.value = ac.fingerPrintData
@@ -418,6 +453,8 @@ export const usePersonnelPersonsTab = (params: {
 		}
 		applyPersonToEditForm(full)
 		void loadAccessControlDevices()
+		await loadElevatorLocationOptions()
+		applyLadderCardToForm(full.ladder_card)
 		capturePersonDialogSnapshot()
 		showPersonDialog.value = true
 	}
@@ -633,28 +670,15 @@ export const usePersonnelPersonsTab = (params: {
 			}
 
 			try {
-				if (!ladderCardEnabled.value) {
+				if (!hasAnyLadderFloorSelection(ladderFloorDefaultsByLocation.value)) {
 					await personnelApi.replacePersonLadderCard(effectivePersonId, { clear: true })
 				} else {
-					const floors = parseLadderFloors(ladderFloorsText.value)
-					if (!ladderCardNo.value.trim()) {
-						errorMessage.value = "梯控卡號為必填"
-						return { ok: false as const }
-					}
-					if (floors.length === 0) {
-						errorMessage.value = "請輸入授權樓層（以逗號分隔）"
+					if (!cardNo.value.trim()) {
+						errorMessage.value = "請於卡片設定填寫卡號"
 						return { ok: false as const }
 					}
 					await personnelApi.replacePersonLadderCard(effectivePersonId, {
-						cardNo: ladderCardNo.value.trim(),
-						homeFloor: ladderHomeFloor.value,
-						floors,
-						cardType: ladderCardType.value,
-						floorMode: ladderFloorMode.value,
-						cardPassword: ladderCardPassword.value.trim() || null,
-						validEnabled: ladderValidEnabled.value,
-						validBegin: ladderValidBegin.value || null,
-						validEnd: ladderValidEnd.value || null,
+						floors: ladderFloorFormMapToPayload(ladderFloorDefaultsByLocation.value),
 					})
 				}
 			} catch (err) {
@@ -798,17 +822,13 @@ export const usePersonnelPersonsTab = (params: {
 		cardNo,
 		fingerDeviceId,
 		fingerPrintData,
-		ladderCardEnabled,
-		ladderCardNo,
-		ladderHomeFloor,
-		ladderFloorsText,
-		ladderCardType,
-		ladderFloorMode,
-		ladderCardPassword,
-		ladderValidEnabled,
-		ladderValidBegin,
-		ladderValidEnd,
-		ladderSyncStatus,
+		elevatorLocationOptions,
+		ladderLocationItems,
+		ladderFloorDefaultsByLocation,
+		toggleLadderFloor,
+		isLadderFloorChecked,
+		addLadderLocationRow,
+		removeLadderLocationRow,
 		isLongTerm,
 		validBeginDate,
 		validEndDate,

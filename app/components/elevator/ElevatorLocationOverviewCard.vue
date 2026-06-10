@@ -15,16 +15,16 @@
 				<h3 class="text-base text-white 2xl:text-lg">{{ location.name }}</h3>
 			</div>
 
-			<div class="flex items-center gap-8 py-2">
-				<div class="flex items-center justify-center gap-3 bg-white/20 p-2">
-					<div class="text-sm font-semibold text-white 2xl:text-base">今日事件數</div>
-					<div
-						class="w-[80px] bg-black/20 text-white text-center text-xl 2xl:w-[100px] 2xl:text-2xl"
-					>
-						{{ location.todayEventCount ?? 0 }}
-					</div>
-				</div>
+			<div v-if="floors.length > 0" class="flex flex-wrap justify-center gap-2 px-2 py-2">
+				<span
+					v-for="floor in floors"
+					:key="floor.index"
+					class="rounded-md bg-white/20 px-2.5 py-1 text-sm text-white 2xl:text-base"
+				>
+					{{ floor.label }}
+				</span>
 			</div>
+			<p v-else class="py-2 text-sm text-white/50 2xl:text-base">尚未設定樓層</p>
 		</div>
 	</div>
 </template>
@@ -32,6 +32,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import type { ElevatorLocation } from "~/types/elevator"
+import { defaultElevatorFloorLabel } from "~/utils/ladderFloorFormUtils"
 
 interface Props {
 	location: ElevatorLocation & { overviewZoneName?: string | null }
@@ -41,4 +42,17 @@ const props = defineProps<Props>()
 defineEmits<{ click: [locationId: number] }>()
 
 const regionText = computed(() => props.location.overviewZoneName || "未分類")
+
+const floors = computed(() => {
+	const count = Number(props.location.floorCount) || 0
+	const names = props.location.floorNames ?? []
+	if (count < 1) return []
+	return Array.from({ length: count }, (_, i) => {
+		const index = i + 1
+		return {
+			index,
+			label: defaultElevatorFloorLabel(index, names),
+		}
+	})
+})
 </script>

@@ -71,7 +71,7 @@ export const PERM = {
 		locationDelete: "system.elevator.location.delete",
 		reportFull: "system.elevator.report.full",
 		deviceControl: "system.elevator.device.control",
-		cardManage: "system.elevator.card.manage",
+		floorManage: "system.elevator.floor.manage",
 	},
 	lighting: {
 		module: "system.lighting",

@@ -28,6 +28,7 @@
 					<ElevatorLocationFields
 						:location="location"
 						:devices="devices"
+						:access-control-devices="accessControlDevices"
 						@update="handleLocationUpdate(locationIndex, $event)"
 					/>
 				</div>
@@ -78,6 +79,7 @@ import { getLocationUiKey } from "~/utils/locationUiId"
 interface Props {
 	zone: ElevatorZone
 	devices?: Device[]
+	accessControlDevices?: Device[]
 	reorderableLocations?: boolean
 	allowCreateLocation?: boolean
 	allowDeleteLocation?: boolean
@@ -85,6 +87,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
 	devices: () => [],
+	accessControlDevices: () => [],
 	reorderableLocations: false,
 	allowCreateLocation: true,
 	allowDeleteLocation: true,
