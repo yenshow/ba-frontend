@@ -11,13 +11,56 @@
 				<div
 					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-5xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:max-w-6xl 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
 				>
-					<header class="flex items-center justify-between pr-7 2xl:pr-8">
-						<h3
-							id="vehicle-isapi-manage-title"
-							class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl"
+					<header class="flex items-center justify-between gap-3 pr-7 2xl:pr-8">
+						<div class="min-w-0">
+							<h3
+								id="vehicle-isapi-manage-title"
+								class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl"
+							>
+								車牌管理
+							</h3>
+						</div>
+
+						<nav
+							class="flex justify-center gap-2 items-center pr-7 2xl:pr-8"
+							aria-label="車牌管理步驟切換"
 						>
-							車牌管理
-						</h3>
+							<button
+								type="button"
+								class="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors 2xl:text-base"
+								:class="getPillButtonClass(manageStep === 1)"
+								:aria-current="manageStep === 1 ? 'step' : undefined"
+								@click="manageStep = 1"
+							>
+								<span
+									class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ring-1 2xl:h-7 2xl:w-7 2xl:text-sm"
+									:class="getStepCircleClass(manageStep === 1)"
+									aria-hidden="true"
+								>
+									1
+								</span>
+								<span>人員權限</span>
+							</button>
+
+							<div class="h-px w-[300px] bg-white/10" aria-hidden="true" />
+
+							<button
+								type="button"
+								class="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors 2xl:text-base"
+								:class="getPillButtonClass(manageStep === 2)"
+								:aria-current="manageStep === 2 ? 'step' : undefined"
+								@click="manageStep = 2"
+							>
+								<span
+									class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ring-1 2xl:h-7 2xl:w-7 2xl:text-sm"
+									:class="getStepCircleClass(manageStep === 2)"
+									aria-hidden="true"
+								>
+									2
+								</span>
+								<span>車牌管理</span>
+							</button>
+						</nav>
 						<button
 							type="button"
 							class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
@@ -31,76 +74,109 @@
 						</button>
 					</header>
 
-					<div class="flex gap-2 pr-7 2xl:pr-8">
-						<button
-							v-for="tab in dialogTabs"
-							:key="tab.id"
-							type="button"
-							class="rounded-lg border px-4 py-2 text-sm transition-colors 2xl:text-base"
-							:class="
-								activeDialogTab === tab.id
-									? 'border-cyan-400/60 bg-cyan-500/20 text-white'
-									: 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10'
-							"
-							@click="activeDialogTab = tab.id"
-						>
-							{{ tab.label }}
-						</button>
-					</div>
-
 					<div class="show-scrollbar flex-1 overflow-y-auto pr-7 2xl:pr-8">
-						<div v-if="activeDialogTab === 'members'" class="min-h-[200px] space-y-4">
-							<p class="text-xs text-white/60 2xl:text-sm">
-								名單變更後將自動同步此地點相關車牌至攝影機。
-							</p>
-							<div v-if="locationNumericId == null" class="py-8 text-center text-white/60">
-								無法解析地點
-							</div>
-							<template v-else>
-								<div class="flex flex-wrap items-center gap-2">
-									<input
-										v-model="membersQuery"
-										type="text"
-										class="form-input w-full md:max-w-[220px]"
-										placeholder="搜尋 ID / 姓名"
-										@keydown.enter="handleSearchMembers"
-									/>
-									<button type="button" class="btn-secondary text-xs" @click="handleSearchMembers">
-										搜尋
-									</button>
-								</div>
-								<div class="grid max-h-[420px] grid-cols-2 gap-2 overflow-y-auto">
-									<label
-										v-for="p in memberCandidates"
-										:key="p.id"
-										class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 px-2 py-2"
-									>
-										<input
-											type="checkbox"
-											class="h-4 w-4 accent-cyan-400"
-											:checked="isMemberKept(p.id)"
-											:disabled="!canEditMembers || isApplyingMembers"
-											@change="toggleMember(p.id, $event)"
-										/>
-										<span class="truncate text-sm text-white/90">
-											<span class="font-mono">{{ p.employee_no }}</span>
-											{{ p.full_name || "—" }}
-										</span>
-									</label>
-								</div>
-								<div class="flex justify-end">
-									<PermissionActionButton
-										:allowed="canEditMembers && !isApplyingMembers"
-										class="btn-primary"
-										@click="handleApplyMembers"
-									>
-										{{ isApplyingMembers ? "處理中…" : "套用名單" }}
-									</PermissionActionButton>
-								</div>
-							</template>
+						<div v-if="locationId == null" class="py-12 text-center text-white/60">
+							無法解析地點
 						</div>
 
-						<div v-else class="min-h-[200px]">
+						<div
+							v-else-if="manageStep === 1"
+							class="rounded-xl border border-white/15 bg-white/5 p-4 2xl:p-5"
+						>
+							<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+								<div class="min-w-0 space-y-2">
+									<h4 class="text-lg font-medium text-white 2xl:text-xl">步驟 1：人員權限</h4>
+									<p class="text-sm text-white/60 2xl:text-base">
+										勾選允許進出此地點的人員。套用後，系統會在背景依人員車牌同步至攝影機。
+									</p>
+								</div>
+								<div class="flex min-w-0 shrink-0 items-center gap-2 max-w-md">
+									<SearchInput
+										v-model="membersQuery"
+										input-id="vehicle-access-members-search"
+										label="搜尋可進出人員"
+										placeholder="搜尋 ID / 姓名"
+										aria-label="搜尋可進出人員"
+										wrapper-class="min-w-0 flex-1"
+										input-wrapper-class="min-w-0 flex-1"
+										input-class="!w-full min-w-0"
+										:disabled="isApplyingMembers"
+										:clearable="!isApplyingMembers"
+										@search="handleSearchMembers"
+										@clear="handleSearchMembers"
+									/>
+									<button
+										type="button"
+										class="btn-secondary shrink-0 whitespace-nowrap text-xs 2xl:text-sm"
+										:disabled="!hasMemberCandidates || !canEditMembers || isApplyingMembers"
+										@click="handleToggleSelectAllMembersPage"
+									>
+										{{ isAllMembersPageKept ? "取消" : "全選" }}
+									</button>
+								</div>
+							</div>
+							<AsyncPanel
+								class="mt-4"
+								:loading="isLoadingMembers"
+								:empty="!isLoadingMembers && memberCandidateGroups.length === 0"
+								empty-title="尚無可選人員"
+								:min-height-class="LOCATION_MEMBERS_PANEL_MIN_HEIGHT"
+							>
+								<template #loading>
+									<p class="sr-only">載入人員清單</p>
+									<ContentSkeleton variant="member-list" />
+								</template>
+								<div class="show-scrollbar max-h-[min(360px,50vh)] space-y-4 overflow-y-auto pe-1">
+									<section v-for="group in memberCandidateGroups" :key="group.groupId">
+										<h5 class="mb-2 text-xs font-medium text-white/55 2xl:text-sm">
+											{{ group.groupName }}
+											<span class="text-white/40">（{{ group.members.length }}）</span>
+										</h5>
+										<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+											<label
+												v-for="person in group.members"
+												:key="person.id"
+												class="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 hover:bg-white/10"
+											>
+												<input
+													type="checkbox"
+													class="h-4 w-4 shrink-0 accent-cyan-400"
+													:checked="isMemberKept(person.id)"
+													:disabled="!canEditMembers || isApplyingMembers"
+													@change="toggleMember(person.id, $event)"
+												/>
+												<span class="min-w-0 truncate text-sm text-white/90 2xl:text-base">
+													<span class="font-mono">{{ person.employee_no }}</span>
+													<span class="ms-2">{{ person.full_name || "—" }}</span>
+												</span>
+											</label>
+										</div>
+									</section>
+								</div>
+							</AsyncPanel>
+							<p v-if="membersError" class="mt-3 text-sm text-rose-300" role="alert">
+								{{ membersError }}
+							</p>
+							<div class="mt-4 flex justify-end">
+								<PermissionActionButton
+									:allowed="canEditMembers && !isApplyingMembers"
+									class="rounded-xl border border-white/20 bg-emerald-500/85 px-4 py-2 text-sm text-white enabled:hover:bg-emerald-500 2xl:text-base"
+									aria-label="套用可進出人員名單"
+									@click="handleApplyMembers"
+								>
+									{{ isApplyingMembers ? "處理中…" : "套用名單" }}
+								</PermissionActionButton>
+							</div>
+						</div>
+
+						<div v-else class="space-y-4 rounded-xl border border-white/15 bg-white/5 p-4 2xl:p-5">
+							<div class="space-y-2">
+								<h4 class="text-lg font-medium text-white 2xl:text-xl">步驟 2：車牌管理</h4>
+								<p class="text-sm text-white/60 2xl:text-base">
+									檢視各入口／出口攝影機上實際登記的車牌。
+								</p>
+							</div>
+
 							<div v-if="deviceOptions.length === 0" class="py-8 text-center text-white/60">
 								<p class="text-base 2xl:text-lg">此地點尚未設定入口或出口攝影機</p>
 								<p class="mt-2 text-sm 2xl:text-base">請至「地點管理」設定 ISAPI 攝影機</p>
@@ -149,7 +225,7 @@
 												</h4>
 											</div>
 											<span
-												class="rounded-full bg-white/25 px-3 py-1 text-sm font-medium text-white 2xl:text-base"
+												class="inline-block min-w-[4.5rem] rounded-full bg-white/25 px-3 py-1 text-center text-sm font-medium text-white 2xl:text-base"
 											>
 												{{ getPlateCountLabel(opt.id) }}
 											</span>
@@ -162,7 +238,7 @@
 											class="space-y-3 border-t border-white/10 p-4"
 										>
 											<div class="flex items-center justify-between">
-												<span class="text-base font-medium 2xl:text-lg">車牌名單</span>
+												<span class="text-base font-medium 2xl:text-lg">此攝影機車牌</span>
 												<PermissionActionButton
 													:allowed="canCreatePlate"
 													aria-label="新增車牌"
@@ -173,10 +249,9 @@
 												</PermissionActionButton>
 											</div>
 
-											<div v-if="isLoadingDevice(opt.id)" class="flex justify-center py-8">
-												<div
-													class="h-10 w-10 animate-spin rounded-full border-2 border-white/30 border-t-white/80"
-												></div>
+											<div v-if="isLoadingDevice(opt.id)" class="min-h-[220px] py-2">
+												<p class="sr-only">載入車牌名單</p>
+												<ContentSkeleton :columns="6" :rows="5" />
 											</div>
 											<p
 												v-else-if="getDeviceError(opt.id)"
@@ -298,8 +373,16 @@ import {
 } from "~/utils/licensePlateFormUtils"
 import VehicleAccessIsapiPlateFormDialog from "~/components/vehicle-access/VehicleAccessIsapiPlateFormDialog.vue"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+import SearchInput from "~/components/common/SearchInput.vue"
+import AsyncPanel from "~/components/common/AsyncPanel.vue"
+import ContentSkeleton from "~/components/common/ContentSkeleton.vue"
 import type { useLocationAccessSync } from "~/composables/systems/personnel/useLocationAccessSync"
-import type { Person } from "~/types/personnel"
+import {
+	useLocationMembersPicker,
+	LOCATION_MEMBERS_PANEL_MIN_HEIGHT,
+} from "~/composables/systems/personnel/useLocationMembersPicker"
+import { useWizardStepNav } from "~/composables/core/useWizardStepNav"
+import { parseLocationNumericId } from "~/utils/personnelUtils"
 
 interface DeviceOption {
 	id: number
@@ -312,7 +395,7 @@ const props = defineProps<{
 	canCreatePlate?: boolean
 	canUpdatePlate?: boolean
 	canDeletePlate?: boolean
-	canEditMembers?: boolean
+	canEditMembers: boolean
 	accessSync?: ReturnType<typeof useLocationAccessSync>
 }>()
 
@@ -321,58 +404,35 @@ const emit = defineEmits<{
 	membersUpdated: []
 }>()
 
-const activeDialogTab = ref<"plates" | "members">("plates")
-const dialogTabs = [
-	{ id: "plates" as const, label: "車牌名單" },
-	{ id: "members" as const, label: "地點名單" },
-]
+const manageStep = ref<1 | 2>(1)
+const { getPillButtonClass, getStepCircleClass } = useWizardStepNav()
 
-const locationNumericId = computed(() => siteId.value ?? null)
+const locationId = computed(() =>
+	parseLocationNumericId(props.location?.id ?? props.location?.locationId)
+)
 
-const memberCandidates = computed<Person[]>(() => {
-	const id = locationNumericId.value
-	if (id == null || !props.accessSync) return []
-	return props.accessSync.getLocationCandidatesItems(id)
+const {
+	hasMemberCandidates,
+	memberCandidateGroups,
+	membersQuery,
+	isApplyingMembers,
+	isLoadingMembers,
+	membersError,
+	isMemberKept,
+	toggleMember,
+	isAllMembersPageKept,
+	handleToggleSelectAllMembersPage,
+	handleSearchMembers,
+	applyMembers,
+} = useLocationMembersPicker({
+	locationId,
+	accessSync: toRef(props, "accessSync"),
 })
-const membersQuery = computed({
-	get: () => {
-		const id = locationNumericId.value
-		if (id == null || !props.accessSync) return ""
-		return props.accessSync.getLocationCandidatesQuery(id)
-	},
-	set: (v: string) => {
-		const id = locationNumericId.value
-		if (id == null || !props.accessSync) return
-		props.accessSync.setLocationCandidatesQuery(id, v)
-	},
-})
-const isApplyingMembers = computed(() => {
-	const id = locationNumericId.value
-	if (id == null || !props.accessSync) return false
-	return props.accessSync.isLocationMembersApplying(id)
-})
-const isMemberKept = (personId: number) => {
-	const id = locationNumericId.value
-	if (id == null || !props.accessSync) return false
-	return props.accessSync.isLocationMemberKept(id, personId)
-}
-const toggleMember = (personId: number, e: Event) => {
-	const id = locationNumericId.value
-	if (id == null || !props.accessSync) return
-	props.accessSync.toggleKeepLocationMember(id, personId, e)
-}
-const handleSearchMembers = async () => {
-	const id = locationNumericId.value
-	if (id == null || !props.accessSync) return
-	await props.accessSync.loadLocationCandidates(id)
-}
+
 const handleApplyMembers = async () => {
-	const id = locationNumericId.value
-	if (id == null || !props.accessSync) return
-	await props.accessSync.applyLocationMembers(id)
-	if (!props.accessSync.getLocationMembersError(id)) {
-		emit("membersUpdated")
-	}
+	if (!(await applyMembers())) return
+	emit("membersUpdated")
+	await loadPersonBindOptions()
 }
 
 const isapiApi = useVehicleAccessIsapiDeviceApi()
@@ -394,12 +454,6 @@ const plateForm = ref<IsapiPlateFormModel>(createDefaultIsapiPlateForm())
 const personBindOptions = ref<Array<{ value: string; label: string }>>([])
 const isLoadingPersonOptions = ref(false)
 
-const siteId = computed(() => {
-	const raw = props.location?.id ?? props.location?.locationId
-	const n = Number(raw)
-	return Number.isFinite(n) ? n : undefined
-})
-
 const deviceIds = computed(() => {
 	const entry = props.location?.entryCameraDeviceIds ?? []
 	const exit = props.location?.exitCameraDeviceIds ?? []
@@ -414,7 +468,7 @@ const deviceOptions = computed((): DeviceOption[] =>
 )
 
 const apiParams = computed(() => ({
-	siteId: siteId.value,
+	siteId: locationId.value ?? undefined,
 }))
 
 const isDeviceExpanded = (deviceId: number) => expandedDevices.value.has(deviceId)
@@ -426,20 +480,20 @@ const isLoadingDevice = (deviceId: number) => loadingByDevice.value[deviceId] ==
 const getDeviceError = (deviceId: number) => errorByDevice.value[deviceId] ?? ""
 
 const getPlateCountLabel = (deviceId: number) => {
-	if (isLoadingDevice(deviceId)) return "載入中…"
-	if (errorByDevice.value[deviceId]) return "載入失敗"
+	if (isLoadingDevice(deviceId)) return "…"
+	if (errorByDevice.value[deviceId]) return "失敗"
 	return `${getDevicePlates(deviceId).length} 筆`
 }
 
 const loadPersonBindOptions = async () => {
-	const locationId = siteId.value
-	if (locationId == null) {
+	const id = locationId.value
+	if (id == null) {
 		personBindOptions.value = []
 		return
 	}
 	isLoadingPersonOptions.value = true
 	try {
-		const res = await personnelApi.getLocationMembers(locationId, { limit: 500, offset: 0 })
+		const res = await personnelApi.getLocationMembers(id, { limit: 500, offset: 0 })
 		personBindOptions.value = (res.items ?? []).map((p) => ({
 			value: String(p.id),
 			label: formatPersonBindLabel(p.employee_no, p.full_name) || `人員 #${p.id}`,
@@ -619,21 +673,31 @@ const resetState = () => {
 	handleCancelPlateForm()
 }
 
+const refreshStep2Plates = async () => {
+	const ids = deviceIds.value
+	if (ids.length === 0) return
+	if (expandedDevices.value.size === 0) {
+		expandedDevices.value = new Set([ids[0]])
+	}
+	await loadAllDevicePlates()
+}
+
+watch(manageStep, async (step) => {
+	if (step !== 2 || !props.modelValue) return
+	await refreshStep2Plates()
+})
+
 watch(
 	() => props.modelValue,
 	async (open) => {
 		if (!open) return
-		activeDialogTab.value = "plates"
+		manageStep.value = 1
 		resetState()
-		const id = locationNumericId.value
+		const id = locationId.value
 		if (id != null && props.accessSync) {
 			await props.accessSync.prepareLocationDialog(id)
 		}
 		await Promise.all([loadDeviceNames(), loadPersonBindOptions()])
-		const ids = deviceIds.value
-		if (ids.length === 0) return
-		expandedDevices.value = new Set([ids[0]])
-		await loadAllDevicePlates()
 	}
 )
 </script>

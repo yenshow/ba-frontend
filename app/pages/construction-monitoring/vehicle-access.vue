@@ -67,7 +67,7 @@
 					</PermissionActionButton>
 					<PermissionActionButton
 						v-show="isIsapiCamera && selectedLocation"
-						:allowed="canCreatePlate || canUpdatePlate || canDeletePlate"
+						:allowed="canSyncEdit || canCreatePlate || canUpdatePlate || canDeletePlate"
 						aria-label="車牌管理"
 						class="absolute left-36 top-2 btn-monitoring-overlay"
 						@click="showIsapiManageDialog = true"

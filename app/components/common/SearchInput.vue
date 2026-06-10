@@ -18,7 +18,8 @@
 				:placeholder="placeholder"
 				:autocomplete="autocomplete"
 				:aria-label="ariaLabel"
-				class="form-input w-[220px] border-white/30 bg-white/10 py-1.5 pe-10 ps-3 text-sm text-white placeholder:text-white/40 focus:border-cyan-400/60 focus:outline-none 2xl:w-[260px] 2xl:py-2 2xl:text-base"
+				:disabled="disabled"
+				class="form-input w-[220px] border-white/30 bg-white/10 py-1.5 pe-10 ps-3 text-sm text-white placeholder:text-white/40 focus:border-cyan-400/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 2xl:w-[260px] 2xl:py-2 2xl:text-base"
 				:class="inputClass"
 				@input="handleInput"
 				@keydown.enter="handleSearch"
@@ -56,6 +57,7 @@ const props = withDefaults(
 		type?: "text" | "search"
 		autocomplete?: string
 		clearable?: boolean
+		disabled?: boolean
 		wrapperClass?: string
 		inputWrapperClass?: string
 		inputClass?: string
@@ -67,6 +69,7 @@ const props = withDefaults(
 		type: "text",
 		autocomplete: "off",
 		clearable: true,
+		disabled: false,
 		wrapperClass: "",
 		inputWrapperClass: "",
 		inputClass: "",

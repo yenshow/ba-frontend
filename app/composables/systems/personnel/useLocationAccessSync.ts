@@ -4,7 +4,6 @@ import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelA
 import type { useLocationApi } from "~/composables/location/api/useLocationApi"
 import {
 	SYNC_WARNING_LABELS,
-	buildOverallSyncTitle,
 	findSyncCandidateByEmployeeNo,
 	getOverallSyncDisplayLabel,
 	resolveOverallSyncStatus,
@@ -103,13 +102,14 @@ export const useLocationAccessSync = (params: {
 	const locationCandidatesQuery = reactive<Record<LocationId, string>>({})
 
 	const isLocationMembersLoading = (locationId: number) => Boolean(locationMembersLoading[locationId])
+	const isLocationCandidatesLoading = (locationId: number) =>
+		Boolean(locationCandidatesLoading[locationId])
 	const isLocationMembersApplying = (locationId: number) => Boolean(locationMembersApplying[locationId])
 	const getLocationMembersError = (locationId: number) => (locationMembersError[locationId] || "").trim() || null
 	const getLocationMembersSuccess = (locationId: number) =>
 		(locationMembersSuccess[locationId] || "").trim() || null
 
 	const getLocationMemberKeptIds = (locationId: number) => locationMembersKeptIds[locationId] ?? []
-	const getLocationMembersSelectedCount = (locationId: number) => getLocationMemberKeptIds(locationId).length
 	const isLocationMemberKept = (locationId: number, personId: number) =>
 		getLocationMemberKeptIds(locationId).includes(personId)
 
@@ -134,9 +134,6 @@ export const useLocationAccessSync = (params: {
 		locationMembersKeptIds[locationId] = Array.from(set)
 	}
 
-	const isLocationCandidatesLoading = (locationId: number) => Boolean(locationCandidatesLoading[locationId])
-	const getLocationCandidatesError = (locationId: number) =>
-		(locationCandidatesError[locationId] || "").trim() || null
 	const getLocationCandidatesItems = (locationId: number) => locationCandidatesItems[locationId] ?? []
 	const getLocationCandidatesQuery = (locationId: number) => (locationCandidatesQuery[locationId] || "").trim()
 	const setLocationCandidatesQuery = (locationId: number, next: string) => {
@@ -178,11 +175,6 @@ export const useLocationAccessSync = (params: {
 		}
 	}
 
-	const reloadLocationMembers = async (locationId: number) => {
-		await loadAllLocationMembers(locationId)
-		await ensureSyncCandidates(locationId)
-	}
-
 	const applyLocationMembers = async (locationId: number) => {
 		locationMembersError[locationId] = null
 		locationMembersSuccess[locationId] = null
@@ -194,7 +186,7 @@ export const useLocationAccessSync = (params: {
 			)
 			await personnelApi.replaceLocationMembers(locationId, next)
 			locationMembersSuccess[locationId] = "已套用變更"
-			await reloadLocationMembers(locationId)
+			await loadAllLocationMembers(locationId)
 		} catch (err) {
 			locationMembersError[locationId] = err instanceof Error ? err.message : "套用失敗"
 			handleApiError(err, "套用失敗")
@@ -255,11 +247,6 @@ export const useLocationAccessSync = (params: {
 		return getOverallSyncDisplayLabel(resolved, cand)
 	}
 
-	const getCandidateLastSyncTitle = (locationId: number, employeeNo: string) =>
-		buildOverallSyncTitle(
-			findSyncCandidateByEmployeeNo(getSyncCandidatesForLocation(locationId), employeeNo)
-		)
-
 	const isLocationCurrentlySyncing = (locationId: number) => isLocationSyncJobRunning(locationId)
 
 	const isLocationSyncButtonDisabled = (locationId: number) => {
@@ -272,11 +259,10 @@ export const useLocationAccessSync = (params: {
 
 	const prepareLocationDialog = async (locationId: number) => {
 		await loadLocationSyncDevicesLabels()
-		await reloadLocationMembers(locationId)
+		await loadAllLocationMembers(locationId)
 	}
 
 	return {
-		SYNC_CANDIDATES_PAGE_SIZE,
 		isSingleLocationSyncing,
 		showWarningsDialog,
 		syncWarnings,
@@ -287,33 +273,27 @@ export const useLocationAccessSync = (params: {
 		prepareLocationDialog,
 		syncOneLocation,
 		ensureSyncCandidates,
-		syncCandidatesByLocation,
 		isSyncLocationCandidatesLoading,
-		getSyncStepRowsForLocation,
 		getPagedSyncStepRowsForLocation,
 		syncStepPillClass,
 		syncStepShortLabel,
 		getCandidateLastSyncLabel,
-		getCandidateLastSyncTitle,
 		isLocationCurrentlySyncing,
 		isLocationSyncButtonDisabled,
 		goPrevSyncPage,
 		goNextSyncPage,
 		isLocationMembersLoading,
+		isLocationCandidatesLoading,
 		isLocationMembersApplying,
 		getLocationMembersError,
 		getLocationMembersSuccess,
-		getLocationMembersSelectedCount,
 		isLocationMemberKept,
 		toggleManyLocationMembers,
 		toggleKeepLocationMember,
-		isLocationCandidatesLoading,
-		getLocationCandidatesError,
 		getLocationCandidatesItems,
 		getLocationCandidatesQuery,
 		setLocationCandidatesQuery,
 		loadLocationCandidates,
 		applyLocationMembers,
-		reloadLocationMembers,
 	}
 }

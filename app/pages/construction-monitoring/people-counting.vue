@@ -205,7 +205,7 @@
 		v-model="showAccessManageDialog"
 		:location-id="selectedLocationNumericId"
 		:location-name="selectedLocationDisplayName"
-		:can-edit="canSyncEdit"
+		:can-edit-members="canSyncEdit"
 		:can-device-sync="canDeviceSync"
 		:access-sync="accessSync"
 		@synced="handleAccessManageSynced"
