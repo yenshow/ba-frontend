@@ -43,56 +43,12 @@
 									<div class="space-y-3">
 										<!-- 區域基本資訊 -->
 										<div class="overflow-hidden rounded-lg border border-white/20 bg-white/10 p-4">
-											<div class="flex items-center gap-3 border-b border-white/10 pb-3">
-												<span class="text-base font-medium 2xl:text-lg">區域名稱</span>
-												<input
-													:value="pendingZone.name"
-													type="text"
-													required
-													class="form-input-small flex-1"
-													placeholder="例如：1F、2F"
-													:readonly="!canEdit"
-													@input="updateZoneName(($event.target as HTMLInputElement).value)"
-												/>
-												<input
-													ref="fileInputRef"
-													type="file"
-													:accept="ZONE_IMAGE_ACCEPT_ATTR"
-													class="hidden"
-													@change="handleZoneImageChange"
-												/>
-												<button
-													v-if="pendingZone.imageUrl"
-													type="button"
-													class="btn-secondary text-sm 2xl:text-base"
-													@click.stop="openPreviewWindow(pendingZone.imageUrl, '區域示意圖')"
-												>
-													查看示意圖
-												</button>
-												<PermissionActionButton
-													:allowed="canEdit"
-													aria-label="上傳或更換區域示意圖"
-													class="btn-secondary text-sm 2xl:text-base"
-													@click.stop="triggerZoneImageInput"
-												>
-													{{ pendingZone.imageUrl ? "更換" : "上傳" }}示意圖
-												</PermissionActionButton>
-												<PermissionActionButton
-													:allowed="canEdit && !!pendingZone.imageUrl"
-													aria-label="移除區域示意圖"
-													class="p-2 text-rose-400 transition-colors enabled:hover:text-rose-300"
-													@click.stop="removeZoneImage"
-												>
-													<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M6 18L18 6M6 6l12 12"
-														/>
-													</svg>
-												</PermissionActionButton>
-											</div>
+											<ZoneFormFields
+												:zone="pendingZone"
+												:require-image-url="true"
+												:read-only="!canEdit"
+												@update="handleZoneFieldsUpdate"
+											/>
 										</div>
 
 										<!-- 地點列表 -->
@@ -163,7 +119,7 @@
 						</div>
 					</div>
 
-					<p v-if="errorMessage" class="pr-7 text-base text-rose-300 2xl:pr-8 2xl:text-lg">
+					<p v-if="errorMessage" class="form-error-text-lg pr-7 2xl:pr-8">
 						{{ errorMessage }}
 					</p>
 					<footer class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8">
@@ -202,8 +158,8 @@
 
 <script setup lang="ts">
 import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location";
-import { ZONE_IMAGE_ACCEPT_ATTR } from "~/composables/location/validation/useBaseValidation";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
+import ZoneFormFields from "~/components/location/ZoneFormFields.vue";
 import IconTrashButton from "~/components/common/IconTrashButton.vue";
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
@@ -214,8 +170,6 @@ import { buildDeleteLocationConfirmCopy, buildDeleteZoneConfirmCopy } from "~/ut
 import { getLocationUiKey } from "~/utils/locationUiId";
 import { useLocationValidationPipeline } from "~/composables/location/validation/useLocationValidationPipeline";
 import { useUnifiedZoneDraft } from "~/composables/location/ui/useZoneDrafts";
-import { useZoneImageUpload } from "~/composables/location/ui/useZoneImage";
-import { useImageCenter } from "~/composables/core/useImageCenter";
 import { getSystemTypeLabel } from "~/types/location";
 
 interface Props {
@@ -251,22 +205,10 @@ const errorMessage = ref("");
 const { handleError } = useErrorHandler();
 const { validateUnifiedZoneForSave } = useLocationValidationPipeline();
 
-const { openPreviewWindow } = useImageCenter();
-
 const { pendingZone, hasUnsavedChanges, changedFieldsList, changeSummary, resetToSource } =
 	useUnifiedZoneDraft({
 		sourceZone: computed(() => props.zone)
 	});
-const { triggerImageInput: triggerZoneImageInput, handleZoneImageChange } = useZoneImageUpload({
-	onImageReady: imageUrl => {
-		if (!pendingZone.value) return;
-		pendingZone.value.imageUrl = imageUrl;
-		errorMessage.value = "";
-	},
-	onError: message => {
-		errorMessage.value = message;
-	}
-});
 
 // 確認對話框
 const confirmDialog = useConfirmDialog();
@@ -314,16 +256,10 @@ const handleConfirmClose = () => {
 	closeDialog();
 };
 
-const updateZoneName = (newName: string) => {
-	if (!canEdit.value) return;
-	if (!pendingZone.value) return;
-	pendingZone.value.name = newName.trim();
-};
-
-const removeZoneImage = () => {
-	if (!canEdit.value) return;
-	if (!pendingZone.value) return;
-	pendingZone.value.imageUrl = undefined;
+const handleZoneFieldsUpdate = (updates: Partial<UnifiedZone>) => {
+	if (!canEdit.value || !pendingZone.value) return;
+	Object.assign(pendingZone.value, updates);
+	errorMessage.value = "";
 };
 
 const addLocation = () => {

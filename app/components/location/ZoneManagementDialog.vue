@@ -190,7 +190,7 @@
 						</div>
 					</div>
 
-					<p v-if="errorMessage" class="pr-7 text-base text-rose-300 2xl:pr-8 2xl:text-lg">
+					<p v-if="errorMessage" class="form-error-text-lg pr-7 2xl:pr-8">
 						{{ errorMessage }}
 					</p>
 					<footer

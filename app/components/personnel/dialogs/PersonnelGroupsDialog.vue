@@ -157,7 +157,7 @@
 						</div>
 					</div>
 
-					<p v-if="errorMessage" class="pr-7 text-sm text-rose-300 2xl:pr-8 2xl:text-base">
+					<p v-if="errorMessage" class="form-error-text pr-7 2xl:pr-8">
 						{{ errorMessage }}
 					</p>
 
@@ -219,6 +219,7 @@ import {
 	buildDeletePersonnelChildGroupConfirmCopy,
 	buildDeletePersonnelMainGroupConfirmCopy,
 } from "~/utils/personnelGroups"
+import { validatePersonnelGroupsDraftForSave } from "~/utils/personnelGroupsFormValidation"
 
 const props = defineProps<{
 	modelValue: boolean
@@ -352,24 +353,14 @@ const handleConfirmDialog = () => {
 	confirmAction.value = null
 }
 
-const validateDraft = (): boolean => {
-	for (const main of pendingMains.value) {
-		if (!main.name.trim()) {
-			errorMessage.value = "主群組名稱為必填"
-			return false
-		}
-		for (const child of main.children) {
-			if (!child.name.trim()) {
-				errorMessage.value = `子群組名稱為必填（主群組：${main.name.trim()}）`
-				return false
-			}
-		}
-	}
-	return true
-}
-
 const handleSaveAll = async () => {
-	if (!hasUnsavedChanges.value || !validateDraft()) return
+	if (!hasUnsavedChanges.value) return
+
+	const draftError = validatePersonnelGroupsDraftForSave(pendingMains.value)
+	if (draftError) {
+		errorMessage.value = draftError
+		return
+	}
 
 	isSaving.value = true
 	errorMessage.value = null

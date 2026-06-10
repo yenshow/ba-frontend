@@ -70,6 +70,17 @@ export interface AccessControlDeviceModelConfig {
 	};
 }
 
+/** 控制器型號：HCNetSDK 梯控 */
+export interface ControllerDeviceModelConfig {
+	protocol?: "hcnet_sdk" | string;
+}
+
+export const isHcnetSdkDeviceModel = (
+	model: Pick<DeviceModel, "config"> | null | undefined
+): boolean =>
+	String((model?.config as ControllerDeviceModelConfig | undefined)?.protocol ?? "")
+		.toLowerCase() === "hcnet_sdk"
+
 // 設備型號
 export interface DeviceModel {
 	id: number;
@@ -93,11 +104,14 @@ export interface DeviceConfigBase {
 	type: DeviceTypeCode;
 }
 
-// 控制器（Modbus）配置
+// 控制器配置（Modbus 或 HCNetSDK 梯控）
 export interface ControllerDeviceConfig extends DeviceConfigBase {
 	type: "controller";
 	host: string;
-	port: number;
+	port?: number;
+	protocol?: "hcnet_sdk" | string;
+	username?: string;
+	password?: string;
 	// unitId 由後端自動生成，前端不應提供（但在讀取時可能包含）
 	unitId?: number;
 }

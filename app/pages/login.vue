@@ -77,7 +77,7 @@
 									required
 								/>
 							</div>
-							<p v-if="fieldErrors.account" :id="accountErrorId" class="mt-1 text-sm text-red-200">
+							<p v-if="fieldErrors.account" :id="accountErrorId" class="form-error-text mt-1">
 								{{ fieldErrors.account }}
 							</p>
 						</div>
@@ -153,7 +153,7 @@
 									</svg>
 								</button>
 							</div>
-							<p v-if="fieldErrors.password" :id="passwordErrorId" class="mt-1 text-sm text-red-200">
+							<p v-if="fieldErrors.password" :id="passwordErrorId" class="form-error-text mt-1">
 								{{ fieldErrors.password }}
 							</p>
 						</div>
@@ -164,7 +164,7 @@
 							:id="formErrorId"
 							role="alert"
 							aria-live="polite"
-							class="rounded-lg border border-red-500/50 bg-red-500/20 p-3 text-sm text-red-200"
+							class="form-error-banner"
 						>
 							{{ errorMessage }}
 						</div>

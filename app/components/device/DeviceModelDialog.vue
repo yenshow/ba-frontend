@@ -114,7 +114,7 @@
 							</Transition>
 						</div>
 					</div>
-					<p v-if="errorMessage" class="pr-7 text-sm text-rose-300 2xl:pr-8 2xl:text-base">
+					<p v-if="errorMessage" class="form-error-text pr-7 2xl:pr-8">
 						{{ errorMessage }}
 					</p>
 					<footer class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8">
@@ -354,7 +354,7 @@
 									</div>
 								</template>
 
-								<p v-if="formErrorMessage" class="text-sm text-rose-300 2xl:text-base">
+								<p v-if="formErrorMessage" class="form-error-text">
 									{{ formErrorMessage }}
 								</p>
 							</form>

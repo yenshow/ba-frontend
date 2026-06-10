@@ -152,7 +152,7 @@
 									</section>
 								</div>
 							</AsyncPanel>
-							<p v-if="membersError" class="mt-3 text-sm text-rose-300" role="alert">
+							<p v-if="membersError" class="form-error-text mt-3" role="alert">
 								{{ membersError }}
 							</p>
 							<div class="mt-4 flex justify-end">
@@ -244,7 +244,7 @@
 												<p class="sr-only">載入車牌名單</p>
 												<ContentSkeleton :columns="6" :rows="5" />
 											</div>
-											<p v-else-if="getDeviceError(opt.id)" class="text-base text-rose-300 2xl:text-lg">
+											<p v-else-if="getDeviceError(opt.id)" class="form-error-text-lg">
 												{{ getDeviceError(opt.id) }}
 											</p>
 											<div
@@ -333,6 +333,7 @@
 		:person-bind-options="personBindOptions"
 		:is-loading-person-options="isLoadingPersonOptions"
 		:is-saving="isSavingPlate"
+		:error-message="plateFormError"
 		@save="handleSavePlate(formDeviceId)"
 		@cancel="handleCancelPlateForm"
 	/>
@@ -433,6 +434,7 @@ const formDeviceId = ref<number | null>(null);
 const plateFormMode = ref<"add" | "modify">("add");
 const isSavingPlate = ref(false);
 const plateForm = ref<IsapiPlateFormModel>(createDefaultIsapiPlateForm());
+const plateFormError = ref("");
 
 const personBindOptions = ref<Array<{ value: string; label: string }>>([]);
 const isLoadingPersonOptions = ref(false);
@@ -585,6 +587,7 @@ const ensureDeviceExpanded = async (deviceId: number) => {
 };
 
 const handleOpenPlateForm = async (deviceId: number, row?: VehicleLicensePlateAuditItem) => {
+	plateFormError.value = "";
 	formDeviceId.value = deviceId;
 	await ensureDeviceExpanded(deviceId);
 	if (row) {
@@ -600,16 +603,18 @@ const handleOpenPlateForm = async (deviceId: number, row?: VehicleLicensePlateAu
 };
 
 const handleCancelPlateForm = () => {
+	plateFormError.value = "";
 	formDeviceId.value = null;
 };
 
 const handleSavePlate = async (deviceId: number) => {
+	plateFormError.value = "";
 	const built = buildIsapiPlateUpsertEntry(
 		plateForm.value,
 		plateFormMode.value === "add" ? "add" : "modify"
 	);
 	if ("error" in built) {
-		toast.warning(built.error);
+		plateFormError.value = built.error;
 		return;
 	}
 	isSavingPlate.value = true;
@@ -623,7 +628,7 @@ const handleSavePlate = async (deviceId: number) => {
 		handleCancelPlateForm();
 		await loadPlatesForDevice(deviceId);
 	} catch (e) {
-		toast.error(resolveUserFacingCatchMessage(e, "儲存車牌名單失敗"));
+		plateFormError.value = resolveUserFacingCatchMessage(e, "儲存車牌名單失敗");
 	} finally {
 		isSavingPlate.value = false;
 	}

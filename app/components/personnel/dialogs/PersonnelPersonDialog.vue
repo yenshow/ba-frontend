@@ -108,7 +108,7 @@
 
 								<p
 									v-if="captureErrorText"
-									class="mt-2 text-xs text-rose-300 2xl:text-sm"
+									class="form-error-text-inline"
 									role="alert"
 									aria-live="polite"
 								>
@@ -239,7 +239,7 @@
 
 								<p
 									v-if="cardErrorText"
-									class="mt-2 text-xs text-rose-300 2xl:text-sm"
+									class="form-error-text-inline"
 									role="alert"
 									aria-live="polite"
 								>
@@ -282,7 +282,7 @@
 
 								<p
 									v-if="fingerPrintErrorText"
-									class="mt-2 text-xs text-rose-300 2xl:text-sm"
+									class="form-error-text-inline"
 									role="alert"
 									aria-live="polite"
 								>
@@ -392,7 +392,7 @@
 							</label>
 						</div>
 
-						<p v-if="state.ui.errorMessage" class="col-span-2 text-sm text-rose-300">
+						<p v-if="state.ui.errorMessage" class="form-error-text col-span-2">
 							{{ state.ui.errorMessage }}
 						</p>
 

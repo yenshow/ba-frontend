@@ -112,12 +112,80 @@
 									max="65535"
 									required
 									class="form-input"
-									placeholder="例如：502"
+									:placeholder="isHcnetSdkController ? '例如：8000' : '例如：502'"
 									:disabled="isControllerPortInherited"
-									aria-label="Modbus 端口"
+									:aria-label="isHcnetSdkController ? 'SDK 端口' : 'Modbus 端口'"
 								/>
-								<p v-if="isControllerPortInherited" class="mt-1 text-xs text-white/50">繼承自型號</p>
 							</label>
+							<template v-if="isHcnetSdkController">
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<span>帳號 *</span>
+									<input
+										v-model="controllerConfig.username"
+										type="text"
+										required
+										class="form-input"
+										placeholder="預設 admin，可修改"
+										aria-label="梯控登入帳號"
+									/>
+								</label>
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<span>密碼 *</span>
+									<div class="relative w-full">
+										<input
+											v-model="controllerConfig.password"
+											:type="showControllerPassword ? 'text' : 'password'"
+											required
+											class="form-input w-full pr-12"
+											placeholder="請輸入設備登入密碼"
+											:aria-label="
+												showControllerPassword ? '梯控密碼（已顯示）' : '梯控密碼（已隱藏）'
+											"
+										/>
+										<button
+											type="button"
+											class="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-white/50 transition-colors hover:text-white/80 focus:outline-none"
+											:aria-label="showControllerPassword ? '隱藏密碼' : '顯示密碼'"
+											@click="showControllerPassword = !showControllerPassword"
+										>
+											<svg
+												v-if="!showControllerPassword"
+												class="h-5 w-5"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+											>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+												/>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+												/>
+											</svg>
+											<svg
+												v-else
+												class="h-5 w-5"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+											>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+												/>
+											</svg>
+										</button>
+									</div>
+								</label>
+							</template>
 						</template>
 
 						<template v-if="deviceTypeCode === 'camera'">
@@ -229,11 +297,10 @@
 										required
 										class="form-input"
 										placeholder="例如：502"
-										:disabled="isSensorPortInherited"
-										aria-label="Modbus 端口"
-									/>
-									<p v-if="isSensorPortInherited" class="mt-1 text-xs text-white/50">繼承自型號</p>
-								</label>
+									:disabled="isSensorPortInherited"
+									aria-label="Modbus 端口"
+								/>
+							</label>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>Unit ID *</span>
 									<input
@@ -244,11 +311,10 @@
 										required
 										class="form-input"
 										placeholder="例如：1"
-										:disabled="isSensorUnitIdInherited"
-										aria-label="Modbus Unit ID"
-									/>
-									<p v-if="isSensorUnitIdInherited" class="mt-1 text-xs text-white/50">繼承自型號</p>
-								</label>
+									:disabled="isSensorUnitIdInherited"
+									aria-label="Modbus Unit ID"
+								/>
+							</label>
 							</template>
 							<template v-else-if="sensorConfig.protocol === 'http'">
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
@@ -348,7 +414,7 @@
 							</label>
 						</template>
 
-						<p v-if="displayErrorMessage" class="text-sm text-rose-300 2xl:text-base">
+						<p v-if="displayErrorMessage" class="form-error-text">
 							{{ displayErrorMessage }}
 						</p>
 						</fieldset>
@@ -389,19 +455,18 @@ import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import { computed } from "vue";
-import type {
-	Device,
-	CreateDeviceData,
-	UpdateDeviceData,
-	DeviceModel,
-	DeviceTypeCode,
-	DeviceConfig
-} from "~/types/device";
-import type {
-	ControllerDeviceConfig,
-	CameraDeviceConfig,
-	SensorDeviceConfig,
-	AccessControlDeviceConfig
+import {
+	isHcnetSdkDeviceModel,
+	type Device,
+	type CreateDeviceData,
+	type UpdateDeviceData,
+	type DeviceModel,
+	type DeviceTypeCode,
+	type DeviceConfig,
+	type ControllerDeviceConfig,
+	type CameraDeviceConfig,
+	type SensorDeviceConfig,
+	type AccessControlDeviceConfig
 } from "~/types/device";
 import {
 	DEFAULT_CAMERA_RTSP_TEMPLATE,
@@ -410,6 +475,7 @@ import {
 	parseCameraRtspUrl
 } from "~/utils/cameraRtspUtils";
 import { CAMERA_MODEL_CATEGORY_OPTIONS } from "~/utils/cameraModelCategories";
+import { validateDeviceFormForSave } from "~/utils/deviceFormValidation";
 
 interface Props {
 	modelValue: boolean;
@@ -454,8 +520,11 @@ const controllerConfig = reactive<ControllerDeviceConfig>({
 	type: "controller",
 	host: "",
 	port: undefined,
-	unitId: undefined
+	unitId: undefined,
+	username: "admin",
+	password: ""
 });
+const showControllerPassword = ref(false);
 
 const cameraConfig = reactive<CameraDeviceConfig>({
 	type: "camera",
@@ -586,6 +655,10 @@ const selectedDeviceModel = computed(() => {
 	return deviceModels.value.find(m => m.id === localFormData.model_id) || null;
 });
 
+const isHcnetSdkController = computed(() =>
+	isHcnetSdkDeviceModel(selectedDeviceModel.value)
+);
+
 // 從選中的型號繼承 port 與 unit_id
 const inheritFromModel = () => {
 	const model = selectedDeviceModel.value;
@@ -593,7 +666,16 @@ const inheritFromModel = () => {
 
 	if (props.deviceTypeCode === "controller") {
 		if (model.port != null) controllerConfig.port = model.port;
-		if (model.unit_id != null) controllerConfig.unitId = model.unit_id;
+		if (isHcnetSdkDeviceModel(model)) {
+			controllerConfig.protocol = "hcnet_sdk";
+			controllerConfig.unitId = undefined;
+			if (!controllerConfig.username?.trim()) controllerConfig.username = "admin";
+		} else {
+			controllerConfig.protocol = undefined;
+			controllerConfig.username = undefined;
+			controllerConfig.password = "";
+			if (model.unit_id != null) controllerConfig.unitId = model.unit_id;
+		}
 	} else if (props.deviceTypeCode === "sensor" && sensorConfig.protocol === "modbus") {
 		if (model.port != null) sensorConfig.port = model.port;
 		if (model.unit_id != null) sensorConfig.unitId = model.unit_id;
@@ -653,6 +735,10 @@ const resetForm = () => {
 	controllerConfig.host = "";
 	controllerConfig.port = undefined;
 	controllerConfig.unitId = undefined;
+	controllerConfig.protocol = undefined;
+	controllerConfig.username = "admin";
+	controllerConfig.password = "";
+	showControllerPassword.value = false;
 
 	cameraConfig.rtsp_url = "";
 
@@ -703,8 +789,18 @@ const createModeHasContent = computed(() => {
 	const modelSelected = localFormData.model_id > 0;
 	const configFilled = (() => {
 		const c = getCurrentConfig();
-		if (c.type === "controller")
-			return !!(c.host && (c.port != null || controllerConfig.port != null));
+		if (c.type === "controller") {
+			const hasPort = c.port != null || controllerConfig.port != null;
+			if (isHcnetSdkController.value) {
+				return !!(
+					c.host &&
+					hasPort &&
+					controllerConfig.username?.trim() &&
+					controllerConfig.password?.trim()
+				);
+			}
+			return !!(c.host && hasPort);
+		}
 		if (c.type === "camera") {
 			const ip = cameraIp.value.trim();
 			const user = cameraUsername.value.trim();
@@ -883,6 +979,16 @@ const handleClose = () => {
 const getCurrentConfig = (): DeviceConfig => {
 	switch (props.deviceTypeCode) {
 		case "controller": {
+			if (isHcnetSdkController.value) {
+				return {
+					type: "controller",
+					protocol: "hcnet_sdk",
+					host: controllerConfig.host,
+					port: controllerConfig.port,
+					username: controllerConfig.username?.trim() || "admin",
+					password: controllerConfig.password || ""
+				};
+			}
 			return {
 				type: "controller",
 				host: controllerConfig.host,
@@ -929,53 +1035,30 @@ const handleSubmit = () => {
 
 	localErrorMessage.value = null;
 
-	if (props.deviceTypeCode === "camera" && !cameraCategoryCode.value.trim()) {
-		localErrorMessage.value = "請選擇型號分類";
+	const validationError = validateDeviceFormForSave({
+		deviceTypeCode: props.deviceTypeCode,
+		modelId: localFormData.model_id,
+		cameraCategoryCode: cameraCategoryCode.value,
+		sensorProtocol: sensorConfig.protocol,
+		sensorPort: sensorConfig.port,
+		sensorUnitId: sensorConfig.unitId,
+		isSensorPortInherited: isSensorPortInherited.value,
+		isSensorUnitIdInherited: isSensorUnitIdInherited.value,
+		controllerPort: controllerConfig.port,
+		isControllerPortInherited: isControllerPortInherited.value,
+		isHcnetSdkController: isHcnetSdkController.value,
+		controllerUsername: controllerConfig.username,
+		controllerPassword: controllerConfig.password,
+		cameraIp: cameraIp.value,
+		cameraUsername: cameraUsername.value,
+		cameraPassword: cameraPassword.value,
+	});
+	if (validationError) {
+		localErrorMessage.value = validationError;
 		return;
-	}
-
-	// 驗證 model_id 必填
-	if (!localFormData.model_id || localFormData.model_id === 0) {
-		localErrorMessage.value = "請選擇設備型號";
-		return;
-	}
-
-	// 感測器 Modbus：端口與 Unit ID 必填（可繼承自型號）
-	if (props.deviceTypeCode === "sensor" && sensorConfig.protocol === "modbus") {
-		const hasPort =
-			isSensorPortInherited.value || (sensorConfig.port != null && sensorConfig.port > 0);
-		const hasUnitId =
-			isSensorUnitIdInherited.value || (sensorConfig.unitId != null && sensorConfig.unitId > 0);
-		if (!hasPort) {
-			localErrorMessage.value = "請填寫端口，或選擇已設定端口的設備型號";
-			return;
-		}
-		if (!hasUnitId) {
-			localErrorMessage.value = "請填寫 Unit ID，或選擇已設定 Unit ID 的設備型號";
-			return;
-		}
-	}
-	// 控制器：端口必填（可繼承自型號）
-	if (props.deviceTypeCode === "controller") {
-		const hasPort =
-			isControllerPortInherited.value || (controllerConfig.port != null && controllerConfig.port > 0);
-		if (!hasPort) {
-			localErrorMessage.value = "請填寫端口，或選擇已設定端口的設備型號";
-			return;
-		}
 	}
 
 	const config = getCurrentConfig();
-
-	if (props.deviceTypeCode === "camera") {
-		const ip = cameraIp.value.trim();
-		const user = cameraUsername.value.trim();
-		const pwd = cameraPassword.value.trim();
-		if (!ip || !user || !pwd) {
-			localErrorMessage.value = "請填寫設備 IP、登入帳號與密碼";
-			return;
-		}
-	}
 
 	if (props.editingDevice) {
 		emit("submit", {

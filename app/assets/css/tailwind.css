@@ -440,6 +440,31 @@
 	color: rgba(255, 255, 255, 0.5);
 }
 
+/* 表單錯誤訊息（統一 rose-300） */
+.form-error-text {
+	@apply text-sm text-rose-300 2xl:text-base;
+}
+
+/* 大型 dialog 底部錯誤（區域管理等） */
+.form-error-text-lg {
+	@apply text-base text-rose-300 2xl:text-lg;
+}
+
+/* 欄位正下方緊湊錯誤 */
+.form-error-text-inline {
+	@apply mt-2 text-xs text-rose-300 2xl:text-sm;
+}
+
+/* 表單區塊醒目錯誤（如登入頁） */
+.form-error-banner {
+	@apply rounded-lg border border-rose-500/50 bg-rose-500/20 p-3 text-sm text-rose-300 2xl:text-base;
+}
+
+/* Modbus 位址欄位 inline 驗證錯誤 */
+.form-input-modbus-issue {
+	@apply animate-pulse border-2 border-rose-500 bg-rose-500/20 pr-10 shadow-[0_0_0_3px_rgba(244,63,94,0.2)] focus:border-rose-500 focus:bg-rose-500/25 focus:shadow-[0_0_0_3px_rgba(244,63,94,0.3)];
+}
+
 /* 表單選擇框 */
 .form-select {
 	cursor: pointer;

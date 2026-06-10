@@ -93,6 +93,8 @@
 							</div>
 						</div>
 
+						<p v-if="errorMessage" class="form-error-text" role="alert">{{ errorMessage }}</p>
+
 						<footer class="mt-2 flex items-center gap-3 border-t border-white/20 pt-4 2xl:gap-4">
 							<button type="button" class="btn-secondary" @click="emit('cancel')">取消</button>
 							<div class="flex-1"></div>
@@ -119,6 +121,7 @@ defineProps<{
 	personBindOptions: Array<{ value: string; label: string }>;
 	isLoadingPersonOptions?: boolean;
 	isSaving?: boolean;
+	errorMessage?: string | null;
 }>();
 
 const emit = defineEmits<{

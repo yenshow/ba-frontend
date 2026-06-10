@@ -102,7 +102,7 @@
 							</div>
 						</div>
 					</div>
-					<p v-if="error" class="text-sm text-rose-300">{{ error }}</p>
+					<p v-if="error" class="form-error-text">{{ error }}</p>
 					<div
 						v-if="result"
 						class="rounded border border-white/20 bg-white/5 p-3 text-sm text-white/90"
