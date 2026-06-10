@@ -303,19 +303,12 @@
 								</button>
 							</div>
 
-							<p
-								v-if="state.form.licensePlateItems.length === 0"
-								class="rounded-xl border border-dashed border-white/15 bg-white/5 px-3 py-4 text-sm text-white/50"
-							>
-								尚無車牌，請按「新增車牌」加入。
-							</p>
-
 							<div
 								v-for="(row, idx) in state.form.licensePlateItems"
 								:key="`plate-row-${idx}`"
 								class="relative space-y-3 rounded-xl border border-white/10 bg-white/5 p-3"
 							>
-								<div class="absolute right-2 top-2">
+								<div v-if="state.form.licensePlateItems.length > 1" class="absolute right-2 top-2">
 									<IconTrashButton
 										size="md"
 										button-class="flex-shrink-0"
@@ -444,6 +437,7 @@ const handleAddLicensePlateRow = () => {
 };
 
 const handleRemoveLicensePlateRow = (idx: number) => {
+	if (props.state.form.licensePlateItems.length <= 1) return;
 	props.state.form.licensePlateItems.splice(idx, 1);
 };
 

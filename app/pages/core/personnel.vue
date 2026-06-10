@@ -38,7 +38,7 @@ import { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePerso
 import { PERSON_STATUS_LABELS, getPersonStatusBadgeClass } from "~/utils/personnelUtils";
 import PersonnelManageTab from "~/components/personnel/PersonnelManageTab.vue";
 
-definePageMeta({ layout: "default" });
+definePageMeta({ layout: "auxiliary" });
 
 const personnelApi: PersonnelApi = usePersonnelApi();
 const deviceApi = useDeviceApi();

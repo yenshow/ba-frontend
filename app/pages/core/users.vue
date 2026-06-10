@@ -260,7 +260,7 @@ import {
 } from "~/composables/systems/users/useAccountSettings";
 
 definePageMeta({
-	layout: "default"
+	layout: "auxiliary"
 });
 
 const { user: currentUser, fetchUser } = useAuth();

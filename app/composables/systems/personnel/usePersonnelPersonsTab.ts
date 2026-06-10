@@ -1,6 +1,7 @@
 import type { Device } from "~/types/device"
 import type { ImportResult, Person, PersonLicensePlateFormItem } from "~/types/personnel"
 import {
+	createEmptyLicensePlateFormItem,
 	licensePlateItemsToPayload,
 	mapPersonLicensePlatesToForm,
 	validateLicensePlateFormItems,
@@ -68,12 +69,14 @@ type PersonDialogSnapshot = {
 }
 
 const normalizeLicensePlatesForSnapshot = (items: PersonLicensePlateFormItem[]) =>
-	items.map((i) => ({
-		plateNumber: i.plateNumber.trim(),
-		listType: i.listType,
-		effectiveBegin: i.effectiveBegin,
-		effectiveEnd: i.effectiveEnd,
-	}))
+	items
+		.filter((i) => i.plateNumber.trim())
+		.map((i) => ({
+			plateNumber: i.plateNumber.trim(),
+			listType: i.listType,
+			effectiveBegin: i.effectiveBegin,
+			effectiveEnd: i.effectiveEnd,
+		}))
 
 export const usePersonnelPersonsTab = (params: {
 	personnelApi: PersonnelApi
@@ -328,7 +331,7 @@ export const usePersonnelPersonsTab = (params: {
 		personForm.status = "active"
 		personForm.faceUrl = ""
 		personForm.personGroupId = ""
-		personForm.licensePlateItems = []
+		personForm.licensePlateItems = [createEmptyLicensePlateFormItem()]
 		resetPersonDialogState()
 		void loadAccessControlDevices()
 		capturePersonDialogSnapshot()
@@ -345,7 +348,9 @@ export const usePersonnelPersonsTab = (params: {
 			p.person_group_id != null && Number.isFinite(Number(p.person_group_id))
 				? String(Math.trunc(Number(p.person_group_id)))
 				: ""
-		personForm.licensePlateItems = mapPersonLicensePlatesToForm(p)
+		const plates = mapPersonLicensePlatesToForm(p)
+		personForm.licensePlateItems =
+			plates.length > 0 ? plates : [createEmptyLicensePlateFormItem()]
 		resetPersonDialogState()
 		const ac = getAccessControlConfigSummary(p)
 		cardNo.value = ac.cardNo

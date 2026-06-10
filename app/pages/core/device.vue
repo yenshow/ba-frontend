@@ -249,6 +249,7 @@ import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import { getCameraModelCategoryLabel } from "~/utils/cameraModelCategories";
 import { useEquipmentRbac } from "~/composables/core/useAccessGate";
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
+
 definePageMeta({
 	layout: "auxiliary"
 });
