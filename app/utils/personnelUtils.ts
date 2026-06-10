@@ -227,6 +227,44 @@ const SYNC_STEP_PILL_CLASS: Record<SyncStepUiStatus, string> = {
 	no_data: "bg-white/5 text-white/45 border border-white/10",
 }
 
+const UNGROUPED_PERSON_GROUP_ID = 0
+const UNGROUPED_PERSON_GROUP_NAME = "未分組"
+
+export type PersonGroupMemberSection = {
+	groupId: number
+	groupName: string
+	members: Person[]
+}
+
+/** 依 person_group 分組（用於地點名單勾選 UI） */
+export const parseLocationNumericId = (raw: unknown): number | null => {
+	const n = Number(raw)
+	return Number.isFinite(n) ? Math.trunc(n) : null
+}
+
+export const groupPersonsByPersonGroup = (persons: Person[]): PersonGroupMemberSection[] => {
+	const byGroupId = new Map<number, PersonGroupMemberSection>()
+	for (const person of persons || []) {
+		const groupId =
+			person.person_group_id != null && Number.isFinite(Number(person.person_group_id))
+				? Number(person.person_group_id)
+				: UNGROUPED_PERSON_GROUP_ID
+		const groupName =
+			groupId === UNGROUPED_PERSON_GROUP_ID
+				? UNGROUPED_PERSON_GROUP_NAME
+				: person.group_name?.trim() || UNGROUPED_PERSON_GROUP_NAME
+		if (!byGroupId.has(groupId)) {
+			byGroupId.set(groupId, { groupId, groupName, members: [] })
+		}
+		byGroupId.get(groupId)!.members.push(person)
+	}
+	return [...byGroupId.values()].sort((a, b) => {
+		if (a.groupId === UNGROUPED_PERSON_GROUP_ID) return 1
+		if (b.groupId === UNGROUPED_PERSON_GROUP_ID) return -1
+		return a.groupName.localeCompare(b.groupName, "zh-Hant")
+	})
+}
+
 export const syncStepShortLabel = (cell: { status: SyncStepUiStatus }) => {
 	const s = cell.status
 	if (s === "pending") return "待同步"
@@ -238,6 +276,13 @@ export const syncStepShortLabel = (cell: { status: SyncStepUiStatus }) => {
 
 export const syncStepPillClass = (status: SyncStepUiStatus) =>
 	SYNC_STEP_PILL_CLASS[status] ?? "bg-white/5 text-white/60 border border-white/10"
+
+export const lastSyncPillClass = (label: string) => {
+	if (label === "成功") return "border-emerald-400/30 bg-emerald-500/15 text-emerald-100"
+	if (label === "失敗") return "border-rose-400/30 bg-rose-500/15 text-rose-100"
+	if (label === "待同步") return "border-amber-400/30 bg-amber-500/15 text-amber-100"
+	return "border-white/15 bg-white/5 text-white/70"
+}
 
 export const formatSyncAt = (v: unknown): string | null => {
 	if (!v) return null

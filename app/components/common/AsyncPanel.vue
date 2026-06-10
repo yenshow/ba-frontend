@@ -1,4 +1,4 @@
-﻿<template>
+<template>
 	<div :class="rootClass">
 		<Transition name="fade" mode="out-in">
 			<div
@@ -9,7 +9,9 @@
 				aria-live="polite"
 				aria-busy="true"
 			>
-				<p class="sr-only">{{ loadingLabel }}</p>
+				<slot name="loading">
+					<p class="sr-only">{{ loadingLabel }}</p>
+				</slot>
 			</div>
 
 			<div v-else-if="error" key="error" :class="errorClass" role="alert">
@@ -105,19 +107,24 @@ const props = withDefaults(
 
 const sizePreset = computed(() => PANEL_SIZE_PRESETS[props.panelSize])
 
-const resolvedLoadingMin = computed(
-	() => props.loadingMinHeightClass ?? sizePreset.value.loading,
-)
+const resolvedLoadingMin = computed(() => {
+	if (props.loadingMinHeightClass) return props.loadingMinHeightClass
+	if (props.minHeightClass && props.minHeightClass !== "min-h-0") return props.minHeightClass
+	return sizePreset.value.loading
+})
 const resolvedEmptyMin = computed(
 	() => props.emptyMinHeightClass ?? sizePreset.value.empty,
 )
 
 const rootClass = computed(() => ["w-full", props.minHeightClass].filter(Boolean))
 
-const loadingClass = computed(
-	() =>
-		`flex ${resolvedLoadingMin.value} items-center justify-center py-6 2xl:py-8`,
-)
+const slots = useSlots()
+
+const loadingClass = computed(() => {
+	const base = `flex w-full ${resolvedLoadingMin.value} py-4 2xl:py-5`
+	if (slots.loading) return `${base} items-start justify-stretch px-1`
+	return `${base} items-center justify-center`
+})
 
 const emptyClass = computed(
 	() =>
