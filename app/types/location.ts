@@ -16,7 +16,8 @@ export type SystemType =
 	| "emergency_rescue"
 	| "smoke_alarm"
 	| "people_counting"
-	| "vehicle_access";
+	| "vehicle_access"
+	| "elevator";
 
 export const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
 	environment: "環境監測",
@@ -29,7 +30,8 @@ export const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
 	emergency_rescue: "緊急求救",
 	smoke_alarm: "煙霧警報",
 	people_counting: "人流統計",
-	vehicle_access: "車輛進出"
+	vehicle_access: "車輛進出",
+	elevator: "電梯系統",
 };
 
 export const getSystemTypeLabel = (systemType: SystemType): string =>
@@ -49,7 +51,8 @@ export type SystemConfig =
 	| EmergencyRescueSystemConfig
 	| SmokeAlarmSystemConfig
 	| PeopleCountingSystemConfig
-	| VehicleAccessSystemConfig;
+	| VehicleAccessSystemConfig
+	| ElevatorSystemConfig;
 
 /**
  * 環境監測系統配置
@@ -199,6 +202,14 @@ export interface VehicleAccessSystemConfig {
 	exitCameraDeviceIds?: number[];
 	cameraChannelId?: number;
 	vehicleGroupIds?: number[];
+	logDisplayColumns?: string[];
+}
+
+/**
+ * 電梯系統配置
+ */
+export interface ElevatorSystemConfig {
+	deviceIds?: number[];
 	logDisplayColumns?: string[];
 }
 

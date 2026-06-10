@@ -46,7 +46,7 @@
 						placeholder="地址"
 						required
 						class="form-input-small w-full transition-all"
-						:class="addressIssueFieldClass(modbusAddressIssue)"
+						:class="{ 'form-input-modbus-issue': !!modbusAddressIssue }"
 						:title="modbusAddressIssue?.msg ?? undefined"
 						@blur="handleChange"
 					/>
@@ -77,10 +77,6 @@ import { useLightingLocationValidation } from "~/composables/location/validation
 import { useModbusValidation } from "~/composables/location/validation/useModbusValidation"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 
-interface AddressIssue {
-	msg: string
-}
-
 interface Props {
 	location: HvacLocation
 	allLocations?: HvacLocation[]
@@ -104,11 +100,6 @@ const emit = defineEmits<Emits>()
 
 const { checkDuplicateAddress } = useLightingLocationValidation()
 const { validateModbusAddress } = useModbusValidation()
-
-const addressIssueFieldClass = (issue: AddressIssue | null): string =>
-	issue
-		? "animate-pulse border-2 border-rose-500 bg-rose-500/20 pr-10 shadow-[0_0_0_3px_rgba(244,63,94,0.2)] focus:border-rose-500 focus:bg-rose-500/25 focus:shadow-[0_0_0_3px_rgba(244,63,94,0.3)]"
-		: ""
 
 const asLighting = (loc: HvacLocation): LightingLocation => loc as unknown as LightingLocation
 
@@ -136,7 +127,7 @@ watch(
 	{ immediate: true, deep: true }
 )
 
-const modbusAddressIssue = computed((): AddressIssue | null => {
+const modbusAddressIssue = computed((): { msg: string } | null => {
 	const loc = localLocation.value
 	if (!loc.deviceId || loc.deviceId <= 0 || !loc.modbus?.points?.[0]) return null
 	const id = loc.deviceId

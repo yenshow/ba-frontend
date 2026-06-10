@@ -69,7 +69,7 @@
 								placeholder="地址"
 								required
 								class="form-input-small w-full transition-all"
-								:class="addressIssueFieldClass(oilLevelAddressIssue)"
+								:class="{ 'form-input-modbus-issue': !!oilLevelAddressIssue }"
 								:title="oilLevelAddressIssue?.msg ?? undefined"
 								@blur="handleChange"
 							/>
@@ -139,7 +139,7 @@
 										placeholder="地址"
 										required
 										class="form-input-small w-full transition-all"
-										:class="addressIssueFieldClass(generatorAddressIssues[role.key])"
+										:class="{ 'form-input-modbus-issue': !!generatorAddressIssues[role.key] }"
 										:title="generatorAddressIssues[role.key]?.msg ?? undefined"
 										@blur="handleChange"
 									/>
@@ -209,16 +209,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
-interface AddressIssue {
-	msg: string
-}
-
 const { validateModbusAddress } = usePowerLocationValidation()
-
-const addressIssueFieldClass = (issue: AddressIssue | null): string =>
-	issue
-		? "animate-pulse border-2 border-rose-500 bg-rose-500/20 pr-10 shadow-[0_0_0_3px_rgba(244,63,94,0.2)] focus:border-rose-500 focus:bg-rose-500/25 focus:shadow-[0_0_0_3px_rgba(244,63,94,0.3)]"
-		: ""
 
 const otherModbusKeys = computed(() => {
 	const set = new Set<string>()
@@ -258,7 +249,7 @@ const generatorTupleKeyCounts = computed(() => {
 	return m
 })
 
-const oilLevelAddressIssue = computed((): AddressIssue | null => {
+const oilLevelAddressIssue = computed((): { msg: string } | null => {
 	if (localLocation.value.equipmentKind !== "oil_level") return null
 	if (!oilLevelRow.value.deviceIdStr) return null
 	const id = Number(oilLevelRow.value.deviceIdStr)
@@ -271,8 +262,8 @@ const oilLevelAddressIssue = computed((): AddressIssue | null => {
 	return null
 })
 
-const generatorAddressIssues = computed((): Record<PowerGeneratorPointKey, AddressIssue | null> => {
-	const out: Record<PowerGeneratorPointKey, AddressIssue | null> = {
+const generatorAddressIssues = computed((): Record<PowerGeneratorPointKey, { msg: string } | null> => {
+	const out: Record<PowerGeneratorPointKey, { msg: string } | null> = {
 		fault: null,
 		highOil: null,
 		lowOil: null,

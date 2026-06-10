@@ -277,6 +277,29 @@ export const usePersonnelApi = (): PersonnelApi => {
 				method: "DELETE",
 			}),
 
+		replacePersonLadderCard: (
+			id: number,
+			body: {
+				cardNo?: string
+				floors?: number[]
+				homeFloor?: number
+				cardType?: number
+				floorMode?: string
+				cardPassword?: string | null
+				validEnabled?: boolean
+				validBegin?: string | null
+				validEnd?: string | null
+				clear?: boolean
+			} | null,
+		) =>
+			request<{ ladder_card: import("~/types/personnel").PersonLadderCard | null }>(
+				`${PERSONNEL_PREFIX}/persons/${id}/ladder-card`,
+				{
+					method: "PUT",
+					body: body ?? { clear: true },
+				},
+			),
+
 		// 可同步地點與同步
 		getSyncableLocations: () =>
 			request<SyncableLocation[]>(`${PERSONNEL_PREFIX}/syncable-locations`),

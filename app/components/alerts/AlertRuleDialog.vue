@@ -424,7 +424,7 @@
 							</label>
 						</label>
 
-						<p v-if="localErrorMessage || errorMessage" class="text-sm text-rose-300 2xl:text-base">
+						<p v-if="localErrorMessage || errorMessage" class="form-error-text">
 							{{ localErrorMessage || errorMessage }}
 						</p>
 						<p
@@ -475,6 +475,12 @@ import { useModbusValidation } from "~/composables/location/validation/useModbus
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { alertSourceToSystemType, isAllowedThresholdOperator } from "~/utils/alertUtils"
+import {
+	normalizeAlertRuleCameraDeviceIds,
+	parseAlertRuleEmailsFromText,
+	validateAlertRuleEmailSubscription,
+	validateAlertRuleFormForSave,
+} from "~/utils/alertRuleFormValidation"
 
 interface OptionItem {
 	value: string
@@ -636,13 +642,6 @@ const smtpTestFeedback = reactive<{ ok: boolean; message: string }>({
 	ok: false,
 	message: "",
 })
-
-const parseEmailsFromText = (text: string): string[] => {
-	return String(text || "")
-		.split(/\r?\n|,|;/g)
-		.map((v) => v.trim())
-		.filter(Boolean)
-}
 
 const devices = ref<Device[]>([])
 const isDevicesLoading = ref(false)
@@ -1064,16 +1063,21 @@ watch(
 	{ immediate: true }
 )
 
-const validateEmailSmtpTestFields = (): string | null => {
-	if (!email.smtp_host.trim()) return "SMTP 測試：SMTP Host 為必填"
-	if (!Number.isFinite(Number(email.smtp_port)) || Number(email.smtp_port) <= 0) {
-		return "SMTP 測試：SMTP Port 需為正整數"
-	}
-	if (!email.smtp_user.trim()) return "SMTP 測試：寄件人 Email 為必填"
-	const toList = parseEmailsFromText(email.to_emails_text)
-	if (toList.length === 0) return "SMTP 測試：收件人 To 為必填"
-	return null
-}
+const buildAlertRuleValidationInput = () => ({
+	target_type: form.target_type || null,
+	target_id: form.target_id != null ? Number(form.target_id) : null,
+	doLinkage: {
+		enabled: doLinkage.enabled,
+		do_device_id: doLinkage.do_device_id,
+		do_address: doLinkage.do_address,
+		auto_off_seconds: doLinkage.auto_off_seconds,
+	},
+	cameraLinkage: {
+		enabled: cameraLinkage.enabled,
+		camera_device_ids: normalizeAlertRuleCameraDeviceIds(cameraDeviceIdsModel.value),
+	},
+	email,
+})
 
 const handleEmailSmtpTestClick = async () => {
 	localErrorMessage.value = ""
@@ -1086,7 +1090,7 @@ const handleEmailSmtpTestClick = async () => {
 		return
 	}
 
-	const err = validateEmailSmtpTestFields()
+	const err = validateAlertRuleEmailSubscription(email, "SMTP 測試")
 	if (err) {
 		localErrorMessage.value = err
 		return
@@ -1102,7 +1106,7 @@ const handleEmailSmtpTestClick = async () => {
 				smtp_user: email.smtp_user.trim(),
 				smtp_password: email.smtp_password || null,
 				smtp_security: email.smtp_security,
-				to_emails: parseEmailsFromText(email.to_emails_text),
+				to_emails: parseAlertRuleEmailsFromText(email.to_emails_text),
 			},
 		})
 
@@ -1120,51 +1124,15 @@ const handleSubmit = () => {
 	localErrorMessage.value = ""
 	smtpTestFeedback.ok = false
 	smtpTestFeedback.message = ""
+
+	const submitError = validateAlertRuleFormForSave(buildAlertRuleValidationInput())
+	if (submitError) {
+		localErrorMessage.value = submitError
+		return
+	}
+
 	const targetType = form.target_type || null
 	const targetId = form.target_id != null ? Number(form.target_id) : null
-	if (targetType && (targetId == null || !Number.isFinite(targetId))) return
-
-	if (doLinkage.enabled) {
-		if (!doLinkage.do_device_id) return
-		if (doLinkage.do_address == null || Number(doLinkage.do_address) < 0) return
-		if (doLinkage.auto_off_seconds != null && Number(doLinkage.auto_off_seconds) <= 0) return
-	}
-
-	if (cameraLinkage.enabled) {
-		const ids = cameraDeviceIdsModel.value
-			.map((v) => (v == null ? null : Number(v)))
-			.filter((n): n is number => n != null && Number.isFinite(n) && n > 0)
-		if (ids.length === 0) return
-	}
-
-	if (email.enabled) {
-		if (!email.smtp_host.trim()) {
-			localErrorMessage.value = "Email 通知：SMTP Host 為必填"
-			return
-		}
-		if (!Number.isFinite(Number(email.smtp_port)) || Number(email.smtp_port) <= 0) {
-			localErrorMessage.value = "Email 通知：SMTP Port 需為正整數"
-			return
-		}
-		if (!email.smtp_user.trim()) {
-			localErrorMessage.value = "Email 通知：寄件人 Email 為必填"
-			return
-		}
-		const toList = parseEmailsFromText(email.to_emails_text)
-		if (toList.length === 0) {
-			localErrorMessage.value = "Email 通知：收件人 To 為必填"
-			return
-		}
-		if (Number(email.repeat_min_interval_seconds) < 15) {
-			localErrorMessage.value = "Email 通知：重複發送間隔最短 15 秒"
-			return
-		}
-		if (Number(email.repeat_max_send_count) < 1 || Number(email.repeat_max_send_count) > 10) {
-			localErrorMessage.value = "Email 通知：最大發送次數需介於 1~10"
-			return
-		}
-	}
-
 	const conditionType = conditionTypeForPayload()
 	const conditionConfig = buildConditionConfig()
 
@@ -1193,10 +1161,9 @@ const handleSubmit = () => {
 		cameraLinkage: cameraLinkage.enabled
 			? {
 					enabled: true,
-					camera_device_ids: cameraDeviceIdsModel.value
-						.map((v) => (v == null ? null : Number(v)))
-						.filter((n): n is number => n != null && Number.isFinite(n) && n > 0)
-						.slice(0, 4),
+					camera_device_ids: normalizeAlertRuleCameraDeviceIds(
+						cameraDeviceIdsModel.value,
+					).slice(0, 4),
 				}
 			: null,
 		emailSubscription: email.enabled
@@ -1207,7 +1174,7 @@ const handleSubmit = () => {
 					smtp_user: email.smtp_user.trim(),
 					smtp_password: email.smtp_password || null,
 					smtp_security: email.smtp_security,
-					to_emails: parseEmailsFromText(email.to_emails_text),
+					to_emails: parseAlertRuleEmailsFromText(email.to_emails_text),
 					repeat_min_interval_seconds: Number(email.repeat_min_interval_seconds),
 					repeat_max_send_count: Number(email.repeat_max_send_count),
 				}

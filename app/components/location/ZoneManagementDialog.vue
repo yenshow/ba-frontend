@@ -190,7 +190,7 @@
 						</div>
 					</div>
 
-					<p v-if="errorMessage" class="pr-7 text-base text-rose-300 2xl:pr-8 2xl:text-lg">
+					<p v-if="errorMessage" class="form-error-text-lg pr-7 2xl:pr-8">
 						{{ errorMessage }}
 					</p>
 					<footer
@@ -258,6 +258,7 @@ import LightingLocationManagement from "./LocationManagement/LightingLocationMan
 import HvacLocationManagement from "./LocationManagement/HvacLocationManagement.vue"
 import AirCirculationLocationManagement from "./LocationManagement/AirCirculationLocationManagement.vue"
 import PeopleCountingLocationManagement from "./LocationManagement/PeopleCountingLocationManagement.vue"
+import ElevatorLocationManagement from "./LocationManagement/ElevatorLocationManagement.vue"
 import VehicleAccessLocationManagement from "./LocationManagement/VehicleAccessLocationManagement.vue"
 import DrainageLocationManagement from "./LocationManagement/DrainageLocationManagement.vue"
 import PowerLocationManagement from "./LocationManagement/PowerLocationManagement.vue"
@@ -424,6 +425,7 @@ const locationManagementComponentMap: Partial<Record<SystemType, Component>> = {
 	air_circulation: AirCirculationLocationManagement,
 	environment: EnvironmentLocationManagement,
 	people_counting: PeopleCountingLocationManagement,
+	elevator: ElevatorLocationManagement,
 	vehicle_access: VehicleAccessLocationManagement,
 	drainage: DrainageLocationManagement,
 	power: PowerLocationManagement,
@@ -458,7 +460,8 @@ const loadDevices = async () => {
 			props.systemType === "power" ||
 			props.systemType === "fire" ||
 			props.systemType === "emergency_rescue" ||
-			props.systemType === "smoke_alarm"
+			props.systemType === "smoke_alarm" ||
+			props.systemType === "elevator"
 				? "controller"
 				: "sensor"
 		const result = await deviceApi.getDevices({
@@ -607,6 +610,7 @@ const getLocationLabel = (): string => {
 		smoke_alarm: "點位",
 		environment: "地點",
 		people_counting: "地點",
+		elevator: "地點",
 		vehicle_access: "地點",
 	}
 	return labelMap[props.systemType] || "地點"

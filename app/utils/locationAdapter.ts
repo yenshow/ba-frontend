@@ -33,6 +33,12 @@ import {
 	normalizeVehicleLogDisplayColumns,
 	toStoredVehicleLogDisplayColumns,
 } from "~/utils/vehicleAccessLogColumns";
+import {
+	normalizeElevatorLogDisplayColumns,
+	toStoredElevatorLogDisplayColumns,
+} from "~/utils/elevatorLogColumns";
+import { fillEmptyFloorNames, normalizeElevatorFloorCount, padFloorNames } from "~/utils/elevatorFloorConfig";
+import type { ElevatorZone, ElevatorLocation } from "~/types/elevator";
 
 /**
  * 後端返回的地點格式（新架構：包含 systems 陣列）
@@ -1504,4 +1510,85 @@ export function mergeFullZoneWithSystemUpdate<TZone extends { name?: string; loc
 	}
 
 	return result
+}
+
+/** 電梯系統：統一區域 → ElevatorZone */
+export function unifiedToElevatorZone(zone: UnifiedZone): ElevatorZone {
+	return {
+		id: zone.id,
+		name: zone.name,
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.flatMap((loc) => {
+			const elSystem = loc.systems.find((s) => s.systemType === "elevator")
+			if (!elSystem) return []
+			const cfg = (elSystem.config || {}) as {
+				deviceIds?: number[]
+				logDisplayColumns?: string[]
+				floorCount?: number
+				floorNames?: string[]
+			}
+			return [
+				{
+					id: loc.id,
+					name: loc.name,
+					...pickSortOrder(loc.sortOrder),
+					deviceIds: Array.isArray(cfg.deviceIds) ? cfg.deviceIds : [],
+					floorCount: cfg.floorCount,
+					floorNames: cfg.floorNames,
+					logDisplayColumns: cfg.logDisplayColumns,
+				},
+			]
+		}),
+	}
+}
+
+export function elevatorToUnifiedZone(
+	zone: ElevatorZone,
+	systemType: SystemType = "elevator",
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
+	return {
+		name: zone.name,
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.map((location) => elevatorLocationToUnified(location, systemType)),
+	}
+}
+
+export function elevatorLocationToUnified(
+	loc: ElevatorLocation | Omit<ElevatorLocation, "id">,
+	systemType: SystemType = "elevator",
+): UnifiedLocationInput {
+	const hasId = "id" in loc && loc.id
+	const deviceIds = Array.isArray(loc.deviceIds)
+		? loc.deviceIds.filter((id) => Number.isFinite(id) && id > 0)
+		: []
+	const floorCount = normalizeElevatorFloorCount(loc.floorCount) ?? undefined
+	const resolvedFloorNames =
+		floorCount != null && deviceIds.length > 0
+			? fillEmptyFloorNames(padFloorNames(loc.floorNames, floorCount), floorCount)
+			: undefined
+	return {
+		...(hasId && { id: loc.id! }),
+		name: loc.name,
+		...pickSortOrder(loc.sortOrder),
+		systems: [
+			{
+				systemType,
+				config: {
+					deviceIds,
+					...(resolvedFloorNames
+						? {
+								floorCount,
+								floorNames: resolvedFloorNames,
+							}
+						: {}),
+					logDisplayColumns: (() => {
+						const stored = toStoredElevatorLogDisplayColumns(
+							normalizeElevatorLogDisplayColumns(loc.logDisplayColumns),
+						)
+						return stored.length > 0 ? stored : undefined
+					})(),
+				},
+			},
+		],
+	}
 }

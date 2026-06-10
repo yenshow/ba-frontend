@@ -210,7 +210,7 @@
 								</label>
 							</fieldset>
 
-							<p v-if="errorMessage" class="mt-4 text-sm text-rose-300 2xl:mt-5 2xl:text-base">
+							<p v-if="errorMessage" class="form-error-text mt-4 2xl:mt-5">
 								{{ errorMessage }}
 							</p>
 
@@ -548,7 +548,23 @@ const executeSubmit = async () => {
 	}
 }
 
+const validateUserForm = (): string | null => {
+	const username = formData.username.trim()
+	if (!username) return "請輸入帳號"
+	if (!editingUser.value && (!formData.password || formData.password.length < 6)) {
+		return "密碼至少需要 6 個字元"
+	}
+	return null
+}
+
 const handleSubmit = async () => {
+	errorMessage.value = null
+	const formError = validateUserForm()
+	if (formError) {
+		errorMessage.value = formError
+		return
+	}
+	formData.username = formData.username.trim()
 	await executeSubmit()
 }
 

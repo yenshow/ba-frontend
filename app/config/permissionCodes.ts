@@ -64,6 +64,15 @@ export const PERM = {
 		zoneDelete: "system.area_point_map.zone.delete",
 		locationDelete: "system.area_point_map.location.delete",
 	},
+	elevator: {
+		module: "system.elevator",
+		locationCreate: "system.elevator.location.create",
+		locationUpdate: "system.elevator.location.update",
+		locationDelete: "system.elevator.location.delete",
+		reportFull: "system.elevator.report.full",
+		deviceControl: "system.elevator.device.control",
+		cardManage: "system.elevator.card.manage",
+	},
 	lighting: {
 		module: "system.lighting",
 		locationCreate: "system.lighting.location.create",
@@ -133,4 +142,5 @@ export const LOCATION_DELETE_BY_SYSTEM_TYPE: Record<string, string> = {
 	fire: PERM.fire.locationDelete,
 	emergency_rescue: PERM.emergencyRescue.locationDelete,
 	smoke_alarm: PERM.smokeAlarm.locationDelete,
+	elevator: PERM.elevator.locationDelete,
 }

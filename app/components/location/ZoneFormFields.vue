@@ -3,12 +3,13 @@
 		<div class="flex items-center gap-3">
 		<span class="text-base font-medium text-white/80 2xl:text-lg whitespace-nowrap">區域名稱</span>
 		<input
-			:value="zone.name"
+			v-model="localName"
 			type="text"
 			required
 			class="form-input-small flex-1 min-w-0"
 			placeholder="例如：1F、2F"
-			@input="updateName(($event.target as HTMLInputElement).value)"
+			:readonly="readOnly"
+			@input="handleNameInput"
 		/>
 
 		<!-- 示意圖上傳（可選） -->
@@ -29,20 +30,21 @@
 				>
 					查看示意圖
 				</button>
-				<button
-					type="button"
-					class="btn-secondary text-sm 2xl:text-base whitespace-nowrap"
-					@click.stop="triggerImageInput"
-				>
-					{{ zone.imageUrl ? "更換" : "上傳" }}示意圖
-				</button>
-				<button
-					v-if="zone.imageUrl"
-					type="button"
-					class="p-2 text-rose-400 transition-colors hover:text-rose-300 flex-shrink-0"
-					@click.stop="removeImage"
-					title="移除圖片"
-				>
+				<template v-if="!readOnly">
+					<button
+						type="button"
+						class="btn-secondary text-sm 2xl:text-base whitespace-nowrap"
+						@click.stop="triggerImageInput"
+					>
+						{{ zone.imageUrl ? "更換" : "上傳" }}示意圖
+					</button>
+					<button
+						v-if="zone.imageUrl"
+						type="button"
+						class="p-2 text-rose-400 transition-colors hover:text-rose-300 flex-shrink-0"
+						@click.stop="removeImage"
+						title="移除圖片"
+					>
 					<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path
 							stroke-linecap="round"
@@ -51,11 +53,12 @@
 							d="M6 18L18 6M6 6l12 12"
 						/>
 					</svg>
-				</button>
+					</button>
+				</template>
 			</div>
 		</template>
 		</div>
-		<p v-if="errorMessage" class="mt-2 text-sm text-rose-300 2xl:text-base">{{ errorMessage }}</p>
+		<p v-if="errorMessage" class="form-error-text-inline">{{ errorMessage }}</p>
 	</div>
 </template>
 
@@ -69,6 +72,7 @@ import { useImageCenter } from "~/composables/core/useImageCenter";
 interface Props {
 	zone: UnifiedZone;
 	requireImageUrl?: boolean;
+	readOnly?: boolean;
 }
 
 interface Emits {
@@ -76,7 +80,8 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-	requireImageUrl: false
+	requireImageUrl: false,
+	readOnly: false,
 });
 
 const emit = defineEmits<Emits>();
@@ -85,6 +90,14 @@ const { openPreviewWindow } = useImageCenter();
 
 const { validateZoneName } = useZoneValidation();
 const errorMessage = ref("");
+const localName = ref(props.zone.name ?? "");
+
+watch(
+	() => props.zone.name,
+	(name) => {
+		localName.value = name ?? "";
+	}
+);
 
 const { fileInputRef, triggerImageInput, handleZoneImageChange } = useZoneImageUpload({
 	onImageReady: (imageUrl) => {
@@ -96,15 +109,11 @@ const { fileInputRef, triggerImageInput, handleZoneImageChange } = useZoneImageU
 	}
 });
 
-// 更新區域名稱
-const updateName = (newName: string) => {
-	const error = validateZoneName(newName);
-	if (error) {
-		errorMessage.value = error;
-		return;
-	}
-	errorMessage.value = "";
-	emit("update", { name: newName.trim() });
+// 更新區域名稱（允許編輯中暫時為空，僅顯示提示、不阻擋輸入）
+const handleNameInput = () => {
+	if (props.readOnly) return;
+	errorMessage.value = validateZoneName(localName.value) ?? "";
+	emit("update", { name: localName.value.trim() });
 };
 
 // 移除圖片

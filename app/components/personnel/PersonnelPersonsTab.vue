@@ -290,6 +290,19 @@ const personDialogState: PersonnelPersonDialogState = {
 		cardNo: props.personsTab.cardNo,
 		fingerPrintData: props.personsTab.fingerPrintData
 	},
+	ladderCard: {
+		enabled: props.personsTab.ladderCardEnabled,
+		cardNo: props.personsTab.ladderCardNo,
+		homeFloor: props.personsTab.ladderHomeFloor,
+		floorsText: props.personsTab.ladderFloorsText,
+		cardType: props.personsTab.ladderCardType,
+		floorMode: props.personsTab.ladderFloorMode,
+		cardPassword: props.personsTab.ladderCardPassword,
+		validEnabled: props.personsTab.ladderValidEnabled,
+		validBegin: props.personsTab.ladderValidBegin,
+		validEnd: props.personsTab.ladderValidEnd,
+		syncStatus: props.personsTab.ladderSyncStatus,
+	},
 	capture: {
 		captureDeviceId: props.personsTab.captureDeviceId,
 		isCapturingFace: props.personsTab.isCapturingFace,

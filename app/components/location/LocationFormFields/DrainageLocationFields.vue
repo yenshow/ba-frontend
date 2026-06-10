@@ -71,7 +71,7 @@
 								placeholder="地址"
 								required
 								class="form-input-small w-full transition-all"
-								:class="addressIssueFieldClass(motorAddressIssue)"
+								:class="{ 'form-input-modbus-issue': !!motorAddressIssue }"
 								:title="motorAddressIssue?.msg ?? undefined"
 								@blur="handleChange"
 							/>
@@ -143,7 +143,7 @@
 										placeholder="地址"
 										required
 										class="form-input-small w-full transition-all"
-										:class="addressIssueFieldClass(tankAddressIssues[role.key])"
+										:class="{ 'form-input-modbus-issue': !!tankAddressIssues[role.key] }"
 										:title="tankAddressIssues[role.key]?.msg ?? undefined"
 										@blur="handleChange"
 									/>
@@ -189,10 +189,6 @@ interface ModbusRowState {
 	address: number
 }
 
-interface AddressIssue {
-	msg: string
-}
-
 interface Props {
 	location: DrainageLocation
 	groupViewCategory: string
@@ -215,11 +211,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 const { validateModbusAddress, tuplesFromDrainageLocation, drainageTupleKey } =
 	useDrainageLocationValidation()
-
-const addressIssueFieldClass = (issue: AddressIssue | null): string =>
-	issue
-		? "animate-pulse border-2 border-rose-500 bg-rose-500/20 pr-10 shadow-[0_0_0_3px_rgba(244,63,94,0.2)] focus:border-rose-500 focus:bg-rose-500/25 focus:shadow-[0_0_0_3px_rgba(244,63,94,0.3)]"
-		: ""
 
 const otherModbusKeys = computed(() => {
 	const set = new Set<string>()
@@ -267,7 +258,7 @@ const tankTupleKeyCounts = computed(() => {
 	return m
 })
 
-const motorAddressIssue = computed((): AddressIssue | null => {
+const motorAddressIssue = computed((): { msg: string } | null => {
 	if (!motorRow.value.deviceIdStr) return null
 	const id = Number(motorRow.value.deviceIdStr)
 	const invalid = validateModbusAddress(motorRow.value.address, id)
@@ -280,8 +271,8 @@ const motorAddressIssue = computed((): AddressIssue | null => {
 	return null
 })
 
-const tankAddressIssues = computed((): Record<DrainageTankPointKey, AddressIssue | null> => {
-	const out: Record<DrainageTankPointKey, AddressIssue | null> = {
+const tankAddressIssues = computed((): Record<DrainageTankPointKey, { msg: string } | null> => {
+	const out: Record<DrainageTankPointKey, { msg: string } | null> = {
 		highLevel: null,
 		lowLevel: null,
 		coverAlarm: null,

@@ -37,6 +37,37 @@ export interface PersonLicensePlateFormItem {
 	effectiveEnd: string;
 }
 
+export type PersonLadderCardSyncStatus = "pending" | "synced" | "partial" | "failed";
+
+export interface PersonLadderCard {
+	id?: number;
+	person_id?: number;
+	card_no: string;
+	home_floor?: number;
+	floors?: number[];
+	card_type?: number;
+	floor_mode?: string;
+	card_password?: string | null;
+	valid_enabled?: boolean;
+	valid_begin?: string | null;
+	valid_end?: string | null;
+	sdk_sync_status?: PersonLadderCardSyncStatus;
+	sdk_sync_error?: string | null;
+	sdk_synced_at?: string | null;
+}
+
+export interface PersonLadderCardFormItem {
+	cardNo: string;
+	homeFloor: number;
+	floorsText: string;
+	cardType: number;
+	floorMode: string;
+	cardPassword: string;
+	validEnabled: boolean;
+	validBegin: string;
+	validEnd: string;
+}
+
 export interface VehiclePlateSyncResult {
 	status: "synced" | "partial" | "pending" | "failed" | "skipped" | string;
 	warnings: string[];
@@ -62,6 +93,7 @@ export interface Person {
 	/** 列表 API（getPersonsPaged）附帶 */
 	license_plate_count?: number;
 	license_plates?: PersonLicensePlate[];
+	ladder_card?: PersonLadderCard | null;
 	/** 儲存人員時若觸發 ISAPI 車牌同步，API 可能附帶 */
 	vehicle_plate_sync?: VehiclePlateSyncResult;
 }
@@ -228,6 +260,20 @@ export type PersonnelPersonForm = {
 	licensePlateItems: PersonLicensePlateFormItem[];
 };
 
+export type PersonnelPersonLadderCardState = {
+	enabled: Ref<boolean>;
+	cardNo: Ref<string>;
+	homeFloor: Ref<number>;
+	floorsText: Ref<string>;
+	cardType: Ref<number>;
+	floorMode: Ref<string>;
+	cardPassword: Ref<string>;
+	validEnabled: Ref<boolean>;
+	validBegin: Ref<string>;
+	validEnd: Ref<string>;
+	syncStatus: Ref<string>;
+};
+
 export type PersonnelPersonAccessControlState = {
 	accessControlDevices: Ref<Device[]>;
 	password: Ref<string>;
@@ -264,6 +310,7 @@ export type PersonnelPersonDialogState = {
 	editingPerson: Ref<Person | null>;
 	form: PersonnelPersonForm;
 	accessControl: PersonnelPersonAccessControlState;
+	ladderCard: PersonnelPersonLadderCardState;
 	capture: PersonnelPersonCaptureState;
 	ui: PersonnelPersonDialogUiState;
 };

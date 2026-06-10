@@ -89,7 +89,7 @@
 						/>
 					</label>
 
-					<p v-if="errorMessage" class="text-sm text-rose-300 2xl:text-base">
+					<p v-if="errorMessage" class="form-error-text">
 						{{ errorMessage }}
 					</p>
 

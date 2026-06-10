@@ -54,7 +54,7 @@
 						placeholder="地址"
 						required
 						class="form-input-small w-full transition-all"
-						:class="addressIssueFieldClass(pointAddressIssue)"
+						:class="{ 'form-input-modbus-issue': !!pointAddressIssue }"
 						:title="pointAddressIssue?.msg ?? undefined"
 						@blur="handleChange"
 					/>
@@ -87,10 +87,6 @@ import { useModbusValidation } from "~/composables/location/validation/useModbus
 import type { DiDo } from "~/utils/modbusPoints"
 import { mapDiDoToRegisterType, registerTypeToDiDo } from "~/utils/modbusPoints"
 
-interface AddressIssue {
-	msg: string
-}
-
 interface Props {
 	location: AirCirculationLocation
 	groupViewCategory?: string
@@ -115,11 +111,6 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 const { validateModbusAddress } = useModbusValidation()
-
-const addressIssueFieldClass = (issue: AddressIssue | null): string =>
-	issue
-		? "animate-pulse border-2 border-rose-500 bg-rose-500/20 pr-10 shadow-[0_0_0_3px_rgba(244,63,94,0.2)] focus:border-rose-500 focus:bg-rose-500/25 focus:shadow-[0_0_0_3px_rgba(244,63,94,0.3)]"
-		: ""
 
 const tupleFromLocation = (
 	loc: AirCirculationLocation
@@ -181,7 +172,7 @@ const hasDuplicateAddress = computed(() => {
 	return otherTupleKeys.value.has(k)
 })
 
-const pointAddressIssue = computed((): AddressIssue | null => {
+const pointAddressIssue = computed((): { msg: string } | null => {
 	if (!localLocation.value.deviceId || localLocation.value.deviceId <= 0) return null
 	const id = localLocation.value.deviceId
 	const invalid = validateModbusAddress(runningAddress.value, id)

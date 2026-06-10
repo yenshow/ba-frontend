@@ -152,7 +152,7 @@
 									</section>
 								</div>
 							</AsyncPanel>
-							<p v-if="membersError" class="mt-3 text-sm text-rose-300" role="alert">
+							<p v-if="membersError" class="form-error-text mt-3" role="alert">
 								{{ membersError }}
 							</p>
 							<p v-else-if="membersSuccess" class="mt-3 text-sm text-emerald-200" role="status">
@@ -198,7 +198,7 @@
 									{{ isCurrentlySyncing ? "同步中…" : "同步設備" }}
 								</PermissionActionButton>
 							</div>
-							<p v-if="locationName" class="truncate text-sm text-white/70 2xl:text-base">
+							<p v-if="locationName" class="truncate text-base 2xl:text-lg">
 								{{ locationName }}
 							</p>
 							<div class="flex flex-wrap gap-2 text-xs text-white/75 2xl:text-sm">
@@ -229,78 +229,78 @@
 									<ContentSkeleton :columns="7" :rows="8" />
 								</template>
 								<div class="overflow-x-auto">
-								<table class="w-full min-w-[760px] text-left text-sm text-white/90 2xl:text-base">
-									<thead>
-										<tr class="border-b border-white/15 text-white/70">
-											<th class="py-2 pe-2">ID</th>
-											<th class="py-2 pe-2">姓名</th>
-											<th class="py-2 pe-2">已同步</th>
-											<th class="py-2 pe-2">人員</th>
-											<th class="py-2 pe-2">圖片</th>
-											<th class="py-2 pe-2">卡片</th>
-											<th class="py-2 pe-2">指紋</th>
-										</tr>
-									</thead>
-									<tbody>
-										<tr
-											v-for="row in syncRows"
-											:key="row.employeeNo"
-											class="border-b border-white/10"
-										>
-											<td class="py-2 pe-2 font-mono">{{ row.employeeNo }}</td>
-											<td class="py-2 pe-2">{{ row.fullName || "—" }}</td>
-											<td class="py-2 pe-2">
-												<span
-													class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
-													:class="lastSyncPillClass(getLastSyncLabel(row.employeeNo))"
-												>
-													{{ getLastSyncLabel(row.employeeNo) }}
-												</span>
-											</td>
-											<td class="py-2 pe-2">
-												<span
-													class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
-													:class="syncStepPillClass(row.person.status)"
-												>
-													{{ syncStepShortLabel(row.person) }}
-												</span>
-											</td>
-											<td class="py-2 pe-2">
-												<span
-													class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
-													:class="syncStepPillClass(row.face.status)"
-												>
-													{{ syncStepShortLabel(row.face) }}
-												</span>
-											</td>
-											<td class="py-2 pe-2">
-												<span
-													class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
-													:class="syncStepPillClass(row.card.status)"
-												>
-													{{ syncStepShortLabel(row.card) }}
-												</span>
-											</td>
-											<td class="py-2 pe-2">
-												<span
-													class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
-													:class="syncStepPillClass(row.fingerprint.status)"
-												>
-													{{ syncStepShortLabel(row.fingerprint) }}
-												</span>
-											</td>
-										</tr>
-									</tbody>
-								</table>
-								<Pagination
-									:total="syncPaged.total"
-									:offset="syncPaged.offset"
-									:limit="syncPaged.limit"
-									:disabled="isUiLocked || isSyncCandidatesLoading"
-									:show="syncPaged.total > syncPaged.limit"
-									@previous="handlePrevSyncPage"
-									@next="handleNextSyncPage"
-								/>
+									<table class="w-full min-w-[760px] text-left text-sm text-white/90 2xl:text-base">
+										<thead>
+											<tr class="border-b border-white/15 text-white/70">
+												<th class="py-2 pe-2">ID</th>
+												<th class="py-2 pe-2">姓名</th>
+												<th class="py-2 pe-2">已同步</th>
+												<th class="py-2 pe-2">人員</th>
+												<th class="py-2 pe-2">圖片</th>
+												<th class="py-2 pe-2">卡片</th>
+												<th class="py-2 pe-2">指紋</th>
+											</tr>
+										</thead>
+										<tbody>
+											<tr
+												v-for="row in syncRows"
+												:key="row.employeeNo"
+												class="border-b border-white/10"
+											>
+												<td class="py-2 pe-2 font-mono">{{ row.employeeNo }}</td>
+												<td class="py-2 pe-2">{{ row.fullName || "—" }}</td>
+												<td class="py-2 pe-2">
+													<span
+														class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
+														:class="lastSyncPillClass(getLastSyncLabel(row.employeeNo))"
+													>
+														{{ getLastSyncLabel(row.employeeNo) }}
+													</span>
+												</td>
+												<td class="py-2 pe-2">
+													<span
+														class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
+														:class="syncStepPillClass(row.person.status)"
+													>
+														{{ syncStepShortLabel(row.person) }}
+													</span>
+												</td>
+												<td class="py-2 pe-2">
+													<span
+														class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
+														:class="syncStepPillClass(row.face.status)"
+													>
+														{{ syncStepShortLabel(row.face) }}
+													</span>
+												</td>
+												<td class="py-2 pe-2">
+													<span
+														class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
+														:class="syncStepPillClass(row.card.status)"
+													>
+														{{ syncStepShortLabel(row.card) }}
+													</span>
+												</td>
+												<td class="py-2 pe-2">
+													<span
+														class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
+														:class="syncStepPillClass(row.fingerprint.status)"
+													>
+														{{ syncStepShortLabel(row.fingerprint) }}
+													</span>
+												</td>
+											</tr>
+										</tbody>
+									</table>
+									<Pagination
+										:total="syncPaged.total"
+										:offset="syncPaged.offset"
+										:limit="syncPaged.limit"
+										:disabled="isUiLocked || isSyncCandidatesLoading"
+										:show="syncPaged.total > syncPaged.limit"
+										@previous="handlePrevSyncPage"
+										@next="handleNextSyncPage"
+									/>
 								</div>
 							</AsyncPanel>
 						</div>

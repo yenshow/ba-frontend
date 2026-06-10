@@ -488,7 +488,6 @@ const handleClickOutside = (event: MouseEvent) => {
 // 監聽點擊事件
 onMounted(() => {
 	document.addEventListener("click", handleClickOutside)
-	void systemModulesApi.ensureLoaded()
 })
 
 onUnmounted(() => {

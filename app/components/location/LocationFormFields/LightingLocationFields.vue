@@ -63,11 +63,7 @@
 						placeholder="地址"
 						required
 						class="form-input-small w-full transition-all"
-						:class="
-							hasDuplicateAddress
-								? 'animate-pulse border-2 border-rose-500 bg-rose-500/20 pr-10 shadow-[0_0_0_3px_rgba(244,63,94,0.2)] focus:border-rose-500 focus:bg-rose-500/25 focus:shadow-[0_0_0_3px_rgba(244,63,94,0.3)]'
-								: ''
-						"
+						:class="{ 'form-input-modbus-issue': hasDuplicateAddress }"
 						title="此地址已被使用"
 						@blur="handleChange"
 					/>

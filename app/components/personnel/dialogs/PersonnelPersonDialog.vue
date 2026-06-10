@@ -108,7 +108,7 @@
 
 								<p
 									v-if="captureErrorText"
-									class="mt-2 text-xs text-rose-300 2xl:text-sm"
+									class="form-error-text-inline"
 									role="alert"
 									aria-live="polite"
 								>
@@ -239,7 +239,7 @@
 
 								<p
 									v-if="cardErrorText"
-									class="mt-2 text-xs text-rose-300 2xl:text-sm"
+									class="form-error-text-inline"
 									role="alert"
 									aria-live="polite"
 								>
@@ -282,11 +282,97 @@
 
 								<p
 									v-if="fingerPrintErrorText"
-									class="mt-2 text-xs text-rose-300 2xl:text-sm"
+									class="form-error-text-inline"
 									role="alert"
 									aria-live="polite"
 								>
 									{{ fingerPrintErrorText }}
+								</p>
+							</div>
+						</div>
+
+						<div class="col-span-2 flex flex-col gap-3 text-sm text-white/80 2xl:text-base">
+							<div class="flex items-center justify-between gap-2">
+								<p>梯控卡設定</p>
+								<label class="relative inline-flex cursor-pointer items-center">
+									<input
+										v-model="localLadderCardEnabled"
+										type="checkbox"
+										class="peer sr-only"
+										aria-label="啟用梯控卡"
+									/>
+									<div
+										class="peer h-6 w-11 rounded-full bg-white/20 after:absolute after:left-[4px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-cyan-500 peer-checked:after:translate-x-full"
+									></div>
+									<span class="ml-3 text-sm">啟用</span>
+								</label>
+							</div>
+							<div
+								v-if="localLadderCardEnabled"
+								class="grid grid-cols-1 gap-3 rounded-xl border border-white/10 bg-white/5 p-3 lg:grid-cols-2"
+							>
+								<label class="flex flex-col gap-2">
+									<span>卡號 *</span>
+									<input v-model="localLadderCardNo" type="text" class="form-input-small" />
+								</label>
+								<label class="flex flex-col gap-2">
+									<span>歸屬樓層</span>
+									<input
+										v-model.number="localLadderHomeFloor"
+										type="number"
+										min="1"
+										class="form-input-small"
+									/>
+								</label>
+								<label class="col-span-2 flex flex-col gap-2">
+									<span>授權樓層 *（逗號分隔）</span>
+									<input
+										v-model="localLadderFloorsText"
+										type="text"
+										class="form-input-small"
+										placeholder="例如 1,2,3"
+									/>
+								</label>
+								<label class="flex flex-col gap-2">
+									<span>卡類型</span>
+									<input
+										v-model.number="localLadderCardType"
+										type="number"
+										min="1"
+										class="form-input-small"
+									/>
+								</label>
+								<label class="flex flex-col gap-2">
+									<span>樓層模式</span>
+									<input v-model="localLadderFloorMode" type="text" class="form-input-small" />
+								</label>
+								<label class="flex flex-col gap-2">
+									<span>卡密碼</span>
+									<input v-model="localLadderCardPassword" type="text" class="form-input-small" />
+								</label>
+								<label class="flex flex-col gap-2">
+									<span>有效起始</span>
+									<input
+										v-model="localLadderValidBegin"
+										type="datetime-local"
+										step="60"
+										class="form-input-small"
+									/>
+								</label>
+								<label class="flex flex-col gap-2">
+									<span>有效結束</span>
+									<input
+										v-model="localLadderValidEnd"
+										type="datetime-local"
+										step="60"
+										class="form-input-small"
+									/>
+								</label>
+								<p
+									v-if="localLadderSyncStatus && state.editingPerson"
+									class="col-span-2 text-xs text-white/60"
+								>
+									同步狀態：{{ localLadderSyncStatus }}
 								</p>
 							</div>
 						</div>
@@ -392,7 +478,7 @@
 							</label>
 						</div>
 
-						<p v-if="state.ui.errorMessage" class="col-span-2 text-sm text-rose-300">
+						<p v-if="state.ui.errorMessage" class="form-error-text col-span-2">
 							{{ state.ui.errorMessage }}
 						</p>
 
@@ -514,6 +600,44 @@ const localCardNo = computed<string>({
 	get: () => props.state.accessControl.cardNo.value || "",
 	set: v => (props.state.accessControl.cardNo.value = v)
 });
+
+const localLadderCardEnabled = computed({
+	get: () => props.state.ladderCard.enabled.value,
+	set: v => (props.state.ladderCard.enabled.value = v),
+});
+const localLadderCardNo = computed({
+	get: () => props.state.ladderCard.cardNo.value,
+	set: v => (props.state.ladderCard.cardNo.value = v),
+});
+const localLadderHomeFloor = computed({
+	get: () => props.state.ladderCard.homeFloor.value,
+	set: v => (props.state.ladderCard.homeFloor.value = Number(v) || 1),
+});
+const localLadderFloorsText = computed({
+	get: () => props.state.ladderCard.floorsText.value,
+	set: v => (props.state.ladderCard.floorsText.value = v),
+});
+const localLadderCardType = computed({
+	get: () => props.state.ladderCard.cardType.value,
+	set: v => (props.state.ladderCard.cardType.value = Number(v) || 1),
+});
+const localLadderFloorMode = computed({
+	get: () => props.state.ladderCard.floorMode.value,
+	set: v => (props.state.ladderCard.floorMode.value = v),
+});
+const localLadderCardPassword = computed({
+	get: () => props.state.ladderCard.cardPassword.value,
+	set: v => (props.state.ladderCard.cardPassword.value = v),
+});
+const localLadderValidBegin = computed({
+	get: () => props.state.ladderCard.validBegin.value,
+	set: v => (props.state.ladderCard.validBegin.value = v),
+});
+const localLadderValidEnd = computed({
+	get: () => props.state.ladderCard.validEnd.value,
+	set: v => (props.state.ladderCard.validEnd.value = v),
+});
+const localLadderSyncStatus = computed(() => props.state.ladderCard.syncStatus.value || "");
 
 const localFingerDeviceIdString = computed<string>({
 	get: () =>

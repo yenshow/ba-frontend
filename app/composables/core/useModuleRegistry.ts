@@ -126,8 +126,10 @@ export const useModuleRegistry = () => {
 		return modules.value.filter((m) => m.category === category)
 	}
 
-	const getUiModuleByRoute = (routePath: string) =>
-		modules.value.find((m) => m.route === routePath) ?? undefined
+	const getUiModuleByRoute = (routePath: string): SystemModule | undefined => {
+		const m = getModuleByRoute(routePath)
+		return m ? toSystemModule(m) : undefined
+	}
 
 	const categoryOrder = MODULE_CATEGORY_ORDER
 

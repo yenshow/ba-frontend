@@ -48,7 +48,7 @@
 					<div class="show-scrollbar flex-1 overflow-y-auto pr-7 2xl:pr-8">
 						<div v-if="isLoading" class="py-10 text-center text-white/60">載入中…</div>
 
-						<p v-else-if="errorMessage" class="text-sm text-rose-300" role="alert">
+						<p v-else-if="errorMessage" class="form-error-text" role="alert">
 							{{ errorMessage }}
 						</p>
 
@@ -102,7 +102,7 @@
 										<div v-if="isLoadingCandidates" class="py-6 text-center text-sm text-white/60">
 											載入人員中…
 										</div>
-										<p v-else-if="candidatesErrorText" class="text-sm text-rose-300" role="alert">
+										<p v-else-if="candidatesErrorText" class="form-error-text" role="alert">
 											{{ candidatesErrorText }}
 										</p>
 										<div

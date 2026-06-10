@@ -5,6 +5,7 @@
 
 import type { SystemType } from "~/types/location"
 import type { LightingZone, LightingLocation } from "~/types/lighting"
+import type { ElevatorZone, ElevatorLocation } from "~/types/elevator"
 import type { HvacZone, HvacLocation } from "~/types/hvac"
 import type { AirCirculationZone, AirCirculationLocation } from "~/types/air-circulation"
 import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment"
@@ -473,6 +474,38 @@ export function useVehicleAccessZoneAdapter(): ZoneSystemAdapter<
 	}
 }
 
+export function useElevatorZoneAdapter(): ZoneSystemAdapter<ElevatorZone, ElevatorLocation> {
+	const systemConfig: SystemConfig = {
+		requireImageUrl: false,
+	}
+
+	return {
+		getLocationsProperty: (zone: ElevatorZone) => zone.locations || [],
+		setLocationsProperty: (zone: ElevatorZone, locations: ElevatorLocation[]) => ({
+			...zone,
+			locations,
+		}),
+		createNewLocation: (): ElevatorLocation => ({
+			name: "",
+			deviceIds: [],
+			floorCount: undefined,
+			floorNames: [],
+		}),
+		createNewZone: (name: string): ElevatorZone => ({
+			name,
+			locations: [],
+		}),
+		filterEmptyLocations: (zone: ElevatorZone): ElevatorZone => ({
+			...zone,
+			locations: (zone.locations || []).filter((loc) => loc.name && loc.name.trim().length > 0),
+		}),
+		systemConfig,
+		getLocationId: ({ zone, location, locationIndex }): string => {
+			return getLocationUiKey({ zone, location, locationIndex })
+		},
+	}
+}
+
 /**
  * 根據系統類型取得適配器
  */
@@ -503,6 +536,8 @@ export function useZoneSystemAdapter<
 			return useEmergencyRescueZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		case "smoke_alarm":
 			return useSmokeAlarmZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
+		case "elevator":
+			return useElevatorZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		default:
 			throw new Error(`不支援的系統類型: ${systemType}`)
 	}

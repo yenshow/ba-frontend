@@ -1,6 +1,7 @@
 /** 授權控管：與後端 `LICENSE_DEPLOYMENT_PROFILE=central` 時之 FEATURE_KEYS_CENTRAL 對齊 */
 export type FeatureKey =
 	| "people_counting"
+	| "elevator"
 	| "lighting"
 	| "hvac"
 	| "air_circulation"
@@ -16,6 +17,7 @@ export type FeatureKey =
 
 export const LICENSE_FEATURE_KEYS: readonly FeatureKey[] = [
 	"people_counting",
+	"elevator",
 	"lighting",
 	"hvac",
 	"air_circulation",

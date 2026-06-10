@@ -385,6 +385,7 @@ definePageMeta({
 
 const featureLabels: Record<string, string> = {
 	people_counting: "人流統計",
+	elevator: "電梯",
 	lighting: "照明",
 	hvac: "空調",
 	air_circulation: "空氣循環",
