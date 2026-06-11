@@ -84,32 +84,32 @@
 					<MonitoringDetailShell
 						:empty="detailEmpty"
 						:enlarged="isOverviewCollapsed"
-						content-class="flex min-h-0 flex-1 flex-col"
+						:content-class="peopleDetailContentClass"
+						empty-title="尚無人流統計地點"
+						empty-description="請在「地點管理」中新增含人流統計系統的地點"
 					>
-						<div
-							v-if="selectedLocation"
-							class="flex min-h-0 flex-1"
-							:class="{ 'monitoring-detail-enlarged': isOverviewCollapsed }"
-						>
-							<div class="min-w-0 flex-1">
-								<LocationStatsPanel
-									:entry-count="selectedLocation?.entryCount || 0"
-									:exit-count="selectedLocation?.exitCount || 0"
-									:current-count="currentCount"
-									:logs="logs"
-									:data-source="selectedLocation?.dataSource"
-									:display-columns="selectedLocation?.logDisplayColumns"
-								/>
-							</div>
-							<div class="ms-4 min-w-0 flex-1 border-l-2 border-white/30 ps-4">
-								<LocationDetailPanel
-									:location="selectedLocation"
-									:personnel="personnel"
+						<template v-if="selectedLocation">
+							<LocationStatsPanel
+								:entry-count="selectedLocation?.entryCount || 0"
+								:exit-count="selectedLocation?.exitCount || 0"
+								:current-count="currentCount"
+							/>
+							<div class="grid min-w-0 grid-cols-2 items-stretch gap-4">
+								<div class="flex min-w-0 flex-col">
+									<EntryExitLogTable
+										:logs="logs"
+										:data-source="selectedLocation?.dataSource"
+										:display-columns="selectedLocation?.logDisplayColumns"
+									/>
+								</div>
+								<PeopleUnitGroupPanel
+									:units="selectedLocation?.units ?? []"
 									:selected-unit-id="selectedUnitId"
-									@unit-select="handleUnitSelect"
+									:is-isapi-camera="isIsapiCamera"
+									@select="handleUnitGroupSelect"
 								/>
 							</div>
-						</div>
+						</template>
 					</MonitoringDetailShell>
 				</div>
 			</section>
@@ -192,6 +192,13 @@
 		@saved="handleZonesSaved"
 		@delete="handleDeleteZone"
 	/>
+	<UnitPersonnelDialog
+		v-model="isUnitDialogOpen"
+		:unit-name="selectedUnitName"
+		:personnel="personnel"
+		@close="handleUnitDialogClose"
+	/>
+
 	<PeopleCountingAccessManageDialog
 		v-model="showAccessManageDialog"
 		:location-id="selectedLocationNumericId"
@@ -224,7 +231,9 @@ import type {
 } from "~/types/peopleCounting";
 import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue";
 import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue";
-// import LocationDetailPanel from "~/components/people-counting/LocationDetailPanel.vue"
+import EntryExitLogTable from "~/components/people-counting/EntryExitLogTable.vue";
+import PeopleUnitGroupPanel from "~/components/people-counting/PeopleUnitGroupPanel.vue";
+import UnitPersonnelDialog from "~/components/people-counting/UnitPersonnelDialog.vue";
 import LocationOverviewCard from "~/components/people-counting/LocationOverviewCard.vue";
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
 import SimulationFrame from "~/components/common/SimulationFrame.vue";
@@ -303,6 +312,31 @@ const detailEmpty = computed(
 	() => locations.value.length === 0 && !isLoadingLocations.value && !isLoadingZones.value
 );
 
+const isOverviewCollapsed = ref(false);
+const isUnitDialogOpen = ref(false);
+
+const peopleDetailContentClass = computed(() =>
+	["flex flex-col gap-12", isOverviewCollapsed.value && "monitoring-detail-enlarged"]
+		.filter(Boolean)
+		.join(" ")
+);
+
+const selectedUnitName = computed(() => {
+	if (selectedUnitId.value == null || !selectedLocation.value) return "";
+	const unit = (selectedLocation.value.units ?? []).find(u => u.id === selectedUnitId.value);
+	return unit?.name ?? "";
+});
+
+const handleUnitGroupSelect = async (unitId: number) => {
+	if (isIsapiCamera.value) return;
+	await handleUnitSelect(unitId);
+	isUnitDialogOpen.value = true;
+};
+
+const handleUnitDialogClose = async () => {
+	await handleUnitSelect(null);
+};
+
 const peopleCountingApi = usePeopleCountingApi();
 const { request } = useApiBase();
 const fetchTodaySimulationRange = async () => {
@@ -359,7 +393,6 @@ const currentCount = computed(() => {
 	return selectedLocation.value.units.reduce((sum, unit) => sum + (unit.currentCount || 0), 0);
 });
 
-const isOverviewCollapsed = ref(false);
 const overviewListRef = ref<HTMLElement | null>(null);
 // 地點管理與模擬框狀態
 const showLocationManagementDialog = ref(false);

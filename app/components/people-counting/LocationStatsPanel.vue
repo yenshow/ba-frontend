@@ -5,7 +5,7 @@
 				進場人數
 			</div>
 			<div
-				class="flex min-w-[120px] items-center justify-center bg-black/20 text-[48px] leading-none 2xl:min-w-[200px] 2xl:text-[96px]"
+				class="vehicle-stats-value flex min-w-[120px] items-center justify-center bg-black/20 text-[48px] leading-none 2xl:min-w-[200px] 2xl:text-[96px]"
 			>
 				{{ entryCount ?? 0 }}
 			</div>
@@ -16,7 +16,7 @@
 				出場人數
 			</div>
 			<div
-				class="flex min-w-[120px] items-center justify-center bg-black/20 text-[48px] leading-none 2xl:min-w-[200px] 2xl:text-[96px]"
+				class="vehicle-stats-value flex min-w-[120px] items-center justify-center bg-black/20 text-[48px] leading-none 2xl:min-w-[200px] 2xl:text-[96px]"
 			>
 				{{ exitCount ?? 0 }}
 			</div>
@@ -27,7 +27,7 @@
 				在場人數
 			</div>
 			<div
-				class="flex min-w-[120px] items-center justify-center bg-black/20 text-[48px] leading-none 2xl:min-w-[200px] 2xl:text-[96px]"
+				class="vehicle-stats-value flex min-w-[120px] items-center justify-center bg-black/20 text-[48px] leading-none 2xl:min-w-[200px] 2xl:text-[96px]"
 			>
 				{{ currentCount ?? 0 }}
 			</div>

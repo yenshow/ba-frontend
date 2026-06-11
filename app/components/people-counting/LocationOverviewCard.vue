@@ -1,7 +1,12 @@
 <template>
 	<div
-		class="flex cursor-pointer gap-2 rounded-xl bg-white/10 py-1 transition-all"
-		@click="$emit('click', location.locationId || Number(location.id || 0))"
+		class="flex cursor-pointer gap-2 rounded-xl bg-white/10 py-1 transition-all hover:bg-white/15"
+		tabindex="0"
+		role="button"
+		:aria-label="`查看 ${location.name} 人流統計`"
+		@click="handleClick"
+		@keydown.enter="handleClick"
+		@keydown.space.prevent="handleClick"
 	>
 		<!-- 左側：區域（斜切標籤） -->
 		<div
@@ -81,9 +86,13 @@ interface Props {
 const props = defineProps<Props>();
 const { location } = toRefs(props);
 
-defineEmits<{
+const emit = defineEmits<{
 	click: [locationId: number];
 }>();
+
+const handleClick = () => {
+	emit("click", location.value.locationId || Number(location.value.id || 0));
+};
 
 const regionText = computed(() => location.value.overviewZoneName || "未分類");
 
