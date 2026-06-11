@@ -5,6 +5,10 @@ import type {
 	SyncWarning,
 	VehiclePlateSyncResult,
 } from "~/types/personnel"
+import type { PersonCardFormItem } from "~/utils/cardFormUtils"
+import { resolveAccessControlCardsFromPerson } from "~/utils/cardFormUtils"
+import type { PersonFingerprintFormItem } from "~/utils/fingerprintFormUtils"
+import { resolveAccessControlFingerprintsFromPerson } from "~/utils/fingerprintFormUtils"
 import { isApiRequestTimeout } from "~/utils/errorUtils"
 
 /** 人員儲存 API 逾時：主檔可能已寫入，設備同步結果未知（對話框保留不關閉） */
@@ -63,7 +67,10 @@ export const getPersonStatusPillClass = (status: unknown) => {
 }
 
 export type AccessControlConfigSummary = {
+	/** 第一張卡號（相容舊 UI） */
 	cardNo: string
+	cards: PersonCardFormItem[]
+	fingerPrintItems: PersonFingerprintFormItem[]
 	fingerPrintData: string
 	isLongTerm: boolean
 	validBeginDate: string
@@ -84,6 +91,8 @@ export const getAccessControlConfigSummary = (
 	if (!ac)
 		return {
 			cardNo: "",
+			cards: [],
+			fingerPrintItems: [],
 			fingerPrintData: "",
 			isLongTerm: true,
 			validBeginDate: "",
@@ -91,15 +100,10 @@ export const getAccessControlConfigSummary = (
 			password: "",
 		}
 
-	const cardNo = typeof ac.cardNo === "string" ? ac.cardNo.trim() : ""
-	const fps = Array.isArray(ac.fingerprints) ? ac.fingerprints : []
-	const fingerPrintData =
-		fps
-			.map((x) => {
-				const r = asRecord(x)
-				return typeof r?.fingerData === "string" ? String(r.fingerData).trim() : ""
-			})
-			.find((x) => x) || ""
+	const cards = resolveAccessControlCardsFromPerson(person)
+	const cardNo = cards[0]?.cardNo ?? ""
+	const fingerPrintItems = resolveAccessControlFingerprintsFromPerson(person)
+	const fingerPrintData = fingerPrintItems[0]?.fingerData ?? ""
 
 	const validity = asRecord(ac.validity)
 	const isLongTerm = validity?.longTerm === false ? false : true
@@ -129,6 +133,8 @@ export const getAccessControlConfigSummary = (
 
 	return {
 		cardNo,
+		cards,
+		fingerPrintItems,
 		fingerPrintData,
 		isLongTerm,
 		validBeginDate: isLongTerm ? "" : toDateTimeLocal(beginTime, "begin"),

@@ -1,5 +1,26 @@
 import type { Device } from "~/types/device";
-import type { ImportResult, Person, PersonLicensePlateFormItem } from "~/types/personnel";
+import type {
+	ImportResult,
+	Person,
+	PersonCardFormItem,
+	PersonFingerprintFormItem,
+	PersonLicensePlateFormItem
+} from "~/types/personnel";
+import {
+	MAX_PERSON_CARDS,
+	cardItemsToPayload,
+	cardsJsonForSnapshot,
+	createEmptyCardFormItem,
+	mapAccessControlCardsToForm,
+	validateCardFormItems
+} from "~/utils/cardFormUtils";
+import {
+	createEmptyFingerprintFormItem,
+	fingerprintItemsToPayload,
+	fingerprintsJsonForSnapshot,
+	mapAccessControlFingerprintsToForm,
+	validateFingerprintFormItems
+} from "~/utils/fingerprintFormUtils";
 import {
 	createEmptyLicensePlateFormItem,
 	licensePlateItemsToPayload,
@@ -64,8 +85,8 @@ type PersonDialogSnapshot = {
 	isLongTerm: boolean;
 	validBeginDate: string;
 	validEndDate: string;
-	cardNo: string;
-	fingerPrintData: string;
+	cardItemsJson: string;
+	fingerPrintItemsJson: string;
 	hasPendingFace: boolean;
 };
 
@@ -151,8 +172,8 @@ export const usePersonnelPersonsTab = (params: {
 		const ac = getAccessControlConfigSummary(p);
 		const hasFace = Boolean(getFaceImageSrc(p.face_url));
 		const hasPassword = Boolean(ac.password?.trim());
-		const hasCard = Boolean(ac.cardNo?.trim());
-		const hasFingerprint = Boolean(ac.fingerPrintData?.trim());
+		const hasCard = Boolean(ac.cards?.length || ac.cardNo?.trim());
+		const hasFingerprint = Boolean(ac.fingerPrintItems?.length || ac.fingerPrintData?.trim());
 		const plateCount =
 			p.license_plate_count ?? p.license_plates?.filter(pl => pl.plate_number?.trim()).length ?? 0;
 		const hasLicensePlate = plateCount > 0;
@@ -167,10 +188,13 @@ export const usePersonnelPersonsTab = (params: {
 	const cardDeviceId = ref<number | null>(null);
 	const isCapturingCard = ref(false);
 	const cardErrorMessage = ref<string | null>(null);
-	const cardNo = ref<string>("");
+	const cardItems = ref<PersonCardFormItem[]>([createEmptyCardFormItem()]);
+	const isGeneratingVirtualCard = ref(false);
 
 	const fingerDeviceId = ref<number | null>(null);
-	const fingerPrintData = ref<string>("");
+	const fingerPrintItems = ref<PersonFingerprintFormItem[]>([
+		createEmptyFingerprintFormItem()
+	]);
 	const isCapturingFingerPrint = ref(false);
 	const fingerPrintErrorMessage = ref<string | null>(null);
 
@@ -195,8 +219,8 @@ export const usePersonnelPersonsTab = (params: {
 		isLongTerm: isLongTerm.value,
 		validBeginDate: validBeginDate.value,
 		validEndDate: validEndDate.value,
-		cardNo: cardNo.value.trim(),
-		fingerPrintData: fingerPrintData.value.trim(),
+		cardItemsJson: cardsJsonForSnapshot(cardItems.value),
+		fingerPrintItemsJson: fingerprintsJsonForSnapshot(fingerPrintItems.value),
 		hasPendingFace: pendingFaceFile.value != null || facePreviewObjectUrl.value != null
 	});
 
@@ -224,8 +248,8 @@ export const usePersonnelPersonsTab = (params: {
 		) {
 			fields.push("有效期限");
 		}
-		if (cur.cardNo !== snap.cardNo) fields.push("卡號");
-		if (cur.fingerPrintData !== snap.fingerPrintData) fields.push("指紋");
+		if (cur.cardItemsJson !== snap.cardItemsJson) fields.push("卡號");
+		if (cur.fingerPrintItemsJson !== snap.fingerPrintItemsJson) fields.push("指紋");
 		if (cur.licensePlateItemsJson !== snap.licensePlateItemsJson) fields.push("車牌設定");
 		return fields;
 	});
@@ -316,9 +340,10 @@ export const usePersonnelPersonsTab = (params: {
 		captureErrorMessage.value = null;
 		cardDeviceId.value = null;
 		cardErrorMessage.value = null;
-		cardNo.value = "";
+		cardItems.value = [createEmptyCardFormItem()];
+		isGeneratingVirtualCard.value = false;
 		fingerDeviceId.value = null;
-		fingerPrintData.value = "";
+		fingerPrintItems.value = [createEmptyFingerprintFormItem()];
 		fingerPrintErrorMessage.value = null;
 		isLongTerm.value = true;
 		validBeginDate.value = "";
@@ -356,8 +381,8 @@ export const usePersonnelPersonsTab = (params: {
 		personForm.licensePlateItems = plates.length > 0 ? plates : [createEmptyLicensePlateFormItem()];
 		resetPersonDialogState();
 		const ac = getAccessControlConfigSummary(p);
-		cardNo.value = ac.cardNo;
-		fingerPrintData.value = ac.fingerPrintData;
+		cardItems.value = mapAccessControlCardsToForm(p);
+		fingerPrintItems.value = mapAccessControlFingerprintsToForm(p);
 		isLongTerm.value = ac.isLongTerm;
 		validBeginDate.value = ac.validBeginDate;
 		validEndDate.value = ac.validEndDate;
@@ -427,7 +452,23 @@ export const usePersonnelPersonsTab = (params: {
 		return null;
 	};
 
-	const handleCaptureCard = async () => {
+	const resolveTargetTabIndex = (
+		itemsLength: number,
+		preferredIndex: number | undefined,
+		max: number
+	): number | null => {
+		if (itemsLength >= max) return null;
+		if (
+			preferredIndex != null &&
+			preferredIndex >= 0 &&
+			preferredIndex < itemsLength
+		) {
+			return preferredIndex;
+		}
+		return itemsLength > 0 ? itemsLength - 1 : 0;
+	};
+
+	const handleCaptureCard = async (preferredTabIndex?: number) => {
 		cardErrorMessage.value = null;
 		const deviceId = cardDeviceId.value;
 		if (!deviceId) {
@@ -443,7 +484,20 @@ export const usePersonnelPersonsTab = (params: {
 				cardErrorMessage.value = "讀卡失敗：找不到卡號";
 				return;
 			}
-			cardNo.value = extracted;
+			let targetIdx = resolveTargetTabIndex(
+				cardItems.value.length,
+				preferredTabIndex,
+				MAX_PERSON_CARDS
+			);
+			if (targetIdx == null) {
+				cardErrorMessage.value = `卡號最多 ${MAX_PERSON_CARDS} 張`;
+				return;
+			}
+			if (targetIdx >= cardItems.value.length) {
+				cardItems.value.push(createEmptyCardFormItem());
+				targetIdx = cardItems.value.length - 1;
+			}
+			cardItems.value[targetIdx] = { cardNo: extracted, source: "captured" };
 		} catch (err) {
 			cardErrorMessage.value = handleApiError(err, "讀卡失敗") || "讀卡失敗";
 		} finally {
@@ -451,7 +505,39 @@ export const usePersonnelPersonsTab = (params: {
 		}
 	};
 
-	const handleCaptureFingerPrint = async () => {
+	const handleGenerateVirtualCard = async (preferredTabIndex?: number) => {
+		cardErrorMessage.value = null;
+		isGeneratingVirtualCard.value = true;
+		try {
+			const res = await personnelApi.generateVirtualCard();
+			const cardNo = String(res?.cardNo || "").trim();
+			if (!cardNo) {
+				cardErrorMessage.value = "虛擬卡號產生失敗";
+				return;
+			}
+			let targetIdx = resolveTargetTabIndex(
+				cardItems.value.length,
+				preferredTabIndex,
+				MAX_PERSON_CARDS
+			);
+			if (targetIdx == null) {
+				cardErrorMessage.value = `卡號最多 ${MAX_PERSON_CARDS} 張`;
+				return;
+			}
+			if (targetIdx >= cardItems.value.length) {
+				cardItems.value.push(createEmptyCardFormItem());
+				targetIdx = cardItems.value.length - 1;
+			}
+			cardItems.value[targetIdx] = { cardNo, source: "virtual" };
+		} catch (err) {
+			cardErrorMessage.value =
+				handleApiError(err, "虛擬卡號產生失敗") || "虛擬卡號產生失敗";
+		} finally {
+			isGeneratingVirtualCard.value = false;
+		}
+	};
+
+	const handleCaptureFingerPrint = async (preferredTabIndex?: number) => {
 		fingerPrintErrorMessage.value = null;
 		const deviceId = fingerDeviceId.value;
 		if (!deviceId) {
@@ -461,13 +547,30 @@ export const usePersonnelPersonsTab = (params: {
 
 		isCapturingFingerPrint.value = true;
 		try {
-			const res = await accessControlApi.captureFingerPrint(deviceId, { fingerNo: 1 });
+			const fingerNo =
+				(preferredTabIndex != null && preferredTabIndex >= 0
+					? preferredTabIndex
+					: fingerPrintItems.value.length - 1) + 1;
+			const res = await accessControlApi.captureFingerPrint(deviceId, { fingerNo });
 			const next = String(res?.base64 || "").trim();
 			if (!next) {
 				fingerPrintErrorMessage.value = "讀取指紋失敗：找不到指紋資料";
 				return;
 			}
-			fingerPrintData.value = next;
+			let targetIdx = resolveTargetTabIndex(
+				fingerPrintItems.value.length,
+				preferredTabIndex,
+				5
+			);
+			if (targetIdx == null) {
+				fingerPrintErrorMessage.value = "指紋最多 5 筆";
+				return;
+			}
+			if (targetIdx >= fingerPrintItems.value.length) {
+				fingerPrintItems.value.push(createEmptyFingerprintFormItem());
+				targetIdx = fingerPrintItems.value.length - 1;
+			}
+			fingerPrintItems.value[targetIdx] = { fingerData: next, source: "captured" };
 		} catch (err) {
 			fingerPrintErrorMessage.value = handleApiError(err, "讀取指紋失敗") || "讀取指紋失敗";
 		} finally {
@@ -510,8 +613,8 @@ export const usePersonnelPersonsTab = (params: {
 
 		const res = await personnelApi.setPersonAccessControlConfig(personId, {
 			validity,
-			cardNo: cardNo.value.trim() ? cardNo.value.trim() : null,
-			fingerData: fingerPrintData.value.trim() ? fingerPrintData.value.trim() : null,
+			cards: cardItemsToPayload(cardItems.value),
+			fingerprints: fingerprintItemsToPayload(fingerPrintItems.value),
 			password: personPassword.value.trim() ? personPassword.value.trim() : null
 		});
 		if (res?.person) updatePersonInList(res.person);
@@ -524,6 +627,8 @@ export const usePersonnelPersonsTab = (params: {
 		employeeNo: string;
 		mode: SavePersonTransactionMode;
 		licensePlateItems: PersonLicensePlateFormItem[];
+		cardItems: PersonCardFormItem[];
+		fingerPrintItems: PersonFingerprintFormItem[];
 		personGroupId: string;
 	}): string | null => {
 		if (!input.fullName.trim()) return "姓名為必填";
@@ -531,6 +636,12 @@ export const usePersonnelPersonsTab = (params: {
 
 		const licensePlateError = validateLicensePlateFormItems(input.licensePlateItems);
 		if (licensePlateError) return licensePlateError;
+
+		const cardError = validateCardFormItems(input.cardItems);
+		if (cardError) return cardError;
+
+		const fingerprintError = validateFingerprintFormItems(input.fingerPrintItems);
+		if (fingerprintError) return fingerprintError;
 
 		const parsedGroup = parsePersonGroupIdFromForm(input.personGroupId);
 		if (!parsedGroup.ok) return "群組選擇無效";
@@ -548,6 +659,8 @@ export const usePersonnelPersonsTab = (params: {
 			employeeNo: personForm.employeeNo,
 			mode,
 			licensePlateItems: personForm.licensePlateItems,
+			cardItems: cardItems.value,
+			fingerPrintItems: fingerPrintItems.value,
 			personGroupId: personForm.personGroupId
 		});
 		if (formError) {
@@ -730,9 +843,11 @@ export const usePersonnelPersonsTab = (params: {
 		cardDeviceId,
 		isCapturingCard,
 		cardErrorMessage,
-		cardNo,
+		cardItems,
+		isGeneratingVirtualCard,
+		handleGenerateVirtualCard,
 		fingerDeviceId,
-		fingerPrintData,
+		fingerPrintItems,
 		isLongTerm,
 		validBeginDate,
 		validEndDate,

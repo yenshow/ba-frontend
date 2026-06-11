@@ -106,12 +106,7 @@
 									</button>
 								</div>
 
-								<p
-									v-if="captureErrorText"
-									class="form-error-text-inline"
-									role="alert"
-									aria-live="polite"
-								>
+								<p v-if="captureErrorText" class="form-error-text-inline" role="alert" aria-live="polite">
 									{{ captureErrorText }}
 								</p>
 							</div>
@@ -204,7 +199,26 @@
 						</div>
 
 						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-							<p>卡片設定</p>
+							<div class="flex items-center justify-between gap-2">
+								<p>卡片設定</p>
+								<div class="flex items-center gap-2">
+									<PersonnelFormItemTabs
+										v-model:active-index="activeCardTab"
+										:count="state.accessControl.cardItems.value.length"
+										:max="MAX_PERSON_CARDS"
+										aria-label="卡號"
+										@add="handleAddCardTab"
+									/>
+									<IconTrashButton
+										v-if="state.accessControl.cardItems.value.length > 1"
+										size="md"
+										button-class="flex-shrink-0"
+										title="移除目前卡號"
+										:aria-label="`移除第 ${activeCardTab + 1} 張卡號`"
+										@click="handleRemoveCardTab"
+									/>
+								</div>
+							</div>
 							<div class="rounded-xl border border-white/10 bg-white/5 p-3">
 								<div class="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
 									<div class="w-full md:max-w-[240px]">
@@ -226,30 +240,54 @@
 									</button>
 								</div>
 
-								<div class="mt-3 flex flex-wrap items-center gap-2">
+								<div v-if="activeCardItem" class="mt-3 flex items-center gap-2">
 									<input
-										v-model="localCardNo"
+										v-model="activeCardItem.cardNo"
 										type="text"
 										inputmode="numeric"
 										class="form-input w-full max-w-[320px] border-white/30 bg-white/10 py-1.5 text-sm text-white placeholder:text-white/40 2xl:py-2 2xl:text-base"
-										placeholder="卡號（可手動輸入）"
-										aria-label="卡號"
+										:placeholder="`卡號 ${activeCardTab + 1}（可手動輸入）`"
+										:aria-label="`第 ${activeCardTab + 1} 張卡號`"
+										:readonly="activeCardItem.source === 'virtual'"
 									/>
+									<button
+										type="button"
+										class="whitespace-nowrap rounded-lg bg-violet-500/80 px-3 py-2 text-sm text-white hover:bg-violet-400 disabled:opacity-50"
+										:disabled="isGeneratingVirtualCard"
+										aria-label="生成卡號"
+										@click="handleGenerateVirtualCard"
+									>
+										{{ isGeneratingVirtualCard ? "產生中..." : "生成卡號" }}
+									</button>
 								</div>
 
-								<p
-									v-if="cardErrorText"
-									class="form-error-text-inline"
-									role="alert"
-									aria-live="polite"
-								>
+								<p v-if="cardErrorText" class="form-error-text-inline" role="alert" aria-live="polite">
 									{{ cardErrorText }}
 								</p>
 							</div>
 						</div>
 
 						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-							<p>指紋設定</p>
+							<div class="flex items-center justify-between gap-2">
+								<p>指紋設定</p>
+								<div class="flex items-center gap-2">
+									<PersonnelFormItemTabs
+										v-model:active-index="activeFingerTab"
+										:count="state.accessControl.fingerPrintItems.value.length"
+										:max="MAX_PERSON_FINGERPRINTS"
+										aria-label="指紋"
+										@add="handleAddFingerTab"
+									/>
+									<IconTrashButton
+										v-if="state.accessControl.fingerPrintItems.value.length > 1"
+										size="md"
+										button-class="flex-shrink-0"
+										title="移除目前指紋"
+										:aria-label="`移除第 ${activeFingerTab + 1} 筆指紋`"
+										@click="handleRemoveFingerTab"
+									/>
+								</div>
+							</div>
 							<div class="rounded-xl border border-white/10 bg-white/5 p-3">
 								<div class="flex items-center gap-2">
 									<div class="w-full md:max-w-[240px]">
@@ -270,14 +308,21 @@
 										{{ isCapturingFingerPrint ? "讀取中..." : "讀取" }}
 									</button>
 								</div>
-								<div class="mt-3 flex flex-wrap items-center gap-2">
+								<div v-if="activeFingerItem" class="mt-3 flex flex-wrap items-center gap-2">
 									<input
-										v-model="localFingerPrintData"
+										v-model="activeFingerItem.fingerData"
 										type="text"
-										class="form-input w-full max-w-[320px] border-white/30 bg-white/10 py-1.5 text-sm text-white placeholder:text-white/40 2xl:py-2 2xl:text-base"
+										class="form-input w-full border-white/30 bg-white/10 py-1.5 text-sm text-white placeholder:text-white/40 2xl:py-2 2xl:text-base"
 										placeholder="指紋模板值"
-										aria-label="指紋模板值"
+										:aria-label="`第 ${activeFingerTab + 1} 筆指紋模板值`"
+										:readonly="activeFingerItem.source === 'captured'"
 									/>
+									<span
+										v-if="activeFingerItem.source === 'captured'"
+										class="rounded-full bg-cyan-500/20 px-2 py-0.5 text-xs text-cyan-100"
+									>
+										讀取
+									</span>
 								</div>
 
 								<p
@@ -294,71 +339,67 @@
 						<div class="col-span-2 flex flex-col gap-3 text-sm text-white/80 2xl:text-base">
 							<div class="flex items-center justify-between gap-2">
 								<p>車牌設定</p>
-								<button
-									type="button"
-									class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white hover:bg-cyan-400 disabled:opacity-50 md:w-auto"
-									@click="handleAddLicensePlateRow"
-								>
-									新增車牌
-								</button>
+								<div class="flex items-center gap-2">
+									<PersonnelFormItemTabs
+										v-model:active-index="activePlateTab"
+										:count="state.form.licensePlateItems.length"
+										:max="MAX_PERSON_LICENSE_PLATES"
+										aria-label="車牌"
+										@add="handleAddPlateTab"
+									/>
+									<IconTrashButton
+										v-if="state.form.licensePlateItems.length > 1"
+										size="md"
+										button-class="flex-shrink-0"
+										title="移除目前車牌"
+										:aria-label="`移除第 ${activePlateTab + 1} 筆車牌`"
+										@click="handleRemovePlateTab"
+									/>
+								</div>
 							</div>
 
 							<div
-								v-for="(row, idx) in state.form.licensePlateItems"
-								:key="`plate-row-${idx}`"
-								class="relative space-y-3 rounded-xl border border-white/10 bg-white/5 p-3"
+								v-if="activePlateItem"
+								class="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3"
 							>
-								<div v-if="state.form.licensePlateItems.length > 1" class="absolute right-2 top-2">
-									<IconTrashButton
-										size="md"
-										button-class="flex-shrink-0"
-										title="移除車牌"
-										:aria-label="`移除第 ${idx + 1} 筆車牌`"
-										@click="handleRemoveLicensePlateRow(idx)"
-									/>
-								</div>
-
 								<div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
 									<label class="flex flex-col gap-2">
-										<span>車牌 *</span>
+										<span>車牌</span>
 										<input
-											v-model="row.plateNumber"
+											v-model="activePlateItem.plateNumber"
 											type="text"
-											required
 											class="form-input-small"
 											placeholder="例如 ABC1234"
-											:aria-label="`第 ${idx + 1} 筆車牌`"
+											:aria-label="`第 ${activePlateTab + 1} 筆車牌`"
 										/>
 									</label>
 									<label class="flex flex-col gap-2">
-										<span>名單類型 *</span>
+										<span>名單類型</span>
 										<FilterDropdown
-											v-model="row.listType"
+											v-model="activePlateItem.listType"
 											:options="LICENSE_PLATE_LIST_TYPE_OPTIONS"
 											placeholder="請選擇名單類型"
 											text-size="text-sm 2xl:text-base"
 										/>
 									</label>
 									<label class="flex flex-col gap-2">
-										<span>開始時間 *</span>
+										<span>開始時間</span>
 										<input
-											v-model="row.effectiveBegin"
+											v-model="activePlateItem.effectiveBegin"
 											type="datetime-local"
 											step="60"
-											required
 											class="form-input-small"
-											:aria-label="`第 ${idx + 1} 筆開始時間`"
+											:aria-label="`第 ${activePlateTab + 1} 筆開始時間`"
 										/>
 									</label>
 									<label class="flex flex-col gap-2">
-										<span>結束時間 *</span>
+										<span>結束時間</span>
 										<input
-											v-model="row.effectiveEnd"
+											v-model="activePlateItem.effectiveEnd"
 											type="datetime-local"
 											step="60"
-											required
 											class="form-input-small"
-											:aria-label="`第 ${idx + 1} 筆結束時間`"
+											:aria-label="`第 ${activePlateTab + 1} 筆結束時間`"
 										/>
 									</label>
 								</div>
@@ -408,11 +449,19 @@ import type { PersonnelPersonDialogState, PersonGroup } from "~/types/personnel"
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import IconTrashButton from "~/components/common/IconTrashButton.vue";
+import PersonnelFormItemTabs from "~/components/personnel/PersonnelFormItemTabs.vue";
 import { buildPersonnelChildGroupOptions } from "~/utils/personnelGroups";
 import {
 	createEmptyLicensePlateFormItem,
 	LICENSE_PLATE_LIST_TYPE_OPTIONS,
+	MAX_PERSON_LICENSE_PLATES
 } from "~/utils/licensePlateFormUtils";
+import { MAX_PERSON_CARDS, createEmptyCardFormItem } from "~/utils/cardFormUtils";
+import {
+	MAX_PERSON_FINGERPRINTS,
+	createEmptyFingerprintFormItem
+} from "~/utils/fingerprintFormUtils";
+import { createFormItemTabHandlers } from "~/utils/personnelFormTabUtils";
 
 const props = defineProps<{
 	modelValue: boolean;
@@ -426,20 +475,61 @@ const emit = defineEmits<{
 	"face-file-change": [file: File];
 	"clear-face": [];
 	"capture-face": [];
-	"capture-card": [];
-	"capture-fingerprint": [];
+	"capture-card": [tabIndex: number];
+	"generate-virtual-card": [tabIndex: number];
+	"capture-fingerprint": [tabIndex: number];
 }>();
 
 const faceFileInputRef = ref<HTMLInputElement | null>(null);
 
-const handleAddLicensePlateRow = () => {
-	props.state.form.licensePlateItems.push(createEmptyLicensePlateFormItem());
-};
+const activeCardTab = ref(0);
+const activeFingerTab = ref(0);
+const activePlateTab = ref(0);
 
-const handleRemoveLicensePlateRow = (idx: number) => {
-	if (props.state.form.licensePlateItems.length <= 1) return;
-	props.state.form.licensePlateItems.splice(idx, 1);
-};
+const {
+	activeItem: activeCardItem,
+	handleAdd: handleAddCardTab,
+	handleRemove: handleRemoveCardTab
+} = createFormItemTabHandlers(props.state.accessControl.cardItems, activeCardTab, {
+	max: MAX_PERSON_CARDS,
+	createEmpty: createEmptyCardFormItem,
+	onClearLastItem: () => {
+		props.state.accessControl.cardItems.value[0] = createEmptyCardFormItem();
+	}
+});
+
+const {
+	activeItem: activeFingerItem,
+	handleAdd: handleAddFingerTab,
+	handleRemove: handleRemoveFingerTab
+} = createFormItemTabHandlers(props.state.accessControl.fingerPrintItems, activeFingerTab, {
+	max: MAX_PERSON_FINGERPRINTS,
+	createEmpty: createEmptyFingerprintFormItem,
+	onClearLastItem: () => {
+		props.state.accessControl.fingerPrintItems.value[0] = createEmptyFingerprintFormItem();
+	}
+});
+
+const licensePlateItems = toRef(props.state.form, "licensePlateItems");
+
+const {
+	activeItem: activePlateItem,
+	handleAdd: handleAddPlateTab,
+	handleRemove: handleRemovePlateTab
+} = createFormItemTabHandlers(licensePlateItems, activePlateTab, {
+	max: MAX_PERSON_LICENSE_PLATES,
+	createEmpty: createEmptyLicensePlateFormItem
+});
+
+watch(
+	() => props.modelValue,
+	open => {
+		if (!open) return;
+		activeCardTab.value = 0;
+		activeFingerTab.value = 0;
+		activePlateTab.value = 0;
+	}
+);
 
 const childGroupOptions = computed(() => buildPersonnelChildGroupOptions(props.groupTree || []));
 
@@ -504,10 +594,19 @@ const localCardDeviceIdString = computed<string>({
 
 const hasSelectedCardDevice = computed(() => props.state.capture.cardDeviceId.value != null);
 
-const localCardNo = computed<string>({
-	get: () => props.state.accessControl.cardNo.value || "",
-	set: v => (props.state.accessControl.cardNo.value = v)
-});
+const isGeneratingVirtualCard = computed(() => props.state.capture.isGeneratingVirtualCard.value);
+
+const handleCaptureCard = () => {
+	emit("capture-card", activeCardTab.value);
+};
+
+const handleGenerateVirtualCard = () => {
+	emit("generate-virtual-card", activeCardTab.value);
+};
+
+const handleCaptureFingerPrint = () => {
+	emit("capture-fingerprint", activeFingerTab.value);
+};
 
 const localFingerDeviceIdString = computed<string>({
 	get: () =>
@@ -518,11 +617,6 @@ const localFingerDeviceIdString = computed<string>({
 });
 
 const hasSelectedFingerDevice = computed(() => props.state.capture.fingerDeviceId.value != null);
-
-const localFingerPrintData = computed<string>({
-	get: () => props.state.accessControl.fingerPrintData.value || "",
-	set: v => (props.state.accessControl.fingerPrintData.value = v)
-});
 
 const localPassword = computed<string>({
 	get: () => props.state.accessControl.password.value || "",
@@ -560,8 +654,6 @@ const handleClose = () => props.state.ui.requestClose();
 const handleSubmit = () => emit("submit");
 const triggerFaceFileSelect = () => faceFileInputRef.value?.click();
 const handleCaptureFace = () => emit("capture-face");
-const handleCaptureCard = () => emit("capture-card");
-const handleCaptureFingerPrint = () => emit("capture-fingerprint");
 
 const handleFaceFileChange = (e: Event) => {
 	const input = e.target as HTMLInputElement;

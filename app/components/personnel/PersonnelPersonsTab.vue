@@ -151,8 +151,9 @@
 			@face-file-change="props.personsTab.handleFaceFileChange"
 			@clear-face="props.personsTab.clearFaceUrl"
 			@capture-face="props.personsTab.handleCaptureFace"
-			@capture-card="props.personsTab.handleCaptureCard"
-			@capture-fingerprint="props.personsTab.handleCaptureFingerPrint"
+			@capture-card="(idx) => props.personsTab.handleCaptureCard(idx)"
+			@generate-virtual-card="(idx) => props.personsTab.handleGenerateVirtualCard(idx)"
+			@capture-fingerprint="(idx) => props.personsTab.handleCaptureFingerPrint(idx)"
 		/>
 
 		<ImageCropDialog
@@ -287,8 +288,8 @@ const personDialogState: PersonnelPersonDialogState = {
 		isLongTerm: props.personsTab.isLongTerm,
 		validBeginDate: props.personsTab.validBeginDate,
 		validEndDate: props.personsTab.validEndDate,
-		cardNo: props.personsTab.cardNo,
-		fingerPrintData: props.personsTab.fingerPrintData
+		cardItems: props.personsTab.cardItems,
+		fingerPrintItems: props.personsTab.fingerPrintItems
 	},
 	capture: {
 		captureDeviceId: props.personsTab.captureDeviceId,
@@ -298,6 +299,7 @@ const personDialogState: PersonnelPersonDialogState = {
 		cardDeviceId: props.personsTab.cardDeviceId,
 		isCapturingCard: props.personsTab.isCapturingCard,
 		cardErrorMessage: props.personsTab.cardErrorMessage,
+		isGeneratingVirtualCard: props.personsTab.isGeneratingVirtualCard,
 
 		fingerDeviceId: props.personsTab.fingerDeviceId,
 		isCapturingFingerPrint: props.personsTab.isCapturingFingerPrint,

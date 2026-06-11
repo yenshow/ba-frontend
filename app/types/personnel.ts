@@ -37,6 +37,30 @@ export interface PersonLicensePlateFormItem {
 	effectiveEnd: string;
 }
 
+export type PersonCardSource = "manual" | "captured" | "virtual";
+
+export interface PersonCardFormItem {
+	cardNo: string;
+	source: PersonCardSource;
+}
+
+export type PersonCardPayload = {
+	cardNo: string;
+	source: PersonCardSource;
+};
+
+export type PersonFingerprintSource = "manual" | "captured";
+
+export interface PersonFingerprintFormItem {
+	fingerData: string;
+	source: PersonFingerprintSource;
+}
+
+export type PersonFingerprintPayload = {
+	fingerData: string;
+	source: PersonFingerprintSource;
+};
+
 export interface VehiclePlateSyncResult {
 	status: "synced" | "partial" | "pending" | "failed" | "skipped" | string;
 	warnings: string[];
@@ -234,8 +258,8 @@ export type PersonnelPersonAccessControlState = {
 	isLongTerm: Ref<boolean>;
 	validBeginDate: Ref<string>;
 	validEndDate: Ref<string>;
-	cardNo: Ref<string>;
-	fingerPrintData: Ref<string>;
+	cardItems: Ref<PersonCardFormItem[]>;
+	fingerPrintItems: Ref<PersonFingerprintFormItem[]>;
 };
 
 export type PersonnelPersonCaptureState = {
@@ -245,6 +269,7 @@ export type PersonnelPersonCaptureState = {
 	cardDeviceId: Ref<number | null>;
 	isCapturingCard: Ref<boolean>;
 	cardErrorMessage: Ref<string | null>;
+	isGeneratingVirtualCard: Ref<boolean>;
 	fingerDeviceId: Ref<number | null>;
 	isCapturingFingerPrint: Ref<boolean>;
 	fingerPrintErrorMessage: Ref<string | null>;

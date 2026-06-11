@@ -9,6 +9,8 @@ import type {
 	SyncLocationJobItemsPage,
 	SyncLocationCandidate,
 	PersonLicensePlateListType,
+	PersonCardPayload,
+	PersonFingerprintPayload,
 } from "~/types/personnel"
 import type { HandleErrorOptions } from "~/composables/core/useErrorHandler"
 import { useApiBase } from "~/composables/core/useApiBase"
@@ -145,11 +147,15 @@ export type PersonnelApi = {
 		personId: number,
 		body: {
 			validity: { longTerm: boolean; beginTime: string; endTime: string }
-			cardNo: string | null
-			fingerData: string | null
+			cards?: PersonCardPayload[]
+			cardNo?: string | null
+			fingerprints?: PersonFingerprintPayload[]
+			fingerData?: string | null
 			password: string | null
 		}
 	) => Promise<{ person: Person }>
+
+	generateVirtualCard: () => Promise<{ cardNo: string; source: "virtual" }>
 
 	getLicensePlateBindings: (plates: string[]) => Promise<{
 		items: Array<{
@@ -366,8 +372,10 @@ export const usePersonnelApi = (): PersonnelApi => {
 			personId: number,
 			body: {
 				validity: { longTerm: boolean; beginTime: string; endTime: string }
-				cardNo: string | null
-				fingerData: string | null
+				cards?: PersonCardPayload[]
+				cardNo?: string | null
+				fingerprints?: PersonFingerprintPayload[]
+				fingerData?: string | null
 				password: string | null
 			}
 		) =>
@@ -378,6 +386,12 @@ export const usePersonnelApi = (): PersonnelApi => {
 					body: JSON.stringify(body),
 					timeout: 15000,
 				}
+			),
+
+		generateVirtualCard: () =>
+			request<{ cardNo: string; source: "virtual" }>(
+				`${PERSONNEL_PREFIX}/virtual-card/generate`,
+				{ method: "POST", timeout: 15000 }
 			),
 		getLicensePlateBindings: (plates: string[]) => {
 			const list = plates.map((p) => String(p).trim()).filter(Boolean)
