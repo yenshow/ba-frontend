@@ -1,5 +1,8 @@
 export const MAX_ELEVATOR_FLOOR_COUNT = 128
 export const DEFAULT_ELEVATOR_FLOOR_COUNT = 4
+export const MIN_ELEVATOR_OPEN_DURATION = 1
+export const MAX_ELEVATOR_OPEN_DURATION = 255
+export const DEFAULT_ELEVATOR_OPEN_DURATION = 5
 
 export const defaultElevatorFloorName = (index: number): string =>
 	`Floor ${String(index).padStart(2, "0")}`
@@ -30,5 +33,29 @@ export const fillEmptyFloorNames = (names: string[], count: number): string[] =>
 	return Array.from({ length: safeCount }, (_, i) => {
 		const trimmed = names[i]?.trim()
 		return trimmed || defaultElevatorFloorName(i + 1)
+	})
+}
+
+export const normalizeElevatorOpenDuration = (value: unknown): number | null => {
+	if (value == null || value === "") return null
+	const n = Number(value)
+	if (!Number.isFinite(n)) return null
+	const duration = Math.trunc(n)
+	if (duration < MIN_ELEVATOR_OPEN_DURATION || duration > MAX_ELEVATOR_OPEN_DURATION) {
+		return null
+	}
+	return duration
+}
+
+/** 調整陣列長度；既有索引保留原值，僅新增索引填入預設秒數 */
+export const padFloorOpenDurations = (
+	current: number[] | undefined,
+	count: number,
+): number[] => {
+	const safeCount = clampFloorCount(count)
+	const existing = Array.isArray(current) ? current : []
+	return Array.from({ length: safeCount }, (_, i) => {
+		const normalized = normalizeElevatorOpenDuration(existing[i])
+		return normalized ?? DEFAULT_ELEVATOR_OPEN_DURATION
 	})
 }

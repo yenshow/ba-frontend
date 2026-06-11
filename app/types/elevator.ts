@@ -11,6 +11,8 @@ export interface ElevatorLocation {
 	accessDeviceIds?: number[]
 	floorCount?: number
 	floorNames?: string[]
+	/** 各樓層繼電器動作時間（秒，1–255） */
+	floorOpenDurations?: number[]
 	logDisplayColumns?: string[]
 	locationId?: number
 	region?: string
@@ -27,10 +29,9 @@ export interface ElevatorZone {
 export interface ElevatorLog {
 	id: number
 	deviceId?: number
-	floor?: number | null
+	floor?: number | string | null
 	deviceName?: string | null
 	personName?: string | null
-	cardNo?: string | null
 	event?: string | null
 	time?: string
 	employeeNo?: string | null
@@ -45,8 +46,10 @@ export type ElevatorSyncJobStatus = "queued" | "running" | "completed"
 export interface ElevatorSyncWarning {
 	type: string
 	employeeNo?: string
+	fullName?: string | null
 	cardNo?: string
 	deviceId?: number
+	deviceName?: string | null
 	message?: string
 }
 

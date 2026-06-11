@@ -177,8 +177,6 @@
 		v-model="showLocationManagementDialog"
 		:zone="selectedZoneData"
 		:system-type="selectedSystemType ?? undefined"
-		mode="delete-only"
-		:read-only="true"
 		:allow-delete-zone="canDeleteZone"
 		:allow-delete-location="canDeleteLocationInDialog"
 		@delete="handleDeleteUnifiedZone"

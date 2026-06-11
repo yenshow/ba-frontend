@@ -31,7 +31,7 @@ export function usePeopleCountingLocationValidation() {
 		}
 
 		if (!Array.isArray(personGroupIds)) {
-			return "personGroupIds 必須是陣列"
+			return "人員群組格式不正確"
 		}
 
 		if (dataSource === "access_control" || dataSource === "isapi_camera") {
@@ -40,18 +40,18 @@ export function usePeopleCountingLocationValidation() {
 		} else {
 			// YSCP：至少需要一個
 			if (personGroupIds.length === 0) {
-				return "personGroupIds 至少需要一個元素"
+				return "請至少選擇一個人員群組"
 			}
 		}
 
 		for (const id of personGroupIds) {
 			if (typeof id !== "number" || id <= 0 || !Number.isInteger(id)) {
-				return "personGroupIds 中的每個元素必須是正整數"
+				return "人員群組選項無效"
 			}
 		}
 		const uniqueIds = new Set(personGroupIds)
 		if (personGroupIds.length !== uniqueIds.size) {
-			return "personGroupIds 中不能有重複的元素"
+			return "人員群組不可重複選擇"
 		}
 		return null
 	}
@@ -109,7 +109,7 @@ export function usePeopleCountingLocationValidation() {
 				errors.push("請選擇出口設備（門禁設備）")
 			}
 			for (const id of [...entryIds, ...exitIds]) {
-				const err = validateDoorId(id, "門禁設備 ID")
+				const err = validateDoorId(id, "門禁設備")
 				if (err) errors.push(err)
 			}
 			const entrySet = new Set(entryIds)
@@ -125,7 +125,7 @@ export function usePeopleCountingLocationValidation() {
 				errors.push("請選擇攝影機設備（ISAPI PeopleCounting）")
 			} else {
 				for (const id of cameraDeviceIds) {
-					const cameraDeviceError = validateDoorId(id, "攝影機設備 ID")
+					const cameraDeviceError = validateDoorId(id, "攝影機設備")
 					if (cameraDeviceError) errors.push(cameraDeviceError)
 				}
 			}
@@ -140,7 +140,7 @@ export function usePeopleCountingLocationValidation() {
 			if (entryIds.length === 0) errors.push("請選擇入口設備（YSCP）")
 			if (exitIds.length === 0) errors.push("請選擇出口設備（YSCP）")
 			for (const id of [...entryIds, ...exitIds]) {
-				const err = validateDoorId(id, "門設備 ID")
+				const err = validateDoorId(id, "門設備")
 				if (err) errors.push(err)
 			}
 			const entrySet = new Set(entryIds)

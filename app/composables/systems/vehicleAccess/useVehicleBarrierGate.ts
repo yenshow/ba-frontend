@@ -2,8 +2,8 @@ import type { MaybeRefOrGetter } from "vue"
 import { computed, onScopeDispose, ref, toValue } from "vue"
 import type { VehicleAccessLocation, BarrierGateCtrlMode } from "~/types/vehicleAccess"
 import { useVehicleAccessIsapiDeviceApi } from "~/composables/systems/vehicleAccess/useVehicleAccessIsapiDeviceApi"
+import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useToast } from "~/composables/core/useToast"
-import { resolveUserFacingCatchMessage } from "~/utils/errorUtils"
 
 const CONTROL_COOLDOWN_MS = 1500
 
@@ -15,6 +15,7 @@ export const useVehicleBarrierGate = (options: {
 }) => {
 	const isapiApi = useVehicleAccessIsapiDeviceApi()
 	const toast = useToast()
+	const { handleError } = useErrorHandler()
 
 	const isControlling = ref(false)
 	const isCooldown = ref(false)
@@ -74,7 +75,7 @@ export const useVehicleBarrierGate = (options: {
 			await isapiApi.controlBarrierGate(id, { ...apiParams.value, ctrlMode })
 			toast.success("已送出道閘指令")
 		} catch (e) {
-			toast.error(resolveUserFacingCatchMessage(e, "道閘控制失敗"))
+			handleError(e, "道閘控制失敗", { context: "control" })
 		} finally {
 			isControlling.value = false
 		}

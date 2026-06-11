@@ -4,7 +4,7 @@
 			<div class="space-y-2 2xl:space-y-4">
 				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">用戶管理</h1>
 				<p class="text-base text-white/80 2xl:text-xl">
-					管理系統用戶帳號、角色與各模組<strong class="font-normal text-white">功能權限</strong>
+					管理系統用戶帳號、角色與權限
 				</p>
 			</div>
 			<div class="flex items-center">
@@ -88,24 +88,19 @@
 											aria-label="重設密碼"
 											class="btn-list-reset"
 											@click="confirmResetPassword(user)"
-										>
-											重設密碼
-										</PermissionActionButton>
+										>重設密碼</PermissionActionButton>
 										<PermissionActionButton
 											:allowed="canShowDeleteButton(user)"
 											aria-label="刪除用戶"
 											class="btn-list-delete"
 											@click="confirmDeleteUser(user)"
-										>
-											刪除
-										</PermissionActionButton>
+										>刪除</PermissionActionButton>
 									</div>
 								</td>
 							</tr>
 						</tbody>
 					</table>
 
-					<!-- 分頁：只在有數據且總數超過每頁限制時顯示 -->
 					<Pagination
 						v-if="total > limit"
 						:total="total"
@@ -223,7 +218,7 @@
 									aria-label="儲存用戶"
 									class="btn-primary"
 								>
-									{{ isSubmitting ? "處理中..." : editingUser ? "更新" : "建立" }}
+									{{ isSubmitting ? "處理中…" : editingUser ? "更新" : "建立" }}
 								</PermissionActionButton>
 							</footer>
 						</form>
@@ -261,6 +256,7 @@ import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useUserApi } from "~/composables/systems/users/useUserApi"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
+import { applyFormApiErrorToRef } from "~/utils/errorUtils"
 import {
 	buildGrantedMap,
 	permissionGrantedMapsEqual,
@@ -281,7 +277,7 @@ const userApi = useUserApi()
 const toast = useToast()
 const { handleError: handleApiError } = useErrorHandler()
 
-const dateSortOrder = ref<"asc" | "desc">("asc") // 預設由舊到新
+const dateSortOrder = ref<"asc" | "desc">("asc")
 const showCreateDialog = ref(false)
 const editingUser = ref<User | null>(null)
 const isSubmitting = ref(false)
@@ -308,7 +304,7 @@ const isPermissionDirty = computed(
 	() => !permissionGrantedMapsEqual(permissionGranted.value, permissionInitialGranted.value)
 )
 
-// 使用 useDataLoader 統一管理數據載入
+// 使用 useDataLoader 統一管理列表載入
 const {
 	data: users,
 	total,
@@ -359,7 +355,7 @@ const dateSortOptions = [
 	{ value: "desc", label: "由新到舊" },
 ]
 
-// 統一樣式類
+// 統一表格樣式
 const tableHeaderClass = "py-3 2xl:py-4 px-4 2xl:px-6 text-sm 2xl:text-base text-white/80"
 const tableCellClass = "py-3 2xl:py-4 px-4 2xl:px-6"
 
@@ -380,7 +376,7 @@ const getRoleBadgeClass = (role: string) => {
 
 const getStatusBadgeClass = (status: string) => {
 	const classes = {
-		active: "bg-emerald-500/20 text-emerald-200",
+		active: "bg-emerald-500/20 text-emerald-100",
 		inactive: "bg-yellow-500/20 text-yellow-200",
 	}
 	return classes[status as keyof typeof classes] ?? classes.inactive
@@ -392,13 +388,6 @@ const canShowDeleteButton = (user: User) => {
 	if (!canAdmin.value) return false
 	if (currentUser.value && user.id === currentUser.value.id) return false
 	return true
-}
-
-// 業務邏輯函數：統一錯誤處理（同時更新頁面錯誤訊息）
-const handleError = (error: unknown, defaultMessage: string) => {
-	const errorMsg = handleApiError(error, defaultMessage)
-	errorMessage.value = errorMsg || defaultMessage
-	return errorMsg
 }
 
 const resetPermissionDraft = () => {
@@ -442,7 +431,7 @@ const loadPermissionDraft = async (userId?: number) => {
 			setPermissionGrantedSnapshot(buildGrantedMap(permissionDefinitions.value))
 		}
 	} catch (error) {
-		handleError(error, userId != null ? "載入權限設定失敗" : "載入權限清單失敗")
+		applyFormApiErrorToRef(errorMessage, error, userId != null ? "載入權限清單失敗" : "載入權限清單失敗")
 	} finally {
 		permissionLoading.value = false
 	}
@@ -457,7 +446,7 @@ const handleRoleFilterChange = async () => {
 		await ensurePermissionDefinitions()
 		setPermissionGrantedSnapshot(buildGrantedMap(permissionDefinitions.value))
 	} catch (error) {
-		handleError(error, "載入權限清單失敗")
+		applyFormApiErrorToRef(errorMessage, error, "操作失敗")
 	}
 }
 
@@ -518,12 +507,12 @@ const executeSubmit = async () => {
 			if (index > -1) {
 				users.value[index] = updateRes.user
 			}
-			closeDialog()
 			toast.success(
 				currentUser.value?.id === userId
 					? "用戶已更新"
-					: "用戶已更新；對方需重新整理或重新登入後權限才會生效"
+					: "用戶已更新；若對方正在使用中，請對方重新登入後權限才會生效"
 			)
+			closeDialog()
 			return
 		}
 
@@ -539,19 +528,23 @@ const executeSubmit = async () => {
 		})
 		users.value.push(createRes.user)
 		total.value += 1
-		closeDialog()
 		toast.success("用戶已建立")
+		closeDialog()
 	} catch (error) {
-		handleError(error, "操作失敗")
+		applyFormApiErrorToRef(errorMessage, error, "操作失敗")
 	} finally {
 		isSubmitting.value = false
 	}
 }
 
-const validateUserForm = (): string | null => {
-	const username = formData.username.trim()
+const validateUserFormForSave = (input: {
+	username: string
+	password: string
+	isEditing: boolean
+}): string | null => {
+	const username = input.username.trim()
 	if (!username) return "請輸入帳號"
-	if (!editingUser.value && (!formData.password || formData.password.length < 6)) {
+	if (!input.isEditing && (!input.password || input.password.length < 6)) {
 		return "密碼至少需要 6 個字元"
 	}
 	return null
@@ -559,7 +552,11 @@ const validateUserForm = (): string | null => {
 
 const handleSubmit = async () => {
 	errorMessage.value = null
-	const formError = validateUserForm()
+	const formError = validateUserFormForSave({
+		username: formData.username,
+		password: formData.password,
+		isEditing: !!editingUser.value,
+	})
 	if (formError) {
 		errorMessage.value = formError
 		return
@@ -576,7 +573,7 @@ const confirmDeleteUser = (user: User) => {
 		message: `確定要刪除用戶「${user.username}」嗎？`,
 		details: "此操作無法復原。",
 		type: "danger",
-		confirmText: "刪除",
+		confirmText: "重設",
 		cancelText: "取消",
 	})
 }
@@ -587,7 +584,7 @@ const confirmResetPassword = (user: User) => {
 	confirmDialog.show({
 		title: "重設密碼",
 		message: `確定要將「${user.username}」的密碼重設為預設值嗎？`,
-		details: `新密碼將設為 ${DEFAULT_RESET_PASSWORD}。對方需使用新密碼重新登入。`,
+		details: `密碼將設為 ${DEFAULT_RESET_PASSWORD}，請通知對方使用新密碼重新登入。`,
 		type: "warning",
 		confirmText: "重設",
 		cancelText: "取消",
@@ -608,9 +605,9 @@ const handleConfirmDialog = async () => {
 			const result = await userApi.updatePassword(id, {
 				newPassword: DEFAULT_RESET_PASSWORD,
 			})
-			toast.success(result.message || "密碼已重設")
+			toast.success(result.message || "密碼已更新")
 		} catch (error) {
-			handleError(error, "重設密碼失敗")
+			handleApiError(error, "重設密碼失敗")
 		} finally {
 			pendingActionUserId.value = null
 		}
@@ -621,9 +618,9 @@ const handleConfirmDialog = async () => {
 		const result = await userApi.deleteUser(target.id)
 		users.value = users.value.filter((u) => u.id !== target.id)
 		total.value = Math.max(0, total.value - 1)
-		toast.success(result.message || "刪除成功")
+			toast.success(result.message || "密碼已更新")
 	} catch (error) {
-		handleError(error, "刪除用戶失敗")
+		handleApiError(error, "刪除用戶失敗")
 	} finally {
 		pendingActionUserId.value = null
 	}
@@ -643,11 +640,11 @@ const handleNextPage = () => {
 
 const handleSortChange = () => {
 	resetPage()
-	load({ order: dateSortOrder.value }, true) // 立即執行
+	load({ order: dateSortOrder.value }, true)
 }
 
 onMounted(() => {
-	load({ order: dateSortOrder.value }, true) // 立即執行
+	load({ order: dateSortOrder.value }, true)
 })
 </script>
 

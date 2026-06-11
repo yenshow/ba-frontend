@@ -38,6 +38,7 @@ import {
 } from "~/utils/personnelUtils"
 import { usePersonsList } from "~/composables/systems/personnel/usePersonsList"
 import { parsePersonGroupIdFromForm } from "~/utils/personnelGroups"
+import { resolveFormApiError } from "~/utils/errorUtils"
 import {
 	PERSONNEL_API_ERROR_OPTS,
 	type PersonnelHandleApiError,
@@ -50,7 +51,7 @@ type AccessControlApi = ReturnType<typeof useAccessControlApi>
 
 /** 人員大頭照裁切 Dialog（PersonnelPersonsTab + ImageCropDialog） */
 export const PERSONNEL_FACE_CROP_DIALOG_PROPS = {
-	title: "上傳圖片",
+	title: "上傳大頭照",
 	description: "圖片用於臉型比對或臉型驗證，建議上傳五官清晰正面照。",
 	canvasWidth: 520,
 	canvasHeight: 520,
@@ -297,7 +298,7 @@ export const usePersonnelPersonsTab = (params: {
 		if (cur.cardNo !== snap.cardNo) fields.push("卡號")
 		if (cur.fingerPrintData !== snap.fingerPrintData) fields.push("指紋")
 		if (cur.licensePlateItemsJson !== snap.licensePlateItemsJson) fields.push("車牌設定")
-		if (cur.ladderFloorsJson !== snap.ladderFloorsJson) fields.push("梯控授權樓層")
+		if (cur.ladderFloorsJson !== snap.ladderFloorsJson) fields.push("梯控樓層")
 		return fields
 	})
 
@@ -378,31 +379,38 @@ export const usePersonnelPersonsTab = (params: {
 			toast.error("請選擇圖片檔案")
 			return
 		}
-
 		openFaceCrop(file)
 	}
 
-	const resetCaptureState = () => {
+	const resetPersonDialogState = () => {
 		pendingFaceFile.value = null
+		captureDeviceId.value = null
+		captureErrorMessage.value = null
+		cardDeviceId.value = null
+		cardErrorMessage.value = null
+		cardNo.value = ""
+		fingerDeviceId.value = null
+		fingerPrintData.value = ""
+		fingerPrintErrorMessage.value = null
+		isLongTerm.value = true
+		validBeginDate.value = ""
+		validEndDate.value = ""
+		personPassword.value = ""
+		resetLadderCardForm()
+		revokeFacePreviewUrl()
+		errorMessage.value = null
+	}
+
+	const resetCaptureState = () => {
 		captureDeviceId.value = null
 		captureErrorMessage.value = null
 		cardDeviceId.value = null
 		cardErrorMessage.value = null
 		fingerDeviceId.value = null
 		fingerPrintErrorMessage.value = null
-		revokeFacePreviewUrl()
-	}
-
-	const resetPersonDialogState = () => {
-		resetCaptureState()
-		cardNo.value = ""
-		fingerPrintData.value = ""
-		isLongTerm.value = true
-		validBeginDate.value = ""
-		validEndDate.value = ""
-		personPassword.value = ""
-		resetLadderCardForm()
-		errorMessage.value = null
+		isCapturingFace.value = false
+		isCapturingCard.value = false
+		isCapturingFingerPrint.value = false
 	}
 
 	const openPersonCreate = () => {
@@ -469,12 +477,12 @@ export const usePersonnelPersonsTab = (params: {
 
 		isCapturingFace.value = true
 		try {
-			const result: CaptureFaceResult = await accessControlApi.captureFace(deviceId, {
+			const result = await accessControlApi.captureFace(deviceId, {
 				captureInfrared: true,
 				readerID: 1,
 			})
-
-			if (result.dataType !== "binary" || !result.base64) throw new Error("設備截圖回傳格式不正確")
+			if (result.dataType !== "binary" || !result.base64)
+				throw new Error("設備截圖回傳格式不正確")
 
 			const file = base64ToFile({
 				base64: result.base64,
@@ -551,7 +559,8 @@ export const usePersonnelPersonsTab = (params: {
 			}
 			fingerPrintData.value = next
 		} catch (err) {
-			fingerPrintErrorMessage.value = handleApiError(err, "讀取指紋失敗") || "讀取指紋失敗"
+			fingerPrintErrorMessage.value =
+				handleApiError(err, "讀取指紋失敗") || "讀取指紋失敗"
 		} finally {
 			isCapturingFingerPrint.value = false
 		}
@@ -588,7 +597,7 @@ export const usePersonnelPersonsTab = (params: {
 					endTime: toEndTime(validEndDate.value),
 				}
 
-		if (!validity.beginTime || !validity.endTime) throw new Error("請設定有效期限起始日與結束日")
+		if (!validity.beginTime || !validity.endTime) throw new Error("請設定有效的起始日與結束日")
 
 		const res = await personnelApi.setPersonAccessControlConfig(personId, {
 			validity,
@@ -601,25 +610,39 @@ export const usePersonnelPersonsTab = (params: {
 
 	type SavePersonTransactionMode = "create" | "update"
 
+	const validatePersonFormForSave = (input: {
+		fullName: string
+		employeeNo: string
+		mode: SavePersonTransactionMode
+		licensePlateItems: PersonLicensePlateFormItem[]
+		personGroupId: string
+	}): string | null => {
+		if (!input.fullName.trim()) return "姓名為必填"
+		if (input.mode === "create" && !input.employeeNo.trim()) return "ID 為必填"
+
+		const licensePlateError = validateLicensePlateFormItems(input.licensePlateItems)
+		if (licensePlateError) return licensePlateError
+
+		const parsedGroup = parsePersonGroupIdFromForm(input.personGroupId)
+		if (!parsedGroup.ok) return "群組選擇無效"
+
+		return null
+	}
+
 	const savePersonTransaction = async (mode: SavePersonTransactionMode) => {
 		const fail = (err: unknown, fallback: string) => {
-			errorMessage.value =
-				handleApiError(err, fallback, PERSONNEL_API_ERROR_OPTS) || fallback
+			errorMessage.value = resolveFormApiError(err, fallback)
 		}
 
-		if (!personForm.fullName.trim()) {
-			errorMessage.value = "姓名為必填"
-			return { ok: false as const }
-		}
-
-		if (mode === "create" && !personForm.employeeNo.trim()) {
-			errorMessage.value = "ID 為必填"
-			return { ok: false as const }
-		}
-
-		const licensePlateError = validateLicensePlateFormItems(personForm.licensePlateItems)
-		if (licensePlateError) {
-			errorMessage.value = licensePlateError
+		const formError = validatePersonFormForSave({
+			fullName: personForm.fullName,
+			employeeNo: personForm.employeeNo,
+			mode,
+			licensePlateItems: personForm.licensePlateItems,
+			personGroupId: personForm.personGroupId,
+		})
+		if (formError) {
+			errorMessage.value = formError
 			return { ok: false as const }
 		}
 
@@ -627,13 +650,8 @@ export const usePersonnelPersonsTab = (params: {
 		errorMessage.value = null
 		try {
 			const parsedGroup = parsePersonGroupIdFromForm(personForm.personGroupId)
-			if (!parsedGroup.ok) {
-				errorMessage.value = "群組選擇無效"
-				return { ok: false as const }
-			}
-
 			const licensePlates = licensePlateItemsToPayload(personForm.licensePlateItems)
-			const personGroupId = parsedGroup.personGroupId
+			const personGroupId = parsedGroup.ok ? parsedGroup.personGroupId : null
 
 			let saved: Person
 			if (mode === "update") {
@@ -674,7 +692,7 @@ export const usePersonnelPersonsTab = (params: {
 					await personnelApi.replacePersonLadderCard(effectivePersonId, { clear: true })
 				} else {
 					if (!cardNo.value.trim()) {
-						errorMessage.value = "請於卡片設定填寫卡號"
+						errorMessage.value = "請於門禁設定填寫卡號"
 						return { ok: false as const }
 					}
 					await personnelApi.replacePersonLadderCard(effectivePersonId, {
@@ -688,7 +706,10 @@ export const usePersonnelPersonsTab = (params: {
 
 			if (pendingFaceFile.value) {
 				try {
-					const uploadRes = await personnelApi.uploadFaceForPerson(effectivePersonId, pendingFaceFile.value)
+					const uploadRes = await personnelApi.uploadFaceForPerson(
+						effectivePersonId,
+						pendingFaceFile.value
+					)
 					pendingFaceFile.value = null
 					revokeFacePreviewUrl()
 					if (uploadRes?.faceUrl) personForm.faceUrl = uploadRes.faceUrl
@@ -700,14 +721,14 @@ export const usePersonnelPersonsTab = (params: {
 			}
 
 			if (mode === "create") personsOffset.value = 0
-			await loadPersons()
 			showVehiclePlateSyncNotice(toast, vehiclePlateSync)
 			toast.success(
 				mode === "update"
-					? "已更新人員；請至人流統計 → 門禁管理加入地點名單並同步設備"
-					: "已新增人員；請至人流統計 → 門禁管理加入地點名單並同步設備"
+					? "已更新人員。請至人流統計 → 門禁管理設定地點名單並同步設備。"
+					: "已新增人員。請至人流統計 → 門禁管理設定地點名單並同步設備。"
 			)
 			showPersonDialog.value = false
+			void loadPersons()
 			return { ok: true as const }
 		} catch (err) {
 			if (isPersonSaveRequestTimeout(err)) {
@@ -731,7 +752,7 @@ export const usePersonnelPersonsTab = (params: {
 		try {
 			await personnelApi.deletePerson(p.id)
 			await loadPersons()
-			// 若當前頁被刪到沒資料且不是第一頁，退一頁再抓一次，避免空頁
+			// 若當前頁資料被刪光且不在第一頁，回到上一頁避免列表為空
 			if (personsOffset.value > 0 && persons.value.length === 0) {
 				personsOffset.value = getPrevOffset({ offset: personsOffset.value, limit: PAGE_SIZE })
 				await loadPersons()
@@ -742,7 +763,6 @@ export const usePersonnelPersonsTab = (params: {
 		}
 	}
 
-	// ---------- 批次匯入 ----------
 	const showImportDialog = ref(false)
 	const importError = ref("")
 	const importResult = ref<ImportResult | null>(null)
@@ -762,7 +782,6 @@ export const usePersonnelPersonsTab = (params: {
 				toast.success(`已匯入 ${result.created} 筆`)
 				void loadPersons()
 			}
-			if (result.errors?.length) toast.error(`部分失敗：${result.errors.length} 筆`)
 		} catch (err) {
 			importError.value =
 				handleApiError(err, "匯入失敗", PERSONNEL_API_ERROR_OPTS) || "匯入失敗"

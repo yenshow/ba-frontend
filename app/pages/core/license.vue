@@ -215,7 +215,7 @@
 								{{ isSubmittingOffline ? "匯入中..." : "驗簽並匯入" }}
 							</button>
 						</div>
-						<p v-if="offlineResponseFileName" class="text-xs text-emerald-200/80">
+						<p v-if="offlineResponseFileName" class="text-xs text-emerald-100/80">
 							已選擇：{{ offlineResponseFileName }}
 						</p>
 					</div>
@@ -634,7 +634,7 @@ const handleActivateOnline = async () => {
 		await refreshLicense()
 		toast.success("線上啟用成功")
 	} catch (error) {
-		handleError(error, "線上啟用失敗", { preferBackendMessage: true })
+		handleError(error, "線上啟用失敗", { context: "save" })
 	} finally {
 		isSubmittingOnline.value = false
 	}
@@ -718,7 +718,7 @@ const handleGenerateRequestFile = async () => {
 		clearOfflineResponseSelection()
 		offlineStep.value = 2
 	} catch (error) {
-		handleError(error, "產生 request file 失敗", { preferBackendMessage: true })
+		handleError(error, "產生 request file 失敗", { context: "save" })
 	} finally {
 		isGeneratingRequestFile.value = false
 	}
@@ -738,7 +738,7 @@ const handleImportOffline = async () => {
 		clearOfflineResponseSelection()
 		toast.success("離線授權匯入成功")
 	} catch (error) {
-		handleError(error, "離線授權匯入失敗", { preferBackendMessage: true })
+		handleError(error, "離線授權匯入失敗", { context: "save" })
 	} finally {
 		isSubmittingOffline.value = false
 	}

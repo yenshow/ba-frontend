@@ -229,7 +229,6 @@ const {
 		emit("update:modelValue", false)
 	},
 	dismissDialog: () => emit("update:modelValue", false),
-	handleApiError: useErrorHandler().handleError,
 	toast: useToast(),
 })
 </script>

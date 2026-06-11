@@ -137,13 +137,14 @@ export interface AccessLocationsResponse {
 export interface ImportResult {
 	created: number;
 	createdIds?: Array<{ id: number; employeeNo: string }>;
-	errors?: Array<{ row: number; employeeNo?: string; message: string }>;
+	errors?: Array<{ row: number; employeeNo?: string; fullName?: string | null; message: string }>;
 }
 
 /** 設備同步單筆警告（人臉／新增／更新／刪除失敗；sync-all 時可帶 locationName） */
 export interface SyncWarning {
 	type: string;
 	employeeNo?: string;
+	fullName?: string | null;
 	deviceId?: number;
 	deviceName?: string | null;
 	message: string;

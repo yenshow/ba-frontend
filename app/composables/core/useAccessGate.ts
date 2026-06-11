@@ -6,7 +6,12 @@ import { useToast } from "~/composables/core/useToast"
 import { canAccessAccountPage } from "~/composables/systems/users/useAccountSettings"
 import { LOCATION_DELETE_BY_SYSTEM_TYPE, PERM } from "~/config/permissionCodes"
 import type { FeatureKey } from "~/types/license"
-import { LICENSE_MESSAGE_REDIRECT, PERMISSION_MESSAGE_REDIRECT } from "~/utils/errorUtils"
+import {
+	MSG_ACCOUNT_ADMIN,
+	MSG_ADMIN_ONLY,
+	MSG_LICENSE_REDIRECT,
+	MSG_PERMISSION_REDIRECT,
+} from "~/utils/errorUtils"
 import type { SystemModule } from "~/types/system"
 
 /** 僅平台管理員（role=admin）可進入的頁面 */
@@ -78,7 +83,7 @@ export const useAccessGate = () => {
 			return {
 				ok: false,
 				reason: "permission",
-				redirectMessage: PERMISSION_MESSAGE_REDIRECT,
+				redirectMessage: MSG_PERMISSION_REDIRECT,
 			}
 		}
 
@@ -95,7 +100,7 @@ export const useAccessGate = () => {
 		return {
 			ok: false,
 			reason: "license",
-			redirectMessage: LICENSE_MESSAGE_REDIRECT,
+			redirectMessage: MSG_LICENSE_REDIRECT,
 		}
 	}
 
@@ -117,12 +122,12 @@ export const useAccessGate = () => {
 		if (result.ok || path === "/") return
 
 		if (result.reason === "account") {
-			if (process.client) useToast().warning("管理員請使用用戶管理重設密碼")
+			if (process.client) useToast().warning(MSG_ACCOUNT_ADMIN)
 			return navigateTo("/")
 		}
 
 		if (result.reason === "admin") {
-			if (process.client) useToast().warning("僅管理員可存取此頁面")
+			if (process.client) useToast().warning(MSG_ADMIN_ONLY)
 			return navigateTo("/")
 		}
 

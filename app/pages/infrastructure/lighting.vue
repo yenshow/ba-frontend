@@ -55,7 +55,8 @@
 		:can-update-zone="canUpdateLocation"
 		:can-delete-zone="canDeleteLocation"
 		device-hint="請先在「設備管理」中建立控制器設備"
-		@save="handleSaveZone"
+		:on-save-zone="handleSaveZone"
+		@saved="handleZonesSaved"
 		@delete="handleDeleteZone"
 	/>
 </template>
@@ -70,7 +71,11 @@ import type { LightingZone, LightingLocation } from "~/types/lighting"
 import { useVisibilityAutoRefresh } from "~/composables/monitoring/useVisibilityAutoRefresh"
 import { useLightingApi } from "~/composables/systems/lighting/useLightingApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
+import { useToast } from "~/composables/core/useToast"
+import {
+	useZoneManagement,
+	ZONE_DIALOG_BATCH_SAVE_OPTIONS,
+} from "~/composables/location/management/useZoneManagement"
 import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { useLightingModbusIntegration } from "~/composables/monitoring/modbus/toggleModbusIntegrations"
 import { healthStatusToAlertFlash } from "~/utils/alertUtils"
@@ -92,6 +97,7 @@ const {
 } = useLocationModuleRbac(PERM.lighting)
 const lightingApi = useLightingApi()
 const { handleError } = useErrorHandler()
+const toast = useToast()
 
 const leftSectionHeight = ref<number | null>(null)
 
@@ -219,6 +225,7 @@ const saveLocationPosition = async (locationId: string, x: number, y: number) =>
 		})
 		const zi = lightingZones.value.findIndex((z) => z.id === zone.id)
 		if (zi > -1) lightingZones.value[zi] = result.zone
+		toast.success("已更新點位")
 	} catch (error) {
 		handleError(error, "更新位置失敗")
 	}
@@ -318,11 +325,13 @@ const handleSaveZone = async (zone: LightingZone) => {
 		},
 		{
 			selectedZoneRef: selectedZone,
-			onAfterSave: () => {
-				initializeLocationStatuses()
-			},
+			...ZONE_DIALOG_BATCH_SAVE_OPTIONS,
 		}
 	)
+}
+
+const handleZonesSaved = () => {
+	initializeLocationStatuses()
 }
 
 const handleDeleteZone = async (zoneId: string) => {

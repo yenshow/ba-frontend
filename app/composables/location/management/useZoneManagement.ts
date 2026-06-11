@@ -4,6 +4,13 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { compareZonesLoose } from "~/utils/sortOrder";
 import { deleteZoneWithSystemAwareness } from "~/composables/location/locationSystemActions";
 
+/** ZoneManagementDialog 批次儲存時傳入 handleSaveZone 的 options */
+export const ZONE_DIALOG_BATCH_SAVE_OPTIONS = {
+	suppressToast: true,
+	suppressAfterSave: true,
+	rethrowOnError: true,
+} as const
+
 /**
  * 區域管理 Composable
  * 統一處理區域的新增、更新、刪除邏輯
@@ -120,6 +127,12 @@ export function useZoneManagement<
 			cleanZone?: (zone: TZone) => TZone;
 			selectedZoneRef?: Ref<string>;
 			closeDialogRef?: Ref<boolean>; // 統一處理關閉對話框
+			/** 批次儲存時由 dialog 統一 toast */
+			suppressToast?: boolean;
+			/** 批次儲存時由 @saved 回調統一 reload */
+			suppressAfterSave?: boolean;
+			/** 批次儲存失敗時 rethrow 給 dialog 顯示 inline */
+			rethrowOnError?: boolean;
 		}
 	): Promise<void> => {
 		const cleanedZone = options?.cleanZone ? options.cleanZone(zone) : zone;
@@ -157,7 +170,7 @@ export function useZoneManagement<
 			}
 
 			// 執行額外的回調
-			if (options?.onAfterSave) {
+			if (options?.onAfterSave && !options?.suppressAfterSave) {
 				await options.onAfterSave(result, cleanedZone);
 			}
 
@@ -166,10 +179,15 @@ export function useZoneManagement<
 				options.closeDialogRef.value = false;
 			}
 
-			toast.success(result.message || "操作成功");
+			if (!options?.suppressToast) {
+				toast.success(result.message || "操作成功");
+			}
 		} catch (error: any) {
+			if (options?.rethrowOnError) {
+				throw error;
+			}
 			// 400 類錯誤（例如驗證失敗）預設訊息可能過於籠統；優先顯示後端 originalMessage
-			handleError(error, "儲存區域失敗", { preferBackendMessage: true });
+			handleError(error, "儲存區域失敗", { context: "save" });
 		}
 	};
 

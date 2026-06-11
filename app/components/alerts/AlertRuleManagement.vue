@@ -255,6 +255,22 @@ const tableCellClass = "py-3 2xl:py-4 px-4 2xl:px-6"
 const getIntegrationSummary = (ruleId: number): AlertRuleIntegrationSummary =>
 	integrationsStore.getSummary(ruleId)
 
+const sortRulesList = (list: AlertRule[]): AlertRule[] =>
+	list
+		.filter(
+			(rule, index, arr) => arr.findIndex((candidate) => candidate.id === rule.id) === index
+		)
+		.sort((a, b) => {
+			const aTime = Number.isFinite(Date.parse(a.created_at)) ? Date.parse(a.created_at) : null
+			const bTime = Number.isFinite(Date.parse(b.created_at)) ? Date.parse(b.created_at) : null
+			if (aTime != null && bTime != null && aTime !== bTime) return aTime - bTime
+			return a.id - b.id
+		})
+
+const rulePassesCurrentFilters = (rule: AlertRule): boolean =>
+	(selectedRuleSource.value === "" || rule.source === selectedRuleSource.value) &&
+	(selectedRuleType.value === "" || rule.alert_type === selectedRuleType.value)
+
 const loadRules = async () => {
 	isRulesLoading.value = true
 	rulesLoadError.value = null
@@ -268,16 +284,7 @@ const loadRules = async () => {
 				? mergedRules
 				: mergedRules.filter((r) => r.alert_type === selectedRuleType.value)
 
-		rules.value = filteredRules
-			.filter(
-				(rule, index, arr) => arr.findIndex((candidate) => candidate.id === rule.id) === index
-			)
-			.sort((a, b) => {
-				const aTime = Number.isFinite(Date.parse(a.created_at)) ? Date.parse(a.created_at) : null
-				const bTime = Number.isFinite(Date.parse(b.created_at)) ? Date.parse(b.created_at) : null
-				if (aTime != null && bTime != null && aTime !== bTime) return aTime - bTime
-				return a.id - b.id
-			})
+		rules.value = sortRulesList(filteredRules)
 		ruleOffset.value = 0
 	} catch (error) {
 		rulesLoadError.value = handleApiError(error, "載入警報規則失敗") || "載入警報規則失敗"
@@ -337,25 +344,68 @@ const handleSubmitRule = async (payload: {
 	try {
 		const rulePayload = payload.rule
 		const integrationsBody = payload.integrations || {}
+		let ruleId: number | undefined
+
 		if (editingRule.value) {
-			const ruleId = editingRule.value.id
-			await alertApi.updateAlertRule(editingRule.value.id, rulePayload as UpdateAlertRulePayload)
+			ruleId = editingRule.value.id
+			const updateRes = await alertApi.updateAlertRule(
+				editingRule.value.id,
+				rulePayload as UpdateAlertRulePayload
+			)
 			await alertApi.updateAlertRuleIntegrations(editingRule.value.id, integrationsBody as any)
 			alertRules.clearCache(rulePayload.source)
 			integrationsStore.invalidate(ruleId)
+
+			if (updateRes?.rule) {
+				const idx = rules.value.findIndex((r) => r.id === ruleId)
+				if (idx !== -1) {
+					if (rulePassesCurrentFilters(updateRes.rule)) {
+						rules.value[idx] = updateRes.rule
+					} else {
+						rules.value.splice(idx, 1)
+					}
+				} else {
+					await loadRules()
+					closeRuleDialog()
+					await integrationsStore.prefetch([ruleId])
+					toast.success("警報定義已更新", 3000)
+					return
+				}
+			} else {
+				await loadRules()
+				closeRuleDialog()
+				await integrationsStore.prefetch([ruleId])
+				toast.success("警報定義已更新", 3000)
+				return
+			}
 			toast.success("警報定義已更新", 3000)
 		} else {
 			const created = await alertApi.createAlertRule(rulePayload)
-			const newId = created?.rule?.id
-			if (newId) {
-				await alertApi.updateAlertRuleIntegrations(newId, integrationsBody as any)
-				integrationsStore.invalidate(newId)
+			const newRule = created?.rule
+			ruleId = newRule?.id
+			if (ruleId) {
+				await alertApi.updateAlertRuleIntegrations(ruleId, integrationsBody as any)
+				integrationsStore.invalidate(ruleId)
 			}
 			alertRules.clearCache(rulePayload.source)
+
+			if (newRule) {
+				if (rulePassesCurrentFilters(newRule)) {
+					rules.value = sortRulesList([...rules.value, newRule])
+				}
+			} else {
+				await loadRules()
+				closeRuleDialog()
+				if (ruleId) await integrationsStore.prefetch([ruleId])
+				toast.success("警報定義已建立", 3000)
+				return
+			}
 			toast.success("警報定義已建立", 3000)
 		}
+
+		if (ruleId) await integrationsStore.prefetch([ruleId])
+		await loadZonesForRulesSources()
 		closeRuleDialog()
-		await loadRules()
 	} catch (error) {
 		handleApiError(error, editingRule.value ? "更新警報定義失敗" : "建立警報定義失敗")
 	} finally {
@@ -413,14 +463,14 @@ watch(
 )
 
 const getRuleStatusBadgeClass = (enabled: boolean) =>
-	enabled ? "bg-emerald-500/20 text-emerald-200" : "bg-yellow-500/20 text-yellow-200"
+	enabled ? "bg-emerald-500/20 text-emerald-100" : "bg-yellow-500/20 text-yellow-200"
 
 const getAlertTypeBadgeClass = (type: AlertType) => {
 	const classes: Record<AlertType, string> = {
 		offline: "bg-gray-500/20 text-gray-200",
 		error: "bg-red-500/20 text-red-200",
 		threshold: "bg-blue-500/20 text-blue-200",
-		di: "bg-emerald-500/20 text-emerald-200",
+		di: "bg-emerald-500/20 text-emerald-100",
 		do: "bg-sky-500/20 text-sky-200",
 	}
 	return classes[type] ?? "bg-gray-500/20 text-gray-200"

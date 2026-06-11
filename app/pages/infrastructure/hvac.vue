@@ -57,7 +57,8 @@
 		:can-update-zone="canUpdateLocation"
 		:can-delete-zone="canDeleteLocation"
 		device-hint="請先在「設備管理」中建立控制器設備"
-		@save="handleSaveZone"
+		:on-save-zone="handleSaveZone"
+		@saved="handleZonesSaved"
 		@delete="handleDeleteZone"
 	/>
 </template>
@@ -72,7 +73,11 @@ import type { HvacZone, HvacLocation } from "~/types/hvac"
 import { useVisibilityAutoRefresh } from "~/composables/monitoring/useVisibilityAutoRefresh"
 import { useHvacApi } from "~/composables/systems/hvac/useHvacApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
+import { useToast } from "~/composables/core/useToast"
+import {
+	useZoneManagement,
+	ZONE_DIALOG_BATCH_SAVE_OPTIONS,
+} from "~/composables/location/management/useZoneManagement"
 import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
@@ -90,6 +95,7 @@ const {
 } = useLocationModuleRbac(PERM.hvac)
 const hvacApi = useHvacApi()
 const { handleError } = useErrorHandler()
+const toast = useToast()
 
 const leftSectionHeight = ref<number | null>(null)
 
@@ -131,7 +137,6 @@ const {
 	preloadDeviceInfos,
 	loadAllLocationStatuses,
 	handleLocationToggle,
-	dotStatusForLocation,
 	startAutoRefresh,
 	stopAutoRefresh,
 	handleVisibilityChange,
@@ -150,7 +155,11 @@ const getLocationAlertFlash = (locationId: string): "none" | "slow" | "fast" => 
 	return "slow"
 }
 
-const dotStatusForLocationId = (locationId: string) => dotStatusForLocation(locationId)
+const dotStatusForLocationId = (locationId: string) => {
+	const s = locationStatuses.value[locationId]
+	if (!s) return "warning" as const
+	return s.uiStatus
+}
 
 const tooltipTitleByLocationId = (locationId: string) => {
 	const s = locationStatuses.value[locationId]
@@ -233,6 +242,7 @@ const saveLocationPosition = async (locationId: string, x: number, y: number) =>
 		} as any)
 		const zi = hvacZones.value.findIndex((z) => z.id === zone.id)
 		if (zi > -1) hvacZones.value[zi] = result.zone
+		toast.success("已更新點位")
 	} catch (error) {
 		handleError(error, "更新位置失敗")
 	}
@@ -284,11 +294,13 @@ const handleSaveZone = async (zone: HvacZone) => {
 		},
 		{
 			selectedZoneRef: selectedZone,
-			onAfterSave: () => {
-				initializeLocationStatuses()
-			},
+			...ZONE_DIALOG_BATCH_SAVE_OPTIONS,
 		}
 	)
+}
+
+const handleZonesSaved = () => {
+	initializeLocationStatuses()
 }
 
 const handleDeleteZone = async (zoneId: string) => {

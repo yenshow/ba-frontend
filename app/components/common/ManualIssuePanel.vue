@@ -9,60 +9,60 @@
 		</header>
 
 		<fieldset :disabled="!canAdmin" class="min-w-0 border-0 p-0">
-		<label class="block">
-			<span class="mb-2 block text-base text-white/75">目標點位</span>
-			<FilterDropdown
-				v-model="selectedTargetId"
-				:options="targetDropdownOptions"
-				placeholder="請選擇"
-				text-size="text-base"
-				aria-label="選擇目標點位"
-			/>
-		</label>
+			<label class="block">
+				<span class="mb-2 block text-base text-white/75">目標點位</span>
+				<FilterDropdown
+					v-model="selectedTargetId"
+					:options="targetDropdownOptions"
+					placeholder="請選擇"
+					text-size="text-base"
+					aria-label="選擇目標點位"
+				/>
+			</label>
 
-		<label v-if="selectedRuleOptions.length > 0" class="mt-3 block">
-			<span class="mb-2 block text-base text-white/75">規則／通道</span>
-			<FilterDropdown
-				v-model="selectedRuleOptionId"
-				:options="ruleBitDropdownOptions"
-				placeholder="請選擇"
-				text-size="text-base"
-				aria-label="選擇規則或通道"
-			/>
-		</label>
-		<p
-			v-else-if="selectedTargetId && allowManualFallback"
-			class="mt-3 text-sm leading-relaxed text-white/55"
-			role="note"
-		>
-			此點位無可用規則；將以泛用手動警報送出（與「警報設定」規則無連動）。
-		</p>
-		<p
-			v-else-if="selectedTargetId && !allowManualFallback"
-			class="mt-3 text-sm text-amber-200/90"
-			role="alert"
-		>
-			此點位無可用規則，無法操作。
-		</p>
+			<label v-if="selectedRuleOptions.length > 0" class="mt-3 block">
+				<span class="mb-2 block text-base text-white/75">規則／通道</span>
+				<FilterDropdown
+					v-model="selectedRuleOptionId"
+					:options="ruleBitDropdownOptions"
+					placeholder="請選擇"
+					text-size="text-base"
+					aria-label="選擇規則或通道"
+				/>
+			</label>
+			<p
+				v-else-if="selectedTargetId && allowManualFallback"
+				class="mt-3 text-sm leading-relaxed text-white/55"
+				role="note"
+			>
+				此點位無可用規則；將以泛用手動警報送出（與「警報設定」規則無連動）。
+			</p>
+			<p
+				v-else-if="selectedTargetId && !allowManualFallback"
+				class="mt-3 text-sm text-amber-200/90"
+				role="alert"
+			>
+				此點位無可用規則，無法操作。
+			</p>
 
-		<div class="mt-3 flex flex-wrap items-center gap-2">
-			<PermissionActionButton
-				:allowed="canSubmit"
-				aria-label="觸發警報"
-				class="btn-primary"
-				@click="handleTriggerAlert"
-			>
-				觸發警報
-			</PermissionActionButton>
-			<PermissionActionButton
-				:allowed="canSubmit"
-				aria-label="清除警報"
-				class="btn-secondary"
-				@click="handleClearAlert"
-			>
-				清除警報
-			</PermissionActionButton>
-		</div>
+			<div class="mt-3 flex flex-wrap items-center gap-2">
+				<PermissionActionButton
+					:allowed="canSubmit"
+					aria-label="觸發警報"
+					class="btn-primary"
+					@click="handleTriggerAlert"
+				>
+					觸發警報
+				</PermissionActionButton>
+				<PermissionActionButton
+					:allowed="canSubmit"
+					aria-label="清除警報"
+					class="btn-secondary"
+					@click="handleClearAlert"
+				>
+					清除警報
+				</PermissionActionButton>
+			</div>
 		</fieldset>
 	</section>
 </template>
@@ -71,6 +71,7 @@
 import { computed, ref, watch } from "vue"
 import type { ManualIssueChangedPayload, ManualIssueRuleBitOption } from "~/utils/alertUtils"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
+import { useToast } from "~/composables/core/useToast"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import { useAdminOnly } from "~/composables/core/useAuth"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
@@ -97,6 +98,7 @@ const emit = defineEmits<{
 }>()
 
 const canAdmin = useAdminOnly()
+const toast = useToast()
 const { handleError } = useErrorHandler()
 const manualAlertApi = useSystemManualAlertApi(props.systemRoutePrefix)
 
@@ -185,6 +187,7 @@ const handleTriggerAlert = async () => {
 			rule:
 				usesRuleMode.value && effectiveRuleTrigger.value ? effectiveRuleTrigger.value : undefined,
 		})
+		toast.success("已觸發警報")
 	} catch (error) {
 		handleError(error, "觸發警報失敗")
 	} finally {
@@ -211,6 +214,7 @@ const handleClearAlert = async () => {
 			systemId: selectedTargetId.value,
 			action: "clear",
 		})
+		toast.success("已清除警報")
 	} catch (error) {
 		handleError(error, "清除警報失敗")
 	} finally {

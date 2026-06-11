@@ -6,13 +6,16 @@ import {
 	simplifyUserFacingToastMessage,
 	severityToToastType,
 	type AppSeverity,
+	type ErrorContext,
 } from "~/utils/errorUtils"
 
 const errorHandlerLogger = logger.createLogger("Error Handler")
 
 export type HandleErrorOptions = {
-	/** Toast 顯示後端 message（經 simplify），而非固定分類句 */
-	preferBackendMessage?: boolean
+	/** 操作情境；映射未命中時優先於通用 HTTP 句 */
+	context?: ErrorContext
+	/** 背景輪詢逾時等可靜默 */
+	silentIfPolling?: boolean
 }
 
 const errorDeduplication = {
@@ -50,7 +53,13 @@ export const useErrorHandler = () => {
 		return `${simplifiedMsg}:${severity}`
 	}
 
-	const shouldSilenceOperationalError = (error: unknown, errorMsg: string): boolean => {
+	const shouldSilenceOperationalError = (
+		error: unknown,
+		errorMsg: string,
+		options?: HandleErrorOptions,
+	): boolean => {
+		if (!options?.silentIfPolling) return false
+
 		const e = error as { originalMessage?: string; message?: string }
 		const haystack = [errorMsg, String(e?.originalMessage ?? ""), String(e?.message ?? "")]
 			.join("\n")
@@ -73,37 +82,30 @@ export const useErrorHandler = () => {
 	const resolveToastMessage = (
 		error: unknown,
 		defaultMessage: string,
-		options?: HandleErrorOptions
+		_options?: HandleErrorOptions,
 	): string => {
-		if (options?.preferBackendMessage && error instanceof ApiRequestError && error.originalMessage) {
-			return (
-				simplifyUserFacingToastMessage(error.originalMessage) ||
-				error.message ||
-				defaultMessage
-			)
-		}
 		if (error instanceof ApiRequestError) {
+			if (error.isGenericMessage && defaultMessage) {
+				return defaultMessage
+			}
 			return error.message || defaultMessage
 		}
 		if (error instanceof Error) {
 			return simplifyUserFacingToastMessage(error.message || String(error) || defaultMessage)
 		}
 		return simplifyUserFacingToastMessage(
-			typeof error === "string" ? error : defaultMessage
+			typeof error === "string" ? error : defaultMessage,
 		)
 	}
 
 	const handleError = (
 		error: unknown,
 		defaultMessage: string,
-		options?: HandleErrorOptions
+		options?: HandleErrorOptions,
 	): string | null => {
 		const errorMsg = resolveToastMessage(error, defaultMessage, options)
 
-		if (/無效的整數參數|Invalid integer parameter/i.test(errorMsg)) {
-			return null
-		}
-		if (shouldSilenceOperationalError(error, errorMsg)) {
+		if (shouldSilenceOperationalError(error, errorMsg, options)) {
 			errorHandlerLogger.warn("靜默輪詢錯誤", {
 				message: errorMsg.substring(0, 120),
 			})

@@ -36,6 +36,21 @@ export const buildPersonnelGroupsDraftFromTree = (
 export const isNewPersonnelGroupDraftMain = (main: PersonnelGroupDraftMain) => main.id == null
 export const isNewPersonnelGroupDraftChild = (child: PersonnelGroupDraftChild) => child.id == null
 
+/** 群組草稿儲存前集中驗證；回傳第一個錯誤訊息或 null */
+export const validatePersonnelGroupsDraftForSave = (
+	mains: PersonnelGroupDraftMain[],
+): string | null => {
+	for (const main of mains) {
+		if (!main.name.trim()) return "主群組名稱為必填"
+		for (const child of main.children) {
+			if (!child.name.trim()) {
+				return `子群組名稱為必填（主群組：${main.name.trim()}）`
+			}
+		}
+	}
+	return null
+}
+
 const findMainIdForChildId = (
 	sourceMains: PersonnelGroupDraftMain[],
 	childId: number

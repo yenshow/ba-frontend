@@ -223,10 +223,23 @@
 																	"
 																/>
 																<span
-																	class="min-w-0 truncate text-sm text-white/90 2xl:text-base"
+																	class="flex min-w-0 flex-1 items-center gap-2 truncate text-sm text-white/90 2xl:text-base"
 																>
-																	<span class="font-mono">{{ person.employee_no }}</span>
-																	<span class="ms-2">{{ person.full_name || "—" }}</span>
+																	<span class="min-w-0 truncate">
+																		<span class="font-mono">{{
+																			person.employee_no
+																		}}</span>
+																		<span class="ms-2">{{
+																			person.full_name || "—"
+																		}}</span>
+																	</span>
+																	<span
+																		v-if="!personHasAccessCard(person)"
+																		class="shrink-0 rounded border border-amber-400/35 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-100 2xl:text-xs"
+																		title="請於人員主檔「卡片設定」填寫卡號"
+																	>
+																		未設定卡號
+																	</span>
 																</span>
 															</label>
 														</div>
@@ -238,11 +251,8 @@
 								</div>
 							</AsyncPanel>
 
-							<p v-if="errorText" class="mt-3 text-sm text-rose-300" role="alert">
+							<p v-if="errorText" class="form-error-text mt-3" role="alert">
 								{{ errorText }}
-							</p>
-							<p v-else-if="successText" class="mt-3 text-sm text-emerald-200" role="status">
-								{{ successText }}。請至步驟 2 同步至設備。
 							</p>
 
 							<div class="mt-4 flex justify-end">
@@ -443,8 +453,9 @@ import type { ElevatorFloorSync } from "~/composables/systems/elevator/useElevat
 import { useElevatorFloorAccess } from "~/composables/systems/elevator/useElevatorFloorAccess"
 import { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
-import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { useToast } from "~/composables/core/useToast"
 import { useWizardStepNav } from "~/composables/core/useWizardStepNav"
+import { personHasAccessCard } from "~/utils/personnelUtils"
 import { SYNC_TABLE_PANEL_MIN_HEIGHT } from "~/composables/systems/personnel/useLocationMembersPicker"
 
 const FLOOR_PANEL_MIN_HEIGHT = "min-h-[min(360px,50vh)]"
@@ -468,7 +479,7 @@ const manageStep = ref<1 | 2>(1)
 const { getPillButtonClass, getStepCircleClass } = useWizardStepNav()
 const elevatorApi = useElevatorApi()
 const personnelApi = usePersonnelApi()
-const { handleError } = useErrorHandler()
+const toast = useToast()
 
 const {
 	syncWarnings,
@@ -501,7 +512,6 @@ const {
 	isLoading,
 	isApplying,
 	errorText,
-	successText,
 	isPersonChecked,
 	togglePersonOnFloor,
 	selectedCountForFloor,
@@ -514,7 +524,7 @@ const {
 	locationId: toRef(props, "locationId"),
 	elevatorApi,
 	personnelApi,
-	handleApiError: handleError,
+	toast,
 })
 
 const handleClose = () => emit("update:modelValue", false)

@@ -198,7 +198,8 @@
 		:can-create-zone="canCreateLocation"
 		:can-update-zone="canUpdateLocation"
 		:can-delete-zone="canDeleteLocation"
-		@save="handleSaveZone"
+		:on-save-zone="handleSaveZone"
+		@saved="handleZonesSaved"
 		@delete="handleDeleteZone"
 	/>
 	<PeopleCountingAccessManageDialog
@@ -240,7 +241,10 @@ import SimulationFrame from "~/components/common/SimulationFrame.vue"
 import PeopleCountingSimulation from "~/components/people-counting/PeopleCountingSimulation.vue"
 import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState"
 import { usePeopleCountingLocationApi } from "~/composables/location/api/usePeopleCountingLocationApi"
-import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
+import {
+	useZoneManagement,
+	ZONE_DIALOG_BATCH_SAVE_OPTIONS,
+} from "~/composables/location/management/useZoneManagement"
 import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter"
 import {
 	usePeopleCountingApi,
@@ -568,13 +572,14 @@ const handleSaveZone = async (zone: PeopleCountingZone) => {
 			}
 		},
 		{
-			// 保存後重新載入地點列表（因為地點變更可能影響地點列表）
-			onAfterSave: async () => {
-				await loadZones()
-				await loadLocations()
-			},
+			...ZONE_DIALOG_BATCH_SAVE_OPTIONS,
 		}
 	)
+}
+
+const handleZonesSaved = async () => {
+	await loadZones()
+	await loadLocations()
 }
 
 // 處理刪除區域

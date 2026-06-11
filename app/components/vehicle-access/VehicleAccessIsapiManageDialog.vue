@@ -297,7 +297,7 @@
 																	class="rounded-full px-2 py-0.5 text-xs 2xl:text-sm"
 																	:class="
 																		row.listType === 'allowList'
-																			? 'bg-emerald-500/20 text-emerald-200'
+																			? 'bg-emerald-500/20 text-emerald-100'
 																			: 'bg-rose-500/20 text-rose-200'
 																	"
 																>
@@ -361,13 +361,14 @@ import type { VehicleAccessLocation, VehicleLicensePlateAuditItem } from "~/type
 import { useVehicleAccessIsapiDeviceApi } from "~/composables/systems/vehicleAccess/useVehicleAccessIsapiDeviceApi"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
+import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useToast } from "~/composables/core/useToast"
 import { resolveUserFacingCatchMessage } from "~/utils/errorUtils"
+import { formatPersonLabel } from "~/utils/personnelUtils"
 import {
 	buildIsapiPlateUpsertEntry,
 	createDefaultIsapiPlateForm,
 	formatLicensePlateDisplayTime,
-	formatPersonBindLabel,
 	isapiPlateFormFromAuditRow,
 	licensePlateListTypeShortLabel,
 	type IsapiPlateFormModel,
@@ -440,6 +441,7 @@ const isapiApi = useVehicleAccessIsapiDeviceApi()
 const deviceApi = useDeviceApi()
 const personnelApi = usePersonnelApi()
 const toast = useToast()
+const { handleError } = useErrorHandler()
 
 const deviceNameMap = ref<Record<number, string>>({})
 const expandedDevices = ref<Set<number>>(new Set())
@@ -498,7 +500,7 @@ const loadPersonBindOptions = async () => {
 		const res = await personnelApi.getLocationMembers(id, { limit: 500, offset: 0 })
 		personBindOptions.value = (res.items ?? []).map((p) => ({
 			value: String(p.id),
-			label: formatPersonBindLabel(p.employee_no, p.full_name) || `人員 #${p.id}`,
+			label: formatPersonLabel(p.employee_no, p.full_name) || `人員 #${p.id}`,
 		}))
 	} catch {
 		personBindOptions.value = []
@@ -661,7 +663,7 @@ const handleDeletePlate = async (deviceId: number, row: VehicleLicensePlateAudit
 		toast.success("已刪除")
 		await loadPlatesForDevice(deviceId)
 	} catch (e) {
-		toast.error(resolveUserFacingCatchMessage(e, "刪除車牌失敗"))
+		handleError(e, "刪除車牌失敗", { context: "delete" })
 	}
 }
 

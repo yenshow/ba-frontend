@@ -110,7 +110,7 @@
 						<p>成功：{{ result.created }} 筆</p>
 						<p v-if="result.errors?.length" class="mt-2 text-amber-300">
 							錯誤：{{ result.errors.length }} 筆 —
-							{{ result.errors.map((e) => `第${e.row}行 ${e.message}`).join("；") }}
+							{{ result.errors.map(formatImportErrorLine).join("；") }}
 						</p>
 					</div>
 					<footer class="mt-2 flex gap-3 2xl:gap-4">
@@ -134,6 +134,7 @@
 <script setup lang="ts">
 import type { ImportResult } from "~/types/personnel"
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
+import { formatImportErrorLine } from "~/utils/personnelUtils"
 
 const props = defineProps<{
 	modelValue: boolean

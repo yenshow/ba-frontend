@@ -1,30 +1,278 @@
 /**
- * API 錯誤處理、使用者可見文案與授權／權限訊息
+ * API 錯誤處理與使用者可見文案（前端 UI SSOT）
+ * 維護：新增 apiErrorCodes 常數時同步更新 API_ERROR_USER_MESSAGES 與 docs/30-contracts/api-error-code-map.md
  */
 
+import type { Ref } from "vue"
 import { parseBackendApiFailure } from "~/utils/parseBackendApiFailure"
 
-/** 授權／權限相關 Toast 與路由守衛文案 */
-export const LICENSE_MESSAGE_LOCKED = "此功能尚未授權，請聯絡管理員"
+// --- 授權／權限／存取文案 ---
 
-export const PERMISSION_MESSAGE_LOCKED = "您沒有此系統的存取權限"
+export const MSG_LICENSE_LOCKED = "此功能尚未授權，請聯絡管理員"
+export const MSG_LICENSE_REDIRECT = "此功能尚未授權，已為您返回首頁"
+export const MSG_PERMISSION_LOCKED = "您沒有此功能的存取權限"
+export const MSG_PERMISSION_REDIRECT = "您沒有此功能的存取權限，已為您返回首頁"
+export const MSG_ADMIN_ONLY = "僅管理員可存取此頁面"
+export const MSG_ACCOUNT_ADMIN = "管理員請至用戶管理重設密碼"
 
-export const LICENSE_MESSAGE_REDIRECT = "此功能尚未授權，已為你返回首頁"
+export const LICENSE_MESSAGE_LOCKED = MSG_LICENSE_LOCKED
+export const LICENSE_MESSAGE_REDIRECT = MSG_LICENSE_REDIRECT
+export const PERMISSION_MESSAGE_LOCKED = MSG_PERMISSION_LOCKED
+export const PERMISSION_MESSAGE_REDIRECT = MSG_PERMISSION_REDIRECT
 
-export const PERMISSION_MESSAGE_REDIRECT = "您沒有此系統的存取權限，已為你返回首頁"
+// --- HTTP／通用 fallback ---
 
-export type AppSeverity = "warning" | "error" | "critical";
+export const USER_FACING_API_BAD_REQUEST = "請求內容不正確，請確認後再試" as const
+export const USER_FACING_API_UNAUTHORIZED = "登入已過期，請重新登入" as const
+export const USER_FACING_API_NOT_FOUND = "找不到要求的資料" as const
+export const USER_FACING_API_SERVER_ERROR = "伺服器異常，請稍後再試" as const
+export const USER_FACING_API_GENERIC_CLIENT_ERROR = "無法完成請求，請稍後再試" as const
+export const USER_FACING_API_CONFLICT = "資料衝突，請確認後再試" as const
+export const USER_FACING_API_BAD_GATEWAY = "外部服務暫時無法連線，請稍後再試" as const
+export const USER_FACING_API_UNEXPECTED = "發生錯誤，請稍後再試" as const
+export const USER_FACING_CONNECTION_ERROR = "設備連線異常，請稍後再試" as const
+export const USER_FACING_EXTERNAL_DB_ERROR = "資料庫查詢錯誤" as const
+export const USER_FACING_REQUEST_TIMEOUT = "請求逾時，請稍後再試"
+
+export type ErrorContext = "load" | "save" | "delete" | "sync" | "control"
+
+const CONTEXT_FALLBACK_MESSAGES: Record<ErrorContext, string> = {
+	load: "無法載入資料，請稍後再試",
+	save: "無法儲存，請稍後再試",
+	delete: "無法刪除，請稍後再試",
+	sync: "同步失敗，請稍後再試",
+	control: "操作失敗，請稍後再試",
+}
+
+// --- 後端 code 映射 ---
+
+const API_ERROR_USER_MESSAGES: Record<string, string> = {
+	FEATURE_NOT_LICENSED: MSG_LICENSE_LOCKED,
+	LICENSE_QUOTA_EXCEEDED: "授權配額已用盡，請聯絡管理員",
+	LICENSE_CHECK_FAILED: "授權狀態檢查失敗，請稍後再試",
+	LICENSE_ALREADY_USED: "此授權已使用，請聯絡管理員",
+	LICENSE_INACTIVE: "授權未啟用，請聯絡管理員",
+	INVALID_LICENSE_PAYLOAD: "授權檔案格式不正確",
+	INVALID_OFFLINE_LICENSE_SIGNATURE: "授權簽章驗證失敗",
+	INVALID_LICENSE_PRODUCT: "授權產品不符",
+	PERMISSION_DENIED: MSG_PERMISSION_LOCKED,
+	FORBIDDEN: MSG_PERMISSION_LOCKED,
+	CONFLICT: USER_FACING_API_CONFLICT,
+	BAD_GATEWAY: USER_FACING_API_BAD_GATEWAY,
+	USER_AUTH_FAILED: "帳號或密碼錯誤",
+	USER_ACCOUNT_INACTIVE: "帳號已停用，請聯絡管理員",
+	USER_NOT_FOUND: "找不到此使用者",
+	USER_USERNAME_EXISTS: "此帳號已存在",
+	USER_USERNAME_TAKEN: "此帳號已被使用",
+	USER_PASSWORD_TOO_SHORT: "密碼長度不足，請至少輸入 6 個字元",
+	USER_OLD_PASSWORD_REQUIRED: "請輸入舊密碼",
+	USER_OLD_PASSWORD_INVALID: "舊密碼不正確",
+	USER_FORBIDDEN_PASSWORD_SELF: "無法變更自己的密碼，請聯絡管理員",
+	USER_FORBIDDEN_PASSWORD_TARGET: "無法重設此帳號的密碼",
+	USER_FORBIDDEN_PASSWORD_OTHERS: "無法變更他人的密碼",
+	USER_FORBIDDEN_DELETE_SELF: "無法刪除自己的帳號",
+	USER_FORBIDDEN_DELETE_ADMIN: "無法刪除管理員帳號",
+	DEVICE_NOT_FOUND: "找不到此設備",
+	DEVICE_NAME_REQUIRED: "請輸入設備名稱",
+	DEVICE_NAME_TOO_LONG: "設備名稱過長",
+	DEVICE_CONFIG_INVALID: "設備設定不完整，請檢查後再試",
+	DEVICE_CONFIG_REQUIRED: "請填寫設備設定",
+	DEVICE_DUPLICATE_CONNECTION: "此連線設定已被其他設備使用",
+	DEVICE_NOT_CAMERA: "此設備不支援攝影機功能",
+	DEVICE_RTSP_URL_MISSING: "請設定串流網址",
+	DEVICE_MODEL_NOT_FOUND: "找不到此設備型號",
+	DEVICE_MODEL_IN_USE: "此設備型號使用中，無法刪除",
+	DEVICE_MODEL_NAME_REQUIRED: "請輸入型號名稱",
+	DEVICE_LIST_FAILED: "無法載入設備列表，請稍後再試",
+	DEVICE_CREATE_FAILED: "無法新增設備，請稍後再試",
+	DEVICE_UPDATE_FAILED: "無法更新設備，請稍後再試",
+	DEVICE_DELETE_FAILED: "無法刪除設備，請稍後再試",
+	LOCATION_NOT_FOUND: "找不到此地點",
+	LOCATION_ZONE_NOT_FOUND: "找不到此區域",
+	LOCATION_NAME_REQUIRED: "請輸入地點名稱",
+	LOCATION_ZONE_NAME_REQUIRED: "請輸入區域名稱",
+	LOCATION_NAME_DUPLICATE: "地點名稱已存在",
+	LOCATION_ZONE_NAME_DUPLICATE: "區域名稱已存在",
+	LOCATION_SYSTEM_TYPE_DUPLICATE: "此地點已綁定相同系統",
+	LOCATION_DEVICE_NOT_FOUND: "找不到綁定的設備",
+	LOCATION_ZONE_DELETE_FORBIDDEN: "此區域尚有地點，無法刪除",
+	PERSONNEL_PERSON_NOT_FOUND: "找不到此人員",
+	PERSONNEL_PERSON_GROUP_NOT_FOUND: "找不到此人員群組",
+	PERSONNEL_IMPORT_EXCEL_FILE_MISSING: "請上傳 Excel 檔案",
+	PERSONNEL_FACE_UPLOAD_FILE_MISSING: "請上傳人臉照片",
+	PERSONNEL_FACE_UPLOAD_INVALID_FILE_FORMAT: "人臉照片格式不正確",
+	PERSONNEL_SYNC_JOB_NOT_FOUND: "找不到同步工作",
+	VEHICLE_ACCESS_NOT_CAMERA: "此設備不支援車輛管理功能",
+	VEHICLE_ACCESS_CONFIG_INCOMPLETE: "車輛設備設定不完整",
+	VEHICLE_ACCESS_DEVICE_NOT_IN_SITE: "設備不屬於此工地",
+	PLATE_ALREADY_ASSIGNED: "此車牌已指派給其他車輛",
+	ALERT_RULE_NOT_FOUND: "找不到此警報規則",
+	ALERT_NOT_FOUND: "找不到此警報",
+	ALERT_LINKAGE_NOT_FOUND: "找不到此連動規則",
+	ALERT_SMTP_INVALID: "郵件伺服器設定不完整",
+	ENVIRONMENT_READINGS_LIST_FAILED: "無法載入環境讀數，請稍後再試",
+	PEOPLE_COUNTING_VALIDATION_FAILED: "人流統計設定有誤，請檢查後再試",
+	PEOPLE_COUNTING_OPERATION_FAILED: "人流統計操作失敗，請稍後再試",
+	ELEVATOR_VALIDATION_FAILED: "電梯設定有誤，請檢查後再試",
+	ELEVATOR_SYNC_JOB_NOT_FOUND: "找不到電梯同步工作",
+	SETTINGS_KEY_NOT_FOUND: "找不到此設定項目",
+	SETTINGS_UPLOAD_FILE_MISSING: "請選擇要上傳的檔案",
+	MULTIMEDIA_UPLOAD_FILE_MISSING: "請選擇要上傳的檔案",
+}
+
+const API_ERROR_PREFIX_MESSAGES: ReadonlyArray<{ prefix: string; message: string }> = [
+	{ prefix: "USER_PASSWORD_", message: "密碼不符合要求，請重新輸入" },
+	{ prefix: "USER_FORBIDDEN_", message: "您沒有執行此操作的權限" },
+	{ prefix: "LICENSE_", message: "授權相關操作失敗，請聯絡管理員" },
+	{ prefix: "INVALID_LICENSE_", message: "授權檔案無效，請確認後再試" },
+	{ prefix: "PERSONNEL_", message: "人員資料有誤，請檢查後再試" },
+	{ prefix: "PERSON_SYNC_", message: "人員同步失敗，請稍後再試" },
+	{ prefix: "VEHICLE_ACCESS_", message: "車輛管理操作失敗，請稍後再試" },
+	{ prefix: "ACCESS_CONTROL_", message: "門禁操作失敗，請稍後再試" },
+	{ prefix: "ALERT_", message: "警報操作失敗，請稍後再試" },
+	{ prefix: "DEVICE_MODEL_", message: "設備型號資料有誤，請檢查後再試" },
+	{ prefix: "DEVICE_CONNECTIVITY_", message: USER_FACING_CONNECTION_ERROR },
+	{ prefix: "DEVICE_", message: "設備操作失敗，請稍後再試" },
+	{ prefix: "LOCATION_ZONE_", message: "區域操作失敗，請稍後再試" },
+	{ prefix: "LOCATION_", message: "地點操作失敗，請稍後再試" },
+	{ prefix: "MODBUS_CONNECTION_", message: USER_FACING_CONNECTION_ERROR },
+	{ prefix: "MODBUS_READ_TIMEOUT", message: USER_FACING_CONNECTION_ERROR },
+	{ prefix: "MODBUS_WRITE_TIMEOUT", message: USER_FACING_CONNECTION_ERROR },
+	{ prefix: "MODBUS_", message: "設備通訊失敗，請稍後再試" },
+	{ prefix: "ELEVATOR_", message: "電梯操作失敗，請稍後再試" },
+	{ prefix: "ENVIRONMENT_", message: "環境資料操作失敗，請稍後再試" },
+	{ prefix: "EXTERNAL_DATA_", message: USER_FACING_EXTERNAL_DB_ERROR },
+	{ prefix: "SETTINGS_", message: "設定操作失敗，請稍後再試" },
+	{ prefix: "MULTIMEDIA_", message: "多媒體操作失敗，請稍後再試" },
+	{ prefix: "AUTH_", message: USER_FACING_API_UNAUTHORIZED },
+]
+
+const getUserMessageForBackendCode = (backendCode: string | undefined): string | undefined => {
+	if (!backendCode) return undefined
+
+	const exact = API_ERROR_USER_MESSAGES[backendCode]
+	if (exact) return exact
+
+	for (const { prefix, message } of API_ERROR_PREFIX_MESSAGES) {
+		if (backendCode.startsWith(prefix) || backendCode === prefix) return message
+	}
+
+	if (
+		backendCode.includes("TIMEOUT") ||
+		backendCode.includes("CONNECTION") ||
+		backendCode.includes("UNAVAILABLE")
+	) {
+		return USER_FACING_CONNECTION_ERROR
+	}
+	if (backendCode.endsWith("_NOT_FOUND") || backendCode.includes("NOT_FOUND")) {
+		return USER_FACING_API_NOT_FOUND
+	}
+	if (backendCode.includes("DUPLICATE") || backendCode.includes("IN_USE")) {
+		return USER_FACING_API_CONFLICT
+	}
+
+	return undefined
+}
+
+// --- VALIDATION_* + details 組句 ---
+
+const VALIDATION_FIELD_LABELS: Record<string, string> = {
+	name: "名稱",
+	deviceName: "設備名稱",
+	deviceModelId: "設備型號",
+	deviceType: "設備類型",
+	host: "主機位址",
+	port: "連接埠",
+	unitId: "單元編號",
+	username: "帳號",
+	password: "密碼",
+	newPassword: "新密碼",
+	oldPassword: "舊密碼",
+	employeeNo: "員工編號",
+	personGroupIds: "人員群組",
+	vehicleGroupIds: "車輛群組",
+	licensePlate: "車牌號碼",
+	siteId: "工地",
+	zoneId: "區域",
+	locationId: "地點",
+	locationType: "地點類型",
+	systemType: "系統類型",
+	page: "頁碼",
+	limit: "筆數",
+	status: "狀態",
+	role: "角色",
+	excel: "Excel 檔案",
+	fingerPrintID: "指紋編號",
+	rule_id: "警報規則",
+	ctrlMode: "控制模式",
+	floors: "授權樓層",
+}
+
+const labelForField = (field: string): string => VALIDATION_FIELD_LABELS[field] ?? field
+
+const labelForFields = (fields: string[]): string => fields.map(labelForField).join("、")
+
+const asStringArray = (value: unknown): string[] =>
+	Array.isArray(value) ? value.map((v) => String(v)) : []
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+	value && typeof value === "object" && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: null
+
+const resolveValidationMessage = (
+	backendCode: string | undefined,
+	details: unknown,
+): string | undefined => {
+	if (!backendCode?.startsWith("VALIDATION_")) return undefined
+
+	const d = asRecord(details)
+
+	if (backendCode === "VALIDATION_REQUIRED") {
+		const missing = asStringArray(d?.missing)
+		if (missing.length === 1) return `請填寫${labelForField(missing[0])}`
+		if (missing.length > 1) return `請填寫：${labelForFields(missing)}`
+		return "請填寫必填欄位"
+	}
+	if (backendCode === "VALIDATION_INVALID_NUMBER") {
+		const invalid = asStringArray(d?.invalid)
+		if (invalid.length === 1) return `${labelForField(invalid[0])}必須為數字`
+		if (invalid.length > 1) return `以下欄位必須為數字：${labelForFields(invalid)}`
+		return "請輸入有效的數字"
+	}
+	if (backendCode === "VALIDATION_INVALID_INTEGER") {
+		const invalid = asStringArray(d?.invalid)
+		if (invalid.length === 1) return `${labelForField(invalid[0])}必須為整數`
+		if (invalid.length > 1) return `以下欄位必須為整數：${labelForFields(invalid)}`
+		return "請輸入有效的整數"
+	}
+	if (backendCode === "VALIDATION_INVALID_ENUM") {
+		const field = d?.field != null ? String(d.field) : ""
+		const allowed = asStringArray(d?.allowedValues)
+		if (field && allowed.length) return `${labelForField(field)}僅能選擇：${allowed.join("、")}`
+		return "請選擇有效的選項"
+	}
+	if (backendCode === "VALIDATION_INVALID_DATE") {
+		const invalid = asStringArray(d?.invalid)
+		if (invalid.length === 1) return `${labelForField(invalid[0])}日期格式不正確`
+		if (invalid.length > 1) return `以下欄位日期格式不正確：${labelForFields(invalid)}`
+		return "日期格式不正確"
+	}
+	if (backendCode === "VALIDATION_CUSTOM") return "請確認輸入內容後再試"
+
+	return undefined
+}
+
+// --- 型別與 ApiRequestError ---
+
+export type AppSeverity = "warning" | "error" | "critical"
 
 export const APP_SEVERITY_RANK: Record<AppSeverity, number> = {
 	warning: 1,
 	error: 2,
 	critical: 3,
-} as const;
+} as const
 
-/**
- * 連線/離線 token（僅用於「無 status/code」時的 fallback；避免解析整句中文訊息造成漂移）
- * - **前後端需盡量一致**（後端：systemAlertHelper.js）
- */
 export const CONNECTION_ERROR_TOKENS = [
 	"連接超時",
 	"連接被拒絕",
@@ -38,36 +286,9 @@ export const CONNECTION_ERROR_TOKENS = [
 	"設備連接失敗",
 	"服務不可用",
 	"service unavailable",
-] as const;
+] as const
 
-export const TIMEOUT_ERROR_TOKENS = ["timeout", "timed out", "etimedout", "請求超時"] as const;
-
-export const USER_FACING_REQUEST_TIMEOUT = "請求逾時，請稍後再試";
-
-/** 判斷 fetch / ofetch 逾時（含 <no response> + TimeoutError） */
-export const isApiRequestTimeout = (error: unknown): boolean => {
-	if (error instanceof ApiRequestError && error.code === "TIMEOUT") return true;
-
-	const parts: string[] = [];
-	if (error instanceof ApiRequestError) {
-		if (error.originalMessage) parts.push(error.originalMessage);
-		if (error.message) parts.push(error.message);
-	} else if (error instanceof Error) {
-		parts.push(error.message);
-	} else if (error && typeof error === "object") {
-		const r = error as { code?: string; message?: string; originalMessage?: string };
-		if (r.code === "TIMEOUT") return true;
-		if (r.originalMessage) parts.push(r.originalMessage);
-		if (r.message) parts.push(r.message);
-	} else if (error != null) {
-		parts.push(String(error));
-	}
-
-	const lower = parts.join("\n").toLowerCase();
-	return (
-		TIMEOUT_ERROR_TOKENS.some((token) => lower.includes(token)) || lower.includes("timeouterror")
-	);
-};
+export const TIMEOUT_ERROR_TOKENS = ["timeout", "timed out", "etimedout", "請求超時"] as const
 
 export type ApiErrorCode =
 	| "HTTP_400"
@@ -79,343 +300,304 @@ export type ApiErrorCode =
 	| "NETWORK_ERROR"
 	| "TIMEOUT"
 	| "BACKEND_CODE"
-	| "UNKNOWN";
+	| "UNKNOWN"
 
 export type ApiRequestErrorMeta = {
-	statusCode?: number;
-	code?: ApiErrorCode;
-	backendCode?: string;
-	originalMessage?: string;
-	details?: unknown;
-};
+	statusCode?: number
+	code?: ApiErrorCode
+	backendCode?: string
+	originalMessage?: string
+	details?: unknown
+	resolvedCode?: ApiErrorCode
+}
 
 export class ApiRequestError extends Error {
-	statusCode?: number;
-	/** 前端分類（HTTP fallback / NETWORK 等） */
-	code?: ApiErrorCode;
-	/** 後端語意碼（error.code 或 YSCP code） */
-	backendCode?: string;
-	originalMessage?: string;
-	details?: unknown;
+	statusCode?: number
+	code?: ApiErrorCode
+	backendCode?: string
+	originalMessage?: string
+	details?: unknown
+	isGenericMessage?: boolean
 
-	constructor(message: string, meta?: ApiRequestErrorMeta) {
-		super(message);
-		this.name = "ApiRequestError";
-		this.statusCode = meta?.statusCode;
-		this.code = meta?.code;
-		this.backendCode = meta?.backendCode;
-		this.originalMessage = meta?.originalMessage;
-		this.details = meta?.details;
+	constructor(message: string, meta?: ApiRequestErrorMeta & { isGenericMessage?: boolean }) {
+		super(message)
+		this.name = "ApiRequestError"
+		this.statusCode = meta?.statusCode
+		this.code = meta?.code ?? meta?.resolvedCode
+		this.backendCode = meta?.backendCode
+		this.originalMessage = meta?.originalMessage
+		this.details = meta?.details
+		this.isGenericMessage = meta?.isGenericMessage
 	}
 }
 
-/** 外部資料庫查詢失敗時對使用者顯示的固定文案（與後端 errorHandler 對齊） */
-export const USER_FACING_EXTERNAL_DB_ERROR = "資料庫查詢錯誤" as const;
+export const isApiRequestTimeout = (error: unknown): boolean => {
+	if (error instanceof ApiRequestError && error.code === "TIMEOUT") return true
 
-/** useApiBase 對使用者顯示：不透傳 HTTP 狀態數字、URL、後端原文（詳見 originalMessage） */
-export const USER_FACING_API_BAD_REQUEST = "請求內容不正確，請確認後再試" as const;
-export const USER_FACING_API_UNAUTHORIZED = "登入已過期，請重新登入" as const;
-export const USER_FACING_API_FORBIDDEN = "權限不足，無法執行此操作" as const;
-export const USER_FACING_API_NOT_FOUND = "找不到要求的資料" as const;
-export const USER_FACING_API_SERVER_ERROR = "伺服器異常，請稍後再試" as const;
-export const USER_FACING_API_GENERIC_CLIENT_ERROR = "無法完成請求，請稍後再試" as const;
-export const USER_FACING_API_CONFLICT = "資料衝突，請確認後再試" as const;
-export const USER_FACING_API_BAD_GATEWAY = "外部服務暫時無法連線，請稍後再試" as const;
-export const USER_FACING_API_UNEXPECTED = "發生錯誤，請稍後再試" as const;
-export const USER_FACING_CONNECTION_ERROR = "連線異常，請稍後再試" as const;
+	const parts: string[] = []
+	if (error instanceof ApiRequestError) {
+		if (error.originalMessage) parts.push(error.originalMessage)
+		if (error.message) parts.push(error.message)
+	} else if (error instanceof Error) {
+		parts.push(error.message)
+	} else if (error && typeof error === "object") {
+		const r = error as { code?: string; message?: string; originalMessage?: string }
+		if (r.code === "TIMEOUT") return true
+		if (r.originalMessage) parts.push(r.originalMessage)
+		if (r.message) parts.push(r.message)
+	} else if (error != null) {
+		parts.push(String(error))
+	}
 
-/** 依 HTTP status 取得對使用者顯示的固定文案（不含 401：由 useApiBase 處理登出） */
+	const lower = parts.join("\n").toLowerCase()
+	return (
+		TIMEOUT_ERROR_TOKENS.some((token) => lower.includes(token)) || lower.includes("timeouterror")
+	)
+}
+
 export const mapHttpStatusToUserFacingError = (
 	statusCode: number,
-	isExternalDataQuery: boolean
-): { message: string; code: ApiErrorCode } => {
-	if (statusCode === 400) return { message: USER_FACING_API_BAD_REQUEST, code: "HTTP_400" };
-	if (statusCode === 403) return { message: USER_FACING_API_FORBIDDEN, code: "HTTP_403" };
-	if (statusCode === 404) return { message: USER_FACING_API_NOT_FOUND, code: "HTTP_404" };
-	if (statusCode === 409) return { message: USER_FACING_API_CONFLICT, code: "HTTP_400" };
-	if (statusCode === 502) return { message: USER_FACING_API_BAD_GATEWAY, code: "HTTP_500" };
+	isExternalDataQuery: boolean,
+): { message: string; code: ApiErrorCode; isGeneric: boolean } => {
+	if (statusCode === 400) return { message: USER_FACING_API_BAD_REQUEST, code: "HTTP_400", isGeneric: true }
+	if (statusCode === 403) return { message: MSG_PERMISSION_LOCKED, code: "HTTP_403", isGeneric: false }
+	if (statusCode === 404) return { message: USER_FACING_API_NOT_FOUND, code: "HTTP_404", isGeneric: true }
+	if (statusCode === 409) return { message: USER_FACING_API_CONFLICT, code: "HTTP_400", isGeneric: false }
+	if (statusCode === 502) return { message: USER_FACING_API_BAD_GATEWAY, code: "HTTP_500", isGeneric: false }
 
 	if (statusCode >= 500 && statusCode < 600) {
 		if (isExternalDataQuery) {
 			return {
 				message: USER_FACING_EXTERNAL_DB_ERROR,
 				code: statusCode === 503 ? "HTTP_503" : "HTTP_500",
-			};
+				isGeneric: false,
+			}
 		}
-		return { message: USER_FACING_API_SERVER_ERROR, code: "HTTP_500" };
+		return { message: USER_FACING_API_SERVER_ERROR, code: "HTTP_500", isGeneric: true }
 	}
 
 	if (statusCode >= 400 && statusCode < 500) {
-		return { message: USER_FACING_API_GENERIC_CLIENT_ERROR, code: "UNKNOWN" };
+		return { message: USER_FACING_API_GENERIC_CLIENT_ERROR, code: "UNKNOWN", isGeneric: true }
 	}
 
-	return { message: USER_FACING_API_UNEXPECTED, code: "UNKNOWN" };
-};
+	return { message: USER_FACING_API_UNEXPECTED, code: "UNKNOWN", isGeneric: true }
+}
 
-const MAX_USER_VISIBLE_API_ERROR_CHARS = 480;
+const MAX_USER_VISIBLE_API_ERROR_CHARS = 480
 
 const isLikelyHtmlOrDocumentErrorPage = (raw: string): boolean => {
-	const s = String(raw || "");
-	if (!s) return false;
-	if (/<!DOCTYPE/i.test(s)) return true;
-	if (/<\s*html[\s>]/i.test(s)) return true;
-	if (/\bnuxt\b/i.test(s) && /\bdev server\b/i.test(s)) return true;
-	return false;
-};
+	const s = String(raw || "")
+	if (!s) return false
+	if (/<!DOCTYPE/i.test(s)) return true
+	if (/<\s*html[\s>]/i.test(s)) return true
+	if (/\bnuxt\b/i.test(s) && /\bdev server\b/i.test(s)) return true
+	return false
+}
 
-/**
- * 從 API／ofetch 錯誤帶出的字串中取出可給使用者看的片段（絕不回傳整頁 HTML）
- */
 const clipUserFacingApiErrorText = (raw: unknown): string => {
-	if (raw === undefined || raw === null) return "";
-	let s = String(raw).trim();
-	if (!s) return "";
-	if (isLikelyHtmlOrDocumentErrorPage(s)) return "";
+	if (raw === undefined || raw === null) return ""
+	let s = String(raw).trim()
+	if (!s || isLikelyHtmlOrDocumentErrorPage(s)) return ""
 	if (s.length > MAX_USER_VISIBLE_API_ERROR_CHARS) {
-		return `${s.slice(0, MAX_USER_VISIBLE_API_ERROR_CHARS).trimEnd()}…`;
+		return `${s.slice(0, MAX_USER_VISIBLE_API_ERROR_CHARS).trimEnd()}…`
 	}
-	return s;
-};
+	return s
+}
 
-/** 從 ofetch 預設字串列（含 URL）解析 500／503，例如 `[GET] "…/external-data/…" : 503 …` */
 const parseExternalDataHttpStatusFromMessage = (message: string): number | undefined => {
-	const m = String(message || "");
-	if (!m.includes("external-data")) return undefined;
-	const g = m.match(/:\s*(\d{3})\b/);
-	if (!g) return undefined;
-	const code = parseInt(g[1], 10);
-	return code === 500 || code === 503 ? code : undefined;
-};
+	const m = String(message || "")
+	if (!m.includes("external-data")) return undefined
+	const g = m.match(/:\s*(\d{3})\b/)
+	if (!g) return undefined
+	const code = parseInt(g[1], 10)
+	return code === 500 || code === 503 ? code : undefined
+}
 
 const coerceHttpStatusCode = (error: unknown): number | undefined => {
-	const e = error as any;
-	const raw = e?.statusCode ?? e?.status ?? e?.response?.status;
-	if (raw === undefined || raw === null || raw === "") return undefined;
-	const n = typeof raw === "string" ? parseInt(raw, 10) : Number(raw);
-	return Number.isFinite(n) ? n : undefined;
-};
+	const e = error as { statusCode?: number; status?: number; response?: { status?: number } }
+	const raw = e?.statusCode ?? e?.status ?? e?.response?.status
+	if (raw === undefined || raw === null) return undefined
+	const n = typeof raw === "string" ? parseInt(raw, 10) : Number(raw)
+	return Number.isFinite(n) ? n : undefined
+}
 
-/** 合併 error 上的 status 與 ofetch 訊息列（供 useApiBase、嚴重度） */
 export const resolveFetchHttpStatus = (error: unknown): number | undefined =>
 	coerceHttpStatusCode(error) ??
-	parseExternalDataHttpStatusFromMessage(String((error as any)?.message ?? ""));
+	parseExternalDataHttpStatusFromMessage(String((error as { message?: string })?.message ?? ""))
 
 export const extractBackendApiErrorText = (error: unknown, path?: string): string => {
-	const failure = parseBackendApiFailure(error, path ? { path } : undefined);
-	return clipUserFacingApiErrorText(failure.message ?? "");
-};
+	const failure = parseBackendApiFailure(error, path ? { path } : undefined)
+	return clipUserFacingApiErrorText(failure.message ?? "")
+}
 
 const looksLikeOfetchDebugLine = (s: string): boolean => {
-	const t = String(s || "").trim();
-	if (!t) return false;
-	if (/^\[\s*\w+\]\s+"/.test(t) && /\d{3}\b/.test(t)) return true;
-	if (/\bHTTP_\d{3}\b/i.test(t)) return true;
-	return false;
-};
+	const t = String(s || "").trim()
+	if (!t) return false
+	return (/^\[\s*\w+\]\s+"/.test(t) && /\d{3}\b/.test(t)) || /\bHTTP_\d{3}\b/i.test(t)
+}
 
-/** Toast 最後防線：長 URL、表名、技術句改為固定分類 */
 export const simplifyUserFacingToastMessage = (msg: string): string => {
-	const s = String(msg || "").trim();
-	if (!s) return s;
-	if (looksLikeOfetchDebugLine(s)) return USER_FACING_API_UNEXPECTED;
-	if (isLikelyHtmlOrDocumentErrorPage(s)) return USER_FACING_API_UNEXPECTED;
-	let clipped = s;
+	const s = String(msg || "").trim()
+	if (!s) return s
+	if (looksLikeOfetchDebugLine(s) || isLikelyHtmlOrDocumentErrorPage(s)) return USER_FACING_API_UNEXPECTED
+	let clipped = s
 	if (clipped.length > MAX_USER_VISIBLE_API_ERROR_CHARS) {
-		clipped = `${clipped.slice(0, MAX_USER_VISIBLE_API_ERROR_CHARS).trimEnd()}…`;
+		clipped = `${clipped.slice(0, MAX_USER_VISIBLE_API_ERROR_CHARS).trimEnd()}…`
 	}
-	if (parseExternalDataHttpStatusFromMessage(clipped) !== undefined) return USER_FACING_EXTERNAL_DB_ERROR;
-	if (/查詢\s+[\w.]+\s+/.test(clipped) && /失敗\s*:/.test(clipped)) return USER_FACING_EXTERNAL_DB_ERROR;
-	return clipped;
-};
+	if (parseExternalDataHttpStatusFromMessage(clipped) !== undefined) return USER_FACING_EXTERNAL_DB_ERROR
+	if (/查詢\s+[\w.]+\s+/.test(clipped) && /失敗\s*:/.test(clipped)) return USER_FACING_EXTERNAL_DB_ERROR
+	return clipped
+}
 
-/** 元件 catch 內可共用：ApiRequestError 用固定句，其餘走 simplify */
 export const resolveUserFacingCatchMessage = (error: unknown, fallback: string): string => {
-	if (error instanceof ApiRequestError) return error.message;
-	const raw = error instanceof Error ? error.message || fallback : fallback;
-	return simplifyUserFacingToastMessage(raw) || USER_FACING_API_UNEXPECTED;
-};
+	if (error instanceof ApiRequestError) {
+		if (error.isGenericMessage && fallback) return fallback
+		return error.message
+	}
+	const raw = error instanceof Error ? error.message || fallback : fallback
+	return simplifyUserFacingToastMessage(raw) || USER_FACING_API_UNEXPECTED
+}
 
 export const severityToToastType = (
-	severity: AppSeverity
+	severity: AppSeverity,
 ): { type: "error" | "warning" | "info"; duration: number } => {
-	if (severity === "critical") return { type: "error", duration: 10000 };
-	if (severity === "error") return { type: "warning", duration: 8000 };
-	return { type: "info", duration: 5000 };
-};
+	if (severity === "critical") return { type: "error", duration: 10000 }
+	if (severity === "error") return { type: "warning", duration: 8000 }
+	return { type: "info", duration: 5000 }
+}
 
-const isCriticalBackendCode = (backendCode: string | undefined): boolean => {
-	if (!backendCode) return false;
-	if (backendCode.startsWith("MODBUS_")) return true;
-	if (backendCode.startsWith("DEVICE_CONNECTIVITY_")) return true;
-	if (backendCode === "LICENSE_CHECK_FAILED") return true;
-	if (backendCode === "SERVICE_UNAVAILABLE") return true;
-	return false;
-};
-
-const isWarningBackendCode = (backendCode: string | undefined): boolean => {
-	if (!backendCode) return false;
-	return backendCode.startsWith("VALIDATION_");
-};
+const isCriticalBackendCode = (backendCode: string | undefined): boolean =>
+	Boolean(
+		backendCode &&
+			(backendCode.startsWith("MODBUS_") ||
+				backendCode.startsWith("DEVICE_CONNECTIVITY_") ||
+				backendCode === "LICENSE_CHECK_FAILED" ||
+				backendCode === "SERVICE_UNAVAILABLE"),
+	)
 
 export const inferSeverityFromApiError = (error: unknown): AppSeverity => {
-	const e = error as ApiRequestError & { code?: string };
+	const e = error as ApiRequestError & { code?: string }
 	const backendCode =
-		e instanceof ApiRequestError ? e.backendCode : (e as { backendCode?: string })?.backendCode;
+		e instanceof ApiRequestError ? e.backendCode : (e as { backendCode?: string })?.backendCode
 
-	if (isWarningBackendCode(backendCode)) return "warning";
-	if (isCriticalBackendCode(backendCode)) return "critical";
+	if (backendCode?.startsWith("VALIDATION_")) return "warning"
+	if (isCriticalBackendCode(backendCode)) return "critical"
 
 	const statusCode =
 		e instanceof ApiRequestError && e.statusCode != null
 			? e.statusCode
-			: resolveFetchHttpStatus(error);
+			: resolveFetchHttpStatus(error)
 
-	if (statusCode === 400) return "warning";
-	if (statusCode !== undefined && statusCode >= 400 && statusCode < 500) return "error";
-	if (statusCode !== undefined && statusCode >= 500 && statusCode < 600) return "critical";
+	if (statusCode === 400) return "warning"
+	if (statusCode !== undefined && statusCode >= 400 && statusCode < 500) return "error"
+	if (statusCode !== undefined && statusCode >= 500 && statusCode < 600) return "critical"
 
-	const code: string = String(e?.code ?? "");
-	if (code === "NETWORK_ERROR") return "critical";
-	if (code === "TIMEOUT") return "error";
+	const code = String(e?.code ?? "")
+	if (code === "NETWORK_ERROR") return "critical"
+	if (code === "TIMEOUT") return "error"
 
-	const message = String(e?.message ?? "").toLowerCase();
-	if (CONNECTION_ERROR_TOKENS.some((t) => message.includes(String(t).toLowerCase()))) {
-		return "critical";
-	}
-	if (TIMEOUT_ERROR_TOKENS.some((t) => message.includes(String(t).toLowerCase()))) {
-		return "error";
-	}
+	const message = String(e?.message ?? "").toLowerCase()
+	if (CONNECTION_ERROR_TOKENS.some((t) => message.includes(String(t).toLowerCase()))) return "critical"
+	if (TIMEOUT_ERROR_TOKENS.some((t) => message.includes(String(t).toLowerCase()))) return "error"
 	if (
 		message.includes("failed to fetch") ||
 		message.includes("networkerror") ||
 		message.includes("enotfound") ||
 		message.includes("無法連接到後端伺服器")
 	) {
-		return "critical";
+		return "critical"
 	}
-	if (message.includes("cors") || message.includes("cross-origin")) return "error";
-	return "warning";
-};
+	if (message.includes("cors") || message.includes("cross-origin")) return "error"
+	return "warning"
+}
 
-/**
- * 檢查是否為設備連接錯誤
- */
 export const isDeviceConnectionError = (errorOrMessage: unknown): boolean => {
 	if (errorOrMessage instanceof ApiRequestError) {
-		const bc = errorOrMessage.backendCode;
-		if (bc?.startsWith("MODBUS_") || bc?.startsWith("DEVICE_CONNECTIVITY_")) return true;
+		const bc = errorOrMessage.backendCode
+		if (bc?.startsWith("MODBUS_") || bc?.startsWith("DEVICE_CONNECTIVITY_")) return true
 	}
 
 	const msg =
 		errorOrMessage instanceof ApiRequestError
 			? String(errorOrMessage.originalMessage || errorOrMessage.message || "")
-			: String(errorOrMessage || "");
-	const lower = msg.toLowerCase();
-	const hasIp = Boolean(lower.match(/\d+\.\d+\.\d+\.\d+:\d+/));
-	const isDeviceApi = lower.includes("/modbus/") || lower.includes("/device/");
+			: String(errorOrMessage || "")
+	const lower = msg.toLowerCase()
+	const hasIp = Boolean(lower.match(/\d+\.\d+\.\d+\.\d+:\d+/))
+	const isDeviceApi = lower.includes("/modbus/") || lower.includes("/device/")
 
-	if (CONNECTION_ERROR_TOKENS.some((t) => lower.includes(String(t).toLowerCase()))) {
-		return true;
-	}
-
-	if (isDeviceApi && hasIp) {
-		return true;
-	}
-
-	if (lower.includes("503")) return true;
-
-	return false;
-};
-
-/**
- * 檢查是否為設備 API 請求
- * @param path - API 路徑
- * @returns 是否為設備 API 請求
- */
-export const isDeviceApiRequest = (path: string): boolean => {
-	return path.includes("/modbus/") || path.includes("/device/")
+	if (CONNECTION_ERROR_TOKENS.some((t) => lower.includes(String(t).toLowerCase()))) return true
+	if (isDeviceApi && hasIp) return true
+	if (lower.includes("503")) return true
+	return false
 }
 
-const API_ERROR_USER_MESSAGES: Record<string, string> = {
-	FEATURE_NOT_LICENSED: LICENSE_MESSAGE_LOCKED,
-	LICENSE_QUOTA_EXCEEDED: "授權配額已用盡，請聯絡管理員",
-	LICENSE_CHECK_FAILED: "授權狀態檢查失敗，請稍後再試",
-	PERMISSION_DENIED: PERMISSION_MESSAGE_LOCKED,
-	CONFLICT: USER_FACING_API_CONFLICT,
-	BAD_GATEWAY: USER_FACING_API_BAD_GATEWAY,
-	DEVICE_NOT_FOUND: USER_FACING_API_NOT_FOUND,
-	LOCATION_ZONE_NOT_FOUND: USER_FACING_API_NOT_FOUND,
-	LOCATION_NOT_FOUND: USER_FACING_API_NOT_FOUND,
-}
-
-const MODBUS_CONNECTION_PREFIXES = [
-	"MODBUS_CONNECTION_",
-	"MODBUS_READ_TIMEOUT",
-	"MODBUS_WRITE_TIMEOUT",
-] as const
-
-const getUserMessageForBackendCode = (backendCode: string | undefined): string | undefined => {
-	if (!backendCode) return undefined
-
-	const exact = API_ERROR_USER_MESSAGES[backendCode]
-	if (exact) return exact
-
-	if (backendCode.startsWith("AUTH_")) return USER_FACING_API_UNAUTHORIZED
-	if (backendCode.startsWith("VALIDATION_")) return USER_FACING_API_BAD_REQUEST
-	if (backendCode.startsWith("MODBUS_")) {
-		if (MODBUS_CONNECTION_PREFIXES.some((p) => backendCode.startsWith(p) || backendCode === p)) {
-			return USER_FACING_CONNECTION_ERROR
-		}
-		if (
-			backendCode.includes("TIMEOUT") ||
-			backendCode.includes("CONNECTION") ||
-			backendCode.includes("UNAVAILABLE")
-		) {
-			return USER_FACING_CONNECTION_ERROR
-		}
-	}
-	if (backendCode.startsWith("DEVICE_CONNECTIVITY_")) return USER_FACING_CONNECTION_ERROR
-	if (backendCode.endsWith("_NOT_FOUND") || backendCode.includes("NOT_FOUND")) {
-		return USER_FACING_API_NOT_FOUND
-	}
-	if (backendCode.includes("DUPLICATE") || backendCode.includes("IN_USE")) {
-		return USER_FACING_API_CONFLICT
-	}
-
-	return undefined
-}
+export const isDeviceApiRequest = (path: string): boolean =>
+	path.includes("/modbus/") || path.includes("/device/")
 
 export type ResolveUserFacingApiErrorInput = {
 	statusCode?: number
 	backendCode?: string
 	path: string
 	originalMessage?: string
+	details?: unknown
+	context?: ErrorContext
 }
 
 export type ResolvedUserFacingApiError = {
 	message: string
 	code: ApiErrorCode
+	isGeneric: boolean
 }
 
 export const resolveUserFacingApiError = (
-	input: ResolveUserFacingApiErrorInput
+	input: ResolveUserFacingApiErrorInput,
 ): ResolvedUserFacingApiError => {
-	const { statusCode, backendCode, path, originalMessage } = input
+	const { statusCode, backendCode, path, details, context } = input
 	const isExternalDataQuery = path.includes("/external-data/")
 
+	const fromValidation = resolveValidationMessage(backendCode, details)
+	if (fromValidation) return { message: fromValidation, code: "BACKEND_CODE", isGeneric: false }
+
 	const fromBackendCode = getUserMessageForBackendCode(backendCode)
-	if (fromBackendCode) {
-		return { message: fromBackendCode, code: "BACKEND_CODE" }
-	}
+	if (fromBackendCode) return { message: fromBackendCode, code: "BACKEND_CODE", isGeneric: false }
+
+	const fromContext = context ? CONTEXT_FALLBACK_MESSAGES[context] : undefined
+	if (fromContext) return { message: fromContext, code: "UNKNOWN", isGeneric: false }
 
 	if (statusCode !== undefined && statusCode !== null) {
 		const fromStatus = mapHttpStatusToUserFacingError(statusCode, isExternalDataQuery)
-		return { message: fromStatus.message, code: fromStatus.code }
+		return { message: fromStatus.message, code: fromStatus.code, isGeneric: fromStatus.isGeneric }
 	}
 
-	if (originalMessage) {
-		return { message: USER_FACING_API_UNEXPECTED, code: "UNKNOWN" }
-	}
-
-	return { message: USER_FACING_API_UNEXPECTED, code: "UNKNOWN" }
+	return { message: USER_FACING_API_UNEXPECTED, code: "UNKNOWN", isGeneric: true }
 }
+
+// --- 表單 inline 錯誤（不 toast）---
+
+/** 解析 API 錯誤為使用者可見字串（供開啟中的表單／dialog 使用） */
+export const resolveFormApiError = (error: unknown, fallback: string): string =>
+	resolveUserFacingCatchMessage(error, fallback)
+
+/** 優先顯示後端 originalMessage，避免錯誤碼映射覆蓋具體訊息 */
+export const resolveFormApiErrorPreferOriginal = (error: unknown, fallback: string): string => {
+	if (error instanceof ApiRequestError) {
+		const detail = error.originalMessage?.trim()
+		if (detail) return detail
+	}
+	return resolveFormApiError(error, fallback)
+}
+
+/** 將 API 錯誤寫入 ref（不 toast） */
+export const applyFormApiErrorToRef = (
+	target: Ref<string | null>,
+	error: unknown,
+	fallback: string,
+): string => {
+	const msg = resolveFormApiError(error, fallback)
+	target.value = msg
+	return msg
+}
+
+/** 多筆驗證錯誤合併為 dialog 底部顯示文字 */
+export const joinFormErrors = (errors: string[]): string =>
+	errors.filter((e) => e.trim()).join("\n")

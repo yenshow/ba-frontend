@@ -1,7 +1,9 @@
 import { reactive, ref, type Ref } from "vue"
-import type { ElevatorSyncCandidate, ElevatorSyncJob, ElevatorSyncWarning } from "~/types/elevator"
+import type { ElevatorSyncCandidate, ElevatorSyncJob } from "~/types/elevator"
 import type { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
 import { clampOffset, getNextOffset, getPrevOffset } from "~/composables/systems/personnel/personnelList"
+import { finalizeSyncWarningsForDisplay } from "~/utils/personnelUtils"
+import type { SyncWarning } from "~/types/personnel"
 
 type ElevatorApi = ReturnType<typeof useElevatorApi>
 
@@ -35,7 +37,7 @@ export const useElevatorSyncEngine = (params: {
 	const syncCandidatesLoading = reactive<Record<number, boolean>>({})
 	const syncCandidatesOffsetByLocation = reactive<Record<number, number>>({})
 
-	const syncWarnings = ref<ElevatorSyncWarning[]>([])
+	const syncWarnings = ref<SyncWarning[]>([])
 	const showWarningsDialog = ref(false)
 	const activeSyncLocationId = ref<number | null>(null)
 	const activeSyncJob = ref<ElevatorSyncJob | null>(null)
@@ -94,9 +96,20 @@ export const useElevatorSyncEngine = (params: {
 
 			if (job.status === "completed") {
 				if (job.error) throw new Error(job.error)
-				syncWarnings.value = job.result?.warnings ?? []
 				const locId = activeSyncLocationId.value
-				if (locId != null) await ensureSyncCandidates(locId)
+				const rawWarnings: SyncWarning[] = (job.result?.warnings ?? []).map((w) => ({
+					type: w.type,
+					employeeNo: w.employeeNo,
+					fullName: w.fullName ?? null,
+					deviceId: w.deviceId,
+					deviceName: w.deviceName ?? null,
+					message: w.message ?? "",
+				}))
+				syncWarnings.value = await finalizeSyncWarningsForDisplay(
+					rawWarnings,
+					syncCandidatesByLocation,
+					ensureSyncCandidates,
+				)
 				if (syncWarnings.value.length > 0) {
 					toast.error(`同步完成（含 ${syncWarnings.value.length} 筆警告）`)
 					showWarningsDialog.value = true

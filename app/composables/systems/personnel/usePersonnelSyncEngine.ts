@@ -11,6 +11,7 @@ import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelA
 import {
 	buildSyncPersonStepRows,
 	enrichSyncWarningsWithLocation,
+	finalizeSyncWarningsForDisplay,
 	filterWarningsForLocation,
 	isDeviceLevelSyncWarning,
 } from "~/utils/personnelUtils"
@@ -185,13 +186,17 @@ export const usePersonnelSyncEngine = (params: {
 				})
 
 				if (locId != null) {
+					syncWarnings.value = await finalizeSyncWarningsForDisplay(
+						syncWarnings.value,
+						syncCandidatesByLocation,
+						ensureSyncCandidates,
+					)
 					updateLastCompletedCacheForLocation({
 						locationId: locId,
 						job,
 						warnings: syncWarnings.value,
 						tailItems: activeSyncJobTailItems.value ?? [],
 					})
-					await ensureSyncCandidates(locId)
 				}
 
 				if ((syncWarnings.value || []).length > 0) {
@@ -267,7 +272,11 @@ export const usePersonnelSyncEngine = (params: {
 							locationName: locLabelById.get(lid) || r.locationName,
 						})
 					})
-					syncWarnings.value = allWarnings
+					syncWarnings.value = await finalizeSyncWarningsForDisplay(
+						allWarnings,
+						syncCandidatesByLocation,
+						ensureSyncCandidates,
+					)
 					if ((syncWarnings.value || []).length > 0) {
 						toast.error(`同步全部完成（含 ${syncWarnings.value.length} 筆警告）`)
 						showWarningsDialog.value = true

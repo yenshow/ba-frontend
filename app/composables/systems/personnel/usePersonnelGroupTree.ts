@@ -1,7 +1,7 @@
 import type { Ref } from "vue"
 import type { PersonGroup } from "~/types/personnel"
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
-import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { resolveFormApiError } from "~/utils/errorUtils"
 
 type PersonnelGroupTreeState = {
 	groupTree: Ref<PersonGroup[]>
@@ -11,12 +11,10 @@ type PersonnelGroupTreeState = {
 }
 
 /**
- * 人員群組樹 SSOT（供多個元件共用，避免重複抓取與狀態分散）
+ * 人員群組樹 SSOT（供多個元件共用載入狀態）
  */
 export const usePersonnelGroupTree = (): PersonnelGroupTreeState => {
 	const personnelApi = usePersonnelApi()
-	const { handleError: handleApiError } = useErrorHandler()
-
 	const groupTree = useState<PersonGroup[]>("personnel.groupTree", () => [])
 	const isLoading = useState<boolean>("personnel.groupTree.loading", () => false)
 	const errorMessage = useState<string | null>("personnel.groupTree.error", () => null)
@@ -28,7 +26,7 @@ export const usePersonnelGroupTree = (): PersonnelGroupTreeState => {
 		try {
 			groupTree.value = await personnelApi.getPersonGroups({ tree: true })
 		} catch (err) {
-			errorMessage.value = handleApiError(err, "載入群組失敗") || "載入群組失敗"
+			errorMessage.value = resolveFormApiError(err, "載入群組失敗")
 			groupTree.value = []
 		} finally {
 			isLoading.value = false

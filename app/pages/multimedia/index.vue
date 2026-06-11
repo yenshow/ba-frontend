@@ -429,6 +429,7 @@ import type {
 definePageMeta({ layout: "default" })
 
 import { useMultimediaRbac } from "~/composables/core/useAccessGate"
+import { MSG_PERMISSION_LOCKED } from "~/utils/errorUtils"
 const { canUpdateSettings } = useMultimediaRbac()
 const toast = useToast()
 const { handleError } = useErrorHandler()
@@ -783,7 +784,7 @@ const handleConfirmDelete = () => {
 
 const handleUpload = async (file: File, onSuccess: (url: string) => void) => {
 	if (!canUpdateSettings.value) {
-		toast.warning("權限不足")
+		toast.warning(MSG_PERMISSION_LOCKED)
 		return
 	}
 	try {
@@ -831,7 +832,7 @@ const loadSettings = async () => {
 
 const handleSave = async () => {
 	if (!canUpdateSettings.value) {
-		toast.warning("權限不足")
+		toast.warning(MSG_PERMISSION_LOCKED)
 		return
 	}
 	if (isSaving.value) return

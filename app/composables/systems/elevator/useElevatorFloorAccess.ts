@@ -5,6 +5,7 @@ import type { useElevatorApi } from "~/composables/systems/elevator/useElevatorA
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { fetchAllPersonnelCandidates } from "~/composables/systems/personnel/personnelList"
 import { groupPersonsByPersonGroup } from "~/utils/personnelUtils"
+import { resolveFormApiError, resolveFormApiErrorPreferOriginal } from "~/utils/errorUtils"
 
 type ElevatorApi = ReturnType<typeof useElevatorApi>
 
@@ -12,9 +13,9 @@ export const useElevatorFloorAccess = (params: {
 	locationId: Ref<number | null> | ComputedRef<number | null>
 	elevatorApi: ElevatorApi
 	personnelApi: PersonnelApi
-	handleApiError: (err: unknown, fallbackMessage: string) => string | void | null
+	toast: { success: (msg: string) => void; warning: (msg: string, duration?: number) => void }
 }) => {
-	const { locationId, elevatorApi, personnelApi, handleApiError } = params
+	const { locationId, elevatorApi, personnelApi, toast } = params
 
 	const floors = ref<ElevatorFloorAccessSlot[]>([])
 	const defaultsApplied = ref(false)
@@ -24,8 +25,6 @@ export const useElevatorFloorAccess = (params: {
 	const isLoading = ref(false)
 	const isApplying = ref(false)
 	const errorText = ref<string | null>(null)
-	const successText = ref<string | null>(null)
-
 	const checkedByFloor = reactive<Record<number, Set<number>>>({})
 
 	const syncCheckedFromFloors = (slots: ElevatorFloorAccessSlot[]) => {
@@ -85,7 +84,6 @@ export const useElevatorFloorAccess = (params: {
 		if (locId == null) return
 
 		errorText.value = null
-		successText.value = null
 		isLoading.value = true
 		try {
 			const [accessRes] = await Promise.all([
@@ -101,8 +99,7 @@ export const useElevatorFloorAccess = (params: {
 			}
 		} catch (err) {
 			floors.value = []
-			errorText.value = err instanceof Error ? err.message : "載入樓層授權失敗"
-			handleApiError(err, "載入樓層授權失敗")
+			errorText.value = resolveFormApiError(err, "載入樓層授權失敗")
 		} finally {
 			isLoading.value = false
 		}
@@ -113,7 +110,6 @@ export const useElevatorFloorAccess = (params: {
 		if (locId == null) return false
 
 		errorText.value = null
-		successText.value = null
 		isApplying.value = true
 		try {
 			const assignments = floors.value.map((floor) => ({
@@ -124,11 +120,10 @@ export const useElevatorFloorAccess = (params: {
 			floors.value = res.floors || []
 			defaultsApplied.value = false
 			syncCheckedFromFloors(floors.value)
-			successText.value = "已套用樓層權限"
+			toast.success("已儲存樓層授權")
 			return true
 		} catch (err) {
-			errorText.value = err instanceof Error ? err.message : "套用失敗"
-			handleApiError(err, "套用樓層權限失敗")
+			toast.warning(resolveFormApiErrorPreferOriginal(err, "儲存樓層授權失敗"), 6000)
 			return false
 		} finally {
 			isApplying.value = false
@@ -148,7 +143,6 @@ export const useElevatorFloorAccess = (params: {
 		isLoading,
 		isApplying,
 		errorText,
-		successText,
 		isPersonChecked,
 		togglePersonOnFloor,
 		selectedCountForFloor,

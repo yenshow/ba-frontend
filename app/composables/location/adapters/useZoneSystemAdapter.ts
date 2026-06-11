@@ -490,6 +490,7 @@ export function useElevatorZoneAdapter(): ZoneSystemAdapter<ElevatorZone, Elevat
 			deviceIds: [],
 			floorCount: undefined,
 			floorNames: [],
+			floorOpenDurations: [],
 		}),
 		createNewZone: (name: string): ElevatorZone => ({
 			name,

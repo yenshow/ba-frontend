@@ -235,7 +235,7 @@
 		:can-update-zone="canUpdateLocation"
 		:can-delete-zone="canDeleteLocation"
 		device-hint="請先在「設備管理」中建立感測器設備"
-		@save="handleSaveZone"
+		:on-save-zone="handleSaveZone"
 		@delete="handleDeleteZone"
 	/>
 	<SimulationFrame v-model="showSimulationFrame" title="環境監控 - 完整報表">
@@ -263,7 +263,10 @@ import EnvironmentSimulation, {
 } from "~/components/environment/EnvironmentSimulation.vue"
 import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
+import {
+	useZoneManagement,
+	ZONE_DIALOG_BATCH_SAVE_OPTIONS,
+} from "~/composables/location/management/useZoneManagement"
 import { useAlertRules } from "~/composables/monitoring/useAlertRules"
 import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { useEnvironmentReadingSubscription } from "~/composables/systems/environment/useEnvironmentLive"
@@ -609,6 +612,7 @@ const handleSaveZone = async (zone: EnvironmentZone) => {
 		},
 		{
 			cleanZone: cleanZone,
+			...ZONE_DIALOG_BATCH_SAVE_OPTIONS,
 		}
 	)
 }

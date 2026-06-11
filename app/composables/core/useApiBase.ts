@@ -12,6 +12,7 @@ import {
 	USER_FACING_REQUEST_TIMEOUT,
 	isApiRequestTimeout,
 	type ApiErrorCode,
+	type ErrorContext,
 	resolveUserFacingApiError,
 } from "~/utils/errorUtils"
 import {
@@ -30,6 +31,8 @@ let permissionRefreshInFlight: Promise<void> | null = null
 type RequestOptions = Omit<RequestInit, "body"> & {
 	timeout?: number
 	body?: unknown
+	/** API 失敗時的操作情境，供錯誤文案 fallback */
+	errorContext?: ErrorContext
 }
 
 const toApiErrorCode = (code: string): ApiErrorCode => {
@@ -56,7 +59,7 @@ export const useApiBase = () => {
 	const fetcher = useRequestFetch()
 	const apiBase = config.public.apiBase || "/api"
 
-	const runWithNuxtContext = <T>(fn: () => T): T => nuxtApp.runWithContext(fn)
+	const runWithNuxtContext = <T>(fn: () => T): T => nuxtApp.runWithContext(fn) as T
 
 	const getAuthHeaders = (): HeadersInit => {
 		let token: string | null = null
@@ -88,7 +91,7 @@ export const useApiBase = () => {
 	const throwApiRequestError = async (
 		error: unknown,
 		path: string,
-		options?: { fallbackStatus?: number }
+		options?: { fallbackStatus?: number; context?: ErrorContext },
 	): Promise<never> => {
 		const failure = parseBackendApiFailure(error, { path })
 		const statusCode = resolveFetchHttpStatus(error) ?? options?.fallbackStatus
@@ -143,6 +146,8 @@ export const useApiBase = () => {
 				backendCode: failure.backendCode,
 				path,
 				originalMessage,
+				details: failure.details,
+				context: options?.context,
 			})
 			throw new ApiRequestError(resolved.message, {
 				statusCode,
@@ -150,6 +155,7 @@ export const useApiBase = () => {
 				backendCode: failure.backendCode,
 				originalMessage,
 				details: failure.details,
+				isGenericMessage: resolved.isGeneric,
 			})
 		}
 
@@ -224,12 +230,15 @@ export const useApiBase = () => {
 				backendCode: failure.backendCode,
 				path,
 				originalMessage,
+				details: failure.details,
+				context: options?.context,
 			})
 			throw new ApiRequestError(resolved.message, {
 				code: toApiErrorCode(resolved.code),
 				backendCode: failure.backendCode,
 				originalMessage,
 				details: failure.details,
+				isGenericMessage: resolved.isGeneric,
 			})
 		}
 
@@ -238,12 +247,15 @@ export const useApiBase = () => {
 				backendCode: failure.backendCode,
 				path,
 				originalMessage,
+				details: failure.details,
+				context: options?.context,
 			})
 			throw new ApiRequestError(resolved.message || USER_FACING_API_UNEXPECTED, {
 				code: toApiErrorCode(resolved.code),
 				backendCode: failure.backendCode,
 				originalMessage: originalMessage || errorMessage,
 				details: failure.details,
+				isGenericMessage: resolved.isGeneric,
 			})
 		}
 
@@ -330,7 +342,7 @@ export const useApiBase = () => {
 			}
 			return (await promise) as T
 		} catch (error: unknown) {
-			return await throwApiRequestError(error, path)
+			return await throwApiRequestError(error, path, { context: options.errorContext })
 		} finally {
 			if (method === "GET") {
 				inFlightGetRequests.delete(url)

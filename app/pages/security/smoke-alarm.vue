@@ -56,7 +56,7 @@
 		:can-update-zone="canUpdateLocation"
 		:can-delete-zone="canDeleteLocation"
 		device-hint="請先在「設備管理」中建立控制器設備"
-		@save="handleSaveZone"
+		:on-save-zone="handleSaveZone"
 		@delete="handleDeleteZone"
 	/>
 </template>
@@ -71,7 +71,11 @@ import type { SmokeAlarmZone, SmokeAlarmLocation, SmokeAlarmStatusItem } from "~
 import { deriveSmokeAlarmUiStatus } from "~/types/smoke-alarm"
 import { useSmokeAlarmApi } from "~/composables/systems/smoke-alarm/useSmokeAlarmApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
+import { useToast } from "~/composables/core/useToast"
+import {
+	useZoneManagement,
+	ZONE_DIALOG_BATCH_SAVE_OPTIONS,
+} from "~/composables/location/management/useZoneManagement"
 import { useAdminOnly } from "~/composables/core/useAuth"
 import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { getLocationUiKey, findLocationIndexInZone } from "~/utils/locationUiId"
@@ -91,6 +95,7 @@ const { canManageLocation, canCreateLocation, canUpdateLocation, canDeleteLocati
 	useLocationModuleRbac(PERM.smokeAlarm)
 const smokeApi = useSmokeAlarmApi()
 const { handleError } = useErrorHandler()
+const toast = useToast()
 
 const leftSectionHeight = ref<number | null>(null)
 
@@ -228,6 +233,7 @@ const handleSaveLocationPositionFromPanel = async (payload: { locationId: string
 		})
 		const zi = smokeZones.value.findIndex((z) => z.id === targetZone.id)
 		if (zi > -1) smokeZones.value[zi] = result.zone
+		toast.success("已更新點位")
 	} catch (error) {
 		handleError(error, "更新位置失敗")
 	}
@@ -270,7 +276,6 @@ const autoRefresh = useVisibilityAutoRefresh({
 })
 
 const handleManualIssueChanged = (payload?: ManualIssueChangedPayload) => {
-	// 清除：�??��?觀?�正常」�??�實?�?�可?�是觸發?��??�異常」�??��??��?強制快照?��?
 	if (payload?.action === "clear") {
 		void loadStatusSnapshot({ force: true })
 		return
@@ -311,7 +316,7 @@ const handleSaveZone = async (zone: SmokeAlarmZone) => {
 			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as SmokeAlarmZone & { id: string }
 			return { merged: result.merged, message: result.message, zone: zoneWithId }
 		},
-		{ selectedZoneRef: selectedZone }
+		{ selectedZoneRef: selectedZone, ...ZONE_DIALOG_BATCH_SAVE_OPTIONS }
 	)
 }
 

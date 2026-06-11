@@ -208,7 +208,8 @@
 		:can-create-zone="canCreateLocation"
 		:can-update-zone="canUpdateLocation"
 		:can-delete-zone="canDeleteLocation"
-		@save="handleSaveZone"
+		:on-save-zone="handleSaveZone"
+		@saved="handleZonesSaved"
 		@delete="handleDeleteZone"
 	/>
 
@@ -264,7 +265,10 @@ import VehicleAccessSimulation, {
 } from "~/components/vehicle-access/VehicleAccessSimulation.vue"
 import { useVehicleAccessState } from "~/composables/systems/vehicleAccess/useVehicleAccessState"
 import { useVehicleAccessLocationApi } from "~/composables/location/api/useVehicleAccessLocationApi"
-import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
+import {
+	useZoneManagement,
+	ZONE_DIALOG_BATCH_SAVE_OPTIONS,
+} from "~/composables/location/management/useZoneManagement"
 import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter"
 import { useLocationModuleRbac, usePersonnelRbac, useVehicleAccessRbac } from "~/composables/core/useAccessGate"
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
@@ -548,12 +552,14 @@ const handleSaveZone = async (zone: VehicleAccessZone) => {
 			return { merged: result.merged, message: result.message, zone: zoneWithId }
 		},
 		{
-			onAfterSave: async () => {
-				await loadZones()
-				await loadOverviewSummaries()
-			},
+			...ZONE_DIALOG_BATCH_SAVE_OPTIONS,
 		}
 	)
+}
+
+const handleZonesSaved = async () => {
+	await loadZones()
+	await loadOverviewSummaries()
 }
 
 const handleDeleteZone = async (zoneId: string) => {

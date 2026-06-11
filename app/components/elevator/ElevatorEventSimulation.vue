@@ -17,7 +17,7 @@
 					v-model="searchQuery"
 					input-id="elevator-simulation-search"
 					label="搜尋"
-					placeholder="卡號 / 姓名 / ID"
+					placeholder="姓名 / ID"
 					aria-label="搜尋事件"
 				/>
 				<TimeRangePicker v-model="timeRangeModel" :presets="[...TIME_RANGE_PRESETS_FULL_REPORT]" />
@@ -135,10 +135,9 @@ const filteredLogs = computed(() => {
 	const q = searchQuery.value.trim().toLowerCase()
 	if (q) {
 		list = list.filter((l) => {
-			const card = l.cardNo?.toLowerCase() || ""
 			const name = l.personName?.toLowerCase() || ""
 			const emp = l.employeeNo?.toLowerCase() || ""
-			return card.includes(q) || name.includes(q) || emp.includes(q)
+			return name.includes(q) || emp.includes(q)
 		})
 	}
 	return list

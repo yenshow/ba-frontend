@@ -58,7 +58,7 @@
 		:can-update-zone="canUpdateLocation"
 		:can-delete-zone="canDeleteLocation"
 		device-hint="請先在「設備管理」中建立控制器設備"
-		@save="handleSaveZone"
+		:on-save-zone="handleSaveZone"
 		@delete="handleDeleteZone"
 	/>
 </template>
@@ -80,7 +80,11 @@ import {
 } from "~/types/power"
 import { usePowerApi } from "~/composables/systems/power/usePowerApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
+import { useToast } from "~/composables/core/useToast"
+import {
+	useZoneManagement,
+	ZONE_DIALOG_BATCH_SAVE_OPTIONS,
+} from "~/composables/location/management/useZoneManagement"
 import { useAdminOnly } from "~/composables/core/useAuth"
 import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { getLocationUiKey, findLocationIndexInZone } from "~/utils/locationUiId"
@@ -100,6 +104,7 @@ const { canManageLocation, canCreateLocation, canUpdateLocation, canDeleteLocati
 	useLocationModuleRbac(PERM.power)
 const powerApi = usePowerApi()
 const { handleError } = useErrorHandler()
+const toast = useToast()
 
 const leftSectionHeight = ref<number | null>(null)
 
@@ -270,6 +275,7 @@ const handleSaveLocationPositionFromPanel = async (payload: {
 		})
 		const zi = powerZones.value.findIndex((z) => z.id === targetZone.id)
 		if (zi > -1) powerZones.value[zi] = result.zone
+		toast.success("已更新點位")
 	} catch (error) {
 		handleError(error, "更新位置失敗")
 	}
@@ -354,7 +360,7 @@ const handleSaveZone = async (zone: PowerZone) => {
 			}
 			return { merged: result.merged, message: result.message, zone: zoneWithId }
 		},
-		{ selectedZoneRef: selectedZone }
+		{ selectedZoneRef: selectedZone, ...ZONE_DIALOG_BATCH_SAVE_OPTIONS }
 	)
 }
 

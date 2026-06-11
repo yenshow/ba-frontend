@@ -37,7 +37,12 @@ import {
 	normalizeElevatorLogDisplayColumns,
 	toStoredElevatorLogDisplayColumns,
 } from "~/utils/elevatorLogColumns";
-import { fillEmptyFloorNames, normalizeElevatorFloorCount, padFloorNames } from "~/utils/elevatorFloorConfig";
+import {
+	fillEmptyFloorNames,
+	normalizeElevatorFloorCount,
+	padFloorNames,
+	padFloorOpenDurations,
+} from "~/utils/elevatorFloorConfig";
 import type { ElevatorZone, ElevatorLocation } from "~/types/elevator";
 
 /**
@@ -1527,6 +1532,7 @@ export function unifiedToElevatorZone(zone: UnifiedZone): ElevatorZone {
 				logDisplayColumns?: string[]
 				floorCount?: number
 				floorNames?: string[]
+				floorOpenDurations?: number[]
 			}
 			return [
 				{
@@ -1537,6 +1543,7 @@ export function unifiedToElevatorZone(zone: UnifiedZone): ElevatorZone {
 					accessDeviceIds: Array.isArray(cfg.accessDeviceIds) ? cfg.accessDeviceIds : [],
 					floorCount: cfg.floorCount,
 					floorNames: cfg.floorNames,
+					floorOpenDurations: cfg.floorOpenDurations,
 					logDisplayColumns: cfg.logDisplayColumns,
 				},
 			]
@@ -1571,6 +1578,10 @@ export function elevatorLocationToUnified(
 		floorCount != null && deviceIds.length > 0
 			? fillEmptyFloorNames(padFloorNames(loc.floorNames, floorCount), floorCount)
 			: undefined
+	const resolvedFloorOpenDurations =
+		floorCount != null && deviceIds.length > 0
+			? padFloorOpenDurations(loc.floorOpenDurations, floorCount)
+			: undefined
 	return {
 		...(hasId && { id: loc.id! }),
 		name: loc.name,
@@ -1585,6 +1596,7 @@ export function elevatorLocationToUnified(
 						? {
 								floorCount,
 								floorNames: resolvedFloorNames,
+								floorOpenDurations: resolvedFloorOpenDurations,
 							}
 						: {}),
 					logDisplayColumns: (() => {

@@ -10,6 +10,7 @@ import type {
 	SyncLocationJobItemsPage,
 	SyncLocationCandidate,
 	PersonLicensePlateListType,
+	PersonLadderCard,
 } from "~/types/personnel"
 import type { HandleErrorOptions } from "~/composables/core/useErrorHandler"
 import { useApiBase } from "~/composables/core/useApiBase"
@@ -48,8 +49,8 @@ export type PersonnelHandleApiError = (
 	options?: HandleErrorOptions
 ) => string | void | null
 
-/** 人員主檔 API：優先顯示後端 message */
-export const PERSONNEL_API_ERROR_OPTS: HandleErrorOptions = { preferBackendMessage: true }
+/** 人員主檔 API 錯誤處理選項 */
+export const PERSONNEL_API_ERROR_OPTS: HandleErrorOptions = { context: "save" }
 
 export type PersonLicensePlatePayload = {
 	plateNumber: string
@@ -110,6 +111,13 @@ export type PersonnelApi = {
 		file: File
 	) => Promise<{ faceUrl: string; person: Person }>
 	deletePerson: (id: number) => Promise<{ ok: boolean }>
+	replacePersonLadderCard: (
+		id: number,
+		body: {
+			floors?: number[] | { byLocation?: Record<string, number[]> }
+			clear?: boolean
+		} | null
+	) => Promise<{ ladder_card: PersonLadderCard | null }>
 
 	// 可同步地點與同步
 	getSyncableLocations: () => Promise<SyncableLocation[]>
@@ -284,7 +292,7 @@ export const usePersonnelApi = (): PersonnelApi => {
 				clear?: boolean
 			} | null,
 		) =>
-			request<{ ladder_card: import("~/types/personnel").PersonLadderCard | null }>(
+			request<{ ladder_card: PersonLadderCard | null }>(
 				`${PERSONNEL_PREFIX}/persons/${id}/ladder-card`,
 				{
 					method: "PUT",

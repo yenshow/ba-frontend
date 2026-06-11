@@ -4,14 +4,14 @@
 			<h3
 				class="people-unit-title bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
 			>
-				呼梯控制
+				電梯控制
 			</h3>
 
 			<div
 				v-if="!deviceId"
 				class="flex min-h-[120px] items-center justify-center text-base text-white/60 2xl:text-lg"
 			>
-				此地點尚未綁定梯控設備
+				此地點尚未指定電梯設備
 			</div>
 
 			<div
@@ -61,9 +61,6 @@
 				<p v-if="errorText" class="form-error-text" role="alert">
 					{{ errorText }}
 				</p>
-				<p v-if="successText" class="text-sm text-emerald-300 2xl:text-base" role="status">
-					{{ successText }}
-				</p>
 			</template>
 		</div>
 	</div>
@@ -73,7 +70,8 @@
 import { computed, ref, watch } from "vue"
 import type { ElevatorControlCommand } from "~/types/elevator"
 import { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
-import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { useToast } from "~/composables/core/useToast"
+import { resolveFormApiError } from "~/utils/errorUtils"
 import { defaultElevatorFloorLabel } from "~/utils/ladderFloorFormUtils"
 
 interface Props {
@@ -91,12 +89,11 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const elevatorApi = useElevatorApi()
-const { handleError } = useErrorHandler()
+const toast = useToast()
 
 const selectedFloorIndex = ref(1)
 const isSubmitting = ref(false)
 const errorText = ref<string | null>(null)
-const successText = ref<string | null>(null)
 
 const floors = computed(() => {
 	const count = Number(props.floorCount) || 0
@@ -128,22 +125,21 @@ const commands: Array<{ value: ElevatorControlCommand; label: string }> = [
 	{ value: "open", label: "開門" },
 	{ value: "close", label: "關門" },
 	{ value: "normally_open", label: "常開" },
-	{ value: "normally_closed", label: "常閉" },
+	{ value: "normally_closed", label: "常關" },
 ]
 
 const handleControl = async (command: ElevatorControlCommand) => {
 	if (!props.deviceId || !props.canControl || floors.value.length === 0) return
 	isSubmitting.value = true
 	errorText.value = null
-	successText.value = null
 	try {
 		await elevatorApi.controlGateway(props.deviceId, {
 			gatewayIndex: selectedFloorIndex.value,
 			command,
 		})
-		successText.value = "指令已送出"
+		toast.success("指令已送出")
 	} catch (error) {
-		errorText.value = handleError(error, "呼梯控制失敗") || "呼梯控制失敗"
+		errorText.value = resolveFormApiError(error, "呼梯控制失敗")
 	} finally {
 		isSubmitting.value = false
 	}

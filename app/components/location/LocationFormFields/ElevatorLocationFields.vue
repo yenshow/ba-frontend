@@ -76,16 +76,16 @@
 			</label>
 
 			<div v-if="floorCount != null" class="flex min-w-0 flex-col gap-2">
-				<span>樓層名稱</span>
+				<span>樓層名稱與繼電器時間</span>
 				<div
-					class="grid max-h-56 grid-cols-2 gap-2 overflow-y-auto"
+					class="grid max-h-56 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2"
 					role="table"
-					aria-label="樓層名稱列表"
+					aria-label="樓層名稱與繼電器時間列表"
 				>
 					<div
 						v-for="index in floorCount"
 						:key="index"
-						class="grid grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-1.5 rounded border border-white/5 bg-white/5 px-2 py-1.5"
+						class="grid grid-cols-[2.5rem_minmax(0,1fr)_4.5rem] items-center gap-1.5 rounded border border-white/5 bg-white/5 px-2 py-1.5"
 						role="row"
 					>
 						<span class="text-xs text-white/60 2xl:text-sm" role="cell">#{{ index }}</span>
@@ -98,6 +98,15 @@
 							:aria-label="`第 ${index} 層樓層名稱`"
 							@input="handleFloorNameInput(index - 1, $event)"
 							@blur="handleFloorNameBlur"
+						/>
+						<input
+							:value="floorOpenDurationAt(index - 1)"
+							type="number"
+							:min="MIN_ELEVATOR_OPEN_DURATION"
+							:max="MAX_ELEVATOR_OPEN_DURATION"
+							class="form-input-small min-w-0 px-1 text-center"
+							:aria-label="`第 ${index} 層繼電器動作時間（秒）`"
+							@input="handleFloorOpenDurationInput(index - 1, $event)"
 						/>
 					</div>
 				</div>
@@ -143,8 +152,12 @@ import {
 	DEFAULT_ELEVATOR_FLOOR_COUNT,
 	fillEmptyFloorNames,
 	MAX_ELEVATOR_FLOOR_COUNT,
+	MAX_ELEVATOR_OPEN_DURATION,
+	MIN_ELEVATOR_OPEN_DURATION,
 	normalizeElevatorFloorCount,
+	normalizeElevatorOpenDuration,
 	padFloorNames,
+	padFloorOpenDurations,
 } from "~/utils/elevatorFloorConfig"
 
 const fieldLabelClass = "flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base"
@@ -207,6 +220,9 @@ const floorCount = computed(() => normalizeElevatorFloorCount(localLocation.floo
 const floorNameAt = (index: number) =>
 	padFloorNames(localLocation.floorNames, floorCount.value ?? 0)[index] ?? ""
 
+const floorOpenDurationAt = (index: number) =>
+	padFloorOpenDurations(localLocation.floorOpenDurations, floorCount.value ?? 0)[index] ?? ""
+
 const enabledColumns = computed(() =>
 	normalizeElevatorLogDisplayColumns(localLocation.logDisplayColumns)
 )
@@ -216,6 +232,7 @@ const isColumnEnabled = (key: ElevatorLogColumnKey) => enabledColumns.value.incl
 const initFloors = (count = DEFAULT_ELEVATOR_FLOOR_COUNT) => {
 	localLocation.floorCount = count
 	localLocation.floorNames = padFloorNames([], count)
+	localLocation.floorOpenDurations = padFloorOpenDurations([], count)
 }
 
 const handleSelectDevice = (deviceId: number) => {
@@ -229,9 +246,14 @@ const handleFloorCountInput = (event: Event) => {
 	if (count == null) {
 		localLocation.floorCount = undefined
 		localLocation.floorNames = []
+		localLocation.floorOpenDurations = []
 	} else {
 		localLocation.floorCount = count
 		localLocation.floorNames = padFloorNames(localLocation.floorNames, count)
+		localLocation.floorOpenDurations = padFloorOpenDurations(
+			localLocation.floorOpenDurations,
+			count
+		)
 	}
 	handleChange()
 }
@@ -247,6 +269,15 @@ const handleFloorNameInput = (index: number, event: Event) => {
 const handleFloorNameBlur = () => {
 	if (floorCount.value == null) return
 	localLocation.floorNames = fillEmptyFloorNames(localLocation.floorNames ?? [], floorCount.value)
+	handleChange()
+}
+
+const handleFloorOpenDurationInput = (index: number, event: Event) => {
+	const count = floorCount.value ?? DEFAULT_ELEVATOR_FLOOR_COUNT
+	const durations = padFloorOpenDurations(localLocation.floorOpenDurations, count)
+	const normalized = normalizeElevatorOpenDuration((event.target as HTMLInputElement).value)
+	durations[index] = normalized ?? durations[index] ?? MIN_ELEVATOR_OPEN_DURATION
+	localLocation.floorOpenDurations = durations
 	handleChange()
 }
 

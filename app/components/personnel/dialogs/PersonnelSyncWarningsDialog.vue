@@ -44,21 +44,21 @@
 						aria-live="polite"
 					>
 						<ul class="space-y-2">
-							<li v-for="(w, i) in syncWarnings" :key="i" class="flex gap-2">
+							<li v-for="(row, i) in displayWarnings" :key="i" class="flex gap-2">
 								<span class="shrink-0 text-white" aria-hidden="true">•</span>
 								<div class="min-w-0 space-y-0.5">
 									<div class="break-words text-white">
-										<span v-if="w.locationName">{{ w.locationName }}：</span>
-										<span v-if="w.employeeNo">員工 {{ w.employeeNo }}</span>
-										<span class="text-amber-200">{{ syncWarningTypeLabel(w.type) }}</span>
+										<span v-if="row.locationName">{{ row.locationName }}：</span>
+										<span v-if="row.personLabel">{{ row.personLabel }} </span>
+										<span class="text-amber-200">{{ row.typeLabel }}</span>
 									</div>
 									<div class="break-words text-white/70">
 										<span class="text-white/90">設備：</span>
-										<span>{{ w.deviceName || (w.deviceId != null ? `#${w.deviceId}` : "—") }}</span>
+										<span>{{ row.deviceLabel }}</span>
 									</div>
 									<div class="break-words text-white/70">
 										<span class="text-white/90">問題：</span>
-										<span>{{ w.message }}</span>
+										<span>{{ row.message }}</span>
 									</div>
 								</div>
 							</li>
@@ -72,6 +72,10 @@
 
 <script setup lang="ts">
 import type { SyncWarning } from "~/types/personnel"
+import {
+	formatSyncWarningDeviceLabel,
+	formatSyncWarningPersonLabel,
+} from "~/utils/personnelUtils"
 
 const props = defineProps<{
 	modelValue: boolean
@@ -90,4 +94,14 @@ const summaryText = computed(() => {
 	if (total === 0) return "同步完成，沒有警告"
 	return `共有 ${total} 筆警告`
 })
+
+const displayWarnings = computed(() =>
+	props.syncWarnings.map((w) => ({
+		locationName: w.locationName,
+		personLabel: formatSyncWarningPersonLabel(w),
+		typeLabel: props.syncWarningTypeLabel(w.type),
+		deviceLabel: formatSyncWarningDeviceLabel(w),
+		message: w.message,
+	})),
+)
 </script>

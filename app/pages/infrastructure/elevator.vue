@@ -188,7 +188,8 @@
 		:can-update-zone="canUpdateLocation"
 		:can-delete-zone="canDeleteLocation"
 		device-hint="請先在設備管理建立 YS-K2210 等梯控設備"
-		@save="handleSaveZone"
+		:on-save-zone="handleSaveZone"
+		@saved="handleZonesSaved"
 		@delete="handleDeleteZone"
 	/>
 
@@ -228,7 +229,10 @@ import ElevatorEventSimulation from "~/components/elevator/ElevatorEventSimulati
 import { useElevatorState } from "~/composables/systems/elevator/useElevatorState"
 import { useElevatorApi, ELEVATOR_FULL_REPORT_LIMIT } from "~/composables/systems/elevator/useElevatorApi"
 import { useElevatorLocationApi } from "~/composables/location/api/useElevatorLocationApi"
-import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
+import {
+	useZoneManagement,
+	ZONE_DIALOG_BATCH_SAVE_OPTIONS,
+} from "~/composables/location/management/useZoneManagement"
 import { useLocationModuleRbac, usePersonnelRbac } from "~/composables/core/useAccessGate"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
@@ -408,12 +412,14 @@ const handleSaveZone = async (zone: ElevatorZone) => {
 			return { merged: result.merged, message: result.message, zone: zoneWithId }
 		},
 		{
-			onAfterSave: async () => {
-				await loadZones()
-				await loadLocations()
-			},
+			...ZONE_DIALOG_BATCH_SAVE_OPTIONS,
 		},
 	)
+}
+
+const handleZonesSaved = async () => {
+	await loadZones()
+	await loadLocations()
 }
 
 const handleDeleteZone = async (zoneId: string) => {
@@ -433,7 +439,10 @@ onMounted(async () => {
 	await loadLocations({ zones: elevatorZones.value })
 	const first = firstFlatSiteMatchingSortedZoneLocations(
 		elevatorZones.value,
-		locations.value.filter((l) => l.locationId != null),
+		locations.value.filter(
+			(l): l is (typeof locations.value)[number] & { locationId: number } =>
+				l.locationId != null,
+		),
 	)
 	if (first?.locationId) {
 		await loadLocationDetail(first.locationId)

@@ -155,9 +155,6 @@
 							<p v-if="membersError" class="form-error-text mt-3" role="alert">
 								{{ membersError }}
 							</p>
-							<p v-else-if="membersSuccess" class="mt-3 text-sm text-emerald-200" role="status">
-								{{ membersSuccess }}。請至步驟 2 同步至門禁設備。
-							</p>
 							<div class="mt-4 flex justify-end">
 								<PermissionActionButton
 									:allowed="canEditMembers && !isApplyingMembers"
@@ -398,7 +395,6 @@ const {
 	isApplyingMembers,
 	isLoadingMembers,
 	membersError,
-	membersSuccess,
 	isMemberKept,
 	toggleMember,
 	isAllMembersPageKept,

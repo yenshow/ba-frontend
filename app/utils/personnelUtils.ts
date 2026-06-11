@@ -50,7 +50,7 @@ export const getPersonStatusLabel = (status: unknown) =>
 
 export const getPersonStatusBadgeClass = (status: unknown) => {
 	const s = String(status)
-	if (s === "active") return "bg-emerald-500/20 text-emerald-200"
+	if (s === "active") return "bg-emerald-500/20 text-emerald-100"
 	if (s === "inactive") return "bg-yellow-500/20 text-yellow-200"
 	return "bg-gray-500/20 text-gray-200"
 }
@@ -137,6 +137,10 @@ export const getAccessControlConfigSummary = (
 	}
 }
 
+/** 人員主檔「卡片設定」是否已填卡號（梯控／門禁同步 SSOT） */
+export const personHasAccessCard = (person: Person | null | undefined): boolean =>
+	Boolean(getAccessControlConfigSummary(person ?? null).cardNo)
+
 export const updatePersonInList = (params: {
 	people: Person[]
 	next: Person
@@ -218,6 +222,92 @@ export const findSyncCandidateByEmployeeNo = (
 	candidates: SyncLocationCandidate[],
 	employeeNo: string
 ) => candidates.find((c) => String(c.employee_no) === String(employeeNo)) ?? null
+
+/** 人員顯示標籤：工號 + 姓名（例 B0002 Leo） */
+export const formatPersonLabel = (
+	employeeNo?: string | null,
+	fullName?: string | null,
+): string => {
+	const no = String(employeeNo ?? "").trim()
+	const name = String(fullName ?? "").trim()
+	if (!no) return name
+	return name ? `${no} ${name}` : no
+}
+
+/** 同步警告第一行 */
+export const formatSyncWarningPersonLabel = (w: SyncWarning): string =>
+	formatPersonLabel(w.employeeNo, w.fullName)
+
+/** 批次匯入錯誤列 */
+export const formatImportErrorLine = (e: {
+	row: number
+	employeeNo?: string
+	fullName?: string | null
+	message: string
+}): string => {
+	const ref = formatPersonLabel(e.employeeNo, e.fullName)
+	return ref ? `第${e.row}行 ${ref}：${e.message}` : `第${e.row}行：${e.message}`
+}
+
+type SyncPersonNameCandidate = { employee_no: string; full_name?: string | null }
+
+export const collectSyncWarningLocationIds = (warnings: SyncWarning[]): number[] => {
+	const ids = new Set<number>()
+	for (const w of warnings) {
+		if (!String(w.employeeNo || "").trim()) continue
+		const lid = w.locationId != null ? Number(w.locationId) : NaN
+		if (Number.isFinite(lid)) ids.add(lid)
+	}
+	return [...ids]
+}
+
+export const ensureSyncCandidatesForWarnings = async (
+	warnings: SyncWarning[],
+	ensure: (locationId: number) => Promise<void>,
+) => {
+	for (const lid of collectSyncWarningLocationIds(warnings)) {
+		await ensure(lid)
+	}
+}
+
+export const syncWarningsNeedPersonNames = (warnings: SyncWarning[] | null | undefined) =>
+	(warnings || []).some(
+		(w) => String(w.employeeNo || "").trim() && !String(w.fullName || "").trim(),
+	)
+
+export const enrichSyncWarningsWithPersonNames = (
+	warnings: SyncWarning[] | null | undefined,
+	candidatesByLocation: Record<number, SyncPersonNameCandidate[]>,
+): SyncWarning[] =>
+	(warnings || []).map((w) => {
+		const employeeNo = String(w.employeeNo || "").trim()
+		if (!employeeNo || String(w.fullName || "").trim()) return w
+		const lid = w.locationId != null ? Number(w.locationId) : null
+		const pools =
+			lid != null && candidatesByLocation[lid]
+				? [candidatesByLocation[lid]]
+				: Object.values(candidatesByLocation)
+		for (const candidates of pools) {
+			const c = candidates.find((x) => String(x.employee_no) === employeeNo)
+			const fullName = String(c?.full_name || "").trim()
+			if (fullName) return { ...w, fullName }
+		}
+		return w
+	})
+
+export const formatSyncWarningDeviceLabel = (w: SyncWarning): string =>
+	w.deviceName || (w.deviceId != null ? `#${w.deviceId}` : "—")
+
+/** 後端已帶 fullName 時略過候選名單；否則補齊後回傳 */
+export const finalizeSyncWarningsForDisplay = async (
+	warnings: SyncWarning[],
+	candidatesByLocation: Record<number, SyncPersonNameCandidate[]>,
+	ensure: (locationId: number) => Promise<void>,
+): Promise<SyncWarning[]> => {
+	if (!syncWarningsNeedPersonNames(warnings)) return warnings
+	await ensureSyncCandidatesForWarnings(warnings, ensure)
+	return enrichSyncWarningsWithPersonNames(warnings, candidatesByLocation)
+}
 
 const SYNC_STEP_PILL_CLASS: Record<SyncStepUiStatus, string> = {
 	pending: "bg-amber-500/15 text-amber-100 border border-amber-400/30",

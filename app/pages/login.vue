@@ -3,7 +3,6 @@
 		class="flex min-h-screen items-center justify-center bg-[linear-gradient(155deg,#7dc1cb_0%,#006191_100%)]"
 	>
 		<div class="flex items-center justify-center gap-[48px] translate-x-[-24px]">
-			<!-- Hero Image/Illustration -->
 			<div class="hidden items-center lg:flex lg:h-[840px]">
 				<ClientOnly>
 					<HeroPicInline
@@ -16,12 +15,8 @@
 					/>
 				</ClientOnly>
 			</div>
-
-			<!-- Right Side - Login Form -->
 			<div class="mx-auto w-full max-w-[480px]">
-				<!-- Login Card -->
 				<div class="glass glass-card rounded-3xl px-8 py-16">
-					<!-- Welcome Header -->
 					<div class="mb-4 text-center">
 						<div class="mx-auto mb-8 flex h-36 w-36 items-center justify-center">
 							<ClientOnly>
@@ -38,10 +33,7 @@
 						</div>
 						<h2 class="text-3xl text-white">歡迎使用</h2>
 					</div>
-
-					<!-- Login Form -->
 					<form @submit.prevent="handleLogin" class="space-y-6">
-						<!-- Account Input -->
 						<div>
 							<label class="text-md mb-2 block text-white/80" :for="accountInputId">帳號</label>
 							<div class="group relative">
@@ -68,10 +60,8 @@
 									placeholder="請輸入帳號"
 									class="w-full rounded-xl border bg-white/10 py-3.5 pl-12 pr-4 text-white placeholder-white/40 transition-all duration-200 focus:bg-white/15 focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60"
 									:class="{
-										'border-red-400/70 focus:border-red-400 focus:ring-red-400/30':
-											!!fieldErrors.account,
-										'border-white/20 focus:border-[#7DC1CB] focus:ring-[#7DC1CB]/30':
-											!fieldErrors.account,
+										'border-red-400/70 focus:border-red-400 focus:ring-red-400/30': !!fieldErrors.account,
+										'border-white/20 focus:border-[#7DC1CB] focus:ring-[#7DC1CB]/30': !fieldErrors.account,
 									}"
 									:disabled="isLoading"
 									:aria-invalid="fieldErrors.account ? 'true' : 'false'"
@@ -83,8 +73,6 @@
 								{{ fieldErrors.account }}
 							</p>
 						</div>
-
-						<!-- Password Input -->
 						<div>
 							<label class="mb-2 block text-sm text-white/80" :for="passwordInputId">密碼</label>
 							<div class="group relative">
@@ -109,10 +97,8 @@
 									placeholder="請輸入密碼"
 									class="w-full rounded-xl border bg-white/10 py-3.5 pl-12 pr-12 text-white placeholder-white/40 transition-all duration-200 focus:bg-white/15 focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60"
 									:class="{
-										'border-red-400/70 focus:border-red-400 focus:ring-red-400/30':
-											!!fieldErrors.password,
-										'border-white/20 focus:border-[#7DC1CB] focus:ring-[#7DC1CB]/30':
-											!fieldErrors.password,
+										'border-red-400/70 focus:border-red-400 focus:ring-red-400/30': !!fieldErrors.password,
+										'border-white/20 focus:border-[#7DC1CB] focus:ring-[#7DC1CB]/30': !fieldErrors.password,
 									}"
 									:disabled="isLoading"
 									:aria-invalid="fieldErrors.password ? 'true' : 'false'"
@@ -157,16 +143,10 @@
 									</svg>
 								</button>
 							</div>
-							<p
-								v-if="fieldErrors.password"
-								:id="passwordErrorId"
-								class="form-error-text mt-1"
-							>
+							<p v-if="fieldErrors.password" :id="passwordErrorId" class="form-error-text mt-1">
 								{{ fieldErrors.password }}
 							</p>
 						</div>
-
-						<!-- Error Message -->
 						<div
 							v-if="errorMessage"
 							:id="formErrorId"
@@ -176,8 +156,6 @@
 						>
 							{{ errorMessage }}
 						</div>
-
-						<!-- Login Button -->
 						<button
 							type="submit"
 							:disabled="isLoading"
@@ -214,11 +192,7 @@
 							</span>
 						</button>
 					</form>
-
-					<!-- Divider -->
 					<div class="my-8 h-px bg-white/20"></div>
-
-					<!-- Contact Info -->
 					<div class="mx-auto w-fit text-center">
 						<p class="text-base text-white/80">
 							需要協助？
@@ -244,8 +218,6 @@
 						</p>
 					</div>
 				</div>
-
-				<!-- Version Info -->
 				<div class="text-gray-700 font-bold mt-8 text-center">
 					<p class="text-xl">{{ productVersionDisplay }}</p>
 					<p class="text-sm">© 2026 YENSHOW Technology</p>
@@ -258,7 +230,7 @@
 <script setup lang="ts">
 import { useAuth } from "~/composables/core/useAuth"
 import { useToast } from "~/composables/core/useToast"
-import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { resolveFormApiError } from "~/utils/errorUtils"
 import HeroPicInline from "~/components/common/HeroPicInline.vue"
 import { useProductVersionDisplay } from "~/composables/core/useProductVersionDisplay"
 
@@ -272,7 +244,6 @@ const { login, isAuthenticated } = useAuth()
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
-const { handleError } = useErrorHandler()
 
 const accountInputId = "login-account"
 const passwordInputId = "login-password"
@@ -283,7 +254,6 @@ const formErrorId = "login-form-error"
 const accountInputRef = ref<HTMLInputElement | null>(null)
 const passwordInputRef = ref<HTMLInputElement | null>(null)
 
-// 如果已經登入，自動重定向（等待插件初始化完成）
 onMounted(async () => {
 	await nextTick()
 	if (isAuthenticated.value) {
@@ -305,7 +275,6 @@ const fieldErrors = ref<{ account: string | null; password: string | null }>({
 	password: null,
 })
 
-// 登入頁插圖載入狀態
 const isHeroLoaded = ref(false)
 
 const sanitizeRedirectPath = (raw: unknown) => {
@@ -362,12 +331,10 @@ const handleLogin = async () => {
 
 		toast.success("登入成功")
 
-		// 登入成功後跳轉 - 檢查 redirect query 參數
 		const redirectPath = sanitizeRedirectPath(route.query.redirect)
 		await router.push(redirectPath)
 	} catch (error) {
-		const errorMsg = handleError(error, "登入失敗，請檢查帳號密碼")
-		errorMessage.value = errorMsg || "登入失敗，請檢查帳號密碼"
+		errorMessage.value = resolveFormApiError(error, "登入失敗，請檢查帳號密碼")
 	} finally {
 		isLoading.value = false
 	}

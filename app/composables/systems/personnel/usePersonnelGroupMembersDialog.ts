@@ -3,6 +3,7 @@ import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelA
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { fetchAllPersonnelCandidates } from "~/composables/systems/personnel/personnelList"
 import { findMainGroupById } from "~/utils/personnelGroups"
+import { resolveFormApiError } from "~/utils/errorUtils"
 
 const cloneMemberMap = (map: Record<number, number[]>): Record<number, number[]> =>
 	Object.fromEntries(Object.entries(map).map(([id, ids]) => [Number(id), [...ids]]))
@@ -27,7 +28,6 @@ export const usePersonnelGroupMembersDialog = (params: {
 	modelValue: Ref<boolean>
 	onSaved: () => void
 	dismissDialog: () => void
-	handleApiError: (err: unknown, fallback: string) => string | void | null
 	toast: { success: (msg: string) => void }
 }) => {
 	const {
@@ -37,7 +37,6 @@ export const usePersonnelGroupMembersDialog = (params: {
 		modelValue,
 		onSaved,
 		dismissDialog,
-		handleApiError,
 		toast,
 	} = params
 
@@ -149,7 +148,7 @@ export const usePersonnelGroupMembersDialog = (params: {
 			initialMemberIdsByChildId.value = cloneMemberMap(map)
 			expandedChildIds.value = new Set(children.map((c) => c.id))
 		} catch (err) {
-			errorMessage.value = handleApiError(err, "載入群組成員失敗") || "載入群組成員失敗"
+			errorMessage.value = resolveFormApiError(err, "載入群組成員失敗")
 		} finally {
 			isLoading.value = false
 		}
@@ -181,17 +180,20 @@ export const usePersonnelGroupMembersDialog = (params: {
 		isSaving.value = true
 		errorMessage.value = null
 		try {
-			for (const child of childGroups.value) {
-				const next = memberIdsByChildId.value[child.id] ?? []
-				const prev = initialMemberIdsByChildId.value[child.id] ?? []
-				if (!memberIdSetsEqual(next, prev)) {
-					await personnelApi.replacePersonGroupMembers(child.id, next)
-				}
-			}
+			await Promise.all(
+				childGroups.value.map(async (child) => {
+					const next = memberIdsByChildId.value[child.id] ?? []
+					const prev = initialMemberIdsByChildId.value[child.id] ?? []
+					if (!memberIdSetsEqual(next, prev)) {
+						await personnelApi.replacePersonGroupMembers(child.id, next)
+					}
+				}),
+			)
 			toast.success("已更新群組成員")
+			initialMemberIdsByChildId.value = cloneMemberMap(memberIdsByChildId.value)
 			onSaved()
 		} catch (err) {
-			errorMessage.value = handleApiError(err, "儲存群組成員失敗") || "儲存群組成員失敗"
+			errorMessage.value = resolveFormApiError(err, "儲存群組成員失敗")
 		} finally {
 			isSaving.value = false
 		}
