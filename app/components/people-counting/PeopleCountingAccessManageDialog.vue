@@ -122,7 +122,7 @@
 									<p class="sr-only">載入人員清單</p>
 									<ContentSkeleton variant="member-list" />
 								</template>
-								<div class="show-scrollbar max-h-[min(360px,50vh)] space-y-4 overflow-y-auto pe-1">
+								<div class="show-scrollbar max-h-[480px] space-y-4 overflow-y-auto pe-1">
 									<section v-for="group in memberCandidateGroups" :key="group.groupId">
 										<h5 class="mb-2 text-xs font-medium text-white/55 2xl:text-sm">
 											{{ group.groupName }}
@@ -179,7 +179,7 @@
 									:disabled="syncWarnings.length === 0"
 									@click="openWarningsDialog"
 								>
-									查看警告
+									查看錯誤
 									<span v-if="syncWarnings.length > 0" class="ms-1 text-amber-200">
 										({{ syncWarnings.length }})
 									</span>
