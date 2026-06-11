@@ -57,10 +57,6 @@ export const useLocationMembersPicker = (params: {
 		() => pickerCtx.value?.sync.getLocationMembersError(pickerCtx.value.id) ?? null
 	)
 
-	const membersSuccess = computed(
-		() => pickerCtx.value?.sync.getLocationMembersSuccess(pickerCtx.value.id) ?? null
-	)
-
 	const isMemberKept = (personId: number) =>
 		pickerCtx.value?.sync.isLocationMemberKept(pickerCtx.value.id, personId) ?? false
 
@@ -100,7 +96,6 @@ export const useLocationMembersPicker = (params: {
 		isApplyingMembers,
 		isLoadingMembers,
 		membersError,
-		membersSuccess,
 		isMemberKept,
 		toggleMember,
 		isAllMembersPageKept: pageSelectAll.isAllSelectedOnPage,

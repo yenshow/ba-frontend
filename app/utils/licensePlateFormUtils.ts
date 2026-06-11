@@ -144,11 +144,6 @@ export const validateIsapiPlateForm = (form: IsapiPlateFormModel): string | null
 export const licensePlateListTypeShortLabel = (listType: VehicleLicensePlateListType): string =>
 	listType === "allowList" ? "授權" : "拒絕";
 
-export const formatPersonBindLabel = (
-	employeeNo?: string | null,
-	fullName?: string | null,
-): string => `${employeeNo ?? ""}${fullName ? ` ${fullName}` : ""}`.trim();
-
 export type IsapiPlateUpsertEntry = {
 	id: string;
 	licensePlate: string;

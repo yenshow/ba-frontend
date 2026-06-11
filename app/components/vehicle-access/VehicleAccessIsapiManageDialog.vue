@@ -75,7 +75,9 @@
 					</header>
 
 					<div class="show-scrollbar flex-1 overflow-y-auto pr-7 2xl:pr-8">
-						<div v-if="locationId == null" class="py-12 text-center text-white/60">無法解析地點</div>
+						<div v-if="locationId == null" class="py-12 text-center text-white/60">
+							無法解析地點
+						</div>
 
 						<div
 							v-else-if="manageStep === 1"
@@ -170,7 +172,9 @@
 						<div v-else class="space-y-4 rounded-xl border border-white/15 bg-white/5 p-4 2xl:p-5">
 							<div class="space-y-2">
 								<h4 class="text-lg font-medium text-white 2xl:text-xl">步驟 2：車牌管理</h4>
-								<p class="text-sm text-white/60 2xl:text-base">檢視各入口／出口攝影機上實際登記的車牌。</p>
+								<p class="text-sm text-white/60 2xl:text-base">
+									檢視各入口／出口攝影機上實際登記的車牌。
+								</p>
 							</div>
 
 							<div v-if="deviceOptions.length === 0" class="py-8 text-center text-white/60">
@@ -214,7 +218,9 @@
 											<div
 												class="flex h-16 min-w-[80px] max-w-[12rem] items-center justify-center rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-3 shadow-lg"
 											>
-												<h4 class="truncate text-xl font-bold tracking-wider text-white 2xl:text-2xl">
+												<h4
+													class="truncate text-xl font-bold tracking-wider text-white 2xl:text-2xl"
+												>
 													{{ opt.label }}
 												</h4>
 											</div>
@@ -227,7 +233,10 @@
 									</div>
 
 									<Transition name="expand">
-										<div v-if="isDeviceExpanded(opt.id)" class="space-y-3 border-t border-white/10 p-4">
+										<div
+											v-if="isDeviceExpanded(opt.id)"
+											class="space-y-3 border-t border-white/10 p-4"
+										>
 											<div class="flex items-center justify-between">
 												<span class="text-base font-medium 2xl:text-lg">此攝影機車牌</span>
 												<PermissionActionButton
@@ -244,7 +253,10 @@
 												<p class="sr-only">載入車牌名單</p>
 												<ContentSkeleton :columns="6" :rows="5" />
 											</div>
-											<p v-else-if="getDeviceError(opt.id)" class="form-error-text-lg">
+											<p
+												v-else-if="getDeviceError(opt.id)"
+												class="form-error-text-lg"
+											>
 												{{ getDeviceError(opt.id) }}
 											</p>
 											<div
@@ -253,8 +265,13 @@
 											>
 												尚無車牌名單資料
 											</div>
-											<div v-else class="overflow-x-auto rounded border border-white/10 bg-white/5 p-2">
-												<table class="w-full min-w-[520px] text-left text-base text-white/90 2xl:text-lg">
+											<div
+												v-else
+												class="overflow-x-auto rounded border border-white/10 bg-white/5 p-2"
+											>
+												<table
+													class="w-full min-w-[520px] text-left text-base text-white/90 2xl:text-lg"
+												>
 													<thead>
 														<tr class="border-b border-white/15 text-white/60">
 															<th class="px-2 py-2 font-medium">車牌</th>
@@ -280,7 +297,7 @@
 																	class="rounded-full px-2 py-0.5 text-xs 2xl:text-sm"
 																	:class="
 																		row.listType === 'allowList'
-																			? 'bg-emerald-500/20 text-emerald-200'
+																			? 'bg-emerald-500/20 text-emerald-100'
 																			: 'bg-rose-500/20 text-rose-200'
 																	"
 																>
@@ -340,60 +357,61 @@
 </template>
 
 <script setup lang="ts">
-import type { VehicleAccessLocation, VehicleLicensePlateAuditItem } from "~/types/vehicleAccess";
-import { useVehicleAccessIsapiDeviceApi } from "~/composables/systems/vehicleAccess/useVehicleAccessIsapiDeviceApi";
-import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
-import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi";
-import { useToast } from "~/composables/core/useToast";
-import { resolveUserFacingCatchMessage } from "~/utils/errorUtils";
+import type { VehicleAccessLocation, VehicleLicensePlateAuditItem } from "~/types/vehicleAccess"
+import { useVehicleAccessIsapiDeviceApi } from "~/composables/systems/vehicleAccess/useVehicleAccessIsapiDeviceApi"
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
+import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { useToast } from "~/composables/core/useToast"
+import { resolveUserFacingCatchMessage } from "~/utils/errorUtils"
+import { formatPersonLabel } from "~/utils/personnelUtils"
 import {
 	buildIsapiPlateUpsertEntry,
 	createDefaultIsapiPlateForm,
 	formatLicensePlateDisplayTime,
-	formatPersonBindLabel,
 	isapiPlateFormFromAuditRow,
 	licensePlateListTypeShortLabel,
-	type IsapiPlateFormModel
-} from "~/utils/licensePlateFormUtils";
-import VehicleAccessIsapiPlateFormDialog from "~/components/vehicle-access/VehicleAccessIsapiPlateFormDialog.vue";
-import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
-import SearchInput from "~/components/common/SearchInput.vue";
-import AsyncPanel from "~/components/common/AsyncPanel.vue";
-import ContentSkeleton from "~/components/common/ContentSkeleton.vue";
-import type { useLocationAccessSync } from "~/composables/systems/personnel/useLocationAccessSync";
+	type IsapiPlateFormModel,
+} from "~/utils/licensePlateFormUtils"
+import VehicleAccessIsapiPlateFormDialog from "~/components/vehicle-access/VehicleAccessIsapiPlateFormDialog.vue"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+import SearchInput from "~/components/common/SearchInput.vue"
+import AsyncPanel from "~/components/common/AsyncPanel.vue"
+import ContentSkeleton from "~/components/common/ContentSkeleton.vue"
+import type { useLocationAccessSync } from "~/composables/systems/personnel/useLocationAccessSync"
 import {
 	useLocationMembersPicker,
 	LOCATION_MEMBERS_PANEL_MIN_HEIGHT,
-} from "~/composables/systems/personnel/useLocationMembersPicker";
-import { useWizardStepNav } from "~/composables/core/useWizardStepNav";
-import { parseLocationNumericId } from "~/utils/personnelUtils";
+} from "~/composables/systems/personnel/useLocationMembersPicker"
+import { useWizardStepNav } from "~/composables/core/useWizardStepNav"
+import { parseLocationNumericId } from "~/utils/personnelUtils"
 
 interface DeviceOption {
-	id: number;
-	label: string;
+	id: number
+	label: string
 }
 
 const props = defineProps<{
-	modelValue: boolean;
-	location: VehicleAccessLocation | null;
-	canCreatePlate?: boolean;
-	canUpdatePlate?: boolean;
-	canDeletePlate?: boolean;
-	canEditMembers: boolean;
-	accessSync?: ReturnType<typeof useLocationAccessSync>;
-}>();
+	modelValue: boolean
+	location: VehicleAccessLocation | null
+	canCreatePlate?: boolean
+	canUpdatePlate?: boolean
+	canDeletePlate?: boolean
+	canEditMembers: boolean
+	accessSync?: ReturnType<typeof useLocationAccessSync>
+}>()
 
 const emit = defineEmits<{
-	"update:modelValue": [value: boolean];
-	membersUpdated: [];
-}>();
+	"update:modelValue": [value: boolean]
+	membersUpdated: []
+}>()
 
-const manageStep = ref<1 | 2>(1);
-const { getPillButtonClass, getStepCircleClass } = useWizardStepNav();
+const manageStep = ref<1 | 2>(1)
+const { getPillButtonClass, getStepCircleClass } = useWizardStepNav()
 
 const locationId = computed(() =>
 	parseLocationNumericId(props.location?.id ?? props.location?.locationId)
-);
+)
 
 const {
 	hasMemberCandidates,
@@ -411,281 +429,282 @@ const {
 } = useLocationMembersPicker({
 	locationId,
 	accessSync: toRef(props, "accessSync"),
-});
+})
 
 const handleApplyMembers = async () => {
-	if (!(await applyMembers())) return;
-	emit("membersUpdated");
-	await loadPersonBindOptions();
-};
+	if (!(await applyMembers())) return
+	emit("membersUpdated")
+	await loadPersonBindOptions()
+}
 
-const isapiApi = useVehicleAccessIsapiDeviceApi();
-const deviceApi = useDeviceApi();
-const personnelApi = usePersonnelApi();
-const toast = useToast();
+const isapiApi = useVehicleAccessIsapiDeviceApi()
+const deviceApi = useDeviceApi()
+const personnelApi = usePersonnelApi()
+const toast = useToast()
+const { handleError } = useErrorHandler()
 
-const deviceNameMap = ref<Record<number, string>>({});
-const expandedDevices = ref<Set<number>>(new Set());
-const platesByDevice = ref<Record<number, VehicleLicensePlateAuditItem[]>>({});
-const loadingByDevice = ref<Record<number, boolean>>({});
-const errorByDevice = ref<Record<number, string>>({});
+const deviceNameMap = ref<Record<number, string>>({})
+const expandedDevices = ref<Set<number>>(new Set())
+const platesByDevice = ref<Record<number, VehicleLicensePlateAuditItem[]>>({})
+const loadingByDevice = ref<Record<number, boolean>>({})
+const errorByDevice = ref<Record<number, string>>({})
 
-const formDeviceId = ref<number | null>(null);
-const plateFormMode = ref<"add" | "modify">("add");
-const isSavingPlate = ref(false);
-const plateForm = ref<IsapiPlateFormModel>(createDefaultIsapiPlateForm());
-const plateFormError = ref("");
+const formDeviceId = ref<number | null>(null)
+const plateFormMode = ref<"add" | "modify">("add")
+const isSavingPlate = ref(false)
+const plateForm = ref<IsapiPlateFormModel>(createDefaultIsapiPlateForm())
+const plateFormError = ref("")
 
-const personBindOptions = ref<Array<{ value: string; label: string }>>([]);
-const isLoadingPersonOptions = ref(false);
+const personBindOptions = ref<Array<{ value: string; label: string }>>([])
+const isLoadingPersonOptions = ref(false)
 
 const deviceIds = computed(() => {
-	const entry = props.location?.entryCameraDeviceIds ?? [];
-	const exit = props.location?.exitCameraDeviceIds ?? [];
-	return [...new Set([...entry, ...exit].filter(id => Number.isFinite(Number(id))))];
-});
+	const entry = props.location?.entryCameraDeviceIds ?? []
+	const exit = props.location?.exitCameraDeviceIds ?? []
+	return [...new Set([...entry, ...exit].filter((id) => Number.isFinite(Number(id))))]
+})
 
 const deviceOptions = computed((): DeviceOption[] =>
-	deviceIds.value.map(id => ({
+	deviceIds.value.map((id) => ({
 		id,
-		label: deviceNameMap.value[id] || `設備 #${id}`
+		label: deviceNameMap.value[id] || `設備 #${id}`,
 	}))
-);
+)
 
 const apiParams = computed(() => ({
-	siteId: locationId.value ?? undefined
-}));
+	siteId: locationId.value ?? undefined,
+}))
 
-const isDeviceExpanded = (deviceId: number) => expandedDevices.value.has(deviceId);
+const isDeviceExpanded = (deviceId: number) => expandedDevices.value.has(deviceId)
 
-const getDevicePlates = (deviceId: number) => platesByDevice.value[deviceId] ?? [];
+const getDevicePlates = (deviceId: number) => platesByDevice.value[deviceId] ?? []
 
-const isLoadingDevice = (deviceId: number) => loadingByDevice.value[deviceId] === true;
+const isLoadingDevice = (deviceId: number) => loadingByDevice.value[deviceId] === true
 
-const getDeviceError = (deviceId: number) => errorByDevice.value[deviceId] ?? "";
+const getDeviceError = (deviceId: number) => errorByDevice.value[deviceId] ?? ""
 
 const getPlateCountLabel = (deviceId: number) => {
-	if (isLoadingDevice(deviceId)) return "…";
-	if (errorByDevice.value[deviceId]) return "失敗";
-	return `${getDevicePlates(deviceId).length} 筆`;
-};
+	if (isLoadingDevice(deviceId)) return "…"
+	if (errorByDevice.value[deviceId]) return "失敗"
+	return `${getDevicePlates(deviceId).length} 筆`
+}
 
 const loadPersonBindOptions = async () => {
-	const id = locationId.value;
+	const id = locationId.value
 	if (id == null) {
-		personBindOptions.value = [];
-		return;
+		personBindOptions.value = []
+		return
 	}
-	isLoadingPersonOptions.value = true;
+	isLoadingPersonOptions.value = true
 	try {
-		const res = await personnelApi.getLocationMembers(id, { limit: 500, offset: 0 });
-		personBindOptions.value = (res.items ?? []).map(p => ({
+		const res = await personnelApi.getLocationMembers(id, { limit: 500, offset: 0 })
+		personBindOptions.value = (res.items ?? []).map((p) => ({
 			value: String(p.id),
-			label: formatPersonBindLabel(p.employee_no, p.full_name) || `人員 #${p.id}`
-		}));
+			label: formatPersonLabel(p.employee_no, p.full_name) || `人員 #${p.id}`,
+		}))
 	} catch {
-		personBindOptions.value = [];
+		personBindOptions.value = []
 	} finally {
-		isLoadingPersonOptions.value = false;
+		isLoadingPersonOptions.value = false
 	}
-};
+}
 
 const ensurePersonBindOption = (personId: number, label: string) => {
-	const value = String(personId);
-	if (personBindOptions.value.some(o => o.value === value)) return;
+	const value = String(personId)
+	if (personBindOptions.value.some((o) => o.value === value)) return
 	personBindOptions.value = [
 		...personBindOptions.value,
-		{ value, label: label || `人員 #${personId}` }
-	];
-};
+		{ value, label: label || `人員 #${personId}` },
+	]
+}
 
 const enrichPlatesWithBindings = async (
 	items: VehicleLicensePlateAuditItem[]
 ): Promise<VehicleLicensePlateAuditItem[]> => {
-	const plateNumbers = items.map(i => i.licensePlate).filter(Boolean);
-	if (plateNumbers.length === 0) return items;
+	const plateNumbers = items.map((i) => i.licensePlate).filter(Boolean)
+	if (plateNumbers.length === 0) return items
 	try {
-		const res = await personnelApi.getLicensePlateBindings(plateNumbers);
+		const res = await personnelApi.getLicensePlateBindings(plateNumbers)
 		const map = new Map(
-			(res.items ?? []).map(b => [String(b.plate_normalized || b.plate_number).toUpperCase(), b])
-		);
-		return items.map(item => {
-			const key = item.licensePlate.trim().toUpperCase();
-			const b = map.get(key);
-			if (!b) return item;
-			const name = b.full_name?.trim();
+			(res.items ?? []).map((b) => [String(b.plate_normalized || b.plate_number).toUpperCase(), b])
+		)
+		return items.map((item) => {
+			const key = item.licensePlate.trim().toUpperCase()
+			const b = map.get(key)
+			if (!b) return item
+			const name = b.full_name?.trim()
 			return {
 				...item,
 				bindPersonId: b.person_id,
-				...(name ? { bindPersonLabel: name } : {})
-			};
-		});
+				...(name ? { bindPersonLabel: name } : {}),
+			}
+		})
 	} catch {
-		return items;
+		return items
 	}
-};
+}
 
 const loadDeviceNames = async () => {
-	if (deviceIds.value.length === 0) return;
+	if (deviceIds.value.length === 0) return
 	try {
-		const res = await deviceApi.getDevices({ type_code: "camera", limit: 200 });
-		const map: Record<number, string> = {};
+		const res = await deviceApi.getDevices({ type_code: "camera", limit: 200 })
+		const map: Record<number, string> = {}
 		for (const dev of res.devices || []) {
-			if (dev.id != null) map[dev.id] = dev.name?.trim() || `設備 #${dev.id}`;
+			if (dev.id != null) map[dev.id] = dev.name?.trim() || `設備 #${dev.id}`
 		}
-		deviceNameMap.value = map;
+		deviceNameMap.value = map
 	} catch {
-		deviceNameMap.value = {};
+		deviceNameMap.value = {}
 	}
-};
+}
 
 const loadAllDevicePlates = async () => {
-	await Promise.all(deviceIds.value.map(id => loadPlatesForDevice(id)));
-};
+	await Promise.all(deviceIds.value.map((id) => loadPlatesForDevice(id)))
+}
 
 const loadPlatesForDevice = async (deviceId: number) => {
-	loadingByDevice.value = { ...loadingByDevice.value, [deviceId]: true };
-	errorByDevice.value = { ...errorByDevice.value, [deviceId]: "" };
+	loadingByDevice.value = { ...loadingByDevice.value, [deviceId]: true }
+	errorByDevice.value = { ...errorByDevice.value, [deviceId]: "" }
 	try {
 		const res = await isapiApi.searchLicensePlates(deviceId, {
 			...apiParams.value,
-			maxResults: 200
-		});
-		const enriched = await enrichPlatesWithBindings(res.items ?? []);
-		platesByDevice.value = { ...platesByDevice.value, [deviceId]: enriched };
+			maxResults: 200,
+		})
+		const enriched = await enrichPlatesWithBindings(res.items ?? [])
+		platesByDevice.value = { ...platesByDevice.value, [deviceId]: enriched }
 	} catch (e) {
 		errorByDevice.value = {
 			...errorByDevice.value,
-			[deviceId]: resolveUserFacingCatchMessage(e, "載入車牌名單失敗")
-		};
-		platesByDevice.value = { ...platesByDevice.value, [deviceId]: [] };
+			[deviceId]: resolveUserFacingCatchMessage(e, "載入車牌名單失敗"),
+		}
+		platesByDevice.value = { ...platesByDevice.value, [deviceId]: [] }
 	} finally {
-		loadingByDevice.value = { ...loadingByDevice.value, [deviceId]: false };
+		loadingByDevice.value = { ...loadingByDevice.value, [deviceId]: false }
 	}
-};
+}
 
 const handleToggleDevice = async (deviceId: number) => {
-	const next = new Set(expandedDevices.value);
+	const next = new Set(expandedDevices.value)
 	if (next.has(deviceId)) {
-		next.delete(deviceId);
-		if (formDeviceId.value === deviceId) handleCancelPlateForm();
+		next.delete(deviceId)
+		if (formDeviceId.value === deviceId) handleCancelPlateForm()
 	} else {
-		next.add(deviceId);
+		next.add(deviceId)
 		if (platesByDevice.value[deviceId] === undefined) {
-			await loadPlatesForDevice(deviceId);
+			await loadPlatesForDevice(deviceId)
 		}
 	}
-	expandedDevices.value = next;
-};
+	expandedDevices.value = next
+}
 
 const ensureDeviceExpanded = async (deviceId: number) => {
-	if (expandedDevices.value.has(deviceId)) return;
-	expandedDevices.value = new Set([...expandedDevices.value, deviceId]);
+	if (expandedDevices.value.has(deviceId)) return
+	expandedDevices.value = new Set([...expandedDevices.value, deviceId])
 	if (platesByDevice.value[deviceId] === undefined) {
-		await loadPlatesForDevice(deviceId);
+		await loadPlatesForDevice(deviceId)
 	}
-};
+}
 
 const handleOpenPlateForm = async (deviceId: number, row?: VehicleLicensePlateAuditItem) => {
-	plateFormError.value = "";
-	formDeviceId.value = deviceId;
-	await ensureDeviceExpanded(deviceId);
+	plateFormError.value = ""
+	formDeviceId.value = deviceId
+	await ensureDeviceExpanded(deviceId)
 	if (row) {
-		plateFormMode.value = "modify";
+		plateFormMode.value = "modify"
 		if (row.bindPersonId != null && row.bindPersonLabel) {
-			ensurePersonBindOption(Number(row.bindPersonId), row.bindPersonLabel);
+			ensurePersonBindOption(Number(row.bindPersonId), row.bindPersonLabel)
 		}
-		plateForm.value = isapiPlateFormFromAuditRow(row);
+		plateForm.value = isapiPlateFormFromAuditRow(row)
 	} else {
-		plateFormMode.value = "add";
-		plateForm.value = createDefaultIsapiPlateForm();
+		plateFormMode.value = "add"
+		plateForm.value = createDefaultIsapiPlateForm()
 	}
-};
+}
 
 const handleCancelPlateForm = () => {
-	plateFormError.value = "";
-	formDeviceId.value = null;
-};
+	plateFormError.value = ""
+	formDeviceId.value = null
+}
 
 const handleSavePlate = async (deviceId: number) => {
-	plateFormError.value = "";
+	plateFormError.value = ""
 	const built = buildIsapiPlateUpsertEntry(
 		plateForm.value,
 		plateFormMode.value === "add" ? "add" : "modify"
-	);
+	)
 	if ("error" in built) {
-		plateFormError.value = built.error;
-		return;
+		plateFormError.value = built.error
+		return
 	}
-	isSavingPlate.value = true;
+	isSavingPlate.value = true
 	try {
 		await isapiApi.upsertLicensePlates(deviceId, {
 			...apiParams.value,
 			mutation: plateFormMode.value === "add" ? "create" : "update",
-			plates: [built.entry]
-		});
-		toast.success("已儲存車牌名單");
-		handleCancelPlateForm();
-		await loadPlatesForDevice(deviceId);
+			plates: [built.entry],
+		})
+		toast.success("已儲存車牌名單")
+		handleCancelPlateForm()
+		await loadPlatesForDevice(deviceId)
 	} catch (e) {
-		plateFormError.value = resolveUserFacingCatchMessage(e, "儲存車牌名單失敗");
+		plateFormError.value = resolveUserFacingCatchMessage(e, "儲存車牌名單失敗")
 	} finally {
-		isSavingPlate.value = false;
+		isSavingPlate.value = false
 	}
-};
+}
 
 const handleDeletePlate = async (deviceId: number, row: VehicleLicensePlateAuditItem) => {
-	if (!window.confirm(`確定刪除車牌 ${row.licensePlate}？`)) return;
+	if (!window.confirm(`確定刪除車牌 ${row.licensePlate}？`)) return
 	try {
 		await isapiApi.deleteLicensePlates(deviceId, {
 			...apiParams.value,
-			licensePlates: [row.licensePlate]
-		});
-		toast.success("已刪除");
-		await loadPlatesForDevice(deviceId);
+			licensePlates: [row.licensePlate],
+		})
+		toast.success("已刪除")
+		await loadPlatesForDevice(deviceId)
 	} catch (e) {
-		toast.error(resolveUserFacingCatchMessage(e, "刪除車牌失敗"));
+		handleError(e, "刪除車牌失敗", { context: "delete" })
 	}
-};
+}
 
 const handleClose = () => {
-	handleCancelPlateForm();
-	emit("update:modelValue", false);
-};
+	handleCancelPlateForm()
+	emit("update:modelValue", false)
+}
 
 const resetState = () => {
-	expandedDevices.value = new Set();
-	platesByDevice.value = {};
-	loadingByDevice.value = {};
-	errorByDevice.value = {};
-	handleCancelPlateForm();
-};
+	expandedDevices.value = new Set()
+	platesByDevice.value = {}
+	loadingByDevice.value = {}
+	errorByDevice.value = {}
+	handleCancelPlateForm()
+}
 
 const refreshStep2Plates = async () => {
-	const ids = deviceIds.value;
-	if (ids.length === 0) return;
+	const ids = deviceIds.value
+	if (ids.length === 0) return
 	if (expandedDevices.value.size === 0) {
-		expandedDevices.value = new Set([ids[0]]);
+		expandedDevices.value = new Set([ids[0]])
 	}
-	await loadAllDevicePlates();
-};
+	await loadAllDevicePlates()
+}
 
-watch(manageStep, async step => {
-	if (step !== 2 || !props.modelValue) return;
-	await refreshStep2Plates();
-});
+watch(manageStep, async (step) => {
+	if (step !== 2 || !props.modelValue) return
+	await refreshStep2Plates()
+})
 
 watch(
 	() => props.modelValue,
-	async open => {
-		if (!open) return;
-		manageStep.value = 1;
-		resetState();
-		const id = locationId.value;
+	async (open) => {
+		if (!open) return
+		manageStep.value = 1
+		resetState()
+		const id = locationId.value
 		if (id != null && props.accessSync) {
-			await props.accessSync.prepareLocationDialog(id);
+			await props.accessSync.prepareLocationDialog(id)
 		}
-		await Promise.all([loadDeviceNames(), loadPersonBindOptions()]);
+		await Promise.all([loadDeviceNames(), loadPersonBindOptions()])
 	}
-);
+)
 </script>

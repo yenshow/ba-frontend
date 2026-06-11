@@ -4,7 +4,6 @@ import type {
 	Paged,
 	SyncableLocation,
 	ImportResult,
-	SyncWarning,
 	SyncAllLocationsJob,
 	SyncLocationJob,
 	SyncLocationJobItemsPage,
@@ -48,8 +47,8 @@ export type PersonnelHandleApiError = (
 	options?: HandleErrorOptions
 ) => string | void | null
 
-/** 人員主檔 API：優先顯示後端 message */
-export const PERSONNEL_API_ERROR_OPTS: HandleErrorOptions = { preferBackendMessage: true }
+/** 人員主檔 API 錯誤處理選項 */
+export const PERSONNEL_API_ERROR_OPTS: HandleErrorOptions = { context: "save" }
 
 export type PersonLicensePlatePayload = {
 	plateNumber: string

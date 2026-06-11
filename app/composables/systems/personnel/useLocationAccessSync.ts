@@ -17,6 +17,7 @@ import {
 	getNextOffset,
 	getPrevOffset,
 } from "~/composables/systems/personnel/personnelList"
+import { resolveFormApiError } from "~/utils/errorUtils"
 
 type LocationId = number
 
@@ -93,7 +94,6 @@ export const useLocationAccessSync = (params: {
 	const locationMembersLoading = reactive<Record<LocationId, boolean>>({})
 	const locationMembersApplying = reactive<Record<LocationId, boolean>>({})
 	const locationMembersError = reactive<Record<LocationId, string | null>>({})
-	const locationMembersSuccess = reactive<Record<LocationId, string | null>>({})
 	const locationMembersKeptIds = reactive<Record<LocationId, number[]>>({})
 
 	const locationCandidatesLoading = reactive<Record<LocationId, boolean>>({})
@@ -106,9 +106,6 @@ export const useLocationAccessSync = (params: {
 		Boolean(locationCandidatesLoading[locationId])
 	const isLocationMembersApplying = (locationId: number) => Boolean(locationMembersApplying[locationId])
 	const getLocationMembersError = (locationId: number) => (locationMembersError[locationId] || "").trim() || null
-	const getLocationMembersSuccess = (locationId: number) =>
-		(locationMembersSuccess[locationId] || "").trim() || null
-
 	const getLocationMemberKeptIds = (locationId: number) => locationMembersKeptIds[locationId] ?? []
 	const isLocationMemberKept = (locationId: number, personId: number) =>
 		getLocationMemberKeptIds(locationId).includes(personId)
@@ -151,7 +148,7 @@ export const useLocationAccessSync = (params: {
 			locationCandidatesItems[locationId] = Array.isArray(all) ? all : []
 		} catch (err) {
 			locationCandidatesItems[locationId] = []
-			locationCandidatesError[locationId] = err instanceof Error ? err.message : "載入人員失敗"
+			locationCandidatesError[locationId] = err instanceof Error ? err.message : "載入門禁名單失敗"
 		} finally {
 			locationCandidatesLoading[locationId] = false
 		}
@@ -159,7 +156,6 @@ export const useLocationAccessSync = (params: {
 
 	const loadAllLocationMembers = async (locationId: number) => {
 		locationMembersError[locationId] = null
-		locationMembersSuccess[locationId] = null
 		locationMembersLoading[locationId] = true
 		try {
 			const res = await personnelApi.getLocationMemberIds(locationId)
@@ -169,26 +165,31 @@ export const useLocationAccessSync = (params: {
 			await loadLocationCandidates(locationId)
 		} catch (err) {
 			locationMembersKeptIds[locationId] = []
-			locationMembersError[locationId] = err instanceof Error ? err.message : "載入門禁名單失敗"
+			locationMembersError[locationId] =
+				err instanceof Error ? err.message : "載入門禁名單失敗"
 		} finally {
 			locationMembersLoading[locationId] = false
 		}
 	}
 
+	const reloadLocationMembers = async (locationId: number) => {
+		await loadAllLocationMembers(locationId)
+		await ensureSyncCandidates(locationId)
+	}
+
 	const applyLocationMembers = async (locationId: number) => {
 		locationMembersError[locationId] = null
-		locationMembersSuccess[locationId] = null
 		locationMembersApplying[locationId] = true
 		try {
 			const kept = getLocationMemberKeptIds(locationId)
-			const next = Array.from(new Set((kept || []).map((x) => Number(x)).filter((x) => Number.isFinite(x)))).map(
-				(x) => Math.trunc(x)
-			)
+			const next = Array.from(
+				new Set((kept || []).map((x) => Number(x)).filter((x) => Number.isFinite(x)))
+			).map((x) => Math.trunc(x))
 			await personnelApi.replaceLocationMembers(locationId, next)
-			locationMembersSuccess[locationId] = "已套用變更"
-			await loadAllLocationMembers(locationId)
+			toast.success("已套用變更")
+			await reloadLocationMembers(locationId)
 		} catch (err) {
-			locationMembersError[locationId] = err instanceof Error ? err.message : "套用失敗"
+			locationMembersError[locationId] = resolveFormApiError(err, "套用失敗")
 			handleApiError(err, "套用失敗")
 		} finally {
 			locationMembersApplying[locationId] = false
@@ -286,7 +287,6 @@ export const useLocationAccessSync = (params: {
 		isLocationCandidatesLoading,
 		isLocationMembersApplying,
 		getLocationMembersError,
-		getLocationMembersSuccess,
 		isLocationMemberKept,
 		toggleManyLocationMembers,
 		toggleKeepLocationMember,

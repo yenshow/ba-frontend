@@ -11,7 +11,6 @@
 					<header class="flex items-center justify-between pr-7 2xl:pr-8">
 						<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">區域管理</h3>
 						<div class="flex items-center gap-3">
-							<!-- 變更提示 -->
 							<FormChangeIndicator
 								v-if="hasUnsavedChanges"
 								:has-changes="hasUnsavedChanges"
@@ -48,13 +47,11 @@
 												},
 											]"
 										>
-											<!-- 區域標題列（可點擊展開） -->
 											<div
 												class="flex cursor-pointer items-center justify-between p-4 transition-colors hover:bg-white/10"
 												@click="toggleZone(getZoneId(zone))"
 											>
 												<div class="flex flex-1 items-center gap-4">
-													<!-- 展開/收起圖標 -->
 													<svg
 														class="h-5 w-5 text-white/70 transition-transform"
 														:class="{ 'rotate-90': expandedZones.has(getZoneId(zone)) }"
@@ -69,7 +66,6 @@
 															d="M9 5l7 7-7 7"
 														/>
 													</svg>
-													<!-- 區域名稱 -->
 													<div
 														class="flex h-16 min-w-[80px] items-center justify-center rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 shadow-lg"
 													>
@@ -98,46 +94,41 @@
 															type="button"
 															class="btn-reorder-arrow"
 															:disabled="isFirstZoneInList(zone)"
-															title="區域上移"
-															aria-label="此區域上移"
-															@click.stop="moveZoneOrder(zone, -1)"
-														>
-															↑
-														</button>
+															title="上移"
+													aria-label="此區域上移"
+													@click.stop="moveZoneOrder(zone, -1)">
+													↑
+												</button>
 														<button
 															type="button"
 															class="btn-reorder-arrow"
 															:disabled="isLastZoneInList(zone)"
-															title="區域下移"
-															aria-label="此區域下移"
-															@click.stop="moveZoneOrder(zone, 1)"
-														>
-															↓
-														</button>
+															title="下移"
+													aria-label="此區域下移"
+													@click.stop="moveZoneOrder(zone, 1)">
+													↓
+												</button>
 													</div>
 													<IconTrashButton
 														:disabled="!canRemoveZone"
 														title="刪除區域"
-														aria-label="刪除區域"
+												aria-label="刪除區域"
 														@click.stop="handleDeleteZone(getZoneId(zone))"
 													/>
 												</div>
 											</div>
 
-											<!-- 展開內容 -->
 											<Transition name="expand">
 												<div
 													v-if="expandedZones.has(getZoneId(zone))"
 													class="space-y-3 border-t border-white/10 p-4"
 												>
-													<!-- 區域基本資訊 -->
 													<ZoneFormFields
 														:zone="getZoneForFormFields(zone)"
 														:require-image-url="requireImageUrl"
 														@update="handleZoneUpdate(getZoneId(zone), $event)"
 													/>
 
-													<!-- 系統特定的地點管理組件 -->
 													<component
 														:is="locationManagementComponent"
 														v-bind="drainageLikeProps"
@@ -181,7 +172,6 @@
 										</div>
 									</div>
 								</div>
-								<!-- 空狀態 -->
 								<div v-else key="empty" class="py-8 text-center text-white/60">
 									<p class="text-base 2xl:text-lg">尚無區域資料</p>
 									<p class="mt-2 text-sm 2xl:text-base">點擊「新增區域」開始建立</p>
@@ -199,19 +189,19 @@
 						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
 						<div class="flex-1"></div>
 						<PermissionActionButton
-							:allowed="canSaveZones && hasUnsavedChanges"
+							:allowed="canSaveZones && hasUnsavedChanges && !isSaving"
 							aria-label="儲存變更"
 							class="btn-primary"
+							:disabled="isSaving"
 							@click="saveAllChanges"
 						>
-							儲存變更
+							{{ isSaving ? "儲存中…" : "儲存變更" }}
 						</PermissionActionButton>
 						<PermissionActionButton
 							:allowed="canAddZone"
 							aria-label="新增區域"
 							class="btn-primary"
-							@click="addNewZone"
-						>
+							@click="addNewZone">
 							新增區域
 						</PermissionActionButton>
 					</footer>
@@ -220,7 +210,6 @@
 		</Transition>
 	</Teleport>
 
-	<!-- 確認對話框 -->
 	<ConfirmDialog
 		v-model="showConfirmDialog"
 		:title="confirmDialogConfig.title"
@@ -254,22 +243,16 @@ import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import ZoneFormFields from "./ZoneFormFields.vue"
 import EnvironmentLocationManagement from "./LocationManagement/EnvironmentLocationManagement.vue"
-import LightingLocationManagement from "./LocationManagement/LightingLocationManagement.vue"
-import HvacLocationManagement from "./LocationManagement/HvacLocationManagement.vue"
-import AirCirculationLocationManagement from "./LocationManagement/AirCirculationLocationManagement.vue"
 import PeopleCountingLocationManagement from "./LocationManagement/PeopleCountingLocationManagement.vue"
 import VehicleAccessLocationManagement from "./LocationManagement/VehicleAccessLocationManagement.vue"
-import DrainageLocationManagement from "./LocationManagement/DrainageLocationManagement.vue"
-import PowerLocationManagement from "./LocationManagement/PowerLocationManagement.vue"
-import EmergencyRescueLocationManagement from "./LocationManagement/EmergencyRescueLocationManagement.vue"
-import FireLocationManagement from "./LocationManagement/FireLocationManagement.vue"
-import SmokeAlarmLocationManagement from "./LocationManagement/SmokeAlarmLocationManagement.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import IconTrashButton from "~/components/common/IconTrashButton.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { nextTick, type Component } from "vue"
+import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { joinFormErrors, resolveFormApiError } from "~/utils/errorUtils"
 import { removeLocationFromSystemOrDelete } from "~/composables/location/locationSystemActions"
 import { buildDeleteLocationConfirmCopy } from "~/utils/confirmCopy"
 import { getLocationUiKey } from "~/utils/locationUiId"
@@ -283,16 +266,16 @@ interface Props {
 	systemType: SystemType
 	requireImageUrl?: boolean
 	deviceHint?: string
-	/** 未傳則視為可建立（向後相容 admin 區域管理） */
 	canCreateZone?: boolean
 	canUpdateZone?: boolean
 	canDeleteZone?: boolean
+	onSaveZone: (zone: TZone) => Promise<void>
 }
 
 interface Emits {
 	(e: "update:modelValue", value: boolean): void
-	(e: "save", zone: TZone): void
 	(e: "delete", zoneId: string): void
+	(e: "saved"): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -309,7 +292,6 @@ const canAddZone = computed(() => props.canCreateZone !== false)
 const canSaveZones = computed(() => props.canUpdateZone !== false)
 const canRemoveZone = computed(() => props.canDeleteZone !== false)
 
-// 系統適配器
 const adapter = useZoneSystemAdapter<TZone, SystemLocationType>(props.systemType)
 
 const {
@@ -324,30 +306,27 @@ const {
 	buildChangedFieldsList,
 	buildChangeSummary,
 } = useZoneDrafts<TZone, SystemLocationType>()
+const toast = useToast()
 const errorMessage = ref("")
+const isSaving = ref(false)
 
-// 待刪除地點（使用 UI key，避免 reorder 後刪錯）
 const pendingDeleteLocation = ref<{ zoneId: string; locationUiKey: string } | null>(null)
 
-// 驗證
 const { validateSystemZoneForSave } = useLocationValidationPipeline()
 
-// 更新區域（加入待保存列表）
 const updateZone = (zone: TZone) => {
 	const zoneId = getZoneId(zone)
 	if (!zoneId) return
 
 	errorMessage.value = ""
-	// 使用 JSON 深拷貝，避免 structuredClone 無法處理某些對象的問題
+	// 使用 JSON 深拷貝，避免 structuredClone 對部分對象失敗
 	setDraft(zoneId, JSON.parse(JSON.stringify(zone)) as TZone)
 }
 
-// 合併原始 zones 和待保存的變更
 const mergedZones = computed(() => {
 	return createMergedZones({ originalZones: props.zones, getZoneId })
 })
 
-// 排序區域（過濾掉沒有地點的區域，但保留新區域）
 const sortedZones = computed(() => {
 	return createSortedZones({
 		mergedZones: mergedZones.value,
@@ -356,13 +335,11 @@ const sortedZones = computed(() => {
 	})
 })
 
-// 確認對話框
 const confirmDialog = useConfirmDialog()
 const confirmAction = ref<"close" | "delete" | "deleteLocation">("close")
 
 const { handleError } = useErrorHandler()
 
-// 解包 ref 以便在模板中使用
 const showConfirmDialog = computed({
 	get: () => confirmDialog.showDialog.value,
 	set: (value: boolean) => {
@@ -372,7 +349,6 @@ const showConfirmDialog = computed({
 
 const confirmDialogConfig = computed(() => confirmDialog.config.value)
 
-// 計算變更的欄位列表
 const changedFieldsList = computed(() => {
 	return buildChangedFieldsList({
 		originalZones: props.zones,
@@ -385,17 +361,14 @@ const changedFieldsList = computed(() => {
 	})
 })
 
-// 變更摘要訊息
 const changeSummary = computed(() => {
 	return buildChangeSummary({ pendingChanges: pendingChanges.value })
 })
 
-// 設備管理
 const deviceApi = useDeviceApi()
 const devices = ref<any[]>([])
 const isLoadingDevices = ref(false)
 
-// 人員群組和門禁設備（僅用於人流統計系統）
 const externalDataApi = useExternalDataApi()
 const {
 	enableYscpPeopleCounting,
@@ -417,24 +390,15 @@ const isapiCameraDevices = ref<Device[]>([])
 const vehicleCustomGroups = ref<Array<{ id: number; list_name: string }>>([])
 const vehicleAccessApi = useVehicleAccessApi()
 
-// 地點管理組件映射
 const locationManagementComponentMap: Partial<Record<SystemType, Component>> = {
-	lighting: LightingLocationManagement,
-	hvac: HvacLocationManagement,
-	air_circulation: AirCirculationLocationManagement,
 	environment: EnvironmentLocationManagement,
 	people_counting: PeopleCountingLocationManagement,
 	vehicle_access: VehicleAccessLocationManagement,
-	drainage: DrainageLocationManagement,
-	power: PowerLocationManagement,
-	fire: FireLocationManagement,
-	emergency_rescue: EmergencyRescueLocationManagement,
-	smoke_alarm: SmokeAlarmLocationManagement,
 }
 
 const locationManagementComponent = computed(() => {
 	const c = locationManagementComponentMap[props.systemType]
-	return c ?? LightingLocationManagement
+	return c ?? EnvironmentLocationManagement
 })
 
 const drainageLikeVariant = computed(() => {
@@ -446,21 +410,10 @@ const drainageLikeProps = computed(() =>
 	drainageLikeVariant.value ? { variant: drainageLikeVariant.value } : {}
 )
 
-// 載入設備列表
 const loadDevices = async () => {
 	isLoadingDevices.value = true
 	try {
-		const deviceType =
-			props.systemType === "lighting" ||
-			props.systemType === "hvac" ||
-			props.systemType === "air_circulation" ||
-			props.systemType === "drainage" ||
-			props.systemType === "power" ||
-			props.systemType === "fire" ||
-			props.systemType === "emergency_rescue" ||
-			props.systemType === "smoke_alarm"
-				? "controller"
-				: "sensor"
+		const deviceType = "sensor"
 		const result = await deviceApi.getDevices({
 			type_code: deviceType,
 			limit: 100,
@@ -474,7 +427,6 @@ const loadDevices = async () => {
 	}
 }
 
-// 載入人員群組列表（僅用於人流統計系統）
 const loadPersonGroups = async () => {
 	if (props.systemType !== "people_counting") return
 
@@ -489,7 +441,6 @@ const loadPersonGroups = async () => {
 	}
 }
 
-// 載入門禁設備列表（僅用於人流統計系統）
 const loadDoors = async () => {
 	if (props.systemType !== "people_counting") return
 
@@ -504,7 +455,6 @@ const loadDoors = async () => {
 	}
 }
 
-// 載入本系統門禁設備列表（僅用於人流統計系統「門禁設備」資料來源）
 const loadAccessControlDevices = async () => {
 	if (props.systemType !== "people_counting") return
 
@@ -520,8 +470,6 @@ const loadAccessControlDevices = async () => {
 	}
 }
 
-// 載入可用的 ISAPI 攝影機設備列表（人流攝影機）
-// 規則：只取 active 的 camera，避免混入門禁/控制器等其他設備
 const loadVehicleAccessFormGroups = async () => {
 	if (props.systemType !== "vehicle_access") return
 
@@ -556,7 +504,6 @@ const loadIsapiCameraDevices = async () => {
 	}
 }
 
-// 當對話框打開時載入設備列表和相關資料
 watch(
 	() => props.modelValue,
 	async (newValue) => {
@@ -584,17 +531,14 @@ watch(
 	}
 )
 
-// 取得區域 ID
 const getZoneId = (zone: TZone): string => {
 	return getZoneUiKey(zone as any)
 }
 
-// 取得地點數量（用於顯示）
 const getLocationsCount = (zone: TZone): number => {
 	return adapter.getLocationsProperty(zone).length
 }
 
-// 取得地點標籤（用於顯示）
 const getLocationLabel = (): string => {
 	const labelMap: Record<SystemType, string> = {
 		lighting: "點位",
@@ -612,7 +556,6 @@ const getLocationLabel = (): string => {
 	return labelMap[props.systemType] || "地點"
 }
 
-// 取得區域用於表單欄位（轉換為 UnifiedZone）
 const getZoneForFormFields = (zone: TZone): UnifiedZone => {
 	const zoneAny = zone as any
 	return {
@@ -625,7 +568,6 @@ const getZoneForFormFields = (zone: TZone): UnifiedZone => {
 	} as UnifiedZone
 }
 
-// 切換區域展開/收起
 const toggleZone = (zoneId: string) => {
 	if (expandedZones.value.has(zoneId)) {
 		expandedZones.value.delete(zoneId)
@@ -634,21 +576,19 @@ const toggleZone = (zoneId: string) => {
 	}
 }
 
-// 處理關閉
 const handleClose = () => {
 	if (hasUnsavedChanges.value) {
-		// ✅ 檢查是否有新增的區域（臨時 ID）
 		const hasNewZones = Array.from(pendingChanges.value.keys()).some((id) => id.startsWith("temp-"))
 
 		confirmAction.value = "close"
 		confirmDialog.show({
-			title: "確認關閉",
+			title: "確定要離開？",
 			message: hasNewZones
-				? "您有未保存的變更，包含新增的區域。確定要關閉嗎？"
-				: "您有未保存的變更，確定要關閉嗎？",
+				? "您有尚未儲存的變更（含新增區域）。確定要離開嗎？"
+				: "您有尚未儲存的變更，確定要離開嗎？",
 			details: hasNewZones
-				? "未保存的變更將會遺失，新增的區域不會寫入資料庫。"
-				: "未保存的變更將會遺失。",
+				? "未儲存的變更將會遺失，新增區域須儲存後才會寫入資料庫。"
+				: "未儲存的變更將會遺失。",
 			type: "warning",
 		})
 		return
@@ -657,19 +597,16 @@ const handleClose = () => {
 	closeDialog()
 }
 
-// 關閉對話框（清除狀態）
 const closeDialog = () => {
 	clearAllDrafts()
 	errorMessage.value = ""
 	emit("update:modelValue", false)
 }
 
-// 確認關閉
 const handleConfirmClose = () => {
 	closeDialog()
 }
 
-// 處理區域更新
 const handleZoneUpdate = (zoneId: string, updates: Partial<UnifiedZone>) => {
 	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
 	if (!zone) return
@@ -678,7 +615,6 @@ const handleZoneUpdate = (zoneId: string, updates: Partial<UnifiedZone>) => {
 	updateZone(updatedZone)
 }
 
-// 處理地點更新（從 LocationManagement 組件接收）
 const handleLocationUpdate = (
 	zoneId: string,
 	locationIndex: number,
@@ -694,12 +630,11 @@ const handleLocationUpdate = (
 	updateZone(updatedZone)
 }
 
-// 新增地點（從 LocationManagement 組件接收；排水可帶 viewCategory）
 const addLocation = (zone: TZone, payload?: { viewCategory?: string }) => {
 	if (!canAddZone.value) return
 	const newLocation = adapter.createNewLocation() as SystemLocationType
 
-	// 人流統計 / 車輛進出：若 dataSource 未設，且 YSCP 關閉會導致新列被列表過濾掉 → 依 feature 開關給合理預設
+	// 人流統計 / 車輛進出：若 dataSource 未設，依 YSCP 開關給預設（避免被列表篩選掉）
 	if (props.systemType === "people_counting") {
 		const loc = newLocation as { dataSource?: string }
 		if (!loc.dataSource) {
@@ -756,7 +691,6 @@ const handleDrainageRenameViewCategory = (
 	updateZone(updatedZone)
 }
 
-// 刪除地點（僅從當前系統移除）
 const removeLocation = (zoneId: string, locationIndex: number) => {
 	if (!canRemoveZone.value) return
 	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
@@ -776,7 +710,6 @@ const removeLocation = (zoneId: string, locationIndex: number) => {
 	confirmDialog.show(copy)
 }
 
-// 確認刪除地點
 const handleConfirmDeleteLocation = async () => {
 	if (!pendingDeleteLocation.value) return
 	const { zoneId, locationUiKey } = pendingDeleteLocation.value
@@ -817,7 +750,6 @@ const handleConfirmDeleteLocation = async () => {
 	pendingDeleteLocation.value = null
 }
 
-// 是否為新增的區域（尚未儲存，以 temp- 開頭的 ID）
 const isNewZone = (zone: TZone): boolean => {
 	const zoneId = getZoneId(zone)
 	return Boolean(zoneId?.startsWith("temp-"))
@@ -860,10 +792,6 @@ const moveZoneOrder = (zone: TZone, delta: number) => {
 	const j = i + delta
 	if (i < 0 || j < 0 || j >= list.length) return
 
-	/**
-	 * 修正：舊資料常見多個 zone 的 sortOrder 都是 0（或相同值），僅互換兩列 sortOrder 會「看起來沒動」。
-	 * 因此以「目前對話框可見順序」先正規化成 0..n-1，再交換相鄰兩列，並回寫所有列的 sortOrder，確保排序一定生效。
-	 */
 	const orderedIds = list.map((z) => getZoneId(z)).filter(Boolean)
 	if (orderedIds.length !== list.length) return
 	;[orderedIds[i], orderedIds[j]] = [orderedIds[j]!, orderedIds[i]!]
@@ -878,7 +806,6 @@ const moveZoneOrder = (zone: TZone, delta: number) => {
 	errorMessage.value = ""
 }
 
-/** 與 DrainageLocationManagement 的 EMPTY_KEY 一致：未分類置於排序鍵尾 */
 const DRAINAGE_CATEGORY_BLOCK_EMPTY_KEY = "__empty__"
 
 const reorderDrainageLocationsByCategoryBlock = (
@@ -965,26 +892,23 @@ const handleReorderLocationRow = (
 	updateZone(updatedZone)
 }
 
-// 新增區域
 const addNewZone = () => {
 	const tempId = `temp-${Date.now()}-${Math.random()}`
 
-	// 建立新區域：區域名稱預設為空白
 	const newZone = {
 		...adapter.createNewZone(""),
 		id: tempId,
 		sortOrder: maxZoneSortOrder() + 1,
 	} as TZone
 
-	// ✅ 只加入待保存列表，不立即寫入資料庫
-	// 使用 JSON 深拷貝，避免 structuredClone 無法處理某些對象的問題
+	// 僅加入待儲存表，不立即寫入資料庫
+	// 使用 JSON 深拷貝，避免 structuredClone 對部分對象失敗
 	pendingChanges.value.set(tempId, JSON.parse(JSON.stringify(newZone)) as TZone)
 
-	// ✅ 自動展開新區域
+	// 自動展開新區域
 	expandedZones.value.add(tempId)
 }
 
-/** 儲存前讓對話框內仍聚焦的表單控制項 blur，觸發子元件 emit，避免 pending 仍是舊值 */
 const flushFocusedFormControlInDialog = async () => {
 	if (typeof document === "undefined") return
 	const raw = document.activeElement
@@ -994,20 +918,18 @@ const flushFocusedFormControlInDialog = async () => {
 	if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
 		raw.blur()
 		await nextTick()
-		await nextTick()
 	}
 }
 
-// 儲存所有變更
 const saveAllChanges = async () => {
-	if (pendingChanges.value.size === 0) return
+	if (pendingChanges.value.size === 0 || isSaving.value) return
 
 	await flushFocusedFormControlInDialog()
 
 	errorMessage.value = ""
 	const zoneAny = (zone: TZone) => zone as any
 
-	// 驗證所有待保存的區域
+		// 驗證各區域保存前資料
 	for (const zone of pendingChanges.value.values()) {
 		const locations = adapter.getLocationsProperty(zone)
 		const result = validateSystemZoneForSave({
@@ -1017,49 +939,51 @@ const saveAllChanges = async () => {
 			locations,
 		})
 		if (!result.isValid) {
-			errorMessage.value = result.errors.join("\n")
+			errorMessage.value = joinFormErrors(result.errors)
 			return
 		}
 	}
 
-	// 複製待保存的區域列表（保留 zoneId；不要先清空，避免中途失敗丟失）
 	const zonesToSave = Array.from(pendingChanges.value.entries())
+	const saveCount = zonesToSave.length
 
-	// 逐一儲存
-	for (const [zoneId, zone] of zonesToSave) {
-		const cleanedZone = adapter.filterEmptyLocations(zone as TZone)
-		const isNewZone = zoneAny(zone).id?.startsWith("temp-")
-
-		if (isNewZone) {
-			// 新增區域：移除臨時 ID
-			const { id, ...zoneWithoutId } = zoneAny(cleanedZone)
-			emit("save", zoneWithoutId as TZone)
-		} else {
-			// 更新區域：保留 ID
-			emit("save", cleanedZone)
-		}
+	isSaving.value = true
+	try {
+		await Promise.all(
+			zonesToSave.map(async ([, zone]) => {
+				const cleanedZone = adapter.filterEmptyLocations(zone as TZone)
+				const isNewZone = zoneAny(zone).id?.startsWith("temp-")
+				if (isNewZone) {
+					const { id, ...zoneWithoutId } = zoneAny(cleanedZone)
+					await props.onSaveZone(zoneWithoutId as TZone)
+				} else {
+					await props.onSaveZone(cleanedZone)
+				}
+			})
+		)
+		clearAllDrafts()
+		toast.success(saveCount === 1 ? "區域已儲存" : `已儲存 ${saveCount} 個區域`)
+		emit("saved")
+	} catch (error) {
+		errorMessage.value = resolveFormApiError(error, "儲存區域失敗")
+	} finally {
+		isSaving.value = false
 	}
-
-	// 全部成功才清空 pendingChanges
-	clearAllDrafts()
 }
 
-// 刪除確認處理（使用 ref 追蹤待刪除的 zoneId）
 const pendingDeleteZoneId = ref<string | null>(null)
 
-// 刪除區域
 const handleDeleteZone = (zoneId: string) => {
 	pendingDeleteZoneId.value = zoneId
 	confirmAction.value = "delete"
 	confirmDialog.show({
 		title: "確認刪除",
 		message: "確定要刪除此區域嗎？",
-		details: "此操作將刪除該區域的所有地點資料，且無法復原。",
+		details: "此操作將刪除該區域與所有地點資料，且無法復原。",
 		type: "danger",
 	})
 }
 
-// 確認刪除
 const handleConfirmDelete = () => {
 	const zoneId = pendingDeleteZoneId.value
 	if (!zoneId) return

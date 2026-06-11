@@ -91,7 +91,7 @@
 													required
 													:disabled="!canUpdateGroup && !isNewPersonnelGroupDraftMain(main)"
 													class="form-input-small flex-1"
-													placeholder="例如：遠岫科技"
+													placeholder="例如：一樓"
 													aria-label="主群組名稱"
 												/>
 											</div>
@@ -113,7 +113,7 @@
 												class="py-4 text-center text-sm text-white/60 2xl:text-base"
 											>
 												尚無子群組，請新增子群組
-											</div>
+									</div>
 											<div v-else class="space-y-2">
 												<div
 													v-for="child in main.children"
@@ -133,7 +133,7 @@
 															type="text"
 															required
 															class="form-input-small"
-															placeholder="例如：遠岫營造"
+															placeholder="例如：一樓"
 														/>
 													</label>
 													<IconTrashButton
@@ -164,7 +164,7 @@
 					<footer
 						class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8"
 					>
-						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
+						<button type="button" class="btn-secondary" @click="handleClose">取消</button>
 						<div class="flex-1"></div>
 						<PermissionActionButton
 							:allowed="canCreateGroup"
@@ -203,6 +203,7 @@ import {
 	usePersonnelGroupsDraft,
 	isNewPersonnelGroupDraftMain,
 	isNewPersonnelGroupDraftChild,
+	validatePersonnelGroupsDraftForSave,
 	type PersonnelGroupDraftChild,
 	type PersonnelGroupDraftMain,
 } from "~/composables/systems/personnel/usePersonnelGroupsDraft"
@@ -219,7 +220,7 @@ import {
 	buildDeletePersonnelChildGroupConfirmCopy,
 	buildDeletePersonnelMainGroupConfirmCopy,
 } from "~/utils/personnelGroups"
-import { validatePersonnelGroupsDraftForSave } from "~/utils/personnelGroupsFormValidation"
+import { resolveFormApiError } from "~/utils/errorUtils"
 
 const props = defineProps<{
 	modelValue: boolean
@@ -278,7 +279,7 @@ const loadTree = async () => {
 		await refreshGroupTree()
 		syncFromTree(groupTree.value || [])
 	} catch (err) {
-		errorMessage.value = handleApiError(err, "載入群組失敗") || "載入群組失敗"
+		errorMessage.value = resolveFormApiError(err, "載入群組失敗")
 	} finally {
 		isLoading.value = false
 	}
@@ -312,9 +313,9 @@ const handleClose = () => {
 	if (hasUnsavedChanges.value) {
 		confirmAction.value = { type: "close" }
 		confirmDialog.show({
-			title: "確認關閉",
-			message: "您有未保存的變更，確定要關閉嗎？",
-			details: "未保存的變更將會遺失。",
+			title: "確定要離開？",
+			message: "您有尚未儲存的變更，確定要離開嗎？",
+			details: "未儲存的變更將會遺失。",
 			type: "warning",
 		})
 		return
@@ -367,12 +368,8 @@ const handleSaveAll = async () => {
 	const { mainById, childById } = getSourceIndex()
 
 	try {
-		for (const id of getPendingChildGroupDeleteIds()) {
-			await personnelApi.deletePersonGroup(id)
-		}
-		for (const id of deletedMainIds.value) {
-			await personnelApi.deletePersonGroup(id)
-		}
+		const deleteIds = [...getPendingChildGroupDeleteIds(), ...deletedMainIds.value]
+		await Promise.all(deleteIds.map((id) => personnelApi.deletePersonGroup(id)))
 
 		for (const main of pendingMains.value) {
 			const mainName = main.name.trim()
@@ -386,27 +383,29 @@ const handleSaveAll = async () => {
 				}
 			}
 
-			for (const child of main.children) {
-				const childName = child.name.trim()
-				if (child.id == null) {
-					await personnelApi.createPersonGroup({ name: childName, parentId: mainId })
-				} else {
-					const src = childById.get(child.id)
-					if (src?.name !== childName) {
-						await personnelApi.updatePersonGroup(child.id, {
-							name: childName,
-							parentId: mainId,
-						})
+			await Promise.all(
+				main.children.map(async (child) => {
+					const childName = child.name.trim()
+					if (child.id == null) {
+						await personnelApi.createPersonGroup({ name: childName, parentId: mainId })
+					} else {
+						const src = childById.get(child.id)
+						if (src?.name !== childName) {
+							await personnelApi.updatePersonGroup(child.id, {
+								name: childName,
+								parentId: mainId,
+							})
+						}
 					}
-				}
-			}
+				})
+			)
 		}
 
-		toast.success("已儲存群組變更")
+		toast.success("已儲存群組設定")
 		emit("changed")
 		await loadTree()
 	} catch (err) {
-		errorMessage.value = handleApiError(err, "儲存群組失敗") || "儲存群組失敗"
+		errorMessage.value = resolveFormApiError(err, "儲存群組失敗")
 	} finally {
 		isSaving.value = false
 	}

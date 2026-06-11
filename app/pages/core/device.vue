@@ -4,7 +4,7 @@
 			<div class="flex flex-wrap items-center justify-between gap-4">
 				<header class="me-4 flex flex-col gap-1 2xl:gap-2">
 					<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">設備管理</h1>
-					<p class="text-base text-white/80 2xl:text-xl">管理各類型設備配置與狀態</p>
+					<p class="text-base text-white/80 2xl:text-xl">管理各類型設備配置與配對</p>
 				</header>
 
 				<PageTabs
@@ -26,7 +26,6 @@
 				id-prefix="device-tab"
 			>
 				<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
-					<!-- Tab 標題和操作按鈕 -->
 					<div class="mb-6 flex flex-wrap items-center justify-between gap-4 2xl:gap-6">
 						<h2 class="text-xl font-semibold text-white 2xl:text-2xl">
 							{{ currentTabName ? `${currentTabName}管理` : "設備管理" }}
@@ -37,17 +36,13 @@
 								aria-label="型號管理"
 								class="rounded-xl bg-blue-500/80 px-4 py-2 text-base text-white enabled:hover:bg-blue-400 2xl:px-6 2xl:py-3 2xl:text-lg"
 								@click="showDeviceModelDialog = true"
-							>
-								型號管理
-							</PermissionActionButton>
+							>型號管理</PermissionActionButton>
 							<PermissionActionButton
 								:allowed="canCreateDevice"
 								aria-label="新增設備"
 								class="rounded-xl bg-emerald-500/80 px-4 py-2 text-base text-white enabled:hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-lg"
 								@click="showCreateDialog = true"
-							>
-								新增設備
-							</PermissionActionButton>
+							>新增設備</PermissionActionButton>
 						</div>
 					</div>
 
@@ -56,16 +51,14 @@
 						:empty="!isLoading && devices.length === 0"
 						:error="listLoadError"
 						empty-title="尚無設備資料"
-						:empty-description="
-							canCreateDevice && currentTabName ? `點擊「新增設備」開始建立 ${currentTabName}` : ''
-						"
+						:empty-description="canCreateDevice && currentTabName ? `點擊「新增設備」開始建立${currentTabName}` : ''"
 					>
 						<div :key="`devices-${activeTab}-${offset}`">
 							<table class="w-full text-center">
 								<thead>
 									<tr class="border-b border-white/20">
 										<th :class="tableHeaderClass">設備名稱</th>
-										<th v-if="activeTab === 'camera'" :class="tableHeaderClass">
+								<th v-if="activeTab === 'camera'" :class="tableHeaderClass">
 											<FilterDropdown
 												:model-value="cameraGroupFilter"
 												:options="cameraGroupFilterOptions"
@@ -74,17 +67,17 @@
 												@update:model-value="onCameraGroupFilterUpdate"
 											/>
 										</th>
-										<th v-if="activeTab === 'camera'" :class="tableHeaderClass">型號分類</th>
-										<th :class="tableHeaderClass">設備型號</th>
+										<th v-if="activeTab === 'camera'" :class="tableHeaderClass">攝影機群組</th>
+								<th :class="tableHeaderClass">設備型號</th>
 										<th :class="tableHeaderClass">
 											{{ activeTab === "camera" ? "IP 位址" : "配置資訊" }}
 										</th>
-										<th :class="tableHeaderClass">連線</th>
+										<th :class="tableHeaderClass">狀態</th>
 										<th :class="tableHeaderClass">
 											<FilterDropdown
 												:model-value="dateSortOrder"
 												:options="dateSortOptions"
-												placeholder="由新到舊"
+												placeholder="更新時間"
 												text-size="text-sm 2xl:text-base"
 												@update:model-value="onDateSortUpdate"
 											/>
@@ -154,16 +147,13 @@
 													aria-label="刪除設備"
 													class="rounded bg-red-500/80 px-3 py-1 text-white enabled:hover:bg-red-400 2xl:px-4 2xl:py-2"
 													@click="confirmDeleteDevice(device)"
-												>
-													刪除
-												</PermissionActionButton>
+												>刪除</PermissionActionButton>
 											</div>
 										</td>
 									</tr>
 								</tbody>
 							</table>
 
-							<!-- 分頁 -->
 							<Pagination
 								:show="total > limit"
 								:total="total"
@@ -179,7 +169,6 @@
 			</PageTabs>
 		</div>
 
-		<!-- 建立/編輯設備對話框 -->
 		<DeviceDialog
 			v-if="activeTab"
 			v-model="showDialog"
@@ -193,7 +182,6 @@
 			@close="closeDialog"
 		/>
 
-		<!-- 設備型號管理對話框 -->
 		<DeviceModelDialog
 			v-if="activeTab && !deviceModelsLocked"
 			v-model="showDeviceModelDialog"
@@ -246,6 +234,7 @@ import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import { useDeviceConnectivity } from "~/composables/systems/devices/useDeviceConnectivity";
 import { useDeviceWebSocket } from "~/composables/websocket/subscribers/useDeviceWebSocket";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
+import { applyFormApiErrorToRef } from "~/utils/errorUtils";
 import { getCameraModelCategoryLabel } from "~/utils/cameraModelCategories";
 import { useEquipmentRbac } from "~/composables/core/useAccessGate";
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
@@ -268,7 +257,6 @@ const toast = useToast();
 const { handleError: handleApiError } = useErrorHandler();
 const { setupDeviceListeners, removeDeviceListeners } = useDeviceWebSocket();
 
-// 設備類型固定（不提供 CRUD）
 const deviceTabs = [
 	{ name: "攝影機", code: "camera" },
 	{ name: "感測器", code: "sensor" },
@@ -319,8 +307,7 @@ const showConfirmDialog = computed({
 const confirmDialogConfig = computed(() => confirmDialog.config.value);
 const pendingDeleteDeviceId = ref<number | null>(null);
 
-// 常數配置
-const limit = 10; // 用於分頁組件
+const limit = 10;
 const dateSortOrder = ref<"asc" | "desc">("desc");
 const cameraGroupFilter = ref<string>("");
 const cameraGroups = ref<string[]>([]);
@@ -330,7 +317,6 @@ const deviceConnectivity = useDeviceConnectivity({ debounceMs: 150 });
 const getModelCategoryLabel = (device: Device): string =>
 	getCameraModelCategoryLabel(device.model_category_code);
 
-// 使用 useDataLoader 統一管理數據載入
 const {
 	data: devices,
 	total,
@@ -377,7 +363,6 @@ deviceConnectivity.bindDeviceIds(deviceIdsInPage);
 
 const connectivityLabels = computed(() => deviceConnectivity.labels.value);
 
-// 統一樣式類
 const tableHeaderClass = "py-3 2xl:py-4 px-4 2xl:px-6 text-sm 2xl:text-base text-white/80";
 const tableCellClass = "py-3 2xl:py-4 px-4 2xl:px-6";
 
@@ -451,26 +436,16 @@ const getLoadParams = () => ({
 		: {})
 });
 
-// 業務邏輯函數：統一錯誤處理（同時更新頁面錯誤訊息）
-const handleError = (error: unknown, defaultMessage: string) => {
-	const errorMsg = handleApiError(error, defaultMessage);
-	errorMessage.value = errorMsg || defaultMessage;
-	return errorMsg;
-};
-
 const switchTab = (tabCode: DeviceTypeCode) => {
-	if (activeTab.value === tabCode) return; // 如果已經是當前 tab，不執行
+	if (activeTab.value === tabCode) return;
 
-	// 立即清空舊資料，觸發過渡動畫
 	devices.value.length = 0;
 	total.value = 0;
 	deviceConnectivity.reset();
 
-	// 切換 tab 並重置分頁
 	activeTab.value = tabCode;
 	resetPage();
 
-	// 立即載入新資料（不使用防抖）
 	load(getLoadParams(), true);
 };
 
@@ -508,7 +483,6 @@ const handleSubmit = async (data: CreateDeviceData | UpdateDeviceData) => {
 				devices.value[index] = result.device;
 			}
 		} else {
-			// 新增後重新載入列表，避免重複顯示（雙擊或事件觸發兩次時仍只會顯示後端一份）
 			if (activeTab.value) {
 				resetPage();
 				load(getLoadParams(), true);
@@ -521,7 +495,7 @@ const handleSubmit = async (data: CreateDeviceData | UpdateDeviceData) => {
 		closeDialog();
 		toast.success(result.message || "操作成功");
 	} catch (error) {
-		handleError(error, "操作失敗");
+		applyFormApiErrorToRef(errorMessage, error, "操作失敗");
 	} finally {
 		isSubmitting.value = false;
 	}
@@ -551,13 +525,12 @@ const handleConfirmDeleteDevice = async () => {
 	try {
 		const result = await deviceApi.deleteDevice(device.id);
 
-		// 從本地移除（避免不必要的重新載入）
 		devices.value = devices.value.filter(d => d.id !== device.id);
 		total.value = Math.max(0, total.value - 1);
 
-		toast.success(result.message || "刪除成功");
+		toast.success(result.message || "操作成功");
 	} catch (error) {
-		handleError(error, "刪除設備失敗");
+		handleApiError(error, "刪除設備失敗");
 	} finally {
 		pendingDeleteDeviceId.value = null;
 	}
@@ -586,7 +559,6 @@ const loadCameraGroups = async () => {
 	}
 };
 
-// 設備型號變更後刷新列表與型號選擇（供 DeviceModelDialog @refresh 使用）
 const handleDeviceModelRefresh = () => {
 	if (activeTab.value) {
 		load(getLoadParams(), true);
@@ -594,7 +566,6 @@ const handleDeviceModelRefresh = () => {
 	refreshDeviceTypes.value = !refreshDeviceTypes.value;
 };
 
-// 監聽 tab 切換（僅用於初始載入，手動切換由 switchTab 處理）
 watch(activeTab, (newTab, oldTab) => {
 	if (newTab && oldTab === null) {
 		load(getLoadParams(), true);
@@ -608,17 +579,13 @@ const updateDeviceConnectivityStatus = (deviceId: number, status: "online" | "of
 	deviceConnectivity.applyWsStatus(deviceId, status);
 };
 
-// 處理設備創建事件
 const handleDeviceCreated = (event: DeviceCreatedEvent) => {
 	const { device } = event;
-	// 如果新設備的類型匹配當前 tab，添加到列表
 	if (device.type_code === activeTab.value) {
 		if (offset.value === 0) {
-			// 在第一頁，添加到列表開頭
 			devices.value = [device, ...devices.value];
 			total.value += 1;
 		} else {
-			// 不在第一頁，重新載入以確保數據一致性
 			if (activeTab.value) {
 				void load(getLoadParams(), true);
 			}
@@ -626,16 +593,13 @@ const handleDeviceCreated = (event: DeviceCreatedEvent) => {
 	}
 };
 
-// 處理設備更新事件
 const handleDeviceUpdated = (event: DeviceUpdatedEvent) => {
 	const { device } = event;
-	// 如果更新的設備在當前列表中，更新它
 	if (device.type_code === activeTab.value) {
 		const index = devices.value.findIndex(d => d.id === device.id);
 		if (index !== -1) {
 			devices.value[index] = device;
 		} else {
-			// 如果不在當前列表，重新載入
 			if (activeTab.value) {
 				void load(getLoadParams(), true);
 			}
@@ -643,7 +607,6 @@ const handleDeviceUpdated = (event: DeviceUpdatedEvent) => {
 	}
 };
 
-// 處理設備刪除事件
 const handleDeviceDeleted = (event: DeviceDeletedEvent) => {
 	const index = devices.value.findIndex(d => d.id === event.deviceId);
 	if (index !== -1) {
@@ -653,15 +616,12 @@ const handleDeviceDeleted = (event: DeviceDeletedEvent) => {
 	deviceConnectivity.removeDevice(event.deviceId);
 };
 
-// 處理設備監控狀態事件（設備上線/離線）
 const handleMonitoringStatus = (event: MonitoringDeviceStatusEvent) => {
-	// 方案 A：設備管理頁只顯示「設備本體」連線
 	if (event.system !== "device") return;
 	const deviceId = event.deviceId || event.sourceId;
 	updateDeviceConnectivityStatus(deviceId, event.status);
 };
 
-// 處理設備批次監控狀態事件
 const handleMonitoringStatusBatch = (event: MonitoringDeviceStatusBatchEvent) => {
 	if (event.system !== "device") return;
 	event.updates.forEach(({ sourceId, deviceId }) => {
@@ -676,7 +636,6 @@ onMounted(async () => {
 		load(getLoadParams(), true);
 	}
 
-	// 設置設備 WebSocket 事件監聽器
 	setupDeviceListeners({
 		onDeviceCreated: handleDeviceCreated,
 		onDeviceUpdated: handleDeviceUpdated,
@@ -687,7 +646,6 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-	// 移除設備 WebSocket 事件監聽器
 	removeDeviceListeners();
 });
 </script>

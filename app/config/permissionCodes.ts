@@ -60,3 +60,10 @@ export const PERM = {
 		streamControl: "system.video_surveillance.stream.control",
 	},
 } as const
+
+/** locationType（DB／API）→ 地點刪除權限碼；全區點位圖依系統刪除地點時使用 */
+export const LOCATION_DELETE_BY_SYSTEM_TYPE: Record<string, string> = {
+	people_counting: PERM.peopleCounting.locationDelete,
+	environment: PERM.environment.locationDelete,
+	vehicle_access: PERM.vehicleAccess.locationDelete,
+}

@@ -1,92 +1,97 @@
-import type { Device } from "~/types/device"
-import type { ImportResult, Person, PersonLicensePlateFormItem } from "~/types/personnel"
+import type { Device } from "~/types/device";
+import type { ImportResult, Person, PersonLicensePlateFormItem } from "~/types/personnel";
 import {
 	createEmptyLicensePlateFormItem,
 	licensePlateItemsToPayload,
 	mapPersonLicensePlatesToForm,
-	validateLicensePlateFormItems,
-} from "~/utils/licensePlateFormUtils"
-import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
-import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+	validateLicensePlateFormItems
+} from "~/utils/licensePlateFormUtils";
+import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi";
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import {
 	useAccessControlApi,
-	type CaptureFaceResult,
-} from "~/composables/systems/accessControl/useAccessControlApi"
-import { useImageCenter } from "~/composables/core/useImageCenter"
-import { base64ToFile, handleImageError } from "~/utils/imageUtils"
+	type CaptureFaceResult
+} from "~/composables/systems/accessControl/useAccessControlApi";
+import { useImageCenter } from "~/composables/core/useImageCenter";
+import { base64ToFile, handleImageError } from "~/utils/imageUtils";
 import {
 	getAccessControlConfigSummary,
 	isPersonSaveRequestTimeout,
 	PERSON_SAVE_TIMEOUT_MESSAGE,
 	revokeObjectUrl,
 	showVehiclePlateSyncNotice,
-	updatePersonInList as updatePersonInListHelper,
-} from "~/utils/personnelUtils"
-import { usePersonsList } from "~/composables/systems/personnel/usePersonsList"
-import { parsePersonGroupIdFromForm } from "~/utils/personnelGroups"
+	updatePersonInList as updatePersonInListHelper
+} from "~/utils/personnelUtils";
+import { usePersonsList } from "~/composables/systems/personnel/usePersonsList";
+import { parsePersonGroupIdFromForm } from "~/utils/personnelGroups";
+import { resolveFormApiError } from "~/utils/errorUtils";
 import {
 	PERSONNEL_API_ERROR_OPTS,
-	type PersonnelHandleApiError,
-} from "~/composables/systems/personnel/usePersonnelApi"
-import { getPrevOffset } from "~/composables/systems/personnel/personnelList"
-import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
+	type PersonnelHandleApiError
+} from "~/composables/systems/personnel/usePersonnelApi";
+import { getPrevOffset } from "~/composables/systems/personnel/personnelList";
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 
-type DeviceApi = ReturnType<typeof useDeviceApi>
-type AccessControlApi = ReturnType<typeof useAccessControlApi>
+type DeviceApi = ReturnType<typeof useDeviceApi>;
+type AccessControlApi = ReturnType<typeof useAccessControlApi>;
 
 /** 人員大頭照裁切 Dialog（PersonnelPersonsTab + ImageCropDialog） */
 export const PERSONNEL_FACE_CROP_DIALOG_PROPS = {
-	title: "上傳圖片",
+	title: "上傳大頭照",
 	description: "圖片用於臉型比對或臉型驗證，建議上傳五官清晰正面照。",
 	canvasWidth: 520,
 	canvasHeight: 520,
 	mask: "ellipse" as const,
 	maxOutputBytes: 200 * 1024,
-	outputMaxLongEdge: 320,
-}
+	outputMaxLongEdge: 320
+};
 
 const PERSON_DIALOG_UNSAVED_CLOSE_CONFIRM = {
 	title: "確認關閉",
 	message: "您有未保存的變更，確定要關閉嗎？",
 	details: "未保存的變更將會遺失。",
-	type: "warning" as const,
-}
+	type: "warning" as const
+};
 
 type PersonDialogSnapshot = {
-	employeeNo: string
-	fullName: string
-	status: "active" | "inactive"
-	faceUrl: string
-	personGroupId: string
-	licensePlateItemsJson: string
-	password: string
-	isLongTerm: boolean
-	validBeginDate: string
-	validEndDate: string
-	cardNo: string
-	fingerPrintData: string
-	hasPendingFace: boolean
-}
+	employeeNo: string;
+	fullName: string;
+	status: "active" | "inactive";
+	faceUrl: string;
+	personGroupId: string;
+	licensePlateItemsJson: string;
+	password: string;
+	isLongTerm: boolean;
+	validBeginDate: string;
+	validEndDate: string;
+	cardNo: string;
+	fingerPrintData: string;
+	hasPendingFace: boolean;
+};
 
 const normalizeLicensePlatesForSnapshot = (items: PersonLicensePlateFormItem[]) =>
 	items
-		.filter((i) => i.plateNumber.trim())
-		.map((i) => ({
+		.filter(i => i.plateNumber.trim())
+		.map(i => ({
 			plateNumber: i.plateNumber.trim(),
 			listType: i.listType,
 			effectiveBegin: i.effectiveBegin,
-			effectiveEnd: i.effectiveEnd,
-		}))
+			effectiveEnd: i.effectiveEnd
+		}));
 
 export const usePersonnelPersonsTab = (params: {
-	personnelApi: PersonnelApi
-	deviceApi: DeviceApi
-	accessControlApi: AccessControlApi
-	toast: { success: (msg: string) => void; error: (msg: string) => void; warning: (msg: string) => void }
-	handleApiError: PersonnelHandleApiError
+	personnelApi: PersonnelApi;
+	deviceApi: DeviceApi;
+	accessControlApi: AccessControlApi;
+	toast: {
+		success: (msg: string) => void;
+		error: (msg: string) => void;
+		warning: (msg: string) => void;
+	};
+	handleApiError: PersonnelHandleApiError;
 }) => {
-	const { personnelApi, deviceApi, accessControlApi, toast, handleApiError } = params
-	const personsList = usePersonsList({ personnelApi, handleApiError, pageSize: 10 })
+	const { personnelApi, deviceApi, accessControlApi, toast, handleApiError } = params;
+	const personsList = usePersonsList({ personnelApi, handleApiError, pageSize: 10 });
 	const {
 		PAGE_SIZE,
 		persons,
@@ -105,77 +110,77 @@ export const usePersonnelPersonsTab = (params: {
 		setGroupFilterByMainGroupId,
 		setGroupFilterByChildGroupId,
 		goPrevPage,
-		goNextPage,
-	} = personsList
+		goNextPage
+	} = personsList;
 
-	const showPersonDialog = ref(false)
-	const editingPerson = ref<Person | null>(null)
-	const isSubmitting = ref(false)
-	const errorMessage = ref<string | null>(null)
+	const showPersonDialog = ref(false);
+	const editingPerson = ref<Person | null>(null);
+	const isSubmitting = ref(false);
+	const errorMessage = ref<string | null>(null);
 
 	const personForm = reactive<{
-		employeeNo: string
-		fullName: string
-		status: "active" | "inactive"
-		faceUrl: string
-		personGroupId: string
-		licensePlateItems: PersonLicensePlateFormItem[]
+		employeeNo: string;
+		fullName: string;
+		status: "active" | "inactive";
+		faceUrl: string;
+		personGroupId: string;
+		licensePlateItems: PersonLicensePlateFormItem[];
 	}>({
 		employeeNo: "",
 		fullName: "",
 		status: "active",
 		faceUrl: "",
 		personGroupId: "",
-		licensePlateItems: [],
-	})
+		licensePlateItems: []
+	});
 
-	const { resolveDirectUrl } = useImageCenter()
+	const { resolveDirectUrl } = useImageCenter();
 	const getFaceImageSrc = (url: string | null | undefined): string | null => {
-		if (!url) return null
-		if (url.startsWith("data:")) return url
-		const normalized = url.startsWith("/") ? url : `/${url}`
-		return resolveDirectUrl(normalized)
-	}
+		if (!url) return null;
+		if (url.startsWith("data:")) return url;
+		const normalized = url.startsWith("/") ? url : `/${url}`;
+		return resolveDirectUrl(normalized);
+	};
 
-	const pendingFaceFile = ref<File | null>(null)
-	const facePreviewObjectUrl = ref<string | null>(null)
-	const showFaceCropDialog = ref(false)
-	const faceCropSourceFile = ref<File | null>(null)
+	const pendingFaceFile = ref<File | null>(null);
+	const facePreviewObjectUrl = ref<string | null>(null);
+	const showFaceCropDialog = ref(false);
+	const faceCropSourceFile = ref<File | null>(null);
 
 	const getPersonAccessControlDataSummary = (p: Person) => {
-		const ac = getAccessControlConfigSummary(p)
-		const hasFace = Boolean(getFaceImageSrc(p.face_url))
-		const hasPassword = Boolean(ac.password?.trim())
-		const hasCard = Boolean(ac.cardNo?.trim())
-		const hasFingerprint = Boolean(ac.fingerPrintData?.trim())
+		const ac = getAccessControlConfigSummary(p);
+		const hasFace = Boolean(getFaceImageSrc(p.face_url));
+		const hasPassword = Boolean(ac.password?.trim());
+		const hasCard = Boolean(ac.cardNo?.trim());
+		const hasFingerprint = Boolean(ac.fingerPrintData?.trim());
 		const plateCount =
-			p.license_plate_count ?? p.license_plates?.filter(pl => pl.plate_number?.trim()).length ?? 0
-		const hasLicensePlate = plateCount > 0
-		return { hasFace, hasPassword, hasCard, hasFingerprint, hasLicensePlate }
-	}
+			p.license_plate_count ?? p.license_plates?.filter(pl => pl.plate_number?.trim()).length ?? 0;
+		const hasLicensePlate = plateCount > 0;
+		return { hasFace, hasPassword, hasCard, hasFingerprint, hasLicensePlate };
+	};
 
-	const accessControlDevices = ref<Device[]>([])
-	const captureDeviceId = ref<number | null>(null)
-	const isCapturingFace = ref(false)
-	const captureErrorMessage = ref<string | null>(null)
+	const accessControlDevices = ref<Device[]>([]);
+	const captureDeviceId = ref<number | null>(null);
+	const isCapturingFace = ref(false);
+	const captureErrorMessage = ref<string | null>(null);
 
-	const cardDeviceId = ref<number | null>(null)
-	const isCapturingCard = ref(false)
-	const cardErrorMessage = ref<string | null>(null)
-	const cardNo = ref<string>("")
+	const cardDeviceId = ref<number | null>(null);
+	const isCapturingCard = ref(false);
+	const cardErrorMessage = ref<string | null>(null);
+	const cardNo = ref<string>("");
 
-	const fingerDeviceId = ref<number | null>(null)
-	const fingerPrintData = ref<string>("")
-	const isCapturingFingerPrint = ref(false)
-	const fingerPrintErrorMessage = ref<string | null>(null)
+	const fingerDeviceId = ref<number | null>(null);
+	const fingerPrintData = ref<string>("");
+	const isCapturingFingerPrint = ref(false);
+	const fingerPrintErrorMessage = ref<string | null>(null);
 
-	const isLongTerm = ref<boolean>(true)
-	const validBeginDate = ref<string>("")
-	const validEndDate = ref<string>("")
-	const personPassword = ref<string>("")
+	const isLongTerm = ref<boolean>(true);
+	const validBeginDate = ref<string>("");
+	const validEndDate = ref<string>("");
+	const personPassword = ref<string>("");
 
-	const personDialogSnapshot = ref<PersonDialogSnapshot | null>(null)
-	const personCloseConfirm = useConfirmDialog()
+	const personDialogSnapshot = ref<PersonDialogSnapshot | null>(null);
+	const personCloseConfirm = useConfirmDialog();
 
 	const buildPersonDialogSnapshot = (): PersonDialogSnapshot => ({
 		employeeNo: personForm.employeeNo.trim(),
@@ -184,7 +189,7 @@ export const usePersonnelPersonsTab = (params: {
 		faceUrl: personForm.faceUrl.trim(),
 		personGroupId: personForm.personGroupId,
 		licensePlateItemsJson: JSON.stringify(
-			normalizeLicensePlatesForSnapshot(personForm.licensePlateItems),
+			normalizeLicensePlatesForSnapshot(personForm.licensePlateItems)
 		),
 		password: personPassword.value.trim(),
 		isLongTerm: isLongTerm.value,
@@ -192,497 +197,504 @@ export const usePersonnelPersonsTab = (params: {
 		validEndDate: validEndDate.value,
 		cardNo: cardNo.value.trim(),
 		fingerPrintData: fingerPrintData.value.trim(),
-		hasPendingFace: pendingFaceFile.value != null || facePreviewObjectUrl.value != null,
-	})
+		hasPendingFace: pendingFaceFile.value != null || facePreviewObjectUrl.value != null
+	});
 
 	const capturePersonDialogSnapshot = () => {
-		personDialogSnapshot.value = buildPersonDialogSnapshot()
-	}
+		personDialogSnapshot.value = buildPersonDialogSnapshot();
+	};
 
 	const personChangedFieldsList = computed(() => {
-		const snap = personDialogSnapshot.value
-		if (!snap) return []
-		const cur = buildPersonDialogSnapshot()
-		const fields: string[] = []
-		if (cur.fullName !== snap.fullName) fields.push("姓名")
-		if (cur.employeeNo !== snap.employeeNo) fields.push("ID")
-		if (cur.status !== snap.status) fields.push("狀態")
-		if (cur.personGroupId !== snap.personGroupId) fields.push("群組")
+		const snap = personDialogSnapshot.value;
+		if (!snap) return [];
+		const cur = buildPersonDialogSnapshot();
+		const fields: string[] = [];
+		if (cur.fullName !== snap.fullName) fields.push("姓名");
+		if (cur.employeeNo !== snap.employeeNo) fields.push("ID");
+		if (cur.status !== snap.status) fields.push("狀態");
+		if (cur.personGroupId !== snap.personGroupId) fields.push("群組");
 		if (cur.faceUrl !== snap.faceUrl || cur.hasPendingFace !== snap.hasPendingFace) {
-			fields.push("大頭照")
+			fields.push("大頭照");
 		}
-		if (cur.password !== snap.password) fields.push("密碼設定")
+		if (cur.password !== snap.password) fields.push("密碼設定");
 		if (
 			cur.isLongTerm !== snap.isLongTerm ||
 			cur.validBeginDate !== snap.validBeginDate ||
 			cur.validEndDate !== snap.validEndDate
 		) {
-			fields.push("有效期限")
+			fields.push("有效期限");
 		}
-		if (cur.cardNo !== snap.cardNo) fields.push("卡號")
-		if (cur.fingerPrintData !== snap.fingerPrintData) fields.push("指紋")
-		if (cur.licensePlateItemsJson !== snap.licensePlateItemsJson) fields.push("車牌設定")
-		return fields
-	})
+		if (cur.cardNo !== snap.cardNo) fields.push("卡號");
+		if (cur.fingerPrintData !== snap.fingerPrintData) fields.push("指紋");
+		if (cur.licensePlateItemsJson !== snap.licensePlateItemsJson) fields.push("車牌設定");
+		return fields;
+	});
 
-	const hasUnsavedPersonChanges = computed(() => personChangedFieldsList.value.length > 0)
+	const hasUnsavedPersonChanges = computed(() => personChangedFieldsList.value.length > 0);
 
 	const closePersonDialog = () => {
-		showPersonDialog.value = false
-	}
+		showPersonDialog.value = false;
+	};
 
 	const requestClosePersonDialog = () => {
 		if (hasUnsavedPersonChanges.value) {
-			personCloseConfirm.show(PERSON_DIALOG_UNSAVED_CLOSE_CONFIRM)
-			return
+			personCloseConfirm.show(PERSON_DIALOG_UNSAVED_CLOSE_CONFIRM);
+			return;
 		}
-		closePersonDialog()
-	}
+		closePersonDialog();
+	};
 
 	const confirmPersonDialogDismiss = () => {
-		closePersonDialog()
-	}
+		closePersonDialog();
+	};
 
 	const updatePersonInList = (next: Person) => {
 		editingPerson.value = updatePersonInListHelper({
 			people: persons.value,
 			next,
-			editingPerson: editingPerson.value,
-		})
-	}
+			editingPerson: editingPerson.value
+		});
+	};
 
 	const loadAccessControlDevices = async () => {
 		try {
-			const res = await deviceApi.getDevices({ type_code: "access_control", limit: 200, offset: 0 })
-			accessControlDevices.value = Array.isArray(res?.devices) ? res.devices : []
+			const res = await deviceApi.getDevices({ type_code: "access_control", limit: 200, offset: 0 });
+			accessControlDevices.value = Array.isArray(res?.devices) ? res.devices : [];
 		} catch (err) {
-			handleApiError(err, "載入門禁設備失敗")
-			accessControlDevices.value = []
+			handleApiError(err, "載入門禁設備失敗");
+			accessControlDevices.value = [];
 		}
-	}
+	};
 
 	const personFormFacePreview = computed(() => {
-		if (facePreviewObjectUrl.value) return facePreviewObjectUrl.value
-		const u = personForm.faceUrl?.trim()
-		if (!u) return null
-		if (u.startsWith("data:")) return u
-		return getFaceImageSrc(u)
-	})
+		if (facePreviewObjectUrl.value) return facePreviewObjectUrl.value;
+		const u = personForm.faceUrl?.trim();
+		if (!u) return null;
+		if (u.startsWith("data:")) return u;
+		return getFaceImageSrc(u);
+	});
 
 	const revokeFacePreviewUrl = () => {
-		revokeObjectUrl(facePreviewObjectUrl.value)
-		facePreviewObjectUrl.value = null
-	}
+		revokeObjectUrl(facePreviewObjectUrl.value);
+		facePreviewObjectUrl.value = null;
+	};
 
 	const openFaceCrop = (file: File) => {
-		faceCropSourceFile.value = file
-		showFaceCropDialog.value = true
-	}
+		faceCropSourceFile.value = file;
+		showFaceCropDialog.value = true;
+	};
 
 	const applyCroppedFace = async (file: File) => {
-		if (!file) return
-		pendingFaceFile.value = file
-		revokeFacePreviewUrl()
-		facePreviewObjectUrl.value = URL.createObjectURL(file)
-	}
+		if (!file) return;
+		pendingFaceFile.value = file;
+		revokeFacePreviewUrl();
+		facePreviewObjectUrl.value = URL.createObjectURL(file);
+	};
 
 	const clearFaceUrl = async () => {
-		personForm.faceUrl = ""
-		pendingFaceFile.value = null
-		faceCropSourceFile.value = null
-		showFaceCropDialog.value = false
-		revokeFacePreviewUrl()
-	}
+		personForm.faceUrl = "";
+		pendingFaceFile.value = null;
+		faceCropSourceFile.value = null;
+		showFaceCropDialog.value = false;
+		revokeFacePreviewUrl();
+	};
 
 	const handleFaceFileChange = async (file: File) => {
-		if (!file) return
+		if (!file) return;
 
-		const mimeType = String(file.type || "").toLowerCase()
+		const mimeType = String(file.type || "").toLowerCase();
 		if (!mimeType.startsWith("image/")) {
-			toast.error("請選擇圖片檔案")
-			return
+			toast.error("請選擇圖片檔案");
+			return;
 		}
-
-		openFaceCrop(file)
-	}
+		openFaceCrop(file);
+	};
 
 	const resetPersonDialogState = () => {
-		pendingFaceFile.value = null
-		captureDeviceId.value = null
-		captureErrorMessage.value = null
-		cardDeviceId.value = null
-		cardErrorMessage.value = null
-		cardNo.value = ""
-		fingerDeviceId.value = null
-		fingerPrintData.value = ""
-		fingerPrintErrorMessage.value = null
-		isLongTerm.value = true
-		validBeginDate.value = ""
-		validEndDate.value = ""
-		personPassword.value = ""
-		revokeFacePreviewUrl()
-		errorMessage.value = null
-	}
+		pendingFaceFile.value = null;
+		captureDeviceId.value = null;
+		captureErrorMessage.value = null;
+		cardDeviceId.value = null;
+		cardErrorMessage.value = null;
+		cardNo.value = "";
+		fingerDeviceId.value = null;
+		fingerPrintData.value = "";
+		fingerPrintErrorMessage.value = null;
+		isLongTerm.value = true;
+		validBeginDate.value = "";
+		validEndDate.value = "";
+		personPassword.value = "";
+		revokeFacePreviewUrl();
+		errorMessage.value = null;
+	};
 
 	const openPersonCreate = () => {
-		editingPerson.value = null
-		personForm.employeeNo = ""
-		personForm.fullName = ""
-		personForm.status = "active"
-		personForm.faceUrl = ""
-		personForm.personGroupId = ""
-		personForm.licensePlateItems = [createEmptyLicensePlateFormItem()]
-		resetPersonDialogState()
-		void loadAccessControlDevices()
-		capturePersonDialogSnapshot()
-		showPersonDialog.value = true
-	}
+		editingPerson.value = null;
+		personForm.employeeNo = "";
+		personForm.fullName = "";
+		personForm.status = "active";
+		personForm.faceUrl = "";
+		personForm.personGroupId = "";
+		personForm.licensePlateItems = [createEmptyLicensePlateFormItem()];
+		resetPersonDialogState();
+		void loadAccessControlDevices();
+		capturePersonDialogSnapshot();
+		showPersonDialog.value = true;
+	};
 
 	const applyPersonToEditForm = (p: Person) => {
-		editingPerson.value = p
-		personForm.employeeNo = p.employee_no
-		personForm.fullName = p.full_name ?? ""
-		personForm.status = p.status === "active" ? "active" : "inactive"
-		personForm.faceUrl = p.face_url ?? ""
+		editingPerson.value = p;
+		personForm.employeeNo = p.employee_no;
+		personForm.fullName = p.full_name ?? "";
+		personForm.status = p.status === "active" ? "active" : "inactive";
+		personForm.faceUrl = p.face_url ?? "";
 		personForm.personGroupId =
 			p.person_group_id != null && Number.isFinite(Number(p.person_group_id))
 				? String(Math.trunc(Number(p.person_group_id)))
-				: ""
-		const plates = mapPersonLicensePlatesToForm(p)
-		personForm.licensePlateItems =
-			plates.length > 0 ? plates : [createEmptyLicensePlateFormItem()]
-		resetPersonDialogState()
-		const ac = getAccessControlConfigSummary(p)
-		cardNo.value = ac.cardNo
-		fingerPrintData.value = ac.fingerPrintData
-		isLongTerm.value = ac.isLongTerm
-		validBeginDate.value = ac.validBeginDate
-		validEndDate.value = ac.validEndDate
-		personPassword.value = ac.password
-	}
+				: "";
+		const plates = mapPersonLicensePlatesToForm(p);
+		personForm.licensePlateItems = plates.length > 0 ? plates : [createEmptyLicensePlateFormItem()];
+		resetPersonDialogState();
+		const ac = getAccessControlConfigSummary(p);
+		cardNo.value = ac.cardNo;
+		fingerPrintData.value = ac.fingerPrintData;
+		isLongTerm.value = ac.isLongTerm;
+		validBeginDate.value = ac.validBeginDate;
+		validEndDate.value = ac.validEndDate;
+		personPassword.value = ac.password;
+	};
 
 	const editPerson = async (p: Person) => {
-		let full: Person
+		let full: Person;
 		try {
-			full = await personnelApi.getPersonById(p.id)
+			full = await personnelApi.getPersonById(p.id);
 		} catch (err) {
-			handleApiError(err, "載入人員資料失敗", PERSONNEL_API_ERROR_OPTS)
-			return
+			handleApiError(err, "載入人員資料失敗", PERSONNEL_API_ERROR_OPTS);
+			return;
 		}
-		applyPersonToEditForm(full)
-		void loadAccessControlDevices()
-		capturePersonDialogSnapshot()
-		showPersonDialog.value = true
-	}
+		applyPersonToEditForm(full);
+		void loadAccessControlDevices();
+		capturePersonDialogSnapshot();
+		showPersonDialog.value = true;
+	};
 
 	const handleCaptureFace = async () => {
-		captureErrorMessage.value = null
-		const deviceId = captureDeviceId.value
+		captureErrorMessage.value = null;
+		const deviceId = captureDeviceId.value;
 		if (!deviceId) {
-			captureErrorMessage.value = "請先選擇門禁設備"
-			return
+			captureErrorMessage.value = "請先選擇門禁設備";
+			return;
 		}
 
-		isCapturingFace.value = true
+		isCapturingFace.value = true;
 		try {
-			const result: CaptureFaceResult = await accessControlApi.captureFace(deviceId, {
+			const result = await accessControlApi.captureFace(deviceId, {
 				captureInfrared: true,
-				readerID: 1,
-			})
-
-			if (result.dataType !== "binary" || !result.base64) throw new Error("設備截圖回傳格式不正確")
+				readerID: 1
+			});
+			if (result.dataType !== "binary" || !result.base64) throw new Error("設備截圖回傳格式不正確");
 
 			const file = base64ToFile({
 				base64: result.base64,
 				mimeType: result.contentType || "image/jpeg",
-				filename: `capture_${Date.now()}.jpg`,
-			})
+				filename: `capture_${Date.now()}.jpg`
+			});
 
-			await handleFaceFileChange(file)
+			await handleFaceFileChange(file);
 		} catch (err) {
-			captureErrorMessage.value = handleApiError(err, "設備截圖失敗") || "設備截圖失敗"
+			captureErrorMessage.value = handleApiError(err, "設備截圖失敗") || "設備截圖失敗";
 		} finally {
-			isCapturingFace.value = false
+			isCapturingFace.value = false;
 		}
-	}
+	};
 
 	const extractCardNoFromCapture = (raw: unknown): string | null => {
-		if (!raw || typeof raw !== "object") return null
-		const visited = new Set<unknown>()
-		const stack: unknown[] = [raw]
+		if (!raw || typeof raw !== "object") return null;
+		const visited = new Set<unknown>();
+		const stack: unknown[] = [raw];
 		while (stack.length > 0) {
-			const cur = stack.pop()
-			if (!cur || typeof cur !== "object") continue
-			if (visited.has(cur)) continue
-			visited.add(cur)
+			const cur = stack.pop();
+			if (!cur || typeof cur !== "object") continue;
+			if (visited.has(cur)) continue;
+			visited.add(cur);
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const obj: any = cur
-			const val = obj.cardNo ?? obj.CardNo ?? obj.cardNO
-			if (typeof val === "string" && val.trim()) return val.trim()
-			if (typeof val === "number" && Number.isFinite(val)) return String(val)
-			for (const v of Object.values(obj)) stack.push(v)
+			const obj: any = cur;
+			const val = obj.cardNo ?? obj.CardNo ?? obj.cardNO;
+			if (typeof val === "string" && val.trim()) return val.trim();
+			if (typeof val === "number" && Number.isFinite(val)) return String(val);
+			for (const v of Object.values(obj)) stack.push(v);
 		}
-		return null
-	}
+		return null;
+	};
 
 	const handleCaptureCard = async () => {
-		cardErrorMessage.value = null
-		const deviceId = cardDeviceId.value
+		cardErrorMessage.value = null;
+		const deviceId = cardDeviceId.value;
 		if (!deviceId) {
-			cardErrorMessage.value = "請先選擇門禁設備"
-			return
+			cardErrorMessage.value = "請先選擇門禁設備";
+			return;
 		}
 
-		isCapturingCard.value = true
+		isCapturingCard.value = true;
 		try {
-			const raw = await accessControlApi.captureCard(deviceId)
-			const extracted = extractCardNoFromCapture(raw)
+			const raw = await accessControlApi.captureCard(deviceId);
+			const extracted = extractCardNoFromCapture(raw);
 			if (!extracted) {
-				cardErrorMessage.value = "讀卡失敗：找不到卡號"
-				return
+				cardErrorMessage.value = "讀卡失敗：找不到卡號";
+				return;
 			}
-			cardNo.value = extracted
+			cardNo.value = extracted;
 		} catch (err) {
-			cardErrorMessage.value = handleApiError(err, "讀卡失敗") || "讀卡失敗"
+			cardErrorMessage.value = handleApiError(err, "讀卡失敗") || "讀卡失敗";
 		} finally {
-			isCapturingCard.value = false
+			isCapturingCard.value = false;
 		}
-	}
+	};
 
 	const handleCaptureFingerPrint = async () => {
-		fingerPrintErrorMessage.value = null
-		const deviceId = fingerDeviceId.value
+		fingerPrintErrorMessage.value = null;
+		const deviceId = fingerDeviceId.value;
 		if (!deviceId) {
-			fingerPrintErrorMessage.value = "請先選擇門禁設備"
-			return
+			fingerPrintErrorMessage.value = "請先選擇門禁設備";
+			return;
 		}
 
-		isCapturingFingerPrint.value = true
+		isCapturingFingerPrint.value = true;
 		try {
-			const res = await accessControlApi.captureFingerPrint(deviceId, { fingerNo: 1 })
-			const next = String(res?.base64 || "").trim()
+			const res = await accessControlApi.captureFingerPrint(deviceId, { fingerNo: 1 });
+			const next = String(res?.base64 || "").trim();
 			if (!next) {
-				fingerPrintErrorMessage.value = "讀取指紋失敗：找不到指紋資料"
-				return
+				fingerPrintErrorMessage.value = "讀取指紋失敗：找不到指紋資料";
+				return;
 			}
-			fingerPrintData.value = next
+			fingerPrintData.value = next;
 		} catch (err) {
-			fingerPrintErrorMessage.value = handleApiError(err, "讀取指紋失敗") || "讀取指紋失敗"
+			fingerPrintErrorMessage.value = handleApiError(err, "讀取指紋失敗") || "讀取指紋失敗";
 		} finally {
-			isCapturingFingerPrint.value = false
+			isCapturingFingerPrint.value = false;
 		}
-	}
+	};
 
 	const toBeginTime = (dateStr: string) => {
-		const s = String(dateStr || "").trim()
-		if (!s) return ""
-		if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T00:00:00`
-		if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)) return `${s}:00`
-		return s
-	}
+		const s = String(dateStr || "").trim();
+		if (!s) return "";
+		if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T00:00:00`;
+		if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)) return `${s}:00`;
+		return s;
+	};
 
 	const toEndTime = (dateStr: string) => {
-		const s = String(dateStr || "").trim()
-		if (!s) return ""
-		if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T23:59:59`
-		if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)) return `${s}:59`
-		return s
-	}
+		const s = String(dateStr || "").trim();
+		if (!s) return "";
+		if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T23:59:59`;
+		if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)) return `${s}:59`;
+		return s;
+	};
 
-	const todayDateString = () => new Date().toISOString().slice(0, 10)
+	const todayDateString = () => new Date().toISOString().slice(0, 10);
 
 	const saveAccessControlExtras = async (personId: number) => {
 		const validity = isLongTerm.value
 			? {
 					longTerm: true,
 					beginTime: toBeginTime(todayDateString()),
-					endTime: toEndTime("2035-12-31"),
+					endTime: toEndTime("2035-12-31")
 				}
 			: {
 					longTerm: false,
 					beginTime: toBeginTime(validBeginDate.value),
-					endTime: toEndTime(validEndDate.value),
-				}
+					endTime: toEndTime(validEndDate.value)
+				};
 
-		if (!validity.beginTime || !validity.endTime) throw new Error("請設定有效期限起始日與結束日")
+		if (!validity.beginTime || !validity.endTime) throw new Error("請設定有效的起始日與結束日");
 
 		const res = await personnelApi.setPersonAccessControlConfig(personId, {
 			validity,
 			cardNo: cardNo.value.trim() ? cardNo.value.trim() : null,
 			fingerData: fingerPrintData.value.trim() ? fingerPrintData.value.trim() : null,
-			password: personPassword.value.trim() ? personPassword.value.trim() : null,
-		})
-		if (res?.person) updatePersonInList(res.person)
-	}
+			password: personPassword.value.trim() ? personPassword.value.trim() : null
+		});
+		if (res?.person) updatePersonInList(res.person);
+	};
 
-	type SavePersonTransactionMode = "create" | "update"
+	type SavePersonTransactionMode = "create" | "update";
+
+	const validatePersonFormForSave = (input: {
+		fullName: string;
+		employeeNo: string;
+		mode: SavePersonTransactionMode;
+		licensePlateItems: PersonLicensePlateFormItem[];
+		personGroupId: string;
+	}): string | null => {
+		if (!input.fullName.trim()) return "姓名為必填";
+		if (input.mode === "create" && !input.employeeNo.trim()) return "ID 為必填";
+
+		const licensePlateError = validateLicensePlateFormItems(input.licensePlateItems);
+		if (licensePlateError) return licensePlateError;
+
+		const parsedGroup = parsePersonGroupIdFromForm(input.personGroupId);
+		if (!parsedGroup.ok) return "群組選擇無效";
+
+		return null;
+	};
 
 	const savePersonTransaction = async (mode: SavePersonTransactionMode) => {
 		const fail = (err: unknown, fallback: string) => {
-			errorMessage.value =
-				handleApiError(err, fallback, PERSONNEL_API_ERROR_OPTS) || fallback
+			errorMessage.value = resolveFormApiError(err, fallback);
+		};
+
+		const formError = validatePersonFormForSave({
+			fullName: personForm.fullName,
+			employeeNo: personForm.employeeNo,
+			mode,
+			licensePlateItems: personForm.licensePlateItems,
+			personGroupId: personForm.personGroupId
+		});
+		if (formError) {
+			errorMessage.value = formError;
+			return { ok: false as const };
 		}
 
-		if (!personForm.fullName.trim()) {
-			errorMessage.value = "姓名為必填"
-			return { ok: false as const }
-		}
-
-		if (mode === "create" && !personForm.employeeNo.trim()) {
-			errorMessage.value = "ID 為必填"
-			return { ok: false as const }
-		}
-
-		const licensePlateError = validateLicensePlateFormItems(personForm.licensePlateItems)
-		if (licensePlateError) {
-			errorMessage.value = licensePlateError
-			return { ok: false as const }
-		}
-
-		isSubmitting.value = true
-		errorMessage.value = null
+		isSubmitting.value = true;
+		errorMessage.value = null;
 		try {
-			const parsedGroup = parsePersonGroupIdFromForm(personForm.personGroupId)
-			if (!parsedGroup.ok) {
-				errorMessage.value = "群組選擇無效"
-				return { ok: false as const }
-			}
+			const parsedGroup = parsePersonGroupIdFromForm(personForm.personGroupId);
+			const licensePlates = licensePlateItemsToPayload(personForm.licensePlateItems);
+			const personGroupId = parsedGroup.ok ? parsedGroup.personGroupId : null;
 
-			const licensePlates = licensePlateItemsToPayload(personForm.licensePlateItems)
-			const personGroupId = parsedGroup.personGroupId
-
-			let saved: Person
+			let saved: Person;
 			if (mode === "update") {
-				const personId = editingPerson.value?.id ?? null
+				const personId = editingPerson.value?.id ?? null;
 				if (!personId) {
-					errorMessage.value = "找不到要更新的人員"
-					return { ok: false as const }
+					errorMessage.value = "找不到要更新的人員";
+					return { ok: false as const };
 				}
 				saved = await personnelApi.updatePerson(personId, {
 					fullName: personForm.fullName || null,
 					status: personForm.status,
 					faceUrl: personForm.faceUrl.trim() || null,
 					personGroupId,
-					licensePlates,
-				})
+					licensePlates
+				});
 			} else {
 				saved = await personnelApi.createPerson({
 					employeeNo: personForm.employeeNo.trim(),
 					fullName: personForm.fullName.trim(),
 					status: personForm.status,
 					personGroupId,
-					licensePlates,
-				})
+					licensePlates
+				});
 			}
 
-			const effectivePersonId = saved.id
-			const vehiclePlateSync = saved.vehicle_plate_sync
+			const effectivePersonId = saved.id;
+			const vehiclePlateSync = saved.vehicle_plate_sync;
 
 			try {
-				await saveAccessControlExtras(effectivePersonId)
+				await saveAccessControlExtras(effectivePersonId);
 			} catch (err) {
-				fail(err, "儲存門禁設定失敗")
-				return { ok: false as const }
+				fail(err, "儲存門禁設定失敗");
+				return { ok: false as const };
 			}
 
 			if (pendingFaceFile.value) {
 				try {
-					const uploadRes = await personnelApi.uploadFaceForPerson(effectivePersonId, pendingFaceFile.value)
-					pendingFaceFile.value = null
-					revokeFacePreviewUrl()
-					if (uploadRes?.faceUrl) personForm.faceUrl = uploadRes.faceUrl
-					if (uploadRes?.person) updatePersonInList(uploadRes.person)
+					const uploadRes = await personnelApi.uploadFaceForPerson(
+						effectivePersonId,
+						pendingFaceFile.value
+					);
+					pendingFaceFile.value = null;
+					revokeFacePreviewUrl();
+					if (uploadRes?.faceUrl) personForm.faceUrl = uploadRes.faceUrl;
+					if (uploadRes?.person) updatePersonInList(uploadRes.person);
 				} catch (err) {
-					fail(err, "上傳大頭照失敗")
-					return { ok: false as const }
+					fail(err, "上傳大頭照失敗");
+					return { ok: false as const };
 				}
 			}
 
-			if (mode === "create") personsOffset.value = 0
-			await loadPersons()
-			showVehiclePlateSyncNotice(toast, vehiclePlateSync)
+			if (mode === "create") personsOffset.value = 0;
+			showVehiclePlateSyncNotice(toast, vehiclePlateSync);
 			toast.success(
 				mode === "update"
-					? "已更新人員；請至人流統計 → 門禁管理加入地點名單並同步設備"
-					: "已新增人員；請至人流統計 → 門禁管理加入地點名單並同步設備"
-			)
-			showPersonDialog.value = false
-			return { ok: true as const }
+					? "已更新人員。請至人流統計 → 門禁管理設定地點名單並同步設備。"
+					: "已新增人員。請至人流統計 → 門禁管理設定地點名單並同步設備。"
+			);
+			showPersonDialog.value = false;
+			void loadPersons();
+			return { ok: true as const };
 		} catch (err) {
 			if (isPersonSaveRequestTimeout(err)) {
-				await loadPersons()
-				errorMessage.value = PERSON_SAVE_TIMEOUT_MESSAGE
-				return { ok: false as const }
+				await loadPersons();
+				errorMessage.value = PERSON_SAVE_TIMEOUT_MESSAGE;
+				return { ok: false as const };
 			}
-			fail(err, "儲存失敗")
-			return { ok: false as const }
+			fail(err, "儲存失敗");
+			return { ok: false as const };
 		} finally {
-			isSubmitting.value = false
+			isSubmitting.value = false;
 		}
-	}
+	};
 
 	const submitPerson = async () => {
-		if (editingPerson.value) await savePersonTransaction("update")
-		else await savePersonTransaction("create")
-	}
+		if (editingPerson.value) await savePersonTransaction("update");
+		else await savePersonTransaction("create");
+	};
 
 	const deletePerson = async (p: Person) => {
 		try {
-			await personnelApi.deletePerson(p.id)
-			await loadPersons()
-			// 若當前頁被刪到沒資料且不是第一頁，退一頁再抓一次，避免空頁
+			await personnelApi.deletePerson(p.id);
+			await loadPersons();
+			// 若當前頁資料被刪光且不在第一頁，回到上一頁避免列表為空
 			if (personsOffset.value > 0 && persons.value.length === 0) {
-				personsOffset.value = getPrevOffset({ offset: personsOffset.value, limit: PAGE_SIZE })
-				await loadPersons()
+				personsOffset.value = getPrevOffset({ offset: personsOffset.value, limit: PAGE_SIZE });
+				await loadPersons();
 			}
-			toast.success("已刪除人員")
+			toast.success("已刪除人員");
 		} catch (err) {
-			handleApiError(err, "刪除人員失敗", PERSONNEL_API_ERROR_OPTS)
+			handleApiError(err, "刪除人員失敗", PERSONNEL_API_ERROR_OPTS);
 		}
-	}
+	};
 
 	// ---------- 批次匯入 ----------
-	const showImportDialog = ref(false)
-	const importError = ref("")
-	const importResult = ref<ImportResult | null>(null)
-	const isImporting = ref(false)
+	const showImportDialog = ref(false);
+	const importError = ref("");
+	const importResult = ref<ImportResult | null>(null);
+	const isImporting = ref(false);
 
 	const submitImport = async (payload: { excel: File; imagesZip: File | null }) => {
-		importError.value = ""
-		importResult.value = null
-		isImporting.value = true
+		importError.value = "";
+		importResult.value = null;
+		isImporting.value = true;
 		try {
-			const form = new FormData()
-			form.append("excel", payload.excel)
-			if (payload.imagesZip) form.append("imagesZip", payload.imagesZip)
-			const result = await personnelApi.importPersons(form)
-			importResult.value = result
+			const form = new FormData();
+			form.append("excel", payload.excel);
+			if (payload.imagesZip) form.append("imagesZip", payload.imagesZip);
+			const result = await personnelApi.importPersons(form);
+			importResult.value = result;
 			if (result.created > 0) {
-				toast.success(`已匯入 ${result.created} 筆`)
-				void loadPersons()
+				toast.success(`已匯入 ${result.created} 筆`);
+				void loadPersons();
 			}
-			if (result.errors?.length) toast.error(`部分失敗：${result.errors.length} 筆`)
 		} catch (err) {
-			importError.value =
-				handleApiError(err, "匯入失敗", PERSONNEL_API_ERROR_OPTS) || "匯入失敗"
+			importError.value = handleApiError(err, "匯入失敗", PERSONNEL_API_ERROR_OPTS) || "匯入失敗";
 		} finally {
-			isImporting.value = false
+			isImporting.value = false;
 		}
-	}
+	};
 
-	watch(showPersonDialog, (v) => {
-		if (v) return
-		revokeFacePreviewUrl()
-		editingPerson.value = null
-		errorMessage.value = null
-		personDialogSnapshot.value = null
-	})
+	watch(showPersonDialog, v => {
+		if (v) return;
+		revokeFacePreviewUrl();
+		editingPerson.value = null;
+		errorMessage.value = null;
+		personDialogSnapshot.value = null;
+	});
 
-	watch(showImportDialog, (v) => {
-		if (!v) return
-		importError.value = ""
-		importResult.value = null
-	})
+	watch(showImportDialog, v => {
+		if (!v) return;
+		importError.value = "";
+		importResult.value = null;
+	});
 
 	return {
 		// list state
@@ -762,6 +774,6 @@ export const usePersonnelPersonsTab = (params: {
 		importError,
 		importResult,
 		isImporting,
-		submitImport,
-	}
-}
+		submitImport
+	};
+};

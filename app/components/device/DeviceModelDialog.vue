@@ -65,9 +65,7 @@
 														type="button"
 														class="btn-list-delete"
 														@click="confirmDelete(model)"
-													>
-														刪除
-													</button>
+													>刪除</button>
 												</div>
 											</div>
 										</section>
@@ -86,7 +84,7 @@
 													}}</span>
 													<span
 														v-if="deviceTypeCode === 'sensor' && model.unit_id != null"
-														class="rounded bg-emerald-500/30 px-2 py-1 text-xs text-emerald-200 2xl:text-sm"
+														class="rounded bg-emerald-500/30 px-2 py-1 text-xs text-emerald-100 2xl:text-sm"
 													>
 														Unit ID : {{ model.unit_id }}
 													</span>
@@ -99,14 +97,11 @@
 												<button type="button" class="btn-list-edit" @click="editDeviceModel(model)">
 													編輯
 												</button>
-												<button type="button" class="btn-list-delete" @click="confirmDelete(model)">
-													刪除
-												</button>
+												<button type="button" class="btn-list-delete" @click="confirmDelete(model)">刪除</button>
 											</div>
 										</div>
 									</div>
 								</div>
-								<!-- 空狀態 -->
 								<div v-else key="empty" class="py-8 text-center text-white/60">
 									<p class="text-base 2xl:text-lg">尚無設備型號</p>
 									<p class="mt-2 text-sm 2xl:text-base">點擊「新增型號」開始建立</p>
@@ -118,7 +113,7 @@
 						{{ errorMessage }}
 					</p>
 					<footer class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8">
-						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
+						<button type="button" class="btn-secondary" @click="handleClose">取消</button>
 						<div class="flex-1"></div>
 						<button v-if="!deviceModelsLocked" type="button" class="btn-primary" @click="openAddForm">
 							新增型號
@@ -167,14 +162,14 @@
 										type="text"
 										required
 										class="form-input"
-										placeholder="例如：展廳測試"
+										placeholder="例如：大廳測點"
 									/>
 								</label>
 								<label
 									v-if="deviceTypeCode === 'camera'"
 									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 								>
-									<span>型號分類 *</span>
+									<span>設備分類 *</span>
 									<FilterDropdown
 										v-model="formData.category_code"
 										:options="cameraCategoryOptions"
@@ -199,7 +194,7 @@
 									v-if="deviceTypeCode === 'sensor'"
 									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 								>
-									<span>API 方法 (功能碼) *</span>
+									<span>API 功能碼 *</span>
 									<FilterDropdown
 										v-model="sensorRegisterType"
 										:options="modbusRegisterTypeOptions"
@@ -207,12 +202,11 @@
 									/>
 								</label>
 
-								<!-- 攝影機型號：RTSP URL 樣板（供新增設備時參考） -->
 								<label
 									v-if="deviceTypeCode === 'camera'"
 									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 								>
-									<span>RTSP URL 樣板 *</span>
+									<span>RTSP URL 模板 *</span>
 									<div class="space-y-3 rounded-xl border border-white/15 bg-white/10 p-3">
 										<div class="space-y-2">
 											<label class="flex items-start gap-2">
@@ -251,8 +245,8 @@
 													value="custom"
 													class="mt-1 h-4 w-4 accent-emerald-400"
 													aria-label="RTSP 路由：自訂"
-												/>
-												<div class="flex items-center gap-2">
+											/>
+											<div class="flex items-center gap-2">
 													<div class="text-sm text-white/80 2xl:text-base">自訂</div>
 													<input
 														v-model="cameraRtspTemplateCustom"
@@ -260,7 +254,7 @@
 														class="form-input"
 														:disabled="cameraRtspTemplatePresetKey !== 'custom'"
 														placeholder="rtsp://{username}:{password}@{ip}:554/Streaming/channels/101"
-														aria-label="自訂 RTSP 樣板"
+														aria-label="自訂 RTSP 模板"
 													/>
 												</div>
 											</label>
@@ -278,9 +272,6 @@
 									></textarea>
 								</label>
 
-								<!-- 門禁設備：CaptureFaceData 統一使用 binary（由後端處理），型號層不需設定 -->
-
-								<!-- 感測器參數配置（僅當設備類型為 sensor 時顯示） -->
 								<template v-if="deviceTypeCode === 'sensor'">
 									<div class="border-t border-white/10 pt-4">
 										<div class="mb-3 flex items-center justify-between">
@@ -328,7 +319,7 @@
 													</label>
 
 													<label class="flex flex-col gap-1 text-xs text-white/80 2xl:text-sm">
-														<span>Modbus 地址 *</span>
+														<span>Modbus 位址 *</span>
 														<input
 															v-model.number="param.modbusConfig.address"
 															type="number"
@@ -345,8 +336,7 @@
 															v-model="param.modbusConfig.transform"
 															type="text"
 															class="form-input"
-															placeholder="例如: - 1, / 10, * 2, + 5"
-														/>
+															placeholder="例如: - 1, / 10, * 2, + 5"/>
 													</label>
 												</div>
 											</div>
@@ -371,7 +361,7 @@
 									:disabled="isSubmitting || (editingModel && !formHasUnsavedChanges)"
 									@click="handleFormSubmit"
 								>
-									{{ isSubmitting ? "處理中..." : editingModel ? "儲存變更" : "建立" }}
+									{{ isSubmitting ? "儲存中…" : editingModel ? "儲存變更" : "建立" }}
 								</button>
 							</footer>
 						</div>
@@ -381,7 +371,6 @@
 		</Transition>
 	</Teleport>
 
-	<!-- 確認對話框 -->
 	<ConfirmDialog
 		v-model="showConfirmDialog"
 		:title="confirmDialogConfig.title"
@@ -410,7 +399,7 @@ import type {
 	ModbusRegisterType
 } from "~/types/device";
 import type { SensorParameterType } from "~/types/environment";
-import { resolveUserFacingCatchMessage } from "~/utils/errorUtils";
+import { resolveFormApiError } from "~/utils/errorUtils";
 import {
 	CAMERA_MODEL_CATEGORY_OPTIONS,
 	groupByCameraModelCategory,
@@ -478,7 +467,6 @@ const cameraModelGroups = computed(() => {
 	return groupByCameraModelCategory(deviceModels.value, (m) => String(m.category_code || ""));
 });
 
-// 攝影機型號：RTSP URL 樣板（存放在 config.rtsp_url_template）
 const CAMERA_RTSP_PRESETS = {
 	hik_channels_101: "rtsp://{username}:{password}@{ip}:554/Streaming/channels/101",
 	stream1: "rtsp://{username}:{password}@{ip}/stream1"
@@ -493,9 +481,7 @@ const cameraRtspTemplateEffective = computed(() => {
 	return CAMERA_RTSP_PRESETS[cameraRtspTemplatePresetKey.value];
 });
 
-// 感測器參數配置（僅當設備類型為 sensor 時使用）
 const sensorParameters = ref<SensorParameterDefinition[]>([]);
-// 感測器型號統一使用的 Modbus API 方法（型號層級設定一次）
 const sensorRegisterType = ref<ModbusRegisterType>("holding");
 
 const resetForm = () => {
@@ -512,7 +498,6 @@ const resetForm = () => {
 	formErrorMessage.value = null;
 };
 
-// 參數類型選項（用於 FilterDropdown）
 const parameterTypeOptions: Array<{ value: string; label: string }> = [
 	{ value: "pm25", label: "PM2.5" },
 	{ value: "pm10", label: "PM10" },
@@ -522,18 +507,16 @@ const parameterTypeOptions: Array<{ value: string; label: string }> = [
 	{ value: "temperature", label: "溫度" },
 	{ value: "co2", label: "CO2" },
 	{ value: "noise", label: "噪音值" },
-	{ value: "wind", label: "風速" }
+	{ value: "wind", label: "風速" },
 ];
 
-// Modbus API 方法（功能碼）選項：FC01～FC04
 const modbusRegisterTypeOptions: Array<{ value: ModbusRegisterType; label: string }> = [
 	{ value: "holding", label: "FC03 保持寄存器 (Holding Registers)" },
 	{ value: "input", label: "FC04 輸入寄存器 (Input Registers)" },
 	{ value: "coils", label: "FC01 線圈 (Coils)" },
-	{ value: "discrete", label: "FC02 離散輸入 (Discrete Inputs)" }
+	{ value: "discrete", label: "FC02 離散輸入 (Discrete Inputs)" },
 ];
 
-// 新增參數配置
 const addSensorParameter = () => {
 	sensorParameters.value.push({
 		type: "pm25",
@@ -541,7 +524,6 @@ const addSensorParameter = () => {
 	});
 };
 
-// 刪除參數配置
 const removeSensorParameter = (index: number) => {
 	sensorParameters.value.splice(index, 1);
 };
@@ -555,13 +537,12 @@ const handleError = (
 	defaultMsg: string,
 	target: "errorMessage" | "formErrorMessage" = "errorMessage"
 ) => {
-	const safeMsg = resolveUserFacingCatchMessage(error, defaultMsg);
+	const safeMsg = resolveFormApiError(error, defaultMsg);
 	if (target === "errorMessage") {
 		errorMessage.value = safeMsg;
 	} else {
 		formErrorMessage.value = safeMsg;
 	}
-	toast.error(safeMsg);
 };
 
 const loadDeviceModels = async (force = false) => {
@@ -573,7 +554,7 @@ const loadDeviceModels = async (force = false) => {
 	isLoading.value = true;
 	errorMessage.value = null;
 	try {
-		// 強制刷新時添加時間戳以繞過瀏覽器快取
+		// 強制更新時添加時間戳以避免瀏覽器快取
 		const params: { type_code: DeviceTypeCode; _t?: string } = { type_code: props.deviceTypeCode };
 		if (force) {
 			params._t = String(Date.now());
@@ -601,7 +582,6 @@ const editDeviceModel = (model: DeviceModel) => {
 	formData.unit_id = model.unit_id ?? undefined;
 	formData.description = model.description || "";
 
-	// access_control：CaptureFaceData 固定 binary，不需要型號層配置
 
 	if (props.deviceTypeCode === "camera") {
 		const config = (model.config as Record<string, any> | undefined) ?? {};
@@ -622,7 +602,6 @@ const editDeviceModel = (model: DeviceModel) => {
 		}
 	}
 
-	// 載入感測器參數配置與型號層級 API 方法
 	if (props.deviceTypeCode === "sensor" && model.config) {
 		const config = model.config as SensorDeviceModelConfig;
 		sensorRegisterType.value = config.registerType ?? "holding";
@@ -637,7 +616,7 @@ const editDeviceModel = (model: DeviceModel) => {
 	});
 };
 
-// 表單快照（內層新增/編輯型號表單）
+// 表單快照（內層新增/編輯用）
 interface FormSnapshot {
 	name: string;
 	type_code: DeviceTypeCode;
@@ -679,7 +658,7 @@ const formHasUnsavedChanges = computed(() => {
 		);
 	}
 	// 新增模式：任一欄位有值即視為有變更
-	const cur = getFormSnapshot();
+		const cur = getFormSnapshot();
 	return (
 		cur.name.trim() !== "" ||
 		cur.unit_id != null ||
@@ -697,13 +676,13 @@ const formChangedFieldsList = computed(() => {
 		fields.push(`型號名稱: ${init.name || "(空)"} → ${cur.name || "(空)"}`);
 	if (cur.unit_id !== init.unit_id) fields.push("Unit ID");
 	if (cur.description !== init.description) fields.push("備註");
-	if (cur.registerType !== init.registerType) fields.push("API 方法 (功能碼)");
-	if (cur.sensorParametersJson !== init.sensorParametersJson) fields.push("感測器參數配置");
+	if (cur.registerType !== init.registerType) fields.push("API 功能碼");
+	if (cur.sensorParametersJson !== init.sensorParametersJson) fields.push("感測器參數設定");
 	if (
 		cur.cameraRtspTemplatePresetKey !== init.cameraRtspTemplatePresetKey ||
 		cur.cameraRtspTemplateCustom !== init.cameraRtspTemplateCustom
 	)
-		fields.push("RTSP URL 樣板");
+		fields.push("RTSP URL 模板");
 	return fields;
 });
 
@@ -712,10 +691,9 @@ const formChangeSummary = computed(() => {
 	if (count === 0 && !editingModel.value && formHasUnsavedChanges.value)
 		return "表單已填寫，尚未儲存";
 	if (count === 0) return "";
-	return `有 ${count} 個欄位已修改`;
+	return `共 ${count} 個欄位已修改`;
 });
 
-// 確認對話框（刪除 / 關閉表單 / 關閉主對話框）
 const confirmDialog = useConfirmDialog();
 const confirmAction = ref<"delete" | "closeForm" | "closeMain">("delete");
 const pendingDeleteModel = ref<DeviceModel | null>(null);
@@ -730,9 +708,9 @@ const showConfirmDialog = computed({
 const confirmDialogConfig = computed(() => confirmDialog.config.value);
 
 const CONFIRM_CLOSE = {
-	title: "確認關閉",
-	message: "您有未保存的變更，確定要關閉嗎？",
-	details: "未保存的變更將會遺失。",
+	title: "確定要離開？",
+	message: "您有尚未儲存的變更，確定要離開嗎？",
+	details: "未儲存的變更將會遺失。",
 	type: "warning" as const
 };
 
@@ -780,7 +758,7 @@ const confirmDelete = (model: DeviceModel) => {
 	pendingDeleteModel.value = model;
 	confirmDialog.show({
 		title: "確認刪除",
-		message: `確定要刪除設備型號 "${model.name}" 嗎？`,
+		message: `確定要刪除設備型號「${model.name}」嗎？`,
 		details: "此操作無法復原。",
 		type: "danger"
 	});
@@ -809,25 +787,41 @@ const openAddForm = () => {
 	});
 };
 
+const validateDeviceModelFormForSave = (input: {
+	deviceTypeCode: DeviceTypeCode | null;
+	categoryCode: string;
+	cameraRtspTemplateEffective: string;
+	cameraRtspTemplatePresetKey: string;
+	cameraRtspTemplateCustom: string;
+}): string | null => {
+	if (input.deviceTypeCode === "camera" && !input.categoryCode.trim()) {
+		return "請選擇型號分類";
+	}
+	if (input.deviceTypeCode === "camera") {
+		const tpl = input.cameraRtspTemplateEffective.trim();
+		if (!tpl) return "請選擇 RTSP URL 樣板，或填寫自訂樣板";
+		if (input.cameraRtspTemplatePresetKey === "custom" && !input.cameraRtspTemplateCustom.trim()) {
+			return "自訂樣板不可為空";
+		}
+	}
+	return null;
+};
+
 const handleFormSubmit = async () => {
 	isSubmitting.value = true;
 	formErrorMessage.value = null;
 
 	try {
-		if (props.deviceTypeCode === "camera" && !formData.category_code.trim()) {
-			formErrorMessage.value = "請選擇型號分類";
+		const formError = validateDeviceModelFormForSave({
+			deviceTypeCode: props.deviceTypeCode,
+			categoryCode: formData.category_code,
+			cameraRtspTemplateEffective: cameraRtspTemplateEffective.value,
+			cameraRtspTemplatePresetKey: cameraRtspTemplatePresetKey.value,
+			cameraRtspTemplateCustom: cameraRtspTemplateCustom.value,
+		});
+		if (formError) {
+			formErrorMessage.value = formError;
 			return;
-		}
-		if (props.deviceTypeCode === "camera") {
-			const tpl = cameraRtspTemplateEffective.value.trim();
-			if (!tpl) {
-				formErrorMessage.value = "請選擇 RTSP URL 樣板，或填寫自訂樣板";
-				return;
-			}
-			if (cameraRtspTemplatePresetKey.value === "custom" && !cameraRtspTemplateCustom.value.trim()) {
-				formErrorMessage.value = "自訂樣板不可為空";
-				return;
-			}
 		}
 
 		const toOpt = (v: unknown) => (v !== undefined && v !== null && v !== "" ? Number(v) : undefined);
@@ -856,7 +850,7 @@ const handleFormSubmit = async () => {
 
 		if (editingModel.value) {
 			await deviceApi.updateDeviceModel(editingModel.value.id, submitData);
-			toast.success("設備型號更新成功");
+			toast.success("設備型號已更新成功");
 		} else {
 			await deviceApi.createDeviceModel(submitData as CreateDeviceModelData);
 			toast.success("設備型號建立成功");
@@ -865,7 +859,7 @@ const handleFormSubmit = async () => {
 		await loadDeviceModels(true);
 		emit("refresh");
 	} catch (error) {
-		handleError(error, "操作失敗", "formErrorMessage");
+		handleError(error, "儲存失敗", "formErrorMessage");
 	} finally {
 		isSubmitting.value = false;
 	}
@@ -876,7 +870,7 @@ watch(
 	isOpen => {
 		if (isOpen && props.deviceTypeCode) {
 			loadDeviceType();
-			loadDeviceModels(true); // 每次打開對話框時強制刷新，確保取得最新資料
+			loadDeviceModels(true); // 每次開啟對話框時強制更新，確保取得最新資料
 		} else if (!isOpen) {
 			deviceModels.value = [];
 			errorMessage.value = null;
