@@ -10,6 +10,8 @@ import type {
 
 const VALID_PLATE_LIST_TYPES = new Set<string>(["allowList", "blockList"]);
 
+export const MAX_PERSON_LICENSE_PLATES = 5;
+
 export const LICENSE_PLATE_LIST_TYPE_OPTIONS = [
 	{ value: "allowList", label: "授權名單" },
 	{ value: "blockList", label: "拒絕名單" },
@@ -62,15 +64,16 @@ export const mapPersonLicensePlatesToForm = (p: Person): PersonLicensePlateFormI
 	}));
 
 const isLicensePlateRowEmpty = (row: PersonLicensePlateFormItem): boolean =>
-	!row.plateNumber.trim() &&
-	!row.effectiveBegin?.trim() &&
-	!row.effectiveEnd?.trim();
+	!row.plateNumber.trim();
 
-/** 人員 Dialog 車牌列：有填車牌號者，其餘欄位皆必填 */
+/** 人員 Dialog 車牌列：未填車牌號視為空白列；有填車牌號者，其餘欄位須完整 */
 export const validateLicensePlateFormItems = (
 	items: PersonLicensePlateFormItem[],
 ): string | null => {
 	const rows = items.filter((row) => !isLicensePlateRowEmpty(row));
+	if (rows.length > MAX_PERSON_LICENSE_PLATES) {
+		return `車牌最多 ${MAX_PERSON_LICENSE_PLATES} 筆`;
+	}
 	for (let i = 0; i < rows.length; i++) {
 		const row = rows[i];
 		const n = i + 1;

@@ -213,7 +213,26 @@
 						</div>
 
 						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-							<p>卡片設定</p>
+							<div class="flex items-center justify-between gap-2">
+								<p>卡片設定</p>
+								<div class="flex items-center gap-2">
+									<PersonnelFormItemTabs
+										v-model:active-index="activeCardTab"
+										:count="state.accessControl.cardItems.value.length"
+										:max="MAX_PERSON_CARDS"
+										aria-label="卡號"
+										@add="handleAddCardTab"
+									/>
+									<IconTrashButton
+										v-if="state.accessControl.cardItems.value.length > 1"
+										size="md"
+										button-class="flex-shrink-0"
+										title="移除目前卡號"
+										:aria-label="`移除第 ${activeCardTab + 1} 張卡號`"
+										@click="handleRemoveCardTab"
+									/>
+								</div>
+							</div>
 							<div class="rounded-xl border border-white/10 bg-white/5 p-3">
 								<div class="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
 									<div class="w-full md:max-w-[240px]">
@@ -237,15 +256,25 @@
 									</button>
 								</div>
 
-								<div class="mt-3 flex flex-wrap items-center gap-2">
+								<div v-if="activeCardItem" class="mt-3 flex items-center gap-2">
 									<input
-										v-model="localCardNo"
+										v-model="activeCardItem.cardNo"
 										type="text"
 										inputmode="numeric"
 										class="form-input w-full max-w-[320px] border-white/30 bg-white/10 py-1.5 text-sm text-white placeholder:text-white/40 2xl:py-2 2xl:text-base"
-										placeholder="卡號（可手動輸入）"
-										aria-label="卡號"
+										:placeholder="`卡號 ${activeCardTab + 1}（可手動輸入）`"
+										:aria-label="`第 ${activeCardTab + 1} 張卡號`"
+										:readonly="activeCardItem.source === 'virtual'"
 									/>
+									<button
+										type="button"
+										class="whitespace-nowrap rounded-lg bg-violet-500/80 px-3 py-2 text-sm text-white hover:bg-violet-400 disabled:opacity-50"
+										:disabled="isGeneratingVirtualCard"
+										aria-label="生成卡號"
+										@click="handleGenerateVirtualCard"
+									>
+										{{ isGeneratingVirtualCard ? "產生中..." : "生成卡號" }}
+									</button>
 								</div>
 
 								<p
@@ -260,7 +289,26 @@
 						</div>
 
 						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-							<p>指紋設定</p>
+							<div class="flex items-center justify-between gap-2">
+								<p>指紋設定</p>
+								<div class="flex items-center gap-2">
+									<PersonnelFormItemTabs
+										v-model:active-index="activeFingerTab"
+										:count="state.accessControl.fingerPrintItems.value.length"
+										:max="MAX_PERSON_FINGERPRINTS"
+										aria-label="指紋"
+										@add="handleAddFingerTab"
+									/>
+									<IconTrashButton
+										v-if="state.accessControl.fingerPrintItems.value.length > 1"
+										size="md"
+										button-class="flex-shrink-0"
+										title="移除目前指紋"
+										:aria-label="`移除第 ${activeFingerTab + 1} 筆指紋`"
+										@click="handleRemoveFingerTab"
+									/>
+								</div>
+							</div>
 							<div class="rounded-xl border border-white/10 bg-white/5 p-3">
 								<div class="flex items-center gap-2">
 									<div class="w-full md:max-w-[240px]">
@@ -283,14 +331,21 @@
 										{{ isCapturingFingerPrint ? "讀取中..." : "讀取" }}
 									</button>
 								</div>
-								<div class="mt-3 flex flex-wrap items-center gap-2">
+								<div v-if="activeFingerItem" class="mt-3 flex flex-wrap items-center gap-2">
 									<input
-										v-model="localFingerPrintData"
+										v-model="activeFingerItem.fingerData"
 										type="text"
-										class="form-input w-full max-w-[320px] border-white/30 bg-white/10 py-1.5 text-sm text-white placeholder:text-white/40 2xl:py-2 2xl:text-base"
+										class="form-input w-full border-white/30 bg-white/10 py-1.5 text-sm text-white placeholder:text-white/40 2xl:py-2 2xl:text-base"
 										placeholder="指紋模板值"
-										aria-label="指紋模板值"
+										:aria-label="`第 ${activeFingerTab + 1} 筆指紋模板值`"
+										:readonly="activeFingerItem.source === 'captured'"
 									/>
+									<span
+										v-if="activeFingerItem.source === 'captured'"
+										class="rounded-full bg-cyan-500/20 px-2 py-0.5 text-xs text-cyan-100"
+									>
+										讀取
+									</span>
 								</div>
 
 								<p
@@ -306,16 +361,94 @@
 
 						<div class="col-span-2 flex flex-col gap-3 text-sm text-white/80 2xl:text-base">
 							<div class="flex items-center justify-between gap-2">
+								<p>車牌設定</p>
+								<div class="flex items-center gap-2">
+									<PersonnelFormItemTabs
+										v-model:active-index="activePlateTab"
+										:count="state.form.licensePlateItems.length"
+										:max="MAX_PERSON_LICENSE_PLATES"
+										aria-label="車牌"
+										@add="handleAddPlateTab"
+									/>
+									<IconTrashButton
+										v-if="state.form.licensePlateItems.length > 1"
+										size="md"
+										button-class="flex-shrink-0"
+										title="移除目前車牌"
+										:aria-label="`移除第 ${activePlateTab + 1} 筆車牌`"
+										@click="handleRemovePlateTab"
+									/>
+								</div>
+							</div>
+
+							<div
+								v-if="activePlateItem"
+								class="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3"
+							>
+								<div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+									<label class="flex flex-col gap-2">
+										<span>車牌</span>
+										<input
+											v-model="activePlateItem.plateNumber"
+											type="text"
+											class="form-input-small"
+											placeholder="例如 ABC1234"
+											:aria-label="`第 ${activePlateTab + 1} 筆車牌`"
+										/>
+									</label>
+									<label class="flex flex-col gap-2">
+										<span>名單類型</span>
+										<FilterDropdown
+											v-model="activePlateItem.listType"
+											:options="LICENSE_PLATE_LIST_TYPE_OPTIONS"
+											placeholder="請選擇名單類型"
+											text-size="text-sm 2xl:text-base"
+										/>
+									</label>
+									<label class="flex flex-col gap-2">
+										<span>開始時間</span>
+										<input
+											v-model="activePlateItem.effectiveBegin"
+											type="datetime-local"
+											step="60"
+											class="form-input-small"
+											:aria-label="`第 ${activePlateTab + 1} 筆開始時間`"
+										/>
+									</label>
+									<label class="flex flex-col gap-2">
+										<span>結束時間</span>
+										<input
+											v-model="activePlateItem.effectiveEnd"
+											type="datetime-local"
+											step="60"
+											class="form-input-small"
+											:aria-label="`第 ${activePlateTab + 1} 筆結束時間`"
+										/>
+									</label>
+								</div>
+							</div>
+						</div>
+
+						<div class="col-span-2 flex flex-col gap-3 text-sm text-white/80 2xl:text-base">
+							<div class="flex items-center justify-between gap-2">
 								<p>梯控卡設定</p>
-								<button
-									v-if="elevatorLocationOptions.length > 0"
-									type="button"
-									class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white hover:bg-cyan-400 disabled:opacity-50 md:w-auto"
-									:disabled="!canAddLadderLocationRow"
-									@click="state.ladderCard.addLocationRow()"
-								>
-									新增地點
-								</button>
+								<div v-if="elevatorLocationOptions.length > 0" class="flex items-center gap-2">
+									<PersonnelFormItemTabs
+										v-model:active-index="activeLadderTab"
+										:count="state.ladderCard.locationItems.value.length"
+										unlimited
+										aria-label="梯控地點"
+										@add="handleAddLadderTab"
+									/>
+									<IconTrashButton
+										v-if="state.ladderCard.locationItems.value.length > 1"
+										size="md"
+										button-class="flex-shrink-0"
+										title="移除目前地點"
+										:aria-label="`移除第 ${activeLadderTab + 1} 筆地點`"
+										@click="handleRemoveLadderTab"
+									/>
+								</div>
 							</div>
 
 							<div
@@ -325,137 +458,51 @@
 								尚無電梯地點或地點尚未設定樓層，請先於電梯系統區域管理設定。
 							</div>
 
-							<template v-else>
-								<div
-									v-for="(row, idx) in state.ladderCard.locationItems.value"
-									:key="`ladder-loc-row-${idx}`"
-									class="relative space-y-3 rounded-xl border border-white/10 bg-white/5 p-3"
-								>
-									<div
-										v-if="state.ladderCard.locationItems.value.length > 1"
-										class="absolute right-2 top-2"
-									>
-										<IconTrashButton
-											size="md"
-											button-class="flex-shrink-0"
-											title="移除此地點"
-											:aria-label="`移除第 ${idx + 1} 筆地點`"
-											@click="state.ladderCard.removeLocationRow(idx)"
-										/>
-									</div>
-
-									<label class="flex flex-col gap-2">
-										<span>地點 *</span>
-										<FilterDropdown
-											v-model="row.locationId"
-											:options="ladderLocationOptionsForRow(idx)"
-											placeholder="選擇電梯地點"
-											text-size="text-sm 2xl:text-base"
-										/>
-									</label>
-
-									<div v-if="resolveElevatorLocation(row.locationId)" class="flex flex-col gap-2">
-										<span>授權樓層</span>
-										<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-											<label
-												v-for="floor in buildFloorOptionsForLocation(
-													resolveElevatorLocation(row.locationId)!
-												)"
-												:key="`ladder-floor-${row.locationId}-${floor.index}`"
-												class="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 hover:bg-white/10"
-											>
-												<input
-													type="checkbox"
-													class="h-4 w-4 shrink-0 accent-cyan-400"
-													:checked="isLadderFloorChecked(Number(row.locationId), floor.index)"
-													:aria-label="`授權樓層 ${floor.label}`"
-													@change="
-														state.ladderCard.toggleFloor(
-															Number(row.locationId),
-															floor.index,
-															($event.target as HTMLInputElement).checked
-														)
-													"
-												/>
-												<span class="text-sm text-white/90">{{ floor.label }}</span>
-											</label>
-										</div>
-									</div>
-								</div>
-
-							</template>
-						</div>
-
-						<div class="col-span-2 flex flex-col gap-3 text-sm text-white/80 2xl:text-base">
-							<div class="flex items-center justify-between gap-2">
-								<p>車牌設定</p>
-								<button
-									type="button"
-									class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white hover:bg-cyan-400 disabled:opacity-50 md:w-auto"
-									@click="handleAddLicensePlateRow"
-								>
-									新增車牌
-								</button>
-							</div>
-
 							<div
-								v-for="(row, idx) in state.form.licensePlateItems"
-								:key="`plate-row-${idx}`"
-								class="relative space-y-3 rounded-xl border border-white/10 bg-white/5 p-3"
+								v-else-if="activeLadderItem"
+								class="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3"
 							>
-								<div v-if="state.form.licensePlateItems.length > 1" class="absolute right-2 top-2">
-									<IconTrashButton
-										size="md"
-										button-class="flex-shrink-0"
-										title="移除車牌"
-										:aria-label="`移除第 ${idx + 1} 筆車牌`"
-										@click="handleRemoveLicensePlateRow(idx)"
+								<label class="flex flex-col gap-2">
+									<span>地點</span>
+									<FilterDropdown
+										v-model="activeLadderItem.locationId"
+										:options="ladderLocationOptionsForRow(activeLadderTab)"
+										placeholder="選擇電梯地點"
+										text-size="text-sm 2xl:text-base"
 									/>
-								</div>
+								</label>
 
-								<div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-									<label class="flex flex-col gap-2">
-										<span>車牌 *</span>
-										<input
-											v-model="row.plateNumber"
-											type="text"
-											required
-											class="form-input-small"
-											placeholder="例如 ABC1234"
-											:aria-label="`第 ${idx + 1} 筆車牌`"
-										/>
-									</label>
-									<label class="flex flex-col gap-2">
-										<span>名單類型 *</span>
-										<FilterDropdown
-											v-model="row.listType"
-											:options="LICENSE_PLATE_LIST_TYPE_OPTIONS"
-											placeholder="請選擇名單類型"
-											text-size="text-sm 2xl:text-base"
-										/>
-									</label>
-									<label class="flex flex-col gap-2">
-										<span>開始時間 *</span>
-										<input
-											v-model="row.effectiveBegin"
-											type="datetime-local"
-											step="60"
-											required
-											class="form-input-small"
-											:aria-label="`第 ${idx + 1} 筆開始時間`"
-										/>
-									</label>
-									<label class="flex flex-col gap-2">
-										<span>結束時間 *</span>
-										<input
-											v-model="row.effectiveEnd"
-											type="datetime-local"
-											step="60"
-											required
-											class="form-input-small"
-											:aria-label="`第 ${idx + 1} 筆結束時間`"
-										/>
-									</label>
+								<div
+									v-if="resolveElevatorLocation(activeLadderItem.locationId)"
+									class="flex flex-col gap-2"
+								>
+									<span>授權樓層</span>
+									<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+										<label
+											v-for="floor in buildFloorOptionsForLocation(
+												resolveElevatorLocation(activeLadderItem.locationId)!
+											)"
+											:key="`ladder-floor-${activeLadderItem.locationId}-${floor.index}`"
+											class="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 hover:bg-white/10"
+										>
+											<input
+												type="checkbox"
+												class="h-4 w-4 shrink-0 accent-cyan-400"
+												:checked="
+													isLadderFloorChecked(Number(activeLadderItem.locationId), floor.index)
+												"
+												:aria-label="`授權樓層 ${floor.label}`"
+												@change="
+													state.ladderCard.toggleFloor(
+														Number(activeLadderItem.locationId),
+														floor.index,
+														($event.target as HTMLInputElement).checked
+													)
+												"
+											/>
+											<span class="text-sm text-white/90">{{ floor.label }}</span>
+										</label>
+									</div>
 								</div>
 							</div>
 						</div>
@@ -505,12 +552,23 @@ import type { PersonnelPersonDialogState, PersonGroup } from "~/types/personnel"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
 import IconTrashButton from "~/components/common/IconTrashButton.vue"
+import PersonnelFormItemTabs from "~/components/personnel/PersonnelFormItemTabs.vue"
 import { buildPersonnelChildGroupOptions } from "~/utils/personnelGroups"
 import {
 	createEmptyLicensePlateFormItem,
 	LICENSE_PLATE_LIST_TYPE_OPTIONS,
+	MAX_PERSON_LICENSE_PLATES,
 } from "~/utils/licensePlateFormUtils"
-import { buildFloorOptionsForLocation } from "~/utils/ladderFloorFormUtils"
+import {
+	buildFloorOptionsForLocation,
+	createEmptyLadderLocationFormItem,
+} from "~/utils/ladderFloorFormUtils"
+import { MAX_PERSON_CARDS, createEmptyCardFormItem } from "~/utils/cardFormUtils"
+import {
+	MAX_PERSON_FINGERPRINTS,
+	createEmptyFingerprintFormItem,
+} from "~/utils/fingerprintFormUtils"
+import { createFormItemTabHandlers } from "~/utils/personnelFormTabUtils"
 
 const props = defineProps<{
 	modelValue: boolean
@@ -524,20 +582,76 @@ const emit = defineEmits<{
 	"face-file-change": [file: File]
 	"clear-face": []
 	"capture-face": []
-	"capture-card": []
-	"capture-fingerprint": []
+	"capture-card": [tabIndex: number]
+	"generate-virtual-card": [tabIndex: number]
+	"capture-fingerprint": [tabIndex: number]
 }>()
 
 const faceFileInputRef = ref<HTMLInputElement | null>(null)
 
-const handleAddLicensePlateRow = () => {
-	props.state.form.licensePlateItems.push(createEmptyLicensePlateFormItem())
-}
+const activeCardTab = ref(0)
+const activeFingerTab = ref(0)
+const activeLadderTab = ref(0)
+const activePlateTab = ref(0)
 
-const handleRemoveLicensePlateRow = (idx: number) => {
-	if (props.state.form.licensePlateItems.length <= 1) return
-	props.state.form.licensePlateItems.splice(idx, 1)
-}
+const {
+	activeItem: activeCardItem,
+	handleAdd: handleAddCardTab,
+	handleRemove: handleRemoveCardTab,
+} = createFormItemTabHandlers(props.state.accessControl.cardItems, activeCardTab, {
+	max: MAX_PERSON_CARDS,
+	createEmpty: createEmptyCardFormItem,
+	onClearLastItem: () => {
+		props.state.accessControl.cardItems.value[0] = createEmptyCardFormItem()
+	},
+})
+
+const {
+	activeItem: activeFingerItem,
+	handleAdd: handleAddFingerTab,
+	handleRemove: handleRemoveFingerTab,
+} = createFormItemTabHandlers(props.state.accessControl.fingerPrintItems, activeFingerTab, {
+	max: MAX_PERSON_FINGERPRINTS,
+	createEmpty: createEmptyFingerprintFormItem,
+	onClearLastItem: () => {
+		props.state.accessControl.fingerPrintItems.value[0] = createEmptyFingerprintFormItem()
+	},
+})
+
+const licensePlateItems = toRef(props.state.form, "licensePlateItems")
+
+const {
+	activeItem: activePlateItem,
+	handleAdd: handleAddPlateTab,
+	handleRemove: handleRemovePlateTab,
+} = createFormItemTabHandlers(licensePlateItems, activePlateTab, {
+	max: MAX_PERSON_LICENSE_PLATES,
+	createEmpty: createEmptyLicensePlateFormItem,
+})
+
+const {
+	activeItem: activeLadderItem,
+	handleAdd: handleAddLadderTab,
+	handleRemove: handleRemoveLadderTab,
+} = createFormItemTabHandlers(props.state.ladderCard.locationItems, activeLadderTab, {
+	createEmpty: createEmptyLadderLocationFormItem,
+	onAdd: () => props.state.ladderCard.addLocationRow(),
+	onRemove: (index) => props.state.ladderCard.removeLocationRow(index),
+	onClearLastItem: () => {
+		props.state.ladderCard.locationItems.value[0] = createEmptyLadderLocationFormItem()
+	},
+})
+
+watch(
+	() => props.modelValue,
+	(open) => {
+		if (!open) return
+		activeCardTab.value = 0
+		activeFingerTab.value = 0
+		activeLadderTab.value = 0
+		activePlateTab.value = 0
+	}
+)
 
 const childGroupOptions = computed(() => buildPersonnelChildGroupOptions(props.groupTree || []))
 
@@ -602,10 +716,19 @@ const localCardDeviceIdString = computed<string>({
 
 const hasSelectedCardDevice = computed(() => props.state.capture.cardDeviceId.value != null)
 
-const localCardNo = computed<string>({
-	get: () => props.state.accessControl.cardNo.value || "",
-	set: (v) => (props.state.accessControl.cardNo.value = v),
-})
+const isGeneratingVirtualCard = computed(() => props.state.capture.isGeneratingVirtualCard.value)
+
+const handleCaptureCard = () => {
+	emit("capture-card", activeCardTab.value)
+}
+
+const handleGenerateVirtualCard = () => {
+	emit("generate-virtual-card", activeCardTab.value)
+}
+
+const handleCaptureFingerPrint = () => {
+	emit("capture-fingerprint", activeFingerTab.value)
+}
 
 const elevatorLocationOptions = computed(
 	() => props.state.ladderCard.elevatorLocationOptions.value || []
@@ -637,11 +760,6 @@ const ladderLocationOptionsForRow = (rowIndex: number) => {
 		}))
 }
 
-const canAddLadderLocationRow = computed(
-	() =>
-		props.state.ladderCard.locationItems.value.length < elevatorLocationOptions.value.length,
-)
-
 const isLadderFloorChecked = (locationId: number, floorIndex: number) =>
 	props.state.ladderCard.isFloorChecked(locationId, floorIndex)
 
@@ -654,11 +772,6 @@ const localFingerDeviceIdString = computed<string>({
 })
 
 const hasSelectedFingerDevice = computed(() => props.state.capture.fingerDeviceId.value != null)
-
-const localFingerPrintData = computed<string>({
-	get: () => props.state.accessControl.fingerPrintData.value || "",
-	set: (v) => (props.state.accessControl.fingerPrintData.value = v),
-})
 
 const localPassword = computed<string>({
 	get: () => props.state.accessControl.password.value || "",
@@ -696,8 +809,6 @@ const handleClose = () => props.state.ui.requestClose()
 const handleSubmit = () => emit("submit")
 const triggerFaceFileSelect = () => faceFileInputRef.value?.click()
 const handleCaptureFace = () => emit("capture-face")
-const handleCaptureCard = () => emit("capture-card")
-const handleCaptureFingerPrint = () => emit("capture-fingerprint")
 
 const handleFaceFileChange = (e: Event) => {
 	const input = e.target as HTMLInputElement

@@ -44,9 +44,7 @@
 						class="h-4 w-4 accent-cyan-400"
 						@change="handleDataSourceChange"
 					/>
-					<span class="text-sm text-white/90 2xl:text-base"
-						>攝影機人流（ISAPI PeopleCounting）</span
-					>
+					<span class="text-sm text-white/90 2xl:text-base">攝影機人流</span>
 				</label>
 			</div>
 		</div>
