@@ -199,9 +199,7 @@
 													>
 														<h5 class="mb-2 text-xs font-medium text-white/55 2xl:text-sm">
 															{{ group.groupName }}
-															<span class="text-white/40">
-																（{{ group.members.length }}）
-															</span>
+															<span class="text-white/40"> （{{ group.members.length }}） </span>
 														</h5>
 														<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
 															<label
@@ -218,7 +216,7 @@
 																		togglePersonOnFloor(
 																			floor.index,
 																			person.id,
-																			($event.target as HTMLInputElement).checked,
+																			($event.target as HTMLInputElement).checked
 																		)
 																	"
 																/>
@@ -226,12 +224,8 @@
 																	class="flex min-w-0 flex-1 items-center gap-2 truncate text-sm text-white/90 2xl:text-base"
 																>
 																	<span class="min-w-0 truncate">
-																		<span class="font-mono">{{
-																			person.employee_no
-																		}}</span>
-																		<span class="ms-2">{{
-																			person.full_name || "—"
-																		}}</span>
+																		<span class="font-mono">{{ person.employee_no }}</span>
+																		<span class="ms-2">{{ person.full_name || "—" }}</span>
 																	</span>
 																	<span
 																		v-if="!personHasAccessCard(person)"
@@ -281,7 +275,7 @@
 									:disabled="syncWarnings.length === 0"
 									@click="openWarningsDialog"
 								>
-									查看警告
+									查看錯誤
 									<span v-if="syncWarnings.length > 0" class="ms-1 text-amber-200">
 										({{ syncWarnings.length }})
 									</span>
@@ -361,9 +355,7 @@
 													<td class="py-2 pe-2">
 														<span
 															class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
-															:class="
-																accessStepPillClass(row.last_sync?.access?.user_info)
-															"
+															:class="accessStepPillClass(row.last_sync?.access?.user_info)"
 														>
 															{{ accessStepShortLabel(row.last_sync?.access?.user_info) }}
 														</span>
@@ -387,13 +379,9 @@
 													<td class="py-2 pe-2">
 														<span
 															class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
-															:class="
-																accessStepPillClass(row.last_sync?.access?.fingerprint)
-															"
+															:class="accessStepPillClass(row.last_sync?.access?.fingerprint)"
 														>
-															{{
-																accessStepShortLabel(row.last_sync?.access?.fingerprint)
-															}}
+															{{ accessStepShortLabel(row.last_sync?.access?.fingerprint) }}
 														</span>
 													</td>
 												</template>
@@ -539,23 +527,23 @@ const isUiLocked = computed(() => isPollingSyncJob.value)
 const syncPaged = computed(() =>
 	props.locationId != null
 		? getPagedSyncCandidates(props.locationId)
-		: { rows: [], total: 0, offset: 0, limit: 10 },
+		: { rows: [], total: 0, offset: 0, limit: 10 }
 )
 const syncRows = computed(() => syncPaged.value.rows)
 const isSyncCandidatesLoading = computed(() =>
-	props.locationId != null ? isSyncLocationCandidatesLoading(props.locationId) : false,
+	props.locationId != null ? isSyncLocationCandidatesLoading(props.locationId) : false
 )
 const showAccessSyncColumns = computed(() =>
-	props.locationId != null ? hasAccessDevicesForLocation(props.locationId) : false,
+	props.locationId != null ? hasAccessDevicesForLocation(props.locationId) : false
 )
 const handleToggleFloor = (floorIndex: number) => {
 	toggleFloorExpanded(floorIndex)
 }
 const isCurrentlySyncing = computed(() =>
-	props.locationId != null ? isLocationSyncJobRunning(props.locationId) : false,
+	props.locationId != null ? isLocationSyncJobRunning(props.locationId) : false
 )
 const isSyncButtonDisabled = computed(() =>
-	props.locationId != null ? isLocationSyncButtonDisabled(props.locationId) : true,
+	props.locationId != null ? isLocationSyncButtonDisabled(props.locationId) : true
 )
 
 const handleSync = async () => {
@@ -585,6 +573,6 @@ watch(
 		manageStep.value = 1
 		if (props.locationId == null) return
 		void loadFloorAccess()
-	},
+	}
 )
 </script>
