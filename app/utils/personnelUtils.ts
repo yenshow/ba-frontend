@@ -3,7 +3,6 @@ import type {
 	SyncLocationCandidate,
 	SyncLocationJobItem,
 	SyncWarning,
-	VehiclePlateSyncResult,
 } from "~/types/personnel"
 import type { PersonCardFormItem } from "~/utils/cardFormUtils"
 import { resolveAccessControlCardsFromPerson } from "~/utils/cardFormUtils"
@@ -13,36 +12,51 @@ import { isApiRequestTimeout } from "~/utils/errorUtils"
 
 /** 人員儲存 API 逾時：主檔可能已寫入，設備同步結果未知（對話框保留不關閉） */
 export const PERSON_SAVE_TIMEOUT_MESSAGE =
-	"請求逾時：人員資料可能已寫入平台，但設備車牌同步結果未知。請關閉對話框後重新開啟該人員確認，或至車牌管理檢查設備名單。"
+	"請求逾時：人員資料可能已寫入平台。請關閉對話框後重新開啟該人員確認。"
 
 export const isPersonSaveRequestTimeout = isApiRequestTimeout
 
-const collectVehiclePlateSyncFailureMessages = (sync: VehiclePlateSyncResult): string[] =>
-	sync.failures?.map((f) => f.message).filter((m): m is string => Boolean(m?.trim())) ?? []
-
-/** 人員已儲存後，設備車牌同步結果的提示文案（無則 null） */
-export const getVehiclePlateSyncNoticeMessage = (
-	sync?: VehiclePlateSyncResult
-): string | null => {
-	if (!sync) return null
-	if (sync.warnings?.length) return sync.warnings.join("；")
-
-	const failureMessages = collectVehiclePlateSyncFailureMessages(sync)
-	if (!failureMessages.length) return null
-
-	const detail = failureMessages.join("；")
-	if (sync.status === "partial") return `人員已儲存，部分設備車牌同步失敗：${detail}`
-	if (sync.status === "failed") return `人員已儲存，設備車牌同步失敗：${detail}`
-	return null
+/** 車牌同步錯誤文案（對話框用；不顯示原始 timeout 技術訊息） */
+export const formatPlateSyncErrorMessage = (raw?: string | null): string => {
+	const parts = String(raw || "")
+		.split(/[;；]/)
+		.map((s) => s.trim())
+		.filter(Boolean)
+	const unique = [...new Set(parts)]
+	const combined = unique.join("；")
+	if (!combined) return "同步失敗"
+	if (/timeout.*exceeded/i.test(combined)) {
+		return "請求逾時，請檢查攝影機連線或稍後再試"
+	}
+	return combined
 }
 
-export const showVehiclePlateSyncNotice = (
-	toast: { warning: (message: string) => void },
-	sync?: VehiclePlateSyncResult
-): void => {
-	const message = getVehiclePlateSyncNoticeMessage(sync)
-	if (message) toast.warning(message)
-}
+export const locationPlateRowsToSyncWarnings = (
+	rows: Array<{
+		employee_no: string
+		full_name?: string | null
+		plate_number: string
+		isapi_sync_status?: string | null
+		isapi_sync_error?: string | null
+	}>,
+	locationName?: string | null,
+): SyncWarning[] =>
+	rows
+		.filter((row) => {
+			const status = String(row.isapi_sync_status || "").toLowerCase()
+			return (
+				(status === "failed" || status === "partial") &&
+				Boolean(row.isapi_sync_error?.trim())
+			)
+		})
+		.map((row) => ({
+			type: "plate_sync",
+			employeeNo: row.employee_no,
+			fullName: row.full_name ?? undefined,
+			deviceName: row.plate_number,
+			message: formatPlateSyncErrorMessage(row.isapi_sync_error),
+			locationName: locationName ?? undefined,
+		}))
 
 export const PERSON_STATUS_LABELS: Record<string, string> = {
 	active: "啟用",
@@ -176,6 +190,7 @@ export const SYNC_WARNING_LABELS: Record<string, string> = {
 	sync: "同步失敗",
 	card: "卡片寫入失敗",
 	fingerprint: "指紋寫入失敗",
+	plate_sync: "車牌同步失敗",
 }
 
 /** 人員／圖片／卡片／指紋 欄顯示狀態 */

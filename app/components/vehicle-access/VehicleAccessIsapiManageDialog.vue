@@ -22,7 +22,7 @@
 						</div>
 
 						<nav
-							class="flex justify-center gap-2 items-center pr-7 2xl:pr-8"
+							class="flex items-center justify-center gap-2 pr-7 2xl:pr-8"
 							aria-label="車牌管理步驟切換"
 						>
 							<button
@@ -79,263 +79,143 @@
 							無法解析地點
 						</div>
 
-						<div
+						<LocationMembersStepPanel
 							v-else-if="manageStep === 1"
-							class="rounded-xl border border-white/15 bg-white/5 p-4 2xl:p-5"
-						>
-							<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-								<div class="min-w-0 space-y-2">
-									<h4 class="text-lg font-medium text-white 2xl:text-xl">步驟 1：人員權限</h4>
-									<p class="text-sm text-white/60 2xl:text-base">
-										勾選允許進出此地點的人員。套用後，系統會在背景依人員車牌同步至攝影機。
-									</p>
-								</div>
-								<div class="flex min-w-0 shrink-0 items-center gap-2 max-w-md">
-									<SearchInput
-										v-model="membersQuery"
-										input-id="vehicle-access-members-search"
-										label="搜尋可進出人員"
-										placeholder="搜尋 ID / 姓名"
-										aria-label="搜尋可進出人員"
-										wrapper-class="min-w-0 flex-1"
-										input-wrapper-class="min-w-0 flex-1"
-										input-class="!w-full min-w-0"
-										:disabled="isApplyingMembers"
-										:clearable="!isApplyingMembers"
-										@search="handleSearchMembers"
-										@clear="handleSearchMembers"
-									/>
-									<button
-										type="button"
-										class="btn-secondary shrink-0 whitespace-nowrap text-xs 2xl:text-sm"
-										:disabled="!hasMemberCandidates || !canEditMembers || isApplyingMembers"
-										@click="handleToggleSelectAllMembersPage"
-									>
-										{{ isAllMembersPageKept ? "取消" : "全選" }}
-									</button>
-								</div>
-							</div>
-							<AsyncPanel
-								class="mt-4"
-								:loading="isLoadingMembers"
-								:empty="!isLoadingMembers && memberCandidateGroups.length === 0"
-								empty-title="尚無可選人員"
-								:min-height-class="LOCATION_MEMBERS_PANEL_MIN_HEIGHT"
-							>
-								<template #loading>
-									<p class="sr-only">載入人員清單</p>
-									<ContentSkeleton variant="member-list" />
-								</template>
-								<div class="show-scrollbar max-h-[min(360px,50vh)] space-y-4 overflow-y-auto pe-1">
-									<section v-for="group in memberCandidateGroups" :key="group.groupId">
-										<h5 class="mb-2 text-xs font-medium text-white/55 2xl:text-sm">
-											{{ group.groupName }}
-											<span class="text-white/40">（{{ group.members.length }}）</span>
-										</h5>
-										<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-											<label
-												v-for="person in group.members"
-												:key="person.id"
-												class="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 hover:bg-white/10"
-											>
-												<input
-													type="checkbox"
-													class="h-4 w-4 shrink-0 accent-cyan-400"
-													:checked="isMemberKept(person.id)"
-													:disabled="!canEditMembers || isApplyingMembers"
-													@change="toggleMember(person.id, $event)"
-												/>
-												<span class="min-w-0 truncate text-sm text-white/90 2xl:text-base">
-													<span class="font-mono">{{ person.employee_no }}</span>
-													<span class="ms-2">{{ person.full_name || "—" }}</span>
-												</span>
-											</label>
-										</div>
-									</section>
-								</div>
-							</AsyncPanel>
-							<p v-if="membersError" class="form-error-text mt-3" role="alert">
-								{{ membersError }}
-							</p>
-							<div class="mt-4 flex justify-end">
-								<PermissionActionButton
-									:allowed="canEditMembers && !isApplyingMembers"
-									class="rounded-xl border border-white/20 bg-emerald-500/85 px-4 py-2 text-sm text-white enabled:hover:bg-emerald-500 2xl:text-base"
-									aria-label="套用可進出人員名單"
-									@click="handleApplyMembers"
-								>
-									{{ isApplyingMembers ? "處理中…" : "套用名單" }}
-								</PermissionActionButton>
-							</div>
-						</div>
+							title="步驟 1：人員權限"
+							description="勾選允許進出此地點的人員。套用後，系統會在背景依人員車牌同步至攝影機。"
+							search-input-id="vehicle-access-members-search"
+							:members-query="membersQuery"
+							:has-member-candidates="hasMemberCandidates"
+							:can-edit-members="canEditMembers"
+							:is-applying-members="isApplyingMembers"
+							:is-loading-members="isLoadingMembers"
+							:member-candidate-groups="memberCandidateGroups"
+							:members-error="membersError"
+							:is-all-members-page-kept="isAllMembersPageKept"
+							:is-member-kept="isMemberKept"
+							list-min-height-class="min-h-[min(360px,50vh)]"
+							list-scroll-class="max-h-[min(360px,50vh)]"
+							@update:members-query="membersQuery = $event"
+							@search="handleSearchMembers"
+							@toggle-select-all-page="handleToggleSelectAllMembersPage"
+							@toggle-member="toggleMember"
+							apply-label="套用名單並同步車牌"
+							@apply="handleApplyMembers"
+						/>
 
 						<div v-else class="space-y-4 rounded-xl border border-white/15 bg-white/5 p-4 2xl:p-5">
-							<div class="space-y-2">
-								<h4 class="text-lg font-medium text-white 2xl:text-xl">步驟 2：車牌管理</h4>
-								<p class="text-sm text-white/60 2xl:text-base">
-									檢視各入口／出口攝影機上實際登記的車牌。
-								</p>
-							</div>
-
-							<div v-if="deviceOptions.length === 0" class="py-8 text-center text-white/60">
-								<p class="text-base 2xl:text-lg">此地點尚未設定入口或出口攝影機</p>
-								<p class="mt-2 text-sm 2xl:text-base">請至「地點管理」設定 ISAPI 攝影機</p>
-							</div>
-
-							<div v-else class="space-y-3">
-								<div
-									v-for="opt in deviceOptions"
-									:key="opt.id"
-									class="overflow-hidden rounded-lg border border-white/20 bg-white/10 transition-all"
-									:class="{ 'bg-white/15': isDeviceExpanded(opt.id) }"
-								>
-									<div
-										class="flex cursor-pointer items-center justify-between p-4 transition-colors hover:bg-white/10"
-										role="button"
-										tabindex="0"
-										:aria-expanded="isDeviceExpanded(opt.id)"
-										:aria-label="`${opt.label} 車牌名單`"
-										@click="handleToggleDevice(opt.id)"
-										@keydown.enter="handleToggleDevice(opt.id)"
-										@keydown.space.prevent="handleToggleDevice(opt.id)"
+							<div class="flex flex-wrap items-start justify-between gap-3">
+								<div class="space-y-2">
+									<h4 class="text-lg font-medium text-white 2xl:text-xl">步驟 2：車牌管理</h4>
+									<p class="text-sm text-white/60 2xl:text-base">
+										顯示名單內車牌與同步狀態。編輯儲存或「重新同步」會推送至攝影機；失敗請查看錯誤。
+									</p>
+								</div>
+								<div class="flex shrink-0 flex-wrap items-center gap-2">
+									<PermissionActionButton
+										:allowed="canEditMembers && !isLoadingPlates && !isResyncingPlates"
+										class="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm text-white/90 enabled:hover:bg-white/20 2xl:text-base"
+										aria-label="重新同步車牌至攝影機"
+										@click="handleResyncPlates"
 									>
-										<div class="flex min-w-0 flex-1 items-center gap-4">
-											<svg
-												class="h-5 w-5 shrink-0 text-white/70 transition-transform"
-												:class="{ 'rotate-90': isDeviceExpanded(opt.id) }"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
-												aria-hidden="true"
-											>
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M9 5l7 7-7 7"
-												/>
-											</svg>
-											<div
-												class="flex h-16 min-w-[80px] max-w-[12rem] items-center justify-center rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-3 shadow-lg"
-											>
-												<h4
-													class="truncate text-xl font-bold tracking-wider text-white 2xl:text-2xl"
-												>
-													{{ opt.label }}
-												</h4>
-											</div>
-											<span
-												class="inline-block min-w-[4.5rem] rounded-full bg-white/25 px-3 py-1 text-center text-sm font-medium text-white 2xl:text-base"
-											>
-												{{ getPlateCountLabel(opt.id) }}
-											</span>
-										</div>
-									</div>
-
-									<Transition name="expand">
-										<div
-											v-if="isDeviceExpanded(opt.id)"
-											class="space-y-3 border-t border-white/10 p-4"
-										>
-											<div class="flex items-center justify-between">
-												<span class="text-base font-medium 2xl:text-lg">此攝影機車牌</span>
-												<PermissionActionButton
-													:allowed="canCreatePlate"
-													aria-label="新增車牌"
-													class="btn-secondary"
-													@click="handleOpenPlateForm(opt.id)"
-												>
-													新增車牌
-												</PermissionActionButton>
-											</div>
-
-											<div v-if="isLoadingDevice(opt.id)" class="min-h-[220px] py-2">
-												<p class="sr-only">載入車牌名單</p>
-												<ContentSkeleton :columns="6" :rows="5" />
-											</div>
-											<p
-												v-else-if="getDeviceError(opt.id)"
-												class="form-error-text-lg"
-											>
-												{{ getDeviceError(opt.id) }}
-											</p>
-											<div
-												v-else-if="getDevicePlates(opt.id).length === 0"
-												class="py-4 text-center text-sm text-white/60 2xl:text-base"
-											>
-												尚無車牌名單資料
-											</div>
-											<div
-												v-else
-												class="overflow-x-auto rounded border border-white/10 bg-white/5 p-2"
-											>
-												<table
-													class="w-full min-w-[520px] text-left text-base text-white/90 2xl:text-lg"
-												>
-													<thead>
-														<tr class="border-b border-white/15 text-white/60">
-															<th class="px-2 py-2 font-medium">車牌</th>
-															<th class="px-2 py-2 font-medium">車主姓名</th>
-															<th class="px-2 py-2 font-medium">名單類型</th>
-															<th class="px-2 py-2 font-medium">開始時間</th>
-															<th class="px-2 py-2 font-medium">結束時間</th>
-															<th class="px-2 py-2 font-medium">操作</th>
-														</tr>
-													</thead>
-													<tbody>
-														<tr
-															v-for="row in getDevicePlates(opt.id)"
-															:key="`${opt.id}-${row.id}`"
-															class="border-b border-white/10 last:border-b-0"
-														>
-															<td class="px-2 py-2">{{ row.licensePlate }}</td>
-															<td class="px-2 py-2 text-white/70">
-																{{ row.bindPersonLabel || "—" }}
-															</td>
-															<td class="px-2 py-2">
-																<span
-																	class="rounded-full px-2 py-0.5 text-xs 2xl:text-sm"
-																	:class="
-																		row.listType === 'allowList'
-																			? 'bg-emerald-500/20 text-emerald-100'
-																			: 'bg-rose-500/20 text-rose-200'
-																	"
-																>
-																	{{ licensePlateListTypeShortLabel(row.listType) }}
-																</span>
-															</td>
-															<td class="px-2 py-2 text-white/70">
-																{{ formatLicensePlateDisplayTime(row.createTime) }}
-															</td>
-															<td class="px-2 py-2 text-white/70">
-																{{ formatLicensePlateDisplayTime(row.effectiveTime) }}
-															</td>
-															<td class="px-2 py-2">
-																<PermissionActionButton
-																	:allowed="canUpdatePlate"
-																	aria-label="編輯車牌"
-																	class="mr-3 text-cyan-300 enabled:hover:underline"
-																	@click="handleOpenPlateForm(opt.id, row)"
-																>
-																	編輯
-																</PermissionActionButton>
-																<PermissionActionButton
-																	:allowed="canDeletePlate"
-																	aria-label="刪除車牌"
-																	class="text-rose-300 enabled:hover:underline"
-																	@click="handleDeletePlate(opt.id, row)"
-																>
-																	刪除
-																</PermissionActionButton>
-															</td>
-														</tr>
-													</tbody>
-												</table>
-											</div>
-										</div>
-									</Transition>
+										{{ isResyncingPlates ? "同步中…" : "重新同步" }}
+									</PermissionActionButton>
+									<button
+										type="button"
+										class="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm text-white/90 hover:bg-white/20 disabled:opacity-50 2xl:text-base"
+										:disabled="plateSyncWarnings.length === 0"
+										@click="showPlateSyncWarningsDialog = true"
+									>
+										查看錯誤
+										<span v-if="plateSyncWarnings.length > 0" class="ms-1 text-amber-200">
+											({{ plateSyncWarnings.length }})
+										</span>
+									</button>
+									<PermissionActionButton
+										v-if="canCreatePlate"
+										:allowed="!isSavingPlate && !isLoadingPlates"
+										class="rounded-xl border border-white/20 bg-cyan-600/80 px-4 py-2 text-sm text-white enabled:hover:bg-cyan-500 2xl:text-base"
+										aria-label="新增車牌"
+										@click="handleOpenPlateForm()"
+									>
+										新增車牌
+									</PermissionActionButton>
 								</div>
 							</div>
+
+							<AsyncPanel
+								:loading="isLoadingPlates"
+								:empty="!isLoadingPlates && locationPlates.length === 0"
+								empty-title="尚無車牌資料"
+								empty-description="請先於步驟 1 套用名單，或為名單內人員新增車牌。"
+								min-height-class="min-h-[240px]"
+							>
+								<template #loading>
+									<ContentSkeleton variant="table" />
+								</template>
+								<div class="overflow-x-auto rounded-lg border border-white/10">
+									<table class="min-w-full text-left text-sm text-white/90 2xl:text-base">
+										<thead class="bg-white/5 text-xs text-white/60 2xl:text-sm">
+											<tr>
+												<th class="px-3 py-2 font-medium">人員</th>
+												<th class="px-3 py-2 font-medium">車牌</th>
+												<th class="px-3 py-2 font-medium">名單</th>
+												<th class="px-3 py-2 font-medium">效期開始</th>
+												<th class="px-3 py-2 font-medium">效期結束</th>
+												<th class="px-3 py-2 font-medium">同步</th>
+												<th class="px-3 py-2 font-medium text-end">操作</th>
+											</tr>
+										</thead>
+										<tbody>
+											<tr
+												v-for="row in locationPlates"
+												:key="row.id"
+												class="border-t border-white/10 hover:bg-white/5"
+											>
+												<td class="px-3 py-2">{{ row.full_name || "—" }}</td>
+												<td class="px-3 py-2 font-mono">{{ row.plate_number }}</td>
+												<td class="px-3 py-2">
+													{{ licensePlateListTypeShortLabel(row.list_type ?? "allowList") }}
+												</td>
+												<td class="px-3 py-2 text-xs text-white/70">
+													{{ formatLicensePlateDisplayTime(row.effective_begin) }}
+												</td>
+												<td class="px-3 py-2 text-xs text-white/70">
+													{{ formatLicensePlateDisplayTime(row.effective_end) }}
+												</td>
+												<td class="px-3 py-2">
+													<span :class="getPlateSyncPill(row.isapi_sync_status).className">
+														{{ getPlateSyncPill(row.isapi_sync_status).label }}
+													</span>
+												</td>
+												<td class="px-3 py-2 text-end">
+													<div class="flex justify-end gap-2">
+														<button
+															v-if="canUpdatePlate"
+															type="button"
+															class="text-cyan-300 hover:text-cyan-200"
+															:aria-label="`編輯車牌 ${row.plate_number}`"
+															@click="handleOpenPlateForm(row)"
+														>
+															編輯
+														</button>
+														<button
+															v-if="canDeletePlate"
+															type="button"
+															class="text-rose-300 hover:text-rose-200"
+															:aria-label="`刪除車牌 ${row.plate_number}`"
+															@click="handleDeletePlate(row)"
+														>
+															刪除
+														</button>
+													</div>
+												</td>
+											</tr>
+										</tbody>
+									</table>
+								</div>
+							</AsyncPanel>
+							<p v-if="platesError" class="form-error-text" role="alert">{{ platesError }}</p>
 						</div>
 					</div>
 				</div>
@@ -343,54 +223,58 @@
 		</Transition>
 	</Teleport>
 
+	<PersonnelSyncWarningsDialog
+		v-model="showPlateSyncWarningsDialog"
+		:sync-warnings="plateSyncWarnings"
+		:sync-warning-type-label="plateSyncWarningTypeLabel"
+	/>
+
 	<VehicleAccessIsapiPlateFormDialog
-		v-if="formDeviceId != null"
+		v-if="showPlateForm"
 		v-model:form="plateForm"
 		:mode="plateFormMode"
 		:person-bind-options="personBindOptions"
 		:is-loading-person-options="isLoadingPersonOptions"
 		:is-saving="isSavingPlate"
 		:error-message="plateFormError"
-		@save="handleSavePlate(formDeviceId)"
+		@save="handleSavePlate"
 		@cancel="handleCancelPlateForm"
 	/>
 </template>
 
 <script setup lang="ts">
-import type { VehicleAccessLocation, VehicleLicensePlateAuditItem } from "~/types/vehicleAccess"
-import { useVehicleAccessIsapiDeviceApi } from "~/composables/systems/vehicleAccess/useVehicleAccessIsapiDeviceApi"
-import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import type { VehicleAccessLocation } from "~/types/vehicleAccess"
+import type { LocationLicensePlateRow } from "~/types/personnel"
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useToast } from "~/composables/core/useToast"
 import { resolveUserFacingCatchMessage } from "~/utils/errorUtils"
-import { formatPersonLabel } from "~/utils/personnelUtils"
 import {
-	buildIsapiPlateUpsertEntry,
+	SYNC_WARNING_LABELS,
+	formatPersonLabel,
+	locationPlateRowsToSyncWarnings,
+	parseLocationNumericId,
+} from "~/utils/personnelUtils"
+import PersonnelSyncWarningsDialog from "~/components/personnel/dialogs/PersonnelSyncWarningsDialog.vue"
+import {
 	createDefaultIsapiPlateForm,
 	formatLicensePlateDisplayTime,
-	isapiPlateFormFromAuditRow,
+	getPlateSyncPill,
+	isapiPlateFormFromLocationRow,
+	licensePlateItemsToPayload,
 	licensePlateListTypeShortLabel,
+	mapPersonLicensePlatesToForm,
+	validateLicensePlateFormItems,
 	type IsapiPlateFormModel,
 } from "~/utils/licensePlateFormUtils"
 import VehicleAccessIsapiPlateFormDialog from "~/components/vehicle-access/VehicleAccessIsapiPlateFormDialog.vue"
+import LocationMembersStepPanel from "~/components/personnel/location-access/LocationMembersStepPanel.vue"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
-import SearchInput from "~/components/common/SearchInput.vue"
 import AsyncPanel from "~/components/common/AsyncPanel.vue"
 import ContentSkeleton from "~/components/common/ContentSkeleton.vue"
-import type { useLocationAccessSync } from "~/composables/systems/personnel/useLocationAccessSync"
-import {
-	useLocationMembersPicker,
-	LOCATION_MEMBERS_PANEL_MIN_HEIGHT,
-} from "~/composables/systems/personnel/useLocationMembersPicker"
+import type { LocationMembersSync } from "~/composables/systems/personnel/useLocationMembersOnly"
+import { useLocationMembersPicker } from "~/composables/systems/personnel/useLocationMembersPicker"
 import { useWizardStepNav } from "~/composables/core/useWizardStepNav"
-import { parseLocationNumericId } from "~/utils/personnelUtils"
-
-interface DeviceOption {
-	id: number
-	label: string
-}
-
 const props = defineProps<{
 	modelValue: boolean
 	location: VehicleAccessLocation | null
@@ -398,7 +282,7 @@ const props = defineProps<{
 	canUpdatePlate?: boolean
 	canDeletePlate?: boolean
 	canEditMembers: boolean
-	accessSync?: ReturnType<typeof useLocationAccessSync>
+	membersSync?: LocationMembersSync
 }>()
 
 const emit = defineEmits<{
@@ -428,66 +312,47 @@ const {
 	applyMembers,
 } = useLocationMembersPicker({
 	locationId,
-	accessSync: toRef(props, "accessSync"),
+	membersSync: toRef(props, "membersSync"),
 })
+
+const ensureStep2Data = async () => {
+	await Promise.all([loadPersonBindOptions(), loadLocationPlates()])
+}
 
 const handleApplyMembers = async () => {
 	if (!(await applyMembers())) return
 	emit("membersUpdated")
-	await loadPersonBindOptions()
+	manageStep.value = 2
+	await ensureStep2Data()
 }
 
-const isapiApi = useVehicleAccessIsapiDeviceApi()
-const deviceApi = useDeviceApi()
 const personnelApi = usePersonnelApi()
 const toast = useToast()
 const { handleError } = useErrorHandler()
 
-const deviceNameMap = ref<Record<number, string>>({})
-const expandedDevices = ref<Set<number>>(new Set())
-const platesByDevice = ref<Record<number, VehicleLicensePlateAuditItem[]>>({})
-const loadingByDevice = ref<Record<number, boolean>>({})
-const errorByDevice = ref<Record<number, string>>({})
+const locationPlates = ref<LocationLicensePlateRow[]>([])
+const isLoadingPlates = ref(false)
+const isResyncingPlates = ref(false)
+const platesError = ref("")
+const showPlateSyncWarningsDialog = ref(false)
+const plateSyncWarningTypeLabel = (type: string) => SYNC_WARNING_LABELS[type] ?? type
 
-const formDeviceId = ref<number | null>(null)
+const plateSyncWarnings = computed(() =>
+	locationPlateRowsToSyncWarnings(
+		locationPlates.value,
+		props.location?.name ?? null,
+	),
+)
+
+const showPlateForm = ref(false)
 const plateFormMode = ref<"add" | "modify">("add")
 const isSavingPlate = ref(false)
 const plateForm = ref<IsapiPlateFormModel>(createDefaultIsapiPlateForm())
 const plateFormError = ref("")
+const editingPlateRow = ref<LocationLicensePlateRow | null>(null)
 
 const personBindOptions = ref<Array<{ value: string; label: string }>>([])
 const isLoadingPersonOptions = ref(false)
-
-const deviceIds = computed(() => {
-	const entry = props.location?.entryCameraDeviceIds ?? []
-	const exit = props.location?.exitCameraDeviceIds ?? []
-	return [...new Set([...entry, ...exit].filter((id) => Number.isFinite(Number(id))))]
-})
-
-const deviceOptions = computed((): DeviceOption[] =>
-	deviceIds.value.map((id) => ({
-		id,
-		label: deviceNameMap.value[id] || `設備 #${id}`,
-	}))
-)
-
-const apiParams = computed(() => ({
-	siteId: locationId.value ?? undefined,
-}))
-
-const isDeviceExpanded = (deviceId: number) => expandedDevices.value.has(deviceId)
-
-const getDevicePlates = (deviceId: number) => platesByDevice.value[deviceId] ?? []
-
-const isLoadingDevice = (deviceId: number) => loadingByDevice.value[deviceId] === true
-
-const getDeviceError = (deviceId: number) => errorByDevice.value[deviceId] ?? ""
-
-const getPlateCountLabel = (deviceId: number) => {
-	if (isLoadingDevice(deviceId)) return "…"
-	if (errorByDevice.value[deviceId]) return "失敗"
-	return `${getDevicePlates(deviceId).length} 筆`
-}
 
 const loadPersonBindOptions = async () => {
 	const id = locationId.value
@@ -509,159 +374,128 @@ const loadPersonBindOptions = async () => {
 	}
 }
 
-const ensurePersonBindOption = (personId: number, label: string) => {
-	const value = String(personId)
-	if (personBindOptions.value.some((o) => o.value === value)) return
-	personBindOptions.value = [
-		...personBindOptions.value,
-		{ value, label: label || `人員 #${personId}` },
-	]
+const pushPersonPlatesToDevices = async (
+	personId: number,
+	plates: ReturnType<typeof licensePlateItemsToPayload>,
+) => {
+	await personnelApi.replacePersonLicensePlates(personId, plates, { syncToDevices: true })
+	await loadLocationPlates()
 }
 
-const enrichPlatesWithBindings = async (
-	items: VehicleLicensePlateAuditItem[]
-): Promise<VehicleLicensePlateAuditItem[]> => {
-	const plateNumbers = items.map((i) => i.licensePlate).filter(Boolean)
-	if (plateNumbers.length === 0) return items
+const handleResyncPlates = async () => {
+	const id = locationId.value
+	if (id == null) return
+	isResyncingPlates.value = true
 	try {
-		const res = await personnelApi.getLicensePlateBindings(plateNumbers)
-		const map = new Map(
-			(res.items ?? []).map((b) => [String(b.plate_normalized || b.plate_number).toUpperCase(), b])
-		)
-		return items.map((item) => {
-			const key = item.licensePlate.trim().toUpperCase()
-			const b = map.get(key)
-			if (!b) return item
-			const name = b.full_name?.trim()
-			return {
-				...item,
-				bindPersonId: b.person_id,
-				...(name ? { bindPersonLabel: name } : {}),
-			}
-		})
-	} catch {
-		return items
-	}
-}
-
-const loadDeviceNames = async () => {
-	if (deviceIds.value.length === 0) return
-	try {
-		const res = await deviceApi.getDevices({ type_code: "camera", limit: 200 })
-		const map: Record<number, string> = {}
-		for (const dev of res.devices || []) {
-			if (dev.id != null) map[dev.id] = dev.name?.trim() || `設備 #${dev.id}`
-		}
-		deviceNameMap.value = map
-	} catch {
-		deviceNameMap.value = {}
-	}
-}
-
-const loadAllDevicePlates = async () => {
-	await Promise.all(deviceIds.value.map((id) => loadPlatesForDevice(id)))
-}
-
-const loadPlatesForDevice = async (deviceId: number) => {
-	loadingByDevice.value = { ...loadingByDevice.value, [deviceId]: true }
-	errorByDevice.value = { ...errorByDevice.value, [deviceId]: "" }
-	try {
-		const res = await isapiApi.searchLicensePlates(deviceId, {
-			...apiParams.value,
-			maxResults: 200,
-		})
-		const enriched = await enrichPlatesWithBindings(res.items ?? [])
-		platesByDevice.value = { ...platesByDevice.value, [deviceId]: enriched }
+		await personnelApi.syncLocationLicensePlates(id)
+		toast.success("已重新同步車牌至攝影機")
+		await loadLocationPlates()
 	} catch (e) {
-		errorByDevice.value = {
-			...errorByDevice.value,
-			[deviceId]: resolveUserFacingCatchMessage(e, "載入車牌名單失敗"),
-		}
-		platesByDevice.value = { ...platesByDevice.value, [deviceId]: [] }
+		handleError(e, "重新同步失敗", { context: "sync" })
 	} finally {
-		loadingByDevice.value = { ...loadingByDevice.value, [deviceId]: false }
+		isResyncingPlates.value = false
 	}
 }
 
-const handleToggleDevice = async (deviceId: number) => {
-	const next = new Set(expandedDevices.value)
-	if (next.has(deviceId)) {
-		next.delete(deviceId)
-		if (formDeviceId.value === deviceId) handleCancelPlateForm()
-	} else {
-		next.add(deviceId)
-		if (platesByDevice.value[deviceId] === undefined) {
-			await loadPlatesForDevice(deviceId)
-		}
+const loadLocationPlates = async () => {
+	const id = locationId.value
+	if (id == null) {
+		locationPlates.value = []
+		return
 	}
-	expandedDevices.value = next
-}
-
-const ensureDeviceExpanded = async (deviceId: number) => {
-	if (expandedDevices.value.has(deviceId)) return
-	expandedDevices.value = new Set([...expandedDevices.value, deviceId])
-	if (platesByDevice.value[deviceId] === undefined) {
-		await loadPlatesForDevice(deviceId)
+	isLoadingPlates.value = true
+	platesError.value = ""
+	try {
+		const res = await personnelApi.getLocationLicensePlates(id)
+		locationPlates.value = res.items ?? []
+	} catch (e) {
+		locationPlates.value = []
+		platesError.value = resolveUserFacingCatchMessage(e, "載入車牌列表失敗")
+	} finally {
+		isLoadingPlates.value = false
 	}
 }
 
-const handleOpenPlateForm = async (deviceId: number, row?: VehicleLicensePlateAuditItem) => {
+const handleOpenPlateForm = (row?: LocationLicensePlateRow) => {
 	plateFormError.value = ""
-	formDeviceId.value = deviceId
-	await ensureDeviceExpanded(deviceId)
+	editingPlateRow.value = row ?? null
 	if (row) {
 		plateFormMode.value = "modify"
-		if (row.bindPersonId != null && row.bindPersonLabel) {
-			ensurePersonBindOption(Number(row.bindPersonId), row.bindPersonLabel)
-		}
-		plateForm.value = isapiPlateFormFromAuditRow(row)
+		plateForm.value = isapiPlateFormFromLocationRow(row)
 	} else {
 		plateFormMode.value = "add"
 		plateForm.value = createDefaultIsapiPlateForm()
 	}
+	showPlateForm.value = true
 }
 
 const handleCancelPlateForm = () => {
 	plateFormError.value = ""
-	formDeviceId.value = null
+	showPlateForm.value = false
+	editingPlateRow.value = null
 }
 
-const handleSavePlate = async (deviceId: number) => {
+const resolvePersonIdFromForm = (): number | null => {
+	const raw = plateForm.value.bindPersonId?.trim()
+	if (!raw) return editingPlateRow.value?.person_id ?? null
+	const n = Number.parseInt(raw, 10)
+	return Number.isFinite(n) ? n : null
+}
+
+const handleSavePlate = async () => {
 	plateFormError.value = ""
-	const built = buildIsapiPlateUpsertEntry(
-		plateForm.value,
-		plateFormMode.value === "add" ? "add" : "modify"
-	)
-	if ("error" in built) {
-		plateFormError.value = built.error
+	const personId = resolvePersonIdFromForm()
+	if (personId == null) {
+		plateFormError.value = "請選擇綁定人員"
 		return
 	}
+
+	const plateItem = {
+		plateNumber: plateForm.value.licensePlate.trim(),
+		listType: plateForm.value.listType,
+		effectiveBegin: plateForm.value.createTimeLocal,
+		effectiveEnd: plateForm.value.effectiveTimeLocal,
+	}
+	const formError = validateLicensePlateFormItems([plateItem])
+	if (formError) {
+		plateFormError.value = formError
+		return
+	}
+
 	isSavingPlate.value = true
 	try {
-		await isapiApi.upsertLicensePlates(deviceId, {
-			...apiParams.value,
-			mutation: plateFormMode.value === "add" ? "create" : "update",
-			plates: [built.entry],
-		})
-		toast.success("已儲存車牌名單")
+		const person = await personnelApi.getPersonById(personId)
+		let items = mapPersonLicensePlatesToForm(person)
+
+		if (plateFormMode.value === "modify" && editingPlateRow.value) {
+			const norm = editingPlateRow.value.plate_normalized
+			items = items.filter(
+				(i) => i.plateNumber.trim().toUpperCase() !== norm && i.plateNumber.trim(),
+			)
+			items.push(plateItem)
+		} else {
+			items = [...items.filter((i) => i.plateNumber.trim()), plateItem]
+		}
+
+		await pushPersonPlatesToDevices(personId, licensePlateItemsToPayload(items))
+		toast.success("已儲存車牌")
 		handleCancelPlateForm()
-		await loadPlatesForDevice(deviceId)
 	} catch (e) {
-		plateFormError.value = resolveUserFacingCatchMessage(e, "儲存車牌名單失敗")
+		plateFormError.value = resolveUserFacingCatchMessage(e, "儲存車牌失敗")
 	} finally {
 		isSavingPlate.value = false
 	}
 }
 
-const handleDeletePlate = async (deviceId: number, row: VehicleLicensePlateAuditItem) => {
-	if (!window.confirm(`確定刪除車牌 ${row.licensePlate}？`)) return
+const handleDeletePlate = async (row: LocationLicensePlateRow) => {
+	if (!window.confirm(`確定刪除車牌 ${row.plate_number}？`)) return
 	try {
-		await isapiApi.deleteLicensePlates(deviceId, {
-			...apiParams.value,
-			licensePlates: [row.licensePlate],
-		})
-		toast.success("已刪除")
-		await loadPlatesForDevice(deviceId)
+		const person = await personnelApi.getPersonById(row.person_id)
+		const items = mapPersonLicensePlatesToForm(person).filter(
+			(i) => i.plateNumber.trim().toUpperCase() !== row.plate_normalized,
+		)
+		await pushPersonPlatesToDevices(row.person_id, licensePlateItemsToPayload(items))
+		toast.success("已刪除車牌")
 	} catch (e) {
 		handleError(e, "刪除車牌失敗", { context: "delete" })
 	}
@@ -672,26 +506,9 @@ const handleClose = () => {
 	emit("update:modelValue", false)
 }
 
-const resetState = () => {
-	expandedDevices.value = new Set()
-	platesByDevice.value = {}
-	loadingByDevice.value = {}
-	errorByDevice.value = {}
-	handleCancelPlateForm()
-}
-
-const refreshStep2Plates = async () => {
-	const ids = deviceIds.value
-	if (ids.length === 0) return
-	if (expandedDevices.value.size === 0) {
-		expandedDevices.value = new Set([ids[0]])
-	}
-	await loadAllDevicePlates()
-}
-
 watch(manageStep, async (step) => {
 	if (step !== 2 || !props.modelValue) return
-	await refreshStep2Plates()
+	await ensureStep2Data()
 })
 
 watch(
@@ -699,12 +516,10 @@ watch(
 	async (open) => {
 		if (!open) return
 		manageStep.value = 1
-		resetState()
 		const id = locationId.value
-		if (id != null && props.accessSync) {
-			await props.accessSync.prepareLocationDialog(id)
+		if (id != null && props.membersSync) {
+			await props.membersSync.prepareLocationDialog(id)
 		}
-		await Promise.all([loadDeviceNames(), loadPersonBindOptions()])
-	}
+	},
 )
 </script>

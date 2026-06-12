@@ -54,7 +54,6 @@ import {
 	isPersonSaveRequestTimeout,
 	PERSON_SAVE_TIMEOUT_MESSAGE,
 	revokeObjectUrl,
-	showVehiclePlateSyncNotice,
 	updatePersonInList as updatePersonInListHelper,
 } from "~/utils/personnelUtils"
 import { usePersonsList } from "~/composables/systems/personnel/usePersonsList"
@@ -763,8 +762,15 @@ export const usePersonnelPersonsTab = (params: {
 		errorMessage.value = null
 		try {
 			const parsedGroup = parsePersonGroupIdFromForm(personForm.personGroupId)
-			const licensePlates = licensePlateItemsToPayload(personForm.licensePlateItems)
 			const personGroupId = parsedGroup.ok ? parsedGroup.personGroupId : null
+			const snap = personDialogSnapshot.value
+			const currentPlatesJson = JSON.stringify(
+				normalizeLicensePlatesForSnapshot(personForm.licensePlateItems),
+			)
+			const licensePlatesDirty =
+				mode === "create"
+					? licensePlateItemsToPayload(personForm.licensePlateItems).length > 0
+					: snap != null && currentPlatesJson !== snap.licensePlateItemsJson
 
 			let saved: Person
 			if (mode === "update") {
@@ -778,7 +784,6 @@ export const usePersonnelPersonsTab = (params: {
 					status: personForm.status,
 					faceUrl: personForm.faceUrl.trim() || null,
 					personGroupId,
-					licensePlates,
 				})
 			} else {
 				saved = await personnelApi.createPerson({
@@ -786,12 +791,22 @@ export const usePersonnelPersonsTab = (params: {
 					fullName: personForm.fullName.trim(),
 					status: personForm.status,
 					personGroupId,
-					licensePlates,
 				})
 			}
 
 			const effectivePersonId = saved.id
-			const vehiclePlateSync = saved.vehicle_plate_sync
+
+			if (licensePlatesDirty) {
+				try {
+					await personnelApi.replacePersonLicensePlates(
+						effectivePersonId,
+						licensePlateItemsToPayload(personForm.licensePlateItems),
+					)
+				} catch (err) {
+					fail(err, "儲存車牌設定失敗")
+					return { ok: false as const }
+				}
+			}
 
 			try {
 				await saveAccessControlExtras(effectivePersonId)
@@ -834,11 +849,13 @@ export const usePersonnelPersonsTab = (params: {
 			}
 
 			if (mode === "create") personsOffset.value = 0
-			showVehiclePlateSyncNotice(toast, vehiclePlateSync)
+			const plateHint = licensePlatesDirty
+				? "車牌已存平台；請至車牌管理同步至攝影機。"
+				: ""
 			toast.success(
 				mode === "update"
-					? "已更新人員。請至人流統計 → 門禁管理設定地點名單並同步設備。"
-					: "已新增人員。請至人流統計 → 門禁管理設定地點名單並同步設備。"
+					? `已更新人員。${plateHint}請至人流統計 → 門禁管理設定地點名單並同步門禁設備。`.trim()
+					: `已新增人員。${plateHint}請至人流統計 → 門禁管理設定地點名單並同步門禁設備。`.trim(),
 			)
 			showPersonDialog.value = false
 			void loadPersons()

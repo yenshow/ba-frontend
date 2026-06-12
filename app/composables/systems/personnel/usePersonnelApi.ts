@@ -13,6 +13,9 @@ import type {
 	PersonLadderCard,
 	PersonCardPayload,
 	PersonFingerprintPayload,
+	PersonLicensePlate,
+	LocationLicensePlateRow,
+	VehiclePlateSyncResult,
 } from "~/types/personnel"
 import type { HandleErrorOptions } from "~/composables/core/useErrorHandler"
 import { useApiBase } from "~/composables/core/useApiBase"
@@ -95,7 +98,6 @@ export type PersonnelApi = {
 		status?: "active" | "inactive"
 		faceUrl?: string | null
 		personGroupId?: number | null
-		licensePlates?: PersonLicensePlatePayload[] | string[]
 	}) => Promise<Person>
 	updatePerson: (
 		id: number,
@@ -105,7 +107,6 @@ export type PersonnelApi = {
 			status: "active" | "inactive"
 			faceUrl: string | null
 			personGroupId: number | null
-			licensePlates?: PersonLicensePlatePayload[] | string[]
 		}>
 	) => Promise<Person>
 	uploadFaceForPerson: (
@@ -120,6 +121,11 @@ export type PersonnelApi = {
 			clear?: boolean
 		} | null
 	) => Promise<{ ladder_card: PersonLadderCard | null }>
+	replacePersonLicensePlates: (
+		personId: number,
+		licensePlates: PersonLicensePlatePayload[],
+		options?: { syncToDevices?: boolean }
+	) => Promise<{ licensePlates: PersonLicensePlate[]; vehicle_plate_sync?: VehiclePlateSyncResult }>
 
 	// 可同步地點與同步
 	getSyncableLocations: () => Promise<SyncableLocation[]>
@@ -131,6 +137,8 @@ export type PersonnelApi = {
 		params?: { limit?: number; offset?: number; q?: string; status?: string }
 	) => Promise<Paged<Person>>
 	getLocationMemberIds: (locationId: number) => Promise<{ ids: number[] }>
+	getLocationLicensePlates: (locationId: number) => Promise<{ items: LocationLicensePlateRow[] }>
+	syncLocationLicensePlates: (locationId: number) => Promise<{ status: string }>
 	replaceLocationMembers: (
 		locationId: number,
 		memberPersonIds: number[]
@@ -256,7 +264,6 @@ export const usePersonnelApi = (): PersonnelApi => {
 			status?: "active" | "inactive"
 			faceUrl?: string | null
 			personGroupId?: number | null
-			licensePlates?: PersonLicensePlatePayload[] | string[]
 		}) => request<Person>(`${PERSONNEL_PREFIX}/persons`, personWriteRequestInit("POST", body)),
 		updatePerson: (
 			id: number,
@@ -266,13 +273,30 @@ export const usePersonnelApi = (): PersonnelApi => {
 				status: "active" | "inactive"
 				faceUrl: string | null
 				personGroupId: number | null
-				licensePlates?: PersonLicensePlatePayload[] | string[]
 			}>
 		) =>
 			request<Person>(
 				`${PERSONNEL_PREFIX}/persons/${id}`,
 				personWriteRequestInit("PUT", body)
 			),
+		replacePersonLicensePlates: (
+			personId: number,
+			licensePlates: PersonLicensePlatePayload[],
+			options?: { syncToDevices?: boolean },
+		) =>
+			request<{
+				licensePlates: PersonLicensePlate[]
+				vehicle_plate_sync?: VehiclePlateSyncResult
+			}>(`${PERSONNEL_PREFIX}/persons/${personId}/license-plates`, {
+				method: "PUT",
+				body: JSON.stringify({
+					licensePlates,
+					...(options?.syncToDevices ? { syncToDevices: true } : {}),
+				}),
+				timeout: options?.syncToDevices
+					? PERSON_WITH_VEHICLE_SYNC_TIMEOUT_MS
+					: undefined,
+			}),
 		/** 上傳該人員大頭照（檔名由後端依姓名/工號組成，並自動更新 face_url） */
 		uploadFaceForPerson: (personId: number, file: File) => {
 			const form = new FormData()
@@ -330,6 +354,18 @@ export const usePersonnelApi = (): PersonnelApi => {
 		},
 		getLocationMemberIds: (locationId: number) =>
 			request<{ ids: number[] }>(`${PERSONNEL_PREFIX}/locations/${locationId}/member-ids`),
+		getLocationLicensePlates: (locationId: number) =>
+			request<{ items: LocationLicensePlateRow[] }>(
+				`${PERSONNEL_PREFIX}/locations/${locationId}/license-plates`
+			),
+		syncLocationLicensePlates: (locationId: number) =>
+			request<{ status: string }>(
+				`${PERSONNEL_PREFIX}/locations/${locationId}/sync-plates`,
+				{
+					method: "POST",
+					timeout: PERSON_WITH_VEHICLE_SYNC_TIMEOUT_MS,
+				},
+			),
 		replaceLocationMembers: (locationId: number, memberPersonIds: number[]) =>
 			request<Paged<Person>>(`${PERSONNEL_PREFIX}/locations/${locationId}/members`, {
 				method: "PUT",

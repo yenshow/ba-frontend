@@ -2,6 +2,7 @@ import type {
 	Person,
 	PersonLicensePlateFormItem,
 	PersonLicensePlateListType,
+	PersonLicensePlateSyncStatus,
 } from "~/types/personnel";
 import type {
 	VehicleLicensePlateAuditItem,
@@ -196,4 +197,53 @@ export const isapiPlateFormFromAuditRow = (row: VehicleLicensePlateAuditItem): I
 			? String(row.bindPersonId)
 			: "",
 });
+
+/** 平台地點車牌列 → ISAPI 表單（車牌管理 Step 2） */
+export const isapiPlateFormFromLocationRow = (row: {
+	plate_number: string;
+	list_type?: PersonLicensePlateListType;
+	effective_begin?: string | null;
+	effective_end?: string | null;
+	person_id: number;
+}): IsapiPlateFormModel => ({
+	licensePlate: row.plate_number,
+	listType: row.list_type ?? "allowList",
+	createTimeLocal: isoToDatetimeLocal(row.effective_begin) || defaultLicensePlateBeginLocal(),
+	effectiveTimeLocal: isoToDatetimeLocal(row.effective_end) || defaultLicensePlateEndLocal(),
+	bindPersonId: String(row.person_id),
+});
+
+export type PlateSyncPill = { label: string; className: string };
+
+const PLATE_SYNC_PILL_CLASS: Record<string, string> = {
+	synced: "bg-emerald-500/25 text-emerald-100 ring-emerald-400/40",
+	pending: "bg-amber-500/20 text-amber-100 ring-amber-400/35",
+	partial: "bg-orange-500/20 text-orange-100 ring-orange-400/35",
+	failed: "bg-rose-500/25 text-rose-100 ring-rose-400/40",
+};
+
+const PLATE_SYNC_PILL_LABEL: Record<string, string> = {
+	synced: "已同步",
+	pending: "待同步",
+	partial: "部分失敗",
+	failed: "失敗",
+};
+
+export const getPlateSyncPill = (
+	status?: PersonLicensePlateSyncStatus | string | null,
+): PlateSyncPill => {
+	const raw = String(status || "").trim().toLowerCase();
+	const key =
+		raw === "synced"
+			? "synced"
+			: raw === "partial"
+				? "partial"
+				: raw === "failed"
+					? "failed"
+					: "pending";
+	return {
+		label: PLATE_SYNC_PILL_LABEL[key] ?? "待同步",
+		className: `inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 2xl:text-sm ${PLATE_SYNC_PILL_CLASS[key]}`,
+	};
+};
 

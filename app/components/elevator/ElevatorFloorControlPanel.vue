@@ -1,21 +1,8 @@
 <template>
 	<div class="show-scrollbar flex h-full flex-col space-y-8 overflow-y-auto">
 		<div class="min-h-[220px] space-y-4">
-			<h3
-				class="people-unit-title bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
-			>
-				電梯控制
-			</h3>
-
 			<div
-				v-if="!deviceId"
-				class="flex min-h-[120px] items-center justify-center text-base text-white/60 2xl:text-lg"
-			>
-				此地點尚未指定電梯設備
-			</div>
-
-			<div
-				v-else-if="floors.length === 0"
+				v-if="floors.length === 0"
 				class="flex min-h-[120px] items-center justify-center text-base text-white/60 2xl:text-lg"
 			>
 				此地點尚未設定樓層
@@ -23,7 +10,6 @@
 
 			<template v-else>
 				<div class="space-y-2">
-					<p class="text-sm text-white/80 2xl:text-base">選擇樓層</p>
 					<div class="grid grid-cols-2 gap-2 2xl:gap-3">
 						<button
 							v-for="floor in floors"
@@ -109,7 +95,7 @@ const floors = computed(() => {
 })
 
 const selectedFloorLabel = computed(
-	() => floors.value.find((f) => f.index === selectedFloorIndex.value)?.label ?? "",
+	() => floors.value.find((f) => f.index === selectedFloorIndex.value)?.label ?? ""
 )
 
 watch(
@@ -118,7 +104,7 @@ watch(
 		const first = floors.value[0]?.index
 		selectedFloorIndex.value = first ?? 1
 	},
-	{ immediate: true },
+	{ immediate: true }
 )
 
 const commands: Array<{ value: ElevatorControlCommand; label: string }> = [

@@ -1,10 +1,9 @@
 import type { ComputedRef, Ref } from "vue"
-import type { useLocationAccessSync } from "~/composables/systems/personnel/useLocationAccessSync"
+import type { LocationMembersSync } from "~/composables/systems/personnel/useLocationMembersOnly"
 import { usePageSelectAll } from "~/composables/systems/personnel/usePageSelectAll"
 import { groupPersonsByPersonGroup } from "~/utils/personnelUtils"
 import type { Person } from "~/types/personnel"
 
-type AccessSync = ReturnType<typeof useLocationAccessSync>
 type MaybeRef<T> = Ref<T> | ComputedRef<T>
 
 export const LOCATION_MEMBERS_PANEL_MIN_HEIGHT = "min-h-[min(360px,50vh)]"
@@ -13,11 +12,11 @@ export const SYNC_TABLE_PANEL_MIN_HEIGHT = "min-h-[320px]"
 /** 地點可進出人員勾選（步驟 1）共用狀態，供門禁／車牌管理 Dialog 使用 */
 export const useLocationMembersPicker = (params: {
 	locationId: MaybeRef<number | null>
-	accessSync: MaybeRef<AccessSync | undefined>
+	membersSync: MaybeRef<LocationMembersSync | undefined>
 }) => {
 	const pickerCtx = computed(() => {
 		const id = unref(params.locationId)
-		const sync = unref(params.accessSync)
+		const sync = unref(params.membersSync)
 		if (id == null || !sync) return null
 		return { id, sync }
 	})

@@ -228,7 +228,7 @@
 		:can-update-plate="canUpdatePlate"
 		:can-delete-plate="canDeletePlate"
 		:can-edit-members="canSyncEdit"
-		:access-sync="accessSync"
+		:members-sync="membersSync"
 		@members-updated="handleVehicleMembersUpdated"
 	/>
 
@@ -272,8 +272,7 @@ import {
 import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter"
 import { useLocationModuleRbac, usePersonnelRbac, useVehicleAccessRbac } from "~/composables/core/useAccessGate"
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
-import { useLocationApi } from "~/composables/location/api/useLocationApi"
-import { useLocationAccessSync } from "~/composables/systems/personnel/useLocationAccessSync"
+import { useLocationMembersOnly } from "~/composables/systems/personnel/useLocationMembersOnly"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useApiBase } from "~/composables/core/useApiBase"
@@ -290,17 +289,14 @@ const {
 } = useLocationModuleRbac(PERM.vehicleAccess)
 const { canCreatePlate, canUpdatePlate, canDeletePlate, canResetStatistics, canBarrierControl } =
 	useVehicleAccessRbac()
-const { canSyncEdit, canDeviceSync } = usePersonnelRbac()
+const { canSyncEdit } = usePersonnelRbac()
 const personnelApi = usePersonnelApi()
-const locationApi = useLocationApi()
 const { showToast } = useToast()
 const { handleError: handleApiError } = useErrorHandler()
-const accessSync = useLocationAccessSync({
+const membersSync = useLocationMembersOnly({
 	personnelApi,
-	locationApi,
-	toast: { success: (m: string) => showToast("success", m), error: (m: string) => showToast("error", m) },
+	toast: { success: (m: string) => showToast("success", m) },
 	handleApiError,
-	canDeviceSync,
 })
 const {
 	filters,
