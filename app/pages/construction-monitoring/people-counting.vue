@@ -1,6 +1,6 @@
 <template>
 	<div>
-		<!-- 人流統計系統頁面內容 -->
+		<!-- 門禁管理頁面內容 -->
 		<div
 			class="flex min-w-0 items-stretch justify-center"
 			:class="isOverviewCollapsed ? 'gap-0' : 'gap-4 xl:gap-6 2xl:gap-8'"
@@ -70,7 +70,7 @@
 					</PermissionActionButton>
 					<PermissionActionButton
 						v-show="isAccessControl && selectedLocation"
-						:allowed="canDeviceSync || canSyncEdit"
+						:allowed="canOpenAccessManage"
 						aria-label="門禁管理"
 						class="absolute left-36 top-2 btn-monitoring-overlay"
 						@click="showAccessManageDialog = true"
@@ -206,14 +206,14 @@
 		v-model="showAccessManageDialog"
 		:location-id="selectedLocationNumericId"
 		:location-name="selectedLocationDisplayName"
-		:can-edit-members="canSyncEdit"
-		:can-device-sync="canDeviceSync"
+		:can-edit-members="canEditAccessMembers"
+		:can-device-sync="canResyncAccessDevices"
 		:access-sync="accessSync"
 		@synced="handleAccessManageSynced"
 		@members-updated="handleAccessManageSynced"
 	/>
 
-	<SimulationFrame v-model="showSimulationFrame" title="人流統計 - 完整報表">
+	<SimulationFrame v-model="showSimulationFrame" title="門禁管理 - 完整報表">
 		<PeopleCountingSimulation
 			:logs="simulationLogs"
 			:location-options="simulationLocationOptions"
@@ -250,7 +250,10 @@ import {
 	usePeopleCountingApi,
 	PEOPLE_COUNTING_FULL_REPORT_LIMIT,
 } from "~/composables/systems/peopleCounting/usePeopleCountingApi"
-import { useLocationModuleRbac, usePersonnelRbac } from "~/composables/core/useAccessGate"
+import {
+	useLocationModuleRbac,
+	usePeopleCountingAccessRbac,
+} from "~/composables/core/useAccessGate"
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { useToast } from "~/composables/core/useToast"
@@ -278,7 +281,8 @@ const {
 	canDeleteLocation,
 	canFullReport,
 } = useLocationModuleRbac(PERM.peopleCounting)
-const { canDeviceSync, canSyncEdit } = usePersonnelRbac()
+const { canOpenAccessManage, canEditAccessMembers, canResyncAccessDevices } =
+	usePeopleCountingAccessRbac()
 const personnelApi = usePersonnelApi()
 const locationApi = useLocationApi()
 const toast = useToast()
@@ -288,7 +292,7 @@ const accessSync = useLocationAccessSync({
 	locationApi,
 	toast,
 	handleApiError,
-	canDeviceSync,
+	canDeviceSync: canResyncAccessDevices,
 })
 
 // 使用統一的狀態管理
@@ -350,6 +354,7 @@ const selectedLocationDisplayName = computed(() => {
 const handleAccessManageSynced = async () => {
 	const id = selectedLocationNumericId.value
 	if (id == null) return
+	await loadLocations()
 	await loadLocationDetail(id)
 }
 
@@ -623,10 +628,8 @@ watch(
 onMounted(async () => {
 	cleanupWebSocket = setupEventListeners(async () => {
 		const locationId = selectedLocation.value?.locationId
-		await Promise.allSettled([
-			loadLocations(),
-			locationId ? loadLocationDetail(locationId) : Promise.resolve(),
-		])
+		await loadLocations()
+		if (locationId) await loadLocationDetail(locationId)
 	}, 500)
 
 	try {

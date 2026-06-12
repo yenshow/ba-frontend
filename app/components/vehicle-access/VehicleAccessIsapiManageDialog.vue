@@ -40,10 +40,13 @@
 			<DeviceSyncStep2Toolbar
 				title="步驟 2：設備同步"
 				description="顯示名單內車牌與同步狀態；編輯儲存後自動推送至攝影機，亦可手動重新同步。"
-				:warnings-count="plateSyncWarnings.length"
-				:can-resync="canDeviceSync"
+				:warnings-count="syncWarnings.length"
+				:can-resync="canResyncPlates"
 				:is-resync-disabled="isSyncButtonDisabled"
 				:is-resyncing="isCurrentlySyncing"
+				:location-name="locationName"
+				:entry-devices="deviceLabels.entry"
+				:exit-devices="deviceLabels.exit"
 				resync-aria-label="重新同步車牌至攝影機"
 				@open-warnings="handleOpenWarnings"
 				@resync="handleResync"
@@ -60,12 +63,6 @@
 					</PermissionActionButton>
 				</template>
 			</DeviceSyncStep2Toolbar>
-
-			<DeviceLocationDeviceBadges
-				:location-name="locationName"
-				:entry="deviceLabels.entry"
-				:exit="deviceLabels.exit"
-			/>
 
 			<AsyncPanel
 				:loading="isPlatesLoading"
@@ -152,7 +149,7 @@
 
 	<PersonnelSyncWarningsDialog
 		v-model="showWarningsDialog"
-		:sync-warnings="plateSyncWarnings"
+		:sync-warnings="syncWarnings"
 		:sync-warning-type-label="syncWarningTypeLabel"
 	/>
 
@@ -175,7 +172,6 @@ import type { VehicleAccessLocation } from "~/types/vehicleAccess"
 import type { LocationLicensePlateRow } from "~/types/personnel"
 import DeviceManageDialogShell from "~/components/personnel/device-sync/DeviceManageDialogShell.vue"
 import DeviceSyncStep2Toolbar from "~/components/personnel/device-sync/DeviceSyncStep2Toolbar.vue"
-import DeviceLocationDeviceBadges from "~/components/personnel/device-sync/DeviceLocationDeviceBadges.vue"
 import SyncStatusPill from "~/components/personnel/device-sync/SyncStatusPill.vue"
 import LocationMembersStepPanel from "~/components/personnel/location-access/LocationMembersStepPanel.vue"
 import PersonnelSyncWarningsDialog from "~/components/personnel/dialogs/PersonnelSyncWarningsDialog.vue"
@@ -189,7 +185,7 @@ import {
 	useLocationMembersPicker,
 	LOCATION_MEMBERS_PANEL_MIN_HEIGHT,
 	SYNC_TABLE_PANEL_MIN_HEIGHT,
-} from "~/composables/systems/personnel/useLocationMembersPicker"
+} from "~/composables/systems/personnel/useLocationMembersStep"
 import { parseLocationNumericId } from "~/utils/personnelUtils"
 import {
 	formatLicensePlateDisplayTime,
@@ -203,13 +199,14 @@ const props = defineProps<{
 	canUpdatePlate?: boolean
 	canDeletePlate?: boolean
 	canEditMembers: boolean
-	canDeviceSync: boolean
+	canResyncPlates: boolean
 	plateSync: LocationPlateSync
 }>()
 
 const emit = defineEmits<{
 	"update:modelValue": [value: boolean]
 	membersUpdated: []
+	synced: []
 }>()
 
 const manageStep = ref<1 | 2>(1)
@@ -222,9 +219,10 @@ const locationName = computed(() => props.location?.name ?? null)
 const {
 	isSingleLocationSyncing,
 	showWarningsDialog,
+	syncWarnings,
 	syncWarningTypeLabel,
 	openWarningsDialog,
-	syncWarningsForLocation,
+	refreshSyncWarnings,
 	getLocationDevicesLabel,
 	setLocationDisplayName,
 	prepareLocationDialog,
@@ -268,12 +266,6 @@ const {
 	membersSync: toRef(props, "plateSync"),
 })
 
-const plateSyncWarnings = computed(() =>
-	locationId.value != null
-		? syncWarningsForLocation(locationId.value, locationName.value)
-		: [],
-)
-
 const deviceLabels = computed(() =>
 	locationId.value != null ? getLocationDevicesLabel(locationId.value) : { entry: [], exit: [] },
 )
@@ -305,12 +297,14 @@ const handleApplyMembers = async () => {
 
 const handleOpenWarnings = () => {
 	if (locationId.value == null) return
-	openWarningsDialog(locationId.value, locationName.value)
+	refreshSyncWarnings(locationId.value, locationName.value)
+	openWarningsDialog()
 }
 
 const handleResync = async () => {
 	if (locationId.value == null) return
 	await syncOneLocation(locationId.value, locationName.value)
+	emit("synced")
 }
 
 const handleSavePlate = async () => {

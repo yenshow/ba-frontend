@@ -16,11 +16,10 @@ export type CentralShellModule = SystemModule & {
 
 type ModulePresentation = {
 	shellCategory: CentralShellCategory
-	displayName?: string
 	sortInCategory: number
 }
 
-/** routePrefix → Central 展示分類、顯示名稱、分類內排序 */
+/** routePrefix → Central 展示分類、分類內排序（顯示名稱由後端 registry／catalog SSOT） */
 const CENTRAL_MODULE_PRESENTATION: Record<string, ModulePresentation> = {
 	"/core/device": { shellCategory: "core", sortInCategory: 1 },
 	"/core/personnel": { shellCategory: "core", sortInCategory: 2 },
@@ -28,7 +27,6 @@ const CENTRAL_MODULE_PRESENTATION: Record<string, ModulePresentation> = {
 	"/core/area-point-map": { shellCategory: "core", sortInCategory: 4 },
 	"/construction-monitoring/people-counting": {
 		shellCategory: "access-control",
-		displayName: "門禁管理",
 		sortInCategory: 1,
 	},
 	"/construction-monitoring/vehicle-access": {
@@ -37,7 +35,6 @@ const CENTRAL_MODULE_PRESENTATION: Record<string, ModulePresentation> = {
 	},
 	"/infrastructure/elevator": {
 		shellCategory: "access-control",
-		displayName: "電梯管理",
 		sortInCategory: 3,
 	},
 	"/infrastructure/lighting": { shellCategory: "utilities", sortInCategory: 1 },
@@ -45,7 +42,6 @@ const CENTRAL_MODULE_PRESENTATION: Record<string, ModulePresentation> = {
 	"/infrastructure/power": { shellCategory: "utilities", sortInCategory: 3 },
 	"/infrastructure/drainage": {
 		shellCategory: "utilities",
-		displayName: "排水系統",
 		sortInCategory: 4,
 	},
 	"/infrastructure/air-circulation": { shellCategory: "utilities", sortInCategory: 5 },
@@ -99,7 +95,6 @@ export const applyCentralModulePresentation = (modules: SystemModule[]): Central
 		const shellCategory = preset?.shellCategory ?? BACKEND_CATEGORY_FALLBACK[module.category]
 		return {
 			...module,
-			name: preset?.displayName ?? module.name,
 			shellCategory,
 			sortInCategory: preset?.sortInCategory ?? module.id,
 		}

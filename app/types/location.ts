@@ -22,16 +22,16 @@ export type SystemType =
 export const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
 	environment: "環境監測",
 	lighting: "照明系統",
-	drainage: "衛生排水",
+	drainage: "排水系統",
 	hvac: "空調系統",
 	air_circulation: "空氣循環",
 	power: "電力系統",
 	fire: "消防系統",
 	emergency_rescue: "緊急求救",
 	smoke_alarm: "煙霧警報",
-	people_counting: "人流統計",
+	people_counting: "門禁管理",
 	vehicle_access: "車輛進出",
-	elevator: "電梯系統",
+	elevator: "電梯管理",
 };
 
 export const getSystemTypeLabel = (systemType: SystemType): string =>

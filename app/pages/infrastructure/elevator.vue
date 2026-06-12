@@ -197,14 +197,14 @@
 		v-model="showFloorManageDialog"
 		:location-id="selectedLocationNumericId"
 		:location-name="selectedLocationDisplayName"
-		:can-edit-floors="canSyncEdit"
+		:can-edit-floors="canFloorManage"
 		:can-device-sync="canFloorManage"
 		:floor-sync="floorSync"
 		@synced="handleFloorManageSynced"
 		@floors-updated="handleFloorManageSynced"
 	/>
 
-	<SimulationFrame v-model="showSimulationFrame" title="電梯系統 - 完整報表">
+	<SimulationFrame v-model="showSimulationFrame" title="電梯管理 - 完整報表">
 		<ElevatorEventSimulation
 			:logs="simulationLogs"
 			:location-options="simulationLocationOptions"
@@ -233,7 +233,7 @@ import {
 	useZoneManagement,
 	ZONE_DIALOG_BATCH_SAVE_OPTIONS,
 } from "~/composables/location/management/useZoneManagement"
-import { useLocationModuleRbac, usePersonnelRbac } from "~/composables/core/useAccessGate"
+import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useElevatorSyncEngine } from "~/composables/systems/elevator/useElevatorSyncEngine"
@@ -259,7 +259,6 @@ const {
 	canFloorManage,
 } = useLocationModuleRbac(PERM.elevator)
 
-const { canSyncEdit } = usePersonnelRbac()
 const toast = useToast()
 const { handleError: handleApiError } = useErrorHandler()
 const elevatorApi = useElevatorApi()

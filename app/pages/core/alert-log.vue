@@ -129,7 +129,13 @@ import { useAlertEventBus } from "~/composables/monitoring/alertMonitor/useAlert
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi"
 import type { AlertNewEvent, AlertUpdatedEvent } from "~/types/websocket"
-import { getSourceLabel, getTypeLabel, getSeverityLabel } from "~/utils/alertUtils"
+import {
+	ALERT_LOG_SOURCE_FILTER_KEYS,
+	buildAlertSourceFilterOptions,
+	getSourceLabel,
+	getTypeLabel,
+	getSeverityLabel,
+} from "~/utils/alertUtils"
 import { getTodayDateRangeUTC, formatDateTime } from "~/utils/dateUtils"
 import { exportCsv } from "~/utils/csvExport"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
@@ -214,18 +220,7 @@ const statusOptions = [
 	{ value: "ignored", label: "已忽視" },
 ]
 
-// 系統來源選項
-const sourceOptions = [
-	{ value: "", label: "全部系統" },
-	{ value: "device", label: "設備系統" },
-	{ value: "environment", label: "環境系統" },
-	{ value: "drainage", label: "衛生排水系統" },
-	{ value: "air_circulation", label: "空氣循環系統" },
-	{ value: "power", label: "電力系統" },
-	{ value: "fire", label: "消防系統" },
-	{ value: "smoke_alarm", label: "煙霧警報系統" },
-	{ value: "emergency_rescue", label: "緊急求救系統" },
-]
+const sourceOptions = buildAlertSourceFilterOptions(ALERT_LOG_SOURCE_FILTER_KEYS)
 
 // 時間範圍
 const timeRange = ref({

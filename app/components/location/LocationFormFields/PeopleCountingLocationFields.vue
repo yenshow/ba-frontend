@@ -134,7 +134,7 @@
 		<!-- 門禁設備：入口／出口設備（本系統） -->
 		<template v-else-if="dataSource === 'access_control'">
 			<p class="mb-3 text-xs text-white/60 2xl:text-sm">
-				人員群組依名單內人員自動顯示；請至人流統計 → 門禁管理維護地點名單與設備同步。
+				人員群組依名單內人員自動顯示；請至門禁管理維護地點名單與設備同步。
 			</p>
 			<div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
 				<div :class="fieldLabelClass">

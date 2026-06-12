@@ -50,7 +50,7 @@ const formatZoneLocationLabel = (
 
 /**
  * 後端部分子系統（例如緊急求救）在 message 內仍可能回傳 `source: id` 的原始 label（如 `emergency_rescue: 140`）。
- * 前端 toast 需對齊「衛生排水」的顯示方式：以 `區域-地點` 呈現，避免顯示系統 key。
+ * 前端 toast 需對齊 Modbus 子系統的顯示方式：以 `區域-地點` 呈現，避免顯示系統 key。
  */
 const normalizeAlertMessageForToast = (alert: Alert): string => {
 	const raw = String(alert.message ?? "").trim()

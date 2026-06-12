@@ -455,7 +455,7 @@
 								v-if="elevatorLocationOptions.length === 0"
 								class="rounded-xl border border-dashed border-white/15 bg-white/5 px-3 py-4 text-sm text-white/50"
 							>
-								尚無電梯地點或地點尚未設定樓層，請先於電梯系統區域管理設定。
+								尚無電梯地點或地點尚未設定樓層，請先於電梯管理區域管理設定。
 							</div>
 
 							<div

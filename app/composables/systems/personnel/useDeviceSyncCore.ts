@@ -23,7 +23,8 @@ const waitUntilVisible = async () => {
 const hasPendingPlates = (rows: LocationLicensePlateRow[]) =>
 	rows.some((row) => String(row.isapi_sync_status || "").toLowerCase() === "pending")
 
-export const useImplicitDeviceSyncObserver = () => {
+/** 隱性推送輪詢（人流 job / 梯控 job / 車牌列狀態） */
+export const useDeviceSyncObserver = () => {
 	const isUiLocked = ref(false)
 
 	const runLocked = async <T>(task: () => Promise<T>): Promise<T> => {
@@ -134,5 +135,36 @@ export const useImplicitDeviceSyncObserver = () => {
 		watchElevatorJob,
 		watchPlateStatus,
 		runLocked,
+	}
+}
+
+/** @deprecated 使用 useDeviceSyncObserver */
+export const useImplicitDeviceSyncObserver = useDeviceSyncObserver
+
+type SyncableLocRow = {
+	id: number
+	name?: string
+	entry_devices?: Array<{ name?: string }>
+	exit_devices?: Array<{ name?: string }>
+}
+
+/** 快取 syncable-locations 的入口／出口設備名稱 */
+export const indexSyncableLocationDevices = (
+	locations: SyncableLocRow[] | undefined,
+	store: Record<number, { entry: string[]; exit: string[] }>,
+	nameStore?: Record<number, string>,
+) => {
+	const list = Array.isArray(locations) ? locations : []
+	for (const loc of list) {
+		const id = Number(loc.id)
+		if (!Number.isFinite(id)) continue
+		const entry = Array.isArray(loc.entry_devices)
+			? loc.entry_devices.map((d) => String(d?.name || "").trim()).filter(Boolean)
+			: []
+		const exit = Array.isArray(loc.exit_devices)
+			? loc.exit_devices.map((d) => String(d?.name || "").trim()).filter(Boolean)
+			: []
+		store[Math.trunc(id)] = { entry, exit }
+		if (nameStore && loc.name) nameStore[Math.trunc(id)] = String(loc.name)
 	}
 }

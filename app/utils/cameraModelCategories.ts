@@ -4,7 +4,7 @@ export const CAMERA_MODEL_CATEGORY_PEOPLE_COUNTING = "people_counting"
 export const CAMERA_MODEL_CATEGORY_LICENSE_PLATE = "license_plate_recognition"
 
 export const CAMERA_MODEL_CATEGORY_OPTIONS: Array<{ value: string; label: string }> = [
-	{ value: "people_counting", label: "人流統計" },
+	{ value: "people_counting", label: "門禁管理" },
 	{ value: "license_plate_recognition", label: "車牌辨識" },
 	{ value: "surveillance_2mp", label: "影像監控 - 2MP" },
 	{ value: "surveillance_4mp", label: "影像監控 - 4MP" },

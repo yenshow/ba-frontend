@@ -215,6 +215,42 @@ export const usePersonnelRbac = () => {
 	}
 }
 
+/** 門禁管理：名單編輯與門禁設備重新同步 */
+export const usePeopleCountingAccessRbac = () => {
+	const { canDeviceSync, canSyncEdit, canManageSync } = usePersonnelRbac()
+	return {
+		canOpenAccessManage: canManageSync,
+		canEditAccessMembers: canSyncEdit,
+		canResyncAccessDevices: canDeviceSync,
+	}
+}
+
+/** 車輛進出「車牌管理」：名單、車牌 CRUD 與攝影機重新同步 */
+export const useVehiclePlateManageRbac = () => {
+	const { useHasAnyPermission } = useAuth()
+	const v = PERM.vehicleAccess
+	const { canSyncEdit, canDeviceSync } = usePersonnelRbac()
+	const { canManagePlates, canCreatePlate, canUpdatePlate, canDeletePlate } =
+		useVehicleAccessRbac()
+	return {
+		canOpenPlateManage: useHasAnyPermission(
+			v.plateManage,
+			v.plateCreate,
+			v.plateUpdate,
+			v.plateDelete,
+			PERM.personnel.syncEdit,
+		),
+		canEditPlateMembers: useHasAnyPermission(v.plateManage, PERM.personnel.syncEdit),
+		canResyncPlates: useHasAnyPermission(v.plateManage, PERM.personnel.deviceSync),
+		canManagePlates,
+		canCreatePlate,
+		canUpdatePlate,
+		canDeletePlate,
+		canSyncEdit,
+		canDeviceSync,
+	}
+}
+
 export const useAlertLogRbac = () => {
 	const { useHasPermission, useHasAnyPermission } = useAuth()
 	const p = PERM.alertLog

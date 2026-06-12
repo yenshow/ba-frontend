@@ -204,12 +204,11 @@
 								:can-resync="canDeviceSync"
 								:is-resync-disabled="isSyncButtonDisabled"
 								:is-resyncing="isCurrentlySyncing"
+								:location-name="locationName"
 								resync-aria-label="重新同步至梯控與門禁設備"
 								@open-warnings="openWarningsDialog"
 								@resync="handleSync"
 							/>
-
-							<DeviceLocationDeviceBadges :location-name="locationName" />
 
 							<AsyncPanel
 								:loading="isSyncCandidatesLoading"
@@ -321,16 +320,15 @@ import AsyncPanel from "~/components/common/AsyncPanel.vue"
 import ContentSkeleton from "~/components/common/ContentSkeleton.vue"
 import DeviceManageDialogShell from "~/components/personnel/device-sync/DeviceManageDialogShell.vue"
 import DeviceSyncStep2Toolbar from "~/components/personnel/device-sync/DeviceSyncStep2Toolbar.vue"
-import DeviceLocationDeviceBadges from "~/components/personnel/device-sync/DeviceLocationDeviceBadges.vue"
 import SyncStatusPill from "~/components/personnel/device-sync/SyncStatusPill.vue"
 import PersonnelSyncWarningsDialog from "~/components/personnel/dialogs/PersonnelSyncWarningsDialog.vue"
-import type { ElevatorFloorSync } from "~/composables/systems/elevator/useElevatorFloorSync"
+import type { ElevatorFloorSync } from "~/composables/systems/elevator/useElevatorSyncEngine"
 import { useElevatorFloorAccess } from "~/composables/systems/elevator/useElevatorFloorAccess"
 import { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { useToast } from "~/composables/core/useToast"
 import { personHasAccessCard } from "~/utils/personnelUtils"
-import { SYNC_TABLE_PANEL_MIN_HEIGHT } from "~/composables/systems/personnel/useLocationMembersPicker"
+import { SYNC_TABLE_PANEL_MIN_HEIGHT } from "~/composables/systems/personnel/useLocationMembersStep"
 
 const FLOOR_PANEL_MIN_HEIGHT = "min-h-[min(360px,50vh)]"
 

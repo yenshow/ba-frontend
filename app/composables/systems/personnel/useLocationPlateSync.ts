@@ -1,5 +1,5 @@
 import { computed, reactive, ref, type Ref } from "vue"
-import type { LocationLicensePlateRow } from "~/types/personnel"
+import type { LocationLicensePlateRow, SyncWarning } from "~/types/personnel"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import type { useLocationApi } from "~/composables/location/api/useLocationApi"
 import {
@@ -12,8 +12,8 @@ import {
 	getNextOffset,
 	getPrevOffset,
 } from "~/composables/systems/personnel/personnelList"
-import { useLocationMembersOnly } from "~/composables/systems/personnel/useLocationMembersOnly"
-import { useImplicitDeviceSyncObserver } from "~/composables/systems/personnel/useImplicitDeviceSyncObserver"
+import { useLocationMembersOnly } from "~/composables/systems/personnel/useLocationMembersStep"
+import { useDeviceSyncObserver, indexSyncableLocationDevices } from "~/composables/systems/personnel/useDeviceSyncCore"
 import { resolveUserFacingCatchMessage } from "~/utils/errorUtils"
 import {
 	createDefaultIsapiPlateForm,
@@ -31,10 +31,10 @@ export const useLocationPlateSync = (params: {
 	locationApi: ReturnType<typeof useLocationApi>
 	toast: { success: (msg: string) => void }
 	handleApiError: (err: unknown, fallbackMessage: string) => string | void | null
-	canDeviceSync: Ref<boolean>
+	canResyncPlates: Ref<boolean>
 	toastError?: (msg: string) => void
 }) => {
-	const { personnelApi, locationApi, toast, handleApiError, canDeviceSync, toastError } = params
+	const { personnelApi, locationApi, toast, handleApiError, canResyncPlates, toastError } = params
 	const notifyError = (msg: string) => {
 		if (toastError) toastError(msg)
 		else handleApiError(new Error(msg), msg)
@@ -49,27 +49,16 @@ export const useLocationPlateSync = (params: {
 	const activeSyncLocationId = ref<number | null>(null)
 	const isSyncingPlates = ref(false)
 	const showWarningsDialog = ref(false)
+	const syncWarnings = ref<SyncWarning[]>([])
 	const locationNameById = reactive<Record<number, string>>({})
 
 	const membersOnly = useLocationMembersOnly({ personnelApi, toast, handleApiError })
-	const implicitObserver = useImplicitDeviceSyncObserver()
+	const deviceSyncObserver = useDeviceSyncObserver()
 
 	const loadLocationSyncDevicesLabels = async () => {
 		try {
 			const res = await locationApi.getVehicleAccessSyncableLocationsWithDevices()
-			const list = Array.isArray(res?.locations) ? res.locations : []
-			for (const loc of list) {
-				const id = Number(loc.id)
-				if (!Number.isFinite(id)) continue
-				const entry = Array.isArray(loc.entry_devices)
-					? loc.entry_devices.map((d) => String(d?.name || "").trim()).filter(Boolean)
-					: []
-				const exit = Array.isArray(loc.exit_devices)
-					? loc.exit_devices.map((d) => String(d?.name || "").trim()).filter(Boolean)
-					: []
-				syncDevicesByLocationId[Math.trunc(id)] = { entry, exit }
-				if (loc.name) locationNameById[Math.trunc(id)] = String(loc.name)
-			}
+			indexSyncableLocationDevices(res?.locations, syncDevicesByLocationId, locationNameById)
 		} catch {
 			// ignore
 		}
@@ -138,29 +127,29 @@ export const useLocationPlateSync = (params: {
 		)
 	}
 
-	const syncWarningsForLocation = (locationId: number, locationName?: string | null) =>
-		locationPlateRowsToSyncWarnings(
+	const refreshSyncWarnings = (locationId: number, locationName?: string | null) => {
+		syncWarnings.value = locationPlateRowsToSyncWarnings(
 			getPlatesForLocation(locationId),
 			locationName ?? locationNameById[locationId] ?? null,
 		)
+	}
 
-	const openWarningsDialog = (locationId: number, locationName?: string | null) => {
-		const warnings = syncWarningsForLocation(locationId, locationName)
-		if (warnings.length <= 0) return
+	const openWarningsDialog = () => {
+		if (syncWarnings.value.length <= 0) return
 		showWarningsDialog.value = true
 	}
 
 	const isSingleLocationSyncing = computed(
-		() => isSyncingPlates.value || implicitObserver.isUiLocked.value,
+		() => isSyncingPlates.value || deviceSyncObserver.isUiLocked.value,
 	)
 
 	const isLocationCurrentlySyncing = (locationId: number) =>
-		(isSyncingPlates.value || implicitObserver.isUiLocked.value) &&
+		(isSyncingPlates.value || deviceSyncObserver.isUiLocked.value) &&
 		activeSyncLocationId.value === locationId
 
 	const isLocationSyncButtonDisabled = (locationId: number) => {
-		if (!canDeviceSync.value) return true
-		if (implicitObserver.isUiLocked.value) return true
+		if (!canResyncPlates.value) return true
+		if (deviceSyncObserver.isUiLocked.value) return true
 		if (isSyncingPlates.value && activeSyncLocationId.value === locationId) return true
 		if (
 			isSyncingPlates.value &&
@@ -173,16 +162,16 @@ export const useLocationPlateSync = (params: {
 	}
 
 	const syncOneLocation = async (locationId: number, locationName?: string | null) => {
-		if (!canDeviceSync.value) return
+		if (!canResyncPlates.value) return
 		activeSyncLocationId.value = locationId
 		isSyncingPlates.value = true
 		try {
 			await personnelApi.syncLocationLicensePlates(locationId)
-			await implicitObserver.watchPlateStatus(personnelApi, locationId)
+			await deviceSyncObserver.watchPlateStatus(personnelApi, locationId)
 			await ensurePlates(locationId)
-			const warnings = syncWarningsForLocation(locationId, locationName)
-			if (warnings.length > 0) {
-				notifyError(`重新同步完成（含 ${warnings.length} 筆警告）`)
+			refreshSyncWarnings(locationId, locationName)
+			if (syncWarnings.value.length > 0) {
+				notifyError(`重新同步完成（含 ${syncWarnings.value.length} 筆警告）`)
 				showWarningsDialog.value = true
 			} else {
 				toast.success("已重新同步車牌至攝影機")
@@ -196,9 +185,9 @@ export const useLocationPlateSync = (params: {
 	}
 
 	const finalizePlateSyncFeedback = (locationId: number, locationName?: string | null) => {
-		const warnings = syncWarningsForLocation(locationId, locationName)
-		if (warnings.length > 0) {
-			notifyError(`同步完成（含 ${warnings.length} 筆警告）`)
+		refreshSyncWarnings(locationId, locationName)
+		if (syncWarnings.value.length > 0) {
+			notifyError(`同步完成（含 ${syncWarnings.value.length} 筆警告）`)
 			showWarningsDialog.value = true
 		} else {
 			toast.success("已套用名單並同步至設備")
@@ -214,7 +203,7 @@ export const useLocationPlateSync = (params: {
 		if (res.plateSync?.triggered) {
 			activeSyncLocationId.value = locationId
 			try {
-				await implicitObserver.watchPlateStatus(personnelApi, locationId)
+				await deviceSyncObserver.watchPlateStatus(personnelApi, locationId)
 				await ensurePlates(locationId)
 				finalizePlateSyncFeedback(locationId, locationName)
 			} catch (err) {
@@ -265,6 +254,7 @@ export const useLocationPlateSync = (params: {
 
 	const ensureStep2Data = async (locationId: number) => {
 		await Promise.all([loadPersonBindOptions(locationId), ensurePlates(locationId)])
+		refreshSyncWarnings(locationId)
 	}
 
 	const pushPersonPlatesToDevices = async (locationId: number, personId: number, plates: ReturnType<typeof licensePlateItemsToPayload>) => {
@@ -364,9 +354,10 @@ export const useLocationPlateSync = (params: {
 	return {
 		isSingleLocationSyncing,
 		showWarningsDialog,
+		syncWarnings,
 		syncWarningTypeLabel,
 		openWarningsDialog,
-		syncWarningsForLocation,
+		refreshSyncWarnings,
 		getLocationDevicesLabel,
 		setLocationDisplayName,
 		prepareLocationDialog,

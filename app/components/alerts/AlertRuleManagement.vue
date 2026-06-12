@@ -174,7 +174,9 @@ import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import {
+	ALERT_RULE_SOURCE_FILTER_KEYS,
 	alertSourceToSystemType,
+	buildAlertSourceFilterOptions,
 	formatAlertRuleConditionDisplay,
 	getSeverityLabel,
 } from "~/utils/alertUtils"
@@ -235,19 +237,7 @@ const editingRule = ref<AlertRule | null>(null)
 const ruleOffset = ref(0)
 const ruleLimit = 10
 
-const ruleSourceOptions = [
-	{ value: "", label: "全部系統" },
-	{ value: "device", label: "設備系統" },
-	{ value: "environment", label: "環境系統" },
-	{ value: "lighting", label: "照明系統" },
-	{ value: "drainage", label: "衛生排水系統" },
-	{ value: "power", label: "電力系統" },
-	{ value: "hvac", label: "空調系統" },
-	{ value: "air_circulation", label: "空氣循環系統" },
-	{ value: "fire", label: "消防系統" },
-	{ value: "smoke_alarm", label: "煙霧警報系統" },
-	{ value: "emergency_rescue", label: "緊急求救系統" },
-]
+const ruleSourceOptions = buildAlertSourceFilterOptions(ALERT_RULE_SOURCE_FILTER_KEYS)
 
 const tableHeaderClass = "py-3 2xl:py-4 px-4 2xl:px-6 text-sm 2xl:text-base text-white/80"
 const tableCellClass = "py-3 2xl:py-4 px-4 2xl:px-6"

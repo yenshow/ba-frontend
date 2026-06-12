@@ -4,7 +4,7 @@ import type { useElevatorApi } from "~/composables/systems/elevator/useElevatorA
 import { clampOffset, getNextOffset, getPrevOffset } from "~/composables/systems/personnel/personnelList"
 import { finalizeSyncWarningsForDisplay } from "~/utils/personnelUtils"
 import type { SyncWarning } from "~/types/personnel"
-import { useImplicitDeviceSyncObserver } from "~/composables/systems/personnel/useImplicitDeviceSyncObserver"
+import { useDeviceSyncObserver } from "~/composables/systems/personnel/useDeviceSyncCore"
 
 type ElevatorApi = ReturnType<typeof useElevatorApi>
 
@@ -17,7 +17,7 @@ export const useElevatorSyncEngine = (params: {
 	canDeviceSync: Ref<boolean>
 }) => {
 	const { elevatorApi, toast, handleApiError, canDeviceSync } = params
-	const implicitObserver = useImplicitDeviceSyncObserver()
+	const deviceSyncObserver = useDeviceSyncObserver()
 
 	const syncCandidatesByLocation = reactive<Record<number, ElevatorSyncCandidate[]>>({})
 	const hasAccessDevicesByLocation = reactive<Record<number, boolean>>({})
@@ -104,7 +104,7 @@ export const useElevatorSyncEngine = (params: {
 	const pollFloorSyncJob = async (jobId: string) => {
 		isPollingSyncJob.value = true
 		try {
-			const job = await implicitObserver.watchElevatorJob(elevatorApi, jobId, {
+			const job = await deviceSyncObserver.watchElevatorJob(elevatorApi, jobId, {
 				onTick: (tickJob) => {
 					activeSyncJob.value = tickJob
 				},
@@ -139,7 +139,7 @@ export const useElevatorSyncEngine = (params: {
 
 	const isLocationSyncButtonDisabled = (locationId: number) => {
 		if (!canDeviceSync.value) return true
-		if (implicitObserver.isUiLocked.value) return true
+		if (deviceSyncObserver.isUiLocked.value) return true
 		if (isPollingSyncJob.value && activeSyncLocationId.value === locationId) return true
 		if (
 			isPollingSyncJob.value &&
@@ -236,7 +236,7 @@ export const useElevatorSyncEngine = (params: {
 	const watchApplySyncJob = async (locationId: number, jobId: string) => {
 		activeSyncLocationId.value = locationId
 		try {
-			const job = await implicitObserver.watchElevatorJob(elevatorApi, jobId, {
+			const job = await deviceSyncObserver.watchElevatorJob(elevatorApi, jobId, {
 				onTick: (tickJob) => {
 					activeSyncJob.value = tickJob
 				},
@@ -256,7 +256,7 @@ export const useElevatorSyncEngine = (params: {
 	}
 
 	const isUiLocked = computed(
-		() => isPollingSyncJob.value || implicitObserver.isUiLocked.value,
+		() => isPollingSyncJob.value || deviceSyncObserver.isUiLocked.value,
 	)
 
 	return {
@@ -304,3 +304,5 @@ export const useElevatorSyncEngine = (params: {
 		isUiLocked,
 	}
 }
+
+export type ElevatorFloorSync = ReturnType<typeof useElevatorSyncEngine>

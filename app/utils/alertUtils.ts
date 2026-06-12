@@ -1,5 +1,6 @@
 import type { AlertSource, AlertType, AlertSeverity } from "~/types/alert"
 import type { ModbusStatusPointDef, SystemType } from "~/types/location"
+import { SYSTEM_TYPE_LABELS } from "~/types/location"
 import type { AlertRule } from "~/types/alert"
 
 /** 與環境／照明監控一致：透明度脈動頻率（對應 tailwind.css `.blink-slow` / `.blink-fast`、地圖點 `.alert-dot-flash-*`） */
@@ -41,22 +42,69 @@ export const alertFlashModeToMapDotClass = (mode: AlertFlashMode): string => {
 	return ""
 }
 
-/**
- * 取得系統來源標籤
- */
-export const getSourceLabel = (source: AlertSource | string): string => {
-	const labels: Record<string, string> = {
-		device: "設備",
-		environment: "環境",
-		drainage: "衛生排水",
-		air_circulation: "空氣循環",
-		power: "電力",
-		fire: "消防",
-		smoke_alarm: "煙霧警報",
-		emergency_rescue: "緊急求救",
-	}
-	return labels[source] || source
+/** 警報來源顯示名稱（Central；Modbus 子系統對齊 SYSTEM_TYPE_LABELS） */
+export const ALERT_SOURCE_LABELS: Record<string, string> = {
+	device: "設備",
+	environment: "環境品質",
+	lighting: SYSTEM_TYPE_LABELS.lighting,
+	hvac: SYSTEM_TYPE_LABELS.hvac,
+	drainage: SYSTEM_TYPE_LABELS.drainage,
+	air_circulation: SYSTEM_TYPE_LABELS.air_circulation,
+	power: SYSTEM_TYPE_LABELS.power,
+	fire: SYSTEM_TYPE_LABELS.fire,
+	smoke_alarm: SYSTEM_TYPE_LABELS.smoke_alarm,
+	emergency_rescue: SYSTEM_TYPE_LABELS.emergency_rescue,
 }
+
+export const getSourceLabel = (source: AlertSource | string): string =>
+	ALERT_SOURCE_LABELS[source] ?? String(source)
+
+const ALERT_SOURCE_FILTER_SUFFIX_KEYS = new Set([
+	"device",
+	"environment",
+	"air_circulation",
+	"power",
+	"fire",
+	"smoke_alarm",
+	"emergency_rescue",
+])
+
+export const getAlertSourceFilterLabel = (source: string): string => {
+	const base = getSourceLabel(source)
+	return ALERT_SOURCE_FILTER_SUFFIX_KEYS.has(source) ? `${base}系統` : base
+}
+
+export const buildAlertSourceFilterOptions = (sources: readonly string[]) => [
+	{ value: "", label: "全部系統" },
+	...sources.map((value) => ({
+		value,
+		label: getAlertSourceFilterLabel(value),
+	})),
+]
+
+export const ALERT_LOG_SOURCE_FILTER_KEYS = [
+	"device",
+	"environment",
+	"drainage",
+	"air_circulation",
+	"power",
+	"fire",
+	"smoke_alarm",
+	"emergency_rescue",
+] as const
+
+export const ALERT_RULE_SOURCE_FILTER_KEYS = [
+	"device",
+	"environment",
+	"lighting",
+	"drainage",
+	"power",
+	"hvac",
+	"air_circulation",
+	"fire",
+	"smoke_alarm",
+	"emergency_rescue",
+] as const
 
 /**
  * 取得類型標籤

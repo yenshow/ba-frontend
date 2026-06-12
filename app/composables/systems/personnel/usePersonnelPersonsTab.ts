@@ -854,8 +854,8 @@ export const usePersonnelPersonsTab = (params: {
 				: ""
 			toast.success(
 				mode === "update"
-					? `已更新人員。${plateHint}請至人流統計 → 門禁管理設定地點名單並同步門禁設備。`.trim()
-					: `已新增人員。${plateHint}請至人流統計 → 門禁管理設定地點名單並同步門禁設備。`.trim(),
+					? `已更新人員。${plateHint}請至門禁管理設定地點名單並同步門禁設備。`.trim()
+					: `已新增人員。${plateHint}請至門禁管理設定地點名單並同步門禁設備。`.trim(),
 			)
 			showPersonDialog.value = false
 			void loadPersons()
