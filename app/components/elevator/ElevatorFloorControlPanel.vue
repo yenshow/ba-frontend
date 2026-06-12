@@ -108,10 +108,10 @@ watch(
 )
 
 const commands: Array<{ value: ElevatorControlCommand; label: string }> = [
-	{ value: "open", label: "開門" },
-	{ value: "close", label: "關門" },
+	{ value: "open", label: "開啟" },
+	{ value: "close", label: "關閉" },
 	{ value: "normally_open", label: "常開" },
-	{ value: "normally_closed", label: "常關" },
+	{ value: "normally_closed", label: "常閉" },
 ]
 
 const handleControl = async (command: ElevatorControlCommand) => {

@@ -314,6 +314,10 @@ import type { SystemModule } from "~/types/system"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { useAppShellNavigation } from "~/composables/core/useAppShellNavigation"
 import {
+	resolveCentralShellCategory,
+	type CentralShellCategory,
+} from "~/config/centralModuleShell"
+import {
 	SYSTEM_SETTINGS_ROUTE_ICON_D,
 	SYSTEM_SETTINGS_SECTION_LABELS,
 } from "~/utils/appShellNavigationUtils"
@@ -389,7 +393,9 @@ const defaultHeaderBorderAccent = { dark: "#007878", light: "#00BAC2" } as const
 
 const moduleAccentHex = computed(() => {
 	const m = currentModule.value
-	return m ? moduleCategoryAccentHex[m.category] : null
+	if (!m) return null
+	const shellCategory = resolveCentralShellCategory(m.route, m)
+	return moduleCategoryAccentHex[shellCategory]
 })
 
 const { theme, isDark, toggleTheme } = useTheme()
@@ -415,7 +421,7 @@ const systemTitleChrome = computed(() => {
 	}
 })
 
-const getMoreMenuCategoryLabelStyle = (category: SystemModule["category"]) => {
+const getMoreMenuCategoryLabelStyle = (category: CentralShellCategory) => {
 	const hex = moduleCategoryAccentHex[category]
 	return {
 		backgroundColor: hex,

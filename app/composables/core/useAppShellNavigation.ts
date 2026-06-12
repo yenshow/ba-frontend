@@ -3,12 +3,13 @@ import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { canAccessAccountPage } from "~/composables/systems/users/useAccountSettings"
 import type { User } from "~/types/user"
 import {
+	applyCentralModulePresentation,
+	CENTRAL_SHELL_CATEGORY_ACCENT_HEX,
+	groupCentralShellModules,
+} from "~/config/centralModuleShell"
+import {
 	CENTRAL_OVERVIEW_SKIP_ROUTES,
 	filterOverviewModules,
-	groupModulesByCategory,
-	MODULE_CATEGORY_ACCENT_HEX,
-	MODULE_CATEGORY_LABELS,
-	MODULE_CATEGORY_ORDER,
 	type SystemSettingsMenuItem,
 	toSystemSettingsSections,
 } from "~/utils/appShellNavigationUtils"
@@ -73,7 +74,7 @@ export const useAppShellNavigation = () => {
 			moduleRegistry.getAllModules(),
 			CENTRAL_OVERVIEW_SKIP_ROUTES
 		)
-		return groupModulesByCategory(modules, MODULE_CATEGORY_ORDER, MODULE_CATEGORY_LABELS)
+		return groupCentralShellModules(applyCentralModulePresentation(modules))
 	})
 
 	const systemSettingsSections = computed(() =>
@@ -81,7 +82,7 @@ export const useAppShellNavigation = () => {
 	)
 
 	return {
-		moduleCategoryAccentHex: MODULE_CATEGORY_ACCENT_HEX,
+		moduleCategoryAccentHex: CENTRAL_SHELL_CATEGORY_ACCENT_HEX,
 		centralOverviewCategoryGroups,
 		systemSettingsSections,
 	}
