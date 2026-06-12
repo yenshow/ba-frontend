@@ -73,97 +73,32 @@
 					</header>
 
 					<div class="show-scrollbar relative min-h-[320px] flex-1 overflow-y-auto pr-7 2xl:pr-8">
-						<div v-if="locationId == null" class="py-12 text-center text-white/60">請先選擇地點</div>
-
-						<div
-							v-else-if="manageStep === 1"
-							class="rounded-xl border border-white/15 bg-white/5 p-4 2xl:p-5"
-						>
-							<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-								<div class="min-w-0 space-y-2">
-									<h4 class="text-lg font-medium text-white 2xl:text-xl">步驟 1：人員權限</h4>
-									<p class="text-sm text-white/60 2xl:text-base">
-										勾選允許進出此地點的人員。套用後請至步驟 2，將人員資料同步至入口／出口門禁設備。
-									</p>
-								</div>
-								<div class="flex min-w-0 shrink-0 items-center gap-2 lg:max-w-sm">
-									<SearchInput
-										v-model="membersQuery"
-										input-id="people-counting-access-members-search"
-										label="搜尋可進出人員"
-										placeholder="搜尋 ID / 姓名"
-										aria-label="搜尋可進出人員"
-										wrapper-class="min-w-0 flex-1"
-										input-wrapper-class="min-w-0 flex-1"
-										input-class="!w-full min-w-0"
-										:disabled="isApplyingMembers"
-										:clearable="!isApplyingMembers"
-										@search="handleSearchMembers"
-										@clear="handleSearchMembers"
-									/>
-									<button
-										type="button"
-										class="btn-secondary shrink-0 whitespace-nowrap text-xs 2xl:text-sm"
-										:disabled="!hasMemberCandidates || !canEditMembers || isApplyingMembers"
-										@click="handleToggleSelectAllMembersPage"
-									>
-										{{ isAllMembersPageKept ? "取消" : "全選" }}
-									</button>
-								</div>
-							</div>
-							<AsyncPanel
-								class="mt-4"
-								:loading="isLoadingMembers"
-								:empty="!isLoadingMembers && memberCandidateGroups.length === 0"
-								empty-title="尚無可選人員"
-								:min-height-class="LOCATION_MEMBERS_PANEL_MIN_HEIGHT"
-							>
-								<template #loading>
-									<p class="sr-only">載入人員清單</p>
-									<ContentSkeleton variant="member-list" />
-								</template>
-								<div class="show-scrollbar max-h-[480px] space-y-4 overflow-y-auto pe-1">
-									<section v-for="group in memberCandidateGroups" :key="group.groupId">
-										<h5 class="mb-2 text-xs font-medium text-white/55 2xl:text-sm">
-											{{ group.groupName }}
-											<span class="text-white/40">（{{ group.members.length }}）</span>
-										</h5>
-										<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-											<label
-												v-for="person in group.members"
-												:key="person.id"
-												class="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 hover:bg-white/10"
-											>
-												<input
-													type="checkbox"
-													class="h-4 w-4 shrink-0 accent-cyan-400"
-													:checked="isMemberKept(person.id)"
-													:disabled="!canEditMembers || isApplyingMembers"
-													@change="toggleMember(person.id, $event)"
-												/>
-												<span class="min-w-0 truncate text-sm text-white/90 2xl:text-base">
-													<span class="font-mono">{{ person.employee_no }}</span>
-													<span class="ms-2">{{ person.full_name || "—" }}</span>
-												</span>
-											</label>
-										</div>
-									</section>
-								</div>
-							</AsyncPanel>
-							<p v-if="membersError" class="form-error-text mt-3" role="alert">
-								{{ membersError }}
-							</p>
-							<div class="mt-4 flex justify-end">
-								<PermissionActionButton
-									:allowed="canEditMembers && !isApplyingMembers"
-									class="rounded-xl border border-white/20 bg-emerald-500/85 px-4 py-2 text-sm text-white enabled:hover:bg-emerald-500 2xl:text-base"
-									aria-label="套用可進出人員"
-									@click="handleApplyMembers"
-								>
-									{{ isApplyingMembers ? "處理中…" : "套用名單" }}
-								</PermissionActionButton>
-							</div>
+						<div v-if="locationId == null" class="py-12 text-center text-white/60">
+							請先選擇地點
 						</div>
+
+						<LocationMembersStepPanel
+							v-else-if="manageStep === 1"
+							title="步驟 1：人員權限"
+							description="勾選允許進出此地點的人員。套用後請至步驟 2，將人員資料同步至入口／出口門禁設備。"
+							search-input-id="people-counting-access-members-search"
+							:members-query="membersQuery"
+							:has-member-candidates="hasMemberCandidates"
+							:can-edit-members="canEditMembers"
+							:is-applying-members="isApplyingMembers"
+							:is-loading-members="isLoadingMembers"
+							:member-candidate-groups="memberCandidateGroups"
+							:members-error="membersError"
+							:is-all-members-page-kept="isAllMembersPageKept"
+							:is-member-kept="isMemberKept"
+							:list-min-height-class="LOCATION_MEMBERS_PANEL_MIN_HEIGHT"
+							list-scroll-class="max-h-[480px]"
+							@update:members-query="membersQuery = $event"
+							@search="handleSearchMembers"
+							@toggle-select-all-page="handleToggleSelectAllMembersPage"
+							@toggle-member="toggleMember"
+							@apply="handleApplyMembers"
+						/>
 
 						<div v-else class="space-y-4 rounded-xl border border-white/15 bg-white/5 p-4 2xl:p-5">
 							<div class="flex items-center gap-2">
@@ -175,7 +110,7 @@
 								</div>
 								<button
 									type="button"
-									class="ml-auto rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm text-white/90 hover:bg-white/20 disabled:opacity-50 2xl:text-base"
+									class="ml-auto rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm 2xl:text-base text-white/90 hover:bg-white/20 disabled:opacity-50"
 									:disabled="syncWarnings.length === 0"
 									@click="openWarningsDialog"
 								>
@@ -237,7 +172,11 @@
 											</tr>
 										</thead>
 										<tbody>
-											<tr v-for="row in syncRows" :key="row.employeeNo" class="border-b border-white/10">
+											<tr
+												v-for="row in syncRows"
+												:key="row.employeeNo"
+												class="border-b border-white/10"
+											>
 												<td class="py-2 pe-2 font-mono">{{ row.employeeNo }}</td>
 												<td class="py-2 pe-2">{{ row.fullName || "—" }}</td>
 												<td class="py-2 pe-2">
@@ -325,39 +264,39 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, toRef, watch } from "vue";
-import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
-import SearchInput from "~/components/common/SearchInput.vue";
-import Pagination from "~/components/common/Pagination.vue";
-import AsyncPanel from "~/components/common/AsyncPanel.vue";
-import ContentSkeleton from "~/components/common/ContentSkeleton.vue";
-import PersonnelSyncWarningsDialog from "~/components/personnel/dialogs/PersonnelSyncWarningsDialog.vue";
-import type { useLocationAccessSync } from "~/composables/systems/personnel/useLocationAccessSync";
+import { computed, ref, toRef, watch } from "vue"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+import Pagination from "~/components/common/Pagination.vue"
+import LocationMembersStepPanel from "~/components/personnel/location-access/LocationMembersStepPanel.vue"
+import AsyncPanel from "~/components/common/AsyncPanel.vue"
+import ContentSkeleton from "~/components/common/ContentSkeleton.vue"
+import PersonnelSyncWarningsDialog from "~/components/personnel/dialogs/PersonnelSyncWarningsDialog.vue"
+import type { useLocationAccessSync } from "~/composables/systems/personnel/useLocationAccessSync"
 import {
 	useLocationMembersPicker,
 	LOCATION_MEMBERS_PANEL_MIN_HEIGHT,
-	SYNC_TABLE_PANEL_MIN_HEIGHT
-} from "~/composables/systems/personnel/useLocationMembersPicker";
-import { useWizardStepNav } from "~/composables/core/useWizardStepNav";
-import { lastSyncPillClass } from "~/utils/personnelUtils";
+	SYNC_TABLE_PANEL_MIN_HEIGHT,
+} from "~/composables/systems/personnel/useLocationMembersPicker"
+import { useWizardStepNav } from "~/composables/core/useWizardStepNav"
+import { lastSyncPillClass } from "~/utils/personnelUtils"
 
 const props = defineProps<{
-	modelValue: boolean;
-	locationId: number | null;
-	locationName?: string | null;
-	canEditMembers: boolean;
-	canDeviceSync: boolean;
-	accessSync: ReturnType<typeof useLocationAccessSync>;
-}>();
+	modelValue: boolean
+	locationId: number | null
+	locationName?: string | null
+	canEditMembers: boolean
+	canDeviceSync: boolean
+	accessSync: ReturnType<typeof useLocationAccessSync>
+}>()
 
 const emit = defineEmits<{
-	"update:modelValue": [value: boolean];
-	synced: [];
-	membersUpdated: [];
-}>();
+	"update:modelValue": [value: boolean]
+	synced: []
+	membersUpdated: []
+}>()
 
-const manageStep = ref<1 | 2>(1);
-const { getPillButtonClass, getStepCircleClass } = useWizardStepNav();
+const manageStep = ref<1 | 2>(1)
+const { getPillButtonClass, getStepCircleClass } = useWizardStepNav()
 
 const {
 	isSingleLocationSyncing,
@@ -377,10 +316,10 @@ const {
 	isLocationCurrentlySyncing,
 	isLocationSyncButtonDisabled,
 	goPrevSyncPage,
-	goNextSyncPage
-} = props.accessSync;
+	goNextSyncPage,
+} = props.accessSync
 
-const handleClose = () => emit("update:modelValue", false);
+const handleClose = () => emit("update:modelValue", false)
 
 const {
 	hasMemberCandidates,
@@ -394,69 +333,69 @@ const {
 	isAllMembersPageKept,
 	handleToggleSelectAllMembersPage,
 	handleSearchMembers,
-	applyMembers
+	applyMembers,
 } = useLocationMembersPicker({
 	locationId: toRef(props, "locationId"),
-	accessSync: toRef(props, "accessSync")
-});
+	membersSync: toRef(props, "accessSync"),
+})
 
 const handleApplyMembers = async () => {
-	if (!(await applyMembers())) return;
-	emit("membersUpdated");
-};
+	if (!(await applyMembers())) return
+	emit("membersUpdated")
+}
 
 const deviceLabels = computed(() =>
 	props.locationId != null ? getLocationDevicesLabel(props.locationId) : { entry: [], exit: [] }
-);
+)
 
-const isUiLocked = computed(() => isSingleLocationSyncing.value);
+const isUiLocked = computed(() => isSingleLocationSyncing.value)
 
-watch(manageStep, async step => {
-	if (step !== 2 || !props.modelValue || props.locationId == null) return;
-	await ensureSyncCandidates(props.locationId);
-});
+watch(manageStep, async (step) => {
+	if (step !== 2 || !props.modelValue || props.locationId == null) return
+	await ensureSyncCandidates(props.locationId)
+})
 
 const isSyncCandidatesLoading = computed(() =>
 	props.locationId != null ? isSyncLocationCandidatesLoading(props.locationId) : false
-);
+)
 const syncPaged = computed(() =>
 	props.locationId != null
 		? getPagedSyncStepRowsForLocation(props.locationId)
 		: { rows: [], total: 0, offset: 0, limit: 10 }
-);
-const syncRows = computed(() => syncPaged.value.rows);
+)
+const syncRows = computed(() => syncPaged.value.rows)
 const isCurrentlySyncing = computed(() =>
 	props.locationId != null ? isLocationCurrentlySyncing(props.locationId) : false
-);
+)
 const isSyncButtonDisabled = computed(() =>
 	props.locationId != null ? isLocationSyncButtonDisabled(props.locationId) : true
-);
+)
 
 const getLastSyncLabel = (employeeNo: string) =>
-	props.locationId != null ? getCandidateLastSyncLabel(props.locationId, employeeNo) : "—";
+	props.locationId != null ? getCandidateLastSyncLabel(props.locationId, employeeNo) : "—"
 
 const handleSync = async () => {
-	if (props.locationId == null) return;
-	await syncOneLocation(props.locationId);
-	emit("synced");
-};
+	if (props.locationId == null) return
+	await syncOneLocation(props.locationId)
+	emit("synced")
+}
 
 const handlePrevSyncPage = () => {
-	if (props.locationId == null) return;
-	goPrevSyncPage(props.locationId);
-};
+	if (props.locationId == null) return
+	goPrevSyncPage(props.locationId)
+}
 const handleNextSyncPage = () => {
-	if (props.locationId == null) return;
-	goNextSyncPage(props.locationId);
-};
+	if (props.locationId == null) return
+	goNextSyncPage(props.locationId)
+}
 
 watch(
 	() => props.modelValue,
-	open => {
-		if (!open) return;
-		manageStep.value = 1;
-		if (props.locationId == null) return;
-		void prepareLocationDialog(props.locationId);
+	(open) => {
+		if (!open) return
+		manageStep.value = 1
+		if (props.locationId == null) return
+		void prepareLocationDialog(props.locationId)
 	}
-);
+)
 </script>

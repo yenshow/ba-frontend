@@ -30,6 +30,13 @@ export interface PersonLicensePlate {
 	isapi_synced_at?: string | null;
 }
 
+/** GET /personnel/locations/:id/license-plates 列 */
+export interface LocationLicensePlateRow extends PersonLicensePlate {
+	employee_no: string;
+	full_name?: string | null;
+	person_status?: string;
+}
+
 export interface PersonLicensePlateFormItem {
 	plateNumber: string;
 	listType: PersonLicensePlateListType;
@@ -86,7 +93,6 @@ export interface Person {
 	/** 列表 API（getPersonsPaged）附帶 */
 	license_plate_count?: number;
 	license_plates?: PersonLicensePlate[];
-	vehicle_plate_sync?: VehiclePlateSyncResult;
 }
 
 /** 門禁權限：人員可進出之地點 */
