@@ -133,6 +133,11 @@ export const useLocationAccessSync = (params: {
 		await membersOnly.loadAllLocationMembers(locationId)
 	}
 
+	const ensureStep2Data = async (locationId: number) => {
+		await loadLocationSyncDevicesLabels()
+		await ensureSyncCandidates(locationId)
+	}
+
 	const isSyncLocationCandidatesLoading = (locationId: number) =>
 		isSyncCandidatesLoading(locationId)
 
@@ -214,6 +219,7 @@ export const useLocationAccessSync = (params: {
 		loadLocationSyncDevicesLabels,
 		getLocationDevicesLabel,
 		prepareLocationDialog,
+		ensureStep2Data,
 		syncOneLocation,
 		ensureSyncCandidates,
 		isSyncLocationCandidatesLoading,

@@ -253,6 +253,7 @@ export const useLocationPlateSync = (params: {
 	}
 
 	const ensureStep2Data = async (locationId: number) => {
+		await loadLocationSyncDevicesLabels()
 		await Promise.all([loadPersonBindOptions(locationId), ensurePlates(locationId)])
 		refreshSyncWarnings(locationId)
 	}

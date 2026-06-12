@@ -125,7 +125,7 @@
 							class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2"
 							:class="{
 								'border-cyan-400/50 bg-cyan-500/20': isEntryCameraSelected(dev.id),
-								'border-rose-400/40': isExitCameraSelected(dev.id),
+								'border-rose-400/40': isExitCameraSelected(dev.id)
 							}"
 						>
 							<input
@@ -151,7 +151,7 @@
 							class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2"
 							:class="{
 								'border-cyan-400/50 bg-cyan-500/20': isExitCameraSelected(dev.id),
-								'border-rose-400/40': isEntryCameraSelected(dev.id),
+								'border-rose-400/40': isEntryCameraSelected(dev.id)
 							}"
 						>
 							<input
@@ -190,7 +190,7 @@
 					:key="group.id"
 					class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
 					:class="{
-						'border-cyan-400/50 bg-cyan-500/20': isVehicleGroupSelected(group.id),
+						'border-cyan-400/50 bg-cyan-500/20': isVehicleGroupSelected(group.id)
 					}"
 				>
 					<input
@@ -202,12 +202,6 @@
 					<span class="text-xs text-white/90 2xl:text-sm">{{ group.list_name }}</span>
 				</label>
 			</div>
-		</div>
-
-		<div v-else class="mt-3 border-t border-white/10 pt-3">
-			<p class="text-xs text-white/60 2xl:text-sm">
-				人員群組依「地點名單」內人員自動顯示；請至車輛管理 → 車牌管理維護名單與車牌同步。
-			</p>
 		</div>
 
 		<div class="mt-3 border-t border-white/10 pt-3">
@@ -235,140 +229,140 @@
 </template>
 
 <script setup lang="ts">
-import type { VehicleAccessLocation } from "~/types/vehicleAccess"
-import type { LaneInfo } from "~/types/vehicleAccess"
-import type { Device } from "~/types/device"
-import FilterDropdown from "~/components/common/FilterDropdown.vue"
-import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi"
-import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
-import { filterLicensePlateCameraDevices } from "~/utils/cameraModelCategories"
-import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
-import { storedVehicleAccessDataSource } from "~/utils/vehicleAccessDataSource"
+import type { VehicleAccessLocation } from "~/types/vehicleAccess";
+import type { LaneInfo } from "~/types/vehicleAccess";
+import type { Device } from "~/types/device";
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
+import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi";
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
+import { filterLicensePlateCameraDevices } from "~/utils/cameraModelCategories";
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
+import { storedVehicleAccessDataSource } from "~/utils/vehicleAccessDataSource";
 import {
 	VEHICLE_ACCESS_LOG_COLUMN_LABELS,
 	TOGGLEABLE_VEHICLE_LOG_COLUMN_KEYS,
 	normalizeVehicleLogDisplayColumns,
 	toStoredVehicleLogDisplayColumns,
-	type VehicleAccessLogColumnKey,
-} from "~/utils/vehicleAccessLogColumns"
-import { ref, watch, computed, onMounted } from "vue"
+	type VehicleAccessLogColumnKey
+} from "~/utils/vehicleAccessLogColumns";
+import { ref, watch, computed, onMounted } from "vue";
 
 interface VehicleCustomGroupOption {
-	id: number
-	list_name: string
+	id: number;
+	list_name: string;
 }
 
 interface Props {
-	location: VehicleAccessLocation
-	vehicleCustomGroups?: VehicleCustomGroupOption[]
+	location: VehicleAccessLocation;
+	vehicleCustomGroups?: VehicleCustomGroupOption[];
 }
 
 interface Emits {
-	(e: "update", location: VehicleAccessLocation): void
+	(e: "update", location: VehicleAccessLocation): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-	vehicleCustomGroups: () => [],
-})
+	vehicleCustomGroups: () => []
+});
 
-const emit = defineEmits<Emits>()
+const emit = defineEmits<Emits>();
 
-const vehicleAccessApi = useVehicleAccessApi()
-const deviceApi = useDeviceApi()
-const { enableYscpVehicleAccess } = useModuleRegistry()
+const vehicleAccessApi = useVehicleAccessApi();
+const deviceApi = useDeviceApi();
+const { enableYscpVehicleAccess } = useModuleRegistry();
 
 const localLocation = ref<VehicleAccessLocation>({
 	...props.location,
 	dataSource: storedVehicleAccessDataSource(props.location.dataSource),
-	vehicleGroupIds: props.location.vehicleGroupIds ?? [],
-})
-const dataSource = ref(storedVehicleAccessDataSource(props.location.dataSource))
+	vehicleGroupIds: props.location.vehicleGroupIds ?? []
+});
+const dataSource = ref(storedVehicleAccessDataSource(props.location.dataSource));
 const operationMode = ref<"construction_flow" | "parking">(
 	props.location.operationMode === "parking" ? "parking" : "construction_flow"
-)
+);
 const parkingCapacityInput = ref<number | "">(
 	props.location.parkingCapacity != null && props.location.parkingCapacity > 0
 		? props.location.parkingCapacity
 		: ""
-)
-const entryLaneIdString = ref("")
-const exitLaneIdString = ref("")
-const laneList = ref<LaneInfo[]>([])
-const cameraDevices = ref<Device[]>([])
+);
+const entryLaneIdString = ref("");
+const exitLaneIdString = ref("");
+const laneList = ref<LaneInfo[]>([]);
+const cameraDevices = ref<Device[]>([]);
 
 const activeLogColumns = computed(() =>
 	normalizeVehicleLogDisplayColumns(localLocation.value.logDisplayColumns)
-)
+);
 
 const isLogColumnSelected = (key: VehicleAccessLogColumnKey): boolean =>
-	activeLogColumns.value.includes(key)
+	activeLogColumns.value.includes(key);
 
 const handleToggleLogColumn = (key: VehicleAccessLogColumnKey) => {
-	const next = new Set(activeLogColumns.value)
-	if (next.has(key)) next.delete(key)
-	else next.add(key)
+	const next = new Set(activeLogColumns.value);
+	if (next.has(key)) next.delete(key);
+	else next.add(key);
 	localLocation.value.logDisplayColumns = toStoredVehicleLogDisplayColumns(
 		normalizeVehicleLogDisplayColumns([...next])
-	)
-	handleChange()
-}
+	);
+	handleChange();
+};
 
 onMounted(async () => {
 	if (!enableYscpVehicleAccess.value) {
-		laneList.value = []
+		laneList.value = [];
 	} else {
 		try {
-			const list = await vehicleAccessApi.getLaneInfoList()
-			laneList.value = list || []
+			const list = await vehicleAccessApi.getLaneInfoList();
+			laneList.value = list || [];
 		} catch {
-			laneList.value = []
+			laneList.value = [];
 		}
 	}
 	try {
-		const res = await deviceApi.getDevices({ type_code: "camera", limit: 200, offset: 0 })
-		const devices = Array.isArray(res?.devices) ? res.devices : []
-		cameraDevices.value = filterLicensePlateCameraDevices(devices)
+		const res = await deviceApi.getDevices({ type_code: "camera", limit: 200, offset: 0 });
+		const devices = Array.isArray(res?.devices) ? res.devices : [];
+		cameraDevices.value = filterLicensePlateCameraDevices(devices);
 	} catch {
-		cameraDevices.value = []
+		cameraDevices.value = [];
 	}
-})
+});
 
 const entryLaneOptions = computed(() => {
 	const options = laneList.value
-		.filter((l) => l.lane_type === 1)
-		.map((lane) => ({ value: String(lane.id), label: lane.lane_name ?? `車道 ${lane.id}` }))
-	return [{ value: "", label: "無" }, ...options]
-})
+		.filter(l => l.lane_type === 1)
+		.map(lane => ({ value: String(lane.id), label: lane.lane_name ?? `車道 ${lane.id}` }));
+	return [{ value: "", label: "無" }, ...options];
+});
 
 const exitLaneOptions = computed(() => {
 	const options = laneList.value
-		.filter((l) => l.lane_type === 2)
-		.map((lane) => ({ value: String(lane.id), label: lane.lane_name ?? `車道 ${lane.id}` }))
-	return [{ value: "", label: "無" }, ...options]
-})
+		.filter(l => l.lane_type === 2)
+		.map(lane => ({ value: String(lane.id), label: lane.lane_name ?? `車道 ${lane.id}` }));
+	return [{ value: "", label: "無" }, ...options];
+});
 
-const entryCameraIds = computed(() => localLocation.value.entryCameraDeviceIds ?? [])
-const exitCameraIds = computed(() => localLocation.value.exitCameraDeviceIds ?? [])
-const hasEntryCamera = computed(() => entryCameraIds.value.length > 0)
+const entryCameraIds = computed(() => localLocation.value.entryCameraDeviceIds ?? []);
+const exitCameraIds = computed(() => localLocation.value.exitCameraDeviceIds ?? []);
+const hasEntryCamera = computed(() => entryCameraIds.value.length > 0);
 
-const isEntryCameraSelected = (id: number) => entryCameraIds.value.includes(id)
-const isExitCameraSelected = (id: number) => exitCameraIds.value.includes(id)
+const isEntryCameraSelected = (id: number) => entryCameraIds.value.includes(id);
+const isExitCameraSelected = (id: number) => exitCameraIds.value.includes(id);
 
 const isVehicleGroupSelected = (id: number) =>
-	(localLocation.value.vehicleGroupIds ?? []).includes(id)
+	(localLocation.value.vehicleGroupIds ?? []).includes(id);
 
 const handleToggleVehicleGroupId = (id: number) => {
-	const ids = new Set(localLocation.value.vehicleGroupIds ?? [])
-	if (ids.has(id)) ids.delete(id)
-	else ids.add(id)
-	localLocation.value.vehicleGroupIds = [...ids]
-	handleChange()
-}
+	const ids = new Set(localLocation.value.vehicleGroupIds ?? []);
+	if (ids.has(id)) ids.delete(id);
+	else ids.add(id);
+	localLocation.value.vehicleGroupIds = [...ids];
+	handleChange();
+};
 
 watch(
 	() => props.location,
-	(newLocation) => {
-		const ds = storedVehicleAccessDataSource(newLocation.dataSource)
+	newLocation => {
+		const ds = storedVehicleAccessDataSource(newLocation.dataSource);
 		localLocation.value = {
 			...newLocation,
 			dataSource: ds,
@@ -377,87 +371,87 @@ watch(
 			vehicleGroupIds: newLocation.vehicleGroupIds ?? [],
 			logDisplayColumns: toStoredVehicleLogDisplayColumns(
 				normalizeVehicleLogDisplayColumns(newLocation.logDisplayColumns)
-			),
-		}
-		dataSource.value = ds
-		operationMode.value = newLocation.operationMode === "parking" ? "parking" : "construction_flow"
+			)
+		};
+		dataSource.value = ds;
+		operationMode.value = newLocation.operationMode === "parking" ? "parking" : "construction_flow";
 		if (ds === "yscp") {
-			operationMode.value = "construction_flow"
+			operationMode.value = "construction_flow";
 		}
 		parkingCapacityInput.value =
 			newLocation.parkingCapacity != null && newLocation.parkingCapacity > 0
 				? newLocation.parkingCapacity
-				: ""
-		entryLaneIdString.value = newLocation.entryLaneId != null ? String(newLocation.entryLaneId) : ""
-		exitLaneIdString.value = newLocation.exitLaneId != null ? String(newLocation.exitLaneId) : ""
+				: "";
+		entryLaneIdString.value = newLocation.entryLaneId != null ? String(newLocation.entryLaneId) : "";
+		exitLaneIdString.value = newLocation.exitLaneId != null ? String(newLocation.exitLaneId) : "";
 	},
 	{ immediate: true, deep: true }
-)
+);
 
 const syncParkingCapacityToLocation = () => {
 	if (operationMode.value !== "parking") {
-		localLocation.value.parkingCapacity = undefined
-		return
+		localLocation.value.parkingCapacity = undefined;
+		return;
 	}
-	const n = Number(parkingCapacityInput.value)
-	localLocation.value.parkingCapacity = Number.isFinite(n) && n >= 1 ? Math.trunc(n) : undefined
-}
+	const n = Number(parkingCapacityInput.value);
+	localLocation.value.parkingCapacity = Number.isFinite(n) && n >= 1 ? Math.trunc(n) : undefined;
+};
 
 const handleChange = () => {
-	syncParkingCapacityToLocation()
+	syncParkingCapacityToLocation();
 	emit("update", {
 		...localLocation.value,
 		dataSource: dataSource.value,
-		operationMode: operationMode.value,
-	})
-}
+		operationMode: operationMode.value
+	});
+};
 
 const handleParkingCapacityChange = () => {
-	syncParkingCapacityToLocation()
-	handleChange()
-}
+	syncParkingCapacityToLocation();
+	handleChange();
+};
 
 const handleDataSourceChange = () => {
-	localLocation.value.dataSource = dataSource.value
+	localLocation.value.dataSource = dataSource.value;
 	if (dataSource.value === "yscp") {
-		operationMode.value = "construction_flow"
-		localLocation.value.operationMode = "construction_flow"
+		operationMode.value = "construction_flow";
+		localLocation.value.operationMode = "construction_flow";
 	}
-	handleChange()
-}
+	handleChange();
+};
 
 const handleOperationModeChange = () => {
-	localLocation.value.operationMode = operationMode.value
+	localLocation.value.operationMode = operationMode.value;
 	if (operationMode.value !== "parking") {
-		parkingCapacityInput.value = ""
+		parkingCapacityInput.value = "";
 	}
-	syncParkingCapacityToLocation()
-	handleChange()
-}
+	syncParkingCapacityToLocation();
+	handleChange();
+};
 
 const handleEntryLaneChange = (value: string) => {
-	localLocation.value.entryLaneId = value ? Number(value) : undefined
-	handleChange()
-}
+	localLocation.value.entryLaneId = value ? Number(value) : undefined;
+	handleChange();
+};
 
 const handleExitLaneChange = (value: string) => {
-	localLocation.value.exitLaneId = value ? Number(value) : undefined
-	handleChange()
-}
+	localLocation.value.exitLaneId = value ? Number(value) : undefined;
+	handleChange();
+};
 
 const handleToggleEntryCamera = (id: number) => {
-	const ids = new Set(entryCameraIds.value)
-	if (ids.has(id)) ids.delete(id)
-	else ids.add(id)
-	localLocation.value.entryCameraDeviceIds = [...ids]
-	handleChange()
-}
+	const ids = new Set(entryCameraIds.value);
+	if (ids.has(id)) ids.delete(id);
+	else ids.add(id);
+	localLocation.value.entryCameraDeviceIds = [...ids];
+	handleChange();
+};
 
 const handleToggleExitCamera = (id: number) => {
-	const ids = new Set(exitCameraIds.value)
-	if (ids.has(id)) ids.delete(id)
-	else ids.add(id)
-	localLocation.value.exitCameraDeviceIds = [...ids]
-	handleChange()
-}
+	const ids = new Set(exitCameraIds.value);
+	if (ids.has(id)) ids.delete(id);
+	else ids.add(id);
+	localLocation.value.exitCameraDeviceIds = [...ids];
+	handleChange();
+};
 </script>

@@ -34,12 +34,22 @@ type ModuleRegistryPayload = {
 const LICENSE_FEATURE_KEY_SET = new Set<string>(LICENSE_FEATURE_KEYS as readonly string[]);
 const moduleRegistryLogger = logger.createLogger("module-registry");
 
+/** Construction 前端展示名（與 central profileNames 無關；避免後端 profile 錯設時底欄顯示「門禁管理」） */
+const CONSTRUCTION_MODULE_DISPLAY_NAMES: Record<string, string> = {
+	"/construction-monitoring/people-counting": "人流統計",
+};
+
 const normalizeRegistryForConstructionApp = (payload: ModuleRegistryPayload): ModuleRegistryPayload => {
-	const filteredModules = (payload.modules || []).filter(
-		(m) =>
-			(m.category === "core" || m.category === "construction-monitoring") &&
-			m.routePrefix !== "/core/area-point-map"
-	);
+	const filteredModules = (payload.modules || [])
+		.filter(
+			(m) =>
+				(m.category === "core" || m.category === "construction-monitoring") &&
+				m.routePrefix !== "/core/area-point-map"
+		)
+		.map((m) => {
+			const displayName = CONSTRUCTION_MODULE_DISPLAY_NAMES[m.routePrefix];
+			return displayName ? { ...m, name: displayName } : m;
+		});
 	return {
 		profile: "construction",
 		modules: filteredModules,
