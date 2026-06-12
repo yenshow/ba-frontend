@@ -1,82 +1,17 @@
 <template>
-	<Teleport to="body">
-		<Transition name="dialog-fade">
-			<div
-				v-if="modelValue"
-				class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
-				role="dialog"
-				aria-modal="true"
-				aria-labelledby="elevator-floor-manage-title"
-			>
-				<div
-					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-5xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:max-w-6xl 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
-					:aria-busy="isUiLocked || undefined"
-				>
-					<header class="flex items-center justify-between gap-3 pr-7 2xl:pr-8">
-						<div class="min-w-0">
-							<h3
-								id="elevator-floor-manage-title"
-								class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl"
-							>
-								樓層管理
-							</h3>
-						</div>
-
-						<nav class="flex items-center gap-2 pr-7 2xl:pr-8" aria-label="樓層管理步驟切換">
-							<button
-								type="button"
-								class="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors 2xl:text-base"
-								:class="getPillButtonClass(manageStep === 1)"
-								:aria-current="manageStep === 1 ? 'step' : undefined"
-								@click="manageStep = 1"
-							>
-								<span
-									class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ring-1 2xl:h-7 2xl:w-7 2xl:text-sm"
-									:class="getStepCircleClass(manageStep === 1)"
-									aria-hidden="true"
-								>
-									1
-								</span>
-								<span>樓層權限</span>
-							</button>
-
-							<div class="h-px w-[300px] bg-white/10" aria-hidden="true" />
-
-							<button
-								type="button"
-								class="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors 2xl:text-base"
-								:class="getPillButtonClass(manageStep === 2)"
-								:aria-current="manageStep === 2 ? 'step' : undefined"
-								@click="manageStep = 2"
-							>
-								<span
-									class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ring-1 2xl:h-7 2xl:w-7 2xl:text-sm"
-									:class="getStepCircleClass(manageStep === 2)"
-									aria-hidden="true"
-								>
-									2
-								</span>
-								<span>設備同步</span>
-							</button>
-						</nav>
-
-						<button
-							type="button"
-							class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
-							aria-label="關閉對話框"
-							tabindex="0"
-							@click="handleClose"
-							@keydown.enter="handleClose"
-							@keydown.space.prevent="handleClose"
-						>
-							&times;
-						</button>
-					</header>
-
-					<div class="show-scrollbar relative min-h-[320px] flex-1 overflow-y-auto pr-7 2xl:pr-8">
-						<div v-if="locationId == null" class="py-12 text-center text-white/60">
-							請先選擇地點
-						</div>
+	<DeviceManageDialogShell
+		:model-value="modelValue"
+		title="樓層管理"
+		title-id="elevator-floor-manage-title"
+		step-nav-aria-label="樓層管理步驟切換"
+		:manage-step="manageStep"
+		step1-label="樓層權限"
+		step2-label="設備同步"
+		:is-ui-locked="isUiLocked"
+		@update:manage-step="manageStep = $event"
+		@close="handleClose"
+	>
+		<div v-if="locationId == null" class="py-12 text-center text-white/60">請先選擇地點</div>
 
 						<div
 							v-else-if="manageStep === 1"
@@ -86,7 +21,7 @@
 								<div class="min-w-0 space-y-2">
 									<h4 class="text-lg font-medium text-white 2xl:text-xl">步驟 1：樓層權限</h4>
 									<p class="text-sm text-white/60 2xl:text-base">
-										展開各樓層，勾選允許使用該層的人員。套用後請至步驟 2 同步至梯控與門禁設備。
+										展開各樓層，勾選允許使用該層的人員。套用後系統將自動同步至設備；可至步驟 2 檢視狀態。
 									</p>
 									<p
 										v-if="defaultsApplied"
@@ -262,37 +197,19 @@
 						</div>
 
 						<div v-else class="space-y-4 rounded-xl border border-white/15 bg-white/5 p-4 2xl:p-5">
-							<div class="flex flex-wrap items-center gap-2">
-								<div class="space-y-2">
-									<h4 class="text-lg font-medium text-white 2xl:text-xl">步驟 2：設備同步</h4>
-									<p class="text-sm text-white/60 2xl:text-base">
-										將人員梯控卡與樓層授權寫入梯控設備；若地點已設定門禁設備，亦會同步人員主檔至門禁。
-									</p>
-								</div>
-								<button
-									type="button"
-									class="ml-auto rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm text-white/90 hover:bg-white/20 disabled:opacity-50 2xl:text-base"
-									:disabled="syncWarnings.length === 0"
-									@click="openWarningsDialog"
-								>
-									查看錯誤
-									<span v-if="syncWarnings.length > 0" class="ms-1 text-amber-200">
-										({{ syncWarnings.length }})
-									</span>
-								</button>
-								<PermissionActionButton
-									:allowed="canDeviceSync && !isSyncButtonDisabled"
-									class="rounded-xl border border-white/20 bg-emerald-500/85 px-4 py-2 text-sm text-white enabled:hover:bg-emerald-500 2xl:text-base"
-									aria-label="同步至設備"
-									@click="handleSync"
-								>
-									{{ isCurrentlySyncing ? "同步中…" : "同步至設備" }}
-								</PermissionActionButton>
-							</div>
+							<DeviceSyncStep2Toolbar
+								title="步驟 2：設備同步"
+								description="將人員梯控卡與樓層授權寫入梯控設備；若地點已設定門禁設備，亦會同步人員主檔至門禁。"
+								:warnings-count="syncWarnings.length"
+								:can-resync="canDeviceSync"
+								:is-resync-disabled="isSyncButtonDisabled"
+								:is-resyncing="isCurrentlySyncing"
+								resync-aria-label="重新同步至梯控與門禁設備"
+								@open-warnings="openWarningsDialog"
+								@resync="handleSync"
+							/>
 
-							<p v-if="locationName" class="truncate text-base 2xl:text-lg">
-								{{ locationName }}
-							</p>
+							<DeviceLocationDeviceBadges :location-name="locationName" />
 
 							<AsyncPanel
 								:loading="isSyncCandidatesLoading"
@@ -336,53 +253,39 @@
 													{{ (row.authorized_floors || []).join(", ") || "—" }}
 												</td>
 												<td class="py-2 pe-2">
-													<span
-														class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
-														:class="lastSyncPillClass(getLastSyncLabel(row))"
-													>
-														{{ getLastSyncLabel(row) }}
-													</span>
+													<SyncStatusPill variant="lastSync" :label="getLastSyncLabel(row)" />
 												</td>
 												<td class="py-2 pe-2">
-													<span
-														class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
-														:class="cardStepPillClass(row)"
-													>
-														{{ cardStepLabel(row) }}
-													</span>
+													<SyncStatusPill variant="lastSync" :label="cardStepLabel(row)" />
 												</td>
 												<template v-if="showAccessSyncColumns">
 													<td class="py-2 pe-2">
-														<span
-															class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
-															:class="accessStepPillClass(row.last_sync?.access?.user_info)"
-														>
-															{{ accessStepShortLabel(row.last_sync?.access?.user_info) }}
-														</span>
+														<SyncStatusPill
+															variant="step"
+															:status="row.last_sync?.access?.user_info?.status"
+															:label="accessStepShortLabel(row.last_sync?.access?.user_info)"
+														/>
 													</td>
 													<td class="py-2 pe-2">
-														<span
-															class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
-															:class="accessStepPillClass(row.last_sync?.access?.face)"
-														>
-															{{ accessStepShortLabel(row.last_sync?.access?.face) }}
-														</span>
+														<SyncStatusPill
+															variant="step"
+															:status="row.last_sync?.access?.face?.status"
+															:label="accessStepShortLabel(row.last_sync?.access?.face)"
+														/>
 													</td>
 													<td class="py-2 pe-2">
-														<span
-															class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
-															:class="accessStepPillClass(row.last_sync?.access?.card)"
-														>
-															{{ accessStepShortLabel(row.last_sync?.access?.card) }}
-														</span>
+														<SyncStatusPill
+															variant="step"
+															:status="row.last_sync?.access?.card?.status"
+															:label="accessStepShortLabel(row.last_sync?.access?.card)"
+														/>
 													</td>
 													<td class="py-2 pe-2">
-														<span
-															class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
-															:class="accessStepPillClass(row.last_sync?.access?.fingerprint)"
-														>
-															{{ accessStepShortLabel(row.last_sync?.access?.fingerprint) }}
-														</span>
+														<SyncStatusPill
+															variant="step"
+															:status="row.last_sync?.access?.fingerprint?.status"
+															:label="accessStepShortLabel(row.last_sync?.access?.fingerprint)"
+														/>
 													</td>
 												</template>
 											</tr>
@@ -400,27 +303,7 @@
 								</div>
 							</AsyncPanel>
 						</div>
-
-						<div
-							v-if="isUiLocked"
-							class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
-							role="status"
-						>
-							<div
-								class="flex items-center gap-3 rounded-xl border border-white/15 bg-white/10 px-4 py-3 shadow-lg backdrop-blur-sm"
-							>
-								<div
-									class="h-6 w-6 animate-spin rounded-full border-2 border-white/30 border-t-white/80"
-									aria-hidden="true"
-								/>
-								<p class="text-white/85">同步中，請稍候…</p>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</Transition>
-	</Teleport>
+	</DeviceManageDialogShell>
 
 	<PersonnelSyncWarningsDialog
 		v-model="showWarningsDialog"
@@ -436,13 +319,16 @@ import SearchInput from "~/components/common/SearchInput.vue"
 import Pagination from "~/components/common/Pagination.vue"
 import AsyncPanel from "~/components/common/AsyncPanel.vue"
 import ContentSkeleton from "~/components/common/ContentSkeleton.vue"
+import DeviceManageDialogShell from "~/components/personnel/device-sync/DeviceManageDialogShell.vue"
+import DeviceSyncStep2Toolbar from "~/components/personnel/device-sync/DeviceSyncStep2Toolbar.vue"
+import DeviceLocationDeviceBadges from "~/components/personnel/device-sync/DeviceLocationDeviceBadges.vue"
+import SyncStatusPill from "~/components/personnel/device-sync/SyncStatusPill.vue"
 import PersonnelSyncWarningsDialog from "~/components/personnel/dialogs/PersonnelSyncWarningsDialog.vue"
 import type { ElevatorFloorSync } from "~/composables/systems/elevator/useElevatorFloorSync"
 import { useElevatorFloorAccess } from "~/composables/systems/elevator/useElevatorFloorAccess"
 import { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { useToast } from "~/composables/core/useToast"
-import { useWizardStepNav } from "~/composables/core/useWizardStepNav"
 import { personHasAccessCard } from "~/utils/personnelUtils"
 import { SYNC_TABLE_PANEL_MIN_HEIGHT } from "~/composables/systems/personnel/useLocationMembersPicker"
 
@@ -464,7 +350,6 @@ const emit = defineEmits<{
 }>()
 
 const manageStep = ref<1 | 2>(1)
-const { getPillButtonClass, getStepCircleClass } = useWizardStepNav()
 const elevatorApi = useElevatorApi()
 const personnelApi = usePersonnelApi()
 const toast = useToast()
@@ -478,16 +363,14 @@ const {
 	isSyncCandidatesLoading: isSyncLocationCandidatesLoading,
 	getPagedSyncCandidates,
 	syncOneLocation,
-	isPollingSyncJob,
+	isUiLocked: isFloorSyncUiLocked,
 	isLocationSyncJobRunning,
+	watchApplySyncJob,
 	isLocationSyncButtonDisabled,
 	getLastSyncLabel,
-	lastSyncPillClass,
-	cardStepPillClass,
 	cardStepLabel,
 	hasAccessDevicesForLocation,
 	accessStepShortLabel,
-	accessStepPillClass,
 	goPrevSyncPage,
 	goNextSyncPage,
 } = props.floorSync
@@ -518,11 +401,15 @@ const {
 const handleClose = () => emit("update:modelValue", false)
 
 const handleApplyFloorAccess = async () => {
-	if (!(await applyFloorAccess())) return
+	const result = await applyFloorAccess()
+	if (result === false || !result.ok) return
 	emit("floorsUpdated")
+	if (result.jobId && props.locationId != null) {
+		await watchApplySyncJob(props.locationId, result.jobId)
+	}
 }
 
-const isUiLocked = computed(() => isPollingSyncJob.value)
+const isUiLocked = computed(() => isFloorSyncUiLocked.value)
 
 const syncPaged = computed(() =>
 	props.locationId != null

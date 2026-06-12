@@ -1,38 +1,5 @@
 import type { SystemModule } from "~/types/system"
 
-export const MODULE_CATEGORY_LABELS: Record<SystemModule["category"], string> = {
-	core: "核心基礎",
-	"construction-monitoring": "工地監控",
-	infrastructure: "基礎設施",
-	security: "安全相關",
-	business: "業務管理",
-	multimedia: "多媒體",
-}
-
-export const MODULE_CATEGORY_ORDER = [
-	"core",
-	"construction-monitoring",
-	"infrastructure",
-	"security",
-	"business",
-	"multimedia",
-] as const satisfies readonly SystemModule["category"][]
-
-export const MODULE_CATEGORY_ACCENT_HEX: Record<SystemModule["category"], string> = {
-	core: "#005064",
-	"construction-monitoring": "#0096DC",
-	infrastructure: "#4BC8C8",
-	security: "#962328",
-	business: "#00D296",
-	multimedia: "#640082",
-}
-
-/** Central 系統總覽：尚無 pages 的 registry 路由 */
-export const CENTRAL_OVERVIEW_SKIP_ROUTES = [
-	"/business/visitor",
-	"/business/locker-management",
-] as const
-
 export type SystemSettingsItemKind = "route" | "theme" | "logout"
 
 export type SystemSettingsMenuItem = {
@@ -61,28 +28,6 @@ export const SYSTEM_SETTINGS_ROUTE_ICON_D: Record<string, string> = {
 		"M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z",
 	env: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
 }
-
-export const matchesSkippedRoute = (route: string, skipRoutes: readonly string[]) =>
-	skipRoutes.some((r) => route === r || route.startsWith(`${r}/`))
-
-export const filterOverviewModules = (
-	modules: SystemModule[],
-	skipRoutes: readonly string[]
-): SystemModule[] =>
-	modules.filter((m) => m.route && !matchesSkippedRoute(m.route, skipRoutes))
-
-export const groupModulesByCategory = (
-	modules: SystemModule[],
-	categoryOrder: readonly SystemModule["category"][],
-	labels: Record<SystemModule["category"], string>
-) =>
-	categoryOrder
-		.map((category) => ({
-			category,
-			label: labels[category],
-			modules: modules.filter((m) => m.category === category),
-		}))
-		.filter((group) => group.modules.length > 0)
 
 const SETTINGS_SECTION_ORDER: SystemSettingsMenuItem["section"][] = [
 	"personal",

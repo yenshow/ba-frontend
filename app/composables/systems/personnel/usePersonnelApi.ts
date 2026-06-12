@@ -15,6 +15,7 @@ import type {
 	PersonFingerprintPayload,
 	PersonLicensePlate,
 	LocationLicensePlateRow,
+	LocationMembersReplaceMeta,
 	VehiclePlateSyncResult,
 } from "~/types/personnel"
 import type { HandleErrorOptions } from "~/composables/core/useErrorHandler"
@@ -142,7 +143,7 @@ export type PersonnelApi = {
 	replaceLocationMembers: (
 		locationId: number,
 		memberPersonIds: number[]
-	) => Promise<Paged<Person>>
+	) => Promise<Paged<Person> & LocationMembersReplaceMeta>
 	startSyncLocationJob: (locationId: number) => Promise<{ jobId: string }>
 	getSyncLocationJob: (
 		jobId: string,
@@ -367,10 +368,13 @@ export const usePersonnelApi = (): PersonnelApi => {
 				},
 			),
 		replaceLocationMembers: (locationId: number, memberPersonIds: number[]) =>
-			request<Paged<Person>>(`${PERSONNEL_PREFIX}/locations/${locationId}/members`, {
-				method: "PUT",
-				body: JSON.stringify({ memberPersonIds }),
-			}),
+			request<Paged<Person> & LocationMembersReplaceMeta>(
+				`${PERSONNEL_PREFIX}/locations/${locationId}/members`,
+				{
+					method: "PUT",
+					body: JSON.stringify({ memberPersonIds }),
+				},
+			),
 		startSyncLocationJob: (locationId: number) =>
 			request<{ jobId: string }>(`${PERSONNEL_PREFIX}/sync-location/${locationId}/job`, {
 				method: "POST",

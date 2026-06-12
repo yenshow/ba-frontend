@@ -120,11 +120,12 @@ export const useElevatorFloorAccess = (params: {
 			floors.value = res.floors || []
 			defaultsApplied.value = false
 			syncCheckedFromFloors(floors.value)
-			toast.success("已儲存樓層授權")
-			return true
+			const jobId = res.deviceSync?.jobId ?? null
+			if (!jobId) toast.success("已套用樓層權限")
+			return { ok: true as const, jobId }
 		} catch (err) {
 			toast.warning(resolveFormApiErrorPreferOriginal(err, "儲存樓層授權失敗"), 6000)
-			return false
+			return { ok: false as const, jobId: null }
 		} finally {
 			isApplying.value = false
 		}

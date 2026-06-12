@@ -1,7 +1,22 @@
 <template>
-	<div class="relative">
-		<!-- 左側切換按鈕 -->
+	<div class="group relative px-3 py-6 2xl:px-4 2xl:py-8">
+		<div v-if="isEditMode" class="absolute -right-20 top-4 z-20 flex items-center gap-2">
+			<button type="button" :class="toolbarBtnClass" @click="handleResetOrder">還原預設</button>
+			<button type="button" :class="toolbarBtnClass" @click="handleFinishEdit">完成</button>
+		</div>
+
+		<PermissionActionButton
+			v-else-if="!isLoading"
+			:allowed="canWrite"
+			aria-label="調整系統模組順序"
+			class="absolute -right-20 top-4 z-20 rounded-full bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100 enabled:hover:bg-black/50 2xl:text-base"
+			@click="handleStartEdit"
+		>
+			調整順序
+		</PermissionActionButton>
+
 		<button
+			v-if="!isEditMode"
 			type="button"
 			class="absolute left-0 top-1/2 z-10 flex h-14 w-14 -translate-x-11 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white/80 text-white transition-all hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50 2xl:h-20 2xl:w-20 2xl:-translate-x-20"
 			:disabled="!canNavigatePrevious || isLoading"
@@ -13,66 +28,98 @@
 			</svg>
 		</button>
 
-		<!-- 模組網格：使用過渡動畫 -->
-		<div class="min-h-[420px] 2xl:min-h-[528px]">
-			<Transition name="fade" mode="out-in">
+		<div v-if="isEditMode" class="show-scrollbar overflow-y-auto" :style="editScrollStyle">
+			<div :class="MODULE_GRID_CLASS">
 				<div
-					v-if="!isLoading"
-					:key="`modules-${currentPage}-${systemModules.length}`"
-					class="grid grid-cols-4 gap-x-6 gap-y-3 px-3 py-6 2xl:gap-x-8 2xl:gap-y-4 2xl:px-4 2xl:py-8"
+					v-for="module in orderedModules"
+					:key="module.route"
+					:aria-label="`${module.name}（拖曳以調整順序）`"
+					draggable="true"
+					:class="[
+						tileClass,
+						'cursor-move border-dashed bg-white/10 hover:bg-white/15',
+						dragOverRoute === module.route && 'ring-2 ring-white/80',
+					]"
+					:style="MODULE_TILE_STYLE"
+					@dragstart="(e) => handleDragStart(e, module.route)"
+					@dragend="handleDragEnd"
+					@dragover="(e) => handleDragOver(e, module.route)"
+					@dragleave="handleDragLeave(module.route)"
+					@drop="(e) => handleDrop(e, module.route)"
 				>
-					<template v-for="module in currentModules" :key="module.id">
-						<div
-							v-if="module.route"
-							role="link"
-							tabindex="0"
-							:aria-label="module.name"
-							:class="[
-								'aspect-square cursor-pointer overflow-hidden rounded-xl border-2 border-white/80 transition-all hover:bg-white/5',
-								isModuleLocked(module) && 'opacity-60',
-							]"
-							:style="{
-								boxShadow:
-									'inset -7px 7px 7px rgba(255, 255, 255, 0.25), inset 7px -7px 10px rgba(0, 0, 0, 0.25)',
-							}"
-							@click="handleModuleClick(module)"
-							@keydown="(e) => handleModuleKeyDown(e, module)"
-						>
-							<div class="flex h-full flex-col items-center justify-center">
-								<div class="flex items-center justify-center">
-									<div
-										class="relative flex h-24 w-24 items-center justify-center 2xl:h-28 2xl:w-28"
-									>
-										<NuxtImg
-											:src="`/system/${module.icon}.png`"
-											:alt="module.name"
-											class="h-full w-full object-contain"
-										/>
-										<!-- 鎖頭（未授權） -->
-										<div
-											v-if="isModuleLocked(module)"
-											class="absolute -right-4 -top-4 flex h-12 w-12 items-center justify-center rounded-full bg-black/20 ring-1 ring-white/30 2xl:h-16 2xl:w-16"
-										>
-											<CommonLicenseLockIcon class="h-8 w-8 text-white 2xl:h-12 2xl:w-12" />
-										</div>
-									</div>
-								</div>
-								<div class="mt-2 2xl:mt-4">
-									<h3
-										class="ms-[6px] whitespace-nowrap text-xl tracking-[6px] text-white 2xl:text-2xl"
-									>
-										{{ module.name }}
-									</h3>
+					<div class="flex h-full flex-col items-center justify-center">
+						<div class="relative flex h-24 w-24 items-center justify-center 2xl:h-28 2xl:w-28">
+							<NuxtImg
+								:src="`/system/${module.icon}.png`"
+								:alt="module.name"
+								class="h-full w-full object-contain"
+								draggable="false"
+							/>
+						</div>
+						<h3 class="mt-2 ms-[6px] whitespace-nowrap text-xl tracking-[6px] text-white 2xl:mt-4 2xl:text-2xl">
+							{{ module.name }}
+						</h3>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div v-else ref="gridShellRef">
+			<div v-if="isLoading" :class="MODULE_GRID_CLASS" aria-hidden="true">
+				<div
+					v-for="index in MODULES_PER_PAGE"
+					:key="`skeleton-${index}`"
+					:class="[tileClass, 'animate-pulse border-white/30 bg-white/5']"
+				>
+					<div class="flex h-full flex-col items-center justify-center">
+						<div class="h-24 w-24 rounded-full bg-white/15 2xl:h-28 2xl:w-28" />
+						<div class="mt-2 h-5 w-24 rounded bg-white/15 2xl:mt-4 2xl:h-6 2xl:w-28" />
+					</div>
+				</div>
+			</div>
+
+			<Transition v-else name="fade" mode="out-in">
+				<div :key="currentPage" :class="MODULE_GRID_CLASS">
+					<div
+						v-for="module in pagedModules"
+						:key="module.route"
+						role="link"
+						tabindex="0"
+						:aria-label="module.name"
+						:class="[
+							tileClass,
+							'cursor-pointer hover:bg-white/5',
+							isModuleLocked(module) && 'opacity-60',
+						]"
+						:style="MODULE_TILE_STYLE"
+						@click="handleModuleClick(module)"
+						@keydown="(e) => handleModuleKeyDown(e, module)"
+					>
+						<div class="flex h-full flex-col items-center justify-center">
+							<div class="relative flex h-24 w-24 items-center justify-center 2xl:h-28 2xl:w-28">
+								<NuxtImg
+									:src="`/system/${module.icon}.png`"
+									:alt="module.name"
+									class="h-full w-full object-contain"
+								/>
+								<div
+									v-if="isModuleLocked(module)"
+									class="absolute -right-4 -top-4 flex h-12 w-12 items-center justify-center rounded-full bg-black/20 ring-1 ring-white/30 2xl:h-16 2xl:w-16"
+								>
+									<CommonLicenseLockIcon class="h-8 w-8 text-white 2xl:h-12 2xl:w-12" />
 								</div>
 							</div>
+							<h3 class="mt-2 ms-[6px] whitespace-nowrap text-xl tracking-[6px] text-white 2xl:mt-4 2xl:text-2xl">
+								{{ module.name }}
+							</h3>
 						</div>
-					</template>
+					</div>
 				</div>
 			</Transition>
 		</div>
 
-		<!-- 右側切換按鈕 -->
 		<button
+			v-if="!isEditMode"
 			type="button"
 			class="absolute right-0 top-1/2 z-10 flex h-14 w-14 -translate-y-1/2 translate-x-11 items-center justify-center rounded-full border-2 border-white/80 text-white transition-all hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50 2xl:h-20 2xl:w-20 2xl:translate-x-20"
 			:disabled="!canNavigateNext || isLoading"
@@ -87,21 +134,64 @@
 </template>
 
 <script setup lang="ts">
-import { useAccessGate } from "~/composables/core/useAccessGate"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+import { useAccessGate, useHomeRbac } from "~/composables/core/useAccessGate"
+import { useHomeModuleOrder } from "~/composables/core/useHomeModuleOrder"
 import { useToast } from "~/composables/core/useToast"
-import { PERMISSION_MESSAGE_LOCKED } from "~/utils/errorUtils"
-import type { SystemModule } from "~/types/system"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
+import type { CentralShellModule } from "~/config/centralModuleShell"
+import { PERMISSION_MESSAGE_LOCKED } from "~/utils/errorUtils"
+
+const MODULES_PER_PAGE = 8
+const MODULE_GRID_CLASS = "grid grid-cols-4 gap-x-6 gap-y-3 2xl:gap-x-8 2xl:gap-y-4"
+const MODULE_TILE_STYLE = {
+	boxShadow:
+		"inset -7px 7px 7px rgba(255, 255, 255, 0.25), inset 7px -7px 10px rgba(0, 0, 0, 0.25)",
+}
+const toolbarBtnClass =
+	"rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition-colors hover:bg-black/50 2xl:text-base"
+const tileClass =
+	"aspect-square overflow-hidden rounded-xl border-2 border-white/80 transition-all"
 
 const moduleRegistry = useModuleRegistry()
+const { orderedModules, resetToDefault, moveModule } = useHomeModuleOrder()
 const accessGate = useAccessGate()
+const { canWrite } = useHomeRbac()
 const toast = useToast()
 
-const isModuleLocked = (module: SystemModule) => accessGate.isModuleLocked(module)
+const isEditMode = ref(false)
+const currentPage = ref(0)
+const draggedRoute = ref<string | null>(null)
+const dragOverRoute = ref<string | null>(null)
+const gridShellRef = ref<HTMLElement | null>(null)
+const lockedGridHeight = ref(0)
 
-const systemModules = computed(() => moduleRegistry.getAllModules())
+const isModuleLocked = (module: CentralShellModule) => accessGate.isModuleLocked(module)
 
-const handleModuleClick = (module: SystemModule) => {
+const isLoading = computed(
+	() => moduleRegistry.isLoading.value && orderedModules.value.length === 0
+)
+
+const pagedModules = computed(() => {
+	const start = currentPage.value * MODULES_PER_PAGE
+	return orderedModules.value.slice(start, start + MODULES_PER_PAGE)
+})
+
+const editScrollStyle = computed(() =>
+	lockedGridHeight.value > 0 ? { height: `${lockedGridHeight.value}px` } : undefined
+)
+
+const canNavigatePrevious = computed(() => currentPage.value > 0)
+const canNavigateNext = computed(
+	() => (currentPage.value + 1) * MODULES_PER_PAGE < orderedModules.value.length
+)
+
+const syncGridHeight = () => {
+	if (isEditMode.value || !gridShellRef.value) return
+	lockedGridHeight.value = gridShellRef.value.getBoundingClientRect().height
+}
+
+const handleModuleClick = (module: CentralShellModule) => {
 	if (!accessGate.canAccessModule(module)) {
 		toast.warning(PERMISSION_MESSAGE_LOCKED)
 		return
@@ -109,88 +199,89 @@ const handleModuleClick = (module: SystemModule) => {
 	navigateTo(module.route)
 }
 
-const handleModuleKeyDown = (e: KeyboardEvent, module: SystemModule) => {
+const handleModuleKeyDown = (e: KeyboardEvent, module: CentralShellModule) => {
 	if (e.key !== "Enter" && e.key !== " ") return
 	e.preventDefault()
 	handleModuleClick(module)
 }
 
-const currentPage = ref(0)
-const isLoading = ref(true)
+const handleStartEdit = () => {
+	syncGridHeight()
+	isEditMode.value = true
+	currentPage.value = 0
+}
 
-// 追蹤視窗寬度以實現響應式
-// 在 SSR 和 CSR 初期都使用相同的初始值，避免 hydration mismatch
-const windowWidth = ref(1024)
+const handleFinishEdit = () => {
+	isEditMode.value = false
+	handleDragEnd()
+	nextTick(syncGridHeight)
+}
 
-// 根據螢幕尺寸計算每頁顯示的模組數量
-const modulesPerPage = computed(() => {
-	// lg: 1024px, xl: 1280px, 2xl: 1536px
-	if (windowWidth.value >= 1536) {
-		return 8 // 2xl: 2行 × 4列 = 8個
-	} else if (windowWidth.value >= 1280) {
-		return 8 // xl: 2行 × 4列 = 8個
-	} else if (windowWidth.value >= 1024) {
-		return 6 // lg: 2行 × 3列 = 6個
-	} else {
-		return 8 // origin: 2行 × 4列 = 8個
+const handleResetOrder = () => {
+	resetToDefault()
+	toast.success("已還原為預設順序")
+}
+
+const handleDragStart = (event: DragEvent, route: string) => {
+	draggedRoute.value = route
+	event.dataTransfer?.setData("text/plain", route)
+	if (event.dataTransfer) event.dataTransfer.effectAllowed = "move"
+}
+
+const handleDragEnd = () => {
+	draggedRoute.value = null
+	dragOverRoute.value = null
+}
+
+const handleDragOver = (event: DragEvent, route: string) => {
+	if (!draggedRoute.value || draggedRoute.value === route) return
+	event.preventDefault()
+	if (event.dataTransfer) event.dataTransfer.dropEffect = "move"
+	dragOverRoute.value = route
+}
+
+const handleDragLeave = (route: string) => {
+	if (dragOverRoute.value === route) dragOverRoute.value = null
+}
+
+const handleDrop = (event: DragEvent, targetRoute: string) => {
+	event.preventDefault()
+	const fromRoute = draggedRoute.value ?? event.dataTransfer?.getData("text/plain")
+	if (!fromRoute || fromRoute === targetRoute) return
+	moveModule(fromRoute, targetRoute)
+	handleDragEnd()
+}
+
+const handleResize = () => syncGridHeight()
+
+watch(
+	() => orderedModules.value.length,
+	() => {
+		const maxPage = Math.max(0, Math.ceil(orderedModules.value.length / MODULES_PER_PAGE) - 1)
+		if (currentPage.value > maxPage) currentPage.value = maxPage
 	}
-})
-
-const currentModules = computed(() => {
-	const start = currentPage.value * modulesPerPage.value
-	return systemModules.value.slice(start, start + modulesPerPage.value)
-})
-
-const canNavigatePrevious = computed(() => currentPage.value > 0)
-
-const canNavigateNext = computed(
-	() => (currentPage.value + 1) * modulesPerPage.value < systemModules.value.length
 )
 
-// 監聽視窗大小變化，重置頁面以避免顯示空頁面
-let handleResize: (() => void) | null = null
-let lastModulesPerPage = 8 // 初始值
+watch(isLoading, (loading) => {
+	if (!loading) nextTick(syncGridHeight)
+})
 
 onMounted(() => {
 	void moduleRegistry.ensureLoaded()
-	// onMounted 只在客戶端執行，所以在這裡更新視窗寬度是安全的
-	// 這確保 SSR 和 CSR 初始狀態一致（都使用 1024），然後在客戶端掛載後更新
-	windowWidth.value = window.innerWidth
-	lastModulesPerPage = modulesPerPage.value
-
-	handleResize = () => {
-		windowWidth.value = window.innerWidth
-		const newModulesPerPage = modulesPerPage.value
-		// 如果每頁數量改變，重置到第一頁以避免顯示空頁面
-		if (newModulesPerPage !== lastModulesPerPage) {
-			currentPage.value = 0
-			lastModulesPerPage = newModulesPerPage
-		}
-	}
-
+	if (!import.meta.client) return
 	window.addEventListener("resize", handleResize)
-
-	// 模擬載入時間，確保骨架屏至少顯示一小段時間以提供更好的 UX
-	setTimeout(() => {
-		isLoading.value = false
-	}, 300)
+	nextTick(syncGridHeight)
 })
 
 onUnmounted(() => {
-	if (handleResize) {
-		window.removeEventListener("resize", handleResize)
-	}
+	if (import.meta.client) window.removeEventListener("resize", handleResize)
 })
 
-const nextPage = () => {
-	if (canNavigateNext.value) {
-		currentPage.value++
-	}
+const previousPage = () => {
+	if (canNavigatePrevious.value) currentPage.value--
 }
 
-const previousPage = () => {
-	if (canNavigatePrevious.value) {
-		currentPage.value--
-	}
+const nextPage = () => {
+	if (canNavigateNext.value) currentPage.value++
 }
 </script>

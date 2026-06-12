@@ -123,3 +123,47 @@ export const groupCentralShellModules = (modules: CentralShellModule[]) =>
 			.filter((m) => m.shellCategory === category)
 			.sort((a, b) => a.sortInCategory - b.sortInCategory),
 	})).filter((group) => group.modules.length > 0)
+
+/** 首頁／系統總覽不顯示的預留模組（registry 有登記但尚無頁面） */
+export const CENTRAL_PLACEHOLDER_MODULE_ROUTES = [
+	"/security/access-control",
+	"/business/visitor",
+	"/business/locker-management",
+] as const
+
+export const isCentralPlaceholderRoute = (route: string) =>
+	CENTRAL_PLACEHOLDER_MODULE_ROUTES.some(
+		(skip) => route === skip || route.startsWith(`${skip}/`)
+	)
+
+export const getCentralShellModules = (modules: SystemModule[]): CentralShellModule[] =>
+	applyCentralModulePresentation(
+		modules.filter((module) => module.route && !isCentralPlaceholderRoute(module.route))
+	)
+
+export const getCentralDefaultHomeModuleOrder = (modules: CentralShellModule[]): string[] =>
+	groupCentralShellModules(modules).flatMap((group) => group.modules.map((m) => m.route))
+
+export const reconcileModuleRouteOrder = (
+	savedOrder: readonly string[],
+	availableRoutes: readonly string[]
+): string[] => {
+	const available = new Set(availableRoutes)
+	const kept = savedOrder.filter((route) => available.has(route))
+	const keptSet = new Set(kept)
+	const appended = availableRoutes.filter((route) => !keptSet.has(route))
+	return [...kept, ...appended]
+}
+
+export const sortModulesByRouteOrder = <T extends { route: string }>(
+	modules: T[],
+	order: readonly string[]
+): T[] => {
+	const index = new Map(order.map((route, i) => [route, i]))
+	return [...modules].sort((a, b) => {
+		const ai = index.get(a.route) ?? Number.MAX_SAFE_INTEGER
+		const bi = index.get(b.route) ?? Number.MAX_SAFE_INTEGER
+		if (ai !== bi) return ai - bi
+		return a.route.localeCompare(b.route)
+	})
+}

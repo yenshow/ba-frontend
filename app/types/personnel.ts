@@ -37,6 +37,12 @@ export interface LocationLicensePlateRow extends PersonLicensePlate {
 	person_status?: string;
 }
 
+/** PUT /personnel/locations/:id/members 回應（含隱性推送 meta） */
+export type LocationMembersReplaceMeta = {
+	deviceSync?: { triggered: boolean; jobId: string };
+	plateSync?: { triggered: boolean };
+};
+
 export interface PersonLicensePlateFormItem {
 	plateNumber: string;
 	listType: PersonLicensePlateListType;

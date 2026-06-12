@@ -71,6 +71,7 @@ export interface ElevatorFloorAccessResponse {
 	floors: ElevatorFloorAccessSlot[]
 	defaultsApplied?: boolean
 	hasStoredAccess?: boolean
+	deviceSync?: { triggered: boolean; jobId: string }
 }
 
 export type ElevatorAccessSyncStepStatus = {

@@ -1,260 +1,141 @@
 <template>
-	<Teleport to="body">
-		<Transition name="dialog-fade">
-			<div
-				v-if="modelValue"
-				class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
-				role="dialog"
-				aria-modal="true"
-				aria-labelledby="pc-access-manage-title"
+	<DeviceManageDialogShell
+		:model-value="modelValue"
+		title="門禁管理"
+		title-id="pc-access-manage-title"
+		step-nav-aria-label="門禁管理步驟切換"
+		:manage-step="manageStep"
+		step1-label="人員權限"
+		step2-label="設備同步"
+		:is-ui-locked="isUiLocked"
+		@update:manage-step="manageStep = $event"
+		@close="handleClose"
+	>
+		<div v-if="locationId == null" class="py-12 text-center text-white/60">請先選擇地點</div>
+
+		<LocationMembersStepPanel
+			v-else-if="manageStep === 1"
+			title="步驟 1：人員權限"
+			description="勾選允許進出此地點的人員。套用後系統將自動同步至設備；可至步驟 2 檢視狀態。"
+			search-input-id="people-counting-access-members-search"
+			:members-query="membersQuery"
+			:has-member-candidates="hasMemberCandidates"
+			:can-edit-members="canEditMembers"
+			:is-applying-members="isApplyingMembers"
+			:is-loading-members="isLoadingMembers"
+			:member-candidate-groups="memberCandidateGroups"
+			:members-error="membersError"
+			:is-all-members-page-kept="isAllMembersPageKept"
+			:is-member-kept="isMemberKept"
+			:list-min-height-class="LOCATION_MEMBERS_PANEL_MIN_HEIGHT"
+			list-scroll-class="max-h-[480px]"
+			@update:members-query="membersQuery = $event"
+			@search="handleSearchMembers"
+			@toggle-select-all-page="handleToggleSelectAllMembersPage"
+			@toggle-member="toggleMember"
+			@apply="handleApplyMembers"
+		/>
+
+		<div v-else class="space-y-4 rounded-xl border border-white/15 bg-white/5 p-4 2xl:p-5">
+			<DeviceSyncStep2Toolbar
+				title="步驟 2：設備同步"
+				description="將名單內人員的臉部、卡片、指紋等資料寫入門禁設備，並檢視各項同步狀態。"
+				:warnings-count="syncWarnings.length"
+				:can-resync="canDeviceSync"
+				:is-resync-disabled="isSyncButtonDisabled"
+				:is-resyncing="isCurrentlySyncing"
+				resync-aria-label="重新同步此地點至門禁設備"
+				@open-warnings="openWarningsDialog"
+				@resync="handleSync"
+			/>
+
+			<DeviceLocationDeviceBadges
+				:location-name="locationName"
+				:entry="deviceLabels.entry"
+				:exit="deviceLabels.exit"
+			/>
+
+			<AsyncPanel
+				:loading="isSyncCandidatesLoading"
+				:empty="!isSyncCandidatesLoading && syncRows.length === 0"
+				empty-title="此地點尚無門禁名單人員，請先完成步驟 1"
+				:min-height-class="SYNC_TABLE_PANEL_MIN_HEIGHT"
 			>
-				<div
-					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-5xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:max-w-6xl 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
-					:aria-busy="isUiLocked || undefined"
-				>
-					<header class="flex items-center justify-between gap-3 pr-7 2xl:pr-8">
-						<div class="min-w-0">
-							<h3
-								id="pc-access-manage-title"
-								class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl"
+				<template #loading>
+					<p class="sr-only">載入同步狀態</p>
+					<ContentSkeleton :columns="7" :rows="8" />
+				</template>
+				<div class="overflow-x-auto">
+					<table class="w-full min-w-[760px] text-left text-sm text-white/90 2xl:text-base">
+						<thead>
+							<tr class="border-b border-white/15 text-white/70">
+								<th class="py-2 pe-2">ID</th>
+								<th class="py-2 pe-2">姓名</th>
+								<th class="py-2 pe-2">已同步</th>
+								<th class="py-2 pe-2">人員</th>
+								<th class="py-2 pe-2">圖片</th>
+								<th class="py-2 pe-2">卡片</th>
+								<th class="py-2 pe-2">指紋</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr
+								v-for="row in syncRows"
+								:key="row.employeeNo"
+								class="border-b border-white/10"
 							>
-								門禁管理
-							</h3>
-						</div>
-
-						<nav class="flex items-center gap-2 pr-7 2xl:pr-8" aria-label="門禁管理步驟切換">
-							<button
-								type="button"
-								class="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors 2xl:text-base"
-								:class="getPillButtonClass(manageStep === 1)"
-								:aria-current="manageStep === 1 ? 'step' : undefined"
-								@click="manageStep = 1"
-							>
-								<span
-									class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ring-1 2xl:h-7 2xl:w-7 2xl:text-sm"
-									:class="getStepCircleClass(manageStep === 1)"
-									aria-hidden="true"
-								>
-									1
-								</span>
-								<span>人員權限</span>
-							</button>
-
-							<div class="h-px w-[300px] bg-white/10" aria-hidden="true" />
-
-							<button
-								type="button"
-								class="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors 2xl:text-base"
-								:class="getPillButtonClass(manageStep === 2)"
-								:aria-current="manageStep === 2 ? 'step' : undefined"
-								@click="manageStep = 2"
-							>
-								<span
-									class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ring-1 2xl:h-7 2xl:w-7 2xl:text-sm"
-									:class="getStepCircleClass(manageStep === 2)"
-									aria-hidden="true"
-								>
-									2
-								</span>
-								<span>設備同步</span>
-							</button>
-						</nav>
-						<button
-							type="button"
-							class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
-							aria-label="關閉對話框"
-							tabindex="0"
-							@click="handleClose"
-							@keydown.enter="handleClose"
-							@keydown.space.prevent="handleClose"
-						>
-							&times;
-						</button>
-					</header>
-
-					<div class="show-scrollbar relative min-h-[320px] flex-1 overflow-y-auto pr-7 2xl:pr-8">
-						<div v-if="locationId == null" class="py-12 text-center text-white/60">
-							請先選擇地點
-						</div>
-
-						<LocationMembersStepPanel
-							v-else-if="manageStep === 1"
-							title="步驟 1：人員權限"
-							description="勾選允許進出此地點的人員。套用後請至步驟 2，將人員資料同步至入口／出口門禁設備。"
-							search-input-id="people-counting-access-members-search"
-							:members-query="membersQuery"
-							:has-member-candidates="hasMemberCandidates"
-							:can-edit-members="canEditMembers"
-							:is-applying-members="isApplyingMembers"
-							:is-loading-members="isLoadingMembers"
-							:member-candidate-groups="memberCandidateGroups"
-							:members-error="membersError"
-							:is-all-members-page-kept="isAllMembersPageKept"
-							:is-member-kept="isMemberKept"
-							:list-min-height-class="LOCATION_MEMBERS_PANEL_MIN_HEIGHT"
-							list-scroll-class="max-h-[480px]"
-							@update:members-query="membersQuery = $event"
-							@search="handleSearchMembers"
-							@toggle-select-all-page="handleToggleSelectAllMembersPage"
-							@toggle-member="toggleMember"
-							@apply="handleApplyMembers"
-						/>
-
-						<div v-else class="space-y-4 rounded-xl border border-white/15 bg-white/5 p-4 2xl:p-5">
-							<div class="flex items-center gap-2">
-								<div class="space-y-2">
-									<h4 class="text-lg font-medium text-white 2xl:text-xl">步驟 2：設備同步</h4>
-									<p class="text-sm text-white/60 2xl:text-base">
-										將名單內人員的臉部、卡片、指紋等資料寫入門禁設備，並檢視各項同步狀態。
-									</p>
-								</div>
-								<button
-									type="button"
-									class="ml-auto rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm 2xl:text-base text-white/90 hover:bg-white/20 disabled:opacity-50"
-									:disabled="syncWarnings.length === 0"
-									@click="openWarningsDialog"
-								>
-									查看錯誤
-									<span v-if="syncWarnings.length > 0" class="ms-1 text-amber-200">
-										({{ syncWarnings.length }})
-									</span>
-								</button>
-								<PermissionActionButton
-									:allowed="canDeviceSync && !isSyncButtonDisabled"
-									class="rounded-xl border border-white/20 bg-emerald-500/85 px-4 py-2 text-sm text-white enabled:hover:bg-emerald-500 2xl:text-base"
-									aria-label="同步此地點至門禁設備"
-									@click="handleSync"
-								>
-									{{ isCurrentlySyncing ? "同步中…" : "同步設備" }}
-								</PermissionActionButton>
-							</div>
-							<p v-if="locationName" class="truncate text-base 2xl:text-lg">
-								{{ locationName }}
-							</p>
-							<div class="flex flex-wrap gap-2 text-xs text-white/75 2xl:text-sm">
-								<span
-									v-for="name in deviceLabels.entry"
-									:key="`entry-${name}`"
-									class="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5"
-								>
-									入口：{{ name }}
-								</span>
-								<span
-									v-for="name in deviceLabels.exit"
-									:key="`exit-${name}`"
-									class="rounded-full border border-blue-400/30 bg-blue-500/10 px-2 py-0.5"
-								>
-									出口：{{ name }}
-								</span>
-							</div>
-
-							<AsyncPanel
-								:loading="isSyncCandidatesLoading"
-								:empty="!isSyncCandidatesLoading && syncRows.length === 0"
-								empty-title="此地點尚無門禁名單人員，請先完成步驟 1"
-								:min-height-class="SYNC_TABLE_PANEL_MIN_HEIGHT"
-							>
-								<template #loading>
-									<p class="sr-only">載入同步狀態</p>
-									<ContentSkeleton :columns="7" :rows="8" />
-								</template>
-								<div class="overflow-x-auto">
-									<table class="w-full min-w-[760px] text-left text-sm text-white/90 2xl:text-base">
-										<thead>
-											<tr class="border-b border-white/15 text-white/70">
-												<th class="py-2 pe-2">ID</th>
-												<th class="py-2 pe-2">姓名</th>
-												<th class="py-2 pe-2">已同步</th>
-												<th class="py-2 pe-2">人員</th>
-												<th class="py-2 pe-2">圖片</th>
-												<th class="py-2 pe-2">卡片</th>
-												<th class="py-2 pe-2">指紋</th>
-											</tr>
-										</thead>
-										<tbody>
-											<tr
-												v-for="row in syncRows"
-												:key="row.employeeNo"
-												class="border-b border-white/10"
-											>
-												<td class="py-2 pe-2 font-mono">{{ row.employeeNo }}</td>
-												<td class="py-2 pe-2">{{ row.fullName || "—" }}</td>
-												<td class="py-2 pe-2">
-													<span
-														class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
-														:class="lastSyncPillClass(getLastSyncLabel(row.employeeNo))"
-													>
-														{{ getLastSyncLabel(row.employeeNo) }}
-													</span>
-												</td>
-												<td class="py-2 pe-2">
-													<span
-														class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
-														:class="syncStepPillClass(row.person.status)"
-													>
-														{{ syncStepShortLabel(row.person) }}
-													</span>
-												</td>
-												<td class="py-2 pe-2">
-													<span
-														class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
-														:class="syncStepPillClass(row.face.status)"
-													>
-														{{ syncStepShortLabel(row.face) }}
-													</span>
-												</td>
-												<td class="py-2 pe-2">
-													<span
-														class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
-														:class="syncStepPillClass(row.card.status)"
-													>
-														{{ syncStepShortLabel(row.card) }}
-													</span>
-												</td>
-												<td class="py-2 pe-2">
-													<span
-														class="inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold"
-														:class="syncStepPillClass(row.fingerprint.status)"
-													>
-														{{ syncStepShortLabel(row.fingerprint) }}
-													</span>
-												</td>
-											</tr>
-										</tbody>
-									</table>
-									<Pagination
-										:total="syncPaged.total"
-										:offset="syncPaged.offset"
-										:limit="syncPaged.limit"
-										:disabled="isUiLocked || isSyncCandidatesLoading"
-										:show="syncPaged.total > syncPaged.limit"
-										@previous="handlePrevSyncPage"
-										@next="handleNextSyncPage"
+								<td class="py-2 pe-2 font-mono">{{ row.employeeNo }}</td>
+								<td class="py-2 pe-2">{{ row.fullName || "—" }}</td>
+								<td class="py-2 pe-2">
+									<SyncStatusPill
+										variant="lastSync"
+										:label="getLastSyncLabel(row.employeeNo)"
 									/>
-								</div>
-							</AsyncPanel>
-						</div>
-
-						<div
-							v-if="isUiLocked"
-							class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
-							role="status"
-						>
-							<div
-								class="flex items-center gap-3 rounded-xl border border-white/15 bg-white/10 px-4 py-3 shadow-lg backdrop-blur-sm"
-							>
-								<div
-									class="h-6 w-6 animate-spin rounded-full border-2 border-white/30 border-t-white/80"
-									aria-hidden="true"
-								/>
-								<p class="text-white/85">同步中，請稍候…</p>
-							</div>
-						</div>
-					</div>
+								</td>
+								<td class="py-2 pe-2">
+									<SyncStatusPill
+										variant="step"
+										:status="row.person.status"
+										:label="syncStepShortLabel(row.person)"
+									/>
+								</td>
+								<td class="py-2 pe-2">
+									<SyncStatusPill
+										variant="step"
+										:status="row.face.status"
+										:label="syncStepShortLabel(row.face)"
+									/>
+								</td>
+								<td class="py-2 pe-2">
+									<SyncStatusPill
+										variant="step"
+										:status="row.card.status"
+										:label="syncStepShortLabel(row.card)"
+									/>
+								</td>
+								<td class="py-2 pe-2">
+									<SyncStatusPill
+										variant="step"
+										:status="row.fingerprint.status"
+										:label="syncStepShortLabel(row.fingerprint)"
+									/>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+					<Pagination
+						:total="syncPaged.total"
+						:offset="syncPaged.offset"
+						:limit="syncPaged.limit"
+						:disabled="isUiLocked || isSyncCandidatesLoading"
+						:show="syncPaged.total > syncPaged.limit"
+						@previous="handlePrevSyncPage"
+						@next="handleNextSyncPage"
+					/>
 				</div>
-			</div>
-		</Transition>
-	</Teleport>
+			</AsyncPanel>
+		</div>
+	</DeviceManageDialogShell>
 
 	<PersonnelSyncWarningsDialog
 		v-model="showWarningsDialog"
@@ -265,8 +146,11 @@
 
 <script setup lang="ts">
 import { computed, ref, toRef, watch } from "vue"
-import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import Pagination from "~/components/common/Pagination.vue"
+import DeviceManageDialogShell from "~/components/personnel/device-sync/DeviceManageDialogShell.vue"
+import DeviceSyncStep2Toolbar from "~/components/personnel/device-sync/DeviceSyncStep2Toolbar.vue"
+import DeviceLocationDeviceBadges from "~/components/personnel/device-sync/DeviceLocationDeviceBadges.vue"
+import SyncStatusPill from "~/components/personnel/device-sync/SyncStatusPill.vue"
 import LocationMembersStepPanel from "~/components/personnel/location-access/LocationMembersStepPanel.vue"
 import AsyncPanel from "~/components/common/AsyncPanel.vue"
 import ContentSkeleton from "~/components/common/ContentSkeleton.vue"
@@ -277,8 +161,6 @@ import {
 	LOCATION_MEMBERS_PANEL_MIN_HEIGHT,
 	SYNC_TABLE_PANEL_MIN_HEIGHT,
 } from "~/composables/systems/personnel/useLocationMembersPicker"
-import { useWizardStepNav } from "~/composables/core/useWizardStepNav"
-import { lastSyncPillClass } from "~/utils/personnelUtils"
 
 const props = defineProps<{
 	modelValue: boolean
@@ -296,7 +178,6 @@ const emit = defineEmits<{
 }>()
 
 const manageStep = ref<1 | 2>(1)
-const { getPillButtonClass, getStepCircleClass } = useWizardStepNav()
 
 const {
 	isSingleLocationSyncing,
@@ -310,7 +191,6 @@ const {
 	syncOneLocation,
 	isSyncLocationCandidatesLoading,
 	getPagedSyncStepRowsForLocation,
-	syncStepPillClass,
 	syncStepShortLabel,
 	getCandidateLastSyncLabel,
 	isLocationCurrentlySyncing,
@@ -345,7 +225,7 @@ const handleApplyMembers = async () => {
 }
 
 const deviceLabels = computed(() =>
-	props.locationId != null ? getLocationDevicesLabel(props.locationId) : { entry: [], exit: [] }
+	props.locationId != null ? getLocationDevicesLabel(props.locationId) : { entry: [], exit: [] },
 )
 
 const isUiLocked = computed(() => isSingleLocationSyncing.value)
@@ -356,19 +236,19 @@ watch(manageStep, async (step) => {
 })
 
 const isSyncCandidatesLoading = computed(() =>
-	props.locationId != null ? isSyncLocationCandidatesLoading(props.locationId) : false
+	props.locationId != null ? isSyncLocationCandidatesLoading(props.locationId) : false,
 )
 const syncPaged = computed(() =>
 	props.locationId != null
 		? getPagedSyncStepRowsForLocation(props.locationId)
-		: { rows: [], total: 0, offset: 0, limit: 10 }
+		: { rows: [], total: 0, offset: 0, limit: 10 },
 )
 const syncRows = computed(() => syncPaged.value.rows)
 const isCurrentlySyncing = computed(() =>
-	props.locationId != null ? isLocationCurrentlySyncing(props.locationId) : false
+	props.locationId != null ? isLocationCurrentlySyncing(props.locationId) : false,
 )
 const isSyncButtonDisabled = computed(() =>
-	props.locationId != null ? isLocationSyncButtonDisabled(props.locationId) : true
+	props.locationId != null ? isLocationSyncButtonDisabled(props.locationId) : true,
 )
 
 const getLastSyncLabel = (employeeNo: string) =>
@@ -396,6 +276,6 @@ watch(
 		manageStep.value = 1
 		if (props.locationId == null) return
 		void prepareLocationDialog(props.locationId)
-	}
+	},
 )
 </script>

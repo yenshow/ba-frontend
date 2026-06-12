@@ -1,28 +1,14 @@
-import { reactive, ref, type Ref } from "vue"
+import { computed, reactive, ref, type Ref } from "vue"
 import type { ElevatorSyncCandidate, ElevatorSyncJob } from "~/types/elevator"
 import type { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
 import { clampOffset, getNextOffset, getPrevOffset } from "~/composables/systems/personnel/personnelList"
 import { finalizeSyncWarningsForDisplay } from "~/utils/personnelUtils"
 import type { SyncWarning } from "~/types/personnel"
+import { useImplicitDeviceSyncObserver } from "~/composables/systems/personnel/useImplicitDeviceSyncObserver"
 
 type ElevatorApi = ReturnType<typeof useElevatorApi>
 
 const SYNC_CANDIDATES_PAGE_SIZE = 10
-const SYNC_TIMEOUT_MS = 10 * 60 * 1000
-
-const waitUntilVisible = async () => {
-	if (!process.client) return
-	if (!document.hidden) return
-	await new Promise<void>((resolve) => {
-		const handler = () => {
-			if (!document.hidden) {
-				document.removeEventListener("visibilitychange", handler)
-				resolve()
-			}
-		}
-		document.addEventListener("visibilitychange", handler)
-	})
-}
 
 export const useElevatorSyncEngine = (params: {
 	elevatorApi: ElevatorApi
@@ -31,6 +17,7 @@ export const useElevatorSyncEngine = (params: {
 	canDeviceSync: Ref<boolean>
 }) => {
 	const { elevatorApi, toast, handleApiError, canDeviceSync } = params
+	const implicitObserver = useImplicitDeviceSyncObserver()
 
 	const syncCandidatesByLocation = reactive<Record<number, ElevatorSyncCandidate[]>>({})
 	const hasAccessDevicesByLocation = reactive<Record<number, boolean>>({})
@@ -83,58 +70,49 @@ export const useElevatorSyncEngine = (params: {
 		return { rows: all.slice(offset, offset + limit), total, offset, limit }
 	}
 
+	const jobWarningsToSyncWarnings = (job: ElevatorSyncJob): SyncWarning[] =>
+		(job.result?.warnings ?? []).map((w) => ({
+			type: w.type,
+			employeeNo: w.employeeNo,
+			fullName: w.fullName ?? null,
+			deviceId: w.deviceId,
+			deviceName: w.deviceName ?? null,
+			message: w.message ?? "",
+		}))
+
+	const finalizeCompletedJob = async (
+		job: ElevatorSyncJob,
+		locationId: number | null,
+		options?: { successMessage?: string },
+	) => {
+		syncWarnings.value = await finalizeSyncWarningsForDisplay(
+			jobWarningsToSyncWarnings(job),
+			syncCandidatesByLocation,
+			ensureSyncCandidates,
+		)
+		if (syncWarnings.value.length > 0) {
+			toast.error(`同步完成（含 ${syncWarnings.value.length} 筆警告）`)
+			showWarningsDialog.value = true
+			return
+		}
+		const hasAccess = locationId != null && hasAccessDevicesByLocation[locationId]
+		const defaultMessage = hasAccess ? "梯控與門禁設備同步完成" : "梯控設備同步完成"
+		toast.success(options?.successMessage ?? defaultMessage)
+		if (locationId != null) await ensureSyncCandidates(locationId)
+	}
+
 	const pollFloorSyncJob = async (jobId: string) => {
 		isPollingSyncJob.value = true
-		const startedAt = Date.now()
-		let pollMs = 2000
-		let lastDoneOps = -1
-
-		for (;;) {
-			await waitUntilVisible()
-			const { job } = await elevatorApi.getFloorSyncJob(jobId)
-			activeSyncJob.value = job
-
-			if (job.status === "completed") {
-				if (job.error) throw new Error(job.error)
-				const locId = activeSyncLocationId.value
-				const rawWarnings: SyncWarning[] = (job.result?.warnings ?? []).map((w) => ({
-					type: w.type,
-					employeeNo: w.employeeNo,
-					fullName: w.fullName ?? null,
-					deviceId: w.deviceId,
-					deviceName: w.deviceName ?? null,
-					message: w.message ?? "",
-				}))
-				syncWarnings.value = await finalizeSyncWarningsForDisplay(
-					rawWarnings,
-					syncCandidatesByLocation,
-					ensureSyncCandidates,
-				)
-				if (syncWarnings.value.length > 0) {
-					toast.error(`同步完成（含 ${syncWarnings.value.length} 筆警告）`)
-					showWarningsDialog.value = true
-				} else {
-					const hasAccess = locId != null && hasAccessDevicesByLocation[locId]
-					toast.success(hasAccess ? "梯控與門禁設備同步完成" : "梯控設備同步完成")
-				}
-				break
-			}
-
-			if (Date.now() - startedAt > SYNC_TIMEOUT_MS) {
-				throw new Error("同步逾時，請稍後再試")
-			}
-
-			const doneOps = Number(job.progress?.doneOps ?? 0)
-			if (doneOps === lastDoneOps) {
-				pollMs = Math.min(5000, Math.round(Math.max(2000, pollMs) * 1.35))
-			} else {
-				pollMs = 2000
-				lastDoneOps = doneOps
-			}
-			await new Promise((r) => setTimeout(r, pollMs))
+		try {
+			const job = await implicitObserver.watchElevatorJob(elevatorApi, jobId, {
+				onTick: (tickJob) => {
+					activeSyncJob.value = tickJob
+				},
+			})
+			await finalizeCompletedJob(job, activeSyncLocationId.value)
+		} finally {
+			isPollingSyncJob.value = false
 		}
-
-		isPollingSyncJob.value = false
 	}
 
 	const syncOneLocation = async (locationId: number) => {
@@ -161,6 +139,7 @@ export const useElevatorSyncEngine = (params: {
 
 	const isLocationSyncButtonDisabled = (locationId: number) => {
 		if (!canDeviceSync.value) return true
+		if (implicitObserver.isUiLocked.value) return true
 		if (isPollingSyncJob.value && activeSyncLocationId.value === locationId) return true
 		if (
 			isPollingSyncJob.value &&
@@ -254,6 +233,32 @@ export const useElevatorSyncEngine = (params: {
 		return "待同步"
 	}
 
+	const watchApplySyncJob = async (locationId: number, jobId: string) => {
+		activeSyncLocationId.value = locationId
+		try {
+			const job = await implicitObserver.watchElevatorJob(elevatorApi, jobId, {
+				onTick: (tickJob) => {
+					activeSyncJob.value = tickJob
+				},
+			})
+			const hasAccess = hasAccessDevicesForLocation(locationId)
+			await finalizeCompletedJob(job, locationId, {
+				successMessage: hasAccess
+					? "已套用樓層權限並同步至設備"
+					: "已套用樓層權限並同步至梯控設備",
+			})
+		} catch (err) {
+			handleApiError(err, "同步失敗")
+		} finally {
+			activeSyncLocationId.value = null
+			activeSyncJob.value = null
+		}
+	}
+
+	const isUiLocked = computed(
+		() => isPollingSyncJob.value || implicitObserver.isUiLocked.value,
+	)
+
 	return {
 		syncWarnings,
 		showWarningsDialog,
@@ -295,5 +300,7 @@ export const useElevatorSyncEngine = (params: {
 		lastSyncPillClass,
 		cardStepPillClass,
 		cardStepLabel,
+		watchApplySyncJob,
+		isUiLocked,
 	}
 }

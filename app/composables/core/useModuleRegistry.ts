@@ -3,15 +3,6 @@ import { LICENSE_FEATURE_KEYS, type FeatureKey } from "~/types/license"
 import type { SystemModule } from "~/types/system"
 import { logger } from "~/utils/logger"
 
-const MODULE_CATEGORY_ORDER = [
-	"core",
-	"construction-monitoring",
-	"infrastructure",
-	"security",
-	"business",
-	"multimedia",
-] as const satisfies readonly SystemModule["category"][]
-
 type ModuleRegistryItem = {
 	id?: number
 	routePrefix: string
@@ -121,17 +112,10 @@ export const useModuleRegistry = () => {
 
 	const getAllModules = () => modules.value
 
-	const getModulesByCategory = (category: SystemModule["category"] | "all" = "all") => {
-		if (category === "all") return modules.value
-		return modules.value.filter((m) => m.category === category)
-	}
-
 	const getUiModuleByRoute = (routePath: string): SystemModule | undefined => {
 		const m = getModuleByRoute(routePath)
 		return m ? toSystemModule(m) : undefined
 	}
-
-	const categoryOrder = MODULE_CATEGORY_ORDER
 
 	/** 與後端 ENABLE_YSCP_PEOPLE_COUNTING 同步；未載入 registry 前預設 true（與後端預設一致） */
 	const enableYscpPeopleCounting = computed(
@@ -152,9 +136,7 @@ export const useModuleRegistry = () => {
 		getFeatureKeyByRoute,
 		modules: readonly(modules),
 		getAllModules,
-		getModulesByCategory,
 		getUiModuleByRoute,
-		categoryOrder,
 	}
 }
 

@@ -98,7 +98,10 @@ export const useLocationMembersOnly = (params: {
 		}
 	}
 
-	const applyLocationMembers = async (locationId: number) => {
+	const applyLocationMembers = async (
+		locationId: number,
+		options?: { silentSuccess?: boolean },
+	) => {
 		locationMembersError[locationId] = null
 		locationMembersApplying[locationId] = true
 		try {
@@ -106,12 +109,14 @@ export const useLocationMembersOnly = (params: {
 			const next = Array.from(
 				new Set((kept || []).map((x) => Number(x)).filter((x) => Number.isFinite(x)))
 			).map((x) => Math.trunc(x))
-			await personnelApi.replaceLocationMembers(locationId, next)
-			toast.success("已套用變更")
+			const res = await personnelApi.replaceLocationMembers(locationId, next)
+			if (!options?.silentSuccess) toast.success("已套用名單")
 			await loadAllLocationMembers(locationId)
+			return res
 		} catch (err) {
 			locationMembersError[locationId] = resolveFormApiError(err, "套用失敗")
 			handleApiError(err, "套用失敗")
+			return null
 		} finally {
 			locationMembersApplying[locationId] = false
 		}

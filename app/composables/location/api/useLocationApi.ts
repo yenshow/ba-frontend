@@ -37,6 +37,18 @@ export const useLocationApi = () => {
 			}>("/locations/people-counting/syncable-locations");
 		},
 
+		getVehicleAccessSyncableLocationsWithDevices: () => {
+			return request<{
+				locations: Array<{
+					id: number;
+					name: string;
+					zone_name: string;
+					entry_devices: Array<Pick<Device, "id" | "name">>;
+					exit_devices: Array<Pick<Device, "id" | "name">>;
+				}>;
+			}>("/locations/vehicle-access/syncable-locations");
+		},
+
 		/**
 		 * 取得區域列表
 		 * @param systemType 可選：篩選特定系統類型的地點

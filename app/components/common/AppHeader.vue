@@ -313,10 +313,7 @@ import { PERMISSION_MESSAGE_LOCKED } from "~/utils/errorUtils"
 import type { SystemModule } from "~/types/system"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { useAppShellNavigation } from "~/composables/core/useAppShellNavigation"
-import {
-	resolveCentralShellCategory,
-	type CentralShellCategory,
-} from "~/config/centralModuleShell"
+import { resolveCentralShellCategory, type CentralShellCategory } from "~/config/centralModuleShell"
 import {
 	SYSTEM_SETTINGS_ROUTE_ICON_D,
 	SYSTEM_SETTINGS_SECTION_LABELS,
@@ -324,7 +321,13 @@ import {
 
 const parseHexRgb = (hex: string) => {
 	const raw = hex.replace("#", "")
-	const full = raw.length === 3 ? raw.split("").map((c) => c + c).join("") : raw
+	const full =
+		raw.length === 3
+			? raw
+					.split("")
+					.map((c) => c + c)
+					.join("")
+			: raw
 	return {
 		r: Number.parseInt(full.slice(0, 2), 16),
 		g: Number.parseInt(full.slice(2, 4), 16),

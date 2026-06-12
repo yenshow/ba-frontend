@@ -3,16 +3,11 @@ import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { canAccessAccountPage } from "~/composables/systems/users/useAccountSettings"
 import type { User } from "~/types/user"
 import {
-	applyCentralModulePresentation,
 	CENTRAL_SHELL_CATEGORY_ACCENT_HEX,
+	getCentralShellModules,
 	groupCentralShellModules,
 } from "~/config/centralModuleShell"
-import {
-	CENTRAL_OVERVIEW_SKIP_ROUTES,
-	filterOverviewModules,
-	type SystemSettingsMenuItem,
-	toSystemSettingsSections,
-} from "~/utils/appShellNavigationUtils"
+import { type SystemSettingsMenuItem, toSystemSettingsSections } from "~/utils/appShellNavigationUtils"
 
 const buildSystemSettingsItems = (
 	user: Pick<User, "role"> | null | undefined,
@@ -69,13 +64,9 @@ export const useAppShellNavigation = () => {
 	const { user } = useAuth()
 	const canAdmin = useAdminOnly()
 
-	const centralOverviewCategoryGroups = computed(() => {
-		const modules = filterOverviewModules(
-			moduleRegistry.getAllModules(),
-			CENTRAL_OVERVIEW_SKIP_ROUTES
-		)
-		return groupCentralShellModules(applyCentralModulePresentation(modules))
-	})
+	const centralOverviewCategoryGroups = computed(() =>
+		groupCentralShellModules(getCentralShellModules(moduleRegistry.getAllModules()))
+	)
 
 	const systemSettingsSections = computed(() =>
 		toSystemSettingsSections(buildSystemSettingsItems(user.value, canAdmin.value, true))
