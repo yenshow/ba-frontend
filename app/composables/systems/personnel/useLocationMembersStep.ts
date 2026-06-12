@@ -1,12 +1,18 @@
-import { reactive } from "vue"
+import { reactive, type ComputedRef, type Ref } from "vue"
 import type { Person } from "~/types/personnel"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { fetchAllPersonnelCandidates } from "~/composables/systems/personnel/personnelList"
+import { usePageSelectAll } from "~/composables/systems/personnel/usePageSelectAll"
+import { groupPersonsByPersonGroup } from "~/utils/personnelUtils"
 import { resolveFormApiError } from "~/utils/errorUtils"
 
 type LocationId = number
+type MaybeRef<T> = Ref<T> | ComputedRef<T>
 
-/** 地點可進出人員（person_location_access）— 不含人流設備 sync engine */
+export const LOCATION_MEMBERS_PANEL_MIN_HEIGHT = "min-h-[min(360px,50vh)]"
+export const SYNC_TABLE_PANEL_MIN_HEIGHT = "min-h-[320px]"
+
+/** 地點可進出人員（person_location_access）— Step 1 SSOT，不含設備 sync */
 export const useLocationMembersOnly = (params: {
 	personnelApi: PersonnelApi
 	toast: { success: (msg: string) => void }
@@ -107,7 +113,7 @@ export const useLocationMembersOnly = (params: {
 		try {
 			const kept = getLocationMemberKeptIds(locationId)
 			const next = Array.from(
-				new Set((kept || []).map((x) => Number(x)).filter((x) => Number.isFinite(x)))
+				new Set((kept || []).map((x) => Number(x)).filter((x) => Number.isFinite(x))),
 			).map((x) => Math.trunc(x))
 			const res = await personnelApi.replaceLocationMembers(locationId, next)
 			if (!options?.silentSuccess) toast.success("已套用名單")
@@ -145,3 +151,115 @@ export const useLocationMembersOnly = (params: {
 }
 
 export type LocationMembersSync = ReturnType<typeof useLocationMembersOnly>
+
+export type LocationMembersPickerSync = Pick<
+	LocationMembersSync,
+	| "getLocationCandidatesItems"
+	| "getLocationCandidatesQuery"
+	| "setLocationCandidatesQuery"
+	| "isLocationMembersApplying"
+	| "isLocationMembersLoading"
+	| "isLocationCandidatesLoading"
+	| "getLocationMembersError"
+	| "isLocationMemberKept"
+	| "toggleKeepLocationMember"
+	| "toggleManyLocationMembers"
+	| "loadLocationCandidates"
+> & {
+	applyLocationMembers: (locationId: number) => Promise<unknown | null>
+}
+
+/** Step 1 名單勾選 UI（注入 accessSync / plateSync） */
+export const useLocationMembersPicker = (params: {
+	locationId: MaybeRef<number | null>
+	membersSync: MaybeRef<LocationMembersPickerSync | undefined>
+}) => {
+	const pickerCtx = computed(() => {
+		const id = unref(params.locationId)
+		const sync = unref(params.membersSync)
+		if (id == null || !sync) return null
+		return { id, sync }
+	})
+
+	const memberCandidates = computed<Person[]>(() => {
+		const ctx = pickerCtx.value
+		if (!ctx) return []
+		return ctx.sync.getLocationCandidatesItems(ctx.id)
+	})
+
+	const memberCandidateGroups = computed(() => groupPersonsByPersonGroup(memberCandidates.value))
+	const hasMemberCandidates = computed(() => memberCandidates.value.length > 0)
+
+	const membersQuery = computed({
+		get: () => pickerCtx.value?.sync.getLocationCandidatesQuery(pickerCtx.value.id) ?? "",
+		set: (v: string) => {
+			const ctx = pickerCtx.value
+			if (!ctx) return
+			ctx.sync.setLocationCandidatesQuery(ctx.id, v)
+		},
+	})
+
+	const isApplyingMembers = computed(
+		() => pickerCtx.value?.sync.isLocationMembersApplying(pickerCtx.value.id) ?? false,
+	)
+
+	const isLoadingMembers = computed(() => {
+		const ctx = pickerCtx.value
+		if (!ctx) return false
+		return (
+			ctx.sync.isLocationMembersLoading(ctx.id) ||
+			ctx.sync.isLocationCandidatesLoading(ctx.id)
+		)
+	})
+
+	const membersError = computed(
+		() => pickerCtx.value?.sync.getLocationMembersError(pickerCtx.value.id) ?? null,
+	)
+
+	const isMemberKept = (personId: number) =>
+		pickerCtx.value?.sync.isLocationMemberKept(pickerCtx.value.id, personId) ?? false
+
+	const toggleMember = (personId: number, e: Event) => {
+		const ctx = pickerCtx.value
+		if (!ctx) return
+		ctx.sync.toggleKeepLocationMember(ctx.id, personId, e)
+	}
+
+	const pageSelectAll = usePageSelectAll<Person>({
+		items: memberCandidates,
+		isSelected: (id) => isMemberKept(id),
+		setMany: (ids, checked) => {
+			const ctx = pickerCtx.value
+			if (!ctx) return
+			ctx.sync.toggleManyLocationMembers(ctx.id, ids, checked)
+		},
+	})
+
+	const handleSearchMembers = async () => {
+		const ctx = pickerCtx.value
+		if (!ctx) return
+		await ctx.sync.loadLocationCandidates(ctx.id)
+	}
+
+	const applyMembers = async () => {
+		const ctx = pickerCtx.value
+		if (!ctx) return false
+		const res = await ctx.sync.applyLocationMembers(ctx.id)
+		return res != null && !ctx.sync.getLocationMembersError(ctx.id)
+	}
+
+	return {
+		memberCandidateGroups,
+		hasMemberCandidates,
+		membersQuery,
+		isApplyingMembers,
+		isLoadingMembers,
+		membersError,
+		isMemberKept,
+		toggleMember,
+		isAllMembersPageKept: pageSelectAll.isAllSelectedOnPage,
+		handleToggleSelectAllMembersPage: pageSelectAll.toggleSelectAllOnPage,
+		handleSearchMembers,
+		applyMembers,
+	}
+}

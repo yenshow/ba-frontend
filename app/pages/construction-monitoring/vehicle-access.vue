@@ -67,7 +67,7 @@
 					</PermissionActionButton>
 					<PermissionActionButton
 						v-show="isIsapiCamera && selectedLocation"
-						:allowed="canSyncEdit || canCreatePlate || canUpdatePlate || canDeletePlate"
+						:allowed="canOpenPlateManage"
 						aria-label="車牌管理"
 						class="absolute left-36 top-2 btn-monitoring-overlay"
 						@click="showIsapiManageDialog = true"
@@ -227,10 +227,11 @@
 		:can-create-plate="canCreatePlate"
 		:can-update-plate="canUpdatePlate"
 		:can-delete-plate="canDeletePlate"
-		:can-edit-members="canSyncEdit"
-		:can-device-sync="canDeviceSync"
+		:can-edit-members="canEditPlateMembers"
+		:can-resync-plates="canResyncPlates"
 		:plate-sync="plateSync"
 		@members-updated="handleVehicleMembersUpdated"
+		@synced="handleVehicleMembersUpdated"
 	/>
 
 	<SimulationFrame v-model="showSimulationFrame" title="車輛進出 - 完整報表">
@@ -271,7 +272,11 @@ import {
 	ZONE_DIALOG_BATCH_SAVE_OPTIONS,
 } from "~/composables/location/management/useZoneManagement"
 import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter"
-import { useLocationModuleRbac, usePersonnelRbac, useVehicleAccessRbac } from "~/composables/core/useAccessGate"
+import {
+	useLocationModuleRbac,
+	useVehicleAccessRbac,
+	useVehiclePlateManageRbac,
+} from "~/composables/core/useAccessGate"
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { useLocationPlateSync } from "~/composables/systems/personnel/useLocationPlateSync"
@@ -289,9 +294,15 @@ const {
 	canDeleteLocation,
 	canFullReport,
 } = useLocationModuleRbac(PERM.vehicleAccess)
-const { canCreatePlate, canUpdatePlate, canDeletePlate, canResetStatistics, canBarrierControl } =
-	useVehicleAccessRbac()
-const { canSyncEdit, canDeviceSync } = usePersonnelRbac()
+const { canResetStatistics, canBarrierControl } = useVehicleAccessRbac()
+const {
+	canOpenPlateManage,
+	canEditPlateMembers,
+	canResyncPlates,
+	canCreatePlate,
+	canUpdatePlate,
+	canDeletePlate,
+} = useVehiclePlateManageRbac()
 const personnelApi = usePersonnelApi()
 const locationApi = useLocationApi()
 const { showToast } = useToast()
@@ -302,7 +313,7 @@ const plateSync = useLocationPlateSync({
 	toast: { success: (m: string) => showToast("success", m) },
 	toastError: (m: string) => showToast("error", m),
 	handleApiError,
-	canDeviceSync,
+	canResyncPlates,
 })
 const {
 	filters,

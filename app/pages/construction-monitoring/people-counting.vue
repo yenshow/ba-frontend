@@ -65,7 +65,7 @@
 					</PermissionActionButton>
 					<PermissionActionButton
 						v-show="isAccessControl && selectedLocation"
-						:allowed="canDeviceSync || canSyncEdit"
+						:allowed="canOpenAccessManage"
 						aria-label="門禁管理"
 						class="btn-monitoring-overlay absolute left-36 top-2"
 						@click="showAccessManageDialog = true"
@@ -203,8 +203,8 @@
 		v-model="showAccessManageDialog"
 		:location-id="selectedLocationNumericId"
 		:location-name="selectedLocationDisplayName"
-		:can-edit-members="canSyncEdit"
-		:can-device-sync="canDeviceSync"
+		:can-edit-members="canEditAccessMembers"
+		:can-device-sync="canResyncAccessDevices"
 		:access-sync="accessSync"
 		@synced="handleAccessManageSynced"
 		@members-updated="handleAccessManageSynced"
@@ -249,7 +249,10 @@ import {
 	usePeopleCountingApi,
 	PEOPLE_COUNTING_FULL_REPORT_LIMIT
 } from "~/composables/systems/peopleCounting/usePeopleCountingApi";
-import { useLocationModuleRbac, usePersonnelRbac } from "~/composables/core/useAccessGate";
+import {
+	useLocationModuleRbac,
+	usePeopleCountingAccessRbac,
+} from "~/composables/core/useAccessGate";
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi";
 import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useToast } from "~/composables/core/useToast";
@@ -277,7 +280,8 @@ const {
 	canDeleteLocation,
 	canFullReport
 } = useLocationModuleRbac(PERM.peopleCounting);
-const { canDeviceSync, canSyncEdit } = usePersonnelRbac();
+const { canOpenAccessManage, canEditAccessMembers, canResyncAccessDevices } =
+	usePeopleCountingAccessRbac();
 const personnelApi = usePersonnelApi();
 const locationApi = useLocationApi();
 const toast = useToast();
@@ -287,7 +291,7 @@ const accessSync = useLocationAccessSync({
 	locationApi,
 	toast,
 	handleApiError,
-	canDeviceSync
+	canDeviceSync: canResyncAccessDevices
 });
 
 // 使用統一的狀態管理
@@ -374,6 +378,7 @@ const selectedLocationDisplayName = computed(() => {
 const handleAccessManageSynced = async () => {
 	const id = selectedLocationNumericId.value;
 	if (id == null) return;
+	await loadLocations();
 	await loadLocationDetail(id);
 };
 
@@ -644,10 +649,8 @@ watch(
 onMounted(async () => {
 	cleanupWebSocket = setupEventListeners(async () => {
 		const locationId = selectedLocation.value?.locationId;
-		await Promise.allSettled([
-			loadLocations(),
-			locationId ? loadLocationDetail(locationId) : Promise.resolve()
-		]);
+		await loadLocations();
+		if (locationId) await loadLocationDetail(locationId);
 	}, 500);
 
 	try {

@@ -80,17 +80,8 @@ export const usePeopleCountingState = () => {
 						logDisplayColumns: updatedLocation.logDisplayColumns,
 						entryCount: updatedLocation.entryCount,
 						exitCount: updatedLocation.exitCount,
-						units:
-							selectedLocation.value.units?.map(unit => {
-								const updatedUnit = updatedLocation.units?.find(u => u.id === unit.id);
-								if (!updatedUnit) return unit;
-								return {
-									...unit,
-									currentCount: updatedUnit.currentCount,
-									entryCount: updatedUnit.entryCount,
-									exitCount: updatedUnit.exitCount,
-								};
-							}) || updatedLocation.units
+						// 門禁名單變更後可能新增/移除群組，須以 API 回傳的完整 units 為準
+						units: updatedLocation.units ?? [],
 					};
 				}
 			}

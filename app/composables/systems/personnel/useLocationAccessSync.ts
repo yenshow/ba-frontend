@@ -15,8 +15,8 @@ import {
 	getNextOffset,
 	getPrevOffset,
 } from "~/composables/systems/personnel/personnelList"
-import { useLocationMembersOnly } from "~/composables/systems/personnel/useLocationMembersOnly"
-import { useImplicitDeviceSyncObserver } from "~/composables/systems/personnel/useImplicitDeviceSyncObserver"
+import { useLocationMembersOnly } from "~/composables/systems/personnel/useLocationMembersStep"
+import { useDeviceSyncObserver, indexSyncableLocationDevices } from "~/composables/systems/personnel/useDeviceSyncCore"
 import { enrichSyncWarningsWithLocation, finalizeSyncWarningsForDisplay } from "~/utils/personnelUtils"
 
 type LocationId = number
@@ -36,18 +36,7 @@ export const useLocationAccessSync = (params: {
 	const loadLocationSyncDevicesLabels = async () => {
 		try {
 			const res = await locationApi.getPeopleCountingSyncableLocationsWithDevices()
-			const list = Array.isArray(res?.locations) ? res.locations : []
-			for (const loc of list) {
-				const id = Number(loc.id)
-				if (!Number.isFinite(id)) continue
-				const entry = Array.isArray(loc.entry_devices)
-					? loc.entry_devices.map((d) => String(d?.name || "").trim()).filter(Boolean)
-					: []
-				const exit = Array.isArray(loc.exit_devices)
-					? loc.exit_devices.map((d) => String(d?.name || "").trim()).filter(Boolean)
-					: []
-				syncDevicesByLocationId[Math.trunc(id)] = { entry, exit }
-			}
+			indexSyncableLocationDevices(res?.locations, syncDevicesByLocationId)
 		} catch {
 			// ignore
 		}
@@ -89,9 +78,9 @@ export const useLocationAccessSync = (params: {
 		getSyncStepRowsForLocation,
 	} = syncEngine
 
-	const implicitObserver = useImplicitDeviceSyncObserver()
+	const deviceSyncObserver = useDeviceSyncObserver()
 	const isSingleLocationSyncing = computed(
-		() => isPollingSyncJob.value || implicitObserver.isUiLocked.value,
+		() => isPollingSyncJob.value || deviceSyncObserver.isUiLocked.value,
 	)
 
 	const membersOnly = useLocationMembersOnly({ personnelApi, toast, handleApiError })
@@ -104,7 +93,7 @@ export const useLocationAccessSync = (params: {
 		if (jobId) {
 			activeSyncLocationId.value = locationId
 			try {
-				const job = await implicitObserver.watchPersonnelJob(personnelApi, jobId, {
+				const job = await deviceSyncObserver.watchPersonnelJob(personnelApi, jobId, {
 					onTick: (tickJob) => {
 						activeSyncJob.value = tickJob
 					},
@@ -201,11 +190,11 @@ export const useLocationAccessSync = (params: {
 
 	const isLocationCurrentlySyncing = (locationId: number) =>
 		isLocationSyncJobRunning(locationId) ||
-		(implicitObserver.isUiLocked.value && activeSyncLocationId.value === locationId)
+		(deviceSyncObserver.isUiLocked.value && activeSyncLocationId.value === locationId)
 
 	const isLocationSyncButtonDisabled = (locationId: number) => {
 		if (!canDeviceSync.value) return true
-		if (implicitObserver.isUiLocked.value) return true
+		if (deviceSyncObserver.isUiLocked.value) return true
 		if (isPollingSyncJob.value && activeSyncLocationId.value === locationId) return true
 		if (
 			isPollingSyncJob.value &&

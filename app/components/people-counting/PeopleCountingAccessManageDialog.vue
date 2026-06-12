@@ -44,15 +44,12 @@
 				:can-resync="canDeviceSync"
 				:is-resync-disabled="isSyncButtonDisabled"
 				:is-resyncing="isCurrentlySyncing"
+				:location-name="locationName"
+				:entry-devices="deviceLabels.entry"
+				:exit-devices="deviceLabels.exit"
 				resync-aria-label="重新同步此地點至門禁設備"
 				@open-warnings="openWarningsDialog"
 				@resync="handleSync"
-			/>
-
-			<DeviceLocationDeviceBadges
-				:location-name="locationName"
-				:entry="deviceLabels.entry"
-				:exit="deviceLabels.exit"
 			/>
 
 			<AsyncPanel
@@ -149,7 +146,6 @@ import { computed, ref, toRef, watch } from "vue"
 import Pagination from "~/components/common/Pagination.vue"
 import DeviceManageDialogShell from "~/components/personnel/device-sync/DeviceManageDialogShell.vue"
 import DeviceSyncStep2Toolbar from "~/components/personnel/device-sync/DeviceSyncStep2Toolbar.vue"
-import DeviceLocationDeviceBadges from "~/components/personnel/device-sync/DeviceLocationDeviceBadges.vue"
 import SyncStatusPill from "~/components/personnel/device-sync/SyncStatusPill.vue"
 import LocationMembersStepPanel from "~/components/personnel/location-access/LocationMembersStepPanel.vue"
 import AsyncPanel from "~/components/common/AsyncPanel.vue"
@@ -160,7 +156,7 @@ import {
 	useLocationMembersPicker,
 	LOCATION_MEMBERS_PANEL_MIN_HEIGHT,
 	SYNC_TABLE_PANEL_MIN_HEIGHT,
-} from "~/composables/systems/personnel/useLocationMembersPicker"
+} from "~/composables/systems/personnel/useLocationMembersStep"
 
 const props = defineProps<{
 	modelValue: boolean
