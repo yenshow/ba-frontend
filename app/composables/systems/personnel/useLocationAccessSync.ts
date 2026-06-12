@@ -16,6 +16,8 @@ import {
 	getPrevOffset,
 } from "~/composables/systems/personnel/personnelList"
 import { useLocationMembersOnly } from "~/composables/systems/personnel/useLocationMembersOnly"
+import { useImplicitDeviceSyncObserver } from "~/composables/systems/personnel/useImplicitDeviceSyncObserver"
+import { enrichSyncWarningsWithLocation, finalizeSyncWarningsForDisplay } from "~/utils/personnelUtils"
 
 type LocationId = number
 
@@ -87,13 +89,54 @@ export const useLocationAccessSync = (params: {
 		getSyncStepRowsForLocation,
 	} = syncEngine
 
-	const isSingleLocationSyncing = computed(() => isPollingSyncJob.value)
+	const implicitObserver = useImplicitDeviceSyncObserver()
+	const isSingleLocationSyncing = computed(
+		() => isPollingSyncJob.value || implicitObserver.isUiLocked.value,
+	)
 
 	const membersOnly = useLocationMembersOnly({ personnelApi, toast, handleApiError })
 
 	const applyLocationMembers = async (locationId: number) => {
-		await membersOnly.applyLocationMembers(locationId)
+		const res = await membersOnly.applyLocationMembers(locationId, { silentSuccess: true })
+		if (res == null) return null
+
+		const jobId = res.deviceSync?.jobId
+		if (jobId) {
+			activeSyncLocationId.value = locationId
+			try {
+				const job = await implicitObserver.watchPersonnelJob(personnelApi, jobId, {
+					onTick: (tickJob) => {
+						activeSyncJob.value = tickJob
+					},
+				})
+				const rawWarnings = job.result?.warnings ?? []
+				syncWarnings.value = enrichSyncWarningsWithLocation(rawWarnings, {
+					locationId,
+					locationName: null,
+				})
+				syncWarnings.value = await finalizeSyncWarningsForDisplay(
+					syncWarnings.value,
+					syncCandidatesByLocation,
+					ensureSyncCandidates,
+				)
+				if (syncWarnings.value.length > 0) {
+					toast.error(`同步完成（含 ${syncWarnings.value.length} 筆警告）`)
+					showWarningsDialog.value = true
+				} else {
+					toast.success("已套用名單並同步至設備")
+				}
+			} catch (err) {
+				handleApiError(err, "同步失敗")
+			} finally {
+				activeSyncLocationId.value = null
+				activeSyncJob.value = null
+			}
+		} else {
+			toast.success("已套用名單")
+		}
+
 		await ensureSyncCandidates(locationId)
+		return res
 	}
 
 	const prepareLocationDialog = async (locationId: number) => {
@@ -156,10 +199,13 @@ export const useLocationAccessSync = (params: {
 		return getOverallSyncDisplayLabel(resolved, cand)
 	}
 
-	const isLocationCurrentlySyncing = (locationId: number) => isLocationSyncJobRunning(locationId)
+	const isLocationCurrentlySyncing = (locationId: number) =>
+		isLocationSyncJobRunning(locationId) ||
+		(implicitObserver.isUiLocked.value && activeSyncLocationId.value === locationId)
 
 	const isLocationSyncButtonDisabled = (locationId: number) => {
 		if (!canDeviceSync.value) return true
+		if (implicitObserver.isUiLocked.value) return true
 		if (isPollingSyncJob.value && activeSyncLocationId.value === locationId) return true
 		if (
 			isPollingSyncJob.value &&

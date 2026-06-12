@@ -6,13 +6,31 @@ import type { Person } from "~/types/personnel"
 
 type MaybeRef<T> = Ref<T> | ComputedRef<T>
 
+/** Step 1 名單勾選所需的最小介面（人流 accessSync / 車牌 plateSync 皆可注入） */
+export type LocationMembersPickerSync = Pick<
+	LocationMembersSync,
+	| "getLocationCandidatesItems"
+	| "getLocationCandidatesQuery"
+	| "setLocationCandidatesQuery"
+	| "isLocationMembersApplying"
+	| "isLocationMembersLoading"
+	| "isLocationCandidatesLoading"
+	| "getLocationMembersError"
+	| "isLocationMemberKept"
+	| "toggleKeepLocationMember"
+	| "toggleManyLocationMembers"
+	| "loadLocationCandidates"
+> & {
+	applyLocationMembers: (locationId: number) => Promise<unknown | null>
+}
+
 export const LOCATION_MEMBERS_PANEL_MIN_HEIGHT = "min-h-[min(360px,50vh)]"
 export const SYNC_TABLE_PANEL_MIN_HEIGHT = "min-h-[320px]"
 
 /** 地點可進出人員勾選（步驟 1）共用狀態，供門禁／車牌管理 Dialog 使用 */
 export const useLocationMembersPicker = (params: {
 	locationId: MaybeRef<number | null>
-	membersSync: MaybeRef<LocationMembersSync | undefined>
+	membersSync: MaybeRef<LocationMembersPickerSync | undefined>
 }) => {
 	const pickerCtx = computed(() => {
 		const id = unref(params.locationId)
@@ -84,8 +102,8 @@ export const useLocationMembersPicker = (params: {
 	const applyMembers = async () => {
 		const ctx = pickerCtx.value
 		if (!ctx) return false
-		await ctx.sync.applyLocationMembers(ctx.id)
-		return !ctx.sync.getLocationMembersError(ctx.id)
+		const res = await ctx.sync.applyLocationMembers(ctx.id)
+		return res != null && !ctx.sync.getLocationMembersError(ctx.id)
 	}
 
 	return {
