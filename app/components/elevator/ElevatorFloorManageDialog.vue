@@ -205,6 +205,10 @@
 								:is-resync-disabled="isSyncButtonDisabled"
 								:is-resyncing="isCurrentlySyncing"
 								:location-name="locationName"
+								:entry-devices="deviceLabels.entry"
+								:exit-devices="deviceLabels.exit"
+								entry-prefix="梯控"
+								exit-prefix="門禁"
 								resync-aria-label="重新同步至梯控與門禁設備"
 								@open-warnings="openWarningsDialog"
 								@resync="handleSync"
@@ -357,7 +361,8 @@ const {
 	showWarningsDialog,
 	openWarningsDialog,
 	syncWarningTypeLabel,
-	ensureSyncCandidates,
+	ensureStep2Data,
+	getLocationDevicesLabel,
 	isSyncCandidatesLoading: isSyncLocationCandidatesLoading,
 	getPagedSyncCandidates,
 	syncOneLocation,
@@ -409,6 +414,10 @@ const handleApplyFloorAccess = async () => {
 
 const isUiLocked = computed(() => isFloorSyncUiLocked.value)
 
+const deviceLabels = computed(() =>
+	props.locationId != null ? getLocationDevicesLabel(props.locationId) : { entry: [], exit: [] },
+)
+
 const syncPaged = computed(() =>
 	props.locationId != null
 		? getPagedSyncCandidates(props.locationId)
@@ -448,7 +457,7 @@ const handleNextSyncPage = () => {
 
 watch(manageStep, async (step) => {
 	if (step !== 2 || !props.modelValue || props.locationId == null) return
-	await ensureSyncCandidates(props.locationId)
+	await ensureStep2Data(props.locationId)
 })
 
 watch(

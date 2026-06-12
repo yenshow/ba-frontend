@@ -41,6 +41,7 @@ import {
 	personHasLadderCard,
 } from "~/utils/ladderFloorFormUtils"
 import { useElevatorLocationApi } from "~/composables/location/api/useElevatorLocationApi"
+import { useLicense } from "~/composables/core/useLicense"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import {
@@ -122,6 +123,7 @@ export const usePersonnelPersonsTab = (params: {
 	handleApiError: PersonnelHandleApiError
 }) => {
 	const { personnelApi, deviceApi, accessControlApi, toast, handleApiError } = params
+	const { canLoadFeature, fetchLicense, isLoaded } = useLicense()
 	const personsList = usePersonsList({ personnelApi, handleApiError, pageSize: 10 })
 	const {
 		PAGE_SIZE,
@@ -251,6 +253,11 @@ export const usePersonnelPersonsTab = (params: {
 	}
 
 	const loadElevatorLocationOptions = async () => {
+		if (!isLoaded.value) await fetchLicense()
+		if (!canLoadFeature("elevator")) {
+			elevatorLocationOptions.value = []
+			return
+		}
 		try {
 			const { zones } = await elevatorLocationApi.getZones()
 			elevatorLocationOptions.value = buildElevatorLocationFloorOptions(zones || [])

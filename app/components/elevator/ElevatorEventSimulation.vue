@@ -40,9 +40,9 @@
 			<p class="text-base text-white/70 2xl:text-lg">尚無電梯事件紀錄</p>
 		</div>
 
-		<div v-else class="show-scrollbar max-h-[60vh] overflow-y-auto">
+		<div v-else class="show-scrollbar overflow-x-auto">
 			<table class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base">
-				<thead class="sticky top-0 bg-white/20">
+				<thead class="sticky top-0 z-10 bg-white/20 backdrop-blur-sm">
 					<tr class="text-white/90">
 						<th
 							v-for="col in displayColumns"
@@ -88,7 +88,6 @@ import {
 	ELEVATOR_LOG_COLUMN_LABELS,
 	ELEVATOR_DEFAULT_LOG_DISPLAY_COLUMNS,
 	getElevatorLogCellValue,
-	type ElevatorLogColumnKey,
 } from "~/utils/elevatorLogColumns"
 import { exportCsv } from "~/utils/csvExport"
 

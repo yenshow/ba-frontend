@@ -429,7 +429,10 @@
 							</div>
 						</div>
 
-						<div class="col-span-2 flex flex-col gap-3 text-sm text-white/80 2xl:text-base">
+						<div
+							v-if="hasElevatorLicense"
+							class="col-span-2 flex flex-col gap-3 text-sm text-white/80 2xl:text-base"
+						>
 							<div class="flex items-center justify-between gap-2">
 								<p>梯控卡設定</p>
 								<div v-if="elevatorLocationOptions.length > 0" class="flex items-center gap-2">
@@ -569,6 +572,10 @@ import {
 	createEmptyFingerprintFormItem,
 } from "~/utils/fingerprintFormUtils"
 import { createFormItemTabHandlers } from "~/utils/personnelFormTabUtils"
+import { useLicense } from "~/composables/core/useLicense"
+
+const { hasFeature } = useLicense()
+const hasElevatorLicense = computed(() => hasFeature("elevator"))
 
 const props = defineProps<{
 	modelValue: boolean

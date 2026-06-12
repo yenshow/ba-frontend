@@ -5,6 +5,8 @@ import { clampOffset, getNextOffset, getPrevOffset } from "~/composables/systems
 import { finalizeSyncWarningsForDisplay } from "~/utils/personnelUtils"
 import type { SyncWarning } from "~/types/personnel"
 import { useDeviceSyncObserver } from "~/composables/systems/personnel/useDeviceSyncCore"
+import { useLocationApi } from "~/composables/location/api/useLocationApi"
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 
 type ElevatorApi = ReturnType<typeof useElevatorApi>
 
@@ -18,7 +20,10 @@ export const useElevatorSyncEngine = (params: {
 }) => {
 	const { elevatorApi, toast, handleApiError, canDeviceSync } = params
 	const deviceSyncObserver = useDeviceSyncObserver()
+	const locationApi = useLocationApi()
+	const deviceApi = useDeviceApi()
 
+	const syncDevicesByLocationId = reactive<Record<number, { entry: string[]; exit: string[] }>>({})
 	const syncCandidatesByLocation = reactive<Record<number, ElevatorSyncCandidate[]>>({})
 	const hasAccessDevicesByLocation = reactive<Record<number, boolean>>({})
 	const syncCandidatesLoading = reactive<Record<number, boolean>>({})
@@ -32,6 +37,62 @@ export const useElevatorSyncEngine = (params: {
 
 	const isSyncCandidatesLoading = (locationId: number) =>
 		Boolean(syncCandidatesLoading[locationId])
+
+	const resolveDeviceNames = async (ids: number[]) => {
+		const unique = [
+			...new Set(
+				(ids || [])
+					.map((id) => Number(id))
+					.filter((n) => Number.isFinite(n) && n > 0),
+			),
+		]
+		if (!unique.length) return []
+		return Promise.all(
+			unique.map(async (id) => {
+				try {
+					const res = await deviceApi.getDevice(id)
+					const name = String(res?.device?.name || "").trim()
+					return name || `#${id}`
+				} catch {
+					return `#${id}`
+				}
+			}),
+		)
+	}
+
+	const loadLocationSyncDevicesLabels = async (locationId: number) => {
+		try {
+			const res = await locationApi.getLocation(String(locationId))
+			const elevatorSys = (res?.location?.systems || []).find(
+				(sys) => sys.systemType === "elevator",
+			)
+			const config = elevatorSys?.config as
+				| { deviceIds?: number[]; accessDeviceIds?: number[] }
+				| undefined
+			const ladderIds = Array.isArray(config?.deviceIds) ? config.deviceIds : []
+			const accessIds = Array.isArray(config?.accessDeviceIds) ? config.accessDeviceIds : []
+			const [entry, exit] = await Promise.all([
+				resolveDeviceNames(ladderIds),
+				resolveDeviceNames(accessIds),
+			])
+			syncDevicesByLocationId[locationId] = { entry, exit }
+		} catch {
+			// ignore
+		}
+	}
+
+	const getLocationDevicesLabel = (locationId: number) => {
+		const v = syncDevicesByLocationId[locationId] || { entry: [], exit: [] }
+		return {
+			entry: Array.isArray(v.entry) ? v.entry : [],
+			exit: Array.isArray(v.exit) ? v.exit : [],
+		}
+	}
+
+	const ensureStep2Data = async (locationId: number) => {
+		await loadLocationSyncDevicesLabels(locationId)
+		await ensureSyncCandidates(locationId)
+	}
 
 	const ensureSyncCandidates = async (locationId: number) => {
 		syncCandidatesLoading[locationId] = true
@@ -267,6 +328,8 @@ export const useElevatorSyncEngine = (params: {
 		hasAccessDevicesForLocation,
 		accessStepShortLabel,
 		accessStepPillClass,
+		getLocationDevicesLabel,
+		ensureStep2Data,
 		ensureSyncCandidates,
 		isSyncCandidatesLoading,
 		getPagedSyncCandidates,

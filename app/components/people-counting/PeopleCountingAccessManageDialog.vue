@@ -183,7 +183,7 @@ const {
 	openWarningsDialog,
 	getLocationDevicesLabel,
 	prepareLocationDialog,
-	ensureSyncCandidates,
+	ensureStep2Data,
 	syncOneLocation,
 	isSyncLocationCandidatesLoading,
 	getPagedSyncStepRowsForLocation,
@@ -228,7 +228,7 @@ const isUiLocked = computed(() => isSingleLocationSyncing.value)
 
 watch(manageStep, async (step) => {
 	if (step !== 2 || !props.modelValue || props.locationId == null) return
-	await ensureSyncCandidates(props.locationId)
+	await ensureStep2Data(props.locationId)
 })
 
 const isSyncCandidatesLoading = computed(() =>

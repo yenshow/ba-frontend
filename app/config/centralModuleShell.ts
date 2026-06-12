@@ -37,6 +37,10 @@ const CENTRAL_MODULE_PRESENTATION: Record<string, ModulePresentation> = {
 		shellCategory: "access-control",
 		sortInCategory: 3,
 	},
+	"/construction-monitoring/surveillance": {
+		shellCategory: "access-control",
+		sortInCategory: 4,
+	},
 	"/infrastructure/lighting": { shellCategory: "utilities", sortInCategory: 1 },
 	"/infrastructure/hvac": { shellCategory: "utilities", sortInCategory: 2 },
 	"/infrastructure/power": { shellCategory: "utilities", sortInCategory: 3 },
@@ -45,11 +49,10 @@ const CENTRAL_MODULE_PRESENTATION: Record<string, ModulePresentation> = {
 		sortInCategory: 4,
 	},
 	"/infrastructure/air-circulation": { shellCategory: "utilities", sortInCategory: 5 },
-	"/construction-monitoring/surveillance": { shellCategory: "security", sortInCategory: 1 },
-	"/construction-monitoring/environment": { shellCategory: "security", sortInCategory: 2 },
-	"/security/fire": { shellCategory: "security", sortInCategory: 3 },
-	"/security/emergency": { shellCategory: "security", sortInCategory: 4 },
-	"/security/smoke-alarm": { shellCategory: "security", sortInCategory: 5 },
+	"/construction-monitoring/environment": { shellCategory: "security", sortInCategory: 1 },
+	"/security/fire": { shellCategory: "security", sortInCategory: 2 },
+	"/security/emergency": { shellCategory: "security", sortInCategory: 3 },
+	"/security/smoke-alarm": { shellCategory: "security", sortInCategory: 4 },
 	"/multimedia": { shellCategory: "multimedia", sortInCategory: 1 },
 }
 

@@ -17,7 +17,7 @@
 				</button>
 				<PermissionActionButton
 					:allowed="canResync && !isResyncDisabled"
-					class="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm text-white/90 enabled:hover:bg-white/20 2xl:text-base"
+					class="rounded-xl border border-white/20 bg-emerald-500/85 px-4 py-2 text-sm text-white enabled:hover:bg-emerald-500 2xl:text-base"
 					:aria-label="resyncAriaLabel"
 					@click="emit('resync')"
 				>
@@ -41,16 +41,16 @@
 				<span
 					v-for="name in entryDevices"
 					:key="`entry-${name}`"
-					class="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5"
+					class="rounded-full border border-blue-400/30 bg-blue-500/10 px-2 py-0.5"
 				>
-					入口：{{ name }}
+					{{ entryPrefix }}：{{ name }}
 				</span>
 				<span
 					v-for="name in exitDevices"
 					:key="`exit-${name}`"
 					class="rounded-full border border-blue-400/30 bg-blue-500/10 px-2 py-0.5"
 				>
-					出口：{{ name }}
+					{{ exitPrefix }}：{{ name }}
 				</span>
 			</div>
 		</div>
@@ -72,10 +72,14 @@ withDefaults(
 		locationName?: string | null
 		entryDevices?: string[]
 		exitDevices?: string[]
+		entryPrefix?: string
+		exitPrefix?: string
 	}>(),
 	{
 		entryDevices: () => [],
 		exitDevices: () => [],
+		entryPrefix: "入口",
+		exitPrefix: "出口",
 	},
 )
 

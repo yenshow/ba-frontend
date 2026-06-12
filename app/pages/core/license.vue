@@ -50,41 +50,38 @@
 					</p>
 
 					<fieldset :disabled="!canAdmin" class="mt-5 min-w-0 border-0 p-0 2xl:mt-6">
-					<form
-						class="flex flex-col gap-4 2xl:gap-5"
-						@submit.prevent="handleActivateOnline"
-					>
-						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-							<span>License Key（LK）</span>
-							<input
-								v-model="licenseKeyInput"
-								type="text"
-								inputmode="text"
-								autocomplete="off"
-								placeholder="XXXX-XXXX-XXXX-XXXX"
-								class="w-full rounded-xl border border-white/35 bg-white/10 px-3 py-2 text-white outline-none transition-colors focus:border-cyan-300/70 focus:bg-white/15"
-								aria-label="License Key 輸入"
-							/>
-							<span class="text-sm text-white/50">
-								<span v-if="showLicensePlaceholder">載入中...</span>
-								<span v-else-if="isActivated"
-									>已啟用主授權；若要追加功能模組，請輸入副 License Key 並再次啟用。</span
-								>
-								<span v-else>所有流程以 LK 為主；啟用成功後可回顯 SN 供稽核用。</span>
-							</span>
-						</label>
+						<form class="flex flex-col gap-4 2xl:gap-5" @submit.prevent="handleActivateOnline">
+							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
+								<span>License Key（LK）</span>
+								<input
+									v-model="licenseKeyInput"
+									type="text"
+									inputmode="text"
+									autocomplete="off"
+									placeholder="XXXX-XXXX-XXXX-XXXX"
+									class="w-full rounded-xl border border-white/35 bg-white/10 px-3 py-2 text-white outline-none transition-colors focus:border-cyan-300/70 focus:bg-white/15"
+									aria-label="License Key 輸入"
+								/>
+								<span class="text-sm text-white/50">
+									<span v-if="showLicensePlaceholder">載入中...</span>
+									<span v-else-if="isActivated"
+										>已啟用主授權；若要追加功能模組，請輸入副 License Key 並再次啟用。</span
+									>
+									<span v-else>所有流程以 LK 為主；啟用成功後可回顯 SN 供稽核用。</span>
+								</span>
+							</label>
 
-						<div class="flex flex-wrap items-center gap-3">
-							<button
-								type="submit"
-								class="rounded-xl bg-emerald-500/85 px-4 py-2 text-sm text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
-								:disabled="showLicensePlaceholder || isSubmittingOnline || !canSubmitLicenseKey"
-								aria-label="立即啟用授權"
-							>
-								{{ isSubmittingOnline ? "啟用中..." : "立即啟用" }}
-							</button>
-						</div>
-					</form>
+							<div class="flex flex-wrap items-center gap-3">
+								<button
+									type="submit"
+									class="rounded-xl bg-emerald-500/85 px-4 py-2 text-sm text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
+									:disabled="showLicensePlaceholder || isSubmittingOnline || !canSubmitLicenseKey"
+									aria-label="立即啟用授權"
+								>
+									{{ isSubmittingOnline ? "啟用中..." : "立即啟用" }}
+								</button>
+							</div>
+						</form>
 					</fieldset>
 				</div>
 
@@ -95,130 +92,130 @@
 					</p>
 
 					<fieldset :disabled="!canAdmin" class="mt-5 min-w-0 border-0 p-0">
-					<nav class="flex items-center gap-2" aria-label="離線授權步驟切換">
-						<button
-							type="button"
-							class="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors 2xl:text-base"
-							:class="getPillButtonClass(offlineStep === 1)"
-							:aria-current="offlineStep === 1 ? 'step' : undefined"
-							@click="offlineStep = 1"
-						>
-							<span
-								class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ring-1 2xl:h-7 2xl:w-7 2xl:text-sm"
-								:class="getStepCircleClass(offlineStep === 1)"
-								aria-hidden="true"
-							>
-								1
-							</span>
-							<span>產生請求檔</span>
-						</button>
-
-						<div class="h-px flex-1 bg-white/10" aria-hidden="true" />
-
-						<button
-							type="button"
-							class="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors 2xl:text-base"
-							:class="getPillButtonClass(offlineStep === 2)"
-							:aria-current="offlineStep === 2 ? 'step' : undefined"
-							@click="offlineStep = 2"
-						>
-							<span
-								class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ring-1 2xl:h-7 2xl:w-7 2xl:text-sm"
-								:class="getStepCircleClass(offlineStep === 2)"
-								aria-hidden="true"
-							>
-								2
-							</span>
-							<span>匯入回應檔</span>
-						</button>
-					</nav>
-
-					<div
-						v-if="offlineStep === 1"
-						class="mt-5 rounded-xl border border-white/15 bg-white/5 p-4 2xl:p-5"
-					>
-						<div class="space-y-1">
-							<h3 class="text-sm font-medium text-white 2xl:text-base">步驟 1：產生請求檔</h3>
-						</div>
-
-						<div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
-							<label class="flex flex-1 flex-col gap-2.5 text-sm text-white/80 2xl:text-base">
-								<span>License Key（LK）</span>
-								<input
-									v-model="requestFileLicenseKeyInput"
-									type="text"
-									inputmode="text"
-									autocomplete="off"
-									placeholder="XXXX-XXXX-XXXX-XXXX"
-									class="w-full rounded-xl border border-white/35 bg-white/10 px-3 py-2 text-white outline-none transition-colors focus:border-cyan-300/70 focus:bg-white/15"
-									aria-label="離線用 License Key"
-								/>
-							</label>
+						<nav class="flex items-center gap-2" aria-label="離線授權步驟切換">
 							<button
 								type="button"
-								class="rounded-xl border border-white/20 bg-emerald-500/85 px-3 py-2 text-base text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-								:disabled="
-									showLicensePlaceholder || isGeneratingRequestFile || !canGenerateRequestFile
-								"
-								aria-label="產生並下載 request file"
-								@click="handleGenerateRequestFile"
+								class="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors 2xl:text-base"
+								:class="getPillButtonClass(offlineStep === 1)"
+								:aria-current="offlineStep === 1 ? 'step' : undefined"
+								@click="offlineStep = 1"
 							>
-								{{ isGeneratingRequestFile ? "產生中..." : "產生並下載 .txt" }}
-							</button>
-						</div>
-					</div>
-
-					<div
-						v-else
-						class="mt-5 space-y-4 rounded-xl border border-white/15 bg-white/5 p-4 2xl:p-5"
-					>
-						<div class="space-y-2.5">
-							<h3 class="text-sm font-medium text-white 2xl:text-base">步驟 2：匯入回應檔</h3>
-							<p class="text-sm text-white/60 2xl:text-base">
-								請至
-								<a
-									href="https://www.yenshow.com/license/activate"
-									target="_blank"
-									rel="noopener noreferrer"
-									class="font-medium text-cyan-300 underline decoration-cyan-400/60 underline-offset-2 transition-colors hover:text-cyan-200"
-									aria-label="遠岫離線授權頁面（新分頁開啟）"
+								<span
+									class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ring-1 2xl:h-7 2xl:w-7 2xl:text-sm"
+									:class="getStepCircleClass(offlineStep === 1)"
+									aria-hidden="true"
 								>
-									離線授權頁面
-								</a>
-								上傳請求檔並下載回應檔後，在此點「上傳 JSON」選擇檔案，再按「驗簽並匯入」。
+									1
+								</span>
+								<span>產生請求檔</span>
+							</button>
+
+							<div class="h-px flex-1 bg-white/10" aria-hidden="true" />
+
+							<button
+								type="button"
+								class="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors 2xl:text-base"
+								:class="getPillButtonClass(offlineStep === 2)"
+								:aria-current="offlineStep === 2 ? 'step' : undefined"
+								@click="offlineStep = 2"
+							>
+								<span
+									class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ring-1 2xl:h-7 2xl:w-7 2xl:text-sm"
+									:class="getStepCircleClass(offlineStep === 2)"
+									aria-hidden="true"
+								>
+									2
+								</span>
+								<span>匯入回應檔</span>
+							</button>
+						</nav>
+
+						<div
+							v-if="offlineStep === 1"
+							class="mt-5 rounded-xl border border-white/15 bg-white/5 p-4 2xl:p-5"
+						>
+							<div class="space-y-1">
+								<h3 class="text-sm font-medium text-white 2xl:text-base">步驟 1：產生請求檔</h3>
+							</div>
+
+							<div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
+								<label class="flex flex-1 flex-col gap-2.5 text-sm text-white/80 2xl:text-base">
+									<span>License Key（LK）</span>
+									<input
+										v-model="requestFileLicenseKeyInput"
+										type="text"
+										inputmode="text"
+										autocomplete="off"
+										placeholder="XXXX-XXXX-XXXX-XXXX"
+										class="w-full rounded-xl border border-white/35 bg-white/10 px-3 py-2 text-white outline-none transition-colors focus:border-cyan-300/70 focus:bg-white/15"
+										aria-label="離線用 License Key"
+									/>
+								</label>
+								<button
+									type="button"
+									class="rounded-xl border border-white/20 bg-emerald-500/85 px-3 py-2 text-base text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+									:disabled="
+										showLicensePlaceholder || isGeneratingRequestFile || !canGenerateRequestFile
+									"
+									aria-label="產生並下載 request file"
+									@click="handleGenerateRequestFile"
+								>
+									{{ isGeneratingRequestFile ? "產生中..." : "產生並下載 .txt" }}
+								</button>
+							</div>
+						</div>
+
+						<div
+							v-else
+							class="mt-5 space-y-4 rounded-xl border border-white/15 bg-white/5 p-4 2xl:p-5"
+						>
+							<div class="space-y-2.5">
+								<h3 class="text-sm font-medium text-white 2xl:text-base">步驟 2：匯入回應檔</h3>
+								<p class="text-sm text-white/60 2xl:text-base">
+									請至
+									<a
+										href="https://www.yenshow.com/license/activate"
+										target="_blank"
+										rel="noopener noreferrer"
+										class="font-medium text-cyan-300 underline decoration-cyan-400/60 underline-offset-2 transition-colors hover:text-cyan-200"
+										aria-label="遠岫離線授權頁面（新分頁開啟）"
+									>
+										離線授權頁面
+									</a>
+									上傳請求檔並下載回應檔後，在此點「上傳 JSON」選擇檔案，再按「驗簽並匯入」。
+								</p>
+							</div>
+
+							<div class="flex flex-wrap items-center gap-2">
+								<label
+									class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-base text-white/80 transition-colors hover:bg-white/15"
+									tabindex="0"
+									aria-label="上傳離線回應檔 JSON"
+									@keydown="handleOfflineFileLabelKeyDown"
+								>
+									<input
+										ref="offlineResponseFileInputRef"
+										type="file"
+										accept="application/json,.json"
+										class="hidden"
+										@change="handleOfflineResponseFileChange"
+									/>
+									<span>上傳回應檔</span>
+								</label>
+								<button
+									type="button"
+									class="rounded-xl border border-white/20 bg-emerald-500/85 px-3 py-2 text-base text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+									:disabled="isSubmittingOffline || !offlineResponsePayload"
+									aria-label="驗簽並匯入"
+									@click="handleImportOffline"
+								>
+									{{ isSubmittingOffline ? "匯入中..." : "驗簽並匯入" }}
+								</button>
+							</div>
+							<p v-if="offlineResponseFileName" class="text-xs text-emerald-100/80">
+								已選擇：{{ offlineResponseFileName }}
 							</p>
 						</div>
-
-						<div class="flex flex-wrap items-center gap-2">
-							<label
-								class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-base text-white/80 transition-colors hover:bg-white/15"
-								tabindex="0"
-								aria-label="上傳離線回應檔 JSON"
-								@keydown="handleOfflineFileLabelKeyDown"
-							>
-								<input
-									ref="offlineResponseFileInputRef"
-									type="file"
-									accept="application/json,.json"
-									class="hidden"
-									@change="handleOfflineResponseFileChange"
-								/>
-								<span>上傳回應檔</span>
-							</label>
-							<button
-								type="button"
-								class="rounded-xl border border-white/20 bg-emerald-500/85 px-3 py-2 text-base text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-								:disabled="isSubmittingOffline || !offlineResponsePayload"
-								aria-label="驗簽並匯入"
-								@click="handleImportOffline"
-							>
-								{{ isSubmittingOffline ? "匯入中..." : "驗簽並匯入" }}
-							</button>
-						</div>
-						<p v-if="offlineResponseFileName" class="text-xs text-emerald-100/80">
-							已選擇：{{ offlineResponseFileName }}
-						</p>
-					</div>
 					</fieldset>
 				</div>
 			</div>
@@ -249,102 +246,104 @@
 						id-prefix="license-tab"
 					>
 						<template #quota>
-						<ClientOnly>
-							<AsyncPanel
-								panel-size="dense"
-								:loading="showLicensePlaceholder"
-								:empty="!showLicensePlaceholder && quotaDetailRows.length === 0"
-								empty-title="尚無配額資料"
-							>
-							<div class="show-scrollbar h-full overflow-auto pr-1">
-								<div class="mt-4 overflow-hidden rounded-xl border border-white/15">
-									<table class="w-full border-collapse">
-										<thead class="sticky top-0 z-10 bg-white/5 backdrop-blur">
-											<tr class="text-left text-sm text-white/70 2xl:text-base">
-												<th class="px-4 py-3 font-medium">模組</th>
-												<th class="px-4 py-3 font-medium">使用量</th>
-												<th class="px-4 py-3 font-medium">上限</th>
-												<th class="px-4 py-3 font-medium">狀態</th>
-											</tr>
-										</thead>
-										<tbody>
-											<tr
-												v-for="row in quotaDetailRows"
-												:key="row.key"
-												class="border-t border-white/10 text-sm text-white/80 2xl:text-base"
-												:class="row.licensed ? '' : 'opacity-50'"
-											>
-												<td class="px-4 py-3">
-													<span class="font-medium text-white">{{ row.label }}</span>
-												</td>
-												<td class="px-4 py-3 tabular-nums">{{ row.used }}</td>
-												<td class="px-4 py-3 tabular-nums">
-													{{ row.maxText }}
-												</td>
-												<td class="px-4 py-3">
-													<span
-														class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 2xl:text-sm"
-														:class="quotaStatusClass(row.statusKind)"
+							<ClientOnly>
+								<AsyncPanel
+									panel-size="dense"
+									:loading="showLicensePlaceholder"
+									:empty="!showLicensePlaceholder && quotaDetailRows.length === 0"
+									empty-title="尚無配額資料"
+								>
+									<div class="show-scrollbar h-full overflow-auto pr-1">
+										<div class="mt-4 overflow-hidden rounded-xl border border-white/15">
+											<table class="w-full border-collapse">
+												<thead class="sticky top-0 z-10 bg-white/5 backdrop-blur">
+													<tr class="text-left text-sm text-white/70 2xl:text-base">
+														<th class="px-4 py-3 font-medium">模組</th>
+														<th class="px-4 py-3 font-medium">使用量</th>
+														<th class="px-4 py-3 font-medium">上限</th>
+														<th class="px-4 py-3 font-medium">狀態</th>
+													</tr>
+												</thead>
+												<tbody>
+													<tr
+														v-for="row in quotaDetailRows"
+														:key="row.key"
+														class="border-t border-white/10 text-sm text-white/80 2xl:text-base"
+														:class="row.licensed ? '' : 'opacity-50'"
 													>
-														{{ row.statusText }}
-													</span>
-												</td>
-											</tr>
-										</tbody>
-									</table>
-								</div>
-							</div>
-							</AsyncPanel>
-
-							<template #fallback>
-								<AsyncPanel loading panel-size="dense" />
-							</template>
-						</ClientOnly>
-					</template>
-
-					<template #keys>
-						<ClientOnly>
-							<AsyncPanel
-								panel-size="dense"
-								:loading="showLicensePlaceholder"
-								:empty="!showLicensePlaceholder && licenseListRows.length === 0"
-								empty-title="尚無授權記錄"
-								empty-description="無主／副 LK 資料"
-							>
-							<div class="show-scrollbar h-full overflow-auto pr-1 space-y-4">
-									<div
-										v-for="entry in licenseListRows"
-										:key="entry.id"
-										class="rounded-xl border border-white/15 bg-white/5 p-4 2xl:p-5"
-									>
-										<div class="flex flex-wrap items-center gap-2 gap-y-1">
-											<span
-												class="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-medium text-white/85 ring-1 ring-white/15 2xl:text-sm"
-											>
-												{{ entry.roleLabel }}
-											</span>
-											<code class="break-all text-sm text-cyan-100/95 2xl:text-base">{{
-												entry.licenseKey
-											}}</code>
-										</div>
-										<div class="mt-3 flex flex-wrap gap-2 2xl:gap-3">
-											<span
-												v-for="fk in entry.features"
-												:key="`${entry.id}-${fk}`"
-												class="rounded-full bg-emerald-500/15 px-3 py-1 text-sm text-emerald-100 ring-1 ring-emerald-400/30 2xl:px-4 2xl:py-1.5 2xl:text-base"
-											>
-												{{ featureLabels[fk] ?? fk }}
-												<span class="ml-1 text-white/70">({{ featureQuotaText(entry, fk) }})</span>
-											</span>
+														<td class="px-4 py-3">
+															<span class="font-medium text-white">{{ row.label }}</span>
+														</td>
+														<td class="px-4 py-3 tabular-nums">{{ row.used }}</td>
+														<td class="px-4 py-3 tabular-nums">
+															{{ row.maxText }}
+														</td>
+														<td class="px-4 py-3">
+															<span
+																class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 2xl:text-sm"
+																:class="quotaStatusClass(row.statusKind)"
+															>
+																{{ row.statusText }}
+															</span>
+														</td>
+													</tr>
+												</tbody>
+											</table>
 										</div>
 									</div>
-							</div>
-							</AsyncPanel>
+								</AsyncPanel>
 
-							<template #fallback>
-								<AsyncPanel loading panel-size="dense" />
-							</template>
-						</ClientOnly>
+								<template #fallback>
+									<AsyncPanel loading panel-size="dense" />
+								</template>
+							</ClientOnly>
+						</template>
+
+						<template #keys>
+							<ClientOnly>
+								<AsyncPanel
+									panel-size="dense"
+									:loading="showLicensePlaceholder"
+									:empty="!showLicensePlaceholder && licenseListRows.length === 0"
+									empty-title="尚無授權記錄"
+									empty-description="無主／副 LK 資料"
+								>
+									<div class="show-scrollbar h-full overflow-auto pr-1 space-y-4">
+										<div
+											v-for="entry in licenseListRows"
+											:key="entry.id"
+											class="rounded-xl border border-white/15 bg-white/5 p-4 2xl:p-5"
+										>
+											<div class="flex flex-wrap items-center gap-2 gap-y-1">
+												<span
+													class="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-medium text-white/85 ring-1 ring-white/15 2xl:text-sm"
+												>
+													{{ entry.roleLabel }}
+												</span>
+												<code class="break-all text-sm text-cyan-100/95 2xl:text-base">{{
+													entry.licenseKey
+												}}</code>
+											</div>
+											<div class="mt-3 flex flex-wrap gap-2 2xl:gap-3">
+												<span
+													v-for="fk in entry.features"
+													:key="`${entry.id}-${fk}`"
+													class="rounded-full bg-emerald-500/15 px-3 py-1 text-sm text-emerald-100 ring-1 ring-emerald-400/30 2xl:px-4 2xl:py-1.5 2xl:text-base"
+												>
+													{{ featureLabels[fk] ?? fk }}
+													<span class="ml-1 text-white/70"
+														>({{ featureQuotaText(entry, fk) }})</span
+													>
+												</span>
+											</div>
+										</div>
+									</div>
+								</AsyncPanel>
+
+								<template #fallback>
+									<AsyncPanel loading panel-size="dense" />
+								</template>
+							</ClientOnly>
 						</template>
 					</PageTabs>
 				</div>
@@ -386,12 +385,12 @@ definePageMeta({
 const featureLabels: Record<string, string> = {
 	people_counting: "門禁管理",
 	elevator: "電梯管理",
-	lighting: "照明",
-	hvac: "空調",
+	lighting: "照明系統",
+	hvac: "空調系統",
 	air_circulation: "空氣循環",
 	drainage: "排水系統",
-	power: "電力",
-	fire: "消防",
+	power: "電力系統",
+	fire: "消防系統",
 	emergency_rescue: "緊急求救",
 	environment: "環境品質",
 	smoke_alarm: "煙霧警報",

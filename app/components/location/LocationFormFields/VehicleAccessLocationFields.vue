@@ -204,12 +204,6 @@
 			</div>
 		</div>
 
-		<div v-else class="mt-3 border-t border-white/10 pt-3">
-			<p class="text-xs text-white/60 2xl:text-sm">
-				人員群組依「地點名單」內人員自動顯示；請至車輛管理 → 車牌管理維護名單與車牌同步。
-			</p>
-		</div>
-
 		<div class="mt-3 border-t border-white/10 pt-3">
 			<span class="text-sm font-medium text-white/80 2xl:text-base">過車紀錄顯示欄位</span>
 			<div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
