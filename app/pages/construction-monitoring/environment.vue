@@ -104,6 +104,7 @@
 											:size="gaugeIndex === 1 ? 'large' : 'normal'"
 											:location-id="currentLocationData?.id ?? null"
 											:refresh-key="trendReloadKey"
+											:show-trend="gaugeIndex === 1"
 											:get-status-text="getStatusText"
 											class="w-full"
 										/>
@@ -748,7 +749,7 @@ const loadAlertRules = async () => {
 onMounted(async () => {
 	await loadAlertRules()
 	await loadZonesFromAPI()
-	await hydrateAllLocations(true)
+	await hydrateAllLocations(false)
 	if (!selectedLocationId.value) {
 		const first = environmentZones.value.find((z) => z.locations?.length)?.locations?.[0]
 		if (first) selectedLocationId.value = getLocationId(first)

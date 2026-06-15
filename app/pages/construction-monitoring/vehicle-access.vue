@@ -604,13 +604,7 @@ watch(isOverviewCollapsed, (collapsed) => {
 })
 
 onMounted(async () => {
-	cleanupWebSocket = setupEventListeners(async () => {
-		const locationId = filters.value.locationId
-		await Promise.allSettled([
-			loadOverviewSummaries(),
-			locationId ? loadLocationDetail() : Promise.resolve(),
-		])
-	}, 500)
+	cleanupWebSocket = setupEventListeners()
 
 	try {
 		await loadZones()

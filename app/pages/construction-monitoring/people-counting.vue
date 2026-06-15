@@ -309,6 +309,7 @@ const {
 	handleUnitSelect,
 	getLocationZone,
 	setupEventListeners,
+	refreshSelectedLocationLive,
 	isLoadingLocations,
 	isLoadingZones,
 } = usePeopleCountingState()
@@ -627,9 +628,10 @@ watch(
 // 初始化
 onMounted(async () => {
 	cleanupWebSocket = setupEventListeners(async () => {
-		const locationId = selectedLocation.value?.locationId
 		await loadLocations()
-		if (locationId) await loadLocationDetail(locationId)
+		if (selectedLocation.value?.locationId != null) {
+			await refreshSelectedLocationLive()
+		}
 	}, 500)
 
 	try {

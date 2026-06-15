@@ -95,3 +95,14 @@ export interface YscpEventPayload {
 	timestamp: string
 }
 
+/** 車輛進出 WS（ISAPI ANPR / presence_reset 等） */
+export interface VehicleAccessWsEventPayload {
+	type?: string
+	locationId?: number
+	locationIds?: number[]
+	deviceId?: number
+	eventTime?: string
+	timestamp?: string
+	source?: string
+}
+

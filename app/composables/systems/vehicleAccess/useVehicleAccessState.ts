@@ -34,6 +34,7 @@ import type { UnifiedZone } from "~/types/location";
 import { compareZonesLoose } from "~/utils/sortOrder";
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 import { shouldHideVehicleAccessWhenYscpOff } from "~/utils/vehicleAccessDataSource";
+import { parseVehicleAccessEventLocationIds } from "~/utils/vehicleAccessWs";
 
 const MAIN_LOG_LIMIT = 5;
 const TODAY_TIME = { timeRange: "today" as const };
@@ -326,6 +327,54 @@ export const useVehicleAccessState = () => {
 		}
 	};
 
+	/** WS 增量：僅更新受影響地點的總覽卡片；locationIds 為 null 時等同全量 */
+	const patchOverviewSummaries = async (locationIds: number[] | null): Promise<void> => {
+		if (!vehicleAccessZones.value.length) return;
+		if (!locationIds?.length) {
+			await loadOverviewSummaries();
+			return;
+		}
+
+		isLoadingOverview.value = true;
+		try {
+			const { sites } = await vehicleAccessSitesApi.getSites();
+			const siteById = new Map(sites.map(s => [s.id, s]));
+			const idSet = new Set(locationIds.map(Number));
+
+			overviewSummaries.value = overviewSummaries.value.map(summary => {
+				const locId = Number(summary.locationId);
+				if (!idSet.has(locId)) return summary;
+				const site = siteById.get(locId);
+				if (!site) return summary;
+				return {
+					...summary,
+					todayPassCount: (site.entryCount ?? 0) + (site.exitCount ?? 0),
+					entryCount: site.entryCount ?? 0,
+					exitCount: site.exitCount ?? 0,
+					currentCount: site.currentCount ?? 0
+				};
+			});
+		} catch (error) {
+			handleError(error, "更新總覽失敗");
+		} finally {
+			isLoadingOverview.value = false;
+		}
+	};
+
+	const eventAffectsSelectedSite = (payload?: unknown): boolean => {
+		const eventLocationIds = parseVehicleAccessEventLocationIds(payload);
+		if (!eventLocationIds?.length) return true;
+
+		const selected = selectedLocation.value;
+		if (!selected) return false;
+
+		const siteId = resolveSiteId(selected);
+		const locId = Number(selected.id ?? selected.locationId);
+		return eventLocationIds.some(
+			id => id === locId || (siteId != null && id === siteId)
+		);
+	};
+
 	const getLocationZone = (location: VehicleAccessLocation & { zoneName?: string }): string | null =>
 		location.zoneName ??
 		vehicleAccessZones.value.find(z => z.locations?.some(l => l.id === location.id))?.name ??
@@ -499,9 +548,48 @@ export const useVehicleAccessState = () => {
 		}
 	};
 
-	const setupEventListeners = (onRefetch: () => void | Promise<void>, debounceMs = 500) =>
+	/** WS 事件後輕量刷新：統計與過車表，不重拉群組資料 */
+	const refreshSelectedLocationLive = async (): Promise<void> => {
+		if (!filters.value.locationId) return
+		await Promise.all([loadEntryExitOnSiteCounts(), loadLogs()])
+	}
+
+	/** WS 增量：更新人員／車輛群組在場統計（ISAPI 拉 API；YSCP 刷新當日 log 後由 computed 重算） */
+	const refreshOrganizationGroupsLive = async (): Promise<void> => {
+		if (!filters.value.locationId || !selectedLocation.value) return
+		try {
+			if (isIsapiCamera.value) {
+				const siteId = resolveSiteId(selectedLocation.value)
+				if (siteId == null) return
+				const { groups } = await vehicleAccessSitesApi.getOrganizationGroups(siteId)
+				isapiOrganizationGroups.value = Array.isArray(groups) ? groups : []
+				return
+			}
+			await loadTodayPassageLogs(true)
+		} catch (error) {
+			handleError(error, isIsapiCamera.value ? "更新人員群組失敗" : "更新車輛群組統計失敗")
+		}
+	}
+
+	const handleVehicleAccessWsRefetch = async (payload?: unknown): Promise<void> => {
+		const eventLocationIds = parseVehicleAccessEventLocationIds(payload)
+		await patchOverviewSummaries(eventLocationIds)
+
+		if (!filters.value.locationId) return
+		if (!eventAffectsSelectedSite(payload)) return
+
+		await Promise.all([
+			refreshSelectedLocationLive(),
+			refreshOrganizationGroupsLive()
+		])
+	}
+
+	const setupEventListeners = (
+		onRefetch?: (payload?: unknown) => void | Promise<void>,
+		debounceMs = 500
+	) =>
 		setupDebouncedRefetchListeners(
-			onRefetch,
+			onRefetch ?? handleVehicleAccessWsRefetch,
 			[
 				{
 					event: YSCP_VEHICLE_EVENT,
@@ -547,6 +635,9 @@ export const useVehicleAccessState = () => {
 		loadEntryExitOnSiteCounts,
 		loadOverviewSummaries,
 		getLocationZone,
+		refreshSelectedLocationLive,
+		refreshOrganizationGroupsLive,
+		handleVehicleAccessWsRefetch,
 		clearUiForSelectedSite,
 		resetParkingStatsForSelectedSite,
 		setupEventListeners

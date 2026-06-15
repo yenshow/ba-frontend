@@ -17,6 +17,8 @@ const DEFAULT_LICENSE: LicenseState = {
 	licenseEntitlements: [],
 }
 
+let licenseFetchInFlight: Promise<LicenseState> | null = null
+
 export const useLicense = () => {
 	const { isAuthenticated } = useAuth()
 	const { request } = useApiBase()
@@ -37,6 +39,7 @@ export const useLicense = () => {
 		license.value = DEFAULT_LICENSE
 		lastLoadedAt.value = 0
 		isLoading.value = false
+		licenseFetchInFlight = null
 	}
 
 	const isOpenAll = () => licenseOpenAll
@@ -48,16 +51,21 @@ export const useLicense = () => {
 		}
 		const force = options.force === true
 		if (!force && Date.now() - lastLoadedAt.value < 15_000) return license.value
-		if (isLoading.value) return license.value
+		if (licenseFetchInFlight) return licenseFetchInFlight
 
-		isLoading.value = true
-		try {
-			const res = await request<LicenseState>("/license", { method: "GET" })
-			setLicense(res)
-			return res
-		} finally {
-			isLoading.value = false
-		}
+		licenseFetchInFlight = (async () => {
+			isLoading.value = true
+			try {
+				const res = await request<LicenseState>("/license", { method: "GET" })
+				setLicense(res)
+				return res
+			} finally {
+				isLoading.value = false
+				licenseFetchInFlight = null
+			}
+		})()
+
+		return licenseFetchInFlight
 	}
 
 	/** 用於鎖頭、路由守衛：openAll 時不鎖，否則依後端授權 */

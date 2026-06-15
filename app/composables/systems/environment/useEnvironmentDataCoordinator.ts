@@ -6,6 +6,9 @@ import {
 	type EnvironmentSensorsOptions,
 } from "~/composables/systems/environment/useEnvironmentLive"
 
+const isDocumentVisible = () =>
+	typeof document === "undefined" || document.visibilityState === "visible"
+
 /**
  * 環境監控頁：統一 hydrate / reconcile / visibility 刷新
  */
@@ -14,13 +17,16 @@ export const useEnvironmentDataCoordinator = (options: EnvironmentSensorsOptions
 	const trendReloadKey = ref(0)
 	const isHydrating = ref(false)
 
+	const reconcileFromSnapshots = async () => {
+		await sensors.reconcileStaleLocations()
+		sensors.syncAllLocationsFromSnapshots()
+	}
+
 	const { start: startReconcilePolling, stop: stopReconcilePolling } = usePolling({
-		callback: async () => {
-			await sensors.reconcileStaleLocations()
-			sensors.syncAllLocationsFromSnapshots()
-		},
+		callback: reconcileFromSnapshots,
 		interval: ENVIRONMENT_STALE_CHECK_INTERVAL_MS,
 		immediate: false,
+		enabled: isDocumentVisible,
 	})
 
 	const hydrateAllLocations = async (force = true) => {
@@ -35,8 +41,8 @@ export const useEnvironmentDataCoordinator = (options: EnvironmentSensorsOptions
 	}
 
 	const handleVisibilityChange = () => {
-		if (typeof document === "undefined" || document.visibilityState !== "visible") return
-		void hydrateAllLocations(true)
+		if (!isDocumentVisible()) return
+		void reconcileFromSnapshots()
 	}
 
 	onMounted(() => {

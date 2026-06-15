@@ -204,6 +204,25 @@ export const usePeopleCountingState = () => {
 		return zone?.name || null;
 	};
 
+	/**
+	 * WS 事件後輕量刷新：進出記錄與單位人員（統計由前置 loadLocations 同步）
+	 */
+	const refreshSelectedLocationLive = async (): Promise<void> => {
+		const locationId = selectedLocation.value?.locationId
+		if (locationId == null) return
+
+		const unitId = selectedUnitId.value
+		if (selectedLocation.value?.dataSource === "isapi_camera") {
+			await loadLocationLogs(locationId)
+			return
+		}
+		if (unitId) {
+			await Promise.all([loadUnitPersonnel(unitId), loadLocationLogs(locationId, unitId)])
+			return
+		}
+		await loadLocationLogs(locationId)
+	}
+
 	const setupEventListeners = (onRefetch: () => void | Promise<void>, debounceMs = 500) =>
 		setupDebouncedRefetchListeners(
 			onRefetch,
@@ -237,6 +256,7 @@ export const usePeopleCountingState = () => {
 		loadZones,
 		handleUnitSelect,
 		getLocationZone,
+		refreshSelectedLocationLive,
 		setupEventListeners
 	};
 };

@@ -15,6 +15,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
 	}
 
 	const { checkRouteAccess, handleAccessDenied } = useAccessGate()
-	const result = await checkRouteAccess(to.path, { mode: "middleware" })
+	const result = await checkRouteAccess(to.path)
 	return handleAccessDenied(to.path, result)
 })
