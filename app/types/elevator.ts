@@ -15,7 +15,6 @@ export interface ElevatorLocation {
 	floorOpenDurations?: number[]
 	logDisplayColumns?: string[]
 	locationId?: number
-	region?: string
 	todayEventCount?: number
 }
 

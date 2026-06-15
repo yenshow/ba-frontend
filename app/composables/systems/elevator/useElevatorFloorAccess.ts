@@ -140,7 +140,6 @@ export const useElevatorFloorAccess = (params: {
 		defaultsApplied,
 		candidatesQuery,
 		candidateGroups,
-		expandedFloorIndexes,
 		isLoading,
 		isApplying,
 		errorText,

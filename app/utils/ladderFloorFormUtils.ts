@@ -1,5 +1,8 @@
 import type { Person, PersonLadderCard } from "~/types/personnel"
-import { defaultElevatorFloorName } from "~/utils/elevatorFloorConfig"
+import {
+	defaultElevatorFloorName,
+	resolveElevatorFloorLabel,
+} from "~/utils/elevatorFloorConfig"
 
 export type LadderFloorDefaultsByLocation = Record<number, number[]>
 
@@ -113,9 +116,6 @@ export const buildElevatorLocationFloorOptions = (
 	return options
 }
 
-export const defaultElevatorFloorLabel = (index: number, floorNames: string[]): string =>
-	floorNames[index - 1]?.trim() || defaultElevatorFloorName(index)
-
 export const createEmptyLadderLocationFormItem = (): PersonLadderLocationFormItem => ({
 	locationId: "",
 })
@@ -136,7 +136,7 @@ export const buildFloorOptionsForLocation = (loc: ElevatorLocationFloorOption) =
 		const index = i + 1
 		return {
 			index,
-			label: defaultElevatorFloorLabel(index, loc.floorNames),
+			label: resolveElevatorFloorLabel(index, loc.floorNames),
 		}
 	})
 

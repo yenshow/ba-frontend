@@ -15,9 +15,7 @@ export const useElevatorState = () => {
 	const logs = ref<ElevatorLog[]>([])
 	const elevatorZones = ref<ElevatorZone[]>([])
 	const isLoadingLocations = ref(false)
-	const isLoadingLocation = ref(false)
 	const isLoadingZones = ref(false)
-	const loadError = ref<string | null>(null)
 
 	const loadLocations = async (existingZones?: { zones: ElevatorZone[] }) => {
 		isLoadingLocations.value = true
@@ -48,18 +46,13 @@ export const useElevatorState = () => {
 	}
 
 	const loadLocationDetail = async (locationId: number) => {
-		isLoadingLocation.value = true
-		loadError.value = null
 		try {
 			const detail = await elevatorApi.getLocationDetail(locationId, locations.value)
 			selectedLocation.value = detail
 			logs.value = detail.latestLogs ?? []
 		} catch (error) {
-			const errorMsg = handleError(error, "載入地點詳情失敗")
-			loadError.value = errorMsg || "載入地點詳情失敗"
+			handleError(error, "載入地點詳情失敗")
 			throw error
-		} finally {
-			isLoadingLocation.value = false
 		}
 	}
 
@@ -101,9 +94,7 @@ export const useElevatorState = () => {
 		logs,
 		elevatorZones,
 		isLoadingLocations,
-		isLoadingLocation,
 		isLoadingZones,
-		loadError,
 		loadLocations,
 		loadLocationDetail,
 		loadZones,

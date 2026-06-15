@@ -6,6 +6,11 @@ export const DEFAULT_ELEVATOR_OPEN_DURATION = 30
 
 export const defaultElevatorFloorName = (index: number): string => `${index}F`
 
+export const resolveElevatorFloorLabel = (
+	index: number,
+	floorNames?: string[],
+): string => floorNames?.[index - 1]?.trim() || defaultElevatorFloorName(index)
+
 const clampFloorCount = (count: number) =>
 	Math.max(1, Math.min(count, MAX_ELEVATOR_FLOOR_COUNT))
 

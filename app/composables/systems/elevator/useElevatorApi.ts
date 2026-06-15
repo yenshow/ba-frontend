@@ -10,7 +10,6 @@ import { useApiBase } from "~/composables/core/useApiBase"
 import { useElevatorLocationApi } from "~/composables/location/api/useElevatorLocationApi"
 import { buildPathWithQuery } from "~/utils/apiUtils"
 import { normalizeElevatorLogDisplayColumns } from "~/utils/elevatorLogColumns"
-import { extractRegionFromZoneName } from "~/utils/peopleCountingAdapter"
 
 type ElevatorSiteDetailResponse = {
 	location: {
@@ -54,12 +53,10 @@ export const useElevatorApi = () => {
 
 		const locations: ElevatorLocation[] = sitesResponse.sites.map((site) => {
 			const cfg = configMap.get(site.id)
-			const region = cfg ? extractRegionFromZoneName(cfg.zoneName) || "未分類" : "未分類"
 			return {
 				locationId: site.id,
 				id: String(site.id),
 				name: site.name,
-				region,
 				deviceIds: site.deviceIds,
 				floorCount: cfg?.floorCount,
 				floorNames: cfg?.floorNames,
@@ -104,24 +101,8 @@ export const useElevatorApi = () => {
 				config.logDisplayColumns || base?.logDisplayColumns,
 			),
 			todayEventCount: base?.todayEventCount ?? 0,
-			region: base?.region,
 			latestLogs: detailRes.latestLogs ?? [],
 		}
-	}
-
-	const getLocationLogs = async (
-		locationId: number,
-		options: {
-			limit?: number
-			offset?: number
-			startTime?: string
-			endTime?: string
-			search?: string
-		} = {},
-	): Promise<ElevatorLog[]> => {
-		const path = buildPathWithQuery(`/elevator/sites/${locationId}/logs`, options)
-		const res = await request<{ logs: ElevatorLog[] }>(path)
-		return res.logs || []
 	}
 
 	const getFullReportLogs = async (options: {
@@ -180,7 +161,6 @@ export const useElevatorApi = () => {
 		getZones: elevatorLocationApi.getZones,
 		getLocations,
 		getLocationDetail,
-		getLocationLogs,
 		getFullReportLogs,
 		controlGateway,
 		getFloorAccess,

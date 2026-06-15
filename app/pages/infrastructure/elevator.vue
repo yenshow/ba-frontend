@@ -94,20 +94,14 @@
 							class="flex min-h-0 flex-1"
 							:class="{ 'monitoring-detail-enlarged': isOverviewCollapsed }"
 						>
-							<div class="min-w-0 flex-1">
-								<ElevatorStatsPanel
-									:logs="logs"
-									:display-columns="selectedLocation.logDisplayColumns"
-								/>
-							</div>
-							<div class="ms-4 min-w-0 flex-1 border-l-2 border-white/30 ps-4">
-								<ElevatorFloorControlPanel
-									:device-id="primaryDeviceId"
-									:can-control="canControlDevice"
-									:floor-count="selectedLocation.floorCount"
-									:floor-names="selectedLocation.floorNames"
-								/>
-							</div>
+							<ElevatorDetailPanel
+								:logs="logs"
+								:display-columns="selectedLocation.logDisplayColumns"
+								:device-id="primaryDeviceId"
+								:can-control="canControlDevice"
+								:floor-count="selectedLocation.floorCount"
+								:floor-names="selectedLocation.floorNames"
+							/>
 						</div>
 					</MonitoringDetailShell>
 				</div>
@@ -162,7 +156,6 @@
 										v-for="location in locationsForOverview"
 										:key="location.locationId"
 										:location="location"
-										class="cursor-pointer transition-all hover:ring-2 hover:ring-cyan-300/50"
 										:class="{ 'ring-2 ring-cyan-400': isCurrentLocation(location) }"
 										@click="handleLocationSelect"
 									/>
@@ -221,8 +214,7 @@ import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue
 import SimulationFrame from "~/components/common/SimulationFrame.vue"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
-import ElevatorStatsPanel from "~/components/elevator/ElevatorStatsPanel.vue"
-import ElevatorFloorControlPanel from "~/components/elevator/ElevatorFloorControlPanel.vue"
+import ElevatorDetailPanel from "~/components/elevator/ElevatorDetailPanel.vue"
 import ElevatorLocationOverviewCard from "~/components/elevator/ElevatorLocationOverviewCard.vue"
 import ElevatorFloorManageDialog from "~/components/elevator/ElevatorFloorManageDialog.vue"
 import ElevatorEventSimulation from "~/components/elevator/ElevatorEventSimulation.vue"
