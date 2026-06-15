@@ -97,6 +97,7 @@
 											:type="gaugeType"
 											:value="showSensorOffline ? null : getParameterValue(gaugeType)"
 											:size="gaugeIndex === 1 ? 'large' : 'normal'"
+											:show-trend="gaugeIndex === 1"
 											:location-id="currentLocationData?.id ?? null"
 											:refresh-key="trendReloadKey"
 											:get-status-text="getStatusText"
@@ -740,7 +741,7 @@ const loadAlertRules = async () => {
 onMounted(async () => {
 	await loadAlertRules();
 	await loadZonesFromAPI();
-	await hydrateAllLocations(true);
+	await hydrateAllLocations(false);
 	if (!selectedLocationId.value) {
 		const first = environmentZones.value.find(z => z.locations?.length)?.locations?.[0];
 		if (first) selectedLocationId.value = getLocationId(first);

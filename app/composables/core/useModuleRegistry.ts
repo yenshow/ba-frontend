@@ -34,6 +34,8 @@ type ModuleRegistryPayload = {
 const LICENSE_FEATURE_KEY_SET = new Set<string>(LICENSE_FEATURE_KEYS as readonly string[]);
 const moduleRegistryLogger = logger.createLogger("module-registry");
 
+let registryFetchInFlight: Promise<ModuleRegistryPayload | null> | null = null;
+
 /** Construction 前端展示名（與 central profileNames 無關；避免後端 profile 錯設時底欄顯示「門禁管理」） */
 const CONSTRUCTION_MODULE_DISPLAY_NAMES: Record<string, string> = {
 	"/construction-monitoring/people-counting": "人流統計",
@@ -84,21 +86,24 @@ export const useModuleRegistry = () => {
 	const ensureLoaded = async (options: { force?: boolean } = {}) => {
 		const force = options.force === true;
 		if (!force && registry.value && Date.now() - lastLoadedAt.value < 60_000) return registry.value;
-		if (isLoading.value) return registry.value;
+		if (registryFetchInFlight) return registryFetchInFlight;
 
-		isLoading.value = true;
-		try {
-			const res = await request<ModuleRegistryPayload>("/modules/registry", { method: "GET" });
-			// Safety net: construction app 永遠只顯示 construction 子集，避免後端 profile 設定錯誤造成 UI 漂移
-			registry.value = normalizeRegistryForConstructionApp(res);
-			lastLoadedAt.value = Date.now();
-			return registry.value;
-		} catch {
-			// 若後端尚未部署 registry 端點，保留 fallback（不影響既有行為）
-			return registry.value;
-		} finally {
-			isLoading.value = false;
-		}
+		registryFetchInFlight = (async () => {
+			isLoading.value = true;
+			try {
+				const res = await request<ModuleRegistryPayload>("/modules/registry", { method: "GET" });
+				registry.value = normalizeRegistryForConstructionApp(res);
+				lastLoadedAt.value = Date.now();
+				return registry.value;
+			} catch {
+				return registry.value;
+			} finally {
+				isLoading.value = false;
+				registryFetchInFlight = null;
+			}
+		})();
+
+		return registryFetchInFlight;
 	};
 
 	const getModuleByRoute = (routePath: string): ModuleRegistryItem | null => {

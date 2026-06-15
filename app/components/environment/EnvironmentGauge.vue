@@ -46,8 +46,9 @@
 			</div>
 		</div>
 
-		<!-- 趨勢圖區域 -->
+		<!-- 趨勢圖區域（僅主顯示位載入） -->
 		<SensorTrendChart
+			v-if="showTrend"
 			:type="type"
 			:location-id="locationId ?? null"
 			:refresh-key="refreshKey"
@@ -74,12 +75,15 @@ interface Props {
 	locationId?: string | number | null
 	/** 與頁面 hydrate 同步，遞增時重載趨勢 */
 	refreshKey?: number
+	/** 是否載入趨勢圖（懶載入：僅主顯示儀表啟用） */
+	showTrend?: boolean
 	getStatusText: (type: string, value: number | null) => string
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	size: "normal",
 	refreshKey: 0,
+	showTrend: false,
 })
 
 const sizeConfig = computed(() => {

@@ -1,15 +1,12 @@
 /**
  * 認證狀態初始化插件（僅客戶端）
+ * registry / license 由 module-registry plugin 預載；此處僅刷新使用者與首屏路由守衛
  */
 import { useAccessGate } from "~/composables/core/useAccessGate"
 import { useAuth } from "~/composables/core/useAuth"
-import { useLicense } from "~/composables/core/useLicense"
-import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 
 export default defineNuxtPlugin(async () => {
 	const { init, isAuthenticated } = useAuth()
-	const { fetchLicense } = useLicense()
-	const moduleRegistry = useModuleRegistry()
 	const { checkRouteAccess, handleAccessDenied } = useAccessGate()
 	const route = useRoute()
 
@@ -17,14 +14,10 @@ export default defineNuxtPlugin(async () => {
 	const appBootstrapError = useState<string | null>("app_bootstrap_error", () => null)
 
 	try {
-		await Promise.all([
-			init(),
-			moduleRegistry.ensureLoaded({ force: true }),
-			isAuthenticated.value ? fetchLicense({ force: true }) : Promise.resolve(),
-		])
+		await init()
 
 		if (isAuthenticated.value && route.path !== "/login") {
-			const result = await checkRouteAccess(route.path, { mode: "interactive" })
+			const result = await checkRouteAccess(route.path)
 			await handleAccessDenied(route.path, result)
 		}
 	} catch (error) {

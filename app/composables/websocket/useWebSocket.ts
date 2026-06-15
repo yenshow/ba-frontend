@@ -275,7 +275,7 @@ export const useWebSocket = () => {
  * 訂閱 WebSocket 事件並防抖重拉（人流／車輛等模組共用）
  */
 export const setupDebouncedRefetchListeners = (
-	onRefetch: () => void | Promise<void>,
+	onRefetch: (payload?: unknown) => void | Promise<void>,
 	bindings: WsRefetchBinding[],
 	debounceMs = 500,
 	logLabel = "WebSocket"
@@ -283,15 +283,19 @@ export const setupDebouncedRefetchListeners = (
 	const log = logger.createLogger(logLabel);
 	const { isConnected, on, off } = useWebSocket();
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+	let pendingPayload: unknown;
 	const isLoading = ref(false);
 
-	const triggerRefetch = () => {
+	const triggerRefetch = (payload?: unknown) => {
+		if (payload !== undefined) pendingPayload = payload;
 		if (isLoading.value) return;
 		if (debounceTimer) clearTimeout(debounceTimer);
 		debounceTimer = setTimeout(() => {
+			const eventPayload = pendingPayload;
+			pendingPayload = undefined;
 			if (process.dev) log.log("觸發資料重新載入（防抖後）");
 			isLoading.value = true;
-			Promise.resolve(onRefetch()).finally(() => {
+			Promise.resolve(onRefetch(eventPayload)).finally(() => {
 				isLoading.value = false;
 			});
 		}, debounceMs);
@@ -302,7 +306,7 @@ export const setupDebouncedRefetchListeners = (
 		enabled: b.enabled,
 		fn: (payload?: unknown) => {
 			if (b.accept && !b.accept(payload)) return;
-			triggerRefetch();
+			triggerRefetch(payload);
 		}
 	}));
 

@@ -58,12 +58,22 @@ export const useStreamStatus = () => {
 		}
 	};
 
+	/** 清空所有監控畫面並停止後端串流（頁面卸載時呼叫） */
+	const clearAllMonitorViews = (): void => {
+		while (monitorViews.monitorViews.value.length > 0) {
+			const first = monitorViews.monitorViews.value[0];
+			if (!first) break;
+			removeMonitorView(first.deviceId);
+		}
+	};
+
 	return {
 		cameras: cameraStream.cameras,
 		monitorViews: monitorViews.monitorViews,
 		loadCameras: cameraStream.loadCameras,
 		addMonitorView,
 		removeMonitorView,
+		clearAllMonitorViews,
 		updateMonitorView: monitorViews.updateMonitorView,
 		reorderMonitorViews: monitorViews.reorderMonitorViews
 	};

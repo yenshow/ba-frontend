@@ -214,7 +214,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, watch, ref } from "vue";
+import { onMounted, onBeforeUnmount, watch, ref } from "vue";
 import type { GridLayout, MonitorView } from "~/types/surveillance";
 import type { CameraDeviceConfig } from "~/types/device";
 import { useToast } from "~/composables/core/useToast";
@@ -345,5 +345,10 @@ onMounted(async () => {
 	} catch (error) {
 		handleError(error, "初始化失敗");
 	}
+});
+
+onBeforeUnmount(() => {
+	isFullscreenOpen.value = false;
+	streamStatus.clearAllMonitorViews();
 });
 </script>

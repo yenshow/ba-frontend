@@ -32,24 +32,13 @@ export type RouteAccessResult = {
 	redirectMessage?: string
 }
 
-export type CheckRouteAccessOptions = {
-	/** middleware：僅用快取，不觸發可能 401 的 API；interactive：完整檢查（UI 互動） */
-	mode?: "middleware" | "interactive"
-}
-
 export const useAccessGate = () => {
 	const { hasPermission, isAuthenticated, user } = useAuth()
 	const canAdmin = useAdminOnly()
 	const moduleRegistry = useModuleRegistry()
 	const { hasFeature, fetchLicense, isLoaded } = useLicense()
 
-	const checkRouteAccess = async (
-		path: string,
-		options: CheckRouteAccessOptions = {},
-	): Promise<RouteAccessResult> => {
-		const mode = options.mode ?? "interactive"
-		const isMiddlewareMode = mode === "middleware"
-
+	const checkRouteAccess = async (path: string): Promise<RouteAccessResult> => {
 		if (path === "/login") return { ok: true, reason: "ok" }
 
 		if (!isAuthenticated.value) {
@@ -70,13 +59,7 @@ export const useAccessGate = () => {
 			return { ok: true, reason: "ok" }
 		}
 
-		if (isMiddlewareMode) {
-			if (!moduleRegistry.registry.value?.modules?.length) {
-				return { ok: true, reason: "ok" }
-			}
-		} else {
-			await moduleRegistry.ensureLoaded()
-		}
+		await moduleRegistry.ensureLoaded()
 
 		const permissionCode = moduleRegistry.getPermissionCodeByRoute(path)
 		if (permissionCode && !hasPermission(permissionCode)) {
@@ -90,11 +73,7 @@ export const useAccessGate = () => {
 		const featureKey = moduleRegistry.getFeatureKeyByRoute(path) as FeatureKey | null
 		if (!featureKey) return { ok: true, reason: "ok" }
 
-		if (isMiddlewareMode && !isLoaded.value) {
-			return { ok: true, reason: "ok" }
-		}
-
-		if (!isLoaded.value) await fetchLicense()
+		await fetchLicense()
 		if (hasFeature(featureKey)) return { ok: true, reason: "ok" }
 
 		return {
@@ -105,18 +84,31 @@ export const useAccessGate = () => {
 	}
 
 	const canAccessModule = (module: { route: string; permissionCode?: string }): boolean => {
+		if (!isAuthenticated.value) return false
+
 		if (matchesPlatformAdminRoute(module.route)) {
 			return canAdmin.value
 		}
+
 		const code =
 			module.permissionCode ?? moduleRegistry.getPermissionCodeByRoute(module.route) ?? null
 		if (code && !hasPermission(code)) return false
+
 		const featureKey = moduleRegistry.getFeatureKeyByRoute(module.route) as FeatureKey | null
-		if (featureKey && !hasFeature(featureKey)) return false
-		return true
+		if (!featureKey) return true
+		if (!isLoaded.value) return false
+
+		return hasFeature(featureKey)
 	}
 
-	const isModuleLocked = (module: Pick<SystemModule, "route">) => !canAccessModule(module)
+	const isModuleAccessReady = computed(
+		() => Boolean(moduleRegistry.registry.value?.modules?.length) && isLoaded.value
+	)
+
+	const isModuleLocked = (module: Pick<SystemModule, "route">) => {
+		if (!isModuleAccessReady.value) return false
+		return !canAccessModule(module)
+	}
 
 	const handleAccessDenied = (path: string, result: RouteAccessResult) => {
 		if (result.ok || path === "/") return
@@ -143,6 +135,7 @@ export const useAccessGate = () => {
 		handleAccessDenied,
 		canAccessModule,
 		isModuleLocked,
+		isModuleAccessReady,
 	}
 }
 

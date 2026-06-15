@@ -40,8 +40,18 @@ const errorDeduplication = {
 	},
 }
 
+let errorDeduplicationCleanupTimer: ReturnType<typeof setInterval> | null = null
+
+const ensureErrorDeduplicationCleanup = () => {
+	if (!process.client || errorDeduplicationCleanupTimer) return
+	errorDeduplicationCleanupTimer = setInterval(() => {
+		errorDeduplication.cleanup()
+	}, 60000)
+}
+
 export const useErrorHandler = () => {
 	const toast = useToast()
+	ensureErrorDeduplicationCleanup()
 
 	const getErrorSeverity = (error: unknown): AppSeverity => inferSeverityFromApiError(error)
 
@@ -138,12 +148,6 @@ export const useErrorHandler = () => {
 
 	const resetPriority = () => {
 		// 保留 API 相容；已不再使用模組級嚴重度抑制
-	}
-
-	if (process.client) {
-		setInterval(() => {
-			errorDeduplication.cleanup()
-		}, 60000)
 	}
 
 	return {

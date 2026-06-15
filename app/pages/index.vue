@@ -117,7 +117,6 @@ import { getLocationDeviceIds } from "~/utils/sensorUtils";
 import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState";
 import { usePeopleCountingApi } from "~/composables/systems/peopleCounting/usePeopleCountingApi";
 import { useLicense } from "~/composables/core/useLicense";
-import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 import type { PeopleCountingLog } from "~/types/peopleCounting";
 import { normalizeLogDisplayColumns } from "~/utils/peopleCountingLogColumns";
 
@@ -129,7 +128,6 @@ const locationApi = useLocationApi();
 const deviceApi = useDeviceApi();
 const homeSensors = useEnvironmentHomeSensors();
 const { canLoadFeature, isLoaded: licenseLoaded } = useLicense();
-const { ensureLoaded: ensureModuleRegistryLoaded } = useModuleRegistry();
 const hasEnvironment = computed(() => canLoadFeature("environment"));
 const hasPeopleCounting = computed(() => canLoadFeature("people_counting"));
 // 僅在客戶端 mount 後才依授權切換內容，避免 SSR 與 hydration 時 state 不同步導致節點不匹配
@@ -389,7 +387,8 @@ const loadSensorData = () => homeSensors.bootstrapCard(environmentHomeCard);
 const { start: startStaleCheck, stop: stopStaleCheck } = usePolling({
 	callback: () => homeSensors.syncCard(environmentHomeCard),
 	interval: ENVIRONMENT_STALE_CHECK_INTERVAL_MS,
-	immediate: false
+	immediate: false,
+	enabled: () => typeof document === "undefined" || document.visibilityState === "visible",
 });
 
 const initializeLocationData = async () => {
@@ -433,7 +432,6 @@ const refreshCurrentLocationLogs = async () => {
 
 onMounted(async () => {
 	isMounted.value = true;
-	await ensureModuleRegistryLoaded();
 	cleanupWebSocket = setupEventListeners(async () => {
 		if (hasPeopleCounting.value) {
 			await loadPeopleCountingLocations();
@@ -465,14 +463,6 @@ onMounted(async () => {
 	}
 	startStaleCheck();
 });
-
-watch(
-	() => peopleCountingLocations.value,
-	() => {
-		if (hasPeopleCounting.value) refreshCurrentLocationLogs();
-	},
-	{ deep: true }
-);
 
 onBeforeUnmount(() => {
 	stopStaleCheck();

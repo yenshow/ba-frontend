@@ -33,7 +33,6 @@
 <script setup lang="ts">
 import ToastContainer from "~/components/common/ToastContainer.vue";
 import AlertCameraLinkagePopup from "~/components/alerts/AlertCameraLinkagePopup.vue";
-import type { MonitoringDeviceStatusBatchEvent } from "~/types/websocket";
 import { useAuth } from "~/composables/core/useAuth";
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 import { useAlertCameraLinkagePopup } from "~/composables/monitoring/useAlertCameraLinkagePopup";
@@ -44,85 +43,28 @@ import HomeHeader from "~/components/home/HomeHeader.vue";
 
 const { user } = useAuth();
 const { startMonitoring, stopMonitoring } = useAlertMonitor();
-const { isConnected, on, off } = useWebSocket();
+const { isConnected } = useWebSocket();
 const cameraPopup = useAlertCameraLinkagePopup();
 
-// 全局設備狀態批次更新監聽器（用於所有頁面）
-let globalDeviceStatusBatchHandler: ((event: MonitoringDeviceStatusBatchEvent) => void) | null =
-	null;
-
-// 設置全局設備狀態監聽器
-const setupGlobalDeviceStatusListener = () => {
-	if (!process.client || globalDeviceStatusBatchHandler) {
-		return;
-	}
-
-	// 處理設備狀態批次更新事件（全局）
-	globalDeviceStatusBatchHandler = (event: MonitoringDeviceStatusBatchEvent) => {
-		if (process.dev) {
-			console.log(
-				`[GlobalDeviceMonitor] 設備狀態批次更新: ${event.system} 系統, ${event.status} 狀態, ${event.updates.length} 個設備`
-			);
-		}
-	};
-
-	// 監聽設備狀態批次更新事件
-	on("monitoring:device:status:batch", globalDeviceStatusBatchHandler);
-
-	if (process.dev) {
-		console.log("[GlobalDeviceMonitor] 全局設備狀態監聽器已設置");
-	}
-};
-
-// 移除全局設備狀態監聽器
-const removeGlobalDeviceStatusListener = () => {
-	if (globalDeviceStatusBatchHandler) {
-		off("monitoring:device:status:batch", globalDeviceStatusBatchHandler);
-		globalDeviceStatusBatchHandler = null;
-
-		if (process.dev) {
-			console.log("[GlobalDeviceMonitor] 全局設備狀態監聽器已移除");
-		}
-	}
-};
-
-// 當用戶登入時啟動警示監聽和設備狀態監聽
 watch(
-	() => user.value,
-	newUser => {
+	[() => user.value, isConnected],
+	([newUser, connected]) => {
 		if (newUser) {
-			// 用戶已登入，啟動監聽（useAlertMonitor 會自動建立 WebSocket 連接）
 			startMonitoring();
 		} else {
-			// 用戶未登入，停止監聽
 			stopMonitoring();
-			removeGlobalDeviceStatusListener();
 		}
-	},
-	{ immediate: true }
-);
-
-// 監聽 WebSocket 連接狀態，設置/移除全局設備狀態監聽器
-watch(
-	isConnected,
-	connected => {
-		if (connected && user.value) {
-			// WebSocket 連接成功且用戶已登入，設置全局監聽器
-			setupGlobalDeviceStatusListener();
+		if (newUser && connected) {
 			cameraPopup.start();
-		} else if (!connected) {
-			// WebSocket 斷線，移除全局監聽器
-			removeGlobalDeviceStatusListener();
+		} else {
 			cameraPopup.stop();
 		}
 	},
 	{ immediate: true }
 );
 
-// 組件卸載時停止監聽
 onBeforeUnmount(() => {
 	stopMonitoring();
-	removeGlobalDeviceStatusListener();
 	cameraPopup.stop();
 });
 </script>
