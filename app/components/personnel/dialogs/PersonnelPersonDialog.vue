@@ -95,15 +95,20 @@
 											text-size="text-sm 2xl:text-base"
 										/>
 									</div>
-									<button
-										type="button"
-										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white hover:bg-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-300/50 disabled:opacity-50"
-										:disabled="isCapturingFace || !hasSelectedCaptureDevice || !hasAccessControlDevices"
+									<PermissionActionButton
+										native-type="button"
+										:allowed="
+											canCaptureFromDevice &&
+											!isCapturingFace &&
+											hasSelectedCaptureDevice &&
+											hasAccessControlDevices
+										"
 										aria-label="從設備截圖"
+										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white enabled:hover:bg-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-300/50"
 										@click="handleCaptureFace"
 									>
 										{{ isCapturingFace ? "截圖中..." : "截圖" }}
-									</button>
+									</PermissionActionButton>
 								</div>
 
 								<p v-if="captureErrorText" class="form-error-text-inline" role="alert" aria-live="polite">
@@ -229,15 +234,20 @@
 											text-size="text-sm 2xl:text-base"
 										/>
 									</div>
-									<button
-										type="button"
-										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white hover:bg-cyan-400 disabled:opacity-50 md:w-auto"
-										:disabled="isCapturingCard || !hasSelectedCardDevice || !hasAccessControlDevices"
+									<PermissionActionButton
+										native-type="button"
+										:allowed="
+											canCaptureFromDevice &&
+											!isCapturingCard &&
+											hasSelectedCardDevice &&
+											hasAccessControlDevices
+										"
 										aria-label="從設備讀取卡號"
+										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white enabled:hover:bg-cyan-400 md:w-auto"
 										@click="handleCaptureCard"
 									>
 										{{ isCapturingCard ? "讀卡中..." : "讀卡" }}
-									</button>
+									</PermissionActionButton>
 								</div>
 
 								<div v-if="activeCardItem" class="mt-3 flex items-center gap-2">
@@ -298,15 +308,20 @@
 											text-size="text-sm 2xl:text-base"
 										/>
 									</div>
-									<button
-										type="button"
-										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white hover:bg-cyan-400 disabled:opacity-50"
-										:disabled="isCapturingFingerPrint || !hasSelectedFingerDevice || !hasAccessControlDevices"
+									<PermissionActionButton
+										native-type="button"
+										:allowed="
+											canCaptureFromDevice &&
+											!isCapturingFingerPrint &&
+											hasSelectedFingerDevice &&
+											hasAccessControlDevices
+										"
 										aria-label="讀取指紋模板"
+										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white enabled:hover:bg-cyan-400"
 										@click="handleCaptureFingerPrint"
 									>
 										{{ isCapturingFingerPrint ? "讀取中..." : "讀取" }}
-									</button>
+									</PermissionActionButton>
 								</div>
 								<div v-if="activeFingerItem" class="mt-3 flex flex-wrap items-center gap-2">
 									<input
@@ -449,6 +464,7 @@ import type { PersonnelPersonDialogState, PersonGroup } from "~/types/personnel"
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import IconTrashButton from "~/components/common/IconTrashButton.vue";
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
 import PersonnelFormItemTabs from "~/components/personnel/PersonnelFormItemTabs.vue";
 import { buildPersonnelChildGroupOptions } from "~/utils/personnelGroups";
 import {
@@ -462,6 +478,9 @@ import {
 	createEmptyFingerprintFormItem
 } from "~/utils/fingerprintFormUtils";
 import { createFormItemTabHandlers } from "~/utils/personnelFormTabUtils";
+import { usePeopleCountingAccessRbac } from "~/composables/core/useAccessGate";
+
+const { canEditAccessMembers: canCaptureFromDevice } = usePeopleCountingAccessRbac();
 
 const props = defineProps<{
 	modelValue: boolean;

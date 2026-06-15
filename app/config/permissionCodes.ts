@@ -2,7 +2,10 @@
 /** Profile: construction — aligned with access/catalog.js */
 
 export const PERM = {
-	home: { module: "system.home" },
+	home: {
+		module: "system.home",
+		settingsUpdate: "system.home.settings.update",
+	},
 	equipment: {
 		module: "system.equipment_management",
 		deviceCreate: "system.equipment_management.device.create",
@@ -17,8 +20,6 @@ export const PERM = {
 		personCreate: "system.personnel.person.create",
 		personUpdate: "system.personnel.person.update",
 		personDelete: "system.personnel.person.delete",
-		deviceSync: "system.personnel.device_sync",
-		syncEdit: "system.personnel.sync.edit",
 	},
 	alertLog: {
 		module: "system.alert_log",
@@ -34,6 +35,8 @@ export const PERM = {
 		locationUpdate: "system.people_counting.location.update",
 		locationDelete: "system.people_counting.location.delete",
 		reportFull: "system.people_counting.report.full",
+		deviceSync: "system.people_counting.device_sync",
+		syncEdit: "system.people_counting.sync.edit",
 	},
 	environment: {
 		module: "system.environment",

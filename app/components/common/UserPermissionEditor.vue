@@ -2,6 +2,9 @@
 	<div class="flex flex-col gap-3">
 		<p v-if="loading" class="text-sm text-white/60">載入權限清單中...</p>
 		<template v-else-if="groups.length">
+			<p class="text-xs leading-relaxed text-white/55 2xl:text-sm">
+				勾選模組名稱代表<strong class="font-medium text-white/75">訪問權限</strong>（可進入該功能）；細項為可執行的操作。未勾選訪問權限時，細項將無法生效。
+			</p>
 			<div class="overflow-hidden rounded-xl border border-white/15">
 				<div class="divide-y divide-white/10">
 					<section
@@ -16,7 +19,7 @@
 									type="checkbox"
 									class="h-4 w-4 shrink-0 cursor-pointer rounded border-white/40 accent-cyan-400"
 									:checked="Boolean(modelValue[group.parent.id])"
-									:aria-label="`模組進入：${group.parent.name || group.parent.code}`"
+									:aria-label="`訪問權限：${group.parent.name || group.parent.code}`"
 									@change="
 										handleParentToggle(
 											group.parent.id,

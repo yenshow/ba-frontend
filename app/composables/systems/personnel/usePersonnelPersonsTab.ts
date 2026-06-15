@@ -249,6 +249,12 @@ export const usePersonnelPersonsTab = (params: {
 		return fields
 	})
 
+	const isAccessControlSectionDirty = computed(() =>
+		personChangedFieldsList.value.some((f) =>
+			["密碼設定", "有效期限", "卡號", "指紋"].includes(f),
+		),
+	)
+
 	const hasUnsavedPersonChanges = computed(() => personChangedFieldsList.value.length > 0)
 
 	const closePersonDialog = () => {
@@ -728,11 +734,13 @@ export const usePersonnelPersonsTab = (params: {
 				}
 			}
 
-			try {
-				await saveAccessControlExtras(effectivePersonId)
-			} catch (err) {
-				fail(err, "儲存門禁設定失敗")
-				return { ok: false as const }
+			if (isAccessControlSectionDirty.value) {
+				try {
+					await saveAccessControlExtras(effectivePersonId)
+				} catch (err) {
+					fail(err, "儲存門禁設定失敗")
+					return { ok: false as const }
+				}
 			}
 
 			if (pendingFaceFile.value) {
