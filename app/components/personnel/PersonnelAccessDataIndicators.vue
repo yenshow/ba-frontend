@@ -56,15 +56,11 @@ const ACCESS_ICONS = {
 		},
 	},
 	ladderCard: {
-		viewBox: "0 0 24 24",
+		viewBox: "0 -960 960 960",
 		iconClass: iconSize,
 		path: {
-			fill: "none",
-			stroke: "currentColor",
-			"stroke-width": "2",
-			"stroke-linecap": "round",
-			"stroke-linejoin": "round",
-			d: "M5 2h14a1 1 0 011 1v18a1 1 0 01-1 1H5a1 1 0 01-1-1V3a1 1 0 011-1zm7 1v18M8 7.5l4-3.5 4 3.5M8 16.5l4 3.5 4-3.5",
+			fill: "currentColor",
+			d: "M280-230h120v-170h40v-110q0-33-23.5-56.5T360-590h-40q-33 0-56.5 23.5T240-510v110h40v170Zm99.5-410.5Q396-657 396-680t-16.5-39.5Q363-736 340-736t-39.5 16.5Q284-703 284-680t16.5 39.5Q317-624 340-624t39.5-16.5ZM515-530h200L615-690 515-530Zm100 260 100-160H515l100 160ZM180-120q-24 0-42-18t-18-42v-600q0-23 18-41.5t42-18.5h600q23 0 41.5 18.5T840-780v600q0 24-18.5 42T780-120H180Zm0-60h600v-600H180v600Zm0 0v-600 600Z",
 		},
 	},
 	fingerprint: {

@@ -28,6 +28,21 @@
 			</svg>
 		</button>
 
+		<div
+			ref="measureRef"
+			class="pointer-events-none absolute left-3 right-3 top-6 -z-10 opacity-0 2xl:left-4 2xl:right-4 2xl:top-8"
+			aria-hidden="true"
+		>
+			<div :class="MODULE_GRID_CLASS">
+				<div
+					v-for="index in MODULES_PER_PAGE"
+					:key="`measure-${index}`"
+					:class="tileClass"
+					:style="MODULE_TILE_STYLE"
+				/>
+			</div>
+		</div>
+
 		<div v-if="isEditMode" class="show-scrollbar overflow-y-auto" :style="editScrollStyle">
 			<div :class="MODULE_GRID_CLASS">
 				<div
@@ -64,7 +79,7 @@
 			</div>
 		</div>
 
-		<div v-else ref="gridShellRef">
+		<div v-else ref="gridShellRef" :style="gridShellStyle">
 			<div v-if="isLoading" :class="MODULE_GRID_CLASS" aria-hidden="true">
 				<div
 					v-for="index in MODULES_PER_PAGE"
@@ -143,7 +158,8 @@ import type { CentralShellModule } from "~/config/centralModuleShell"
 import { PERMISSION_MESSAGE_LOCKED } from "~/utils/errorUtils"
 
 const MODULES_PER_PAGE = 8
-const MODULE_GRID_CLASS = "grid grid-cols-4 gap-x-6 gap-y-3 2xl:gap-x-8 2xl:gap-y-4"
+const MODULE_GRID_CLASS =
+	"grid grid-cols-4 grid-rows-2 gap-x-6 gap-y-3 2xl:gap-x-8 2xl:gap-y-4"
 const MODULE_TILE_STYLE = {
 	boxShadow:
 		"inset -7px 7px 7px rgba(255, 255, 255, 0.25), inset 7px -7px 10px rgba(0, 0, 0, 0.25)",
@@ -163,6 +179,7 @@ const isEditMode = ref(false)
 const currentPage = ref(0)
 const draggedRoute = ref<string | null>(null)
 const dragOverRoute = ref<string | null>(null)
+const measureRef = ref<HTMLElement | null>(null)
 const gridShellRef = ref<HTMLElement | null>(null)
 const lockedGridHeight = ref(0)
 
@@ -177,9 +194,15 @@ const pagedModules = computed(() => {
 	return orderedModules.value.slice(start, start + MODULES_PER_PAGE)
 })
 
-const editScrollStyle = computed(() =>
+const lockedHeightStyle = computed(() =>
 	lockedGridHeight.value > 0 ? { height: `${lockedGridHeight.value}px` } : undefined
 )
+
+const gridShellStyle = computed(() =>
+	lockedGridHeight.value > 0 ? { minHeight: `${lockedGridHeight.value}px` } : undefined
+)
+
+const editScrollStyle = lockedHeightStyle
 
 const canNavigatePrevious = computed(() => currentPage.value > 0)
 const canNavigateNext = computed(
@@ -187,8 +210,8 @@ const canNavigateNext = computed(
 )
 
 const syncGridHeight = () => {
-	if (isEditMode.value || !gridShellRef.value) return
-	lockedGridHeight.value = gridShellRef.value.getBoundingClientRect().height
+	if (!measureRef.value) return
+	lockedGridHeight.value = measureRef.value.offsetHeight
 }
 
 const handleModuleClick = (module: CentralShellModule) => {
@@ -252,8 +275,6 @@ const handleDrop = (event: DragEvent, targetRoute: string) => {
 	handleDragEnd()
 }
 
-const handleResize = () => syncGridHeight()
-
 watch(
 	() => orderedModules.value.length,
 	() => {
@@ -266,15 +287,22 @@ watch(isLoading, (loading) => {
 	if (!loading) nextTick(syncGridHeight)
 })
 
+let measureResizeObserver: ResizeObserver | null = null
+
 onMounted(() => {
 	void moduleRegistry.ensureLoaded()
 	if (!import.meta.client) return
-	window.addEventListener("resize", handleResize)
-	nextTick(syncGridHeight)
+	nextTick(() => {
+		syncGridHeight()
+		if (!measureRef.value) return
+		measureResizeObserver = new ResizeObserver(() => syncGridHeight())
+		measureResizeObserver.observe(measureRef.value)
+	})
 })
 
 onUnmounted(() => {
-	if (import.meta.client) window.removeEventListener("resize", handleResize)
+	measureResizeObserver?.disconnect()
+	measureResizeObserver = null
 })
 
 const previousPage = () => {

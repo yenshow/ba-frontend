@@ -183,7 +183,7 @@ export const useLocationModuleRbac = (perm: LocationPermCodes) => {
 
 export const useHomeRbac = () => {
 	const { useHasPermission } = useAuth()
-	return { canWrite: useHasPermission(PERM.home.module) }
+	return { canWrite: useHasPermission(PERM.home.settingsUpdate) }
 }
 
 export const useEquipmentRbac = () => {
@@ -209,15 +209,16 @@ export const usePersonnelRbac = () => {
 		canUpdatePerson: useHasPermission(p.personUpdate),
 		canDeletePerson: useHasPermission(p.personDelete),
 		canManagePersons: useHasAnyPermission(p.personCreate, p.personUpdate, p.personDelete),
-		canDeviceSync: useHasPermission(p.deviceSync),
-		canSyncEdit: useHasPermission(p.syncEdit),
-		canManageSync: useHasAnyPermission(p.deviceSync, p.syncEdit),
 	}
 }
 
-/** 門禁管理：名單編輯與門禁設備重新同步 */
+/** 門禁管理：名單編輯與門禁設備重新同步（權限碼歸屬人流統計模組） */
 export const usePeopleCountingAccessRbac = () => {
-	const { canDeviceSync, canSyncEdit, canManageSync } = usePersonnelRbac()
+	const { useHasPermission, useHasAnyPermission } = useAuth()
+	const p = PERM.peopleCounting
+	const canDeviceSync = useHasPermission(p.deviceSync)
+	const canSyncEdit = useHasPermission(p.syncEdit)
+	const canManageSync = useHasAnyPermission(p.deviceSync, p.syncEdit)
 	return {
 		canOpenAccessManage: canManageSync,
 		canEditAccessMembers: canSyncEdit,
@@ -229,7 +230,7 @@ export const usePeopleCountingAccessRbac = () => {
 export const useVehiclePlateManageRbac = () => {
 	const { useHasAnyPermission } = useAuth()
 	const v = PERM.vehicleAccess
-	const { canSyncEdit, canDeviceSync } = usePersonnelRbac()
+	const p = PERM.peopleCounting
 	const { canManagePlates, canCreatePlate, canUpdatePlate, canDeletePlate } =
 		useVehicleAccessRbac()
 	return {
@@ -238,16 +239,14 @@ export const useVehiclePlateManageRbac = () => {
 			v.plateCreate,
 			v.plateUpdate,
 			v.plateDelete,
-			PERM.personnel.syncEdit,
+			p.syncEdit,
 		),
-		canEditPlateMembers: useHasAnyPermission(v.plateManage, PERM.personnel.syncEdit),
-		canResyncPlates: useHasAnyPermission(v.plateManage, PERM.personnel.deviceSync),
+		canEditPlateMembers: useHasAnyPermission(v.plateManage, p.syncEdit),
+		canResyncPlates: useHasAnyPermission(v.plateManage, p.deviceSync),
 		canManagePlates,
 		canCreatePlate,
 		canUpdatePlate,
 		canDeletePlate,
-		canSyncEdit,
-		canDeviceSync,
 	}
 }
 
