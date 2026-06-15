@@ -71,7 +71,7 @@
 					required
 					class="form-input-small max-w-[8rem]"
 					placeholder="例如：4"
-					@input="handleFloorCountInput"
+					@change="handleFloorCountChange"
 				/>
 			</label>
 
@@ -231,8 +231,8 @@ const isColumnEnabled = (key: ElevatorLogColumnKey) => enabledColumns.value.incl
 
 const initFloors = (count = DEFAULT_ELEVATOR_FLOOR_COUNT) => {
 	localLocation.floorCount = count
-	localLocation.floorNames = padFloorNames([], count)
-	localLocation.floorOpenDurations = padFloorOpenDurations([], count)
+	localLocation.floorNames = padFloorNames(localLocation.floorNames, count)
+	localLocation.floorOpenDurations = padFloorOpenDurations(localLocation.floorOpenDurations, count)
 }
 
 const handleSelectDevice = (deviceId: number) => {
@@ -241,7 +241,18 @@ const handleSelectDevice = (deviceId: number) => {
 	handleChange()
 }
 
-const handleFloorCountInput = (event: Event) => {
+const resizeFloorArrays = (count: number) => {
+	const existingNameLen = localLocation.floorNames?.length ?? 0
+	const existingDurationLen = localLocation.floorOpenDurations?.length ?? 0
+	const preserveLen = Math.max(count, existingNameLen, existingDurationLen)
+	localLocation.floorNames = padFloorNames(localLocation.floorNames, preserveLen)
+	localLocation.floorOpenDurations = padFloorOpenDurations(
+		localLocation.floorOpenDurations,
+		preserveLen,
+	)
+}
+
+const handleFloorCountChange = (event: Event) => {
 	const count = normalizeElevatorFloorCount((event.target as HTMLInputElement).value)
 	if (count == null) {
 		localLocation.floorCount = undefined
@@ -249,18 +260,15 @@ const handleFloorCountInput = (event: Event) => {
 		localLocation.floorOpenDurations = []
 	} else {
 		localLocation.floorCount = count
-		localLocation.floorNames = padFloorNames(localLocation.floorNames, count)
-		localLocation.floorOpenDurations = padFloorOpenDurations(
-			localLocation.floorOpenDurations,
-			count
-		)
+		resizeFloorArrays(count)
 	}
 	handleChange()
 }
 
 const handleFloorNameInput = (index: number, event: Event) => {
 	const count = floorCount.value ?? DEFAULT_ELEVATOR_FLOOR_COUNT
-	const names = padFloorNames(localLocation.floorNames, count)
+	const preserveLen = Math.max(count, localLocation.floorNames?.length ?? 0)
+	const names = padFloorNames(localLocation.floorNames, preserveLen)
 	names[index] = (event.target as HTMLInputElement).value
 	localLocation.floorNames = names
 	handleChange()
@@ -268,13 +276,18 @@ const handleFloorNameInput = (index: number, event: Event) => {
 
 const handleFloorNameBlur = () => {
 	if (floorCount.value == null) return
-	localLocation.floorNames = fillEmptyFloorNames(localLocation.floorNames ?? [], floorCount.value)
+	const count = floorCount.value
+	const preserveLen = Math.max(count, localLocation.floorNames?.length ?? 0)
+	const padded = padFloorNames(localLocation.floorNames, preserveLen)
+	const visible = fillEmptyFloorNames(padded.slice(0, count), count)
+	localLocation.floorNames = [...visible, ...padded.slice(count)]
 	handleChange()
 }
 
 const handleFloorOpenDurationInput = (index: number, event: Event) => {
 	const count = floorCount.value ?? DEFAULT_ELEVATOR_FLOOR_COUNT
-	const durations = padFloorOpenDurations(localLocation.floorOpenDurations, count)
+	const preserveLen = Math.max(count, localLocation.floorOpenDurations?.length ?? 0)
+	const durations = padFloorOpenDurations(localLocation.floorOpenDurations, preserveLen)
 	const normalized = normalizeElevatorOpenDuration((event.target as HTMLInputElement).value)
 	durations[index] = normalized ?? durations[index] ?? MIN_ELEVATOR_OPEN_DURATION
 	localLocation.floorOpenDurations = durations

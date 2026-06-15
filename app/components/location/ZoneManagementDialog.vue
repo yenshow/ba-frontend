@@ -261,7 +261,7 @@ import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { nextTick, type Component } from "vue"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { joinFormErrors, resolveFormApiError } from "~/utils/errorUtils"
+import { isApiRequestTimeout, joinFormErrors, resolveFormApiError } from "~/utils/errorUtils"
 import { removeLocationFromSystemOrDelete } from "~/composables/location/locationSystemActions"
 import { buildDeleteLocationConfirmCopy } from "~/utils/confirmCopy"
 import { getLocationUiKey } from "~/utils/locationUiId"
@@ -995,7 +995,12 @@ const saveAllChanges = async () => {
 		toast.success(saveCount === 1 ? "區域已儲存" : `已儲存 ${saveCount} 個區域`)
 		emit("saved")
 	} catch (error) {
-		errorMessage.value = resolveFormApiError(error, "儲存區域失敗")
+		if (props.systemType === "elevator" && isApiRequestTimeout(error)) {
+			errorMessage.value =
+				"請求逾時：平台資料可能已儲存，但梯控設備樓層參數可能尚未同步完成。請關閉後重新開啟確認，或稍後再次儲存。"
+		} else {
+			errorMessage.value = resolveFormApiError(error, "儲存區域失敗")
+		}
 	} finally {
 		isSaving.value = false
 	}

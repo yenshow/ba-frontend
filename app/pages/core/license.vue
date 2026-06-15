@@ -274,8 +274,8 @@
 														<td class="px-4 py-3">
 															<span class="font-medium text-white">{{ row.label }}</span>
 														</td>
-														<td class="px-4 py-3 tabular-nums">{{ row.used }}</td>
-														<td class="px-4 py-3 tabular-nums">
+														<td class="px-4 py-3">{{ row.used }}</td>
+														<td class="px-4 py-3">
 															{{ row.maxText }}
 														</td>
 														<td class="px-4 py-3">

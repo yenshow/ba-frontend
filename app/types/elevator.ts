@@ -41,6 +41,14 @@ export interface ElevatorLog {
 
 export type ElevatorControlCommand = "open" | "close" | "normally_open" | "normally_closed"
 
+export type ElevatorDirection = "up" | "down" | "idle" | null
+
+export interface ElevatorLiveStatus {
+	currentFloor: number | string | null
+	direction: ElevatorDirection
+	isConnected: boolean
+}
+
 export type ElevatorSyncJobStatus = "queued" | "running" | "completed"
 
 export interface ElevatorSyncWarning {

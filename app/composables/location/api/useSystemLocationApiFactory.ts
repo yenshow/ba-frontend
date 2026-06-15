@@ -94,7 +94,7 @@ export function useSystemLocationApiFactory<
 				data as Omit<TZone, "id"> & { locations?: (TLocation | Omit<TLocation, "id">)[] }
 			)
 			const unifiedData = config.systemToUnifiedZone(zoneData)
-			const response = await locationApi.createZone(unifiedData)
+			const response = await locationApi.createZone(unifiedData, config.systemType)
 			return {
 				merged: response.merged,
 				message: response.message,
@@ -126,7 +126,7 @@ export function useSystemLocationApiFactory<
 				})
 			}
 
-			const response = await locationApi.updateZone(id, unifiedData)
+			const response = await locationApi.updateZone(id, unifiedData, config.systemType)
 			return {
 				merged: response.merged,
 				message: response.message,

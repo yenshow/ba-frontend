@@ -2,10 +2,9 @@ export const MAX_ELEVATOR_FLOOR_COUNT = 128
 export const DEFAULT_ELEVATOR_FLOOR_COUNT = 4
 export const MIN_ELEVATOR_OPEN_DURATION = 1
 export const MAX_ELEVATOR_OPEN_DURATION = 255
-export const DEFAULT_ELEVATOR_OPEN_DURATION = 5
+export const DEFAULT_ELEVATOR_OPEN_DURATION = 30
 
-export const defaultElevatorFloorName = (index: number): string =>
-	`Floor ${String(index).padStart(2, "0")}`
+export const defaultElevatorFloorName = (index: number): string => `${index}F`
 
 const clampFloorCount = (count: number) =>
 	Math.max(1, Math.min(count, MAX_ELEVATOR_FLOOR_COUNT))
@@ -58,4 +57,26 @@ export const padFloorOpenDurations = (
 		const normalized = normalizeElevatorOpenDuration(existing[i])
 		return normalized ?? DEFAULT_ELEVATOR_OPEN_DURATION
 	})
+}
+
+/** 呼梯面板固定可視列數（4 欄 × 5 列） */
+export const ELEVATOR_PANEL_COLUMNS = 4
+export const ELEVATOR_PANEL_VISIBLE_ROWS = 5
+
+/**
+ * 電梯面板樓層顯示順序：高樓層在上，每列由左至右遞增。
+ * 例（20 層）：17F–20F / 13F–16F / … / 1F–4F
+ */
+export const buildElevatorPanelFloorOrder = (count: number): number[] => {
+	if (count < 1) return []
+	const indices: number[] = []
+	const rows = Math.ceil(count / ELEVATOR_PANEL_COLUMNS)
+	for (let r = 0; r < rows; r++) {
+		const rowEnd = count - r * ELEVATOR_PANEL_COLUMNS
+		const rowStart = Math.max(1, rowEnd - ELEVATOR_PANEL_COLUMNS + 1)
+		for (let i = rowStart; i <= rowEnd; i++) {
+			indices.push(i)
+		}
+	}
+	return indices
 }
