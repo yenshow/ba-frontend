@@ -101,6 +101,7 @@
 								:can-control="canControlDevice"
 								:floor-count="selectedLocation.floorCount"
 								:floor-names="selectedLocation.floorNames"
+								:is-connected="isPrimaryDeviceConnected"
 							/>
 						</div>
 					</MonitoringDetailShell>
@@ -156,6 +157,7 @@
 										v-for="location in locationsForOverview"
 										:key="location.locationId"
 										:location="location"
+										:is-connected="locationConnectionById[location.locationId] ?? false"
 										:class="{ 'ring-2 ring-cyan-400': isCurrentLocation(location) }"
 										@click="handleLocationSelect"
 									/>
@@ -208,8 +210,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref } from "vue"
+import { computed, onMounted, onBeforeUnmount, ref, watch } from "vue"
 import type { ElevatorZone, ElevatorLocation, ElevatorLog } from "~/types/elevator"
+import type {
+	MonitoringDeviceStatusBatchEvent,
+	MonitoringDeviceStatusEvent,
+} from "~/types/websocket"
 import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue"
 import SimulationFrame from "~/components/common/SimulationFrame.vue"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
@@ -229,6 +235,8 @@ import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useElevatorSyncEngine } from "~/composables/systems/elevator/useElevatorSyncEngine"
+import { useDeviceConnectivity } from "~/composables/systems/devices/useDeviceConnectivity"
+import { useDeviceWebSocket } from "~/composables/websocket/subscribers/useDeviceWebSocket"
 import { useApiBase } from "~/composables/core/useApiBase"
 import {
 	buildLogsTimeQuery,
@@ -313,6 +321,55 @@ const primaryDeviceId = computed(() => {
 	const ids = selectedLocation.value?.deviceIds || []
 	return ids.length > 0 ? ids[0] : null
 })
+
+const deviceConnectivity = useDeviceConnectivity({ debounceMs: 150 })
+const { setupDeviceListeners, removeDeviceListeners } = useDeviceWebSocket()
+
+const elevatorDeviceIds = computed(() => {
+	const ids = new Set<number>()
+	for (const location of locations.value) {
+		for (const deviceId of location.deviceIds || []) {
+			if (Number.isFinite(deviceId)) ids.add(deviceId)
+		}
+	}
+	return [...ids]
+})
+
+watch(
+	elevatorDeviceIds,
+	(ids) => deviceConnectivity.refreshDebounced(ids),
+	{ immediate: true },
+)
+
+const isDeviceOnline = (deviceId: number | null | undefined) => {
+	if (deviceId == null) return false
+	return deviceConnectivity.getStatus(deviceId) === "online"
+}
+
+const isPrimaryDeviceConnected = computed(() => isDeviceOnline(primaryDeviceId.value))
+
+const locationConnectionById = computed(() => {
+	const map: Record<number, boolean> = {}
+	for (const location of locationsForOverview.value) {
+		const locationId = location.locationId
+		if (locationId == null) continue
+		map[locationId] = isDeviceOnline(location.deviceIds?.[0])
+	}
+	return map
+})
+
+const handleMonitoringDeviceStatus = (event: MonitoringDeviceStatusEvent) => {
+	if (event.system !== "device") return
+	const deviceId = event.deviceId || event.sourceId
+	deviceConnectivity.applyWsStatus(deviceId, event.status)
+}
+
+const handleMonitoringDeviceStatusBatch = (event: MonitoringDeviceStatusBatchEvent) => {
+	if (event.system !== "device") return
+	event.updates.forEach(({ sourceId, deviceId }) => {
+		deviceConnectivity.applyWsStatus(deviceId || sourceId, event.status)
+	})
+}
 
 const isCurrentLocation = (location: ElevatorLocation) =>
 	selectedLocation.value?.locationId === location.locationId
@@ -444,9 +501,15 @@ onMounted(async () => {
 			await loadLocationDetail(selectedLocationNumericId.value)
 		}
 	})
+
+	setupDeviceListeners({
+		onMonitoringStatus: handleMonitoringDeviceStatus,
+		onMonitoringStatusBatch: handleMonitoringDeviceStatusBatch,
+	})
 })
 
 onBeforeUnmount(() => {
 	cleanupWs?.()
+	removeDeviceListeners()
 })
 </script>

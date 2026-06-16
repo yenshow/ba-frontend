@@ -46,6 +46,28 @@ const isLegacyAutoElevatorFloorName = (
 export const resolveElevatorFloorLabel = (index: number, floorNames?: string[]): string =>
 	floorNames?.[index - 1]?.trim() || defaultElevatorSlotName(index - 1)
 
+/** 事件紀錄樓層欄：設備門序 → 設定的樓層名稱（支援合併後的「1、5」） */
+export const formatElevatorLogFloorDisplay = (
+	floor: number | string | null | undefined,
+	floorNames?: string[],
+): string => {
+	if (floor == null || String(floor).trim() === "") return ""
+	const parts = String(floor)
+		.split("、")
+		.map((part) => part.trim())
+		.filter(Boolean)
+	if (!parts.length) return String(floor).trim()
+	return parts
+		.map((part) => {
+			const n = Number(part)
+			if (Number.isFinite(n) && n > 0) {
+				return resolveElevatorFloorLabel(n, floorNames)
+			}
+			return part
+		})
+		.join("、")
+}
+
 export const normalizeElevatorFloorNumber = (value: unknown): number | null => {
 	if (value == null || value === "") return null
 	const n = Number(value)

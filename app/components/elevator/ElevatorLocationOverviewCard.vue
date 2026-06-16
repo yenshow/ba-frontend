@@ -20,50 +20,52 @@
 				<h3 class="text-base text-white 2xl:text-lg">{{ location.name }}</h3>
 			</div>
 
-			<div class="flex w-full items-center gap-8 py-4 text-white">
-				<div class="flex w-1/2 min-w-0 flex-col gap-3 border-r-2 border-white/50 pr-8">
-					<div class="flex items-center justify-center gap-3 bg-white/20 p-2">
-						<div class="text-sm font-semibold 2xl:text-base">今日事件</div>
-						<div class="w-[80px] bg-black/20 text-center text-xl 2xl:w-[100px] 2xl:text-2xl">
-							{{ todayEventCount }}
-						</div>
-					</div>
-
-					<div class="flex items-center justify-center gap-3 bg-white/20 p-2">
-						<div class="text-sm font-semibold 2xl:text-base">樓層範圍</div>
-						<div class="w-[80px] bg-black/20 text-center text-xl 2xl:w-[100px] 2xl:text-2xl">
-							{{ floorRangeDisplay }}
-						</div>
-					</div>
+			<div
+				class="flex items-center justify-center text-white py-4"
+				role="status"
+				aria-live="polite"
+			>
+				<div class="flex min-w-0 flex-col items-center px-4">
+					<p class="text-4xl font-bold leading-none 2xl:text-6xl">24F</p>
 				</div>
 
-				<div
-					class="flex w-1/2 min-w-0 items-center justify-center"
-					role="status"
-					aria-live="polite"
-				>
-					<div
-						class="flex min-h-[36px] w-full max-w-[180px] items-center justify-center gap-2 2xl:max-w-[200px]"
+				<div class="flex flex-col items-center pr-4" aria-hidden="true">
+					<svg
+						class="h-6 w-6 shrink-0 transition-opacity duration-300 2xl:h-12 2xl:w-12"
+						:class="elevatorDirectionArrowClass(direction, 'up')"
+						viewBox="2 3 20 13"
+						fill="currentColor"
 					>
-						<p class="text-4xl font-bold leading-none text-white 2xl:text-6xl">24F</p>
-						<div class="flex flex-col">
-							<svg
-								class="h-8 w-8 shrink-0 transition-opacity duration-300 2xl:h-12 2xl:w-12"
-								:class="elevatorDirectionArrowClass(direction, 'up')"
-								viewBox="2 3 20 13"
-								fill="currentColor"
-							>
-								<path d="M10.8 6.2Q12 4.8 13.2 6.2L20.2 15Q21 16 20 16H4Q3 16 3.8 15Z" />
-							</svg>
-							<svg
-								class="-mt-0.5 h-8 w-8 shrink-0 transition-opacity duration-300 2xl:h-12 2xl:w-12"
-								:class="elevatorDirectionArrowClass(direction, 'down')"
-								viewBox="2 8 20 13"
-								fill="currentColor"
-							>
-								<path d="M10.8 17.8Q12 19.2 13.2 17.8L20.2 9Q21 8 20 8H4Q3 8 3.8 9Z" />
-							</svg>
-						</div>
+						<path d="M10.8 6.2Q12 4.8 13.2 6.2L20.2 15Q21 16 20 16H4Q3 16 3.8 15Z" />
+					</svg>
+					<svg
+						class="-mt-0.5 h-6 w-6 shrink-0 transition-opacity duration-300 2xl:h-12 2xl:w-12"
+						:class="elevatorDirectionArrowClass(direction, 'down')"
+						viewBox="2 8 20 13"
+						fill="currentColor"
+					>
+						<path d="M10.8 17.8Q12 19.2 13.2 17.8L20.2 9Q21 8 20 8H4Q3 8 3.8 9Z" />
+					</svg>
+				</div>
+
+				<div class="flex flex-col items-center gap-2 border-l border-white/20 pl-3 2xl:pl-4">
+					<div
+						class="flex h-9 w-full min-w-[6rem] items-center justify-center rounded-full border-2 text-sm font-bold 2xl:h-10 2xl:min-w-[7rem] 2xl:text-base"
+						:class="callButtonClass"
+					>
+						呼梯
+					</div>
+
+					<div
+						class="flex h-9 w-full min-w-[6rem] items-center justify-center gap-2 rounded-full border px-2 2xl:h-10 2xl:min-w-[7rem]"
+						:class="healthBadgeClass"
+					>
+						<div
+							class="h-3.5 w-3.5 shrink-0 rounded-full border border-white/60 2xl:h-4 2xl:w-4"
+							:class="deviceStatusDotClass"
+							aria-hidden="true"
+						></div>
+						<span class="text-sm text-white 2xl:text-base">{{ deviceHealthLabel }}</span>
 					</div>
 				</div>
 			</div>
@@ -75,11 +77,11 @@
 import { computed } from "vue"
 import type { ElevatorDirection, ElevatorLocation } from "~/types/elevator"
 import {
+	buildElevatorDeviceStatusLabel,
 	buildElevatorStatusAriaLabel,
 	elevatorDirectionArrowClass,
 	formatElevatorLiveFloorText,
 } from "~/utils/elevatorDisplayUtils"
-import { resolveElevatorFloorRange } from "~/utils/elevatorFloorConfig"
 
 interface Props {
 	location: ElevatorLocation & { overviewZoneName?: string | null }
@@ -100,16 +102,21 @@ const emit = defineEmits<{ click: [locationId: number] }>()
 
 const regionText = computed(() => props.location.overviewZoneName || "未分類")
 
-const todayEventCount = computed(() => {
-	const n = Number(props.location.todayEventCount)
-	return Number.isFinite(n) ? n : 0
-})
+const deviceHealthLabel = computed(() => buildElevatorDeviceStatusLabel(props.isConnected))
 
-const floorRangeDisplay = computed(() => {
-	const range = resolveElevatorFloorRange(props.location)
-	if (!range) return "—"
-	return `${range.floorStart} — ${range.floorEnd}`
-})
+const deviceStatusDotClass = computed(() => (props.isConnected ? "bg-emerald-400" : "bg-amber-400"))
+
+const healthBadgeClass = computed(() =>
+	props.isConnected
+		? "border-white/25 bg-white/10"
+		: "blink-slow border-amber-400/50 bg-amber-400/20"
+)
+
+const callButtonClass = computed(() =>
+	props.isConnected
+		? "border-cyan-400/60 bg-cyan-500/70 text-white"
+		: "border-white/25 bg-white/10 text-white/50"
+)
 
 const displayFloorText = computed(() =>
 	formatElevatorLiveFloorText({
@@ -123,8 +130,7 @@ const statusAriaLabel = computed(() =>
 		floorText: displayFloorText.value,
 		direction: props.direction,
 		isConnected: props.isConnected,
-		verboseConnection: true,
-		todayEventCount: todayEventCount.value,
+		deviceHealthLabel: true,
 	})
 )
 
