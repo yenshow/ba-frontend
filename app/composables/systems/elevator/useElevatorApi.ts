@@ -59,6 +59,8 @@ export const useElevatorApi = () => {
 				name: site.name,
 				deviceIds: site.deviceIds,
 				floorCount: cfg?.floorCount,
+				floorStart: cfg?.floorStart,
+				floorEnd: cfg?.floorEnd,
 				floorNames: cfg?.floorNames,
 				floorOpenDurations: cfg?.floorOpenDurations,
 				todayEventCount: site.todayEventCount,
@@ -82,6 +84,8 @@ export const useElevatorApi = () => {
 			deviceIds?: number[]
 			accessDeviceIds?: number[]
 			floorCount?: number
+			floorStart?: number
+			floorEnd?: number
 			floorNames?: string[]
 			floorOpenDurations?: number[]
 			logDisplayColumns?: string[]
@@ -95,6 +99,8 @@ export const useElevatorApi = () => {
 			deviceIds: config.deviceIds || base?.deviceIds || [],
 			accessDeviceIds: config.accessDeviceIds || base?.accessDeviceIds || [],
 			floorCount: config.floorCount ?? base?.floorCount,
+			floorStart: config.floorStart ?? base?.floorStart,
+			floorEnd: config.floorEnd ?? base?.floorEnd,
 			floorNames: config.floorNames ?? base?.floorNames,
 			floorOpenDurations: config.floorOpenDurations ?? base?.floorOpenDurations,
 			logDisplayColumns: normalizeElevatorLogDisplayColumns(

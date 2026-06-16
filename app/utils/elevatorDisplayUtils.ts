@@ -18,16 +18,26 @@ export const buildElevatorDirectionLabel = (direction: ElevatorDirection): strin
 	return "靜止"
 }
 
+export const buildElevatorDeviceStatusLabel = (isConnected: boolean): "正常" | "異常" =>
+	isConnected ? "正常" : "異常"
+
 export const buildElevatorStatusAriaLabel = (options: {
 	floorText: string
 	direction: ElevatorDirection
 	isConnected: boolean
 	/** 總覽卡片用較完整連線描述 */
 	verboseConnection?: boolean
+	/** 詳情面板：以設備正常／異常描述連線 */
+	deviceHealthLabel?: boolean
 	todayEventCount?: number
 }): string => {
 	const dir = buildElevatorDirectionLabel(options.direction)
-	const conn = options.isConnected ? (options.verboseConnection ? "連線正常" : "") : "待連線"
+	let conn = ""
+	if (options.deviceHealthLabel) {
+		conn = `設備${buildElevatorDeviceStatusLabel(options.isConnected)}`
+	} else {
+		conn = options.isConnected ? (options.verboseConnection ? "連線正常" : "") : "待連線"
+	}
 	const parts = [`目前樓層 ${options.floorText}，${dir}`]
 	if (conn) parts.push(conn)
 	if (options.todayEventCount != null) {

@@ -10,6 +10,10 @@ export interface ElevatorLocation {
 	deviceIds?: number[]
 	accessDeviceIds?: number[]
 	floorCount?: number
+	/** 設備樓層範圍起始號碼（預設 1） */
+	floorStart?: number
+	/** 設備樓層範圍結束號碼 */
+	floorEnd?: number
 	floorNames?: string[]
 	/** 各樓層繼電器動作時間（秒，1–255） */
 	floorOpenDurations?: number[]

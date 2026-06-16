@@ -1,36 +1,86 @@
 <template>
 	<div class="flex min-h-0 flex-1">
-		<div class="show-scrollbar flex min-w-0 flex-1 flex-col">
+		<div class="show-scrollbar flex min-w-0 flex-1 flex-col gap-4">
 			<div
-				class="my-16 flex items-center justify-center gap-12"
+				class="rounded-2xl border-2 border-white/20 bg-gradient-to-b from-white/[0.08] to-white/[0.03] p-4"
 				role="status"
 				aria-live="polite"
 				:aria-label="statusAriaLabel"
 			>
-				<div class="rounded-xl bg-black/20 px-16 py-4 text-center">
-					<p class="text-xl font-bold text-white/70 2xl:text-2xl">目前樓層</p>
-					<p class="mt-2 text-4xl font-bold text-white 2xl:text-8xl">
-						{{ displayFloorText }}
-					</p>
-				</div>
+				<p class="text-center text-lg font-semibold text-white/80 2xl:text-xl">即時狀態</p>
 
-				<div class="flex flex-col items-center gap-0" aria-hidden="true">
-					<svg
-						class="h-8 w-8 shrink-0 transition-opacity duration-300 2xl:h-24 2xl:w-24"
-						:class="elevatorDirectionArrowClass(direction, 'up')"
-						viewBox="2 3 20 13"
-						fill="currentColor"
+				<div class="flex justify-center items-center gap-6">
+					<div
+						class="min-w-[200px] flex items-center justify-center px-4 py-2 2xl:px-8 2xl:py-4 bg-black/15 rounded-xl"
 					>
-						<path d="M10.8 6.2Q12 4.8 13.2 6.2L20.2 15Q21 16 20 16H4Q3 16 3.8 15Z" />
-					</svg>
-					<svg
-						class="-mt-1 h-8 w-8 shrink-0 transition-opacity duration-300 2xl:-mt-2 2xl:h-24 2xl:w-24"
-						:class="elevatorDirectionArrowClass(direction, 'down')"
-						viewBox="2 8 20 13"
-						fill="currentColor"
+						<p class="text-4xl font-bold text-white 2xl:text-8xl">
+							{{ displayFloorText }}
+						</p>
+					</div>
+
+					<div class="flex flex-col items-center">
+						<svg
+							class="h-8 w-8 shrink-0 transition-opacity duration-300 2xl:h-24 2xl:w-24"
+							:class="elevatorDirectionArrowClass(direction, 'up')"
+							viewBox="2 3 20 13"
+							fill="currentColor"
+						>
+							<path d="M10.8 6.2Q12 4.8 13.2 6.2L20.2 15Q21 16 20 16H4Q3 16 3.8 15Z" />
+						</svg>
+						<svg
+							class="-mt-1 h-8 w-8 shrink-0 transition-opacity duration-300 2xl:-mt-2 2xl:h-24 2xl:w-24"
+							:class="elevatorDirectionArrowClass(direction, 'down')"
+							viewBox="2 8 20 13"
+							fill="currentColor"
+						>
+							<path d="M10.8 17.8Q12 19.2 13.2 17.8L20.2 9Q21 8 20 8H4Q3 8 3.8 9Z" />
+						</svg>
+					</div>
+
+					<div class="flex flex-col items-center gap-3 2xl:gap-4">
+						<button
+							type="button"
+							class="min-w-[5.5rem] rounded-full border-2 border-white bg-white px-6 py-2 text-lg font-bold text-[#0d4f5c] shadow-[0_2px_12px_rgba(0,0,0,0.12)] transition-all hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-40 2xl:min-w-[6.5rem] 2xl:px-8 2xl:py-3 2xl:text-2xl"
+							:disabled="isCallElevatorDisabled"
+							:aria-label="`呼梯至 ${selectedFloorLabel || '未選樓層'}`"
+							@click="handleCallElevator"
+						>
+							呼梯
+						</button>
+
+						<div
+							class="flex h-9 w-full items-center justify-center gap-2 rounded-full border border-white bg-white/10 px-2 2xl:h-10"
+						>
+							<span
+								class="h-3 w-3 shrink-0 rounded-full border border-white 2xl:h-4 2xl:w-4"
+								:class="deviceStatusDotClass"
+								aria-hidden="true"
+							></span>
+							<span class="text-sm font-semibold text-white 2xl:text-base">
+								{{ deviceStatusLabel }}
+							</span>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div
+				class="rounded-2xl border-2 border-white/20 bg-gradient-to-b from-white/[0.08] to-white/[0.03] p-4"
+			>
+				<p class="text-center text-lg font-semibold text-white/80 2xl:text-xl">門控操作</p>
+
+				<div class="grid grid-cols-4 justify-items-center">
+					<button
+						v-for="cmd in commands"
+						:key="cmd.value"
+						type="button"
+						class="flex aspect-square w-20 items-center justify-center rounded-full border-2 border-cyan-400/60 bg-cyan-500/70 text-xl font-bold text-white transition-all hover:bg-cyan-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-40 2xl:w-24 2xl:text-2xl"
+						:disabled="isSubmitting || !canControl || !isConnected || selectedFloorIndex == null"
+						:aria-label="`${cmd.label} ${selectedFloorLabel}`"
+						@click="handleControl(cmd.value)"
 					>
-						<path d="M10.8 17.8Q12 19.2 13.2 17.8L20.2 9Q21 8 20 8H4Q3 8 3.8 9Z" />
-					</svg>
+						{{ cmd.label }}
+					</button>
 				</div>
 			</div>
 
@@ -127,22 +177,6 @@
 							</div>
 						</div>
 
-						<div class="p-4">
-							<div class="grid grid-cols-4 justify-items-center">
-								<button
-									v-for="cmd in commands"
-									:key="cmd.value"
-									type="button"
-									class="flex aspect-square w-20 items-center justify-center rounded-full border-2 border-cyan-400/60 bg-cyan-500/70 text-xl font-bold text-white transition-all hover:bg-cyan-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-40 2xl:w-24 2xl:text-2xl"
-									:disabled="isSubmitting || !canControl || selectedFloorIndex == null"
-									:aria-label="`${cmd.label} ${selectedFloorLabel}`"
-									@click="handleControl(cmd.value)"
-								>
-									{{ cmd.label }}
-								</button>
-							</div>
-						</div>
-
 						<p v-if="errorText" class="form-error-text mt-3 shrink-0 px-4 pb-4" role="alert">
 							{{ errorText }}
 						</p>
@@ -166,6 +200,7 @@ import {
 	resolveElevatorFloorLabel,
 } from "~/utils/elevatorFloorConfig"
 import {
+	buildElevatorDeviceStatusLabel,
 	buildElevatorStatusAriaLabel,
 	elevatorDirectionArrowClass,
 	formatElevatorLiveFloorText,
@@ -218,12 +253,25 @@ const displayFloorText = computed(() =>
 	})
 )
 
+const deviceStatusLabel = computed(() => buildElevatorDeviceStatusLabel(props.isConnected))
+
+const deviceStatusDotClass = computed(() => (props.isConnected ? "bg-emerald-400" : "bg-amber-400"))
+
 const statusAriaLabel = computed(() =>
 	buildElevatorStatusAriaLabel({
 		floorText: displayFloorText.value,
 		direction: props.direction,
 		isConnected: props.isConnected,
+		deviceHealthLabel: true,
 	})
+)
+
+const isCallElevatorDisabled = computed(
+	() =>
+		isSubmitting.value ||
+		!props.canControl ||
+		!props.isConnected ||
+		selectedFloorIndex.value == null
 )
 
 const selectedFloorIndex = ref<number | null>(null)
@@ -270,6 +318,10 @@ const commands: Array<{ value: ElevatorControlCommand; label: string }> = [
 	{ value: "normally_open", label: "常開" },
 	{ value: "normally_closed", label: "常閉" },
 ]
+
+const handleCallElevator = () => {
+	// 呼梯 API 尚未實作，僅保留 UI 入口
+}
 
 const handleControl = async (command: ElevatorControlCommand) => {
 	if (!props.deviceId || !props.canControl || floors.value.length === 0) return

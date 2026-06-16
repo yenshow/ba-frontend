@@ -61,19 +61,37 @@
 		</div>
 
 		<div v-if="selectedDeviceId" :class="fieldLabelClass">
-			<label class="flex min-w-0 flex-col gap-2">
-				<span>樓層數量 *</span>
-				<input
-					:value="localLocation.floorCount ?? ''"
-					type="number"
-					min="1"
-					:max="MAX_ELEVATOR_FLOOR_COUNT"
-					required
-					class="form-input-small max-w-[8rem]"
-					placeholder="例如：4"
-					@change="handleFloorCountChange"
-				/>
-			</label>
+			<div class="flex min-w-0 flex-col gap-2">
+				<span>樓層 *</span>
+				<div class="flex max-w-[12rem] items-center gap-2">
+					<input
+						:value="localLocation.floorStart ?? ''"
+						type="number"
+						:min="MIN_ELEVATOR_FLOOR_NUMBER"
+						:max="MAX_ELEVATOR_FLOOR_NUMBER"
+						required
+						class="form-input-small min-w-0 flex-1 px-2 text-center"
+						aria-label="起始樓層"
+						@focus="handleFloorRangeFocus"
+						@input="handleFloorRangeInput('start', $event)"
+					/>
+					<span class="shrink-0 text-white/50" aria-hidden="true">—</span>
+					<input
+						:value="localLocation.floorEnd ?? ''"
+						type="number"
+						:min="MIN_ELEVATOR_FLOOR_NUMBER"
+						:max="MAX_ELEVATOR_FLOOR_NUMBER"
+						required
+						class="form-input-small min-w-0 flex-1 px-2 text-center"
+						aria-label="結束樓層"
+						@focus="handleFloorRangeFocus"
+						@input="handleFloorRangeInput('end', $event)"
+					/>
+				</div>
+				<p v-if="floorRangeError" class="form-error-text text-xs" role="alert">
+					{{ floorRangeError }}
+				</p>
+			</div>
 
 			<div v-if="floorCount != null" class="flex min-w-0 flex-col gap-2">
 				<span>樓層名稱與繼電器時間</span>
@@ -83,30 +101,32 @@
 					aria-label="樓層名稱與繼電器時間列表"
 				>
 					<div
-						v-for="index in floorCount"
-						:key="index"
+						v-for="slotIndex in floorCount"
+						:key="`${floorStart}-${slotIndex}`"
 						class="grid grid-cols-[2.5rem_minmax(0,1fr)_4.5rem] items-center gap-1.5 rounded border border-white/5 bg-white/5 px-2 py-1.5"
 						role="row"
 					>
-						<span class="text-xs text-white/60 2xl:text-sm" role="cell">#{{ index }}</span>
+						<span class="text-xs text-white/60 2xl:text-sm" role="cell">
+							#{{ floorNumberAt(slotIndex - 1) }}
+						</span>
 						<input
-							:value="floorNameAt(index - 1)"
+							:value="floorNameAt(slotIndex - 1)"
 							type="text"
 							maxlength="32"
 							class="form-input-small min-w-0"
-							:placeholder="defaultElevatorFloorName(index)"
-							:aria-label="`第 ${index} 層樓層名稱`"
-							@input="handleFloorNameInput(index - 1, $event)"
+							:placeholder="defaultElevatorSlotName(slotIndex - 1)"
+							:aria-label="`第 ${floorNumberAt(slotIndex - 1)} 層樓層名稱`"
+							@input="handleFloorNameInput(slotIndex - 1, $event)"
 							@blur="handleFloorNameBlur"
 						/>
 						<input
-							:value="floorOpenDurationAt(index - 1)"
+							:value="floorOpenDurationAt(slotIndex - 1)"
 							type="number"
 							:min="MIN_ELEVATOR_OPEN_DURATION"
 							:max="MAX_ELEVATOR_OPEN_DURATION"
 							class="form-input-small min-w-0 px-1 text-center"
-							:aria-label="`第 ${index} 層繼電器動作時間（秒）`"
-							@input="handleFloorOpenDurationInput(index - 1, $event)"
+							:aria-label="`第 ${floorNumberAt(slotIndex - 1)} 層繼電器動作時間（秒）`"
+							@input="handleFloorOpenDurationInput(slotIndex - 1, $event)"
 						/>
 					</div>
 				</div>
@@ -137,7 +157,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch } from "vue"
+import { computed, reactive, ref, watch } from "vue"
 import type { ElevatorLocation } from "~/types/elevator"
 import { isHcnetSdkDevice, type Device } from "~/types/device"
 import {
@@ -148,16 +168,23 @@ import {
 	type ElevatorLogColumnKey,
 } from "~/utils/elevatorLogColumns"
 import {
-	defaultElevatorFloorName,
+	buildDefaultFloorConfig,
+	defaultElevatorSlotName,
 	DEFAULT_ELEVATOR_FLOOR_COUNT,
+	DEFAULT_ELEVATOR_FLOOR_START,
+	DEFAULT_ELEVATOR_OPEN_DURATION,
+	deriveElevatorFloorCount,
+	elevatorFloorNumberAtSlot,
 	fillEmptyFloorNames,
-	MAX_ELEVATOR_FLOOR_COUNT,
+	MAX_ELEVATOR_FLOOR_NUMBER,
 	MAX_ELEVATOR_OPEN_DURATION,
+	MIN_ELEVATOR_FLOOR_NUMBER,
 	MIN_ELEVATOR_OPEN_DURATION,
-	normalizeElevatorFloorCount,
+	normalizeElevatorFloorNumber,
 	normalizeElevatorOpenDuration,
-	padFloorNames,
-	padFloorOpenDurations,
+	remapFloorConfigForRange,
+	resolveElevatorFloorRange,
+	validateElevatorFloorRange,
 } from "~/utils/elevatorFloorConfig"
 
 const fieldLabelClass = "flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base"
@@ -181,13 +208,24 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{ update: [location: ElevatorLocation] }>()
 
 const localLocation = reactive<ElevatorLocation>({ ...props.location })
+const floorRangeSnapshot = ref<ReturnType<typeof resolveElevatorFloorRange>>(null)
+
+const syncLocalLocation = (loc: ElevatorLocation) => {
+	Object.assign(localLocation, {
+		...loc,
+		floorNames: Array.isArray(loc.floorNames) ? [...loc.floorNames] : [],
+		floorOpenDurations: Array.isArray(loc.floorOpenDurations) ? [...loc.floorOpenDurations] : [],
+	})
+}
+
+syncLocalLocation(props.location)
 
 watch(
 	() => props.location,
 	(loc) => {
-		Object.assign(localLocation, loc)
+		syncLocalLocation(loc)
 	},
-	{ deep: true }
+	{ deep: true },
 )
 
 const ladderDevices = computed(() => (props.devices || []).filter(isHcnetSdkDevice))
@@ -215,13 +253,79 @@ const handleToggleAccessDevice = (deviceId: number) => {
 	handleChange()
 }
 
-const floorCount = computed(() => normalizeElevatorFloorCount(localLocation.floorCount))
+const floorRange = computed(() => resolveElevatorFloorRange(localLocation))
+const floorCount = computed(() => floorRange.value?.floorCount ?? null)
+const floorStart = computed(() => floorRange.value?.floorStart ?? DEFAULT_ELEVATOR_FLOOR_START)
+const floorRangeError = computed(() =>
+	validateElevatorFloorRange(localLocation.floorStart, localLocation.floorEnd),
+)
 
-const floorNameAt = (index: number) =>
-	padFloorNames(localLocation.floorNames, floorCount.value ?? 0)[index] ?? ""
+const floorNumberAt = (slotIndex: number) =>
+	elevatorFloorNumberAtSlot(slotIndex, floorStart.value)
+
+const floorNameAt = (index: number) => localLocation.floorNames?.[index] ?? ""
 
 const floorOpenDurationAt = (index: number) =>
-	padFloorOpenDurations(localLocation.floorOpenDurations, floorCount.value ?? 0)[index] ?? ""
+	localLocation.floorOpenDurations?.[index] ?? DEFAULT_ELEVATOR_OPEN_DURATION
+
+const handleFloorRangeFocus = () => {
+	floorRangeSnapshot.value = resolveElevatorFloorRange(localLocation)
+}
+
+const applyFloorRange = (
+	start: number,
+	end: number,
+	prevRange: ReturnType<typeof resolveElevatorFloorRange>,
+) => {
+	const count = deriveElevatorFloorCount(start, end)
+	if (count == null) return
+
+	const prevStart = prevRange?.floorStart ?? start
+	const prevCount = prevRange?.floorCount ?? 0
+
+	localLocation.floorStart = start
+	localLocation.floorEnd = end
+	localLocation.floorCount = count
+	Object.assign(
+		localLocation,
+		remapFloorConfigForRange(localLocation, prevStart, prevCount, start, count),
+	)
+	floorRangeSnapshot.value = resolveElevatorFloorRange(localLocation)
+	emitLocationUpdate()
+}
+
+const handleFloorRangeInput = (field: "start" | "end", event: Event) => {
+	const prevRange = floorRangeSnapshot.value ?? resolveElevatorFloorRange(localLocation)
+	const raw = (event.target as HTMLInputElement).value
+	const parsed = normalizeElevatorFloorNumber(raw)
+
+	const prevStart = prevRange?.floorStart ?? DEFAULT_ELEVATOR_FLOOR_START
+	const prevEnd =
+		prevRange?.floorEnd ?? prevStart + (DEFAULT_ELEVATOR_FLOOR_COUNT - 1)
+	const peerStart = normalizeElevatorFloorNumber(localLocation.floorStart)
+	const peerEnd = normalizeElevatorFloorNumber(localLocation.floorEnd)
+
+	if (parsed == null) {
+		if (field === "start") localLocation.floorStart = undefined
+		else localLocation.floorEnd = undefined
+		localLocation.floorCount = undefined
+		emitLocationUpdate()
+		return
+	}
+
+	const nextStart = field === "start" ? parsed : (peerStart ?? prevStart)
+	const nextEnd = field === "end" ? parsed : (peerEnd ?? prevEnd)
+
+	if (field === "start") localLocation.floorStart = parsed
+	else localLocation.floorEnd = parsed
+
+	if (validateElevatorFloorRange(nextStart, nextEnd)) {
+		emitLocationUpdate()
+		return
+	}
+
+	applyFloorRange(nextStart, nextEnd, prevRange)
+}
 
 const enabledColumns = computed(() =>
 	normalizeElevatorLogDisplayColumns(localLocation.logDisplayColumns)
@@ -229,10 +333,11 @@ const enabledColumns = computed(() =>
 
 const isColumnEnabled = (key: ElevatorLogColumnKey) => enabledColumns.value.includes(key)
 
-const initFloors = (count = DEFAULT_ELEVATOR_FLOOR_COUNT) => {
+const initFloors = (count = DEFAULT_ELEVATOR_FLOOR_COUNT, start = DEFAULT_ELEVATOR_FLOOR_START) => {
+	localLocation.floorStart = start
+	localLocation.floorEnd = start + count - 1
 	localLocation.floorCount = count
-	localLocation.floorNames = padFloorNames(localLocation.floorNames, count)
-	localLocation.floorOpenDurations = padFloorOpenDurations(localLocation.floorOpenDurations, count)
+	Object.assign(localLocation, buildDefaultFloorConfig(count))
 }
 
 const handleSelectDevice = (deviceId: number) => {
@@ -241,56 +346,31 @@ const handleSelectDevice = (deviceId: number) => {
 	handleChange()
 }
 
-const resizeFloorArrays = (count: number) => {
-	const existingNameLen = localLocation.floorNames?.length ?? 0
-	const existingDurationLen = localLocation.floorOpenDurations?.length ?? 0
-	const preserveLen = Math.max(count, existingNameLen, existingDurationLen)
-	localLocation.floorNames = padFloorNames(localLocation.floorNames, preserveLen)
-	localLocation.floorOpenDurations = padFloorOpenDurations(
-		localLocation.floorOpenDurations,
-		preserveLen,
-	)
-}
-
-const handleFloorCountChange = (event: Event) => {
-	const count = normalizeElevatorFloorCount((event.target as HTMLInputElement).value)
-	if (count == null) {
-		localLocation.floorCount = undefined
-		localLocation.floorNames = []
-		localLocation.floorOpenDurations = []
-	} else {
-		localLocation.floorCount = count
-		resizeFloorArrays(count)
-	}
-	handleChange()
-}
-
 const handleFloorNameInput = (index: number, event: Event) => {
-	const count = floorCount.value ?? DEFAULT_ELEVATOR_FLOOR_COUNT
-	const preserveLen = Math.max(count, localLocation.floorNames?.length ?? 0)
-	const names = padFloorNames(localLocation.floorNames, preserveLen)
+	const count = floorCount.value
+	if (count == null) return
+	const names = [...(localLocation.floorNames ?? [])]
+	while (names.length < count) names.push("")
 	names[index] = (event.target as HTMLInputElement).value
-	localLocation.floorNames = names
+	localLocation.floorNames = names.slice(0, count)
 	handleChange()
 }
 
 const handleFloorNameBlur = () => {
-	if (floorCount.value == null) return
 	const count = floorCount.value
-	const preserveLen = Math.max(count, localLocation.floorNames?.length ?? 0)
-	const padded = padFloorNames(localLocation.floorNames, preserveLen)
-	const visible = fillEmptyFloorNames(padded.slice(0, count), count)
-	localLocation.floorNames = [...visible, ...padded.slice(count)]
+	if (count == null) return
+	localLocation.floorNames = fillEmptyFloorNames(localLocation.floorNames ?? [], count)
 	handleChange()
 }
 
 const handleFloorOpenDurationInput = (index: number, event: Event) => {
-	const count = floorCount.value ?? DEFAULT_ELEVATOR_FLOOR_COUNT
-	const preserveLen = Math.max(count, localLocation.floorOpenDurations?.length ?? 0)
-	const durations = padFloorOpenDurations(localLocation.floorOpenDurations, preserveLen)
+	const count = floorCount.value
+	if (count == null) return
+	const durations = [...(localLocation.floorOpenDurations ?? [])]
+	while (durations.length < count) durations.push(DEFAULT_ELEVATOR_OPEN_DURATION)
 	const normalized = normalizeElevatorOpenDuration((event.target as HTMLInputElement).value)
 	durations[index] = normalized ?? durations[index] ?? MIN_ELEVATOR_OPEN_DURATION
-	localLocation.floorOpenDurations = durations
+	localLocation.floorOpenDurations = durations.slice(0, count)
 	handleChange()
 }
 
@@ -303,7 +383,15 @@ const handleToggleColumn = (key: ElevatorLogColumnKey) => {
 	handleChange()
 }
 
+const emitLocationUpdate = () => {
+	emit("update", {
+		...localLocation,
+		floorNames: [...(localLocation.floorNames ?? [])],
+		floorOpenDurations: [...(localLocation.floorOpenDurations ?? [])],
+	})
+}
+
 const handleChange = () => {
-	emit("update", { ...localLocation })
+	emitLocationUpdate()
 }
 </script>

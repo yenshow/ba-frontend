@@ -20,7 +20,7 @@
 				<h3 class="text-base text-white 2xl:text-lg">{{ location.name }}</h3>
 			</div>
 
-			<div class="flex w-full items-center gap-8 py-2 text-white">
+			<div class="flex w-full items-center gap-8 py-4 text-white">
 				<div class="flex w-1/2 min-w-0 flex-col gap-3 border-r-2 border-white/50 pr-8">
 					<div class="flex items-center justify-center gap-3 bg-white/20 p-2">
 						<div class="text-sm font-semibold 2xl:text-base">今日事件</div>
@@ -30,9 +30,9 @@
 					</div>
 
 					<div class="flex items-center justify-center gap-3 bg-white/20 p-2">
-						<div class="text-sm font-semibold 2xl:text-base">樓層數量</div>
+						<div class="text-sm font-semibold 2xl:text-base">樓層範圍</div>
 						<div class="w-[80px] bg-black/20 text-center text-xl 2xl:w-[100px] 2xl:text-2xl">
-							{{ floorCountDisplay }}
+							{{ floorRangeDisplay }}
 						</div>
 					</div>
 				</div>
@@ -79,6 +79,7 @@ import {
 	elevatorDirectionArrowClass,
 	formatElevatorLiveFloorText,
 } from "~/utils/elevatorDisplayUtils"
+import { resolveElevatorFloorRange } from "~/utils/elevatorFloorConfig"
 
 interface Props {
 	location: ElevatorLocation & { overviewZoneName?: string | null }
@@ -104,9 +105,10 @@ const todayEventCount = computed(() => {
 	return Number.isFinite(n) ? n : 0
 })
 
-const floorCountDisplay = computed(() => {
-	const n = Number(props.location.floorCount)
-	return Number.isFinite(n) && n > 0 ? n : "—"
+const floorRangeDisplay = computed(() => {
+	const range = resolveElevatorFloorRange(props.location)
+	if (!range) return "—"
+	return `${range.floorStart} — ${range.floorEnd}`
 })
 
 const displayFloorText = computed(() =>

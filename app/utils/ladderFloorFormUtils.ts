@@ -1,8 +1,5 @@
 import type { Person, PersonLadderCard } from "~/types/personnel"
-import {
-	defaultElevatorFloorName,
-	resolveElevatorFloorLabel,
-} from "~/utils/elevatorFloorConfig"
+import { resolveElevatorFloorLabel } from "~/utils/elevatorFloorConfig"
 
 export type LadderFloorDefaultsByLocation = Record<number, number[]>
 

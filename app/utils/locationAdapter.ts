@@ -39,9 +39,8 @@ import {
 } from "~/utils/elevatorLogColumns";
 import {
 	fillEmptyFloorNames,
-	normalizeElevatorFloorCount,
-	padFloorNames,
-	padFloorOpenDurations,
+	normalizeFloorOpenDurationsList,
+	resolveElevatorFloorRange,
 } from "~/utils/elevatorFloorConfig";
 import type { ElevatorZone, ElevatorLocation } from "~/types/elevator";
 
@@ -1531,6 +1530,8 @@ export function unifiedToElevatorZone(zone: UnifiedZone): ElevatorZone {
 				accessDeviceIds?: number[]
 				logDisplayColumns?: string[]
 				floorCount?: number
+				floorStart?: number
+				floorEnd?: number
 				floorNames?: string[]
 				floorOpenDurations?: number[]
 			}
@@ -1542,6 +1543,8 @@ export function unifiedToElevatorZone(zone: UnifiedZone): ElevatorZone {
 					deviceIds: Array.isArray(cfg.deviceIds) ? cfg.deviceIds : [],
 					accessDeviceIds: Array.isArray(cfg.accessDeviceIds) ? cfg.accessDeviceIds : [],
 					floorCount: cfg.floorCount,
+					floorStart: cfg.floorStart,
+					floorEnd: cfg.floorEnd,
 					floorNames: cfg.floorNames,
 					floorOpenDurations: cfg.floorOpenDurations,
 					logDisplayColumns: cfg.logDisplayColumns,
@@ -1573,14 +1576,17 @@ export function elevatorLocationToUnified(
 	const accessDeviceIds = Array.isArray(loc.accessDeviceIds)
 		? loc.accessDeviceIds.filter((id) => Number.isFinite(id) && id > 0)
 		: []
-	const floorCount = normalizeElevatorFloorCount(loc.floorCount) ?? undefined
+	const floorRange = resolveElevatorFloorRange(loc)
+	const floorCount = floorRange?.floorCount
+	const floorStart = floorRange?.floorStart
+	const floorEnd = floorRange?.floorEnd
 	const resolvedFloorNames =
 		floorCount != null && deviceIds.length > 0
-			? fillEmptyFloorNames(padFloorNames(loc.floorNames, floorCount), floorCount)
+			? fillEmptyFloorNames(loc.floorNames ?? [], floorCount)
 			: undefined
 	const resolvedFloorOpenDurations =
 		floorCount != null && deviceIds.length > 0
-			? padFloorOpenDurations(loc.floorOpenDurations, floorCount)
+			? normalizeFloorOpenDurationsList(loc.floorOpenDurations, floorCount)
 			: undefined
 	return {
 		...(hasId && { id: loc.id! }),
@@ -1595,6 +1601,8 @@ export function elevatorLocationToUnified(
 					...(resolvedFloorNames
 						? {
 								floorCount,
+								floorStart,
+								floorEnd,
 								floorNames: resolvedFloorNames,
 								floorOpenDurations: resolvedFloorOpenDurations,
 							}
