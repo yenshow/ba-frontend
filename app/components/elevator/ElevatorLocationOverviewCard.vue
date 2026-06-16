@@ -26,21 +26,21 @@
 				aria-live="polite"
 			>
 				<div class="flex min-w-0 flex-col items-center px-4">
-					<p class="text-4xl font-bold leading-none 2xl:text-6xl">24F</p>
+					<p class="text-4xl font-bold leading-none 2xl:text-6xl">{{ displayFloorText }}</p>
 				</div>
 
 				<div class="flex flex-col items-center pr-4" aria-hidden="true">
 					<svg
-						class="h-6 w-6 shrink-0 transition-opacity duration-300 2xl:h-12 2xl:w-12"
-						:class="elevatorDirectionArrowClass(direction, 'up')"
+						class="h-6 w-6 shrink-0 transition-all duration-300 2xl:h-12 2xl:w-12"
+						:class="elevatorLedArrowClass('idle', 'up', isConnected)"
 						viewBox="2 3 20 13"
 						fill="currentColor"
 					>
 						<path d="M10.8 6.2Q12 4.8 13.2 6.2L20.2 15Q21 16 20 16H4Q3 16 3.8 15Z" />
 					</svg>
 					<svg
-						class="-mt-0.5 h-6 w-6 shrink-0 transition-opacity duration-300 2xl:h-12 2xl:w-12"
-						:class="elevatorDirectionArrowClass(direction, 'down')"
+						class="-mt-0.5 h-6 w-6 shrink-0 transition-all duration-300 2xl:h-12 2xl:w-12"
+						:class="elevatorLedArrowClass('idle', 'down', isConnected)"
 						viewBox="2 8 20 13"
 						fill="currentColor"
 					>
@@ -49,13 +49,6 @@
 				</div>
 
 				<div class="flex flex-col items-center gap-2 border-l border-white/20 pl-3 2xl:pl-4">
-					<div
-						class="flex h-9 w-full min-w-[6rem] items-center justify-center rounded-full border-2 text-sm font-bold 2xl:h-10 2xl:min-w-[7rem] 2xl:text-base"
-						:class="callButtonClass"
-					>
-						呼梯
-					</div>
-
 					<div
 						class="flex h-9 w-full min-w-[6rem] items-center justify-center gap-2 rounded-full border px-2 2xl:h-10 2xl:min-w-[7rem]"
 						:class="healthBadgeClass"
@@ -75,27 +68,21 @@
 
 <script setup lang="ts">
 import { computed } from "vue"
-import type { ElevatorDirection, ElevatorLocation } from "~/types/elevator"
+import type { ElevatorLocation } from "~/types/elevator"
 import {
 	buildElevatorDeviceStatusLabel,
 	buildElevatorStatusAriaLabel,
-	elevatorDirectionArrowClass,
+	elevatorLedArrowClass,
 	formatElevatorLiveFloorText,
 } from "~/utils/elevatorDisplayUtils"
 
 interface Props {
 	location: ElevatorLocation & { overviewZoneName?: string | null }
-	currentFloor?: number | string | null
-	direction?: ElevatorDirection
 	isConnected?: boolean
-	floorLabel?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
-	currentFloor: null,
-	direction: "idle",
 	isConnected: false,
-	floorLabel: undefined,
 })
 
 const emit = defineEmits<{ click: [locationId: number] }>()
@@ -112,23 +99,12 @@ const healthBadgeClass = computed(() =>
 		: "blink-slow border-amber-400/50 bg-amber-400/20"
 )
 
-const callButtonClass = computed(() =>
-	props.isConnected
-		? "border-cyan-400/60 bg-cyan-500/70 text-white"
-		: "border-white/25 bg-white/10 text-white/50"
-)
-
-const displayFloorText = computed(() =>
-	formatElevatorLiveFloorText({
-		floorLabel: props.floorLabel,
-		currentFloor: props.currentFloor,
-	})
-)
+const displayFloorText = computed(() => formatElevatorLiveFloorText({}))
 
 const statusAriaLabel = computed(() =>
 	buildElevatorStatusAriaLabel({
 		floorText: displayFloorText.value,
-		direction: props.direction,
+		direction: "idle",
 		isConnected: props.isConnected,
 		deviceHealthLabel: true,
 	})

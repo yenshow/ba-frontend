@@ -2,12 +2,14 @@ import { ref } from "vue"
 import { setupDebouncedRefetchListeners } from "~/composables/websocket/useWebSocket"
 import type { ElevatorLocation, ElevatorLog, ElevatorZone } from "~/types/elevator"
 import { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
+import { useElevatorLocationApi } from "~/composables/location/api/useElevatorLocationApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 
 const LADDER_SDK_EVENT = "ladder-sdk:event"
 
 export const useElevatorState = () => {
 	const elevatorApi = useElevatorApi()
+	const elevatorLocationApi = useElevatorLocationApi()
 	const { handleError } = useErrorHandler()
 
 	const locations = ref<ElevatorLocation[]>([])
@@ -60,7 +62,7 @@ export const useElevatorState = () => {
 		if (isLoadingZones.value) return
 		isLoadingZones.value = true
 		try {
-			const result = await elevatorApi.getZones()
+			const result = await elevatorLocationApi.getZones()
 			elevatorZones.value = result.zones || []
 		} catch (error) {
 			handleError(error, "載入區域列表失敗")

@@ -16,7 +16,6 @@ export const useElevatorLocationApi = () => {
 
 	return {
 		getZones: zoneApi.getZones,
-		getZone: zoneApi.getZone,
 		createZone: zoneApi.createZone,
 		updateZone: zoneApi.updateZone,
 		deleteZone: zoneApi.deleteZone,

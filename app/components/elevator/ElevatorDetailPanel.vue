@@ -1,9 +1,9 @@
 <template>
 	<div class="flex min-h-0 flex-1">
-		<div class="flex min-w-0 flex-1 flex-col gap-8 justify-center">
+		<div class="flex min-w-0 flex-1 flex-col gap-8">
 			<ElevatorLedBillboard
 				:floor-text="displayFloorText"
-				:direction="direction"
+				direction="idle"
 				:is-connected="isDeviceNormal"
 				:status-aria-label="statusAriaLabel"
 				:device-health-label="deviceHealthLabel"
@@ -134,7 +134,7 @@
 
 <script setup lang="ts">
 import { computed, ref, toRefs, watch } from "vue"
-import type { ElevatorControlCommand, ElevatorDirection, ElevatorLog } from "~/types/elevator"
+import type { ElevatorControlCommand, ElevatorLog } from "~/types/elevator"
 import MonitoringLogEmptyState from "~/components/common/MonitoringLogEmptyState.vue"
 import ElevatorLedBillboard from "~/components/elevator/ElevatorLedBillboard.vue"
 import { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
@@ -146,6 +146,7 @@ import {
 	resolveElevatorFloorLabel,
 } from "~/utils/elevatorFloorConfig"
 import {
+	buildElevatorDeviceStatusLabel,
 	buildElevatorStatusAriaLabel,
 	formatElevatorLiveFloorText,
 } from "~/utils/elevatorDisplayUtils"
@@ -163,10 +164,7 @@ interface Props {
 	canControl?: boolean
 	floorCount?: number
 	floorNames?: string[]
-	currentFloor?: number | string | null
-	direction?: ElevatorDirection
 	isConnected?: boolean
-	floorLabel?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -176,10 +174,7 @@ const props = withDefaults(defineProps<Props>(), {
 	canControl: false,
 	floorCount: 0,
 	floorNames: () => [],
-	currentFloor: null,
-	direction: "idle",
 	isConnected: false,
-	floorLabel: undefined,
 })
 
 const { logs, displayColumns } = toRefs(props)
@@ -190,27 +185,11 @@ const toast = useToast()
 const recordColumns = computed(() => normalizeElevatorLogDisplayColumns(displayColumns.value))
 const recordColumnLabels = ELEVATOR_LOG_COLUMN_LABELS as Record<ElevatorLogColumnKey, string>
 
-const displayFloorText = computed(() =>
-	formatElevatorLiveFloorText({
-		floorLabel: props.floorLabel,
-		currentFloor: props.currentFloor,
-	})
-)
+const displayFloorText = computed(() => formatElevatorLiveFloorText({}))
 
-const DEVICE_HEALTH_LABELS = {
-	normal: "正常",
-	warning: "異常",
-} as const
+const isDeviceNormal = computed(() => props.isConnected)
 
-type DeviceConnectionUiStatus = keyof typeof DEVICE_HEALTH_LABELS
-
-const deviceConnectionStatus = computed<DeviceConnectionUiStatus>(() =>
-	props.isConnected ? "normal" : "warning"
-)
-
-const isDeviceNormal = computed(() => deviceConnectionStatus.value === "normal")
-
-const deviceHealthLabel = computed(() => DEVICE_HEALTH_LABELS[deviceConnectionStatus.value])
+const deviceHealthLabel = computed(() => buildElevatorDeviceStatusLabel(props.isConnected))
 
 const deviceStatusDotClass = computed(() =>
 	isDeviceNormal.value ? "bg-emerald-400" : "bg-amber-400"
@@ -219,7 +198,7 @@ const deviceStatusDotClass = computed(() =>
 const statusAriaLabel = computed(() =>
 	buildElevatorStatusAriaLabel({
 		floorText: displayFloorText.value,
-		direction: props.direction,
+		direction: "idle",
 		isConnected: props.isConnected,
 		deviceHealthLabel: true,
 	})
@@ -279,7 +258,7 @@ const commands: Array<{ value: ElevatorControlCommand; label: string }> = [
 ]
 
 const handleCallElevator = () => {
-	// 呼梯 API 尚未實作，僅保留 UI 入口
+	void handleControl("open")
 }
 
 const handleControl = async (command: ElevatorControlCommand) => {

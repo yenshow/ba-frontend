@@ -1,6 +1,6 @@
 <template>
 	<div
-		class="elevator-led-screen elevator-led-scanline rounded-2xl border-2 border-white/20 bg-black/25 p-4"
+		class="elevator-led-panel elevator-led-scanline rounded-2xl border-2 border-white/25 bg-gradient-to-b from-white/[0.12] to-white/[0.04] p-4"
 		role="status"
 		aria-live="polite"
 		:aria-label="statusAriaLabel"
@@ -16,14 +16,14 @@
 					class="elevator-led-text text-center text-3xl leading-none 2xl:text-7xl"
 					:class="digitGlowClass"
 				>
-					24F
+					{{ floorText }}
 				</p>
 			</div>
 
 			<div class="flex flex-col items-center justify-center pr-4 2xl:pr-8" aria-hidden="true">
 				<svg
 					class="h-7 w-7 shrink-0 transition-all duration-300 2xl:h-16 2xl:w-16"
-					:class="arrowLedClass('up')"
+					:class="elevatorLedArrowClass(direction, 'up', isConnected)"
 					viewBox="2 3 20 13"
 					fill="currentColor"
 				>
@@ -31,7 +31,7 @@
 				</svg>
 				<svg
 					class="-mt-0.5 h-7 w-7 shrink-0 transition-all duration-300 2xl:-mt-1 2xl:h-16 2xl:w-16"
-					:class="arrowLedClass('down')"
+					:class="elevatorLedArrowClass(direction, 'down', isConnected)"
 					viewBox="2 8 20 13"
 					fill="currentColor"
 				>
@@ -70,6 +70,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import type { ElevatorDirection } from "~/types/elevator"
+import { elevatorLedArrowClass } from "~/utils/elevatorDisplayUtils"
 
 interface Props {
 	floorText: string
@@ -107,20 +108,9 @@ const callButtonClass = computed(() =>
 		: "border-white/25 bg-white/10 text-white/50"
 )
 
-const arrowLedClass = (axis: "up" | "down") => {
-	if (!props.isConnected) return "elevator-led-arrow--off"
-	if (props.direction === axis) return "elevator-led-arrow--on"
-	return "elevator-led-arrow--dim"
-}
 </script>
 
 <style scoped>
-.elevator-led-screen {
-	box-shadow:
-		inset 0 2px 12px rgba(0, 0, 0, 0.35),
-		inset 0 0 20px rgba(34, 211, 238, 0.06);
-}
-
 .elevator-led-scanline {
 	position: relative;
 	overflow: hidden;
@@ -133,12 +123,12 @@ const arrowLedClass = (axis: "up" | "down") => {
 	pointer-events: none;
 	background: repeating-linear-gradient(
 		0deg,
-		rgba(0, 0, 0, 0.08) 0,
-		rgba(0, 0, 0, 0.08) 1px,
+		rgba(255, 255, 255, 0.03) 0,
+		rgba(255, 255, 255, 0.03) 1px,
 		transparent 1px,
 		transparent 3px
 	);
-	opacity: 0.3;
+	opacity: 0.5;
 }
 
 .elevator-led-text {
@@ -164,19 +154,4 @@ const arrowLedClass = (axis: "up" | "down") => {
 		0 0 10px rgba(245, 158, 11, 0.2);
 }
 
-.elevator-led-arrow--on {
-	color: #67e8f9;
-	filter: drop-shadow(0 0 5px rgba(103, 232, 249, 0.85));
-	opacity: 1;
-}
-
-.elevator-led-arrow--dim {
-	color: rgba(34, 211, 238, 0.35);
-	opacity: 0.6;
-}
-
-.elevator-led-arrow--off {
-	color: rgba(251, 191, 36, 0.4);
-	opacity: 0.45;
-}
 </style>

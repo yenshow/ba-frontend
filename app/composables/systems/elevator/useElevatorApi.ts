@@ -164,7 +164,6 @@ export const useElevatorApi = () => {
 	}
 
 	return {
-		getZones: elevatorLocationApi.getZones,
 		getLocations,
 		getLocationDetail,
 		getFullReportLogs,
