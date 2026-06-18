@@ -1,6 +1,6 @@
 <template>
-	<div class="group flex justify-center">
-		<div class="relative aspect-video w-full max-w-[710px]">
+	<div class="flex justify-center">
+		<div class="group relative aspect-video w-full max-w-[710px]">
 			<iframe
 				v-if="isYouTube"
 				class="h-full w-full rounded-lg"
@@ -41,7 +41,7 @@
 			<PermissionActionButton
 				:allowed="canWrite"
 				aria-label="編輯影片"
-				class="absolute right-0 top-0 z-10 rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition enabled:hover:bg-black/50 2xl:text-base"
+				class="absolute right-0 top-0 z-10 rounded-full bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity focus-visible:opacity-100 enabled:hover:bg-black/50 group-hover:opacity-100 2xl:text-base"
 				@click="isEditOpen = true"
 			>
 				編輯

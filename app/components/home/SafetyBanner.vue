@@ -1,9 +1,9 @@
 <template>
-	<div class="group relative bg-red-600 py-2">
+	<div class="group relative bg-blue-600 py-2">
 		<PermissionActionButton
 			:allowed="canWrite"
 			aria-label="編輯跑馬燈訊息"
-			class="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-lg bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition enabled:hover:bg-black/50 2xl:text-base"
+			class="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-lg bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity focus-visible:opacity-100 enabled:hover:bg-black/50 group-hover:opacity-100 2xl:text-base"
 			@click="isEditOpen = true"
 		>
 			編輯
@@ -37,28 +37,28 @@
 </template>
 
 <script setup lang="ts">
-import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
-import EditMockDialog from "~/components/common/EditMockDialog.vue"
-import { useAppSettings } from "~/composables/core/useAppSettings"
-import { useHomeRbac } from "~/composables/core/useAccessGate"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
+import EditMockDialog from "~/components/common/EditMockDialog.vue";
+import { useAppSettings } from "~/composables/core/useAppSettings";
+import { useHomeRbac } from "~/composables/core/useAccessGate";
 
 const { canWrite } = useHomeRbac();
 
 const {
 	value: bannerMessage,
 	save: saveBannerMessage,
-	reset: resetBannerMessage,
+	reset: resetBannerMessage
 } = useAppSettings({
 	key: "safety_banner_message",
-	defaultValue: "",
+	defaultValue: ""
 });
 
-const isEditOpen = ref(false)
+const isEditOpen = ref(false);
 
 const animationStyle = {
 	animation: "marquee-scroll 30s linear infinite",
-	WebkitAnimation: "marquee-scroll 30s linear infinite",
-}
+	WebkitAnimation: "marquee-scroll 30s linear infinite"
+};
 </script>
 
 <style>
