@@ -1,6 +1,7 @@
 import type { DeviceTypeCode } from "~/types/device"
 
 export type DeviceFormValidationInput = {
+	name: string
 	deviceTypeCode: DeviceTypeCode
 	modelId: number
 	cameraCategoryCode: string
@@ -19,8 +20,19 @@ export type DeviceFormValidationInput = {
 	cameraPassword: string
 }
 
+export type DeviceModelFormValidationInput = {
+	name: string
+	deviceTypeCode: DeviceTypeCode | null
+	categoryCode: string
+	cameraRtspTemplateEffective: string
+	cameraRtspTemplatePresetKey: string
+	cameraRtspTemplateCustom: string
+}
+
 /** 設備表單儲存前集中驗證；回傳第一個錯誤訊息或 null */
 export const validateDeviceFormForSave = (input: DeviceFormValidationInput): string | null => {
+	if (!input.name.trim()) return "請填寫設備名稱"
+
 	if (input.deviceTypeCode === "camera" && !input.cameraCategoryCode.trim()) {
 		return "請選擇型號分類"
 	}
@@ -55,5 +67,24 @@ export const validateDeviceFormForSave = (input: DeviceFormValidationInput): str
 		if (!ip || !user || !pwd) return "請填寫設備 IP、登入帳號與密碼"
 	}
 
+	return null
+}
+
+/** 設備型號表單儲存前集中驗證 */
+export const validateDeviceModelFormForSave = (
+	input: DeviceModelFormValidationInput,
+): string | null => {
+	if (!input.name.trim()) return "請填寫型號名稱"
+
+	if (input.deviceTypeCode === "camera" && !input.categoryCode.trim()) {
+		return "請選擇型號分類"
+	}
+	if (input.deviceTypeCode === "camera") {
+		const tpl = input.cameraRtspTemplateEffective.trim()
+		if (!tpl) return "請選擇 RTSP URL 樣板，或填寫自訂樣板"
+		if (input.cameraRtspTemplatePresetKey === "custom" && !input.cameraRtspTemplateCustom.trim()) {
+			return "自訂樣板不可為空"
+		}
+	}
 	return null
 }

@@ -400,6 +400,7 @@ import type {
 } from "~/types/device";
 import type { SensorParameterType } from "~/types/environment";
 import { resolveFormApiError } from "~/utils/errorUtils";
+import { validateDeviceModelFormForSave } from "~/utils/deviceFormValidation";
 import {
 	CAMERA_MODEL_CATEGORY_OPTIONS,
 	groupByCameraModelCategory,
@@ -787,32 +788,13 @@ const openAddForm = () => {
 	});
 };
 
-const validateDeviceModelFormForSave = (input: {
-	deviceTypeCode: DeviceTypeCode | null;
-	categoryCode: string;
-	cameraRtspTemplateEffective: string;
-	cameraRtspTemplatePresetKey: string;
-	cameraRtspTemplateCustom: string;
-}): string | null => {
-	if (input.deviceTypeCode === "camera" && !input.categoryCode.trim()) {
-		return "請選擇型號分類";
-	}
-	if (input.deviceTypeCode === "camera") {
-		const tpl = input.cameraRtspTemplateEffective.trim();
-		if (!tpl) return "請選擇 RTSP URL 樣板，或填寫自訂樣板";
-		if (input.cameraRtspTemplatePresetKey === "custom" && !input.cameraRtspTemplateCustom.trim()) {
-			return "自訂樣板不可為空";
-		}
-	}
-	return null;
-};
-
 const handleFormSubmit = async () => {
 	isSubmitting.value = true;
 	formErrorMessage.value = null;
 
 	try {
 		const formError = validateDeviceModelFormForSave({
+			name: formData.name,
 			deviceTypeCode: props.deviceTypeCode,
 			categoryCode: formData.category_code,
 			cameraRtspTemplateEffective: cameraRtspTemplateEffective.value,
