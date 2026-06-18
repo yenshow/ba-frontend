@@ -4,44 +4,83 @@
  * 注意：這些都是純函數，不需要響應式狀態
  */
 
-/**
- * 解析上傳檔案的顯示 URL
- * 當 src 為後端上傳路徑（/uploads/）時，需加上伺服器 base URL
- *
- * @param src - 原始設定值（URL 或 /uploads/... 路徑）
- * @param apiBase - API base 設定（可含 /api 後綴，會自動 stripping）
- */
-export const resolveUploadUrl = (src: string, apiBase: string): string => {
-	const trimmed = src?.trim() ?? "";
-	if (!trimmed) return "";
-	if (trimmed.startsWith("/uploads/")) {
-		const base = apiBase.replace(/\/api\/?$/, "").trim();
-		// apiBase 為相對 /api 時：走 Nitro 已代理的 /api/uploads（後端與 /uploads 同源靜態）
-		if (!base) {
-			return `/api${trimmed}`;
+const isAbsoluteHttpUrl = (v: string): boolean => /^https?:\/\//i.test(v);
+
+/** 是否為受保護的上傳讀取路徑（/api/uploads） */
+export const isApiProxiedUploadPath = (url: string): boolean => {
+	const v = String(url || "").trim();
+	if (!v) return false;
+	if (v.startsWith("/api/uploads/")) return true;
+	if (isAbsoluteHttpUrl(v)) {
+		try {
+			return new URL(v).pathname.startsWith("/api/uploads/");
+		} catch {
+			return false;
 		}
-		return `${base}${trimmed}`;
 	}
-	return trimmed;
+	return false;
 };
 
-/**
- * 構建查詢參數的通用函數
- * 自動過濾 undefined、null 和空字串
- */
+const resolveBackendAssetUrl = (raw: string, apiBase: string): string => {
+	const v = String(raw || "").trim();
+	if (!v) return "";
+
+	if (isAbsoluteHttpUrl(v)) return v;
+
+	if (!v.startsWith("/uploads/")) return v;
+
+	const base = String(apiBase || "").trim();
+	const assetBase = base.endsWith("/api") ? base.slice(0, -4) : base;
+	if (!assetBase || assetBase === "/") {
+		return `/api${v}`;
+	}
+	return `${assetBase}/api${v}`;
+};
+
+export const appendUploadAccessToken = (
+	url: string,
+	accessToken: string | null | undefined,
+): string => {
+	const u = String(url || "").trim();
+	const token = String(accessToken || "").trim();
+	if (!u || !token || !isApiProxiedUploadPath(u)) return u;
+
+	try {
+		const parsed = isAbsoluteHttpUrl(u)
+			? new URL(u)
+			: new URL(u, "http://local.invalid");
+		parsed.searchParams.set("access_token", token);
+		if (isAbsoluteHttpUrl(u)) return parsed.toString();
+		return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+	} catch {
+		const sep = u.includes("?") ? "&" : "?";
+		return `${u}${sep}access_token=${encodeURIComponent(token)}`;
+	}
+};
+
+export const resolveUploadUrl = (src: string, apiBase: string): string => {
+	return resolveBackendAssetUrl(src, apiBase);
+};
+
+export const resolveProtectedUploadUrl = (
+	src: string,
+	apiBase: string,
+	accessToken: string | null | undefined,
+): string => appendUploadAccessToken(resolveUploadUrl(src, apiBase), accessToken);
+
 export const buildQueryParams = (filters?: Record<string, unknown>): URLSearchParams => {
 	const queryParams = new URLSearchParams();
 	if (filters) {
 		for (const [key, value] of Object.entries(filters)) {
 			if (value === undefined || value === null || value === "") {
-				continue
+				continue;
 			}
 			if (Array.isArray(value)) {
 				for (const v of value) {
-					if (v === undefined || v === null || v === "") continue
-					queryParams.append(key, typeof v === "string" ? v : String(v))
+					if (v === undefined || v === null || v === "") continue;
+					queryParams.append(key, typeof v === "string" ? v : String(v));
 				}
-				continue
+				continue;
 			}
 			queryParams.append(key, typeof value === "string" ? value : String(value));
 		}
@@ -49,15 +88,9 @@ export const buildQueryParams = (filters?: Record<string, unknown>): URLSearchPa
 	return queryParams;
 };
 
-/**
- * 構建帶查詢參數的路徑
- * @param basePath - 基礎路徑
- * @param params - 查詢參數（可以是 Record 或 URLSearchParams）
- * @returns 完整的路徑字串
- */
 export const buildPathWithQuery = (
 	basePath: string,
-	params?: Record<string, unknown> | URLSearchParams
+	params?: Record<string, unknown> | URLSearchParams,
 ): string => {
 	if (!params) {
 		return basePath;
@@ -74,12 +107,6 @@ export const buildPathWithQuery = (
 	return queryString ? `${basePath}?${queryString}` : basePath;
 };
 
-/**
- * 構建標準的 CRUD API 路徑
- * @param resourcePath - 資源路徑（如 "/devices"）
- * @param id - 資源 ID（可選）
- * @returns 完整的 API 路徑
- */
 export const buildResourcePath = (resourcePath: string, id?: string | number): string => {
 	if (id !== undefined) {
 		return `${resourcePath}/${id}`;
@@ -87,11 +114,6 @@ export const buildResourcePath = (resourcePath: string, id?: string | number): s
 	return resourcePath;
 };
 
-/**
- * 構建分頁查詢參數
- * @param params - 分頁參數
- * @returns URLSearchParams
- */
 export const buildPaginationParams = (params?: {
 	limit?: number;
 	offset?: number;
@@ -114,11 +136,6 @@ export const buildPaginationParams = (params?: {
 	return queryParams;
 };
 
-/**
- * 合併多個查詢參數
- * @param params - 要合併的參數陣列（可以是 Record 或 URLSearchParams）
- * @returns 合併後的 URLSearchParams
- */
 export const mergeQueryParams = (
 	...params: (Record<string, unknown> | URLSearchParams)[]
 ): URLSearchParams => {
@@ -136,4 +153,3 @@ export const mergeQueryParams = (
 	}
 	return merged;
 };
-

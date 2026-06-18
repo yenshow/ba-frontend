@@ -40,6 +40,7 @@ const toApiErrorCode = (code: string): ApiErrorCode => {
 		code === "HTTP_400" ||
 		code === "HTTP_401" ||
 		code === "HTTP_403" ||
+		code === "HTTP_429" ||
 		code === "HTTP_404" ||
 		code === "HTTP_500" ||
 		code === "HTTP_503" ||

@@ -60,6 +60,8 @@ const API_ERROR_USER_MESSAGES: Record<string, string> = {
 	CONFLICT: USER_FACING_API_CONFLICT,
 	BAD_GATEWAY: USER_FACING_API_BAD_GATEWAY,
 	USER_AUTH_FAILED: "帳號或密碼錯誤",
+	AUTH_TOKEN_REVOKED: USER_FACING_API_UNAUTHORIZED,
+	RATE_LIMIT_EXCEEDED: "請求過於頻繁，請稍後再試",
 	USER_ACCOUNT_INACTIVE: "帳號已停用，請聯絡管理員",
 	USER_NOT_FOUND: "找不到此使用者",
 	USER_USERNAME_EXISTS: "此帳號已存在",
@@ -294,6 +296,7 @@ export type ApiErrorCode =
 	| "HTTP_400"
 	| "HTTP_401"
 	| "HTTP_403"
+	| "HTTP_429"
 	| "HTTP_404"
 	| "HTTP_500"
 	| "HTTP_503"
@@ -359,6 +362,9 @@ export const mapHttpStatusToUserFacingError = (
 ): { message: string; code: ApiErrorCode; isGeneric: boolean } => {
 	if (statusCode === 400)
 		return { message: USER_FACING_API_BAD_REQUEST, code: "HTTP_400", isGeneric: true };
+	if (statusCode === 429) {
+		return { message: "請求過於頻繁，請稍後再試", code: "HTTP_429", isGeneric: false };
+	}
 	if (statusCode === 403)
 		return { message: MSG_PERMISSION_LOCKED, code: "HTTP_403", isGeneric: false };
 	if (statusCode === 404)

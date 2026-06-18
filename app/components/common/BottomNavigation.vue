@@ -525,7 +525,7 @@ const navigateToRouteInNewTab = (routePath: string) => {
 const handleLogout = async () => {
 	try {
 		closeAllMenus();
-		logout();
+		await logout();
 		toast.success("已登出");
 		await router.push("/login");
 	} catch (error) {

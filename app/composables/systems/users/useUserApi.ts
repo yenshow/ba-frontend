@@ -55,6 +55,12 @@ export const useUserApi = () => {
 			});
 		},
 
+		logout: () => {
+			return request<{ message: string }>("/users/logout", {
+				method: "POST"
+			});
+		},
+
 		getMe: async (): Promise<User> => {
 			const res = await request<{ user: User }>("/users/me");
 			return res.user;
