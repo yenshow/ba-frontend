@@ -97,7 +97,7 @@
 											:type="gaugeType"
 											:value="showSensorOffline ? null : getParameterValue(gaugeType)"
 											:size="gaugeIndex === 1 ? 'large' : 'normal'"
-											:show-trend="gaugeIndex === 1"
+											:show-trend="true"
 											:location-id="currentLocationData?.id ?? null"
 											:refresh-key="trendReloadKey"
 											:get-status-text="getStatusText"

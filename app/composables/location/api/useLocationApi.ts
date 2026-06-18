@@ -3,6 +3,15 @@ import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPathWithQuery } from "~/utils/apiUtils";
 import type { Device } from "~/types/device";
 
+/** 區域儲存預設逾時（高於 useApiBase 5s；含設備下發的系統需更長） */
+export const ZONE_MUTATION_TIMEOUT_MS: Partial<Record<SystemType, number>> = {
+	people_counting: 60_000,
+	vehicle_access: 60_000,
+};
+
+export const resolveZoneMutationTimeout = (systemType?: SystemType): number =>
+	(systemType && ZONE_MUTATION_TIMEOUT_MS[systemType]) ?? 30_000;
+
 /**
  * 統一地點管理 API（多系統架構）
  */
@@ -71,17 +80,24 @@ export const useLocationApi = () => {
 		/**
 		 * 建立區域
 		 */
-		createZone: (data: {
-			name: string;
-			buildingId?: number;
-			imageUrl?: string;
-			description?: string;
-			sortOrder?: number;
-			locations?: UnifiedLocationInput[];
-		}) => {
-			return request<{ merged: boolean; message: string; zone: UnifiedZone }>("/locations/zones", {
+		createZone: (
+			data: {
+				name: string;
+				buildingId?: number;
+				imageUrl?: string;
+				description?: string;
+				sortOrder?: number;
+				locations?: UnifiedLocationInput[];
+			},
+			systemType?: SystemType,
+			options?: { timeout?: number }
+		) => {
+			const params = buildSystemTypeParams(systemType);
+			const path = buildPathWithQuery("/locations/zones", params);
+			return request<{ merged: boolean; message: string; zone: UnifiedZone }>(path, {
 				method: "POST",
-				body: JSON.stringify(data)
+				body: JSON.stringify(data),
+				timeout: options?.timeout ?? resolveZoneMutationTimeout(systemType),
 			});
 		},
 
@@ -97,15 +113,17 @@ export const useLocationApi = () => {
 				description?: string;
 				sortOrder?: number;
 				locations?: (UnifiedLocation | UnifiedLocationInput)[];
-			}
+			},
+			systemType?: SystemType,
+			options?: { timeout?: number }
 		) => {
-			return request<{ merged: boolean; message: string; zone: UnifiedZone }>(
-				`/locations/zones/${id}`,
-				{
-					method: "PUT",
-					body: JSON.stringify(data)
-				}
-			);
+			const params = buildSystemTypeParams(systemType);
+			const path = buildPathWithQuery(`/locations/zones/${id}`, params);
+			return request<{ merged: boolean; message: string; zone: UnifiedZone }>(path, {
+				method: "PUT",
+				body: JSON.stringify(data),
+				timeout: options?.timeout ?? resolveZoneMutationTimeout(systemType),
+			});
 		},
 
 		/**

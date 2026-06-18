@@ -42,12 +42,7 @@ import EditMockDialog from "~/components/common/EditMockDialog.vue"
 import { useAppSettings } from "~/composables/core/useAppSettings"
 import { useHomeRbac } from "~/composables/core/useAccessGate"
 
-interface Props {
-	message?: string
-}
-
-const props = defineProps<Props>()
-const { canWrite } = useHomeRbac()
+const { canWrite } = useHomeRbac();
 
 const {
 	value: bannerMessage,
@@ -55,8 +50,8 @@ const {
 	reset: resetBannerMessage,
 } = useAppSettings({
 	key: "safety_banner_message",
-	defaultValue: props.message ?? "",
-})
+	defaultValue: "",
+});
 
 const isEditOpen = ref(false)
 

@@ -10,7 +10,7 @@
 					required
 					class="form-input-small"
 					placeholder="例如：工地A、工地B"
-					@blur="handleChange"
+					@input="handleChange"
 				/>
 			</label>
 

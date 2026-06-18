@@ -485,18 +485,28 @@ const navigateToRoute = (routePath: string) => {
 
 const isModuleLocked = (module: SystemModule) => accessGate.isModuleLocked(module);
 
-const handleModuleClick = (module: SystemModule) => {
+const handleModuleClick = async (module: SystemModule) => {
+	if (!accessGate.isModuleAccessReady.value) {
+		await accessGate.ensureAccessReady();
+	}
 	if (!accessGate.canAccessModule(module)) {
-		toast.warning(PERMISSION_MESSAGE_LOCKED);
+		if (accessGate.isModuleLocked(module)) {
+			toast.warning(PERMISSION_MESSAGE_LOCKED);
+		}
 		return;
 	}
 
 	navigateToRoute(module.route);
 };
 
-const handleOverviewModuleClick = (module: SystemModule) => {
+const handleOverviewModuleClick = async (module: SystemModule) => {
+	if (!accessGate.isModuleAccessReady.value) {
+		await accessGate.ensureAccessReady();
+	}
 	if (!accessGate.canAccessModule(module)) {
-		toast.warning(PERMISSION_MESSAGE_LOCKED);
+		if (accessGate.isModuleLocked(module)) {
+			toast.warning(PERMISSION_MESSAGE_LOCKED);
+		}
 		closeAllMenus();
 		return;
 	}
@@ -544,8 +554,6 @@ const handleClickOutside = (event: MouseEvent) => {
 onMounted(() => {
 	if (process.client) {
 		document.addEventListener("click", handleClickOutside);
-		void moduleRegistry.ensureLoaded();
-		// 初始載入未解決警報數量並開始監聽
 		void loadUnresolvedAlertCount();
 		startAlertCountMonitoring();
 	}

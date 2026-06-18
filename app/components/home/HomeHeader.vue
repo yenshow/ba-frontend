@@ -4,8 +4,8 @@
 		<div class="group col-span-1 flex items-center justify-center">
 			<div class="relative flex items-center justify-center">
 				<img
-					src="/layout/yenshow-logo.svg"
-					alt="遠岫 LOGO"
+					src="/layout/golden.png"
+					alt="金儀 LOGO"
 					class="h-[var(--brand-logo-h)] object-contain"
 					:style="brandLogoStyle"
 				/>
@@ -13,7 +13,7 @@
 				<PermissionActionButton
 					:allowed="canWrite"
 					aria-label="編輯品牌標誌高度"
-					class="absolute -right-2 -top-2 rounded-full bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100 enabled:hover:bg-black/50 2xl:text-base"
+					class="absolute -right-2 -top-2 rounded-full bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity focus-visible:opacity-100 enabled:hover:bg-black/50 group-hover:opacity-100 2xl:text-base"
 					@click="isBrandLogoHeightEditOpen = true"
 				>
 					編輯
@@ -56,7 +56,7 @@
 				<PermissionActionButton
 					:allowed="canWrite"
 					aria-label="編輯專案圖片"
-					class="absolute -right-2 -top-2 rounded-full bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100 enabled:hover:bg-black/50 2xl:text-base"
+					class="absolute -right-2 -top-2 rounded-full bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity focus-visible:opacity-100 enabled:hover:bg-black/50 group-hover:opacity-100 2xl:text-base"
 					@click="isProjectImageEditOpen = true"
 				>
 					編輯
@@ -102,10 +102,8 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import EditMockDialog from "~/components/common/EditMockDialog.vue";
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
-import { useAppSettings, IMAGE_UPLOAD_HINT } from "~/composables/core/useAppSettings";
+import { useAppSettings, useAppSettingImage, IMAGE_UPLOAD_HINT } from "~/composables/core/useAppSettings";
 import { HOME_IMAGE_CROP } from "~/utils/imageCropUtils";
-import { useImageCenter } from "~/composables/core/useImageCenter";
-import { createSafeFileName } from "~/utils/fileUtils";
 import { formatClockDisplay } from "~/utils/dateUtils";
 import { useHomeRbac } from "~/composables/core/useAccessGate";
 
@@ -126,13 +124,16 @@ const {
 });
 
 const {
-	value: projectImageSrcRaw,
+	raw: projectImageSrcRaw,
+	displaySrc: projectImageSrc,
 	save: saveProjectImageSrc,
 	reset: resetProjectImageSrc,
-	uploadFile: uploadProjectImage
-} = useAppSettings({
+	isEditOpen: isProjectImageEditOpen,
+	handleUpload: handleUploadProjectImage
+} = useAppSettingImage({
 	key: "home_header_project_image",
-	defaultValue: ""
+	uploadPrefix: "project-header",
+	defaultExt: "png"
 });
 
 const { canWrite } = useHomeRbac();
@@ -157,9 +158,7 @@ const brandLogoStyle = computed(() => ({
 	"--brand-logo-h": `${brandLogoHeight.value}px`
 }));
 
-const brandLogoPreviewSrc = computed(
-	() => `/layout/yenshow-logo.svg?t=${brandLogoPreviewBuster.value}`
-);
+const brandLogoPreviewSrc = computed(() => `/layout/golden.png?t=${brandLogoPreviewBuster.value}`);
 
 const handleSaveBrandLogoHeight = async (nextValue: string) => {
 	const parsed = Number.parseInt(String(nextValue ?? "").trim(), 10);
@@ -172,20 +171,6 @@ const handleSaveBrandLogoHeight = async (nextValue: string) => {
 	const clamped = clampBrandLogoHeight(parsed);
 	await saveBrandLogoHeightRaw(String(clamped));
 	isBrandLogoHeightEditOpen.value = false;
-};
-
-const { useDisplaySrc } = useImageCenter();
-const projectImageSrc = useDisplaySrc(() => projectImageSrcRaw.value ?? "");
-const isProjectImageEditOpen = ref(false);
-
-const handleUploadProjectImage = async (file: File) => {
-	try {
-		const safeFile = createSafeFileName("project-header", file, "png");
-		await uploadProjectImage(safeFile);
-		isProjectImageEditOpen.value = false;
-	} catch (error) {
-		console.error("Upload failed:", error);
-	}
 };
 
 const currentDateTime = ref(new Date());

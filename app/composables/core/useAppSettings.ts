@@ -1,7 +1,9 @@
-import { useRequestFetch } from "#app";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import { useImageCenter } from "~/composables/core/useImageCenter";
+import { createSafeFileName } from "~/utils/fileUtils";
+import { ApiRequestError } from "~/utils/errorUtils";
 
 /** 圖片上傳說明（與後端 10MB 上限一致） */
 export const IMAGE_UPLOAD_HINT =
@@ -16,22 +18,38 @@ export type UseAppSettingsOptions = {
 	defaultValue: string;
 };
 
-/**
- * 系統設定 Composable
- * 提供與後端 system_settings 表互動的功能
- */
+export type UseAppSettingUploadOptions = {
+	key: string;
+	defaultValue?: string;
+	uploadPrefix: string;
+	defaultExt: string;
+};
+
+export type UseAppSettingImageOptions = {
+	key: string;
+	uploadPrefix: string;
+	defaultExt?: string;
+	defaultValue?: string;
+};
+
+type SettingRow = { value: string | null } | null;
+
+const resolveSettingValue = (row: SettingRow, defaultValue: string): string => {
+	if (row == null || row.value == null || !String(row.value).trim()) {
+		return defaultValue;
+	}
+	return String(row.value).trim();
+};
+
 export const useAppSettings = (options: UseAppSettingsOptions) => {
 	const { key, defaultValue } = options;
 	const { request } = useApiBase();
 	const { showToast } = useToast();
 	const { handleError } = useErrorHandler();
 
-	const value = ref<string>(defaultValue);
+	const value = ref(defaultValue);
 	const isLoading = ref(false);
 
-	/**
-	 * 從後端讀取設定
-	 */
 	const loadSetting = async () => {
 		if (!process.client) {
 			value.value = defaultValue;
@@ -40,27 +58,18 @@ export const useAppSettings = (options: UseAppSettingsOptions) => {
 
 		isLoading.value = true;
 		try {
-			const response = await request<{ setting: { value: string | null } }>(`/settings/${key}`);
-			if (response?.setting?.value?.trim()) {
-				value.value = response.setting.value;
-			} else {
-				value.value = defaultValue;
-			}
+			const response = await request<{ setting: SettingRow }>(`/settings/${key}`);
+			value.value = resolveSettingValue(response?.setting ?? null, defaultValue);
 		} catch {
-			// 所有錯誤（包含 404）靜默處理，使用預設值
 			value.value = defaultValue;
 		} finally {
 			isLoading.value = false;
 		}
 	};
 
-	/**
-	 * 儲存設定（文字）
-	 */
 	const save = async (nextValue: string) => {
 		const normalized = nextValue?.trim() ?? "";
-
-		if (normalized.length === 0) {
+		if (!normalized) {
 			await reset();
 			return;
 		}
@@ -69,9 +78,8 @@ export const useAppSettings = (options: UseAppSettingsOptions) => {
 		try {
 			await request(`/settings/${key}`, {
 				method: "PUT",
-				body: JSON.stringify({ value: normalized })
+				body: { value: normalized }
 			});
-
 			value.value = normalized;
 			showToast("success", "設定已儲存");
 		} catch (error) {
@@ -82,13 +90,8 @@ export const useAppSettings = (options: UseAppSettingsOptions) => {
 		}
 	};
 
-	/**
-	 * 上傳檔案並儲存 URL
-	 */
 	const uploadFile = async (file: File) => {
-		if (!file) {
-			throw new Error("未選擇檔案");
-		}
+		if (!file) throw new Error("未選擇檔案");
 
 		isLoading.value = true;
 		try {
@@ -96,35 +99,15 @@ export const useAppSettings = (options: UseAppSettingsOptions) => {
 			formData.append("key", key);
 			formData.append("file", file);
 
-			// 使用 useApiBase 的 request，但需要移除 Content-Type header（讓瀏覽器自動設定）
-			const config = useRuntimeConfig();
-			const apiBase = config.public.apiBase || "http://localhost:4000/api";
-			const fetcher = useRequestFetch();
-			const cookie = useCookie("auth_token");
-			const token = cookie.value;
-
-			const headers: HeadersInit = {
-				Accept: "application/json"
-			};
-			if (token) {
-				headers.Authorization = `Bearer ${token}`;
-			}
-			// 注意：不設定 Content-Type，讓瀏覽器自動設定（包含 boundary）
-
-			const response = await fetcher<{
-				success: boolean;
-				data: { setting: { value: string }; file: { url: string } };
-			}>(`${apiBase}/settings/upload`, {
+			const response = await request<{
+				setting: { value: string };
+				file?: { url: string };
+			}>("/settings/upload", {
 				method: "POST",
-				headers,
-				body: formData,
-				credentials: "include"
+				body: formData
 			});
 
-			// 處理響應格式
-			const settingValue =
-				(response as any)?.data?.setting?.value || (response as any)?.setting?.value;
-
+			const settingValue = response?.setting?.value;
 			if (settingValue) {
 				value.value = settingValue;
 				showToast("success", "檔案上傳成功");
@@ -137,11 +120,7 @@ export const useAppSettings = (options: UseAppSettingsOptions) => {
 		}
 	};
 
-	/**
-	 * 重設為預設值（刪除後端設定）
-	 */
 	const reset = async () => {
-		// 如果當前值已經是預設值，直接視為成功
 		if (value.value === defaultValue) {
 			showToast("success", "設定已重設為預設值");
 			return;
@@ -149,15 +128,11 @@ export const useAppSettings = (options: UseAppSettingsOptions) => {
 
 		isLoading.value = true;
 		try {
-			await request(`/settings/${key}`, {
-				method: "DELETE"
-			});
-
+			await request(`/settings/${key}`, { method: "DELETE" });
 			value.value = defaultValue;
 			showToast("success", "設定已重設為預設值");
-		} catch (error: any) {
-			// 404 表示設定不存在，視為成功
-			if (error?.statusCode === 404 || error?.status === 404) {
+		} catch (error: unknown) {
+			if (error instanceof ApiRequestError && error.statusCode === 404) {
 				value.value = defaultValue;
 				showToast("success", "設定已重設為預設值");
 			} else {
@@ -169,17 +144,37 @@ export const useAppSettings = (options: UseAppSettingsOptions) => {
 		}
 	};
 
-	// 組件掛載時載入設定
-	onMounted(() => {
-		loadSetting();
+	onMounted(loadSetting);
+
+	return { value, isLoading, loadSetting, save, uploadFile, reset };
+};
+
+/** 單一 system_settings 欄位：上傳檔案與編輯對話框狀態 */
+export const useAppSettingUpload = (options: UseAppSettingUploadOptions) => {
+	const { key, uploadPrefix, defaultExt, defaultValue = "" } = options;
+	const { value: raw, save, reset, uploadFile } = useAppSettings({ key, defaultValue });
+	const isEditOpen = ref(false);
+
+	const handleUpload = async (file: File) => {
+		await uploadFile(createSafeFileName(uploadPrefix, file, defaultExt));
+		isEditOpen.value = false;
+	};
+
+	return { raw, save, reset, isEditOpen, handleUpload };
+};
+
+/** 單一 system_settings 圖片欄位：解析 URL、上傳、編輯對話框狀態 */
+export const useAppSettingImage = (options: UseAppSettingImageOptions) => {
+	const { key, uploadPrefix, defaultExt = "jpg", defaultValue = "" } = options;
+	const base = useAppSettingUpload({ key, uploadPrefix, defaultExt, defaultValue });
+
+	const { useDisplaySrc } = useImageCenter();
+	const displaySrc = useDisplaySrc(base.raw);
+	const isLoaded = ref(false);
+
+	watch(displaySrc, () => {
+		isLoaded.value = false;
 	});
 
-	return {
-		value,
-		isLoading,
-		loadSetting,
-		save,
-		uploadFile,
-		reset
-	};
+	return { ...base, displaySrc, isLoaded };
 };

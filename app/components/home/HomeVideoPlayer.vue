@@ -65,24 +65,23 @@
 <script setup lang="ts">
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import EditMockDialog from "~/components/common/EditMockDialog.vue"
-import { useAppSettings, VIDEO_UPLOAD_HINT } from "~/composables/core/useAppSettings"
+import { useAppSettingUpload, VIDEO_UPLOAD_HINT } from "~/composables/core/useAppSettings"
 import { useImageCenter } from "~/composables/core/useImageCenter"
-import { createSafeFileName } from "~/utils/fileUtils"
 import { useHomeRbac } from "~/composables/core/useAccessGate"
 
 const {
-	value: videoSrcRaw,
+	raw: videoSrcRaw,
 	save: saveVideoSrc,
 	reset: resetVideoSrc,
-	uploadFile: uploadVideo,
-} = useAppSettings({
+	isEditOpen,
+	handleUpload: handleUploadVideo,
+} = useAppSettingUpload({
 	key: "home_video_src",
-	defaultValue: "",
+	uploadPrefix: "home-video",
+	defaultExt: "mp4",
 })
 
 const { canWrite } = useHomeRbac()
-
-const isEditOpen = ref(false)
 const videoRef = ref<HTMLVideoElement | null>(null)
 const { useDisplaySrc } = useImageCenter()
 const videoDisplaySrc = useDisplaySrc(() => videoSrcRaw.value ?? "")
@@ -130,14 +129,4 @@ const youtubeEmbedSrc = computed(() => {
 
 	return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}`
 })
-
-const handleUploadVideo = async (file: File) => {
-	try {
-		const safeFile = createSafeFileName("home-video", file, "mp4")
-		await uploadVideo(safeFile)
-		isEditOpen.value = false
-	} catch (error) {
-		console.error("Upload video failed:", error)
-	}
-}
 </script>

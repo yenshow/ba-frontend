@@ -29,7 +29,7 @@ const stripTrailingApi = (u: string) => u.replace(/\/api\/?$/, "");
 
 export const useWebSocket = () => {
 	const config = useRuntimeConfig();
-	const tokenCookie = useCookie<string | null>("auth_token");
+	const authToken = useState<string | null>("auth_token");
 
 	/** 相對 /api 時不可連頁面 origin（Nuxt 無 Socket.IO）；需直連後端或設 NUXT_PUBLIC_WEBSOCKET_URL */
 	const resolveWebsocketConnectUrl = (): string => {
@@ -103,7 +103,7 @@ export const useWebSocket = () => {
 				transports: ["websocket"],
 				auth: {
 					// 後端用於 WS 連線後的 permission rooms join（不依賴 license）
-					token: tokenCookie.value || undefined
+					token: authToken.value || undefined
 				},
 				reconnection: true,
 				reconnectionDelay: 1000, // 初始延遲 1 秒

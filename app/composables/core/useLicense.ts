@@ -23,6 +23,10 @@ export const useLicense = () => {
 	const { isAuthenticated } = useAuth();
 	const { request } = useApiBase();
 
+	const runtimeConfig = useRuntimeConfig();
+	const licenseOpenAll =
+		(runtimeConfig.public as { licenseOpenAllFeatures?: boolean }).licenseOpenAllFeatures === true;
+
 	const license = useState<LicenseState>("license_state", () => DEFAULT_LICENSE);
 	const isLoading = useState<boolean>("license_is_loading", () => false);
 	const lastLoadedAt = useState<number>("license_last_loaded_at", () => 0);
@@ -38,10 +42,6 @@ export const useLicense = () => {
 		isLoading.value = false;
 		licenseFetchInFlight = null;
 	};
-
-	const isOpenAll = () =>
-		(useRuntimeConfig().public as { licenseOpenAllFeatures?: boolean }).licenseOpenAllFeatures ===
-		true;
 
 	const fetchLicense = async (options: { force?: boolean } = {}) => {
 		if (!isAuthenticated.value) {
@@ -69,7 +69,7 @@ export const useLicense = () => {
 
 	/** 用於鎖頭、路由守衛：openAll 時不鎖，否則依後端授權 */
 	const hasFeature = (featureKey: FeatureKey) => {
-		if (isOpenAll()) return true;
+		if (licenseOpenAll) return true;
 		if (license.value.expired) return false;
 		return license.value.features.includes(featureKey);
 	};
