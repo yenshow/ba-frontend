@@ -1,10 +1,10 @@
 import { ref, watch, computed, type MaybeRefOrGetter, toValue } from "vue";
 import {
 	isAbsoluteUrl,
-	isApiProxiedUploadPath,
 	resolveDirectDisplayUrl,
 	resolveDisplayUrl,
 } from "~/utils/imageCenter";
+import { isApiProxiedUploadPath } from "~/utils/apiUtils";
 import { convertBase64ToImageUrl } from "~/utils/imageUtils";
 import { useExternalDataApi } from "~/composables/systems/externalData/useExternalDataApi";
 
@@ -102,13 +102,16 @@ const toSameOriginAbsoluteApiUpload = (url: string): string => {
 
 export const useImageCenter = () => {
 	const apiBase = String(useRuntimeConfig().public.apiBase || "");
+	const authToken = useState<string | null>("auth_token");
 	const externalDataApi = useExternalDataApi();
 
 	const resolveUrl = (raw: string | null | undefined): string =>
-		toSameOriginAbsoluteApiUpload(resolveDisplayUrl(raw, apiBase));
+		toSameOriginAbsoluteApiUpload(
+			resolveDisplayUrl(raw, apiBase, authToken.value),
+		);
 
 	const resolveDirectUrl = (raw: string | null | undefined): string | null =>
-		resolveDirectDisplayUrl(raw, apiBase);
+		resolveDirectDisplayUrl(raw, apiBase, authToken.value);
 
 	const resolvePicUris = (picUris: string[]) => fetchPicUris(picUris, externalDataApi);
 

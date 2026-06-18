@@ -1,5 +1,6 @@
 import type { User, LoginCredentials } from "~/types/user"
 import { useUserApi } from "~/composables/systems/users/useUserApi"
+import { disconnectGlobalWebSocket } from "~/composables/websocket/useWebSocket"
 
 const isAdminRole = (role: string | undefined | null): boolean => role === "admin"
 
@@ -42,7 +43,21 @@ export const useAuth = () => {
 		user.value = nextUser
 	}
 
-	const logout = () => persistSession(null, null)
+	const logout = async () => {
+		try {
+			if (token.value) {
+				await userApi.logout()
+			}
+		} catch {
+			// 登出 API 失敗仍清除本地 session
+		}
+		try {
+			disconnectGlobalWebSocket()
+		} catch {
+			// ignore
+		}
+		persistSession(null, null)
+	}
 
 	const hasPermission = (code: string): boolean => {
 		const u = user.value

@@ -3,7 +3,7 @@
  * - 顯示 URL 解析（http / data / uploads / 後端相對路徑 / picUri）
  * - base64 轉換、錯誤處理、File 轉換
  */
-import { resolveUploadUrl } from "~/utils/apiUtils";
+import { resolveProtectedUploadUrl } from "~/utils/apiUtils";
 
 const trim = (raw: string | null | undefined): string => String(raw ?? "").trim();
 
@@ -37,30 +37,17 @@ export const isPicUri = (raw: string | null | undefined): boolean => {
  * - 其他 /path → 後端 origin
  * - picUri → 原樣回傳（由 useImageCenter 非同步取圖）
  */
-/** Nitro 代理的上傳路徑（/api/uploads）；IPX 無法當成本機檔案讀取 */
-export const isApiProxiedUploadPath = (url: string): boolean => {
-	const v = trim(url);
-	if (!v) return false;
-	if (v.startsWith("/api/uploads/")) return true;
-	if (isAbsoluteUrl(v)) {
-		try {
-			const u = new URL(v);
-			return u.pathname.startsWith("/api/uploads/");
-		} catch {
-			return false;
-		}
-	}
-	return false;
-};
-
 export const resolveDisplayUrl = (
 	raw: string | null | undefined,
-	apiBase: string
+	apiBase: string,
+	accessToken?: string | null,
 ): string => {
 	const v = normalizeLegacyUploadPath(trim(raw));
 	if (!v) return "";
 	if (isAbsoluteUrl(v) || isDataUrl(v)) return v;
-	if (v.startsWith("/uploads/")) return resolveUploadUrl(v, apiBase);
+	if (v.startsWith("/uploads/")) {
+		return resolveProtectedUploadUrl(v, apiBase, accessToken);
+	}
 	if (v.startsWith("/")) {
 		const base = trim(apiBase);
 		const origin = base.replace(/\/api\/?$/, "");
@@ -73,10 +60,11 @@ export const resolveDisplayUrl = (
 /** 同步解析：可直接顯示則回 URL，picUri 回 null */
 export const resolveDirectDisplayUrl = (
 	raw: string | null | undefined,
-	apiBase: string
+	apiBase: string,
+	accessToken?: string | null,
 ): string | null => {
 	const v = trim(raw);
 	if (!v) return null;
 	if (isPicUri(v)) return null;
-	return resolveDisplayUrl(v, apiBase);
+	return resolveDisplayUrl(v, apiBase, accessToken);
 };

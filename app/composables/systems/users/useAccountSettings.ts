@@ -69,7 +69,7 @@ export const useAccountSettings = () => {
 				newPassword: form.newPassword,
 			})
 			toast.success("密碼已更新，請重新登入")
-			logout()
+			await logout()
 			await navigateTo("/login")
 		} catch (error) {
 			errorMessage.value = resolveFormApiError(error, "變更密碼失敗")

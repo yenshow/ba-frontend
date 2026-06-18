@@ -27,6 +27,17 @@ const globalEventListeners = new Map<string, Set<Function>>();
 
 const stripTrailingApi = (u: string) => u.replace(/\/api\/?$/, "");
 
+/** 供登出等情境中斷 WS，避免與 useAuth 循環引用 */
+export const disconnectGlobalWebSocket = () => {
+	if (globalSocket) {
+		globalSocket.disconnect();
+		globalSocket = null;
+	}
+	globalStatus.value = "disconnected";
+	globalConnectionError.value = null;
+	globalEventListeners.clear();
+};
+
 export const useWebSocket = () => {
 	const config = useRuntimeConfig();
 	const authToken = useState<string | null>("auth_token");
@@ -183,14 +194,7 @@ export const useWebSocket = () => {
 	 * 斷開 WebSocket 連接
 	 */
 	const disconnect = () => {
-		if (globalSocket) {
-			globalSocket.disconnect();
-			globalSocket = null;
-		}
-
-		status.value = "disconnected";
-		connectionError.value = null;
-		eventListeners.clear();
+		disconnectGlobalWebSocket();
 	};
 
 	/**

@@ -484,7 +484,7 @@ const handleMenuItemClick = (action: string) => {
 
 // 處理登出
 const handleLogout = async () => {
-	authLogout()
+	await authLogout()
 	await navigateTo("/login")
 }
 

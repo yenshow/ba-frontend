@@ -4,24 +4,61 @@
  * 注意：這些都是純函數，不需要響應式狀態
  */
 
+const isAbsoluteHttpUrl = (v: string): boolean => /^https?:\/\//i.test(v)
+
+/** 是否為受保護的上傳讀取路徑（/api/uploads） */
+export const isApiProxiedUploadPath = (url: string): boolean => {
+	const v = String(url || "").trim()
+	if (!v) return false
+	if (v.startsWith("/api/uploads/")) return true
+	if (isAbsoluteHttpUrl(v)) {
+		try {
+			return new URL(v).pathname.startsWith("/api/uploads/")
+		} catch {
+			return false
+		}
+	}
+	return false
+}
+
 const resolveBackendAssetUrl = (raw: string, apiBase: string): string => {
 	const v = String(raw || "").trim()
 	if (!v) return ""
 
-	// 已是絕對網址
-	if (/^https?:\/\//i.test(v)) return v
+	if (isAbsoluteHttpUrl(v)) return v
 
-	// 只處理後端提供的 /uploads/* 路徑
 	if (!v.startsWith("/uploads/")) return v
 
 	const base = String(apiBase || "").trim()
-	// apiBase 通常是 http://host:4000/api → assetBase = http://host:4000
 	const assetBase = base.endsWith("/api") ? base.slice(0, -4) : base
-	// apiBase 為相對 /api 時：走 Nitro 已代理的 /api/uploads
 	if (!assetBase || assetBase === "/") {
 		return `/api${v}`
 	}
-	return `${assetBase}${v}`
+	return `${assetBase}/api${v}`
+}
+
+/**
+ * 為受保護的上傳 URL 附加 access_token（供 img 標籤使用）
+ */
+export const appendUploadAccessToken = (
+	url: string,
+	accessToken: string | null | undefined,
+): string => {
+	const u = String(url || "").trim()
+	const token = String(accessToken || "").trim()
+	if (!u || !token || !isApiProxiedUploadPath(u)) return u
+
+	try {
+		const parsed = isAbsoluteHttpUrl(u)
+			? new URL(u)
+			: new URL(u, "http://local.invalid")
+		parsed.searchParams.set("access_token", token)
+		if (isAbsoluteHttpUrl(u)) return parsed.toString()
+		return `${parsed.pathname}${parsed.search}${parsed.hash}`
+	} catch {
+		const sep = u.includes("?") ? "&" : "?"
+		return `${u}${sep}access_token=${encodeURIComponent(token)}`
+	}
 }
 
 /**
@@ -33,7 +70,16 @@ const resolveBackendAssetUrl = (raw: string, apiBase: string): string => {
  */
 export const resolveUploadUrl = (src: string, apiBase: string): string => {
 	return resolveBackendAssetUrl(src, apiBase)
-};
+}
+
+/**
+ * 解析上傳 URL 並附加 access_token（瀏覽器 img 用）
+ */
+export const resolveProtectedUploadUrl = (
+	src: string,
+	apiBase: string,
+	accessToken: string | null | undefined,
+): string => appendUploadAccessToken(resolveUploadUrl(src, apiBase), accessToken)
 
 /**
  * 構建查詢參數的通用函數
@@ -146,4 +192,3 @@ export const mergeQueryParams = (
 	}
 	return merged;
 };
-
