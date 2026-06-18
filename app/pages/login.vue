@@ -231,6 +231,7 @@
 import { useAuth } from "~/composables/core/useAuth"
 import { useToast } from "~/composables/core/useToast"
 import { resolveFormApiError } from "~/utils/errorUtils"
+import { sanitizeAuthRedirectPath } from "~/utils/authSession"
 import HeroPicInline from "~/components/common/HeroPicInline.vue"
 import { useProductVersionDisplay } from "~/composables/core/useProductVersionDisplay"
 
@@ -240,7 +241,7 @@ definePageMeta({
 
 const productVersionDisplay = useProductVersionDisplay()
 
-const { login, isAuthenticated } = useAuth()
+const { login } = useAuth()
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
@@ -253,14 +254,6 @@ const formErrorId = "login-form-error"
 
 const accountInputRef = ref<HTMLInputElement | null>(null)
 const passwordInputRef = ref<HTMLInputElement | null>(null)
-
-onMounted(async () => {
-	await nextTick()
-	if (isAuthenticated.value) {
-		const redirectPath = sanitizeRedirectPath(route.query.redirect)
-		router.replace(redirectPath)
-	}
-})
 
 const formData = ref({
 	account: "",
@@ -276,14 +269,6 @@ const fieldErrors = ref<{ account: string | null; password: string | null }>({
 })
 
 const isHeroLoaded = ref(false)
-
-const sanitizeRedirectPath = (raw: unknown) => {
-	if (typeof raw !== "string") return "/"
-	const trimmed = raw.trim()
-	if (!trimmed.startsWith("/")) return "/"
-	if (trimmed.startsWith("//")) return "/"
-	return trimmed
-}
 
 const handleTogglePassword = () => {
 	if (isLoading.value) return
@@ -331,7 +316,7 @@ const handleLogin = async () => {
 
 		toast.success("登入成功")
 
-		const redirectPath = sanitizeRedirectPath(route.query.redirect)
+		const redirectPath = sanitizeAuthRedirectPath(route.query.redirect)
 		await router.push(redirectPath)
 	} catch (error) {
 		errorMessage.value = resolveFormApiError(error, "登入失敗，請檢查帳號密碼")

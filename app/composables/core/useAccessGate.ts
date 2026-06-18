@@ -37,6 +37,7 @@ export const useAccessGate = () => {
 	const canAdmin = useAdminOnly()
 	const moduleRegistry = useModuleRegistry()
 	const { hasFeature, fetchLicense, isLoaded } = useLicense()
+	const toast = useToast()
 
 	const checkRouteAccess = async (path: string): Promise<RouteAccessResult> => {
 		if (path === "/login") return { ok: true, reason: "ok" }
@@ -60,6 +61,7 @@ export const useAccessGate = () => {
 		}
 
 		await moduleRegistry.ensureLoaded()
+		await fetchLicense()
 
 		const permissionCode = moduleRegistry.getPermissionCodeByRoute(path)
 		if (permissionCode && !hasPermission(permissionCode)) {
@@ -73,7 +75,6 @@ export const useAccessGate = () => {
 		const featureKey = moduleRegistry.getFeatureKeyByRoute(path) as FeatureKey | null
 		if (!featureKey) return { ok: true, reason: "ok" }
 
-		await fetchLicense()
 		if (hasFeature(featureKey)) return { ok: true, reason: "ok" }
 
 		return {
@@ -81,6 +82,11 @@ export const useAccessGate = () => {
 			reason: "license",
 			redirectMessage: MSG_LICENSE_REDIRECT,
 		}
+	}
+
+	const ensureAccessReady = async () => {
+		await moduleRegistry.ensureLoaded()
+		await fetchLicense()
 	}
 
 	const canAccessModule = (module: { route: string; permissionCode?: string }): boolean => {
@@ -114,17 +120,17 @@ export const useAccessGate = () => {
 		if (result.ok || path === "/") return
 
 		if (result.reason === "account") {
-			if (process.client) useToast().warning(MSG_ACCOUNT_ADMIN)
+			if (process.client) toast.warning(MSG_ACCOUNT_ADMIN)
 			return navigateTo("/")
 		}
 
 		if (result.reason === "admin") {
-			if (process.client) useToast().warning(MSG_ADMIN_ONLY)
+			if (process.client) toast.warning(MSG_ADMIN_ONLY)
 			return navigateTo("/")
 		}
 
 		if (result.redirectMessage && process.client) {
-			useToast().warning(result.redirectMessage)
+			toast.warning(result.redirectMessage)
 		}
 
 		return navigateTo("/")
@@ -133,6 +139,7 @@ export const useAccessGate = () => {
 	return {
 		checkRouteAccess,
 		handleAccessDenied,
+		ensureAccessReady,
 		canAccessModule,
 		isModuleLocked,
 		isModuleAccessReady,

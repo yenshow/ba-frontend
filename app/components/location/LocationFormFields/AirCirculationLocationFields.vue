@@ -10,7 +10,7 @@
 				required
 				class="form-input-small"
 				placeholder="例如：送風機 A"
-				@blur="handleChange"
+				@input="handleChange"
 			/>
 		</label>
 

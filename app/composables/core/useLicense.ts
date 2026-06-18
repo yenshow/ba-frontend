@@ -42,8 +42,6 @@ export const useLicense = () => {
 		licenseFetchInFlight = null
 	}
 
-	const isOpenAll = () => licenseOpenAll
-
 	const fetchLicense = async (options: { force?: boolean } = {}) => {
 		if (!isAuthenticated.value) {
 			clearLicense()
@@ -70,7 +68,7 @@ export const useLicense = () => {
 
 	/** 用於鎖頭、路由守衛：openAll 時不鎖，否則依後端授權 */
 	const hasFeature = (featureKey: FeatureKey) => {
-		if (isOpenAll()) return true
+		if (licenseOpenAll) return true
 		if (license.value.expired) return false
 		return license.value.features.includes(featureKey)
 	}

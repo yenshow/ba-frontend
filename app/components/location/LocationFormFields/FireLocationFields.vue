@@ -11,7 +11,7 @@
 					required
 					class="form-input-small"
 					placeholder="例如：PW-1"
-					@blur="handleChange"
+					@input="handleChange"
 				/>
 			</label>
 

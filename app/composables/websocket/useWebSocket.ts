@@ -29,7 +29,7 @@ const stripTrailingApi = (u: string) => u.replace(/\/api\/?$/, "");
 
 export const useWebSocket = () => {
 	const config = useRuntimeConfig();
-	const tokenCookie = useCookie<string | null>("auth_token");
+	const authToken = useState<string | null>("auth_token");
 
 	/** 相對 /api 時不可連頁面 origin（Nuxt 無 Socket.IO）；需直連後端或設 NUXT_PUBLIC_WEBSOCKET_URL */
 	const resolveWebsocketConnectUrl = (): string => {
@@ -103,7 +103,7 @@ export const useWebSocket = () => {
 				transports: ["websocket"],
 				auth: {
 					// 後端用於 WS 連線後的 permission rooms join（不依賴 license）
-					token: tokenCookie.value || undefined
+					token: authToken.value || undefined
 				},
 				reconnection: true,
 				reconnectionDelay: 1000, // 初始延遲 1 秒
@@ -129,10 +129,10 @@ export const useWebSocket = () => {
 				connectionError.value = null;
 				wsLogger.log("連接成功", { socketId: globalSocket?.id });
 
-				// WS rooms：識別 app（後端會將 client 從 app:legacy 移到 app:construction）
+				// WS rooms：識別 app（後端會將 client 從 app:legacy 移到 app:central）
 				// 向下相容：後端若未實作此事件，也不影響既有功能
 				try {
-					globalSocket?.emit("client:hello", { app: "construction" });
+					globalSocket?.emit("client:hello", { app: "central" });
 				} catch (_e) {}
 			});
 

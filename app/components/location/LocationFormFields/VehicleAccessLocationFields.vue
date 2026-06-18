@@ -11,7 +11,7 @@
 					required
 					class="form-input-small"
 					placeholder="例如：AA工地、BB工地"
-					@blur="handleChange"
+					@input="handleChange"
 				/>
 			</label>
 		</div>

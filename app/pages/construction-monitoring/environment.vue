@@ -104,7 +104,7 @@
 											:size="gaugeIndex === 1 ? 'large' : 'normal'"
 											:location-id="currentLocationData?.id ?? null"
 											:refresh-key="trendReloadKey"
-											:show-trend="gaugeIndex === 1"
+											:show-trend="true"
 											:get-status-text="getStatusText"
 											class="w-full"
 										/>

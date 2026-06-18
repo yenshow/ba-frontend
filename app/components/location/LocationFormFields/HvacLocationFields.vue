@@ -8,7 +8,7 @@
 				required
 				class="form-input-small"
 				placeholder="例如：空調點位"
-				@blur="handleChange"
+				@input="handleChange"
 			/>
 		</label>
 

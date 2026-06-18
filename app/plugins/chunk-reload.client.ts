@@ -21,7 +21,7 @@ const handleChunkError = (source: string) => {
 	window.location.reload();
 };
 
-export default defineNuxtPlugin((nuxtApp) => {
+export default defineNuxtPlugin(() => {
 	if (typeof window === "undefined") return;
 
 	// Vite 4.4+ preload 錯誤

@@ -214,9 +214,14 @@ const syncGridHeight = () => {
 	lockedGridHeight.value = measureRef.value.offsetHeight
 }
 
-const handleModuleClick = (module: CentralShellModule) => {
+const handleModuleClick = async (module: CentralShellModule) => {
+	if (!accessGate.isModuleAccessReady.value) {
+		await accessGate.ensureAccessReady()
+	}
 	if (!accessGate.canAccessModule(module)) {
-		toast.warning(PERMISSION_MESSAGE_LOCKED)
+		if (accessGate.isModuleLocked(module)) {
+			toast.warning(PERMISSION_MESSAGE_LOCKED)
+		}
 		return
 	}
 	navigateTo(module.route)

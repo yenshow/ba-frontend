@@ -368,9 +368,14 @@ const toast = useToast()
 
 const isModuleLocked = (module: SystemModule) => accessGate.isModuleLocked(module)
 
-const handleModuleClick = (module: SystemModule) => {
+const handleModuleClick = async (module: SystemModule) => {
+	if (!accessGate.isModuleAccessReady.value) {
+		await accessGate.ensureAccessReady()
+	}
 	if (!accessGate.canAccessModule(module)) {
-		toast.warning(PERMISSION_MESSAGE_LOCKED)
+		if (accessGate.isModuleLocked(module)) {
+			toast.warning(PERMISSION_MESSAGE_LOCKED)
+		}
 		closeMoreMenu()
 		return
 	}

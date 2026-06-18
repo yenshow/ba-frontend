@@ -35,6 +35,15 @@ export const useAuth = () => {
 
 	const isAuthenticated = computed(() => !!token.value && !!user.value)
 
+	const persistSession = (nextUser: User | null, nextToken: string | null) => {
+		tokenCookie.value = nextToken
+		userCookie.value = nextUser
+		token.value = nextToken
+		user.value = nextUser
+	}
+
+	const logout = () => persistSession(null, null)
+
 	const hasPermission = (code: string): boolean => {
 		const u = user.value
 		if (!u) return false
@@ -52,10 +61,10 @@ export const useAuth = () => {
 	const login = async (credentials: LoginCredentials) => {
 		try {
 			const response = await userApi.login(credentials)
-			tokenCookie.value = response.token
-			userCookie.value = response.user
-			token.value = response.token
-			user.value = response.user
+			if (!response?.token || !response?.user) {
+				throw new Error("登入回應異常，請稍後再試")
+			}
+			persistSession(response.user, response.token)
 			return response
 		} catch (error) {
 			logout()
@@ -63,33 +72,33 @@ export const useAuth = () => {
 		}
 	}
 
-	const logout = () => {
-		tokenCookie.value = null
-		userCookie.value = null
-		token.value = null
-		user.value = null
-	}
-
 	const fetchUser = async () => {
+		const tokenAtStart = token.value
+		if (!tokenAtStart) return
+
 		try {
 			const currentUser = await userApi.getMe()
-			userCookie.value = currentUser
-			user.value = currentUser
+			if (token.value !== tokenAtStart) return currentUser
+			persistSession(currentUser, tokenAtStart)
 			return currentUser
 		} catch (error) {
-			logout()
+			if (token.value === tokenAtStart) {
+				logout()
+			}
 			throw error
 		}
 	}
 
+	/** 啟動時由 auth.client 呼叫：cookie → state，並以 /users/me 驗證 token */
 	const init = async () => {
-		if (tokenCookie.value) {
-			token.value = tokenCookie.value
+		token.value = tokenCookie.value ?? token.value
+		user.value = userCookie.value ?? user.value
+
+		if (!token.value) {
+			if (user.value) logout()
+			return
 		}
-		if (userCookie.value && !user.value) {
-			user.value = userCookie.value
-		}
-		if (!token.value) return
+
 		try {
 			await fetchUser()
 		} catch {

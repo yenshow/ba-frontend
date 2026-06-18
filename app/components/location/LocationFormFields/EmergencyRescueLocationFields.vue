@@ -10,7 +10,7 @@
 				required
 				class="form-input-small"
 				placeholder="例如：管理中心 SOS_1"
-				@blur="handleChange"
+				@input="handleChange"
 			/>
 		</label>
 

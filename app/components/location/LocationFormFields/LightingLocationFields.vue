@@ -11,7 +11,7 @@
 				required
 				class="form-input-small"
 				placeholder="例如：主燈開關"
-				@blur="handleChange"
+				@input="handleChange"
 			/>
 		</label>
 

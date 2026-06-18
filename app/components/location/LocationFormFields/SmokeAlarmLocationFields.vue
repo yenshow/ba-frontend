@@ -10,7 +10,7 @@
 				required
 				class="form-input-small"
 				placeholder="例如：大廳煙霧偵測器 1"
-				@blur="handleChange"
+				@input="handleChange"
 			/>
 		</label>
 

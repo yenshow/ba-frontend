@@ -8,7 +8,7 @@
 				required
 				class="form-input-small"
 				placeholder="例如：A 棟電梯"
-				@blur="handleChange"
+				@input="handleChange"
 			/>
 		</label>
 

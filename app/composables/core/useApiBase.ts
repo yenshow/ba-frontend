@@ -60,23 +60,10 @@ export const useApiBase = () => {
 	const apiBase = config.public.apiBase || "/api"
 
 	const runWithNuxtContext = <T>(fn: () => T): T => nuxtApp.runWithContext(fn) as T
+	const authToken = useState<string | null>("auth_token")
 
 	const getAuthHeaders = (): HeadersInit => {
-		let token: string | null = null
-
-		try {
-			const cookie = useCookie("auth_token")
-			token = cookie.value
-		} catch {
-			if (process.client && typeof document !== "undefined") {
-				const cookies = document.cookie.split(";")
-				const authCookie = cookies.find((cookie) => cookie.trim().startsWith("auth_token="))
-				if (authCookie) {
-					token = decodeURIComponent(authCookie.split("=")[1]?.trim() || "")
-					if (token === "") token = null
-				}
-			}
-		}
+		const token = authToken.value
 
 		const headers: HeadersInit = {
 			"Content-Type": "application/json",
@@ -115,21 +102,13 @@ export const useApiBase = () => {
 		}
 
 		if (statusCode === 401) {
-			runWithNuxtContext(() => {
-				const { logout } = useAuth()
-				logout()
-			})
-			if (process.client) {
-				const router = runWithNuxtContext(() => useRouter())
-				const currentPath = router.currentRoute.value?.fullPath || "/"
-				const redirectPath =
-					currentPath.startsWith("/login") || currentPath.includes("/login?")
-						? "/"
-						: currentPath
-				await router.push({
-					path: "/login",
-					query: { redirect: redirectPath },
-				})
+			const router = process.client ? runWithNuxtContext(() => useRouter()) : null
+			const onLoginPage = router?.currentRoute.value?.path === "/login"
+
+			if (!onLoginPage && process.client && router) {
+				runWithNuxtContext(() => useAuth().logout())
+				const redirect = router.currentRoute.value?.fullPath || "/"
+				await router.push({ path: "/login", query: { redirect } })
 			}
 			throw new ApiRequestError(USER_FACING_API_UNAUTHORIZED, {
 				statusCode,
