@@ -6,6 +6,7 @@ import {
 	type RuntimeConfigSchema,
 	getRuntimeSectionRows,
 	mergeRuntimeFormValues,
+	validateRuntimeConfigForSave,
 } from "~/utils/runtimeConfigForm";
 
 type RuntimeConfigResponse = {
@@ -62,15 +63,17 @@ export const useRuntimeConfigPage = () => {
 			return;
 		}
 		if (!schema.value) return;
+		const merged = mergeRuntimeFormValues(schema.value, form);
+		const validationError = validateRuntimeConfigForSave(merged);
+		if (validationError) {
+			toast.warning(validationError);
+			return;
+		}
 		isSaving.value = true;
 		try {
 			const data = await request<{ message: string }>("/runtime-config", {
 				method: "PUT",
-				body: {
-					values: schema.value
-						? mergeRuntimeFormValues(schema.value, form)
-						: { ...form },
-				},
+				body: { values: merged },
 			});
 			toast.success(data.message || "已套用營運設定");
 			await fetchRuntimeConfig();

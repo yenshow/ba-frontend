@@ -2,6 +2,7 @@ import type { User } from "~/types/user";
 import { useAuth } from "~/composables/core/useAuth";
 import { useToast } from "~/composables/core/useToast";
 import { resolveFormApiError } from "~/utils/errorUtils";
+import { validateAccountPasswordForSave } from "~/utils/userFormValidation";
 import { useUserApi } from "~/composables/systems/users/useUserApi";
 
 /** 管理端重設密碼／使用者端最小長度 6 一致 */
@@ -55,8 +56,13 @@ export const useAccountSettings = () => {
 	const handleSubmit = async () => {
 		errorMessage.value = null;
 
-		if (form.newPassword !== form.confirmPassword) {
-			errorMessage.value = "新密碼與確認密碼不一致";
+		const formError = validateAccountPasswordForSave({
+			oldPassword: form.oldPassword,
+			newPassword: form.newPassword,
+			confirmPassword: form.confirmPassword,
+		});
+		if (formError) {
+			errorMessage.value = formError;
 			return;
 		}
 

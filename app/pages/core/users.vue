@@ -258,6 +258,7 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useUserApi } from "~/composables/systems/users/useUserApi"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { applyFormApiErrorToRef } from "~/utils/errorUtils"
+import { validateUserFormForSave } from "~/utils/userFormValidation"
 import {
 	buildGrantedMap,
 	permissionGrantedMapsEqual,
@@ -536,19 +537,6 @@ const executeSubmit = async () => {
 	} finally {
 		isSubmitting.value = false
 	}
-}
-
-const validateUserFormForSave = (input: {
-	username: string
-	password: string
-	isEditing: boolean
-}): string | null => {
-	const username = input.username.trim()
-	if (!username) return "請輸入帳號"
-	if (!input.isEditing && (!input.password || input.password.length < 6)) {
-		return "密碼至少需要 6 個字元"
-	}
-	return null
 }
 
 const handleSubmit = async () => {

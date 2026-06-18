@@ -1036,6 +1036,7 @@ const handleSubmit = () => {
 	localErrorMessage.value = null;
 
 	const validationError = validateDeviceFormForSave({
+		name: localFormData.name,
 		deviceTypeCode: props.deviceTypeCode,
 		modelId: localFormData.model_id,
 		cameraCategoryCode: cameraCategoryCode.value,

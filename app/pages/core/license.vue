@@ -604,8 +604,7 @@ const clearOfflineResponseSelection = () => {
 
 const handleActivateOnline = async () => {
 	if (!canAdmin.value) return;
-	if (!canSubmitLicenseKey.value) return;
-	if (isSubmittingOnline.value) return;
+	if (!canSubmitLicenseKey.value || isSubmittingOnline.value) return;
 	isSubmittingOnline.value = true;
 	try {
 		const lk = licenseKeyInput.value.trim();
@@ -682,13 +681,14 @@ const handleGenerateRequestFile = async () => {
 	if (!canGenerateRequestFile.value || isGeneratingRequestFile.value) return;
 	isGeneratingRequestFile.value = true;
 	try {
+		const licenseKey = requestFileLicenseKeyInput.value.trim();
 		const data = await request<{ requestFileBase64: string }>("/license/offline-request-file", {
 			method: "POST",
-			body: { licenseKey: requestFileLicenseKeyInput.value.trim() }
+			body: { licenseKey }
 		});
 		const b64 = data?.requestFileBase64 ?? "";
 		if (!b64) throw new Error("後端未回傳 requestFileBase64");
-		const lk = requestFileLicenseKeyInput.value.trim().replace(/-/g, "");
+		const lk = licenseKey.replace(/-/g, "");
 		const blob = new Blob([b64], { type: "text/plain;charset=utf-8" });
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement("a");
