@@ -384,7 +384,7 @@ const handleModuleClick = async (module: SystemModule) => {
 
 const roleLabels: Record<string, string> = {
 	admin: "管理員",
-	user: "使用者",
+	user: "操作員",
 }
 
 const userInfo = computed(() => ({

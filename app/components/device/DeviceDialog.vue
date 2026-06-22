@@ -87,9 +87,9 @@
 									{{
 										deviceTypeCode === "camera" && !cameraCategoryCode
 											? "請先選擇型號分類"
-											: deviceModelsLocked
-												? "目前無可用型號，請聯繫維運人員新增預設型號"
-												: "請先在「設備型號管理」中建立設備型號"
+											: canPlatformAdmin
+												? "請先在「型號管理」中建立設備型號"
+												: "目前無可用型號，請聯繫平台管理員新增"
 									}}
 								</p>
 							</label>
@@ -485,6 +485,7 @@
 
 <script setup lang="ts">
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { usePlatformAdmin } from "~/composables/core/useAuth"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
@@ -537,10 +538,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 const deviceApi = useDeviceApi()
-const runtimeConfig = useRuntimeConfig()
-const deviceModelsLocked = computed(
-	() => String(runtimeConfig.public.deviceModelsLocked || "1") !== "0"
-)
+const canPlatformAdmin = usePlatformAdmin()
 const deviceModels = ref<DeviceModel[]>([])
 const isLoadingDeviceModels = ref(false)
 const localErrorMessage = ref<string | null>(null)

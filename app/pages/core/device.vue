@@ -31,12 +31,15 @@
 							{{ currentTabName ? `${currentTabName}管理` : "設備管理" }}
 						</h2>
 						<div class="flex items-center gap-3 2xl:gap-4">
-							<PermissionActionButton
-								:allowed="canManageDeviceModels && !deviceModelsLocked && !!activeTab"
+							<button
+								v-if="canPlatformAdmin && canManageDeviceModels && activeTab"
+								type="button"
+								class="rounded-xl bg-blue-500/80 px-4 py-2 text-base text-white hover:bg-blue-400 2xl:px-6 2xl:py-3 2xl:text-lg"
 								aria-label="型號管理"
-								class="rounded-xl bg-blue-500/80 px-4 py-2 text-base text-white enabled:hover:bg-blue-400 2xl:px-6 2xl:py-3 2xl:text-lg"
 								@click="showDeviceModelDialog = true"
-							>型號管理</PermissionActionButton>
+							>
+								型號管理
+							</button>
 							<PermissionActionButton
 								:allowed="canCreateDevice"
 								aria-label="新增設備"
@@ -183,7 +186,7 @@
 		/>
 
 		<DeviceModelDialog
-			v-if="activeTab && !deviceModelsLocked"
+			v-if="activeTab && canPlatformAdmin"
 			v-model="showDeviceModelDialog"
 			:device-type-code="activeTab"
 			@close="showDeviceModelDialog = false"
@@ -237,6 +240,7 @@ import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import { applyFormApiErrorToRef } from "~/utils/errorUtils";
 import { getCameraModelCategoryLabel } from "~/utils/cameraModelCategories";
 import { useEquipmentRbac } from "~/composables/core/useAccessGate";
+import { usePlatformAdmin } from "~/composables/core/useAuth";
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
 
 definePageMeta({
@@ -245,14 +249,11 @@ definePageMeta({
 
 const { canCreateDevice, canUpdateDevice, canDeleteDevice, canManageDeviceModels } =
 	useEquipmentRbac();
+const canPlatformAdmin = usePlatformAdmin();
 const canWriteDevice = computed(() =>
 	editingDevice.value ? canUpdateDevice.value : canCreateDevice.value
 );
 const deviceApi = useDeviceApi();
-const runtimeConfig = useRuntimeConfig();
-const deviceModelsLocked = computed(
-	() => String(runtimeConfig.public.deviceModelsLocked || "1") !== "0"
-);
 const toast = useToast();
 const { handleError: handleApiError } = useErrorHandler();
 const { setupDeviceListeners, removeDeviceListeners } = useDeviceWebSocket();
