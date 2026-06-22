@@ -67,7 +67,7 @@ export default defineNuxtConfig({
 			websocketUrl: process.env.NUXT_PUBLIC_WEBSOCKET_URL || "",
 			backendHttpPort: Number(process.env.NUXT_PUBLIC_BACKEND_HTTP_PORT || 4000) || 4000,
 			secureCookie: undefined,
-			licenseOpenAllFeatures: process.env.NUXT_PUBLIC_LICENSE_OPEN_ALL_FEATURES === "true",
+			licenseOpenAllFeatures: process.env.NUXT_PUBLIC_LICENSE_OPEN_ALL_FEATURES === "false",
 			productCode: process.env.NUXT_PUBLIC_PRODUCT_CODE || "YS One Site",
 			appVersion: process.env.NUXT_PUBLIC_APP_VERSION || "1.0.0",
 			// 設備型號管理鎖定（隱藏新增/編輯/刪除入口）

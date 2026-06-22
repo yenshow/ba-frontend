@@ -1,6 +1,6 @@
 /**
  * 認證狀態初始化（僅客戶端）
- * - init：cookie → state，並以 /users/me 驗證 token
+ * - init：cookie → state；登入頁不打 /users/me，其餘路由以 /users/me 驗證 token
  * - 已登入：預載 registry + license（首頁與底欄模組判斷需要）
  * - 已登入卻在 /login：導向 redirect 或首頁
  * 路由權限由 route-guard.global middleware 統一處理
