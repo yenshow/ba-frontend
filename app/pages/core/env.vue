@@ -3,14 +3,7 @@
 		<header class="flex flex-wrap items-end justify-between gap-4 2xl:gap-6">
 			<div class="space-y-2 2xl:space-y-4">
 				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">環境設定</h1>
-				<p class="text-base text-white/80 2xl:text-xl">
-					以下營運參數儲存於資料庫（<code class="rounded bg-black/20 px-1 text-white/90"
-						>system_settings</code
-					>），儲存後<strong class="text-white">立即生效</strong>（無需 PM2 重啟）。
-					伺服器、JWT、主資料庫、MediaMTX、功能開關請於「安裝與維護」精靈編輯
-					<code class="rounded bg-black/20 px-1 text-white/90">.env</code>
-					並重啟 PM2。
-				</p>
+				<p class="text-base text-white/80 2xl:text-xl">編輯 YSCP、警報日界線、備份設定。</p>
 			</div>
 		</header>
 

@@ -63,7 +63,7 @@ const PANEL_SIZE_PRESETS: Record<PanelSize, { loading: string; empty: string }> 
 	},
 	compact: {
 		loading: "min-h-[320px] 2xl:min-h-[360px]",
-		empty: "min-h-[280px] 2xl:min-h-[320px]",
+		empty: "min-h-[360px] 2xl:min-h-[480px]",
 	},
 	dense: {
 		loading: "min-h-[280px]",
@@ -102,7 +102,7 @@ const props = withDefaults(
 		loadingLabel: "載入中",
 		panelSize: "default",
 		minHeightClass: "min-h-0",
-	},
+	}
 )
 
 const sizePreset = computed(() => PANEL_SIZE_PRESETS[props.panelSize])
@@ -112,9 +112,7 @@ const resolvedLoadingMin = computed(() => {
 	if (props.minHeightClass && props.minHeightClass !== "min-h-0") return props.minHeightClass
 	return sizePreset.value.loading
 })
-const resolvedEmptyMin = computed(
-	() => props.emptyMinHeightClass ?? sizePreset.value.empty,
-)
+const resolvedEmptyMin = computed(() => props.emptyMinHeightClass ?? sizePreset.value.empty)
 
 const rootClass = computed(() => ["w-full", props.minHeightClass].filter(Boolean))
 
@@ -127,12 +125,10 @@ const loadingClass = computed(() => {
 })
 
 const emptyClass = computed(
-	() =>
-		`${STATE_FRAME_BASE} ${resolvedEmptyMin.value} border-white/20 bg-white/[0.04]`,
+	() => `${STATE_FRAME_BASE} ${resolvedEmptyMin.value} border-white/20 bg-white/[0.04]`
 )
 
 const errorClass = computed(
-	() =>
-		`${STATE_FRAME_BASE} ${resolvedEmptyMin.value} border-rose-400/25 bg-rose-950/10`,
+	() => `${STATE_FRAME_BASE} ${resolvedEmptyMin.value} border-rose-400/25 bg-rose-950/10`
 )
 </script>
