@@ -54,43 +54,43 @@
 </template>
 
 <script setup lang="ts">
-type PanelSize = "default" | "compact" | "dense" | "sidebar"
+type PanelSize = "default" | "compact" | "dense" | "sidebar";
 
 const PANEL_SIZE_PRESETS: Record<PanelSize, { loading: string; empty: string }> = {
 	default: {
 		loading: "min-h-[480px] 2xl:min-h-[520px]",
-		empty: "min-h-[400px] 2xl:min-h-[480px]",
+		empty: "min-h-[400px] 2xl:min-h-[480px]"
 	},
 	compact: {
 		loading: "min-h-[320px] 2xl:min-h-[360px]",
-		empty: "min-h-[280px] 2xl:min-h-[320px]",
+		empty: "min-h-[360px] 2xl:min-h-[480px]"
 	},
 	dense: {
 		loading: "min-h-[280px]",
-		empty: "min-h-[240px]",
+		empty: "min-h-[240px]"
 	},
 	sidebar: {
 		loading: "min-h-[120px]",
-		empty: "min-h-[160px]",
-	},
-}
+		empty: "min-h-[160px]"
+	}
+};
 
 const STATE_FRAME_BASE =
-	"flex items-center justify-center rounded-lg border border-dashed p-6 text-center 2xl:p-10"
+	"flex items-center justify-center rounded-lg border border-dashed p-6 text-center 2xl:p-10";
 
 const props = withDefaults(
 	defineProps<{
-		loading?: boolean
-		empty?: boolean
-		error?: string | null
-		emptyTitle?: string
-		emptyDescription?: string
-		errorTitle?: string
-		loadingLabel?: string
-		panelSize?: PanelSize
-		minHeightClass?: string
-		loadingMinHeightClass?: string
-		emptyMinHeightClass?: string
+		loading?: boolean;
+		empty?: boolean;
+		error?: string | null;
+		emptyTitle?: string;
+		emptyDescription?: string;
+		errorTitle?: string;
+		loadingLabel?: string;
+		panelSize?: PanelSize;
+		minHeightClass?: string;
+		loadingMinHeightClass?: string;
+		emptyMinHeightClass?: string;
 	}>(),
 	{
 		loading: false,
@@ -101,38 +101,34 @@ const props = withDefaults(
 		errorTitle: "載入失敗",
 		loadingLabel: "載入中",
 		panelSize: "default",
-		minHeightClass: "min-h-0",
-	},
-)
+		minHeightClass: "min-h-0"
+	}
+);
 
-const sizePreset = computed(() => PANEL_SIZE_PRESETS[props.panelSize])
+const sizePreset = computed(() => PANEL_SIZE_PRESETS[props.panelSize]);
 
 const resolvedLoadingMin = computed(() => {
-	if (props.loadingMinHeightClass) return props.loadingMinHeightClass
-	if (props.minHeightClass && props.minHeightClass !== "min-h-0") return props.minHeightClass
-	return sizePreset.value.loading
-})
-const resolvedEmptyMin = computed(
-	() => props.emptyMinHeightClass ?? sizePreset.value.empty,
-)
+	if (props.loadingMinHeightClass) return props.loadingMinHeightClass;
+	if (props.minHeightClass && props.minHeightClass !== "min-h-0") return props.minHeightClass;
+	return sizePreset.value.loading;
+});
+const resolvedEmptyMin = computed(() => props.emptyMinHeightClass ?? sizePreset.value.empty);
 
-const rootClass = computed(() => ["w-full", props.minHeightClass].filter(Boolean))
+const rootClass = computed(() => ["w-full", props.minHeightClass].filter(Boolean));
 
-const slots = useSlots()
+const slots = useSlots();
 
 const loadingClass = computed(() => {
-	const base = `flex w-full ${resolvedLoadingMin.value} py-4 2xl:py-5`
-	if (slots.loading) return `${base} items-start justify-stretch px-1`
-	return `${base} items-center justify-center`
-})
+	const base = `flex w-full ${resolvedLoadingMin.value} py-4 2xl:py-5`;
+	if (slots.loading) return `${base} items-start justify-stretch px-1`;
+	return `${base} items-center justify-center`;
+});
 
 const emptyClass = computed(
-	() =>
-		`${STATE_FRAME_BASE} ${resolvedEmptyMin.value} border-white/20 bg-white/[0.04]`,
-)
+	() => `${STATE_FRAME_BASE} ${resolvedEmptyMin.value} border-white/20 bg-white/[0.04]`
+);
 
 const errorClass = computed(
-	() =>
-		`${STATE_FRAME_BASE} ${resolvedEmptyMin.value} border-rose-400/25 bg-rose-950/10`,
-)
+	() => `${STATE_FRAME_BASE} ${resolvedEmptyMin.value} border-rose-400/25 bg-rose-950/10`
+);
 </script>
