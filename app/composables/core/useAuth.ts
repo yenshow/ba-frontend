@@ -1,6 +1,8 @@
 import type { User, LoginCredentials } from "~/types/user"
 import { useUserApi } from "~/composables/systems/users/useUserApi"
 import { disconnectGlobalWebSocket } from "~/composables/websocket/useWebSocket"
+import { isLocalTokenStale } from "~/utils/authSession"
+import { ApiRequestError } from "~/utils/errorUtils"
 
 const isAdminRole = (role: string | undefined | null): boolean => role === "admin"
 
@@ -43,6 +45,15 @@ export const useAuth = () => {
 		user.value = nextUser
 	}
 
+	const clearSession = () => {
+		try {
+			disconnectGlobalWebSocket()
+		} catch {
+			// ignore
+		}
+		persistSession(null, null)
+	}
+
 	const logout = async () => {
 		try {
 			if (token.value) {
@@ -51,12 +62,7 @@ export const useAuth = () => {
 		} catch {
 			// 登出 API 失敗仍清除本地 session
 		}
-		try {
-			disconnectGlobalWebSocket()
-		} catch {
-			// ignore
-		}
-		persistSession(null, null)
+		clearSession()
 	}
 
 	const hasPermission = (code: string): boolean => {
@@ -82,7 +88,11 @@ export const useAuth = () => {
 			persistSession(response.user, response.token)
 			return response
 		} catch (error) {
-			logout()
+			if (token.value) {
+				logout()
+			} else {
+				persistSession(null, null)
+			}
 			throw error
 		}
 	}
@@ -97,27 +107,41 @@ export const useAuth = () => {
 			persistSession(currentUser, tokenAtStart)
 			return currentUser
 		} catch (error) {
-			if (token.value === tokenAtStart) {
-				logout()
+			if (
+				token.value === tokenAtStart &&
+				error instanceof ApiRequestError &&
+				error.statusCode === 401
+			) {
+				clearSession()
 			}
 			throw error
 		}
 	}
 
-	/** 啟動時由 auth.client 呼叫：cookie → state，並以 /users/me 驗證 token */
+	/** 啟動時由 auth.client 呼叫：cookie → state；非登入頁才以 /users/me 驗證 token */
 	const init = async () => {
 		token.value = tokenCookie.value ?? token.value
 		user.value = userCookie.value ?? user.value
 
 		if (!token.value) {
-			if (user.value) logout()
+			if (user.value) clearSession()
+			return
+		}
+
+		if (isLocalTokenStale(token.value)) {
+			clearSession()
+			return
+		}
+
+		if (useRoute().path === "/login") {
+			if (!user.value) clearSession()
 			return
 		}
 
 		try {
 			await fetchUser()
 		} catch {
-			// fetchUser 失敗時已 logout
+			// 401 時 fetchUser 已 clearSession；其餘錯誤保留 cookie 供重試
 		}
 	}
 
@@ -131,6 +155,7 @@ export const useAuth = () => {
 		useHasAnyPermission,
 		login,
 		logout,
+		clearSession,
 		fetchUser,
 		init,
 	}

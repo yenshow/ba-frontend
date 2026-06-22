@@ -107,7 +107,7 @@ export const useApiBase = () => {
 			const onLoginPage = router?.currentRoute.value?.path === "/login"
 
 			if (!onLoginPage && process.client && router) {
-				runWithNuxtContext(() => useAuth().logout())
+				runWithNuxtContext(() => useAuth().clearSession())
 				const redirect = router.currentRoute.value?.fullPath || "/"
 				await router.push({ path: "/login", query: { redirect } })
 			}
