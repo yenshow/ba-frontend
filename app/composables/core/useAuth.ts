@@ -6,6 +6,18 @@ import { ApiRequestError } from "~/utils/errorUtils";
 
 const isAdminRole = (role: string | undefined | null): boolean => role === "admin";
 
+/** 安裝腳本建立之平台超級管理員（bootstrap）；對齊 createAdmin.js */
+export const PLATFORM_ADMIN_USERNAME = "admin" as const;
+
+export const isPlatformAdmin = (
+	user: Pick<User, "username"> | null | undefined
+): boolean => user?.username === PLATFORM_ADMIN_USERNAME;
+
+export const usePlatformAdmin = () => {
+	const { user } = useAuth();
+	return computed(() => isPlatformAdmin(user.value));
+};
+
 export const useAuth = () => {
 	const userApi = useUserApi();
 	const config = useRuntimeConfig();

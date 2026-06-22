@@ -1,4 +1,5 @@
 import type { User } from "~/types/user";
+import { isPlatformAdmin } from "~/composables/core/useAuth";
 import { useAuth } from "~/composables/core/useAuth";
 import { useToast } from "~/composables/core/useToast";
 import { resolveFormApiError } from "~/utils/errorUtils";
@@ -8,25 +9,25 @@ import { useUserApi } from "~/composables/systems/users/useUserApi";
 /** 管理端重設密碼／使用者端最小長度 6 一致 */
 export const DEFAULT_RESET_PASSWORD = "12345678";
 
-/** `/core/account` 僅非 admin 可進入 */
-export const canAccessAccountPage = (actor: Pick<User, "role"> | null | undefined): boolean =>
-	!!actor && actor.role !== "admin";
+/** `/core/account`：平台 bootstrap admin 不可進入；一般管理員與 user 可進入 */
+export const canAccessAccountPage = (
+	actor: Pick<User, "username"> | null | undefined
+): boolean => !!actor && !isPlatformAdmin(actor);
 
 /** 用戶管理列表是否顯示重設密碼 */
 export const canResetPasswordForUser = (
-	actor: Pick<User, "id" | "role"> | null | undefined,
+	actor: Pick<User, "id" | "role" | "username"> | null | undefined,
 	target: Pick<User, "id" | "role">,
 ): boolean => {
 	if (!actor || actor.id === target.id) return false;
-	if (actor.role === "admin") {
-		return target.role === "user";
-	}
+	if (isPlatformAdmin(actor)) return true;
+	if (actor.role === "admin") return target.role === "user";
 	return false;
 };
 
 const ROLE_LABELS: Record<string, string> = {
 	admin: "管理員",
-	user: "使用者",
+	user: "操作員",
 };
 
 const STATUS_LABELS: Record<"active" | "inactive", string> = {

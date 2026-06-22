@@ -252,7 +252,7 @@ import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import { formatDate } from "~/utils/dateUtils"
 import AsyncPanel from "~/components/common/AsyncPanel.vue"
 import { useDataLoader } from "~/composables/monitoring/useDataLoader"
-import { useAuth, useAdminOnly } from "~/composables/core/useAuth"
+import { useAuth, useAdminOnly, usePlatformAdmin, PLATFORM_ADMIN_USERNAME } from "~/composables/core/useAuth"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useUserApi } from "~/composables/systems/users/useUserApi"
@@ -275,6 +275,7 @@ definePageMeta({
 
 const { user: currentUser, fetchUser } = useAuth()
 const canAdmin = useAdminOnly()
+const canPlatformAdmin = usePlatformAdmin()
 const userApi = useUserApi()
 const toast = useToast()
 const { handleError: handleApiError } = useErrorHandler()
@@ -334,11 +335,14 @@ const {
 
 const limit = 20 // 用於分頁組件
 
-const visibleUsers = computed(() => users.value)
+const visibleUsers = computed(() => {
+	if (canPlatformAdmin.value) return users.value
+	return users.value.filter((u) => u.username !== PLATFORM_ADMIN_USERNAME)
+})
 
 const roleLabels: Record<string, string> = {
 	admin: "管理員",
-	user: "使用者",
+	user: "操作員",
 }
 
 const statusLabels: Record<"active" | "inactive", string> = {
@@ -346,10 +350,13 @@ const statusLabels: Record<"active" | "inactive", string> = {
 	inactive: "停用",
 }
 
-const roleFormOptions = computed(() => [
-	{ value: "user", label: "使用者" },
-	{ value: "admin", label: "管理員" },
-])
+const roleFormOptions = computed(() => {
+	const userOption = { value: "user" as const, label: "操作員" }
+	if (canPlatformAdmin.value) {
+		return [userOption, { value: "admin" as const, label: "管理員" }]
+	}
+	return [userOption]
+})
 
 // 日期排序篩選選項（供 FilterDropdown 使用）
 const dateSortOptions = [
@@ -389,6 +396,8 @@ const canShowResetPasswordButton = (user: User) => canResetPasswordForUser(curre
 const canShowDeleteButton = (user: User) => {
 	if (!canAdmin.value) return false
 	if (currentUser.value && user.id === currentUser.value.id) return false
+	if (user.username === PLATFORM_ADMIN_USERNAME) return false
+	if (!canPlatformAdmin.value && user.role === "admin") return false
 	return true
 }
 
@@ -453,6 +462,7 @@ const handleRoleFilterChange = async () => {
 }
 
 const editUser = async (user: User) => {
+	if (user.username === PLATFORM_ADMIN_USERNAME && !canPlatformAdmin.value) return
 	editingUser.value = user
 	formData.username = user.username
 	formData.role = user.role

@@ -25,14 +25,16 @@
 						}}</span>
 					</div>
 				</div>
-				<PermissionActionButton
-					:allowed="canAdmin && !showLicensePlaceholder && !isResettingLicense"
+				<button
+					v-if="canPlatformAdmin && !showLicensePlaceholder"
+					type="button"
+					class="rounded-xl border border-white/25 bg-white/10 px-4 py-2 text-sm text-white/85 transition-colors hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
+					:disabled="isResettingLicense"
 					aria-label="重置本地授權"
-					class="rounded-xl border border-white/25 bg-white/10 px-4 py-2 text-sm text-white/85 transition-colors enabled:hover:bg-white/15 2xl:px-6 2xl:py-3 2xl:text-base"
 					@click="handleRequestResetLicense"
 				>
 					{{ isResettingLicense ? "重置中..." : "重置授權" }}
-				</PermissionActionButton>
+				</button>
 			</div>
 		</header>
 
@@ -360,7 +362,7 @@
 <script setup lang="ts">
 import { LICENSE_FEATURE_KEYS, type FeatureKey, type LicenseState } from "~/types/license";
 import { useApiBase } from "~/composables/core/useApiBase";
-import { useAdminOnly } from "~/composables/core/useAuth";
+import { useAdminOnly, usePlatformAdmin } from "~/composables/core/useAuth";
 import { useLicense } from "~/composables/core/useLicense";
 import { useToast } from "~/composables/core/useToast";
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
@@ -383,6 +385,7 @@ const featureLabels: Record<string, string> = {
 };
 
 const canAdmin = useAdminOnly();
+const canPlatformAdmin = usePlatformAdmin();
 
 const { request } = useApiBase();
 const { license, fetchLicense, isLoaded } = useLicense();
@@ -622,7 +625,7 @@ const handleActivateOnline = async () => {
 };
 
 const handleResetLicense = async () => {
-	if (isResettingLicense.value) return;
+	if (!canPlatformAdmin.value || isResettingLicense.value) return;
 	isResettingLicense.value = true;
 	try {
 		await request<LicenseState>("/license/reset", { method: "POST" });
@@ -638,7 +641,7 @@ const handleResetLicense = async () => {
 };
 
 const handleRequestResetLicense = () => {
-	if (showLicensePlaceholder.value || isResettingLicense.value) return;
+	if (!canPlatformAdmin.value || showLicensePlaceholder.value || isResettingLicense.value) return;
 	resetConfirmStep.value = "content";
 	confirmDialog.show({
 		type: "warning",
@@ -667,6 +670,10 @@ const handleConfirmDialogConfirm = async () => {
 	}
 
 	if (resetConfirmStep.value === "execute") {
+		if (!canPlatformAdmin.value) {
+			resetConfirmStep.value = "idle";
+			return;
+		}
 		resetConfirmStep.value = "idle";
 		await handleResetLicense();
 	}
