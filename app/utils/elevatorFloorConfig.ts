@@ -13,8 +13,7 @@ export type ElevatorFloorRange = {
 	floorCount: number
 }
 
-const clampFloorCount = (count: number) =>
-	Math.max(1, Math.min(count, MAX_ELEVATOR_FLOOR_COUNT))
+const clampFloorCount = (count: number) => Math.max(1, Math.min(count, MAX_ELEVATOR_FLOOR_COUNT))
 
 export const formatElevatorFloorNumber = (floorNumber: number): string => {
 	if (floorNumber > 0) return `${floorNumber}F`
@@ -23,8 +22,7 @@ export const formatElevatorFloorNumber = (floorNumber: number): string => {
 }
 
 /** 設備門序預設名稱（第 1 門 1F、第 2 門 2F…） */
-export const defaultElevatorSlotName = (slotIndex: number): string =>
-	`${slotIndex + 1}F`
+export const defaultElevatorSlotName = (slotIndex: number): string => `${slotIndex + 1}F`
 
 /** 陣列索引（0-based）→ 建築樓層號碼（# 標籤） */
 export const elevatorFloorNumberAtSlot = (slotIndex: number, floorStart: number): number =>
@@ -36,7 +34,7 @@ const prevSlotForBuildingFloor = (slot: number, nextStart: number, prevStart: nu
 const isLegacyAutoElevatorFloorName = (
 	name: string,
 	slotIndex: number,
-	rangeStart: number,
+	rangeStart: number
 ): boolean => {
 	const trimmed = name.trim()
 	if (trimmed === defaultElevatorSlotName(slotIndex)) return true
@@ -49,7 +47,7 @@ export const resolveElevatorFloorLabel = (index: number, floorNames?: string[]):
 /** 事件紀錄樓層欄：設備門序 → 設定的樓層名稱（支援合併後的「1、5」） */
 export const formatElevatorLogFloorDisplay = (
 	floor: number | string | null | undefined,
-	floorNames?: string[],
+	floorNames?: string[]
 ): string => {
 	if (floor == null || String(floor).trim() === "") return ""
 	const parts = String(floor)
@@ -155,7 +153,7 @@ export const remapFloorConfigForRange = (
 	prevStart: number,
 	prevCount: number,
 	nextStart: number,
-	nextCount: number,
+	nextCount: number
 ) => {
 	const names = Array.isArray(current.floorNames) ? current.floorNames : []
 	const durations = Array.isArray(current.floorOpenDurations) ? current.floorOpenDurations : []
@@ -195,7 +193,7 @@ export const fillEmptyFloorNames = (names: string[], count: number): string[] =>
 /** 正規化繼電器時間陣列長度 */
 export const normalizeFloorOpenDurationsList = (
 	current: number[] | undefined,
-	count: number,
+	count: number
 ): number[] => {
 	const safeCount = clampFloorCount(count)
 	const existing = Array.isArray(current) ? current : []
@@ -205,7 +203,7 @@ export const normalizeFloorOpenDurationsList = (
 	})
 }
 
-/** 呼梯面板固定可視列數（4 欄 × 5 列） */
+/** 樓層面板固定可視列數（4 欄 × 5 列） */
 export const ELEVATOR_PANEL_COLUMNS = 4
 export const ELEVATOR_PANEL_VISIBLE_ROWS = 5
 

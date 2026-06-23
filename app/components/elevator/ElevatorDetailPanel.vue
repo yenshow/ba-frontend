@@ -79,7 +79,7 @@
 					class="flex min-h-0 flex-1 flex-col rounded-2xl border-2 border-white/20 bg-gradient-to-b from-white/[0.08] to-white/[0.03]"
 				>
 					<p class="mt-4 shrink-0 text-center text-lg font-semibold text-white/80 2xl:text-xl">
-						呼梯面板
+						樓層面板
 					</p>
 
 					<div

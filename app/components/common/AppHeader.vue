@@ -306,6 +306,7 @@
 <script setup lang="ts">
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor"
 import { useAuth } from "~/composables/core/useAuth"
+import { getUserRoleLabel } from "~/utils/userRoleLabels"
 import { useAccessGate } from "~/composables/core/useAccessGate"
 import { useToast } from "~/composables/core/useToast"
 import { useTheme } from "~/composables/core/useTheme"
@@ -382,14 +383,9 @@ const handleModuleClick = async (module: SystemModule) => {
 	closeMoreMenu()
 }
 
-const roleLabels: Record<string, string> = {
-	admin: "管理員",
-	user: "操作員",
-}
-
 const userInfo = computed(() => ({
 	name: user.value?.username || "",
-	role: user.value?.role ? roleLabels[user.value.role] || user.value.role : "",
+	role: user.value?.role ? getUserRoleLabel(user.value.role) : "",
 }))
 
 const route = useRoute()

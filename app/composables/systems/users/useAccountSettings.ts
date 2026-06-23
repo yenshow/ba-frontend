@@ -1,10 +1,10 @@
 import type { User } from "~/types/user"
-import { isPlatformAdmin } from "~/composables/core/useAuth"
-import { useAuth } from "~/composables/core/useAuth"
+import { isPlatformAdmin, useAuth } from "~/composables/core/useAuth"
 import { useToast } from "~/composables/core/useToast"
 import { resolveFormApiError } from "~/utils/errorUtils"
 import { validateAccountPasswordForSave } from "~/utils/userFormValidation"
 import { useUserApi } from "~/composables/systems/users/useUserApi"
+import { getUserRoleLabel } from "~/utils/userRoleLabels"
 
 /** 管理端重設密碼／使用者端最小長度 6 一致 */
 export const DEFAULT_RESET_PASSWORD = "12345678"
@@ -25,11 +25,6 @@ export const canResetPasswordForUser = (
 	return false
 }
 
-const ROLE_LABELS: Record<string, string> = {
-	admin: "管理員",
-	user: "操作員",
-}
-
 const STATUS_LABELS: Record<"active" | "inactive", string> = {
 	active: "啟用",
 	inactive: "停用",
@@ -40,9 +35,7 @@ export const useAccountSettings = () => {
 	const userApi = useUserApi()
 	const toast = useToast()
 
-	const roleLabel = computed(() =>
-		user.value?.role ? (ROLE_LABELS[user.value.role] ?? user.value.role) : "—",
-	)
+	const roleLabel = computed(() => getUserRoleLabel(user.value?.role))
 	const statusLabel = computed(() => (user.value?.status ? STATUS_LABELS[user.value.status] : "—"))
 
 	const form = reactive({
