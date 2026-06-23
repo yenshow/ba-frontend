@@ -208,7 +208,7 @@
 									<div class="mb-2 border-b border-white/10 px-3 py-2">
 										<p class="text-sm font-semibold text-white">{{ user?.username || "使用者" }}</p>
 										<p class="text-xs text-white/60">
-											{{ user?.role === "admin" ? "管理員" : "操作員" }}
+											{{ getUserRoleLabel(user?.role) }}
 										</p>
 									</div>
 
@@ -284,6 +284,7 @@
 import type { Ref } from "vue";
 import type { SystemModule } from "~/types/system";
 import { useAuth } from "~/composables/core/useAuth";
+import { getUserRoleLabel } from "~/utils/userRoleLabels";
 import { useToast } from "~/composables/core/useToast";
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 import { useAccessGate } from "~/composables/core/useAccessGate";

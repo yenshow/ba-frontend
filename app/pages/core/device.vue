@@ -32,7 +32,7 @@
 						</h2>
 						<div class="flex items-center gap-3 2xl:gap-4">
 							<button
-								v-if="canPlatformAdmin && canManageDeviceModels && activeTab"
+								v-if="canPlatformAdmin && activeTab"
 								type="button"
 								class="rounded-xl bg-blue-500/80 px-4 py-2 text-base text-white hover:bg-blue-400 2xl:px-6 2xl:py-3 2xl:text-lg"
 								aria-label="型號管理"
@@ -247,8 +247,7 @@ definePageMeta({
 	layout: "auxiliary"
 });
 
-const { canCreateDevice, canUpdateDevice, canDeleteDevice, canManageDeviceModels } =
-	useEquipmentRbac();
+const { canCreateDevice, canUpdateDevice, canDeleteDevice } = useEquipmentRbac();
 const canPlatformAdmin = usePlatformAdmin();
 const canWriteDevice = computed(() =>
 	editingDevice.value ? canUpdateDevice.value : canCreateDevice.value

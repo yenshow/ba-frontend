@@ -72,7 +72,11 @@
 				>
 					<p>所選設備型號尚未配置參數</p>
 					<p class="mt-1 text-xs">
-						{{ deviceModelsLocked ? "請聯繫維運人員更新預設型號參數配置" : "請在「設備型號管理」中設定參數配置" }}
+						{{
+							canPlatformAdmin
+								? "請在「型號管理」中設定參數配置"
+								: "請聯繫平台管理員更新預設型號參數配置"
+						}}
 					</p>
 				</div>
 				<div v-else class="grid grid-cols-2 gap-2">
@@ -115,6 +119,7 @@ import {
 	getSensorParametersFromModelConfig,
 } from "~/types/device";
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
+import { usePlatformAdmin } from "~/composables/core/useAuth";
 import { getParameterDisplayName } from "~/utils/sensorUtils";
 
 interface Props {
@@ -135,8 +140,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>();
 
 const deviceApi = useDeviceApi();
-const runtimeConfig = useRuntimeConfig();
-const deviceModelsLocked = computed(() => String(runtimeConfig.public.deviceModelsLocked || "1") !== "0");
+const canPlatformAdmin = usePlatformAdmin();
 
 const localLocation = ref<EnvironmentLocation>({ ...props.location });
 

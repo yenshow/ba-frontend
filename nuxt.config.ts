@@ -62,27 +62,21 @@ export default defineNuxtConfig({
 
 	runtimeConfig: {
 		public: {
-			// 同機部署：前端一律打同源 /api，由 Nitro 反向代理到後端
-			apiBase: process.env.NUXT_PUBLIC_API_BASE || "/api",
-			websocketUrl: process.env.NUXT_PUBLIC_WEBSOCKET_URL || "",
-			backendHttpPort: Number(process.env.NUXT_PUBLIC_BACKEND_HTTP_PORT || 4000) || 4000,
+			// 同機部署：同源 /api，由 Nitro routeRules 代理至後端
+			apiBase: "/api",
+			websocketUrl: "",
+			backendHttpPort: 4000,
 			secureCookie: undefined,
-			licenseOpenAllFeatures: process.env.NUXT_PUBLIC_LICENSE_OPEN_ALL_FEATURES === "false",
-			productCode: process.env.NUXT_PUBLIC_PRODUCT_CODE || "YS One Site",
-			appVersion: process.env.NUXT_PUBLIC_APP_VERSION || "1.0.0",
-			// 設備型號管理鎖定（隱藏新增/編輯/刪除入口）
-			// - production 預設鎖定
-			// - dev/staging 可用 env 覆寫
-			deviceModelsLocked:
-				process.env.NUXT_PUBLIC_DEVICE_MODELS_LOCKED ??
-				(process.env.NODE_ENV === "production" ? "1" : "0")
+			productCode: "YS One Site",
+			appVersion: "1.0.0",
+			deviceModelsLocked: process.env.NODE_ENV === "production" ? "1" : "0"
 		}
 	},
 
 	nitro: {
 		routeRules: {
 			"/api/**": {
-				proxy: process.env.NUXT_API_PROXY_TARGET || "http://127.0.0.1:4000/api/**"
+				proxy: "http://127.0.0.1:4000/api/**"
 			}
 		}
 	}

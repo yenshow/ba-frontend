@@ -5,7 +5,7 @@
 			<div class="relative flex items-center justify-center">
 				<img
 					src="/layout/golden.png"
-					alt="金儀 LOGO"
+					alt="遠岫科技"
 					class="h-[var(--brand-logo-h)] object-contain"
 					:style="brandLogoStyle"
 				/>
@@ -102,7 +102,11 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import EditMockDialog from "~/components/common/EditMockDialog.vue";
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
-import { useAppSettings, useAppSettingImage, IMAGE_UPLOAD_HINT } from "~/composables/core/useAppSettings";
+import {
+	useAppSettings,
+	useAppSettingImage,
+	IMAGE_UPLOAD_HINT
+} from "~/composables/core/useAppSettings";
 import { HOME_IMAGE_CROP } from "~/utils/imageCropUtils";
 import { formatClockDisplay } from "~/utils/dateUtils";
 import { useHomeRbac } from "~/composables/core/useAccessGate";

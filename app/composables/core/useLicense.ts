@@ -23,10 +23,6 @@ export const useLicense = () => {
 	const { isAuthenticated } = useAuth();
 	const { request } = useApiBase();
 
-	const runtimeConfig = useRuntimeConfig();
-	const licenseOpenAll =
-		(runtimeConfig.public as { licenseOpenAllFeatures?: boolean }).licenseOpenAllFeatures === true;
-
 	const license = useState<LicenseState>("license_state", () => DEFAULT_LICENSE);
 	const isLoading = useState<boolean>("license_is_loading", () => false);
 	const lastLoadedAt = useState<number>("license_last_loaded_at", () => 0);
@@ -67,18 +63,14 @@ export const useLicense = () => {
 		return licenseFetchInFlight;
 	};
 
-	/** 用於鎖頭、路由守衛：openAll 時不鎖，否則依後端授權 */
-	const hasFeature = (featureKey: FeatureKey) => {
-		if (licenseOpenAll) return true;
+	/** 鎖頭、路由守衛、首頁資料載入：一律依 GET /api/license（後端為 SSOT） */
+	const isFeatureLicensed = (featureKey: FeatureKey) => {
 		if (license.value.expired) return false;
 		return license.value.features.includes(featureKey);
 	};
 
-	/** 用於是否載入資料（首頁等）：一律依後端授權，不套用 openAll，避免前後端不一致 */
-	const canLoadFeature = (featureKey: FeatureKey) => {
-		if (license.value.expired) return false;
-		return license.value.features.includes(featureKey);
-	};
+	const hasFeature = isFeatureLicensed;
+	const canLoadFeature = isFeatureLicensed;
 
 	const isLoaded = computed(() => lastLoadedAt.value > 0);
 

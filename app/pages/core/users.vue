@@ -62,7 +62,7 @@
 									<span
 										:class="[getRoleBadgeClass(user.role), 'rounded px-2 py-1 2xl:px-3 2xl:py-1.5']"
 									>
-										{{ roleLabels[user.role] }}
+										{{ getUserRoleLabel(user.role) }}
 									</span>
 								</td>
 								<td :class="tableCellClass">
@@ -163,7 +163,15 @@
 								</label>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>角色</span>
+									<div
+										v-if="isRoleReadOnlyOnEdit"
+										class="form-input cursor-not-allowed bg-white/5 text-white/80"
+										aria-readonly="true"
+									>
+										{{ getUserRoleLabel(formData.role) }}
+									</div>
 									<FilterDropdown
+										v-else
 										v-model="formData.role"
 										:options="roleFormOptions"
 										placeholder="請選擇角色"
@@ -252,7 +260,7 @@ import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import { formatDate } from "~/utils/dateUtils"
 import AsyncPanel from "~/components/common/AsyncPanel.vue"
 import { useDataLoader } from "~/composables/monitoring/useDataLoader"
-import { useAuth, useAdminOnly, usePlatformAdmin, PLATFORM_ADMIN_USERNAME } from "~/composables/core/useAuth"
+import { useAuth, useAdminOnly, usePlatformAdmin, isPlatformAdmin } from "~/composables/core/useAuth"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useUserApi } from "~/composables/systems/users/useUserApi"
@@ -268,6 +276,7 @@ import {
 	canResetPasswordForUser,
 	DEFAULT_RESET_PASSWORD,
 } from "~/composables/systems/users/useAccountSettings"
+import { getUserRoleFormOptions, getUserRoleLabel } from "~/utils/userRoleLabels"
 
 definePageMeta({
 	layout: "auxiliary",
@@ -337,26 +346,19 @@ const limit = 20 // 用於分頁組件
 
 const visibleUsers = computed(() => {
 	if (canPlatformAdmin.value) return users.value
-	return users.value.filter((u) => u.username !== PLATFORM_ADMIN_USERNAME)
+	return users.value.filter((u) => !isPlatformAdmin(u))
 })
-
-const roleLabels: Record<string, string> = {
-	admin: "管理員",
-	user: "操作員",
-}
 
 const statusLabels: Record<"active" | "inactive", string> = {
 	active: "啟用",
 	inactive: "停用",
 }
 
-const roleFormOptions = computed(() => {
-	const userOption = { value: "user" as const, label: "操作員" }
-	if (canPlatformAdmin.value) {
-		return [userOption, { value: "admin" as const, label: "管理員" }]
-	}
-	return [userOption]
-})
+const roleFormOptions = computed(() => getUserRoleFormOptions(canPlatformAdmin.value))
+
+const isRoleReadOnlyOnEdit = computed(
+	() => !!editingUser.value && editingUser.value.role === "admin" && !canPlatformAdmin.value,
+)
 
 // 日期排序篩選選項（供 FilterDropdown 使用）
 const dateSortOptions = [
@@ -396,7 +398,7 @@ const canShowResetPasswordButton = (user: User) => canResetPasswordForUser(curre
 const canShowDeleteButton = (user: User) => {
 	if (!canAdmin.value) return false
 	if (currentUser.value && user.id === currentUser.value.id) return false
-	if (user.username === PLATFORM_ADMIN_USERNAME) return false
+	if (isPlatformAdmin(user)) return false
 	if (!canPlatformAdmin.value && user.role === "admin") return false
 	return true
 }
@@ -462,7 +464,7 @@ const handleRoleFilterChange = async () => {
 }
 
 const editUser = async (user: User) => {
-	if (user.username === PLATFORM_ADMIN_USERNAME && !canPlatformAdmin.value) return
+	if (isPlatformAdmin(user) && !canPlatformAdmin.value) return
 	editingUser.value = user
 	formData.username = user.username
 	formData.role = user.role
@@ -495,16 +497,17 @@ const executeSubmit = async () => {
 	try {
 		if (editingUser.value) {
 			const userId = editingUser.value.id
-			const roleChanged =
-				initialRoleOnEdit.value != null && formData.role !== initialRoleOnEdit.value
+			const roleForUpdate = isRoleReadOnlyOnEdit.value
+				? initialRoleOnEdit.value!
+				: formData.role
 
 			const updateRes = await userApi.updateUser(userId, {
 				username: formData.username,
-				role: formData.role,
+				role: roleForUpdate,
 				status: formData.status,
 			})
 
-			if (formData.role !== "admin") {
+			if (roleForUpdate !== "admin") {
 				const overrides = permissionOverridesFromGranted(
 					permissionDefinitions.value,
 					permissionGranted.value
