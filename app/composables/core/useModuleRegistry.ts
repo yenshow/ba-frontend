@@ -123,13 +123,12 @@ export const useModuleRegistry = () => {
 		return m ? toSystemModule(m) : undefined
 	}
 
-	/** 與後端 ENABLE_YSCP_PEOPLE_COUNTING 同步；未載入 registry 前預設 true（與後端預設一致） */
 	const enableYscpPeopleCounting = computed(
-		() => registry.value?.serverFeatures?.enableYscpPeopleCounting !== false
+		() => registry.value?.serverFeatures?.enableYscpPeopleCounting ?? true
 	)
 
 	const enableYscpVehicleAccess = computed(
-		() => registry.value?.serverFeatures?.enableYscpVehicleAccess !== false
+		() => registry.value?.serverFeatures?.enableYscpVehicleAccess ?? true
 	)
 
 	return {

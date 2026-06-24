@@ -78,6 +78,15 @@
 						門禁管理
 					</PermissionActionButton>
 					<PermissionActionButton
+						v-show="selectedLocation"
+						:allowed="canResetStatistics"
+						aria-label="重製人流統計"
+						class="absolute right-36 top-2 btn-monitoring-overlay"
+						@click="handleResetStats"
+					>
+						重製統計
+					</PermissionActionButton>
+					<PermissionActionButton
 						:allowed="canFullReport"
 						aria-label="開啟完整報表"
 						class="absolute right-8 top-2 btn-monitoring-overlay"
@@ -281,16 +290,17 @@ const {
 	canDeleteLocation,
 	canFullReport,
 } = useLocationModuleRbac(PERM.peopleCounting)
-const { canOpenAccessManage, canEditAccessMembers, canResyncAccessDevices } =
+const { canOpenAccessManage, canEditAccessMembers, canResyncAccessDevices, canResetStatistics } =
 	usePeopleCountingAccessRbac()
 const personnelApi = usePersonnelApi()
 const locationApi = useLocationApi()
-const toast = useToast()
+const { showToast } = useToast()
 const { handleError: handleApiError } = useErrorHandler()
 const accessSync = useLocationAccessSync({
 	personnelApi,
 	locationApi,
-	toast,
+	toast: { success: (m: string) => showToast("success", m) },
+	toastError: (m: string) => showToast("error", m),
 	handleApiError,
 	canDeviceSync: canResyncAccessDevices,
 })
@@ -310,6 +320,7 @@ const {
 	getLocationZone,
 	setupEventListeners,
 	refreshSelectedLocationLive,
+	resetStatsForSelectedSite,
 	isLoadingLocations,
 	isLoadingZones,
 } = usePeopleCountingState()
@@ -469,6 +480,20 @@ const handleSimulationTimeRangeUpdate = (v: {
 }) => {
 	simulationTimeRange.value = v
 	void loadSimulationLogs()
+}
+
+const handleResetStats = async () => {
+	if (!selectedLocation.value) return
+	const confirmed = window.confirm(
+		"確定要重製此地點的進場、出場與在場統計？進出紀錄不會刪除，完整報表仍可查詢歷史。"
+	)
+	if (!confirmed) return
+	try {
+		await resetStatsForSelectedSite()
+		showToast("success", "已重製人流統計")
+	} catch (error) {
+		showToast("error", error instanceof Error ? error.message : "重製失敗")
+	}
 }
 
 const handleOpenSimulation = async () => {

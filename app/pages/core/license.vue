@@ -243,7 +243,8 @@
 						v-model="overviewTab"
 						:tabs="overviewTabs"
 						:list="false"
-						panel-class="mt-6 min-h-0 flex-1 overflow-hidden"
+						:panel-transition="false"
+						panel-class="show-scrollbar mt-6 min-h-0 flex-1 overflow-y-auto pr-1"
 						aria-label="授權總覽分頁"
 						id-prefix="license-tab"
 					>
@@ -251,12 +252,12 @@
 							<ClientOnly>
 								<AsyncPanel
 									panel-size="dense"
+									min-height-class="min-h-0"
 									:loading="showLicensePlaceholder"
 									:empty="!showLicensePlaceholder && quotaDetailRows.length === 0"
 									empty-title="尚無配額資料"
 								>
-									<div class="show-scrollbar h-full overflow-auto pr-1">
-										<div class="mt-4 overflow-hidden rounded-xl border border-white/15">
+									<div class="overflow-hidden rounded-xl border border-white/15">
 											<table class="w-full border-collapse">
 												<thead class="sticky top-0 z-10 bg-white/5 backdrop-blur">
 													<tr class="text-left text-sm text-white/70 2xl:text-base">
@@ -291,7 +292,6 @@
 													</tr>
 												</tbody>
 											</table>
-										</div>
 									</div>
 								</AsyncPanel>
 
@@ -305,12 +305,13 @@
 							<ClientOnly>
 								<AsyncPanel
 									panel-size="dense"
+									min-height-class="min-h-0"
 									:loading="showLicensePlaceholder"
 									:empty="!showLicensePlaceholder && licenseListRows.length === 0"
 									empty-title="尚無授權記錄"
 									empty-description="無主／副 LK 資料"
 								>
-									<div class="show-scrollbar h-full overflow-auto pr-1 space-y-4">
+									<div class="space-y-4">
 										<div
 											v-for="entry in licenseListRows"
 											:key="entry.id"

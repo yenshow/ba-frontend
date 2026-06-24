@@ -54,6 +54,7 @@ export const usePeopleCountingApi = () => {
 						dataSource?: "yscp" | "access_control" | "isapi_camera"
 						entryCount: number
 						exitCount: number
+						currentCount?: number
 						units: Array<{
 							id: number
 							name: string
@@ -105,6 +106,7 @@ export const usePeopleCountingApi = () => {
 						status: "active" as const,
 						entryCount: site.entryCount,
 						exitCount: site.exitCount,
+						currentCount: site.currentCount,
 						units: site.units.map((unit) => ({
 							id: unit.id,
 							locationId: site.id,
@@ -153,6 +155,7 @@ export const usePeopleCountingApi = () => {
 					dataSource?: "yscp" | "access_control" | "isapi_camera"
 					entryCount: number
 					exitCount: number
+					currentCount?: number
 					units: Array<{
 						id: number
 						name: string
@@ -177,6 +180,7 @@ export const usePeopleCountingApi = () => {
 				status: "active" as const,
 				entryCount: site.entryCount,
 				exitCount: site.exitCount,
+				currentCount: site.currentCount,
 				units: site.units.map((unit) => ({
 					id: unit.id,
 					locationId: site.id,
@@ -345,6 +349,11 @@ export const usePeopleCountingApi = () => {
 		}
 	}
 
+	const resetSiteStats = async (
+		siteId: number
+	): Promise<{ statsResetAt: string }> =>
+		request(`/people-counting/sites/${siteId}/reset`, { method: "POST" })
+
 	return {
 		getLocations,
 		getLocationDetail,
@@ -353,5 +362,6 @@ export const usePeopleCountingApi = () => {
 		getLocationLatestLogs,
 		getLocationLogs,
 		getAllLocationLogs,
+		resetSiteStats,
 	}
 }

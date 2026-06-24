@@ -3,8 +3,12 @@ import { useAdminOnly } from "~/composables/core/useAuth"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import {
+	type RuntimeConfigCapabilities,
 	type RuntimeConfigSchema,
-	getRuntimeSectionRows,
+	type RuntimeConfigSideEffects,
+	buildRuntimePayloadForSave,
+	decorateRuntimeFormExtras,
+	formatRuntimeSaveFeedback,
 	mergeRuntimeFormValues,
 	validateRuntimeConfigForSave,
 } from "~/utils/runtimeConfigForm"
@@ -12,6 +16,15 @@ import {
 type RuntimeConfigResponse = {
 	schema: RuntimeConfigSchema
 	values: Record<string, string>
+	capabilities: RuntimeConfigCapabilities
+}
+
+type RuntimeConfigSaveResponse = {
+	message: string
+	applied: boolean
+	changedKeys: string[]
+	sideEffects?: RuntimeConfigSideEffects
+	capabilities?: RuntimeConfigCapabilities
 }
 
 export const useRuntimeConfigPage = () => {
@@ -21,19 +34,19 @@ export const useRuntimeConfigPage = () => {
 	const { handleError } = useErrorHandler()
 
 	const schema = ref<RuntimeConfigSchema | null>(null)
+	const capabilities = ref<RuntimeConfigCapabilities>({ yscpDatabase: true })
 	const form = reactive<Record<string, string>>({})
 	const isLoading = ref(true)
 	const isSaving = ref(false)
 	const loadError = ref<string | null>(null)
 
 	const formDisabled = computed(() => isLoading.value || isSaving.value || !canAdmin.value)
-	const sectionRows = computed(() =>
-		schema.value ? getRuntimeSectionRows(schema.value) : [],
-	)
 
 	const applyPayload = (data: RuntimeConfigResponse) => {
 		schema.value = data.schema
+		capabilities.value = data.capabilities ?? { yscpDatabase: true }
 		Object.assign(form, mergeRuntimeFormValues(data.schema, data.values))
+		Object.assign(form, decorateRuntimeFormExtras(data.values))
 	}
 
 	const fetchRuntimeConfig = async () => {
@@ -63,19 +76,29 @@ export const useRuntimeConfigPage = () => {
 			return
 		}
 		if (!schema.value) return
-		const merged = mergeRuntimeFormValues(schema.value, form)
-		const validationError = validateRuntimeConfigForSave(merged)
+
+		const validationError = validateRuntimeConfigForSave(
+			schema.value,
+			form,
+			capabilities.value,
+		)
 		if (validationError) {
 			toast.warning(validationError)
 			return
 		}
+
+		const payload = buildRuntimePayloadForSave(schema.value, form)
 		isSaving.value = true
 		try {
-			const data = await request<{ message: string }>("/runtime-config", {
+			const data = await request<RuntimeConfigSaveResponse>("/runtime-config", {
 				method: "PUT",
-				body: { values: merged },
+				body: { values: payload },
 			})
-			toast.success(data.message || "已套用營運設定")
+			if (data.capabilities) {
+				capabilities.value = data.capabilities
+			}
+			const feedback = formatRuntimeSaveFeedback(data.applied, data.sideEffects)
+			toast[feedback.toast](feedback.message)
 			await fetchRuntimeConfig()
 		} catch (e) {
 			handleError(e, "儲存失敗")
@@ -95,7 +118,6 @@ export const useRuntimeConfigPage = () => {
 		isSaving,
 		loadError,
 		formDisabled,
-		sectionRows,
 		handleReload,
 		handleSave,
 	}

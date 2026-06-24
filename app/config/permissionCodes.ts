@@ -37,6 +37,7 @@ export const PERM = {
 		reportFull: "system.people_counting.report.full",
 		deviceSync: "system.people_counting.device_sync",
 		syncEdit: "system.people_counting.sync.edit",
+		statisticsReset: "system.people_counting.statistics.reset",
 	},
 	environment: {
 		module: "system.environment",
