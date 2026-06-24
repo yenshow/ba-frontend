@@ -101,25 +101,42 @@ export const usePeopleCountingState = () => {
 	/**
 	 * 載入地點詳情
 	 */
-	const loadLocationDetail = async (locationId: number): Promise<void> => {
+	const loadLocationDetail = async (
+		locationId: number,
+		opts?: { preserveUnitId?: number | null },
+	): Promise<void> => {
 		isLoadingLocation.value = true;
 		loadError.value = null;
-		selectedUnitId.value = null; // 重置選中的單位
+		const keepUnitId = opts?.preserveUnitId;
+		if (keepUnitId == null) {
+			selectedUnitId.value = null;
+		}
 
 		try {
-			// 使用現有的 locations 列表，避免重複 API 調用
-			selectedLocation.value = await peopleCountingApi.getLocationDetail(locationId, locations.value);
+			selectedLocation.value = await peopleCountingApi.getLocationDetail(
+				locationId,
+				locations.value,
+			);
 
 			const isCamera = selectedLocation.value.dataSource === "isapi_camera";
 			if (isCamera) {
 				selectedUnitId.value = null;
 				personnel.value = [];
 				await loadLocationLogs(locationId);
+			} else if (keepUnitId != null) {
+				selectedUnitId.value = keepUnitId;
+				await Promise.all([
+					loadUnitPersonnel(keepUnitId),
+					loadLocationLogs(locationId, keepUnitId),
+				]);
 			} else {
 				const firstUnit = selectedLocation.value.units?.[0];
 				if (firstUnit) {
 					selectedUnitId.value = firstUnit.id;
-					await Promise.all([loadUnitPersonnel(firstUnit.id), loadLocationLogs(locationId)]);
+					await Promise.all([
+						loadUnitPersonnel(firstUnit.id),
+						loadLocationLogs(locationId),
+					]);
 				} else {
 					personnel.value = [];
 					await loadLocationLogs(locationId);
@@ -227,9 +244,10 @@ export const usePeopleCountingState = () => {
 	const resetStatsForSelectedSite = async (): Promise<void> => {
 		const locationId = selectedLocation.value?.locationId;
 		if (locationId == null) return;
+		const preserveUnitId = selectedUnitId.value;
 		await peopleCountingApi.resetSiteStats(locationId);
 		await loadLocations();
-		await loadLocationDetail(locationId);
+		await loadLocationDetail(locationId, { preserveUnitId });
 	};
 
 	const setupEventListeners = (onRefetch: () => void | Promise<void>, debounceMs = 500) =>
