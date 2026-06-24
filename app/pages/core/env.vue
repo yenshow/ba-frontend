@@ -17,47 +17,94 @@
 			>
 				<div v-if="schema" class="space-y-6">
 					<div
-						v-for="(row, rowIdx) in sectionRows"
-						:key="`runtime-row-${rowIdx}`"
-						class="grid gap-4 lg:items-stretch"
-						:class="row.length > 1 ? 'lg:grid-cols-2' : ''"
+						v-for="section in schema.sections"
+						:key="section.title"
+						class="space-y-4 rounded-xl border border-white/15 bg-black/20 p-4 2xl:p-6"
 					>
-						<div
-							v-for="section in row"
-							:key="section.title"
-							class="flex h-full min-h-0 min-w-0 flex-col space-y-4 rounded-xl border border-white/15 bg-black/20 p-4 2xl:p-6"
-						>
-							<h2 class="text-lg font-semibold text-white 2xl:text-xl">{{ section.title }}</h2>
-							<div class="grid min-w-0 flex-1 gap-4 sm:grid-cols-2">
-								<div v-for="field in section.fields" :key="field.key" class="flex min-w-0 flex-col gap-1">
+						<h2 class="text-lg font-semibold text-white 2xl:text-xl">{{ section.title }}</h2>
+						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+							<template
+								v-for="(item, itemIdx) in getSectionGridFields(section)"
+								:key="`${section.title}-${itemIdx}`"
+							>
+								<div
+									v-if="item.type === 'schema'"
+									class="flex min-w-0 flex-col gap-1"
+								>
 									<label
 										class="text-sm font-medium text-white/85 2xl:text-base"
-										:for="`runtime-field-${field.key}`"
+										:for="`runtime-field-${item.field.key}`"
 									>
-										{{ field.label }}
+										{{ item.field.label }}
 									</label>
 									<EnvDeploymentPasswordInput
-										v-if="field.kind === 'password'"
-										:model-value="form[field.key] ?? ''"
-										:input-id="`runtime-field-${field.key}`"
-										:ariaLabel="field.label"
+										v-if="item.field.kind === 'password'"
+										:model-value="form[item.field.key] ?? ''"
+										:input-id="`runtime-field-${item.field.key}`"
+										:ariaLabel="item.field.label"
+										:placeholder="RUNTIME_PASSWORD_PLACEHOLDER"
 										:disabled="formDisabled"
-										@update:model-value="v => (form[field.key] = v)"
+										@update:model-value="v => (form[item.field.key] = v)"
 									/>
 									<input
 										v-else
-										:id="`runtime-field-${field.key}`"
-										v-model="form[field.key]"
-										:inputmode="field.kind === 'number' ? 'numeric' : undefined"
-										:pattern="field.kind === 'number' ? '[0-9]*' : undefined"
+										:id="`runtime-field-${item.field.key}`"
+										v-model="form[item.field.key]"
+										:inputmode="item.field.kind === 'number' ? 'numeric' : undefined"
+										:pattern="item.field.kind === 'number' ? '[0-9]*' : undefined"
 										spellcheck="false"
 										autocomplete="off"
-										class="rounded-lg border border-white/20 bg-black/30 px-3 py-2 font-mono text-sm text-white focus:border-teal-400/60 focus:outline-none focus:ring-1 focus:ring-teal-400/40 2xl:text-base"
+										:class="RUNTIME_FIELD_INPUT_CLASS"
 										:disabled="formDisabled"
-										:aria-label="field.label"
+										:aria-label="item.field.label"
 									/>
 								</div>
-							</div>
+
+								<div
+									v-else-if="item.type === 'alertRolloverTime'"
+									class="flex min-w-0 flex-col gap-1"
+								>
+									<label
+										class="text-sm font-medium text-white/85 2xl:text-base"
+										for="runtime-field-alert-rollover-time"
+									>
+										每日切換時刻
+									</label>
+									<input
+										id="runtime-field-alert-rollover-time"
+										v-model="form[RUNTIME_FORM_EXTRA_KEYS.alertRolloverTime]"
+										type="time"
+										step="60"
+										:class="RUNTIME_FIELD_INPUT_CLASS"
+										:disabled="formDisabled"
+										aria-label="每日切換時刻"
+									/>
+								</div>
+
+								<div
+									v-else-if="item.type === 'backupIntervalHours'"
+									class="flex min-w-0 flex-col gap-1"
+								>
+									<label
+										class="text-sm font-medium text-white/85 2xl:text-base"
+										for="runtime-field-backup-interval-hours"
+									>
+										排程間隔（小時）
+									</label>
+									<input
+										id="runtime-field-backup-interval-hours"
+										v-model="form[RUNTIME_FORM_EXTRA_KEYS.backupIntervalHours]"
+										inputmode="decimal"
+										min="1"
+										step="1"
+										spellcheck="false"
+										autocomplete="off"
+										:class="RUNTIME_FIELD_INPUT_CLASS"
+										:disabled="formDisabled"
+										aria-label="備份排程間隔（小時）"
+									/>
+								</div>
+							</template>
 						</div>
 					</div>
 
@@ -91,6 +138,12 @@
 import AsyncPanel from "~/components/common/AsyncPanel.vue";
 import EnvDeploymentPasswordInput from "~/components/common/EnvDeploymentPasswordInput.vue";
 import { useRuntimeConfigPage } from "~/composables/core/useRuntimeConfigPage";
+import {
+	RUNTIME_FIELD_INPUT_CLASS,
+	RUNTIME_FORM_EXTRA_KEYS,
+	RUNTIME_PASSWORD_PLACEHOLDER,
+	getSectionGridFields,
+} from "~/utils/runtimeConfigForm";
 
 definePageMeta({
 	layout: "auxiliary"
@@ -103,7 +156,6 @@ const {
 	isSaving,
 	loadError,
 	formDisabled,
-	sectionRows,
 	handleReload,
 	handleSave
 } = useRuntimeConfigPage();

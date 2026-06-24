@@ -80,6 +80,7 @@ export const usePeopleCountingState = () => {
 						logDisplayColumns: updatedLocation.logDisplayColumns,
 						entryCount: updatedLocation.entryCount,
 						exitCount: updatedLocation.exitCount,
+						currentCount: updatedLocation.currentCount,
 						// 門禁名單變更後可能新增/移除群組，須以 API 回傳的完整 units 為準
 						units: updatedLocation.units ?? [],
 					};
@@ -223,6 +224,14 @@ export const usePeopleCountingState = () => {
 		await loadLocationLogs(locationId);
 	};
 
+	const resetStatsForSelectedSite = async (): Promise<void> => {
+		const locationId = selectedLocation.value?.locationId;
+		if (locationId == null) return;
+		await peopleCountingApi.resetSiteStats(locationId);
+		await loadLocations();
+		await loadLocationDetail(locationId);
+	};
+
 	const setupEventListeners = (onRefetch: () => void | Promise<void>, debounceMs = 500) =>
 		setupDebouncedRefetchListeners(
 			onRefetch,
@@ -257,6 +266,7 @@ export const usePeopleCountingState = () => {
 		handleUnitSelect,
 		getLocationZone,
 		refreshSelectedLocationLive,
-		setupEventListeners
+		setupEventListeners,
+		resetStatsForSelectedSite,
 	};
 };

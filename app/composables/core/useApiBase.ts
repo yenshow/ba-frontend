@@ -6,7 +6,6 @@ import {
 	isDeviceApiRequest,
 	isDeviceConnectionError,
 	resolveFetchHttpStatus,
-	USER_FACING_API_UNAUTHORIZED,
 	USER_FACING_API_UNEXPECTED,
 	USER_FACING_CONNECTION_ERROR,
 	USER_FACING_REQUEST_TIMEOUT,
@@ -100,24 +99,6 @@ export const useApiBase = () => {
 					}) as Promise<void>
 			}
 			await permissionRefreshInFlight
-		}
-
-		if (statusCode === 401) {
-			const router = process.client ? runWithNuxtContext(() => useRouter()) : null
-			const onLoginPage = router?.currentRoute.value?.path === "/login"
-
-			if (!onLoginPage && process.client && router) {
-				runWithNuxtContext(() => useAuth().clearSession())
-				const redirect = router.currentRoute.value?.fullPath || "/"
-				await router.push({ path: "/login", query: { redirect } })
-			}
-			throw new ApiRequestError(USER_FACING_API_UNAUTHORIZED, {
-				statusCode,
-				code: "HTTP_401",
-				backendCode: failure.backendCode,
-				originalMessage,
-				details: failure.details,
-			})
 		}
 
 		if (statusCode !== undefined && statusCode !== null) {

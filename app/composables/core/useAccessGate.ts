@@ -212,7 +212,7 @@ export const usePersonnelRbac = () => {
 	}
 }
 
-/** 人流統計「門禁管理」：名單編輯與門禁設備重新同步（權限碼歸屬人流統計模組） */
+/** 人流統計：門禁管理、重製統計等子權限 */
 export const usePeopleCountingAccessRbac = () => {
 	const { useHasPermission, useHasAnyPermission } = useAuth()
 	const p = PERM.peopleCounting
@@ -223,6 +223,7 @@ export const usePeopleCountingAccessRbac = () => {
 		canOpenAccessManage: canManageSync,
 		canEditAccessMembers: canSyncEdit,
 		canResyncAccessDevices: canDeviceSync,
+		canResetStatistics: useHasPermission(p.statisticsReset),
 	}
 }
 

@@ -2,7 +2,6 @@ import type { User, LoginCredentials } from "~/types/user";
 import { useUserApi } from "~/composables/systems/users/useUserApi";
 import { disconnectGlobalWebSocket } from "~/composables/websocket/useWebSocket";
 import { isLocalTokenStale } from "~/utils/authSession";
-import { ApiRequestError } from "~/utils/errorUtils";
 
 const isAdminRole = (role: string | undefined | null): boolean => role === "admin";
 
@@ -112,21 +111,10 @@ export const useAuth = () => {
 		const tokenAtStart = token.value;
 		if (!tokenAtStart) return;
 
-		try {
-			const currentUser = await userApi.getMe();
-			if (token.value !== tokenAtStart) return currentUser;
-			persistSession(currentUser, tokenAtStart);
-			return currentUser;
-		} catch (error) {
-			if (
-				token.value === tokenAtStart &&
-				error instanceof ApiRequestError &&
-				error.statusCode === 401
-			) {
-				clearSession();
-			}
-			throw error;
-		}
+		const currentUser = await userApi.getMe();
+		if (token.value !== tokenAtStart) return currentUser;
+		persistSession(currentUser, tokenAtStart);
+		return currentUser;
 	};
 
 	/** 啟動時由 auth.client 呼叫：cookie → state；非登入頁才以 /users/me 驗證 token */
@@ -152,7 +140,7 @@ export const useAuth = () => {
 		try {
 			await fetchUser();
 		} catch {
-			// 401 時 fetchUser 已 clearSession；其餘錯誤保留 cookie 供重試
+			// 驗證失敗時保留 cookie 供重試；使用者可手動登出
 		}
 	};
 

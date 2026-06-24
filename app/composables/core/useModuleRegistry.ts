@@ -157,11 +157,11 @@ export const useModuleRegistry = () => {
 	const categoryOrder = MODULE_CATEGORY_ORDER;
 
 	const enableYscpPeopleCounting = computed(
-		() => registry.value?.serverFeatures?.enableYscpPeopleCounting !== false
+		() => registry.value?.serverFeatures?.enableYscpPeopleCounting ?? true
 	);
 
 	const enableYscpVehicleAccess = computed(
-		() => registry.value?.serverFeatures?.enableYscpVehicleAccess !== false
+		() => registry.value?.serverFeatures?.enableYscpVehicleAccess ?? true
 	);
 
 	return {
