@@ -112,13 +112,14 @@ import type {
 	SensorDeviceConfig,
 	SensorDeviceModelConfig,
 } from "~/types/device";
-import { firstLocationInSortedZones } from "~/utils/sortOrder";
 import { getLocationDeviceIds } from "~/utils/sensorUtils";
 import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState";
 import { usePeopleCountingApi } from "~/composables/systems/peopleCounting/usePeopleCountingApi";
 import { useLicense } from "~/composables/core/useLicense";
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 import type { PeopleCountingLog } from "~/types/peopleCounting";
 import { normalizeLogDisplayColumns } from "~/utils/peopleCountingLogColumns";
+import { shouldShowUnifiedLocationWhenYscpOff } from "~/utils/peopleCountingDataSource";
 
 definePageMeta({
 	layout: "default"
@@ -128,6 +129,8 @@ const locationApi = useLocationApi();
 const deviceApi = useDeviceApi();
 const homeSensors = useEnvironmentHomeSensors();
 const { canLoadFeature, isLoaded: licenseLoaded } = useLicense();
+const { enableYscpPeopleCounting, ensureLoaded: ensureModuleRegistryLoaded } =
+	useModuleRegistry();
 const hasEnvironment = computed(() => canLoadFeature("environment"));
 const hasPeopleCounting = computed(() => canLoadFeature("people_counting"));
 // 僅在客戶端 mount 後才依授權切換內容，避免 SSR 與 hydration 時 state 不同步導致節點不匹配
@@ -194,17 +197,20 @@ const restoreHomeUnifiedLocationIdFromStorage = () => {
 	if (s) selectedLocationId.value = s;
 };
 
+const isHomeLocationVisible = (location: UnifiedLocation): boolean =>
+	shouldShowUnifiedLocationWhenYscpOff(location, enableYscpPeopleCounting.value);
+
 const reconcileHomeLocationWithZones = () => {
-	if (unifiedZones.value.length === 0) {
+	const visibleLocations = unifiedZones.value.flatMap((zone) =>
+		zone.locations.filter(isHomeLocationVisible)
+	);
+	if (visibleLocations.length === 0) {
 		selectedLocationId.value = "";
 		return;
 	}
-	const validIds = new Set(
-		unifiedZones.value.flatMap(zone => zone.locations.map(loc => getLocationId(loc)))
-	);
+	const validIds = new Set(visibleLocations.map((loc) => getLocationId(loc)));
 	if (!selectedLocationId.value || !validIds.has(selectedLocationId.value)) {
-		const first = firstLocationInSortedZones(unifiedZones.value);
-		selectedLocationId.value = first ? getLocationId(first) : "";
+		selectedLocationId.value = getLocationId(visibleLocations[0]);
 	}
 };
 
@@ -275,11 +281,13 @@ const selectedLocation = computed<EnvironmentLocation | null>(() => {
 });
 
 const locationOptions = computed(() =>
-	unifiedZones.value.flatMap(zone =>
-		zone.locations.map(location => ({
-			value: getLocationId(location),
-			label: `${zone.name} - ${location.name}`
-		}))
+	unifiedZones.value.flatMap((zone) =>
+		zone.locations
+			.filter(isHomeLocationVisible)
+			.map((location) => ({
+				value: getLocationId(location),
+				label: `${zone.name} - ${location.name}`,
+			}))
 	)
 );
 
@@ -441,6 +449,7 @@ onMounted(async () => {
 
 	isHydratingHomeLocation.value = true;
 	try {
+		await ensureModuleRegistryLoaded();
 		restoreHomeUnifiedLocationIdFromStorage();
 		const [zonesResult, peopleCountingResult] = await Promise.allSettled([
 			loadZones(),

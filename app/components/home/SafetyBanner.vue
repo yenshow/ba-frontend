@@ -1,5 +1,5 @@
 <template>
-	<div class="group relative bg-blue-600 py-2">
+	<div class="group relative bg-red-600 py-2">
 		<PermissionActionButton
 			:allowed="canWrite"
 			aria-label="編輯跑馬燈訊息"

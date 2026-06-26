@@ -3,7 +3,7 @@
 		<header class="flex flex-wrap items-end justify-between gap-4 2xl:gap-6">
 			<div class="space-y-2 2xl:space-y-4">
 				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">環境設定</h1>
-				<p class="text-base text-white/80 2xl:text-xl">編輯 YSCP、警報日界線、備份設定。</p>
+				<p class="text-base text-white/80 2xl:text-xl">編輯警報日界線、備份設定。</p>
 			</div>
 		</header>
 
@@ -37,17 +37,7 @@
 									>
 										{{ item.field.label }}
 									</label>
-									<EnvDeploymentPasswordInput
-										v-if="item.field.kind === 'password'"
-										:model-value="form[item.field.key] ?? ''"
-										:input-id="`runtime-field-${item.field.key}`"
-										:ariaLabel="item.field.label"
-										:placeholder="RUNTIME_PASSWORD_PLACEHOLDER"
-										:disabled="formDisabled"
-										@update:model-value="v => (form[item.field.key] = v)"
-									/>
 									<input
-										v-else
 										:id="`runtime-field-${item.field.key}`"
 										v-model="form[item.field.key]"
 										:inputmode="item.field.kind === 'number' ? 'numeric' : undefined"
@@ -136,12 +126,10 @@
 
 <script setup lang="ts">
 import AsyncPanel from "~/components/common/AsyncPanel.vue";
-import EnvDeploymentPasswordInput from "~/components/common/EnvDeploymentPasswordInput.vue";
 import { useRuntimeConfigPage } from "~/composables/core/useRuntimeConfigPage";
 import {
 	RUNTIME_FIELD_INPUT_CLASS,
 	RUNTIME_FORM_EXTRA_KEYS,
-	RUNTIME_PASSWORD_PLACEHOLDER,
 	getSectionGridFields,
 } from "~/utils/runtimeConfigForm";
 
