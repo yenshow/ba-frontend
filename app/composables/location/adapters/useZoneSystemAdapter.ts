@@ -487,10 +487,13 @@ export function useElevatorZoneAdapter(): ZoneSystemAdapter<ElevatorZone, Elevat
 		}),
 		createNewLocation: (): ElevatorLocation => ({
 			name: "",
-			deviceIds: [],
-			floorCount: undefined,
-			floorNames: [],
-			floorOpenDurations: [],
+			panel: { columns: 1, rows: 6 },
+			floors: [],
+			ladderDevice: null,
+			callDevice: null,
+			floorDetection: null,
+			callCommandType: "visitor",
+			accessDeviceIds: [],
 		}),
 		createNewZone: (name: string): ElevatorZone => ({
 			name,

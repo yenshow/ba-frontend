@@ -2,6 +2,12 @@
  * 統一地點管理類型定義（多系統架構）
  */
 
+import type {
+	ElevatorDeviceRole,
+	ElevatorLogicalFloor,
+	ElevatorPanelConfig,
+} from "~/utils/elevatorFloorModel"
+
 /**
  * 系統類型
  */
@@ -206,10 +212,17 @@ export interface VehicleAccessSystemConfig {
 }
 
 /**
- * 電梯系統配置
+ * 電梯系統配置（邏輯樓層 SSOT；對齊 location_systems.system_config）
  */
 export interface ElevatorSystemConfig {
-	deviceIds?: number[];
+	panel?: ElevatorPanelConfig;
+	floors?: ElevatorLogicalFloor[];
+	ladderDevice?: ElevatorDeviceRole | null;
+	callDevice?: ElevatorDeviceRole | null;
+	floorDetection?: ElevatorDeviceRole | null;
+	accessDeviceIds?: number[];
+	/** 固定 visitor（SDK command 5） */
+	callCommandType?: "visitor";
 	logDisplayColumns?: string[];
 }
 

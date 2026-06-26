@@ -28,21 +28,17 @@ import { pickSortOrder } from "~/utils/sortOrder"
 import {
 	normalizeLogDisplayColumns,
 	toStoredLogDisplayColumns,
-} from "~/utils/peopleCountingLogColumns"
+} from "~/utils/peopleCountingLogColumns";
 import {
 	normalizeVehicleLogDisplayColumns,
 	toStoredVehicleLogDisplayColumns,
-} from "~/utils/vehicleAccessLogColumns"
+} from "~/utils/vehicleAccessLogColumns";
 import {
 	normalizeElevatorLogDisplayColumns,
 	toStoredElevatorLogDisplayColumns,
-} from "~/utils/elevatorLogColumns"
-import {
-	fillEmptyFloorNames,
-	normalizeFloorOpenDurationsList,
-	resolveElevatorFloorRange,
-} from "~/utils/elevatorFloorConfig"
-import type { ElevatorZone, ElevatorLocation } from "~/types/elevator"
+} from "~/utils/elevatorLogColumns";
+import type { ElevatorZone, ElevatorLocation } from "~/types/elevator";
+import type { ElevatorSystemConfig } from "~/types/location";
 
 /**
  * 後端返回的地點格式（新架構：包含 systems 陣列）
@@ -966,7 +962,9 @@ export function unifiedToVehicleAccessZone(zone: UnifiedZone): VehicleAccessZone
 					exitCameraDeviceIds: vaSystem.config.exitCameraDeviceIds ?? [],
 					cameraChannelId: vaSystem.config.cameraChannelId ?? 1,
 					vehicleGroupIds: vaSystem.config.vehicleGroupIds ?? [],
-					logDisplayColumns: normalizeVehicleLogDisplayColumns(vaSystem.config.logDisplayColumns),
+					logDisplayColumns: normalizeVehicleLogDisplayColumns(
+						vaSystem.config.logDisplayColumns
+					),
 				} as VehicleAccessLocation,
 			]
 		}),
@@ -1523,29 +1521,25 @@ export function unifiedToElevatorZone(zone: UnifiedZone): ElevatorZone {
 		locations: zone.locations.flatMap((loc) => {
 			const elSystem = loc.systems.find((s) => s.systemType === "elevator")
 			if (!elSystem) return []
-			const cfg = (elSystem.config || {}) as {
-				deviceIds?: number[]
-				accessDeviceIds?: number[]
-				logDisplayColumns?: string[]
-				floorCount?: number
-				floorStart?: number
-				floorEnd?: number
-				floorNames?: string[]
-				floorOpenDurations?: number[]
-			}
+			const cfg = (elSystem.config || {}) as ElevatorSystemConfig
+			const floors = Array.isArray(cfg.floors) ? cfg.floors : []
+			const ladderDevice = cfg.ladderDevice ?? null
+			const callDevice = cfg.callDevice ?? null
 			return [
 				{
 					id: loc.id,
 					name: loc.name,
 					...pickSortOrder(loc.sortOrder),
-					deviceIds: Array.isArray(cfg.deviceIds) ? cfg.deviceIds : [],
-					accessDeviceIds: Array.isArray(cfg.accessDeviceIds) ? cfg.accessDeviceIds : [],
-					floorCount: cfg.floorCount,
-					floorStart: cfg.floorStart,
-					floorEnd: cfg.floorEnd,
-					floorNames: cfg.floorNames,
-					floorOpenDurations: cfg.floorOpenDurations,
-					logDisplayColumns: cfg.logDisplayColumns,
+					panel: cfg.panel,
+					floors,
+					ladderDevice,
+					callDevice,
+					floorDetection: cfg.floorDetection ?? null,
+					callCommandType: "visitor",
+					accessDeviceIds: Array.isArray(cfg.accessDeviceIds)
+						? cfg.accessDeviceIds
+						: [],
+					logDisplayColumns: normalizeElevatorLogDisplayColumns(cfg.logDisplayColumns),
 				},
 			]
 		}),
@@ -1554,7 +1548,7 @@ export function unifiedToElevatorZone(zone: UnifiedZone): ElevatorZone {
 
 export function elevatorToUnifiedZone(
 	zone: ElevatorZone,
-	systemType: SystemType = "elevator"
+	systemType: SystemType = "elevator",
 ): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
 	return {
 		name: zone.name,
@@ -1565,27 +1559,10 @@ export function elevatorToUnifiedZone(
 
 export function elevatorLocationToUnified(
 	loc: ElevatorLocation | Omit<ElevatorLocation, "id">,
-	systemType: SystemType = "elevator"
+	systemType: SystemType = "elevator",
 ): UnifiedLocationInput {
 	const hasId = "id" in loc && loc.id
-	const deviceIds = Array.isArray(loc.deviceIds)
-		? loc.deviceIds.filter((id) => Number.isFinite(id) && id > 0)
-		: []
-	const accessDeviceIds = Array.isArray(loc.accessDeviceIds)
-		? loc.accessDeviceIds.filter((id) => Number.isFinite(id) && id > 0)
-		: []
-	const floorRange = resolveElevatorFloorRange(loc)
-	const floorCount = floorRange?.floorCount
-	const floorStart = floorRange?.floorStart
-	const floorEnd = floorRange?.floorEnd
-	const resolvedFloorNames =
-		floorCount != null && deviceIds.length > 0
-			? fillEmptyFloorNames(loc.floorNames ?? [], floorCount)
-			: undefined
-	const resolvedFloorOpenDurations =
-		floorCount != null && deviceIds.length > 0
-			? normalizeFloorOpenDurationsList(loc.floorOpenDurations, floorCount)
-			: undefined
+	const floors = Array.isArray(loc.floors) ? loc.floors : []
 	return {
 		...(hasId && { id: loc.id! }),
 		name: loc.name,
@@ -1594,19 +1571,18 @@ export function elevatorLocationToUnified(
 			{
 				systemType,
 				config: {
-					deviceIds,
-					...(resolvedFloorNames
-						? {
-								floorCount,
-								floorStart,
-								floorEnd,
-								floorNames: resolvedFloorNames,
-								floorOpenDurations: resolvedFloorOpenDurations,
-							}
-						: {}),
+					...(loc.panel ? { panel: loc.panel } : {}),
+					...(floors.length ? { floors } : {}),
+					...(loc.ladderDevice ? { ladderDevice: loc.ladderDevice } : {}),
+					...(loc.callDevice ? { callDevice: loc.callDevice } : {}),
+					...(loc.floorDetection ? { floorDetection: loc.floorDetection } : {}),
+					callCommandType: "visitor",
+					accessDeviceIds: Array.isArray(loc.accessDeviceIds)
+						? loc.accessDeviceIds.filter((id) => Number.isFinite(id) && id > 0)
+						: [],
 					logDisplayColumns: (() => {
 						const stored = toStoredElevatorLogDisplayColumns(
-							normalizeElevatorLogDisplayColumns(loc.logDisplayColumns)
+							normalizeElevatorLogDisplayColumns(loc.logDisplayColumns),
 						)
 						return stored.length > 0 ? stored : undefined
 					})(),

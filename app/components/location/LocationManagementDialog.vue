@@ -52,8 +52,8 @@
 												class="py-4 text-center text-sm text-white/60 2xl:text-base"
 											>
 												尚無地點
-							</div>
-							<div v-else class="space-y-2">
+											</div>
+											<div v-else class="space-y-2">
 												<div
 													v-for="(location, locationIndex) in displayZone.locations"
 													:key="getLocationUiKey({ zone: displayZone, location, locationIndex })"
@@ -63,8 +63,10 @@
 														class="flex flex-[2] flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 													>
 														<span>地點名稱</span>
-											<div class="form-input-small flex cursor-default items-center text-white/70">
-												{{ location.name || "未命名" }}
+														<div
+															class="form-input-small flex cursor-default items-center text-white/70"
+														>
+															{{ location.name || "未命名" }}
 														</div>
 													</label>
 													<label
@@ -80,7 +82,7 @@
 													<IconTrashButton
 														button-class="ml-auto flex-shrink-0"
 														:disabled="!canDeleteLocation"
-												:title="canDeleteLocation ? '刪除地點' : '權限不足'"
+														:title="canDeleteLocation ? '刪除地點' : '權限不足'"
 														aria-label="刪除區域"
 														@click="removeLocation(locationIndex)"
 													/>
@@ -154,11 +156,9 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-const canDeleteZone = computed(
-	() => props.allowDeleteZone !== false && props.allowDelete !== false,
-)
+const canDeleteZone = computed(() => props.allowDeleteZone !== false && props.allowDelete !== false)
 const canDeleteLocation = computed(
-	() => props.allowDeleteLocation !== false && props.allowDelete !== false,
+	() => props.allowDeleteLocation !== false && props.allowDelete !== false
 )
 
 const errorMessage = ref("")
@@ -169,7 +169,7 @@ watch(
 	(zone) => {
 		displayZone.value = zone ? (JSON.parse(JSON.stringify(zone)) as UnifiedZone) : null
 	},
-	{ immediate: true, deep: true },
+	{ immediate: true, deep: true }
 )
 
 const confirmDialog = useConfirmDialog()
@@ -243,7 +243,7 @@ const handleConfirmDeleteLocation = async () => {
 	}
 
 	displayZone.value.locations = displayZone.value.locations.filter(
-		(_, index) => index !== resolvedIndex,
+		(_, index) => index !== resolvedIndex
 	)
 	pendingDeleteLocationUiKey.value = null
 }

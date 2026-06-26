@@ -1,23 +1,56 @@
 import type {
-	ElevatorFloorAccessResponse,
 	ElevatorLocation,
 	ElevatorLog,
-	ElevatorSyncCandidate,
-	ElevatorSyncJob,
 	ElevatorZone,
+	ElevatorLiveState,
+	ElevatorCallCommand,
+	ElevatorDoorControlCommand,
 } from "~/types/elevator"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useElevatorLocationApi } from "~/composables/location/api/useElevatorLocationApi"
 import { buildPathWithQuery } from "~/utils/apiUtils"
 import { normalizeElevatorLogDisplayColumns } from "~/utils/elevatorLogColumns"
+import type { ElevatorDeviceRole } from "~/utils/elevatorFloorModel"
+
+type ElevatorSiteListItem = {
+	id: number
+	name: string
+	ladderDevice?: ElevatorDeviceRole | null
+	callDevice?: ElevatorDeviceRole | null
+	floors?: ElevatorLocation["floors"]
+	panel?: ElevatorLocation["panel"]
+	todayEventCount: number
+	live?: ElevatorLiveState
+}
 
 type ElevatorSiteDetailResponse = {
 	location: {
 		name: string
-		systems?: Array<{ systemType: string; config?: Record<string, unknown> }>
+		id?: string | number
+		elevatorConfig?: Partial<ElevatorLocation>
 	}
+	live?: ElevatorLiveState
 	latestLogs?: ElevatorLog[]
 }
+
+const mergeSiteWithConfig = (
+	site: ElevatorSiteListItem,
+	cfg?: Partial<ElevatorLocation>,
+): ElevatorLocation => ({
+	locationId: site.id,
+	id: String(site.id),
+	name: site.name,
+	panel: site.panel ?? cfg?.panel,
+	floors: site.floors ?? cfg?.floors,
+	ladderDevice: cfg?.ladderDevice ?? site.ladderDevice ?? null,
+	callDevice: cfg?.callDevice ?? site.callDevice ?? null,
+	floorDetection: cfg?.floorDetection ?? null,
+	callCommandType: "visitor",
+	accessDeviceIds: cfg?.accessDeviceIds ?? [],
+	todayEventCount: site.todayEventCount,
+	logDisplayColumns: normalizeElevatorLogDisplayColumns(cfg?.logDisplayColumns),
+	live: site.live ?? cfg?.live,
+})
 
 export const ELEVATOR_FULL_REPORT_LIMIT = 500
 
@@ -27,151 +60,137 @@ export const useElevatorApi = () => {
 
 	const getLocations = async (existingZones?: { zones: ElevatorZone[] }) => {
 		const [sitesResponse, zonesResponse] = await Promise.all([
-			request<{
-				sites: Array<{
-					id: number
-					name: string
-					deviceIds: number[]
-					todayEventCount: number
-				}>
-			}>("/elevator/sites"),
+			request<{ sites: ElevatorSiteListItem[] }>("/elevator/sites"),
 			existingZones
 				? Promise.resolve(existingZones)
 				: elevatorLocationApi.getZones().catch(() => ({ zones: [] as ElevatorZone[] })),
 		])
 
-		const zones = zonesResponse.zones || []
-		const configMap = new Map<number, ElevatorLocation & { zoneName: string }>()
-		zones.forEach((zone) => {
-			zone.locations?.forEach((loc) => {
-				const locationId = loc.id ? Number(loc.id) : undefined
-				if (locationId) {
-					configMap.set(locationId, { ...loc, zoneName: zone.name })
+		const configMap = new Map<number, ElevatorLocation>()
+		for (const zone of zonesResponse.zones || []) {
+			for (const loc of zone.locations || []) {
+				const locationId = loc.id ? Number(loc.id) : NaN
+				if (Number.isFinite(locationId)) {
+					configMap.set(locationId, loc)
 				}
-			})
-		})
-
-		const locations: ElevatorLocation[] = sitesResponse.sites.map((site) => {
-			const cfg = configMap.get(site.id)
-			return {
-				locationId: site.id,
-				id: String(site.id),
-				name: site.name,
-				deviceIds: site.deviceIds,
-				floorCount: cfg?.floorCount,
-				floorStart: cfg?.floorStart,
-				floorEnd: cfg?.floorEnd,
-				floorNames: cfg?.floorNames,
-				floorOpenDurations: cfg?.floorOpenDurations,
-				todayEventCount: site.todayEventCount,
-				logDisplayColumns: normalizeElevatorLogDisplayColumns(cfg?.logDisplayColumns),
 			}
-		})
+		}
 
-		return { locations, zones }
+		return {
+			locations: sitesResponse.sites.map((site) =>
+				mergeSiteWithConfig(site, configMap.get(site.id)),
+			),
+			zones: zonesResponse.zones || [],
+		}
 	}
 
 	const getLocationDetail = async (
 		locationId: number,
 		existingLocations: ElevatorLocation[] = [],
-	): Promise<ElevatorLocation & { latestLogs?: ElevatorLog[] }> => {
+	): Promise<ElevatorLocation & { latestLogs?: ElevatorLog[]; live?: ElevatorLiveState }> => {
 		const base = existingLocations.find((l) => l.locationId === locationId)
 		const detailRes = await request<ElevatorSiteDetailResponse>(`/elevator/sites/${locationId}`)
-
-		const loc = detailRes.location
-		const sys = loc.systems?.find((s) => s.systemType === "elevator")
-		const config = (sys?.config || {}) as {
-			deviceIds?: number[]
-			accessDeviceIds?: number[]
-			floorCount?: number
-			floorStart?: number
-			floorEnd?: number
-			floorNames?: string[]
-			floorOpenDurations?: number[]
-			logDisplayColumns?: string[]
-		}
+		const elevatorConfig = detailRes.location?.elevatorConfig
 
 		return {
-			...base,
+			...(base ?? { locationId, id: String(locationId), name: detailRes.location?.name ?? "" }),
+			...elevatorConfig,
+			name: detailRes.location?.name ?? base?.name ?? "",
 			locationId,
 			id: String(locationId),
-			name: loc.name || base?.name || "",
-			deviceIds: config.deviceIds || base?.deviceIds || [],
-			accessDeviceIds: config.accessDeviceIds || base?.accessDeviceIds || [],
-			floorCount: config.floorCount ?? base?.floorCount,
-			floorStart: config.floorStart ?? base?.floorStart,
-			floorEnd: config.floorEnd ?? base?.floorEnd,
-			floorNames: config.floorNames ?? base?.floorNames,
-			floorOpenDurations: config.floorOpenDurations ?? base?.floorOpenDurations,
-			logDisplayColumns: normalizeElevatorLogDisplayColumns(
-				config.logDisplayColumns || base?.logDisplayColumns,
-			),
-			todayEventCount: base?.todayEventCount ?? 0,
-			latestLogs: detailRes.latestLogs ?? [],
+			callCommandType: "visitor",
+			latestLogs: detailRes.latestLogs,
+			live: detailRes.live ?? base?.live,
 		}
 	}
 
-	const getFullReportLogs = async (options: {
-		siteId?: number
-		startTime?: string
-		endTime?: string
-		search?: string
-		limit?: number
-		offset?: number
-	}) => {
-		const path = buildPathWithQuery("/elevator/logs", options)
-		return request<{ logs: ElevatorLog[]; total: number }>(path)
-	}
+	const getLiveState = (locationId: number) =>
+		request<{ live: ElevatorLiveState }>(`/elevator/sites/${locationId}/live`)
 
-	const controlGateway = async (
+	const postControl = <T = unknown>(
 		deviceId: number,
 		payload: { gatewayIndex: number; command: string },
-	) => {
-		return request(`/ladder-sdk/devices/${deviceId}/control`, {
+		options?: { locationId?: number; targetLogicalIndex?: number },
+	) =>
+		request<T>(`/ladder-sdk/devices/${deviceId}/control`, {
 			method: "POST",
-			body: payload,
+			body: JSON.stringify({
+				...payload,
+				...(options?.locationId != null ? { locationId: options.locationId } : {}),
+				...(options?.targetLogicalIndex != null
+					? { targetLogicalIndex: options.targetLogicalIndex }
+					: {}),
+			}),
 		})
-	}
 
-	const getFloorAccess = async (locationId: number) => {
-		return request<ElevatorFloorAccessResponse>(`/elevator/locations/${locationId}/floor-access`)
-	}
+	const callElevatorToFloor = (params: {
+		callDeviceId: number
+		gatewayIndex: number
+		command: ElevatorCallCommand
+		locationId?: number
+		targetLogicalIndex: number
+	}) =>
+		postControl<{ live?: ElevatorLiveState }>(
+			params.callDeviceId,
+			{ gatewayIndex: params.gatewayIndex, command: params.command },
+			{
+				locationId: params.locationId,
+				targetLogicalIndex: params.targetLogicalIndex,
+			},
+		)
 
-	const replaceFloorAccess = async (
+	const controlLadderDoor = (params: {
+		ladderDeviceId: number
+		gatewayIndex: number
+		command: ElevatorDoorControlCommand
+	}) =>
+		postControl(params.ladderDeviceId, {
+			gatewayIndex: params.gatewayIndex,
+			command: params.command,
+		})
+
+	const getFloorAccess = (locationId: number) =>
+		request(`/elevator/locations/${locationId}/floor-access`)
+
+	const replaceFloorAccess = (
 		locationId: number,
 		assignments: Array<{ floorIndex: number; personIds: number[] }>,
-	) => {
-		return request<ElevatorFloorAccessResponse>(`/elevator/locations/${locationId}/floor-access`, {
+	) =>
+		request(`/elevator/locations/${locationId}/floor-access`, {
 			method: "PUT",
-			body: { assignments },
+			body: JSON.stringify({ assignments }),
 		})
-	}
 
-	const getSyncCandidates = async (locationId: number) => {
-		return request<{ persons: ElevatorSyncCandidate[]; hasAccessDevices?: boolean }>(
-			`/elevator/locations/${locationId}/sync-candidates`,
-		)
-	}
+	const getSyncCandidates = (locationId: number) =>
+		request(`/elevator/locations/${locationId}/sync-candidates`)
 
-	const startFloorSyncJob = async (locationId: number) => {
-		return request<{ jobId: string }>(`/elevator/sync-location/${locationId}/job`, {
-			method: "POST",
-		})
-	}
+	const startSyncJob = (locationId: number) =>
+		request(`/elevator/sync-location/${locationId}/job`, { method: "POST" })
 
-	const getFloorSyncJob = async (jobId: string) => {
-		return request<{ job: ElevatorSyncJob }>(`/elevator/sync-location/jobs/${jobId}`)
-	}
+	const getSyncJob = (jobId: string) => request(`/elevator/sync-location/jobs/${jobId}`)
+
+	const getLogs = (params?: {
+		siteId?: number
+		limit?: number
+		offset?: number
+		startTime?: string
+		endTime?: string
+		timeRange?: string
+		search?: string
+	}) => request(buildPathWithQuery("/elevator/logs", params ?? {}))
 
 	return {
 		getLocations,
 		getLocationDetail,
-		getFullReportLogs,
-		controlGateway,
+		getLiveState,
+		callElevatorToFloor,
+		controlLadderDoor,
 		getFloorAccess,
 		replaceFloorAccess,
 		getSyncCandidates,
-		startFloorSyncJob,
-		getFloorSyncJob,
+		startSyncJob,
+		getSyncJob,
+		getLogs,
+		getFullReportLogs: getLogs,
 	}
 }

@@ -13,8 +13,9 @@
 					目前樓層
 				</p>
 				<p
-					class="elevator-led-text text-center text-3xl leading-none 2xl:text-7xl"
+					class="elevator-led-text text-center text-3xl leading-none ease-linear 2xl:text-7xl"
 					:class="digitGlowClass"
+					:style="{ transitionDuration: `${ELEVATOR_FLOOR_STEP_MS}ms` }"
 				>
 					{{ floorText }}
 				</p>
@@ -23,7 +24,10 @@
 			<div class="flex flex-col items-center justify-center pr-4 2xl:pr-8" aria-hidden="true">
 				<svg
 					class="h-7 w-7 shrink-0 transition-all duration-300 2xl:h-16 2xl:w-16"
-					:class="elevatorLedArrowClass(direction, 'up', isConnected)"
+					:class="[
+						elevatorLedArrowClass(direction, 'up', isConnected),
+						isMoving && direction === 'up' ? 'animate-pulse' : '',
+					]"
 					viewBox="2 3 20 13"
 					fill="currentColor"
 				>
@@ -31,7 +35,10 @@
 				</svg>
 				<svg
 					class="-mt-0.5 h-7 w-7 shrink-0 transition-all duration-300 2xl:-mt-1 2xl:h-16 2xl:w-16"
-					:class="elevatorLedArrowClass(direction, 'down', isConnected)"
+					:class="[
+						elevatorLedArrowClass(direction, 'down', isConnected),
+						isMoving && direction === 'down' ? 'animate-pulse' : '',
+					]"
 					viewBox="2 8 20 13"
 					fill="currentColor"
 				>
@@ -39,18 +46,9 @@
 				</svg>
 			</div>
 
-			<div class="flex flex-col items-center px-4 gap-4 2xl:px-8 border-l border-white/10">
-				<button
-					type="button"
-					class="flex h-9 w-full min-w-[6rem] items-center justify-center rounded-full border-2 px-4 text-sm font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-40 2xl:h-10 2xl:min-w-[7rem] 2xl:text-base"
-					:class="callButtonClass"
-					:disabled="isCallElevatorDisabled"
-					:aria-label="`呼梯至 ${selectedFloorLabel || '未選樓層'}`"
-					@click="emit('call-elevator')"
-				>
-					呼梯
-				</button>
-
+			<div
+				class="flex flex-col items-center border-l border-white/10 px-4 2xl:px-8"
+			>
 				<div
 					class="flex h-9 w-full min-w-[6rem] items-center justify-center gap-2 rounded-full border px-2 2xl:h-10 2xl:min-w-[7rem]"
 					:class="healthBadgeClass"
@@ -71,6 +69,7 @@
 import { computed } from "vue"
 import type { ElevatorDirection } from "~/types/elevator"
 import { elevatorLedArrowClass } from "~/utils/elevatorDisplayUtils"
+import { ELEVATOR_FLOOR_STEP_MS } from "~/utils/elevatorFloorModel"
 
 interface Props {
 	floorText: string
@@ -79,18 +78,14 @@ interface Props {
 	statusAriaLabel: string
 	deviceHealthLabel: string
 	deviceStatusDotClass: string
-	isCallElevatorDisabled?: boolean
-	selectedFloorLabel?: string
+	isMoving?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	direction: "idle",
 	isConnected: false,
-	isCallElevatorDisabled: true,
-	selectedFloorLabel: "",
+	isMoving: false,
 })
-
-const emit = defineEmits<{ "call-elevator": [] }>()
 
 const healthBadgeClass = computed(() =>
 	props.isConnected
@@ -101,13 +96,6 @@ const healthBadgeClass = computed(() =>
 const digitGlowClass = computed(() =>
 	props.isConnected ? "elevator-led-text--on" : "elevator-led-text--off"
 )
-
-const callButtonClass = computed(() =>
-	props.isConnected
-		? "border-cyan-400/60 bg-cyan-500/70 text-white hover:bg-cyan-400"
-		: "border-white/25 bg-white/10 text-white/50"
-)
-
 </script>
 
 <style scoped>
@@ -153,5 +141,4 @@ const callButtonClass = computed(() =>
 		0 0 4px rgba(251, 191, 36, 0.4),
 		0 0 10px rgba(245, 158, 11, 0.2);
 }
-
 </style>

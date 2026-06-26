@@ -5,7 +5,8 @@
 
 import type { ElevatorLog } from "~/types/elevator"
 import { formatDateTime } from "~/utils/dateUtils"
-import { formatElevatorLogFloorDisplay } from "~/utils/elevatorFloorConfig"
+import { formatElevatorLogFloorDisplay } from "~/utils/elevatorFloorModel"
+import type { ElevatorLogicalFloor } from "~/utils/elevatorFloorModel"
 
 export const ELEVATOR_LOG_COLUMN_KEYS = [
 	"device_name",
@@ -64,11 +65,11 @@ export const toStoredElevatorLogDisplayColumns = (
 export const getElevatorLogCellValue = (
 	log: ElevatorLog,
 	col: ElevatorLogColumnKey,
-	options?: { floorNames?: string[] },
+	options?: { floors?: ElevatorLogicalFloor[] },
 ): string => {
 	switch (col) {
 		case "floor": {
-			const display = formatElevatorLogFloorDisplay(log.floor, options?.floorNames)
+			const display = formatElevatorLogFloorDisplay(log.floor, options?.floors ?? [])
 			return display || "—"
 		}
 		case "device_name":

@@ -3,14 +3,12 @@
 		<div class="flex min-w-0 flex-1 flex-col gap-8">
 			<ElevatorLedBillboard
 				:floor-text="displayFloorText"
-				direction="idle"
-				:is-connected="isDeviceNormal"
+				:direction="displayDirection"
+				:is-connected="isLadderConnected"
 				:status-aria-label="statusAriaLabel"
 				:device-health-label="deviceHealthLabel"
 				:device-status-dot-class="deviceStatusDotClass"
-				:is-call-elevator-disabled="isCallElevatorDisabled"
-				:selected-floor-label="selectedFloorLabel"
-				@call-elevator="handleCallElevator"
+				:is-moving="isMoving"
 			/>
 
 			<div
@@ -21,12 +19,12 @@
 				<div class="grid grid-cols-4 justify-items-center">
 					<button
 						v-for="cmd in commands"
-						:key="cmd.value"
+						:key="`${cmd.kind}-${cmd.label}`"
 						type="button"
 						class="flex aspect-square w-20 items-center justify-center rounded-full border-2 border-cyan-400/60 bg-cyan-500/70 text-xl font-bold text-white transition-all hover:bg-cyan-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-40 2xl:w-24 2xl:text-2xl"
-						:disabled="isSubmitting || !canControl || !isDeviceNormal || selectedFloorIndex == null"
+						:disabled="isOperationDisabled(cmd.kind)"
 						:aria-label="`${cmd.label} ${selectedFloorLabel}`"
-						@click="handleControl(cmd.value)"
+						@click="handleOperation(cmd)"
 					>
 						{{ cmd.label }}
 					</button>
@@ -64,7 +62,7 @@
 									:key="`${log.id}-${col}`"
 									class="people-log-cell-pad p-2"
 								>
-									{{ getElevatorLogCellValue(log, col, { floorNames: props.floorNames }) }}
+									{{ getElevatorLogCellValue(log, col, { floors: props.floors }) }}
 								</td>
 							</tr>
 						</tbody>
@@ -83,7 +81,7 @@
 					</p>
 
 					<div
-						v-if="floors.length === 0"
+						v-if="panelFloors.length === 0"
 						class="flex min-h-[160px] flex-1 items-center justify-center text-base text-white/60 2xl:text-lg"
 					>
 						此地點尚未設定樓層
@@ -91,38 +89,34 @@
 
 					<div
 						v-else
-						class="flex min-h-0 flex-1 flex-col"
-						:class="exceedsVisibleGrid ? 'justify-start' : 'justify-center'"
+						class="flex min-h-0 flex-1 flex-col justify-center p-4"
 					>
 						<div
-							class="p-4"
-							:class="exceedsVisibleGrid ? 'min-h-0 flex-1 overflow-y-auto' : 'shrink-0'"
+							class="grid gap-y-6"
+							:style="{
+								gridTemplateColumns: `repeat(${panelColumns}, minmax(0, 1fr))`,
+								gridTemplateRows: `repeat(${panel?.rows ?? 6}, auto)`,
+							}"
 						>
-							<div
-								class="flex flex-col"
-								:class="[
-									floorGridMinHeightClass,
-									exceedsVisibleGrid ? 'justify-start' : 'justify-center',
-								]"
+							<button
+								v-for="floor in panelFloors"
+								:key="floor.index"
+								type="button"
+								class="mx-auto flex aspect-square w-20 items-center justify-center rounded-full border-2 text-2xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 2xl:w-24 2xl:text-3xl"
+								:class="floorButtonClass(floor.index)"
+								:style="{
+									gridColumn: floor.panelCol + 1,
+									gridRow: floor.panelRow + 1,
+								}"
+								:aria-pressed="selectedFloorIndex === floor.index"
+								:aria-label="`選擇樓層 ${floor.label}`"
+								@click="selectedFloorIndex = floor.index"
 							>
-								<div class="grid grid-cols-4 justify-items-center gap-y-6">
-									<button
-										v-for="floor in floors"
-										:key="floor.index"
-										type="button"
-										class="flex aspect-square w-20 items-center justify-center rounded-full border-2 text-2xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 2xl:w-24 2xl:text-3xl"
-										:class="floorButtonClass(floor.index)"
-										:aria-pressed="selectedFloorIndex === floor.index"
-										:aria-label="`選擇樓層 ${floor.label}`"
-										@click="selectedFloorIndex = floor.index"
-									>
-										{{ floor.label }}
-									</button>
-								</div>
-							</div>
+								{{ floor.label }}
+							</button>
 						</div>
 
-						<p v-if="errorText" class="form-error-text mt-3 shrink-0 px-4 pb-4" role="alert">
+						<p v-if="errorText" class="form-error-text mt-3 shrink-0" role="alert">
 							{{ errorText }}
 						</p>
 					</div>
@@ -134,21 +128,22 @@
 
 <script setup lang="ts">
 import { computed, ref, toRefs, watch } from "vue"
-import type { ElevatorControlCommand, ElevatorLog } from "~/types/elevator"
+import type {
+	ElevatorDoorControlCommand,
+	ElevatorLiveState,
+	ElevatorLog,
+	ElevatorLogicalFloor,
+} from "~/types/elevator"
 import MonitoringLogEmptyState from "~/components/common/MonitoringLogEmptyState.vue"
 import ElevatorLedBillboard from "~/components/elevator/ElevatorLedBillboard.vue"
 import { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
+import { useElevatorRuntime } from "~/composables/systems/elevator/useElevatorRuntime"
 import { useToast } from "~/composables/core/useToast"
 import { resolveFormApiError } from "~/utils/errorUtils"
-import {
-	buildElevatorPanelFloorOrder,
-	ELEVATOR_PANEL_VISIBLE_ROWS,
-	resolveElevatorFloorLabel,
-} from "~/utils/elevatorFloorConfig"
+import { sortFloorsForPanel, resolveElevatorCallCommand } from "~/utils/elevatorFloorModel"
 import {
 	buildElevatorDeviceStatusLabel,
 	buildElevatorStatusAriaLabel,
-	formatElevatorLiveFloorText,
 } from "~/utils/elevatorDisplayUtils"
 import {
 	ELEVATOR_LOG_COLUMN_LABELS,
@@ -160,79 +155,108 @@ import {
 interface Props {
 	logs: ElevatorLog[]
 	displayColumns?: string[]
-	deviceId?: number | null
+	ladderDeviceId?: number | null
+	callDeviceId?: number | null
+	locationId?: number | null
 	canControl?: boolean
-	floorCount?: number
-	floorNames?: string[]
-	isConnected?: boolean
+	floors?: ElevatorLogicalFloor[]
+	panel?: { columns: number; rows: number }
+	live?: ElevatorLiveState | null
+	isLadderConnected?: boolean
+	isCallConnected?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	logs: () => [],
 	displayColumns: undefined,
-	deviceId: null,
+	ladderDeviceId: null,
+	callDeviceId: null,
+	locationId: null,
 	canControl: false,
-	floorCount: 0,
-	floorNames: () => [],
-	isConnected: false,
+	floors: () => [],
+	panel: () => ({ columns: 3, rows: 6 }),
+	live: null,
+	isLadderConnected: false,
+	isCallConnected: false,
 })
+
+const emit = defineEmits<{
+	"runtime-updated": [live: ElevatorLiveState]
+	"logs-refresh": []
+}>()
 
 const { logs, displayColumns } = toRefs(props)
 
 const elevatorApi = useElevatorApi()
 const toast = useToast()
 
+const { applyLiveState, displayFloorText, displayDirection, isMoving } = useElevatorRuntime({
+	floors: () => props.floors,
+})
+
+watch(
+	() => props.live,
+	(live) => {
+		if (live) {
+			applyLiveState(live)
+			emit("runtime-updated", live)
+		}
+	},
+	{ immediate: true, deep: true },
+)
+
 const recordColumns = computed(() => normalizeElevatorLogDisplayColumns(displayColumns.value))
 const recordColumnLabels = ELEVATOR_LOG_COLUMN_LABELS as Record<ElevatorLogColumnKey, string>
 
-const displayFloorText = computed(() => formatElevatorLiveFloorText({}))
+const isLadderConnected = computed(() => props.isLadderConnected)
 
-const isDeviceNormal = computed(() => props.isConnected)
-
-const deviceHealthLabel = computed(() => buildElevatorDeviceStatusLabel(props.isConnected))
+const deviceHealthLabel = computed(() => buildElevatorDeviceStatusLabel(isLadderConnected.value))
 
 const deviceStatusDotClass = computed(() =>
-	isDeviceNormal.value ? "bg-emerald-400" : "bg-amber-400"
+	isLadderConnected.value ? "bg-emerald-400" : "bg-amber-400",
 )
 
 const statusAriaLabel = computed(() =>
 	buildElevatorStatusAriaLabel({
 		floorText: displayFloorText.value,
-		direction: "idle",
-		isConnected: props.isConnected,
+		direction: displayDirection.value,
+		isConnected: isLadderConnected.value,
 		deviceHealthLabel: true,
-	})
+	}),
 )
 
-const isCallElevatorDisabled = computed(
-	() =>
-		isSubmitting.value ||
-		!props.canControl ||
-		!isDeviceNormal.value ||
-		selectedFloorIndex.value == null
-)
+const panelColumns = computed(() => props.panel?.columns ?? 3)
+
+const panelFloors = computed(() => {
+	const floors = props.floors ?? []
+	return sortFloorsForPanel(floors).map((floor) => ({
+		index: floors.indexOf(floor) + 1,
+		label: floor.label,
+		panelCol: floor.panelCol,
+		panelRow: floor.panelRow,
+		ladderGateway: floor.ladderGateway,
+		callGateway: floor.callGateway,
+	}))
+})
+
+type PanelOperation =
+	| { kind: "call"; label: "呼梯" }
+	| { kind: "door"; label: string; command: ElevatorDoorControlCommand }
+
+const commands: PanelOperation[] = [
+	{ kind: "call", label: "呼梯" },
+	{ kind: "door", label: "手動", command: "open" },
+	{ kind: "door", label: "常開", command: "normally_open" },
+	{ kind: "door", label: "常閉", command: "normally_closed" },
+]
 
 const selectedFloorIndex = ref<number | null>(null)
 const isSubmitting = ref(false)
 const errorText = ref<string | null>(null)
 
-const floors = computed(() => {
-	const count = Number(props.floorCount) || 0
-	const names = props.floorNames ?? []
-	if (count < 1) return []
-	return buildElevatorPanelFloorOrder(count).map((index) => ({
-		index,
-		label: resolveElevatorFloorLabel(index, names),
-	}))
-})
-
-const floorGridMinHeightClass = "min-h-[calc(5*4.5rem+4*0.75rem)] 2xl:min-h-[calc(5*5rem+4*1rem)]"
-
-const exceedsVisibleGrid = computed(() => floors.value.length > ELEVATOR_PANEL_VISIBLE_ROWS * 4)
-
 const selectedFloorLabel = computed(() => {
 	if (selectedFloorIndex.value == null) return ""
-	return floors.value.find((f) => f.index === selectedFloorIndex.value)?.label ?? ""
+	return panelFloors.value.find((f) => f.index === selectedFloorIndex.value)?.label ?? ""
 })
 
 const floorButtonClass = (index: number) => {
@@ -243,40 +267,69 @@ const floorButtonClass = (index: number) => {
 }
 
 watch(
-	() => [props.deviceId, props.floorCount] as const,
+	() => [props.callDeviceId, props.floors?.length, props.locationId] as const,
 	() => {
 		selectedFloorIndex.value = null
 		errorText.value = null
-	}
+	},
 )
 
-const commands: Array<{ value: ElevatorControlCommand; label: string }> = [
-	{ value: "open", label: "開啟" },
-	{ value: "close", label: "關閉" },
-	{ value: "normally_open", label: "常開" },
-	{ value: "normally_closed", label: "常閉" },
-]
-
-const handleCallElevator = () => {
-	void handleControl("open")
+const isOperationDisabled = (kind: PanelOperation["kind"]) => {
+	if (isSubmitting.value || !props.canControl || selectedFloorIndex.value == null) return true
+	if (kind === "call") {
+		return !props.isCallConnected || !props.callDeviceId
+	}
+	return !props.isLadderConnected || !props.ladderDeviceId
 }
 
-const handleControl = async (command: ElevatorControlCommand) => {
-	if (!props.deviceId || !props.canControl || floors.value.length === 0) return
+const handleOperation = async (op: PanelOperation) => {
+	if (!props.canControl || panelFloors.value.length === 0) return
 	if (selectedFloorIndex.value == null) {
 		errorText.value = "請先選擇樓層"
 		return
 	}
+	const floor = panelFloors.value.find((f) => f.index === selectedFloorIndex.value)
+	if (!floor) return
+
 	isSubmitting.value = true
 	errorText.value = null
 	try {
-		await elevatorApi.controlGateway(props.deviceId, {
-			gatewayIndex: selectedFloorIndex.value,
-			command,
-		})
+		if (op.kind === "call") {
+			const deviceId = props.callDeviceId
+			if (!deviceId || floor.callGateway == null) {
+				errorText.value = "此樓層未設定呼梯 gateway"
+				return
+			}
+			const res = await elevatorApi.callElevatorToFloor({
+				callDeviceId: deviceId,
+				gatewayIndex: floor.callGateway,
+				command: resolveElevatorCallCommand(),
+				locationId: props.locationId ?? undefined,
+				targetLogicalIndex: selectedFloorIndex.value,
+			})
+			if (res?.live) {
+				applyLiveState(res.live)
+				emit("runtime-updated", res.live)
+			}
+			emit("logs-refresh")
+		} else {
+			const deviceId = props.ladderDeviceId
+			if (!deviceId || floor.ladderGateway == null) {
+				errorText.value = "此樓層未設定梯控 gateway"
+				return
+			}
+			await elevatorApi.controlLadderDoor({
+				ladderDeviceId: deviceId,
+				gatewayIndex: floor.ladderGateway,
+				command: op.command,
+			})
+		}
 		toast.success("指令已送出")
 	} catch (error) {
-		errorText.value = resolveFormApiError(error, "呼梯控制失敗")
+		errorText.value = resolveFormApiError(
+			error,
+			op.kind === "call" ? "呼梯失敗" : "門控操作失敗",
+		)
 	} finally {
 		isSubmitting.value = false
 	}

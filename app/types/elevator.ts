@@ -2,24 +2,32 @@
  * 電梯系統地點與事件型別
  */
 
+import type {
+	ElevatorDeviceRole,
+	ElevatorLiveState,
+	ElevatorLogicalFloor,
+	ElevatorPanelConfig,
+} from "~/utils/elevatorFloorModel"
+
+export type { ElevatorLiveState, ElevatorLogicalFloor, ElevatorPanelConfig }
+
 export interface ElevatorLocation {
 	id?: string
 	sortOrder?: number
 	name: string
 	locationType?: "elevator"
-	deviceIds?: number[]
+	panel?: ElevatorPanelConfig
+	floors?: ElevatorLogicalFloor[]
+	ladderDevice?: ElevatorDeviceRole | null
+	callDevice?: ElevatorDeviceRole | null
+	floorDetection?: ElevatorDeviceRole | null
 	accessDeviceIds?: number[]
-	floorCount?: number
-	/** 設備樓層範圍起始號碼（預設 1） */
-	floorStart?: number
-	/** 設備樓層範圍結束號碼 */
-	floorEnd?: number
-	floorNames?: string[]
-	/** 各樓層繼電器動作時間（秒，1–255） */
-	floorOpenDurations?: number[]
+	/** 呼梯 SDK command：固定 visitor=5 */
+	callCommandType?: ElevatorCallCommandType
 	logDisplayColumns?: string[]
 	locationId?: number
 	todayEventCount?: number
+	live?: ElevatorLiveState
 }
 
 export interface ElevatorZone {
@@ -42,9 +50,15 @@ export interface ElevatorLog {
 	locationId?: number
 }
 
-export type ElevatorControlCommand = "open" | "close" | "normally_open" | "normally_closed"
+export type ElevatorCallCommandType = "visitor"
 
-export type ElevatorDirection = "up" | "down" | "idle" | null
+/** 梯控門操作（ladder_device + ladder_gateway） */
+export type ElevatorDoorControlCommand = "open" | "normally_open" | "normally_closed"
+
+/** 呼梯 SDK command（call_device + call_gateway） */
+export type ElevatorCallCommand = "visitor_call"
+
+export type ElevatorDirection = "up" | "down" | "idle"
 
 export type ElevatorSyncJobStatus = "queued" | "running" | "completed"
 

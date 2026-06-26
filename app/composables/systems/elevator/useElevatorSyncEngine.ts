@@ -6,6 +6,7 @@ import { finalizeSyncWarningsForDisplay } from "~/utils/personnelUtils"
 import type { SyncWarning } from "~/types/personnel"
 import { useDeviceSyncObserver } from "~/composables/systems/personnel/useDeviceSyncCore"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
+import type { ElevatorSystemConfig } from "~/types/location"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 
 type ElevatorApi = ReturnType<typeof useElevatorApi>
@@ -66,10 +67,9 @@ export const useElevatorSyncEngine = (params: {
 			const elevatorSys = (res?.location?.systems || []).find(
 				(sys) => sys.systemType === "elevator",
 			)
-			const config = elevatorSys?.config as
-				| { deviceIds?: number[]; accessDeviceIds?: number[] }
-				| undefined
-			const ladderIds = Array.isArray(config?.deviceIds) ? config.deviceIds : []
+			const config = elevatorSys?.config as ElevatorSystemConfig | undefined
+			const ladderId = config?.ladderDevice?.deviceId
+			const ladderIds = ladderId ? [ladderId] : []
 			const accessIds = Array.isArray(config?.accessDeviceIds) ? config.accessDeviceIds : []
 			const [entry, exit] = await Promise.all([
 				resolveDeviceNames(ladderIds),

@@ -26,13 +26,21 @@
 				aria-live="polite"
 			>
 				<div class="flex min-w-0 flex-col items-center px-4">
-					<p class="text-4xl font-bold leading-none 2xl:text-6xl">{{ displayFloorText }}</p>
+					<p
+						class="text-4xl font-bold leading-none ease-linear 2xl:text-6xl"
+						:style="{ transitionDuration: `${ELEVATOR_FLOOR_STEP_MS}ms` }"
+					>
+						{{ displayFloorText }}
+					</p>
 				</div>
 
 				<div class="flex flex-col items-center pr-4" aria-hidden="true">
 					<svg
 						class="h-6 w-6 shrink-0 transition-all duration-300 2xl:h-12 2xl:w-12"
-						:class="elevatorLedArrowClass('idle', 'up', isConnected)"
+						:class="[
+							elevatorLedArrowClass(displayDirection, 'up', isConnected),
+							isMoving && displayDirection === 'up' ? 'animate-pulse' : '',
+						]"
 						viewBox="2 3 20 13"
 						fill="currentColor"
 					>
@@ -40,7 +48,10 @@
 					</svg>
 					<svg
 						class="-mt-0.5 h-6 w-6 shrink-0 transition-all duration-300 2xl:h-12 2xl:w-12"
-						:class="elevatorLedArrowClass('idle', 'down', isConnected)"
+						:class="[
+							elevatorLedArrowClass(displayDirection, 'down', isConnected),
+							isMoving && displayDirection === 'down' ? 'animate-pulse' : '',
+						]"
 						viewBox="2 8 20 13"
 						fill="currentColor"
 					>
@@ -67,14 +78,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, watch } from "vue"
 import type { ElevatorLocation } from "~/types/elevator"
+import { useElevatorRuntime } from "~/composables/systems/elevator/useElevatorRuntime"
 import {
 	buildElevatorDeviceStatusLabel,
 	buildElevatorStatusAriaLabel,
 	elevatorLedArrowClass,
-	formatElevatorLiveFloorText,
 } from "~/utils/elevatorDisplayUtils"
+import { ELEVATOR_FLOOR_STEP_MS } from "~/utils/elevatorFloorModel"
 
 interface Props {
 	location: ElevatorLocation & { overviewZoneName?: string | null }
@@ -87,6 +99,18 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{ click: [locationId: number] }>()
 
+const { applyLiveState, displayFloorText, displayDirection, isMoving } = useElevatorRuntime({
+	floors: () => props.location.floors,
+})
+
+watch(
+	() => props.location.live,
+	(live) => {
+		if (live) applyLiveState(live)
+	},
+	{ immediate: true, deep: true },
+)
+
 const regionText = computed(() => props.location.overviewZoneName || "未分類")
 
 const deviceHealthLabel = computed(() => buildElevatorDeviceStatusLabel(props.isConnected))
@@ -96,18 +120,16 @@ const deviceStatusDotClass = computed(() => (props.isConnected ? "bg-emerald-400
 const healthBadgeClass = computed(() =>
 	props.isConnected
 		? "border-white/25 bg-white/10"
-		: "blink-slow border-amber-400/50 bg-amber-400/20"
+		: "blink-slow border-amber-400/50 bg-amber-400/20",
 )
-
-const displayFloorText = computed(() => formatElevatorLiveFloorText({}))
 
 const statusAriaLabel = computed(() =>
 	buildElevatorStatusAriaLabel({
 		floorText: displayFloorText.value,
-		direction: "idle",
+		direction: displayDirection.value,
 		isConnected: props.isConnected,
 		deviceHealthLabel: true,
-	})
+	}),
 )
 
 const handleClick = () => {

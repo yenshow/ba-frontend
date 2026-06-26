@@ -1,5 +1,4 @@
 import type { Person, PersonLadderCard } from "~/types/personnel"
-import { resolveElevatorFloorLabel } from "~/utils/elevatorFloorConfig"
 
 export type LadderFloorDefaultsByLocation = Record<number, number[]>
 
@@ -12,7 +11,7 @@ export type ElevatorLocationFloorOption = {
 	name: string
 	zoneName: string
 	floorCount: number
-	floorNames: string[]
+	floors: Array<{ index: number; label: string }>
 }
 
 export type LadderFloorsStorage =
@@ -89,8 +88,7 @@ export const buildElevatorLocationFloorOptions = (
 		locations?: Array<{
 			id?: string
 			name: string
-			floorCount?: number
-			floorNames?: string[]
+			floors?: Array<{ label: string }>
 		}>
 	}>,
 ): ElevatorLocationFloorOption[] => {
@@ -99,14 +97,14 @@ export const buildElevatorLocationFloorOptions = (
 		for (const loc of zone.locations || []) {
 			const id = loc.id ? Number(loc.id) : NaN
 			if (!Number.isFinite(id) || id <= 0) continue
-			const floorCount = Number(loc.floorCount) || 0
-			if (floorCount < 1) continue
+			const floors = Array.isArray(loc.floors) ? loc.floors : []
+			if (floors.length < 1) continue
 			options.push({
 				id,
 				name: loc.name,
 				zoneName: zone.name,
-				floorCount,
-				floorNames: Array.isArray(loc.floorNames) ? loc.floorNames : [],
+				floorCount: floors.length,
+				floors: floors.map((f, i) => ({ index: i + 1, label: f.label })),
 			})
 		}
 	}
@@ -129,13 +127,10 @@ export const mapLadderFloorsToLocationItems = (
 }
 
 export const buildFloorOptionsForLocation = (loc: ElevatorLocationFloorOption) =>
-	Array.from({ length: loc.floorCount }, (_, i) => {
-		const index = i + 1
-		return {
-			index,
-			label: resolveElevatorFloorLabel(index, loc.floorNames),
-		}
-	})
+	loc.floors.map((f) => ({
+		index: f.index,
+		label: f.label,
+	}))
 
 /** 舊版陣列樓層（key `0`）對應到第一個電梯地點 */
 export const remapLegacyLadderFloorKey = (

@@ -8,9 +8,8 @@ const isAdminRole = (role: string | undefined | null): boolean => role === "admi
 /** 安裝腳本建立之平台超級管理員（bootstrap）；對齊 createAdmin.js */
 export const PLATFORM_ADMIN_USERNAME = "admin" as const
 
-export const isPlatformAdmin = (
-	user: Pick<User, "username"> | null | undefined
-): boolean => user?.username === PLATFORM_ADMIN_USERNAME
+export const isPlatformAdmin = (user: Pick<User, "username"> | null | undefined): boolean =>
+	user?.username === PLATFORM_ADMIN_USERNAME
 
 export const usePlatformAdmin = () => {
 	const { user } = useAuth()

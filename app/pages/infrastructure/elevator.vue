@@ -97,11 +97,17 @@
 							<ElevatorDetailPanel
 								:logs="logs"
 								:display-columns="selectedLocation.logDisplayColumns"
-								:device-id="primaryDeviceId"
+								:ladder-device-id="ladderDeviceId"
+								:call-device-id="callDeviceId"
+								:location-id="selectedLocationNumericId"
 								:can-control="canControlDevice"
-								:floor-count="selectedLocation.floorCount"
-								:floor-names="selectedLocation.floorNames"
-								:is-connected="isPrimaryDeviceConnected"
+								:floors="selectedLocation.floors"
+								:panel="selectedLocation.panel"
+								:live="selectedLiveState"
+								:is-ladder-connected="isLadderDeviceConnected"
+								:is-call-connected="isCallDeviceConnected"
+								@runtime-updated="handleRuntimeUpdated"
+								@logs-refresh="handleLogsRefresh"
 							/>
 						</div>
 					</MonitoringDetailShell>
@@ -211,7 +217,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref, watch } from "vue"
-import type { ElevatorZone, ElevatorLocation, ElevatorLog } from "~/types/elevator"
+import type { ElevatorZone, ElevatorLocation, ElevatorLog, ElevatorLiveState } from "~/types/elevator"
 import type {
 	MonitoringDeviceStatusBatchEvent,
 	MonitoringDeviceStatusEvent,
@@ -248,6 +254,7 @@ import {
 	sortFlatSitesBySortedZoneLocations,
 } from "~/utils/sortOrder"
 import { PERM } from "~/config/permissionCodes"
+import { useWebSocket } from "~/composables/websocket/useWebSocket"
 
 const {
 	canManageLocation,
@@ -317,10 +324,29 @@ const selectedLocationDisplayName = computed(() => {
 	return zone ? `${zone} / ${name}` : name
 })
 
-const primaryDeviceId = computed(() => {
-	const ids = selectedLocation.value?.deviceIds || []
-	return ids.length > 0 ? ids[0] : null
-})
+const ladderDeviceId = computed(() => selectedLocation.value?.ladderDevice?.deviceId ?? null)
+
+const callDeviceId = computed(() => selectedLocation.value?.callDevice?.deviceId ?? null)
+
+const selectedLiveState = computed(() => selectedLocation.value?.live ?? null)
+
+const handleRuntimeUpdated = (live: ElevatorLiveState) => {
+	const locationId = selectedLocationNumericId.value
+	if (selectedLocation.value) {
+		selectedLocation.value = { ...selectedLocation.value, live }
+	}
+	if (locationId != null) {
+		const idx = locations.value.findIndex((l) => l.locationId === locationId)
+		if (idx >= 0) {
+			locations.value[idx] = { ...locations.value[idx], live }
+		}
+	}
+}
+
+const handleLogsRefresh = () => {
+	const id = selectedLocationNumericId.value
+	if (id != null) void loadLocationDetail(id)
+}
 
 const deviceConnectivity = useDeviceConnectivity({ debounceMs: 150 })
 const { setupDeviceListeners, removeDeviceListeners } = useDeviceWebSocket()
@@ -328,9 +354,10 @@ const { setupDeviceListeners, removeDeviceListeners } = useDeviceWebSocket()
 const elevatorDeviceIds = computed(() => {
 	const ids = new Set<number>()
 	for (const location of locations.value) {
-		for (const deviceId of location.deviceIds || []) {
-			if (Number.isFinite(deviceId)) ids.add(deviceId)
-		}
+		const ladderId = location.ladderDevice?.deviceId
+		const callId = location.callDevice?.deviceId
+		if (ladderId) ids.add(ladderId)
+		if (callId) ids.add(callId)
 	}
 	return [...ids]
 })
@@ -346,14 +373,16 @@ const isDeviceOnline = (deviceId: number | null | undefined) => {
 	return deviceConnectivity.getStatus(deviceId) === "online"
 }
 
-const isPrimaryDeviceConnected = computed(() => isDeviceOnline(primaryDeviceId.value))
+const isLadderDeviceConnected = computed(() => isDeviceOnline(ladderDeviceId.value))
+
+const isCallDeviceConnected = computed(() => isDeviceOnline(callDeviceId.value))
 
 const locationConnectionById = computed(() => {
 	const map: Record<number, boolean> = {}
 	for (const location of locationsForOverview.value) {
 		const locationId = location.locationId
 		if (locationId == null) continue
-		map[locationId] = isDeviceOnline(location.deviceIds?.[0])
+		map[locationId] = isDeviceOnline(location.ladderDevice?.deviceId ?? null)
 	}
 	return map
 })
@@ -410,7 +439,7 @@ const loadSimulationLogs = async () => {
 			limit: ELEVATOR_FULL_REPORT_LIMIT,
 			...timeQuery,
 		})
-		simulationLogs.value = res.logs || []
+		simulationLogs.value = (res as { logs?: ElevatorLog[] }).logs || []
 	} catch {
 		simulationLogs.value = []
 	}
@@ -481,6 +510,7 @@ const handleDeleteZone = async (zoneId: string) => {
 }
 
 let cleanupWs: (() => void) | null = null
+let cleanupRuntimeWs: (() => void) | null = null
 
 onMounted(async () => {
 	await loadZones()
@@ -502,6 +532,20 @@ onMounted(async () => {
 		}
 	})
 
+	const { on, off } = useWebSocket()
+	const handleRuntimeWs = (payload: ElevatorLiveState & { locationId: number }) => {
+		if (!payload?.locationId) return
+		const idx = locations.value.findIndex((l) => l.locationId === payload.locationId)
+		if (idx >= 0) {
+			locations.value[idx] = { ...locations.value[idx], live: payload }
+		}
+		if (selectedLocationNumericId.value === payload.locationId && selectedLocation.value) {
+			selectedLocation.value = { ...selectedLocation.value, live: payload }
+		}
+	}
+	on("elevator:runtime:update", handleRuntimeWs)
+	cleanupRuntimeWs = () => off("elevator:runtime:update", handleRuntimeWs)
+
 	setupDeviceListeners({
 		onMonitoringStatus: handleMonitoringDeviceStatus,
 		onMonitoringStatusBatch: handleMonitoringDeviceStatusBatch,
@@ -510,6 +554,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
 	cleanupWs?.()
+	cleanupRuntimeWs?.()
 	removeDeviceListeners()
 })
 </script>
