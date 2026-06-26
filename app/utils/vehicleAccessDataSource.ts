@@ -3,34 +3,35 @@ export type VehicleAccessDataSource = "yscp" | "isapi_camera";
 const isYscpStored = (raw: VehicleAccessDataSource | string | undefined) =>
 	raw !== "isapi_camera";
 
-/** YSCP 關閉時是否應略過（監控列表、區域管理、總覽） */
 export const shouldHideVehicleAccessWhenYscpOff = (
 	raw: VehicleAccessDataSource | string | undefined,
 	yscpEnabled: boolean
 ) => !yscpEnabled && isYscpStored(raw);
 
-/** 區域管理編輯：依 DB 實際值顯示 */
+export const isVehicleAccessLocationVisible = (
+	raw: VehicleAccessDataSource | string | undefined,
+	yscpEnabled: boolean
+) => !shouldHideVehicleAccessWhenYscpOff(raw, yscpEnabled);
+
 export const storedVehicleAccessDataSource = (
 	raw: VehicleAccessDataSource | string | undefined
 ): VehicleAccessDataSource => (raw === "isapi_camera" ? "isapi_camera" : "yscp");
 
-/** 區域管理列表（保留原始 locationIndex） */
 export const filterVehicleAccessZoneLocations = <T extends { dataSource?: string }>(
 	locations: T[],
 	yscpEnabled: boolean
 ) =>
 	locations
 		.map((location, locationIndex) => ({ location, locationIndex }))
-		.filter(({ location }) => !shouldHideVehicleAccessWhenYscpOff(location.dataSource, yscpEnabled));
+		.filter(({ location }) => isVehicleAccessLocationVisible(location.dataSource, yscpEnabled));
 
 /** 區域儲存：YSCP 關閉時不送出 yscp 地點（避免觸發後端驗證／覆寫） */
 export const filterVehicleAccessLocationsForSave = <T extends { dataSource?: string }>(
 	locations: T[],
 	yscpEnabled: boolean
 ): T[] =>
-	locations.filter((loc) => !shouldHideVehicleAccessWhenYscpOff(loc.dataSource, yscpEnabled))
+	filterVehicleAccessZoneLocations(locations, yscpEnabled).map(({ location }) => location);
 
-/** 監控頁／表單驗證：YSCP 關閉時預設 isapi_camera */
 export const resolveVehicleAccessDataSource = (
 	raw: VehicleAccessDataSource | string | undefined,
 	yscpEnabled: boolean

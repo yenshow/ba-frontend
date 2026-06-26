@@ -124,11 +124,11 @@ export const useModuleRegistry = () => {
 	}
 
 	const enableYscpPeopleCounting = computed(
-		() => registry.value?.serverFeatures?.enableYscpPeopleCounting ?? true
+		() => registry.value?.serverFeatures?.enableYscpPeopleCounting ?? false
 	)
 
 	const enableYscpVehicleAccess = computed(
-		() => registry.value?.serverFeatures?.enableYscpVehicleAccess ?? true
+		() => registry.value?.serverFeatures?.enableYscpVehicleAccess ?? false
 	)
 
 	return {

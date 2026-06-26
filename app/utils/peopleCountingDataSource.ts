@@ -1,15 +1,38 @@
+import type { PeopleCountingSystemConfig, UnifiedLocation } from "~/types/location"
+
 export type PeopleCountingDataSource = "yscp" | "access_control" | "isapi_camera"
 
 const isYscpStored = (raw: PeopleCountingDataSource | string | undefined) =>
 	raw === "yscp" || raw === undefined || raw === ""
 
-/** YSCP 關閉時是否應略過（監控列表、區域管理、總覽） */
 export const shouldHidePeopleCountingWhenYscpOff = (
 	raw: PeopleCountingDataSource | string | undefined,
 	yscpEnabled: boolean
 ) => !yscpEnabled && isYscpStored(raw)
 
-/** 區域管理編輯：依 DB 實際值顯示 */
+export const isPeopleCountingLocationVisible = (
+	raw: PeopleCountingDataSource | string | undefined,
+	yscpEnabled: boolean
+) => !shouldHidePeopleCountingWhenYscpOff(raw, yscpEnabled)
+
+/**
+ * 統一地點列表：YSCP 關閉時隱藏「僅 YSCP 人流」地點；
+ * 若同地點另有環境等其他系統則仍顯示。
+ */
+export const shouldShowUnifiedLocationWhenYscpOff = (
+	loc: Pick<UnifiedLocation, "systems">,
+	yscpEnabled: boolean
+): boolean => {
+	const systems = loc.systems ?? []
+	const pc = systems.find((s) => s.systemType === "people_counting")
+	if (!pc) return true
+
+	const cfg = pc.config as PeopleCountingSystemConfig | undefined
+	if (!shouldHidePeopleCountingWhenYscpOff(cfg?.dataSource, yscpEnabled)) return true
+
+	return systems.some((s) => s.systemType !== "people_counting")
+}
+
 export const storedPeopleCountingDataSource = (
 	raw: PeopleCountingDataSource | string | undefined
 ): PeopleCountingDataSource => {
@@ -17,16 +40,21 @@ export const storedPeopleCountingDataSource = (
 	return "yscp"
 }
 
-/** 區域管理列表（保留原始 locationIndex 供儲存／刪除） */
 export const filterPeopleCountingZoneLocations = <T extends { dataSource?: string }>(
 	locations: T[],
 	yscpEnabled: boolean
 ) =>
 	locations
 		.map((location, locationIndex) => ({ location, locationIndex }))
-		.filter(({ location }) => !shouldHidePeopleCountingWhenYscpOff(location.dataSource, yscpEnabled))
+		.filter(({ location }) => isPeopleCountingLocationVisible(location.dataSource, yscpEnabled))
 
-/** 監控頁／表單驗證：YSCP 關閉時預設 access_control */
+/** 區域儲存：YSCP 關閉時不送出 yscp 地點（避免觸發後端驗證／覆寫） */
+export const filterPeopleCountingLocationsForSave = <T extends { dataSource?: string }>(
+	locations: T[],
+	yscpEnabled: boolean
+): T[] =>
+	filterPeopleCountingZoneLocations(locations, yscpEnabled).map(({ location }) => location)
+
 export const resolvePeopleCountingDataSource = (
 	raw: PeopleCountingDataSource | string | undefined,
 	yscpEnabled: boolean

@@ -16,6 +16,7 @@ import { useVehicleAccessLocationValidation } from "~/composables/location/valid
 import type { VehicleAccessLocation } from "~/types/vehicleAccess"
 import { getSystemTypeLabel } from "~/types/location"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
+import { shouldHidePeopleCountingWhenYscpOff } from "~/utils/peopleCountingDataSource"
 import { shouldHideVehicleAccessWhenYscpOff } from "~/utils/vehicleAccessDataSource"
 
 export type ValidationPipelineResult = {
@@ -78,7 +79,7 @@ export function useLocationValidationPipeline() {
 	const lighting = useLightingLocationValidation()
 	const pc = usePeopleCountingLocationValidation()
 	const va = useVehicleAccessLocationValidation()
-	const { enableYscpVehicleAccess } = useModuleRegistry()
+	const { enableYscpVehicleAccess, enableYscpPeopleCounting } = useModuleRegistry()
 
 	const validateZoneBase = (args: {
 		zone: { name?: string | null; imageUrl?: string | null; description?: string | null }
@@ -141,6 +142,14 @@ export function useLocationValidationPipeline() {
 					break
 				}
 				case "people_counting": {
+					if (
+						shouldHidePeopleCountingWhenYscpOff(
+							(loc as PeopleCountingLocation).dataSource,
+							enableYscpPeopleCounting.value
+						)
+					) {
+						break
+					}
 					const r = pc.validatePeopleCountingLocation(loc as PeopleCountingLocation)
 					if (!r.isValid) {
 						errors.push(...r.errors.map((e) => `地點「${loc.name}」：${e}`))

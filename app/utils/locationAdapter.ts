@@ -28,21 +28,21 @@ import { pickSortOrder } from "~/utils/sortOrder"
 import {
 	normalizeLogDisplayColumns,
 	toStoredLogDisplayColumns,
-} from "~/utils/peopleCountingLogColumns";
+} from "~/utils/peopleCountingLogColumns"
 import {
 	normalizeVehicleLogDisplayColumns,
 	toStoredVehicleLogDisplayColumns,
-} from "~/utils/vehicleAccessLogColumns";
+} from "~/utils/vehicleAccessLogColumns"
 import {
 	normalizeElevatorLogDisplayColumns,
 	toStoredElevatorLogDisplayColumns,
-} from "~/utils/elevatorLogColumns";
+} from "~/utils/elevatorLogColumns"
 import {
 	fillEmptyFloorNames,
 	normalizeFloorOpenDurationsList,
 	resolveElevatorFloorRange,
-} from "~/utils/elevatorFloorConfig";
-import type { ElevatorZone, ElevatorLocation } from "~/types/elevator";
+} from "~/utils/elevatorFloorConfig"
+import type { ElevatorZone, ElevatorLocation } from "~/types/elevator"
 
 /**
  * 後端返回的地點格式（新架構：包含 systems 陣列）
@@ -966,9 +966,7 @@ export function unifiedToVehicleAccessZone(zone: UnifiedZone): VehicleAccessZone
 					exitCameraDeviceIds: vaSystem.config.exitCameraDeviceIds ?? [],
 					cameraChannelId: vaSystem.config.cameraChannelId ?? 1,
 					vehicleGroupIds: vaSystem.config.vehicleGroupIds ?? [],
-					logDisplayColumns: normalizeVehicleLogDisplayColumns(
-						vaSystem.config.logDisplayColumns
-					),
+					logDisplayColumns: normalizeVehicleLogDisplayColumns(vaSystem.config.logDisplayColumns),
 				} as VehicleAccessLocation,
 			]
 		}),
@@ -1556,7 +1554,7 @@ export function unifiedToElevatorZone(zone: UnifiedZone): ElevatorZone {
 
 export function elevatorToUnifiedZone(
 	zone: ElevatorZone,
-	systemType: SystemType = "elevator",
+	systemType: SystemType = "elevator"
 ): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
 	return {
 		name: zone.name,
@@ -1567,7 +1565,7 @@ export function elevatorToUnifiedZone(
 
 export function elevatorLocationToUnified(
 	loc: ElevatorLocation | Omit<ElevatorLocation, "id">,
-	systemType: SystemType = "elevator",
+	systemType: SystemType = "elevator"
 ): UnifiedLocationInput {
 	const hasId = "id" in loc && loc.id
 	const deviceIds = Array.isArray(loc.deviceIds)
@@ -1597,7 +1595,6 @@ export function elevatorLocationToUnified(
 				systemType,
 				config: {
 					deviceIds,
-					accessDeviceIds,
 					...(resolvedFloorNames
 						? {
 								floorCount,
@@ -1609,7 +1606,7 @@ export function elevatorLocationToUnified(
 						: {}),
 					logDisplayColumns: (() => {
 						const stored = toStoredElevatorLogDisplayColumns(
-							normalizeElevatorLogDisplayColumns(loc.logDisplayColumns),
+							normalizeElevatorLogDisplayColumns(loc.logDisplayColumns)
 						)
 						return stored.length > 0 ? stored : undefined
 					})(),

@@ -3,12 +3,9 @@ import { useAdminOnly } from "~/composables/core/useAuth"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import {
-	type RuntimeConfigCapabilities,
 	type RuntimeConfigSchema,
-	type RuntimeConfigSideEffects,
 	buildRuntimePayloadForSave,
 	decorateRuntimeFormExtras,
-	formatRuntimeSaveFeedback,
 	mergeRuntimeFormValues,
 	validateRuntimeConfigForSave,
 } from "~/utils/runtimeConfigForm"
@@ -16,15 +13,11 @@ import {
 type RuntimeConfigResponse = {
 	schema: RuntimeConfigSchema
 	values: Record<string, string>
-	capabilities: RuntimeConfigCapabilities
 }
 
 type RuntimeConfigSaveResponse = {
 	message: string
 	applied: boolean
-	changedKeys: string[]
-	sideEffects?: RuntimeConfigSideEffects
-	capabilities?: RuntimeConfigCapabilities
 }
 
 export const useRuntimeConfigPage = () => {
@@ -34,7 +27,6 @@ export const useRuntimeConfigPage = () => {
 	const { handleError } = useErrorHandler()
 
 	const schema = ref<RuntimeConfigSchema | null>(null)
-	const capabilities = ref<RuntimeConfigCapabilities>({ yscpDatabase: true })
 	const form = reactive<Record<string, string>>({})
 	const isLoading = ref(true)
 	const isSaving = ref(false)
@@ -44,7 +36,6 @@ export const useRuntimeConfigPage = () => {
 
 	const applyPayload = (data: RuntimeConfigResponse) => {
 		schema.value = data.schema
-		capabilities.value = data.capabilities ?? { yscpDatabase: true }
 		Object.assign(form, mergeRuntimeFormValues(data.schema, data.values))
 		Object.assign(form, decorateRuntimeFormExtras(data.values))
 	}
@@ -77,11 +68,7 @@ export const useRuntimeConfigPage = () => {
 		}
 		if (!schema.value) return
 
-		const validationError = validateRuntimeConfigForSave(
-			schema.value,
-			form,
-			capabilities.value,
-		)
+		const validationError = validateRuntimeConfigForSave(schema.value, form)
 		if (validationError) {
 			toast.warning(validationError)
 			return
@@ -94,11 +81,7 @@ export const useRuntimeConfigPage = () => {
 				method: "PUT",
 				body: { values: payload },
 			})
-			if (data.capabilities) {
-				capabilities.value = data.capabilities
-			}
-			const feedback = formatRuntimeSaveFeedback(data.applied, data.sideEffects)
-			toast[feedback.toast](feedback.message)
+			toast[data.applied ? "success" : "info"](data.message)
 			await fetchRuntimeConfig()
 		} catch (e) {
 			handleError(e, "儲存失敗")

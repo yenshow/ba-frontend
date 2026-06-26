@@ -1,6 +1,6 @@
 /** 營運設定表單（GET|PUT /api/runtime-config） */
 
-export type RuntimeConfigFieldKind = "text" | "password" | "number"
+export type RuntimeConfigFieldKind = "text" | "number"
 
 export type RuntimeConfigField = {
 	key: string
@@ -17,36 +17,11 @@ export type RuntimeConfigSchema = {
 	sections: RuntimeConfigSection[]
 }
 
-export type RuntimeConfigCapabilities = {
-	yscpDatabase: boolean
-}
-
-export type RuntimeConfigSideEffects = {
-	yscpExternalDb?: { ok: boolean; skipped?: boolean; message?: string }
-	alerts?: { ok: boolean; message?: string }
-	backup?: { ok: boolean; message?: string }
-}
-
 /** 前端虛擬欄位（不送 API） */
 export const RUNTIME_FORM_EXTRA_KEYS = {
 	alertRolloverTime: "__alertRolloverTime",
 	backupIntervalHours: "__backupIntervalHours",
 } as const
-
-export const RUNTIME_SECRET_KEYS = [
-	"YSCP_DB_PASSWORD",
-	"YSCP_AK",
-	"YSCP_SK",
-] as const
-
-/** schema 有定義但由虛擬欄位取代顯示 */
-const HIDDEN_SCHEMA_KEYS = new Set([
-	"ALERT_DAILY_ROLLOVER_LOCAL_HOUR",
-	"ALERT_DAILY_ROLLOVER_LOCAL_MINUTE",
-	"BACKUP_SCHEDULER_INTERVAL",
-])
-
-export const RUNTIME_PASSWORD_PLACEHOLDER = "留空表示不變更"
 
 /** 環境設定頁表單控制項共用樣式 */
 export const RUNTIME_FIELD_INPUT_CLASS =
@@ -66,7 +41,7 @@ export const mergeRuntimeFormValues = (
 }
 
 const isBackupSection = (section: RuntimeConfigSection) =>
-	section.fields.some((f) => f.key === "BACKUP_SCHEDULER_INTERVAL")
+	section.fields.some((f) => f.key === "BACKUP_ROOT_DIR")
 
 export type RuntimeGridField =
 	| { type: "schema"; field: RuntimeConfigField }
@@ -77,7 +52,6 @@ export type RuntimeGridField =
 export const getSectionGridFields = (section: RuntimeConfigSection): RuntimeGridField[] => {
 	const items: RuntimeGridField[] = []
 	for (const field of section.fields) {
-		if (HIDDEN_SCHEMA_KEYS.has(field.key)) continue
 		items.push({ type: "schema", field })
 		if (field.key === "ALERT_DAILY_ROLLOVER_TZ") {
 			items.push({ type: "alertRolloverTime" })
@@ -148,22 +122,8 @@ export const isValidIanaTimezone = (tz: string): boolean => {
 	}
 }
 
-const validateOptionalIntRange = (
-	raw: string,
-	min: number,
-	max: number,
-	label: string,
-): string | null => {
-	if (!raw) return null
-	const n = Number(raw)
-	if (!Number.isInteger(n) || n < min || n > max) {
-		return `${label} 須為 ${min}–${max}`
-	}
-	return null
-}
-
 /**
- * 合併 schema 欄位、虛擬欄位，並略過未填寫的密碼鍵
+ * 合併 schema 欄位、虛擬欄位
  */
 export const buildRuntimePayloadForSave = (
 	schema: RuntimeConfigSchema,
@@ -187,12 +147,6 @@ export const buildRuntimePayloadForSave = (
 		}
 	}
 
-	for (const key of RUNTIME_SECRET_KEYS) {
-		if (!trimField(payload, key)) {
-			delete payload[key]
-		}
-	}
-
 	return payload
 }
 
@@ -203,13 +157,7 @@ export const buildRuntimePayloadForSave = (
 export const validateRuntimeConfigForSave = (
 	schema: RuntimeConfigSchema,
 	form: Record<string, string>,
-	capabilities: RuntimeConfigCapabilities,
 ): string | null => {
-	const yscpEnabled = capabilities.yscpDatabase
-	if (yscpEnabled && !trimField(form, "YSCP_HOST")) {
-		return "主機不可為空白"
-	}
-
 	const tz = trimField(form, "ALERT_DAILY_ROLLOVER_TZ")
 	if (tz && !isValidIanaTimezone(tz)) {
 		return "時區須為有效 IANA 時區（例：Asia/Taipei）"
@@ -240,44 +188,5 @@ export const validateRuntimeConfigForSave = (
 		return "BACKUP_ROOT_DIR 必須為絕對路徑"
 	}
 
-	return (
-		validateOptionalIntRange(
-			trimField(payload, "ALERT_DAILY_ROLLOVER_LOCAL_HOUR"),
-			0,
-			23,
-			"每日切換時刻（時）",
-		) ??
-		validateOptionalIntRange(
-			trimField(payload, "ALERT_DAILY_ROLLOVER_LOCAL_MINUTE"),
-			0,
-			59,
-			"每日切換時刻（分）",
-		)
-	)
-}
-
-export const formatRuntimeSaveFeedback = (
-	applied: boolean,
-	sideEffects?: RuntimeConfigSideEffects,
-): { toast: "success" | "warning" | "info"; message: string } => {
-	if (!applied) {
-		return { toast: "info", message: "設定未變更" }
-	}
-
-	const yscp = sideEffects?.yscpExternalDb
-	if (yscp && !yscp.skipped && yscp.ok === false) {
-		return {
-			toast: "warning",
-			message: yscp.message || "設定已儲存，但 YSCP 外部資料庫連線失敗",
-		}
-	}
-
-	if (yscp?.ok) {
-		return {
-			toast: "success",
-			message: `已套用營運設定（${yscp.message || "YSCP 連線成功"}）`,
-		}
-	}
-
-	return { toast: "success", message: "已套用營運設定" }
+	return null
 }

@@ -27,13 +27,14 @@ import { unifiedToVehicleAccessZone } from "~/utils/locationAdapter";
 import {
 	buildGroupMemberPresenceFromLogs,
 	countReleasedPassages,
+	createVehicleDirectionResolver,
 	normalizePlate,
 	releasedLogs as releasedPassageLogs
 } from "~/utils/vehicleAccessPassageStats";
 import type { UnifiedZone } from "~/types/location";
 import { compareZonesLoose } from "~/utils/sortOrder";
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
-import { shouldHideVehicleAccessWhenYscpOff } from "~/utils/vehicleAccessDataSource";
+import { isVehicleAccessLocationVisible } from "~/utils/vehicleAccessDataSource";
 import { parseVehicleAccessEventLocationIds } from "~/utils/vehicleAccessWs";
 
 const MAIN_LOG_LIMIT = 5;
@@ -70,14 +71,6 @@ const getDefaultFilters = (): VehicleAccessFilters => ({
 	locationId: null
 });
 
-const getLaneIds = (loc: VehicleAccessLocation | null | undefined): number[] => {
-	if (!loc) return [];
-	const ids: number[] = [];
-	if (loc.entryLaneId != null) ids.push(Number(loc.entryLaneId));
-	if (loc.exitLaneId != null) ids.push(Number(loc.exitLaneId));
-	return ids;
-};
-
 const getDataSource = (loc: VehicleAccessLocation | null | undefined): VehicleAccessDataSource =>
 	loc?.dataSource === "isapi_camera" ? "isapi_camera" : "yscp";
 
@@ -95,9 +88,10 @@ const buildVehicleGroupMemberFromLogs = (
 	plate: string,
 	ownerName: string | null,
 	personId: number,
-	validLogs: VehicleDataLog[]
+	validLogs: VehicleDataLog[],
+	getDirection: ReturnType<typeof createVehicleDirectionResolver>
 ): VehicleGroupMemberItem => {
-	const presence = buildGroupMemberPresenceFromLogs(plate, validLogs);
+	const presence = buildGroupMemberPresenceFromLogs(plate, validLogs, getDirection);
 	return {
 		id: personId,
 		name: ownerName?.trim() || plate,
@@ -159,24 +153,20 @@ export const useVehicleAccessState = () => {
 		);
 	});
 
-	const laneIds = computed(() => getLaneIds(selectedLocation.value));
+	const vehicleDirectionForSelected = computed(() =>
+		createVehicleDirectionResolver(
+			selectedLocation.value?.entryLaneId,
+			selectedLocation.value?.exitLaneId
+		)
+	);
 
 	const isIsapiCamera = computed(() => getDataSource(selectedLocation.value) === "isapi_camera");
 	const isParkingMode = computed(
 		() => isIsapiCamera.value && getOperationMode(selectedLocation.value) === "parking"
 	);
 
-	const filterLogsByLaneIds = (logList: VehicleDataLog[], ids: number[]) => {
-		const laneSet = ids.length ? new Set(ids) : null;
-		if (laneSet == null) return logList;
-		return logList.filter(log => log.lane_id == null || laneSet.has(log.lane_id));
-	};
-
-	const filterTodayLogsForLanes = (logList: VehicleDataLog[]) =>
-		filterLogsByLaneIds(logList, laneIds.value);
-
 	const todayReleasedLogs = computed(() =>
-		releasedPassageLogs(filterTodayLogsForLanes(todayPassageLogs.value))
+		releasedPassageLogs(todayPassageLogs.value, vehicleDirectionForSelected.value)
 	);
 
 	const loadZones = async (): Promise<void> => {
@@ -188,9 +178,8 @@ export const useVehicleAccessState = () => {
 				.map((z: UnifiedZone) => unifiedToVehicleAccessZone(z))
 				.map((z: VehicleAccessZone) => ({
 					...z,
-					locations: (z.locations || []).filter(
-						(loc: VehicleAccessLocation) =>
-							!shouldHideVehicleAccessWhenYscpOff(loc.dataSource, yscpOn)
+					locations: (z.locations || []).filter((loc: VehicleAccessLocation) =>
+						isVehicleAccessLocationVisible(loc.dataSource, yscpOn)
 					)
 				}));
 			vehicleAccessZones.value = [...zones].sort((a, b) => compareZonesLoose(a, b));
@@ -213,35 +202,13 @@ export const useVehicleAccessState = () => {
 			return;
 		}
 		try {
-			if (isIsapiCamera.value) {
-				if (isParkingMode.value) {
-					const result = await vehicleAccessSitesApi.getSiteLogs(siteId, {
-						limit: VEHICLE_ACCESS_FULL_REPORT_LIMIT
-					});
-					todayPassageLogs.value = result.logs || [];
-				} else {
-					const result = await vehicleAccessSitesApi.getSiteLogs(siteId, {
-						limit: VEHICLE_ACCESS_FULL_REPORT_LIMIT,
-						...TODAY_TIME
-					});
-					todayPassageLogs.value = result.logs || [];
-				}
-			} else {
-				const ids = laneIds.value;
-				if (!ids.length) {
-					todayPassageLogs.value = [];
-				} else {
-					const result = await vehicleAccessApi.getVehicleDataLogList({
-						limit: VEHICLE_ACCESS_FULL_REPORT_LIMIT,
-						offset: 0,
-						orderBy: "trigger_time",
-						orderDirection: "DESC",
-						lane_id: ids,
-						...TODAY_TIME
-					});
-					todayPassageLogs.value = result.data || [];
-				}
-			}
+			const timeQuery =
+				isIsapiCamera.value && isParkingMode.value ? {} : TODAY_TIME;
+			const result = await vehicleAccessSitesApi.getSiteLogs(siteId, {
+				limit: VEHICLE_ACCESS_FULL_REPORT_LIMIT,
+				...timeQuery
+			});
+			todayPassageLogs.value = result.logs || [];
 			todayPassageSiteId.value = siteId;
 		} catch {
 			todayPassageLogs.value = [];
@@ -397,11 +364,8 @@ export const useVehicleAccessState = () => {
 			}));
 		}
 
-		const locLaneIds = getLaneIds(loc);
-		const laneSet = locLaneIds.length ? new Set(locLaneIds) : null;
-		const logList = releasedPassageLogs(
-			filterLogsByLaneIds(todayPassageLogs.value, getLaneIds(loc))
-		);
+		const direction = createVehicleDirectionResolver(loc.entryLaneId, loc.exitLaneId);
+		const logList = releasedPassageLogs(todayPassageLogs.value, direction);
 		const vehicleGroupFilter = toOptionalIdSet(loc.vehicleGroupIds);
 		return (vehicleGroupsFromApi.value.groups ?? [])
 			.filter(g => (g.id ?? 0) !== 0)
@@ -411,10 +375,11 @@ export const useVehicleAccessState = () => {
 				const plates = new Set(
 					(g.vehicles ?? []).map(v => normalizePlate(v.plate_license)).filter(Boolean)
 				);
-				const stats = countReleasedPassages(logList, log => {
-					if (laneSet != null && log.lane_id != null && !laneSet.has(log.lane_id)) return false;
-					return plates.has(normalizePlate(log.license_plate));
-				});
+				const stats = countReleasedPassages(
+					logList,
+					log => plates.has(normalizePlate(log.license_plate)),
+					direction
+				);
 				return {
 					groupKey: `vg_${groupId}`,
 					personGroupId: groupId,
@@ -453,19 +418,18 @@ export const useVehicleAccessState = () => {
 		const group = (vehicleGroupsFromApi.value.groups ?? []).find(g => (g.id ?? 0) === Number(match[1]));
 		if (!group?.vehicles?.length) return [];
 
-		const laneSet = laneIds.value.length ? new Set(laneIds.value) : null;
 		const plates = new Set(group.vehicles.map(v => normalizePlate(v.plate_license)).filter(Boolean));
-		const valid = todayReleasedLogs.value.filter(log => {
-			if (laneSet != null && log.lane_id != null && !laneSet.has(log.lane_id)) return false;
-			return plates.has(normalizePlate(log.license_plate));
-		});
+		const valid = todayReleasedLogs.value.filter(log =>
+			plates.has(normalizePlate(log.license_plate))
+		);
 
 		return group.vehicles.map(v =>
 			buildVehicleGroupMemberFromLogs(
 				v.plate_license ?? "",
 				v.owner_name ?? null,
 				v.vehicle_id,
-				valid
+				valid,
+				vehicleDirectionForSelected.value
 			)
 		);
 	});

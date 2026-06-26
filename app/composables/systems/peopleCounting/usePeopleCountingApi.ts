@@ -23,7 +23,7 @@ import {
 } from "~/utils/peopleCountingAdapter"
 import { normalizeLogDisplayColumns } from "~/utils/peopleCountingLogColumns"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
-import { shouldHidePeopleCountingWhenYscpOff } from "~/utils/peopleCountingDataSource"
+import { isPeopleCountingLocationVisible } from "~/utils/peopleCountingDataSource"
 
 /** 完整報表單次上限（與後端 ENTRY_EXIT_MAX_RECORDS 一致） */
 export { ENTRY_EXIT_FULL_REPORT_LIMIT as PEOPLE_COUNTING_FULL_REPORT_LIMIT } from "~/utils/entryExitTimeRange"
@@ -86,12 +86,13 @@ export const usePeopleCountingApi = () => {
 			})
 
 			const yscpOn = enableYscpPeopleCounting.value
-			const visibleSite = (ds: string | undefined) =>
-				!shouldHidePeopleCountingWhenYscpOff(ds, yscpOn)
 
 			const locations = locationsResponse.sites
 				.filter((site) =>
-					visibleSite(site.dataSource ?? locationConfigMap.get(site.id)?.dataSource)
+					isPeopleCountingLocationVisible(
+						site.dataSource ?? locationConfigMap.get(site.id)?.dataSource,
+						yscpOn
+					)
 				)
 				.map((site) => {
 					const cfg = locationConfigMap.get(site.id)
@@ -121,7 +122,9 @@ export const usePeopleCountingApi = () => {
 
 			const filteredZones = zones.map((zone) => ({
 				...zone,
-				locations: (zone.locations || []).filter((loc) => visibleSite(loc.dataSource)),
+				locations: (zone.locations || []).filter((loc) =>
+					isPeopleCountingLocationVisible(loc.dataSource, yscpOn)
+				),
 			}))
 
 			return { locations, zones: filteredZones }

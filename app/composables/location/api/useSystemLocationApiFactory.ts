@@ -8,6 +8,7 @@ import type { SystemZoneType, SystemLocationType } from "~/composables/location/
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { buildUnifiedZoneUpdateData, mergeFullZoneWithSystemUpdate } from "~/utils/locationAdapter"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
+import { filterPeopleCountingLocationsForSave } from "~/utils/peopleCountingDataSource"
 import { filterVehicleAccessLocationsForSave } from "~/utils/vehicleAccessDataSource"
 
 /**
@@ -50,18 +51,25 @@ export function useSystemLocationApiFactory<
 	TLocation extends SystemLocationType,
 >(config: SystemApiConfig<TZone, TLocation>) {
 	const locationApi = useLocationApi()
-	const { enableYscpVehicleAccess } = useModuleRegistry()
+	const { enableYscpVehicleAccess, enableYscpPeopleCounting } = useModuleRegistry()
 
 	const filterSaveData = <T extends { locations?: unknown[] }>(data: T): T => {
-		if (config.systemType !== "vehicle_access" || !Array.isArray(data.locations)) {
-			return data
-		}
-		return {
-			...data,
-			locations: filterVehicleAccessLocationsForSave(
-				data.locations as { dataSource?: string }[],
-				enableYscpVehicleAccess.value
-			),
+		if (!Array.isArray(data.locations)) return data
+
+		const locs = data.locations as { dataSource?: string }[]
+		switch (config.systemType) {
+			case "vehicle_access":
+				return {
+					...data,
+					locations: filterVehicleAccessLocationsForSave(locs, enableYscpVehicleAccess.value),
+				}
+			case "people_counting":
+				return {
+					...data,
+					locations: filterPeopleCountingLocationsForSave(locs, enableYscpPeopleCounting.value),
+				}
+			default:
+				return data
 		}
 	}
 
