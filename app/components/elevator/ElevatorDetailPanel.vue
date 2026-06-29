@@ -4,7 +4,7 @@
 			<ElevatorLedBillboard
 				:floor-text="displayFloorText"
 				:direction="displayDirection"
-				:is-connected="isLadderConnected"
+				:is-connected="isPanelConnected"
 				:status-aria-label="statusAriaLabel"
 				:device-health-label="deviceHealthLabel"
 				:device-status-dot-class="deviceStatusDotClass"
@@ -144,6 +144,7 @@ import { sortFloorsForPanel, resolveElevatorCallCommand } from "~/utils/elevator
 import {
 	buildElevatorDeviceStatusLabel,
 	buildElevatorStatusAriaLabel,
+	isElevatorPanelConnected,
 } from "~/utils/elevatorDisplayUtils"
 import {
 	ELEVATOR_LOG_COLUMN_LABELS,
@@ -157,6 +158,7 @@ interface Props {
 	displayColumns?: string[]
 	ladderDeviceId?: number | null
 	callDeviceId?: number | null
+	hasFloorDetection?: boolean
 	locationId?: number | null
 	canControl?: boolean
 	floors?: ElevatorLogicalFloor[]
@@ -164,6 +166,7 @@ interface Props {
 	live?: ElevatorLiveState | null
 	isLadderConnected?: boolean
 	isCallConnected?: boolean
+	isFloorDetectionConnected?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -171,6 +174,7 @@ const props = withDefaults(defineProps<Props>(), {
 	displayColumns: undefined,
 	ladderDeviceId: null,
 	callDeviceId: null,
+	hasFloorDetection: false,
 	locationId: null,
 	canControl: false,
 	floors: () => [],
@@ -178,6 +182,7 @@ const props = withDefaults(defineProps<Props>(), {
 	live: null,
 	isLadderConnected: false,
 	isCallConnected: false,
+	isFloorDetectionConnected: false,
 })
 
 const emit = defineEmits<{
@@ -197,10 +202,7 @@ const { applyLiveState, displayFloorText, displayDirection, isMoving } = useElev
 watch(
 	() => props.live,
 	(live) => {
-		if (live) {
-			applyLiveState(live)
-			emit("runtime-updated", live)
-		}
+		if (live) applyLiveState(live)
 	},
 	{ immediate: true, deep: true },
 )
@@ -208,19 +210,26 @@ watch(
 const recordColumns = computed(() => normalizeElevatorLogDisplayColumns(displayColumns.value))
 const recordColumnLabels = ELEVATOR_LOG_COLUMN_LABELS as Record<ElevatorLogColumnKey, string>
 
-const isLadderConnected = computed(() => props.isLadderConnected)
+const isPanelConnected = computed(() =>
+	isElevatorPanelConnected({
+		isLadderConnected: props.isLadderConnected,
+		hasFloorDetection: props.hasFloorDetection,
+		isFloorDetectionConnected: props.isFloorDetectionConnected,
+		live: props.live,
+	}),
+)
 
-const deviceHealthLabel = computed(() => buildElevatorDeviceStatusLabel(isLadderConnected.value))
+const deviceHealthLabel = computed(() => buildElevatorDeviceStatusLabel(isPanelConnected.value))
 
 const deviceStatusDotClass = computed(() =>
-	isLadderConnected.value ? "bg-emerald-400" : "bg-amber-400",
+	isPanelConnected.value ? "bg-emerald-400" : "bg-amber-400",
 )
 
 const statusAriaLabel = computed(() =>
 	buildElevatorStatusAriaLabel({
 		floorText: displayFloorText.value,
 		direction: displayDirection.value,
-		isConnected: isLadderConnected.value,
+		isConnected: isPanelConnected.value,
 		deviceHealthLabel: true,
 	}),
 )

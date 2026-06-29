@@ -4,9 +4,11 @@ export const MIN_OPEN_DURATION = 1
 export const MAX_OPEN_DURATION = 255
 /** 面板固定 6 列（由下往上填滿後換欄） */
 export const PANEL_ROW_COUNT = 6
-/** 與後端 elevatorFloorDetectionMonitor 輪詢間隔一致 */
+/** 背景輪詢 idle 間隔（與後端 ELEVATOR_POLL_IDLE_MS 對齊） */
 export const ELEVATOR_RUNTIME_POLL_MS = 2000
-/** 移動中 LED 逐層顯示間隔（呼梯後 DI 尚未回報時由前端補間） */
+/** 背景輪詢 moving 間隔（與後端 ELEVATOR_POLL_MOVING_MS 對齊） */
+export const ELEVATOR_POLL_MOVING_MS = 1000
+/** DI rank 變化時前端追趕式逐層補間間隔 */
 export const ELEVATOR_FLOOR_STEP_MS = 1000
 
 export type ElevatorDeviceRole = {
@@ -34,6 +36,10 @@ export type ElevatorPanelConfig = {
 
 export type ElevatorRuntimePhase = "idle" | "moving" | "arrived"
 
+export type ElevatorFloorDetectionLive = {
+	readOk: boolean
+}
+
 export type ElevatorFloorSnapshot = {
 	index: number
 	label: string
@@ -45,6 +51,7 @@ export type ElevatorLiveState = {
 	direction: "up" | "down" | "idle"
 	targetFloor: ElevatorFloorSnapshot | null
 	phase: ElevatorRuntimePhase
+	floorDetection?: ElevatorFloorDetectionLive | null
 	updatedAt?: string
 }
 
@@ -171,6 +178,43 @@ export const sortFloorsForPanel = (floors: ElevatorLogicalFloor[]) =>
 export const sortFloorsByRank = (floors: ElevatorLogicalFloor[]) =>
 	[...floors].sort((a, b) => a.rank - b.rank)
 
+export const findFloorByRank = (
+	floors: ElevatorLogicalFloor[],
+	rank: number,
+): ElevatorLogicalFloor | null => floors.find((f) => f.rank === rank) ?? null
+
+/** 依 rank 由 from 到 to 的逐步序列（不含 from，含 to） */
+export const buildRankStepPath = (
+	floors: ElevatorLogicalFloor[],
+	fromRank: number,
+	toRank: number,
+): number[] => {
+	if (fromRank === toRank) return []
+	const ranks = [...new Set(floors.map((f) => f.rank))].sort((a, b) => a - b)
+	const fromIdx = ranks.indexOf(fromRank)
+	const toIdx = ranks.indexOf(toRank)
+	if (fromIdx < 0 || toIdx < 0) {
+		return toRank !== fromRank ? [toRank] : []
+	}
+	const step = toRank > fromRank ? 1 : -1
+	const path: number[] = []
+	for (let i = fromIdx + step; step > 0 ? i <= toIdx : i >= toIdx; i += step) {
+		const rank = ranks[i]
+		if (rank != null) path.push(rank)
+	}
+	return path
+}
+
+export const floorSnapshotFromRank = (
+	floors: ElevatorLogicalFloor[],
+	rank: number,
+): ElevatorFloorSnapshot | null => {
+	const floor = findFloorByRank(floors, rank)
+	if (!floor) return null
+	const index = floors.indexOf(floor) + 1
+	return { index, label: floor.label, rank: floor.rank }
+}
+
 export const resolveFloorLabel = (floors: ElevatorLogicalFloor[], index: number) =>
 	floors[index - 1]?.label ?? ""
 
@@ -202,6 +246,27 @@ export const formatElevatorLogFloorDisplay = (
 		})
 		.join("、")
 }
+
+/** 後端加速輪詢階段（moving / arrived） */
+export const isElevatorPollAccelerated = (live?: ElevatorLiveState | null): boolean =>
+	live?.phase === "moving" || live?.phase === "arrived"
+
+/** 監控頁需追蹤連線的設備（梯控、呼梯、樓層偵測） */
+export const collectElevatorMonitoringDeviceIds = (
+	locations: Array<{
+		ladderDevice?: ElevatorDeviceRole | null
+		callDevice?: ElevatorDeviceRole | null
+		floorDetection?: ElevatorDeviceRole | null
+	}>,
+): number[] => [
+	...new Set(
+		locations.flatMap((loc) =>
+			[loc.ladderDevice?.deviceId, loc.callDevice?.deviceId, loc.floorDetection?.deviceId].filter(
+				(id): id is number => id != null,
+			),
+		),
+	),
+]
 
 /** 呼梯固定為訪客呼梯 SDK command */
 export const resolveElevatorCallCommand = (): "visitor_call" => "visitor_call"

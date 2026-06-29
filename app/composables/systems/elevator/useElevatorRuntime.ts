@@ -8,7 +8,9 @@ import {
 import type { ElevatorLiveState, ElevatorLogicalFloor } from "~/types/elevator"
 import { formatElevatorLiveFloorText } from "~/utils/elevatorDisplayUtils"
 import {
+	buildRankStepPath,
 	ELEVATOR_FLOOR_STEP_MS,
+	floorSnapshotFromRank,
 	type ElevatorFloorSnapshot,
 } from "~/utils/elevatorFloorModel"
 
@@ -16,20 +18,25 @@ type UseElevatorRuntimeOptions = {
 	floors?: MaybeRefOrGetter<ElevatorLogicalFloor[] | undefined>
 }
 
-const toSnapshot = (floors: ElevatorLogicalFloor[], index: number): ElevatorFloorSnapshot => ({
-	index,
-	label: floors[index - 1]?.label ?? `${index}F`,
-	rank: floors[index - 1]?.rank,
-})
+const liveFloorToSnapshot = (
+	floors: ElevatorLogicalFloor[],
+	floor: NonNullable<ElevatorLiveState["currentFloor"]>,
+): ElevatorFloorSnapshot =>
+	(floor.rank != null ? floorSnapshotFromRank(floors, floor.rank) : null) ?? {
+		index: floor.index,
+		label: floor.label,
+		rank: floor.rank,
+	}
 
 export const useElevatorRuntime = (options: UseElevatorRuntimeOptions = {}) => {
 	const liveState = ref<ElevatorLiveState | null>(null)
-	const animatedFloor = ref<ElevatorFloorSnapshot | null>(null)
-	const lastKnownIndex = ref<number | null>(null)
-	const animatingTarget = ref<number | null>(null)
-	const animationSettled = ref(false)
+	const displayedFloor = ref<ElevatorFloorSnapshot | null>(null)
+	const rankStepQueue = ref<number[]>([])
+	const lastCommittedRank = ref<number | null>(null)
 
 	let timer: ReturnType<typeof setInterval> | null = null
+
+	const getFloors = () => toValue(options.floors) ?? []
 
 	const clearTimer = () => {
 		if (timer) {
@@ -38,114 +45,92 @@ export const useElevatorRuntime = (options: UseElevatorRuntimeOptions = {}) => {
 		}
 	}
 
-	const getFloors = () => toValue(options.floors) ?? []
-
-	const setIndex = (floors: ElevatorLogicalFloor[], index: number) => {
-		animatedFloor.value = toSnapshot(floors, index)
-		lastKnownIndex.value = index
+	const setDisplayedRank = (rank: number) => {
+		const snap = floorSnapshotFromRank(getFloors(), rank)
+		if (snap) displayedFloor.value = snap
 	}
 
-	const resetAnimation = (persistIndex?: number) => {
-		clearTimer()
-		animatedFloor.value = null
-		animationSettled.value = false
-		animatingTarget.value = null
-		if (persistIndex != null) lastKnownIndex.value = persistIndex
+	const playNextRankStep = () => {
+		const next = rankStepQueue.value.shift()
+		if (next == null) return
+		setDisplayedRank(next)
 	}
 
-	const finishAtTarget = (floors: ElevatorLogicalFloor[], index: number) => {
-		setIndex(floors, index)
-		animationSettled.value = true
-		clearTimer()
-	}
-
-	const stepOnce = (floors: ElevatorLogicalFloor[], state: ElevatorLiveState) => {
-		const target = state.targetFloor!.index
-		const current = animatedFloor.value?.index ?? lastKnownIndex.value ?? 1
-		if (current === target) {
-			finishAtTarget(floors, target)
-			return
-		}
-
-		const step = state.direction === "down" ? -1 : 1
-		const next = step > 0 ? Math.min(current + step, target) : Math.max(current + step, target)
-		setIndex(floors, next)
-		if (next === target) finishAtTarget(floors, target)
-	}
-
-	const startTimer = () => {
+	const startStepTimer = () => {
 		if (timer) return
-		timer = setInterval(() => {
-			const state = liveState.value
-			if (!state?.targetFloor || state.phase !== "moving") {
+		const tick = () => {
+			if (!rankStepQueue.value.length) {
 				clearTimer()
 				return
 			}
-			const floors = getFloors()
-			if (!floors.length) {
-				clearTimer()
-				return
-			}
-			stepOnce(floors, state)
-		}, ELEVATOR_FLOOR_STEP_MS)
+			playNextRankStep()
+		}
+		tick()
+		if (rankStepQueue.value.length) {
+			timer = setInterval(tick, ELEVATOR_FLOOR_STEP_MS)
+		}
 	}
 
-	const reconcileAnimation = (state: ElevatorLiveState) => {
-		if (state.phase !== "moving" || !state.targetFloor) {
-			resetAnimation(state.currentFloor?.index ?? undefined)
+	const enqueueRankCatchUp = (fromRank: number, toRank: number) => {
+		clearTimer()
+		rankStepQueue.value = buildRankStepPath(getFloors(), fromRank, toRank)
+		if (rankStepQueue.value.length) {
+			startStepTimer()
 			return
 		}
-
-		const target = state.targetFloor.index
-		if (animationSettled.value && animatingTarget.value === target) return
-
-		const floors = getFloors()
-		if (!floors.length) {
-			resetAnimation()
-			return
-		}
-
-		if (animatingTarget.value !== target) {
-			animatingTarget.value = target
-			animationSettled.value = false
-			const start = lastKnownIndex.value ?? state.currentFloor?.index ?? 1
-			setIndex(floors, start)
-		}
-
-		if (animatedFloor.value?.index === target) {
-			finishAtTarget(floors, target)
-			return
-		}
-
-		startTimer()
+		setDisplayedRank(toRank)
 	}
 
 	const applyLiveState = (state: ElevatorLiveState | null | undefined) => {
 		if (!state) return
 		liveState.value = state
-		reconcileAnimation(state)
+
+		const current = state.currentFloor
+		const floors = getFloors()
+
+		if (!current || current.rank == null) {
+			if (current) {
+				displayedFloor.value = liveFloorToSnapshot(floors, current)
+				lastCommittedRank.value = current.rank ?? null
+			}
+			return
+		}
+
+		const newRank = current.rank
+
+		if (lastCommittedRank.value == null) {
+			lastCommittedRank.value = newRank
+			displayedFloor.value = liveFloorToSnapshot(floors, current)
+			return
+		}
+
+		if (newRank === lastCommittedRank.value) {
+			if (!rankStepQueue.value.length && !timer) {
+				displayedFloor.value = liveFloorToSnapshot(floors, current)
+			}
+			return
+		}
+
+		const fromRank = displayedFloor.value?.rank ?? lastCommittedRank.value
+		lastCommittedRank.value = newRank
+		enqueueRankCatchUp(fromRank, newRank)
 	}
 
 	const displayFloorText = computed(() => {
-		const state = liveState.value
-		if (!state) return formatElevatorLiveFloorText({ floorLabel: "1F" })
-
-		if (state.phase === "moving" && animatedFloor.value) {
-			return formatElevatorLiveFloorText({ floorLabel: animatedFloor.value.label })
-		}
-
-		return formatElevatorLiveFloorText({
-			floorLabel: state.currentFloor?.label ?? state.targetFloor?.label ?? "1F",
-		})
+		const label =
+			displayedFloor.value?.label ?? liveState.value?.currentFloor?.label ?? undefined
+		return formatElevatorLiveFloorText({ floorLabel: label ?? "1F" })
 	})
 
 	const displayDirection = computed(() => {
 		const state = liveState.value
-		if (!state || state.phase !== "moving" || animationSettled.value) return "idle"
+		if (!state || state.phase !== "moving") return "idle"
 		return state.direction ?? "idle"
 	})
 
-	const isMoving = computed(() => displayDirection.value !== "idle")
+	const isMoving = computed(
+		() => rankStepQueue.value.length > 0 || liveState.value?.phase === "moving",
+	)
 
 	onScopeDispose(clearTimer)
 

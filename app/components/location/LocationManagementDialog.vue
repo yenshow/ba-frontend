@@ -83,7 +83,7 @@
 														button-class="ml-auto flex-shrink-0"
 														:disabled="!canDeleteLocation"
 														:title="canDeleteLocation ? '刪除地點' : '權限不足'"
-														aria-label="刪除區域"
+														aria-label="刪除地點"
 														@click="removeLocation(locationIndex)"
 													/>
 												</div>
@@ -128,10 +128,12 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref, toRef, watch } from "vue"
 import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import ZoneFormFields from "~/components/location/ZoneFormFields.vue"
 import IconTrashButton from "~/components/common/IconTrashButton.vue"
+import { useAreaPointMapRbac } from "~/composables/core/useAccessGate"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { removeLocationFromSystemOrDelete } from "~/composables/location/locationSystemActions"
 import { buildDeleteLocationConfirmCopy, buildDeleteZoneConfirmCopy } from "~/utils/confirmCopy"
@@ -143,9 +145,6 @@ interface Props {
 	modelValue: boolean
 	zone: UnifiedZone | null
 	systemType?: SystemType
-	allowDelete?: boolean
-	allowDeleteZone?: boolean
-	allowDeleteLocation?: boolean
 }
 
 interface Emits {
@@ -156,10 +155,9 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-const canDeleteZone = computed(() => props.allowDeleteZone !== false && props.allowDelete !== false)
-const canDeleteLocation = computed(
-	() => props.allowDeleteLocation !== false && props.allowDelete !== false
-)
+const { canDeleteZone, canDeleteLocationForSystem } = useAreaPointMapRbac()
+const systemType = toRef(props, "systemType")
+const canDeleteLocation = computed(() => canDeleteLocationForSystem(systemType.value))
 
 const errorMessage = ref("")
 const displayZone = ref<UnifiedZone | null>(null)

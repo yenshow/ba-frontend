@@ -177,8 +177,6 @@
 		v-model="showLocationManagementDialog"
 		:zone="selectedZoneData"
 		:system-type="selectedSystemType ?? undefined"
-		:allow-delete-zone="canDeleteZone"
-		:allow-delete-location="canDeleteLocationInDialog"
 		@delete="handleDeleteUnifiedZone"
 	/>
 </template>
@@ -200,12 +198,7 @@ definePageMeta({
 	layout: "default",
 })
 
-const { canDeleteZone, canDeleteLocation, canManageOperations, canDeleteLocationForSystem } =
-	useAreaPointMapRbac()
-
-const canDeleteLocationInDialog = computed(() =>
-	canDeleteLocationForSystem(selectedSystemType.value)
-)
+const { canDeleteZone, canManageOperations } = useAreaPointMapRbac()
 const locationApi = useLocationApi()
 const { handleError } = useErrorHandler()
 const { handleDeleteZone: baseHandleDeleteZone, sortZones } = useZoneManagement<
@@ -333,7 +326,6 @@ const getLocationTypeLabel = getSystemTypeLabel
 
 // 處理打開區域管理對話框
 const handleOpenZoneDialog = async () => {
-	if (!canManageOperations.value) return
 	if (zones.value.length === 0) {
 		await loadZones()
 	}

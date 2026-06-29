@@ -295,11 +295,11 @@ export const useMultimediaRbac = () => {
 }
 
 export const useAreaPointMapRbac = () => {
-	const { useHasPermission, useHasAnyPermission, hasPermission } = useAuth()
+	const { useHasPermission, hasPermission } = useAuth()
 	const p = PERM.areaPointMap
 	const canDeleteZone = useHasPermission(p.zoneDelete)
 	const canDeleteLocation = useHasPermission(p.locationDelete)
-	const canManageOperations = useHasAnyPermission(p.zoneDelete, p.locationDelete)
+	const canManageOperations = computed(() => canDeleteZone.value || canDeleteLocation.value)
 	const canDeleteLocationForSystem = (systemType: string | null | undefined) => {
 		if (!systemType) return canDeleteLocation.value
 		const code = LOCATION_DELETE_BY_SYSTEM_TYPE[String(systemType)]

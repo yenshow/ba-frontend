@@ -57,3 +57,16 @@ export const elevatorLedArrowClass = (
 	}
 	return "text-cyan-400/35 opacity-60"
 }
+
+/** LED 面板連線：梯控必須在線；有樓層偵測時另檢 DI 設備與 readOk（對齊 DetailPanel／總覽） */
+export const isElevatorPanelConnected = (options: {
+	isLadderConnected: boolean
+	hasFloorDetection: boolean
+	isFloorDetectionConnected: boolean
+	live?: { floorDetection?: { readOk?: boolean } | null } | null
+}): boolean => {
+	if (!options.isLadderConnected) return false
+	if (!options.hasFloorDetection) return true
+	if (!options.isFloorDetectionConnected) return false
+	return options.live?.floorDetection?.readOk !== false
+}
