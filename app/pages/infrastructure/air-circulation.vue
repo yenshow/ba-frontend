@@ -60,6 +60,7 @@
 		:can-delete-zone="canDeleteLocation"
 		device-hint="請先在「設備管理」中建立控制器設備"
 		:on-save-zone="handleSaveZone"
+		@saved="handleZonesSaved"
 		@delete="handleDeleteZone"
 	/>
 </template>
@@ -392,6 +393,12 @@ const handleDeleteZone = async (zoneId: string) => {
 			},
 		}
 	)
+}
+
+const handleZonesSaved = async () => {
+	await loadZonesFromAPI()
+	await preloadDeviceInfos()
+	await loadStatusSnapshot({ force: true })
 }
 
 const handleOpenZoneDialog = async () => {

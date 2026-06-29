@@ -1,16 +1,16 @@
 <template>
 	<div>
-		<!-- 主要內容區域：左右排版 -->
+		<!-- 全區點位圖頁面內容 -->
 		<div class="flex justify-center gap-6 2xl:gap-8">
-			<!-- 左側面板：區域選擇與編輯功能 -->
+			<!-- 左側：平面圖與篩選 -->
 			<section class="flex-[1.2] 2xl:flex-[1.3]" ref="leftSectionRef">
 				<div
 					class="flex overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-6 2xl:p-8"
 				>
-					<!-- 區域選擇 -->
+					<!-- 區域名稱與操作 -->
 					<div class="relative z-10 flex flex-col justify-between py-4 text-center text-white">
 						<div class="space-y-4">
-							<!-- 區域顯示 -->
+							<!-- 區域名稱 -->
 							<div class="py-4">
 								<span
 									class="inline-flex text-nowrap border-b-2 border-white/70 pb-1 text-4xl tracking-widest 2xl:text-5xl"
@@ -18,27 +18,27 @@
 									{{ selectedZoneName }}
 								</span>
 							</div>
-							<!-- 區域管理（RBAC；無權限時禁用以保留排版） -->
+							<!-- 區域管理（RBAC：至少具備 zone 或 location 刪除權限） -->
 							<Transition name="fade-in">
 								<PermissionActionButton
 									v-show="!isInitialLoading"
 									:allowed="canManageOperations"
-									ariaLabel="區域管理"
+									aria-label="區域管理"
 									class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base text-white transition-all enabled:hover:bg-white/10 2xl:text-lg"
 									@click="handleOpenZoneDialog"
 								>
 									區域管理
 								</PermissionActionButton>
 							</Transition>
-							<!-- 系統列表（篩選該樓層的系統顯示） -->
+							<!-- 系統篩選（選中區域內的子系統） -->
 							<Transition name="fade-in">
 								<div
 									v-if="selectedZoneData && !isInitialLoading"
 									class="absolute bottom-1/4 left-0 mt-6 space-y-2"
 								>
-									<template v-if="zoneSystemTypes.length > 0">
+									<template v-if="mapFilterSystemTypes.length > 0">
 										<button
-											v-for="systemType in zoneSystemTypes"
+											v-for="systemType in mapFilterSystemTypes"
 											:key="systemType"
 											type="button"
 											@click="handleSystemTypeToggle(systemType)"
@@ -58,14 +58,14 @@
 										v-else
 										class="rounded-xl border-2 border-white/30 bg-white/5 p-2 text-center text-xs text-white/60 2xl:text-base"
 									>
-										無系統
+										尚無系統
 									</div>
 								</div>
 							</Transition>
 						</div>
 					</div>
 
-					<!-- 中央區域平面圖 -->
+					<!-- 平面圖與地點點位 -->
 					<div class="map-location-dots relative h-[600px] w-full p-4 2xl:h-[780px]">
 						<NuxtImg
 							v-if="zonePlanImage"
@@ -80,7 +80,7 @@
 						<div v-else class="flex h-full w-full items-center justify-center text-white/50">
 							<span>尚未設定區域平面圖</span>
 						</div>
-						<!-- 地點點位（只顯示已定位的） -->
+						<!-- 地點點位（依篩選系統顯示座標） -->
 						<template v-for="location in currentZoneLocations" :key="location.id">
 							<div class="location-dot-wrapper" :style="getLocationDotStyle(location)">
 								<div
@@ -105,27 +105,27 @@
 				</div>
 			</section>
 
-			<!-- 右側總覽面板 -->
+			<!-- 右側區域列表 -->
 			<aside class="show-scrollbar flex-[0.8] overflow-y-auto 2xl:flex-[0.7]">
 				<div
 					class="rounded-2xl border-2 border-white/80 bg-white/30 p-6 2xl:p-8"
 					:style="leftSectionHeight ? { minHeight: leftSectionHeight + 'px' } : undefined"
 				>
-					<!-- 總覽標題 -->
+					<!-- 標題 -->
 					<h2
 						class="mb-4 text-center text-2xl font-semibold tracking-[12px] text-white 2xl:text-3xl"
 					>
-						總覽
+						區域
 					</h2>
 
-					<!-- 載入狀態 -->
+					<!-- 載入中 -->
 					<div v-if="isLoading" class="flex min-h-[200px] items-center justify-center">
 						<div class="text-center text-white/60">
 							<p class="text-base 2xl:text-lg">載入中...</p>
 						</div>
 					</div>
 
-					<!-- 樓層列表 -->
+					<!-- 區域列表 -->
 					<div v-else-if="zones.length > 0" class="space-y-2">
 						<button
 							v-for="zone in sortedZones"
@@ -154,7 +154,7 @@
 													.join("、")
 											}}
 										</template>
-										<span v-else class="text-white/50">無系統</span>
+										<span v-else class="text-white/50">尚無系統</span>
 									</div>
 								</div>
 							</div>
@@ -172,14 +172,13 @@
 		</div>
 	</div>
 
-	<!-- 地點管理對話框（有篩選系統時傳入 systemType，刪除地點僅從該系統移除） -->
+	<!-- 地點管理對話框（依 selectedSystemType 篩選讀寫系統） -->
 	<LocationManagementDialog
 		v-model="showLocationManagementDialog"
 		:zone="selectedZoneData"
 		:system-type="selectedSystemType ?? undefined"
-		:allow-delete-zone="canDeleteZone"
-		:allow-delete-location="canDeleteLocationInDialog"
 		@delete="handleDeleteUnifiedZone"
+		@zones-changed="loadZones"
 	/>
 </template>
 
@@ -200,12 +199,7 @@ definePageMeta({
 	layout: "default",
 })
 
-const { canDeleteZone, canDeleteLocation, canManageOperations, canDeleteLocationForSystem } =
-	useAreaPointMapRbac()
-
-const canDeleteLocationInDialog = computed(() =>
-	canDeleteLocationForSystem(selectedSystemType.value)
-)
+const { canManageOperations, canDeleteZoneForSystem } = useAreaPointMapRbac()
 const locationApi = useLocationApi()
 const { handleError } = useErrorHandler()
 const { handleDeleteZone: baseHandleDeleteZone, sortZones } = useZoneManagement<
@@ -213,11 +207,11 @@ const { handleDeleteZone: baseHandleDeleteZone, sortZones } = useZoneManagement<
 	UnifiedZone
 >()
 
-// 左側區域參考與高度（用於使右側面板同高）
+// 左側區塊高度（與右側列表對齊）
 const leftSectionRef = ref<HTMLElement | null>(null)
 const leftSectionHeight = ref<number | null>(null)
 
-// ResizeObserver 監聽左側高度
+// ResizeObserver 同步高度
 let leftSectionResizeObserver: ResizeObserver | null = null
 
 const updateLeftSectionHeight = () => {
@@ -240,20 +234,21 @@ const zones = ref<UnifiedZone[]>([])
 const isLoading = ref(false)
 const isInitialLoading = ref(true)
 
-// 選中的區域與地點
+// 選取狀態
 const selectedZone = ref<string>("")
 const selectedLocation = ref<string>("")
-// 選中的系統類型（用於篩選）
+// 平面圖篩選的子系統
 const selectedSystemType = ref<SystemType | null>(null)
 
-// 選中的區域資料
+// 目前選中區域
 const selectedZoneData = computed(() => {
 	if (!selectedZone.value) return undefined
 	return zones.value.find((zone) => zone.id === selectedZone.value)
 })
 
 const {
-	zoneSystemTypes,
+	mapFilterSystemTypes,
+	inferDefaultManagementSystemType,
 	getZoneSystemTypes,
 	currentZoneLocations,
 	getLocationDotStyle,
@@ -266,31 +261,31 @@ const {
 	handleRuntimeVisibility,
 } = useAreaPointMap({ selectedZone, selectedSystemType, selectedZoneData })
 
-// 其他狀態
+// UI 狀態
 const isZonePlanLoaded = ref(false)
 const showLocationManagementDialog = ref(false)
 
-// 選中的區域名稱
+// 選中區域名稱
 const selectedZoneName = computed(() => {
 	return selectedZoneData.value?.name || ""
 })
 
-// 排序的區域列表
+// 排序後的區域列表
 const sortedZones = computed(() => sortZones(zones.value))
 
-// 區域示意圖
+// 區域平面圖
 const zonePlanImage = computed(() => selectedZoneData.value?.imageUrl)
 
 const firstZoneByDisplayOrder = (zs: UnifiedZone[]) => sortZones(zs)[0] ?? null
 
-// 載入區域列表
+// 載入區域
 const loadZones = async () => {
 	isLoading.value = true
 	try {
 		const response = await locationApi.getZones()
 		zones.value = response.zones
 
-		// 若尚未選區域，依 sort_order／名稱慣例選排序後第一個
+		// 預設選第一個區域（依 sort_order 排序）
 		if (!selectedZone.value && zones.value.length > 0) {
 			const first = firstZoneByDisplayOrder(zones.value)
 			if (first?.id) selectedZone.value = first.id
@@ -303,7 +298,7 @@ const loadZones = async () => {
 }
 
 const handleDeleteUnifiedZone = async (zoneId: string) => {
-	if (!canDeleteZone.value) return
+	if (!canDeleteZoneForSystem(selectedSystemType.value)) return
 
 	await baseHandleDeleteZone(zoneId, zones, locationApi.deleteZone, {
 		selectedZoneRef: selectedZone,
@@ -321,7 +316,7 @@ const handleDeleteUnifiedZone = async (zoneId: string) => {
 const handleZoneSelected = (zoneId: string) => {
 	selectedZone.value = zoneId
 	selectedLocation.value = ""
-	// 切換區域時重置系統篩選
+	// 切換區域時清除系統篩選
 	selectedSystemType.value = null
 }
 
@@ -331,19 +326,23 @@ const selectLocation = (location: UnifiedLocation) => {
 
 const getLocationTypeLabel = getSystemTypeLabel
 
-// 處理打開區域管理對話框
+// 開啟區域管理對話框
 const handleOpenZoneDialog = async () => {
 	if (!canManageOperations.value) return
 	if (zones.value.length === 0) {
 		await loadZones()
 	}
+	if (!selectedSystemType.value) {
+		const inferred = inferDefaultManagementSystemType()
+		if (inferred) selectedSystemType.value = inferred
+	}
 	showLocationManagementDialog.value = true
 }
 
-// 監聽頁面可見性變化，當頁面重新可見時重新載入資料
+// 分頁回到前景時重新載入
 const handleVisibilityChange = () => {
 	if (document.visibilityState === "visible") {
-		// 頁面可見時，重新載入區域資料以確保資料同步
+		// 重新載入區域並恢復快照輪詢
 		void loadZones()
 		handleRuntimeVisibility()
 	}
@@ -355,26 +354,26 @@ const visibilityRefresh = useVisibilitySnapshotSync({
 	onVisible: handleVisibilityChange,
 })
 
-// 初始化載入
+// 初始化
 onMounted(async () => {
-	// 初始化左側 ResizeObserver
+	// 啟動 ResizeObserver
 	initLeftSectionObserver()
 
 	try {
-		// 載入區域列表（狀態快照與輪詢由 useAreaPointMap watch immediate 啟動）
+		// 載入區域（useAreaPointMap 的 watch immediate 會接續處理快照）
 		await loadZones()
 
-		// 同步右側高度
+		// 同步高度
 		await nextTick()
 		updateLeftSectionHeight()
 	} catch (error) {
-		handleError(error, "初始化失敗")
+		handleError(error, "頁面初始化失敗")
 	} finally {
-		// 初始載入完成，顯示按鈕和系統列表（使用淡入動畫）
+		// 結束初始載入遮罩（系統篩選按鈕才顯示）
 		isInitialLoading.value = false
 	}
 
-	// 監聽頁面可見性變化
+	// 監聽分頁可見性
 	visibilityRefresh.start()
 })
 

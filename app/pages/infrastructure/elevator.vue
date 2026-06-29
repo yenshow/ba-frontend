@@ -218,7 +218,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref } from "vue"
+import { computed, onMounted, onBeforeUnmount, ref, watch } from "vue"
 import type { ElevatorZone, ElevatorLocation, ElevatorLog, ElevatorLiveState } from "~/types/elevator"
 import type {
 	MonitoringDeviceStatusBatchEvent,
@@ -320,6 +320,15 @@ const selectedLocationNumericId = computed(() => {
 	const n = Number(id)
 	return Number.isFinite(n) ? n : null
 })
+
+const elevatorSelectedLocationKey = ref("")
+watch(
+	selectedLocationNumericId,
+	(id) => {
+		elevatorSelectedLocationKey.value = id != null ? String(id) : ""
+	},
+	{ immediate: true },
+)
 
 const selectedLocationDisplayName = computed(() => {
 	if (!selectedLocation.value) return null
@@ -439,7 +448,7 @@ const loadSimulationLogs = async () => {
 	const { startDate, endDate, preset } = simulationTimeRange.value
 	const timeQuery = buildLogsTimeQuery(preset, startDate, endDate)
 	try {
-		const res = await elevatorApi.getFullReportLogs({
+		const res = await elevatorApi.getLogs({
 			limit: ELEVATOR_FULL_REPORT_LIMIT,
 			...timeQuery,
 		})
@@ -506,9 +515,18 @@ const handleZonesSaved = async () => {
 const handleDeleteZone = async (zoneId: string) => {
 	await baseHandleDeleteZone(zoneId, elevatorZones, elevatorLocationApi.deleteZone, {
 		systemType: "elevator",
+		selectedLocationRef: elevatorSelectedLocationKey,
+		getLocationId: (loc) => String((loc as { id?: string; locationId?: number }).id ?? (loc as { locationId?: number }).locationId ?? ""),
 		onAfterDelete: async () => {
 			await loadZones()
 			await loadLocations()
+			const nextId = Number(elevatorSelectedLocationKey.value)
+			if (Number.isFinite(nextId) && nextId > 0) {
+				await loadLocationDetail(nextId)
+			} else {
+				selectedLocation.value = null
+				logs.value = []
+			}
 		},
 	})
 }

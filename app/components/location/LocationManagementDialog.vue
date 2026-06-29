@@ -32,11 +32,11 @@
 					<div class="show-scrollbar flex-1 overflow-y-auto pr-7 2xl:pr-8">
 						<div class="min-h-[200px]">
 							<Transition name="fade" mode="out-in">
-								<div v-if="zone && displayZone" :key="`zone-${zone.id}`">
+								<div v-if="zone" :key="`zone-${zone.id}`">
 									<div class="space-y-3">
 										<div class="overflow-hidden rounded-lg border border-white/20 bg-white/10 p-4">
 											<ZoneFormFields
-												:zone="displayZone"
+												:zone="zone"
 												:require-image-url="true"
 												:read-only="true"
 											/>
@@ -48,15 +48,15 @@
 											</div>
 
 											<div
-												v-if="!displayZone.locations || displayZone.locations.length === 0"
+												v-if="visibleLocationEntries.length === 0"
 												class="py-4 text-center text-sm text-white/60 2xl:text-base"
 											>
-												尚無地點
+												{{ emptyLocationsMessage }}
 											</div>
 											<div v-else class="space-y-2">
 												<div
-													v-for="(location, locationIndex) in displayZone.locations"
-													:key="getLocationUiKey({ zone: displayZone, location, locationIndex })"
+													v-for="entry in visibleLocationEntries"
+													:key="getLocationUiKey({ zone, location: entry.location, locationIndex: entry.sourceIndex })"
 													class="flex min-w-0 items-end gap-2 rounded border border-white/10 bg-white/5 p-2"
 												>
 													<label
@@ -66,7 +66,7 @@
 														<div
 															class="form-input-small flex cursor-default items-center text-white/70"
 														>
-															{{ location.name || "未命名" }}
+															{{ entry.location.name || "未命名" }}
 														</div>
 													</label>
 													<label
@@ -76,7 +76,7 @@
 														<div
 															class="form-input-small flex cursor-default items-center text-white/70"
 														>
-															{{ getLocationSystemsLabel(location) || "無系統" }}
+															{{ getLocationSystemsLabel(entry.location) || "無系統" }}
 														</div>
 													</label>
 													<IconTrashButton
@@ -84,7 +84,7 @@
 														:disabled="!canDeleteLocation"
 														:title="canDeleteLocation ? '刪除地點' : '權限不足'"
 														aria-label="刪除地點"
-														@click="removeLocation(locationIndex)"
+														@click="removeLocation(entry.sourceIndex)"
 													/>
 												</div>
 											</div>
@@ -128,7 +128,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, toRef, watch } from "vue"
+import { computed, ref } from "vue"
 import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import ZoneFormFields from "~/components/location/ZoneFormFields.vue"
@@ -136,10 +136,11 @@ import IconTrashButton from "~/components/common/IconTrashButton.vue"
 import { useAreaPointMapRbac } from "~/composables/core/useAccessGate"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { removeLocationFromSystemOrDelete } from "~/composables/location/locationSystemActions"
-import { buildDeleteLocationConfirmCopy, buildDeleteZoneConfirmCopy } from "~/utils/confirmCopy"
+import { buildDeleteLocationConfirmCopy, buildDeleteZoneConfirmCopy, getLocationDeleteSuccessToast } from "~/utils/confirmCopy"
 import { getLocationUiKey } from "~/utils/locationUiId"
 import { resolveFormApiError } from "~/utils/errorUtils"
 import { getSystemTypeLabel } from "~/types/location"
+import { useToast } from "~/composables/core/useToast"
 
 interface Props {
 	modelValue: boolean
@@ -150,25 +151,35 @@ interface Props {
 interface Emits {
 	(e: "update:modelValue", value: boolean): void
 	(e: "delete", zoneId: string): void
+	(e: "zones-changed"): void
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-const { canDeleteZone, canDeleteLocationForSystem } = useAreaPointMapRbac()
-const systemType = toRef(props, "systemType")
-const canDeleteLocation = computed(() => canDeleteLocationForSystem(systemType.value))
+const { canDeleteZoneForSystem, canDeleteLocationForSystem } = useAreaPointMapRbac()
+const canDeleteZone = computed(() => canDeleteZoneForSystem(props.systemType))
+const canDeleteLocation = computed(() => canDeleteLocationForSystem(props.systemType))
+
+const locationMatchesSystem = (location: UnifiedLocation, systemType?: SystemType) =>
+	!systemType || (location.systems || []).some((s) => s.systemType === systemType)
+
+const visibleLocationEntries = computed(() => {
+	const locations = props.zone?.locations
+	if (!locations) return []
+	return locations
+		.map((location, sourceIndex) => ({ location, sourceIndex }))
+		.filter(({ location }) => locationMatchesSystem(location, props.systemType))
+})
+
+const emptyLocationsMessage = computed(() => {
+	if (!props.zone?.locations?.length) return "尚無地點"
+	if (props.systemType) return "此區域在選定系統下尚無地點"
+	return "尚無地點"
+})
 
 const errorMessage = ref("")
-const displayZone = ref<UnifiedZone | null>(null)
-
-watch(
-	() => props.zone,
-	(zone) => {
-		displayZone.value = zone ? (JSON.parse(JSON.stringify(zone)) as UnifiedZone) : null
-	},
-	{ immediate: true, deep: true }
-)
+const toast = useToast()
 
 const confirmDialog = useConfirmDialog()
 const confirmAction = ref<"delete" | "deleteLocation">("delete")
@@ -189,66 +200,63 @@ const closeDialog = () => {
 }
 
 const removeLocation = (locationIndex: number) => {
-	if (!canDeleteLocation.value) return
-	if (!displayZone.value) return
-	const location = displayZone.value.locations?.[locationIndex]
-	const locationUiKey = getLocationUiKey({
-		zone: displayZone.value,
-		location: location as UnifiedLocation,
+	if (!canDeleteLocation.value || !props.zone) return
+	const location = props.zone.locations?.[locationIndex]
+	if (!location) return
+
+	pendingDeleteLocationUiKey.value = getLocationUiKey({
+		zone: props.zone,
+		location,
 		locationIndex,
 	})
-	pendingDeleteLocationUiKey.value = locationUiKey
 	confirmAction.value = "deleteLocation"
-	const hasId = Boolean(location && location.id)
-	const systemCount = location?.systems?.length || 0
-	const copy = buildDeleteLocationConfirmCopy({
-		hasId,
-		systemType: props.systemType,
-		systemCount,
-	})
-	confirmDialog.show(copy)
+	confirmDialog.show(
+		buildDeleteLocationConfirmCopy({
+			hasId: Boolean(location.id),
+			systemType: props.systemType,
+			systemCount: location.systems?.length || 0,
+		}),
+	)
 }
 
 const handleConfirmDeleteLocation = async () => {
-	if (!canDeleteLocation.value) return
-	if (!displayZone.value || !pendingDeleteLocationUiKey.value) return
+	if (!canDeleteLocation.value || !props.zone || !pendingDeleteLocationUiKey.value) return
 
-	const resolvedIndex = (displayZone.value.locations || []).findIndex((loc, idx) => {
-		return (
-			getLocationUiKey({
-				zone: displayZone.value as UnifiedZone,
-				location: loc,
-				locationIndex: idx,
-			}) === pendingDeleteLocationUiKey.value
-		)
-	})
+	const resolvedIndex = (props.zone.locations || []).findIndex((loc, idx) =>
+		getLocationUiKey({ zone: props.zone as UnifiedZone, location: loc, locationIndex: idx }) ===
+			pendingDeleteLocationUiKey.value,
+	)
 	if (resolvedIndex < 0) {
 		pendingDeleteLocationUiKey.value = null
 		return
 	}
 
-	const location = displayZone.value.locations?.[resolvedIndex]
+	const location = props.zone.locations?.[resolvedIndex]
 	const locationId = location?.id ? String(location.id) : null
+	if (!locationId) {
+		pendingDeleteLocationUiKey.value = null
+		return
+	}
 
-	if (locationId) {
-		try {
-			await removeLocationFromSystemOrDelete({ locationId, systemType: props.systemType })
-		} catch (error) {
-			errorMessage.value = resolveFormApiError(error, "刪除地點失敗")
+	try {
+		const result = await removeLocationFromSystemOrDelete({ locationId, systemType: props.systemType })
+		if (result.action === "no-op") {
 			pendingDeleteLocationUiKey.value = null
 			return
 		}
+		toast.success(getLocationDeleteSuccessToast(result.action, props.systemType))
+	} catch (error) {
+		errorMessage.value = resolveFormApiError(error, "刪除地點失敗")
+		pendingDeleteLocationUiKey.value = null
+		return
 	}
 
-	displayZone.value.locations = displayZone.value.locations.filter(
-		(_, index) => index !== resolvedIndex
-	)
 	pendingDeleteLocationUiKey.value = null
+	emit("zones-changed")
 }
 
 const handleDeleteZone = () => {
-	if (!canDeleteZone.value) return
-	if (!props.zone?.id) return
+	if (!canDeleteZone.value || !props.zone?.id) return
 
 	confirmAction.value = "delete"
 	confirmDialog.show(buildDeleteZoneConfirmCopy({ systemType: props.systemType }))

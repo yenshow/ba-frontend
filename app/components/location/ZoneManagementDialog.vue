@@ -263,7 +263,7 @@ import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { isApiRequestTimeout, joinFormErrors, resolveFormApiError } from "~/utils/errorUtils"
 import { removeLocationFromSystemOrDelete } from "~/composables/location/locationSystemActions"
-import { buildDeleteLocationConfirmCopy } from "~/utils/confirmCopy"
+import { buildDeleteLocationConfirmCopy, buildDeleteZoneConfirmCopy, getLocationDeleteSuccessToast } from "~/utils/confirmCopy"
 import { getLocationUiKey } from "~/utils/locationUiId"
 import { pickSortOrder, zoneSortOrderValue } from "~/utils/sortOrder"
 import { getZoneUiKey } from "~/utils/locationUiId"
@@ -767,12 +767,26 @@ const handleConfirmDeleteLocation = async () => {
 
 	if (targetId) {
 		try {
-			await removeLocationFromSystemOrDelete({ locationId: targetId, systemType: props.systemType })
+			const result = await removeLocationFromSystemOrDelete({
+				locationId: targetId,
+				systemType: props.systemType,
+			})
+			if (result.action === "no-op") {
+				handleError(new Error("此地點不包含本系統"), "刪除地點失敗")
+				pendingDeleteLocation.value = null
+				return
+			}
+			toast.success(getLocationDeleteSuccessToast(result.action, props.systemType))
 		} catch (error) {
 			handleError(error, "刪除地點失敗")
 			pendingDeleteLocation.value = null
 			return
 		}
+
+		pendingDeleteLocation.value = null
+		deleteDraft(zoneId)
+		emit("saved")
+		return
 	}
 
 	locations.splice(resolvedIndex, 1)
@@ -780,6 +794,7 @@ const handleConfirmDeleteLocation = async () => {
 	updateZone(updatedZone)
 
 	pendingDeleteLocation.value = null
+	toast.success("已從清單移除此地點")
 }
 
 const isNewZone = (zone: TZone): boolean => {
@@ -979,7 +994,7 @@ const saveAllChanges = async () => {
 
 	isSaving.value = true
 	try {
-		await Promise.all(
+		const results = await Promise.allSettled(
 			zonesToSave.map(async ([, zone]) => {
 				const cleanedZone = adapter.filterEmptyLocations(zone as TZone)
 				const isNewZone = zoneAny(zone).id?.startsWith("temp-")
@@ -989,17 +1004,40 @@ const saveAllChanges = async () => {
 				} else {
 					await props.onSaveZone(cleanedZone)
 				}
-			})
+			}),
 		)
-		clearAllDrafts()
-		toast.success(saveCount === 1 ? "區域已儲存" : `已儲存 ${saveCount} 個區域`)
-		emit("saved")
-	} catch (error) {
-		if (props.systemType === "elevator" && isApiRequestTimeout(error)) {
-			errorMessage.value =
-				"請求逾時：平台資料可能已儲存，但梯控設備樓層參數可能尚未同步完成。請關閉後重新開啟確認，或稍後再次儲存。"
+
+		const succeededIds: string[] = []
+		const failures: PromiseRejectedResult[] = []
+		results.forEach((result, index) => {
+			if (result.status === "fulfilled") {
+				succeededIds.push(zonesToSave[index]![0])
+			} else {
+				failures.push(result)
+			}
+		})
+
+		for (const zoneId of succeededIds) {
+			deleteDraft(zoneId)
+		}
+
+		if (failures.length === 0) {
+			toast.success(saveCount === 1 ? "區域已儲存" : `已儲存 ${saveCount} 個區域`)
+			emit("saved")
+		} else if (succeededIds.length > 0) {
+			toast.warning(`部分區域儲存失敗（${failures.length}/${saveCount}）`)
+			errorMessage.value = resolveFormApiError(
+				failures[0]!.reason,
+				"部分區域儲存失敗",
+			)
+			emit("saved")
 		} else {
-			errorMessage.value = resolveFormApiError(error, "儲存區域失敗")
+			if (props.systemType === "elevator" && isApiRequestTimeout(failures[0]!.reason)) {
+				errorMessage.value =
+					"請求逾時：平台資料可能已儲存，但梯控設備樓層參數可能尚未同步完成。請關閉後重新開啟確認，或稍後再次儲存。"
+			} else {
+				errorMessage.value = resolveFormApiError(failures[0]!.reason, "儲存區域失敗")
+			}
 		}
 	} finally {
 		isSaving.value = false
@@ -1011,12 +1049,7 @@ const pendingDeleteZoneId = ref<string | null>(null)
 const handleDeleteZone = (zoneId: string) => {
 	pendingDeleteZoneId.value = zoneId
 	confirmAction.value = "delete"
-	confirmDialog.show({
-		title: "確認刪除",
-		message: "確定要刪除此區域嗎？",
-		details: "此操作將刪除該區域與所有地點資料，且無法復原。",
-		type: "danger",
-	})
+	confirmDialog.show(buildDeleteZoneConfirmCopy({ systemType: props.systemType }))
 }
 
 const handleConfirmDelete = () => {

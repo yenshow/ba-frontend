@@ -298,8 +298,10 @@ const handleSaveZone = async (zone: HvacZone) => {
 	)
 }
 
-const handleZonesSaved = () => {
-	initializeLocationStatuses()
+const handleZonesSaved = async () => {
+	await loadZonesFromAPI()
+	await preloadDeviceInfos()
+	await loadAllLocationStatuses()
 }
 
 const handleDeleteZone = async (zoneId: string) => {

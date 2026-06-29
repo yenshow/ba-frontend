@@ -68,3 +68,12 @@ export const buildDeleteZoneConfirmCopy = (args: { systemType?: SystemType }): D
 	}
 }
 
+export const getLocationDeleteSuccessToast = (
+	action: "deleted" | "updated",
+	systemType?: SystemType,
+): string => {
+	if (action === "updated" && systemType) {
+		return `已從本系統（${systemTypeLabel(systemType)}）移除此地點`
+	}
+	return "地點刪除成功"
+}

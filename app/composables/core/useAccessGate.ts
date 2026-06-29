@@ -334,22 +334,47 @@ export const useMultimediaRbac = () => {
 	}
 }
 
+const hasSubsystemLocationDelete = (hasPermission: (code: string) => boolean) =>
+	Object.values(LOCATION_DELETE_BY_SYSTEM_TYPE).some((code) => hasPermission(code))
+
+const canDeleteForSystemType = (
+	hasPermission: (code: string) => boolean,
+	fallback: boolean,
+	systemType: string | null | undefined,
+) => {
+	if (!systemType) return fallback
+	const code = LOCATION_DELETE_BY_SYSTEM_TYPE[String(systemType)]
+	if (code && hasPermission(code)) return true
+	return fallback
+}
+
 export const useAreaPointMapRbac = () => {
 	const { useHasPermission, hasPermission } = useAuth()
 	const p = PERM.areaPointMap
 	const canDeleteZone = useHasPermission(p.zoneDelete)
 	const canDeleteLocation = useHasPermission(p.locationDelete)
-	const canManageOperations = computed(() => canDeleteZone.value || canDeleteLocation.value)
-	const canDeleteLocationForSystem = (systemType: string | null | undefined) => {
-		if (!systemType) return canDeleteLocation.value
-		const code = LOCATION_DELETE_BY_SYSTEM_TYPE[String(systemType)]
-		if (code && hasPermission(code)) return true
-		return canDeleteLocation.value
-	}
+	const canManageOperations = computed(
+		() =>
+			canDeleteZone.value ||
+			canDeleteLocation.value ||
+			hasSubsystemLocationDelete(hasPermission),
+	)
+	const canDeleteLocationForSystem = (systemType: string | null | undefined) =>
+		canDeleteForSystemType(hasPermission, canDeleteLocation.value, systemType)
+	const canDeleteZoneForSystem = (systemType: string | null | undefined) =>
+		canDeleteForSystemType(hasPermission, canDeleteZone.value, systemType)
+
+	const getDeletableSystemTypes = (): string[] =>
+		Object.entries(LOCATION_DELETE_BY_SYSTEM_TYPE)
+			.filter(([, code]) => hasPermission(code))
+			.map(([type]) => type)
+
 	return {
 		canDeleteZone,
 		canDeleteLocation,
 		canManageOperations,
 		canDeleteLocationForSystem,
+		canDeleteZoneForSystem,
+		getDeletableSystemTypes,
 	}
 }

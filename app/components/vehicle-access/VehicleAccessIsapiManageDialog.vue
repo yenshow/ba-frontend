@@ -173,7 +173,7 @@ import type { LocationLicensePlateRow } from "~/types/personnel"
 import DeviceManageDialogShell from "~/components/personnel/device-sync/DeviceManageDialogShell.vue"
 import DeviceSyncStep2Toolbar from "~/components/personnel/device-sync/DeviceSyncStep2Toolbar.vue"
 import SyncStatusPill from "~/components/personnel/device-sync/SyncStatusPill.vue"
-import LocationMembersStepPanel from "~/components/personnel/location-access/LocationMembersStepPanel.vue"
+import LocationMembersStepPanel from "~/components/personnel/LocationMembersStepPanel.vue"
 import PersonnelSyncWarningsDialog from "~/components/personnel/dialogs/PersonnelSyncWarningsDialog.vue"
 import VehicleAccessIsapiPlateFormDialog from "~/components/vehicle-access/VehicleAccessIsapiPlateFormDialog.vue"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
@@ -212,7 +212,7 @@ const emit = defineEmits<{
 const manageStep = ref<1 | 2>(1)
 
 const locationId = computed(() =>
-	parseLocationNumericId(props.location?.id ?? props.location?.locationId),
+	parseLocationNumericId(props.location?.id ?? props.location?.locationId)
 )
 const locationName = computed(() => props.location?.name ?? null)
 
@@ -267,26 +267,26 @@ const {
 })
 
 const deviceLabels = computed(() =>
-	locationId.value != null ? getLocationDevicesLabel(locationId.value) : { entry: [], exit: [] },
+	locationId.value != null ? getLocationDevicesLabel(locationId.value) : { entry: [], exit: [] }
 )
 
 const isUiLocked = computed(() => isSingleLocationSyncing.value)
 const isPlatesLoading = computed(() =>
-	locationId.value != null ? isPlatesLoadingFn(locationId.value) : false,
+	locationId.value != null ? isPlatesLoadingFn(locationId.value) : false
 )
 const platesError = computed(() =>
-	locationId.value != null ? getPlatesError(locationId.value) : "",
+	locationId.value != null ? getPlatesError(locationId.value) : ""
 )
 const platesPaged = computed(() =>
 	locationId.value != null
 		? getPagedPlatesForLocation(locationId.value)
-		: { rows: [], total: 0, offset: 0, limit: 10 },
+		: { rows: [], total: 0, offset: 0, limit: 10 }
 )
 const isCurrentlySyncing = computed(() =>
-	locationId.value != null ? isLocationCurrentlySyncing(locationId.value) : false,
+	locationId.value != null ? isLocationCurrentlySyncing(locationId.value) : false
 )
 const isSyncButtonDisabled = computed(() =>
-	locationId.value != null ? isLocationSyncButtonDisabled(locationId.value) : true,
+	locationId.value != null ? isLocationSyncButtonDisabled(locationId.value) : true
 )
 
 const handleApplyMembers = async () => {
@@ -346,6 +346,6 @@ watch(
 		if (id == null) return
 		if (locationName.value) setLocationDisplayName(id, locationName.value)
 		await prepareLocationDialog(id)
-	},
+	}
 )
 </script>

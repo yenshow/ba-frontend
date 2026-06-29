@@ -299,8 +299,10 @@ const { handleError: handleApiError } = useErrorHandler()
 const accessSync = useLocationAccessSync({
 	personnelApi,
 	locationApi,
-	toast: { success: (m: string) => showToast("success", m) },
-	toastError: (m: string) => showToast("error", m),
+	toast: {
+		success: (m: string) => showToast("success", m),
+		error: (m: string) => showToast("error", m),
+	},
 	handleApiError,
 	canDeviceSync: canResyncAccessDevices,
 })

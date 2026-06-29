@@ -1,9 +1,10 @@
-import { toValue, type MaybeRefOrGetter, type Ref } from "vue"
+import { toValue, watch, type MaybeRefOrGetter, type Ref } from "vue"
 import type { ElevatorLocation, ElevatorLiveState } from "~/types/elevator"
 import { useAccessGate } from "~/composables/core/useAccessGate"
 import { PERM } from "~/config/permissionCodes"
 import { useWebSocketEventSubscription } from "~/composables/websocket/useWebSocket"
-import { useElevatorLiveRefresh } from "~/composables/systems/elevator/useElevatorLiveRefresh"
+import { useVisibilitySnapshotSync } from "~/composables/monitoring/useVisibilitySnapshotSync"
+import { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
 
 export type ElevatorRuntimeWsPayload = ElevatorLiveState & {
 	locationId: number
@@ -29,6 +30,7 @@ type UseElevatorLiveSyncOptions = {
  * 電梯運行態同步：WS、選中地點補拉、手動更新共用同一 patch 路徑。
  */
 export const useElevatorLiveSync = (options: UseElevatorLiveSyncOptions) => {
+	const elevatorApi = useElevatorApi()
 	const { useWsModuleGate } = useAccessGate()
 	const canSubscribe = useWsModuleGate("elevator", { permissionCode: PERM.elevator.module })
 
@@ -42,13 +44,34 @@ export const useElevatorLiveSync = (options: UseElevatorLiveSyncOptions) => {
 		}
 	}
 
-	useElevatorLiveRefresh({
-		locationId: options.selectedLocationId,
-		onLive: (live) => {
-			const id = toValue(options.selectedLocationId)
-			if (id != null) applyElevatorLive(id, live)
-		},
+	const refreshLive = async () => {
+		const id = toValue(options.selectedLocationId)
+		if (id == null) return
+		try {
+			const res = await elevatorApi.getLiveState(id)
+			if (res?.live) applyElevatorLive(id, res.live)
+		} catch {
+			/* 補拉失敗時仍依 WS */
+		}
+	}
+
+	const visibility = useVisibilitySnapshotSync({
+		start: () => {},
+		stop: () => {},
+		onVisible: refreshLive,
 	})
+
+	watch(
+		() => toValue(options.selectedLocationId),
+		(id) => {
+			visibility.stop()
+			if (id != null) {
+				void refreshLive()
+				visibility.start()
+			}
+		},
+		{ immediate: true },
+	)
 
 	useWebSocketEventSubscription(
 		"elevator:runtime:update",
@@ -60,5 +83,5 @@ export const useElevatorLiveSync = (options: UseElevatorLiveSyncOptions) => {
 		{ enabled: canSubscribe },
 	)
 
-	return { applyElevatorLive }
+	return { applyElevatorLive, refreshLive }
 }

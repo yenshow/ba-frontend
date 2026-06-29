@@ -197,6 +197,5 @@ export const useElevatorApi = () => {
 		startFloorSyncJob,
 		getFloorSyncJob,
 		getLogs,
-		getFullReportLogs: getLogs,
 	}
 }

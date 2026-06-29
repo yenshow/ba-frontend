@@ -1,6 +1,6 @@
 import { computed, ref, watch, type ComputedRef, type Ref } from "vue"
 import { useAuth } from "~/composables/core/useAuth"
-import { useAccessGate } from "~/composables/core/useAccessGate"
+import { useAccessGate, useAreaPointMapRbac } from "~/composables/core/useAccessGate"
 import { PERM } from "~/config/permissionCodes"
 import type { SystemType, UnifiedLocation, UnifiedZone } from "~/types/location"
 import { getSystemTypeLabel } from "~/types/location"
@@ -117,6 +117,7 @@ export const useAreaPointMap = (options: {
 	const { selectedZone, selectedSystemType, selectedZoneData } = options
 	const { hasPermission } = useAuth()
 	const { isModuleAccessReady } = useAccessGate()
+	const { getDeletableSystemTypes } = useAreaPointMapRbac()
 
 	const canFetchSystemStatusApi = (system: AreaPointModbusSystem) =>
 		hasPermission(MODULE_BY_SYSTEM[system])
@@ -705,18 +706,43 @@ export const useAreaPointMap = (options: {
 		return {}
 	}
 
+	const zoneHasSystemType = (systemType: SystemType): boolean =>
+		(selectedZoneData.value?.locations || []).some((loc) =>
+			(loc.systems || []).some((s) => s.systemType === systemType),
+		)
+
+	const canSelectSystemTypeOnMap = (systemType: SystemType): boolean => {
+		if (!zoneHasSystemType(systemType)) return false
+		if (isAreaPointModbusSystem(systemType)) return canReadSystemStatus(systemType)
+		return getDeletableSystemTypes().includes(systemType)
+	}
+
+	const mapFilterSystemTypes = computed(() =>
+		extractSystemTypes(selectedZoneData.value?.locations || []).filter((systemType) =>
+			canSelectSystemTypeOnMap(systemType),
+		),
+	)
+
+	const inferDefaultManagementSystemType = (): SystemType | null => {
+		const types = mapFilterSystemTypes.value.filter((t) =>
+			getDeletableSystemTypes().includes(t),
+		)
+		return types.length === 1 ? types[0]! : null
+	}
+
 	const handleSystemTypeToggle = (systemType: SystemType) => {
-		if (!isAreaPointModbusSystem(systemType) || !canReadSystemStatus(systemType)) return
+		if (!canSelectSystemTypeOnMap(systemType)) return
 		selectedSystemType.value = selectedSystemType.value === systemType ? null : systemType
 	}
 
-	watch(zoneSystemTypes, (readable) => {
+	watch(mapFilterSystemTypes, (readable) => {
 		if (!selectedSystemType.value) return
 		if (!readable.includes(selectedSystemType.value)) selectedSystemType.value = null
 	})
 
 	return {
-		zoneSystemTypes,
+		mapFilterSystemTypes,
+		inferDefaultManagementSystemType,
 		getZoneSystemTypes,
 		canReadSystemStatus,
 		currentZoneLocations,

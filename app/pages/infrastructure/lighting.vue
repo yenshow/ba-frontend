@@ -329,8 +329,10 @@ const handleSaveZone = async (zone: LightingZone) => {
 	)
 }
 
-const handleZonesSaved = () => {
-	initializeLocationStatuses()
+const handleZonesSaved = async () => {
+	await loadZonesFromAPI()
+	await preloadDeviceInfos()
+	await loadAllLocationStatuses()
 }
 
 const handleDeleteZone = async (zoneId: string) => {

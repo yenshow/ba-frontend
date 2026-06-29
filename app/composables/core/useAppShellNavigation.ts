@@ -10,7 +10,7 @@ import {
 import { type SystemSettingsMenuItem, toSystemSettingsSections } from "~/utils/appShellNavigationUtils"
 
 const buildSystemSettingsItems = (
-	user: Pick<User, "role"> | null | undefined,
+	user: Pick<User, "username"> | null | undefined,
 	canAdmin: boolean,
 	includeTheme: boolean
 ): SystemSettingsMenuItem[] => {

@@ -76,18 +76,11 @@
 							</tr>
 						</thead>
 						<tbody>
-							<tr
-								v-for="row in syncRows"
-								:key="row.employeeNo"
-								class="border-b border-white/10"
-							>
+							<tr v-for="row in syncRows" :key="row.employeeNo" class="border-b border-white/10">
 								<td class="py-2 pe-2 font-mono">{{ row.employeeNo }}</td>
 								<td class="py-2 pe-2">{{ row.fullName || "—" }}</td>
 								<td class="py-2 pe-2">
-									<SyncStatusPill
-										variant="lastSync"
-										:label="getLastSyncLabel(row.employeeNo)"
-									/>
+									<SyncStatusPill variant="lastSync" :label="getLastSyncLabel(row.employeeNo)" />
 								</td>
 								<td class="py-2 pe-2">
 									<SyncStatusPill
@@ -147,7 +140,7 @@ import Pagination from "~/components/common/Pagination.vue"
 import DeviceManageDialogShell from "~/components/personnel/device-sync/DeviceManageDialogShell.vue"
 import DeviceSyncStep2Toolbar from "~/components/personnel/device-sync/DeviceSyncStep2Toolbar.vue"
 import SyncStatusPill from "~/components/personnel/device-sync/SyncStatusPill.vue"
-import LocationMembersStepPanel from "~/components/personnel/location-access/LocationMembersStepPanel.vue"
+import LocationMembersStepPanel from "~/components/personnel/LocationMembersStepPanel.vue"
 import AsyncPanel from "~/components/common/AsyncPanel.vue"
 import ContentSkeleton from "~/components/common/ContentSkeleton.vue"
 import PersonnelSyncWarningsDialog from "~/components/personnel/dialogs/PersonnelSyncWarningsDialog.vue"
@@ -221,7 +214,7 @@ const handleApplyMembers = async () => {
 }
 
 const deviceLabels = computed(() =>
-	props.locationId != null ? getLocationDevicesLabel(props.locationId) : { entry: [], exit: [] },
+	props.locationId != null ? getLocationDevicesLabel(props.locationId) : { entry: [], exit: [] }
 )
 
 const isUiLocked = computed(() => isSingleLocationSyncing.value)
@@ -232,19 +225,19 @@ watch(manageStep, async (step) => {
 })
 
 const isSyncCandidatesLoading = computed(() =>
-	props.locationId != null ? isSyncLocationCandidatesLoading(props.locationId) : false,
+	props.locationId != null ? isSyncLocationCandidatesLoading(props.locationId) : false
 )
 const syncPaged = computed(() =>
 	props.locationId != null
 		? getPagedSyncStepRowsForLocation(props.locationId)
-		: { rows: [], total: 0, offset: 0, limit: 10 },
+		: { rows: [], total: 0, offset: 0, limit: 10 }
 )
 const syncRows = computed(() => syncPaged.value.rows)
 const isCurrentlySyncing = computed(() =>
-	props.locationId != null ? isLocationCurrentlySyncing(props.locationId) : false,
+	props.locationId != null ? isLocationCurrentlySyncing(props.locationId) : false
 )
 const isSyncButtonDisabled = computed(() =>
-	props.locationId != null ? isLocationSyncButtonDisabled(props.locationId) : true,
+	props.locationId != null ? isLocationSyncButtonDisabled(props.locationId) : true
 )
 
 const getLastSyncLabel = (employeeNo: string) =>
@@ -272,6 +265,6 @@ watch(
 		manageStep.value = 1
 		if (props.locationId == null) return
 		void prepareLocationDialog(props.locationId)
-	},
+	}
 )
 </script>
