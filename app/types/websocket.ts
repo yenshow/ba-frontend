@@ -91,8 +91,6 @@ export interface EnvironmentReadingNewEvent {
 	devices: EnvironmentReadingDeviceStatus[]
 	/** 事件推送時間（非讀數時間） */
 	timestamp: string
-	/** @deprecated 舊版巢狀 reading，新客戶端請用 recordedAt + data */
-	reading?: Record<string, unknown>
 }
 
 /**
