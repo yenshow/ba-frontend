@@ -3,8 +3,10 @@ import { extractWritePoints, type ModbusDeviceConfig } from "~/utils/modbusPoint
 import { normalizeOptionalDeviceId } from "~/utils/deviceIdUtils"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { usePolling } from "~/composables/monitoring/usePolling"
-import { useModbusPollingPolicy } from "~/composables/monitoring/modbus/useModbusPollingPolicy"
+import { useSnapshotSyncHealth } from "~/composables/monitoring/modbus/useSnapshotSyncHealth"
+import { useMonitoringSnapshotWebSocket } from "~/composables/monitoring/useMonitoringSnapshotWebSocket"
+import { useAccessGate } from "~/composables/core/useAccessGate"
+import type { FeatureKey } from "~/types/license"
 import type { ZoneUiKeyable } from "~/utils/locationUiId"
 import {
 	collectDeviceIdsFromZones,
@@ -37,10 +39,14 @@ export type CreateToggleModbusIntegrationConfig<
 	TLocationStatus,
 > = {
 	loadErrorLabel: string
+	systemKey: string
 	zones: Ref<TZone[]>
 	selectedZone: Ref<string>
 	/** `zoneIds` 為 undefined 時不篩選區域（全區快照） */
-	fetchSnapshot: (zoneIds?: string[]) => Promise<{ items?: TSnapshotItem[] | null }>
+	fetchSnapshot: (
+		zoneIds?: string[],
+		options?: { force?: boolean }
+	) => Promise<{ items?: TSnapshotItem[] | null }>
 	buildLocationUiKey: (zone: TZone, location: TLocation, locationIndex: number) => string
 	findLocationByUiKey: (
 		uiKey: string,
@@ -78,6 +84,7 @@ export const createToggleModbusIntegration = <
 ) => {
 	const {
 		loadErrorLabel,
+		systemKey,
 		zones,
 		selectedZone,
 		fetchSnapshot,
@@ -101,7 +108,9 @@ export const createToggleModbusIntegration = <
 	const { request } = useApiBase()
 	const { handleError } = useErrorHandler()
 	const { deviceConfigCache, loadDeviceInfo, preloadDeviceInfos } = useModbusIntegrationDeviceCache()
-	const pollingPolicy = useModbusPollingPolicy()
+	const syncHealth = useSnapshotSyncHealth()
+	const { useWsModuleGate } = useAccessGate()
+	const canSubscribe = useWsModuleGate(systemKey as FeatureKey)
 
 	const locationStatuses = ref<Record<string, TLocationStatus>>({}) as Ref<
 		Record<string, TLocationStatus>
@@ -203,23 +212,23 @@ export const createToggleModbusIntegration = <
 
 	const applySnapshotItems = (items: TSnapshotItem[]) => {
 		applyBackendSnapshotItems(items || [])
-		pollingPolicy.recordSuccess()
+		syncHealth.recordSuccess()
 	}
 
 	const resolveZoneIds = (options?: ToggleSnapshotZoneFilterOptions) =>
 		resolveToggleSnapshotZoneIds(zones.value, selectedZone.value, options)
 
-	const loadAllLocationStatuses = async (options?: ToggleSnapshotZoneFilterOptions) => {
+	const loadAllLocationStatuses = async (options?: ToggleSnapshotZoneFilterOptions & { force?: boolean }) => {
 		if (inflightStatusRefresh) return inflightStatusRefresh
 
 		inflightStatusRefresh = (async () => {
 			try {
 				const zoneIds = resolveZoneIds(options)
-				const backendStatus = await fetchSnapshot(zoneIds)
+				const backendStatus = await fetchSnapshot(zoneIds, { force: options?.force })
 				applyBackendSnapshotItems(backendStatus.items || [])
-				pollingPolicy.recordSuccess()
+				syncHealth.recordSuccess()
 			} catch (error) {
-				pollingPolicy.recordFailure()
+				syncHealth.recordFailure()
 				handleError(error, loadErrorLabel)
 			} finally {
 				inflightStatusRefresh = null
@@ -268,7 +277,7 @@ export const createToggleModbusIntegration = <
 
 			setTimeout(async () => {
 				try {
-					await loadAllLocationStatuses({ loadAllZones: true })
+					await loadAllLocationStatuses({ loadAllZones: true, force: true })
 				} finally {
 					locationToggling.value.delete(locationUiKey)
 				}
@@ -296,23 +305,17 @@ export const createToggleModbusIntegration = <
 
 	const locationDisabledMap = computed(() => buildDisabledMap(locationToggling))
 
-	const { start: startPolling, stop: stopPolling } = usePolling({
-		callback: async () => {
-			if (document.visibilityState === "visible") {
-				await loadAllLocationStatuses({ loadAllZones: true })
-			}
-		},
-		interval: pollingPolicy.pollIntervalMs,
-		immediate: true,
-		enabled: () => document.visibilityState === "visible",
-		onError: (err) => {
-			handleError(err, loadErrorLabel)
+	const snapshotWs = useMonitoringSnapshotWebSocket({
+		systems: [systemKey],
+		enabled: canSubscribe,
+		onSnapshotUpdated: (event) => {
+			applySnapshotItems((event.items || []) as TSnapshotItem[])
 		},
 	})
 
-	const startAutoRefresh = () => startPolling()
-	const stopAutoRefresh = () => {
-		stopPolling()
+	const startSnapshotSync = () => snapshotWs.start()
+	const stopSnapshotSync = () => {
+		snapshotWs.stop()
 		toggleDebounceTimers.clear()
 	}
 
@@ -336,10 +339,8 @@ export const createToggleModbusIntegration = <
 	)
 
 	return {
-		pollingState: pollingPolicy.state,
-		pollIntervalMs: pollingPolicy.pollIntervalMs,
-		lastSuccessAt: pollingPolicy.lastSuccessAt,
-		lastFailureAt: pollingPolicy.lastFailureAt,
+		syncHealthState: syncHealth.state,
+		lastSuccessAt: syncHealth.lastSuccessAt,
 		locationStatuses,
 		locationToggling,
 		locationDisabledMap,
@@ -348,8 +349,8 @@ export const createToggleModbusIntegration = <
 		loadAllLocationStatuses,
 		applySnapshotItems,
 		handleLocationToggle,
-		startAutoRefresh,
-		stopAutoRefresh,
+		startSnapshotSync,
+		stopSnapshotSync,
 		handleVisibilityChange,
 		...(buildExtraReturns?.({ locationStatuses }) ?? {}),
 	}

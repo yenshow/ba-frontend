@@ -500,8 +500,6 @@ const {
 	handleReadingEvent,
 	trendReloadKey,
 	hydrateAllLocations,
-	startReconcilePolling,
-	stopReconcilePolling,
 } = useEnvironmentDataCoordinator({
 	environmentZones,
 	selectedLocationId,
@@ -754,13 +752,8 @@ onMounted(async () => {
 		const first = environmentZones.value.find((z) => z.locations?.length)?.locations?.[0]
 		if (first) selectedLocationId.value = getLocationId(first)
 	}
-	startReconcilePolling()
 	await nextTick()
 	scrollActiveOverviewIntoView()
-})
-
-onBeforeUnmount(() => {
-	stopReconcilePolling()
 })
 
 // 計算 AQI（共用函數）

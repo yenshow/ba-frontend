@@ -107,6 +107,43 @@ export const useAccessGate = () => {
 		return hasFeature(featureKey)
 	}
 
+	const getPermissionCodeByFeatureKey = (featureKey: FeatureKey): string | null => {
+		const modules = moduleRegistry.registry.value?.modules ?? []
+		return modules.find((m) => m.featureKey === featureKey)?.permissionCode ?? null
+	}
+
+	/** 與路由守衛一致：已登入 + module 權限 +（有 feature 時）license 已載入且已授權 */
+	const canLoadFeature = (
+		featureKey: FeatureKey | null,
+		options?: { permissionCode?: string }
+	): boolean => {
+		if (!isAuthenticated.value) return false
+
+		const code =
+			options?.permissionCode ??
+			(featureKey ? getPermissionCodeByFeatureKey(featureKey) : null)
+		if (code && !hasPermission(code)) return false
+
+		if (!featureKey) return true
+		if (!isLoaded.value) return false
+
+		return hasFeature(featureKey)
+	}
+
+	const useCanLoadFeature = (
+		featureKey: FeatureKey | null,
+		options?: { permissionCode?: string }
+	) => computed(() => canLoadFeature(featureKey, options))
+
+	/** WS 訂閱：registry + license 就緒且通過 canLoadFeature */
+	const useWsModuleGate = (
+		featureKey: FeatureKey | null,
+		options?: { permissionCode?: string }
+	) => {
+		const canLoad = useCanLoadFeature(featureKey, options)
+		return computed(() => isModuleAccessReady.value && canLoad.value)
+	}
+
 	const isModuleAccessReady = computed(
 		() => Boolean(moduleRegistry.registry.value?.modules?.length) && isLoaded.value
 	)
@@ -141,6 +178,9 @@ export const useAccessGate = () => {
 		handleAccessDenied,
 		ensureAccessReady,
 		canAccessModule,
+		canLoadFeature,
+		useCanLoadFeature,
+		useWsModuleGate,
 		isModuleLocked,
 		isModuleAccessReady,
 	}

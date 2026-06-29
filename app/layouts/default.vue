@@ -27,12 +27,16 @@ import { useAuth } from "~/composables/core/useAuth";
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 import { useAlertCameraLinkagePopup } from "~/composables/monitoring/useAlertCameraLinkagePopup";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
+import { useWebSocketLifecycle } from "~/composables/websocket/useWebSocketLifecycle";
 
 const { isDark } = useTheme();
 const { user } = useAuth();
 const { startMonitoring, stopMonitoring } = useAlertMonitor();
 const { isConnected } = useWebSocket();
 const cameraPopup = useAlertCameraLinkagePopup();
+const { start: startWebSocketLifecycle, stop: stopWebSocketLifecycle } = useWebSocketLifecycle();
+
+startWebSocketLifecycle();
 
 watch(
 	[() => user.value, isConnected],
@@ -53,6 +57,7 @@ watch(
 
 onBeforeUnmount(() => {
 	stopMonitoring();
+	stopWebSocketLifecycle();
 	cameraPopup.stop();
 });
 </script>

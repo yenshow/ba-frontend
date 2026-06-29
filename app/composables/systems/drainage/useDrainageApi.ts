@@ -6,6 +6,10 @@ import {
 	drainageLocationToUnified,
 } from "~/utils/locationAdapter"
 import { useApiBase } from "~/composables/core/useApiBase"
+import {
+	buildStatusSnapshotQueryString,
+	type StatusSnapshotQuery,
+} from "~/composables/monitoring/statusSnapshotQuery"
 
 export const useDrainageApi = () => {
 	const zoneApi = useSystemLocationApiFactory<DrainageZone, DrainageLocation>({
@@ -17,7 +21,7 @@ export const useDrainageApi = () => {
 
 	const { request } = useApiBase()
 
-	type StatusQuery = { zoneIds?: string[] }
+	type StatusQuery = StatusSnapshotQuery
 
 	return {
 		getZones: zoneApi.getZones,
@@ -26,10 +30,7 @@ export const useDrainageApi = () => {
 		updateZone: zoneApi.updateZone,
 		deleteZone: zoneApi.deleteZone,
 		getStatus: (query?: StatusQuery) => {
-			const zoneIds = query?.zoneIds
-			const params = new URLSearchParams()
-			if (zoneIds && zoneIds.length > 0) params.set("zoneIds", zoneIds.join(","))
-			const q = params.toString() ? `?${params.toString()}` : ""
+			const q = buildStatusSnapshotQueryString(query)
 			return request<{ items: DrainageStatusItem[] }>(`/drainage/status${q}`, {
 				timeout: 30_000,
 			})

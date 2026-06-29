@@ -8,12 +8,12 @@
 
 import type { AlertSource } from "~/types/alert";
 import type { AlertCountEvent } from "~/types/websocket";
+import { watch } from "vue";
 import { logger } from "~/utils/logger";
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
-import { useAuth } from "~/composables/core/useAuth";
+import { useAccessGate } from "~/composables/core/useAccessGate";
 import { PERM } from "~/config/permissionCodes";
-import { watch } from "vue";
 
 const countLogger = logger.createLogger("UnresolvedAlertCount");
 
@@ -23,7 +23,9 @@ const FALLBACK_POLLING_INTERVAL_MS = 30_000; // 斷線後備輪詢
 export const useUnresolvedAlertCount = () => {
 	const alertApi = useAlertApi();
 	const { isConnected, on, off } = useWebSocket();
-	const { hasPermission } = useAuth();
+	const { canLoadFeature, useWsModuleGate } = useAccessGate();
+	const alertGate = { permissionCode: PERM.alertLog.module } as const;
+	const canSubscribe = useWsModuleGate(null, alertGate);
 
 	/** 與 useAlertMonitor 內其他狀態一致：跨元件共用，避免 layout 更新、AppHeader 讀到另一份 ref 永遠為 0 */
 	const unresolvedAlertCount = useState<number>("alert-monitor:unresolved-count", () => 0);
@@ -37,11 +39,8 @@ export const useUnresolvedAlertCount = () => {
 	let countDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 	let latestCountPayload: AlertCountEvent | null = null;
 
-	/**
-	 * 透過 REST 載入未解決數（所有 status=active，與 alert:count 一致）
-	 */
 	const loadUnresolvedAlertCount = async (filters?: { source?: AlertSource }) => {
-		if (!hasPermission(PERM.alertLog.module)) {
+		if (!canLoadFeature(null, alertGate)) {
 			unresolvedAlertCount.value = 0;
 			return;
 		}
@@ -120,9 +119,28 @@ export const useUnresolvedAlertCount = () => {
 		}, CALIBRATION_INTERVAL_MS);
 	};
 
+	const syncAlertCountSubscription = (connected: boolean, allowed: boolean) => {
+		if (handleAlertCount) {
+			off("alert:count", handleAlertCount);
+		}
+		if (!allowed) {
+			stopCalibration();
+			stopCountPolling();
+			return;
+		}
+		if (connected && handleAlertCount) {
+			on("alert:count", handleAlertCount);
+			stopCountPolling();
+			startCalibration();
+			return;
+		}
+		stopCalibration();
+		startCountPolling();
+	};
+
 	const startAlertCountMonitoring = () => {
 		stopAlertCountMonitoring();
-		if (!hasPermission(PERM.alertLog.module)) {
+		if (!canLoadFeature(null, alertGate)) {
 			unresolvedAlertCount.value = 0;
 			return;
 		}
@@ -130,22 +148,8 @@ export const useUnresolvedAlertCount = () => {
 		handleAlertCount = handleAlertCountEvent;
 
 		countWebsocketWatcher = watch(
-			isConnected,
-			connected => {
-				if (connected) {
-					if (handleAlertCount) {
-						on("alert:count", handleAlertCount);
-					}
-					stopCountPolling();
-					startCalibration();
-				} else {
-					if (handleAlertCount) {
-						off("alert:count", handleAlertCount);
-					}
-					stopCalibration();
-					startCountPolling();
-				}
-			},
+			[() => isConnected.value, canSubscribe] as const,
+			([connected, allowed]) => syncAlertCountSubscription(connected, allowed),
 			{ immediate: true }
 		);
 	};

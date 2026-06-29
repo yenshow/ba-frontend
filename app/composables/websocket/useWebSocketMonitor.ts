@@ -1,5 +1,6 @@
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import { logger } from "~/utils/logger";
+import type { ComputedRef, Ref, WatchStopHandle } from "vue";
 
 const wsMonitorLogger = logger.createLogger("WebSocketMonitor");
 
@@ -12,6 +13,10 @@ export interface WebSocketListenerConfig<T = any> {
 	logMessage?: (data: T) => string;
 }
 
+export interface WebSocketMonitorOptions {
+	enabled?: Ref<boolean> | ComputedRef<boolean> | (() => boolean);
+}
+
 /**
  * 統一的 WebSocket 監聽器管理 composable
  * 提供統一的監聽器設置、移除、清理等功能
@@ -19,23 +24,26 @@ export interface WebSocketListenerConfig<T = any> {
 export const useWebSocketMonitor = () => {
 	const { isConnected, on, off } = useWebSocket();
 
-	// 已設置的監聽器映射（event -> handler）
 	const listeners = new Map<string, Function>();
-
-	// 是否已設置監聽器
 	const isSetup = ref(false);
+	let pendingConfigs: WebSocketListenerConfig<any>[] | null = null;
+	let pendingEnabled: (() => boolean) | null = null;
+	let stopConnectionWatch: WatchStopHandle | null = null;
 
-	/**
-	 * 設置 WebSocket 事件監聽器
-	 * @param configs - 監聽器配置陣列（支援不同類型的事件）
-	 */
-	const setupListeners = (configs: WebSocketListenerConfig<any>[]) => {
-		if (isSetup.value || !process.client) {
-			return;
+	const resolveEnabled = () => !pendingEnabled || pendingEnabled();
+
+	const unregisterAll = () => {
+		for (const [event, handler] of listeners.entries()) {
+			off(event, handler);
 		}
+		listeners.clear();
+		isSetup.value = false;
+	};
+
+	const registerConfigs = (configs: WebSocketListenerConfig<any>[]) => {
+		if (!process.client || !isConnected.value || !resolveEnabled()) return;
 
 		configs.forEach(({ event, handler, logMessage }) => {
-			// 創建包裝的處理函數（帶日誌）
 			const wrappedHandler = (data: any) => {
 				if (logMessage) {
 					wsMonitorLogger.log(logMessage(data));
@@ -43,7 +51,6 @@ export const useWebSocketMonitor = () => {
 				handler(data);
 			};
 
-			// 註冊監聽器
 			on(event, wrappedHandler);
 			listeners.set(event, wrappedHandler);
 		});
@@ -52,38 +59,70 @@ export const useWebSocketMonitor = () => {
 		wsMonitorLogger.log(`已設置 ${configs.length} 個事件監聽器`);
 	};
 
+	const syncListeners = () => {
+		unregisterAll();
+		if (pendingConfigs && isConnected.value && resolveEnabled()) {
+			registerConfigs(pendingConfigs);
+		}
+	};
+
+	/**
+	 * 設置 WebSocket 事件監聽器
+	 * @param configs - 監聽器配置陣列（支援不同類型的事件）
+	 */
+	const setupListeners = (
+		configs: WebSocketListenerConfig<any>[],
+		options?: WebSocketMonitorOptions,
+	) => {
+		if (!process.client) return;
+
+		pendingConfigs = configs;
+		const gate = options?.enabled;
+		pendingEnabled = gate
+			? () => (typeof gate === "function" ? gate() : gate.value)
+			: null;
+
+		if (stopConnectionWatch) {
+			syncListeners();
+			return;
+		}
+
+		const enabledSources = gate ? [gate] : [];
+		stopConnectionWatch = watch([isConnected, ...enabledSources], syncListeners, {
+			immediate: true,
+		});
+	};
+
 	/**
 	 * 移除 WebSocket 事件監聽器
 	 * @param events - 要移除的事件名稱陣列（如果未提供，移除所有監聽器）
 	 */
 	const removeListeners = (events?: string[]) => {
-		if (!isSetup.value) {
-			return;
-		}
-
 		if (events) {
-			// 移除指定事件
-			events.forEach(event => {
+			events.forEach((event) => {
 				const handler = listeners.get(event);
 				if (handler) {
 					off(event, handler);
 					listeners.delete(event);
 				}
 			});
-			// 如果還有其他監聽器，保持 isSetup 為 true
 			if (listeners.size === 0) {
 				isSetup.value = false;
 			}
-		} else {
-			// 移除所有監聽器
-			for (const [event, handler] of listeners.entries()) {
-				off(event, handler);
-			}
-			listeners.clear();
-			isSetup.value = false;
+			wsMonitorLogger.log(`已移除 ${events.length} 個事件監聽器`);
+			return;
 		}
 
-		wsMonitorLogger.log(`已移除 ${events ? events.length : "所有"} 個事件監聽器`);
+		unregisterAll();
+		pendingConfigs = null;
+		pendingEnabled = null;
+
+		if (stopConnectionWatch) {
+			stopConnectionWatch();
+			stopConnectionWatch = null;
+		}
+
+		wsMonitorLogger.log("已移除所有事件監聽器");
 	};
 
 	/**
@@ -93,7 +132,6 @@ export const useWebSocketMonitor = () => {
 		removeListeners();
 	};
 
-	// 組件卸載時自動清理
 	onUnmounted(() => {
 		cleanup();
 	});
@@ -103,6 +141,6 @@ export const useWebSocketMonitor = () => {
 		removeListeners,
 		cleanup,
 		isSetup: readonly(isSetup),
-		isConnected: readonly(isConnected)
+		isConnected: readonly(isConnected),
 	};
 };

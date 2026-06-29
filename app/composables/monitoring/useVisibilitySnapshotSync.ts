@@ -1,19 +1,19 @@
 import { onBeforeUnmount, ref } from "vue"
 
-type VisibilityAutoRefreshOptions = {
+type VisibilitySnapshotSyncOptions = {
 	start: () => void
 	stop: () => void
 	onVisible: () => void | Promise<void>
 }
 
 /**
- * 統一處理：啟停輪詢 + visibilitychange（分頁回前景時補拉一次）。
+ * 統一處理：啟停快照 WS 訂閱 + visibilitychange（分頁回前景時補拉一次 REST）。
  *
  * 使用方式：
  * - 在完成初始載入後呼叫 `start()`（避免重複打 API）
  * - 不需要手動 add/remove visibility listener；unmount 會自動清理
  */
-export const useVisibilityAutoRefresh = (options: VisibilityAutoRefreshOptions) => {
+export const useVisibilitySnapshotSync = (options: VisibilitySnapshotSyncOptions) => {
 	const { start, stop, onVisible } = options
 	const isStarted = ref(false)
 
@@ -51,4 +51,3 @@ export const useVisibilityAutoRefresh = (options: VisibilityAutoRefreshOptions) 
 		stop: stopAll,
 	}
 }
-

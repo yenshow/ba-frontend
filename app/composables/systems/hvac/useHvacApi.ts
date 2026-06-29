@@ -6,6 +6,10 @@ import {
 	hvacLocationToUnified,
 } from "~/utils/locationAdapter"
 import { useApiBase } from "~/composables/core/useApiBase"
+import {
+	buildStatusSnapshotQueryString,
+	type StatusSnapshotQuery,
+} from "~/composables/monitoring/statusSnapshotQuery"
 
 export interface CreateHvacZoneData {
 	name: string
@@ -35,10 +39,8 @@ export const useHvacApi = () => {
 		createZone: zoneApi.createZone,
 		updateZone: zoneApi.updateZone,
 		deleteZone: zoneApi.deleteZone,
-		getStatus: (params?: { zoneIds?: string[] }) => {
-			const zoneIds = params?.zoneIds ?? []
-			const q =
-				zoneIds.length > 0 ? `?zoneIds=${zoneIds.map(encodeURIComponent).join(",")}` : ""
+		getStatus: (params?: StatusSnapshotQuery) => {
+			const q = buildStatusSnapshotQueryString(params)
 			return request<{ items: any[] }>(`/hvac/status${q}`, { timeout: 30_000 })
 		},
 		getZoneStatus: (zoneId: string) =>

@@ -1,5 +1,7 @@
 import { ref } from "vue"
 import { setupDebouncedRefetchListeners } from "~/composables/websocket/useWebSocket"
+import { useAccessGate } from "~/composables/core/useAccessGate"
+import { PERM } from "~/config/permissionCodes"
 import type { ElevatorLocation, ElevatorLog, ElevatorZone } from "~/types/elevator"
 import { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
 import { useElevatorLocationApi } from "~/composables/location/api/useElevatorLocationApi"
@@ -11,6 +13,8 @@ export const useElevatorState = () => {
 	const elevatorApi = useElevatorApi()
 	const elevatorLocationApi = useElevatorLocationApi()
 	const { handleError } = useErrorHandler()
+	const { useWsModuleGate } = useAccessGate()
+	const canSubscribe = useWsModuleGate("elevator", { permissionCode: PERM.elevator.module })
 
 	const locations = ref<ElevatorLocation[]>([])
 	const selectedLocation = ref<ElevatorLocation | null>(null)
@@ -88,6 +92,7 @@ export const useElevatorState = () => {
 			[{ event: LADDER_SDK_EVENT }],
 			debounceMs,
 			"Elevator WebSocket",
+			{ enabled: canSubscribe },
 		)
 
 	return {

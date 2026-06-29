@@ -1,8 +1,8 @@
 <template>
 	<div class="relative">
 		<div class="absolute right-4 top-4 z-20">
-			<PollingHealthBadge
-				:state="pollingState"
+			<SnapshotSyncHealthBadge
+				:state="syncHealthState"
 				:last-success-at="lastSuccessAt"
 			/>
 		</div>
@@ -66,9 +66,9 @@ import { onMounted, watch } from "vue"
 import LightStatusCenter from "~/components/lighting/LightStatusCenter.vue"
 import LightingZonePlanPanel from "~/components/lighting/LightingZonePlanPanel.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
-import PollingHealthBadge from "~/components/common/PollingHealthBadge.vue"
+import SnapshotSyncHealthBadge from "~/components/common/SnapshotSyncHealthBadge.vue"
 import type { LightingZone, LightingLocation } from "~/types/lighting"
-import { useVisibilityAutoRefresh } from "~/composables/monitoring/useVisibilityAutoRefresh"
+import { useVisibilitySnapshotSync } from "~/composables/monitoring/useVisibilitySnapshotSync"
 import { useLightingApi } from "~/composables/systems/lighting/useLightingApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useToast } from "~/composables/core/useToast"
@@ -140,9 +140,8 @@ const allZoneLocations = computed(() => {
 })
 
 const {
-	pollingState,
+	syncHealthState,
 	lastSuccessAt,
-	lastFailureAt,
 	locationStatuses,
 	locationToggling,
 	locationDisabledMap,
@@ -150,14 +149,14 @@ const {
 	preloadDeviceInfos,
 	loadAllLocationStatuses,
 	handleLocationToggle,
-	startAutoRefresh,
-	stopAutoRefresh,
+	startSnapshotSync,
+	stopSnapshotSync,
 	handleVisibilityChange,
 } = useLightingModbusIntegration(lightingZones, selectedZone)
 
-const autoRefresh = useVisibilityAutoRefresh({
-	start: startAutoRefresh,
-	stop: stopAutoRefresh,
+const snapshotSync = useVisibilitySnapshotSync({
+	start: startSnapshotSync,
+	stop: stopSnapshotSync,
 	onVisible: handleVisibilityChange,
 })
 
@@ -358,7 +357,7 @@ onMounted(async () => {
 		isInitialLoading.value = false
 	}
 
-	autoRefresh.start()
+	snapshotSync.start()
 })
 
 </script>

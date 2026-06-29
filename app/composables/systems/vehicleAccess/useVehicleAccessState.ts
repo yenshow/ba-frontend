@@ -4,6 +4,8 @@
 
 import { ref, computed } from "vue";
 import { setupDebouncedRefetchListeners } from "~/composables/websocket/useWebSocket";
+import { useAccessGate } from "~/composables/core/useAccessGate";
+import { PERM } from "~/config/permissionCodes";
 import type { YscpEventPayload } from "~/types/websocket";
 import type {
 	VehicleDataLog,
@@ -110,6 +112,10 @@ export const useVehicleAccessState = () => {
 	const locationApi = useLocationApi();
 	const { handleError } = useErrorHandler();
 	const { enableYscpVehicleAccess } = useModuleRegistry();
+	const { useWsModuleGate } = useAccessGate();
+	const canSubscribe = useWsModuleGate("vehicle_access", {
+		permissionCode: PERM.vehicleAccess.module,
+	});
 
 	const filters = ref<VehicleAccessFilters>(getDefaultFilters());
 	const vehicleAccessZones = ref<VehicleAccessZone[]>([]);
@@ -566,7 +572,8 @@ export const useVehicleAccessState = () => {
 				{ event: ISAPI_VEHICLE_EVENT }
 			],
 			debounceMs,
-			"VehicleAccess WebSocket"
+			"VehicleAccess WebSocket",
+			{ enabled: canSubscribe },
 		);
 
 	return {

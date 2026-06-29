@@ -10,6 +10,10 @@ import {
 	airCirculationLocationToUnified,
 } from "~/utils/locationAdapter"
 import { useApiBase } from "~/composables/core/useApiBase"
+import {
+	buildStatusSnapshotQueryString,
+	type StatusSnapshotQuery,
+} from "~/composables/monitoring/statusSnapshotQuery"
 
 export const useAirCirculationApi = () => {
 	const zoneApi = useSystemLocationApiFactory<AirCirculationZone, AirCirculationLocation>({
@@ -21,7 +25,7 @@ export const useAirCirculationApi = () => {
 
 	const { request } = useApiBase()
 
-	type StatusQuery = { zoneIds?: string[] }
+	type StatusQuery = StatusSnapshotQuery
 
 	return {
 		getZones: zoneApi.getZones,
@@ -30,10 +34,7 @@ export const useAirCirculationApi = () => {
 		updateZone: zoneApi.updateZone,
 		deleteZone: zoneApi.deleteZone,
 		getStatus: (query?: StatusQuery) => {
-			const zoneIds = query?.zoneIds
-			const params = new URLSearchParams()
-			if (zoneIds && zoneIds.length > 0) params.set("zoneIds", zoneIds.join(","))
-			const q = params.toString() ? `?${params.toString()}` : ""
+			const q = buildStatusSnapshotQueryString(query)
 			return request<{ items: AirCirculationStatusItem[] }>(`/air-circulation/status${q}`, {
 				timeout: 30_000,
 			})

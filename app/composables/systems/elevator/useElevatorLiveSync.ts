@@ -1,5 +1,7 @@
-import { computed, toValue, type MaybeRefOrGetter, type Ref } from "vue"
+import { toValue, type MaybeRefOrGetter, type Ref } from "vue"
 import type { ElevatorLocation, ElevatorLiveState } from "~/types/elevator"
+import { useAccessGate } from "~/composables/core/useAccessGate"
+import { PERM } from "~/config/permissionCodes"
 import { useWebSocketEventSubscription } from "~/composables/websocket/useWebSocket"
 import { useElevatorLiveRefresh } from "~/composables/systems/elevator/useElevatorLiveRefresh"
 
@@ -27,6 +29,9 @@ type UseElevatorLiveSyncOptions = {
  * 電梯運行態同步：WS、選中地點補拉、手動更新共用同一 patch 路徑。
  */
 export const useElevatorLiveSync = (options: UseElevatorLiveSyncOptions) => {
+	const { useWsModuleGate } = useAccessGate()
+	const canSubscribe = useWsModuleGate("elevator", { permissionCode: PERM.elevator.module })
+
 	const applyElevatorLive = (locationId: number, live: ElevatorLiveState) => {
 		const idx = options.locations.value.findIndex((l) => l.locationId === locationId)
 		if (idx >= 0) {
@@ -37,11 +42,8 @@ export const useElevatorLiveSync = (options: UseElevatorLiveSyncOptions) => {
 		}
 	}
 
-	const selectedLive = computed(() => options.selectedLocation.value?.live ?? null)
-
 	useElevatorLiveRefresh({
 		locationId: options.selectedLocationId,
-		live: selectedLive,
 		onLive: (live) => {
 			const id = toValue(options.selectedLocationId)
 			if (id != null) applyElevatorLive(id, live)
@@ -55,6 +57,7 @@ export const useElevatorLiveSync = (options: UseElevatorLiveSyncOptions) => {
 			const parsed = parseRuntimeWsPayload(payload)
 			applyElevatorLive(parsed.locationId, parsed.live)
 		},
+		{ enabled: canSubscribe },
 	)
 
 	return { applyElevatorLive }

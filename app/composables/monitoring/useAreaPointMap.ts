@@ -1,5 +1,6 @@
 import { computed, ref, watch, type ComputedRef, type Ref } from "vue"
 import { useAuth } from "~/composables/core/useAuth"
+import { useAccessGate } from "~/composables/core/useAccessGate"
 import { PERM } from "~/config/permissionCodes"
 import type { SystemType, UnifiedLocation, UnifiedZone } from "~/types/location"
 import { getSystemTypeLabel } from "~/types/location"
@@ -23,6 +24,7 @@ import { useAirCirculationApi } from "~/composables/systems/air-circulation/useA
 import { useSmokeAlarmApi } from "~/composables/systems/smoke-alarm/useSmokeAlarmApi"
 import { useEmergencyRescueApi } from "~/composables/systems/emergency-rescue/useEmergencyRescueApi"
 import { useMonitoringOverviewApi } from "~/composables/monitoring/useMonitoringOverviewApi"
+import { useMonitoringSnapshotWebSocket } from "~/composables/monitoring/useMonitoringSnapshotWebSocket"
 import {
 	useAirCirculationModbusIntegration,
 	useDrainageModbusIntegration,
@@ -95,8 +97,7 @@ const mergeDotSeverity = (best: MapDotStatus, next: MapDotStatus | null): MapDot
 	return dotSeverity(next) > dotSeverity(best) ? next : best
 }
 
-const OVERVIEW_STAGGER_TICK_MS = 1800
-const OVERVIEW_AGGREGATE_INTERVAL_MS = 15000
+type OverviewSystemPayload = { zones?: unknown[]; items?: unknown[] }
 
 const buildUiStatusMap = (items: unknown[]): Map<string, string> => {
 	const m = new Map<string, string>()
@@ -108,8 +109,6 @@ const buildUiStatusMap = (items: unknown[]): Map<string, string> => {
 	return m
 }
 
-type OverviewSystemPayload = { zones?: unknown[]; items?: unknown[] }
-
 export const useAreaPointMap = (options: {
 	selectedZone: Ref<string>
 	selectedSystemType: Ref<SystemType | null>
@@ -117,20 +116,21 @@ export const useAreaPointMap = (options: {
 }) => {
 	const { selectedZone, selectedSystemType, selectedZoneData } = options
 	const { hasPermission } = useAuth()
+	const { isModuleAccessReady } = useAccessGate()
 
-	const canPollSystemStatusApi = (system: AreaPointModbusSystem) =>
+	const canFetchSystemStatusApi = (system: AreaPointModbusSystem) =>
 		hasPermission(MODULE_BY_SYSTEM[system])
 
 	const canPreferMonitoringOverview = () => hasPermission(PERM.areaPointMap.module)
 
 	/** 點位圖篩選／異常色僅依子系統模組權限，不依聚合回傳擴權 */
-	const canReadSystemStatus = (system: AreaPointModbusSystem) => canPollSystemStatusApi(system)
+	const canReadSystemStatus = (system: AreaPointModbusSystem) => canFetchSystemStatusApi(system)
 
 	const hasAnyStatusReadPath = () =>
-		AREA_POINT_MODBUS_SYSTEMS.some((s) => canPollSystemStatusApi(s))
+		AREA_POINT_MODBUS_SYSTEMS.some((s) => canFetchSystemStatusApi(s))
 
 	const modbusIntegrationOptions = (system: AreaPointModbusSystem) => ({
-		shouldFetchOnZonesChange: () => canPollSystemStatusApi(system),
+		shouldFetchOnZonesChange: () => canFetchSystemStatusApi(system),
 	})
 
 	const filterReadableSystemTypes = (types: SystemType[]): SystemType[] =>
@@ -162,8 +162,8 @@ export const useAreaPointMap = (options: {
 		preloadDeviceInfos: preloadLightingDevices,
 		loadAllLocationStatuses: loadAllLightingStatuses,
 		applySnapshotItems: applyLightingSnapshotItems,
-		startAutoRefresh: startLightingAutoRefresh,
-		stopAutoRefresh: stopLightingAutoRefresh,
+		startSnapshotSync: startLightingSnapshotSync,
+		stopSnapshotSync: stopLightingSnapshotSync,
 		handleVisibilityChange: handleLightingVisibilityChange,
 	} = useLightingModbusIntegration(lightingZones, lightingSelectedZoneKey, modbusIntegrationOptions("lighting"))
 
@@ -172,8 +172,9 @@ export const useAreaPointMap = (options: {
 		preloadDeviceInfos: preloadDrainageDevices,
 		loadStatusSnapshot: loadDrainageSnapshot,
 		setStatusItems: setDrainageStatusItems,
-		startAutoRefresh: startDrainageAutoRefresh,
-		stopAutoRefresh: stopDrainageAutoRefresh,
+		patchStatusItems: patchDrainageStatusItems,
+		startSnapshotSync: startDrainageSnapshotSync,
+		stopSnapshotSync: stopDrainageSnapshotSync,
 		handleVisibilityChange: handleDrainageVisibilityChange,
 	} = useDrainageModbusIntegration(drainageZones, undefined, modbusIntegrationOptions("drainage"))
 
@@ -182,8 +183,9 @@ export const useAreaPointMap = (options: {
 		preloadDeviceInfos: preloadFireDevices,
 		loadStatusSnapshot: loadFireSnapshot,
 		setStatusItems: setFireStatusItems,
-		startAutoRefresh: startFireAutoRefresh,
-		stopAutoRefresh: stopFireAutoRefresh,
+		patchStatusItems: patchFireStatusItems,
+		startSnapshotSync: startFireSnapshotSync,
+		stopSnapshotSync: stopFireSnapshotSync,
 		handleVisibilityChange: handleFireVisibilityChange,
 	} = useFireModbusIntegration(fireZones, undefined, modbusIntegrationOptions("fire"))
 
@@ -192,8 +194,9 @@ export const useAreaPointMap = (options: {
 		preloadDeviceInfos: preloadPowerDevices,
 		loadStatusSnapshot: loadPowerSnapshot,
 		setStatusItems: setPowerStatusItems,
-		startAutoRefresh: startPowerAutoRefresh,
-		stopAutoRefresh: stopPowerAutoRefresh,
+		patchStatusItems: patchPowerStatusItems,
+		startSnapshotSync: startPowerSnapshotSync,
+		stopSnapshotSync: stopPowerSnapshotSync,
 		handleVisibilityChange: handlePowerVisibilityChange,
 	} = usePowerModbusIntegration(powerZones, undefined, modbusIntegrationOptions("power"))
 
@@ -204,8 +207,8 @@ export const useAreaPointMap = (options: {
 		preloadDeviceInfos: preloadHvacDevices,
 		loadAllLocationStatuses: loadAllHvacStatuses,
 		applySnapshotItems: applyHvacSnapshotItems,
-		startAutoRefresh: startHvacAutoRefresh,
-		stopAutoRefresh: stopHvacAutoRefresh,
+		startSnapshotSync: startHvacSnapshotSync,
+		stopSnapshotSync: stopHvacSnapshotSync,
 		handleVisibilityChange: handleHvacVisibilityChange,
 	} = useHvacModbusIntegration(hvacZones, hvacSelectedZoneKey, modbusIntegrationOptions("hvac"))
 
@@ -214,8 +217,9 @@ export const useAreaPointMap = (options: {
 		preloadDeviceInfos: preloadAirCirculationDevices,
 		loadStatusSnapshot: loadAirCirculationSnapshot,
 		setStatusItems: setAirCirculationStatusItems,
-		startAutoRefresh: startAirCirculationAutoRefresh,
-		stopAutoRefresh: stopAirCirculationAutoRefresh,
+		patchStatusItems: patchAirCirculationStatusItems,
+		startSnapshotSync: startAirCirculationSnapshotSync,
+		stopSnapshotSync: stopAirCirculationSnapshotSync,
 		handleVisibilityChange: handleAirCirculationVisibilityChange,
 	} = useAirCirculationModbusIntegration(
 		airCirculationZones,
@@ -228,8 +232,9 @@ export const useAreaPointMap = (options: {
 		preloadDeviceInfos: preloadSmokeAlarmDevices,
 		loadStatusSnapshot: loadSmokeAlarmSnapshot,
 		setStatusItems: setSmokeAlarmStatusItems,
-		startAutoRefresh: startSmokeAlarmAutoRefresh,
-		stopAutoRefresh: stopSmokeAlarmAutoRefresh,
+		patchStatusItems: patchSmokeAlarmStatusItems,
+		startSnapshotSync: startSmokeAlarmSnapshotSync,
+		stopSnapshotSync: stopSmokeAlarmSnapshotSync,
 		handleVisibilityChange: handleSmokeAlarmVisibilityChange,
 	} = useSmokeAlarmModbusIntegration(smokeAlarmZones, undefined, modbusIntegrationOptions("smoke_alarm"))
 
@@ -238,8 +243,9 @@ export const useAreaPointMap = (options: {
 		preloadDeviceInfos: preloadEmergencyRescueDevices,
 		loadStatusSnapshot: loadEmergencyRescueSnapshot,
 		setStatusItems: setEmergencyRescueStatusItems,
-		startAutoRefresh: startEmergencyRescueAutoRefresh,
-		stopAutoRefresh: stopEmergencyRescueAutoRefresh,
+		patchStatusItems: patchEmergencyRescueStatusItems,
+		startSnapshotSync: startEmergencyRescueSnapshotSync,
+		stopSnapshotSync: stopEmergencyRescueSnapshotSync,
 		handleVisibilityChange: handleEmergencyRescueVisibilityChange,
 	} = useEmergencyRescueModbusIntegration(
 		emergencyRescueZones,
@@ -310,7 +316,7 @@ export const useAreaPointMap = (options: {
 		AREA_POINT_MODBUS_SYSTEMS.map((s) => [s, ref(false)])
 	) as Record<AreaPointModbusSystem, Ref<boolean>>
 
-	const pollableSystemZones = {
+	const snapshotSystemZones = {
 		lighting: lightingZones,
 		drainage: drainageZones,
 		fire: fireZones,
@@ -321,83 +327,83 @@ export const useAreaPointMap = (options: {
 		emergency_rescue: emergencyRescueZones,
 	} as const
 
-	const loadLightingStatusSnapshot = async (opts: { autoRefresh: boolean }) => {
+	const loadLightingStatusSnapshot = async (opts: { startSync: boolean }) => {
 		const result = await lightingApi.getZones()
 		lightingZones.value = result.zones || []
 		initializeLightingStatuses()
 		await preloadLightingDevices()
 		await loadAllLightingStatuses({ loadAllZones: true })
 		hasLoadedBySystem.lighting.value = true
-		if (opts.autoRefresh) startLightingAutoRefresh()
+		if (opts.startSync) startLightingSnapshotSync()
 	}
 
-	const loadDrainageStatusSnapshot = async (opts: { autoRefresh: boolean }) => {
+	const loadDrainageStatusSnapshot = async (opts: { startSync: boolean }) => {
 		const result = await drainageApi.getZones()
 		drainageZones.value = result.zones || []
 		await preloadDrainageDevices()
 		await loadDrainageSnapshot()
 		hasLoadedBySystem.drainage.value = true
-		if (opts.autoRefresh) startDrainageAutoRefresh()
+		if (opts.startSync) startDrainageSnapshotSync()
 	}
 
-	const loadFireStatusSnapshot = async (opts: { autoRefresh: boolean }) => {
+	const loadFireStatusSnapshot = async (opts: { startSync: boolean }) => {
 		const result = await fireApi.getZones()
 		fireZones.value = result.zones || []
 		await preloadFireDevices()
 		await loadFireSnapshot()
 		hasLoadedBySystem.fire.value = true
-		if (opts.autoRefresh) startFireAutoRefresh()
+		if (opts.startSync) startFireSnapshotSync()
 	}
 
-	const loadPowerStatusSnapshot = async (opts: { autoRefresh: boolean }) => {
+	const loadPowerStatusSnapshot = async (opts: { startSync: boolean }) => {
 		const result = await powerApi.getZones()
 		powerZones.value = result.zones || []
 		await preloadPowerDevices()
 		await loadPowerSnapshot()
 		hasLoadedBySystem.power.value = true
-		if (opts.autoRefresh) startPowerAutoRefresh()
+		if (opts.startSync) startPowerSnapshotSync()
 	}
 
-	const loadHvacStatusSnapshot = async (opts: { autoRefresh: boolean }) => {
+	const loadHvacStatusSnapshot = async (opts: { startSync: boolean }) => {
 		const result = await hvacApi.getZones()
 		hvacZones.value = result.zones || []
 		initializeHvacStatuses()
 		await preloadHvacDevices()
 		await loadAllHvacStatuses({ loadAllZones: true })
 		hasLoadedBySystem.hvac.value = true
-		if (opts.autoRefresh) startHvacAutoRefresh()
+		if (opts.startSync) startHvacSnapshotSync()
 	}
 
-	const loadAirCirculationStatusSnapshot = async (opts: { autoRefresh: boolean }) => {
+	const loadAirCirculationStatusSnapshot = async (opts: { startSync: boolean }) => {
 		const result = await airCirculationApi.getZones()
 		airCirculationZones.value = result.zones || []
 		await preloadAirCirculationDevices()
 		await loadAirCirculationSnapshot()
 		hasLoadedBySystem.air_circulation.value = true
-		if (opts.autoRefresh) startAirCirculationAutoRefresh()
+		if (opts.startSync) startAirCirculationSnapshotSync()
 	}
 
-	const loadSmokeAlarmStatusSnapshot = async (opts: { autoRefresh: boolean }) => {
+	const loadSmokeAlarmStatusSnapshot = async (opts: { startSync: boolean }) => {
 		const result = await smokeAlarmApi.getZones()
 		smokeAlarmZones.value = result.zones || []
 		await preloadSmokeAlarmDevices()
 		await loadSmokeAlarmSnapshot()
 		hasLoadedBySystem.smoke_alarm.value = true
-		if (opts.autoRefresh) startSmokeAlarmAutoRefresh()
+		if (opts.startSync) startSmokeAlarmSnapshotSync()
 	}
 
-	const loadEmergencyRescueStatusSnapshot = async (opts: { autoRefresh: boolean }) => {
+	const loadEmergencyRescueStatusSnapshot = async (opts: { startSync: boolean }) => {
 		const result = await emergencyRescueApi.getZones()
 		emergencyRescueZones.value = result.zones || []
 		await preloadEmergencyRescueDevices()
 		await loadEmergencyRescueSnapshot()
 		hasLoadedBySystem.emergency_rescue.value = true
-		if (opts.autoRefresh) startEmergencyRescueAutoRefresh()
+		if (opts.startSync) startEmergencyRescueSnapshotSync()
 	}
 
-	const pollableSystemLoaders: Record<
+	const snapshotSystemLoaders: Record<
 		AreaPointModbusSystem,
-		(options: { autoRefresh: boolean }) => Promise<void>
+		(options: { startSync: boolean }) => Promise<void>
 	> = {
 		lighting: loadLightingStatusSnapshot,
 		drainage: loadDrainageStatusSnapshot,
@@ -409,18 +415,18 @@ export const useAreaPointMap = (options: {
 		emergency_rescue: loadEmergencyRescueStatusSnapshot,
 	}
 
-	const pollableSystemStops: Record<AreaPointModbusSystem, () => void> = {
-		lighting: stopLightingAutoRefresh,
-		drainage: stopDrainageAutoRefresh,
-		fire: stopFireAutoRefresh,
-		power: stopPowerAutoRefresh,
-		hvac: stopHvacAutoRefresh,
-		air_circulation: stopAirCirculationAutoRefresh,
-		smoke_alarm: stopSmokeAlarmAutoRefresh,
-		emergency_rescue: stopEmergencyRescueAutoRefresh,
+	const snapshotSystemStops: Record<AreaPointModbusSystem, () => void> = {
+		lighting: stopLightingSnapshotSync,
+		drainage: stopDrainageSnapshotSync,
+		fire: stopFireSnapshotSync,
+		power: stopPowerSnapshotSync,
+		hvac: stopHvacSnapshotSync,
+		air_circulation: stopAirCirculationSnapshotSync,
+		smoke_alarm: stopSmokeAlarmSnapshotSync,
+		emergency_rescue: stopEmergencyRescueSnapshotSync,
 	}
 
-	const pollableSystemVisibility: Partial<Record<AreaPointModbusSystem, () => void>> = {
+	const snapshotSystemVisibility: Partial<Record<AreaPointModbusSystem, () => void>> = {
 		lighting: handleLightingVisibilityChange,
 		drainage: handleDrainageVisibilityChange,
 		fire: handleFireVisibilityChange,
@@ -431,32 +437,46 @@ export const useAreaPointMap = (options: {
 		emergency_rescue: handleEmergencyRescueVisibilityChange,
 	}
 
-	const overviewAggregateEnabled = ref(true)
-	const overviewAggregateTimerId = ref<ReturnType<typeof setInterval> | null>(null)
-	const overviewRefreshTimerId = ref<ReturnType<typeof setInterval> | null>(null)
-	const overviewRefreshCursor = ref(0)
-	const isOverviewTickRunning = ref(false)
+	const overviewSnapshotWsStop = ref<(() => void) | null>(null)
 
-	const stopOverviewAutoRefresh = () => {
-		if (overviewAggregateTimerId.value) {
-			clearInterval(overviewAggregateTimerId.value)
-			overviewAggregateTimerId.value = null
+	const stopOverviewSnapshotSync = () => {
+		overviewSnapshotWsStop.value?.()
+		overviewSnapshotWsStop.value = null
+	}
+
+	const applySnapshotWsPatch = (system: AreaPointModbusSystem, items: unknown[]) => {
+		if (!canFetchSystemStatusApi(system) || !items.length) return
+
+		if (system === "lighting") {
+			hasLoadedBySystem.lighting.value = true
+			applyLightingSnapshotItems(items as never[])
+			return
 		}
-		if (!overviewRefreshTimerId.value) return
-		clearInterval(overviewRefreshTimerId.value)
-		overviewRefreshTimerId.value = null
+		if (system === "hvac") {
+			hasLoadedBySystem.hvac.value = true
+			applyHvacSnapshotItems(items as never[])
+			return
+		}
+
+		hasLoadedBySystem[system].value = true
+		if (system === "drainage") patchDrainageStatusItems(items as never[])
+		if (system === "fire") patchFireStatusItems(items as never[])
+		if (system === "power") patchPowerStatusItems(items as never[])
+		if (system === "air_circulation") patchAirCirculationStatusItems(items as never[])
+		if (system === "smoke_alarm") patchSmokeAlarmStatusItems(items as never[])
+		if (system === "emergency_rescue") patchEmergencyRescueStatusItems(items as never[])
 	}
 
 	const applyOverviewSystem = async (system: AreaPointModbusSystem, payload: OverviewSystemPayload) => {
-		if (!canPollSystemStatusApi(system)) return
+		if (!canFetchSystemStatusApi(system)) return
 		const zones = (payload.zones || []) as never[]
 		const items = (payload.items || []) as never[]
-		pollableSystemZones[system].value = zones as never
+		snapshotSystemZones[system].value = zones as never
 
 		if (system === "lighting") {
 			if (!hasLoadedBySystem.lighting.value) {
 				initializeLightingStatuses()
-				if (canPollSystemStatusApi("lighting")) await preloadLightingDevices()
+				if (canFetchSystemStatusApi("lighting")) await preloadLightingDevices()
 			}
 			hasLoadedBySystem.lighting.value = true
 			applyLightingSnapshotItems(items)
@@ -465,14 +485,14 @@ export const useAreaPointMap = (options: {
 		if (system === "hvac") {
 			if (!hasLoadedBySystem.hvac.value) {
 				initializeHvacStatuses()
-				if (canPollSystemStatusApi("hvac")) await preloadHvacDevices()
+				if (canFetchSystemStatusApi("hvac")) await preloadHvacDevices()
 			}
 			hasLoadedBySystem.hvac.value = true
 			applyHvacSnapshotItems(items)
 			return
 		}
 
-		if (canPollSystemStatusApi(system) && !hasLoadedBySystem[system].value) {
+		if (canFetchSystemStatusApi(system) && !hasLoadedBySystem[system].value) {
 			if (system === "drainage") await preloadDrainageDevices()
 			if (system === "fire") await preloadFireDevices()
 			if (system === "power") await preloadPowerDevices()
@@ -497,46 +517,39 @@ export const useAreaPointMap = (options: {
 		const systems = result.systems || {}
 
 		for (const system of AREA_POINT_MODBUS_SYSTEMS) {
-			if (!canPollSystemStatusApi(system)) continue
+			if (!canFetchSystemStatusApi(system)) continue
 			const payload = systems[system as keyof typeof systems]
 			if (!payload) continue
 			await applyOverviewSystem(system, payload as OverviewSystemPayload)
 		}
 	}
 
-	const refreshPollableSystemTick = async (system: AreaPointModbusSystem) => {
-		if (!canPollSystemStatusApi(system)) return
-		if (!hasLoadedBySystem[system].value) {
-			return pollableSystemLoaders[system]({ autoRefresh: false })
-		}
-		if (pollableSystemZones[system].value.length === 0) return
-		if (system === "lighting") return loadAllLightingStatuses({ loadAllZones: true })
-		if (system === "hvac") return loadAllHvacStatuses({ loadAllZones: true })
-		if (system === "drainage") return loadDrainageSnapshot()
-		if (system === "fire") return loadFireSnapshot()
-		if (system === "power") return loadPowerSnapshot()
-		if (system === "air_circulation") return loadAirCirculationSnapshot()
-		if (system === "smoke_alarm") return loadSmokeAlarmSnapshot()
-		return loadEmergencyRescueSnapshot()
-	}
-
-	const refreshOverviewOneSystem = async () => {
+	const startOverviewSnapshotSync = () => {
+		stopOverviewSnapshotSync()
+		if (!hasAnyStatusReadPath()) return
 		if (selectedSystemType.value) return
-		if (typeof document !== "undefined" && document.visibilityState !== "visible") return
-		if (canPreferMonitoringOverview()) return
 
-		const system =
-			AREA_POINT_MODBUS_SYSTEMS[overviewRefreshCursor.value % AREA_POINT_MODBUS_SYSTEMS.length]
-		overviewRefreshCursor.value += 1
-		await refreshPollableSystemTick(system)
+		void refreshOverviewFromAggregateApi()
+
+		const snapshotWs = useMonitoringSnapshotWebSocket({
+			systems: [...AREA_POINT_MODBUS_SYSTEMS],
+			enabled: computed(() => isModuleAccessReady.value && hasAnyStatusReadPath()),
+			onSnapshotUpdated: (event) => {
+				const system = event.system as AreaPointModbusSystem
+				if (!isAreaPointModbusSystem(system)) return
+				applySnapshotWsPatch(system, event.items || [])
+			},
+		})
+		snapshotWs.start()
+		overviewSnapshotWsStop.value = snapshotWs.stop
 	}
 
-	const loadPollableSystemSnapshot = async (
+	const loadSnapshotSystemStatus = async (
 		system: AreaPointModbusSystem,
-		opts: { autoRefresh: boolean }
+		opts: { startSync: boolean }
 	) => {
-		if (!canPollSystemStatusApi(system) || hasLoadedBySystem[system].value) return
-		await pollableSystemLoaders[system](opts)
+		if (!canFetchSystemStatusApi(system) || hasLoadedBySystem[system].value) return
+		await snapshotSystemLoaders[system](opts)
 	}
 
 	const ensureAllStatusSnapshotsLoaded = async () => {
@@ -550,70 +563,39 @@ export const useAreaPointMap = (options: {
 			}
 		}
 		for (const system of AREA_POINT_MODBUS_SYSTEMS) {
-			await loadPollableSystemSnapshot(system, { autoRefresh: false })
+			await loadSnapshotSystemStatus(system, { startSync: false })
 		}
 	}
 
-	const stopAllSystemAutoRefresh = () => {
-		for (const system of AREA_POINT_MODBUS_SYSTEMS) pollableSystemStops[system]()
-	}
-
-	const startOverviewAutoRefresh = () => {
-		stopOverviewAutoRefresh()
-		if (!hasAnyStatusReadPath()) return
-		if (selectedSystemType.value) return
-		if (overviewAggregateEnabled.value) {
-			overviewAggregateTimerId.value = setInterval(() => {
-				if (typeof document !== "undefined" && document.visibilityState !== "visible") return
-				refreshOverviewFromAggregateApi().catch(() => {
-					overviewAggregateEnabled.value = false
-					stopOverviewAutoRefresh()
-					startOverviewAutoRefresh()
-				})
-			}, OVERVIEW_AGGREGATE_INTERVAL_MS)
-			void refreshOverviewFromAggregateApi().catch(() => {
-				overviewAggregateEnabled.value = false
-				stopOverviewAutoRefresh()
-				startOverviewAutoRefresh()
-			})
-			return
-		}
-		overviewRefreshTimerId.value = setInterval(async () => {
-			if (isOverviewTickRunning.value) return
-			isOverviewTickRunning.value = true
-			try {
-				await refreshOverviewOneSystem()
-			} finally {
-				isOverviewTickRunning.value = false
-			}
-		}, OVERVIEW_STAGGER_TICK_MS)
+	const stopAllSystemSnapshotSync = () => {
+		for (const system of AREA_POINT_MODBUS_SYSTEMS) snapshotSystemStops[system]()
 	}
 
 	const handleRuntimeVisibility = () => {
 		if (!selectedSystemType.value && hasAnyStatusReadPath()) {
 			void ensureAllStatusSnapshotsLoaded()
-			startOverviewAutoRefresh()
+			startOverviewSnapshotSync()
 		}
 		const selected = selectedSystemType.value
-		if (selected && isAreaPointModbusSystem(selected) && canPollSystemStatusApi(selected)) {
-			pollableSystemVisibility[selected]?.()
+		if (selected && isAreaPointModbusSystem(selected) && canFetchSystemStatusApi(selected)) {
+			snapshotSystemVisibility[selected]?.()
 		}
 	}
 
 	watch(
 		() => selectedSystemType.value,
 		async (next) => {
-			stopOverviewAutoRefresh()
-			stopAllSystemAutoRefresh()
+			stopOverviewSnapshotSync()
+			stopAllSystemSnapshotSync()
 
 			if (!next) {
 				await ensureAllStatusSnapshotsLoaded()
-				startOverviewAutoRefresh()
+				startOverviewSnapshotSync()
 				return
 			}
 			if (!isAreaPointModbusSystem(next) || !canReadSystemStatus(next)) return
-			if (!canPollSystemStatusApi(next)) return
-			await pollableSystemLoaders[next]({ autoRefresh: true })
+			if (!canFetchSystemStatusApi(next)) return
+			await snapshotSystemLoaders[next]({ startSync: true })
 		},
 		{ immediate: true }
 	)
@@ -743,8 +725,8 @@ export const useAreaPointMap = (options: {
 		flashModeForLocation,
 		tooltipLabelForLocation,
 		handleSystemTypeToggle,
-		stopOverviewAutoRefresh,
-		stopAllSystemAutoRefresh,
+		stopOverviewSnapshotSync,
+		stopAllSystemSnapshotSync,
 		handleRuntimeVisibility,
 	}
 }

@@ -38,10 +38,14 @@ export const useLightingModbusIntegration = (
 		LightingLocationStatus
 	>({
 		loadErrorLabel: "載入照明狀態失敗",
+		systemKey: "lighting",
 		controlScope: "lighting",
 		zones: lightingZones,
 		selectedZone,
-		fetchSnapshot: (zoneIds) => lightingApi.getStatus(zoneIds ? { zoneIds } : undefined),
+		fetchSnapshot: (zoneIds, options) =>
+			lightingApi.getStatus(
+				zoneIds ? { zoneIds, force: options?.force } : { force: options?.force }
+			),
 		buildLocationUiKey: (zone, location, locationIndex) =>
 			getLocationUiKey({ zone, location, locationIndex }),
 		findLocationByUiKey: (uiKey, requireDbId) =>
@@ -150,10 +154,14 @@ export const useHvacModbusIntegration = (
 
 	return createToggleModbusIntegration<HvacLocation, HvacZone, HvacSnapshotItem, HvacLocationStatus>({
 		loadErrorLabel: "載入空調狀態失敗",
+		systemKey: "hvac",
 		controlScope: "hvac",
 		zones: hvacZones,
 		selectedZone,
-		fetchSnapshot: (zoneIds) => hvacApi.getStatus(zoneIds ? { zoneIds } : undefined),
+		fetchSnapshot: (zoneIds, fetchOptions) =>
+			hvacApi.getStatus(
+				zoneIds ? { zoneIds, force: fetchOptions?.force } : { force: fetchOptions?.force }
+			),
 		buildLocationUiKey: (zone, location, locationIndex) =>
 			getLocationUiKey({ zone, location, locationIndex }),
 		findLocationByUiKey: (uiKey, requireDbId) =>

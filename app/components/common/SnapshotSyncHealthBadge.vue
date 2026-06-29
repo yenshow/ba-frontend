@@ -13,11 +13,11 @@
 </template>
 
 <script setup lang="ts">
-import type { PollingHealthState } from "~/composables/monitoring/modbus/useModbusPollingPolicy"
+import type { SnapshotSyncHealthState } from "~/composables/monitoring/modbus/useSnapshotSyncHealth"
 
 const props = withDefaults(
 	defineProps<{
-		state: PollingHealthState
+		state: SnapshotSyncHealthState
 		lastSuccessAt?: number | null
 		showWhenHealthy?: boolean
 	}>(),
@@ -30,8 +30,8 @@ const props = withDefaults(
 const shouldShow = computed(() => props.showWhenHealthy || props.state !== "HEALTHY")
 
 const label = computed(() => {
-	if (props.state === "OFFLINE") return "離線（退避中）"
-	if (props.state === "DEGRADED") return "不穩定（退避中）"
+	if (props.state === "OFFLINE") return "離線（同步失敗）"
+	if (props.state === "DEGRADED") return "不穩定（同步異常）"
 	return "連線正常"
 })
 
@@ -59,4 +59,3 @@ const timeLabel = computed(() => {
 	return `最後更新 ${s}`
 })
 </script>
-

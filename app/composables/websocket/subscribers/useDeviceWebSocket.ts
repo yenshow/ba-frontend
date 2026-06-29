@@ -5,6 +5,8 @@ import type {
 	MonitoringDeviceStatusEvent,
 	MonitoringDeviceStatusBatchEvent,
 } from "~/types/websocket"
+import { useAccessGate } from "~/composables/core/useAccessGate"
+import { PERM } from "~/config/permissionCodes"
 import { useWebSocketMonitor } from "~/composables/websocket/useWebSocketMonitor"
 
 /**
@@ -13,6 +15,8 @@ import { useWebSocketMonitor } from "~/composables/websocket/useWebSocketMonitor
  */
 export const useDeviceWebSocket = () => {
 	const { setupListeners, removeListeners, isConnected } = useWebSocketMonitor()
+	const { useWsModuleGate } = useAccessGate()
+	const canSubscribe = useWsModuleGate(null, { permissionCode: PERM.equipment.module })
 
 	// 事件回調函數（由外部設置）
 	let callbacks: {
@@ -26,7 +30,8 @@ export const useDeviceWebSocket = () => {
 	const setupDeviceListeners = (newCallbacks?: typeof callbacks) => {
 		if (newCallbacks) callbacks = newCallbacks
 
-		setupListeners([
+		setupListeners(
+			[
 			{
 				event: "device:created",
 				handler: (e: DeviceCreatedEvent) => callbacks.onDeviceCreated?.(e),
@@ -54,7 +59,9 @@ export const useDeviceWebSocket = () => {
 				logMessage: (e: MonitoringDeviceStatusBatchEvent) =>
 					`設備批次監控狀態: ${e.system}, ${e.status}, ${e.updates.length} 個設備`,
 			},
-		])
+		],
+			{ enabled: canSubscribe },
+		)
 	}
 
 	const removeDeviceListeners = () => {

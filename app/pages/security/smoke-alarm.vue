@@ -1,8 +1,8 @@
 <template>
 	<div class="relative">
 		<div class="absolute right-4 top-4 z-20">
-			<PollingHealthBadge
-				:state="pollingState"
+			<SnapshotSyncHealthBadge
+				:state="syncHealthState"
 				:last-success-at="lastSuccessAt"
 			/>
 		</div>
@@ -66,7 +66,7 @@ import { onMounted, watch, type Ref } from "vue"
 import SmokeAlarmMonitorCenter from "~/components/smoke-alarm/SmokeAlarmMonitorCenter.vue"
 import SmokeAlarmZonePlanPanel from "~/components/smoke-alarm/SmokeAlarmZonePlanPanel.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
-import PollingHealthBadge from "~/components/common/PollingHealthBadge.vue"
+import SnapshotSyncHealthBadge from "~/components/common/SnapshotSyncHealthBadge.vue"
 import type { SmokeAlarmZone, SmokeAlarmLocation, SmokeAlarmStatusItem } from "~/types/smoke-alarm"
 import { deriveSmokeAlarmUiStatus } from "~/types/smoke-alarm"
 import { useSmokeAlarmApi } from "~/composables/systems/smoke-alarm/useSmokeAlarmApi"
@@ -83,7 +83,7 @@ import { isValidPercentPosition } from "~/utils/mapPosition"
 import { useSmokeAlarmModbusIntegration } from "~/composables/monitoring/modbus/snapshotModbusIntegrations"
 import type { ManualIssueChangedPayload } from "~/utils/alertUtils"
 import { useManualIssueDiDoRules } from "~/composables/systems/alerts/useManualIssueDiDoRules"
-import { useVisibilityAutoRefresh } from "~/composables/monitoring/useVisibilityAutoRefresh"
+import { useVisibilitySnapshotSync } from "~/composables/monitoring/useVisibilitySnapshotSync"
 
 definePageMeta({
 	layout: "default",
@@ -257,21 +257,20 @@ const loadZonesFromAPI = async () => {
 }
 
 const {
-	pollingState,
+	syncHealthState,
 	lastSuccessAt,
-	lastFailureAt,
 	statusItems: computedStatusItems,
 	preloadDeviceInfos,
 	loadStatusSnapshot,
 	patchOptimistic,
-	startAutoRefresh,
-	stopAutoRefresh,
+	startSnapshotSync,
+	stopSnapshotSync,
 	handleVisibilityChange,
 } = useSmokeAlarmModbusIntegration(smokeZones, selectedZone)
 
-const autoRefresh = useVisibilityAutoRefresh({
-	start: startAutoRefresh,
-	stop: stopAutoRefresh,
+const snapshotSync = useVisibilitySnapshotSync({
+	start: startSnapshotSync,
+	stop: stopSnapshotSync,
 	onVisible: handleVisibilityChange,
 })
 
@@ -361,7 +360,7 @@ onMounted(async () => {
 	} finally {
 		isInitialLoading.value = false
 	}
-	autoRefresh.start()
+	snapshotSync.start()
 })
 
 </script>

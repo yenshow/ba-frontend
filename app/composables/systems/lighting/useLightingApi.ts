@@ -2,6 +2,10 @@ import type { LightingZone, LightingLocation, LightingStatusSnapshotItem } from 
 import { useSystemLocationApiFactory } from "~/composables/location/api/useSystemLocationApiFactory"
 import { useApiBase } from "~/composables/core/useApiBase"
 import {
+	buildStatusSnapshotQueryString,
+	type StatusSnapshotQuery,
+} from "~/composables/monitoring/statusSnapshotQuery"
+import {
 	unifiedToLightingZone,
 	lightingToUnifiedZone,
 	lightingLocationToUnified,
@@ -28,13 +32,8 @@ export const useLightingApi = () => {
 		locationToUnified: lightingLocationToUnified,
 	})
 
-	const getStatus = async (params?: { zoneIds?: string[] | number[] }) => {
-		const query = new URLSearchParams()
-		const zoneIds = params?.zoneIds ?? []
-		if (zoneIds.length > 0) {
-			query.set("zoneIds", zoneIds.map((id) => String(id)).join(","))
-		}
-		const suffix = query.toString() ? `?${query.toString()}` : ""
+	const getStatus = async (params?: StatusSnapshotQuery) => {
+		const suffix = buildStatusSnapshotQueryString(params)
 		return request<{ items: LightingStatusSnapshotItem[] }>(`/lighting/status${suffix}`, {
 			timeout: 30_000,
 		})

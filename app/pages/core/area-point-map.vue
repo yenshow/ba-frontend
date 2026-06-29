@@ -177,6 +177,8 @@
 		v-model="showLocationManagementDialog"
 		:zone="selectedZoneData"
 		:system-type="selectedSystemType ?? undefined"
+		:allow-delete-zone="canDeleteZone"
+		:allow-delete-location="canDeleteLocationInDialog"
 		@delete="handleDeleteUnifiedZone"
 	/>
 </template>
@@ -191,14 +193,19 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import LocationManagementDialog from "~/components/location/LocationManagementDialog.vue"
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
-import { useVisibilityAutoRefresh } from "~/composables/monitoring/useVisibilityAutoRefresh"
+import { useVisibilitySnapshotSync } from "~/composables/monitoring/useVisibilitySnapshotSync"
 import { getSystemTypeLabel } from "~/types/location"
 
 definePageMeta({
 	layout: "default",
 })
 
-const { canDeleteZone, canManageOperations } = useAreaPointMapRbac()
+const { canDeleteZone, canDeleteLocation, canManageOperations, canDeleteLocationForSystem } =
+	useAreaPointMapRbac()
+
+const canDeleteLocationInDialog = computed(() =>
+	canDeleteLocationForSystem(selectedSystemType.value)
+)
 const locationApi = useLocationApi()
 const { handleError } = useErrorHandler()
 const { handleDeleteZone: baseHandleDeleteZone, sortZones } = useZoneManagement<
@@ -254,8 +261,8 @@ const {
 	flashModeForLocation,
 	tooltipLabelForLocation,
 	handleSystemTypeToggle,
-	stopOverviewAutoRefresh,
-	stopAllSystemAutoRefresh,
+	stopOverviewSnapshotSync,
+	stopAllSystemSnapshotSync,
 	handleRuntimeVisibility,
 } = useAreaPointMap({ selectedZone, selectedSystemType, selectedZoneData })
 
@@ -326,6 +333,7 @@ const getLocationTypeLabel = getSystemTypeLabel
 
 // 處理打開區域管理對話框
 const handleOpenZoneDialog = async () => {
+	if (!canManageOperations.value) return
 	if (zones.value.length === 0) {
 		await loadZones()
 	}
@@ -341,7 +349,7 @@ const handleVisibilityChange = () => {
 	}
 }
 
-const visibilityRefresh = useVisibilityAutoRefresh({
+const visibilityRefresh = useVisibilitySnapshotSync({
 	start: () => {},
 	stop: () => {},
 	onVisible: handleVisibilityChange,
@@ -373,8 +381,8 @@ onMounted(async () => {
 // 清理
 onBeforeUnmount(() => {
 	visibilityRefresh.stop()
-	stopOverviewAutoRefresh()
-	stopAllSystemAutoRefresh()
+	stopOverviewSnapshotSync()
+	stopAllSystemSnapshotSync()
 	if (leftSectionResizeObserver && leftSectionRef.value) {
 		leftSectionResizeObserver.unobserve(leftSectionRef.value)
 		leftSectionResizeObserver.disconnect()

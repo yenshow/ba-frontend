@@ -15,19 +15,21 @@ import { useSmokeAlarmApi } from "~/composables/systems/smoke-alarm/useSmokeAlar
 export const useDrainageModbusIntegration = defineSnapshotModbusIntegration<
 	DrainageStatusItem,
 	DrainageZone
->("載入排水狀態失敗", useDrainageApi, {
+>("載入排水狀態失敗", "drainage", useDrainageApi, {
 	optimisticPatch: "manualAlarm",
 	manualAlarmSystemType: "drainage",
 })
 
 export const usePowerModbusIntegration = defineSnapshotModbusIntegration<PowerStatusItem, PowerZone>(
 	"載入電力狀態失敗",
+	"power",
 	usePowerApi,
 	{ optimisticPatch: "manualAlarm", manualAlarmSystemType: "power" }
 )
 
 export const useFireModbusIntegration = defineSnapshotModbusIntegration<FireStatusItem, FireZone>(
 	"載入消防狀態失敗",
+	"fire",
 	useFireApi,
 	{ optimisticPatch: "manualAlarm", manualAlarmSystemType: "fire" }
 )
@@ -35,14 +37,14 @@ export const useFireModbusIntegration = defineSnapshotModbusIntegration<FireStat
 export const useAirCirculationModbusIntegration = defineSnapshotModbusIntegration<
 	AirCirculationStatusItem,
 	AirCirculationZone
->("載入空氣循環狀態失敗", useAirCirculationApi, { optimisticPatch: "uiStatus" })
+>("載入空氣循環狀態失敗", "air_circulation", useAirCirculationApi, { optimisticPatch: "uiStatus" })
 
 export const useEmergencyRescueModbusIntegration = defineSnapshotModbusIntegration<
 	EmergencyRescueStatusItem,
 	EmergencyRescueZone
->("載入緊急救援狀態失敗", useEmergencyRescueApi, { optimisticPatch: "uiStatus" })
+>("載入緊急救援狀態失敗", "emergency_rescue", useEmergencyRescueApi, { optimisticPatch: "uiStatus" })
 
 export const useSmokeAlarmModbusIntegration = defineSnapshotModbusIntegration<
 	SmokeAlarmStatusItem,
 	SmokeAlarmZone
->("載入煙霧警報狀態失敗", useSmokeAlarmApi, { optimisticPatch: "uiStatus" })
+>("載入煙霧警報狀態失敗", "smoke_alarm", useSmokeAlarmApi, { optimisticPatch: "uiStatus" })

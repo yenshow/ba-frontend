@@ -55,14 +55,14 @@ import BuildingCard from "~/components/home/BuildingCard.vue"
 import SystemModule from "~/components/home/SystemModule.vue"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { usePolling } from "~/composables/monitoring/usePolling"
+import { useEnvironmentWsFallbackPolling } from "~/composables/systems/environment/useEnvironmentWsFallbackPolling"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import {
 	createEmptyHomeSensorReadings,
 	useEnvironmentHomeSensors,
 	useEnvironmentReadingSubscription,
 } from "~/composables/systems/environment/useEnvironmentLive"
-import { ENVIRONMENT_STALE_CHECK_INTERVAL_MS, formatSensorDisplayValue } from "~/utils/environmentLive"
+import { formatSensorDisplayValue } from "~/utils/environmentLive"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import type { UnifiedZone, UnifiedLocation, EnvironmentSystemConfig } from "~/types/location"
 import { firstLocationInSortedZones } from "~/utils/sortOrder"
@@ -267,10 +267,8 @@ const homeSensorCards = [aqiCard, environmentCard]
 
 useEnvironmentReadingSubscription((event) => homeSensors.handleReadingEvent(event, homeSensorCards))
 
-const { start: startStaleCheck, stop: stopStaleCheck } = usePolling({
+useEnvironmentWsFallbackPolling({
 	callback: () => homeSensors.syncCards(homeSensorCards),
-	interval: ENVIRONMENT_STALE_CHECK_INTERVAL_MS,
-	immediate: false,
 })
 
 const formatAqiDisplay = (value: number | null, fractionDigits = 0) =>
@@ -319,11 +317,6 @@ onMounted(async () => {
 	}
 	await Promise.allSettled([loadAqiSensorData(), loadEnvironmentSensorData()])
 	homeSensors.syncCards(homeSensorCards)
-	startStaleCheck()
-})
-
-onBeforeUnmount(() => {
-	stopStaleCheck()
 })
 
 const getSelectedLocationLabel = (locationId: string) => {

@@ -1,7 +1,6 @@
 import { computed, ref, watch, type ComputedRef, type Ref } from "vue"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { usePolling } from "~/composables/monitoring/usePolling"
-import { useModbusPollingPolicy, type PollingHealthState } from "~/composables/monitoring/modbus/useModbusPollingPolicy"
+import { useSnapshotSyncHealth, type SnapshotSyncHealthState } from "~/composables/monitoring/modbus/useSnapshotSyncHealth"
 import type { StatusSnapshotFetchOptions } from "~/composables/monitoring/modbus/statusSnapshotPolicy"
 import {
 	resolveToggleSnapshotZoneIds,
@@ -15,6 +14,10 @@ import {
 } from "~/composables/monitoring/modbus/statusSnapshotPolicy"
 import type { ManualIssueRuleTriggerPayload, ManualSemanticAlertSource } from "~/utils/alertUtils"
 import { createStatusSnapshotRaceChannel } from "~/composables/monitoring/modbus/useStatusSnapshotRaceChannel"
+import { useMonitoringSnapshotWebSocket } from "~/composables/monitoring/useMonitoringSnapshotWebSocket"
+import { useAccessGate } from "~/composables/core/useAccessGate"
+import type { FeatureKey } from "~/types/license"
+import type { StatusSnapshotQuery } from "~/composables/monitoring/statusSnapshotQuery"
 
 type SnapshotStatusResult<TItem> = { items?: TItem[] | null }
 
@@ -22,14 +25,27 @@ type SnapshotPatchConfig =
 	| { optimisticPatch: "manualAlarm"; manualAlarmSystemType: ManualSemanticAlertSource }
 	| { optimisticPatch: "uiStatus" }
 
+const mergeStatusItemsBySystemId = <TItem extends { systemId: string | number }>(
+	current: TItem[],
+	incoming: TItem[]
+): TItem[] => {
+	if (!incoming.length) return current
+	const map = new Map(current.map((it) => [String(it.systemId), it]))
+	for (const item of incoming) {
+		map.set(String(item.systemId), item)
+	}
+	return [...map.values()]
+}
+
 /** 快照型 Modbus 子系統薄包工廠（排水／電力／消防等 6 套共用） */
 export const defineSnapshotModbusIntegration = <
 	TItem extends { systemId: string | number; uiStatus: unknown },
 	TZone extends ModbusIntegrationZone & ZoneUiKeyable,
 >(
 	loadErrorLabel: string,
+	systemKey: string,
 	useApiHook: () => {
-		getStatus: (options: { zoneIds?: string[] }) => Promise<SnapshotStatusResult<TItem>>
+		getStatus: (options?: StatusSnapshotQuery) => Promise<SnapshotStatusResult<TItem>>
 	},
 	patch: SnapshotPatchConfig
 ): ((
@@ -42,8 +58,9 @@ export const defineSnapshotModbusIntegration = <
 		return createSnapshotModbusIntegration<TItem, TZone>({
 			zonesRef,
 			selectedZone,
+			systemKey,
 			loadErrorLabel,
-			fetchStatus: (options) => api.getStatus(options),
+			fetchStatus: (fetchOptions) => api.getStatus(fetchOptions),
 			shouldFetchOnZonesChange: options?.shouldFetchOnZonesChange,
 			...patch,
 		})
@@ -56,8 +73,9 @@ export type SnapshotModbusIntegrationConfig<
 > = {
 	zonesRef: Ref<TZone[]>
 	selectedZone?: Ref<string>
+	systemKey: string
 	loadErrorLabel: string
-	fetchStatus: (options: { zoneIds?: string[] }) => Promise<SnapshotStatusResult<TItem>>
+	fetchStatus: (options?: StatusSnapshotQuery) => Promise<SnapshotStatusResult<TItem>>
 	optimisticPatch: "manualAlarm" | "uiStatus"
 	/** `optimisticPatch: "manualAlarm"` 時必填（對應 `patchOptimisticManualAlarmForZones` 的 alertSource） */
 	manualAlarmSystemType?: ManualSemanticAlertSource
@@ -69,16 +87,15 @@ export type SnapshotModbusIntegrationConfig<
 export type SnapshotModbusIntegrationHandle<
 	TItem extends { systemId: string | number; uiStatus: unknown },
 > = {
-	pollingState: ComputedRef<PollingHealthState>
-	pollIntervalMs: Ref<number>
+	syncHealthState: ComputedRef<SnapshotSyncHealthState>
 	lastSuccessAt: Ref<number | null>
-	lastFailureAt: Ref<number | null>
 	setStatusItems: (items: TItem[]) => void
+	patchStatusItems: (items: TItem[]) => void
 	statusItems: ComputedRef<TItem[]>
 	preloadDeviceInfos: () => Promise<void>
 	loadStatusSnapshot: (options?: StatusSnapshotFetchOptions) => Promise<void>
-	startAutoRefresh: () => void
-	stopAutoRefresh: () => void
+	startSnapshotSync: () => void
+	stopSnapshotSync: () => void
 	handleVisibilityChange: () => void
 	patchOptimisticManualAlarm: (systemId: string, rule?: ManualIssueRuleTriggerPayload) => void
 	patchOptimistic: (systemId: string, uiStatus: TItem["uiStatus"]) => void
@@ -93,6 +110,7 @@ export const createSnapshotModbusIntegration = <
 	const {
 		zonesRef,
 		selectedZone,
+		systemKey,
 		loadErrorLabel,
 		fetchStatus,
 		optimisticPatch,
@@ -102,27 +120,36 @@ export const createSnapshotModbusIntegration = <
 	const { handleError } = useErrorHandler()
 	const race = createStatusSnapshotRaceChannel()
 	const { preloadDeviceInfos } = useModbusIntegrationDeviceCache()
-	const pollingPolicy = useModbusPollingPolicy()
+	const syncHealth = useSnapshotSyncHealth()
+	const { useWsModuleGate } = useAccessGate()
+	const canSubscribe = useWsModuleGate(systemKey as FeatureKey)
 
 	const statusItems = ref<TItem[]>([]) as Ref<TItem[]>
 	const setStatusItems = (items?: TItem[] | null) => {
 		statusItems.value = items ?? []
-		pollingPolicy.recordSuccess()
+		syncHealth.recordSuccess()
 	}
 
+	const patchStatusItems = (items: TItem[]) => {
+		if (!items.length) return
+		statusItems.value = mergeStatusItemsBySystemId(statusItems.value, items)
+		syncHealth.recordSuccess()
+	}
+
+	const resolveZoneIds = () =>
+		selectedZone ? resolveToggleSnapshotZoneIds(zonesRef.value, selectedZone.value) : undefined
+
 	const loadStatusSnapshot = async (options?: StatusSnapshotFetchOptions) => {
-		const zoneIds = selectedZone
-			? resolveToggleSnapshotZoneIds(zonesRef.value, selectedZone.value)
-			: undefined
+		const zoneIds = resolveZoneIds()
 		await race.runSnapshotLoad(options, async ({ isStale }) => {
 			try {
-				const result = await fetchStatus({ zoneIds })
+				const result = await fetchStatus({ zoneIds, force: options?.force })
 				if (isStale()) return
 				statusItems.value = result.items || []
-				pollingPolicy.recordSuccess()
+				syncHealth.recordSuccess()
 			} catch (error) {
 				if (isStale()) return
-				pollingPolicy.recordFailure()
+				syncHealth.recordFailure()
 				handleError(error, loadErrorLabel)
 			}
 		})
@@ -144,17 +171,19 @@ export const createSnapshotModbusIntegration = <
 		patchOptimisticUiStatusBySystemId(statusItems, systemId, uiStatus)
 	}
 
-	const { start: startPolling, stop: stopPolling } = usePolling({
-		callback: async () => {
-			if (typeof document === "undefined") return
-			if (document.visibilityState !== "visible") return
-			await loadStatusSnapshot()
-		},
-		interval: pollingPolicy.pollIntervalMs,
-		immediate: true,
-		enabled: () => typeof document !== "undefined" && document.visibilityState === "visible",
-		onError: (err) => {
-			handleError(err, loadErrorLabel)
+	const snapshotWs = useMonitoringSnapshotWebSocket({
+		systems: [systemKey],
+		enabled: canSubscribe,
+		onSnapshotUpdated: (event) => {
+			const zoneIds = resolveZoneIds()
+			let incoming = (event.items || []) as TItem[]
+			if (zoneIds?.length) {
+				const want = new Set(zoneIds.map(String))
+				incoming = incoming.filter((it) =>
+					want.has(String((it as { zoneId?: string }).zoneId ?? ""))
+				)
+			}
+			patchStatusItems(incoming)
 		},
 	})
 
@@ -179,18 +208,15 @@ export const createSnapshotModbusIntegration = <
 	const noopUiStatus = (_systemId: string, _uiStatus: TItem["uiStatus"]) => {}
 
 	return {
-		pollingState: pollingPolicy.state,
-		pollIntervalMs: pollingPolicy.pollIntervalMs,
-		lastSuccessAt: pollingPolicy.lastSuccessAt,
-		lastFailureAt: pollingPolicy.lastFailureAt,
+		syncHealthState: syncHealth.state,
+		lastSuccessAt: syncHealth.lastSuccessAt,
 		setStatusItems,
+		patchStatusItems,
 		statusItems: computed(() => statusItems.value),
 		preloadDeviceInfos: () => preloadDeviceInfos(zonesRef.value),
 		loadStatusSnapshot,
-		startAutoRefresh: () => startPolling(),
-		stopAutoRefresh: () => {
-			stopPolling()
-		},
+		startSnapshotSync: () => snapshotWs.start(),
+		stopSnapshotSync: () => snapshotWs.stop(),
 		handleVisibilityChange,
 		patchOptimisticManualAlarm:
 			optimisticPatch === "manualAlarm" ? patchOptimisticManualAlarm : noopManualAlarm,
