@@ -3,7 +3,9 @@
  * 純函式與常數見 ~/utils/environmentLive.ts
  */
 import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi"
-import { useWebSocket } from "~/composables/websocket/useWebSocket"
+import { useAccessGate } from "~/composables/core/useAccessGate"
+import { PERM } from "~/config/permissionCodes"
+import { useWebSocketEventSubscription } from "~/composables/websocket/useWebSocket"
 import type { EnvironmentReadingNewEvent } from "~/types/websocket"
 import {
 	buildBootstrapSnapshot,
@@ -78,18 +80,16 @@ const useLiveSnapshots = () => {
 	}
 }
 
-/** 訂閱 environment:reading:new；卸載時自動 off */
+/** 訂閱 environment:reading:new（與路由守衛一致：module 權限 + environment feature） */
 export const useEnvironmentReadingSubscription = (handler: (event: EnvironmentReadingNewEvent) => void) => {
-	const { isConnected, on, off } = useWebSocket()
-	watch(
-		isConnected,
-		(connected) => {
-			if (connected) on("environment:reading:new", handler)
-			else off("environment:reading:new", handler)
-		},
-		{ immediate: true }
+	const { useWsModuleGate } = useAccessGate()
+	const canSubscribe = useWsModuleGate("environment", { permissionCode: PERM.environment.module })
+
+	useWebSocketEventSubscription(
+		"environment:reading:new",
+		handler as (...args: unknown[]) => void,
+		{ enabled: canSubscribe }
 	)
-	onBeforeUnmount(() => off("environment:reading:new", handler))
 }
 
 // --- 首頁 AQI / 環境卡片 ---

@@ -97,13 +97,13 @@ import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
-import { usePolling } from "~/composables/monitoring/usePolling";
+import { useEnvironmentWsFallbackPolling } from "~/composables/systems/environment/useEnvironmentWsFallbackPolling";
 import {
 	createEmptyHomeSensorReadings,
 	useEnvironmentHomeSensors,
 	useEnvironmentReadingSubscription
 } from "~/composables/systems/environment/useEnvironmentLive";
-import { ENVIRONMENT_STALE_CHECK_INTERVAL_MS } from "~/utils/environmentLive";
+import { formatSensorDisplayValue } from "~/utils/environmentLive";
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
 import type { EnvironmentLocation, SensorParameterType } from "~/types/environment";
 import type { UnifiedZone, UnifiedLocation, EnvironmentSystemConfig } from "~/types/location";
@@ -115,7 +115,8 @@ import type {
 import { getLocationDeviceIds } from "~/utils/sensorUtils";
 import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState";
 import { usePeopleCountingApi } from "~/composables/systems/peopleCounting/usePeopleCountingApi";
-import { useLicense } from "~/composables/core/useLicense";
+import { useAccessGate } from "~/composables/core/useAccessGate";
+import { PERM } from "~/config/permissionCodes";
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 import type { PeopleCountingLog } from "~/types/peopleCounting";
 import { normalizeLogDisplayColumns } from "~/utils/peopleCountingLogColumns";
@@ -128,15 +129,16 @@ definePageMeta({
 const locationApi = useLocationApi();
 const deviceApi = useDeviceApi();
 const homeSensors = useEnvironmentHomeSensors();
-const { canLoadFeature, isLoaded: licenseLoaded } = useLicense();
-const { enableYscpPeopleCounting, ensureLoaded: ensureModuleRegistryLoaded } =
-	useModuleRegistry();
-const hasEnvironment = computed(() => canLoadFeature("environment"));
-const hasPeopleCounting = computed(() => canLoadFeature("people_counting"));
+const { useWsModuleGate, isModuleAccessReady, ensureAccessReady } = useAccessGate();
+const { enableYscpPeopleCounting } = useModuleRegistry();
+const hasEnvironment = useWsModuleGate("environment", { permissionCode: PERM.environment.module });
+const hasPeopleCounting = useWsModuleGate("people_counting", {
+	permissionCode: PERM.peopleCounting.module,
+});
 // 僅在客戶端 mount 後才依授權切換內容，避免 SSR 與 hydration 時 state 不同步導致節點不匹配
 const isMounted = ref(false);
 const showLicensePlaceholder = computed(
-	() => !isMounted.value || !licenseLoaded.value
+	() => !isMounted.value || !isModuleAccessReady.value
 );
 const { handleError } = useErrorHandler();
 const { sortZones } = useZoneManagement<UnifiedLocation, UnifiedZone>();
@@ -392,11 +394,8 @@ useEnvironmentReadingSubscription(event => homeSensors.handleReadingEvent(event,
 
 const loadSensorData = () => homeSensors.bootstrapCard(environmentHomeCard);
 
-const { start: startStaleCheck, stop: stopStaleCheck } = usePolling({
+useEnvironmentWsFallbackPolling({
 	callback: () => homeSensors.syncCard(environmentHomeCard),
-	interval: ENVIRONMENT_STALE_CHECK_INTERVAL_MS,
-	immediate: false,
-	enabled: () => typeof document === "undefined" || document.visibilityState === "visible",
 });
 
 const initializeLocationData = async () => {
@@ -449,7 +448,7 @@ onMounted(async () => {
 
 	isHydratingHomeLocation.value = true;
 	try {
-		await ensureModuleRegistryLoaded();
+		await ensureAccessReady();
 		restoreHomeUnifiedLocationIdFromStorage();
 		const [zonesResult, peopleCountingResult] = await Promise.allSettled([
 			loadZones(),
@@ -470,11 +469,9 @@ onMounted(async () => {
 	} finally {
 		isHydratingHomeLocation.value = false;
 	}
-	startStaleCheck();
 });
 
 onBeforeUnmount(() => {
-	stopStaleCheck();
 	if (cleanupWebSocket) {
 		cleanupWebSocket();
 		cleanupWebSocket = null;

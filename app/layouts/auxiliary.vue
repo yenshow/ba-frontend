@@ -10,10 +10,14 @@
 <script setup lang="ts">
 import { useAuth } from "~/composables/core/useAuth";
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
+import { useWebSocketLifecycle } from "~/composables/websocket/useWebSocketLifecycle";
 import BottomNavigation from "~/components/common/BottomNavigation.vue";
 
 const { user } = useAuth();
 const { startMonitoring, stopMonitoring } = useAlertMonitor();
+const { start: startWebSocketLifecycle, stop: stopWebSocketLifecycle } = useWebSocketLifecycle();
+
+startWebSocketLifecycle();
 
 watch(
 	() => user.value,
@@ -29,6 +33,7 @@ watch(
 
 onBeforeUnmount(() => {
 	stopMonitoring();
+	stopWebSocketLifecycle();
 });
 </script>
 

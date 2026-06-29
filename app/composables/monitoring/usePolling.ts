@@ -1,4 +1,4 @@
-import { ref, getCurrentInstance, onBeforeUnmount, type Ref, type ComputedRef } from "vue";
+import { ref, getCurrentInstance, onBeforeUnmount, watch, type Ref, type ComputedRef } from "vue";
 
 /**
  * 輪詢管理 Composable
@@ -7,7 +7,7 @@ import { ref, getCurrentInstance, onBeforeUnmount, type Ref, type ComputedRef } 
 export interface UsePollingOptions {
 	/** 輪詢回調函數 */
 	callback: () => void | Promise<void>;
-	/** 輪詢間隔（毫秒）或響應式引用 */
+	/** 輪詢間隔（毫秒）或響應式引用（執行中變更會重排下一 tick） */
 	interval: number | Ref<number> | ComputedRef<number>;
 	/** 是否立即執行一次 */
 	immediate?: boolean;
@@ -18,22 +18,29 @@ export interface UsePollingOptions {
 }
 
 /**
- * 輪詢管理 Composable
+ * 輪詢管理 Composable（遞迴 setTimeout，支援動態 interval）
  */
 export const usePolling = (options: UsePollingOptions) => {
 	const { callback, interval, immediate = false, enabled, onError } = options;
 
 	const isActive = ref(false);
-	let timer: ReturnType<typeof setInterval> | null = null;
-	
-	// 獲取當前組件實例，只有在組件上下文中才註冊生命週期鉤子
+	let timer: ReturnType<typeof setTimeout> | null = null;
+
 	const instance = getCurrentInstance();
 
-	/**
-	 * 執行輪詢回調
-	 */
+	const getInterval = (): number => {
+		const raw = typeof interval === "number" ? interval : interval.value;
+		return Math.max(0, Number(raw) || 0);
+	};
+
+	const clearTimer = () => {
+		if (timer) {
+			clearTimeout(timer);
+			timer = null;
+		}
+	};
+
 	const executeCallback = async () => {
-		// 如果提供了 enabled 函數，檢查是否應該執行
 		if (enabled && !enabled()) {
 			return;
 		}
@@ -45,63 +52,53 @@ export const usePolling = (options: UsePollingOptions) => {
 		}
 	};
 
-	/**
-	 * 獲取當前間隔時間
-	 */
-	const getInterval = (): number => {
-		if (typeof interval === "number") {
-			return interval;
-		}
-		return interval.value;
+	const scheduleNext = () => {
+		clearTimer();
+		if (!isActive.value) return;
+
+		timer = setTimeout(async () => {
+			await executeCallback();
+			scheduleNext();
+		}, getInterval());
 	};
 
-	/**
-	 * 啟動輪詢
-	 */
 	const start = () => {
 		if (isActive.value) {
-			return; // 已經啟動
+			return;
 		}
 
 		isActive.value = true;
 
-		// 如果設置了立即執行，先執行一次
 		if (immediate) {
-			void executeCallback();
+			void executeCallback().finally(() => scheduleNext());
+			return;
 		}
 
-		// 設置定時器
-		const currentInterval = getInterval();
-		timer = setInterval(() => {
-			void executeCallback();
-		}, currentInterval);
+		scheduleNext();
 	};
 
-	/**
-	 * 停止輪詢
-	 */
 	const stop = () => {
 		if (!isActive.value) {
-			return; // 已經停止
+			return;
 		}
 
 		isActive.value = false;
-
-		if (timer) {
-			clearInterval(timer);
-			timer = null;
-		}
+		clearTimer();
 	};
 
-	/**
-	 * 重新啟動輪詢（先停止再啟動）
-	 */
 	const restart = () => {
 		stop();
 		start();
 	};
 
-	// 組件卸載時自動清理（只有在組件上下文中才註冊）
+	if (typeof interval !== "number" && instance) {
+		watch(interval, () => {
+			if (isActive.value) {
+				scheduleNext();
+			}
+		});
+	}
+
 	if (instance) {
 		onBeforeUnmount(() => {
 			stop();
@@ -112,7 +109,6 @@ export const usePolling = (options: UsePollingOptions) => {
 		isActive,
 		start,
 		stop,
-		restart
+		restart,
 	};
 };
-

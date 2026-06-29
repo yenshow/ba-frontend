@@ -68,6 +68,14 @@ export interface MonitoringDeviceStatusBatchEvent {
 	timestamp: string
 }
 
+/** 監控快照 UI 狀態變更（Push-First；後端 diff 後推送） */
+export interface MonitoringSnapshotUpdatedEvent {
+	system: string
+	items: Array<Record<string, unknown>>
+	fetchedAt: string
+	timestamp: string
+}
+
 export type EnvironmentReadingDeviceStatus = {
 	deviceId: number
 	status: "online" | "offline"

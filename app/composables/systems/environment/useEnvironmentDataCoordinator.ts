@@ -1,10 +1,9 @@
 import { ref, onMounted, onBeforeUnmount } from "vue"
-import { usePolling } from "~/composables/monitoring/usePolling"
-import { ENVIRONMENT_STALE_CHECK_INTERVAL_MS } from "~/utils/environmentLive"
 import {
 	useEnvironmentSensors,
 	type EnvironmentSensorsOptions,
 } from "~/composables/systems/environment/useEnvironmentLive"
+import { useEnvironmentWsFallbackPolling } from "~/composables/systems/environment/useEnvironmentWsFallbackPolling"
 
 const isDocumentVisible = () =>
 	typeof document === "undefined" || document.visibilityState === "visible"
@@ -22,12 +21,7 @@ export const useEnvironmentDataCoordinator = (options: EnvironmentSensorsOptions
 		sensors.syncAllLocationsFromSnapshots()
 	}
 
-	const { start: startReconcilePolling, stop: stopReconcilePolling } = usePolling({
-		callback: reconcileFromSnapshots,
-		interval: ENVIRONMENT_STALE_CHECK_INTERVAL_MS,
-		immediate: false,
-		enabled: isDocumentVisible,
-	})
+	useEnvironmentWsFallbackPolling({ callback: reconcileFromSnapshots })
 
 	const hydrateAllLocations = async (force = true) => {
 		isHydrating.value = true
@@ -52,7 +46,6 @@ export const useEnvironmentDataCoordinator = (options: EnvironmentSensorsOptions
 	})
 
 	onBeforeUnmount(() => {
-		stopReconcilePolling()
 		if (typeof document !== "undefined") {
 			document.removeEventListener("visibilitychange", handleVisibilityChange)
 		}
@@ -63,7 +56,5 @@ export const useEnvironmentDataCoordinator = (options: EnvironmentSensorsOptions
 		isHydrating,
 		trendReloadKey,
 		hydrateAllLocations,
-		startReconcilePolling,
-		stopReconcilePolling,
 	}
 }

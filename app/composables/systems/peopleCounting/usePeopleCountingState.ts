@@ -10,6 +10,8 @@
 
 import { ref } from "vue";
 import { setupDebouncedRefetchListeners } from "~/composables/websocket/useWebSocket";
+import { useAccessGate } from "~/composables/core/useAccessGate";
+import { PERM } from "~/config/permissionCodes";
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 import type {
 	PeopleCountingLocation,
@@ -36,6 +38,10 @@ export const usePeopleCountingState = () => {
 	const peopleCountingLocationApi = usePeopleCountingLocationApi();
 	const { handleError } = useErrorHandler();
 	const { enableYscpPeopleCounting } = useModuleRegistry();
+	const { useWsModuleGate } = useAccessGate();
+	const canSubscribe = useWsModuleGate("people_counting", {
+		permissionCode: PERM.peopleCounting.module,
+	});
 
 	// 狀態定義
 	const locations = ref<PeopleCountingLocation[]>([]);
@@ -256,10 +262,11 @@ export const usePeopleCountingState = () => {
 			[
 				{ event: YSCP_ACS_EVENT, enabled: enableYscpPeopleCounting },
 				{ event: ACCESS_CONTROL_EVENT },
-				{ event: ISAPI_CAMERA_EVENT }
+				{ event: ISAPI_CAMERA_EVENT },
 			],
 			debounceMs,
-			"PeopleCounting WebSocket"
+			"PeopleCounting WebSocket",
+			{ enabled: canSubscribe },
 		);
 
 	return {

@@ -11,6 +11,8 @@ import type {
 	AlertNewEvent,
 	AlertUpdatedEvent,
 } from "~/types/websocket";
+import { useAccessGate } from "~/composables/core/useAccessGate";
+import { PERM } from "~/config/permissionCodes";
 import { useWebSocketMonitor } from "~/composables/websocket/useWebSocketMonitor";
 
 type AlertNewHandler = (alert: AlertNewEvent) => void;
@@ -25,30 +27,39 @@ let isSetup = false;
 
 export const useAlertEventBus = () => {
 	const { setupListeners, removeListeners } = useWebSocketMonitor();
+	const { useWsModuleGate } = useAccessGate();
+	const alertGate = { permissionCode: PERM.alertLog.module } as const;
+	const canSubscribe = useWsModuleGate(null, alertGate);
 
 	const setup = () => {
-		if (isSetup) return;
+		if (isSetup) {
+			removeListeners(["alert:new", "alert:updated", "alert:daily_rollover"]);
+			isSetup = false;
+		}
 
-		setupListeners([
-			{
-				event: "alert:new",
-				handler: (e: AlertNewEvent) => {
-					for (const fn of newHandlers) fn(e);
+		setupListeners(
+			[
+				{
+					event: "alert:new",
+					handler: (e: AlertNewEvent) => {
+						for (const fn of newHandlers) fn(e);
+					},
 				},
-			},
-			{
-				event: "alert:updated",
-				handler: (e: AlertUpdatedEvent) => {
-					for (const fn of updatedHandlers) fn(e);
+				{
+					event: "alert:updated",
+					handler: (e: AlertUpdatedEvent) => {
+						for (const fn of updatedHandlers) fn(e);
+					},
 				},
-			},
-			{
-				event: "alert:daily_rollover",
-				handler: (e: AlertDailyRolloverEvent) => {
-					for (const fn of dailyRolloverHandlers) fn(e);
+				{
+					event: "alert:daily_rollover",
+					handler: (e: AlertDailyRolloverEvent) => {
+						for (const fn of dailyRolloverHandlers) fn(e);
+					},
 				},
-			},
-		]);
+			],
+			{ enabled: canSubscribe },
+		);
 
 		isSetup = true;
 	};

@@ -7,7 +7,7 @@ import { useAlertPolling } from "~/composables/monitoring/alertMonitor/useAlertP
 import { useAlertEventBus } from "~/composables/monitoring/alertMonitor/useAlertEventBus";
 import { useUnresolvedAlertCount } from "~/composables/monitoring/alertMonitor/useUnresolvedAlertCount";
 import { getSourceLabel, getSeverityLabel } from "~/utils/alertUtils";
-import { useAuth } from "~/composables/core/useAuth";
+import { useAccessGate } from "~/composables/core/useAccessGate";
 import { PERM } from "~/config/permissionCodes";
 
 const MAX_ALERT_TOASTS = 5;
@@ -68,9 +68,10 @@ const normalizeAlertMessageForToast = (alert: Alert): string => {
 
 export const useAlertMonitor = () => {
 	const { warning, error, info, removeToast, updateToast, toasts } = useToast();
-	const { connect, isConnected } = useWebSocket();
+	const { isConnected } = useWebSocket();
 	const { checkNewAlerts, startPolling, stopPolling, reset } = useAlertPolling();
-	const { hasPermission } = useAuth();
+	const { canLoadFeature } = useAccessGate();
+	const alertGate = { permissionCode: PERM.alertLog.module } as const;
 
 	let stopConnectionWatcher: (() => void) | null = null;
 	const setupConnectionWatcher = (onConnected: () => void, onDisconnected: () => void) => {
@@ -267,14 +268,16 @@ export const useAlertMonitor = () => {
 	};
 
 	const startMonitoring = () => {
-		if (!process.client || isMonitoring.value) return;
-		// 無警示紀錄權限：不要建立 websocket/polling，避免 403 噪音
-		if (!hasPermission(PERM.alertLog.module)) {
+		if (!process.client) return;
+		if (!canLoadFeature(null, alertGate)) {
 			return;
 		}
 
+		if (isMonitoring.value) {
+			stopMonitoring();
+		}
+
 		isMonitoring.value = true;
-		connect();
 
 		setupEventBus();
 		busOnAlertNew(handleAlertNew);
