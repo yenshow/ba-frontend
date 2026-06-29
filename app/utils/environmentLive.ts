@@ -57,24 +57,12 @@ const extractNumericData = (raw: Record<string, unknown>): Record<string, number
 }
 
 export const parseEnvironmentReadingEvent = (event: EnvironmentReadingNewEvent) => {
-	const legacyReading = event.reading as Record<string, unknown> | undefined
-	const nested = legacyReading?.data
-	const legacyData =
-		nested && typeof nested === "object" && !Array.isArray(nested)
-			? (nested as Record<string, unknown>)
-			: legacyReading && typeof legacyReading === "object"
-				? legacyReading
-				: {}
-
 	const data =
 		event.data && typeof event.data === "object" && !Array.isArray(event.data)
 			? (event.data as Record<string, unknown>)
-			: legacyData
+			: {}
 
-	const recordedAt =
-		event.recordedAt ||
-		(typeof legacyReading?.timestamp === "string" ? legacyReading.timestamp : null) ||
-		event.timestamp
+	const recordedAt = event.recordedAt || event.timestamp
 
 	const devices = (event.devices ?? [])
 		.map((d) => ({
