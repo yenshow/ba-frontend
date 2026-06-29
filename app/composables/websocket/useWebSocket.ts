@@ -1,5 +1,5 @@
 import { io, Socket } from "socket.io-client";
-import { watch, type Ref } from "vue";
+import { onScopeDispose, watch, type Ref } from "vue";
 import { useAuth } from "~/composables/core/useAuth";
 import { logger } from "~/utils/logger";
 import type { WebSocketStatus } from "~/types/websocket";
@@ -273,6 +273,25 @@ export const useWebSocket = () => {
 		// 清理
 		cleanup
 	};
+};
+
+/**
+ * 連線建立後才註冊事件；斷線時移除。避免 globalSocket 尚未建立時觸發 warn。
+ */
+export const useWebSocketEventSubscription = (
+	event: string,
+	handler: (...args: unknown[]) => void,
+) => {
+	const { isConnected, on, off } = useWebSocket();
+	watch(
+		isConnected,
+		(connected) => {
+			if (connected) on(event, handler);
+			else off(event, handler);
+		},
+		{ immediate: true },
+	);
+	onScopeDispose(() => off(event, handler));
 };
 
 /**

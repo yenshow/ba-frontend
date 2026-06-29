@@ -1,6 +1,6 @@
-import { computed, onScopeDispose, toValue, type MaybeRefOrGetter, type Ref } from "vue"
+import { computed, toValue, type MaybeRefOrGetter, type Ref } from "vue"
 import type { ElevatorLocation, ElevatorLiveState } from "~/types/elevator"
-import { useWebSocket } from "~/composables/websocket/useWebSocket"
+import { useWebSocketEventSubscription } from "~/composables/websocket/useWebSocket"
 import { useElevatorLiveRefresh } from "~/composables/systems/elevator/useElevatorLiveRefresh"
 
 export type ElevatorRuntimeWsPayload = ElevatorLiveState & {
@@ -37,19 +37,6 @@ export const useElevatorLiveSync = (options: UseElevatorLiveSyncOptions) => {
 		}
 	}
 
-	const handleRuntimeUpdate = (
-		source: number | ElevatorRuntimeWsPayload,
-		live?: ElevatorLiveState,
-	) => {
-		if (typeof source === "number") {
-			if (live) applyElevatorLive(source, live)
-			return
-		}
-		if (!source?.locationId) return
-		const parsed = parseRuntimeWsPayload(source)
-		applyElevatorLive(parsed.locationId, parsed.live)
-	}
-
 	const selectedLive = computed(() => options.selectedLocation.value?.live ?? null)
 
 	useElevatorLiveRefresh({
@@ -61,10 +48,14 @@ export const useElevatorLiveSync = (options: UseElevatorLiveSyncOptions) => {
 		},
 	})
 
-	const { on, off } = useWebSocket()
-	const wsHandler = (payload: ElevatorRuntimeWsPayload) => handleRuntimeUpdate(payload)
-	on("elevator:runtime:update", wsHandler)
-	onScopeDispose(() => off("elevator:runtime:update", wsHandler))
+	useWebSocketEventSubscription(
+		"elevator:runtime:update",
+		(payload: ElevatorRuntimeWsPayload) => {
+			if (!payload?.locationId) return
+			const parsed = parseRuntimeWsPayload(payload)
+			applyElevatorLive(parsed.locationId, parsed.live)
+		},
+	)
 
-	return { applyElevatorLive, handleRuntimeUpdate }
+	return { applyElevatorLive }
 }

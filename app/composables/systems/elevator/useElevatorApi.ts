@@ -5,6 +5,9 @@ import type {
 	ElevatorLiveState,
 	ElevatorCallCommand,
 	ElevatorDoorControlCommand,
+	ElevatorFloorAccessResponse,
+	ElevatorSyncCandidate,
+	ElevatorSyncJob,
 } from "~/types/elevator"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useElevatorLocationApi } from "~/composables/location/api/useElevatorLocationApi"
@@ -150,24 +153,27 @@ export const useElevatorApi = () => {
 		})
 
 	const getFloorAccess = (locationId: number) =>
-		request(`/elevator/locations/${locationId}/floor-access`)
+		request<ElevatorFloorAccessResponse>(`/elevator/locations/${locationId}/floor-access`)
 
 	const replaceFloorAccess = (
 		locationId: number,
 		assignments: Array<{ floorIndex: number; personIds: number[] }>,
 	) =>
-		request(`/elevator/locations/${locationId}/floor-access`, {
+		request<ElevatorFloorAccessResponse>(`/elevator/locations/${locationId}/floor-access`, {
 			method: "PUT",
 			body: JSON.stringify({ assignments }),
 		})
 
 	const getSyncCandidates = (locationId: number) =>
-		request(`/elevator/locations/${locationId}/sync-candidates`)
+		request<{ persons: ElevatorSyncCandidate[]; hasAccessDevices?: boolean }>(
+			`/elevator/locations/${locationId}/sync-candidates`,
+		)
 
-	const startSyncJob = (locationId: number) =>
-		request(`/elevator/sync-location/${locationId}/job`, { method: "POST" })
+	const startFloorSyncJob = (locationId: number) =>
+		request<{ jobId: string }>(`/elevator/sync-location/${locationId}/job`, { method: "POST" })
 
-	const getSyncJob = (jobId: string) => request(`/elevator/sync-location/jobs/${jobId}`)
+	const getFloorSyncJob = (jobId: string) =>
+		request<{ job: ElevatorSyncJob }>(`/elevator/sync-location/jobs/${jobId}`)
 
 	const getLogs = (params?: {
 		siteId?: number
@@ -188,8 +194,8 @@ export const useElevatorApi = () => {
 		getFloorAccess,
 		replaceFloorAccess,
 		getSyncCandidates,
-		startSyncJob,
-		getSyncJob,
+		startFloorSyncJob,
+		getFloorSyncJob,
 		getLogs,
 		getFullReportLogs: getLogs,
 	}

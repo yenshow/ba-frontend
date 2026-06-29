@@ -340,7 +340,7 @@ const hasFloorDetection = computed(() => floorDetectionDeviceId.value != null)
 
 const selectedLiveState = computed(() => selectedLocation.value?.live ?? null)
 
-const { handleRuntimeUpdate } = useElevatorLiveSync({
+const { applyElevatorLive } = useElevatorLiveSync({
 	locations,
 	selectedLocation,
 	selectedLocationId: selectedLocationNumericId,
@@ -348,7 +348,7 @@ const { handleRuntimeUpdate } = useElevatorLiveSync({
 
 const handleDetailRuntimeUpdated = (live: ElevatorLiveState) => {
 	const id = selectedLocationNumericId.value
-	if (id != null) handleRuntimeUpdate(id, live)
+	if (id != null) applyElevatorLive(id, live)
 }
 
 const handleLogsRefresh = () => {

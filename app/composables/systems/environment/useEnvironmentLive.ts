@@ -3,7 +3,7 @@
  * 純函式與常數見 ~/utils/environmentLive.ts
  */
 import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi"
-import { useWebSocket } from "~/composables/websocket/useWebSocket"
+import { useWebSocketEventSubscription } from "~/composables/websocket/useWebSocket"
 import type { EnvironmentReadingNewEvent } from "~/types/websocket"
 import {
 	buildBootstrapSnapshot,
@@ -80,16 +80,7 @@ const useLiveSnapshots = () => {
 
 /** 訂閱 environment:reading:new；卸載時自動 off */
 export const useEnvironmentReadingSubscription = (handler: (event: EnvironmentReadingNewEvent) => void) => {
-	const { isConnected, on, off } = useWebSocket()
-	watch(
-		isConnected,
-		(connected) => {
-			if (connected) on("environment:reading:new", handler)
-			else off("environment:reading:new", handler)
-		},
-		{ immediate: true }
-	)
-	onBeforeUnmount(() => off("environment:reading:new", handler))
+	useWebSocketEventSubscription("environment:reading:new", handler as (...args: unknown[]) => void)
 }
 
 // --- 首頁 AQI / 環境卡片 ---
