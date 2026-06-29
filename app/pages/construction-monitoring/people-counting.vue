@@ -298,11 +298,13 @@ const { handleError: handleApiError } = useErrorHandler();
 const accessSync = useLocationAccessSync({
 	personnelApi,
 	locationApi,
-	toast: { success: (m: string) => showToast("success", m) },
-	toastError: (m: string) => showToast("error", m),
+	toast: {
+		success: (m: string) => showToast("success", m),
+		error: (m: string) => showToast("error", m),
+	},
 	handleApiError,
-	canDeviceSync: canResyncAccessDevices
-});
+	canDeviceSync: canResyncAccessDevices,
+})
 
 // 使用統一的狀態管理
 const {

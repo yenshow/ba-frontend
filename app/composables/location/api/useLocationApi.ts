@@ -127,11 +127,13 @@ export const useLocationApi = () => {
 		},
 
 		/**
-		 * 刪除區域
+		 * 刪除區域（可選 locationType 供系統感知刪除時對齊模組 location.delete 權限）
 		 */
-		deleteZone: (id: string) => {
-			return request<{ message: string }>(`/locations/zones/${id}`, {
-				method: "DELETE"
+		deleteZone: (id: string, systemType?: SystemType) => {
+			const params = buildSystemTypeParams(systemType);
+			const path = buildPathWithQuery(`/locations/zones/${id}`, params);
+			return request<{ message: string }>(path, {
+				method: "DELETE",
 			});
 		},
 
@@ -166,19 +168,24 @@ export const useLocationApi = () => {
 				name?: string;
 				description?: string;
 				systems?: (LocationSystem | Omit<LocationSystem, "id">)[];
-			}
+			},
+			systemType?: SystemType
 		) => {
-			return request<{ message: string; location: UnifiedLocation }>(`/locations/${id}`, {
+			const params = buildSystemTypeParams(systemType);
+			const path = buildPathWithQuery(`/locations/${id}`, params);
+			return request<{ message: string; location: UnifiedLocation }>(path, {
 				method: "PUT",
 				body: JSON.stringify(data)
 			});
 		},
 
 		/**
-		 * 刪除地點
+		 * 刪除地點（可選 locationType 對齊模組 location.delete）
 		 */
-		deleteLocation: (id: string) => {
-			return request<{ message: string }>(`/locations/${id}`, {
+		deleteLocation: (id: string, systemType?: SystemType) => {
+			const params = buildSystemTypeParams(systemType);
+			const path = buildPathWithQuery(`/locations/${id}`, params);
+			return request<{ message: string }>(path, {
 				method: "DELETE"
 			});
 		}

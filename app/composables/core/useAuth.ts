@@ -17,6 +17,17 @@ export const usePlatformAdmin = () => {
 	return computed(() => isPlatformAdmin(user.value));
 };
 
+type UserCookiePayload = Pick<User, "id" | "username" | "role" | "status">;
+
+const toCookieUser = (nextUser: User | null): UserCookiePayload | null => {
+	if (!nextUser) return null;
+	const { id, username, role, status } = nextUser;
+	return { id, username, role, status };
+};
+
+const userFromCookie = (cookie: UserCookiePayload | null): User | null =>
+	cookie ? { ...cookie, permissions: [] } : null;
+
 export const useAuth = () => {
 	const userApi = useUserApi();
 	const config = useRuntimeConfig();
@@ -36,7 +47,7 @@ export const useAuth = () => {
 		httpOnly: false
 	});
 
-	const userCookie = useCookie<User | null>("auth_user", {
+	const userCookie = useCookie<UserCookiePayload | null>("auth_user", {
 		default: () => null,
 		secure: isSecure,
 		sameSite: "lax",
@@ -44,14 +55,14 @@ export const useAuth = () => {
 		httpOnly: false
 	});
 
-	const user = useState<User | null>("auth_user", () => userCookie.value);
+	const user = useState<User | null>("auth_user", () => userFromCookie(userCookie.value));
 	const token = useState<string | null>("auth_token", () => tokenCookie.value);
 
 	const isAuthenticated = computed(() => !!token.value && !!user.value);
 
 	const persistSession = (nextUser: User | null, nextToken: string | null) => {
 		tokenCookie.value = nextToken;
-		userCookie.value = nextUser;
+		userCookie.value = toCookieUser(nextUser);
 		token.value = nextToken;
 		user.value = nextUser;
 	};
@@ -120,7 +131,6 @@ export const useAuth = () => {
 	/** 啟動時由 auth.client 呼叫：cookie → state；非登入頁才以 /users/me 驗證 token */
 	const init = async () => {
 		token.value = tokenCookie.value ?? token.value;
-		user.value = userCookie.value ?? user.value;
 
 		if (!token.value) {
 			if (user.value) clearSession();

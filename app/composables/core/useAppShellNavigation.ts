@@ -43,7 +43,7 @@ const toSystemSettingsSections = (items: SystemSettingsMenuItem[]) =>
 	})).filter((g) => g.items.length > 0)
 
 const buildSystemSettingsItems = (
-	user: Pick<User, "role"> | null | undefined,
+	user: Pick<User, "username"> | null | undefined,
 	canAdmin: boolean
 ): SystemSettingsMenuItem[] => {
 	const items: SystemSettingsMenuItem[] = []

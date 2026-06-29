@@ -251,3 +251,194 @@ export type LocationSystemInput = LocationSystem | Omit<LocationSystem, "id">;
 export type UnifiedLocationInput = Omit<UnifiedLocation, "zoneId" | "systems"> & {
 	systems: LocationSystemInput[];
 };
+
+/**
+ * 各系統區域／地點檢視型別（`locationAdapter`、`useZoneSystemAdapter` 轉換用；
+ * Construction 無對應監控 UI，但需與 Central 共用同一套 adapter 鏡像）
+ */
+
+export interface LightingLocation {
+	id?: string;
+	systemId?: string;
+	sortOrder?: number;
+	name: string;
+	location?: { x: number; y: number };
+	description?: string;
+	deviceId?: number;
+	modbus?: LightingSystemConfig["modbus"];
+}
+
+export interface LightingZone {
+	id?: string;
+	name: string;
+	sortOrder?: number;
+	imageUrl?: string;
+	locations: LightingLocation[];
+	description?: string;
+}
+
+export interface HvacLocation {
+	id?: string;
+	systemId?: string;
+	sortOrder?: number;
+	createdAt?: string;
+	name: string;
+	location?: { x: number; y: number };
+	description?: string;
+	deviceId?: number;
+	modbus?: HvacSystemConfig["modbus"];
+	statusPoints?: HvacSystemConfig["statusPoints"];
+}
+
+export interface HvacZone {
+	id?: string;
+	name: string;
+	sortOrder?: number;
+	imageUrl?: string;
+	description?: string;
+	locations: HvacLocation[];
+}
+
+export interface AirCirculationLocation {
+	id?: string;
+	systemId?: string;
+	sortOrder?: number;
+	createdAt?: string;
+	name: string;
+	location?: { x: number; y: number };
+	description?: string;
+	deviceId?: number;
+	modbus?: AirCirculationSystemConfig["modbus"];
+	statusPoints?: AirCirculationSystemConfig["statusPoints"];
+	equipmentKind?: AirCirculationSystemConfig["equipmentKind"];
+	viewCategory?: string;
+}
+
+export interface AirCirculationZone {
+	id?: string;
+	name: string;
+	sortOrder?: number;
+	imageUrl?: string;
+	description?: string;
+	locations: AirCirculationLocation[];
+}
+
+export interface DrainageLocation {
+	id?: string;
+	systemId?: string;
+	sortOrder?: number;
+	createdAt?: string;
+	name: string;
+	location?: { x: number; y: number };
+	description?: string;
+	deviceId?: number;
+	modbus?: DrainageSystemConfig["modbus"];
+	equipmentKind?: DrainageSystemConfig["equipmentKind"];
+	viewCategory?: string;
+	statusPoints?: DrainageSystemConfig["statusPoints"];
+}
+
+export interface DrainageZone {
+	id?: string;
+	name: string;
+	imageUrl?: string;
+	sortOrder?: number;
+	locations: DrainageLocation[];
+	description?: string;
+}
+
+export interface PowerLocation {
+	id?: string;
+	systemId?: string;
+	sortOrder?: number;
+	createdAt?: string;
+	name: string;
+	location?: { x: number; y: number };
+	description?: string;
+	deviceId?: number;
+	modbus?: PowerSystemConfig["modbus"];
+	equipmentKind?: PowerSystemConfig["equipmentKind"];
+	viewCategory?: string;
+	statusPoints?: PowerSystemConfig["statusPoints"];
+}
+
+export interface PowerZone {
+	id?: string;
+	name: string;
+	imageUrl?: string;
+	sortOrder?: number;
+	locations: PowerLocation[];
+	description?: string;
+}
+
+export interface FireLocation {
+	id?: string;
+	systemId?: string;
+	sortOrder?: number;
+	createdAt?: string;
+	name: string;
+	location?: { x: number; y: number };
+	description?: string;
+	deviceId?: number;
+	modbus?: FireSystemConfig["modbus"];
+	equipmentKind?: DrainageSystemConfig["equipmentKind"];
+	viewCategory?: string;
+	statusPoints?: FireSystemConfig["statusPoints"];
+}
+
+export interface FireZone {
+	id?: string;
+	name: string;
+	imageUrl?: string;
+	sortOrder?: number;
+	locations: FireLocation[];
+	description?: string;
+}
+
+export interface EmergencyRescueLocation {
+	id?: string;
+	systemId?: string;
+	sortOrder?: number;
+	createdAt?: string;
+	name: string;
+	location?: { x: number; y: number };
+	description?: string;
+	deviceId?: number;
+	modbus?: EmergencyRescueSystemConfig["modbus"];
+	equipmentKind?: string;
+	viewCategory?: string;
+	statusPoints?: EmergencyRescueSystemConfig["statusPoints"];
+}
+
+export interface EmergencyRescueZone {
+	id?: string;
+	name: string;
+	imageUrl?: string;
+	sortOrder?: number;
+	locations: EmergencyRescueLocation[];
+	description?: string;
+}
+
+export interface SmokeAlarmLocation {
+	id?: string;
+	systemId?: string;
+	sortOrder?: number;
+	createdAt?: string;
+	name: string;
+	location?: { x: number; y: number };
+	description?: string;
+	deviceId?: number;
+	modbus?: SmokeAlarmSystemConfig["modbus"];
+	equipmentKind?: string;
+	viewCategory?: string;
+	statusPoints?: SmokeAlarmSystemConfig["statusPoints"];
+}
+
+export interface SmokeAlarmZone {
+	id?: string;
+	name: string;
+	imageUrl?: string;
+	sortOrder?: number;
+	locations: SmokeAlarmLocation[];
+	description?: string;
+}

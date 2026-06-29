@@ -84,7 +84,7 @@
 								<th class="px-3 py-2 font-medium">效期開始</th>
 								<th class="px-3 py-2 font-medium">效期結束</th>
 								<th class="px-3 py-2 font-medium">同步</th>
-								<th class="px-3 py-2 font-medium text-end">操作</th>
+								<th class="px-3 py-2 text-end font-medium">操作</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -167,54 +167,54 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, toRef, watch } from "vue"
-import type { VehicleAccessLocation } from "~/types/vehicleAccess"
-import type { LocationLicensePlateRow } from "~/types/personnel"
-import DeviceManageDialogShell from "~/components/personnel/device-sync/DeviceManageDialogShell.vue"
-import DeviceSyncStep2Toolbar from "~/components/personnel/device-sync/DeviceSyncStep2Toolbar.vue"
-import SyncStatusPill from "~/components/personnel/device-sync/SyncStatusPill.vue"
-import LocationMembersStepPanel from "~/components/personnel/location-access/LocationMembersStepPanel.vue"
-import PersonnelSyncWarningsDialog from "~/components/personnel/dialogs/PersonnelSyncWarningsDialog.vue"
-import VehicleAccessIsapiPlateFormDialog from "~/components/vehicle-access/VehicleAccessIsapiPlateFormDialog.vue"
-import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
-import AsyncPanel from "~/components/common/AsyncPanel.vue"
-import ContentSkeleton from "~/components/common/ContentSkeleton.vue"
-import Pagination from "~/components/common/Pagination.vue"
-import type { LocationPlateSync } from "~/composables/systems/personnel/useLocationPlateSync"
+import { computed, ref, toRef, watch } from "vue";
+import type { VehicleAccessLocation } from "~/types/vehicleAccess";
+import type { LocationLicensePlateRow } from "~/types/personnel";
+import DeviceManageDialogShell from "~/components/personnel/device-sync/DeviceManageDialogShell.vue";
+import DeviceSyncStep2Toolbar from "~/components/personnel/device-sync/DeviceSyncStep2Toolbar.vue";
+import SyncStatusPill from "~/components/personnel/device-sync/SyncStatusPill.vue";
+import LocationMembersStepPanel from "~/components/personnel/LocationMembersStepPanel.vue";
+import PersonnelSyncWarningsDialog from "~/components/personnel/dialogs/PersonnelSyncWarningsDialog.vue";
+import VehicleAccessIsapiPlateFormDialog from "~/components/vehicle-access/VehicleAccessIsapiPlateFormDialog.vue";
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
+import AsyncPanel from "~/components/common/AsyncPanel.vue";
+import ContentSkeleton from "~/components/common/ContentSkeleton.vue";
+import Pagination from "~/components/common/Pagination.vue";
+import type { LocationPlateSync } from "~/composables/systems/personnel/useLocationPlateSync";
 import {
 	useLocationMembersPicker,
 	LOCATION_MEMBERS_PANEL_MIN_HEIGHT,
-	SYNC_TABLE_PANEL_MIN_HEIGHT,
-} from "~/composables/systems/personnel/useLocationMembersStep"
-import { parseLocationNumericId } from "~/utils/personnelUtils"
+	SYNC_TABLE_PANEL_MIN_HEIGHT
+} from "~/composables/systems/personnel/useLocationMembersStep";
+import { parseLocationNumericId } from "~/utils/personnelUtils";
 import {
 	formatLicensePlateDisplayTime,
-	licensePlateListTypeShortLabel,
-} from "~/utils/licensePlateFormUtils"
+	licensePlateListTypeShortLabel
+} from "~/utils/licensePlateFormUtils";
 
 const props = defineProps<{
-	modelValue: boolean
-	location: VehicleAccessLocation | null
-	canCreatePlate?: boolean
-	canUpdatePlate?: boolean
-	canDeletePlate?: boolean
-	canEditMembers: boolean
-	canResyncPlates: boolean
-	plateSync: LocationPlateSync
-}>()
+	modelValue: boolean;
+	location: VehicleAccessLocation | null;
+	canCreatePlate?: boolean;
+	canUpdatePlate?: boolean;
+	canDeletePlate?: boolean;
+	canEditMembers: boolean;
+	canResyncPlates: boolean;
+	plateSync: LocationPlateSync;
+}>();
 
 const emit = defineEmits<{
-	"update:modelValue": [value: boolean]
-	membersUpdated: []
-	synced: []
-}>()
+	"update:modelValue": [value: boolean];
+	membersUpdated: [];
+	synced: [];
+}>();
 
-const manageStep = ref<1 | 2>(1)
+const manageStep = ref<1 | 2>(1);
 
 const locationId = computed(() =>
-	parseLocationNumericId(props.location?.id ?? props.location?.locationId),
-)
-const locationName = computed(() => props.location?.name ?? null)
+	parseLocationNumericId(props.location?.id ?? props.location?.locationId)
+);
+const locationName = computed(() => props.location?.name ?? null);
 
 const {
 	isSingleLocationSyncing,
@@ -246,8 +246,8 @@ const {
 	openPlateForm,
 	cancelPlateForm,
 	savePlate,
-	deletePlate,
-} = props.plateSync
+	deletePlate
+} = props.plateSync;
 
 const {
 	hasMemberCandidates,
@@ -260,92 +260,92 @@ const {
 	toggleMember,
 	isAllMembersPageKept,
 	handleToggleSelectAllMembersPage,
-	handleSearchMembers,
+	handleSearchMembers
 } = useLocationMembersPicker({
 	locationId,
-	membersSync: toRef(props, "plateSync"),
-})
+	membersSync: toRef(props, "plateSync")
+});
 
 const deviceLabels = computed(() =>
-	locationId.value != null ? getLocationDevicesLabel(locationId.value) : { entry: [], exit: [] },
-)
+	locationId.value != null ? getLocationDevicesLabel(locationId.value) : { entry: [], exit: [] }
+);
 
-const isUiLocked = computed(() => isSingleLocationSyncing.value)
+const isUiLocked = computed(() => isSingleLocationSyncing.value);
 const isPlatesLoading = computed(() =>
-	locationId.value != null ? isPlatesLoadingFn(locationId.value) : false,
-)
+	locationId.value != null ? isPlatesLoadingFn(locationId.value) : false
+);
 const platesError = computed(() =>
-	locationId.value != null ? getPlatesError(locationId.value) : "",
-)
+	locationId.value != null ? getPlatesError(locationId.value) : ""
+);
 const platesPaged = computed(() =>
 	locationId.value != null
 		? getPagedPlatesForLocation(locationId.value)
-		: { rows: [], total: 0, offset: 0, limit: 10 },
-)
+		: { rows: [], total: 0, offset: 0, limit: 10 }
+);
 const isCurrentlySyncing = computed(() =>
-	locationId.value != null ? isLocationCurrentlySyncing(locationId.value) : false,
-)
+	locationId.value != null ? isLocationCurrentlySyncing(locationId.value) : false
+);
 const isSyncButtonDisabled = computed(() =>
-	locationId.value != null ? isLocationSyncButtonDisabled(locationId.value) : true,
-)
+	locationId.value != null ? isLocationSyncButtonDisabled(locationId.value) : true
+);
 
 const handleApplyMembers = async () => {
-	if (locationId.value == null) return
-	const res = await applyLocationMembers(locationId.value, locationName.value)
-	if (res != null && !membersError.value) emit("membersUpdated")
-}
+	if (locationId.value == null) return;
+	const res = await applyLocationMembers(locationId.value, locationName.value);
+	if (res != null && !membersError.value) emit("membersUpdated");
+};
 
 const handleOpenWarnings = () => {
-	if (locationId.value == null) return
-	refreshSyncWarnings(locationId.value, locationName.value)
-	openWarningsDialog()
-}
+	if (locationId.value == null) return;
+	refreshSyncWarnings(locationId.value, locationName.value);
+	openWarningsDialog();
+};
 
 const handleResync = async () => {
-	if (locationId.value == null) return
-	await syncOneLocation(locationId.value, locationName.value)
-	emit("synced")
-}
+	if (locationId.value == null) return;
+	await syncOneLocation(locationId.value, locationName.value);
+	emit("synced");
+};
 
 const handleSavePlate = async () => {
-	if (locationId.value == null) return
-	await savePlate(locationId.value)
-}
+	if (locationId.value == null) return;
+	await savePlate(locationId.value);
+};
 
 const handleDeletePlate = async (row: LocationLicensePlateRow) => {
-	if (locationId.value == null) return
-	await deletePlate(locationId.value, row)
-}
+	if (locationId.value == null) return;
+	await deletePlate(locationId.value, row);
+};
 
 const handlePrevPlatesPage = () => {
-	if (locationId.value == null) return
-	goPrevPlatesPage(locationId.value)
-}
+	if (locationId.value == null) return;
+	goPrevPlatesPage(locationId.value);
+};
 
 const handleNextPlatesPage = () => {
-	if (locationId.value == null) return
-	goNextPlatesPage(locationId.value)
-}
+	if (locationId.value == null) return;
+	goNextPlatesPage(locationId.value);
+};
 
 const handleClose = () => {
-	cancelPlateForm()
-	emit("update:modelValue", false)
-}
+	cancelPlateForm();
+	emit("update:modelValue", false);
+};
 
-watch(manageStep, async (step) => {
-	if (step !== 2 || !props.modelValue || locationId.value == null) return
-	await ensureStep2Data(locationId.value)
-})
+watch(manageStep, async step => {
+	if (step !== 2 || !props.modelValue || locationId.value == null) return;
+	await ensureStep2Data(locationId.value);
+});
 
 watch(
 	() => props.modelValue,
-	async (open) => {
-		if (!open) return
-		manageStep.value = 1
-		const id = locationId.value
-		if (id == null) return
-		if (locationName.value) setLocationDisplayName(id, locationName.value)
-		await prepareLocationDialog(id)
-	},
-)
+	async open => {
+		if (!open) return;
+		manageStep.value = 1;
+		const id = locationId.value;
+		if (id == null) return;
+		if (locationName.value) setLocationDisplayName(id, locationName.value);
+		await prepareLocationDialog(id);
+	}
+);
 </script>

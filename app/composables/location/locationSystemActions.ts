@@ -2,7 +2,7 @@ import type { SystemType, LocationSystemInput, UnifiedLocation } from "~/types/l
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
 
 export type RemoveLocationResult =
-	| { action: "no-op"; reason: "missing-id" }
+	| { action: "no-op"; reason: "missing-id" | "not-in-system" }
 	| { action: "deleted" }
 	| { action: "updated"; systems: LocationSystemInput[] }
 
@@ -20,20 +20,26 @@ export const removeLocationFromSystemOrDelete = async (args: {
 	if (!id) return { action: "no-op", reason: "missing-id" }
 
 	const locationApi = useLocationApi()
+	const { systemType } = args
 
-	if (!args.systemType) {
+	if (!systemType) {
 		await locationApi.deleteLocation(id)
 		return { action: "deleted" }
 	}
 
 	const { location: fullLocation } = await locationApi.getLocation(id)
-	const otherSystems = (fullLocation.systems || []).filter((s) => s.systemType !== args.systemType)
+	const hasTargetSystem = (fullLocation.systems || []).some((s) => s.systemType === systemType)
+	if (!hasTargetSystem) {
+		return { action: "no-op", reason: "not-in-system" }
+	}
+
+	const otherSystems = (fullLocation.systems || []).filter((s) => s.systemType !== systemType)
 	if (otherSystems.length === 0) {
-		await locationApi.deleteLocation(id)
+		await locationApi.deleteLocation(id, systemType)
 		return { action: "deleted" }
 	}
 
-	await locationApi.updateLocation(id, { systems: otherSystems })
+	await locationApi.updateLocation(id, { systems: otherSystems }, systemType)
 	return { action: "updated", systems: otherSystems }
 }
 
@@ -65,8 +71,8 @@ export const deleteZoneWithSystemAwareness = async (args: {
 	const locationApi = useLocationApi()
 
 	if (!args.systemType) {
-		await locationApi.deleteZone(zoneId)
-		return { action: "deleted-zone" }
+		await locationApi.deleteZone(zoneId);
+		return { action: "deleted-zone" };
 	}
 
 	const { zone: fullZone } = await locationApi.getZone(zoneId)
@@ -93,10 +99,10 @@ export const deleteZoneWithSystemAwareness = async (args: {
 			.filter((location): location is UnifiedLocation => location !== null)
 
 	if (isOnlyCurrentSystem || remainingLocations.length === 0) {
-		await locationApi.deleteZone(zoneId)
+		await locationApi.deleteZone(zoneId, args.systemType)
 		return { action: "deleted-zone" }
 	}
 
-	await locationApi.updateZone(zoneId, { locations: remainingLocations })
+	await locationApi.updateZone(zoneId, { locations: remainingLocations }, args.systemType)
 	return { action: "removed-system-from-zone", remainingLocations }
 }

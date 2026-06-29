@@ -3,18 +3,28 @@
  * 處理不同系統類型的區域和地點類型轉換
  */
 
-import type { SystemType } from "~/types/location"
-import type { LightingZone, LightingLocation } from "~/types/lighting"
-import type { HvacZone, HvacLocation } from "~/types/hvac"
-import type { AirCirculationZone, AirCirculationLocation } from "~/types/air-circulation"
+import type {
+	SystemType,
+	LightingZone,
+	LightingLocation,
+	HvacZone,
+	HvacLocation,
+	AirCirculationZone,
+	AirCirculationLocation,
+	DrainageZone,
+	DrainageLocation,
+	PowerZone,
+	PowerLocation,
+	FireZone,
+	FireLocation,
+	EmergencyRescueZone,
+	EmergencyRescueLocation,
+	SmokeAlarmZone,
+	SmokeAlarmLocation,
+} from "~/types/location"
 import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment"
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting"
 import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess"
-import type { DrainageZone, DrainageLocation } from "~/types/drainage"
-import type { PowerZone, PowerLocation } from "~/types/power"
-import type { FireZone, FireLocation } from "~/types/fire"
-import type { EmergencyRescueZone, EmergencyRescueLocation } from "~/types/emergency-rescue"
-import type { SmokeAlarmZone, SmokeAlarmLocation } from "~/types/smoke-alarm"
 import { getLocationUiKey } from "~/utils/locationUiId"
 
 export type SystemZoneType =

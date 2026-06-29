@@ -201,7 +201,7 @@ export function useZoneManagement<
 	const handleDeleteZone = async (
 		zoneId: string,
 		zonesRef: Ref<TZone[]>,
-		deleteApiCall: (zoneId: string) => Promise<{ message?: string }>,
+		deleteApiCall?: (zoneId: string) => Promise<{ message?: string }>,
 		options?: {
 			selectedZoneRef?: Ref<string>;
 			selectedLocationRef?: Ref<string>;
@@ -221,17 +221,63 @@ export function useZoneManagement<
 					systemType: options.systemType,
 				})
 
-				// 該系統頁面：不論刪整區或僅移除本系統，後端篩選後都會看不到此區域 → 本地移除
 				const index = zonesRef.value.findIndex((z) => z.id === zoneId)
-				if (index > -1) {
+				const zoneSnapshot = index > -1 ? zonesRef.value[index] : undefined
+
+				if (options.reloadZones) {
+					if (result.action === "deleted-zone") {
+						if (zoneSnapshot) {
+							await handlePostDelete(zoneId, zoneSnapshot, zonesRef, {
+								...options,
+								reloadZones: undefined,
+							})
+						} else {
+							resetSelectedZone(
+								zoneId,
+								zonesRef,
+								options.selectedZoneRef,
+								options.findEarliestZone,
+							)
+							if (options.selectedLocationRef && options.getLocationId) {
+								resetSelectedLocation(
+									zonesRef,
+									options.selectedLocationRef,
+									options.getLocationId,
+								)
+							}
+						}
+					} else if (options.selectedLocationRef) {
+						const selectedId = options.selectedLocationRef.value
+						const stillExists = result.remainingLocations.some(
+							(loc) => String(loc.id) === selectedId,
+						)
+						if (selectedId && !stillExists) {
+							options.selectedLocationRef.value = ""
+						}
+					}
+
+					if (options.onAfterDelete && zoneSnapshot) {
+						await options.onAfterDelete(zoneSnapshot)
+					}
+					await options.reloadZones()
+				} else if (index > -1) {
+					// 系統頁（依 locationType 篩選）：刪整區或僅移系統後，列表皆不再顯示此區域
 					const deletedZone = zonesRef.value[index]
 					zonesRef.value.splice(index, 1)
 					await handlePostDelete(zoneId, deletedZone, zonesRef, options)
 				} else {
-					// 至少重置選中狀態，避免 UI 指向不存在的 id
-					resetSelectedZone(zoneId, zonesRef, options?.selectedZoneRef, options?.findEarliestZone)
-					if (options?.selectedLocationRef && options?.getLocationId) {
-						resetSelectedLocation(zonesRef, options.selectedLocationRef, options.getLocationId)
+					resetSelectedZone(
+						zoneId,
+						zonesRef,
+						options.selectedZoneRef,
+						options.findEarliestZone,
+					)
+					if (options.selectedLocationRef && options.getLocationId) {
+						resetSelectedLocation(
+							zonesRef,
+							options.selectedLocationRef,
+							options.getLocationId,
+						)
 					}
 				}
 
@@ -243,7 +289,10 @@ export function useZoneManagement<
 				return
 			}
 
-			// 如果沒有提供 systemType，或者區域只有該系統使用，則直接刪除整個區域
+			// 如果沒有提供 systemType，則直接刪除整個區域
+			if (!deleteApiCall) {
+				throw new Error("刪除區域需要提供 deleteApiCall");
+			}
 			await deleteApiCall(zoneId);
 
 			// 從本地資料移除

@@ -225,6 +225,7 @@
 		:can-delete-zone="canDeleteLocation"
 		device-hint="請先在「設備管理」中建立感測器設備"
 		:on-save-zone="handleSaveZone"
+		@saved="handleZonesSaved"
 		@delete="handleDeleteZone"
 	/>
 	<SimulationFrame v-model="showSimulationFrame" title="環境監控 - 完整報表">
@@ -616,8 +617,14 @@ const handleDeleteZone = async (zoneId: string) => {
 		systemType: "environment",
 		onAfterDelete: async () => {
 			await loadZonesFromAPI();
-		}
+			await hydrateAllLocations(true);
+		},
 	});
+};
+
+const handleZonesSaved = async () => {
+	await loadZonesFromAPI();
+	await hydrateAllLocations(true);
 };
 
 // 獲取參數值

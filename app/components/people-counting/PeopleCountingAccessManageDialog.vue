@@ -76,18 +76,11 @@
 							</tr>
 						</thead>
 						<tbody>
-							<tr
-								v-for="row in syncRows"
-								:key="row.employeeNo"
-								class="border-b border-white/10"
-							>
+							<tr v-for="row in syncRows" :key="row.employeeNo" class="border-b border-white/10">
 								<td class="py-2 pe-2 font-mono">{{ row.employeeNo }}</td>
 								<td class="py-2 pe-2">{{ row.fullName || "—" }}</td>
 								<td class="py-2 pe-2">
-									<SyncStatusPill
-										variant="lastSync"
-										:label="getLastSyncLabel(row.employeeNo)"
-									/>
+									<SyncStatusPill variant="lastSync" :label="getLastSyncLabel(row.employeeNo)" />
 								</td>
 								<td class="py-2 pe-2">
 									<SyncStatusPill
@@ -142,38 +135,38 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, toRef, watch } from "vue"
-import Pagination from "~/components/common/Pagination.vue"
-import DeviceManageDialogShell from "~/components/personnel/device-sync/DeviceManageDialogShell.vue"
-import DeviceSyncStep2Toolbar from "~/components/personnel/device-sync/DeviceSyncStep2Toolbar.vue"
-import SyncStatusPill from "~/components/personnel/device-sync/SyncStatusPill.vue"
-import LocationMembersStepPanel from "~/components/personnel/location-access/LocationMembersStepPanel.vue"
-import AsyncPanel from "~/components/common/AsyncPanel.vue"
-import ContentSkeleton from "~/components/common/ContentSkeleton.vue"
-import PersonnelSyncWarningsDialog from "~/components/personnel/dialogs/PersonnelSyncWarningsDialog.vue"
-import type { useLocationAccessSync } from "~/composables/systems/personnel/useLocationAccessSync"
+import { computed, ref, toRef, watch } from "vue";
+import Pagination from "~/components/common/Pagination.vue";
+import DeviceManageDialogShell from "~/components/personnel/device-sync/DeviceManageDialogShell.vue";
+import DeviceSyncStep2Toolbar from "~/components/personnel/device-sync/DeviceSyncStep2Toolbar.vue";
+import SyncStatusPill from "~/components/personnel/device-sync/SyncStatusPill.vue";
+import LocationMembersStepPanel from "~/components/personnel/LocationMembersStepPanel.vue";
+import AsyncPanel from "~/components/common/AsyncPanel.vue";
+import ContentSkeleton from "~/components/common/ContentSkeleton.vue";
+import PersonnelSyncWarningsDialog from "~/components/personnel/dialogs/PersonnelSyncWarningsDialog.vue";
+import type { useLocationAccessSync } from "~/composables/systems/personnel/useLocationAccessSync";
 import {
 	useLocationMembersPicker,
 	LOCATION_MEMBERS_PANEL_MIN_HEIGHT,
-	SYNC_TABLE_PANEL_MIN_HEIGHT,
-} from "~/composables/systems/personnel/useLocationMembersStep"
+	SYNC_TABLE_PANEL_MIN_HEIGHT
+} from "~/composables/systems/personnel/useLocationMembersStep";
 
 const props = defineProps<{
-	modelValue: boolean
-	locationId: number | null
-	locationName?: string | null
-	canEditMembers: boolean
-	canDeviceSync: boolean
-	accessSync: ReturnType<typeof useLocationAccessSync>
-}>()
+	modelValue: boolean;
+	locationId: number | null;
+	locationName?: string | null;
+	canEditMembers: boolean;
+	canDeviceSync: boolean;
+	accessSync: ReturnType<typeof useLocationAccessSync>;
+}>();
 
 const emit = defineEmits<{
-	"update:modelValue": [value: boolean]
-	synced: []
-	membersUpdated: []
-}>()
+	"update:modelValue": [value: boolean];
+	synced: [];
+	membersUpdated: [];
+}>();
 
-const manageStep = ref<1 | 2>(1)
+const manageStep = ref<1 | 2>(1);
 
 const {
 	isSingleLocationSyncing,
@@ -192,10 +185,10 @@ const {
 	isLocationCurrentlySyncing,
 	isLocationSyncButtonDisabled,
 	goPrevSyncPage,
-	goNextSyncPage,
-} = props.accessSync
+	goNextSyncPage
+} = props.accessSync;
 
-const handleClose = () => emit("update:modelValue", false)
+const handleClose = () => emit("update:modelValue", false);
 
 const {
 	hasMemberCandidates,
@@ -209,69 +202,69 @@ const {
 	isAllMembersPageKept,
 	handleToggleSelectAllMembersPage,
 	handleSearchMembers,
-	applyMembers,
+	applyMembers
 } = useLocationMembersPicker({
 	locationId: toRef(props, "locationId"),
-	membersSync: toRef(props, "accessSync"),
-})
+	membersSync: toRef(props, "accessSync")
+});
 
 const handleApplyMembers = async () => {
-	if (!(await applyMembers())) return
-	emit("membersUpdated")
-}
+	if (!(await applyMembers())) return;
+	emit("membersUpdated");
+};
 
 const deviceLabels = computed(() =>
-	props.locationId != null ? getLocationDevicesLabel(props.locationId) : { entry: [], exit: [] },
-)
+	props.locationId != null ? getLocationDevicesLabel(props.locationId) : { entry: [], exit: [] }
+);
 
-const isUiLocked = computed(() => isSingleLocationSyncing.value)
+const isUiLocked = computed(() => isSingleLocationSyncing.value);
 
-watch(manageStep, async (step) => {
-	if (step !== 2 || !props.modelValue || props.locationId == null) return
-	await ensureStep2Data(props.locationId)
-})
+watch(manageStep, async step => {
+	if (step !== 2 || !props.modelValue || props.locationId == null) return;
+	await ensureStep2Data(props.locationId);
+});
 
 const isSyncCandidatesLoading = computed(() =>
-	props.locationId != null ? isSyncLocationCandidatesLoading(props.locationId) : false,
-)
+	props.locationId != null ? isSyncLocationCandidatesLoading(props.locationId) : false
+);
 const syncPaged = computed(() =>
 	props.locationId != null
 		? getPagedSyncStepRowsForLocation(props.locationId)
-		: { rows: [], total: 0, offset: 0, limit: 10 },
-)
-const syncRows = computed(() => syncPaged.value.rows)
+		: { rows: [], total: 0, offset: 0, limit: 10 }
+);
+const syncRows = computed(() => syncPaged.value.rows);
 const isCurrentlySyncing = computed(() =>
-	props.locationId != null ? isLocationCurrentlySyncing(props.locationId) : false,
-)
+	props.locationId != null ? isLocationCurrentlySyncing(props.locationId) : false
+);
 const isSyncButtonDisabled = computed(() =>
-	props.locationId != null ? isLocationSyncButtonDisabled(props.locationId) : true,
-)
+	props.locationId != null ? isLocationSyncButtonDisabled(props.locationId) : true
+);
 
 const getLastSyncLabel = (employeeNo: string) =>
-	props.locationId != null ? getCandidateLastSyncLabel(props.locationId, employeeNo) : "—"
+	props.locationId != null ? getCandidateLastSyncLabel(props.locationId, employeeNo) : "—";
 
 const handleSync = async () => {
-	if (props.locationId == null) return
-	await syncOneLocation(props.locationId)
-	emit("synced")
-}
+	if (props.locationId == null) return;
+	await syncOneLocation(props.locationId);
+	emit("synced");
+};
 
 const handlePrevSyncPage = () => {
-	if (props.locationId == null) return
-	goPrevSyncPage(props.locationId)
-}
+	if (props.locationId == null) return;
+	goPrevSyncPage(props.locationId);
+};
 const handleNextSyncPage = () => {
-	if (props.locationId == null) return
-	goNextSyncPage(props.locationId)
-}
+	if (props.locationId == null) return;
+	goNextSyncPage(props.locationId);
+};
 
 watch(
 	() => props.modelValue,
-	(open) => {
-		if (!open) return
-		manageStep.value = 1
-		if (props.locationId == null) return
-		void prepareLocationDialog(props.locationId)
-	},
-)
+	open => {
+		if (!open) return;
+		manageStep.value = 1;
+		if (props.locationId == null) return;
+		void prepareLocationDialog(props.locationId);
+	}
+);
 </script>
