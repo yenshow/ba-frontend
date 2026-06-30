@@ -50,7 +50,7 @@
 		</div>
 
 		<!-- YSCP：入口／出口設備 -->
-		<template v-if="dataSource === 'yscp'">
+		<div v-if="dataSource === 'yscp'" class="mt-3 border-t border-white/10 pt-3">
 			<div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
 				<div :class="fieldLabelClass">
 					<span>入口設備（可複選）*</span>
@@ -129,10 +129,10 @@
 					</p>
 				</div>
 			</div>
-		</template>
+		</div>
 
 		<!-- 門禁設備：入口／出口設備（本系統） -->
-		<template v-else-if="dataSource === 'access_control'">
+		<div v-else-if="dataSource === 'access_control'" class="mt-3 border-t border-white/10 pt-3">
 			<p class="mb-3 text-xs text-white/60 2xl:text-sm">
 				人員群組依名單內人員自動顯示；請至門禁管理維護地點名單與設備同步。
 			</p>
@@ -221,7 +221,7 @@
 					</p>
 				</div>
 			</div>
-		</template>
+		</div>
 
 		<!-- 攝影機人流（ISAPI PeopleCounting）：channel 固定由後端設定為 1，不提供欄位 -->
 

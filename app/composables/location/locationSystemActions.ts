@@ -39,7 +39,7 @@ export const removeLocationFromSystemOrDelete = async (args: {
 		return { action: "deleted" }
 	}
 
-	await locationApi.updateLocation(id, { systems: otherSystems }, systemType)
+	await locationApi.updateLocation(id, { systems: [] }, systemType)
 	return { action: "updated", systems: otherSystems }
 }
 

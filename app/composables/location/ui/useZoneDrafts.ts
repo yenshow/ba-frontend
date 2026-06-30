@@ -101,6 +101,36 @@ export function useZoneDrafts<TZone extends { name: string }, TLocation>() {
 		return `有 ${count} 個區域已修改`
 	}
 
+	/** API 已持久化變更後，父頁重載 props 與草稿地點列表一致時清除草稿 */
+	const reconcileDraftWhenPropsLocationsMatch = (
+		zoneId: string,
+		args: {
+			originalZones: () => readonly TZone[]
+			getZoneId: (zone: TZone) => string
+			getLocations: (zone: TZone) => TLocation[]
+		},
+	) => {
+		const stop = watch(
+			() => {
+				const zone = args.originalZones().find((z) => args.getZoneId(z) === zoneId)
+				return zone ? args.getLocations(zone) : undefined
+			},
+			(propsLocations) => {
+				if (!propsLocations) return
+				const draft = pendingChanges.value.get(zoneId)
+				if (!draft) {
+					stop()
+					return
+				}
+				if (stableEqual(propsLocations, args.getLocations(draft))) {
+					deleteDraft(zoneId)
+					stop()
+				}
+			},
+			{ deep: true },
+		)
+	}
+
 	return {
 		pendingChanges,
 		expandedZones,
@@ -112,5 +142,6 @@ export function useZoneDrafts<TZone extends { name: string }, TLocation>() {
 		createSortedZones,
 		buildChangedFieldsList,
 		buildChangeSummary,
+		reconcileDraftWhenPropsLocationsMatch,
 	}
 }

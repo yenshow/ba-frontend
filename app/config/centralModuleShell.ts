@@ -1,6 +1,6 @@
 import type { SystemModule } from "~/types/system"
 
-/** Central 系統總覽／Header 專用分類（與後端 registry category 解耦） */
+/** Central 系統總覽／Header 分類（與 registry category 對齊） */
 export type CentralShellCategory =
 	| "core"
 	| "access-control"
@@ -14,55 +14,29 @@ export type CentralShellModule = SystemModule & {
 	sortInCategory: number
 }
 
-type ModulePresentation = {
-	shellCategory: CentralShellCategory
-	sortInCategory: number
-}
+const isCentralShellCategory = (value: string): value is CentralShellCategory =>
+	(CENTRAL_SHELL_CATEGORY_ORDER as readonly string[]).includes(value)
 
-/** routePrefix → Central 展示分類、分類內排序（顯示名稱由後端 registry／catalog SSOT） */
-const CENTRAL_MODULE_PRESENTATION: Record<string, ModulePresentation> = {
-	"/core/device": { shellCategory: "core", sortInCategory: 1 },
-	"/core/personnel": { shellCategory: "core", sortInCategory: 2 },
-	"/core/alert-log": { shellCategory: "core", sortInCategory: 3 },
-	"/core/area-point-map": { shellCategory: "core", sortInCategory: 4 },
-	"/construction-monitoring/people-counting": {
-		shellCategory: "access-control",
-		sortInCategory: 1,
-	},
-	"/construction-monitoring/vehicle-access": {
-		shellCategory: "access-control",
-		sortInCategory: 2,
-	},
-	"/infrastructure/elevator": {
-		shellCategory: "access-control",
-		sortInCategory: 3,
-	},
-	"/construction-monitoring/surveillance": {
-		shellCategory: "access-control",
-		sortInCategory: 4,
-	},
-	"/infrastructure/lighting": { shellCategory: "utilities", sortInCategory: 1 },
-	"/infrastructure/hvac": { shellCategory: "utilities", sortInCategory: 2 },
-	"/infrastructure/power": { shellCategory: "utilities", sortInCategory: 3 },
-	"/infrastructure/drainage": {
-		shellCategory: "utilities",
-		sortInCategory: 4,
-	},
-	"/infrastructure/air-circulation": { shellCategory: "utilities", sortInCategory: 5 },
-	"/construction-monitoring/environment": { shellCategory: "security", sortInCategory: 1 },
-	"/security/fire": { shellCategory: "security", sortInCategory: 2 },
-	"/security/emergency": { shellCategory: "security", sortInCategory: 3 },
-	"/security/smoke-alarm": { shellCategory: "security", sortInCategory: 4 },
-	"/multimedia": { shellCategory: "multimedia", sortInCategory: 1 },
-}
-
-const BACKEND_CATEGORY_FALLBACK: Record<SystemModule["category"], CentralShellCategory> = {
-	core: "core",
-	"construction-monitoring": "access-control",
-	infrastructure: "utilities",
-	security: "security",
-	business: "business",
-	multimedia: "multimedia",
+/** routePrefix → 分類內排序（顯示名稱由後端 registry／catalog SSOT） */
+const CENTRAL_MODULE_SORT_IN_CATEGORY: Record<string, number> = {
+	"/core/device": 1,
+	"/core/personnel": 2,
+	"/core/alert-log": 3,
+	"/core/area-point-map": 4,
+	"/access-control/people-counting": 1,
+	"/access-control/vehicle-access": 2,
+	"/access-control/elevator": 3,
+	"/access-control/surveillance": 4,
+	"/utilities/lighting": 1,
+	"/utilities/hvac": 2,
+	"/utilities/power": 3,
+	"/utilities/drainage": 4,
+	"/utilities/air-circulation": 5,
+	"/security/environment": 1,
+	"/security/fire": 2,
+	"/security/emergency": 3,
+	"/security/smoke-alarm": 4,
+	"/multimedia": 1,
 }
 
 export const CENTRAL_SHELL_CATEGORY_ORDER = [
@@ -92,26 +66,22 @@ export const CENTRAL_SHELL_CATEGORY_ACCENT_HEX: Record<CentralShellCategory, str
 	multimedia: "#640082",
 }
 
-export const applyCentralModulePresentation = (modules: SystemModule[]): CentralShellModule[] =>
-	modules.map((module) => {
-		const preset = CENTRAL_MODULE_PRESENTATION[module.route]
-		const shellCategory = preset?.shellCategory ?? BACKEND_CATEGORY_FALLBACK[module.category]
-		return {
-			...module,
-			shellCategory,
-			sortInCategory: preset?.sortInCategory ?? module.id,
-		}
-	})
-
 export const resolveCentralShellCategory = (
 	route: string,
 	module?: Pick<SystemModule, "category">
 ): CentralShellCategory => {
-	const preset = CENTRAL_MODULE_PRESENTATION[route]
-	if (preset) return preset.shellCategory
-	if (module) return BACKEND_CATEGORY_FALLBACK[module.category]
+	if (module?.category && isCentralShellCategory(module.category)) {
+		return module.category
+	}
 	return "core"
 }
+
+export const applyCentralModulePresentation = (modules: SystemModule[]): CentralShellModule[] =>
+	modules.map((module) => ({
+		...module,
+		shellCategory: resolveCentralShellCategory(module.route, module),
+		sortInCategory: CENTRAL_MODULE_SORT_IN_CATEGORY[module.route] ?? module.id,
+	}))
 
 export const groupCentralShellModules = (modules: CentralShellModule[]) =>
 	CENTRAL_SHELL_CATEGORY_ORDER.map((category) => ({

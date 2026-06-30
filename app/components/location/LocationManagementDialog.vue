@@ -241,6 +241,7 @@ const handleConfirmDeleteLocation = async () => {
 	try {
 		const result = await removeLocationFromSystemOrDelete({ locationId, systemType: props.systemType })
 		if (result.action === "no-op") {
+			errorMessage.value = "此地點不包含本系統"
 			pendingDeleteLocationUiKey.value = null
 			return
 		}
