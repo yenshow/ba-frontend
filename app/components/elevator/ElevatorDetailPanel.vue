@@ -14,7 +14,7 @@
 			<div
 				class="rounded-2xl border-2 border-white/20 bg-gradient-to-b from-white/[0.08] to-white/[0.03] p-4"
 			>
-				<p class="text-center text-lg font-semibold text-white/80 2xl:text-xl">門控操作</p>
+				<p class="text-center text-lg font-semibold text-white/80 2xl:text-xl mb-4">門控操作</p>
 
 				<div class="grid grid-cols-4 justify-items-center">
 					<button
@@ -87,10 +87,7 @@
 						此地點尚未設定樓層
 					</div>
 
-					<div
-						v-else
-						class="flex min-h-0 flex-1 flex-col justify-center p-4"
-					>
+					<div v-else class="flex min-h-0 flex-1 flex-col justify-center p-4">
 						<div
 							class="grid gap-y-6"
 							:style="{
@@ -204,7 +201,7 @@ watch(
 	(live) => {
 		if (live) applyLiveState(live)
 	},
-	{ immediate: true, deep: true },
+	{ immediate: true, deep: true }
 )
 
 const recordColumns = computed(() => normalizeElevatorLogDisplayColumns(displayColumns.value))
@@ -216,13 +213,13 @@ const isPanelConnected = computed(() =>
 		hasFloorDetection: props.hasFloorDetection,
 		isFloorDetectionConnected: props.isFloorDetectionConnected,
 		live: props.live,
-	}),
+	})
 )
 
 const deviceHealthLabel = computed(() => buildElevatorDeviceStatusLabel(isPanelConnected.value))
 
 const deviceStatusDotClass = computed(() =>
-	isPanelConnected.value ? "bg-emerald-400" : "bg-amber-400",
+	isPanelConnected.value ? "bg-emerald-400" : "bg-amber-400"
 )
 
 const statusAriaLabel = computed(() =>
@@ -231,7 +228,7 @@ const statusAriaLabel = computed(() =>
 		direction: displayDirection.value,
 		isConnected: isPanelConnected.value,
 		deviceHealthLabel: true,
-	}),
+	})
 )
 
 const panelColumns = computed(() => props.panel?.columns ?? 3)
@@ -280,7 +277,7 @@ watch(
 	() => {
 		selectedFloorIndex.value = null
 		errorText.value = null
-	},
+	}
 )
 
 const isOperationDisabled = (kind: PanelOperation["kind"]) => {
@@ -335,10 +332,7 @@ const handleOperation = async (op: PanelOperation) => {
 		}
 		toast.success("指令已送出")
 	} catch (error) {
-		errorText.value = resolveFormApiError(
-			error,
-			op.kind === "call" ? "呼梯失敗" : "門控操作失敗",
-		)
+		errorText.value = resolveFormApiError(error, op.kind === "call" ? "呼梯失敗" : "門控操作失敗")
 	} finally {
 		isSubmitting.value = false
 	}

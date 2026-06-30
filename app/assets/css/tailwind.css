@@ -639,6 +639,20 @@
 	@apply animate-pulse border-2 border-rose-500 bg-rose-500/20 pr-10 shadow-[0_0_0_3px_rgba(244,63,94,0.2)] focus:border-rose-500 focus:bg-rose-500/25 focus:shadow-[0_0_0_3px_rgba(244,63,94,0.3)];
 }
 
+/* 電梯即時狀態：目前樓層數字（詳情面板／總覽共用） */
+.elevator-led-floor-text {
+	font-family:
+		ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+		monospace;
+	font-variant-numeric: tabular-nums;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	color: #67e8f9;
+	text-shadow:
+		0 0 6px rgba(103, 232, 249, 0.85),
+		0 0 16px rgba(34, 211, 238, 0.45);
+}
+
 /* 表單選擇框 */
 .form-select {
 	cursor: pointer;

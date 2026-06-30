@@ -13,8 +13,10 @@
 					目前樓層
 				</p>
 				<p
-					class="elevator-led-text text-center text-3xl leading-none ease-linear 2xl:text-7xl"
-					:class="digitGlowClass"
+					:class="[
+						elevatorLedFloorTextClass,
+						'text-center text-3xl leading-none ease-linear 2xl:text-7xl',
+					]"
 					:style="{ transitionDuration: `${ELEVATOR_FLOOR_STEP_MS}ms` }"
 				>
 					{{ floorText }}
@@ -25,7 +27,7 @@
 				<svg
 					class="h-7 w-7 shrink-0 transition-all duration-300 2xl:h-16 2xl:w-16"
 					:class="[
-						elevatorLedArrowClass(direction, 'up', isConnected),
+						elevatorLedArrowClass(direction, 'up'),
 						isMoving && direction === 'up' ? 'animate-pulse' : '',
 					]"
 					viewBox="2 3 20 13"
@@ -36,7 +38,7 @@
 				<svg
 					class="-mt-0.5 h-7 w-7 shrink-0 transition-all duration-300 2xl:-mt-1 2xl:h-16 2xl:w-16"
 					:class="[
-						elevatorLedArrowClass(direction, 'down', isConnected),
+						elevatorLedArrowClass(direction, 'down'),
 						isMoving && direction === 'down' ? 'animate-pulse' : '',
 					]"
 					viewBox="2 8 20 13"
@@ -46,9 +48,7 @@
 				</svg>
 			</div>
 
-			<div
-				class="flex flex-col items-center border-l border-white/10 px-4 2xl:px-8"
-			>
+			<div class="flex flex-col items-center border-l border-white/10 px-4 2xl:px-8">
 				<div
 					class="flex h-9 w-full min-w-[6rem] items-center justify-center gap-2 rounded-full border px-2 2xl:h-10 2xl:min-w-[7rem]"
 					:class="healthBadgeClass"
@@ -68,7 +68,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import type { ElevatorDirection } from "~/types/elevator"
-import { elevatorLedArrowClass } from "~/utils/elevatorDisplayUtils"
+import { elevatorLedArrowClass, elevatorLedFloorTextClass } from "~/utils/elevatorDisplayUtils"
 import { ELEVATOR_FLOOR_STEP_MS } from "~/utils/elevatorFloorModel"
 
 interface Props {
@@ -92,10 +92,6 @@ const healthBadgeClass = computed(() =>
 		? "border-white/25 bg-white/10"
 		: "blink-slow border-amber-400/50 bg-amber-400/20"
 )
-
-const digitGlowClass = computed(() =>
-	props.isConnected ? "elevator-led-text--on" : "elevator-led-text--off"
-)
 </script>
 
 <style scoped>
@@ -117,28 +113,5 @@ const digitGlowClass = computed(() =>
 		transparent 3px
 	);
 	opacity: 0.5;
-}
-
-.elevator-led-text {
-	font-family:
-		ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
-		monospace;
-	font-variant-numeric: tabular-nums;
-	font-weight: 700;
-	letter-spacing: 0.12em;
-}
-
-.elevator-led-text--on {
-	color: #67e8f9;
-	text-shadow:
-		0 0 6px rgba(103, 232, 249, 0.85),
-		0 0 16px rgba(34, 211, 238, 0.45);
-}
-
-.elevator-led-text--off {
-	color: rgba(251, 191, 36, 0.8);
-	text-shadow:
-		0 0 4px rgba(251, 191, 36, 0.4),
-		0 0 10px rgba(245, 158, 11, 0.2);
 }
 </style>

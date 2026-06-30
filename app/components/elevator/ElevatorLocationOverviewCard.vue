@@ -21,13 +21,16 @@
 			</div>
 
 			<div
-				class="flex items-center justify-center text-white py-4"
+				class="flex items-center justify-center py-4"
 				role="status"
 				aria-live="polite"
 			>
 				<div class="flex min-w-0 flex-col items-center px-4">
 					<p
-						class="text-4xl font-bold leading-none ease-linear 2xl:text-6xl"
+						:class="[
+							elevatorLedFloorTextClass,
+							'text-center text-4xl leading-none ease-linear 2xl:text-6xl',
+						]"
 						:style="{ transitionDuration: `${ELEVATOR_FLOOR_STEP_MS}ms` }"
 					>
 						{{ displayFloorText }}
@@ -38,7 +41,7 @@
 					<svg
 						class="h-6 w-6 shrink-0 transition-all duration-300 2xl:h-12 2xl:w-12"
 						:class="[
-							elevatorLedArrowClass(displayDirection, 'up', isConnected),
+							elevatorLedArrowClass(displayDirection, 'up'),
 							isMoving && displayDirection === 'up' ? 'animate-pulse' : '',
 						]"
 						viewBox="2 3 20 13"
@@ -49,7 +52,7 @@
 					<svg
 						class="-mt-0.5 h-6 w-6 shrink-0 transition-all duration-300 2xl:h-12 2xl:w-12"
 						:class="[
-							elevatorLedArrowClass(displayDirection, 'down', isConnected),
+							elevatorLedArrowClass(displayDirection, 'down'),
 							isMoving && displayDirection === 'down' ? 'animate-pulse' : '',
 						]"
 						viewBox="2 8 20 13"
@@ -85,6 +88,7 @@ import {
 	buildElevatorDeviceStatusLabel,
 	buildElevatorStatusAriaLabel,
 	elevatorLedArrowClass,
+	elevatorLedFloorTextClass,
 } from "~/utils/elevatorDisplayUtils"
 import { ELEVATOR_FLOOR_STEP_MS } from "~/utils/elevatorFloorModel"
 
@@ -108,7 +112,7 @@ watch(
 	(live) => {
 		if (live) applyLiveState(live)
 	},
-	{ immediate: true, deep: true },
+	{ immediate: true, deep: true }
 )
 
 const regionText = computed(() => props.location.overviewZoneName || "未分類")
@@ -120,7 +124,7 @@ const deviceStatusDotClass = computed(() => (props.isConnected ? "bg-emerald-400
 const healthBadgeClass = computed(() =>
 	props.isConnected
 		? "border-white/25 bg-white/10"
-		: "blink-slow border-amber-400/50 bg-amber-400/20",
+		: "blink-slow border-amber-400/50 bg-amber-400/20"
 )
 
 const statusAriaLabel = computed(() =>
@@ -129,7 +133,7 @@ const statusAriaLabel = computed(() =>
 		direction: displayDirection.value,
 		isConnected: props.isConnected,
 		deviceHealthLabel: true,
-	}),
+	})
 )
 
 const handleClick = () => {

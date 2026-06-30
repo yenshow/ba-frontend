@@ -46,16 +46,14 @@ export const buildElevatorStatusAriaLabel = (options: {
 	return parts.join("，")
 }
 
+export const elevatorLedFloorTextClass = "elevator-led-floor-text"
+
 export const elevatorLedArrowClass = (
 	direction: ElevatorDirection,
 	axis: "up" | "down",
-	isConnected: boolean
 ): string => {
-	if (!isConnected) return "text-amber-400/40 opacity-45"
-	if (direction === axis) {
-		return "text-cyan-300 opacity-100 drop-shadow-[0_0_5px_rgba(103,232,249,0.85)]"
-	}
-	return "text-cyan-400/35 opacity-60"
+	if (direction === axis) return "text-cyan-400 opacity-100"
+	return "text-cyan-400/50 opacity-60"
 }
 
 /** LED 面板連線：梯控必須在線；有樓層偵測時另檢 DI 設備與 readOk（對齊 DetailPanel／總覽） */
