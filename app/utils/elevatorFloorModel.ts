@@ -178,6 +178,43 @@ export const sortFloorsForPanel = (floors: ElevatorLogicalFloor[]) =>
 export const sortFloorsByRank = (floors: ElevatorLogicalFloor[]) =>
 	[...floors].sort((a, b) => a.rank - b.rank)
 
+export type ElevatorFloorBindingField = "ladderGateway" | "callGateway" | "diAddress"
+
+const ELEVATOR_FLOOR_BINDING_FIELDS: ElevatorFloorBindingField[] = [
+	"ladderGateway",
+	"callGateway",
+	"diAddress",
+]
+
+export const isElevatorFloorBindingValue = (value: unknown): value is number => {
+	const n = Number(value)
+	return Number.isFinite(n) && n >= 0 && Number.isInteger(n)
+}
+
+/** 回傳重複點位的 key 集合，格式 `${field}:${floorIndex}` */
+export const getDuplicateElevatorFloorBindingKeys = (
+	floors: ElevatorLogicalFloor[],
+): Set<string> => {
+	const duplicates = new Set<string>()
+	for (const field of ELEVATOR_FLOOR_BINDING_FIELDS) {
+		const byValue = new Map<number, number[]>()
+		floors.forEach((floor, index) => {
+			const raw = floor[field]
+			if (!isElevatorFloorBindingValue(raw)) return
+			const list = byValue.get(raw) ?? []
+			list.push(index)
+			byValue.set(raw, list)
+		})
+		for (const indices of byValue.values()) {
+			if (indices.length <= 1) continue
+			for (const index of indices) {
+				duplicates.add(`${field}:${index}`)
+			}
+		}
+	}
+	return duplicates
+}
+
 export const findFloorByRank = (
 	floors: ElevatorLogicalFloor[],
 	rank: number,

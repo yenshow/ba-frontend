@@ -5,7 +5,7 @@ import type { useElevatorApi } from "~/composables/systems/elevator/useElevatorA
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { fetchAllPersonnelCandidates } from "~/composables/systems/personnel/personnelList"
 import { groupPersonsByPersonGroup } from "~/utils/personnelUtils"
-import { resolveFormApiError, resolveFormApiErrorPreferOriginal } from "~/utils/errorUtils"
+import { resolveFormApiError } from "~/utils/errorUtils"
 
 type ElevatorApi = ReturnType<typeof useElevatorApi>
 
@@ -51,6 +51,40 @@ export const useElevatorFloorAccess = (params: {
 	})
 
 	const candidateGroups = computed(() => groupPersonsByPersonGroup(filteredCandidates.value))
+
+	const filteredPersonIds = computed(() =>
+		filteredCandidates.value
+			.map((person) => Number(person.id))
+			.filter((id) => Number.isFinite(id) && id > 0)
+			.map((id) => Math.trunc(id)),
+	)
+
+	const canSelectAllOnExpandedFloors = computed(
+		() => expandedFloorIndexes.value.size > 0 && filteredPersonIds.value.length > 0,
+	)
+
+	const isAllExpandedFloorsKept = computed(() => {
+		if (!canSelectAllOnExpandedFloors.value) return false
+		for (const floorIndex of expandedFloorIndexes.value) {
+			for (const personId of filteredPersonIds.value) {
+				if (!isPersonChecked(floorIndex, personId)) return false
+			}
+		}
+		return true
+	})
+
+	const toggleSelectAllOnExpandedFloors = () => {
+		const personIds = filteredPersonIds.value
+		if (personIds.length === 0 || expandedFloorIndexes.value.size === 0) return
+		const checked = !isAllExpandedFloorsKept.value
+		for (const floorIndex of expandedFloorIndexes.value) {
+			if (!checkedByFloor[floorIndex]) checkedByFloor[floorIndex] = new Set()
+			for (const personId of personIds) {
+				if (checked) checkedByFloor[floorIndex].add(personId)
+				else checkedByFloor[floorIndex].delete(personId)
+			}
+		}
+	}
 
 	const isPersonChecked = (floorIndex: number, personId: number) =>
 		checkedByFloor[floorIndex]?.has(personId) ?? false
@@ -124,7 +158,7 @@ export const useElevatorFloorAccess = (params: {
 			if (!jobId) toast.success("已套用樓層權限")
 			return { ok: true as const, jobId }
 		} catch (err) {
-			toast.warning(resolveFormApiErrorPreferOriginal(err, "儲存樓層授權失敗"), 6000)
+			errorText.value = resolveFormApiError(err, "儲存樓層授權失敗")
 			return { ok: false as const, jobId: null }
 		} finally {
 			isApplying.value = false
@@ -140,6 +174,9 @@ export const useElevatorFloorAccess = (params: {
 		defaultsApplied,
 		candidatesQuery,
 		candidateGroups,
+		canSelectAllOnExpandedFloors,
+		isAllExpandedFloorsKept,
+		toggleSelectAllOnExpandedFloors,
 		isLoading,
 		isApplying,
 		errorText,

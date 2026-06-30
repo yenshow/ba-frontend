@@ -102,7 +102,8 @@ export interface ElevatorSyncCandidate {
 	employee_no: string
 	full_name: string
 	has_ladder_card: boolean
-	authorized_floors: number[]
+	authorized_floor_labels: string[]
+	authorized_ladder_gateways: number[]
 	needs_sync?: boolean
 	needs_ladder_sync?: boolean
 	needs_access_sync?: boolean

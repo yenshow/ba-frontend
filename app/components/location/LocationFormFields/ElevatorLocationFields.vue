@@ -221,32 +221,39 @@
 							class="border-b border-white/10"
 						>
 							<td class="py-2 ps-3 pe-2 font-medium">{{ entry.floor.label }}</td>
-							<td class="py-2 pe-2">
-								<input
-									v-if="entry.index >= 0"
-									v-model.number="localLocation.floors![entry.index].ladderGateway"
-									type="number"
-									class="form-input-small w-16 px-1 text-center"
-									@input="handleBindingOverride(entry.index)"
-								/>
-							</td>
-							<td class="py-2 pe-2">
-								<input
-									v-if="entry.index >= 0"
-									v-model.number="localLocation.floors![entry.index].callGateway"
-									type="number"
-									class="form-input-small w-16 px-1 text-center"
-									@input="handleBindingOverride(entry.index)"
-								/>
-							</td>
-							<td class="py-2 pe-2">
-								<input
-									v-if="entry.index >= 0"
-									v-model.number="localLocation.floors![entry.index].diAddress"
-									type="number"
-									class="form-input-small w-16 px-1 text-center"
-									@input="handleBindingOverride(entry.index)"
-								/>
+							<td
+								v-for="binding in floorBindingColumns"
+								:key="`${entry.key}-${binding.field}`"
+								class="py-2 pe-2"
+							>
+								<div v-if="entry.index >= 0" class="relative w-20 min-w-[5rem]">
+									<input
+										v-model.number="localLocation.floors![entry.index][binding.field]"
+										type="number"
+										min="0"
+										class="form-input-small w-full px-1 text-center transition-all"
+										:class="{ 'form-input-modbus-issue': isBindingDuplicate(entry.index, binding.field) }"
+										:title="
+											isBindingDuplicate(entry.index, binding.field)
+												? DUPLICATE_BINDING_MSG
+												: undefined
+										"
+										@input="handleBindingOverride(entry.index)"
+									/>
+									<div
+										v-if="isBindingDuplicate(entry.index, binding.field)"
+										class="pointer-events-none absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-rose-500"
+										:title="DUPLICATE_BINDING_MSG"
+									>
+										<svg class="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+											<path
+												fill-rule="evenodd"
+												d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+												clip-rule="evenodd"
+											/>
+										</svg>
+									</div>
+								</div>
 							</td>
 						</tr>
 					</tbody>
@@ -293,9 +300,11 @@ import {
 	autoFillFloorBindings,
 	buildFloorsFromFloorCounts,
 	computePanelColumns,
+	getDuplicateElevatorFloorBindingKeys,
 	inferFloorCountsFromFloors,
 	PANEL_ROW_COUNT,
 	sortFloorsByRank,
+	type ElevatorFloorBindingField,
 } from "~/utils/elevatorFloorModel"
 
 const fieldLabelClass = "flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base"
@@ -396,6 +405,12 @@ const isDevicesReady = computed(
 		(localLocation.accessDeviceIds?.length ?? 0) > 0
 )
 
+const floorBindingColumns: ReadonlyArray<{ field: ElevatorFloorBindingField }> = [
+	{ field: "ladderGateway" },
+	{ field: "callGateway" },
+	{ field: "diAddress" },
+]
+
 const sortedFloorsForTable = computed(() => {
 	const floors = localLocation.floors ?? []
 	return sortFloorsByRank(floors).map((floor) => ({
@@ -404,6 +419,15 @@ const sortedFloorsForTable = computed(() => {
 		key: `${floor.label}-${floor.rank}`,
 	}))
 })
+
+const DUPLICATE_BINDING_MSG = "此點位已被使用"
+
+const duplicateBindingKeys = computed(() =>
+	getDuplicateElevatorFloorBindingKeys(localLocation.floors ?? []),
+)
+
+const isBindingDuplicate = (floorIndex: number, field: ElevatorFloorBindingField) =>
+	duplicateBindingKeys.value.has(`${field}:${floorIndex}`)
 
 const isAccessDeviceSelected = (deviceId: number) =>
 	(localLocation.accessDeviceIds ?? []).includes(deviceId)
