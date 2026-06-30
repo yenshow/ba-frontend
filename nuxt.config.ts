@@ -1,4 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { toLegacyRouteRedirectRules } from "./app/config/legacyRouteRedirects"
+
 export default defineNuxtConfig({
 	compatibilityDate: "2025-07-15",
 	devtools: { enabled: false },
@@ -77,7 +79,8 @@ export default defineNuxtConfig({
 		routeRules: {
 			"/api/**": {
 				proxy: "http://127.0.0.1:4000/api/**"
-			}
+			},
+			...toLegacyRouteRedirectRules()
 		}
 	}
 });

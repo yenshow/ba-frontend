@@ -5,8 +5,16 @@ import { logger } from "~/utils/logger";
 
 const MODULE_CATEGORY_ORDER = [
 	"core",
-	"construction-monitoring",
+	"access-control",
+	"security",
 ] as const satisfies readonly SystemModule["category"][];
+
+const CONSTRUCTION_SITE_FEATURE_KEYS = new Set<string>([
+	"people_counting",
+	"environment",
+	"surveillance",
+	"vehicle_access",
+]);
 
 type ModuleRegistryItem = {
 	id?: number;
@@ -38,16 +46,18 @@ let registryFetchInFlight: Promise<ModuleRegistryPayload | null> | null = null;
 
 /** Construction 前端展示名（與 central profileNames 無關；避免後端 profile 錯設時底欄顯示「門禁管理」） */
 const CONSTRUCTION_MODULE_DISPLAY_NAMES: Record<string, string> = {
-	"/construction-monitoring/people-counting": "人流統計",
+	"/access-control/people-counting": "人流統計",
+};
+
+const isConstructionVisibleModule = (m: ModuleRegistryItem) => {
+	if (m.routePrefix === "/core/area-point-map") return false;
+	if (m.category === "core") return true;
+	return m.featureKey != null && CONSTRUCTION_SITE_FEATURE_KEYS.has(m.featureKey);
 };
 
 const normalizeRegistryForConstructionApp = (payload: ModuleRegistryPayload): ModuleRegistryPayload => {
 	const filteredModules = (payload.modules || [])
-		.filter(
-			(m) =>
-				(m.category === "core" || m.category === "construction-monitoring") &&
-				m.routePrefix !== "/core/area-point-map"
-		)
+		.filter(isConstructionVisibleModule)
 		.map((m) => {
 			const displayName = CONSTRUCTION_MODULE_DISPLAY_NAMES[m.routePrefix];
 			return displayName ? { ...m, name: displayName } : m;

@@ -252,12 +252,11 @@ import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { nextTick, type Component } from "vue"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { joinFormErrors, resolveFormApiError } from "~/utils/errorUtils"
+import { joinFormErrors, resolveFormApiErrorPreferOriginal } from "~/utils/errorUtils"
 import { removeLocationFromSystemOrDelete } from "~/composables/location/locationSystemActions"
 import { buildDeleteLocationConfirmCopy, buildDeleteZoneConfirmCopy, getLocationDeleteSuccessToast } from "~/utils/confirmCopy"
-import { getLocationUiKey } from "~/utils/locationUiId"
+import { getLocationUiKey, getZoneUiKey } from "~/utils/locationUiId"
 import { pickSortOrder, zoneSortOrderValue } from "~/utils/sortOrder"
-import { getZoneUiKey } from "~/utils/locationUiId"
 import { filterPeopleCountingCameraDevices } from "~/utils/cameraModelCategories"
 
 interface Props {
@@ -305,6 +304,7 @@ const {
 	createSortedZones,
 	buildChangedFieldsList,
 	buildChangeSummary,
+	reconcileDraftWhenPropsLocationsMatch,
 } = useZoneDrafts<TZone, SystemLocationType>()
 const toast = useToast()
 const errorMessage = ref("")
@@ -710,6 +710,15 @@ const removeLocation = (zoneId: string, locationIndex: number) => {
 	confirmDialog.show(copy)
 }
 
+const commitLocalLocationRemoval = (
+	zone: TZone,
+	locations: SystemLocationType[],
+	index: number,
+) => {
+	locations.splice(index, 1)
+	updateZone(adapter.setLocationsProperty(zone, locations))
+}
+
 const handleConfirmDeleteLocation = async () => {
 	if (!pendingDeleteLocation.value) return
 	const { zoneId, locationUiKey } = pendingDeleteLocation.value
@@ -725,13 +734,13 @@ const handleConfirmDeleteLocation = async () => {
 			getLocationUiKey({ zone: zone as any, location: loc, locationIndex: idx }) === locationUiKey
 		)
 	})
-	if (resolvedIndex < 0 || resolvedIndex >= locations.length) {
+	if (resolvedIndex < 0) {
 		pendingDeleteLocation.value = null
 		return
 	}
 
-	const target = locations[resolvedIndex] as any
-	const targetId = target?.id ? String(target.id) : null
+	const target = locations[resolvedIndex] as { id?: string | number }
+	const targetId = target?.id != null ? String(target.id) : null
 
 	if (targetId) {
 		try {
@@ -751,16 +760,18 @@ const handleConfirmDeleteLocation = async () => {
 			return
 		}
 
+		commitLocalLocationRemoval(zone, locations, resolvedIndex)
 		pendingDeleteLocation.value = null
-		deleteDraft(zoneId)
 		emit("saved")
+		reconcileDraftWhenPropsLocationsMatch(zoneId, {
+			originalZones: () => props.zones,
+			getZoneId,
+			getLocations: (z) => adapter.getLocationsProperty(z),
+		})
 		return
 	}
 
-	locations.splice(resolvedIndex, 1)
-	const updatedZone = adapter.setLocationsProperty(zone, locations)
-	updateZone(updatedZone)
-
+	commitLocalLocationRemoval(zone, locations, resolvedIndex)
 	pendingDeleteLocation.value = null
 	toast.success("已從清單移除此地點")
 }
@@ -996,13 +1007,16 @@ const saveAllChanges = async () => {
 			emit("saved")
 		} else if (succeededIds.length > 0) {
 			toast.warning(`部分區域儲存失敗（${failures.length}/${saveCount}）`)
-			errorMessage.value = resolveFormApiError(
+			errorMessage.value = resolveFormApiErrorPreferOriginal(
 				failures[0]!.reason,
 				"部分區域儲存失敗",
 			)
 			emit("saved")
 		} else {
-			errorMessage.value = resolveFormApiError(failures[0]!.reason, "儲存區域失敗")
+			errorMessage.value = resolveFormApiErrorPreferOriginal(
+				failures[0]!.reason,
+				"儲存區域失敗",
+			)
 		}
 	} finally {
 		isSaving.value = false

@@ -10,8 +10,8 @@ export interface SystemModule {
 	permissionCode?: string;
 	category:
 		| "core"
-		| "construction-monitoring"
-		| "infrastructure"
+		| "access-control"
+		| "utilities"
 		| "security"
 		| "business"
 		| "multimedia";

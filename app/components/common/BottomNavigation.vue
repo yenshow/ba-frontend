@@ -314,14 +314,16 @@ const {
 } = useAlertMonitor();
 
 const MAIN_NAV_ROUTE_ORDER = [
-	"/construction-monitoring/people-counting",
-	"/construction-monitoring/environment",
-	"/construction-monitoring/surveillance",
-	"/construction-monitoring/vehicle-access"
+	"/access-control/people-counting",
+	"/security/environment",
+	"/access-control/surveillance",
+	"/access-control/vehicle-access"
 ] as const;
 
 const mainNavigationItems = computed<SystemModule[]>(() => {
-	const modules = moduleRegistry.getModulesByCategory("construction-monitoring");
+	const modules = moduleRegistry
+		.getAllModules()
+		.filter((m) => MAIN_NAV_ROUTE_ORDER.includes(m.route as (typeof MAIN_NAV_ROUTE_ORDER)[number]));
 	const byRoute = new Map(modules.map(m => [m.route, m] as const));
 	const ordered = MAIN_NAV_ROUTE_ORDER.map(r => byRoute.get(r)).filter(Boolean) as SystemModule[];
 	// 若 registry 內容有增減（或排序調整），將未列入固定順序者補在後面

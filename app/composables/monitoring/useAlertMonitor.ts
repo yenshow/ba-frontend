@@ -15,10 +15,10 @@ export const SUMMARY_TOAST_KEY = "__alert-summary__";
 
 const sourceRouteMap: Partial<Record<string, string>> = {
 	device: "/core/device",
-	environment: "/construction-monitoring/environment",
-	people_counting: "/construction-monitoring/people-counting",
-	surveillance: "/construction-monitoring/surveillance",
-	vehicle_access: "/construction-monitoring/vehicle-access"
+	environment: "/security/environment",
+	people_counting: "/access-control/people-counting",
+	surveillance: "/access-control/surveillance",
+	vehicle_access: "/access-control/vehicle-access",
 };
 
 const getAlertKey = (alertId: number, dimensionKey?: string | null): string =>

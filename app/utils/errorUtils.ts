@@ -107,6 +107,7 @@ const API_ERROR_USER_MESSAGES: Record<string, string> = {
 	VEHICLE_ACCESS_NOT_CAMERA: "此設備不支援車輛管理功能",
 	VEHICLE_ACCESS_CONFIG_INCOMPLETE: "車輛設備設定不完整",
 	VEHICLE_ACCESS_DEVICE_NOT_IN_SITE: "設備不屬於此工地",
+	VEHICLE_ACCESS_VALIDATION_FAILED: "車輛進出設定有誤，請檢查後再試",
 	PLATE_ALREADY_ASSIGNED: "此車牌已指派給其他車輛",
 	ALERT_RULE_NOT_FOUND: "找不到此警報規則",
 	ALERT_NOT_FOUND: "找不到此警報",
