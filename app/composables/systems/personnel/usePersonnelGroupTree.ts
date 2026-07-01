@@ -19,18 +19,26 @@ export const usePersonnelGroupTree = (): PersonnelGroupTreeState => {
 	const isLoading = useState<boolean>("personnel.groupTree.loading", () => false)
 	const errorMessage = useState<string | null>("personnel.groupTree.error", () => null)
 
+	let refreshPromise: Promise<void> | null = null
+
 	const refresh = async () => {
-		if (isLoading.value) return
-		isLoading.value = true
-		errorMessage.value = null
-		try {
-			groupTree.value = await personnelApi.getPersonGroups({ tree: true })
-		} catch (err) {
-			errorMessage.value = resolveFormApiError(err, "載入群組失敗")
-			groupTree.value = []
-		} finally {
-			isLoading.value = false
-		}
+		if (refreshPromise) return refreshPromise
+
+		refreshPromise = (async () => {
+			isLoading.value = true
+			errorMessage.value = null
+			try {
+				groupTree.value = await personnelApi.getPersonGroups({ tree: true })
+			} catch (err) {
+				errorMessage.value = resolveFormApiError(err, "載入群組失敗")
+				groupTree.value = []
+			} finally {
+				isLoading.value = false
+				refreshPromise = null
+			}
+		})()
+
+		return refreshPromise
 	}
 
 	return {

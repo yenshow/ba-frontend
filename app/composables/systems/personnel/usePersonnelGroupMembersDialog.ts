@@ -3,6 +3,7 @@ import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelA
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { fetchAllPersonnelCandidates } from "~/composables/systems/personnel/personnelList"
 import { findMainGroupById } from "~/utils/personnelGroups"
+import { groupPersonsByPersonGroup } from "~/utils/personnelUtils"
 import { resolveFormApiError } from "~/utils/errorUtils"
 
 const cloneMemberMap = (map: Record<number, number[]>): Record<number, number[]> =>
@@ -15,9 +16,9 @@ const memberIdSetsEqual = (a: number[], b: number[]) => {
 }
 
 const UNSAVED_CLOSE_CONFIRM = {
-	title: "確認關閉",
-	message: "您有未保存的變更，確定要關閉嗎？",
-	details: "未保存的變更將會遺失。",
+	title: "確定要離開？",
+	message: "您有尚未儲存的變更，確定要離開嗎？",
+	details: "未儲存的變更將會遺失。",
 	type: "warning" as const,
 }
 
@@ -60,6 +61,8 @@ export const usePersonnelGroupMembersDialog = (params: {
 	const candidatesItems = ref<Person[]>([])
 	const isLoadingCandidates = ref(false)
 	const candidatesErrorText = ref<string | null>(null)
+
+	const candidateGroups = computed(() => groupPersonsByPersonGroup(candidatesItems.value))
 
 	const changedFieldsList = computed(() =>
 		childGroups.value
@@ -112,17 +115,41 @@ export const usePersonnelGroupMembersDialog = (params: {
 		expandedChildIds.value = next
 	}
 
-	const handleToggleMember = (childId: number, personId: number, checked: boolean) => {
+	const setMembersForChild = (childId: number, personIds: number[], checked: boolean) => {
+		if (personIds.length === 0) return
+		const idSet = new Set(personIds)
 		const map = { ...memberIdsByChildId.value }
 		if (checked) {
 			for (const child of childGroups.value) {
-				map[child.id] = (map[child.id] ?? []).filter((x) => x !== personId)
+				map[child.id] = (map[child.id] ?? []).filter((id) => !idSet.has(id))
 			}
-			map[childId] = [...(map[childId] ?? []), personId]
+			map[childId] = [...new Set([...(map[childId] ?? []), ...personIds])]
 		} else {
-			map[childId] = (map[childId] ?? []).filter((x) => x !== personId)
+			map[childId] = (map[childId] ?? []).filter((id) => !idSet.has(id))
 		}
 		memberIdsByChildId.value = map
+	}
+
+	const handleToggleMember = (childId: number, personId: number, checked: boolean) => {
+		setMembersForChild(childId, [personId], checked)
+	}
+
+	const visibleCandidateIds = computed(() =>
+		candidatesItems.value
+			.map((p) => Number(p.id))
+			.filter((id) => Number.isFinite(id))
+			.map((id) => Math.trunc(id))
+	)
+
+	const isAllSelectedForChild = (childId: number) => {
+		const ids = visibleCandidateIds.value
+		return ids.length > 0 && ids.every((id) => isMemberSelected(childId, id))
+	}
+
+	const toggleSelectAllForChild = (childId: number) => {
+		const ids = visibleCandidateIds.value
+		if (ids.length === 0) return
+		setMembersForChild(childId, ids, !isAllSelectedForChild(childId))
 	}
 
 	const loadMemberIdsForChildren = async () => {
@@ -164,7 +191,7 @@ export const usePersonnelGroupMembersDialog = (params: {
 			})
 		} catch (err) {
 			candidatesItems.value = []
-			candidatesErrorText.value = err instanceof Error ? err.message : "載入人員失敗"
+			candidatesErrorText.value = resolveFormApiError(err, "載入人員失敗")
 		} finally {
 			isLoadingCandidates.value = false
 		}
@@ -215,16 +242,18 @@ export const usePersonnelGroupMembersDialog = (params: {
 		errorMessage,
 		expandedChildIds,
 		candidatesQuery,
-		candidatesItems,
+		candidateGroups,
 		isLoadingCandidates,
 		candidatesErrorText,
 		hasUnsavedChanges,
 		changedFieldsList,
 		memberCountForChild,
 		isMemberSelected,
+		isAllSelectedForChild,
 		otherGroupLabel,
 		toggleChildExpanded,
 		handleToggleMember,
+		toggleSelectAllForChild,
 		loadCandidates,
 		handleSaveAll,
 		requestClose,

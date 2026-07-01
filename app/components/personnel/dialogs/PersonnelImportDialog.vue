@@ -79,9 +79,9 @@
 						</div>
 
 						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-							<span>圖片 zip（選填，≤ 200KB，JPG/JPEG）</span>
+							<span>圖片 zip（選填，≤ {{ maxFaceSizeKb }}KB，JPG/JPEG）</span>
 							<p class="text-white/60 text-xs 2xl:text-sm">
-								檔名須與 Excel 列對應：<span class="text-white/80">姓名+_工號.jpeg</span>（例：方維豪+_00047450.jpeg）
+								檔名須與 Excel 列對應：<span class="text-white/80">姓名+_工號.jpeg</span>
 							</p>
 							<div class="flex flex-wrap items-center gap-3">
 								<input
@@ -111,10 +111,14 @@
 						class="rounded border border-white/20 bg-white/5 p-3 text-sm text-white/90"
 					>
 						<p>成功：{{ result.created }} 筆</p>
-						<p v-if="result.errors?.length" class="mt-2 text-amber-300">
-							錯誤：{{ result.errors.length }} 筆 —
-							{{ result.errors.map(formatImportErrorLine).join("；") }}
-						</p>
+						<div v-if="result.errors?.length" class="mt-2" role="alert" aria-live="polite">
+							<p class="text-amber-300">錯誤：{{ result.errors.length }} 筆</p>
+							<ul class="show-scrollbar mt-1 max-h-40 space-y-1 overflow-y-auto text-amber-200/90">
+								<li v-for="(item, idx) in result.errors" :key="idx">
+									{{ formatImportErrorLine(item) }}
+								</li>
+							</ul>
+						</div>
 					</div>
 					<footer class="mt-2 flex gap-3 2xl:gap-4">
 						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
@@ -137,7 +141,10 @@
 <script setup lang="ts">
 import type { ImportResult } from "~/types/personnel"
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
+import { PERSONNEL_FACE_MAX_BYTES } from "~/composables/systems/personnel/usePersonnelPersonsTab"
 import { formatImportErrorLine } from "~/utils/personnelUtils"
+
+const maxFaceSizeKb = PERSONNEL_FACE_MAX_BYTES / 1024
 
 const props = defineProps<{
 	modelValue: boolean
