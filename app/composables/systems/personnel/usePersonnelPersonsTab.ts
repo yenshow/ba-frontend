@@ -55,14 +55,17 @@ import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 type DeviceApi = ReturnType<typeof useDeviceApi>
 type AccessControlApi = ReturnType<typeof useAccessControlApi>
 
+/** 人員大頭照大小上限（與後端 PERSONNEL_FACE_MAX_BYTES 一致） */
+export const PERSONNEL_FACE_MAX_BYTES = 512 * 1024
+
 /** 人員大頭照裁切 Dialog（PersonnelPersonsTab + ImageCropDialog） */
 export const PERSONNEL_FACE_CROP_DIALOG_PROPS = {
 	title: "上傳大頭照",
-	description: "圖片用於臉型比對或臉型驗證，建議上傳五官清晰正面照。",
+	description: `圖片用於臉型比對或臉型驗證，建議上傳五官清晰正面照（≤ ${PERSONNEL_FACE_MAX_BYTES / 1024}KB）。`,
 	canvasWidth: 520,
 	canvasHeight: 520,
 	mask: "ellipse" as const,
-	maxOutputBytes: 200 * 1024,
+	maxOutputBytes: PERSONNEL_FACE_MAX_BYTES,
 	outputMaxLongEdge: 320,
 }
 
@@ -819,9 +822,14 @@ export const usePersonnelPersonsTab = (params: {
 			if (payload.imagesZip) form.append("imagesZip", payload.imagesZip)
 			const result = await personnelApi.importPersons(form)
 			importResult.value = result
+			if (result.errors?.length) {
+				toast.warning(`匯入完成，但有 ${result.errors.length} 筆錯誤，請查看下方明細`)
+			}
 			if (result.created > 0) {
 				toast.success(`已匯入 ${result.created} 筆`)
 				void loadPersons()
+			} else if (!result.errors?.length) {
+				toast.warning("未匯入任何資料")
 			}
 		} catch (err) {
 			importError.value =

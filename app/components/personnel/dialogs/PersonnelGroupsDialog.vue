@@ -28,134 +28,132 @@
 						</button>
 					</header>
 
-					<div class="show-scrollbar flex-1 overflow-y-auto pr-7 2xl:pr-8">
-						<div class="min-h-[200px]">
-							<div v-if="isLoading" class="py-10 text-center text-white/60">載入中…</div>
-
-							<div v-else-if="pendingMains.length > 0" class="space-y-3">
+					<AsyncPanel
+						class="min-h-0 flex-1 pr-7 2xl:pr-8"
+						panel-size="compact"
+						:loading="groupTreeLoading && pendingMains.length === 0"
+						:empty="!groupTreeLoading && pendingMains.length === 0"
+						empty-title="尚無群組"
+						empty-description="點擊「新增主群組」開始建立"
+					>
+						<div class="show-scrollbar min-h-0 space-y-3 overflow-y-auto pe-1">
+							<div
+								v-for="main in pendingMains"
+								:key="main.uiKey"
+								class="overflow-hidden rounded-lg border transition-colors"
+								:class="mainCardClass(main)"
+							>
 								<div
-									v-for="main in pendingMains"
-									:key="main.uiKey"
-									class="overflow-hidden rounded-lg border transition-all"
-									:class="mainCardClass(main)"
+									class="flex cursor-pointer items-center justify-between gap-3 p-4 transition-colors hover:bg-white/10"
+									@click="toggleMainExpanded(main.uiKey)"
 								>
-									<div
-										class="flex cursor-pointer items-center justify-between gap-3 p-4 transition-colors hover:bg-white/10"
-										@click="toggleMainExpanded(main.uiKey)"
-									>
-										<div class="flex min-w-0 flex-1 items-center gap-3">
-											<svg
-												class="h-5 w-5 shrink-0 text-white/70 transition-transform"
-												:class="{ 'rotate-90': expandedMainUiKeys.has(main.uiKey) }"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
-												aria-hidden="true"
-											>
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M9 5l7 7-7 7"
-												/>
-											</svg>
-											<h4 class="truncate text-base font-medium text-white 2xl:text-lg">
-												{{ main.name.trim() || "未命名" }}
-											</h4>
-											<span
-												class="shrink-0 rounded-full bg-white/25 px-3 py-1 text-xs text-white/80 2xl:text-sm"
-											>
-												子群組 {{ main.children.length }}
-											</span>
-										</div>
-										<IconTrashButton
-											:disabled="!canDeleteGroup"
-											button-class="shrink-0"
-											title="刪除主群組"
-											aria-label="刪除主群組"
-											@click.stop="requestDeleteMain(main)"
+									<div class="flex min-w-0 flex-1 items-center gap-3">
+										<svg
+											class="h-5 w-5 shrink-0 text-white/70 transition-transform"
+											:class="{ 'rotate-90': expandedMainUiKeys.has(main.uiKey) }"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+											aria-hidden="true"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M9 5l7 7-7 7"
+											/>
+										</svg>
+										<h4 class="truncate text-base font-medium text-white 2xl:text-lg">
+											{{ main.name.trim() || "未命名" }}
+										</h4>
+										<span
+											class="shrink-0 rounded-full bg-white/25 px-3 py-1 text-xs text-white/80 2xl:text-sm"
+										>
+											子群組 {{ main.children.length }}
+										</span>
+									</div>
+									<IconTrashButton
+										:disabled="!canDeleteGroup"
+										button-class="shrink-0"
+										title="刪除主群組"
+										aria-label="刪除主群組"
+										@click.stop="requestDeleteMain(main)"
+									/>
+								</div>
+
+								<div
+									v-if="expandedMainUiKeys.has(main.uiKey)"
+									class="border-t border-white/10 p-4"
+									@click.stop
+								>
+									<div class="flex items-center gap-3 border-b border-white/10 pb-3">
+										<span class="text-base font-medium text-white 2xl:text-lg">主群組名稱</span>
+										<input
+											v-model="main.name"
+											type="text"
+											required
+											:disabled="!canUpdateGroup && !isNewPersonnelGroupDraftMain(main)"
+											class="form-input-small flex-1"
+											placeholder="例如：一樓"
+											aria-label="主群組名稱"
 										/>
 									</div>
 
-									<Transition name="expand">
-										<div
-											v-if="expandedMainUiKeys.has(main.uiKey)"
-											class="border-t border-white/10 p-4"
-											@click.stop
+									<div class="mb-3 mt-3 flex items-center justify-between gap-2">
+										<span class="text-base font-medium text-white 2xl:text-lg">子群組列表</span>
+										<PermissionActionButton
+											:allowed="canCreateGroup"
+											aria-label="新增子群組"
+											class="btn-secondary text-sm 2xl:text-base"
+											@click="addChild(main.uiKey)"
 										>
-											<div class="flex items-center gap-3 border-b border-white/10 pb-3">
-												<span class="text-base font-medium text-white 2xl:text-lg">主群組名稱</span>
+											新增子群組
+										</PermissionActionButton>
+									</div>
+
+									<div
+										v-if="main.children.length === 0"
+										class="py-4 text-center text-sm text-white/60 2xl:text-base"
+									>
+										尚無子群組，請新增子群組
+									</div>
+									<div v-else class="space-y-2">
+										<div
+											v-for="child in main.children"
+											:key="child.uiKey"
+											class="flex min-w-0 items-end gap-2 rounded border border-white/10 bg-white/5 p-2"
+											:class="{
+												'border-amber-400/40 bg-amber-500/10 ring-1 ring-amber-400/30':
+													isNewPersonnelGroupDraftChild(child),
+											}"
+										>
+											<label
+												class="flex min-w-0 flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+											>
+												<span>子群組名稱 *</span>
 												<input
-													v-model="main.name"
+													v-model="child.name"
 													type="text"
 													required
-													:disabled="!canUpdateGroup && !isNewPersonnelGroupDraftMain(main)"
-													class="form-input-small flex-1"
+													:disabled="!canUpdateGroup && !isNewPersonnelGroupDraftChild(child)"
+													class="form-input-small"
 													placeholder="例如：一樓"
-													aria-label="主群組名稱"
+													aria-label="子群組名稱"
 												/>
-											</div>
-
-											<div class="mb-3 mt-3 flex items-center justify-between gap-2">
-												<span class="text-base font-medium text-white 2xl:text-lg">子群組列表</span>
-												<PermissionActionButton
-													:allowed="canCreateGroup"
-													aria-label="新增子群組"
-													class="btn-secondary text-sm 2xl:text-base"
-													@click="addChild(main.uiKey)"
-												>
-													新增子群組
-												</PermissionActionButton>
-											</div>
-
-											<div
-												v-if="main.children.length === 0"
-												class="py-4 text-center text-sm text-white/60 2xl:text-base"
-											>
-												尚無子群組，請新增子群組
-									</div>
-											<div v-else class="space-y-2">
-												<div
-													v-for="child in main.children"
-													:key="child.uiKey"
-													class="flex min-w-0 items-end gap-2 rounded border border-white/10 bg-white/5 p-2"
-													:class="{
-														'border-amber-400/40 bg-amber-500/10':
-															isNewPersonnelGroupDraftChild(child),
-													}"
-												>
-													<label
-														class="flex min-w-0 flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-													>
-														<span>子群組名稱 *</span>
-														<input
-															v-model="child.name"
-															type="text"
-															required
-															class="form-input-small"
-															placeholder="例如：一樓"
-														/>
-													</label>
-													<IconTrashButton
-														:disabled="!canDeleteGroup"
-														button-class="ml-auto flex-shrink-0"
-														title="刪除子群組"
-														:aria-label="`刪除子群組 ${child.name || '未命名'}`"
-														@click="requestDeleteChild(main, child)"
-													/>
-												</div>
-											</div>
+											</label>
+											<IconTrashButton
+												:disabled="!canDeleteGroup"
+												button-class="ml-auto flex-shrink-0"
+												title="刪除子群組"
+												:aria-label="`刪除子群組 ${child.name || '未命名'}`"
+												@click="requestDeleteChild(main, child)"
+											/>
 										</div>
-									</Transition>
+									</div>
 								</div>
 							</div>
-
-							<div v-else class="py-8 text-center text-white/60">
-								<p class="text-base 2xl:text-lg">尚無群組</p>
-								<p class="mt-2 text-sm 2xl:text-base">點擊「新增主群組」開始建立</p>
-							</div>
 						</div>
-					</div>
+					</AsyncPanel>
 
 					<p v-if="errorMessage" class="form-error-text pr-7 2xl:pr-8">
 						{{ errorMessage }}
@@ -208,10 +206,10 @@ import {
 	type PersonnelGroupDraftMain,
 } from "~/composables/systems/personnel/usePersonnelGroupsDraft"
 import { useToast } from "~/composables/core/useToast"
-import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { usePersonnelGroupTree } from "~/composables/systems/personnel/usePersonnelGroupTree"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
+import AsyncPanel from "~/components/common/AsyncPanel.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
 import IconTrashButton from "~/components/common/IconTrashButton.vue"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
@@ -229,18 +227,18 @@ const props = defineProps<{
 	canDeleteGroup: boolean
 }>()
 
-const canSaveGroups = computed(() => props.canCreateGroup || props.canUpdateGroup)
+const canSaveGroups = computed(
+	() => props.canCreateGroup || props.canUpdateGroup || props.canDeleteGroup
+)
 const emit = defineEmits<{ "update:modelValue": [value: boolean]; changed: [] }>()
 
 const toast = useToast()
-const { handleError: handleApiError } = useErrorHandler()
 const personnelApi = usePersonnelApi()
-const { groupTree, refresh: refreshGroupTree } = usePersonnelGroupTree()
+const { groupTree, isLoading: groupTreeLoading, refresh: refreshGroupTree } = usePersonnelGroupTree()
 
 const {
 	pendingMains,
 	deletedMainIds,
-	deletedChildIds,
 	expandedMainUiKeys,
 	syncFromTree,
 	resetToSource,
@@ -256,41 +254,33 @@ const {
 	getPendingChildGroupDeleteIds,
 } = usePersonnelGroupsDraft()
 
-const isLoading = ref(false)
 const isSaving = ref(false)
 const errorMessage = ref<string | null>(null)
 
 const mainCardClass = (main: PersonnelGroupDraftMain) => {
 	const expanded = expandedMainUiKeys.value.has(main.uiKey)
-	const isNew = isNewPersonnelGroupDraftMain(main)
-	if (isNew) {
-		return [
-			"border-2 border-amber-400/90 bg-amber-500/10 shadow-[0_0_0_1px_rgba(251,191,36,0.4)]",
-			expanded ? "bg-amber-500/15" : "",
-		]
+	if (isNewPersonnelGroupDraftMain(main)) {
+		return expanded
+			? "border border-amber-400/80 bg-amber-500/15 ring-1 ring-amber-400/50"
+			: "border border-amber-400/80 bg-amber-500/10 ring-1 ring-amber-400/50"
 	}
-	return ["border-white/20 bg-white/10", expanded ? "bg-white/15" : ""]
+	return expanded ? "border border-white/20 bg-white/15" : "border border-white/20 bg-white/10"
 }
 
+const syncTreeDraft = () => syncFromTree(groupTree.value || [])
+
 const loadTree = async () => {
-	isLoading.value = true
 	errorMessage.value = null
-	try {
-		await refreshGroupTree()
-		syncFromTree(groupTree.value || [])
-	} catch (err) {
-		errorMessage.value = resolveFormApiError(err, "載入群組失敗")
-	} finally {
-		isLoading.value = false
-	}
+	if ((groupTree.value?.length ?? 0) > 0) syncTreeDraft()
+	await refreshGroupTree()
+	syncTreeDraft()
 }
 
 watch(
 	() => props.modelValue,
 	(open) => {
 		if (open) void loadTree()
-	},
-	{ immediate: true }
+	}
 )
 
 const confirmDialog = useConfirmDialog()
@@ -401,9 +391,10 @@ const handleSaveAll = async () => {
 			)
 		}
 
-		toast.success("已儲存群組設定")
+		toast.success("已儲存群組變更")
 		emit("changed")
-		await loadTree()
+		await refreshGroupTree()
+		syncTreeDraft()
 	} catch (err) {
 		errorMessage.value = resolveFormApiError(err, "儲存群組失敗")
 	} finally {

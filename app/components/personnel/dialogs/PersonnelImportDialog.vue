@@ -21,7 +21,7 @@
 					</header>
 					<div class="space-y-4">
 						<div
-							class="rounded border border-white/20 bg-white/5 p-3 text-base text-white/80 2xl:text-lg space-y-2"
+							class="space-y-2 rounded border border-white/20 bg-white/5 p-3 text-base text-white/80 2xl:text-lg"
 						>
 							<p class="font-medium text-white/90">欄位說明</p>
 							<ul class="list-inside list-disc space-y-1">
@@ -29,19 +29,17 @@
 								<li>姓名（必填）：<span class="text-white">姓名</span></li>
 								<li>
 									有效起始日（選填）：<span class="text-white">有效起始日</span>
-									<span class="text-white/70 text-sm 2xl:text-base">（yyyy-mm-ddThh:mm）</span>
+									<span class="text-sm text-white/70 2xl:text-base">（yyyy-mm-ddThh:mm）</span>
 								</li>
 								<li>
 									有效結束日（選填）：<span class="text-white">有效結束日</span>
-									<span class="text-white/70 text-sm 2xl:text-base">（yyyy-mm-ddThh:mm）</span>
+									<span class="text-sm text-white/70 2xl:text-base">（yyyy-mm-ddThh:mm）</span>
 								</li>
-								<li>
-									門禁密碼（選填）：<span class="text-white">門禁密碼</span>（僅數字 4~12 碼）
-								</li>
+								<li>門禁密碼（選填）：<span class="text-white">門禁密碼</span>（僅數字 4~12 碼）</li>
 								<li>卡號（選填）：<span class="text-white">卡號</span></li>
 								<li>
 									車牌（選填，可多筆）：<span class="text-white">車牌</span>
-									<span class="text-white/70 text-sm 2xl:text-base">（以逗號、分號分隔）</span>
+									<span class="text-sm text-white/70 2xl:text-base">（以逗號、分號分隔）</span>
 								</li>
 							</ul>
 							<button
@@ -79,9 +77,9 @@
 						</div>
 
 						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-							<span>圖片 zip（選填，≤ 200KB，JPG/JPEG）</span>
-							<p class="text-white/60 text-xs 2xl:text-sm">
-								檔名須與 Excel 列對應：<span class="text-white/80">姓名+_工號.jpeg</span>（例：方維豪+_00047450.jpeg）
+							<span>圖片 zip（選填，≤ {{ maxFaceSizeKb }}KB，JPG/JPEG）</span>
+							<p class="text-xs text-white/60 2xl:text-sm">
+								檔名須與 Excel 列對應：<span class="text-white/80">姓名+_工號.jpeg</span>
 							</p>
 							<div class="flex flex-wrap items-center gap-3">
 								<input
@@ -106,15 +104,16 @@
 						</div>
 					</div>
 					<p v-if="error" class="form-error-text">{{ error }}</p>
-					<div
-						v-if="result"
-						class="rounded border border-white/20 bg-white/5 p-3 text-sm text-white/90"
-					>
+					<div v-if="result" class="rounded border border-white/20 bg-white/5 p-3 text-sm text-white/90">
 						<p>成功：{{ result.created }} 筆</p>
-						<p v-if="result.errors?.length" class="mt-2 text-amber-300">
-							錯誤：{{ result.errors.length }} 筆 —
-							{{ result.errors.map(formatImportErrorLine).join("；") }}
-						</p>
+						<div v-if="result.errors?.length" class="mt-2" role="alert" aria-live="polite">
+							<p class="text-amber-300">錯誤：{{ result.errors.length }} 筆</p>
+							<ul class="show-scrollbar mt-1 max-h-40 space-y-1 overflow-y-auto text-amber-200/90">
+								<li v-for="(item, idx) in result.errors" :key="idx">
+									{{ formatImportErrorLine(item) }}
+								</li>
+							</ul>
+						</div>
 					</div>
 					<footer class="mt-2 flex gap-3 2xl:gap-4">
 						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
@@ -135,77 +134,80 @@
 </template>
 
 <script setup lang="ts">
-import type { ImportResult } from "~/types/personnel"
-import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
-import { formatImportErrorLine } from "~/utils/personnelUtils"
+import type { ImportResult } from "~/types/personnel";
+import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi";
+import { PERSONNEL_FACE_MAX_BYTES } from "~/composables/systems/personnel/usePersonnelPersonsTab";
+import { formatImportErrorLine } from "~/utils/personnelUtils";
+
+const maxFaceSizeKb = PERSONNEL_FACE_MAX_BYTES / 1024;
 
 const props = defineProps<{
-	modelValue: boolean
-	error: string
-	result: ImportResult | null
-	isImporting: boolean
-}>()
+	modelValue: boolean;
+	error: string;
+	result: ImportResult | null;
+	isImporting: boolean;
+}>();
 
 const emit = defineEmits<{
-	"update:modelValue": [value: boolean]
-	submit: [{ excel: File; imagesZip: File | null }]
-}>()
+	"update:modelValue": [value: boolean];
+	submit: [{ excel: File; imagesZip: File | null }];
+}>();
 
-const excelInputRef = ref<HTMLInputElement | null>(null)
-const zipInputRef = ref<HTMLInputElement | null>(null)
-const excelFile = ref<File | null>(null)
-const zipFile = ref<File | null>(null)
-const isDownloadingTemplate = ref(false)
+const excelInputRef = ref<HTMLInputElement | null>(null);
+const zipInputRef = ref<HTMLInputElement | null>(null);
+const excelFile = ref<File | null>(null);
+const zipFile = ref<File | null>(null);
+const isDownloadingTemplate = ref(false);
 
-const personnelApi = usePersonnelApi()
+const personnelApi = usePersonnelApi();
 
 const handleDownloadTemplate = async () => {
-	if (isDownloadingTemplate.value) return
-	isDownloadingTemplate.value = true
+	if (isDownloadingTemplate.value) return;
+	isDownloadingTemplate.value = true;
 	try {
-		const blob = await personnelApi.downloadImportTemplate()
-		const url = URL.createObjectURL(blob)
-		const a = document.createElement("a")
-		a.href = url
-		a.download = "personnel_import_template.xlsx"
-		a.click()
-		URL.revokeObjectURL(url)
+		const blob = await personnelApi.downloadImportTemplate();
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = "personnel_import_template.xlsx";
+		a.click();
+		URL.revokeObjectURL(url);
 	} finally {
-		isDownloadingTemplate.value = false
+		isDownloadingTemplate.value = false;
 	}
-}
+};
 
 const resetFiles = () => {
-	excelFile.value = null
-	zipFile.value = null
-	if (excelInputRef.value) excelInputRef.value.value = ""
-	if (zipInputRef.value) zipInputRef.value.value = ""
-}
+	excelFile.value = null;
+	zipFile.value = null;
+	if (excelInputRef.value) excelInputRef.value.value = "";
+	if (zipInputRef.value) zipInputRef.value.value = "";
+};
 
-const handleClose = () => emit("update:modelValue", false)
+const handleClose = () => emit("update:modelValue", false);
 
-type ImportFileKind = "excel" | "zip"
+type ImportFileKind = "excel" | "zip";
 
 const pickFile = (kind: ImportFileKind) => {
-	const inputRef = kind === "excel" ? excelInputRef : zipInputRef
-	inputRef.value?.click()
-}
+	const inputRef = kind === "excel" ? excelInputRef : zipInputRef;
+	inputRef.value?.click();
+};
 
 const handleFileChange = (e: Event, kind: ImportFileKind) => {
-	const file = (e.target as HTMLInputElement).files?.[0] ?? null
-	if (kind === "excel") excelFile.value = file
-	else zipFile.value = file
-}
+	const file = (e.target as HTMLInputElement).files?.[0] ?? null;
+	if (kind === "excel") excelFile.value = file;
+	else zipFile.value = file;
+};
 
 const handleSubmit = () => {
-	if (!excelFile.value) return
-	emit("submit", { excel: excelFile.value, imagesZip: zipFile.value })
-}
+	if (!excelFile.value) return;
+	emit("submit", { excel: excelFile.value, imagesZip: zipFile.value });
+};
 
 watch(
 	() => props.modelValue,
-	(v) => {
-		if (!v) resetFiles()
+	v => {
+		if (!v) resetFiles();
 	}
-)
+);
 </script>

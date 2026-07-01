@@ -110,6 +110,15 @@
 						</td>
 						<td :class="tableCellClass">
 							<div class="flex flex-wrap justify-center gap-2 2xl:gap-3">
+								<button
+									v-if="personHasAnyAccessCard(p)"
+									type="button"
+									class="rounded bg-violet-500/80 px-3 py-1 text-white hover:bg-violet-400 2xl:px-4 2xl:py-2"
+									aria-label="檢視卡號二維碼"
+									@click="openCardQrDialog(p)"
+								>
+									QR 碼
+								</button>
 								<PermissionActionButton
 									:allowed="canUpdatePerson"
 									aria-label="編輯人員"
@@ -196,6 +205,14 @@
 			:type="personCloseConfirmConfig.type"
 			@confirm="confirmPersonDialogDismiss"
 		/>
+
+		<PersonnelCardQrDialog
+			v-if="cardQrTarget"
+			v-model="showCardQrDialog"
+			:employee-no="cardQrTarget.employee_no"
+			:full-name="cardQrTarget.full_name"
+			:cards="cardQrTarget.cards"
+		/>
 	</section>
 </template>
 
@@ -212,8 +229,11 @@ import ImageCropDialog from "~/components/common/ImageCropDialog.vue";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import PersonnelPersonDialog from "~/components/personnel/dialogs/PersonnelPersonDialog.vue";
-import type { PersonnelPersonDialogState } from "~/types/personnel";
+import PersonnelCardQrDialog from "~/components/personnel/dialogs/PersonnelCardQrDialog.vue";
+import type { PersonnelPersonDialogState, Person } from "~/types/personnel";
 import SearchInput from "~/components/common/SearchInput.vue";
+import type { PersonCardFormItem } from "~/utils/cardFormUtils";
+import { resolveAccessControlCardsFromPerson, personHasAnyAccessCard } from "~/utils/cardFormUtils";
 
 const props = defineProps<{
 	canCreatePerson: boolean;
@@ -321,6 +341,29 @@ const localEmployeeNoSort = computed<string>({
 });
 
 const handleSearch = () => props.personsTab.handleSearch();
+
+const cardQrTarget = ref<{
+	employee_no: string;
+	full_name?: string | null;
+	cards: PersonCardFormItem[];
+} | null>(null);
+
+const showCardQrDialog = computed({
+	get: () => cardQrTarget.value !== null,
+	set: (open: boolean) => {
+		if (!open) cardQrTarget.value = null;
+	},
+});
+
+const openCardQrDialog = (p: Person) => {
+	const cards = resolveAccessControlCardsFromPerson(p);
+	if (!cards.length) return;
+	cardQrTarget.value = {
+		employee_no: p.employee_no,
+		full_name: p.full_name,
+		cards,
+	};
+};
 
 const confirmDeletePerson = (p: { id: number; employee_no: string; full_name?: string | null }) => {
 	pendingDeletePersonId.value = p.id;

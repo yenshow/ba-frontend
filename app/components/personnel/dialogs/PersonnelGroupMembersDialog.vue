@@ -31,18 +31,19 @@
 						</button>
 					</header>
 
-					<div class="mb-3 flex flex-wrap items-center gap-2">
-						<input
+					<div class="mb-3 flex min-w-0 items-center gap-2 pr-7 2xl:pr-8">
+						<SearchInput
 							v-model="candidatesQuery"
-							type="text"
-							class="form-input w-full max-w-[240px]"
+							input-id="personnel-group-members-search"
+							label="搜尋人員"
 							placeholder="搜尋 ID / 姓名"
 							aria-label="搜尋人員"
-							@keydown.enter="loadCandidates"
+							wrapper-class="min-w-0 flex-1"
+							input-wrapper-class="min-w-0 flex-1 max-w-[280px]"
+							:disabled="isSaving"
+							@search="loadCandidates"
+							@clear="loadCandidates"
 						/>
-						<button type="button" class="btn-secondary text-sm" @click="loadCandidates">
-							搜尋
-						</button>
 					</div>
 
 					<div class="show-scrollbar flex-1 overflow-y-auto pr-7 2xl:pr-8">
@@ -97,53 +98,81 @@
 									</span>
 								</button>
 
-								<Transition name="expand">
-									<div v-if="expandedChildIds.has(child.id)" class="border-t border-white/10 p-4">
-										<div v-if="isLoadingCandidates" class="py-6 text-center text-sm text-white/60">
-											載入人員中…
-										</div>
-										<p v-else-if="candidatesErrorText" class="form-error-text" role="alert">
-											{{ candidatesErrorText }}
-										</p>
-										<div
-											v-else
-											class="grid max-h-[320px] grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2"
-										>
-											<label
-												v-for="p in candidatesItems"
-												:key="`${child.id}-${p.id}`"
-												class="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 hover:bg-white/10"
+								<div v-if="expandedChildIds.has(child.id)" class="border-t border-white/10 p-4">
+									<div v-if="isLoadingCandidates" class="py-6 text-center text-sm text-white/60">
+										載入人員中…
+									</div>
+									<p v-else-if="candidatesErrorText" class="form-error-text" role="alert">
+										{{ candidatesErrorText }}
+									</p>
+									<div
+										v-else-if="candidateGroups.length === 0"
+										class="py-6 text-center text-sm text-white/60 2xl:text-base"
+									>
+										尚無可選人員
+									</div>
+									<div v-else class="space-y-4">
+										<div class="flex justify-end">
+											<button
+												type="button"
+												class="btn-secondary shrink-0 whitespace-nowrap text-xs 2xl:text-sm"
+												:disabled="isSaving"
+												:aria-label="`${
+													isAllSelectedForChild(child.id) ? '取消全選' : '全選'
+												}子群組 ${child.name} 的可見人員`"
+												@click="toggleSelectAllForChild(child.id)"
 											>
-												<span class="flex min-w-0 items-center gap-2">
-													<input
-														type="checkbox"
-														class="h-4 w-4 accent-cyan-400"
-														:checked="isMemberSelected(child.id, p.id)"
-														:aria-label="`子群組 ${child.name}：${p.employee_no} ${p.full_name || ''}`"
-														@change="
-															handleToggleMember(
-																child.id,
-																p.id,
-																($event.target as HTMLInputElement).checked
-															)
-														"
-													/>
-													<span class="min-w-0 truncate text-sm text-white/90">
-														<span class="font-mono">{{ p.employee_no }}</span>
-														<span class="ms-2">{{ p.full_name || "—" }}</span>
-													</span>
-												</span>
-												<span
-													v-if="otherGroupLabel(p)"
-													class="max-w-[8rem] truncate rounded bg-white/10 px-2 py-0.5 text-xs text-white/60"
-													:title="otherGroupLabel(p) || undefined"
-												>
-													{{ otherGroupLabel(p) }}
-												</span>
-											</label>
+												{{ isAllSelectedForChild(child.id) ? "取消" : "全選" }}
+											</button>
+										</div>
+										<div class="show-scrollbar max-h-[320px] space-y-4 overflow-y-auto pe-1">
+											<section
+												v-for="group in candidateGroups"
+												:key="`${child.id}-group-${group.groupId}`"
+											>
+												<h5 class="mb-2 text-xs font-medium text-white/55 2xl:text-sm">
+													{{ group.groupName }}
+													<span class="text-white/40">（{{ group.members.length }}）</span>
+												</h5>
+												<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+													<label
+														v-for="p in group.members"
+														:key="`${child.id}-${p.id}`"
+														class="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 hover:bg-white/10"
+													>
+														<span class="flex min-w-0 items-center gap-2">
+															<input
+																type="checkbox"
+																class="h-4 w-4 shrink-0 accent-cyan-400"
+																:checked="isMemberSelected(child.id, p.id)"
+																:disabled="isSaving"
+																:aria-label="`子群組 ${child.name}：${p.employee_no} ${p.full_name || ''}`"
+																@change="
+																	handleToggleMember(
+																		child.id,
+																		p.id,
+																		($event.target as HTMLInputElement).checked
+																	)
+																"
+															/>
+															<span class="min-w-0 truncate text-sm text-white/90">
+																<span class="font-mono">{{ p.employee_no }}</span>
+																<span class="ms-2">{{ p.full_name || "—" }}</span>
+															</span>
+														</span>
+														<span
+															v-if="otherGroupLabel(p)"
+															class="max-w-[8rem] truncate rounded bg-white/10 px-2 py-0.5 text-xs text-white/60"
+															:title="otherGroupLabel(p) || undefined"
+														>
+															{{ otherGroupLabel(p) }}
+														</span>
+													</label>
+												</div>
+											</section>
 										</div>
 									</div>
-								</Transition>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -151,7 +180,7 @@
 					<footer
 						class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8"
 					>
-						<button type="button" class="btn-secondary" @click="requestClose">關閉</button>
+						<button type="button" class="btn-secondary" @click="requestClose">取消</button>
 						<div class="flex-1"></div>
 						<button
 							type="button"
@@ -182,8 +211,8 @@
 import type { PersonGroup } from "~/types/personnel"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
+import SearchInput from "~/components/common/SearchInput.vue"
 import { useToast } from "~/composables/core/useToast"
-import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { usePersonnelGroupMembersDialog } from "~/composables/systems/personnel/usePersonnelGroupMembersDialog"
 
@@ -203,16 +232,18 @@ const {
 	errorMessage,
 	expandedChildIds,
 	candidatesQuery,
-	candidatesItems,
+	candidateGroups,
 	isLoadingCandidates,
 	candidatesErrorText,
 	hasUnsavedChanges,
 	changedFieldsList,
 	memberCountForChild,
 	isMemberSelected,
+	isAllSelectedForChild,
 	otherGroupLabel,
 	toggleChildExpanded,
 	handleToggleMember,
+	toggleSelectAllForChild,
 	loadCandidates,
 	handleSaveAll,
 	requestClose,

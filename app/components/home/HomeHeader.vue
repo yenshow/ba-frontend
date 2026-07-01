@@ -4,7 +4,7 @@
 		<div class="group col-span-1 flex items-center justify-center">
 			<div class="relative flex items-center justify-center">
 				<img
-					src="/layout/yenshow-logo.svg"
+					src="/layout/golden.png"
 					alt="遠岫科技"
 					class="h-[var(--brand-logo-h)] object-contain"
 					:style="brandLogoStyle"
@@ -162,9 +162,7 @@ const brandLogoStyle = computed(() => ({
 	"--brand-logo-h": `${brandLogoHeight.value}px`
 }));
 
-const brandLogoPreviewSrc = computed(
-	() => `/layout/yenshow-logo.svg?t=${brandLogoPreviewBuster.value}`
-);
+const brandLogoPreviewSrc = computed(() => `/layout/golden.png?t=${brandLogoPreviewBuster.value}`);
 
 const handleSaveBrandLogoHeight = async (nextValue: string) => {
 	const parsed = Number.parseInt(String(nextValue ?? "").trim(), 10);
