@@ -67,7 +67,7 @@
 						tabindex="0"
 						:aria-expanded="isFloorExpanded(floor.index)"
 						:aria-controls="`elevator-floor-panel-${floor.index}`"
-						:aria-label="`${floor.name} 人員授權`"
+						:aria-label="`${floor.code}${floor.name ? ` ${floor.name}` : ''} 人員授權`"
 						@click="emit('toggleFloor', floor.index)"
 						@keydown.enter="emit('toggleFloor', floor.index)"
 						@keydown.space.prevent="emit('toggleFloor', floor.index)"
@@ -89,12 +89,18 @@
 								/>
 							</svg>
 							<div
-								class="flex h-16 min-w-[80px] max-w-[12rem] items-center justify-center rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-3 shadow-lg"
+								class="flex h-16 min-w-[80px] items-center justify-center rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-3 shadow-lg"
 							>
-								<h5 class="truncate text-xl font-bold tracking-wider text-white 2xl:text-2xl">
-									{{ floor.name }}
+								<h5 class="font-mono text-xl font-bold tracking-wider text-white 2xl:text-2xl">
+									{{ floor.code }}
 								</h5>
 							</div>
+							<p
+								v-if="floor.name"
+								class="min-w-0 truncate text-base font-medium text-white/90 2xl:text-lg"
+							>
+								{{ floor.name }}
+							</p>
 							<span
 								class="inline-block min-w-[4.5rem] rounded-full bg-white/25 px-3 py-1 text-center text-sm font-medium text-white 2xl:text-base"
 							>

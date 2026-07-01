@@ -8,8 +8,8 @@ export const PANEL_ROW_COUNT = 6
 export const ELEVATOR_RUNTIME_POLL_MS = 2000
 /** 背景輪詢 moving 間隔（與後端 ELEVATOR_POLL_MOVING_MS 對齊） */
 export const ELEVATOR_POLL_MOVING_MS = 1000
-/** DI rank 變化時前端追趕式逐層補間間隔 */
-export const ELEVATOR_FLOOR_STEP_MS = 1000
+/** DI rank 變化時前端追趕式逐層補間：每層固定間隔（等速逐層切換） */
+export const ELEVATOR_FLOOR_STEP_MS = 1500
 
 export type ElevatorDeviceRole = {
 	deviceId: number
@@ -19,6 +19,8 @@ export type ElevatorDeviceRole = {
 
 export type ElevatorLogicalFloor = {
 	label: string
+	/** 梯控設備顯示名稱（可自訂）；未填時同步與顯示 fallback 為 label */
+	name?: string
 	rank: number
 	panelCol: number
 	panelRow: number
@@ -68,7 +70,9 @@ export type ElevatorFloorCounts = {
 
 /** 解析 B4F / 3F / R2F 等樓層標籤 */
 export const parseFloorLabelToken = (label: string): FloorLabelToken | null => {
-	const trimmed = String(label || "").trim().toUpperCase()
+	const trimmed = String(label || "")
+		.trim()
+		.toUpperCase()
 	if (!trimmed) return null
 	const basement = /^B(\d+)F?$/.exec(trimmed)
 	if (basement) return { kind: "B", num: Number(basement[1]) }
@@ -122,6 +126,54 @@ export const buildFloorsFromFloorCounts = (counts: ElevatorFloorCounts): Elevato
 	}))
 }
 
+const floorIdentityKey = (label: string): string | null => {
+	const token = parseFloorLabelToken(label)
+	return token ? `${token.kind}:${token.num}` : null
+}
+
+/** 依層數重建樓層，並保留同樓層代號（B3F、1F 等）的既有自訂欄位 */
+export const rebuildFloorsFromFloorCounts = (
+	counts: ElevatorFloorCounts,
+	previous: ElevatorLogicalFloor[] = []
+): ElevatorLogicalFloor[] => {
+	const next = buildFloorsFromFloorCounts(counts)
+	if (!previous.length) return next
+
+	const prevByIdentity = new Map<string, ElevatorLogicalFloor>()
+	for (const floor of previous) {
+		const key = floorIdentityKey(floor.label)
+		if (key) prevByIdentity.set(key, floor)
+	}
+
+	return next.map((floor) => {
+		const identityKey = floorIdentityKey(floor.label)
+		const prev = identityKey ? prevByIdentity.get(identityKey) : undefined
+		if (!prev) return floor
+
+		return {
+			...floor,
+			...(prev.name?.trim() ? { name: prev.name.trim() } : {}),
+			openDuration: prev.openDuration ?? floor.openDuration,
+			ladderGateway: prev.ladderGateway ?? floor.ladderGateway,
+			callGateway: prev.callGateway ?? floor.callGateway,
+			diAddress: prev.diAddress ?? floor.diAddress,
+			bindingOverridden: prev.bindingOverridden ?? false,
+		}
+	})
+}
+
+export const clampOpenDuration = (value: unknown): number => {
+	const n = Math.trunc(Number(value))
+	if (!Number.isFinite(n)) return DEFAULT_OPEN_DURATION
+	return Math.min(MAX_OPEN_DURATION, Math.max(MIN_OPEN_DURATION, n))
+}
+
+/** 梯控設備門名／介面顯示：自訂名稱優先，否則使用樓層代號 */
+export const resolveFloorDoorName = (floor: Pick<ElevatorLogicalFloor, "label" | "name">) => {
+	const name = String(floor.name ?? "").trim()
+	return name || String(floor.label ?? "").trim()
+}
+
 /** 從既有樓層推算 BF / F / RF 層數 */
 export const inferFloorCountsFromFloors = (floors: ElevatorLogicalFloor[]): ElevatorFloorCounts => {
 	let basement = 0
@@ -143,7 +195,7 @@ export const autoFillFloorBindings = (
 		ladderDevice?: ElevatorDeviceRole | null
 		callDevice?: ElevatorDeviceRole | null
 		floorDetection?: ElevatorDeviceRole | null
-	},
+	}
 ): ElevatorLogicalFloor[] =>
 	floors.map((floor, index) => {
 		if (floor.bindingOverridden) return floor
@@ -193,7 +245,7 @@ export const isElevatorFloorBindingValue = (value: unknown): value is number => 
 
 /** 回傳重複點位的 key 集合，格式 `${field}:${floorIndex}` */
 export const getDuplicateElevatorFloorBindingKeys = (
-	floors: ElevatorLogicalFloor[],
+	floors: ElevatorLogicalFloor[]
 ): Set<string> => {
 	const duplicates = new Set<string>()
 	for (const field of ELEVATOR_FLOOR_BINDING_FIELDS) {
@@ -217,14 +269,14 @@ export const getDuplicateElevatorFloorBindingKeys = (
 
 export const findFloorByRank = (
 	floors: ElevatorLogicalFloor[],
-	rank: number,
+	rank: number
 ): ElevatorLogicalFloor | null => floors.find((f) => f.rank === rank) ?? null
 
 /** 依 rank 由 from 到 to 的逐步序列（不含 from，含 to） */
 export const buildRankStepPath = (
 	floors: ElevatorLogicalFloor[],
 	fromRank: number,
-	toRank: number,
+	toRank: number
 ): number[] => {
 	if (fromRank === toRank) return []
 	const ranks = [...new Set(floors.map((f) => f.rank))].sort((a, b) => a - b)
@@ -244,7 +296,7 @@ export const buildRankStepPath = (
 
 export const floorSnapshotFromRank = (
 	floors: ElevatorLogicalFloor[],
-	rank: number,
+	rank: number
 ): ElevatorFloorSnapshot | null => {
 	const floor = findFloorByRank(floors, rank)
 	if (!floor) return null
@@ -257,17 +309,17 @@ export const resolveFloorLabel = (floors: ElevatorLogicalFloor[], index: number)
 
 export const resolveEventFloorLabel = (
 	floors: ElevatorLogicalFloor[],
-	gateway: number,
+	gateway: number
 ): string | null => {
 	const byLadder = floors.find((f) => f.ladderGateway === gateway)
-	if (byLadder) return byLadder.label
+	if (byLadder) return resolveFloorDoorName(byLadder)
 	const byCall = floors.find((f) => f.callGateway === gateway)
-	return byCall?.label ?? null
+	return byCall ? resolveFloorDoorName(byCall) : null
 }
 
 export const formatElevatorLogFloorDisplay = (
 	floor: number | string | null | undefined,
-	floors: ElevatorLogicalFloor[],
+	floors: ElevatorLogicalFloor[]
 ): string => {
 	if (floor == null || String(floor).trim() === "") return ""
 	const parts = String(floor)
@@ -294,14 +346,14 @@ export const collectElevatorMonitoringDeviceIds = (
 		ladderDevice?: ElevatorDeviceRole | null
 		callDevice?: ElevatorDeviceRole | null
 		floorDetection?: ElevatorDeviceRole | null
-	}>,
+	}>
 ): number[] => [
 	...new Set(
 		locations.flatMap((loc) =>
 			[loc.ladderDevice?.deviceId, loc.callDevice?.deviceId, loc.floorDetection?.deviceId].filter(
-				(id): id is number => id != null,
-			),
-		),
+				(id): id is number => id != null
+			)
+		)
 	),
 ]
 

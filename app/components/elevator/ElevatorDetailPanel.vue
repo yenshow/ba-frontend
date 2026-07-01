@@ -4,6 +4,7 @@
 			<ElevatorLedBillboard
 				:floor-text="displayFloorText"
 				:direction="displayDirection"
+				:slide-direction="floorSlideDirection"
 				:is-connected="isPanelConnected"
 				:status-aria-label="statusAriaLabel"
 				:device-health-label="deviceHealthLabel"
@@ -192,9 +193,10 @@ const { logs, displayColumns } = toRefs(props)
 const elevatorApi = useElevatorApi()
 const toast = useToast()
 
-const { applyLiveState, displayFloorText, displayDirection, isMoving } = useElevatorRuntime({
-	floors: () => props.floors,
-})
+const { applyLiveState, displayFloorText, displayDirection, floorSlideDirection, isMoving } =
+	useElevatorRuntime({
+		floors: () => props.floors,
+	})
 
 watch(
 	() => props.live,

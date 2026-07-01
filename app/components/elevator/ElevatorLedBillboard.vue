@@ -7,48 +7,26 @@
 	>
 		<p class="text-center text-lg font-semibold text-white/80 2xl:text-xl">即時狀態</p>
 
-		<div class="flex items-center justify-center">
-			<div class="flex min-w-[7.5rem] flex-col items-center px-4 2xl:min-w-[10rem] 2xl:px-8">
+		<div class="flex items-center justify-center gap-2 2xl:gap-3">
+			<div class="flex shrink-0 flex-col items-center">
 				<p class="text-sm font-semibold tracking-[0.35em] text-cyan-200/45 2xl:text-base">
 					目前樓層
 				</p>
-				<p
-					:class="[
-						elevatorLedFloorTextClass,
-						'text-center text-3xl leading-none ease-linear 2xl:text-7xl',
-					]"
-					:style="{ transitionDuration: `${ELEVATOR_FLOOR_STEP_MS}ms` }"
-				>
-					{{ floorText }}
-				</p>
+				<ElevatorFloorRollDisplay
+					:floor-text="floorText"
+					:slide-direction="slideDirection"
+					size="lg"
+				/>
 			</div>
 
-			<div class="flex flex-col items-center justify-center pr-4 2xl:pr-8" aria-hidden="true">
-				<svg
-					class="h-7 w-7 shrink-0 transition-all duration-300 2xl:h-16 2xl:w-16"
-					:class="[
-						elevatorLedArrowClass(direction, 'up'),
-						isMoving && direction === 'up' ? 'animate-pulse' : '',
-					]"
-					viewBox="2 3 20 13"
-					fill="currentColor"
-				>
-					<path d="M10.8 6.2Q12 4.8 13.2 6.2L20.2 15Q21 16 20 16H4Q3 16 3.8 15Z" />
-				</svg>
-				<svg
-					class="-mt-0.5 h-7 w-7 shrink-0 transition-all duration-300 2xl:-mt-1 2xl:h-16 2xl:w-16"
-					:class="[
-						elevatorLedArrowClass(direction, 'down'),
-						isMoving && direction === 'down' ? 'animate-pulse' : '',
-					]"
-					viewBox="2 8 20 13"
-					fill="currentColor"
-				>
-					<path d="M10.8 17.8Q12 19.2 13.2 17.8L20.2 9Q21 8 20 8H4Q3 8 3.8 9Z" />
-				</svg>
-			</div>
+			<ElevatorDirectionArrows
+				class="shrink-0"
+				:direction="direction"
+				:is-moving="isMoving"
+				size="lg"
+			/>
 
-			<div class="flex flex-col items-center border-l border-white/10 px-4 2xl:px-8">
+			<div class="flex shrink-0 flex-col items-center border-l border-white/10 px-3 2xl:px-6">
 				<div
 					class="flex h-9 w-full min-w-[6rem] items-center justify-center gap-2 rounded-full border px-2 2xl:h-10 2xl:min-w-[7rem]"
 					:class="healthBadgeClass"
@@ -68,12 +46,13 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import type { ElevatorDirection } from "~/types/elevator"
-import { elevatorLedArrowClass, elevatorLedFloorTextClass } from "~/utils/elevatorDisplayUtils"
-import { ELEVATOR_FLOOR_STEP_MS } from "~/utils/elevatorFloorModel"
+import ElevatorFloorRollDisplay from "~/components/elevator/ElevatorFloorRollDisplay.vue"
+import ElevatorDirectionArrows from "~/components/elevator/ElevatorDirectionArrows.vue"
 
 interface Props {
 	floorText: string
 	direction?: ElevatorDirection
+	slideDirection?: "up" | "down" | null
 	isConnected?: boolean
 	statusAriaLabel: string
 	deviceHealthLabel: string
@@ -83,6 +62,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
 	direction: "idle",
+	slideDirection: null,
 	isConnected: false,
 	isMoving: false,
 })

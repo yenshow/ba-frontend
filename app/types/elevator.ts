@@ -82,6 +82,9 @@ export interface ElevatorSyncJob {
 
 export interface ElevatorFloorAccessSlot {
 	index: number
+	/** 平台固定樓層代號（如 B4F、1F） */
+	code: string
+	/** 梯控顯示名稱（可為空） */
 	name: string
 	personIds: number[]
 }

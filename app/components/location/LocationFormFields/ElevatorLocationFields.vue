@@ -149,7 +149,7 @@
 
 			<div class="mb-3 grid grid-cols-3 gap-3">
 				<label class="flex min-w-0 flex-col gap-1 text-xs text-white/70">
-					<span>BF 層數</span>
+					<span>地下層數</span>
 					<input
 						v-model.number="floorCounts.basement"
 						type="number"
@@ -162,7 +162,7 @@
 					/>
 				</label>
 				<label class="flex min-w-0 flex-col gap-1 text-xs text-white/70">
-					<span>F 層數</span>
+					<span>地上層數</span>
 					<input
 						v-model.number="floorCounts.standard"
 						type="number"
@@ -175,7 +175,7 @@
 					/>
 				</label>
 				<label class="flex min-w-0 flex-col gap-1 text-xs text-white/70">
-					<span>RF 層數</span>
+					<span>頂樓層數</span>
 					<input
 						v-model.number="floorCounts.roof"
 						type="number"
@@ -188,10 +188,6 @@
 					/>
 				</label>
 			</div>
-
-			<p class="mb-3 text-xs text-white/50">
-				變更層數後自動產生樓層與點位。面板固定 6 列 × N 欄（同欄由下往上填滿後換欄）。
-			</p>
 
 			<div
 				v-if="!isDevicesReady"
@@ -209,9 +205,11 @@
 					<thead>
 						<tr class="border-b border-white/15 text-white/70">
 							<th class="py-2 ps-3 pe-2">樓層</th>
-							<th class="py-2 pe-2">梯控</th>
-							<th class="py-2 pe-2">呼梯</th>
-							<th class="py-2 pe-2">DI</th>
+							<th class="py-2 pe-2">樓層名稱</th>
+							<th class="py-2 pe-2">開啟時間</th>
+							<th class="py-2 pe-2">電梯權限</th>
+							<th class="py-2 pe-2">呼梯設備</th>
+							<th class="py-2 pe-2">DI 偵測</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -220,7 +218,35 @@
 							:key="entry.key"
 							class="border-b border-white/10"
 						>
-							<td class="py-2 ps-3 pe-2 font-medium">{{ entry.floor.label }}</td>
+							<td class="py-2 ps-3 pe-2 font-mono font-medium text-white/90">
+								{{ entry.floor.label }}
+							</td>
+							<td class="py-2 pe-2">
+								<input
+									v-if="entry.index >= 0"
+									v-model="localLocation.floors![entry.index].name"
+									type="text"
+									maxlength="32"
+									class="form-input-small min-w-[4.5rem] w-full max-w-[8rem]"
+									placeholder="例如：地下一層"
+									title="同步至梯控設備的顯示名稱"
+									@input="handleFloorMetaChange(entry.index)"
+								/>
+							</td>
+							<td class="py-2 pe-2">
+								<div v-if="entry.index >= 0" class="flex items-center gap-1">
+									<input
+										v-model.number="localLocation.floors![entry.index].openDuration"
+										type="number"
+										:min="MIN_OPEN_DURATION"
+										:max="MAX_OPEN_DURATION"
+										class="form-input-small w-16 px-1 text-center"
+										title="梯控繼電器開啟時間（秒）"
+										@input="handleFloorMetaChange(entry.index)"
+									/>
+									<span class="text-xs text-white/50">秒</span>
+								</div>
+							</td>
 							<td
 								v-for="binding in floorBindingColumns"
 								:key="`${entry.key}-${binding.field}`"
@@ -232,7 +258,9 @@
 										type="number"
 										min="0"
 										class="form-input-small w-full px-1 text-center transition-all"
-										:class="{ 'form-input-modbus-issue': isBindingDuplicate(entry.index, binding.field) }"
+										:class="{
+											'form-input-modbus-issue': isBindingDuplicate(entry.index, binding.field),
+										}"
 										:title="
 											isBindingDuplicate(entry.index, binding.field)
 												? DUPLICATE_BINDING_MSG
@@ -298,11 +326,14 @@ import {
 } from "~/utils/elevatorLogColumns"
 import {
 	autoFillFloorBindings,
-	buildFloorsFromFloorCounts,
+	clampOpenDuration,
 	computePanelColumns,
 	getDuplicateElevatorFloorBindingKeys,
 	inferFloorCountsFromFloors,
+	MAX_OPEN_DURATION,
+	MIN_OPEN_DURATION,
 	PANEL_ROW_COUNT,
+	rebuildFloorsFromFloorCounts,
 	sortFloorsByRank,
 	type ElevatorFloorBindingField,
 } from "~/utils/elevatorFloorModel"
@@ -423,7 +454,7 @@ const sortedFloorsForTable = computed(() => {
 const DUPLICATE_BINDING_MSG = "此點位已被使用"
 
 const duplicateBindingKeys = computed(() =>
-	getDuplicateElevatorFloorBindingKeys(localLocation.floors ?? []),
+	getDuplicateElevatorFloorBindingKeys(localLocation.floors ?? [])
 )
 
 const isBindingDuplicate = (floorIndex: number, field: ElevatorFloorBindingField) =>
@@ -495,11 +526,14 @@ const applyFloorsFromCounts = () => {
 		return
 	}
 
-	const floors = buildFloorsFromFloorCounts({
-		basement: floorCounts.basement,
-		standard: floorCounts.standard,
-		roof: floorCounts.roof,
-	})
+	const floors = rebuildFloorsFromFloorCounts(
+		{
+			basement: floorCounts.basement,
+			standard: floorCounts.standard,
+			roof: floorCounts.roof,
+		},
+		localLocation.floors ?? []
+	)
 	if (!floors.length) {
 		localLocation.floors = []
 		handleChange()
@@ -535,6 +569,14 @@ const handleAutoFillBindings = () => {
 const handleBindingOverride = (index: number) => {
 	const floor = localLocation.floors?.[index]
 	if (floor) floor.bindingOverridden = true
+	handleChange()
+}
+
+const handleFloorMetaChange = (index: number) => {
+	const floor = localLocation.floors?.[index]
+	if (!floor) return
+	floor.name = String(floor.name ?? "").trimStart()
+	floor.openDuration = clampOpenDuration(floor.openDuration)
 	handleChange()
 }
 

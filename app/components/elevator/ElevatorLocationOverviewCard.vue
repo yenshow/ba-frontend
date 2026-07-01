@@ -21,46 +21,24 @@
 			</div>
 
 			<div
-				class="flex items-center justify-center py-4"
+				class="flex items-center justify-center gap-2 py-4"
 				role="status"
 				aria-live="polite"
 			>
-				<div class="flex min-w-0 flex-col items-center px-4">
-					<p
-						:class="[
-							elevatorLedFloorTextClass,
-							'text-center text-4xl leading-none ease-linear 2xl:text-6xl',
-						]"
-						:style="{ transitionDuration: `${ELEVATOR_FLOOR_STEP_MS}ms` }"
-					>
-						{{ displayFloorText }}
-					</p>
+				<div class="flex shrink-0 flex-col items-center">
+					<ElevatorFloorRollDisplay
+						:floor-text="displayFloorText"
+						:slide-direction="floorSlideDirection"
+						size="md"
+					/>
 				</div>
 
-				<div class="flex flex-col items-center pr-4" aria-hidden="true">
-					<svg
-						class="h-6 w-6 shrink-0 transition-all duration-300 2xl:h-12 2xl:w-12"
-						:class="[
-							elevatorLedArrowClass(displayDirection, 'up'),
-							isMoving && displayDirection === 'up' ? 'animate-pulse' : '',
-						]"
-						viewBox="2 3 20 13"
-						fill="currentColor"
-					>
-						<path d="M10.8 6.2Q12 4.8 13.2 6.2L20.2 15Q21 16 20 16H4Q3 16 3.8 15Z" />
-					</svg>
-					<svg
-						class="-mt-0.5 h-6 w-6 shrink-0 transition-all duration-300 2xl:h-12 2xl:w-12"
-						:class="[
-							elevatorLedArrowClass(displayDirection, 'down'),
-							isMoving && displayDirection === 'down' ? 'animate-pulse' : '',
-						]"
-						viewBox="2 8 20 13"
-						fill="currentColor"
-					>
-						<path d="M10.8 17.8Q12 19.2 13.2 17.8L20.2 9Q21 8 20 8H4Q3 8 3.8 9Z" />
-					</svg>
-				</div>
+				<ElevatorDirectionArrows
+					class="shrink-0"
+					:direction="displayDirection"
+					:is-moving="isMoving"
+					size="md"
+				/>
 
 				<div class="flex flex-col items-center gap-2 border-l border-white/20 pl-3 2xl:pl-4">
 					<div
@@ -87,10 +65,9 @@ import { useElevatorRuntime } from "~/composables/systems/elevator/useElevatorRu
 import {
 	buildElevatorDeviceStatusLabel,
 	buildElevatorStatusAriaLabel,
-	elevatorLedArrowClass,
-	elevatorLedFloorTextClass,
 } from "~/utils/elevatorDisplayUtils"
-import { ELEVATOR_FLOOR_STEP_MS } from "~/utils/elevatorFloorModel"
+import ElevatorFloorRollDisplay from "~/components/elevator/ElevatorFloorRollDisplay.vue"
+import ElevatorDirectionArrows from "~/components/elevator/ElevatorDirectionArrows.vue"
 
 interface Props {
 	location: ElevatorLocation & { overviewZoneName?: string | null }
@@ -103,9 +80,10 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{ click: [locationId: number] }>()
 
-const { applyLiveState, displayFloorText, displayDirection, isMoving } = useElevatorRuntime({
-	floors: () => props.location.floors,
-})
+const { applyLiveState, displayFloorText, displayDirection, floorSlideDirection, isMoving } =
+	useElevatorRuntime({
+		floors: () => props.location.floors,
+	})
 
 watch(
 	() => props.location.live,
