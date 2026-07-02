@@ -180,7 +180,6 @@
 			:can-write="canWriteDevice"
 			:is-submitting="isSubmitting"
 			:error-message="errorMessage"
-			:refresh-device-types="refreshDeviceTypes"
 			@submit="handleSubmit"
 			@close="closeDialog"
 		/>
@@ -282,7 +281,6 @@ const currentTabName = computed(() => {
 
 const showCreateDialog = ref(false);
 const showDeviceModelDialog = ref(false);
-const refreshDeviceTypes = ref(false);
 
 const showDialog = computed({
 	get: () => showCreateDialog.value || !!editingDevice.value,
@@ -479,8 +477,11 @@ const handleSubmit = async (data: CreateDeviceData | UpdateDeviceData) => {
 
 		if (editingDevice.value) {
 			const index = devices.value.findIndex(d => d.id === editingDevice.value!.id);
-			if (index > -1) {
-				devices.value[index] = result.device;
+			const device = result.device;
+			if (index > -1 && device?.id && device.model_name?.trim()) {
+				devices.value[index] = device;
+			} else if (index > -1 && device) {
+				load(getLoadParams(), true);
 			}
 		} else {
 			if (activeTab.value) {
@@ -563,7 +564,7 @@ const handleDeviceModelRefresh = () => {
 	if (activeTab.value) {
 		load(getLoadParams(), true);
 	}
-	refreshDeviceTypes.value = !refreshDeviceTypes.value;
+	deviceApi.invalidateModelsCache();
 };
 
 watch(activeTab, (newTab, oldTab) => {

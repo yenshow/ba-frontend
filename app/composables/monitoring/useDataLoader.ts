@@ -88,16 +88,15 @@ export const useDataLoader = <T, P extends Record<string, unknown>>(
     }
   };
 
-  const load = (params: P, immediate = false) => {
+  const load = (params: P, immediate = false): void | Promise<void> => {
     if (timer) {
       clearTimeout(timer);
       timer = null;
     }
     if (immediate) {
-      void internalLoad(params);
-    } else {
-      timer = setTimeout(() => void internalLoad(params), debounce);
+      return internalLoad(params);
     }
+    timer = setTimeout(() => void internalLoad(params), debounce);
   };
 
   const resetPage = () => {

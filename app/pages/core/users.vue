@@ -535,14 +535,14 @@ const executeSubmit = async () => {
 			formData.role === "admin"
 				? []
 				: permissionOverridesFromGranted(permissionDefinitions.value, permissionGranted.value)
-		const createRes = await userApi.createUser({
+		await userApi.createUser({
 			username: formData.username,
 			password: formData.password,
 			role: formData.role,
 			overrides,
 		})
-		users.value.push(createRes.user)
-		total.value += 1
+		resetPage()
+		await load({ order: dateSortOrder.value }, true)
 		toast.success("用戶已建立")
 		closeDialog()
 	} catch (error) {

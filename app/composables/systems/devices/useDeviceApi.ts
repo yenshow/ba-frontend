@@ -15,8 +15,15 @@ import { buildPaginationParams, buildPathWithQuery, mergeQueryParams } from "~/u
 
 export const useDeviceApi = () => {
 	const { request } = useApiBase();
+	const modelsCacheGeneration = useState("device-models-cache-generation", () => 0);
+	const invalidateModelsCache = () => {
+		modelsCacheGeneration.value += 1;
+	};
 
 	return {
+		modelsCacheGeneration,
+		invalidateModelsCache,
+
 		// 建立設備
 		createDevice: (data: CreateDeviceData) => {
 			return request<{ message: string; device: Device }>("/devices", {

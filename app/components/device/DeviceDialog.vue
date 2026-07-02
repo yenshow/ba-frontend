@@ -449,7 +449,7 @@
 </template>
 
 <script setup lang="ts">
-import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { usePlatformAdmin } from "~/composables/core/useAuth";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
@@ -485,7 +485,6 @@ interface Props {
 	canWrite: boolean;
 	isSubmitting?: boolean;
 	errorMessage?: string | null;
-	refreshDeviceTypes?: boolean;
 }
 
 interface Emits {
@@ -720,14 +719,9 @@ watch(
 	{ immediate: true }
 );
 
-watch(
-	() => props.refreshDeviceTypes,
-	() => {
-		if (props.refreshDeviceTypes) {
-			loadDeviceModels(true);
-		}
-	}
-);
+watch(deviceApi.modelsCacheGeneration, () => {
+	if (props.modelValue) loadDeviceModels(true);
+});
 
 const resetForm = () => {
 	localFormData.name = "";

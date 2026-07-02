@@ -9,7 +9,7 @@
 						:allowed="canManageGroups"
 						aria-label="管理群組"
 						:class="actionButtonClass"
-@click="showGroupsDialog = true"
+						@click="showGroupsDialog = true"
 					>
 						管理群組
 					</PermissionActionButton>
@@ -139,7 +139,7 @@ import PersonnelPersonsTab from "~/components/personnel/PersonnelPersonsTab.vue"
 import PersonnelGroupsDialog from "~/components/personnel/dialogs/PersonnelGroupsDialog.vue"
 import { usePersonnelGroupTree } from "~/composables/systems/personnel/usePersonnelGroupTree"
 import { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePersonnelPersonsTab"
-import { isSidebarGroupKeyValid, resolveMainGroupIdFromSidebarKey } from "~/utils/personnelGroups"
+import { isSidebarGroupKeyValid, resolveMainGroupIdFromSidebarKey, type PersonnelGroupsChangedPayload } from "~/utils/personnelGroups"
 
 const props = defineProps<{
 	canManageGroups: boolean
@@ -214,15 +214,19 @@ const handleSelectChild = (child: PersonGroup) => {
 	props.personsTab.setGroupFilterByChildGroupId(child.id)
 }
 
-const handleGroupsChanged = async () => {
-	await refreshGroupTree()
-	if (!isSidebarGroupKeyValid(selectedKey.value, groupTree.value || [])) {
-		handleSelectAll()
+const handleGroupsChanged = async (payload: PersonnelGroupsChangedPayload) => {
+	if (payload.scope === "groups") {
+		await refreshGroupTree()
+		if (!isSidebarGroupKeyValid(selectedKey.value, groupTree.value || [])) {
+			handleSelectAll()
+		}
 	}
 	void props.personsTab.loadPersons()
 }
 
 onMounted(() => {
-	void refreshGroupTree()
+	if ((groupTree.value?.length ?? 0) === 0 && !groupTreeLoading.value) {
+		void refreshGroupTree()
+	}
 })
 </script>

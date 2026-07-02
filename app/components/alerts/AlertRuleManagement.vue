@@ -173,6 +173,7 @@ import {
 	getSeverityLabel,
 } from "~/utils/alertUtils"
 import { useAlertLogRbac } from "~/composables/core/useAccessGate"
+import { useDataLoader } from "~/composables/monitoring/useDataLoader"
 
 const { canUpdateRule, canDeleteRule } = useAlertLogRbac()
 
@@ -220,14 +221,46 @@ const selectedRuleType = defineModel<"" | AlertType>("selectedRuleType", {
 	default: "",
 })
 
-const isRulesLoading = ref(false)
-const rulesLoadError = ref<string | null>(null)
 const isRuleSaving = ref(false)
-const rules = ref<AlertRule[]>([])
 const showRuleDialog = ref(false)
 const editingRule = ref<AlertRule | null>(null)
 const ruleOffset = ref(0)
 const ruleLimit = 10
+
+const sortRulesList = (list: AlertRule[]): AlertRule[] =>
+	list
+		.filter(
+			(rule, index, arr) => arr.findIndex((candidate) => candidate.id === rule.id) === index
+		)
+		.sort((a, b) => {
+			const aTime = Number.isFinite(Date.parse(a.created_at)) ? Date.parse(a.created_at) : null
+			const bTime = Number.isFinite(Date.parse(b.created_at)) ? Date.parse(b.created_at) : null
+			if (aTime != null && bTime != null && aTime !== bTime) return aTime - bTime
+			return a.id - b.id
+		})
+
+const {
+	data: rules,
+	isLoading: isRulesLoading,
+	errorMessage: rulesLoadError,
+	load: loadRulesData,
+} = useDataLoader<AlertRule, Record<string, never>>({
+	fetcher: async () => {
+		const shouldLoadAllSources = selectedRuleSource.value === ""
+		const mergedRules = shouldLoadAllSources
+			? (await alertApi.getAllAlertRules()).rules
+			: (await alertApi.getAlertRules(selectedRuleSource.value)).rules
+		const filteredRules =
+			selectedRuleType.value === ""
+				? mergedRules
+				: mergedRules.filter((r) => r.alert_type === selectedRuleType.value)
+		const sorted = sortRulesList(filteredRules)
+		return { items: sorted, total: sorted.length }
+	},
+	pageSize: 10_000,
+	debounce: 0,
+	onError: (error) => handleApiError(error, "載入警報規則失敗") || "載入警報規則失敗",
+})
 
 const ruleSourceOptions = [
 	{ value: "", label: "全部系統" },
@@ -244,42 +277,13 @@ const tableCellClass = "py-3 2xl:py-4 px-4 2xl:px-6"
 const getIntegrationSummary = (ruleId: number): AlertRuleIntegrationSummary =>
 	integrationsStore.getSummary(ruleId)
 
-const sortRulesList = (list: AlertRule[]): AlertRule[] =>
-	list
-		.filter(
-			(rule, index, arr) => arr.findIndex((candidate) => candidate.id === rule.id) === index
-		)
-		.sort((a, b) => {
-			const aTime = Number.isFinite(Date.parse(a.created_at)) ? Date.parse(a.created_at) : null
-			const bTime = Number.isFinite(Date.parse(b.created_at)) ? Date.parse(b.created_at) : null
-			if (aTime != null && bTime != null && aTime !== bTime) return aTime - bTime
-			return a.id - b.id
-		})
-
 const rulePassesCurrentFilters = (rule: AlertRule): boolean =>
 	(selectedRuleSource.value === "" || rule.source === selectedRuleSource.value) &&
 	(selectedRuleType.value === "" || rule.alert_type === selectedRuleType.value)
 
 const loadRules = async () => {
-	isRulesLoading.value = true
-	rulesLoadError.value = null
-	try {
-		const shouldLoadAllSources = selectedRuleSource.value === ""
-		const mergedRules = shouldLoadAllSources
-			? (await alertApi.getAllAlertRules()).rules
-			: (await alertApi.getAlertRules(selectedRuleSource.value)).rules
-		const filteredRules =
-			selectedRuleType.value === ""
-				? mergedRules
-				: mergedRules.filter((r) => r.alert_type === selectedRuleType.value)
-
-		rules.value = sortRulesList(filteredRules)
-		ruleOffset.value = 0
-	} catch (error) {
-		rulesLoadError.value = handleApiError(error, "載入警報規則失敗") || "載入警報規則失敗"
-	} finally {
-		isRulesLoading.value = false
-	}
+	await loadRulesData({}, true)
+	ruleOffset.value = 0
 	await loadZonesForRulesSources()
 	await integrationsStore.prefetch(paginatedRules.value.map((r) => r.id))
 }
