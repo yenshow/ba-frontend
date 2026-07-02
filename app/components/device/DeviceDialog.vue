@@ -520,7 +520,6 @@ interface Props {
 	canWrite: boolean
 	isSubmitting?: boolean
 	errorMessage?: string | null
-	refreshDeviceTypes?: boolean
 }
 
 interface Emits {
@@ -754,14 +753,9 @@ watch(
 	{ immediate: true }
 )
 
-watch(
-	() => props.refreshDeviceTypes,
-	() => {
-		if (props.refreshDeviceTypes) {
-			loadDeviceModels(true)
-		}
-	}
-)
+watch(deviceApi.modelsCacheGeneration, () => {
+	if (props.modelValue) loadDeviceModels(true)
+})
 
 const resetForm = () => {
 	localFormData.name = ""

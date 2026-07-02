@@ -177,7 +177,7 @@
 			v-model="showGroupMembersDialog"
 			:main-group-id="selectedMainGroupId"
 			:group-tree="groupTree"
-			@changed="emit('changed')"
+			@changed="emit('changed', $event)"
 		/>
 
 		<PersonnelImportDialog
@@ -225,6 +225,7 @@ import type { usePersonnelPersonsTab } from "~/composables/systems/personnel/use
 import PersonnelImportDialog from "~/components/personnel/dialogs/PersonnelImportDialog.vue";
 import PersonnelGroupMembersDialog from "~/components/personnel/dialogs/PersonnelGroupMembersDialog.vue";
 import type { PersonGroup } from "~/types/personnel";
+import type { PersonnelGroupsChangedPayload } from "~/utils/personnelGroups";
 import ImageCropDialog from "~/components/common/ImageCropDialog.vue";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
@@ -249,7 +250,7 @@ const props = defineProps<{
 	groupTree: PersonGroup[];
 }>();
 
-const emit = defineEmits<{ changed: [] }>();
+const emit = defineEmits<{ changed: [payload: PersonnelGroupsChangedPayload] }>();
 
 const showGroupMembersDialog = ref(false);
 
