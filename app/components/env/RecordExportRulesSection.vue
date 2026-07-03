@@ -7,9 +7,8 @@
 			empty-title="尚未新增任何規則"
 			empty-description="點擊右上角「新增規則」開始建立。"
 			error-title="載入記錄轉存規則失敗"
-			panel-size="compact"
-			loading-min-height-class="min-h-[240px] 2xl:min-h-[280px]"
-			empty-min-height-class="min-h-[240px] 2xl:min-h-[280px]"
+			loading-min-height-class="min-h-[180px]"
+			empty-min-height-class="min-h-[180px]"
 		>
 			<div class="space-y-3 min-h-[172px]">
 				<div

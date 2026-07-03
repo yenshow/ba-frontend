@@ -258,40 +258,40 @@
 									empty-title="尚無配額資料"
 								>
 									<div class="overflow-hidden rounded-xl border border-white/15">
-											<table class="w-full border-collapse">
-												<thead class="sticky top-0 z-10 bg-white/5 backdrop-blur">
-													<tr class="text-left text-sm text-white/70 2xl:text-base">
-														<th class="px-4 py-3 font-medium">模組</th>
-														<th class="px-4 py-3 font-medium">使用量</th>
-														<th class="px-4 py-3 font-medium">上限</th>
-														<th class="px-4 py-3 font-medium">狀態</th>
-													</tr>
-												</thead>
-												<tbody>
-													<tr
-														v-for="row in quotaDetailRows"
-														:key="row.key"
-														class="border-t border-white/10 text-sm text-white/80 2xl:text-base"
-														:class="row.licensed ? '' : 'opacity-50'"
-													>
-														<td class="px-4 py-3">
-															<span class="font-medium text-white">{{ row.label }}</span>
-														</td>
-														<td class="px-4 py-3">{{ row.used }}</td>
-														<td class="px-4 py-3">
-															{{ row.maxText }}
-														</td>
-														<td class="px-4 py-3">
-															<span
-																class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 2xl:text-sm"
-																:class="quotaStatusClass(row.statusKind)"
-															>
-																{{ row.statusText }}
-															</span>
-														</td>
-													</tr>
-												</tbody>
-											</table>
+										<table class="w-full border-collapse">
+											<thead class="sticky top-0 z-10 bg-white/5 backdrop-blur">
+												<tr class="text-left text-sm text-white/70 2xl:text-base">
+													<th class="px-4 py-3 font-medium">模組</th>
+													<th class="px-4 py-3 font-medium">使用量</th>
+													<th class="px-4 py-3 font-medium">上限</th>
+													<th class="px-4 py-3 font-medium">狀態</th>
+												</tr>
+											</thead>
+											<tbody>
+												<tr
+													v-for="row in quotaDetailRows"
+													:key="row.key"
+													class="border-t border-white/10 text-sm text-white/80 2xl:text-base"
+													:class="row.licensed ? '' : 'opacity-50'"
+												>
+													<td class="px-4 py-3">
+														<span class="font-medium text-white">{{ row.label }}</span>
+													</td>
+													<td class="px-4 py-3">{{ row.used }}</td>
+													<td class="px-4 py-3">
+														{{ row.maxText }}
+													</td>
+													<td class="px-4 py-3">
+														<span
+															class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 2xl:text-sm"
+															:class="quotaStatusClass(row.statusKind)"
+														>
+															{{ row.statusText }}
+														</span>
+													</td>
+												</tr>
+											</tbody>
+										</table>
 									</div>
 								</AsyncPanel>
 
@@ -310,6 +310,8 @@
 									:empty="!showLicensePlaceholder && licenseListRows.length === 0"
 									empty-title="尚無授權記錄"
 									empty-description="無主／副 LK 資料"
+									empty-min-height-class="min-h-[360px] 2xl:min-h-[480px]"
+									loading-min-height-class="min-h-[360px] 2xl:min-h-[480px]"
 								>
 									<div class="space-y-4">
 										<div

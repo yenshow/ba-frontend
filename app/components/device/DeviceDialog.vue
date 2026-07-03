@@ -688,9 +688,7 @@ const selectedDeviceModel = computed(() => {
 	return deviceModels.value.find((m) => m.id === localFormData.model_id) || null
 })
 
-const isHcnetSdkController = computed(() =>
-	isHcnetSdkDeviceModel(selectedDeviceModel.value)
-)
+const isHcnetSdkController = computed(() => isHcnetSdkDeviceModel(selectedDeviceModel.value))
 
 // 從選中的型號繼承 port 與 unit_id
 const inheritFromModel = () => {
