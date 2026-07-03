@@ -1,6 +1,6 @@
 <template>
 	<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
-		<div class="mb-4 flex flex-wrap items-center gap-x-4">
+		<div class="my-4 flex flex-wrap items-center gap-x-4">
 			<h2 class="text-lg font-semibold text-white 2xl:text-xl">備份排程</h2>
 			<span v-if="isSaving" class="text-sm text-white/60" aria-live="polite">儲存中…</span>
 		</div>
