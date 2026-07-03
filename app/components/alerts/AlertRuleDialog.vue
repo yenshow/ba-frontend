@@ -27,7 +27,7 @@
 						@submit.prevent="handleSubmit"
 					>
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-							<span>系統 *</span>
+							<span>系統<span class="required-mark">*</span></span>
 							<FilterDropdown
 								v-model="form.source"
 								:options="sourceSelectOptions"
@@ -37,7 +37,7 @@
 						</label>
 						<div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-4 2xl:gap-6">
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>類型 *</span>
+								<span>類型<span class="required-mark">*</span></span>
 								<FilterDropdown
 									v-model="form.alert_type"
 									:options="alertTypeOptionsVisible"
@@ -46,7 +46,7 @@
 								/>
 							</label>
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>狀態 *</span>
+								<span>狀態<span class="required-mark">*</span></span>
 								<FilterDropdown
 									v-model="form.severity"
 									:options="severityOptions"
@@ -91,7 +91,7 @@
 						>
 							<div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-4 2xl:gap-6">
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>參數 (parameter) *</span>
+									<span>參數 (parameter)<span class="required-mark">*</span></span>
 									<FilterDropdown
 										v-model="thresholdConfig.parameter"
 										:options="parameterOptions"
@@ -100,7 +100,7 @@
 									/>
 								</label>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>運算子 (operator) *</span>
+									<span>運算子 (operator)<span class="required-mark">*</span></span>
 									<FilterDropdown
 										v-model="thresholdConfig.operator"
 										:options="thresholdOperatorOptions"
@@ -109,7 +109,7 @@
 									/>
 								</label>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>門檻值 (value) *</span>
+									<span>門檻值 (value)<span class="required-mark">*</span></span>
 									<input
 										v-model.number="thresholdConfig.value"
 										type="number"
@@ -134,7 +134,7 @@
 						<div v-else class="rounded-2xl border border-white/15 bg-white/5 p-4 2xl:p-5">
 							<template v-if="form.alert_type === 'offline'">
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>最小錯誤次數 (min_errors) *</span>
+									<span>最小錯誤次數 (min_errors)<span class="required-mark">*</span></span>
 									<input
 										v-model.number="errorCountConfig.min_errors"
 										type="number"
@@ -180,7 +180,7 @@
 									</label>
 									<div v-if="cameraLinkage.enabled" class="mt-3">
 										<div class="flex items-center justify-between gap-3">
-											<p class="text-sm text-white/80">攝影機（最多 4 台）*</p>
+											<p class="text-sm text-white/80">攝影機（最多 4 台）<span class="required-mark">*</span></p>
 											<button
 												type="button"
 												class="btn-secondary"
@@ -244,7 +244,7 @@
 
 									<div v-if="email.enabled" class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
 										<label class="flex flex-col gap-2 text-sm text-white/80 md:col-span-2">
-											<span>SMTP Host (主機) *</span>
+											<span>SMTP Host (主機)<span class="required-mark">*</span></span>
 											<input
 												v-model="email.smtp_host"
 												type="text"
@@ -253,7 +253,7 @@
 											/>
 										</label>
 										<label class="flex flex-col gap-2 text-sm text-white/80">
-											<span>SMTP Port (連接埠) *</span>
+											<span>SMTP Port (連接埠)<span class="required-mark">*</span></span>
 											<input
 												v-model.number="email.smtp_port"
 												type="number"
@@ -263,7 +263,7 @@
 											/>
 										</label>
 										<label class="flex flex-col gap-2 text-sm text-white/80">
-											<span>連線方式 *</span>
+											<span>連線方式<span class="required-mark">*</span></span>
 											<FilterDropdown
 												v-model="email.smtp_security"
 												:options="smtpSecurityOptions"
@@ -272,7 +272,7 @@
 											/>
 										</label>
 										<label class="flex flex-col gap-2 text-sm text-white/80">
-											<span>寄件人 Email *</span>
+											<span>寄件人 Email<span class="required-mark">*</span></span>
 											<input
 												v-model="email.smtp_user"
 												type="text"
@@ -292,7 +292,7 @@
 											/>
 										</label>
 										<label class="flex flex-col gap-2 text-sm text-white/80 md:col-span-2">
-											<span>收件人 To（每行一個）*</span>
+											<span>收件人 To（每行一個）<span class="required-mark">*</span></span>
 											<textarea
 												v-model="email.to_emails_text"
 												rows="3"
@@ -317,7 +317,7 @@
 										</div>
 
 										<label class="flex flex-col gap-2 text-sm text-white/80">
-											<span>重複發送間隔（秒）*</span>
+											<span>重複發送間隔（秒）<span class="required-mark">*</span></span>
 											<input
 												v-model.number="email.repeat_min_interval_seconds"
 												type="number"
@@ -326,7 +326,7 @@
 											/>
 										</label>
 										<label class="flex flex-col gap-2 text-sm text-white/80">
-											<span>最大發送次數（含第一封）*</span>
+											<span>最大發送次數（含第一封）<span class="required-mark">*</span></span>
 											<input
 												v-model.number="email.repeat_max_send_count"
 												type="number"

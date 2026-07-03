@@ -36,7 +36,7 @@
 						<div class="show-scrollbar flex-1 overflow-y-auto">
 							<div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
 								<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>車牌 *</span>
+									<span>車牌<span class="required-mark">*</span></span>
 									<input
 										v-model="form.licensePlate"
 										type="text"
@@ -48,7 +48,7 @@
 									/>
 								</label>
 								<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>名單類型 *</span>
+									<span>名單類型<span class="required-mark">*</span></span>
 									<FilterDropdown
 										v-model="form.listType"
 										:options="LICENSE_PLATE_LIST_TYPE_OPTIONS"
@@ -57,7 +57,7 @@
 									/>
 								</label>
 								<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>開始時間 *</span>
+									<span>開始時間<span class="required-mark">*</span></span>
 									<input
 										v-model="form.createTimeLocal"
 										type="datetime-local"
@@ -68,7 +68,7 @@
 									/>
 								</label>
 								<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>結束時間 *</span>
+									<span>結束時間<span class="required-mark">*</span></span>
 									<input
 										v-model="form.effectiveTimeLocal"
 										type="datetime-local"

@@ -172,7 +172,7 @@
 														<label
 															class="flex min-w-0 flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 														>
-															<span>子群組名稱 *</span>
+															<span>子群組名稱<span class="required-mark">*</span></span>
 															<input
 																v-model="child.name"
 																type="text"

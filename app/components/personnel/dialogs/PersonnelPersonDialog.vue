@@ -11,7 +11,7 @@
 					<header class="flex items-center justify-between gap-3">
 						<div class="flex min-w-0 items-center gap-3">
 							<h3 class="min-w-0 truncate text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">
-								{{ state.editingPerson ? "編輯人員" : "新增人員" }}
+								{{ isEditingPerson ? "編輯人員" : "新增人員" }}
 							</h3>
 							<FormChangeIndicator
 								v-if="state.ui.hasUnsavedChanges.value"
@@ -119,19 +119,19 @@
 
 						<div class="flex flex-col justify-center gap-3">
 							<label class="flex flex-col gap-2 text-base text-white/80">
-								<span>姓名 *</span>
+								<span>姓名<span class="required-mark">*</span></span>
 								<input v-model="state.form.fullName" type="text" required class="form-input-small" />
 							</label>
 
 							<label class="flex flex-col gap-2 text-base text-white/80">
-								<span>ID *</span>
+								<span>ID<span class="required-mark">*</span></span>
 								<input
 									v-model="state.form.employeeNo"
 									type="text"
 									required
 									class="form-input-small"
-									:readonly="!!state.editingPerson"
-									:title="state.editingPerson ? '建立後無法修改 ID' : undefined"
+									:readonly="isEditingPerson"
+									:title="isEditingPerson ? '建立後無法修改 ID' : undefined"
 								/>
 							</label>
 						</div>
@@ -150,7 +150,7 @@
 							/>
 						</label>
 
-						<label v-if="state.editingPerson" class="flex flex-col gap-2 text-base text-white/80">
+						<label class="flex flex-col gap-2 text-base text-white/80">
 							<span>群組</span>
 							<FilterDropdown
 								v-model="localPersonGroupId"
@@ -178,7 +178,7 @@
 
 								<div v-if="!localIsLongTerm" class="grid grid-cols-2 gap-3">
 									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-										<span>起始日 *</span>
+										<span>起始日<span class="required-mark">*</span></span>
 										<input
 											v-model="localValidBeginDate"
 											type="datetime-local"
@@ -189,7 +189,7 @@
 										/>
 									</label>
 									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-										<span>結束日 *</span>
+										<span>結束日<span class="required-mark">*</span></span>
 										<input
 											v-model="localValidEndDate"
 											type="datetime-local"
@@ -441,15 +441,15 @@
 							</label>
 						</div>
 
-						<p v-if="state.ui.errorMessage" class="form-error-text col-span-2">
-							{{ state.ui.errorMessage }}
+						<p v-if="formErrorText" class="form-error-text col-span-2">
+							{{ formErrorText }}
 						</p>
 
 						<footer class="col-span-2 mt-2 flex gap-3 2xl:gap-4">
 							<button type="button" class="btn-secondary" @click="handleClose">取消</button>
 							<div class="flex-1"></div>
 							<button type="submit" class="btn-primary" :disabled="isSubmitting">
-								{{ isSubmitting ? "處理中..." : state.editingPerson ? "更新" : "建立" }}
+								{{ isSubmitting ? "處理中..." : isEditingPerson ? "更新" : "建立" }}
 							</button>
 						</footer>
 					</form>
@@ -498,6 +498,12 @@ const emit = defineEmits<{
 	"generate-virtual-card": [tabIndex: number];
 	"capture-fingerprint": [tabIndex: number];
 }>();
+
+const isEditingPerson = computed(() => props.state.editingPerson.value != null);
+
+const formErrorText = computed(
+	() => (props.state.ui.errorMessage.value || "").trim() || null
+);
 
 const faceFileInputRef = ref<HTMLInputElement | null>(null);
 

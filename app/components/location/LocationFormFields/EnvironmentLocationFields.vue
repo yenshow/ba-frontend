@@ -3,7 +3,7 @@
 		<div class="flex min-w-0 flex-col gap-2">
 			<!-- 地點名稱 -->
 			<label class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0">
-				<span>地點名稱 *</span>
+				<span>地點名稱<span class="required-mark">*</span></span>
 				<input
 					v-model="localLocation.name"
 					type="text"

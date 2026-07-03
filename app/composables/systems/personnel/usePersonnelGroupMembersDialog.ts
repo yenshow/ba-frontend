@@ -63,6 +63,7 @@ export const usePersonnelGroupMembersDialog = (params: {
 	const candidatesErrorText = ref<string | null>(null)
 
 	const candidateGroups = computed(() => groupPersonsByPersonGroup(candidatesItems.value))
+	const hasCandidateItems = computed(() => candidatesItems.value.length > 0)
 
 	const changedFieldsList = computed(() =>
 		childGroups.value
@@ -243,6 +244,7 @@ export const usePersonnelGroupMembersDialog = (params: {
 		expandedChildIds,
 		candidatesQuery,
 		candidateGroups,
+		hasCandidateItems,
 		isLoadingCandidates,
 		candidatesErrorText,
 		hasUnsavedChanges,

@@ -20,7 +20,13 @@ type RuntimeConfigSaveResponse = {
 	applied: boolean;
 };
 
-export const useRuntimeConfigPage = () => {
+export type UseRuntimeConfigPageOptions = {
+	autoSave?: boolean;
+	autoSaveDebounceMs?: number;
+};
+
+export const useRuntimeConfigPage = (options: UseRuntimeConfigPageOptions = {}) => {
+	const { autoSave = false, autoSaveDebounceMs = 600 } = options;
 	const { request } = useApiBase();
 	const canAdmin = useAdminOnly();
 	const toast = useToast();
@@ -34,10 +40,21 @@ export const useRuntimeConfigPage = () => {
 
 	const formDisabled = computed(() => isLoading.value || isSaving.value || !canAdmin.value);
 
+	const isHydrating = ref(true);
+	let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+	let savedSnapshot = "";
+
+	const snapshotForm = () => JSON.stringify(form);
+
 	const applyPayload = (data: RuntimeConfigResponse) => {
+		isHydrating.value = true;
 		schema.value = data.schema;
 		Object.assign(form, mergeRuntimeFormValues(data.schema, data.values));
 		Object.assign(form, decorateRuntimeFormExtras(data.values));
+		savedSnapshot = snapshotForm();
+		nextTick(() => {
+			isHydrating.value = false;
+		});
 	};
 
 	const fetchRuntimeConfig = async () => {
@@ -56,22 +73,17 @@ export const useRuntimeConfigPage = () => {
 		}
 	};
 
-	const handleReload = async () => {
-		await fetchRuntimeConfig();
-		toast.success("已重新載入");
-	};
-
-	const handleSave = async () => {
+	const handleSave = async (saveOptions: { silent?: boolean; fromAutoSave?: boolean } = {}) => {
 		if (!canAdmin.value) {
-			toast.warning("僅管理員可儲存營運設定");
-			return;
+			if (!saveOptions.silent) toast.warning("僅管理員可儲存營運設定");
+			return false;
 		}
-		if (!schema.value) return;
+		if (!schema.value) return false;
 
 		const validationError = validateRuntimeConfigForSave(schema.value, form);
 		if (validationError) {
-			toast.warning(validationError);
-			return;
+			if (!saveOptions.silent || saveOptions.fromAutoSave) toast.warning(validationError);
+			return false;
 		}
 
 		const payload = buildRuntimePayloadForSave(schema.value, form);
@@ -81,17 +93,40 @@ export const useRuntimeConfigPage = () => {
 				method: "PUT",
 				body: { values: payload },
 			});
-			toast[data.applied ? "success" : "info"](data.message);
+			if (!saveOptions.silent) {
+				toast[data.applied ? "success" : "info"](data.message);
+			}
 			await fetchRuntimeConfig();
+			return true;
 		} catch (e) {
 			handleError(e, "儲存失敗");
+			return false;
 		} finally {
 			isSaving.value = false;
 		}
 	};
 
+	const scheduleAutoSave = () => {
+		if (!autoSave || isHydrating.value || isLoading.value || !schema.value || !canAdmin.value) return;
+		if (snapshotForm() === savedSnapshot) return;
+
+		if (autoSaveTimer) clearTimeout(autoSaveTimer);
+		autoSaveTimer = setTimeout(() => {
+			autoSaveTimer = null;
+			void handleSave({ silent: true, fromAutoSave: true });
+		}, autoSaveDebounceMs);
+	};
+
+	if (autoSave) {
+		watch(form, scheduleAutoSave, { deep: true });
+	}
+
 	onMounted(() => {
 		void fetchRuntimeConfig();
+	});
+
+	onBeforeUnmount(() => {
+		if (autoSaveTimer) clearTimeout(autoSaveTimer);
 	});
 
 	return {
@@ -101,7 +136,6 @@ export const useRuntimeConfigPage = () => {
 		isSaving,
 		loadError,
 		formDisabled,
-		handleReload,
 		handleSave,
 	};
 };

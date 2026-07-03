@@ -4,7 +4,7 @@
 			<label
 				class="flex min-w-0 flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 			>
-				<span>地點名稱 *</span>
+				<span>地點名稱<span class="required-mark">*</span></span>
 				<input
 					v-model="localLocation.name"
 					type="text"
@@ -17,7 +17,7 @@
 		</div>
 
 		<div>
-			<span class="text-sm font-medium text-white/80 2xl:text-base">資料來源 *</span>
+			<span class="text-sm font-medium text-white/80 2xl:text-base">資料來源<span class="required-mark">*</span></span>
 			<div class="mt-2 flex flex-wrap gap-4">
 				<label v-if="enableYscpVehicleAccess" class="flex cursor-pointer items-center gap-2">
 					<input
@@ -43,7 +43,7 @@
 		</div>
 
 		<div v-if="dataSource === 'isapi_camera'">
-			<span class="text-sm font-medium text-white/80 2xl:text-base">營運模式 *</span>
+			<span class="text-sm font-medium text-white/80 2xl:text-base">營運模式<span class="required-mark">*</span></span>
 			<div class="mt-2 flex flex-wrap gap-4">
 				<label class="flex cursor-pointer items-center gap-2">
 					<input
@@ -70,7 +70,7 @@
 				v-if="operationMode === 'parking'"
 				class="mt-3 flex max-w-xs flex-col gap-2 text-sm text-white/80 2xl:text-base"
 			>
-				<span>在場車輛上限 *</span>
+				<span>在場車輛上限<span class="required-mark">*</span></span>
 				<input
 					v-model.number="parkingCapacityInput"
 					type="number"
@@ -114,7 +114,7 @@
 		<template v-else>
 			<div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
 				<div>
-					<span class="text-sm text-white/80 2xl:text-base">入口攝影機（可複選）*</span>
+					<span class="text-sm text-white/80 2xl:text-base">入口攝影機（可複選）<span class="required-mark">*</span></span>
 					<div v-if="cameraDevices.length === 0" class="mt-2 text-xs text-white/50">
 						請先在設備管理新增攝影機
 					</div>
