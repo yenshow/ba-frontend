@@ -1,7 +1,7 @@
 <template>
 	<div class="flex min-w-0 flex-1 flex-wrap items-end gap-2">
 		<label class="flex min-w-[7rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-			<span>點位名稱 *</span>
+			<span>點位名稱<span class="required-mark">*</span></span>
 			<input
 				v-model="localLocation.name"
 				type="text"
@@ -24,7 +24,7 @@
 
 		<template v-if="localLocation.deviceId && localLocation.deviceId > 0 && localLocation.modbus?.points?.[0]">
 			<label class="flex w-24 min-w-0 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-				<span>類型 *</span>
+				<span>類型<span class="required-mark">*</span></span>
 				<FilterDropdown
 					v-model="localLocation.modbus.points[0].type"
 					:options="[
@@ -37,7 +37,7 @@
 			</label>
 
 			<label class="flex min-w-[5rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base sm:max-w-[8rem]">
-				<span>地址 *</span>
+				<span>地址<span class="required-mark">*</span></span>
 				<div class="relative w-full">
 					<input
 						v-model.number="localLocation.modbus.points[0].address"

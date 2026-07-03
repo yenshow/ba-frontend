@@ -614,6 +614,12 @@
 	color: rgba(255, 255, 255, 0.5);
 }
 
+/* 必填欄位星號標記（表單標籤內的 *） */
+.required-mark {
+	margin-left: 0.125rem;
+	color: rgb(253 230 138 / 0.9);
+}
+
 /* 表單錯誤訊息（統一 rose-300） */
 .form-error-text {
 	@apply text-sm text-rose-300 2xl:text-base;

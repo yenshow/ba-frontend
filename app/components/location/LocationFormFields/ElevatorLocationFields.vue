@@ -1,7 +1,7 @@
 <template>
 	<div class="flex min-w-0 flex-1 flex-col gap-4">
 		<label :class="fieldLabelClass">
-			<span>地點名稱 *</span>
+			<span>地點名稱<span class="required-mark">*</span></span>
 			<input
 				v-model="localLocation.name"
 				type="text"
@@ -17,7 +17,7 @@
 
 			<div class="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-3">
 				<div :class="deviceColumnClass">
-					<span class="text-sm text-white/80 2xl:text-base">梯控設備 *</span>
+					<span class="text-sm text-white/80 2xl:text-base">梯控設備<span class="required-mark">*</span></span>
 					<div v-if="ladderDevices.length === 0" :class="emptyHintClass">
 						尚無 HCNetSDK 梯控設備
 					</div>
@@ -52,7 +52,7 @@
 				</div>
 
 				<div :class="deviceColumnClass">
-					<span class="text-sm text-white/80 2xl:text-base">呼梯設備 *</span>
+					<span class="text-sm text-white/80 2xl:text-base">呼梯設備<span class="required-mark">*</span></span>
 					<div v-if="ladderDevices.length === 0" :class="emptyHintClass">尚無梯控設備可選</div>
 					<FilterDropdown
 						v-else
@@ -85,7 +85,7 @@
 				</div>
 
 				<div :class="deviceColumnClass">
-					<span class="text-sm text-white/80 2xl:text-base">樓層偵測 *</span>
+					<span class="text-sm text-white/80 2xl:text-base">樓層偵測<span class="required-mark">*</span></span>
 					<div v-if="modbusDevices.length === 0" :class="emptyHintClass">尚無 Modbus 控制器</div>
 					<FilterDropdown
 						v-else
@@ -119,7 +119,7 @@
 			</div>
 
 			<div :class="[fieldLabelClass, 'mt-3']">
-				<span>門禁設備 *</span>
+				<span>門禁設備<span class="required-mark">*</span></span>
 				<div v-if="accessControlDeviceOptions.length === 0" :class="emptyHintClass">
 					請先在設備管理新增門禁設備
 				</div>

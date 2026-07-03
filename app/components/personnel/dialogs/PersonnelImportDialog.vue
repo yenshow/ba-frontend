@@ -55,7 +55,7 @@
 						</div>
 
 						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-							<span>Excel 檔（.xlsx）*</span>
+							<span>Excel 檔（.xlsx）<span class="required-mark">*</span></span>
 							<div class="flex flex-wrap items-center gap-3">
 								<input
 									ref="excelInputRef"

@@ -38,7 +38,7 @@
 								<label
 									class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 								>
-									<span>車牌 *</span>
+									<span>車牌<span class="required-mark">*</span></span>
 									<input
 										v-model="form.licensePlate"
 										type="text"
@@ -52,7 +52,7 @@
 								<label
 									class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 								>
-									<span>名單類型 *</span>
+									<span>名單類型<span class="required-mark">*</span></span>
 									<FilterDropdown
 										v-model="form.listType"
 										:options="LICENSE_PLATE_LIST_TYPE_OPTIONS"
@@ -63,7 +63,7 @@
 								<label
 									class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 								>
-									<span>開始時間 *</span>
+									<span>開始時間<span class="required-mark">*</span></span>
 									<input
 										v-model="form.createTimeLocal"
 										type="datetime-local"
@@ -76,7 +76,7 @@
 								<label
 									class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 								>
-									<span>結束時間 *</span>
+									<span>結束時間<span class="required-mark">*</span></span>
 									<input
 										v-model="form.effectiveTimeLocal"
 										type="datetime-local"

@@ -3,7 +3,7 @@
 		<!-- 基本資訊 -->
 		<div class="flex min-w-0 flex-col gap-3">
 			<label :class="fieldLabelClass">
-				<span>地點名稱 *</span>
+				<span>地點名稱<span class="required-mark">*</span></span>
 				<input
 					v-model="localLocation.name"
 					type="text"
@@ -14,7 +14,7 @@
 				/>
 			</label>
 
-			<span class="text-sm font-medium text-white/80 2xl:text-base">資料來源 *</span>
+			<span class="text-sm font-medium text-white/80 2xl:text-base">資料來源<span class="required-mark">*</span></span>
 			<div class="flex flex-wrap gap-4">
 				<label v-if="enableYscpPeopleCounting" class="flex cursor-pointer items-center gap-2">
 					<input
@@ -53,7 +53,7 @@
 		<div v-if="dataSource === 'yscp'" class="mt-3 border-t border-white/10 pt-3">
 			<div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
 				<div :class="fieldLabelClass">
-					<span>入口設備（可複選）*</span>
+					<span>入口設備（可複選）<span class="required-mark">*</span></span>
 					<div v-if="props.doors.length === 0" :class="emptyHintClass">無可用門設備</div>
 					<div v-else class="grid grid-cols-2 gap-2">
 						<label
@@ -90,7 +90,7 @@
 				</div>
 
 				<div :class="fieldLabelClass">
-					<span>出口設備（可複選）*</span>
+					<span>出口設備（可複選）<span class="required-mark">*</span></span>
 					<div v-if="props.doors.length === 0" :class="emptyHintClass">無可用門設備</div>
 					<div v-else class="grid grid-cols-2 gap-2">
 						<label
@@ -138,7 +138,7 @@
 			</p>
 			<div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
 				<div :class="fieldLabelClass">
-					<span>入口設備（可複選）*</span>
+					<span>入口設備（可複選）<span class="required-mark">*</span></span>
 					<div v-if="props.accessControlDevices.length === 0" :class="emptyHintClass">
 						請先在設備管理新增門禁設備
 					</div>
@@ -177,7 +177,7 @@
 				</div>
 
 				<div :class="fieldLabelClass">
-					<span>出口設備（可複選）*</span>
+					<span>出口設備（可複選）<span class="required-mark">*</span></span>
 					<div v-if="props.accessControlDevices.length === 0" :class="emptyHintClass">
 						請先在設備管理新增門禁設備
 					</div>
@@ -227,7 +227,7 @@
 
 		<div v-if="dataSource === 'yscp'" class="mt-3 border-t border-white/10 pt-3">
 			<div class="mb-3">
-				<span class="text-sm font-medium text-white/80 2xl:text-base">人員群組 *</span>
+				<span class="text-sm font-medium text-white/80 2xl:text-base">人員群組<span class="required-mark">*</span></span>
 			</div>
 			<div
 				v-if="personGroups.length === 0"
@@ -266,7 +266,7 @@
 
 		<div v-else-if="dataSource === 'isapi_camera'" class="mt-3 border-t border-white/10 pt-3">
 			<div class="mb-3">
-				<span class="text-sm font-medium text-white/80 2xl:text-base">攝影機設備（可複選）*</span>
+				<span class="text-sm font-medium text-white/80 2xl:text-base">攝影機設備（可複選）<span class="required-mark">*</span></span>
 			</div>
 			<div
 				v-if="isapiCameraDevices.length === 0"

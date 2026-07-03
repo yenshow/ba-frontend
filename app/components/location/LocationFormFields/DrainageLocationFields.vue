@@ -4,7 +4,7 @@
 			<label
 				class="flex min-w-[7rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 			>
-				<span>點位名稱 *</span>
+				<span>點位名稱<span class="required-mark">*</span></span>
 				<input
 					v-model="localLocation.name"
 					type="text"
@@ -18,7 +18,7 @@
 			<label
 				class="flex min-w-[7rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 			>
-				<span>設備類型 *</span>
+				<span>設備類型<span class="required-mark">*</span></span>
 				<FilterDropdown
 					:model-value="localLocation.equipmentKind === 'tank' ? 'tank' : 'pump'"
 					:options="equipmentKindOptions"
@@ -47,7 +47,7 @@
 					<label
 						class="flex w-24 min-w-0 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 					>
-						<span>類型 *</span>
+						<span>類型<span class="required-mark">*</span></span>
 						<FilterDropdown
 							v-model="motorRow.type"
 							:options="[
@@ -62,7 +62,7 @@
 					<label
 						class="flex min-w-[5rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base sm:max-w-[8rem]"
 					>
-						<span>地址 *</span>
+						<span>地址<span class="required-mark">*</span></span>
 						<div class="relative w-full">
 							<input
 								v-model.number="motorRow.address"
@@ -119,7 +119,7 @@
 							<label
 								class="flex w-24 min-w-0 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 							>
-								<span>類型 *</span>
+								<span>類型<span class="required-mark">*</span></span>
 								<FilterDropdown
 									v-model="tankRows[role.key].type"
 									:options="[
@@ -134,7 +134,7 @@
 							<label
 								class="flex min-w-[5rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base sm:max-w-[8rem]"
 							>
-								<span>地址 *</span>
+								<span>地址<span class="required-mark">*</span></span>
 								<div class="relative w-full">
 									<input
 										v-model.number="tankRows[role.key].address"

@@ -156,7 +156,7 @@
 								class="show-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto pb-4 pr-7 2xl:gap-6 2xl:pb-6 2xl:pr-8"
 							>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>型號名稱 *</span>
+									<span>型號名稱<span class="required-mark">*</span></span>
 									<input
 										v-model="formData.name"
 										type="text"
@@ -169,7 +169,7 @@
 									v-if="deviceTypeCode === 'camera'"
 									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 								>
-									<span>設備分類 *</span>
+									<span>設備分類<span class="required-mark">*</span></span>
 									<FilterDropdown
 										v-model="formData.category_code"
 										:options="cameraCategoryOptions"
@@ -194,7 +194,7 @@
 									v-if="deviceTypeCode === 'sensor'"
 									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 								>
-									<span>API 功能碼 *</span>
+									<span>API 功能碼<span class="required-mark">*</span></span>
 									<FilterDropdown
 										v-model="sensorRegisterType"
 										:options="modbusRegisterTypeOptions"
@@ -206,7 +206,7 @@
 									v-if="deviceTypeCode === 'camera'"
 									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 								>
-									<span>RTSP URL 模板 *</span>
+									<span>RTSP URL 模板<span class="required-mark">*</span></span>
 									<div class="space-y-3 rounded-xl border border-white/15 bg-white/10 p-3">
 										<div class="space-y-2">
 											<label class="flex items-start gap-2">
@@ -310,7 +310,7 @@
 
 												<div class="space-y-3">
 													<label class="flex flex-col gap-1 text-xs text-white/80 2xl:text-sm">
-														<span>參數類型 *</span>
+														<span>參數類型<span class="required-mark">*</span></span>
 														<FilterDropdown
 															v-model="param.type"
 															:options="parameterTypeOptions"
@@ -319,7 +319,7 @@
 													</label>
 
 													<label class="flex flex-col gap-1 text-xs text-white/80 2xl:text-sm">
-														<span>Modbus 位址 *</span>
+														<span>Modbus 位址<span class="required-mark">*</span></span>
 														<input
 															v-model.number="param.modbusConfig.address"
 															type="number"

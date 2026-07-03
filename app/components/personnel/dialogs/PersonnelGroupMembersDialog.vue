@@ -31,126 +31,139 @@
 						</div>
 					</header>
 
-					<div class="mb-1 flex min-w-0 items-center gap-2 pr-7 2xl:mb-0 2xl:pr-8">
-						<SearchInput
-							v-model="candidatesQuery"
-							input-id="personnel-group-members-search"
-							label="搜尋人員"
-							placeholder="搜尋 ID / 姓名"
-							aria-label="搜尋人員"
-							wrapper-class="min-w-0 flex-1"
-							input-wrapper-class="min-w-0 flex-1 max-w-[280px]"
-							:disabled="isSaving"
-							@search="loadCandidates"
-							@clear="loadCandidates"
-						/>
-					</div>
-
 					<div class="show-scrollbar flex-1 overflow-y-auto pr-7 2xl:pr-8">
-						<div class="min-h-[200px]">
+						<div class="min-h-[200px] rounded-xl border border-white/15 bg-white/5 p-4 2xl:p-5">
 							<div
-								v-if="isLoading && childGroups.length === 0"
-								class="py-8 text-center text-base text-white/60 2xl:text-lg"
-								role="status"
-								aria-live="polite"
+								class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
 							>
-								載入中…
+								<div class="min-w-0 space-y-2">
+									<h4 class="text-lg font-medium text-white 2xl:text-xl">成員設定</h4>
+									<p class="text-sm text-white/60 2xl:text-base">
+										勾選要加入各子群組的人員。同一主群組下每人僅能隸屬一個子群組；儲存後將更新成員名單。
+									</p>
+								</div>
+								<div class="flex min-w-0 shrink-0 items-center gap-2 lg:max-w-sm">
+									<SearchInput
+										v-model="candidatesQuery"
+										input-id="personnel-group-members-search"
+										label="搜尋人員"
+										placeholder="搜尋 ID / 姓名"
+										aria-label="搜尋人員"
+										wrapper-class="min-w-0 flex-1"
+										input-wrapper-class="min-w-0 flex-1"
+										input-class="!w-full min-w-0"
+										:disabled="isSaving"
+										:clearable="!isSaving"
+										@search="loadCandidates"
+										@clear="loadCandidates"
+									/>
+								</div>
 							</div>
-							<p v-else-if="errorMessage" class="form-error-text-lg" role="alert">
-								{{ errorMessage }}
-							</p>
-							<Transition v-else name="fade" mode="out-in">
-								<div
-									v-if="childGroups.length > 0"
-									:key="`child-groups-${childGroups.length}`"
-									class="space-y-3"
-								>
-									<div
-										v-for="child in childGroups"
-										:key="child.id"
-										class="overflow-hidden rounded-lg border border-white/20 bg-white/10 transition-all"
-										:class="{ 'bg-white/15': expandedChildIds.has(child.id) }"
-									>
-										<button
-											type="button"
-											class="flex w-full cursor-pointer items-center justify-between gap-3 p-4 text-left transition-colors hover:bg-white/10"
-											:aria-expanded="expandedChildIds.has(child.id)"
-											@click="toggleChildExpanded(child.id)"
-										>
-											<div class="flex min-w-0 flex-1 items-center gap-4">
-												<svg
-													class="h-5 w-5 shrink-0 text-white/70 transition-transform"
-													:class="{ 'rotate-90': expandedChildIds.has(child.id) }"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
-													aria-hidden="true"
-												>
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M9 5l7 7-7 7"
-													/>
-												</svg>
-												<div
-													class="flex h-16 min-w-[80px] items-center justify-center rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-3 shadow-lg"
-												>
-													<span
-														class="max-w-[8rem] truncate text-xl font-bold tracking-wider text-white 2xl:max-w-[10rem] 2xl:text-2xl"
-													>
-														{{ child.name }}
-													</span>
-												</div>
-												<span
-													class="rounded-full bg-white/25 px-3 py-1 text-sm font-medium text-white 2xl:text-base"
-												>
-													{{ memberCountForChild(child.id) }} 人
-												</span>
-											</div>
-										</button>
 
-										<Transition name="expand">
-											<div
-												v-if="expandedChildIds.has(child.id)"
-												class="space-y-4 border-t border-white/10 p-4"
-											>
-												<div
-													v-if="isLoadingCandidates && candidateGroups.length === 0"
-													class="py-6 text-center text-sm text-white/60 2xl:text-base"
-													role="status"
-													aria-live="polite"
+							<div class="mt-4 min-h-[160px]">
+								<div
+									v-if="isLoading && childGroups.length === 0"
+									class="py-8 text-center text-base text-white/60 2xl:text-lg"
+									role="status"
+									aria-live="polite"
+								>
+									載入中…
+								</div>
+								<p v-else-if="errorMessage" class="form-error-text-lg" role="alert">
+									{{ errorMessage }}
+								</p>
+								<Transition v-else name="fade" mode="out-in">
+									<div
+										v-if="childGroups.length > 0"
+										:key="`child-groups-${childGroups.length}`"
+										class="space-y-3"
+									>
+										<div
+											v-for="child in childGroups"
+											:key="child.id"
+											class="overflow-hidden rounded-lg border border-white/20 bg-white/10 transition-all"
+											:class="{ 'bg-white/15': expandedChildIds.has(child.id) }"
+										>
+											<div class="flex items-center gap-3 p-4">
+												<button
+													type="button"
+													class="flex min-w-0 flex-1 cursor-pointer items-center gap-4 text-left transition-colors hover:opacity-90"
+													:aria-expanded="expandedChildIds.has(child.id)"
+													@click="toggleChildExpanded(child.id)"
 												>
-													載入人員中…
-												</div>
-												<p
-													v-else-if="candidatesErrorText"
-													class="form-error-text"
-													role="alert"
-												>
-													{{ candidatesErrorText }}
-												</p>
-												<div
-													v-else-if="candidateGroups.length === 0"
-													class="rounded border border-white/10 bg-white/5 py-6 text-center text-sm text-white/60 2xl:text-base"
-												>
-													尚無可選人員
-												</div>
-												<div v-else class="space-y-4">
-													<div class="flex justify-end">
-														<button
-															type="button"
-															class="btn-secondary shrink-0 whitespace-nowrap text-xs 2xl:text-sm"
-															:disabled="isSaving"
-															:aria-label="`${
-																isAllSelectedForChild(child.id) ? '取消全選' : '全選'
-															}子群組 ${child.name} 的可見人員`"
-															@click="toggleSelectAllForChild(child.id)"
+													<svg
+														class="h-5 w-5 shrink-0 text-white/70 transition-transform"
+														:class="{ 'rotate-90': expandedChildIds.has(child.id) }"
+														fill="none"
+														stroke="currentColor"
+														viewBox="0 0 24 24"
+														aria-hidden="true"
+													>
+														<path
+															stroke-linecap="round"
+															stroke-linejoin="round"
+															stroke-width="2"
+															d="M9 5l7 7-7 7"
+														/>
+													</svg>
+													<div
+														class="flex h-16 min-w-[80px] items-center justify-center rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-3 shadow-lg"
+													>
+														<span
+															class="max-w-[8rem] truncate text-xl font-bold tracking-wider text-white 2xl:max-w-[10rem] 2xl:text-2xl"
 														>
-															{{ isAllSelectedForChild(child.id) ? "取消" : "全選" }}
-														</button>
+															{{ child.name }}
+														</span>
 													</div>
-													<div class="show-scrollbar max-h-[320px] space-y-4 overflow-y-auto pe-1">
+													<span
+														class="rounded-full bg-white/25 px-3 py-1 text-sm font-medium text-white 2xl:text-base"
+													>
+														{{ memberCountForChild(child.id) }} 人
+													</span>
+												</button>
+												<button
+													type="button"
+													class="btn-secondary shrink-0 whitespace-nowrap text-xs 2xl:text-sm"
+													:disabled="!hasCandidateItems || isSaving"
+													:aria-label="`${
+														isAllSelectedForChild(child.id) ? '取消全選' : '全選'
+													}子群組 ${child.name} 的可見人員`"
+													@click="toggleSelectAllForChild(child.id)"
+												>
+													{{ isAllSelectedForChild(child.id) ? "取消" : "全選" }}
+												</button>
+											</div>
+
+											<Transition name="expand">
+												<div
+													v-if="expandedChildIds.has(child.id)"
+													class="space-y-4 border-t border-white/10 p-4"
+												>
+													<div
+														v-if="isLoadingCandidates && candidateGroups.length === 0"
+														class="py-6 text-center text-sm text-white/60 2xl:text-base"
+														role="status"
+														aria-live="polite"
+													>
+														載入人員中…
+													</div>
+													<p
+														v-else-if="candidatesErrorText"
+														class="form-error-text"
+														role="alert"
+													>
+														{{ candidatesErrorText }}
+													</p>
+													<div
+														v-else-if="candidateGroups.length === 0"
+														class="rounded border border-white/10 bg-white/5 py-6 text-center text-sm text-white/60 2xl:text-base"
+													>
+														尚無可選人員
+													</div>
+													<div
+														v-else
+														class="show-scrollbar max-h-[320px] space-y-4 overflow-y-auto pe-1"
+													>
 														<section
 															v-for="group in candidateGroups"
 															:key="`${child.id}-group-${group.groupId}`"
@@ -202,15 +215,15 @@
 														</section>
 													</div>
 												</div>
-											</div>
-										</Transition>
+											</Transition>
+										</div>
 									</div>
-								</div>
-								<div v-else key="empty" class="py-8 text-center text-white/60">
-									<p class="text-base 2xl:text-lg">此主群組尚無子群組</p>
-									<p class="mt-2 text-sm 2xl:text-base">請至「管理群組」新增子群組</p>
-								</div>
-							</Transition>
+									<div v-else key="empty" class="py-8 text-center text-white/60">
+										<p class="text-base 2xl:text-lg">此主群組尚無子群組</p>
+										<p class="mt-2 text-sm 2xl:text-base">請至「管理群組」新增子群組</p>
+									</div>
+								</Transition>
+							</div>
 						</div>
 					</div>
 
@@ -274,6 +287,7 @@ const {
 	expandedChildIds,
 	candidatesQuery,
 	candidateGroups,
+	hasCandidateItems,
 	isLoadingCandidates,
 	candidatesErrorText,
 	hasUnsavedChanges,

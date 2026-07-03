@@ -39,7 +39,7 @@
 							class="flex min-w-0 flex-col gap-4 border-0 p-0 2xl:gap-6"
 						>
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>設備名稱 *</span>
+								<span>設備名稱<span class="required-mark">*</span></span>
 								<input
 									v-model="localFormData.name"
 									type="text"
@@ -63,7 +63,7 @@
 								v-if="deviceTypeCode === 'camera'"
 								class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 							>
-								<span>型號分類 *</span>
+								<span>型號分類<span class="required-mark">*</span></span>
 								<FilterDropdown
 									v-model="cameraCategoryCode"
 									:options="cameraCategoryOptions"
@@ -72,7 +72,7 @@
 								/>
 							</label>
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>設備型號 *</span>
+								<span>設備型號<span class="required-mark">*</span></span>
 								<FilterDropdown
 									v-model="modelIdString"
 									:options="deviceModelOptions"
@@ -96,7 +96,7 @@
 
 							<template v-if="deviceTypeCode === 'controller'">
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>主機位址 *</span>
+									<span>主機位址<span class="required-mark">*</span></span>
 									<input
 										v-model="controllerConfig.host"
 										type="text"
@@ -107,7 +107,7 @@
 									/>
 								</label>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>端口 *</span>
+									<span>端口<span class="required-mark">*</span></span>
 									<input
 										v-model.number="controllerConfig.port"
 										type="number"
@@ -124,7 +124,7 @@
 									<label
 										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 									>
-										<span>帳號 *</span>
+										<span>帳號<span class="required-mark">*</span></span>
 										<input
 											v-model="controllerConfig.username"
 											type="text"
@@ -137,7 +137,7 @@
 									<label
 										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 									>
-										<span>密碼 *</span>
+										<span>密碼<span class="required-mark">*</span></span>
 										<div class="relative w-full">
 											<input
 												v-model="controllerConfig.password"
@@ -197,7 +197,7 @@
 
 							<template v-if="deviceTypeCode === 'camera'">
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>設備 IP 位址 *</span>
+									<span>設備 IP 位址<span class="required-mark">*</span></span>
 									<input
 										v-model="cameraIp"
 										type="text"
@@ -208,7 +208,7 @@
 									/>
 								</label>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>帳號 *</span>
+									<span>帳號<span class="required-mark">*</span></span>
 									<input
 										v-model="cameraUsername"
 										type="text"
@@ -219,7 +219,7 @@
 									/>
 								</label>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>密碼 *</span>
+									<span>密碼<span class="required-mark">*</span></span>
 									<div class="relative w-full">
 										<input
 											v-model="cameraPassword"
@@ -282,7 +282,7 @@
 
 							<template v-if="deviceTypeCode === 'sensor'">
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>通訊協定 *</span>
+									<span>通訊協定<span class="required-mark">*</span></span>
 									<FilterDropdown
 										v-model="sensorConfig.protocol"
 										:options="sensorProtocolOptions"
@@ -294,7 +294,7 @@
 									<label
 										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 									>
-										<span>主機位址 *</span>
+										<span>主機位址<span class="required-mark">*</span></span>
 										<input
 											v-model="sensorConfig.host"
 											type="text"
@@ -307,7 +307,7 @@
 									<label
 										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 									>
-										<span>端口 *</span>
+										<span>端口<span class="required-mark">*</span></span>
 										<input
 											v-model.number="sensorConfig.port"
 											type="number"
@@ -323,7 +323,7 @@
 									<label
 										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 									>
-										<span>Unit ID *</span>
+										<span>Unit ID<span class="required-mark">*</span></span>
 										<input
 											v-model.number="sensorConfig.unitId"
 											type="number"
@@ -341,7 +341,7 @@
 									<label
 										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 									>
-										<span>API 端點 *</span>
+										<span>API 端點<span class="required-mark">*</span></span>
 										<input
 											v-model="sensorConfig.api_endpoint"
 											type="text"
@@ -355,7 +355,7 @@
 									<label
 										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 									>
-										<span>連線字串 *</span>
+										<span>連線字串<span class="required-mark">*</span></span>
 										<input
 											v-model="sensorConfig.connection_string"
 											type="text"
@@ -369,7 +369,7 @@
 
 							<template v-if="deviceTypeCode === 'access_control'">
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>主機位址 *</span>
+									<span>主機位址<span class="required-mark">*</span></span>
 									<input
 										v-model="accessControlConfig.host"
 										type="text"
@@ -390,7 +390,7 @@
 									/>
 								</label>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>密碼 *</span>
+									<span>密碼<span class="required-mark">*</span></span>
 									<div class="relative w-full">
 										<input
 											v-model="accessControlConfig.password"
