@@ -7,9 +7,8 @@
 			empty-title="尚未設定資料庫對接"
 			empty-description="點擊右上角「新增設定」開始建立。"
 			error-title="載入資料庫對接設定失敗"
-			panel-size="compact"
-			loading-min-height-class="min-h-[240px] 2xl:min-h-[280px]"
-			empty-min-height-class="min-h-[240px] 2xl:min-h-[280px]"
+			loading-min-height-class="min-h-[180px]"
+			empty-min-height-class="min-h-[180px]"
 		>
 			<dl class="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:gap-6">
 				<div

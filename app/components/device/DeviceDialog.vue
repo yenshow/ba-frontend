@@ -35,121 +35,193 @@
 						class="show-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto pb-4 pr-7 2xl:gap-6 2xl:pb-6 2xl:pr-8"
 					>
 						<fieldset :disabled="!canWrite" class="flex min-w-0 flex-col gap-4 border-0 p-0 2xl:gap-6">
-						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-							<span>設備名稱<span class="required-mark">*</span></span>
-							<input
-								v-model="localFormData.name"
-								type="text"
-								required
-								class="form-input"
-								placeholder="例如：控制器 1"
-							/>
-						</label>
-						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-							<span v-if="deviceTypeCode === 'camera'">群組</span>
-							<input
-								v-if="deviceTypeCode === 'camera'"
-								v-model="cameraGroup"
-								type="text"
-								class="form-input"
-								placeholder="例如：大門、工地 A 區"
-								aria-label="攝影機群組"
-							/>
-						</label>
-						<label
-							v-if="deviceTypeCode === 'camera'"
-							class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-						>
-							<span>型號分類<span class="required-mark">*</span></span>
-							<FilterDropdown
-								v-model="cameraCategoryCode"
-								:options="cameraCategoryOptions"
-								placeholder="請選擇型號分類"
-								@update:modelValue="onCameraCategoryChange"
-							/>
-						</label>
-						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-							<span>設備型號<span class="required-mark">*</span></span>
-							<FilterDropdown
-								v-model="modelIdString"
-								:options="deviceModelOptions"
-								:placeholder="cameraModelPlaceholder"
-								:disabled="deviceTypeCode === 'camera' && !cameraCategoryCode"
-								@update:modelValue="onModelChange"
-							/>
-							<p
-								v-if="filteredDeviceModels.length === 0 && !isLoadingDeviceModels"
-								class="mt-1 text-xs text-amber-300"
-							>
-								{{
-									deviceTypeCode === "camera" && !cameraCategoryCode
-										? "請先選擇型號分類"
-										: canPlatformAdmin
-											? "請先在「型號管理」中建立設備型號"
-											: "目前無可用型號，請聯繫平台管理員新增"
-								}}
-							</p>
-						</label>
-
-						<template v-if="deviceTypeCode === 'controller'">
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>主機位址<span class="required-mark">*</span></span>
+								<span>設備名稱<span class="required-mark">*</span></span>
 								<input
-									v-model="controllerConfig.host"
+									v-model="localFormData.name"
 									type="text"
 									required
-									pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
 									class="form-input"
-									placeholder="例如：192.168.2.205"
+									placeholder="例如：控制器 1"
 								/>
 							</label>
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>端口<span class="required-mark">*</span></span>
+								<span v-if="deviceTypeCode === 'camera'">群組</span>
 								<input
-									v-model.number="controllerConfig.port"
-									type="number"
-									min="1"
-									max="65535"
-									required
+									v-if="deviceTypeCode === 'camera'"
+									v-model="cameraGroup"
+									type="text"
 									class="form-input"
-									:placeholder="isHcnetSdkController ? '例如：8000' : '例如：502'"
-									:disabled="isControllerPortInherited"
-									:aria-label="isHcnetSdkController ? 'SDK 端口' : 'Modbus 端口'"
+									placeholder="例如：大門、工地 A 區"
+									aria-label="攝影機群組"
 								/>
 							</label>
-							<template v-if="isHcnetSdkController">
+							<label
+								v-if="deviceTypeCode === 'camera'"
+								class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+							>
+								<span>型號分類<span class="required-mark">*</span></span>
+								<FilterDropdown
+									v-model="cameraCategoryCode"
+									:options="cameraCategoryOptions"
+									placeholder="請選擇型號分類"
+									@update:modelValue="onCameraCategoryChange"
+								/>
+							</label>
+							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+								<span>設備型號<span class="required-mark">*</span></span>
+								<FilterDropdown
+									v-model="modelIdString"
+									:options="deviceModelOptions"
+									:placeholder="cameraModelPlaceholder"
+									:disabled="deviceTypeCode === 'camera' && !cameraCategoryCode"
+									@update:modelValue="onModelChange"
+								/>
+								<p
+									v-if="filteredDeviceModels.length === 0 && !isLoadingDeviceModels"
+									class="mt-1 text-xs text-amber-300"
+								>
+									{{
+										deviceTypeCode === "camera" && !cameraCategoryCode
+											? "請先選擇型號分類"
+											: canPlatformAdmin
+												? "請先在「型號管理」中建立設備型號"
+												: "目前無可用型號，請聯繫平台管理員新增"
+									}}
+								</p>
+							</label>
+
+							<template v-if="deviceTypeCode === 'controller'">
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<span>主機位址<span class="required-mark">*</span></span>
+									<input
+										v-model="controllerConfig.host"
+										type="text"
+										required
+										pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
+										class="form-input"
+										placeholder="例如：192.168.2.205"
+									/>
+								</label>
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<span>端口<span class="required-mark">*</span></span>
+									<input
+										v-model.number="controllerConfig.port"
+										type="number"
+										min="1"
+										max="65535"
+										required
+										class="form-input"
+										:placeholder="isHcnetSdkController ? '例如：8000' : '例如：502'"
+										:disabled="isControllerPortInherited"
+										:aria-label="isHcnetSdkController ? 'SDK 端口' : 'Modbus 端口'"
+									/>
+								</label>
+								<template v-if="isHcnetSdkController">
+									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+										<span>帳號<span class="required-mark">*</span></span>
+										<input
+											v-model="controllerConfig.username"
+											type="text"
+											required
+											class="form-input"
+											placeholder="預設 admin，可修改"
+											aria-label="梯控登入帳號"
+										/>
+									</label>
+									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+										<span>密碼<span class="required-mark">*</span></span>
+										<div class="relative w-full">
+											<input
+												v-model="controllerConfig.password"
+												:type="showControllerPassword ? 'text' : 'password'"
+												required
+												class="form-input w-full pr-12"
+												placeholder="請輸入設備登入密碼"
+												:aria-label="showControllerPassword ? '梯控密碼（已顯示）' : '梯控密碼（已隱藏）'"
+											/>
+											<button
+												type="button"
+												class="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-white/50 transition-colors hover:text-white/80 focus:outline-none"
+												:aria-label="showControllerPassword ? '隱藏密碼' : '顯示密碼'"
+												@click="showControllerPassword = !showControllerPassword"
+											>
+												<svg
+													v-if="!showControllerPassword"
+													class="h-5 w-5"
+													fill="none"
+													stroke="currentColor"
+													viewBox="0 0 24 24"
+												>
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+													/>
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+													/>
+												</svg>
+												<svg v-else class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+													/>
+												</svg>
+											</button>
+										</div>
+									</label>
+								</template>
+							</template>
+
+							<template v-if="deviceTypeCode === 'camera'">
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<span>設備 IP 位址<span class="required-mark">*</span></span>
+									<input
+										v-model="cameraIp"
+										type="text"
+										required
+										pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
+										class="form-input"
+										placeholder="例如：192.168.2.102"
+									/>
+								</label>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>帳號<span class="required-mark">*</span></span>
 									<input
-										v-model="controllerConfig.username"
+										v-model="cameraUsername"
 										type="text"
 										required
 										class="form-input"
 										placeholder="預設 admin，可修改"
-										aria-label="梯控登入帳號"
+										aria-label="攝影機登入帳號"
 									/>
 								</label>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>密碼<span class="required-mark">*</span></span>
 									<div class="relative w-full">
 										<input
-											v-model="controllerConfig.password"
-											:type="showControllerPassword ? 'text' : 'password'"
+											v-model="cameraPassword"
+											:type="showCameraPassword ? 'text' : 'password'"
 											required
 											class="form-input w-full pr-12"
 											placeholder="請輸入設備登入密碼"
-											:aria-label="
-												showControllerPassword ? '梯控密碼（已顯示）' : '梯控密碼（已隱藏）'
-											"
+											:aria-label="showCameraPassword ? '攝影機密碼（已顯示）' : '攝影機密碼（已隱藏）'"
 										/>
 										<button
 											type="button"
 											class="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-white/50 transition-colors hover:text-white/80 focus:outline-none"
-											:aria-label="showControllerPassword ? '隱藏密碼' : '顯示密碼'"
-											@click="showControllerPassword = !showControllerPassword"
+											:aria-label="showCameraPassword ? '隱藏密碼' : '顯示密碼'"
+											@click="showCameraPassword = !showCameraPassword"
 										>
 											<svg
-												v-if="!showControllerPassword"
+												v-if="!showCameraPassword"
 												class="h-5 w-5"
 												fill="none"
 												stroke="currentColor"
@@ -168,13 +240,160 @@
 													d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
 												/>
 											</svg>
+											<svg v-else class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+												/>
+											</svg>
+										</button>
+									</div>
+								</label>
+								<div class="text-xs text-white/60 2xl:text-sm">
+									RTSP URL 預覽：
+									<span class="break-all">{{ cameraRtspPreview }}</span>
+								</div>
+							</template>
+
+							<template v-if="deviceTypeCode === 'sensor'">
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<span>通訊協定<span class="required-mark">*</span></span>
+									<FilterDropdown
+										v-model="sensorConfig.protocol"
+										:options="sensorProtocolOptions"
+										placeholder="請選擇協定"
+										text-size="text-sm 2xl:text-base"
+									/>
+								</label>
+								<template v-if="sensorConfig.protocol === 'modbus'">
+									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+										<span>主機位址<span class="required-mark">*</span></span>
+										<input
+											v-model="sensorConfig.host"
+											type="text"
+											required
+											pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
+											class="form-input"
+											placeholder="例如：192.168.2.204"
+										/>
+									</label>
+									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+										<span>端口<span class="required-mark">*</span></span>
+										<input
+											v-model.number="sensorConfig.port"
+											type="number"
+											min="1"
+											max="65535"
+											required
+											class="form-input"
+											placeholder="例如：502"
+											:disabled="isSensorPortInherited"
+											aria-label="Modbus 端口"
+										/>
+									</label>
+									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+										<span>Unit ID<span class="required-mark">*</span></span>
+										<input
+											v-model.number="sensorConfig.unitId"
+											type="number"
+											min="1"
+											max="255"
+											required
+											class="form-input"
+											placeholder="例如：1"
+											:disabled="isSensorUnitIdInherited"
+											aria-label="Modbus Unit ID"
+										/>
+									</label>
+								</template>
+								<template v-else-if="sensorConfig.protocol === 'http'">
+									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+										<span>API 端點<span class="required-mark">*</span></span>
+										<input
+											v-model="sensorConfig.api_endpoint"
+											type="text"
+											required
+											class="form-input"
+											placeholder="例如：http://192.168.2.204/api/sensor"
+										/>
+									</label>
+								</template>
+								<template v-else-if="sensorConfig.protocol === 'mqtt'">
+									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+										<span>連線字串<span class="required-mark">*</span></span>
+										<input
+											v-model="sensorConfig.connection_string"
+											type="text"
+											required
+											class="form-input"
+											placeholder="例如：mqtt://192.168.2.204:1883"
+										/>
+									</label>
+								</template>
+							</template>
+
+							<template v-if="deviceTypeCode === 'access_control'">
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<span>主機位址<span class="required-mark">*</span></span>
+									<input
+										v-model="accessControlConfig.host"
+										type="text"
+										required
+										class="form-input"
+										placeholder="例如：192.168.2.34"
+									/>
+								</label>
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<span>端口（選填，預設 80）</span>
+									<input
+										v-model.number="accessControlConfig.port"
+										type="number"
+										min="1"
+										max="65535"
+										class="form-input"
+										placeholder="80"
+									/>
+								</label>
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<span>密碼<span class="required-mark">*</span></span>
+									<div class="relative w-full">
+										<input
+											v-model="accessControlConfig.password"
+											:type="showAccessControlPassword ? 'text' : 'password'"
+											required
+											class="form-input w-full pr-12"
+											placeholder="設備登入密碼"
+											:aria-label="showAccessControlPassword ? '門禁密碼（已顯示）' : '門禁密碼（已隱藏）'"
+										/>
+										<button
+											type="button"
+											class="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-white/50 transition-colors hover:text-white/80 focus:outline-none"
+											:aria-label="showAccessControlPassword ? '隱藏密碼' : '顯示密碼'"
+											@click="showAccessControlPassword = !showAccessControlPassword"
+										>
 											<svg
-												v-else
+												v-if="!showAccessControlPassword"
 												class="h-5 w-5"
 												fill="none"
 												stroke="currentColor"
 												viewBox="0 0 24 24"
 											>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+												/>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+												/>
+											</svg>
+											<svg v-else class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 												<path
 													stroke-linecap="round"
 													stroke-linejoin="round"
@@ -186,237 +405,10 @@
 									</div>
 								</label>
 							</template>
-						</template>
 
-						<template v-if="deviceTypeCode === 'camera'">
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>設備 IP 位址<span class="required-mark">*</span></span>
-								<input
-									v-model="cameraIp"
-									type="text"
-									required
-									pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
-									class="form-input"
-									placeholder="例如：192.168.2.102"
-								/>
-							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>帳號<span class="required-mark">*</span></span>
-								<input
-									v-model="cameraUsername"
-									type="text"
-									required
-									class="form-input"
-									placeholder="預設 admin，可修改"
-									aria-label="攝影機登入帳號"
-								/>
-							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>密碼<span class="required-mark">*</span></span>
-								<div class="relative w-full">
-									<input
-										v-model="cameraPassword"
-										:type="showCameraPassword ? 'text' : 'password'"
-										required
-										class="form-input w-full pr-12"
-										placeholder="請輸入設備登入密碼"
-										:aria-label="showCameraPassword ? '攝影機密碼（已顯示）' : '攝影機密碼（已隱藏）'"
-									/>
-									<button
-										type="button"
-										class="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-white/50 transition-colors hover:text-white/80 focus:outline-none"
-										:aria-label="showCameraPassword ? '隱藏密碼' : '顯示密碼'"
-										@click="showCameraPassword = !showCameraPassword"
-									>
-										<svg
-											v-if="!showCameraPassword"
-											class="h-5 w-5"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-											/>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-											/>
-										</svg>
-										<svg v-else class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-											/>
-										</svg>
-									</button>
-								</div>
-							</label>
-							<div class="text-xs text-white/60 2xl:text-sm">
-								RTSP URL 預覽：
-								<span class="break-all">{{ cameraRtspPreview }}</span>
-							</div>
-						</template>
-
-						<template v-if="deviceTypeCode === 'sensor'">
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>通訊協定<span class="required-mark">*</span></span>
-								<FilterDropdown
-									v-model="sensorConfig.protocol"
-									:options="sensorProtocolOptions"
-									placeholder="請選擇協定"
-									text-size="text-sm 2xl:text-base"
-								/>
-							</label>
-							<template v-if="sensorConfig.protocol === 'modbus'">
-								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>主機位址<span class="required-mark">*</span></span>
-									<input
-										v-model="sensorConfig.host"
-										type="text"
-										required
-										pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
-										class="form-input"
-										placeholder="例如：192.168.2.204"
-									/>
-								</label>
-								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>端口<span class="required-mark">*</span></span>
-									<input
-										v-model.number="sensorConfig.port"
-										type="number"
-										min="1"
-										max="65535"
-										required
-										class="form-input"
-										placeholder="例如：502"
-									:disabled="isSensorPortInherited"
-									aria-label="Modbus 端口"
-								/>
-							</label>
-								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>Unit ID<span class="required-mark">*</span></span>
-									<input
-										v-model.number="sensorConfig.unitId"
-										type="number"
-										min="1"
-										max="255"
-										required
-										class="form-input"
-										placeholder="例如：1"
-									:disabled="isSensorUnitIdInherited"
-									aria-label="Modbus Unit ID"
-								/>
-							</label>
-							</template>
-							<template v-else-if="sensorConfig.protocol === 'http'">
-								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>API 端點<span class="required-mark">*</span></span>
-									<input
-										v-model="sensorConfig.api_endpoint"
-										type="text"
-										required
-										class="form-input"
-										placeholder="例如：http://192.168.2.204/api/sensor"
-									/>
-								</label>
-							</template>
-							<template v-else-if="sensorConfig.protocol === 'mqtt'">
-								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>連線字串<span class="required-mark">*</span></span>
-									<input
-										v-model="sensorConfig.connection_string"
-										type="text"
-										required
-										class="form-input"
-										placeholder="例如：mqtt://192.168.2.204:1883"
-									/>
-								</label>
-							</template>
-						</template>
-
-						<template v-if="deviceTypeCode === 'access_control'">
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>主機位址<span class="required-mark">*</span></span>
-								<input
-									v-model="accessControlConfig.host"
-									type="text"
-									required
-									class="form-input"
-									placeholder="例如：192.168.2.34"
-								/>
-							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>端口（選填，預設 80）</span>
-								<input
-									v-model.number="accessControlConfig.port"
-									type="number"
-									min="1"
-									max="65535"
-									class="form-input"
-									placeholder="80"
-								/>
-							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span>密碼<span class="required-mark">*</span></span>
-								<div class="relative w-full">
-									<input
-										v-model="accessControlConfig.password"
-										:type="showAccessControlPassword ? 'text' : 'password'"
-										required
-										class="form-input w-full pr-12"
-										placeholder="設備登入密碼"
-										:aria-label="showAccessControlPassword ? '門禁密碼（已顯示）' : '門禁密碼（已隱藏）'"
-									/>
-									<button
-										type="button"
-										class="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-white/50 transition-colors hover:text-white/80 focus:outline-none"
-										:aria-label="showAccessControlPassword ? '隱藏密碼' : '顯示密碼'"
-										@click="showAccessControlPassword = !showAccessControlPassword"
-									>
-										<svg
-											v-if="!showAccessControlPassword"
-											class="h-5 w-5"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-											/>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-											/>
-										</svg>
-										<svg v-else class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-											/>
-										</svg>
-									</button>
-								</div>
-							</label>
-						</template>
-
-						<p v-if="displayErrorMessage" class="form-error-text">
-							{{ displayErrorMessage }}
-						</p>
+							<p v-if="displayErrorMessage" class="form-error-text">
+								{{ displayErrorMessage }}
+							</p>
 						</fieldset>
 					</form>
 
@@ -449,7 +441,7 @@
 </template>
 
 <script setup lang="ts">
-import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import { usePlatformAdmin } from "~/composables/core/useAuth";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
@@ -545,9 +537,7 @@ const cameraCategoryOptions = computed(() => [
 const filteredDeviceModels = computed(() => {
 	if (props.deviceTypeCode !== "camera") return deviceModels.value;
 	if (!cameraCategoryCode.value) return [];
-	return deviceModels.value.filter(
-		(m) => String(m.category_code || "") === cameraCategoryCode.value
-	);
+	return deviceModels.value.filter(m => String(m.category_code || "") === cameraCategoryCode.value);
 });
 
 const cameraModelPlaceholder = computed(() => {
@@ -575,7 +565,7 @@ const cameraRtspPreview = computed(() =>
 const sensorProtocolOptions = [
 	{ value: "modbus", label: "Modbus / TCP" },
 	{ value: "http", label: "HTTP" },
-	{ value: "mqtt", label: "MQTT" },
+	{ value: "mqtt", label: "MQTT" }
 ];
 
 const sensorConfig = reactive<SensorDeviceConfig>({
@@ -638,11 +628,10 @@ const deviceModelOptions = computed(() => {
 	if (deviceModels.value.length === 0) {
 		return [{ value: "", label: "無可用設備型號" }];
 	}
-	const source =
-		props.deviceTypeCode === "camera" ? filteredDeviceModels.value : deviceModels.value;
-	const options = source.map((model) => ({
+	const source = props.deviceTypeCode === "camera" ? filteredDeviceModels.value : deviceModels.value;
+	const options = source.map(model => ({
 		value: String(model.id),
-		label: model.name,
+		label: model.name
 	}));
 	// 添加空選項（用於清除選擇）
 	return [{ value: "", label: "請選擇設備型號" }, ...options];
@@ -654,9 +643,7 @@ const selectedDeviceModel = computed(() => {
 	return deviceModels.value.find(m => m.id === localFormData.model_id) || null;
 });
 
-const isHcnetSdkController = computed(() =>
-	isHcnetSdkDeviceModel(selectedDeviceModel.value)
-);
+const isHcnetSdkController = computed(() => isHcnetSdkDeviceModel(selectedDeviceModel.value));
 
 // 從選中的型號繼承 port 與 unit_id
 const inheritFromModel = () => {
@@ -1046,7 +1033,7 @@ const handleSubmit = () => {
 		controllerPassword: controllerConfig.password,
 		cameraIp: cameraIp.value,
 		cameraUsername: cameraUsername.value,
-		cameraPassword: cameraPassword.value,
+		cameraPassword: cameraPassword.value
 	});
 	if (validationError) {
 		localErrorMessage.value = validationError;

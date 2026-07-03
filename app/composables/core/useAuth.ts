@@ -17,6 +17,15 @@ export const usePlatformAdmin = () => {
 	return computed(() => isPlatformAdmin(user.value));
 };
 
+/** 設備型號管理可見性：平台管理員且未被產品環境（YSOP/YSOS）以 deviceModelsLocked 鎖定 */
+export const useCanManageDeviceModels = () => {
+	const platformAdmin = usePlatformAdmin();
+	const config = useRuntimeConfig();
+	const locked =
+		String((config.public as { deviceModelsLocked?: string }).deviceModelsLocked ?? "") === "1";
+	return computed(() => platformAdmin.value && !locked);
+};
+
 type UserCookiePayload = Pick<User, "id" | "username" | "role" | "status">;
 
 const toCookieUser = (nextUser: User | null): UserCookiePayload | null => {

@@ -45,7 +45,8 @@
 								aria-label="新增設備"
 								class="rounded-xl bg-emerald-500/80 px-4 py-2 text-base text-white enabled:hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-lg"
 								@click="showCreateDialog = true"
-							>新增設備</PermissionActionButton>
+								>新增設備</PermissionActionButton
+							>
 						</div>
 					</div>
 
@@ -54,14 +55,16 @@
 						:empty="!isLoading && devices.length === 0"
 						:error="listLoadError"
 						empty-title="尚無設備資料"
-						:empty-description="canCreateDevice && currentTabName ? `點擊「新增設備」開始建立${currentTabName}` : ''"
+						:empty-description="
+							canCreateDevice && currentTabName ? `點擊「新增設備」開始建立${currentTabName}` : ''
+						"
 					>
 						<div :key="`devices-${activeTab}-${offset}`">
 							<table class="w-full text-center">
 								<thead>
 									<tr class="border-b border-white/20">
 										<th :class="tableHeaderClass">設備名稱</th>
-								<th v-if="activeTab === 'camera'" :class="tableHeaderClass">
+										<th v-if="activeTab === 'camera'" :class="tableHeaderClass">
 											<FilterDropdown
 												:model-value="cameraGroupFilter"
 												:options="cameraGroupFilterOptions"
@@ -71,7 +74,7 @@
 											/>
 										</th>
 										<th v-if="activeTab === 'camera'" :class="tableHeaderClass">攝影機群組</th>
-								<th :class="tableHeaderClass">設備型號</th>
+										<th :class="tableHeaderClass">設備型號</th>
 										<th :class="tableHeaderClass">
 											{{ activeTab === "camera" ? "IP 位址" : "配置資訊" }}
 										</th>
@@ -150,7 +153,8 @@
 													aria-label="刪除設備"
 													class="rounded bg-red-500/80 px-3 py-1 text-white enabled:hover:bg-red-400 2xl:px-4 2xl:py-2"
 													@click="confirmDeleteDevice(device)"
-												>刪除</PermissionActionButton>
+													>刪除</PermissionActionButton
+												>
 											</div>
 										</td>
 									</tr>

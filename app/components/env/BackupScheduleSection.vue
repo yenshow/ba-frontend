@@ -11,8 +11,8 @@
 			:empty="!isLoading && !loadError && !schema"
 			empty-title="無可顯示的設定"
 			error-title="載入營運設定失敗"
-			loading-min-height-class="min-h-[168px] 2xl:min-h-[188px]"
-			empty-min-height-class="min-h-[168px] 2xl:min-h-[188px]"
+			loading-min-height-class="min-h-[180px]"
+			empty-min-height-class="min-h-[180px]"
 		>
 			<div v-if="schema" class="space-y-6">
 				<div
