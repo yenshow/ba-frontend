@@ -11,26 +11,21 @@
 			loading-min-height-class="min-h-[240px] 2xl:min-h-[280px]"
 			empty-min-height-class="min-h-[240px] 2xl:min-h-[280px]"
 		>
-			<div class="space-y-3">
+			<div class="min-h-[172px] space-y-3">
 				<div
 					v-for="r in rules"
 					:key="r.id"
-					class="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-white/15 bg-black/20 p-4"
+					class="flex flex-wrap items-center gap-3 rounded-xl border border-white/15 bg-black/20 p-4"
 				>
-					<div class="min-w-0 space-y-1">
-						<div class="flex flex-wrap items-center gap-2">
-							<p class="truncate text-base font-semibold text-white/90">{{ r.name }}</p>
-							<span
-								class="rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-xs text-white/70"
-							>
-								{{ r.outputFormat.toUpperCase() }} / {{ r.storageType.toUpperCase() }}
-							</span>
-							<span class="text-xs text-white/60">每日 {{ r.exportTime }}</span>
-						</div>
-						<p v-if="r.description" class="text-sm text-white/70">{{ r.description }}</p>
-					</div>
+					<p class="text-base font-semibold text-white/90">{{ r.name }}</p>
+					<span
+						class="rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-sm text-white/70"
+					>
+						{{ r.outputFormat.toUpperCase() }} / {{ r.storageType.toUpperCase() }}
+					</span>
+					<span class="text-sm text-white/60">每日 {{ r.exportTime }}</span>
 
-					<div class="flex flex-wrap items-center gap-2">
+					<div class="ml-auto flex flex-wrap items-center gap-2">
 						<button
 							type="button"
 							class="rounded-xl border border-white/25 bg-white/10 px-3 py-2 text-sm text-white/85 hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
@@ -336,13 +331,13 @@ const {
 	handleEdit,
 	handleCloseDialog,
 	handleSaveDialog,
-	handleDelete,
+	handleDelete
 } = useRecordExportRulesForm();
 
 defineExpose({
 	openDialog: handleCreate,
 	actionLabel,
-	actionDisabled: formDisabled,
+	actionDisabled: formDisabled
 });
 </script>
 
