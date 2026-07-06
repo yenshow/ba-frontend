@@ -68,6 +68,7 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import { computed, ref, watch } from "vue"
 import type { ManualIssueChangedPayload, ManualIssueRuleBitOption } from "~/utils/alertUtils"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
@@ -187,7 +188,7 @@ const handleTriggerAlert = async () => {
 			rule:
 				usesRuleMode.value && effectiveRuleTrigger.value ? effectiveRuleTrigger.value : undefined,
 		})
-		toast.success("已觸發警報")
+		toast.success(TOAST.ALERT_TRIGGERED)
 	} catch (error) {
 		handleError(error, "觸發警報失敗")
 	} finally {
@@ -214,7 +215,7 @@ const handleClearAlert = async () => {
 			systemId: selectedTargetId.value,
 			action: "clear",
 		})
-		toast.success("已清除警報")
+		toast.success(TOAST.ALERT_CLEARED)
 	} catch (error) {
 		handleError(error, "清除警報失敗")
 	} finally {

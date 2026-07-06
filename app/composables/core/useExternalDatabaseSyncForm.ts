@@ -1,3 +1,4 @@
+import { TOAST } from "~/config/toastCatalog"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useAdminOnly } from "~/composables/core/useAuth"
 import { useToast } from "~/composables/core/useToast"
@@ -182,7 +183,7 @@ export const useExternalDatabaseSyncForm = () => {
 
 	const handleOpenDialog = () => {
 		if (!canAdmin.value) {
-			toast.warning("僅管理員可設定")
+			toast.warning(TOAST.ADMIN_ONLY_EXTERNAL_DB)
 			return
 		}
 		resetFormFromConfig()
@@ -207,7 +208,7 @@ export const useExternalDatabaseSyncForm = () => {
 					password: form.password,
 				},
 			})
-			toast.success("連線成功")
+			toast.success(TOAST.EXTERNAL_DB_CONNECTED)
 		} catch (e) {
 			handleError(e, "連線失敗")
 		} finally {
@@ -233,7 +234,7 @@ export const useExternalDatabaseSyncForm = () => {
 					mappings: buildMappingsPayload(),
 				},
 			})
-			toast.success("已儲存資料庫對接設定")
+			toast.success(TOAST.EXTERNAL_DB_SAVED)
 			dialogOpen.value = false
 			await fetchConfig()
 		} catch (e) {

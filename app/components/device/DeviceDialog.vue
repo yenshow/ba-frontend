@@ -659,7 +659,7 @@ const loadDeviceModels = async (force = false) => {
 		// 記錄當前載入的類型
 		currentLoadedTypeCode.value = props.deviceTypeCode
 	} catch (error) {
-		console.error("載入設備型號失敗:", error)
+		logger.error("載入設備型號失敗:", error)
 	} finally {
 		isLoadingDeviceModels.value = false
 	}

@@ -7,7 +7,7 @@ import {
 	severityToToastType,
 	type AppSeverity,
 	type ErrorContext,
-} from "~/utils/errorUtils"
+} from "~/utils/apiError"
 
 const errorHandlerLogger = logger.createLogger("Error Handler")
 
@@ -146,13 +146,8 @@ export const useErrorHandler = () => {
 		return errorMsg
 	}
 
-	const resetPriority = () => {
-		// 保留 API 相容；已不再使用模組級嚴重度抑制
-	}
-
 	return {
 		handleError,
-		resetPriority,
 		getErrorSeverity,
 	}
 }

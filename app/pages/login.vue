@@ -228,9 +228,10 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import { useAuth } from "~/composables/core/useAuth"
 import { useToast } from "~/composables/core/useToast"
-import { resolveFormApiError } from "~/utils/errorUtils"
+import { resolveFormApiError } from "~/utils/apiError"
 import { sanitizeAuthRedirectPath } from "~/utils/authSession"
 import HeroPicInline from "~/components/common/HeroPicInline.vue"
 import { useProductVersionDisplay } from "~/composables/core/useProductVersionDisplay"
@@ -314,7 +315,7 @@ const handleLogin = async () => {
 			password: formData.value.password,
 		})
 
-		toast.success("登入成功")
+		toast.success(TOAST.LOGIN_SUCCESS)
 
 		const redirectPath = sanitizeAuthRedirectPath(route.query.redirect)
 		await router.push(redirectPath)

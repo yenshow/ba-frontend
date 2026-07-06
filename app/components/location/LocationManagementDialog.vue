@@ -138,7 +138,7 @@ import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { removeLocationFromSystemOrDelete } from "~/composables/location/locationSystemActions"
 import { buildDeleteLocationConfirmCopy, buildDeleteZoneConfirmCopy, getLocationDeleteSuccessToast } from "~/utils/confirmCopy"
 import { getLocationUiKey } from "~/utils/locationUiId"
-import { resolveFormApiError } from "~/utils/errorUtils"
+import { resolveFormApiError } from "~/utils/apiError"
 import { getSystemTypeLabel } from "~/types/location"
 import { useToast } from "~/composables/core/useToast"
 

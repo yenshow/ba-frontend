@@ -93,9 +93,7 @@ export const usePeopleCountingState = () => {
 				}
 			}
 
-			if (process.dev) {
-				stateLogger.log("載入地點列表成功", { count: locations.value.length });
-			}
+			stateLogger.debug("載入地點列表成功", { count: locations.value.length });
 		} catch (error) {
 			handleError(error, "載入地點列表失敗");
 			throw error;

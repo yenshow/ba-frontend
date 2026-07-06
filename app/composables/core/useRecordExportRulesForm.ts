@@ -1,3 +1,4 @@
+import { TOAST } from "~/config/toastCatalog"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useAdminOnly } from "~/composables/core/useAuth"
 import { useToast } from "~/composables/core/useToast"
@@ -202,16 +203,16 @@ export const useRecordExportRulesForm = () => {
 
 	const handleSaveDialog = async () => {
 		if (!canAdmin.value) {
-			toast.warning("僅管理員可儲存")
+			toast.warning(TOAST.ADMIN_ONLY_RECORD_EXPORT)
 			return
 		}
 		const fieldsPayload = buildFieldsPayload()
 		if (fieldsPayload.length === 0) {
-			toast.warning("輸出欄位至少需填寫一項表頭")
+			toast.warning(TOAST.RECORD_EXPORT_HEADER_REQUIRED)
 			return
 		}
 		if (dialog.form.groupIds.length === 0) {
-			toast.warning("部門（人員群組）至少需選擇一項")
+			toast.warning(TOAST.RECORD_EXPORT_GROUP_REQUIRED)
 			return
 		}
 
@@ -243,10 +244,10 @@ export const useRecordExportRulesForm = () => {
 
 			if (dialog.mode === "create") {
 				await request("/record-export/rules", { method: "POST", body })
-				toast.success("已新增規則")
+				toast.success(TOAST.RECORD_EXPORT_CREATED)
 			} else {
 				await request(`/record-export/rules/${dialog.form.id}`, { method: "PUT", body })
-				toast.success("已更新規則")
+				toast.success(TOAST.RECORD_EXPORT_UPDATED)
 			}
 			dialog.open = false
 			await fetchRules()
@@ -262,7 +263,7 @@ export const useRecordExportRulesForm = () => {
 		isDeletingId.value = id
 		try {
 			await request(`/record-export/rules/${id}`, { method: "DELETE" })
-			toast.success("已刪除")
+			toast.success(TOAST.RECORD_EXPORT_DELETED)
 			await fetchRules()
 		} catch (e) {
 			handleError(e, "刪除失敗")

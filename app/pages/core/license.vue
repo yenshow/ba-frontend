@@ -370,6 +370,7 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import { LICENSE_FEATURE_KEYS, type FeatureKey, type LicenseState } from "~/types/license"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useAdminOnly, usePlatformAdmin } from "~/composables/core/useAuth"
@@ -636,7 +637,7 @@ const handleActivateOnline = async () => {
 			body: { licenseKey: lk },
 		})
 		await refreshLicense()
-		toast.success("線上啟用成功")
+		toast.success(TOAST.LICENSE_ONLINE_ACTIVATED)
 	} catch (error) {
 		handleError(error, "線上啟用失敗", { context: "save" })
 	} finally {
@@ -652,7 +653,7 @@ const handleResetLicense = async () => {
 		await refreshLicense()
 		offlineStep.value = 1
 		clearOfflineResponseSelection()
-		toast.success("已重置本地授權狀態")
+		toast.success(TOAST.LICENSE_LOCAL_RESET)
 	} catch (error) {
 		handleError(error, "重置授權失敗")
 	} finally {
@@ -723,7 +724,7 @@ const handleGenerateRequestFile = async () => {
 		a.download = `license-request-${lk}.txt`
 		a.click()
 		URL.revokeObjectURL(url)
-		toast.success("已下載 request file（Base64）")
+		toast.success(TOAST.LICENSE_REQUEST_DOWNLOADED)
 		clearOfflineResponseSelection()
 		offlineStep.value = 2
 	} catch (error) {
@@ -745,7 +746,7 @@ const handleImportOffline = async () => {
 		})
 		await refreshLicense()
 		clearOfflineResponseSelection()
-		toast.success("離線授權匯入成功")
+		toast.success(TOAST.LICENSE_OFFLINE_IMPORTED)
 	} catch (error) {
 		handleError(error, "離線授權匯入失敗", { context: "save" })
 	} finally {
@@ -774,10 +775,10 @@ const handleOfflineResponseFileChange = async (e: Event) => {
 		}
 		offlineResponsePayload.value = parsed as Record<string, unknown>
 		offlineResponseFileName.value = file.name
-		toast.success("已載入離線授權檔")
+		toast.success(TOAST.LICENSE_FILE_LOADED)
 	} catch {
 		clearOfflineResponseSelection()
-		toast.error("檔案內容不是有效的授權 JSON")
+		toast.error(TOAST.LICENSE_INVALID_JSON)
 	} finally {
 		if (input) input.value = ""
 	}

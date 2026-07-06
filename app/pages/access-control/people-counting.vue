@@ -235,6 +235,7 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import { onMounted, onBeforeUnmount, watch, nextTick, computed, ref } from "vue"
 import type {
 	PeopleCountingZone,
@@ -492,9 +493,9 @@ const handleResetStats = async () => {
 	if (!confirmed) return
 	try {
 		await resetStatsForSelectedSite()
-		showToast("success", "已重製人流統計")
+		showToast("success", TOAST.PEOPLE_COUNTING_RESET)
 	} catch (error) {
-		showToast("error", error instanceof Error ? error.message : "重製失敗")
+		showToast("error", error instanceof Error ? error.message : TOAST.STATS_RESET_FAILED)
 	}
 }
 

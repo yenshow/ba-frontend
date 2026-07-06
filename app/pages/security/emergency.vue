@@ -63,6 +63,7 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import { onMounted, watch } from "vue"
 import EmergencyRescueMonitorCenter from "~/components/emergency-rescue/EmergencyRescueMonitorCenter.vue"
 import EmergencyRescueZonePlanPanel from "~/components/emergency-rescue/EmergencyRescueZonePlanPanel.vue"
@@ -257,7 +258,7 @@ const handleSaveLocationPositionFromPanel = async (payload: {
 		})
 		const zi = erZones.value.findIndex((z) => z.id === targetZone.id)
 		if (zi > -1) erZones.value[zi] = result.zone
-		toast.success("已更新點位")
+		toast.success(TOAST.POINT_UPDATED)
 	} catch (error) {
 		handleError(error, "更新位置失敗")
 	}

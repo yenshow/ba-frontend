@@ -249,6 +249,7 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import {
 	usePersonnelGroupsDraft,
 	isNewPersonnelGroupDraftMain,
@@ -270,7 +271,7 @@ import {
 	buildDeletePersonnelMainGroupConfirmCopy,
 	type PersonnelGroupsChangedPayload,
 } from "~/utils/personnelGroups"
-import { resolveFormApiError } from "~/utils/errorUtils"
+import { resolveFormApiError } from "~/utils/apiError"
 
 const props = defineProps<{
 	modelValue: boolean
@@ -440,7 +441,7 @@ const handleSaveAll = async () => {
 			)
 		}
 
-		toast.success("已儲存群組變更")
+		toast.success(TOAST.PERSONNEL_GROUPS_SAVED)
 		emit("changed", { scope: "groups" })
 	} catch (err) {
 		errorMessage.value = resolveFormApiError(err, "儲存群組失敗")

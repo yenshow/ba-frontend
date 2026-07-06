@@ -1,3 +1,4 @@
+import { TOAST } from "~/config/toastCatalog"
 import { computed, reactive, ref, type Ref } from "vue"
 import type { ElevatorSyncCandidate, ElevatorSyncJob } from "~/types/elevator"
 import type { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
@@ -152,7 +153,7 @@ export const useElevatorSyncEngine = (params: {
 			ensureSyncCandidates,
 		)
 		if (syncWarnings.value.length > 0) {
-			toast.error(`同步完成（含 ${syncWarnings.value.length} 筆警告）`)
+			toast.error(TOAST.SYNC_COMPLETE_WITH_WARNINGS(syncWarnings.value.length))
 			showWarningsDialog.value = true
 			return
 		}

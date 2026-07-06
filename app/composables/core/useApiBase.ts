@@ -13,14 +13,12 @@ import {
 	type ApiErrorCode,
 	type ErrorContext,
 	resolveUserFacingApiError,
-} from "~/utils/errorUtils"
-import {
 	assertYscpResponseSuccess,
 	isYscpPath,
 	parseBackendApiFailure,
 	unwrapYscpSuccessData,
 	YscpApiBusinessError,
-} from "~/utils/parseBackendApiFailure"
+} from "~/utils/apiError"
 
 // GET 同 URL 同時間去重（避免多個元件/多個 watch 同步觸發造成 burst）
 const inFlightGetRequests = new Map<string, Promise<unknown>>()
@@ -78,18 +76,13 @@ export const useApiBase = () => {
 	const throwApiRequestError = async (
 		error: unknown,
 		path: string,
-		options?: { fallbackStatus?: number; context?: ErrorContext },
+		options?: { fallbackStatus?: number; context?: ErrorContext }
 	): Promise<never> => {
 		const failure = parseBackendApiFailure(error, { path })
 		const statusCode = resolveFetchHttpStatus(error) ?? options?.fallbackStatus
-		const originalMessage =
-			failure.message || extractBackendApiErrorText(error, path) || undefined
+		const originalMessage = failure.message || extractBackendApiErrorText(error, path) || undefined
 
-		if (
-			statusCode === 403 &&
-			failure.backendCode === "PERMISSION_DENIED" &&
-			process.client
-		) {
+		if (statusCode === 403 && failure.backendCode === "PERMISSION_DENIED" && process.client) {
 			const { fetchUser } = runWithNuxtContext(() => useAuth())
 			if (!permissionRefreshInFlight) {
 				permissionRefreshInFlight = fetchUser()
@@ -121,7 +114,9 @@ export const useApiBase = () => {
 		}
 
 		const errorMessage =
-			error instanceof Error ? error.message : String((error as { message?: string })?.message ?? "")
+			error instanceof Error
+				? error.message
+				: String((error as { message?: string })?.message ?? "")
 
 		if (isApiRequestTimeout({ message: errorMessage, originalMessage })) {
 			throw new ApiRequestError(USER_FACING_REQUEST_TIMEOUT, {
@@ -150,8 +145,7 @@ export const useApiBase = () => {
 
 		if (isDeviceRequest) {
 			const isDeviceConn =
-				isDeviceConnectionError(error) ||
-				(errorMessage.includes("無法連接到後端伺服器") && !isNetworkError)
+				isDeviceConnectionError(error) || (errorMessage.includes("??????????") && !isNetworkError)
 
 			if (isDeviceConn) {
 				throw new ApiRequestError(USER_FACING_CONNECTION_ERROR, {
@@ -230,12 +224,14 @@ export const useApiBase = () => {
 		}
 
 		if (response && typeof response === "object") {
-			if ("success" in response && "data" in response && (response as { success: boolean }).success === true) {
+			if (
+				"success" in response &&
+				"data" in response &&
+				(response as { success: boolean }).success === true
+			) {
 				return (response as { data: T }).data
 			}
 			const obj = response as Record<string, unknown>
-			// 勿剝除業務 payload 的 timestamp（例如 multimedia env-readings snapshot）
-			// - snapshot 可能是 `{ timestamp, data, devices }` 或 `{ snapshot: { ... } }`
 			const hasDevicesArray = Array.isArray(obj.devices)
 			const hasSnapshotWrapper = !!obj.snapshot && typeof obj.snapshot === "object"
 			if ("timestamp" in obj && !hasDevicesArray && !hasSnapshotWrapper) {
@@ -277,7 +273,10 @@ export const useApiBase = () => {
 	}
 
 	const request = async <T>(path: string, options: RequestOptions = {}) => {
-		const { url, method, headers, timeout, fetcherOptions, finalBody } = buildRequestInit(path, options)
+		const { url, method, headers, timeout, fetcherOptions, finalBody } = buildRequestInit(
+			path,
+			options
+		)
 
 		if (method === "GET") {
 			const existing = inFlightGetRequests.get(url) as Promise<T> | undefined

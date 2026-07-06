@@ -246,6 +246,7 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import { onMounted, onBeforeUnmount, watch, nextTick, computed, ref } from "vue"
 import type {
 	VehicleAccessZone,
@@ -530,9 +531,9 @@ const handleResetParkingStats = async () => {
 	if (!confirmed) return
 	try {
 		await resetParkingStatsForSelectedSite()
-		showToast("success", "已重製停車場統計")
+		showToast("success", TOAST.PARKING_STATS_RESET)
 	} catch (error) {
-		showToast("error", error instanceof Error ? error.message : "重製失敗")
+		showToast("error", error instanceof Error ? error.message : TOAST.STATS_RESET_FAILED)
 	}
 }
 

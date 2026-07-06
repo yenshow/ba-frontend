@@ -1,57 +1,35 @@
 /**
- * 統一日誌工具
- * 提供統一的日誌記錄功能，自動處理開發/生產環境區分
+ * 統一日誌工具：集中 dev/prod gate
  */
 
-export type LogLevel = "log" | "info" | "warn" | "error";
+const isDevOutputEnabled = (): boolean => process.dev
 
-/**
- * 統一日誌工具
- */
+const formatMessage = (msg: string): string => `[${new Date().toISOString()}] ${msg}`
+
+const writeDevLog = (
+	consoleFn: (...args: unknown[]) => void,
+	msg: string,
+	...args: unknown[]
+) => {
+	if (!isDevOutputEnabled()) return
+	consoleFn(formatMessage(msg), ...args)
+}
+
 export const logger = {
-	/**
-	 * 記錄一般訊息（僅開發環境）
-	 */
-	log: (msg: string, ...args: unknown[]) => {
-		if (process.dev) {
-			console.log(`[${new Date().toISOString()}] ${msg}`, ...args);
-		}
-	},
+	debug: (msg: string, ...args: unknown[]) => writeDevLog(console.debug, msg, ...args),
 
-	/**
-	 * 記錄資訊訊息（僅開發環境）
-	 */
-	info: (msg: string, ...args: unknown[]) => {
-		if (process.dev) {
-			console.info(`[${new Date().toISOString()}] ${msg}`, ...args);
-		}
-	},
+	info: (msg: string, ...args: unknown[]) => writeDevLog(console.info, msg, ...args),
 
-	/**
-	 * 記錄警告訊息（僅開發環境）
-	 */
-	warn: (msg: string, ...args: unknown[]) => {
-		if (process.dev) {
-			console.warn(`[${new Date().toISOString()}] ${msg}`, ...args);
-		}
-	},
+	warn: (msg: string, ...args: unknown[]) => writeDevLog(console.warn, msg, ...args),
 
-	/**
-	 * 記錄錯誤訊息（總是記錄）
-	 */
 	error: (msg: string, ...args: unknown[]) => {
-		console.error(`[${new Date().toISOString()}] ${msg}`, ...args);
+		console.error(formatMessage(msg), ...args)
 	},
 
-	/**
-	 * 創建模組專用記錄器
-	 * @param moduleName 模組名稱
-	 * @returns 模組專用記錄器
-	 */
 	createLogger: (moduleName: string) => ({
-		log: (msg: string, ...args: unknown[]) => logger.log(`[${moduleName}] ${msg}`, ...args),
+		debug: (msg: string, ...args: unknown[]) => logger.debug(`[${moduleName}] ${msg}`, ...args),
 		info: (msg: string, ...args: unknown[]) => logger.info(`[${moduleName}] ${msg}`, ...args),
 		warn: (msg: string, ...args: unknown[]) => logger.warn(`[${moduleName}] ${msg}`, ...args),
-		error: (msg: string, ...args: unknown[]) => logger.error(`[${moduleName}] ${msg}`, ...args)
-	})
-};
+		error: (msg: string, ...args: unknown[]) => logger.error(`[${moduleName}] ${msg}`, ...args),
+	}),
+}

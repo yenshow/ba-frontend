@@ -151,6 +151,7 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import type {
 	AlertSource,
@@ -362,17 +363,17 @@ const handleSubmitRule = async (payload: {
 					await loadRules()
 					closeRuleDialog()
 					await integrationsStore.prefetch([ruleId])
-					toast.success("警報定義已更新", 3000)
+					toast.success(TOAST.ALERT_RULE_UPDATED, 3000)
 					return
 				}
 			} else {
 				await loadRules()
 				closeRuleDialog()
 				await integrationsStore.prefetch([ruleId])
-				toast.success("警報定義已更新", 3000)
+				toast.success(TOAST.ALERT_RULE_UPDATED, 3000)
 				return
 			}
-			toast.success("警報定義已更新", 3000)
+			toast.success(TOAST.ALERT_RULE_UPDATED, 3000)
 		} else {
 			const created = await alertApi.createAlertRule(rulePayload)
 			const newRule = created?.rule
@@ -391,10 +392,10 @@ const handleSubmitRule = async (payload: {
 				await loadRules()
 				closeRuleDialog()
 				if (ruleId) await integrationsStore.prefetch([ruleId])
-				toast.success("警報定義已建立", 3000)
+				toast.success(TOAST.ALERT_RULE_CREATED, 3000)
 				return
 			}
-			toast.success("警報定義已建立", 3000)
+			toast.success(TOAST.ALERT_RULE_CREATED, 3000)
 		}
 
 		if (ruleId) await integrationsStore.prefetch([ruleId])
@@ -431,7 +432,7 @@ const handleConfirmDeleteRule = async () => {
 		await alertApi.deleteAlertRule(rule.id)
 		alertRules.clearCache(rule.source)
 		integrationsStore.invalidate(rule.id)
-		toast.success("警報定義已刪除", 3000)
+		toast.success(TOAST.ALERT_RULE_DELETED, 3000)
 		await loadRules()
 	} catch (error) {
 		handleApiError(error, "刪除警報定義失敗")

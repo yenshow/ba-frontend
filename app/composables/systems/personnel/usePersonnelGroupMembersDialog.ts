@@ -1,10 +1,11 @@
+import { TOAST } from "~/config/toastCatalog"
 import type { Person, PersonGroup } from "~/types/personnel"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { fetchAllPersonnelCandidates } from "~/composables/systems/personnel/personnelList"
 import { findMainGroupById } from "~/utils/personnelGroups"
 import { groupPersonsByPersonGroup } from "~/utils/personnelUtils"
-import { resolveFormApiError } from "~/utils/errorUtils"
+import { resolveFormApiError } from "~/utils/apiError"
 
 const cloneMemberMap = (map: Record<number, number[]>): Record<number, number[]> =>
 	Object.fromEntries(Object.entries(map).map(([id, ids]) => [Number(id), [...ids]]))
@@ -217,7 +218,7 @@ export const usePersonnelGroupMembersDialog = (params: {
 					}
 				}),
 			)
-			toast.success("已更新群組成員")
+			toast.success(TOAST.PERSONNEL_GROUP_MEMBERS_UPDATED)
 			initialMemberIdsByChildId.value = cloneMemberMap(memberIdsByChildId.value)
 			onSaved()
 		} catch (err) {

@@ -1,3 +1,4 @@
+import { TOAST } from "~/config/toastCatalog"
 import { computed, reactive, ref, type ComputedRef, type Ref } from "vue"
 import type { Person } from "~/types/personnel"
 import type { ElevatorFloorAccessSlot } from "~/types/elevator"
@@ -5,7 +6,7 @@ import type { useElevatorApi } from "~/composables/systems/elevator/useElevatorA
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { fetchAllPersonnelCandidates } from "~/composables/systems/personnel/personnelList"
 import { groupPersonsByPersonGroup } from "~/utils/personnelUtils"
-import { resolveFormApiError } from "~/utils/errorUtils"
+import { resolveFormApiError } from "~/utils/apiError"
 
 type ElevatorApi = ReturnType<typeof useElevatorApi>
 
@@ -155,7 +156,7 @@ export const useElevatorFloorAccess = (params: {
 			defaultsApplied.value = false
 			syncCheckedFromFloors(floors.value)
 			const jobId = res.deviceSync?.jobId ?? null
-			if (!jobId) toast.success("已套用樓層權限")
+			if (!jobId) toast.success(TOAST.ELEVATOR_FLOOR_ACCESS_APPLIED)
 			return { ok: true as const, jobId }
 		} catch (err) {
 			errorText.value = resolveFormApiError(err, "儲存樓層授權失敗")

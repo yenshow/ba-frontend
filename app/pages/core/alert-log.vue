@@ -120,6 +120,7 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import { useToast } from "~/composables/core/useToast"
 import type { Alert, AlertStatus, AlertSource, AlertType } from "~/types/alert"
 import { useAlertLogRbac } from "~/composables/core/useAccessGate"
@@ -522,7 +523,7 @@ const handleExport = async () => {
 		})
 
 		if (result.alerts.length === 0) {
-			toast.info("無資料可匯出")
+			toast.info(TOAST.ALERT_LOG_EXPORT_EMPTY)
 			return
 		}
 
@@ -553,7 +554,7 @@ const handleExport = async () => {
 				: `警示紀錄_${new Date().toISOString().split("T")[0]}.csv`
 
 		exportCsv([...ALERT_CSV_HEADERS], rows, filename, { backupStyle: true })
-		toast.success(`已匯出 ${result.alerts.length} 筆警示紀錄`, 3000)
+		toast.success(TOAST.ALERT_LOG_EXPORTED(result.alerts.length), 3000)
 	} catch (error) {
 		handleApiError(error, "匯出警示失敗")
 	}

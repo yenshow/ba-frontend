@@ -310,7 +310,7 @@ import { getUserRoleLabel } from "~/utils/userRoleLabels"
 import { useAccessGate } from "~/composables/core/useAccessGate"
 import { useToast } from "~/composables/core/useToast"
 import { useTheme } from "~/composables/core/useTheme"
-import { PERMISSION_MESSAGE_LOCKED } from "~/utils/errorUtils"
+import { MSG_PERMISSION_LOCKED } from "~/utils/apiError"
 import type { SystemModule } from "~/types/system"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { useAppShellNavigation } from "~/composables/core/useAppShellNavigation"
@@ -375,7 +375,7 @@ const handleModuleClick = async (module: SystemModule) => {
 	}
 	if (!accessGate.canAccessModule(module)) {
 		if (accessGate.isModuleLocked(module)) {
-			toast.warning(PERMISSION_MESSAGE_LOCKED)
+			toast.warning(MSG_PERMISSION_LOCKED)
 		}
 		closeMoreMenu()
 		return

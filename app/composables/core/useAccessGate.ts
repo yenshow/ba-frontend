@@ -11,7 +11,7 @@ import {
 	MSG_ADMIN_ONLY,
 	MSG_LICENSE_REDIRECT,
 	MSG_PERMISSION_REDIRECT,
-} from "~/utils/errorUtils"
+} from "~/utils/apiError"
 import type { SystemModule } from "~/types/system"
 
 /** 僅平台管理員（role=admin）可進入的頁面 */

@@ -1,7 +1,7 @@
 import type { Ref } from "vue"
 import type { PersonGroup } from "~/types/personnel"
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
-import { resolveFormApiError } from "~/utils/errorUtils"
+import { resolveFormApiError } from "~/utils/apiError"
 
 type PersonnelGroupTreeState = {
 	groupTree: Ref<PersonGroup[]>

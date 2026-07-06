@@ -1,3 +1,4 @@
+import { TOAST } from "~/config/toastCatalog"
 import type { Ref } from "vue"
 import type {
 	SyncAllLocationsJob,
@@ -15,7 +16,6 @@ import {
 	filterWarningsForLocation,
 	isDeviceLevelSyncWarning,
 } from "~/utils/personnelUtils"
-import { clampOffset, getNextOffset, getPrevOffset } from "~/composables/systems/personnel/personnelList"
 
 export const usePersonnelSyncEngine = (params: {
 	personnelApi: PersonnelApi
@@ -189,7 +189,7 @@ export const usePersonnelSyncEngine = (params: {
 					syncWarnings.value = await finalizeSyncWarningsForDisplay(
 						syncWarnings.value,
 						syncCandidatesByLocation,
-						ensureSyncCandidates,
+						ensureSyncCandidates
 					)
 					updateLastCompletedCacheForLocation({
 						locationId: locId,
@@ -200,10 +200,10 @@ export const usePersonnelSyncEngine = (params: {
 				}
 
 				if ((syncWarnings.value || []).length > 0) {
-					toast.error(`同步完成（含 ${syncWarnings.value.length} 筆警告）`)
+					toast.error(TOAST.SYNC_COMPLETE_WITH_WARNINGS(syncWarnings.value.length))
 					showWarningsDialog.value = true
 				} else {
-					toast.success("同步完成")
+					toast.success(TOAST.SYNC_COMPLETE)
 				}
 				break
 			}
@@ -275,13 +275,13 @@ export const usePersonnelSyncEngine = (params: {
 					syncWarnings.value = await finalizeSyncWarningsForDisplay(
 						allWarnings,
 						syncCandidatesByLocation,
-						ensureSyncCandidates,
+						ensureSyncCandidates
 					)
 					if ((syncWarnings.value || []).length > 0) {
-						toast.error(`同步全部完成（含 ${syncWarnings.value.length} 筆警告）`)
+						toast.error(TOAST.SYNC_ALL_COMPLETE_WITH_WARNINGS(syncWarnings.value.length))
 						showWarningsDialog.value = true
 					} else {
-						toast.success("同步全部完成")
+						toast.success(TOAST.SYNC_ALL_COMPLETE)
 					}
 					break
 				}
@@ -297,10 +297,13 @@ export const usePersonnelSyncEngine = (params: {
 
 	// ---------- step rows + paging + pill ----------
 	const getItemsForLocation = (locationId: number): SyncLocationJobItem[] => {
-		if (activeSyncLocationId.value === locationId && activeSyncJob.value) return activeSyncJobTailItems.value ?? []
+		if (activeSyncLocationId.value === locationId && activeSyncJob.value)
+			return activeSyncJobTailItems.value ?? []
 		const j = activeSyncAllJob.value
 		if (j?.items?.length) {
-			return j.items.filter((it) => it.locationId == null || Number(it.locationId) === Number(locationId))
+			return j.items.filter(
+				(it) => it.locationId == null || Number(it.locationId) === Number(locationId)
+			)
 		}
 		return []
 	}
@@ -363,4 +366,3 @@ export const usePersonnelSyncEngine = (params: {
 		getSyncStepRowsForLocation,
 	}
 }
-

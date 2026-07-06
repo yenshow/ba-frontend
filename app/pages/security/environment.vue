@@ -548,8 +548,10 @@ const enabledParameters = computed(() => {
 	return currentLocationData.value.parameters.filter((param) => param.enabled)
 })
 
-const { featuredGaugeTypes, isFeaturedType, handleParamCardClick } =
-	useEnvironmentFeaturedGauges(selectedLocationId, enabledParameters)
+const { featuredGaugeTypes, isFeaturedType, handleParamCardClick } = useEnvironmentFeaturedGauges(
+	selectedLocationId,
+	enabledParameters
+)
 
 // getLocationZone / getLocationId 已於上方宣告，供 composable 與 currentLocationData 共用
 
@@ -788,7 +790,7 @@ const getStatusText = (type: string, value: number | null): string => {
 			const status = getStatusTextFromRules(type, value, alertRules.value)
 			return status
 		} catch (error) {
-			console.warn("[environment] 使用規則判斷狀態失敗，視為正常:", error)
+			logger.warn("[environment] 使用規則判斷狀態失敗，視為正常:", error)
 		}
 	}
 

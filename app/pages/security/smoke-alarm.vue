@@ -63,6 +63,7 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import { onMounted, watch, type Ref } from "vue"
 import SmokeAlarmMonitorCenter from "~/components/smoke-alarm/SmokeAlarmMonitorCenter.vue"
 import SmokeAlarmZonePlanPanel from "~/components/smoke-alarm/SmokeAlarmZonePlanPanel.vue"
@@ -234,7 +235,7 @@ const handleSaveLocationPositionFromPanel = async (payload: { locationId: string
 		})
 		const zi = smokeZones.value.findIndex((z) => z.id === targetZone.id)
 		if (zi > -1) smokeZones.value[zi] = result.zone
-		toast.success("已更新點位")
+		toast.success(TOAST.POINT_UPDATED)
 	} catch (error) {
 		handleError(error, "更新位置失敗")
 	}

@@ -1,9 +1,10 @@
+import { TOAST } from "~/config/toastCatalog"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useImageCenter } from "~/composables/core/useImageCenter"
 import { createSafeFileName } from "~/utils/fileUtils"
-import { ApiRequestError } from "~/utils/errorUtils"
+import { ApiRequestError } from "~/utils/apiError"
 
 /** 圖片上傳說明（與後端 10MB 上限一致） */
 export const IMAGE_UPLOAD_HINT =
@@ -81,7 +82,7 @@ export const useAppSettings = (options: UseAppSettingsOptions) => {
 				body: { value: normalized },
 			})
 			value.value = normalized
-			showToast("success", "設定已儲存")
+			showToast("success", TOAST.SETTINGS_SAVED)
 		} catch (error) {
 			handleError(error, `儲存設定失敗: ${key}`)
 			throw error
@@ -110,7 +111,7 @@ export const useAppSettings = (options: UseAppSettingsOptions) => {
 			const settingValue = response?.setting?.value
 			if (settingValue) {
 				value.value = settingValue
-				showToast("success", "檔案上傳成功")
+				showToast("success", TOAST.SETTINGS_UPLOAD_SUCCESS)
 			}
 		} catch (error) {
 			handleError(error, `上傳檔案失敗: ${key}`)
@@ -122,7 +123,7 @@ export const useAppSettings = (options: UseAppSettingsOptions) => {
 
 	const reset = async () => {
 		if (value.value === defaultValue) {
-			showToast("success", "設定已重設為預設值")
+			showToast("success", TOAST.SETTINGS_RESET_DEFAULT)
 			return
 		}
 
@@ -130,11 +131,11 @@ export const useAppSettings = (options: UseAppSettingsOptions) => {
 		try {
 			await request(`/settings/${key}`, { method: "DELETE" })
 			value.value = defaultValue
-			showToast("success", "設定已重設為預設值")
+			showToast("success", TOAST.SETTINGS_RESET_DEFAULT)
 		} catch (error: unknown) {
 			if (error instanceof ApiRequestError && error.statusCode === 404) {
 				value.value = defaultValue
-				showToast("success", "設定已重設為預設值")
+				showToast("success", TOAST.SETTINGS_RESET_DEFAULT)
 			} else {
 				handleError(error, `重設設定失敗: ${key}`)
 				throw error

@@ -64,6 +64,7 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import { onMounted, watch } from "vue"
 import HvacZonePlanPanel from "~/components/hvac/HvacZonePlanPanel.vue"
 import HvacStatusCenter from "~/components/hvac/HvacStatusCenter.vue"
@@ -241,7 +242,7 @@ const saveLocationPosition = async (locationId: string, x: number, y: number) =>
 		} as any)
 		const zi = hvacZones.value.findIndex((z) => z.id === zone.id)
 		if (zi > -1) hvacZones.value[zi] = result.zone
-		toast.success("已更新點位")
+		toast.success(TOAST.POINT_UPDATED)
 	} catch (error) {
 		handleError(error, "更新位置失敗")
 	}

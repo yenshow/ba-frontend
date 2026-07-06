@@ -95,24 +95,26 @@
 															class="btn-reorder-arrow"
 															:disabled="isFirstZoneInList(zone)"
 															title="上移"
-													aria-label="此區域上移"
-													@click.stop="moveZoneOrder(zone, -1)">
-													↑
-												</button>
+															aria-label="此區域上移"
+															@click.stop="moveZoneOrder(zone, -1)"
+														>
+															↑
+														</button>
 														<button
 															type="button"
 															class="btn-reorder-arrow"
 															:disabled="isLastZoneInList(zone)"
 															title="下移"
-													aria-label="此區域下移"
-													@click.stop="moveZoneOrder(zone, 1)">
-													↓
-												</button>
+															aria-label="此區域下移"
+															@click.stop="moveZoneOrder(zone, 1)"
+														>
+															↓
+														</button>
 													</div>
 													<IconTrashButton
 														:disabled="!canRemoveZone"
 														title="刪除區域"
-												aria-label="刪除區域"
+														aria-label="刪除區域"
 														@click.stop="handleDeleteZone(getZoneId(zone))"
 													/>
 												</div>
@@ -201,7 +203,8 @@
 							:allowed="canAddZone"
 							aria-label="新增區域"
 							class="btn-primary"
-							@click="addNewZone">
+							@click="addNewZone"
+						>
 							新增區域
 						</PermissionActionButton>
 					</footer>
@@ -227,6 +230,7 @@
 </template>
 
 <script setup lang="ts" generic="TZone extends SystemZoneType">
+import { TOAST } from "~/config/toastCatalog"
 import type { SystemType, UnifiedZone } from "~/types/location"
 import type { Device } from "~/types/device"
 import type {
@@ -265,9 +269,13 @@ import {
 	isApiRequestTimeout,
 	joinFormErrors,
 	resolveFormApiErrorPreferOriginal,
-} from "~/utils/errorUtils"
+} from "~/utils/apiError"
 import { removeLocationFromSystemOrDelete } from "~/composables/location/locationSystemActions"
-import { buildDeleteLocationConfirmCopy, buildDeleteZoneConfirmCopy, getLocationDeleteSuccessToast } from "~/utils/confirmCopy"
+import {
+	buildDeleteLocationConfirmCopy,
+	buildDeleteZoneConfirmCopy,
+	getLocationDeleteSuccessToast,
+} from "~/utils/confirmCopy"
 import { getLocationUiKey, getZoneUiKey } from "~/utils/locationUiId"
 import { pickSortOrder, zoneSortOrderValue } from "~/utils/sortOrder"
 import { filterPeopleCountingCameraDevices } from "~/utils/cameraModelCategories"
@@ -453,7 +461,7 @@ const loadDevices = async () => {
 		})
 		devices.value = result.devices
 	} catch (error) {
-		console.error("載入設備列表失敗:", error)
+		logger.error("載入設備列表失敗:", error)
 		errorMessage.value = "載入設備列表失敗"
 	} finally {
 		isLoadingDevices.value = false
@@ -469,7 +477,7 @@ const loadPersonGroups = async () => {
 		})
 		personGroups.value = result.data || []
 	} catch (error) {
-		console.error("載入人員群組列表失敗:", error)
+		logger.error("載入人員群組列表失敗:", error)
 		errorMessage.value = "載入人員群組列表失敗"
 	}
 }
@@ -483,7 +491,7 @@ const loadDoors = async () => {
 		})
 		doors.value = result.data || []
 	} catch (error) {
-		console.error("載入門禁設備列表失敗:", error)
+		logger.error("載入門禁設備列表失敗:", error)
 		errorMessage.value = "載入門禁設備列表失敗"
 	}
 }
@@ -498,7 +506,7 @@ const loadAccessControlDevices = async () => {
 		})
 		accessControlDevices.value = result.devices || []
 	} catch (error) {
-		console.error("載入門禁設備列表失敗:", error)
+		logger.error("載入門禁設備列表失敗:", error)
 		accessControlDevices.value = []
 	}
 }
@@ -516,7 +524,7 @@ const loadVehicleAccessFormGroups = async () => {
 					list_name: g.list_name?.trim() || `群組 ${g.id}`,
 				}))
 		} catch (error) {
-			console.error("載入車輛群組列表失敗:", error)
+			logger.error("載入車輛群組列表失敗:", error)
 			vehicleCustomGroups.value = []
 		}
 	} else {
@@ -749,7 +757,7 @@ const removeLocation = (zoneId: string, locationIndex: number) => {
 const commitLocalLocationRemoval = (
 	zone: TZone,
 	locations: SystemLocationType[],
-	index: number,
+	index: number
 ) => {
 	locations.splice(index, 1)
 	updateZone(adapter.setLocationsProperty(zone, locations))
@@ -809,7 +817,7 @@ const handleConfirmDeleteLocation = async () => {
 
 	commitLocalLocationRemoval(zone, locations, resolvedIndex)
 	pendingDeleteLocation.value = null
-	toast.success("已從清單移除此地點")
+	toast.success(TOAST.LOCATION_REMOVED_FROM_LIST)
 }
 
 const isNewZone = (zone: TZone): boolean => {
@@ -1019,7 +1027,7 @@ const saveAllChanges = async () => {
 				} else {
 					await props.onSaveZone(cleanedZone)
 				}
-			}),
+			})
 		)
 
 		const succeededIds: string[] = []
@@ -1037,13 +1045,13 @@ const saveAllChanges = async () => {
 		}
 
 		if (failures.length === 0) {
-			toast.success(saveCount === 1 ? "區域已儲存" : `已儲存 ${saveCount} 個區域`)
+			toast.success(saveCount === 1 ? TOAST.ZONE_SAVED : TOAST.ZONES_SAVED(saveCount))
 			emit("saved")
 		} else if (succeededIds.length > 0) {
-			toast.warning(`部分區域儲存失敗（${failures.length}/${saveCount}）`)
+			toast.warning(TOAST.ZONE_PARTIAL_SAVE_FAILED(failures.length, saveCount))
 			errorMessage.value = resolveFormApiErrorPreferOriginal(
 				failures[0]!.reason,
-				"部分區域儲存失敗",
+				"部分區域儲存失敗"
 			)
 			emit("saved")
 		} else {
@@ -1051,10 +1059,7 @@ const saveAllChanges = async () => {
 				errorMessage.value =
 					"請求逾時：平台資料可能已儲存，但梯控設備樓層參數可能尚未同步完成。請關閉後重新開啟確認，或稍後再次儲存。"
 			} else {
-				errorMessage.value = resolveFormApiErrorPreferOriginal(
-					failures[0]!.reason,
-					"儲存區域失敗",
-				)
+				errorMessage.value = resolveFormApiErrorPreferOriginal(failures[0]!.reason, "儲存區域失敗")
 			}
 		}
 	} finally {

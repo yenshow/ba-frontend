@@ -62,6 +62,7 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import { onMounted, watch } from "vue"
 import LightStatusCenter from "~/components/lighting/LightStatusCenter.vue"
 import LightingZonePlanPanel from "~/components/lighting/LightingZonePlanPanel.vue"
@@ -224,7 +225,7 @@ const saveLocationPosition = async (locationId: string, x: number, y: number) =>
 		})
 		const zi = lightingZones.value.findIndex((z) => z.id === zone.id)
 		if (zi > -1) lightingZones.value[zi] = result.zone
-		toast.success("已更新點位")
+		toast.success(TOAST.POINT_UPDATED)
 	} catch (error) {
 		handleError(error, "更新位置失敗")
 	}

@@ -216,6 +216,7 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import { onMounted, onBeforeUnmount, watch, ref } from "vue"
 import type { GridLayout, MonitorView } from "~/types/surveillance"
 import type { CameraDeviceConfig } from "~/types/device"
@@ -305,7 +306,7 @@ const refreshStatus = async () => {
 		await streamStatus.loadCameras()
 		const ids = cameras.value.map((c) => c.id)
 		await deviceConnectivity.refresh(ids)
-		toast.success("已重新整理")
+		toast.success(TOAST.SURVEILLANCE_REFRESHED)
 	} catch (error) {
 		handleError(error, "重新載入失敗")
 	}
@@ -320,19 +321,19 @@ const handleCameraSelect = async (deviceId: number) => {
 	}
 
 	if (!canControlStream.value) {
-		toast.warning("無串流控制權限")
+		toast.warning(TOAST.SURVEILLANCE_NO_STREAM_PERMISSION)
 		return
 	}
 
 	const maxViews = parseInt(gridLayout.value)
 	if (monitorViews.value.length >= maxViews) {
-		toast.warning(`最多只能顯示 ${maxViews} 個畫面`)
+		toast.warning(TOAST.SURVEILLANCE_MAX_VIEWS(maxViews))
 		return
 	}
 
 	try {
 		await streamStatus.addMonitorView(deviceId)
-		toast.success("已加入監控畫面")
+		toast.success(TOAST.SURVEILLANCE_VIEW_ADDED)
 	} catch (error) {
 		handleError(error, "啟動串流失敗")
 	}

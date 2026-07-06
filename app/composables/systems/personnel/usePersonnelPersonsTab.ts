@@ -1,3 +1,4 @@
+import { TOAST } from "~/config/toastCatalog"
 import type { Device } from "~/types/device"
 import type {
 	ImportResult,
@@ -59,7 +60,7 @@ import {
 } from "~/utils/personnelUtils"
 import { usePersonsList } from "~/composables/systems/personnel/usePersonsList"
 import { parsePersonGroupIdFromForm } from "~/utils/personnelGroups"
-import { resolveFormApiError } from "~/utils/errorUtils"
+import { resolveFormApiError } from "~/utils/apiError"
 import {
 	PERSONNEL_API_ERROR_OPTS,
 	type PersonnelHandleApiError,
@@ -415,7 +416,7 @@ export const usePersonnelPersonsTab = (params: {
 
 		const mimeType = String(file.type || "").toLowerCase()
 		if (!mimeType.startsWith("image/")) {
-			toast.error("請選擇圖片檔案")
+			toast.error(TOAST.PERSONNEL_IMAGE_REQUIRED)
 			return
 		}
 		openFaceCrop(file)
@@ -905,7 +906,7 @@ export const usePersonnelPersonsTab = (params: {
 				personsOffset.value = getPrevOffset({ offset: personsOffset.value, limit: PAGE_SIZE })
 				await loadPersons()
 			}
-			toast.success("已刪除人員")
+			toast.success(TOAST.PERSONNEL_DELETED)
 		} catch (err) {
 			handleApiError(err, "刪除人員失敗", PERSONNEL_API_ERROR_OPTS)
 		}
@@ -927,13 +928,13 @@ export const usePersonnelPersonsTab = (params: {
 			const result = await personnelApi.importPersons(form)
 			importResult.value = result
 			if (result.errors?.length) {
-				toast.warning(`匯入完成，但有 ${result.errors.length} 筆錯誤，請查看下方明細`)
+				toast.warning(TOAST.PERSONNEL_IMPORT_WITH_ERRORS(result.errors.length))
 			}
 			if (result.created > 0) {
-				toast.success(`已匯入 ${result.created} 筆`)
+				toast.success(TOAST.PERSONNEL_IMPORTED(result.created))
 				void loadPersons()
 			} else if (!result.errors?.length) {
-				toast.warning("未匯入任何資料")
+				toast.warning(TOAST.PERSONNEL_IMPORT_NONE)
 			}
 		} catch (err) {
 			importError.value =

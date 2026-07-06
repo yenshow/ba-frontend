@@ -125,6 +125,7 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import { computed, ref, toRefs, watch } from "vue"
 import type {
 	ElevatorDoorControlCommand,
@@ -137,7 +138,7 @@ import ElevatorLedBillboard from "~/components/elevator/ElevatorLedBillboard.vue
 import { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
 import { useElevatorRuntime } from "~/composables/systems/elevator/useElevatorRuntime"
 import { useToast } from "~/composables/core/useToast"
-import { resolveFormApiError } from "~/utils/errorUtils"
+import { resolveFormApiError } from "~/utils/apiError"
 import { sortFloorsForPanel, resolveElevatorCallCommand } from "~/utils/elevatorFloorModel"
 import {
 	buildElevatorDeviceStatusLabel,
@@ -332,7 +333,7 @@ const handleOperation = async (op: PanelOperation) => {
 				command: op.command,
 			})
 		}
-		toast.success("指令已送出")
+		toast.success(TOAST.ELEVATOR_COMMAND_SENT)
 	} catch (error) {
 		errorText.value = resolveFormApiError(error, op.kind === "call" ? "呼梯失敗" : "門控操作失敗")
 	} finally {

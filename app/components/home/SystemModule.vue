@@ -149,13 +149,14 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import { useAccessGate, useHomeRbac } from "~/composables/core/useAccessGate"
 import { useHomeModuleOrder } from "~/composables/core/useHomeModuleOrder"
 import { useToast } from "~/composables/core/useToast"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import type { CentralShellModule } from "~/config/centralModuleShell"
-import { PERMISSION_MESSAGE_LOCKED } from "~/utils/errorUtils"
+import { MSG_PERMISSION_LOCKED } from "~/utils/apiError"
 
 const MODULES_PER_PAGE = 8
 const MODULE_GRID_CLASS =
@@ -220,7 +221,7 @@ const handleModuleClick = async (module: CentralShellModule) => {
 	}
 	if (!accessGate.canAccessModule(module)) {
 		if (accessGate.isModuleLocked(module)) {
-			toast.warning(PERMISSION_MESSAGE_LOCKED)
+			toast.warning(MSG_PERMISSION_LOCKED)
 		}
 		return
 	}
@@ -247,7 +248,7 @@ const handleFinishEdit = () => {
 
 const handleResetOrder = () => {
 	resetToDefault()
-	toast.success("已還原為預設順序")
+	toast.success(TOAST.HOME_MODULE_ORDER_RESET)
 }
 
 const handleDragStart = (event: DragEvent, route: string) => {

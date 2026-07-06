@@ -65,6 +65,7 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import { onMounted, watch } from "vue"
 import FireMonitorCenter from "~/components/fire/FireMonitorCenter.vue"
 import FireZonePlanPanel from "~/components/fire/FireZonePlanPanel.vue"
@@ -287,7 +288,7 @@ const handleSaveLocationPositionFromPanel = async (payload: {
 		})
 		const zi = fireZones.value.findIndex((z) => z.id === targetZone.id)
 		if (zi > -1) fireZones.value[zi] = result.zone
-		toast.success("已更新點位")
+		toast.success(TOAST.POINT_UPDATED)
 	} catch (error) {
 		handleError(error, "更新位置失敗")
 	}

@@ -257,6 +257,7 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import IconTrashButton from "~/components/common/IconTrashButton.vue"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 
@@ -409,7 +410,7 @@ const moveDraftCategory = (draftId: string, direction: "up" | "down") => {
 const handleAddPointInDraft = (draft: DraftCategory) => {
 	const name = draft.name.trim()
 	if (!name) {
-		toast.error("請先輸入檢視分類名稱")
+		toast.error(TOAST.VIEW_CATEGORY_NAME_REQUIRED)
 		return
 	}
 	emit("add-location", { viewCategory: name })
@@ -428,7 +429,7 @@ const commitGroupRename = (group: GroupRow) => {
 	if (nextName === prev) return
 
 	if (group.key !== EMPTY_KEY && nextName === "") {
-		toast.error("分類名稱不可為空白")
+		toast.error(TOAST.VIEW_CATEGORY_NAME_BLANK)
 		categoryLabels[group.key] = group.viewCategory
 		return
 	}

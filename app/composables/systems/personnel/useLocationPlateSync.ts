@@ -1,3 +1,4 @@
+import { TOAST } from "~/config/toastCatalog"
 import { computed, reactive, ref, type Ref } from "vue"
 import type { LocationLicensePlateRow, SyncWarning } from "~/types/personnel"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
@@ -14,7 +15,7 @@ import {
 } from "~/composables/systems/personnel/personnelList"
 import { useLocationMembersOnly } from "~/composables/systems/personnel/useLocationMembersStep"
 import { useDeviceSyncObserver, indexSyncableLocationDevices } from "~/composables/systems/personnel/useDeviceSyncCore"
-import { resolveUserFacingCatchMessage } from "~/utils/errorUtils"
+import { resolveUserFacingCatchMessage } from "~/utils/apiError"
 import {
 	createDefaultIsapiPlateForm,
 	isapiPlateFormFromLocationRow,
@@ -174,7 +175,7 @@ export const useLocationPlateSync = (params: {
 				notifyError(`重新同步完成（含 ${syncWarnings.value.length} 筆警告）`)
 				showWarningsDialog.value = true
 			} else {
-				toast.success("已重新同步車牌至攝影機")
+				toast.success(TOAST.PERSONNEL_PLATE_RESYNCED)
 			}
 		} catch (e) {
 			handleApiError(e, "重新同步失敗")
@@ -190,7 +191,7 @@ export const useLocationPlateSync = (params: {
 			notifyError(`同步完成（含 ${syncWarnings.value.length} 筆警告）`)
 			showWarningsDialog.value = true
 		} else {
-			toast.success("已套用名單並同步至設備")
+			toast.success(TOAST.PERSONNEL_LIST_APPLIED_SYNCED)
 		}
 	}
 
@@ -212,7 +213,7 @@ export const useLocationPlateSync = (params: {
 				activeSyncLocationId.value = null
 			}
 		} else {
-			toast.success("已套用名單")
+			toast.success(TOAST.PERSONNEL_LIST_APPLIED)
 		}
 
 		return res
@@ -325,7 +326,7 @@ export const useLocationPlateSync = (params: {
 			}
 
 			await pushPersonPlatesToDevices(locationId, personId, licensePlateItemsToPayload(items))
-			toast.success("已儲存車牌")
+			toast.success(TOAST.PERSONNEL_PLATE_SAVED)
 			cancelPlateForm()
 			return true
 		} catch (e) {
@@ -344,7 +345,7 @@ export const useLocationPlateSync = (params: {
 				(i) => i.plateNumber.trim().toUpperCase() !== row.plate_normalized,
 			)
 			await pushPersonPlatesToDevices(locationId, row.person_id, licensePlateItemsToPayload(items))
-			toast.success("已刪除車牌")
+			toast.success(TOAST.PERSONNEL_PLATE_DELETED)
 			return true
 		} catch (e) {
 			handleApiError(e, "刪除車牌失敗")

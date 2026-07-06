@@ -215,6 +215,7 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import type {
 	Device,
 	CreateDeviceData,
@@ -244,7 +245,7 @@ import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useDeviceConnectivity } from "~/composables/systems/devices/useDeviceConnectivity"
 import { useDeviceWebSocket } from "~/composables/websocket/subscribers/useDeviceWebSocket"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
-import { applyFormApiErrorToRef } from "~/utils/errorUtils"
+import { applyFormApiErrorToRef } from "~/utils/apiError"
 import { getCameraModelCategoryLabel } from "~/utils/cameraModelCategories"
 import { useEquipmentRbac } from "~/composables/core/useAccessGate"
 import { usePlatformAdmin } from "~/composables/core/useAuth"
@@ -502,7 +503,7 @@ const handleSubmit = async (data: CreateDeviceData | UpdateDeviceData) => {
 		}
 
 		closeDialog()
-		toast.success(result.message || "操作成功")
+		toast.success(result.message || TOAST.DEVICE_OPERATION_SUCCESS)
 	} catch (error) {
 		applyFormApiErrorToRef(errorMessage, error, "操作失敗")
 	} finally {
@@ -537,7 +538,7 @@ const handleConfirmDeleteDevice = async () => {
 		devices.value = devices.value.filter((d) => d.id !== device.id)
 		total.value = Math.max(0, total.value - 1)
 
-		toast.success(result.message || "操作成功")
+		toast.success(result.message || TOAST.DEVICE_OPERATION_SUCCESS)
 	} catch (error) {
 		handleApiError(error, "刪除設備失敗")
 	} finally {

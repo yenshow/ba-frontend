@@ -409,6 +409,7 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import PageTabs from "~/components/common/PageTabs.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
@@ -429,7 +430,7 @@ import type {
 definePageMeta({ layout: "default" })
 
 import { useMultimediaRbac } from "~/composables/core/useAccessGate"
-import { MSG_PERMISSION_LOCKED } from "~/utils/errorUtils"
+import { MSG_PERMISSION_LOCKED } from "~/utils/apiError"
 const { canUpdateSettings } = useMultimediaRbac()
 const toast = useToast()
 const { handleError } = useErrorHandler()
@@ -791,7 +792,7 @@ const handleUpload = async (file: File, onSuccess: (url: string) => void) => {
 		const res = await api.uploadMedia(file)
 		if (res?.file?.url) {
 			onSuccess(res.file.url)
-			toast.success("上傳成功", 3000)
+			toast.success(TOAST.MULTIMEDIA_UPLOAD_SUCCESS, 3000)
 		}
 	} catch (err) {
 		handleError(err, "上傳失敗")
@@ -848,7 +849,7 @@ const handleSave = async () => {
 		draft.envDisplayParameters = [...FIXED_ENV_SKELETON_KEYS]
 		const res = await api.updateSettings(draft)
 		Object.assign(draft, res.settings)
-		toast.success("已儲存", 3000)
+		toast.success(TOAST.MULTIMEDIA_SAVED, 3000)
 	} catch (err) {
 		handleError(err, "儲存失敗")
 	} finally {

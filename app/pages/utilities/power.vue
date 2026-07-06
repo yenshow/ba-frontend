@@ -65,6 +65,7 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import { onMounted, watch } from "vue"
 import PowerMonitorCenter from "~/components/power/PowerMonitorCenter.vue"
 import PowerZonePlanPanel from "~/components/power/PowerZonePlanPanel.vue"
@@ -276,7 +277,7 @@ const handleSaveLocationPositionFromPanel = async (payload: {
 		})
 		const zi = powerZones.value.findIndex((z) => z.id === targetZone.id)
 		if (zi > -1) powerZones.value[zi] = result.zone
-		toast.success("已更新點位")
+		toast.success(TOAST.POINT_UPDATED)
 	} catch (error) {
 		handleError(error, "更新位置失敗")
 	}

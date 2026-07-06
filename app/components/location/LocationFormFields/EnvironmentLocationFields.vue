@@ -2,7 +2,9 @@
 	<div class="flex min-w-0 flex-1 flex-col">
 		<div class="flex min-w-0 flex-col gap-2">
 			<!-- 地點名稱 -->
-			<label class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0">
+			<label
+				class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0"
+			>
 				<span>地點名稱<span class="required-mark">*</span></span>
 				<input
 					v-model="localLocation.name"
@@ -17,10 +19,7 @@
 			<!-- 感測器設備（複選，勾選多台） -->
 			<div class="flex flex-1 flex-col gap-2">
 				<span class="text-sm text-white/80 2xl:text-base">感測器設備</span>
-				<div
-					v-if="isLoadingDevices"
-					class="py-2 text-center text-xs text-white/50 2xl:text-sm"
-				>
+				<div v-if="isLoadingDevices" class="py-2 text-center text-xs text-white/50 2xl:text-sm">
 					載入中...
 				</div>
 				<div
@@ -35,7 +34,7 @@
 						:key="device.id"
 						class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
 						:class="{
-							'border-cyan-400/50 bg-cyan-500/20': isDeviceSelected(device.id)
+							'border-cyan-400/50 bg-cyan-500/20': isDeviceSelected(device.id),
 						}"
 					>
 						<input
@@ -85,7 +84,9 @@
 						:key="paramDef.type"
 						class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
 						:class="{
-							'border-cyan-400/50 bg-cyan-500/20': isParameterEnabled(paramDef.type as SensorParameterType)
+							'border-cyan-400/50 bg-cyan-500/20': isParameterEnabled(
+								paramDef.type as SensorParameterType
+							),
 						}"
 					>
 						<input
@@ -112,143 +113,144 @@
 </template>
 
 <script setup lang="ts">
-import type { EnvironmentLocation, SensorParameterType } from "~/types/environment";
+import type { EnvironmentLocation, SensorParameterType } from "~/types/environment"
 import {
 	type Device,
 	type SensorParameterDefinition,
 	getSensorParametersFromModelConfig,
-} from "~/types/device";
-import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
-import { usePlatformAdmin } from "~/composables/core/useAuth";
-import { getParameterDisplayName } from "~/utils/sensorUtils";
+} from "~/types/device"
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { usePlatformAdmin } from "~/composables/core/useAuth"
+import { getParameterDisplayName } from "~/utils/sensorUtils"
 
 interface Props {
-	location: EnvironmentLocation;
-	devices?: Device[];
-	isLoadingDevices?: boolean;
+	location: EnvironmentLocation
+	devices?: Device[]
+	isLoadingDevices?: boolean
 }
 
 interface Emits {
-	(e: "update", location: EnvironmentLocation): void;
+	(e: "update", location: EnvironmentLocation): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	devices: () => [],
-	isLoadingDevices: false
-});
+	isLoadingDevices: false,
+})
 
-const emit = defineEmits<Emits>();
+const emit = defineEmits<Emits>()
 
-const deviceApi = useDeviceApi();
-const canPlatformAdmin = usePlatformAdmin();
+const deviceApi = useDeviceApi()
+const canPlatformAdmin = usePlatformAdmin()
 
-const localLocation = ref<EnvironmentLocation>({ ...props.location });
+const localLocation = ref<EnvironmentLocation>({ ...props.location })
 
-const deviceParameterDefinitions = ref<Map<number, SensorParameterDefinition[]>>(new Map());
+const deviceParameterDefinitions = ref<Map<number, SensorParameterDefinition[]>>(new Map())
 
 watch(
 	() => props.location,
-	newLocation => {
-		localLocation.value = { ...newLocation };
+	(newLocation) => {
+		localLocation.value = { ...newLocation }
 		if (!localLocation.value.parameters) {
-			localLocation.value.parameters = [];
+			localLocation.value.parameters = []
 		}
-		const ids = getNormalizedDeviceIds(localLocation.value);
+		const ids = getNormalizedDeviceIds(localLocation.value)
 		if (JSON.stringify(ids) !== JSON.stringify(localLocation.value.deviceIds ?? [])) {
-			localLocation.value.deviceIds = ids.length ? ids : undefined;
-			localLocation.value.deviceId = ids[0];
+			localLocation.value.deviceIds = ids.length ? ids : undefined
+			localLocation.value.deviceId = ids[0]
 		}
 	},
 	{ immediate: true, deep: true }
-);
+)
 
 function getNormalizedDeviceIds(loc: EnvironmentLocation): number[] {
-	if (Array.isArray(loc.deviceIds) && loc.deviceIds.length > 0) return loc.deviceIds;
-	if (loc.deviceId != null && loc.deviceId > 0) return [loc.deviceId];
-	return [];
+	if (Array.isArray(loc.deviceIds) && loc.deviceIds.length > 0) return loc.deviceIds
+	if (loc.deviceId != null && loc.deviceId > 0) return [loc.deviceId]
+	return []
 }
 
-const selectedDeviceIds = computed(() => getNormalizedDeviceIds(localLocation.value));
+const selectedDeviceIds = computed(() => getNormalizedDeviceIds(localLocation.value))
 
 const sensorDevices = computed(() =>
-	props.devices.filter((d) => d.type_code === "sensor" || (d as { type_code?: string }).type_code === "sensor")
-);
+	props.devices.filter(
+		(d) => d.type_code === "sensor" || (d as { type_code?: string }).type_code === "sensor"
+	)
+)
 
 const handleChange = () => {
-	emit("update", { ...localLocation.value });
-};
+	emit("update", { ...localLocation.value })
+}
 
 watch(
 	selectedDeviceIds,
 	async (ids) => {
 		for (const deviceId of ids) {
-			if (!deviceId || deviceParameterDefinitions.value.has(deviceId)) continue;
+			if (!deviceId || deviceParameterDefinitions.value.has(deviceId)) continue
 			try {
-				const result = await deviceApi.getDevice(deviceId);
-				const fullDevice = result.device;
-				const sensorParameters = getSensorParametersFromModelConfig(fullDevice.model?.config);
+				const result = await deviceApi.getDevice(deviceId)
+				const fullDevice = result.device
+				const sensorParameters = getSensorParametersFromModelConfig(fullDevice.model?.config)
 				if (sensorParameters.length > 0) {
-					deviceParameterDefinitions.value.set(deviceId, sensorParameters);
+					deviceParameterDefinitions.value.set(deviceId, sensorParameters)
 				}
 			} catch (error) {
-				console.error(`載入設備 ${deviceId} 的參數定義失敗:`, error);
+				logger.error(`載入設備 ${deviceId} 的參數定義失敗:`, error)
 			}
 		}
 	},
 	{ immediate: true, deep: true }
-);
+)
 
 const availableParameters = computed(() => {
-	const ids = selectedDeviceIds.value;
-	if (ids.length === 0) return [];
-	const seen = new Set<string>();
-	const out: SensorParameterDefinition[] = [];
+	const ids = selectedDeviceIds.value
+	if (ids.length === 0) return []
+	const seen = new Set<string>()
+	const out: SensorParameterDefinition[] = []
 	for (const deviceId of ids) {
-		const defs = deviceParameterDefinitions.value.get(deviceId) || [];
+		const defs = deviceParameterDefinitions.value.get(deviceId) || []
 		for (const d of defs) {
 			if (!seen.has(d.type)) {
-				seen.add(d.type);
-				out.push(d);
+				seen.add(d.type)
+				out.push(d)
 			}
 		}
 	}
-	return out;
-});
+	return out
+})
 
-const isDeviceSelected = (deviceId: number): boolean =>
-	selectedDeviceIds.value.includes(deviceId);
+const isDeviceSelected = (deviceId: number): boolean => selectedDeviceIds.value.includes(deviceId)
 
 const toggleDevice = (deviceId: number) => {
-	const ids = [...selectedDeviceIds.value];
-	const idx = ids.indexOf(deviceId);
+	const ids = [...selectedDeviceIds.value]
+	const idx = ids.indexOf(deviceId)
 	if (idx >= 0) {
-		ids.splice(idx, 1);
+		ids.splice(idx, 1)
 	} else {
-		ids.push(deviceId);
-		ids.sort((a, b) => a - b);
+		ids.push(deviceId)
+		ids.sort((a, b) => a - b)
 	}
-	localLocation.value.deviceIds = ids.length ? ids : undefined;
-	localLocation.value.deviceId = ids[0];
-	const availableTypes = new Set(availableParameters.value.map((p) => p.type));
+	localLocation.value.deviceIds = ids.length ? ids : undefined
+	localLocation.value.deviceId = ids[0]
+	const availableTypes = new Set(availableParameters.value.map((p) => p.type))
 	localLocation.value.parameters = localLocation.value.parameters.filter((p) =>
 		availableTypes.has(p.type as SensorParameterType)
-	);
-	handleChange();
-};
+	)
+	handleChange()
+}
 
 const isParameterEnabled = (paramType: SensorParameterType): boolean =>
-	localLocation.value.parameters.some((p) => p.type === paramType && p.enabled);
+	localLocation.value.parameters.some((p) => p.type === paramType && p.enabled)
 
 const toggleParameter = (paramType: SensorParameterType) => {
-	const existingParam = localLocation.value.parameters.find((p) => p.type === paramType);
+	const existingParam = localLocation.value.parameters.find((p) => p.type === paramType)
 	if (existingParam) {
-		existingParam.enabled = !existingParam.enabled;
+		existingParam.enabled = !existingParam.enabled
 	} else {
 		localLocation.value.parameters.push({
 			type: paramType,
-			enabled: true
-		});
+			enabled: true,
+		})
 	}
-	handleChange();
-};
+	handleChange()
+}
 </script>

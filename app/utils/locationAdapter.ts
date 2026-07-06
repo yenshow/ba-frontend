@@ -1,3 +1,4 @@
+import { logger } from "~/utils/logger"
 import type {
 	UnifiedZone,
 	UnifiedLocation,
@@ -279,7 +280,7 @@ function parseSystemConfig(systemType: SystemType, config: unknown): SystemConfi
 		default:
 			// SystemType 是有限的聯合類型，理論上不會執行到這裡
 			// 但為了類型安全，返回空配置
-			console.warn(`未知的系統類型: ${systemType}`)
+			logger.warn(`未知的系統類型: ${systemType}`)
 			return { parameters: [] }
 	}
 }

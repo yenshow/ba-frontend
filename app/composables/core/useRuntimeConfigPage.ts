@@ -1,3 +1,4 @@
+import { TOAST } from "~/config/toastCatalog"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useAdminOnly } from "~/composables/core/useAuth"
 import { useToast } from "~/composables/core/useToast"
@@ -75,7 +76,7 @@ export const useRuntimeConfigPage = (options: UseRuntimeConfigPageOptions = {}) 
 
 	const handleSave = async (saveOptions: { silent?: boolean; fromAutoSave?: boolean } = {}) => {
 		if (!canAdmin.value) {
-			if (!saveOptions.silent) toast.warning("僅管理員可儲存營運設定")
+			if (!saveOptions.silent) toast.warning(TOAST.ADMIN_ONLY_RUNTIME_CONFIG)
 			return false
 		}
 		if (!schema.value) return false
