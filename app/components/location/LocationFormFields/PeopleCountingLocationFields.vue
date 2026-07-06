@@ -51,7 +51,7 @@
 
 		<!-- YSCP：入口／出口設備 -->
 		<div v-if="dataSource === 'yscp'" class="mt-3 border-t border-white/10 pt-3">
-			<div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 				<div :class="fieldLabelClass">
 					<span>入口設備（可複選）<span class="required-mark">*</span></span>
 					<div v-if="props.doors.length === 0" :class="emptyHintClass">無可用門設備</div>
@@ -133,7 +133,7 @@
 
 		<!-- 門禁設備：入口／出口設備（本系統） -->
 		<div v-else-if="dataSource === 'access_control'" class="mt-3 border-t border-white/10 pt-3">
-			<div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 				<div :class="fieldLabelClass">
 					<span>入口設備（可複選）<span class="required-mark">*</span></span>
 					<div v-if="props.accessControlDevices.length === 0" :class="emptyHintClass">

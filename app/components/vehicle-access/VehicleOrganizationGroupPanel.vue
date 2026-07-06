@@ -1,6 +1,8 @@
 <template>
 	<div class="vehicle-org-panel min-h-[220px] space-y-4">
-		<h3 class="vehicle-org-title bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
+		<h3
+			class="vehicle-org-title bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
+		>
 			{{ panelTitle }}
 		</h3>
 		<div class="grid grid-cols-3 gap-4 2xl:grid-cols-4">
@@ -12,7 +14,7 @@
 				:class="{
 					'border-white/70': selectedGroupKey === group.groupKey,
 					'bg-white/20': (group.onSiteCount || 0) > 0,
-					'bg-black/20': (group.onSiteCount || 0) === 0,
+					'bg-black/20': (group.onSiteCount || 0) === 0
 				}"
 				tabindex="0"
 				role="button"
@@ -37,22 +39,22 @@
 </template>
 
 <script setup lang="ts">
-import type { VehicleOrganizationGroupItem } from "~/types/vehicleAccess"
+import type { VehicleOrganizationGroupItem } from "~/types/vehicleAccess";
 
 withDefaults(
 	defineProps<{
-		groups: VehicleOrganizationGroupItem[]
-		selectedGroupKey?: string
-		panelTitle?: string
+		groups: VehicleOrganizationGroupItem[];
+		selectedGroupKey?: string;
+		panelTitle?: string;
 	}>(),
 	{ panelTitle: "車輛群組" }
-)
+);
 
 const emit = defineEmits<{
-	(e: "select", groupKey: string): void
-}>()
+	(e: "select", groupKey: string): void;
+}>();
 
 const handleSelect = (group: VehicleOrganizationGroupItem) => {
-	if (group.groupKey) emit("select", group.groupKey)
-}
+	if (group.groupKey) emit("select", group.groupKey);
+};
 </script>

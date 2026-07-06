@@ -30,7 +30,10 @@
 		<div
 			v-else
 			class="mt-16 flex min-h-0 flex-1 flex-col"
-			:class="[enlarged && 'mx-auto w-full max-w-[1400px] 2xl:max-w-[1600px]', contentClass]"
+			:class="[
+				enlarged && 'monitoring-detail-enlarged mx-auto w-full max-w-[1400px] 2xl:max-w-[1600px]',
+				contentClass,
+			]"
 		>
 			<slot />
 		</div>
@@ -38,7 +41,9 @@
 </template>
 
 <script setup lang="ts">
-withDefaults(
+import { provide, toRef } from "vue"
+
+const props = withDefaults(
 	defineProps<{
 		empty?: boolean
 		enlarged?: boolean
@@ -54,4 +59,6 @@ withDefaults(
 		emptyDescription: "請在「地點管理」中新增地點",
 	},
 )
+
+provide("monitoringDetailEnlarged", toRef(props, "enlarged"))
 </script>

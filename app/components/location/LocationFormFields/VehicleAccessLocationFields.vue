@@ -112,7 +112,7 @@
 		</template>
 
 		<template v-else>
-			<div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 				<div>
 					<span class="text-sm text-white/80 2xl:text-base">入口攝影機（可複選）<span class="required-mark">*</span></span>
 					<div v-if="cameraDevices.length === 0" class="mt-2 text-xs text-white/50">

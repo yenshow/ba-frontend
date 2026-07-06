@@ -1,8 +1,8 @@
 <template>
 	<div class="relative">
-		<div class="grid grid-cols-10 gap-4 2xl:gap-8">
+		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-10 2xl:gap-8">
 			<!-- 左側欄 - 環境監測（未授權時不顯示數據） -->
-			<div class="col-span-3">
+			<div class="col-span-1 sm:col-span-2 lg:col-span-3">
 				<div
 					v-if="showLicensePlaceholder"
 					class="rounded-2xl border-2 border-white/30 bg-white/10 p-8 text-center"
@@ -33,7 +33,7 @@
 			</div>
 
 			<!-- 中間區域 - 人員統計 -->
-			<div class="col-span-4">
+			<div class="col-span-1 sm:col-span-2 lg:col-span-4">
 				<div class="mb-4 w-full 2xl:mb-6">
 					<FilterDropdown
 						v-model="selectedLocationId"
@@ -61,7 +61,7 @@
 			</div>
 
 			<!-- 右側欄 - 人員進出記錄 -->
-			<div class="col-span-3">
+			<div class="col-span-1 sm:col-span-2 lg:col-span-3">
 				<div
 					v-if="showLicensePlaceholder"
 					class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"

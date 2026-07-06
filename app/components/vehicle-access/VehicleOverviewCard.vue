@@ -40,19 +40,19 @@
 					class="flex min-w-[140px] flex-col gap-3 border-r-2 border-white/50 pr-8 2xl:min-w-[160px]"
 				>
 					<div class="flex items-center justify-center gap-3 bg-white/20 p-2">
-						<div class="text-sm font-semibold 2xl:text-base">進場車輛</div>
+						<div class="overview-stat-label">進場車輛</div>
 						<div class="w-[80px] bg-black/20 text-center text-xl 2xl:w-[100px] 2xl:text-2xl">
 							{{ summary.entryCount ?? 0 }}
 						</div>
 					</div>
 					<div class="flex items-center justify-center gap-3 bg-white/20 p-2">
-						<div class="text-sm font-semibold 2xl:text-base">出場車輛</div>
+						<div class="overview-stat-label">出場車輛</div>
 						<div class="w-[80px] bg-black/20 text-center text-xl 2xl:w-[100px] 2xl:text-2xl">
 							{{ summary.exitCount ?? 0 }}
 						</div>
 					</div>
 					<div class="flex items-center justify-center gap-3 bg-white/20 p-2">
-						<div class="text-sm font-semibold 2xl:text-base">{{ thirdColumn.label }}</div>
+						<div class="overview-stat-label">{{ thirdColumn.label }}</div>
 						<div
 							class="w-[80px] bg-black/20 text-center text-xl 2xl:w-[100px] 2xl:text-2xl"
 							:class="thirdColumn.isAtOrOverCapacity && 'text-amber-200'"

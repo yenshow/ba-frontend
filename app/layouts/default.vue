@@ -12,7 +12,7 @@
 		<div class="pt-20 2xl:pt-32">
 			<HomeHeader />
 		</div>
-		<main class="p-8 2xl:px-12 2xl:py-8">
+		<main class="p-4 pb-24 sm:p-6 sm:pb-24 lg:p-8 lg:pb-28 2xl:px-12 2xl:py-8">
 			<slot />
 		</main>
 		<BottomNavigation />

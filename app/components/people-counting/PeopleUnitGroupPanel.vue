@@ -1,6 +1,8 @@
 <template>
 	<div class="people-unit-panel min-h-[220px] space-y-4">
-		<h3 class="people-unit-title bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
+		<h3
+			class="people-unit-title bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
+		>
 			{{ panelTitle }}
 		</h3>
 		<div class="grid grid-cols-3 gap-4 2xl:grid-cols-4">
@@ -13,7 +15,7 @@
 					'border-white/70': selectedUnitId === unit.id,
 					'bg-white/20': (unit.currentCount || 0) > 0,
 					'bg-black/20': (unit.currentCount || 0) === 0,
-					'cursor-default': isIsapiCamera,
+					'cursor-default': isIsapiCamera
 				}"
 				:disabled="isIsapiCamera"
 				:tabindex="isIsapiCamera ? -1 : 0"
@@ -59,7 +61,7 @@ const props = withDefaults(
 	{
 		selectedUnitId: null,
 		isIsapiCamera: false,
-		panelTitle: "人員群組",
+		panelTitle: "人員群組"
 	}
 );
 

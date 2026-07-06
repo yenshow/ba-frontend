@@ -119,8 +119,6 @@
 				:can-delete-person="canDeletePerson"
 				:can-update-group="canUpdateGroup"
 				:person-status-labels="personStatusLabels"
-				:table-header-class="tableHeaderClass"
-				:table-cell-class="tableCellClass"
 				:get-person-status-badge-class="getPersonStatusBadgeClass"
 				:persons-tab="personsTab"
 				:selected-main-group-id="resolvedMainGroupId"
@@ -150,8 +148,6 @@ const props = defineProps<{
 	canUpdatePerson: boolean
 	canDeletePerson: boolean
 	personStatusLabels: Record<string, string>
-	tableHeaderClass: string
-	tableCellClass: string
 	getPersonStatusBadgeClass: (status: string) => string
 	personsTab: ReturnType<typeof usePersonnelPersonsTab>
 }>()

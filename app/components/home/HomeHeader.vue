@@ -1,5 +1,5 @@
 <template>
-	<div class="grid grid-cols-3">
+	<div class="grid grid-cols-1 sm:grid-cols-3">
 		<!-- 左側：品牌標誌 -->
 		<div class="group col-span-1 flex items-center justify-center">
 			<div class="relative flex items-center justify-center">

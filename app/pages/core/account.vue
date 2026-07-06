@@ -1,12 +1,12 @@
 <template>
-	<div class="space-y-6 2xl:space-y-8">
+	<div class="page-shell">
 		<header class="space-y-2 2xl:space-y-4">
-			<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">帳號設定</h1>
-			<p class="text-base text-white/80 2xl:text-xl">檢視帳號資訊與變更登入密碼</p>
+			<h1 class="page-title">帳號設定</h1>
+			<p class="page-subtitle">檢視帳號資訊與變更登入密碼</p>
 		</header>
 
 		<div class="grid gap-6 lg:grid-cols-2 lg:items-stretch 2xl:gap-8">
-			<section class="flex flex-col rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
+			<section class="section-card flex flex-col">
 				<h2 class="mb-4 text-lg font-semibold text-white 2xl:mb-6 2xl:text-xl">帳號資訊</h2>
 				<div class="flex flex-col gap-4 2xl:gap-6">
 					<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
@@ -42,7 +42,7 @@
 				</div>
 			</section>
 
-			<section class="flex flex-col rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
+			<section class="section-card flex flex-col">
 				<h2 class="mb-2 text-lg font-semibold text-white 2xl:text-xl">變更密碼</h2>
 				<p class="mb-4 text-sm text-white/60 2xl:mb-6 2xl:text-base">
 					變更成功後將自動登出，請使用新密碼重新登入。

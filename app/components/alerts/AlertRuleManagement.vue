@@ -1,23 +1,23 @@
 <template>
-	<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
+	<section class="section-card">
 		<AsyncPanel
 			:loading="isRulesLoading"
 			:empty="!isRulesLoading && !rulesLoadError && rules.length === 0"
 			:error="rulesLoadError"
 			empty-title="目前沒有警報定義"
 		>
-			<div :key="`rules-${ruleOffset}-${rules.length}`">
-				<table class="w-full text-center">
+			<div :key="`rules-${ruleOffset}-${rules.length}`" class="table-scroll">
+				<table class="w-full min-w-[800px] text-center">
 					<thead>
 						<tr class="border-b border-white/20">
-							<th :class="tableHeaderClass">#</th>
-							<th :class="tableHeaderClass">目標</th>
-							<th :class="tableHeaderClass">條件</th>
-							<th :class="tableHeaderClass">類型</th>
-							<th :class="tableHeaderClass">層級</th>
-							<th :class="tableHeaderClass">狀態</th>
-							<th :class="tableHeaderClass">連動</th>
-							<th :class="tableHeaderClass">操作</th>
+							<th class="table-th">#</th>
+							<th class="table-th">目標</th>
+							<th class="table-th">條件</th>
+							<th class="table-th">類型</th>
+							<th class="table-th">層級</th>
+							<th class="table-th">狀態</th>
+							<th class="table-th">連動</th>
+							<th class="table-th">操作</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -26,14 +26,14 @@
 							:key="rule.id"
 							class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
 						>
-							<td :class="tableCellClass">{{ ruleOffset + index + 1 }}</td>
-							<td :class="[tableCellClass, 'text-white/70']">
+							<td class="table-td">{{ ruleOffset + index + 1 }}</td>
+							<td class="table-td text-white/70">
 								{{ getRuleTargetText(rule) }}
 							</td>
-							<td :class="[tableCellClass, 'text-white/70']">
+							<td class="table-td text-white/70">
 								{{ formatAlertRuleConditionDisplay(rule) }}
 							</td>
-							<td :class="tableCellClass">
+							<td class="table-td">
 								<span
 									:class="[
 										getAlertTypeBadgeClass(rule.alert_type),
@@ -43,7 +43,7 @@
 									{{ getAlertTypeLabel(rule.alert_type) }}
 								</span>
 							</td>
-							<td :class="tableCellClass">
+							<td class="table-td">
 								<span
 									:class="[
 										getSeverityBadgeClass(rule.severity),
@@ -53,7 +53,7 @@
 									{{ getSeverityLabel(rule.severity) }}
 								</span>
 							</td>
-							<td :class="tableCellClass">
+							<td class="table-td">
 								<span
 									:class="[
 										getRuleStatusBadgeClass(rule.enabled),
@@ -63,7 +63,7 @@
 									{{ rule.enabled ? "啟用" : "停用" }}
 								</span>
 							</td>
-							<td :class="tableCellClass">
+							<td class="table-td">
 								<div class="flex flex-wrap items-center justify-center gap-1.5">
 									<template v-if="getIntegrationSummary(rule.id).hasAny">
 										<span
@@ -81,7 +81,7 @@
 									<span v-else class="text-sm text-white/40">—</span>
 								</div>
 							</td>
-							<td :class="tableCellClass">
+							<td class="table-td">
 								<div class="flex flex-wrap gap-2 2xl:gap-3">
 									<PermissionActionButton
 										:allowed="canUpdateRule"
@@ -271,9 +271,6 @@ const ruleSourceOptions = [
 	{ value: "surveillance", label: "影像監控" },
 	{ value: "vehicle_access", label: "車輛進出" },
 ]
-
-const tableHeaderClass = "py-3 2xl:py-4 px-4 2xl:px-6 text-sm 2xl:text-base text-white/80"
-const tableCellClass = "py-3 2xl:py-4 px-4 2xl:px-6"
 
 const getIntegrationSummary = (ruleId: number): AlertRuleIntegrationSummary =>
 	integrationsStore.getSummary(ruleId)

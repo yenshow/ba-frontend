@@ -1,9 +1,9 @@
 <template>
-	<div class="space-y-6 2xl:space-y-8">
+	<div class="page-shell">
 		<header class="flex flex-wrap items-end justify-between gap-4 2xl:gap-6">
 			<div class="space-y-2 2xl:space-y-4">
-				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">用戶管理</h1>
-				<p class="text-base text-white/80 2xl:text-xl">
+				<h1 class="page-title">用戶管理</h1>
+				<p class="page-subtitle">
 					管理系統用戶帳號、角色與權限
 				</p>
 			</div>
@@ -20,7 +20,7 @@
 		</header>
 
 		<!-- 用戶列表 -->
-		<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
+		<section class="section-card">
 			<AsyncPanel
 				:loading="isLoading"
 				:empty="!isLoading && visibleUsers.length === 0"
@@ -28,15 +28,15 @@
 				empty-title="尚無用戶資料"
 				empty-description="點擊「新增用戶」建立第一個帳號"
 			>
-				<div :key="`users-${offset}-${visibleUsers.length}`">
-					<table class="w-full text-center">
+				<div :key="`users-${offset}-${visibleUsers.length}`" class="table-scroll">
+					<table class="w-full min-w-[640px] text-center">
 						<thead>
 							<tr class="border-b border-white/20">
-								<th :class="tableHeaderClass">#</th>
-								<th :class="tableHeaderClass">用戶名</th>
-								<th :class="tableHeaderClass">角色</th>
-								<th :class="tableHeaderClass">狀態</th>
-								<th :class="tableHeaderClass">
+								<th class="table-th">#</th>
+								<th class="table-th">用戶名</th>
+								<th class="table-th">角色</th>
+								<th class="table-th">狀態</th>
+								<th class="table-th">
 									<div class="flex min-w-[80px] justify-center 2xl:min-w-[100px]">
 										<FilterDropdown
 											v-model="dateSortOrder"
@@ -47,7 +47,7 @@
 										/>
 									</div>
 								</th>
-								<th :class="tableHeaderClass">操作</th>
+								<th class="table-th">操作</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -56,16 +56,16 @@
 								:key="user.id"
 								class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
 							>
-								<td :class="tableCellClass">{{ offset + index + 1 }}</td>
-								<td :class="tableCellClass">{{ user.username }}</td>
-								<td :class="tableCellClass">
+								<td class="table-td">{{ offset + index + 1 }}</td>
+								<td class="table-td">{{ user.username }}</td>
+								<td class="table-td">
 									<span
 										:class="[getRoleBadgeClass(user.role), 'rounded px-2 py-1 2xl:px-3 2xl:py-1.5']"
 									>
 										{{ getUserRoleLabel(user.role) }}
 									</span>
 								</td>
-								<td :class="tableCellClass">
+								<td class="table-td">
 									<span
 										:class="[
 											getStatusBadgeClass(user.status),
@@ -75,10 +75,10 @@
 										{{ statusLabels[user.status] }}
 									</span>
 								</td>
-								<td :class="[tableCellClass, 'text-white/70']">
+								<td class="table-td text-white/70">
 									{{ formatDate(user.created_at) }}
 								</td>
-								<td :class="tableCellClass">
+								<td class="table-td">
 									<div class="flex flex-wrap gap-2 2xl:gap-3">
 										<button type="button" class="btn-list-edit" @click="editUser(user)">
 											編輯
@@ -368,9 +368,6 @@ const dateSortOptions = [
 ]
 
 // 統一表格樣式
-const tableHeaderClass = "py-3 2xl:py-4 px-4 2xl:px-6 text-sm 2xl:text-base text-white/80"
-const tableCellClass = "py-3 2xl:py-4 px-4 2xl:px-6"
-
 const formData = reactive({
 	username: "",
 	password: "",

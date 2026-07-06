@@ -35,7 +35,7 @@
 								text-size="text-sm 2xl:text-base"
 							/>
 						</label>
-						<div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-4 2xl:gap-6">
+						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 2xl:gap-6">
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 								<span>類型<span class="required-mark">*</span></span>
 								<FilterDropdown
@@ -56,7 +56,7 @@
 							</label>
 						</div>
 
-						<div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-4 2xl:gap-6">
+						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 2xl:gap-6">
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 								<span>目標區域 (zone)</span>
 								<FilterDropdown
@@ -89,7 +89,7 @@
 							v-if="form.alert_type === 'threshold'"
 							class="rounded-2xl border border-white/15 bg-white/5 p-4 2xl:p-5"
 						>
-							<div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-4 2xl:gap-6">
+							<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 2xl:gap-6">
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>參數 (parameter)<span class="required-mark">*</span></span>
 									<FilterDropdown
@@ -242,7 +242,7 @@
 										<span>啟用 Email 通知</span>
 									</label>
 
-									<div v-if="email.enabled" class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+									<div v-if="email.enabled" class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
 										<label class="flex flex-col gap-2 text-sm text-white/80 md:col-span-2">
 											<span>SMTP Host (主機)<span class="required-mark">*</span></span>
 											<input

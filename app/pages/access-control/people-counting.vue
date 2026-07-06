@@ -2,7 +2,7 @@
 	<div>
 		<!-- 人流統計系統頁面內容 -->
 		<div
-			class="flex min-w-0 items-stretch justify-center"
+			class="flex min-w-0 flex-col items-stretch justify-center lg:flex-row"
 			:class="isOverviewCollapsed ? 'gap-0' : 'gap-4 xl:gap-6 2xl:gap-8'"
 		>
 			<section class="relative min-w-0 flex-1 2xl:flex-[1.3]">
@@ -22,15 +22,6 @@
 						>
 							總覽
 						</span>
-						<svg
-							class="h-5 w-5 shrink-0 2xl:h-6 2xl:w-6"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-							aria-hidden="true"
-						>
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-						</svg>
 					</button>
 				</Transition>
 
@@ -67,7 +58,7 @@
 						v-show="isAccessControl && selectedLocation"
 						:allowed="canOpenAccessManage"
 						aria-label="門禁管理"
-						class="btn-monitoring-overlay absolute left-36 top-2"
+						class="btn-monitoring-overlay absolute left-32 top-2 2xl:left-36"
 						@click="showAccessManageDialog = true"
 					>
 						門禁管理
@@ -76,7 +67,7 @@
 						v-show="selectedLocation"
 						:allowed="canResetStatistics"
 						aria-label="重製人流統計"
-						class="btn-monitoring-overlay absolute right-36 top-2"
+						class="btn-monitoring-overlay absolute right-32 top-2 2xl:right-36"
 						@click="handleResetStats"
 					>
 						重製統計
@@ -232,7 +223,7 @@
 </template>
 
 <script setup lang="ts">
-import { TOAST } from "~/config/toastCatalog"
+import { TOAST } from "~/config/toastCatalog";
 import { onMounted, onBeforeUnmount, watch, nextTick, computed, ref } from "vue";
 import type {
 	PeopleCountingZone,
@@ -261,7 +252,7 @@ import {
 } from "~/composables/systems/peopleCounting/usePeopleCountingApi";
 import {
 	useLocationModuleRbac,
-	usePeopleCountingAccessRbac,
+	usePeopleCountingAccessRbac
 } from "~/composables/core/useAccessGate";
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi";
 import { useLocationApi } from "~/composables/location/api/useLocationApi";
@@ -301,11 +292,11 @@ const accessSync = useLocationAccessSync({
 	locationApi,
 	toast: {
 		success: (m: string) => showToast("success", m),
-		error: (m: string) => showToast("error", m),
+		error: (m: string) => showToast("error", m)
 	},
 	handleApiError,
-	canDeviceSync: canResyncAccessDevices,
-})
+	canDeviceSync: canResyncAccessDevices
+});
 
 // 使用統一的狀態管理
 const {
@@ -334,11 +325,7 @@ const detailEmpty = computed(
 const isOverviewCollapsed = ref(false);
 const isUnitDialogOpen = ref(false);
 
-const peopleDetailContentClass = computed(() =>
-	["flex flex-col gap-12", isOverviewCollapsed.value && "monitoring-detail-enlarged"]
-		.filter(Boolean)
-		.join(" ")
-);
+const peopleDetailContentClass = "flex flex-col gap-12"
 
 const selectedUnitName = computed(() => {
 	if (selectedUnitId.value == null || !selectedLocation.value) return "";
