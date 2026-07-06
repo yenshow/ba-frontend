@@ -247,7 +247,7 @@ import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import { nextTick, type Component } from "vue";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
-import { joinFormErrors, resolveFormApiErrorPreferOriginal } from "~/utils/apiError";
+import { joinFormErrors, resolveFormApiError } from "~/utils/apiError";
 import { removeLocationFromSystemOrDelete } from "~/composables/location/locationSystemActions";
 import {
 	buildDeleteLocationConfirmCopy,
@@ -1006,10 +1006,10 @@ const saveAllChanges = async () => {
 			emit("saved");
 		} else if (succeededIds.length > 0) {
 			toast.warning(TOAST.ZONE_PARTIAL_SAVE_FAILED(failures.length, saveCount));
-			errorMessage.value = resolveFormApiErrorPreferOriginal(failures[0]!.reason, "部分區域儲存失敗");
+			errorMessage.value = resolveFormApiError(failures[0]!.reason, "部分區域儲存失敗");
 			emit("saved");
 		} else {
-			errorMessage.value = resolveFormApiErrorPreferOriginal(failures[0]!.reason, "儲存區域失敗");
+			errorMessage.value = resolveFormApiError(failures[0]!.reason, "儲存區域失敗");
 		}
 	} finally {
 		isSaving.value = false;
