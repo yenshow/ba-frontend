@@ -288,7 +288,7 @@ import { getUserRoleLabel } from "~/utils/userRoleLabels";
 import { useToast } from "~/composables/core/useToast";
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 import { useAccessGate } from "~/composables/core/useAccessGate";
-import { PERMISSION_MESSAGE_LOCKED } from "~/utils/errorUtils";
+import { MSG_PERMISSION_LOCKED } from "~/utils/apiError";
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 import {
 	useAppShellNavigation,
@@ -494,7 +494,7 @@ const handleModuleClick = async (module: SystemModule) => {
 	}
 	if (!accessGate.canAccessModule(module)) {
 		if (accessGate.isModuleLocked(module)) {
-			toast.warning(PERMISSION_MESSAGE_LOCKED);
+			toast.warning(MSG_PERMISSION_LOCKED);
 		}
 		return;
 	}
@@ -508,7 +508,7 @@ const handleOverviewModuleClick = async (module: SystemModule) => {
 	}
 	if (!accessGate.canAccessModule(module)) {
 		if (accessGate.isModuleLocked(module)) {
-			toast.warning(PERMISSION_MESSAGE_LOCKED);
+			toast.warning(MSG_PERMISSION_LOCKED);
 		}
 		closeAllMenus();
 		return;

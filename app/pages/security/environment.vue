@@ -252,11 +252,10 @@ import EnvironmentSimulation, {
 	type EnvironmentSimulationLocationOption
 } from "~/components/environment/EnvironmentSimulation.vue";
 import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi";
-import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import {
 	useZoneManagement,
-	ZONE_DIALOG_BATCH_SAVE_OPTIONS,
+	ZONE_DIALOG_BATCH_SAVE_OPTIONS
 } from "~/composables/location/management/useZoneManagement";
 import { useAlertRules } from "~/composables/monitoring/useAlertRules";
 import { useLocationModuleRbac } from "~/composables/core/useAccessGate";
@@ -277,11 +276,8 @@ import type {
 	EnvironmentZone,
 	EnvironmentLocation,
 	SensorParameter,
-	SensorParameterType,
 	SensorReading
 } from "~/types/environment";
-import type { UnifiedZone } from "~/types/location";
-import { unifiedToEnvironmentZone } from "~/utils/locationAdapter";
 import { getTimeRangeUTC } from "~/utils/dateUtils";
 import { compareZonesLoose } from "~/utils/sortOrder";
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId";
@@ -307,7 +303,6 @@ const {
 } = useLocationModuleRbac(PERM.environment);
 
 const environmentApi = useEnvironmentApi();
-const locationApi = useLocationApi();
 const { handleError } = useErrorHandler();
 const { getRules, getStatusText: getStatusTextFromRules } = useAlertRules();
 
@@ -492,7 +487,7 @@ const {
 	isHydrating,
 	handleReadingEvent,
 	trendReloadKey,
-	hydrateAllLocations,
+	hydrateAllLocations
 } = useEnvironmentDataCoordinator({
 	environmentZones,
 	selectedLocationId,
@@ -540,8 +535,10 @@ const enabledParameters = computed(() => {
 	return currentLocationData.value.parameters.filter(param => param.enabled);
 });
 
-const { featuredGaugeTypes, isFeaturedType, handleParamCardClick } =
-	useEnvironmentFeaturedGauges(selectedLocationId, enabledParameters);
+const { featuredGaugeTypes, isFeaturedType, handleParamCardClick } = useEnvironmentFeaturedGauges(
+	selectedLocationId,
+	enabledParameters
+);
 
 // getLocationZone / getLocationId 已於上方宣告，供 composable 與 currentLocationData 共用
 
@@ -604,7 +601,7 @@ const handleSaveZone = async (zone: EnvironmentZone) => {
 		},
 		{
 			cleanZone: cleanZone,
-			...ZONE_DIALOG_BATCH_SAVE_OPTIONS,
+			...ZONE_DIALOG_BATCH_SAVE_OPTIONS
 		}
 	);
 };
@@ -618,7 +615,7 @@ const handleDeleteZone = async (zoneId: string) => {
 		onAfterDelete: async () => {
 			await loadZonesFromAPI();
 			await hydrateAllLocations(true);
-		},
+		}
 	});
 };
 
@@ -780,7 +777,7 @@ const getStatusText = (type: string, value: number | null): string => {
 			const status = getStatusTextFromRules(type, value, alertRules.value);
 			return status;
 		} catch (error) {
-			console.warn("[environment] 使用規則判斷狀態失敗，視為正常:", error);
+			logger.warn("[environment] 使用規則判斷狀態失敗，視為正常:", error);
 		}
 	}
 

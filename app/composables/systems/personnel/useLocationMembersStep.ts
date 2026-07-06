@@ -1,10 +1,11 @@
+import { TOAST } from "~/config/toastCatalog"
 import { reactive, type ComputedRef, type Ref } from "vue"
 import type { Person } from "~/types/personnel"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { fetchAllPersonnelCandidates } from "~/composables/systems/personnel/personnelList"
 import { usePageSelectAll } from "~/composables/systems/personnel/usePageSelectAll"
 import { groupPersonsByPersonGroup } from "~/utils/personnelUtils"
-import { resolveFormApiError } from "~/utils/errorUtils"
+import { resolveFormApiError } from "~/utils/apiError"
 
 type LocationId = number
 type MaybeRef<T> = Ref<T> | ComputedRef<T>
@@ -116,7 +117,7 @@ export const useLocationMembersOnly = (params: {
 				new Set((kept || []).map((x) => Number(x)).filter((x) => Number.isFinite(x))),
 			).map((x) => Math.trunc(x))
 			const res = await personnelApi.replaceLocationMembers(locationId, next)
-			if (!options?.silentSuccess) toast.success("已套用名單")
+			if (!options?.silentSuccess) toast.success(TOAST.PERSONNEL_LIST_APPLIED)
 			await loadAllLocationMembers(locationId)
 			return res
 		} catch (err) {

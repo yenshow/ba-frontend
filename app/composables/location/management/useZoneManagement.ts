@@ -1,3 +1,4 @@
+import { TOAST } from "~/config/toastCatalog"
 import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
@@ -180,7 +181,7 @@ export function useZoneManagement<
 			}
 
 			if (!options?.suppressToast) {
-				toast.success(result.message || "操作成功");
+				toast.success(result.message || TOAST.DEVICE_OPERATION_SUCCESS);
 			}
 		} catch (error: any) {
 			if (options?.rethrowOnError) {
@@ -282,9 +283,9 @@ export function useZoneManagement<
 				}
 
 				if (result.action === "deleted-zone") {
-					toast.success("區域刪除成功")
+					toast.success(TOAST.ZONE_DELETED)
 				} else {
-					toast.success("已移除該系統在此區域的所有地點")
+					toast.success(TOAST.ZONE_SYSTEM_LOCATIONS_REMOVED)
 				}
 				return
 			}
@@ -303,7 +304,7 @@ export function useZoneManagement<
 				await handlePostDelete(zoneId, deletedZone, zonesRef, options);
 			}
 
-			toast.success("區域刪除成功");
+			toast.success(TOAST.ZONE_DELETED);
 		} catch (error) {
 			handleError(error, "刪除區域失敗");
 		}

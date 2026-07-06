@@ -61,7 +61,7 @@ export const useWebSocketMonitor = () => {
 		configs.forEach(({ event, handler, logMessage }) => {
 			const wrappedHandler = (data: any) => {
 				if (logMessage) {
-					wsMonitorLogger.log(logMessage(data));
+					wsMonitorLogger.debug(logMessage(data));
 				}
 
 				handler(data);
@@ -74,7 +74,7 @@ export const useWebSocketMonitor = () => {
 
 		isSetup.value = true;
 
-		wsMonitorLogger.log(`已設置 ${configs.length} 個事件監聽器`);
+		wsMonitorLogger.debug(`已設置 ${configs.length} 個事件監聽器`);
 	};
 
 	const syncListeners = () => {
@@ -143,7 +143,7 @@ export const useWebSocketMonitor = () => {
 				isSetup.value = false;
 			}
 
-			wsMonitorLogger.log(`已移除 ${events.length} 個事件監聽器`);
+			wsMonitorLogger.debug(`已移除 ${events.length} 個事件監聽器`);
 
 			return;
 		}
@@ -160,7 +160,7 @@ export const useWebSocketMonitor = () => {
 			stopConnectionWatch = null;
 		}
 
-		wsMonitorLogger.log("已移除所有事件監聽器");
+		wsMonitorLogger.debug("已移除所有事件監聽器");
 	};
 
 	/**

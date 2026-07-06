@@ -1,3 +1,4 @@
+import { TOAST } from "~/config/toastCatalog"
 import type { MaybeRefOrGetter } from "vue"
 import { computed, onScopeDispose, ref, toValue } from "vue"
 import type { VehicleAccessLocation, BarrierGateCtrlMode } from "~/types/vehicleAccess"
@@ -73,7 +74,7 @@ export const useVehicleBarrierGate = (options: {
 		isControlling.value = true
 		try {
 			await isapiApi.controlBarrierGate(id, { ...apiParams.value, ctrlMode })
-			toast.success("已送出道閘指令")
+			toast.success(TOAST.VEHICLE_BARRIER_SENT)
 		} catch (e) {
 			handleError(e, "道閘控制失敗", { context: "control" })
 		} finally {

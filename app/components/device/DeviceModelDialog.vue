@@ -27,11 +27,7 @@
 							<Transition name="fade" mode="out-in">
 								<div v-if="deviceModels && deviceModels.length > 0" :key="`models-${deviceModels.length}`">
 									<div v-if="deviceTypeCode === 'camera' && cameraModelGroups.length" class="space-y-6">
-										<section
-											v-for="group in cameraModelGroups"
-											:key="group.code"
-											class="space-y-3"
-										>
+										<section v-for="group in cameraModelGroups" :key="group.code" class="space-y-3">
 											<h4 class="text-sm font-medium text-cyan-200/90 2xl:text-base">
 												{{ group.label }}
 											</h4>
@@ -46,26 +42,17 @@
 															{{ model.name }}
 														</h4>
 													</div>
-													<p
-														v-if="model.description"
-														class="mt-1 text-sm text-white/60 2xl:text-base"
-													>
+													<p v-if="model.description" class="mt-1 text-sm text-white/60 2xl:text-base">
 														{{ model.description }}
 													</p>
 												</div>
 												<div class="flex gap-2 2xl:gap-3">
-													<button
-														type="button"
-														class="btn-list-edit"
-														@click="editDeviceModel(model)"
-													>
+													<button type="button" class="btn-list-edit" @click="editDeviceModel(model)">
 														編輯
 													</button>
-													<button
-														type="button"
-														class="btn-list-delete"
-														@click="confirmDelete(model)"
-													>刪除</button>
+													<button type="button" class="btn-list-delete" @click="confirmDelete(model)">
+														刪除
+													</button>
 												</div>
 											</div>
 										</section>
@@ -97,7 +84,9 @@
 												<button type="button" class="btn-list-edit" @click="editDeviceModel(model)">
 													編輯
 												</button>
-												<button type="button" class="btn-list-delete" @click="confirmDelete(model)">刪除</button>
+												<button type="button" class="btn-list-delete" @click="confirmDelete(model)">
+													刪除
+												</button>
 											</div>
 										</div>
 									</div>
@@ -115,9 +104,7 @@
 					<footer class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8">
 						<button type="button" class="btn-secondary" @click="handleClose">取消</button>
 						<div class="flex-1"></div>
-						<button type="button" class="btn-primary" @click="openAddForm">
-							新增型號
-						</button>
+						<button type="button" class="btn-primary" @click="openAddForm">新增型號</button>
 					</footer>
 				</div>
 
@@ -245,8 +232,8 @@
 													value="custom"
 													class="mt-1 h-4 w-4 accent-emerald-400"
 													aria-label="RTSP 路由：自訂"
-											/>
-											<div class="flex items-center gap-2">
+												/>
+												<div class="flex items-center gap-2">
 													<div class="text-sm text-white/80 2xl:text-base">自訂</div>
 													<input
 														v-model="cameraRtspTemplateCustom"
@@ -336,7 +323,8 @@
 															v-model="param.modbusConfig.transform"
 															type="text"
 															class="form-input"
-															placeholder="例如: - 1, / 10, * 2, + 5"/>
+															placeholder="例如: - 1, / 10, * 2, + 5"
+														/>
 													</label>
 												</div>
 											</div>
@@ -382,6 +370,7 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog";
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import { useToast } from "~/composables/core/useToast";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
@@ -398,12 +387,11 @@ import type {
 	SensorParameterDefinition,
 	ModbusRegisterType
 } from "~/types/device";
-import type { SensorParameterType } from "~/types/environment";
-import { resolveFormApiError } from "~/utils/errorUtils";
+import { resolveFormApiError } from "~/utils/apiError";
 import { validateDeviceModelFormForSave } from "~/utils/deviceFormValidation";
 import {
 	CAMERA_MODEL_CATEGORY_OPTIONS,
-	groupByCameraModelCategory,
+	groupByCameraModelCategory
 } from "~/utils/cameraModelCategories";
 
 interface Props {
@@ -461,7 +449,7 @@ const cameraCategoryOptions = CAMERA_MODEL_CATEGORY_OPTIONS;
 
 const cameraModelGroups = computed(() => {
 	if (props.deviceTypeCode !== "camera") return [];
-	return groupByCameraModelCategory(deviceModels.value, (m) => String(m.category_code || ""));
+	return groupByCameraModelCategory(deviceModels.value, m => String(m.category_code || ""));
 });
 
 const CAMERA_RTSP_PRESETS = {
@@ -504,14 +492,14 @@ const parameterTypeOptions: Array<{ value: string; label: string }> = [
 	{ value: "temperature", label: "溫度" },
 	{ value: "co2", label: "CO2" },
 	{ value: "noise", label: "噪音值" },
-	{ value: "wind", label: "風速" },
+	{ value: "wind", label: "風速" }
 ];
 
 const modbusRegisterTypeOptions: Array<{ value: ModbusRegisterType; label: string }> = [
 	{ value: "holding", label: "FC03 保持寄存器 (Holding Registers)" },
 	{ value: "input", label: "FC04 輸入寄存器 (Input Registers)" },
 	{ value: "coils", label: "FC01 線圈 (Coils)" },
-	{ value: "discrete", label: "FC02 離散輸入 (Discrete Inputs)" },
+	{ value: "discrete", label: "FC02 離散輸入 (Discrete Inputs)" }
 ];
 
 const addSensorParameter = () => {
@@ -562,7 +550,7 @@ const loadDeviceModels = async (force = false) => {
 		deviceModels.value = [];
 		if (error?.statusCode === 404 || error?.status === 404) {
 			errorMessage.value = "設備型號 API 尚未實作，請先完成後端實作";
-			console.warn("設備型號 API 尚未實作，請參考後端實作指南");
+			logger.warn("設備型號 API 尚未實作，請參考後端實作指南");
 		} else {
 			handleError(error, "載入設備型號失敗");
 		}
@@ -578,7 +566,6 @@ const editDeviceModel = (model: DeviceModel) => {
 	formData.category_code = String(model.category_code || "");
 	formData.unit_id = model.unit_id ?? undefined;
 	formData.description = model.description || "";
-
 
 	if (props.deviceTypeCode === "camera") {
 		const config = (model.config as Record<string, any> | undefined) ?? {};
@@ -655,7 +642,7 @@ const formHasUnsavedChanges = computed(() => {
 		);
 	}
 	// 新增模式：任一欄位有值即視為有變更
-		const cur = getFormSnapshot();
+	const cur = getFormSnapshot();
 	return (
 		cur.name.trim() !== "" ||
 		cur.unit_id != null ||
@@ -766,7 +753,7 @@ const handleConfirmDelete = async () => {
 
 	try {
 		await deviceApi.deleteDeviceModel(pendingDeleteModel.value.id);
-		toast.success(`設備型號 "${pendingDeleteModel.value.name}" 已刪除`);
+		toast.success(TOAST.DEVICE_MODEL_DELETED(pendingDeleteModel.value.name));
 		await loadDeviceModels(true);
 		emit("refresh");
 		pendingDeleteModel.value = null;
@@ -795,7 +782,7 @@ const handleFormSubmit = async () => {
 			categoryCode: formData.category_code,
 			cameraRtspTemplateEffective: cameraRtspTemplateEffective.value,
 			cameraRtspTemplatePresetKey: cameraRtspTemplatePresetKey.value,
-			cameraRtspTemplateCustom: cameraRtspTemplateCustom.value,
+			cameraRtspTemplateCustom: cameraRtspTemplateCustom.value
 		});
 		if (formError) {
 			formErrorMessage.value = formError;
@@ -828,10 +815,10 @@ const handleFormSubmit = async () => {
 
 		if (editingModel.value) {
 			await deviceApi.updateDeviceModel(editingModel.value.id, submitData);
-			toast.success("設備型號已更新成功");
+			toast.success(TOAST.DEVICE_MODEL_UPDATED);
 		} else {
 			await deviceApi.createDeviceModel(submitData as CreateDeviceModelData);
-			toast.success("設備型號建立成功");
+			toast.success(TOAST.DEVICE_MODEL_CREATED);
 		}
 		closeFormInternal();
 		await loadDeviceModels(true);
@@ -858,5 +845,3 @@ watch(
 	{ immediate: true }
 );
 </script>
-
-<style scoped></style>

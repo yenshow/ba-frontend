@@ -1,7 +1,8 @@
+import { TOAST } from "~/config/toastCatalog"
 import type { User } from "~/types/user";
 import { isPlatformAdmin, useAuth } from "~/composables/core/useAuth";
 import { useToast } from "~/composables/core/useToast";
-import { resolveFormApiError } from "~/utils/errorUtils";
+import { resolveFormApiError } from "~/utils/apiError";
 import { validateAccountPasswordForSave } from "~/utils/userFormValidation";
 import { useUserApi } from "~/composables/systems/users/useUserApi";
 import { getUserRoleLabel } from "~/utils/userRoleLabels";
@@ -68,7 +69,7 @@ export const useAccountSettings = () => {
 				oldPassword: form.oldPassword,
 				newPassword: form.newPassword,
 			});
-			toast.success("密碼已更新，請重新登入");
+			toast.success(TOAST.PASSWORD_UPDATED_RELOGIN);
 			await logout();
 			await navigateTo("/login");
 		} catch (error) {

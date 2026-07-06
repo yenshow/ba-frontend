@@ -59,7 +59,7 @@ const bindInternalSocketHandlers = () => {
 	globalSocket.on("connect", () => {
 		globalStatus.value = "connected";
 		globalConnectionError.value = null;
-		wsLogger.log("連接成功", { socketId: globalSocket?.id });
+		wsLogger.debug("連接成功", { socketId: globalSocket?.id });
 
 		try {
 			globalSocket?.emit("client:hello", { app: WS_APP });
@@ -76,7 +76,7 @@ const bindInternalSocketHandlers = () => {
 
 	globalSocket.on("disconnect", (reason: string) => {
 		globalStatus.value = "disconnected";
-		wsLogger.log("連接斷開", { reason });
+		wsLogger.debug("連接斷開", { reason });
 
 		if (reason === "io client disconnect") {
 			globalConnectionError.value = null;
@@ -84,13 +84,13 @@ const bindInternalSocketHandlers = () => {
 	});
 
 	globalSocket.on("reconnect_attempt", (attemptNumber: number) => {
-		wsLogger.log(`重連嘗試 ${attemptNumber}...`);
+		wsLogger.debug(`重連嘗試 ${attemptNumber}...`);
 	});
 
 	globalSocket.on("reconnect", (attemptNumber: number) => {
 		globalStatus.value = "connected";
 		globalConnectionError.value = null;
-		wsLogger.log(`重連成功 (嘗試 ${attemptNumber} 次)`);
+		wsLogger.debug(`重連成功 (嘗試 ${attemptNumber} 次)`);
 	});
 
 	globalSocket.on("reconnect_failed", () => {
@@ -115,7 +115,7 @@ const establishGlobalConnection = (options?: { force?: boolean }) => {
 		globalStatus.value = "disconnected";
 		globalConnectionError.value = null;
 	} else if (globalSocket?.connected || globalStatus.value === "connecting") {
-		wsLogger.log("連接已存在，跳過重複連接");
+		wsLogger.debug("連接已存在，跳過重複連接");
 		return;
 	} else if (globalSocket && !globalSocket.connected) {
 		destroyGlobalSocket();
@@ -332,7 +332,7 @@ export const setupDebouncedRefetchListeners = (
 
 		const eventPayload = pendingPayload;
 		pendingPayload = undefined;
-		if (process.dev) log.log("觸發資料重新載入（防抖後）");
+		log.debug("觸發資料重新載入（防抖後）");
 		isLoading.value = true;
 
 		try {

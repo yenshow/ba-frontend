@@ -251,6 +251,7 @@
 </template>
 
 <script setup lang="ts">
+import { TOAST } from "~/config/toastCatalog"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import type { PermissionDefinition, User } from "~/types/user"
 import Pagination from "~/components/common/Pagination.vue"
@@ -265,7 +266,7 @@ import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useUserApi } from "~/composables/systems/users/useUserApi"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
-import { applyFormApiErrorToRef } from "~/utils/errorUtils"
+import { applyFormApiErrorToRef } from "~/utils/apiError"
 import { validateUserFormForSave } from "~/utils/userFormValidation"
 import {
 	buildGrantedMap,
@@ -543,7 +544,7 @@ const executeSubmit = async () => {
 		})
 		resetPage()
 		await load({ order: dateSortOrder.value }, true)
-		toast.success("用戶已建立")
+		toast.success(TOAST.USER_CREATED)
 		closeDialog()
 	} catch (error) {
 		applyFormApiErrorToRef(errorMessage, error, "操作失敗")

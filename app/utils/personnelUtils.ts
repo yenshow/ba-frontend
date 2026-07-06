@@ -8,7 +8,7 @@ import type { PersonCardFormItem } from "~/utils/cardFormUtils"
 import { resolveAccessControlCardsFromPerson } from "~/utils/cardFormUtils"
 import type { PersonFingerprintFormItem } from "~/utils/fingerprintFormUtils"
 import { resolveAccessControlFingerprintsFromPerson } from "~/utils/fingerprintFormUtils"
-import { isApiRequestTimeout } from "~/utils/errorUtils"
+import { isApiRequestTimeout } from "~/utils/apiError"
 
 /** 人員儲存 API 逾時：主檔可能已寫入，設備同步結果未知（對話框保留不關閉） */
 export const PERSON_SAVE_TIMEOUT_MESSAGE =

@@ -2,7 +2,9 @@
 	<div class="flex min-w-0 flex-1 flex-col">
 		<div class="flex min-w-0 flex-col gap-2">
 			<!-- 地點名稱 -->
-			<label class="flex flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base min-w-0">
+			<label
+				class="flex min-w-0 flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+			>
 				<span>地點名稱<span class="required-mark">*</span></span>
 				<input
 					v-model="localLocation.name"
@@ -17,10 +19,7 @@
 			<!-- 感測器設備（複選，勾選多台） -->
 			<div class="flex flex-1 flex-col gap-2">
 				<span class="text-sm text-white/80 2xl:text-base">感測器設備</span>
-				<div
-					v-if="isLoadingDevices"
-					class="py-2 text-center text-xs text-white/50 2xl:text-sm"
-				>
+				<div v-if="isLoadingDevices" class="py-2 text-center text-xs text-white/50 2xl:text-sm">
 					載入中...
 				</div>
 				<div
@@ -73,9 +72,7 @@
 					<p>所選設備型號尚未配置參數</p>
 					<p class="mt-1 text-xs">
 						{{
-							canPlatformAdmin
-								? "請在「型號管理」中設定參數配置"
-								: "請聯繫平台管理員更新預設型號參數配置"
+							canPlatformAdmin ? "請在「型號管理」中設定參數配置" : "請聯繫平台管理員更新預設型號參數配置"
 						}}
 					</p>
 				</div>
@@ -116,7 +113,7 @@ import type { EnvironmentLocation, SensorParameterType } from "~/types/environme
 import {
 	type Device,
 	type SensorParameterDefinition,
-	getSensorParametersFromModelConfig,
+	getSensorParametersFromModelConfig
 } from "~/types/device";
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import { usePlatformAdmin } from "~/composables/core/useAuth";
@@ -171,7 +168,9 @@ function getNormalizedDeviceIds(loc: EnvironmentLocation): number[] {
 const selectedDeviceIds = computed(() => getNormalizedDeviceIds(localLocation.value));
 
 const sensorDevices = computed(() =>
-	props.devices.filter((d) => d.type_code === "sensor" || (d as { type_code?: string }).type_code === "sensor")
+	props.devices.filter(
+		d => d.type_code === "sensor" || (d as { type_code?: string }).type_code === "sensor"
+	)
 );
 
 const handleChange = () => {
@@ -180,7 +179,7 @@ const handleChange = () => {
 
 watch(
 	selectedDeviceIds,
-	async (ids) => {
+	async ids => {
 		for (const deviceId of ids) {
 			if (!deviceId || deviceParameterDefinitions.value.has(deviceId)) continue;
 			try {
@@ -191,7 +190,7 @@ watch(
 					deviceParameterDefinitions.value.set(deviceId, sensorParameters);
 				}
 			} catch (error) {
-				console.error(`載入設備 ${deviceId} 的參數定義失敗:`, error);
+				logger.error(`載入設備 ${deviceId} 的參數定義失敗:`, error);
 			}
 		}
 	},
@@ -215,8 +214,7 @@ const availableParameters = computed(() => {
 	return out;
 });
 
-const isDeviceSelected = (deviceId: number): boolean =>
-	selectedDeviceIds.value.includes(deviceId);
+const isDeviceSelected = (deviceId: number): boolean => selectedDeviceIds.value.includes(deviceId);
 
 const toggleDevice = (deviceId: number) => {
 	const ids = [...selectedDeviceIds.value];
@@ -229,18 +227,18 @@ const toggleDevice = (deviceId: number) => {
 	}
 	localLocation.value.deviceIds = ids.length ? ids : undefined;
 	localLocation.value.deviceId = ids[0];
-	const availableTypes = new Set(availableParameters.value.map((p) => p.type));
-	localLocation.value.parameters = localLocation.value.parameters.filter((p) =>
+	const availableTypes = new Set(availableParameters.value.map(p => p.type));
+	localLocation.value.parameters = localLocation.value.parameters.filter(p =>
 		availableTypes.has(p.type as SensorParameterType)
 	);
 	handleChange();
 };
 
 const isParameterEnabled = (paramType: SensorParameterType): boolean =>
-	localLocation.value.parameters.some((p) => p.type === paramType && p.enabled);
+	localLocation.value.parameters.some(p => p.type === paramType && p.enabled);
 
 const toggleParameter = (paramType: SensorParameterType) => {
-	const existingParam = localLocation.value.parameters.find((p) => p.type === paramType);
+	const existingParam = localLocation.value.parameters.find(p => p.type === paramType);
 	if (existingParam) {
 		existingParam.enabled = !existingParam.enabled;
 	} else {

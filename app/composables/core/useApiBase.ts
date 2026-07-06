@@ -13,14 +13,12 @@ import {
 	type ApiErrorCode,
 	type ErrorContext,
 	resolveUserFacingApiError,
-} from "~/utils/errorUtils"
-import {
 	assertYscpResponseSuccess,
 	isYscpPath,
 	parseBackendApiFailure,
 	unwrapYscpSuccessData,
 	YscpApiBusinessError,
-} from "~/utils/parseBackendApiFailure"
+} from "~/utils/apiError"
 
 // GET 同 URL 同時間去重（避免多個元件/多個 watch 同步觸發造成 burst）
 const inFlightGetRequests = new Map<string, Promise<unknown>>()

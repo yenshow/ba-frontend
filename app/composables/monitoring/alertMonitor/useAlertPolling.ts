@@ -149,7 +149,7 @@ export const useAlertPolling = () => {
 		visibilityChangeHandler = poll;
 		document.addEventListener("visibilitychange", visibilityChangeHandler);
 
-		pollingLogger.log("輪詢模式已啟動（後備方案）");
+		pollingLogger.debug("輪詢模式已啟動（後備方案）");
 	};
 
 	/**
@@ -167,7 +167,7 @@ export const useAlertPolling = () => {
 			visibilityChangeHandler = null;
 		}
 
-		pollingLogger.log("輪詢模式已停止");
+		pollingLogger.debug("輪詢模式已停止");
 	};
 
 	/**

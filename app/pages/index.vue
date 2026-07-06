@@ -27,10 +27,7 @@
 						<p class="text-white/60">載入地點中...</p>
 					</div>
 				</div>
-				<div
-					v-else
-					class="rounded-2xl border-2 border-white/30 bg-white/10 p-8 text-center"
-				>
+				<div v-else class="rounded-2xl border-2 border-white/30 bg-white/10 p-8 text-center">
 					<p class="text-white/60">尚無資料</p>
 				</div>
 			</div>
@@ -72,15 +69,9 @@
 					<p class="text-sm text-white/60 xl:text-base">載入中...</p>
 				</div>
 				<div v-else-if="hasPeopleCounting" class="min-w-0">
-					<EntryExitLog
-						:logs="filteredLocationLogs"
-						:display-columns="homeLogDisplayColumns"
-					/>
+					<EntryExitLog :logs="filteredLocationLogs" :display-columns="homeLogDisplayColumns" />
 				</div>
-				<div
-					v-else
-					class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
-				>
+				<div v-else class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center">
 					<p class="text-sm text-white/60 xl:text-base">尚無資料</p>
 				</div>
 			</div>
@@ -103,15 +94,10 @@ import {
 	useEnvironmentHomeSensors,
 	useEnvironmentReadingSubscription
 } from "~/composables/systems/environment/useEnvironmentLive";
-import { formatSensorDisplayValue } from "~/utils/environmentLive";
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement";
 import type { EnvironmentLocation, SensorParameterType } from "~/types/environment";
 import type { UnifiedZone, UnifiedLocation, EnvironmentSystemConfig } from "~/types/location";
-import type {
-	Device,
-	SensorDeviceConfig,
-	SensorDeviceModelConfig,
-} from "~/types/device";
+import type { Device, SensorDeviceModelConfig } from "~/types/device";
 import { getLocationDeviceIds } from "~/utils/sensorUtils";
 import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState";
 import { usePeopleCountingApi } from "~/composables/systems/peopleCounting/usePeopleCountingApi";
@@ -133,13 +119,11 @@ const { useWsModuleGate, isModuleAccessReady, ensureAccessReady } = useAccessGat
 const { enableYscpPeopleCounting } = useModuleRegistry();
 const hasEnvironment = useWsModuleGate("environment", { permissionCode: PERM.environment.module });
 const hasPeopleCounting = useWsModuleGate("people_counting", {
-	permissionCode: PERM.peopleCounting.module,
+	permissionCode: PERM.peopleCounting.module
 });
 // 僅在客戶端 mount 後才依授權切換內容，避免 SSR 與 hydration 時 state 不同步導致節點不匹配
 const isMounted = ref(false);
-const showLicensePlaceholder = computed(
-	() => !isMounted.value || !isModuleAccessReady.value
-);
+const showLicensePlaceholder = computed(() => !isMounted.value || !isModuleAccessReady.value);
 const { handleError } = useErrorHandler();
 const { sortZones } = useZoneManagement<UnifiedLocation, UnifiedZone>();
 
@@ -172,7 +156,7 @@ const loadLocationLogs = async (locationId: string) => {
 		});
 		locationLogs.value = sorted.slice(0, MAX_DISPLAY_LOGS);
 	} catch (error) {
-		console.error("[index] 載入進出記錄失敗:", error);
+		logger.error("[index] 載入進出記錄失敗:", error);
 		locationLogs.value = [];
 	}
 };
@@ -203,14 +187,14 @@ const isHomeLocationVisible = (location: UnifiedLocation): boolean =>
 	shouldShowUnifiedLocationWhenYscpOff(location, enableYscpPeopleCounting.value);
 
 const reconcileHomeLocationWithZones = () => {
-	const visibleLocations = unifiedZones.value.flatMap((zone) =>
+	const visibleLocations = unifiedZones.value.flatMap(zone =>
 		zone.locations.filter(isHomeLocationVisible)
 	);
 	if (visibleLocations.length === 0) {
 		selectedLocationId.value = "";
 		return;
 	}
-	const validIds = new Set(visibleLocations.map((loc) => getLocationId(loc)));
+	const validIds = new Set(visibleLocations.map(loc => getLocationId(loc)));
 	if (!selectedLocationId.value || !validIds.has(selectedLocationId.value)) {
 		selectedLocationId.value = getLocationId(visibleLocations[0]);
 	}
@@ -283,13 +267,11 @@ const selectedLocation = computed<EnvironmentLocation | null>(() => {
 });
 
 const locationOptions = computed(() =>
-	unifiedZones.value.flatMap((zone) =>
-		zone.locations
-			.filter(isHomeLocationVisible)
-			.map((location) => ({
-				value: getLocationId(location),
-				label: `${zone.name} - ${location.name}`,
-			}))
+	unifiedZones.value.flatMap(zone =>
+		zone.locations.filter(isHomeLocationVisible).map(location => ({
+			value: getLocationId(location),
+			label: `${zone.name} - ${location.name}`
+		}))
 	)
 );
 
@@ -329,8 +311,7 @@ const loadDeviceAndModelConfig = async (
 		const { device } = await deviceApi.getDevice(deviceId);
 		if (!device || device.type_code !== "sensor") return null;
 
-		const modelConfig =
-			(device.model?.config as SensorDeviceModelConfig | undefined) ?? null;
+		const modelConfig = (device.model?.config as SensorDeviceModelConfig | undefined) ?? null;
 		return { device, modelConfig };
 	} catch {
 		return null;
@@ -368,10 +349,9 @@ const loadLocationSensorDevice = async (location: EnvironmentLocation) => {
 
 		sensorDevice.value = device;
 
-		deviceModelConfig.value =
-			(device.model?.config as SensorDeviceModelConfig | undefined) ?? null;
+		deviceModelConfig.value = (device.model?.config as SensorDeviceModelConfig | undefined) ?? null;
 	} catch (error) {
-		console.error("[index] 載入設備失敗:", error);
+		logger.error("[index] 載入設備失敗:", error);
 		sensorDevice.value = null;
 		deviceModelConfig.value = null;
 	}
@@ -390,12 +370,14 @@ const environmentHomeCard = {
 	isFetching
 };
 
-useEnvironmentReadingSubscription(event => homeSensors.handleReadingEvent(event, [environmentHomeCard]));
+useEnvironmentReadingSubscription(event =>
+	homeSensors.handleReadingEvent(event, [environmentHomeCard])
+);
 
 const loadSensorData = () => homeSensors.bootstrapCard(environmentHomeCard);
 
 useEnvironmentWsFallbackPolling({
-	callback: () => homeSensors.syncCard(environmentHomeCard),
+	callback: () => homeSensors.syncCard(environmentHomeCard)
 });
 
 const initializeLocationData = async () => {
@@ -460,10 +442,10 @@ onMounted(async () => {
 
 		const parallelTasks: Promise<void>[] = [];
 		if (zonesResult.status === "fulfilled" && hasEnvironment.value) {
-			parallelTasks.push(initializeLocationData().catch(console.error));
+			parallelTasks.push(initializeLocationData().catch(err => logger.error(String(err), err)));
 		}
 		if (peopleCountingResult.status === "fulfilled" && hasPeopleCounting.value) {
-			parallelTasks.push(refreshCurrentLocationLogs().catch(console.error));
+			parallelTasks.push(refreshCurrentLocationLogs().catch(err => logger.error(String(err), err)));
 		}
 		await Promise.allSettled(parallelTasks);
 	} finally {
