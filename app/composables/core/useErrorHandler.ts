@@ -2,6 +2,7 @@ import { useToast } from "~/composables/core/useToast"
 import { logger } from "~/utils/logger"
 import {
 	ApiRequestError,
+	getErrorContextFallbackMessage,
 	inferSeverityFromApiError,
 	simplifyUserFacingToastMessage,
 	severityToToastType,
@@ -12,7 +13,7 @@ import {
 const errorHandlerLogger = logger.createLogger("Error Handler")
 
 export type HandleErrorOptions = {
-	/** 操作情境；映射未命中時優先於通用 HTTP 句 */
+	/** 未傳 defaultMessage 時的操作情境 fallback */
 	context?: ErrorContext
 	/** 背景輪詢逾時等可靜默 */
 	silentIfPolling?: boolean
@@ -92,13 +93,17 @@ export const useErrorHandler = () => {
 	const resolveToastMessage = (
 		error: unknown,
 		defaultMessage: string,
-		_options?: HandleErrorOptions,
+		options?: HandleErrorOptions,
 	): string => {
+		const fallback =
+			defaultMessage ||
+			(options?.context ? getErrorContextFallbackMessage(options.context) : "")
+
 		if (error instanceof ApiRequestError) {
-			if (error.isGenericMessage && defaultMessage) {
-				return defaultMessage
+			if (error.isGenericMessage && fallback) {
+				return fallback
 			}
-			return error.message || defaultMessage
+			return error.message || fallback
 		}
 		if (error instanceof Error) {
 			return simplifyUserFacingToastMessage(error.message || String(error) || defaultMessage)

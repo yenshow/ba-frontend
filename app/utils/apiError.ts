@@ -119,7 +119,7 @@ export class YscpApiBusinessError extends Error {
 	readonly yscpFailure: BackendApiFailure
 
 	constructor(failure: BackendApiFailure) {
-		super(failure.message || "YSCP 請求失敗")
+		super("操作失敗")
 		this.name = "YscpApiBusinessError"
 		this.yscpFailure = failure
 	}
@@ -177,84 +177,31 @@ const CONTEXT_FALLBACK_MESSAGES: Record<ErrorContext, string> = {
 
 // --- 後端 code 映射 ---
 
+/** 極簡 exact：登入／授權檔／權限／帳號管理少數可修正句；模組 CRUD 靠 errorContext + handleError fallback */
 const API_ERROR_USER_MESSAGES: Record<string, string> = {
 	FEATURE_NOT_LICENSED: MSG_LICENSE_LOCKED,
-	LICENSE_QUOTA_EXCEEDED: "授權配額已用盡，請聯絡管理員",
-	LICENSE_CHECK_FAILED: "授權狀態檢查失敗，請稍後再試",
-	LICENSE_ALREADY_USED: "此授權已使用，請聯絡管理員",
-	LICENSE_INACTIVE: "授權未啟用，請聯絡管理員",
 	INVALID_LICENSE_PAYLOAD: "授權檔案格式不正確",
 	INVALID_OFFLINE_LICENSE_SIGNATURE: "授權簽章驗證失敗",
 	INVALID_LICENSE_PRODUCT: "授權產品不符",
 	PERMISSION_DENIED: MSG_PERMISSION_LOCKED,
-	FORBIDDEN: MSG_PERMISSION_LOCKED,
-	CONFLICT: USER_FACING_API_CONFLICT,
-	BAD_GATEWAY: USER_FACING_API_BAD_GATEWAY,
 	USER_AUTH_FAILED: "帳號或密碼錯誤",
-	AUTH_TOKEN_REVOKED: USER_FACING_API_UNAUTHORIZED,
-	RATE_LIMIT_EXCEEDED: "請求過於頻繁，請稍後再試",
 	USER_ACCOUNT_INACTIVE: "帳號已停用，請聯絡管理員",
-	USER_NOT_FOUND: "找不到此使用者",
-	USER_USERNAME_EXISTS: "此帳號已存在",
-	USER_USERNAME_TAKEN: "此帳號已被使用",
-	USER_PASSWORD_TOO_SHORT: "密碼長度不足，請至少輸入 6 個字元",
+	USER_CREDENTIALS_REQUIRED: "請輸入帳號與密碼",
 	USER_OLD_PASSWORD_REQUIRED: "請輸入舊密碼",
 	USER_OLD_PASSWORD_INVALID: "舊密碼不正確",
 	USER_FORBIDDEN_PASSWORD_SELF: "無法變更自己的密碼，請聯絡管理員",
-	USER_FORBIDDEN_PASSWORD_TARGET: "無法重設此帳號的密碼",
-	USER_FORBIDDEN_PASSWORD_OTHERS: "無法變更他人的密碼",
 	USER_FORBIDDEN_DELETE_SELF: "無法刪除自己的帳號",
 	USER_FORBIDDEN_DELETE_ADMIN: "無法刪除管理員帳號",
-	DEVICE_NOT_FOUND: "找不到此設備",
-	DEVICE_NAME_REQUIRED: "請輸入設備名稱",
-	DEVICE_NAME_TOO_LONG: "設備名稱過長",
-	DEVICE_CONFIG_INVALID: "設備設定不完整，請檢查後再試",
-	DEVICE_CONFIG_REQUIRED: "請填寫設備設定",
-	DEVICE_DUPLICATE_CONNECTION: "此連線設定已被其他設備使用",
-	DEVICE_NOT_CAMERA: "此設備不支援攝影機功能",
-	DEVICE_RTSP_URL_MISSING: "請設定串流網址",
-	DEVICE_MODEL_NOT_FOUND: "找不到此設備型號",
-	DEVICE_MODEL_IN_USE: "此設備型號使用中，無法刪除",
-	DEVICE_MODEL_NAME_REQUIRED: "請輸入型號名稱",
-	DEVICE_LIST_FAILED: "無法載入設備列表，請稍後再試",
-	DEVICE_CREATE_FAILED: "無法新增設備，請稍後再試",
-	DEVICE_UPDATE_FAILED: "無法更新設備，請稍後再試",
-	DEVICE_DELETE_FAILED: "無法刪除設備，請稍後再試",
-	LOCATION_NOT_FOUND: "找不到此地點",
-	LOCATION_ZONE_NOT_FOUND: "找不到此區域",
-	LOCATION_NAME_REQUIRED: "請輸入地點名稱",
-	LOCATION_ZONE_NAME_REQUIRED: "請輸入區域名稱",
-	LOCATION_NAME_DUPLICATE: "地點名稱已存在",
-	LOCATION_ZONE_NAME_DUPLICATE: "區域名稱已存在",
-	LOCATION_SYSTEM_TYPE_DUPLICATE: "此地點已綁定相同系統",
-	LOCATION_DEVICE_NOT_FOUND: "找不到綁定的設備",
-	LOCATION_ZONE_DELETE_FORBIDDEN: "此區域尚有地點，無法刪除",
-	PERSONNEL_PERSON_NOT_FOUND: "找不到此人員",
-	PERSONNEL_PERSON_GROUP_NOT_FOUND: "找不到此人員群組",
-	PERSONNEL_IMPORT_EXCEL_FILE_MISSING: "請上傳 Excel 檔案",
-	PERSONNEL_FACE_UPLOAD_FILE_MISSING: "請上傳人臉照片",
-	PERSONNEL_FACE_UPLOAD_INVALID_FILE_FORMAT: "人臉照片格式不正確",
-	PERSONNEL_SYNC_JOB_NOT_FOUND: "找不到同步工作",
-	VEHICLE_ACCESS_NOT_CAMERA: "此設備不支援車輛管理功能",
-	VEHICLE_ACCESS_CONFIG_INCOMPLETE: "車輛設備設定不完整",
-	VEHICLE_ACCESS_DEVICE_NOT_IN_SITE: "設備不屬於此工地",
-	VEHICLE_ACCESS_VALIDATION_FAILED: "車輛進出設定有誤，請檢查後再試",
-	PLATE_ALREADY_ASSIGNED: "此車牌已指派給其他車輛",
-	ALERT_RULE_NOT_FOUND: "找不到此警報規則",
-	ALERT_NOT_FOUND: "找不到此警報",
-	ALERT_LINKAGE_NOT_FOUND: "找不到此連動規則",
-	ALERT_SMTP_INVALID: "郵件伺服器設定不完整",
-	ENVIRONMENT_READINGS_LIST_FAILED: "無法載入環境讀數，請稍後再試",
-	PEOPLE_COUNTING_VALIDATION_FAILED: "門禁管理設定有誤，請檢查後再試",
-	PEOPLE_COUNTING_OPERATION_FAILED: "門禁管理操作失敗，請稍後再試",
-	ELEVATOR_VALIDATION_FAILED: "電梯設定有誤，請檢查後再試",
-	ELEVATOR_SYNC_JOB_NOT_FOUND: "找不到電梯同步工作",
-	SETTINGS_KEY_NOT_FOUND: "找不到此設定項目",
-	SETTINGS_UPLOAD_FILE_MISSING: "請選擇要上傳的檔案",
-	MULTIMEDIA_UPLOAD_FILE_MISSING: "請選擇要上傳的檔案"
+	LOCATION_ZONE_DELETE_FORBIDDEN: "此區域尚有地點，無法刪除"
 };
 
 const API_ERROR_PREFIX_MESSAGES: ReadonlyArray<{ prefix: string; message: string }> = [
+	{ prefix: "LADDER_SDK_", message: "設備操作失敗，請稍後再試" },
+	{ prefix: "MEDIAMTX_", message: "串流服務暫時無法使用，請稍後再試" },
+	{ prefix: "MONITOR_", message: "無法取得監控資料，請稍後再試" },
+	{ prefix: "YSCP_", message: "操作失敗，請稍後再試" },
+	{ prefix: "SMTP_", message: "郵件伺服器設定不完整，請檢查後再試" },
+	{ prefix: "PEOPLE_COUNTING_", message: "門禁管理操作失敗，請稍後再試" },
 	{ prefix: "USER_PASSWORD_", message: "密碼不符合要求，請重新輸入" },
 	{ prefix: "USER_FORBIDDEN_", message: "您沒有執行此操作的權限" },
 	{ prefix: "LICENSE_", message: "授權相關操作失敗，請聯絡管理員" },
@@ -281,16 +228,10 @@ const API_ERROR_PREFIX_MESSAGES: ReadonlyArray<{ prefix: string; message: string
 	{ prefix: "AUTH_", message: USER_FACING_API_UNAUTHORIZED }
 ];
 
-const getUserMessageForBackendCode = (backendCode: string | undefined): string | undefined => {
-	if (!backendCode) return undefined;
+const getExactUserMessage = (backendCode: string): string | undefined =>
+	API_ERROR_USER_MESSAGES[backendCode];
 
-	const exact = API_ERROR_USER_MESSAGES[backendCode];
-	if (exact) return exact;
-
-	for (const { prefix, message } of API_ERROR_PREFIX_MESSAGES) {
-		if (backendCode.startsWith(prefix) || backendCode === prefix) return message;
-	}
-
+const getHeuristicUserMessage = (backendCode: string): string | undefined => {
 	if (
 		backendCode.includes("TIMEOUT") ||
 		backendCode.includes("CONNECTION") ||
@@ -304,7 +245,13 @@ const getUserMessageForBackendCode = (backendCode: string | undefined): string |
 	if (backendCode.includes("DUPLICATE") || backendCode.includes("IN_USE")) {
 		return USER_FACING_API_CONFLICT;
 	}
+	return undefined;
+};
 
+const getPrefixUserMessage = (backendCode: string): string | undefined => {
+	for (const { prefix, message } of API_ERROR_PREFIX_MESSAGES) {
+		if (backendCode.startsWith(prefix) || backendCode === prefix) return message;
+	}
 	return undefined;
 };
 
@@ -592,6 +539,13 @@ export const resolveUserFacingCatchMessage = (error: unknown, fallback: string):
 		if (error.isGenericMessage && fallback) return fallback;
 		return error.message;
 	}
+	if (error instanceof YscpApiBusinessError) {
+		const resolved = resolveUserFacingApiError({
+			backendCode: error.yscpFailure.backendCode,
+			path: "/yscp/",
+		});
+		return resolved.message || fallback;
+	}
 	const raw = error instanceof Error ? error.message || fallback : fallback;
 	return simplifyUserFacingToastMessage(raw) || USER_FACING_API_UNEXPECTED;
 };
@@ -688,20 +642,36 @@ export type ResolvedUserFacingApiError = {
 	isGeneric: boolean;
 };
 
+export const getErrorContextFallbackMessage = (context: ErrorContext): string =>
+	CONTEXT_FALLBACK_MESSAGES[context];
+
 export const resolveUserFacingApiError = (
 	input: ResolveUserFacingApiErrorInput
 ): ResolvedUserFacingApiError => {
 	const { statusCode, backendCode, path, details, context } = input;
 	const isExternalDataQuery = path.includes("/external-data/");
+	const isYscpQuery = isYscpPath(path);
 
 	const fromValidation = resolveValidationMessage(backendCode, details);
 	if (fromValidation) return { message: fromValidation, code: "BACKEND_CODE", isGeneric: false };
 
-	const fromBackendCode = getUserMessageForBackendCode(backendCode);
-	if (fromBackendCode) return { message: fromBackendCode, code: "BACKEND_CODE", isGeneric: false };
+	if (backendCode) {
+		const fromExact = getExactUserMessage(backendCode);
+		if (fromExact) return { message: fromExact, code: "BACKEND_CODE", isGeneric: false };
 
-	const fromContext = context ? CONTEXT_FALLBACK_MESSAGES[context] : undefined;
-	if (fromContext) return { message: fromContext, code: "UNKNOWN", isGeneric: false };
+		const fromContext = context ? CONTEXT_FALLBACK_MESSAGES[context] : undefined;
+		if (fromContext) return { message: fromContext, code: "UNKNOWN", isGeneric: true };
+
+		const fromHeuristic = getHeuristicUserMessage(backendCode);
+		if (fromHeuristic) return { message: fromHeuristic, code: "BACKEND_CODE", isGeneric: true };
+
+		const fromPrefix = getPrefixUserMessage(backendCode);
+		if (fromPrefix) return { message: fromPrefix, code: "BACKEND_CODE", isGeneric: true };
+	}
+
+	if (isYscpQuery) {
+		return { message: USER_FACING_API_UNEXPECTED, code: "UNKNOWN", isGeneric: true };
+	}
 
 	if (statusCode !== undefined && statusCode !== null) {
 		const fromStatus = mapHttpStatusToUserFacingError(statusCode, isExternalDataQuery);
@@ -716,15 +686,6 @@ export const resolveUserFacingApiError = (
 /** 解析 API 錯誤為使用者可見字串（供開啟中的表單／dialog 使用） */
 export const resolveFormApiError = (error: unknown, fallback: string): string =>
 	resolveUserFacingCatchMessage(error, fallback);
-
-/** 優先顯示後端 originalMessage，避免錯誤碼映射覆蓋具體訊息 */
-export const resolveFormApiErrorPreferOriginal = (error: unknown, fallback: string): string => {
-	if (error instanceof ApiRequestError) {
-		const detail = error.originalMessage?.trim();
-		if (detail) return detail;
-	}
-	return resolveFormApiError(error, fallback);
-};
 
 /** 將 API 錯誤寫入 ref（不 toast） */
 export const applyFormApiErrorToRef = (

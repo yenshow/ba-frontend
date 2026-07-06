@@ -268,7 +268,7 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import {
 	isApiRequestTimeout,
 	joinFormErrors,
-	resolveFormApiErrorPreferOriginal,
+	resolveFormApiError,
 } from "~/utils/apiError"
 import { removeLocationFromSystemOrDelete } from "~/composables/location/locationSystemActions"
 import {
@@ -1049,7 +1049,7 @@ const saveAllChanges = async () => {
 			emit("saved")
 		} else if (succeededIds.length > 0) {
 			toast.warning(TOAST.ZONE_PARTIAL_SAVE_FAILED(failures.length, saveCount))
-			errorMessage.value = resolveFormApiErrorPreferOriginal(
+			errorMessage.value = resolveFormApiError(
 				failures[0]!.reason,
 				"部分區域儲存失敗"
 			)
@@ -1059,7 +1059,7 @@ const saveAllChanges = async () => {
 				errorMessage.value =
 					"請求逾時：平台資料可能已儲存，但梯控設備樓層參數可能尚未同步完成。請關閉後重新開啟確認，或稍後再次儲存。"
 			} else {
-				errorMessage.value = resolveFormApiErrorPreferOriginal(failures[0]!.reason, "儲存區域失敗")
+				errorMessage.value = resolveFormApiError(failures[0]!.reason, "儲存區域失敗")
 			}
 		}
 	} finally {
