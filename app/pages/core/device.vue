@@ -1,10 +1,10 @@
 <template>
 	<div>
-		<div v-if="deviceTabItems.length" class="space-y-6 2xl:space-y-8">
+		<div v-if="deviceTabItems.length" class="page-shell">
 			<div class="flex flex-wrap items-center justify-between gap-4">
 				<header class="me-4 flex flex-col gap-1 2xl:gap-2">
-					<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">設備管理</h1>
-					<p class="text-base text-white/80 2xl:text-xl">管理各類型設備配置與配對</p>
+					<h1 class="page-title">設備管理</h1>
+					<p class="page-subtitle">管理各類型設備配置與配對</p>
 				</header>
 
 				<PageTabs
@@ -25,7 +25,7 @@
 				:panel-transition="false"
 				id-prefix="device-tab"
 			>
-				<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
+				<section class="section-card">
 					<div class="mb-6 flex flex-wrap items-center justify-between gap-4 2xl:gap-6">
 						<h2 class="text-xl font-semibold text-white 2xl:text-2xl">
 							{{ currentTabName ? `${currentTabName}管理` : "設備管理" }}
@@ -59,12 +59,12 @@
 							canCreateDevice && currentTabName ? `點擊「新增設備」開始建立${currentTabName}` : ''
 						"
 					>
-						<div :key="`devices-${activeTab}-${offset}`">
-							<table class="w-full text-center">
+						<div :key="`devices-${activeTab}-${offset}`" class="table-scroll">
+							<table class="w-full min-w-[720px] text-center">
 								<thead>
 									<tr class="border-b border-white/20">
-										<th :class="tableHeaderClass">設備名稱</th>
-										<th v-if="activeTab === 'camera'" :class="tableHeaderClass">
+										<th class="table-th">設備名稱</th>
+										<th v-if="activeTab === 'camera'" class="table-th">
 											<FilterDropdown
 												:model-value="cameraGroupFilter"
 												:options="cameraGroupFilterOptions"
@@ -73,13 +73,13 @@
 												@update:model-value="onCameraGroupFilterUpdate"
 											/>
 										</th>
-										<th v-if="activeTab === 'camera'" :class="tableHeaderClass">攝影機群組</th>
-										<th :class="tableHeaderClass">設備型號</th>
-										<th :class="tableHeaderClass">
+										<th v-if="activeTab === 'camera'" class="table-th">攝影機群組</th>
+										<th class="table-th">設備型號</th>
+										<th class="table-th">
 											{{ activeTab === "camera" ? "IP 位址" : "配置資訊" }}
 										</th>
-										<th :class="tableHeaderClass">狀態</th>
-										<th :class="tableHeaderClass">
+										<th class="table-th">狀態</th>
+										<th class="table-th">
 											<FilterDropdown
 												:model-value="dateSortOrder"
 												:options="dateSortOptions"
@@ -88,7 +88,7 @@
 												@update:model-value="onDateSortUpdate"
 											/>
 										</th>
-										<th :class="tableHeaderClass">操作</th>
+										<th class="table-th">操作</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -97,29 +97,29 @@
 										:key="device.id"
 										class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
 									>
-										<td :class="tableCellClass">{{ device.name }}</td>
-										<td v-if="activeTab === 'camera'" :class="tableCellClass">
+										<td class="table-td">{{ device.name }}</td>
+										<td v-if="activeTab === 'camera'" class="table-td">
 											<span class="text-white/80">{{ getCameraGroup(device) }}</span>
 										</td>
-										<td v-if="activeTab === 'camera'" :class="tableCellClass">
+										<td v-if="activeTab === 'camera'" class="table-td">
 											<span class="text-sm text-white/80 2xl:text-base">{{
 												getModelCategoryLabel(device)
 											}}</span>
 										</td>
-										<td :class="tableCellClass">
+										<td class="table-td">
 											<span v-if="device.model_name" class="text-white/90">{{
 												device.model_name
 											}}</span>
 											<span v-else class="text-white/50">-</span>
 										</td>
-										<td :class="tableCellClass">
+										<td class="table-td">
 											<span class="text-sm text-white/80 2xl:text-base">{{
 												activeTab === "camera"
 													? getCameraIp(device)
 													: formatDeviceConfig(device.config)
 											}}</span>
 										</td>
-										<td :class="tableCellClass">
+										<td class="table-td">
 											<span
 												:class="[
 													deviceConnectivity.getBadgeClass(deviceConnectivity.getStatus(device.id)),
@@ -139,10 +139,10 @@
 												</span>
 											</span>
 										</td>
-										<td :class="[tableCellClass, 'text-white/70']">
+										<td class="table-td text-white/70">
 											{{ formatDate(device.created_at) }}
 										</td>
-										<td :class="tableCellClass">
+										<td class="table-td">
 											<div class="flex gap-2 2xl:gap-3">
 												<PermissionActionButton
 													:allowed="canUpdateDevice"
@@ -369,9 +369,6 @@ const deviceIdsInPage = computed(() =>
 deviceConnectivity.bindDeviceIds(deviceIdsInPage)
 
 const connectivityLabels = computed(() => deviceConnectivity.labels.value)
-
-const tableHeaderClass = "py-3 2xl:py-4 px-4 2xl:px-6 text-sm 2xl:text-base text-white/80"
-const tableCellClass = "py-3 2xl:py-4 px-4 2xl:px-6"
 
 const dateSortOptions = [
 	{ value: "desc", label: "由新到舊" },

@@ -1,9 +1,9 @@
 <template>
 	<div>
 		<!-- 全區點位圖頁面內容 -->
-		<div class="flex justify-center gap-6 2xl:gap-8">
+		<div class="infra-page-layout">
 			<!-- 左側：平面圖與篩選 -->
-			<section class="flex-[1.2] 2xl:flex-[1.3]" ref="leftSectionRef">
+			<section class="w-full flex-[1.2] 2xl:flex-[1.3]" ref="leftSectionRef">
 				<div
 					class="flex overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-6 2xl:p-8"
 				>
@@ -106,7 +106,7 @@
 			</section>
 
 			<!-- 右側區域列表 -->
-			<aside class="show-scrollbar flex-[0.8] overflow-y-auto 2xl:flex-[0.7]">
+			<aside class="infra-page-aside">
 				<div
 					class="rounded-2xl border-2 border-white/80 bg-white/30 p-6 2xl:p-8"
 					:style="leftSectionHeight ? { minHeight: leftSectionHeight + 'px' } : undefined"

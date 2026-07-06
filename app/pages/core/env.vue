@@ -1,18 +1,16 @@
 <template>
-	<div class="space-y-6 2xl:space-y-8">
+	<div class="page-shell">
 		<header class="flex flex-wrap items-end justify-between gap-4 2xl:gap-6">
 			<div class="space-y-2 2xl:space-y-4">
-				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">環境設定</h1>
-				<p class="text-base text-white/80 2xl:text-xl">管理平台備份排程與門禁資料匯出設定。</p>
+				<h1 class="page-title">環境設定</h1>
+				<p class="page-subtitle">管理平台備份排程與門禁資料匯出設定。</p>
 			</div>
 		</header>
 
 		<div class="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2 2xl:gap-8">
 			<BackupScheduleSection class="h-full" />
 
-			<section
-				class="flex h-full flex-col rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8"
-			>
+			<section class="section-card flex h-full flex-col">
 				<div class="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
 					<div class="flex flex-wrap items-center gap-4 2xl:gap-6">
 						<h2 class="text-lg font-semibold text-white 2xl:text-xl">資料匯出</h2>

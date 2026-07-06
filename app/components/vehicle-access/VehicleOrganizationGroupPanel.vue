@@ -1,6 +1,8 @@
 <template>
 	<div class="vehicle-org-panel min-h-[220px] space-y-4">
-		<h3 class="vehicle-org-title bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
+		<h3
+			class="vehicle-org-title bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
+		>
 			{{ panelTitle }}
 		</h3>
 		<div class="grid grid-cols-3 gap-4 2xl:grid-cols-4">
@@ -26,7 +28,9 @@
 				>
 					{{ group.personGroupName }}
 				</div>
-				<div class="vehicle-org-count mt-0.5 flex items-center gap-1 text-sm text-white 2xl:text-base">
+				<div
+					class="vehicle-org-count mt-0.5 flex items-center gap-1 text-sm text-white 2xl:text-base"
+				>
 					<span class="text-green-400">{{ group.onSiteCount || 0 }}</span>
 					<span>/</span>
 					<span>{{ group.vehicleCount || 0 }}</span>

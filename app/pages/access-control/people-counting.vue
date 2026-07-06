@@ -2,7 +2,7 @@
 	<div>
 		<!-- 門禁管理頁面內容 -->
 		<div
-			class="flex min-w-0 items-stretch justify-center"
+			class="flex min-w-0 flex-col items-stretch justify-center lg:flex-row"
 			:class="isOverviewCollapsed ? 'gap-0' : 'gap-4 xl:gap-6 2xl:gap-8'"
 		>
 			<section class="relative min-w-0 flex-1 2xl:flex-[1.3]">
@@ -22,20 +22,6 @@
 						>
 							總覽
 						</span>
-						<svg
-							class="h-5 w-5 shrink-0 2xl:h-6 2xl:w-6"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-							aria-hidden="true"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M15 19l-7-7 7-7"
-							/>
-						</svg>
 					</button>
 				</Transition>
 
@@ -72,7 +58,7 @@
 						v-show="isAccessControl && selectedLocation"
 						:allowed="canOpenAccessManage"
 						aria-label="門禁管理"
-						class="absolute left-36 top-2 btn-monitoring-overlay"
+						class="absolute left-32 2xl:left-36 top-2 btn-monitoring-overlay"
 						@click="showAccessManageDialog = true"
 					>
 						門禁管理
@@ -81,7 +67,7 @@
 						v-show="selectedLocation"
 						:allowed="canResetStatistics"
 						aria-label="重製人流統計"
-						class="absolute right-36 top-2 btn-monitoring-overlay"
+						class="absolute right-32 2xl:right-36 top-2 btn-monitoring-overlay"
 						@click="handleResetStats"
 					>
 						重製統計
@@ -103,7 +89,6 @@
 						<div
 							v-if="selectedLocation"
 							class="flex min-h-0 flex-1"
-							:class="{ 'monitoring-detail-enlarged': isOverviewCollapsed }"
 						>
 							<div class="min-w-0 flex-1">
 								<LocationStatsPanel

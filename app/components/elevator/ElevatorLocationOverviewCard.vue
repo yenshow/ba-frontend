@@ -9,7 +9,7 @@
 		@keydown.space.prevent="handleClick"
 	>
 		<div
-			class="my-4 flex w-[36px] items-center justify-center bg-white px-2 text-xl 2xl:text-xl"
+			class="my-4 flex w-[36px] items-center justify-center bg-white px-2 text-xl"
 			style="clip-path: polygon(0 0, 100% calc(0% + 24px), 100% calc(100% - 24px), 0 100%)"
 		>
 			{{ regionText }}
@@ -20,11 +20,7 @@
 				<h3 class="text-base text-white 2xl:text-lg">{{ location.name }}</h3>
 			</div>
 
-			<div
-				class="flex items-center justify-center gap-2 py-4"
-				role="status"
-				aria-live="polite"
-			>
+			<div class="flex items-center justify-center gap-2 py-4" role="status" aria-live="polite">
 				<div class="flex shrink-0 flex-col items-center">
 					<ElevatorFloorRollDisplay
 						:floor-text="displayFloorText"

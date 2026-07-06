@@ -1,9 +1,8 @@
 <template>
 	<div
-		class="flex flex-wrap items-center justify-between gap-2 2xl:gap-4 rounded-lg border-2 border-white/30 bg-white/10 p-4 backdrop-blur-sm"
+		class="flex items-center justify-between gap-2 2xl:gap-4 rounded-lg border-2 border-white/30 bg-white/10 p-4 backdrop-blur-sm"
 	>
 		<div class="flex items-center gap-2">
-			<span class="font-medium text-white text-base 2xl:text-lg">畫面布局：</span>
 			<div class="flex gap-1">
 				<button
 					v-for="layoutOption in layoutOptions"
@@ -12,7 +11,7 @@
 						'rounded-lg px-3 py-1.5 transition-colors text-base 2xl:text-lg',
 						modelValue === layoutOption.value
 							? 'border-2 border-white/50 bg-white/20 text-white'
-							: 'border-2 border-white/30 bg-black/20 text-white/80 hover:border-white/40 hover:bg-white/15'
+							: 'border-2 border-white/30 bg-black/20 text-white/80 hover:border-white/40 hover:bg-white/15',
 					]"
 					@click="$emit('update:modelValue', layoutOption.value)"
 				>
@@ -52,27 +51,27 @@
 </template>
 
 <script setup lang="ts">
-import type { GridLayout } from "~/types/surveillance";
+import type { GridLayout } from "~/types/surveillance"
 
 interface Props {
-	modelValue: GridLayout;
-	totalCameras: number;
-	viewCount: number;
-	maxViews: number;
+	modelValue: GridLayout
+	totalCameras: number
+	viewCount: number
+	maxViews: number
 }
 
-defineProps<Props>();
+defineProps<Props>()
 
 defineEmits<{
-	"update:modelValue": [value: GridLayout];
-	refresh: [];
-	fullscreen: [];
-}>();
+	"update:modelValue": [value: GridLayout]
+	refresh: []
+	fullscreen: []
+}>()
 
 const layoutOptions = [
 	{ value: "1" as GridLayout, label: "1 畫面" },
 	{ value: "4" as GridLayout, label: "4 畫面" },
 	{ value: "9" as GridLayout, label: "9 畫面" },
-	{ value: "16" as GridLayout, label: "16 畫面" }
-];
+	{ value: "16" as GridLayout, label: "16 畫面" },
+]
 </script>

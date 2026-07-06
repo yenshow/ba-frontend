@@ -1,7 +1,7 @@
 <template>
 	<div>
 		<div
-			class="flex min-w-0 items-stretch justify-center"
+			class="flex min-w-0 flex-col items-stretch justify-center lg:flex-row"
 			:class="isOverviewCollapsed ? 'gap-0' : 'gap-4 xl:gap-6 2xl:gap-8'"
 		>
 			<section class="relative min-w-0 flex-1 2xl:flex-[1.3]">
@@ -21,20 +21,6 @@
 						>
 							總覽
 						</span>
-						<svg
-							class="h-5 w-5 shrink-0 2xl:h-6 2xl:w-6"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-							aria-hidden="true"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M15 19l-7-7 7-7"
-							/>
-						</svg>
 					</button>
 				</Transition>
 
@@ -69,7 +55,7 @@
 						v-show="isIsapiCamera && selectedLocation"
 						:allowed="canOpenPlateManage"
 						aria-label="車牌管理"
-						class="absolute left-36 top-2 btn-monitoring-overlay"
+						class="absolute left-32 2xl:left-36 top-2 btn-monitoring-overlay"
 						@click="showIsapiManageDialog = true"
 					>
 						車牌管理
@@ -78,7 +64,7 @@
 						v-show="isParkingMode"
 						:allowed="canResetStatistics"
 						aria-label="重製停車場統計"
-						class="absolute right-36 top-2 btn-monitoring-overlay"
+						class="absolute right-32 2xl:right-36 top-2 btn-monitoring-overlay"
 						@click="handleResetParkingStats"
 					>
 						重製統計
@@ -347,11 +333,7 @@ const {
 
 const detailEmpty = computed(() => locations.value.length === 0 && !isLoadingZones.value)
 
-const vehicleDetailContentClass = computed(() =>
-	["flex flex-col gap-12", isOverviewCollapsed.value && "monitoring-detail-enlarged"]
-		.filter(Boolean)
-		.join(" ")
-)
+const vehicleDetailContentClass = "flex flex-col gap-12"
 
 const { request } = useApiBase()
 

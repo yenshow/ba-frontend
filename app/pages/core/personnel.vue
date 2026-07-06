@@ -1,9 +1,9 @@
 <template>
-	<div class="space-y-6 2xl:space-y-8">
+	<div class="page-shell">
 		<div class="flex flex-wrap items-center justify-between gap-4">
 			<header class="me-4 flex flex-col gap-1 2xl:gap-2">
-				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">人員管理</h1>
-				<p class="text-base text-white/80 2xl:text-xl">管理人員資料與人員群組</p>
+				<h1 class="page-title">人員管理</h1>
+				<p class="page-subtitle">管理人員資料與人員群組</p>
 			</header>
 		</div>
 
@@ -16,8 +16,6 @@
 			:can-update-person="canUpdatePerson"
 			:can-delete-person="canDeletePerson"
 			:person-status-labels="personStatusLabels"
-			:table-header-class="tableHeaderClass"
-			:table-cell-class="tableCellClass"
 			:get-person-status-badge-class="getPersonStatusBadgeClass"
 			:persons-tab="personsTab"
 		/>
@@ -51,9 +49,6 @@ const {
 	canUpdatePerson,
 	canDeletePerson,
 } = usePersonnelRbac()
-
-const tableHeaderClass = "py-3 2xl:py-4 px-4 2xl:px-6 text-sm 2xl:text-base text-white/80"
-const tableCellClass = "py-3 2xl:py-4 px-4 2xl:px-6"
 
 const personStatusLabels = PERSON_STATUS_LABELS
 

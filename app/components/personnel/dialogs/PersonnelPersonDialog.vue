@@ -394,7 +394,7 @@
 								v-if="activePlateItem"
 								class="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3"
 							>
-								<div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+								<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 									<label class="flex flex-col gap-2">
 										<span>車牌</span>
 										<input

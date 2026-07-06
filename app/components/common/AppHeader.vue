@@ -6,9 +6,11 @@
 		]"
 		:style="{ borderBottomColor: headerBorderAccentColor }"
 	>
-		<div class="flex items-end justify-between h-[88px] px-12 pb-3 2xl:h-[96px] 2xl:px-16 2xl:pb-4">
+		<div
+			class="flex items-end justify-between h-[72px] px-4 pb-3 sm:px-8 lg:h-[88px] lg:px-12 2xl:h-[96px] 2xl:px-16 2xl:pb-4"
+		>
 			<!-- Logo -->
-			<div class="h-[64px] 2xl:h-[72px]">
+			<div class="h-[48px] flex-shrink-0 lg:h-[64px] 2xl:h-[72px]">
 				<img
 					src="/layout/yenshow-logo.svg"
 					alt="YENSHOW"
@@ -17,26 +19,55 @@
 			</div>
 
 			<!-- System Title（模組名稱 + public/system 圖示） -->
-			<div class="flex flex-1 justify-center">
+			<div class="flex min-w-0 flex-1 justify-center px-2 lg:px-0">
 				<div
 					v-if="currentModule"
-					class="system-title"
+					class="system-title max-w-full"
 					:class="{ 'system-title--dark-ink': systemTitleChrome?.useDarkInk }"
 					:style="systemTitleChrome?.style"
 				>
 					<NuxtImg
 						:src="`/system/${currentModule.icon}.png`"
 						:alt="currentModule.name"
-						class="system-title-module-icon h-10 w-10 flex-shrink-0 object-contain 2xl:h-11 2xl:w-11"
+						class="system-title-module-icon h-8 w-8 flex-shrink-0 object-contain sm:h-10 sm:w-10 2xl:h-11 2xl:w-11"
 					/>
-					<span class="text-3xl font-semibold tracking-[8px] 2xl:text-4xl 2xl:tracking-[16px]">
+					<span
+						class="truncate text-lg font-semibold tracking-[4px] sm:text-2xl sm:tracking-[6px] lg:text-3xl lg:tracking-[8px] 2xl:text-4xl 2xl:tracking-[16px]"
+					>
 						{{ currentModule.name }}
 					</span>
 				</div>
 			</div>
 
+			<!-- Mobile nav toggle -->
+			<div class="flex items-center lg:hidden">
+				<button
+					type="button"
+					class="icon-button"
+					:aria-expanded="isMobileNavOpen"
+					aria-label="開啟導覽選單"
+					@click.stop="toggleMobileNav"
+				>
+					<svg
+						class="h-10 w-10"
+						:class="isDark ? 'text-white' : 'text-gray-800'"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+						aria-hidden="true"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M4 6h16M4 12h16M4 18h16"
+						/>
+					</svg>
+				</button>
+			</div>
+
 			<!-- Right Icons：由左至右 1.警示紀錄 2.系統總覽 | 3.系統設定 4.首頁 -->
-			<div class="flex items-center space-x-6 2xl:space-x-8">
+			<div class="hidden items-center space-x-6 lg:flex 2xl:space-x-8">
 				<!-- 1. 警示紀錄 -->
 				<button :class="['icon-button relative', { 'icon-button-active': isAlertLogActive }]">
 					<NuxtLink to="/core/alert-log">
@@ -78,7 +109,7 @@
 						<div
 							v-if="isMoreMenuOpen"
 							@click.stop
-							class="absolute right-0 top-full z-50 mt-2 flex h-[540px] w-48 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white py-2 shadow-lg 2xl:h-[600px]"
+							class="absolute right-0 top-full z-50 mt-2 flex h-[540px] w-48 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white py-2 shadow-lg max-lg:fixed max-lg:inset-x-4 max-lg:top-20 max-lg:h-[min(70vh,540px)] max-lg:w-auto 2xl:h-[600px]"
 						>
 							<div class="show-scrollbar flex-1 overflow-y-auto">
 								<template
@@ -171,7 +202,7 @@
 						<div
 							v-if="isUserMenuOpen"
 							@click.stop
-							class="absolute right-0 top-full z-50 mt-2 w-52 rounded-lg border border-gray-200 bg-white py-2 shadow-lg"
+							class="absolute right-0 top-full z-50 mt-2 w-52 rounded-lg border border-gray-200 bg-white py-2 shadow-lg max-lg:fixed max-lg:inset-x-4 max-lg:top-20 max-lg:w-auto"
 						>
 							<!-- 使用者資訊區 -->
 							<div class="flex justify-around border-b border-gray-100 py-2">
@@ -300,6 +331,90 @@
 				</button>
 			</div>
 		</div>
+
+		<!-- Mobile nav drawer -->
+		<Transition
+			enter-active-class="transition ease-out duration-150"
+			enter-from-class="opacity-0 -translate-y-2"
+			enter-to-class="opacity-100 translate-y-0"
+			leave-active-class="transition ease-in duration-100"
+			leave-from-class="opacity-100 translate-y-0"
+			leave-to-class="opacity-0 -translate-y-2"
+		>
+			<div
+				v-if="isMobileNavOpen"
+				class="border-t border-white/20 bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm lg:hidden"
+				:class="isDark ? 'bg-[#003B45]/95' : 'bg-white/95'"
+			>
+				<nav class="flex flex-col gap-1" aria-label="行動導覽">
+					<NuxtLink
+						to="/core/alert-log"
+						class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-base text-gray-800 transition-colors hover:bg-black/5"
+						:class="isDark ? 'text-white hover:bg-white/10' : ''"
+						@click="closeMobileNav"
+					>
+						<NuxtImg
+							:src="isDark ? '/layout/alert-logo-white.png' : '/layout/alert-log.png'"
+							alt=""
+							class="h-8 w-8"
+							aria-hidden="true"
+						/>
+						<span>警示紀錄</span>
+						<span
+							v-if="unresolvedAlertCount > 0"
+							class="ml-auto rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white"
+						>
+							{{ unresolvedAlertCount > 99 ? "99+" : unresolvedAlertCount }}
+						</span>
+					</NuxtLink>
+					<button
+						type="button"
+						class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-base transition-colors hover:bg-black/5"
+						:class="isDark ? 'text-white hover:bg-white/10' : 'text-gray-800'"
+						@click="handleMobileMoreMenu"
+					>
+						<img
+							src="/layout/more-functions.svg"
+							alt=""
+							class="h-8 w-8"
+							:class="isDark ? 'icon-svg-dark' : 'icon-svg-light'"
+							aria-hidden="true"
+						/>
+						<span>系統總覽</span>
+					</button>
+					<button
+						type="button"
+						class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-base transition-colors hover:bg-black/5"
+						:class="isDark ? 'text-white hover:bg-white/10' : 'text-gray-800'"
+						@click="handleMobileUserMenu"
+					>
+						<img
+							src="/layout/setting.svg"
+							alt=""
+							class="h-8 w-8"
+							:class="isDark ? 'icon-svg-dark' : 'icon-svg-light'"
+							aria-hidden="true"
+						/>
+						<span>系統設定</span>
+					</button>
+					<NuxtLink
+						to="/"
+						class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-base transition-colors hover:bg-black/5"
+						:class="isDark ? 'text-white hover:bg-white/10' : 'text-gray-800'"
+						@click="closeMobileNav"
+					>
+						<img
+							src="/layout/home.svg"
+							alt=""
+							class="h-8 w-8"
+							:class="isDark ? 'icon-svg-dark' : 'icon-svg-light'"
+							aria-hidden="true"
+						/>
+						<span>首頁</span>
+					</NuxtLink>
+				</nav>
+			</div>
+		</Transition>
 	</header>
 </template>
 
@@ -358,6 +473,31 @@ const userMenuRef = ref<HTMLElement | null>(null)
 // 系統總覽選單狀態
 const isMoreMenuOpen = ref(false)
 const moreMenuRef = ref<HTMLElement | null>(null)
+
+// 行動版導覽
+const isMobileNavOpen = ref(false)
+
+const closeMobileNav = () => {
+	isMobileNavOpen.value = false
+}
+
+const toggleMobileNav = () => {
+	isMobileNavOpen.value = !isMobileNavOpen.value
+	if (isMobileNavOpen.value) {
+		closeUserMenu()
+		closeMoreMenu()
+	}
+}
+
+const handleMobileMoreMenu = () => {
+	closeMobileNav()
+	toggleMoreMenu()
+}
+
+const handleMobileUserMenu = () => {
+	closeMobileNav()
+	toggleUserMenu()
+}
 
 // 認證狀態
 const { user, logout: authLogout } = useAuth()
@@ -493,6 +633,12 @@ const handleClickOutside = (event: MouseEvent) => {
 	if (moreMenuRef.value && !moreMenuRef.value.contains(target)) {
 		closeMoreMenu()
 	}
+	if (isMobileNavOpen.value) {
+		const header = (event.target as HTMLElement)?.closest("header")
+		if (!header) {
+			closeMobileNav()
+		}
+	}
 }
 
 // 監聽點擊事件
@@ -509,6 +655,7 @@ watch(
 	() => {
 		closeUserMenu()
 		closeMoreMenu()
+		closeMobileNav()
 		// 當路由變化到警示紀錄頁面時，更新數量
 		if (route.path === "/core/alert-log") {
 			void loadUnresolvedAlertCount()
@@ -523,7 +670,7 @@ watch(
 	display: inline-flex;
 	align-items: center;
 	gap: 0.75rem;
-	padding: 0.75rem 2.6rem;
+	padding: 0.5rem 1.25rem;
 	clip-path: polygon(
 		22px 0,
 		calc(100% - 22px) 0,
@@ -534,6 +681,12 @@ watch(
 	);
 	overflow: hidden;
 	color: #ffffff;
+}
+
+@media (min-width: 1024px) {
+	.system-title {
+		padding: 0.75rem 2.6rem;
+	}
 }
 
 /* 淺色分類底：深字＋深色圖示 */

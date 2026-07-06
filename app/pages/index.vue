@@ -1,16 +1,16 @@
 <template>
 	<div class="space-y-4 2xl:space-y-6">
 		<!-- Main Content -->
-		<div class="grid grid-cols-3 gap-6 2xl:gap-8">
+		<div class="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3 2xl:gap-8">
 			<!-- Left Column -->
-			<div class="col-span-2 space-y-6 2xl:space-y-8">
+			<div class="col-span-1 space-y-4 sm:space-y-6 lg:col-span-2 2xl:space-y-8">
 				<!-- Data Cards Section -->
 				<div class="overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30">
-					<div class="grid h-full grid-cols-12">
+					<div class="grid h-full grid-cols-1 sm:grid-cols-12">
 						<!-- AQI Card -->
 						<AQICard
 							v-model="selectedAqiLocationId"
-							class="col-span-7"
+							class="col-span-full sm:col-span-7"
 							:aqi="aqiData"
 							:options="locationOptions"
 							placeholder="請選擇 AQI 地點"
@@ -20,7 +20,7 @@
 						<!-- Environmental Card -->
 						<EnvironmentCard
 							v-model="selectedEnvironmentLocationId"
-							class="col-span-5"
+							class="col-span-full sm:col-span-5"
 							:data="environmentData"
 							:options="locationOptions"
 							placeholder="請選擇環境地點"
@@ -31,14 +31,14 @@
 
 				<!-- System Modules Section -->
 				<div
-					class="overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 px-12 2xl:px-24"
+					class="overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 px-4 sm:px-8 lg:px-12 2xl:px-24"
 				>
 					<SystemModule />
 				</div>
 			</div>
 
 			<!-- Right Column -->
-			<div class="col-span-1 grid grid-rows-12">
+			<div class="col-span-1 grid min-h-[240px] grid-rows-12 lg:min-h-0">
 				<div class="row-span-12 overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30">
 					<!-- Building Image Card -->
 					<BuildingCard />

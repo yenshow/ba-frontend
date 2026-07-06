@@ -1,7 +1,7 @@
 <template>
 	<div>
 		<div
-			class="flex min-w-0 items-stretch justify-center"
+			class="flex min-w-0 flex-col items-stretch justify-center lg:flex-row"
 			:class="isOverviewCollapsed ? 'gap-0' : 'gap-4 xl:gap-6 2xl:gap-8'"
 		>
 			<section class="relative min-w-0 flex-1 2xl:flex-[1.3]">
@@ -21,20 +21,6 @@
 						>
 							總覽
 						</span>
-						<svg
-							class="h-5 w-5 shrink-0 2xl:h-6 2xl:w-6"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-							aria-hidden="true"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M15 19l-7-7 7-7"
-							/>
-						</svg>
 					</button>
 				</Transition>
 
@@ -79,15 +65,14 @@
 					<MonitoringDetailShell
 						:empty="detailEmpty"
 						:enlarged="isOverviewCollapsed"
-						:content-class="
-							[isOverviewCollapsed && 'monitoring-detail-enlarged'].filter(Boolean).join(' ')
-						"
 						empty-title="尚無環境地點"
 						empty-description="請在「地點管理」中新增含環境監測系統的地點"
 					>
 						<div v-if="currentLocationData" :aria-busy="isHydrating">
 							<div class="border-b border-white/80 pb-2">
-								<div class="env-gauge-row grid grid-cols-3 gap-4 2xl:gap-6">
+								<div
+									class="env-gauge-row grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:gap-6"
+								>
 									<div
 										v-for="(gaugeType, gaugeIndex) in featuredGaugeTypes"
 										:key="gaugeIndex"
@@ -119,7 +104,7 @@
 							<!-- 環境參數網格 -->
 							<div
 								v-if="currentLocationData && currentLocationData.parameters.length > 0"
-								class="env-param-grid mt-8 grid grid-cols-3 gap-2 2xl:grid-cols-4"
+								class="env-param-grid mt-8 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
 							>
 								<EnvironmentParamCard
 									v-for="param in enabledParameters"

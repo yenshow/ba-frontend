@@ -51,7 +51,7 @@
 
 		<!-- YSCP：入口／出口設備 -->
 		<div v-if="dataSource === 'yscp'" class="mt-3 border-t border-white/10 pt-3">
-			<div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 				<div :class="fieldLabelClass">
 					<span>入口設備（可複選）<span class="required-mark">*</span></span>
 					<div v-if="props.doors.length === 0" :class="emptyHintClass">無可用門設備</div>
@@ -136,7 +136,7 @@
 			<p class="mb-3 text-xs text-white/60 2xl:text-sm">
 				人員群組依名單內人員自動顯示；請至門禁管理維護地點名單與設備同步。
 			</p>
-			<div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 				<div :class="fieldLabelClass">
 					<span>入口設備（可複選）<span class="required-mark">*</span></span>
 					<div v-if="props.accessControlDevices.length === 0" :class="emptyHintClass">

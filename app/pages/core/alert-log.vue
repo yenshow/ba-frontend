@@ -1,10 +1,10 @@
 <template>
-	<div class="space-y-6 2xl:space-y-8">
+	<div class="page-shell">
 		<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
 			<div class="flex shrink-0 flex-wrap items-center gap-4 2xl:gap-6">
 				<header class="flex flex-col gap-1 2xl:gap-2">
-					<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">警示紀錄</h1>
-					<p class="text-base text-white/80 2xl:text-xl">查看與管理系統警示訊息</p>
+					<h1 class="page-title">警示紀錄</h1>
+					<p class="page-subtitle">查看與管理系統警示訊息</p>
 				</header>
 
 				<PageTabs

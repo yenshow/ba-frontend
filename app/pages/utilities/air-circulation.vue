@@ -6,7 +6,7 @@
 				:last-success-at="lastSuccessAt"
 			/>
 		</div>
-		<div class="flex justify-center gap-6 2xl:gap-8">
+		<div class="infra-page-layout">
 			<AirCirculationZonePlanPanel
 				:selected-zone-name="selectedZoneName"
 				:is-initial-loading="isInitialLoading"
@@ -31,8 +31,8 @@
 			/>
 
 			<aside
-				class="show-scrollbar flex-[0.8] overflow-y-auto 2xl:flex-[0.7]"
-				:style="{ height: leftSectionHeight ? leftSectionHeight + 'px' : 'auto' }"
+				class="infra-page-aside"
+				:style="leftSectionHeight ? { '--infra-aside-h': `${leftSectionHeight}px` } : undefined"
 			>
 				<AirCirculationMonitorCenter
 					v-model:view-filter="selectedViewCategory"

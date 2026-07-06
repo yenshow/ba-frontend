@@ -2,7 +2,7 @@
 	<div>
 		<!-- 影像監控系統頁面內容 - 參考其他系統版面 -->
 		<div
-			class="flex min-w-0 items-stretch justify-center"
+			class="flex min-w-0 flex-col items-stretch justify-center lg:flex-row"
 			:class="isOverviewCollapsed ? 'gap-0' : 'gap-4 xl:gap-6 2xl:gap-8'"
 		>
 			<section class="relative min-w-0 flex-1 2xl:flex-[1.3]">
@@ -22,20 +22,6 @@
 						>
 							列表
 						</span>
-						<svg
-							class="h-5 w-5 shrink-0 2xl:h-6 2xl:w-6"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-							aria-hidden="true"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M15 19l-7-7 7-7"
-							/>
-						</svg>
 					</button>
 				</Transition>
 

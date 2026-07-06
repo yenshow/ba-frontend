@@ -1,7 +1,7 @@
 <template>
 	<div>
 		<div
-			class="flex min-w-0 items-stretch justify-center"
+			class="flex min-w-0 flex-col items-stretch justify-center lg:flex-row"
 			:class="isOverviewCollapsed ? 'gap-0' : 'gap-4 xl:gap-6 2xl:gap-8'"
 		>
 			<section class="relative min-w-0 flex-1 2xl:flex-[1.3]">
@@ -21,20 +21,6 @@
 						>
 							總覽
 						</span>
-						<svg
-							class="h-5 w-5 shrink-0 2xl:h-6 2xl:w-6"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-							aria-hidden="true"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M15 19l-7-7 7-7"
-							/>
-						</svg>
 					</button>
 				</Transition>
 
@@ -70,7 +56,7 @@
 						v-show="selectedLocation"
 						:allowed="canFloorManage"
 						aria-label="樓層管理"
-						class="absolute left-36 top-2 btn-monitoring-overlay"
+						class="absolute left-32 2xl:left-36 top-2 btn-monitoring-overlay"
 						@click="showFloorManageDialog = true"
 					>
 						樓層管理
@@ -89,11 +75,7 @@
 						:enlarged="isOverviewCollapsed"
 						content-class="flex min-h-0 flex-1 flex-col"
 					>
-						<div
-							v-if="selectedLocation"
-							class="flex min-h-0 flex-1"
-							:class="{ 'monitoring-detail-enlarged': isOverviewCollapsed }"
-						>
+						<div v-if="selectedLocation" class="flex min-h-0 flex-1">
 							<ElevatorDetailPanel
 								:logs="logs"
 								:display-columns="selectedLocation.logDisplayColumns"
@@ -219,7 +201,12 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref, watch } from "vue"
-import type { ElevatorZone, ElevatorLocation, ElevatorLog, ElevatorLiveState } from "~/types/elevator"
+import type {
+	ElevatorZone,
+	ElevatorLocation,
+	ElevatorLog,
+	ElevatorLiveState,
+} from "~/types/elevator"
 import type {
 	MonitoringDeviceStatusBatchEvent,
 	MonitoringDeviceStatusEvent,
@@ -233,7 +220,10 @@ import ElevatorLocationOverviewCard from "~/components/elevator/ElevatorLocation
 import ElevatorFloorManageDialog from "~/components/elevator/ElevatorFloorManageDialog.vue"
 import ElevatorEventSimulation from "~/components/elevator/ElevatorEventSimulation.vue"
 import { useElevatorState } from "~/composables/systems/elevator/useElevatorState"
-import { useElevatorApi, ELEVATOR_FULL_REPORT_LIMIT } from "~/composables/systems/elevator/useElevatorApi"
+import {
+	useElevatorApi,
+	ELEVATOR_FULL_REPORT_LIMIT,
+} from "~/composables/systems/elevator/useElevatorApi"
 import { useElevatorLocationApi } from "~/composables/location/api/useElevatorLocationApi"
 import {
 	useZoneManagement,
@@ -297,7 +287,7 @@ const {
 const { request } = useApiBase()
 
 const detailEmpty = computed(
-	() => locations.value.length === 0 && !isLoadingLocations.value && !isLoadingZones.value,
+	() => locations.value.length === 0 && !isLoadingLocations.value && !isLoadingZones.value
 )
 
 const isOverviewCollapsed = ref(false)
@@ -307,7 +297,7 @@ const showSimulationFrame = ref(false)
 
 const locationsForOverview = computed(() => {
 	const withId = locations.value.filter(
-		(l): l is ElevatorLocation & { locationId: number } => l.locationId != null,
+		(l): l is ElevatorLocation & { locationId: number } => l.locationId != null
 	)
 	return sortFlatSitesBySortedZoneLocations(elevatorZones.value, withId).map((location) => ({
 		...location,
@@ -327,7 +317,7 @@ watch(
 	(id) => {
 		elevatorSelectedLocationKey.value = id != null ? String(id) : ""
 	},
-	{ immediate: true },
+	{ immediate: true }
 )
 
 const selectedLocationDisplayName = computed(() => {
@@ -342,7 +332,7 @@ const ladderDeviceId = computed(() => selectedLocation.value?.ladderDevice?.devi
 const callDeviceId = computed(() => selectedLocation.value?.callDevice?.deviceId ?? null)
 
 const floorDetectionDeviceId = computed(
-	() => selectedLocation.value?.floorDetection?.deviceId ?? null,
+	() => selectedLocation.value?.floorDetection?.deviceId ?? null
 )
 
 const hasFloorDetection = computed(() => floorDetectionDeviceId.value != null)
@@ -381,9 +371,7 @@ const isLadderDeviceConnected = computed(() => isDeviceOnline(ladderDeviceId.val
 
 const isCallDeviceConnected = computed(() => isDeviceOnline(callDeviceId.value))
 
-const isFloorDetectionDeviceConnected = computed(() =>
-	isDeviceOnline(floorDetectionDeviceId.value),
-)
+const isFloorDetectionDeviceConnected = computed(() => isDeviceOnline(floorDetectionDeviceId.value))
 
 const locationConnectionById = computed(() => {
 	const map: Record<number, boolean> = {}
@@ -503,7 +491,7 @@ const handleSaveZone = async (zone: ElevatorZone) => {
 		},
 		{
 			...ZONE_DIALOG_BATCH_SAVE_OPTIONS,
-		},
+		}
 	)
 }
 
@@ -516,7 +504,12 @@ const handleDeleteZone = async (zoneId: string) => {
 	await baseHandleDeleteZone(zoneId, elevatorZones, elevatorLocationApi.deleteZone, {
 		systemType: "elevator",
 		selectedLocationRef: elevatorSelectedLocationKey,
-		getLocationId: (loc) => String((loc as { id?: string; locationId?: number }).id ?? (loc as { locationId?: number }).locationId ?? ""),
+		getLocationId: (loc) =>
+			String(
+				(loc as { id?: string; locationId?: number }).id ??
+					(loc as { locationId?: number }).locationId ??
+					""
+			),
 		onAfterDelete: async () => {
 			await loadZones()
 			await loadLocations()
@@ -539,9 +532,8 @@ onMounted(async () => {
 	const first = firstFlatSiteMatchingSortedZoneLocations(
 		elevatorZones.value,
 		locations.value.filter(
-			(l): l is (typeof locations.value)[number] & { locationId: number } =>
-				l.locationId != null,
-		),
+			(l): l is (typeof locations.value)[number] & { locationId: number } => l.locationId != null
+		)
 	)
 	if (first?.locationId) {
 		await loadLocationDetail(first.locationId)

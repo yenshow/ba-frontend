@@ -11,7 +11,10 @@
 		</div>
 
 		<div v-else class="space-y-4">
-			<div class="grid grid-cols-1 2xl:grid-cols-2 gap-4 w-[240px] 2xl:w-full mx-auto">
+			<div
+				class="mx-auto grid gap-4"
+				:class="useTwoColumns ? 'grid-cols-2 w-full' : 'grid-cols-1 w-[240px]'"
+			>
 				<div
 					v-for="person in paginatedPersonnel"
 					:key="person.id"
@@ -102,7 +105,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from "vue"
+import { ref, computed, inject, onMounted, onUnmounted, watch, type Ref } from "vue"
 import type { PeopleCountingPersonnel } from "~/types/peopleCounting"
 import Pagination from "~/components/common/Pagination.vue"
 import { useImageCenter } from "~/composables/core/useImageCenter"
@@ -127,12 +130,9 @@ const shouldHideExitTime = (entryTime?: string | null, exitTime?: string | null)
 
 interface Props {
 	personnel: PeopleCountingPersonnel[]
-	unitName?: string | null
 }
 
-const props = withDefaults(defineProps<Props>(), {
-	unitName: null,
-})
+const props = defineProps<Props>()
 
 const { resolveUrl } = useImageCenter()
 
@@ -142,15 +142,12 @@ const imageErrorStates = ref<Record<string | number, boolean>>({})
 // 追蹤視窗寬度以實現響應式
 const windowWidth = ref(1024)
 
-// 根據螢幕尺寸計算每頁顯示的人員數量
-const itemsPerPage = computed(() => {
-	// 2xl: 1536px
-	if (windowWidth.value >= 1536) {
-		return 4 // 2xl: 2列 × 2行 = 4個
-	} else {
-		return 2 // 一般尺寸: 1列 × 2行 = 2個
-	}
-})
+const monitoringEnlarged = inject<Ref<boolean>>("monitoringDetailEnlarged", ref(false))
+
+const useTwoColumns = computed(() => monitoringEnlarged.value || windowWidth.value >= 1536)
+
+// 根據版面計算每頁顯示的人員數量
+const itemsPerPage = computed(() => (useTwoColumns.value ? 4 : 2))
 
 // 當前分頁偏移量
 const offset = ref(0)
@@ -172,6 +169,12 @@ watch(
 	}
 )
 
+watch(itemsPerPage, (next, prev) => {
+	if (next !== prev) {
+		offset.value = 0
+	}
+})
+
 const handlePrevious = () => {
 	offset.value = Math.max(0, offset.value - itemsPerPage.value)
 }
@@ -183,23 +186,14 @@ const handleNext = () => {
 }
 
 let handleResize: (() => void) | null = null
-let lastItemsPerPage = 2
 
 onMounted(() => {
 	if (!process.client) return
 
 	windowWidth.value = window.innerWidth
-	lastItemsPerPage = itemsPerPage.value
-
 	handleResize = () => {
 		windowWidth.value = window.innerWidth
-		const newItemsPerPage = itemsPerPage.value
-		if (newItemsPerPage !== lastItemsPerPage) {
-			offset.value = 0
-			lastItemsPerPage = newItemsPerPage
-		}
 	}
-
 	window.addEventListener("resize", handleResize)
 })
 

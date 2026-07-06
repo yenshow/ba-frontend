@@ -45,7 +45,7 @@
 				此點位無可用規則，無法操作。
 			</p>
 
-			<div class="mt-3 flex flex-wrap items-center gap-2">
+			<div class="mt-3 flex justify-center items-center gap-8">
 				<PermissionActionButton
 					:allowed="canSubmit"
 					aria-label="觸發警報"
