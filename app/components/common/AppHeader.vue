@@ -2,9 +2,8 @@
 	<header
 		:class="[
 			'w-full border-b-[12px] border-solid 2xl:border-b-[16px]',
-			isDark ? 'bg-[#003B45]' : 'bg-white',
 		]"
-		:style="{ borderBottomColor: headerBorderAccentColor }"
+		:style="{ backgroundColor: 'var(--header-bg)', borderBottomColor: headerBorderAccentColor }"
 	>
 		<div
 			class="flex items-end justify-between h-[72px] px-4 pb-3 sm:px-8 lg:h-[88px] lg:px-12 2xl:h-[96px] 2xl:px-16 2xl:pb-4"

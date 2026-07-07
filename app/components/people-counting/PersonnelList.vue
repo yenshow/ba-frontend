@@ -1,6 +1,6 @@
 <template>
 	<div class="space-y-4">
-		<h3 class="bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
+		<h3 class="monitoring-chip-bg py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
 			人員名單
 		</h3>
 		<div
@@ -19,7 +19,7 @@
 					v-for="person in paginatedPersonnel"
 					:key="person.id"
 					class="flex items-start gap-3 border-2 border-white/30 p-3 min-h-[100px] 2xl:min-h-[130px]"
-					:class="[person.isPresent ? 'bg-white/20' : 'bg-black/20']"
+					:class="[person.isPresent ? 'monitoring-chip-bg' : 'bg-black/20']"
 				>
 					<!-- 照片（/uploads/ 改為後端完整 URL） -->
 					<div class="relative overflow-hidden rounded-full bg-white/10 h-16 w-16 mt-2 2xl:mt-4">

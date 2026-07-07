@@ -23,6 +23,9 @@ import {
 // GET 同 URL 同時間去重（避免多個元件/多個 watch 同步觸發造成 burst）
 const inFlightGetRequests = new Map<string, Promise<unknown>>()
 
+const MAX_RATE_LIMIT_GET_RETRIES = 2
+const sleepMs = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
 let permissionRefreshInFlight: Promise<void> | null = null
 
 type RequestOptions = Omit<RequestInit, "body"> & {
@@ -288,16 +291,29 @@ export const useApiBase = () => {
 			if (existing) return await existing
 		}
 
-		const run = async () => {
-			const response = await fetcher<T>(url, {
-				...fetcherOptions,
-				body: finalBody as BodyInit | null | undefined,
-				headers,
-				credentials: "include",
-				timeout,
-			} as Parameters<typeof fetcher>[1])
+		const run = async (rateLimitAttempt = 0): Promise<T> => {
+			try {
+				const response = await fetcher<T>(url, {
+					...fetcherOptions,
+					body: finalBody as BodyInit | null | undefined,
+					headers,
+					credentials: "include",
+					timeout,
+				} as Parameters<typeof fetcher>[1])
 
-			return unwrapSuccessResponse<T>(response, path)
+				return unwrapSuccessResponse<T>(response, path)
+			} catch (error: unknown) {
+				const statusCode = resolveFetchHttpStatus(error)
+				if (
+					method === "GET" &&
+					statusCode === 429 &&
+					rateLimitAttempt < MAX_RATE_LIMIT_GET_RETRIES
+				) {
+					await sleepMs(1000 * (rateLimitAttempt + 1))
+					return run(rateLimitAttempt + 1)
+				}
+				throw error
+			}
 		}
 
 		try {

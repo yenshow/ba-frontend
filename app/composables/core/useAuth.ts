@@ -196,7 +196,12 @@ export const useAuth = () => {
 
 	/** 中控室 7×24：剩餘壽命低於閾值時向後端換發新 JWT */
 	const refreshSessionIfNeeded = async () => {
-		if (!token.value || isLocalTokenStale(token.value) || !isJwtDueForRefresh(token.value)) {
+		if (!token.value) return
+		if (isLocalTokenStale(token.value)) {
+			await handleUnauthorized()
+			return
+		}
+		if (!isJwtDueForRefresh(token.value)) {
 			return
 		}
 		if (sessionRefreshInFlight) return sessionRefreshInFlight

@@ -1,6 +1,6 @@
 <template>
 	<section ref="sectionRef" class="relative flex-[1.2] 2xl:flex-[1.3]">
-		<div class="flex overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-6 2xl:p-8">
+		<div class="flex monitoring-panel overflow-hidden rounded-2xl p-6 2xl:p-8">
 			<div class="z-10 flex flex-col justify-between py-4 text-center text-white">
 				<div class="space-y-4">
 					<div class="py-4">

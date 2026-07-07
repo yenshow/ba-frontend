@@ -9,7 +9,7 @@
 			v-else-if="!isLoading"
 			:allowed="canWrite"
 			aria-label="調整系統模組順序"
-			class="absolute -right-20 top-4 z-20 rounded-full bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100 enabled:hover:bg-black/50 2xl:text-base"
+			class="absolute -right-16 2xl:-right-20 top-4 z-20 rounded-full bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100 enabled:hover:bg-black/50 2xl:text-base"
 			@click="handleStartEdit"
 		>
 			調整順序
@@ -71,7 +71,9 @@
 								draggable="false"
 							/>
 						</div>
-						<h3 class="mt-2 ms-[6px] whitespace-nowrap text-xl tracking-[6px] text-white 2xl:mt-4 2xl:text-2xl">
+						<h3
+							class="mt-2 ms-[6px] whitespace-nowrap text-xl tracking-[6px] text-white 2xl:mt-4 2xl:text-2xl"
+						>
 							{{ module.name }}
 						</h3>
 					</div>
@@ -124,7 +126,9 @@
 									<CommonLicenseLockIcon class="h-8 w-8 text-white 2xl:h-12 2xl:w-12" />
 								</div>
 							</div>
-							<h3 class="mt-2 ms-[6px] whitespace-nowrap text-xl tracking-[6px] text-white 2xl:mt-4 2xl:text-2xl">
+							<h3
+								class="mt-2 ms-[6px] whitespace-nowrap text-xl tracking-[6px] text-white 2xl:mt-4 2xl:text-2xl"
+							>
 								{{ module.name }}
 							</h3>
 						</div>
@@ -159,16 +163,14 @@ import type { CentralShellModule } from "~/config/centralModuleShell"
 import { MSG_PERMISSION_LOCKED } from "~/utils/apiError"
 
 const MODULES_PER_PAGE = 8
-const MODULE_GRID_CLASS =
-	"grid grid-cols-4 grid-rows-2 gap-x-6 gap-y-3 2xl:gap-x-8 2xl:gap-y-4"
+const MODULE_GRID_CLASS = "grid grid-cols-4 grid-rows-2 gap-x-6 gap-y-3 2xl:gap-x-8 2xl:gap-y-4"
 const MODULE_TILE_STYLE = {
 	boxShadow:
 		"inset -7px 7px 7px rgba(255, 255, 255, 0.25), inset 7px -7px 10px rgba(0, 0, 0, 0.25)",
 }
 const toolbarBtnClass =
 	"rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition-colors hover:bg-black/50 2xl:text-base"
-const tileClass =
-	"aspect-square overflow-hidden rounded-xl border-2 border-white/80 transition-all"
+const tileClass = "aspect-square overflow-hidden rounded-xl border-2 border-white/80 transition-all"
 
 const moduleRegistry = useModuleRegistry()
 const { orderedModules, resetToDefault, moveModule } = useHomeModuleOrder()

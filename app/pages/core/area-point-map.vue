@@ -5,7 +5,7 @@
 			<!-- 左側：平面圖與篩選 -->
 			<section class="w-full flex-[1.2] 2xl:flex-[1.3]" ref="leftSectionRef">
 				<div
-					class="flex overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-6 2xl:p-8"
+					class="flex monitoring-panel overflow-hidden rounded-2xl p-6 2xl:p-8"
 				>
 					<!-- 區域名稱與操作 -->
 					<div class="relative z-10 flex flex-col justify-between py-4 text-center text-white">
@@ -108,7 +108,7 @@
 			<!-- 右側區域列表 -->
 			<aside class="infra-page-aside">
 				<div
-					class="rounded-2xl border-2 border-white/80 bg-white/30 p-6 2xl:p-8"
+					class="monitoring-panel rounded-2xl p-6 2xl:p-8"
 					:style="leftSectionHeight ? { minHeight: leftSectionHeight + 'px' } : undefined"
 				>
 					<!-- 標題 -->

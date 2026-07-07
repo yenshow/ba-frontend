@@ -1,6 +1,7 @@
 import type { FeatureKey, LicenseState } from "~/types/license"
 import { useAuth } from "~/composables/core/useAuth"
 import { useApiBase } from "~/composables/core/useApiBase"
+import { isApiRateLimitError } from "~/utils/apiError"
 
 const DEFAULT_LICENSE: LicenseState = {
 	features: [],
@@ -54,6 +55,11 @@ export const useLicense = () => {
 				const res = await request<LicenseState>("/license", { method: "GET" })
 				setLicense(res)
 				return res
+			} catch (error) {
+				if (isApiRateLimitError(error) && lastLoadedAt.value > 0) {
+					return license.value
+				}
+				throw error
 			} finally {
 				isLoading.value = false
 				licenseFetchInFlight = null

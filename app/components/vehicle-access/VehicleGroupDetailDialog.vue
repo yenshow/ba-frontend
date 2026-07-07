@@ -34,7 +34,7 @@
 									v-for="item in paginatedList"
 									:key="itemKey(item)"
 									class="flex min-h-[100px] items-start gap-3 border-2 border-white/30 p-3 2xl:min-h-[130px]"
-									:class="[item.isPresent ? 'bg-white/20' : 'bg-black/20']"
+									:class="[item.isPresent ? 'monitoring-chip-bg' : 'bg-black/20']"
 								>
 									<div
 										v-if="isPersonnelList"

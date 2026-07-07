@@ -17,6 +17,7 @@ export default defineNuxtConfig({
 				{ name: "description", content: "樓宇自動化監控與管理系統" },
 			],
 			link: [{ rel: "icon", type: "image/x-icon", href: "/favicon.ico" }],
+			script: [{ src: "/theme-init.js", tagPosition: "head" }],
 		},
 	},
 

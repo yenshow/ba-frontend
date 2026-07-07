@@ -5,7 +5,7 @@
 			<!-- Left Column -->
 			<div class="col-span-1 space-y-4 sm:space-y-6 lg:col-span-2 2xl:space-y-8">
 				<!-- Data Cards Section -->
-				<div class="overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30">
+				<div class="home-panel overflow-hidden rounded-2xl">
 					<div class="grid h-full grid-cols-1 sm:grid-cols-12">
 						<!-- AQI Card -->
 						<AQICard
@@ -31,7 +31,7 @@
 
 				<!-- System Modules Section -->
 				<div
-					class="overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 px-4 sm:px-8 lg:px-12 2xl:px-24"
+					class="home-panel overflow-hidden rounded-2xl px-4 sm:px-8 lg:px-12 2xl:px-24"
 				>
 					<SystemModule />
 				</div>
@@ -39,7 +39,7 @@
 
 			<!-- Right Column -->
 			<div class="col-span-1 grid min-h-[240px] grid-rows-12 lg:min-h-0">
-				<div class="row-span-12 overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30">
+				<div class="row-span-12 home-panel overflow-hidden rounded-2xl">
 					<!-- Building Image Card -->
 					<BuildingCard />
 				</div>

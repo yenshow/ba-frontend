@@ -573,10 +573,7 @@ const handleDeviceModelRefresh = () => {
 	deviceApi.invalidateModelsCache()
 }
 
-watch(activeTab, (newTab, oldTab) => {
-	if (newTab && oldTab === null) {
-		load(getLoadParams(), true)
-	}
+watch(activeTab, (newTab) => {
 	if (newTab === "camera") {
 		void loadCameraGroups()
 	}

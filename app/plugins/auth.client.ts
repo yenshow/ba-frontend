@@ -2,10 +2,10 @@
  * 認證狀態初始化（僅客戶端）
  * 路由權限由 route-guard.global middleware 統一處理
  */
-import { onUnmounted } from "vue"
+import { getCurrentScope, onScopeDispose } from "vue"
 import { useAccessGate } from "~/composables/core/useAccessGate"
 import { sanitizeAuthRedirectPath, useAuth } from "~/composables/core/useAuth"
-import { isApiUnauthorizedError } from "~/utils/apiError"
+import { isApiRateLimitError, isApiUnauthorizedError } from "~/utils/apiError"
 
 export default defineNuxtPlugin(() => {
 	const auth = useAuth()
@@ -27,7 +27,7 @@ export default defineNuxtPlugin(() => {
 				}
 			}
 		} catch (error) {
-			if (!isApiUnauthorizedError(error)) {
+			if (!isApiUnauthorizedError(error) && !isApiRateLimitError(error)) {
 				appBootstrapError.value = error instanceof Error ? error.message : "初始化失敗"
 			}
 		} finally {
@@ -36,5 +36,7 @@ export default defineNuxtPlugin(() => {
 		}
 	})()
 
-	onUnmounted(() => auth.teardownSessionRefresh())
+	if (import.meta.client && getCurrentScope()) {
+		onScopeDispose(() => auth.teardownSessionRefresh())
+	}
 })

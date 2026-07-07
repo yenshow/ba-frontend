@@ -1,7 +1,7 @@
 <template>
 	<div class="space-y-4 min-h-[220px]">
 		<h3
-			class="people-unit-title bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
+			class="people-unit-title monitoring-chip-bg py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
 		>
 			人員群組
 		</h3>
@@ -12,8 +12,8 @@
 				class="flex flex-col justify-center items-center border-2 border-white/0 transition-all py-2"
 				:class="{
 					'border-2 border-white/70': selectedUnitId === unit.id,
-					'bg-white/20': (unit.currentCount || 0) > 0,
-					'bg-black/20 ': (unit.currentCount || 0) === 0,
+					'monitoring-chip-bg': (unit.currentCount || 0) > 0,
+					'bg-black/20': (unit.currentCount || 0) === 0,
 					'cursor-pointer': !isIsapiCamera,
 				}"
 				:tabindex="isIsapiCamera ? undefined : 0"

@@ -645,22 +645,3 @@ onMounted(() => {
 	load({ order: dateSortOrder.value }, true)
 })
 </script>
-
-<style scoped>
-.form-input {
-	border-radius: 0.75rem;
-	border: 1px solid rgba(255, 255, 255, 0.35);
-	background: rgba(255, 255, 255, 0.1);
-	padding: 0.65rem 0.85rem;
-	color: #f7fbff;
-	transition:
-		border-color 0.2s ease,
-		background 0.2s ease;
-}
-
-.form-input:focus {
-	border-color: #5be7f1;
-	background: rgba(255, 255, 255, 0.18);
-	outline: none;
-}
-</style>

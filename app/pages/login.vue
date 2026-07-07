@@ -1,7 +1,5 @@
 <template>
-	<div
-		class="flex min-h-screen items-center justify-center bg-[linear-gradient(155deg,#7dc1cb_0%,#006191_100%)]"
-	>
+	<div class="login-shell flex min-h-screen items-center justify-center">
 		<div class="flex items-center justify-center gap-[48px] translate-x-[-24px]">
 			<div class="hidden items-center lg:flex lg:h-[840px]">
 				<ClientOnly>
@@ -31,7 +29,7 @@
 								/>
 							</ClientOnly>
 						</div>
-						<h2 class="text-3xl text-white">歡迎使用</h2>
+						<h2 class="text-3xl text-theme-primary">歡迎使用</h2>
 					</div>
 					<form @submit.prevent="handleLogin" class="space-y-6">
 						<div>

@@ -1,5 +1,5 @@
 <template>
-	<div :class="['bg-ba-gradient', { 'bg-ba-gradient-dark': isDark }]" class="min-h-screen">
+	<div class="bg-ba-gradient min-h-screen">
 		<AppHeader />
 		<main class="p-4 pb-4 sm:p-6 lg:p-8 2xl:p-12">
 			<slot />
@@ -22,14 +22,12 @@
 import AppHeader from "~/components/common/AppHeader.vue";
 import ToastContainer from "~/components/common/ToastContainer.vue";
 import AlertCameraLinkagePopup from "~/components/alerts/AlertCameraLinkagePopup.vue";
-import { useTheme } from "~/composables/core/useTheme";
 import { useAuth } from "~/composables/core/useAuth";
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 import { useAlertCameraLinkagePopup } from "~/composables/monitoring/useAlertCameraLinkagePopup";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import { useWebSocketLifecycle } from "~/composables/websocket/useWebSocketLifecycle";
 
-const { isDark } = useTheme();
 const { user } = useAuth();
 const { startMonitoring, stopMonitoring } = useAlertMonitor();
 const { isConnected } = useWebSocket();
@@ -61,13 +59,3 @@ onBeforeUnmount(() => {
 	cameraPopup.stop();
 });
 </script>
-
-<style scoped>
-.bg-ba-gradient {
-	background: linear-gradient(155deg, #13a6a9 0%, #002247 100%);
-}
-
-.bg-ba-gradient-dark {
-	background: linear-gradient(155deg, #006473 0%, #000028 100%);
-}
-</style>

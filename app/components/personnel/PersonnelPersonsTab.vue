@@ -1,10 +1,8 @@
 <template>
-	<section
-		class="flex h-full min-h-0 flex-col rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8"
-	>
+	<section class="section-card flex h-full min-h-0 flex-col">
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 			<div class="flex items-center gap-2">
-				<h2 class="text-xl font-semibold text-white 2xl:text-2xl">人員列表</h2>
+				<h2 class="text-xl font-semibold text-theme-primary 2xl:text-2xl">人員列表</h2>
 				<PermissionActionButton
 					:allowed="canUpdateGroup && selectedMainGroupId != null"
 					aria-label="群組成員"

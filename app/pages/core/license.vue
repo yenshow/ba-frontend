@@ -1,26 +1,24 @@
 <template>
-	<div class="space-y-6 2xl:space-y-8">
+	<div class="page-shell">
 		<header class="flex flex-wrap items-end justify-between gap-4 2xl:gap-6">
 			<div class="space-y-2 2xl:space-y-4">
-				<h1 class="text-3xl font-semibold text-white 2xl:text-4xl">授權管理</h1>
-				<p class="text-base text-white/80 2xl:text-xl">管理授權啟用、離線匯入與配額使用狀態</p>
+				<h1 class="page-title">授權管理</h1>
+				<p class="page-subtitle">管理授權啟用、離線匯入與配額使用狀態</p>
 			</div>
 			<div class="flex flex-wrap items-center justify-end gap-3">
-				<div
-					class="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-sm text-white/80 2xl:px-6 2xl:py-4 2xl:text-base"
-				>
+				<div class="section-card section-card--compact text-sm 2xl:text-base">
 					<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
-						<span class="text-white/60">授權狀態</span>
-						<span class="font-semibold text-white">{{
+						<span class="text-theme-muted">授權狀態</span>
+						<span class="font-semibold text-theme-primary">{{
 							showLicensePlaceholder ? "載入中..." : licenseStatusText
 						}}</span>
-						<span class="text-white/40">|</span>
-						<span class="text-white/60">啟用方式</span>
-						<span class="font-semibold text-white">{{
+						<span class="text-theme-muted">|</span>
+						<span class="text-theme-muted">啟用方式</span>
+						<span class="font-semibold text-theme-primary">{{
 							showLicensePlaceholder ? "載入中..." : activationMethodText
 						}}</span>
-						<span class="text-white/40">|</span>
-						<span class="font-semibold text-white">{{
+						<span class="text-theme-muted">|</span>
+						<span class="font-semibold text-theme-primary">{{
 							showLicensePlaceholder ? "載入中..." : license.serialNumber || "-"
 						}}</span>
 					</div>
@@ -45,8 +43,8 @@
 				:class="canAdmin ? '' : 'cursor-not-allowed opacity-50 saturate-[0.85]'"
 				:aria-disabled="!canAdmin || undefined"
 			>
-				<div class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
-					<h2 class="text-xl font-semibold text-white 2xl:text-2xl">線上啟用（LK）</h2>
+				<section class="section-card">
+					<h2 class="text-xl font-semibold text-theme-primary 2xl:text-2xl">線上啟用（LK）</h2>
 					<p v-show="!canAdmin" class="mt-2 text-sm text-white/50 2xl:text-base">
 						僅管理員可啟用或匯入授權
 					</p>
@@ -85,10 +83,10 @@
 							</div>
 						</form>
 					</fieldset>
-				</div>
+				</section>
 
-				<div class="flex flex-col rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
-					<h2 class="text-xl font-semibold text-white 2xl:text-2xl">離線授權</h2>
+				<section class="section-card flex flex-col">
+					<h2 class="text-xl font-semibold text-theme-primary 2xl:text-2xl">離線授權</h2>
 					<p v-show="!canAdmin" class="mt-2 text-sm text-white/50 2xl:text-base">
 						僅管理員可產生請求檔或匯入回應檔
 					</p>
@@ -219,17 +217,17 @@
 							</p>
 						</div>
 					</fieldset>
-				</div>
+				</section>
 			</div>
 
 			<section
-				class="flex min-h-0 flex-col rounded-2xl border border-white/20 bg-white/10 p-6 2xl:p-8"
+				class="section-card flex min-h-0 flex-col"
 				:style="rightPanelStyle"
 				aria-label="授權總覽"
 			>
 				<div class="flex min-h-0 flex-1 flex-col">
 					<div class="flex flex-wrap items-center justify-between gap-4">
-						<h2 class="text-xl font-semibold text-white 2xl:text-2xl">授權總覽</h2>
+						<h2 class="text-xl font-semibold text-theme-primary 2xl:text-2xl">授權總覽</h2>
 						<PageTabs
 							v-model="overviewTab"
 							:tabs="overviewTabs"

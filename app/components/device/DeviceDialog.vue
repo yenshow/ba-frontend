@@ -733,12 +733,15 @@ watch(
 	}
 )
 
-// 監聽設備類型變化，切換類型時重新載入設備型號
-// loadDeviceModels 會自動檢測類型不匹配並重新載入，無需強制刷新
+// 監聽設備類型變化：僅在對話框開啟時載入型號，避免切換分頁時多餘 API
 watch(
 	() => props.deviceTypeCode,
-	() => {
-		loadDeviceModels()
+	(next, prev) => {
+		if (next === prev) return
+		currentLoadedTypeCode.value = null
+		if (props.modelValue) {
+			void loadDeviceModels()
+		}
 	}
 )
 

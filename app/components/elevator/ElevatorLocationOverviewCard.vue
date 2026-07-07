@@ -8,10 +8,7 @@
 		@keydown.enter="handleClick"
 		@keydown.space.prevent="handleClick"
 	>
-		<div
-			class="my-4 flex w-[36px] items-center justify-center bg-white px-2 text-xl"
-			style="clip-path: polygon(0 0, 100% calc(0% + 24px), 100% calc(100% - 24px), 0 100%)"
-		>
+		<div class="overview-zone-tag">
 			{{ regionText }}
 		</div>
 

@@ -13,7 +13,7 @@
 			<section class="section-card flex h-full flex-col">
 				<div class="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
 					<div class="flex flex-wrap items-center gap-4 2xl:gap-6">
-						<h2 class="text-lg font-semibold text-white 2xl:text-xl">資料匯出</h2>
+						<h2 class="text-lg font-semibold text-theme-primary 2xl:text-xl">資料匯出</h2>
 						<PageTabs
 							v-model="activeTab"
 							:tabs="EXPORT_TABS"

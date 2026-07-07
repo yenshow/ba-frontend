@@ -48,7 +48,7 @@
 					<div class="grid grid-cols-12 gap-4">
 						<!-- Left -->
 						<div class="col-span-7 space-y-4">
-							<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
+							<section class="monitoring-panel rounded-2xl p-5 text-white">
 								<h2 class="text-2xl font-semibold tracking-[4px]">基本設定</h2>
 
 								<div class="mt-4 grid grid-cols-3 gap-4">
@@ -73,7 +73,7 @@
 								</div>
 							</section>
 
-							<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
+							<section class="monitoring-panel rounded-2xl p-5 text-white">
 								<h2 class="text-2xl font-semibold tracking-[4px]">布局橫幅</h2>
 								<div class="mt-4">
 									<textarea
@@ -88,7 +88,7 @@
 
 						<!-- Right -->
 						<div class="col-span-5 space-y-4">
-							<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
+							<section class="monitoring-panel rounded-2xl p-5 text-white">
 								<h2 class="text-2xl font-semibold tracking-[4px]">環境資訊來源</h2>
 
 								<div class="mt-4">
@@ -144,7 +144,7 @@
 								</div>
 							</section>
 
-							<section class="rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white">
+							<section class="monitoring-panel rounded-2xl p-5 text-white">
 								<h2 class="text-2xl font-semibold tracking-[4px]">資訊牆分頁 / 輪播</h2>
 								<div class="mt-4 grid grid-cols-2 gap-4">
 									<label class="block">
@@ -199,7 +199,7 @@
 					<div class="grid grid-cols-12 gap-6">
 						<div class="col-span-7 space-y-6">
 							<section
-								class="min-h-[420px] rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white"
+								class="min-h-[420px] monitoring-panel rounded-2xl p-5 text-white"
 							>
 								<div class="flex items-center justify-between gap-3">
 									<h2 class="text-xl font-semibold tracking-[6px]">社區公告</h2>
@@ -300,7 +300,7 @@
 
 						<div class="col-span-5 space-y-6">
 							<section
-								class="min-h-[420px] rounded-2xl border-2 border-white/80 bg-white/30 p-5 text-white"
+								class="min-h-[420px] monitoring-panel rounded-2xl p-5 text-white"
 							>
 								<div class="flex items-center justify-between gap-3">
 									<h2 class="text-xl font-semibold tracking-[6px]">今日社區排程</h2>

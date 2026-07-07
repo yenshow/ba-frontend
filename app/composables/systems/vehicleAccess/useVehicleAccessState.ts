@@ -130,13 +130,14 @@ export const useVehicleAccessState = () => {
 	const onSiteCapacity = ref<number | null>(null);
 
 	const vehicleGroupsFromApi = ref<VehicleGroupFromApi>({ groups: [] });
-	const isapiOrganizationGroups = ref<IsapiOrganizationGroupFromApi[]>([]);
-	const presentPlatesSet = ref<Set<string>>(new Set());
+	/** ISAPI 人員群組：依 siteId 快取，供總覽各卡片與主畫面分別對應 */
+	const isapiOrganizationGroupsBySiteId = ref(
+		new Map<number, IsapiOrganizationGroupFromApi[]>()
+	);
 	const selectedOrganizationKey = ref<string | null>(null);
 	const isLoadingVehicleGroups = ref(false);
 	const isLoadingZones = ref(false);
 	const isLoadingOverview = ref(false);
-	const isLoadingCounts = ref(false);
 
 	const locations = computed(() =>
 		[...vehicleAccessZones.value]
@@ -174,6 +175,59 @@ export const useVehicleAccessState = () => {
 	const todayReleasedLogs = computed(() =>
 		releasedPassageLogs(todayPassageLogs.value, vehicleDirectionForSelected.value)
 	);
+
+	const setIsapiOrganizationGroupsForSite = (
+		siteId: number,
+		groups: IsapiOrganizationGroupFromApi[]
+	): void => {
+		const next = new Map(isapiOrganizationGroupsBySiteId.value);
+		next.set(siteId, groups);
+		isapiOrganizationGroupsBySiteId.value = next;
+	};
+
+	const getIsapiOrganizationGroupsForSite = (siteId: number | null): IsapiOrganizationGroupFromApi[] =>
+		siteId == null ? [] : (isapiOrganizationGroupsBySiteId.value.get(siteId) ?? []);
+
+	const toIsapiOrganizationGroupItems = (
+		groups: IsapiOrganizationGroupFromApi[]
+	): VehicleOrganizationGroupItem[] =>
+		groups.map(g => ({
+			groupKey: g.groupKey,
+			personGroupId: g.personGroupId,
+			personGroupName: g.personGroupName,
+			vehicleCount: g.vehicleCount,
+			entryCount: g.entryCount ?? 0,
+			exitCount: g.exitCount ?? 0,
+			onSiteCount: g.onSiteCount ?? 0
+		}));
+
+	const loadIsapiOrganizationGroupsForSites = async (siteIds: number[]): Promise<void> => {
+		const uniqueIds = [...new Set(siteIds.filter(id => Number.isFinite(id)))];
+		if (!uniqueIds.length) return;
+
+		const results = await Promise.all(
+			uniqueIds.map(async siteId => {
+				try {
+					const { groups } = await vehicleAccessSitesApi.getOrganizationGroups(siteId);
+					return { siteId, groups: Array.isArray(groups) ? groups : [] };
+				} catch {
+					return { siteId, groups: [] as IsapiOrganizationGroupFromApi[] };
+				}
+			})
+		);
+
+		const next = new Map(isapiOrganizationGroupsBySiteId.value);
+		for (const { siteId, groups } of results) {
+			next.set(siteId, groups);
+		}
+		isapiOrganizationGroupsBySiteId.value = next;
+	};
+
+	const collectIsapiSiteIds = (): number[] =>
+		locations.value
+			.filter(loc => getDataSource(loc) === "isapi_camera")
+			.map(resolveSiteId)
+			.filter((id): id is number => id != null);
 
 	const loadZones = async (): Promise<void> => {
 		isLoadingZones.value = true;
@@ -241,7 +295,6 @@ export const useVehicleAccessState = () => {
 			onSiteCapacity.value = null;
 			return;
 		}
-		isLoadingCounts.value = true;
 		try {
 			if (isParkingMode.value) {
 				const session = await vehicleAccessSitesApi.getSiteSessionStats(siteId);
@@ -263,8 +316,6 @@ export const useVehicleAccessState = () => {
 			exitCount.value = 0;
 			onSiteCount.value = 0;
 			onSiteCapacity.value = null;
-		} finally {
-			isLoadingCounts.value = false;
 		}
 	};
 
@@ -293,6 +344,7 @@ export const useVehicleAccessState = () => {
 				}
 			}
 			overviewSummaries.value = summaries;
+			await loadIsapiOrganizationGroupsForSites(collectIsapiSiteIds());
 		} catch (error) {
 			handleError(error, "載入總覽失敗");
 		} finally {
@@ -327,6 +379,17 @@ export const useVehicleAccessState = () => {
 					currentCount: site.currentCount ?? 0
 				};
 			});
+
+			const isapiAffectedIds = locations.value
+				.filter(loc => {
+					const id = Number(loc.id ?? loc.locationId);
+					return idSet.has(id) && getDataSource(loc) === "isapi_camera";
+				})
+				.map(resolveSiteId)
+				.filter((id): id is number => id != null);
+			if (isapiAffectedIds.length) {
+				await loadIsapiOrganizationGroupsForSites(isapiAffectedIds);
+			}
 		} catch (error) {
 			handleError(error, "更新總覽失敗");
 		} finally {
@@ -359,19 +422,15 @@ export const useVehicleAccessState = () => {
 		if (!loc) return [];
 
 		if (getDataSource(loc) === "isapi_camera") {
-			return (isapiOrganizationGroups.value ?? []).map(g => ({
-				groupKey: g.groupKey,
-				personGroupId: g.personGroupId,
-				personGroupName: g.personGroupName,
-				vehicleCount: g.vehicleCount,
-				entryCount: g.entryCount ?? 0,
-				exitCount: g.exitCount ?? 0,
-				onSiteCount: g.onSiteCount ?? 0
-			}));
+			return toIsapiOrganizationGroupItems(getIsapiOrganizationGroupsForSite(resolveSiteId(loc)));
 		}
 
+		const siteId = resolveSiteId(loc);
 		const direction = createVehicleDirectionResolver(loc.entryLaneId, loc.exitLaneId);
-		const logList = releasedPassageLogs(todayPassageLogs.value, direction);
+		const hasLogsForSite = siteId != null && siteId === todayPassageSiteId.value;
+		const logList = hasLogsForSite
+			? releasedPassageLogs(todayPassageLogs.value, direction)
+			: [];
 		const vehicleGroupFilter = toOptionalIdSet(loc.vehicleGroupIds);
 		return (vehicleGroupsFromApi.value.groups ?? [])
 			.filter(g => (g.id ?? 0) !== 0)
@@ -404,7 +463,9 @@ export const useVehicleAccessState = () => {
 		if (isIsapiCamera.value) {
 			const key = selectedOrganizationKey.value;
 			if (!key) return [];
-			const group = (isapiOrganizationGroups.value ?? []).find(g => g.groupKey === key);
+			const group = getIsapiOrganizationGroupsForSite(resolveSiteId(selectedLocation.value)).find(
+				g => g.groupKey === key
+			);
 			return (group?.members ?? []).map(m => ({
 				id: m.id,
 				name: m.name,
@@ -447,19 +508,15 @@ export const useVehicleAccessState = () => {
 
 			if (isIsapiCamera.value) {
 				const siteId = resolveSiteId(selectedLocation.value);
-				if (siteId != null) {
-					const { groups } = await vehicleAccessSitesApi.getOrganizationGroups(siteId);
-					isapiOrganizationGroups.value = Array.isArray(groups) ? groups : [];
-				} else {
-					isapiOrganizationGroups.value = [];
-				}
+				if (siteId != null) await loadIsapiOrganizationGroupsForSites([siteId]);
 			} else {
 				vehicleGroupsFromApi.value = (await vehicleAccessApi.getVehicleGroups()) ?? { groups: [] };
 			}
 		} catch (error) {
 			handleError(error, isIsapiCamera.value ? "載入人員群組失敗" : "載入車輛群組失敗");
 			if (isIsapiCamera.value) {
-				isapiOrganizationGroups.value = [];
+				const siteId = resolveSiteId(selectedLocation.value);
+				if (siteId != null) setIsapiOrganizationGroupsForSite(siteId, []);
 			} else {
 				vehicleGroupsFromApi.value = { groups: [] };
 			}
@@ -493,8 +550,8 @@ export const useVehicleAccessState = () => {
 		logs.value = [];
 		todayPassageLogs.value = [];
 		todayPassageSiteId.value = null;
-		isapiOrganizationGroups.value = [];
-		presentPlatesSet.value = new Set();
+		const siteId = resolveSiteId(selectedLocation.value);
+		if (siteId != null) setIsapiOrganizationGroupsForSite(siteId, []);
 	};
 
 	const resetParkingStatsForSelectedSite = async (): Promise<void> => {
@@ -529,11 +586,9 @@ export const useVehicleAccessState = () => {
 		if (!filters.value.locationId || !selectedLocation.value) return
 		try {
 			if (isIsapiCamera.value) {
-				const siteId = resolveSiteId(selectedLocation.value)
-				if (siteId == null) return
-				const { groups } = await vehicleAccessSitesApi.getOrganizationGroups(siteId)
-				isapiOrganizationGroups.value = Array.isArray(groups) ? groups : []
-				return
+				const siteId = resolveSiteId(selectedLocation.value);
+				if (siteId != null) await loadIsapiOrganizationGroupsForSites([siteId]);
+				return;
 			}
 			await loadTodayPassageLogs(true)
 		} catch (error) {

@@ -1,12 +1,12 @@
 <template>
-	<section class="rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
+	<section class="section-card">
 		<div class="mb-6 flex items-center gap-4 2xl:gap-6">
-			<div class="text-white">
-				<span class="text-sm text-white/70 2xl:text-base">總計：</span>
-				<span class="text-lg font-semibold 2xl:text-xl">{{ totalAlerts }}</span>
+			<div>
+				<span class="text-sm text-theme-muted 2xl:text-base">總計：</span>
+				<span class="text-lg font-semibold text-theme-primary 2xl:text-xl">{{ totalAlerts }}</span>
 			</div>
-			<div class="text-white">
-				<span class="text-sm text-white/70 2xl:text-base">未解決：</span>
+			<div>
+				<span class="text-sm text-theme-muted 2xl:text-base">未解決：</span>
 				<span class="text-lg font-semibold text-yellow-400 2xl:text-xl">{{ unresolvedCount }}</span>
 			</div>
 		</div>
@@ -47,7 +47,7 @@
 
 							<p class="mb-4 text-base text-white 2xl:text-lg">{{ alert.message }}</p>
 
-							<div class="mb-3 rounded-lg border border-white/10 bg-white/5 p-3 2xl:p-4">
+							<div class="alert-meta-panel mb-3 rounded-lg p-3 2xl:p-4">
 								<div class="grid grid-cols-4 gap-3 2xl:gap-4">
 									<div class="flex items-start gap-2">
 										<div class="min-w-0 flex-1">
