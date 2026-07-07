@@ -4,7 +4,7 @@
 		<aside class="col-span-3 h-full">
 			<div :class="panelClass">
 				<div class="mb-4 flex items-center justify-between gap-3">
-					<h2 class="text-xl font-semibold text-white 2xl:text-2xl">群組列表</h2>
+					<h2 class="text-xl font-semibold text-theme-primary 2xl:text-2xl">群組列表</h2>
 					<PermissionActionButton
 						:allowed="canManageGroups"
 						aria-label="管理群組"
@@ -156,8 +156,7 @@ const selectedKey = ref<string>("all")
 const expandedMainIds = ref<Set<number>>(new Set())
 const showGroupsDialog = ref(false)
 
-const panelClass =
-	"flex h-full min-h-0 flex-col rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8"
+const panelClass = "section-card flex h-full min-h-0 flex-col"
 const actionButtonClass =
 	"rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white enabled:hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-base"
 const groupButtonBaseClass =

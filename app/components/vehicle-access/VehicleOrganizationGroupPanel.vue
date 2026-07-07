@@ -1,7 +1,7 @@
 <template>
 	<div class="vehicle-org-panel min-h-[220px] space-y-4">
 		<h3
-			class="vehicle-org-title bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
+			class="vehicle-org-title monitoring-chip-bg py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
 		>
 			{{ panelTitle }}
 		</h3>
@@ -13,7 +13,7 @@
 				class="flex cursor-pointer flex-col items-center justify-center border-2 border-white/0 py-2 transition-all"
 				:class="{
 					'border-white/70': selectedGroupKey === group.groupKey,
-					'bg-white/20': (group.onSiteCount || 0) > 0,
+					'monitoring-chip-bg': (group.onSiteCount || 0) > 0,
 					'bg-black/20': (group.onSiteCount || 0) === 0
 				}"
 				tabindex="0"

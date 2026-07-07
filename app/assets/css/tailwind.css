@@ -3,15 +3,117 @@
 @tailwind utilities;
 
 /* ========================================
+   主題語意變數（契約見 docs/20-architecture/frontend-theme.md）
+   ======================================== */
+:root {
+	/* 明亮模式＝原先預設：青綠漸層 + 玻璃面板 + 白字 */
+	--shell-gradient: linear-gradient(155deg, #13a6a9 0%, #002247 100%);
+	--header-bg: #ffffff;
+	--header-divider: rgba(0, 0, 0, 0.3);
+	--text-primary: #ffffff;
+	--text-secondary: rgba(255, 255, 255, 0.82);
+	--text-muted: rgba(255, 255, 255, 0.58);
+	--surface-panel: rgba(255, 255, 255, 0.15);
+	--surface-panel-soft: rgba(255, 255, 255, 0.1);
+	--border-panel: rgba(255, 255, 255, 0.35);
+	--border-panel-strong: rgba(255, 255, 255, 0.55);
+	--input-bg: rgba(255, 255, 255, 0.1);
+	--input-bg-focus: rgba(255, 255, 255, 0.18);
+	--input-bg-readonly: rgba(255, 255, 255, 0.06);
+	--input-border: rgba(255, 255, 255, 0.35);
+	--input-border-focus: #5be7f1;
+	--input-text: #f7fbff;
+	--input-placeholder: rgba(255, 255, 255, 0.5);
+	--dialog-bg: linear-gradient(145deg, rgba(9, 106, 133, 0.95), rgba(20, 64, 92, 0.98));
+	--dialog-border: rgba(255, 255, 255, 0.25);
+	--dialog-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+	--dialog-text: #f5f9ff;
+	--monitoring-panel-bg: rgba(255, 255, 255, 0.3);
+	--monitoring-panel-border: rgba(255, 255, 255, 0.8);
+	--error-text: #fda4af;
+	--scrollbar-thumb: rgba(255, 255, 255, 0.4);
+	--glass-bg: rgba(255, 255, 255, 0.3);
+	--glass-border-color: rgba(255, 255, 255, 0.8);
+	--glass-card-bg: linear-gradient(-35deg, #7dc1cb 0%, rgba(0, 97, 145, 0.7) 100%);
+	--toast-close-hover: rgba(255, 255, 255, 0.2);
+	--on-white-surface-text: #595959;
+	--monitoring-chip-bg: rgba(255, 255, 255, 0.2);
+	--monitoring-log-border: rgba(255, 255, 255, 0.2);
+	--monitoring-log-row-border: rgba(255, 255, 255, 0.1);
+	--monitoring-log-empty-bg: rgba(255, 255, 255, 0.05);
+}
+
+html.dark {
+	/* 黑暗模式：更深漸層、低透面板、青白字 */
+	--shell-gradient: linear-gradient(155deg, #004a56 0%, #000018 100%);
+	--header-bg: #003b45;
+	--header-divider: rgba(255, 255, 255, 0.3);
+	--text-primary: #e8f6f8;
+	--text-secondary: rgba(232, 246, 248, 0.78);
+	--text-muted: rgba(232, 246, 248, 0.52);
+	--surface-panel: rgba(0, 40, 50, 0.55);
+	--surface-panel-soft: rgba(0, 40, 50, 0.4);
+	--border-panel: rgba(255, 255, 255, 0.22);
+	--border-panel-strong: rgba(255, 255, 255, 0.38);
+	--input-bg: rgba(0, 30, 38, 0.65);
+	--input-bg-focus: rgba(0, 45, 55, 0.75);
+	--input-bg-readonly: rgba(0, 25, 32, 0.5);
+	--input-border: rgba(255, 255, 255, 0.22);
+	--input-border-focus: #3dd9e8;
+	--input-text: #e8f6f8;
+	--input-placeholder: rgba(232, 246, 248, 0.42);
+	--dialog-bg: linear-gradient(145deg, rgba(4, 52, 64, 0.98), rgba(2, 24, 36, 0.99));
+	--dialog-border: rgba(255, 255, 255, 0.16);
+	--dialog-shadow: 0 24px 56px rgba(0, 0, 0, 0.65);
+	--dialog-text: #e8f6f8;
+	--monitoring-panel-bg: rgba(0, 35, 45, 0.62);
+	--monitoring-panel-border: rgba(255, 255, 255, 0.28);
+	--error-text: #fb7185;
+	--scrollbar-thumb: rgba(255, 255, 255, 0.28);
+	--glass-bg: rgba(0, 40, 50, 0.55);
+	--glass-border-color: rgba(255, 255, 255, 0.28);
+	--glass-card-bg: linear-gradient(-35deg, rgba(45, 110, 120, 0.85) 0%, rgba(0, 45, 70, 0.92) 100%);
+	--toast-close-hover: rgba(255, 255, 255, 0.12);
+	--monitoring-chip-bg: rgba(255, 255, 255, 0.1);
+	--monitoring-log-border: rgba(255, 255, 255, 0.12);
+	--monitoring-log-row-border: rgba(255, 255, 255, 0.08);
+	--monitoring-log-empty-bg: rgba(255, 255, 255, 0.05);
+}
+
+.bg-ba-gradient,
+.login-shell {
+	background: var(--shell-gradient);
+}
+
+.monitoring-panel,
+.home-panel {
+	overflow: hidden;
+	border-radius: 1rem;
+	border: 2px solid var(--monitoring-panel-border);
+	background: var(--monitoring-panel-bg);
+	color: var(--text-primary);
+}
+
+/* 監控詳情頂部：區域｜地點（白底深字，雙主題一致） */
+.monitoring-location-title {
+	@apply absolute left-1/2 top-0 flex h-9 -translate-x-1/2 items-center justify-center bg-white 2xl:h-12;
+	color: var(--on-white-surface-text);
+	clip-path: polygon(0 0, 100% 0, calc(100% - 24px) 100%, calc(0% + 24px) 100%);
+}
+
+.monitoring-location-title__divider {
+	@apply h-6 w-px;
+	background-color: var(--on-white-surface-text);
+}
+
+/* ========================================
    壓克力泡泡效果 - 統一樣式系統
    ======================================== */
 
 /* 基礎 Glass 類別 - 使用 CSS 變量來允許自定義 */
 .glass {
-	--glass-bg: rgba(255, 255, 255, 0.3);
 	--glass-blur: 12px;
 	--glass-border-width: 2px;
-	--glass-border-color: rgba(255, 255, 255, 0.8);
 	--glass-shadow-outer-1: 0 8px 32px rgba(0, 0, 0, 0.2);
 	--glass-shadow-outer-2: 0 4px 16px rgba(0, 0, 0, 0.15);
 	--glass-shadow-inner-top: inset 0 1px 0 rgba(255, 255, 255, 0.4);
@@ -38,7 +140,12 @@
 	left: -50%;
 	width: 200%;
 	height: 200%;
-	background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+	background: linear-gradient(
+		45deg,
+		transparent 30%,
+		rgba(255, 255, 255, 0.1) 50%,
+		transparent 70%
+	);
 	transform: rotate(45deg);
 	pointer-events: none;
 	z-index: 0;
@@ -56,17 +163,14 @@
 
 /* Glass Card - 大型壓克力卡片（用於表單容器） */
 .glass-card {
-	--glass-bg: linear-gradient(-35deg, #7dc1cb 0%, rgba(0, 97, 145, 0.7) 100%);
 	--glass-blur: 16px;
 	--glass-border-width: 2px;
-	--glass-border-color: rgba(255, 255, 255, 0.8);
 	--glass-shadow-outer-1: 0 12px 48px rgba(0, 0, 0, 0.3);
 	--glass-shadow-outer-2: 0 6px 24px rgba(0, 0, 0, 0.25);
 	--glass-shadow-inner-top: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 	--glass-shadow-inner-bottom: inset 0 -1px 6px rgba(0, 0, 0, 0.25);
 	--glass-shadow-inner-highlight: inset 0 4px 12px rgba(255, 255, 255, 0.25);
-	/* 注意：glass-card 使用漸層背景，需要覆蓋基礎的 background */
-	background: var(--glass-bg);
+	background: var(--glass-card-bg);
 }
 
 /* ========================================
@@ -76,15 +180,15 @@
 /* 篩選器輸入框樣式 */
 .select-filter {
 	border-radius: 0.75rem;
-	border: 1px solid rgba(255, 255, 255, 0.35);
-	background-color: rgba(255, 255, 255, 0.1);
+	border: 1px solid var(--input-border);
+	background-color: var(--input-bg);
 	padding: 10px;
-	color: white;
+	color: var(--input-text);
 	outline: none;
 }
 
 .select-filter:focus {
-	outline: 2px solid rgba(59, 130, 246, 0.5);
+	outline: 2px solid rgba(19, 166, 169, 0.45);
 	outline-offset: 2px;
 }
 
@@ -94,14 +198,20 @@
 	padding: 0.5rem;
 }
 
+html:not(.dark) .select-filter option {
+	background-color: #ffffff;
+	color: #1a2b3c;
+}
+
 /* ========================================
-   過渡動畫 - 統一樣式系統
+   過渡動畫 - 統一樣式系統（Vue <Transition name="…">）
+   時長 token：--motion-fast 0.2s
    ======================================== */
 
-/* Fade 淡入淡出動畫 - 通用內容切換 */
+/* Fade - 通用內容切換、Tab 面板、列表分頁 */
 .fade-enter-active,
 .fade-leave-active {
-	transition: opacity 0.2s ease;
+	transition: opacity var(--motion-fast, 0.2s) ease;
 }
 
 .fade-enter-from,
@@ -109,10 +219,10 @@
 	opacity: 0;
 }
 
-/* Dialog Fade 對話框淡入淡出動畫 - 用於彈窗 */
+/* Dialog Fade - Modal / Teleport 彈層 */
 .dialog-fade-enter-active,
 .dialog-fade-leave-active {
-	transition: opacity 0.2s ease;
+	transition: opacity var(--motion-fast, 0.2s) ease;
 }
 
 .dialog-fade-enter-from,
@@ -120,10 +230,55 @@
 	opacity: 0;
 }
 
-/* Lightbox Fade 全螢幕圖片預覽 */
+/* Fade-in - 平面圖側欄按鈕等漸顯（語意同 fade） */
+.fade-in-enter-active,
+.fade-in-leave-active {
+	transition: opacity var(--motion-fast, 0.2s) ease;
+}
+
+.fade-in-enter-from,
+.fade-in-leave-to {
+	opacity: 0;
+}
+
+/* Dropdown - 編輯模式分類列表展開 */
+.dropdown-enter-active,
+.dropdown-leave-active {
+	transition:
+		opacity var(--motion-fast, 0.2s) ease,
+		transform var(--motion-fast, 0.2s) ease;
+	overflow: hidden;
+}
+
+.dropdown-enter-from,
+.dropdown-leave-to {
+	opacity: 0;
+	transform: translateY(-4px);
+}
+
+/* Expand - 手風琴 / 可折疊列 */
+.expand-enter-active,
+.expand-leave-active {
+	transition: all var(--motion-fast, 0.2s) ease;
+	overflow: hidden;
+}
+
+.expand-enter-from,
+.expand-leave-to {
+	opacity: 0;
+	max-height: 0;
+}
+
+.expand-enter-to,
+.expand-leave-from {
+	opacity: 1;
+	max-height: 1000px;
+}
+
+/* Lightbox Fade - 圖片預覽 */
 .lightbox-fade-enter-active,
 .lightbox-fade-leave-active {
-	transition: opacity 0.2s ease;
+	transition: opacity var(--motion-fast, 0.2s) ease;
 }
 
 .lightbox-fade-enter-from,
@@ -136,6 +291,12 @@
 	.fade-leave-active,
 	.dialog-fade-enter-active,
 	.dialog-fade-leave-active,
+	.fade-in-enter-active,
+	.fade-in-leave-active,
+	.dropdown-enter-active,
+	.dropdown-leave-active,
+	.expand-enter-active,
+	.expand-leave-active,
 	.lightbox-fade-enter-active,
 	.lightbox-fade-leave-active,
 	.overview-sidebar {
@@ -189,6 +350,44 @@
 /* 工地監控詳情：總覽收合時放大車流統計數字灰底與下方記錄表／群組字級（車輛、人流等） */
 .overview-stat-label {
 	@apply whitespace-nowrap text-sm font-semibold 2xl:text-base;
+	color: var(--text-primary);
+}
+
+/* 總覽側欄左側斜切區域名稱（白底固定深字，不受 glass 主題文字色影響） */
+.overview-zone-tag {
+	@apply my-4 flex w-[36px] items-center justify-center bg-white px-2 text-xl 2xl:text-xl;
+	color: var(--on-white-surface-text);
+	clip-path: polygon(0 0, 100% calc(0% + 24px), 100% calc(100% - 24px), 0 100%);
+	writing-mode: vertical-rl;
+	text-orientation: mixed;
+	letter-spacing: 0.12em;
+}
+
+/* 監控頁內嵌區塊底（明亮 white/20、黑暗 white/10） */
+.monitoring-chip-bg {
+	background-color: var(--monitoring-chip-bg);
+}
+
+/* 門禁／車輛進出紀錄表 */
+.monitoring-log-panel .monitoring-log-empty {
+	border: 2px solid var(--monitoring-log-border);
+	background-color: var(--monitoring-log-empty-bg);
+}
+
+.monitoring-log-panel .monitoring-log-table {
+	border-left: 2px solid var(--monitoring-log-border);
+	border-right: 2px solid var(--monitoring-log-border);
+	border-bottom: 2px solid var(--monitoring-log-border);
+}
+
+.monitoring-log-panel .monitoring-log-row {
+	border-bottom: 1px solid var(--monitoring-log-row-border);
+}
+
+/* 警示紀錄卡片內嵌資訊列（對齊警報設定表格列底） */
+.alert-meta-panel {
+	@apply monitoring-chip-bg;
+	border: 1px solid var(--monitoring-log-row-border);
 }
 .monitoring-detail-enlarged .vehicle-stats-value {
 	@apply min-w-[180px] 2xl:min-w-[320px];
@@ -322,6 +521,123 @@
 	transform: scale(1);
 }
 
+/* ========================================
+   平面圖地點點位（category-dot、全區圖 location-dot）
+   data-status 統一語意（由各系統在元件內對應業務狀態，不在此分系統寫樣式）：
+   - normal：正常（綠）
+   - warning：異常（黃，閃爍較柔和）
+   - alarm：警報（紅，閃爍較強）
+   照明等僅兩態者：normal + warning 即可。
+   ======================================== */
+.map-location-dots .category-dot-wrapper,
+.map-location-dots .location-dot-wrapper {
+	position: absolute;
+	z-index: 10;
+}
+.map-location-dots .category-dot,
+.map-location-dots .location-dot {
+	position: absolute;
+	width: 48px;
+	height: 48px;
+	border-radius: 9999px;
+	transform: translate(-50%, -50%);
+	border: 2px solid transparent;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	backdrop-filter: blur(3px);
+	-webkit-backdrop-filter: blur(3px);
+	transition:
+		box-shadow 0.2s ease,
+		border-color 0.2s ease,
+		background 0.2s ease;
+}
+.map-location-dots .category-dot::before,
+.map-location-dots .location-dot::before {
+	content: "";
+	position: absolute;
+	inset: 6px;
+	border-radius: inherit;
+	transition: background 0.2s ease;
+}
+.map-location-dots .category-dot::after,
+.map-location-dots .location-dot::after {
+	position: relative;
+	content: "";
+	font-size: 16px;
+	font-weight: 600;
+	color: #ffffff;
+	transition: transform 0.2s ease;
+}
+/* 正常：內圈綠，外框統一白線 */
+.map-location-dots .category-dot[data-status="normal"],
+.map-location-dots .location-dot[data-status="normal"] {
+	background: rgba(52, 211, 153, 0.28);
+	border-color: rgba(255, 255, 255, 0.78);
+}
+.map-location-dots .category-dot[data-status="normal"]::before,
+.map-location-dots .location-dot[data-status="normal"]::before {
+	background: #34d399;
+}
+.map-location-dots .category-dot[data-status="normal"]::after,
+.map-location-dots .location-dot[data-status="normal"]::after {
+	content: "✓";
+}
+/* 異常（黃）：琥珀內圈 + 白外框 */
+.map-location-dots .category-dot[data-status="warning"],
+.map-location-dots .location-dot[data-status="warning"] {
+	background: rgba(245, 158, 11, 0.32);
+	border-color: rgba(255, 255, 255, 0.78);
+}
+.map-location-dots .category-dot[data-status="warning"]::before,
+.map-location-dots .location-dot[data-status="warning"]::before {
+	background: #f59e0b;
+}
+.map-location-dots .category-dot[data-status="warning"]::after,
+.map-location-dots .location-dot[data-status="warning"]::after {
+	content: "!";
+}
+/* 警報（紅）：玫瑰內圈 + 白外框 */
+.map-location-dots .category-dot[data-status="alarm"],
+.map-location-dots .location-dot[data-status="alarm"] {
+	background: rgba(245, 101, 101, 0.32);
+	border-color: rgba(255, 255, 255, 0.78);
+}
+.map-location-dots .category-dot[data-status="alarm"]::before,
+.map-location-dots .location-dot[data-status="alarm"]::before {
+	background: #f56565;
+}
+.map-location-dots .category-dot[data-status="alarm"]::after,
+.map-location-dots .location-dot[data-status="alarm"]::after {
+	content: "!";
+}
+.map-location-dots .category-dot:focus-visible,
+.map-location-dots .location-dot:focus-visible {
+	outline: 2px solid #ffffff;
+	outline-offset: 2px;
+}
+.map-location-dots .category-dot.is-editing {
+	cursor: move;
+}
+.map-location-dots .category-dot-wrapper.is-dragging {
+	opacity: 0.5;
+	z-index: 100;
+}
+.map-location-dots .category-dot-wrapper[draggable="true"] {
+	cursor: move;
+}
+
+/* 全區點位圖 location-dot：依 data-flash 決定閃爍節奏（避免僅靠 data-status 造成節奏不一致） */
+.map-location-dots .location-dot[data-flash="slow"] {
+	animation: status-alert-warning-blink 1.6s ease-in-out infinite;
+	will-change: opacity;
+}
+.map-location-dots .location-dot[data-flash="fast"] {
+	animation: status-alert-alarm-blink 0.9s ease-in-out infinite;
+	will-change: opacity;
+}
+
 /* 監控卡片／工具提示閃爍（對齊 EnvironmentParamCard）：底色固定 + 透明度脈動 */
 @keyframes status-alert-warning-blink {
 	0%,
@@ -364,7 +680,7 @@
 }
 
 .offline-hazard-bar {
-	animation: monitoring-offline-hazard-scroll 0.7s linear infinite;
+	animation: monitoring-offline-hazard-scroll 1.5s linear infinite;
 	will-change: background-position;
 }
 
@@ -375,18 +691,18 @@
 /* 表單輸入框（Device dialogs 通用） */
 .form-input {
 	border-radius: 0.75rem;
-	border: 1px solid rgba(255, 255, 255, 0.35);
-	background: rgba(255, 255, 255, 0.1);
+	border: 1px solid var(--input-border);
+	background: var(--input-bg);
 	padding: 0.65rem 0.85rem;
-	color: #f7fbff;
+	color: var(--input-text);
 	transition:
 		border-color 0.2s ease,
 		background 0.2s ease;
 }
 
 .form-input:focus {
-	border-color: #5be7f1;
-	background: rgba(255, 255, 255, 0.18);
+	border-color: var(--input-border-focus);
+	background: var(--input-bg-focus);
 	outline: none;
 }
 
@@ -397,34 +713,34 @@
 
 .form-input-readonly {
 	cursor: default;
-	background: rgba(255, 255, 255, 0.06);
-	color: rgba(247, 251, 255, 0.85);
+	background: var(--input-bg-readonly);
+	color: var(--text-secondary);
 }
 
 .form-input-readonly:focus {
-	border-color: rgba(255, 255, 255, 0.35);
-	background: rgba(255, 255, 255, 0.06);
+	border-color: var(--input-border);
+	background: var(--input-bg-readonly);
 }
 
 .form-input::placeholder {
-	color: rgba(255, 255, 255, 0.5);
+	color: var(--input-placeholder);
 }
 
 /* 小型表單輸入框 */
 .form-input-small {
 	border-radius: 0.75rem;
-	border: 1px solid rgba(255, 255, 255, 0.35);
-	background: rgba(255, 255, 255, 0.1);
+	border: 1px solid var(--input-border);
+	background: var(--input-bg);
 	padding: 0.65rem 0.85rem;
-	color: #f7fbff;
+	color: var(--input-text);
 	transition:
 		border-color 0.2s ease,
 		background 0.2s ease;
 }
 
 .form-input-small:focus {
-	border-color: #5be7f1;
-	background: rgba(255, 255, 255, 0.18);
+	border-color: var(--input-border-focus);
+	background: var(--input-bg-focus);
 	outline: none;
 }
 
@@ -436,18 +752,18 @@
 .form-input-small[readonly] {
 	cursor: not-allowed;
 	opacity: 0.75;
-	background: rgba(255, 255, 255, 0.06);
-	color: rgba(247, 251, 255, 0.85);
+	background: var(--input-bg-readonly);
+	color: var(--text-secondary);
 }
 
 .form-input-small[readonly]:focus {
-	border-color: rgba(255, 255, 255, 0.35);
-	background: rgba(255, 255, 255, 0.06);
+	border-color: var(--input-border);
+	background: var(--input-bg-readonly);
 	outline: none;
 }
 
 .form-input-small::placeholder {
-	color: rgba(255, 255, 255, 0.5);
+	color: var(--input-placeholder);
 }
 
 /* 必填欄位星號標記（表單標籤內的 *） */
@@ -458,27 +774,141 @@
 
 /* 表單錯誤訊息（統一 rose-300） */
 .form-error-text {
-	@apply text-sm text-rose-300 2xl:text-base;
+	@apply text-sm 2xl:text-base;
+	color: var(--error-text);
 }
 
 /* 大型 dialog 底部錯誤（區域管理等） */
 .form-error-text-lg {
-	@apply text-base text-rose-300 2xl:text-lg;
+	@apply text-base 2xl:text-lg;
+	color: var(--error-text);
 }
 
 /* 欄位正下方緊湊錯誤 */
 .form-error-text-inline {
-	@apply mt-2 text-xs text-rose-300 2xl:text-sm;
+	@apply mt-2 text-xs 2xl:text-sm;
+	color: var(--error-text);
 }
 
 /* 表單區塊醒目錯誤（如登入頁） */
 .form-error-banner {
-	@apply rounded-lg border border-rose-500/50 bg-rose-500/20 p-3 text-sm text-rose-300 2xl:text-base;
+	@apply rounded-lg border border-rose-500/50 bg-rose-500/20 p-3 text-sm 2xl:text-base;
+	color: var(--error-text);
 }
 
 /* Modbus 位址欄位 inline 驗證錯誤 */
 .form-input-modbus-issue {
 	@apply animate-pulse border-2 border-rose-500 bg-rose-500/20 pr-10 shadow-[0_0_0_3px_rgba(244,63,94,0.2)] focus:border-rose-500 focus:bg-rose-500/25 focus:shadow-[0_0_0_3px_rgba(244,63,94,0.3)];
+}
+
+/* 電梯即時狀態：目前樓層數字（詳情面板／總覽共用） */
+.elevator-led-floor-text {
+	font-family:
+		ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+		monospace;
+	font-variant-numeric: tabular-nums;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	color: #67e8f9;
+	text-shadow:
+		0 0 6px rgba(103, 232, 249, 0.85),
+		0 0 16px rgba(34, 211, 238, 0.45);
+}
+
+/* 電梯樓層數字：上下捲動切換 */
+.elevator-floor-roll {
+	position: relative;
+	overflow: hidden;
+}
+
+.elevator-floor-roll__digit {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	margin: 0;
+}
+
+.elevator-floor-slide-up-enter-active,
+.elevator-floor-slide-up-leave-active,
+.elevator-floor-slide-down-enter-active,
+.elevator-floor-slide-down-leave-active {
+	transition:
+		transform var(--elevator-floor-step-ms, 1500ms) cubic-bezier(0.22, 1, 0.36, 1),
+		opacity calc(var(--elevator-floor-step-ms, 1500ms) * 0.55) ease-out;
+}
+
+.elevator-floor-slide-up-enter-from {
+	transform: translateY(100%);
+	opacity: 0;
+}
+
+.elevator-floor-slide-up-leave-to {
+	transform: translateY(-100%);
+	opacity: 0;
+}
+
+.elevator-floor-slide-down-enter-from {
+	transform: translateY(-100%);
+	opacity: 0;
+}
+
+.elevator-floor-slide-down-leave-to {
+	transform: translateY(100%);
+	opacity: 0;
+}
+
+/* 電梯方向箭頭：上行／下行移動淡出（首尾 opacity 0 銜接，避免 loop 跳動） */
+@keyframes elevator-arrow-move-fade-up {
+	0% {
+		transform: translateY(8px);
+		opacity: 0;
+	}
+	25% {
+		opacity: 1;
+	}
+	75% {
+		opacity: 0.5;
+	}
+	100% {
+		transform: translateY(-8px);
+		opacity: 0;
+	}
+}
+
+@keyframes elevator-arrow-move-fade-down {
+	0% {
+		transform: translateY(-8px);
+		opacity: 0;
+	}
+	25% {
+		opacity: 1;
+	}
+	75% {
+		opacity: 0.5;
+	}
+	100% {
+		transform: translateY(8px);
+		opacity: 0;
+	}
+}
+
+.elevator-dir-arrow-wrap {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+}
+
+.elevator-dir-arrow--active-up {
+	animation: elevator-arrow-move-fade-up 1.8s ease-in-out infinite;
+}
+
+.elevator-dir-arrow--active-down {
+	animation: elevator-arrow-move-fade-down 1.8s ease-in-out infinite;
 }
 
 /* 表單選擇框 */
@@ -648,11 +1078,13 @@
 
 	/* RWD 共用 token — 契約見 docs/20-architecture/frontend-rwd.md */
 	.table-th {
-		@apply py-3 px-4 text-sm text-white/80 2xl:py-4 2xl:px-6 2xl:text-base;
+		@apply py-3 px-4 text-sm 2xl:py-4 2xl:px-6 2xl:text-base;
+		color: var(--text-secondary);
 	}
 
 	.table-td {
 		@apply py-3 px-4 2xl:py-4 2xl:px-6;
+		color: var(--text-primary);
 	}
 
 	.table-scroll {
@@ -660,7 +1092,8 @@
 	}
 
 	.form-label {
-		@apply flex flex-col gap-2 text-sm text-white/80 sm:gap-2.5 2xl:text-base;
+		@apply flex flex-col gap-2 text-sm sm:gap-2.5 2xl:text-base;
+		color: var(--text-secondary);
 	}
 
 	.page-shell {
@@ -668,15 +1101,24 @@
 	}
 
 	.section-card {
-		@apply rounded-2xl border border-white/20 bg-white/15 p-4 sm:p-6 2xl:p-8;
+		@apply rounded-2xl border p-4 sm:p-6 2xl:p-8;
+		border-color: var(--border-panel);
+		background: var(--surface-panel);
+		color: var(--text-primary);
+	}
+
+	.section-card--compact {
+		@apply p-3 sm:p-4 2xl:px-6 2xl:py-4;
 	}
 
 	.page-title {
-		@apply text-2xl font-semibold text-white sm:text-3xl 2xl:text-4xl;
+		@apply text-2xl font-semibold sm:text-3xl 2xl:text-4xl;
+		color: var(--text-primary);
 	}
 
 	.page-subtitle {
-		@apply text-sm text-white/80 sm:text-base 2xl:text-xl;
+		@apply text-sm sm:text-base 2xl:text-xl;
+		color: var(--text-secondary);
 	}
 
 	.infra-page-layout {
@@ -698,10 +1140,10 @@
    對話框面板 - 通用彈窗背景
    ======================================== */
 .dialog-panel-bg {
-	background: linear-gradient(145deg, rgba(9, 106, 133, 0.95), rgba(20, 64, 92, 0.98));
-	border: 1px solid rgba(255, 255, 255, 0.25);
-	box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
-	color: #f5f9ff;
+	background: var(--dialog-bg);
+	border: 1px solid var(--dialog-border);
+	box-shadow: var(--dialog-shadow);
+	color: var(--dialog-text);
 }
 
 /* ========================================
@@ -725,7 +1167,7 @@
 /* 用於資料表、表單等需要可見滾動軸的區塊 */
 .show-scrollbar {
 	scrollbar-width: thin;
-	scrollbar-color: rgba(255, 255, 255, 0.4) transparent;
+	scrollbar-color: var(--scrollbar-thumb) transparent;
 	-ms-overflow-style: scrollbar;
 }
 
@@ -740,10 +1182,49 @@
 }
 
 .show-scrollbar::-webkit-scrollbar-thumb {
-	background: rgba(255, 255, 255, 0.4);
+	background: var(--scrollbar-thumb);
 	border-radius: 4px;
 }
 
 .show-scrollbar::-webkit-scrollbar-thumb:hover {
-	background: rgba(255, 255, 255, 0.55);
+	filter: brightness(1.15);
+}
+
+@layer utilities {
+	.text-theme-primary {
+		color: var(--text-primary);
+	}
+	.text-theme-secondary {
+		color: var(--text-secondary);
+	}
+	.text-theme-muted {
+		color: var(--text-muted);
+	}
+	.border-theme {
+		border-color: var(--border-panel);
+	}
+	.border-theme-strong {
+		border-color: var(--border-panel-strong);
+	}
+	.bg-theme-panel {
+		background: var(--surface-panel);
+	}
+	.bg-theme-panel-soft {
+		background: var(--surface-panel-soft);
+	}
+	.toast-close-btn:hover {
+		background: var(--toast-close-hover);
+	}
+	.hover\:monitoring-chip-bg:hover {
+		background-color: var(--monitoring-chip-bg);
+	}
+}
+
+/* 黑暗模式：首頁模組卡等仍用 Tailwind 白底時改為深色半透明 */
+html.dark .home-panel [class*="bg-white/"] {
+	background-color: var(--surface-panel-soft);
+}
+
+html.dark .home-panel [class*="border-white"] {
+	border-color: var(--border-panel);
 }

@@ -1,7 +1,7 @@
 <template>
 	<div class="people-unit-panel min-h-[220px] space-y-4">
 		<h3
-			class="people-unit-title bg-white/20 py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
+			class="people-unit-title monitoring-chip-bg py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
 		>
 			{{ panelTitle }}
 		</h3>
@@ -13,7 +13,7 @@
 				class="flex flex-col items-center justify-center border-2 border-white/0 py-2 transition-all"
 				:class="{
 					'border-white/70': selectedUnitId === unit.id,
-					'bg-white/20': (unit.currentCount || 0) > 0,
+					'monitoring-chip-bg': (unit.currentCount || 0) > 0,
 					'bg-black/20': (unit.currentCount || 0) === 0,
 					'cursor-default': isIsapiCamera
 				}"

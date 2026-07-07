@@ -13,11 +13,21 @@ import type {
 import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPaginationParams, buildPathWithQuery, mergeQueryParams } from "~/utils/apiUtils";
 
+const MODELS_CACHE_TTL_MS = 60_000;
+
+const getModelsCacheKey = (params?: { type_code?: DeviceTypeCode; category_code?: string }) =>
+	`${params?.type_code ?? ""}|${params?.category_code ?? ""}`;
+
 export const useDeviceApi = () => {
 	const { request } = useApiBase();
 	const modelsCacheGeneration = useState("device-models-cache-generation", () => 0);
+	const modelsCache = useState<Record<string, { at: number; models: DeviceModel[] }>>(
+		"device_models_api_cache",
+		() => ({})
+	);
 	const invalidateModelsCache = () => {
 		modelsCacheGeneration.value += 1;
+		modelsCache.value = {};
 	};
 
 	return {
@@ -121,14 +131,30 @@ export const useDeviceApi = () => {
 		},
 
 		// 取得所有設備型號（支援按類型/分類篩選）
-		getDeviceModels: (params?: { type_code?: DeviceTypeCode; category_code?: string; _t?: string }) => {
+		getDeviceModels: async (params?: { type_code?: DeviceTypeCode; category_code?: string; _t?: string }) => {
+			const force = Boolean(params?._t);
+			const cacheKey = getModelsCacheKey(params);
+			if (!force) {
+				const hit = modelsCache.value[cacheKey];
+				if (hit && Date.now() - hit.at < MODELS_CACHE_TTL_MS) {
+					return { device_models: hit.models };
+				}
+			}
+
 			const filterParams: Record<string, unknown> = {};
 			if (params?.type_code) filterParams.type_code = params.type_code;
 			if (params?.category_code) filterParams.category_code = params.category_code;
 			if (params?._t) filterParams._t = params._t; // 時間戳用於強制刷新
 
 			const path = buildPathWithQuery("/devices/models", filterParams);
-			return request<{ device_models: DeviceModel[] }>(path);
+			const result = await request<{ device_models: DeviceModel[] }>(path);
+			if (!force) {
+				modelsCache.value = {
+					...modelsCache.value,
+					[cacheKey]: { at: Date.now(), models: result.device_models },
+				};
+			}
+			return result;
 		},
 
 		// 取得單一設備型號

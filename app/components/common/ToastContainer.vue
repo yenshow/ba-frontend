@@ -71,7 +71,7 @@
 					<!-- Close Button -->
 					<button
 						@click.stop="removeToast(toast.id)"
-						class="flex-shrink-0 rounded-full p-0.5 text-current opacity-60 transition-all hover:bg-white/20 hover:opacity-100"
+						class="flex-shrink-0 rounded-full p-0.5 text-current opacity-60 transition-all toast-close-btn hover:opacity-100"
 						aria-label="關閉"
 					>
 						<svg class="h-4 w-4 2xl:h-6 2xl:w-6" fill="currentColor" viewBox="0 0 20 20">

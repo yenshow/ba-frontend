@@ -7,9 +7,9 @@ import type { User } from "~/types/user"
 type SystemSettingsMenuItem = {
 	id: string
 	label: string
-	kind: "route" | "logout"
+	kind: "route" | "theme" | "logout"
 	route?: string
-	section: "personal" | "platform" | "session"
+	section: "personal" | "platform" | "appearance" | "session"
 }
 
 export const SYSTEM_SETTINGS_SECTION_LABELS: Record<
@@ -18,6 +18,7 @@ export const SYSTEM_SETTINGS_SECTION_LABELS: Record<
 > = {
 	personal: "個人",
 	platform: "平台管理",
+	appearance: "外觀",
 }
 
 const OVERVIEW_CATEGORY = "core" as const satisfies SystemModule["category"]
@@ -27,6 +28,7 @@ const OVERVIEW_SKIP_ROUTES = ["/core/alert-log", "/core/area-point-map"] as cons
 const SETTINGS_SECTION_ORDER: SystemSettingsMenuItem["section"][] = [
 	"personal",
 	"platform",
+	"appearance",
 	"session",
 ]
 
@@ -82,6 +84,7 @@ const buildSystemSettingsItems = (
 			}
 		)
 	}
+	items.push({ id: "theme", label: "主題", kind: "theme", section: "appearance" })
 	items.push({ id: "logout", label: "登出", kind: "logout", section: "session" })
 
 	return items

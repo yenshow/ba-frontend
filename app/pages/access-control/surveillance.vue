@@ -26,7 +26,7 @@
 				</Transition>
 
 				<div
-					class="flex min-h-[664px] flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-6 2xl:min-h-[848px] 2xl:p-8"
+					class="flex min-h-[664px] flex-col monitoring-panel overflow-hidden rounded-2xl p-6 2xl:min-h-[848px] 2xl:p-8"
 				>
 					<!-- 控制面板 -->
 					<div class="mb-4">
@@ -103,7 +103,7 @@
 				:aria-hidden="isOverviewCollapsed"
 			>
 				<div
-					class="relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8"
+					class="relative flex h-full min-h-0 flex-col monitoring-panel overflow-hidden rounded-2xl py-8"
 				>
 					<Transition name="fade" mode="out-in">
 						<div

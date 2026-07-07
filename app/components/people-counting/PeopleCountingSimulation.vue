@@ -1,5 +1,5 @@
 <template>
-	<section class="min-h-[664px] rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
+	<section class="section-card min-h-[664px]">
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 			<div v-if="locationFilterOptions.length > 1" class="flex items-center gap-2">
 				<label class="text-lg font-semibold 2xl:text-xl">地點：</label>
@@ -40,7 +40,7 @@
 					進出統計
 				</h3>
 				<table class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base">
-					<thead class="bg-white/20">
+					<thead class="monitoring-chip-bg">
 						<tr class="text-white/90">
 							<th class="whitespace-nowrap border border-white/20 p-2">日期</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">區域-地點</th>
@@ -67,7 +67,7 @@
 					群組統計
 				</h3>
 				<table class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base">
-					<thead class="bg-white/20">
+					<thead class="monitoring-chip-bg">
 						<tr class="text-white/90">
 							<th class="whitespace-nowrap border border-white/20 p-2">日期</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">區域-地點</th>
@@ -113,7 +113,7 @@
 					/>
 				</div>
 				<table class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base">
-					<thead class="bg-white/20">
+					<thead class="monitoring-chip-bg">
 						<tr class="text-white/90">
 							<th
 								v-for="header in detailHeaders"
@@ -152,7 +152,7 @@
 						<button
 							type="button"
 							:disabled="detailPage <= 1"
-							class="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-sm text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-4 2xl:py-2 2xl:text-base"
+							class="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-sm text-white transition-colors hover:monitoring-chip-bg disabled:cursor-not-allowed disabled:opacity-50 2xl:px-4 2xl:py-2 2xl:text-base"
 							aria-label="上一頁"
 							@click="handleDetailPrevPage"
 						>
@@ -161,7 +161,7 @@
 						<button
 							type="button"
 							:disabled="detailPage >= totalDetailPages"
-							class="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-sm text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-4 2xl:py-2 2xl:text-base"
+							class="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-sm text-white transition-colors hover:monitoring-chip-bg disabled:cursor-not-allowed disabled:opacity-50 2xl:px-4 2xl:py-2 2xl:text-base"
 							aria-label="下一頁"
 							@click="handleDetailNextPage"
 						>

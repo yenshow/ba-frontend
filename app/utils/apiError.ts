@@ -150,6 +150,7 @@ export const MSG_PERMISSION_LOCKED = "您沒有此功能的存取權限"
 export const MSG_PERMISSION_REDIRECT = "您沒有此功能的存取權限，已為您返回首頁"
 export const MSG_ADMIN_ONLY = "僅管理員可存取此頁面"
 export const MSG_ACCOUNT_ADMIN = "管理員請至用戶管理重設密碼"
+export const MSG_RATE_LIMIT = "請求過於頻繁，請稍後再試"
 
 // --- HTTP／通用 fallback ---
 
@@ -410,6 +411,10 @@ export class ApiRequestError extends Error {
 export const isApiUnauthorizedError = (error: unknown): boolean =>
 	error instanceof ApiRequestError && error.statusCode === 401;
 
+export const isApiRateLimitError = (error: unknown): boolean =>
+	error instanceof ApiRequestError &&
+	(error.statusCode === 429 || error.code === "HTTP_429");
+
 export const isApiRequestTimeout = (error: unknown): boolean => {
 	if (error instanceof ApiRequestError && error.code === "TIMEOUT") return true;
 
@@ -439,7 +444,7 @@ export const mapHttpStatusToUserFacingError = (
 	if (statusCode === 400)
 		return { message: USER_FACING_API_BAD_REQUEST, code: "HTTP_400", isGeneric: true };
 	if (statusCode === 429) {
-		return { message: "請求過於頻繁，請稍後再試", code: "HTTP_429", isGeneric: false };
+		return { message: MSG_RATE_LIMIT, code: "HTTP_429", isGeneric: false };
 	}
 	if (statusCode === 403)
 		return { message: MSG_PERMISSION_LOCKED, code: "HTTP_403", isGeneric: false };

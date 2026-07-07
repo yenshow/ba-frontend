@@ -2,15 +2,15 @@
 	<div class="monitoring-log-panel flex min-h-[320px] w-full min-w-0 flex-col 2xl:min-h-[400px]">
 		<div
 			v-if="logs.length === 0"
-			class="flex flex-1 items-center justify-center rounded-lg border-2 border-white/20 bg-white/5 p-8"
+			class="monitoring-log-empty flex flex-1 items-center justify-center rounded-lg p-8"
 			role="status"
 		>
 			<MonitoringLogEmptyState message="尚無過車記錄" />
 		</div>
 
 		<div v-else class="vehicle-log-table show-scrollbar overflow-x-auto">
-			<table class="w-full border-b-2 border-l-2 border-r-2 border-white/20">
-				<thead class="bg-white/20">
+			<table class="monitoring-log-table w-full">
+				<thead class="monitoring-chip-bg">
 					<tr class="vehicle-log-th text-center text-xs font-semibold text-white/80 2xl:text-sm">
 						<th v-for="col in displayColumns" :key="col" class="vehicle-log-cell-pad p-2">
 							{{ VEHICLE_ACCESS_LOG_COLUMN_LABELS[col] }}
@@ -18,7 +18,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					<tr v-for="log in logs" :key="log.id" class="border-b border-white/10 text-center text-white">
+					<tr v-for="log in logs" :key="log.id" class="monitoring-log-row text-center text-white">
 						<td
 							v-for="col in displayColumns"
 							:key="`${log.id}-${col}`"
@@ -134,7 +134,7 @@
 			>
 				<button
 					type="button"
-					class="absolute right-4 top-4 z-10 rounded-full bg-white/20 p-2 text-white transition-colors hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+					class="absolute right-4 top-4 z-10 rounded-full monitoring-chip-bg p-2 text-white transition-colors hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-cyan-400"
 					aria-label="關閉"
 					@click="closeLightbox"
 				>

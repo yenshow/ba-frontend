@@ -230,6 +230,14 @@
 													{{ item.label }}
 												</button>
 												<button
+													v-else-if="item.kind === 'theme'"
+													class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
+													@click="handleThemeToggle"
+													:aria-label="theme === 'light' ? '切換為黑暗模式' : '切換為明亮模式'"
+												>
+													{{ theme === "light" ? "黑暗模式" : "明亮模式" }}
+												</button>
+												<button
 													v-else-if="item.kind === 'logout'"
 													:class="[
 														'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white',
@@ -294,6 +302,7 @@ import {
 	useAppShellNavigation,
 	SYSTEM_SETTINGS_SECTION_LABELS
 } from "~/composables/core/useAppShellNavigation";
+import { useTheme } from "~/composables/core/useTheme";
 
 const route = useRoute();
 const router = useRouter();
@@ -301,6 +310,7 @@ const { user, isAuthenticated, logout } = useAuth();
 const { constructionOverviewModules, hasConstructionOverviewMenu, systemSettingsSections } =
 	useAppShellNavigation();
 const systemSettingsSectionLabels = SYSTEM_SETTINGS_SECTION_LABELS;
+const { theme, toggleTheme } = useTheme();
 const toast = useToast();
 const accessGate = useAccessGate();
 const moduleRegistry = useModuleRegistry();
@@ -523,6 +533,11 @@ const navigateToRouteInNewTab = (routePath: string) => {
 		const url = routePath.startsWith("http") ? routePath : `${window.location.origin}${routePath}`;
 		window.open(url, "_blank", "noopener,noreferrer");
 	}
+};
+
+const handleThemeToggle = () => {
+	toggleTheme();
+	showUserMenu.value = false;
 };
 
 const handleLogout = async () => {

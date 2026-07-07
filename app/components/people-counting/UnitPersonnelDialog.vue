@@ -35,7 +35,7 @@
 									v-for="person in paginatedPersonnel"
 									:key="`${person.id}-${person.unitId}`"
 									class="flex items-start gap-3 border-2 border-white/30 p-3"
-									:class="[person.isPresent ? 'bg-white/20' : 'bg-black/20']"
+									:class="[person.isPresent ? 'monitoring-chip-bg' : 'bg-black/20']"
 								>
 									<!-- 照片（/uploads/ 改為後端完整 URL） -->
 									<div

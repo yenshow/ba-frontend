@@ -1,5 +1,5 @@
 <template>
-	<section class="min-h-[664px] rounded-2xl border border-white/20 bg-white/15 p-6 2xl:p-8">
+	<section class="section-card min-h-[664px]">
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 			<div v-if="locationFilterOptions.length > 1" class="flex items-center gap-2">
 				<label class="text-lg font-semibold 2xl:text-xl">地點：</label>

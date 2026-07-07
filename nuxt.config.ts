@@ -16,7 +16,8 @@ export default defineNuxtConfig({
 				{ name: "viewport", content: "width=device-width, initial-scale=1" },
 				{ name: "description", content: "智慧工地管理與監控平台" }
 			],
-			link: [{ rel: "icon", type: "image/x-icon", href: "/favicon.ico" }]
+			link: [{ rel: "icon", type: "image/x-icon", href: "/favicon.ico" }],
+			script: [{ src: "/theme-init.js", tagPosition: "head" }]
 		}
 	},
 

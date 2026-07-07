@@ -26,19 +26,16 @@
 				</Transition>
 
 				<div
-					class="relative flex min-h-[664px] flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 p-4 2xl:min-h-[848px] 2xl:p-6"
+					class="relative flex min-h-[664px] flex-col monitoring-panel overflow-hidden rounded-2xl p-4 2xl:min-h-[848px] 2xl:p-6"
 				>
 					<!-- 位置標題與地點選擇 -->
-					<div
-						class="absolute left-1/2 top-0 flex h-[36px] translate-x-[-50%] items-center justify-center bg-white text-[#595959] 2xl:h-[48px]"
-						style="clip-path: polygon(0 0, 100% 0, calc(100% - 24px) 100%, calc(0% + 24px) 100%)"
-					>
+					<div class="monitoring-location-title">
 						<div class="flex w-[200px] items-center justify-center">
 							<span v-if="selectedLocation" class="ps-[12px] text-[24px] 2xl:text-[36px]">{{
 								getLocationZone(selectedLocation)
 							}}</span>
 						</div>
-						<div class="h-[24px] w-px bg-[#595959]"></div>
+						<div class="monitoring-location-title__divider"></div>
 						<div class="flex w-[200px] items-center justify-center">
 							<span v-if="selectedLocation" class="pe-[12px] text-[24px] 2xl:text-[36px]">{{
 								selectedLocation.name
@@ -120,7 +117,7 @@
 				:aria-hidden="isOverviewCollapsed"
 			>
 				<div
-					class="relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border-2 border-white/80 bg-white/30 py-8"
+					class="relative flex h-full min-h-0 flex-col monitoring-panel overflow-hidden rounded-2xl py-8"
 				>
 					<Transition name="fade" mode="out-in">
 						<div

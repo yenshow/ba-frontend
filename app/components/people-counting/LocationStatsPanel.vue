@@ -1,6 +1,6 @@
 <template>
 	<div class="mx-auto grid w-full max-w-6xl grid-cols-3 gap-6 rounded-lg text-white xl:gap-8">
-		<div class="flex flex-col items-center justify-center gap-4 bg-white/20 py-4">
+		<div class="flex flex-col items-center justify-center gap-4 monitoring-chip-bg py-4">
 			<div class="whitespace-nowrap text-[24px] font-semibold leading-none 2xl:text-[36px]">
 				進場人數
 			</div>
@@ -11,7 +11,7 @@
 			</div>
 		</div>
 
-		<div class="flex flex-col items-center justify-center gap-4 bg-white/20 py-4">
+		<div class="flex flex-col items-center justify-center gap-4 monitoring-chip-bg py-4">
 			<div class="whitespace-nowrap text-[24px] font-semibold leading-none 2xl:text-[36px]">
 				出場人數
 			</div>
@@ -22,7 +22,7 @@
 			</div>
 		</div>
 
-		<div class="flex flex-col items-center justify-center gap-4 bg-white/20 py-4">
+		<div class="flex flex-col items-center justify-center gap-4 monitoring-chip-bg py-4">
 			<div class="whitespace-nowrap text-[24px] font-semibold leading-none 2xl:text-[36px]">
 				在場人數
 			</div>

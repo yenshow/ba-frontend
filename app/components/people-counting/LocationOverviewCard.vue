@@ -9,10 +9,7 @@
 		@keydown.space.prevent="handleClick"
 	>
 		<!-- 左側：區域（斜切標籤） -->
-		<div
-			class="my-4 flex w-[36px] items-center justify-center bg-white px-2 text-xl 2xl:text-xl"
-			style="clip-path: polygon(0 0, 100% calc(0% + 24px), 100% calc(100% - 24px), 0 100%)"
-		>
+		<div class="overview-zone-tag">
 			{{ regionText }}
 		</div>
 
@@ -28,21 +25,21 @@
 				<div
 					class="flex min-w-[140px] flex-col gap-3 border-r-2 border-white/50 pr-8 text-white 2xl:min-w-[160px]"
 				>
-					<div class="flex items-center justify-center gap-3 bg-white/20 p-2">
+					<div class="flex items-center justify-center gap-3 monitoring-chip-bg p-2">
 						<div class="overview-stat-label">進場人數</div>
 						<div class="w-[80px] bg-black/20 text-center text-xl 2xl:w-[100px] 2xl:text-2xl">
 							{{ location.entryCount ?? 0 }}
 						</div>
 					</div>
 
-					<div class="flex items-center justify-center gap-3 bg-white/20 p-2">
+					<div class="flex items-center justify-center gap-3 monitoring-chip-bg p-2">
 						<div class="overview-stat-label">出場人數</div>
 						<div class="w-[80px] bg-black/20 text-center text-xl 2xl:w-[100px] 2xl:text-2xl">
 							{{ location.exitCount ?? 0 }}
 						</div>
 					</div>
 
-					<div class="flex items-center justify-center gap-3 bg-white/20 p-2">
+					<div class="flex items-center justify-center gap-3 monitoring-chip-bg p-2">
 						<div class="overview-stat-label">在場人數</div>
 						<div class="w-[80px] bg-black/20 text-center text-xl 2xl:w-[100px] 2xl:text-2xl">
 							{{ currentCount }}
@@ -57,7 +54,7 @@
 						:key="unit ? unit.id : `empty-${index}`"
 						class="flex min-h-[36px] min-w-[64px] items-center justify-center p-2 text-center transition-all"
 						:class="{
-							'bg-white/20': unit && (unit.currentCount || 0) > 0,
+							'monitoring-chip-bg': unit && (unit.currentCount || 0) > 0,
 							'bg-black/20': !unit || (unit.currentCount || 0) === 0,
 							'text-white/90': unit,
 							'text-white/30': !unit
