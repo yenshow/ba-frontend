@@ -36,9 +36,3 @@ onBeforeUnmount(() => {
 	stopWebSocketLifecycle();
 });
 </script>
-
-<style scoped>
-.bg-ba-gradient {
-	background: linear-gradient(155deg, #13a6a9 0%, #002247 100%);
-}
-</style>
