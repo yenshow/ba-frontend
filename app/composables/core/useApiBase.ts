@@ -99,6 +99,11 @@ export const useApiBase = () => {
 			await permissionRefreshInFlight
 		}
 
+		if (statusCode === 401 && path.split("?")[0] !== "/users/login") {
+			const { handleUnauthorized } = runWithNuxtContext(() => useAuth())
+			await handleUnauthorized()
+		}
+
 		if (statusCode !== undefined && statusCode !== null) {
 			const resolved = resolveUserFacingApiError({
 				statusCode,

@@ -1,20 +1,25 @@
 import { useAccessGate } from "~/composables/core/useAccessGate";
 import { useAuth } from "~/composables/core/useAuth";
-
-const PUBLIC_ROUTES = ["/login"] as const;
+import { isApiUnauthorizedError } from "~/utils/apiError";
 
 export default defineNuxtRouteMiddleware(async to => {
-	if ((PUBLIC_ROUTES as readonly string[]).includes(to.path)) return;
+	if (to.path === "/login") return;
 
-	const { isAuthenticated } = useAuth();
-	const redirectToLogin = () =>
-		navigateTo({ path: "/login", query: { redirect: to.fullPath } });
+	const { isAuthenticated, redirectToLogin } = useAuth();
 
 	if (!isAuthenticated.value) {
-		return redirectToLogin();
+		return redirectToLogin(to.fullPath);
 	}
 
 	const { checkRouteAccess, handleAccessDenied } = useAccessGate();
-	const result = await checkRouteAccess(to.path);
-	return handleAccessDenied(to.path, result);
+
+	try {
+		const result = await checkRouteAccess(to.path);
+		return handleAccessDenied(to.path, result);
+	} catch (error) {
+		if (isApiUnauthorizedError(error)) {
+			return redirectToLogin(to.fullPath);
+		}
+		throw error;
+	}
 });

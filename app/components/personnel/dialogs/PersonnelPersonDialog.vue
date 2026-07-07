@@ -252,13 +252,14 @@
 
 								<div v-if="activeCardItem" class="mt-3 flex items-center gap-2">
 									<input
-										v-model="activeCardItem.cardNo"
+										v-model="activeCardNoInput"
 										type="text"
 										inputmode="numeric"
+										maxlength="10"
+										pattern="[0-9]*"
 										class="form-input w-full max-w-[320px] border-white/30 bg-white/10 py-1.5 text-sm text-white placeholder:text-white/40 2xl:py-2 2xl:text-base"
-										:placeholder="`卡號 ${activeCardTab + 1}（可手動輸入）`"
-										:aria-label="`第 ${activeCardTab + 1} 張卡號`"
-										:readonly="activeCardItem.source === 'virtual'"
+										placeholder="10 碼數字卡號"
+										:aria-label="`第 ${activeCardTab + 1} 張卡號（10 碼）`"
 									/>
 									<button
 										type="button"
@@ -472,7 +473,12 @@ import {
 	LICENSE_PLATE_LIST_TYPE_OPTIONS,
 	MAX_PERSON_LICENSE_PLATES
 } from "~/utils/licensePlateFormUtils";
-import { MAX_PERSON_CARDS, createEmptyCardFormItem } from "~/utils/cardFormUtils";
+import {
+	MAX_PERSON_CARDS,
+	createEmptyCardFormItem,
+	sanitizeCardNoInput,
+	reconcileCardSourceAfterManualEdit,
+} from "~/utils/cardFormUtils";
 import {
 	MAX_PERSON_FINGERPRINTS,
 	createEmptyFingerprintFormItem
@@ -520,6 +526,17 @@ const {
 	createEmpty: createEmptyCardFormItem,
 	onClearLastItem: () => {
 		props.state.accessControl.cardItems.value[0] = createEmptyCardFormItem();
+	}
+});
+
+const activeCardNoInput = computed({
+	get: () => activeCardItem.value?.cardNo ?? "",
+	set: (raw: string) => {
+		const item = activeCardItem.value;
+		if (!item) return;
+		const cardNo = sanitizeCardNoInput(raw);
+		item.cardNo = cardNo;
+		item.source = reconcileCardSourceAfterManualEdit(cardNo, item.source);
 	}
 });
 
