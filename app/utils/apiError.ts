@@ -407,6 +407,9 @@ export class ApiRequestError extends Error {
 	}
 }
 
+export const isApiUnauthorizedError = (error: unknown): boolean =>
+	error instanceof ApiRequestError && error.statusCode === 401;
+
 export const isApiRequestTimeout = (error: unknown): boolean => {
 	if (error instanceof ApiRequestError && error.code === "TIMEOUT") return true;
 

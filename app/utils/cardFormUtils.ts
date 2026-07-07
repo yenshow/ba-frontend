@@ -17,6 +17,24 @@ export const MAX_PERSON_CARDS = 5;
 const VIRTUAL_CARD_PREFIX = "9";
 const VIRTUAL_CARD_LENGTH = 10;
 
+/** 人員卡號固定長度（與虛擬卡一致） */
+export const PERSON_CARD_NO_LENGTH = VIRTUAL_CARD_LENGTH;
+
+export const sanitizeCardNoInput = (raw: string): string =>
+	String(raw ?? "")
+		.replace(/\D/g, "")
+		.slice(0, PERSON_CARD_NO_LENGTH);
+
+/** 手動修改卡號後，依格式調整來源（虛擬卡格式仍標為 virtual） */
+export const reconcileCardSourceAfterManualEdit = (
+	cardNo: string,
+	source: PersonCardSource,
+): PersonCardSource => {
+	if (isVirtualCardFormat(cardNo)) return "virtual";
+	if (source === "captured" || source === "virtual") return "manual";
+	return source;
+};
+
 const VALID_SOURCES = new Set<PersonCardSource>(["manual", "captured", "virtual"]);
 
 const asRecord = (v: unknown): Record<string, unknown> | null => {
@@ -114,6 +132,7 @@ export const validateCardFormItems = (items: PersonCardFormItem[]): string | nul
 		const n = i + 1;
 		const cardNo = row.cardNo.trim();
 		if (!/^\d+$/.test(cardNo)) return `第 ${n} 張卡號：僅允許數字`;
+		if (cardNo.length !== PERSON_CARD_NO_LENGTH) return `第 ${n} 張卡號：須為 10 碼`;
 		if (seen.has(cardNo)) return `第 ${n} 張卡號：卡號不可重複`;
 		seen.add(cardNo);
 		if (row.source === "virtual") {

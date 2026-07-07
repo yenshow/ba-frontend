@@ -54,7 +54,8 @@ export interface UpdateUserData {
 }
 
 export interface LoginResponse {
-	message: string
+	message?: string
 	user: User
-	token: string
+	token?: string
+	refreshed?: boolean
 }

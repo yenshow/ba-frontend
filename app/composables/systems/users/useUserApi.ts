@@ -61,6 +61,12 @@ export const useUserApi = () => {
 			});
 		},
 
+		refreshSession: () => {
+			return request<LoginResponse>("/users/refresh", {
+				method: "POST",
+			})
+		},
+
 		getMe: async (): Promise<User> => {
 			const res = await request<{ user: User }>("/users/me");
 			return res.user;
