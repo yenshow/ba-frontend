@@ -3,7 +3,7 @@
 		<PermissionActionButton
 			:allowed="canWrite"
 			aria-label="編輯跑馬燈訊息"
-			class="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-lg bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity focus-visible:opacity-100 enabled:hover:bg-black/50 group-hover:opacity-100 2xl:text-base"
+			class="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-lg bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity focus-visible:opacity-100 hover:bg-black/50 group-hover:opacity-100 2xl:text-base"
 			@click="isEditOpen = true"
 		>
 			編輯

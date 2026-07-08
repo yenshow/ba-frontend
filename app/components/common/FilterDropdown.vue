@@ -36,7 +36,7 @@
 								type="button"
 								@click="selectOption(option.value)"
 								:class="[
-									'w-full rounded px-3 py-2 text-center text-white transition-colors',
+									'w-full whitespace-nowrap rounded px-3 py-2 text-center text-white transition-colors',
 									textSize,
 									isSelected(option.value) ? 'bg-blue-500/80 text-white' : 'hover:bg-white/10'
 								]"
@@ -85,14 +85,14 @@ const dropdownStyle = computed(() => {
 	}
 
 	const rect = dropdownRef.value.getBoundingClientRect();
-	const dropdownWidth = rect.width;
+	const triggerWidth = rect.width;
 
 	// 計算位置：在輸入框下方，左對齊
 	// getBoundingClientRect() 返回的是相對於視口的座標，fixed 定位也是相對於視口
 	return {
 		top: `${rect.bottom + 8}px`, // 8px = mt-2
 		left: `${rect.left}px`,
-		width: `${dropdownWidth}px`
+		width: `${triggerWidth}px`
 	};
 });
 

@@ -21,13 +21,14 @@
 					<div class="w-36 shrink-0 2xl:w-40">
 						<FilterDropdown v-model="filterStatus" :options="statusOptions" placeholder="全部狀態" />
 					</div>
-					<div class="w-36 shrink-0 2xl:w-40">
+					<div class="w-44 shrink-0 2xl:w-48">
 						<FilterDropdown v-model="filterSource" :options="sourceOptions" placeholder="全部系統" />
 					</div>
 					<TimeRangePicker v-model="timeRange" :presets="timeRangePresets" />
 
 					<PermissionActionButton
-						:allowed="canExportReport && !isLoading && alerts.length > 0"
+						:allowed="canExportReport"
+						:disabled="isLoading || alerts.length === 0"
 						aria-label="匯出 CSV"
 						class="shrink-0 whitespace-nowrap rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors enabled:hover:bg-green-400 2xl:px-6 2xl:py-3 2xl:text-base"
 						@click="handleExport"
@@ -36,7 +37,7 @@
 					</PermissionActionButton>
 				</template>
 				<template v-else-if="currentMode === 'rules'">
-					<div class="w-36 shrink-0 2xl:w-40">
+					<div class="w-44 shrink-0 2xl:w-48">
 						<FilterDropdown v-model="ruleFilterSource" :options="sourceOptions" placeholder="全部系統" />
 					</div>
 					<div class="w-36 shrink-0 2xl:w-40">

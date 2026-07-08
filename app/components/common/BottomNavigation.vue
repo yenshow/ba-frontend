@@ -499,13 +499,9 @@ const navigateToRoute = (routePath: string) => {
 const isModuleLocked = (module: SystemModule) => accessGate.isModuleLocked(module);
 
 const handleModuleClick = async (module: SystemModule) => {
-	if (!accessGate.isModuleAccessReady.value) {
-		await accessGate.ensureAccessReady();
-	}
+	await accessGate.ensureAccessReady();
 	if (!accessGate.canAccessModule(module)) {
-		if (accessGate.isModuleLocked(module)) {
-			toast.warning(MSG_PERMISSION_LOCKED);
-		}
+		toast.warning(MSG_PERMISSION_LOCKED);
 		return;
 	}
 
@@ -513,13 +509,9 @@ const handleModuleClick = async (module: SystemModule) => {
 };
 
 const handleOverviewModuleClick = async (module: SystemModule) => {
-	if (!accessGate.isModuleAccessReady.value) {
-		await accessGate.ensureAccessReady();
-	}
+	await accessGate.ensureAccessReady();
 	if (!accessGate.canAccessModule(module)) {
-		if (accessGate.isModuleLocked(module)) {
-			toast.warning(MSG_PERMISSION_LOCKED);
-		}
+		toast.warning(MSG_PERMISSION_LOCKED);
 		closeAllMenus();
 		return;
 	}

@@ -20,21 +20,30 @@
 					<div class="ps-[2px] text-xl tracking-[2px] text-white 2xl:text-2xl">AQI</div>
 					<div class="my-1 h-px w-2/3 bg-white/80 2xl:my-2"></div>
 					<Transition name="fade" mode="out-in">
-						<div :key="aqi ?? 'empty'" class="text-3xl text-white 2xl:text-4xl">
+						<div :key="aqi ?? 'empty'" class="text-2xl text-white 2xl:text-4xl">
 							{{ aqi ?? "--" }}
 						</div>
 					</Transition>
 				</div>
 
-				<!-- 噪音值儀表 -->
+				<!-- 熱指數儀表 -->
 				<div
 					class="flex aspect-square h-[84px] w-[84px] flex-col items-center justify-center rounded-full border-2 border-white/80 xl:h-[92px] xl:w-[92px] 2xl:h-[120px] 2xl:w-[120px]"
 				>
-					<div class="ps-[2px] text-base tracking-[2px] text-white xl:text-lg 2xl:text-2xl">噪音值</div>
+					<div class="ps-[2px] text-base tracking-[2px] text-white xl:text-lg 2xl:text-2xl">熱指數</div>
 					<div class="my-1 h-px w-2/3 bg-white/80 2xl:my-2"></div>
 					<Transition name="fade" mode="out-in">
-						<div :key="noise ?? 'empty'" class="text-3xl text-white xl:text-4xl 2xl:text-5xl">
-							{{ noise ?? "--" }}
+						<div
+							:key="heatIndexLevel ?? 'empty'"
+							class="flex items-baseline justify-center text-2xl text-white 2xl:text-4xl"
+						>
+							<span>{{ formatHeatIndexLevel(heatIndexLevel) }}</span>
+							<span
+								v-if="heatIndexLevel && heatIndexLevel > 0"
+								class="ms-0.5 text-sm text-white/80 2xl:text-base"
+							>
+								級
+							</span>
 						</div>
 					</Transition>
 				</div>
@@ -100,7 +109,7 @@ interface Props {
 	name: string;
 	zone: string;
 	aqi?: number | null;
-	noise?: number | null;
+	heatIndexLevel?: number | null;
 	params?: Param[];
 	disabled?: boolean;
 	getStatusText?: (type: string, value: number | null) => string; // 狀態文字判斷函數
@@ -120,6 +129,11 @@ const props = withDefaults(defineProps<Props>(), {
 	disabled: false,
 	getStatusText: undefined
 });
+
+const formatHeatIndexLevel = (level: number | null | undefined) => {
+	if (level === null || level === undefined || level <= 0) return "--";
+	return String(level);
+};
 
 // 判斷參數狀態類型
 const getParamStatusType = (param: Param): "normal" | "warning" | "alarm" | "offline" => {

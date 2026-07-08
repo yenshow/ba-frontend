@@ -87,7 +87,8 @@
 						<div class="flex h-[160px] flex-col justify-center">
 							<PermissionActionButton
 								v-if="!isAlertIgnored(alert)"
-								:allowed="alert.status === 'active' && canIgnore && !isIgnoring"
+								:allowed="canIgnore"
+								:disabled="alert.status !== 'active' || isIgnoring"
 								aria-label="忽視警示"
 								class="rounded-lg bg-gray-500/80 px-3 py-1.5 text-base text-white enabled:hover:opacity-80 2xl:px-4 2xl:py-2 2xl:text-lg"
 @click="emit('ignore', alert)"
@@ -96,7 +97,8 @@
 							</PermissionActionButton>
 							<PermissionActionButton
 								v-else
-								:allowed="canIgnore && !isIgnoring"
+								:allowed="canIgnore"
+								:disabled="isIgnoring"
 								aria-label="取消忽視"
 								class="rounded-lg bg-blue-500/80 px-3 py-1.5 text-base text-white enabled:hover:opacity-80 2xl:px-4 2xl:py-2 2xl:text-lg"
 @click="emit('unignore', alert)"

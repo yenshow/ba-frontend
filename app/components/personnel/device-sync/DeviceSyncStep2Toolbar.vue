@@ -16,7 +16,8 @@
 					<span v-if="warningsCount > 0" class="ms-1 text-amber-200">({{ warningsCount }})</span>
 				</button>
 				<PermissionActionButton
-					:allowed="canResync && !isResyncDisabled"
+					:allowed="canResync"
+					:disabled="isResyncDisabled"
 					class="rounded-xl border border-white/20 bg-emerald-500/85 px-4 py-2 text-sm text-white enabled:hover:bg-emerald-500 2xl:text-base"
 					:aria-label="resyncAriaLabel"
 					@click="emit('resync')"

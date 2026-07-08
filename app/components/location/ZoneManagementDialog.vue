@@ -109,7 +109,7 @@
 														</button>
 													</div>
 													<IconTrashButton
-														:disabled="!canRemoveZone"
+														:allowed="canRemoveZone"
 														title="刪除區域"
 														aria-label="刪除區域"
 														@click.stop="handleDeleteZone(getZoneId(zone))"
@@ -182,10 +182,10 @@
 						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
 						<div class="flex-1"></div>
 						<PermissionActionButton
-							:allowed="canSaveZones && hasUnsavedChanges && !isSaving"
+							:allowed="canSaveZones"
+							:disabled="!hasUnsavedChanges || isSaving"
 							aria-label="儲存變更"
 							class="btn-primary"
-							:disabled="isSaving"
 							@click="saveAllChanges"
 						>
 							{{ isSaving ? "儲存中…" : "儲存變更" }}

@@ -267,6 +267,7 @@ import { getTimeRangeUTC } from "~/utils/dateUtils";
 import { compareZonesLoose } from "~/utils/sortOrder";
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId";
 import { calculateAqiScore } from "~/utils/environmentAqi";
+import { getHeatIndexDerivedResult } from "~/utils/environmentDerivedMetrics";
 import { formatSensorDisplayValue } from "~/utils/environmentLive";
 import {
 	normalizeMonitoringStatusText,
@@ -669,7 +670,7 @@ const getLocationDisplayData = (location: EnvironmentLocation) => {
 				rawValue: null as number | null
 			})),
 			aqi: null,
-			noise: null
+			heatIndexLevel: null
 		};
 	}
 
@@ -682,7 +683,7 @@ const getLocationDisplayData = (location: EnvironmentLocation) => {
 		return {
 			params: undefined,
 			aqi: null,
-			noise: null
+			heatIndexLevel: null
 		};
 	}
 
@@ -704,7 +705,10 @@ const getLocationDisplayData = (location: EnvironmentLocation) => {
 			};
 		}),
 		aqi: calculateAQI(dataSource),
-		noise: dataSource.noise
+		heatIndexLevel: getHeatIndexDerivedResult(
+			dataSource.temperature ?? null,
+			dataSource.humidity ?? null
+		).level
 	};
 };
 
@@ -712,7 +716,7 @@ const getOverviewLocationCardBindings = (location: EnvironmentLocation) => {
 	const displayData = getLocationDisplayData(location);
 	return {
 		aqi: displayData.aqi,
-		noise: displayData.noise,
+		heatIndexLevel: displayData.heatIndexLevel,
 		params: displayData.params,
 		getStatusText: getStatusTextForLocation(location)
 	};

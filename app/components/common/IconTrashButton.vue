@@ -1,7 +1,14 @@
 <template>
 	<button
+		v-if="allowed"
 		type="button"
-		:class="[size === 'sm' ? 'p-1' : 'p-2', 'text-rose-400 transition-colors hover:text-rose-300', buttonClass]"
+		:disabled="disabled"
+		:class="[
+			size === 'sm' ? 'p-1' : 'p-2',
+			'text-rose-400 transition-colors hover:text-rose-300',
+			'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-rose-400',
+			buttonClass,
+		]"
 		:title="title"
 		:aria-label="ariaLabel ?? title"
 		@click="$emit('click', $event)"
@@ -26,13 +33,17 @@
 <script setup lang="ts">
 withDefaults(
 	defineProps<{
-		title: string
-		ariaLabel?: string
-		buttonClass?: string
-		size?: "sm" | "md"
+		/** 具備刪除權限時才渲染；無權限則不顯示 */
+		allowed?: boolean;
+		/** 有權限但暫時不可操作 */
+		disabled?: boolean;
+		title: string;
+		ariaLabel?: string;
+		buttonClass?: string;
+		size?: "sm" | "md";
 	}>(),
-	{ buttonClass: "", size: "md" }
-)
+	{ allowed: true, disabled: false, buttonClass: "", size: "md" },
+);
 
-defineEmits<{ click: [event: MouseEvent] }>()
+defineEmits<{ click: [event: MouseEvent] }>();
 </script>

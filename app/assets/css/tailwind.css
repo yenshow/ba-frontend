@@ -80,9 +80,17 @@ html.dark {
 	--monitoring-log-empty-bg: rgba(255, 255, 255, 0.05);
 }
 
-.bg-ba-gradient,
-.login-shell {
+.bg-ba-gradient {
 	background: var(--shell-gradient);
+}
+
+/* 登入頁：背景與表單固定明亮樣式，不隨 html.dark 切換 */
+.login-page,
+html.dark .login-page {
+	--glass-bg: rgba(255, 255, 255, 0.3);
+	--glass-border-color: rgba(255, 255, 255, 0.8);
+	--glass-card-bg: linear-gradient(-35deg, #7dc1cb 0%, rgba(0, 97, 145, 0.7) 100%);
+	--error-text: #fda4af;
 }
 
 .monitoring-panel,
@@ -171,6 +179,17 @@ html.dark {
 	--glass-shadow-inner-bottom: inset 0 -1px 6px rgba(0, 0, 0, 0.25);
 	--glass-shadow-inner-highlight: inset 0 4px 12px rgba(255, 255, 255, 0.25);
 	background: var(--glass-card-bg);
+}
+
+/* 登入表單卡片：強制明亮玻璃樣式（覆寫 html.dark token） */
+.login-page .login-form-card.glass {
+	background: rgba(255, 255, 255, 0.3);
+	border-color: rgba(255, 255, 255, 0.8);
+}
+
+.login-page .login-form-card.glass-card,
+html.dark .login-page .login-form-card.glass-card {
+	background: linear-gradient(-35deg, #7dc1cb 0%, rgba(0, 97, 145, 0.7) 100%);
 }
 
 /* ========================================

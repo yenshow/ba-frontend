@@ -1,14 +1,10 @@
 <template>
 	<button
+		v-if="allowed"
 		:type="nativeType"
-		:disabled="!allowed"
-		:title="allowed ? undefined : '權限不足'"
-		:aria-label="resolvedAriaLabel"
-		:class="[
-			'transition-opacity duration-200',
-			userClass,
-			!allowed && 'cursor-not-allowed opacity-30',
-		]"
+		:disabled="disabled"
+		v-bind="passthroughAttrs"
+		:class="['disabled:cursor-not-allowed disabled:opacity-60', attrs.class]"
 		@click="emit('click')"
 	>
 		<slot />
@@ -18,22 +14,24 @@
 <script setup lang="ts">
 import { computed, useAttrs } from "vue";
 
-const props = withDefaults(
+defineOptions({ inheritAttrs: false });
+
+withDefaults(
 	defineProps<{
+		/** 具備操作權限時才渲染；無權限則不顯示 */
 		allowed: boolean;
-		ariaLabel?: string;
-		"aria-label"?: string;
+		/** 有權限但暫時不可操作（例如儲存中） */
+		disabled?: boolean;
 		nativeType?: "button" | "submit";
 	}>(),
-	{ nativeType: "button" },
-);
-
-const resolvedAriaLabel = computed(
-	() => props.ariaLabel ?? props["aria-label"] ?? "",
+	{ nativeType: "button", disabled: false },
 );
 
 const emit = defineEmits<{ click: [] }>();
-
 const attrs = useAttrs();
-const userClass = computed(() => attrs.class);
+
+const passthroughAttrs = computed(() => {
+	const { class: _class, onClick: _onClick, ...rest } = attrs;
+	return rest;
+});
 </script>

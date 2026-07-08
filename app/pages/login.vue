@@ -1,6 +1,8 @@
 <template>
-	<div class="login-shell flex min-h-screen items-center justify-center">
-		<div class="flex items-center justify-center gap-[48px] translate-x-[-24px]">
+	<div
+		class="login-page flex min-h-screen items-center justify-center bg-[linear-gradient(155deg,#7dc1cb_0%,#006191_100%)]"
+	>
+		<div class="flex translate-x-[-24px] items-center justify-center gap-[48px]">
 			<div class="hidden items-center lg:flex lg:h-[840px]">
 				<ClientOnly>
 					<HeroPicInline
@@ -14,7 +16,7 @@
 				</ClientOnly>
 			</div>
 			<div class="mx-auto w-full max-w-[480px]">
-				<div class="glass glass-card rounded-3xl px-8 py-16">
+				<div class="login-form-card glass glass-card rounded-3xl px-8 py-16">
 					<div class="mb-4 text-center">
 						<div class="mx-auto mb-8 flex h-36 w-36 items-center justify-center">
 							<ClientOnly>
@@ -59,7 +61,7 @@
 									class="w-full rounded-xl border bg-white/10 py-3.5 pl-12 pr-4 text-white placeholder-white/40 transition-all duration-200 focus:bg-white/15 focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60"
 									:class="{
 										'border-red-400/70 focus:border-red-400 focus:ring-red-400/30': !!fieldErrors.account,
-										'border-white/20 focus:border-[#7DC1CB] focus:ring-[#7DC1CB]/30': !fieldErrors.account,
+										'border-white/20 focus:border-[#7DC1CB] focus:ring-[#7DC1CB]/30': !fieldErrors.account
 									}"
 									:disabled="isLoading"
 									:aria-invalid="fieldErrors.account ? 'true' : 'false'"
@@ -96,7 +98,7 @@
 									class="w-full rounded-xl border bg-white/10 py-3.5 pl-12 pr-12 text-white placeholder-white/40 transition-all duration-200 focus:bg-white/15 focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60"
 									:class="{
 										'border-red-400/70 focus:border-red-400 focus:ring-red-400/30': !!fieldErrors.password,
-										'border-white/20 focus:border-[#7DC1CB] focus:ring-[#7DC1CB]/30': !fieldErrors.password,
+										'border-white/20 focus:border-[#7DC1CB] focus:ring-[#7DC1CB]/30': !fieldErrors.password
 									}"
 									:disabled="isLoading"
 									:aria-invalid="fieldErrors.password ? 'true' : 'false'"
@@ -216,9 +218,9 @@
 						</p>
 					</div>
 				</div>
-				<div class="text-gray-700 font-bold mt-8 text-center">
+				<div class="mt-8 text-center font-bold text-white/90">
 					<p class="text-xl">{{ productVersionDisplay }}</p>
-					<p class="text-sm">© 2026 YENSHOW Technology</p>
+					<p class="text-sm text-white/70">© 2026 YENSHOW Technology</p>
 				</div>
 			</div>
 		</div>
@@ -226,7 +228,7 @@
 </template>
 
 <script setup lang="ts">
-import { TOAST } from "~/config/toastCatalog"
+import { TOAST } from "~/config/toastCatalog";
 import { sanitizeAuthRedirectPath, useAuth } from "~/composables/core/useAuth";
 import { useToast } from "~/composables/core/useToast";
 import { resolveFormApiError } from "~/utils/apiError";
@@ -256,7 +258,7 @@ const passwordInputRef = ref<HTMLInputElement | null>(null);
 
 const formData = ref({
 	account: "",
-	password: "",
+	password: ""
 });
 
 const showPassword = ref(false);
@@ -264,7 +266,7 @@ const isLoading = ref(false);
 const errorMessage = ref<string | null>(null);
 const fieldErrors = ref<{ account: string | null; password: string | null }>({
 	account: null,
-	password: null,
+	password: null
 });
 
 const isHeroLoaded = ref(false);
@@ -310,7 +312,7 @@ const handleLogin = async () => {
 	try {
 		await login({
 			username: formData.value.account,
-			password: formData.value.password,
+			password: formData.value.password
 		});
 
 		toast.success(TOAST.LOGIN_SUCCESS);

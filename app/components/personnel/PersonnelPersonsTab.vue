@@ -4,7 +4,8 @@
 			<div class="flex items-center gap-2">
 				<h2 class="text-xl font-semibold text-theme-primary 2xl:text-2xl">人員列表</h2>
 				<PermissionActionButton
-					:allowed="canUpdateGroup && selectedMainGroupId != null"
+					:allowed="canUpdateGroup"
+					:disabled="selectedMainGroupId == null"
 					aria-label="群組成員"
 					class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white enabled:hover:bg-white/30 2xl:px-6 2xl:py-3 2xl:text-base"
 					@click="showGroupMembersDialog = true"
