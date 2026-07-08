@@ -63,7 +63,7 @@
 
 				<!-- 刪除按鈕 -->
 				<IconTrashButton
-					:disabled="!allowDeleteLocation"
+					:allowed="allowDeleteLocation"
 					button-class="ml-auto flex-shrink-0"
 					title="刪除點位"
 					aria-label="刪除此點位"

@@ -63,11 +63,11 @@
 					<PermissionActionButton
 						v-show="selectedLocation"
 						:allowed="canResetStatistics"
-						aria-label="重製人流統計"
+						aria-label="重置人流統計"
 						class="absolute right-32 2xl:right-36 top-2 btn-monitoring-overlay"
 						@click="handleResetStats"
 					>
-						重製統計
+						重置統計
 					</PermissionActionButton>
 					<PermissionActionButton
 						:allowed="canFullReport"
@@ -470,7 +470,7 @@ const handleSimulationTimeRangeUpdate = (v: {
 const handleResetStats = async () => {
 	if (!selectedLocation.value) return
 	const confirmed = window.confirm(
-		"確定要重製此地點的進場、出場與在場統計？進出紀錄不會刪除，完整報表仍可查詢歷史。"
+		"確定要重置此地點的進場、出場與在場統計？進出紀錄不會刪除，完整報表仍可查詢歷史。"
 	)
 	if (!confirmed) return
 	try {

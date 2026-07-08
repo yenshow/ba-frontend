@@ -13,8 +13,8 @@
 						<div class="flex items-center gap-3">
 							<IconTrashButton
 								v-if="zone && zone.id"
-								:disabled="!canDeleteZone"
-								:title="canDeleteZone ? '刪除區域' : '權限不足'"
+								:allowed="canDeleteZone"
+								title="刪除區域"
 								aria-label="刪除區域"
 								@click="handleDeleteZone"
 							/>
@@ -80,9 +80,9 @@
 														</div>
 													</label>
 													<IconTrashButton
+														:allowed="canDeleteLocation"
 														button-class="ml-auto flex-shrink-0"
-														:disabled="!canDeleteLocation"
-														:title="canDeleteLocation ? '刪除地點' : '權限不足'"
+														title="刪除地點"
 														aria-label="刪除地點"
 														@click="removeLocation(entry.sourceIndex)"
 													/>

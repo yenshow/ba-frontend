@@ -9,7 +9,7 @@
 			v-else-if="!isLoading"
 			:allowed="canWrite"
 			aria-label="調整系統模組順序"
-			class="absolute -right-16 2xl:-right-20 top-4 z-20 rounded-full bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100 enabled:hover:bg-black/50 2xl:text-base"
+			class="absolute -right-16 2xl:-right-20 top-4 z-20 rounded-full bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:bg-black/50 2xl:text-base"
 			@click="handleStartEdit"
 		>
 			調整順序
@@ -103,11 +103,7 @@
 						role="link"
 						tabindex="0"
 						:aria-label="module.name"
-						:class="[
-							tileClass,
-							'cursor-pointer hover:bg-white/5',
-							isModuleLocked(module) && 'opacity-60',
-						]"
+						:class="moduleTileClass(module)"
 						:style="MODULE_TILE_STYLE"
 						@click="handleModuleClick(module)"
 						@keydown="(e) => handleModuleKeyDown(e, module)"
@@ -170,7 +166,7 @@ const MODULE_TILE_STYLE = {
 }
 const toolbarBtnClass =
 	"rounded-full bg-black/30 px-3 py-1 text-sm text-white backdrop-blur transition-colors hover:bg-black/50 2xl:text-base"
-const tileClass = "aspect-square overflow-hidden rounded-xl border-2 border-white/80 transition-all"
+const tileClass = "aspect-square overflow-hidden rounded-xl border-2 border-white/80"
 
 const moduleRegistry = useModuleRegistry()
 const { orderedModules, resetToDefault, moveModule } = useHomeModuleOrder()
@@ -188,8 +184,15 @@ const lockedGridHeight = ref(0)
 
 const isModuleLocked = (module: CentralShellModule) => accessGate.isModuleLocked(module)
 
+const moduleTileClass = (module: CentralShellModule) =>
+	isModuleLocked(module)
+		? [tileClass, "cursor-not-allowed opacity-60 transition-opacity duration-200"]
+		: [tileClass, "cursor-pointer opacity-100"]
+
 const isLoading = computed(
-	() => moduleRegistry.isLoading.value && orderedModules.value.length === 0
+	() =>
+		(moduleRegistry.isLoading.value && orderedModules.value.length === 0) ||
+		!accessGate.isModuleAccessReady.value
 )
 
 const pagedModules = computed(() => {
@@ -218,13 +221,9 @@ const syncGridHeight = () => {
 }
 
 const handleModuleClick = async (module: CentralShellModule) => {
-	if (!accessGate.isModuleAccessReady.value) {
-		await accessGate.ensureAccessReady()
-	}
+	await accessGate.ensureAccessReady()
 	if (!accessGate.canAccessModule(module)) {
-		if (accessGate.isModuleLocked(module)) {
-			toast.warning(MSG_PERMISSION_LOCKED)
-		}
+		toast.warning(MSG_PERMISSION_LOCKED)
 		return
 	}
 	navigateTo(module.route)
@@ -298,7 +297,6 @@ watch(isLoading, (loading) => {
 let measureResizeObserver: ResizeObserver | null = null
 
 onMounted(() => {
-	void moduleRegistry.ensureLoaded()
 	if (!import.meta.client) return
 	nextTick(() => {
 		syncGridHeight()

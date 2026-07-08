@@ -98,7 +98,7 @@
 							新增點位
 						</PermissionActionButton>
 						<IconTrashButton
-							:disabled="!allowDeleteLocation"
+							:allowed="allowDeleteLocation"
 							title="移除此分類"
 							aria-label="移除此分類草稿"
 							@click="removeDraft(draft.id)"
@@ -187,7 +187,8 @@
 							{{ group.items.length }} 點
 						</span>
 						<PermissionActionButton
-							:allowed="allowCreateLocation && group.key !== EMPTY_KEY"
+							:allowed="allowCreateLocation"
+							:disabled="group.key === EMPTY_KEY"
 							aria-label="新增點位"
 							class="btn-secondary text-xs 2xl:text-sm"
 							@click="handleAddPointInGroup(group)"
@@ -239,7 +240,7 @@
 						</div>
 
 						<IconTrashButton
-					:disabled="!allowDeleteLocation"
+					:allowed="allowDeleteLocation"
 							button-class="ml-auto flex-shrink-0"
 							title="刪除點位"
 							aria-label="刪除此點位"

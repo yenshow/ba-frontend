@@ -44,6 +44,7 @@ const isJwtDueForRefresh = (token: string): boolean => {
 }
 
 let sessionRefreshInFlight: Promise<void> | null = null
+let permissionsHydrateInFlight: Promise<void> | null = null
 let stopSessionRefresh: (() => void) | null = null
 
 const isAdminRole = (role: string | undefined | null): boolean => role === "admin"
@@ -77,7 +78,7 @@ const toCookieUser = (nextUser: User | null): UserCookiePayload | null => {
 }
 
 const userFromCookie = (cookie: UserCookiePayload | null): User | null =>
-	cookie ? { ...cookie, permissions: [] } : null
+	cookie ? { ...cookie } : null
 
 export const useAuth = () => {
 	const userApi = useUserApi()
@@ -108,6 +109,7 @@ export const useAuth = () => {
 
 	const user = useState<User | null>("auth_user", () => userFromCookie(userCookie.value))
 	const token = useState<string | null>("auth_token", () => tokenCookie.value)
+	const isPermissionsHydrated = computed(() => Array.isArray(user.value?.permissions))
 
 	const isAuthenticated = computed(() => !!token.value && !!user.value)
 
@@ -194,6 +196,25 @@ export const useAuth = () => {
 		return currentUser
 	}
 
+	/** Cookie 僅還原 role／id；permissions 須經 /users/me 載入後才可判斷模組鎖定 */
+	const ensurePermissionsHydrated = async () => {
+		if (isPermissionsHydrated.value) return
+		if (!token.value) return
+		if (permissionsHydrateInFlight) return permissionsHydrateInFlight
+
+		permissionsHydrateInFlight = (async () => {
+			try {
+				await fetchUser()
+			} catch {
+				// 401 已由 useApiBase 清 session；其餘暫時性錯誤保留未 hydrated
+			} finally {
+				permissionsHydrateInFlight = null
+			}
+		})()
+
+		return permissionsHydrateInFlight
+	}
+
 	/** 中控室 7×24：剩餘壽命低於閾值時向後端換發新 JWT */
 	const refreshSessionIfNeeded = async () => {
 		if (!token.value) return
@@ -248,7 +269,7 @@ export const useAuth = () => {
 		stopSessionRefresh?.()
 	}
 
-	/** 啟動時由 auth.client 呼叫：cookie → state；非登入頁才以 /users/me 驗證 token */
+	/** 啟動時由 auth.client 呼叫：同步 cookie token、驗證本地過期 */
 	const init = async () => {
 		token.value = tokenCookie.value ?? token.value
 
@@ -262,15 +283,8 @@ export const useAuth = () => {
 			return
 		}
 
-		if (useRoute().path === "/login") {
-			if (!user.value) clearSession()
-			return
-		}
-
-		try {
-			await fetchUser()
-		} catch {
-			// 401：useApiBase → handleUnauthorized 已清 session；其餘暫時性錯誤保留 cookie
+		if (useRoute().path === "/login" && !user.value) {
+			clearSession()
 		}
 	}
 
@@ -278,6 +292,7 @@ export const useAuth = () => {
 		user: readonly(user),
 		token: readonly(token),
 		isAuthenticated,
+		isPermissionsHydrated,
 		hasPermission,
 		hasAnyPermission,
 		useHasPermission,
@@ -288,6 +303,7 @@ export const useAuth = () => {
 		redirectToLogin,
 		handleUnauthorized,
 		fetchUser,
+		ensurePermissionsHydrated,
 		refreshSessionIfNeeded,
 		bootstrapSessionRefresh,
 		teardownSessionRefresh,

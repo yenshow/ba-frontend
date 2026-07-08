@@ -181,7 +181,8 @@
 
 		<div class="mt-4 flex justify-end">
 			<PermissionActionButton
-				:allowed="canEditFloors && !isApplying"
+				:allowed="canEditFloors"
+				:disabled="isApplying"
 				class="rounded-xl border border-white/20 bg-emerald-500/85 px-4 py-2 text-sm text-white enabled:hover:bg-emerald-500 2xl:text-base"
 				aria-label="套用樓層權限"
 				@click="emit('apply')"

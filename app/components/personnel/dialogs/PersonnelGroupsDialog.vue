@@ -110,7 +110,7 @@
 											</div>
 											<div class="ml-4 shrink-0" @click.stop>
 												<IconTrashButton
-													:disabled="!canDeleteGroup"
+													:allowed="canDeleteGroup"
 													title="刪除主群組"
 													aria-label="刪除主群組"
 													@click.stop="requestDeleteMain(main)"
@@ -186,7 +186,7 @@
 															/>
 														</label>
 														<IconTrashButton
-															:disabled="!canDeleteGroup"
+															:allowed="canDeleteGroup"
 															button-class="ml-auto flex-shrink-0"
 															title="刪除子群組"
 															:aria-label="`刪除子群組 ${child.name || '未命名'}`"
@@ -216,10 +216,10 @@
 						<button type="button" class="btn-secondary" @click="handleClose">關閉</button>
 						<div class="flex-1"></div>
 						<PermissionActionButton
-							:allowed="canSaveGroups && hasUnsavedChanges && !isSaving"
+							:allowed="canSaveGroups"
+							:disabled="!hasUnsavedChanges || isSaving"
 							aria-label="儲存群組變更"
 							class="btn-primary"
-							:disabled="isSaving"
 							@click="handleSaveAll"
 						>
 							{{ isSaving ? "儲存中…" : "儲存變更" }}

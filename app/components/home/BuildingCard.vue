@@ -19,7 +19,7 @@
 				<PermissionActionButton
 					:allowed="canWrite"
 					aria-label="編輯建物主視"
-					class="absolute right-3 top-3 rounded-full bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100 enabled:hover:bg-black/50 2xl:text-base"
+					class="absolute right-3 top-3 rounded-full bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:bg-black/50 2xl:text-base"
 					@click="isBuildingEditOpen = true"
 				>
 					編輯
@@ -46,7 +46,7 @@
 				<PermissionActionButton
 					:allowed="canWrite"
 					aria-label="編輯建物品牌圖"
-					class="absolute right-3 top-3 rounded-full bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100 enabled:hover:bg-black/50 2xl:text-base"
+					class="absolute right-3 top-3 rounded-full bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:bg-black/50 2xl:text-base"
 					@click="isBrandEditOpen = true"
 				>
 					編輯

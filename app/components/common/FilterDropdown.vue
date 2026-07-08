@@ -2,10 +2,10 @@
 	<div ref="dropdownRef" class="filter-dropdown relative w-full min-w-0">
 		<div class="flex min-w-0 items-center gap-2">
 			<span
-				v-if="selectedStatus && selectedStatus !== 'normal'"
+				v-if="statusDot"
 				class="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-white shadow-[0_0_0_2px_rgba(0,0,0,0.25)]"
-				:class="statusDotClass(selectedStatus)"
-				:aria-label="statusAriaLabel(selectedStatus)"
+				:class="statusDot.class"
+				:aria-label="statusDot.label"
 			/>
 			<input
 				:value="displayValue"
@@ -41,19 +41,12 @@
 								type="button"
 								@click="selectOption(option.value)"
 								:class="[
-									'flex w-full items-center justify-center gap-2 rounded px-3 py-2 text-white transition-colors',
+									'w-full whitespace-nowrap rounded px-3 py-2 text-center text-white transition-colors',
 									textSize,
 									isSelected(option.value) ? 'bg-blue-500/80 text-white' : 'hover:bg-white/10',
 								]"
 							>
-								<span
-									v-if="option.status && option.status !== 'normal'"
-									class="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-white shadow-[0_0_0_2px_rgba(0,0,0,0.25)]"
-									:class="statusDotClass(option.status)"
-									aria-hidden="true"
-								/>
-								<span v-else class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-								<span>{{ option.label }}</span>
+								{{ option.label }}
 							</button>
 						</div>
 						<slot name="custom-content" />
@@ -65,14 +58,14 @@
 </template>
 
 <script setup lang="ts">
-import type { MonitorCategoryStatus } from "~/utils/monitorViewCategoryStatus"
-
-export type FilterOptionStatus = MonitorCategoryStatus
+import {
+	getMonitorCategoryStatusDot,
+	type MonitorCategoryStatus,
+} from "~/utils/monitorViewCategoryStatus"
 
 interface FilterOption {
 	value: string
 	label: string
-	status?: FilterOptionStatus
 }
 
 interface Props {
@@ -80,6 +73,8 @@ interface Props {
 	options: FilterOption[]
 	placeholder?: string
 	textSize?: string
+	/** 觸發按鈕狀態圓點（監控中心檢視分類用） */
+	status?: MonitorCategoryStatus
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -96,32 +91,20 @@ const dropdownRef = ref<HTMLElement | null>(null)
 const dropdownMenuRef = ref<HTMLElement | null>(null)
 const positionTick = ref(0)
 
-const statusDotClass = (status: FilterOptionStatus): string => {
-	if (status === "alarm") return "bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.65)]"
-	if (status === "warning") return "bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.65)]"
-	return "bg-transparent"
-}
-
-const statusAriaLabel = (status: FilterOptionStatus): string => {
-	if (status === "alarm") return "此分類有警報"
-	if (status === "warning") return "此分類有異常"
-	return ""
-}
+const statusDot = computed(() => getMonitorCategoryStatusDot(props.status))
 
 const dropdownStyle = computed(() => {
-	// 讓 scroll/resize 時能重新計算位置（不必改動 DOM）
 	positionTick.value
 	if (!dropdownRef.value || !showDropdown.value) {
 		return {}
 	}
 
 	const rect = dropdownRef.value.getBoundingClientRect()
-	const dropdownWidth = rect.width
 
 	return {
 		top: `${rect.bottom + 8}px`,
 		left: `${rect.left}px`,
-		width: `${dropdownWidth}px`,
+		width: `${rect.width}px`,
 	}
 })
 
@@ -139,11 +122,10 @@ const isSelected = (value: string): boolean => {
 	return props.modelValue === value
 }
 
-const selectedOption = computed(() => props.options.find((opt) => isSelected(opt.value)))
-
-const selectedStatus = computed(() => selectedOption.value?.status)
-
-const displayValue = computed(() => selectedOption.value?.label || props.placeholder)
+const displayValue = computed(() => {
+	const selectedOption = props.options.find((opt) => isSelected(opt.value))
+	return selectedOption?.label || props.placeholder
+})
 
 const selectOption = (value: string) => {
 	emit("update:modelValue", value)

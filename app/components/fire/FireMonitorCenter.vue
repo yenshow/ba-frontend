@@ -7,10 +7,11 @@
 				監控中心
 			</h3>
 
-			<div v-if="viewFilterOptionsWithStatus.length > 0" class="mx-auto w-full max-w-xs">
+			<div v-if="viewFilterOptions.length > 0" class="mx-auto w-full max-w-xs">
 				<FilterDropdown
 					v-model="viewFilter"
-					:options="viewFilterOptionsWithStatus"
+					:options="viewFilterOptions"
+					:status="viewCategoryStatusById[viewFilter] ?? 'normal'"
 					placeholder="請選擇檢視分類"
 					text-size="text-sm 2xl:text-base"
 				/>
@@ -376,13 +377,6 @@ const viewCategoryStatusById = computed(() =>
 		locationInCategory: (loc, categoryId) => fireLocationInViewCategory(loc, categoryId),
 		evaluateLocation: evaluateFireLocationStatus,
 	})
-)
-
-const viewFilterOptionsWithStatus = computed(() =>
-	props.viewFilterOptions.map((opt) => ({
-		...opt,
-		status: viewCategoryStatusById.value[opt.value] ?? "normal",
-	}))
 )
 
 const flashModeToClass = (mode: FireRowFlash): string => {

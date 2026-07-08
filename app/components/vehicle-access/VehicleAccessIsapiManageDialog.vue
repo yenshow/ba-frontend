@@ -53,8 +53,8 @@
 			>
 				<template #actions>
 					<PermissionActionButton
-						v-if="canCreatePlate"
-						:allowed="!isSavingPlate && !isPlatesLoading"
+						:allowed="canCreatePlate"
+						:disabled="isSavingPlate || isPlatesLoading"
 						class="rounded-xl border border-white/20 bg-cyan-600/80 px-4 py-2 text-sm text-white enabled:hover:bg-cyan-500 2xl:text-base"
 						aria-label="新增車牌"
 						@click="openPlateForm()"

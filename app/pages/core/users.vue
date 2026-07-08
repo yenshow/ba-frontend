@@ -222,7 +222,8 @@
 								<div class="flex-1"></div>
 								<PermissionActionButton
 									native-type="submit"
-									:allowed="canAdmin && !isSubmitting"
+									:allowed="canAdmin"
+									:disabled="isSubmitting"
 									aria-label="儲存用戶"
 									class="btn-primary"
 								>

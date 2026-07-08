@@ -1,7 +1,34 @@
 /** 檢視分類下拉／跨分類摘要用狀態層級 */
 export type MonitorCategoryStatus = "normal" | "warning" | "alarm"
 
+export type MonitorCategoryStatusDot = {
+	class: string
+	label: string
+}
+
 export type MonitorRowFlash = "none" | "slow" | "alarm-fast"
+
+const MONITOR_CATEGORY_STATUS_DOT: Record<
+	Exclude<MonitorCategoryStatus, "normal">,
+	MonitorCategoryStatusDot
+> = {
+	alarm: {
+		class: "bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.65)]",
+		label: "此分類有警報",
+	},
+	warning: {
+		class: "bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.65)]",
+		label: "此分類有異常",
+	},
+}
+
+/** FilterDropdown 觸發按鈕用；normal 或未定義時回傳 null */
+export const getMonitorCategoryStatusDot = (
+	status: MonitorCategoryStatus | undefined
+): MonitorCategoryStatusDot | null => {
+	if (!status || status === "normal") return null
+	return MONITOR_CATEGORY_STATUS_DOT[status]
+}
 
 export const mergeMonitorCategoryStatus = (
 	a: MonitorCategoryStatus,

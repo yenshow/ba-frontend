@@ -1,5 +1,5 @@
 <template>
-	<div class="login-shell flex min-h-screen items-center justify-center">
+	<div class="login-page flex min-h-screen items-center justify-center bg-[linear-gradient(155deg,#7dc1cb_0%,#006191_100%)]">
 		<div class="flex items-center justify-center gap-[48px] translate-x-[-24px]">
 			<div class="hidden items-center lg:flex lg:h-[840px]">
 				<ClientOnly>
@@ -14,7 +14,7 @@
 				</ClientOnly>
 			</div>
 			<div class="mx-auto w-full max-w-[480px]">
-				<div class="glass glass-card rounded-3xl px-8 py-16">
+				<div class="login-form-card glass glass-card rounded-3xl px-8 py-16">
 					<div class="mb-4 text-center">
 						<div class="mx-auto mb-8 flex h-36 w-36 items-center justify-center">
 							<ClientOnly>
@@ -29,7 +29,7 @@
 								/>
 							</ClientOnly>
 						</div>
-						<h2 class="text-3xl text-theme-primary">歡迎使用</h2>
+						<h2 class="text-3xl text-white">歡迎使用</h2>
 					</div>
 					<form @submit.prevent="handleLogin" class="space-y-6">
 						<div>
@@ -216,9 +216,9 @@
 						</p>
 					</div>
 				</div>
-				<div class="text-gray-700 font-bold mt-8 text-center">
+				<div class="mt-8 text-center font-bold text-white/90">
 					<p class="text-xl">{{ productVersionDisplay }}</p>
-					<p class="text-sm">© 2026 YENSHOW Technology</p>
+					<p class="text-sm text-white/70">© 2026 YENSHOW Technology</p>
 				</div>
 			</div>
 		</div>

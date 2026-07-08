@@ -15,11 +15,7 @@ import {
 import type { SystemModule } from "~/types/system"
 
 /** 僅平台管理員（role=admin）可進入的頁面 */
-export const PLATFORM_ADMIN_ROUTES = [
-	"/core/users",
-	"/core/license",
-	"/core/env",
-] as const
+export const PLATFORM_ADMIN_ROUTES = ["/core/users", "/core/license", "/core/env"] as const
 
 export const matchesPlatformAdminRoute = (path: string): boolean =>
 	PLATFORM_ADMIN_ROUTES.some((route) => path === route || path.startsWith(`${route}/`))
@@ -33,7 +29,8 @@ export type RouteAccessResult = {
 }
 
 export const useAccessGate = () => {
-	const { hasPermission, isAuthenticated, user } = useAuth()
+	const { hasPermission, isAuthenticated, isPermissionsHydrated, user, ensurePermissionsHydrated } =
+		useAuth()
 	const canAdmin = useAdminOnly()
 	const moduleRegistry = useModuleRegistry()
 	const { hasFeature, fetchLicense, isLoaded } = useLicense()
@@ -60,8 +57,7 @@ export const useAccessGate = () => {
 			return { ok: true, reason: "ok" }
 		}
 
-		await moduleRegistry.ensureLoaded()
-		await fetchLicense()
+		await ensureAccessReady()
 
 		const permissionCode = moduleRegistry.getPermissionCodeByRoute(path)
 		if (permissionCode && !hasPermission(permissionCode)) {
@@ -85,6 +81,7 @@ export const useAccessGate = () => {
 	}
 
 	const ensureAccessReady = async () => {
+		await ensurePermissionsHydrated()
 		await moduleRegistry.ensureLoaded()
 		await fetchLicense()
 	}
@@ -120,8 +117,7 @@ export const useAccessGate = () => {
 		if (!isAuthenticated.value) return false
 
 		const code =
-			options?.permissionCode ??
-			(featureKey ? getPermissionCodeByFeatureKey(featureKey) : null)
+			options?.permissionCode ?? (featureKey ? getPermissionCodeByFeatureKey(featureKey) : null)
 		if (code && !hasPermission(code)) return false
 
 		if (!featureKey) return true
@@ -145,7 +141,10 @@ export const useAccessGate = () => {
 	}
 
 	const isModuleAccessReady = computed(
-		() => Boolean(moduleRegistry.registry.value?.modules?.length) && isLoaded.value
+		() =>
+			isPermissionsHydrated.value &&
+			Boolean(moduleRegistry.registry.value?.modules?.length) &&
+			isLoaded.value
 	)
 
 	const isModuleLocked = (module: Pick<SystemModule, "route">) => {
@@ -207,17 +206,13 @@ export const useLocationModuleRbac = (perm: LocationPermCodes) => {
 		canManageLocation: useHasAnyPermission(
 			perm.locationCreate,
 			perm.locationUpdate,
-			perm.locationDelete,
+			perm.locationDelete
 		),
 		canControlDevice: perm.deviceControl
 			? useHasPermission(perm.deviceControl)
 			: computed(() => false),
-		canFullReport: perm.reportFull
-			? useHasPermission(perm.reportFull)
-			: computed(() => false),
-		canFloorManage: perm.floorManage
-			? useHasPermission(perm.floorManage)
-			: computed(() => false),
+		canFullReport: perm.reportFull ? useHasPermission(perm.reportFull) : computed(() => false),
+		canFloorManage: perm.floorManage ? useHasPermission(perm.floorManage) : computed(() => false),
 	}
 }
 
@@ -252,7 +247,7 @@ export const usePersonnelRbac = () => {
 	}
 }
 
-/** 人流統計：門禁管理、重製統計等子權限 */
+/** 人流統計：門禁管理、重置統計等子權限 */
 export const usePeopleCountingAccessRbac = () => {
 	const { useHasPermission, useHasAnyPermission } = useAuth()
 	const p = PERM.peopleCounting
@@ -272,15 +267,14 @@ export const useVehiclePlateManageRbac = () => {
 	const { useHasAnyPermission } = useAuth()
 	const v = PERM.vehicleAccess
 	const p = PERM.peopleCounting
-	const { canManagePlates, canCreatePlate, canUpdatePlate, canDeletePlate } =
-		useVehicleAccessRbac()
+	const { canManagePlates, canCreatePlate, canUpdatePlate, canDeletePlate } = useVehicleAccessRbac()
 	return {
 		canOpenPlateManage: useHasAnyPermission(
 			v.plateManage,
 			v.plateCreate,
 			v.plateUpdate,
 			v.plateDelete,
-			p.syncEdit,
+			p.syncEdit
 		),
 		canEditPlateMembers: useHasAnyPermission(v.plateManage, p.syncEdit),
 		canResyncPlates: useHasAnyPermission(v.plateManage, p.deviceSync),
@@ -340,7 +334,7 @@ const hasSubsystemLocationDelete = (hasPermission: (code: string) => boolean) =>
 const canDeleteForSystemType = (
 	hasPermission: (code: string) => boolean,
 	fallback: boolean,
-	systemType: string | null | undefined,
+	systemType: string | null | undefined
 ) => {
 	if (!systemType) return fallback
 	const code = LOCATION_DELETE_BY_SYSTEM_TYPE[String(systemType)]
@@ -355,9 +349,7 @@ export const useAreaPointMapRbac = () => {
 	const canDeleteLocation = useHasPermission(p.locationDelete)
 	const canManageOperations = computed(
 		() =>
-			canDeleteZone.value ||
-			canDeleteLocation.value ||
-			hasSubsystemLocationDelete(hasPermission),
+			canDeleteZone.value || canDeleteLocation.value || hasSubsystemLocationDelete(hasPermission)
 	)
 	const canDeleteLocationForSystem = (systemType: string | null | undefined) =>
 		canDeleteForSystemType(hasPermission, canDeleteLocation.value, systemType)
