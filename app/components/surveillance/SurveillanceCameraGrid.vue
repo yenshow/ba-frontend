@@ -15,7 +15,12 @@
 				:style="{ aspectRatio: '16/9' }"
 			>
 				<div
-					v-if="(view.webrtcUrl || view.streamStatus === 'loading') && isViewVisible(index)"
+					v-if="
+						(view.webrtcUrl ||
+							view.streamStatus === 'loading' ||
+							view.streamStatus === 'error') &&
+						(isViewVisible(index) || view.streamStatus === 'error')
+					"
 					class="absolute inset-0"
 				>
 					<SurveillanceVideoPlayer
@@ -24,6 +29,7 @@
 						:webrtc-port="view.webrtcPort"
 						:stream-status="view.streamStatus"
 						class="h-full w-full"
+						@reload="$emit('reload', view.deviceId)"
 					/>
 				</div>
 
@@ -86,6 +92,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
 	remove: [deviceId: number];
+	reload: [deviceId: number];
 }>();
 
 const viewRefs = ref<(HTMLElement | null)[]>([]);

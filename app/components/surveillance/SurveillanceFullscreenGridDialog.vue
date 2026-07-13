@@ -16,6 +16,7 @@
 						:is-fullscreen="true"
 						class="h-full w-full"
 						@remove="$emit('remove', $event)"
+						@reload="$emit('reload', $event)"
 					/>
 				</div>
 
@@ -51,6 +52,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
 	"update:modelValue": [value: boolean]
 	remove: [deviceId: number]
+	reload: [deviceId: number]
 }>()
 
 const handleClose = () => emit("update:modelValue", false)

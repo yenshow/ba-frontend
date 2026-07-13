@@ -293,6 +293,15 @@ export const useAlertLogRbac = () => {
 	};
 };
 
+export const useOperationalLogRbac = () => {
+	const { useHasPermission } = useAuth();
+	const p = PERM.operationalLog;
+	return {
+		canViewModule: useHasPermission(p.module),
+		canExportReport: useHasPermission(p.export)
+	};
+};
+
 export const useVehicleAccessRbac = () => {
 	const { useHasPermission, useHasAnyPermission } = useAuth();
 	const p = PERM.vehicleAccess;

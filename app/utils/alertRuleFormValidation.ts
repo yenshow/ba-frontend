@@ -23,12 +23,6 @@ export type AlertRuleEmailValidationInput = {
 export type AlertRuleFormValidationInput = {
 	target_type: string | null;
 	target_id: number | null;
-	doLinkage?: {
-		enabled: boolean;
-		do_device_id: number | null;
-		do_address: number | null;
-		auto_off_seconds: number | null;
-	};
 	cameraLinkage: {
 		enabled: boolean;
 		camera_device_ids: number[];
@@ -51,25 +45,12 @@ export const validateAlertRuleEmailSubscription = (
 	return null;
 };
 
-/** 警報規則表單儲存前集中驗證 */
+/** 警報規則表單儲存前集中驗證（工地端無 DO 連動） */
 export const validateAlertRuleFormForSave = (input: AlertRuleFormValidationInput): string | null => {
 	const targetType = input.target_type || null;
 	const targetId = input.target_id != null ? Number(input.target_id) : null;
 	if (targetType && (targetId == null || !Number.isFinite(targetId))) {
 		return "請選擇有效的監控目標";
-	}
-
-	if (input.doLinkage?.enabled) {
-		if (!input.doLinkage.do_device_id) return "DO 聯動：請選擇控制器";
-		if (input.doLinkage.do_address == null || Number(input.doLinkage.do_address) < 0) {
-			return "DO 聯動：請填寫有效的 DO 位址";
-		}
-		if (
-			input.doLinkage.auto_off_seconds != null &&
-			Number(input.doLinkage.auto_off_seconds) <= 0
-		) {
-			return "DO 聯動：自動關閉秒數需大於 0";
-		}
 	}
 
 	if (input.cameraLinkage.enabled) {

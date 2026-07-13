@@ -35,7 +35,6 @@
 							:total-cameras="cameras.length"
 							:view-count="monitorViews.length"
 							:max-views="parseInt(gridLayout)"
-							@refresh="refreshStatus"
 							@fullscreen="isFullscreenOpen = true"
 						/>
 					</div>
@@ -63,6 +62,7 @@
 									:views="monitorViews"
 									:layout="gridLayout"
 									@remove="handleRemoveView"
+									@reload="handleReloadView"
 								/>
 							</div>
 
@@ -126,14 +126,21 @@
 									viewBox="0 0 24 24"
 									aria-hidden="true"
 								>
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M9 5l7 7-7 7"
+									/>
 								</svg>
 							</button>
 
 							<div class="mb-4 border-b border-white/30 px-4 pb-4">
 								<div class="flex flex-col gap-4">
 									<div class="flex items-center justify-center">
-										<h2 class="text-xl font-semibold text-white xl:text-2xl 2xl:text-3xl">攝影機列表</h2>
+										<h2 class="text-xl font-semibold text-white xl:text-2xl 2xl:text-3xl">
+											攝影機列表
+										</h2>
 										<span
 											class="ml-2 rounded-full bg-white/20 px-2.5 py-0.5 text-base font-medium text-white backdrop-blur-sm 2xl:text-lg"
 										>
@@ -191,171 +198,173 @@
 		:views="monitorViews"
 		:layout="gridLayout"
 		@remove="handleRemoveView"
+		@reload="handleReloadView"
 	/>
 </template>
 
 <script setup lang="ts">
-import { TOAST } from "~/config/toastCatalog";
-import { onMounted, onBeforeUnmount, watch, ref } from "vue";
-import type { GridLayout, MonitorView } from "~/types/surveillance";
-import type { CameraDeviceConfig } from "~/types/device";
-import { useToast } from "~/composables/core/useToast";
-import { useErrorHandler } from "~/composables/core/useErrorHandler";
-import { useStreamStatus } from "~/composables/monitoring/useStreamStatus";
-import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
-import { useDeviceConnectivity } from "~/composables/systems/devices/useDeviceConnectivity";
-import FilterDropdown from "~/components/common/FilterDropdown.vue";
-import SurveillanceControlPanel from "~/components/surveillance/SurveillanceControlPanel.vue";
-import SurveillanceCameraGrid from "~/components/surveillance/SurveillanceCameraGrid.vue";
-import SurveillanceCameraCard from "~/components/surveillance/SurveillanceCameraCard.vue";
-import SurveillanceFullscreenGridDialog from "~/components/surveillance/SurveillanceFullscreenGridDialog.vue";
-import { groupDevicesByModelCategory } from "~/utils/cameraModelCategories";
-import { useSurveillanceRbac } from "~/composables/core/useAccessGate";
+import { TOAST } from "~/config/toastCatalog"
+import { onMounted, onBeforeUnmount, watch, ref } from "vue"
+import type { GridLayout, MonitorView } from "~/types/surveillance"
+import type { CameraDeviceConfig } from "~/types/device"
+import { useToast } from "~/composables/core/useToast"
+import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { useStreamStatus } from "~/composables/monitoring/useStreamStatus"
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { useDeviceConnectivity } from "~/composables/systems/devices/useDeviceConnectivity"
+import FilterDropdown from "~/components/common/FilterDropdown.vue"
+import SurveillanceControlPanel from "~/components/surveillance/SurveillanceControlPanel.vue"
+import SurveillanceCameraGrid from "~/components/surveillance/SurveillanceCameraGrid.vue"
+import SurveillanceCameraCard from "~/components/surveillance/SurveillanceCameraCard.vue"
+import SurveillanceFullscreenGridDialog from "~/components/surveillance/SurveillanceFullscreenGridDialog.vue"
+import { groupDevicesByModelCategory } from "~/utils/cameraModelCategories"
+import { useSurveillanceRbac } from "~/composables/core/useAccessGate"
 
-const { canControlStream } = useSurveillanceRbac();
-const toast = useToast();
-const { handleError } = useErrorHandler();
+const { canControlStream } = useSurveillanceRbac()
+const toast = useToast()
+const { handleError } = useErrorHandler()
 
 // 使用統一串流狀態管理
-const streamStatus = useStreamStatus();
+const streamStatus = useStreamStatus()
 
 // 載入錯誤狀態
-const loadError = ref<string | null>(null);
+const loadError = ref<string | null>(null)
 
 // 從統一串流狀態管理取得資料
-const cameras = computed(() => streamStatus.cameras.value);
-const monitorViews = computed(() => streamStatus.monitorViews.value);
+const cameras = computed(() => streamStatus.cameras.value)
+const monitorViews = computed(() => streamStatus.monitorViews.value)
 
-const deviceConnectivity = useDeviceConnectivity({ debounceMs: 150 });
+const deviceConnectivity = useDeviceConnectivity({ debounceMs: 150 })
 
 watch(
-	() => cameras.value.map(c => c.id),
-	ids => deviceConnectivity.refreshDebounced(ids),
+	() => cameras.value.map((c) => c.id),
+	(ids) => deviceConnectivity.refreshDebounced(ids),
 	{ immediate: true }
-);
+)
 
-const deviceApi = useDeviceApi();
-const surveillanceGroupFilter = ref<string>("");
-const cameraGroups = ref<string[]>([]);
+const deviceApi = useDeviceApi()
+const surveillanceGroupFilter = ref<string>("")
+const cameraGroups = ref<string[]>([])
 const surveillanceGroupFilterOptions = computed(() => [
 	{ value: "", label: "全部" },
-	...cameraGroups.value.map(g => ({ value: g, label: g }))
-]);
+	...cameraGroups.value.map((g) => ({ value: g, label: g })),
+])
 const filteredCameras = computed(() => {
-	const group = surveillanceGroupFilter.value?.trim();
+	const group = surveillanceGroupFilter.value?.trim()
 	return group
-		? cameras.value.filter(c => (c.config as CameraDeviceConfig)?.group?.trim() === group)
-		: cameras.value;
-});
+		? cameras.value.filter((c) => (c.config as CameraDeviceConfig)?.group?.trim() === group)
+		: cameras.value
+})
 
 const filteredCameraCategoryGroups = computed(() =>
 	groupDevicesByModelCategory([...filteredCameras.value])
-);
+)
 
 // 布局管理
-const gridLayout = ref<GridLayout>("1");
-const selectedCameraIds = computed(() => monitorViews.value.map(view => view.deviceId));
+const gridLayout = ref<GridLayout>("1")
+const selectedCameraIds = computed(() => monitorViews.value.map((view) => view.deviceId))
 
-const isFullscreenOpen = ref(false);
+const isFullscreenOpen = ref(false)
 
-const isOverviewCollapsed = ref(false);
+const isOverviewCollapsed = ref(false)
 
 const loadCameraGroups = async () => {
 	try {
-		const res = await deviceApi.getCameraGroups();
-		cameraGroups.value = res.groups ?? [];
+		const res = await deviceApi.getCameraGroups()
+		cameraGroups.value = res.groups ?? []
 	} catch {
-		cameraGroups.value = [];
+		cameraGroups.value = []
 	}
-};
+}
 
 const loadCameras = async () => {
-	loadError.value = null;
+	loadError.value = null
 
 	try {
-		await streamStatus.loadCameras();
+		await streamStatus.loadCameras()
 	} catch (error) {
-		const errorMsg = handleError(error, "載入攝影機列表失敗");
-		loadError.value = errorMsg || "載入攝影機列表失敗";
+		const errorMsg = handleError(error, "載入攝影機列表失敗")
+		loadError.value = errorMsg || "載入攝影機列表失敗"
 	}
-};
+}
 
-const refreshStatus = async () => {
-	try {
-		await streamStatus.loadCameras();
-		const ids = cameras.value.map(c => c.id);
-		await deviceConnectivity.refresh(ids);
-		toast.success(TOAST.SURVEILLANCE_REFRESHED);
-	} catch (error) {
-		handleError(error, "重新載入失敗");
+const handleReloadView = async (deviceId: number) => {
+	if (!canControlStream.value) {
+		toast.warning(TOAST.SURVEILLANCE_NO_STREAM_PERMISSION)
+		return
 	}
-};
+	try {
+		await streamStatus.reloadMonitorView(deviceId)
+	} catch (error) {
+		handleError(error, "重新載入串流失敗")
+	}
+}
 
 // 選擇攝影機會加入或移除監控畫面（呼叫 stream/start）
 const handleCameraSelect = async (deviceId: number) => {
-	const existing = monitorViews.value.find(v => v.deviceId === deviceId);
+	const existing = monitorViews.value.find((v) => v.deviceId === deviceId)
 	if (existing) {
-		streamStatus.removeMonitorView(deviceId);
-		return;
+		streamStatus.removeMonitorView(deviceId)
+		return
 	}
 
 	if (!canControlStream.value) {
-		toast.warning(TOAST.SURVEILLANCE_NO_STREAM_PERMISSION);
-		return;
+		toast.warning(TOAST.SURVEILLANCE_NO_STREAM_PERMISSION)
+		return
 	}
 
-	const maxViews = parseInt(gridLayout.value);
+	const maxViews = parseInt(gridLayout.value)
 	if (monitorViews.value.length >= maxViews) {
-		toast.warning(TOAST.SURVEILLANCE_MAX_VIEWS(maxViews));
-		return;
+		toast.warning(TOAST.SURVEILLANCE_MAX_VIEWS(maxViews))
+		return
 	}
 
 	try {
-		await streamStatus.addMonitorView(deviceId);
-		toast.success(TOAST.SURVEILLANCE_VIEW_ADDED);
+		await streamStatus.addMonitorView(deviceId)
+		toast.success(TOAST.SURVEILLANCE_VIEW_ADDED)
 	} catch (error) {
-		handleError(error, "啟動串流失敗");
+		handleError(error, "啟動串流失敗")
 	}
-};
+}
 
 const handleRemoveView = (deviceId: number) => {
-	streamStatus.removeMonitorView(deviceId);
-};
+	streamStatus.removeMonitorView(deviceId)
+}
 
 // 當布局變更時，調整畫面數量
-watch(gridLayout, newLayout => {
-	const maxViews = parseInt(newLayout);
+watch(gridLayout, (newLayout) => {
+	const maxViews = parseInt(newLayout)
 	if (monitorViews.value.length > maxViews) {
 		// 移除超出上限的畫面
-		const viewsToRemove = monitorViews.value.slice(maxViews);
-		viewsToRemove.forEach(view => {
-			streamStatus.removeMonitorView(view.deviceId);
-		});
+		const viewsToRemove = monitorViews.value.slice(maxViews)
+		viewsToRemove.forEach((view) => {
+			streamStatus.removeMonitorView(view.deviceId)
+		})
 	}
-});
+})
 
 watch(
 	() => isFullscreenOpen.value,
-	isOpen => {
-		if (!isOpen) return;
+	(isOpen) => {
+		if (!isOpen) return
 		if (gridLayout.value !== "9" && gridLayout.value !== "16") {
-			isFullscreenOpen.value = false;
+			isFullscreenOpen.value = false
 		}
 	}
-);
+)
 
 onMounted(async () => {
-	void loadCameraGroups();
+	void loadCameraGroups()
 
 	try {
-		await loadCameras();
+		await loadCameras()
 	} catch (error) {
-		handleError(error, "初始化失敗");
+		handleError(error, "初始化失敗")
 	}
-});
+})
 
 onBeforeUnmount(() => {
-	isFullscreenOpen.value = false;
-	streamStatus.clearAllMonitorViews();
-});
+	isFullscreenOpen.value = false
+	streamStatus.clearAllMonitorViews()
+})
 </script>

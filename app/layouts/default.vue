@@ -22,10 +22,11 @@
 			:items="cameraPopup.state.items"
 			:active-index="cameraPopup.state.activeIndex"
 			:streams="cameraPopup.state.streams"
+			:location-context="cameraPopup.state.locationContext"
 			@close="cameraPopup.handleClose"
 			@prev="cameraPopup.handlePrev"
 			@next="cameraPopup.handleNext"
-			@reload="cameraPopup.handleReload"
+			@reload-stream="cameraPopup.handleReloadStream"
 		/>
 	</div>
 </template>
