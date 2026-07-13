@@ -3,7 +3,6 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useSnapshotSyncHealth, type SnapshotSyncHealthState } from "~/composables/monitoring/modbus/useSnapshotSyncHealth"
 import type { StatusSnapshotFetchOptions } from "~/composables/monitoring/modbus/statusSnapshotPolicy"
 import {
-	resolveToggleSnapshotZoneIds,
 	type ModbusIntegrationZone,
 	useModbusIntegrationDeviceCache,
 } from "~/composables/monitoring/modbus/modbusIntegrationShared"
@@ -16,6 +15,7 @@ import type { ManualIssueRuleTriggerPayload, ManualSemanticAlertSource } from "~
 import { createStatusSnapshotRaceChannel } from "~/composables/monitoring/modbus/useStatusSnapshotRaceChannel"
 import { useMonitoringSnapshotWebSocket } from "~/composables/monitoring/useMonitoringSnapshotWebSocket"
 import { useAccessGate } from "~/composables/core/useAccessGate"
+import { useAlertDrivenStatusRefresh } from "~/composables/monitoring/modbus/useAlertDrivenStatusRefresh"
 import type { FeatureKey } from "~/types/license"
 import type { StatusSnapshotQuery } from "~/composables/monitoring/statusSnapshotQuery"
 
@@ -50,14 +50,12 @@ export const defineSnapshotModbusIntegration = <
 	patch: SnapshotPatchConfig
 ): ((
 	zonesRef: Ref<TZone[]>,
-	selectedZone?: Ref<string>,
 	options?: { shouldFetchOnZonesChange?: () => boolean }
 ) => SnapshotModbusIntegrationHandle<TItem>) => {
-	return (zonesRef, selectedZone, options) => {
+	return (zonesRef, options) => {
 		const api = useApiHook()
 		return createSnapshotModbusIntegration<TItem, TZone>({
 			zonesRef,
-			selectedZone,
 			systemKey,
 			loadErrorLabel,
 			fetchStatus: (fetchOptions) => api.getStatus(fetchOptions),
@@ -72,7 +70,6 @@ export type SnapshotModbusIntegrationConfig<
 	TZone extends ModbusIntegrationZone & ZoneUiKeyable,
 > = {
 	zonesRef: Ref<TZone[]>
-	selectedZone?: Ref<string>
 	systemKey: string
 	loadErrorLabel: string
 	fetchStatus: (options?: StatusSnapshotQuery) => Promise<SnapshotStatusResult<TItem>>
@@ -101,6 +98,10 @@ export type SnapshotModbusIntegrationHandle<
 	patchOptimistic: (systemId: string, uiStatus: TItem["uiStatus"]) => void
 }
 
+/**
+ * 監控中心同時列出所有區域 → status 一律全區快照（不依平面圖 selectedZone 過濾）。
+ * 若只拉選中區再整批覆寫 statusItems，未選中區會被清掉並顯示預設異常。
+ */
 export const createSnapshotModbusIntegration = <
 	TItem extends { systemId: string | number; uiStatus: unknown },
 	TZone extends ModbusIntegrationZone & ZoneUiKeyable,
@@ -109,7 +110,6 @@ export const createSnapshotModbusIntegration = <
 ): SnapshotModbusIntegrationHandle<TItem> => {
 	const {
 		zonesRef,
-		selectedZone,
 		systemKey,
 		loadErrorLabel,
 		fetchStatus,
@@ -136,14 +136,10 @@ export const createSnapshotModbusIntegration = <
 		syncHealth.recordSuccess()
 	}
 
-	const resolveZoneIds = () =>
-		selectedZone ? resolveToggleSnapshotZoneIds(zonesRef.value, selectedZone.value) : undefined
-
 	const loadStatusSnapshot = async (options?: StatusSnapshotFetchOptions) => {
-		const zoneIds = resolveZoneIds()
 		await race.runSnapshotLoad(options, async ({ isStale }) => {
 			try {
-				const result = await fetchStatus({ zoneIds, force: options?.force })
+				const result = await fetchStatus({ force: options?.force })
 				if (isStale()) return
 				statusItems.value = result.items || []
 				syncHealth.recordSuccess()
@@ -154,6 +150,11 @@ export const createSnapshotModbusIntegration = <
 			}
 		})
 	}
+
+	useAlertDrivenStatusRefresh({
+		systemKey,
+		reload: () => loadStatusSnapshot({ force: true }),
+	})
 
 	const patchOptimisticManualAlarm = (systemId: string, rule?: ManualIssueRuleTriggerPayload) => {
 		if (optimisticPatch !== "manualAlarm" || !manualAlarmSystemType) return
@@ -175,15 +176,7 @@ export const createSnapshotModbusIntegration = <
 		systems: [systemKey],
 		enabled: canSubscribe,
 		onSnapshotUpdated: (event) => {
-			const zoneIds = resolveZoneIds()
-			let incoming = (event.items || []) as TItem[]
-			if (zoneIds?.length) {
-				const want = new Set(zoneIds.map(String))
-				incoming = incoming.filter((it) =>
-					want.has(String((it as { zoneId?: string }).zoneId ?? ""))
-				)
-			}
-			patchStatusItems(incoming)
+			patchStatusItems((event.items || []) as TItem[])
 		},
 	})
 

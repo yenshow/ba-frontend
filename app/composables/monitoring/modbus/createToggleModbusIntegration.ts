@@ -6,16 +6,15 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useSnapshotSyncHealth } from "~/composables/monitoring/modbus/useSnapshotSyncHealth"
 import { useMonitoringSnapshotWebSocket } from "~/composables/monitoring/useMonitoringSnapshotWebSocket"
 import { useAccessGate } from "~/composables/core/useAccessGate"
+import { useAlertDrivenStatusRefresh } from "~/composables/monitoring/modbus/useAlertDrivenStatusRefresh"
 import type { FeatureKey } from "~/types/license"
 import type { ZoneUiKeyable } from "~/utils/locationUiId"
 import {
 	collectDeviceIdsFromZones,
 	extractControllerDeviceConfig,
-	resolveToggleSnapshotZoneIds,
 	type ModbusDeviceConn,
 	type ModbusIntegrationZone,
 	type ToggleModbusSnapshotApplyResult,
-	type ToggleSnapshotZoneFilterOptions,
 	useModbusIntegrationDeviceCache,
 } from "~/composables/monitoring/modbus/modbusIntegrationShared"
 
@@ -41,12 +40,8 @@ export type CreateToggleModbusIntegrationConfig<
 	loadErrorLabel: string
 	systemKey: string
 	zones: Ref<TZone[]>
-	selectedZone: Ref<string>
-	/** `zoneIds` 為 undefined 時不篩選區域（全區快照） */
-	fetchSnapshot: (
-		zoneIds?: string[],
-		options?: { force?: boolean }
-	) => Promise<{ items?: TSnapshotItem[] | null }>
+	/** 監控中心列全區 → 一律全區快照（不依平面圖 selectedZone 過濾） */
+	fetchSnapshot: (options?: { force?: boolean }) => Promise<{ items?: TSnapshotItem[] | null }>
 	buildLocationUiKey: (zone: TZone, location: TLocation, locationIndex: number) => string
 	findLocationByUiKey: (
 		uiKey: string,
@@ -57,7 +52,9 @@ export type CreateToggleModbusIntegrationConfig<
 		store: Ref<Record<string, TLocationStatus>>
 	) => TLocationStatus
 	initializeLocationStatuses?: (store: Ref<Record<string, TLocationStatus>>) => void
-	applySnapshotItem: (args: ToggleModbusSnapshotApplyArgs<TLocationStatus, TSnapshotItem>) => ToggleModbusSnapshotApplyResult
+	applySnapshotItem: (
+		args: ToggleModbusSnapshotApplyArgs<TLocationStatus, TSnapshotItem>
+	) => ToggleModbusSnapshotApplyResult
 	buildDisabledMap: (toggling: Ref<Set<string>>) => Record<string, boolean>
 	collectDeviceIds?: (zones: TZone[]) => number[]
 	canToggleLocation: (location: TLocation) => boolean
@@ -86,7 +83,6 @@ export const createToggleModbusIntegration = <
 		loadErrorLabel,
 		systemKey,
 		zones,
-		selectedZone,
 		fetchSnapshot,
 		buildLocationUiKey,
 		findLocationByUiKey,
@@ -215,16 +211,12 @@ export const createToggleModbusIntegration = <
 		syncHealth.recordSuccess()
 	}
 
-	const resolveZoneIds = (options?: ToggleSnapshotZoneFilterOptions) =>
-		resolveToggleSnapshotZoneIds(zones.value, selectedZone.value, options)
-
-	const loadAllLocationStatuses = async (options?: ToggleSnapshotZoneFilterOptions & { force?: boolean }) => {
+	const loadAllLocationStatuses = async (options?: { force?: boolean }) => {
 		if (inflightStatusRefresh) return inflightStatusRefresh
 
 		inflightStatusRefresh = (async () => {
 			try {
-				const zoneIds = resolveZoneIds(options)
-				const backendStatus = await fetchSnapshot(zoneIds, { force: options?.force })
+				const backendStatus = await fetchSnapshot({ force: options?.force })
 				applyBackendSnapshotItems(backendStatus.items || [])
 				syncHealth.recordSuccess()
 			} catch (error) {
@@ -237,6 +229,11 @@ export const createToggleModbusIntegration = <
 
 		return inflightStatusRefresh
 	}
+
+	useAlertDrivenStatusRefresh({
+		systemKey,
+		reload: () => loadAllLocationStatuses({ force: true }),
+	})
 
 	const executeToggle = async (locationUiKey: string, targetValue: boolean) => {
 		const found = findLocationByUiKey(locationUiKey, true)
@@ -263,7 +260,9 @@ export const createToggleModbusIntegration = <
 			}
 
 			const modbus = location.modbus
-			const writeAddresses = modbus ? extractWritePoints(modbus as Parameters<typeof extractWritePoints>[0]) : []
+			const writeAddresses = modbus
+				? extractWritePoints(modbus as Parameters<typeof extractWritePoints>[0])
+				: []
 			if (writeAddresses.length === 0) {
 				setToggleValue(status, previousValue)
 				clearSnapshotHold(locationUiKey)
@@ -277,7 +276,7 @@ export const createToggleModbusIntegration = <
 
 			setTimeout(async () => {
 				try {
-					await loadAllLocationStatuses({ loadAllZones: true, force: true })
+					await loadAllLocationStatuses({ force: true })
 				} finally {
 					locationToggling.value.delete(locationUiKey)
 				}
@@ -322,7 +321,7 @@ export const createToggleModbusIntegration = <
 	const handleVisibilityChange = async () => {
 		if (typeof document === "undefined") return
 		if (document.visibilityState === "visible") {
-			await loadAllLocationStatuses({ loadAllZones: true })
+			await loadAllLocationStatuses()
 		}
 	}
 
@@ -332,7 +331,6 @@ export const createToggleModbusIntegration = <
 			if (shouldFetchOnZonesChange && !shouldFetchOnZonesChange()) return
 			initializeLocationStatuses?.(locationStatuses)
 			await preloadDeviceInfos(zones.value, collectDeviceIds)
-			// zones 變更後：預設以「當前 selectedZone」範圍補一輪狀態
 			void loadAllLocationStatuses()
 		},
 		{ deep: true }

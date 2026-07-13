@@ -321,7 +321,7 @@ const {
 	startSnapshotSync,
 	stopSnapshotSync,
 	handleVisibilityChange,
-} = useFireModbusIntegration(fireZones, selectedZone)
+} = useFireModbusIntegration(fireZones)
 
 const snapshotSync = useVisibilitySnapshotSync({
 	start: startSnapshotSync,
@@ -330,10 +330,7 @@ const snapshotSync = useVisibilitySnapshotSync({
 })
 
 const handleManualIssueChanged = (payload?: ManualIssueChangedPayload) => {
-	if (payload?.action === "clear") {
-		void loadStatusSnapshot({ force: true })
-		return
-	}
+	if (payload?.action === "clear") return
 	if (payload?.systemId) {
 		patchOptimisticManualAlarm(payload.systemId, payload.rule)
 	}

@@ -35,7 +35,6 @@
 							:total-cameras="cameras.length"
 							:view-count="monitorViews.length"
 							:max-views="parseInt(gridLayout)"
-							@refresh="refreshStatus"
 							@fullscreen="isFullscreenOpen = true"
 						/>
 					</div>
@@ -63,6 +62,7 @@
 									:views="monitorViews"
 									:layout="gridLayout"
 									@remove="handleRemoveView"
+									@reload="handleReloadView"
 								/>
 							</div>
 
@@ -198,6 +198,7 @@
 		:views="monitorViews"
 		:layout="gridLayout"
 		@remove="handleRemoveView"
+		@reload="handleReloadView"
 	/>
 </template>
 
@@ -287,14 +288,15 @@ const loadCameras = async () => {
 	}
 }
 
-const refreshStatus = async () => {
+const handleReloadView = async (deviceId: number) => {
+	if (!canControlStream.value) {
+		toast.warning(TOAST.SURVEILLANCE_NO_STREAM_PERMISSION)
+		return
+	}
 	try {
-		await streamStatus.loadCameras()
-		const ids = cameras.value.map((c) => c.id)
-		await deviceConnectivity.refresh(ids)
-		toast.success(TOAST.SURVEILLANCE_REFRESHED)
+		await streamStatus.reloadMonitorView(deviceId)
 	} catch (error) {
-		handleError(error, "重新載入失敗")
+		handleError(error, "重新載入串流失敗")
 	}
 }
 

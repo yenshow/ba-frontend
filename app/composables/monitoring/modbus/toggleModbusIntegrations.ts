@@ -24,9 +24,9 @@ type LightingLocationStatus = {
 	status: SystemUiStatus
 }
 
+/** status 一律全區（監控中心列全部區域；平面圖 selectedZone 不影響快照範圍） */
 export const useLightingModbusIntegration = (
 	lightingZones: Ref<LightingZone[]>,
-	selectedZone: Ref<string>,
 	options?: { shouldFetchOnZonesChange?: () => boolean }
 ) => {
 	const lightingApi = useLightingApi()
@@ -41,11 +41,7 @@ export const useLightingModbusIntegration = (
 		systemKey: "lighting",
 		controlScope: "lighting",
 		zones: lightingZones,
-		selectedZone,
-		fetchSnapshot: (zoneIds, options) =>
-			lightingApi.getStatus(
-				zoneIds ? { zoneIds, force: options?.force } : { force: options?.force }
-			),
+		fetchSnapshot: (fetchOptions) => lightingApi.getStatus({ force: fetchOptions?.force }),
 		buildLocationUiKey: (zone, location, locationIndex) =>
 			getLocationUiKey({ zone, location, locationIndex }),
 		findLocationByUiKey: (uiKey, requireDbId) =>
@@ -70,7 +66,7 @@ export const useLightingModbusIntegration = (
 				setBoolean: (s, v) => {
 					s.isRunning = v
 				},
-				nextBoolean: item.raw?.isOn === true,
+				nextBoolean: Boolean(item.raw?.isOn),
 			})
 		},
 		buildDisabledMap: (toggling) => {
@@ -147,7 +143,6 @@ type HvacLocationStatus = {
 
 export const useHvacModbusIntegration = (
 	hvacZones: Ref<HvacZone[]>,
-	selectedZone: Ref<string>,
 	options?: { shouldFetchOnZonesChange?: () => boolean }
 ) => {
 	const hvacApi = useHvacApi()
@@ -157,11 +152,7 @@ export const useHvacModbusIntegration = (
 		systemKey: "hvac",
 		controlScope: "hvac",
 		zones: hvacZones,
-		selectedZone,
-		fetchSnapshot: (zoneIds, fetchOptions) =>
-			hvacApi.getStatus(
-				zoneIds ? { zoneIds, force: fetchOptions?.force } : { force: fetchOptions?.force }
-			),
+		fetchSnapshot: (fetchOptions) => hvacApi.getStatus({ force: fetchOptions?.force }),
 		buildLocationUiKey: (zone, location, locationIndex) =>
 			getLocationUiKey({ zone, location, locationIndex }),
 		findLocationByUiKey: (uiKey, requireDbId) =>

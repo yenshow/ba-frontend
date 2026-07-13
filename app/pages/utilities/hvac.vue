@@ -140,7 +140,7 @@ const {
 	startSnapshotSync,
 	stopSnapshotSync,
 	handleVisibilityChange,
-} = useHvacModbusIntegration(hvacZones, selectedZone)
+} = useHvacModbusIntegration(hvacZones)
 
 const snapshotSync = useVisibilitySnapshotSync({
 	start: startSnapshotSync,

@@ -153,7 +153,7 @@ const {
 	startSnapshotSync,
 	stopSnapshotSync,
 	handleVisibilityChange,
-} = useLightingModbusIntegration(lightingZones, selectedZone)
+} = useLightingModbusIntegration(lightingZones)
 
 const snapshotSync = useVisibilitySnapshotSync({
 	start: startSnapshotSync,

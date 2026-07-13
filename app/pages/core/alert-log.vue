@@ -18,18 +18,18 @@
 
 			<div class="flex shrink-0 flex-wrap items-center gap-3 2xl:gap-4">
 				<template v-if="currentMode === 'alerts'">
-					<div class="w-36 shrink-0 2xl:w-40">
-						<FilterDropdown
-							v-model="filterStatus"
-							:options="statusOptions"
-							placeholder="全部狀態"
-						/>
-					</div>
 					<div class="w-44 shrink-0 2xl:w-48">
 						<FilterDropdown
 							v-model="filterSource"
 							:options="sourceOptions"
 							placeholder="全部系統"
+						/>
+					</div>
+					<div class="w-36 shrink-0 2xl:w-40">
+						<FilterDropdown
+							v-model="filterStatus"
+							:options="statusOptions"
+							placeholder="全部狀態"
 						/>
 					</div>
 					<TimeRangePicker v-model="timeRange" :presets="timeRangePresets" />

@@ -156,7 +156,6 @@ export const useAreaPointMap = (options: {
 	const smokeAlarmZones = ref<SmokeAlarmZone[]>([])
 	const emergencyRescueZones = ref<EmergencyRescueZone[]>([])
 
-	const lightingSelectedZoneKey = computed(() => selectedZone.value)
 	const {
 		locationStatuses: lightingLocationStatuses,
 		initializeLocationStatuses: initializeLightingStatuses,
@@ -166,7 +165,7 @@ export const useAreaPointMap = (options: {
 		startSnapshotSync: startLightingSnapshotSync,
 		stopSnapshotSync: stopLightingSnapshotSync,
 		handleVisibilityChange: handleLightingVisibilityChange,
-	} = useLightingModbusIntegration(lightingZones, lightingSelectedZoneKey, modbusIntegrationOptions("lighting"))
+	} = useLightingModbusIntegration(lightingZones, modbusIntegrationOptions("lighting"))
 
 	const {
 		statusItems: drainageStatusItems,
@@ -177,7 +176,7 @@ export const useAreaPointMap = (options: {
 		startSnapshotSync: startDrainageSnapshotSync,
 		stopSnapshotSync: stopDrainageSnapshotSync,
 		handleVisibilityChange: handleDrainageVisibilityChange,
-	} = useDrainageModbusIntegration(drainageZones, undefined, modbusIntegrationOptions("drainage"))
+	} = useDrainageModbusIntegration(drainageZones, modbusIntegrationOptions("drainage"))
 
 	const {
 		statusItems: fireStatusItems,
@@ -188,7 +187,7 @@ export const useAreaPointMap = (options: {
 		startSnapshotSync: startFireSnapshotSync,
 		stopSnapshotSync: stopFireSnapshotSync,
 		handleVisibilityChange: handleFireVisibilityChange,
-	} = useFireModbusIntegration(fireZones, undefined, modbusIntegrationOptions("fire"))
+	} = useFireModbusIntegration(fireZones, modbusIntegrationOptions("fire"))
 
 	const {
 		statusItems: powerStatusItems,
@@ -199,9 +198,8 @@ export const useAreaPointMap = (options: {
 		startSnapshotSync: startPowerSnapshotSync,
 		stopSnapshotSync: stopPowerSnapshotSync,
 		handleVisibilityChange: handlePowerVisibilityChange,
-	} = usePowerModbusIntegration(powerZones, undefined, modbusIntegrationOptions("power"))
+	} = usePowerModbusIntegration(powerZones, modbusIntegrationOptions("power"))
 
-	const hvacSelectedZoneKey = computed(() => selectedZone.value)
 	const {
 		locationStatuses: hvacLocationStatuses,
 		initializeLocationStatuses: initializeHvacStatuses,
@@ -211,7 +209,7 @@ export const useAreaPointMap = (options: {
 		startSnapshotSync: startHvacSnapshotSync,
 		stopSnapshotSync: stopHvacSnapshotSync,
 		handleVisibilityChange: handleHvacVisibilityChange,
-	} = useHvacModbusIntegration(hvacZones, hvacSelectedZoneKey, modbusIntegrationOptions("hvac"))
+	} = useHvacModbusIntegration(hvacZones, modbusIntegrationOptions("hvac"))
 
 	const {
 		statusItems: airCirculationStatusItems,
@@ -224,7 +222,6 @@ export const useAreaPointMap = (options: {
 		handleVisibilityChange: handleAirCirculationVisibilityChange,
 	} = useAirCirculationModbusIntegration(
 		airCirculationZones,
-		undefined,
 		modbusIntegrationOptions("air_circulation")
 	)
 
@@ -237,7 +234,7 @@ export const useAreaPointMap = (options: {
 		startSnapshotSync: startSmokeAlarmSnapshotSync,
 		stopSnapshotSync: stopSmokeAlarmSnapshotSync,
 		handleVisibilityChange: handleSmokeAlarmVisibilityChange,
-	} = useSmokeAlarmModbusIntegration(smokeAlarmZones, undefined, modbusIntegrationOptions("smoke_alarm"))
+	} = useSmokeAlarmModbusIntegration(smokeAlarmZones, modbusIntegrationOptions("smoke_alarm"))
 
 	const {
 		statusItems: emergencyRescueStatusItems,
@@ -250,7 +247,6 @@ export const useAreaPointMap = (options: {
 		handleVisibilityChange: handleEmergencyRescueVisibilityChange,
 	} = useEmergencyRescueModbusIntegration(
 		emergencyRescueZones,
-		undefined,
 		modbusIntegrationOptions("emergency_rescue")
 	)
 
@@ -271,9 +267,9 @@ export const useAreaPointMap = (options: {
 		const m = new Map<string, { status?: SystemUiStatus }>()
 		for (const zone of lightingZones.value || []) {
 			for (let i = 0; i < (zone.locations || []).length; i += 1) {
-				const loc = zone.locations[i] as { id?: string | number }
-				const dbId = loc?.id ? String(loc.id) : ""
-				if (!dbId) continue
+				const loc = zone.locations[i]
+				if (!loc?.id) continue
+				const dbId = String(loc.id)
 				const uiKey = getLocationUiKey({ zone, location: loc, locationIndex: i })
 				const s = lightingLocationStatuses.value[uiKey]?.status
 				m.set(dbId, { status: s })
@@ -286,15 +282,15 @@ export const useAreaPointMap = (options: {
 		const m = new Map<string, { uiStatus?: SystemUiStatus; temperatureC?: number | null }>()
 		for (const zone of hvacZones.value || []) {
 			for (let i = 0; i < (zone.locations || []).length; i += 1) {
-				const loc = (zone.locations || [])[i] as { id?: string | number }
-				const dbId = loc?.id ? String(loc.id) : ""
-				if (!dbId) continue
-				const uiKey = getLocationUiKey({ zone: zone as never, location: loc as never, locationIndex: i })
+				const loc = zone.locations[i]
+				if (!loc?.id) continue
+				const dbId = String(loc.id)
+				const uiKey = getLocationUiKey({ zone, location: loc, locationIndex: i })
 				const s = hvacLocationStatuses.value[uiKey]
 				if (!s) continue
 				m.set(dbId, {
 					uiStatus: s.uiStatus,
-					temperatureC: (s as { temperatureC?: number | null }).temperatureC ?? null,
+					temperatureC: s.temperatureC ?? null,
 				})
 			}
 		}
@@ -333,7 +329,7 @@ export const useAreaPointMap = (options: {
 		lightingZones.value = result.zones || []
 		initializeLightingStatuses()
 		await preloadLightingDevices()
-		await loadAllLightingStatuses({ loadAllZones: true })
+		await loadAllLightingStatuses()
 		hasLoadedBySystem.lighting.value = true
 		if (opts.startSync) startLightingSnapshotSync()
 	}
@@ -370,7 +366,7 @@ export const useAreaPointMap = (options: {
 		hvacZones.value = result.zones || []
 		initializeHvacStatuses()
 		await preloadHvacDevices()
-		await loadAllHvacStatuses({ loadAllZones: true })
+		await loadAllHvacStatuses()
 		hasLoadedBySystem.hvac.value = true
 		if (opts.startSync) startHvacSnapshotSync()
 	}

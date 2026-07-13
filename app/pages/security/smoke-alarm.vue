@@ -268,7 +268,7 @@ const {
 	startSnapshotSync,
 	stopSnapshotSync,
 	handleVisibilityChange,
-} = useSmokeAlarmModbusIntegration(smokeZones, selectedZone)
+} = useSmokeAlarmModbusIntegration(smokeZones)
 
 const snapshotSync = useVisibilitySnapshotSync({
 	start: startSnapshotSync,
@@ -277,10 +277,7 @@ const snapshotSync = useVisibilitySnapshotSync({
 })
 
 const handleManualIssueChanged = (payload?: ManualIssueChangedPayload) => {
-	if (payload?.action === "clear") {
-		void loadStatusSnapshot({ force: true })
-		return
-	}
+	if (payload?.action === "clear") return
 	if (payload?.systemId) {
 		patchOptimistic(payload.systemId, "alarm")
 	}

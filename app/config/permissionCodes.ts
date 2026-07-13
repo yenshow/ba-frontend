@@ -29,6 +29,10 @@ export const PERM = {
 		update: "system.alert_log.alert.update",
 		delete: "system.alert_log.alert.delete",
 	},
+	operationalLog: {
+		module: "system.operational_log",
+		export: "system.operational_log.report.export",
+	},
 	peopleCounting: {
 		module: "system.people_counting",
 		locationCreate: "system.people_counting.location.create",

@@ -2,7 +2,6 @@ import { ref } from "vue"
 import type { Device, ControllerDeviceConfig } from "~/types/device"
 import type { ModbusStatusPointDef } from "~/types/location"
 import type { SystemUiStatus } from "~/utils/monitoringStatus"
-import { getZoneUiKey, type ZoneUiKeyable } from "~/utils/locationUiId"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { addNormalizedDeviceId } from "~/utils/deviceIdUtils"
@@ -19,11 +18,7 @@ export type ModbusIntegrationZone = {
 	locations: ModbusIntegrationZoneLocation[]
 }
 
-export type ToggleSnapshotZoneFilterOptions = {
-	loadAllZones?: boolean
-}
-
-export type ToggleModbusSnapshotApplyResult = "applied" | "hold" | "skip"
+export type ToggleModbusSnapshotApplyResult = "applied" | "hold"
 
 /** 設備 ID 以地點 `deviceId` 為 SSOT；statusPoints 可覆寫每點設備 */
 export const collectDeviceIdsFromZones = (zones: ModbusIntegrationZone[]): number[] => {
@@ -80,25 +75,6 @@ export const useModbusIntegrationDeviceCache = () => {
 	}
 
 	return { deviceConfigCache, loadDeviceInfo, preloadDeviceInfos }
-}
-
-export const resolveToggleSnapshotZoneIds = <TZone extends ZoneUiKeyable>(
-	zones: TZone[],
-	selectedZone: string,
-	options?: ToggleSnapshotZoneFilterOptions
-): string[] | undefined => {
-	if (options?.loadAllZones) return undefined
-	const sel = String(selectedZone ?? "").trim()
-	if (!sel) return undefined
-
-	const matchedIds = zones
-		.filter((zone) => getZoneUiKey(zone) === sel)
-		.map((zone) => zone.id)
-		.filter((id): id is string => id != null && String(id).trim() !== "")
-		.map((id) => String(id))
-
-	if (matchedIds.length > 0) return matchedIds
-	return [sel]
 }
 
 export const mapToggleBackendUiStatus = (ui: unknown): SystemUiStatus => {

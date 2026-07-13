@@ -1,10 +1,7 @@
 <template>
 	<div class="relative">
 		<div class="absolute right-4 top-4 z-20">
-			<SnapshotSyncHealthBadge
-				:state="syncHealthState"
-				:last-success-at="lastSuccessAt"
-			/>
+			<SnapshotSyncHealthBadge :state="syncHealthState" :last-success-at="lastSuccessAt" />
 		</div>
 		<div class="infra-page-layout">
 			<EmergencyRescueZonePlanPanel
@@ -169,7 +166,9 @@ const statusBySystemId = computed(() => {
 	return m
 })
 
-const uiStatusForLocation = (loc: EmergencyRescueLocation): EmergencyRescueStatusItem["uiStatus"] => {
+const uiStatusForLocation = (
+	loc: EmergencyRescueLocation
+): EmergencyRescueStatusItem["uiStatus"] => {
 	if (!loc.systemId) return "warning"
 	return deriveEmergencyRescueUiStatus(statusBySystemId.value.get(String(loc.systemId)) ?? null)
 }
@@ -183,14 +182,7 @@ const getLocationAlertFlash = (loc: EmergencyRescueLocation): "none" | "slow" | 
 
 const tooltipTitle = (loc: EmergencyRescueLocation) => {
 	const s = uiStatusForLocation(loc)
-	const label =
-		s === "normal"
-			? "正常"
-			: s === "warning"
-				? "異常"
-				: s === "alarm"
-					? "警報"
-					: "異常"
+	const label = s === "normal" ? "正常" : s === "warning" ? "異常" : s === "alarm" ? "警報" : "異常"
 	return `${loc.name}（${label}）`
 }
 
@@ -284,7 +276,6 @@ const loadZonesFromAPI = async () => {
 const {
 	syncHealthState,
 	lastSuccessAt,
-	lastFailureAt,
 	statusItems: computedStatusItems,
 	preloadDeviceInfos,
 	loadStatusSnapshot,
@@ -292,7 +283,7 @@ const {
 	startSnapshotSync,
 	stopSnapshotSync,
 	handleVisibilityChange,
-} = useEmergencyRescueModbusIntegration(erZones, selectedZone)
+} = useEmergencyRescueModbusIntegration(erZones)
 
 const snapshotSync = useVisibilitySnapshotSync({
 	start: startSnapshotSync,
@@ -301,10 +292,7 @@ const snapshotSync = useVisibilitySnapshotSync({
 })
 
 const handleManualIssueChanged = (payload?: ManualIssueChangedPayload) => {
-	if (payload?.action === "clear") {
-		void loadStatusSnapshot({ force: true })
-		return
-	}
+	if (payload?.action === "clear") return
 	if (payload?.systemId) {
 		patchOptimistic(payload.systemId, "alarm")
 	}
@@ -406,5 +394,4 @@ onMounted(async () => {
 	}
 	snapshotSync.start()
 })
-
 </script>

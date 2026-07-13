@@ -40,12 +40,6 @@
 			>
 				全螢幕
 			</button>
-			<button
-				@click="$emit('refresh')"
-				class="rounded-lg border-2 border-white/30 bg-white/10 px-4 py-2 text-xs font-medium text-white backdrop-blur-sm transition-all hover:border-white/40 hover:bg-white/15 xl:text-sm 2xl:text-lg"
-			>
-				重新載入
-			</button>
 		</div>
 	</div>
 </template>
@@ -64,7 +58,6 @@ defineProps<Props>()
 
 defineEmits<{
 	"update:modelValue": [value: GridLayout]
-	refresh: []
 	fullscreen: []
 }>()
 

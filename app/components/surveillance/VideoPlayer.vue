@@ -1,31 +1,42 @@
 <template>
 	<div class="video-player-container relative h-full w-full overflow-hidden">
 		<video
-			v-if="webrtcUrl"
+			v-show="webrtcUrl && !showFailureUi"
 			ref="videoRef"
 			autoplay
 			playsinline
 			muted
 			class="webrtc-frame h-full w-full object-contain"
-			:aria-label="'攝影機串流 ' + (error ? '錯誤' : '播放中')"
+			aria-label="攝影機串流播放中"
 		/>
 		<div
-			v-else-if="streamStatus === 'loading'"
+			v-if="streamStatus === 'loading' && !showFailureUi && !webrtcUrl"
 			class="flex h-full w-full items-center justify-center text-white/70"
 		>
 			<p class="text-sm 2xl:text-base">連線中…</p>
 		</div>
 		<div
-			v-else-if="streamStatus === 'error'"
-			class="flex h-full w-full items-center justify-center text-red-400"
+			v-else-if="!webrtcUrl && streamStatus !== 'loading' && !showFailureUi"
+			class="flex h-full w-full items-center justify-center text-white/70"
 		>
-			<p class="text-center text-sm 2xl:text-base">串流失敗</p>
-		</div>
-		<div v-else class="flex h-full w-full items-center justify-center text-white/70">
 			<p class="text-sm 2xl:text-base">無串流</p>
 		</div>
-		<div v-if="error" class="absolute inset-0 flex items-center justify-center p-4">
-			<p class="text-center text-sm text-red-400 2xl:text-base">{{ error }}</p>
+
+		<div
+			v-if="showFailureUi"
+			class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/80 p-4"
+			role="alert"
+		>
+			<p class="text-center text-sm text-red-400 2xl:text-base">{{ failureMessage }}</p>
+			<button
+				v-if="showReload"
+				type="button"
+				class="rounded-lg border-2 border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition-all hover:border-white/40 hover:bg-white/15 2xl:text-base"
+				aria-label="重新載入串流"
+				@click="emit('reload')"
+			>
+				重新載入
+			</button>
 		</div>
 	</div>
 </template>
@@ -35,19 +46,38 @@ interface Props {
 	webrtcUrl?: string
 	webrtcPort?: number
 	streamStatus?: "running" | "stopped" | "loading" | "error"
+	/** 父層啟動串流失敗訊息（與內部 WebRTC 錯誤合併顯示） */
+	externalError?: string
+	showReload?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	webrtcUrl: "",
 	webrtcPort: undefined,
 	streamStatus: "stopped",
+	externalError: "",
+	showReload: true,
 })
 
+const emit = defineEmits<{
+	reload: []
+}>()
+
 const videoRef = ref<HTMLVideoElement | null>(null)
-const error = ref<string>("")
+const error = ref("")
 let pc: RTCPeerConnection | null = null
 
-/** 分頁不可見時暫停 video，省 CPU／電量 */
+const showFailureUi = computed(
+	() => props.streamStatus === "error" || Boolean(error.value) || Boolean(props.externalError)
+)
+
+const failureMessage = computed(
+	() =>
+		String(props.externalError || "").trim() ||
+		String(error.value || "").trim() ||
+		"串流失敗"
+)
+
 const updatePausedByVisibility = () => {
 	if (!videoRef.value) return
 	if (document.hidden) {
@@ -81,23 +111,26 @@ const connectWhep = async (whepUrl: string) => {
 	await pc.setRemoteDescription(new RTCSessionDescription({ type: "answer", sdp: answerSdp }))
 }
 
+const teardownPc = () => {
+	if (pc) {
+		pc.close()
+		pc = null
+	}
+	if (videoRef.value) {
+		videoRef.value.srcObject = null
+	}
+}
+
 watch(
 	() => [props.webrtcUrl, props.webrtcPort] as const,
 	async ([url, port]) => {
 		error.value = ""
-		if (pc) {
-			pc.close()
-			pc = null
-		}
-		if (videoRef.value) {
-			videoRef.value.srcObject = null
-		}
+		teardownPc()
 		if (!url) return
 		await nextTick()
 		if (!videoRef.value) return
-		const whepUrl = resolveWebrtcWhepUrl(url, port)
 		try {
-			await connectWhep(whepUrl)
+			await connectWhep(resolveWebrtcWhepUrl(url, port))
 		} catch (e) {
 			error.value = e instanceof Error ? e.message : "WebRTC 連線失敗，請檢查 MediaMTX"
 		}
@@ -106,23 +139,16 @@ watch(
 )
 
 onMounted(() => {
-	if (typeof document !== "undefined") {
-		document.addEventListener("visibilitychange", updatePausedByVisibility)
-		updatePausedByVisibility()
-	}
+	if (typeof document === "undefined") return
+	document.addEventListener("visibilitychange", updatePausedByVisibility)
+	updatePausedByVisibility()
 })
 
 onBeforeUnmount(() => {
 	if (typeof document !== "undefined") {
 		document.removeEventListener("visibilitychange", updatePausedByVisibility)
 	}
-	if (pc) {
-		pc.close()
-		pc = null
-	}
-	if (videoRef.value) {
-		videoRef.value.srcObject = null
-	}
+	teardownPc()
 })
 </script>
 

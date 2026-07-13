@@ -14,6 +14,19 @@ export const useStreamStatus = () => {
 	const cameraStream = useCameraStreamStatus();
 	const monitorViews = useMonitorViews();
 
+	/** 將監控畫面標為 error／清空 URL（共用） */
+	const markMonitorViewError = (deviceId: number) => {
+		monitorViews.updateMonitorView(deviceId, {
+			webrtcUrl: "",
+			webrtcPort: undefined,
+			streamId: undefined,
+			streamStatus: "error",
+		});
+	};
+
+	const STREAM_START_ERROR =
+		"啟動串流失敗，請確認攝影機已設定 rtsp_url 且 MediaMTX 已啟動";
+
 	/** 加入監控畫面：啟動串流（或共用既有）並取得 webrtcUrl */
 	const addMonitorView = async (deviceId: number): Promise<void> => {
 		const views = monitorViews.monitorViews.value;
@@ -43,9 +56,34 @@ export const useStreamStatus = () => {
 				streamStatus: "running"
 			});
 		} catch {
-			monitorViews.updateMonitorView(deviceId, { streamStatus: "error" });
-			monitorViews.removeMonitorView(deviceId);
-			throw new Error("啟動串流失敗，請確認攝影機已設定 rtsp_url 且 MediaMTX 已啟動");
+			markMonitorViewError(deviceId);
+			throw new Error(STREAM_START_ERROR);
+		}
+	};
+
+	/** 重新啟動單一監控畫面串流（保留格子，供失敗後重新載入） */
+	const reloadMonitorView = async (deviceId: number): Promise<void> => {
+		const existing = monitorViews.monitorViews.value.find((v) => v.deviceId === deviceId);
+		if (!existing) return;
+
+		monitorViews.updateMonitorView(deviceId, {
+			webrtcUrl: "",
+			webrtcPort: undefined,
+			streamId: undefined,
+			streamStatus: "loading",
+		});
+		try {
+			await surveillanceApi.stopCameraStream(deviceId).catch(() => {});
+			const data = await surveillanceApi.startCameraStream(deviceId);
+			monitorViews.updateMonitorView(deviceId, {
+				webrtcUrl: data.webrtcUrl,
+				webrtcPort: data.webrtcPort,
+				streamId: data.streamId,
+				streamStatus: "running",
+			});
+		} catch {
+			markMonitorViewError(deviceId);
+			throw new Error(STREAM_START_ERROR);
 		}
 	};
 
@@ -72,6 +110,7 @@ export const useStreamStatus = () => {
 		monitorViews: monitorViews.monitorViews,
 		loadCameras: cameraStream.loadCameras,
 		addMonitorView,
+		reloadMonitorView,
 		removeMonitorView,
 		clearAllMonitorViews,
 		updateMonitorView: monitorViews.updateMonitorView,
