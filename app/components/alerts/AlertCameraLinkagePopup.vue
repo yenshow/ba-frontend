@@ -9,7 +9,7 @@
 				aria-label="警報攝影機連動彈窗"
 			>
 				<div
-					class="dialog-panel-bg flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl p-4 2xl:p-6"
+					class="dialog-panel-bg mx-4 flex max-h-[92vh] w-full max-w-[min(88rem,94vw)] flex-col overflow-hidden rounded-3xl p-4 2xl:p-6"
 				>
 					<header class="mb-3 flex items-start justify-between gap-3">
 						<div class="min-w-0 flex flex-col gap-1">
@@ -34,7 +34,7 @@
 					</header>
 
 					<div
-						class="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-2 lg:min-h-[480px] 2xl:min-h-[560px]"
+						class="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.25fr)] lg:min-h-[480px] 2xl:min-h-[560px]"
 					>
 						<section
 							class="map-location-dots relative min-h-[220px] overflow-hidden rounded-2xl border border-white/15 bg-black/60 lg:min-h-0"

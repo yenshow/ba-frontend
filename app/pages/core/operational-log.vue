@@ -56,21 +56,23 @@ import { useToast } from "~/composables/core/useToast"
 import { useOperationalLogRbac } from "~/composables/core/useAccessGate"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { useOperationalEventApi } from "~/composables/systems/operationalEvents/useOperationalEventApi"
-import type { OperationalEvent } from "~/types/operationalEvent"
 import {
+	useOperationalEvents,
+	type OperationalEvent,
 	OPERATIONAL_KIND_OPTIONS,
 	buildOperationalSourceFilterOptions,
+	getOperationalActorLabel,
 	getOperationalKindLabel,
 	getOperationalSourceLabel,
-} from "~/utils/operationalEventUtils"
+	isOperationalAlertLinkage,
+} from "~/composables/systems/useOperationalEvents"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
 import OperationalEventListSection from "~/components/operationalEvents/OperationalEventListSection.vue"
 import { useDataLoader } from "~/composables/monitoring/useDataLoader"
 import { logger } from "~/utils/logger"
 import { exportCsv } from "~/utils/csvExport"
-import { formatDateTime, getTodayDateRangeUTC } from "~/utils/dateUtils"
+import { formatDateTime, getTimeRangeUTC } from "~/utils/dateUtils"
 
 const pageLogger = logger.createLogger("operational-log")
 
@@ -78,7 +80,7 @@ definePageMeta({
 	layout: "default",
 })
 
-const api = useOperationalEventApi()
+const api = useOperationalEvents()
 const toast = useToast()
 const { canExportReport } = useOperationalLogRbac()
 const { handleError: handleApiError } = useErrorHandler()
@@ -138,7 +140,7 @@ const {
 const limit = 5
 
 const initializeTimeRange = () => {
-	const { start, end } = getTodayDateRangeUTC()
+	const { start, end } = getTimeRangeUTC("today")
 	timeRange.value = {
 		startDate: start.toISOString(),
 		endDate: end.toISOString(),
@@ -190,27 +192,31 @@ const handleExport = async () => {
 			"時間",
 			"系統",
 			"類型",
+			"警報連動",
 			"摘要",
-			"位元",
+			"區域",
+			"地點",
+			"設備",
+			"設備ID",
 			"位址",
 			"舊值",
 			"新值",
 			"操作者",
-			"警報ID",
-			"設備ID",
 		]
 		const rows = result.events.map((e) => ({
 			時間: formatDateTime(e.occurred_at),
 			系統: getOperationalSourceLabel(e.source),
 			類型: getOperationalKindLabel(e.event_kind),
+			警報連動: isOperationalAlertLinkage(e) ? "是" : "否",
 			摘要: e.summary,
-			位元: e.bit_key ?? "",
+			區域: e.zone_name ?? "",
+			地點: e.location_name ?? "",
+			設備: e.device_name ?? "",
+			設備ID: e.device_id == null ? "" : String(e.device_id),
 			位址: e.address == null ? "" : String(e.address),
 			舊值: e.old_value == null ? "" : e.old_value ? "開啟" : "關閉",
 			新值: e.new_value == null ? "" : e.new_value ? "開啟" : "關閉",
-			操作者: e.actor_user_id == null ? "" : String(e.actor_user_id),
-			警報ID: e.alert_id == null ? "" : String(e.alert_id),
-			設備ID: e.device_id == null ? "" : String(e.device_id),
+			操作者: getOperationalActorLabel(e),
 		}))
 		exportCsv(headers, rows, "operational-events.csv")
 		toast.success(`已匯出 ${result.events.length} 筆營運事件`, 3000)
