@@ -25,12 +25,14 @@ const summarize = (
 ): AlertRuleIntegrationSummary => {
 	const doEnabled = Boolean(integrations?.doLinkage?.enabled)
 	const cameraEnabled = Boolean(integrations?.cameraLinkage?.enabled)
+	const accessDoorEnabled = Boolean(integrations?.accessDoorLinkage?.enabled)
 	const emailEnabled = Boolean(integrations?.emailSubscription?.enabled)
 	return {
 		doEnabled,
 		cameraEnabled,
+		accessDoorEnabled,
 		emailEnabled,
-		hasAny: doEnabled || cameraEnabled || emailEnabled,
+		hasAny: doEnabled || cameraEnabled || accessDoorEnabled || emailEnabled,
 	}
 }
 
@@ -124,7 +126,13 @@ export const useAlertRuleIntegrationsStore = () => {
 		const id = Number(ruleId)
 		const cached = summaryByRuleId.value[id]
 		if (cached) return cached
-		return { doEnabled: false, cameraEnabled: false, emailEnabled: false, hasAny: false }
+		return {
+			doEnabled: false,
+			cameraEnabled: false,
+			accessDoorEnabled: false,
+			emailEnabled: false,
+			hasAny: false,
+		}
 	}
 
 	const getCameraLinkage = (ruleId: number): CameraLinkageResult => {

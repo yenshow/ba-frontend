@@ -78,6 +78,12 @@
 											>攝影機</span
 										>
 										<span
+											v-if="getIntegrationSummary(rule.id).accessDoorEnabled"
+											class="rounded bg-amber-500/20 px-2 py-0.5 text-xs text-amber-100 2xl:text-sm"
+										>
+											門禁全開
+										</span>
+										<span
 											v-if="getIntegrationSummary(rule.id).emailEnabled"
 											class="rounded bg-violet-500/20 px-2 py-0.5 text-xs text-violet-100 2xl:text-sm"
 										>
@@ -329,6 +335,7 @@ const handleSubmitRule = async (payload: {
 	integrations: Partial<{
 		doLinkage: unknown
 		cameraLinkage: unknown
+		accessDoorLinkage: unknown
 		emailSubscription: unknown
 	}>
 }) => {

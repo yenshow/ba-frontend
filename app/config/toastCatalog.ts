@@ -76,6 +76,7 @@ export const TOAST = {
 
 	// vehicle / access
 	VEHICLE_BARRIER_SENT: "已送出道閘指令",
+	ACCESS_DOOR_SENT: "已送出門控指令",
 	SURVEILLANCE_REFRESHED: "已重新整理",
 	SURVEILLANCE_NO_STREAM_PERMISSION: "無串流控制權限",
 	SURVEILLANCE_MAX_VIEWS: (max: number) => `最多只能顯示 ${max} 個畫面`,

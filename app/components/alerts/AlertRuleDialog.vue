@@ -247,7 +247,9 @@
 									</label>
 									<div v-if="cameraLinkage.enabled" class="mt-3">
 										<div class="flex items-center justify-between gap-3">
-											<p class="text-sm text-white/80">攝影機（最多 4 台）<span class="required-mark">*</span></p>
+											<p class="text-sm text-white/80">
+												攝影機（最多 4 台）<span class="required-mark">*</span>
+											</p>
 											<button
 												type="button"
 												class="btn-secondary"
@@ -291,6 +293,14 @@
 											</p>
 										</div>
 									</div>
+								</div>
+
+								<div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+									<p class="mb-3 text-sm font-medium text-white/90">門禁連動</p>
+									<label class="flex items-center gap-3 text-sm text-white/80">
+										<input v-model="accessDoorLinkage.enabled" type="checkbox" class="h-4 w-4" />
+										<span>啟用全開門禁</span>
+									</label>
 								</div>
 							</div>
 						</div>
@@ -529,6 +539,9 @@ interface IntegrationsDraft {
 		enabled: boolean
 		camera_device_ids?: number[]
 	}
+	accessDoorLinkage: null | {
+		enabled: boolean
+	}
 	emailSubscription: null | {
 		enabled: boolean
 		smtp_host: string
@@ -616,6 +629,10 @@ const cameraLinkage = reactive({
 	enabled: false,
 	/** 內部用 slots 表示（可為 null），送出時再轉成 number[] */
 	camera_device_ids: [null] as Array<number | null>,
+})
+
+const accessDoorLinkage = reactive({
+	enabled: false,
 })
 
 const smtpSecurityOptions: OptionItem[] = [
@@ -791,6 +808,8 @@ const resetForm = () => {
 	cameraLinkage.enabled = false
 	cameraLinkage.camera_device_ids = [null]
 
+	accessDoorLinkage.enabled = false
+
 	email.enabled = false
 	email.smtp_host = ""
 	email.smtp_port = 587
@@ -942,6 +961,8 @@ const loadIntegrationsForRule = async (ruleId: number) => {
 			: []
 		const merged = [...new Set(ids)].slice(0, 4)
 		cameraLinkage.camera_device_ids = merged.length > 0 ? merged : [null]
+
+		accessDoorLinkage.enabled = Boolean(res?.accessDoorLinkage?.enabled)
 
 		const es = (res as any)?.emailSubscription
 		email.enabled = Boolean(es?.enabled)
@@ -1161,11 +1182,13 @@ const handleSubmit = () => {
 		cameraLinkage: cameraLinkage.enabled
 			? {
 					enabled: true,
-					camera_device_ids: normalizeAlertRuleCameraDeviceIds(
-						cameraDeviceIdsModel.value,
-					).slice(0, 4),
+					camera_device_ids: normalizeAlertRuleCameraDeviceIds(cameraDeviceIdsModel.value).slice(
+						0,
+						4
+					),
 				}
 			: null,
+		accessDoorLinkage: accessDoorLinkage.enabled ? { enabled: true } : null,
 		emailSubscription: email.enabled
 			? {
 					enabled: true,

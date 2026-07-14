@@ -259,6 +259,7 @@ export const usePeopleCountingAccessRbac = () => {
 		canEditAccessMembers: canSyncEdit,
 		canResyncAccessDevices: canDeviceSync,
 		canResetStatistics: useHasPermission(p.statisticsReset),
+		canDoorControl: useHasPermission(p.doorControl),
 	}
 }
 

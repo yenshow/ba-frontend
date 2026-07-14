@@ -68,6 +68,9 @@ export type SetFingerPrintPayload = {
 	enableCardReader?: number[]
 }
 
+/** ISAPI RemoteControlDoor cmd */
+export type RemoteDoorCmd = "open" | "close" | "alwaysOpen" | "alwaysClose"
+
 export const useAccessControlApi = () => {
 	const { request } = useApiBase()
 
@@ -169,6 +172,20 @@ export const useAccessControlApi = () => {
 				body: JSON.stringify({ FingerPrintCfg: payload }),
 				timeout: 60000,
 			})
+		},
+
+		/** 遠端門控（RemoteControlDoor） */
+		controlRemoteDoor: (
+			deviceId: number,
+			body: { cmd: RemoteDoorCmd; doorNo?: number }
+		) => {
+			return request<{ success: boolean; doorNo: number; cmd: string }>(
+				`/access-control/devices/${deviceId}/remote-control-door`,
+				{
+					method: "PUT",
+					body: JSON.stringify(body),
+				}
+			)
 		},
 	}
 }

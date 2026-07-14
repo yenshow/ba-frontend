@@ -150,6 +150,16 @@ export interface AlertCameraLinkage {
 	updated_at: string
 }
 
+/** 警報觸發時對全部門禁設備送 alwaysOpen（無設備清單） */
+export interface AlertAccessDoorLinkage {
+	id: number
+	enabled: boolean
+	rule_id: number
+	created_by?: number | null
+	created_at: string
+	updated_at: string
+}
+
 export type SmtpSecurity = "none" | "ssl" | "tls"
 
 export interface AlertEmailSubscription {
@@ -192,12 +202,14 @@ export interface AlertEmailSmtpTestResponse {
 export interface AlertRuleIntegrations {
 	doLinkage: AlertDoLinkage | null
 	cameraLinkage: AlertCameraLinkage | null
+	accessDoorLinkage: AlertAccessDoorLinkage | null
 	emailSubscription: AlertEmailSubscription | null
 }
 
 export type AlertRuleIntegrationSummary = {
 	doEnabled: boolean
 	cameraEnabled: boolean
+	accessDoorEnabled: boolean
 	emailEnabled: boolean
 	hasAny: boolean
 }
