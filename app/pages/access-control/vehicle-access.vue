@@ -96,11 +96,14 @@
 										:display-columns="selectedLocation?.logDisplayColumns"
 									/>
 								</div>
-								<VehicleOrganizationGroupPanel
+								<VehicleAccessDetailSidePanel
+									v-model:show-barrier-panel="showDetailBarrierPanel"
+									:is-isapi-camera="isIsapiCamera"
+									:location="selectedLocation"
+									:can-write="canBarrierControl"
 									:groups="organizationGroups ?? []"
 									:selected-group-key="selectedOrganizationKey ?? undefined"
-									:panel-title="isIsapiCamera ? '人員群組' : '車輛群組'"
-									@select="handleOrganizationGroupSelect"
+									@select-group="handleOrganizationGroupSelect"
 								/>
 							</div>
 						</template>
@@ -240,7 +243,7 @@ import type {
 import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue"
 import VehicleStatsPanel from "~/components/vehicle-access/VehicleStatsPanel.vue"
 import VehicleDataLogTable from "~/components/vehicle-access/VehicleDataLogTable.vue"
-import VehicleOrganizationGroupPanel from "~/components/vehicle-access/VehicleOrganizationGroupPanel.vue"
+import VehicleAccessDetailSidePanel from "~/components/vehicle-access/VehicleAccessDetailSidePanel.vue"
 import VehicleOverviewCard from "~/components/vehicle-access/VehicleOverviewCard.vue"
 import VehicleGroupDetailDialog from "~/components/vehicle-access/VehicleGroupDetailDialog.vue"
 import VehicleAccessIsapiManageDialog from "~/components/vehicle-access/VehicleAccessIsapiManageDialog.vue"
@@ -337,6 +340,8 @@ const { request } = useApiBase()
 const showSimulationFrame = ref(false)
 const isGroupDialogOpen = ref(false)
 const showIsapiManageDialog = ref(false)
+/** 左側詳情：人員群組／柵欄機切換；預設人員群組 */
+const showDetailBarrierPanel = ref(false)
 
 const handleVehicleMembersUpdated = async () => {
 	await loadOrganizationData()
@@ -572,6 +577,7 @@ let cleanupWebSocket: (() => void) | null = null
 watch(
 	() => filters.value.locationId,
 	(locationId) => {
+		showDetailBarrierPanel.value = false
 		if (!locationId) return
 		void loadLocationDetail()
 		nextTick(() => scrollActiveOverviewIntoView())

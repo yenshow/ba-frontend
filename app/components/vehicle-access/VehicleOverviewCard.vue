@@ -29,7 +29,11 @@
 			</div>
 
 			<div v-if="showBarrierPanel" class="w-full max-h-[220px] overflow-y-auto py-2 text-white">
-				<VehicleBarrierDeviceControls :location="location" :can-write="canWrite" />
+				<VehicleBarrierGatePanel
+					variant="compact"
+					:location="location"
+					:can-write="canWrite"
+				/>
 			</div>
 
 			<div v-else class="flex items-center gap-8 py-2 text-white">
@@ -102,7 +106,7 @@ import type {
 	VehicleOrganizationGroupItem,
 } from "~/types/vehicleAccess"
 
-import VehicleBarrierDeviceControls from "~/components/vehicle-access/VehicleBarrierDeviceControls.vue"
+import VehicleBarrierGatePanel from "~/components/vehicle-access/VehicleBarrierGatePanel.vue"
 
 const OVERVIEW_GROUP_CELLS = 12
 

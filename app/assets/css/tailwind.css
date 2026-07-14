@@ -440,6 +440,8 @@ html:not(.dark) .select-filter option {
 	@apply p-2.5 2xl:p-3;
 }
 .monitoring-detail-enlarged .vehicle-org-title,
+.monitoring-detail-enlarged .vehicle-barrier-title,
+.monitoring-detail-enlarged .vehicle-detail-side-title,
 .monitoring-detail-enlarged .people-unit-title {
 	@apply text-xl 2xl:text-2xl;
 }
