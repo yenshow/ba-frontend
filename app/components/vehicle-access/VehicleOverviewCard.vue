@@ -28,8 +28,12 @@
 				<h3 class="text-base text-white 2xl:text-lg">{{ summary.name }}</h3>
 			</div>
 
-			<div v-if="showBarrierPanel" class="max-h-[220px] w-full overflow-y-auto py-2 text-white">
-				<VehicleBarrierDeviceControls :location="location" :can-write="canWrite" />
+			<div v-if="showBarrierPanel" class="w-full max-h-[220px] overflow-y-auto py-2 text-white">
+				<VehicleBarrierGatePanel
+					variant="compact"
+					:location="location"
+					:can-write="canWrite"
+				/>
 			</div>
 
 			<div v-else class="flex items-center gap-8 py-2 text-white">
@@ -38,18 +42,23 @@
 				>
 					<div class="flex items-center justify-center gap-3 monitoring-chip-bg p-2">
 						<div class="overview-stat-label">進場車輛</div>
+
 						<div class="w-[80px] bg-black/20 text-center text-xl 2xl:w-[100px] 2xl:text-2xl">
 							{{ summary.entryCount ?? 0 }}
 						</div>
 					</div>
+
 					<div class="flex items-center justify-center gap-3 monitoring-chip-bg p-2">
 						<div class="overview-stat-label">出場車輛</div>
+
 						<div class="w-[80px] bg-black/20 text-center text-xl 2xl:w-[100px] 2xl:text-2xl">
 							{{ summary.exitCount ?? 0 }}
 						</div>
 					</div>
+
 					<div class="flex items-center justify-center gap-3 monitoring-chip-bg p-2">
 						<div class="overview-stat-label">{{ thirdColumn.label }}</div>
+
 						<div
 							class="w-[80px] bg-black/20 text-center text-xl 2xl:w-[100px] 2xl:text-2xl"
 							:class="thirdColumn.isAtOrOverCapacity && 'text-amber-200'"
@@ -66,13 +75,19 @@
 						class="flex min-h-[36px] min-w-[64px] items-center justify-center p-2 text-center transition-all"
 						:class="{
 							'monitoring-chip-bg': group && (group.onSiteCount || 0) > 0,
+
 							'bg-black/20': !group || (group.onSiteCount || 0) === 0,
+
 							'text-white/90': group,
-							'text-white/30': !group
+
+							'text-white/30': !group,
 						}"
 						:title="group ? group.personGroupName : ''"
 					>
-						<span v-if="group" class="line-clamp-2 text-[11px] font-semibold text-white 2xl:text-xs">
+						<span
+							v-if="group"
+							class="line-clamp-2 text-[11px] font-semibold text-white 2xl:text-xs"
+						>
 							{{ group.personGroupName }}
 						</span>
 					</div>
@@ -83,71 +98,81 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch } from "vue"
+
 import type {
 	VehicleAccessLocation,
 	VehicleAccessLocationSummary,
-	VehicleOrganizationGroupItem
-} from "~/types/vehicleAccess";
-import VehicleBarrierDeviceControls from "~/components/vehicle-access/VehicleBarrierDeviceControls.vue";
+	VehicleOrganizationGroupItem,
+} from "~/types/vehicleAccess"
 
-const OVERVIEW_GROUP_CELLS = 12;
+import VehicleBarrierGatePanel from "~/components/vehicle-access/VehicleBarrierGatePanel.vue"
+
+const OVERVIEW_GROUP_CELLS = 12
 
 const props = withDefaults(
 	defineProps<{
-		summary: VehicleAccessLocationSummary & { zoneName?: string };
-		groups?: VehicleOrganizationGroupItem[];
-		location?: VehicleAccessLocation | null;
-		canWrite?: boolean;
+		summary: VehicleAccessLocationSummary & { zoneName?: string }
+
+		groups?: VehicleOrganizationGroupItem[]
+
+		location?: VehicleAccessLocation | null
+
+		canWrite?: boolean
 	}>(),
+
 	{
 		groups: () => [],
+
 		location: null,
-		canWrite: false
+
+		canWrite: false,
 	}
-);
+)
 
 const emit = defineEmits<{
-	(e: "click", locationId: string): void;
-}>();
+	(e: "click", locationId: string): void
+}>()
 
-const showBarrierPanel = ref(false);
+const showBarrierPanel = ref(false)
 
 watch(
 	() => props.summary.id ?? props.summary.locationId,
+
 	() => {
-		showBarrierPanel.value = false;
+		showBarrierPanel.value = false
 	}
-);
+)
 
 const parkingCapacity = computed(() => {
-	const loc = props.location;
-	if (loc?.operationMode !== "parking" || loc?.dataSource !== "isapi_camera") return null;
-	const cap = loc.parkingCapacity;
-	return cap != null && cap > 0 ? cap : null;
-});
+	const loc = props.location
+	if (loc?.operationMode !== "parking" || loc?.dataSource !== "isapi_camera") return null
+	const cap = loc.parkingCapacity
+	return cap != null && cap > 0 ? cap : null
+})
 
 const thirdColumn = computed(() => {
-	const onSite = props.summary.currentCount ?? 0;
-	const cap = parkingCapacity.value;
+	const onSite = props.summary.currentCount ?? 0
+	const cap = parkingCapacity.value
 	if (cap == null) {
-		return { label: "在場車輛", display: onSite, isAtOrOverCapacity: false };
+		return { label: "在場車輛", display: onSite, isAtOrOverCapacity: false }
 	}
 	return {
 		label: "剩餘車位",
 		display: Math.max(0, cap - onSite),
-		isAtOrOverCapacity: onSite >= cap
-	};
-});
+		isAtOrOverCapacity: onSite >= cap,
+	}
+})
 
-const isIsapiLocation = computed(() => props.location?.dataSource === "isapi_camera");
+const isIsapiLocation = computed(() => props.location?.dataSource === "isapi_camera")
 
 const displayGroups = computed(() => {
-	const list = (props.groups ?? []).slice(0, OVERVIEW_GROUP_CELLS);
-	return [...list, ...Array.from({ length: OVERVIEW_GROUP_CELLS - list.length }, () => null)];
-});
+	const list = (props.groups ?? []).slice(0, OVERVIEW_GROUP_CELLS)
+
+	return [...list, ...Array.from({ length: OVERVIEW_GROUP_CELLS - list.length }, () => null)]
+})
 
 const handleClick = () => {
-	emit("click", props.summary.id ?? "");
-};
+	emit("click", props.summary.id ?? "")
+}
 </script>

@@ -1,11 +1,12 @@
 <template>
-	<div class="vehicle-org-panel min-h-[220px] space-y-4">
+	<div class="vehicle-org-panel min-h-0 space-y-3 overflow-hidden">
 		<h3
+			v-if="!hideTitle"
 			class="vehicle-org-title monitoring-chip-bg py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
 		>
 			{{ panelTitle }}
 		</h3>
-		<div class="grid grid-cols-3 gap-4 2xl:grid-cols-4">
+		<div class="grid grid-cols-3 content-start gap-4 2xl:grid-cols-4">
 			<button
 				v-for="group in groups"
 				:key="group.groupKey"
@@ -46,8 +47,9 @@ withDefaults(
 		groups: VehicleOrganizationGroupItem[];
 		selectedGroupKey?: string;
 		panelTitle?: string;
+		hideTitle?: boolean;
 	}>(),
-	{ panelTitle: "車輛群組" }
+	{ panelTitle: "車輛群組", hideTitle: false }
 );
 
 const emit = defineEmits<{

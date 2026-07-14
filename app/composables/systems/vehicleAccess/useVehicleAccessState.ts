@@ -16,11 +16,10 @@ import type {
 	VehicleGroupMemberItem,
 	VehicleGroupFromApi
 } from "~/types/vehicleAccess";
-import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi";
 import {
-	useVehicleAccessSitesApi,
-	VEHICLE_ACCESS_FULL_REPORT_LIMIT
-} from "~/composables/systems/vehicleAccess/useVehicleAccessSitesApi";
+	useVehicleAccessApi,
+	VEHICLE_ACCESS_FULL_REPORT_LIMIT,
+} from "~/composables/systems/vehicleAccess/useVehicleAccessApi";
 import { buildLogsTimeQuery } from "~/utils/entryExitTimeRange";
 import type { VehicleAccessDataSource } from "~/types/vehicleAccess";
 import { useLocationApi } from "~/composables/location/api/useLocationApi";
@@ -31,13 +30,13 @@ import {
 	countReleasedPassages,
 	createVehicleDirectionResolver,
 	normalizePlate,
-	releasedLogs as releasedPassageLogs
+	parseVehicleAccessEventLocationIds,
+	releasedLogs as releasedPassageLogs,
 } from "~/utils/vehicleAccessPassageStats";
 import type { UnifiedZone } from "~/types/location";
 import { compareZonesLoose } from "~/utils/sortOrder";
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 import { isVehicleAccessLocationVisible } from "~/utils/vehicleAccessDataSource";
-import { parseVehicleAccessEventLocationIds } from "~/utils/vehicleAccessWs";
 
 const MAIN_LOG_LIMIT = 5;
 const TODAY_TIME = { timeRange: "today" as const };
@@ -108,7 +107,7 @@ const buildVehicleGroupMemberFromLogs = (
 
 export const useVehicleAccessState = () => {
 	const vehicleAccessApi = useVehicleAccessApi();
-	const vehicleAccessSitesApi = useVehicleAccessSitesApi();
+
 	const locationApi = useLocationApi();
 	const { handleError } = useErrorHandler();
 	const { enableYscpVehicleAccess } = useModuleRegistry();
@@ -208,7 +207,7 @@ export const useVehicleAccessState = () => {
 		const results = await Promise.all(
 			uniqueIds.map(async siteId => {
 				try {
-					const { groups } = await vehicleAccessSitesApi.getOrganizationGroups(siteId);
+					const { groups } = await vehicleAccessApi.getOrganizationGroups(siteId);
 					return { siteId, groups: Array.isArray(groups) ? groups : [] };
 				} catch {
 					return { siteId, groups: [] as IsapiOrganizationGroupFromApi[] };
@@ -264,7 +263,7 @@ export const useVehicleAccessState = () => {
 		try {
 			const timeQuery =
 				isIsapiCamera.value && isParkingMode.value ? {} : TODAY_TIME;
-			const result = await vehicleAccessSitesApi.getSiteLogs(siteId, {
+			const result = await vehicleAccessApi.getSiteLogs(siteId, {
 				limit: VEHICLE_ACCESS_FULL_REPORT_LIMIT,
 				...timeQuery
 			});
@@ -297,14 +296,14 @@ export const useVehicleAccessState = () => {
 		}
 		try {
 			if (isParkingMode.value) {
-				const session = await vehicleAccessSitesApi.getSiteSessionStats(siteId);
+				const session = await vehicleAccessApi.getSiteSessionStats(siteId);
 				entryCount.value = session.entryCount;
 				exitCount.value = session.exitCount;
-				const presence = await vehicleAccessSitesApi.getSitePresence(siteId);
+				const presence = await vehicleAccessApi.getSitePresence(siteId);
 				onSiteCount.value = presence.currentCount;
 				onSiteCapacity.value = presence.capacity;
 			} else {
-				const stats = await vehicleAccessSitesApi.getSiteStats(siteId, TODAY_TIME);
+				const stats = await vehicleAccessApi.getSiteStats(siteId, TODAY_TIME);
 				entryCount.value = stats.entryCount;
 				exitCount.value = stats.exitCount;
 				onSiteCount.value = stats.currentCount;
@@ -322,7 +321,7 @@ export const useVehicleAccessState = () => {
 	const loadOverviewSummaries = async (): Promise<void> => {
 		isLoadingOverview.value = true;
 		try {
-			const { sites } = await vehicleAccessSitesApi.getSites();
+			const { sites } = await vehicleAccessApi.getSites();
 			const siteById = new Map(sites.map(s => [s.id, s]));
 			const summaries: VehicleAccessLocationSummary[] = [];
 
@@ -362,7 +361,7 @@ export const useVehicleAccessState = () => {
 
 		isLoadingOverview.value = true;
 		try {
-			const { sites } = await vehicleAccessSitesApi.getSites();
+			const { sites } = await vehicleAccessApi.getSites();
 			const siteById = new Map(sites.map(s => [s.id, s]));
 			const idSet = new Set(locationIds.map(Number));
 
@@ -535,7 +534,7 @@ export const useVehicleAccessState = () => {
 			options.startTime,
 			options.endTime
 		);
-		const result = await vehicleAccessSitesApi.getAllSiteLogs({
+		const result = await vehicleAccessApi.getAllSiteLogs({
 			limit: VEHICLE_ACCESS_FULL_REPORT_LIMIT,
 			...timeQuery
 		});
@@ -557,7 +556,7 @@ export const useVehicleAccessState = () => {
 	const resetParkingStatsForSelectedSite = async (): Promise<void> => {
 		const siteId = resolveSiteId(selectedLocation.value);
 		if (siteId == null || !isParkingMode.value) return;
-		await vehicleAccessSitesApi.resetSiteStats(siteId);
+		await vehicleAccessApi.resetSiteStats(siteId);
 		clearUiForSelectedSite();
 	};
 
