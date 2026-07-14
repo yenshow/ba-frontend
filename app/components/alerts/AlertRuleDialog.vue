@@ -40,7 +40,7 @@
 								<span>類型<span class="required-mark">*</span></span>
 								<FilterDropdown
 									v-model="form.alert_type"
-									:options="alertTypeOptionsVisible"
+									:options="alertTypeOptions"
 									placeholder="請選擇警報類型"
 									text-size="text-sm 2xl:text-base"
 								/>
@@ -65,8 +65,8 @@
 									placeholder="全域（不限定區域）"
 									text-size="text-sm 2xl:text-base"
 									@update:model-value="
-										v => {
-											handleSelectZone(v);
+										(v) => {
+											handleSelectZone(v)
 										}
 									"
 								/>
@@ -80,7 +80,7 @@
 									:disabled="!selectedZoneId"
 									placeholder="先選擇區域"
 									text-size="text-sm 2xl:text-base"
-									@update:model-value="v => handleSelectLocation(v)"
+									@update:model-value="(v) => handleSelectLocation(v)"
 								/>
 							</label>
 						</div>
@@ -180,7 +180,9 @@
 									</label>
 									<div v-if="cameraLinkage.enabled" class="mt-3">
 										<div class="flex items-center justify-between gap-3">
-											<p class="text-sm text-white/80">攝影機（最多 4 台）<span class="required-mark">*</span></p>
+											<p class="text-sm text-white/80">
+												攝影機（最多 4 台）<span class="required-mark">*</span>
+											</p>
 											<button
 												type="button"
 												class="btn-secondary"
@@ -204,7 +206,9 @@
 														:options="cameraDeviceOptions"
 														placeholder="請選擇攝影機"
 														text-size="text-sm 2xl:text-base"
-														@update:model-value="(v: string) => handleUpdateCameraDeviceId(index, v)"
+														@update:model-value="
+															(v: string) => handleUpdateCameraDeviceId(index, v)
+														"
 													/>
 												</label>
 												<button
@@ -217,9 +221,19 @@
 													移除
 												</button>
 											</div>
-											<p class="text-xs text-white/60">提示：重複選擇會自動去除；僅會儲存前 4 台。</p>
+											<p class="text-xs text-white/60">
+												提示：重複選擇會自動去除；僅會儲存前 4 台。
+											</p>
 										</div>
 									</div>
+								</div>
+
+								<div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+									<p class="mb-3 text-sm font-medium text-white/90">門禁連動</p>
+									<label class="flex items-center gap-3 text-sm text-white/80">
+										<input v-model="accessDoorLinkage.enabled" type="checkbox" class="h-4 w-4" />
+										<span>啟用全開門禁</span>
+									</label>
 								</div>
 							</div>
 						</div>
@@ -235,7 +249,7 @@
 							</button>
 
 							<div v-if="expandedSections.notify" class="mt-4 space-y-3">
-								<div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+								<div class="mt-2 rounded-2xl border border-white/10 bg-white/5 p-4">
 									<p class="mb-3 text-sm font-medium text-white/90">Email（SMTP）</p>
 									<label class="flex items-center gap-3 text-sm text-white/80">
 										<input v-model="email.enabled" type="checkbox" class="h-4 w-4" />
@@ -291,6 +305,7 @@
 												autocomplete="new-password"
 											/>
 										</label>
+
 										<label class="flex flex-col gap-2 text-sm text-white/80 md:col-span-2">
 											<span>收件人 To（每行一個）<span class="required-mark">*</span></span>
 											<textarea
@@ -315,7 +330,6 @@
 												請先建立並儲存規則（取得規則 ID）後，才能寄送測試信。
 											</p>
 										</div>
-
 										<label class="flex flex-col gap-2 text-sm text-white/80">
 											<span>重複發送間隔（秒）<span class="required-mark">*</span></span>
 											<input
@@ -365,12 +379,19 @@
 						</p>
 					</form>
 
-					<footer class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8">
+					<footer
+						class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8"
+					>
 						<button type="button" class="btn-secondary" @click="emit('update:modelValue', false)">
 							取消
 						</button>
 						<div class="flex-1"></div>
-						<button type="button" class="btn-primary" :disabled="isSubmitting" @click="handleSubmit">
+						<button
+							type="button"
+							class="btn-primary"
+							:disabled="isSubmitting"
+							@click="handleSubmit"
+						>
 							{{ isSubmitting ? "處理中..." : editingRule ? "儲存變更" : "建立警報" }}
 						</button>
 					</footer>
@@ -386,106 +407,108 @@ import type {
 	AlertSeverity,
 	AlertSource,
 	AlertTargetType,
-	AlertType
-} from "~/types/alert";
-import type { Device } from "~/types/device";
-import FilterDropdown from "~/components/common/FilterDropdown.vue";
-import type { UnifiedZone } from "~/types/location";
-import { useZonesCache } from "~/composables/location/cache/useZonesCache";
-import { useAlertApi } from "~/composables/systems/alerts/useAlertApi";
-import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
-import { alertSourceToSystemType, isAllowedThresholdOperator } from "~/utils/alertUtils";
+	AlertType,
+	AlertRuleIntegrations,
+} from "~/types/alert"
+import type { Device } from "~/types/device"
+import FilterDropdown from "~/components/common/FilterDropdown.vue"
+import type { UnifiedZone } from "~/types/location"
+import { useZonesCache } from "~/composables/location/cache/useZonesCache"
+import { useAlertApi } from "~/composables/systems/alerts/useAlertApi"
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { alertSourceToSystemType, isAllowedThresholdOperator } from "~/utils/alertUtils"
 import {
 	normalizeAlertRuleCameraDeviceIds,
 	parseAlertRuleEmailsFromText,
 	validateAlertRuleEmailSubscription,
 	validateAlertRuleFormForSave,
-} from "~/utils/alertRuleFormValidation";
+} from "~/utils/alertRuleFormValidation"
 
 interface OptionItem {
-	value: string;
-	label: string;
+	value: string
+	label: string
 }
 
 interface RuleFormValue {
-	source: AlertSource;
-	alert_type: AlertType;
-	severity: AlertSeverity;
-	target_type: AlertTargetType | null;
-	target_id: number | null;
-	message_suffix: string;
-	enabled: boolean;
+	source: AlertSource
+	alert_type: AlertType
+	severity: AlertSeverity
+	target_type: AlertTargetType | null
+	target_id: number | null
+	message_suffix: string
+	enabled: boolean
 }
 
 interface Props {
-	modelValue: boolean;
-	editingRule: AlertRule | null;
-	isSubmitting?: boolean;
-	errorMessage?: string | null;
-	sourceOptions: OptionItem[];
+	modelValue: boolean
+	editingRule: AlertRule | null
+	isSubmitting?: boolean
+	errorMessage?: string | null
+	sourceOptions: OptionItem[]
 }
 
 interface SubmitPayload {
-	source: AlertSource;
-	alert_type: AlertType;
-	severity: AlertSeverity;
-	target_type?: AlertTargetType | null;
-	target_id?: number | null;
-	condition_type: "threshold" | "error_count";
-	condition_config: Record<string, unknown>;
-	message_suffix?: string | null;
-	enabled: boolean;
+	source: AlertSource
+	alert_type: AlertType
+	severity: AlertSeverity
+	target_type?: AlertTargetType | null
+	target_id?: number | null
+	condition_type: "threshold" | "error_count" | "bit_state"
+	condition_config: Record<string, unknown>
+	message_suffix?: string | null
+	enabled: boolean
 }
 
 interface IntegrationsDraft {
 	cameraLinkage: null | {
-		enabled: boolean;
-		camera_device_ids?: number[];
-	};
+		enabled: boolean
+		camera_device_ids?: number[]
+	}
+	accessDoorLinkage: null | {
+		enabled: boolean
+	}
 	emailSubscription: null | {
-		enabled: boolean;
-		smtp_host: string;
-		smtp_port: number;
-		smtp_user: string | null;
-		smtp_password: string | null;
-		smtp_security: "none" | "ssl" | "tls";
-		to_emails: string[];
-		repeat_min_interval_seconds: number;
-		repeat_max_send_count: number;
-	};
+		enabled: boolean
+		smtp_host: string
+		smtp_port: number
+		smtp_user: string | null
+		smtp_password: string | null
+		smtp_security: "none" | "ssl" | "tls"
+		to_emails: string[]
+		repeat_min_interval_seconds: number
+		repeat_max_send_count: number
+	}
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	isSubmitting: false,
-	errorMessage: null
-});
+	errorMessage: null,
+})
 
 /** 與列表篩選共用選項時排除「全部」，僅保留實際來源（對齊必填欄位） */
-const sourceSelectOptions = computed(() => props.sourceOptions.filter(o => o.value !== ""));
+const sourceSelectOptions = computed(() => props.sourceOptions.filter((o) => o.value !== ""))
 
-const alertTypeOptionsAll: OptionItem[] = [
+const alertTypeOptions: OptionItem[] = [
 	{ value: "offline", label: "設備狀態警報" },
-	{ value: "threshold", label: "環境參數警報" }
-];
-
-const alertTypeOptionsVisible = computed<OptionItem[]>(() => alertTypeOptionsAll);
+	{ value: "threshold", label: "環境參數警報" },
+]
 
 const severityOptions: OptionItem[] = [
 	{ value: "warning", label: "異常" },
-	{ value: "critical", label: "警報" }
-];
+	{ value: "critical", label: "警報" },
+]
 
 const thresholdOperatorOptions: OptionItem[] = [
 	{ value: ">", label: "超過（>）" },
 	{ value: ">=", label: "超過含等於（>=）" },
 	{ value: "<", label: "低於（<）" },
-	{ value: "<=", label: "低於含等於（<=）" }
-];
+	{ value: "<=", label: "低於含等於（<=）" },
+]
 
 const emit = defineEmits<{
-	(e: "update:modelValue", value: boolean): void;
-	(e: "submit", payload: { rule: SubmitPayload; integrations: IntegrationsDraft }): void;
-}>();
+	(e: "update:modelValue", value: boolean): void
+	(e: "submit", payload: { rule: SubmitPayload; integrations: IntegrationsDraft }): void
+}>()
 
 const form = reactive<RuleFormValue>({
 	source: "environment",
@@ -494,36 +517,40 @@ const form = reactive<RuleFormValue>({
 	target_type: null,
 	target_id: null,
 	message_suffix: "",
-	enabled: true
-});
+	enabled: true,
+})
 
 const thresholdConfig = reactive({
 	parameter: "",
 	operator: ">",
 	value: 0,
-	unit: ""
-});
+	unit: "",
+})
 
 const errorCountConfig = reactive({
-	min_errors: 5
-});
+	min_errors: 5,
+})
 
-const deviceApi = useDeviceApi();
-const alertApi = useAlertApi();
+const alertApi = useAlertApi()
+const deviceApi = useDeviceApi()
 
-const expandedSections = reactive({ linkage: false, notify: false });
+const expandedSections = reactive({ linkage: false, notify: false })
 
 const cameraLinkage = reactive({
 	enabled: false,
 	/** 內部用 slots 表示（可為 null），送出時再轉成 number[] */
-	camera_device_ids: [null] as Array<number | null>
-});
+	camera_device_ids: [null] as Array<number | null>,
+})
+
+const accessDoorLinkage = reactive({
+	enabled: false,
+})
 
 const smtpSecurityOptions: OptionItem[] = [
 	{ value: "none", label: "無" },
 	{ value: "ssl", label: "SSL" },
-	{ value: "tls", label: "TLS" }
-];
+	{ value: "tls", label: "TLS" },
+]
 
 const email = reactive({
 	enabled: false,
@@ -534,133 +561,71 @@ const email = reactive({
 	smtp_security: "tls" as "none" | "ssl" | "tls",
 	to_emails_text: "",
 	repeat_min_interval_seconds: 15 as number,
-	repeat_max_send_count: 10 as number
-});
+	repeat_max_send_count: 10 as number,
+})
 
-const localErrorMessage = ref<string>("");
-const isEmailSmtpTestLoading = ref(false);
-const smtpTestFeedback = reactive<{ ok: boolean; message: string }>({ ok: false, message: "" });
+const localErrorMessage = ref<string>("")
+const isEmailSmtpTestLoading = ref(false)
+const smtpTestFeedback = reactive<{ ok: boolean; message: string }>({
+	ok: false,
+	message: "",
+})
 
-const buildAlertRuleValidationInput = () => ({
-	target_type: form.target_type || null,
-	target_id: form.target_id != null ? Number(form.target_id) : null,
-	cameraLinkage: {
-		enabled: cameraLinkage.enabled,
-		camera_device_ids: normalizeAlertRuleCameraDeviceIds(cameraDeviceIdsModel.value),
-	},
-	email,
-});
-
-const handleEmailSmtpTestClick = async () => {
-	localErrorMessage.value = "";
-	smtpTestFeedback.ok = false;
-	smtpTestFeedback.message = "";
-
-	const ruleId = props.editingRule?.id;
-	if (!ruleId) {
-		localErrorMessage.value = "SMTP 測試：請先建立並儲存規則";
-		return;
-	}
-
-	const err = validateAlertRuleEmailSubscription(email, "SMTP 測試");
-	if (err) {
-		localErrorMessage.value = err;
-		return;
-	}
-
-	isEmailSmtpTestLoading.value = true;
-	try {
-		const res = await alertApi.testAlertRuleSmtpEmail(ruleId, {
-			emailSubscription: {
-				enabled: Boolean(email.enabled),
-				smtp_host: email.smtp_host.trim(),
-				smtp_port: Number(email.smtp_port),
-				smtp_user: email.smtp_user.trim(),
-				smtp_password: email.smtp_password || null,
-				smtp_security: email.smtp_security,
-				to_emails: parseAlertRuleEmailsFromText(email.to_emails_text)
-			}
-		});
-		smtpTestFeedback.ok = true;
-		smtpTestFeedback.message = `SMTP 測試寄送成功（messageId: ${String(res?.messageId || "") || "—"}）`;
-	} catch (e: any) {
-		smtpTestFeedback.ok = false;
-		smtpTestFeedback.message = `SMTP 測試寄送失敗：${String(e?.data?.message || e?.message || e || "未知錯誤")}`;
-	} finally {
-		isEmailSmtpTestLoading.value = false;
-	}
-};
-
-const devices = ref<Device[]>([]);
-const isDevicesLoading = ref(false);
-let devicesLoadPromise: Promise<void> | null = null;
+const devices = ref<Device[]>([])
+const isDevicesLoading = ref(false)
+let devicesLoadPromise: Promise<void> | null = null
 
 const cameraDeviceIdsModel = computed<Array<number | null>>({
 	get() {
-		const raw = Array.isArray(cameraLinkage.camera_device_ids) ? cameraLinkage.camera_device_ids : [];
+		const raw = Array.isArray(cameraLinkage.camera_device_ids)
+			? cameraLinkage.camera_device_ids
+			: []
 		const normalized = raw
-			.map(v => (v == null ? null : Number(v)))
-			.map(n => (Number.isFinite(n as number) ? (n as number) : null));
+			.map((v) => (v == null ? null : Number(v)))
+			.map((n) => (Number.isFinite(n as number) ? (n as number) : null))
 
 		// 保留空 slot；但已選擇的 deviceId 需去重（保留第一個）
-		const seen = new Set<number>();
-		const deduped = normalized.map(v => {
-			if (v == null || v <= 0) return null;
-			if (seen.has(v)) return null;
-			seen.add(v);
-			return v;
-		});
+		const seen = new Set<number>()
+		const deduped = normalized.map((v) => {
+			if (v == null || v <= 0) return null
+			if (seen.has(v)) return null
+			seen.add(v)
+			return v
+		})
 
-		const trimmed = deduped.slice(0, 4);
-		return trimmed.length > 0 ? trimmed : [null];
+		const trimmed = deduped.slice(0, 4)
+		return trimmed.length > 0 ? trimmed : [null]
 	},
 	set(next) {
-		const raw = Array.isArray(next) ? next : [];
+		const raw = Array.isArray(next) ? next : []
 		const normalized = raw
-			.map(v => (v == null ? null : Number(v)))
-			.map(n => (Number.isFinite(n as number) ? (n as number) : null))
-			.map(v => (v != null && v > 0 ? v : null));
+			.map((v) => (v == null ? null : Number(v)))
+			.map((n) => (Number.isFinite(n as number) ? (n as number) : null))
+			.map((v) => (v != null && v > 0 ? v : null))
 
-		const seen = new Set<number>();
-		const deduped = normalized.map(v => {
-			if (v == null) return null;
-			if (seen.has(v)) return null;
-			seen.add(v);
-			return v;
-		});
+		const seen = new Set<number>()
+		const deduped = normalized.map((v) => {
+			if (v == null) return null
+			if (seen.has(v)) return null
+			seen.add(v)
+			return v
+		})
 
-		const trimmed = deduped.slice(0, 4);
-		cameraLinkage.camera_device_ids = trimmed.length > 0 ? trimmed : [null];
-	}
-});
-
-const handleAddCameraDeviceSlot = () => {
-	if (cameraDeviceIdsModel.value.length >= 4) return;
-	cameraDeviceIdsModel.value = [...cameraDeviceIdsModel.value, null];
-};
-
-const handleRemoveCameraDeviceSlot = (index: number) => {
-	const next = [...cameraDeviceIdsModel.value];
-	next.splice(index, 1);
-	cameraDeviceIdsModel.value = next.length > 0 ? next : [null];
-};
-
-const handleUpdateCameraDeviceId = (index: number, value: string) => {
-	const n = Number(value);
-	const next = [...cameraDeviceIdsModel.value];
-	next[index] = Number.isFinite(n) && n > 0 ? n : null;
-	cameraDeviceIdsModel.value = next;
-};
+		const trimmed = deduped.slice(0, 4)
+		cameraLinkage.camera_device_ids = trimmed.length > 0 ? trimmed : [null]
+	},
+})
 
 const cameraDeviceOptions = computed(() => {
-	const base = [{ value: "", label: isDevicesLoading.value ? "設備載入中..." : "請選擇攝影機" }];
+	const base = [{ value: "", label: isDevicesLoading.value ? "設備載入中..." : "請選擇攝影機" }]
 	const items = devices.value
 		.filter(
-			d => String((d as Device & { type_code?: string }).type_code || "").toLowerCase() === "camera"
+			(d) =>
+				String((d as Device & { type_code?: string }).type_code || "").toLowerCase() === "camera"
 		)
-		.map(d => ({ value: String(d.id), label: String(d.name || "").trim() || "(未命名)" }));
-	return [...base, ...items];
-});
+		.map((d) => ({ value: String(d.id), label: String(d.name || "").trim() || "(未命名)" }))
+	return [...base, ...items]
+})
 
 const parameterOptions: OptionItem[] = [
 	{ value: "noise", label: "噪音值" },
@@ -671,105 +636,123 @@ const parameterOptions: OptionItem[] = [
 	{ value: "humidity", label: "濕度" },
 	{ value: "tvoc", label: "TVOC" },
 	{ value: "hcho", label: "HCHO" },
-	{ value: "wind", label: "風速" }
-];
+	{ value: "wind", label: "風速" },
+]
 
-const zonesCache = useZonesCache();
-const zones = ref<UnifiedZone[]>([]);
-const selectedZoneId = ref<string>("");
-const selectedLocationId = ref<string>("");
+const zonesCache = useZonesCache()
+const zones = ref<UnifiedZone[]>([])
+const selectedZoneId = ref<string>("")
+const selectedLocationId = ref<string>("")
 
 const zoneOptions = computed<OptionItem[]>(() => {
-	const base: OptionItem[] = [{ value: "", label: "全域" }];
-	return base.concat(zones.value.map(z => ({ value: String(z.id), label: z.name })));
-});
+	const base: OptionItem[] = [{ value: "", label: "全域" }]
+	return base.concat(zones.value.map((z) => ({ value: String(z.id), label: z.name })))
+})
 
 const locationOptions = computed<OptionItem[]>(() => {
-	if (!selectedZoneId.value) return [];
-	const zone = zones.value.find(z => String(z.id) === String(selectedZoneId.value));
-	const locations = zone?.locations || [];
-	return locations.map(l => ({ value: String(l.id), label: l.name }));
-});
+	if (!selectedZoneId.value) return []
+	const zone = zones.value.find((z) => String(z.id) === String(selectedZoneId.value))
+	const locations = zone?.locations || []
+	return locations.map((l) => ({ value: String(l.id), label: l.name }))
+})
 
 const resetForm = () => {
-	form.source = "environment";
-	form.alert_type = "threshold";
-	form.severity = "warning";
-	form.target_type = null;
-	form.target_id = null;
-	form.message_suffix = "";
-	form.enabled = true;
+	form.source = "environment"
+	form.alert_type = "threshold"
+	form.severity = "warning"
+	form.target_type = null
+	form.target_id = null
+	form.message_suffix = ""
+	form.enabled = true
 
-	thresholdConfig.parameter = "";
-	thresholdConfig.operator = ">";
-	thresholdConfig.value = 0;
-	thresholdConfig.unit = "";
-	errorCountConfig.min_errors = 5;
-	selectedZoneId.value = "";
-	selectedLocationId.value = "";
+	thresholdConfig.parameter = ""
+	thresholdConfig.operator = ">"
+	thresholdConfig.value = 0
+	thresholdConfig.unit = ""
+	errorCountConfig.min_errors = 5
+	selectedZoneId.value = ""
+	selectedLocationId.value = ""
 
-	cameraLinkage.enabled = false;
-	cameraLinkage.camera_device_ids = [null];
+	cameraLinkage.enabled = false
+	cameraLinkage.camera_device_ids = [null]
 
-	email.enabled = false;
-	email.smtp_host = "";
-	email.smtp_port = 587;
-	email.smtp_user = "";
-	email.smtp_password = "";
-	email.smtp_security = "tls";
-	email.to_emails_text = "";
-	email.repeat_min_interval_seconds = 15;
-	email.repeat_max_send_count = 10;
+	accessDoorLinkage.enabled = false
 
-	smtpTestFeedback.ok = false;
-	smtpTestFeedback.message = "";
-	localErrorMessage.value = "";
+	email.enabled = false
+	email.smtp_host = ""
+	email.smtp_port = 587
+	email.smtp_user = ""
+	email.smtp_password = ""
+	email.smtp_security = "tls"
+	email.to_emails_text = ""
+	email.repeat_min_interval_seconds = 15
+	email.repeat_max_send_count = 10
 
-	expandedSections.linkage = false;
-	expandedSections.notify = false;
-};
+	localErrorMessage.value = ""
+
+	expandedSections.linkage = false
+	expandedSections.notify = false
+}
+
+const handleAddCameraDeviceSlot = () => {
+	if (cameraDeviceIdsModel.value.length >= 4) return
+	cameraDeviceIdsModel.value = [...cameraDeviceIdsModel.value, null]
+}
+
+const handleRemoveCameraDeviceSlot = (index: number) => {
+	const next = [...cameraDeviceIdsModel.value]
+	next.splice(index, 1)
+	cameraDeviceIdsModel.value = next.length > 0 ? next : [null]
+}
+
+const handleUpdateCameraDeviceId = (index: number, value: string) => {
+	const n = Number(value)
+	const next = [...cameraDeviceIdsModel.value]
+	next[index] = Number.isFinite(n) && n > 0 ? n : null
+	cameraDeviceIdsModel.value = next
+}
 
 const handleSelectZone = (zoneId: string) => {
-	selectedZoneId.value = zoneId || "";
-	selectedLocationId.value = "";
+	selectedZoneId.value = zoneId || ""
+	selectedLocationId.value = ""
 	// 目標映射：若選 location → target_type=location；若只選 zone → target_type=zone；都不選 → global
 	if (!selectedZoneId.value) {
-		form.target_type = null;
-		form.target_id = null;
-		return;
+		form.target_type = null
+		form.target_id = null
+		return
 	}
-	form.target_type = "zone";
-	form.target_id = Number(selectedZoneId.value);
-};
+	form.target_type = "zone"
+	form.target_id = Number(selectedZoneId.value)
+}
 
 const handleSelectLocation = (locationId: string) => {
-	selectedLocationId.value = locationId || "";
+	selectedLocationId.value = locationId || ""
 	if (!selectedZoneId.value) {
-		form.target_type = null;
-		form.target_id = null;
-		return;
+		form.target_type = null
+		form.target_id = null
+		return
 	}
 	if (!selectedLocationId.value) {
-		form.target_type = "zone";
-		form.target_id = Number(selectedZoneId.value);
-		return;
+		form.target_type = "zone"
+		form.target_id = Number(selectedZoneId.value)
+		return
 	}
-	form.target_type = "location";
-	form.target_id = Number(selectedLocationId.value);
-};
+	form.target_type = "location"
+	form.target_id = Number(selectedLocationId.value)
+}
 
 const loadZones = async () => {
-	const systemType = alertSourceToSystemType(form.source);
+	const systemType = alertSourceToSystemType(form.source)
 	if (!systemType) {
-		zones.value = [];
-		return;
+		zones.value = []
+		return
 	}
-	const z = await zonesCache.getZones(systemType);
-	zones.value = z || [];
-};
+	const z = await zonesCache.getZones(systemType)
+	zones.value = z || []
+}
 
 const conditionTypeForPayload = (): SubmitPayload["condition_type"] =>
-	form.alert_type === "offline" ? "error_count" : "threshold";
+	form.alert_type === "offline" ? "error_count" : "threshold"
 
 const buildConditionConfig = (): Record<string, unknown> => {
 	if (form.alert_type === "threshold") {
@@ -777,186 +760,238 @@ const buildConditionConfig = (): Record<string, unknown> => {
 			parameter: thresholdConfig.parameter.trim(),
 			operator: thresholdConfig.operator,
 			value: Number(thresholdConfig.value),
-			unit: thresholdConfig.unit.trim()
-		};
-	}
-	if (form.alert_type === "offline") {
-		return {
-			min_errors: Math.max(1, Number(errorCountConfig.min_errors) || 1)
-		};
+			unit: thresholdConfig.unit.trim(),
+		}
 	}
 	return {
-		parameter: thresholdConfig.parameter.trim(),
-		operator: thresholdConfig.operator,
-		value: Number(thresholdConfig.value),
-		unit: thresholdConfig.unit.trim()
-	};
-};
+		min_errors: Math.max(1, Number(errorCountConfig.min_errors) || 1),
+	}
+}
 
 const loadDevices = async () => {
-	if (devices.value.length > 0) return;
+	if (devices.value.length > 0) return
 	if (devicesLoadPromise) {
-		await devicesLoadPromise;
-		return;
+		await devicesLoadPromise
+		return
 	}
-	isDevicesLoading.value = true;
+	isDevicesLoading.value = true
 	devicesLoadPromise = (async () => {
 		try {
-			const res = await deviceApi.getDevices({ limit: 500, offset: 0, orderBy: "id", order: "desc" });
-			devices.value = Array.isArray(res.devices) ? res.devices : [];
+			const res = await deviceApi.getDevices({
+				limit: 500,
+				offset: 0,
+				orderBy: "id",
+				order: "desc",
+			})
+			devices.value = Array.isArray(res.devices) ? res.devices : []
 		} catch {
-			devices.value = [];
+			devices.value = []
 		} finally {
-			isDevicesLoading.value = false;
-			devicesLoadPromise = null;
+			isDevicesLoading.value = false
+			devicesLoadPromise = null
 		}
-	})();
-	await devicesLoadPromise;
-};
+	})()
+	await devicesLoadPromise
+}
 
 const loadIntegrationsForRule = async (ruleId: number) => {
 	try {
-		const res = await alertApi.getAlertRuleIntegrations(ruleId);
-		const c = res?.cameraLinkage;
-		cameraLinkage.enabled = Boolean(c?.enabled);
-		const idsRaw = (c as any)?.camera_device_ids as unknown;
+		const res = await alertApi.getAlertRuleIntegrations(ruleId)
+		const c = res?.cameraLinkage
+		cameraLinkage.enabled = Boolean(c?.enabled)
+		const idsRaw = (c as any)?.camera_device_ids as unknown
 		const ids = Array.isArray(idsRaw)
 			? (idsRaw as unknown[])
-					.map(v => Number(v))
+					.map((v) => Number(v))
 					.filter((n): n is number => Number.isFinite(n) && n > 0)
 					.slice(0, 4)
-			: [];
-		const merged = [...new Set(ids)].slice(0, 4);
-		cameraLinkage.camera_device_ids = merged.length > 0 ? merged : [null];
+			: []
+		const merged = [...new Set(ids)].slice(0, 4)
+		cameraLinkage.camera_device_ids = merged.length > 0 ? merged : [null]
 
-		const es = (res as any)?.emailSubscription;
-		email.enabled = Boolean(es?.enabled);
-		email.smtp_host = String(es?.smtp_host || "");
-		email.smtp_port = Number(es?.smtp_port ?? 587);
-		email.smtp_user = String(es?.smtp_user || "");
-		email.smtp_password = String(es?.smtp_password || "");
-		email.smtp_security = String(es?.smtp_security || "tls") as any as "none" | "ssl" | "tls";
-		email.to_emails_text = Array.isArray(es?.to_emails) ? es.to_emails.join("\n") : "";
-		email.repeat_min_interval_seconds = Number(es?.repeat_min_interval_seconds ?? 15);
-		email.repeat_max_send_count = Number(es?.repeat_max_send_count ?? 10);
+		accessDoorLinkage.enabled = Boolean(res?.accessDoorLinkage?.enabled)
+
+		const es = (res as any)?.emailSubscription
+		email.enabled = Boolean(es?.enabled)
+		email.smtp_host = String(es?.smtp_host || "")
+		email.smtp_port = Number(es?.smtp_port ?? 587)
+		email.smtp_user = String(es?.smtp_user || "")
+		email.smtp_password = String(es?.smtp_password || "")
+		email.smtp_security = String(es?.smtp_security || "tls") as any as "none" | "ssl" | "tls"
+		email.to_emails_text = Array.isArray(es?.to_emails) ? es.to_emails.join("\n") : ""
+		email.repeat_min_interval_seconds = Number(es?.repeat_min_interval_seconds ?? 15)
+		email.repeat_max_send_count = Number(es?.repeat_max_send_count ?? 10)
 	} catch {
 		// ignore
 	}
-};
+}
 
 watch(
 	() => [form.source, form.alert_type] as const,
 	async ([nextSource]) => {
-		await loadZones();
+		await loadZones()
 		// 切換來源後，若原本選的 zone/location 不存在就重置
 		const zoneExists = selectedZoneId.value
-			? zones.value.some(z => String(z.id) === String(selectedZoneId.value))
-			: true;
+			? zones.value.some((z) => String(z.id) === String(selectedZoneId.value))
+			: true
 		if (!zoneExists) {
-			handleSelectZone("");
+			handleSelectZone("")
 		}
 
 		// 編輯模式：若只帶 locationId，從 zones 反推 zoneId，確保 location 下拉可用
 		if (selectedLocationId.value && !selectedZoneId.value) {
 			for (const z of zones.value) {
-				const exists = (z.locations || []).some(l => String(l.id) === String(selectedLocationId.value));
+				const exists = (z.locations || []).some(
+					(l) => String(l.id) === String(selectedLocationId.value)
+				)
 				if (exists) {
-					selectedZoneId.value = String(z.id);
-					break;
+					selectedZoneId.value = String(z.id)
+					break
 				}
 			}
 			if (selectedZoneId.value) {
-				form.target_type = "location";
-				form.target_id = Number(selectedLocationId.value);
+				form.target_type = "location"
+				form.target_id = Number(selectedLocationId.value)
 			}
 		}
 	},
 	{ immediate: true }
-);
+)
 
 watch(
 	() => props.editingRule,
-	async rule => {
+	async (rule) => {
 		if (!rule) {
-			resetForm();
-			return;
+			resetForm()
+			return
 		}
-		form.source = rule.source;
-		form.alert_type = rule.alert_type;
+		form.source = rule.source
+		form.alert_type = rule.alert_type
 		// 相容：舊資料若是 error severity，前端顯示成 critical（紅）
-		form.severity = rule.severity === "error" ? "critical" : rule.severity;
-		form.target_type = ((rule as any).target_type as AlertTargetType) || null;
-		form.target_id = (rule as any).target_id != null ? Number((rule as any).target_id) : null;
-		form.message_suffix = String((rule as AlertRule).message_suffix || "");
-		form.enabled = rule.enabled;
+		form.severity = rule.severity === "error" ? "critical" : rule.severity
+		form.target_type = ((rule as any).target_type as AlertTargetType) || null
+		form.target_id = (rule as any).target_id != null ? Number((rule as any).target_id) : null
+		form.message_suffix = String((rule as AlertRule).message_suffix || "")
+		form.enabled = rule.enabled
 
 		// 目標反推：location > zone；其餘視為全域
-		selectedZoneId.value = "";
-		selectedLocationId.value = "";
+		selectedZoneId.value = ""
+		selectedLocationId.value = ""
 		if (form.target_type === "location" && form.target_id != null) {
-			selectedLocationId.value = String(form.target_id);
-			form.target_type = "location";
+			selectedLocationId.value = String(form.target_id)
+			form.target_type = "location"
 		} else if (form.target_type === "zone" && form.target_id != null) {
-			selectedZoneId.value = String(form.target_id);
-			form.target_type = "zone";
+			selectedZoneId.value = String(form.target_id)
+			form.target_type = "zone"
 		} else {
-			form.target_type = null;
-			form.target_id = null;
+			form.target_type = null
+			form.target_id = null
 		}
 
 		if (rule.condition_type === "threshold") {
-			const config = (rule.condition_config || {}) as Record<string, unknown>;
-			thresholdConfig.parameter = String(config.parameter || "");
-			const rawOp = String(config.operator || ">");
-			thresholdConfig.operator = isAllowedThresholdOperator(rawOp) ? rawOp : ">";
-			thresholdConfig.value = Number(config.value ?? 0);
-			thresholdConfig.unit = String(config.unit || "");
+			const config = (rule.condition_config || {}) as Record<string, unknown>
+			thresholdConfig.parameter = String(config.parameter || "")
+			const rawOp = String(config.operator || ">")
+			thresholdConfig.operator = isAllowedThresholdOperator(rawOp) ? rawOp : ">"
+			thresholdConfig.value = Number(config.value ?? 0)
+			thresholdConfig.unit = String(config.unit || "")
 		} else if (rule.condition_type === "error_count") {
-			const config = (rule.condition_config || {}) as Record<string, unknown>;
-			errorCountConfig.min_errors = Number(config.min_errors ?? 5);
+			const config = (rule.condition_config || {}) as Record<string, unknown>
+			errorCountConfig.min_errors = Number(config.min_errors ?? 5)
 		}
 
 		if (import.meta.client) {
 			if (devices.value.length === 0 && !isDevicesLoading.value) {
-				void loadDevices();
+				void loadDevices()
 			}
 			if (rule.id) {
-				void loadIntegrationsForRule(rule.id);
+				void loadIntegrationsForRule(rule.id)
 			}
 		}
 	},
 	{ immediate: true }
-);
+)
 
 watch(
 	() => props.modelValue,
-	open => {
-		if (!open) return;
-		smtpTestFeedback.ok = false;
-		smtpTestFeedback.message = "";
-		if (!import.meta.client) return;
+	(open) => {
+		if (!open) return
+		smtpTestFeedback.ok = false
+		smtpTestFeedback.message = ""
+		if (!import.meta.client) return
 		if (devices.value.length === 0 && !isDevicesLoading.value) {
-			void loadDevices();
+			void loadDevices()
 		}
 	},
 	{ immediate: true }
-);
+)
 
-const handleSubmit = () => {
-	localErrorMessage.value = "";
-	smtpTestFeedback.ok = false;
-	smtpTestFeedback.message = "";
+const buildAlertRuleValidationInput = () => ({
+	target_type: form.target_type || null,
+	target_id: form.target_id != null ? Number(form.target_id) : null,
+	cameraLinkage: {
+		enabled: cameraLinkage.enabled,
+		camera_device_ids: normalizeAlertRuleCameraDeviceIds(cameraDeviceIdsModel.value),
+	},
+	email,
+})
 
-	const submitError = validateAlertRuleFormForSave(buildAlertRuleValidationInput());
-	if (submitError) {
-		localErrorMessage.value = submitError;
-		return;
+const handleEmailSmtpTestClick = async () => {
+	localErrorMessage.value = ""
+	smtpTestFeedback.ok = false
+	smtpTestFeedback.message = ""
+
+	const ruleId = props.editingRule?.id
+	if (!ruleId) {
+		localErrorMessage.value = "SMTP 測試：請先建立並儲存規則"
+		return
 	}
 
-	const targetType = form.target_type || null;
-	const targetId = form.target_id != null ? Number(form.target_id) : null;
-	const conditionType = conditionTypeForPayload();
-	const conditionConfig = buildConditionConfig();
+	const err = validateAlertRuleEmailSubscription(email, "SMTP 測試")
+	if (err) {
+		localErrorMessage.value = err
+		return
+	}
+
+	isEmailSmtpTestLoading.value = true
+	try {
+		const res = await alertApi.testAlertRuleSmtpEmail(ruleId, {
+			emailSubscription: {
+				enabled: Boolean(email.enabled),
+				smtp_host: email.smtp_host.trim(),
+				smtp_port: Number(email.smtp_port),
+				smtp_user: email.smtp_user.trim(),
+				smtp_password: email.smtp_password || null,
+				smtp_security: email.smtp_security,
+				to_emails: parseAlertRuleEmailsFromText(email.to_emails_text),
+			},
+		})
+
+		smtpTestFeedback.ok = true
+		smtpTestFeedback.message = `SMTP 測試寄送成功（messageId: ${String(res?.messageId || "") || "—"}）`
+	} catch (e: any) {
+		smtpTestFeedback.ok = false
+		smtpTestFeedback.message = `SMTP 測試寄送失敗：${String(e?.data?.message || e?.message || e || "未知錯誤")}`
+	} finally {
+		isEmailSmtpTestLoading.value = false
+	}
+}
+
+const handleSubmit = () => {
+	localErrorMessage.value = ""
+	smtpTestFeedback.ok = false
+	smtpTestFeedback.message = ""
+
+	const submitError = validateAlertRuleFormForSave(buildAlertRuleValidationInput())
+	if (submitError) {
+		localErrorMessage.value = submitError
+		return
+	}
+
+	const targetType = form.target_type || null
+	const targetId = form.target_id != null ? Number(form.target_id) : null
+	const conditionType = conditionTypeForPayload()
+	const conditionConfig = buildConditionConfig()
 
 	const rulePayload: SubmitPayload = {
 		source: form.source,
@@ -967,18 +1002,20 @@ const handleSubmit = () => {
 		condition_type: conditionType,
 		condition_config: conditionConfig,
 		message_suffix: form.message_suffix ?? null,
-		enabled: form.enabled
-	};
+		enabled: form.enabled,
+	}
 
 	const integrations: IntegrationsDraft = {
 		cameraLinkage: cameraLinkage.enabled
 			? {
 					enabled: true,
-					camera_device_ids: normalizeAlertRuleCameraDeviceIds(
-						cameraDeviceIdsModel.value,
-					).slice(0, 4)
+					camera_device_ids: normalizeAlertRuleCameraDeviceIds(cameraDeviceIdsModel.value).slice(
+						0,
+						4
+					),
 				}
 			: null,
+		accessDoorLinkage: accessDoorLinkage.enabled ? { enabled: true } : null,
 		emailSubscription: email.enabled
 			? {
 					enabled: true,
@@ -989,11 +1026,11 @@ const handleSubmit = () => {
 					smtp_security: email.smtp_security,
 					to_emails: parseAlertRuleEmailsFromText(email.to_emails_text),
 					repeat_min_interval_seconds: Number(email.repeat_min_interval_seconds),
-					repeat_max_send_count: Number(email.repeat_max_send_count)
+					repeat_max_send_count: Number(email.repeat_max_send_count),
 				}
-			: null
-	};
+			: null,
+	}
 
-	emit("submit", { rule: rulePayload, integrations });
-};
+	emit("submit", { rule: rulePayload, integrations })
+}
 </script>

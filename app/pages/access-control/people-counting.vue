@@ -161,6 +161,7 @@
 										:key="getLocationId(location)"
 										:data-overview-location-id="getLocationId(location)"
 										:location="location"
+										:can-write="canDoorControl"
 										class="cursor-pointer transition-all hover:ring-2 hover:ring-cyan-300/50"
 										:class="{ 'ring-2 ring-cyan-400': isCurrentLocation(location) }"
 										@click="handleLocationSelect"
@@ -278,7 +279,13 @@ const {
 	canDeleteLocation,
 	canFullReport
 } = useLocationModuleRbac(PERM.peopleCounting);
-const { canOpenAccessManage, canEditAccessMembers, canResyncAccessDevices, canResetStatistics } =
+const {
+	canOpenAccessManage,
+	canEditAccessMembers,
+	canResyncAccessDevices,
+	canResetStatistics,
+	canDoorControl,
+} =
 	usePeopleCountingAccessRbac();
 const personnelApi = usePersonnelApi();
 const locationApi = useLocationApi();

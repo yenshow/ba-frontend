@@ -1,27 +1,38 @@
 <template>
 	<div
-		class="flex cursor-pointer gap-2 rounded-xl bg-white/10 py-1 transition-all hover:bg-white/15"
+		class="flex cursor-pointer gap-2 rounded-xl bg-white/10 py-1 transition-all"
 		tabindex="0"
 		role="button"
-		:aria-label="`查看 ${location.name} 人流統計`"
+		:aria-label="`查看 ${location.name}`"
 		@click="handleClick"
 		@keydown.enter="handleClick"
 		@keydown.space.prevent="handleClick"
 	>
-		<!-- 左側：區域（斜切標籤） -->
 		<div class="overview-zone-tag">
 			{{ regionText }}
 		</div>
 
-		<!-- 右側：內容 -->
-		<div class="flex flex-1 flex-col items-center pr-2">
-			<!-- 標題 -->
+		<div class="relative flex flex-1 flex-col items-center pr-2">
+			<button
+				v-if="isAccessControlLocation"
+				type="button"
+				class="absolute right-2 top-1 z-10 rounded-lg border border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 px-2 py-0.5 text-[10px] font-medium text-white transition-all hover:from-cyan-400/40 hover:to-blue-500/40 2xl:px-2.5 2xl:py-1 2xl:text-xs"
+				:aria-label="showDoorPanel ? '切換為資訊' : '切換為門控'"
+				:aria-pressed="showDoorPanel"
+				@click.stop="showDoorPanel = !showDoorPanel"
+			>
+				{{ showDoorPanel ? "資訊" : "門控" }}
+			</button>
+
 			<div class="mb-2 flex w-[160px] items-center justify-center border-b border-white/80 pb-px">
 				<h3 class="text-base text-white 2xl:text-lg">{{ location.name }}</h3>
 			</div>
 
-			<div class="flex items-center gap-8 py-2">
-				<!-- 三種人數統計 -->
+			<div v-if="showDoorPanel" class="w-full max-h-[220px] overflow-y-auto py-2 text-white">
+				<LocationDoorDeviceControls :location="location" :can-write="canWrite" />
+			</div>
+
+			<div v-else class="flex items-center gap-8 py-2">
 				<div
 					class="flex min-w-[140px] flex-col gap-3 border-r-2 border-white/50 pr-8 text-white 2xl:min-w-[160px]"
 				>
@@ -47,8 +58,7 @@
 					</div>
 				</div>
 
-				<!-- 單位格（3x4） -->
-				<div class="grid grid-cols-3 gap-2 overflow-hidden">
+				<div class="grid grid-cols-3 gap-2 overflow-hidden" @click.stop>
 					<div
 						v-for="(unit, index) in displayUnits"
 						:key="unit ? unit.id : `empty-${index}`"
@@ -57,7 +67,7 @@
 							'monitoring-chip-bg': unit && (unit.currentCount || 0) > 0,
 							'bg-black/20': !unit || (unit.currentCount || 0) === 0,
 							'text-white/90': unit,
-							'text-white/30': !unit
+							'text-white/30': !unit,
 						}"
 						:title="unit ? unit.name : ''"
 					>
@@ -72,48 +82,57 @@
 </template>
 
 <script setup lang="ts">
-import type { PeopleCountingLocation } from "~/types/peopleCounting";
-import { computed, toRefs } from "vue";
-import { computeCumulativePresence } from "~/utils/entryExitStats";
+import type { PeopleCountingLocation } from "~/types/peopleCounting"
+import { computed, ref, toRefs, watch } from "vue"
+import { computeCumulativePresence } from "~/utils/entryExitStats"
+import LocationDoorDeviceControls from "~/components/people-counting/LocationDoorDeviceControls.vue"
 
-interface Props {
-	location: PeopleCountingLocation & { overviewZoneName?: string | null };
-}
-
-const props = defineProps<Props>();
-const { location } = toRefs(props);
+const props = withDefaults(
+	defineProps<{
+		location: PeopleCountingLocation & { overviewZoneName?: string | null }
+		canWrite?: boolean
+	}>(),
+	{ canWrite: false }
+)
+const { location } = toRefs(props)
 
 const emit = defineEmits<{
-	click: [locationId: number];
-}>();
+	click: [locationId: number]
+}>()
 
-const handleClick = () => {
-	emit("click", location.value.locationId || Number(location.value.id || 0));
-};
+const showDoorPanel = ref(false)
 
-const regionText = computed(() => location.value.overviewZoneName || "未分類");
+watch(
+	() => props.location.locationId ?? props.location.id,
+	() => {
+		showDoorPanel.value = false
+	}
+)
 
-const isIsapiCamera = computed(() => location.value.dataSource === "isapi_camera");
+const regionText = computed(() => location.value.overviewZoneName || "未分類")
+const isIsapiCamera = computed(() => location.value.dataSource === "isapi_camera")
+const isAccessControlLocation = computed(() => location.value.dataSource === "access_control")
 
 const currentCount = computed(() => {
 	if (isIsapiCamera.value) {
 		return computeCumulativePresence(
 			location.value.entryCount ?? 0,
 			location.value.exitCount ?? 0
-		);
+		)
 	}
-	if (location.value.currentCount != null) {
-		return location.value.currentCount;
-	}
-	if (!location.value.units) return 0;
-	return location.value.units.reduce((sum, unit) => sum + (unit.currentCount || 0), 0);
-});
+	if (location.value.currentCount != null) return location.value.currentCount
+	if (!location.value.units) return 0
+	return location.value.units.reduce((sum, unit) => sum + (unit.currentCount || 0), 0)
+})
 
-const TOTAL_GRID_CELLS = 12; // 3x4 網格
+const TOTAL_GRID_CELLS = 12
 
 const displayUnits = computed(() => {
-	const units = (location.value.units ?? []).slice(0, TOTAL_GRID_CELLS);
-	const emptyCells = Array(TOTAL_GRID_CELLS - units.length).fill(null);
-	return [...units, ...emptyCells];
-});
+	const units = (location.value.units ?? []).slice(0, TOTAL_GRID_CELLS)
+	return [...units, ...Array(TOTAL_GRID_CELLS - units.length).fill(null)]
+})
+
+const handleClick = () => {
+	emit("click", location.value.locationId || Number(location.value.id || 0))
+}
 </script>

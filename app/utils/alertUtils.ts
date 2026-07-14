@@ -54,6 +54,22 @@ export const getSourceLabel = (source: AlertSource | string): string => {
 	return labels[source] || source;
 };
 
+export const buildAlertSourceFilterOptions = (sources: readonly string[]) => [
+	{ value: "", label: "全部系統" },
+	...sources.map((value) => ({
+		value,
+		label: getSourceLabel(value),
+	})),
+];
+
+export const CONSTRUCTION_ALERT_RULE_SOURCE_KEYS = [
+	"device",
+	"environment",
+	"people_counting",
+	"surveillance",
+	"vehicle_access",
+] as const;
+
 /**
  * 取得類型標籤
  */

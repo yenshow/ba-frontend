@@ -72,6 +72,12 @@
 											>攝影機</span
 										>
 										<span
+											v-if="getIntegrationSummary(rule.id).accessDoorEnabled"
+											class="rounded bg-amber-500/20 px-2 py-0.5 text-xs text-amber-100 2xl:text-sm"
+										>
+											門禁全開
+										</span>
+										<span
 											v-if="getIntegrationSummary(rule.id).emailEnabled"
 											class="rounded bg-violet-500/20 px-2 py-0.5 text-xs text-violet-100 2xl:text-sm"
 										>
@@ -169,7 +175,9 @@ import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import {
+	CONSTRUCTION_ALERT_RULE_SOURCE_KEYS,
 	alertSourceToSystemType,
+	buildAlertSourceFilterOptions,
 	formatAlertRuleConditionDisplay,
 	getSeverityLabel,
 } from "~/utils/alertUtils"
@@ -263,14 +271,7 @@ const {
 	onError: (error) => handleApiError(error, "載入警報規則失敗") || "載入警報規則失敗",
 })
 
-const ruleSourceOptions = [
-	{ value: "", label: "全部系統" },
-	{ value: "device", label: "設備系統" },
-	{ value: "environment", label: "環境系統" },
-	{ value: "people_counting", label: "人流統計" },
-	{ value: "surveillance", label: "影像監控" },
-	{ value: "vehicle_access", label: "車輛進出" },
-]
+const ruleSourceOptions = buildAlertSourceFilterOptions(CONSTRUCTION_ALERT_RULE_SOURCE_KEYS)
 
 const getIntegrationSummary = (ruleId: number): AlertRuleIntegrationSummary =>
 	integrationsStore.getSummary(ruleId)
@@ -326,7 +327,9 @@ const closeRuleDialog = () => {
 const handleSubmitRule = async (payload: {
 	rule: CreateAlertRulePayload
 	integrations: Partial<{
+		doLinkage: unknown
 		cameraLinkage: unknown
+		accessDoorLinkage: unknown
 		emailSubscription: unknown
 	}>
 }) => {
@@ -460,14 +463,18 @@ const getAlertTypeBadgeClass = (type: AlertType) => {
 		offline: "bg-gray-500/20 text-gray-200",
 		error: "bg-red-500/20 text-red-200",
 		threshold: "bg-blue-500/20 text-blue-200",
+		di: "bg-emerald-500/20 text-emerald-100",
+		do: "bg-sky-500/20 text-sky-200",
 	}
 	return classes[type] ?? "bg-gray-500/20 text-gray-200"
 }
 
 const getAlertTypeLabel = (type: AlertType) => {
 	const labels: Record<AlertType, string> = {
-		offline: "設備狀態警報",
+		offline: "設備離線警報",
 		threshold: "環境參數警報",
+		di: "DI 警報",
+		do: "DO 警報",
 		error: "系統錯誤警報",
 	}
 	return labels[type] ?? String(type)

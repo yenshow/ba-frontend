@@ -103,6 +103,8 @@ export const usePeopleCountingApi = () => {
 						name: site.name,
 						dataSource: site.dataSource ?? cfg?.dataSource,
 						logDisplayColumns: normalizeLogDisplayColumns(cfg?.logDisplayColumns),
+						entryDeviceIds: cfg?.entryDeviceIds,
+						exitDeviceIds: cfg?.exitDeviceIds,
 						region,
 						status: "active" as const,
 						entryCount: site.entryCount,
