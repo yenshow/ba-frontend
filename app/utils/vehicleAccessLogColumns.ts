@@ -58,7 +58,7 @@ export const normalizeVehicleLogDisplayColumns = (
 		if (!seen.has(req)) picked.push(req);
 	}
 	return VEHICLE_ACCESS_LOG_COLUMN_KEYS.filter(k => picked.includes(k));
-};
+}
 
 /** 寫入 API／DB：不含固定的 pass_result、time */
 export const toStoredVehicleLogDisplayColumns = (
@@ -73,7 +73,7 @@ export const getVehiclePassResultLabel = (log: VehicleDataLog): string => {
 	}
 	if (log.allow_result === 0) return "拒絕";
 	return "陌生";
-};
+}
 
 export const getVehiclePassResultTagClass = (log: VehicleDataLog): string => {
 	if (log.allow_result === 1) {
@@ -83,7 +83,7 @@ export const getVehiclePassResultTagClass = (log: VehicleDataLog): string => {
 	}
 	if (log.allow_result === 0) return "bg-rose-500/70 text-rose-100";
 	return "bg-amber-400/55 text-white font-semibold ring-1 ring-amber-200/60";
-};
+}
 
 export const formatVehicleLogLaneOrEmpty = (log: VehicleDataLog): string =>
 	log.lane_name?.trim() || "";
@@ -94,7 +94,7 @@ export const formatVehicleLogLane = (log: VehicleDataLog): string =>
 export const formatVehicleLogText = (value: string | null | undefined): string => {
 	const s = value != null ? String(value).trim() : "";
 	return s || "-";
-};
+}
 
 export const buildVehicleLogDetailRow = (
 	log: VehicleDataLog,

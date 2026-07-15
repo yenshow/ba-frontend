@@ -99,10 +99,11 @@
 										:display-columns="selectedLocation?.logDisplayColumns"
 									/>
 								</div>
-								<PeopleUnitGroupPanel
-									:units="selectedLocation?.units ?? []"
+								<PeopleAccessDetailSidePanel
+									v-model:show-door-panel="showDetailDoorPanel"
+									:location="selectedLocation"
 									:selected-unit-id="selectedUnitId"
-									:is-isapi-camera="isIsapiCamera"
+									:can-write="canDoorControl"
 									@select="handleUnitGroupSelect"
 								/>
 							</div>
@@ -231,7 +232,7 @@ import type {
 import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue";
 import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue";
 import EntryExitLogTable from "~/components/people-counting/EntryExitLogTable.vue";
-import PeopleUnitGroupPanel from "~/components/people-counting/PeopleUnitGroupPanel.vue";
+import PeopleAccessDetailSidePanel from "~/components/people-counting/PeopleAccessDetailSidePanel.vue";
 import UnitPersonnelDialog from "~/components/people-counting/UnitPersonnelDialog.vue";
 import LocationOverviewCard from "~/components/people-counting/LocationOverviewCard.vue";
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
@@ -560,7 +561,10 @@ const scrollActiveOverviewIntoView = () => {
 	});
 };
 
+const showDetailDoorPanel = ref(false);
+
 watch(selectedLocationId, () => {
+	showDetailDoorPanel.value = false;
 	nextTick(() => scrollActiveOverviewIntoView());
 });
 

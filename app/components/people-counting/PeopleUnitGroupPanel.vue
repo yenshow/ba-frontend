@@ -1,6 +1,7 @@
 <template>
 	<div class="people-unit-panel min-h-[220px] space-y-4">
 		<h3
+			v-if="!hideTitle"
 			class="people-unit-title monitoring-chip-bg py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
 		>
 			{{ panelTitle }}
@@ -57,11 +58,13 @@ const props = withDefaults(
 		selectedUnitId?: number | null;
 		isIsapiCamera?: boolean;
 		panelTitle?: string;
+		hideTitle?: boolean;
 	}>(),
 	{
 		selectedUnitId: null,
 		isIsapiCamera: false,
-		panelTitle: "人員群組"
+		panelTitle: "人員群組",
+		hideTitle: false
 	}
 );
 
