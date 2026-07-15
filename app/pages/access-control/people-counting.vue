@@ -99,9 +99,11 @@
 							</div>
 							<div class="ms-4 min-w-0 flex-1 border-l-2 border-white/30 ps-4">
 								<LocationDetailPanel
+									v-model:show-door-panel="showDetailDoorPanel"
 									:location="selectedLocation"
 									:personnel="personnel"
 									:selected-unit-id="selectedUnitId"
+									:can-write="canDoorControl"
 									@unit-select="handleUnitSelect"
 								/>
 							</div>
@@ -536,7 +538,10 @@ const scrollActiveOverviewIntoView = () => {
 	})
 }
 
+const showDetailDoorPanel = ref(false)
+
 watch(selectedLocationId, () => {
+	showDetailDoorPanel.value = false
 	nextTick(() => scrollActiveOverviewIntoView())
 })
 

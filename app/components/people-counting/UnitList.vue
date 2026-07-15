@@ -1,6 +1,7 @@
 <template>
 	<div class="space-y-4 min-h-[220px]">
 		<h3
+			v-if="!hideTitle"
 			class="people-unit-title monitoring-chip-bg py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
 		>
 			人員群組
@@ -52,10 +53,12 @@ interface Props {
 	units: PeopleCountingUnit[]
 	selectedUnitId?: number
 	isIsapiCamera?: boolean
+	hideTitle?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	isIsapiCamera: false,
+	hideTitle: false,
 })
 const emit = defineEmits<{
 	select: [unitId: number]

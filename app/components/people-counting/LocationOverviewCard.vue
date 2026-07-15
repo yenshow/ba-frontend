@@ -29,7 +29,7 @@
 			</div>
 
 			<div v-if="showDoorPanel" class="w-full max-h-[220px] overflow-y-auto py-2 text-white">
-				<LocationDoorDeviceControls :location="location" :can-write="canWrite" />
+				<AccessDoorGatePanel variant="compact" :location="location" :can-write="canWrite" />
 			</div>
 
 			<div v-else class="flex items-center gap-8 py-2">
@@ -85,7 +85,7 @@
 import type { PeopleCountingLocation } from "~/types/peopleCounting"
 import { computed, ref, toRefs, watch } from "vue"
 import { computeCumulativePresence } from "~/utils/entryExitStats"
-import LocationDoorDeviceControls from "~/components/people-counting/LocationDoorDeviceControls.vue"
+import AccessDoorGatePanel from "~/components/people-counting/AccessDoorGatePanel.vue"
 
 const props = withDefaults(
 	defineProps<{
