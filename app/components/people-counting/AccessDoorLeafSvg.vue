@@ -96,8 +96,34 @@
 			<rect x="151.5" y="75" width="2" height="20" rx="1" fill="#94a3b8" opacity="0.7" />
 		</g>
 
-		<!-- indicator LED：開啟／常開皆綠燈 -->
-		<circle cx="120" cy="12" r="3.5" :fill="open ? '#34d399' : '#334155'" />
+		<!-- wall-mounted door status indicator (right side) -->
+		<g aria-hidden="true">
+			<rect
+				x="178"
+				y="44"
+				width="22"
+				height="22"
+				rx="3.5"
+				fill="#3d4f63"
+				stroke="rgba(148,163,184,0.5)"
+				stroke-width="1"
+			/>
+			<circle v-if="open" cx="189" cy="55" r="12" fill="#34d399" opacity="0.22" />
+			<circle
+				cx="189"
+				cy="55"
+				r="7"
+				:fill="open ? '#34d399' : '#1e293b'"
+				stroke="rgba(15,23,42,0.55)"
+				stroke-width="0.75"
+			/>
+			<circle
+				cx="186.5"
+				cy="52.5"
+				r="2"
+				:fill="open ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.1)'"
+			/>
+		</g>
 	</svg>
 </template>
 

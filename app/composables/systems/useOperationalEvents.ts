@@ -83,6 +83,7 @@ const OPERATIONAL_SOURCE_FILTER_KEYS = [
 
 const EXTRA_SOURCE_LABELS: Record<string, string> = {
 	people_counting: SYSTEM_TYPE_LABELS.people_counting,
+	access_control: SYSTEM_TYPE_LABELS.people_counting, // 歷史列
 	vehicle_access: SYSTEM_TYPE_LABELS.vehicle_access,
 	elevator: SYSTEM_TYPE_LABELS.elevator,
 	alert_linkage: "警報連動",

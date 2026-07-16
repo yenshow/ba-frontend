@@ -29,11 +29,14 @@
 					</div>
 				</div>
 
-				<!-- System Modules Section -->
-				<div
-					class="home-panel overflow-hidden rounded-2xl px-4 sm:px-8 lg:px-12 2xl:px-24"
-				>
-					<SystemModule />
+				<!-- System Modules + Operational Events -->
+				<div class="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 2xl:gap-8">
+					<div class="home-panel flex min-h-0 items-center overflow-visible rounded-2xl p-4">
+						<SystemModule />
+					</div>
+					<div class="home-panel flex items-center min-w-0 overflow-hidden rounded-2xl px-8 py-4">
+						<HomeOperationalEvents />
+					</div>
 				</div>
 			</div>
 
@@ -53,6 +56,7 @@ import AQICard from "~/components/home/AQICard.vue"
 import EnvironmentCard from "~/components/home/EnvironmentCard.vue"
 import BuildingCard from "~/components/home/BuildingCard.vue"
 import SystemModule from "~/components/home/SystemModule.vue"
+import HomeOperationalEvents from "~/components/home/HomeOperationalEvents.vue"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useEnvironmentWsFallbackPolling } from "~/composables/systems/environment/useEnvironmentWsFallbackPolling"
@@ -152,7 +156,11 @@ const reconcileHomeLocationSelectionsWithZones = (): void => {
 const unifiedZones = ref<UnifiedZone[]>([])
 const isLoadingZones = ref(false)
 
-const getLocationId = (zone: UnifiedZone, location: UnifiedLocation, locationIndex: number): string => {
+const getLocationId = (
+	zone: UnifiedZone,
+	location: UnifiedLocation,
+	locationIndex: number
+): string => {
 	return getLocationUiKey({ zone, location, locationIndex })
 }
 
@@ -325,13 +333,25 @@ const getSelectedLocationLabel = (locationId: string) => {
 }
 
 const aqiData = computed(() => ({
-	value: formatAqiDisplay(calculateAqiScore({ pm25: aqiSensorData.pm25, pm10: aqiSensorData.pm10 })),
+	value: formatAqiDisplay(
+		calculateAqiScore({ pm25: aqiSensorData.pm25, pm10: aqiSensorData.pm10 })
+	),
 	location: getSelectedLocationLabel(selectedAqiLocationId.value),
 	metrics: [
 		{ label: "PM2.5", value: formatAqiDisplay(aqiSensorData.pm25), unit: "µg/m³", icon: "PM2.5" },
 		{ label: "PM10", value: formatAqiDisplay(aqiSensorData.pm10), unit: "µg/m³", icon: "PM10" },
-		{ label: "溫度", value: formatAqiDisplay(aqiSensorData.temperature, 1), unit: "°C", icon: "temperature" },
-		{ label: "濕度", value: formatAqiDisplay(aqiSensorData.humidity, 1), unit: "%", icon: "humidity" },
+		{
+			label: "溫度",
+			value: formatAqiDisplay(aqiSensorData.temperature, 1),
+			unit: "°C",
+			icon: "temperature",
+		},
+		{
+			label: "濕度",
+			value: formatAqiDisplay(aqiSensorData.humidity, 1),
+			unit: "%",
+			icon: "humidity",
+		},
 		{ label: "風速", value: formatAqiDisplay(aqiSensorData.wind, 1), unit: "m/s", icon: "wind" },
 		{ label: "噪音", value: formatAqiDisplay(aqiSensorData.noise), unit: "dB", icon: "noise" },
 	],

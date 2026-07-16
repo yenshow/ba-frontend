@@ -53,9 +53,11 @@
 
 <script setup lang="ts">
 import { useToast } from "~/composables/core/useToast"
-import { useOperationalLogRbac } from "~/composables/core/useAccessGate"
+import { useAccessGate, useOperationalLogRbac } from "~/composables/core/useAccessGate"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { setupDebouncedRefetchListeners } from "~/composables/websocket/useWebSocket"
+import { PERM } from "~/config/permissionCodes"
 import {
 	useOperationalEvents,
 	type OperationalEvent,
@@ -84,6 +86,8 @@ const api = useOperationalEvents()
 const toast = useToast()
 const { canExportReport } = useOperationalLogRbac()
 const { handleError: handleApiError } = useErrorHandler()
+const { useWsModuleGate } = useAccessGate()
+const canSubscribe = useWsModuleGate(null, { permissionCode: PERM.operationalLog.module })
 
 const filterSource = ref("")
 const filterKind = ref("")
@@ -165,6 +169,19 @@ watch(
 onMounted(() => {
 	initializeTimeRange()
 })
+
+const stopWsRefetch = setupDebouncedRefetchListeners(
+	() => {
+		if (!timeRange.value.startDate || !timeRange.value.endDate) return
+		return load({}, true)
+	},
+	[{ event: "operational-event:new" }],
+	400,
+	"operational-log-ws",
+	{ enabled: canSubscribe },
+)
+
+onBeforeUnmount(stopWsRefetch)
 
 const goToPreviousPage = () => {
 	prevPage({})
