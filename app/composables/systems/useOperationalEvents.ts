@@ -83,8 +83,14 @@ const SOURCE_FILTER_LABELS: Record<
 	vehicle_access: "車輛進出",
 }
 
+/** 歷史列 access_control 與 people_counting 同屬門禁／人流模組 */
+const SOURCE_DISPLAY_LABELS: Record<string, string> = {
+	...SOURCE_FILTER_LABELS,
+	access_control: SOURCE_FILTER_LABELS.people_counting,
+}
+
 export const getOperationalSourceLabel = (source: string): string =>
-	getSourceLabel(source)
+	SOURCE_DISPLAY_LABELS[source] ?? getSourceLabel(source)
 
 const getOperationalSourceFilterLabel = (source: string): string =>
 	SOURCE_FILTER_LABELS[source as keyof typeof SOURCE_FILTER_LABELS] ??

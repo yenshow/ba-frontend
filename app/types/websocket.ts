@@ -112,3 +112,13 @@ export interface VehicleAccessWsEventPayload {
 	source?: string
 }
 
+/** 營運事件寫入後推播（首頁列表可直接 prepend） */
+export interface OperationalEventNewEvent {
+	id: number
+	source: string
+	event_kind: string
+	summary: string
+	occurred_at: string
+	timestamp: string
+}
+
