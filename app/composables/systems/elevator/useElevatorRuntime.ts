@@ -167,6 +167,7 @@ export const useElevatorRuntime = (options: UseElevatorRuntimeOptions = {}) => {
 	return {
 		applyLiveState,
 		displayFloorText,
+		displayedFloor,
 		displayDirection,
 		floorSlideDirection,
 		isMoving,

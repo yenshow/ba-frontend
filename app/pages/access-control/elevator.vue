@@ -74,8 +74,6 @@
 					>
 						<div v-if="selectedLocation" class="flex min-h-0 flex-1">
 							<ElevatorDetailPanel
-								:logs="logs"
-								:display-columns="selectedLocation.logDisplayColumns"
 								:ladder-device-id="ladderDeviceId"
 								:call-device-id="callDeviceId"
 								:has-floor-detection="hasFloorDetection"
@@ -270,7 +268,6 @@ const floorSync = useElevatorSyncEngine({
 const {
 	locations,
 	selectedLocation,
-	logs,
 	elevatorZones,
 	loadLocations,
 	loadLocationDetail,
@@ -515,7 +512,6 @@ const handleDeleteZone = async (zoneId: string) => {
 				await loadLocationDetail(nextId)
 			} else {
 				selectedLocation.value = null
-				logs.value = []
 			}
 		},
 	})

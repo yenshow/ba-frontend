@@ -1,8 +1,8 @@
 <template>
 	<div
-		class="show-scrollbar relative h-full overflow-hidden overflow-y-auto monitoring-panel rounded-2xl space-y-6 px-3 py-6 2xl:space-y-8 2xl:px-4 2xl:py-8"
+		class="relative flex h-full min-h-0 flex-col overflow-hidden monitoring-panel rounded-2xl px-3 py-6 2xl:px-4 2xl:py-8"
 	>
-		<div class="space-y-2">
+		<div class="shrink-0 space-y-2">
 			<h3 class="ms-[12px] text-center text-2xl tracking-[12px] text-white 2xl:text-3xl">
 				監控中心
 			</h3>
@@ -18,6 +18,9 @@
 			</div>
 		</div>
 
+		<div
+			class="show-scrollbar mt-6 min-h-0 flex-1 space-y-6 overflow-y-auto pe-1 2xl:mt-8 2xl:space-y-8"
+		>
 		<div v-for="zone in displayedZones" :key="zone.id || zone.name" class="space-y-3 2xl:space-y-4">
 			<div class="flex items-center justify-center gap-3">
 				<div class="relative shrink-0">
@@ -100,14 +103,15 @@
 			</div>
 		</div>
 
-		<ManualIssuePanel
-			v-if="manualIssueTargets.length > 0"
-			system-route-prefix="air-circulation"
-			:targets="manualIssueTargets"
-			:default-target-id="manualIssueDefaultTargetId"
-			:rule-bit-options-by-target-id="ruleBitOptionsByTargetId"
-			@changed="handleManualIssueChanged"
-		/>
+			<ManualIssuePanel
+				v-if="manualIssueTargets.length > 0"
+				system-route-prefix="air-circulation"
+				:targets="manualIssueTargets"
+				:default-target-id="manualIssueDefaultTargetId"
+				:rule-bit-options-by-target-id="ruleBitOptionsByTargetId"
+				@changed="handleManualIssueChanged"
+			/>
+		</div>
 	</div>
 </template>
 

@@ -27,7 +27,7 @@
 			</div>
 
 			<ul v-else class="min-h-0 flex-1 space-y-2 overflow-y-auto">
-				<li v-for="event in events" :key="event.id">
+				<li v-for="event in displayedEvents" :key="event.id">
 					<article
 						role="link"
 						tabindex="0"
@@ -79,7 +79,10 @@ type HomeOpEvent = Pick<
 >
 
 const OPERATIONAL_LOG_ROUTE = "/core/operational-log"
-const EVENT_LIMIT = 5
+/** API／WS 緩衝上限（2xl 顯示量） */
+const EVENT_LIMIT_MAX = 5
+/** 小尺寸顯示量 */
+const EVENT_LIMIT_SM = 4
 const badgeBaseClass = "inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
 
 const accessGate = useAccessGate()
@@ -89,11 +92,26 @@ const { handleError } = useErrorHandler()
 const events = ref<HomeOpEvent[]>([])
 const isLoading = ref(false)
 const errorMessage = ref<string | null>(null)
+const is2xlUp = ref(false)
 
 const accessReady = computed(() => accessGate.isModuleAccessReady.value)
 const canAccess = computed(
 	() => accessReady.value && accessGate.canAccessModule({ route: OPERATIONAL_LOG_ROUTE })
 )
+const eventLimit = computed(() => (is2xlUp.value ? EVENT_LIMIT_MAX : EVENT_LIMIT_SM))
+const displayedEvents = computed(() => events.value.slice(0, eventLimit.value))
+
+onMounted(() => {
+	const mql = window.matchMedia("(min-width: 1536px)")
+	const updateIs2xlUp = () => {
+		is2xlUp.value = mql.matches
+	}
+	updateIs2xlUp()
+	mql.addEventListener("change", updateIs2xlUp)
+	onUnmounted(() => {
+		mql.removeEventListener("change", updateIs2xlUp)
+	})
+})
 
 const handleOpenFullPage = () => {
 	navigateTo(OPERATIONAL_LOG_ROUTE)
@@ -117,7 +135,7 @@ const loadEvents = async () => {
 	isLoading.value = true
 	errorMessage.value = null
 	try {
-		const result = await getEvents({ limit: EVENT_LIMIT, offset: 0 })
+		const result = await getEvents({ limit: EVENT_LIMIT_MAX, offset: 0 })
 		events.value = (result.events ?? []).map((e) => ({
 			id: e.id,
 			source: e.source,
@@ -137,7 +155,7 @@ const handleWsEvent = (payload: unknown) => {
 	if (!canAccess.value) return
 	const next = parseWsEvent(payload)
 	if (!next) return
-	events.value = [next, ...events.value.filter((e) => e.id !== next.id)].slice(0, EVENT_LIMIT)
+	events.value = [next, ...events.value.filter((e) => e.id !== next.id)].slice(0, EVENT_LIMIT_MAX)
 	errorMessage.value = null
 }
 

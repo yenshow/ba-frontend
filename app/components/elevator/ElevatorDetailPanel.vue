@@ -1,23 +1,27 @@
 <template>
 	<div class="flex min-h-0 flex-1">
-		<div class="flex min-w-0 flex-1 flex-col gap-8">
-			<ElevatorLedBillboard
-				:floor-text="displayFloorText"
-				:direction="displayDirection"
-				:slide-direction="floorSlideDirection"
-				:is-connected="isPanelConnected"
-				:status-aria-label="statusAriaLabel"
-				:device-health-label="deviceHealthLabel"
-				:device-status-dot-class="deviceStatusDotClass"
-				:is-moving="isMoving"
-			/>
+		<ElevatorRuntimePanel
+			class="min-w-0 flex-1"
+			:floor-text="displayFloorText"
+			:direction="displayDirection"
+			:slide-direction="floorSlideDirection"
+			:is-connected="isPanelConnected"
+			:status-aria-label="statusAriaLabel"
+			:device-health-label="deviceHealthLabel"
+			:device-status-dot-class="deviceStatusDotClass"
+			:is-moving="isMoving"
+			:has-floor-snapshot="hasFloorSnapshot"
+			:floors="floors"
+			:current-rank="displayedFloor?.rank ?? null"
+		/>
 
+		<div class="ms-4 flex min-w-0 flex-1 flex-col border-l-2 border-white/30 ps-4">
 			<div
-				class="rounded-2xl border-2 border-white/20 bg-gradient-to-b from-white/[0.08] to-white/[0.03] p-4"
+				class="flex min-h-0 flex-1 flex-col rounded-2xl border-2 border-white/20 bg-gradient-to-b from-white/[0.08] to-white/[0.03] p-4"
 			>
-				<p class="text-center text-lg font-semibold text-white/80 2xl:text-xl mb-4">門控操作</p>
+				<p class="shrink-0 text-center text-lg font-semibold text-white/80 2xl:text-xl">門控操作</p>
 
-				<div class="grid grid-cols-4 justify-items-center">
+				<div class="mt-3 grid shrink-0 grid-cols-4 justify-items-center">
 					<button
 						v-for="cmd in commands"
 						:key="`${cmd.kind}-${cmd.label}`"
@@ -30,94 +34,45 @@
 						{{ cmd.label }}
 					</button>
 				</div>
-			</div>
 
-			<div
-				class="monitoring-log-panel flex min-h-[320px] w-full min-w-0 flex-col 2xl:min-h-[400px]"
-			>
+				<div class="my-8 h-px shrink-0 bg-white/20" aria-hidden="true" />
+
 				<div
-					v-if="logs.length === 0"
-					class="flex flex-1 items-center justify-center rounded-lg border-2 border-white/20 bg-white/5 p-8"
-					role="status"
+					v-if="panelFloors.length === 0"
+					class="flex min-h-[160px] flex-1 items-center justify-center text-base text-white/60 2xl:text-lg"
 				>
-					<MonitoringLogEmptyState message="尚無電梯事件記錄" />
+					此地點尚未設定樓層
 				</div>
 
-				<div v-else>
-					<table class="w-full border-b-2 border-l-2 border-r-2 border-white/20">
-						<thead class="bg-white/20">
-							<tr class="people-log-th text-center text-xs font-semibold text-white/80 2xl:text-sm">
-								<th v-for="col in recordColumns" :key="col" class="people-log-cell-pad p-2">
-									{{ recordColumnLabels[col] }}
-								</th>
-							</tr>
-						</thead>
-						<tbody>
-							<tr
-								v-for="log in logs"
-								:key="log.id"
-								class="border-b border-white/10 text-center text-white"
-							>
-								<td
-									v-for="col in recordColumns"
-									:key="`${log.id}-${col}`"
-									class="people-log-cell-pad p-2"
-								>
-									{{ getElevatorLogCellValue(log, col, { floors: props.floors }) }}
-								</td>
-							</tr>
-						</tbody>
-					</table>
-				</div>
-			</div>
-		</div>
-
-		<div class="ms-4 min-w-0 flex-1 border-l-2 border-white/30 ps-4">
-			<div class="flex h-full min-h-0 flex-col">
-				<div
-					class="flex min-h-0 flex-1 flex-col rounded-2xl border-2 border-white/20 bg-gradient-to-b from-white/[0.08] to-white/[0.03]"
-				>
-					<p class="mt-4 shrink-0 text-center text-lg font-semibold text-white/80 2xl:text-xl">
-						樓層面板
-					</p>
-
+				<div v-else class="flex min-h-0 flex-1 flex-col justify-center">
 					<div
-						v-if="panelFloors.length === 0"
-						class="flex min-h-[160px] flex-1 items-center justify-center text-base text-white/60 2xl:text-lg"
+						class="grid gap-y-3"
+						:style="{
+							gridTemplateColumns: `repeat(${panelColumns}, minmax(0, 1fr))`,
+							gridTemplateRows: `repeat(${panel?.rows ?? 6}, auto)`,
+						}"
 					>
-						此地點尚未設定樓層
-					</div>
-
-					<div v-else class="flex min-h-0 flex-1 flex-col justify-center p-4">
-						<div
-							class="grid gap-y-6"
+						<button
+							v-for="floor in panelFloors"
+							:key="floor.index"
+							type="button"
+							class="mx-auto flex aspect-square w-16 items-center justify-center rounded-full border-2 text-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 2xl:w-20 2xl:text-xl"
+							:class="floorButtonClass(floor.index)"
 							:style="{
-								gridTemplateColumns: `repeat(${panelColumns}, minmax(0, 1fr))`,
-								gridTemplateRows: `repeat(${panel?.rows ?? 6}, auto)`,
+								gridColumn: floor.panelCol + 1,
+								gridRow: floor.panelRow + 1,
 							}"
+							:aria-pressed="selectedFloorIndex === floor.index"
+							:aria-label="`選擇樓層 ${floor.label}`"
+							@click="selectedFloorIndex = floor.index"
 						>
-							<button
-								v-for="floor in panelFloors"
-								:key="floor.index"
-								type="button"
-								class="mx-auto flex aspect-square w-20 items-center justify-center rounded-full border-2 text-2xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 2xl:w-24 2xl:text-3xl"
-								:class="floorButtonClass(floor.index)"
-								:style="{
-									gridColumn: floor.panelCol + 1,
-									gridRow: floor.panelRow + 1,
-								}"
-								:aria-pressed="selectedFloorIndex === floor.index"
-								:aria-label="`選擇樓層 ${floor.label}`"
-								@click="selectedFloorIndex = floor.index"
-							>
-								{{ floor.label }}
-							</button>
-						</div>
-
-						<p v-if="errorText" class="form-error-text mt-3 shrink-0" role="alert">
-							{{ errorText }}
-						</p>
+							{{ floor.label }}
+						</button>
 					</div>
+
+					<p v-if="errorText" class="form-error-text mt-3 shrink-0" role="alert">
+						{{ errorText }}
+					</p>
 				</div>
 			</div>
 		</div>
@@ -126,15 +81,13 @@
 
 <script setup lang="ts">
 import { TOAST } from "~/config/toastCatalog"
-import { computed, ref, toRefs, watch } from "vue"
+import { computed, ref, watch } from "vue"
 import type {
 	ElevatorDoorControlCommand,
 	ElevatorLiveState,
-	ElevatorLog,
 	ElevatorLogicalFloor,
 } from "~/types/elevator"
-import MonitoringLogEmptyState from "~/components/common/MonitoringLogEmptyState.vue"
-import ElevatorLedBillboard from "~/components/elevator/ElevatorLedBillboard.vue"
+import ElevatorRuntimePanel from "~/components/elevator/ElevatorRuntimePanel.vue"
 import { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
 import { useElevatorRuntime } from "~/composables/systems/elevator/useElevatorRuntime"
 import { useToast } from "~/composables/core/useToast"
@@ -145,16 +98,8 @@ import {
 	buildElevatorStatusAriaLabel,
 	isElevatorPanelConnected,
 } from "~/utils/elevatorDisplayUtils"
-import {
-	ELEVATOR_LOG_COLUMN_LABELS,
-	getElevatorLogCellValue,
-	normalizeElevatorLogDisplayColumns,
-	type ElevatorLogColumnKey,
-} from "~/utils/elevatorLogColumns"
 
 interface Props {
-	logs: ElevatorLog[]
-	displayColumns?: string[]
 	ladderDeviceId?: number | null
 	callDeviceId?: number | null
 	hasFloorDetection?: boolean
@@ -169,8 +114,6 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-	logs: () => [],
-	displayColumns: undefined,
 	ladderDeviceId: null,
 	callDeviceId: null,
 	hasFloorDetection: false,
@@ -189,15 +132,19 @@ const emit = defineEmits<{
 	"logs-refresh": []
 }>()
 
-const { logs, displayColumns } = toRefs(props)
-
 const elevatorApi = useElevatorApi()
 const toast = useToast()
 
-const { applyLiveState, displayFloorText, displayDirection, floorSlideDirection, isMoving } =
-	useElevatorRuntime({
-		floors: () => props.floors,
-	})
+const {
+	applyLiveState,
+	displayFloorText,
+	displayedFloor,
+	displayDirection,
+	floorSlideDirection,
+	isMoving,
+} = useElevatorRuntime({
+	floors: () => props.floors,
+})
 
 watch(
 	() => props.live,
@@ -206,9 +153,6 @@ watch(
 	},
 	{ immediate: true, deep: true }
 )
-
-const recordColumns = computed(() => normalizeElevatorLogDisplayColumns(displayColumns.value))
-const recordColumnLabels = ELEVATOR_LOG_COLUMN_LABELS as Record<ElevatorLogColumnKey, string>
 
 const isPanelConnected = computed(() =>
 	isElevatorPanelConnected({
@@ -232,6 +176,12 @@ const statusAriaLabel = computed(() =>
 		isConnected: isPanelConnected.value,
 		deviceHealthLabel: true,
 	})
+)
+
+const hasFloorSnapshot = computed(
+	() =>
+		(props.floors?.length ?? 0) > 0 &&
+		(displayedFloor.value != null || Boolean(props.live?.currentFloor))
 )
 
 const panelColumns = computed(() => props.panel?.columns ?? 3)

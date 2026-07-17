@@ -1,6 +1,5 @@
 import type {
 	ElevatorLocation,
-	ElevatorLog,
 	ElevatorZone,
 	ElevatorLiveState,
 	ElevatorCallCommand,
@@ -33,7 +32,6 @@ type ElevatorSiteDetailResponse = {
 		elevatorConfig?: Partial<ElevatorLocation>
 	}
 	live?: ElevatorLiveState
-	latestLogs?: ElevatorLog[]
 }
 
 const mergeSiteWithConfig = (
@@ -90,7 +88,7 @@ export const useElevatorApi = () => {
 	const getLocationDetail = async (
 		locationId: number,
 		existingLocations: ElevatorLocation[] = [],
-	): Promise<ElevatorLocation & { latestLogs?: ElevatorLog[]; live?: ElevatorLiveState }> => {
+	): Promise<ElevatorLocation & { live?: ElevatorLiveState }> => {
 		const base = existingLocations.find((l) => l.locationId === locationId)
 		const detailRes = await request<ElevatorSiteDetailResponse>(`/elevator/sites/${locationId}`)
 		const elevatorConfig = detailRes.location?.elevatorConfig
@@ -102,7 +100,6 @@ export const useElevatorApi = () => {
 			locationId,
 			id: String(locationId),
 			callCommandType: "visitor",
-			latestLogs: detailRes.latestLogs,
 			live: detailRes.live ?? base?.live,
 		}
 	}

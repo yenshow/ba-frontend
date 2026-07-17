@@ -2,7 +2,7 @@ import { ref } from "vue"
 import { setupDebouncedRefetchListeners } from "~/composables/websocket/useWebSocket"
 import { useAccessGate } from "~/composables/core/useAccessGate"
 import { PERM } from "~/config/permissionCodes"
-import type { ElevatorLocation, ElevatorLog, ElevatorZone } from "~/types/elevator"
+import type { ElevatorLocation, ElevatorZone } from "~/types/elevator"
 import { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
 import { useElevatorLocationApi } from "~/composables/location/api/useElevatorLocationApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
@@ -18,7 +18,6 @@ export const useElevatorState = () => {
 
 	const locations = ref<ElevatorLocation[]>([])
 	const selectedLocation = ref<ElevatorLocation | null>(null)
-	const logs = ref<ElevatorLog[]>([])
 	const elevatorZones = ref<ElevatorZone[]>([])
 	const isLoadingLocations = ref(false)
 	const isLoadingZones = ref(false)
@@ -53,9 +52,7 @@ export const useElevatorState = () => {
 
 	const loadLocationDetail = async (locationId: number) => {
 		try {
-			const detail = await elevatorApi.getLocationDetail(locationId, locations.value)
-			selectedLocation.value = detail
-			logs.value = detail.latestLogs ?? []
+			selectedLocation.value = await elevatorApi.getLocationDetail(locationId, locations.value)
 		} catch (error) {
 			handleError(error, "載入地點詳情失敗")
 			throw error
@@ -98,7 +95,6 @@ export const useElevatorState = () => {
 	return {
 		locations,
 		selectedLocation,
-		logs,
 		elevatorZones,
 		isLoadingLocations,
 		isLoadingZones,

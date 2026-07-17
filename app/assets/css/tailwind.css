@@ -1147,13 +1147,15 @@ html:not(.dark) .select-filter option {
 	}
 
 	.infra-page-aside {
-		@apply show-scrollbar w-full max-lg:!h-auto lg:flex-[0.8] lg:overflow-y-auto 2xl:flex-[0.7];
+		/* lg+：min-h-0 讓 flex 子項可矮於內容，高度由左欄同步；捲動交給內部 Monitor/StatusCenter */
+		@apply w-full max-lg:!h-auto lg:min-h-0 lg:flex-[0.8] lg:overflow-hidden 2xl:flex-[0.7];
 	}
 }
 
 @media (min-width: 1024px) {
 	.infra-page-aside[style*="--infra-aside-h"] {
 		height: var(--infra-aside-h);
+		max-height: var(--infra-aside-h);
 	}
 }
 

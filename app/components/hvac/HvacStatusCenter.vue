@@ -1,9 +1,16 @@
 <template>
 	<div
-		class="show-scrollbar relative h-full overflow-hidden overflow-y-auto monitoring-panel rounded-2xl space-y-6 px-3 py-6 2xl:space-y-8 2xl:px-4 2xl:py-8"
+		class="relative flex h-full min-h-0 flex-col overflow-hidden monitoring-panel rounded-2xl px-3 py-6 2xl:px-4 2xl:py-8"
 	>
-		<h3 class="ms-[12px] text-center text-2xl tracking-[12px] text-white 2xl:text-3xl">監控中心</h3>
+		<h3
+			class="ms-[12px] shrink-0 text-center text-2xl tracking-[12px] text-white 2xl:text-3xl"
+		>
+			監控中心
+		</h3>
 
+		<div
+			class="show-scrollbar mt-6 min-h-0 flex-1 space-y-6 overflow-y-auto pe-1 2xl:mt-8 2xl:space-y-8"
+		>
 		<div v-for="zone in displayedZones" :key="zone.id" class="space-y-3 2xl:space-y-4">
 			<div class="flex items-center justify-center gap-3">
 				<div class="relative shrink-0">
@@ -149,6 +156,7 @@
 					</div>
 				</div>
 			</div>
+		</div>
 		</div>
 	</div>
 </template>
