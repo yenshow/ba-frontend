@@ -424,6 +424,7 @@ import {
 	CAMERA_MODEL_CATEGORY_OPTIONS,
 	groupByCameraModelCategory,
 } from "~/utils/cameraModelCategories"
+import { useEnvironmentParameterCatalog } from "~/composables/systems/environment/useEnvironmentParameterCatalog"
 
 interface Props {
 	modelValue: boolean
@@ -514,17 +515,10 @@ const resetForm = () => {
 	formErrorMessage.value = null
 }
 
-const parameterTypeOptions: Array<{ value: string; label: string }> = [
-	{ value: "pm25", label: "PM2.5" },
-	{ value: "pm10", label: "PM10" },
-	{ value: "tvoc", label: "TVOC" },
-	{ value: "hcho", label: "HCHO" },
-	{ value: "humidity", label: "濕度" },
-	{ value: "temperature", label: "溫度" },
-	{ value: "co2", label: "CO2" },
-	{ value: "noise", label: "噪音值" },
-	{ value: "wind", label: "風速" },
-]
+const { sensorOptions, ensureLoaded: ensureEnvironmentCatalogLoaded } =
+	useEnvironmentParameterCatalog()
+
+const parameterTypeOptions = computed(() => sensorOptions.value)
 
 const modbusRegisterTypeOptions: Array<{ value: ModbusRegisterType; label: string }> = [
 	{ value: "holding", label: "FC03 保持寄存器 (Holding Registers)" },
@@ -867,6 +861,9 @@ watch(
 	(isOpen) => {
 		if (isOpen && props.deviceTypeCode) {
 			loadDeviceType()
+			if (props.deviceTypeCode === "sensor") {
+				void ensureEnvironmentCatalogLoaded()
+			}
 			loadDeviceModels(true) // 每次開啟對話框時強制更新，確保取得最新資料
 		} else if (!isOpen) {
 			deviceModels.value = []

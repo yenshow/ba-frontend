@@ -5,6 +5,7 @@
 import { getCurrentScope, onScopeDispose } from "vue"
 import { useAccessGate } from "~/composables/core/useAccessGate"
 import { sanitizeAuthRedirectPath, useAuth } from "~/composables/core/useAuth"
+import { useEnvironmentParameterCatalog } from "~/composables/systems/environment/useEnvironmentParameterCatalog"
 import { isApiRateLimitError, isApiUnauthorizedError } from "~/utils/apiError"
 
 export default defineNuxtPlugin(() => {
@@ -20,6 +21,9 @@ export default defineNuxtPlugin(() => {
 
 			if (auth.isAuthenticated.value) {
 				await ensureAccessReady()
+				void useEnvironmentParameterCatalog()
+					.load()
+					.catch(() => undefined)
 
 				if (route.path === "/login") {
 					const redirect = sanitizeAuthRedirectPath(route.query.redirect)

@@ -4,59 +4,29 @@ import type {
 	EnvironmentLocation,
 	EnvironmentZone
 } from "~/types/environment";
+import { getEnvironmentParameterDefinition } from "~/utils/environmentCatalogRuntime";
 
 /**
  * 參數類型顯示名稱映射
  */
-export const getParameterDisplayName = (type: SensorParameterType): string => {
-	const nameMap: Record<SensorParameterType, string> = {
-		pm25: "PM2.5",
-		pm10: "PM10",
-		tvoc: "TVOC",
-		hcho: "HCHO",
-		humidity: "濕度",
-		temperature: "溫度",
-		co2: "CO2",
-		noise: "噪音值",
-		wind: "風速"
-	};
-	return nameMap[type] || type;
+export const getParameterDisplayName = (type: SensorParameterType | string): string => {
+	const def = getEnvironmentParameterDefinition(type);
+	if (def) return def.label;
+	return String(type);
 };
 
 /**
  * 參數類型單位映射
  */
-export const getParameterUnit = (type: SensorParameterType): string => {
-	const unitMap: Record<SensorParameterType, string> = {
-		pm25: "µg/m³",
-		pm10: "µg/m³",
-		tvoc: "ppm",
-		hcho: "ppm",
-		humidity: "%",
-		temperature: "°C",
-		co2: "ppm",
-		noise: "dB",
-		wind: "m/s"
-	};
-	return unitMap[type] || "";
+export const getParameterUnit = (type: SensorParameterType | string): string => {
+	return getEnvironmentParameterDefinition(type)?.unit ?? "";
 };
 
 /**
  * 參數類型圖標映射
  */
-export const getParameterIcon = (type: SensorParameterType): string => {
-	const iconMap: Record<SensorParameterType, string> = {
-		pm25: "/environment/PM2.5.png",
-		pm10: "/environment/PM10.png",
-		tvoc: "/environment/TVOC.png",
-		hcho: "/environment/HCHO.png",
-		humidity: "/environment/humidity.png",
-		temperature: "/environment/temperature.png",
-		co2: "/environment/CO2.png",
-		noise: "/environment/noise.png",
-		wind: "/environment/wind-speed.png"
-	};
-	return iconMap[type] || "";
+export const getParameterIcon = (type: SensorParameterType | string): string => {
+	return getEnvironmentParameterDefinition(type)?.icon ?? "";
 };
 
 /**
@@ -74,16 +44,9 @@ export const getLocationDeviceIds = (
 /**
  * 參數類型小數位數映射
  */
-export const getParameterFractionDigits = (type: SensorParameterType): number => {
-	// 統一小數一位（儲存與趨勢圖一致）
-	if (
-		type === "temperature" ||
-		type === "humidity" ||
-		type === "wind" ||
-		type === "tvoc" ||
-		type === "hcho"
-	)
-		return 1;
+export const getParameterFractionDigits = (type: SensorParameterType | string): number => {
+	const fromCatalog = getEnvironmentParameterDefinition(type)?.fractionDigits;
+	if (fromCatalog != null) return fromCatalog;
 	return 0;
 };
 
@@ -95,7 +58,7 @@ type FormatSensorValueOptions = {
  * 統一感測器數值顯示格式（避免同一參數在不同元件顯示不一致）
  */
 export const formatSensorValue = (
-	type: SensorParameterType,
+	type: SensorParameterType | string,
 	value: number | null | undefined,
 	options: FormatSensorValueOptions = {}
 ): string => {
@@ -160,4 +123,3 @@ export const cleanZone = (zone: EnvironmentZone): EnvironmentZone => {
 		locations: validLocations
 	};
 };
-

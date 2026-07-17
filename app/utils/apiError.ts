@@ -15,14 +15,18 @@ export type BackendApiFailure = {
 
 export const isYscpPath = (path: string): boolean => path.includes("/yscp/")
 
-export const isYscpSuccessCode = (code: unknown): boolean => String(code ?? "") === YSCP_SUCCESS_CODE
+export const isYscpSuccessCode = (code: unknown): boolean =>
+	String(code ?? "") === YSCP_SUCCESS_CODE
 
 const clipText = (raw: unknown): string => {
 	if (raw === undefined || raw === null) return ""
 	return String(raw).trim()
 }
 
-const parseBodyObject = (body: Record<string, unknown>, path?: string): BackendApiFailure | null => {
+const parseBodyObject = (
+	body: Record<string, unknown>,
+	path?: string
+): BackendApiFailure | null => {
 	const hasStandardError =
 		body.error &&
 		typeof body.error === "object" &&
@@ -154,27 +158,27 @@ export const MSG_RATE_LIMIT = "請求過於頻繁，請稍後再試"
 
 // --- HTTP／通用 fallback ---
 
-export const USER_FACING_API_BAD_REQUEST = "請求內容不正確，請確認後再試" as const;
-export const USER_FACING_API_UNAUTHORIZED = "登入已過期，請重新登入" as const;
-export const USER_FACING_API_NOT_FOUND = "找不到要求的資料" as const;
-export const USER_FACING_API_SERVER_ERROR = "伺服器異常，請稍後再試" as const;
-export const USER_FACING_API_GENERIC_CLIENT_ERROR = "無法完成請求，請稍後再試" as const;
-export const USER_FACING_API_CONFLICT = "資料衝突，請確認後再試" as const;
-export const USER_FACING_API_BAD_GATEWAY = "外部服務暫時無法連線，請稍後再試" as const;
-export const USER_FACING_API_UNEXPECTED = "發生錯誤，請稍後再試" as const;
-export const USER_FACING_CONNECTION_ERROR = "設備連線異常，請稍後再試" as const;
-export const USER_FACING_EXTERNAL_DB_ERROR = "資料庫查詢錯誤" as const;
-export const USER_FACING_REQUEST_TIMEOUT = "請求逾時，請稍後再試";
+export const USER_FACING_API_BAD_REQUEST = "請求內容不正確，請確認後再試" as const
+export const USER_FACING_API_UNAUTHORIZED = "登入已過期，請重新登入" as const
+export const USER_FACING_API_NOT_FOUND = "找不到要求的資料" as const
+export const USER_FACING_API_SERVER_ERROR = "伺服器異常，請稍後再試" as const
+export const USER_FACING_API_GENERIC_CLIENT_ERROR = "無法完成請求，請稍後再試" as const
+export const USER_FACING_API_CONFLICT = "資料衝突，請確認後再試" as const
+export const USER_FACING_API_BAD_GATEWAY = "外部服務暫時無法連線，請稍後再試" as const
+export const USER_FACING_API_UNEXPECTED = "發生錯誤，請稍後再試" as const
+export const USER_FACING_CONNECTION_ERROR = "設備連線異常，請稍後再試" as const
+export const USER_FACING_EXTERNAL_DB_ERROR = "資料庫查詢錯誤" as const
+export const USER_FACING_REQUEST_TIMEOUT = "請求逾時，請稍後再試"
 
-export type ErrorContext = "load" | "save" | "delete" | "sync" | "control";
+export type ErrorContext = "load" | "save" | "delete" | "sync" | "control"
 
 const CONTEXT_FALLBACK_MESSAGES: Record<ErrorContext, string> = {
 	load: "無法載入資料，請稍後再試",
 	save: "無法儲存，請稍後再試",
 	delete: "無法刪除，請稍後再試",
 	sync: "同步失敗，請稍後再試",
-	control: "操作失敗，請稍後再試"
-};
+	control: "操作失敗，請稍後再試",
+}
 
 // --- 後端 code 映射 ---
 
@@ -193,8 +197,9 @@ const API_ERROR_USER_MESSAGES: Record<string, string> = {
 	USER_FORBIDDEN_PASSWORD_SELF: "無法變更自己的密碼，請聯絡管理員",
 	USER_FORBIDDEN_DELETE_SELF: "無法刪除自己的帳號",
 	USER_FORBIDDEN_DELETE_ADMIN: "無法刪除管理員帳號",
-	LOCATION_ZONE_DELETE_FORBIDDEN: "此區域尚有地點，無法刪除"
-};
+	DEVICE_MODEL_MANAGEMENT_LOCKED: "產品環境的設備型號由系統管理，無法修改",
+	LOCATION_ZONE_DELETE_FORBIDDEN: "此區域尚有地點，無法刪除",
+}
 
 const API_ERROR_PREFIX_MESSAGES: ReadonlyArray<{ prefix: string; message: string }> = [
 	{ prefix: "LADDER_SDK_", message: "設備操作失敗，請稍後再試" },
@@ -226,11 +231,11 @@ const API_ERROR_PREFIX_MESSAGES: ReadonlyArray<{ prefix: string; message: string
 	{ prefix: "EXTERNAL_DATA_", message: USER_FACING_EXTERNAL_DB_ERROR },
 	{ prefix: "SETTINGS_", message: "設定操作失敗，請稍後再試" },
 	{ prefix: "MULTIMEDIA_", message: "多媒體操作失敗，請稍後再試" },
-	{ prefix: "AUTH_", message: USER_FACING_API_UNAUTHORIZED }
-];
+	{ prefix: "AUTH_", message: USER_FACING_API_UNAUTHORIZED },
+]
 
 const getExactUserMessage = (backendCode: string): string | undefined =>
-	API_ERROR_USER_MESSAGES[backendCode];
+	API_ERROR_USER_MESSAGES[backendCode]
 
 const getHeuristicUserMessage = (backendCode: string): string | undefined => {
 	if (
@@ -238,23 +243,23 @@ const getHeuristicUserMessage = (backendCode: string): string | undefined => {
 		backendCode.includes("CONNECTION") ||
 		backendCode.includes("UNAVAILABLE")
 	) {
-		return USER_FACING_CONNECTION_ERROR;
+		return USER_FACING_CONNECTION_ERROR
 	}
 	if (backendCode.endsWith("_NOT_FOUND") || backendCode.includes("NOT_FOUND")) {
-		return USER_FACING_API_NOT_FOUND;
+		return USER_FACING_API_NOT_FOUND
 	}
 	if (backendCode.includes("DUPLICATE") || backendCode.includes("IN_USE")) {
-		return USER_FACING_API_CONFLICT;
+		return USER_FACING_API_CONFLICT
 	}
-	return undefined;
-};
+	return undefined
+}
 
 const getPrefixUserMessage = (backendCode: string): string | undefined => {
 	for (const { prefix, message } of API_ERROR_PREFIX_MESSAGES) {
-		if (backendCode.startsWith(prefix) || backendCode === prefix) return message;
+		if (backendCode.startsWith(prefix) || backendCode === prefix) return message
 	}
-	return undefined;
-};
+	return undefined
+}
 
 // --- VALIDATION_* + details 組句 ---
 
@@ -287,67 +292,67 @@ const VALIDATION_FIELD_LABELS: Record<string, string> = {
 	fingerPrintID: "指紋編號",
 	rule_id: "警報規則",
 	ctrlMode: "控制模式",
-	floors: "授權樓層"
-};
+	floors: "授權樓層",
+}
 
-const labelForField = (field: string): string => VALIDATION_FIELD_LABELS[field] ?? field;
+const labelForField = (field: string): string => VALIDATION_FIELD_LABELS[field] ?? field
 
-const labelForFields = (fields: string[]): string => fields.map(labelForField).join("、");
+const labelForFields = (fields: string[]): string => fields.map(labelForField).join("、")
 
 const asStringArray = (value: unknown): string[] =>
-	Array.isArray(value) ? value.map(v => String(v)) : [];
+	Array.isArray(value) ? value.map((v) => String(v)) : []
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
 	value && typeof value === "object" && !Array.isArray(value)
 		? (value as Record<string, unknown>)
-		: null;
+		: null
 
 const resolveValidationMessage = (
 	backendCode: string | undefined,
 	details: unknown
 ): string | undefined => {
-	if (!backendCode?.startsWith("VALIDATION_")) return undefined;
+	if (!backendCode?.startsWith("VALIDATION_")) return undefined
 
-	const d = asRecord(details);
+	const d = asRecord(details)
 
 	if (backendCode === "VALIDATION_REQUIRED") {
-		const missing = asStringArray(d?.missing);
-		if (missing.length === 1) return `請填寫${labelForField(missing[0])}`;
-		if (missing.length > 1) return `請填寫：${labelForFields(missing)}`;
-		return "請填寫必填欄位";
+		const missing = asStringArray(d?.missing)
+		if (missing.length === 1) return `請填寫${labelForField(missing[0])}`
+		if (missing.length > 1) return `請填寫：${labelForFields(missing)}`
+		return "請填寫必填欄位"
 	}
 	if (backendCode === "VALIDATION_INVALID_NUMBER") {
-		const invalid = asStringArray(d?.invalid);
-		if (invalid.length === 1) return `${labelForField(invalid[0])}必須為數字`;
-		if (invalid.length > 1) return `以下欄位必須為數字：${labelForFields(invalid)}`;
-		return "請輸入有效的數字";
+		const invalid = asStringArray(d?.invalid)
+		if (invalid.length === 1) return `${labelForField(invalid[0])}必須為數字`
+		if (invalid.length > 1) return `以下欄位必須為數字：${labelForFields(invalid)}`
+		return "請輸入有效的數字"
 	}
 	if (backendCode === "VALIDATION_INVALID_INTEGER") {
-		const invalid = asStringArray(d?.invalid);
-		if (invalid.length === 1) return `${labelForField(invalid[0])}必須為整數`;
-		if (invalid.length > 1) return `以下欄位必須為整數：${labelForFields(invalid)}`;
-		return "請輸入有效的整數";
+		const invalid = asStringArray(d?.invalid)
+		if (invalid.length === 1) return `${labelForField(invalid[0])}必須為整數`
+		if (invalid.length > 1) return `以下欄位必須為整數：${labelForFields(invalid)}`
+		return "請輸入有效的整數"
 	}
 	if (backendCode === "VALIDATION_INVALID_ENUM") {
-		const field = d?.field != null ? String(d.field) : "";
-		const allowed = asStringArray(d?.allowedValues);
-		if (field && allowed.length) return `${labelForField(field)}僅能選擇：${allowed.join("、")}`;
-		return "請選擇有效的選項";
+		const field = d?.field != null ? String(d.field) : ""
+		const allowed = asStringArray(d?.allowedValues)
+		if (field && allowed.length) return `${labelForField(field)}僅能選擇：${allowed.join("、")}`
+		return "請選擇有效的選項"
 	}
 	if (backendCode === "VALIDATION_INVALID_DATE") {
-		const invalid = asStringArray(d?.invalid);
-		if (invalid.length === 1) return `${labelForField(invalid[0])}日期格式不正確`;
-		if (invalid.length > 1) return `以下欄位日期格式不正確：${labelForFields(invalid)}`;
-		return "日期格式不正確";
+		const invalid = asStringArray(d?.invalid)
+		if (invalid.length === 1) return `${labelForField(invalid[0])}日期格式不正確`
+		if (invalid.length > 1) return `以下欄位日期格式不正確：${labelForFields(invalid)}`
+		return "日期格式不正確"
 	}
-	if (backendCode === "VALIDATION_CUSTOM") return "請確認輸入內容後再試";
+	if (backendCode === "VALIDATION_CUSTOM") return "請確認輸入內容後再試"
 
-	return undefined;
-};
+	return undefined
+}
 
 // --- 型別與 ApiRequestError ---
 
-export type AppSeverity = "warning" | "error" | "critical";
+export type AppSeverity = "warning" | "error" | "critical"
 
 export const CONNECTION_ERROR_TOKENS = [
 	"連接超時",
@@ -361,10 +366,10 @@ export const CONNECTION_ERROR_TOKENS = [
 	"設備離線",
 	"設備連接失敗",
 	"服務不可用",
-	"service unavailable"
-] as const;
+	"service unavailable",
+] as const
 
-export const TIMEOUT_ERROR_TOKENS = ["timeout", "timed out", "etimedout", "請求超時"] as const;
+export const TIMEOUT_ERROR_TOKENS = ["timeout", "timed out", "etimedout", "請求超時"] as const
 
 export type ApiErrorCode =
 	| "HTTP_400"
@@ -377,34 +382,34 @@ export type ApiErrorCode =
 	| "NETWORK_ERROR"
 	| "TIMEOUT"
 	| "BACKEND_CODE"
-	| "UNKNOWN";
+	| "UNKNOWN"
 
 export type ApiRequestErrorMeta = {
-	statusCode?: number;
-	code?: ApiErrorCode;
-	backendCode?: string;
-	originalMessage?: string;
-	details?: unknown;
-	resolvedCode?: ApiErrorCode;
-};
+	statusCode?: number
+	code?: ApiErrorCode
+	backendCode?: string
+	originalMessage?: string
+	details?: unknown
+	resolvedCode?: ApiErrorCode
+}
 
 export class ApiRequestError extends Error {
-	statusCode?: number;
-	code?: ApiErrorCode;
-	backendCode?: string;
-	originalMessage?: string;
-	details?: unknown;
-	isGenericMessage?: boolean;
+	statusCode?: number
+	code?: ApiErrorCode
+	backendCode?: string
+	originalMessage?: string
+	details?: unknown
+	isGenericMessage?: boolean
 
 	constructor(message: string, meta?: ApiRequestErrorMeta & { isGenericMessage?: boolean }) {
-		super(message);
-		this.name = "ApiRequestError";
-		this.statusCode = meta?.statusCode;
-		this.code = meta?.code ?? meta?.resolvedCode;
-		this.backendCode = meta?.backendCode;
-		this.originalMessage = meta?.originalMessage;
-		this.details = meta?.details;
-		this.isGenericMessage = meta?.isGenericMessage;
+		super(message)
+		this.name = "ApiRequestError"
+		this.statusCode = meta?.statusCode
+		this.code = meta?.code ?? meta?.resolvedCode
+		this.backendCode = meta?.backendCode
+		this.originalMessage = meta?.originalMessage
+		this.details = meta?.details
+		this.isGenericMessage = meta?.isGenericMessage
 	}
 }
 
@@ -412,159 +417,160 @@ export const isApiUnauthorizedError = (error: unknown): boolean =>
 	error instanceof ApiRequestError && error.statusCode === 401
 
 export const isApiRateLimitError = (error: unknown): boolean =>
-	error instanceof ApiRequestError &&
-	(error.statusCode === 429 || error.code === "HTTP_429")
+	error instanceof ApiRequestError && (error.statusCode === 429 || error.code === "HTTP_429")
 
 export const isApiRequestTimeout = (error: unknown): boolean => {
-	if (error instanceof ApiRequestError && error.code === "TIMEOUT") return true;
+	if (error instanceof ApiRequestError && error.code === "TIMEOUT") return true
 
-	const parts: string[] = [];
+	const parts: string[] = []
 	if (error instanceof ApiRequestError) {
-		if (error.originalMessage) parts.push(error.originalMessage);
-		if (error.message) parts.push(error.message);
+		if (error.originalMessage) parts.push(error.originalMessage)
+		if (error.message) parts.push(error.message)
 	} else if (error instanceof Error) {
-		parts.push(error.message);
+		parts.push(error.message)
 	} else if (error && typeof error === "object") {
-		const r = error as { code?: string; message?: string; originalMessage?: string };
-		if (r.code === "TIMEOUT") return true;
-		if (r.originalMessage) parts.push(r.originalMessage);
-		if (r.message) parts.push(r.message);
+		const r = error as { code?: string; message?: string; originalMessage?: string }
+		if (r.code === "TIMEOUT") return true
+		if (r.originalMessage) parts.push(r.originalMessage)
+		if (r.message) parts.push(r.message)
 	} else if (error != null) {
-		parts.push(String(error));
+		parts.push(String(error))
 	}
 
-	const lower = parts.join("\n").toLowerCase();
-	return TIMEOUT_ERROR_TOKENS.some(token => lower.includes(token)) || lower.includes("timeouterror");
-};
+	const lower = parts.join("\n").toLowerCase()
+	return (
+		TIMEOUT_ERROR_TOKENS.some((token) => lower.includes(token)) || lower.includes("timeouterror")
+	)
+}
 
 export const mapHttpStatusToUserFacingError = (
 	statusCode: number,
 	isExternalDataQuery: boolean
 ): { message: string; code: ApiErrorCode; isGeneric: boolean } => {
 	if (statusCode === 400)
-		return { message: USER_FACING_API_BAD_REQUEST, code: "HTTP_400", isGeneric: true };
+		return { message: USER_FACING_API_BAD_REQUEST, code: "HTTP_400", isGeneric: true }
 	if (statusCode === 429) {
 		return { message: MSG_RATE_LIMIT, code: "HTTP_429", isGeneric: false }
 	}
 	if (statusCode === 403)
-		return { message: MSG_PERMISSION_LOCKED, code: "HTTP_403", isGeneric: false };
+		return { message: MSG_PERMISSION_LOCKED, code: "HTTP_403", isGeneric: false }
 	if (statusCode === 404)
-		return { message: USER_FACING_API_NOT_FOUND, code: "HTTP_404", isGeneric: true };
+		return { message: USER_FACING_API_NOT_FOUND, code: "HTTP_404", isGeneric: true }
 	if (statusCode === 409)
-		return { message: USER_FACING_API_CONFLICT, code: "HTTP_400", isGeneric: false };
+		return { message: USER_FACING_API_CONFLICT, code: "HTTP_400", isGeneric: false }
 	if (statusCode === 502)
-		return { message: USER_FACING_API_BAD_GATEWAY, code: "HTTP_500", isGeneric: false };
+		return { message: USER_FACING_API_BAD_GATEWAY, code: "HTTP_500", isGeneric: false }
 
 	if (statusCode >= 500 && statusCode < 600) {
 		if (isExternalDataQuery) {
 			return {
 				message: USER_FACING_EXTERNAL_DB_ERROR,
 				code: statusCode === 503 ? "HTTP_503" : "HTTP_500",
-				isGeneric: false
-			};
+				isGeneric: false,
+			}
 		}
-		return { message: USER_FACING_API_SERVER_ERROR, code: "HTTP_500", isGeneric: true };
+		return { message: USER_FACING_API_SERVER_ERROR, code: "HTTP_500", isGeneric: true }
 	}
 
 	if (statusCode >= 400 && statusCode < 500) {
-		return { message: USER_FACING_API_GENERIC_CLIENT_ERROR, code: "UNKNOWN", isGeneric: true };
+		return { message: USER_FACING_API_GENERIC_CLIENT_ERROR, code: "UNKNOWN", isGeneric: true }
 	}
 
-	return { message: USER_FACING_API_UNEXPECTED, code: "UNKNOWN", isGeneric: true };
-};
+	return { message: USER_FACING_API_UNEXPECTED, code: "UNKNOWN", isGeneric: true }
+}
 
-const MAX_USER_VISIBLE_API_ERROR_CHARS = 480;
+const MAX_USER_VISIBLE_API_ERROR_CHARS = 480
 
 const isLikelyHtmlOrDocumentErrorPage = (raw: string): boolean => {
-	const s = String(raw || "");
-	if (!s) return false;
-	if (/<!DOCTYPE/i.test(s)) return true;
-	if (/<\s*html[\s>]/i.test(s)) return true;
-	if (/\bnuxt\b/i.test(s) && /\bdev server\b/i.test(s)) return true;
-	return false;
-};
+	const s = String(raw || "")
+	if (!s) return false
+	if (/<!DOCTYPE/i.test(s)) return true
+	if (/<\s*html[\s>]/i.test(s)) return true
+	if (/\bnuxt\b/i.test(s) && /\bdev server\b/i.test(s)) return true
+	return false
+}
 
 const clipUserFacingApiErrorText = (raw: unknown): string => {
-	if (raw === undefined || raw === null) return "";
-	let s = String(raw).trim();
-	if (!s || isLikelyHtmlOrDocumentErrorPage(s)) return "";
+	if (raw === undefined || raw === null) return ""
+	let s = String(raw).trim()
+	if (!s || isLikelyHtmlOrDocumentErrorPage(s)) return ""
 	if (s.length > MAX_USER_VISIBLE_API_ERROR_CHARS) {
-		return `${s.slice(0, MAX_USER_VISIBLE_API_ERROR_CHARS).trimEnd()}…`;
+		return `${s.slice(0, MAX_USER_VISIBLE_API_ERROR_CHARS).trimEnd()}…`
 	}
-	return s;
-};
+	return s
+}
 
 const parseExternalDataHttpStatusFromMessage = (message: string): number | undefined => {
-	const m = String(message || "");
-	if (!m.includes("external-data")) return undefined;
-	const g = m.match(/:\s*(\d{3})\b/);
-	if (!g) return undefined;
-	const code = parseInt(g[1], 10);
-	return code === 500 || code === 503 ? code : undefined;
-};
+	const m = String(message || "")
+	if (!m.includes("external-data")) return undefined
+	const g = m.match(/:\s*(\d{3})\b/)
+	if (!g) return undefined
+	const code = parseInt(g[1], 10)
+	return code === 500 || code === 503 ? code : undefined
+}
 
 const coerceHttpStatusCode = (error: unknown): number | undefined => {
-	const e = error as { statusCode?: number; status?: number; response?: { status?: number } };
-	const raw = e?.statusCode ?? e?.status ?? e?.response?.status;
-	if (raw === undefined || raw === null) return undefined;
-	const n = typeof raw === "string" ? parseInt(raw, 10) : Number(raw);
-	return Number.isFinite(n) ? n : undefined;
-};
+	const e = error as { statusCode?: number; status?: number; response?: { status?: number } }
+	const raw = e?.statusCode ?? e?.status ?? e?.response?.status
+	if (raw === undefined || raw === null) return undefined
+	const n = typeof raw === "string" ? parseInt(raw, 10) : Number(raw)
+	return Number.isFinite(n) ? n : undefined
+}
 
 export const resolveFetchHttpStatus = (error: unknown): number | undefined =>
 	coerceHttpStatusCode(error) ??
-	parseExternalDataHttpStatusFromMessage(String((error as { message?: string })?.message ?? ""));
+	parseExternalDataHttpStatusFromMessage(String((error as { message?: string })?.message ?? ""))
 
 export const extractBackendApiErrorText = (error: unknown, path?: string): string => {
-	const failure = parseBackendApiFailure(error, path ? { path } : undefined);
-	return clipUserFacingApiErrorText(failure.message ?? "");
-};
+	const failure = parseBackendApiFailure(error, path ? { path } : undefined)
+	return clipUserFacingApiErrorText(failure.message ?? "")
+}
 
 const looksLikeOfetchDebugLine = (s: string): boolean => {
-	const t = String(s || "").trim();
-	if (!t) return false;
-	return (/^\[\s*\w+\]\s+"/.test(t) && /\d{3}\b/.test(t)) || /\bHTTP_\d{3}\b/i.test(t);
-};
+	const t = String(s || "").trim()
+	if (!t) return false
+	return (/^\[\s*\w+\]\s+"/.test(t) && /\d{3}\b/.test(t)) || /\bHTTP_\d{3}\b/i.test(t)
+}
 
 export const simplifyUserFacingToastMessage = (msg: string): string => {
-	const s = String(msg || "").trim();
-	if (!s) return s;
+	const s = String(msg || "").trim()
+	if (!s) return s
 	if (looksLikeOfetchDebugLine(s) || isLikelyHtmlOrDocumentErrorPage(s))
-		return USER_FACING_API_UNEXPECTED;
-	let clipped = s;
+		return USER_FACING_API_UNEXPECTED
+	let clipped = s
 	if (clipped.length > MAX_USER_VISIBLE_API_ERROR_CHARS) {
-		clipped = `${clipped.slice(0, MAX_USER_VISIBLE_API_ERROR_CHARS).trimEnd()}…`;
+		clipped = `${clipped.slice(0, MAX_USER_VISIBLE_API_ERROR_CHARS).trimEnd()}…`
 	}
 	if (parseExternalDataHttpStatusFromMessage(clipped) !== undefined)
-		return USER_FACING_EXTERNAL_DB_ERROR;
+		return USER_FACING_EXTERNAL_DB_ERROR
 	if (/查詢\s+[\w.]+\s+/.test(clipped) && /失敗\s*:/.test(clipped))
-		return USER_FACING_EXTERNAL_DB_ERROR;
-	return clipped;
-};
+		return USER_FACING_EXTERNAL_DB_ERROR
+	return clipped
+}
 
 export const resolveUserFacingCatchMessage = (error: unknown, fallback: string): string => {
 	if (error instanceof ApiRequestError) {
-		if (error.isGenericMessage && fallback) return fallback;
-		return error.message;
+		if (error.isGenericMessage && fallback) return fallback
+		return error.message
 	}
 	if (error instanceof YscpApiBusinessError) {
 		const resolved = resolveUserFacingApiError({
 			backendCode: error.yscpFailure.backendCode,
 			path: "/yscp/",
-		});
-		return resolved.message || fallback;
+		})
+		return resolved.message || fallback
 	}
-	const raw = error instanceof Error ? error.message || fallback : fallback;
-	return simplifyUserFacingToastMessage(raw) || USER_FACING_API_UNEXPECTED;
-};
+	const raw = error instanceof Error ? error.message || fallback : fallback
+	return simplifyUserFacingToastMessage(raw) || USER_FACING_API_UNEXPECTED
+}
 
 export const severityToToastType = (
 	severity: AppSeverity
 ): { type: "error" | "warning" | "info"; duration: number } => {
-	if (severity === "critical") return { type: "error", duration: 10000 };
-	if (severity === "error") return { type: "warning", duration: 8000 };
-	return { type: "info", duration: 5000 };
-};
+	if (severity === "critical") return { type: "error", duration: 10000 }
+	if (severity === "error") return { type: "warning", duration: 8000 }
+	return { type: "info", duration: 5000 }
+}
 
 const isCriticalBackendCode = (backendCode: string | undefined): boolean =>
 	Boolean(
@@ -573,127 +579,127 @@ const isCriticalBackendCode = (backendCode: string | undefined): boolean =>
 			backendCode.startsWith("DEVICE_CONNECTIVITY_") ||
 			backendCode === "LICENSE_CHECK_FAILED" ||
 			backendCode === "SERVICE_UNAVAILABLE")
-	);
+	)
 
 export const inferSeverityFromApiError = (error: unknown): AppSeverity => {
-	const e = error as ApiRequestError & { code?: string };
+	const e = error as ApiRequestError & { code?: string }
 	const backendCode =
-		e instanceof ApiRequestError ? e.backendCode : (e as { backendCode?: string })?.backendCode;
+		e instanceof ApiRequestError ? e.backendCode : (e as { backendCode?: string })?.backendCode
 
-	if (backendCode?.startsWith("VALIDATION_")) return "warning";
-	if (isCriticalBackendCode(backendCode)) return "critical";
+	if (backendCode?.startsWith("VALIDATION_")) return "warning"
+	if (isCriticalBackendCode(backendCode)) return "critical"
 
 	const statusCode =
 		e instanceof ApiRequestError && e.statusCode != null
 			? e.statusCode
-			: resolveFetchHttpStatus(error);
+			: resolveFetchHttpStatus(error)
 
-	if (statusCode === 400) return "warning";
-	if (statusCode !== undefined && statusCode >= 400 && statusCode < 500) return "error";
-	if (statusCode !== undefined && statusCode >= 500 && statusCode < 600) return "critical";
+	if (statusCode === 400) return "warning"
+	if (statusCode !== undefined && statusCode >= 400 && statusCode < 500) return "error"
+	if (statusCode !== undefined && statusCode >= 500 && statusCode < 600) return "critical"
 
-	const code = String(e?.code ?? "");
-	if (code === "NETWORK_ERROR") return "critical";
-	if (code === "TIMEOUT") return "error";
+	const code = String(e?.code ?? "")
+	if (code === "NETWORK_ERROR") return "critical"
+	if (code === "TIMEOUT") return "error"
 
-	const message = String(e?.message ?? "").toLowerCase();
-	if (CONNECTION_ERROR_TOKENS.some(t => message.includes(String(t).toLowerCase())))
-		return "critical";
-	if (TIMEOUT_ERROR_TOKENS.some(t => message.includes(String(t).toLowerCase()))) return "error";
+	const message = String(e?.message ?? "").toLowerCase()
+	if (CONNECTION_ERROR_TOKENS.some((t) => message.includes(String(t).toLowerCase())))
+		return "critical"
+	if (TIMEOUT_ERROR_TOKENS.some((t) => message.includes(String(t).toLowerCase()))) return "error"
 	if (
 		message.includes("failed to fetch") ||
 		message.includes("networkerror") ||
 		message.includes("enotfound") ||
 		message.includes("無法連接到後端伺服器")
 	) {
-		return "critical";
+		return "critical"
 	}
-	if (message.includes("cors") || message.includes("cross-origin")) return "error";
-	return "warning";
-};
+	if (message.includes("cors") || message.includes("cross-origin")) return "error"
+	return "warning"
+}
 
 export const isDeviceConnectionError = (errorOrMessage: unknown): boolean => {
 	if (errorOrMessage instanceof ApiRequestError) {
-		const bc = errorOrMessage.backendCode;
-		if (bc?.startsWith("MODBUS_") || bc?.startsWith("DEVICE_CONNECTIVITY_")) return true;
+		const bc = errorOrMessage.backendCode
+		if (bc?.startsWith("MODBUS_") || bc?.startsWith("DEVICE_CONNECTIVITY_")) return true
 	}
 
 	const msg =
 		errorOrMessage instanceof ApiRequestError
 			? String(errorOrMessage.originalMessage || errorOrMessage.message || "")
-			: String(errorOrMessage || "");
-	const lower = msg.toLowerCase();
-	const hasIp = Boolean(lower.match(/\d+\.\d+\.\d+\.\d+:\d+/));
-	const isDeviceApi = lower.includes("/modbus/") || lower.includes("/device/");
+			: String(errorOrMessage || "")
+	const lower = msg.toLowerCase()
+	const hasIp = Boolean(lower.match(/\d+\.\d+\.\d+\.\d+:\d+/))
+	const isDeviceApi = lower.includes("/modbus/") || lower.includes("/device/")
 
-	if (CONNECTION_ERROR_TOKENS.some(t => lower.includes(String(t).toLowerCase()))) return true;
-	if (isDeviceApi && hasIp) return true;
-	if (lower.includes("503")) return true;
-	return false;
-};
+	if (CONNECTION_ERROR_TOKENS.some((t) => lower.includes(String(t).toLowerCase()))) return true
+	if (isDeviceApi && hasIp) return true
+	if (lower.includes("503")) return true
+	return false
+}
 
 export const isDeviceApiRequest = (path: string): boolean =>
-	path.includes("/modbus/") || path.includes("/device/");
+	path.includes("/modbus/") || path.includes("/device/")
 
 export type ResolveUserFacingApiErrorInput = {
-	statusCode?: number;
-	backendCode?: string;
-	path: string;
-	originalMessage?: string;
-	details?: unknown;
-	context?: ErrorContext;
-};
+	statusCode?: number
+	backendCode?: string
+	path: string
+	originalMessage?: string
+	details?: unknown
+	context?: ErrorContext
+}
 
 export type ResolvedUserFacingApiError = {
-	message: string;
-	code: ApiErrorCode;
-	isGeneric: boolean;
-};
+	message: string
+	code: ApiErrorCode
+	isGeneric: boolean
+}
 
 export const getErrorContextFallbackMessage = (context: ErrorContext): string =>
-	CONTEXT_FALLBACK_MESSAGES[context];
+	CONTEXT_FALLBACK_MESSAGES[context]
 
 export const resolveUserFacingApiError = (
 	input: ResolveUserFacingApiErrorInput
 ): ResolvedUserFacingApiError => {
-	const { statusCode, backendCode, path, details, context } = input;
-	const isExternalDataQuery = path.includes("/external-data/");
-	const isYscpQuery = isYscpPath(path);
+	const { statusCode, backendCode, path, details, context } = input
+	const isExternalDataQuery = path.includes("/external-data/")
+	const isYscpQuery = isYscpPath(path)
 
-	const fromValidation = resolveValidationMessage(backendCode, details);
-	if (fromValidation) return { message: fromValidation, code: "BACKEND_CODE", isGeneric: false };
+	const fromValidation = resolveValidationMessage(backendCode, details)
+	if (fromValidation) return { message: fromValidation, code: "BACKEND_CODE", isGeneric: false }
 
 	if (backendCode) {
-		const fromExact = getExactUserMessage(backendCode);
-		if (fromExact) return { message: fromExact, code: "BACKEND_CODE", isGeneric: false };
+		const fromExact = getExactUserMessage(backendCode)
+		if (fromExact) return { message: fromExact, code: "BACKEND_CODE", isGeneric: false }
 
-		const fromContext = context ? CONTEXT_FALLBACK_MESSAGES[context] : undefined;
-		if (fromContext) return { message: fromContext, code: "UNKNOWN", isGeneric: true };
+		const fromContext = context ? CONTEXT_FALLBACK_MESSAGES[context] : undefined
+		if (fromContext) return { message: fromContext, code: "UNKNOWN", isGeneric: true }
 
-		const fromHeuristic = getHeuristicUserMessage(backendCode);
-		if (fromHeuristic) return { message: fromHeuristic, code: "BACKEND_CODE", isGeneric: true };
+		const fromHeuristic = getHeuristicUserMessage(backendCode)
+		if (fromHeuristic) return { message: fromHeuristic, code: "BACKEND_CODE", isGeneric: true }
 
-		const fromPrefix = getPrefixUserMessage(backendCode);
-		if (fromPrefix) return { message: fromPrefix, code: "BACKEND_CODE", isGeneric: true };
+		const fromPrefix = getPrefixUserMessage(backendCode)
+		if (fromPrefix) return { message: fromPrefix, code: "BACKEND_CODE", isGeneric: true }
 	}
 
 	if (isYscpQuery) {
-		return { message: USER_FACING_API_UNEXPECTED, code: "UNKNOWN", isGeneric: true };
+		return { message: USER_FACING_API_UNEXPECTED, code: "UNKNOWN", isGeneric: true }
 	}
 
 	if (statusCode !== undefined && statusCode !== null) {
-		const fromStatus = mapHttpStatusToUserFacingError(statusCode, isExternalDataQuery);
-		return { message: fromStatus.message, code: fromStatus.code, isGeneric: fromStatus.isGeneric };
+		const fromStatus = mapHttpStatusToUserFacingError(statusCode, isExternalDataQuery)
+		return { message: fromStatus.message, code: fromStatus.code, isGeneric: fromStatus.isGeneric }
 	}
 
-	return { message: USER_FACING_API_UNEXPECTED, code: "UNKNOWN", isGeneric: true };
-};
+	return { message: USER_FACING_API_UNEXPECTED, code: "UNKNOWN", isGeneric: true }
+}
 
 // --- 表單 inline 錯誤（不 toast）---
 
 /** 解析 API 錯誤為使用者可見字串（供開啟中的表單／dialog 使用） */
 export const resolveFormApiError = (error: unknown, fallback: string): string =>
-	resolveUserFacingCatchMessage(error, fallback);
+	resolveUserFacingCatchMessage(error, fallback)
 
 /** 將 API 錯誤寫入 ref（不 toast） */
 export const applyFormApiErrorToRef = (
@@ -701,10 +707,11 @@ export const applyFormApiErrorToRef = (
 	error: unknown,
 	fallback: string
 ): string => {
-	const msg = resolveFormApiError(error, fallback);
-	target.value = msg;
-	return msg;
-};
+	const msg = resolveFormApiError(error, fallback)
+	target.value = msg
+	return msg
+}
 
 /** 多筆驗證錯誤合併為 dialog 底部顯示文字 */
-export const joinFormErrors = (errors: string[]): string => errors.filter(e => e.trim()).join("\n");
+export const joinFormErrors = (errors: string[]): string =>
+	errors.filter((e) => e.trim()).join("\n")

@@ -256,7 +256,6 @@ import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { useEnvironmentReadingSubscription } from "~/composables/systems/environment/useEnvironmentLive"
 import { useEnvironmentDataCoordinator } from "~/composables/systems/environment/useEnvironmentDataCoordinator"
 import { useEnvironmentFeaturedGauges } from "~/composables/systems/environment/useEnvironmentFeaturedGauges"
-import type { SensorReadings } from "~/composables/systems/environment/useEnvironmentLive"
 import type { AlertRule } from "~/types/alert"
 import {
 	getParameterDisplayName,
@@ -275,8 +274,10 @@ import type {
 import { getTimeRangeUTC } from "~/utils/dateUtils"
 import { compareZonesLoose } from "~/utils/sortOrder"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
-import { calculateAqiScore } from "~/utils/environmentAqi"
-import { getHeatIndexDerivedResult } from "~/utils/environmentDerivedMetrics"
+import {
+	getHeatIndexDerivedResultFromReading,
+	getAqiDerivedStatusFromValue,
+} from "~/utils/environmentDerivedMetrics"
 import { formatSensorDisplayValue } from "~/utils/environmentLive"
 import {
 	normalizeMonitoringStatusText,
@@ -478,6 +479,7 @@ const currentLocationData = computed<EnvironmentLocation | null>(() => {
 const {
 	sensorData,
 	getLocationSensorData,
+	getLocationReadingData,
 	isSensorOffline,
 	isLocationOffline,
 	isHydrating,
@@ -689,6 +691,7 @@ const getLocationDisplayData = (location: EnvironmentLocation) => {
 	const locationSensorData = getLocationSensorData(locationId)
 
 	const dataSource = isCurrentLocation(location) ? sensorData : locationSensorData
+	const readingData = getLocationReadingData(locationId)
 	if (!dataSource) {
 		return {
 			params: undefined,
@@ -714,11 +717,10 @@ const getLocationDisplayData = (location: EnvironmentLocation) => {
 				rawValue: value,
 			}
 		}),
-		aqi: calculateAQI(dataSource),
-		heatIndexLevel: getHeatIndexDerivedResult(
-			dataSource.temperature ?? null,
-			dataSource.humidity ?? null
-		).level,
+		aqi: getAqiDerivedStatusFromValue(readingData.aqi ?? null).aqi,
+		heatIndexLevel: getHeatIndexDerivedResultFromReading({
+			heatIndex: readingData.heatIndex ?? null,
+		}).level,
 	}
 }
 
@@ -750,11 +752,6 @@ onMounted(async () => {
 	await nextTick()
 	scrollActiveOverviewIntoView()
 })
-
-// 計算 AQI（共用函數）
-const calculateAQI = (data: SensorReadings): number | null => {
-	return calculateAqiScore({ pm25: data.pm25, pm10: data.pm10 })
-}
 
 // 取得當前地點的顯示字串（共用函數）
 const getStatusTextForLocation =

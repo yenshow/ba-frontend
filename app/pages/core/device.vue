@@ -32,7 +32,7 @@
 						</h2>
 						<div class="flex items-center gap-3 2xl:gap-4">
 							<button
-								v-if="canPlatformAdmin && activeTab"
+								v-if="canManageDeviceModels && activeTab"
 								type="button"
 								class="rounded-xl bg-blue-500/80 px-4 py-2 text-base text-white hover:bg-blue-400 2xl:px-6 2xl:py-3 2xl:text-lg"
 								aria-label="型號管理"
@@ -193,7 +193,7 @@
 		/>
 
 		<DeviceModelDialog
-			v-if="activeTab && canPlatformAdmin"
+			v-if="activeTab && canManageDeviceModels"
 			v-model="showDeviceModelDialog"
 			:device-type-code="activeTab"
 			@close="showDeviceModelDialog = false"
@@ -248,7 +248,7 @@ import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { applyFormApiErrorToRef } from "~/utils/apiError"
 import { getCameraModelCategoryLabel } from "~/utils/cameraModelCategories"
 import { useEquipmentRbac } from "~/composables/core/useAccessGate"
-import { usePlatformAdmin } from "~/composables/core/useAuth"
+import { useCanManageDeviceModels } from "~/composables/core/useAuth"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 
 definePageMeta({
@@ -256,7 +256,7 @@ definePageMeta({
 })
 
 const { canCreateDevice, canUpdateDevice, canDeleteDevice } = useEquipmentRbac()
-const canPlatformAdmin = usePlatformAdmin()
+const canManageDeviceModels = useCanManageDeviceModels()
 const canWriteDevice = computed(() =>
 	editingDevice.value ? canUpdateDevice.value : canCreateDevice.value
 )

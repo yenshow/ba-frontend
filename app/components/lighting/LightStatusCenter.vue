@@ -9,10 +9,10 @@
 		</h3>
 		<!-- 區域區塊 -->
 		<div
-			class="show-scrollbar mt-6 min-h-0 flex-1 space-y-6 overflow-y-auto pe-1 2xl:mt-8 2xl:space-y-8"
+			class="show-scrollbar mt-6 min-h-0 flex-1 space-y-6 overflow-y-auto ps-3 pe-1 pt-2 2xl:mt-8 2xl:space-y-8"
 		>
 		<div v-for="zone in displayedZones" :key="zone.id" class="space-y-3 2xl:space-y-4">
-			<div class="flex items-center justify-center gap-3">
+			<div class="flex items-center justify-start gap-3">
 				<!-- 區域標題 -->
 				<div class="relative shrink-0">
 					<button

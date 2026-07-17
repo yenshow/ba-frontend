@@ -491,6 +491,8 @@ import {
 	validateAlertRuleEmailSubscription,
 	validateAlertRuleFormForSave,
 } from "~/utils/alertRuleFormValidation"
+import { useEnvironmentParameterCatalog } from "~/composables/systems/environment/useEnvironmentParameterCatalog"
+import { getParameterUnit } from "~/utils/sensorUtils"
 
 interface OptionItem {
 	value: string
@@ -752,17 +754,10 @@ const cameraDeviceOptions = computed(() => {
 	return [...base, ...items]
 })
 
-const parameterOptions: OptionItem[] = [
-	{ value: "noise", label: "噪音值" },
-	{ value: "pm25", label: "PM2.5" },
-	{ value: "pm10", label: "PM10" },
-	{ value: "co2", label: "CO2" },
-	{ value: "temperature", label: "溫度" },
-	{ value: "humidity", label: "濕度" },
-	{ value: "tvoc", label: "TVOC" },
-	{ value: "hcho", label: "HCHO" },
-	{ value: "wind", label: "風速" },
-]
+const { thresholdOptions, ensureLoaded: ensureEnvironmentCatalogLoaded } =
+	useEnvironmentParameterCatalog()
+
+const parameterOptions = computed<OptionItem[]>(() => thresholdOptions.value)
 
 const zonesCache = useZonesCache()
 const zones = ref<UnifiedZone[]>([])
@@ -1071,12 +1066,21 @@ watch(
 )
 
 watch(
+	() => thresholdConfig.parameter,
+	(next) => {
+		const unit = getParameterUnit(next)
+		if (unit) thresholdConfig.unit = unit
+	},
+)
+
+watch(
 	() => props.modelValue,
 	(open) => {
 		if (!open) return
 		smtpTestFeedback.ok = false
 		smtpTestFeedback.message = ""
 		if (!import.meta.client) return
+		void ensureEnvironmentCatalogLoaded()
 		if (devices.value.length === 0 && !isDevicesLoading.value) {
 			void loadDevices()
 		}

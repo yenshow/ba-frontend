@@ -71,7 +71,7 @@ import { useZoneManagement } from "~/composables/location/management/useZoneMana
 import type { UnifiedZone, UnifiedLocation, EnvironmentSystemConfig } from "~/types/location"
 import { firstLocationInSortedZones } from "~/utils/sortOrder"
 import { getLocationUiKey } from "~/utils/locationUiId"
-import { calculateAqiScore } from "~/utils/environmentAqi"
+import { getAqiDerivedStatusFromValue } from "~/utils/environmentDerivedMetrics"
 
 definePageMeta({
 	layout: "default",
@@ -332,10 +332,11 @@ const getSelectedLocationLabel = (locationId: string) => {
 	return option?.label || "未選擇地點"
 }
 
-const aqiData = computed(() => ({
-	value: formatAqiDisplay(
-		calculateAqiScore({ pm25: aqiSensorData.pm25, pm10: aqiSensorData.pm10 })
-	),
+const aqiData = computed(() => {
+	const reading = homeSensors.getCardSnapshotData(aqiCard)
+	const aqi = getAqiDerivedStatusFromValue(reading.aqi ?? null).aqi
+	return {
+	value: formatAqiDisplay(aqi),
 	location: getSelectedLocationLabel(selectedAqiLocationId.value),
 	metrics: [
 		{ label: "PM2.5", value: formatAqiDisplay(aqiSensorData.pm25), unit: "µg/m³", icon: "PM2.5" },
@@ -355,7 +356,8 @@ const aqiData = computed(() => ({
 		{ label: "風速", value: formatAqiDisplay(aqiSensorData.wind, 1), unit: "m/s", icon: "wind" },
 		{ label: "噪音", value: formatAqiDisplay(aqiSensorData.noise), unit: "dB", icon: "noise" },
 	],
-}))
+}
+})
 
 const environmentData = computed(() => ({
 	temperature: formatEnvironmentDisplay(environmentSensorData.temperature, 1),

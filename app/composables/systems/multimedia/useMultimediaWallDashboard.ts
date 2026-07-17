@@ -4,7 +4,10 @@ import type { MultimediaEnvReadingsSnapshot } from "~/types/multimedia"
 import { useImageCenter } from "~/composables/core/useImageCenter"
 import { formatDateInput } from "~/utils/dateUtils"
 import type { AlertRule } from "~/types/alert"
-import { getAqiDerivedStatus, getHeatIndexDerivedResult } from "~/utils/environmentDerivedMetrics"
+import {
+	getAqiDerivedStatusFromReading,
+	getHeatIndexDerivedResultFromReading,
+} from "~/utils/environmentDerivedMetrics"
 import {
 	normalizeMonitoringStatusText,
 	monitoringStatusTextToUiStatus,
@@ -137,9 +140,15 @@ export const useMultimediaWallDashboard = () => {
 	const getReading = (key: string): number | null =>
 		toReadingNumber(envSnapshot.value?.data?.[key])
 
-	const aqiDerived = computed(() => getAqiDerivedStatus(getReading("pm25"), getReading("pm10")))
+	const aqiDerived = computed(() =>
+		getAqiDerivedStatusFromReading({
+			aqi: getReading("aqi"),
+		}),
+	)
 	const heatIndexDerived = computed(() =>
-		getHeatIndexDerivedResult(getReading("temperature"), getReading("humidity"))
+		getHeatIndexDerivedResultFromReading({
+			heatIndex: getReading("heatIndex"),
+		}),
 	)
 
 	const getMetricStatus = (type: string, value: number | null): MonitoringUiStatus => {

@@ -132,13 +132,16 @@ export const useLightingModbusIntegration = (
 type HvacSnapshotItem = {
 	locationId: string | number
 	uiStatus?: unknown
-	raw?: { isOn?: boolean; temperatureC?: unknown }
+	// setpointC / fanSpeed 為約定語意鍵：statusPoints 配置後由後端 raw 原樣帶回
+	raw?: { isOn?: boolean; temperatureC?: unknown; setpointC?: unknown; fanSpeed?: unknown }
 }
 
 type HvacLocationStatus = {
 	isOn: boolean
 	uiStatus: HvacUiStatus
 	temperatureC: number | null
+	setpointC: number | null
+	fanSpeed: number | null
 }
 
 export const useHvacModbusIntegration = (
@@ -159,7 +162,13 @@ export const useHvacModbusIntegration = (
 			findLocationInZonesByUiKey<HvacLocation, HvacZone>(hvacZones.value, uiKey, { requireDbId }),
 		ensureLocationStatus: (uiKey, store) => {
 			if (!store.value[uiKey]) {
-				store.value[uiKey] = { isOn: false, uiStatus: "warning", temperatureC: null }
+				store.value[uiKey] = {
+					isOn: false,
+					uiStatus: "warning",
+					temperatureC: null,
+					setpointC: null,
+					fanSpeed: null,
+				}
 			}
 			return store.value[uiKey]!
 		},
@@ -178,6 +187,8 @@ export const useHvacModbusIntegration = (
 				nextBoolean: Boolean(item.raw?.isOn),
 			})
 			status.temperatureC = coerceToggleSnapshotNumber(item.raw?.temperatureC)
+			status.setpointC = coerceToggleSnapshotNumber(item.raw?.setpointC)
+			status.fanSpeed = coerceToggleSnapshotNumber(item.raw?.fanSpeed)
 			return holdResult
 		},
 		buildDisabledMap: (toggling) => {
@@ -205,7 +216,13 @@ export const useHvacModbusIntegration = (
 				zone.locations.forEach((loc, idx) => {
 					const id = getLocationUiKey({ zone, location: loc, locationIndex: idx })
 					if (!store.value[id]) {
-						store.value[id] = { isOn: false, uiStatus: "warning", temperatureC: null }
+						store.value[id] = {
+							isOn: false,
+							uiStatus: "warning",
+							temperatureC: null,
+							setpointC: null,
+							fanSpeed: null,
+						}
 					}
 				})
 			}

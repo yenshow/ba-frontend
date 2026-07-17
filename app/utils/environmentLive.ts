@@ -1,4 +1,5 @@
 import type { EnvironmentReadingNewEvent } from "~/types/websocket"
+import { getEnvironmentSensorParamKeys } from "~/utils/environmentCatalogRuntime"
 
 /** 快照視為 live、以及 bootstrap 可採用 reading 的最大年齡（兩者共用，避免先 bootstrap 再被判定離線） */
 export const ENVIRONMENT_READING_STALE_MS = 10 * 60 * 1000
@@ -21,14 +22,19 @@ export const ENVIRONMENT_SENSOR_PARAM_KEYS = [
 export type EnvironmentSensorParamKey = (typeof ENVIRONMENT_SENSOR_PARAM_KEYS)[number]
 export type EnvironmentSensorReadings = Record<EnvironmentSensorParamKey, number | null>
 
+const resolveSensorParamKeys = (): readonly string[] => {
+	const keys = getEnvironmentSensorParamKeys()
+	return keys.length > 0 ? keys : ENVIRONMENT_SENSOR_PARAM_KEYS
+}
+
 export const createEmptySensorReadings = (): EnvironmentSensorReadings =>
-	Object.fromEntries(ENVIRONMENT_SENSOR_PARAM_KEYS.map((k) => [k, null])) as EnvironmentSensorReadings
+	Object.fromEntries(resolveSensorParamKeys().map((k) => [k, null])) as EnvironmentSensorReadings
 
 export const fillSensorReadingsFromValues = (
 	target: EnvironmentSensorReadings,
 	values: Record<string, number | null | undefined>
 ) => {
-	for (const key of ENVIRONMENT_SENSOR_PARAM_KEYS) {
+	for (const key of resolveSensorParamKeys()) {
 		const value = values[key]
 		target[key] = typeof value === "number" && Number.isFinite(value) ? value : null
 	}
