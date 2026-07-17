@@ -327,7 +327,6 @@ const closeRuleDialog = () => {
 const handleSubmitRule = async (payload: {
 	rule: CreateAlertRulePayload
 	integrations: Partial<{
-		doLinkage: unknown
 		cameraLinkage: unknown
 		accessDoorLinkage: unknown
 		emailSubscription: unknown

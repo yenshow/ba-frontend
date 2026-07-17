@@ -2,59 +2,60 @@
  * API 錯誤解析、映射與使用者可見文案（前端 SSOT）
  */
 
-import type { Ref } from "vue"
+import type { Ref } from "vue";
 
-export const YSCP_SUCCESS_CODE = "0"
+export const YSCP_SUCCESS_CODE = "0";
 
 export type BackendApiFailure = {
-	backendCode?: string
-	message?: string
-	details?: unknown
-	isYscp?: boolean
-}
+	backendCode?: string;
+	message?: string;
+	details?: unknown;
+	isYscp?: boolean;
+};
 
-export const isYscpPath = (path: string): boolean => path.includes("/yscp/")
+export const isYscpPath = (path: string): boolean => path.includes("/yscp/");
 
-export const isYscpSuccessCode = (code: unknown): boolean => String(code ?? "") === YSCP_SUCCESS_CODE
+export const isYscpSuccessCode = (code: unknown): boolean =>
+	String(code ?? "") === YSCP_SUCCESS_CODE;
 
 const clipText = (raw: unknown): string => {
-	if (raw === undefined || raw === null) return ""
-	return String(raw).trim()
-}
+	if (raw === undefined || raw === null) return "";
+	return String(raw).trim();
+};
 
-const parseBodyObject = (body: Record<string, unknown>, path?: string): BackendApiFailure | null => {
+const parseBodyObject = (
+	body: Record<string, unknown>,
+	path?: string
+): BackendApiFailure | null => {
 	const hasStandardError =
 		body.error &&
 		typeof body.error === "object" &&
-		(body.error as Record<string, unknown>).code != null
+		(body.error as Record<string, unknown>).code != null;
 
 	if (hasStandardError) {
-		const errObj = body.error as Record<string, unknown>
+		const errObj = body.error as Record<string, unknown>;
 		return {
 			backendCode: clipText(errObj.code) || undefined,
 			message: clipText(errObj.message) || undefined,
 			details: errObj.details,
-			isYscp: false,
-		}
+			isYscp: false
+		};
 	}
 
-	const pathIsYscp = Boolean(path && isYscpPath(path))
+	const pathIsYscp = Boolean(path && isYscpPath(path));
 	const hasYscpShape = pathIsYscp
 		? body.code != null && typeof body.msg === "string"
-		: body.code != null &&
-			typeof body.msg === "string" &&
-			!("success" in body) &&
-			!("error" in body)
+		: body.code != null && typeof body.msg === "string" && !("success" in body) && !("error" in body);
 
 	if (hasYscpShape) {
-		const code = clipText(body.code)
-		if (isYscpSuccessCode(code)) return null
+		const code = clipText(body.code);
+		if (isYscpSuccessCode(code)) return null;
 		return {
 			backendCode: code || undefined,
 			message: clipText(body.msg) || undefined,
 			details: body.data,
-			isYscp: true,
-		}
+			isYscp: true
+		};
 	}
 
 	if (typeof body.message === "string" && body.message) {
@@ -62,20 +63,20 @@ const parseBodyObject = (body: Record<string, unknown>, path?: string): BackendA
 			backendCode: clipText(body.code) || undefined,
 			message: clipText(body.message),
 			details: body.details,
-			isYscp: false,
-		}
+			isYscp: false
+		};
 	}
 
-	return null
-}
+	return null;
+};
 
 export const parseResponseBodyFailure = (
 	body: unknown,
 	ctx?: { path?: string }
 ): BackendApiFailure | null => {
-	if (!body || typeof body !== "object") return null
-	return parseBodyObject(body as Record<string, unknown>, ctx?.path)
-}
+	if (!body || typeof body !== "object") return null;
+	return parseBodyObject(body as Record<string, unknown>, ctx?.path);
+};
 
 /** 從 ofetch 錯誤或 YSCP 業務失敗物件解析失敗資訊 */
 export const parseBackendApiFailure = (
@@ -83,74 +84,74 @@ export const parseBackendApiFailure = (
 	ctx?: { path?: string }
 ): BackendApiFailure => {
 	const e = error as {
-		data?: unknown
-		response?: { _data?: unknown; data?: unknown }
-		cause?: { data?: unknown }
-		isYscpBusinessError?: boolean
-		yscpFailure?: BackendApiFailure
-	}
+		data?: unknown;
+		response?: { _data?: unknown; data?: unknown };
+		cause?: { data?: unknown };
+		isYscpBusinessError?: boolean;
+		yscpFailure?: BackendApiFailure;
+	};
 
 	if (e?.isYscpBusinessError && e.yscpFailure) {
-		return e.yscpFailure
+		return e.yscpFailure;
 	}
 
-	const data = e?.data ?? e?.response?._data ?? e?.response?.data ?? e?.cause?.data
+	const data = e?.data ?? e?.response?._data ?? e?.response?.data ?? e?.cause?.data;
 
 	if (typeof data === "string") {
 		try {
-			const parsed = JSON.parse(data) as Record<string, unknown>
+			const parsed = JSON.parse(data) as Record<string, unknown>;
 			if (parsed && typeof parsed === "object") {
-				return parseBodyObject(parsed, ctx?.path) ?? { message: clipText(data), isYscp: false }
+				return parseBodyObject(parsed, ctx?.path) ?? { message: clipText(data), isYscp: false };
 			}
 		} catch {
-			return { message: clipText(data), isYscp: false }
+			return { message: clipText(data), isYscp: false };
 		}
 	}
 
 	if (data && typeof data === "object") {
-		return parseBodyObject(data as Record<string, unknown>, ctx?.path) ?? {}
+		return parseBodyObject(data as Record<string, unknown>, ctx?.path) ?? {};
 	}
 
-	return { message: clipText((error as Error)?.message), isYscp: false }
-}
+	return { message: clipText((error as Error)?.message), isYscp: false };
+};
 
 export class YscpApiBusinessError extends Error {
-	readonly isYscpBusinessError = true
-	readonly yscpFailure: BackendApiFailure
+	readonly isYscpBusinessError = true;
+	readonly yscpFailure: BackendApiFailure;
 
 	constructor(failure: BackendApiFailure) {
-		super("操作失敗")
-		this.name = "YscpApiBusinessError"
-		this.yscpFailure = failure
+		super("操作失敗");
+		this.name = "YscpApiBusinessError";
+		this.yscpFailure = failure;
 	}
 }
 
 export const assertYscpResponseSuccess = (response: unknown, path: string): void => {
-	if (!isYscpPath(path) || !response || typeof response !== "object") return
-	const body = response as Record<string, unknown>
-	if (body.code == null) return
-	const failure = parseResponseBodyFailure(body, { path })
-	if (failure) throw new YscpApiBusinessError(failure)
-}
+	if (!isYscpPath(path) || !response || typeof response !== "object") return;
+	const body = response as Record<string, unknown>;
+	if (body.code == null) return;
+	const failure = parseResponseBodyFailure(body, { path });
+	if (failure) throw new YscpApiBusinessError(failure);
+};
 
 export const unwrapYscpSuccessData = <T>(response: unknown): T => {
-	if (!response || typeof response !== "object") return response as T
-	const body = response as Record<string, unknown>
+	if (!response || typeof response !== "object") return response as T;
+	const body = response as Record<string, unknown>;
 	if (body.code != null && isYscpSuccessCode(body.code) && "data" in body) {
-		return body.data as T
+		return body.data as T;
 	}
-	return response as T
-}
+	return response as T;
+};
 
 // --- 授權／權限／存取文案 ---
 
-export const MSG_LICENSE_LOCKED = "此功能尚未授權，請聯絡管理員"
-export const MSG_LICENSE_REDIRECT = "此功能尚未授權，已為您返回首頁"
-export const MSG_PERMISSION_LOCKED = "您沒有此功能的存取權限"
-export const MSG_PERMISSION_REDIRECT = "您沒有此功能的存取權限，已為您返回首頁"
-export const MSG_ADMIN_ONLY = "僅管理員可存取此頁面"
-export const MSG_ACCOUNT_ADMIN = "管理員請至用戶管理重設密碼"
-export const MSG_RATE_LIMIT = "請求過於頻繁，請稍後再試"
+export const MSG_LICENSE_LOCKED = "此功能尚未授權，請聯絡管理員";
+export const MSG_LICENSE_REDIRECT = "此功能尚未授權，已為您返回首頁";
+export const MSG_PERMISSION_LOCKED = "您沒有此功能的存取權限";
+export const MSG_PERMISSION_REDIRECT = "您沒有此功能的存取權限，已為您返回首頁";
+export const MSG_ADMIN_ONLY = "僅管理員可存取此頁面";
+export const MSG_ACCOUNT_ADMIN = "管理員請至用戶管理重設密碼";
+export const MSG_RATE_LIMIT = "請求過於頻繁，請稍後再試";
 
 // --- HTTP／通用 fallback ---
 
@@ -193,6 +194,7 @@ const API_ERROR_USER_MESSAGES: Record<string, string> = {
 	USER_FORBIDDEN_PASSWORD_SELF: "無法變更自己的密碼，請聯絡管理員",
 	USER_FORBIDDEN_DELETE_SELF: "無法刪除自己的帳號",
 	USER_FORBIDDEN_DELETE_ADMIN: "無法刪除管理員帳號",
+	DEVICE_MODEL_MANAGEMENT_LOCKED: "產品環境的設備型號由系統管理，無法修改",
 	LOCATION_ZONE_DELETE_FORBIDDEN: "此區域尚有地點，無法刪除"
 };
 
@@ -412,8 +414,7 @@ export const isApiUnauthorizedError = (error: unknown): boolean =>
 	error instanceof ApiRequestError && error.statusCode === 401;
 
 export const isApiRateLimitError = (error: unknown): boolean =>
-	error instanceof ApiRequestError &&
-	(error.statusCode === 429 || error.code === "HTTP_429");
+	error instanceof ApiRequestError && (error.statusCode === 429 || error.code === "HTTP_429");
 
 export const isApiRequestTimeout = (error: unknown): boolean => {
 	if (error instanceof ApiRequestError && error.code === "TIMEOUT") return true;
@@ -550,7 +551,7 @@ export const resolveUserFacingCatchMessage = (error: unknown, fallback: string):
 	if (error instanceof YscpApiBusinessError) {
 		const resolved = resolveUserFacingApiError({
 			backendCode: error.yscpFailure.backendCode,
-			path: "/yscp/",
+			path: "/yscp/"
 		});
 		return resolved.message || fallback;
 	}

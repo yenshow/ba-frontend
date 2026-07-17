@@ -1,39 +1,27 @@
-import type { SensorParameterType } from "~/types/environment"
-import { normalizeMonitoringStatusText } from "~/utils/monitoringStatus"
+import type { SensorParameterType } from "~/types/environment";
+import type { MonitoringStatusText } from "~/utils/monitoringStatus";
+import { normalizeMonitoringStatusText } from "~/utils/monitoringStatus";
+import { getEnvironmentParameterDefinition } from "~/utils/environmentCatalogRuntime";
 
-const GAUGE_ARC_MAX: Record<SensorParameterType, number> = {
-	pm25: 150,
-	pm10: 150,
-	tvoc: 10,
-	hcho: 1,
-	humidity: 100,
-	temperature: 50,
-	co2: 2000,
-	noise: 100,
-	wind: 30,
-}
-
-const ARC_COLOR_BY_STATUS: Record<string, string> = {
-	警報: "#FF0000",
+const ARC_COLOR_BY_STATUS: Record<MonitoringStatusText, string> = {
+	正常: "#00FFB5",
 	異常: "#FFC701",
-	離線: "#888888",
-}
+	警報: "#FF0000",
+	離線: "#888888"
+};
 
 export const getGaugeArcPercentage = (
-	type: SensorParameterType,
+	type: SensorParameterType | string,
 	value: number | null
 ): number => {
-	if (value === null || value < 0) return 0
-	const max = GAUGE_ARC_MAX[type] ?? 100
-	return Math.min((value / max) * 100, 100)
-}
+	if (value === null || value < 0) return 0;
+	const max = getEnvironmentParameterDefinition(type)?.gaugeMax ?? 100;
+	return Math.min((value / max) * 100, 100);
+};
 
+/** 依警報規則狀態上色（與首頁儀表一致：正常綠、異常黃、警報紅） */
 export const getGaugeArcColor = (
-	type: SensorParameterType,
+	type: SensorParameterType | string,
 	value: number | null,
 	getStatusText: (type: string, value: number | null) => string
-): string => {
-	if (value === null) return "#00ffb4"
-	const status = normalizeMonitoringStatusText(getStatusText(type, value))
-	return ARC_COLOR_BY_STATUS[status] ?? "#00ffb4"
-}
+): string => ARC_COLOR_BY_STATUS[normalizeMonitoringStatusText(getStatusText(type, value))];

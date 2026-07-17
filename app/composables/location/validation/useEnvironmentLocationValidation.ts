@@ -6,6 +6,7 @@
 import type { EnvironmentLocation } from "~/types/environment";
 import type { SensorParameterType } from "~/types/environment";
 import { useLocationValidation } from "~/composables/location/validation/useBaseValidation";
+import { ENVIRONMENT_PARAMETERS_FALLBACK } from "~/constants/environmentParameters.fallback";
 
 export interface EnvironmentLocationValidationResult {
 	isValid: boolean;
@@ -13,17 +14,8 @@ export interface EnvironmentLocationValidationResult {
 	warnings: string[];
 }
 
-const VALID_PARAMETER_TYPES: SensorParameterType[] = [
-	"pm25",
-	"pm10",
-	"tvoc",
-	"hcho",
-	"humidity",
-	"temperature",
-	"co2",
-	"noise",
-	"wind"
-];
+const VALID_PARAMETER_TYPES: SensorParameterType[] =
+	ENVIRONMENT_PARAMETERS_FALLBACK.sensorKeys as SensorParameterType[];
 
 export function useEnvironmentLocationValidation() {
 	const { validateLocationName } = useLocationValidation();

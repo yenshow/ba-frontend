@@ -147,11 +147,18 @@ export const useEnvironmentHomeSensors = () => {
 		}
 	}
 
+	const getCardSnapshotData = (card: EnvironmentHomeSensorCard): Record<string, number | null> => {
+		const dbId = card.getDbLocationId(card.uiLocationId.value)
+		if (!dbId) return {}
+		return snapshots.getSnapshot(dbId)?.data ?? {}
+	}
+
 	return {
 		syncCard,
 		bootstrapCard,
 		handleReadingEvent,
 		syncCards: (cards: EnvironmentHomeSensorCard[]) => cards.forEach(syncCard),
+		getCardSnapshotData,
 	}
 }
 
@@ -259,6 +266,23 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 		return null
 	}
 
+	const getLocationReadingData = (locationId: string | number | undefined): Record<string, number | null> => {
+		if (locationId == null || locationId === "") return {}
+		const idStr = String(locationId)
+		const direct = snapshots.getSnapshot(idStr)?.data
+		if (direct) return direct
+		for (const zone of options.environmentZones.value) {
+			for (const location of zone.locations) {
+				const dbId = location.id != null ? String(location.id) : ""
+				const uiId = options.getLocationId(location)
+				if (dbId === idStr || uiId === idStr) {
+					return snapshots.getSnapshot(dbId)?.data ?? snapshots.getSnapshot(uiId)?.data ?? {}
+				}
+			}
+		}
+		return {}
+	}
+
 	const bootstrapLocation = async (location: EnvironmentLocation, force = false) => {
 		if (location.id == null || getLocationDeviceIds(location).length === 0) return
 		await snapshots.bootstrapLocationFromApi(
@@ -318,6 +342,7 @@ export const useEnvironmentSensors = (options: EnvironmentSensorsOptions) => {
 		sensorData,
 		allLocationsSensorData,
 		getLocationSensorData,
+		getLocationReadingData,
 		isSensorOffline,
 		isLocationOffline,
 		handleReadingEvent,

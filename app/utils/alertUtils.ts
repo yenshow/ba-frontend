@@ -1,5 +1,6 @@
 import type { AlertSource, AlertType, AlertSeverity } from "~/types/alert";
 import type { SystemType } from "~/types/location";
+import { getParameterDisplayName } from "~/utils/sensorUtils";
 
 /** 與環境／照明監控一致：透明度脈動頻率（對應 tailwind.css `.blink-slow` / `.blink-fast`、地圖點 `.alert-dot-flash-*`） */
 export type AlertFlashMode = "none" | "slow" | "fast";
@@ -147,18 +148,7 @@ export const getThresholdOperatorDisplayLabel = (operator: string | undefined | 
 export const getAlertParameterDisplayName = (parameter: string | undefined | null): string => {
 	const code = String(parameter ?? "").trim();
 	if (!code) return "-";
-	const displayNames: Record<string, string> = {
-		pm25: "PM2.5",
-		pm10: "PM10",
-		tvoc: "TVOC",
-		hcho: "HCHO",
-		humidity: "濕度",
-		temperature: "溫度",
-		co2: "CO2",
-		noise: "噪音值",
-		wind: "風速"
-	};
-	return displayNames[code] || code.toUpperCase();
+	return getParameterDisplayName(code);
 };
 
 /** 列表欄位用：與 canonical 訊息本體一致（不含來源／區域前綴，該欄由「目標」呈現） */

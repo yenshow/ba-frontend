@@ -45,7 +45,7 @@
 					<PermissionActionButton
 						:allowed="canManageLocation"
 						aria-label="地點管理"
-						class="btn-monitoring-overlay absolute left-8 top-2"
+						class="absolute left-8 top-2 btn-monitoring-overlay"
 						@click="handleOpenLocationDialog"
 					>
 						地點管理
@@ -53,7 +53,7 @@
 					<PermissionActionButton
 						:allowed="canFullReport"
 						aria-label="開啟完整報表"
-						class="btn-monitoring-overlay absolute right-8 top-2"
+						class="absolute right-8 top-2 btn-monitoring-overlay"
 						@click="handleOpenSimulation"
 					>
 						完整報表
@@ -67,14 +67,16 @@
 					>
 						<div v-if="currentLocationData" :aria-busy="isHydrating">
 							<div class="border-b border-white/80 pb-2">
-								<div class="env-gauge-row grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:gap-6">
+								<div
+									class="env-gauge-row grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:gap-6"
+								>
 									<div
 										v-for="(gaugeType, gaugeIndex) in featuredGaugeTypes"
 										:key="gaugeIndex"
 										class="flex flex-col items-center"
 										:class="{
 											'border-r border-white/30': gaugeIndex === 0,
-											'border-l border-white/30': gaugeIndex === 2
+											'border-l border-white/30': gaugeIndex === 2,
 										}"
 									>
 										<EnvironmentGauge
@@ -82,9 +84,9 @@
 											:type="gaugeType"
 											:value="showSensorOffline ? null : getParameterValue(gaugeType)"
 											:size="gaugeIndex === 1 ? 'large' : 'normal'"
-											:show-trend="true"
 											:location-id="currentLocationData?.id ?? null"
 											:refresh-key="trendReloadKey"
+											:show-trend="true"
 											:get-status-text="getStatusText"
 											class="w-full"
 										/>
@@ -123,7 +125,9 @@
 								class="flex min-h-[248px] flex-col items-center justify-center py-8 text-center text-white/60"
 							>
 								<p class="env-detail-empty text-base 2xl:text-lg">尚未配置感測器參數</p>
-								<p class="env-detail-empty mt-2 text-sm 2xl:text-base">請在「地點管理」中新增參數</p>
+								<p class="env-detail-empty mt-2 text-sm 2xl:text-base">
+									請在「地點管理」中新增參數
+								</p>
 							</div>
 						</div>
 					</MonitoringDetailShell>
@@ -159,7 +163,12 @@
 									viewBox="0 0 24 24"
 									aria-hidden="true"
 								>
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M9 5l7 7-7 7"
+									/>
 								</svg>
 							</button>
 
@@ -227,334 +236,337 @@
 </template>
 
 <script setup lang="ts">
-import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue";
-import EnvironmentGauge from "~/components/environment/EnvironmentGauge.vue";
-import EnvironmentParamCard from "~/components/environment/EnvironmentParamCard.vue";
-import OverviewLocationCard from "~/components/environment/OverviewLocationCard.vue";
-import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
-import SimulationFrame from "~/components/common/SimulationFrame.vue";
+import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue"
+import EnvironmentGauge from "~/components/environment/EnvironmentGauge.vue"
+import EnvironmentParamCard from "~/components/environment/EnvironmentParamCard.vue"
+import OverviewLocationCard from "~/components/environment/OverviewLocationCard.vue"
+import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
+import SimulationFrame from "~/components/common/SimulationFrame.vue"
 import EnvironmentSimulation, {
-	type EnvironmentSimulationLocationOption
-} from "~/components/environment/EnvironmentSimulation.vue";
-import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi";
-import { useErrorHandler } from "~/composables/core/useErrorHandler";
+	type EnvironmentSimulationLocationOption,
+} from "~/components/environment/EnvironmentSimulation.vue"
+import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi"
+import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import {
 	useZoneManagement,
-	ZONE_DIALOG_BATCH_SAVE_OPTIONS
-} from "~/composables/location/management/useZoneManagement";
-import { useAlertRules } from "~/composables/monitoring/useAlertRules";
-import { useLocationModuleRbac } from "~/composables/core/useAccessGate";
-import { useEnvironmentReadingSubscription } from "~/composables/systems/environment/useEnvironmentLive";
-import { useEnvironmentDataCoordinator } from "~/composables/systems/environment/useEnvironmentDataCoordinator";
-import { useEnvironmentFeaturedGauges } from "~/composables/systems/environment/useEnvironmentFeaturedGauges";
-import type { SensorReadings } from "~/composables/systems/environment/useEnvironmentLive";
-import type { AlertRule } from "~/types/alert";
+	ZONE_DIALOG_BATCH_SAVE_OPTIONS,
+} from "~/composables/location/management/useZoneManagement"
+import { useAlertRules } from "~/composables/monitoring/useAlertRules"
+import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
+import { useEnvironmentReadingSubscription } from "~/composables/systems/environment/useEnvironmentLive"
+import { useEnvironmentDataCoordinator } from "~/composables/systems/environment/useEnvironmentDataCoordinator"
+import { useEnvironmentFeaturedGauges } from "~/composables/systems/environment/useEnvironmentFeaturedGauges"
+import type { AlertRule } from "~/types/alert"
 import {
 	getParameterDisplayName,
 	getParameterUnit,
 	getParameterIcon,
 	getParameterFractionDigits,
 	getLocationDeviceIds,
-	cleanZone
-} from "~/utils/sensorUtils";
+	cleanZone,
+} from "~/utils/sensorUtils"
 import type {
 	EnvironmentZone,
 	EnvironmentLocation,
 	SensorParameter,
-	SensorReading
-} from "~/types/environment";
-import { getTimeRangeUTC } from "~/utils/dateUtils";
-import { compareZonesLoose } from "~/utils/sortOrder";
-import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId";
-import { calculateAqiScore } from "~/utils/environmentAqi";
-import { getHeatIndexDerivedResult } from "~/utils/environmentDerivedMetrics";
-import { formatSensorDisplayValue } from "~/utils/environmentLive";
+	SensorReading,
+} from "~/types/environment"
+import { getTimeRangeUTC } from "~/utils/dateUtils"
+import { compareZonesLoose } from "~/utils/sortOrder"
+import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
+import {
+	getHeatIndexDerivedResultFromReading,
+	getAqiDerivedStatusFromValue,
+} from "~/utils/environmentDerivedMetrics"
+import { formatSensorDisplayValue } from "~/utils/environmentLive"
 import {
 	normalizeMonitoringStatusText,
 	monitoringStatusTextToUiStatus,
-	type MonitoringUiStatus
-} from "~/utils/monitoringStatus";
+	type MonitoringUiStatus,
+} from "~/utils/monitoringStatus"
 definePageMeta({
-	layout: "default"
-});
+	layout: "default",
+})
 
-import { PERM } from "~/config/permissionCodes";
-import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
+import { PERM } from "~/config/permissionCodes"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+
 const {
 	canManageLocation,
 	canCreateLocation,
 	canUpdateLocation,
 	canDeleteLocation,
-	canFullReport
-} = useLocationModuleRbac(PERM.environment);
+	canFullReport,
+} = useLocationModuleRbac(PERM.environment)
 
-const environmentApi = useEnvironmentApi();
-const { handleError } = useErrorHandler();
-const { getRules, getStatusText: getStatusTextFromRules } = useAlertRules();
+const environmentApi = useEnvironmentApi()
+const { handleError } = useErrorHandler()
+const { getRules, getStatusText: getStatusTextFromRules } = useAlertRules()
 
 // 警報規則緩存
-const alertRules = ref<AlertRule[]>([]);
-const rulesLoaded = ref(false);
+const alertRules = ref<AlertRule[]>([])
+const rulesLoaded = ref(false)
 
 // 環境區域和地點資料
-const environmentZones = ref<EnvironmentZone[]>([]);
-const isLoadingZones = ref(false);
-const showLocationManagementDialog = ref(false);
-const showSimulationFrame = ref(false);
-const simulationReadingsSummary = ref<SensorReading[]>([]);
-const simulationReadingsDetail = ref<SensorReading[]>([]);
-const selectedLocationId = ref<string>("");
+const environmentZones = ref<EnvironmentZone[]>([])
+const isLoadingZones = ref(false)
+const showLocationManagementDialog = ref(false)
+const showSimulationFrame = ref(false)
+const simulationReadingsSummary = ref<SensorReading[]>([])
+const simulationReadingsDetail = ref<SensorReading[]>([])
+const selectedLocationId = ref<string>("")
 
-const { start: todayStart, end: todayEnd } = getTimeRangeUTC("today");
+const { start: todayStart, end: todayEnd } = getTimeRangeUTC("today")
 const simulationTimeRange = ref({
 	startDate: todayStart.toISOString(),
 	endDate: todayEnd.toISOString(),
-	preset: "today"
-});
+	preset: "today",
+})
 
 const simulationLocationOptions = computed((): EnvironmentSimulationLocationOption[] => {
-	const opts: EnvironmentSimulationLocationOption[] = [];
+	const opts: EnvironmentSimulationLocationOption[] = []
 	for (const zone of environmentZones.value) {
 		for (const loc of zone.locations ?? []) {
-			if (!loc.id) continue;
-			const zoneName = zone.name || "";
-			const locationName = loc.name || "";
+			if (!loc.id) continue
+			const zoneName = zone.name || ""
+			const locationName = loc.name || ""
 			opts.push({
 				locationId: String(loc.id),
 				label: [zoneName, locationName].filter(Boolean).join("-") || String(loc.id),
 				zoneName,
-				locationName
-			});
+				locationName,
+			})
 		}
 	}
-	return opts;
-});
+	return opts
+})
 
 const tagReadingsWithLocationId = (
 	readings: SensorReading[] | undefined,
 	locationId: string
-): SensorReading[] => (readings ?? []).map(r => ({ ...r, locationId: String(locationId) }));
+): SensorReading[] => (readings ?? []).map((r) => ({ ...r, locationId: String(locationId) }))
 
 /** 完整報表：跨地點載入時間區間內讀數 */
 const loadSimulationReadings = async () => {
-	const preset = simulationTimeRange.value.preset;
-	const startDate = simulationTimeRange.value.startDate;
-	const endDate = simulationTimeRange.value.endDate;
-	const locations = simulationLocationOptions.value;
+	const preset = simulationTimeRange.value.preset
+	const startDate = simulationTimeRange.value.startDate
+	const endDate = simulationTimeRange.value.endDate
+	const locations = simulationLocationOptions.value
 	if (locations.length === 0 || !startDate || !endDate) {
-		simulationReadingsSummary.value = [];
-		simulationReadingsDetail.value = [];
-		return;
+		simulationReadingsSummary.value = []
+		simulationReadingsDetail.value = []
+		return
 	}
 	try {
-		const isDayRange = preset === "today" || preset === "yesterday";
+		const isDayRange = preset === "today" || preset === "yesterday"
 		const results = await Promise.all(
-			locations.map(async loc => {
+			locations.map(async (loc) => {
 				if (isDayRange) {
 					const [summaryRes, detailRes] = await Promise.all([
 						environmentApi.getReadingsAggregated(loc.locationId, {
 							bucket: "hour",
 							startTime: startDate,
 							endTime: endDate,
-							reportScope: "full"
+							reportScope: "full",
 						}),
 						environmentApi.getReadings(loc.locationId, {
 							startTime: startDate,
 							endTime: endDate,
 							limit: 500,
-							reportScope: "full"
-						})
-					]);
+							reportScope: "full",
+						}),
+					])
 					return {
 						summary: tagReadingsWithLocationId(summaryRes.readings, loc.locationId),
-						detail: tagReadingsWithLocationId(detailRes.readings, loc.locationId)
-					};
+						detail: tagReadingsWithLocationId(detailRes.readings, loc.locationId),
+					}
 				}
 				const result = await environmentApi.getReadingsAggregated(loc.locationId, {
 					bucket: "day",
 					startTime: startDate,
 					endTime: endDate,
-					reportScope: "full"
-				});
+					reportScope: "full",
+				})
 				return {
 					summary: [] as SensorReading[],
-					detail: tagReadingsWithLocationId(result.readings, loc.locationId)
-				};
+					detail: tagReadingsWithLocationId(result.readings, loc.locationId),
+				}
 			})
-		);
-		simulationReadingsSummary.value = results.flatMap(r => r.summary);
-		simulationReadingsDetail.value = results.flatMap(r => r.detail);
+		)
+		simulationReadingsSummary.value = results.flatMap((r) => r.summary)
+		simulationReadingsDetail.value = results.flatMap((r) => r.detail)
 	} catch (error) {
-		handleError(error, "載入環境讀數失敗");
-		simulationReadingsSummary.value = [];
-		simulationReadingsDetail.value = [];
+		handleError(error, "載入環境讀數失敗")
+		simulationReadingsSummary.value = []
+		simulationReadingsDetail.value = []
 	}
-};
+}
 
 const handleSimulationTimeRangeUpdate = (v: {
-	startDate: string;
-	endDate: string;
-	preset: string;
+	startDate: string
+	endDate: string
+	preset: string
 }) => {
-	simulationTimeRange.value = v;
-	void loadSimulationReadings();
-};
+	simulationTimeRange.value = v
+	void loadSimulationReadings()
+}
 
 const handleOpenLocationDialog = async () => {
-	if (!canManageLocation.value) return;
+	if (!canManageLocation.value) return
 	if (environmentZones.value.length === 0) {
-		await loadZonesFromAPI();
+		await loadZonesFromAPI()
 	}
-	showLocationManagementDialog.value = true;
-};
+	showLocationManagementDialog.value = true
+}
 
 const handleOpenSimulation = async () => {
-	if (!canFullReport.value) return;
+	if (!canFullReport.value) return
 	if (environmentZones.value.length === 0) {
-		await loadZonesFromAPI();
+		await loadZonesFromAPI()
 	}
-	const { start, end } = getTimeRangeUTC("today");
+	const { start, end } = getTimeRangeUTC("today")
 	simulationTimeRange.value = {
 		startDate: start.toISOString(),
 		endDate: end.toISOString(),
-		preset: "today"
-	};
-	showSimulationFrame.value = true;
-	await loadSimulationReadings();
-};
+		preset: "today",
+	}
+	showSimulationFrame.value = true
+	await loadSimulationReadings()
+}
 
 // 獲取地點所屬的區域名稱
 const getLocationZone = (location: EnvironmentLocation): string | null => {
 	for (const zone of environmentZones.value) {
-		if (zone.locations.some(loc => loc.id === location.id || loc.name === location.name)) {
-			return zone.name;
+		if (zone.locations.some((loc) => loc.id === location.id || loc.name === location.name)) {
+			return zone.name
 		}
 	}
-	return null;
-};
+	return null
+}
 
 // 獲取地點 ID（一律字串，供總覽 Map key 與 API 對應）
 const getLocationId = (location: EnvironmentLocation): string => {
 	// UI 穩定 key：優先 DB id，否則 `location-${zoneKey}-${index}`（避免 rename 造成 key 變動）
 	const zone =
-		environmentZones.value.find(z =>
+		environmentZones.value.find((z) =>
 			(z.locations || []).some(
-				l => l === location || (l.id && location.id && String(l.id) === String(location.id))
+				(l) => l === location || (l.id && location.id && String(l.id) === String(location.id))
 			)
-		) ?? null;
+		) ?? null
 	if (!zone) {
-		const zoneName = getLocationZone(location);
-		return `${zoneName || "unknown"}-${location.name}`;
+		const zoneName = getLocationZone(location)
+		return `${zoneName || "unknown"}-${location.name}`
 	}
-	const idx = findLocationIndexInZone(zone, location);
+	const idx = findLocationIndexInZone(zone, location)
 	if (idx < 0) {
-		const zoneName = getLocationZone(location);
-		return `${zoneName || "unknown"}-${location.name}`;
+		const zoneName = getLocationZone(location)
+		return `${zoneName || "unknown"}-${location.name}`
 	}
-	return getLocationUiKey({ zone, location, locationIndex: idx });
-};
+	return getLocationUiKey({ zone, location, locationIndex: idx })
+}
 
 // 當前選中的地點
 const currentLocationData = computed<EnvironmentLocation | null>(() => {
-	if (!selectedLocationId.value) return null;
+	if (!selectedLocationId.value) return null
 
 	for (const zone of environmentZones.value) {
-		const location = zone.locations.find(loc => getLocationId(loc) === selectedLocationId.value);
-		if (location) return location;
+		const location = zone.locations.find((loc) => getLocationId(loc) === selectedLocationId.value)
+		if (location) return location
 	}
-	return null;
-});
+	return null
+})
 
 const {
 	sensorData,
 	getLocationSensorData,
+	getLocationReadingData,
 	isSensorOffline,
 	isLocationOffline,
 	isHydrating,
 	handleReadingEvent,
 	trendReloadKey,
-	hydrateAllLocations
+	hydrateAllLocations,
 } = useEnvironmentDataCoordinator({
 	environmentZones,
 	selectedLocationId,
 	currentLocationData,
-	getLocationId
-});
+	getLocationId,
+})
 
-const showSensorOffline = computed(() => !isHydrating.value && isSensorOffline.value);
+const showSensorOffline = computed(() => !isHydrating.value && isSensorOffline.value)
 
 const formatParamDisplay = (value: number | null, fractionDigits = 0) =>
 	formatSensorDisplayValue(value, {
 		fractionDigits,
-		offline: showSensorOffline.value
-	});
+		offline: showSensorOffline.value,
+	})
 
-const isOverviewCollapsed = ref(false);
-const overviewListRef = ref<HTMLElement | null>(null);
+const isOverviewCollapsed = ref(false)
+const overviewListRef = ref<HTMLElement | null>(null)
 const scrollActiveOverviewIntoView = () => {
-	const id = selectedLocationId.value;
-	if (!id || isOverviewCollapsed.value) return;
-	const root = overviewListRef.value;
-	if (!root) return;
+	const id = selectedLocationId.value
+	if (!id || isOverviewCollapsed.value) return
+	const root = overviewListRef.value
+	if (!root) return
 	root.querySelector(`[data-overview-location-id="${CSS.escape(id)}"]`)?.scrollIntoView({
 		block: "nearest",
-		behavior: "smooth"
-	});
-};
+		behavior: "smooth",
+	})
+}
 
 watch(selectedLocationId, () => {
-	nextTick(() => scrollActiveOverviewIntoView());
-});
+	nextTick(() => scrollActiveOverviewIntoView())
+})
 
-watch(isOverviewCollapsed, collapsed => {
-	if (!collapsed) nextTick(() => scrollActiveOverviewIntoView());
-});
+watch(isOverviewCollapsed, (collapsed) => {
+	if (!collapsed) nextTick(() => scrollActiveOverviewIntoView())
+})
 
 // 與 environmentZones 順序一致（區域已依 sort_order／名稱慣例排序，地點依後端陣列序）
-const sortedLocations = computed(() => environmentZones.value.flatMap(zone => zone.locations));
+const sortedLocations = computed(() => environmentZones.value.flatMap((zone) => zone.locations))
 
-const detailEmpty = computed(() => sortedLocations.value.length === 0 && !isLoadingZones.value);
+const detailEmpty = computed(() => sortedLocations.value.length === 0 && !isLoadingZones.value)
 
 // 啟用的參數（用於顯示）
 const enabledParameters = computed(() => {
-	if (!currentLocationData.value) return [];
-	return currentLocationData.value.parameters.filter(param => param.enabled);
-});
+	if (!currentLocationData.value) return []
+	return currentLocationData.value.parameters.filter((param) => param.enabled)
+})
 
 const { featuredGaugeTypes, isFeaturedType, handleParamCardClick } = useEnvironmentFeaturedGauges(
 	selectedLocationId,
 	enabledParameters
-);
+)
 
 // getLocationZone / getLocationId 已於上方宣告，供 composable 與 currentLocationData 共用
 
-useEnvironmentReadingSubscription(handleReadingEvent);
+useEnvironmentReadingSubscription(handleReadingEvent)
 
 const selectLocation = (location: EnvironmentLocation) => {
-	selectedLocationId.value = getLocationId(location);
-};
+	selectedLocationId.value = getLocationId(location)
+}
 
 // 載入區域和地點資料
 const loadZonesFromAPI = async () => {
-	if (isLoadingZones.value) return;
-	isLoadingZones.value = true;
+	if (isLoadingZones.value) return
+	isLoadingZones.value = true
 	try {
-		const result = await environmentApi.getZones();
+		const result = await environmentApi.getZones()
 		// 與首頁／全區一致：sort_order → 名稱數字 → id
 		const sortedZones = [...(result.zones || []).map(cleanZone)].sort((a, b) =>
 			compareZonesLoose(a, b)
-		);
-		environmentZones.value = sortedZones;
+		)
+		environmentZones.value = sortedZones
 	} catch (error) {
-		handleError(error, "載入區域列表失敗");
+		handleError(error, "載入區域列表失敗")
 	} finally {
-		isLoadingZones.value = false;
+		isLoadingZones.value = false
 	}
-};
+}
 
 // 使用區域管理 composable
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
-	useZoneManagement<EnvironmentLocation, EnvironmentZone>();
+	useZoneManagement<EnvironmentLocation, EnvironmentZone>()
 
 // 處理儲存區域
 const handleSaveZone = async (zone: EnvironmentZone) => {
@@ -563,34 +575,34 @@ const handleSaveZone = async (zone: EnvironmentZone) => {
 		environmentZones,
 		async (z: EnvironmentZone) => {
 			// 檢查是否為臨時 ID（以 temp- 開頭）或有效的數字 ID
-			const isValidId = z.id && !z.id.startsWith("temp-") && /^\d+$/.test(z.id);
+			const isValidId = z.id && !z.id.startsWith("temp-") && /^\d+$/.test(z.id)
 			const result = isValidId
 				? await environmentApi.updateZone(z.id, {
 						name: z.name,
 						sortOrder: (z as unknown as { sortOrder?: number }).sortOrder,
-						locations: z.locations
+						locations: z.locations,
 					})
 				: await environmentApi.createZone({
 						name: z.name,
 						sortOrder: (z as unknown as { sortOrder?: number }).sortOrder,
-						locations: z.locations
-					});
+						locations: z.locations,
+					})
 			// 確保返回的 zone 有 id
 			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as EnvironmentZone & {
-				id: string;
-			};
+				id: string
+			}
 			return {
 				merged: result.merged,
 				message: result.message,
-				zone: zoneWithId
-			};
+				zone: zoneWithId,
+			}
 		},
 		{
 			cleanZone: cleanZone,
-			...ZONE_DIALOG_BATCH_SAVE_OPTIONS
+			...ZONE_DIALOG_BATCH_SAVE_OPTIONS,
 		}
-	);
-};
+	)
+}
 
 // 處理刪除區域
 const handleDeleteZone = async (zoneId: string) => {
@@ -599,199 +611,194 @@ const handleDeleteZone = async (zoneId: string) => {
 		getLocationId,
 		systemType: "environment",
 		onAfterDelete: async () => {
-			await loadZonesFromAPI();
-			await hydrateAllLocations(true);
-		}
-	});
-};
+			await loadZonesFromAPI()
+			await hydrateAllLocations(true)
+		},
+	})
+}
 
 const handleZonesSaved = async () => {
-	await loadZonesFromAPI();
-	await hydrateAllLocations(true);
-};
+	await loadZonesFromAPI()
+	await hydrateAllLocations(true)
+}
 
 // 獲取參數值
 const getParameterValue = (type: SensorParameter["type"]): number | null => {
-	let value: number | null = null;
+	let value: number | null = null
 	switch (type) {
 		case "pm25":
-			value = sensorData.pm25;
-			break;
+			value = sensorData.pm25
+			break
 		case "pm10":
-			value = sensorData.pm10;
-			break;
+			value = sensorData.pm10
+			break
 		case "tvoc":
-			value = sensorData.tvoc;
-			break;
+			value = sensorData.tvoc
+			break
 		case "hcho":
-			value = sensorData.hcho;
-			break;
+			value = sensorData.hcho
+			break
 		case "humidity":
-			value = sensorData.humidity;
-			break;
+			value = sensorData.humidity
+			break
 		case "temperature":
-			value = sensorData.temperature;
-			break;
+			value = sensorData.temperature
+			break
 		case "co2":
-			value = sensorData.co2;
-			break;
+			value = sensorData.co2
+			break
 		case "noise":
-			value = sensorData.noise;
-			break;
+			value = sensorData.noise
+			break
 		case "wind":
-			value = sensorData.wind;
-			break;
+			value = sensorData.wind
+			break
 		default:
-			return null;
+			return null
 	}
 
-	return value;
-};
+	return value
+}
 
 // getParameterIcon 和 getParameterFractionDigits 已從 composable 導入
 
 // 檢查是否為當前選中的地點
 const isCurrentLocation = (location: EnvironmentLocation): boolean => {
-	return getLocationId(location) === selectedLocationId.value;
-};
+	return getLocationId(location) === selectedLocationId.value
+}
 
 // 獲取地點的顯示資料（支援所有地點，不僅限於當前選中）
 const getLocationDisplayData = (location: EnvironmentLocation) => {
-	const locationParams = location.parameters.filter(param => param.enabled);
+	const locationParams = location.parameters.filter((param) => param.enabled)
 
 	if (!isHydrating.value && isLocationOffline(location)) {
 		return {
-			params: locationParams.map(param => ({
+			params: locationParams.map((param) => ({
 				label: getParameterDisplayName(param.type),
 				value: "--",
 				unit: getParameterUnit(param.type),
 				alertClass: getStatusTextClass(param.type, null),
 				type: param.type,
-				rawValue: null as number | null
+				rawValue: null as number | null,
 			})),
 			aqi: null,
-			heatIndexLevel: null
-		};
+			heatIndexLevel: null,
+		}
 	}
 
 	// 優先使用資料庫 ID（與 WebSocket 一致），key 統一字串
-	const locationId = location.id != null ? String(location.id) : getLocationId(location);
-	const locationSensorData = getLocationSensorData(locationId);
+	const locationId = location.id != null ? String(location.id) : getLocationId(location)
+	const locationSensorData = getLocationSensorData(locationId)
 
-	const dataSource = isCurrentLocation(location) ? sensorData : locationSensorData;
+	const dataSource = isCurrentLocation(location) ? sensorData : locationSensorData
+	const readingData = getLocationReadingData(locationId)
 	if (!dataSource) {
 		return {
 			params: undefined,
 			aqi: null,
-			heatIndexLevel: null
-		};
+			heatIndexLevel: null,
+		}
 	}
 
 	return {
-		params: locationParams.map(param => {
-			const value = dataSource[param.type];
+		params: locationParams.map((param) => {
+			const value = dataSource[param.type]
 			return {
 				label: getParameterDisplayName(param.type),
 				value:
 					value !== null
 						? formatSensorDisplayValue(value, {
-								fractionDigits: getParameterFractionDigits(param.type)
+								fractionDigits: getParameterFractionDigits(param.type),
 							})
 						: "--",
 				unit: getParameterUnit(param.type),
 				alertClass: getStatusTextClass(param.type, value),
 				type: param.type,
-				rawValue: value
-			};
+				rawValue: value,
+			}
 		}),
-		aqi: calculateAQI(dataSource),
-		heatIndexLevel: getHeatIndexDerivedResult(
-			dataSource.temperature ?? null,
-			dataSource.humidity ?? null
-		).level
-	};
-};
+		aqi: getAqiDerivedStatusFromValue(readingData.aqi ?? null).aqi,
+		heatIndexLevel: getHeatIndexDerivedResultFromReading({
+			heatIndex: readingData.heatIndex ?? null,
+		}).level,
+	}
+}
 
 const getOverviewLocationCardBindings = (location: EnvironmentLocation) => {
-	const displayData = getLocationDisplayData(location);
+	const displayData = getLocationDisplayData(location)
 	return {
 		aqi: displayData.aqi,
 		heatIndexLevel: displayData.heatIndexLevel,
 		params: displayData.params,
-		getStatusText: getStatusTextForLocation(location)
-	};
-};
+		getStatusText: getStatusTextForLocation(location),
+	}
+}
 
 // 載入警報規則（`useAlertRules`：單次 GET 全量後依 threshold 過濾，失敗回空陣列）
 const loadAlertRules = async () => {
-	const rules = await getRules("environment", "threshold");
-	alertRules.value = rules;
-	rulesLoaded.value = true;
-};
+	const rules = await getRules("environment", "threshold")
+	alertRules.value = rules
+	rulesLoaded.value = true
+}
 
 onMounted(async () => {
-	await loadAlertRules();
-	await loadZonesFromAPI();
-	await hydrateAllLocations(false);
+	await loadAlertRules()
+	await loadZonesFromAPI()
+	await hydrateAllLocations(false)
 	if (!selectedLocationId.value) {
-		const first = environmentZones.value.find(z => z.locations?.length)?.locations?.[0];
-		if (first) selectedLocationId.value = getLocationId(first);
+		const first = environmentZones.value.find((z) => z.locations?.length)?.locations?.[0]
+		if (first) selectedLocationId.value = getLocationId(first)
 	}
-	await nextTick();
-	scrollActiveOverviewIntoView();
-});
-
-// 計算 AQI（共用函數）
-const calculateAQI = (data: SensorReadings): number | null => {
-	return calculateAqiScore({ pm25: data.pm25, pm10: data.pm10 });
-};
+	await nextTick()
+	scrollActiveOverviewIntoView()
+})
 
 // 取得當前地點的顯示字串（共用函數）
 const getStatusTextForLocation =
 	(location: EnvironmentLocation) =>
 	(type: string, value: number | null): string => {
-		if (isHydrating.value) return "載入中";
-		if (isLocationOffline(location)) return "離線";
-		return getStatusText(type, value);
-	};
+		if (isHydrating.value) return "載入中"
+		if (isLocationOffline(location)) return "離線"
+		return getStatusText(type, value)
+	}
 
 const getStatusText = (type: string, value: number | null): string => {
-	if (isHydrating.value) return "載入中";
-	if (showSensorOffline.value) return "離線";
-	if (value === null) return "離線";
+	if (isHydrating.value) return "載入中"
+	if (showSensorOffline.value) return "離線"
+	if (value === null) return "離線"
 
 	// 如果規則已載入，使用規則判斷
 	if (rulesLoaded.value) {
 		try {
-			const status = getStatusTextFromRules(type, value, alertRules.value);
-			return status;
+			const status = getStatusTextFromRules(type, value, alertRules.value)
+			return status
 		} catch (error) {
-			logger.warn("[environment] 使用規則判斷狀態失敗，視為正常:", error);
+			logger.warn("[environment] 使用規則判斷狀態失敗，視為正常:", error)
 		}
 	}
 
 	// 規則尚未載入時，不推測門檻，避免與「警報設定」不一致
-	return "正常";
-};
+	return "正常"
+}
 
 const getStatusTextClass = (type: string, value: number | null): string => {
-	const status = normalizeMonitoringStatusText(getStatusText(type, value));
-	const ui = monitoringStatusTextToUiStatus(status);
+	const status = normalizeMonitoringStatusText(getStatusText(type, value))
+	const ui = monitoringStatusTextToUiStatus(status)
 
-	if (ui === "normal") return "text-green-300";
-	if (ui === "warning") return "text-yellow-300";
-	if (ui === "alarm") return "text-red-300";
-	if (ui === "offline") return "text-white/60";
-	return "text-white/70";
-};
+	if (ui === "normal") return "text-green-300"
+	if (ui === "warning") return "text-yellow-300"
+	if (ui === "alarm") return "text-red-300"
+	if (ui === "offline") return "text-white/60"
+	return "text-white/70"
+}
 
 /** 完整報表儲存格背景：超過閾值標黃/紅 */
 const getReportCellClass = (type: string, value: number | null): string => {
-	const status = normalizeMonitoringStatusText(getStatusText(type, value));
-	const ui: MonitoringUiStatus = monitoringStatusTextToUiStatus(status);
+	const status = normalizeMonitoringStatusText(getStatusText(type, value))
+	const ui: MonitoringUiStatus = monitoringStatusTextToUiStatus(status)
 
-	if (ui === "warning") return "bg-yellow-500/30";
-	if (ui === "alarm") return "bg-red-500/30";
-	return "";
-};
+	if (ui === "warning") return "bg-yellow-500/30"
+	if (ui === "alarm") return "bg-red-500/30"
+	return ""
+}
 </script>

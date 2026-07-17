@@ -1,4 +1,5 @@
 import type { EnvironmentZone, EnvironmentLocation, SensorReading } from "~/types/environment";
+import type { EnvironmentParametersResponse } from "~/types/environmentCatalog";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { buildPathWithQuery } from "~/utils/apiUtils";
 import { useSystemLocationApiFactory } from "~/composables/location/api/useSystemLocationApiFactory";
@@ -68,6 +69,7 @@ export const useEnvironmentApi = () => {
 		createZone: zoneApi.createZone,
 		updateZone: zoneApi.updateZone,
 		deleteZone: zoneApi.deleteZone,
+		getParameters: () => request<EnvironmentParametersResponse>("/environment/parameters"),
 		getReadings: (locationId: string, options?: GetReadingsOptions) => {
 			const params: Record<string, unknown> = {};
 			if (options?.startTime) params.startTime = options.startTime;

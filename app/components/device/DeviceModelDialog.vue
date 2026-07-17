@@ -25,8 +25,14 @@
 					<div class="show-scrollbar flex-1 overflow-y-auto pr-7 2xl:pr-8">
 						<div class="min-h-[200px]">
 							<Transition name="fade" mode="out-in">
-								<div v-if="deviceModels && deviceModels.length > 0" :key="`models-${deviceModels.length}`">
-									<div v-if="deviceTypeCode === 'camera' && cameraModelGroups.length" class="space-y-6">
+								<div
+									v-if="deviceModels && deviceModels.length > 0"
+									:key="`models-${deviceModels.length}`"
+								>
+									<div
+										v-if="deviceTypeCode === 'camera' && cameraModelGroups.length"
+										class="space-y-6"
+									>
 										<section v-for="group in cameraModelGroups" :key="group.code" class="space-y-3">
 											<h4 class="text-sm font-medium text-cyan-200/90 2xl:text-base">
 												{{ group.label }}
@@ -42,15 +48,26 @@
 															{{ model.name }}
 														</h4>
 													</div>
-													<p v-if="model.description" class="mt-1 text-sm text-white/60 2xl:text-base">
+													<p
+														v-if="model.description"
+														class="mt-1 text-sm text-white/60 2xl:text-base"
+													>
 														{{ model.description }}
 													</p>
 												</div>
 												<div class="flex gap-2 2xl:gap-3">
-													<button type="button" class="btn-list-edit" @click="editDeviceModel(model)">
+													<button
+														type="button"
+														class="btn-list-edit"
+														@click="editDeviceModel(model)"
+													>
 														編輯
 													</button>
-													<button type="button" class="btn-list-delete" @click="confirmDelete(model)">
+													<button
+														type="button"
+														class="btn-list-delete"
+														@click="confirmDelete(model)"
+													>
 														刪除
 													</button>
 												</div>
@@ -65,10 +82,13 @@
 										>
 											<div class="flex-1">
 												<div class="flex items-center gap-3">
-													<h4 class="text-base font-medium text-white 2xl:text-lg">{{ model.name }}</h4>
-													<span class="rounded bg-white/20 px-2 py-1 text-xs text-white/80 2xl:text-sm">{{
-														model.type_name || "類型"
-													}}</span>
+													<h4 class="text-base font-medium text-white 2xl:text-lg">
+														{{ model.name }}
+													</h4>
+													<span
+														class="rounded bg-white/20 px-2 py-1 text-xs text-white/80 2xl:text-sm"
+														>{{ model.type_name || "類型" }}</span
+													>
 													<span
 														v-if="deviceTypeCode === 'sensor' && model.unit_id != null"
 														class="rounded bg-emerald-500/30 px-2 py-1 text-xs text-emerald-100 2xl:text-sm"
@@ -76,7 +96,10 @@
 														Unit ID : {{ model.unit_id }}
 													</span>
 												</div>
-												<p v-if="model.description" class="mt-1 text-sm text-white/60 2xl:text-base">
+												<p
+													v-if="model.description"
+													class="mt-1 text-sm text-white/60 2xl:text-base"
+												>
 													{{ model.description }}
 												</p>
 											</div>
@@ -101,7 +124,9 @@
 					<p v-if="errorMessage" class="form-error-text pr-7 2xl:pr-8">
 						{{ errorMessage }}
 					</p>
-					<footer class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8">
+					<footer
+						class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8"
+					>
 						<button type="button" class="btn-secondary" @click="handleClose">取消</button>
 						<div class="flex-1"></div>
 						<button type="button" class="btn-primary" @click="openAddForm">新增型號</button>
@@ -164,7 +189,9 @@
 									/>
 								</label>
 								<template v-if="deviceTypeCode === 'sensor'">
-									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<label
+										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+									>
 										<span>Unit ID</span>
 										<input
 											v-model="formData.unit_id"
@@ -340,12 +367,16 @@
 							<footer
 								class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8"
 							>
-								<button type="button" class="btn-secondary" @click="handleCloseFormClick">取消</button>
+								<button type="button" class="btn-secondary" @click="handleCloseFormClick">
+									取消
+								</button>
 								<div class="flex-1"></div>
 								<button
 									type="button"
 									class="btn-primary"
-									:class="{ 'cursor-not-allowed opacity-50': editingModel && !formHasUnsavedChanges }"
+									:class="{
+										'cursor-not-allowed opacity-50': editingModel && !formHasUnsavedChanges,
+									}"
 									:disabled="isSubmitting || (editingModel && !formHasUnsavedChanges)"
 									@click="handleFormSubmit"
 								>
@@ -370,14 +401,14 @@
 </template>
 
 <script setup lang="ts">
-import { TOAST } from "~/config/toastCatalog";
-import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
-import { useToast } from "~/composables/core/useToast";
-import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
-import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
-import IconTrashButton from "~/components/common/IconTrashButton.vue";
-import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
-import FilterDropdown from "~/components/common/FilterDropdown.vue";
+import { TOAST } from "~/config/toastCatalog"
+import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { useToast } from "~/composables/core/useToast"
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
+import IconTrashButton from "~/components/common/IconTrashButton.vue"
+import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
+import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import type {
 	DeviceModel,
 	DeviceTypeCode,
@@ -385,233 +416,227 @@ import type {
 	UpdateDeviceModelData,
 	SensorDeviceModelConfig,
 	SensorParameterDefinition,
-	ModbusRegisterType
-} from "~/types/device";
-import { resolveFormApiError } from "~/utils/apiError";
-import { validateDeviceModelFormForSave } from "~/utils/deviceFormValidation";
+	ModbusRegisterType,
+} from "~/types/device"
+import { resolveFormApiError } from "~/utils/apiError"
+import { validateDeviceModelFormForSave } from "~/utils/deviceFormValidation"
 import {
 	CAMERA_MODEL_CATEGORY_OPTIONS,
-	groupByCameraModelCategory
-} from "~/utils/cameraModelCategories";
+	groupByCameraModelCategory,
+} from "~/utils/cameraModelCategories"
+import { useEnvironmentParameterCatalog } from "~/composables/systems/environment/useEnvironmentParameterCatalog"
 
 interface Props {
-	modelValue: boolean;
-	deviceTypeCode: DeviceTypeCode | null;
+	modelValue: boolean
+	deviceTypeCode: DeviceTypeCode | null
 }
 
 interface Emits {
-	(e: "update:modelValue", value: boolean): void;
-	(e: "close"): void;
-	(e: "refresh"): void;
+	(e: "update:modelValue", value: boolean): void
+	(e: "close"): void
+	(e: "refresh"): void
 }
 
-const props = defineProps<Props>();
-const emit = defineEmits<Emits>();
+const props = defineProps<Props>()
+const emit = defineEmits<Emits>()
 
-const deviceApi = useDeviceApi();
-const toast = useToast();
+const deviceApi = useDeviceApi()
+const toast = useToast()
 
 const deviceTypeNameMap: Record<string, string> = {
 	camera: "影像設備",
 	controller: "控制器",
 	sensor: "感測器",
-	access_control: "門禁設備"
-};
+	access_control: "門禁設備",
+}
 
 const deviceTypeName = computed(() => {
-	return props.deviceTypeCode ? deviceTypeNameMap[props.deviceTypeCode] || "設備" : "設備";
-});
+	return props.deviceTypeCode ? deviceTypeNameMap[props.deviceTypeCode] || "設備" : "設備"
+})
 
-const deviceModels = ref<DeviceModel[]>([]);
-const isLoading = ref(false);
-const errorMessage = ref<string | null>(null);
-const showForm = ref(false);
-const editingModel = ref<DeviceModel | null>(null);
-const isSubmitting = ref(false);
-const formErrorMessage = ref<string | null>(null);
+const deviceModels = ref<DeviceModel[]>([])
+const isLoading = ref(false)
+const errorMessage = ref<string | null>(null)
+const showForm = ref(false)
+const editingModel = ref<DeviceModel | null>(null)
+const isSubmitting = ref(false)
+const formErrorMessage = ref<string | null>(null)
 const formData = reactive<{
-	name: string;
-	type_code: DeviceTypeCode;
-	category_code: string;
-	unit_id: number | undefined | null;
-	description: string;
-	config: SensorDeviceModelConfig | Record<string, any>;
+	name: string
+	type_code: DeviceTypeCode
+	category_code: string
+	unit_id: number | undefined | null
+	description: string
+	config: SensorDeviceModelConfig | Record<string, any>
 }>({
 	name: "",
 	type_code: "controller",
 	category_code: "",
 	unit_id: undefined,
 	description: "",
-	config: {}
-});
+	config: {},
+})
 
-const cameraCategoryOptions = CAMERA_MODEL_CATEGORY_OPTIONS;
+const cameraCategoryOptions = CAMERA_MODEL_CATEGORY_OPTIONS
 
 const cameraModelGroups = computed(() => {
-	if (props.deviceTypeCode !== "camera") return [];
-	return groupByCameraModelCategory(deviceModels.value, m => String(m.category_code || ""));
-});
+	if (props.deviceTypeCode !== "camera") return []
+	return groupByCameraModelCategory(deviceModels.value, (m) => String(m.category_code || ""))
+})
 
 const CAMERA_RTSP_PRESETS = {
 	hik_channels_101: "rtsp://{username}:{password}@{ip}:554/Streaming/channels/101",
-	stream1: "rtsp://{username}:{password}@{ip}/stream1"
-} as const;
-type CameraRtspPresetKey = keyof typeof CAMERA_RTSP_PRESETS | "custom";
+	stream1: "rtsp://{username}:{password}@{ip}/stream1",
+} as const
+type CameraRtspPresetKey = keyof typeof CAMERA_RTSP_PRESETS | "custom"
 
-const cameraRtspTemplatePresetKey = ref<CameraRtspPresetKey>("hik_channels_101");
-const cameraRtspTemplateCustom = ref<string>("");
+const cameraRtspTemplatePresetKey = ref<CameraRtspPresetKey>("hik_channels_101")
+const cameraRtspTemplateCustom = ref<string>("")
 
 const cameraRtspTemplateEffective = computed(() => {
-	if (cameraRtspTemplatePresetKey.value === "custom") return cameraRtspTemplateCustom.value.trim();
-	return CAMERA_RTSP_PRESETS[cameraRtspTemplatePresetKey.value];
-});
+	if (cameraRtspTemplatePresetKey.value === "custom") return cameraRtspTemplateCustom.value.trim()
+	return CAMERA_RTSP_PRESETS[cameraRtspTemplatePresetKey.value]
+})
 
-const sensorParameters = ref<SensorParameterDefinition[]>([]);
-const sensorRegisterType = ref<ModbusRegisterType>("holding");
+const sensorParameters = ref<SensorParameterDefinition[]>([])
+const sensorRegisterType = ref<ModbusRegisterType>("holding")
 
 const resetForm = () => {
-	formData.name = "";
-	formData.type_code = props.deviceTypeCode || "controller";
-	formData.category_code = "";
-	formData.unit_id = undefined;
-	formData.description = "";
-	formData.config = {};
-	cameraRtspTemplatePresetKey.value = "hik_channels_101";
-	cameraRtspTemplateCustom.value = "";
-	sensorParameters.value = [];
-	sensorRegisterType.value = "holding";
-	formErrorMessage.value = null;
-};
+	formData.name = ""
+	formData.type_code = props.deviceTypeCode || "controller"
+	formData.category_code = ""
+	formData.unit_id = undefined
+	formData.description = ""
+	formData.config = {}
+	cameraRtspTemplatePresetKey.value = "hik_channels_101"
+	cameraRtspTemplateCustom.value = ""
+	sensorParameters.value = []
+	sensorRegisterType.value = "holding"
+	formErrorMessage.value = null
+}
 
-const parameterTypeOptions: Array<{ value: string; label: string }> = [
-	{ value: "pm25", label: "PM2.5" },
-	{ value: "pm10", label: "PM10" },
-	{ value: "tvoc", label: "TVOC" },
-	{ value: "hcho", label: "HCHO" },
-	{ value: "humidity", label: "濕度" },
-	{ value: "temperature", label: "溫度" },
-	{ value: "co2", label: "CO2" },
-	{ value: "noise", label: "噪音值" },
-	{ value: "wind", label: "風速" }
-];
+const { sensorOptions, ensureLoaded: ensureEnvironmentCatalogLoaded } =
+	useEnvironmentParameterCatalog()
+
+const parameterTypeOptions = computed(() => sensorOptions.value)
 
 const modbusRegisterTypeOptions: Array<{ value: ModbusRegisterType; label: string }> = [
 	{ value: "holding", label: "FC03 保持寄存器 (Holding Registers)" },
 	{ value: "input", label: "FC04 輸入寄存器 (Input Registers)" },
 	{ value: "coils", label: "FC01 線圈 (Coils)" },
-	{ value: "discrete", label: "FC02 離散輸入 (Discrete Inputs)" }
-];
+	{ value: "discrete", label: "FC02 離散輸入 (Discrete Inputs)" },
+]
 
 const addSensorParameter = () => {
 	sensorParameters.value.push({
 		type: "pm25",
-		modbusConfig: { address: 0, transform: "" }
-	});
-};
+		modbusConfig: { address: 0, transform: "" },
+	})
+}
 
 const removeSensorParameter = (index: number) => {
-	sensorParameters.value.splice(index, 1);
-};
+	sensorParameters.value.splice(index, 1)
+}
 
 const loadDeviceType = () => {
-	formData.type_code = props.deviceTypeCode || "controller";
-};
+	formData.type_code = props.deviceTypeCode || "controller"
+}
 
 const handleError = (
 	error: unknown,
 	defaultMsg: string,
 	target: "errorMessage" | "formErrorMessage" = "errorMessage"
 ) => {
-	const safeMsg = resolveFormApiError(error, defaultMsg);
+	const safeMsg = resolveFormApiError(error, defaultMsg)
 	if (target === "errorMessage") {
-		errorMessage.value = safeMsg;
+		errorMessage.value = safeMsg
 	} else {
-		formErrorMessage.value = safeMsg;
+		formErrorMessage.value = safeMsg
 	}
-};
+}
 
 const loadDeviceModels = async (force = false) => {
 	if (!props.deviceTypeCode) {
-		deviceModels.value = [];
-		return;
+		deviceModels.value = []
+		return
 	}
 
-	isLoading.value = true;
-	errorMessage.value = null;
+	isLoading.value = true
+	errorMessage.value = null
 	try {
 		// 強制更新時添加時間戳以避免瀏覽器快取
-		const params: { type_code: DeviceTypeCode; _t?: string } = { type_code: props.deviceTypeCode };
+		const params: { type_code: DeviceTypeCode; _t?: string } = { type_code: props.deviceTypeCode }
 		if (force) {
-			params._t = String(Date.now());
+			params._t = String(Date.now())
 		}
-		const result = await deviceApi.getDeviceModels(params);
-		deviceModels.value = Array.isArray(result?.device_models) ? result.device_models : [];
+		const result = await deviceApi.getDeviceModels(params)
+		deviceModels.value = Array.isArray(result?.device_models) ? result.device_models : []
 	} catch (error: any) {
-		deviceModels.value = [];
+		deviceModels.value = []
 		if (error?.statusCode === 404 || error?.status === 404) {
-			errorMessage.value = "設備型號 API 尚未實作，請先完成後端實作";
-			logger.warn("設備型號 API 尚未實作，請參考後端實作指南");
+			errorMessage.value = "設備型號 API 尚未實作，請先完成後端實作"
+			logger.warn("設備型號 API 尚未實作，請參考後端實作指南")
 		} else {
-			handleError(error, "載入設備型號失敗");
+			handleError(error, "載入設備型號失敗")
 		}
 	} finally {
-		isLoading.value = false;
+		isLoading.value = false
 	}
-};
+}
 
 const editDeviceModel = (model: DeviceModel) => {
-	editingModel.value = model;
-	formData.name = model.name;
-	formData.type_code = (model.type_code as DeviceTypeCode) || props.deviceTypeCode || "controller";
-	formData.category_code = String(model.category_code || "");
-	formData.unit_id = model.unit_id ?? undefined;
-	formData.description = model.description || "";
+	editingModel.value = model
+	formData.name = model.name
+	formData.type_code = (model.type_code as DeviceTypeCode) || props.deviceTypeCode || "controller"
+	formData.category_code = String(model.category_code || "")
+	formData.unit_id = model.unit_id ?? undefined
+	formData.description = model.description || ""
 
 	if (props.deviceTypeCode === "camera") {
-		const config = (model.config as Record<string, any> | undefined) ?? {};
-		const existing = (config.rtsp_url_template as string) || "";
-		const trimmed = existing.trim();
+		const config = (model.config as Record<string, any> | undefined) ?? {}
+		const existing = (config.rtsp_url_template as string) || ""
+		const trimmed = existing.trim()
 		if (!trimmed) {
-			cameraRtspTemplatePresetKey.value = "hik_channels_101";
-			cameraRtspTemplateCustom.value = "";
+			cameraRtspTemplatePresetKey.value = "hik_channels_101"
+			cameraRtspTemplateCustom.value = ""
 		} else if (trimmed === CAMERA_RTSP_PRESETS.hik_channels_101) {
-			cameraRtspTemplatePresetKey.value = "hik_channels_101";
-			cameraRtspTemplateCustom.value = "";
+			cameraRtspTemplatePresetKey.value = "hik_channels_101"
+			cameraRtspTemplateCustom.value = ""
 		} else if (trimmed === CAMERA_RTSP_PRESETS.stream1) {
-			cameraRtspTemplatePresetKey.value = "stream1";
-			cameraRtspTemplateCustom.value = "";
+			cameraRtspTemplatePresetKey.value = "stream1"
+			cameraRtspTemplateCustom.value = ""
 		} else {
-			cameraRtspTemplatePresetKey.value = "custom";
-			cameraRtspTemplateCustom.value = trimmed;
+			cameraRtspTemplatePresetKey.value = "custom"
+			cameraRtspTemplateCustom.value = trimmed
 		}
 	}
 
 	if (props.deviceTypeCode === "sensor" && model.config) {
-		const config = model.config as SensorDeviceModelConfig;
-		sensorRegisterType.value = config.registerType ?? "holding";
-		sensorParameters.value = config.sensorParameters ? [...config.sensorParameters] : [];
+		const config = model.config as SensorDeviceModelConfig
+		sensorRegisterType.value = config.registerType ?? "holding"
+		sensorParameters.value = config.sensorParameters ? [...config.sensorParameters] : []
 	} else {
-		sensorParameters.value = [];
+		sensorParameters.value = []
 	}
 
-	showForm.value = true;
+	showForm.value = true
 	nextTick(() => {
-		formInitialSnapshot.value = getFormSnapshot();
-	});
-};
+		formInitialSnapshot.value = getFormSnapshot()
+	})
+}
 
 // 表單快照（內層新增/編輯用）
 interface FormSnapshot {
-	name: string;
-	type_code: DeviceTypeCode;
-	unit_id: number | undefined | null;
-	description: string;
-	registerType: ModbusRegisterType;
-	sensorParametersJson: string;
-	cameraRtspTemplatePresetKey: string;
-	cameraRtspTemplateCustom: string;
+	name: string
+	type_code: DeviceTypeCode
+	unit_id: number | undefined | null
+	description: string
+	registerType: ModbusRegisterType
+	sensorParametersJson: string
+	cameraRtspTemplatePresetKey: string
+	cameraRtspTemplateCustom: string
 }
-const formInitialSnapshot = ref<FormSnapshot | null>(null);
+const formInitialSnapshot = ref<FormSnapshot | null>(null)
 
 const getFormSnapshot = (): FormSnapshot => ({
 	name: formData.name,
@@ -621,15 +646,15 @@ const getFormSnapshot = (): FormSnapshot => ({
 	registerType: sensorRegisterType.value,
 	sensorParametersJson: JSON.stringify(sensorParameters.value),
 	cameraRtspTemplatePresetKey: cameraRtspTemplatePresetKey.value,
-	cameraRtspTemplateCustom: cameraRtspTemplateCustom.value
-});
+	cameraRtspTemplateCustom: cameraRtspTemplateCustom.value,
+})
 
 const formHasUnsavedChanges = computed(() => {
-	if (!showForm.value) return false;
+	if (!showForm.value) return false
 	if (editingModel.value) {
-		if (!formInitialSnapshot.value) return false;
-		const cur = getFormSnapshot();
-		const init = formInitialSnapshot.value;
+		if (!formInitialSnapshot.value) return false
+		const cur = getFormSnapshot()
+		const init = formInitialSnapshot.value
 		return (
 			cur.name !== init.name ||
 			cur.type_code !== init.type_code ||
@@ -639,141 +664,141 @@ const formHasUnsavedChanges = computed(() => {
 			cur.sensorParametersJson !== init.sensorParametersJson ||
 			cur.cameraRtspTemplatePresetKey !== init.cameraRtspTemplatePresetKey ||
 			cur.cameraRtspTemplateCustom !== init.cameraRtspTemplateCustom
-		);
+		)
 	}
 	// 新增模式：任一欄位有值即視為有變更
-	const cur = getFormSnapshot();
+	const cur = getFormSnapshot()
 	return (
 		cur.name.trim() !== "" ||
 		cur.unit_id != null ||
 		cur.description.trim() !== "" ||
 		sensorParameters.value.length > 0
-	);
-});
+	)
+})
 
 const formChangedFieldsList = computed(() => {
-	if (!editingModel.value || !formInitialSnapshot.value) return [];
-	const cur = getFormSnapshot();
-	const init = formInitialSnapshot.value;
-	const fields: string[] = [];
+	if (!editingModel.value || !formInitialSnapshot.value) return []
+	const cur = getFormSnapshot()
+	const init = formInitialSnapshot.value
+	const fields: string[] = []
 	if (cur.name !== init.name)
-		fields.push(`型號名稱: ${init.name || "(空)"} → ${cur.name || "(空)"}`);
-	if (cur.unit_id !== init.unit_id) fields.push("Unit ID");
-	if (cur.description !== init.description) fields.push("備註");
-	if (cur.registerType !== init.registerType) fields.push("API 功能碼");
-	if (cur.sensorParametersJson !== init.sensorParametersJson) fields.push("感測器參數設定");
+		fields.push(`型號名稱: ${init.name || "(空)"} → ${cur.name || "(空)"}`)
+	if (cur.unit_id !== init.unit_id) fields.push("Unit ID")
+	if (cur.description !== init.description) fields.push("備註")
+	if (cur.registerType !== init.registerType) fields.push("API 功能碼")
+	if (cur.sensorParametersJson !== init.sensorParametersJson) fields.push("感測器參數設定")
 	if (
 		cur.cameraRtspTemplatePresetKey !== init.cameraRtspTemplatePresetKey ||
 		cur.cameraRtspTemplateCustom !== init.cameraRtspTemplateCustom
 	)
-		fields.push("RTSP URL 模板");
-	return fields;
-});
+		fields.push("RTSP URL 模板")
+	return fields
+})
 
 const formChangeSummary = computed(() => {
-	const count = formChangedFieldsList.value.length;
+	const count = formChangedFieldsList.value.length
 	if (count === 0 && !editingModel.value && formHasUnsavedChanges.value)
-		return "表單已填寫，尚未儲存";
-	if (count === 0) return "";
-	return `共 ${count} 個欄位已修改`;
-});
+		return "表單已填寫，尚未儲存"
+	if (count === 0) return ""
+	return `共 ${count} 個欄位已修改`
+})
 
-const confirmDialog = useConfirmDialog();
-const confirmAction = ref<"delete" | "closeForm" | "closeMain">("delete");
-const pendingDeleteModel = ref<DeviceModel | null>(null);
+const confirmDialog = useConfirmDialog()
+const confirmAction = ref<"delete" | "closeForm" | "closeMain">("delete")
+const pendingDeleteModel = ref<DeviceModel | null>(null)
 
 const showConfirmDialog = computed({
 	get: () => confirmDialog.showDialog.value,
 	set: (value: boolean) => {
-		confirmDialog.showDialog.value = value;
-	}
-});
+		confirmDialog.showDialog.value = value
+	},
+})
 
-const confirmDialogConfig = computed(() => confirmDialog.config.value);
+const confirmDialogConfig = computed(() => confirmDialog.config.value)
 
 const CONFIRM_CLOSE = {
 	title: "確定要離開？",
 	message: "您有尚未儲存的變更，確定要離開嗎？",
 	details: "未儲存的變更將會遺失。",
-	type: "warning" as const
-};
+	type: "warning" as const,
+}
 
 const handleConfirmDialogConfirm = () => {
-	if (confirmAction.value === "delete") handleConfirmDelete();
-	else if (confirmAction.value === "closeForm") closeFormInternal();
-	else if (confirmAction.value === "closeMain") closeMainDialog();
-};
+	if (confirmAction.value === "delete") handleConfirmDelete()
+	else if (confirmAction.value === "closeForm") closeFormInternal()
+	else if (confirmAction.value === "closeMain") closeMainDialog()
+}
 
 const closeFormInternal = () => {
-	showForm.value = false;
-	editingModel.value = null;
-	resetForm();
-	formInitialSnapshot.value = null;
-};
+	showForm.value = false
+	editingModel.value = null
+	resetForm()
+	formInitialSnapshot.value = null
+}
 
 const closeMainDialog = () => {
-	closeFormInternal();
-	emit("update:modelValue", false);
-	emit("close");
-};
+	closeFormInternal()
+	emit("update:modelValue", false)
+	emit("close")
+}
 
 const handleCloseFormClick = () => {
 	if (formHasUnsavedChanges.value) {
-		confirmAction.value = "closeForm";
-		confirmDialog.show(CONFIRM_CLOSE);
-		return;
+		confirmAction.value = "closeForm"
+		confirmDialog.show(CONFIRM_CLOSE)
+		return
 	}
-	closeFormInternal();
-};
+	closeFormInternal()
+}
 
 const handleClose = () => {
 	if (showForm.value && formHasUnsavedChanges.value) {
-		confirmAction.value = "closeMain";
-		confirmDialog.show(CONFIRM_CLOSE);
-		return;
+		confirmAction.value = "closeMain"
+		confirmDialog.show(CONFIRM_CLOSE)
+		return
 	}
-	if (showForm.value) closeFormInternal();
-	emit("update:modelValue", false);
-	emit("close");
-};
+	if (showForm.value) closeFormInternal()
+	emit("update:modelValue", false)
+	emit("close")
+}
 
 const confirmDelete = (model: DeviceModel) => {
-	confirmAction.value = "delete";
-	pendingDeleteModel.value = model;
+	confirmAction.value = "delete"
+	pendingDeleteModel.value = model
 	confirmDialog.show({
 		title: "確認刪除",
 		message: `確定要刪除設備型號「${model.name}」嗎？`,
 		details: "此操作無法復原。",
-		type: "danger"
-	});
-};
+		type: "danger",
+	})
+}
 
 const handleConfirmDelete = async () => {
-	if (!pendingDeleteModel.value) return;
+	if (!pendingDeleteModel.value) return
 
 	try {
-		await deviceApi.deleteDeviceModel(pendingDeleteModel.value.id);
-		toast.success(TOAST.DEVICE_MODEL_DELETED(pendingDeleteModel.value.name));
-		await loadDeviceModels(true);
-		emit("refresh");
-		pendingDeleteModel.value = null;
+		await deviceApi.deleteDeviceModel(pendingDeleteModel.value.id)
+		toast.success(TOAST.DEVICE_MODEL_DELETED(pendingDeleteModel.value.name))
+		await loadDeviceModels(true)
+		emit("refresh")
+		pendingDeleteModel.value = null
 	} catch (error) {
-		handleError(error, "刪除設備型號失敗");
+		handleError(error, "刪除設備型號失敗")
 	}
-};
+}
 
 const openAddForm = () => {
-	editingModel.value = null;
-	resetForm();
-	showForm.value = true;
+	editingModel.value = null
+	resetForm()
+	showForm.value = true
 	nextTick(() => {
-		formInitialSnapshot.value = getFormSnapshot();
-	});
-};
+		formInitialSnapshot.value = getFormSnapshot()
+	})
+}
 
 const handleFormSubmit = async () => {
-	isSubmitting.value = true;
-	formErrorMessage.value = null;
+	isSubmitting.value = true
+	formErrorMessage.value = null
 
 	try {
 		const formError = validateDeviceModelFormForSave({
@@ -782,66 +807,72 @@ const handleFormSubmit = async () => {
 			categoryCode: formData.category_code,
 			cameraRtspTemplateEffective: cameraRtspTemplateEffective.value,
 			cameraRtspTemplatePresetKey: cameraRtspTemplatePresetKey.value,
-			cameraRtspTemplateCustom: cameraRtspTemplateCustom.value
-		});
+			cameraRtspTemplateCustom: cameraRtspTemplateCustom.value,
+		})
 		if (formError) {
-			formErrorMessage.value = formError;
-			return;
+			formErrorMessage.value = formError
+			return
 		}
 
-		const toOpt = (v: unknown) => (v !== undefined && v !== null && v !== "" ? Number(v) : undefined);
+		const toOpt = (v: unknown) =>
+			v !== undefined && v !== null && v !== "" ? Number(v) : undefined
 		const submitData: CreateDeviceModelData | UpdateDeviceModelData = {
 			name: formData.name,
 			type_code: formData.type_code,
 			category_code: formData.category_code.trim() || undefined,
 			unit_id: toOpt(formData.unit_id),
-			description: formData.description || undefined
-		};
+			description: formData.description || undefined,
+		}
 
 		if (props.deviceTypeCode === "camera") {
-			const template = cameraRtspTemplateEffective.value.trim();
-			submitData.config = template ? { rtsp_url_template: template } : {};
+			const template = cameraRtspTemplateEffective.value.trim()
+			submitData.config = template ? { rtsp_url_template: template } : {}
 		}
 		if (props.deviceTypeCode === "sensor") {
 			const sensorConfig: SensorDeviceModelConfig = {
 				registerType: sensorRegisterType.value,
-				sensorParameters: sensorParameters.value.length > 0 ? sensorParameters.value : undefined
-			};
-			submitData.config = sensorConfig;
+				sensorParameters: sensorParameters.value.length > 0 ? sensorParameters.value : undefined,
+			}
+			submitData.config = sensorConfig
 		}
 		if (props.deviceTypeCode === "access_control") {
-			submitData.config = {};
+			submitData.config = {}
 		}
 
 		if (editingModel.value) {
-			await deviceApi.updateDeviceModel(editingModel.value.id, submitData);
-			toast.success(TOAST.DEVICE_MODEL_UPDATED);
+			await deviceApi.updateDeviceModel(editingModel.value.id, submitData)
+			toast.success(TOAST.DEVICE_MODEL_UPDATED)
 		} else {
-			await deviceApi.createDeviceModel(submitData as CreateDeviceModelData);
-			toast.success(TOAST.DEVICE_MODEL_CREATED);
+			await deviceApi.createDeviceModel(submitData as CreateDeviceModelData)
+			toast.success(TOAST.DEVICE_MODEL_CREATED)
 		}
-		closeFormInternal();
-		await loadDeviceModels(true);
-		emit("refresh");
+		closeFormInternal()
+		await loadDeviceModels(true)
+		emit("refresh")
 	} catch (error) {
-		handleError(error, "儲存失敗", "formErrorMessage");
+		handleError(error, "儲存失敗", "formErrorMessage")
 	} finally {
-		isSubmitting.value = false;
+		isSubmitting.value = false
 	}
-};
+}
 
 watch(
 	() => props.modelValue,
-	isOpen => {
+	(isOpen) => {
 		if (isOpen && props.deviceTypeCode) {
-			loadDeviceType();
-			loadDeviceModels(true); // 每次開啟對話框時強制更新，確保取得最新資料
+			loadDeviceType()
+			if (props.deviceTypeCode === "sensor") {
+				void ensureEnvironmentCatalogLoaded()
+			}
+			loadDeviceModels(true) // 每次開啟對話框時強制更新，確保取得最新資料
 		} else if (!isOpen) {
-			deviceModels.value = [];
-			errorMessage.value = null;
-			closeFormInternal();
+			deviceModels.value = []
+			errorMessage.value = null
+			closeFormInternal()
 		}
 	},
 	{ immediate: true }
-);
+)
 </script>
+
+<style scoped></style>

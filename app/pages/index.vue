@@ -16,6 +16,7 @@
 						:sensor-data="sensorData"
 						:device-model-config="deviceModelConfig"
 						:sensor-offline="isSensorOffline"
+						:heat-index="homeSensors.getCardSnapshotData(environmentHomeCard).heatIndex ?? null"
 					/>
 					<div
 						v-else-if="selectedUnifiedLocation"

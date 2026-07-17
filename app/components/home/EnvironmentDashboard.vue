@@ -164,7 +164,7 @@
 import EnvironmentParamCardSimple from "~/components/home/EnvironmentParamCardSimple.vue";
 import type { EnvironmentLocation, SensorParameterType } from "~/types/environment";
 import type { SensorDeviceModelConfig } from "~/types/device";
-import { getHeatIndexDerivedResult } from "~/utils/environmentDerivedMetrics";
+import { getHeatIndexDerivedResultFromReading } from "~/utils/environmentDerivedMetrics";
 import { useAlertRules } from "~/composables/monitoring/useAlertRules";
 import type { AlertRule } from "~/types/alert";
 import {
@@ -190,10 +190,12 @@ interface Props {
 	};
 	deviceModelConfig: SensorDeviceModelConfig | null;
 	sensorOffline?: boolean;
+	heatIndex?: number | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-	sensorOffline: false
+	sensorOffline: false,
+	heatIndex: null,
 });
 
 const { getRules, getStatusText: getStatusTextFromRules } = useAlertRules();
@@ -280,10 +282,10 @@ const getFormattedValue = (type: SensorParameterType, value: number | null): str
 	return formatSensorValue(type, value, { fallback: "--" });
 };
 
-// 熱指數
-const heatIndex = computed(() => {
-	return getHeatIndexDerivedResult(props.sensorData.temperature, props.sensorData.humidity);
-});
+// 熱指數（後端 NWS 公式落地於 data.heatIndex）
+const heatIndex = computed(() =>
+	getHeatIndexDerivedResultFromReading({ heatIndex: props.heatIndex ?? null }),
+);
 
 onMounted(() => {
 	void loadAlertRules();
