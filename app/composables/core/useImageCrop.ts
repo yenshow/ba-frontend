@@ -5,7 +5,6 @@ export type UseImageCropOptions = {
 	getCanvasSize: () => { width: number; height: number }
 	outputMaxLongEdge: number
 	maxOutputBytes?: number
-	mask?: ImageCropMask
 }
 
 export const useImageCrop = (options: UseImageCropOptions) => {
@@ -14,7 +13,6 @@ export const useImageCrop = (options: UseImageCropOptions) => {
 		getCanvasSize,
 		outputMaxLongEdge,
 		maxOutputBytes,
-		mask = "rect",
 	} = options
 
 	const syncCanvasDimensions = () => {
@@ -97,18 +95,6 @@ export const useImageCrop = (options: UseImageCropOptions) => {
 		ctx.imageSmoothingEnabled = true
 		ctx.imageSmoothingQuality = "high"
 		ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h)
-
-		if (mask === "ellipse") {
-			ctx.save()
-			ctx.globalCompositeOperation = "source-over"
-			ctx.fillStyle = "rgba(0,0,0,0.3)"
-			ctx.fillRect(0, 0, canvas.width, canvas.height)
-			ctx.globalCompositeOperation = "destination-out"
-			ctx.beginPath()
-			ctx.ellipse(canvas.width / 2, canvas.height / 2, canvas.width * 0.4, canvas.height * 0.5, 0, 0, Math.PI * 2)
-			ctx.fill()
-			ctx.restore()
-		}
 	}
 
 	const applyZoomUi = (uiValue: number) => {
@@ -262,7 +248,6 @@ export const useImageCrop = (options: UseImageCropOptions) => {
 	}
 
 	return {
-		mask,
 		isSaving,
 		errorText,
 		isReady,

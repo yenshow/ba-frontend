@@ -362,8 +362,7 @@ const cropOutputMime = computed<"image/jpeg" | "image/png">(() => {
 const crop = useImageCrop({
 	canvasRef: cropCanvasRef,
 	getCanvasSize: () => cropCanvas.value,
-	outputMaxLongEdge: 1280,
-	mask: "rect"
+	outputMaxLongEdge: 1280
 });
 
 const handleClearCrop = () => {

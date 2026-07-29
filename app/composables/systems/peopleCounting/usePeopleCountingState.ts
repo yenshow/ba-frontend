@@ -23,6 +23,7 @@ import { usePeopleCountingApi } from "~/composables/systems/peopleCounting/usePe
 import { usePeopleCountingLocationApi } from "~/composables/location/api/usePeopleCountingLocationApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { logger } from "~/utils/logger";
+import { firstFlatSiteMatchingSortedZoneLocations } from "~/utils/sortOrder";
 
 const stateLogger = logger.createLogger("PeopleCounting State");
 
@@ -175,7 +176,8 @@ export const usePeopleCountingState = () => {
 		try {
 			logs.value = await peopleCountingApi.getLocationLogs(locationId, {
 				limit: 5,
-				...(unitId && { unitId })
+				// unitId=0 為「未分組」，不可用 truthy 判斷
+				...(unitId != null && { unitId })
 			});
 		} catch (error) {
 			handleError(error, "載入進出場記錄失敗");
@@ -200,12 +202,62 @@ export const usePeopleCountingState = () => {
 		}
 	};
 
+	/** 地點管理儲存／刪除後：先 zones 再 locations，避免總覽與詳情資料不一致 */
+	const reloadZonesAndLocations = async (): Promise<void> => {
+		await loadZones();
+		await loadLocations(
+			peopleCountingZones.value.length > 0
+				? { zones: peopleCountingZones.value }
+				: undefined,
+		);
+	};
+
+	const findDefaultLocationId = (): number | null => {
+		const locationsWithId = locations.value.filter(
+			(l): l is PeopleCountingLocation & { locationId: number } => l.locationId != null,
+		);
+		const hit = firstFlatSiteMatchingSortedZoneLocations(
+			peopleCountingZones.value,
+			locationsWithId,
+		);
+		return hit?.locationId ?? null;
+	};
+
+	/** 若尚無選中地點或選中已失效，自動選第一筆並載入詳情 */
+	const ensureSelectedLocation = async (): Promise<void> => {
+		const currentId = selectedLocation.value?.locationId;
+		if (
+			currentId != null &&
+			locations.value.some((l) => l.locationId === currentId)
+		) {
+			await loadLocationDetail(currentId, { preserveUnitId: selectedUnitId.value });
+			return;
+		}
+
+		const nextId = findDefaultLocationId();
+		if (nextId != null) {
+			await loadLocationDetail(nextId);
+			return;
+		}
+
+		selectedLocation.value = null;
+		personnel.value = [];
+		logs.value = [];
+		selectedUnitId.value = null;
+	};
+
+	/** 區域／地點管理變更後：重載列表並確保詳情區有選中地點 */
+	const refreshAfterZoneChange = async (): Promise<void> => {
+		await reloadZonesAndLocations();
+		await ensureSelectedLocation();
+	};
+
 	/**
-	 * 處理單位選擇
+	 * 處理單位選擇（unitId=0 為「未分組」，不可用 truthy 判斷）
 	 */
 	const handleUnitSelect = async (unitId: number | null): Promise<void> => {
 		selectedUnitId.value = unitId;
-		if (unitId) {
+		if (unitId != null) {
 			await loadUnitPersonnel(unitId);
 		} else {
 			personnel.value = [];
@@ -238,7 +290,7 @@ export const usePeopleCountingState = () => {
 			await loadLocationLogs(locationId);
 			return;
 		}
-		if (unitId) {
+		if (unitId != null) {
 			await Promise.all([loadUnitPersonnel(unitId), loadLocationLogs(locationId, unitId)]);
 			return;
 		}
@@ -250,7 +302,11 @@ export const usePeopleCountingState = () => {
 		if (locationId == null) return;
 		const preserveUnitId = selectedUnitId.value;
 		await peopleCountingApi.resetSiteStats(locationId);
-		await loadLocations();
+		if (peopleCountingZones.value.length > 0) {
+			await loadLocations({ zones: peopleCountingZones.value });
+		} else {
+			await loadLocations();
+		}
 		await loadLocationDetail(locationId, { preserveUnitId });
 	};
 
@@ -286,6 +342,9 @@ export const usePeopleCountingState = () => {
 		loadUnitPersonnel,
 		loadLocationLogs,
 		loadZones,
+		reloadZonesAndLocations,
+		ensureSelectedLocation,
+		refreshAfterZoneChange,
 		handleUnitSelect,
 		getLocationZone,
 		refreshSelectedLocationLive,

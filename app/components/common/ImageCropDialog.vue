@@ -54,11 +54,7 @@
 									<div class="absolute inset-0 ring-1 ring-white/55"></div>
 									<div
 										v-if="mask === 'ellipse'"
-										class="absolute inset-0 bg-black/30 [mask-image:radial-gradient(ellipse_40%_50%_at_50%_50%,transparent_60%,black_60%)]"
-									></div>
-									<div
-										v-else
-										class="absolute inset-0 bg-black/30 [mask-image:linear-gradient(#000,#000)]"
+										class="absolute inset-0 bg-black/30 [mask-image:radial-gradient(ellipse_40%_50%_at_50%_50%,transparent_99%,black_100%)] [-webkit-mask-image:radial-gradient(ellipse_40%_50%_at_50%_50%,transparent_99%,black_100%)]"
 									></div>
 								</div>
 							</div>
@@ -150,9 +146,6 @@ const emit = defineEmits<{
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
 const {
-	canvasWidth,
-	canvasHeight,
-	mask,
 	isSaving,
 	errorText,
 	isReady,
@@ -171,8 +164,7 @@ const {
 	canvasRef,
 	getCanvasSize: () => ({ width: props.canvasWidth, height: props.canvasHeight }),
 	outputMaxLongEdge: props.outputMaxLongEdge ?? 1280,
-	maxOutputBytes: props.maxOutputBytes,
-	mask: props.mask
+	maxOutputBytes: props.maxOutputBytes
 });
 
 const handleZoomUiInput = () => applyZoomUi(zoomUi.value);

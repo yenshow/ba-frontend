@@ -272,7 +272,7 @@ import type {
 	SensorReading,
 } from "~/types/environment"
 import { getTimeRangeUTC } from "~/utils/dateUtils"
-import { compareZonesLoose } from "~/utils/sortOrder"
+import { compareZonesLoose, firstLocationInSortedZones } from "~/utils/sortOrder"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import {
 	getHeatIndexDerivedResultFromReading,
@@ -525,7 +525,32 @@ watch(isOverviewCollapsed, (collapsed) => {
 // 與 environmentZones 順序一致（區域已依 sort_order／名稱慣例排序，地點依後端陣列序）
 const sortedLocations = computed(() => environmentZones.value.flatMap((zone) => zone.locations))
 
-const detailEmpty = computed(() => sortedLocations.value.length === 0 && !isLoadingZones.value)
+const detailEmpty = computed(
+	() =>
+		!isLoadingZones.value &&
+		!isHydrating.value &&
+		(sortedLocations.value.length === 0 || !selectedLocationId.value)
+)
+
+const ensureSelectedLocationId = () => {
+	if (!sortedLocations.value.length) {
+		selectedLocationId.value = ""
+		return
+	}
+	if (sortedLocations.value.some((loc) => getLocationId(loc) === selectedLocationId.value)) return
+	const first = firstLocationInSortedZones(environmentZones.value)
+	selectedLocationId.value = first ? getLocationId(first) : ""
+}
+
+const reloadZonesAndHydrate = async (aggressive = true) => {
+	await loadZonesFromAPI()
+	await hydrateAllLocations(aggressive)
+}
+
+const refreshAfterZoneChange = async () => {
+	await reloadZonesAndHydrate(true)
+	ensureSelectedLocationId()
+}
 
 // 啟用的參數（用於顯示）
 const enabledParameters = computed(() => {
@@ -611,15 +636,13 @@ const handleDeleteZone = async (zoneId: string) => {
 		getLocationId,
 		systemType: "environment",
 		onAfterDelete: async () => {
-			await loadZonesFromAPI()
-			await hydrateAllLocations(true)
+			await refreshAfterZoneChange()
 		},
 	})
 }
 
 const handleZonesSaved = async () => {
-	await loadZonesFromAPI()
-	await hydrateAllLocations(true)
+	await refreshAfterZoneChange()
 }
 
 // 獲取參數值
@@ -743,12 +766,8 @@ const loadAlertRules = async () => {
 
 onMounted(async () => {
 	await loadAlertRules()
-	await loadZonesFromAPI()
-	await hydrateAllLocations(false)
-	if (!selectedLocationId.value) {
-		const first = environmentZones.value.find((z) => z.locations?.length)?.locations?.[0]
-		if (first) selectedLocationId.value = getLocationId(first)
-	}
+	await reloadZonesAndHydrate(false)
+	ensureSelectedLocationId()
 	await nextTick()
 	scrollActiveOverviewIntoView()
 })

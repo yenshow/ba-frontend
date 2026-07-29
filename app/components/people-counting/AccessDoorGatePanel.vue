@@ -45,7 +45,7 @@
 			>
 				<template v-if="variant === 'panel'">
 					<div
-						class="relative mx-auto aspect-[4/3] w-full max-h-[175px] overflow-hidden rounded-lg bg-gradient-to-b from-slate-700/20 via-slate-900/30 to-black/40 2xl:max-h-[195px]"
+						class="relative mx-auto aspect-[4/3] w-full max-h-[175px] overflow-hidden rounded-lg bg-gradient-to-b from-slate-700/15 via-slate-800/20 to-slate-900/35 2xl:max-h-[195px]"
 						:aria-hidden="true"
 					>
 						<AccessDoorLeafSvg :open="isDoorOpen(dev.id)" />

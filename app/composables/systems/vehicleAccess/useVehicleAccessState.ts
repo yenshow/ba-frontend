@@ -250,6 +250,40 @@ export const useVehicleAccessState = () => {
 		}
 	};
 
+	const reloadZonesAndOverview = async (): Promise<void> => {
+		await loadZones();
+		await loadOverviewSummaries();
+	};
+
+	/** 地點管理儲存／刪除後：補上 filter 選中，讓詳情區立即顯示 */
+	const ensureFilterLocation = (
+		resolveCanonicalId: (loc: VehicleAccessLocation & { zoneName?: string }) => string,
+	): void => {
+		const currentId = filters.value.locationId;
+		if (currentId) {
+			const stillExists = locations.value.some(
+				(loc) =>
+					resolveCanonicalId(loc as VehicleAccessLocation & { zoneName?: string }) === currentId,
+			);
+			if (stillExists) return;
+		}
+
+		const first = locations.value[0];
+		filters.value = {
+			...filters.value,
+			locationId: first
+				? resolveCanonicalId(first as VehicleAccessLocation & { zoneName?: string })
+				: null,
+		};
+	};
+
+	const refreshAfterZoneChange = async (
+		resolveCanonicalId: (loc: VehicleAccessLocation & { zoneName?: string }) => string,
+	): Promise<void> => {
+		await reloadZonesAndOverview();
+		ensureFilterLocation(resolveCanonicalId);
+	};
+
 	const loadTodayPassageLogs = async (force = false): Promise<void> => {
 		const siteId = resolveSiteId(selectedLocation.value);
 		if (siteId == null) {
@@ -654,7 +688,11 @@ export const useVehicleAccessState = () => {
 			selectedOrganizationKey.value = key;
 		},
 		isLoadingZones,
+		isLoadingOverview,
 		loadZones,
+		reloadZonesAndOverview,
+		ensureFilterLocation,
+		refreshAfterZoneChange,
 		loadLogs,
 		loadLocationDetail,
 		loadEntryExitOnSiteCounts,
