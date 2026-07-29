@@ -300,7 +300,6 @@ const crop = useImageCrop({
 	canvasRef: cropCanvasRef,
 	getCanvasSize: () => cropCanvas.value,
 	outputMaxLongEdge: 1280,
-	mask: "rect",
 })
 
 const handleClearCrop = () => {

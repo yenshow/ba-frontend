@@ -261,10 +261,7 @@ import {
 	toSimulationTimeRange,
 	type OperationalDayRangeResponse,
 } from "~/utils/entryExitTimeRange"
-import {
-	firstFlatSiteMatchingSortedZoneLocations,
-	sortFlatSitesBySortedZoneLocations,
-} from "~/utils/sortOrder"
+import { sortFlatSitesBySortedZoneLocations } from "~/utils/sortOrder"
 import { computeCumulativePresence } from "~/utils/entryExitStats"
 import { PERM } from "~/config/permissionCodes"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
@@ -309,17 +306,23 @@ const {
 	loadLocations,
 	loadLocationDetail,
 	loadZones,
+	refreshAfterZoneChange,
 	handleUnitSelect,
 	getLocationZone,
 	setupEventListeners,
 	refreshSelectedLocationLive,
 	resetStatsForSelectedSite,
 	isLoadingLocations,
+	isLoadingLocation,
 	isLoadingZones,
 } = usePeopleCountingState()
 
 const detailEmpty = computed(
-	() => locations.value.length === 0 && !isLoadingLocations.value && !isLoadingZones.value
+	() =>
+		!isLoadingLocations.value &&
+		!isLoadingZones.value &&
+		!isLoadingLocation.value &&
+		(locations.value.length === 0 || !selectedLocation.value)
 )
 
 const peopleCountingApi = usePeopleCountingApi()
@@ -357,10 +360,7 @@ const selectedLocationDisplayName = computed(() => {
 })
 
 const handleAccessManageSynced = async () => {
-	const id = selectedLocationNumericId.value
-	if (id == null) return
-	await loadLocations()
-	await loadLocationDetail(id)
+	await refreshAfterZoneChange()
 }
 
 // 在場：transition 以 API currentCount 為準；攝影機以進−出
@@ -605,8 +605,7 @@ const handleSaveZone = async (zone: PeopleCountingZone) => {
 }
 
 const handleZonesSaved = async () => {
-	await loadZones()
-	await loadLocations()
+	await refreshAfterZoneChange()
 }
 
 // 處理刪除區域
@@ -619,8 +618,7 @@ const handleDeleteZone = async (zoneId: string) => {
 		systemType: "people_counting",
 		// 刪除後重新載入區域與地點列表（確保 UI 立即反映刪除結果）
 		onAfterDelete: async () => {
-			await loadZones()
-			await loadLocations()
+			await refreshAfterZoneChange()
 		},
 	})
 }
@@ -656,19 +654,7 @@ onMounted(async () => {
 	}, 500)
 
 	try {
-		await loadLocations()
-		if (peopleCountingZones.value.length === 0) await loadZones()
-
-		if (!selectedLocation.value && locations.value.length > 0) {
-			const locationsWithId = locations.value.filter(
-				(l): l is typeof l & { locationId: number } => l.locationId != null
-			)
-			const hit = firstFlatSiteMatchingSortedZoneLocations(
-				peopleCountingZones.value,
-				locationsWithId
-			)
-			if (hit?.locationId != null) await handleLocationSelect(hit.locationId)
-		}
+		await refreshAfterZoneChange()
 	} catch {
 		// 錯誤已在 composable 處理
 	}

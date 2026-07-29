@@ -321,7 +321,9 @@ const {
 	organizationGroupVehicleList,
 	setSelectedOrganizationKey,
 	isLoadingZones,
+	isLoadingOverview,
 	loadZones,
+	refreshAfterZoneChange,
 	loadLocationDetail,
 	loadFullReportLogs,
 	loadOverviewSummaries,
@@ -331,7 +333,12 @@ const {
 	resetParkingStatsForSelectedSite,
 } = useVehicleAccessState()
 
-const detailEmpty = computed(() => locations.value.length === 0 && !isLoadingZones.value)
+const detailEmpty = computed(
+	() =>
+		!isLoadingZones.value &&
+		!isLoadingOverview.value &&
+		(locations.value.length === 0 || !selectedLocation.value)
+)
 
 const vehicleDetailContentClass = "flex flex-col gap-12"
 
@@ -556,8 +563,7 @@ const handleSaveZone = async (zone: VehicleAccessZone) => {
 }
 
 const handleZonesSaved = async () => {
-	await loadZones()
-	await loadOverviewSummaries()
+	await refreshAfterZoneChange(getLocationId)
 }
 
 const handleDeleteZone = async (zoneId: string) => {
@@ -566,8 +572,7 @@ const handleDeleteZone = async (zoneId: string) => {
 		getLocationId: (loc: VehicleAccessLocation) => getLocationId(loc),
 		systemType: "vehicle_access",
 		onAfterDelete: async () => {
-			await loadZones()
-			await loadOverviewSummaries()
+			await refreshAfterZoneChange(getLocationId)
 		},
 	})
 }
@@ -593,17 +598,7 @@ onMounted(async () => {
 	cleanupWebSocket = setupEventListeners()
 
 	try {
-		await loadZones()
-		await loadOverviewSummaries()
-		if (!filters.value.locationId && locations.value.length > 0) {
-			const first = locations.value[0]
-			if (first) {
-				filters.value = {
-					...filters.value,
-					locationId: getLocationId(first as VehicleAccessLocation & { zoneName?: string }),
-				}
-			}
-		}
+		await refreshAfterZoneChange(getLocationId)
 	} catch {
 		// 錯誤已在 composable 處理
 	}
