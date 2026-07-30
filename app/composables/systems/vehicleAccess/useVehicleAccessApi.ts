@@ -153,8 +153,13 @@ export const useVehicleAccessApi = () => {
 
 	const getSiteSessionStats = async (
 		siteId: number
-	): Promise<{ entryCount: number; exitCount: number; since: string | null }> =>
-		request(`/vehicle-access/sites/${siteId}/session-stats`)
+	): Promise<{
+		entryCount: number
+		exitCount: number
+		currentCount: number
+		capacity: number | null
+		since: string | null
+	}> => request(`/vehicle-access/sites/${siteId}/session-stats`)
 
 	const getSitePresence = async (
 		siteId: number

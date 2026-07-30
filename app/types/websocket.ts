@@ -101,7 +101,7 @@ export interface YscpEventPayload {
 	timestamp: string
 }
 
-/** 車輛進出 WS（ISAPI ANPR / presence_reset 等） */
+/** 車輛進出 WS（ISAPI ANPR / stats_reset 等） */
 export interface VehicleAccessWsEventPayload {
 	type?: string
 	locationId?: number
@@ -121,4 +121,3 @@ export interface OperationalEventNewEvent {
 	occurred_at: string
 	timestamp: string
 }
-
