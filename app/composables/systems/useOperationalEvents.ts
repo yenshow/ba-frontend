@@ -71,9 +71,9 @@ const OPERATIONAL_SOURCE_FILTER_KEYS = [
 	"vehicle_access",
 ] as const
 
-/** 「全部」時仍限制工地支援的來源／類型 */
+/** 「全部」時仍限制工地支援的來源；類型不預設鎖 access/vehicle（含門禁 control_write） */
 export const CONSTRUCTION_DEFAULT_SOURCES = "people_counting,vehicle_access"
-export const CONSTRUCTION_DEFAULT_KINDS = "access,vehicle"
+export const CONSTRUCTION_DEFAULT_KINDS = ""
 
 const SOURCE_FILTER_LABELS: Record<
 	(typeof OPERATIONAL_SOURCE_FILTER_KEYS)[number],

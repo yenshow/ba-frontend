@@ -2,7 +2,6 @@ import type { EnvironmentReadingNewEvent } from "~/types/websocket"
 import { getEnvironmentSensorParamKeys } from "~/utils/environmentCatalogRuntime"
 import { ENVIRONMENT_READING_STALE_MS } from "~/utils/realtimeTiming"
 
-export { ENVIRONMENT_READING_STALE_MS }
 export const SENSOR_DISPLAY_OFFLINE = "--"
 
 export const ENVIRONMENT_SENSOR_PARAM_KEYS = [
