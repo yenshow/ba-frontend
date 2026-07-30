@@ -266,6 +266,7 @@
 import type { HvacZone, HvacLocation, HvacUiStatus } from "~/types/hvac"
 import { getLocationUiKey } from "~/utils/locationUiId"
 import { compareZonesLoose } from "~/utils/sortOrder"
+import { TOGGLE_SNAPSHOT_HOLD_MS } from "~/utils/realtimeTiming"
 
 interface Props {
 	zones: HvacZone[]
@@ -327,7 +328,8 @@ type PendingToggleState = {
 }
 
 // Modbus/快照落地有時 > 2.5s，避免 pending 過早失效造成跳回舊狀態
-const PENDING_TOGGLE_EXPIRE_MS = 8000
+const PENDING_TOGGLE_EXPIRE_MS = TOGGLE_SNAPSHOT_HOLD_MS
+
 const pendingToggles = ref<Record<string, PendingToggleState>>({})
 const localSetpoints = ref<Record<string, number>>({})
 const localFanSpeeds = ref<Record<string, number>>({})

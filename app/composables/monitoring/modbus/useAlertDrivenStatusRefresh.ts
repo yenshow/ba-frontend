@@ -5,8 +5,7 @@
 import { onScopeDispose } from "vue"
 import { useAlertEventBus } from "~/composables/monitoring/alertMonitor/useAlertEventBus"
 import type { AlertUpdatedEvent } from "~/types/websocket"
-
-const REFRESH_DEBOUNCE_MS = 300
+import { UI_ACTION_DEBOUNCE_MS } from "~/utils/realtimeTiming"
 
 export const useAlertDrivenStatusRefresh = (params: {
 	systemKey: string
@@ -23,7 +22,7 @@ export const useAlertDrivenStatusRefresh = (params: {
 		timer = setTimeout(() => {
 			timer = null
 			void reload()
-		}, REFRESH_DEBOUNCE_MS)
+		}, UI_ACTION_DEBOUNCE_MS)
 	}
 
 	const handleAlertUpdated = (data: AlertUpdatedEvent) => {

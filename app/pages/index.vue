@@ -59,7 +59,7 @@ import SystemModule from "~/components/home/SystemModule.vue"
 import HomeOperationalEvents from "~/components/home/HomeOperationalEvents.vue"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { useEnvironmentWsFallbackPolling } from "~/composables/systems/environment/useEnvironmentWsFallbackPolling"
+import { useWsFallbackPolling } from "~/composables/monitoring/useWsFallbackPolling"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import {
 	createEmptyHomeSensorReadings,
@@ -275,7 +275,7 @@ const homeSensorCards = [aqiCard, environmentCard]
 
 useEnvironmentReadingSubscription((event) => homeSensors.handleReadingEvent(event, homeSensorCards))
 
-useEnvironmentWsFallbackPolling({
+useWsFallbackPolling({
 	callback: () => homeSensors.syncCards(homeSensorCards),
 })
 

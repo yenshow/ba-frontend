@@ -1,185 +1,133 @@
 /**
- * 未解決警報數量管理 Composable
- * 負責未解決警報數量的監聽和管理（WebSocket + 輪詢後備）
- *
- * 策略：收到 alert:count 時先用 payload.count 即時更新 badge，
- *       再透過定期校準（REST）與後端「全量 active」語意一致（狀態型警報）。
+ * 未解決警報數量：WebSocket alert:count + 斷線後備 REST（無連線校準）
  */
 
-import type { AlertSource } from "~/types/alert";
-import type { AlertCountEvent } from "~/types/websocket";
-import { watch } from "vue";
-import { logger } from "~/utils/logger";
-import { useAlertApi } from "~/composables/systems/alerts/useAlertApi";
-import { useWebSocket } from "~/composables/websocket/useWebSocket";
-import { useAccessGate } from "~/composables/core/useAccessGate";
-import { PERM } from "~/config/permissionCodes";
+import type { AlertSource } from "~/types/alert"
+import type { AlertCountEvent } from "~/types/websocket"
+import { watch, toValue, onScopeDispose } from "vue"
+import { logger } from "~/utils/logger"
+import { useAlertApi } from "~/composables/systems/alerts/useAlertApi"
+import { useWebSocket } from "~/composables/websocket/useWebSocket"
+import { useAccessGate } from "~/composables/core/useAccessGate"
+import { useWsFallbackPolling } from "~/composables/monitoring/useWsFallbackPolling"
+import { PERM } from "~/config/permissionCodes"
+import { EVENT_COALESCE_MS } from "~/utils/realtimeTiming"
 
-const countLogger = logger.createLogger("UnresolvedAlertCount");
-
-const CALIBRATION_INTERVAL_MS = 120_000; // 每 2 分鐘校準一次
-const FALLBACK_POLLING_INTERVAL_MS = 30_000; // 斷線後備輪詢
+const countLogger = logger.createLogger("UnresolvedAlertCount")
 
 export const useUnresolvedAlertCount = () => {
-	const alertApi = useAlertApi();
-	const { isConnected, on, off } = useWebSocket();
-	const { canLoadFeature, useWsModuleGate } = useAccessGate();
-	const alertGate = { permissionCode: PERM.alertLog.module } as const;
-	const canSubscribe = useWsModuleGate(null, alertGate);
+	const alertApi = useAlertApi()
+	const { isConnected, on, off } = useWebSocket()
+	const { canLoadFeature, useWsModuleGate } = useAccessGate()
+	const alertGate = { permissionCode: PERM.alertLog.module } as const
+	const canSubscribe = useWsModuleGate(null, alertGate)
 
-	/** 與 useAlertMonitor 內其他狀態一致：跨元件共用，避免 layout 更新、AppHeader 讀到另一份 ref 永遠為 0 */
-	const unresolvedAlertCount = useState<number>("alert-monitor:unresolved-count", () => 0);
-	const isLoadingCount = useState<boolean>("alert-monitor:unresolved-count-loading", () => false);
+	const unresolvedAlertCount = useState<number>("alert-monitor:unresolved-count", () => 0)
+	const isLoadingCount = useState<boolean>("alert-monitor:unresolved-count-loading", () => false)
+	const monitoringAllowed = useState<boolean>("alert-monitor:unresolved-count-monitoring", () => false)
 
-	let handleAlertCount: ((data: AlertCountEvent) => void) | null = null;
-	let countPollingTimer: ReturnType<typeof setInterval> | null = null;
-	let calibrationTimer: ReturnType<typeof setInterval> | null = null;
-	let countWebsocketWatcher: ReturnType<typeof watch> | null = null;
-	let isDirty = false;
-	let countDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-	let latestCountPayload: AlertCountEvent | null = null;
+	let handleAlertCount: ((data: AlertCountEvent) => void) | null = null
+	let countDebounceTimer: ReturnType<typeof setTimeout> | null = null
+	let latestCountPayload: AlertCountEvent | null = null
 
 	const loadUnresolvedAlertCount = async (filters?: { source?: AlertSource }) => {
 		if (!canLoadFeature(null, alertGate)) {
-			unresolvedAlertCount.value = 0;
-			return;
+			unresolvedAlertCount.value = 0
+			return
 		}
-		if (isLoadingCount.value) return;
+		if (isLoadingCount.value) return
 
-		isLoadingCount.value = true;
+		isLoadingCount.value = true
 		try {
 			const result = await alertApi.getUnresolvedAlertCount({
-				...filters
-			});
-			unresolvedAlertCount.value = result.count || 0;
-			isDirty = false;
+				...filters,
+			})
+			unresolvedAlertCount.value = result.count || 0
 		} catch (error) {
-			unresolvedAlertCount.value = 0;
-			countLogger.warn("載入未解決警報數量失敗", { error });
+			unresolvedAlertCount.value = 0
+			countLogger.warn("載入未解決警報數量失敗", { error })
 		} finally {
-			isLoadingCount.value = false;
+			isLoadingCount.value = false
 		}
-	};
+	}
 
-	/**
-	 * 套用最新的 alert:count payload 並標記 dirty
-	 */
 	const applyLatestCount = () => {
 		if (latestCountPayload && typeof latestCountPayload.count === "number") {
-			unresolvedAlertCount.value = latestCountPayload.count;
+			unresolvedAlertCount.value = latestCountPayload.count
 		}
-		isDirty = true;
-		latestCountPayload = null;
-		countDebounceTimer = null;
-	};
+		latestCountPayload = null
+		countDebounceTimer = null
+	}
 
-	/**
-	 * 處理 alert:count WS 事件（500ms debounce，避免批次操作時連續 re-render）
-	 */
 	const handleAlertCountEvent = (data: AlertCountEvent) => {
-		latestCountPayload = data;
-		if (countDebounceTimer) clearTimeout(countDebounceTimer);
-		countDebounceTimer = setTimeout(applyLatestCount, 500);
-	};
+		latestCountPayload = data
+		if (countDebounceTimer) clearTimeout(countDebounceTimer)
+		countDebounceTimer = setTimeout(applyLatestCount, EVENT_COALESCE_MS)
+	}
 
-	const stopCountPolling = () => {
-		if (countPollingTimer) {
-			clearInterval(countPollingTimer);
-			countPollingTimer = null;
-		}
-	};
+	useWsFallbackPolling({
+		callback: () => void loadUnresolvedAlertCount(),
+		active: () => monitoringAllowed.value && Boolean(toValue(canSubscribe)),
+	})
 
-	const stopCalibration = () => {
-		if (calibrationTimer) {
-			clearInterval(calibrationTimer);
-			calibrationTimer = null;
-		}
-	};
-
-	/**
-	 * 啟動斷線後備輪詢
-	 */
-	const startCountPolling = () => {
-		stopCountPolling();
-		countPollingTimer = setInterval(() => {
-			void loadUnresolvedAlertCount();
-		}, FALLBACK_POLLING_INTERVAL_MS);
-	};
-
-	/**
-	 * 啟動定期校準（連線狀態下）
-	 * 只在 dirty 時才實際打 REST，避免無事件時浪費請求
-	 */
-	const startCalibration = () => {
-		stopCalibration();
-		calibrationTimer = setInterval(() => {
-			if (isDirty) {
-				void loadUnresolvedAlertCount();
-			}
-		}, CALIBRATION_INTERVAL_MS);
-	};
-
-	const syncAlertCountSubscription = (connected: boolean, allowed: boolean) => {
+	const syncAlertCountSubscription = () => {
 		if (handleAlertCount) {
-			off("alert:count", handleAlertCount);
+			off("alert:count", handleAlertCount)
 		}
-		if (!allowed) {
-			stopCalibration();
-			stopCountPolling();
-			return;
+		if (!monitoringAllowed.value || !toValue(canSubscribe) || !isConnected.value) {
+			return
 		}
-		if (connected && handleAlertCount) {
-			on("alert:count", handleAlertCount);
-			stopCountPolling();
-			startCalibration();
-			return;
+		if (handleAlertCount) {
+			on("alert:count", handleAlertCount)
 		}
-		stopCalibration();
-		startCountPolling();
-	};
+	}
+
+	const stopWatch = watch(
+		[() => isConnected.value, canSubscribe, monitoringAllowed] as const,
+		syncAlertCountSubscription,
+		{ immediate: true },
+	)
+
+	const clearCountDebounce = () => {
+		if (countDebounceTimer) {
+			clearTimeout(countDebounceTimer)
+			countDebounceTimer = null
+		}
+		latestCountPayload = null
+	}
 
 	const startAlertCountMonitoring = () => {
-		stopAlertCountMonitoring();
 		if (!canLoadFeature(null, alertGate)) {
-			unresolvedAlertCount.value = 0;
-			return;
+			unresolvedAlertCount.value = 0
+			monitoringAllowed.value = false
+			handleAlertCount = null
+			return
 		}
 
-		handleAlertCount = handleAlertCountEvent;
-
-		countWebsocketWatcher = watch(
-			[() => isConnected.value, canSubscribe] as const,
-			([connected, allowed]) => syncAlertCountSubscription(connected, allowed),
-			{ immediate: true }
-		);
-	};
+		handleAlertCount = handleAlertCountEvent
+		monitoringAllowed.value = true
+		syncAlertCountSubscription()
+	}
 
 	const stopAlertCountMonitoring = () => {
-		if (countWebsocketWatcher) {
-			countWebsocketWatcher();
-			countWebsocketWatcher = null;
-		}
-
+		monitoringAllowed.value = false
 		if (handleAlertCount) {
-			off("alert:count", handleAlertCount);
-			handleAlertCount = null;
+			off("alert:count", handleAlertCount)
+			handleAlertCount = null
 		}
+		clearCountDebounce()
+	}
 
-		if (countDebounceTimer) {
-			clearTimeout(countDebounceTimer);
-			countDebounceTimer = null;
-		}
-		latestCountPayload = null;
-
-		stopCountPolling();
-		stopCalibration();
-	};
+	onScopeDispose(() => {
+		stopAlertCountMonitoring()
+		stopWatch()
+	})
 
 	return {
 		unresolvedAlertCount: readonly(unresolvedAlertCount),
 		isLoadingCount: readonly(isLoadingCount),
 		loadUnresolvedAlertCount,
 		startAlertCountMonitoring,
-		stopAlertCountMonitoring
-	};
-};
+		stopAlertCountMonitoring,
+	}
+}

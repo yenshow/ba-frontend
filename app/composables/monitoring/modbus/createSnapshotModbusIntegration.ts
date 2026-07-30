@@ -18,6 +18,7 @@ import { useAccessGate } from "~/composables/core/useAccessGate"
 import { useAlertDrivenStatusRefresh } from "~/composables/monitoring/modbus/useAlertDrivenStatusRefresh"
 import type { FeatureKey } from "~/types/license"
 import type { StatusSnapshotQuery } from "~/composables/monitoring/statusSnapshotQuery"
+import { useWsFallbackPolling } from "~/composables/monitoring/useWsFallbackPolling"
 
 type SnapshotStatusResult<TItem> = { items?: TItem[] | null }
 
@@ -178,6 +179,11 @@ export const createSnapshotModbusIntegration = <
 		onSnapshotUpdated: (event) => {
 			patchStatusItems((event.items || []) as TItem[])
 		},
+	})
+
+	useWsFallbackPolling({
+		callback: () => loadStatusSnapshot({ force: true }),
+		active: canSubscribe,
 	})
 
 	const handleVisibilityChange = () => {

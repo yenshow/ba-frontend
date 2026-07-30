@@ -6,7 +6,8 @@ import {
 	type ManualSemanticAlertSource,
 } from "~/utils/alertUtils"
 
-/** Modbus 快照 GET 逾時：各 `use*Api` 的 `getStatus` / `getZoneStatus` 固定 `timeout: 30_000`（高於 useApiBase 預設 5s） */
+/** Modbus 快照 GET 逾時：各 `use*Api` 的 `getStatus` / `getZoneStatus` 固定使用 `STATUS_API_TIMEOUT_MS`（見 realtimeTiming） */
+export { STATUS_API_TIMEOUT_MS } from "~/utils/realtimeTiming"
 
 const findLocationBySystemIdInZones = <L extends { systemId?: string | number | undefined }>(
 	zones: Array<{ locations?: L[] }>,

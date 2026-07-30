@@ -20,7 +20,6 @@ import {
 	WALL_NOW_STATE_KEY,
 	WALL_RULES_LOADED_STATE_KEY,
 	WALL_SETTINGS_STATE_KEY,
-	ENV_SNAPSHOT_POLL_INTERVAL_MS,
 	clampWallInt,
 	createDefaultWallSettings,
 	createWallPager,
@@ -31,6 +30,8 @@ import {
 	DEFAULT_SCHEDULES_PER_PAGE,
 	normalizeEnvSnapshotResponse,
 } from "~/composables/systems/multimedia/multimediaWallShared"
+import { useWsFallbackPolling } from "~/composables/monitoring/useWsFallbackPolling"
+import { useEnvironmentReadingSubscription } from "~/composables/systems/environment/useEnvironmentLive"
 
 const VIDEO_EXTS = new Set(["mp4", "webm", "mov", "m4v", "ogv", "ogg"])
 const isValidDateKey = (v: unknown): v is string =>
@@ -181,21 +182,15 @@ export const useMultimediaWallDashboard = () => {
 		})
 	)
 
-	let envPollTimer: ReturnType<typeof setTimeout> | null = null
 	let clockTimer: ReturnType<typeof setInterval> | null = null
 
-	const scheduleEnvPoll = () => {
-		if (envPollTimer) clearTimeout(envPollTimer)
-		envPollTimer = setTimeout(() => {
-			void loadEnvSnapshot().finally(scheduleEnvPoll)
-		}, ENV_SNAPSHOT_POLL_INTERVAL_MS)
-	}
+	useWsFallbackPolling({
+		callback: () => loadEnvSnapshot(),
+	})
 
-	const stopEnvPoll = () => {
-		if (!envPollTimer) return
-		clearTimeout(envPollTimer)
-		envPollTimer = null
-	}
+	useEnvironmentReadingSubscription(() => {
+		void loadEnvSnapshot()
+	})
 
 	onMounted(async () => {
 		const rules = await getRules("environment", "threshold")
@@ -206,7 +201,6 @@ export const useMultimediaWallDashboard = () => {
 		Object.assign(settings.value, res.settings)
 
 		await loadEnvSnapshot()
-		scheduleEnvPoll()
 
 		clockTimer = setInterval(() => {
 			now.value = new Date()
@@ -217,7 +211,6 @@ export const useMultimediaWallDashboard = () => {
 	})
 
 	onBeforeUnmount(() => {
-		stopEnvPoll()
 		announcementPager.stop()
 		schedulePager.stop()
 		if (clockTimer) {

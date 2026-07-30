@@ -1,12 +1,11 @@
 import type { Alert } from "~/types/alert"
 import type { AlertNewEvent, AlertUpdatedEvent } from "~/types/websocket"
-import { watch } from "vue"
 import { useToast } from "~/composables/core/useToast"
-import { useWebSocket } from "~/composables/websocket/useWebSocket"
 import { useAlertPolling } from "~/composables/monitoring/alertMonitor/useAlertPolling"
 import { useAlertEventBus } from "~/composables/monitoring/alertMonitor/useAlertEventBus"
 import { useUnresolvedAlertCount } from "~/composables/monitoring/alertMonitor/useUnresolvedAlertCount"
 import { useAccessGate } from "~/composables/core/useAccessGate"
+import { useWsFallbackPolling } from "~/composables/monitoring/useWsFallbackPolling"
 import { PERM } from "~/config/permissionCodes"
 import { getSourceLabel, getSeverityLabel } from "~/utils/alertUtils"
 
@@ -77,32 +76,11 @@ const normalizeAlertMessageForToast = (alert: Alert): string => {
 
 export const useAlertMonitor = () => {
 	const { warning, error, info, removeToast, updateToast, toasts } = useToast()
-	const { isConnected } = useWebSocket()
-	const { checkNewAlerts, startPolling, stopPolling, reset } = useAlertPolling()
+	const { checkNewAlerts, reset } = useAlertPolling()
 	const { canLoadFeature } = useAccessGate()
 	const alertGate = { permissionCode: PERM.alertLog.module } as const
 
-	let stopConnectionWatcher: (() => void) | null = null
-	const setupConnectionWatcher = (onConnected: () => void, onDisconnected: () => void) => {
-		if (stopConnectionWatcher) {
-			stopConnectionWatcher()
-			stopConnectionWatcher = null
-		}
-		stopConnectionWatcher = watch(
-			isConnected,
-			(connected) => {
-				if (connected) onConnected()
-				else onDisconnected()
-			},
-			{ immediate: true }
-		)
-	}
-	const cleanupConnectionWatcher = () => {
-		if (stopConnectionWatcher) {
-			stopConnectionWatcher()
-			stopConnectionWatcher = null
-		}
-	}
+	const isMonitoring = useState<boolean>("alert-monitor:is-monitoring", () => false)
 
 	const {
 		setup: setupEventBus,
@@ -120,7 +98,6 @@ export const useAlertMonitor = () => {
 		stopAlertCountMonitoring,
 	} = useUnresolvedAlertCount()
 
-	const isMonitoring = useState<boolean>("alert-monitor:is-monitoring", () => false)
 	const alertToastIds = useState<Record<string, string>>("alert-monitor:toast-ids", () => ({}))
 	const activeAlertKeys = useState<Set<string>>("alert-monitor:active-alert-keys", () => new Set())
 
@@ -285,6 +262,11 @@ export const useAlertMonitor = () => {
 		)
 	}
 
+	const alertFallback = useWsFallbackPolling({
+		callback: () => void checkAlertsByPolling(),
+		active: isMonitoring,
+	})
+
 	const startMonitoring = () => {
 		if (!process.client) return
 		if (!canLoadFeature(null, alertGate)) {
@@ -297,22 +279,11 @@ export const useAlertMonitor = () => {
 
 		isMonitoring.value = true
 
-		// 設置 EventBus（唯一 WS 訂閱）並註冊 Toast handler
 		setupEventBus()
 		busOnAlertNew(handleAlertNew)
 		busOnAlertUpdated(handleAlertUpdated)
 		busOnAlertDailyRollover(handleAlertDailyRollover)
-
-		setupConnectionWatcher(
-			() => {
-				stopPolling()
-			},
-			() => {
-				startPolling(() => {
-					void checkAlertsByPolling()
-				})
-			}
-		)
+		alertFallback.sync()
 
 		void checkAlertsByPolling()
 		void loadUnresolvedAlertCount()
@@ -322,11 +293,11 @@ export const useAlertMonitor = () => {
 	const stopMonitoring = () => {
 		if (!isMonitoring.value) return
 
-		stopPolling()
+		isMonitoring.value = false
+		alertFallback.stop()
 		reset()
 		clearEventBusHandlers()
 		teardownEventBus()
-		cleanupConnectionWatcher()
 		stopAlertCountMonitoring()
 
 		for (const toastId of Object.values(alertToastIds.value)) {
@@ -334,8 +305,6 @@ export const useAlertMonitor = () => {
 		}
 		alertToastIds.value = {}
 		activeAlertKeys.value.clear()
-
-		isMonitoring.value = false
 	}
 
 	return {

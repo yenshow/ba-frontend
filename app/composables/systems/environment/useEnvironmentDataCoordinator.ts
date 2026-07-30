@@ -3,7 +3,7 @@ import {
 	useEnvironmentSensors,
 	type EnvironmentSensorsOptions,
 } from "~/composables/systems/environment/useEnvironmentLive"
-import { useEnvironmentWsFallbackPolling } from "~/composables/systems/environment/useEnvironmentWsFallbackPolling"
+import { useWsFallbackPolling } from "~/composables/monitoring/useWsFallbackPolling"
 
 const isDocumentVisible = () =>
 	typeof document === "undefined" || document.visibilityState === "visible"
@@ -21,7 +21,7 @@ export const useEnvironmentDataCoordinator = (options: EnvironmentSensorsOptions
 		sensors.syncAllLocationsFromSnapshots()
 	}
 
-	useEnvironmentWsFallbackPolling({ callback: reconcileFromSnapshots })
+	useWsFallbackPolling({ callback: reconcileFromSnapshots })
 
 	const hydrateAllLocations = async (force = true) => {
 		isHydrating.value = true

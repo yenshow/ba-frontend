@@ -11,7 +11,6 @@ export const WALL_ENV_SNAPSHOT_STATE_KEY = "multimedia-wall-env-snapshot"
 export const WALL_NOW_STATE_KEY = "multimedia-wall-now"
 export const WALL_ALERT_RULES_STATE_KEY = "multimedia-wall-alert-rules"
 export const WALL_RULES_LOADED_STATE_KEY = "multimedia-wall-rules-loaded"
-export const ENV_SNAPSHOT_POLL_INTERVAL_MS = 30_000
 
 export const DEFAULT_ANNOUNCEMENTS_PER_PAGE = 5
 export const DEFAULT_SCHEDULES_PER_PAGE = 4

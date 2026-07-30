@@ -18,9 +18,12 @@ import {
 	useModbusIntegrationDeviceCache,
 } from "~/composables/monitoring/modbus/modbusIntegrationShared"
 
-const TOGGLE_DEBOUNCE_DELAY_MS = 300
-const TOGGLE_ROUNDTRIP_DELAY_MS = 450
-const TOGGLE_SNAPSHOT_HOLD_MS = 8000
+import {
+	UI_ACTION_DEBOUNCE_MS,
+	TOGGLE_ROUNDTRIP_DELAY_MS,
+	TOGGLE_SNAPSHOT_HOLD_MS,
+} from "~/utils/realtimeTiming"
+import { useWsFallbackPolling } from "~/composables/monitoring/useWsFallbackPolling"
 
 export type ToggleModbusSnapshotApplyArgs<TLocationStatus, TSnapshotItem> = {
 	status: TLocationStatus
@@ -298,7 +301,7 @@ export const createToggleModbusIntegration = <
 		const timer = setTimeout(async () => {
 			await executeToggle(locationUiKey, targetValue)
 			toggleDebounceTimers.delete(locationUiKey)
-		}, TOGGLE_DEBOUNCE_DELAY_MS)
+		}, UI_ACTION_DEBOUNCE_MS)
 		toggleDebounceTimers.set(locationUiKey, timer)
 	}
 
@@ -310,6 +313,11 @@ export const createToggleModbusIntegration = <
 		onSnapshotUpdated: (event) => {
 			applySnapshotItems((event.items || []) as TSnapshotItem[])
 		},
+	})
+
+	useWsFallbackPolling({
+		callback: () => loadAllLocationStatuses(),
+		active: canSubscribe,
 	})
 
 	const startSnapshotSync = () => snapshotWs.start()

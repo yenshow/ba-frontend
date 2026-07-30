@@ -3,6 +3,13 @@ import { onScopeDispose, watch, type Ref, type ComputedRef } from "vue";
 import { useAuth } from "~/composables/core/useAuth";
 import { logger } from "~/utils/logger";
 import type { WebSocketStatus } from "~/types/websocket";
+import {
+	EVENT_COALESCE_MS,
+	SOCKET_CLIENT_TIMEOUT_MS,
+	SOCKET_RANDOMIZATION_FACTOR,
+	SOCKET_RECONNECTION_DELAY_MAX_MS,
+	SOCKET_RECONNECTION_DELAY_MS,
+} from "~/utils/realtimeTiming";
 
 export type WsRefetchBinding = {
 	event: string;
@@ -157,11 +164,11 @@ const establishGlobalConnection = (options?: { force?: boolean }) => {
 				token: authToken.value || undefined,
 			},
 			reconnection: true,
-			reconnectionDelay: 1000,
-			reconnectionDelayMax: 5000,
+			reconnectionDelay: SOCKET_RECONNECTION_DELAY_MS,
+			reconnectionDelayMax: SOCKET_RECONNECTION_DELAY_MAX_MS,
 			reconnectionAttempts: Infinity,
-			randomizationFactor: 0.5,
-			timeout: 20000,
+			randomizationFactor: SOCKET_RANDOMIZATION_FACTOR,
+			timeout: SOCKET_CLIENT_TIMEOUT_MS,
 			withCredentials: true,
 		});
 
@@ -308,7 +315,7 @@ export const useWebSocketEventSubscription = (
 export const setupDebouncedRefetchListeners = (
 	onRefetch: (payload?: unknown) => void | Promise<void>,
 	bindings: WsRefetchBinding[],
-	debounceMs = 500,
+	debounceMs = EVENT_COALESCE_MS,
 	logLabel = "WebSocket",
 	options: DebouncedRefetchOptions = {},
 ) => {

@@ -4,12 +4,8 @@ export const MIN_OPEN_DURATION = 1
 export const MAX_OPEN_DURATION = 255
 /** 面板固定 6 列（由下往上填滿後換欄） */
 export const PANEL_ROW_COUNT = 6
-/** 背景輪詢 idle 間隔（與後端 ELEVATOR_POLL_IDLE_MS 對齊） */
-export const ELEVATOR_RUNTIME_POLL_MS = 2000
-/** 背景輪詢 moving 間隔（與後端 ELEVATOR_POLL_MOVING_MS 對齊） */
-export const ELEVATOR_POLL_MOVING_MS = 1000
-/** DI rank 變化時前端追趕式逐層補間：每層固定間隔（等速逐層切換） */
-export const ELEVATOR_FLOOR_STEP_MS = 1500
+/** DI rank 變化時前端追趕式逐層補間 */
+export { ELEVATOR_FLOOR_STEP_MS } from "~/utils/realtimeTiming"
 
 export type ElevatorDeviceRole = {
 	deviceId: number
