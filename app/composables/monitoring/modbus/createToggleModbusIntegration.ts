@@ -11,7 +11,7 @@ import type { FeatureKey } from "~/types/license"
 import type { ZoneUiKeyable } from "~/utils/locationUiId"
 import {
 	collectDeviceIdsFromZones,
-	extractControllerDeviceConfig,
+	extractModbusDeviceConfig,
 	type ModbusDeviceConn,
 	type ModbusIntegrationZone,
 	type ToggleModbusSnapshotApplyResult,
@@ -67,6 +67,21 @@ export type CreateToggleModbusIntegrationConfig<
 	resolveInlineDeviceConfig?: (location: TLocation) => ModbusDeviceConn | null
 	buildExtraReturns?: (ctx: {
 		locationStatuses: Ref<Record<string, TLocationStatus>>
+		locationToggling: Ref<Set<string>>
+		writeHoldingRegister: (
+			address: number,
+			value: number,
+			deviceConfig: ModbusDeviceConfig
+		) => Promise<{ address: number; value: number; success: boolean }>
+		getLocationDeviceConfig: (location: TLocation) => Promise<ModbusDeviceConn | null>
+		findLocationByUiKey: (
+			uiKey: string,
+			requireDbId?: boolean
+		) => { location: TLocation } | null | undefined
+		setSnapshotHold: (uiKey: string) => void
+		clearSnapshotHold: (uiKey: string) => void
+		loadAllLocationStatuses: (options?: { force?: boolean }) => Promise<void>
+		ensureStatus: (uiKey: string) => TLocationStatus
 	}) => Record<string, unknown>
 	/** 為 false 時 zones 變更不觸發 preload／status 請求（全區點位聚合快照用） */
 	shouldFetchOnZonesChange?: () => boolean
@@ -151,6 +166,28 @@ export const createToggleModbusIntegration = <
 		})
 	}
 
+	const writeHoldingRegister = async (
+		address: number,
+		value: number,
+		deviceConfig: ModbusDeviceConfig
+	) => {
+		const queryParams = new URLSearchParams({
+			host: deviceConfig.host,
+			port: String(deviceConfig.port),
+			unitId: String(deviceConfig.unitId),
+			controlScope,
+		})
+		return request<{
+			address: number
+			value: number
+			success: boolean
+			device: ModbusDeviceConfig
+		}>(`/modbus/holding-registers?${queryParams.toString()}`, {
+			method: "PUT",
+			body: JSON.stringify({ address, value }),
+		})
+	}
+
 	const getLocationDeviceConfig = async (location: TLocation): Promise<ModbusDeviceConn | null> => {
 		const modbus = location.modbus as
 			| ({ host?: string; port?: number; unitId?: number } & Record<string, unknown>)
@@ -177,7 +214,7 @@ export const createToggleModbusIntegration = <
 
 		const device = await loadDeviceInfo(effectiveDeviceId)
 		if (!device) return null
-		return deviceConfigCache.value.get(effectiveDeviceId) || extractControllerDeviceConfig(device)
+		return deviceConfigCache.value.get(effectiveDeviceId) || extractModbusDeviceConfig(device)
 	}
 
 	const applyBackendSnapshotItems = (items: TSnapshotItem[]) => {
@@ -358,6 +395,16 @@ export const createToggleModbusIntegration = <
 		startSnapshotSync,
 		stopSnapshotSync,
 		handleVisibilityChange,
-		...(buildExtraReturns?.({ locationStatuses }) ?? {}),
+		...(buildExtraReturns?.({
+			locationStatuses,
+			locationToggling,
+			writeHoldingRegister,
+			getLocationDeviceConfig,
+			findLocationByUiKey,
+			setSnapshotHold,
+			clearSnapshotHold,
+			loadAllLocationStatuses,
+			ensureStatus,
+		}) ?? {}),
 	}
 }

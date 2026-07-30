@@ -25,7 +25,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 import { elevatorLedFloorTextClass } from "~/utils/elevatorDisplayUtils"
-import { ELEVATOR_FLOOR_STEP_MS } from "~/utils/elevatorFloorModel"
+import { ELEVATOR_FLOOR_STEP_MS } from "~/utils/realtimeTiming"
 
 interface Props {
 	floorText: string

@@ -30,6 +30,7 @@
 						:all-locations="getLocations(zone)"
 						:current-index="locationIndex"
 						:devices="devices"
+						:sensor-devices="sensorDevices"
 						:is-loading-devices="isLoadingDevices"
 						@update="handleLocationUpdate(locationIndex, $event)"
 					/>
@@ -86,6 +87,7 @@ import PermissionActionButton from "~/components/common/PermissionActionButton.v
 interface Props {
 	zone: HvacZone
 	devices: Device[]
+	sensorDevices?: Device[]
 	isLoadingDevices: boolean
 	deviceHint?: string
 	reorderableLocations?: boolean
@@ -105,6 +107,7 @@ const props = withDefaults(defineProps<Props>(), {
 	allowDeleteLocation: true,
 	deviceHint: "請先在「設備管理」中建立控制器設備",
 	reorderableLocations: false,
+	sensorDevices: () => [],
 })
 
 const emit = defineEmits<Emits>()

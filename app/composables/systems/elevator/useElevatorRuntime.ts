@@ -9,10 +9,10 @@ import type { ElevatorDirection, ElevatorLiveState, ElevatorLogicalFloor } from 
 import { formatElevatorLiveFloorText } from "~/utils/elevatorDisplayUtils"
 import {
 	buildRankStepPath,
-	ELEVATOR_FLOOR_STEP_MS,
 	floorSnapshotFromRank,
 	type ElevatorFloorSnapshot,
 } from "~/utils/elevatorFloorModel"
+import { ELEVATOR_FLOOR_STEP_MS } from "~/utils/realtimeTiming"
 
 type UseElevatorRuntimeOptions = {
 	floors?: MaybeRefOrGetter<ElevatorLogicalFloor[] | undefined>

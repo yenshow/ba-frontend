@@ -44,6 +44,17 @@ export const extractControllerDeviceConfig = (device: Device): ModbusDeviceConn 
 	return { host: String(config.host), port: Number(config.port), unitId: Number(config.unitId) }
 }
 
+/** 任意具 host/port/unitId 的 Modbus 設備（controller 或 sensor） */
+export const extractModbusDeviceConfig = (device: Device): ModbusDeviceConn | null => {
+	const config = (device.config || {}) as Record<string, unknown>
+	if (!config.host || config.port === undefined || config.unitId === undefined) return null
+	return {
+		host: String(config.host),
+		port: Number(config.port),
+		unitId: Number(config.unitId),
+	}
+}
+
 export const useModbusIntegrationDeviceCache = () => {
 	const deviceApi = useDeviceApi()
 	const { handleError } = useErrorHandler()
@@ -56,7 +67,7 @@ export const useModbusIntegrationDeviceCache = () => {
 			const result = await deviceApi.getDevice(deviceId)
 			const device = result.device
 			deviceCache.value.set(deviceId, device)
-			const cfg = extractControllerDeviceConfig(device)
+			const cfg = extractModbusDeviceConfig(device)
 			if (cfg) deviceConfigCache.value.set(deviceId, cfg)
 			return device
 		} catch (error) {

@@ -132,6 +132,16 @@ export interface ModbusStatusPointDef {
 	length?: number;
 	/** 若省略則使用地點層級的 deviceId */
 	deviceId?: number;
+	/**
+	 * 風速等離散 AO：寫入／顯示用的列舉值（例 `[1,2,3,4]` 或 `[0,33,66,100]`）。
+	 * 省略時 UI 預設 `[1,2,3,4]`。
+	 */
+	levels?: number[];
+	/**
+	 * 顯示倍率：display = raw * scale（預設 1；例 0.1 表示 raw 260 → 26.0°C）。
+	 * 寫入時 raw = round(display / scale)。
+	 */
+	scale?: number;
 }
 
 /**

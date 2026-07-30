@@ -42,6 +42,8 @@
 					:can-toggle="canControlDevice"
 					:selected-zone="selectedZone"
 					@toggle="handleLocationToggle"
+					@set-temperature="handleSetTemperature"
+					@set-fan-speed="handleSetFanSpeed"
 					@zone-selected="handleZoneSelected"
 				/>
 			</aside>
@@ -137,10 +139,12 @@ const {
 	preloadDeviceInfos,
 	loadAllLocationStatuses,
 	handleLocationToggle,
+	handleSetTemperature,
+	handleSetFanSpeed,
 	startSnapshotSync,
 	stopSnapshotSync,
 	handleVisibilityChange,
-} = useHvacModbusIntegration(hvacZones)
+} = useHvacModbusIntegration(hvacZones) as any
 
 const snapshotSync = useVisibilitySnapshotSync({
 	start: startSnapshotSync,
@@ -165,10 +169,9 @@ const tooltipTitleByLocationId = (locationId: string) => {
 	const s = locationStatuses.value[locationId]
 	// HVAC 對外僅有 normal / warning（alarm 視為 warning）
 	const label = s?.uiStatus === "normal" ? "正常" : "異常"
+	const t = s?.temperatureC
 	const temp =
-		s?.temperatureC != null && Number.isFinite(s.temperatureC)
-			? ` ${Math.round(s.temperatureC)}°C`
-			: ""
+		t != null && Number.isFinite(t) && t >= -20 && t <= 60 ? ` 目前 ${Math.round(t)}°C` : ""
 	const found = findLocationInCurrentZoneByUiKey(locationId)
 	const name = found?.location?.name || ""
 	return `${name}（${label}）${temp}`

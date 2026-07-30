@@ -8,7 +8,7 @@ import {
 	extractWritePoints,
 } from "~/utils/modbusPoints"
 import { findLocationInZonesByUiKey, getLocationUiKey } from "~/utils/locationUiId"
-import type { MapDotStatus, SystemUiStatus } from "~/utils/monitoringStatus"
+import type { SystemUiStatus } from "~/utils/monitoringStatus"
 import { createToggleModbusIntegration } from "~/composables/monitoring/modbus/createToggleModbusIntegration"
 import {
 	applyToggleSnapshotWithBooleanHold,
@@ -18,6 +18,8 @@ import {
 import { normalizeOptionalDeviceId } from "~/utils/deviceIdUtils"
 import { useLightingApi } from "~/composables/systems/lighting/useLightingApi"
 import { useHvacApi } from "~/composables/systems/hvac/useHvacApi"
+import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { TOGGLE_ROUNDTRIP_DELAY_MS } from "~/utils/realtimeTiming"
 
 type LightingLocationStatus = {
 	isRunning: boolean
@@ -144,11 +146,20 @@ type HvacLocationStatus = {
 	fanSpeed: number | null
 }
 
+const emptyHvacStatus = (): HvacLocationStatus => ({
+	isOn: false,
+	uiStatus: "warning",
+	temperatureC: null,
+	setpointC: null,
+	fanSpeed: null,
+})
+
 export const useHvacModbusIntegration = (
 	hvacZones: Ref<HvacZone[]>,
 	options?: { shouldFetchOnZonesChange?: () => boolean }
 ) => {
 	const hvacApi = useHvacApi()
+	const { handleError } = useErrorHandler()
 
 	return createToggleModbusIntegration<HvacLocation, HvacZone, HvacSnapshotItem, HvacLocationStatus>({
 		loadErrorLabel: "載入空調狀態失敗",
@@ -161,15 +172,7 @@ export const useHvacModbusIntegration = (
 		findLocationByUiKey: (uiKey, requireDbId) =>
 			findLocationInZonesByUiKey<HvacLocation, HvacZone>(hvacZones.value, uiKey, { requireDbId }),
 		ensureLocationStatus: (uiKey, store) => {
-			if (!store.value[uiKey]) {
-				store.value[uiKey] = {
-					isOn: false,
-					uiStatus: "warning",
-					temperatureC: null,
-					setpointC: null,
-					fanSpeed: null,
-				}
-			}
+			if (!store.value[uiKey]) store.value[uiKey] = emptyHvacStatus()
 			return store.value[uiKey]!
 		},
 		applySnapshotItem: ({ status, item, uiKey, now, holdUntil, clearHold }) => {
@@ -186,9 +189,12 @@ export const useHvacModbusIntegration = (
 				},
 				nextBoolean: Boolean(item.raw?.isOn),
 			})
+			// 偵測溫度唯讀，一律更新；AO 在寫入 hold 期間保留樂觀值（即使 isOn 吻合已 clearHold）
 			status.temperatureC = coerceToggleSnapshotNumber(item.raw?.temperatureC)
-			status.setpointC = coerceToggleSnapshotNumber(item.raw?.setpointC)
-			status.fanSpeed = coerceToggleSnapshotNumber(item.raw?.fanSpeed)
+			if (holdUntil <= now) {
+				status.setpointC = coerceToggleSnapshotNumber(item.raw?.setpointC)
+				status.fanSpeed = coerceToggleSnapshotNumber(item.raw?.fanSpeed)
+			}
 			return holdResult
 		},
 		buildDisabledMap: (toggling) => {
@@ -215,25 +221,103 @@ export const useHvacModbusIntegration = (
 			for (const zone of hvacZones.value) {
 				zone.locations.forEach((loc, idx) => {
 					const id = getLocationUiKey({ zone, location: loc, locationIndex: idx })
-					if (!store.value[id]) {
-						store.value[id] = {
-							isOn: false,
-							uiStatus: "warning",
-							temperatureC: null,
-							setpointC: null,
-							fanSpeed: null,
-						}
-					}
+					if (!store.value[id]) store.value[id] = emptyHvacStatus()
 				})
 			}
 		},
-		buildExtraReturns: ({ locationStatuses }) => ({
-			dotStatusForLocation: (locationUiKey: string): MapDotStatus => {
-				const s = locationStatuses.value[locationUiKey]
-				if (!s) return "warning"
-				return s.uiStatus
-			},
-		}),
+		buildExtraReturns: ({
+			locationToggling,
+			writeHoldingRegister,
+			getLocationDeviceConfig,
+			findLocationByUiKey,
+			setSnapshotHold,
+			clearSnapshotHold,
+			loadAllLocationStatuses,
+			ensureStatus,
+		}) => {
+			const toWriteRaw = (displayValue: number, scale?: number): number => {
+				const s = scale != null && Number.isFinite(scale) && scale !== 0 ? scale : 1
+				return Math.round(displayValue / s)
+			}
+
+			const resolvePointDeviceConfig = async (
+				location: HvacLocation,
+				point: { deviceId?: number } | undefined
+			) => {
+				const overrideId = normalizeOptionalDeviceId(point?.deviceId)
+				if (overrideId) {
+					// getLocationDeviceConfig 以 location.deviceId 為主；覆寫時暫時借 location 形狀
+					return getLocationDeviceConfig({ ...location, deviceId: overrideId })
+				}
+				return getLocationDeviceConfig(location)
+			}
+
+			const executeAnalogWrite = async (
+				locationUiKey: string,
+				pointKey: "setpointC" | "fanSpeed",
+				displayValue: number
+			) => {
+				const found = findLocationByUiKey(locationUiKey, true)
+				if (!found) return
+				const { location } = found
+				const point = location.statusPoints?.[pointKey]
+				if (!point || point.registerType !== "holding") return
+				if (locationToggling.value.has(locationUiKey)) return
+
+				locationToggling.value.add(locationUiKey)
+				setSnapshotHold(locationUiKey)
+				const status = ensureStatus(locationUiKey)
+				const previous = status[pointKey]
+				status[pointKey] = displayValue
+
+				const rollback = () => {
+					status[pointKey] = previous
+					clearSnapshotHold(locationUiKey)
+					locationToggling.value.delete(locationUiKey)
+				}
+
+				try {
+					const deviceConfig = await resolvePointDeviceConfig(location, point)
+					if (!deviceConfig) {
+						rollback()
+						return
+					}
+					const raw = toWriteRaw(displayValue, point.scale)
+					if (!Number.isInteger(raw) || raw < 0 || raw > 65535) {
+						rollback()
+						return
+					}
+					await writeHoldingRegister(point.address, raw, deviceConfig)
+					setTimeout(async () => {
+						try {
+							await loadAllLocationStatuses({ force: true })
+						} finally {
+							locationToggling.value.delete(locationUiKey)
+						}
+					}, TOGGLE_ROUNDTRIP_DELAY_MS)
+				} catch (error) {
+					rollback()
+					throw error
+				}
+			}
+
+			return {
+				handleSetTemperature: async (locationUiKey: string, nextSetpointC: number) => {
+					try {
+						await executeAnalogWrite(locationUiKey, "setpointC", nextSetpointC)
+					} catch (error) {
+						handleError(error, "設定溫度失敗")
+					}
+				},
+				handleSetFanSpeed: async (locationUiKey: string, nextFanSpeed: number) => {
+					try {
+						await executeAnalogWrite(locationUiKey, "fanSpeed", nextFanSpeed)
+					} catch (error) {
+						handleError(error, "設定風速失敗")
+					}
+				},
+			}
+		},
 		shouldFetchOnZonesChange: options?.shouldFetchOnZonesChange,
 	})
 }

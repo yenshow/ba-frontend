@@ -136,6 +136,7 @@
 														v-bind="drainageLikeProps"
 														:zone="zone"
 														:devices="devices"
+														:sensor-devices="sensorDevices"
 														:is-loading-devices="isLoadingDevices"
 														:device-hint="deviceHint"
 														:person-groups="personGroups"
@@ -408,6 +409,7 @@ const doors = ref<
 >([])
 const accessControlDevices = ref<Device[]>([])
 const isapiCameraDevices = ref<Device[]>([])
+const sensorDevices = ref<Device[]>([])
 const vehicleCustomGroups = ref<Array<{ id: number; list_name: string }>>([])
 const vehicleAccessApi = useVehicleAccessApi()
 
@@ -545,11 +547,33 @@ const loadIsapiCameraDevices = async () => {
 	}
 }
 
+const loadHvacSensorDevices = async () => {
+	if (props.systemType !== "hvac") {
+		sensorDevices.value = []
+		return
+	}
+	try {
+		const result = await deviceApi.getDevices({
+			type_code: "sensor",
+			limit: 100,
+		})
+		sensorDevices.value = result.devices || []
+	} catch (error) {
+		logger.error("載入感測器列表失敗:", error)
+		sensorDevices.value = []
+	}
+}
+
 watch(
 	() => props.modelValue,
 	async (newValue) => {
 		if (newValue) {
 			loadDevices()
+			if (props.systemType === "hvac") {
+				loadHvacSensorDevices()
+			} else {
+				sensorDevices.value = []
+			}
 			if (props.systemType === "people_counting") {
 				await ensureModuleRegistryLoaded()
 				if (enableYscpPeopleCounting.value) {

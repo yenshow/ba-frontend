@@ -54,8 +54,8 @@
 								getLocationCardBlinkClass(row.locationId),
 							]"
 						>
-							<!-- 左：圖示 + 目前溫度 -->
-							<div class="flex flex-col items-center">
+							<!-- 左：圖示 + 偵測溫度（AI 唯讀） -->
+							<div class="flex flex-col items-center gap-0.5">
 								<NuxtImg
 									src="/hvac/air-conditioner.png"
 									alt="空調圖示"
@@ -155,7 +155,7 @@
 									<div
 										class="flex w-20 flex-col items-center justify-between gap-1 rounded-lg border border-white bg-white/10 py-1.5"
 									>
-										<span class="text-sm tracking-[3px] text-white 2xl:text-base">溫度</span>
+										<span class="text-sm tracking-[3px] text-white 2xl:text-base">設定</span>
 										<div class="flex items-center">
 											<button
 												type="button"
@@ -205,10 +205,10 @@
 										<div class="flex items-center">
 											<button
 												type="button"
-												:class="stepBtnClass(canStepFanSpeed(row.locationId, -1))"
-												:disabled="!canStepFanSpeed(row.locationId, -1)"
+												:class="stepBtnClass(canStepFanSpeed(row.locationId, row.location, -1))"
+												:disabled="!canStepFanSpeed(row.locationId, row.location, -1)"
 												aria-label="降低風速"
-												@click="handleFanSpeedStep(row.locationId, -1)"
+												@click="handleFanSpeedStep(row.locationId, row.location, -1)"
 											>
 												<svg
 													class="h-9 w-9"
@@ -221,10 +221,10 @@
 											</button>
 											<button
 												type="button"
-												:class="stepBtnClass(canStepFanSpeed(row.locationId, 1))"
-												:disabled="!canStepFanSpeed(row.locationId, 1)"
+												:class="stepBtnClass(canStepFanSpeed(row.locationId, row.location, 1))"
+												:disabled="!canStepFanSpeed(row.locationId, row.location, 1)"
 												aria-label="提高風速"
-												@click="handleFanSpeedStep(row.locationId, 1)"
+												@click="handleFanSpeedStep(row.locationId, row.location, 1)"
 											>
 												<svg
 													class="h-9 w-9"
@@ -239,16 +239,20 @@
 										<div
 											class="flex h-5 items-end gap-[3px] 2xl:h-6"
 											role="img"
-											:aria-label="`風速 ${getFanSpeedLabel(row.locationId)}`"
+											:aria-label="`風速 ${getFanSpeedLabel(row.locationId, row.location)}`"
 										>
 											<span
-												v-for="level in FAN_SPEED_MAX"
-												:key="level"
+												v-for="(levelValue, levelIdx) in getFanLevels(row.location)"
+												:key="`${levelIdx}-${levelValue}`"
 												class="w-1 rounded-sm 2xl:w-1.5"
 												:class="
-													level <= getEffectiveFanSpeed(row.locationId) ? 'bg-white' : 'bg-white/25'
+													levelIdx <= getFanLevelIndex(row.locationId, row.location)
+														? 'bg-white'
+														: 'bg-white/25'
 												"
-												:style="{ height: `${(level / FAN_SPEED_MAX) * 100}%` }"
+												:style="{
+													height: `${((levelIdx + 1) / getFanLevels(row.location).length) * 100}%`,
+												}"
 											></span>
 										</div>
 									</div>
@@ -302,14 +306,15 @@ const emit = defineEmits<{
 	"zone-selected": [zoneId: string]
 }>()
 
-// 設定溫度／風速範圍（AO 寫入契約定案前的 UI 預設值）
+// 設定溫度範圍（表單暫不暴露 min/max）；風速依 statusPoints.fanSpeed.levels
 const SETPOINT_MIN_C = 16
 const SETPOINT_MAX_C = 30
 const SETPOINT_STEP_C = 1
 const SETPOINT_DEFAULT_C = 26
-const FAN_SPEED_MIN = 1
-const FAN_SPEED_MAX = 4
-const FAN_SPEED_DEFAULT = 1
+/** 偵測溫度合理顯示範圍；超出視為無效讀值（錯點／未初始化） */
+const SENSE_TEMP_MIN_C = -20
+const SENSE_TEMP_MAX_C = 60
+const DEFAULT_FAN_LEVELS = [1, 2, 3, 4]
 
 const TRIANGLE_MINUS_PATH =
 	"M19 4.8a1 1 0 0 0-1.5-.87L4.4 11.13a1 1 0 0 0 0 1.74l13.1 7.2a1 1 0 0 0 1.5-.87zM9.5 11h7v2h-7z"
@@ -399,9 +404,13 @@ const getLocationStatus = (locationId: string) => {
 	const s = props.areaStatuses[locationId]
 	// 對外僅兩態：normal / warning（alarm 視為 warning）
 	const uiStatus: HvacUiStatus = s?.uiStatus === "alarm" ? "warning" : (s?.uiStatus ?? "warning")
+	const rawTemp = s?.temperatureC
 	const temperatureLabel =
-		s?.temperatureC != null && Number.isFinite(s.temperatureC)
-			? `${Math.round(s.temperatureC)}°C`
+		rawTemp != null &&
+		Number.isFinite(rawTemp) &&
+		rawTemp >= SENSE_TEMP_MIN_C &&
+		rawTemp <= SENSE_TEMP_MAX_C
+			? `${Math.round(rawTemp)}°C`
 			: ""
 	return {
 		isOn: !!s?.isOn,
@@ -417,6 +426,15 @@ const getEffectiveIsOn = (locationId: string) => {
 	return getLocationStatus(locationId).isOn
 }
 
+const getFanLevels = (location: HvacLocation): number[] => {
+	const levels = location.statusPoints?.fanSpeed?.levels
+	if (Array.isArray(levels) && levels.length > 0) {
+		const nums = levels.filter((n) => Number.isFinite(n))
+		if (nums.length > 0) return nums
+	}
+	return DEFAULT_FAN_LEVELS
+}
+
 const getSnapshotSetpoint = (locationId: string): number | null => {
 	const v = props.areaStatuses[locationId]?.setpointC
 	return v != null && Number.isFinite(v) ? Math.round(v) : null
@@ -427,42 +445,85 @@ const getSnapshotFanSpeed = (locationId: string): number | null => {
 	return v != null && Number.isFinite(v) ? Math.round(v) : null
 }
 
-const getEffectiveSetpoint = (locationId: string): number =>
-	localSetpoints.value[locationId] ?? getSnapshotSetpoint(locationId) ?? SETPOINT_DEFAULT_C
+/** 快照若為 0／超出 16–30（未寫入的 holding 常見），以預設 26°C 作為可調基準 */
+const normalizeSetpointForUi = (value: number | null): number => {
+	if (value == null || !Number.isFinite(value)) return SETPOINT_DEFAULT_C
+	if (value < SETPOINT_MIN_C || value > SETPOINT_MAX_C) return SETPOINT_DEFAULT_C
+	return value
+}
 
-const getEffectiveFanSpeed = (locationId: string): number =>
-	localFanSpeeds.value[locationId] ?? getSnapshotFanSpeed(locationId) ?? FAN_SPEED_DEFAULT
+const getEffectiveSetpoint = (locationId: string): number =>
+	normalizeSetpointForUi(localSetpoints.value[locationId] ?? getSnapshotSetpoint(locationId))
+
+const clampSetpoint = (value: number): number =>
+	Math.min(SETPOINT_MAX_C, Math.max(SETPOINT_MIN_C, value))
+
+const getEffectiveFanSpeed = (locationId: string, location: HvacLocation): number => {
+	const levels = getFanLevels(location)
+	const fallback = levels[0] ?? 1
+	const raw = localFanSpeeds.value[locationId] ?? getSnapshotFanSpeed(locationId)
+	if (raw == null) return fallback
+	let best = levels[0]!
+	let bestDist = Math.abs(best - raw)
+	for (const lv of levels) {
+		const d = Math.abs(lv - raw)
+		if (d < bestDist) {
+			best = lv
+			bestDist = d
+		}
+	}
+	return best
+}
+
+const getFanLevelIndex = (locationId: string, location: HvacLocation): number => {
+	const levels = getFanLevels(location)
+	const value = getEffectiveFanSpeed(locationId, location)
+	const idx = levels.indexOf(value)
+	return idx >= 0 ? idx : 0
+}
 
 const getSetpointLabel = (locationId: string): string => `${getEffectiveSetpoint(locationId)}°C`
 
-const getFanSpeedLabel = (locationId: string): string =>
-	`${getEffectiveFanSpeed(locationId)} / ${FAN_SPEED_MAX} 段`
+const getFanSpeedLabel = (locationId: string, location: HvacLocation): string => {
+	const levels = getFanLevels(location)
+	const idx = getFanLevelIndex(locationId, location)
+	return `${idx + 1} / ${levels.length} 段`
+}
 
 const canAdjust = (locationId: string): boolean =>
 	props.canToggle && getEffectiveIsOn(locationId) && !props.areaToggling.has(locationId)
 
 const canStepSetpoint = (locationId: string, direction: 1 | -1): boolean => {
 	if (!canAdjust(locationId)) return false
-	const next = getEffectiveSetpoint(locationId) + direction * SETPOINT_STEP_C
-	return next >= SETPOINT_MIN_C && next <= SETPOINT_MAX_C
+	const current = getEffectiveSetpoint(locationId)
+	if (direction > 0) return current < SETPOINT_MAX_C
+	return current > SETPOINT_MIN_C
 }
 
-const canStepFanSpeed = (locationId: string, direction: 1 | -1): boolean => {
+const canStepFanSpeed = (
+	locationId: string,
+	location: HvacLocation,
+	direction: 1 | -1
+): boolean => {
 	if (!canAdjust(locationId)) return false
-	const next = getEffectiveFanSpeed(locationId) + direction
-	return next >= FAN_SPEED_MIN && next <= FAN_SPEED_MAX
+	const levels = getFanLevels(location)
+	const idx = getFanLevelIndex(locationId, location)
+	const nextIdx = idx + direction
+	return nextIdx >= 0 && nextIdx < levels.length
 }
 
 const handleSetpointStep = (locationId: string, direction: 1 | -1) => {
 	if (!canStepSetpoint(locationId, direction)) return
-	const next = getEffectiveSetpoint(locationId) + direction * SETPOINT_STEP_C
+	const next = clampSetpoint(getEffectiveSetpoint(locationId) + direction * SETPOINT_STEP_C)
 	localSetpoints.value = { ...localSetpoints.value, [locationId]: next }
 	emit("set-temperature", locationId, next)
 }
 
-const handleFanSpeedStep = (locationId: string, direction: 1 | -1) => {
-	if (!canStepFanSpeed(locationId, direction)) return
-	const next = getEffectiveFanSpeed(locationId) + direction
+const handleFanSpeedStep = (locationId: string, location: HvacLocation, direction: 1 | -1) => {
+	if (!canStepFanSpeed(locationId, location, direction)) return
+	const levels = getFanLevels(location)
+	const nextIdx = getFanLevelIndex(locationId, location) + direction
+	const next = levels[nextIdx]!
 	localFanSpeeds.value = { ...localFanSpeeds.value, [locationId]: next }
 	emit("set-fan-speed", locationId, next)
 }
