@@ -18,7 +18,7 @@ import type {
 } from "~/types/vehicleAccess";
 import {
 	useVehicleAccessApi,
-	VEHICLE_ACCESS_FULL_REPORT_LIMIT,
+	VEHICLE_ACCESS_FULL_REPORT_LIMIT
 } from "~/composables/systems/vehicleAccess/useVehicleAccessApi";
 import { buildLogsTimeQuery } from "~/utils/entryExitTimeRange";
 import type { VehicleAccessDataSource } from "~/types/vehicleAccess";
@@ -31,7 +31,7 @@ import {
 	createVehicleDirectionResolver,
 	normalizePlate,
 	parseVehicleAccessEventLocationIds,
-	releasedLogs as releasedPassageLogs,
+	releasedLogs as releasedPassageLogs
 } from "~/utils/vehicleAccessPassageStats";
 import type { UnifiedZone } from "~/types/location";
 import { compareZonesLoose } from "~/utils/sortOrder";
@@ -113,7 +113,7 @@ export const useVehicleAccessState = () => {
 	const { enableYscpVehicleAccess } = useModuleRegistry();
 	const { useWsModuleGate } = useAccessGate();
 	const canSubscribe = useWsModuleGate("vehicle_access", {
-		permissionCode: PERM.vehicleAccess.module,
+		permissionCode: PERM.vehicleAccess.module
 	});
 
 	const filters = ref<VehicleAccessFilters>(getDefaultFilters());
@@ -130,9 +130,7 @@ export const useVehicleAccessState = () => {
 
 	const vehicleGroupsFromApi = ref<VehicleGroupFromApi>({ groups: [] });
 	/** ISAPI 人員群組：依 siteId 快取，供總覽各卡片與主畫面分別對應 */
-	const isapiOrganizationGroupsBySiteId = ref(
-		new Map<number, IsapiOrganizationGroupFromApi[]>()
-	);
+	const isapiOrganizationGroupsBySiteId = ref(new Map<number, IsapiOrganizationGroupFromApi[]>());
 	const selectedOrganizationKey = ref<string | null>(null);
 	const isLoadingVehicleGroups = ref(false);
 	const isLoadingZones = ref(false);
@@ -142,8 +140,12 @@ export const useVehicleAccessState = () => {
 		[...vehicleAccessZones.value]
 			.sort((a, b) => compareZonesLoose(a, b))
 			.flatMap(zone =>
-				(zone.locations || [])
-					.map(loc => ({ ...loc, zoneId: zone.id, zoneName: zone.name, locationId: loc.id }))
+				(zone.locations || []).map(loc => ({
+					...loc,
+					zoneId: zone.id,
+					zoneName: zone.name,
+					locationId: loc.id
+				}))
 			)
 	);
 
@@ -184,7 +186,9 @@ export const useVehicleAccessState = () => {
 		isapiOrganizationGroupsBySiteId.value = next;
 	};
 
-	const getIsapiOrganizationGroupsForSite = (siteId: number | null): IsapiOrganizationGroupFromApi[] =>
+	const getIsapiOrganizationGroupsForSite = (
+		siteId: number | null
+	): IsapiOrganizationGroupFromApi[] =>
 		siteId == null ? [] : (isapiOrganizationGroupsBySiteId.value.get(siteId) ?? []);
 
 	const toIsapiOrganizationGroupItems = (
@@ -257,13 +261,12 @@ export const useVehicleAccessState = () => {
 
 	/** 地點管理儲存／刪除後：補上 filter 選中，讓詳情區立即顯示 */
 	const ensureFilterLocation = (
-		resolveCanonicalId: (loc: VehicleAccessLocation & { zoneName?: string }) => string,
+		resolveCanonicalId: (loc: VehicleAccessLocation & { zoneName?: string }) => string
 	): void => {
 		const currentId = filters.value.locationId;
 		if (currentId) {
 			const stillExists = locations.value.some(
-				(loc) =>
-					resolveCanonicalId(loc as VehicleAccessLocation & { zoneName?: string }) === currentId,
+				loc => resolveCanonicalId(loc as VehicleAccessLocation & { zoneName?: string }) === currentId
 			);
 			if (stillExists) return;
 		}
@@ -273,12 +276,12 @@ export const useVehicleAccessState = () => {
 			...filters.value,
 			locationId: first
 				? resolveCanonicalId(first as VehicleAccessLocation & { zoneName?: string })
-				: null,
+				: null
 		};
 	};
 
 	const refreshAfterZoneChange = async (
-		resolveCanonicalId: (loc: VehicleAccessLocation & { zoneName?: string }) => string,
+		resolveCanonicalId: (loc: VehicleAccessLocation & { zoneName?: string }) => string
 	): Promise<void> => {
 		await reloadZonesAndOverview();
 		ensureFilterLocation(resolveCanonicalId);
@@ -295,8 +298,7 @@ export const useVehicleAccessState = () => {
 			return;
 		}
 		try {
-			const timeQuery =
-				isIsapiCamera.value && isParkingMode.value ? {} : TODAY_TIME;
+			const timeQuery = isIsapiCamera.value && isParkingMode.value ? {} : TODAY_TIME;
 			const result = await vehicleAccessApi.getSiteLogs(siteId, {
 				limit: VEHICLE_ACCESS_FULL_REPORT_LIMIT,
 				...timeQuery
@@ -333,9 +335,8 @@ export const useVehicleAccessState = () => {
 				const session = await vehicleAccessApi.getSiteSessionStats(siteId);
 				entryCount.value = session.entryCount;
 				exitCount.value = session.exitCount;
-				const presence = await vehicleAccessApi.getSitePresence(siteId);
-				onSiteCount.value = presence.currentCount;
-				onSiteCapacity.value = presence.capacity;
+				onSiteCount.value = session.currentCount ?? 0;
+				onSiteCapacity.value = session.capacity ?? null;
 			} else {
 				const stats = await vehicleAccessApi.getSiteStats(siteId, TODAY_TIME);
 				entryCount.value = stats.entryCount;
@@ -439,9 +440,7 @@ export const useVehicleAccessState = () => {
 
 		const siteId = resolveSiteId(selected);
 		const locId = Number(selected.id ?? selected.locationId);
-		return eventLocationIds.some(
-			id => id === locId || (siteId != null && id === siteId)
-		);
+		return eventLocationIds.some(id => id === locId || (siteId != null && id === siteId));
 	};
 
 	const getLocationZone = (location: VehicleAccessLocation & { zoneName?: string }): string | null =>
@@ -461,9 +460,7 @@ export const useVehicleAccessState = () => {
 		const siteId = resolveSiteId(loc);
 		const direction = createVehicleDirectionResolver(loc.entryLaneId, loc.exitLaneId);
 		const hasLogsForSite = siteId != null && siteId === todayPassageSiteId.value;
-		const logList = hasLogsForSite
-			? releasedPassageLogs(todayPassageLogs.value, direction)
-			: [];
+		const logList = hasLogsForSite ? releasedPassageLogs(todayPassageLogs.value, direction) : [];
 		const vehicleGroupFilter = toOptionalIdSet(loc.vehicleGroupIds);
 		return (vehicleGroupsFromApi.value.groups ?? [])
 			.filter(g => (g.id ?? 0) !== 0)
@@ -515,7 +512,9 @@ export const useVehicleAccessState = () => {
 		const key = selectedOrganizationKey.value;
 		const match = key?.match(/^vg_(\d+)$/);
 		if (!match) return [];
-		const group = (vehicleGroupsFromApi.value.groups ?? []).find(g => (g.id ?? 0) === Number(match[1]));
+		const group = (vehicleGroupsFromApi.value.groups ?? []).find(
+			g => (g.id ?? 0) === Number(match[1])
+		);
 		if (!group?.vehicles?.length) return [];
 
 		const plates = new Set(group.vehicles.map(v => normalizePlate(v.plate_license)).filter(Boolean));
@@ -598,11 +597,7 @@ export const useVehicleAccessState = () => {
 	const loadLocationDetail = async (): Promise<void> => {
 		if (!filters.value.locationId) return;
 		try {
-			await Promise.all([
-				loadEntryExitOnSiteCounts(),
-				loadOrganizationData(),
-				loadLogs(),
-			]);
+			await Promise.all([loadEntryExitOnSiteCounts(), loadOrganizationData(), loadLogs()]);
 		} catch {
 			// 錯誤已在各 loader 處理
 		}
@@ -610,37 +605,34 @@ export const useVehicleAccessState = () => {
 
 	/** WS 事件後輕量刷新：統計與過車表，不重拉群組資料 */
 	const refreshSelectedLocationLive = async (): Promise<void> => {
-		if (!filters.value.locationId) return
-		await Promise.all([loadEntryExitOnSiteCounts(), loadLogs()])
-	}
+		if (!filters.value.locationId) return;
+		await Promise.all([loadEntryExitOnSiteCounts(), loadLogs()]);
+	};
 
 	/** WS 增量：更新人員／車輛群組在場統計（ISAPI 拉 API；YSCP 刷新當日 log 後由 computed 重算） */
 	const refreshOrganizationGroupsLive = async (): Promise<void> => {
-		if (!filters.value.locationId || !selectedLocation.value) return
+		if (!filters.value.locationId || !selectedLocation.value) return;
 		try {
 			if (isIsapiCamera.value) {
 				const siteId = resolveSiteId(selectedLocation.value);
 				if (siteId != null) await loadIsapiOrganizationGroupsForSites([siteId]);
 				return;
 			}
-			await loadTodayPassageLogs(true)
+			await loadTodayPassageLogs(true);
 		} catch (error) {
-			handleError(error, isIsapiCamera.value ? "更新人員群組失敗" : "更新車輛群組統計失敗")
+			handleError(error, isIsapiCamera.value ? "更新人員群組失敗" : "更新車輛群組統計失敗");
 		}
-	}
+	};
 
 	const handleVehicleAccessWsRefetch = async (payload?: unknown): Promise<void> => {
-		const eventLocationIds = parseVehicleAccessEventLocationIds(payload)
-		await patchOverviewSummaries(eventLocationIds)
+		const eventLocationIds = parseVehicleAccessEventLocationIds(payload);
+		await patchOverviewSummaries(eventLocationIds);
 
-		if (!filters.value.locationId) return
-		if (!eventAffectsSelectedSite(payload)) return
+		if (!filters.value.locationId) return;
+		if (!eventAffectsSelectedSite(payload)) return;
 
-		await Promise.all([
-			refreshSelectedLocationLive(),
-			refreshOrganizationGroupsLive()
-		])
-	}
+		await Promise.all([refreshSelectedLocationLive(), refreshOrganizationGroupsLive()]);
+	};
 
 	const setupEventListeners = (
 		onRefetch?: (payload?: unknown) => void | Promise<void>,
@@ -661,7 +653,7 @@ export const useVehicleAccessState = () => {
 			],
 			debounceMs,
 			"VehicleAccess WebSocket",
-			{ enabled: canSubscribe },
+			{ enabled: canSubscribe }
 		);
 
 	return {

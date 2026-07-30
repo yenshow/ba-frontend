@@ -657,16 +657,6 @@ const handleOpenLocationDialog = async () => {
 	showLocationManagementDialog.value = true;
 };
 
-// 監聽對話框打開狀態，載入區域數據
-watch(
-	() => showLocationManagementDialog.value,
-	newValue => {
-		if (newValue && peopleCountingZones.value.length === 0) {
-			loadZones();
-		}
-	}
-);
-
 // 初始化
 onMounted(async () => {
 	cleanupWebSocket = setupEventListeners(async () => {

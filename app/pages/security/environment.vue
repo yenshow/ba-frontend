@@ -766,8 +766,7 @@ const loadAlertRules = async () => {
 
 onMounted(async () => {
 	await loadAlertRules()
-	await reloadZonesAndHydrate(false)
-	ensureSelectedLocationId()
+	await refreshAfterZoneChange()
 	await nextTick()
 	scrollActiveOverviewIntoView()
 })

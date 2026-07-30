@@ -30,6 +30,7 @@ const stateLogger = logger.createLogger("PeopleCounting State");
 const YSCP_ACS_EVENT = "yscp:event:acs";
 const ACCESS_CONTROL_EVENT = "people-counting:access-control:event";
 const ISAPI_CAMERA_EVENT = "people-counting:isapi-camera:event";
+const STATS_RESET_EVENT = "people-counting:stats-reset";
 
 /**
  * 人流統計狀態管理
@@ -41,7 +42,7 @@ export const usePeopleCountingState = () => {
 	const { enableYscpPeopleCounting } = useModuleRegistry();
 	const { useWsModuleGate } = useAccessGate();
 	const canSubscribe = useWsModuleGate("people_counting", {
-		permissionCode: PERM.peopleCounting.module,
+		permissionCode: PERM.peopleCounting.module
 	});
 
 	// 狀態定義
@@ -89,7 +90,7 @@ export const usePeopleCountingState = () => {
 						exitCount: updatedLocation.exitCount,
 						currentCount: updatedLocation.currentCount,
 						// 門禁名單變更後可能新增/移除群組，須以 API 回傳的完整 units 為準
-						units: updatedLocation.units ?? [],
+						units: updatedLocation.units ?? []
 					};
 				}
 			}
@@ -108,7 +109,7 @@ export const usePeopleCountingState = () => {
 	 */
 	const loadLocationDetail = async (
 		locationId: number,
-		opts?: { preserveUnitId?: number | null },
+		opts?: { preserveUnitId?: number | null }
 	): Promise<void> => {
 		isLoadingLocation.value = true;
 		loadError.value = null;
@@ -118,10 +119,7 @@ export const usePeopleCountingState = () => {
 		}
 
 		try {
-			selectedLocation.value = await peopleCountingApi.getLocationDetail(
-				locationId,
-				locations.value,
-			);
+			selectedLocation.value = await peopleCountingApi.getLocationDetail(locationId, locations.value);
 
 			const isCamera = selectedLocation.value.dataSource === "isapi_camera";
 			if (isCamera) {
@@ -130,18 +128,12 @@ export const usePeopleCountingState = () => {
 				await loadLocationLogs(locationId);
 			} else if (keepUnitId != null) {
 				selectedUnitId.value = keepUnitId;
-				await Promise.all([
-					loadUnitPersonnel(keepUnitId),
-					loadLocationLogs(locationId, keepUnitId),
-				]);
+				await Promise.all([loadUnitPersonnel(keepUnitId), loadLocationLogs(locationId, keepUnitId)]);
 			} else {
 				const firstUnit = selectedLocation.value.units?.[0];
 				if (firstUnit) {
 					selectedUnitId.value = firstUnit.id;
-					await Promise.all([
-						loadUnitPersonnel(firstUnit.id),
-						loadLocationLogs(locationId),
-					]);
+					await Promise.all([loadUnitPersonnel(firstUnit.id), loadLocationLogs(locationId)]);
 				} else {
 					personnel.value = [];
 					await loadLocationLogs(locationId);
@@ -202,58 +194,8 @@ export const usePeopleCountingState = () => {
 		}
 	};
 
-	/** 地點管理儲存／刪除後：先 zones 再 locations，避免總覽與詳情資料不一致 */
-	const reloadZonesAndLocations = async (): Promise<void> => {
-		await loadZones();
-		await loadLocations(
-			peopleCountingZones.value.length > 0
-				? { zones: peopleCountingZones.value }
-				: undefined,
-		);
-	};
-
-	const findDefaultLocationId = (): number | null => {
-		const locationsWithId = locations.value.filter(
-			(l): l is PeopleCountingLocation & { locationId: number } => l.locationId != null,
-		);
-		const hit = firstFlatSiteMatchingSortedZoneLocations(
-			peopleCountingZones.value,
-			locationsWithId,
-		);
-		return hit?.locationId ?? null;
-	};
-
-	/** 若尚無選中地點或選中已失效，自動選第一筆並載入詳情 */
-	const ensureSelectedLocation = async (): Promise<void> => {
-		const currentId = selectedLocation.value?.locationId;
-		if (
-			currentId != null &&
-			locations.value.some((l) => l.locationId === currentId)
-		) {
-			await loadLocationDetail(currentId, { preserveUnitId: selectedUnitId.value });
-			return;
-		}
-
-		const nextId = findDefaultLocationId();
-		if (nextId != null) {
-			await loadLocationDetail(nextId);
-			return;
-		}
-
-		selectedLocation.value = null;
-		personnel.value = [];
-		logs.value = [];
-		selectedUnitId.value = null;
-	};
-
-	/** 區域／地點管理變更後：重載列表並確保詳情區有選中地點 */
-	const refreshAfterZoneChange = async (): Promise<void> => {
-		await reloadZonesAndLocations();
-		await ensureSelectedLocation();
-	};
-
 	/**
-	 * 處理單位選擇（unitId=0 為「未分組」，不可用 truthy 判斷）
+	 * 處理單位選擇
 	 */
 	const handleUnitSelect = async (unitId: number | null): Promise<void> => {
 		selectedUnitId.value = unitId;
@@ -297,16 +239,39 @@ export const usePeopleCountingState = () => {
 		await loadLocationLogs(locationId);
 	};
 
+	/**
+	 * 載入 zones + locations 後自動選中第一筆（若當前無選中或已失效）
+	 */
+	const refreshAfterZoneChange = async (): Promise<void> => {
+		await loadZones();
+		await loadLocations();
+
+		// 若當前選中仍有效，不需重選
+		if (selectedLocation.value?.locationId != null) {
+			const stillExists = locations.value.some(
+				loc => loc.locationId === selectedLocation.value?.locationId
+			);
+			if (stillExists) return;
+		}
+
+		// 自動選中排序後的第一筆
+		const first = firstFlatSiteMatchingSortedZoneLocations(
+			peopleCountingZones.value,
+			locations.value.filter((l): l is PeopleCountingLocation & { locationId: number } => l.locationId != null)
+		);
+		if (first?.locationId != null) {
+			await loadLocationDetail(first.locationId);
+		} else {
+			selectedLocation.value = null;
+		}
+	};
+
 	const resetStatsForSelectedSite = async (): Promise<void> => {
 		const locationId = selectedLocation.value?.locationId;
 		if (locationId == null) return;
 		const preserveUnitId = selectedUnitId.value;
 		await peopleCountingApi.resetSiteStats(locationId);
-		if (peopleCountingZones.value.length > 0) {
-			await loadLocations({ zones: peopleCountingZones.value });
-		} else {
-			await loadLocations();
-		}
+		await loadLocations();
 		await loadLocationDetail(locationId, { preserveUnitId });
 	};
 
@@ -317,10 +282,11 @@ export const usePeopleCountingState = () => {
 				{ event: YSCP_ACS_EVENT, enabled: enableYscpPeopleCounting },
 				{ event: ACCESS_CONTROL_EVENT },
 				{ event: ISAPI_CAMERA_EVENT },
+				{ event: STATS_RESET_EVENT }
 			],
 			debounceMs,
 			"PeopleCounting WebSocket",
-			{ enabled: canSubscribe },
+			{ enabled: canSubscribe }
 		);
 
 	return {
@@ -342,13 +308,11 @@ export const usePeopleCountingState = () => {
 		loadUnitPersonnel,
 		loadLocationLogs,
 		loadZones,
-		reloadZonesAndLocations,
-		ensureSelectedLocation,
 		refreshAfterZoneChange,
 		handleUnitSelect,
 		getLocationZone,
 		refreshSelectedLocationLive,
 		setupEventListeners,
-		resetStatsForSelectedSite,
+		resetStatsForSelectedSite
 	};
 };

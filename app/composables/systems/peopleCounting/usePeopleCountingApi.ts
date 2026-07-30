@@ -277,7 +277,7 @@ export const usePeopleCountingApi = () => {
 	): Promise<PeopleCountingLog[]> => {
 		try {
 			const q: Record<string, string> = {}
-			if (options?.unitId != null) q.unitId = String(options.unitId)
+			if (options?.unitId) q.unitId = String(options.unitId)
 			const queryString = new URLSearchParams(q).toString()
 			const url = `/people-counting/sites/${locationId}/logs/latest${queryString ? `?${queryString}` : ""}`
 
@@ -307,8 +307,7 @@ export const usePeopleCountingApi = () => {
 		try {
 			const q: Record<string, string> = {}
 			if (options?.limit) q.limit = String(options.limit)
-			// unitId=0 為「未分組」，不可用 truthy 判斷
-			if (options?.unitId != null) q.unitId = String(options.unitId)
+			if (options?.unitId) q.unitId = String(options.unitId)
 			if (options?.startTime) q.startTime = options.startTime
 			if (options?.endTime) q.endTime = options.endTime
 			if (options?.timeRange) q.timeRange = options.timeRange
