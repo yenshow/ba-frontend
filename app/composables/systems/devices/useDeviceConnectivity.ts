@@ -1,6 +1,7 @@
 import { computed, ref, watch, type Ref } from "vue"
 import type { DeviceConnectivityStatus } from "~/types/device"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { DEVICE_CONNECTIVITY_DEBOUNCE_MS } from "~/utils/realtimeTiming"
 
 type DeviceConnectivitySnapshotItem = { device_id: number; status: DeviceConnectivityStatus }
 
@@ -9,7 +10,7 @@ const toSortedUniqueIds = (ids: number[]) => {
 }
 
 export const useDeviceConnectivity = (options?: { debounceMs?: number }) => {
-	const debounceMs = Math.max(0, Number(options?.debounceMs ?? 150))
+	const debounceMs = Math.max(0, Number(options?.debounceMs ?? DEVICE_CONNECTIVITY_DEBOUNCE_MS))
 
 	const deviceApi = useDeviceApi()
 

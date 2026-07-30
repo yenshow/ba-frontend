@@ -1,10 +1,8 @@
 import type { EnvironmentReadingNewEvent } from "~/types/websocket"
 import { getEnvironmentSensorParamKeys } from "~/utils/environmentCatalogRuntime"
+import { ENVIRONMENT_READING_STALE_MS } from "~/utils/realtimeTiming"
 
-/** 快照視為 live、以及 bootstrap 可採用 reading 的最大年齡（兩者共用，避免先 bootstrap 再被判定離線） */
-export const ENVIRONMENT_READING_STALE_MS = 10 * 60 * 1000
-/** WS 斷線後備：stale reconcile 輪詢間隔（連線中不啟動） */
-export const ENVIRONMENT_STALE_CHECK_INTERVAL_MS = 30_000
+export { ENVIRONMENT_READING_STALE_MS }
 export const SENSOR_DISPLAY_OFFLINE = "--"
 
 export const ENVIRONMENT_SENSOR_PARAM_KEYS = [

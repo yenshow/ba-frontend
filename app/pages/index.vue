@@ -89,7 +89,7 @@ import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import { useLocationApi } from "~/composables/location/api/useLocationApi";
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
-import { useEnvironmentWsFallbackPolling } from "~/composables/systems/environment/useEnvironmentWsFallbackPolling";
+import { useWsFallbackPolling } from "~/composables/monitoring/useWsFallbackPolling";
 import {
 	createEmptyHomeSensorReadings,
 	useEnvironmentHomeSensors,
@@ -377,7 +377,7 @@ useEnvironmentReadingSubscription(event =>
 
 const loadSensorData = () => homeSensors.bootstrapCard(environmentHomeCard);
 
-useEnvironmentWsFallbackPolling({
+useWsFallbackPolling({
 	callback: () => homeSensors.syncCard(environmentHomeCard)
 });
 
