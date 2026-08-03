@@ -5,6 +5,7 @@ export type AlertSource =
 	| "drainage"
 	| "air_circulation"
 	| "power"
+	| "energy"
 	| "fire"
 	| "smoke_alarm"
 	| "emergency_rescue"

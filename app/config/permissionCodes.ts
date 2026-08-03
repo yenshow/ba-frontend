@@ -102,6 +102,10 @@ export const PERM = {
 		locationUpdate: "system.power.location.update",
 		locationDelete: "system.power.location.delete",
 	},
+	energy: {
+		module: "system.energy",
+		reportFull: "system.energy.report.full",
+	},
 	drainage: {
 		module: "system.drainage",
 		locationCreate: "system.drainage.location.create",

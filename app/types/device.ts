@@ -37,13 +37,16 @@ export type ModbusRegisterType = "coils" | "discrete" | "holding" | "input";
 // 感測器參數的 Modbus 配置（定義在設備型號中）
 export interface SensorParameterModbusConfig {
 	address: number; // Modbus 地址（必填）
-	// length 已移除：後端預設為 1，前端不需要設定
+	/** 暫存器長度（uint32 通常為 2） */
+	length?: number;
+	/** 資料型別 */
+	dataType?: "uint16" | "uint32_be" | "uint32_le";
 	transform?: string; // 轉換公式（如：value / 10, value - 1）
 }
 
 // 設備型號中的感測器參數配置定義
 export interface SensorParameterDefinition {
-	type: string; // 參數類型（pm25, pm10, tvoc, hcho, humidity, temperature, co2, noise, wind）
+	type: string; // 參數類型（環境或能源 catalog keys）
 	modbusConfig: SensorParameterModbusConfig; // Modbus 配置
 }
 
@@ -51,6 +54,8 @@ export interface SensorParameterDefinition {
 export interface SensorDeviceModelConfig {
 	/** 本型號統一使用的 Modbus API 方法（FC01～FC04），預設 holding */
 	registerType?: ModbusRegisterType;
+	/** 能源表計種類（選填） */
+	meterKind?: "electricity" | "water";
 	// 感測器型號的參數配置列表
 	sensorParameters?: SensorParameterDefinition[];
 }

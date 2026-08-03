@@ -215,6 +215,17 @@
 										placeholder="請選擇功能碼"
 									/>
 								</label>
+								<label
+									v-if="deviceTypeCode === 'sensor'"
+									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+								>
+									<span>表計種類</span>
+									<FilterDropdown
+										v-model="sensorMeterKind"
+										:options="energyMeterKindOptions"
+										placeholder="一般感測器"
+									/>
+								</label>
 
 								<label
 									v-if="deviceTypeCode === 'camera'"
@@ -345,6 +356,28 @@
 													</label>
 
 													<label class="flex flex-col gap-1 text-xs text-white/80 2xl:text-sm">
+														<span>資料型別</span>
+														<FilterDropdown
+															v-model="param.modbusConfig.dataType"
+															:options="energyDataTypeOptions"
+															placeholder="uint16"
+															@update:model-value="(v) => syncParamLengthFromDataType(param, String(v))"
+														/>
+													</label>
+
+													<label class="flex flex-col gap-1 text-xs text-white/80 2xl:text-sm">
+														<span>暫存器長度</span>
+														<input
+															v-model.number="param.modbusConfig.length"
+															type="number"
+															min="1"
+															max="4"
+															class="form-input"
+															placeholder="1"
+														/>
+													</label>
+
+													<label class="flex flex-col gap-1 text-xs text-white/80 2xl:text-sm">
 														<span>轉換公式</span>
 														<input
 															v-model="param.modbusConfig.transform"
@@ -425,6 +458,11 @@ import {
 	groupByCameraModelCategory,
 } from "~/utils/cameraModelCategories"
 import { useEnvironmentParameterCatalog } from "~/composables/systems/environment/useEnvironmentParameterCatalog"
+import { useEnergyParameterCatalog } from "~/composables/systems/energy/useEnergyParameterCatalog"
+import {
+	ENERGY_DATA_TYPE_OPTIONS,
+	ENERGY_METER_KIND_OPTIONS,
+} from "~/constants/energyParameters.fallback"
 
 interface Props {
 	modelValue: boolean
@@ -500,6 +538,7 @@ const cameraRtspTemplateEffective = computed(() => {
 
 const sensorParameters = ref<SensorParameterDefinition[]>([])
 const sensorRegisterType = ref<ModbusRegisterType>("holding")
+const sensorMeterKind = ref<"" | "electricity" | "water">("")
 
 const resetForm = () => {
 	formData.name = ""
@@ -512,13 +551,17 @@ const resetForm = () => {
 	cameraRtspTemplateCustom.value = ""
 	sensorParameters.value = []
 	sensorRegisterType.value = "holding"
+	sensorMeterKind.value = ""
 	formErrorMessage.value = null
 }
 
 const { sensorOptions, ensureLoaded: ensureEnvironmentCatalogLoaded } =
 	useEnvironmentParameterCatalog()
+const { energyOptions, ensureLoaded: ensureEnergyCatalogLoaded } = useEnergyParameterCatalog()
 
-const parameterTypeOptions = computed(() => sensorOptions.value)
+const parameterTypeOptions = computed(() => [...sensorOptions.value, ...energyOptions.value])
+const energyDataTypeOptions = ENERGY_DATA_TYPE_OPTIONS
+const energyMeterKindOptions = ENERGY_METER_KIND_OPTIONS
 
 const modbusRegisterTypeOptions: Array<{ value: ModbusRegisterType; label: string }> = [
 	{ value: "holding", label: "FC03 保持寄存器 (Holding Registers)" },
@@ -530,8 +573,19 @@ const modbusRegisterTypeOptions: Array<{ value: ModbusRegisterType; label: strin
 const addSensorParameter = () => {
 	sensorParameters.value.push({
 		type: "pm25",
-		modbusConfig: { address: 0, transform: "" },
+		modbusConfig: { address: 0, length: 1, dataType: "uint16", transform: "" },
 	})
+}
+
+const syncParamLengthFromDataType = (
+	param: SensorParameterDefinition,
+	dataType: string
+) => {
+	if (dataType === "uint32_be" || dataType === "uint32_le") {
+		param.modbusConfig.length = 2
+	} else if (dataType === "uint16") {
+		param.modbusConfig.length = 1
+	}
 }
 
 const removeSensorParameter = (index: number) => {
@@ -614,9 +668,11 @@ const editDeviceModel = (model: DeviceModel) => {
 	if (props.deviceTypeCode === "sensor" && model.config) {
 		const config = model.config as SensorDeviceModelConfig
 		sensorRegisterType.value = config.registerType ?? "holding"
+		sensorMeterKind.value = config.meterKind ?? ""
 		sensorParameters.value = config.sensorParameters ? [...config.sensorParameters] : []
 	} else {
 		sensorParameters.value = []
+		sensorMeterKind.value = ""
 	}
 
 	showForm.value = true
@@ -831,6 +887,7 @@ const handleFormSubmit = async () => {
 		if (props.deviceTypeCode === "sensor") {
 			const sensorConfig: SensorDeviceModelConfig = {
 				registerType: sensorRegisterType.value,
+				meterKind: sensorMeterKind.value || undefined,
 				sensorParameters: sensorParameters.value.length > 0 ? sensorParameters.value : undefined,
 			}
 			submitData.config = sensorConfig
@@ -863,6 +920,7 @@ watch(
 			loadDeviceType()
 			if (props.deviceTypeCode === "sensor") {
 				void ensureEnvironmentCatalogLoaded()
+				void ensureEnergyCatalogLoaded()
 			}
 			loadDeviceModels(true) // 每次開啟對話框時強制更新，確保取得最新資料
 		} else if (!isOpen) {

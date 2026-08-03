@@ -27,5 +27,8 @@ export const ELEVATOR_FLOOR_STEP_MS = 1500
 /** 環境讀數顯示過期門檻 */
 export const ENVIRONMENT_READING_STALE_MS = 10 * 60 * 1000
 
+/** 能源表計讀數顯示過期門檻 */
+export const ENERGY_READING_STALE_MS = 10 * 60 * 1000
+
 /** Modbus status GET */
 export const STATUS_API_TIMEOUT_MS = 30_000

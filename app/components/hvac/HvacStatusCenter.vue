@@ -56,13 +56,30 @@
 						>
 							<!-- 左：圖示 + 偵測溫度（AI 唯讀） -->
 							<div class="flex flex-col items-center gap-0.5">
-								<NuxtImg
-									src="/hvac/air-conditioner.png"
-									alt="空調圖示"
-									class="h-20 w-20 2xl:h-[100px] 2xl:w-[100px]"
-									width="128"
-									height="128"
-								/>
+								<div
+									class="relative h-20 w-20 2xl:h-[100px] 2xl:w-[100px]"
+									role="img"
+									:aria-label="getEffectiveIsOn(row.locationId) ? '空調開啟' : '空調關閉'"
+								>
+									<NuxtImg
+										src="/hvac/hvac-icon-on.png"
+										alt=""
+										aria-hidden="true"
+										class="absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ease-in-out"
+										:class="getEffectiveIsOn(row.locationId) ? 'opacity-100' : 'opacity-0'"
+										width="128"
+										height="128"
+									/>
+									<NuxtImg
+										src="/hvac/hvac-icon-off.png"
+										alt=""
+										aria-hidden="true"
+										class="absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ease-in-out"
+										:class="getEffectiveIsOn(row.locationId) ? 'opacity-0' : 'opacity-100'"
+										width="128"
+										height="128"
+									/>
+								</div>
 								<span
 									class="border-b border-white/60 px-2 pb-0.5 text-xl text-white 2xl:text-2xl"
 									:aria-label="`目前溫度 ${getLocationStatus(row.locationId).temperatureLabel || '未知'}`"

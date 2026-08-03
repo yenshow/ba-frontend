@@ -7,6 +7,7 @@ export type FeatureKey =
 	| "air_circulation"
 	| "drainage"
 	| "power"
+	| "energy"
 	| "fire"
 	| "emergency_rescue"
 	| "smoke_alarm"
@@ -23,6 +24,7 @@ export const LICENSE_FEATURE_KEYS: readonly FeatureKey[] = [
 	"air_circulation",
 	"drainage",
 	"power",
+	"energy",
 	"fire",
 	"emergency_rescue",
 	"smoke_alarm",
