@@ -518,7 +518,7 @@ const resetForm = () => {
 const { sensorOptions, ensureLoaded: ensureEnvironmentCatalogLoaded } =
 	useEnvironmentParameterCatalog()
 
-const parameterTypeOptions = computed(() => sensorOptions.value)
+const parameterTypeOptions = computed(() => [...sensorOptions.value])
 
 const modbusRegisterTypeOptions: Array<{ value: ModbusRegisterType; label: string }> = [
 	{ value: "holding", label: "FC03 保持寄存器 (Holding Registers)" },
