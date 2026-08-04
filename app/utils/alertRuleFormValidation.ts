@@ -5,6 +5,11 @@ export const normalizeAlertRuleCameraDeviceIds = (
 		.map((v) => (v == null ? null : Number(v)))
 		.filter((n): n is number => n != null && Number.isFinite(n) && n > 0);
 
+/** 去重後的正整數 id 清單（門禁連動載入／送出用） */
+export const normalizeAlertRuleAccessDeviceIds = (
+	ids: Array<number | null | undefined>,
+): number[] => [...new Set(normalizeAlertRuleCameraDeviceIds(ids))];
+
 export const parseAlertRuleEmailsFromText = (text: string): string[] =>
 	String(text || "")
 		.split(/\r?\n|,|;/g)
@@ -26,6 +31,11 @@ export type AlertRuleFormValidationInput = {
 	cameraLinkage: {
 		enabled: boolean;
 		camera_device_ids: number[];
+	};
+	accessDoorLinkage?: {
+		enabled: boolean;
+		allDevices: boolean;
+		device_ids: number[];
 	};
 	email: AlertRuleEmailValidationInput & { enabled: boolean };
 };
@@ -58,6 +68,12 @@ export const validateAlertRuleFormForSave = (input: AlertRuleFormValidationInput
 			(n) => Number.isFinite(n) && n > 0,
 		);
 		if (ids.length === 0) return "攝影機聯動：請至少選擇一台攝影機";
+	}
+
+	if (input.accessDoorLinkage?.enabled && !input.accessDoorLinkage.allDevices) {
+		if (input.accessDoorLinkage.device_ids.length === 0) {
+			return "門禁連動：請至少選擇一台門禁設備";
+		}
 	}
 
 	if (input.email.enabled) {
