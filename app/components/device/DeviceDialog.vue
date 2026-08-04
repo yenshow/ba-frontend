@@ -290,6 +290,21 @@
 										text-size="text-sm 2xl:text-base"
 									/>
 								</label>
+								<label
+									v-if="isElectricityMeter"
+									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+								>
+									<span>用途系統<span class="required-mark">*</span></span>
+									<FilterDropdown
+										v-model="energyUsageSystemString"
+										:options="energyUsageSystemOptions"
+										placeholder="請選擇用途系統"
+										text-size="text-sm 2xl:text-base"
+									/>
+									<p class="mt-1 text-xs text-white/50 2xl:text-sm">
+										能源儀表板「電量使用分佈」依此分類加總
+									</p>
+								</label>
 								<template v-if="sensorConfig.protocol === 'modbus'">
 									<label
 										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
@@ -512,6 +527,10 @@ import {
 } from "~/utils/cameraRtspUtils"
 import { CAMERA_MODEL_CATEGORY_OPTIONS } from "~/utils/cameraModelCategories"
 import { validateDeviceFormForSave } from "~/utils/deviceFormValidation"
+import {
+	ENERGY_USAGE_SYSTEM_OPTIONS,
+	type EnergyUsageSystemKey,
+} from "~/constants/energyUsageSystems"
 
 interface Props {
 	modelValue: boolean
@@ -621,6 +640,7 @@ const sensorConfig = reactive<SensorDeviceConfig>({
 	unitId: undefined,
 	connection_string: "",
 	api_endpoint: "",
+	energy_usage_system: undefined,
 })
 
 const accessControlConfig = reactive<AccessControlDeviceConfig>({
@@ -688,6 +708,21 @@ const selectedDeviceModel = computed(() => {
 	return deviceModels.value.find((m) => m.id === localFormData.model_id) || null
 })
 
+const isElectricityMeter = computed(() => {
+	if (props.deviceTypeCode !== "sensor") return false
+	const cfg = selectedDeviceModel.value?.config as { meterKind?: string } | undefined
+	return cfg?.meterKind === "electricity"
+})
+
+const energyUsageSystemString = computed({
+	get: () => String(sensorConfig.energy_usage_system || ""),
+	set: (v: string) => {
+		sensorConfig.energy_usage_system = (v || undefined) as EnergyUsageSystemKey | undefined
+	},
+})
+
+const energyUsageSystemOptions = ENERGY_USAGE_SYSTEM_OPTIONS
+
 const isHcnetSdkController = computed(() => isHcnetSdkDeviceModel(selectedDeviceModel.value))
 
 // 從選中的型號繼承 port 與 unit_id
@@ -721,6 +756,9 @@ const onCameraCategoryChange = () => {
 const onModelChange = (value: string) => {
 	localFormData.model_id = value ? Number(value) : 0
 	inheritFromModel()
+	if (!isElectricityMeter.value) {
+		sensorConfig.energy_usage_system = undefined
+	}
 }
 
 // 監聽感測器協議變化，當切換到 modbus 時，如果已選擇型號則繼承 port / unit_id
@@ -784,6 +822,7 @@ const resetForm = () => {
 	sensorConfig.unitId = undefined
 	sensorConfig.connection_string = ""
 	sensorConfig.api_endpoint = ""
+	sensorConfig.energy_usage_system = undefined
 
 	accessControlConfig.host = ""
 	accessControlConfig.port = 80
@@ -1044,8 +1083,15 @@ const getCurrentConfig = (): DeviceConfig => {
 			}
 		}
 		case "sensor": {
-			const { unitId, ...rest } = sensorConfig
-			return { ...rest, ...(unitId != null && { unitId }) }
+			const { unitId, energy_usage_system, ...rest } = sensorConfig
+			const out: SensorDeviceConfig = {
+				...rest,
+				...(unitId != null && { unitId }),
+			}
+			if (isElectricityMeter.value && energy_usage_system) {
+				out.energy_usage_system = energy_usage_system
+			}
+			return out
 		}
 		case "access_control":
 			return {
@@ -1075,6 +1121,8 @@ const handleSubmit = () => {
 		sensorUnitId: sensorConfig.unitId,
 		isSensorPortInherited: isSensorPortInherited.value,
 		isSensorUnitIdInherited: isSensorUnitIdInherited.value,
+		isElectricityMeter: isElectricityMeter.value,
+		energyUsageSystem: sensorConfig.energy_usage_system,
 		controllerPort: controllerConfig.port,
 		isControllerPortInherited: isControllerPortInherited.value,
 		isHcnetSdkController: isHcnetSdkController.value,

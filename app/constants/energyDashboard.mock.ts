@@ -3,8 +3,10 @@
  * 開關：ENERGY_DASHBOARD_USE_MOCK = false 即可關閉
  */
 import type {
+	EnergyBreakdownResponse,
 	EnergyDashboardSummary,
-	EnergyDistributionItem,
+	EnergyMeterRankingItem,
+	EnergySystemDistributionItem,
 	EnergyTrendPoint,
 } from "~/types/energy"
 
@@ -147,25 +149,134 @@ export const MOCK_ENERGY_SUMMARY: EnergyDashboardSummary = {
 	includedDeviceCount: 5,
 }
 
+/** 分佈：共最多 6 項（5 具名 + 其他系統）；mock 以空調／照明／電梯 + 其他 示範 */
 export const MOCK_ENERGY_DISTRIBUTION: {
 	totalEnergyKwh: number
-	items: EnergyDistributionItem[]
+	items: EnergySystemDistributionItem[]
 } = {
 	totalEnergyKwh: 12540,
 	items: [
-		{ deviceId: 101, deviceName: "B1 電表－空調主機", energyKwh: 5330, percent: 42.5 },
-		{ deviceId: 102, deviceName: "1F 電表－照明幹線", energyKwh: 2345, percent: 18.7 },
-		{ deviceId: 103, deviceName: "2F 電表－插座迴路", energyKwh: 1919, percent: 15.3 },
-		{ deviceId: 104, deviceName: "機房電表－動力", energyKwh: 1517, percent: 12.1 },
-		{ deviceId: 105, deviceName: "屋頂電表－其他", energyKwh: 1091, percent: 8.7 },
-		{ deviceId: 106, deviceName: "停車場電表", energyKwh: 338, percent: 2.7 },
+		{ systemKey: "hvac", systemName: "空調", energyKwh: 5330, percent: 42.5, deviceCount: 2 },
+		{ systemKey: "lighting", systemName: "照明", energyKwh: 3120, percent: 24.9, deviceCount: 1 },
+		{ systemKey: "elevator", systemName: "電梯", energyKwh: 2660, percent: 21.2, deviceCount: 1 },
+		{ systemKey: "other", systemName: "其他系統", energyKwh: 1430, percent: 11.4, deviceCount: 1 },
 	],
 }
 
-export const MOCK_ENERGY_RANKING: EnergyDistributionItem[] = MOCK_ENERGY_DISTRIBUTION.items.slice(
-	0,
-	5
-)
+export const MOCK_ENERGY_RANKING: EnergyMeterRankingItem[] = [
+	{ deviceId: 101, deviceName: "B1 電表－空調主機", energyKwh: 4100, percent: 32.7 },
+	{ deviceId: 102, deviceName: "1F 電表－照明幹線", energyKwh: 3120, percent: 24.9 },
+	{ deviceId: 103, deviceName: "電梯幹線電表", energyKwh: 2660, percent: 21.2 },
+	{ deviceId: 106, deviceName: "停車場電表", energyKwh: 1430, percent: 11.4 },
+	{ deviceId: 105, deviceName: "B2 電表－空調冰水", energyKwh: 1230, percent: 9.8 },
+]
+
+export const MOCK_ENERGY_BREAKDOWN: EnergyBreakdownResponse = {
+	totalEnergyKwh: 12540,
+	systems: [
+		{
+			systemKey: "hvac",
+			systemName: "空調",
+			energyKwh: 5330,
+			percent: 42.5,
+			deviceCount: 2,
+			meters: [
+				{
+					deviceId: 101,
+					deviceName: "B1 電表－空調主機",
+					systemKey: "hvac",
+					systemName: "空調",
+					energyKwh: 4100,
+					percentOfTotal: 32.7,
+					percentOfSystem: 76.9,
+					activePowerKw: 820,
+					location: "B1 機房",
+					lastReadingAt: new Date(Date.now() - 45 * 1000).toISOString(),
+					included: true,
+				},
+				{
+					deviceId: 105,
+					deviceName: "B2 電表－空調冰水",
+					systemKey: "hvac",
+					systemName: "空調",
+					energyKwh: 1230,
+					percentOfTotal: 9.8,
+					percentOfSystem: 23.1,
+					activePowerKw: 210,
+					location: "B2 冰水主機",
+					lastReadingAt: new Date(Date.now() - 90 * 1000).toISOString(),
+					included: true,
+				},
+			],
+		},
+		{
+			systemKey: "lighting",
+			systemName: "照明",
+			energyKwh: 3120,
+			percent: 24.9,
+			deviceCount: 1,
+			meters: [
+				{
+					deviceId: 102,
+					deviceName: "1F 電表－照明幹線",
+					systemKey: "lighting",
+					systemName: "照明",
+					energyKwh: 3120,
+					percentOfTotal: 24.9,
+					percentOfSystem: 100,
+					activePowerKw: 95,
+					location: "1F 電氣室",
+					lastReadingAt: new Date(Date.now() - 60 * 1000).toISOString(),
+					included: true,
+				},
+			],
+		},
+		{
+			systemKey: "elevator",
+			systemName: "電梯",
+			energyKwh: 2660,
+			percent: 21.2,
+			deviceCount: 1,
+			meters: [
+				{
+					deviceId: 103,
+					deviceName: "電梯幹線電表",
+					systemKey: "elevator",
+					systemName: "電梯",
+					energyKwh: 2660,
+					percentOfTotal: 21.2,
+					percentOfSystem: 100,
+					activePowerKw: 180,
+					location: "B1 電梯機房",
+					lastReadingAt: new Date(Date.now() - 40 * 1000).toISOString(),
+					included: true,
+				},
+			],
+		},
+		{
+			systemKey: "other",
+			systemName: "其他系統",
+			energyKwh: 1430,
+			percent: 11.4,
+			deviceCount: 1,
+			meters: [
+				{
+					deviceId: 106,
+					deviceName: "停車場電表",
+					systemKey: "other",
+					systemName: "其他系統",
+					energyKwh: 1430,
+					percentOfTotal: 11.4,
+					percentOfSystem: 100,
+					activePowerKw: 55,
+					location: "B3 停車場",
+					lastReadingAt: new Date(Date.now() - 120 * 1000).toISOString(),
+					included: true,
+				},
+			],
+		},
+	],
+}
 
 export const MOCK_ENERGY_ALERTS: EnergyMockAlert[] = [
 	{
@@ -188,13 +299,13 @@ export const MOCK_ENERGY_ALERTS: EnergyMockAlert[] = [
 	},
 	{
 		id: 9004,
-		message: "2F 電表－插座迴路：讀數跳動異常",
+		message: "電梯幹線電表：讀數跳動異常",
 		severity: "warning",
 		created_at: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
 	},
 	{
 		id: 9005,
-		message: "機房電表－動力：離峰用量低於基準",
+		message: "停車場電表：離峰用量低於基準",
 		severity: "info",
 		created_at: new Date(Date.now() - 8 * 3600 * 1000).toISOString(),
 	},

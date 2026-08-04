@@ -1,8 +1,23 @@
 <script setup lang="ts">
 import type { EnergySettingsConfig } from "~/types/energy"
+import type { Device, SensorDeviceConfig, SensorDeviceModelConfig } from "~/types/device"
 import { useEnergyApi } from "~/composables/systems/energy/useEnergyApi"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useToast } from "~/composables/core/useToast"
+import {
+	ENERGY_USAGE_SYSTEMS,
+	getEnergyUsageSystemLabel,
+	type EnergyUsageSystemKey,
+} from "~/constants/energyUsageSystems"
+
+type SensorDeviceRow = {
+	id: number
+	name: string
+	modelId: number
+	isElectricityMeter: boolean
+	config: SensorDeviceConfig
+	usageSystem: EnergyUsageSystemKey | ""
+}
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ "update:modelValue": [boolean]; saved: [] }>()
@@ -12,23 +27,43 @@ const deviceApi = useDeviceApi()
 const toast = useToast()
 const saving = ref(false)
 const form = ref<EnergySettingsConfig | null>(null)
-const sensorDevices = ref<Array<{ id: number; name: string }>>([])
+const sensorDevices = ref<SensorDeviceRow[]>([])
 const titleId = "energy-settings-dialog-title"
+const usageSystemSelectOptions = ENERGY_USAGE_SYSTEMS.map((s) => ({
+	value: s.key,
+	label: s.label,
+}))
 
 const handleClose = () => {
 	emit("update:modelValue", false)
 }
 
 const load = async () => {
-	const [settings, devicesRes] = await Promise.all([
+	const [settings, devicesRes, modelsRes] = await Promise.all([
 		api.getSettings(),
 		deviceApi.getDevices({ type_code: "sensor", limit: 200 }),
+		deviceApi.getDeviceModels({ type_code: "sensor" }),
 	])
 	form.value = structuredClone(settings.config)
-	sensorDevices.value = (devicesRes?.devices || []).map((d) => ({
-		id: d.id,
-		name: d.name,
-	}))
+
+	const meterKindByModel = new Map<number, string | undefined>()
+	for (const m of modelsRes?.device_models || []) {
+		const cfg = m.config as SensorDeviceModelConfig | undefined
+		meterKindByModel.set(m.id, cfg?.meterKind)
+	}
+
+	sensorDevices.value = (devicesRes?.devices || []).map((d: Device) => {
+		const cfg = (d.config || { type: "sensor", protocol: "modbus" }) as SensorDeviceConfig
+		const isElectricityMeter = meterKindByModel.get(d.model_id) === "electricity"
+		return {
+			id: d.id,
+			name: d.name,
+			modelId: d.model_id,
+			isElectricityMeter,
+			config: cfg,
+			usageSystem: (cfg.energy_usage_system as EnergyUsageSystemKey) || "",
+		}
+	})
 }
 
 const toggleDevice = (id: number) => {
@@ -37,6 +72,25 @@ const toggleDevice = (id: number) => {
 	if (set.has(id)) set.delete(id)
 	else set.add(id)
 	form.value.include_device_ids = Array.from(set)
+}
+
+const handleUsageSystemChange = async (row: SensorDeviceRow, event: Event) => {
+	const value = (event.target as HTMLSelectElement).value as EnergyUsageSystemKey | ""
+	row.usageSystem = value
+	const nextConfig: SensorDeviceConfig = {
+		...row.config,
+		type: "sensor",
+		energy_usage_system: value || undefined,
+	}
+	if (!value) delete nextConfig.energy_usage_system
+	try {
+		await deviceApi.updateDevice(row.id, { config: nextConfig })
+		row.config = nextConfig
+		toast.success(`已更新用途系統：${getEnergyUsageSystemLabel(value)}`)
+	} catch (err: unknown) {
+		toast.error(err instanceof Error ? err.message : "更新用途系統失敗")
+		await load()
+	}
 }
 
 const handleSave = async () => {
@@ -188,22 +242,45 @@ watch(
 									納入統計的表計設備
 								</h4>
 								<div
-									class="max-h-48 space-y-2 overflow-y-auto rounded-xl border border-white/20 bg-white/5 p-3"
+									class="max-h-64 space-y-2 overflow-y-auto rounded-xl border border-white/20 bg-white/5 p-3"
 								>
-									<label
+									<div
 										v-for="d in sensorDevices"
 										:key="d.id"
-										class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 text-white/90 transition-colors hover:bg-white/10"
+										class="flex flex-wrap items-center gap-2 rounded border border-white/10 bg-white/5 p-2 text-white/90"
 									>
-										<input
-											type="checkbox"
-											class="h-4 w-4 accent-cyan-400"
-											:checked="form.include_device_ids.includes(d.id)"
-											:aria-label="`納入 ${d.name}`"
-											@change="toggleDevice(d.id)"
-										/>
-										<span>{{ d.name }} (#{{ d.id }})</span>
-									</label>
+										<label class="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
+											<input
+												type="checkbox"
+												class="h-4 w-4 shrink-0 accent-cyan-400"
+												:checked="form.include_device_ids.includes(d.id)"
+												:aria-label="`納入 ${d.name}`"
+												@change="toggleDevice(d.id)"
+											/>
+											<span class="truncate">{{ d.name }} (#{{ d.id }})</span>
+										</label>
+										<select
+											v-if="d.isElectricityMeter"
+											class="form-input max-w-[9rem] shrink-0 py-1 text-sm"
+											:value="d.usageSystem"
+											:aria-label="`${d.name} 用途系統`"
+											@change="handleUsageSystemChange(d, $event)"
+										>
+											<option value="">未設定</option>
+											<option
+												v-for="opt in usageSystemSelectOptions"
+												:key="opt.value"
+												:value="opt.value"
+											>
+												{{ opt.label }}
+											</option>
+										</select>
+										<span
+											v-else
+											class="shrink-0 text-xs text-white/45 2xl:text-sm"
+											>非電表</span
+										>
+									</div>
 									<div v-if="sensorDevices.length === 0" class="py-4 text-center text-white/60">
 										<p class="text-base">尚無感測器設備</p>
 										<p class="mt-2 text-sm">請先於「設備管理」新增</p>

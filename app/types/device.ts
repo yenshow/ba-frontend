@@ -151,6 +151,8 @@ export interface SensorDeviceConfig extends DeviceConfigBase {
 	unitId?: number;
 	connection_string?: string; // 其他協議用
 	api_endpoint?: string; // HTTP 專用
+	/** 能源用途系統（僅電表；見 energyUsageSystems.ts） */
+	energy_usage_system?: string;
 }
 
 // 門禁設備配置（ISAPI Digest Auth）

@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { Chart, registerables, type ChartConfiguration } from "chart.js"
-import type { EnergyDistributionItem } from "~/types/energy"
+import type { EnergySystemDistributionItem } from "~/types/energy"
 
 Chart.register(...registerables)
 
 const props = defineProps<{
-	items: EnergyDistributionItem[]
+	items: EnergySystemDistributionItem[]
 	totalEnergyKwh?: number
 }>()
+
+const emit = defineEmits<{ "view-more": [] }>()
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 let chart: Chart | null = null
@@ -35,7 +37,7 @@ const buildChart = () => {
 	const cfg: ChartConfiguration<"doughnut"> = {
 		type: "doughnut",
 		data: {
-			labels: props.items.map((i) => i.deviceName),
+			labels: props.items.map((i) => i.systemName),
 			datasets: [
 				{
 					data: props.items.map((i) => i.energyKwh),
@@ -66,8 +68,8 @@ onBeforeUnmount(() => chart?.destroy())
 
 <template>
 	<div>
-		<h3 class="mb-4 text-xl text-center font-semibold tracking-[4px] 2xl:text-2xl">電量使用分佈</h3>
-		<div class="flex gap-4">
+		<h3 class="mb-4 text-center text-xl font-semibold tracking-[4px] 2xl:text-2xl">電量使用分佈</h3>
+		<div class="flex items-center gap-4">
 			<div class="relative h-40 w-40 shrink-0 2xl:h-[200px] 2xl:w-[200px]">
 				<canvas ref="canvasRef" aria-label="用量分佈圖" />
 				<div
@@ -83,13 +85,13 @@ onBeforeUnmount(() => chart?.destroy())
 			<ul
 				class="max-h-[200px] flex-1 space-y-3 overflow-y-auto text-sm text-white/80 2xl:text-base"
 			>
-				<li v-for="(item, idx) in items" :key="item.deviceId" class="flex items-center gap-2">
+				<li v-for="(item, idx) in items" :key="item.systemKey" class="flex items-center gap-2">
 					<span
 						class="h-3 w-3 shrink-0 rounded-sm"
 						:style="{ backgroundColor: colorAt(idx) }"
 						aria-hidden="true"
 					/>
-					<span class="min-w-0 flex-1 truncate">{{ item.deviceName }}</span>
+					<span class="min-w-0 flex-1 truncate">{{ item.systemName }}</span>
 					<span class="shrink-0 tabular-nums text-white/70">
 						{{ item.percent }}%
 						<span class="text-white/45">({{ item.energyKwh.toLocaleString() }} kWh)</span>
@@ -102,9 +104,14 @@ onBeforeUnmount(() => chart?.destroy())
 			</ul>
 		</div>
 		<div class="mt-4 text-right">
-			<span class="text-sm text-white/70 transition-colors hover:text-white 2xl:text-base"
-				>查看更多 ></span
+			<button
+				type="button"
+				class="text-sm text-white/70 transition-colors hover:text-white 2xl:text-base"
+				aria-label="查看更多電量分佈明細"
+				@click="emit('view-more')"
 			>
+				查看更多 &gt;
+			</button>
 		</div>
 	</div>
 </template>

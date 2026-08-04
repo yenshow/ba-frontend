@@ -5,17 +5,18 @@ import EnergyDistributionDonut from "~/components/energy/EnergyDistributionDonut
 import EnergyRankingList from "~/components/energy/EnergyRankingList.vue"
 import EnergyAlertsPanel, { type EnergyAlertItem } from "~/components/energy/EnergyAlertsPanel.vue"
 import EnergySettingsDialog from "~/components/energy/EnergySettingsDialog.vue"
-import EnergySimulation from "~/components/energy/EnergySimulation.vue"
+import EnergySystemBreakdownDialog from "~/components/energy/EnergySystemBreakdownDialog.vue"
+import EnergySimulation, {
+	type EnergyTrendReportMode,
+} from "~/components/energy/EnergySimulation.vue"
 import SimulationFrame from "~/components/common/SimulationFrame.vue"
 import PageTabs from "~/components/common/PageTabs.vue"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import { useEnergyDashboard } from "~/composables/systems/energy/useEnergyDashboard"
-import { useEnergyApi } from "~/composables/systems/energy/useEnergyApi"
 import { useEnergyReadingSubscription } from "~/composables/systems/energy/useEnergyLive"
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi"
 import { useAuth } from "~/composables/core/useAuth"
 import { PERM } from "~/config/permissionCodes"
-import type { EnergyReadingRow } from "~/types/energy"
 import { ENERGY_DASHBOARD_USE_MOCK, MOCK_ENERGY_ALERTS } from "~/constants/energyDashboard.mock"
 
 const {
@@ -27,7 +28,6 @@ const {
 	distribution,
 	distributionTotalKwh,
 	ranking,
-	loading,
 	errorMessage,
 	refreshAll,
 	setEnergyTrendRange,
@@ -36,14 +36,13 @@ const {
 } = useEnergyDashboard()
 
 const { useHasPermission } = useAuth()
-const canManageEnergy = useHasPermission(PERM.energy.module)
+const canManageEnergySettings = useHasPermission(PERM.energy.settingsUpdate)
 
-const api = useEnergyApi()
 const alertApi = useAlertApi()
 const showSettings = ref(false)
-const showSimulationFrame = ref(false)
-const reportReadings = ref<EnergyReadingRow[]>([])
-const reportLoading = ref(false)
+const showBreakdown = ref(false)
+const showTrendReport = ref(false)
+const trendReportMode = ref<EnergyTrendReportMode>("energy")
 const energyAlerts = ref<EnergyAlertItem[]>([])
 
 const rangeTabs = [
@@ -169,37 +168,20 @@ const loadAlerts = async () => {
 	}
 }
 
-const handleRefresh = async () => {
-	await refreshAll()
-	await loadAlerts()
-}
-
 useEnergyReadingSubscription(() => {
 	void refreshAll()
 	void loadAlerts()
 })
 
-/** 與環境／人流等監控頁相同：開啟 SimulationFrame 完整報表 */
-const handleOpenSimulation = () => {
-	showSimulationFrame.value = true
+/** 用電／用水趨勢各自開啟完整報表 */
+const handleOpenTrendReport = (mode: EnergyTrendReportMode) => {
+	trendReportMode.value = mode
+	showTrendReport.value = true
 }
 
-const handleReportTimeRange = async (payload: { startTime: string; endTime: string }) => {
-	reportLoading.value = true
-	try {
-		const res = await api.getReadings({
-			startTime: payload.startTime,
-			endTime: payload.endTime,
-			limit: 1000,
-			reportScope: "full",
-		})
-		reportReadings.value = res.readings || []
-	} catch {
-		reportReadings.value = []
-	} finally {
-		reportLoading.value = false
-	}
-}
+const trendReportTitle = computed(() =>
+	trendReportMode.value === "energy" ? "用電趨勢 - 完整報表" : "用水趨勢 - 完整報表"
+)
 
 onMounted(async () => {
 	await refreshAll()
@@ -217,30 +199,13 @@ onMounted(async () => {
 
 			<div class="flex shrink-0 flex-wrap items-center gap-3 2xl:gap-4">
 				<PermissionActionButton
-					:allowed="canManageEnergy"
+					:allowed="canManageEnergySettings"
 					aria-label="開啟設定"
 					class="btn-monitoring-overlay"
 					@click="showSettings = true"
 				>
 					參數設定
 				</PermissionActionButton>
-				<PermissionActionButton
-					:allowed="canReportFull"
-					aria-label="開啟完整報表"
-					class="btn-monitoring-overlay"
-					@click="handleOpenSimulation"
-				>
-					完整報表
-				</PermissionActionButton>
-				<button
-					type="button"
-					:disabled="loading"
-					aria-label="重新整理"
-					class="btn-monitoring-overlay disabled:cursor-not-allowed disabled:opacity-60"
-					@click="handleRefresh"
-				>
-					重新整理
-				</button>
 			</div>
 		</div>
 
@@ -330,7 +295,8 @@ onMounted(async () => {
 							v-if="canReportFull"
 							type="button"
 							class="text-sm text-white/70 transition-colors hover:text-white 2xl:text-base"
-							@click="handleOpenSimulation"
+							:aria-label="`查看${panel.title}完整報表`"
+							@click="handleOpenTrendReport(panel.mode)"
 						>
 							查看全部
 						</button>
@@ -349,10 +315,14 @@ onMounted(async () => {
 		<!-- 分佈／排行／告警 -->
 		<section class="grid grid-cols-1 gap-4 xl:grid-cols-3 2xl:gap-6">
 			<div class="monitoring-panel overflow-hidden rounded-2xl p-4 text-white 2xl:p-6">
-				<EnergyDistributionDonut :items="distribution" :total-energy-kwh="distributionTotalKwh" />
+				<EnergyDistributionDonut
+					:items="distribution"
+					:total-energy-kwh="distributionTotalKwh"
+					@view-more="showBreakdown = true"
+				/>
 			</div>
 			<div class="monitoring-panel overflow-hidden rounded-2xl p-4 text-white 2xl:p-6">
-				<EnergyRankingList :items="ranking" />
+				<EnergyRankingList :items="ranking" @view-more="showBreakdown = true" />
 			</div>
 			<div class="monitoring-panel overflow-hidden rounded-2xl p-4 text-white 2xl:p-6">
 				<EnergyAlertsPanel :alerts="energyAlerts" />
@@ -360,12 +330,9 @@ onMounted(async () => {
 		</section>
 
 		<EnergySettingsDialog v-model="showSettings" @saved="refreshAll" />
-		<SimulationFrame v-model="showSimulationFrame" title="能源管理 - 完整報表">
-			<EnergySimulation
-				:readings="reportReadings"
-				:loading="reportLoading"
-				@update:time-range="handleReportTimeRange"
-			/>
+		<EnergySystemBreakdownDialog v-model="showBreakdown" />
+		<SimulationFrame v-model="showTrendReport" :title="trendReportTitle">
+			<EnergySimulation :mode="trendReportMode" />
 		</SimulationFrame>
 	</div>
 </template>

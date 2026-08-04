@@ -105,6 +105,7 @@ export const PERM = {
 	energy: {
 		module: "system.energy",
 		reportFull: "system.energy.report.full",
+		settingsUpdate: "system.energy.settings.update",
 	},
 	drainage: {
 		module: "system.drainage",

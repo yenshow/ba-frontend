@@ -10,6 +10,9 @@ export type DeviceFormValidationInput = {
 	sensorUnitId?: number
 	isSensorPortInherited: boolean
 	isSensorUnitIdInherited: boolean
+	/** 所選型號為電表時需填用途系統 */
+	isElectricityMeter?: boolean
+	energyUsageSystem?: string
 	controllerPort?: number
 	isControllerPortInherited: boolean
 	isHcnetSdkController: boolean
@@ -47,6 +50,12 @@ export const validateDeviceFormForSave = (input: DeviceFormValidationInput): str
 			input.isSensorUnitIdInherited || (input.sensorUnitId != null && input.sensorUnitId > 0)
 		if (!hasPort) return "請填寫端口，或選擇已設定端口的設備型號"
 		if (!hasUnitId) return "請填寫 Unit ID，或選擇已設定 Unit ID 的設備型號"
+	}
+
+	if (input.deviceTypeCode === "sensor" && input.isElectricityMeter) {
+		if (!String(input.energyUsageSystem || "").trim()) {
+			return "請選擇電表用途系統"
+		}
 	}
 
 	if (input.deviceTypeCode === "controller") {

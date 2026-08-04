@@ -70,9 +70,15 @@ const props = defineProps<{
 	compareLabel?: string | null
 }>()
 
+const TIP_PAD = 8
+const TIP_GAP = 10
+
+const wrapRef = ref<HTMLElement | null>(null)
+const tipElRef = ref<HTMLElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const tip = ref<TipState>({ show: false, left: 0, top: 0, title: "", rows: [] })
 let chart: Chart | null = null
+let tipCaret = { x: 0, y: 0 }
 
 const isEnergy = computed(() => props.mode === "energy")
 const unit = computed(() => (isEnergy.value ? "kWh" : "m³"))
@@ -160,6 +166,27 @@ const lineDataset = (
 			}),
 })
 
+/** 避開父層 monitoring-panel 的 overflow:hidden 裁切 */
+const clampTipPosition = () => {
+	const wrap = wrapRef.value
+	const el = tipElRef.value
+	if (!wrap || !el || !tip.value.show) return
+
+	const { width: ww, height: wh } = wrap.getBoundingClientRect()
+	const { width: tw, height: th } = el.getBoundingClientRect()
+	const { x: cx, y: cy } = tipCaret
+
+	let left = cx - tw / 2
+	let top = cy - th - TIP_GAP
+
+	if (top < TIP_PAD) top = cy + TIP_GAP
+	if (top + th > wh - TIP_PAD) top = Math.max(TIP_PAD, wh - th - TIP_PAD)
+
+	left = Math.min(Math.max(left, TIP_PAD), Math.max(TIP_PAD, ww - tw - TIP_PAD))
+
+	tip.value = { ...tip.value, left, top }
+}
+
 /** HTML tooltip：可自訂較長的實線／虛線圖示（Chart.js 內建受 min(boxW,boxH) 限制） */
 const renderExternalTooltip = (context: { tooltip: TooltipModel<"line"> }) => {
 	const { tooltip: t } = context
@@ -168,6 +195,7 @@ const renderExternalTooltip = (context: { tooltip: TooltipModel<"line"> }) => {
 		return
 	}
 
+	tipCaret = { x: t.caretX, y: t.caretY }
 	tip.value = {
 		show: true,
 		left: t.caretX,
@@ -180,6 +208,7 @@ const renderExternalTooltip = (context: { tooltip: TooltipModel<"line"> }) => {
 			dashed: dp.datasetIndex === 1,
 		})),
 	}
+	nextTick(() => clampTipPosition())
 }
 
 const buildChart = () => {
@@ -262,11 +291,12 @@ onBeforeUnmount(() => chart?.destroy())
 </script>
 
 <template>
-	<div class="relative h-64 min-h-0">
+	<div ref="wrapRef" class="relative h-64 min-h-0">
 		<canvas ref="canvasRef" aria-label="趨勢圖" />
 		<div
 			v-show="tip.show"
-			class="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-[calc(100%+10px)] rounded-lg bg-black/90 px-3 py-2.5 text-white shadow-lg"
+			ref="tipElRef"
+			class="pointer-events-none absolute z-10 whitespace-nowrap rounded-lg bg-black/90 px-3 py-2.5 text-white shadow-lg"
 			:style="{ left: `${tip.left}px`, top: `${tip.top}px` }"
 			role="tooltip"
 		>
@@ -277,7 +307,7 @@ onBeforeUnmount(() => chart?.destroy())
 				class="flex items-center gap-2.5 text-[15px] leading-7"
 			>
 				<span
-					class="w-9 shrink-0 border-t-[3px]"
+					class="inline-block h-0 w-9 shrink-0 border-t-[3px]"
 					:class="row.dashed ? 'border-dashed' : 'border-solid'"
 					:style="{ borderColor: row.color }"
 					aria-hidden="true"

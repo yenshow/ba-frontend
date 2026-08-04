@@ -45,11 +45,49 @@ export type EnergyTrendPoint = {
 	waterM3: number
 }
 
-export type EnergyDistributionItem = {
+/** 電量使用分佈：用途系統維度 */
+export type EnergySystemDistributionItem = {
+	systemKey: string
+	systemName: string
+	energyKwh: number
+	percent: number
+	deviceCount: number
+}
+
+/** 用電排行：電表設備維度 */
+export type EnergyMeterRankingItem = {
 	deviceId: number
 	deviceName: string
 	energyKwh: number
 	percent: number
+}
+
+export type EnergyBreakdownMeter = {
+	deviceId: number
+	deviceName: string
+	systemKey: string
+	systemName: string
+	energyKwh: number
+	percentOfTotal: number
+	percentOfSystem: number
+	activePowerKw: number | null
+	location: string | null
+	lastReadingAt: string | null
+	included: boolean
+}
+
+export type EnergyBreakdownSystem = {
+	systemKey: string
+	systemName: string
+	energyKwh: number
+	percent: number
+	deviceCount: number
+	meters: EnergyBreakdownMeter[]
+}
+
+export type EnergyBreakdownResponse = {
+	totalEnergyKwh: number
+	systems: EnergyBreakdownSystem[]
 }
 
 export type EnergyReadingRow = {
@@ -58,4 +96,18 @@ export type EnergyReadingRow = {
 	deviceName?: string
 	recordedAt: string
 	data: Record<string, number>
+}
+
+/** 完整報表用量彙總列（GET /energy/usage/aggregated） */
+export type EnergyUsageAggregatedRow = {
+	deviceId: number
+	bucketType: string
+	timestamp: string
+	deltaEnergyKwh: number | null
+	deltaWaterM3: number | null
+	touPeakKwh?: number | null
+	touSemiPeakKwh?: number | null
+	touOffPeakKwh?: number | null
+	maxPowerKw?: number | null
+	maxDemandKw?: number | null
 }

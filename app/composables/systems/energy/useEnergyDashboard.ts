@@ -4,7 +4,8 @@ import { useAuth } from "~/composables/core/useAuth"
 import { FALLBACK_POLL_MS } from "~/utils/realtimeTiming"
 import type {
 	EnergyDashboardSummary,
-	EnergyDistributionItem,
+	EnergyMeterRankingItem,
+	EnergySystemDistributionItem,
 	EnergyTrendPoint,
 } from "~/types/energy"
 import { PERM } from "~/config/permissionCodes"
@@ -62,9 +63,9 @@ export const useEnergyDashboard = () => {
 	const kpiDaySeries = ref<EnergyTrendPoint[]>([])
 	/** KPI 迷你圖：固定月（日桶），供本月參考電／水費 */
 	const kpiMonthSeries = ref<EnergyTrendPoint[]>([])
-	const distribution = ref<EnergyDistributionItem[]>([])
+	const distribution = ref<EnergySystemDistributionItem[]>([])
 	const distributionTotalKwh = ref(0)
-	const ranking = ref<EnergyDistributionItem[]>([])
+	const ranking = ref<EnergyMeterRankingItem[]>([])
 	const loading = ref(false)
 	const errorMessage = ref<string | null>(null)
 
