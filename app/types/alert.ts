@@ -151,11 +151,12 @@ export interface AlertCameraLinkage {
 	updated_at: string
 }
 
-/** 警報觸發時對全部門禁設備送 alwaysOpen（無設備清單） */
+/** 警報觸發時送 alwaysOpen；device_ids 空＝全部門禁，有值＝指定一或多台 */
 export interface AlertAccessDoorLinkage {
 	id: number
 	enabled: boolean
 	rule_id: number
+	device_ids: number[]
 	created_by?: number | null
 	created_at: string
 	updated_at: string

@@ -81,7 +81,7 @@
 											v-if="getIntegrationSummary(rule.id).accessDoorEnabled"
 											class="rounded bg-amber-500/20 px-2 py-0.5 text-xs text-amber-100 2xl:text-sm"
 										>
-											門禁全開
+											門禁連動
 										</span>
 										<span
 											v-if="getIntegrationSummary(rule.id).emailEnabled"

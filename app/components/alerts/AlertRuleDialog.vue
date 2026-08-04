@@ -299,8 +299,56 @@
 									<p class="mb-3 text-sm font-medium text-white/90">門禁連動</p>
 									<label class="flex items-center gap-3 text-sm text-white/80">
 										<input v-model="accessDoorLinkage.enabled" type="checkbox" class="h-4 w-4" />
-										<span>啟用全開門禁</span>
+										<span>啟用門禁連動</span>
 									</label>
+
+									<div v-if="accessDoorLinkage.enabled" class="mt-3 space-y-3">
+										<p class="text-sm text-white/80">
+											門禁設備<span class="required-mark">*</span>
+										</p>
+										<label class="flex items-center gap-3 text-sm text-white/80">
+											<input
+												type="checkbox"
+												class="h-4 w-4"
+												:checked="accessDoorLinkage.allDevices"
+												@change="handleAccessDoorToggleAll"
+											/>
+											<span>全部門禁</span>
+										</label>
+										<div
+											v-if="accessDeviceItems.length > 0"
+											class="grid grid-cols-3 gap-x-3 gap-y-3"
+										>
+											<label
+												v-for="item in accessDeviceItems"
+												:key="item.id"
+												class="flex min-w-0 items-center gap-3 text-sm text-white/80"
+											>
+												<input
+													type="checkbox"
+													class="h-4 w-4 shrink-0"
+													:checked="
+														!accessDoorLinkage.allDevices &&
+														accessDoorLinkage.device_ids.includes(item.id)
+													"
+													@change="
+														(e: Event) =>
+															handleAccessDoorToggleDevice(
+																item.id,
+																(e.target as HTMLInputElement).checked,
+															)
+													"
+												/>
+												<span class="truncate">{{ item.label }}</span>
+											</label>
+										</div>
+										<p
+											v-else
+											class="text-sm text-white/60"
+										>
+											{{ isAccessDevicesLoading ? "設備載入中..." : "尚無門禁設備" }}
+										</p>
+									</div>
 								</div>
 							</div>
 						</div>
@@ -486,6 +534,7 @@ import { useAlertApi } from "~/composables/systems/alerts/useAlertApi"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { alertSourceToSystemType, isAllowedThresholdOperator } from "~/utils/alertUtils"
 import {
+	normalizeAlertRuleAccessDeviceIds,
 	normalizeAlertRuleCameraDeviceIds,
 	parseAlertRuleEmailsFromText,
 	validateAlertRuleEmailSubscription,
@@ -543,6 +592,7 @@ interface IntegrationsDraft {
 	}
 	accessDoorLinkage: null | {
 		enabled: boolean
+		device_ids?: number[]
 	}
 	emailSubscription: null | {
 		enabled: boolean
@@ -635,6 +685,9 @@ const cameraLinkage = reactive({
 
 const accessDoorLinkage = reactive({
 	enabled: false,
+	/** true＝全部；false＝device_ids 指定（可多選） */
+	allDevices: true,
+	device_ids: [] as number[],
 })
 
 const smtpSecurityOptions: OptionItem[] = [
@@ -665,6 +718,10 @@ const smtpTestFeedback = reactive<{ ok: boolean; message: string }>({
 const devices = ref<Device[]>([])
 const isDevicesLoading = ref(false)
 let devicesLoadPromise: Promise<void> | null = null
+
+const accessDevices = ref<Device[]>([])
+const isAccessDevicesLoading = ref(false)
+let accessDevicesLoadPromise: Promise<void> | null = null
 
 const doOutputValueOptions = [
 	{ value: "on", label: "ON" },
@@ -754,6 +811,29 @@ const cameraDeviceOptions = computed(() => {
 	return [...base, ...items]
 })
 
+const accessDeviceItems = computed(() =>
+	accessDevices.value
+		.map((d) => ({
+			id: Number(d.id),
+			label: String(d.name || "").trim() || "(未命名)",
+		}))
+		.filter((d) => Number.isFinite(d.id) && d.id > 0)
+)
+
+const handleAccessDoorToggleAll = (e: Event) => {
+	const checked = (e.target as HTMLInputElement).checked
+	accessDoorLinkage.allDevices = checked
+	if (checked) accessDoorLinkage.device_ids = []
+}
+
+const handleAccessDoorToggleDevice = (id: number, checked: boolean) => {
+	accessDoorLinkage.allDevices = false
+	const set = new Set(accessDoorLinkage.device_ids)
+	if (checked) set.add(id)
+	else set.delete(id)
+	accessDoorLinkage.device_ids = [...set]
+}
+
 const { thresholdOptions, ensureLoaded: ensureEnvironmentCatalogLoaded } =
 	useEnvironmentParameterCatalog()
 
@@ -804,6 +884,8 @@ const resetForm = () => {
 	cameraLinkage.camera_device_ids = [null]
 
 	accessDoorLinkage.enabled = false
+	accessDoorLinkage.allDevices = true
+	accessDoorLinkage.device_ids = []
 
 	email.enabled = false
 	email.smtp_host = ""
@@ -935,6 +1017,34 @@ const loadDevices = async () => {
 	await devicesLoadPromise
 }
 
+/** 門禁清單獨立載入（不依連線狀態過濾） */
+const loadAccessDevices = async () => {
+	if (accessDevices.value.length > 0) return
+	if (accessDevicesLoadPromise) {
+		await accessDevicesLoadPromise
+		return
+	}
+	isAccessDevicesLoading.value = true
+	accessDevicesLoadPromise = (async () => {
+		try {
+			const res = await deviceApi.getDevices({
+				type_code: "access_control",
+				limit: 500,
+				offset: 0,
+				orderBy: "name",
+				order: "asc",
+			})
+			accessDevices.value = Array.isArray(res.devices) ? res.devices : []
+		} catch {
+			accessDevices.value = []
+		} finally {
+			isAccessDevicesLoading.value = false
+			accessDevicesLoadPromise = null
+		}
+	})()
+	await accessDevicesLoadPromise
+}
+
 const loadIntegrationsForRule = async (ruleId: number) => {
 	try {
 		const res = await alertApi.getAlertRuleIntegrations(ruleId)
@@ -958,6 +1068,11 @@ const loadIntegrationsForRule = async (ruleId: number) => {
 		cameraLinkage.camera_device_ids = merged.length > 0 ? merged : [null]
 
 		accessDoorLinkage.enabled = Boolean(res?.accessDoorLinkage?.enabled)
+		const accessMerged = normalizeAlertRuleAccessDeviceIds(
+			Array.isArray(res?.accessDoorLinkage?.device_ids) ? res.accessDoorLinkage.device_ids : []
+		)
+		accessDoorLinkage.allDevices = accessMerged.length === 0
+		accessDoorLinkage.device_ids = accessMerged
 
 		const es = (res as any)?.emailSubscription
 		email.enabled = Boolean(es?.enabled)
@@ -1057,6 +1172,9 @@ watch(
 			if (devices.value.length === 0 && !isDevicesLoading.value) {
 				void loadDevices()
 			}
+			if (accessDevices.value.length === 0 && !isAccessDevicesLoading.value) {
+				void loadAccessDevices()
+			}
 			if (rule.id) {
 				void loadIntegrationsForRule(rule.id)
 			}
@@ -1070,7 +1188,7 @@ watch(
 	(next) => {
 		const unit = getParameterUnit(next)
 		if (unit) thresholdConfig.unit = unit
-	},
+	}
 )
 
 watch(
@@ -1083,6 +1201,9 @@ watch(
 		void ensureEnvironmentCatalogLoaded()
 		if (devices.value.length === 0 && !isDevicesLoading.value) {
 			void loadDevices()
+		}
+		if (accessDevices.value.length === 0 && !isAccessDevicesLoading.value) {
+			void loadAccessDevices()
 		}
 	},
 	{ immediate: true }
@@ -1100,6 +1221,11 @@ const buildAlertRuleValidationInput = () => ({
 	cameraLinkage: {
 		enabled: cameraLinkage.enabled,
 		camera_device_ids: normalizeAlertRuleCameraDeviceIds(cameraDeviceIdsModel.value),
+	},
+	accessDoorLinkage: {
+		enabled: accessDoorLinkage.enabled,
+		allDevices: accessDoorLinkage.allDevices,
+		device_ids: normalizeAlertRuleAccessDeviceIds(accessDoorLinkage.device_ids),
 	},
 	email,
 })
@@ -1192,7 +1318,14 @@ const handleSubmit = () => {
 					),
 				}
 			: null,
-		accessDoorLinkage: accessDoorLinkage.enabled ? { enabled: true } : null,
+		accessDoorLinkage: accessDoorLinkage.enabled
+			? {
+					enabled: true,
+					device_ids: accessDoorLinkage.allDevices
+						? []
+						: normalizeAlertRuleAccessDeviceIds(accessDoorLinkage.device_ids),
+				}
+			: null,
 		emailSubscription: email.enabled
 			? {
 					enabled: true,
