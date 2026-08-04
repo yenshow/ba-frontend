@@ -58,6 +58,10 @@ export const useEnergyDashboard = () => {
 	const summary = ref<EnergyDashboardSummary | null>(null)
 	const energyTrend = ref<EnergyTrendState>(emptyTrend())
 	const waterTrend = ref<EnergyTrendState>(emptyTrend())
+	/** KPI 迷你圖：固定日（小時桶），不受下方趨勢 range 切換影響 */
+	const kpiDaySeries = ref<EnergyTrendPoint[]>([])
+	/** KPI 迷你圖：固定月（日桶），供本月參考電／水費 */
+	const kpiMonthSeries = ref<EnergyTrendPoint[]>([])
 	const distribution = ref<EnergyDistributionItem[]>([])
 	const distributionTotalKwh = ref(0)
 	const ranking = ref<EnergyDistributionItem[]>([])
@@ -71,6 +75,11 @@ export const useEnergyDashboard = () => {
 		applyTrendResult(waterTrend, waterTrend.value.range, water)
 	}
 
+	const applyKpiSparkSeries = (day: EnergyTrendPoint[], month: EnergyTrendPoint[]) => {
+		kpiDaySeries.value = day
+		kpiMonthSeries.value = month
+	}
+
 	const refreshAll = async () => {
 		loading.value = true
 		errorMessage.value = null
@@ -79,15 +88,21 @@ export const useEnergyDashboard = () => {
 				await new Promise((r) => setTimeout(r, 200))
 				summary.value = { ...MOCK_ENERGY_SUMMARY }
 				applyMockTrends()
+				applyKpiSparkSeries(
+					buildMockTrendSeries("day").series,
+					buildMockTrendSeries("month").series
+				)
 				distribution.value = [...MOCK_ENERGY_DISTRIBUTION.items]
 				distributionTotalKwh.value = MOCK_ENERGY_DISTRIBUTION.totalEnergyKwh
 				ranking.value = [...MOCK_ENERGY_RANKING]
 				return
 			}
-			const [s, elecT, waterT, d, r] = await Promise.all([
+			const [s, elecT, waterT, dayT, monthT, d, r] = await Promise.all([
 				api.getSummary(),
 				api.getTrends(energyTrend.value.range),
 				api.getTrends(waterTrend.value.range),
+				api.getTrends("day"),
+				api.getTrends("month"),
 				api.getDistribution(),
 				api.getRanking(5),
 			])
@@ -100,6 +115,7 @@ export const useEnergyDashboard = () => {
 				bucketType: waterT.bucketType,
 				series: waterT.series,
 			})
+			applyKpiSparkSeries(dayT.series || [], monthT.series || [])
 			distribution.value = d.items || []
 			distributionTotalKwh.value = d.totalEnergyKwh ?? 0
 			ranking.value = r.items || []
@@ -144,6 +160,8 @@ export const useEnergyDashboard = () => {
 		summary,
 		energyTrend,
 		waterTrend,
+		kpiDaySeries,
+		kpiMonthSeries,
 		distribution,
 		distributionTotalKwh,
 		ranking,

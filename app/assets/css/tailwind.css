@@ -102,6 +102,11 @@ html.dark .login-page {
 	color: var(--text-primary);
 }
 
+/* 能源管理：明亮模式面板背景全透明；黑暗模式沿用全域 token */
+html:not(.dark) .energy-dashboard {
+	--monitoring-panel-bg: rgba(255, 255, 255, 0);
+}
+
 /* 監控詳情頂部：區域｜地點（白底深字，雙主題一致） */
 .monitoring-location-title {
 	@apply absolute left-1/2 top-0 flex h-9 -translate-x-1/2 items-center justify-center bg-white 2xl:h-12;

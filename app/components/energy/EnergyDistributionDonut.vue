@@ -47,7 +47,7 @@ const buildChart = () => {
 		options: {
 			responsive: true,
 			maintainAspectRatio: false,
-			cutout: "68%",
+			cutout: "60%",
 			plugins: { legend: { display: false } },
 		},
 	}
@@ -81,7 +81,7 @@ onBeforeUnmount(() => chart?.destroy())
 				</div>
 			</div>
 			<ul
-				class="max-h-[200px] flex-1 space-y-2.5 overflow-y-auto text-sm text-white/80 2xl:text-base"
+				class="max-h-[200px] flex-1 space-y-3 overflow-y-auto text-sm text-white/80 2xl:text-base"
 			>
 				<li v-for="(item, idx) in items" :key="item.deviceId" class="flex items-center gap-2">
 					<span
@@ -101,7 +101,7 @@ onBeforeUnmount(() => chart?.destroy())
 				</li>
 			</ul>
 		</div>
-		<div class="mt-2 text-right">
+		<div class="mt-4 text-right">
 			<span class="text-sm text-white/70 transition-colors hover:text-white 2xl:text-base"
 				>查看更多 ></span
 			>

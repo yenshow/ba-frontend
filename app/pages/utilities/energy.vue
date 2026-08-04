@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import EnergyTrendChart from "~/components/energy/EnergyTrendChart.vue"
+import EnergyKpiSparkline from "~/components/energy/EnergyKpiSparkline.vue"
 import EnergyDistributionDonut from "~/components/energy/EnergyDistributionDonut.vue"
 import EnergyRankingList from "~/components/energy/EnergyRankingList.vue"
 import EnergyAlertsPanel, { type EnergyAlertItem } from "~/components/energy/EnergyAlertsPanel.vue"
@@ -21,6 +22,8 @@ const {
 	summary,
 	energyTrend,
 	waterTrend,
+	kpiDaySeries,
+	kpiMonthSeries,
 	distribution,
 	distributionTotalKwh,
 	ranking,
@@ -49,6 +52,105 @@ const rangeTabs = [
 	{ id: "month", label: "月" },
 	{ id: "year", label: "年" },
 ] as const
+
+const kpiValueClass =
+	"min-w-[4.5rem] rounded-lg bg-black/10 px-2 py-1 text-2xl text-white 2xl:text-3xl dark:bg-black/30"
+
+type KpiSpark = {
+	values: Array<number | null>
+	tone: "energy" | "water" | "cost"
+	ariaLabel: string
+}
+
+const kpiCards = computed(() => {
+	const s = summary.value
+	const day = kpiDaySeries.value
+	const month = kpiMonthSeries.value
+	return [
+		{
+			key: "today-energy",
+			label: "今日用電量",
+			icon: "/energy/today-electricity.png",
+			value: (s?.todayEnergyKwh ?? 0).toLocaleString(),
+			unit: "kWh",
+			spark: {
+				values: day.map((p) => p.energyKwh),
+				tone: "energy",
+				ariaLabel: "今日用電趨勢",
+			} satisfies KpiSpark,
+		},
+		{
+			key: "today-water",
+			label: "今日用水量",
+			icon: "/energy/today-water.png",
+			value: (s?.todayWaterM3 ?? 0).toLocaleString(),
+			unit: "m³",
+			spark: {
+				values: day.map((p) => p.waterM3),
+				tone: "water",
+				ariaLabel: "今日用水趨勢",
+			} satisfies KpiSpark,
+		},
+		{
+			key: "contract",
+			label: "契約容量",
+			icon: "/energy/carbon-emission.png",
+			iconClass: "mb-auto mt-1.5",
+			value: (s?.contractCapacityKw ?? 0).toLocaleString(),
+			unit: "kW",
+			hint: `目前 ${(s?.currentDemandKw ?? 0).toLocaleString()} kW`,
+			warn: Boolean(s?.overContract),
+			spark: null as KpiSpark | null,
+		},
+		{
+			key: "elec-cost",
+			label: "本月參考電費",
+			icon: "/energy/reference-cost.png",
+			value: (s?.monthElectricityCost?.amount ?? 0).toLocaleString(),
+			unit: "NT$",
+			unitBefore: true,
+			spark: {
+				values: month.map((p) => p.energyKwh),
+				tone: "cost",
+				ariaLabel: "本月用電趨勢（參考電費）",
+			} satisfies KpiSpark,
+		},
+		{
+			key: "water-cost",
+			label: "本月參考水費",
+			icon: "/energy/reference-cost.png",
+			value: (s?.monthWaterCost?.amount ?? 0).toLocaleString(),
+			unit: "NT$",
+			unitBefore: true,
+			spark: {
+				values: month.map((p) => p.waterM3),
+				tone: "cost",
+				ariaLabel: "本月用水趨勢（參考水費）",
+			} satisfies KpiSpark,
+		},
+	]
+})
+
+const trendPanels = computed(() => [
+	{
+		key: "energy",
+		title: "用電趨勢",
+		mode: "energy" as const,
+		...energyTrend.value,
+		setRange: setEnergyTrendRange,
+		idPrefix: "energy-trend-range-elec",
+		ariaLabel: "用電趨勢時間範圍",
+	},
+	{
+		key: "water",
+		title: "用水趨勢",
+		mode: "water" as const,
+		...waterTrend.value,
+		setRange: setWaterTrendRange,
+		idPrefix: "energy-trend-range-water",
+		ariaLabel: "用水趨勢時間範圍",
+	},
+])
 
 const loadAlerts = async () => {
 	if (ENERGY_DASHBOARD_USE_MOCK) {
@@ -106,7 +208,7 @@ onMounted(async () => {
 </script>
 
 <template>
-	<div class="page-shell">
+	<div class="page-shell energy-dashboard">
 		<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
 			<header class="flex flex-col gap-1 2xl:gap-2">
 				<h1 class="page-title">能源管理</h1>
@@ -152,156 +254,77 @@ onMounted(async () => {
 
 		<!-- KPI -->
 		<section class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5 2xl:gap-4">
-			<article class="monitoring-panel flex flex-col overflow-hidden rounded-2xl p-4 text-white">
-				<div class="flex items-center gap-3">
-					<img
-						src="/energy/today-electricity.png"
-						alt=""
-						class="h-14 w-14 flex-shrink-0 object-contain 2xl:h-16 2xl:w-16"
-						width="64"
-						height="64"
-					/>
-					<div class="min-w-0 tracking-[3px]">
-						<div class="mb-1 text-base font-medium tracking-widest text-white 2xl:text-lg">
-							今日用電量
-						</div>
-						<div class="flex items-baseline gap-2">
-							<div
-								class="min-w-[4.5rem] rounded-lg bg-white/10 px-2 py-1 text-2xl text-white 2xl:text-3xl"
-							>
-								{{ (summary?.todayEnergyKwh ?? 0).toLocaleString() }}
-							</div>
-							<span class="text-2xl text-white/80 2xl:text-3xl">kWh</span>
-						</div>
-					</div>
-				</div>
-			</article>
-
-			<article class="monitoring-panel flex flex-col overflow-hidden rounded-2xl p-4 text-white">
-				<div class="flex items-center gap-3">
-					<img
-						src="/energy/today-water.png"
-						alt=""
-						class="h-14 w-14 flex-shrink-0 object-contain 2xl:h-16 2xl:w-16"
-						width="64"
-						height="64"
-					/>
-					<div class="min-w-0 tracking-[3px]">
-						<div class="mb-1 text-base font-medium tracking-widest text-white 2xl:text-lg">
-							今日用水量
-						</div>
-						<div class="flex items-baseline gap-2">
-							<div
-								class="min-w-[4.5rem] rounded-lg bg-white/10 px-2 py-1 text-2xl text-white 2xl:text-3xl"
-							>
-								{{ (summary?.todayWaterM3 ?? 0).toLocaleString() }}
-							</div>
-							<span class="text-2xl text-white/80 2xl:text-3xl">m³</span>
-						</div>
-					</div>
-				</div>
-			</article>
-
 			<article
-				class="monitoring-panel flex flex-col overflow-hidden rounded-2xl p-4 text-white"
-				:class="summary?.overContract ? 'ring-2 ring-amber-400/70' : ''"
+				v-for="card in kpiCards"
+				:key="card.key"
+				class="monitoring-panel flex flex-col overflow-hidden rounded-2xl pt-4 text-white"
+				:class="card.warn ? 'ring-2 ring-amber-400/70' : ''"
 			>
-				<div class="flex items-center gap-3">
+				<div class="flex items-center gap-3 px-4">
 					<img
-						src="/energy/carbon-emission.png"
+						:src="card.icon"
 						alt=""
-						class="h-14 w-14 flex-shrink-0 object-contain 2xl:h-16 2xl:w-16 mb-auto mt-1.5"
+						class="h-14 w-14 flex-shrink-0 object-contain 2xl:h-16 2xl:w-16"
+						:class="card.iconClass"
 						width="64"
 						height="64"
 					/>
 					<div class="min-w-0 tracking-[3px]">
 						<div class="mb-1 text-base font-medium tracking-widest text-white 2xl:text-lg">
-							契約容量
+							{{ card.label }}
 						</div>
 						<div class="flex items-baseline gap-2">
-							<div
-								class="min-w-[4.5rem] rounded-lg bg-white/10 px-2 py-1 text-2xl text-white 2xl:text-3xl"
+							<span
+								v-if="card.unitBefore"
+								class="text-2xl text-white/80 2xl:text-3xl"
+								>{{ card.unit }}</span
 							>
-								{{ (summary?.contractCapacityKw ?? 0).toLocaleString() }}
-							</div>
-							<span class="text-2xl text-white/80 2xl:text-3xl">kW</span>
+							<div :class="kpiValueClass">{{ card.value }}</div>
+							<span
+								v-if="!card.unitBefore"
+								class="text-2xl text-white/80 2xl:text-3xl"
+								>{{ card.unit }}</span
+							>
 						</div>
 						<p
+							v-if="card.hint"
 							class="mt-1 text-sm tracking-wider text-white/50 2xl:text-base"
-							:class="summary?.overContract ? '!text-amber-300' : ''"
+							:class="card.warn ? '!text-amber-300' : ''"
 						>
-							目前 {{ (summary?.currentDemandKw ?? 0).toLocaleString() }} kW
-							<span v-if="summary?.overContract"> · 超限</span>
+							{{ card.hint }}
+							<span v-if="card.warn"> · 超限</span>
 						</p>
 					</div>
 				</div>
-			</article>
-
-			<article class="monitoring-panel flex flex-col overflow-hidden rounded-2xl p-4 text-white">
-				<div class="flex items-center gap-3">
-					<img
-						src="/energy/reference-cost.png"
-						alt=""
-						class="h-14 w-14 flex-shrink-0 object-contain 2xl:h-16 2xl:w-16"
-						width="64"
-						height="64"
-					/>
-					<div class="min-w-0 tracking-[3px]">
-						<div class="mb-1 text-base font-medium tracking-widest text-white 2xl:text-lg">
-							本月參考電費
-						</div>
-						<div class="flex items-baseline gap-2">
-							<span class="text-2xl text-white/80 2xl:text-3xl">NT$</span>
-							<div
-								class="min-w-[4.5rem] rounded-lg bg-white/10 px-2 py-1 text-2xl text-white 2xl:text-3xl"
-							>
-								{{ (summary?.monthElectricityCost?.amount ?? 0).toLocaleString() }}
-							</div>
-						</div>
-					</div>
-				</div>
-			</article>
-
-			<article class="monitoring-panel flex flex-col overflow-hidden rounded-2xl p-4 text-white">
-				<div class="flex items-center gap-3">
-					<img
-						src="/energy/reference-cost.png"
-						alt=""
-						class="h-14 w-14 flex-shrink-0 object-contain 2xl:h-16 2xl:w-16"
-						width="64"
-						height="64"
-					/>
-					<div class="min-w-0 tracking-[3px]">
-						<div class="mb-1 text-base font-medium tracking-widest text-white 2xl:text-lg">
-							本月參考水費
-						</div>
-						<div class="flex items-baseline gap-2">
-							<span class="text-2xl text-white/80 2xl:text-3xl">NT$</span>
-							<div
-								class="min-w-[4.5rem] rounded-lg bg-white/10 px-2 py-1 text-2xl text-white 2xl:text-3xl"
-							>
-								{{ (summary?.monthWaterCost?.amount ?? 0).toLocaleString() }}
-							</div>
-						</div>
-					</div>
-				</div>
+				<EnergyKpiSparkline
+					v-if="card.spark"
+					class="mt-auto"
+					:values="card.spark.values"
+					:tone="card.spark.tone"
+					:aria-label="card.spark.ariaLabel"
+				/>
+				<div v-else class="pb-4" aria-hidden="true" />
 			</article>
 		</section>
 
 		<!-- 趨勢 -->
 		<section class="grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:gap-6">
-			<div class="monitoring-panel overflow-hidden rounded-2xl p-4 text-white 2xl:p-6">
+			<div
+				v-for="panel in trendPanels"
+				:key="panel.key"
+				class="monitoring-panel overflow-hidden rounded-2xl p-4 text-white 2xl:p-6"
+			>
 				<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-					<h2 class="text-xl font-semibold tracking-[4px] 2xl:text-2xl">用電趨勢</h2>
+					<h2 class="text-xl font-semibold tracking-[4px] 2xl:text-2xl">{{ panel.title }}</h2>
 					<div class="flex flex-wrap items-center gap-3">
 						<PageTabs
-							:model-value="energyTrend.range"
+							:model-value="panel.range"
 							:tabs="[...rangeTabs]"
 							:panels="false"
-							aria-label="用電趨勢時間範圍"
-							id-prefix="energy-trend-range-elec"
+							:aria-label="panel.ariaLabel"
+							:id-prefix="panel.idPrefix"
 							button-class="!px-2.5 !py-1 !text-sm 2xl:!text-base"
-							@update:model-value="setEnergyTrendRange"
+							@update:model-value="panel.setRange"
 						/>
 						<button
 							v-if="canReportFull"
@@ -314,43 +337,11 @@ onMounted(async () => {
 					</div>
 				</div>
 				<EnergyTrendChart
-					mode="energy"
-					:series="energyTrend.series"
-					:compare-series="energyTrend.compareSeries"
-					:compare-label="energyTrend.compareLabel"
-					:bucket-type="energyTrend.bucketType"
-				/>
-			</div>
-
-			<div class="monitoring-panel overflow-hidden rounded-2xl p-4 text-white 2xl:p-6">
-				<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-					<h2 class="text-xl font-semibold tracking-[4px] 2xl:text-2xl">用水趨勢</h2>
-					<div class="flex flex-wrap items-center gap-3">
-						<PageTabs
-							:model-value="waterTrend.range"
-							:tabs="[...rangeTabs]"
-							:panels="false"
-							aria-label="用水趨勢時間範圍"
-							id-prefix="energy-trend-range-water"
-							button-class="!px-2.5 !py-1 !text-sm 2xl:!text-base"
-							@update:model-value="setWaterTrendRange"
-						/>
-						<button
-							v-if="canReportFull"
-							type="button"
-							class="text-sm text-white/70 transition-colors hover:text-white 2xl:text-base"
-							@click="handleOpenSimulation"
-						>
-							查看全部
-						</button>
-					</div>
-				</div>
-				<EnergyTrendChart
-					mode="water"
-					:series="waterTrend.series"
-					:compare-series="waterTrend.compareSeries"
-					:compare-label="waterTrend.compareLabel"
-					:bucket-type="waterTrend.bucketType"
+					:mode="panel.mode"
+					:series="panel.series"
+					:compare-series="panel.compareSeries"
+					:compare-label="panel.compareLabel"
+					:bucket-type="panel.bucketType"
 				/>
 			</div>
 		</section>

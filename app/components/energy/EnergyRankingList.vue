@@ -3,10 +3,7 @@ import type { EnergyDistributionItem } from "~/types/energy"
 
 defineProps<{ items: EnergyDistributionItem[] }>()
 
-const rankClass = (index: number) => {
-	if (index === 0 || index === 1 || index === 2) return "bg-amber-400"
-	return "bg-white/10"
-}
+const rankClass = (index: number) => (index < 3 ? "bg-amber-400" : "bg-white/10")
 </script>
 
 <template>

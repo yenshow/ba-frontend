@@ -6,14 +6,19 @@ import {
 	type ActiveElement,
 	type ChartDataset,
 	type Plugin,
+	type TooltipModel,
 } from "chart.js"
 import type { EnergyTrendPoint } from "~/types/energy"
 
 Chart.register(...registerables)
 
-const STROKE = "#2EE6D6"
-const COMPARE_STROKE = "rgba(255,255,255,0.45)"
+const STROKE = "#00FFB5"
+const COMPARE_STROKE = "#A6A6A6"
+const STROKE_RGB = "0, 255, 181"
 const HOUR_TICKS = new Set([0, 4, 8, 12, 16, 20, 24])
+
+type TipRow = { label: string; value: string; color: string; dashed: boolean }
+type TipState = { show: boolean; left: number; top: number; title: string; rows: TipRow[] }
 
 /**
  * Chart.js positioner 參數是 ActiveElement[]（含 datasetIndex），不是 TooltipItem。
@@ -42,16 +47,15 @@ const crosshairPlugin: Plugin<"line"> = {
 		if (x == null) return
 		const { top, bottom } = c.chartArea
 		const ctx = c.ctx
-		const w = 2
 		ctx.save()
 		const grad = ctx.createLinearGradient(x, top, x, bottom)
-		grad.addColorStop(0, "rgba(46, 230, 214, 0)")
-		grad.addColorStop(0.2, "rgba(46, 230, 214, 0.35)")
-		grad.addColorStop(0.5, "rgba(46, 230, 214, 0.75)")
-		grad.addColorStop(0.8, "rgba(46, 230, 214, 0.35)")
-		grad.addColorStop(1, "rgba(46, 230, 214, 0)")
+		grad.addColorStop(0, `rgba(${STROKE_RGB}, 0)`)
+		grad.addColorStop(0.2, `rgba(${STROKE_RGB}, 0.35)`)
+		grad.addColorStop(0.5, `rgba(${STROKE_RGB}, 0.75)`)
+		grad.addColorStop(0.8, `rgba(${STROKE_RGB}, 0.35)`)
+		grad.addColorStop(1, `rgba(${STROKE_RGB}, 0)`)
 		ctx.fillStyle = grad
-		ctx.fillRect(x - w / 2, top, w, bottom - top)
+		ctx.fillRect(x - 1, top, 2, bottom - top)
 		ctx.restore()
 	},
 }
@@ -67,10 +71,12 @@ const props = defineProps<{
 }>()
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
+const tip = ref<TipState>({ show: false, left: 0, top: 0, title: "", rows: [] })
 let chart: Chart | null = null
 
-const isEnergy = () => props.mode === "energy"
-const unit = () => (isEnergy() ? "kWh" : "m³")
+const isEnergy = computed(() => props.mode === "energy")
+const unit = computed(() => (isEnergy.value ? "kWh" : "m³"))
+const bucket = computed(() => props.bucketType || "hour")
 
 const formatValue = (v: number | null | undefined) => {
 	if (v == null || !Number.isFinite(v)) return "—"
@@ -78,26 +84,27 @@ const formatValue = (v: number | null | undefined) => {
 }
 
 const pickValues = (pts: EnergyTrendPoint[]) =>
-	pts.map((p) => (isEnergy() ? p.energyKwh : p.waterM3))
+	pts.map((p) => (isEnergy.value ? p.energyKwh : p.waterM3))
 
 const shouldShowDayTick = (index: number, total: number) => {
-	if (total <= 8) return true
-	if (index === 0 || index === total - 1) return true
+	if (total <= 8 || index === 0 || index === total - 1) return true
 	const step = Math.max(1, Math.ceil((total - 1) / 6))
 	return index % step === 0
 }
 
+const resolveHour = (d: Date, index: number, total: number) =>
+	index === total - 1 && d.getHours() === 0 ? 24 : d.getHours()
+
 const formatAxisLabel = (iso: string, index: number, total: number) => {
 	const d = new Date(iso)
-	const bucket = props.bucketType || "hour"
-	if (bucket === "month") {
+	if (bucket.value === "month") {
 		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
 	}
-	if (bucket === "day") {
+	if (bucket.value === "day") {
 		if (!shouldShowDayTick(index, total)) return ""
 		return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`
 	}
-	const hour = index === total - 1 && d.getHours() === 0 ? 24 : d.getHours()
+	const hour = resolveHour(d, index, total)
 	if (!HOUR_TICKS.has(hour) && index !== 0 && index !== total - 1) return ""
 	return `${String(hour).padStart(2, "0")}:00`
 }
@@ -106,52 +113,91 @@ const formatTooltipTitle = (index: number) => {
 	const iso = props.series[index]?.timestamp
 	if (!iso) return ""
 	const d = new Date(iso)
-	const bucket = props.bucketType || "hour"
-	if (bucket === "hour") {
-		const hour =
-			index === props.series.length - 1 && d.getHours() === 0 ? 24 : d.getHours()
-		return `${String(hour).padStart(2, "0")}:00`
+	if (bucket.value === "hour") {
+		return `${String(resolveHour(d, index, props.series.length)).padStart(2, "0")}:00`
 	}
-	if (bucket === "day") {
+	if (bucket.value === "day") {
 		return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
 	}
 	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
 }
 
+const seriesLabel = (kind: "today" | "compare" | "single") => {
+	const energy = isEnergy.value
+	if (kind === "single") return energy ? "用電" : "用水"
+	if (kind === "today") return energy ? "今日用電" : "今日用水"
+	if (props.compareLabel && props.compareLabel !== "昨天") return props.compareLabel
+	return energy ? "昨日用電" : "昨日用水"
+}
+
+const lineDataset = (
+	label: string,
+	data: (number | null)[],
+	opts: { color: string; dashed?: boolean; dense?: boolean }
+): ChartDataset<"line", (number | null)[]> => ({
+	label,
+	data,
+	borderColor: opts.color,
+	backgroundColor: "transparent",
+	tension: 0.35,
+	fill: false,
+	borderWidth: 2,
+	...(opts.dashed
+		? {
+				pointRadius: 0,
+				pointHoverRadius: 0,
+				pointHitRadius: 8,
+				borderDash: [6, 4],
+			}
+		: {
+				pointRadius: opts.dense ? 2 : 3,
+				pointHoverRadius: 6,
+				pointBackgroundColor: opts.color,
+				pointBorderColor: opts.color,
+				pointHoverBackgroundColor: opts.color,
+				pointHoverBorderColor: "#ffffff",
+				pointHoverBorderWidth: 2,
+			}),
+})
+
+/** HTML tooltip：可自訂較長的實線／虛線圖示（Chart.js 內建受 min(boxW,boxH) 限制） */
+const renderExternalTooltip = (context: { tooltip: TooltipModel<"line"> }) => {
+	const { tooltip: t } = context
+	if (t.opacity === 0 || !t.dataPoints?.length) {
+		tip.value.show = false
+		return
+	}
+
+	tip.value = {
+		show: true,
+		left: t.caretX,
+		top: t.caretY,
+		title: formatTooltipTitle(t.dataPoints[0]?.dataIndex ?? 0),
+		rows: t.dataPoints.map((dp) => ({
+			label: String(dp.dataset.label || ""),
+			value: formatValue(dp.parsed.y),
+			color: String(dp.dataset.borderColor || STROKE),
+			dashed: dp.datasetIndex === 1,
+		})),
+	}
+}
+
 const buildChart = () => {
 	if (!canvasRef.value) return
 	chart?.destroy()
+	tip.value.show = false
 
 	const total = props.series.length
 	const labels = props.series.map((p, i) => formatAxisLabel(p.timestamp, i, total))
 	const values = pickValues(props.series)
-	const denseDay = (props.bucketType || "hour") === "day" && total > 8
+	const dense = bucket.value === "day" && total > 8
 	const hasCompare = (props.compareSeries?.length ?? 0) > 0
-	const u = unit()
 
 	const datasets: ChartDataset<"line", (number | null)[]>[] = [
-		{
-			label: hasCompare
-				? isEnergy()
-					? "今日用電"
-					: "今日用水"
-				: isEnergy()
-					? "用電"
-					: "用水",
-			data: values,
-			borderColor: STROKE,
-			backgroundColor: "transparent",
-			tension: 0.35,
-			fill: false,
-			pointRadius: denseDay ? 2 : 3,
-			pointHoverRadius: 6,
-			pointBackgroundColor: STROKE,
-			pointBorderColor: STROKE,
-			pointHoverBackgroundColor: STROKE,
-			pointHoverBorderColor: "#ffffff",
-			pointHoverBorderWidth: 2,
-			borderWidth: 2,
-		},
+		lineDataset(seriesLabel(hasCompare ? "today" : "single"), values, {
+			color: STROKE,
+			dense,
+		}),
 	]
 
 	if (hasCompare && props.compareSeries) {
@@ -160,24 +206,12 @@ const buildChart = () => {
 			compareVals.length === values.length
 				? compareVals
 				: values.map((_, i) => compareVals[i] ?? null)
-		datasets.push({
-			label:
-				props.compareLabel && props.compareLabel !== "昨天"
-					? props.compareLabel
-					: isEnergy()
-						? "昨日用電"
-						: "昨日用水",
-			data: aligned,
-			borderColor: COMPARE_STROKE,
-			backgroundColor: "transparent",
-			tension: 0.35,
-			fill: false,
-			pointRadius: 0,
-			pointHoverRadius: 0,
-			pointHitRadius: 8,
-			borderWidth: 2,
-			borderDash: [6, 4],
-		})
+		datasets.push(
+			lineDataset(seriesLabel("compare"), aligned, {
+				color: COMPARE_STROKE,
+				dashed: true,
+			})
+		)
 	}
 
 	chart = new Chart(canvasRef.value, {
@@ -191,26 +225,9 @@ const buildChart = () => {
 			plugins: {
 				legend: { display: false },
 				tooltip: {
-					enabled: true,
+					enabled: false,
 					position: "energyToday" as "nearest",
-					backgroundColor: "rgba(0, 0, 0, 0.88)",
-					titleColor: "#ffffff",
-					bodyColor: "#ffffff",
-					titleFont: { size: 13, weight: "normal" },
-					bodyFont: { size: 12 },
-					padding: 10,
-					cornerRadius: 8,
-					caretPadding: 8,
-					displayColors: true,
-					boxWidth: 8,
-					boxHeight: 8,
-					boxPadding: 4,
-					usePointStyle: true,
-					callbacks: {
-						title: (items) => formatTooltipTitle(items[0]?.dataIndex ?? 0),
-						label: (item) =>
-							` ${item.dataset.label || ""}：${formatValue(item.parsed.y)} ${u}`,
-					},
+					external: renderExternalTooltip,
 				},
 			},
 			scales: {
@@ -247,5 +264,26 @@ onBeforeUnmount(() => chart?.destroy())
 <template>
 	<div class="relative h-64 min-h-0">
 		<canvas ref="canvasRef" aria-label="趨勢圖" />
+		<div
+			v-show="tip.show"
+			class="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-[calc(100%+10px)] rounded-lg bg-black/90 px-3 py-2.5 text-white shadow-lg"
+			:style="{ left: `${tip.left}px`, top: `${tip.top}px` }"
+			role="tooltip"
+		>
+			<div class="mb-1.5 text-base font-medium tracking-wide">{{ tip.title }}</div>
+			<div
+				v-for="row in tip.rows"
+				:key="row.label"
+				class="flex items-center gap-2.5 text-[15px] leading-7"
+			>
+				<span
+					class="w-9 shrink-0 border-t-[3px]"
+					:class="row.dashed ? 'border-dashed' : 'border-solid'"
+					:style="{ borderColor: row.color }"
+					aria-hidden="true"
+				/>
+				<span>{{ row.label }}：{{ row.value }} {{ unit }}</span>
+			</div>
+		</div>
 	</div>
 </template>
