@@ -394,6 +394,7 @@ const featureLabels: Record<string, string> = {
 	air_circulation: "空氣循環",
 	drainage: "排水系統",
 	power: "電力系統",
+	energy: "能源管理",
 	fire: "消防系統",
 	emergency_rescue: "緊急求救",
 	environment: "環境品質",
