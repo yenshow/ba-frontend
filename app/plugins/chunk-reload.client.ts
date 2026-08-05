@@ -6,7 +6,7 @@ const RELOAD_COOLDOWN_MS = 10_000;
 /**
  * 處理 Nuxt/Vite 動態載入模組失敗（間歇性 404）
  *
- * 情境：分頁長時間閒置後，chunk 路徑可能失效（PM2 重啟、新部署、開發伺服器重啟等），
+ * 情境：分頁長時間閒置後，chunk 路徑可能失效（服務重啟、新部署、開發伺服器重啟等），
  * 導致 "Failed to fetch dynamically imported module" 404。
  *
  * 解決：偵測到此錯誤時自動重整頁面，取得最新資產。
