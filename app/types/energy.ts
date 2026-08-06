@@ -1,9 +1,13 @@
+export type EnergyLoadShedStage = {
+	level: 1 | 2 | 3
+	enabled: boolean
+	threshold_pct: number
+	/** 二期：設備卸載／關閉目標；目前一律空陣列 */
+	actions: unknown[]
+}
+
 export type EnergySettingsConfig = {
 	contract_capacity_kw: number
-	demand_window_minutes: number
-	demand_warning_enabled: boolean
-	demand_warning_pct: number
-	demand_alert_enabled: boolean
 	meter_stale_enabled: boolean
 	meter_stale_minutes: number
 	reading_jump_enabled: boolean
@@ -26,7 +30,7 @@ export type EnergySettingsConfig = {
 		off_peak: { rate: number; windows: Array<{ dow?: number | "all"; start: string; end: string }> }
 	}
 	water_tariff: { rate: number }
-	load_shed_stages: unknown[]
+	load_shed_stages: EnergyLoadShedStage[]
 }
 
 export type EnergySettingsResponse = {

@@ -20,10 +20,17 @@ export const getEnergyAlertUi = (
 		}
 	}
 	const key = severity.toLowerCase()
-	if (key === "critical" || key === "danger" || key === "error") {
+	if (key === "critical" || key === "danger") {
 		return {
-			wrap: "border-red-400/40 bg-red-500/10",
-			dot: "bg-red-500",
+			wrap: "border-rose-400/45 bg-rose-500/15",
+			dot: "bg-rose-500",
+			icon: "bang",
+		}
+	}
+	if (key === "error") {
+		return {
+			wrap: "border-orange-400/40 bg-orange-500/10",
+			dot: "bg-orange-500",
 			icon: "bang",
 		}
 	}

@@ -1,22 +1,38 @@
 <script setup lang="ts">
-import type { EnergySettingsConfig } from "~/types/energy"
+import type { EnergyLoadShedStage, EnergySettingsConfig } from "~/types/energy"
 import type { Device, SensorDeviceConfig, SensorDeviceModelConfig } from "~/types/device"
 import { useEnergyApi } from "~/composables/systems/energy/useEnergyApi"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useToast } from "~/composables/core/useToast"
 import {
 	ENERGY_USAGE_SYSTEMS,
-	getEnergyUsageSystemLabel,
 	type EnergyUsageSystemKey,
 } from "~/constants/energyUsageSystems"
 
 type SensorDeviceRow = {
 	id: number
 	name: string
-	modelId: number
 	isElectricityMeter: boolean
 	config: SensorDeviceConfig
 	usageSystem: EnergyUsageSystemKey | ""
+	initialUsageSystem: EnergyUsageSystemKey | ""
+}
+
+type SettingsSectionKey = "devices" | "tariff" | "contract"
+
+const STAGE_META: Record<
+	1 | 2 | 3,
+	{ severityLabel: string; severityClass: string; defaultPct: number }
+> = {
+	1: { severityLabel: "預警", severityClass: "text-amber-300", defaultPct: 80 },
+	2: { severityLabel: "嚴重", severityClass: "text-orange-300", defaultPct: 90 },
+	3: { severityLabel: "危急", severityClass: "text-rose-300", defaultPct: 100 },
+}
+
+const SECTION_DEFAULTS: Record<SettingsSectionKey, boolean> = {
+	devices: true,
+	tariff: false,
+	contract: false,
 }
 
 const props = defineProps<{ modelValue: boolean }>()
@@ -34,8 +50,48 @@ const usageSystemSelectOptions = ENERGY_USAGE_SYSTEMS.map((s) => ({
 	label: s.label,
 }))
 
+const expandedSections = reactive({ ...SECTION_DEFAULTS })
+
+const canAddStage = computed(() => (form.value?.load_shed_stages || []).length < 3)
+
 const handleClose = () => {
 	emit("update:modelValue", false)
+}
+
+const toggleSection = (key: SettingsSectionKey) => {
+	expandedSections[key] = !expandedSections[key]
+}
+
+const resetSections = () => {
+	Object.assign(expandedSections, SECTION_DEFAULTS)
+}
+
+const nextStageLevel = (): 1 | 2 | 3 | null => {
+	const used = new Set((form.value?.load_shed_stages || []).map((s) => Number(s.level)))
+	for (const level of [1, 2, 3] as const) {
+		if (!used.has(level)) return level
+	}
+	return null
+}
+
+const handleAddStage = () => {
+	if (!form.value) return
+	const level = nextStageLevel()
+	if (level == null) return
+	const stage: EnergyLoadShedStage = {
+		level,
+		enabled: true,
+		threshold_pct: STAGE_META[level].defaultPct,
+		actions: [],
+	}
+	form.value.load_shed_stages = [...form.value.load_shed_stages, stage].sort(
+		(a, b) => a.level - b.level
+	)
+}
+
+const handleRemoveStage = (level: 1 | 2 | 3) => {
+	if (!form.value) return
+	form.value.load_shed_stages = form.value.load_shed_stages.filter((s) => s.level !== level)
 }
 
 const load = async () => {
@@ -45,6 +101,7 @@ const load = async () => {
 		deviceApi.getDeviceModels({ type_code: "sensor" }),
 	])
 	form.value = structuredClone(settings.config)
+	resetSections()
 
 	const meterKindByModel = new Map<number, string | undefined>()
 	for (const m of modelsRes?.device_models || []) {
@@ -54,14 +111,14 @@ const load = async () => {
 
 	sensorDevices.value = (devicesRes?.devices || []).map((d: Device) => {
 		const cfg = (d.config || { type: "sensor", protocol: "modbus" }) as SensorDeviceConfig
-		const isElectricityMeter = meterKindByModel.get(d.model_id) === "electricity"
+		const usageSystem = (cfg.energy_usage_system as EnergyUsageSystemKey) || ""
 		return {
 			id: d.id,
 			name: d.name,
-			modelId: d.model_id,
-			isElectricityMeter,
+			isElectricityMeter: meterKindByModel.get(d.model_id) === "electricity",
 			config: cfg,
-			usageSystem: (cfg.energy_usage_system as EnergyUsageSystemKey) || "",
+			usageSystem,
+			initialUsageSystem: usageSystem,
 		}
 	})
 }
@@ -74,22 +131,24 @@ const toggleDevice = (id: number) => {
 	form.value.include_device_ids = Array.from(set)
 }
 
-const handleUsageSystemChange = async (row: SensorDeviceRow, event: Event) => {
-	const value = (event.target as HTMLSelectElement).value as EnergyUsageSystemKey | ""
-	row.usageSystem = value
-	const nextConfig: SensorDeviceConfig = {
-		...row.config,
-		type: "sensor",
-		energy_usage_system: value || undefined,
-	}
-	if (!value) delete nextConfig.energy_usage_system
-	try {
+const handleUsageSystemChange = (row: SensorDeviceRow, event: Event) => {
+	row.usageSystem = (event.target as HTMLSelectElement).value as EnergyUsageSystemKey | ""
+}
+
+const persistUsageSystems = async () => {
+	const dirty = sensorDevices.value.filter(
+		(row) => row.isElectricityMeter && row.usageSystem !== row.initialUsageSystem
+	)
+	for (const row of dirty) {
+		const nextConfig: SensorDeviceConfig = {
+			...row.config,
+			type: "sensor",
+			energy_usage_system: row.usageSystem || undefined,
+		}
+		if (!row.usageSystem) delete nextConfig.energy_usage_system
 		await deviceApi.updateDevice(row.id, { config: nextConfig })
 		row.config = nextConfig
-		toast.success(`已更新用途系統：${getEnergyUsageSystemLabel(value)}`)
-	} catch (err: unknown) {
-		toast.error(err instanceof Error ? err.message : "更新用途系統失敗")
-		await load()
+		row.initialUsageSystem = row.usageSystem
 	}
 }
 
@@ -97,6 +156,7 @@ const handleSave = async () => {
 	if (!form.value) return
 	saving.value = true
 	try {
+		await persistUsageSystems()
 		await api.updateSettings(form.value as unknown as Record<string, unknown>)
 		toast.success("能源設定已儲存")
 		emit("saved")
@@ -117,7 +177,6 @@ watch(
 </script>
 
 <template>
-	<!-- 與 EditMockDialog／ConfirmDialog／SimulationFrame 相同殼層 -->
 	<Teleport to="body">
 		<Transition name="dialog-fade">
 			<div
@@ -149,321 +208,391 @@ watch(
 						</button>
 					</header>
 
-					<div class="show-scrollbar min-h-0 flex-1 space-y-5 overflow-y-auto text-sm 2xl:text-base">
+					<div class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto text-sm 2xl:text-base">
 						<template v-if="form">
-							<section class="space-y-3">
-								<h4 class="text-base font-medium tracking-widest text-white/80">
-									契約容量
-								</h4>
-								<label class="form-label">
-									<span>契約容量 (kW)</span>
-									<input
-										v-model.number="form.contract_capacity_kw"
-										type="number"
-										min="0"
-										class="form-input"
-									/>
-								</label>
-								<label class="form-label">
-									<span>需量視窗（分鐘）</span>
-									<input
-										v-model.number="form.demand_window_minutes"
-										type="number"
-										min="1"
-										class="form-input"
-									/>
-								</label>
-								<p class="text-xs tracking-wider text-white/45 2xl:text-sm">
-									需量視窗目前僅儲存設定，契約告警仍依即時加總功率／需量判定（後續版本啟用）。
-								</p>
-							</section>
+							<!-- 1. 表計設備（預設展開）＋表計異常 -->
+							<div class="rounded-2xl border border-white/15 bg-white/5 p-4 2xl:p-5">
+								<button
+									type="button"
+									class="flex w-full items-center justify-between text-left text-sm font-medium tracking-widest text-white/90 2xl:text-base"
+									:aria-expanded="expandedSections.devices"
+									aria-controls="energy-settings-devices"
+									@click="toggleSection('devices')"
+								>
+									<span>表計設備</span>
+									<span class="text-white/60">{{
+										expandedSections.devices ? "收合" : "展開"
+									}}</span>
+								</button>
 
-							<section class="space-y-3">
-								<h4 class="text-base font-medium tracking-widest text-white/80">
-									告警門檻 — 需處置（Incident）
-								</h4>
-								<p class="text-xs tracking-wider text-white/50 2xl:text-sm">
-									寫入警示紀錄；可於儀表板「告警通知」與 Header 未解數查看。
-								</p>
-								<label class="flex items-center gap-2 text-white/90">
-									<input
-										v-model="form.demand_warning_enabled"
-										type="checkbox"
-										class="h-4 w-4 accent-cyan-400"
-									/>
-									<span>啟用契約接近預警</span>
-								</label>
-								<label class="form-label">
-									<span>接近契約容量（%）</span>
-									<input
-										v-model.number="form.demand_warning_pct"
-										type="number"
-										min="1"
-										max="100"
-										class="form-input"
-									/>
-								</label>
-								<label class="flex items-center gap-2 text-white/90">
-									<input
-										v-model="form.demand_alert_enabled"
-										type="checkbox"
-										class="h-4 w-4 accent-cyan-400"
-									/>
-									<span>啟用超契約容量告警</span>
-								</label>
-								<label class="flex items-center gap-2 text-white/90">
-									<input
-										v-model="form.meter_stale_enabled"
-										type="checkbox"
-										class="h-4 w-4 accent-cyan-400"
-									/>
-									<span>啟用表計通訊逾時告警</span>
-								</label>
-								<label class="form-label">
-									<span>表計逾時（分鐘）</span>
-									<input
-										v-model.number="form.meter_stale_minutes"
-										type="number"
-										min="1"
-										class="form-input"
-									/>
-								</label>
-								<label class="flex items-center gap-2 text-white/90">
-									<input
-										v-model="form.reading_jump_enabled"
-										type="checkbox"
-										class="h-4 w-4 accent-cyan-400"
-									/>
-									<span>啟用讀數跳動異常告警</span>
-								</label>
-								<div class="grid grid-cols-2 gap-3">
-									<label class="form-label">
-										<span>跳動倍數門檻</span>
-										<input
-											v-model.number="form.reading_jump_multiplier"
-											type="number"
-											min="1.5"
-											step="0.1"
-											class="form-input"
-										/>
-									</label>
-									<label class="form-label">
-										<span>最小跳動 (kWh)</span>
-										<input
-											v-model.number="form.reading_jump_min_kwh"
-											type="number"
-											min="0"
-											step="0.1"
-											class="form-input"
-										/>
-									</label>
-								</div>
-							</section>
-
-							<section class="space-y-3">
-								<h4 class="text-base font-medium tracking-widest text-white/80">
-									告警門檻 — 營運提示（Insight）
-								</h4>
-								<p class="text-xs tracking-wider text-white/50 2xl:text-sm">
-									僅顯示於儀表板「告警通知」，不進警示紀錄。
-								</p>
-								<label class="flex items-center gap-2 text-white/90">
-									<input
-										v-model="form.usage_vs_avg_enabled"
-										type="checkbox"
-										class="h-4 w-4 accent-cyan-400"
-									/>
-									<span>啟用用量達歷史平均提示（電）</span>
-								</label>
-								<label class="flex items-center gap-2 text-white/90">
-									<input
-										v-model="form.water_usage_vs_avg_enabled"
-										type="checkbox"
-										class="h-4 w-4 accent-cyan-400"
-									/>
-									<span>啟用用量達歷史平均提示（水）</span>
-								</label>
-								<div class="grid grid-cols-2 gap-3">
-									<label class="form-label">
-										<span>達平均（%）</span>
-										<input
-											v-model.number="form.usage_vs_avg_pct"
-											type="number"
-											min="1"
-											max="100"
-											class="form-input"
-										/>
-									</label>
-									<label class="form-label">
-										<span>基線天數</span>
-										<input
-											v-model.number="form.usage_vs_avg_days"
-											type="number"
-											min="7"
-											class="form-input"
-										/>
-									</label>
-								</div>
-								<label class="flex items-center gap-2 text-white/90">
-									<input
-										v-model="form.offpeak_low_enabled"
-										type="checkbox"
-										class="h-4 w-4 accent-cyan-400"
-									/>
-									<span>啟用離峰用量偏低提示</span>
-								</label>
-								<div class="grid grid-cols-2 gap-3">
-									<label class="form-label">
-										<span>低於均值（%）</span>
-										<input
-											v-model.number="form.offpeak_low_pct"
-											type="number"
-											min="1"
-											max="100"
-											class="form-input"
-										/>
-									</label>
-									<label class="form-label">
-										<span>基線天數</span>
-										<input
-											v-model.number="form.offpeak_baseline_days"
-											type="number"
-											min="7"
-											class="form-input"
-										/>
-									</label>
-								</div>
-								<label class="flex items-center gap-2 text-white/90">
-									<input
-										v-model="form.meter_share_enabled"
-										type="checkbox"
-										class="h-4 w-4 accent-cyan-400"
-									/>
-									<span>啟用單表佔比過高提示</span>
-								</label>
-								<label class="form-label">
-									<span>單表佔比門檻（%）</span>
-									<input
-										v-model.number="form.meter_share_pct"
-										type="number"
-										min="1"
-										max="100"
-										class="form-input"
-									/>
-								</label>
-							</section>
-
-							<section class="space-y-3">
-								<h4 class="text-base font-medium tracking-widest text-white/80">
-									台電三段式參考電價（NT$/kWh）
-								</h4>
-								<div class="grid grid-cols-3 gap-3">
-									<label class="form-label">
-										<span>尖峰</span>
-										<input
-											v-model.number="form.electricity_tariff.peak.rate"
-											type="number"
-											min="0"
-											step="0.01"
-											class="form-input"
-										/>
-									</label>
-									<label class="form-label">
-										<span>半尖峰</span>
-										<input
-											v-model.number="form.electricity_tariff.semi_peak.rate"
-											type="number"
-											min="0"
-											step="0.01"
-											class="form-input"
-										/>
-									</label>
-									<label class="form-label">
-										<span>離峰</span>
-										<input
-											v-model.number="form.electricity_tariff.off_peak.rate"
-											type="number"
-											min="0"
-											step="0.01"
-											class="form-input"
-										/>
-									</label>
-								</div>
-								<p class="text-xs tracking-wider text-white/50 2xl:text-sm">
-									時段 window 可於 JSON／後續表單細調；未命中時段歸離峰。預設可用離峰單價估算。
-								</p>
-							</section>
-
-							<section class="space-y-3">
-								<h4 class="text-base font-medium tracking-widest text-white/80">
-									參考水價（NT$/m³）
-								</h4>
-								<input
-									v-model.number="form.water_tariff.rate"
-									type="number"
-									min="0"
-									step="0.01"
-									class="form-input"
-								/>
-							</section>
-
-							<section class="space-y-3">
-								<h4 class="text-base font-medium tracking-widest text-white/80">
-									納入統計的表計設備
-								</h4>
 								<div
-									class="max-h-64 space-y-2 overflow-y-auto rounded-xl border border-white/20 bg-white/5 p-3"
+									v-if="expandedSections.devices"
+									id="energy-settings-devices"
+									class="mt-4 space-y-5"
 								>
 									<div
-										v-for="d in sensorDevices"
-										:key="d.id"
-										class="flex flex-wrap items-center gap-2 rounded border border-white/10 bg-white/5 p-2 text-white/90"
+										class="max-h-56 space-y-2 overflow-y-auto rounded-xl border border-white/20 bg-white/5 p-3"
 									>
-										<label class="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
-											<input
-												type="checkbox"
-												class="h-4 w-4 shrink-0 accent-cyan-400"
-												:checked="form.include_device_ids.includes(d.id)"
-												:aria-label="`納入 ${d.name}`"
-												@change="toggleDevice(d.id)"
-											/>
-											<span class="truncate">{{ d.name }} (#{{ d.id }})</span>
-										</label>
-										<select
-											v-if="d.isElectricityMeter"
-											class="form-input max-w-[9rem] shrink-0 py-1 text-sm"
-											:value="d.usageSystem"
-											:aria-label="`${d.name} 用途系統`"
-											@change="handleUsageSystemChange(d, $event)"
+										<div
+											v-for="d in sensorDevices"
+											:key="d.id"
+											class="flex flex-wrap items-center gap-2 rounded border border-white/10 bg-white/5 p-2 text-white/90"
 										>
-											<option value="">未設定</option>
-											<option
-												v-for="opt in usageSystemSelectOptions"
-												:key="opt.value"
-												:value="opt.value"
+											<label class="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
+												<input
+													type="checkbox"
+													class="h-4 w-4 shrink-0 accent-cyan-400"
+													:checked="form.include_device_ids.includes(d.id)"
+													:aria-label="`納入 ${d.name}`"
+													@change="toggleDevice(d.id)"
+												/>
+												<span class="truncate">{{ d.name }} (#{{ d.id }})</span>
+											</label>
+											<select
+												v-if="d.isElectricityMeter"
+												class="form-input max-w-[9rem] shrink-0 py-1 text-sm"
+												:value="d.usageSystem"
+												:aria-label="`${d.name} 用途系統`"
+												@change="handleUsageSystemChange(d, $event)"
 											>
-												{{ opt.label }}
-											</option>
-										</select>
-										<span
-											v-else
-											class="shrink-0 text-xs text-white/45 2xl:text-sm"
-											>非電表</span
-										>
+												<option value="">未設定</option>
+												<option
+													v-for="opt in usageSystemSelectOptions"
+													:key="opt.value"
+													:value="opt.value"
+												>
+													{{ opt.label }}
+												</option>
+											</select>
+											<span v-else class="shrink-0 text-xs text-white/45 2xl:text-sm"
+												>非電表</span
+											>
+										</div>
+										<div v-if="sensorDevices.length === 0" class="py-4 text-center text-white/60">
+											<p>尚無感測器設備</p>
+										</div>
 									</div>
-									<div v-if="sensorDevices.length === 0" class="py-4 text-center text-white/60">
-										<p class="text-base">尚無感測器設備</p>
-										<p class="mt-2 text-sm">請先於「設備管理」新增</p>
+
+									<div class="space-y-3 border-t border-white/10 pt-4">
+										<h5 class="text-sm font-medium text-white/80 2xl:text-base">表計異常</h5>
+										<label class="flex items-center gap-2 text-white/90">
+											<input
+												v-model="form.meter_stale_enabled"
+												type="checkbox"
+												class="h-4 w-4 accent-cyan-400"
+											/>
+											<span>通訊逾時告警</span>
+										</label>
+										<label class="form-label">
+											<span>逾時（分鐘）</span>
+											<input
+												v-model.number="form.meter_stale_minutes"
+												type="number"
+												min="1"
+												class="form-input"
+												:disabled="!form.meter_stale_enabled"
+											/>
+										</label>
+										<label class="flex items-center gap-2 text-white/90">
+											<input
+												v-model="form.reading_jump_enabled"
+												type="checkbox"
+												class="h-4 w-4 accent-cyan-400"
+											/>
+											<span>讀數跳動告警</span>
+										</label>
+										<div class="grid grid-cols-2 gap-3">
+											<label class="form-label">
+												<span>倍數門檻</span>
+												<input
+													v-model.number="form.reading_jump_multiplier"
+													type="number"
+													min="1.5"
+													step="0.1"
+													class="form-input"
+													:disabled="!form.reading_jump_enabled"
+												/>
+											</label>
+											<label class="form-label">
+												<span>最小跳動 (kWh)</span>
+												<input
+													v-model.number="form.reading_jump_min_kwh"
+													type="number"
+													min="0"
+													step="0.1"
+													class="form-input"
+													:disabled="!form.reading_jump_enabled"
+												/>
+											</label>
+										</div>
 									</div>
 								</div>
-							</section>
+							</div>
+
+							<!-- 2. 電價／水價＋營運提示 -->
+							<div class="rounded-2xl border border-white/15 bg-white/5 p-4 2xl:p-5">
+								<button
+									type="button"
+									class="flex w-full items-center justify-between text-left text-sm font-medium tracking-widest text-white/90 2xl:text-base"
+									:aria-expanded="expandedSections.tariff"
+									aria-controls="energy-settings-tariff"
+									@click="toggleSection('tariff')"
+								>
+									<span>電價／水價</span>
+									<span class="text-white/60">{{
+										expandedSections.tariff ? "收合" : "展開"
+									}}</span>
+								</button>
+
+								<div
+									v-if="expandedSections.tariff"
+									id="energy-settings-tariff"
+									class="mt-4 space-y-5"
+								>
+									<section class="space-y-3">
+										<h5 class="text-sm font-medium text-white/80 2xl:text-base">
+											參考電價（NT$/kWh）
+										</h5>
+										<div class="grid grid-cols-3 gap-3">
+											<label class="form-label">
+												<span>尖峰</span>
+												<input
+													v-model.number="form.electricity_tariff.peak.rate"
+													type="number"
+													min="0"
+													step="0.01"
+													class="form-input"
+												/>
+											</label>
+											<label class="form-label">
+												<span>半尖峰</span>
+												<input
+													v-model.number="form.electricity_tariff.semi_peak.rate"
+													type="number"
+													min="0"
+													step="0.01"
+													class="form-input"
+												/>
+											</label>
+											<label class="form-label">
+												<span>離峰</span>
+												<input
+													v-model.number="form.electricity_tariff.off_peak.rate"
+													type="number"
+													min="0"
+													step="0.01"
+													class="form-input"
+												/>
+											</label>
+										</div>
+									</section>
+
+									<section class="space-y-3">
+										<label class="form-label">
+											<span>參考水價（NT$/m³）</span>
+											<input
+												v-model.number="form.water_tariff.rate"
+												type="number"
+												min="0"
+												step="0.01"
+												class="form-input"
+											/>
+										</label>
+									</section>
+
+									<div class="space-y-3 border-t border-white/10 pt-4">
+										<h5 class="text-sm font-medium text-white/80 2xl:text-base">營運提示</h5>
+										<label class="flex items-center gap-2 text-white/90">
+											<input
+												v-model="form.usage_vs_avg_enabled"
+												type="checkbox"
+												class="h-4 w-4 accent-cyan-400"
+											/>
+											<span>用量達歷史平均（電）</span>
+										</label>
+										<label class="flex items-center gap-2 text-white/90">
+											<input
+												v-model="form.water_usage_vs_avg_enabled"
+												type="checkbox"
+												class="h-4 w-4 accent-cyan-400"
+											/>
+											<span>用量達歷史平均（水）</span>
+										</label>
+										<div class="grid grid-cols-2 gap-3">
+											<label class="form-label">
+												<span>達平均（%）</span>
+												<input
+													v-model.number="form.usage_vs_avg_pct"
+													type="number"
+													min="1"
+													max="100"
+													class="form-input"
+												/>
+											</label>
+											<label class="form-label">
+												<span>基線天數</span>
+												<input
+													v-model.number="form.usage_vs_avg_days"
+													type="number"
+													min="7"
+													class="form-input"
+												/>
+											</label>
+										</div>
+										<label class="flex items-center gap-2 text-white/90">
+											<input
+												v-model="form.offpeak_low_enabled"
+												type="checkbox"
+												class="h-4 w-4 accent-cyan-400"
+											/>
+											<span>離峰用量偏低</span>
+										</label>
+										<div class="grid grid-cols-2 gap-3">
+											<label class="form-label">
+												<span>低於均值（%）</span>
+												<input
+													v-model.number="form.offpeak_low_pct"
+													type="number"
+													min="1"
+													max="100"
+													class="form-input"
+													:disabled="!form.offpeak_low_enabled"
+												/>
+											</label>
+											<label class="form-label">
+												<span>基線天數</span>
+												<input
+													v-model.number="form.offpeak_baseline_days"
+													type="number"
+													min="7"
+													class="form-input"
+													:disabled="!form.offpeak_low_enabled"
+												/>
+											</label>
+										</div>
+										<label class="flex items-center gap-2 text-white/90">
+											<input
+												v-model="form.meter_share_enabled"
+												type="checkbox"
+												class="h-4 w-4 accent-cyan-400"
+											/>
+											<span>單表佔比過高</span>
+										</label>
+										<label class="form-label">
+											<span>佔比門檻（%）</span>
+											<input
+												v-model.number="form.meter_share_pct"
+												type="number"
+												min="1"
+												max="100"
+												class="form-input"
+												:disabled="!form.meter_share_enabled"
+											/>
+										</label>
+									</div>
+								</div>
+							</div>
+
+							<!-- 3. 契約與分級告警 -->
+							<div class="rounded-2xl border border-white/15 bg-white/5 p-4 2xl:p-5">
+								<button
+									type="button"
+									class="flex w-full items-center justify-between text-left text-sm font-medium tracking-widest text-white/90 2xl:text-base"
+									:aria-expanded="expandedSections.contract"
+									aria-controls="energy-settings-contract"
+									@click="toggleSection('contract')"
+								>
+									<span>契約與分級告警</span>
+									<span class="text-white/60">{{
+										expandedSections.contract ? "收合" : "展開"
+									}}</span>
+								</button>
+
+								<div
+									v-if="expandedSections.contract"
+									id="energy-settings-contract"
+									class="mt-4 space-y-4"
+								>
+									<label class="form-label">
+										<span>契約容量 (kW)</span>
+										<input
+											v-model.number="form.contract_capacity_kw"
+											type="number"
+											min="0"
+											class="form-input"
+										/>
+									</label>
+
+									<div
+										v-for="stage in form.load_shed_stages"
+										:key="stage.level"
+										class="rounded-2xl border border-white/10 bg-white/5 p-4"
+									>
+										<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+											<div class="flex items-center gap-2">
+												<span class="font-medium text-white/90">{{ stage.level }} 級</span>
+												<span
+													class="text-xs tracking-wider 2xl:text-sm"
+													:class="STAGE_META[stage.level].severityClass"
+												>
+													{{ STAGE_META[stage.level].severityLabel }}
+												</span>
+											</div>
+											<div class="flex items-center gap-3">
+												<label class="flex items-center gap-2 text-white/90">
+													<input
+														v-model="stage.enabled"
+														type="checkbox"
+														class="h-4 w-4 accent-cyan-400"
+														:aria-label="`啟用 ${stage.level} 級`"
+													/>
+													<span>啟用</span>
+												</label>
+												<button
+													type="button"
+													class="text-xs tracking-wider text-white/50 transition-colors hover:text-rose-300 2xl:text-sm"
+													:aria-label="`移除 ${stage.level} 級`"
+													@click="handleRemoveStage(stage.level)"
+												>
+													移除
+												</button>
+											</div>
+										</div>
+										<label class="form-label">
+											<span>門檻（%）</span>
+											<input
+												v-model.number="stage.threshold_pct"
+												type="number"
+												min="1"
+												max="100"
+												class="form-input"
+												:disabled="!stage.enabled"
+											/>
+										</label>
+									</div>
+
+									<button
+										v-if="canAddStage"
+										type="button"
+										class="btn-secondary w-full"
+										@click="handleAddStage"
+									>
+										新增分級
+									</button>
+								</div>
+							</div>
 						</template>
 						<div v-else class="py-8 text-center text-white/60">載入設定中…</div>
 					</div>
 
 					<footer class="flex items-center justify-end gap-3 border-t border-white/20 pt-4">
 						<button type="button" class="btn-secondary" @click="handleClose">取消</button>
-						<button type="button" class="btn-primary" :disabled="saving || !form" @click="handleSave">
+						<button
+							type="button"
+							class="btn-primary"
+							:disabled="saving || !form"
+							@click="handleSave"
+						>
 							{{ saving ? "儲存中…" : "儲存" }}
 						</button>
 					</footer>

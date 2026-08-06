@@ -196,7 +196,7 @@ export const SYNC_WARNING_LABELS: Record<string, string> = {
 /** 人員／圖片／卡片／指紋 欄顯示狀態 */
 export type SyncStepUiStatus = "pending" | "success" | "failed" | "unchanged" | "no_data"
 
-/** 「已同步」欄整體狀態（見 docs/40-systems/personnel.md §7.2） */
+/** 「已同步」欄整體狀態（見 docs/30-contracts/location-device-sync.md §4） */
 export type OverallSyncUiStatus = "pending" | "success" | "failed"
 
 export type LastCompletedSyncCache = {
