@@ -31,6 +31,7 @@ export const TOAST = {
 	RECORD_EXPORT_DELETED: "已刪除",
 	EXTERNAL_DB_CONNECTED: "連線成功",
 	EXTERNAL_DB_SAVED: "已儲存資料庫對接設定",
+	EXTERNAL_DB_DELETED: "已刪除資料庫對接設定",
 
 	// device / model
 	DEVICE_OPERATION_SUCCESS: "操作成功",

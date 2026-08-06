@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import type { EnergyUsageAggregatedRow } from "~/types/energy"
 import { useEnergyApi } from "~/composables/systems/energy/useEnergyApi"
-import {
-	ENERGY_DASHBOARD_USE_MOCK,
-	buildMockTrendSeries,
-} from "~/constants/energyDashboard.mock"
+import { ENERGY_DASHBOARD_USE_MOCK, buildMockTrendSeries } from "~/constants/energyDashboard.mock"
 import { getTimeRangeUTC, TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtils"
 import { exportCsv } from "~/utils/csvExport"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
@@ -42,9 +39,7 @@ const makeTodayRange = () => {
 const timeRange = ref(makeTodayRange())
 const isEnergy = computed(() => props.mode === "energy")
 const valueUnit = computed(() => (isEnergy.value ? "kWh" : "m³"))
-const cumulativeCol = computed(() =>
-	isEnergy.value ? "累計用電量 (度)" : "累計用水量 (m³)"
-)
+const cumulativeCol = computed(() => (isEnergy.value ? "累計用電量 (度)" : "累計用水量 (m³)"))
 const detailTitle = computed(() => {
 	const p = timeRange.value.preset
 	return p === "today" || p === "yesterday" ? "每小時統計" : "每日統計"
@@ -108,9 +103,7 @@ const buildRowsFromUsage = (
 	const byTs = new Map<string, number>()
 	for (const r of readings) {
 		const ts = r.timestamp
-		const delta = isEnergy.value
-			? Number(r.deltaEnergyKwh) || 0
-			: Number(r.deltaWaterM3) || 0
+		const delta = isEnergy.value ? Number(r.deltaEnergyKwh) || 0 : Number(r.deltaWaterM3) || 0
 		byTs.set(ts, (byTs.get(ts) || 0) + delta)
 	}
 	return Array.from(byTs.entries())
@@ -139,8 +132,7 @@ const loadRows = async () => {
 			const trendRange =
 				bucket === "hour"
 					? "day"
-					: timeRange.value.preset === "last_30_days" ||
-						  timeRange.value.preset === "custom"
+					: timeRange.value.preset === "last_30_days" || timeRange.value.preset === "custom"
 						? "month"
 						: "week"
 			const mock = buildMockTrendSeries(trendRange)
@@ -240,38 +232,22 @@ watch(
 			{{ loading ? "載入中…" : "尚無詳細資料" }}
 		</div>
 		<div v-else class="show-scrollbar overflow-x-auto">
-			<table
-				class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base"
-			>
+			<table class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base">
 				<thead class="bg-white/20">
 					<tr class="text-white/90">
 						<th class="whitespace-nowrap border border-white/20 p-2">時間</th>
-						<th class="whitespace-nowrap border border-white/20 p-2">
-							開始 ({{ valueUnit }})
-						</th>
-						<th class="whitespace-nowrap border border-white/20 p-2">
-							結束 ({{ valueUnit }})
-						</th>
-						<th class="whitespace-nowrap border border-white/20 p-2">
-							最大 ({{ valueUnit }})
-						</th>
-						<th class="whitespace-nowrap border border-white/20 p-2">
-							最小 ({{ valueUnit }})
-						</th>
-						<th class="whitespace-nowrap border border-white/20 p-2">
-							平均 ({{ valueUnit }})
-						</th>
+						<th class="whitespace-nowrap border border-white/20 p-2">開始 ({{ valueUnit }})</th>
+						<th class="whitespace-nowrap border border-white/20 p-2">結束 ({{ valueUnit }})</th>
+						<th class="whitespace-nowrap border border-white/20 p-2">最大 ({{ valueUnit }})</th>
+						<th class="whitespace-nowrap border border-white/20 p-2">最小 ({{ valueUnit }})</th>
+						<th class="whitespace-nowrap border border-white/20 p-2">平均 ({{ valueUnit }})</th>
 						<th class="whitespace-nowrap border border-white/20 p-2">
 							{{ cumulativeCol }}
 						</th>
 					</tr>
 				</thead>
 				<tbody>
-					<tr
-						v-for="row in tableRows"
-						:key="row.key"
-						class="border-b border-white/10 text-white"
-					>
+					<tr v-for="row in tableRows" :key="row.key" class="border-b border-white/10 text-white">
 						<td class="whitespace-nowrap border border-white/20 p-2">{{ row.時間 }}</td>
 						<td class="border border-white/20 p-2 tabular-nums">{{ row.開始 }}</td>
 						<td class="border border-white/20 p-2 tabular-nums">{{ row.結束 }}</td>

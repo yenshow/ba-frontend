@@ -227,17 +227,13 @@ onMounted(async () => {
 							{{ card.label }}
 						</div>
 						<div class="flex items-baseline gap-2">
-							<span
-								v-if="card.unitBefore"
-								class="text-2xl text-white/80 2xl:text-3xl"
-								>{{ card.unit }}</span
-							>
+							<span v-if="card.unitBefore" class="text-2xl text-white/80 2xl:text-3xl">{{
+								card.unit
+							}}</span>
 							<div :class="kpiValueClass">{{ card.value }}</div>
-							<span
-								v-if="!card.unitBefore"
-								class="text-2xl text-white/80 2xl:text-3xl"
-								>{{ card.unit }}</span
-							>
+							<span v-if="!card.unitBefore" class="text-2xl text-white/80 2xl:text-3xl">{{
+								card.unit
+							}}</span>
 						</div>
 						<p
 							v-if="card.hint"

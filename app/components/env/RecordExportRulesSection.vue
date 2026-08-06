@@ -20,6 +20,11 @@
 					<span
 						class="rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-sm text-white/70"
 					>
+						{{ eventTypeLabel(r.eventType || "access_control") }}
+					</span>
+					<span
+						class="rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-sm text-white/70"
+					>
 						{{ r.outputFormat.toUpperCase() }} / {{ r.storageType.toUpperCase() }}
 					</span>
 					<span class="text-sm text-white/60">每日 {{ r.exportTime }}</span>
@@ -39,7 +44,7 @@
 							class="rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-100 hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-50"
 							:disabled="formDisabled || isDeletingId === r.id"
 							aria-label="刪除規則"
-							@click="() => handleDelete(r.id)"
+							@click="() => confirmDeleteRule(r)"
 						>
 							{{ isDeletingId === r.id ? "刪除中…" : "刪除" }}
 						</button>
@@ -75,14 +80,19 @@
 
 						<form class="grid grid-cols-2 gap-4 2xl:gap-6" @submit.prevent="handleSaveDialog">
 							<label class="flex flex-col gap-2 text-base text-white/80">
-								<span>規則名稱<span class="required-mark">*</span></span>
-								<input
-									v-model="dialog.form.name"
-									type="text"
-									required
-									class="form-input-small"
-									:disabled="dialogBusy"
-								/>
+								<span>事件類型<span class="required-mark">*</span></span>
+								<div
+									:class="{
+										'pointer-events-none opacity-50': dialogBusy || dialog.mode === 'edit',
+									}"
+								>
+									<FilterDropdown
+										v-model="dialog.form.eventType"
+										:options="eventTypeOptions"
+										text-size="text-sm 2xl:text-base"
+										@update:model-value="handleEventTypeChanged"
+									/>
+								</div>
 							</label>
 
 							<label class="flex flex-col gap-2 text-base text-white/80">
@@ -94,6 +104,17 @@
 									class="form-input-small"
 									:disabled="dialogBusy"
 									required
+								/>
+							</label>
+
+							<label class="col-span-2 flex flex-col gap-2 text-base text-white/80">
+								<span>規則名稱<span class="required-mark">*</span></span>
+								<input
+									v-model="dialog.form.name"
+									type="text"
+									required
+									class="form-input-small"
+									:disabled="dialogBusy"
 								/>
 							</label>
 
@@ -239,8 +260,13 @@
 								</template>
 							</div>
 
-							<div class="col-span-2 flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-								<p>人員群組<span class="required-mark">*</span></p>
+							<div
+								v-if="filterKind === 'person_groups'"
+								class="col-span-2 flex flex-col gap-2 text-sm text-white/80 2xl:text-base"
+							>
+								<p>
+									{{ filterLabel("groupIds", "人員群組") }}<span class="required-mark">*</span>
+								</p>
 								<PersonnelGroupPicker
 									v-model="dialog.form.groupIds"
 									:groups="groupTree"
@@ -248,6 +274,86 @@
 									:disabled="dialogBusy"
 								/>
 							</div>
+
+							<label
+								v-if="filterKind === 'devices'"
+								class="col-span-2 flex flex-col gap-2 text-base text-white/80"
+							>
+								<span>{{ filterLabel("deviceIds", "設備 ID（選填，逗號分隔；空白=全部）") }}</span>
+								<input
+									v-model="dialog.form.deviceIdsText"
+									type="text"
+									class="form-input-small"
+									:disabled="dialogBusy"
+									placeholder="例如：1,2,3"
+									aria-label="設備 ID 篩選"
+								/>
+							</label>
+
+							<label
+								v-if="filterKind === 'locations'"
+								class="col-span-2 flex flex-col gap-2 text-base text-white/80"
+							>
+								<span>{{ filterLabel("locationIds", "地點 ID（選填，逗號分隔；空白=全部）") }}</span>
+								<input
+									v-model="dialog.form.locationIdsText"
+									type="text"
+									class="form-input-small"
+									:disabled="dialogBusy"
+									placeholder="例如：1,2,3"
+									aria-label="地點 ID 篩選"
+								/>
+							</label>
+
+							<template v-if="filterKind === 'operational'">
+								<label class="flex flex-col gap-2 text-base text-white/80">
+									<span>{{ filterLabel("eventKinds", "事件種類（選填）") }}</span>
+									<input
+										v-model="dialog.form.eventKindsText"
+										type="text"
+										class="form-input-small"
+										:disabled="dialogBusy"
+										placeholder="例如：elevator,access"
+										aria-label="營運事件種類篩選"
+									/>
+								</label>
+								<label class="flex flex-col gap-2 text-base text-white/80">
+									<span>{{ filterLabel("sources", "來源（選填）") }}</span>
+									<input
+										v-model="dialog.form.sourcesText"
+										type="text"
+										class="form-input-small"
+										:disabled="dialogBusy"
+										placeholder="例如：isapi,system"
+										aria-label="營運事件來源篩選"
+									/>
+								</label>
+							</template>
+
+							<template v-if="filterKind === 'alerts'">
+								<label class="flex flex-col gap-2 text-base text-white/80">
+									<span>{{ filterLabel("sources", "來源（選填）") }}</span>
+									<input
+										v-model="dialog.form.sourcesText"
+										type="text"
+										class="form-input-small"
+										:disabled="dialogBusy"
+										placeholder="例如：environment,elevator"
+										aria-label="警報來源篩選"
+									/>
+								</label>
+								<label class="flex flex-col gap-2 text-base text-white/80">
+									<span>{{ filterLabel("statuses", "狀態（選填）") }}</span>
+									<input
+										v-model="dialog.form.statusesText"
+										type="text"
+										class="form-input-small"
+										:disabled="dialogBusy"
+										placeholder="例如：active,resolved"
+										aria-label="警報狀態篩選"
+									/>
+								</label>
+							</template>
 
 							<div class="col-span-2 flex flex-col gap-2">
 								<p class="text-sm font-medium text-white/85 2xl:text-base">輸出欄位</p>
@@ -301,15 +407,42 @@
 				</div>
 			</Transition>
 		</Teleport>
+
+		<ConfirmDialog
+			v-model="showConfirmDialog"
+			:title="confirmDialogConfig.title"
+			:message="confirmDialogConfig.message"
+			:details="confirmDialogConfig.details"
+			:type="confirmDialogConfig.type"
+			@confirm="handleConfirmDelete"
+		/>
 	</div>
 </template>
 
 <script setup lang="ts">
 import AsyncPanel from "~/components/common/AsyncPanel.vue"
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import PersonnelGroupPicker from "~/components/common/PersonnelGroupPicker.vue"
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { useRecordExportRulesForm } from "~/composables/core/useRecordExportRulesForm"
 import { getExportFieldFormatPlaceholder } from "~/utils/externalIntegration"
+
+type RuleListItem = {
+	id: number
+	name: string
+	eventType?: string
+}
+
+const confirmDialog = useConfirmDialog()
+const showConfirmDialog = computed({
+	get: () => confirmDialog.showDialog.value,
+	set: (value: boolean) => {
+		confirmDialog.showDialog.value = value
+	},
+})
+const confirmDialogConfig = computed(() => confirmDialog.config.value)
+const pendingDeleteRuleId = ref<number | null>(null)
 
 const {
 	rules,
@@ -324,16 +457,38 @@ const {
 	actionLabel,
 	groupTree,
 	groupTreeLoading,
+	eventTypeOptions,
+	filterKind,
+	filterLabel,
+	eventTypeLabel,
 	dateFormatOptions,
 	timeFormatOptions,
 	outputFormatOptions,
 	storageTypeOptions,
 	handleCreate,
 	handleEdit,
+	handleEventTypeChanged,
 	handleCloseDialog,
 	handleSaveDialog,
 	handleDelete,
 } = useRecordExportRulesForm()
+
+const confirmDeleteRule = (rule: RuleListItem) => {
+	pendingDeleteRuleId.value = rule.id
+	confirmDialog.show({
+		title: "確認刪除",
+		message: `確定要刪除規則「${rule.name}」嗎？`,
+		details: "此操作無法復原。",
+		type: "danger",
+	})
+}
+
+const handleConfirmDelete = async () => {
+	const id = pendingDeleteRuleId.value
+	if (id == null) return
+	pendingDeleteRuleId.value = null
+	await handleDelete(id)
+}
 
 defineExpose({
 	openDialog: handleCreate,
