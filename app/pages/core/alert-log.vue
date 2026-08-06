@@ -644,6 +644,12 @@ onMounted(async () => {
 	// 初始化時間範圍
 	initializeTimeRange();
 
+	const route = useRoute();
+	const sourceParam = route.query.source;
+	if (typeof sourceParam === "string" && sourceParam) {
+		filterSource.value = sourceParam;
+	}
+
 	load({}, true); // 立即執行
 	void loadUnresolvedCount();
 
