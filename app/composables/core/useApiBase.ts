@@ -1,5 +1,6 @@
 import { useRequestFetch } from "#app"
 import { useAuth } from "~/composables/core/useAuth"
+import { useAuthSession } from "~/composables/core/useAuthSession"
 import {
 	ApiRequestError,
 	extractBackendApiErrorText,
@@ -98,7 +99,7 @@ export const useApiBase = () => {
 		}
 
 		if (statusCode === 401 && path.split("?")[0] !== "/users/login") {
-			const { handleUnauthorized } = runWithNuxtContext(() => useAuth())
+			const { handleUnauthorized } = runWithNuxtContext(() => useAuthSession())
 			await handleUnauthorized()
 		}
 

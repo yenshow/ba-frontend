@@ -10,15 +10,8 @@ import type {
 	EnergyTrendPoint,
 } from "~/types/energy"
 
-/** 設為 false 即改回打真實 API */
+/** 設為 false 即改回打真實 API（告警 mock 改走 GET /energy/dashboard/notifications?mock=1） */
 export const ENERGY_DASHBOARD_USE_MOCK = true
-
-export type EnergyMockAlert = {
-	id: number
-	message: string
-	severity: string
-	created_at: string
-}
 
 export type EnergyMockTrendResult = {
 	bucketType: string
@@ -277,36 +270,3 @@ export const MOCK_ENERGY_BREAKDOWN: EnergyBreakdownResponse = {
 		},
 	],
 }
-
-export const MOCK_ENERGY_ALERTS: EnergyMockAlert[] = [
-	{
-		id: 9001,
-		message: "即時功率／需量 18420.0 kW 接近契約容量 20000.0 kW（預警）",
-		severity: "warning",
-		created_at: new Date(Date.now() - 0.4 * 3600 * 1000).toISOString(),
-	},
-	{
-		id: 9002,
-		message: "B1 電表－空調主機：通訊逾時，最近 15 分鐘無讀數",
-		severity: "critical",
-		created_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-	},
-	{
-		id: 9003,
-		message: "本日累計用電已達本月平均值 92%",
-		severity: "info",
-		created_at: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
-	},
-	{
-		id: 9004,
-		message: "電梯幹線電表：讀數跳動異常",
-		severity: "warning",
-		created_at: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
-	},
-	{
-		id: 9005,
-		message: "停車場電表：離峰用量低於基準",
-		severity: "info",
-		created_at: new Date(Date.now() - 8 * 3600 * 1000).toISOString(),
-	},
-]

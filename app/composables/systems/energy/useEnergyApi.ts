@@ -7,6 +7,7 @@ import type {
 	EnergySettingsResponse,
 	EnergySystemDistributionItem,
 	EnergyTrendPoint,
+	EnergyNotificationsResponse,
 	EnergyUsageAggregatedRow,
 } from "~/types/energy"
 
@@ -41,6 +42,15 @@ export const useEnergyApi = () => {
 
 	const getBreakdown = () =>
 		request<EnergyBreakdownResponse>("/energy/dashboard/breakdown")
+
+	const getNotifications = (opts?: { limit?: number; mock?: boolean }) => {
+		const q = new URLSearchParams()
+		q.set("limit", String(opts?.limit ?? 50))
+		if (opts?.mock) q.set("mock", "1")
+		return request<EnergyNotificationsResponse>(
+			`/energy/dashboard/notifications?${q.toString()}`
+		)
+	}
 
 	const getUsageAggregated = (params: {
 		startTime: string
@@ -86,6 +96,7 @@ export const useEnergyApi = () => {
 		getDistribution,
 		getRanking,
 		getBreakdown,
+		getNotifications,
 		getUsageAggregated,
 		getReadings,
 	}

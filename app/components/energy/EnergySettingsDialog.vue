@@ -153,7 +153,7 @@ watch(
 						<template v-if="form">
 							<section class="space-y-3">
 								<h4 class="text-base font-medium tracking-widest text-white/80">
-									契約容量／告警
+									契約容量
 								</h4>
 								<label class="form-label">
 									<span>契約容量 (kW)</span>
@@ -173,6 +173,36 @@ watch(
 										class="form-input"
 									/>
 								</label>
+								<p class="text-xs tracking-wider text-white/45 2xl:text-sm">
+									需量視窗目前僅儲存設定，契約告警仍依即時加總功率／需量判定（後續版本啟用）。
+								</p>
+							</section>
+
+							<section class="space-y-3">
+								<h4 class="text-base font-medium tracking-widest text-white/80">
+									告警門檻 — 需處置（Incident）
+								</h4>
+								<p class="text-xs tracking-wider text-white/50 2xl:text-sm">
+									寫入警示紀錄；可於儀表板「告警通知」與 Header 未解數查看。
+								</p>
+								<label class="flex items-center gap-2 text-white/90">
+									<input
+										v-model="form.demand_warning_enabled"
+										type="checkbox"
+										class="h-4 w-4 accent-cyan-400"
+									/>
+									<span>啟用契約接近預警</span>
+								</label>
+								<label class="form-label">
+									<span>接近契約容量（%）</span>
+									<input
+										v-model.number="form.demand_warning_pct"
+										type="number"
+										min="1"
+										max="100"
+										class="form-input"
+									/>
+								</label>
 								<label class="flex items-center gap-2 text-white/90">
 									<input
 										v-model="form.demand_alert_enabled"
@@ -180,6 +210,146 @@ watch(
 										class="h-4 w-4 accent-cyan-400"
 									/>
 									<span>啟用超契約容量告警</span>
+								</label>
+								<label class="flex items-center gap-2 text-white/90">
+									<input
+										v-model="form.meter_stale_enabled"
+										type="checkbox"
+										class="h-4 w-4 accent-cyan-400"
+									/>
+									<span>啟用表計通訊逾時告警</span>
+								</label>
+								<label class="form-label">
+									<span>表計逾時（分鐘）</span>
+									<input
+										v-model.number="form.meter_stale_minutes"
+										type="number"
+										min="1"
+										class="form-input"
+									/>
+								</label>
+								<label class="flex items-center gap-2 text-white/90">
+									<input
+										v-model="form.reading_jump_enabled"
+										type="checkbox"
+										class="h-4 w-4 accent-cyan-400"
+									/>
+									<span>啟用讀數跳動異常告警</span>
+								</label>
+								<div class="grid grid-cols-2 gap-3">
+									<label class="form-label">
+										<span>跳動倍數門檻</span>
+										<input
+											v-model.number="form.reading_jump_multiplier"
+											type="number"
+											min="1.5"
+											step="0.1"
+											class="form-input"
+										/>
+									</label>
+									<label class="form-label">
+										<span>最小跳動 (kWh)</span>
+										<input
+											v-model.number="form.reading_jump_min_kwh"
+											type="number"
+											min="0"
+											step="0.1"
+											class="form-input"
+										/>
+									</label>
+								</div>
+							</section>
+
+							<section class="space-y-3">
+								<h4 class="text-base font-medium tracking-widest text-white/80">
+									告警門檻 — 營運提示（Insight）
+								</h4>
+								<p class="text-xs tracking-wider text-white/50 2xl:text-sm">
+									僅顯示於儀表板「告警通知」，不進警示紀錄。
+								</p>
+								<label class="flex items-center gap-2 text-white/90">
+									<input
+										v-model="form.usage_vs_avg_enabled"
+										type="checkbox"
+										class="h-4 w-4 accent-cyan-400"
+									/>
+									<span>啟用用量達歷史平均提示（電）</span>
+								</label>
+								<label class="flex items-center gap-2 text-white/90">
+									<input
+										v-model="form.water_usage_vs_avg_enabled"
+										type="checkbox"
+										class="h-4 w-4 accent-cyan-400"
+									/>
+									<span>啟用用量達歷史平均提示（水）</span>
+								</label>
+								<div class="grid grid-cols-2 gap-3">
+									<label class="form-label">
+										<span>達平均（%）</span>
+										<input
+											v-model.number="form.usage_vs_avg_pct"
+											type="number"
+											min="1"
+											max="100"
+											class="form-input"
+										/>
+									</label>
+									<label class="form-label">
+										<span>基線天數</span>
+										<input
+											v-model.number="form.usage_vs_avg_days"
+											type="number"
+											min="7"
+											class="form-input"
+										/>
+									</label>
+								</div>
+								<label class="flex items-center gap-2 text-white/90">
+									<input
+										v-model="form.offpeak_low_enabled"
+										type="checkbox"
+										class="h-4 w-4 accent-cyan-400"
+									/>
+									<span>啟用離峰用量偏低提示</span>
+								</label>
+								<div class="grid grid-cols-2 gap-3">
+									<label class="form-label">
+										<span>低於均值（%）</span>
+										<input
+											v-model.number="form.offpeak_low_pct"
+											type="number"
+											min="1"
+											max="100"
+											class="form-input"
+										/>
+									</label>
+									<label class="form-label">
+										<span>基線天數</span>
+										<input
+											v-model.number="form.offpeak_baseline_days"
+											type="number"
+											min="7"
+											class="form-input"
+										/>
+									</label>
+								</div>
+								<label class="flex items-center gap-2 text-white/90">
+									<input
+										v-model="form.meter_share_enabled"
+										type="checkbox"
+										class="h-4 w-4 accent-cyan-400"
+									/>
+									<span>啟用單表佔比過高提示</span>
+								</label>
+								<label class="form-label">
+									<span>單表佔比門檻（%）</span>
+									<input
+										v-model.number="form.meter_share_pct"
+										type="number"
+										min="1"
+										max="100"
+										class="form-input"
+									/>
 								</label>
 							</section>
 

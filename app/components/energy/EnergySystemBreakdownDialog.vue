@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import type { EnergyBreakdownResponse, EnergyBreakdownSystem } from "~/types/energy"
 import { useEnergyApi } from "~/composables/systems/energy/useEnergyApi"
-import {
-	ENERGY_DASHBOARD_USE_MOCK,
-	MOCK_ENERGY_BREAKDOWN,
-} from "~/constants/energyDashboard.mock"
+import { ENERGY_DASHBOARD_USE_MOCK, MOCK_ENERGY_BREAKDOWN } from "~/constants/energyDashboard.mock"
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ "update:modelValue": [boolean] }>()
@@ -122,10 +119,7 @@ watch(
 					>
 						{{ errorMessage }}
 					</p>
-					<div
-						v-else-if="systems.length === 0"
-						class="py-16 text-center text-white/60"
-					>
+					<div v-else-if="systems.length === 0" class="py-16 text-center text-white/60">
 						<p class="text-base 2xl:text-lg">尚無系統用量資料</p>
 						<p class="mt-2 text-sm">請於設備管理為電表設定用途系統，並納入能源監測</p>
 					</div>
@@ -167,7 +161,9 @@ watch(
 								class="w-full min-w-[40rem] border-collapse text-left text-sm text-white/85 2xl:text-base"
 							>
 								<thead>
-									<tr class="border-b border-white/20 text-xs tracking-wider text-white/50 2xl:text-sm">
+									<tr
+										class="border-b border-white/20 text-xs tracking-wider text-white/50 2xl:text-sm"
+									>
 										<th class="px-2 py-2 font-medium">電表名稱</th>
 										<th class="px-2 py-2 font-medium">位置</th>
 										<th class="px-2 py-2 text-right font-medium">今日用量</th>
@@ -185,7 +181,6 @@ watch(
 									>
 										<td class="px-2 py-2.5">
 											<div>{{ m.deviceName }}</div>
-											<div class="text-xs text-white/40">#{{ m.deviceId }}</div>
 										</td>
 										<td class="px-2 py-2.5 text-white/70">{{ m.location || "—" }}</td>
 										<td class="px-2 py-2.5 text-right tabular-nums">
@@ -198,11 +193,7 @@ watch(
 											{{ m.percentOfTotal }}%
 										</td>
 										<td class="px-2 py-2.5 text-right tabular-nums">
-											{{
-												m.activePowerKw != null
-													? `${m.activePowerKw.toLocaleString()} kW`
-													: "—"
-											}}
+											{{ m.activePowerKw != null ? `${m.activePowerKw.toLocaleString()} kW` : "—" }}
 										</td>
 										<td class="px-2 py-2.5 text-white/60">
 											{{ formatTime(m.lastReadingAt) }}

@@ -3,7 +3,8 @@ import EnergyTrendChart from "~/components/energy/EnergyTrendChart.vue"
 import EnergyKpiSparkline from "~/components/energy/EnergyKpiSparkline.vue"
 import EnergyDistributionDonut from "~/components/energy/EnergyDistributionDonut.vue"
 import EnergyRankingList from "~/components/energy/EnergyRankingList.vue"
-import EnergyAlertsPanel, { type EnergyAlertItem } from "~/components/energy/EnergyAlertsPanel.vue"
+import EnergyAlertsPanel from "~/components/energy/EnergyAlertsPanel.vue"
+import EnergyAlertsDialog from "~/components/energy/EnergyAlertsDialog.vue"
 import EnergySettingsDialog from "~/components/energy/EnergySettingsDialog.vue"
 import EnergySystemBreakdownDialog from "~/components/energy/EnergySystemBreakdownDialog.vue"
 import EnergySimulation, {
@@ -13,11 +14,10 @@ import SimulationFrame from "~/components/common/SimulationFrame.vue"
 import PageTabs from "~/components/common/PageTabs.vue"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import { useEnergyDashboard } from "~/composables/systems/energy/useEnergyDashboard"
+import { useEnergyNotifications } from "~/composables/systems/energy/useEnergyNotifications"
 import { useEnergyReadingSubscription } from "~/composables/systems/energy/useEnergyLive"
-import { useAlertApi } from "~/composables/systems/alerts/useAlertApi"
 import { useAuth } from "~/composables/core/useAuth"
 import { PERM } from "~/config/permissionCodes"
-import { ENERGY_DASHBOARD_USE_MOCK, MOCK_ENERGY_ALERTS } from "~/constants/energyDashboard.mock"
 
 const {
 	summary,
@@ -38,12 +38,17 @@ const {
 const { useHasPermission } = useAuth()
 const canManageEnergySettings = useHasPermission(PERM.energy.settingsUpdate)
 
-const alertApi = useAlertApi()
+const {
+	items: energyAlerts,
+	totalIncidents: energyIncidentCount,
+	totalInsights: energyInsightCount,
+	refreshNotifications,
+} = useEnergyNotifications()
 const showSettings = ref(false)
 const showBreakdown = ref(false)
 const showTrendReport = ref(false)
 const trendReportMode = ref<EnergyTrendReportMode>("energy")
-const energyAlerts = ref<EnergyAlertItem[]>([])
+const showAlertsDialog = ref(false)
 
 const rangeTabs = [
 	{ id: "day", label: "日" },
@@ -151,26 +156,9 @@ const trendPanels = computed(() => [
 	},
 ])
 
-const loadAlerts = async () => {
-	if (ENERGY_DASHBOARD_USE_MOCK) {
-		energyAlerts.value = [...MOCK_ENERGY_ALERTS]
-		return
-	}
-	try {
-		const res = await alertApi.getAlerts({
-			source: "energy",
-			status: "active",
-			limit: 8,
-		})
-		energyAlerts.value = Array.isArray(res?.alerts) ? res.alerts : []
-	} catch {
-		energyAlerts.value = []
-	}
-}
-
 useEnergyReadingSubscription(() => {
 	void refreshAll()
-	void loadAlerts()
+	void refreshNotifications()
 })
 
 /** 用電／用水趨勢各自開啟完整報表 */
@@ -185,7 +173,7 @@ const trendReportTitle = computed(() =>
 
 onMounted(async () => {
 	await refreshAll()
-	await loadAlerts()
+	await refreshNotifications()
 })
 </script>
 
@@ -325,11 +313,25 @@ onMounted(async () => {
 				<EnergyRankingList :items="ranking" @view-more="showBreakdown = true" />
 			</div>
 			<div class="monitoring-panel overflow-hidden rounded-2xl p-4 text-white 2xl:p-6">
-				<EnergyAlertsPanel :alerts="energyAlerts" />
+				<EnergyAlertsPanel :alerts="energyAlerts" @show-all="showAlertsDialog = true" />
 			</div>
 		</section>
 
-		<EnergySettingsDialog v-model="showSettings" @saved="refreshAll" />
+		<EnergyAlertsDialog
+			v-model="showAlertsDialog"
+			:alerts="energyAlerts"
+			:total-incidents="energyIncidentCount"
+			:total-insights="energyInsightCount"
+		/>
+		<EnergySettingsDialog
+			v-model="showSettings"
+			@saved="
+				() => {
+					void refreshAll()
+					void refreshNotifications()
+				}
+			"
+		/>
 		<EnergySystemBreakdownDialog v-model="showBreakdown" />
 		<SimulationFrame v-model="showTrendReport" :title="trendReportTitle">
 			<EnergySimulation :mode="trendReportMode" />
