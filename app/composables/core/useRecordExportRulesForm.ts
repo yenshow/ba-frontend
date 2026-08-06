@@ -1,65 +1,85 @@
 import { TOAST } from "~/config/toastCatalog"
-import { useApiBase } from "~/composables/core/useApiBase";
-import { useAdminOnly } from "~/composables/core/useAuth";
-import { useToast } from "~/composables/core/useToast";
-import { useErrorHandler } from "~/composables/core/useErrorHandler";
-import { usePersonnelGroupTree } from "~/composables/systems/personnel/usePersonnelGroupTree";
-import type { AccessControlFieldCatalogItem } from "~/utils/externalIntegration";
+import { useApiBase } from "~/composables/core/useApiBase"
+import { useAdminOnly } from "~/composables/core/useAuth"
+import { useToast } from "~/composables/core/useToast"
+import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { usePersonnelGroupTree } from "~/composables/systems/personnel/usePersonnelGroupTree"
+import type {
+	ExportEventTypeInfo,
+	ExportFieldCatalogItem,
+	ExportFilterSchema,
+} from "~/utils/externalIntegration"
 import {
+	buildEventTypeOptions,
+	buildFilterPayloadFromForm,
 	DATE_FORMAT_OPTIONS,
+	getFilterFieldLabel,
+	isGroupFilterRequired,
 	OUTPUT_FORMAT_OPTIONS,
 	STORAGE_TYPE_OPTIONS,
 	TIME_FORMAT_OPTIONS,
-} from "~/utils/externalIntegration";
+	eventTypeLabel,
+} from "~/utils/externalIntegration"
 
 type RuleField = {
-	fieldKey: string;
-	headerLabel?: string;
-	format?: string;
-};
+	fieldKey: string
+	headerLabel?: string
+	format?: string
+}
 
 type RuleRecord = {
-	id: number;
-	name: string;
-	description?: string;
-	filenamePrefix?: string;
-	dateFormat?: string;
-	timeFormat?: string;
-	outputFormat: "csv" | "txt";
-	storageType: "local" | "sftp";
-	localDir?: string;
-	exportTime: string;
-	groupIds?: number[];
-	sftp?: { host?: string; port?: number; username?: string; remoteDir?: string };
-	fields?: RuleField[];
-};
+	id: number
+	eventType?: string
+	name: string
+	description?: string
+	filenamePrefix?: string
+	dateFormat?: string
+	timeFormat?: string
+	outputFormat: "csv" | "txt"
+	storageType: "local" | "sftp"
+	localDir?: string
+	exportTime: string
+	groupIds?: number[]
+	filter?: Record<string, unknown>
+	sftp?: { host?: string; port?: number; username?: string; remoteDir?: string }
+	fields?: RuleField[]
+}
 
 type RuleResponse = {
-	rules: RuleRecord[];
-	fields: Array<AccessControlFieldCatalogItem>;
-};
+	rules: RuleRecord[]
+	fields: Array<ExportFieldCatalogItem>
+	filterSchema?: ExportFilterSchema | null
+	eventTypes?: ExportEventTypeInfo[]
+}
 
 type RuleDialogForm = {
-	id: number | null;
-	name: string;
-	description: string;
-	filenamePrefix: string;
-	dateFormat: string;
-	timeFormat: string;
-	outputFormat: "csv" | "txt";
-	storageType: "local" | "sftp";
-	localDir: string;
-	sftp: { host: string; port: string; username: string; password: string; remoteDir: string };
-	exportTime: string;
-	groupIds: number[];
-	fieldConfigs: Record<string, { headerLabel: string; format: string }>;
-};
+	id: number | null
+	eventType: string
+	name: string
+	description: string
+	filenamePrefix: string
+	dateFormat: string
+	timeFormat: string
+	outputFormat: "csv" | "txt"
+	storageType: "local" | "sftp"
+	localDir: string
+	sftp: { host: string; port: string; username: string; password: string; remoteDir: string }
+	exportTime: string
+	groupIds: number[]
+	deviceIdsText: string
+	locationIdsText: string
+	eventKindsText: string
+	sourcesText: string
+	statusesText: string
+	fieldConfigs: Record<string, { headerLabel: string; format: string }>
+}
 
 const createEmptyForm = (): RuleDialogForm => ({
 	id: null,
+	eventType: "access_control",
 	name: "",
 	description: "",
-	filenamePrefix: "AcsRecord_Record",
+	filenamePrefix: "Export_Record",
 	dateFormat: "yyyy-MM-dd",
 	timeFormat: "HHmmss",
 	outputFormat: "csv",
@@ -68,157 +88,218 @@ const createEmptyForm = (): RuleDialogForm => ({
 	sftp: { host: "", port: "22", username: "", password: "", remoteDir: "" },
 	exportTime: "00:00",
 	groupIds: [],
+	deviceIdsText: "",
+	locationIdsText: "",
+	eventKindsText: "",
+	sourcesText: "",
+	statusesText: "",
 	fieldConfigs: {},
-});
+})
 
-type FormDropdownOption = { value: string; label: string };
+type FormDropdownOption = { value: string; label: string }
 
 export const useRecordExportRulesForm = () => {
-	const { request } = useApiBase();
-	const canAdmin = useAdminOnly();
-	const toast = useToast();
-	const { handleError } = useErrorHandler();
+	const { request } = useApiBase()
+	const canAdmin = useAdminOnly()
+	const toast = useToast()
+	const { handleError } = useErrorHandler()
 
 	const {
 		groupTree,
 		isLoading: groupTreeLoading,
 		refresh: refreshGroupTree,
-	} = usePersonnelGroupTree();
+	} = usePersonnelGroupTree()
 
-	const rules = ref<RuleRecord[]>([]);
-	const fields = ref<Array<AccessControlFieldCatalogItem>>([]);
-	const isLoading = ref(true);
-	const isSaving = ref(false);
-	const loadError = ref<string | null>(null);
-	const isDeletingId = ref<number | null>(null);
+	const rules = ref<RuleRecord[]>([])
+	const fields = ref<Array<ExportFieldCatalogItem>>([])
+	const eventTypes = ref<ExportEventTypeInfo[]>([])
+	const filterSchema = ref<ExportFilterSchema | null>(null)
+	const isLoading = ref(true)
+	const isSaving = ref(false)
+	const loadError = ref<string | null>(null)
+	const isDeletingId = ref<number | null>(null)
 
 	const dialog = reactive<{ open: boolean; mode: "create" | "edit"; form: RuleDialogForm }>({
 		open: false,
 		mode: "create",
 		form: createEmptyForm(),
-	});
+	})
 
-	const dialogBusy = computed(() => !canAdmin.value || isSaving.value);
-	const formDisabled = computed(() => isLoading.value || !canAdmin.value);
-	const actionLabel = "新增規則";
+	const dialogBusy = computed(() => !canAdmin.value || isSaving.value)
+	const formDisabled = computed(() => isLoading.value || !canAdmin.value)
+	const actionLabel = "新增規則"
+	const eventTypeOptions = computed(() => buildEventTypeOptions(eventTypes.value))
+	const filterKind = computed(() => filterSchema.value?.kind ?? null)
+
+	const filterLabel = (key: string, fallback: string) =>
+		getFilterFieldLabel(filterSchema.value, key, fallback)
 
 	const ensureRuleField = (key: string) => {
 		if (!dialog.form.fieldConfigs[key]) {
-			dialog.form.fieldConfigs[key] = { headerLabel: "", format: "" };
+			dialog.form.fieldConfigs[key] = { headerLabel: "", format: "" }
 		}
-	};
+	}
 
 	const initAllFieldConfigs = () => {
-		for (const f of fields.value) {
-			ensureRuleField(f.key);
-		}
-	};
+		for (const f of fields.value) ensureRuleField(f.key)
+	}
 
 	const resetDialogForm = () => {
-		dialog.form = createEmptyForm();
-	};
+		dialog.form = createEmptyForm()
+	}
+
+	const loadFieldsForEventType = async (eventType: string) => {
+		const data = await request<RuleResponse>(
+			`/record-export/rules?eventType=${encodeURIComponent(eventType)}`,
+			{ method: "GET" },
+		)
+		fields.value = data.fields || []
+		filterSchema.value = data.filterSchema ?? null
+		if (data.eventTypes?.length) eventTypes.value = data.eventTypes
+		initAllFieldConfigs()
+	}
+
+	const clearDialogFilters = () => {
+		dialog.form.groupIds = []
+		dialog.form.deviceIdsText = ""
+		dialog.form.locationIdsText = ""
+		dialog.form.eventKindsText = ""
+		dialog.form.sourcesText = ""
+		dialog.form.statusesText = ""
+	}
 
 	const fetchRules = async () => {
-		if (!canAdmin.value) return;
-		isLoading.value = true;
-		loadError.value = null;
-		try {
-			const data = await request<RuleResponse>("/record-export/rules?eventType=access_control", {
-				method: "GET",
-			});
-			fields.value = data.fields || [];
-			rules.value = data.rules || [];
-		} catch (e) {
-			loadError.value = handleError(e, "載入記錄轉存規則失敗") ?? "載入記錄轉存規則失敗";
-		} finally {
-			isLoading.value = false;
+		if (!canAdmin.value) {
+			isLoading.value = false
+			return
 		}
-	};
+		isLoading.value = true
+		loadError.value = null
+		try {
+			const data = await request<RuleResponse>("/record-export/rules", { method: "GET" })
+			rules.value = data.rules || []
+			if (data.eventTypes?.length) eventTypes.value = data.eventTypes
+		} catch (e) {
+			loadError.value = handleError(e, "載入記錄轉存規則失敗") ?? "載入記錄轉存規則失敗"
+		} finally {
+			isLoading.value = false
+		}
+	}
 
 	const applyRuleToDialog = (full: RuleRecord) => {
-		dialog.form.id = full.id;
-		dialog.form.name = full.name || "";
-		dialog.form.description = full.description || "";
-		dialog.form.filenamePrefix = full.filenamePrefix || "AcsRecord_Record";
-		dialog.form.dateFormat = full.dateFormat || "yyyy-MM-dd";
-		dialog.form.timeFormat = full.timeFormat || "HHmmss";
-		dialog.form.outputFormat = full.outputFormat || "csv";
-		dialog.form.storageType = full.storageType || "local";
-		dialog.form.localDir = full.localDir || "";
-		dialog.form.exportTime = full.exportTime || "00:00";
-		dialog.form.groupIds = Array.isArray(full.groupIds) ? full.groupIds : [];
+		dialog.form.id = full.id
+		dialog.form.eventType = full.eventType || "access_control"
+		dialog.form.name = full.name || ""
+		dialog.form.description = full.description || ""
+		dialog.form.filenamePrefix = full.filenamePrefix || "Export_Record"
+		dialog.form.dateFormat = full.dateFormat || "yyyy-MM-dd"
+		dialog.form.timeFormat = full.timeFormat || "HHmmss"
+		dialog.form.outputFormat = full.outputFormat || "csv"
+		dialog.form.storageType = full.storageType || "local"
+		dialog.form.localDir = full.localDir || ""
+		dialog.form.exportTime = full.exportTime || "00:00"
+		const filter = full.filter || {}
+		dialog.form.groupIds = Array.isArray(full.groupIds)
+			? full.groupIds
+			: Array.isArray(filter.groupIds)
+				? (filter.groupIds as number[])
+				: []
+		dialog.form.deviceIdsText = Array.isArray(filter.deviceIds)
+			? (filter.deviceIds as number[]).join(",")
+			: ""
+		dialog.form.locationIdsText = Array.isArray(filter.locationIds)
+			? (filter.locationIds as number[]).join(",")
+			: ""
+		dialog.form.eventKindsText = Array.isArray(filter.eventKinds)
+			? (filter.eventKinds as string[]).join(",")
+			: ""
+		dialog.form.sourcesText = Array.isArray(filter.sources)
+			? (filter.sources as string[]).join(",")
+			: ""
+		dialog.form.statusesText = Array.isArray(filter.statuses)
+			? (filter.statuses as string[]).join(",")
+			: ""
 		dialog.form.sftp = {
 			host: full.sftp?.host || "",
 			port: String(full.sftp?.port ?? "22"),
 			username: full.sftp?.username || "",
 			password: "",
 			remoteDir: full.sftp?.remoteDir || "",
-		};
-		dialog.form.fieldConfigs = {};
-		for (const f of full.fields || []) {
-			ensureRuleField(f.fieldKey);
-			dialog.form.fieldConfigs[f.fieldKey].headerLabel = f.headerLabel || "";
-			dialog.form.fieldConfigs[f.fieldKey].format = f.format || "";
 		}
-		initAllFieldConfigs();
-	};
+		dialog.form.fieldConfigs = {}
+		for (const f of full.fields || []) {
+			ensureRuleField(f.fieldKey)
+			dialog.form.fieldConfigs[f.fieldKey].headerLabel = f.headerLabel || ""
+			dialog.form.fieldConfigs[f.fieldKey].format = f.format || ""
+		}
+		initAllFieldConfigs()
+	}
 
 	const handleCreate = async () => {
-		dialog.mode = "create";
-		resetDialogForm();
-		initAllFieldConfigs();
-		dialog.open = true;
-		await refreshGroupTree();
-	};
+		dialog.mode = "create"
+		resetDialogForm()
+		dialog.open = true
+		await loadFieldsForEventType(dialog.form.eventType)
+		await refreshGroupTree()
+	}
 
 	const handleEdit = async (rule: RuleRecord) => {
-		dialog.mode = "edit";
-		resetDialogForm();
-		dialog.open = true;
-		await refreshGroupTree();
-		applyRuleToDialog(rule);
-	};
+		dialog.mode = "edit"
+		resetDialogForm()
+		dialog.open = true
+		await loadFieldsForEventType(rule.eventType || "access_control")
+		await refreshGroupTree()
+		applyRuleToDialog(rule)
+	}
+
+	const handleEventTypeChanged = async () => {
+		dialog.form.fieldConfigs = {}
+		clearDialogFilters()
+		await loadFieldsForEventType(dialog.form.eventType)
+	}
 
 	const handleCloseDialog = () => {
-		dialog.open = false;
-	};
+		dialog.open = false
+	}
 
 	const buildFieldsPayload = () => {
-		const out: RuleField[] = [];
+		const out: RuleField[] = []
 		for (const f of fields.value) {
-			const cfg = dialog.form.fieldConfigs[f.key];
-			if (!cfg) continue;
-			const headerLabel = cfg.headerLabel.trim();
-			if (!headerLabel) continue;
-			const item: RuleField = { fieldKey: f.key, headerLabel };
+			const cfg = dialog.form.fieldConfigs[f.key]
+			if (!cfg) continue
+			const headerLabel = cfg.headerLabel.trim()
+			if (!headerLabel) continue
+			const item: RuleField = { fieldKey: f.key, headerLabel }
 			if (f.requiresFormat) {
-				const format = cfg.format.trim();
-				if (!format) continue;
-				item.format = format;
+				const format = cfg.format.trim()
+				if (!format) continue
+				item.format = format
 			}
-			out.push(item);
+			out.push(item)
 		}
-		return out;
-	};
+		return out
+	}
 
 	const handleSaveDialog = async () => {
 		if (!canAdmin.value) {
-			toast.warning(TOAST.ADMIN_ONLY_RECORD_EXPORT);
-			return;
+			toast.warning(TOAST.ADMIN_ONLY_RECORD_EXPORT)
+			return
 		}
-		const fieldsPayload = buildFieldsPayload();
+		const fieldsPayload = buildFieldsPayload()
 		if (fieldsPayload.length === 0) {
-			toast.warning(TOAST.RECORD_EXPORT_HEADER_REQUIRED);
-			return;
+			toast.warning(TOAST.RECORD_EXPORT_HEADER_REQUIRED)
+			return
 		}
-		if (dialog.form.groupIds.length === 0) {
-			toast.warning(TOAST.RECORD_EXPORT_GROUP_REQUIRED);
-			return;
+		if (isGroupFilterRequired(filterSchema.value) && dialog.form.groupIds.length === 0) {
+			toast.warning(TOAST.RECORD_EXPORT_GROUP_REQUIRED)
+			return
 		}
 
 		try {
-			isSaving.value = true;
+			isSaving.value = true
+			const filter = buildFilterPayloadFromForm(filterSchema.value, dialog.form)
 			const body = {
+				eventType: dialog.form.eventType,
 				name: dialog.form.name,
 				description: dialog.form.description,
 				filenamePrefix: dialog.form.filenamePrefix,
@@ -238,60 +319,48 @@ export const useRecordExportRulesForm = () => {
 							}
 						: null,
 				exportTime: dialog.form.exportTime,
-				groupIds: dialog.form.groupIds,
+				filter,
 				fields: fieldsPayload,
-			};
+			}
 
 			if (dialog.mode === "create") {
-				await request("/record-export/rules", { method: "POST", body });
-				toast.success(TOAST.RECORD_EXPORT_CREATED);
+				await request("/record-export/rules", { method: "POST", body })
+				toast.success(TOAST.RECORD_EXPORT_CREATED)
 			} else {
-				await request(`/record-export/rules/${dialog.form.id}`, { method: "PUT", body });
-				toast.success(TOAST.RECORD_EXPORT_UPDATED);
+				await request(`/record-export/rules/${dialog.form.id}`, { method: "PUT", body })
+				toast.success(TOAST.RECORD_EXPORT_UPDATED)
 			}
-			dialog.open = false;
-			await fetchRules();
+			dialog.open = false
+			await fetchRules()
 		} catch (e) {
-			handleError(e, "儲存失敗");
+			handleError(e, "儲存失敗")
 		} finally {
-			isSaving.value = false;
+			isSaving.value = false
 		}
-	};
+	}
 
 	const handleDelete = async (id: number) => {
-		if (!canAdmin.value) return;
-		isDeletingId.value = id;
+		if (!canAdmin.value) return
+		isDeletingId.value = id
 		try {
-			await request(`/record-export/rules/${id}`, { method: "DELETE" });
-			toast.success(TOAST.RECORD_EXPORT_DELETED);
-			await fetchRules();
+			await request(`/record-export/rules/${id}`, { method: "DELETE" })
+			toast.success(TOAST.RECORD_EXPORT_DELETED)
+			await fetchRules()
 		} catch (e) {
-			handleError(e, "刪除失敗");
+			handleError(e, "刪除失敗")
 		} finally {
-			isDeletingId.value = null;
+			isDeletingId.value = null
 		}
-	};
+	}
 
-	const dateFormatOptions: FormDropdownOption[] = DATE_FORMAT_OPTIONS.map(({ label, value }) => ({
-		label,
-		value,
-	}));
-	const timeFormatOptions: FormDropdownOption[] = TIME_FORMAT_OPTIONS.map(({ label, value }) => ({
-		label,
-		value,
-	}));
-	const outputFormatOptions: FormDropdownOption[] = OUTPUT_FORMAT_OPTIONS.map(({ label, value }) => ({
-		label,
-		value,
-	}));
-	const storageTypeOptions: FormDropdownOption[] = STORAGE_TYPE_OPTIONS.map(({ label, value }) => ({
-		label,
-		value,
-	}));
+	const dateFormatOptions: FormDropdownOption[] = DATE_FORMAT_OPTIONS
+	const timeFormatOptions: FormDropdownOption[] = TIME_FORMAT_OPTIONS
+	const outputFormatOptions: FormDropdownOption[] = OUTPUT_FORMAT_OPTIONS
+	const storageTypeOptions: FormDropdownOption[] = STORAGE_TYPE_OPTIONS
 
 	onMounted(() => {
-		void fetchRules();
-	});
+		void fetchRules()
+	})
 
 	return {
 		rules,
@@ -306,14 +375,19 @@ export const useRecordExportRulesForm = () => {
 		actionLabel,
 		groupTree,
 		groupTreeLoading,
+		eventTypeOptions,
+		filterKind,
+		filterLabel,
+		eventTypeLabel,
 		dateFormatOptions,
 		timeFormatOptions,
 		outputFormatOptions,
 		storageTypeOptions,
 		handleCreate,
 		handleEdit,
+		handleEventTypeChanged,
 		handleCloseDialog,
 		handleSaveDialog,
 		handleDelete,
-	};
-};
+	}
+}
