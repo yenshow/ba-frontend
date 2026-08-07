@@ -1,17 +1,7 @@
 import { ref } from "vue"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
+import type { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
 import type { LocationLicensePlateRow } from "~/types/personnel"
-
-/** Construction 無 elevator 模組；保留型別以對齊 central API 形狀 */
-type ElevatorFloorSyncJobApi = {
-	getFloorSyncJob: (jobId: string) => Promise<{
-		job: {
-			status?: "queued" | "running" | "completed"
-			error?: string | null
-			progress?: { doneOps?: number; totalOps?: number }
-		}
-	}>
-}
 
 const SYNC_TIMEOUT_MS = 10 * 60 * 1000
 const PLATE_POLL_MS = 2000
@@ -81,10 +71,12 @@ export const useDeviceSyncObserver = () => {
 	}
 
 	const watchElevatorJob = async (
-		elevatorApi: ElevatorFloorSyncJobApi,
+		elevatorApi: ReturnType<typeof useElevatorApi>,
 		jobId: string,
 		options?: {
-			onTick?: (job: Awaited<ReturnType<ElevatorFloorSyncJobApi["getFloorSyncJob"]>>["job"]) => void
+			onTick?: (
+				job: Awaited<ReturnType<ReturnType<typeof useElevatorApi>["getFloorSyncJob"]>>["job"],
+			) => void
 		},
 	) => {
 		return runLocked(async () => {
@@ -154,11 +146,13 @@ type SyncableLocRow = {
 	name?: string
 	entry_devices?: Array<{ name?: string }>
 	exit_devices?: Array<{ name?: string }>
+	camera_devices?: Array<{ name?: string }>
 }
 
+/** 快取 syncable-locations 的入口／出口／攝影機設備名稱 */
 export const indexSyncableLocationDevices = (
 	locations: SyncableLocRow[] | undefined,
-	store: Record<number, { entry: string[]; exit: string[] }>,
+	store: Record<number, { entry: string[]; exit: string[]; cameras?: string[] }>,
 	nameStore?: Record<number, string>,
 ) => {
 	const list = Array.isArray(locations) ? locations : []
@@ -171,7 +165,10 @@ export const indexSyncableLocationDevices = (
 		const exit = Array.isArray(loc.exit_devices)
 			? loc.exit_devices.map((d) => String(d?.name || "").trim()).filter(Boolean)
 			: []
-		store[Math.trunc(id)] = { entry, exit }
+		const cameras = Array.isArray(loc.camera_devices)
+			? loc.camera_devices.map((d) => String(d?.name || "").trim()).filter(Boolean)
+			: []
+		store[Math.trunc(id)] = { entry, exit, cameras }
 		if (nameStore && loc.name) nameStore[Math.trunc(id)] = String(loc.name)
 	}
 }

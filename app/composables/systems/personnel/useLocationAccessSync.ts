@@ -32,7 +32,9 @@ export const useLocationAccessSync = (params: {
 	const { personnelApi, locationApi, toast, handleApiError, canDeviceSync } = params
 
 	const syncWarningTypeLabel = (type: string) => SYNC_WARNING_LABELS[type] ?? type
-	const syncDevicesByLocationId = reactive<Record<number, { entry: string[]; exit: string[] }>>({})
+	const syncDevicesByLocationId = reactive<
+		Record<number, { entry: string[]; exit: string[]; cameras?: string[] }>
+	>({})
 
 	const loadLocationSyncDevicesLabels = async () => {
 		try {
@@ -44,10 +46,11 @@ export const useLocationAccessSync = (params: {
 	}
 
 	const getLocationDevicesLabel = (locationId: number) => {
-		const v = syncDevicesByLocationId[locationId] || { entry: [], exit: [] }
+		const v = syncDevicesByLocationId[locationId] || { entry: [], exit: [], cameras: [] }
 		return {
 			entry: Array.isArray(v.entry) ? v.entry : [],
 			exit: Array.isArray(v.exit) ? v.exit : [],
+			cameras: Array.isArray(v.cameras) ? v.cameras : [],
 		}
 	}
 

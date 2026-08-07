@@ -23,6 +23,12 @@
 			>
 				{{ showDoorPanel ? "資訊" : "門控" }}
 			</button>
+			<span
+				v-else-if="cameraModeBadge"
+				class="absolute right-2 top-1 z-10 rounded-lg border border-white/40 bg-white/15 px-2 py-0.5 text-[10px] font-medium text-white 2xl:px-2.5 2xl:py-1 2xl:text-xs"
+			>
+				{{ cameraModeBadge }}
+			</span>
 
 			<div class="mb-2 flex w-[160px] items-center justify-center border-b border-white/80 pb-px">
 				<h3 class="text-base text-white 2xl:text-lg">{{ location.name }}</h3>
@@ -86,6 +92,10 @@ import type { PeopleCountingLocation } from "~/types/peopleCounting"
 import { computed, ref, toRefs, watch } from "vue"
 import { computeCumulativePresence } from "~/utils/entryExitStats"
 import AccessDoorGatePanel from "~/components/people-counting/AccessDoorGatePanel.vue"
+import {
+	isFaceRecognitionCameraMode,
+	PEOPLE_COUNTING_CAMERA_MODE_LABELS,
+} from "~/utils/peopleCountingCameraMode"
 
 const props = withDefaults(
 	defineProps<{
@@ -112,6 +122,12 @@ watch(
 const regionText = computed(() => location.value.overviewZoneName || "未分類")
 const isIsapiCamera = computed(() => location.value.dataSource === "isapi_camera")
 const isAccessControlLocation = computed(() => location.value.dataSource === "access_control")
+const cameraModeBadge = computed(() => {
+	if (!isIsapiCamera.value) return null
+	return isFaceRecognitionCameraMode(location.value.cameraMode)
+		? PEOPLE_COUNTING_CAMERA_MODE_LABELS.face_recognition
+		: PEOPLE_COUNTING_CAMERA_MODE_LABELS.people_counting
+})
 
 const currentCount = computed(() => {
 	if (isIsapiCamera.value) {

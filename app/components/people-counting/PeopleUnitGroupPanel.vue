@@ -16,11 +16,13 @@
 					'border-white/70': selectedUnitId === unit.id,
 					'monitoring-chip-bg': (unit.currentCount || 0) > 0,
 					'bg-black/20': (unit.currentCount || 0) === 0,
-					'cursor-default': isIsapiCamera
+					'cursor-default': showRegionStats
 				}"
-				:disabled="isIsapiCamera"
-				:tabindex="isIsapiCamera ? -1 : 0"
-				:aria-label="isIsapiCamera ? `${unit.name} 進出統計` : `查看 ${unit.name} 人員名單`"
+				:disabled="showRegionStats"
+				:tabindex="showRegionStats ? -1 : 0"
+				:aria-label="
+					showRegionStats ? `${unit.name} 進出統計` : `查看 ${unit.name} 人員名單`
+				"
 				@click="handleSelect(unit)"
 				@keydown.enter="handleSelect(unit)"
 				@keydown.space.prevent="handleSelect(unit)"
@@ -30,7 +32,7 @@
 				>
 					{{ unit.name }}
 				</div>
-				<template v-if="isIsapiCamera">
+				<template v-if="showRegionStats">
 					<div class="people-unit-count mt-0.5 flex items-center gap-1 text-sm text-white 2xl:text-base">
 						<span class="text-green-400">進 {{ unit.entryCount ?? 0 }}</span>
 						<span>/</span>
@@ -56,15 +58,15 @@ const props = withDefaults(
 	defineProps<{
 		units: PeopleCountingUnit[];
 		selectedUnitId?: number | null;
-		isIsapiCamera?: boolean;
 		panelTitle?: string;
 		hideTitle?: boolean;
+		showRegionStats?: boolean;
 	}>(),
 	{
 		selectedUnitId: null,
-		isIsapiCamera: false,
 		panelTitle: "人員群組",
-		hideTitle: false
+		hideTitle: false,
+		showRegionStats: false
 	}
 );
 
@@ -73,7 +75,7 @@ const emit = defineEmits<{
 }>();
 
 const handleSelect = (unit: PeopleCountingUnit) => {
-	if (props.isIsapiCamera) return;
+	if (props.showRegionStats) return;
 	emit("select", unit.id);
 };
 </script>

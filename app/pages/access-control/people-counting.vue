@@ -1,6 +1,6 @@
 <template>
 	<div>
-		<!-- 人流統計系統頁面內容 -->
+		<!-- 門禁管理頁面內容 -->
 		<div
 			class="flex min-w-0 flex-col items-stretch justify-center lg:flex-row"
 			:class="isOverviewCollapsed ? 'gap-0' : 'gap-4 xl:gap-6 2xl:gap-8'"
@@ -46,16 +46,16 @@
 					<PermissionActionButton
 						:allowed="canManageLocation"
 						aria-label="地點管理"
-						class="btn-monitoring-overlay absolute left-8 top-2"
+						class="absolute left-8 top-2 btn-monitoring-overlay"
 						@click="handleOpenLocationDialog"
 					>
 						地點管理
 					</PermissionActionButton>
 					<PermissionActionButton
-						v-show="isAccessControl && selectedLocation"
+						v-show="(isAccessControl || isCameraFaceRecognition) && selectedLocation"
 						:allowed="canOpenAccessManage"
 						aria-label="門禁管理"
-						class="btn-monitoring-overlay absolute left-32 top-2 2xl:left-36"
+						class="absolute left-32 2xl:left-36 top-2 btn-monitoring-overlay"
 						@click="showAccessManageDialog = true"
 					>
 						門禁管理
@@ -64,7 +64,7 @@
 						v-show="selectedLocation"
 						:allowed="canResetStatistics"
 						aria-label="重置人流統計"
-						class="btn-monitoring-overlay absolute right-32 top-2 2xl:right-36"
+						class="absolute right-32 2xl:right-36 top-2 btn-monitoring-overlay"
 						@click="handleResetStats"
 					>
 						重置統計
@@ -72,7 +72,7 @@
 					<PermissionActionButton
 						:allowed="canFullReport"
 						aria-label="開啟完整報表"
-						class="btn-monitoring-overlay absolute right-8 top-2"
+						class="absolute right-8 top-2 btn-monitoring-overlay"
 						@click="handleOpenSimulation"
 					>
 						完整報表
@@ -81,30 +81,30 @@
 					<MonitoringDetailShell
 						:empty="detailEmpty"
 						:enlarged="isOverviewCollapsed"
-						:content-class="peopleDetailContentClass"
-						empty-title="尚無人流統計地點"
-						empty-description="請在「地點管理」中新增含人流統計系統的地點"
+						content-class="flex min-h-0 flex-1 flex-col gap-12"
 					>
 						<template v-if="selectedLocation">
+							<!-- 上統計、下左紀錄／下右群組（對齊車輛進出） -->
 							<LocationStatsPanel
 								:entry-count="selectedLocation?.entryCount || 0"
 								:exit-count="selectedLocation?.exitCount || 0"
 								:current-count="currentCount"
 							/>
-							<div class="grid min-w-0 grid-cols-2 items-stretch gap-4">
-								<div class="flex min-w-0 flex-col">
+							<div class="grid min-h-0 min-w-0 flex-1 grid-cols-2 items-stretch gap-4">
+								<div class="flex min-h-0 min-w-0 flex-col">
 									<EntryExitLogTable
 										:logs="logs"
 										:data-source="selectedLocation?.dataSource"
+										:camera-mode="selectedLocation?.cameraMode"
 										:display-columns="selectedLocation?.logDisplayColumns"
 									/>
 								</div>
-								<PeopleAccessDetailSidePanel
+								<LocationDetailPanel
 									v-model:show-door-panel="showDetailDoorPanel"
 									:location="selectedLocation"
 									:selected-unit-id="selectedUnitId"
 									:can-write="canDoorControl"
-									@select="handleUnitGroupSelect"
+									@unit-select="handleUnitSelectForUi"
 								/>
 							</div>
 						</template>
@@ -141,7 +141,12 @@
 									viewBox="0 0 24 24"
 									aria-hidden="true"
 								>
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M9 5l7 7-7 7"
+									/>
 								</svg>
 							</button>
 
@@ -191,17 +196,11 @@
 		@saved="handleZonesSaved"
 		@delete="handleDeleteZone"
 	/>
-	<UnitPersonnelDialog
-		v-model="isUnitDialogOpen"
-		:unit-name="selectedUnitName"
-		:personnel="personnel"
-		@close="handleUnitDialogClose"
-	/>
-
 	<PeopleCountingAccessManageDialog
 		v-model="showAccessManageDialog"
 		:location-id="selectedLocationNumericId"
 		:location-name="selectedLocationDisplayName"
+		:data-source="selectedLocation?.dataSource"
 		:can-edit-members="canEditAccessMembers"
 		:can-device-sync="canResyncAccessDevices"
 		:access-sync="accessSync"
@@ -209,7 +208,13 @@
 		@members-updated="handleAccessManageSynced"
 	/>
 
-	<SimulationFrame v-model="showSimulationFrame" title="人流統計 - 完整報表">
+	<UnitPersonnelDialog
+		v-model="showUnitPersonnelDialog"
+		:unit-name="selectedUnitName"
+		:personnel="personnel"
+	/>
+
+	<SimulationFrame v-model="showSimulationFrame" title="門禁管理 - 完整報表">
 		<PeopleCountingSimulation
 			:logs="simulationLogs"
 			:location-options="simulationLocationOptions"
@@ -222,83 +227,83 @@
 </template>
 
 <script setup lang="ts">
-import { TOAST } from "~/config/toastCatalog";
-import { onMounted, onBeforeUnmount, watch, nextTick, computed, ref } from "vue";
+import { TOAST } from "~/config/toastCatalog"
+import { onMounted, onBeforeUnmount, watch, nextTick, computed, ref } from "vue"
 import type {
 	PeopleCountingZone,
 	PeopleCountingLocation,
-	PeopleCountingLog
-} from "~/types/peopleCounting";
-import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue";
-import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue";
-import EntryExitLogTable from "~/components/people-counting/EntryExitLogTable.vue";
-import PeopleAccessDetailSidePanel from "~/components/people-counting/PeopleAccessDetailSidePanel.vue";
-import UnitPersonnelDialog from "~/components/people-counting/UnitPersonnelDialog.vue";
-import LocationOverviewCard from "~/components/people-counting/LocationOverviewCard.vue";
-import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
-import SimulationFrame from "~/components/common/SimulationFrame.vue";
-import PeopleCountingSimulation from "~/components/people-counting/PeopleCountingSimulation.vue";
-import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState";
-import { usePeopleCountingLocationApi } from "~/composables/location/api/usePeopleCountingLocationApi";
+	PeopleCountingLog,
+} from "~/types/peopleCounting"
+import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue"
+import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue"
+import EntryExitLogTable from "~/components/people-counting/EntryExitLogTable.vue"
+import LocationDetailPanel from "~/components/people-counting/LocationDetailPanel.vue"
+import UnitPersonnelDialog from "~/components/people-counting/UnitPersonnelDialog.vue"
+import LocationOverviewCard from "~/components/people-counting/LocationOverviewCard.vue"
+import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
+import SimulationFrame from "~/components/common/SimulationFrame.vue"
+import PeopleCountingSimulation from "~/components/people-counting/PeopleCountingSimulation.vue"
+import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState"
+import { usePeopleCountingLocationApi } from "~/composables/location/api/usePeopleCountingLocationApi"
 import {
 	useZoneManagement,
-	ZONE_DIALOG_BATCH_SAVE_OPTIONS
-} from "~/composables/location/management/useZoneManagement";
-import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter";
+	ZONE_DIALOG_BATCH_SAVE_OPTIONS,
+} from "~/composables/location/management/useZoneManagement"
+import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSystemAdapter"
 import {
 	usePeopleCountingApi,
-	PEOPLE_COUNTING_FULL_REPORT_LIMIT
-} from "~/composables/systems/peopleCounting/usePeopleCountingApi";
+	PEOPLE_COUNTING_FULL_REPORT_LIMIT,
+} from "~/composables/systems/peopleCounting/usePeopleCountingApi"
 import {
 	useLocationModuleRbac,
-	usePeopleCountingAccessRbac
-} from "~/composables/core/useAccessGate";
-import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi";
-import { useLocationApi } from "~/composables/location/api/useLocationApi";
-import { useToast } from "~/composables/core/useToast";
-import { useErrorHandler } from "~/composables/core/useErrorHandler";
-import { useLocationAccessSync } from "~/composables/systems/personnel/useLocationAccessSync";
-import PeopleCountingAccessManageDialog from "~/components/people-counting/PeopleCountingAccessManageDialog.vue";
-import { useApiBase } from "~/composables/core/useApiBase";
+	usePeopleCountingAccessRbac,
+} from "~/composables/core/useAccessGate"
+import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
+import { useLocationApi } from "~/composables/location/api/useLocationApi"
+import { useToast } from "~/composables/core/useToast"
+import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { useLocationAccessSync } from "~/composables/systems/personnel/useLocationAccessSync"
+import PeopleCountingAccessManageDialog from "~/components/people-counting/PeopleCountingAccessManageDialog.vue"
+import { useApiBase } from "~/composables/core/useApiBase"
 import {
 	buildLogsTimeQuery,
 	toSimulationTimeRange,
-	type OperationalDayRangeResponse
-} from "~/utils/entryExitTimeRange";
-import { sortFlatSitesBySortedZoneLocations } from "~/utils/sortOrder";
-import { computeCumulativePresence } from "~/utils/entryExitStats";
-import { PERM } from "~/config/permissionCodes";
-import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
+	type OperationalDayRangeResponse,
+} from "~/utils/entryExitTimeRange"
+import { sortFlatSitesBySortedZoneLocations } from "~/utils/sortOrder"
+import { computeCumulativePresence } from "~/utils/entryExitStats"
+import { isFaceRecognitionCameraMode } from "~/utils/peopleCountingCameraMode"
+import { PERM } from "~/config/permissionCodes"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 
 const {
 	canManageLocation,
 	canCreateLocation,
 	canUpdateLocation,
 	canDeleteLocation,
-	canFullReport
-} = useLocationModuleRbac(PERM.peopleCounting);
+	canFullReport,
+} = useLocationModuleRbac(PERM.peopleCounting)
 const {
 	canOpenAccessManage,
 	canEditAccessMembers,
 	canResyncAccessDevices,
 	canResetStatistics,
 	canDoorControl,
-} =
-	usePeopleCountingAccessRbac();
-const personnelApi = usePersonnelApi();
-const locationApi = useLocationApi();
-const { showToast } = useToast();
-const { handleError: handleApiError } = useErrorHandler();
+} = usePeopleCountingAccessRbac()
+const personnelApi = usePersonnelApi()
+const locationApi = useLocationApi()
+const { showToast } = useToast()
+const { handleError: handleApiError } = useErrorHandler()
 const accessSync = useLocationAccessSync({
 	personnelApi,
 	locationApi,
 	toast: {
 		success: (m: string) => showToast("success", m),
-		error: (m: string) => showToast("error", m)
+		error: (m: string) => showToast("error", m),
 	},
 	handleApiError,
-	canDeviceSync: canResyncAccessDevices
-});
+	canDeviceSync: canResyncAccessDevices,
+})
 
 // 使用統一的狀態管理
 const {
@@ -319,8 +324,8 @@ const {
 	resetStatsForSelectedSite,
 	isLoadingLocations,
 	isLoadingLocation,
-	isLoadingZones
-} = usePeopleCountingState();
+	isLoadingZones,
+} = usePeopleCountingState()
 
 const detailEmpty = computed(
 	() =>
@@ -328,269 +333,272 @@ const detailEmpty = computed(
 		!isLoadingZones.value &&
 		!isLoadingLocation.value &&
 		(locations.value.length === 0 || !selectedLocation.value)
-);
+)
 
-const isOverviewCollapsed = ref(false);
-const isUnitDialogOpen = ref(false);
-
-const peopleDetailContentClass = "flex flex-col gap-12"
-
-const selectedUnitName = computed(() => {
-	if (selectedUnitId.value == null || !selectedLocation.value) return "";
-	const unit = (selectedLocation.value.units ?? []).find(u => u.id === selectedUnitId.value);
-	return unit?.name ?? "";
-});
-
-const handleUnitGroupSelect = async (unitId: number) => {
-	if (isIsapiCamera.value) return;
-	await handleUnitSelect(unitId);
-	isUnitDialogOpen.value = true;
-};
-
-const handleUnitDialogClose = async () => {
-	await handleUnitSelect(null);
-};
-
-const peopleCountingApi = usePeopleCountingApi();
-const { request } = useApiBase();
+const peopleCountingApi = usePeopleCountingApi()
+const { request } = useApiBase()
 const fetchTodaySimulationRange = async () => {
-	const range = await request<OperationalDayRangeResponse>(`/entry-exit/time-range?preset=today`);
-	return toSimulationTimeRange(range, "today");
-};
+	const range = await request<OperationalDayRangeResponse>(`/entry-exit/time-range?preset=today`)
+	return toSimulationTimeRange(range, "today")
+}
 
 // 右側總覽：顯示 zone 名稱（不影響詳情載入）
 const locationsForOverview = computed(() => {
 	const locationsWithId = locations.value.filter(
 		(l): l is PeopleCountingLocation & { locationId: number } => l.locationId != null
-	);
-	const ordered = sortFlatSitesBySortedZoneLocations(peopleCountingZones.value, locationsWithId);
-	return ordered.map(location => ({
+	)
+	const ordered = sortFlatSitesBySortedZoneLocations(peopleCountingZones.value, locationsWithId)
+	return ordered.map((location) => ({
 		...location,
-		overviewZoneName: getLocationZone(location)
-	}));
-});
+		overviewZoneName: getLocationZone(location),
+	}))
+})
 
-const isIsapiCamera = computed(() => selectedLocation.value?.dataSource === "isapi_camera");
-const isAccessControl = computed(() => selectedLocation.value?.dataSource === "access_control");
-const showAccessManageDialog = ref(false);
+const isIsapiCamera = computed(() => selectedLocation.value?.dataSource === "isapi_camera")
+const isCameraFaceRecognition = computed(
+	() => isIsapiCamera.value && isFaceRecognitionCameraMode(selectedLocation.value?.cameraMode)
+)
+const isAccessControl = computed(() => selectedLocation.value?.dataSource === "access_control")
+const showAccessManageDialog = ref(false)
 const selectedLocationNumericId = computed(() => {
-	const id = selectedLocation.value?.locationId ?? selectedLocation.value?.id;
-	const n = Number(id);
-	return Number.isFinite(n) ? n : null;
-});
+	const id = selectedLocation.value?.locationId ?? selectedLocation.value?.id
+	const n = Number(id)
+	return Number.isFinite(n) ? n : null
+})
 const selectedLocationDisplayName = computed(() => {
-	if (!selectedLocation.value) return null;
-	const zone = getLocationZone(selectedLocation.value);
-	const name = selectedLocation.value.name;
-	return zone ? `${zone} / ${name}` : name;
-});
+	if (!selectedLocation.value) return null
+	const zone = getLocationZone(selectedLocation.value)
+	const name = selectedLocation.value.name
+	return zone ? `${zone} / ${name}` : name
+})
 
 const handleAccessManageSynced = async () => {
-	await refreshAfterZoneChange();
-};
+	await refreshAfterZoneChange()
+}
 
 // 在場：transition 以 API currentCount 為準；攝影機以進−出
 const currentCount = computed(() => {
-	if (!selectedLocation.value) return 0;
+	if (!selectedLocation.value) return 0
 	if (isIsapiCamera.value) {
 		return computeCumulativePresence(
 			selectedLocation.value.entryCount ?? 0,
 			selectedLocation.value.exitCount ?? 0
-		);
+		)
 	}
 	if (selectedLocation.value.currentCount != null) {
-		return selectedLocation.value.currentCount;
+		return selectedLocation.value.currentCount
 	}
-	if (!selectedLocation.value.units) return 0;
-	return selectedLocation.value.units.reduce((sum, unit) => sum + (unit.currentCount || 0), 0);
-});
+	if (!selectedLocation.value.units) return 0
+	return selectedLocation.value.units.reduce((sum, unit) => sum + (unit.currentCount || 0), 0)
+})
 
-const overviewListRef = ref<HTMLElement | null>(null);
+const isOverviewCollapsed = ref(false)
+const overviewListRef = ref<HTMLElement | null>(null)
 // 地點管理與模擬框狀態
-const showLocationManagementDialog = ref(false);
-const showSimulationFrame = ref(false);
+const showLocationManagementDialog = ref(false)
+const showSimulationFrame = ref(false)
 
 const simulationTimeRange = ref({
 	startDate: "",
 	endDate: "",
-	preset: "today"
-});
+	preset: "today",
+})
 
-const simulationLogs = ref<PeopleCountingLog[]>([]);
+const simulationLogs = ref<PeopleCountingLog[]>([])
 
 type SimulationLocationOption = {
-	locationId: number;
-	label: string;
-	zoneName: string;
-	locationName: string;
-	dataSource?: PeopleCountingLocation["dataSource"];
-};
+	locationId: number
+	label: string
+	zoneName: string
+	locationName: string
+	dataSource?: PeopleCountingLocation["dataSource"]
+}
 
 const simulationLocationOptions = computed((): SimulationLocationOption[] => {
-	const opts: SimulationLocationOption[] = [];
+	const opts: SimulationLocationOption[] = []
 	for (const zone of peopleCountingZones.value) {
 		for (const loc of zone.locations ?? []) {
-			const locationId = loc.id != null ? Number(loc.id) : NaN;
-			if (!Number.isFinite(locationId)) continue;
-			const zoneName = zone.name || "";
-			const locationName = loc.name || "";
+			const locationId = loc.id != null ? Number(loc.id) : NaN
+			if (!Number.isFinite(locationId)) continue
+			const zoneName = zone.name || ""
+			const locationName = loc.name || ""
 			opts.push({
 				locationId,
 				label: [zoneName, locationName].filter(Boolean).join("-") || String(locationId),
 				zoneName,
 				locationName,
-				dataSource: loc.dataSource
-			});
+				dataSource: loc.dataSource,
+			})
 		}
 	}
-	return opts;
-});
+	return opts
+})
 
 const simulationLocationSummaries = computed(() => {
 	const map: Record<
 		number,
 		{
-			entryCount: number;
-			exitCount: number;
-			units: PeopleCountingLocation["units"];
-			dataSource?: PeopleCountingLocation["dataSource"];
+			entryCount: number
+			exitCount: number
+			units: PeopleCountingLocation["units"]
+			dataSource?: PeopleCountingLocation["dataSource"]
 		}
-	> = {};
+	> = {}
 	for (const loc of locations.value) {
-		if (loc.locationId == null) continue;
+		if (loc.locationId == null) continue
 		map[loc.locationId] = {
 			entryCount: loc.entryCount ?? 0,
 			exitCount: loc.exitCount ?? 0,
 			units: loc.units ?? [],
-			dataSource: loc.dataSource
-		};
+			dataSource: loc.dataSource,
+		}
 	}
-	return map;
-});
+	return map
+})
 
 const simulationLocationDisplayColumns = computed(() => {
-	const map: Record<number, string[] | null | undefined> = {};
+	const map: Record<number, string[] | null | undefined> = {}
 	for (const loc of locations.value) {
-		if (loc.locationId == null) continue;
-		map[loc.locationId] = loc.logDisplayColumns ?? null;
+		if (loc.locationId == null) continue
+		map[loc.locationId] = loc.logDisplayColumns ?? null
 	}
-	return map;
-});
+	return map
+})
 
 /** 完整報表：跨地點載入時間區間內紀錄 */
 const loadSimulationLogs = async () => {
-	const { startDate, endDate, preset } = simulationTimeRange.value;
-	const timeQuery = buildLogsTimeQuery(preset, startDate, endDate);
+	const { startDate, endDate, preset } = simulationTimeRange.value
+	const timeQuery = buildLogsTimeQuery(preset, startDate, endDate)
 	try {
 		simulationLogs.value = await peopleCountingApi.getAllLocationLogs({
 			limit: PEOPLE_COUNTING_FULL_REPORT_LIMIT,
-			...timeQuery
-		});
+			...timeQuery,
+		})
 	} catch {
-		simulationLogs.value = [];
+		simulationLogs.value = []
 	}
-};
+}
 
 const handleSimulationTimeRangeUpdate = (v: {
-	startDate: string;
-	endDate: string;
-	preset: string;
+	startDate: string
+	endDate: string
+	preset: string
 }) => {
-	simulationTimeRange.value = v;
-	void loadSimulationLogs();
-};
+	simulationTimeRange.value = v
+	void loadSimulationLogs()
+}
 
 const handleResetStats = async () => {
-	if (!selectedLocation.value) return;
+	if (!selectedLocation.value) return
 	const confirmed = window.confirm(
 		"確定要重置此地點的進場、出場與在場統計？進出紀錄不會刪除，完整報表仍可查詢歷史。"
-	);
-	if (!confirmed) return;
+	)
+	if (!confirmed) return
 	try {
-		await resetStatsForSelectedSite();
-		showToast("success", TOAST.PEOPLE_COUNTING_RESET);
+		await resetStatsForSelectedSite()
+		showToast("success", TOAST.PEOPLE_COUNTING_RESET)
 	} catch (error) {
-		showToast("error", error instanceof Error ? error.message : TOAST.STATS_RESET_FAILED);
+		showToast("error", error instanceof Error ? error.message : TOAST.STATS_RESET_FAILED)
 	}
-};
+}
 
 const handleOpenSimulation = async () => {
-	if (!canFullReport.value) return;
-	simulationTimeRange.value = await fetchTodaySimulationRange();
-	showSimulationFrame.value = true;
-	await loadSimulationLogs();
-};
+	if (!canFullReport.value) return
+	simulationTimeRange.value = await fetchTodaySimulationRange()
+	showSimulationFrame.value = true
+	await loadSimulationLogs()
+}
 
-const selectedLocationId = ref<string>("");
+const selectedLocationId = ref<string>("")
 
 // 取得適配器（用於獲取統一的 getLocationId 方法）
-const adapter = useZoneSystemAdapter<PeopleCountingZone, PeopleCountingLocation>("people_counting");
+const adapter = useZoneSystemAdapter<PeopleCountingZone, PeopleCountingLocation>("people_counting")
 
 // 從地點對象獲取 ID（用於刪除邏輯，與環境品質保持一致）
 // 使用適配器提供的統一方法
 const getLocationId = (location: PeopleCountingLocation): string => {
-	const zoneName = getLocationZone(location);
+	const zoneName = getLocationZone(location)
 	const zone =
-		peopleCountingZones.value.find(z =>
-			(z.locations || []).some(l => l === location || (l.id && location.id && l.id === location.id))
-		) ?? null;
-	if (!zone || !adapter.getLocationId) return `${zoneName || "unknown"}-${location.name}`;
+		peopleCountingZones.value.find((z) =>
+			(z.locations || []).some(
+				(l) => l === location || (l.id && location.id && l.id === location.id)
+			)
+		) ?? null
+	if (!zone || !adapter.getLocationId) return `${zoneName || "unknown"}-${location.name}`
 	const idx = (zone.locations || []).findIndex(
-		l => l === location || (l.id && location.id && l.id === location.id)
-	);
-	if (idx < 0) return `${zoneName || "unknown"}-${location.name}`;
-	return adapter.getLocationId({ zone, location, locationIndex: idx });
-};
+		(l) => l === location || (l.id && location.id && l.id === location.id)
+	)
+	if (idx < 0) return `${zoneName || "unknown"}-${location.name}`
+	return adapter.getLocationId({ zone, location, locationIndex: idx })
+}
 
 watch(
 	() => selectedLocation.value,
-	loc => {
-		selectedLocationId.value = loc ? getLocationId(loc) : "";
+	(loc) => {
+		selectedLocationId.value = loc ? getLocationId(loc) : ""
 	},
 	{ immediate: true }
-);
+)
 
 const scrollActiveOverviewIntoView = () => {
-	const id = selectedLocationId.value;
-	if (!id || isOverviewCollapsed.value) return;
-	const root = overviewListRef.value;
-	if (!root) return;
+	const id = selectedLocationId.value
+	if (!id || isOverviewCollapsed.value) return
+	const root = overviewListRef.value
+	if (!root) return
 	root.querySelector(`[data-overview-location-id="${CSS.escape(id)}"]`)?.scrollIntoView({
 		block: "nearest",
-		behavior: "smooth"
-	});
-};
+		behavior: "smooth",
+	})
+}
 
-const showDetailDoorPanel = ref(false);
+const showDetailDoorPanel = ref(false)
+const showUnitPersonnelDialog = ref(false)
+
+const selectedUnitName = computed(() => {
+	const units = selectedLocation.value?.units || []
+	const unit = units.find((u) => u.id === selectedUnitId.value)
+	return unit?.name || "人員群組"
+})
+
+const handleUnitSelectForUi = async (unitId: number) => {
+	const canOpenRoster =
+		selectedLocation.value?.dataSource === "access_control" ||
+		selectedLocation.value?.dataSource === "yscp" ||
+		isCameraFaceRecognition.value
+	if (!canOpenRoster) return
+	await handleUnitSelect(unitId)
+	showUnitPersonnelDialog.value = true
+}
 
 watch(selectedLocationId, () => {
-	showDetailDoorPanel.value = false;
-	nextTick(() => scrollActiveOverviewIntoView());
-});
+	showDetailDoorPanel.value = false
+	showUnitPersonnelDialog.value = false
+	nextTick(() => scrollActiveOverviewIntoView())
+})
 
-watch(isOverviewCollapsed, collapsed => {
-	if (!collapsed) nextTick(() => scrollActiveOverviewIntoView());
-});
+watch(isOverviewCollapsed, (collapsed) => {
+	if (!collapsed) nextTick(() => scrollActiveOverviewIntoView())
+})
 
 // 檢查是否為當前選中的地點（與 environment 一致：使用單一 canonical id，僅一卡高亮）
 const isCurrentLocation = (location: PeopleCountingLocation): boolean => {
-	return getLocationId(location) === selectedLocationId.value;
-};
+	return getLocationId(location) === selectedLocationId.value
+}
 
 const handleLocationSelect = async (locationId: number) => {
-	if (selectedLocation.value?.locationId === locationId) return;
-	const loc = locationsForOverview.value.find(l => l.locationId === locationId);
-	if (loc) selectedLocationId.value = getLocationId(loc);
-	await loadLocationDetail(locationId);
-};
+	if (selectedLocation.value?.locationId === locationId) return
+	const loc = locationsForOverview.value.find((l) => l.locationId === locationId)
+	if (loc) selectedLocationId.value = getLocationId(loc)
+	await loadLocationDetail(locationId)
+}
 
 // 設置 WebSocket 事件監聽器
-let cleanupWebSocket: (() => void) | null = null;
+let cleanupWebSocket: (() => void) | null = null
 
 // 使用區域管理 composable
-const peopleCountingLocationApi = usePeopleCountingLocationApi();
+const peopleCountingLocationApi = usePeopleCountingLocationApi()
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
-	useZoneManagement<PeopleCountingLocation, PeopleCountingZone>();
+	useZoneManagement<PeopleCountingLocation, PeopleCountingZone>()
 
 // 處理儲存區域
 const handleSaveZone = async (zone: PeopleCountingZone) => {
@@ -599,37 +607,37 @@ const handleSaveZone = async (zone: PeopleCountingZone) => {
 		peopleCountingZones,
 		async (z: PeopleCountingZone) => {
 			// 檢查是否為臨時 ID（以 temp- 開頭）或有效的數字 ID
-			const isValidId = z.id && !z.id.startsWith("temp-") && /^\d+$/.test(z.id);
+			const isValidId = z.id && !z.id.startsWith("temp-") && /^\d+$/.test(z.id)
 			const result = isValidId
 				? await peopleCountingLocationApi.updateZone(z.id, {
 						name: z.name,
 						sortOrder: z.sortOrder,
-						locations: z.locations
+						locations: z.locations,
 					})
 				: await peopleCountingLocationApi.createZone({
 						name: z.name,
 						sortOrder: z.sortOrder,
-						locations: z.locations
-					});
+						locations: z.locations,
+					})
 			// 確保返回的 zone 有 id
 			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as PeopleCountingZone & {
-				id: string;
-			};
+				id: string
+			}
 			return {
 				merged: result.merged,
 				message: result.message,
-				zone: zoneWithId
-			};
+				zone: zoneWithId,
+			}
 		},
 		{
-			...ZONE_DIALOG_BATCH_SAVE_OPTIONS
+			...ZONE_DIALOG_BATCH_SAVE_OPTIONS,
 		}
-	);
-};
+	)
+}
 
 const handleZonesSaved = async () => {
-	await refreshAfterZoneChange();
-};
+	await refreshAfterZoneChange()
+}
 
 // 處理刪除區域
 const handleDeleteZone = async (zoneId: string) => {
@@ -641,45 +649,55 @@ const handleDeleteZone = async (zoneId: string) => {
 		systemType: "people_counting",
 		// 刪除後重新載入區域與地點列表（確保 UI 立即反映刪除結果）
 		onAfterDelete: async () => {
-			await refreshAfterZoneChange();
-		}
-	});
-};
+			await refreshAfterZoneChange()
+		},
+	})
+}
 
 // 處理打開地點管理對話框
 const handleOpenLocationDialog = async () => {
-	if (!canManageLocation.value) return;
+	if (!canManageLocation.value) return
 	// 如果還沒有載入區域數據，先載入
 	if (peopleCountingZones.value.length === 0) {
-		await loadZones();
+		await loadZones()
 	}
 	// 打開對話框
-	showLocationManagementDialog.value = true;
-};
+	showLocationManagementDialog.value = true
+}
+
+// 監聽對話框打開狀態，載入區域數據
+watch(
+	() => showLocationManagementDialog.value,
+	(newValue) => {
+		if (newValue && peopleCountingZones.value.length === 0) {
+			loadZones()
+		}
+	}
+)
 
 // 初始化
 onMounted(async () => {
 	cleanupWebSocket = setupEventListeners(async () => {
-		await loadLocations();
+		await loadLocations()
 		if (selectedLocation.value?.locationId != null) {
-			await refreshSelectedLocationLive();
+			await refreshSelectedLocationLive()
 		}
-	}, 500);
+	}, 500)
 
 	try {
-		await refreshAfterZoneChange();
+		await refreshAfterZoneChange()
 	} catch {
 		// 錯誤已在 composable 處理
 	}
 
-	await nextTick();
-	scrollActiveOverviewIntoView();
-});
+	await nextTick()
+	scrollActiveOverviewIntoView()
+})
 
 onBeforeUnmount(() => {
 	if (cleanupWebSocket) {
-		cleanupWebSocket();
-		cleanupWebSocket = null;
+		cleanupWebSocket()
+		cleanupWebSocket = null
 	}
-});
+})
 </script>

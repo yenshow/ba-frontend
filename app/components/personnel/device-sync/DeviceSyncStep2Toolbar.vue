@@ -29,14 +29,14 @@
 		</div>
 
 		<div
-			v-if="locationName || entryDevices.length > 0 || exitDevices.length > 0"
+			v-if="locationName || entryDevices.length > 0 || exitDevices.length > 0 || cameraDevices.length > 0"
 			class="space-y-2"
 		>
 			<p v-if="locationName" class="truncate text-base text-white 2xl:text-lg">
 				{{ locationName }}
 			</p>
 			<div
-				v-if="entryDevices.length > 0 || exitDevices.length > 0"
+				v-if="entryDevices.length > 0 || exitDevices.length > 0 || cameraDevices.length > 0"
 				class="flex flex-wrap gap-2 text-xs text-white/75 2xl:text-sm"
 			>
 				<span
@@ -52,6 +52,13 @@
 					class="rounded-full border border-blue-400/30 bg-blue-500/10 px-2 py-0.5"
 				>
 					{{ exitPrefix }}：{{ name }}
+				</span>
+				<span
+					v-for="name in cameraDevices"
+					:key="`cam-${name}`"
+					class="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-2 py-0.5"
+				>
+					{{ cameraPrefix }}：{{ name }}
 				</span>
 			</div>
 		</div>
@@ -73,14 +80,18 @@ withDefaults(
 		locationName?: string | null
 		entryDevices?: string[]
 		exitDevices?: string[]
+		cameraDevices?: string[]
 		entryPrefix?: string
 		exitPrefix?: string
+		cameraPrefix?: string
 	}>(),
 	{
 		entryDevices: () => [],
 		exitDevices: () => [],
+		cameraDevices: () => [],
 		entryPrefix: "入口",
 		exitPrefix: "出口",
+		cameraPrefix: "攝影機",
 	},
 )
 

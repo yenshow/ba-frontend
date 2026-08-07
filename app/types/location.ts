@@ -123,16 +123,6 @@ export interface ModbusStatusPointDef {
 	length?: number;
 	/** 若省略則使用地點層級的 deviceId */
 	deviceId?: number;
-	/**
-	 * 風速等離散 AO：寫入／顯示用的列舉值（例 `[1,2,3,4]` 或 `[0,33,66,100]`）。
-	 * 省略時 UI 預設 `[1,2,3,4]`。
-	 */
-	levels?: number[];
-	/**
-	 * 顯示倍率：display = raw * scale（預設 1；例 0.1 表示 raw 260 → 26.0°C）。
-	 * 寫入時 raw = round(display / scale)。
-	 */
-	scale?: number;
 }
 
 /**
@@ -170,7 +160,8 @@ export type SmokeAlarmSystemConfig = DrainageSystemConfig;
 
 /**
  * 人流統計系統配置
- * dataSource 為 access_control 時使用 entryDeviceIds / exitDeviceIds；yscp 時使用 entryDoorIds / exitDoorIds；isapi_camera 時使用 cameraDeviceIds。
+ * dataSource 為 access_control 時使用 entryDeviceIds / exitDeviceIds；yscp 時使用 entryDoorIds / exitDoorIds；
+ * isapi_camera：people_counting 用 cameraDeviceIds；face_recognition 用 entryCameraDeviceIds / exitCameraDeviceIds。
  */
 export interface PeopleCountingSystemConfig {
 	personGroupIds?: number[];
@@ -181,8 +172,16 @@ export interface PeopleCountingSystemConfig {
 	/** 本系統門禁設備 ID（devices.id），dataSource 為 access_control 時使用 */
 	entryDeviceIds?: number[];
 	exitDeviceIds?: number[];
-	/** ISAPI PeopleCounting 攝影機（devices.id）列表 */
+	/** ISAPI 人流統計模式攝影機（devices.id）列表 */
 	cameraDeviceIds?: number[];
+	/** 人臉辨識：進場攝影機 */
+	entryCameraDeviceIds?: number[];
+	/** 人臉辨識：出場攝影機 */
+	exitCameraDeviceIds?: number[];
+	/**
+	 * isapi_camera：people_counting（分區）｜ face_recognition（人員群組＋進／出攝影機）
+	 */
+	cameraMode?: "people_counting" | "face_recognition";
 	preferRegion?: boolean;
 	/** 門禁人員群組（name + employeeNos），成員限為出入口皆有之人員 */
 	accessControlGroups?: Array<{ name: string; employeeNos: string[] }>;

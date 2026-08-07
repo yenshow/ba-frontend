@@ -29,17 +29,17 @@
 						>
 							<p class="text-sm text-white/60 xl:text-base">尚無人員資料</p>
 						</div>
+
 						<div v-else class="space-y-4">
-							<div class="grid grid-cols-2 gap-4">
+							<div class="mx-auto grid w-[240px] grid-cols-1 gap-4 2xl:w-full 2xl:grid-cols-2">
 								<div
 									v-for="person in paginatedPersonnel"
-									:key="`${person.id}-${person.unitId}`"
-									class="flex items-start gap-3 border-2 border-white/30 p-3"
+									:key="person.id"
+									class="flex min-h-[100px] items-start gap-3 border-2 border-white/30 p-3 2xl:min-h-[130px]"
 									:class="[person.isPresent ? 'monitoring-chip-bg' : 'bg-black/20']"
 								>
-									<!-- 照片（/uploads/ 改為後端完整 URL） -->
 									<div
-										class="relative mt-4 h-16 w-16 shrink-0 overflow-hidden rounded-full bg-white/10"
+										class="relative mt-2 h-16 w-16 shrink-0 overflow-hidden rounded-full bg-white/10 2xl:mt-4"
 									>
 										<Transition name="fade">
 											<img
@@ -55,13 +55,13 @@
 											<div
 												v-if="!resolveUrl(person.photoUrl) || imageErrorStates[person.id]"
 												class="absolute inset-0 flex items-center justify-center"
-												aria-hidden="true"
 											>
 												<svg
-													class="h-12 w-12 text-white"
+													class="h-12 w-12 text-white 2xl:h-16 2xl:w-16"
 													fill="currentColor"
 													stroke="currentColor"
 													viewBox="0 0 24 24"
+													aria-hidden="true"
 												>
 													<path
 														stroke-linecap="round"
@@ -74,24 +74,19 @@
 										</Transition>
 									</div>
 
-									<!-- 資訊 -->
-									<div class="min-w-0 flex-1">
+									<div class="min-w-0 2xl:flex-1">
 										<div class="border-b border-white/30 pb-1 text-base font-medium text-white 2xl:text-xl">
 											{{ person.name }}
 										</div>
-										<div class="mt-1 space-y-0.5 text-xs text-white/60 xl:text-sm">
-											<!-- 最近進場：顯示日期（不含時分秒） -->
+										<div class="mt-2 space-y-0.5 text-xs text-white/60 2xl:text-sm">
 											<div v-if="person.lastEntryDate">
 												<span>最近進場：</span>
 												<span>{{ person.lastEntryDate }}</span>
 											</div>
-											<!-- 進場時間：根據最近進場的日期，顯示時分秒 -->
 											<div v-if="person.entryTime">
 												<span>進場時間：</span>
 												<span>{{ person.entryTime }}</span>
 											</div>
-											<!-- 離場時間：根據最近進場的日期，顯示時分秒 -->
-											<!-- 如果是今日進場，顯示今日的離場時間；如果今日沒有離場，顯示 "- -" -->
 											<div v-if="person.lastEntryDate || person.entryTime">
 												<span>離場時間：</span>
 												<span
@@ -128,88 +123,99 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
-import type { PeopleCountingPersonnel } from "~/types/peopleCounting";
-import Pagination from "~/components/common/Pagination.vue";
-import { useImageCenter } from "~/composables/core/useImageCenter";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue"
+import type { PeopleCountingPersonnel } from "~/types/peopleCounting"
+import Pagination from "~/components/common/Pagination.vue"
+import { useImageCenter } from "~/composables/core/useImageCenter"
 
 const shouldHideExitTime = (entryTime?: string | null, exitTime?: string | null): boolean => {
 	const parseTimeToSeconds = (time?: string | null) => {
-		if (!time) return null;
-		const m = time.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-		if (!m) return null;
-		const hh = Number(m[1]);
-		const mm = Number(m[2]);
-		const ss = m[3] ? Number(m[3]) : 0;
-		if (Number.isNaN(hh) || Number.isNaN(mm) || Number.isNaN(ss)) return null;
-		return hh * 3600 + mm * 60 + ss;
-	};
+		if (!time) return null
+		const m = time.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)
+		if (!m) return null
+		const hh = Number(m[1])
+		const mm = Number(m[2])
+		const ss = m[3] ? Number(m[3]) : 0
+		if (Number.isNaN(hh) || Number.isNaN(mm) || Number.isNaN(ss)) return null
+		return hh * 3600 + mm * 60 + ss
+	}
 
-	const entrySec = parseTimeToSeconds(entryTime);
-	const exitSec = parseTimeToSeconds(exitTime);
-	if (entrySec == null || exitSec == null) return false;
-	return entrySec > exitSec;
-};
-
-interface Props {
-	modelValue: boolean;
-	unitName: string;
-	personnel: PeopleCountingPersonnel[];
-	isLoading?: boolean;
+	const entrySec = parseTimeToSeconds(entryTime)
+	const exitSec = parseTimeToSeconds(exitTime)
+	if (entrySec == null || exitSec == null) return false
+	return entrySec > exitSec
 }
 
-const props = withDefaults(defineProps<Props>(), {
-	isLoading: false
-});
+const props = withDefaults(
+	defineProps<{
+		modelValue: boolean
+		unitName?: string
+		personnel?: PeopleCountingPersonnel[]
+	}>(),
+	{
+		unitName: "人員群組",
+		personnel: () => [],
+	}
+)
 
 const emit = defineEmits<{
-	(e: "update:modelValue", value: boolean): void;
-	(e: "close"): void;
-}>();
+	(e: "update:modelValue", value: boolean): void
+}>()
 
-// 固定每頁顯示 4 個（不分尺寸）
-const itemsPerPage = 4;
+const { resolveUrl } = useImageCenter()
+const imageErrorStates = ref<Record<string | number, boolean>>({})
+const windowWidth = ref(1024)
+const itemsPerPage = computed(() => (windowWidth.value >= 1536 ? 4 : 2))
+const offset = ref(0)
 
-// 當前分頁偏移量
-const offset = ref(0);
-
-// 計算當前頁顯示的人員
 const paginatedPersonnel = computed(() => {
-	const start = offset.value;
-	const end = start + itemsPerPage;
-	return props.personnel.slice(start, end);
-});
+	const start = offset.value
+	return props.personnel.slice(start, start + itemsPerPage.value)
+})
 
-// 監聽 personnel 變化，確保 offset 不會超出範圍
 watch(
 	() => props.personnel.length,
-	newLength => {
-		if (offset.value >= newLength) {
-			offset.value = 0;
-		}
+	(newLength) => {
+		if (offset.value >= newLength) offset.value = 0
 	}
-);
+)
 
-const handlePrevious = () => {
-	offset.value = Math.max(0, offset.value - itemsPerPage);
-};
-
-const handleNext = () => {
-	if (offset.value + itemsPerPage < props.personnel.length) {
-		offset.value += itemsPerPage;
-	}
-};
-
-const { resolveUrl } = useImageCenter();
-
-const imageErrorStates = ref<Record<string | number, boolean>>({});
+watch(itemsPerPage, (next, prev) => {
+	if (next !== prev) offset.value = 0
+})
 
 const handleImageError = (_event: Event, personId: string | number) => {
-	imageErrorStates.value[personId] = true;
-};
+	imageErrorStates.value[personId] = true
+}
+
+const handlePrevious = () => {
+	offset.value = Math.max(0, offset.value - itemsPerPage.value)
+}
+
+const handleNext = () => {
+	if (offset.value + itemsPerPage.value < props.personnel.length) {
+		offset.value += itemsPerPage.value
+	}
+}
 
 const handleClose = () => {
-	emit("update:modelValue", false);
-	emit("close");
-};
+	emit("update:modelValue", false)
+}
+
+let handleResize: (() => void) | null = null
+
+onMounted(() => {
+	if (!process.client) return
+	windowWidth.value = window.innerWidth
+	handleResize = () => {
+		windowWidth.value = window.innerWidth
+	}
+	window.addEventListener("resize", handleResize)
+})
+
+onUnmounted(() => {
+	if (handleResize && process.client) {
+		window.removeEventListener("resize", handleResize)
+	}
+})
 </script>

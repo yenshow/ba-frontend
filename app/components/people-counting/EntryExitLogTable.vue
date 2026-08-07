@@ -18,7 +18,11 @@
 					</tr>
 				</thead>
 				<tbody>
-					<tr v-for="log in logs" :key="log.id" class="monitoring-log-row text-center text-white">
+					<tr
+						v-for="log in logs"
+						:key="log.id"
+						class="monitoring-log-row text-center text-white"
+					>
 						<td
 							v-for="col in recordColumns"
 							:key="`${log.id}-${col}`"
@@ -30,7 +34,9 @@
 									type="button"
 									class="people-log-shot relative block h-12 w-12 overflow-hidden rounded bg-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-400 2xl:h-16 2xl:w-16"
 									:aria-label="`放大檢視 ${log.personName || '未知'} 設備截圖`"
-									:disabled="!imageUrls[log.id] || imageLoadingStates[log.id] || imageErrorStates[log.id]"
+									:disabled="
+										!imageUrls[log.id] || imageLoadingStates[log.id] || imageErrorStates[log.id]
+									"
 									@click="openLightbox(imageUrls[log.id])"
 								>
 									<Transition name="fade">
@@ -46,7 +52,11 @@
 									</Transition>
 									<Transition name="fade">
 										<img
-											v-if="imageUrls[log.id] && !imageLoadingStates[log.id] && !imageErrorStates[log.id]"
+											v-if="
+												imageUrls[log.id] &&
+												!imageLoadingStates[log.id] &&
+												!imageErrorStates[log.id]
+											"
 											key="image"
 											:src="imageUrls[log.id]"
 											:alt="`${log.personName || '未知'} 設備截圖`"
@@ -56,7 +66,10 @@
 									</Transition>
 									<Transition name="fade">
 										<div
-											v-if="(!imageUrls[log.id] || imageErrorStates[log.id]) && !imageLoadingStates[log.id]"
+											v-if="
+												(!imageUrls[log.id] || imageErrorStates[log.id]) &&
+												!imageLoadingStates[log.id]
+											"
 											class="absolute inset-0 flex items-center justify-center text-white/50"
 											aria-hidden="true"
 										>
@@ -93,13 +106,15 @@
 								}}</span>
 							</template>
 							<template v-else-if="col === 'verify_method'">
-								<span class="people-log-cell text-sm 2xl:text-base">{{ formatLogVerifyMethod(log) }}</span>
+								<span class="people-log-cell text-sm 2xl:text-base">{{
+									formatLogVerifyMethod(log)
+								}}</span>
 							</template>
 							<template v-else-if="col === 'event'">
 								<span
 									:class="[
 										'people-log-tag inline-block rounded-full px-2 py-0.5 text-xs font-medium 2xl:text-sm',
-										getLogEventBadgeClass(log)
+										getLogEventBadgeClass(log),
 									]"
 								>
 									{{ formatLogEventLabel(log) }}
@@ -158,18 +173,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, toRef, computed } from "vue";
-import MonitoringLogEmptyState from "~/components/common/MonitoringLogEmptyState.vue";
-import type { PeopleCountingLog } from "~/types/peopleCounting";
-import { useResolvedMediaList } from "~/composables/core/useImageCenter";
+import { ref, nextTick, toRef, computed } from "vue"
+import MonitoringLogEmptyState from "~/components/common/MonitoringLogEmptyState.vue"
+import type { PeopleCountingLog } from "~/types/peopleCounting"
+import { useResolvedMediaList } from "~/composables/core/useImageCenter"
 import {
 	formatLogEventLabel,
 	formatLogVerifyMethod,
 	formatLogText,
 	getLogEventBadgeClass,
 	normalizeLogDisplayColumns,
-	type PeopleCountingLogColumnKey
-} from "~/utils/peopleCountingLogColumns";
+	type PeopleCountingLogColumnKey,
+} from "~/utils/peopleCountingLogColumns"
+import {
+	isFaceRecognitionCameraMode,
+	type PeopleCountingCameraMode,
+} from "~/utils/peopleCountingCameraMode"
 
 type PeopleCountingRecordColumnKey =
 	| "screenshot"
@@ -178,19 +197,27 @@ type PeopleCountingRecordColumnKey =
 	| "device_name"
 	| "verify_method"
 	| "event"
-	| "time";
+	| "time"
 
 interface Props {
-	logs: PeopleCountingLog[];
-	dataSource?: "yscp" | "access_control" | "isapi_camera";
+	logs: PeopleCountingLog[]
+	dataSource?: "yscp" | "access_control" | "isapi_camera"
+	/** isapi_camera：人臉模式欄位語意同門禁（人員群組），人流模式才標「分區」 */
+	cameraMode?: PeopleCountingCameraMode | string | null
 	/** 僅攝影機人流：套用區域表單勾選的欄位 */
-	displayColumns?: PeopleCountingLogColumnKey[] | string[] | null;
+	displayColumns?: PeopleCountingLogColumnKey[] | string[] | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	dataSource: undefined,
-	displayColumns: null
-});
+	cameraMode: null,
+	displayColumns: null,
+})
+
+const isCameraRegionColumns = computed(
+	() =>
+		props.dataSource === "isapi_camera" && !isFaceRecognitionCameraMode(props.cameraMode)
+)
 
 const FIXED_RECORD_COLUMNS: PeopleCountingRecordColumnKey[] = [
 	"screenshot",
@@ -199,69 +226,93 @@ const FIXED_RECORD_COLUMNS: PeopleCountingRecordColumnKey[] = [
 	"device_name",
 	"verify_method",
 	"event",
-	"time"
-];
+	"time",
+]
 
-const recordColumnLabels: Record<PeopleCountingRecordColumnKey, string> = {
+/** 人臉辨識：顯示設備截圖（multipart 附圖落地後） */
+const FACE_RECORD_COLUMNS: PeopleCountingRecordColumnKey[] = [
+	"screenshot",
+	"unit_group",
+	"name",
+	"device_name",
+	"verify_method",
+	"event",
+	"time",
+]
+
+const recordColumnLabels = computed((): Record<PeopleCountingRecordColumnKey, string> => ({
 	screenshot: "設備截圖",
-	unit_group: "人員群組",
+	unit_group: isCameraRegionColumns.value ? "分區" : "人員群組",
 	name: "姓名",
 	device_name: "出入口名稱",
 	verify_method: "方式",
 	event: "事件",
-	time: "時間"
-};
+	time: "時間",
+}))
 
 const cameraColumnsFromZoneForm = computed((): PeopleCountingRecordColumnKey[] => {
-	const picked = normalizeLogDisplayColumns(props.displayColumns);
-	const out: PeopleCountingRecordColumnKey[] = [];
+	// 區域表單存的是 PeopleCountingLogColumnKey（screenshot/unit/employee_id/name/verify_method...）
+	const picked = normalizeLogDisplayColumns(props.displayColumns)
+	const out: PeopleCountingRecordColumnKey[] = []
 	for (const k of picked) {
-		if (k === "screenshot") out.push("screenshot");
-		else if (k === "unit") out.push("unit_group");
-		if (k === "name") out.push("name");
-		else if (k === "device_name") out.push("device_name");
-		else if (k === "verify_method") out.push("verify_method");
+		if (k === "screenshot") out.push("screenshot")
+		else if (k === "unit") out.push("unit_group")
+		if (k === "name") out.push("name")
+		else if (k === "device_name") out.push("device_name")
+		else if (k === "verify_method") out.push("verify_method")
+		// event/time 固定顯示（不受勾選影響）
 	}
-	const pickedCols: PeopleCountingRecordColumnKey[] = out.length ? out : ["screenshot", "name"];
-	return [...new Set<PeopleCountingRecordColumnKey>([...pickedCols, "event", "time"])];
-});
+	// 若全部被忽略，至少給一個可用欄位，避免空表頭
+	const pickedCols: PeopleCountingRecordColumnKey[] = out.length ? out : ["screenshot", "name"]
+	return [...new Set<PeopleCountingRecordColumnKey>([...pickedCols, "event", "time"])]
+})
 
 const recordColumns = computed((): PeopleCountingRecordColumnKey[] => {
-	// 只要外層有傳 displayColumns（地點管理勾選欄位），就以該設定為準
-	if (Array.isArray(props.displayColumns) && props.displayColumns.length > 0) {
-		return cameraColumnsFromZoneForm.value;
+	if (
+		props.dataSource === "isapi_camera" &&
+		isFaceRecognitionCameraMode(props.cameraMode)
+	) {
+		return FACE_RECORD_COLUMNS
 	}
-	return FIXED_RECORD_COLUMNS;
-});
+	// 僅人流分區模式吃地點勾選
+	if (
+		isCameraRegionColumns.value &&
+		Array.isArray(props.displayColumns) &&
+		props.displayColumns.length > 0
+	) {
+		return cameraColumnsFromZoneForm.value
+	}
+	return FIXED_RECORD_COLUMNS
+})
 
 const parseTimestamp = (ts: string | null | undefined): { date: string; time: string } => {
-	const raw = (ts ?? "").trim();
-	if (!raw) return { date: "—", time: "—" };
-	const i = raw.indexOf(" ");
-	if (i === -1) return { date: raw, time: "" };
-	return { date: raw.slice(0, i), time: raw.slice(i + 1) };
-};
+	const raw = (ts ?? "").trim()
+	if (!raw) return { date: "—", time: "—" }
+	const i = raw.indexOf(" ")
+	if (i === -1) return { date: raw, time: "" }
+	return { date: raw.slice(0, i), time: raw.slice(i + 1) }
+}
 
 const {
 	urls: imageUrls,
 	loading: imageLoadingStates,
 	errors: imageErrorStates,
-	onImageError
+	onImageError,
 } = useResolvedMediaList(toRef(props, "logs"), {
-	getRaw: log => log.deviceScreenshotUrl,
-	getId: log => log.id
-});
+	getRaw: (log) => log.deviceScreenshotUrl,
+	getId: (log) => log.id,
+})
 
-const lightboxImageUrl = ref<string | null>(null);
-const lightboxRef = ref<HTMLElement | null>(null);
+const lightboxImageUrl = ref<string | null>(null)
+const lightboxRef = ref<HTMLElement | null>(null)
 
 const openLightbox = (url: string | undefined) => {
 	if (url) {
-		lightboxImageUrl.value = url;
-		nextTick(() => lightboxRef.value?.focus());
+		lightboxImageUrl.value = url
+		nextTick(() => lightboxRef.value?.focus())
 	}
-};
+}
 const closeLightbox = () => {
-	lightboxImageUrl.value = null;
-};
+	lightboxImageUrl.value = null
+}
 </script>
