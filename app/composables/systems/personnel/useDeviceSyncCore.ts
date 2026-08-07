@@ -146,12 +146,13 @@ type SyncableLocRow = {
 	name?: string
 	entry_devices?: Array<{ name?: string }>
 	exit_devices?: Array<{ name?: string }>
+	camera_devices?: Array<{ name?: string }>
 }
 
-/** 快取 syncable-locations 的入口／出口設備名稱 */
+/** 快取 syncable-locations 的入口／出口／攝影機設備名稱 */
 export const indexSyncableLocationDevices = (
 	locations: SyncableLocRow[] | undefined,
-	store: Record<number, { entry: string[]; exit: string[] }>,
+	store: Record<number, { entry: string[]; exit: string[]; cameras?: string[] }>,
 	nameStore?: Record<number, string>,
 ) => {
 	const list = Array.isArray(locations) ? locations : []
@@ -164,7 +165,10 @@ export const indexSyncableLocationDevices = (
 		const exit = Array.isArray(loc.exit_devices)
 			? loc.exit_devices.map((d) => String(d?.name || "").trim()).filter(Boolean)
 			: []
-		store[Math.trunc(id)] = { entry, exit }
+		const cameras = Array.isArray(loc.camera_devices)
+			? loc.camera_devices.map((d) => String(d?.name || "").trim()).filter(Boolean)
+			: []
+		store[Math.trunc(id)] = { entry, exit, cameras }
 		if (nameStore && loc.name) nameStore[Math.trunc(id)] = String(loc.name)
 	}
 }

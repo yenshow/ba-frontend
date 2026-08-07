@@ -52,7 +52,7 @@
 						地點管理
 					</PermissionActionButton>
 					<PermissionActionButton
-						v-show="isAccessControl && selectedLocation"
+						v-show="(isAccessControl || isCameraFaceRecognition) && selectedLocation"
 						:allowed="canOpenAccessManage"
 						aria-label="門禁管理"
 						class="absolute left-32 2xl:left-36 top-2 btn-monitoring-overlay"
@@ -94,6 +94,7 @@
 									:current-count="currentCount"
 									:logs="logs"
 									:data-source="selectedLocation?.dataSource"
+									:camera-mode="selectedLocation?.cameraMode"
 									:display-columns="selectedLocation?.logDisplayColumns"
 								/>
 							</div>
@@ -200,6 +201,7 @@
 		v-model="showAccessManageDialog"
 		:location-id="selectedLocationNumericId"
 		:location-name="selectedLocationDisplayName"
+		:data-source="selectedLocation?.dataSource"
 		:can-edit-members="canEditAccessMembers"
 		:can-device-sync="canResyncAccessDevices"
 		:access-sync="accessSync"
@@ -263,6 +265,7 @@ import {
 } from "~/utils/entryExitTimeRange"
 import { sortFlatSitesBySortedZoneLocations } from "~/utils/sortOrder"
 import { computeCumulativePresence } from "~/utils/entryExitStats"
+import { isFaceRecognitionCameraMode } from "~/utils/peopleCountingCameraMode"
 import { PERM } from "~/config/permissionCodes"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 
@@ -345,6 +348,9 @@ const locationsForOverview = computed(() => {
 })
 
 const isIsapiCamera = computed(() => selectedLocation.value?.dataSource === "isapi_camera")
+const isCameraFaceRecognition = computed(
+	() => isIsapiCamera.value && isFaceRecognitionCameraMode(selectedLocation.value?.cameraMode)
+)
 const isAccessControl = computed(() => selectedLocation.value?.dataSource === "access_control")
 const showAccessManageDialog = ref(false)
 const selectedLocationNumericId = computed(() => {

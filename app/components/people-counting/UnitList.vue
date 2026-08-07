@@ -4,7 +4,7 @@
 			v-if="!hideTitle"
 			class="people-unit-title monitoring-chip-bg py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
 		>
-			人員群組
+			{{ panelTitle }}
 		</h3>
 		<div class="grid grid-cols-3 2xl:grid-cols-4 gap-2 2xl:gap-4">
 			<div
@@ -15,11 +15,15 @@
 					'border-2 border-white/70': selectedUnitId === unit.id,
 					'monitoring-chip-bg': (unit.currentCount || 0) > 0,
 					'bg-black/20': (unit.currentCount || 0) === 0,
-					'cursor-pointer': !isIsapiCamera,
+					'cursor-pointer': selectable,
 				}"
-				:tabindex="isIsapiCamera ? undefined : 0"
-				:role="isIsapiCamera ? undefined : 'button'"
-				:aria-label="isIsapiCamera ? `${unit.name}，進出統計` : `查看 ${unit.name} 人員名單`"
+				:tabindex="selectable ? 0 : undefined"
+				:role="selectable ? 'button' : undefined"
+				:aria-label="
+					selectable
+						? `查看 ${unit.name} 人員名單`
+						: `${unit.name}，進出統計`
+				"
 				@click="handleUnitActivate(unit.id)"
 				@keydown.enter="handleUnitActivate(unit.id)"
 				@keydown.space.prevent="handleUnitActivate(unit.id)"
@@ -27,7 +31,7 @@
 				<div class="people-unit-name text-base font-semibold tracking-wide text-white 2xl:text-lg">
 					{{ unit.name }}
 				</div>
-				<template v-if="isIsapiCamera">
+				<template v-if="showRegionStats">
 					<div class="people-unit-count space-x-0.5 text-sm text-white 2xl:text-base">
 						<span class="text-green-400">進 {{ unit.entryCount ?? 0 }}</span>
 						<span>/</span>
@@ -47,25 +51,31 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue"
 import type { PeopleCountingUnit } from "~/types/peopleCounting"
 
 interface Props {
 	units: PeopleCountingUnit[]
 	selectedUnitId?: number
-	isIsapiCamera?: boolean
 	hideTitle?: boolean
+	/** 分區模式：顯示進／出，不可點選 */
+	showRegionStats?: boolean
+	panelTitle?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
-	isIsapiCamera: false,
 	hideTitle: false,
+	showRegionStats: false,
+	panelTitle: "人員群組",
 })
 const emit = defineEmits<{
 	select: [unitId: number]
 }>()
 
+const selectable = computed(() => !props.showRegionStats)
+
 const handleUnitActivate = (unitId: number) => {
-	if (props.isIsapiCamera) return
+	if (!selectable.value) return
 	emit("select", unitId)
 }
 </script>

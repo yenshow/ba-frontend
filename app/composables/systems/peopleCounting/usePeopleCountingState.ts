@@ -24,12 +24,14 @@ import { usePeopleCountingLocationApi } from "~/composables/location/api/usePeop
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { logger } from "~/utils/logger"
 import { firstFlatSiteMatchingSortedZoneLocations } from "~/utils/sortOrder"
+import { isFaceRecognitionCameraMode } from "~/utils/peopleCountingCameraMode"
 
 const stateLogger = logger.createLogger("PeopleCounting State")
 
 const YSCP_ACS_EVENT = "yscp:event:acs"
 const ACCESS_CONTROL_EVENT = "people-counting:access-control:event"
 const ISAPI_CAMERA_EVENT = "people-counting:isapi-camera:event"
+const ISAPI_FACE_CONTRAST_EVENT = "people-counting:isapi-camera:face-contrast"
 const STATS_RESET_EVENT = "people-counting:stats-reset"
 
 /**
@@ -85,6 +87,7 @@ export const usePeopleCountingState = () => {
 					selectedLocation.value = {
 						...selectedLocation.value,
 						dataSource: updatedLocation.dataSource,
+						cameraMode: updatedLocation.cameraMode,
 						logDisplayColumns: updatedLocation.logDisplayColumns,
 						entryCount: updatedLocation.entryCount,
 						exitCount: updatedLocation.exitCount,
@@ -125,13 +128,15 @@ export const usePeopleCountingState = () => {
 			)
 
 			const isCamera = selectedLocation.value.dataSource === "isapi_camera"
-			if (isCamera) {
+			const isCameraFace = isCamera && isFaceRecognitionCameraMode(selectedLocation.value.cameraMode)
+			// 主畫面 logs 一律地點級（不依人員群組過濾）；攝影機人流模式不載入人員名單
+			if (isCamera && !isCameraFace) {
 				selectedUnitId.value = null
 				personnel.value = []
 				await loadLocationLogs(locationId)
 			} else if (keepUnitId != null) {
 				selectedUnitId.value = keepUnitId
-				await Promise.all([loadUnitPersonnel(keepUnitId), loadLocationLogs(locationId, keepUnitId)])
+				await Promise.all([loadUnitPersonnel(keepUnitId), loadLocationLogs(locationId)])
 			} else {
 				const firstUnit = selectedLocation.value.units?.[0]
 				if (firstUnit) {
@@ -167,13 +172,9 @@ export const usePeopleCountingState = () => {
 	/**
 	 * 載入地點進出場記錄
 	 */
-	const loadLocationLogs = async (locationId: number, unitId?: number): Promise<void> => {
+	const loadLocationLogs = async (locationId: number): Promise<void> => {
 		try {
-			logs.value = await peopleCountingApi.getLocationLogs(locationId, {
-				limit: 5,
-				// unitId=0 為「未分組」，不可用 truthy 判斷
-				...(unitId != null && { unitId }),
-			})
+			logs.value = await peopleCountingApi.getLocationLogs(locationId, { limit: 5 })
 		} catch (error) {
 			handleError(error, "載入進出場記錄失敗")
 			throw error
@@ -231,12 +232,14 @@ export const usePeopleCountingState = () => {
 		if (locationId == null) return
 
 		const unitId = selectedUnitId.value
-		if (selectedLocation.value?.dataSource === "isapi_camera") {
+		const isCamera = selectedLocation.value?.dataSource === "isapi_camera"
+		const isCameraFace = isCamera && isFaceRecognitionCameraMode(selectedLocation.value?.cameraMode)
+		if (isCamera && !isCameraFace) {
 			await loadLocationLogs(locationId)
 			return
 		}
 		if (unitId != null) {
-			await Promise.all([loadUnitPersonnel(unitId), loadLocationLogs(locationId, unitId)])
+			await Promise.all([loadUnitPersonnel(unitId), loadLocationLogs(locationId)])
 			return
 		}
 		await loadLocationLogs(locationId)
@@ -248,14 +251,21 @@ export const usePeopleCountingState = () => {
 
 		if (selectedLocation.value?.locationId != null) {
 			const stillExists = locations.value.some(
-				loc => loc.locationId === selectedLocation.value?.locationId
+				(loc) => loc.locationId === selectedLocation.value?.locationId
 			)
-			if (stillExists) return
+			if (stillExists) {
+				await loadLocationDetail(selectedLocation.value.locationId, {
+					preserveUnitId: selectedUnitId.value,
+				})
+				return
+			}
 		}
 
 		const first = firstFlatSiteMatchingSortedZoneLocations(
 			peopleCountingZones.value,
-			locations.value.filter((l): l is PeopleCountingLocation & { locationId: number } => l.locationId != null)
+			locations.value.filter(
+				(l): l is PeopleCountingLocation & { locationId: number } => l.locationId != null
+			)
 		)
 		if (first?.locationId != null) {
 			await loadLocationDetail(first.locationId)
@@ -280,6 +290,7 @@ export const usePeopleCountingState = () => {
 				{ event: YSCP_ACS_EVENT, enabled: enableYscpPeopleCounting },
 				{ event: ACCESS_CONTROL_EVENT },
 				{ event: ISAPI_CAMERA_EVENT },
+				{ event: ISAPI_FACE_CONTRAST_EVENT },
 				{ event: STATS_RESET_EVENT },
 			],
 			debounceMs,

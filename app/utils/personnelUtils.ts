@@ -496,7 +496,23 @@ export const getOverallSyncDisplayLabel = (
 ): string => {
 	if (resolved.status === "pending") return "待同步"
 	if (resolved.status === "failed") return "失敗"
-	if (String(candidate?.last_sync?.user_info?.status || "").trim() === "no_data") return "無資料"
+
+	const userInfo = String(candidate?.last_sync?.user_info?.status || "").trim()
+	const face = String(candidate?.last_sync?.face?.status || "").trim()
+	const card = String(candidate?.last_sync?.card?.status || "").trim()
+	const fingerprint = String(candidate?.last_sync?.fingerprint?.status || "").trim()
+
+	// 攝影機臉庫：無 UserInfo／卡／指紋步驟；「已同步」應對齊人臉結果，勿因 user_info=no_data 顯示「無資料」
+	const isCameraFaceOnly =
+		userInfo === "no_data" && card === "no_data" && fingerprint === "no_data"
+	if (isCameraFaceOnly) {
+		if (face === "success" || face === "unchanged") return "成功"
+		if (face === "failed") return "失敗"
+		if (face === "pending") return "待同步"
+		return "無資料"
+	}
+
+	if (userInfo === "no_data") return "無資料"
 	return "成功"
 }
 

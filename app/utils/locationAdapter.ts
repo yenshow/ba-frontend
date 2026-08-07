@@ -196,6 +196,11 @@ function isPeopleCountingSystemConfig(config: unknown): config is PeopleCounting
 	if (c.dataSource === "isapi_camera" || c.dataSource === "access_control") return true
 	if ("cameraDeviceIds" in c && Array.isArray((c as { cameraDeviceIds?: unknown }).cameraDeviceIds))
 		return true
+	if (
+		"entryCameraDeviceIds" in c &&
+		Array.isArray((c as { entryCameraDeviceIds?: unknown }).entryCameraDeviceIds)
+	)
+		return true
 	if ("entryDoorIds" in c || "exitDoorIds" in c) return true
 	if ("entryDeviceIds" in c || "exitDeviceIds" in c) return true
 	return false
@@ -901,6 +906,13 @@ export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZo
 					cameraDeviceIds: Array.isArray(config.cameraDeviceIds)
 						? config.cameraDeviceIds
 						: undefined,
+					entryCameraDeviceIds: Array.isArray(config.entryCameraDeviceIds)
+						? config.entryCameraDeviceIds
+						: undefined,
+					exitCameraDeviceIds: Array.isArray(config.exitCameraDeviceIds)
+						? config.exitCameraDeviceIds
+						: undefined,
+					cameraMode: config.cameraMode ?? undefined,
 					preferRegion: config.preferRegion ?? undefined,
 					accessControlGroups: config.accessControlGroups || [],
 					logDisplayColumns: Array.isArray(config.logDisplayColumns)
@@ -1310,6 +1322,17 @@ export function peopleCountingLocationToUnified(
 				(id) => typeof id === "number" && Number.isFinite(id) && id > 0
 			)
 		: []
+	const entryCameraDeviceIds = Array.isArray((loc as PeopleCountingLocation).entryCameraDeviceIds)
+		? (loc as PeopleCountingLocation).entryCameraDeviceIds!.filter(
+				(id) => typeof id === "number" && Number.isFinite(id) && id > 0
+			)
+		: []
+	const exitCameraDeviceIds = Array.isArray((loc as PeopleCountingLocation).exitCameraDeviceIds)
+		? (loc as PeopleCountingLocation).exitCameraDeviceIds!.filter(
+				(id) => typeof id === "number" && Number.isFinite(id) && id > 0
+			)
+		: []
+	const isFace = loc.dataSource === "isapi_camera" && loc.cameraMode === "face_recognition"
 	return {
 		...(hasId && { id: loc.id! }),
 		name: loc.name,
@@ -1324,7 +1347,13 @@ export function peopleCountingLocationToUnified(
 					dataSource: loc.dataSource ?? "yscp",
 					entryDeviceIds: loc.entryDeviceIds || [],
 					exitDeviceIds: loc.exitDeviceIds || [],
-					cameraDeviceIds: cameraDeviceIds.length ? cameraDeviceIds : undefined,
+					cameraDeviceIds: !isFace && cameraDeviceIds.length ? cameraDeviceIds : undefined,
+					entryCameraDeviceIds: isFace ? entryCameraDeviceIds : undefined,
+					exitCameraDeviceIds: isFace ? exitCameraDeviceIds : undefined,
+					cameraMode:
+						loc.dataSource === "isapi_camera"
+							? (loc.cameraMode ?? "people_counting")
+							: undefined,
 					preferRegion: loc.dataSource === "isapi_camera" ? true : (loc.preferRegion ?? false),
 					accessControlGroups: loc.accessControlGroups ?? [],
 					logDisplayColumns: (() => {

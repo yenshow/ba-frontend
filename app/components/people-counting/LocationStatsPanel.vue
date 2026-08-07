@@ -29,12 +29,18 @@
 			</div>
 		</div>
 		<!-- 進出場記錄表 -->
-		<EntryExitLogTable :logs="logs" :data-source="dataSource" :display-columns="displayColumns" />
+		<EntryExitLogTable
+			:logs="logs"
+			:data-source="dataSource"
+			:camera-mode="cameraMode"
+			:display-columns="displayColumns"
+		/>
 	</div>
 </template>
 
 <script setup lang="ts">
 import type { PeopleCountingLog } from "~/types/peopleCounting"
+import type { PeopleCountingCameraMode } from "~/utils/peopleCountingCameraMode"
 import EntryExitLogTable from "~/components/people-counting/EntryExitLogTable.vue"
 
 interface Props {
@@ -43,6 +49,7 @@ interface Props {
 	currentCount: number
 	logs: PeopleCountingLog[]
 	dataSource?: "yscp" | "access_control" | "isapi_camera"
+	cameraMode?: PeopleCountingCameraMode | string | null
 	displayColumns?: string[] | null
 }
 

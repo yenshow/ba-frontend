@@ -185,6 +185,10 @@ import {
 	normalizeLogDisplayColumns,
 	type PeopleCountingLogColumnKey,
 } from "~/utils/peopleCountingLogColumns"
+import {
+	isFaceRecognitionCameraMode,
+	type PeopleCountingCameraMode,
+} from "~/utils/peopleCountingCameraMode"
 
 type PeopleCountingRecordColumnKey =
 	| "screenshot"
@@ -198,14 +202,22 @@ type PeopleCountingRecordColumnKey =
 interface Props {
 	logs: PeopleCountingLog[]
 	dataSource?: "yscp" | "access_control" | "isapi_camera"
+	/** isapi_camera：人臉模式欄位語意同門禁（人員群組），人流模式才標「分區」 */
+	cameraMode?: PeopleCountingCameraMode | string | null
 	/** 僅攝影機人流：套用區域表單勾選的欄位 */
 	displayColumns?: PeopleCountingLogColumnKey[] | string[] | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	dataSource: undefined,
+	cameraMode: null,
 	displayColumns: null,
 })
+
+const isCameraRegionColumns = computed(
+	() =>
+		props.dataSource === "isapi_camera" && !isFaceRecognitionCameraMode(props.cameraMode)
+)
 
 const FIXED_RECORD_COLUMNS: PeopleCountingRecordColumnKey[] = [
 	"screenshot",
@@ -217,15 +229,26 @@ const FIXED_RECORD_COLUMNS: PeopleCountingRecordColumnKey[] = [
 	"time",
 ]
 
-const recordColumnLabels: Record<PeopleCountingRecordColumnKey, string> = {
+/** 人臉辨識：顯示設備截圖（multipart 附圖落地後） */
+const FACE_RECORD_COLUMNS: PeopleCountingRecordColumnKey[] = [
+	"screenshot",
+	"unit_group",
+	"name",
+	"device_name",
+	"verify_method",
+	"event",
+	"time",
+]
+
+const recordColumnLabels = computed((): Record<PeopleCountingRecordColumnKey, string> => ({
 	screenshot: "設備截圖",
-	unit_group: "人員群組",
+	unit_group: isCameraRegionColumns.value ? "分區" : "人員群組",
 	name: "姓名",
 	device_name: "出入口名稱",
 	verify_method: "方式",
 	event: "事件",
 	time: "時間",
-}
+}))
 
 const cameraColumnsFromZoneForm = computed((): PeopleCountingRecordColumnKey[] => {
 	// 區域表單存的是 PeopleCountingLogColumnKey（screenshot/unit/employee_id/name/verify_method...）
@@ -245,8 +268,18 @@ const cameraColumnsFromZoneForm = computed((): PeopleCountingRecordColumnKey[] =
 })
 
 const recordColumns = computed((): PeopleCountingRecordColumnKey[] => {
-	// 只要外層有傳 displayColumns（地點管理勾選欄位），就以該設定為準
-	if (Array.isArray(props.displayColumns) && props.displayColumns.length > 0) {
+	if (
+		props.dataSource === "isapi_camera" &&
+		isFaceRecognitionCameraMode(props.cameraMode)
+	) {
+		return FACE_RECORD_COLUMNS
+	}
+	// 僅人流分區模式吃地點勾選
+	if (
+		isCameraRegionColumns.value &&
+		Array.isArray(props.displayColumns) &&
+		props.displayColumns.length > 0
+	) {
 		return cameraColumnsFromZoneForm.value
 	}
 	return FIXED_RECORD_COLUMNS

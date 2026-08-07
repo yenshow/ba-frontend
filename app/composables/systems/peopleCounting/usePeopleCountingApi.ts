@@ -12,9 +12,7 @@ import type {
 } from "~/types/peopleCounting"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { usePeopleCountingLocationApi } from "~/composables/location/api/usePeopleCountingLocationApi"
-import { buildPathWithQuery } from "~/utils/apiUtils"
 import { logger } from "~/utils/logger"
-import { formatDateTime } from "~/utils/dateUtils"
 import {
 	extractRegionFromZoneName,
 	convertApiLogToFrontend,
@@ -22,6 +20,7 @@ import {
 	type UnitPersonnelApiRow,
 } from "~/utils/peopleCountingAdapter"
 import { normalizeLogDisplayColumns } from "~/utils/peopleCountingLogColumns"
+import { normalizePeopleCountingCameraMode } from "~/utils/peopleCountingCameraMode"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { isPeopleCountingLocationVisible } from "~/utils/peopleCountingDataSource"
 
@@ -52,6 +51,7 @@ export const usePeopleCountingApi = () => {
 						id: number
 						name: string
 						dataSource?: "yscp" | "access_control" | "isapi_camera"
+						cameraMode?: "people_counting" | "face_recognition"
 						entryCount: number
 						exitCount: number
 						currentCount?: number
@@ -102,6 +102,12 @@ export const usePeopleCountingApi = () => {
 						locationId: site.id,
 						name: site.name,
 						dataSource: site.dataSource ?? cfg?.dataSource,
+						cameraMode:
+							(site.dataSource ?? cfg?.dataSource) === "isapi_camera"
+								? normalizePeopleCountingCameraMode(
+										(site as { cameraMode?: unknown }).cameraMode ?? cfg?.cameraMode
+									)
+								: undefined,
 						logDisplayColumns: normalizeLogDisplayColumns(cfg?.logDisplayColumns),
 						entryDeviceIds: cfg?.entryDeviceIds,
 						exitDeviceIds: cfg?.exitDeviceIds,
@@ -158,6 +164,7 @@ export const usePeopleCountingApi = () => {
 					id: number
 					name: string
 					dataSource?: "yscp" | "access_control" | "isapi_camera"
+					cameraMode?: "people_counting" | "face_recognition"
 					entryCount: number
 					exitCount: number
 					currentCount?: number
@@ -181,6 +188,12 @@ export const usePeopleCountingApi = () => {
 				locationId: site.id,
 				name: site.name,
 				dataSource: site.dataSource,
+				cameraMode:
+					site.dataSource === "isapi_camera"
+						? normalizePeopleCountingCameraMode(
+								(site as { cameraMode?: unknown }).cameraMode
+							)
+						: undefined,
 				region: "未分類",
 				status: "active" as const,
 				entryCount: site.entryCount,
@@ -200,15 +213,6 @@ export const usePeopleCountingApi = () => {
 			apiLogger.error("取得地點詳情失敗", { locationId, error })
 			throw error
 		}
-	}
-
-	/** 取得人員列表（獨立查詢，可依 locationId 篩選） */
-	const getPersonnelList = async (locationId?: number): Promise<PeopleCountingPersonnel[]> => {
-		const params: Record<string, unknown> = {}
-		if (locationId != null) params.locationId = locationId
-		const path = buildPathWithQuery("/people-counting/personnel", params)
-		const res = await request<{ personnel: PeopleCountingPersonnel[] }>(path)
-		return Array.isArray(res?.personnel) ? res.personnel : []
 	}
 
 	/** 取得單位人員列表（後端僅辨識 query `siteId`；此處的 `locationId` 對應 `siteId`） */
@@ -268,27 +272,6 @@ export const usePeopleCountingApi = () => {
 			return convertApiLogToFrontend(log, locId)
 		})
 
-	/** 取得地點最新 5 筆進出場記錄（主畫面固定顯示 5 筆） */
-	const getLocationLatestLogs = async (
-		locationId: number,
-		options?: {
-			unitId?: number
-		}
-	): Promise<PeopleCountingLog[]> => {
-		try {
-			const q: Record<string, string> = {}
-			if (options?.unitId) q.unitId = String(options.unitId)
-			const queryString = new URLSearchParams(q).toString()
-			const url = `/people-counting/sites/${locationId}/logs/latest${queryString ? `?${queryString}` : ""}`
-
-			const response = await request<{ logs: PeopleCountingApiLogRow[] }>(url)
-			return mapApiLogsToFrontend(response.logs || [], locationId)
-		} catch (error) {
-			apiLogger.error("取得最新進出場記錄失敗", { locationId, options, error })
-			throw error
-		}
-	}
-
 	/**
 	 * 取得地點進出場記錄（完整報表用，可分頁/時間區間）
 	 * startTime / endTime 未傳時，後端預設為今日範圍
@@ -307,7 +290,7 @@ export const usePeopleCountingApi = () => {
 		try {
 			const q: Record<string, string> = {}
 			if (options?.limit) q.limit = String(options.limit)
-			if (options?.unitId) q.unitId = String(options.unitId)
+			if (options?.unitId != null) q.unitId = String(options.unitId)
 			if (options?.startTime) q.startTime = options.startTime
 			if (options?.endTime) q.endTime = options.endTime
 			if (options?.timeRange) q.timeRange = options.timeRange
@@ -362,9 +345,7 @@ export const usePeopleCountingApi = () => {
 	return {
 		getLocations,
 		getLocationDetail,
-		getPersonnelList,
 		getUnitPersonnel,
-		getLocationLatestLogs,
 		getLocationLogs,
 		getAllLocationLogs,
 		resetSiteStats,

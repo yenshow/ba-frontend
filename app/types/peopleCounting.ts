@@ -25,8 +25,18 @@ export interface PeopleCountingLocation {
 	/** 本系統門禁設備 IDs（dataSource 為 access_control 時使用） */
 	entryDeviceIds?: number[]
 	exitDeviceIds?: number[]
-	/** 攝影機設備 IDs（dataSource 為 isapi_camera 時使用） */
+	/** 攝影機設備 IDs（dataSource 為 isapi_camera 且人流統計模式） */
 	cameraDeviceIds?: number[]
+	/** 人臉辨識：進場攝影機 */
+	entryCameraDeviceIds?: number[]
+	/** 人臉辨識：出場攝影機 */
+	exitCameraDeviceIds?: number[]
+	/**
+	 * isapi_camera 模式：
+	 * - people_counting：顯示分區進／出
+	 * - face_recognition：顯示人員群組＋名單（進／出攝影機）
+	 */
+	cameraMode?: "people_counting" | "face_recognition"
 	/** 優先使用 RegionList 當作人員群組（true=依區域/單位統計與顯示） */
 	preferRegion?: boolean
 	/** 門禁人員群組（後端相容保留；門禁設備之人員與權限已改由「人員管理」處理，此地點表單不再編輯此欄） */
@@ -67,9 +77,9 @@ export interface PeopleCountingUnit {
 	name: string
 	capacity: number
 	currentCount?: number
-	/** 攝影機（isapi_camera）各 Region 累計進場人數 */
+	/** 累計進場（可選；攝影機站點級統計改在 location，非單位） */
 	entryCount?: number
-	/** 攝影機（isapi_camera）各 Region 累計出場人數 */
+	/** 累計出場（可選） */
 	exitCount?: number
 	/** 允許帶額外欄位（讓完整報表 snapshot 型別可直接復用） */
 	[key: string]: unknown

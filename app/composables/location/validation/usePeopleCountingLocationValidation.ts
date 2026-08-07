@@ -7,6 +7,7 @@ import type { PeopleCountingLocation } from "~/types/peopleCounting"
 import { useLocationValidation } from "~/composables/location/validation/useBaseValidation"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { resolvePeopleCountingDataSource } from "~/utils/peopleCountingDataSource"
+import { isFaceRecognitionCameraMode } from "~/utils/peopleCountingCameraMode"
 
 export interface PeopleCountingLocationValidationResult {
 	isValid: boolean
@@ -117,19 +118,49 @@ export function usePeopleCountingLocationValidation() {
 				if (entrySet.has(id)) errors.push("入口與出口請勿選擇同一設備")
 			}
 		} else if (dataSource === "isapi_camera") {
-			const cameraDeviceIds = Array.isArray(location.cameraDeviceIds)
-				? location.cameraDeviceIds.filter((id) => typeof id === "number" && id > 0 && Number.isInteger(id))
-				: []
-
-			if (cameraDeviceIds.length === 0) {
-				errors.push("請選擇攝影機設備（ISAPI PeopleCounting）")
+			if (isFaceRecognitionCameraMode(location.cameraMode)) {
+				const entryCam = Array.isArray(location.entryCameraDeviceIds)
+					? location.entryCameraDeviceIds.filter(
+							(id) => typeof id === "number" && id > 0 && Number.isInteger(id)
+						)
+					: []
+				const exitCam = Array.isArray(location.exitCameraDeviceIds)
+					? location.exitCameraDeviceIds.filter(
+							(id) => typeof id === "number" && id > 0 && Number.isInteger(id)
+						)
+					: []
+				const legacyCam = Array.isArray(location.cameraDeviceIds)
+					? location.cameraDeviceIds.filter(
+							(id) => typeof id === "number" && id > 0 && Number.isInteger(id)
+						)
+					: []
+				const effectiveEntry = entryCam.length > 0 ? entryCam : legacyCam
+				if (effectiveEntry.length === 0) {
+					errors.push("請選擇進場攝影機")
+				}
+				if (exitCam.length === 0) {
+					errors.push("請選擇出場攝影機")
+				}
+				const entrySet = new Set(effectiveEntry)
+				for (const id of exitCam) {
+					if (entrySet.has(id)) errors.push("進場與出場請勿選擇同一攝影機")
+				}
 			} else {
-				for (const id of cameraDeviceIds) {
-					const cameraDeviceError = validateDoorId(id, "攝影機設備")
-					if (cameraDeviceError) errors.push(cameraDeviceError)
+				const cameraDeviceIds = Array.isArray(location.cameraDeviceIds)
+					? location.cameraDeviceIds.filter(
+							(id) => typeof id === "number" && id > 0 && Number.isInteger(id)
+						)
+					: []
+
+				if (cameraDeviceIds.length === 0) {
+					errors.push("請選擇攝影機設備（ISAPI PeopleCounting）")
+				} else {
+					for (const id of cameraDeviceIds) {
+						const cameraDeviceError = validateDoorId(id, "攝影機設備")
+						if (cameraDeviceError) errors.push(cameraDeviceError)
+					}
 				}
 			}
-			// channel 固定由後端設定為 1：不再提供/驗證 channel 欄位
 		} else {
 			const entryIds = Array.isArray(location.entryDoorIds)
 				? location.entryDoorIds.filter((id) => typeof id === "number" && id > 0 && Number.isInteger(id))

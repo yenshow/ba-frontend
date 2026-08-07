@@ -14,7 +14,9 @@
 				/>
 			</label>
 
-			<span class="text-sm font-medium text-white/80 2xl:text-base">資料來源<span class="required-mark">*</span></span>
+			<span class="text-sm font-medium text-white/80 2xl:text-base"
+				>資料來源<span class="required-mark">*</span></span
+			>
 			<div class="flex flex-wrap gap-4">
 				<label v-if="enableYscpPeopleCounting" class="flex cursor-pointer items-center gap-2">
 					<input
@@ -227,7 +229,9 @@
 
 		<div v-if="dataSource === 'yscp'" class="mt-3 border-t border-white/10 pt-3">
 			<div class="mb-3">
-				<span class="text-sm font-medium text-white/80 2xl:text-base">人員群組<span class="required-mark">*</span></span>
+				<span class="text-sm font-medium text-white/80 2xl:text-base"
+					>人員群組<span class="required-mark">*</span></span
+				>
 			</div>
 			<div
 				v-if="personGroups.length === 0"
@@ -265,39 +269,137 @@
 		</div>
 
 		<div v-else-if="dataSource === 'isapi_camera'" class="mt-3 border-t border-white/10 pt-3">
-			<div class="mb-3">
-				<span class="text-sm font-medium text-white/80 2xl:text-base">攝影機設備（可複選）<span class="required-mark">*</span></span>
-			</div>
-			<div
-				v-if="isapiCameraDevices.length === 0"
-				class="rounded border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60 2xl:text-sm"
-			>
-				請先在設備管理新增支援 ISAPI 的攝影機
-			</div>
-			<div v-else class="grid grid-cols-2 gap-2">
-				<label
-					v-for="dev in isapiCameraDevices"
-					:key="dev.id"
-					class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
-					:class="{
-						'border-cyan-400/50 bg-cyan-500/20': isCameraSelected(dev.id),
-					}"
-				>
-					<input
-						type="checkbox"
-						:checked="isCameraSelected(dev.id)"
-						class="h-4 w-4 cursor-pointer accent-cyan-400"
-						@change="handleToggleCamera(dev.id)"
-					/>
-					<span class="text-xs text-white/90 2xl:text-sm">{{ dev.name }}</span>
-				</label>
-			</div>
-			<p
-				v-if="isapiCameraDevices.length > 0 && !hasSelectedCamera"
-				class="mt-2 text-xs text-amber-300 2xl:text-sm"
-			>
-				至少需要選擇一台攝影機設備
+			<p class="mb-3 text-xs text-white/60 2xl:text-sm">
+				「人流統計」顯示設備分區進／出；「人臉辨識」以進場／出場攝影機決定方向，並可至門禁管理同步臉庫。
 			</p>
+			<div class="mb-3">
+				<span class="text-sm font-medium text-white/80 2xl:text-base"
+					>攝影機用途<span class="required-mark">*</span></span
+				>
+				<div class="mt-2 grid grid-cols-2 gap-2">
+					<label
+						v-for="mode in CAMERA_MODE_OPTIONS"
+						:key="mode.value"
+						class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
+						:class="{
+							'border-cyan-400/50 bg-cyan-500/20': cameraMode === mode.value,
+						}"
+					>
+						<input
+							v-model="cameraMode"
+							type="radio"
+							name="people-counting-camera-mode"
+							:value="mode.value"
+							class="h-4 w-4 cursor-pointer accent-cyan-400"
+							@change="handleCameraModeChange"
+						/>
+						<span class="text-xs text-white/90 2xl:text-sm">{{ mode.label }}</span>
+					</label>
+				</div>
+			</div>
+
+			<template v-if="isFaceMode">
+				<div class="mb-3">
+					<span class="text-sm font-medium text-white/80 2xl:text-base"
+						>進場攝影機（可複選）<span class="required-mark">*</span></span
+					>
+				</div>
+				<div
+					v-if="isapiCameraDevices.length === 0"
+					class="rounded border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60 2xl:text-sm"
+				>
+					請先在設備管理新增支援 ISAPI 的攝影機
+				</div>
+				<div v-else class="mb-3 grid grid-cols-2 gap-2">
+					<label
+						v-for="dev in isapiCameraDevices"
+						:key="`entry-cam-${dev.id}`"
+						:class="[
+							selectCardBaseClass,
+							isFaceCameraSelected('entry', dev.id) ? selectCardSelectedClass : '',
+							isFaceCameraOverlapped(dev.id) ? selectCardOverlapClass : '',
+						]"
+					>
+						<input
+							type="checkbox"
+							:checked="isFaceCameraSelected('entry', dev.id)"
+							class="h-4 w-4 cursor-pointer accent-cyan-400"
+							@change="handleToggleFaceCamera('entry', dev.id)"
+						/>
+						<span class="text-xs text-white/90 2xl:text-sm">{{ dev.name }}</span>
+					</label>
+				</div>
+				<p v-if="isapiCameraDevices.length > 0 && !hasFaceEntryCamera" :class="warnHintClass">
+					至少需要選擇一台進場攝影機
+				</p>
+
+				<div class="mb-3 mt-3">
+					<span class="text-sm font-medium text-white/80 2xl:text-base"
+						>出場攝影機（可複選）<span class="required-mark">*</span></span
+					>
+				</div>
+				<div v-if="isapiCameraDevices.length > 0" class="grid grid-cols-2 gap-2">
+					<label
+						v-for="dev in isapiCameraDevices"
+						:key="`exit-cam-${dev.id}`"
+						:class="[
+							selectCardBaseClass,
+							isFaceCameraSelected('exit', dev.id) ? selectCardSelectedClass : '',
+							isFaceCameraOverlapped(dev.id) ? selectCardOverlapClass : '',
+						]"
+					>
+						<input
+							type="checkbox"
+							:checked="isFaceCameraSelected('exit', dev.id)"
+							class="h-4 w-4 cursor-pointer accent-cyan-400"
+							@change="handleToggleFaceCamera('exit', dev.id)"
+						/>
+						<span class="text-xs text-white/90 2xl:text-sm">{{ dev.name }}</span>
+					</label>
+				</div>
+				<p v-if="isapiCameraDevices.length > 0 && !hasFaceExitCamera" :class="warnHintClass">
+					至少需要選擇一台出場攝影機
+				</p>
+				<div v-if="hasFaceCameraOverlap" :class="dangerHintClass">進場與出場請勿選擇同一攝影機</div>
+			</template>
+
+			<template v-else>
+				<div class="mb-3">
+					<span class="text-sm font-medium text-white/80 2xl:text-base"
+						>攝影機設備（可複選）<span class="required-mark">*</span></span
+					>
+				</div>
+				<div
+					v-if="isapiCameraDevices.length === 0"
+					class="rounded border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60 2xl:text-sm"
+				>
+					請先在設備管理新增支援 ISAPI 的攝影機
+				</div>
+				<div v-else class="grid grid-cols-2 gap-2">
+					<label
+						v-for="dev in isapiCameraDevices"
+						:key="dev.id"
+						class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
+						:class="{
+							'border-cyan-400/50 bg-cyan-500/20': isCameraSelected(dev.id),
+						}"
+					>
+						<input
+							type="checkbox"
+							:checked="isCameraSelected(dev.id)"
+							class="h-4 w-4 cursor-pointer accent-cyan-400"
+							@change="handleToggleCamera(dev.id)"
+						/>
+						<span class="text-xs text-white/90 2xl:text-sm">{{ dev.name }}</span>
+					</label>
+				</div>
+				<p
+					v-if="isapiCameraDevices.length > 0 && !hasSelectedCamera"
+					class="mt-2 text-xs text-amber-300 2xl:text-sm"
+				>
+					至少需要選擇一台攝影機設備
+				</p>
+			</template>
 		</div>
 
 		<div class="mt-3 border-t border-white/10 pt-3">
@@ -342,8 +444,25 @@ import {
 	type PeopleCountingLogColumnKey,
 	toStoredLogDisplayColumns,
 } from "~/utils/peopleCountingLogColumns"
+import {
+	PEOPLE_COUNTING_CAMERA_MODE,
+	PEOPLE_COUNTING_CAMERA_MODE_LABELS,
+	normalizePeopleCountingCameraMode,
+	type PeopleCountingCameraMode,
+} from "~/utils/peopleCountingCameraMode"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { storedPeopleCountingDataSource } from "~/utils/peopleCountingDataSource"
+
+const CAMERA_MODE_OPTIONS: Array<{ value: PeopleCountingCameraMode; label: string }> = [
+	{
+		value: PEOPLE_COUNTING_CAMERA_MODE.PEOPLE_COUNTING,
+		label: PEOPLE_COUNTING_CAMERA_MODE_LABELS.people_counting,
+	},
+	{
+		value: PEOPLE_COUNTING_CAMERA_MODE.FACE_RECOGNITION,
+		label: PEOPLE_COUNTING_CAMERA_MODE_LABELS.face_recognition,
+	},
+]
 
 interface PersonGroup {
 	id: number
@@ -397,6 +516,9 @@ const dangerHintClass =
 	"mt-3 rounded border border-rose-500/60 bg-rose-500/15 p-2 text-xs text-rose-200 2xl:text-sm"
 const warnHintClass = "mt-2 text-xs text-amber-300 2xl:text-sm"
 const dataSource = ref(storedPeopleCountingDataSource(props.location.dataSource))
+const cameraMode = ref<PeopleCountingCameraMode>(
+	normalizePeopleCountingCameraMode(props.location.cameraMode)
+)
 
 const activeLogColumns = computed(() =>
 	normalizeLogDisplayColumns(localLocation.value.logDisplayColumns)
@@ -421,7 +543,62 @@ const getEffectiveCameraDeviceIds = (): number[] => {
 		: []
 }
 
+const getEffectiveEntryCameraDeviceIds = (): number[] => {
+	const entry = Array.isArray(localLocation.value.entryCameraDeviceIds)
+		? localLocation.value.entryCameraDeviceIds
+		: []
+	if (entry.length > 0) return entry
+	// 舊資料：僅有 cameraDeviceIds 時視為進場
+	if (cameraMode.value === PEOPLE_COUNTING_CAMERA_MODE.FACE_RECOGNITION) {
+		return getEffectiveCameraDeviceIds()
+	}
+	return []
+}
+
+const getEffectiveExitCameraDeviceIds = (): number[] => {
+	return Array.isArray(localLocation.value.exitCameraDeviceIds)
+		? localLocation.value.exitCameraDeviceIds
+		: []
+}
+
+const isFaceMode = computed(() => cameraMode.value === PEOPLE_COUNTING_CAMERA_MODE.FACE_RECOGNITION)
+
 const hasSelectedCamera = computed(() => getEffectiveCameraDeviceIds().length > 0)
+const hasFaceEntryCamera = computed(() => getEffectiveEntryCameraDeviceIds().length > 0)
+const hasFaceExitCamera = computed(() => getEffectiveExitCameraDeviceIds().length > 0)
+
+const faceCameraOverlapSet = computed(() => {
+	const entry = new Set(getEffectiveEntryCameraDeviceIds())
+	const exit = new Set(getEffectiveExitCameraDeviceIds())
+	const overlap = new Set<number>()
+	for (const id of entry) {
+		if (exit.has(id)) overlap.add(id)
+	}
+	return overlap
+})
+const hasFaceCameraOverlap = computed(() => faceCameraOverlapSet.value.size > 0)
+const isFaceCameraOverlapped = (deviceId: number): boolean =>
+	faceCameraOverlapSet.value.has(Number(deviceId))
+
+const isFaceCameraSelected = (role: "entry" | "exit", deviceId: number): boolean => {
+	const ids =
+		role === "entry" ? getEffectiveEntryCameraDeviceIds() : getEffectiveExitCameraDeviceIds()
+	return ids.includes(deviceId)
+}
+
+const handleToggleFaceCamera = (role: "entry" | "exit", deviceId: number) => {
+	const key = role === "entry" ? "entryCameraDeviceIds" : "exitCameraDeviceIds"
+	const current =
+		role === "entry"
+			? [...getEffectiveEntryCameraDeviceIds()]
+			: [...getEffectiveExitCameraDeviceIds()]
+	const idx = current.indexOf(deviceId)
+	if (idx >= 0) current.splice(idx, 1)
+	else current.push(deviceId)
+	localLocation.value[key] = current
+	localLocation.value.cameraDeviceIds = undefined
+	handleChange()
+}
 
 const isPersonGroupSelected = (groupId: number): boolean => {
 	return localLocation.value.personGroupIds?.includes(groupId) || false
@@ -447,6 +624,8 @@ const handleDataSourceChange = () => {
 		localLocation.value.exitDoorIds = []
 		localLocation.value.cameraDeviceIds = undefined
 		localLocation.value.preferRegion = undefined
+		localLocation.value.cameraMode = undefined
+		cameraMode.value = PEOPLE_COUNTING_CAMERA_MODE.PEOPLE_COUNTING
 		if (!Array.isArray(localLocation.value.entryDeviceIds)) localLocation.value.entryDeviceIds = []
 		if (!Array.isArray(localLocation.value.exitDeviceIds)) localLocation.value.exitDeviceIds = []
 	} else if (dataSource.value === "isapi_camera") {
@@ -458,14 +637,54 @@ const handleDataSourceChange = () => {
 		if (!Array.isArray(localLocation.value.cameraDeviceIds)) {
 			localLocation.value.cameraDeviceIds = []
 		}
+		if (!Array.isArray(localLocation.value.entryCameraDeviceIds)) {
+			localLocation.value.entryCameraDeviceIds = []
+		}
+		if (!Array.isArray(localLocation.value.exitCameraDeviceIds)) {
+			localLocation.value.exitCameraDeviceIds = []
+		}
 		localLocation.value.preferRegion = true
+		cameraMode.value = normalizePeopleCountingCameraMode(localLocation.value.cameraMode)
+		localLocation.value.cameraMode = cameraMode.value
 	} else {
 		localLocation.value.entryDeviceIds = []
 		localLocation.value.exitDeviceIds = []
 		localLocation.value.cameraDeviceIds = undefined
 		localLocation.value.preferRegion = undefined
+		localLocation.value.cameraMode = undefined
+		cameraMode.value = PEOPLE_COUNTING_CAMERA_MODE.PEOPLE_COUNTING
 		if (!Array.isArray(localLocation.value.entryDoorIds)) localLocation.value.entryDoorIds = []
 		if (!Array.isArray(localLocation.value.exitDoorIds)) localLocation.value.exitDoorIds = []
+	}
+	handleChange()
+}
+
+const handleCameraModeChange = () => {
+	localLocation.value.cameraMode = cameraMode.value
+	if (cameraMode.value === PEOPLE_COUNTING_CAMERA_MODE.FACE_RECOGNITION) {
+		const legacy = getEffectiveCameraDeviceIds()
+		if (
+			(!Array.isArray(localLocation.value.entryCameraDeviceIds) ||
+				localLocation.value.entryCameraDeviceIds.length === 0) &&
+			legacy.length > 0
+		) {
+			localLocation.value.entryCameraDeviceIds = [...legacy]
+		}
+		if (!Array.isArray(localLocation.value.exitCameraDeviceIds)) {
+			localLocation.value.exitCameraDeviceIds = []
+		}
+		localLocation.value.cameraDeviceIds = undefined
+	} else {
+		const union = [
+			...new Set([
+				...getEffectiveEntryCameraDeviceIds(),
+				...getEffectiveExitCameraDeviceIds(),
+				...getEffectiveCameraDeviceIds(),
+			]),
+		]
+		localLocation.value.cameraDeviceIds = union
+		localLocation.value.entryCameraDeviceIds = undefined
+		localLocation.value.exitCameraDeviceIds = undefined
 	}
 	handleChange()
 }
@@ -487,11 +706,33 @@ watch(
 		) {
 			localLocation.value.cameraDeviceIds = []
 		}
+		if (!Array.isArray(localLocation.value.entryCameraDeviceIds)) {
+			localLocation.value.entryCameraDeviceIds = []
+		}
+		if (!Array.isArray(localLocation.value.exitCameraDeviceIds)) {
+			localLocation.value.exitCameraDeviceIds = []
+		}
 		const next = storedPeopleCountingDataSource(newLocation.dataSource)
 		dataSource.value = next
 		localLocation.value.dataSource = next
 		if ((newLocation.dataSource as string) === "isapi_camera") {
 			localLocation.value.preferRegion = true
+			cameraMode.value = normalizePeopleCountingCameraMode(newLocation.cameraMode)
+			localLocation.value.cameraMode = cameraMode.value
+			if (cameraMode.value === PEOPLE_COUNTING_CAMERA_MODE.FACE_RECOGNITION) {
+				const entry = Array.isArray(newLocation.entryCameraDeviceIds)
+					? newLocation.entryCameraDeviceIds
+					: []
+				const legacy = Array.isArray(newLocation.cameraDeviceIds) ? newLocation.cameraDeviceIds : []
+				localLocation.value.entryCameraDeviceIds = entry.length > 0 ? entry : [...legacy]
+				localLocation.value.exitCameraDeviceIds = Array.isArray(newLocation.exitCameraDeviceIds)
+					? newLocation.exitCameraDeviceIds
+					: []
+				localLocation.value.cameraDeviceIds = undefined
+			}
+		} else {
+			cameraMode.value = PEOPLE_COUNTING_CAMERA_MODE.PEOPLE_COUNTING
+			localLocation.value.cameraMode = undefined
 		}
 	},
 	{ immediate: true, deep: true }
