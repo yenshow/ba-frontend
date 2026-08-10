@@ -172,7 +172,7 @@
 									<div
 										class="flex w-20 flex-col items-center justify-between gap-1 rounded-lg border border-white bg-white/10 py-1.5"
 									>
-										<span class="text-sm tracking-[3px] text-white 2xl:text-base">設定</span>
+										<span class="text-sm tracking-[3px] text-white 2xl:text-base">溫度</span>
 										<div class="flex items-center">
 											<button
 												type="button"

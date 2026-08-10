@@ -246,7 +246,6 @@ export const useHvacModbusIntegration = (
 			) => {
 				const overrideId = normalizeOptionalDeviceId(point?.deviceId)
 				if (overrideId) {
-					// getLocationDeviceConfig 以 location.deviceId 為主；覆寫時暫時借 location 形狀
 					return getLocationDeviceConfig({ ...location, deviceId: overrideId })
 				}
 				return getLocationDeviceConfig(location)

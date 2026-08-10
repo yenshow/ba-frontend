@@ -78,7 +78,7 @@
 		<template v-if="hasController">
 			<div class="flex min-w-0 flex-wrap items-end gap-2">
 				<span class="w-full text-xs tracking-wider text-white/60 2xl:text-sm">
-					空調偵測溫度（AI，非環境品質）
+					空調類比（偵測溫度／設定溫度／風速，同一設備）
 				</span>
 				<!-- 勿用 label 包 FilterDropdown，避免點選選單時觸發 label 行為 -->
 				<div
@@ -135,7 +135,7 @@
 
 			<div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
 				<div class="flex min-w-0 flex-col gap-2 rounded border border-white/10 bg-white/5 p-2">
-					<span class="text-xs tracking-wider text-white/60 2xl:text-sm">設定溫度（AO）</span>
+					<span class="text-xs tracking-wider text-white/60 2xl:text-sm">溫度（AO）</span>
 					<label
 						class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 					>
@@ -307,15 +307,18 @@ const applyOptionalScale = (def: ModbusStatusPointDef, scale: number | null) => 
 	}
 }
 
+const applyAnalogDevice = (def: ModbusStatusPointDef) => {
+	const tid = tempDeviceIdStr.value ? Number(tempDeviceIdStr.value) : 0
+	if (tid > 0) def.deviceId = tid
+}
+
 const hydrateStatusPoints = (location: HvacLocation) => {
 	const sp = location.statusPoints || {}
 	const temp = sp.temperatureC
 	tempDeviceIdStr.value =
 		temp?.deviceId != null && temp.deviceId > 0 ? String(temp.deviceId) : ""
 	tempRegisterType.value =
-		temp?.registerType === "holding" || temp?.registerType === "input"
-			? temp.registerType
-			: "input"
+		temp?.registerType === "holding" || temp?.registerType === "input" ? temp.registerType : "input"
 	tempAddress.value = isValidAddress(temp?.address) ? Number(temp.address) : null
 	tempScale.value = hydrateScale(temp?.scale)
 
@@ -337,8 +340,7 @@ const buildStatusPoints = (): Record<string, ModbusStatusPointDef> | undefined =
 			registerType: tempRegisterType.value === "holding" ? "holding" : "input",
 			address: tempAddress.value,
 		}
-		const tid = tempDeviceIdStr.value ? Number(tempDeviceIdStr.value) : 0
-		if (tid > 0) def.deviceId = tid
+		applyAnalogDevice(def)
 		applyOptionalScale(def, tempScale.value)
 		next.temperatureC = def
 	}
@@ -348,6 +350,7 @@ const buildStatusPoints = (): Record<string, ModbusStatusPointDef> | undefined =
 			registerType: "holding",
 			address: setpointAddress.value,
 		}
+		applyAnalogDevice(def)
 		applyOptionalScale(def, setpointScale.value)
 		next.setpointC = def
 	}
@@ -357,6 +360,7 @@ const buildStatusPoints = (): Record<string, ModbusStatusPointDef> | undefined =
 			registerType: "holding",
 			address: fanAddress.value,
 		}
+		applyAnalogDevice(def)
 		const levels = parseLevels(fanLevelsStr.value)
 		if (levels?.length) def.levels = levels
 		next.fanSpeed = def
@@ -402,11 +406,7 @@ const powerAddressIssue = computed((): { msg: string } | null => {
 	if (invalid) return { msg: invalid }
 	if (props.currentIndex < 0 || !props.allLocations?.length) return null
 	if (
-		checkDuplicateAddress(
-			asLighting(loc),
-			props.allLocations.map(asLighting),
-			props.currentIndex
-		)
+		checkDuplicateAddress(asLighting(loc), props.allLocations.map(asLighting), props.currentIndex)
 	) {
 		return { msg: "此地址已被使用" }
 	}

@@ -97,6 +97,7 @@ export interface LightingSystemConfig {
  *
  * - `modbus`：沿用 lighting 的 DI/DO 點位（可用於 ON/OFF 回授與控制）
  * - `statusPoints`：沿用 drainage/fire 的彈性點位定義（可用於溫度等 holding/input）
+ * - 偵測溫度／設定溫度／風速為同一組 `deviceId`（可與主控制器分離）
  */
 export interface HvacSystemConfig {
 	deviceId?: number;
