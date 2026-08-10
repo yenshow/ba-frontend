@@ -1,5 +1,6 @@
 import {
 	ENERGY_PARAMETERS_FALLBACK,
+	type EnergyMeterKind,
 	type EnergyParameterDef,
 } from "~/constants/energyParameters.fallback"
 import { useApiBase } from "~/composables/core/useApiBase"
@@ -35,12 +36,15 @@ export const useEnergyParameterCatalog = () => {
 		}
 	}
 
-	const energyOptions = computed(() =>
-		parameters.value.map((p) => ({
-			value: p.key,
-			label: `${p.label}（${p.unit}）`,
-		}))
-	)
+	const toOption = (p: EnergyParameterDef) => ({
+		value: p.key,
+		label: `${p.label}（${p.unit}）`,
+	})
 
-	return { parameters, energyOptions, ensureLoaded }
+	const energyOptions = computed(() => parameters.value.map(toOption))
+
+	const energyOptionsForMeterKind = (kind: EnergyMeterKind) =>
+		parameters.value.filter((p) => p.meterKinds.includes(kind)).map(toOption)
+
+	return { parameters, energyOptions, energyOptionsForMeterKind, ensureLoaded }
 }

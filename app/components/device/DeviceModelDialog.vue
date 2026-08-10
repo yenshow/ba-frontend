@@ -199,9 +199,12 @@
 											min="1"
 											max="255"
 											class="form-input"
-											placeholder="例如：1"
+											placeholder="選填，例如：1"
 											aria-label="Modbus Unit ID"
 										/>
+										<p class="text-xs text-white/45 2xl:text-sm">
+											選填預設值；填了之後設備上的 Unit ID 會被鎖定。電／水表請在「新增設備」設定。
+										</p>
 									</label>
 								</template>
 								<label
@@ -361,19 +364,9 @@
 															v-model="param.modbusConfig.dataType"
 															:options="energyDataTypeOptions"
 															placeholder="uint16"
-															@update:model-value="(v) => syncParamLengthFromDataType(param, String(v))"
-														/>
-													</label>
-
-													<label class="flex flex-col gap-1 text-xs text-white/80 2xl:text-sm">
-														<span>暫存器長度</span>
-														<input
-															v-model.number="param.modbusConfig.length"
-															type="number"
-															min="1"
-															max="4"
-															class="form-input"
-															placeholder="1"
+															@update:model-value="
+																(v) => syncParamLengthFromDataType(param, String(v))
+															"
 														/>
 													</label>
 
@@ -557,35 +550,75 @@ const resetForm = () => {
 
 const { sensorOptions, ensureLoaded: ensureEnvironmentCatalogLoaded } =
 	useEnvironmentParameterCatalog()
-const { energyOptions, ensureLoaded: ensureEnergyCatalogLoaded } = useEnergyParameterCatalog()
+const { energyOptionsForMeterKind, ensureLoaded: ensureEnergyCatalogLoaded } =
+	useEnergyParameterCatalog()
 
-const parameterTypeOptions = computed(() => [...sensorOptions.value, ...energyOptions.value])
+const isMeterModel = computed(
+	() => sensorMeterKind.value === "electricity" || sensorMeterKind.value === "water"
+)
+
+const parameterTypeOptions = computed(() => {
+	if (sensorMeterKind.value === "electricity" || sensorMeterKind.value === "water") {
+		return energyOptionsForMeterKind(sensorMeterKind.value)
+	}
+	return [...sensorOptions.value]
+})
 const energyDataTypeOptions = ENERGY_DATA_TYPE_OPTIONS
 const energyMeterKindOptions = ENERGY_METER_KIND_OPTIONS
 
-const modbusRegisterTypeOptions: Array<{ value: ModbusRegisterType; label: string }> = [
+const ALL_MODBUS_REGISTER_TYPE_OPTIONS: Array<{ value: ModbusRegisterType; label: string }> = [
 	{ value: "holding", label: "FC03 保持寄存器 (Holding Registers)" },
 	{ value: "input", label: "FC04 輸入寄存器 (Input Registers)" },
 	{ value: "coils", label: "FC01 線圈 (Coils)" },
 	{ value: "discrete", label: "FC02 離散輸入 (Discrete Inputs)" },
 ]
 
+const modbusRegisterTypeOptions = computed(() =>
+	isMeterModel.value
+		? ALL_MODBUS_REGISTER_TYPE_OPTIONS.filter(
+				(o) => o.value === "holding" || o.value === "input"
+			)
+		: ALL_MODBUS_REGISTER_TYPE_OPTIONS
+)
+
+watch(sensorMeterKind, (kind) => {
+	if (
+		(kind === "electricity" || kind === "water") &&
+		sensorRegisterType.value !== "holding" &&
+		sensorRegisterType.value !== "input"
+	) {
+		sensorRegisterType.value = "holding"
+	}
+})
+
 const addSensorParameter = () => {
+	if (sensorMeterKind.value === "electricity") {
+		sensorParameters.value.push({
+			type: "active_energy",
+			modbusConfig: { address: 0, length: 2, dataType: "uint32_be", transform: "value / 100" },
+		})
+		return
+	}
+	if (sensorMeterKind.value === "water") {
+		sensorParameters.value.push({
+			type: "water_volume",
+			modbusConfig: { address: 0, length: 2, dataType: "uint32_be", transform: "value / 1000" },
+		})
+		return
+	}
 	sensorParameters.value.push({
 		type: "pm25",
 		modbusConfig: { address: 0, length: 1, dataType: "uint16", transform: "" },
 	})
 }
 
-const syncParamLengthFromDataType = (
-	param: SensorParameterDefinition,
-	dataType: string
-) => {
-	if (dataType === "uint32_be" || dataType === "uint32_le") {
-		param.modbusConfig.length = 2
-	} else if (dataType === "uint16") {
-		param.modbusConfig.length = 1
-	}
+const lengthFromDataType = (dataType: string | undefined): number => {
+	if (dataType === "uint32_be" || dataType === "uint32_le") return 2
+	return 1
+}
+
+const syncParamLengthFromDataType = (param: SensorParameterDefinition, dataType: string) => {
+	param.modbusConfig.length = lengthFromDataType(dataType)
 }
 
 const removeSensorParameter = (index: number) => {
@@ -888,7 +921,20 @@ const handleFormSubmit = async () => {
 			const sensorConfig: SensorDeviceModelConfig = {
 				registerType: sensorRegisterType.value,
 				meterKind: sensorMeterKind.value || undefined,
-				sensorParameters: sensorParameters.value.length > 0 ? sensorParameters.value : undefined,
+				sensorParameters:
+					sensorParameters.value.length > 0
+						? sensorParameters.value.map((param) => {
+								const dataType = param.modbusConfig?.dataType || "uint16"
+								return {
+									...param,
+									modbusConfig: {
+										...param.modbusConfig,
+										dataType,
+										length: lengthFromDataType(dataType),
+									},
+								}
+							})
+						: undefined,
 			}
 			submitData.config = sensorConfig
 		}

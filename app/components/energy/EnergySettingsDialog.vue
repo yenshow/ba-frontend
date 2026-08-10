@@ -5,18 +5,22 @@ import { useEnergyApi } from "~/composables/systems/energy/useEnergyApi"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useToast } from "~/composables/core/useToast"
 import {
-	ENERGY_USAGE_SYSTEMS,
+	getEnergyUsageSystemLabel,
 	type EnergyUsageSystemKey,
 } from "~/constants/energyUsageSystems"
+
+type MeterKind = "electricity" | "water"
 
 type SensorDeviceRow = {
 	id: number
 	name: string
+	meterKind: MeterKind
 	isElectricityMeter: boolean
-	config: SensorDeviceConfig
-	usageSystem: EnergyUsageSystemKey | ""
-	initialUsageSystem: EnergyUsageSystemKey | ""
+	usageSystemLabel: string
 }
+
+const isMeterKind = (value: string | undefined): value is MeterKind =>
+	value === "electricity" || value === "water"
 
 type SettingsSectionKey = "devices" | "tariff" | "contract"
 
@@ -45,10 +49,6 @@ const saving = ref(false)
 const form = ref<EnergySettingsConfig | null>(null)
 const sensorDevices = ref<SensorDeviceRow[]>([])
 const titleId = "energy-settings-dialog-title"
-const usageSystemSelectOptions = ENERGY_USAGE_SYSTEMS.map((s) => ({
-	value: s.key,
-	label: s.label,
-}))
 
 const expandedSections = reactive({ ...SECTION_DEFAULTS })
 
@@ -109,18 +109,26 @@ const load = async () => {
 		meterKindByModel.set(m.id, cfg?.meterKind)
 	}
 
-	sensorDevices.value = (devicesRes?.devices || []).map((d: Device) => {
+	sensorDevices.value = (devicesRes?.devices || []).flatMap((d: Device) => {
+		const meterKind = meterKindByModel.get(d.model_id)
+		if (!isMeterKind(meterKind)) return []
 		const cfg = (d.config || { type: "sensor", protocol: "modbus" }) as SensorDeviceConfig
 		const usageSystem = (cfg.energy_usage_system as EnergyUsageSystemKey) || ""
-		return {
-			id: d.id,
-			name: d.name,
-			isElectricityMeter: meterKindByModel.get(d.model_id) === "electricity",
-			config: cfg,
-			usageSystem,
-			initialUsageSystem: usageSystem,
-		}
+		return [
+			{
+				id: d.id,
+				name: d.name,
+				meterKind,
+				isElectricityMeter: meterKind === "electricity",
+				usageSystemLabel: usageSystem ? getEnergyUsageSystemLabel(usageSystem) : "未設定",
+			},
+		]
 	})
+
+	const meterIds = new Set(sensorDevices.value.map((row) => row.id))
+	form.value.include_device_ids = (form.value.include_device_ids || []).filter((id) =>
+		meterIds.has(id)
+	)
 }
 
 const toggleDevice = (id: number) => {
@@ -131,32 +139,10 @@ const toggleDevice = (id: number) => {
 	form.value.include_device_ids = Array.from(set)
 }
 
-const handleUsageSystemChange = (row: SensorDeviceRow, event: Event) => {
-	row.usageSystem = (event.target as HTMLSelectElement).value as EnergyUsageSystemKey | ""
-}
-
-const persistUsageSystems = async () => {
-	const dirty = sensorDevices.value.filter(
-		(row) => row.isElectricityMeter && row.usageSystem !== row.initialUsageSystem
-	)
-	for (const row of dirty) {
-		const nextConfig: SensorDeviceConfig = {
-			...row.config,
-			type: "sensor",
-			energy_usage_system: row.usageSystem || undefined,
-		}
-		if (!row.usageSystem) delete nextConfig.energy_usage_system
-		await deviceApi.updateDevice(row.id, { config: nextConfig })
-		row.config = nextConfig
-		row.initialUsageSystem = row.usageSystem
-	}
-}
-
 const handleSave = async () => {
 	if (!form.value) return
 	saving.value = true
 	try {
-		await persistUsageSystems()
 		await api.updateSettings(form.value as unknown as Record<string, unknown>)
 		toast.success("能源設定已儲存")
 		emit("saved")
@@ -192,10 +178,7 @@ watch(
 					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-2xl flex-col gap-4 overflow-hidden rounded-3xl p-6 2xl:max-w-3xl 2xl:gap-6 2xl:p-8"
 				>
 					<header class="flex items-center justify-between gap-4">
-						<h3
-							:id="titleId"
-							class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl"
-						>
+						<h3 :id="titleId" class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">
 							能源設定
 						</h3>
 						<button
@@ -208,7 +191,9 @@ watch(
 						</button>
 					</header>
 
-					<div class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto text-sm 2xl:text-base">
+					<div
+						class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto text-sm 2xl:text-base"
+					>
 						<template v-if="form">
 							<!-- 1. 表計設備（預設展開）＋表計異常 -->
 							<div class="rounded-2xl border border-white/15 bg-white/5 p-4 2xl:p-5">
@@ -248,28 +233,19 @@ watch(
 												/>
 												<span class="truncate">{{ d.name }} (#{{ d.id }})</span>
 											</label>
-											<select
+											<span
 												v-if="d.isElectricityMeter"
-												class="form-input max-w-[9rem] shrink-0 py-1 text-sm"
-												:value="d.usageSystem"
-												:aria-label="`${d.name} 用途系統`"
-												@change="handleUsageSystemChange(d, $event)"
+												class="shrink-0 text-xs text-white/70 2xl:text-sm"
 											>
-												<option value="">未設定</option>
-												<option
-													v-for="opt in usageSystemSelectOptions"
-													:key="opt.value"
-													:value="opt.value"
-												>
-													{{ opt.label }}
-												</option>
-											</select>
-											<span v-else class="shrink-0 text-xs text-white/45 2xl:text-sm"
-												>非電表</span
-											>
+												{{ d.usageSystemLabel }}
+											</span>
+											<span v-else class="shrink-0 text-xs text-white/45 2xl:text-sm">水表</span>
 										</div>
 										<div v-if="sensorDevices.length === 0" class="py-4 text-center text-white/60">
-											<p>尚無感測器設備</p>
+											<p>尚無數位電表或水表</p>
+											<p class="mt-1 text-xs text-white/45 2xl:text-sm">
+												請先至設備管理新增（型號 meterKind 為 electricity／water）
+											</p>
 										</div>
 									</div>
 
@@ -314,7 +290,7 @@ watch(
 												/>
 											</label>
 											<label class="form-label">
-												<span>最小跳動 (kWh)</span>
+												<span>電表最小跳動 (kWh)</span>
 												<input
 													v-model.number="form.reading_jump_min_kwh"
 													type="number"
@@ -339,9 +315,7 @@ watch(
 									@click="toggleSection('tariff')"
 								>
 									<span>電價／水價</span>
-									<span class="text-white/60">{{
-										expandedSections.tariff ? "收合" : "展開"
-									}}</span>
+									<span class="text-white/60">{{ expandedSections.tariff ? "收合" : "展開" }}</span>
 								</button>
 
 								<div
