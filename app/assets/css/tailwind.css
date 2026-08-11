@@ -102,6 +102,11 @@ html.dark .login-page {
 	color: var(--text-primary);
 }
 
+/* Central 首頁左上感測面板：對齊 AQI／環境卡（gauge 200／240 + py-6／py-8） */
+.home-sensor-panel-frame {
+	@apply sm:h-[248px] 2xl:h-[304px];
+}
+
 /* 能源管理：明亮模式面板背景全透明；黑暗模式沿用全域 token */
 html:not(.dark) .energy-dashboard {
 	--monitoring-panel-bg: rgba(255, 255, 255, 0);

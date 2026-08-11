@@ -4,10 +4,23 @@ import type { EnergySystemDistributionItem } from "~/types/energy"
 
 Chart.register(...registerables)
 
-const props = defineProps<{
-	items: EnergySystemDistributionItem[]
-	totalEnergyKwh?: number
-}>()
+const props = withDefaults(
+	defineProps<{
+		items: EnergySystemDistributionItem[]
+		totalEnergyKwh?: number
+		showTitle?: boolean
+		showViewMore?: boolean
+		showLegendValues?: boolean
+		/** 首頁感測面板：撐滿剩餘寬高 */
+		fill?: boolean
+	}>(),
+	{
+		showTitle: true,
+		showViewMore: true,
+		showLegendValues: true,
+		fill: false,
+	}
+)
 
 const emit = defineEmits<{ "view-more": [] }>()
 
@@ -67,32 +80,58 @@ onBeforeUnmount(() => chart?.destroy())
 </script>
 
 <template>
-	<div>
-		<h3 class="mb-4 text-center text-xl font-semibold tracking-[4px] 2xl:text-2xl">電量使用分佈</h3>
-		<div class="flex items-center gap-4">
-			<div class="relative h-40 w-40 shrink-0 2xl:h-[200px] 2xl:w-[200px]">
+	<div :class="fill ? 'flex h-full min-h-0 w-full flex-col justify-center' : undefined">
+		<h3
+			v-if="showTitle"
+			class="mb-4 text-center text-xl font-semibold tracking-[4px] 2xl:text-2xl"
+		>
+			電量使用分佈
+		</h3>
+		<div
+			class="flex min-w-0 items-center"
+			:class="fill ? 'h-full w-full gap-6 2xl:gap-8' : 'gap-4'"
+		>
+			<div
+				class="relative shrink-0"
+				:class="
+					fill
+						? 'h-[11.5rem] w-[11.5rem] 2xl:h-[14.5rem] 2xl:w-[14.5rem]'
+						: 'h-40 w-40 2xl:h-[200px] 2xl:w-[200px]'
+				"
+			>
 				<canvas ref="canvasRef" aria-label="用量分佈圖" />
 				<div
 					class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center"
 				>
 					<div class="text-sm tracking-wider text-white/60 2xl:text-base">總用電量</div>
-					<div class="text-base font-semibold text-white 2xl:text-xl">
+					<div
+						class="font-semibold text-white"
+						:class="fill ? 'text-lg 2xl:text-2xl' : 'text-base 2xl:text-xl'"
+					>
 						{{ displayTotal.toLocaleString() }}
 						<span class="text-xs font-normal text-white/80"> kWh</span>
 					</div>
 				</div>
 			</div>
 			<ul
-				class="max-h-[200px] flex-1 space-y-3 overflow-y-auto text-sm text-white/80 2xl:text-base"
+				class="min-w-0 flex-1 overflow-y-auto text-white/80"
+				:class="
+					showLegendValues
+						? 'max-h-[200px] space-y-3 text-sm 2xl:text-base'
+						: fill
+							? 'space-y-5 text-lg font-medium tracking-widest 2xl:space-y-6 2xl:text-xl'
+							: 'max-h-[200px] space-y-4 text-lg font-medium tracking-widest 2xl:space-y-5 2xl:text-xl'
+				"
 			>
 				<li v-for="(item, idx) in items" :key="item.systemKey" class="flex items-center gap-2">
 					<span
-						class="h-3 w-3 shrink-0 rounded-sm"
+						class="shrink-0 rounded-sm"
+						:class="fill ? 'h-3.5 w-3.5 2xl:h-4 2xl:w-4' : 'h-3 w-3'"
 						:style="{ backgroundColor: colorAt(idx) }"
 						aria-hidden="true"
 					/>
 					<span class="min-w-0 flex-1 truncate">{{ item.systemName }}</span>
-					<span class="shrink-0 tabular-nums text-white/70">
+					<span v-if="showLegendValues" class="shrink-0 tabular-nums text-white/70">
 						{{ item.percent }}%
 						<span class="text-white/45">({{ item.energyKwh.toLocaleString() }} kWh)</span>
 					</span>
@@ -103,7 +142,7 @@ onBeforeUnmount(() => chart?.destroy())
 				</li>
 			</ul>
 		</div>
-		<div class="mt-4 text-right">
+		<div v-if="showViewMore" class="mt-4 text-right">
 			<button
 				type="button"
 				class="text-sm text-white/70 transition-colors hover:text-white 2xl:text-base"

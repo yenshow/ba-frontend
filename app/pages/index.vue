@@ -5,27 +5,37 @@
 			<!-- Left Column -->
 			<div class="col-span-1 space-y-4 sm:space-y-6 lg:col-span-2 2xl:space-y-8">
 				<!-- Data Cards Section -->
-				<div class="home-panel overflow-hidden rounded-2xl">
-					<div class="grid h-full grid-cols-1 sm:grid-cols-12">
-						<!-- AQI Card -->
-						<AQICard
-							v-model="selectedAqiLocationId"
-							class="col-span-full sm:col-span-7"
-							:aqi="aqiData"
-							:options="locationOptions"
-							placeholder="請選擇 AQI 地點"
-							textSize="text-sm 2xl:text-base"
-						/>
+				<div class="home-panel group relative overflow-hidden rounded-2xl">
+					<PermissionActionButton
+						:allowed="canLoadEnergy"
+						:aria-label="`切換為${switchLabel}`"
+						class="absolute right-3 top-3 z-10 rounded-full bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity hover:bg-black/50 group-hover:opacity-100 focus-visible:opacity-100 2xl:text-base"
+						@click="toggleMode"
+					>
+						{{ switchLabel }}
+					</PermissionActionButton>
 
-						<!-- Environmental Card -->
-						<EnvironmentCard
-							v-model="selectedEnvironmentLocationId"
-							class="col-span-full sm:col-span-5"
-							:data="environmentData"
-							:options="locationOptions"
-							placeholder="請選擇環境地點"
-							textSize="text-sm 2xl:text-base"
-						/>
+					<div class="home-sensor-panel-frame">
+						<EnergyHomePanel v-if="showEnergyPanel" />
+
+						<div v-else class="grid h-full grid-cols-1 sm:grid-cols-12">
+							<AQICard
+								v-model="selectedAqiLocationId"
+								class="col-span-full sm:col-span-7"
+								:aqi="aqiData"
+								:options="locationOptions"
+								placeholder="請選擇 AQI 地點"
+								textSize="text-sm 2xl:text-base"
+							/>
+							<EnvironmentCard
+								v-model="selectedEnvironmentLocationId"
+								class="col-span-full sm:col-span-5"
+								:data="environmentData"
+								:options="locationOptions"
+								placeholder="請選擇環境地點"
+								textSize="text-sm 2xl:text-base"
+							/>
+						</div>
 					</div>
 				</div>
 
@@ -54,11 +64,13 @@
 <script setup lang="ts">
 import AQICard from "~/components/home/AQICard.vue"
 import EnvironmentCard from "~/components/home/EnvironmentCard.vue"
+import EnergyHomePanel from "~/components/home/EnergyHomePanel.vue"
 import BuildingCard from "~/components/home/BuildingCard.vue"
 import SystemModule from "~/components/home/SystemModule.vue"
 import HomeOperationalEvents from "~/components/home/HomeOperationalEvents.vue"
-import { useApiBase } from "~/composables/core/useApiBase"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
+import { useAccessGate } from "~/composables/core/useAccessGate"
 import { useWsFallbackPolling } from "~/composables/monitoring/useWsFallbackPolling"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import {
@@ -72,6 +84,7 @@ import type { UnifiedZone, UnifiedLocation, EnvironmentSystemConfig } from "~/ty
 import { firstLocationInSortedZones } from "~/utils/sortOrder"
 import { getLocationUiKey } from "~/utils/locationUiId"
 import { getAqiDerivedStatusFromValue } from "~/utils/environmentDerivedMetrics"
+import { PERM } from "~/config/permissionCodes"
 
 definePageMeta({
 	layout: "default",
@@ -79,9 +92,18 @@ definePageMeta({
 
 const locationApi = useLocationApi()
 const { sortZones } = useZoneManagement<UnifiedLocation, UnifiedZone>()
-useApiBase()
 const { handleError } = useErrorHandler()
 const homeSensors = useEnvironmentHomeSensors()
+const { ensureAccessReady, useCanLoadFeature } = useAccessGate()
+
+/** 僅本機會話；預設環境，有能源授權才顯示切換鈕 */
+const canLoadEnergy = useCanLoadFeature("energy", { permissionCode: PERM.energy.module })
+const preferEnergyPanel = ref(false)
+const showEnergyPanel = computed(() => preferEnergyPanel.value && canLoadEnergy.value)
+const switchLabel = computed(() => (showEnergyPanel.value ? "環境品質" : "能源管理"))
+const toggleMode = () => {
+	preferEnergyPanel.value = !preferEnergyPanel.value
+}
 
 // 兩張卡片可各自選擇不同地點，因此拆成兩份感測器資料與狀態
 const aqiSensorData = reactive(createEmptyHomeSensorReadings())
@@ -273,10 +295,14 @@ const environmentCard = {
 
 const homeSensorCards = [aqiCard, environmentCard]
 
-useEnvironmentReadingSubscription((event) => homeSensors.handleReadingEvent(event, homeSensorCards))
+useEnvironmentReadingSubscription((event) => {
+	if (showEnergyPanel.value) return
+	homeSensors.handleReadingEvent(event, homeSensorCards)
+})
 
 useWsFallbackPolling({
 	callback: () => homeSensors.syncCards(homeSensorCards),
+	active: () => !showEnergyPanel.value,
 })
 
 const formatAqiDisplay = (value: number | null, fractionDigits = 0) =>
@@ -312,7 +338,7 @@ watch(
 	}
 )
 
-onMounted(async () => {
+const bootstrapEnvironmentHome = async () => {
 	isHydratingHomeLocationSelections.value = true
 	try {
 		restoreHomeLocationSelectionsFromStorage()
@@ -325,6 +351,19 @@ onMounted(async () => {
 	}
 	await Promise.allSettled([loadAqiSensorData(), loadEnvironmentSensorData()])
 	homeSensors.syncCards(homeSensorCards)
+}
+
+watch(showEnergyPanel, async (energy) => {
+	if (energy) return
+	if (unifiedZones.value.length > 0) {
+		homeSensors.syncCards(homeSensorCards)
+		return
+	}
+	await bootstrapEnvironmentHome()
+})
+
+onMounted(async () => {
+	await Promise.all([ensureAccessReady(), bootstrapEnvironmentHome()])
 })
 
 const getSelectedLocationLabel = (locationId: string) => {
