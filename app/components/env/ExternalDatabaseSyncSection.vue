@@ -10,7 +10,7 @@
 			loading-min-height-class="min-h-[180px]"
 			empty-min-height-class="min-h-[180px]"
 		>
-			<div class="space-y-3 min-h-[172px]">
+			<div class="min-h-[172px] space-y-3">
 				<div
 					v-for="cfg in configs"
 					:key="cfg.id"
@@ -27,7 +27,7 @@
 					<span class="text-sm text-white/60">每日 {{ cfg.pushTime }}</span>
 					<span class="text-sm text-white/50">{{ cfg.host }}:{{ cfg.port }}</span>
 
-					<div class="flex flex-wrap items-center gap-2 ml-auto">
+					<div class="ml-auto flex flex-wrap items-center gap-2">
 						<button
 							type="button"
 							class="rounded-xl border border-white/25 bg-white/10 px-3 py-2 text-sm text-white/85 hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
@@ -61,9 +61,7 @@
 						class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-3xl flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:gap-6 2xl:p-8"
 					>
 						<header class="flex items-center justify-between gap-3">
-							<h3
-								class="min-w-0 truncate text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl"
-							>
+							<h3 class="min-w-0 truncate text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">
 								{{ dialog.mode === "create" ? "新增資料庫對接" : "編輯資料庫對接" }}
 							</h3>
 							<button
@@ -77,10 +75,7 @@
 						</header>
 
 						<form class="grid grid-cols-2 gap-4 2xl:gap-6" @submit.prevent="handleSave">
-							<label
-								v-if="dialog.mode === 'create'"
-								class="flex flex-col gap-2 text-base text-white/80"
-							>
+							<label v-if="dialog.mode === 'create'" class="flex flex-col gap-2 text-base text-white/80">
 								<span>事件類型<span class="required-mark">*</span></span>
 								<div :class="{ 'pointer-events-none opacity-50': dialogBusy }">
 									<FilterDropdown
@@ -90,12 +85,12 @@
 										@update:model-value="handleDialogEventTypeChanged"
 									/>
 								</div>
+								<p class="text-xs text-white/50 2xl:text-sm">
+									每種事件類型僅能設定一組對接；已設定的類型不會出現在清單中。
+								</p>
 							</label>
 
-							<div
-								v-else
-								class="flex flex-col gap-2 text-base text-white/80"
-							>
+							<div v-else class="flex flex-col gap-2 text-base text-white/80">
 								<span>事件類型</span>
 								<p class="form-input-small text-white/90">
 									{{ eventTypeLabel(dialog.form.eventType) }}
@@ -104,16 +99,22 @@
 
 							<label class="flex flex-col gap-2 text-base text-white/80">
 								<span>固定推播時間<span class="required-mark">*</span></span>
-								<input
-									v-model="dialog.form.pushTime"
-									type="text"
-									inputmode="numeric"
-									placeholder="18:00"
-									class="form-input-small"
-									:disabled="dialogBusy"
-									aria-label="推播時間"
-									required
-								/>
+								<div
+									class="flex min-w-0 items-center gap-2"
+									:class="{ 'pointer-events-none opacity-50': dialogBusy }"
+								>
+									<FilterDropdown
+										v-model="pushTimeHour"
+										:options="pushTimeHourOptions"
+										text-size="text-sm 2xl:text-base"
+									/>
+									<span class="shrink-0 text-white/70" aria-hidden="true">:</span>
+									<FilterDropdown
+										v-model="pushTimeMinute"
+										:options="pushTimeMinuteOptions"
+										text-size="text-sm 2xl:text-base"
+									/>
+								</div>
 							</label>
 
 							<label class="flex flex-col gap-2 text-base text-white/80">
@@ -126,6 +127,18 @@
 										@update:model-value="handleDbTypeChanged"
 									/>
 								</div>
+							</label>
+
+							<label class="flex flex-col gap-2 text-base text-white/80">
+								<span>資料庫名稱<span class="required-mark">*</span></span>
+								<input
+									v-model="dialog.form.database"
+									type="text"
+									class="form-input-small"
+									:disabled="dialogBusy"
+									aria-label="資料庫名稱"
+									required
+								/>
 							</label>
 
 							<label class="flex flex-col gap-2 text-base text-white/80">
@@ -154,18 +167,6 @@
 							</label>
 
 							<label class="flex flex-col gap-2 text-base text-white/80">
-								<span>資料庫名稱<span class="required-mark">*</span></span>
-								<input
-									v-model="dialog.form.database"
-									type="text"
-									class="form-input-small"
-									:disabled="dialogBusy"
-									aria-label="資料庫名稱"
-									required
-								/>
-							</label>
-
-							<label class="flex flex-col gap-2 text-base text-white/80">
 								<span>使用者名稱<span class="required-mark">*</span></span>
 								<input
 									v-model="dialog.form.username"
@@ -177,31 +178,31 @@
 								/>
 							</label>
 
-							<label class="col-span-2 flex flex-col gap-2 text-base text-white/80">
-								<span>
-									密碼<span v-if="dialog.mode === 'create'" class="required-mark">*</span>
-								</span>
-								<div class="flex gap-2">
-									<input
-										v-model="dialog.form.password"
-										type="password"
-										autocomplete="off"
-										class="form-input-small min-w-0 flex-1"
-										:disabled="dialogBusy"
-										:placeholder="dialog.mode === 'edit' ? '留空表示不變更' : '第三方資料庫密碼'"
-										:required="dialog.mode === 'create'"
-										aria-label="密碼"
-									/>
-									<button
-										type="button"
-										class="btn-secondary shrink-0 whitespace-nowrap"
-										:disabled="dialogBusy || isTesting"
-										@click="handleTestConnection"
-									>
-										{{ isTesting ? "測試中…" : "測試連線" }}
-									</button>
-								</div>
+							<label class="flex flex-col gap-2 text-base text-white/80">
+								<span> 密碼<span v-if="dialog.mode === 'create'" class="required-mark">*</span> </span>
+								<input
+									v-model="dialog.form.password"
+									type="password"
+									autocomplete="off"
+									class="form-input-small"
+									:disabled="dialogBusy"
+									:placeholder="dialog.mode === 'edit' ? '留空表示不變更' : '第三方資料庫密碼'"
+									:required="dialog.mode === 'create'"
+									aria-label="密碼"
+								/>
 							</label>
+
+							<div class="col-span-2">
+								<button
+									type="button"
+									class="btn-secondary whitespace-nowrap"
+									:disabled="dialogBusy || isTesting"
+									aria-label="測試連線"
+									@click="handleTestConnection"
+								>
+									{{ isTesting ? "測試中…" : "測試連線" }}
+								</button>
+							</div>
 
 							<div class="col-span-2 flex flex-col gap-2">
 								<p class="text-sm font-medium text-white/85 2xl:text-base">欄位映射</p>
@@ -222,7 +223,7 @@
 										<input
 											v-model="dialog.form.targetTable"
 											type="text"
-											class="form-input-small min-w-0 w-full"
+											class="form-input-small w-full min-w-0"
 											:disabled="dialogBusy"
 											placeholder="例：access_log"
 											aria-label="第三方資料庫表格名稱"
@@ -242,7 +243,7 @@
 										<input
 											v-model="dialog.form.mappings[field.key].targetColumn"
 											type="text"
-											class="form-input-small min-w-0 w-full"
+											class="form-input-small w-full min-w-0"
 											:disabled="dialogBusy"
 											:aria-label="`${field.label} 第三方欄位名`"
 											:required="field.required"
@@ -251,7 +252,7 @@
 											v-if="field.requiresFormat"
 											v-model="dialog.form.mappings[field.key].format"
 											type="text"
-											class="form-input-small min-w-0 w-full"
+											class="form-input-small w-full min-w-0"
 											:disabled="dialogBusy"
 											:placeholder="getExportFieldFormatPlaceholder(field.key)"
 											:aria-label="`${field.label} 格式`"
@@ -287,28 +288,30 @@
 </template>
 
 <script setup lang="ts">
-import AsyncPanel from "~/components/common/AsyncPanel.vue"
-import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
-import FilterDropdown from "~/components/common/FilterDropdown.vue"
-import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
+import AsyncPanel from "~/components/common/AsyncPanel.vue";
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import {
 	DB_SYNC_DB_TYPE_OPTIONS,
 	useExternalDatabaseSyncForm,
-	type SyncConfig,
-} from "~/composables/core/useExternalDatabaseSyncForm"
-import { getExportFieldFormatPlaceholder } from "~/utils/externalIntegration"
+	type SyncConfig
+} from "~/composables/core/useExternalDatabaseSyncForm";
+import { getExportFieldFormatPlaceholder, DAILY_TIME_HOUR_OPTIONS, DAILY_TIME_MINUTE_OPTIONS } from "~/utils/externalIntegration";
 
-const dbTypeOptions = DB_SYNC_DB_TYPE_OPTIONS
+const dbTypeOptions = DB_SYNC_DB_TYPE_OPTIONS;
+const pushTimeHourOptions = DAILY_TIME_HOUR_OPTIONS;
+const pushTimeMinuteOptions = DAILY_TIME_MINUTE_OPTIONS;
 
-const confirmDialog = useConfirmDialog()
+const confirmDialog = useConfirmDialog();
 const showConfirmDialog = computed({
 	get: () => confirmDialog.showDialog.value,
 	set: (value: boolean) => {
-		confirmDialog.showDialog.value = value
-	},
-})
-const confirmDialogConfig = computed(() => confirmDialog.config.value)
-const pendingDeleteEventType = ref<string | null>(null)
+		confirmDialog.showDialog.value = value;
+	}
+});
+const confirmDialogConfig = computed(() => confirmDialog.config.value);
+const pendingDeleteEventType = ref<string | null>(null);
 
 const {
 	configs,
@@ -324,6 +327,8 @@ const {
 	actionLabel,
 	canCreateMore,
 	createEventTypeOptions,
+	pushTimeHour,
+	pushTimeMinute,
 	eventTypeLabel,
 	getDbTypeLabel,
 	handleDbTypeChanged,
@@ -333,33 +338,33 @@ const {
 	handleCloseDialog,
 	handleTestConnection,
 	handleSave,
-	handleDelete,
-} = useExternalDatabaseSyncForm()
+	handleDelete
+} = useExternalDatabaseSyncForm();
 
 const confirmDeleteConfig = (cfg: SyncConfig) => {
-	pendingDeleteEventType.value = cfg.eventType
+	pendingDeleteEventType.value = cfg.eventType;
 	confirmDialog.show({
 		title: "確認刪除",
 		message: `確定要刪除「${eventTypeLabel(cfg.eventType)}」的資料庫對接設定嗎？`,
 		details: "此操作無法復原。",
-		type: "danger",
-	})
-}
+		type: "danger"
+	});
+};
 
 const handleConfirmDelete = async () => {
-	const eventType = pendingDeleteEventType.value
-	if (!eventType) return
-	pendingDeleteEventType.value = null
-	await handleDelete(eventType)
-}
+	const eventType = pendingDeleteEventType.value;
+	if (!eventType) return;
+	pendingDeleteEventType.value = null;
+	await handleDelete(eventType);
+};
 
-const actionDisabled = computed(() => formDisabled.value || !canCreateMore.value)
+const actionDisabled = computed(() => formDisabled.value || !canCreateMore.value);
 
 defineExpose({
 	openDialog: handleCreate,
 	actionLabel,
-	actionDisabled,
-})
+	actionDisabled
+});
 </script>
 
 <style scoped>

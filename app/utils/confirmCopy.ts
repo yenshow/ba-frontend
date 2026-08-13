@@ -17,6 +17,8 @@ export const buildDeleteLocationConfirmCopy = (args: {
 	hasId: boolean
 	systemType?: SystemType
 	systemCount?: number
+	/** 全區點位圖未篩選：只移地圖系統，保留非地圖系統 */
+	mapSystemsOnly?: boolean
 }): DeleteConfirm => {
 	const systemCount = Number.isFinite(args.systemCount) ? Number(args.systemCount) : 0
 	const hasSystemType = Boolean(args.systemType)
@@ -27,6 +29,15 @@ export const buildDeleteLocationConfirmCopy = (args: {
 			title: "確認刪除",
 			message: "確定要刪除此地點嗎？",
 			details: "此地點尚未儲存，將直接從清單移除。",
+			type: "danger",
+		}
+	}
+
+	if (args.mapSystemsOnly && !hasSystemType) {
+		return {
+			title: "確認刪除",
+			message: "確定要移除此地點的地圖系統嗎？",
+			details: "僅移除地圖系統關聯；環境／人流等非地圖系統不受影響。若此地點已無任何系統則會刪除整筆。",
 			type: "danger",
 		}
 	}
@@ -48,7 +59,20 @@ export const buildDeleteLocationConfirmCopy = (args: {
 	}
 }
 
-export const buildDeleteZoneConfirmCopy = (args: { systemType?: SystemType }): DeleteConfirm => {
+export const buildDeleteZoneConfirmCopy = (args: {
+	systemType?: SystemType
+	mapSystemsOnly?: boolean
+}): DeleteConfirm => {
+	if (args.mapSystemsOnly && !args.systemType) {
+		return {
+			title: "確認刪除",
+			message: "確定要移除此區域的地圖系統嗎？",
+			details:
+				"僅移除此區域的地圖系統地點；環境／人流等非地圖系統不受影響。若區域已無任何地點則會刪除整個區域。",
+			type: "danger",
+		}
+	}
+
 	if (!args.systemType) {
 		return {
 			title: "確認刪除",
@@ -71,10 +95,13 @@ export const buildDeleteZoneConfirmCopy = (args: { systemType?: SystemType }): D
 export const getLocationDeleteSuccessToast = (
 	action: "deleted" | "updated",
 	systemType?: SystemType,
+	mapSystemsOnly?: boolean,
 ): string => {
+	if (action === "updated" && mapSystemsOnly && !systemType) {
+		return "已移除此地點的地圖系統關聯"
+	}
 	if (action === "updated" && systemType) {
 		return `已從本系統（${systemTypeLabel(systemType)}）移除此地點`
 	}
 	return "地點刪除成功"
 }
-

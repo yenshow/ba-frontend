@@ -316,14 +316,20 @@ export const useApiBase = () => {
 			}
 		}
 
-		try {
-			const promise = run()
-			if (method === "GET") {
-				inFlightGetRequests.set(url, promise as Promise<unknown>)
+		const execute = async (): Promise<T> => {
+			try {
+				return (await run()) as T
+			} catch (error: unknown) {
+				return await throwApiRequestError(error, path, { context: options.errorContext })
 			}
-			return (await promise) as T
-		} catch (error: unknown) {
-			return await throwApiRequestError(error, path, { context: options.errorContext })
+		}
+
+		const promise = execute()
+		if (method === "GET") {
+			inFlightGetRequests.set(url, promise as Promise<unknown>)
+		}
+		try {
+			return await promise
 		} finally {
 			if (method === "GET") {
 				inFlightGetRequests.delete(url)
