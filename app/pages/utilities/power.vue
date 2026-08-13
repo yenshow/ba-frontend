@@ -95,6 +95,7 @@ import { usePowerModbusIntegration } from "~/composables/monitoring/modbus/snaps
 import type { ManualIssueChangedPayload } from "~/utils/alertUtils"
 import { useManualIssueDiDoRules } from "~/composables/systems/alerts/useManualIssueDiDoRules"
 import { useVisibilitySnapshotSync } from "~/composables/monitoring/useVisibilitySnapshotSync"
+import { useInfraZoneDeepLink } from "~/composables/monitoring/useInfraZoneDeepLink"
 
 definePageMeta({
 	layout: "default",
@@ -107,6 +108,7 @@ const { canManageLocation, canCreateLocation, canUpdateLocation, canDeleteLocati
 const powerApi = usePowerApi()
 const { handleError } = useErrorHandler()
 const toast = useToast()
+const { resolveInitialZoneId } = useInfraZoneDeepLink()
 
 const leftSectionHeight = ref<number | null>(null)
 
@@ -290,8 +292,7 @@ const loadZonesFromAPI = async () => {
 		const result = await powerApi.getZones()
 		powerZones.value = result.zones || []
 		if (!selectedZone.value && powerZones.value.length > 0) {
-			const first = sortZones(powerZones.value)[0]!
-			selectedZone.value = first.id || first.name
+			selectedZone.value = resolveInitialZoneId(powerZones.value, (zs) => sortZones(zs)[0])
 		}
 	} catch (error) {
 		handleError(error, "載入區域列表失敗")

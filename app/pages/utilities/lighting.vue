@@ -79,6 +79,7 @@ import {
 } from "~/composables/location/management/useZoneManagement"
 import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { useLightingModbusIntegration } from "~/composables/monitoring/modbus/toggleModbusIntegrations"
+import { useInfraZoneDeepLink } from "~/composables/monitoring/useInfraZoneDeepLink"
 import { healthStatusToAlertFlash } from "~/utils/alertUtils"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
@@ -99,6 +100,7 @@ const {
 const lightingApi = useLightingApi()
 const { handleError } = useErrorHandler()
 const toast = useToast()
+const { resolveInitialZoneId } = useInfraZoneDeepLink()
 
 const leftSectionHeight = ref<number | null>(null)
 
@@ -283,8 +285,7 @@ const loadZonesFromAPI = async () => {
 		lightingZones.value = result.zones || []
 
 		if (!selectedZone.value && lightingZones.value.length > 0) {
-			const first = sortZones(lightingZones.value)[0]!
-			selectedZone.value = first.id || first.name
+			selectedZone.value = resolveInitialZoneId(lightingZones.value, (zs) => sortZones(zs)[0])
 		}
 
 		await preloadDeviceInfos()

@@ -96,6 +96,7 @@ import { useAirCirculationModbusIntegration } from "~/composables/monitoring/mod
 import type { ManualIssueChangedPayload } from "~/utils/alertUtils"
 import { useManualIssueDiDoRules } from "~/composables/systems/alerts/useManualIssueDiDoRules"
 import { useVisibilitySnapshotSync } from "~/composables/monitoring/useVisibilitySnapshotSync"
+import { useInfraZoneDeepLink } from "~/composables/monitoring/useInfraZoneDeepLink"
 
 definePageMeta({ layout: "default" })
 
@@ -106,6 +107,7 @@ const { canManageLocation, canCreateLocation, canUpdateLocation, canDeleteLocati
 const airApi = useAirCirculationApi()
 const { handleError } = useErrorHandler()
 const toast = useToast()
+const { resolveInitialZoneId } = useInfraZoneDeepLink()
 
 const leftSectionHeight = ref<number | null>(null)
 
@@ -308,8 +310,7 @@ const loadZonesFromAPI = async () => {
 		const result = await airApi.getZones()
 		airCirculationZones.value = result.zones || []
 		if (!selectedZone.value && airCirculationZones.value.length > 0) {
-			const first = sortZones(airCirculationZones.value)[0]!
-			selectedZone.value = first.id || first.name
+			selectedZone.value = resolveInitialZoneId(airCirculationZones.value, (zs) => sortZones(zs)[0])
 		}
 	} catch (error) {
 		handleError(error, "載入區域列表失敗")

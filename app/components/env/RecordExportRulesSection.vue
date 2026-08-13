@@ -97,14 +97,22 @@
 
 							<label class="flex flex-col gap-2 text-base text-white/80">
 								<span>匯出時間<span class="required-mark">*</span></span>
-								<input
-									v-model="dialog.form.exportTime"
-									type="text"
-									placeholder="00:00"
-									class="form-input-small"
-									:disabled="dialogBusy"
-									required
-								/>
+								<div
+									class="flex min-w-0 items-center gap-2"
+									:class="{ 'pointer-events-none opacity-50': dialogBusy }"
+								>
+									<FilterDropdown
+										v-model="exportTimeHour"
+										:options="exportTimeHourOptions"
+										text-size="text-sm 2xl:text-base"
+									/>
+									<span class="shrink-0 text-white/70" aria-hidden="true">:</span>
+									<FilterDropdown
+										v-model="exportTimeMinute"
+										:options="exportTimeMinuteOptions"
+										text-size="text-sm 2xl:text-base"
+									/>
+								</div>
 							</label>
 
 							<label class="col-span-2 flex flex-col gap-2 text-base text-white/80">
@@ -113,16 +121,6 @@
 									v-model="dialog.form.name"
 									type="text"
 									required
-									class="form-input-small"
-									:disabled="dialogBusy"
-								/>
-							</label>
-
-							<label class="col-span-2 flex flex-col gap-2 text-base text-white/80">
-								<span>描述</span>
-								<input
-									v-model="dialog.form.description"
-									type="text"
 									class="form-input-small"
 									:disabled="dialogBusy"
 								/>
@@ -426,7 +424,10 @@ import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import PersonnelGroupPicker from "~/components/common/PersonnelGroupPicker.vue"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { useRecordExportRulesForm } from "~/composables/core/useRecordExportRulesForm"
-import { getExportFieldFormatPlaceholder } from "~/utils/externalIntegration"
+import { getExportFieldFormatPlaceholder, DAILY_TIME_HOUR_OPTIONS, DAILY_TIME_MINUTE_OPTIONS } from "~/utils/externalIntegration"
+
+const exportTimeHourOptions = DAILY_TIME_HOUR_OPTIONS
+const exportTimeMinuteOptions = DAILY_TIME_MINUTE_OPTIONS
 
 type RuleListItem = {
 	id: number
@@ -458,6 +459,8 @@ const {
 	groupTree,
 	groupTreeLoading,
 	eventTypeOptions,
+	exportTimeHour,
+	exportTimeMinute,
 	filterKind,
 	filterLabel,
 	eventTypeLabel,

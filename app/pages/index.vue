@@ -5,14 +5,14 @@
 			<!-- Left Column -->
 			<div class="col-span-1 space-y-4 sm:space-y-6 lg:col-span-2 2xl:space-y-8">
 				<!-- Data Cards Section -->
-				<div class="home-panel group relative overflow-hidden rounded-2xl">
+				<div class="home-panel relative overflow-hidden rounded-2xl">
 					<PermissionActionButton
 						:allowed="canLoadEnergy"
-						:aria-label="`切換為${switchLabel}`"
-						class="absolute right-3 top-3 z-10 rounded-full bg-black/30 px-3 py-1 text-sm text-white opacity-0 backdrop-blur transition-opacity hover:bg-black/50 group-hover:opacity-100 focus-visible:opacity-100 2xl:text-base"
+						:aria-label="`目前${currentPanelLabel}，點擊切換`"
+						class="btn-home-sensor-toggle absolute right-3 top-3 z-10"
 						@click="toggleMode"
 					>
-						{{ switchLabel }}
+						{{ currentPanelLabel }}
 					</PermissionActionButton>
 
 					<div class="home-sensor-panel-frame">
@@ -96,11 +96,11 @@ const { handleError } = useErrorHandler()
 const homeSensors = useEnvironmentHomeSensors()
 const { ensureAccessReady, useCanLoadFeature } = useAccessGate()
 
-/** 僅本機會話；預設環境，有能源授權才顯示切換鈕 */
+/** 僅本機會話；預設環境，有能源授權才常駐顯示切換鈕（標籤為當下卡片） */
 const canLoadEnergy = useCanLoadFeature("energy", { permissionCode: PERM.energy.module })
 const preferEnergyPanel = ref(false)
 const showEnergyPanel = computed(() => preferEnergyPanel.value && canLoadEnergy.value)
-const switchLabel = computed(() => (showEnergyPanel.value ? "環境品質" : "能源管理"))
+const currentPanelLabel = computed(() => (showEnergyPanel.value ? "能源管理" : "環境品質"))
 const toggleMode = () => {
 	preferEnergyPanel.value = !preferEnergyPanel.value
 }
@@ -375,27 +375,27 @@ const aqiData = computed(() => {
 	const reading = homeSensors.getCardSnapshotData(aqiCard)
 	const aqi = getAqiDerivedStatusFromValue(reading.aqi ?? null).aqi
 	return {
-	value: formatAqiDisplay(aqi),
-	location: getSelectedLocationLabel(selectedAqiLocationId.value),
-	metrics: [
-		{ label: "PM2.5", value: formatAqiDisplay(aqiSensorData.pm25), unit: "µg/m³", icon: "PM2.5" },
-		{ label: "PM10", value: formatAqiDisplay(aqiSensorData.pm10), unit: "µg/m³", icon: "PM10" },
-		{
-			label: "溫度",
-			value: formatAqiDisplay(aqiSensorData.temperature, 1),
-			unit: "°C",
-			icon: "temperature",
-		},
-		{
-			label: "濕度",
-			value: formatAqiDisplay(aqiSensorData.humidity, 1),
-			unit: "%",
-			icon: "humidity",
-		},
-		{ label: "風速", value: formatAqiDisplay(aqiSensorData.wind, 1), unit: "m/s", icon: "wind" },
-		{ label: "噪音", value: formatAqiDisplay(aqiSensorData.noise), unit: "dB", icon: "noise" },
-	],
-}
+		value: formatAqiDisplay(aqi),
+		location: getSelectedLocationLabel(selectedAqiLocationId.value),
+		metrics: [
+			{ label: "PM2.5", value: formatAqiDisplay(aqiSensorData.pm25), unit: "µg/m³", icon: "PM2.5" },
+			{ label: "PM10", value: formatAqiDisplay(aqiSensorData.pm10), unit: "µg/m³", icon: "PM10" },
+			{
+				label: "溫度",
+				value: formatAqiDisplay(aqiSensorData.temperature, 1),
+				unit: "°C",
+				icon: "temperature",
+			},
+			{
+				label: "濕度",
+				value: formatAqiDisplay(aqiSensorData.humidity, 1),
+				unit: "%",
+				icon: "humidity",
+			},
+			{ label: "風速", value: formatAqiDisplay(aqiSensorData.wind, 1), unit: "m/s", icon: "wind" },
+			{ label: "噪音", value: formatAqiDisplay(aqiSensorData.noise), unit: "dB", icon: "noise" },
+		],
+	}
 })
 
 const environmentData = computed(() => ({

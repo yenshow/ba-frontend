@@ -85,6 +85,7 @@ import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { findLocationIndexInZone, getLocationUiKey } from "~/utils/locationUiId"
 import { isValidPercentPosition } from "~/utils/mapPosition"
 import { useHvacModbusIntegration } from "~/composables/monitoring/modbus/toggleModbusIntegrations"
+import { useInfraZoneDeepLink } from "~/composables/monitoring/useInfraZoneDeepLink"
 
 definePageMeta({ layout: "default" })
 
@@ -99,6 +100,7 @@ const {
 const hvacApi = useHvacApi()
 const { handleError } = useErrorHandler()
 const toast = useToast()
+const { resolveInitialZoneId } = useInfraZoneDeepLink()
 
 const leftSectionHeight = ref<number | null>(null)
 
@@ -259,8 +261,7 @@ const loadZonesFromAPI = async () => {
 		hvacZones.value = result.zones || []
 
 		if (!selectedZone.value && hvacZones.value.length > 0) {
-			const first = sortZones(hvacZones.value as any)[0]!
-			selectedZone.value = first.id || first.name
+			selectedZone.value = resolveInitialZoneId(hvacZones.value, (zs) => sortZones(zs as any)[0])
 		}
 
 		await preloadDeviceInfos()

@@ -38,10 +38,10 @@ export const EVENT_TYPE_OPTIONS: Array<{ value: ExportEventTypeId; label: string
 	{ value: "access_control", label: "門禁／刷卡" },
 	{ value: "energy", label: "能源讀數" },
 	{ value: "operational", label: "營運事件" },
-	{ value: "vehicle", label: "車輛通行" },
-	{ value: "people_counting", label: "人流" },
-	{ value: "alerts", label: "警報" },
-	{ value: "environment", label: "環境讀數" },
+	{ value: "vehicle", label: "車輛進出" },
+	{ value: "people_counting", label: "人流紀錄" },
+	{ value: "alerts", label: "警報事件" },
+	{ value: "environment", label: "環境數值" },
 ]
 
 export const EXPORT_FIELD_FORMAT_PLACEHOLDER: Record<string, string> = {
@@ -100,13 +100,67 @@ export const DB_SYNC_DB_TYPE_OPTIONS = [
 	{ value: "mysql", label: "MySQL" },
 ]
 
+export const DB_SYNC_DEFAULT_PUSH_TIME = "18:00"
+
+export const RECORD_EXPORT_DEFAULT_EXPORT_TIME = "00:00"
+
+export const normalizeDailyPushTime = (raw: string): string | null => {
+	const match = /^(\d{1,2}):(\d{2})$/.exec(String(raw ?? "").trim())
+	if (!match) return null
+	const hour = Number(match[1])
+	const minute = Number(match[2])
+	if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null
+	if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null
+	return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
+}
+
+const buildPaddedTimePartOptions = (max: number) =>
+	Array.from({ length: max + 1 }, (_, value) => {
+		const padded = String(value).padStart(2, "0")
+		return { value: padded, label: padded }
+	})
+
+/** 每日 HH:mm 選擇：時（00–23） */
+export const DAILY_TIME_HOUR_OPTIONS = buildPaddedTimePartOptions(23)
+
+/** 每日 HH:mm 選擇：分（00–59） */
+export const DAILY_TIME_MINUTE_OPTIONS = buildPaddedTimePartOptions(59)
+
+export const splitDailyHHmm = (
+	raw: string,
+	fallback = DB_SYNC_DEFAULT_PUSH_TIME,
+): { hour: string; minute: string } => {
+	const normalized = normalizeDailyPushTime(raw) ?? fallback
+	const [hour = "00", minute = "00"] = normalized.split(":")
+	return { hour, minute }
+}
+
+export const joinDailyHHmm = (
+	hour: string,
+	minute: string,
+	fallback = DB_SYNC_DEFAULT_PUSH_TIME,
+): string => normalizeDailyPushTime(`${hour}:${minute}`) ?? fallback
+
 export const eventTypeLabel = (id: string) =>
 	EVENT_TYPE_OPTIONS.find((o) => o.value === id)?.label || id
 
-export const buildEventTypeOptions = (eventTypes: ExportEventTypeInfo[]) =>
-	eventTypes.length
-		? eventTypes.map((t) => ({ value: t.id, label: t.label }))
-		: EVENT_TYPE_OPTIONS
+/** 事件類型下拉選項：標籤固定用 EVENT_TYPE_OPTIONS，對接／轉存共用 */
+export const buildEventTypeOptions = (args?: {
+	availableTypes?: ExportEventTypeInfo[] | null
+	excludeIds?: Iterable<string> | null
+}) => {
+	const allowed = args?.availableTypes?.length
+		? new Set(args.availableTypes.map((t) => String(t.id)))
+		: null
+	const excluded = args?.excludeIds
+		? new Set([...args.excludeIds].map((id) => String(id)))
+		: null
+	return EVENT_TYPE_OPTIONS.filter((o) => {
+		if (allowed && !allowed.has(o.value)) return false
+		if (excluded?.has(o.value)) return false
+		return true
+	})
+}
 
 export const parseIdListText = (raw: string) =>
 	[

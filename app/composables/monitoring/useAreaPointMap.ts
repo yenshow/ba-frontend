@@ -1,6 +1,8 @@
 import { computed, ref, watch, type ComputedRef, type Ref } from "vue"
 import { useAuth } from "~/composables/core/useAuth"
+import { useLicense } from "~/composables/core/useLicense"
 import { useAccessGate, useAreaPointMapRbac } from "~/composables/core/useAccessGate"
+import { useWsFallbackPolling } from "~/composables/monitoring/useWsFallbackPolling"
 import { PERM } from "~/config/permissionCodes"
 import type { SystemType, UnifiedLocation, UnifiedZone } from "~/types/location"
 import { getSystemTypeLabel } from "~/types/location"
@@ -116,16 +118,21 @@ export const useAreaPointMap = (options: {
 }) => {
 	const { selectedZone, selectedSystemType, selectedZoneData } = options
 	const { hasPermission } = useAuth()
+	const { hasFeature, isLoaded: isLicenseLoaded } = useLicense()
 	const { isModuleAccessReady } = useAccessGate()
-	const { getDeletableSystemTypes } = useAreaPointMapRbac()
+	const {
+		getDeletableSystemTypes,
+		canDeleteZone,
+		canDeleteLocation,
+	} = useAreaPointMapRbac()
 
-	const canFetchSystemStatusApi = (system: AreaPointModbusSystem) =>
-		hasPermission(MODULE_BY_SYSTEM[system])
+	const canFetchSystemStatusApi = (system: AreaPointModbusSystem) => {
+		if (!hasPermission(MODULE_BY_SYSTEM[system])) return false
+		if (!isLicenseLoaded.value) return true
+		return hasFeature(system)
+	}
 
 	const canPreferMonitoringOverview = () => hasPermission(PERM.areaPointMap.module)
-
-	/** 點位圖篩選／異常色僅依子系統模組權限，不依聚合回傳擴權 */
-	const canReadSystemStatus = (system: AreaPointModbusSystem) => canFetchSystemStatusApi(system)
 
 	const hasAnyStatusReadPath = () =>
 		AREA_POINT_MODBUS_SYSTEMS.some((s) => canFetchSystemStatusApi(s))
@@ -135,7 +142,7 @@ export const useAreaPointMap = (options: {
 	})
 
 	const filterReadableSystemTypes = (types: SystemType[]): SystemType[] =>
-		types.filter((t) => isAreaPointModbusSystem(t) && canReadSystemStatus(t))
+		types.filter((t) => isAreaPointModbusSystem(t) && canFetchSystemStatusApi(t))
 
 	const lightingApi = useLightingApi()
 	const drainageApi = useDrainageApi()
@@ -546,7 +553,11 @@ export const useAreaPointMap = (options: {
 		opts: { startSync: boolean }
 	) => {
 		if (!canFetchSystemStatusApi(system) || hasLoadedBySystem[system].value) return
-		await snapshotSystemLoaders[system](opts)
+		try {
+			await snapshotSystemLoaders[system](opts)
+		} catch {
+			// 單套 403／未授權／網路失敗不中斷其餘系統
+		}
 	}
 
 	const ensureAllStatusSnapshotsLoaded = async () => {
@@ -559,10 +570,17 @@ export const useAreaPointMap = (options: {
 				// 聚合失敗時改走具權限的單系統 API
 			}
 		}
-		for (const system of AREA_POINT_MODBUS_SYSTEMS) {
-			await loadSnapshotSystemStatus(system, { startSync: false })
-		}
+		await Promise.allSettled(
+			AREA_POINT_MODBUS_SYSTEMS.map((system) =>
+				loadSnapshotSystemStatus(system, { startSync: false }),
+			),
+		)
 	}
+
+	useWsFallbackPolling({
+		callback: () => refreshOverviewFromAggregateApi(),
+		active: () => !selectedSystemType.value && hasAnyStatusReadPath(),
+	})
 
 	const stopAllSystemSnapshotSync = () => {
 		for (const system of AREA_POINT_MODBUS_SYSTEMS) snapshotSystemStops[system]()
@@ -590,8 +608,7 @@ export const useAreaPointMap = (options: {
 				startOverviewSnapshotSync()
 				return
 			}
-			if (!isAreaPointModbusSystem(next) || !canReadSystemStatus(next)) return
-			if (!canFetchSystemStatusApi(next)) return
+			if (!isAreaPointModbusSystem(next) || !canFetchSystemStatusApi(next)) return
 			await snapshotSystemLoaders[next]({ startSync: true })
 		},
 		{ immediate: true }
@@ -618,7 +635,7 @@ export const useAreaPointMap = (options: {
 		system: AreaPointModbusSystem,
 		locationId: string
 	): string | null | undefined => {
-		if (!canReadSystemStatus(system)) return null
+		if (!canFetchSystemStatusApi(system)) return null
 		if (system === "lighting") return lightingHealthByLocationDbId.value.get(locationId)?.status
 		if (system === "hvac") return hvacUiStatusByLocationDbId.value.get(locationId)?.uiStatus
 		return snapshotUiStatusBySystem[system].value.get(locationId) ?? null
@@ -708,9 +725,9 @@ export const useAreaPointMap = (options: {
 		)
 
 	const canSelectSystemTypeOnMap = (systemType: SystemType): boolean => {
+		if (!isAreaPointModbusSystem(systemType)) return false
 		if (!zoneHasSystemType(systemType)) return false
-		if (isAreaPointModbusSystem(systemType)) return canReadSystemStatus(systemType)
-		return getDeletableSystemTypes().includes(systemType)
+		return canFetchSystemStatusApi(systemType)
 	}
 
 	const mapFilterSystemTypes = computed(() =>
@@ -719,12 +736,14 @@ export const useAreaPointMap = (options: {
 		),
 	)
 
-	const inferDefaultManagementSystemType = (): SystemType | null => {
-		const types = mapFilterSystemTypes.value.filter((t) =>
-			getDeletableSystemTypes().includes(t),
-		)
-		return types.length === 1 ? types[0]! : null
-	}
+	const hasAnyReadableMapSystem = computed(() => hasAnyStatusReadPath())
+
+	const canManageMapOperations = computed(
+		() =>
+			canDeleteZone.value ||
+			canDeleteLocation.value ||
+			getDeletableSystemTypes().some((type) => isAreaPointModbusSystem(type as SystemType)),
+	)
 
 	const handleSystemTypeToggle = (systemType: SystemType) => {
 		if (!canSelectSystemTypeOnMap(systemType)) return
@@ -738,9 +757,9 @@ export const useAreaPointMap = (options: {
 
 	return {
 		mapFilterSystemTypes,
-		inferDefaultManagementSystemType,
 		getZoneSystemTypes,
-		canReadSystemStatus,
+		hasAnyReadableMapSystem,
+		canManageMapOperations,
 		currentZoneLocations,
 		getLocationDotStyle,
 		dotStatusForLocation,

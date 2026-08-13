@@ -11,7 +11,6 @@ import type {
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useElevatorLocationApi } from "~/composables/location/api/useElevatorLocationApi"
 import { buildPathWithQuery } from "~/utils/apiUtils"
-import { normalizeElevatorLogDisplayColumns } from "~/utils/elevatorLogColumns"
 import type { ElevatorDeviceRole } from "~/utils/elevatorFloorModel"
 
 type ElevatorSiteListItem = {
@@ -49,7 +48,6 @@ const mergeSiteWithConfig = (
 	callCommandType: "visitor",
 	accessDeviceIds: cfg?.accessDeviceIds ?? [],
 	todayEventCount: site.todayEventCount,
-	logDisplayColumns: normalizeElevatorLogDisplayColumns(cfg?.logDisplayColumns),
 	live: site.live ?? cfg?.live,
 })
 
@@ -109,7 +107,7 @@ export const useElevatorApi = () => {
 
 	const postControl = <T = unknown>(
 		deviceId: number,
-		payload: { gatewayIndex: number; command: string },
+		payload: { gatewayIndex?: number; gatewayIndexes?: number[]; command: string },
 		options?: { locationId?: number; targetLogicalIndex?: number },
 	) =>
 		request<T>(`/ladder-sdk/devices/${deviceId}/control`, {
@@ -141,13 +139,17 @@ export const useElevatorApi = () => {
 
 	const controlLadderDoor = (params: {
 		ladderDeviceId: number
-		gatewayIndex: number
+		gatewayIndexes: number[]
 		command: ElevatorDoorControlCommand
+		locationId?: number
 	}) =>
-		postControl(params.ladderDeviceId, {
-			gatewayIndex: params.gatewayIndex,
-			command: params.command,
-		})
+		postControl<{
+			results?: Array<{ gatewayIndex: number; ok: boolean; error?: string }>
+		}>(
+			params.ladderDeviceId,
+			{ gatewayIndexes: params.gatewayIndexes, command: params.command },
+			{ locationId: params.locationId },
+		)
 
 	const getFloorAccess = (locationId: number) =>
 		request<ElevatorFloorAccessResponse>(`/elevator/locations/${locationId}/floor-access`)

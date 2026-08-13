@@ -90,12 +90,12 @@
 										@update:model-value="handleDialogEventTypeChanged"
 									/>
 								</div>
+								<p class="text-xs text-white/50 2xl:text-sm">
+									每種事件類型僅能設定一組對接；已設定的類型不會出現在清單中。
+								</p>
 							</label>
 
-							<div
-								v-else
-								class="flex flex-col gap-2 text-base text-white/80"
-							>
+							<div v-else class="flex flex-col gap-2 text-base text-white/80">
 								<span>事件類型</span>
 								<p class="form-input-small text-white/90">
 									{{ eventTypeLabel(dialog.form.eventType) }}
@@ -104,16 +104,22 @@
 
 							<label class="flex flex-col gap-2 text-base text-white/80">
 								<span>固定推播時間<span class="required-mark">*</span></span>
-								<input
-									v-model="dialog.form.pushTime"
-									type="text"
-									inputmode="numeric"
-									placeholder="18:00"
-									class="form-input-small"
-									:disabled="dialogBusy"
-									aria-label="推播時間"
-									required
-								/>
+								<div
+									class="flex min-w-0 items-center gap-2"
+									:class="{ 'pointer-events-none opacity-50': dialogBusy }"
+								>
+									<FilterDropdown
+										v-model="pushTimeHour"
+										:options="pushTimeHourOptions"
+										text-size="text-sm 2xl:text-base"
+									/>
+									<span class="shrink-0 text-white/70" aria-hidden="true">:</span>
+									<FilterDropdown
+										v-model="pushTimeMinute"
+										:options="pushTimeMinuteOptions"
+										text-size="text-sm 2xl:text-base"
+									/>
+								</div>
 							</label>
 
 							<label class="flex flex-col gap-2 text-base text-white/80">
@@ -126,6 +132,18 @@
 										@update:model-value="handleDbTypeChanged"
 									/>
 								</div>
+							</label>
+
+							<label class="flex flex-col gap-2 text-base text-white/80">
+								<span>資料庫名稱<span class="required-mark">*</span></span>
+								<input
+									v-model="dialog.form.database"
+									type="text"
+									class="form-input-small"
+									:disabled="dialogBusy"
+									aria-label="資料庫名稱"
+									required
+								/>
 							</label>
 
 							<label class="flex flex-col gap-2 text-base text-white/80">
@@ -154,18 +172,6 @@
 							</label>
 
 							<label class="flex flex-col gap-2 text-base text-white/80">
-								<span>資料庫名稱<span class="required-mark">*</span></span>
-								<input
-									v-model="dialog.form.database"
-									type="text"
-									class="form-input-small"
-									:disabled="dialogBusy"
-									aria-label="資料庫名稱"
-									required
-								/>
-							</label>
-
-							<label class="flex flex-col gap-2 text-base text-white/80">
 								<span>使用者名稱<span class="required-mark">*</span></span>
 								<input
 									v-model="dialog.form.username"
@@ -177,31 +183,33 @@
 								/>
 							</label>
 
-							<label class="col-span-2 flex flex-col gap-2 text-base text-white/80">
+							<label class="flex flex-col gap-2 text-base text-white/80">
 								<span>
 									密碼<span v-if="dialog.mode === 'create'" class="required-mark">*</span>
 								</span>
-								<div class="flex gap-2">
-									<input
-										v-model="dialog.form.password"
-										type="password"
-										autocomplete="off"
-										class="form-input-small min-w-0 flex-1"
-										:disabled="dialogBusy"
-										:placeholder="dialog.mode === 'edit' ? '留空表示不變更' : '第三方資料庫密碼'"
-										:required="dialog.mode === 'create'"
-										aria-label="密碼"
-									/>
-									<button
-										type="button"
-										class="btn-secondary shrink-0 whitespace-nowrap"
-										:disabled="dialogBusy || isTesting"
-										@click="handleTestConnection"
-									>
-										{{ isTesting ? "測試中…" : "測試連線" }}
-									</button>
-								</div>
+								<input
+									v-model="dialog.form.password"
+									type="password"
+									autocomplete="off"
+									class="form-input-small"
+									:disabled="dialogBusy"
+									:placeholder="dialog.mode === 'edit' ? '留空表示不變更' : '第三方資料庫密碼'"
+									:required="dialog.mode === 'create'"
+									aria-label="密碼"
+								/>
 							</label>
+
+							<div class="col-span-2">
+								<button
+									type="button"
+									class="btn-secondary whitespace-nowrap"
+									:disabled="dialogBusy || isTesting"
+									aria-label="測試連線"
+									@click="handleTestConnection"
+								>
+									{{ isTesting ? "測試中…" : "測試連線" }}
+								</button>
+							</div>
 
 							<div class="col-span-2 flex flex-col gap-2">
 								<p class="text-sm font-medium text-white/85 2xl:text-base">欄位映射</p>
@@ -296,9 +304,11 @@ import {
 	useExternalDatabaseSyncForm,
 	type SyncConfig,
 } from "~/composables/core/useExternalDatabaseSyncForm"
-import { getExportFieldFormatPlaceholder } from "~/utils/externalIntegration"
+import { getExportFieldFormatPlaceholder, DAILY_TIME_HOUR_OPTIONS, DAILY_TIME_MINUTE_OPTIONS } from "~/utils/externalIntegration"
 
 const dbTypeOptions = DB_SYNC_DB_TYPE_OPTIONS
+const pushTimeHourOptions = DAILY_TIME_HOUR_OPTIONS
+const pushTimeMinuteOptions = DAILY_TIME_MINUTE_OPTIONS
 
 const confirmDialog = useConfirmDialog()
 const showConfirmDialog = computed({
@@ -324,6 +334,8 @@ const {
 	actionLabel,
 	canCreateMore,
 	createEventTypeOptions,
+	pushTimeHour,
+	pushTimeMinute,
 	eventTypeLabel,
 	getDbTypeLabel,
 	handleDbTypeChanged,

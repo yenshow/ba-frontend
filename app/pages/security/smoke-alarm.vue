@@ -86,6 +86,7 @@ import { useSmokeAlarmModbusIntegration } from "~/composables/monitoring/modbus/
 import type { ManualIssueChangedPayload } from "~/utils/alertUtils"
 import { useManualIssueDiDoRules } from "~/composables/systems/alerts/useManualIssueDiDoRules"
 import { useVisibilitySnapshotSync } from "~/composables/monitoring/useVisibilitySnapshotSync"
+import { useInfraZoneDeepLink } from "~/composables/monitoring/useInfraZoneDeepLink"
 
 definePageMeta({
 	layout: "default",
@@ -98,6 +99,7 @@ const { canManageLocation, canCreateLocation, canUpdateLocation, canDeleteLocati
 const smokeApi = useSmokeAlarmApi()
 const { handleError } = useErrorHandler()
 const toast = useToast()
+const { resolveInitialZoneId } = useInfraZoneDeepLink()
 
 const leftSectionHeight = ref<number | null>(null)
 
@@ -248,8 +250,7 @@ const loadZonesFromAPI = async () => {
 		const result = await smokeApi.getZones()
 		smokeZones.value = result.zones || []
 		if (!selectedZone.value && smokeZones.value.length > 0) {
-			const first = sortZones(smokeZones.value)[0]!
-			selectedZone.value = first.id || first.name
+			selectedZone.value = resolveInitialZoneId(smokeZones.value, (zs) => sortZones(zs)[0])
 		}
 	} catch (error) {
 		handleError(error, "載入區域列表失敗")

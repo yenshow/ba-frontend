@@ -34,10 +34,6 @@ import {
 	normalizeVehicleLogDisplayColumns,
 	toStoredVehicleLogDisplayColumns,
 } from "~/utils/vehicleAccessLogColumns";
-import {
-	normalizeElevatorLogDisplayColumns,
-	toStoredElevatorLogDisplayColumns,
-} from "~/utils/elevatorLogColumns";
 import type { ElevatorZone, ElevatorLocation } from "~/types/elevator";
 import type { ElevatorSystemConfig } from "~/types/location";
 
@@ -1569,7 +1565,6 @@ export function unifiedToElevatorZone(zone: UnifiedZone): ElevatorZone {
 					accessDeviceIds: Array.isArray(cfg.accessDeviceIds)
 						? cfg.accessDeviceIds
 						: [],
-					logDisplayColumns: normalizeElevatorLogDisplayColumns(cfg.logDisplayColumns),
 				},
 			]
 		}),
@@ -1610,12 +1605,6 @@ export function elevatorLocationToUnified(
 					accessDeviceIds: Array.isArray(loc.accessDeviceIds)
 						? loc.accessDeviceIds.filter((id) => Number.isFinite(id) && id > 0)
 						: [],
-					logDisplayColumns: (() => {
-						const stored = toStoredElevatorLogDisplayColumns(
-							normalizeElevatorLogDisplayColumns(loc.logDisplayColumns),
-						)
-						return stored.length > 0 ? stored : undefined
-					})(),
 				},
 			},
 		],

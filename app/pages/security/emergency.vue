@@ -87,6 +87,7 @@ import { useEmergencyRescueModbusIntegration } from "~/composables/monitoring/mo
 import type { ManualIssueChangedPayload } from "~/utils/alertUtils"
 import { useManualIssueDiDoRules } from "~/composables/systems/alerts/useManualIssueDiDoRules"
 import { useVisibilitySnapshotSync } from "~/composables/monitoring/useVisibilitySnapshotSync"
+import { useInfraZoneDeepLink } from "~/composables/monitoring/useInfraZoneDeepLink"
 
 definePageMeta({
 	layout: "default",
@@ -99,6 +100,7 @@ const { canManageLocation, canCreateLocation, canUpdateLocation, canDeleteLocati
 const erApi = useEmergencyRescueApi()
 const { handleError } = useErrorHandler()
 const toast = useToast()
+const { resolveInitialZoneId } = useInfraZoneDeepLink()
 
 const leftSectionHeight = ref<number | null>(null)
 
@@ -263,8 +265,7 @@ const loadZonesFromAPI = async () => {
 		const result = await erApi.getZones()
 		erZones.value = result.zones || []
 		if (!selectedZone.value && erZones.value.length > 0) {
-			const first = sortZones(erZones.value)[0]!
-			selectedZone.value = first.id || first.name
+			selectedZone.value = resolveInitialZoneId(erZones.value, (zs) => sortZones(zs)[0])
 		}
 	} catch (error) {
 		handleError(error, "載入區域列表失敗")

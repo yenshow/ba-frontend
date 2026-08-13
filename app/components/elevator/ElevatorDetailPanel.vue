@@ -28,7 +28,7 @@
 						type="button"
 						class="flex aspect-square w-20 items-center justify-center rounded-full border-2 border-cyan-400/60 bg-cyan-500/70 text-xl font-bold text-white transition-all hover:bg-cyan-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-40 2xl:w-24 2xl:text-2xl"
 						:disabled="isOperationDisabled(cmd.kind)"
-						:aria-label="`${cmd.label} ${selectedFloorLabel}`"
+						:aria-label="operationAriaLabel(cmd)"
 						@click="handleOperation(cmd)"
 					>
 						{{ cmd.label }}
@@ -62,11 +62,31 @@
 								gridColumn: floor.panelCol + 1,
 								gridRow: floor.panelRow + 1,
 							}"
-							:aria-pressed="selectedFloorIndex === floor.index"
+							:aria-pressed="isFloorSelected(floor.index)"
 							:aria-label="`選擇樓層 ${floor.label}`"
-							@click="selectedFloorIndex = floor.index"
+							@click="handleToggleFloor(floor.index)"
 						>
 							{{ floor.label }}
+						</button>
+					</div>
+
+					<div class="mt-3 flex shrink-0 justify-center gap-4 text-sm text-white/70">
+						<button
+							type="button"
+							class="underline-offset-2 hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+							aria-label="全選樓層"
+							@click="handleSelectAllFloors"
+						>
+							全選
+						</button>
+						<button
+							type="button"
+							class="underline-offset-2 hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+							:disabled="selectedFloorIndexes.length === 0"
+							aria-label="清除樓層選取"
+							@click="handleClearFloors"
+						>
+							清除
 						</button>
 					</div>
 
@@ -209,53 +229,94 @@ const commands: PanelOperation[] = [
 	{ kind: "door", label: "常閉", command: "normally_closed" },
 ]
 
-const selectedFloorIndex = ref<number | null>(null)
+const selectedFloorIndexes = ref<number[]>([])
 const isSubmitting = ref(false)
 const errorText = ref<string | null>(null)
 
-const selectedFloorLabel = computed(() => {
-	if (selectedFloorIndex.value == null) return ""
-	return panelFloors.value.find((f) => f.index === selectedFloorIndex.value)?.label ?? ""
-})
+const selectedFloors = computed(() =>
+	selectedFloorIndexes.value
+		.map((index) => panelFloors.value.find((floor) => floor.index === index))
+		.filter((floor): floor is (typeof panelFloors.value)[number] => floor != null)
+)
+
+const selectedFloorLabel = computed(() =>
+	selectedFloors.value.map((floor) => floor.label).join("、")
+)
+
+const isFloorSelected = (index: number) => selectedFloorIndexes.value.includes(index)
 
 const floorButtonClass = (index: number) => {
-	if (selectedFloorIndex.value === index) {
+	if (isFloorSelected(index)) {
 		return "border-cyan-300 bg-cyan-500/70 text-white shadow-[0_0_16px_rgba(34,211,238,0.45)] ring-2 ring-cyan-300/50"
 	}
 	return "border-white/25 bg-white/10 text-white/85 hover:bg-white/20"
 }
 
+const handleToggleFloor = (index: number) => {
+	const current = selectedFloorIndexes.value
+	selectedFloorIndexes.value = current.includes(index)
+		? current.filter((item) => item !== index)
+		: [...current, index]
+	errorText.value = null
+}
+
+const handleSelectAllFloors = () => {
+	selectedFloorIndexes.value = panelFloors.value.map((floor) => floor.index)
+	errorText.value = null
+}
+
+const handleClearFloors = () => {
+	selectedFloorIndexes.value = []
+	errorText.value = null
+}
+
+const operationAriaLabel = (cmd: PanelOperation) => {
+	if (cmd.kind === "call") {
+		return `${cmd.label} ${selectedFloors.value[0]?.label ?? ""}`.trim()
+	}
+	const count = selectedFloorIndexes.value.length
+	if (count === 0) return cmd.label
+	if (count === 1) return `${cmd.label} ${selectedFloorLabel.value}`
+	return `${cmd.label} ${count} 層`
+}
+
 watch(
 	() => [props.callDeviceId, props.floors?.length, props.locationId] as const,
 	() => {
-		selectedFloorIndex.value = null
+		selectedFloorIndexes.value = []
 		errorText.value = null
 	}
 )
 
 const isOperationDisabled = (kind: PanelOperation["kind"]) => {
-	if (isSubmitting.value || !props.canControl || selectedFloorIndex.value == null) return true
+	if (isSubmitting.value || !props.canControl) return true
 	if (kind === "call") {
-		return !props.isCallConnected || !props.callDeviceId
+		return (
+			selectedFloorIndexes.value.length !== 1 ||
+			!props.isCallConnected ||
+			!props.callDeviceId
+		)
 	}
-	return !props.isLadderConnected || !props.ladderDeviceId
+	return (
+		selectedFloorIndexes.value.length < 1 ||
+		!props.isLadderConnected ||
+		!props.ladderDeviceId
+	)
 }
 
 const handleOperation = async (op: PanelOperation) => {
-	if (!props.canControl || panelFloors.value.length === 0) return
-	if (selectedFloorIndex.value == null) {
+	if (!props.canControl || selectedFloors.value.length === 0) {
 		errorText.value = "請先選擇樓層"
 		return
 	}
-	const floor = panelFloors.value.find((f) => f.index === selectedFloorIndex.value)
-	if (!floor) return
 
 	isSubmitting.value = true
 	errorText.value = null
 	try {
 		if (op.kind === "call") {
+			const floor = selectedFloors.value[0]
 			const deviceId = props.callDeviceId
-			if (!deviceId || floor.callGateway == null) {
+			if (!floor || !deviceId || floor.callGateway == null) {
 				errorText.value = "此樓層未設定呼梯 gateway"
 				return
 			}
@@ -264,26 +325,40 @@ const handleOperation = async (op: PanelOperation) => {
 				gatewayIndex: floor.callGateway,
 				command: resolveElevatorCallCommand(),
 				locationId: props.locationId ?? undefined,
-				targetLogicalIndex: selectedFloorIndex.value,
+				targetLogicalIndex: floor.index,
 			})
 			if (res?.live) {
 				applyLiveState(res.live)
 				emit("runtime-updated", res.live)
 			}
 			emit("logs-refresh")
-		} else {
-			const deviceId = props.ladderDeviceId
-			if (!deviceId || floor.ladderGateway == null) {
-				errorText.value = "此樓層未設定梯控 gateway"
-				return
-			}
-			await elevatorApi.controlLadderDoor({
-				ladderDeviceId: deviceId,
-				gatewayIndex: floor.ladderGateway,
-				command: op.command,
-			})
+			toast.success(TOAST.ELEVATOR_COMMAND_SENT)
+			return
 		}
-		toast.success(TOAST.ELEVATOR_COMMAND_SENT)
+
+		const deviceId = props.ladderDeviceId
+		const gatewayIndexes = selectedFloors.value
+			.map((floor) => floor.ladderGateway)
+			.filter((gw): gw is number => gw != null)
+		if (!deviceId || gatewayIndexes.length !== selectedFloors.value.length) {
+			errorText.value = "此樓層未設定梯控 gateway"
+			return
+		}
+		const res = await elevatorApi.controlLadderDoor({
+			ladderDeviceId: deviceId,
+			gatewayIndexes,
+			command: op.command,
+			locationId: props.locationId ?? undefined,
+		})
+		const results = res?.results ?? []
+		const failed = results.filter((row) => !row.ok)
+		if (failed.length < results.length || failed.length === 0) {
+			toast.success(TOAST.ELEVATOR_COMMAND_SENT)
+		}
+		if (failed.length > 0) {
+			errorText.value =
+				failed.length === 1 ? failed[0]?.error || "門控操作失敗" : `${failed.length} 層門控失敗`
+		}
 	} catch (error) {
 		errorText.value = resolveFormApiError(error, op.kind === "call" ? "呼梯失敗" : "門控操作失敗")
 	} finally {

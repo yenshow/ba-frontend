@@ -146,6 +146,8 @@ interface Props {
 	modelValue: boolean
 	zone: UnifiedZone | null
 	systemType?: SystemType
+	/** 限制可見／可刪的系統（全區點位圖傳入地圖型 8 套；未傳則不限） */
+	allowedSystemTypes?: SystemType[]
 }
 
 interface Emits {
@@ -158,11 +160,34 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const { canDeleteZoneForSystem, canDeleteLocationForSystem } = useAreaPointMapRbac()
-const canDeleteZone = computed(() => canDeleteZoneForSystem(props.systemType))
-const canDeleteLocation = computed(() => canDeleteLocationForSystem(props.systemType))
 
-const locationMatchesSystem = (location: UnifiedLocation, systemType?: SystemType) =>
-	!systemType || (location.systems || []).some((s) => s.systemType === systemType)
+const hasAllowedSystemFilter = computed(() => (props.allowedSystemTypes?.length || 0) > 0)
+const mapSystemsOnly = computed(() => hasAllowedSystemFilter.value && !props.systemType)
+
+const canDeleteAnyAllowed = (checker: (systemType: string | null | undefined) => boolean) =>
+	checker(undefined) || (props.allowedSystemTypes || []).some((type) => checker(type))
+
+/** 有篩選系統時依該系統權限；未篩選但有 allowed 清單時可刪（只移允許的系統） */
+const canDeleteZone = computed(() => {
+	if (props.systemType) return canDeleteZoneForSystem(props.systemType)
+	if (hasAllowedSystemFilter.value) return canDeleteAnyAllowed(canDeleteZoneForSystem)
+	return canDeleteZoneForSystem(props.systemType)
+})
+const canDeleteLocation = computed(() => {
+	if (props.systemType) return canDeleteLocationForSystem(props.systemType)
+	if (hasAllowedSystemFilter.value) return canDeleteAnyAllowed(canDeleteLocationForSystem)
+	return canDeleteLocationForSystem(props.systemType)
+})
+
+const isAllowedSystemType = (systemType: SystemType) =>
+	!hasAllowedSystemFilter.value || (props.allowedSystemTypes || []).includes(systemType)
+
+const locationMatchesSystem = (location: UnifiedLocation, systemType?: SystemType) => {
+	const systems = location.systems || []
+	if (systemType) return systems.some((s) => s.systemType === systemType)
+	if (hasAllowedSystemFilter.value) return systems.some((s) => isAllowedSystemType(s.systemType))
+	return true
+}
 
 const visibleLocationEntries = computed(() => {
 	const locations = props.zone?.locations
@@ -210,11 +235,13 @@ const removeLocation = (locationIndex: number) => {
 		locationIndex,
 	})
 	confirmAction.value = "deleteLocation"
+	const mapCount = (location.systems || []).filter((s) => isAllowedSystemType(s.systemType)).length
 	confirmDialog.show(
 		buildDeleteLocationConfirmCopy({
 			hasId: Boolean(location.id),
 			systemType: props.systemType,
-			systemCount: location.systems?.length || 0,
+			systemCount: props.systemType ? location.systems?.length || 0 : mapCount,
+			mapSystemsOnly: mapSystemsOnly.value,
 		}),
 	)
 }
@@ -239,13 +266,19 @@ const handleConfirmDeleteLocation = async () => {
 	}
 
 	try {
-		const result = await removeLocationFromSystemOrDelete({ locationId, systemType: props.systemType })
+		const result = await removeLocationFromSystemOrDelete({
+			locationId,
+			systemType: props.systemType,
+			allowedSystemTypes: mapSystemsOnly.value ? props.allowedSystemTypes : undefined,
+		})
 		if (result.action === "no-op") {
 			errorMessage.value = "此地點不包含本系統"
 			pendingDeleteLocationUiKey.value = null
 			return
 		}
-		toast.success(getLocationDeleteSuccessToast(result.action, props.systemType))
+		toast.success(
+			getLocationDeleteSuccessToast(result.action, props.systemType, mapSystemsOnly.value),
+		)
 	} catch (error) {
 		errorMessage.value = resolveFormApiError(error, "刪除地點失敗")
 		pendingDeleteLocationUiKey.value = null
@@ -260,7 +293,12 @@ const handleDeleteZone = () => {
 	if (!canDeleteZone.value || !props.zone?.id) return
 
 	confirmAction.value = "delete"
-	confirmDialog.show(buildDeleteZoneConfirmCopy({ systemType: props.systemType }))
+	confirmDialog.show(
+		buildDeleteZoneConfirmCopy({
+			systemType: props.systemType,
+			mapSystemsOnly: mapSystemsOnly.value,
+		}),
+	)
 }
 
 const handleConfirmDelete = () => {
@@ -270,7 +308,8 @@ const handleConfirmDelete = () => {
 }
 
 const getLocationSystemsLabel = (location: UnifiedLocation): string => {
-	if (!location.systems?.length) return ""
-	return location.systems.map((system) => getSystemTypeLabel(system.systemType)).join("、")
+	const systems = (location.systems || []).filter((system) => isAllowedSystemType(system.systemType))
+	if (!systems.length) return ""
+	return systems.map((system) => getSystemTypeLabel(system.systemType)).join("、")
 }
 </script>

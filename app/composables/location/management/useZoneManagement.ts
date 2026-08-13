@@ -211,14 +211,17 @@ export function useZoneManagement<
 			reloadZones?: () => void | Promise<void>; // 刪除後重新載入區域資料（用於全區點位圖）
 			// 系統特定的刪除選項（方案一：只刪除該系統的地點）
 			systemType?: SystemType; // 系統類型，如果提供則只刪除該系統的地點
+			/** 全區點位圖未篩選：只移除允許清單內的地圖系統 */
+			allowedSystemTypes?: SystemType[];
 		}
 	): Promise<void> => {
 		try {
-			// 系統頁：使用統一 service 決定「刪整區」或「僅移除本系統」
-			if (options?.systemType) {
+			// 系統頁／全區點位圖：使用統一 service 決定「刪整區」或「僅移除指定系統」
+			if (options?.systemType || options?.allowedSystemTypes?.length) {
 				const result = await deleteZoneWithSystemAwareness({
 					zoneId,
 					systemType: options.systemType,
+					allowedSystemTypes: options.systemType ? undefined : options.allowedSystemTypes,
 				})
 
 				const index = zonesRef.value.findIndex((z) => z.id === zoneId)

@@ -24,7 +24,6 @@ export interface ElevatorLocation {
 	accessDeviceIds?: number[]
 	/** 呼梯 SDK command：固定 visitor=5 */
 	callCommandType?: ElevatorCallCommandType
-	logDisplayColumns?: string[]
 	locationId?: number
 	todayEventCount?: number
 	live?: ElevatorLiveState

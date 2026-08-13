@@ -18,19 +18,19 @@
 									{{ selectedZoneName }}
 								</span>
 							</div>
-							<!-- 區域管理（RBAC：至少具備 zone 或 location 刪除權限） -->
+							<!-- 地點管理（檢視／刪除地圖系統關聯；不可新增或上傳圖） -->
 							<Transition name="fade-in">
 								<PermissionActionButton
 									v-show="!isInitialLoading"
-									:allowed="canManageOperations"
-									aria-label="區域管理"
+									:allowed="canManageMapOperations"
+									aria-label="地點管理"
 									class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base text-white transition-all enabled:hover:bg-white/10 2xl:text-lg"
 									@click="handleOpenZoneDialog"
 								>
-									區域管理
+									地點管理
 								</PermissionActionButton>
 							</Transition>
-							<!-- 系統篩選（選中區域內的子系統） -->
+							<!-- 系統篩選（選中區域內的地圖型子系統） -->
 							<Transition name="fade-in">
 								<div
 									v-if="selectedZoneData && !isInitialLoading"
@@ -50,7 +50,7 @@
 											]"
 										>
 											<div>
-												{{ getLocationTypeLabel(systemType) }}
+												{{ getSystemTypeLabel(systemType) }}
 											</div>
 										</button>
 									</template>
@@ -58,7 +58,7 @@
 										v-else
 										class="rounded-xl border-2 border-white/30 bg-white/5 p-2 text-center text-xs text-white/60 2xl:text-base"
 									>
-										尚無系統
+										尚無地圖系統
 									</div>
 								</div>
 							</Transition>
@@ -78,9 +78,10 @@
 							@load="isZonePlanLoaded = true"
 						/>
 						<div v-else class="flex h-full w-full items-center justify-center text-white/50">
-							<span>尚未設定區域平面圖</span>
+							<span>{{ mapEmptyMessage }}</span>
 						</div>
-						<!-- 地點點位（依篩選系統顯示座標） -->
+						<!-- 地點點位：僅在有平面圖時繪製 -->
+						<template v-if="zonePlanImage">
 						<template v-for="location in currentZoneLocations" :key="location.id">
 							<div class="location-dot-wrapper" :style="getLocationDotStyle(location)">
 								<div
@@ -92,14 +93,19 @@
 									:data-flash="flashModeForLocation(location)"
 									:title="tooltipLabelForLocation(location)"
 									:aria-label="tooltipLabelForLocation(location)"
-									@click.stop="selectLocation(location)"
+									@click.stop="handleActivateLocation(location)"
+									@keydown.enter.prevent="handleActivateLocation(location)"
+									@keydown.space.prevent="handleActivateLocation(location)"
 								></div>
 								<CategoryTooltip
 									:show="true"
 									:category-name="location.name"
 									:is-normal="dotStatusForLocation(location) === 'normal'"
+									:status-type="dotStatusForLocation(location)"
+									:alert-flash="flashModeForLocation(location)"
 								/>
 							</div>
+						</template>
 						</template>
 					</div>
 				</div>
@@ -125,10 +131,26 @@
 						</div>
 					</div>
 
-					<!-- 區域列表 -->
-					<div v-else-if="zones.length > 0" class="space-y-2">
+					<!-- 無可讀地圖系統／無地圖區域 -->
+					<div
+						v-else-if="!hasAnyReadableMapSystem || mapZones.length === 0"
+						class="flex min-h-[200px] items-center justify-center"
+					>
+						<div class="text-center text-white/60">
+							<p class="text-base 2xl:text-lg">
+								{{
+									!hasAnyReadableMapSystem || zones.length > 0
+										? "沒有可檢視的地圖系統"
+										: "尚無區域資料"
+								}}
+							</p>
+						</div>
+					</div>
+
+					<!-- 區域列表（僅含可讀地圖型系統的 zone） -->
+					<div v-else class="space-y-2">
 						<button
-							v-for="zone in sortedZones"
+							v-for="zone in mapZones"
 							:key="zone.id"
 							type="button"
 							class="w-full rounded-lg border border-white/20 bg-white/10 p-3 text-left transition-all"
@@ -145,67 +167,60 @@
 										{{ zone.name }}
 									</span>
 								</div>
-								<div class="flex-1">
+								<div class="min-w-0 flex-1">
 									<div class="text-base text-white/80 2xl:text-lg">
-										<template v-if="getZoneSystemTypes(zone).length > 0">
-											{{
-												getZoneSystemTypes(zone)
-													.map((type) => getLocationTypeLabel(type))
-													.join("、")
-											}}
-										</template>
-										<span v-else class="text-white/50">尚無系統</span>
+										{{
+											getZoneSystemTypes(zone)
+												.map((type) => getSystemTypeLabel(type))
+												.join("、")
+										}}
 									</div>
 								</div>
 							</div>
 						</button>
-					</div>
-
-					<!-- 空狀態 -->
-					<div v-else class="flex min-h-[200px] items-center justify-center">
-						<div class="text-center text-white/60">
-							<p class="text-base 2xl:text-lg">尚無區域資料</p>
-						</div>
 					</div>
 				</div>
 			</aside>
 		</div>
 	</div>
 
-	<!-- 地點管理對話框（依 selectedSystemType 篩選讀寫系統） -->
+	<!-- 地點管理對話框（僅地圖型 8 套；必須帶 systemType） -->
 	<LocationManagementDialog
 		v-model="showLocationManagementDialog"
 		:zone="selectedZoneData"
 		:system-type="selectedSystemType ?? undefined"
+		:allowed-system-types="mapSystemTypes"
 		@delete="handleDeleteUnifiedZone"
 		@zones-changed="loadZones"
 	/>
 </template>
 
 <script setup lang="ts">
-import type { UnifiedZone, UnifiedLocation, SystemType } from "~/types/location"
+import { getSystemTypeLabel, type UnifiedZone, type UnifiedLocation, type SystemType } from "~/types/location"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
-import { useAreaPointMapRbac } from "~/composables/core/useAccessGate"
-import { useAreaPointMap } from "~/composables/monitoring/useAreaPointMap"
+import {
+	AREA_POINT_MODBUS_SYSTEMS,
+	useAreaPointMap,
+} from "~/composables/monitoring/useAreaPointMap"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useZoneManagement } from "~/composables/location/management/useZoneManagement"
 import LocationManagementDialog from "~/components/location/LocationManagementDialog.vue"
 import CategoryTooltip from "~/components/common/CategoryTooltip.vue"
 import { useVisibilitySnapshotSync } from "~/composables/monitoring/useVisibilitySnapshotSync"
-import { getSystemTypeLabel } from "~/types/location"
+import { getInfraSystemRoute } from "~/utils/infraSystemRoutes"
 
 definePageMeta({
 	layout: "default",
 })
 
-const { canManageOperations, canDeleteZoneForSystem } = useAreaPointMapRbac()
 const locationApi = useLocationApi()
 const { handleError } = useErrorHandler()
 const { handleDeleteZone: baseHandleDeleteZone, sortZones } = useZoneManagement<
 	UnifiedLocation,
 	UnifiedZone
 >()
+const mapSystemTypes = [...AREA_POINT_MODBUS_SYSTEMS]
 
 // 左側區塊高度（與右側列表對齊）
 const leftSectionRef = ref<HTMLElement | null>(null)
@@ -237,7 +252,6 @@ const isInitialLoading = ref(true)
 // 選取狀態
 const selectedZone = ref<string>("")
 const selectedLocation = ref<string>("")
-// 平面圖篩選的子系統
 const selectedSystemType = ref<SystemType | null>(null)
 
 // 目前選中區域
@@ -248,8 +262,9 @@ const selectedZoneData = computed(() => {
 
 const {
 	mapFilterSystemTypes,
-	inferDefaultManagementSystemType,
 	getZoneSystemTypes,
+	hasAnyReadableMapSystem,
+	canManageMapOperations,
 	currentZoneLocations,
 	getLocationDotStyle,
 	dotStatusForLocation,
@@ -270,13 +285,35 @@ const selectedZoneName = computed(() => {
 	return selectedZoneData.value?.name || ""
 })
 
-// 排序後的區域列表
-const sortedZones = computed(() => sortZones(zones.value))
+// 僅列出至少有一套可讀地圖型系統的區域
+const mapZones = computed(() =>
+	sortZones(zones.value).filter((zone) => getZoneSystemTypes(zone).length > 0),
+)
 
 // 區域平面圖
 const zonePlanImage = computed(() => selectedZoneData.value?.imageUrl)
 
-const firstZoneByDisplayOrder = (zs: UnifiedZone[]) => sortZones(zs)[0] ?? null
+const mapEmptyMessage = computed(() => {
+	if (!hasAnyReadableMapSystem.value || !selectedZoneData.value) return "沒有可檢視的地圖系統"
+	return "此區尚未上傳平面圖，請至對應系統頁的區域管理設定"
+})
+
+const firstMapZone = (zs: UnifiedZone[]) =>
+	sortZones(zs).find((zone) => getZoneSystemTypes(zone).length > 0) ?? null
+
+watch(zonePlanImage, () => {
+	isZonePlanLoaded.value = false
+})
+
+watch(mapZones, (list) => {
+	if (!list.length) {
+		if (selectedZone.value) selectedZone.value = ""
+		return
+	}
+	if (!list.some((zone) => zone.id === selectedZone.value)) {
+		selectedZone.value = list[0]?.id || ""
+	}
+})
 
 // 載入區域
 const loadZones = async () => {
@@ -284,12 +321,6 @@ const loadZones = async () => {
 	try {
 		const response = await locationApi.getZones()
 		zones.value = response.zones
-
-		// 預設選第一個區域（依 sort_order 排序）
-		if (!selectedZone.value && zones.value.length > 0) {
-			const first = firstZoneByDisplayOrder(zones.value)
-			if (first?.id) selectedZone.value = first.id
-		}
 	} catch (error) {
 		handleError(error, "載入區域列表失敗")
 	} finally {
@@ -298,14 +329,14 @@ const loadZones = async () => {
 }
 
 const handleDeleteUnifiedZone = async (zoneId: string) => {
-	if (!canDeleteZoneForSystem(selectedSystemType.value)) return
-
+	const systemType = selectedSystemType.value
 	await baseHandleDeleteZone(zoneId, zones, locationApi.deleteZone, {
 		selectedZoneRef: selectedZone,
 		selectedLocationRef: selectedLocation,
-		findEarliestZone: firstZoneByDisplayOrder,
+		findEarliestZone: firstMapZone,
 		getLocationId: (loc) => String(loc.id || ""),
-		systemType: selectedSystemType.value ?? undefined,
+		systemType: systemType || undefined,
+		allowedSystemTypes: systemType ? undefined : mapSystemTypes,
 		reloadZones: async () => {
 			await loadZones()
 			showLocationManagementDialog.value = false
@@ -316,33 +347,26 @@ const handleDeleteUnifiedZone = async (zoneId: string) => {
 const handleZoneSelected = (zoneId: string) => {
 	selectedZone.value = zoneId
 	selectedLocation.value = ""
-	// 切換區域時清除系統篩選
 	selectedSystemType.value = null
 }
 
-const selectLocation = (location: UnifiedLocation) => {
+const handleActivateLocation = (location: UnifiedLocation) => {
 	selectedLocation.value = location.id
+	const path = getInfraSystemRoute(selectedSystemType.value)
+	if (!path || !selectedZone.value) return
+	void navigateTo({ path, query: { zone: selectedZone.value } })
 }
 
-const getLocationTypeLabel = getSystemTypeLabel
-
-// 開啟區域管理對話框
 const handleOpenZoneDialog = async () => {
-	if (!canManageOperations.value) return
+	if (!canManageMapOperations.value) return
 	if (zones.value.length === 0) {
 		await loadZones()
-	}
-	if (!selectedSystemType.value) {
-		const inferred = inferDefaultManagementSystemType()
-		if (inferred) selectedSystemType.value = inferred
 	}
 	showLocationManagementDialog.value = true
 }
 
-// 分頁回到前景時重新載入
 const handleVisibilityChange = () => {
 	if (document.visibilityState === "visible") {
-		// 重新載入區域並恢復快照輪詢
 		void loadZones()
 		handleRuntimeVisibility()
 	}
@@ -354,30 +378,22 @@ const visibilityRefresh = useVisibilitySnapshotSync({
 	onVisible: handleVisibilityChange,
 })
 
-// 初始化
 onMounted(async () => {
-	// 啟動 ResizeObserver
 	initLeftSectionObserver()
 
 	try {
-		// 載入區域（useAreaPointMap 的 watch immediate 會接續處理快照）
 		await loadZones()
-
-		// 同步高度
 		await nextTick()
 		updateLeftSectionHeight()
 	} catch (error) {
 		handleError(error, "頁面初始化失敗")
 	} finally {
-		// 結束初始載入遮罩（系統篩選按鈕才顯示）
 		isInitialLoading.value = false
 	}
 
-	// 監聽分頁可見性
 	visibilityRefresh.start()
 })
 
-// 清理
 onBeforeUnmount(() => {
 	visibilityRefresh.stop()
 	stopOverviewSnapshotSync()
@@ -389,5 +405,3 @@ onBeforeUnmount(() => {
 	}
 })
 </script>
-
-<style scoped></style>

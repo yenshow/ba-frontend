@@ -15,11 +15,14 @@ import {
 	DATE_FORMAT_OPTIONS,
 	getFilterFieldLabel,
 	isGroupFilterRequired,
+	normalizeDailyPushTime,
 	OUTPUT_FORMAT_OPTIONS,
+	RECORD_EXPORT_DEFAULT_EXPORT_TIME,
 	STORAGE_TYPE_OPTIONS,
 	TIME_FORMAT_OPTIONS,
 	eventTypeLabel,
 } from "~/utils/externalIntegration"
+import { useDailyHHmmField } from "~/composables/core/useDailyHHmmField"
 
 type RuleField = {
 	fieldKey: string
@@ -31,7 +34,6 @@ type RuleRecord = {
 	id: number
 	eventType?: string
 	name: string
-	description?: string
 	filenamePrefix?: string
 	dateFormat?: string
 	timeFormat?: string
@@ -56,7 +58,6 @@ type RuleDialogForm = {
 	id: number | null
 	eventType: string
 	name: string
-	description: string
 	filenamePrefix: string
 	dateFormat: string
 	timeFormat: string
@@ -78,7 +79,6 @@ const createEmptyForm = (): RuleDialogForm => ({
 	id: null,
 	eventType: "access_control",
 	name: "",
-	description: "",
 	filenamePrefix: "Export_Record",
 	dateFormat: "yyyy-MM-dd",
 	timeFormat: "HHmmss",
@@ -86,7 +86,7 @@ const createEmptyForm = (): RuleDialogForm => ({
 	storageType: "local",
 	localDir: "",
 	sftp: { host: "", port: "22", username: "", password: "", remoteDir: "" },
-	exportTime: "00:00",
+	exportTime: RECORD_EXPORT_DEFAULT_EXPORT_TIME,
 	groupIds: [],
 	deviceIdsText: "",
 	locationIdsText: "",
@@ -128,8 +128,18 @@ export const useRecordExportRulesForm = () => {
 	const dialogBusy = computed(() => !canAdmin.value || isSaving.value)
 	const formDisabled = computed(() => isLoading.value || !canAdmin.value)
 	const actionLabel = "新增規則"
-	const eventTypeOptions = computed(() => buildEventTypeOptions(eventTypes.value))
+	const eventTypeOptions = computed(() =>
+		buildEventTypeOptions({ availableTypes: eventTypes.value }),
+	)
 	const filterKind = computed(() => filterSchema.value?.kind ?? null)
+
+	const { hour: exportTimeHour, minute: exportTimeMinute } = useDailyHHmmField(
+		() => dialog.form.exportTime,
+		(value) => {
+			dialog.form.exportTime = value
+		},
+		RECORD_EXPORT_DEFAULT_EXPORT_TIME,
+	)
 
 	const filterLabel = (key: string, fallback: string) =>
 		getFilterFieldLabel(filterSchema.value, key, fallback)
@@ -190,14 +200,14 @@ export const useRecordExportRulesForm = () => {
 		dialog.form.id = full.id
 		dialog.form.eventType = full.eventType || "access_control"
 		dialog.form.name = full.name || ""
-		dialog.form.description = full.description || ""
 		dialog.form.filenamePrefix = full.filenamePrefix || "Export_Record"
 		dialog.form.dateFormat = full.dateFormat || "yyyy-MM-dd"
 		dialog.form.timeFormat = full.timeFormat || "HHmmss"
 		dialog.form.outputFormat = full.outputFormat || "csv"
 		dialog.form.storageType = full.storageType || "local"
 		dialog.form.localDir = full.localDir || ""
-		dialog.form.exportTime = full.exportTime || "00:00"
+		dialog.form.exportTime =
+			normalizeDailyPushTime(full.exportTime) ?? RECORD_EXPORT_DEFAULT_EXPORT_TIME
 		const filter = full.filter || {}
 		dialog.form.groupIds = Array.isArray(full.groupIds)
 			? full.groupIds
@@ -301,7 +311,6 @@ export const useRecordExportRulesForm = () => {
 			const body = {
 				eventType: dialog.form.eventType,
 				name: dialog.form.name,
-				description: dialog.form.description,
 				filenamePrefix: dialog.form.filenamePrefix,
 				dateFormat: dialog.form.dateFormat,
 				timeFormat: dialog.form.timeFormat,
@@ -376,6 +385,8 @@ export const useRecordExportRulesForm = () => {
 		groupTree,
 		groupTreeLoading,
 		eventTypeOptions,
+		exportTimeHour,
+		exportTimeMinute,
 		filterKind,
 		filterLabel,
 		eventTypeLabel,

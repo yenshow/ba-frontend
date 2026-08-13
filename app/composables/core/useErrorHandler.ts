@@ -99,18 +99,15 @@ export const useErrorHandler = () => {
 			defaultMessage ||
 			(options?.context ? getErrorContextFallbackMessage(options.context) : "")
 
+		let resolved = fallback
 		if (error instanceof ApiRequestError) {
-			if (error.isGenericMessage && fallback) {
-				return fallback
-			}
-			return error.message || fallback
+			resolved = error.isGenericMessage && fallback ? fallback : error.message || fallback
+		} else if (error instanceof Error) {
+			resolved = error.message || String(error) || defaultMessage
+		} else if (typeof error === "string") {
+			resolved = error
 		}
-		if (error instanceof Error) {
-			return simplifyUserFacingToastMessage(error.message || String(error) || defaultMessage)
-		}
-		return simplifyUserFacingToastMessage(
-			typeof error === "string" ? error : defaultMessage,
-		)
+		return simplifyUserFacingToastMessage(resolved) || resolved
 	}
 
 	const handleError = (

@@ -529,12 +529,16 @@ export const extractBackendApiErrorText = (error: unknown, path?: string): strin
 const looksLikeOfetchDebugLine = (s: string): boolean => {
 	const t = String(s || "").trim()
 	if (!t) return false
-	return (/^\[\s*\w+\]\s+"/.test(t) && /\d{3}\b/.test(t)) || /\bHTTP_\d{3}\b/i.test(t)
+	// ofetch：`[GET] "/api/...": 500` 或 `[GET] "/api/...": <no response> [TimeoutError]`
+	if (/^\[\s*(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s*\]\s+"/i.test(t)) return true
+	if (t.includes("<no response>")) return true
+	return /\bHTTP_\d{3}\b/i.test(t)
 }
 
 export const simplifyUserFacingToastMessage = (msg: string): string => {
 	const s = String(msg || "").trim()
 	if (!s) return s
+	if (isApiRequestTimeout({ message: s })) return USER_FACING_REQUEST_TIMEOUT
 	if (looksLikeOfetchDebugLine(s) || isLikelyHtmlOrDocumentErrorPage(s))
 		return USER_FACING_API_UNEXPECTED
 	let clipped = s

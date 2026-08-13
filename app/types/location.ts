@@ -243,7 +243,6 @@ export interface ElevatorSystemConfig {
 	accessDeviceIds?: number[];
 	/** 固定 visitor（SDK command 5） */
 	callCommandType?: "visitor";
-	logDisplayColumns?: string[];
 }
 
 /**

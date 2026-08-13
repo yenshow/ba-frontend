@@ -7,8 +7,11 @@ import type { ExportEventTypeInfo, ExportFieldCatalogItem } from "~/utils/extern
 import {
 	buildEventTypeOptions,
 	DB_SYNC_DB_TYPE_OPTIONS,
+	DB_SYNC_DEFAULT_PUSH_TIME,
 	eventTypeLabel,
+	normalizeDailyPushTime,
 } from "~/utils/externalIntegration"
+import { useDailyHHmmField } from "~/composables/core/useDailyHHmmField"
 
 export { DB_SYNC_DB_TYPE_OPTIONS }
 
@@ -60,7 +63,7 @@ const DB_TYPE_LABEL: Record<string, string> = {
 
 const createEmptyForm = (): SyncForm => ({
 	eventType: "access_control",
-	pushTime: "18:00",
+	pushTime: DB_SYNC_DEFAULT_PUSH_TIME,
 	dbType: "postgres",
 	host: "",
 	port: "5432",
@@ -100,12 +103,21 @@ export const useExternalDatabaseSyncForm = () => {
 	const dialogBusy = computed(() => !canAdmin.value || isSaving.value)
 	const actionLabel = "新增設定"
 
-	const allEventTypeOptions = computed(() => buildEventTypeOptions(eventTypes.value))
-	const configuredEventTypes = computed(() => new Set(configs.value.map((c) => c.eventType)))
 	const createEventTypeOptions = computed(() =>
-		allEventTypeOptions.value.filter((o) => !configuredEventTypes.value.has(o.value)),
+		buildEventTypeOptions({
+			availableTypes: eventTypes.value,
+			excludeIds: configs.value.map((c) => c.eventType),
+		}),
 	)
 	const canCreateMore = computed(() => createEventTypeOptions.value.length > 0)
+
+	const { hour: pushTimeHour, minute: pushTimeMinute } = useDailyHHmmField(
+		() => dialog.form.pushTime,
+		(value) => {
+			dialog.form.pushTime = value
+		},
+		DB_SYNC_DEFAULT_PUSH_TIME,
+	)
 
 	const ensureFieldMapping = (key: string) => {
 		if (!dialog.form.mappings[key]) {
@@ -156,7 +168,8 @@ export const useExternalDatabaseSyncForm = () => {
 
 	const applyConfigToDialog = (cfg: SyncConfig) => {
 		dialog.form.eventType = cfg.eventType
-		dialog.form.pushTime = cfg.pushTime || "18:00"
+		dialog.form.pushTime =
+			normalizeDailyPushTime(cfg.pushTime) ?? DB_SYNC_DEFAULT_PUSH_TIME
 		dialog.form.dbType = cfg.dbType || "postgres"
 		dialog.form.host = cfg.host || ""
 		dialog.form.port = String(cfg.port ?? DEFAULT_PORT[cfg.dbType] ?? "5432")
@@ -315,6 +328,8 @@ export const useExternalDatabaseSyncForm = () => {
 		actionLabel,
 		canCreateMore,
 		createEventTypeOptions,
+		pushTimeHour,
+		pushTimeMinute,
 		eventTypeLabel,
 		getDbTypeLabel,
 		handleDbTypeChanged,

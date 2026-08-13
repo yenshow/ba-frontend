@@ -288,27 +288,6 @@
 				</table>
 			</div>
 		</section>
-
-		<div :class="fieldLabelClass">
-			<span>事件表顯示欄位</span>
-			<div class="grid grid-cols-2 gap-2 lg:grid-cols-3">
-				<label
-					v-for="key in ELEVATOR_TOGGLEABLE_LOG_COLUMN_KEYS"
-					:key="key"
-					class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 px-2 py-1.5"
-				>
-					<input
-						type="checkbox"
-						:checked="isColumnEnabled(key)"
-						class="h-4 w-4 accent-cyan-400"
-						@change="handleToggleColumn(key)"
-					/>
-					<span class="text-xs text-white/90 2xl:text-sm">{{
-						ELEVATOR_LOG_COLUMN_LABELS[key]
-					}}</span>
-				</label>
-			</div>
-		</div>
 	</div>
 </template>
 
@@ -317,13 +296,6 @@ import { computed, reactive, ref, watch } from "vue"
 import type { ElevatorLocation } from "~/types/elevator"
 import { isHcnetSdkDevice, type Device } from "~/types/device"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
-import {
-	ELEVATOR_LOG_COLUMN_LABELS,
-	ELEVATOR_TOGGLEABLE_LOG_COLUMN_KEYS,
-	normalizeElevatorLogDisplayColumns,
-	toStoredElevatorLogDisplayColumns,
-	type ElevatorLogColumnKey,
-} from "~/utils/elevatorLogColumns"
 import {
 	autoFillFloorBindings,
 	clampOpenDuration,
@@ -577,20 +549,6 @@ const handleFloorMetaChange = (index: number) => {
 	if (!floor) return
 	floor.name = String(floor.name ?? "").trimStart()
 	floor.openDuration = clampOpenDuration(floor.openDuration)
-	handleChange()
-}
-
-const enabledColumns = computed(() =>
-	normalizeElevatorLogDisplayColumns(localLocation.logDisplayColumns)
-)
-const isColumnEnabled = (key: ElevatorLogColumnKey) => enabledColumns.value.includes(key)
-
-const handleToggleColumn = (key: ElevatorLogColumnKey) => {
-	const current = new Set(enabledColumns.value)
-	if (current.has(key)) current.delete(key)
-	else current.add(key)
-	const normalized = normalizeElevatorLogDisplayColumns([...current])
-	localLocation.logDisplayColumns = toStoredElevatorLogDisplayColumns(normalized)
 	handleChange()
 }
 
