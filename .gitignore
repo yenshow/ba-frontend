@@ -26,3 +26,10 @@ logs
 .prettierrc
 
 .vscode/*
+
+# Playwright E2E
+e2e/.auth/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

@@ -7,7 +7,9 @@
 		"dev": "nuxt dev",
 		"generate": "nuxt generate",
 		"preview": "nuxt preview",
-		"postinstall": "nuxt prepare"
+		"postinstall": "nuxt prepare",
+		"test:e2e": "playwright test",
+		"test:e2e:ui": "playwright test --ui"
 	},
 	"dependencies": {
 		"@nuxt/image": "^1.11.0",
@@ -24,6 +26,7 @@
 		"vue-router": "^4.6.3"
 	},
 	"devDependencies": {
+		"@playwright/test": "^1.62.1",
 		"@types/node": "^24.10.1",
 		"@types/qrcode": "^1.5.6",
 		"prettier": "^3.7.4",

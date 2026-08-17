@@ -8,7 +8,7 @@
 					:disabled="selectedMainGroupId == null"
 					aria-label="群組成員"
 					class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white enabled:hover:bg-white/30 2xl:px-6 2xl:py-3 2xl:text-base"
-					@click="showGroupMembersDialog = true"
+					@click="openGroupMembersDialog"
 				>
 					群組成員
 				</PermissionActionButton>
@@ -26,7 +26,7 @@
 					:allowed="canCreatePerson"
 					aria-label="批次匯入"
 					class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white enabled:hover:bg-white/30 2xl:px-6 2xl:py-3 2xl:text-base"
-					@click="showImportDialog = true"
+					@click="openImportDialog"
 				>
 					批次匯入
 				</PermissionActionButton>
@@ -295,6 +295,14 @@ const {
 	personCloseConfirmConfig,
 	confirmPersonDialogDismiss
 } = props.personsTab;
+
+const openGroupMembersDialog = () => {
+	showGroupMembersDialog.value = true;
+};
+
+const openImportDialog = () => {
+	showImportDialog.value = true;
+};
 
 const confirmDialog = useConfirmDialog();
 const showConfirmDialog = confirmDialog.showDialog;

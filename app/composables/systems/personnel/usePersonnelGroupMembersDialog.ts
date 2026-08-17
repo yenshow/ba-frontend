@@ -48,7 +48,9 @@ export const usePersonnelGroupMembersDialog = (params: {
 
 	const childQuery = ref("")
 	const activeChildId = ref<number | null>(null)
-	const activeChild = computed(() => childGroups.value.find((c) => c.id === activeChildId.value) ?? null)
+	const activeChild = computed(
+		() => childGroups.value.find((c) => c.id === activeChildId.value) ?? null
+	)
 	const filteredChildGroups = computed(() => {
 		const q = childQuery.value.trim()
 		if (!q) return childGroups.value
@@ -69,6 +71,7 @@ export const usePersonnelGroupMembersDialog = (params: {
 	const candidatesItems = ref<Person[]>([])
 	const isLoadingCandidates = ref(false)
 	const candidatesErrorText = ref<string | null>(null)
+
 	const hasCandidateItems = computed(() => candidatesItems.value.length > 0)
 
 	const changedFieldsList = computed(() =>
@@ -77,10 +80,10 @@ export const usePersonnelGroupMembersDialog = (params: {
 				(child) =>
 					!memberIdSetsEqual(
 						memberIdsByChildId.value[child.id] ?? [],
-						initialMemberIdsByChildId.value[child.id] ?? [],
-					),
+						initialMemberIdsByChildId.value[child.id] ?? []
+					)
 			)
-			.map((child) => child.name?.trim() || `子群組 ${child.id}`),
+			.map((child) => child.name?.trim() || `子群組 ${child.id}`)
 	)
 
 	const hasUnsavedChanges = computed(() => changedFieldsList.value.length > 0)
@@ -103,7 +106,7 @@ export const usePersonnelGroupMembersDialog = (params: {
 		const map = { ...memberIdsByChildId.value }
 		const next = new Set(map[cid] ?? [])
 		if (checked) next.add(pid)
-		else next.delete(pid)
+		else next.delete(pid) // 取消勾選：移出當前子群組 → 未分組（不自動加入其他群組）
 		map[cid] = [...next]
 		memberIdsByChildId.value = map
 	}
@@ -112,7 +115,7 @@ export const usePersonnelGroupMembersDialog = (params: {
 		candidatesItems.value
 			.map((p) => Number(p.id))
 			.filter((id) => Number.isFinite(id))
-			.map((id) => Math.trunc(id)),
+			.map((id) => Math.trunc(id))
 	)
 
 	const isAllSelectedInActiveChild = computed(() => {
@@ -167,6 +170,8 @@ export const usePersonnelGroupMembersDialog = (params: {
 		closePanel()
 	}
 
+	// ----- 衝突偵測與解決 -----
+
 	type ConflictItem = {
 		personId: number
 		displayName: string
@@ -219,7 +224,9 @@ export const usePersonnelGroupMembersDialog = (params: {
 		const items = conflicts.value
 		if (items.length === 0) return false
 		const next: Record<number, number | null> = {}
-		for (const item of items) next[item.personId] = null
+		for (const item of items) {
+			next[item.personId] = null
+		}
 		conflictResolutions.value = next
 		showConflictDialog.value = true
 		return true
@@ -248,6 +255,7 @@ export const usePersonnelGroupMembersDialog = (params: {
 			for (const cid of item.childIds) {
 				map[cid] = (map[cid] ?? []).filter((id) => id !== item.personId)
 			}
+			// -1 代表未分組：不加入任何子群組
 			if (choice != null && choice !== -1) {
 				map[choice] = [...new Set([...(map[choice] ?? []), item.personId])]
 			}
@@ -271,7 +279,7 @@ export const usePersonnelGroupMembersDialog = (params: {
 					const res = await personnelApi.getPersonGroupMemberIds(child.id)
 					const list = Array.isArray(res?.ids) ? res.ids.map((x) => Math.trunc(x)) : []
 					return [child.id, list] as const
-				}),
+				})
 			)
 			const map: Record<number, number[]> = {}
 			for (const [childId, list] of entries) map[childId] = list
@@ -352,7 +360,7 @@ export const usePersonnelGroupMembersDialog = (params: {
 		([open]) => {
 			if (open) void initDialog()
 		},
-		{ immediate: true },
+		{ immediate: true }
 	)
 
 	return {

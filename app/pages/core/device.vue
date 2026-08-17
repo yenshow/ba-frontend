@@ -44,7 +44,7 @@
 								:allowed="canCreateDevice"
 								aria-label="新增設備"
 								class="rounded-xl bg-emerald-500/80 px-4 py-2 text-base text-white enabled:hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-lg"
-								@click="showCreateDialog = true"
+								@click="openCreateDevice"
 								>新增設備</PermissionActionButton
 							>
 						</div>
@@ -454,6 +454,11 @@ const initDefaultTab = () => {
 	const first = deviceTabs[0];
 	if (!first) return;
 	activeTab.value = first.code;
+};
+
+const openCreateDevice = () => {
+	editingDevice.value = null;
+	showCreateDialog.value = true;
 };
 
 const editDevice = (device: Device) => {

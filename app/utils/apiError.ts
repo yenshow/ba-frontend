@@ -697,8 +697,14 @@ export const resolveUserFacingApiError = (
 // --- 表單 inline 錯誤（不 toast）---
 
 /** 解析 API 錯誤為使用者可見字串（供開啟中的表單／dialog 使用） */
-export const resolveFormApiError = (error: unknown, fallback: string): string =>
-	resolveUserFacingCatchMessage(error, fallback);
+export const resolveFormApiError = (error: unknown, fallback: string): string => {
+	// 人員驗證失敗時後端 message 即業務原因（如「尚有人員無法刪除」），優於 prefix 通用句／fallback
+	if (error instanceof ApiRequestError) {
+		const orig = clipText(error.originalMessage);
+		if (error.backendCode === "PERSONNEL_VALIDATION_FAILED" && orig) return orig;
+	}
+	return resolveUserFacingCatchMessage(error, fallback);
+};
 
 /** 將 API 錯誤寫入 ref（不 toast） */
 export const applyFormApiErrorToRef = (

@@ -9,7 +9,9 @@
 					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-5xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:max-w-6xl 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
 				>
 					<header class="flex items-center justify-between pr-7 2xl:pr-8">
-						<h3 class="min-w-0 truncate text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">
+						<h3
+							class="min-w-0 truncate text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl"
+						>
 							{{ dialogTitle }}
 						</h3>
 						<div class="flex shrink-0 items-center gap-3">
@@ -62,7 +64,10 @@
 										<p v-else-if="errorMessage" class="form-error-text-lg" role="alert">
 											{{ errorMessage }}
 										</p>
-										<div v-else-if="filteredChildGroups.length === 0" class="py-10 text-center text-white/60">
+										<div
+											v-else-if="filteredChildGroups.length === 0"
+											class="py-10 text-center text-white/60"
+										>
 											無符合的子群組
 										</div>
 										<div v-else class="space-y-2">
@@ -81,7 +86,9 @@
 												@click="setActiveChild(child.id)"
 											>
 												<span class="min-w-0 truncate font-medium">{{ child.name }}</span>
-												<span class="shrink-0 rounded-full bg-white/15 px-2.5 py-0.5 text-xs text-white/70">
+												<span
+													class="shrink-0 rounded-full bg-white/15 px-2.5 py-0.5 text-xs text-white/70"
+												>
 													{{ memberCountForChild(child.id) }}
 												</span>
 											</button>
@@ -123,7 +130,9 @@
 												type="button"
 												class="btn-secondary shrink-0 whitespace-nowrap text-xs 2xl:text-sm"
 												:disabled="!hasCandidateItems || isSaving || activeChildId == null"
-												:aria-label="isAllSelectedInActiveChild ? '取消全選可見人員' : '全選可見人員'"
+												:aria-label="
+													isAllSelectedInActiveChild ? '取消全選可見人員' : '全選可見人員'
+												"
 												@click="toggleSelectAllInActiveChild"
 											>
 												{{ isAllSelectedInActiveChild ? "取消" : "全選" }}
@@ -174,7 +183,10 @@
 														:disabled="isSaving"
 														:aria-label="`子群組 ${activeChild?.name || ''}：${p.employee_no} ${p.full_name || ''}`"
 														@change="
-															handleToggleMember(Number(p.id), ($event.target as HTMLInputElement).checked)
+															handleToggleMember(
+																Number(p.id),
+																($event.target as HTMLInputElement).checked
+															)
 														"
 													/>
 													<span class="min-w-0 truncate text-sm text-white/90">
@@ -227,7 +239,9 @@
 						</div>
 					</div>
 
-					<footer class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8">
+					<footer
+						class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8"
+					>
 						<button type="button" class="btn-secondary" @click="requestClose">關閉</button>
 						<div class="flex-1"></div>
 						<button
@@ -283,7 +297,9 @@
 					</header>
 
 					<div class="show-scrollbar min-h-0 flex-1 overflow-y-auto pe-1">
-						<div v-if="conflicts.length === 0" class="py-10 text-center text-white/60">目前沒有衝突</div>
+						<div v-if="conflicts.length === 0" class="py-10 text-center text-white/60">
+							目前沒有衝突
+						</div>
 						<div v-else class="space-y-3">
 							<section
 								v-for="item in conflicts"
@@ -300,7 +316,9 @@
 											此人員同時被勾選於 {{ item.childIds.length }} 個子群組
 										</p>
 									</div>
-									<span class="rounded bg-amber-500/20 px-2 py-0.5 text-xs text-amber-200">需選擇</span>
+									<span class="rounded bg-amber-500/20 px-2 py-0.5 text-xs text-amber-200"
+										>需選擇</span
+									>
 								</div>
 
 								<div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -366,25 +384,25 @@
 </template>
 
 <script setup lang="ts">
-import type { PersonGroup } from "~/types/personnel";
-import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
-import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
-import SearchInput from "~/components/common/SearchInput.vue";
-import { useToast } from "~/composables/core/useToast";
-import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi";
-import { usePersonnelGroupMembersDialog } from "~/composables/systems/personnel/usePersonnelGroupMembersDialog";
-import type { PersonnelGroupsChangedPayload } from "~/utils/personnelGroups";
+import type { PersonGroup } from "~/types/personnel"
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
+import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
+import SearchInput from "~/components/common/SearchInput.vue"
+import { useToast } from "~/composables/core/useToast"
+import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
+import { usePersonnelGroupMembersDialog } from "~/composables/systems/personnel/usePersonnelGroupMembersDialog"
+import type { PersonnelGroupsChangedPayload } from "~/utils/personnelGroups"
 
 const props = defineProps<{
-	modelValue: boolean;
-	mainGroupId: number;
-	groupTree: PersonGroup[];
-}>();
+	modelValue: boolean
+	mainGroupId: number
+	groupTree: PersonGroup[]
+}>()
 
 const emit = defineEmits<{
-	"update:modelValue": [value: boolean];
-	changed: [payload: PersonnelGroupsChangedPayload];
-}>();
+	"update:modelValue": [value: boolean]
+	changed: [payload: PersonnelGroupsChangedPayload]
+}>()
 
 const {
 	dialogTitle,
@@ -422,17 +440,17 @@ const {
 	requestClose,
 	showConfirmDialog,
 	confirmDialogConfig,
-	confirmDismiss
+	confirmDismiss,
 } = usePersonnelGroupMembersDialog({
 	personnelApi: usePersonnelApi(),
 	mainGroupId: toRef(props, "mainGroupId"),
 	groupTree: toRef(props, "groupTree"),
 	modelValue: toRef(props, "modelValue"),
 	onSaved: () => {
-		emit("changed", { scope: "members" });
-		emit("update:modelValue", false);
+		emit("changed", { scope: "members" })
+		emit("update:modelValue", false)
 	},
 	dismissDialog: () => emit("update:modelValue", false),
-	toast: useToast()
-});
+	toast: useToast(),
+})
 </script>

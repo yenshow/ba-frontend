@@ -12,7 +12,7 @@
 					:allowed="canAdmin"
 					aria-label="新增用戶"
 					class="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white enabled:hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-base"
-					@click="showCreateDialog = true"
+					@click="openCreateUser"
 				>
 					新增用戶
 				</PermissionActionButton>
@@ -293,6 +293,10 @@ const { handleError: handleApiError } = useErrorHandler()
 
 const dateSortOrder = ref<"asc" | "desc">("asc") // 預設由舊到新
 const showCreateDialog = ref(false)
+
+const openCreateUser = () => {
+	showCreateDialog.value = true
+}
 const editingUser = ref<User | null>(null)
 const isSubmitting = ref(false)
 const errorMessage = ref<string | null>(null)

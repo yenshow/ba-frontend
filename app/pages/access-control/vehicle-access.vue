@@ -53,7 +53,7 @@
 						:allowed="canOpenPlateManage"
 						aria-label="車牌管理"
 						class="btn-monitoring-overlay absolute left-32 top-2 2xl:left-36"
-						@click="showIsapiManageDialog = true"
+						@click="openIsapiManageDialog"
 					>
 						車牌管理
 					</PermissionActionButton>
@@ -342,6 +342,10 @@ const { request } = useApiBase();
 const showSimulationFrame = ref(false);
 const isGroupDialogOpen = ref(false);
 const showIsapiManageDialog = ref(false);
+
+const openIsapiManageDialog = () => {
+	showIsapiManageDialog.value = true;
+};
 /** 左側詳情：人員群組／柵欄機切換；預設人員群組 */
 const showDetailBarrierPanel = ref(false);
 

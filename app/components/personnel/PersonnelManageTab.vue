@@ -9,7 +9,7 @@
 						:allowed="canManageGroups"
 						aria-label="管理群組"
 						:class="actionButtonClass"
-						@click="showGroupsDialog = true"
+						@click="openGroupsDialog"
 					>
 						管理群組
 					</PermissionActionButton>
@@ -217,6 +217,10 @@ const handleGroupsChanged = async (payload: PersonnelGroupsChangedPayload) => {
 		}
 	}
 	void props.personsTab.loadPersons()
+}
+
+const openGroupsDialog = () => {
+	showGroupsDialog.value = true
 }
 
 onMounted(() => {
