@@ -56,7 +56,7 @@
 						:allowed="canOpenAccessManage"
 						aria-label="門禁管理"
 						class="absolute left-32 2xl:left-36 top-2 btn-monitoring-overlay"
-						@click="showAccessManageDialog = true"
+						@click="openAccessManageDialog"
 					>
 						門禁管理
 					</PermissionActionButton>
@@ -353,6 +353,10 @@ const isCameraFaceRecognition = computed(
 )
 const isAccessControl = computed(() => selectedLocation.value?.dataSource === "access_control")
 const showAccessManageDialog = ref(false)
+
+const openAccessManageDialog = () => {
+	showAccessManageDialog.value = true
+}
 const selectedLocationNumericId = computed(() => {
 	const id = selectedLocation.value?.locationId ?? selectedLocation.value?.id
 	const n = Number(id)

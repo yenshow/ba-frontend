@@ -45,7 +45,7 @@
 						:allowed="canManageLocation"
 						aria-label="地點管理"
 						class="absolute left-8 top-2 btn-monitoring-overlay"
-						@click="showLocationManagementDialog = true"
+						@click="openLocationManagementDialog"
 					>
 						地點管理
 					</PermissionActionButton>
@@ -54,7 +54,7 @@
 						:allowed="canFloorManage"
 						aria-label="樓層管理"
 						class="absolute left-32 2xl:left-36 top-2 btn-monitoring-overlay"
-						@click="showFloorManageDialog = true"
+						@click="openFloorManageDialog"
 					>
 						樓層管理
 					</PermissionActionButton>
@@ -287,6 +287,14 @@ const detailEmpty = computed(
 const isOverviewCollapsed = ref(false)
 const showLocationManagementDialog = ref(false)
 const showFloorManageDialog = ref(false)
+
+const openLocationManagementDialog = () => {
+	showLocationManagementDialog.value = true
+}
+
+const openFloorManageDialog = () => {
+	showFloorManageDialog.value = true
+}
 const showSimulationFrame = ref(false)
 
 const locationsForOverview = computed(() => {

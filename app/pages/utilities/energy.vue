@@ -45,6 +45,10 @@ const {
 	refreshNotifications,
 } = useEnergyNotifications()
 const showSettings = ref(false)
+
+const openEnergySettings = () => {
+	showSettings.value = true
+}
 const showBreakdown = ref(false)
 const showTrendReport = ref(false)
 const trendReportMode = ref<EnergyTrendReportMode>("energy")
@@ -190,7 +194,7 @@ onMounted(async () => {
 					:allowed="canManageEnergySettings"
 					aria-label="開啟設定"
 					class="btn-monitoring-overlay"
-					@click="showSettings = true"
+					@click="openEnergySettings"
 				>
 					參數設定
 				</PermissionActionButton>
