@@ -45,10 +45,12 @@
 									placeholder="例如：控制器 1"
 								/>
 							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span v-if="deviceTypeCode === 'camera'">群組</span>
+							<label
+								v-if="deviceTypeCode === 'camera'"
+								class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+							>
+								<span>群組</span>
 								<input
-									v-if="deviceTypeCode === 'camera'"
 									v-model="cameraGroup"
 									type="text"
 									class="form-input"
@@ -459,7 +461,7 @@ import {
 	type ControllerDeviceConfig,
 	type CameraDeviceConfig,
 	type SensorDeviceConfig,
-	type AccessControlDeviceConfig
+	type AccessControlDeviceConfig,
 } from "~/types/device";
 import {
 	DEFAULT_CAMERA_RTSP_TEMPLATE,

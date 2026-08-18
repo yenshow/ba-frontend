@@ -5,10 +5,13 @@ export const normalizeAlertRuleCameraDeviceIds = (
 		.map((v) => (v == null ? null : Number(v)))
 		.filter((n): n is number => n != null && Number.isFinite(n) && n > 0);
 
-/** 去重後的正整數 id 清單（門禁連動載入／送出用） */
-export const normalizeAlertRuleAccessDeviceIds = (
+/** 去重後的正整數 id 清單（門禁連動用） */
+export const normalizeAlertRuleDeviceIds = (
 	ids: Array<number | null | undefined>,
-): number[] => [...new Set(normalizeAlertRuleCameraDeviceIds(ids))];
+): number[] => [...new Set(normalizeAlertRuleCameraDeviceIds(ids))]
+
+/** @deprecated 請改用 normalizeAlertRuleDeviceIds */
+export const normalizeAlertRuleAccessDeviceIds = normalizeAlertRuleDeviceIds;
 
 export const parseAlertRuleEmailsFromText = (text: string): string[] =>
 	String(text || "")
