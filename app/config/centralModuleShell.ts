@@ -96,7 +96,6 @@ export const groupCentralShellModules = (modules: CentralShellModule[]) =>
 
 /** 首頁／系統總覽不顯示的預留模組（registry 有登記但尚無頁面） */
 export const CENTRAL_PLACEHOLDER_MODULE_ROUTES = [
-	"/security/access-control",
 	"/business/visitor",
 	"/business/locker-management",
 ] as const

@@ -16,6 +16,7 @@ export type OperationalEventKind =
 	| "access"
 	| "vehicle"
 	| "elevator"
+	| "intercom"
 
 export type OperationalEvent = {
 	id: number
@@ -44,6 +45,7 @@ export type OperationalEvent = {
 type OperationalEventFilters = {
 	source?: string
 	event_kind?: string
+	location_id?: number
 	start_date?: string
 	end_date?: string
 	limit?: number
@@ -87,6 +89,8 @@ const EXTRA_SOURCE_LABELS: Record<string, string> = {
 	vehicle_access: SYSTEM_TYPE_LABELS.vehicle_access,
 	elevator: SYSTEM_TYPE_LABELS.elevator,
 	alert_linkage: "警報連動",
+	video_intercom: "組網對講",
+	access_security_ring: "平台語音廣播",
 }
 
 export const getOperationalSourceLabel = (source: string): string =>
@@ -110,6 +114,7 @@ export const OPERATIONAL_KIND_OPTIONS = [
 	{ value: "access", label: "門禁／人流" },
 	{ value: "vehicle", label: "車輛進出" },
 	{ value: "elevator", label: "電梯管理" },
+	{ value: "intercom", label: "對講" },
 ] as const
 
 export const getOperationalKindLabel = (kind: string): string => {
@@ -123,6 +128,7 @@ const KIND_BADGE_CLASS: Record<string, string> = {
 	access: "bg-sky-500/80",
 	vehicle: "bg-violet-500/80",
 	elevator: "bg-fuchsia-500/80",
+	intercom: "bg-cyan-500/80",
 }
 
 export const getOperationalKindBadgeClass = (kind: string): string =>

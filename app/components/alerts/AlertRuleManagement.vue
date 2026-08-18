@@ -84,6 +84,12 @@
 											門禁連動
 										</span>
 										<span
+											v-if="getIntegrationSummary(rule.id).sipRingEnabled"
+											class="rounded bg-cyan-500/20 px-2 py-0.5 text-xs text-cyan-100 2xl:text-sm"
+										>
+											室內廣播
+										</span>
+										<span
 											v-if="getIntegrationSummary(rule.id).emailEnabled"
 											class="rounded bg-violet-500/20 px-2 py-0.5 text-xs text-violet-100 2xl:text-sm"
 										>

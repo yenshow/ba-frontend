@@ -5,6 +5,7 @@
 
 import type { SystemType } from "~/types/location"
 import type { LightingZone, LightingLocation } from "~/types/lighting"
+import type { AccessSecurityZone, AccessSecurityLocation } from "~/types/accessSecurity"
 import type { ElevatorZone, ElevatorLocation } from "~/types/elevator"
 import type { HvacZone, HvacLocation } from "~/types/hvac"
 import type { AirCirculationZone, AirCirculationLocation } from "~/types/air-circulation"
@@ -30,6 +31,8 @@ export type SystemZoneType =
 	| FireZone
 	| EmergencyRescueZone
 	| SmokeAlarmZone
+	| ElevatorZone
+	| AccessSecurityZone
 export type SystemLocationType =
 	| LightingLocation
 	| HvacLocation
@@ -42,6 +45,8 @@ export type SystemLocationType =
 	| FireLocation
 	| EmergencyRescueLocation
 	| SmokeAlarmLocation
+	| ElevatorLocation
+	| AccessSecurityLocation
 
 /**
  * 系統配置
@@ -510,6 +515,44 @@ export function useElevatorZoneAdapter(): ZoneSystemAdapter<ElevatorZone, Elevat
 	}
 }
 
+export function useAccessSecurityZoneAdapter(): ZoneSystemAdapter<
+	AccessSecurityZone,
+	AccessSecurityLocation
+> {
+	const systemConfig: SystemConfig = {
+		requireImageUrl: false,
+	}
+
+	return {
+		getLocationsProperty: (zone: AccessSecurityZone) => zone.locations || [],
+		setLocationsProperty: (zone: AccessSecurityZone, locations: AccessSecurityLocation[]) => ({
+			...zone,
+			locations,
+		}),
+		createNewLocation: (): AccessSecurityLocation => ({
+			name: "",
+			indoorDeviceId: undefined,
+			deviceId: undefined,
+		}),
+		createNewZone: (name: string): AccessSecurityZone => ({
+			name,
+			locations: [],
+		}),
+		filterEmptyLocations: (zone: AccessSecurityZone): AccessSecurityZone => ({
+			...zone,
+			locations: (zone.locations || []).filter(
+				(loc) =>
+					Boolean(loc.name && loc.name.trim().length > 0) &&
+					Number(loc.indoorDeviceId ?? loc.deviceId) > 0
+			),
+		}),
+		systemConfig,
+		getLocationId: ({ zone, location, locationIndex }): string => {
+			return getLocationUiKey({ zone: zone as any, location: location as any, locationIndex })
+		},
+	}
+}
+
 /**
  * 根據系統類型取得適配器
  */
@@ -542,6 +585,8 @@ export function useZoneSystemAdapter<
 			return useSmokeAlarmZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		case "elevator":
 			return useElevatorZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
+		case "access_security":
+			return useAccessSecurityZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		default:
 			throw new Error(`不支援的系統類型: ${systemType}`)
 	}

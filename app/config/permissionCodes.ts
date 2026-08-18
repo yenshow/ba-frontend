@@ -137,6 +137,13 @@ export const PERM = {
 		locationUpdate: "system.smoke_alarm.location.update",
 		locationDelete: "system.smoke_alarm.location.delete",
 	},
+	accessSecurity: {
+		module: "system.access_security",
+		locationCreate: "system.access_security.location.create",
+		locationUpdate: "system.access_security.location.update",
+		locationDelete: "system.access_security.location.delete",
+		ring: "system.access_security.ring",
+	},
 	multimedia: {
 		module: "system.multimedia",
 		settingsUpdate: "system.multimedia.settings.update",
@@ -157,4 +164,5 @@ export const LOCATION_DELETE_BY_SYSTEM_TYPE: Record<string, string> = {
 	emergency_rescue: PERM.emergencyRescue.locationDelete,
 	smoke_alarm: PERM.smokeAlarm.locationDelete,
 	elevator: PERM.elevator.locationDelete,
+	access_security: PERM.accessSecurity.locationDelete,
 }

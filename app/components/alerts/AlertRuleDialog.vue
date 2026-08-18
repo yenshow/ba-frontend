@@ -350,6 +350,72 @@
 										</p>
 									</div>
 								</div>
+
+								<div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+									<p class="mb-3 text-sm font-medium text-white/90">門禁保全語音廣播</p>
+									<label class="flex items-center gap-3 text-sm text-white/80">
+										<input
+											v-model="sipRingLinkage.enabled"
+											type="checkbox"
+											class="h-4 w-4"
+											aria-label="啟用 SIP 室內語音廣播連動"
+										/>
+										<span>啟用室內語音廣播</span>
+									</label>
+									<p
+										v-if="sipRingLinkage.enabled"
+										class="mt-2 text-xs text-white/50"
+									>
+										室內機接聽後播放火場逃生語音（約 30 秒）；未接聽則只振鈴。
+									</p>
+
+									<div v-if="sipRingLinkage.enabled" class="mt-3 space-y-3">
+										<p class="text-sm text-white/80">
+											室內機<span class="required-mark">*</span>
+										</p>
+										<label class="flex items-center gap-3 text-sm text-white/80">
+											<input
+												type="checkbox"
+												class="h-4 w-4"
+												:checked="sipRingLinkage.allDevices"
+												aria-label="全部室內機"
+												@change="handleSipRingToggleAll"
+											/>
+											<span>全部室內機</span>
+										</label>
+										<div
+											v-if="indoorDeviceItems.length > 0"
+											class="grid grid-cols-3 gap-x-3 gap-y-3"
+										>
+											<label
+												v-for="item in indoorDeviceItems"
+												:key="item.id"
+												class="flex min-w-0 items-center gap-3 text-sm text-white/80"
+											>
+												<input
+													type="checkbox"
+													class="h-4 w-4 shrink-0"
+													:checked="
+														!sipRingLinkage.allDevices &&
+														sipRingLinkage.device_ids.includes(item.id)
+													"
+													:aria-label="`語音廣播室內機 ${item.label}`"
+													@change="
+														(e: Event) =>
+															handleSipRingToggleDevice(
+																item.id,
+																(e.target as HTMLInputElement).checked,
+															)
+													"
+												/>
+												<span class="truncate">{{ item.label }}</span>
+											</label>
+										</div>
+										<p v-else class="text-sm text-white/60">
+											{{ isIndoorDevicesLoading ? "設備載入中..." : "尚無室內機" }}
+										</p>
+									</div>
+								</div>
 							</div>
 						</div>
 
@@ -534,7 +600,7 @@ import { useAlertApi } from "~/composables/systems/alerts/useAlertApi"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { alertSourceToSystemType, isAllowedThresholdOperator } from "~/utils/alertUtils"
 import {
-	normalizeAlertRuleAccessDeviceIds,
+	normalizeAlertRuleDeviceIds,
 	normalizeAlertRuleCameraDeviceIds,
 	parseAlertRuleEmailsFromText,
 	validateAlertRuleEmailSubscription,
@@ -591,6 +657,10 @@ interface IntegrationsDraft {
 		camera_device_ids?: number[]
 	}
 	accessDoorLinkage: null | {
+		enabled: boolean
+		device_ids?: number[]
+	}
+	sipRingLinkage: null | {
 		enabled: boolean
 		device_ids?: number[]
 	}
@@ -690,6 +760,13 @@ const accessDoorLinkage = reactive({
 	device_ids: [] as number[],
 })
 
+const sipRingLinkage = reactive({
+	enabled: false,
+	/** true＝全部室內機並行廣播；false＝device_ids 指定 */
+	allDevices: true,
+	device_ids: [] as number[],
+})
+
 const smtpSecurityOptions: OptionItem[] = [
 	{ value: "none", label: "無" },
 	{ value: "ssl", label: "SSL" },
@@ -721,7 +798,58 @@ let devicesLoadPromise: Promise<void> | null = null
 
 const accessDevices = ref<Device[]>([])
 const isAccessDevicesLoading = ref(false)
-let accessDevicesLoadPromise: Promise<void> | null = null
+
+const indoorDevices = ref<Device[]>([])
+const isIndoorDevicesLoading = ref(false)
+
+const isIndoorIntercomDevice = (d: Device) =>
+	String((d.config as { unitType?: string } | undefined)?.unitType || "").trim() === "indoor"
+
+const toLinkageDeviceItems = (list: Device[]) =>
+	list
+		.map((d) => ({
+			id: Number(d.id),
+			label: String(d.name || "").trim() || "(未命名)",
+		}))
+		.filter((d) => Number.isFinite(d.id) && d.id > 0)
+
+const typedDeviceLoadPromises = new Map<string, Promise<void>>()
+
+const loadTypedDevices = async (
+	cache: typeof accessDevices,
+	isLoading: typeof isAccessDevicesLoading,
+	typeCode: string,
+	filter?: (d: Device) => boolean,
+) => {
+	if (cache.value.length > 0) return
+	const pending = typedDeviceLoadPromises.get(typeCode)
+	if (pending) {
+		await pending
+		return
+	}
+	isLoading.value = true
+	const promise = (async () => {
+		try {
+			const res = await deviceApi.getDevices({
+				type_code: typeCode,
+				limit: 500,
+				offset: 0,
+				orderBy: "name",
+				order: "asc",
+			})
+			let list = Array.isArray(res.devices) ? res.devices : []
+			if (filter) list = list.filter(filter)
+			cache.value = list
+		} catch {
+			cache.value = []
+		} finally {
+			isLoading.value = false
+			typedDeviceLoadPromises.delete(typeCode)
+		}
+	})()
+	typedDeviceLoadPromises.set(typeCode, promise)
+	await promise
+}
 
 const doOutputValueOptions = [
 	{ value: "on", label: "ON" },
@@ -811,14 +939,7 @@ const cameraDeviceOptions = computed(() => {
 	return [...base, ...items]
 })
 
-const accessDeviceItems = computed(() =>
-	accessDevices.value
-		.map((d) => ({
-			id: Number(d.id),
-			label: String(d.name || "").trim() || "(未命名)",
-		}))
-		.filter((d) => Number.isFinite(d.id) && d.id > 0)
-)
+const accessDeviceItems = computed(() => toLinkageDeviceItems(accessDevices.value))
 
 const handleAccessDoorToggleAll = (e: Event) => {
 	const checked = (e.target as HTMLInputElement).checked
@@ -832,6 +953,22 @@ const handleAccessDoorToggleDevice = (id: number, checked: boolean) => {
 	if (checked) set.add(id)
 	else set.delete(id)
 	accessDoorLinkage.device_ids = [...set]
+}
+
+const indoorDeviceItems = computed(() => toLinkageDeviceItems(indoorDevices.value))
+
+const handleSipRingToggleAll = (e: Event) => {
+	const checked = (e.target as HTMLInputElement).checked
+	sipRingLinkage.allDevices = checked
+	if (checked) sipRingLinkage.device_ids = []
+}
+
+const handleSipRingToggleDevice = (id: number, checked: boolean) => {
+	sipRingLinkage.allDevices = false
+	const set = new Set(sipRingLinkage.device_ids)
+	if (checked) set.add(id)
+	else set.delete(id)
+	sipRingLinkage.device_ids = [...set]
 }
 
 const { thresholdOptions, ensureLoaded: ensureEnvironmentCatalogLoaded } =
@@ -886,6 +1023,10 @@ const resetForm = () => {
 	accessDoorLinkage.enabled = false
 	accessDoorLinkage.allDevices = true
 	accessDoorLinkage.device_ids = []
+
+	sipRingLinkage.enabled = false
+	sipRingLinkage.allDevices = true
+	sipRingLinkage.device_ids = []
 
 	email.enabled = false
 	email.smtp_host = ""
@@ -1017,33 +1158,11 @@ const loadDevices = async () => {
 	await devicesLoadPromise
 }
 
-/** 門禁清單獨立載入（不依連線狀態過濾） */
-const loadAccessDevices = async () => {
-	if (accessDevices.value.length > 0) return
-	if (accessDevicesLoadPromise) {
-		await accessDevicesLoadPromise
-		return
-	}
-	isAccessDevicesLoading.value = true
-	accessDevicesLoadPromise = (async () => {
-		try {
-			const res = await deviceApi.getDevices({
-				type_code: "access_control",
-				limit: 500,
-				offset: 0,
-				orderBy: "name",
-				order: "asc",
-			})
-			accessDevices.value = Array.isArray(res.devices) ? res.devices : []
-		} catch {
-			accessDevices.value = []
-		} finally {
-			isAccessDevicesLoading.value = false
-			accessDevicesLoadPromise = null
-		}
-	})()
-	await accessDevicesLoadPromise
-}
+/** 門禁／室內機清單（不依連線狀態過濾） */
+const loadAccessDevices = () => loadTypedDevices(accessDevices, isAccessDevicesLoading, "access_control")
+
+const loadIndoorDevices = () =>
+	loadTypedDevices(indoorDevices, isIndoorDevicesLoading, "video_intercom", isIndoorIntercomDevice)
 
 const loadIntegrationsForRule = async (ruleId: number) => {
 	try {
@@ -1068,11 +1187,18 @@ const loadIntegrationsForRule = async (ruleId: number) => {
 		cameraLinkage.camera_device_ids = merged.length > 0 ? merged : [null]
 
 		accessDoorLinkage.enabled = Boolean(res?.accessDoorLinkage?.enabled)
-		const accessMerged = normalizeAlertRuleAccessDeviceIds(
+		const accessMerged = normalizeAlertRuleDeviceIds(
 			Array.isArray(res?.accessDoorLinkage?.device_ids) ? res.accessDoorLinkage.device_ids : []
 		)
 		accessDoorLinkage.allDevices = accessMerged.length === 0
 		accessDoorLinkage.device_ids = accessMerged
+
+		sipRingLinkage.enabled = Boolean(res?.sipRingLinkage?.enabled)
+		const sipMerged = normalizeAlertRuleDeviceIds(
+			Array.isArray(res?.sipRingLinkage?.device_ids) ? res.sipRingLinkage.device_ids : []
+		)
+		sipRingLinkage.allDevices = sipMerged.length === 0
+		sipRingLinkage.device_ids = sipMerged
 
 		const es = (res as any)?.emailSubscription
 		email.enabled = Boolean(es?.enabled)
@@ -1175,6 +1301,9 @@ watch(
 			if (accessDevices.value.length === 0 && !isAccessDevicesLoading.value) {
 				void loadAccessDevices()
 			}
+			if (indoorDevices.value.length === 0 && !isIndoorDevicesLoading.value) {
+				void loadIndoorDevices()
+			}
 			if (rule.id) {
 				void loadIntegrationsForRule(rule.id)
 			}
@@ -1205,6 +1334,9 @@ watch(
 		if (accessDevices.value.length === 0 && !isAccessDevicesLoading.value) {
 			void loadAccessDevices()
 		}
+		if (indoorDevices.value.length === 0 && !isIndoorDevicesLoading.value) {
+			void loadIndoorDevices()
+		}
 	},
 	{ immediate: true }
 )
@@ -1225,7 +1357,12 @@ const buildAlertRuleValidationInput = () => ({
 	accessDoorLinkage: {
 		enabled: accessDoorLinkage.enabled,
 		allDevices: accessDoorLinkage.allDevices,
-		device_ids: normalizeAlertRuleAccessDeviceIds(accessDoorLinkage.device_ids),
+		device_ids: normalizeAlertRuleDeviceIds(accessDoorLinkage.device_ids),
+	},
+	sipRingLinkage: {
+		enabled: sipRingLinkage.enabled,
+		allDevices: sipRingLinkage.allDevices,
+		device_ids: normalizeAlertRuleDeviceIds(sipRingLinkage.device_ids),
 	},
 	email,
 })
@@ -1323,7 +1460,15 @@ const handleSubmit = () => {
 					enabled: true,
 					device_ids: accessDoorLinkage.allDevices
 						? []
-						: normalizeAlertRuleAccessDeviceIds(accessDoorLinkage.device_ids),
+						: normalizeAlertRuleDeviceIds(accessDoorLinkage.device_ids),
+				}
+			: null,
+		sipRingLinkage: sipRingLinkage.enabled
+			? {
+					enabled: true,
+					device_ids: sipRingLinkage.allDevices
+						? []
+						: normalizeAlertRuleDeviceIds(sipRingLinkage.device_ids),
 				}
 			: null,
 		emailSubscription: email.enabled

@@ -4,6 +4,7 @@ export type DeviceTypeCode =
 	| "controller"
 	| "sensor"
 	| "access_control"
+	| "video_intercom"
 	| "modbus"
 	| "di_do"
 	| string;
@@ -164,12 +165,29 @@ export interface AccessControlDeviceConfig extends DeviceConfigBase {
 	password: string;
 }
 
+/** 視訊對講（VIS）：管理中心主機／室內機／門口機 */
+export type VideoIntercomUnitType = "manage" | "indoor" | "outdoor";
+
+export interface VideoIntercomDeviceConfig extends DeviceConfigBase {
+	type: "video_intercom";
+	host: string;
+	port?: number;
+	username: string;
+	password: string;
+	unitType: VideoIntercomUnitType;
+	/** 室內機 SIP 埠，預設 5060 */
+	sipPort?: number;
+	/** 室內機 VoIP 號碼（層 2 INVITE To） */
+	voipNumber?: string;
+}
+
 // 聯合類型
 export type DeviceConfig =
 	| ControllerDeviceConfig
 	| CameraDeviceConfig
 	| SensorDeviceConfig
-	| AccessControlDeviceConfig;
+	| AccessControlDeviceConfig
+	| VideoIntercomDeviceConfig;
 
 /** 串流啟動回傳（POST /api/devices/:id/stream/start） */
 export interface DeviceStreamStartResponse {

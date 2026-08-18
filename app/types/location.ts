@@ -23,7 +23,8 @@ export type SystemType =
 	| "smoke_alarm"
 	| "people_counting"
 	| "vehicle_access"
-	| "elevator";
+	| "elevator"
+	| "access_security";
 
 export const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
 	environment: "環境監測",
@@ -38,6 +39,7 @@ export const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
 	people_counting: "門禁管理",
 	vehicle_access: "車輛進出",
 	elevator: "電梯管理",
+	access_security: "門禁保全",
 };
 
 export const getSystemTypeLabel = (systemType: SystemType): string =>
@@ -58,7 +60,8 @@ export type SystemConfig =
 	| SmokeAlarmSystemConfig
 	| PeopleCountingSystemConfig
 	| VehicleAccessSystemConfig
-	| ElevatorSystemConfig;
+	| ElevatorSystemConfig
+	| AccessSecuritySystemConfig;
 
 /**
  * 環境監測系統配置
@@ -243,6 +246,16 @@ export interface ElevatorSystemConfig {
 	accessDeviceIds?: number[];
 	/** 固定 visitor（SDK command 5） */
 	callCommandType?: "visitor";
+}
+
+/**
+ * 門禁保全（視訊對講）地點配置
+ * 後端持久化為 system_config.indoor_device_id
+ */
+export interface AccessSecuritySystemConfig {
+	indoorDeviceId?: number;
+	/** 與 indoorDeviceId 同義（表單／adapter 相容） */
+	deviceId?: number;
 }
 
 /**

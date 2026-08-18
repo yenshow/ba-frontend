@@ -162,6 +162,17 @@ export interface AlertAccessDoorLinkage {
 	updated_at: string
 }
 
+/** 警報觸發時 SIP 語音廣播；device_ids 空＝全部室內機並行，有值＝指定室內機並行 */
+export interface AlertSipRingLinkage {
+	id: number
+	enabled: boolean
+	rule_id: number
+	device_ids: number[]
+	created_by?: number | null
+	created_at: string
+	updated_at: string
+}
+
 export type SmtpSecurity = "none" | "ssl" | "tls"
 
 export interface AlertEmailSubscription {
@@ -205,6 +216,7 @@ export interface AlertRuleIntegrations {
 	doLinkage: AlertDoLinkage | null
 	cameraLinkage: AlertCameraLinkage | null
 	accessDoorLinkage: AlertAccessDoorLinkage | null
+	sipRingLinkage: AlertSipRingLinkage | null
 	emailSubscription: AlertEmailSubscription | null
 }
 
@@ -212,6 +224,7 @@ export type AlertRuleIntegrationSummary = {
 	doEnabled: boolean
 	cameraEnabled: boolean
 	accessDoorEnabled: boolean
+	sipRingEnabled: boolean
 	emailEnabled: boolean
 	hasAny: boolean
 }

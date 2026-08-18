@@ -36,6 +36,7 @@ import {
 } from "~/utils/vehicleAccessLogColumns";
 import type { ElevatorZone, ElevatorLocation } from "~/types/elevator";
 import type { ElevatorSystemConfig } from "~/types/location";
+import type { AccessSecurityZone, AccessSecurityLocation } from "~/types/accessSecurity";
 
 /**
  * 後端返回的地點格式（新架構：包含 systems 陣列）
@@ -1610,3 +1611,76 @@ export function elevatorLocationToUnified(
 		],
 	}
 }
+
+export function unifiedToAccessSecurityZone(zone: UnifiedZone): AccessSecurityZone {
+	return {
+		id: zone.id,
+		name: zone.name,
+		imageUrl: zone.imageUrl,
+		description: zone.description,
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.flatMap((loc) => {
+			const sys = loc.systems.find((s) => s.systemType === "access_security")
+			if (!sys) return []
+			const cfg = sys.config as {
+				indoorDeviceId?: number
+				indoor_device_id?: number
+				deviceId?: number
+			}
+			const indoorId = Number(cfg.indoorDeviceId ?? cfg.indoor_device_id ?? cfg.deviceId)
+			const indoor = Number.isFinite(indoorId) && indoorId > 0 ? indoorId : undefined
+			return [
+				{
+					id: loc.id,
+					systemId: sys.id,
+					name: loc.name,
+					...(loc.createdAt && { createdAt: loc.createdAt }),
+					...pickSortOrder(loc.sortOrder),
+					indoorDeviceId: indoor,
+					deviceId: indoor,
+				} as AccessSecurityLocation,
+			]
+		}),
+	}
+}
+
+export function accessSecurityToUnifiedZone(
+	zone: AccessSecurityZone,
+	systemType: SystemType = "access_security"
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
+	return {
+		name: zone.name,
+		...(zone.imageUrl !== undefined && { imageUrl: zone.imageUrl }),
+		...(zone.description !== undefined && { description: zone.description }),
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.map((location) =>
+			accessSecurityLocationToUnified(location, systemType)
+		),
+	}
+}
+
+export function accessSecurityLocationToUnified(
+	location: AccessSecurityLocation | Omit<AccessSecurityLocation, "id">,
+	systemType: SystemType = "access_security"
+): UnifiedLocationInput {
+	const hasId = "id" in location && location.id
+	const hasSystemId = "systemId" in location && location.systemId
+	const indoorId = location.indoorDeviceId ?? location.deviceId
+	return {
+		...(hasId && { id: location.id! }),
+		name: location.name,
+		...(location.createdAt && { createdAt: location.createdAt }),
+		...pickSortOrder(location.sortOrder),
+		systems: [
+			{
+				...(hasSystemId && { id: location.systemId! }),
+				systemType,
+				config: {
+					indoorDeviceId: indoorId,
+					deviceId: indoorId,
+				},
+			},
+		],
+	}
+}
+

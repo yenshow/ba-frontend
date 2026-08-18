@@ -259,6 +259,7 @@ import PowerLocationManagement from "./LocationManagement/PowerLocationManagemen
 import EmergencyRescueLocationManagement from "./LocationManagement/EmergencyRescueLocationManagement.vue"
 import FireLocationManagement from "./LocationManagement/FireLocationManagement.vue"
 import SmokeAlarmLocationManagement from "./LocationManagement/SmokeAlarmLocationManagement.vue"
+import AccessSecurityLocationManagement from "./LocationManagement/AccessSecurityLocationManagement.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import IconTrashButton from "~/components/common/IconTrashButton.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
@@ -426,6 +427,7 @@ const locationManagementComponentMap: Partial<Record<SystemType, Component>> = {
 	fire: FireLocationManagement,
 	emergency_rescue: EmergencyRescueLocationManagement,
 	smoke_alarm: SmokeAlarmLocationManagement,
+	access_security: AccessSecurityLocationManagement,
 }
 
 const locationManagementComponent = computed(() => {
@@ -456,12 +458,20 @@ const loadDevices = async () => {
 			props.systemType === "smoke_alarm" ||
 			props.systemType === "elevator"
 				? "controller"
-				: "sensor"
+				: props.systemType === "access_security"
+					? "video_intercom"
+					: "sensor"
 		const result = await deviceApi.getDevices({
 			type_code: deviceType,
 			limit: 100,
 		})
-		devices.value = result.devices
+		devices.value =
+			props.systemType === "access_security"
+				? (result.devices || []).filter((d) => {
+						const cfg = d.config as { unitType?: string } | undefined
+						return String(cfg?.unitType || "") === "indoor"
+					})
+				: result.devices
 	} catch (error) {
 		logger.error("載入設備列表失敗:", error)
 		errorMessage.value = "載入設備列表失敗"
@@ -621,6 +631,7 @@ const getLocationLabel = (): string => {
 		people_counting: "地點",
 		elevator: "地點",
 		vehicle_access: "地點",
+		access_security: "戶別",
 	}
 	return labelMap[props.systemType] || "地點"
 }

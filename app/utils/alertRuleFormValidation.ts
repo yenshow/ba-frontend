@@ -5,10 +5,13 @@ export const normalizeAlertRuleCameraDeviceIds = (
 		.map((v) => (v == null ? null : Number(v)))
 		.filter((n): n is number => n != null && Number.isFinite(n) && n > 0)
 
-/** 去重後的正整數 id 清單（門禁連動載入／相容用） */
-export const normalizeAlertRuleAccessDeviceIds = (
+/** 去重後的正整數 id 清單（門禁／語音廣播連動用） */
+export const normalizeAlertRuleDeviceIds = (
 	ids: Array<number | null | undefined>,
 ): number[] => [...new Set(normalizeAlertRuleCameraDeviceIds(ids))]
+
+/** @deprecated 請改用 normalizeAlertRuleDeviceIds */
+export const normalizeAlertRuleAccessDeviceIds = normalizeAlertRuleDeviceIds
 
 export const parseAlertRuleEmailsFromText = (text: string): string[] =>
 	String(text || "")
@@ -39,6 +42,11 @@ export type AlertRuleFormValidationInput = {
 		camera_device_ids: number[]
 	}
 	accessDoorLinkage?: {
+		enabled: boolean
+		allDevices: boolean
+		device_ids: number[]
+	}
+	sipRingLinkage?: {
 		enabled: boolean
 		allDevices: boolean
 		device_ids: number[]
@@ -92,6 +100,12 @@ export const validateAlertRuleFormForSave = (input: AlertRuleFormValidationInput
 	if (input.accessDoorLinkage?.enabled && !input.accessDoorLinkage.allDevices) {
 		if (input.accessDoorLinkage.device_ids.length === 0) {
 			return "門禁連動：請至少選擇一台門禁設備"
+		}
+	}
+
+	if (input.sipRingLinkage?.enabled && !input.sipRingLinkage.allDevices) {
+		if (input.sipRingLinkage.device_ids.length === 0) {
+			return "門禁保全語音廣播：請至少選擇一台室內機"
 		}
 	}
 

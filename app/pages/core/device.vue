@@ -270,6 +270,7 @@ const deviceTabs = [
 	{ name: "感測器", code: "sensor" },
 	{ name: "控制器", code: "controller" },
 	{ name: "門禁設備", code: "access_control" },
+	{ name: "視訊對講", code: "video_intercom" },
 ] as const
 
 const deviceTabItems = computed(() => deviceTabs.map((tab) => ({ id: tab.code, label: tab.name })))
@@ -426,6 +427,8 @@ const formatDeviceConfig = (config: DeviceConfig): string => {
 			}
 			return config.connection_string || config.api_endpoint || "-"
 		case "access_control":
+			return `${config.host}`
+		case "video_intercom":
 			return `${config.host}`
 		default:
 			return "-"

@@ -48,10 +48,12 @@
 									placeholder="例如：控制器"
 								/>
 							</label>
-							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-								<span v-if="deviceTypeCode === 'camera'">群組</span>
+							<label
+								v-if="deviceTypeCode === 'camera'"
+								class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+							>
+								<span>群組</span>
 								<input
-									v-if="deviceTypeCode === 'camera'"
 									v-model="cameraGroup"
 									type="text"
 									class="form-input"
@@ -462,6 +464,117 @@
 								</label>
 							</template>
 
+							<template v-if="deviceTypeCode === 'video_intercom'">
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<span>主機位址<span class="required-mark">*</span></span>
+									<input
+										v-model="videoIntercomConfig.host"
+										type="text"
+										required
+										class="form-input"
+										placeholder="例如：192.168.2.78"
+										aria-label="視訊對講主機位址"
+									/>
+								</label>
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<span>SDK／ISAPI 端口（選填，預設 8000）</span>
+									<input
+										v-model.number="videoIntercomConfig.port"
+										type="number"
+										min="1"
+										max="65535"
+										class="form-input"
+										placeholder="8000"
+										aria-label="視訊對講 SDK 端口"
+									/>
+								</label>
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<span>密碼<span class="required-mark">*</span></span>
+									<div class="relative w-full">
+										<input
+											v-model="videoIntercomConfig.password"
+											:type="showVideoIntercomPassword ? 'text' : 'password'"
+											required
+											class="form-input w-full pr-12"
+											placeholder="設備登入密碼"
+											:aria-label="
+												showVideoIntercomPassword
+													? '對講密碼（已顯示）'
+													: '對講密碼（已隱藏）'
+											"
+										/>
+										<button
+											type="button"
+											class="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-white/50 transition-colors hover:text-white/80 focus:outline-none"
+											:aria-label="showVideoIntercomPassword ? '隱藏密碼' : '顯示密碼'"
+											@click="showVideoIntercomPassword = !showVideoIntercomPassword"
+										>
+											<svg
+												v-if="!showVideoIntercomPassword"
+												class="h-5 w-5"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+												aria-hidden="true"
+											>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+												/>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+												/>
+											</svg>
+											<svg
+												v-else
+												class="h-5 w-5"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+												aria-hidden="true"
+											>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+												/>
+											</svg>
+										</button>
+									</div>
+								</label>
+								<template v-if="isVideoIntercomIndoorModel">
+									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+										<span>VoIP 號碼<span class="required-mark">*</span></span>
+										<input
+											v-model="videoIntercomConfig.voipNumber"
+											type="text"
+											required
+											class="form-input"
+											placeholder="例如：1001"
+											aria-label="室內機 VoIP 號碼"
+										/>
+									</label>
+									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+										<span>SIP 端口（選填，預設 5060）</span>
+										<input
+											v-model.number="videoIntercomConfig.sipPort"
+											type="number"
+											min="1"
+											max="65535"
+											class="form-input"
+											placeholder="5060"
+											aria-label="室內機 SIP 端口"
+										/>
+									</label>
+								</template>
+							</template>
+
 							<p v-if="displayErrorMessage" class="form-error-text">
 								{{ displayErrorMessage }}
 							</p>
@@ -518,6 +631,8 @@ import {
 	type CameraDeviceConfig,
 	type SensorDeviceConfig,
 	type AccessControlDeviceConfig,
+	type VideoIntercomDeviceConfig,
+	type VideoIntercomUnitType,
 } from "~/types/device"
 import {
 	DEFAULT_CAMERA_RTSP_TEMPLATE,
@@ -651,6 +766,18 @@ const accessControlConfig = reactive<AccessControlDeviceConfig>({
 	password: "",
 })
 
+const videoIntercomConfig = reactive<Omit<VideoIntercomDeviceConfig, "unitType">>({
+	type: "video_intercom",
+	host: "",
+	port: 8000,
+	username: "",
+	password: "",
+	sipPort: 5060,
+	voipNumber: "",
+})
+
+const showVideoIntercomPassword = ref(false)
+
 // 追蹤當前載入的設備類型，確保切換類型時重新載入
 const currentLoadedTypeCode = ref<DeviceTypeCode | null>(null)
 
@@ -725,6 +852,19 @@ const energyUsageSystemOptions = ENERGY_USAGE_SYSTEM_OPTIONS
 
 const isHcnetSdkController = computed(() => isHcnetSdkDeviceModel(selectedDeviceModel.value))
 
+const resolvedVideoIntercomUnitType = computed((): VideoIntercomUnitType | "" => {
+	const cfg = selectedDeviceModel.value?.config as { unitType?: string } | undefined
+	const fromModel = String(cfg?.unitType || "").trim()
+	if (fromModel === "manage" || fromModel === "indoor" || fromModel === "outdoor") {
+		return fromModel
+	}
+	return ""
+})
+
+const isVideoIntercomIndoorModel = computed(
+	() => resolvedVideoIntercomUnitType.value === "indoor",
+)
+
 // 從選中的型號繼承 port 與 unit_id
 const inheritFromModel = () => {
 	const model = selectedDeviceModel.value
@@ -745,6 +885,10 @@ const inheritFromModel = () => {
 	} else if (props.deviceTypeCode === "sensor" && sensorConfig.protocol === "modbus") {
 		if (model.port != null) sensorConfig.port = model.port
 		if (model.unit_id != null) sensorConfig.unitId = model.unit_id
+	} else if (props.deviceTypeCode === "video_intercom") {
+		if (model.port != null) videoIntercomConfig.port = model.port
+		const cfg = model.config as { sipPort?: number } | undefined
+		if (cfg?.sipPort != null) videoIntercomConfig.sipPort = cfg.sipPort
 	}
 }
 
@@ -829,6 +973,13 @@ const resetForm = () => {
 	accessControlConfig.password = ""
 	showAccessControlPassword.value = false
 
+	videoIntercomConfig.host = ""
+	videoIntercomConfig.port = 8000
+	videoIntercomConfig.password = ""
+	videoIntercomConfig.sipPort = 5060
+	videoIntercomConfig.voipNumber = ""
+	showVideoIntercomPassword.value = false
+
 	localErrorMessage.value = null
 }
 
@@ -883,6 +1034,12 @@ const createModeHasContent = computed(() => {
 			return false
 		}
 		if (c.type === "access_control") return !!(c.host && c.password)
+		if (c.type === "video_intercom") {
+			const unitType = resolvedVideoIntercomUnitType.value
+			const base = !!(c.host && c.password && unitType && modelSelected)
+			if (unitType === "indoor") return base && !!String(c.voipNumber || "").trim()
+			return base
+		}
 		return false
 	})()
 	return nameFilled || modelSelected || configFilled
@@ -1003,6 +1160,13 @@ const loadConfigFromDevice = (device: Device) => {
 		case "access_control":
 			Object.assign(accessControlConfig, device.config)
 			break
+		case "video_intercom": {
+			const { unitType: _ignored, ...rest } = device.config
+			Object.assign(videoIntercomConfig, rest)
+			if (!videoIntercomConfig.sipPort) videoIntercomConfig.sipPort = 5060
+			if (!videoIntercomConfig.port) videoIntercomConfig.port = 8000
+			break
+		}
 	}
 }
 
@@ -1101,6 +1265,22 @@ const getCurrentConfig = (): DeviceConfig => {
 				username: "admin",
 				password: accessControlConfig.password,
 			}
+		case "video_intercom": {
+			const unitType = resolvedVideoIntercomUnitType.value as VideoIntercomUnitType
+			const base: VideoIntercomDeviceConfig = {
+				type: "video_intercom",
+				host: videoIntercomConfig.host,
+				port: videoIntercomConfig.port || 8000,
+				username: "admin",
+				password: videoIntercomConfig.password,
+				unitType,
+			}
+			if (unitType === "indoor") {
+				base.voipNumber = String(videoIntercomConfig.voipNumber || "").trim()
+				base.sipPort = videoIntercomConfig.sipPort || 5060
+			}
+			return base
+		}
 		default:
 			throw new Error(`未知的設備類型: ${props.deviceTypeCode}`)
 	}

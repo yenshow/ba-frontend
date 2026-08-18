@@ -15,6 +15,7 @@ export type FeatureKey =
 	| "surveillance"
 	| "vehicle_access"
 	| "multimedia"
+	| "access_security"
 
 export const LICENSE_FEATURE_KEYS: readonly FeatureKey[] = [
 	"people_counting",
@@ -32,6 +33,7 @@ export const LICENSE_FEATURE_KEYS: readonly FeatureKey[] = [
 	"surveillance",
 	"vehicle_access",
 	"multimedia",
+	"access_security",
 ]
 
 export type LicenseEntitlementEntry = {

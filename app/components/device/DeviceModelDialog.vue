@@ -290,6 +290,47 @@
 									</div>
 								</label>
 
+								<template v-if="deviceTypeCode === 'video_intercom'">
+									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+										<span>設備角色<span class="required-mark">*</span></span>
+										<FilterDropdown
+											v-model="videoIntercomUnitType"
+											:options="videoIntercomUnitTypeOptions"
+											placeholder="請選擇設備角色"
+										/>
+									</label>
+									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+										<span>SDK／ISAPI 端口</span>
+										<input
+											v-model.number="videoIntercomPort"
+											type="number"
+											min="1"
+											max="65535"
+											class="form-input"
+											placeholder="8000"
+											aria-label="視訊對講 SDK 端口"
+										/>
+									</label>
+									<label
+										v-if="videoIntercomUnitType === 'indoor'"
+										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+									>
+										<span>SIP 端口（室內機預設 5060）</span>
+										<input
+											v-model.number="videoIntercomSipPort"
+											type="number"
+											min="1"
+											max="65535"
+											class="form-input"
+											placeholder="5060"
+											aria-label="室內機 SIP 端口"
+										/>
+									</label>
+									<p class="text-xs text-white/45 2xl:text-sm">
+										產品預載型號維護於 deviceModelCatalog.js；部署環境僅 catalog 同步。
+									</p>
+								</template>
+
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>備註</span>
 									<textarea
@@ -443,6 +484,7 @@ import type {
 	SensorDeviceModelConfig,
 	SensorParameterDefinition,
 	ModbusRegisterType,
+	VideoIntercomUnitType,
 } from "~/types/device"
 import { resolveFormApiError } from "~/utils/apiError"
 import { validateDeviceModelFormForSave } from "~/utils/deviceFormValidation"
@@ -479,6 +521,7 @@ const deviceTypeNameMap: Record<string, string> = {
 	controller: "控制器",
 	sensor: "感測器",
 	access_control: "門禁設備",
+	video_intercom: "視訊對講",
 }
 
 const deviceTypeName = computed(() => {
@@ -533,6 +576,30 @@ const sensorParameters = ref<SensorParameterDefinition[]>([])
 const sensorRegisterType = ref<ModbusRegisterType>("holding")
 const sensorMeterKind = ref<"" | "electricity" | "water">("")
 
+const videoIntercomUnitType = ref<VideoIntercomUnitType>("indoor")
+const videoIntercomPort = ref<number>(8000)
+const videoIntercomSipPort = ref<number>(5060)
+
+const videoIntercomUnitTypeOptions = [
+	{ value: "manage", label: "管理中心主機" },
+	{ value: "indoor", label: "室內機" },
+	{ value: "outdoor", label: "門口機" },
+]
+
+const applyVideoIntercomFieldsFromModel = (model: DeviceModel) => {
+	const config = (model.config as { unitType?: string; sipPort?: number } | undefined) ?? {}
+	const unitType = String(config.unitType || "").trim()
+	videoIntercomUnitType.value =
+		unitType === "manage" || unitType === "indoor" || unitType === "outdoor"
+			? unitType
+			: "indoor"
+	videoIntercomPort.value = model.port != null ? Number(model.port) : 8000
+	videoIntercomSipPort.value =
+		config.sipPort != null && Number.isFinite(Number(config.sipPort))
+			? Number(config.sipPort)
+			: 5060
+}
+
 const resetForm = () => {
 	formData.name = ""
 	formData.type_code = props.deviceTypeCode || "controller"
@@ -545,6 +612,9 @@ const resetForm = () => {
 	sensorParameters.value = []
 	sensorRegisterType.value = "holding"
 	sensorMeterKind.value = ""
+	videoIntercomUnitType.value = "indoor"
+	videoIntercomPort.value = 8000
+	videoIntercomSipPort.value = 5060
 	formErrorMessage.value = null
 }
 
@@ -708,6 +778,10 @@ const editDeviceModel = (model: DeviceModel) => {
 		sensorMeterKind.value = ""
 	}
 
+	if (props.deviceTypeCode === "video_intercom") {
+		applyVideoIntercomFieldsFromModel(model)
+	}
+
 	showForm.value = true
 	nextTick(() => {
 		formInitialSnapshot.value = getFormSnapshot()
@@ -724,6 +798,9 @@ interface FormSnapshot {
 	sensorParametersJson: string
 	cameraRtspTemplatePresetKey: string
 	cameraRtspTemplateCustom: string
+	videoIntercomUnitType: VideoIntercomUnitType
+	videoIntercomPort: number
+	videoIntercomSipPort: number
 }
 const formInitialSnapshot = ref<FormSnapshot | null>(null)
 
@@ -736,6 +813,9 @@ const getFormSnapshot = (): FormSnapshot => ({
 	sensorParametersJson: JSON.stringify(sensorParameters.value),
 	cameraRtspTemplatePresetKey: cameraRtspTemplatePresetKey.value,
 	cameraRtspTemplateCustom: cameraRtspTemplateCustom.value,
+	videoIntercomUnitType: videoIntercomUnitType.value,
+	videoIntercomPort: videoIntercomPort.value,
+	videoIntercomSipPort: videoIntercomSipPort.value,
 })
 
 const formHasUnsavedChanges = computed(() => {
@@ -752,7 +832,10 @@ const formHasUnsavedChanges = computed(() => {
 			cur.registerType !== init.registerType ||
 			cur.sensorParametersJson !== init.sensorParametersJson ||
 			cur.cameraRtspTemplatePresetKey !== init.cameraRtspTemplatePresetKey ||
-			cur.cameraRtspTemplateCustom !== init.cameraRtspTemplateCustom
+			cur.cameraRtspTemplateCustom !== init.cameraRtspTemplateCustom ||
+			cur.videoIntercomUnitType !== init.videoIntercomUnitType ||
+			cur.videoIntercomPort !== init.videoIntercomPort ||
+			cur.videoIntercomSipPort !== init.videoIntercomSipPort
 		)
 	}
 	// 新增模式：任一欄位有值即視為有變更
@@ -940,6 +1023,14 @@ const handleFormSubmit = async () => {
 		}
 		if (props.deviceTypeCode === "access_control") {
 			submitData.config = {}
+		}
+		if (props.deviceTypeCode === "video_intercom") {
+			submitData.port = videoIntercomPort.value || 8000
+			const config: Record<string, unknown> = { unitType: videoIntercomUnitType.value }
+			if (videoIntercomUnitType.value === "indoor") {
+				config.sipPort = videoIntercomSipPort.value || 5060
+			}
+			submitData.config = config
 		}
 
 		if (editingModel.value) {
