@@ -1,7 +1,7 @@
 <template>
 	<div class="space-y-3">
 		<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
-			<span>管理中心主機</span>
+			<span>管理中心主機<span class="required-mark">*</span></span>
 			<FilterDropdown
 				v-model="manageDeviceIdString"
 				:options="manageDeviceOptions"
@@ -279,7 +279,7 @@ import { getLocationUiKey } from "~/utils/locationUiId"
 import {
 	ACCESS_SECURITY_UNCLASSIFIED_FLOOR,
 	normalizeAccessSecurityFloor,
-} from "~/utils/accessSecurityFloor"
+} from "~/utils/accessSecurity"
 import { useToast } from "~/composables/core/useToast"
 
 const EMPTY_KEY = "__empty__"
@@ -340,13 +340,12 @@ const manageDevices = computed(() =>
 	})
 )
 
-const manageDeviceOptions = computed(() => [
-	{ value: "", label: "尚未綁定" },
-	...manageDevices.value.map((d) => ({
+const manageDeviceOptions = computed(() =>
+	manageDevices.value.map((d) => ({
 		value: String(d.id),
 		label: d.name || `設備 ${d.id}`,
-	})),
-])
+	}))
+)
 
 const manageDeviceIdString = computed({
 	get: () =>

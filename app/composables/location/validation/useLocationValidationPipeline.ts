@@ -116,6 +116,14 @@ export function useLocationValidationPipeline() {
 		const warnings: string[] = [...base.warnings]
 
 		const locations = Array.isArray(args.locations) ? args.locations : []
+
+		if (args.systemType === "access_security") {
+			const manageId = Number(args.zone?.manageDeviceId)
+			if (!Number.isFinite(manageId) || manageId <= 0) {
+				errors.push(`區域「${args.zone?.name || ""}」：必須綁定管理中心主機`)
+			}
+		}
+
 		for (let i = 0; i < locations.length; i++) {
 			const loc = locations[i]
 			const nameError = validateLocationName(loc?.name)
@@ -207,6 +215,24 @@ export function useLocationValidationPipeline() {
 					break
 				}
 				case "emergency_rescue": {
+					break
+				}
+				case "access_security": {
+					const asLoc = loc as {
+						name?: string
+						floor?: string
+						indoorDeviceId?: number
+						deviceId?: number
+					}
+					const locLabel = asLoc?.name || `第 ${i + 1} 筆`
+					const floor = String(asLoc?.floor || "").trim()
+					if (!floor) {
+						errors.push(`戶別「${locLabel}」：必須指定樓層`)
+					}
+					const indoorId = Number(asLoc?.indoorDeviceId ?? asLoc?.deviceId)
+					if (!Number.isFinite(indoorId) || indoorId <= 0) {
+						errors.push(`戶別「${locLabel}」：必須綁定室內機`)
+					}
 					break
 				}
 				default:

@@ -1,5 +1,6 @@
 import { useApiBase } from "~/composables/core/useApiBase"
 import type {
+	AccessSecurityIntercomLog,
 	AccessSecurityInviteResult,
 	AccessSecurityMainStation,
 	AccessSecuritySiteZone,
@@ -29,9 +30,15 @@ export const useAccessSecurityApi = () => {
 			timeout: RING_REQUEST_TIMEOUT_MS,
 		})
 
+	const getZoneLogsLatest = (zoneId: number) =>
+		request<{ logs: AccessSecurityIntercomLog[] }>(
+			`/access-security/zones/${zoneId}/logs/latest`
+		)
+
 	return {
 		getSites,
 		getMainStations,
 		ringLocation,
+		getZoneLogsLatest,
 	}
 }

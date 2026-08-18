@@ -40,7 +40,7 @@ import type { AccessSecurityZone, AccessSecurityLocation } from "~/types/accessS
 import {
 	formatAccessSecurityDisplayName,
 	splitAccessSecurityLocationName,
-} from "~/utils/accessSecurityFloor"
+} from "~/utils/accessSecurity"
 
 /**
  * 後端返回的地點格式（新架構：包含 systems 陣列）

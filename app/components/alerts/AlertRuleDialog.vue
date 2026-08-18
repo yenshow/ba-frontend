@@ -239,7 +239,10 @@
 									</div>
 								</div>
 
-								<div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+								<div
+									v-if="canUseCameraLinkage"
+									class="rounded-2xl border border-white/10 bg-white/5 p-4"
+								>
 									<p class="mb-3 text-sm font-medium text-white/90">攝影機連動</p>
 									<label class="flex items-center gap-3 text-sm text-white/80">
 										<input v-model="cameraLinkage.enabled" type="checkbox" class="h-4 w-4" />
@@ -295,7 +298,10 @@
 									</div>
 								</div>
 
-								<div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+								<div
+									v-if="canUseAccessDoorLinkage"
+									class="rounded-2xl border border-white/10 bg-white/5 p-4"
+								>
 									<p class="mb-3 text-sm font-medium text-white/90">門禁連動</p>
 									<label class="flex items-center gap-3 text-sm text-white/80">
 										<input v-model="accessDoorLinkage.enabled" type="checkbox" class="h-4 w-4" />
@@ -351,7 +357,10 @@
 									</div>
 								</div>
 
-								<div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+								<div
+									v-if="canUseSipRingLinkage"
+									class="rounded-2xl border border-white/10 bg-white/5 p-4"
+								>
 									<p class="mb-3 text-sm font-medium text-white/90">門禁保全語音廣播</p>
 									<label class="flex items-center gap-3 text-sm text-white/80">
 										<input
@@ -608,6 +617,7 @@ import {
 } from "~/utils/alertRuleFormValidation"
 import { useEnvironmentParameterCatalog } from "~/composables/systems/environment/useEnvironmentParameterCatalog"
 import { getParameterUnit } from "~/utils/sensorUtils"
+import { useLicense } from "~/composables/core/useLicense"
 
 interface OptionItem {
 	value: string
@@ -736,6 +746,11 @@ const { normalizeModbusAddressInput } = useModbusValidation()
 
 const alertApi = useAlertApi()
 const deviceApi = useDeviceApi()
+const { hasFeature } = useLicense()
+
+const canUseCameraLinkage = computed(() => hasFeature("surveillance"))
+const canUseAccessDoorLinkage = computed(() => hasFeature("people_counting"))
+const canUseSipRingLinkage = computed(() => hasFeature("access_security"))
 
 const expandedSections = reactive({ linkage: false, notify: false })
 
@@ -1175,7 +1190,8 @@ const loadIntegrationsForRule = async (ruleId: number) => {
 		doLinkage.auto_off_seconds = d?.auto_off_seconds ?? null
 
 		const c = res?.cameraLinkage
-		cameraLinkage.enabled = Boolean(c?.enabled)
+		cameraLinkage.enabled =
+			canUseCameraLinkage.value && Boolean(c?.enabled)
 		const idsRaw = (c as any)?.camera_device_ids as unknown
 		const ids = Array.isArray(idsRaw)
 			? (idsRaw as unknown[])
@@ -1186,14 +1202,16 @@ const loadIntegrationsForRule = async (ruleId: number) => {
 		const merged = [...new Set(ids)].slice(0, 4)
 		cameraLinkage.camera_device_ids = merged.length > 0 ? merged : [null]
 
-		accessDoorLinkage.enabled = Boolean(res?.accessDoorLinkage?.enabled)
+		accessDoorLinkage.enabled =
+			canUseAccessDoorLinkage.value && Boolean(res?.accessDoorLinkage?.enabled)
 		const accessMerged = normalizeAlertRuleDeviceIds(
 			Array.isArray(res?.accessDoorLinkage?.device_ids) ? res.accessDoorLinkage.device_ids : []
 		)
 		accessDoorLinkage.allDevices = accessMerged.length === 0
 		accessDoorLinkage.device_ids = accessMerged
 
-		sipRingLinkage.enabled = Boolean(res?.sipRingLinkage?.enabled)
+		sipRingLinkage.enabled =
+			canUseSipRingLinkage.value && Boolean(res?.sipRingLinkage?.enabled)
 		const sipMerged = normalizeAlertRuleDeviceIds(
 			Array.isArray(res?.sipRingLinkage?.device_ids) ? res.sipRingLinkage.device_ids : []
 		)
@@ -1446,7 +1464,7 @@ const handleSubmit = () => {
 					auto_off_seconds: doLinkage.auto_off_seconds,
 				}
 			: null,
-		cameraLinkage: cameraLinkage.enabled
+		cameraLinkage: cameraLinkage.enabled && canUseCameraLinkage.value
 			? {
 					enabled: true,
 					camera_device_ids: normalizeAlertRuleCameraDeviceIds(cameraDeviceIdsModel.value).slice(
@@ -1455,7 +1473,7 @@ const handleSubmit = () => {
 					),
 				}
 			: null,
-		accessDoorLinkage: accessDoorLinkage.enabled
+		accessDoorLinkage: accessDoorLinkage.enabled && canUseAccessDoorLinkage.value
 			? {
 					enabled: true,
 					device_ids: accessDoorLinkage.allDevices
@@ -1463,7 +1481,7 @@ const handleSubmit = () => {
 						: normalizeAlertRuleDeviceIds(accessDoorLinkage.device_ids),
 				}
 			: null,
-		sipRingLinkage: sipRingLinkage.enabled
+		sipRingLinkage: sipRingLinkage.enabled && canUseSipRingLinkage.value
 			? {
 					enabled: true,
 					device_ids: sipRingLinkage.allDevices

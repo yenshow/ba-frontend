@@ -1,7 +1,7 @@
 <template>
 	<div class="shrink-0">
 		<div
-			class="flex items-center gap-3 rounded-xl px-3 py-2.5 2xl:gap-4 2xl:px-4 2xl:py-3"
+			class="flex items-center gap-2.5 rounded-xl px-2.5 py-2 2xl:gap-4 2xl:px-4 2xl:py-3"
 			:class="
 				station
 					? 'bg-cyan-500/15 ring-1 ring-cyan-300/25'
@@ -36,16 +36,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue"
 import type { AccessSecurityMainStation } from "~/types/accessSecurity"
 import AccessIntercomManageSvg from "~/components/access-security/AccessIntercomManageSvg.vue"
 
-const props = defineProps<{
-	mainStations: AccessSecurityMainStation[]
+defineProps<{
+	station: AccessSecurityMainStation | null
 }>()
 
-const station = computed(() => props.mainStations[0] ?? null)
-const iconBoxClass = "h-[140px] w-[260px] shrink-0 2xl:h-[176px] 2xl:w-[320px]"
+const iconBoxClass = "h-[112px] w-[208px] shrink-0 2xl:h-[176px] 2xl:w-[320px]"
 
 const formatArmingLabel = (st: AccessSecurityMainStation): string => {
 	if (!st.armed) return "未佈防"

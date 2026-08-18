@@ -32,19 +32,7 @@
 					<article
 						v-for="loc in pagedLocations"
 						:key="loc.id"
-						class="flex min-w-0 cursor-pointer flex-col gap-2 rounded-xl border-2 bg-black/30 p-2 2xl:gap-2.5 2xl:p-3"
-						:class="
-							focusedLocationId === loc.id
-								? 'border-cyan-400 ring-2 ring-cyan-400'
-								: 'border-white/40'
-						"
-						role="button"
-						tabindex="0"
-						:aria-label="`選擇 ${loc.displayName}`"
-						:aria-pressed="focusedLocationId === loc.id"
-						@click="emit('focus', loc.id)"
-						@keydown.enter="emit('focus', loc.id)"
-						@keydown.space.prevent="emit('focus', loc.id)"
+						class="flex min-w-0 flex-col gap-2 rounded-xl border-2 border-white/40 bg-black/30 p-2 2xl:gap-2.5 2xl:p-3"
 					>
 						<div
 							class="mx-auto aspect-[300/188] w-full max-h-[150px] overflow-hidden rounded-lg 2xl:max-h-[170px]"
@@ -61,10 +49,6 @@
 						</h4>
 						<p class="truncate text-center text-xs text-white/70 2xl:text-sm">
 							{{ loc.indoorDeviceName || "未綁定" }}
-							<span v-if="loc.voipNumber"> · VoIP {{ loc.voipNumber }}</span>
-						</p>
-						<p class="truncate text-center text-xs text-white/50 2xl:text-sm">
-							{{ loc.host || "—" }}
 						</p>
 						<button
 							type="button"
@@ -72,7 +56,7 @@
 							:disabled="!canRing || ringingLocationId === loc.id"
 							:aria-busy="ringingLocationId === loc.id"
 							:aria-label="`${loc.displayName} 語音廣播`"
-							@click.stop="emit('ring', loc.id)"
+							@click="emit('ring', loc.id)"
 						>
 							{{ ringingLocationId === loc.id ? "廣播中…" : "語音廣播" }}
 						</button>
@@ -95,7 +79,8 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
-import type { AccessSecurityFloorGroup } from "~/types/accessSecurity"
+import type { AccessSecuritySiteLocation } from "~/types/accessSecurity"
+import { groupAccessSecurityLocationsByFloor } from "~/utils/accessSecurity"
 import AccessIntercomIndoorSvg from "~/components/access-security/AccessIntercomIndoorSvg.vue"
 import Pagination from "~/components/common/Pagination.vue"
 
@@ -103,29 +88,28 @@ const PAGE_SIZE = 4
 
 const props = withDefaults(
 	defineProps<{
-		groupedFloors: AccessSecurityFloorGroup[]
-		focusedLocationId?: number | null
+		locations: AccessSecuritySiteLocation[]
 		ringingLocationId?: number | null
 		canRing?: boolean
 	}>(),
 	{
-		focusedLocationId: null,
 		ringingLocationId: null,
 		canRing: false,
 	}
 )
 
 const emit = defineEmits<{
-	focus: [locationId: number]
 	ring: [locationId: number]
 }>()
 
 const selectedFloor = ref("")
 const pageOffset = ref(0)
 
+const groupedFloors = computed(() => groupAccessSecurityLocationsByFloor(props.locations))
+
 const floorLocations = computed(
 	() =>
-		props.groupedFloors.find((group) => group.floor === selectedFloor.value)?.locations || []
+		groupedFloors.value.find((group) => group.floor === selectedFloor.value)?.locations || []
 )
 
 const pagedLocations = computed(() =>
@@ -137,30 +121,13 @@ const handleSelectFloor = (floor: string) => {
 	pageOffset.value = 0
 }
 
-const syncFloorFromFocus = () => {
-	const focused = props.focusedLocationId
-	if (focused == null) return
-	for (const group of props.groupedFloors) {
-		const index = group.locations.findIndex((loc) => loc.id === focused)
-		if (index < 0) continue
-		selectedFloor.value = group.floor
-		pageOffset.value = Math.floor(index / PAGE_SIZE) * PAGE_SIZE
-		return
-	}
-}
-
 watch(
-	() =>
-		[
-			props.groupedFloors.map((group) => group.floor).join("|"),
-			props.focusedLocationId,
-		] as const,
+	() => groupedFloors.value.map((group) => group.floor).join("|"),
 	() => {
-		if (!props.groupedFloors.some((group) => group.floor === selectedFloor.value)) {
-			selectedFloor.value = props.groupedFloors[0]?.floor || ""
+		if (!groupedFloors.value.some((group) => group.floor === selectedFloor.value)) {
+			selectedFloor.value = groupedFloors.value[0]?.floor || ""
 			pageOffset.value = 0
 		}
-		syncFloorFromFocus()
 	},
 	{ immediate: true }
 )

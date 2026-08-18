@@ -333,7 +333,7 @@
 													:key="`${entry.id}-${fk}`"
 													class="rounded-full bg-emerald-500/15 px-3 py-1 text-sm text-emerald-100 ring-1 ring-emerald-400/30 2xl:px-4 2xl:py-1.5 2xl:text-base"
 												>
-													{{ featureLabels[fk] ?? fk }}
+													{{ getFeatureKeyLabel(fk) }}
 													<span class="ml-1 text-white/70"
 														>({{ featureQuotaText(entry, fk) }})</span
 													>
@@ -369,7 +369,7 @@
 
 <script setup lang="ts">
 import { TOAST } from "~/config/toastCatalog"
-import { LICENSE_FEATURE_KEYS, type FeatureKey, type LicenseState } from "~/types/license"
+import { LICENSE_FEATURE_KEYS, getFeatureKeyLabel, type FeatureKey, type LicenseState } from "~/types/license"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useAdminOnly, usePlatformAdmin } from "~/composables/core/useAuth"
 import { useLicense } from "~/composables/core/useLicense"
@@ -385,24 +385,6 @@ import { formatMaxDevicesText, normalizeMaxDevices, toNonNegativeInt } from "~/u
 definePageMeta({
 	layout: "default",
 })
-
-const featureLabels: Record<string, string> = {
-	people_counting: "門禁管理",
-	elevator: "電梯管理",
-	lighting: "照明系統",
-	hvac: "空調系統",
-	air_circulation: "空氣循環",
-	drainage: "排水系統",
-	power: "電力系統",
-	energy: "能源管理",
-	fire: "消防系統",
-	emergency_rescue: "緊急求救",
-	environment: "環境品質",
-	smoke_alarm: "煙霧警報",
-	surveillance: "影像監控",
-	vehicle_access: "車輛進出",
-	multimedia: "多媒體資訊",
-}
 
 const canAdmin = useAdminOnly()
 const canPlatformAdmin = usePlatformAdmin()
@@ -507,7 +489,7 @@ const quotaDetailRows = computed<QuotaDetailRow[]>(() => {
 	const enabled = new Set(license.value.features ?? [])
 
 	return LICENSE_FEATURE_KEYS.map((key) => {
-		const label = featureLabels[key] ?? key
+		const label = getFeatureKeyLabel(key)
 		const licensed = enabled.has(key)
 		const maxInfo = normalizeMaxDevices(quotas[key]?.maxDevices)
 		const usedRaw = usage[key]?.usedDevices ?? 0

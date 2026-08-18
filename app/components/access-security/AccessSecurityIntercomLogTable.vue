@@ -54,44 +54,32 @@
 import { computed } from "vue"
 import MonitoringLogEmptyState from "~/components/common/MonitoringLogEmptyState.vue"
 import {
-	getOperationalSourceLabel,
-	type OperationalEvent,
-} from "~/composables/systems/useOperationalEvents"
-import { formatDateTime } from "~/utils/dateUtils"
-import type { AccessSecuritySiteLocation } from "~/types/accessSecurity"
-import {
 	formatAccessSecurityIntercomUnitLabel,
 	formatIntercomMonitorSummary,
 	getIntercomSourceBadgeClass,
+	getIntercomSourceLabel,
 	parseIntercomLogTimestamp,
-	resolveAccessSecurityIntercomUnit,
-} from "~/utils/accessSecurityIntercomEvents"
+} from "~/utils/accessSecurity"
+import { formatDateTime } from "~/utils/dateUtils"
+import type { AccessSecurityIntercomLog, AccessSecuritySiteLocation } from "~/types/accessSecurity"
 
 const props = defineProps<{
-	events: OperationalEvent[]
+	events: AccessSecurityIntercomLog[]
 	locations: AccessSecuritySiteLocation[]
-	focusedLocationId?: number | null
 }>()
 
-const rows = computed(() => {
-	const focused = props.focusedLocationId ?? null
-	return (props.events || [])
-		.filter((event) => {
-			if (focused == null) return true
-			const loc = resolveAccessSecurityIntercomUnit(event, props.locations)
-			return loc?.id === focused
-		})
-		.map((event) => {
-			const stamped = parseIntercomLogTimestamp(formatDateTime(event.occurred_at))
-			return {
-				id: event.id,
-				unit: formatAccessSecurityIntercomUnitLabel(event, props.locations),
-				summary: formatIntercomMonitorSummary(event.summary),
-				source: getOperationalSourceLabel(event.source),
-				sourceClass: getIntercomSourceBadgeClass(event.source),
-				date: stamped.date,
-				clock: stamped.time,
-			}
-		})
-})
+const rows = computed(() =>
+	(props.events || []).map((event) => {
+		const stamped = parseIntercomLogTimestamp(formatDateTime(event.occurred_at))
+		return {
+			id: event.id,
+			unit: formatAccessSecurityIntercomUnitLabel(event, props.locations),
+			summary: formatIntercomMonitorSummary(event.summary),
+			source: getIntercomSourceLabel(event.source),
+			sourceClass: getIntercomSourceBadgeClass(event.source),
+			date: stamped.date,
+			clock: stamped.time,
+		}
+	})
+)
 </script>

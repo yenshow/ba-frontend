@@ -26,15 +26,13 @@ export type AccessSecurityZone = {
 	manageDeviceId?: number
 }
 
-/** `/access-security/sites` 總覽列 */
+/** `/access-security/sites` 總覽列（voipNumber／host 不進本 API；SIP 直撥讀設備檔） */
 export type AccessSecuritySiteLocation = {
 	id: number
 	name: string
 	systemId: number
 	indoorDeviceId: number | null
 	indoorDeviceName: string | null
-	voipNumber: string | null
-	host: string | null
 	floor: string | null
 	/** `{floor}-{name}`；無樓層時為 name */
 	displayName: string
@@ -58,18 +56,25 @@ export type AccessSecurityMainStation = {
 	armingStatus: string
 }
 
-export type AccessSecurityFloorGroup = {
-	floor: string
-	locations: AccessSecuritySiteLocation[]
-}
-
-/** POST /access-security/locations/:id/ring */
+/** POST /access-security/locations/:id/ring（前端只用 ok／result／played） */
 export type AccessSecurityInviteResult = {
 	ok: boolean
 	result: string
-	statusCode: number | null
-	mode?: "ring" | "broadcast"
 	played?: boolean
-	playDurationMs?: number
-	playError?: string | null
+}
+
+/** GET /access-security/zones/:id/logs/latest（監控頁對講事件；層 2） */
+export type AccessSecurityIntercomLog = {
+	id: number
+	occurred_at: string
+	source: string
+	event_kind: "intercom"
+	location_id: number | null
+	system_id: number | null
+	device_id: number | null
+	summary: string
+	location_name?: string | null
+	device_name?: string | null
+	zone_name?: string | null
+	payload?: Record<string, unknown> | null
 }

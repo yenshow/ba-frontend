@@ -28,15 +28,9 @@
 					class="relative flex min-h-[664px] flex-col monitoring-panel overflow-hidden rounded-2xl p-4 2xl:min-h-[848px] 2xl:p-6"
 				>
 					<div class="monitoring-location-title">
-						<div class="flex w-[200px] items-center justify-center">
-							<span v-if="selectedZone" class="ps-[12px] text-[24px] 2xl:text-[36px]">{{
+						<div class="flex w-[200px] items-center justify-center px-3">
+							<span v-if="selectedZone" class="text-[24px] 2xl:text-[36px]">{{
 								selectedZone.name
-							}}</span>
-						</div>
-						<div class="monitoring-location-title__divider"></div>
-						<div class="flex w-[200px] items-center justify-center">
-							<span v-if="selectedZone" class="pe-[12px] text-[24px] 2xl:text-[36px]">{{
-								focusedLocation?.displayName || "全部戶別"
 							}}</span>
 						</div>
 					</div>
@@ -58,17 +52,18 @@
 						content-class="flex min-h-0 flex-1 flex-col"
 					>
 						<div v-if="selectedZone" class="flex min-h-0 flex-1">
-							<AccessSecurityDetailPanel
-								:locations="zoneLocations"
-								:grouped-floors="groupedFloors"
-								:main-stations="zoneMainStations"
-								:events="events"
-								:focused-location-id="focusedLocationId"
-								:ringing-location-id="ringingLocationId"
-								:can-ring="canRing"
-								@focus="handleSelectUnit"
-								@ring="handleRing"
-							/>
+							<div class="flex min-w-0 flex-1 flex-col gap-8">
+								<AccessSecurityMainStationPanel :station="zoneMainStation" />
+								<AccessSecurityIntercomLogTable :events="events" :locations="zoneLocations" />
+							</div>
+							<div class="ms-4 flex min-h-0 min-w-0 flex-1 flex-col border-l-2 border-white/30 ps-4">
+								<AccessSecurityIndoorPanel
+									:locations="zoneLocations"
+									:ringing-location-id="ringingLocationId"
+									:can-ring="canRing"
+									@ring="handleRingClick"
+								/>
+							</div>
 						</div>
 					</MonitoringDetailShell>
 				</div>
@@ -125,12 +120,10 @@
 										v-for="zone in sitesZones"
 										:key="zone.id"
 										:zone="zone"
-										:focused-location-id="selectedZoneId === zone.id ? focusedLocationId : null"
 										:class="{
 											'ring-2 ring-cyan-400': selectedZoneId === zone.id,
 										}"
-										@select="handleSelectZone"
-										@select-unit="handleSelectUnitFromOverview(zone.id, $event)"
+										@select="selectedZoneId = $event"
 									/>
 								</template>
 								<div v-else class="py-8 text-center text-white/60">
@@ -161,48 +154,31 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch, type Ref } from "vue"
+import { onMounted, onUnmounted, ref, type Ref } from "vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue"
 import AccessSecurityLocationOverviewCard from "~/components/access-security/AccessSecurityLocationOverviewCard.vue"
-import AccessSecurityDetailPanel from "~/components/access-security/AccessSecurityDetailPanel.vue"
-import { useAccessSecurityApi } from "~/composables/systems/access-security/useAccessSecurityApi"
+import AccessSecurityMainStationPanel from "~/components/access-security/AccessSecurityMainStationPanel.vue"
+import AccessSecurityIntercomLogTable from "~/components/access-security/AccessSecurityIntercomLogTable.vue"
+import AccessSecurityIndoorPanel from "~/components/access-security/AccessSecurityIndoorPanel.vue"
+import { useAccessSecurityState } from "~/composables/systems/access-security/useAccessSecurityState"
 import { useAccessSecurityLocationApi } from "~/composables/location/api/useAccessSecurityLocationApi"
-import { useAccessSecurityZoneView } from "~/composables/systems/access-security/useAccessSecurityZoneView"
-import { normalizeAccessSecuritySiteZones } from "~/utils/accessSecurityFloor"
-import {
-	ACCESS_SECURITY_MONITOR_EVENT_SOURCES,
-	filterAccessSecurityMonitorEvents,
-} from "~/utils/accessSecurityIntercomEvents"
 import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { useAuth } from "~/composables/core/useAuth"
 import { PERM } from "~/config/permissionCodes"
 import {
-	useOperationalEvents,
-	type OperationalEvent,
-} from "~/composables/systems/useOperationalEvents"
-import {
 	useZoneManagement,
 	ZONE_DIALOG_BATCH_SAVE_OPTIONS,
 } from "~/composables/location/management/useZoneManagement"
-import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import type {
-	AccessSecurityLocation,
-	AccessSecurityMainStation,
-	AccessSecuritySiteZone,
-	AccessSecurityZone,
-} from "~/types/accessSecurity"
+import type { AccessSecurityLocation, AccessSecurityZone } from "~/types/accessSecurity"
 
 definePageMeta({
 	layout: "default",
 })
 
-const toast = useToast()
 const { handleError } = useErrorHandler()
-const { getEvents } = useOperationalEvents()
-const accessApi = useAccessSecurityApi()
 const locationApi = useAccessSecurityLocationApi()
 const {
 	canManageLocation,
@@ -215,84 +191,29 @@ const canRing = useHasPermission(PERM.accessSecurity.ring)
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
 	useZoneManagement<AccessSecurityLocation, AccessSecurityZone>()
 
+const {
+	sitesZones,
+	selectedZoneId,
+	events,
+	zones,
+	ringingLocationId,
+	selectedZone,
+	zoneLocations,
+	detailEmpty,
+	zoneMainStation,
+	loadZonesForDialog,
+	refreshAfterZoneChange,
+	initPage,
+	handleRing,
+	setupOperationalEventListener,
+} = useAccessSecurityState()
+
 const isOverviewCollapsed = ref(false)
 const showZoneDialog = ref(false)
-const zones = ref<AccessSecurityZone[]>([])
-const sitesZones = ref<AccessSecuritySiteZone[]>([])
-const mainStations = ref<AccessSecurityMainStation[]>([])
-const selectedZoneId = ref<number | null>(null)
-const focusedLocationId = ref<number | null>(null)
-const ringingLocationId = ref<number | null>(null)
-const events = ref<OperationalEvent[]>([])
 
-const { selectedZone, zoneLocations, groupedFloors, findLocation } = useAccessSecurityZoneView({
-	zones: sitesZones,
-	selectedZoneId,
-})
-
-const focusedLocation = computed(() => findLocation(focusedLocationId.value))
-const detailEmpty = computed(() => !selectedZone.value)
-const zoneMainStations = computed(() => {
-	const boundId = selectedZone.value?.manageDeviceId
-	if (boundId != null && boundId > 0) {
-		return mainStations.value.filter((st) => st.deviceId === boundId)
-	}
-	if (mainStations.value.length === 1) return mainStations.value
-	return []
-})
-
-const loadSites = async () => {
-	const [sites, stations] = await Promise.all([
-		accessApi.getSites(),
-		accessApi.getMainStations(),
-	])
-	sitesZones.value = normalizeAccessSecuritySiteZones(sites.zones || [])
-	mainStations.value = stations.stations || []
-	const stillExists = sitesZones.value.some((z) => z.id === selectedZoneId.value)
-	if (!stillExists) {
-		selectedZoneId.value = sitesZones.value[0]?.id ?? null
-		focusedLocationId.value = null
-	} else if (
-		focusedLocationId.value != null &&
-		!zoneLocations.value.some((loc) => loc.id === focusedLocationId.value)
-	) {
-		focusedLocationId.value = null
-	}
-}
-
-const loadZonesForDialog = async () => {
-	const result = await locationApi.getZones()
-	zones.value = result.zones || []
-}
-
-const loadEvents = async () => {
-	if (selectedZoneId.value == null) {
-		events.value = []
-		return
-	}
-	const res = await getEvents({
-		event_kind: "intercom",
-		source: ACCESS_SECURITY_MONITOR_EVENT_SOURCES.join(","),
-		limit: 80,
-	})
-	events.value = filterAccessSecurityMonitorEvents(
-		res.events || [],
-		zoneLocations.value
-	)
-}
-
-const handleSelectZone = (zoneId: number) => {
-	selectedZoneId.value = zoneId
-	focusedLocationId.value = null
-}
-
-const handleSelectUnit = (locationId: number) => {
-	focusedLocationId.value = locationId
-}
-
-const handleSelectUnitFromOverview = (zoneId: number, locationId: number) => {
-	selectedZoneId.value = zoneId
-	focusedLocationId.value = locationId
+const handleRingClick = (locationId: number) => {
+	if (!canRing.value) return
+	void handleRing(locationId)
 }
 
 const handleOpenZoneDialog = async () => {
@@ -305,43 +226,28 @@ const handleOpenZoneDialog = async () => {
 	}
 }
 
-const handleRing = async (locationId: number) => {
-	if (!canRing.value) return
-	focusedLocationId.value = locationId
-	ringingLocationId.value = locationId
-	try {
-		const res = await accessApi.ringLocation(locationId)
-		if (res.invite?.played) {
-			toast.success("已播放語音廣播")
-		} else if (res.invite?.ok) {
-			toast.success("已送出振鈴（室內機未接聽）")
-		} else {
-			toast.warning(`廣播結果：${res.invite?.result || "未知"}`)
-		}
-		await loadEvents()
-	} catch (error) {
-		handleError(error, "語音廣播失敗")
-	} finally {
-		ringingLocationId.value = null
-	}
-}
-
 const handleSaveZone = async (zone: AccessSecurityZone) => {
 	await baseHandleSaveZone(
 		zone,
 		zones as Ref<(AccessSecurityZone & { id: string })[]>,
 		async (z: AccessSecurityZone & { id: string }) => {
 			const isValidId = z.id && !z.id.startsWith("temp-") && /^\d+$/.test(z.id)
+			const locations = (z.locations || []).map((loc) => ({
+				...loc,
+				manageDeviceId: z.manageDeviceId ?? loc.manageDeviceId,
+			}))
 			const result = isValidId
 				? await locationApi.updateZone(z.id, {
 						name: z.name,
 						sortOrder: z.sortOrder,
-						locations: z.locations,
+						manageDeviceId: z.manageDeviceId,
+						locations,
 					})
 				: await locationApi.createZone({
 						name: z.name,
 						sortOrder: z.sortOrder,
-						locations: z.locations,
+						manageDeviceId: z.manageDeviceId,
+						locations,
 					})
 			const zoneWithId = { ...result.zone, id: result.zone.id || z.id } as AccessSecurityZone & {
 				id: string
@@ -367,29 +273,18 @@ const handleDeleteZone = async (zoneId: string) => {
 }
 
 const handleZonesSaved = async () => {
-	await Promise.all([loadZonesForDialog(), loadSites()])
+	await refreshAfterZoneChange()
 }
-
-watch(selectedZoneId, () => {
-	void loadEvents()
-})
 
 let offWs: (() => void) | undefined
 
 onMounted(async () => {
 	try {
-		await loadSites()
-		await loadEvents()
+		await initPage()
 	} catch (error) {
 		handleError(error, "載入頁面資料失敗")
 	}
-
-	const { $socket } = useNuxtApp() as any
-	const handler = (payload: { event_kind?: string }) => {
-		if (payload?.event_kind === "intercom") void loadEvents()
-	}
-	$socket?.on?.("operational-event:new", handler)
-	offWs = () => $socket?.off?.("operational-event:new", handler)
+	offWs = setupOperationalEventListener()
 })
 
 onUnmounted(() => {
