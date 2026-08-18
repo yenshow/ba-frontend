@@ -531,18 +531,22 @@ export function useAccessSecurityZoneAdapter(): ZoneSystemAdapter<
 		}),
 		createNewLocation: (): AccessSecurityLocation => ({
 			name: "",
+			floor: "1F",
 			indoorDeviceId: undefined,
 			deviceId: undefined,
+			manageDeviceId: undefined,
 		}),
 		createNewZone: (name: string): AccessSecurityZone => ({
 			name,
 			locations: [],
+			manageDeviceId: undefined,
 		}),
 		filterEmptyLocations: (zone: AccessSecurityZone): AccessSecurityZone => ({
 			...zone,
 			locations: (zone.locations || []).filter(
 				(loc) =>
 					Boolean(loc.name && loc.name.trim().length > 0) &&
+					Boolean(loc.floor && loc.floor.trim().length > 0) &&
 					Number(loc.indoorDeviceId ?? loc.deviceId) > 0
 			),
 		}),

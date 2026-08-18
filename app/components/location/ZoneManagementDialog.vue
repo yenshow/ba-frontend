@@ -83,7 +83,7 @@
 															<span
 																class="rounded-full bg-white/25 px-3 py-1 text-sm font-medium text-white 2xl:text-base"
 															>
-																{{ getLocationsCount(zone) }} 個{{ getLocationLabel() }}
+																{{ getZoneCountLabel(zone) }}
 															</span>
 														</div>
 													</div>
@@ -148,7 +148,8 @@
 														:allow-create-location="canAddZone"
 														:allow-delete-location="canRemoveZone"
 														@add-location="
-															(payload?: { viewCategory?: string }) => addLocation(zone, payload)
+															(payload?: { viewCategory?: string; floor?: string }) =>
+																addLocation(zone, payload)
 														"
 														@remove-location="
 															(index: number) => removeLocation(getZoneId(zone), index)
@@ -157,9 +158,16 @@
 															(p: { oldCategory: string; newCategory: string }) =>
 																handleDrainageRenameViewCategory(getZoneId(zone), p)
 														"
+														@rename-floor="
+															(p: { oldFloor: string; newFloor: string }) =>
+																handleAccessSecurityRenameFloor(getZoneId(zone), p)
+														"
 														@reorder-location="
-															(payload: { index: number; direction: 'up' | 'down' }) =>
-																handleReorderLocationRow(zone, payload)
+															(payload: {
+																index: number
+																direction: 'up' | 'down'
+																swapWithIndex?: number
+															}) => handleReorderLocationRow(zone, payload)
 														"
 														@reorder-view-category-block="
 															(p: { categoryKey: string; direction: 'up' | 'down' }) =>
@@ -168,6 +176,10 @@
 														@update-location="
 															(index: number, location: SystemLocationType) =>
 																handleLocationUpdate(getZoneId(zone), index, location)
+														"
+														@update-zone="
+															(updates: Partial<TZone>) =>
+																handleAccessSecurityZonePatch(getZoneId(zone), updates)
 														"
 													/>
 												</div>
@@ -465,13 +477,7 @@ const loadDevices = async () => {
 			type_code: deviceType,
 			limit: 100,
 		})
-		devices.value =
-			props.systemType === "access_security"
-				? (result.devices || []).filter((d) => {
-						const cfg = d.config as { unitType?: string } | undefined
-						return String(cfg?.unitType || "") === "indoor"
-					})
-				: result.devices
+		devices.value = result.devices
 	} catch (error) {
 		logger.error("載入設備列表失敗:", error)
 		errorMessage.value = "載入設備列表失敗"
@@ -617,6 +623,20 @@ const getLocationsCount = (zone: TZone): number => {
 	return adapter.getLocationsProperty(zone).length
 }
 
+const getZoneCountLabel = (zone: TZone): string => {
+	const n = getLocationsCount(zone)
+	if (props.systemType !== "access_security") {
+		return `${n} 個${getLocationLabel()}`
+	}
+	const floors = new Set(
+		adapter
+			.getLocationsProperty(zone)
+			.map((loc) => String((loc as { floor?: string }).floor || "").trim())
+			.filter(Boolean)
+	)
+	return `${n} 個戶別 · ${floors.size} 樓層`
+}
+
 const getLocationLabel = (): string => {
 	const labelMap: Record<SystemType, string> = {
 		lighting: "點位",
@@ -710,7 +730,20 @@ const handleLocationUpdate = (
 	updateZone(updatedZone)
 }
 
-const addLocation = (zone: TZone, payload?: { viewCategory?: string }) => {
+const handleAccessSecurityZonePatch = (zoneId: string, updates: Partial<TZone>) => {
+	if (props.systemType !== "access_security") return
+	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
+	if (!zone) return
+	const manageDeviceId = (updates as { manageDeviceId?: number }).manageDeviceId
+	const nextZone = { ...zone, ...updates } as TZone
+	const locations = adapter.getLocationsProperty(zone).map((loc) => ({
+		...loc,
+		manageDeviceId,
+	})) as SystemLocationType[]
+	updateZone(adapter.setLocationsProperty(nextZone, locations))
+}
+
+const addLocation = (zone: TZone, payload?: { viewCategory?: string; floor?: string }) => {
 	if (!canAddZone.value) return
 	const newLocation = adapter.createNewLocation() as SystemLocationType
 
@@ -736,6 +769,12 @@ const addLocation = (zone: TZone, payload?: { viewCategory?: string }) => {
 		payload.viewCategory !== undefined
 	) {
 		;(newLocation as { viewCategory?: string }).viewCategory = payload.viewCategory
+	}
+	if (props.systemType === "access_security" && payload?.floor !== undefined) {
+		;(newLocation as { floor?: string }).floor = payload.floor
+		;(newLocation as { manageDeviceId?: number }).manageDeviceId = (
+			zone as { manageDeviceId?: number }
+		).manageDeviceId
 	}
 	const locations = [...adapter.getLocationsProperty(zone), newLocation]
 	const updatedZone = adapter.setLocationsProperty(zone, locations)
@@ -763,6 +802,28 @@ const handleDrainageRenameViewCategory = (
 		const vc = (locAny.viewCategory ?? "").trim()
 		if (vc === oldTrim) {
 			return { ...loc, viewCategory: newCat } as SystemLocationType
+		}
+		return loc
+	})
+	const updatedZone = adapter.setLocationsProperty(zone, next)
+	updateZone(updatedZone)
+}
+
+const handleAccessSecurityRenameFloor = (
+	zoneId: string,
+	payload: { oldFloor: string; newFloor: string }
+) => {
+	if (props.systemType !== "access_security") return
+	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
+	if (!zone) return
+	const oldTrim = payload.oldFloor.trim()
+	const newFloor = payload.newFloor.trim()
+	const locations = [...adapter.getLocationsProperty(zone)] as SystemLocationType[]
+	const next = locations.map((loc) => {
+		const locAny = loc as { floor?: string }
+		const floor = (locAny.floor ?? "").trim()
+		if (floor === oldTrim) {
+			return { ...loc, floor: newFloor } as SystemLocationType
 		}
 		return loc
 	})
@@ -916,12 +977,12 @@ const DRAINAGE_CATEGORY_BLOCK_EMPTY_KEY = "__empty__"
 const reorderDrainageLocationsByCategoryBlock = (
 	locs: SystemLocationType[],
 	categoryKey: string,
-	direction: "up" | "down"
-): SystemLocationType[] | null => {
-	const toKey = (loc: SystemLocationType) => {
+	direction: "up" | "down",
+	toKey: (loc: SystemLocationType) => string = (loc) => {
 		const raw = String((loc as { viewCategory?: string }).viewCategory ?? "").trim()
 		return raw === "" ? DRAINAGE_CATEGORY_BLOCK_EMPTY_KEY : raw
 	}
+): SystemLocationType[] | null => {
 	const keyOrder: string[] = []
 	const keySeen = new Set<string>()
 	for (const loc of locs) {
@@ -966,13 +1027,26 @@ const handleReorderDrainageViewCategoryBlock = (
 		props.systemType !== "drainage" &&
 		props.systemType !== "air_circulation" &&
 		props.systemType !== "power" &&
-		props.systemType !== "fire"
+		props.systemType !== "fire" &&
+		props.systemType !== "access_security"
 	)
 		return
 	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
 	if (!zone) return
 	const locs = [...adapter.getLocationsProperty(zone)] as SystemLocationType[]
-	const next = reorderDrainageLocationsByCategoryBlock(locs, payload.categoryKey, payload.direction)
+	const toKey =
+		props.systemType === "access_security"
+			? (loc: SystemLocationType) => {
+					const raw = String((loc as { floor?: string }).floor ?? "").trim()
+					return raw === "" ? DRAINAGE_CATEGORY_BLOCK_EMPTY_KEY : raw
+				}
+			: undefined
+	const next = reorderDrainageLocationsByCategoryBlock(
+		locs,
+		payload.categoryKey,
+		payload.direction,
+		toKey
+	)
 	if (!next) return
 	next.forEach((loc, idx) => {
 		;(loc as unknown as { sortOrder?: number }).sortOrder = idx
@@ -983,12 +1057,17 @@ const handleReorderDrainageViewCategoryBlock = (
 
 const handleReorderLocationRow = (
 	zone: TZone,
-	payload: { index: number; direction: "up" | "down" }
+	payload: { index: number; direction: "up" | "down"; swapWithIndex?: number }
 ) => {
 	const locs = [...adapter.getLocationsProperty(zone)] as SystemLocationType[]
-	const { index, direction } = payload
-	const j = direction === "up" ? index - 1 : index + 1
-	if (j < 0 || j >= locs.length) return
+	const { index, direction, swapWithIndex } = payload
+	const j =
+		typeof swapWithIndex === "number" && Number.isFinite(swapWithIndex)
+			? swapWithIndex
+			: direction === "up"
+				? index - 1
+				: index + 1
+	if (j < 0 || j >= locs.length || index < 0 || index >= locs.length || j === index) return
 	;[locs[index], locs[j]] = [locs[j]!, locs[index]!]
 	locs.forEach((loc, idx) => {
 		;(loc as unknown as { sortOrder?: number }).sortOrder = idx

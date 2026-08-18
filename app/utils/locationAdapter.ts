@@ -37,6 +37,10 @@ import {
 import type { ElevatorZone, ElevatorLocation } from "~/types/elevator";
 import type { ElevatorSystemConfig } from "~/types/location";
 import type { AccessSecurityZone, AccessSecurityLocation } from "~/types/accessSecurity";
+import {
+	formatAccessSecurityDisplayName,
+	splitAccessSecurityLocationName,
+} from "~/utils/accessSecurityFloor"
 
 /**
  * 後端返回的地點格式（新架構：包含 systems 陣列）
@@ -1613,34 +1617,45 @@ export function elevatorLocationToUnified(
 }
 
 export function unifiedToAccessSecurityZone(zone: UnifiedZone): AccessSecurityZone {
+	const locations = zone.locations.flatMap((loc) => {
+		const sys = loc.systems.find((s) => s.systemType === "access_security")
+		if (!sys) return []
+		const cfg = sys.config as {
+			indoorDeviceId?: number
+			indoor_device_id?: number
+			deviceId?: number
+			floor?: string
+			manageDeviceId?: number
+			manage_device_id?: number
+		}
+		const indoorId = Number(cfg.indoorDeviceId ?? cfg.indoor_device_id ?? cfg.deviceId)
+		const indoor = Number.isFinite(indoorId) && indoorId > 0 ? indoorId : undefined
+		const manageRaw = Number(cfg.manageDeviceId ?? cfg.manage_device_id)
+		const manageDeviceId = Number.isFinite(manageRaw) && manageRaw > 0 ? manageRaw : undefined
+		const { floor, unitName } = splitAccessSecurityLocationName(loc.name, cfg.floor)
+		return [
+			{
+				id: loc.id,
+				systemId: sys.id,
+				name: unitName,
+				floor,
+				...(loc.createdAt && { createdAt: loc.createdAt }),
+				...pickSortOrder(loc.sortOrder),
+				indoorDeviceId: indoor,
+				deviceId: indoor,
+				manageDeviceId,
+			} as AccessSecurityLocation,
+		]
+	})
+	const manageDeviceId = locations.find((loc) => loc.manageDeviceId)?.manageDeviceId
 	return {
 		id: zone.id,
 		name: zone.name,
 		imageUrl: zone.imageUrl,
 		description: zone.description,
 		...pickSortOrder(zone.sortOrder),
-		locations: zone.locations.flatMap((loc) => {
-			const sys = loc.systems.find((s) => s.systemType === "access_security")
-			if (!sys) return []
-			const cfg = sys.config as {
-				indoorDeviceId?: number
-				indoor_device_id?: number
-				deviceId?: number
-			}
-			const indoorId = Number(cfg.indoorDeviceId ?? cfg.indoor_device_id ?? cfg.deviceId)
-			const indoor = Number.isFinite(indoorId) && indoorId > 0 ? indoorId : undefined
-			return [
-				{
-					id: loc.id,
-					systemId: sys.id,
-					name: loc.name,
-					...(loc.createdAt && { createdAt: loc.createdAt }),
-					...pickSortOrder(loc.sortOrder),
-					indoorDeviceId: indoor,
-					deviceId: indoor,
-				} as AccessSecurityLocation,
-			]
-		}),
+		locations,
+		manageDeviceId,
 	}
 }
 
@@ -1654,21 +1669,25 @@ export function accessSecurityToUnifiedZone(
 		...(zone.description !== undefined && { description: zone.description }),
 		...pickSortOrder(zone.sortOrder),
 		locations: zone.locations.map((location) =>
-			accessSecurityLocationToUnified(location, systemType)
+			accessSecurityLocationToUnified(location, systemType, zone.manageDeviceId)
 		),
 	}
 }
 
 export function accessSecurityLocationToUnified(
 	location: AccessSecurityLocation | Omit<AccessSecurityLocation, "id">,
-	systemType: SystemType = "access_security"
+	systemType: SystemType = "access_security",
+	zoneManageDeviceId?: number
 ): UnifiedLocationInput {
 	const hasId = "id" in location && location.id
 	const hasSystemId = "systemId" in location && location.systemId
 	const indoorId = location.indoorDeviceId ?? location.deviceId
+	const floor = String(location.floor || "").trim()
+	const manageRaw = Number(zoneManageDeviceId ?? location.manageDeviceId)
+	const manageDeviceId = Number.isFinite(manageRaw) && manageRaw > 0 ? manageRaw : undefined
 	return {
 		...(hasId && { id: location.id! }),
-		name: location.name,
+		name: formatAccessSecurityDisplayName(floor, location.name),
 		...(location.createdAt && { createdAt: location.createdAt }),
 		...pickSortOrder(location.sortOrder),
 		systems: [
@@ -1678,6 +1697,8 @@ export function accessSecurityLocationToUnified(
 				config: {
 					indoorDeviceId: indoorId,
 					deviceId: indoorId,
+					...(floor ? { floor } : {}),
+					...(manageDeviceId ? { manageDeviceId } : {}),
 				},
 			},
 		],

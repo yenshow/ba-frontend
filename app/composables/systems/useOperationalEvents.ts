@@ -3,10 +3,7 @@
  */
 import { useApiBase } from "~/composables/core/useApiBase"
 import { buildPathWithQuery } from "~/utils/apiUtils"
-import {
-	getSourceLabel,
-	getAlertSourceFilterLabel,
-} from "~/utils/alertUtils"
+import { getSourceLabel, getAlertSourceFilterLabel } from "~/utils/alertUtils"
 import { formatDateTime } from "~/utils/dateUtils"
 import { SYSTEM_TYPE_LABELS } from "~/types/location"
 
@@ -90,7 +87,7 @@ const EXTRA_SOURCE_LABELS: Record<string, string> = {
 	elevator: SYSTEM_TYPE_LABELS.elevator,
 	alert_linkage: "警報連動",
 	video_intercom: "組網對講",
-	access_security_ring: "平台語音廣播",
+	access_security_ring: "語音廣播",
 }
 
 export const getOperationalSourceLabel = (source: string): string =>
@@ -142,7 +139,7 @@ export const isOperationalAlertLinkage = (event: OperationalEvent): boolean => {
 }
 
 const getOperationalPlaceLabel = (
-	event: Pick<OperationalEvent, "zone_name" | "location_name">,
+	event: Pick<OperationalEvent, "zone_name" | "location_name">
 ): string => {
 	if (event.zone_name && event.location_name) {
 		return `${event.zone_name} - ${event.location_name}`
@@ -151,7 +148,7 @@ const getOperationalPlaceLabel = (
 }
 
 const getOperationalDeviceLabel = (
-	event: Pick<OperationalEvent, "device_name" | "device_id">,
+	event: Pick<OperationalEvent, "device_name" | "device_id">
 ): string => {
 	if (event.device_name) return event.device_name
 	if (event.device_id != null) return `#${event.device_id}`
@@ -159,23 +156,17 @@ const getOperationalDeviceLabel = (
 }
 
 export const getOperationalActorLabel = (
-	event: Pick<OperationalEvent, "actor_username" | "actor_user_id">,
-): string =>
-	event.actor_username ||
-	(event.actor_user_id == null ? "" : `#${event.actor_user_id}`)
+	event: Pick<OperationalEvent, "actor_username" | "actor_user_id">
+): string => event.actor_username || (event.actor_user_id == null ? "" : `#${event.actor_user_id}`)
 
 /** 列表固定：地點、設備、時間；另可附樓層／操作者（不顯示點位） */
-export const buildOperationalEventMeta = (
-	event: OperationalEvent,
-): OperationalEventMetaItem[] => {
+export const buildOperationalEventMeta = (event: OperationalEvent): OperationalEventMetaItem[] => {
 	const items: OperationalEventMetaItem[] = [
 		{ key: "place", label: "地點", value: getOperationalPlaceLabel(event) },
 		{ key: "device", label: "設備", value: getOperationalDeviceLabel(event) },
 		{ key: "time", label: "時間", value: formatDateTime(event.occurred_at) },
 	]
-	const floorLabel = String(
-		event.payload?.floorLabel ?? event.payload?.floor ?? "",
-	).trim()
+	const floorLabel = String(event.payload?.floorLabel ?? event.payload?.floor ?? "").trim()
 	if (floorLabel) {
 		items.push({ key: "floor", label: "樓層", value: floorLabel })
 	}
@@ -188,12 +179,9 @@ export const useOperationalEvents = () => {
 	const { request } = useApiBase()
 
 	const getEvents = async (
-		filters?: OperationalEventFilters,
+		filters?: OperationalEventFilters
 	): Promise<OperationalEventListResponse> => {
-		const path = buildPathWithQuery(
-			"/operational-events",
-			filters as Record<string, unknown>,
-		)
+		const path = buildPathWithQuery("/operational-events", filters as Record<string, unknown>)
 		return await request<OperationalEventListResponse>(path)
 	}
 

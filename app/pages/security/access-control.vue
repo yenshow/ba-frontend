@@ -29,14 +29,14 @@
 				>
 					<div class="monitoring-location-title">
 						<div class="flex w-[200px] items-center justify-center">
-							<span v-if="selectedLocation" class="ps-[12px] text-[24px] 2xl:text-[36px]">{{
-								selectedZoneName
+							<span v-if="selectedZone" class="ps-[12px] text-[24px] 2xl:text-[36px]">{{
+								selectedZone.name
 							}}</span>
 						</div>
 						<div class="monitoring-location-title__divider"></div>
 						<div class="flex w-[200px] items-center justify-center">
-							<span v-if="selectedLocation" class="pe-[12px] text-[24px] 2xl:text-[36px]">{{
-								selectedLocation.name
+							<span v-if="selectedZone" class="pe-[12px] text-[24px] 2xl:text-[36px]">{{
+								focusedLocation?.displayName || "全部戶別"
 							}}</span>
 						</div>
 					</div>
@@ -49,17 +49,6 @@
 					>
 						地點管理
 					</PermissionActionButton>
-					<PermissionActionButton
-						v-show="selectedLocation"
-						:allowed="canRing"
-						aria-label="語音廣播室內機"
-						title="接聽後播放語音；未接聽則只振鈴。廣播期間請稍候。"
-						class="absolute right-8 top-2 btn-monitoring-overlay"
-						:disabled="isRinging"
-						@click="handleRing"
-					>
-						{{ isRinging ? "廣播中…" : "語音廣播" }}
-					</PermissionActionButton>
 
 					<MonitoringDetailShell
 						:empty="detailEmpty"
@@ -68,11 +57,17 @@
 						empty-description="請在「地點管理」中新增戶別並綁定室內機"
 						content-class="flex min-h-0 flex-1 flex-col"
 					>
-						<div v-if="selectedLocation" class="flex min-h-0 flex-1">
+						<div v-if="selectedZone" class="flex min-h-0 flex-1">
 							<AccessSecurityDetailPanel
-								:location="selectedLocation"
-								:main-stations="mainStations"
+								:locations="zoneLocations"
+								:grouped-floors="groupedFloors"
+								:main-stations="zoneMainStations"
 								:events="events"
+								:focused-location-id="focusedLocationId"
+								:ringing-location-id="ringingLocationId"
+								:can-ring="canRing"
+								@focus="handleSelectUnit"
+								@ring="handleRing"
 							/>
 						</div>
 					</MonitoringDetailShell>
@@ -125,17 +120,17 @@
 							</h2>
 
 							<div class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
-								<template v-if="flatLocations.length > 0">
+								<template v-if="sitesZones.length > 0">
 									<AccessSecurityLocationOverviewCard
-										v-for="item in flatLocations"
-										:key="item.location.id"
-										:location="item.location"
-										:zone-name="item.zoneName"
-										class="cursor-pointer"
+										v-for="zone in sitesZones"
+										:key="zone.id"
+										:zone="zone"
+										:focused-location-id="selectedZoneId === zone.id ? focusedLocationId : null"
 										:class="{
-											'ring-2 ring-cyan-400': selectedLocationId === item.location.id,
+											'ring-2 ring-cyan-400': selectedZoneId === zone.id,
 										}"
-										@click="handleSelectLocation"
+										@select="handleSelectZone"
+										@select-unit="handleSelectUnitFromOverview(zone.id, $event)"
 									/>
 								</template>
 								<div v-else class="py-8 text-center text-white/60">
@@ -157,7 +152,7 @@
 			:can-create-zone="canCreateLocation"
 			:can-update-zone="canUpdateLocation"
 			:can-delete-zone="canDeleteLocation"
-			device-hint="請先在「設備管理」建立視訊對講室內機"
+			device-hint="請先在「設備管理」建立視訊對講室內機與管理中心主機"
 			:on-save-zone="handleSaveZone"
 			@saved="handleZonesSaved"
 			@delete="handleDeleteZone"
@@ -174,10 +169,19 @@ import AccessSecurityLocationOverviewCard from "~/components/access-security/Acc
 import AccessSecurityDetailPanel from "~/components/access-security/AccessSecurityDetailPanel.vue"
 import { useAccessSecurityApi } from "~/composables/systems/access-security/useAccessSecurityApi"
 import { useAccessSecurityLocationApi } from "~/composables/location/api/useAccessSecurityLocationApi"
+import { useAccessSecurityZoneView } from "~/composables/systems/access-security/useAccessSecurityZoneView"
+import { normalizeAccessSecuritySiteZones } from "~/utils/accessSecurityFloor"
+import {
+	ACCESS_SECURITY_MONITOR_EVENT_SOURCES,
+	filterAccessSecurityMonitorEvents,
+} from "~/utils/accessSecurityIntercomEvents"
 import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { useAuth } from "~/composables/core/useAuth"
 import { PERM } from "~/config/permissionCodes"
-import { useOperationalEvents } from "~/composables/systems/useOperationalEvents"
+import {
+	useOperationalEvents,
+	type OperationalEvent,
+} from "~/composables/systems/useOperationalEvents"
 import {
 	useZoneManagement,
 	ZONE_DIALOG_BATCH_SAVE_OPTIONS,
@@ -187,7 +191,6 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import type {
 	AccessSecurityLocation,
 	AccessSecurityMainStation,
-	AccessSecuritySiteLocation,
 	AccessSecuritySiteZone,
 	AccessSecurityZone,
 } from "~/types/accessSecurity"
@@ -217,39 +220,43 @@ const showZoneDialog = ref(false)
 const zones = ref<AccessSecurityZone[]>([])
 const sitesZones = ref<AccessSecuritySiteZone[]>([])
 const mainStations = ref<AccessSecurityMainStation[]>([])
-const selectedLocationId = ref<number | null>(null)
-const events = ref<
-	Array<{ id: number; occurred_at: string; source: string; summary: string }>
->([])
-const isRinging = ref(false)
+const selectedZoneId = ref<number | null>(null)
+const focusedLocationId = ref<number | null>(null)
+const ringingLocationId = ref<number | null>(null)
+const events = ref<OperationalEvent[]>([])
 
-const flatLocations = computed(() =>
-	sitesZones.value.flatMap((z) =>
-		(z.locations || []).map((loc: AccessSecuritySiteLocation) => ({
-			zoneName: z.name,
-			location: loc,
-		}))
-	)
-)
+const { selectedZone, zoneLocations, groupedFloors, findLocation } = useAccessSecurityZoneView({
+	zones: sitesZones,
+	selectedZoneId,
+})
 
-const selectedLocation = computed(() =>
-	flatLocations.value.find((x) => x.location.id === selectedLocationId.value)?.location
-)
-const selectedZoneName = computed(
-	() => flatLocations.value.find((x) => x.location.id === selectedLocationId.value)?.zoneName || ""
-)
-const detailEmpty = computed(() => !selectedLocation.value)
+const focusedLocation = computed(() => findLocation(focusedLocationId.value))
+const detailEmpty = computed(() => !selectedZone.value)
+const zoneMainStations = computed(() => {
+	const boundId = selectedZone.value?.manageDeviceId
+	if (boundId != null && boundId > 0) {
+		return mainStations.value.filter((st) => st.deviceId === boundId)
+	}
+	if (mainStations.value.length === 1) return mainStations.value
+	return []
+})
 
 const loadSites = async () => {
 	const [sites, stations] = await Promise.all([
 		accessApi.getSites(),
 		accessApi.getMainStations(),
 	])
-	sitesZones.value = sites.zones || []
+	sitesZones.value = normalizeAccessSecuritySiteZones(sites.zones || [])
 	mainStations.value = stations.stations || []
-	const stillExists = flatLocations.value.some((x) => x.location.id === selectedLocationId.value)
+	const stillExists = sitesZones.value.some((z) => z.id === selectedZoneId.value)
 	if (!stillExists) {
-		selectedLocationId.value = flatLocations.value[0]?.location.id ?? null
+		selectedZoneId.value = sitesZones.value[0]?.id ?? null
+		focusedLocationId.value = null
+	} else if (
+		focusedLocationId.value != null &&
+		!zoneLocations.value.some((loc) => loc.id === focusedLocationId.value)
+	) {
+		focusedLocationId.value = null
 	}
 }
 
@@ -259,20 +266,33 @@ const loadZonesForDialog = async () => {
 }
 
 const loadEvents = async () => {
-	if (selectedLocationId.value == null) {
+	if (selectedZoneId.value == null) {
 		events.value = []
 		return
 	}
 	const res = await getEvents({
 		event_kind: "intercom",
-		location_id: selectedLocationId.value,
-		limit: 50,
+		source: ACCESS_SECURITY_MONITOR_EVENT_SOURCES.join(","),
+		limit: 80,
 	})
-	events.value = res.events || []
+	events.value = filterAccessSecurityMonitorEvents(
+		res.events || [],
+		zoneLocations.value
+	)
 }
 
-const handleSelectLocation = (id: number) => {
-	selectedLocationId.value = id
+const handleSelectZone = (zoneId: number) => {
+	selectedZoneId.value = zoneId
+	focusedLocationId.value = null
+}
+
+const handleSelectUnit = (locationId: number) => {
+	focusedLocationId.value = locationId
+}
+
+const handleSelectUnitFromOverview = (zoneId: number, locationId: number) => {
+	selectedZoneId.value = zoneId
+	focusedLocationId.value = locationId
 }
 
 const handleOpenZoneDialog = async () => {
@@ -285,11 +305,12 @@ const handleOpenZoneDialog = async () => {
 	}
 }
 
-const handleRing = async () => {
-	if (!selectedLocationId.value || !canRing.value) return
-	isRinging.value = true
+const handleRing = async (locationId: number) => {
+	if (!canRing.value) return
+	focusedLocationId.value = locationId
+	ringingLocationId.value = locationId
 	try {
-		const res = await accessApi.ringLocation(selectedLocationId.value)
+		const res = await accessApi.ringLocation(locationId)
 		if (res.invite?.played) {
 			toast.success("已播放語音廣播")
 		} else if (res.invite?.ok) {
@@ -301,7 +322,7 @@ const handleRing = async () => {
 	} catch (error) {
 		handleError(error, "語音廣播失敗")
 	} finally {
-		isRinging.value = false
+		ringingLocationId.value = null
 	}
 }
 
@@ -349,7 +370,7 @@ const handleZonesSaved = async () => {
 	await Promise.all([loadZonesForDialog(), loadSites()])
 }
 
-watch(selectedLocationId, () => {
+watch(selectedZoneId, () => {
 	void loadEvents()
 })
 

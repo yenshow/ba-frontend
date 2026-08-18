@@ -130,22 +130,36 @@ export const deleteZoneWithSystemAwareness = async (args: {
 	const isOnlyCurrentSystem =
 		allSystemTypes.size === 1 && allSystemTypes.has(args.systemType)
 
-	const remainingLocations: UnifiedLocation[] =
-		(fullZone.locations || [])
-			.map((location) => {
-				const filteredSystems = (location.systems || []).filter(
-					(system) => system.systemType !== args.systemType
-				)
-				if (filteredSystems.length === 0) return null
-				return { ...location, systems: filteredSystems } as UnifiedLocation
-			})
-			.filter((location): location is UnifiedLocation => location !== null)
+	const remainingLocations: UnifiedLocation[] = (fullZone.locations || [])
+		.map((location) => {
+			const filteredSystems = (location.systems || []).filter(
+				(system) => system.systemType !== args.systemType,
+			)
+			if (filteredSystems.length === 0) return null
+			return { ...location, systems: filteredSystems } as UnifiedLocation
+		})
+		.filter((location): location is UnifiedLocation => location !== null)
 
-	if (isOnlyCurrentSystem || remainingLocations.length === 0) {
+	if (isOnlyCurrentSystem) {
 		await locationApi.deleteZone(zoneId, args.systemType)
 		return { action: "deleted-zone" }
 	}
 
-	await locationApi.updateZone(zoneId, { locations: remainingLocations }, args.systemType)
+	// 僅送含目標系統的地點；systems: [] 觸發後端依 locationType 移除該系統（保留其他系統）
+	const locationsToStripSystem: UnifiedLocation[] = (fullZone.locations || [])
+		.filter((location) =>
+			(location.systems || []).some((system) => system.systemType === args.systemType),
+		)
+		.map((location) => ({ ...location, systems: [] }) as UnifiedLocation)
+
+	if (locationsToStripSystem.length === 0) {
+		return { action: "removed-system-from-zone", remainingLocations }
+	}
+
+	await locationApi.updateZone(
+		zoneId,
+		{ locations: locationsToStripSystem },
+		args.systemType,
+	)
 	return { action: "removed-system-from-zone", remainingLocations }
 }

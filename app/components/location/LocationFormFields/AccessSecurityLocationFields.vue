@@ -3,14 +3,14 @@
 		<label
 			class="flex min-w-[7rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 		>
-			<span>戶別名稱<span class="required-mark">*</span></span>
+			<span>戶號<span class="required-mark">*</span></span>
 			<input
 				v-model="localLocation.name"
 				type="text"
 				required
 				class="form-input-small"
-				placeholder="例如：A 棟 1F-01"
-				aria-label="門禁保全戶別名稱"
+				placeholder="例如：01、12"
+				aria-label="門禁保全戶號"
 				@input="handleChange"
 			/>
 		</label>
@@ -24,7 +24,7 @@
 				:options="deviceOptions"
 				:placeholder="isLoadingDevices ? '載入中...' : '請選擇室內機'"
 				aria-label="選擇室內機"
-				@update:modelValue="handleDeviceChange"
+				@update:modelValue="handleChange"
 			/>
 		</label>
 	</div>
@@ -40,10 +40,12 @@ interface Props {
 	location: AccessSecurityLocation
 	devices: Device[]
 	isLoadingDevices?: boolean
+	floor?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	isLoadingDevices: false,
+	floor: "",
 })
 
 const emit = defineEmits<{
@@ -52,14 +54,16 @@ const emit = defineEmits<{
 
 const localLocation = reactive<AccessSecurityLocation>({
 	name: "",
+	floor: "",
 	indoorDeviceId: undefined,
 	deviceId: undefined,
 })
 
 watch(
-	() => props.location,
-	(loc) => {
+	() => [props.location, props.floor] as const,
+	([loc, floor]) => {
 		localLocation.name = loc.name || ""
+		localLocation.floor = (floor || loc.floor || "").trim()
 		localLocation.indoorDeviceId = loc.indoorDeviceId ?? loc.deviceId
 		localLocation.deviceId = localLocation.indoorDeviceId
 		localLocation.id = loc.id
@@ -98,9 +102,5 @@ const deviceIdString = computed({
 
 const handleChange = () => {
 	emit("update", { ...localLocation })
-}
-
-const handleDeviceChange = () => {
-	handleChange()
 }
 </script>

@@ -250,12 +250,16 @@ export interface ElevatorSystemConfig {
 
 /**
  * 門禁保全（視訊對講）地點配置
- * 後端持久化為 system_config.indoor_device_id
+ * 後端持久化為 system_config.indoor_device_id、system_config.floor、system_config.manage_device_id
  */
 export interface AccessSecuritySystemConfig {
 	indoorDeviceId?: number;
 	/** 與 indoorDeviceId 同義（表單／adapter 相容） */
 	deviceId?: number;
+	/** 樓層標籤（1F / 2F / B1） */
+	floor?: string;
+	/** 區域綁定的管理中心主機 */
+	manageDeviceId?: number;
 }
 
 /**
