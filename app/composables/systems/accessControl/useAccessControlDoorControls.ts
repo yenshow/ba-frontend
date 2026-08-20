@@ -1,6 +1,7 @@
 /**
  * 門禁遠端門控（總覽精簡列／詳情動畫面板共用）
  * 含：設備清單、控制 API、cooldown、選配 UI 推門動畫狀態
+ * 開門成功後的事件調閱跳圖由後端 WS（people-counting:access-control:event）觸發
  */
 import { TOAST } from "~/config/toastCatalog"
 import type { MaybeRefOrGetter } from "vue"

@@ -596,6 +596,30 @@ const handleLocationSelect = async (locationId: number) => {
 	await loadLocationDetail(locationId)
 }
 
+const route = useRoute()
+
+const parseQueryLocationId = (): number | null => {
+	const raw = route.query.locationId
+	const value = Array.isArray(raw) ? raw[0] : raw
+	const id = Number(value)
+	return Number.isFinite(id) && id > 0 ? Math.trunc(id) : null
+}
+
+const applyLocationFromQuery = async () => {
+	const locationId = parseQueryLocationId()
+	if (locationId == null) return
+	const exists = locationsForOverview.value.some((l) => l.locationId === locationId)
+	if (!exists) return
+	await handleLocationSelect(locationId)
+}
+
+watch(
+	() => route.query.locationId,
+	() => {
+		void applyLocationFromQuery()
+	}
+)
+
 // 設置 WebSocket 事件監聽器
 let cleanupWebSocket: (() => void) | null = null
 
@@ -690,6 +714,7 @@ onMounted(async () => {
 
 	try {
 		await refreshAfterZoneChange()
+		await applyLocationFromQuery()
 	} catch {
 		// 錯誤已在 composable 處理
 	}

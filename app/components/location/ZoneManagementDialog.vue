@@ -140,6 +140,7 @@
 														:doors="doors"
 														:access-control-devices="accessControlDevices"
 														:isapi-camera-devices="isapiCameraDevices"
+						:surveillance-camera-devices="surveillanceCameraDevices"
 														:reorderable-locations="true"
 														:allow-create-location="canAddZone"
 														:allow-delete-location="canRemoveZone"
@@ -386,6 +387,7 @@ const doors = ref<
 >([]);
 const accessControlDevices = ref<Device[]>([]);
 const isapiCameraDevices = ref<Device[]>([]);
+const surveillanceCameraDevices = ref<Device[]>([]);
 const vehicleCustomGroups = ref<Array<{ id: number; list_name: string }>>([]);
 const vehicleAccessApi = useVehicleAccessApi();
 
@@ -497,9 +499,12 @@ const loadIsapiCameraDevices = async () => {
 			type_code: "camera",
 			limit: 200
 		});
-		isapiCameraDevices.value = filterPeopleCountingCameraDevices(result.devices || []);
+		const all = result.devices || [];
+		isapiCameraDevices.value = filterPeopleCountingCameraDevices(all);
+		surveillanceCameraDevices.value = all;
 	} catch {
 		isapiCameraDevices.value = [];
+		surveillanceCameraDevices.value = [];
 	}
 };
 

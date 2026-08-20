@@ -25,6 +25,10 @@ export interface PeopleCountingLocation {
 	/** 本系統門禁設備 IDs（dataSource 為 access_control 時使用） */
 	entryDeviceIds?: number[]
 	exitDeviceIds?: number[]
+	/** access_control：入口進出事件調閱攝影機 */
+	entryEventCameraDeviceId?: number | null
+	/** access_control：出口進出事件調閱攝影機 */
+	exitEventCameraDeviceId?: number | null
 	/** 攝影機設備 IDs（dataSource 為 isapi_camera 且人流統計模式） */
 	cameraDeviceIds?: number[]
 	/** 人臉辨識：進場攝影機 */
@@ -46,7 +50,10 @@ export interface PeopleCountingLocation {
 
 	// 業務統計信息（來自業務 API）
 	locationId?: number // 業務層的地點 ID（數字格式，用於 API 調用）
-	region?: string // 區域（如：北部、中部、南部）
+	/** 區域（如：北部、中部、南部；由 zones.name 推導，供總覽分組） */
+	region?: string
+	/** 所屬區域／樓層名稱（zones.name，與地點管理一致） */
+	zoneName?: string
 	status?: "active" | "equipment_anomaly" | "intrusion_detected" // 狀態：正常、設備異常、非名單入侵
 	entryCount?: number // 今日進場人數
 	exitCount?: number // 今日出場人數

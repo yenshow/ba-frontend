@@ -29,3 +29,24 @@ export const ENVIRONMENT_READING_STALE_MS = 10 * 60 * 1000
 
 /** Modbus status GET */
 export const STATUS_API_TIMEOUT_MS = 30_000
+
+/** 門禁事件調閱攝影機跳窗（非警報 modal）；可經 system_settings 覆寫秒數 */
+export const ACCESS_EVENT_CAMERA_POPUP_MS_DEFAULT = 8_000
+export const ACCESS_EVENT_CAMERA_POPUP_MS_MIN = 5_000
+export const ACCESS_EVENT_CAMERA_POPUP_MS_MAX = 10_000
+export const ACCESS_EVENT_CAMERA_POPUP_SETTING_KEY = "access_event_camera_popup_duration_sec"
+
+export const clampAccessEventCameraPopupMs = (ms: number): number =>
+	Math.min(
+		ACCESS_EVENT_CAMERA_POPUP_MS_MAX,
+		Math.max(ACCESS_EVENT_CAMERA_POPUP_MS_MIN, Math.round(ms))
+	)
+
+export const parseAccessEventCameraPopupMs = (
+	raw: string | number | null | undefined
+): number => {
+	if (raw == null || raw === "") return ACCESS_EVENT_CAMERA_POPUP_MS_DEFAULT
+	const sec = Number(String(raw).trim())
+	if (!Number.isFinite(sec) || sec <= 0) return ACCESS_EVENT_CAMERA_POPUP_MS_DEFAULT
+	return clampAccessEventCameraPopupMs(sec * 1000)
+}

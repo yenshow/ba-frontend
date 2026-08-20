@@ -172,6 +172,10 @@ export interface PeopleCountingSystemConfig {
 	/** 本系統門禁設備 ID（devices.id），dataSource 為 access_control 時使用 */
 	entryDeviceIds?: number[];
 	exitDeviceIds?: number[];
+	/** access_control：入口進出事件調閱攝影機（devices.id，type camera） */
+	entryEventCameraDeviceId?: number | null;
+	/** access_control：出口進出事件調閱攝影機 */
+	exitEventCameraDeviceId?: number | null;
 	/** ISAPI 人流統計模式攝影機（devices.id）列表 */
 	cameraDeviceIds?: number[];
 	/** 人臉辨識：進場攝影機 */
