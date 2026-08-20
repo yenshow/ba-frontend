@@ -916,6 +916,8 @@ export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZo
 					cameraMode: config.cameraMode ?? undefined,
 					preferRegion: config.preferRegion ?? undefined,
 					accessControlGroups: config.accessControlGroups || [],
+					entryEventCameraDeviceId: config.entryEventCameraDeviceId ?? undefined,
+					exitEventCameraDeviceId: config.exitEventCameraDeviceId ?? undefined,
 					logDisplayColumns: Array.isArray(config.logDisplayColumns)
 						? config.logDisplayColumns
 						: undefined,
@@ -1310,6 +1312,18 @@ export function powerLocationToUnified(
 }
 
 /**
+ * access_control 事件調閱攝影機（undefined＝不送出、null＝清除）
+ */
+const toStoredEventCameraDeviceId = (
+	value: number | null | undefined
+): number | null | undefined => {
+	if (value === undefined) return undefined
+	if (value === null) return null
+	const n = Number(value)
+	return Number.isFinite(n) && n > 0 ? Math.trunc(n) : undefined
+}
+
+/**
  * 輔助函數：將人流統計地點轉換為統一地點格式
  * 須送出 dataSource、entryDeviceId、exitDeviceId，否則門禁設備（本系統）儲存後會遺失
  */
@@ -1334,6 +1348,7 @@ export function peopleCountingLocationToUnified(
 			)
 		: []
 	const isFace = loc.dataSource === "isapi_camera" && loc.cameraMode === "face_recognition"
+	const pcLoc = loc as PeopleCountingLocation
 	return {
 		...(hasId && { id: loc.id! }),
 		name: loc.name,
@@ -1357,6 +1372,16 @@ export function peopleCountingLocationToUnified(
 							: undefined,
 					preferRegion: loc.dataSource === "isapi_camera" ? true : (loc.preferRegion ?? false),
 					accessControlGroups: loc.accessControlGroups ?? [],
+					...(loc.dataSource === "access_control"
+						? {
+								entryEventCameraDeviceId: toStoredEventCameraDeviceId(
+									pcLoc.entryEventCameraDeviceId
+								),
+								exitEventCameraDeviceId: toStoredEventCameraDeviceId(
+									pcLoc.exitEventCameraDeviceId
+								),
+							}
+						: {}),
 					logDisplayColumns: (() => {
 						const stored = toStoredLogDisplayColumns(
 							normalizeLogDisplayColumns(loc.logDisplayColumns)

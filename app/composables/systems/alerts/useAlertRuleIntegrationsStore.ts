@@ -27,14 +27,22 @@ const summarize = (
 	const cameraEnabled = Boolean(integrations?.cameraLinkage?.enabled)
 	const accessDoorEnabled = Boolean(integrations?.accessDoorLinkage?.enabled)
 	const sipRingEnabled = Boolean(integrations?.sipRingLinkage?.enabled)
+	const elevatorCallEnabled = Boolean(integrations?.elevatorCallLinkage?.enabled)
 	const emailEnabled = Boolean(integrations?.emailSubscription?.enabled)
 	return {
 		doEnabled,
 		cameraEnabled,
 		accessDoorEnabled,
 		sipRingEnabled,
+		elevatorCallEnabled,
 		emailEnabled,
-		hasAny: doEnabled || cameraEnabled || accessDoorEnabled || sipRingEnabled || emailEnabled,
+		hasAny:
+			doEnabled ||
+			cameraEnabled ||
+			accessDoorEnabled ||
+			sipRingEnabled ||
+			elevatorCallEnabled ||
+			emailEnabled,
 	}
 }
 
@@ -133,6 +141,7 @@ export const useAlertRuleIntegrationsStore = () => {
 			cameraEnabled: false,
 			accessDoorEnabled: false,
 			sipRingEnabled: false,
+			elevatorCallEnabled: false,
 			emailEnabled: false,
 			hasAny: false,
 		}

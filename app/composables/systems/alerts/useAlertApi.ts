@@ -176,7 +176,7 @@ export const useAlertApi = () => {
 		)
 	}
 
-	/** 更新規則整合設定（DO / 攝影機 / Email） */
+	/** 更新規則整合設定（DO / 攝影機 / 門禁 / SIP / 電梯呼梯 / Email） */
 	const updateAlertRuleIntegrations = async (
 		ruleId: number,
 		body: Partial<AlertRuleIntegrations>

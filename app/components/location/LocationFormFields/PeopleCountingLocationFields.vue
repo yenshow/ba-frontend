@@ -223,6 +223,29 @@
 					</p>
 				</div>
 			</div>
+
+			<div v-if="canUseEventCameraLinkage" class="mt-3 border-t border-white/10 pt-3">
+				<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+					<label :class="fieldLabelClass">
+						<span>入口調閱攝影機</span>
+						<FilterDropdown
+							v-model="entryEventCameraSelect"
+							:options="eventCameraDeviceOptions"
+							placeholder="不設定"
+							text-size="text-sm 2xl:text-base"
+						/>
+					</label>
+					<label :class="fieldLabelClass">
+						<span>出口調閱攝影機</span>
+						<FilterDropdown
+							v-model="exitEventCameraSelect"
+							:options="eventCameraDeviceOptions"
+							placeholder="不設定"
+							text-size="text-sm 2xl:text-base"
+						/>
+					</label>
+				</div>
+			</div>
 		</div>
 
 		<!-- 攝影機人流（ISAPI PeopleCounting）：channel 固定由後端設定為 1，不提供欄位 -->
@@ -451,7 +474,9 @@ import {
 	type PeopleCountingCameraMode,
 } from "~/utils/peopleCountingCameraMode"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
+import { useLicense } from "~/composables/core/useLicense"
 import { storedPeopleCountingDataSource } from "~/utils/peopleCountingDataSource"
+import FilterDropdown from "~/components/common/FilterDropdown.vue"
 
 const CAMERA_MODE_OPTIONS: Array<{ value: PeopleCountingCameraMode; label: string }> = [
 	{
@@ -484,6 +509,7 @@ interface Props {
 	doors?: Door[]
 	accessControlDevices?: Device[]
 	isapiCameraDevices?: Device[]
+	surveillanceCameraDevices?: Device[]
 }
 
 interface Emits {
@@ -495,11 +521,45 @@ const props = withDefaults(defineProps<Props>(), {
 	doors: () => [],
 	accessControlDevices: () => [],
 	isapiCameraDevices: () => [],
+	surveillanceCameraDevices: () => [],
 })
 
 const emit = defineEmits<Emits>()
 
 const { enableYscpPeopleCounting } = useModuleRegistry()
+const { hasFeature } = useLicense()
+const canUseEventCameraLinkage = computed(
+	() => hasFeature("surveillance") && dataSource.value === "access_control"
+)
+
+const eventCameraDeviceOptions = computed(() => [
+	{ value: "", label: "不設定" },
+	...props.surveillanceCameraDevices.map((dev) => ({
+		value: String(dev.id),
+		label: dev.name?.trim() || `設備 #${dev.id}`,
+	})),
+])
+
+const toEventCameraSelectValue = (id: number | null | undefined): string => {
+	if (id == null || !Number.isFinite(Number(id)) || Number(id) <= 0) return ""
+	return String(Math.trunc(Number(id)))
+}
+
+const entryEventCameraSelect = computed({
+	get: () => toEventCameraSelectValue(localLocation.value.entryEventCameraDeviceId),
+	set: (raw: string) => {
+		localLocation.value.entryEventCameraDeviceId = parseEventCameraSelect(raw)
+		handleChange()
+	},
+})
+
+const exitEventCameraSelect = computed({
+	get: () => toEventCameraSelectValue(localLocation.value.exitEventCameraDeviceId),
+	set: (raw: string) => {
+		localLocation.value.exitEventCameraDeviceId = parseEventCameraSelect(raw)
+		handleChange()
+	},
+})
 
 const localLocation = ref<PeopleCountingLocation>({ ...props.location })
 
@@ -629,6 +689,8 @@ const handleDataSourceChange = () => {
 		if (!Array.isArray(localLocation.value.entryDeviceIds)) localLocation.value.entryDeviceIds = []
 		if (!Array.isArray(localLocation.value.exitDeviceIds)) localLocation.value.exitDeviceIds = []
 	} else if (dataSource.value === "isapi_camera") {
+		localLocation.value.entryEventCameraDeviceId = undefined
+		localLocation.value.exitEventCameraDeviceId = undefined
 		localLocation.value.personGroupIds = []
 		localLocation.value.entryDoorIds = []
 		localLocation.value.exitDoorIds = []
@@ -649,6 +711,8 @@ const handleDataSourceChange = () => {
 	} else {
 		localLocation.value.entryDeviceIds = []
 		localLocation.value.exitDeviceIds = []
+		localLocation.value.entryEventCameraDeviceId = undefined
+		localLocation.value.exitEventCameraDeviceId = undefined
 		localLocation.value.cameraDeviceIds = undefined
 		localLocation.value.preferRegion = undefined
 		localLocation.value.cameraMode = undefined
@@ -839,6 +903,14 @@ const handleToggleCamera = (deviceId: number) => {
 	else ids.push(deviceId)
 
 	handleChange()
+}
+
+const parseEventCameraSelect = (raw: string): number | null | undefined => {
+	const trimmed = String(raw || "").trim()
+	if (!trimmed) return null
+	const n = Number(trimmed)
+	if (!Number.isFinite(n) || n <= 0) return undefined
+	return Math.trunc(n)
 }
 
 const handleChange = () => {

@@ -173,6 +173,17 @@ export interface AlertSipRingLinkage {
 	updated_at: string
 }
 
+/** 警報觸發時呼梯至 1F；location_ids 空＝全部電梯地點，有值＝指定地點 */
+export interface AlertElevatorCallLinkage {
+	id: number
+	enabled: boolean
+	rule_id: number
+	location_ids: number[]
+	created_by?: number | null
+	created_at: string
+	updated_at: string
+}
+
 export type SmtpSecurity = "none" | "ssl" | "tls"
 
 export interface AlertEmailSubscription {
@@ -217,6 +228,7 @@ export interface AlertRuleIntegrations {
 	cameraLinkage: AlertCameraLinkage | null
 	accessDoorLinkage: AlertAccessDoorLinkage | null
 	sipRingLinkage: AlertSipRingLinkage | null
+	elevatorCallLinkage: AlertElevatorCallLinkage | null
 	emailSubscription: AlertEmailSubscription | null
 }
 
@@ -225,6 +237,7 @@ export type AlertRuleIntegrationSummary = {
 	cameraEnabled: boolean
 	accessDoorEnabled: boolean
 	sipRingEnabled: boolean
+	elevatorCallEnabled: boolean
 	emailEnabled: boolean
 	hasAny: boolean
 }

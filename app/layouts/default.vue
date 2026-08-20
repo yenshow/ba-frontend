@@ -16,6 +16,17 @@
 			@next="cameraPopup.handleNext"
 			@reload-stream="cameraPopup.handleReloadStream"
 		/>
+		<AccessEventCameraPopup
+			:open="accessEventCameraPopup.state.open"
+			:item="accessEventCameraPopup.state.item"
+			:streams="accessEventCameraPopup.state.streams"
+			:auto-close-ms="accessEventCameraPopup.state.autoCloseMs"
+			:auto-close-epoch="accessEventCameraPopup.state.autoCloseEpoch"
+			:is-fullscreen="accessEventCameraPopup.state.isFullscreen"
+			@close="accessEventCameraPopup.handleClose"
+			@reload-stream="accessEventCameraPopup.handleReloadStream"
+			@update:fullscreen="accessEventCameraPopup.setFullscreen"
+		/>
 	</div>
 </template>
 
@@ -23,9 +34,11 @@
 import AppHeader from "~/components/common/AppHeader.vue";
 import ToastContainer from "~/components/common/ToastContainer.vue";
 import AlertCameraLinkagePopup from "~/components/alerts/AlertCameraLinkagePopup.vue";
+import AccessEventCameraPopup from "~/components/people-counting/AccessEventCameraPopup.vue";
 import { useAuth } from "~/composables/core/useAuth";
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 import { useAlertCameraLinkagePopup } from "~/composables/monitoring/useAlertCameraLinkagePopup";
+import { useAccessEventCameraPopup } from "~/composables/monitoring/useAccessEventCameraPopup";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import { useWebSocketLifecycle } from "~/composables/websocket/useWebSocketLifecycle";
 
@@ -33,6 +46,7 @@ const { user } = useAuth();
 const { startMonitoring, stopMonitoring } = useAlertMonitor();
 const { isConnected } = useWebSocket();
 const cameraPopup = useAlertCameraLinkagePopup();
+const accessEventCameraPopup = useAccessEventCameraPopup();
 const { start: startWebSocketLifecycle, stop: stopWebSocketLifecycle } = useWebSocketLifecycle();
 
 startWebSocketLifecycle();
@@ -47,8 +61,10 @@ watch(
 		}
 		if (newUser && connected) {
 			cameraPopup.start();
+			accessEventCameraPopup.start();
 		} else {
 			cameraPopup.stop();
+			accessEventCameraPopup.stop();
 		}
 	},
 	{ immediate: true }
@@ -58,5 +74,6 @@ onBeforeUnmount(() => {
 	stopMonitoring();
 	stopWebSocketLifecycle();
 	cameraPopup.stop();
+	accessEventCameraPopup.stop();
 });
 </script>

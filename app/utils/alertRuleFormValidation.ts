@@ -51,6 +51,11 @@ export type AlertRuleFormValidationInput = {
 		allDevices: boolean
 		device_ids: number[]
 	}
+	elevatorCallLinkage?: {
+		enabled: boolean
+		allLocations: boolean
+		location_ids: number[]
+	}
 	email: AlertRuleEmailValidationInput & { enabled: boolean }
 }
 
@@ -106,6 +111,12 @@ export const validateAlertRuleFormForSave = (input: AlertRuleFormValidationInput
 	if (input.sipRingLinkage?.enabled && !input.sipRingLinkage.allDevices) {
 		if (input.sipRingLinkage.device_ids.length === 0) {
 			return "門禁保全語音廣播：請至少選擇一台室內機"
+		}
+	}
+
+	if (input.elevatorCallLinkage?.enabled && !input.elevatorCallLinkage.allLocations) {
+		if (input.elevatorCallLinkage.location_ids.length === 0) {
+			return "電梯呼梯連動：請至少選擇一個電梯地點"
 		}
 	}
 

@@ -425,6 +425,68 @@
 										</p>
 									</div>
 								</div>
+
+								<div
+									v-if="canUseElevatorCallLinkage"
+									class="rounded-2xl border border-white/10 bg-white/5 p-4"
+								>
+									<p class="mb-3 text-sm font-medium text-white/90">電梯呼梯連動</p>
+									<label class="flex items-center gap-3 text-sm text-white/80">
+										<input
+											v-model="elevatorCallLinkage.enabled"
+											type="checkbox"
+											class="h-4 w-4"
+											aria-label="啟用電梯呼梯至 1 樓連動"
+										/>
+										<span>啟用呼梯至 1 樓</span>
+									</label>
+									<div v-if="elevatorCallLinkage.enabled" class="mt-3 space-y-3">
+										<p class="text-sm text-white/80">
+											電梯地點<span class="required-mark">*</span>
+										</p>
+										<label class="flex items-center gap-3 text-sm text-white/80">
+											<input
+												type="checkbox"
+												class="h-4 w-4"
+												:checked="elevatorCallLinkage.allLocations"
+												aria-label="全部電梯地點"
+												@change="handleElevatorCallToggleAll"
+											/>
+											<span>全部電梯</span>
+										</label>
+										<div
+											v-if="elevatorSites.length > 0"
+											class="grid grid-cols-3 gap-x-3 gap-y-3"
+										>
+											<label
+												v-for="item in elevatorSites"
+												:key="item.id"
+												class="flex min-w-0 items-center gap-3 text-sm text-white/80"
+											>
+												<input
+													type="checkbox"
+													class="h-4 w-4 shrink-0"
+													:checked="
+														!elevatorCallLinkage.allLocations &&
+														elevatorCallLinkage.location_ids.includes(item.id)
+													"
+													:aria-label="`呼梯電梯 ${item.label}`"
+													@change="
+														(e: Event) =>
+															handleElevatorCallToggleLocation(
+																item.id,
+																(e.target as HTMLInputElement).checked,
+															)
+													"
+												/>
+												<span class="truncate">{{ item.label }}</span>
+											</label>
+										</div>
+										<p v-else class="text-sm text-white/60">
+											{{ isElevatorSitesLoading ? "地點載入中..." : "尚無電梯地點" }}
+										</p>
+									</div>
+								</div>
 							</div>
 						</div>
 
@@ -598,7 +660,6 @@ import type {
 	AlertSource,
 	AlertTargetType,
 	AlertType,
-	AlertRuleIntegrations,
 } from "~/types/alert"
 import type { Device } from "~/types/device"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
@@ -673,6 +734,10 @@ interface IntegrationsDraft {
 	sipRingLinkage: null | {
 		enabled: boolean
 		device_ids?: number[]
+	}
+	elevatorCallLinkage: null | {
+		enabled: boolean
+		location_ids?: number[]
 	}
 	emailSubscription: null | {
 		enabled: boolean
@@ -751,6 +816,7 @@ const { hasFeature } = useLicense()
 const canUseCameraLinkage = computed(() => hasFeature("surveillance"))
 const canUseAccessDoorLinkage = computed(() => hasFeature("people_counting"))
 const canUseSipRingLinkage = computed(() => hasFeature("access_security"))
+const canUseElevatorCallLinkage = computed(() => hasFeature("elevator"))
 
 const expandedSections = reactive({ linkage: false, notify: false })
 
@@ -780,6 +846,13 @@ const sipRingLinkage = reactive({
 	/** true＝全部室內機並行廣播；false＝device_ids 指定 */
 	allDevices: true,
 	device_ids: [] as number[],
+})
+
+const elevatorCallLinkage = reactive({
+	enabled: false,
+	/** true＝全部電梯地點；false＝location_ids 指定 */
+	allLocations: true,
+	location_ids: [] as number[],
 })
 
 const smtpSecurityOptions: OptionItem[] = [
@@ -816,6 +889,9 @@ const isAccessDevicesLoading = ref(false)
 
 const indoorDevices = ref<Device[]>([])
 const isIndoorDevicesLoading = ref(false)
+
+const elevatorSites = ref<Array<{ id: number; label: string }>>([])
+const isElevatorSitesLoading = ref(false)
 
 const isIndoorIntercomDevice = (d: Device) =>
 	String((d.config as { unitType?: string } | undefined)?.unitType || "").trim() === "indoor"
@@ -986,6 +1062,20 @@ const handleSipRingToggleDevice = (id: number, checked: boolean) => {
 	sipRingLinkage.device_ids = [...set]
 }
 
+const handleElevatorCallToggleAll = (e: Event) => {
+	const checked = (e.target as HTMLInputElement).checked
+	elevatorCallLinkage.allLocations = checked
+	if (checked) elevatorCallLinkage.location_ids = []
+}
+
+const handleElevatorCallToggleLocation = (id: number, checked: boolean) => {
+	elevatorCallLinkage.allLocations = false
+	const set = new Set(elevatorCallLinkage.location_ids)
+	if (checked) set.add(id)
+	else set.delete(id)
+	elevatorCallLinkage.location_ids = [...set]
+}
+
 const { thresholdOptions, ensureLoaded: ensureEnvironmentCatalogLoaded } =
 	useEnvironmentParameterCatalog()
 
@@ -1042,6 +1132,10 @@ const resetForm = () => {
 	sipRingLinkage.enabled = false
 	sipRingLinkage.allDevices = true
 	sipRingLinkage.device_ids = []
+
+	elevatorCallLinkage.enabled = false
+	elevatorCallLinkage.allLocations = true
+	elevatorCallLinkage.location_ids = []
 
 	email.enabled = false
 	email.smtp_host = ""
@@ -1179,6 +1273,32 @@ const loadAccessDevices = () => loadTypedDevices(accessDevices, isAccessDevicesL
 const loadIndoorDevices = () =>
 	loadTypedDevices(indoorDevices, isIndoorDevicesLoading, "video_intercom", isIndoorIntercomDevice)
 
+const loadElevatorSites = async () => {
+	if (elevatorSites.value.length > 0 || isElevatorSitesLoading.value) return
+	isElevatorSitesLoading.value = true
+	try {
+		const z = await zonesCache.getZones("elevator")
+		const items: Array<{ id: number; label: string }> = []
+		for (const zone of z || []) {
+			const zoneName = String(zone.name || "").trim()
+			for (const loc of zone.locations || []) {
+				const id = Number(loc.id)
+				if (!Number.isFinite(id) || id <= 0) continue
+				const locName = String(loc.name || "").trim() || "(未命名)"
+				items.push({
+					id,
+					label: zoneName ? `${zoneName} - ${locName}` : locName,
+				})
+			}
+		}
+		elevatorSites.value = items
+	} catch {
+		elevatorSites.value = []
+	} finally {
+		isElevatorSitesLoading.value = false
+	}
+}
+
 const loadIntegrationsForRule = async (ruleId: number) => {
 	try {
 		const res = await alertApi.getAlertRuleIntegrations(ruleId)
@@ -1217,6 +1337,16 @@ const loadIntegrationsForRule = async (ruleId: number) => {
 		)
 		sipRingLinkage.allDevices = sipMerged.length === 0
 		sipRingLinkage.device_ids = sipMerged
+
+		elevatorCallLinkage.enabled =
+			canUseElevatorCallLinkage.value && Boolean(res?.elevatorCallLinkage?.enabled)
+		const elevatorMerged = normalizeAlertRuleDeviceIds(
+			Array.isArray(res?.elevatorCallLinkage?.location_ids)
+				? res.elevatorCallLinkage.location_ids
+				: []
+		)
+		elevatorCallLinkage.allLocations = elevatorMerged.length === 0
+		elevatorCallLinkage.location_ids = elevatorMerged
 
 		const es = (res as any)?.emailSubscription
 		email.enabled = Boolean(es?.enabled)
@@ -1322,6 +1452,9 @@ watch(
 			if (indoorDevices.value.length === 0 && !isIndoorDevicesLoading.value) {
 				void loadIndoorDevices()
 			}
+			if (canUseElevatorCallLinkage.value) {
+				void loadElevatorSites()
+			}
 			if (rule.id) {
 				void loadIntegrationsForRule(rule.id)
 			}
@@ -1355,6 +1488,9 @@ watch(
 		if (indoorDevices.value.length === 0 && !isIndoorDevicesLoading.value) {
 			void loadIndoorDevices()
 		}
+		if (canUseElevatorCallLinkage.value) {
+			void loadElevatorSites()
+		}
 	},
 	{ immediate: true }
 )
@@ -1381,6 +1517,11 @@ const buildAlertRuleValidationInput = () => ({
 		enabled: sipRingLinkage.enabled,
 		allDevices: sipRingLinkage.allDevices,
 		device_ids: normalizeAlertRuleDeviceIds(sipRingLinkage.device_ids),
+	},
+	elevatorCallLinkage: {
+		enabled: elevatorCallLinkage.enabled,
+		allLocations: elevatorCallLinkage.allLocations,
+		location_ids: normalizeAlertRuleDeviceIds(elevatorCallLinkage.location_ids),
 	},
 	email,
 })
@@ -1487,6 +1628,14 @@ const handleSubmit = () => {
 					device_ids: sipRingLinkage.allDevices
 						? []
 						: normalizeAlertRuleDeviceIds(sipRingLinkage.device_ids),
+				}
+			: null,
+		elevatorCallLinkage: elevatorCallLinkage.enabled && canUseElevatorCallLinkage.value
+			? {
+					enabled: true,
+					location_ids: elevatorCallLinkage.allLocations
+						? []
+						: normalizeAlertRuleDeviceIds(elevatorCallLinkage.location_ids),
 				}
 			: null,
 		emailSubscription: email.enabled

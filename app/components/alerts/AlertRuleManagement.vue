@@ -90,6 +90,12 @@
 											室內廣播
 										</span>
 										<span
+											v-if="getIntegrationSummary(rule.id).elevatorCallEnabled"
+											class="rounded bg-fuchsia-500/20 px-2 py-0.5 text-xs text-fuchsia-100 2xl:text-sm"
+										>
+											呼梯 1F
+										</span>
+										<span
 											v-if="getIntegrationSummary(rule.id).emailEnabled"
 											class="rounded bg-violet-500/20 px-2 py-0.5 text-xs text-violet-100 2xl:text-sm"
 										>
@@ -343,6 +349,8 @@ const handleSubmitRule = async (payload: {
 		cameraLinkage: unknown
 		accessDoorLinkage: unknown
 		emailSubscription: unknown
+		sipRingLinkage: unknown
+		elevatorCallLinkage: unknown
 	}>
 }) => {
 	isRuleSaving.value = true
