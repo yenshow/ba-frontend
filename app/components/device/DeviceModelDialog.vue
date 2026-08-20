@@ -261,7 +261,21 @@
 													aria-label="RTSP 路由：stream1"
 												/>
 												<div class="flex-1">
-													<div class="text-sm text-white/80 2xl:text-base">TP Link</div>
+													<div class="text-sm text-white/80 2xl:text-base">TP Link — stream1</div>
+												</div>
+											</label>
+
+											<label class="flex items-start gap-2">
+												<input
+													v-model="cameraRtspTemplatePresetKey"
+													type="radio"
+													name="camera-rtsp-template"
+													value="stream2"
+													class="mt-1 h-4 w-4 accent-emerald-400"
+													aria-label="RTSP 路由：stream2"
+												/>
+												<div class="flex-1">
+													<div class="text-sm text-white/80 2xl:text-base">TP Link — stream2</div>
 												</div>
 											</label>
 
@@ -489,6 +503,11 @@ import type {
 import { resolveFormApiError } from "~/utils/apiError"
 import { validateDeviceModelFormForSave } from "~/utils/deviceFormValidation"
 import {
+	CAMERA_RTSP_PRESETS,
+	detectTpLinkStreamPath,
+	isTpLinkStyleTemplate,
+} from "~/utils/cameraRtspUtils"
+import {
 	CAMERA_MODEL_CATEGORY_OPTIONS,
 	groupByCameraModelCategory,
 } from "~/utils/cameraModelCategories"
@@ -558,10 +577,6 @@ const cameraModelGroups = computed(() => {
 	return groupByCameraModelCategory(deviceModels.value, (m) => String(m.category_code || ""))
 })
 
-const CAMERA_RTSP_PRESETS = {
-	hik_channels_101: "rtsp://{username}:{password}@{ip}:554/Streaming/channels/101",
-	stream1: "rtsp://{username}:{password}@{ip}/stream1",
-} as const
 type CameraRtspPresetKey = keyof typeof CAMERA_RTSP_PRESETS | "custom"
 
 const cameraRtspTemplatePresetKey = ref<CameraRtspPresetKey>("hik_channels_101")
@@ -759,8 +774,8 @@ const editDeviceModel = (model: DeviceModel) => {
 		} else if (trimmed === CAMERA_RTSP_PRESETS.hik_channels_101) {
 			cameraRtspTemplatePresetKey.value = "hik_channels_101"
 			cameraRtspTemplateCustom.value = ""
-		} else if (trimmed === CAMERA_RTSP_PRESETS.stream1) {
-			cameraRtspTemplatePresetKey.value = "stream1"
+		} else if (isTpLinkStyleTemplate(trimmed)) {
+			cameraRtspTemplatePresetKey.value = detectTpLinkStreamPath(trimmed) ?? "stream1"
 			cameraRtspTemplateCustom.value = ""
 		} else {
 			cameraRtspTemplatePresetKey.value = "custom"
@@ -792,6 +807,7 @@ const editDeviceModel = (model: DeviceModel) => {
 interface FormSnapshot {
 	name: string
 	type_code: DeviceTypeCode
+	category_code: string
 	unit_id: number | undefined | null
 	description: string
 	registerType: ModbusRegisterType
@@ -807,6 +823,7 @@ const formInitialSnapshot = ref<FormSnapshot | null>(null)
 const getFormSnapshot = (): FormSnapshot => ({
 	name: formData.name,
 	type_code: formData.type_code,
+	category_code: formData.category_code,
 	unit_id: formData.unit_id,
 	description: formData.description,
 	registerType: sensorRegisterType.value,
@@ -827,6 +844,7 @@ const formHasUnsavedChanges = computed(() => {
 		return (
 			cur.name !== init.name ||
 			cur.type_code !== init.type_code ||
+			cur.category_code !== init.category_code ||
 			cur.unit_id !== init.unit_id ||
 			cur.description !== init.description ||
 			cur.registerType !== init.registerType ||
@@ -855,6 +873,7 @@ const formChangedFieldsList = computed(() => {
 	const fields: string[] = []
 	if (cur.name !== init.name)
 		fields.push(`型號名稱: ${init.name || "(空)"} → ${cur.name || "(空)"}`)
+	if (cur.category_code !== init.category_code) fields.push("設備分類")
 	if (cur.unit_id !== init.unit_id) fields.push("Unit ID")
 	if (cur.description !== init.description) fields.push("備註")
 	if (cur.registerType !== init.registerType) fields.push("API 功能碼")

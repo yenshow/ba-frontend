@@ -20,7 +20,7 @@
 						class="shrink-0 rounded-full border px-2 py-0.5 text-xs 2xl:text-sm"
 						:class="armingBadgeClass(station)"
 					>
-						{{ formatArmingLabel(station) }}
+						{{ formatAccessSecurityArmingLabel(station) }}
 					</span>
 				</div>
 				<dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-white/80 2xl:text-sm">
@@ -38,20 +38,13 @@
 <script setup lang="ts">
 import type { AccessSecurityMainStation } from "~/types/accessSecurity"
 import AccessIntercomManageSvg from "~/components/access-security/AccessIntercomManageSvg.vue"
+import { formatAccessSecurityArmingLabel } from "~/utils/accessSecurity"
 
 defineProps<{
 	station: AccessSecurityMainStation | null
 }>()
 
 const iconBoxClass = "h-[112px] w-[208px] shrink-0 2xl:h-[176px] 2xl:w-[320px]"
-
-const formatArmingLabel = (st: AccessSecurityMainStation): string => {
-	if (!st.armed) return "未佈防"
-	if (st.armingStatus === "ready") return "已佈防"
-	if (st.armingStatus === "connecting") return "連線中"
-	if (st.armingStatus === "stopped") return "已停止"
-	return st.armingStatus
-}
 
 const armingBadgeClass = (st: AccessSecurityMainStation): string => {
 	if (!st.armed) return "border-amber-400/50 bg-amber-400/20 text-amber-100"

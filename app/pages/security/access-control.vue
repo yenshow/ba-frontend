@@ -120,6 +120,7 @@
 										v-for="zone in sitesZones"
 										:key="zone.id"
 										:zone="zone"
+										:stations="mainStations"
 										:class="{
 											'ring-2 ring-cyan-400': selectedZoneId === zone.id,
 										}"
@@ -193,6 +194,7 @@ const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZo
 
 const {
 	sitesZones,
+	mainStations,
 	selectedZoneId,
 	events,
 	zones,

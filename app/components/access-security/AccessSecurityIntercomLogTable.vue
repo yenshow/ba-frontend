@@ -54,8 +54,7 @@
 import { computed } from "vue"
 import MonitoringLogEmptyState from "~/components/common/MonitoringLogEmptyState.vue"
 import {
-	formatAccessSecurityIntercomUnitLabel,
-	formatIntercomMonitorSummary,
+	formatIntercomMonitorRow,
 	getIntercomSourceBadgeClass,
 	getIntercomSourceLabel,
 	parseIntercomLogTimestamp,
@@ -71,10 +70,11 @@ const props = defineProps<{
 const rows = computed(() =>
 	(props.events || []).map((event) => {
 		const stamped = parseIntercomLogTimestamp(formatDateTime(event.occurred_at))
+		const { unit, summary } = formatIntercomMonitorRow(event, props.locations)
 		return {
 			id: event.id,
-			unit: formatAccessSecurityIntercomUnitLabel(event, props.locations),
-			summary: formatIntercomMonitorSummary(event.summary),
+			unit,
+			summary,
 			source: getIntercomSourceLabel(event.source),
 			sourceClass: getIntercomSourceBadgeClass(event.source),
 			date: stamped.date,

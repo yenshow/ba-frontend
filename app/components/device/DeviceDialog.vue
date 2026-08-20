@@ -276,6 +276,51 @@
 										</button>
 									</div>
 								</label>
+								<fieldset
+									v-if="showTpLinkStreamSelector"
+									class="flex flex-col gap-2 border-0 p-0 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+								>
+									<legend class="mb-0">串流路徑<span class="required-mark">*</span></legend>
+									<div class="flex flex-wrap gap-4">
+										<label class="flex cursor-pointer items-center gap-2">
+											<input
+												v-model="cameraStreamPath"
+												type="radio"
+												name="camera-stream-path"
+												value="stream1"
+												class="h-4 w-4 accent-emerald-400"
+												aria-label="stream1 主串流"
+											/>
+											<span>stream1（主串流）</span>
+										</label>
+										<label class="flex cursor-pointer items-center gap-2">
+											<input
+												v-model="cameraStreamPath"
+												type="radio"
+												name="camera-stream-path"
+												value="stream2"
+												class="h-4 w-4 accent-emerald-400"
+												aria-label="stream2 子串流"
+											/>
+											<span>stream2（子串流）</span>
+										</label>
+									</div>
+								</fieldset>
+								<label
+									v-if="showTpLinkStreamSelector"
+									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+								>
+									<span>通道參數（Channel）</span>
+									<input
+										v-model.number="cameraChannel"
+										type="number"
+										min="1"
+										max="64"
+										class="form-input"
+										placeholder="NVR 多路時填寫，例如：5"
+										aria-label="RTSP channel 參數"
+									/>
+								</label>
 								<div class="text-xs text-white/60 2xl:text-sm">
 									RTSP URL 預覽：
 									<span class="break-all">{{ cameraRtspPreview }}</span>
@@ -498,9 +543,7 @@
 											class="form-input w-full pr-12"
 											placeholder="設備登入密碼"
 											:aria-label="
-												showVideoIntercomPassword
-													? '對講密碼（已顯示）'
-													: '對講密碼（已隱藏）'
+												showVideoIntercomPassword ? '對講密碼（已顯示）' : '對講密碼（已隱藏）'
 											"
 										/>
 										<button
@@ -549,7 +592,9 @@
 									</div>
 								</label>
 								<template v-if="isVideoIntercomIndoorModel">
-									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<label
+										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+									>
 										<span>VoIP 號碼<span class="required-mark">*</span></span>
 										<input
 											v-model="videoIntercomConfig.voipNumber"
@@ -560,7 +605,9 @@
 											aria-label="室內機 VoIP 號碼"
 										/>
 									</label>
-									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<label
+										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+									>
 										<span>SIP 端口（選填，預設 5060）</span>
 										<input
 											v-model.number="videoIntercomConfig.sipPort"
@@ -639,6 +686,11 @@ import {
 	buildCameraRtspUrl,
 	previewCameraRtspTemplate,
 	parseCameraRtspUrl,
+	isTpLinkStyleTemplate,
+	resolveTpLinkRtspTemplate,
+	detectTpLinkStreamPath,
+	detectRtspChannelQuery,
+	type TpLinkStreamPath,
 } from "~/utils/cameraRtspUtils"
 import { CAMERA_MODEL_CATEGORY_OPTIONS } from "~/utils/cameraModelCategories"
 import { validateDeviceFormForSave } from "~/utils/deviceFormValidation"
@@ -702,6 +754,8 @@ const cameraConfig = reactive<CameraDeviceConfig>({
 const cameraIp = ref<string>("")
 const cameraUsername = ref<string>("admin")
 const cameraPassword = ref<string>("")
+const cameraStreamPath = ref<TpLinkStreamPath>("stream1")
+const cameraChannel = ref<number | undefined>(undefined)
 const cameraGroup = ref<string>("")
 const cameraCategoryCode = ref("")
 const showCameraPassword = ref(false)
@@ -732,12 +786,23 @@ const selectedCameraRtspTemplate = computed(() => {
 	return typeof tpl === "string" && tpl.trim() ? tpl.trim() : DEFAULT_CAMERA_RTSP_TEMPLATE
 })
 
+const showTpLinkStreamSelector = computed(() =>
+	isTpLinkStyleTemplate(selectedCameraRtspTemplate.value)
+)
+
+const effectiveCameraRtspTemplate = computed(() => {
+	const base = selectedCameraRtspTemplate.value
+	if (!showTpLinkStreamSelector.value) return base
+	return resolveTpLinkRtspTemplate(base, cameraStreamPath.value)
+})
+
 const cameraRtspPreview = computed(() =>
 	previewCameraRtspTemplate(
-		selectedCameraRtspTemplate.value,
+		effectiveCameraRtspTemplate.value,
 		cameraIp.value,
 		cameraUsername.value,
-		cameraPassword.value
+		cameraPassword.value,
+		cameraChannel.value
 	)
 )
 
@@ -861,9 +926,7 @@ const resolvedVideoIntercomUnitType = computed((): VideoIntercomUnitType | "" =>
 	return ""
 })
 
-const isVideoIntercomIndoorModel = computed(
-	() => resolvedVideoIntercomUnitType.value === "indoor",
-)
+const isVideoIntercomIndoorModel = computed(() => resolvedVideoIntercomUnitType.value === "indoor")
 
 // 從選中的型號繼承 port 與 unit_id
 const inheritFromModel = () => {
@@ -903,6 +966,8 @@ const onModelChange = (value: string) => {
 	if (!isElectricityMeter.value) {
 		sensorConfig.energy_usage_system = undefined
 	}
+	const detected = detectTpLinkStreamPath(selectedCameraRtspTemplate.value)
+	if (detected) cameraStreamPath.value = detected
 }
 
 // 監聽感測器協議變化，當切換到 modbus 時，如果已選擇型號則繼承 port / unit_id
@@ -956,6 +1021,8 @@ const resetForm = () => {
 	cameraIp.value = ""
 	cameraUsername.value = "admin"
 	cameraPassword.value = ""
+	cameraStreamPath.value = "stream1"
+	cameraChannel.value = undefined
 	cameraGroup.value = ""
 	cameraCategoryCode.value = ""
 	showCameraPassword.value = false
@@ -1152,6 +1219,11 @@ const loadConfigFromDevice = (device: Device) => {
 			cameraIp.value = host
 			cameraUsername.value = camCfg.username?.trim() || user || "admin"
 			cameraPassword.value = password
+			cameraStreamPath.value =
+				detectTpLinkStreamPath(cameraConfig.rtsp_url) ??
+				detectTpLinkStreamPath(selectedCameraRtspTemplate.value) ??
+				"stream1"
+			cameraChannel.value = detectRtspChannelQuery(cameraConfig.rtsp_url) ?? undefined
 			break
 		}
 		case "sensor":
@@ -1235,7 +1307,13 @@ const getCurrentConfig = (): DeviceConfig => {
 			const pwd = cameraPassword.value.trim()
 			const rtspUrl =
 				ip && pwd
-					? buildCameraRtspUrl(selectedCameraRtspTemplate.value, ip, user, pwd)
+					? buildCameraRtspUrl(
+							effectiveCameraRtspTemplate.value,
+							ip,
+							user,
+							pwd,
+							cameraChannel.value
+						)
 					: cameraConfig.rtsp_url
 			return {
 				type: "camera",

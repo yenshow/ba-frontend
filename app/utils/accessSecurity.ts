@@ -1,6 +1,7 @@
 import { parseFloorLabelToken } from "~/utils/elevatorFloorModel"
 import type {
 	AccessSecurityIntercomLog,
+	AccessSecurityMainStation,
 	AccessSecuritySiteLocation,
 	AccessSecuritySiteZone,
 } from "~/types/accessSecurity"
@@ -105,6 +106,32 @@ export const groupAccessSecurityLocationsByFloor = <
 		.map(([floor, grouped]) => ({ floor, locations: grouped }))
 }
 
+const OVERVIEW_GRID_CELLS = 12
+
+export type AccessSecurityOverviewGridCell =
+	| { kind: "unit"; location: AccessSecuritySiteLocation }
+	| { kind: "overflow"; count: number }
+	| null
+
+export const buildAccessSecurityOverviewGrid = (
+	locations: AccessSecuritySiteLocation[]
+): AccessSecurityOverviewGridCell[] => {
+	const ordered = groupAccessSecurityLocationsByFloor(locations).flatMap(
+		(group) => group.locations
+	)
+	if (ordered.length <= OVERVIEW_GRID_CELLS) {
+		return [
+			...ordered.map((location) => ({ kind: "unit" as const, location })),
+			...Array(OVERVIEW_GRID_CELLS - ordered.length).fill(null),
+		]
+	}
+	const visible = OVERVIEW_GRID_CELLS - 1
+	return [
+		...ordered.slice(0, visible).map((location) => ({ kind: "unit" as const, location })),
+		{ kind: "overflow", count: ordered.length - visible },
+	]
+}
+
 export const normalizeAccessSecuritySiteLocation = (
 	loc: Omit<AccessSecuritySiteLocation, "displayName" | "unitName"> & {
 		displayName?: string
@@ -130,6 +157,26 @@ export const normalizeAccessSecuritySiteZones = (
 		locations: (zone.locations || []).map((loc) => normalizeAccessSecuritySiteLocation(loc)),
 	}))
 
+export const resolveAccessSecurityZoneStation = (
+	zone: Pick<AccessSecuritySiteZone, "manageDeviceId">,
+	stations: AccessSecurityMainStation[]
+): AccessSecurityMainStation | null => {
+	const id = Number(zone.manageDeviceId)
+	if (!Number.isInteger(id) || id <= 0) return null
+	return stations.find((st) => st.deviceId === id) ?? null
+}
+
+export const formatAccessSecurityArmingLabel = (
+	station: AccessSecurityMainStation | null | undefined
+): string => {
+	if (!station) return "未綁定"
+	if (!station.armed) return "未佈防"
+	if (station.armingStatus === "ready") return "已佈防"
+	if (station.armingStatus === "connecting") return "連線中"
+	if (station.armingStatus === "stopped") return "已停止"
+	return station.armingStatus || "未佈防"
+}
+
 // ── 對講事件（監控頁） ───────────────────────────────────────
 
 const toPositiveInt = (raw: unknown): number | null => {
@@ -140,7 +187,7 @@ const toPositiveInt = (raw: unknown): number | null => {
 const getIntercomEventLocationId = (event: AccessSecurityIntercomLog): number | null =>
 	toPositiveInt(event.location_id)
 
-export const resolveAccessSecurityIntercomUnit = (
+const resolveAccessSecurityIntercomUnit = (
 	event: AccessSecurityIntercomLog,
 	locations: AccessSecuritySiteLocation[]
 ): AccessSecuritySiteLocation | null => {
@@ -181,11 +228,10 @@ export const resolveAccessSecurityIntercomUnit = (
 	)
 }
 
-export const formatAccessSecurityIntercomUnitLabel = (
-	event: AccessSecurityIntercomLog,
-	locations: AccessSecuritySiteLocation[]
+const formatIntercomUnitLabel = (
+	loc: AccessSecuritySiteLocation | null,
+	event: AccessSecurityIntercomLog
 ): string => {
-	const loc = resolveAccessSecurityIntercomUnit(event, locations)
 	if (loc) return loc.displayName || loc.name
 	const raw = String(event.location_name || "").trim()
 	if (!raw) return "—"
@@ -215,8 +261,32 @@ export const parseIntercomLogTimestamp = (
 	return { date: raw.slice(0, i), time: raw.slice(i + 1) }
 }
 
-/** 監控頁摘要：去掉括號內容與英文結果碼 */
-export const formatIntercomMonitorSummary = (raw: string | null | undefined): string => {
+const escapeRegExp = (value: string): string =>
+	value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+
+const stripPlaceTokens = (
+	text: string,
+	tokens: Array<string | null | undefined>
+): string => {
+	const unique = [
+		...new Set(
+			tokens
+				.map((token) => String(token || "").trim())
+				.filter((token) => token && token !== "—")
+		),
+	].sort((a, b) => b.length - a.length)
+	let next = text
+	for (const token of unique) {
+		next = next.replace(new RegExp(`(?:^|\\s)${escapeRegExp(token)}(?=\\s|$)`, "gi"), " ")
+	}
+	return next.replace(/\s+/g, " ").trim()
+}
+
+/** 監控頁摘要：去掉括號內容、英文結果碼，以及已出現在戶別欄的位置詞 */
+const formatIntercomMonitorSummary = (
+	raw: string | null | undefined,
+	placeTokens: Array<string | null | undefined> = []
+): string => {
 	let text = String(raw || "").trim()
 	if (!text) return "—"
 	text = text.replace(/[（(][^）)]*[）)]/g, " ")
@@ -224,5 +294,23 @@ export const formatIntercomMonitorSummary = (raw: string | null | undefined): st
 		/\b(broadcast-played|need-auth|not-found|forbidden|ringing|trying|busy|none|ok|code-\d+)\b/gi,
 		" "
 	)
+	if (placeTokens.length) text = stripPlaceTokens(text, placeTokens)
 	return text.replace(/\s+/g, " ").trim() || "—"
+}
+
+export const formatIntercomMonitorRow = (
+	event: AccessSecurityIntercomLog,
+	locations: AccessSecuritySiteLocation[]
+): { unit: string; summary: string } => {
+	const loc = resolveAccessSecurityIntercomUnit(event, locations)
+	const unit = formatIntercomUnitLabel(loc, event)
+	return {
+		unit,
+		summary: formatIntercomMonitorSummary(
+			event.summary,
+			unit === "—"
+				? []
+				: [unit, loc?.displayName, loc?.name, loc?.unitName, event.location_name, event.zone_name]
+		),
+	}
 }
