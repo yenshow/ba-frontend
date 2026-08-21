@@ -7,10 +7,10 @@
 				role="button"
 				tabindex="0"
 				aria-live="polite"
-				aria-label="門禁事件調閱，點擊前往門禁管理"
-				@click="handleNavigateToPeopleCounting"
-				@keydown.enter.prevent="handleNavigateToPeopleCounting"
-				@keydown.space.prevent="handleNavigateToPeopleCounting"
+				:aria-label="ariaLabel"
+				@click="handleNavigate"
+				@keydown.enter.prevent="handleNavigate"
+				@keydown.space.prevent="handleNavigate"
 			>
 				<header class="flex items-start justify-between gap-2 border-b border-white/10 px-3 py-2.5">
 					<div class="min-w-0 flex flex-col gap-0.5">
@@ -140,11 +140,22 @@ interface Props {
 	autoCloseMs: number
 	autoCloseEpoch?: number
 	isFullscreen?: boolean
+	/** 標題前綴，如「門禁調閱」「車輛調閱」 */
+	titlePrefix?: string
+	/** 點擊跳轉路徑 */
+	navigatePath?: string
+	ariaLabel?: string
+	/** 無 zone／location 時的地點後備文案 */
+	fallbackPlaceLabel?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	autoCloseEpoch: 0,
 	isFullscreen: false,
+	titlePrefix: "門禁調閱",
+	navigatePath: "/access-control/people-counting",
+	ariaLabel: "門禁事件調閱，點擊前往門禁管理",
+	fallbackPlaceLabel: "門禁事件",
 })
 
 const emit = defineEmits<{
@@ -152,8 +163,6 @@ const emit = defineEmits<{
 	"reload-stream": [deviceId: number]
 	"update:fullscreen": [value: boolean]
 }>()
-
-const PEOPLE_COUNTING_ROUTE = "/access-control/people-counting"
 
 const displaySlots = computed((): CameraStreamSlot[] => {
 	const first = props.streams[0] ?? null
@@ -163,17 +172,18 @@ const displaySlots = computed((): CameraStreamSlot[] => {
 const titleText = computed(() => {
 	const zone = props.item?.zoneName || ""
 	const loc = props.item?.locationName || ""
-	const place = zone && loc ? `${zone} - ${loc}` : loc || zone || "門禁事件"
-	return `門禁調閱｜${place}`
+	const place =
+		zone && loc ? `${zone} - ${loc}` : loc || zone || props.fallbackPlaceLabel
+	return `${props.titlePrefix}｜${place}`
 })
 
-const handleNavigateToPeopleCounting = async () => {
+const handleNavigate = async () => {
 	const locationId = props.item?.locationId
 	const query =
 		locationId != null && Number.isFinite(locationId) && locationId > 0
 			? { locationId: String(Math.trunc(locationId)) }
 			: undefined
-	await navigateTo({ path: PEOPLE_COUNTING_ROUTE, query })
+	await navigateTo({ path: props.navigatePath, query })
 	emit("close")
 }
 </script>

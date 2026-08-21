@@ -39,6 +39,21 @@
 			@reload-stream="accessEventCameraPopup.handleReloadStream"
 			@update:fullscreen="accessEventCameraPopup.setFullscreen"
 		/>
+		<AccessEventCameraPopup
+			:open="vehicleBarrierCameraPopup.state.open"
+			:item="vehicleBarrierCameraPopup.state.item"
+			:streams="vehicleBarrierCameraPopup.state.streams"
+			:auto-close-ms="vehicleBarrierCameraPopup.state.autoCloseMs"
+			:auto-close-epoch="vehicleBarrierCameraPopup.state.autoCloseEpoch"
+			:is-fullscreen="vehicleBarrierCameraPopup.state.isFullscreen"
+			title-prefix="車輛調閱"
+			navigate-path="/access-control/vehicle-access"
+			aria-label="車輛事件調閱，點擊前往車輛管理"
+			fallback-place-label="車輛事件"
+			@close="vehicleBarrierCameraPopup.handleClose"
+			@reload-stream="vehicleBarrierCameraPopup.handleReloadStream"
+			@update:fullscreen="vehicleBarrierCameraPopup.setFullscreen"
+		/>
 	</div>
 </template>
 
@@ -50,6 +65,7 @@ import { useAuth } from "~/composables/core/useAuth";
 import { useAlertMonitor } from "~/composables/monitoring/useAlertMonitor";
 import { useAlertCameraLinkagePopup } from "~/composables/monitoring/useAlertCameraLinkagePopup";
 import { useAccessEventCameraPopup } from "~/composables/monitoring/useAccessEventCameraPopup";
+import { useVehicleBarrierCameraPopup } from "~/composables/monitoring/useVehicleBarrierCameraPopup";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import { useWebSocketLifecycle } from "~/composables/websocket/useWebSocketLifecycle";
 import BottomNavigation from "~/components/common/BottomNavigation.vue";
@@ -61,6 +77,7 @@ const { startMonitoring, stopMonitoring } = useAlertMonitor();
 const { isConnected } = useWebSocket();
 const cameraPopup = useAlertCameraLinkagePopup();
 const accessEventCameraPopup = useAccessEventCameraPopup();
+const vehicleBarrierCameraPopup = useVehicleBarrierCameraPopup();
 const { start: startWebSocketLifecycle, stop: stopWebSocketLifecycle } = useWebSocketLifecycle();
 
 startWebSocketLifecycle();
@@ -76,9 +93,11 @@ watch(
 		if (newUser && connected) {
 			cameraPopup.start();
 			accessEventCameraPopup.start();
+			vehicleBarrierCameraPopup.start();
 		} else {
 			cameraPopup.stop();
 			accessEventCameraPopup.stop();
+			vehicleBarrierCameraPopup.stop();
 		}
 	},
 	{ immediate: true }
@@ -89,5 +108,6 @@ onBeforeUnmount(() => {
 	stopWebSocketLifecycle();
 	cameraPopup.stop();
 	accessEventCameraPopup.stop();
+	vehicleBarrierCameraPopup.stop();
 });
 </script>
