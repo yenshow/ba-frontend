@@ -29,7 +29,7 @@
 					v-for="event in events"
 					:key="event.id"
 					class="rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 2xl:px-4 2xl:py-3"
-					:aria-label="event.summary"
+					:aria-label="event.message"
 				>
 					<div class="mb-1 flex flex-wrap items-center gap-1.5">
 						<span :class="[badgeBaseClass, 'bg-blue-500/80']">{{
@@ -43,7 +43,7 @@
 					</div>
 
 					<p class="mb-1.5 text-sm font-medium text-white 2xl:text-base">
-						{{ event.summary }}
+						{{ event.message }}
 					</p>
 
 					<div

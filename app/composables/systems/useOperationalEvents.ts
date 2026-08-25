@@ -17,18 +17,17 @@ export type OperationalEventKind = "access" | "vehicle"
  */
 export type OperationalEvent = {
 	id: number
-	occurred_at: string
+	created_at: string
 	source: string
 	event_kind: OperationalEventKind | string
 	location_id: number | null
 	system_id: number | null
 	device_id: number | null
-	summary: string
+	message: string
 	actor_user_id: number | null
 	ref_table: string | null
 	ref_id: number | null
 	payload: Record<string, unknown> | null
-	created_at: string
 	device_name?: string | null
 	location_name?: string | null
 	zone_name?: string | null
@@ -154,7 +153,7 @@ export const buildOperationalEventMeta = (
 	const items: OperationalEventMetaItem[] = [
 		{ key: "place", label: "地點", value: getOperationalPlaceLabel(event) },
 		{ key: "device", label: "設備", value: getOperationalDeviceLabel(event) },
-		{ key: "time", label: "時間", value: formatDateTime(event.occurred_at) },
+		{ key: "time", label: "時間", value: formatDateTime(event.created_at) },
 	]
 	const actor = getOperationalActorLabel(event)
 	if (actor) items.push({ key: "actor", label: "操作者", value: actor })
