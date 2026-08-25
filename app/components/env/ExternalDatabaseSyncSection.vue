@@ -211,6 +211,20 @@
 								</button>
 							</div>
 
+							<label
+								v-if="showGrainFilter"
+								class="col-span-2 flex flex-col gap-2 text-base text-white/80"
+							>
+								<span>匯出粒度</span>
+								<div :class="{ 'pointer-events-none opacity-50': dialogBusy }">
+									<FilterDropdown
+										v-model="dialog.form.grain"
+										:options="grainOptions"
+										text-size="text-sm 2xl:text-base"
+									/>
+								</div>
+							</label>
+
 							<div class="col-span-2 flex flex-col gap-2">
 								<p class="text-sm font-medium text-white/85 2xl:text-base">欄位映射</p>
 								<div class="overflow-hidden rounded-xl border border-white/10">
@@ -338,6 +352,8 @@ const {
 	pushTimeMinute,
 	eventTypeLabel,
 	getDbTypeLabel,
+	showGrainFilter,
+	grainOptions,
 	handleDbTypeChanged,
 	handleDialogEventTypeChanged,
 	handleCreate,

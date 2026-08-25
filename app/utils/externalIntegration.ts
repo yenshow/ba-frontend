@@ -35,14 +35,31 @@ export type ExportFilterSchemaKind =
 export type ExportFilterSchema = NonNullable<ExportEventTypeInfo["filterSchema"]>
 
 export const EVENT_TYPE_OPTIONS: Array<{ value: ExportEventTypeId; label: string }> = [
-	{ value: "access_control", label: "門禁／刷卡" },
+	{ value: "access_control", label: "門禁管理／進出" },
 	{ value: "energy", label: "能源讀數" },
 	{ value: "operational", label: "營運事件" },
 	{ value: "vehicle", label: "車輛進出" },
-	{ value: "people_counting", label: "人流紀錄" },
+	{ value: "people_counting", label: "人流紀錄（YSCP）" },
 	{ value: "alerts", label: "警報事件" },
 	{ value: "environment", label: "環境數值" },
 ]
+
+export const EXPORT_GRAIN_OPTIONS = [
+	{ value: "hourly", label: "每小時彙總（預設）" },
+	{ value: "raw", label: "原始讀數" },
+] as const
+
+export type ExportGrain = (typeof EXPORT_GRAIN_OPTIONS)[number]["value"]
+
+export type FormDropdownOption = { value: string; label: string }
+
+/** readonly 選項 → FilterDropdown 可用陣列 */
+export const toDropdownOptions = (
+	options: ReadonlyArray<{ readonly value: string; readonly label: string }>,
+): FormDropdownOption[] => options.map((o) => ({ value: o.value, label: o.label }))
+
+export const normalizeExportGrain = (raw: unknown): ExportGrain =>
+	String(raw ?? "").trim().toLowerCase() === "raw" ? "raw" : "hourly"
 
 export const EXPORT_FIELD_FORMAT_PLACEHOLDER: Record<string, string> = {
 	eventDateTime: "yyyy-MM-dd HH:mm:ss",
@@ -103,6 +120,62 @@ export const DB_SYNC_DB_TYPE_OPTIONS = [
 export const DB_SYNC_DEFAULT_PUSH_TIME = "18:00"
 
 export const RECORD_EXPORT_DEFAULT_EXPORT_TIME = "00:00"
+
+export const SCHEDULE_FREQ_OPTIONS = [
+	{ value: "daily", label: "每日" },
+	{ value: "weekly", label: "每週" },
+	{ value: "monthly", label: "每月" },
+] as const
+
+export type ScheduleFreq = (typeof SCHEDULE_FREQ_OPTIONS)[number]["value"]
+
+export const WEEKDAY_OPTIONS = [
+	{ value: "1", label: "星期一" },
+	{ value: "2", label: "星期二" },
+	{ value: "3", label: "星期三" },
+	{ value: "4", label: "星期四" },
+	{ value: "5", label: "星期五" },
+	{ value: "6", label: "星期六" },
+	{ value: "7", label: "星期日" },
+]
+
+export const MONTH_DAY_OPTIONS = Array.from({ length: 31 }, (_, i) => {
+	const d = i + 1
+	return { value: String(d), label: `${d} 日` }
+})
+
+export const normalizeScheduleFreq = (raw: unknown): ScheduleFreq => {
+	const v = String(raw ?? "daily").trim().toLowerCase()
+	if (v === "weekly" || v === "monthly") return v
+	return "daily"
+}
+
+export const normalizeScheduleDay = (freq: ScheduleFreq, raw: unknown): number | null => {
+	if (freq === "daily") return null
+	const n = Number(raw)
+	if (!Number.isFinite(n)) return null
+	const day = Math.trunc(n)
+	if (freq === "weekly" && day >= 1 && day <= 7) return day
+	if (freq === "monthly" && day >= 1 && day <= 31) return day
+	return null
+}
+
+export const formatExportScheduleLabel = (
+	freqRaw: unknown,
+	dayRaw: unknown,
+	timeRaw: unknown,
+): string => {
+	const freq = normalizeScheduleFreq(freqRaw)
+	const time = String(timeRaw ?? "").trim() || "00:00"
+	if (freq === "daily") return `每日 ${time}`
+	if (freq === "weekly") {
+		const day = normalizeScheduleDay("weekly", dayRaw) ?? 5
+		const short = ["一", "二", "三", "四", "五", "六", "日"][day - 1] ?? String(day)
+		return `每週${short} ${time}`
+	}
+	const day = normalizeScheduleDay("monthly", dayRaw) ?? 1
+	return `每月 ${day} 日 ${time}`
+}
 
 export const normalizeDailyPushTime = (raw: string): string | null => {
 	const match = /^(\d{1,2}):(\d{2})$/.exec(String(raw ?? "").trim())
@@ -195,6 +268,7 @@ export type RecordExportFilterForm = {
 	eventKindsText: string
 	sourcesText: string
 	statusesText: string
+	grain: ExportGrain
 }
 
 export const buildFilterPayloadFromForm = (
@@ -202,23 +276,40 @@ export const buildFilterPayloadFromForm = (
 	form: RecordExportFilterForm,
 ): Record<string, unknown> => {
 	const kind = schema?.kind as ExportFilterSchemaKind | undefined
-	if (kind === "person_groups") return { groupIds: form.groupIds }
-	if (kind === "devices") return { deviceIds: parseIdListText(form.deviceIdsText) }
-	if (kind === "locations") return { locationIds: parseIdListText(form.locationIdsText) }
+	const grainPayload = schemaHasGrain(schema) ? { grain: normalizeExportGrain(form.grain) } : {}
+	if (kind === "person_groups") return { groupIds: form.groupIds, ...grainPayload }
+	if (kind === "devices") {
+		return { deviceIds: parseIdListText(form.deviceIdsText), ...grainPayload }
+	}
+	if (kind === "locations") {
+		return { locationIds: parseIdListText(form.locationIdsText), ...grainPayload }
+	}
 	if (kind === "operational") {
 		return {
 			eventKinds: parseCsvListText(form.eventKindsText),
 			sources: parseCsvListText(form.sourcesText),
+			...grainPayload,
 		}
 	}
 	if (kind === "alerts") {
 		return {
 			sources: parseCsvListText(form.sourcesText),
 			statuses: parseCsvListText(form.statusesText),
+			...grainPayload,
 		}
 	}
-	return {}
+	return { ...grainPayload }
 }
+
+export const schemaHasGrain = (schema: ExportFilterSchema | null | undefined) =>
+	Boolean(schema?.fields?.some((f) => f.key === "grain"))
 
 export const isGroupFilterRequired = (schema: ExportFilterSchema | null | undefined) =>
 	schema?.kind === "person_groups" && schema.required === true
+
+export {
+	formatExportSchedulePreview,
+	formatExportNextRunLabel,
+	formatExportWindowLabel,
+	type ExportSchedulePreviewInput,
+} from "~/utils/exportSchedulePreview"

@@ -8,8 +8,13 @@ import {
 	buildEventTypeOptions,
 	DB_SYNC_DB_TYPE_OPTIONS,
 	DB_SYNC_DEFAULT_PUSH_TIME,
+	EXPORT_GRAIN_OPTIONS,
 	eventTypeLabel,
 	normalizeDailyPushTime,
+	normalizeExportGrain,
+	schemaHasGrain,
+	toDropdownOptions,
+	type ExportGrain,
 } from "~/utils/externalIntegration"
 import { useDailyHHmmField } from "~/composables/core/useDailyHHmmField"
 
@@ -31,6 +36,7 @@ export type SyncConfig = {
 	username: string
 	targetTable: string
 	mappings: Record<string, SyncMapping>
+	options?: { grain?: ExportGrain | string }
 }
 
 type SyncForm = {
@@ -44,22 +50,10 @@ type SyncForm = {
 	password: string
 	targetTable: string
 	mappings: Record<string, SyncMapping>
-}
-
-type SyncConfigResponse = {
-	config?: SyncConfig | null
-	configs?: SyncConfig[]
-	fields?: Array<ExportFieldCatalogItem>
-	eventTypes?: ExportEventTypeInfo[]
+	grain: ExportGrain
 }
 
 const DEFAULT_PORT: Record<string, string> = { postgres: "5432", sqlserver: "1433", mysql: "3306" }
-
-const DB_TYPE_LABEL: Record<string, string> = {
-	postgres: "PostgreSQL",
-	sqlserver: "SQL Server",
-	mysql: "MySQL",
-}
 
 const createEmptyForm = (): SyncForm => ({
 	eventType: "access_control",
@@ -72,7 +66,15 @@ const createEmptyForm = (): SyncForm => ({
 	password: "",
 	targetTable: "",
 	mappings: {},
+	grain: "hourly",
 })
+
+type SyncConfigResponse = {
+	config?: SyncConfig | null
+	configs?: SyncConfig[]
+	fields?: Array<ExportFieldCatalogItem>
+	eventTypes?: ExportEventTypeInfo[]
+}
 
 export const useExternalDatabaseSyncForm = () => {
 	const { request } = useApiBase()
@@ -177,6 +179,7 @@ export const useExternalDatabaseSyncForm = () => {
 		dialog.form.username = cfg.username || ""
 		dialog.form.password = ""
 		dialog.form.targetTable = cfg.targetTable || ""
+		dialog.form.grain = normalizeExportGrain(cfg.options?.grain)
 		dialog.form.mappings = {}
 		for (const [k, v] of Object.entries(cfg.mappings || {})) {
 			ensureFieldMapping(k)
@@ -280,6 +283,9 @@ export const useExternalDatabaseSyncForm = () => {
 					password: dialog.form.password,
 					targetTable: dialog.form.targetTable,
 					mappings: buildMappingsPayload(),
+					options: showGrainFilter.value
+						? { grain: normalizeExportGrain(dialog.form.grain) }
+						: {},
 				},
 			})
 			toast.success(TOAST.EXTERNAL_DB_SAVED)
@@ -308,7 +314,13 @@ export const useExternalDatabaseSyncForm = () => {
 		}
 	}
 
-	const getDbTypeLabel = (dbType: string) => DB_TYPE_LABEL[dbType] || dbType
+	const getDbTypeLabel = (dbType: string) =>
+		DB_SYNC_DB_TYPE_OPTIONS.find((o) => o.value === dbType)?.label ?? dbType
+	const currentFilterSchema = computed(
+		() => eventTypes.value.find((t) => t.id === dialog.form.eventType)?.filterSchema,
+	)
+	const showGrainFilter = computed(() => schemaHasGrain(currentFilterSchema.value))
+	const grainOptions = toDropdownOptions(EXPORT_GRAIN_OPTIONS)
 
 	onMounted(() => {
 		void fetchConfigs()
@@ -332,6 +344,8 @@ export const useExternalDatabaseSyncForm = () => {
 		pushTimeMinute,
 		eventTypeLabel,
 		getDbTypeLabel,
+		showGrainFilter,
+		grainOptions,
 		handleDbTypeChanged,
 		handleDialogEventTypeChanged,
 		handleCreate,
