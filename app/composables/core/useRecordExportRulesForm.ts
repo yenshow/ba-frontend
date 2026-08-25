@@ -13,16 +13,32 @@ import {
 	buildEventTypeOptions,
 	buildFilterPayloadFromForm,
 	DATE_FORMAT_OPTIONS,
+	EXPORT_GRAIN_OPTIONS,
+	formatExportSchedulePreview,
 	getFilterFieldLabel,
 	isGroupFilterRequired,
+	MONTH_DAY_OPTIONS,
 	normalizeDailyPushTime,
+	normalizeExportGrain,
+	normalizeScheduleDay,
+	normalizeScheduleFreq,
 	OUTPUT_FORMAT_OPTIONS,
 	RECORD_EXPORT_DEFAULT_EXPORT_TIME,
+	SCHEDULE_FREQ_OPTIONS,
+	schemaHasGrain,
 	STORAGE_TYPE_OPTIONS,
 	TIME_FORMAT_OPTIONS,
+	toDropdownOptions,
+	WEEKDAY_OPTIONS,
 	eventTypeLabel,
+	type FormDropdownOption,
+	type ScheduleFreq,
 } from "~/utils/externalIntegration"
 import { useDailyHHmmField } from "~/composables/core/useDailyHHmmField"
+import {
+	applyConstructionExportFilterDefaults,
+	filterExportEventTypesForConstruction,
+} from "~/utils/constructionExternalIntegration"
 
 type RuleField = {
 	fieldKey: string
@@ -41,6 +57,8 @@ type RuleRecord = {
 	storageType: "local" | "sftp"
 	localDir?: string
 	exportTime: string
+	scheduleFreq?: ScheduleFreq | string
+	scheduleDay?: number | null
 	groupIds?: number[]
 	filter?: Record<string, unknown>
 	sftp?: { host?: string; port?: number; username?: string; remoteDir?: string }
@@ -66,12 +84,15 @@ type RuleDialogForm = {
 	localDir: string
 	sftp: { host: string; port: string; username: string; password: string; remoteDir: string }
 	exportTime: string
+	scheduleFreq: ScheduleFreq
+	scheduleDay: string
 	groupIds: number[]
 	deviceIdsText: string
 	locationIdsText: string
 	eventKindsText: string
 	sourcesText: string
 	statusesText: string
+	grain: "hourly" | "raw"
 	fieldConfigs: Record<string, { headerLabel: string; format: string }>
 }
 
@@ -87,16 +108,17 @@ const createEmptyForm = (): RuleDialogForm => ({
 	localDir: "",
 	sftp: { host: "", port: "22", username: "", password: "", remoteDir: "" },
 	exportTime: RECORD_EXPORT_DEFAULT_EXPORT_TIME,
+	scheduleFreq: "daily",
+	scheduleDay: "5",
 	groupIds: [],
 	deviceIdsText: "",
 	locationIdsText: "",
 	eventKindsText: "",
 	sourcesText: "",
 	statusesText: "",
+	grain: "hourly",
 	fieldConfigs: {},
 })
-
-type FormDropdownOption = { value: string; label: string }
 
 export const useRecordExportRulesForm = () => {
 	const { request } = useApiBase()
@@ -143,6 +165,30 @@ export const useRecordExportRulesForm = () => {
 
 	const filterLabel = (key: string, fallback: string) =>
 		getFilterFieldLabel(filterSchema.value, key, fallback)
+	const groupFilterRequired = computed(() => isGroupFilterRequired(filterSchema.value))
+	const showGrainFilter = computed(() => schemaHasGrain(filterSchema.value))
+	const grainOptions = toDropdownOptions(EXPORT_GRAIN_OPTIONS)
+	const scheduleFreqOptions = toDropdownOptions(SCHEDULE_FREQ_OPTIONS)
+	const weekdayOptions = WEEKDAY_OPTIONS
+	const monthDayOptions = MONTH_DAY_OPTIONS
+	const showWeekday = computed(() => dialog.form.scheduleFreq === "weekly")
+	const showMonthDay = computed(() => dialog.form.scheduleFreq === "monthly")
+
+	const ruleSchedulePreview = (rule: {
+		scheduleFreq?: unknown
+		scheduleDay?: unknown
+		exportTime?: unknown
+	}) => formatExportSchedulePreview(rule)
+
+	const dialogSchedulePreview = computed(() => ruleSchedulePreview(dialog.form))
+
+	const handleScheduleFreqChanged = () => {
+		const freq = normalizeScheduleFreq(dialog.form.scheduleFreq)
+		dialog.form.scheduleFreq = freq
+		if (freq !== "daily" && !normalizeScheduleDay(freq, dialog.form.scheduleDay)) {
+			dialog.form.scheduleDay = "5"
+		}
+	}
 
 	const ensureRuleField = (key: string) => {
 		if (!dialog.form.fieldConfigs[key]) {
@@ -165,7 +211,9 @@ export const useRecordExportRulesForm = () => {
 		)
 		fields.value = data.fields || []
 		filterSchema.value = data.filterSchema ?? null
-		if (data.eventTypes?.length) eventTypes.value = data.eventTypes
+		if (data.eventTypes?.length) {
+			eventTypes.value = filterExportEventTypesForConstruction(data.eventTypes)
+		}
 		initAllFieldConfigs()
 	}
 
@@ -176,6 +224,11 @@ export const useRecordExportRulesForm = () => {
 		dialog.form.eventKindsText = ""
 		dialog.form.sourcesText = ""
 		dialog.form.statusesText = ""
+		dialog.form.grain = "hourly"
+		Object.assign(
+			dialog.form,
+			applyConstructionExportFilterDefaults(dialog.form.eventType, dialog.form),
+		)
 	}
 
 	const fetchRules = async () => {
@@ -188,7 +241,9 @@ export const useRecordExportRulesForm = () => {
 		try {
 			const data = await request<RuleResponse>("/record-export/rules", { method: "GET" })
 			rules.value = data.rules || []
-			if (data.eventTypes?.length) eventTypes.value = data.eventTypes
+			if (data.eventTypes?.length) {
+				eventTypes.value = filterExportEventTypesForConstruction(data.eventTypes)
+			}
 		} catch (e) {
 			loadError.value = handleError(e, "載入記錄轉存規則失敗") ?? "載入記錄轉存規則失敗"
 		} finally {
@@ -208,6 +263,9 @@ export const useRecordExportRulesForm = () => {
 		dialog.form.localDir = full.localDir || ""
 		dialog.form.exportTime =
 			normalizeDailyPushTime(full.exportTime) ?? RECORD_EXPORT_DEFAULT_EXPORT_TIME
+		dialog.form.scheduleFreq = normalizeScheduleFreq(full.scheduleFreq)
+		const day = normalizeScheduleDay(dialog.form.scheduleFreq, full.scheduleDay)
+		dialog.form.scheduleDay = String(day ?? 5)
 		const filter = full.filter || {}
 		dialog.form.groupIds = Array.isArray(full.groupIds)
 			? full.groupIds
@@ -229,6 +287,7 @@ export const useRecordExportRulesForm = () => {
 		dialog.form.statusesText = Array.isArray(filter.statuses)
 			? (filter.statuses as string[]).join(",")
 			: ""
+		dialog.form.grain = normalizeExportGrain(filter.grain)
 		dialog.form.sftp = {
 			host: full.sftp?.host || "",
 			port: String(full.sftp?.port ?? "22"),
@@ -250,6 +309,10 @@ export const useRecordExportRulesForm = () => {
 		resetDialogForm()
 		dialog.open = true
 		await loadFieldsForEventType(dialog.form.eventType)
+		Object.assign(
+			dialog.form,
+			applyConstructionExportFilterDefaults(dialog.form.eventType, dialog.form),
+		)
 		await refreshGroupTree()
 	}
 
@@ -307,7 +370,12 @@ export const useRecordExportRulesForm = () => {
 
 		try {
 			isSaving.value = true
-			const filter = buildFilterPayloadFromForm(filterSchema.value, dialog.form)
+			const filterForm = applyConstructionExportFilterDefaults(
+				dialog.form.eventType,
+				dialog.form,
+			)
+			const filter = buildFilterPayloadFromForm(filterSchema.value, filterForm)
+			const scheduleFreq = normalizeScheduleFreq(dialog.form.scheduleFreq)
 			const body = {
 				eventType: dialog.form.eventType,
 				name: dialog.form.name,
@@ -328,6 +396,8 @@ export const useRecordExportRulesForm = () => {
 							}
 						: null,
 				exportTime: dialog.form.exportTime,
+				scheduleFreq,
+				scheduleDay: normalizeScheduleDay(scheduleFreq, dialog.form.scheduleDay),
 				filter,
 				fields: fieldsPayload,
 			}
@@ -389,6 +459,17 @@ export const useRecordExportRulesForm = () => {
 		exportTimeMinute,
 		filterKind,
 		filterLabel,
+		groupFilterRequired,
+		showGrainFilter,
+		grainOptions,
+		scheduleFreqOptions,
+		weekdayOptions,
+		monthDayOptions,
+		showWeekday,
+		showMonthDay,
+		ruleSchedulePreview,
+		dialogSchedulePreview,
+		handleScheduleFreqChanged,
 		eventTypeLabel,
 		dateFormatOptions,
 		timeFormatOptions,

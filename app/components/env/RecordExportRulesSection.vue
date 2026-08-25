@@ -16,18 +16,27 @@
 					:key="r.id"
 					class="flex flex-wrap items-center gap-3 rounded-xl border border-white/15 bg-black/20 p-4"
 				>
-					<p class="text-base font-semibold text-white/90">{{ r.name }}</p>
-					<span
-						class="rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-sm text-white/70"
-					>
-						{{ eventTypeLabel(r.eventType || "access_control") }}
-					</span>
-					<span
-						class="rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-sm text-white/70"
-					>
-						{{ r.outputFormat.toUpperCase() }} / {{ r.storageType.toUpperCase() }}
-					</span>
-					<span class="text-sm text-white/60">每日 {{ r.exportTime }}</span>
+					<div class="min-w-0 flex-1 space-y-1">
+						<div class="flex flex-wrap items-center gap-3">
+							<p class="text-base font-semibold text-white/90">{{ r.name }}</p>
+							<span
+								class="rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-sm text-white/70"
+							>
+								{{ eventTypeLabel(r.eventType || "access_control") }}
+							</span>
+							<span
+								class="rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-sm text-white/70"
+							>
+								{{ r.outputFormat.toUpperCase() }} / {{ r.storageType.toUpperCase() }}
+							</span>
+							<span class="text-sm text-white/60">{{ ruleSchedulePreview(r).schedule }}</span>
+						</div>
+						<p class="text-xs text-white/45 2xl:text-sm">
+							下次執行 {{ ruleSchedulePreview(r).nextRun }}
+							<span class="mx-1.5 text-white/25" aria-hidden="true">·</span>
+							資料區間 {{ ruleSchedulePreview(r).window }}
+						</p>
+					</div>
 
 					<div class="flex flex-wrap items-center gap-2 ml-auto">
 						<button
@@ -96,6 +105,43 @@
 							</label>
 
 							<label class="flex flex-col gap-2 text-base text-white/80">
+								<span>排程頻率<span class="required-mark">*</span></span>
+								<FilterDropdown
+									v-model="dialog.form.scheduleFreq"
+									:options="scheduleFreqOptions"
+									text-size="text-sm 2xl:text-base"
+									:disabled="dialogBusy"
+									@update:model-value="handleScheduleFreqChanged"
+								/>
+							</label>
+
+							<label
+								v-if="showWeekday"
+								class="flex flex-col gap-2 text-base text-white/80"
+							>
+								<span>星期<span class="required-mark">*</span></span>
+								<FilterDropdown
+									v-model="dialog.form.scheduleDay"
+									:options="weekdayOptions"
+									text-size="text-sm 2xl:text-base"
+									:disabled="dialogBusy"
+								/>
+							</label>
+
+							<label
+								v-else-if="showMonthDay"
+								class="flex flex-col gap-2 text-base text-white/80"
+							>
+								<span>日期<span class="required-mark">*</span></span>
+								<FilterDropdown
+									v-model="dialog.form.scheduleDay"
+									:options="monthDayOptions"
+									text-size="text-sm 2xl:text-base"
+									:disabled="dialogBusy"
+								/>
+							</label>
+
+							<label class="flex flex-col gap-2 text-base text-white/80">
 								<span>匯出時間<span class="required-mark">*</span></span>
 								<div
 									class="flex min-w-0 items-center gap-2"
@@ -114,6 +160,15 @@
 									/>
 								</div>
 							</label>
+
+							<div
+								class="col-span-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/65"
+								role="status"
+								aria-live="polite"
+							>
+								<p>下次執行：{{ dialogSchedulePreview.nextRun }}</p>
+								<p class="mt-1">資料區間：{{ dialogSchedulePreview.window }}（不含結束當日 00:00 之後）</p>
+							</div>
 
 							<label class="col-span-2 flex flex-col gap-2 text-base text-white/80">
 								<span>規則名稱<span class="required-mark">*</span></span>
@@ -263,7 +318,8 @@
 								class="col-span-2 flex flex-col gap-2 text-sm text-white/80 2xl:text-base"
 							>
 								<p>
-									{{ filterLabel("groupIds", "人員群組") }}<span class="required-mark">*</span>
+									{{ filterLabel("groupIds", "人員群組（選填，空白=全部）")
+									}}<span v-if="groupFilterRequired" class="required-mark">*</span>
 								</p>
 								<PersonnelGroupPicker
 									v-model="dialog.form.groupIds"
@@ -303,6 +359,20 @@
 								/>
 							</label>
 
+							<label
+								v-if="showGrainFilter"
+								class="col-span-2 flex flex-col gap-2 text-base text-white/80"
+							>
+								<span>{{ filterLabel("grain", "匯出粒度") }}</span>
+								<div :class="{ 'pointer-events-none opacity-50': dialogBusy }">
+									<FilterDropdown
+										v-model="dialog.form.grain"
+										:options="grainOptions"
+										text-size="text-sm 2xl:text-base"
+									/>
+								</div>
+							</label>
+
 							<template v-if="filterKind === 'operational'">
 								<label class="flex flex-col gap-2 text-base text-white/80">
 									<span>{{ filterLabel("eventKinds", "事件種類（選填）") }}</span>
@@ -311,7 +381,7 @@
 										type="text"
 										class="form-input-small"
 										:disabled="dialogBusy"
-										placeholder="例如：elevator,access"
+										placeholder="access,vehicle"
 										aria-label="營運事件種類篩選"
 									/>
 								</label>
@@ -322,7 +392,7 @@
 										type="text"
 										class="form-input-small"
 										:disabled="dialogBusy"
-										placeholder="例如：isapi,system"
+										placeholder="people_counting,vehicle_access"
 										aria-label="營運事件來源篩選"
 									/>
 								</label>
@@ -336,7 +406,7 @@
 										type="text"
 										class="form-input-small"
 										:disabled="dialogBusy"
-										placeholder="例如：environment,elevator"
+										placeholder="device,environment,people_counting,surveillance,vehicle_access"
 										aria-label="警報來源篩選"
 									/>
 								</label>
@@ -463,6 +533,17 @@ const {
 	exportTimeMinute,
 	filterKind,
 	filterLabel,
+	groupFilterRequired,
+	showGrainFilter,
+	grainOptions,
+	scheduleFreqOptions,
+	weekdayOptions,
+	monthDayOptions,
+	showWeekday,
+	showMonthDay,
+	ruleSchedulePreview,
+	dialogSchedulePreview,
+	handleScheduleFreqChanged,
 	eventTypeLabel,
 	dateFormatOptions,
 	timeFormatOptions,
