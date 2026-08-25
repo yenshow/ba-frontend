@@ -218,7 +218,7 @@ const resolveAccessSecurityIntercomUnit = (
 		if (hit) return hit
 	}
 
-	const summary = String(event.summary || "")
+	const summary = String(event.message || "")
 	return (
 		locations.find(
 			(loc) =>
@@ -307,7 +307,7 @@ export const formatIntercomMonitorRow = (
 	return {
 		unit,
 		summary: formatIntercomMonitorSummary(
-			event.summary,
+			event.message,
 			unit === "—"
 				? []
 				: [unit, loc?.displayName, loc?.name, loc?.unitName, event.location_name, event.zone_name]

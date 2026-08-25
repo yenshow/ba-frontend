@@ -69,7 +69,7 @@ const props = defineProps<{
 
 const rows = computed(() =>
 	(props.events || []).map((event) => {
-		const stamped = parseIntercomLogTimestamp(formatDateTime(event.occurred_at))
+		const stamped = parseIntercomLogTimestamp(formatDateTime(event.created_at))
 		const { unit, summary } = formatIntercomMonitorRow(event, props.locations)
 		return {
 			id: event.id,

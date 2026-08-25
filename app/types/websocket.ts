@@ -117,7 +117,7 @@ export interface OperationalEventNewEvent {
 	id: number
 	source: string
 	event_kind: string
-	summary: string
-	occurred_at: string
+	message: string
+	created_at: string
 	timestamp: string
 }

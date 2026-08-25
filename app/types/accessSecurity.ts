@@ -66,13 +66,13 @@ export type AccessSecurityInviteResult = {
 /** GET /access-security/zones/:id/logs/latest（監控頁對講事件；層 2） */
 export type AccessSecurityIntercomLog = {
 	id: number
-	occurred_at: string
+	created_at: string
 	source: string
 	event_kind: "intercom"
 	location_id: number | null
 	system_id: number | null
 	device_id: number | null
-	summary: string
+	message: string
 	location_name?: string | null
 	device_name?: string | null
 	zone_name?: string | null

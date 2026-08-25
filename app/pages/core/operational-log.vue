@@ -221,11 +221,11 @@ const handleExport = async () => {
 			"操作者",
 		]
 		const rows = result.events.map((e) => ({
-			時間: formatDateTime(e.occurred_at),
+			時間: formatDateTime(e.created_at),
 			系統: getOperationalSourceLabel(e.source),
 			類型: getOperationalKindLabel(e.event_kind),
 			警報連動: isOperationalAlertLinkage(e) ? "是" : "否",
-			摘要: e.summary,
+			摘要: e.message,
 			區域: e.zone_name ?? "",
 			地點: e.location_name ?? "",
 			設備: e.device_name ?? "",

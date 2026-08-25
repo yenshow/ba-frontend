@@ -17,7 +17,7 @@ export type OperationalEventKind =
 
 export type OperationalEvent = {
 	id: number
-	occurred_at: string
+	created_at: string
 	source: string
 	event_kind: OperationalEventKind
 	location_id: number | null
@@ -27,12 +27,11 @@ export type OperationalEvent = {
 	address: number | null
 	old_value: boolean | null
 	new_value: boolean | null
-	summary: string
+	message: string
 	actor_user_id: number | null
 	ref_table: string | null
 	ref_id: number | null
 	payload: Record<string, unknown> | null
-	created_at: string
 	device_name?: string | null
 	location_name?: string | null
 	zone_name?: string | null
@@ -164,7 +163,7 @@ export const buildOperationalEventMeta = (event: OperationalEvent): OperationalE
 	const items: OperationalEventMetaItem[] = [
 		{ key: "place", label: "地點", value: getOperationalPlaceLabel(event) },
 		{ key: "device", label: "設備", value: getOperationalDeviceLabel(event) },
-		{ key: "time", label: "時間", value: formatDateTime(event.occurred_at) },
+		{ key: "time", label: "時間", value: formatDateTime(event.created_at) },
 	]
 	const floorLabel = String(event.payload?.floorLabel ?? event.payload?.floor ?? "").trim()
 	if (floorLabel) {

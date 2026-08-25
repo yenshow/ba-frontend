@@ -31,7 +31,7 @@
 					<article
 						role="link"
 						tabindex="0"
-						:aria-label="event.summary"
+						:aria-label="event.message"
 						class="cursor-pointer rounded-lg border border-white/20 bg-white/10 px-3 py-2 transition-colors hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70"
 						@click="handleOpenFullPage"
 						@keydown.enter.prevent="handleOpenFullPage"
@@ -46,10 +46,10 @@
 							</span>
 						</div>
 						<p class="mb-0.5 line-clamp-1 text-base font-medium text-white">
-							{{ event.summary }}
+							{{ event.message }}
 						</p>
 						<p class="text-sm text-white/50">
-							{{ formatDateTime(event.occurred_at) }}
+							{{ formatDateTime(event.created_at) }}
 						</p>
 					</article>
 				</li>
@@ -75,7 +75,7 @@ import type { OperationalEventNewEvent } from "~/types/websocket"
 
 type HomeOpEvent = Pick<
 	OperationalEventNewEvent,
-	"id" | "source" | "event_kind" | "summary" | "occurred_at"
+	"id" | "source" | "event_kind" | "message" | "created_at"
 >
 
 const OPERATIONAL_LOG_ROUTE = "/core/operational-log"
@@ -120,13 +120,13 @@ const handleOpenFullPage = () => {
 const parseWsEvent = (payload: unknown): HomeOpEvent | null => {
 	const p = payload as Partial<OperationalEventNewEvent> | null
 	const id = Number(p?.id)
-	if (!Number.isFinite(id) || !p?.source || !p?.event_kind || !p?.summary) return null
+	if (!Number.isFinite(id) || !p?.source || !p?.event_kind || !p?.message) return null
 	return {
 		id,
 		source: String(p.source),
 		event_kind: String(p.event_kind),
-		summary: String(p.summary),
-		occurred_at: String(p.occurred_at || p.timestamp || ""),
+		message: String(p.message),
+		created_at: String(p.created_at || p.timestamp || ""),
 	}
 }
 
@@ -140,8 +140,8 @@ const loadEvents = async () => {
 			id: e.id,
 			source: e.source,
 			event_kind: e.event_kind,
-			summary: e.summary,
-			occurred_at: e.occurred_at,
+			message: e.message,
+			created_at: e.created_at,
 		}))
 	} catch (error) {
 		events.value = []
