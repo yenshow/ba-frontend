@@ -212,14 +212,14 @@
 							</div>
 
 							<label
-								v-if="showGrainFilter"
+								v-if="exportMode"
 								class="col-span-2 flex flex-col gap-2 text-base text-white/80"
 							>
 								<span>匯出粒度</span>
 								<div :class="{ 'pointer-events-none opacity-50': dialogBusy }">
 									<FilterDropdown
 										v-model="dialog.form.grain"
-										:options="grainOptions"
+										:options="exportMode.options"
 										text-size="text-sm 2xl:text-base"
 									/>
 								</div>
@@ -227,17 +227,22 @@
 
 							<div class="col-span-2 flex flex-col gap-2">
 								<p class="text-sm font-medium text-white/85 2xl:text-base">欄位映射</p>
+								<p class="text-xs text-white/50 2xl:text-sm">
+									勾選要輸出的欄位；「空白欄」無資料、值為空，請把第三方欄位名改成預留欄名稱。
+								</p>
 								<div class="overflow-hidden rounded-xl border border-white/10">
 									<div
 										class="mapping-grid mapping-grid-header border-b border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white/55"
 										aria-hidden="true"
 									>
+										<span>選</span>
 										<span>平台欄位</span>
 										<span>第三方欄位名</span>
 										<span>格式</span>
 									</div>
 
 									<div class="mapping-grid border-b border-white/10 px-3 py-2.5">
+										<span class="text-sm text-white/25" aria-hidden="true">—</span>
 										<span class="text-sm text-white/85">
 											目標資料表<span class="required-mark">*</span>
 										</span>
@@ -257,28 +262,50 @@
 										v-for="field in fields"
 										:key="field.key"
 										class="mapping-grid border-b border-white/10 px-3 py-2.5 last:border-b-0"
+										:class="{ 'opacity-55': !dialog.form.mappings[field.key]?.enabled }"
 									>
+										<input
+											type="checkbox"
+											class="h-4 w-4 accent-teal-400"
+											:checked="dialog.form.mappings[field.key]?.enabled"
+											:disabled="dialogBusy || field.required"
+											:aria-label="`輸出 ${field.label}`"
+											@change="
+												handleToggleField(field, ($event.target as HTMLInputElement).checked)
+											"
+										/>
 										<span class="text-sm text-white/85">
 											{{ field.label }}<span v-if="field.required" class="required-mark">*</span>
+											<span
+												v-if="field.constantEmpty"
+												class="ml-1 rounded border border-white/20 px-1 py-0.5 text-[10px] text-white/45"
+											>
+												空白
+											</span>
 										</span>
 										<input
 											v-model="dialog.form.mappings[field.key].targetColumn"
 											type="text"
 											class="form-input-small min-w-0 w-full"
-											:disabled="dialogBusy"
+											:disabled="dialogBusy || !dialog.form.mappings[field.key]?.enabled"
 											:aria-label="`${field.label} 第三方欄位名`"
-											:required="field.required"
+											:required="
+												Boolean(field.required || dialog.form.mappings[field.key]?.enabled)
+											"
 										/>
-										<input
+										<div
 											v-if="field.requiresFormat"
-											v-model="dialog.form.mappings[field.key].format"
-											type="text"
-											class="form-input-small min-w-0 w-full"
-											:disabled="dialogBusy"
-											:placeholder="getExportFieldFormatPlaceholder(field.key)"
-											:aria-label="`${field.label} 格式`"
-											required
-										/>
+											:class="{
+												'pointer-events-none opacity-50':
+													dialogBusy || !dialog.form.mappings[field.key]?.enabled,
+											}"
+										>
+											<FilterDropdown
+												v-model="dialog.form.mappings[field.key].format"
+												:options="getFormatOptionsForField(field)"
+												text-size="text-sm 2xl:text-base"
+											/>
+										</div>
 										<span v-else class="text-sm text-white/25" aria-hidden="true">—</span>
 									</div>
 								</div>
@@ -318,7 +345,7 @@ import {
 	useExternalDatabaseSyncForm,
 	type SyncConfig,
 } from "~/composables/core/useExternalDatabaseSyncForm"
-import { getExportFieldFormatPlaceholder, DAILY_TIME_HOUR_OPTIONS, DAILY_TIME_MINUTE_OPTIONS } from "~/utils/externalIntegration"
+import { DAILY_TIME_HOUR_OPTIONS, DAILY_TIME_MINUTE_OPTIONS } from "~/utils/externalIntegration"
 
 const dbTypeOptions = DB_SYNC_DB_TYPE_OPTIONS
 const pushTimeHourOptions = DAILY_TIME_HOUR_OPTIONS
@@ -352,8 +379,9 @@ const {
 	pushTimeMinute,
 	eventTypeLabel,
 	getDbTypeLabel,
-	showGrainFilter,
-	grainOptions,
+	exportMode,
+	getFormatOptionsForField,
+	handleToggleField,
 	handleDbTypeChanged,
 	handleDialogEventTypeChanged,
 	handleCreate,
@@ -393,7 +421,7 @@ defineExpose({
 <style scoped>
 .mapping-grid {
 	display: grid;
-	grid-template-columns: minmax(6.5rem, 1.15fr) 1.35fr 1fr;
+	grid-template-columns: 2rem minmax(6.5rem, 1.15fr) 1.35fr 1fr;
 	align-items: center;
 	column-gap: 0.75rem;
 }

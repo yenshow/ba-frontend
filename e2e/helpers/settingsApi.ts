@@ -27,6 +27,20 @@ export const createSettingsApi = async (request: APIRequestContext) => {
 		await unwrap(res)
 	}
 
+	type EnergyAlertRule = {
+		id: number
+		dimension_key: string
+		enabled: boolean
+		condition_type: string
+		condition_config: Record<string, unknown>
+	}
+
+	const getEnergyAlertRules = async () => {
+		const res = await request.get(`${apiBase()}/alerts/rules?source=energy`, { headers })
+		const data = await unwrap<{ rules: EnergyAlertRule[] }>(res)
+		return data.rules ?? []
+	}
+
 	const getMultimediaSettings = async () => {
 		const res = await request.get(`${apiBase()}/multimedia/dashboard/settings`, { headers })
 		const data = await unwrap<{ settings: Record<string, unknown> }>(res)
@@ -83,6 +97,7 @@ export const createSettingsApi = async (request: APIRequestContext) => {
 	return {
 		getEnergyConfig,
 		putEnergyConfig,
+		getEnergyAlertRules,
 		getMultimediaSettings,
 		putMultimediaSettings,
 		createRecordExportRule,

@@ -342,8 +342,9 @@ const closeRuleDialog = () => {
 	editingRule.value = null
 }
 
+/** 對齊 AlertRuleDialog emit：能源編輯可只送 severity/enabled/suffix（source 等為 optional） */
 const handleSubmitRule = async (payload: {
-	rule: CreateAlertRulePayload
+	rule: UpdateAlertRulePayload
 	integrations: Partial<{
 		doLinkage: unknown
 		cameraLinkage: unknown
@@ -361,12 +362,9 @@ const handleSubmitRule = async (payload: {
 
 		if (editingRule.value) {
 			ruleId = editingRule.value.id
-			const updateRes = await alertApi.updateAlertRule(
-				editingRule.value.id,
-				rulePayload as UpdateAlertRulePayload
-			)
+			const updateRes = await alertApi.updateAlertRule(editingRule.value.id, rulePayload)
 			await alertApi.updateAlertRuleIntegrations(editingRule.value.id, integrationsBody as any)
-			alertRules.clearCache(rulePayload.source)
+			alertRules.clearCache(editingRule.value.source || rulePayload.source)
 			integrationsStore.invalidate(ruleId)
 
 			if (updateRes?.rule) {
@@ -393,14 +391,16 @@ const handleSubmitRule = async (payload: {
 			}
 			toast.success(TOAST.ALERT_RULE_UPDATED, 3000)
 		} else {
-			const created = await alertApi.createAlertRule(rulePayload)
+			// 新增路徑 Dialog 會帶齊 Create 必填欄位（能源來源不可新建）
+			const createPayload = rulePayload as CreateAlertRulePayload
+			const created = await alertApi.createAlertRule(createPayload)
 			const newRule = created?.rule
 			ruleId = newRule?.id
 			if (ruleId) {
 				await alertApi.updateAlertRuleIntegrations(ruleId, integrationsBody as any)
 				integrationsStore.invalidate(ruleId)
 			}
-			alertRules.clearCache(rulePayload.source)
+			alertRules.clearCache(createPayload.source)
 
 			if (newRule) {
 				if (rulePassesCurrentFilters(newRule)) {

@@ -282,13 +282,18 @@ const stripPlaceTokens = (
 	return next.replace(/\s+/g, " ").trim()
 }
 
-/** 監控頁摘要：去掉括號內容、英文結果碼，以及已出現在戶別欄的位置詞 */
+/** 監控頁摘要：去掉括號內容、英文結果碼、地點前綴，以及已出現在戶別欄的位置詞 */
 const formatIntercomMonitorSummary = (
 	raw: string | null | undefined,
 	placeTokens: Array<string | null | undefined> = []
 ): string => {
 	let text = String(raw || "").trim()
 	if (!text) return "—"
+	// `{區域} - {地點}：動作` → 只留動作（戶別已在另一欄）
+	const colonIdx = text.indexOf("：")
+	if (colonIdx >= 0 && colonIdx < text.length - 1) {
+		text = text.slice(colonIdx + 1).trim()
+	}
 	text = text.replace(/[（(][^）)]*[）)]/g, " ")
 	text = text.replace(
 		/\b(broadcast-played|need-auth|not-found|forbidden|ringing|trying|busy|none|ok|code-\d+)\b/gi,

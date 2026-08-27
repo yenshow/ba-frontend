@@ -103,11 +103,13 @@ export const openDialogByButton = async (
 ) => {
 	await dismissToasts(page)
 	const btn = page.getByRole("button", { name: buttonName }).first()
+	const heading = page.getByRole("heading", { name: dialogHeading })
 	await expect(btn).toBeVisible({ timeout: 15_000 })
-	await btn.click({ force: true })
-	await expect(page.getByRole("heading", { name: dialogHeading })).toBeVisible({
-		timeout: 10_000,
-	})
+	await expect(async () => {
+		if (await heading.isVisible().catch(() => false)) return
+		await btn.click()
+		await expect(heading).toBeVisible({ timeout: 1_500 })
+	}).toPass({ timeout: 12_000 })
 }
 
 /** 確認刪除 Dialog（ConfirmDialog：標題「確認刪除」） */

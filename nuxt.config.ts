@@ -30,6 +30,13 @@ export default defineNuxtConfig({
 		typeCheck: false,
 	},
 
+	// cardQrUtils 使用 CJS 套件 qrcode；dev 預先 bundle 避免整頁重載
+	vite: {
+		optimizeDeps: {
+			include: ["qrcode"],
+		},
+	},
+
 	// 開發伺服器配置 - 開放區域網路存取
 	devServer: {
 		host: "0.0.0.0", // 監聽所有網路介面，允許區域網路存取

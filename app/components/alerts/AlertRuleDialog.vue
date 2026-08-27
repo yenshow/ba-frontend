@@ -28,14 +28,21 @@
 					>
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 							<span>系統<span class="required-mark">*</span></span>
+							<p
+								v-if="editingRule && isEnergySource"
+								class="form-input opacity-70"
+							>
+								能源管理
+							</p>
 							<FilterDropdown
+								v-else
 								v-model="form.source"
 								:options="sourceSelectOptions"
 								placeholder="請選擇來源系統"
 								text-size="text-sm 2xl:text-base"
 							/>
 						</label>
-						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 2xl:gap-6">
+						<div v-if="!isEnergySource" class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 2xl:gap-6">
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 								<span>類型<span class="required-mark">*</span></span>
 								<FilterDropdown
@@ -49,14 +56,28 @@
 								<span>狀態<span class="required-mark">*</span></span>
 								<FilterDropdown
 									v-model="form.severity"
-									:options="severityOptions"
+									:options="severityOptionsForForm"
 									placeholder="請選擇狀態（異常／警報）"
 									text-size="text-sm 2xl:text-base"
 								/>
 							</label>
 						</div>
+						<div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 2xl:gap-6">
+							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+								<span>狀態<span class="required-mark">*</span></span>
+								<FilterDropdown
+									v-model="form.severity"
+									:options="severityOptionsForForm"
+									placeholder="請選擇狀態"
+									text-size="text-sm 2xl:text-base"
+								/>
+							</label>
+						</div>
 
-						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 2xl:gap-6">
+						<div
+							v-if="!isEnergySource"
+							class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 2xl:gap-6"
+						>
 							<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 								<span>目標區域 (zone)</span>
 								<FilterDropdown
@@ -86,7 +107,7 @@
 						</div>
 
 						<div
-							v-if="form.alert_type === 'threshold'"
+							v-if="form.alert_type === 'threshold' && !isEnergySource"
 							class="rounded-2xl border border-white/15 bg-white/5 p-4 2xl:p-5"
 						>
 							<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 2xl:gap-6">
@@ -129,6 +150,63 @@
 									/>
 								</label>
 							</div>
+						</div>
+
+						<div
+							v-else-if="isEnergySource"
+							class="rounded-2xl border border-white/15 bg-white/5 p-4 2xl:p-5"
+						>
+							<div class="mb-4 space-y-1 text-sm text-white/80 2xl:text-base">
+								<p class="text-white/60">能源 Incident 類型</p>
+								<p class="font-medium text-white/90">{{ energyConditionLabel }}</p>
+							</div>
+
+							<div
+								v-if="energyConditionType === 'energy_contract_stage'"
+								class="grid grid-cols-1 gap-3 sm:grid-cols-2"
+							>
+								<div class="space-y-1 text-sm text-white/80 2xl:text-base">
+									<p class="text-white/60">分級（1～3）</p>
+									<p class="font-medium text-white/90">{{ energyConfig.level }}</p>
+								</div>
+								<div class="space-y-1 text-sm text-white/80 2xl:text-base">
+									<p class="text-white/60">門檻（%）</p>
+									<p class="font-medium text-white/90">{{ energyConfig.threshold_pct }}</p>
+								</div>
+							</div>
+
+							<div
+								v-else-if="energyConditionType === 'energy_meter_stale'"
+								class="space-y-1 text-sm text-white/80 2xl:text-base"
+							>
+								<p class="text-white/60">逾時（分鐘）</p>
+								<p class="font-medium text-white/90">{{ energyConfig.stale_minutes }}</p>
+							</div>
+
+							<div
+								v-else-if="energyConditionType === 'energy_reading_jump'"
+								class="grid grid-cols-1 gap-3 sm:grid-cols-2"
+							>
+								<div class="space-y-1 text-sm text-white/80 2xl:text-base">
+									<p class="text-white/60">倍數門檻</p>
+									<p class="font-medium text-white/90">{{ energyConfig.multiplier }}</p>
+								</div>
+								<div class="space-y-1 text-sm text-white/80 2xl:text-base">
+									<p class="text-white/60">最小跳動 (kWh)</p>
+									<p class="font-medium text-white/90">{{ energyConfig.min_kwh }}</p>
+								</div>
+							</div>
+
+							<p class="mt-3 text-xs text-white/50 2xl:text-sm">
+								門檻請至
+								<NuxtLink
+									to="/utilities/energy"
+									class="text-cyan-300 underline-offset-2 hover:underline"
+								>
+									能源參數設定
+								</NuxtLink>
+								修改；此處可設定啟用、嚴重度與連動。
+							</p>
 						</div>
 
 						<div v-else class="rounded-2xl border border-white/15 bg-white/5 p-4 2xl:p-5">
@@ -655,6 +733,7 @@
 
 <script setup lang="ts">
 import type {
+	AlertConditionType,
 	AlertRule,
 	AlertSeverity,
 	AlertSource,
@@ -704,13 +783,13 @@ interface Props {
 }
 
 interface SubmitPayload {
-	source: AlertSource
-	alert_type: AlertType
+	source?: AlertSource
+	alert_type?: AlertType
 	severity: AlertSeverity
 	target_type?: AlertTargetType | null
 	target_id?: number | null
-	condition_type: "threshold" | "error_count" | "bit_state"
-	condition_config: Record<string, unknown>
+	condition_type?: AlertConditionType
+	condition_config?: Record<string, unknown>
 	message_suffix?: string | null
 	enabled: boolean
 }
@@ -757,8 +836,14 @@ const props = withDefaults(defineProps<Props>(), {
 	errorMessage: null,
 })
 
-/** 與列表篩選共用選項時排除「全部」，僅保留實際來源（對齊必填欄位） */
-const sourceSelectOptions = computed(() => props.sourceOptions.filter((o) => o.value !== ""))
+/** 與列表篩選共用選項時排除「全部」；新增時排除 energy（門檻改能源參數設定） */
+const sourceSelectOptions = computed(() =>
+	props.sourceOptions.filter((o) => {
+		if (o.value === "") return false
+		if (!props.editingRule && o.value === "energy") return false
+		return true
+	}),
+)
 
 const alertTypeOptions: OptionItem[] = [
 	{ value: "offline", label: "設備狀態警報" },
@@ -769,8 +854,39 @@ const alertTypeOptions: OptionItem[] = [
 
 const severityOptions: OptionItem[] = [
 	{ value: "warning", label: "異常" },
+	{ value: "error", label: "錯誤" },
 	{ value: "critical", label: "警報" },
 ]
+
+const energyConditionTypeOptions: OptionItem[] = [
+	{ value: "energy_contract_stage", label: "契約容量分級" },
+	{ value: "energy_meter_stale", label: "表計通訊逾時" },
+	{ value: "energy_reading_jump", label: "讀數跳動異常" },
+]
+
+const isEnergySource = computed(() => form.source === "energy")
+
+const severityOptionsForForm = computed(() =>
+	isEnergySource.value
+		? severityOptions
+		: severityOptions.filter((o) => o.value !== "error"),
+)
+
+const energyConditionType = ref<AlertConditionType>("energy_contract_stage")
+
+const energyConditionLabel = computed(
+	() =>
+		energyConditionTypeOptions.find((o) => o.value === energyConditionType.value)?.label ||
+		energyConditionType.value,
+)
+
+const energyConfig = reactive({
+	level: 1,
+	threshold_pct: 80,
+	stale_minutes: 15,
+	multiplier: 3,
+	min_kwh: 10,
+})
 
 const thresholdOperatorOptions: OptionItem[] = [
 	{ value: ">", label: "超過（>）" },
@@ -1116,6 +1232,13 @@ const resetForm = () => {
 	selectedZoneId.value = ""
 	selectedLocationId.value = ""
 
+	energyConditionType.value = "energy_contract_stage"
+	energyConfig.level = 1
+	energyConfig.threshold_pct = 80
+	energyConfig.stale_minutes = 15
+	energyConfig.multiplier = 3
+	energyConfig.min_kwh = 10
+
 	doLinkage.enabled = false
 	doLinkage.do_device_id = null
 	doLinkage.do_address = null
@@ -1210,12 +1333,11 @@ const loadZones = async () => {
 	zones.value = z || []
 }
 
-const conditionTypeForPayload = (): SubmitPayload["condition_type"] =>
-	form.alert_type === "offline"
-		? "error_count"
-		: form.alert_type === "di" || form.alert_type === "do"
-			? "bit_state"
-			: "threshold"
+const conditionTypeForPayload = (): AlertConditionType => {
+	if (form.alert_type === "offline") return "error_count"
+	if (form.alert_type === "di" || form.alert_type === "do") return "bit_state"
+	return "threshold"
+}
 
 const buildConditionConfig = (): Record<string, unknown> => {
 	if (form.alert_type === "threshold") {
@@ -1364,6 +1486,17 @@ const loadIntegrationsForRule = async (ruleId: number) => {
 }
 
 watch(
+	() => form.source,
+	(next) => {
+		if (next !== "energy") return
+		form.target_type = null
+		form.target_id = null
+		selectedZoneId.value = ""
+		selectedLocationId.value = ""
+	},
+)
+
+watch(
 	() => [form.source, form.alert_type] as const,
 	async ([nextSource]) => {
 		await loadZones()
@@ -1404,8 +1537,12 @@ watch(
 		}
 		form.source = rule.source
 		form.alert_type = rule.alert_type
-		// 相容：舊資料若是 error severity，前端顯示成 critical（紅）
-		form.severity = rule.severity === "error" ? "critical" : rule.severity
+		form.severity =
+			rule.source === "energy" && rule.severity === "error"
+				? "error"
+				: rule.severity === "error"
+					? "critical"
+					: rule.severity
 		form.target_type = ((rule as any).target_type as AlertTargetType) || null
 		form.target_id = (rule as any).target_id != null ? Number((rule as any).target_id) : null
 		form.message_suffix = String((rule as AlertRule).message_suffix || "")
@@ -1432,6 +1569,20 @@ watch(
 			thresholdConfig.operator = isAllowedThresholdOperator(rawOp) ? rawOp : ">"
 			thresholdConfig.value = Number(config.value ?? 0)
 			thresholdConfig.unit = String(config.unit || "")
+		} else if (rule.condition_type === "energy_contract_stage") {
+			const config = (rule.condition_config || {}) as Record<string, unknown>
+			energyConditionType.value = "energy_contract_stage"
+			energyConfig.level = Number(config.level ?? 1)
+			energyConfig.threshold_pct = Number(config.threshold_pct ?? 80)
+		} else if (rule.condition_type === "energy_meter_stale") {
+			const config = (rule.condition_config || {}) as Record<string, unknown>
+			energyConditionType.value = "energy_meter_stale"
+			energyConfig.stale_minutes = Number(config.stale_minutes ?? 15)
+		} else if (rule.condition_type === "energy_reading_jump") {
+			const config = (rule.condition_config || {}) as Record<string, unknown>
+			energyConditionType.value = "energy_reading_jump"
+			energyConfig.multiplier = Number(config.multiplier ?? 3)
+			energyConfig.min_kwh = Number(config.min_kwh ?? 10)
 		} else if (rule.condition_type === "error_count") {
 			const config = (rule.condition_config || {}) as Record<string, unknown>
 			errorCountConfig.min_errors = Number(config.min_errors ?? 5)
@@ -1578,22 +1729,28 @@ const handleSubmit = () => {
 		return
 	}
 
-	const targetType = form.target_type || null
-	const targetId = form.target_id != null ? Number(form.target_id) : null
-	const conditionType = conditionTypeForPayload()
-	const conditionConfig = buildConditionConfig()
+	const targetType = isEnergySource.value ? null : form.target_type || null
+	const targetId =
+		isEnergySource.value || form.target_id == null ? null : Number(form.target_id)
 
-	const rulePayload: SubmitPayload = {
-		source: form.source,
-		alert_type: form.alert_type,
-		severity: form.severity,
-		target_type: targetType,
-		target_id: targetId,
-		condition_type: conditionType,
-		condition_config: conditionConfig,
-		message_suffix: form.message_suffix ?? null,
-		enabled: form.enabled,
-	}
+	// 能源門檻由能源參數設定維護；此處只送啟用／嚴重度／後綴（後端也會剝除 condition）
+	const rulePayload: SubmitPayload = isEnergySource.value
+		? {
+				severity: form.severity,
+				message_suffix: form.message_suffix ?? null,
+				enabled: form.enabled,
+			}
+		: {
+				source: form.source,
+				alert_type: form.alert_type,
+				severity: form.severity,
+				target_type: targetType,
+				target_id: targetId,
+				condition_type: conditionTypeForPayload(),
+				condition_config: buildConditionConfig(),
+				message_suffix: form.message_suffix ?? null,
+				enabled: form.enabled,
+			}
 
 	const integrations: IntegrationsDraft = {
 		doLinkage: doLinkage.enabled

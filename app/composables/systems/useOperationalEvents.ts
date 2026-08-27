@@ -77,6 +77,8 @@ const OPERATIONAL_SOURCE_FILTER_KEYS = [
 	"vehicle_access",
 	"elevator",
 	"alert_linkage",
+	"video_intercom",
+	"access_security_ring",
 ] as const
 
 const EXTRA_SOURCE_LABELS: Record<string, string> = {

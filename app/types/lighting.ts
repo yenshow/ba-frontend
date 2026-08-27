@@ -1,13 +1,12 @@
 import type { SystemUiStatus } from "~/utils/monitoringStatus"
 
-// 點位類型
 export type ModbusPointType = "DI" | "DO"
 
 // 點位配置介面
 export interface ModbusPointConfig {
 	id?: string // 唯一 ID（用於 UI）
 	address: number // 點位地址
-	type: ModbusPointType // 點位類型：DI (數位輸入) 或 DO (數位輸出)
+	type: ModbusPointType
 	note?: string // 備註
 
 	// 向後兼容：保留 method 欄位（舊格式）

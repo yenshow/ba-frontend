@@ -81,7 +81,7 @@
 						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
 							<span>圖片 zip（選填，≤ {{ maxFaceSizeKb }}KB，JPG/JPEG）</span>
 							<p class="text-white/60 text-xs 2xl:text-sm">
-								檔名須與 Excel 列對應：<span class="text-white/80">姓名+_工號.jpeg</span>
+								檔名須與 Excel 列對應：<span class="text-white/80">姓名_工號.jpeg</span>
 							</p>
 							<div class="flex flex-wrap items-center gap-3">
 								<input

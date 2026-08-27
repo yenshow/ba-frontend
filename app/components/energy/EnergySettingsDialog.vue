@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { EnergyLoadShedStage, EnergySettingsConfig } from "~/types/energy"
+import type { EnergySettingsConfig } from "~/types/energy"
 import type { Device, SensorDeviceConfig, SensorDeviceModelConfig } from "~/types/device"
 import { useEnergyApi } from "~/composables/systems/energy/useEnergyApi"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
@@ -24,19 +24,26 @@ const isMeterKind = (value: string | undefined): value is MeterKind =>
 
 type SettingsSectionKey = "devices" | "tariff" | "contract"
 
+const ALERT_LOG_ENERGY_PATH = "/core/alert-log?source=energy"
+
 const STAGE_META: Record<
 	1 | 2 | 3,
-	{ severityLabel: string; severityClass: string; defaultPct: number }
+	{ severityLabel: string; severityClass: string }
 > = {
-	1: { severityLabel: "預警", severityClass: "text-amber-300", defaultPct: 80 },
-	2: { severityLabel: "嚴重", severityClass: "text-orange-300", defaultPct: 90 },
-	3: { severityLabel: "危急", severityClass: "text-rose-300", defaultPct: 100 },
+	1: { severityLabel: "預警", severityClass: "text-amber-300" },
+	2: { severityLabel: "嚴重", severityClass: "text-orange-300" },
+	3: { severityLabel: "危急", severityClass: "text-rose-300" },
 }
 
 const SECTION_DEFAULTS: Record<SettingsSectionKey, boolean> = {
 	devices: true,
 	tariff: false,
 	contract: false,
+}
+
+const stageMeta = (level: number) => {
+	if (level === 2 || level === 3) return STAGE_META[level]
+	return STAGE_META[1]
 }
 
 const props = defineProps<{ modelValue: boolean }>()
@@ -52,8 +59,6 @@ const titleId = "energy-settings-dialog-title"
 
 const expandedSections = reactive({ ...SECTION_DEFAULTS })
 
-const canAddStage = computed(() => (form.value?.load_shed_stages || []).length < 3)
-
 const handleClose = () => {
 	emit("update:modelValue", false)
 }
@@ -64,34 +69,6 @@ const toggleSection = (key: SettingsSectionKey) => {
 
 const resetSections = () => {
 	Object.assign(expandedSections, SECTION_DEFAULTS)
-}
-
-const nextStageLevel = (): 1 | 2 | 3 | null => {
-	const used = new Set((form.value?.load_shed_stages || []).map((s) => Number(s.level)))
-	for (const level of [1, 2, 3] as const) {
-		if (!used.has(level)) return level
-	}
-	return null
-}
-
-const handleAddStage = () => {
-	if (!form.value) return
-	const level = nextStageLevel()
-	if (level == null) return
-	const stage: EnergyLoadShedStage = {
-		level,
-		enabled: true,
-		threshold_pct: STAGE_META[level].defaultPct,
-		actions: [],
-	}
-	form.value.load_shed_stages = [...form.value.load_shed_stages, stage].sort(
-		(a, b) => a.level - b.level
-	)
-}
-
-const handleRemoveStage = (level: 1 | 2 | 3) => {
-	if (!form.value) return
-	form.value.load_shed_stages = form.value.load_shed_stages.filter((s) => s.level !== level)
 }
 
 const load = async () => {
@@ -507,30 +484,20 @@ watch(
 												<span class="font-medium text-white/90">{{ stage.level }} 級</span>
 												<span
 													class="text-xs tracking-wider 2xl:text-sm"
-													:class="STAGE_META[stage.level].severityClass"
+													:class="stageMeta(stage.level).severityClass"
 												>
-													{{ STAGE_META[stage.level].severityLabel }}
+													{{ stageMeta(stage.level).severityLabel }}
 												</span>
 											</div>
-											<div class="flex items-center gap-3">
-												<label class="flex items-center gap-2 text-white/90">
-													<input
-														v-model="stage.enabled"
-														type="checkbox"
-														class="h-4 w-4 accent-cyan-400"
-														:aria-label="`啟用 ${stage.level} 級`"
-													/>
-													<span>啟用</span>
-												</label>
-												<button
-													type="button"
-													class="text-xs tracking-wider text-white/50 transition-colors hover:text-rose-300 2xl:text-sm"
-													:aria-label="`移除 ${stage.level} 級`"
-													@click="handleRemoveStage(stage.level)"
-												>
-													移除
-												</button>
-											</div>
+											<label class="flex items-center gap-2 text-white/90">
+												<input
+													v-model="stage.enabled"
+													type="checkbox"
+													class="h-4 w-4 accent-cyan-400"
+													:aria-label="`啟用 ${stage.level} 級`"
+												/>
+												<span>啟用</span>
+											</label>
 										</div>
 										<label class="form-label">
 											<span>門檻（%）</span>
@@ -545,14 +512,16 @@ watch(
 										</label>
 									</div>
 
-									<button
-										v-if="canAddStage"
-										type="button"
-										class="btn-secondary w-full"
-										@click="handleAddStage"
-									>
-										新增分級
-									</button>
+									<p class="text-sm text-white/60 2xl:text-base">
+										門檻儲存後同步警示規則；DO／Email 連動請至
+										<NuxtLink
+											:to="ALERT_LOG_ENERGY_PATH"
+											class="text-cyan-300 underline-offset-2 hover:underline"
+										>
+											警示紀錄
+										</NuxtLink>
+										。
+									</p>
 								</div>
 							</div>
 						</template>

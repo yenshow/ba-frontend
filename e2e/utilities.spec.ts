@@ -4,6 +4,7 @@ import {
 	attachPageGuards,
 	closeDialogByAria,
 	fillVueInput,
+	openDialogByButton,
 	openFloorZoneManagementDialog,
 	visitSystemPage,
 } from "./helpers/selectors"
@@ -82,20 +83,16 @@ test.describe("能源管理 /utilities/energy", () => {
 			await expect(page.getByRole("heading", { name: "用水趨勢" })).toBeVisible()
 			await expect(page.getByText("今日用電量")).toBeVisible()
 
-			await page.getByRole("button", { name: "開啟設定" }).click({ force: true })
-			await expect(page.getByRole("heading", { name: "能源設定" })).toBeVisible({
-				timeout: 10_000,
-			})
+			await openDialogByButton(page, "開啟設定", "能源設定")
 
 			const tariffToggle = page.locator("button").filter({ hasText: "電價／水價" }).first()
-			if (await tariffToggle.isVisible().catch(() => false)) {
-				const panel = page.locator("label").filter({ hasText: /參考水價/ })
-				if (!(await panel.isVisible().catch(() => false))) {
-					await tariffToggle.click({ force: true })
-				}
+			const rateInput = page.getByLabel(/參考水價/)
+			if (!(await rateInput.isVisible().catch(() => false))) {
+				await expect(async () => {
+					await tariffToggle.click()
+					await expect(rateInput).toBeVisible({ timeout: 1_500 })
+				}).toPass({ timeout: 10_000 })
 			}
-
-			const rateInput = page.locator("label").filter({ hasText: /參考水價/ }).locator("input")
 			await expect(rateInput).toBeVisible({ timeout: 10_000 })
 			await fillVueInput(rateInput, String(nextRate))
 			await page.getByRole("button", { name: "儲存", exact: true }).click({ force: true })
@@ -105,6 +102,81 @@ test.describe("能源管理 /utilities/energy", () => {
 
 			const saved = await api.getEnergyConfig()
 			expect((saved.water_tariff as { rate: number }).rate).toBe(nextRate)
+		} finally {
+			await api.putEnergyConfig(original).catch(() => undefined)
+		}
+
+		await guards.assertClean()
+	})
+
+	test("Incident 門檻：表計異常、契約分級儲存並同步 alert_rules", async ({ page, request }) => {
+		test.setTimeout(120_000)
+		const guards = attachPageGuards(page)
+		const api = await createSettingsApi(request)
+		const original = await api.getEnergyConfig()
+
+		const stages = Array.isArray(original.load_shed_stages)
+			? (original.load_shed_stages as Array<{ level: number; threshold_pct: number }>)
+			: []
+		const stage1 = stages.find((s) => Number(s.level) === 1)
+		const origStage1Pct = Number(stage1?.threshold_pct) || 80
+		const nextStage1Pct = origStage1Pct >= 99 ? 78 : origStage1Pct + 1
+		const origStaleMins = Number(original.meter_stale_minutes) || 15
+		const nextStaleMins = origStaleMins >= 59 ? 14 : origStaleMins + 1
+
+		try {
+			await visitSystemPage(page, {
+				path: "/utilities/energy",
+				title: "能源管理",
+				titleInSystemChrome: false,
+			})
+			await expect(page.getByText("今日用電量")).toBeVisible({ timeout: 20_000 })
+
+			await openDialogByButton(page, "開啟設定", "能源設定")
+
+			// 表計異常（devices 區塊預設展開）
+			await expect(page.getByText("表計異常")).toBeVisible()
+			const staleInput = page
+				.locator("label")
+				.filter({ hasText: /^逾時（分鐘）$/ })
+				.locator("input")
+			await expect(staleInput).toBeVisible()
+			await fillVueInput(staleInput, String(nextStaleMins))
+
+			// 契約與分級告警
+			const contractToggle = page.locator("button").filter({ hasText: "契約與分級告警" }).first()
+			const stage1Panel = page.locator("#energy-settings-contract").getByText("1 級")
+			if (!(await stage1Panel.isVisible().catch(() => false))) {
+				await expect(async () => {
+					await contractToggle.click()
+					await expect(stage1Panel).toBeVisible({ timeout: 1_500 })
+				}).toPass({ timeout: 10_000 })
+			}
+
+			const stage1Threshold = page
+				.locator("#energy-settings-contract label")
+				.filter({ hasText: /^門檻（%）$/ })
+				.first()
+				.locator("input")
+			await fillVueInput(stage1Threshold, String(nextStage1Pct))
+
+			await page.getByRole("button", { name: "儲存", exact: true }).click({ force: true })
+			await expect(page.getByRole("heading", { name: "能源設定" })).toBeHidden({
+				timeout: 20_000,
+			})
+
+			const saved = await api.getEnergyConfig()
+			expect(Number(saved.meter_stale_minutes)).toBe(nextStaleMins)
+			const savedStages = saved.load_shed_stages as Array<{ level: number; threshold_pct: number }>
+			expect(Number(savedStages.find((s) => s.level === 1)?.threshold_pct)).toBe(nextStage1Pct)
+
+			const rules = await api.getEnergyAlertRules()
+			const staleRule = rules.find((r) => r.dimension_key === "meter_stale")
+			const stage1Rule = rules.find((r) => r.dimension_key === "contract_stage_1")
+			expect(staleRule, "meter_stale rule").toBeTruthy()
+			expect(Number(staleRule?.condition_config?.stale_minutes)).toBe(nextStaleMins)
+			expect(stage1Rule, "contract_stage_1 rule").toBeTruthy()
+			expect(Number(stage1Rule?.condition_config?.threshold_pct)).toBe(nextStage1Pct)
 		} finally {
 			await api.putEnergyConfig(original).catch(() => undefined)
 		}
