@@ -10,7 +10,7 @@
 			loading-min-height-class="min-h-[180px]"
 			empty-min-height-class="min-h-[180px]"
 		>
-			<div class="space-y-3 min-h-[172px]">
+			<div class="min-h-[172px] space-y-3">
 				<div
 					v-for="cfg in configs"
 					:key="cfg.id"
@@ -27,7 +27,7 @@
 					<span class="text-sm text-white/60">每日 {{ cfg.pushTime }}</span>
 					<span class="text-sm text-white/50">{{ cfg.host }}:{{ cfg.port }}</span>
 
-					<div class="flex flex-wrap items-center gap-2 ml-auto">
+					<div class="ml-auto flex flex-wrap items-center gap-2">
 						<button
 							type="button"
 							class="rounded-xl border border-white/25 bg-white/10 px-3 py-2 text-sm text-white/85 hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
@@ -61,9 +61,7 @@
 						class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-3xl flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:gap-6 2xl:p-8"
 					>
 						<header class="flex items-center justify-between gap-3">
-							<h3
-								class="min-w-0 truncate text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl"
-							>
+							<h3 class="min-w-0 truncate text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">
 								{{ dialog.mode === "create" ? "新增資料庫對接" : "編輯資料庫對接" }}
 							</h3>
 							<button
@@ -77,10 +75,7 @@
 						</header>
 
 						<form class="grid grid-cols-2 gap-4 2xl:gap-6" @submit.prevent="handleSave">
-							<label
-								v-if="dialog.mode === 'create'"
-								class="flex flex-col gap-2 text-base text-white/80"
-							>
+							<label v-if="dialog.mode === 'create'" class="flex flex-col gap-2 text-base text-white/80">
 								<span>事件類型<span class="required-mark">*</span></span>
 								<div :class="{ 'pointer-events-none opacity-50': dialogBusy }">
 									<FilterDropdown
@@ -184,9 +179,7 @@
 							</label>
 
 							<label class="flex flex-col gap-2 text-base text-white/80">
-								<span>
-									密碼<span v-if="dialog.mode === 'create'" class="required-mark">*</span>
-								</span>
+								<span> 密碼<span v-if="dialog.mode === 'create'" class="required-mark">*</span> </span>
 								<input
 									v-model="dialog.form.password"
 									type="password"
@@ -211,15 +204,12 @@
 								</button>
 							</div>
 
-							<label
-								v-if="showGrainFilter"
-								class="col-span-2 flex flex-col gap-2 text-base text-white/80"
-							>
+							<label v-if="exportMode" class="col-span-2 flex flex-col gap-2 text-base text-white/80">
 								<span>匯出粒度</span>
 								<div :class="{ 'pointer-events-none opacity-50': dialogBusy }">
 									<FilterDropdown
 										v-model="dialog.form.grain"
-										:options="grainOptions"
+										:options="exportMode.options"
 										text-size="text-sm 2xl:text-base"
 									/>
 								</div>
@@ -227,24 +217,29 @@
 
 							<div class="col-span-2 flex flex-col gap-2">
 								<p class="text-sm font-medium text-white/85 2xl:text-base">欄位映射</p>
+								<p class="text-xs text-white/50 2xl:text-sm">
+									勾選要輸出的欄位；「空白欄」無資料、值為空，請把第三方欄位名改成預留欄名稱。
+								</p>
 								<div class="overflow-hidden rounded-xl border border-white/10">
 									<div
 										class="mapping-grid mapping-grid-header border-b border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white/55"
 										aria-hidden="true"
 									>
+										<span>選</span>
 										<span>平台欄位</span>
 										<span>第三方欄位名</span>
 										<span>格式</span>
 									</div>
 
 									<div class="mapping-grid border-b border-white/10 px-3 py-2.5">
+										<span class="text-sm text-white/25" aria-hidden="true">—</span>
 										<span class="text-sm text-white/85">
 											目標資料表<span class="required-mark">*</span>
 										</span>
 										<input
 											v-model="dialog.form.targetTable"
 											type="text"
-											class="form-input-small min-w-0 w-full"
+											class="form-input-small w-full min-w-0"
 											:disabled="dialogBusy"
 											placeholder="例：access_log"
 											aria-label="第三方資料庫表格名稱"
@@ -257,28 +252,46 @@
 										v-for="field in fields"
 										:key="field.key"
 										class="mapping-grid border-b border-white/10 px-3 py-2.5 last:border-b-0"
+										:class="{ 'opacity-55': !dialog.form.mappings[field.key]?.enabled }"
 									>
+										<input
+											type="checkbox"
+											class="h-4 w-4 accent-teal-400"
+											:checked="dialog.form.mappings[field.key]?.enabled"
+											:disabled="dialogBusy || field.required"
+											:aria-label="`輸出 ${field.label}`"
+											@change="handleToggleField(field, ($event.target as HTMLInputElement).checked)"
+										/>
 										<span class="text-sm text-white/85">
 											{{ field.label }}<span v-if="field.required" class="required-mark">*</span>
+											<span
+												v-if="field.constantEmpty"
+												class="ml-1 rounded border border-white/20 px-1 py-0.5 text-[10px] text-white/45"
+											>
+												空白
+											</span>
 										</span>
 										<input
 											v-model="dialog.form.mappings[field.key].targetColumn"
 											type="text"
-											class="form-input-small min-w-0 w-full"
-											:disabled="dialogBusy"
+											class="form-input-small w-full min-w-0"
+											:disabled="dialogBusy || !dialog.form.mappings[field.key]?.enabled"
 											:aria-label="`${field.label} 第三方欄位名`"
-											:required="field.required"
+											:required="Boolean(field.required || dialog.form.mappings[field.key]?.enabled)"
 										/>
-										<input
+										<div
 											v-if="field.requiresFormat"
-											v-model="dialog.form.mappings[field.key].format"
-											type="text"
-											class="form-input-small min-w-0 w-full"
-											:disabled="dialogBusy"
-											:placeholder="getExportFieldFormatPlaceholder(field.key)"
-											:aria-label="`${field.label} 格式`"
-											required
-										/>
+											:class="{
+												'pointer-events-none opacity-50':
+													dialogBusy || !dialog.form.mappings[field.key]?.enabled
+											}"
+										>
+											<FilterDropdown
+												v-model="dialog.form.mappings[field.key].format"
+												:options="getFormatOptionsForField(field)"
+												text-size="text-sm 2xl:text-base"
+											/>
+										</div>
 										<span v-else class="text-sm text-white/25" aria-hidden="true">—</span>
 									</div>
 								</div>
@@ -309,30 +322,30 @@
 </template>
 
 <script setup lang="ts">
-import AsyncPanel from "~/components/common/AsyncPanel.vue"
-import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
-import FilterDropdown from "~/components/common/FilterDropdown.vue"
-import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
+import AsyncPanel from "~/components/common/AsyncPanel.vue";
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import {
 	DB_SYNC_DB_TYPE_OPTIONS,
 	useExternalDatabaseSyncForm,
-	type SyncConfig,
-} from "~/composables/core/useExternalDatabaseSyncForm"
-import { getExportFieldFormatPlaceholder, DAILY_TIME_HOUR_OPTIONS, DAILY_TIME_MINUTE_OPTIONS } from "~/utils/externalIntegration"
+	type SyncConfig
+} from "~/composables/core/useExternalDatabaseSyncForm";
+import { DAILY_TIME_HOUR_OPTIONS, DAILY_TIME_MINUTE_OPTIONS } from "~/utils/externalIntegration";
 
-const dbTypeOptions = DB_SYNC_DB_TYPE_OPTIONS
-const pushTimeHourOptions = DAILY_TIME_HOUR_OPTIONS
-const pushTimeMinuteOptions = DAILY_TIME_MINUTE_OPTIONS
+const dbTypeOptions = DB_SYNC_DB_TYPE_OPTIONS;
+const pushTimeHourOptions = DAILY_TIME_HOUR_OPTIONS;
+const pushTimeMinuteOptions = DAILY_TIME_MINUTE_OPTIONS;
 
-const confirmDialog = useConfirmDialog()
+const confirmDialog = useConfirmDialog();
 const showConfirmDialog = computed({
 	get: () => confirmDialog.showDialog.value,
 	set: (value: boolean) => {
-		confirmDialog.showDialog.value = value
-	},
-})
-const confirmDialogConfig = computed(() => confirmDialog.config.value)
-const pendingDeleteEventType = ref<string | null>(null)
+		confirmDialog.showDialog.value = value;
+	}
+});
+const confirmDialogConfig = computed(() => confirmDialog.config.value);
+const pendingDeleteEventType = ref<string | null>(null);
 
 const {
 	configs,
@@ -352,8 +365,9 @@ const {
 	pushTimeMinute,
 	eventTypeLabel,
 	getDbTypeLabel,
-	showGrainFilter,
-	grainOptions,
+	exportMode,
+	getFormatOptionsForField,
+	handleToggleField,
 	handleDbTypeChanged,
 	handleDialogEventTypeChanged,
 	handleCreate,
@@ -361,39 +375,39 @@ const {
 	handleCloseDialog,
 	handleTestConnection,
 	handleSave,
-	handleDelete,
-} = useExternalDatabaseSyncForm()
+	handleDelete
+} = useExternalDatabaseSyncForm();
 
 const confirmDeleteConfig = (cfg: SyncConfig) => {
-	pendingDeleteEventType.value = cfg.eventType
+	pendingDeleteEventType.value = cfg.eventType;
 	confirmDialog.show({
 		title: "確認刪除",
 		message: `確定要刪除「${eventTypeLabel(cfg.eventType)}」的資料庫對接設定嗎？`,
 		details: "此操作無法復原。",
-		type: "danger",
-	})
-}
+		type: "danger"
+	});
+};
 
 const handleConfirmDelete = async () => {
-	const eventType = pendingDeleteEventType.value
-	if (!eventType) return
-	pendingDeleteEventType.value = null
-	await handleDelete(eventType)
-}
+	const eventType = pendingDeleteEventType.value;
+	if (!eventType) return;
+	pendingDeleteEventType.value = null;
+	await handleDelete(eventType);
+};
 
-const actionDisabled = computed(() => formDisabled.value || !canCreateMore.value)
+const actionDisabled = computed(() => formDisabled.value || !canCreateMore.value);
 
 defineExpose({
 	openDialog: handleCreate,
 	actionLabel,
-	actionDisabled,
-})
+	actionDisabled
+});
 </script>
 
 <style scoped>
 .mapping-grid {
 	display: grid;
-	grid-template-columns: minmax(6.5rem, 1.15fr) 1.35fr 1fr;
+	grid-template-columns: 2rem minmax(6.5rem, 1.15fr) 1.35fr 1fr;
 	align-items: center;
 	column-gap: 0.75rem;
 }

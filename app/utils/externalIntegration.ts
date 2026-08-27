@@ -1,8 +1,13 @@
+export type ExportFormatKind = "datetime" | "date" | "time"
+
 export type ExportFieldCatalogItem = {
 	key: string
 	label: string
 	required?: boolean
 	requiresFormat?: boolean
+	formatKind?: ExportFormatKind
+	/** 無平台資料、匯出固定空字串；輸出表頭／第三方欄名由使用者自訂 */
+	constantEmpty?: boolean
 }
 
 export type ExportEventTypeId =
@@ -10,7 +15,6 @@ export type ExportEventTypeId =
 	| "energy"
 	| "operational"
 	| "vehicle"
-	| "people_counting"
 	| "alerts"
 	| "environment"
 
@@ -20,7 +24,14 @@ export type ExportEventTypeInfo = {
 	filterSchema?: {
 		kind: string
 		required?: boolean
-		fields?: Array<{ key: string; type: string; label: string; required?: boolean }>
+		fields?: Array<{
+			key: string
+			type: string
+			label: string
+			required?: boolean
+			enum?: string[]
+			enumLabels?: Record<string, string>
+		}>
 	} | null
 	fields?: ExportFieldCatalogItem[]
 }
@@ -39,17 +50,9 @@ export const EVENT_TYPE_OPTIONS: Array<{ value: ExportEventTypeId; label: string
 	{ value: "energy", label: "能源讀數" },
 	{ value: "operational", label: "營運事件" },
 	{ value: "vehicle", label: "車輛進出" },
-	{ value: "people_counting", label: "人流紀錄（YSCP）" },
 	{ value: "alerts", label: "警報事件" },
 	{ value: "environment", label: "環境數值" },
 ]
-
-export const EXPORT_GRAIN_OPTIONS = [
-	{ value: "hourly", label: "每小時彙總（預設）" },
-	{ value: "raw", label: "原始讀數" },
-] as const
-
-export type ExportGrain = (typeof EXPORT_GRAIN_OPTIONS)[number]["value"]
 
 export type FormDropdownOption = { value: string; label: string }
 
@@ -58,33 +61,44 @@ export const toDropdownOptions = (
 	options: ReadonlyArray<{ readonly value: string; readonly label: string }>,
 ): FormDropdownOption[] => options.map((o) => ({ value: o.value, label: o.label }))
 
-export const normalizeExportGrain = (raw: unknown): ExportGrain =>
-	String(raw ?? "").trim().toLowerCase() === "raw" ? "raw" : "hourly"
+const getGrainField = (schema: ExportFilterSchema | null | undefined) =>
+	schema?.fields?.find((f) => f.key === "grain") ?? null
 
-export const EXPORT_FIELD_FORMAT_PLACEHOLDER: Record<string, string> = {
-	eventDateTime: "yyyy-MM-dd HH:mm:ss",
-	eventDate: "yyyy-MM-dd",
-	eventTime: "HH:mm:ss",
-	recordedAt: "yyyy-MM-dd HH:mm:ss",
-	occurredAt: "yyyy-MM-dd HH:mm:ss",
-	triggerTime: "yyyy-MM-dd HH:mm:ss",
-	createdAt: "yyyy-MM-dd HH:mm:ss",
-	updatedAt: "yyyy-MM-dd HH:mm:ss",
+export const schemaHasGrain = (schema: ExportFilterSchema | null | undefined) =>
+	Boolean(getGrainField(schema))
+
+/** 由 filterSchema.grain（含 enum／enumLabels）驅動「匯出粒度」下拉 */
+export const resolveExportMode = (
+	schema: ExportFilterSchema | null | undefined,
+): { options: FormDropdownOption[] } | null => {
+	const field = getGrainField(schema)
+	const values = field?.enum
+	if (!values?.length) return null
+	const labels = field.enumLabels || {}
+	return {
+		options: values.map((value) => ({
+			value,
+			label: labels[value] || value,
+		})),
+	}
 }
 
-export const getExportFieldFormatPlaceholder = (key: string) =>
-	EXPORT_FIELD_FORMAT_PLACEHOLDER[key] ?? "yyyy-MM-dd HH:mm:ss"
+/** 依 schema 正規化 grain；相容舊存檔 punchMode */
+export const normalizeGrainBySchema = (
+	schema: ExportFilterSchema | null | undefined,
+	raw: unknown,
+	legacyPunchMode?: unknown,
+): string => {
+	const field = getGrainField(schema)
+	const allowed = field?.enum?.length ? field.enum : ["raw", "hourly"]
+	const fallback = allowed.includes("hourly") ? "hourly" : allowed[0] || "raw"
+	const v = String(raw ?? legacyPunchMode ?? "")
+		.trim()
+		.toLowerCase()
+	return allowed.includes(v) ? v : fallback
+}
 
-export const OUTPUT_FORMAT_OPTIONS = [
-	{ value: "csv", label: "CSV" },
-	{ value: "txt", label: "TXT" },
-]
-
-export const STORAGE_TYPE_OPTIONS = [
-	{ value: "local", label: "本機儲存" },
-	{ value: "sftp", label: "SFTP 儲存" },
-]
-
+/** 檔名用日期格式 */
 export const DATE_FORMAT_OPTIONS = [
 	{ label: "yyyy-MM-dd", value: "yyyy-MM-dd" },
 	{ label: "yyyyMMdd", value: "yyyyMMdd" },
@@ -98,6 +112,7 @@ export const DATE_FORMAT_OPTIONS = [
 	{ label: "MMddyyyy", value: "MMddyyyy" },
 ]
 
+/** 檔名用時間格式 */
 export const TIME_FORMAT_OPTIONS = [
 	{ label: "HH:mm:ss", value: "HH:mm:ss" },
 	{ label: "HHmmss", value: "HHmmss" },
@@ -109,6 +124,55 @@ export const TIME_FORMAT_OPTIONS = [
 	{ label: "hh:mm:ss a", value: "hh:mm:ss a" },
 	{ label: "hhmmss", value: "hhmmss" },
 	{ label: "HH:mm:ss.SSS", value: "HH:mm:ss.SSS" },
+]
+
+/** 欄位：日期 */
+export const FIELD_DATE_FORMAT_OPTIONS = [
+	{ label: "yyyy-MM-dd", value: "yyyy-MM-dd" },
+	{ label: "yyyy/MM/dd", value: "yyyy/MM/dd" },
+	{ label: "yyyyMMdd", value: "yyyyMMdd" },
+	{ label: "dd-MM-yyyy", value: "dd-MM-yyyy" },
+	{ label: "dd/MM/yyyy", value: "dd/MM/yyyy" },
+	{ label: "MM/dd/yyyy", value: "MM/dd/yyyy" },
+]
+
+/** 欄位：時間 */
+export const FIELD_TIME_FORMAT_OPTIONS = [
+	{ label: "HH:mm:ss", value: "HH:mm:ss" },
+	{ label: "HH:mm", value: "HH:mm" },
+	{ label: "HHmmss", value: "HHmmss" },
+	{ label: "HHmm", value: "HHmm" },
+]
+
+/** 欄位：日期時間 */
+export const DATETIME_FORMAT_OPTIONS = [
+	{ label: "yyyy-MM-dd HH:mm:ss", value: "yyyy-MM-dd HH:mm:ss" },
+	{ label: "yyyy-MM-dd HH:mm", value: "yyyy-MM-dd HH:mm" },
+	{ label: "yyyy/MM/dd HH:mm:ss", value: "yyyy/MM/dd HH:mm:ss" },
+	{ label: "yyyy/MM/dd HH:mm", value: "yyyy/MM/dd HH:mm" },
+]
+
+export const getFormatOptionsForField = (
+	field: Pick<ExportFieldCatalogItem, "requiresFormat" | "formatKind">,
+): FormDropdownOption[] => {
+	if (!field.requiresFormat) return []
+	if (field.formatKind === "date") return FIELD_DATE_FORMAT_OPTIONS
+	if (field.formatKind === "time") return FIELD_TIME_FORMAT_OPTIONS
+	return DATETIME_FORMAT_OPTIONS
+}
+
+export const getDefaultFormatForField = (
+	field: Pick<ExportFieldCatalogItem, "requiresFormat" | "formatKind">,
+): string => getFormatOptionsForField(field)[0]?.value ?? ""
+
+export const OUTPUT_FORMAT_OPTIONS = [
+	{ value: "csv", label: "CSV" },
+	{ value: "txt", label: "TXT" },
+]
+
+export const STORAGE_TYPE_OPTIONS = [
+	{ value: "local", label: "本機儲存" },
+	{ value: "sftp", label: "SFTP 儲存" },
 ]
 
 export const DB_SYNC_DB_TYPE_OPTIONS = [
@@ -268,7 +332,7 @@ export type RecordExportFilterForm = {
 	eventKindsText: string
 	sourcesText: string
 	statusesText: string
-	grain: ExportGrain
+	grain: string
 }
 
 export const buildFilterPayloadFromForm = (
@@ -276,40 +340,32 @@ export const buildFilterPayloadFromForm = (
 	form: RecordExportFilterForm,
 ): Record<string, unknown> => {
 	const kind = schema?.kind as ExportFilterSchemaKind | undefined
-	const grainPayload = schemaHasGrain(schema) ? { grain: normalizeExportGrain(form.grain) } : {}
-	if (kind === "person_groups") return { groupIds: form.groupIds, ...grainPayload }
+	const extra = schemaHasGrain(schema)
+		? { grain: normalizeGrainBySchema(schema, form.grain) }
+		: {}
+	if (kind === "person_groups") return { groupIds: form.groupIds, ...extra }
 	if (kind === "devices") {
-		return { deviceIds: parseIdListText(form.deviceIdsText), ...grainPayload }
+		return { deviceIds: parseIdListText(form.deviceIdsText), ...extra }
 	}
 	if (kind === "locations") {
-		return { locationIds: parseIdListText(form.locationIdsText), ...grainPayload }
+		return { locationIds: parseIdListText(form.locationIdsText), ...extra }
 	}
 	if (kind === "operational") {
 		return {
 			eventKinds: parseCsvListText(form.eventKindsText),
 			sources: parseCsvListText(form.sourcesText),
-			...grainPayload,
+			...extra,
 		}
 	}
 	if (kind === "alerts") {
 		return {
 			sources: parseCsvListText(form.sourcesText),
 			statuses: parseCsvListText(form.statusesText),
-			...grainPayload,
+			...extra,
 		}
 	}
-	return { ...grainPayload }
+	return { ...extra }
 }
-
-export const schemaHasGrain = (schema: ExportFilterSchema | null | undefined) =>
-	Boolean(schema?.fields?.some((f) => f.key === "grain"))
 
 export const isGroupFilterRequired = (schema: ExportFilterSchema | null | undefined) =>
 	schema?.kind === "person_groups" && schema.required === true
-
-export {
-	formatExportSchedulePreview,
-	formatExportNextRunLabel,
-	formatExportWindowLabel,
-	type ExportSchedulePreviewInput,
-} from "~/utils/exportSchedulePreview"

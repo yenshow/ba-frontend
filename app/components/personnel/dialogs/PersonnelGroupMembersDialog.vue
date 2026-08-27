@@ -6,7 +6,7 @@
 				class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
 			>
 				<div
-					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-5xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:max-w-6xl 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
+					class="dialog-panel-bg flex max-h-[90vh] min-h-0 w-full max-w-5xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:max-w-6xl 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
 				>
 					<header class="flex items-center justify-between pr-7 2xl:pr-8">
 						<h3
@@ -31,12 +31,14 @@
 						</div>
 					</header>
 
-					<div class="show-scrollbar flex-1 overflow-y-auto pr-7 2xl:pr-8">
-						<div class="grid min-h-[420px] grid-cols-12 gap-4 2xl:gap-5">
-							<!-- 左：子群組 -->
-							<aside class="col-span-12 min-h-0 lg:col-span-4">
+					<div class="flex min-h-0 flex-1 flex-col overflow-hidden pr-7 2xl:pr-8">
+						<div class="grid min-h-0 flex-1 grid-cols-12 gap-4 2xl:gap-5">
+							<!-- 左：子群組（固定可見；列表過長時自身滾動） -->
+							<aside
+								class="col-span-12 flex max-h-56 min-h-0 flex-col lg:col-span-4 lg:max-h-none"
+							>
 								<div
-									class="flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/15 bg-white/5"
+									class="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-white/15 bg-white/5"
 								>
 									<div class="border-b border-white/10 p-3">
 										<label class="flex flex-col gap-2 text-sm text-white/80">
@@ -97,10 +99,12 @@
 								</div>
 							</aside>
 
-							<!-- 右：人員 -->
-							<section class="col-span-12 min-h-0 lg:col-span-8">
+							<!-- 右：人員（獨立滾動，不帶動左側） -->
+							<section
+								class="col-span-12 flex min-h-[280px] flex-1 flex-col lg:col-span-8 lg:min-h-0"
+							>
 								<div
-									class="flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/15 bg-white/5"
+									class="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-white/15 bg-white/5"
 								>
 									<div
 										class="flex flex-col gap-3 border-b border-white/10 p-3 sm:flex-row sm:items-end sm:justify-between"

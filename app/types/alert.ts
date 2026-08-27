@@ -13,7 +13,13 @@ export type AlertType = "offline" | "error" | "threshold" | "di" | "do"
 
 // 嚴重程度
 export type AlertSeverity = "warning" | "error" | "critical"
-export type AlertConditionType = "threshold" | "error_count" | "bit_state"
+export type AlertConditionType =
+	| "threshold"
+	| "error_count"
+	| "bit_state"
+	| "energy_contract_stage"
+	| "energy_meter_stale"
+	| "energy_reading_jump"
 export type AlertTargetType = "system" | "location" | "zone"
 
 export interface Alert {

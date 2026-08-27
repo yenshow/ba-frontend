@@ -8,20 +8,19 @@ import {
 	buildEventTypeOptions,
 	DB_SYNC_DB_TYPE_OPTIONS,
 	DB_SYNC_DEFAULT_PUSH_TIME,
-	EXPORT_GRAIN_OPTIONS,
 	eventTypeLabel,
+	getDefaultFormatForField,
+	getFormatOptionsForField,
 	normalizeDailyPushTime,
-	normalizeExportGrain,
-	schemaHasGrain,
-	toDropdownOptions,
-	type ExportGrain,
+	normalizeGrainBySchema,
+	resolveExportMode,
 } from "~/utils/externalIntegration"
 import { useDailyHHmmField } from "~/composables/core/useDailyHHmmField"
-import { filterExportEventTypesForConstruction } from "~/utils/constructionExternalIntegration"
 
 export { DB_SYNC_DB_TYPE_OPTIONS }
 
 type SyncMapping = {
+	enabled: boolean
 	targetColumn: string
 	format?: string
 }
@@ -36,8 +35,8 @@ export type SyncConfig = {
 	database: string
 	username: string
 	targetTable: string
-	mappings: Record<string, SyncMapping>
-	options?: { grain?: ExportGrain | string }
+	mappings: Record<string, { targetColumn: string; format?: string }>
+	options?: { grain?: string; punchMode?: string }
 }
 
 type SyncForm = {
@@ -51,7 +50,7 @@ type SyncForm = {
 	password: string
 	targetTable: string
 	mappings: Record<string, SyncMapping>
-	grain: ExportGrain
+	grain: string
 }
 
 const DEFAULT_PORT: Record<string, string> = { postgres: "5432", sqlserver: "1433", mysql: "3306" }
@@ -122,26 +121,46 @@ export const useExternalDatabaseSyncForm = () => {
 		DB_SYNC_DEFAULT_PUSH_TIME,
 	)
 
-	const ensureFieldMapping = (key: string) => {
-		if (!dialog.form.mappings[key]) {
-			dialog.form.mappings[key] = { targetColumn: "", format: "" }
+	const ensureFieldMapping = (field: ExportFieldCatalogItem) => {
+		if (dialog.form.mappings[field.key]) return
+		dialog.form.mappings[field.key] = {
+			enabled: Boolean(field.required),
+			targetColumn: "",
+			format: field.requiresFormat ? getDefaultFormatForField(field) : "",
 		}
 	}
 
-	const initAllFieldMappings = () => {
-		for (const f of fields.value) ensureFieldMapping(f.key)
+	const initAllFieldMappings = (enabledKeys?: Set<string>) => {
+		for (const f of fields.value) {
+			ensureFieldMapping(f)
+			const m = dialog.form.mappings[f.key]
+			m.enabled = Boolean(f.required) || Boolean(enabledKeys?.has(f.key))
+			if (m.enabled && f.requiresFormat && !m.format.trim()) {
+				m.format = getDefaultFormatForField(f)
+			}
+		}
 	}
 
-	const buildMappingsPayload = (): Record<string, SyncMapping> => {
-		const out: Record<string, SyncMapping> = {}
+	const handleToggleField = (field: ExportFieldCatalogItem, enabled: boolean) => {
+		if (field.required) return
+		ensureFieldMapping(field)
+		const m = dialog.form.mappings[field.key]
+		m.enabled = enabled
+		if (enabled && field.requiresFormat && !m.format.trim()) {
+			m.format = getDefaultFormatForField(field)
+		}
+	}
+
+	const buildMappingsPayload = (): Record<string, { targetColumn: string; format?: string }> => {
+		const out: Record<string, { targetColumn: string; format?: string }> = {}
 		for (const f of fields.value) {
 			const m = dialog.form.mappings[f.key]
-			if (!m) continue
+			if (!m?.enabled) continue
 			const targetColumn = m.targetColumn.trim()
 			if (!targetColumn) continue
 			out[f.key] = {
 				targetColumn,
-				...(m.format?.trim() ? { format: m.format.trim() } : {}),
+				...(f.requiresFormat && m.format?.trim() ? { format: m.format.trim() } : {}),
 			}
 		}
 		return out
@@ -164,9 +183,7 @@ export const useExternalDatabaseSyncForm = () => {
 			{ method: "GET" },
 		)
 		fields.value = data.fields || []
-		if (data.eventTypes?.length) {
-			eventTypes.value = filterExportEventTypesForConstruction(data.eventTypes)
-		}
+		if (data.eventTypes?.length) eventTypes.value = data.eventTypes
 		dialog.form.mappings = {}
 		initAllFieldMappings()
 	}
@@ -182,14 +199,21 @@ export const useExternalDatabaseSyncForm = () => {
 		dialog.form.username = cfg.username || ""
 		dialog.form.password = ""
 		dialog.form.targetTable = cfg.targetTable || ""
-		dialog.form.grain = normalizeExportGrain(cfg.options?.grain)
+		dialog.form.grain = normalizeGrainBySchema(
+			currentFilterSchema.value,
+			cfg.options?.grain,
+			cfg.options?.punchMode,
+		)
 		dialog.form.mappings = {}
+		const enabledKeys = new Set(Object.keys(cfg.mappings || {}))
 		for (const [k, v] of Object.entries(cfg.mappings || {})) {
-			ensureFieldMapping(k)
-			dialog.form.mappings[k].targetColumn = String(v.targetColumn ?? "")
-			dialog.form.mappings[k].format = v.format != null ? String(v.format) : ""
+			dialog.form.mappings[k] = {
+				enabled: true,
+				targetColumn: String(v.targetColumn ?? ""),
+				format: v.format != null ? String(v.format) : "",
+			}
 		}
-		initAllFieldMappings()
+		initAllFieldMappings(enabledKeys)
 	}
 
 	const fetchConfigs = async () => {
@@ -202,9 +226,7 @@ export const useExternalDatabaseSyncForm = () => {
 		try {
 			const data = await request<SyncConfigResponse>("/external-sync/configs", { method: "GET" })
 			configs.value = data.configs || []
-			if (data.eventTypes?.length) {
-				eventTypes.value = filterExportEventTypesForConstruction(data.eventTypes)
-			}
+			if (data.eventTypes?.length) eventTypes.value = data.eventTypes
 		} catch (e) {
 			loadError.value = handleError(e, "載入資料庫對接設定失敗") ?? "載入資料庫對接設定失敗"
 		} finally {
@@ -226,6 +248,7 @@ export const useExternalDatabaseSyncForm = () => {
 		dialog.form.eventType = createEventTypeOptions.value[0]?.value ?? "access_control"
 		dialog.open = true
 		await loadFieldsForEventType(dialog.form.eventType)
+		dialog.form.grain = normalizeGrainBySchema(currentFilterSchema.value, undefined)
 	}
 
 	const handleEdit = async (cfg: SyncConfig) => {
@@ -243,6 +266,7 @@ export const useExternalDatabaseSyncForm = () => {
 	const handleDialogEventTypeChanged = async () => {
 		if (dialog.mode !== "create") return
 		await loadFieldsForEventType(dialog.form.eventType)
+		dialog.form.grain = normalizeGrainBySchema(currentFilterSchema.value, undefined)
 	}
 
 	const handleCloseDialog = () => {
@@ -273,6 +297,18 @@ export const useExternalDatabaseSyncForm = () => {
 
 	const handleSave = async () => {
 		if (!canAdmin.value) return
+		const mappings = buildMappingsPayload()
+		for (const f of fields.value) {
+			if (!f.required) continue
+			if (!mappings[f.key]) {
+				toast.warning(`請勾選並填寫必填欄位「${f.label}」`)
+				return
+			}
+		}
+		if (Object.keys(mappings).length === 0) {
+			toast.warning("請至少勾選一個輸出欄位")
+			return
+		}
 		isSaving.value = true
 		try {
 			await request<{ id: number }>("/external-sync/configs", {
@@ -287,9 +323,14 @@ export const useExternalDatabaseSyncForm = () => {
 					username: dialog.form.username,
 					password: dialog.form.password,
 					targetTable: dialog.form.targetTable,
-					mappings: buildMappingsPayload(),
-					options: showGrainFilter.value
-						? { grain: normalizeExportGrain(dialog.form.grain) }
+					mappings,
+					options: exportMode.value
+						? {
+								grain: normalizeGrainBySchema(
+									currentFilterSchema.value,
+									dialog.form.grain,
+								),
+							}
 						: {},
 				},
 			})
@@ -324,8 +365,7 @@ export const useExternalDatabaseSyncForm = () => {
 	const currentFilterSchema = computed(
 		() => eventTypes.value.find((t) => t.id === dialog.form.eventType)?.filterSchema,
 	)
-	const showGrainFilter = computed(() => schemaHasGrain(currentFilterSchema.value))
-	const grainOptions = toDropdownOptions(EXPORT_GRAIN_OPTIONS)
+	const exportMode = computed(() => resolveExportMode(currentFilterSchema.value))
 
 	onMounted(() => {
 		void fetchConfigs()
@@ -349,8 +389,9 @@ export const useExternalDatabaseSyncForm = () => {
 		pushTimeMinute,
 		eventTypeLabel,
 		getDbTypeLabel,
-		showGrainFilter,
-		grainOptions,
+		exportMode,
+		getFormatOptionsForField,
+		handleToggleField,
 		handleDbTypeChanged,
 		handleDialogEventTypeChanged,
 		handleCreate,

@@ -158,6 +158,17 @@ export type AlertRuleConditionDisplayInput = {
 	condition_config?: Record<string, unknown> | null;
 };
 
+const formatBitStateRuleCondition = (
+	rule: Pick<AlertRuleConditionDisplayInput, "alert_type" | "condition_config">,
+): string => {
+	const config = (rule.condition_config || {}) as Record<string, unknown>;
+	const bitKey = String(config.bit_key ?? "");
+	const match = bitKey.match(/^(di|do):(\d+)$/i);
+	const addr = match?.[2] ?? (bitKey.replace(/^(di|do):/i, "").trim() || "?");
+	const isDo = rule.alert_type === "do" || String(match?.[1] ?? "").toLowerCase() === "do";
+	return `${isDo ? "DO" : "DI"} ${addr} 觸發`;
+};
+
 export const formatAlertRuleConditionDisplay = (rule: AlertRuleConditionDisplayInput): string => {
 	const config = (rule.condition_config || {}) as Record<string, unknown>;
 	const ct = rule.condition_type;
@@ -177,6 +188,27 @@ export const formatAlertRuleConditionDisplay = (rule: AlertRuleConditionDisplayI
 		const n = raw != null && raw !== "" ? Number(raw) : 5;
 		const count = Number.isFinite(n) ? Math.max(1, Math.floor(n)) : 5;
 		return `連續 ${count} 次無法連接`;
+	}
+
+	if (ct === "bit_state") {
+		return formatBitStateRuleCondition(rule);
+	}
+
+	if (ct === "energy_contract_stage") {
+		const level = Number(config.level);
+		const pct = Number(config.threshold_pct);
+		return `契約 ${Number.isFinite(level) ? level : "?"} 級 ≥ ${Number.isFinite(pct) ? pct : "?"}%`;
+	}
+
+	if (ct === "energy_meter_stale") {
+		const mins = Number(config.stale_minutes);
+		return `表計通訊逾時 ${Number.isFinite(mins) ? mins : "?"} 分鐘`;
+	}
+
+	if (ct === "energy_reading_jump") {
+		const mult = Number(config.multiplier);
+		const minKwh = Number(config.min_kwh);
+		return `讀數跳動 ≥ ${Number.isFinite(minKwh) ? minKwh : "?"} kWh（×${Number.isFinite(mult) ? mult : "?"}）`;
 	}
 
 	return "-";
