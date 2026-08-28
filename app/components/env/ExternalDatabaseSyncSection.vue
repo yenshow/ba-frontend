@@ -58,7 +58,7 @@
 					class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] p-4 backdrop-blur-[10px]"
 				>
 					<div
-						class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-3xl flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:gap-6 2xl:p-8"
+						class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-4xl flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:gap-6 2xl:p-8"
 					>
 						<header class="flex items-center justify-between gap-3">
 							<h3
@@ -76,7 +76,7 @@
 							</button>
 						</header>
 
-						<form class="grid grid-cols-2 gap-4 2xl:gap-6" @submit.prevent="handleSave">
+						<form class="grid grid-cols-2 gap-4 2xl:gap-6" @submit.prevent="requestSave">
 							<label
 								v-if="dialog.mode === 'create'"
 								class="flex flex-col gap-2 text-base text-white/80"
@@ -91,7 +91,7 @@
 									/>
 								</div>
 								<p class="text-xs text-white/50 2xl:text-sm">
-									每種事件類型僅能設定一組對接；已設定的類型不會出現在清單中。
+									每種事件類型僅能設定一組對接；已設定的類型不在列表中。
 								</p>
 							</label>
 
@@ -110,13 +110,13 @@
 								>
 									<FilterDropdown
 										v-model="pushTimeHour"
-										:options="pushTimeHourOptions"
+										:options="DAILY_TIME_HOUR_OPTIONS"
 										text-size="text-sm 2xl:text-base"
 									/>
 									<span class="shrink-0 text-white/70" aria-hidden="true">:</span>
 									<FilterDropdown
 										v-model="pushTimeMinute"
-										:options="pushTimeMinuteOptions"
+										:options="DAILY_TIME_MINUTE_OPTIONS"
 										text-size="text-sm 2xl:text-base"
 									/>
 								</div>
@@ -127,7 +127,7 @@
 								<div :class="{ 'pointer-events-none opacity-50': dialogBusy }">
 									<FilterDropdown
 										v-model="dialog.form.dbType"
-										:options="dbTypeOptions"
+										:options="DB_SYNC_DB_TYPE_OPTIONS"
 										text-size="text-sm 2xl:text-base"
 										@update:model-value="handleDbTypeChanged"
 									/>
@@ -228,20 +228,22 @@
 							<div class="col-span-2 flex flex-col gap-2">
 								<p class="text-sm font-medium text-white/85 2xl:text-base">欄位映射</p>
 								<p class="text-xs text-white/50 2xl:text-sm">
-									勾選要輸出的欄位；「空白欄」無資料、值為空，請把第三方欄位名改成預留欄名稱。
+									勾選要輸出的欄位；「空白欄」無資料、值為空，請把第三方欄位名改成預留欄名稱。拖曳左側握把可調整輸出順序。
 								</p>
-								<div class="overflow-hidden rounded-xl border border-white/10">
+								<div class="w-full overflow-hidden rounded-xl border border-white/10">
 									<div
-										class="mapping-grid mapping-grid-header border-b border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white/55"
+										class="export-mapping-grid export-mapping-grid-header border-b border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white/55"
 										aria-hidden="true"
 									>
+										<span>順序</span>
 										<span>選</span>
 										<span>平台欄位</span>
 										<span>第三方欄位名</span>
 										<span>格式</span>
 									</div>
 
-									<div class="mapping-grid border-b border-white/10 px-3 py-2.5">
+									<div class="export-mapping-grid border-b border-white/10 px-3 py-2.5">
+										<span class="text-sm text-white/25" aria-hidden="true">—</span>
 										<span class="text-sm text-white/25" aria-hidden="true">—</span>
 										<span class="text-sm text-white/85">
 											目標資料表<span class="required-mark">*</span>
@@ -249,7 +251,7 @@
 										<input
 											v-model="dialog.form.targetTable"
 											type="text"
-											class="form-input-small min-w-0 w-full"
+											class="form-input-small w-full"
 											:disabled="dialogBusy"
 											placeholder="例：access_log"
 											aria-label="第三方資料庫表格名稱"
@@ -259,11 +261,29 @@
 									</div>
 
 									<div
-										v-for="field in fields"
+										v-for="field in orderedFields"
 										:key="field.key"
-										class="mapping-grid border-b border-white/10 px-3 py-2.5 last:border-b-0"
-										:class="{ 'opacity-55': !dialog.form.mappings[field.key]?.enabled }"
+										class="export-mapping-grid border-b border-white/10 px-3 py-2.5 last:border-b-0"
+										:class="{
+											'opacity-55': !dialog.form.mappings[field.key]?.enabled,
+											'export-mapping-row--dragging': draggingFieldKey === field.key,
+											'export-mapping-row--drag-over': dragOverFieldKey === field.key,
+										}"
+										@dragover="(e) => handleFieldDragOver(e, field.key)"
+										@dragleave="handleFieldDragLeave(field.key)"
+										@drop="(e) => handleFieldDrop(e, field.key)"
 									>
+										<button
+											type="button"
+											class="export-field-drag-handle"
+											:class="{ 'export-field-drag-handle--disabled': dialogBusy }"
+											:draggable="!dialogBusy"
+											:aria-label="`${field.label} 拖曳調整順序`"
+											@dragstart="(e) => handleFieldDragStart(e, field.key)"
+											@dragend="handleFieldDragEnd"
+										>
+											<span aria-hidden="true">⋮⋮</span>
+										</button>
 										<input
 											type="checkbox"
 											class="h-4 w-4 accent-teal-400"
@@ -286,7 +306,7 @@
 										<input
 											v-model="dialog.form.mappings[field.key].targetColumn"
 											type="text"
-											class="form-input-small min-w-0 w-full"
+											class="form-input-small w-full"
 											:disabled="dialogBusy || !dialog.form.mappings[field.key]?.enabled"
 											:aria-label="`${field.label} 第三方欄位名`"
 											:required="
@@ -295,6 +315,7 @@
 										/>
 										<div
 											v-if="field.requiresFormat"
+											class="export-mapping-format"
 											:class="{
 												'pointer-events-none opacity-50':
 													dialogBusy || !dialog.form.mappings[field.key]?.enabled,
@@ -330,7 +351,9 @@
 			:message="confirmDialogConfig.message"
 			:details="confirmDialogConfig.details"
 			:type="confirmDialogConfig.type"
-			@confirm="handleConfirmDelete"
+			:confirm-text="confirmDialogConfig.confirmText"
+			:cancel-text="confirmDialogConfig.cancelText"
+			@confirm="handleConfirmDialog"
 		/>
 	</div>
 </template>
@@ -345,11 +368,11 @@ import {
 	useExternalDatabaseSyncForm,
 	type SyncConfig,
 } from "~/composables/core/useExternalDatabaseSyncForm"
-import { DAILY_TIME_HOUR_OPTIONS, DAILY_TIME_MINUTE_OPTIONS } from "~/utils/externalIntegration"
-
-const dbTypeOptions = DB_SYNC_DB_TYPE_OPTIONS
-const pushTimeHourOptions = DAILY_TIME_HOUR_OPTIONS
-const pushTimeMinuteOptions = DAILY_TIME_MINUTE_OPTIONS
+import {
+	DAILY_TIME_HOUR_OPTIONS,
+	DAILY_TIME_MINUTE_OPTIONS,
+	getFormatOptionsForField,
+} from "~/utils/externalIntegration"
 
 const confirmDialog = useConfirmDialog()
 const showConfirmDialog = computed({
@@ -359,11 +382,12 @@ const showConfirmDialog = computed({
 	},
 })
 const confirmDialogConfig = computed(() => confirmDialog.config.value)
+const confirmAction = ref<"delete" | "save">("delete")
 const pendingDeleteEventType = ref<string | null>(null)
 
 const {
 	configs,
-	fields,
+	orderedFields,
 	dialog,
 	isLoading,
 	isSaving,
@@ -380,29 +404,47 @@ const {
 	eventTypeLabel,
 	getDbTypeLabel,
 	exportMode,
-	getFormatOptionsForField,
 	handleToggleField,
+	draggingFieldKey,
+	dragOverFieldKey,
+	handleFieldDragStart,
+	handleFieldDragEnd,
+	handleFieldDragOver,
+	handleFieldDragLeave,
+	handleFieldDrop,
 	handleDbTypeChanged,
 	handleDialogEventTypeChanged,
 	handleCreate,
 	handleEdit,
 	handleCloseDialog,
 	handleTestConnection,
+	openSaveConfirmDialog,
 	handleSave,
 	handleDelete,
 } = useExternalDatabaseSyncForm()
 
+const requestSave = () => {
+	confirmAction.value = "save"
+	openSaveConfirmDialog(confirmDialog.show)
+}
+
 const confirmDeleteConfig = (cfg: SyncConfig) => {
+	confirmAction.value = "delete"
 	pendingDeleteEventType.value = cfg.eventType
 	confirmDialog.show({
 		title: "確認刪除",
 		message: `確定要刪除「${eventTypeLabel(cfg.eventType)}」的資料庫對接設定嗎？`,
 		details: "此操作無法復原。",
 		type: "danger",
+		confirmText: "刪除",
 	})
 }
 
-const handleConfirmDelete = async () => {
+const handleConfirmDialog = async () => {
+	if (confirmAction.value === "save") {
+		await handleSave()
+		return
+	}
 	const eventType = pendingDeleteEventType.value
 	if (!eventType) return
 	pendingDeleteEventType.value = null
@@ -418,22 +460,3 @@ defineExpose({
 })
 </script>
 
-<style scoped>
-.mapping-grid {
-	display: grid;
-	grid-template-columns: 2rem minmax(6.5rem, 1.15fr) 1.35fr 1fr;
-	align-items: center;
-	column-gap: 0.75rem;
-}
-
-@media (max-width: 639px) {
-	.mapping-grid {
-		grid-template-columns: 1fr;
-		row-gap: 0.5rem;
-	}
-
-	.mapping-grid-header {
-		display: none;
-	}
-}
-</style>

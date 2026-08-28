@@ -1,3 +1,4 @@
+import type { ConfirmDialogConfig } from "~/composables/core/useConfirmDialog"
 import { TOAST } from "~/config/toastCatalog"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useAdminOnly } from "~/composables/core/useAuth"
@@ -10,12 +11,17 @@ import {
 	DB_SYNC_DEFAULT_PUSH_TIME,
 	eventTypeLabel,
 	getDefaultFormatForField,
-	getFormatOptionsForField,
 	normalizeDailyPushTime,
 	normalizeGrainBySchema,
 	resolveExportMode,
 } from "~/utils/externalIntegration"
 import { useDailyHHmmField } from "~/composables/core/useDailyHHmmField"
+import {
+	buildCatalogFieldOrder,
+	mergeFieldOrder,
+	resolveOrderedFields,
+} from "~/utils/exportFieldOrder"
+import { useExportFieldDragOrder } from "~/composables/core/useExportFieldDragOrder"
 
 export { DB_SYNC_DB_TYPE_OPTIONS }
 
@@ -84,6 +90,7 @@ export const useExternalDatabaseSyncForm = () => {
 
 	const eventTypes = ref<ExportEventTypeInfo[]>([])
 	const fields = ref<Array<ExportFieldCatalogItem>>([])
+	const fieldOrderKeys = ref<string[]>([])
 	const configs = ref<SyncConfig[]>([])
 	const isLoading = ref(true)
 	const isSaving = ref(false)
@@ -112,6 +119,16 @@ export const useExternalDatabaseSyncForm = () => {
 		}),
 	)
 	const canCreateMore = computed(() => createEventTypeOptions.value.length > 0)
+	const orderedFields = computed(() => resolveOrderedFields(fields.value, fieldOrderKeys.value))
+	const {
+		draggingFieldKey,
+		dragOverFieldKey,
+		handleFieldDragStart,
+		handleFieldDragEnd,
+		handleFieldDragOver,
+		handleFieldDragLeave,
+		handleFieldDrop,
+	} = useExportFieldDragOrder(fieldOrderKeys, { disabled: dialogBusy })
 
 	const { hour: pushTimeHour, minute: pushTimeMinute } = useDailyHHmmField(
 		() => dialog.form.pushTime,
@@ -153,7 +170,7 @@ export const useExternalDatabaseSyncForm = () => {
 
 	const buildMappingsPayload = (): Record<string, { targetColumn: string; format?: string }> => {
 		const out: Record<string, { targetColumn: string; format?: string }> = {}
-		for (const f of fields.value) {
+		for (const f of orderedFields.value) {
 			const m = dialog.form.mappings[f.key]
 			if (!m?.enabled) continue
 			const targetColumn = m.targetColumn.trim()
@@ -184,6 +201,7 @@ export const useExternalDatabaseSyncForm = () => {
 		)
 		fields.value = data.fields || []
 		if (data.eventTypes?.length) eventTypes.value = data.eventTypes
+		fieldOrderKeys.value = buildCatalogFieldOrder(fields.value)
 		dialog.form.mappings = {}
 		initAllFieldMappings()
 	}
@@ -214,6 +232,10 @@ export const useExternalDatabaseSyncForm = () => {
 			}
 		}
 		initAllFieldMappings(enabledKeys)
+		fieldOrderKeys.value = mergeFieldOrder(
+			Object.keys(cfg.mappings || {}),
+			buildCatalogFieldOrder(fields.value),
+		)
 	}
 
 	const fetchConfigs = async () => {
@@ -295,22 +317,43 @@ export const useExternalDatabaseSyncForm = () => {
 		}
 	}
 
-	const handleSave = async () => {
-		if (!canAdmin.value) return
+	const validateDialogForSave = (): string | null => {
+		if (!canAdmin.value) return null
 		const mappings = buildMappingsPayload()
 		for (const f of fields.value) {
 			if (!f.required) continue
 			if (!mappings[f.key]) {
-				toast.warning(`請勾選並填寫必填欄位「${f.label}」`)
-				return
+				return `請勾選並填寫必填欄位「${f.label}」`
 			}
 		}
 		if (Object.keys(mappings).length === 0) {
-			toast.warning("請至少勾選一個輸出欄位")
+			return "請至少勾選一個輸出欄位"
+		}
+		return null
+	}
+
+	const openSaveConfirmDialog = (show: (config: ConfirmDialogConfig) => void) => {
+		const validationError = validateDialogForSave()
+		if (validationError) {
+			toast.warning(validationError)
 			return
 		}
+		const label = eventTypeLabel(dialog.form.eventType)
+		const isCreate = dialog.mode === "create"
+		show({
+			title: isCreate ? "確認新增" : "確認儲存",
+			message: isCreate
+				? `確定要新增「${label}」的資料庫對接設定嗎？`
+				: `確定要儲存「${label}」的資料庫對接設定嗎？`,
+			type: "warning",
+			confirmText: "儲存",
+		})
+	}
+
+	const handleSave = async () => {
 		isSaving.value = true
 		try {
+			const mappings = buildMappingsPayload()
 			await request<{ id: number }>("/external-sync/configs", {
 				method: "PUT",
 				body: {
@@ -373,7 +416,7 @@ export const useExternalDatabaseSyncForm = () => {
 
 	return {
 		configs,
-		fields,
+		orderedFields,
 		dialog,
 		isLoading,
 		isSaving,
@@ -390,14 +433,21 @@ export const useExternalDatabaseSyncForm = () => {
 		eventTypeLabel,
 		getDbTypeLabel,
 		exportMode,
-		getFormatOptionsForField,
 		handleToggleField,
+		draggingFieldKey,
+		dragOverFieldKey,
+		handleFieldDragStart,
+		handleFieldDragEnd,
+		handleFieldDragOver,
+		handleFieldDragLeave,
+		handleFieldDrop,
 		handleDbTypeChanged,
 		handleDialogEventTypeChanged,
 		handleCreate,
 		handleEdit,
 		handleCloseDialog,
 		handleTestConnection,
+		openSaveConfirmDialog,
 		handleSave,
 		handleDelete,
 	}

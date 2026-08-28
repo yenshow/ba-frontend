@@ -3,15 +3,6 @@
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 			<div class="flex items-center gap-2">
 				<h2 class="text-xl font-semibold text-theme-primary 2xl:text-2xl">人員列表</h2>
-				<PermissionActionButton
-					:allowed="canUpdateGroup"
-					:disabled="selectedMainGroupId == null"
-					aria-label="群組成員"
-					class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white enabled:hover:bg-white/30 2xl:px-6 2xl:py-3 2xl:text-base"
-					@click="openGroupMembersDialog"
-				>
-					群組成員
-				</PermissionActionButton>
 			</div>
 			<div class="flex flex-wrap items-center gap-2">
 				<SearchInput
@@ -176,14 +167,6 @@
 			@confirm="applyCroppedFace"
 		/>
 
-		<PersonnelGroupMembersDialog
-			v-if="showGroupMembersDialog && selectedMainGroupId != null"
-			v-model="showGroupMembersDialog"
-			:main-group-id="selectedMainGroupId"
-			:group-tree="groupTree"
-			@changed="emit('changed', $event)"
-		/>
-
 		<PersonnelImportDialog
 			v-model="showImportDialog"
 			:error="importError"
@@ -227,9 +210,6 @@ import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import Pagination from "~/components/common/Pagination.vue"
 import type { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePersonnelPersonsTab"
 import PersonnelImportDialog from "~/components/personnel/dialogs/PersonnelImportDialog.vue"
-import PersonnelGroupMembersDialog from "~/components/personnel/dialogs/PersonnelGroupMembersDialog.vue"
-import type { PersonGroup } from "~/types/personnel"
-import type { PersonnelGroupsChangedPayload } from "~/utils/personnelGroups"
 import ImageCropDialog from "~/components/common/ImageCropDialog.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
@@ -239,29 +219,18 @@ import type { PersonnelPersonDialogState, Person } from "~/types/personnel"
 import SearchInput from "~/components/common/SearchInput.vue"
 import type { PersonCardFormItem } from "~/utils/cardFormUtils"
 import { resolveAccessControlCardsFromPerson, personHasAnyAccessCard } from "~/utils/cardFormUtils"
+import { usePersonnelGroupTree } from "~/composables/systems/personnel/usePersonnelGroupTree"
 
 const props = defineProps<{
 	canCreatePerson: boolean
 	canUpdatePerson: boolean
 	canDeletePerson: boolean
-	canUpdateGroup: boolean
 	personStatusLabels: Record<string, string>
 	getPersonStatusBadgeClass: (status: string) => string
 	personsTab: ReturnType<typeof usePersonnelPersonsTab>
-	selectedMainGroupId: number | null
-	groupTree: PersonGroup[]
 }>()
 
-const emit = defineEmits<{ changed: [payload: PersonnelGroupsChangedPayload] }>()
-
-const showGroupMembersDialog = ref(false)
-
-watch(
-	() => props.selectedMainGroupId,
-	(id) => {
-		if (id == null) showGroupMembersDialog.value = false
-	}
-)
+const { groupTree } = usePersonnelGroupTree()
 
 const {
 	persons,
@@ -295,10 +264,6 @@ const {
 	personCloseConfirmConfig,
 	confirmPersonDialogDismiss,
 } = props.personsTab
-
-const openGroupMembersDialog = () => {
-	showGroupMembersDialog.value = true
-}
 
 const openImportDialog = () => {
 	showImportDialog.value = true

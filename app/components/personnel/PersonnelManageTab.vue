@@ -6,7 +6,7 @@
 				<div class="mb-4 flex items-center justify-between gap-3">
 					<h2 class="text-xl font-semibold text-theme-primary 2xl:text-2xl">群組列表</h2>
 					<PermissionActionButton
-						:allowed="canManageGroups"
+						:allowed="canOpenGroupsManage"
 						aria-label="管理群組"
 						:class="actionButtonClass"
 						@click="openGroupsDialog"
@@ -101,7 +101,7 @@
 					</div>
 				</AsyncPanel>
 
-				<PersonnelGroupsDialog
+				<PersonnelGroupsManageDialog
 					v-model="showGroupsDialog"
 					:can-create-group="canCreateGroup"
 					:can-update-group="canUpdateGroup"
@@ -117,13 +117,9 @@
 				:can-create-person="canCreatePerson"
 				:can-update-person="canUpdatePerson"
 				:can-delete-person="canDeletePerson"
-				:can-update-group="canUpdateGroup"
 				:person-status-labels="personStatusLabels"
 				:get-person-status-badge-class="getPersonStatusBadgeClass"
 				:persons-tab="personsTab"
-				:selected-main-group-id="resolvedMainGroupId"
-				:group-tree="groupTree"
-				@changed="handleGroupsChanged"
 			/>
 		</div>
 	</section>
@@ -134,10 +130,10 @@ import type { PersonGroup } from "~/types/personnel"
 import AsyncPanel from "~/components/common/AsyncPanel.vue"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import PersonnelPersonsTab from "~/components/personnel/PersonnelPersonsTab.vue"
-import PersonnelGroupsDialog from "~/components/personnel/dialogs/PersonnelGroupsDialog.vue"
+import PersonnelGroupsManageDialog from "~/components/personnel/dialogs/PersonnelGroupsManageDialog.vue"
 import { usePersonnelGroupTree } from "~/composables/systems/personnel/usePersonnelGroupTree"
 import { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePersonnelPersonsTab"
-import { isSidebarGroupKeyValid, resolveMainGroupIdFromSidebarKey, type PersonnelGroupsChangedPayload } from "~/utils/personnelGroups"
+import { isSidebarGroupKeyValid, type PersonnelGroupsChangedPayload } from "~/utils/personnelGroups"
 
 const props = defineProps<{
 	canManageGroups: boolean
@@ -156,6 +152,10 @@ const selectedKey = ref<string>("all")
 const expandedMainIds = ref<Set<number>>(new Set())
 const showGroupsDialog = ref(false)
 
+const canOpenGroupsManage = computed(
+	() => props.canManageGroups || props.canUpdateGroup
+)
+
 const panelClass = "section-card flex h-full min-h-0 flex-col"
 const actionButtonClass =
 	"rounded-xl bg-emerald-500/80 px-4 py-2 text-sm text-white enabled:hover:bg-emerald-400 2xl:px-6 2xl:py-3 2xl:text-base"
@@ -173,10 +173,6 @@ const {
 	errorMessage: groupTreeError,
 	refresh: refreshGroupTree,
 } = usePersonnelGroupTree()
-
-const resolvedMainGroupId = computed(() =>
-	resolveMainGroupIdFromSidebarKey(selectedKey.value, groupTree.value || [])
-)
 
 const isAllSelected = computed(() => selectedKey.value === "all")
 const isUngroupedSelected = computed(() => selectedKey.value === "ungrouped")
@@ -210,7 +206,7 @@ const handleSelectChild = (child: PersonGroup) => {
 }
 
 const handleGroupsChanged = async (payload: PersonnelGroupsChangedPayload) => {
-	if (payload.scope === "groups") {
+	if (payload.scope === "groups" || payload.scope === "both") {
 		await refreshGroupTree()
 		if (!isSidebarGroupKeyValid(selectedKey.value, groupTree.value || [])) {
 			handleSelectAll()

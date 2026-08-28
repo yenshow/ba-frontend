@@ -16,29 +16,20 @@
 					:key="r.id"
 					class="flex flex-wrap items-center gap-3 rounded-xl border border-white/15 bg-black/20 p-4"
 				>
-					<div class="min-w-0 flex-1 space-y-1">
-						<div class="flex flex-wrap items-center gap-3">
-							<p class="text-base font-semibold text-white/90">{{ r.name }}</p>
-							<span
-								class="rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-sm text-white/70"
-							>
-								{{ eventTypeLabel(r.eventType || "access_control") }}
-							</span>
-							<span
-								class="rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-sm text-white/70"
-							>
-								{{ r.outputFormat.toUpperCase() }} / {{ r.storageType.toUpperCase() }}
-							</span>
-							<span class="text-sm text-white/60">{{ ruleSchedulePreview(r).schedule }}</span>
-						</div>
-						<p class="text-xs text-white/45 2xl:text-sm">
-							下次執行 {{ ruleSchedulePreview(r).nextRun }}
-							<span class="mx-1.5 text-white/25" aria-hidden="true">·</span>
-							資料區間 {{ ruleSchedulePreview(r).window }}
-						</p>
-					</div>
+					<p class="text-base font-semibold text-white/90">{{ r.name }}</p>
+					<span
+						class="rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-sm text-white/70"
+					>
+						{{ eventTypeLabel(r.eventType || "access_control") }}
+					</span>
+					<span
+						class="rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-sm text-white/70"
+					>
+						{{ r.outputFormat.toUpperCase() }} / {{ r.storageType.toUpperCase() }}
+					</span>
+					<span class="text-sm text-white/50"> 資料區間 {{ ruleSchedulePreview(r).window }} </span>
 
-					<div class="flex flex-wrap items-center gap-2 ml-auto">
+					<div class="ml-auto flex flex-wrap items-center gap-2">
 						<button
 							type="button"
 							class="rounded-xl border border-white/25 bg-white/10 px-3 py-2 text-sm text-white/85 hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
@@ -87,7 +78,7 @@
 							</button>
 						</header>
 
-						<form class="grid grid-cols-2 gap-4 2xl:gap-6" @submit.prevent="handleSaveDialog">
+						<form class="grid grid-cols-2 gap-4 2xl:gap-6" @submit.prevent="requestSaveDialog">
 							<label class="flex flex-col gap-2 text-base text-white/80">
 								<span>事件類型<span class="required-mark">*</span></span>
 								<div
@@ -106,39 +97,36 @@
 
 							<label class="flex flex-col gap-2 text-base text-white/80">
 								<span>排程頻率<span class="required-mark">*</span></span>
-								<FilterDropdown
-									v-model="dialog.form.scheduleFreq"
-									:options="scheduleFreqOptions"
-									text-size="text-sm 2xl:text-base"
-									:disabled="dialogBusy"
-									@update:model-value="handleScheduleFreqChanged"
-								/>
+								<div :class="{ 'pointer-events-none opacity-50': dialogBusy }">
+									<FilterDropdown
+										v-model="dialog.form.scheduleFreq"
+										:options="scheduleFreqOptions"
+										text-size="text-sm 2xl:text-base"
+										@update:model-value="handleScheduleFreqChanged"
+									/>
+								</div>
 							</label>
 
-							<label
-								v-if="showWeekday"
-								class="flex flex-col gap-2 text-base text-white/80"
-							>
+							<label v-if="showWeekday" class="flex flex-col gap-2 text-base text-white/80">
 								<span>星期<span class="required-mark">*</span></span>
-								<FilterDropdown
-									v-model="dialog.form.scheduleDay"
-									:options="weekdayOptions"
-									text-size="text-sm 2xl:text-base"
-									:disabled="dialogBusy"
-								/>
+								<div :class="{ 'pointer-events-none opacity-50': dialogBusy }">
+									<FilterDropdown
+										v-model="dialog.form.scheduleDay"
+										:options="WEEKDAY_OPTIONS"
+										text-size="text-sm 2xl:text-base"
+									/>
+								</div>
 							</label>
 
-							<label
-								v-else-if="showMonthDay"
-								class="flex flex-col gap-2 text-base text-white/80"
-							>
+							<label v-if="showMonthDay" class="flex flex-col gap-2 text-base text-white/80">
 								<span>日期<span class="required-mark">*</span></span>
-								<FilterDropdown
-									v-model="dialog.form.scheduleDay"
-									:options="monthDayOptions"
-									text-size="text-sm 2xl:text-base"
-									:disabled="dialogBusy"
-								/>
+								<div :class="{ 'pointer-events-none opacity-50': dialogBusy }">
+									<FilterDropdown
+										v-model="dialog.form.scheduleDay"
+										:options="MONTH_DAY_OPTIONS"
+										text-size="text-sm 2xl:text-base"
+									/>
+								</div>
 							</label>
 
 							<label class="flex flex-col gap-2 text-base text-white/80">
@@ -149,26 +137,21 @@
 								>
 									<FilterDropdown
 										v-model="exportTimeHour"
-										:options="exportTimeHourOptions"
+										:options="DAILY_TIME_HOUR_OPTIONS"
 										text-size="text-sm 2xl:text-base"
 									/>
 									<span class="shrink-0 text-white/70" aria-hidden="true">:</span>
 									<FilterDropdown
 										v-model="exportTimeMinute"
-										:options="exportTimeMinuteOptions"
+										:options="DAILY_TIME_MINUTE_OPTIONS"
 										text-size="text-sm 2xl:text-base"
 									/>
 								</div>
 							</label>
 
-							<div
-								class="col-span-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/65"
-								role="status"
-								aria-live="polite"
-							>
-								<p>下次執行：{{ dialogSchedulePreview.nextRun }}</p>
-								<p class="mt-1">資料區間：{{ dialogSchedulePreview.window }}（不含結束當日 00:00 之後）</p>
-							</div>
+							<p class="col-span-2 text-sm text-white/60 2xl:text-base">
+								資料區間：{{ dialogSchedulePreview.window }}
+							</p>
 
 							<label class="col-span-2 flex flex-col gap-2 text-base text-white/80">
 								<span>規則名稱<span class="required-mark">*</span></span>
@@ -195,14 +178,14 @@
 									<div :class="{ 'pointer-events-none opacity-50': dialogBusy }">
 										<FilterDropdown
 											v-model="dialog.form.dateFormat"
-											:options="dateFormatOptions"
+											:options="DATE_FORMAT_OPTIONS"
 											text-size="text-sm 2xl:text-base"
 										/>
 									</div>
 									<div :class="{ 'pointer-events-none opacity-50': dialogBusy }">
 										<FilterDropdown
 											v-model="dialog.form.timeFormat"
-											:options="timeFormatOptions"
+											:options="TIME_FORMAT_OPTIONS"
 											text-size="text-sm 2xl:text-base"
 										/>
 									</div>
@@ -210,14 +193,18 @@
 							</div>
 
 							<div class="col-span-2 flex flex-col gap-3 text-sm text-white/80 2xl:text-base">
-								<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+								<div
+									class="grid grid-cols-1 gap-3 sm:grid-cols-2"
+									:class="{ 'lg:grid-cols-3': dialog.form.outputFormat === 'txt' }"
+								>
 									<label class="flex flex-col gap-2">
 										<span>檔案格式</span>
 										<div :class="{ 'pointer-events-none opacity-50': dialogBusy }">
 											<FilterDropdown
 												v-model="dialog.form.outputFormat"
-												:options="outputFormatOptions"
+												:options="OUTPUT_FORMAT_OPTIONS"
 												text-size="text-sm 2xl:text-base"
+												@update:model-value="handleOutputFormatChanged"
 											/>
 										</div>
 									</label>
@@ -227,10 +214,26 @@
 										<div :class="{ 'pointer-events-none opacity-50': dialogBusy }">
 											<FilterDropdown
 												v-model="dialog.form.storageType"
-												:options="storageTypeOptions"
+												:options="STORAGE_TYPE_OPTIONS"
 												text-size="text-sm 2xl:text-base"
 											/>
 										</div>
+									</label>
+
+									<label
+										v-if="dialog.form.outputFormat === 'txt'"
+										class="flex flex-col gap-2"
+									>
+										<span>欄位分隔符</span>
+										<input
+											v-model="columnDelimiterInput"
+											type="text"
+											maxlength="4"
+											class="form-input-small font-mono"
+											:disabled="dialogBusy"
+											placeholder="例如 \t 或 :"
+											aria-label="欄位分隔符"
+										/>
 									</label>
 								</div>
 
@@ -318,7 +321,11 @@
 								class="col-span-2 flex flex-col gap-2 text-sm text-white/80 2xl:text-base"
 							>
 								<p>
-									{{ filterLabel("groupIds", "人員群組（選填，空白=全部）")
+									{{
+										filterLabel(
+											"groupIds",
+											groupFilterRequired ? "人員群組" : "人員群組（選填，空白=全部）"
+										)
 									}}<span v-if="groupFilterRequired" class="required-mark">*</span>
 								</p>
 								<PersonnelGroupPicker
@@ -348,7 +355,9 @@
 								v-if="filterKind === 'locations'"
 								class="col-span-2 flex flex-col gap-2 text-base text-white/80"
 							>
-								<span>{{ filterLabel("locationIds", "地點 ID（選填，逗號分隔；空白=全部）") }}</span>
+								<span>{{
+									filterLabel("locationIds", "地點 ID（選填，逗號分隔；空白=全部）")
+								}}</span>
 								<input
 									v-model="dialog.form.locationIdsText"
 									type="text"
@@ -426,13 +435,14 @@
 							<div class="col-span-2 flex flex-col gap-2">
 								<p class="text-sm font-medium text-white/85 2xl:text-base">輸出欄位</p>
 								<p class="text-xs text-white/50 2xl:text-sm">
-									勾選要輸出的欄位；進出日期／時間可分別勾選並選格式。「空白欄」無資料，請把輸出表頭改成客戶預留欄名稱。
+									勾選要輸出的欄位；「空白欄」無資料、值為空，請把第三方欄位名改成預留欄名稱。拖曳左側握把可調整輸出順序。
 								</p>
-								<div class="overflow-hidden rounded-xl border border-white/10">
+								<div class="w-full overflow-hidden rounded-xl border border-white/10">
 									<div
-										class="mapping-grid mapping-grid-header border-b border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white/55"
+										class="export-mapping-grid export-mapping-grid-header border-b border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white/55"
 										aria-hidden="true"
 									>
+										<span>順序</span>
 										<span>選</span>
 										<span>平台欄位</span>
 										<span>輸出表頭</span>
@@ -440,11 +450,29 @@
 									</div>
 
 									<div
-										v-for="field in fields"
+										v-for="field in orderedFields"
 										:key="field.key"
-										class="mapping-grid border-b border-white/10 px-3 py-2.5 last:border-b-0"
-										:class="{ 'opacity-55': !dialog.form.fieldConfigs[field.key]?.enabled }"
+										class="export-mapping-grid border-b border-white/10 px-3 py-2.5 last:border-b-0"
+										:class="{
+											'opacity-55': !dialog.form.fieldConfigs[field.key]?.enabled,
+											'export-mapping-row--dragging': draggingFieldKey === field.key,
+											'export-mapping-row--drag-over': dragOverFieldKey === field.key,
+										}"
+										@dragover="(e) => handleFieldDragOver(e, field.key)"
+										@dragleave="handleFieldDragLeave(field.key)"
+										@drop="(e) => handleFieldDrop(e, field.key)"
 									>
+										<button
+											type="button"
+											class="export-field-drag-handle"
+											:class="{ 'export-field-drag-handle--disabled': dialogBusy }"
+											:draggable="!dialogBusy"
+											:aria-label="`${field.label} 拖曳調整順序`"
+											@dragstart="(e) => handleFieldDragStart(e, field.key)"
+											@dragend="handleFieldDragEnd"
+										>
+											<span aria-hidden="true">⋮⋮</span>
+										</button>
 										<input
 											type="checkbox"
 											class="h-4 w-4 accent-teal-400"
@@ -452,15 +480,11 @@
 											:disabled="dialogBusy || field.required"
 											:aria-label="`輸出 ${field.label}`"
 											@change="
-												handleToggleField(
-													field,
-													($event.target as HTMLInputElement).checked,
-												)
+												handleToggleField(field, ($event.target as HTMLInputElement).checked)
 											"
 										/>
 										<span class="text-sm text-white/85">
-											{{ field.label
-											}}<span v-if="field.required" class="required-mark">*</span>
+											{{ field.label }}<span v-if="field.required" class="required-mark">*</span>
 											<span
 												v-if="field.constantEmpty"
 												class="ml-1 rounded border border-white/20 px-1 py-0.5 text-[10px] text-white/45"
@@ -471,13 +495,14 @@
 										<input
 											v-model="dialog.form.fieldConfigs[field.key].headerLabel"
 											type="text"
-											class="form-input-small min-w-0 w-full"
+											class="form-input-small w-full"
 											:disabled="dialogBusy || !dialog.form.fieldConfigs[field.key]?.enabled"
 											:placeholder="field.label"
 											:aria-label="`${field.label} 輸出表頭`"
 										/>
 										<div
 											v-if="field.requiresFormat"
+											class="export-mapping-format"
 											:class="{
 												'pointer-events-none opacity-50':
 													dialogBusy || !dialog.form.fieldConfigs[field.key]?.enabled,
@@ -513,7 +538,9 @@
 			:message="confirmDialogConfig.message"
 			:details="confirmDialogConfig.details"
 			:type="confirmDialogConfig.type"
-			@confirm="handleConfirmDelete"
+			:confirm-text="confirmDialogConfig.confirmText"
+			:cancel-text="confirmDialogConfig.cancelText"
+			@confirm="handleConfirmDialog"
 		/>
 	</div>
 </template>
@@ -525,10 +552,17 @@ import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import PersonnelGroupPicker from "~/components/common/PersonnelGroupPicker.vue"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { useRecordExportRulesForm } from "~/composables/core/useRecordExportRulesForm"
-import { DAILY_TIME_HOUR_OPTIONS, DAILY_TIME_MINUTE_OPTIONS } from "~/utils/externalIntegration"
-
-const exportTimeHourOptions = DAILY_TIME_HOUR_OPTIONS
-const exportTimeMinuteOptions = DAILY_TIME_MINUTE_OPTIONS
+import {
+	DAILY_TIME_HOUR_OPTIONS,
+	DAILY_TIME_MINUTE_OPTIONS,
+	DATE_FORMAT_OPTIONS,
+	getFormatOptionsForField,
+	MONTH_DAY_OPTIONS,
+	OUTPUT_FORMAT_OPTIONS,
+	STORAGE_TYPE_OPTIONS,
+	TIME_FORMAT_OPTIONS,
+	WEEKDAY_OPTIONS,
+} from "~/utils/externalIntegration"
 
 type RuleListItem = {
 	id: number
@@ -544,11 +578,12 @@ const showConfirmDialog = computed({
 	},
 })
 const confirmDialogConfig = computed(() => confirmDialog.config.value)
+const confirmAction = ref<"delete" | "save">("delete")
 const pendingDeleteRuleId = ref<number | null>(null)
 
 const {
 	rules,
-	fields,
+	orderedFields,
 	isLoading,
 	isSaving,
 	loadError,
@@ -567,39 +602,53 @@ const {
 	groupFilterRequired,
 	exportMode,
 	scheduleFreqOptions,
-	weekdayOptions,
-	monthDayOptions,
 	showWeekday,
 	showMonthDay,
 	ruleSchedulePreview,
 	dialogSchedulePreview,
 	handleScheduleFreqChanged,
 	eventTypeLabel,
-	dateFormatOptions,
-	timeFormatOptions,
-	outputFormatOptions,
-	storageTypeOptions,
-	getFormatOptionsForField,
 	handleToggleField,
+	draggingFieldKey,
+	dragOverFieldKey,
+	handleFieldDragStart,
+	handleFieldDragEnd,
+	handleFieldDragOver,
+	handleFieldDragLeave,
+	handleFieldDrop,
+	handleOutputFormatChanged,
+	columnDelimiterInput,
 	handleCreate,
 	handleEdit,
 	handleEventTypeChanged,
 	handleCloseDialog,
+	openSaveConfirmDialog,
 	handleSaveDialog,
 	handleDelete,
 } = useRecordExportRulesForm()
 
+const requestSaveDialog = () => {
+	confirmAction.value = "save"
+	openSaveConfirmDialog(confirmDialog.show)
+}
+
 const confirmDeleteRule = (rule: RuleListItem) => {
+	confirmAction.value = "delete"
 	pendingDeleteRuleId.value = rule.id
 	confirmDialog.show({
 		title: "確認刪除",
 		message: `確定要刪除規則「${rule.name}」嗎？`,
 		details: "此操作無法復原。",
 		type: "danger",
+		confirmText: "刪除",
 	})
 }
 
-const handleConfirmDelete = async () => {
+const handleConfirmDialog = async () => {
+	if (confirmAction.value === "save") {
+		await handleSaveDialog()
+		return
+	}
 	const id = pendingDeleteRuleId.value
 	if (id == null) return
 	pendingDeleteRuleId.value = null
@@ -612,28 +661,3 @@ defineExpose({
 	actionDisabled: formDisabled,
 })
 </script>
-
-<style scoped>
-.required-mark {
-	margin-left: 0.125rem;
-	color: rgb(253 230 138 / 0.9);
-}
-
-.mapping-grid {
-	display: grid;
-	grid-template-columns: 2rem minmax(6.5rem, 1.15fr) 1.35fr 1fr;
-	align-items: center;
-	column-gap: 0.75rem;
-}
-
-@media (max-width: 639px) {
-	.mapping-grid {
-		grid-template-columns: 1fr;
-		row-gap: 0.5rem;
-	}
-
-	.mapping-grid-header {
-		display: none;
-	}
-}
-</style>

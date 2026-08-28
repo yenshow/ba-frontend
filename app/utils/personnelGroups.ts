@@ -2,7 +2,7 @@ import type { PersonGroup } from "~/types/personnel"
 
 /** 人員群組相關 @changed 事件 scope（列表刷新契約） */
 export type PersonnelGroupsChangedPayload = {
-	scope: "groups" | "members"
+	scope: "groups" | "members" | "both"
 }
 
 // --- 群組樹／側欄／表單 ---

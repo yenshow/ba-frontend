@@ -93,6 +93,13 @@ export const usePersonnelGroupsDraft = () => {
 		deletedChildIds.value = []
 	}
 
+	/** 結構儲存成功後：以目前 pending（含回填 id）作為新 source */
+	const commitPendingAsSource = () => {
+		sourceMains.value = deepClone(pendingMains.value)
+		deletedMainIds.value = []
+		deletedChildIds.value = []
+	}
+
 	const hasUnsavedChanges = computed(() => {
 		if (deletedMainIds.value.length > 0 || deletedChildIds.value.length > 0) return true
 		return !stableEqual(pendingMains.value, sourceMains.value)
@@ -133,11 +140,6 @@ export const usePersonnelGroupsDraft = () => {
 			}
 		}
 		return fields
-	})
-
-	const changeSummary = computed(() => {
-		const n = changedFieldsList.value.length
-		return n === 0 ? "" : `有 ${n} 項變更`
 	})
 
 	const toggleMainExpanded = (uiKey: string) => {
@@ -207,9 +209,9 @@ export const usePersonnelGroupsDraft = () => {
 		expandedMainUiKeys,
 		syncFromTree,
 		resetToSource,
+		commitPendingAsSource,
 		hasUnsavedChanges,
 		changedFieldsList,
-		changeSummary,
 		toggleMainExpanded,
 		addMain,
 		addChild,
