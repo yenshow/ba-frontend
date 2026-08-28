@@ -1,3 +1,4 @@
+import type { ConfirmDialogConfig } from "~/composables/core/useConfirmDialog"
 import { TOAST } from "~/config/toastCatalog"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { useAdminOnly } from "~/composables/core/useAuth"
@@ -12,30 +13,36 @@ import type {
 import {
 	buildEventTypeOptions,
 	buildFilterPayloadFromForm,
-	DATE_FORMAT_OPTIONS,
 	getDefaultFormatForField,
 	getFilterFieldLabel,
-	getFormatOptionsForField,
 	isGroupFilterRequired,
-	MONTH_DAY_OPTIONS,
 	normalizeDailyPushTime,
 	normalizeGrainBySchema,
 	normalizeScheduleDay,
 	normalizeScheduleFreq,
-	OUTPUT_FORMAT_OPTIONS,
 	RECORD_EXPORT_DEFAULT_EXPORT_TIME,
+	columnDelimiterFromInput,
+	columnDelimiterToInput,
+	resolveColumnDelimiterForSave,
+	resolveDefaultColumnDelimiter,
 	resolveExportMode,
 	SCHEDULE_FREQ_OPTIONS,
-	STORAGE_TYPE_OPTIONS,
-	TIME_FORMAT_OPTIONS,
 	toDropdownOptions,
-	WEEKDAY_OPTIONS,
 	eventTypeLabel,
-	type FormDropdownOption,
 	type ScheduleFreq,
 } from "~/utils/externalIntegration"
 import { formatExportSchedulePreview } from "~/utils/exportSchedulePreview"
 import { useDailyHHmmField } from "~/composables/core/useDailyHHmmField"
+import {
+	buildCatalogFieldOrder,
+	mergeFieldOrder,
+	resolveOrderedFields,
+} from "~/utils/exportFieldOrder"
+import { useExportFieldDragOrder } from "~/composables/core/useExportFieldDragOrder"
+import {
+	applyConstructionExportFilterDefaults,
+	filterExportEventTypesForConstruction,
+} from "~/utils/constructionExternalIntegration"
 
 type RuleField = {
 	fieldKey: string
@@ -51,6 +58,7 @@ type RuleRecord = {
 	dateFormat?: string
 	timeFormat?: string
 	outputFormat: "csv" | "txt"
+	columnDelimiter?: string
 	storageType: "local" | "sftp"
 	localDir?: string
 	exportTime: string
@@ -83,6 +91,7 @@ type RuleDialogForm = {
 	dateFormat: string
 	timeFormat: string
 	outputFormat: "csv" | "txt"
+	columnDelimiter?: string
 	storageType: "local" | "sftp"
 	localDir: string
 	sftp: { host: string; port: string; username: string; password: string; remoteDir: string }
@@ -107,6 +116,7 @@ const createEmptyForm = (): RuleDialogForm => ({
 	dateFormat: "yyyy-MM-dd",
 	timeFormat: "HHmmss",
 	outputFormat: "csv",
+	columnDelimiter: resolveDefaultColumnDelimiter("csv"),
 	storageType: "local",
 	localDir: "",
 	sftp: { host: "", port: "22", username: "", password: "", remoteDir: "" },
@@ -137,6 +147,7 @@ export const useRecordExportRulesForm = () => {
 
 	const rules = ref<RuleRecord[]>([])
 	const fields = ref<Array<ExportFieldCatalogItem>>([])
+	const fieldOrderKeys = ref<string[]>([])
 	const eventTypes = ref<ExportEventTypeInfo[]>([])
 	const filterSchema = ref<ExportFilterSchema | null>(null)
 	const isLoading = ref(true)
@@ -157,6 +168,16 @@ export const useRecordExportRulesForm = () => {
 		buildEventTypeOptions({ availableTypes: eventTypes.value }),
 	)
 	const filterKind = computed(() => filterSchema.value?.kind ?? null)
+	const orderedFields = computed(() => resolveOrderedFields(fields.value, fieldOrderKeys.value))
+	const {
+		draggingFieldKey,
+		dragOverFieldKey,
+		handleFieldDragStart,
+		handleFieldDragEnd,
+		handleFieldDragOver,
+		handleFieldDragLeave,
+		handleFieldDrop,
+	} = useExportFieldDragOrder(fieldOrderKeys, { disabled: dialogBusy })
 
 	const { hour: exportTimeHour, minute: exportTimeMinute } = useDailyHHmmField(
 		() => dialog.form.exportTime,
@@ -171,18 +192,15 @@ export const useRecordExportRulesForm = () => {
 	const groupFilterRequired = computed(() => isGroupFilterRequired(filterSchema.value))
 	const exportMode = computed(() => resolveExportMode(filterSchema.value))
 	const scheduleFreqOptions = toDropdownOptions(SCHEDULE_FREQ_OPTIONS)
-	const weekdayOptions = WEEKDAY_OPTIONS
-	const monthDayOptions = MONTH_DAY_OPTIONS
 	const showWeekday = computed(() => dialog.form.scheduleFreq === "weekly")
 	const showMonthDay = computed(() => dialog.form.scheduleFreq === "monthly")
 
-	const ruleSchedulePreview = (rule: {
-		scheduleFreq?: unknown
-		scheduleDay?: unknown
-		exportTime?: unknown
-	}) => formatExportSchedulePreview(rule)
+	const ruleSchedulePreview = (rule: { scheduleFreq?: unknown }) =>
+		formatExportSchedulePreview(rule)
 
-	const dialogSchedulePreview = computed(() => ruleSchedulePreview(dialog.form))
+	const dialogSchedulePreview = computed(() =>
+		ruleSchedulePreview({ scheduleFreq: dialog.form.scheduleFreq }),
+	)
 
 	const handleScheduleFreqChanged = () => {
 		const freq = normalizeScheduleFreq(dialog.form.scheduleFreq)
@@ -226,6 +244,17 @@ export const useRecordExportRulesForm = () => {
 		}
 	}
 
+	const handleOutputFormatChanged = () => {
+		dialog.form.columnDelimiter = resolveDefaultColumnDelimiter(dialog.form.outputFormat)
+	}
+
+	const columnDelimiterInput = computed({
+		get: () => columnDelimiterToInput(dialog.form.columnDelimiter),
+		set: (value: string) => {
+			dialog.form.columnDelimiter = columnDelimiterFromInput(value)
+		},
+	})
+
 	const resetDialogForm = () => {
 		dialog.form = createEmptyForm()
 	}
@@ -237,7 +266,10 @@ export const useRecordExportRulesForm = () => {
 		)
 		fields.value = data.fields || []
 		filterSchema.value = data.filterSchema ?? null
-		if (data.eventTypes?.length) eventTypes.value = data.eventTypes
+		if (data.eventTypes?.length) {
+			eventTypes.value = filterExportEventTypesForConstruction(data.eventTypes)
+		}
+		fieldOrderKeys.value = buildCatalogFieldOrder(fields.value)
 		initAllFieldConfigs()
 	}
 
@@ -260,7 +292,9 @@ export const useRecordExportRulesForm = () => {
 		try {
 			const data = await request<RuleResponse>("/record-export/rules", { method: "GET" })
 			rules.value = data.rules || []
-			if (data.eventTypes?.length) eventTypes.value = data.eventTypes
+			if (data.eventTypes?.length) {
+				eventTypes.value = filterExportEventTypesForConstruction(data.eventTypes)
+			}
 		} catch (e) {
 			loadError.value = handleError(e, "載入記錄轉存規則失敗") ?? "載入記錄轉存規則失敗"
 		} finally {
@@ -276,6 +310,9 @@ export const useRecordExportRulesForm = () => {
 		dialog.form.dateFormat = full.dateFormat || "yyyy-MM-dd"
 		dialog.form.timeFormat = full.timeFormat || "HHmmss"
 		dialog.form.outputFormat = full.outputFormat || "csv"
+		dialog.form.columnDelimiter =
+			full.columnDelimiter ??
+			resolveDefaultColumnDelimiter(full.outputFormat || "csv")
 		dialog.form.storageType = full.storageType || "local"
 		dialog.form.localDir = full.localDir || ""
 		dialog.form.exportTime =
@@ -326,6 +363,10 @@ export const useRecordExportRulesForm = () => {
 			}
 		}
 		initAllFieldConfigs(enabledKeys)
+		fieldOrderKeys.value = mergeFieldOrder(
+			(full.fields || []).map((f) => f.fieldKey),
+			buildCatalogFieldOrder(fields.value),
+		)
 	}
 
 	const handleCreate = async () => {
@@ -333,6 +374,10 @@ export const useRecordExportRulesForm = () => {
 		resetDialogForm()
 		dialog.open = true
 		await loadFieldsForEventType(dialog.form.eventType)
+		Object.assign(
+			dialog.form,
+			applyConstructionExportFilterDefaults(dialog.form.eventType, dialog.form),
+		)
 		dialog.form.grain = normalizeGrainBySchema(filterSchema.value, undefined)
 		await refreshGroupTree()
 	}
@@ -350,6 +395,10 @@ export const useRecordExportRulesForm = () => {
 		dialog.form.fieldConfigs = {}
 		clearDialogFilters()
 		await loadFieldsForEventType(dialog.form.eventType)
+		Object.assign(
+			dialog.form,
+			applyConstructionExportFilterDefaults(dialog.form.eventType, dialog.form),
+		)
 		dialog.form.grain = normalizeGrainBySchema(filterSchema.value, undefined)
 	}
 
@@ -359,7 +408,7 @@ export const useRecordExportRulesForm = () => {
 
 	const buildFieldsPayload = () => {
 		const out: RuleField[] = []
-		for (const f of fields.value) {
+		for (const f of orderedFields.value) {
 			const cfg = dialog.form.fieldConfigs[f.key]
 			if (!cfg?.enabled) continue
 			const headerLabel = cfg.headerLabel.trim() || f.label
@@ -374,21 +423,34 @@ export const useRecordExportRulesForm = () => {
 		return out
 	}
 
-	const handleSaveDialog = async () => {
-		if (!canAdmin.value) {
-			toast.warning(TOAST.ADMIN_ONLY_RECORD_EXPORT)
-			return
-		}
-		const fieldsPayload = buildFieldsPayload()
-		if (fieldsPayload.length === 0) {
-			toast.warning(TOAST.RECORD_EXPORT_HEADER_REQUIRED)
-			return
-		}
+	const validateDialogForSave = (): string | null => {
+		if (!canAdmin.value) return TOAST.ADMIN_ONLY_RECORD_EXPORT
+		if (buildFieldsPayload().length === 0) return TOAST.RECORD_EXPORT_HEADER_REQUIRED
 		if (isGroupFilterRequired(filterSchema.value) && dialog.form.groupIds.length === 0) {
-			toast.warning(TOAST.RECORD_EXPORT_GROUP_REQUIRED)
+			return TOAST.RECORD_EXPORT_GROUP_REQUIRED
+		}
+		return null
+	}
+
+	const openSaveConfirmDialog = (show: (config: ConfirmDialogConfig) => void) => {
+		const validationError = validateDialogForSave()
+		if (validationError) {
+			toast.warning(validationError)
 			return
 		}
+		const name = dialog.form.name.trim() || eventTypeLabel(dialog.form.eventType)
+		const isCreate = dialog.mode === "create"
+		show({
+			title: isCreate ? "確認新增" : "確認儲存",
+			message: isCreate
+				? `確定要新增規則「${name}」嗎？`
+				: `確定要儲存規則「${name}」的變更嗎？`,
+			type: "warning",
+			confirmText: "儲存",
+		})
+	}
 
+	const handleSaveDialog = async () => {
 		try {
 			isSaving.value = true
 			const filter = buildFilterPayloadFromForm(filterSchema.value, dialog.form)
@@ -400,6 +462,10 @@ export const useRecordExportRulesForm = () => {
 				dateFormat: dialog.form.dateFormat,
 				timeFormat: dialog.form.timeFormat,
 				outputFormat: dialog.form.outputFormat,
+				columnDelimiter: resolveColumnDelimiterForSave(
+					dialog.form.outputFormat,
+					dialog.form.columnDelimiter,
+				),
 				storageType: dialog.form.storageType,
 				localDir: dialog.form.storageType === "local" ? dialog.form.localDir : "",
 				sftp:
@@ -416,7 +482,7 @@ export const useRecordExportRulesForm = () => {
 				scheduleFreq,
 				scheduleDay: normalizeScheduleDay(scheduleFreq, dialog.form.scheduleDay),
 				filter,
-				fields: fieldsPayload,
+				fields: buildFieldsPayload(),
 			}
 
 			if (dialog.mode === "create") {
@@ -449,18 +515,13 @@ export const useRecordExportRulesForm = () => {
 		}
 	}
 
-	const dateFormatOptions: FormDropdownOption[] = DATE_FORMAT_OPTIONS
-	const timeFormatOptions: FormDropdownOption[] = TIME_FORMAT_OPTIONS
-	const outputFormatOptions: FormDropdownOption[] = OUTPUT_FORMAT_OPTIONS
-	const storageTypeOptions: FormDropdownOption[] = STORAGE_TYPE_OPTIONS
-
 	onMounted(() => {
 		void fetchRules()
 	})
 
 	return {
 		rules,
-		fields,
+		orderedFields,
 		isLoading,
 		isSaving,
 		loadError,
@@ -479,24 +540,27 @@ export const useRecordExportRulesForm = () => {
 		groupFilterRequired,
 		exportMode,
 		scheduleFreqOptions,
-		weekdayOptions,
-		monthDayOptions,
 		showWeekday,
 		showMonthDay,
 		ruleSchedulePreview,
 		dialogSchedulePreview,
 		handleScheduleFreqChanged,
 		eventTypeLabel,
-		dateFormatOptions,
-		timeFormatOptions,
-		outputFormatOptions,
-		storageTypeOptions,
-		getFormatOptionsForField,
 		handleToggleField,
+		draggingFieldKey,
+		dragOverFieldKey,
+		handleFieldDragStart,
+		handleFieldDragEnd,
+		handleFieldDragOver,
+		handleFieldDragLeave,
+		handleFieldDrop,
+		handleOutputFormatChanged,
+		columnDelimiterInput,
 		handleCreate,
 		handleEdit,
 		handleEventTypeChanged,
 		handleCloseDialog,
+		openSaveConfirmDialog,
 		handleSaveDialog,
 		handleDelete,
 	}

@@ -5,7 +5,7 @@ type MaybeRef<T> = Ref<T> | ComputedRef<T>
 /**
  * 統一「目前列表（page）全選/取消全選」的 UI 狀態機。
  *
- * 規則（以 PersonnelGroupsDialog 的行為為準）：
+ * 規則（以群組管理 dialog 的行為為準）：
  * - 只影響「目前可見 items」
  * - 若 items 皆已被選取 -> toggle 會取消全選（移除這批 ids）
  * - 否則 -> toggle 會全選（加入這批 ids）

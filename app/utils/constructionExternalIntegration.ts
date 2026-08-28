@@ -21,17 +21,11 @@ export const filterExportEventTypesForConstruction = (
 ): ExportEventTypeInfo[] =>
 	(types ?? []).filter((t) => !CONSTRUCTION_EXCLUDED_EXPORT_EVENT_TYPES.has(String(t.id)))
 
-type ExportFilterFormLike = RecordExportFilterForm & {
-	eventKindsText: string
-	sourcesText: string
-	statusesText: string
-}
-
 /** 新建／切換 eventType 時填入工地預設篩選（空白才補） */
 export const applyConstructionExportFilterDefaults = (
 	eventType: string,
-	form: ExportFilterFormLike,
-): ExportFilterFormLike => {
+	form: RecordExportFilterForm,
+): RecordExportFilterForm => {
 	if (eventType === "operational") {
 		return {
 			...form,

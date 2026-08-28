@@ -170,6 +170,32 @@ export const OUTPUT_FORMAT_OPTIONS = [
 	{ value: "txt", label: "TXT" },
 ]
 
+export const DEFAULT_COLUMN_DELIMITER: Record<"csv" | "txt", string> = {
+	csv: ",",
+	txt: "\t",
+}
+
+export const resolveDefaultColumnDelimiter = (outputFormat: "csv" | "txt" | string) =>
+	DEFAULT_COLUMN_DELIMITER[outputFormat === "txt" ? "txt" : "csv"]
+
+/** 儲存時：CSV 固定逗號；TXT 使用表單值或預設 Tab */
+export const resolveColumnDelimiterForSave = (
+	outputFormat: "csv" | "txt" | string,
+	columnDelimiter: string,
+) => {
+	if (outputFormat !== "txt") return resolveDefaultColumnDelimiter("csv")
+	return columnDelimiter || resolveDefaultColumnDelimiter("txt")
+}
+
+export const columnDelimiterToInput = (delimiter: string) =>
+	delimiter === "\t" ? "\\t" : delimiter
+
+export const columnDelimiterFromInput = (raw: string) => {
+	const trimmed = String(raw ?? "").trim()
+	if (trimmed === "\\t") return "\t"
+	return trimmed
+}
+
 export const STORAGE_TYPE_OPTIONS = [
 	{ value: "local", label: "本機儲存" },
 	{ value: "sftp", label: "SFTP 儲存" },
