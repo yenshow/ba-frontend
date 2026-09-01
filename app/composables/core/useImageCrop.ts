@@ -1,10 +1,13 @@
 export type ImageCropMask = "rect" | "ellipse"
+export type ImageCropInitialFit = "contain" | "cover"
 
 export type UseImageCropOptions = {
 	canvasRef: Ref<HTMLCanvasElement | null>
 	getCanvasSize: () => { width: number; height: number }
 	outputMaxLongEdge: number
 	maxOutputBytes?: number
+	/** 初始縮放：contain 完整顯示；cover 填滿裁切框（大頭照建議 cover） */
+	initialFit?: ImageCropInitialFit
 }
 
 export const useImageCrop = (options: UseImageCropOptions) => {
@@ -13,7 +16,18 @@ export const useImageCrop = (options: UseImageCropOptions) => {
 		getCanvasSize,
 		outputMaxLongEdge,
 		maxOutputBytes,
+		initialFit = "contain",
 	} = options
+
+	const getBaseScale = (
+		canvasW: number,
+		canvasH: number,
+		imgW: number,
+		imgH: number,
+	) =>
+		initialFit === "cover"
+			? Math.max(canvasW / imgW, canvasH / imgH)
+			: Math.min(canvasW / imgW, canvasH / imgH)
 
 	const syncCanvasDimensions = () => {
 		const canvas = canvasRef.value
@@ -81,7 +95,12 @@ export const useImageCrop = (options: UseImageCropOptions) => {
 
 		ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-		const baseScale = Math.min(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight)
+		const baseScale = getBaseScale(
+			canvas.width,
+			canvas.height,
+			img.naturalWidth,
+			img.naturalHeight,
+		)
 		const scale = baseScale * zoom.value
 
 		clampPanToCoverCanvas(scale, img.naturalWidth, img.naturalHeight)
@@ -195,7 +214,12 @@ export const useImageCrop = (options: UseImageCropOptions) => {
 		const img = imageEl.value
 		if (!canvas || !img) throw new Error("尚未載入圖片")
 
-		const baseScale = Math.min(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight)
+		const baseScale = getBaseScale(
+			canvas.width,
+			canvas.height,
+			img.naturalWidth,
+			img.naturalHeight,
+		)
 		const scale = baseScale * zoom.value
 		const cx = canvas.width / 2 + panX.value
 		const cy = canvas.height / 2 + panY.value
@@ -218,6 +242,8 @@ export const useImageCrop = (options: UseImageCropOptions) => {
 
 		outCtx.imageSmoothingEnabled = true
 		outCtx.imageSmoothingQuality = "high"
+		outCtx.fillStyle = "#ffffff"
+		outCtx.fillRect(0, 0, outW, outH)
 
 		// Map output canvas to preview canvas coordinates (crop = entire preview canvas)
 		const sx = (0 - imgLeft) / scale
@@ -233,7 +259,7 @@ export const useImageCrop = (options: UseImageCropOptions) => {
 			return blob
 		}
 
-		const qualities = [0.92, 0.86, 0.8, 0.74, 0.68, 0.62, 0.56, 0.5]
+		const qualities = [0.92, 0.86, 0.8, 0.74, 0.68, 0.62, 0.56, 0.5, 0.44, 0.38]
 		for (const q of qualities) {
 			const blob = await new Promise<Blob | null>((resolve) => out.toBlob(resolve, "image/jpeg", q))
 			if (!blob) continue

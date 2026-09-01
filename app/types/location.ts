@@ -214,6 +214,8 @@ export interface PeopleCountingSystemConfig {
 	accessControlGroups?: Array<{ name: string; employeeNos: string[] }>;
 	/** 進出紀錄表格顯示欄位 keys */
 	logDisplayColumns?: string[];
+	/** 人臉辨識：比對準確度下限（0–100，預設 50） */
+	faceSimilarityThreshold?: number;
 }
 
 /**

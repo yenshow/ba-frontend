@@ -29,7 +29,8 @@ import { pickSortOrder } from "~/utils/sortOrder"
 import {
 	normalizeLogDisplayColumns,
 	toStoredLogDisplayColumns,
-} from "~/utils/peopleCountingLogColumns";
+} from "~/utils/peopleCountingLogColumns"
+import { normalizeFaceSimilarityThreshold } from "~/utils/peopleCountingFaceThreshold";
 import {
 	normalizeVehicleLogDisplayColumns,
 	toStoredVehicleLogDisplayColumns,
@@ -914,6 +915,10 @@ export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZo
 						? config.exitCameraDeviceIds
 						: undefined,
 					cameraMode: config.cameraMode ?? undefined,
+					faceSimilarityThreshold:
+						config.faceSimilarityThreshold != null
+							? normalizeFaceSimilarityThreshold(config.faceSimilarityThreshold)
+							: undefined,
 					preferRegion: config.preferRegion ?? undefined,
 					accessControlGroups: config.accessControlGroups || [],
 					entryEventCameraDeviceId: config.entryEventCameraDeviceId ?? undefined,
@@ -1370,6 +1375,13 @@ export function peopleCountingLocationToUnified(
 						loc.dataSource === "isapi_camera"
 							? (loc.cameraMode ?? "people_counting")
 							: undefined,
+					...(isFace
+						? {
+								faceSimilarityThreshold: normalizeFaceSimilarityThreshold(
+									loc.faceSimilarityThreshold
+								),
+							}
+						: {}),
 					preferRegion: loc.dataSource === "isapi_camera" ? true : (loc.preferRegion ?? false),
 					accessControlGroups: loc.accessControlGroups ?? [],
 					...(loc.dataSource === "access_control"

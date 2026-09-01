@@ -322,7 +322,23 @@
 			</div>
 
 			<template v-if="isFaceMode">
-				<div class="mb-3">
+				<label :class="[fieldLabelClass, 'max-w-xs']">
+					<span>人臉比對準確度下限（%）<span class="required-mark">*</span></span>
+					<input
+						v-model.number="faceSimilarityThresholdInput"
+						type="number"
+						min="0"
+						max="100"
+						step="1"
+						required
+						class="form-input-small"
+						placeholder="50"
+						@input="handleChange"
+					/>
+					<span class="text-xs text-white/50">未達此準確度的事件將標為失敗，不計入進出統計</span>
+				</label>
+
+				<div class="mb-3 mt-3">
 					<span class="text-sm font-medium text-white/80 2xl:text-base"
 						>進場攝影機（可複選）<span class="required-mark">*</span></span
 					>
@@ -476,6 +492,9 @@ import {
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { useLicense } from "~/composables/core/useLicense"
 import { storedPeopleCountingDataSource } from "~/utils/peopleCountingDataSource"
+import {
+	normalizeFaceSimilarityThreshold,
+} from "~/utils/peopleCountingFaceThreshold"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 
 const CAMERA_MODE_OPTIONS: Array<{ value: PeopleCountingCameraMode; label: string }> = [
@@ -623,6 +642,14 @@ const getEffectiveExitCameraDeviceIds = (): number[] => {
 
 const isFaceMode = computed(() => cameraMode.value === PEOPLE_COUNTING_CAMERA_MODE.FACE_RECOGNITION)
 
+const faceSimilarityThresholdInput = computed({
+	get: () =>
+		normalizeFaceSimilarityThreshold(localLocation.value.faceSimilarityThreshold),
+	set: (raw: number) => {
+		localLocation.value.faceSimilarityThreshold = normalizeFaceSimilarityThreshold(raw)
+	},
+})
+
 const hasSelectedCamera = computed(() => getEffectiveCameraDeviceIds().length > 0)
 const hasFaceEntryCamera = computed(() => getEffectiveEntryCameraDeviceIds().length > 0)
 const hasFaceExitCamera = computed(() => getEffectiveExitCameraDeviceIds().length > 0)
@@ -739,6 +766,7 @@ const handleCameraModeChange = () => {
 		}
 		localLocation.value.cameraDeviceIds = undefined
 	} else {
+		localLocation.value.faceSimilarityThreshold = undefined
 		const union = [
 			...new Set([
 				...getEffectiveEntryCameraDeviceIds(),
