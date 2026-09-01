@@ -130,7 +130,6 @@
 
 													<component
 														:is="locationManagementComponent"
-														v-bind="drainageLikeProps"
 														:zone="zone"
 														:devices="devices"
 														:is-loading-devices="isLoadingDevices"
@@ -144,19 +143,11 @@
 														:reorderable-locations="true"
 														:allow-create-location="canAddZone"
 														:allow-delete-location="canRemoveZone"
-														@add-location="(payload?: { viewCategory?: string }) => addLocation(zone, payload)"
+														@add-location="() => addLocation(zone)"
 														@remove-location="(index: number) => removeLocation(getZoneId(zone), index)"
-														@rename-view-category="
-															(p: { oldCategory: string; newCategory: string }) =>
-																handleDrainageRenameViewCategory(getZoneId(zone), p)
-														"
 														@reorder-location="
 															(payload: { index: number; direction: 'up' | 'down' }) =>
 																handleReorderLocationRow(zone, payload)
-														"
-														@reorder-view-category-block="
-															(p: { categoryKey: string; direction: 'up' | 'down' }) =>
-																handleReorderDrainageViewCategoryBlock(getZoneId(zone), p)
 														"
 														@update-location="
 															(index: number, location: SystemLocationType) =>
@@ -402,15 +393,6 @@ const locationManagementComponent = computed(() => {
 	return c ?? EnvironmentLocationManagement;
 });
 
-const drainageLikeVariant = computed(() => {
-	if (props.systemType === "drainage") return "drainage";
-	return null;
-});
-
-const drainageLikeProps = computed(() =>
-	drainageLikeVariant.value ? { variant: drainageLikeVariant.value } : {}
-);
-
 const loadDevices = async () => {
 	isLoadingDevices.value = true;
 	try {
@@ -543,22 +525,7 @@ const getLocationsCount = (zone: TZone): number => {
 	return adapter.getLocationsProperty(zone).length;
 };
 
-const getLocationLabel = (): string => {
-	const labelMap: Record<SystemType, string> = {
-		lighting: "點位",
-		hvac: "點位",
-		air_circulation: "點位",
-		drainage: "點位",
-		power: "點位",
-		fire: "點位",
-		emergency_rescue: "點位",
-		smoke_alarm: "點位",
-		environment: "地點",
-		people_counting: "地點",
-		vehicle_access: "地點"
-	};
-	return labelMap[props.systemType] || "地點";
-};
+const getLocationLabel = (): string => "地點";
 
 const getZoneForFormFields = (zone: TZone): UnifiedZone => {
 	const zoneAny = zone as any;
@@ -634,7 +601,7 @@ const handleLocationUpdate = (
 	updateZone(updatedZone);
 };
 
-const addLocation = (zone: TZone, payload?: { viewCategory?: string }) => {
+const addLocation = (zone: TZone) => {
 	if (!canAddZone.value) return;
 	const newLocation = adapter.createNewLocation() as SystemLocationType;
 
@@ -651,47 +618,8 @@ const addLocation = (zone: TZone, payload?: { viewCategory?: string }) => {
 			loc.dataSource = enableYscpVehicleAccess.value ? "yscp" : "isapi_camera";
 		}
 	}
-
-	if (
-		(props.systemType === "drainage" ||
-			props.systemType === "air_circulation" ||
-			props.systemType === "power" ||
-			props.systemType === "fire") &&
-		payload &&
-		payload.viewCategory !== undefined
-	) {
-		(newLocation as { viewCategory?: string }).viewCategory = payload.viewCategory;
-	}
 	const locations = [...adapter.getLocationsProperty(zone), newLocation];
 	const updatedZone = adapter.setLocationsProperty(zone, locations);
-	updateZone(updatedZone);
-};
-
-const handleDrainageRenameViewCategory = (
-	zoneId: string,
-	payload: { oldCategory: string; newCategory: string }
-) => {
-	if (
-		props.systemType !== "drainage" &&
-		props.systemType !== "air_circulation" &&
-		props.systemType !== "power" &&
-		props.systemType !== "fire"
-	)
-		return;
-	const zone = sortedZones.value.find(z => getZoneId(z) === zoneId);
-	if (!zone) return;
-	const oldTrim = payload.oldCategory.trim();
-	const newCat = payload.newCategory.trim();
-	const locations = [...adapter.getLocationsProperty(zone)] as SystemLocationType[];
-	const next = locations.map(loc => {
-		const locAny = loc as { viewCategory?: string };
-		const vc = (locAny.viewCategory ?? "").trim();
-		if (vc === oldTrim) {
-			return { ...loc, viewCategory: newCat } as SystemLocationType;
-		}
-		return loc;
-	});
-	const updatedZone = adapter.setLocationsProperty(zone, next);
 	updateZone(updatedZone);
 };
 
@@ -834,76 +762,6 @@ const moveZoneOrder = (zone: TZone, delta: number) => {
 	}
 
 	errorMessage.value = "";
-};
-
-const DRAINAGE_CATEGORY_BLOCK_EMPTY_KEY = "__empty__";
-
-const reorderDrainageLocationsByCategoryBlock = (
-	locs: SystemLocationType[],
-	categoryKey: string,
-	direction: "up" | "down"
-): SystemLocationType[] | null => {
-	const toKey = (loc: SystemLocationType) => {
-		const raw = String((loc as { viewCategory?: string }).viewCategory ?? "").trim();
-		return raw === "" ? DRAINAGE_CATEGORY_BLOCK_EMPTY_KEY : raw;
-	};
-	const keyOrder: string[] = [];
-	const keySeen = new Set<string>();
-	for (const loc of locs) {
-		const k = toKey(loc);
-		if (!keySeen.has(k)) {
-			keySeen.add(k);
-			keyOrder.push(k);
-		}
-	}
-	const orderedKeys = keyOrder.filter(k => k !== DRAINAGE_CATEGORY_BLOCK_EMPTY_KEY);
-	if (keyOrder.includes(DRAINAGE_CATEGORY_BLOCK_EMPTY_KEY)) {
-		orderedKeys.push(DRAINAGE_CATEGORY_BLOCK_EMPTY_KEY);
-	}
-	const idx = orderedKeys.indexOf(categoryKey);
-	if (idx < 0) return null;
-	const j = direction === "up" ? idx - 1 : idx + 1;
-	if (j < 0 || j >= orderedKeys.length) return null;
-	const swapped = [...orderedKeys];
-	[swapped[idx], swapped[j]] = [swapped[j]!, swapped[idx]!];
-
-	const buckets = new Map<string, SystemLocationType[]>();
-	for (const k of swapped) {
-		buckets.set(k, []);
-	}
-	for (const loc of locs) {
-		const k = toKey(loc);
-		if (!buckets.has(k)) buckets.set(k, []);
-		buckets.get(k)!.push(loc);
-	}
-	const next: SystemLocationType[] = [];
-	for (const k of swapped) {
-		next.push(...(buckets.get(k) ?? []));
-	}
-	return next;
-};
-
-const handleReorderDrainageViewCategoryBlock = (
-	zoneId: string,
-	payload: { categoryKey: string; direction: "up" | "down" }
-) => {
-	if (
-		props.systemType !== "drainage" &&
-		props.systemType !== "air_circulation" &&
-		props.systemType !== "power" &&
-		props.systemType !== "fire"
-	)
-		return;
-	const zone = sortedZones.value.find(z => getZoneId(z) === zoneId);
-	if (!zone) return;
-	const locs = [...adapter.getLocationsProperty(zone)] as SystemLocationType[];
-	const next = reorderDrainageLocationsByCategoryBlock(locs, payload.categoryKey, payload.direction);
-	if (!next) return;
-	next.forEach((loc, idx) => {
-		(loc as unknown as { sortOrder?: number }).sortOrder = idx;
-	});
-	const updatedZone = adapter.setLocationsProperty(zone, next);
-	updateZone(updatedZone);
 };
 
 const handleReorderLocationRow = (

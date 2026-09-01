@@ -4,6 +4,7 @@
 
 import type { PeopleCountingLog } from "~/types/peopleCounting"
 import { formatDateTime } from "~/utils/dateUtils"
+import { isFaceRecognitionCameraMode } from "~/utils/peopleCountingCameraMode"
 
 export const PEOPLE_COUNTING_LOG_COLUMN_KEYS = [
 	"screenshot",
@@ -11,11 +12,41 @@ export const PEOPLE_COUNTING_LOG_COLUMN_KEYS = [
 	"device_name",
 	"name",
 	"verify_method",
+	"similarity",
 	"event",
 	"time",
 ] as const
 
 export type PeopleCountingLogColumnKey = (typeof PEOPLE_COUNTING_LOG_COLUMN_KEYS)[number]
+
+/** UI 表格欄位（unit 在畫面上為 unit_group） */
+export const PEOPLE_COUNTING_RECORD_COLUMN_KEYS = [
+	"screenshot",
+	"unit_group",
+	"name",
+	"device_name",
+	"verify_method",
+	"similarity",
+	"event",
+	"time",
+] as const
+
+export type PeopleCountingRecordColumnKey =
+	(typeof PEOPLE_COUNTING_RECORD_COLUMN_KEYS)[number]
+
+const LOG_COLUMN_TO_RECORD_KEY: Record<
+	PeopleCountingLogColumnKey,
+	PeopleCountingRecordColumnKey
+> = {
+	screenshot: "screenshot",
+	unit: "unit_group",
+	device_name: "device_name",
+	name: "name",
+	verify_method: "verify_method",
+	similarity: "similarity",
+	event: "event",
+	time: "time",
+}
 
 export const PEOPLE_COUNTING_LOG_COLUMN_LABELS: Record<PeopleCountingLogColumnKey, string> = {
 	screenshot: "設備截圖",
@@ -23,11 +54,17 @@ export const PEOPLE_COUNTING_LOG_COLUMN_LABELS: Record<PeopleCountingLogColumnKe
 	device_name: "出入口名稱",
 	name: "姓名",
 	verify_method: "方式",
+	similarity: "準確度",
 	event: "事件",
 	time: "時間",
 }
 
 const REQUIRED_LOG_COLUMN_KEYS: PeopleCountingLogColumnKey[] = ["event", "time"]
+
+/** 非人臉模式預設不顯示準確度 */
+export const DEFAULT_LOG_COLUMNS_WITHOUT_SIMILARITY = PEOPLE_COUNTING_LOG_COLUMN_KEYS.filter(
+	(k): k is PeopleCountingLogColumnKey => k !== "similarity"
+)
 
 /** 地點表單可勾選欄位（事件、時間固定顯示，不提供開關） */
 export const TOGGLEABLE_LOG_COLUMN_KEYS = PEOPLE_COUNTING_LOG_COLUMN_KEYS.filter(
@@ -37,6 +74,59 @@ export const TOGGLEABLE_LOG_COLUMN_KEYS = PEOPLE_COUNTING_LOG_COLUMN_KEYS.filter
 export const DEFAULT_LOG_DISPLAY_COLUMNS: PeopleCountingLogColumnKey[] = [
 	...PEOPLE_COUNTING_LOG_COLUMN_KEYS,
 ]
+
+export const mapLogColumnsToRecordColumns = (
+	columns: PeopleCountingLogColumnKey[]
+): PeopleCountingRecordColumnKey[] => columns.map((k) => LOG_COLUMN_TO_RECORD_KEY[k])
+
+/** 由 log 欄位設定衍生 UI 表格預設欄位 */
+export const DEFAULT_RECORD_COLUMNS = mapLogColumnsToRecordColumns([
+	...DEFAULT_LOG_DISPLAY_COLUMNS,
+])
+
+export const DEFAULT_RECORD_COLUMNS_WITHOUT_SIMILARITY = mapLogColumnsToRecordColumns([
+	...DEFAULT_LOG_COLUMNS_WITHOUT_SIMILARITY,
+])
+
+export const buildRecordColumnLabels = (
+	unitAsRegion: boolean
+): Record<PeopleCountingRecordColumnKey, string> => ({
+	screenshot: PEOPLE_COUNTING_LOG_COLUMN_LABELS.screenshot,
+	unit_group: unitAsRegion ? "分區" : PEOPLE_COUNTING_LOG_COLUMN_LABELS.unit,
+	name: PEOPLE_COUNTING_LOG_COLUMN_LABELS.name,
+	device_name: PEOPLE_COUNTING_LOG_COLUMN_LABELS.device_name,
+	verify_method: PEOPLE_COUNTING_LOG_COLUMN_LABELS.verify_method,
+	similarity: PEOPLE_COUNTING_LOG_COLUMN_LABELS.similarity,
+	event: PEOPLE_COUNTING_LOG_COLUMN_LABELS.event,
+	time: PEOPLE_COUNTING_LOG_COLUMN_LABELS.time,
+})
+
+export const resolvePeopleCountingRecordColumns = (options: {
+	displayColumns?: PeopleCountingLogColumnKey[] | string[] | null
+	dataSource?: "yscp" | "access_control" | "isapi_camera"
+	cameraMode?: string | null
+}): PeopleCountingRecordColumnKey[] => {
+	const isFace =
+		options.dataSource === "isapi_camera" &&
+		isFaceRecognitionCameraMode(options.cameraMode)
+	const isCameraRegion = options.dataSource === "isapi_camera" && !isFace
+	const hasCustomDisplay =
+		Array.isArray(options.displayColumns) && options.displayColumns.length > 0
+
+	if ((isFace || isCameraRegion) && hasCustomDisplay) {
+		const mapped = mapLogColumnsToRecordColumns(
+			normalizeLogDisplayColumns(options.displayColumns)
+		)
+		const visible = mapped.filter((k) => k !== "event" && k !== "time")
+		if (visible.length === 0) {
+			return ["screenshot", "name", "event", "time"]
+		}
+		return mapped
+	}
+
+	if (isFace) return DEFAULT_RECORD_COLUMNS
+	return DEFAULT_RECORD_COLUMNS_WITHOUT_SIMILARITY
+}
 
 export const normalizeLogDisplayColumns = (
 	raw: string[] | undefined | null
@@ -86,6 +176,12 @@ export const formatLogVerifyMethod = (log: PeopleCountingLog): string => {
 	return v || "—"
 }
 
+export const formatLogSimilarity = (log: PeopleCountingLog): string => {
+	const s = log.similarity
+	if (s == null || !Number.isFinite(Number(s))) return "—"
+	return `${Number(s)}%`
+}
+
 export const formatLogText = (value: string | null | undefined): string => {
 	const s = value != null ? String(value).trim() : ""
 	return s || "—"
@@ -121,6 +217,9 @@ export const buildLogDetailRow = (
 				break
 			case "verify_method":
 				row[PEOPLE_COUNTING_LOG_COLUMN_LABELS.verify_method] = formatLogVerifyMethod(log)
+				break
+			case "similarity":
+				row[PEOPLE_COUNTING_LOG_COLUMN_LABELS.similarity] = formatLogSimilarity(log)
 				break
 			case "time":
 				row[PEOPLE_COUNTING_LOG_COLUMN_LABELS.time] = log.timestamp

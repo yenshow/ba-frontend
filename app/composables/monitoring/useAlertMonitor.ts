@@ -62,7 +62,7 @@ const normalizeAlertMessageForToast = (alert: Alert): string => {
 	);
 	if (!headPattern.test(raw)) return raw;
 
-	return raw.replace(headPattern, `${zoneLocation} `).replace(/\\s+/g, " ").trim();
+	return raw.replace(headPattern, `${zoneLocation} `).replace(/\s+/g, " ").trim();
 };
 
 export const useAlertMonitor = () => {

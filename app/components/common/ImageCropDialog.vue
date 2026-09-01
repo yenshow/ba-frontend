@@ -30,11 +30,13 @@
 					</header>
 
 					<div class="rounded-2xl border border-white/15 bg-white/5 p-4">
-						<div class="mt-4 flex items-center justify-center">
-							<div class="relative w-full max-w-[520px]">
+						<div class="mt-2 flex items-center justify-center">
+							<div
+								class="crop-checkerboard relative mx-auto aspect-square w-full max-w-[520px] overflow-hidden rounded-lg shadow-[inset_0_0_0_3px_rgba(56,189,248,0.95)]"
+							>
 								<canvas
 									ref="canvasRef"
-									class="w-full select-none bg-black/20"
+									class="aspect-square h-auto w-full select-none bg-transparent"
 									:class="{ 'opacity-60': isSaving }"
 									:width="canvasWidth"
 									:height="canvasHeight"
@@ -50,15 +52,48 @@
 									@keydown.left.prevent="handleNudge(-6, 0)"
 									@keydown.right.prevent="handleNudge(6, 0)"
 								/>
-								<div class="pointer-events-none absolute inset-0" aria-hidden="true">
-									<div class="absolute inset-0 ring-1 ring-white/55"></div>
+								<div
+									v-if="guideOverlay === 'face'"
+									class="pointer-events-none absolute inset-0 flex flex-col items-center justify-end pb-4 text-sky-200/85"
+									aria-hidden="true"
+								>
+									<svg
+										class="absolute inset-[10%] h-[80%] w-[80%] text-sky-300/40"
+										viewBox="0 0 100 100"
+										preserveAspectRatio="xMidYMid meet"
+										fill="none"
+										xmlns="http://www.w3.org/2000/svg"
+									>
+										<ellipse cx="50" cy="40" rx="21" ry="25" stroke="currentColor" stroke-width="1.6" />
+										<path
+											d="M24 78 Q50 58 76 78"
+											stroke="currentColor"
+											stroke-width="1.6"
+											stroke-linecap="round"
+										/>
+									</svg>
+									<span class="relative z-[1] rounded bg-zinc-950/70 px-2 py-0.5 text-[10px] 2xl:text-xs">
+										人臉大小參考（非裁切邊界）
+									</span>
+								</div>
+								<div
+									v-else-if="mask === 'ellipse'"
+									class="pointer-events-none absolute inset-0"
+									aria-hidden="true"
+								>
+									<div class="absolute inset-0 ring-2 ring-white/55" />
 									<div
-										v-if="mask === 'ellipse'"
 										class="absolute inset-0 bg-black/30 [mask-image:radial-gradient(ellipse_40%_50%_at_50%_50%,transparent_99%,black_100%)] [-webkit-mask-image:radial-gradient(ellipse_40%_50%_at_50%_50%,transparent_99%,black_100%)]"
-									></div>
+									/>
 								</div>
 							</div>
 						</div>
+						<p
+							v-if="cropHint"
+							class="mt-3 text-center text-xs text-white/65 2xl:text-sm"
+						>
+							{{ cropHint }}
+						</p>
 
 						<div class="mt-4 flex items-center justify-center gap-3">
 							<label class="flex items-center gap-3">
@@ -115,7 +150,9 @@
 </template>
 
 <script setup lang="ts">
-import { useImageCrop, type ImageCropMask } from "~/composables/core/useImageCrop";
+import { useImageCrop, type ImageCropInitialFit, type ImageCropMask } from "~/composables/core/useImageCrop";
+
+export type ImageCropGuideOverlay = "none" | "face";
 
 const props = withDefaults(
 	defineProps<{
@@ -126,6 +163,9 @@ const props = withDefaults(
 		canvasWidth: number;
 		canvasHeight: number;
 		mask?: ImageCropMask;
+		guideOverlay?: ImageCropGuideOverlay;
+		cropHint?: string;
+		initialFit?: ImageCropInitialFit;
 		maxOutputBytes?: number;
 		outputMaxLongEdge?: number;
 	}>(),
@@ -133,6 +173,9 @@ const props = withDefaults(
 		title: "裁切圖片",
 		description: "",
 		mask: "rect",
+		guideOverlay: "none",
+		cropHint: "",
+		initialFit: "contain",
 		maxOutputBytes: undefined,
 		outputMaxLongEdge: 1280
 	}
@@ -164,7 +207,8 @@ const {
 	canvasRef,
 	getCanvasSize: () => ({ width: props.canvasWidth, height: props.canvasHeight }),
 	outputMaxLongEdge: props.outputMaxLongEdge ?? 1280,
-	maxOutputBytes: props.maxOutputBytes
+	maxOutputBytes: props.maxOutputBytes,
+	initialFit: props.initialFit
 });
 
 const handleZoomUiInput = () => applyZoomUi(zoomUi.value);
@@ -214,3 +258,16 @@ watch(
 	{ immediate: true }
 );
 </script>
+
+<style scoped>
+.crop-checkerboard {
+	background-color: rgb(9 9 11);
+	background-image:
+		linear-gradient(45deg, rgba(255, 255, 255, 0.08) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.08) 75%),
+		linear-gradient(45deg, rgba(255, 255, 255, 0.08) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.08) 75%);
+	background-size: 16px 16px;
+	background-position:
+		0 0,
+		8px 8px;
+}
+</style>

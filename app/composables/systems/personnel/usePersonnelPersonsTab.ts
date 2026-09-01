@@ -57,17 +57,28 @@ type DeviceApi = ReturnType<typeof useDeviceApi>
 type AccessControlApi = ReturnType<typeof useAccessControlApi>
 
 /** 人員大頭照大小上限（與後端 PERSONNEL_FACE_MAX_BYTES 一致） */
-export const PERSONNEL_FACE_MAX_BYTES = 512 * 1024
+export const PERSONNEL_FACE_MAX_BYTES = 200 * 1024
+
+/** zip 匯入原始圖上限（與後端 PERSONNEL_FACE_IMPORT_SOURCE_MAX_BYTES 一致） */
+export const PERSONNEL_FACE_IMPORT_SOURCE_MAX_BYTES = 512 * 1024
+
+/** 與後端 FACE_OUTPUT_SIZE 一致 */
+export const PERSONNEL_FACE_OUTPUT_SIZE = 320
 
 /** 人員大頭照裁切 Dialog（PersonnelPersonsTab + ImageCropDialog） */
 export const PERSONNEL_FACE_CROP_DIALOG_PROPS = {
 	title: "上傳大頭照",
-	description: `圖片用於臉型比對或臉型驗證，建議上傳五官清晰正面照（≤ ${PERSONNEL_FACE_MAX_BYTES / 1024}KB）。`,
+	description:
+		"請上傳單人正臉、五官清晰的照片（≤ 200KB），用於門禁人臉比對。",
 	canvasWidth: 520,
 	canvasHeight: 520,
-	mask: "ellipse" as const,
+	mask: "rect" as const,
+	guideOverlay: "face" as const,
+	cropHint:
+		"拖曳與縮放調整構圖；藍框為儲存範圍，輪廓線僅供人臉大小參考，留白處儲存為白底。",
+	initialFit: "cover" as const,
 	maxOutputBytes: PERSONNEL_FACE_MAX_BYTES,
-	outputMaxLongEdge: 320,
+	outputMaxLongEdge: PERSONNEL_FACE_OUTPUT_SIZE,
 }
 
 const PERSON_DIALOG_UNSAVED_CLOSE_CONFIRM = {

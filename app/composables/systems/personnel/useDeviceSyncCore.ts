@@ -1,6 +1,5 @@
 import { ref } from "vue"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
-import type { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
 import type { LocationLicensePlateRow } from "~/types/personnel"
 
 const SYNC_TIMEOUT_MS = 10 * 60 * 1000
@@ -23,7 +22,7 @@ const waitUntilVisible = async () => {
 const hasPendingPlates = (rows: LocationLicensePlateRow[]) =>
 	rows.some((row) => String(row.isapi_sync_status || "").toLowerCase() === "pending")
 
-/** 隱性推送輪詢（人流 job / 梯控 job / 車牌列狀態） */
+/** 隱性推送輪詢（人流 job／車牌列狀態） */
 export const useDeviceSyncObserver = () => {
 	const isUiLocked = ref(false)
 
@@ -70,42 +69,6 @@ export const useDeviceSyncObserver = () => {
 		})
 	}
 
-	const watchElevatorJob = async (
-		elevatorApi: ReturnType<typeof useElevatorApi>,
-		jobId: string,
-		options?: {
-			onTick?: (
-				job: Awaited<ReturnType<ReturnType<typeof useElevatorApi>["getFloorSyncJob"]>>["job"],
-			) => void
-		},
-	) => {
-		return runLocked(async () => {
-			const startedAt = Date.now()
-			let pollMs = 2000
-			let lastDoneOps = -1
-			for (;;) {
-				await waitUntilVisible()
-				const { job } = await elevatorApi.getFloorSyncJob(jobId)
-				options?.onTick?.(job)
-				if (job.status === "completed") {
-					if (job.error) throw new Error(job.error)
-					return job
-				}
-				if (Date.now() - startedAt > SYNC_TIMEOUT_MS) {
-					throw new Error("同步逾時，請稍後再試")
-				}
-				const doneOps = Number(job.progress?.doneOps ?? 0)
-				if (doneOps === lastDoneOps) {
-					pollMs = Math.min(5000, Math.round(Math.max(2000, pollMs) * 1.35))
-				} else {
-					pollMs = 2000
-					lastDoneOps = doneOps
-				}
-				await new Promise((r) => setTimeout(r, pollMs))
-			}
-		})
-	}
-
 	const watchPlateStatus = async (
 		personnelApi: PersonnelApi,
 		locationId: number,
@@ -132,7 +95,6 @@ export const useDeviceSyncObserver = () => {
 	return {
 		isUiLocked,
 		watchPersonnelJob,
-		watchElevatorJob,
 		watchPlateStatus,
 		runLocked,
 	}

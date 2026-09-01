@@ -77,7 +77,10 @@
 						</div>
 
 						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
-							<span>圖片 zip（選填，≤ {{ maxFaceSizeKb }}KB，JPG/JPEG）</span>
+							<span
+								>圖片 zip（選填，原始 JPG/JPEG ≤ {{ importSourceMaxFaceSizeKb }}KB，落地 ≤
+								{{ maxFaceSizeKb }}KB）</span
+							>
 							<p class="text-xs text-white/60 2xl:text-sm">
 								檔名須與 Excel 列對應：<span class="text-white/80">姓名_工號.jpeg</span>
 							</p>
@@ -136,10 +139,14 @@
 <script setup lang="ts">
 import type { ImportResult } from "~/types/personnel";
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi";
-import { PERSONNEL_FACE_MAX_BYTES } from "~/composables/systems/personnel/usePersonnelPersonsTab";
+import {
+	PERSONNEL_FACE_IMPORT_SOURCE_MAX_BYTES,
+	PERSONNEL_FACE_MAX_BYTES,
+} from "~/composables/systems/personnel/usePersonnelPersonsTab";
 import { formatImportErrorLine } from "~/utils/personnelUtils";
 
 const maxFaceSizeKb = PERSONNEL_FACE_MAX_BYTES / 1024;
+const importSourceMaxFaceSizeKb = PERSONNEL_FACE_IMPORT_SOURCE_MAX_BYTES / 1024;
 
 const props = defineProps<{
 	modelValue: boolean;

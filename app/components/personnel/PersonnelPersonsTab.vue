@@ -287,14 +287,6 @@ const personDialogState: PersonnelPersonDialogState = {
 		cardItems: props.personsTab.cardItems,
 		fingerPrintItems: props.personsTab.fingerPrintItems,
 	},
-	ladderCard: {
-		elevatorLocationOptions: props.personsTab.elevatorLocationOptions,
-		locationItems: props.personsTab.ladderLocationItems,
-		toggleFloor: props.personsTab.toggleLadderFloor,
-		isFloorChecked: props.personsTab.isLadderFloorChecked,
-		addLocationRow: props.personsTab.addLadderLocationRow,
-		removeLocationRow: props.personsTab.removeLadderLocationRow,
-	},
 	capture: {
 		captureDeviceId: props.personsTab.captureDeviceId,
 		isCapturingFace: props.personsTab.isCapturingFace,

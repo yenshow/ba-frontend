@@ -3,46 +3,17 @@ import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { canAccessAccountPage } from "~/composables/systems/users/useAccountSettings"
 import type { SystemModule } from "~/types/system"
 import type { User } from "~/types/user"
-
-type SystemSettingsMenuItem = {
-	id: string
-	label: string
-	kind: "route" | "theme" | "logout"
-	route?: string
-	section: "personal" | "platform" | "appearance" | "session"
-}
-
-export const SYSTEM_SETTINGS_SECTION_LABELS: Record<
-	Exclude<SystemSettingsMenuItem["section"], "session">,
-	string
-> = {
-	personal: "個人",
-	platform: "平台管理",
-	appearance: "外觀",
-}
+import { type SystemSettingsMenuItem, toSystemSettingsSections } from "~/utils/appShellNavigationUtils"
 
 const OVERVIEW_CATEGORY = "core" as const satisfies SystemModule["category"]
 
 const OVERVIEW_SKIP_ROUTES = ["/core/alert-log", "/core/area-point-map"] as const
-
-const SETTINGS_SECTION_ORDER: SystemSettingsMenuItem["section"][] = [
-	"personal",
-	"platform",
-	"appearance",
-	"session",
-]
 
 const matchesSkippedRoute = (route: string, skipRoutes: readonly string[]) =>
 	skipRoutes.some((r) => route === r || route.startsWith(`${r}/`))
 
 const filterOverviewModules = (modules: SystemModule[]) =>
 	modules.filter((m) => m.route && !matchesSkippedRoute(m.route, OVERVIEW_SKIP_ROUTES))
-
-const toSystemSettingsSections = (items: SystemSettingsMenuItem[]) =>
-	SETTINGS_SECTION_ORDER.map((section) => ({
-		section,
-		items: items.filter((i) => i.section === section),
-	})).filter((g) => g.items.length > 0)
 
 const buildSystemSettingsItems = (
 	user: Pick<User, "username"> | null | undefined,

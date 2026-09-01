@@ -254,6 +254,7 @@ export const usePeopleCountingApi = () => {
 		eventType: "entry" | "exit" | "failed"
 		eventLabel?: string | null
 		verifyMethod?: string | null
+		similarity?: number | null
 		timestamp: string
 		deviceScreenshotUrl: string
 		deviceName?: string

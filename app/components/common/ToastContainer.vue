@@ -92,7 +92,9 @@
 import type { Toast } from "~/composables/core/useToast";
 import { useToast } from "~/composables/core/useToast";
 import { useAlertMonitor, SUMMARY_TOAST_KEY } from "~/composables/monitoring/useAlertMonitor";
+import { navigateConstructionRoute } from "~/utils/constructionNavigationUtils";
 
+const route = useRoute();
 const { toasts, removeToast } = useToast();
 const { removeAlertToast } = useAlertMonitor();
 
@@ -103,10 +105,8 @@ const toastClasses = {
 	info: "bg-blue-500/90 text-white border-blue-400/50"
 };
 
-const routeToAlertTarget = async (path: string) => {
-	if (!path) return;
-	await navigateTo(path);
-};
+const routeToAlertTarget = (path: string) =>
+	navigateConstructionRoute(route.path, path, navigateTo);
 
 /**
  * 處理 Toast 點擊事件（導向警報來源系統頁）

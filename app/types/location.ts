@@ -1,12 +1,19 @@
 /**
- * 統一地點管理類型定義（多系統架構）
+ * 統一地點管理類型定義（工地：environment、people_counting、vehicle_access）
+ *
+ * `SystemType` 仍含 Central 專用鍵，供共用後端 `/api/locations` payload 與 merge 保留其他系統；
+ * 工地前端僅實作 `ConstructionLocationSystemType` 的轉換與 UI。
  */
 
-/**
- * 系統類型
- */
-export type SystemType =
+/** 工地前端實作的地點系統 */
+export type ConstructionLocationSystemType =
 	| "environment"
+	| "people_counting"
+	| "vehicle_access"
+
+/** 後端 location_systems.system_type（共用 DB 可能含 Central 系統） */
+export type SystemType =
+	| ConstructionLocationSystemType
 	| "lighting"
 	| "hvac"
 	| "air_circulation"
@@ -15,443 +22,100 @@ export type SystemType =
 	| "fire"
 	| "emergency_rescue"
 	| "smoke_alarm"
-	| "people_counting"
-	| "vehicle_access";
+	| "elevator"
+	| "access_security"
 
-export const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
+const CONSTRUCTION_SYSTEM_TYPE_LABELS: Record<ConstructionLocationSystemType, string> = {
 	environment: "環境監測",
-	lighting: "照明系統",
-	drainage: "衛生排水",
-	hvac: "空調系統",
-	air_circulation: "空氣循環",
-	power: "電力系統",
-	fire: "消防系統",
-	emergency_rescue: "緊急求救",
-	smoke_alarm: "煙霧警報",
 	people_counting: "人流統計",
-	vehicle_access: "車輛進出"
-};
+	vehicle_access: "車輛進出",
+}
 
 export const getSystemTypeLabel = (systemType: SystemType): string =>
-	SYSTEM_TYPE_LABELS[systemType] || String(systemType);
+	CONSTRUCTION_SYSTEM_TYPE_LABELS[systemType as ConstructionLocationSystemType] ||
+	String(systemType)
 
-/**
- * 系統配置（根據系統類型不同）
- */
-export type SystemConfig =
-	| EnvironmentSystemConfig
-	| LightingSystemConfig
-	| HvacSystemConfig
-	| AirCirculationSystemConfig
-	| DrainageSystemConfig
-	| PowerSystemConfig
-	| FireSystemConfig
-	| EmergencyRescueSystemConfig
-	| SmokeAlarmSystemConfig
-	| PeopleCountingSystemConfig
-	| VehicleAccessSystemConfig;
-
-/**
- * 環境監測系統配置
- */
 export interface EnvironmentSystemConfig {
-	deviceId?: number;
-	/** 感測器設備 ID 列表（複選）；送出時以 deviceIds 為準 */
-	deviceIds?: number[];
+	deviceId?: number
+	deviceIds?: number[]
 	parameters: Array<{
-		type: string;
-		enabled: boolean;
-	}>;
+		type: string
+		enabled: boolean
+	}>
 }
 
-/**
- * 照明系統配置
- */
-export interface LightingSystemConfig {
-	deviceId?: number;
-	location?: {
-		x: number;
-		y: number;
-	};
-	modbus?: {
-		deviceId?: number;
-		points?: Array<{
-			address: number;
-			type: "DI" | "DO";
-			note?: string;
-		}>;
-	};
-}
-
-/**
- * 空調（HVAC）系統配置
- *
- * - `modbus`：沿用 lighting 的 DI/DO 點位（可用於 ON/OFF 回授與控制）
- * - `statusPoints`：沿用 drainage/fire 的彈性點位定義（可用於溫度等 holding/input）
- */
-export interface HvacSystemConfig {
-	deviceId?: number;
-	location?: { x: number; y: number };
-	modbus?: LightingSystemConfig["modbus"];
-	statusPoints?: Record<string, ModbusStatusPointDef>;
-}
-
-/**
- * 空氣循環系統配置（獨立於 HVAC）
- *
- * - `statusPoints`：監控主讀點（通常 `running`，discrete／coil），對齊緊急求救／煙霧警報
- * - `modbus`：僅相容舊版照明式 `points[]`；新資料請以 `status_points` 為準
- */
-export interface AirCirculationSystemConfig {
-	deviceId?: number;
-	location?: { x: number; y: number };
-	modbus?: {
-		deviceId?: number;
-		points?: Array<{ address: number; type: "DI" | "DO" }>;
-	};
-	statusPoints?: Record<string, ModbusStatusPointDef>;
-	/** 與排水/消防對齊的設備語意（目前後端已支援） */
-	equipmentKind?: "pump" | "tank";
-	/** 檢視分類（使用者自訂字串；後端預設為 air_circulation） */
-	viewCategory?: string;
-}
-
-/** 排水狀態點位（對應後端 status_points）；可每點獨立指定控制器 */
-export interface ModbusStatusPointDef {
-	registerType: "coil" | "discrete" | "holding" | "input";
-	address: number;
-	length?: number;
-	/** 若省略則使用地點層級的 deviceId */
-	deviceId?: number;
-}
-
-/**
- * 衛生排水系統配置
- */
-export interface DrainageSystemConfig {
-	deviceId?: number;
-	location?: { x: number; y: number };
-	modbus?: LightingSystemConfig["modbus"];
-	equipmentKind?: "pump" | "tank";
-	/** 檢視分類（使用者自訂字串；舊資料可能為 pumping／sewage／drainage） */
-	viewCategory?: string;
-	statusPoints?: Record<string, ModbusStatusPointDef>;
-}
-
-/** 電力系統配置（欄位與排水類似；equipmentKind 為發電機／油位） */
-export interface PowerSystemConfig {
-	deviceId?: number;
-	location?: { x: number; y: number };
-	modbus?: LightingSystemConfig["modbus"];
-	equipmentKind?: "generator" | "oil_level";
-	/** 檢視分類（使用者自訂字串） */
-	viewCategory?: string;
-	statusPoints?: Record<string, ModbusStatusPointDef>;
-}
-
-/** 消防系統配置（欄位與排水相同；以 systemType 區分） */
-export type FireSystemConfig = DrainageSystemConfig;
-
-/** 緊急求救（與消防／排水相同點位結構；預設檢視分類 sos） */
-export type EmergencyRescueSystemConfig = DrainageSystemConfig;
-
-/** 煙霧警報（與消防／排水相同點位結構；預設檢視分類 smoke） */
-export type SmokeAlarmSystemConfig = DrainageSystemConfig;
-
-/**
- * 人流統計系統配置
- * dataSource 為 access_control 時使用 entryDeviceIds / exitDeviceIds；yscp 時使用 entryDoorIds / exitDoorIds；
- * isapi_camera：people_counting 用 cameraDeviceIds；face_recognition 用 entryCameraDeviceIds / exitCameraDeviceIds。
- */
 export interface PeopleCountingSystemConfig {
-	personGroupIds?: number[];
-	entryDoorIds?: number[];
-	exitDoorIds?: number[];
-	/** 資料來源：yscp（預設）/ access_control / isapi_camera */
-	dataSource?: "yscp" | "access_control" | "isapi_camera";
-	/** 本系統門禁設備 ID（devices.id），dataSource 為 access_control 時使用 */
-	entryDeviceIds?: number[];
-	exitDeviceIds?: number[];
-	/** access_control：入口進出事件調閱攝影機（devices.id，type camera） */
-	entryEventCameraDeviceId?: number | null;
-	/** access_control：出口進出事件調閱攝影機 */
-	exitEventCameraDeviceId?: number | null;
-	/** ISAPI 人流統計模式攝影機（devices.id）列表 */
-	cameraDeviceIds?: number[];
-	/** 人臉辨識：進場攝影機 */
-	entryCameraDeviceIds?: number[];
-	/** 人臉辨識：出場攝影機 */
-	exitCameraDeviceIds?: number[];
-	/**
-	 * isapi_camera：people_counting（分區）｜ face_recognition（人員群組＋進／出攝影機）
-	 */
-	cameraMode?: "people_counting" | "face_recognition";
-	preferRegion?: boolean;
-	/** 門禁人員群組（name + employeeNos），成員限為出入口皆有之人員 */
-	accessControlGroups?: Array<{ name: string; employeeNos: string[] }>;
-	/** 進出紀錄表格顯示欄位 keys */
-	logDisplayColumns?: string[];
+	personGroupIds?: number[]
+	entryDoorIds?: number[]
+	exitDoorIds?: number[]
+	dataSource?: "yscp" | "access_control" | "isapi_camera"
+	entryDeviceIds?: number[]
+	exitDeviceIds?: number[]
+	entryEventCameraDeviceId?: number | null
+	exitEventCameraDeviceId?: number | null
+	cameraDeviceIds?: number[]
+	entryCameraDeviceIds?: number[]
+	exitCameraDeviceIds?: number[]
+	cameraMode?: "people_counting" | "face_recognition"
+	preferRegion?: boolean
+	accessControlGroups?: Array<{ name: string; employeeNos: string[] }>
+	logDisplayColumns?: string[]
+	faceSimilarityThreshold?: number
 }
 
-/**
- * 車輛進出系統配置（車道來自 vehiclebiz.lane_info；entry_lane_id／exit_lane_id 對應入口／出口車道）
- */
-export type VehicleAccessOperationMode = "construction_flow" | "parking";
+export type VehicleAccessOperationMode = "construction_flow" | "parking"
 
 export interface VehicleAccessSystemConfig {
-	dataSource?: "yscp" | "isapi_camera";
-	/** 營運模式：車流統計（營運日）| 停車場（session + 持續在場） */
-	operationMode?: VehicleAccessOperationMode;
-	statsEpochStartedAt?: string;
-	statsResetAt?: string;
-	/** 停車場：在場車輛上限 */
-	parkingCapacity?: number;
-	entryLaneId?: number | null;
-	exitLaneId?: number | null;
-	entryCameraDeviceIds?: number[];
-	exitCameraDeviceIds?: number[];
-	cameraChannelId?: number;
-	vehicleGroupIds?: number[];
-	logDisplayColumns?: string[];
+	dataSource?: "yscp" | "isapi_camera"
+	operationMode?: VehicleAccessOperationMode
+	statsEpochStartedAt?: string
+	statsResetAt?: string
+	parkingCapacity?: number
+	entryLaneId?: number | null
+	exitLaneId?: number | null
+	entryCameraDeviceIds?: number[]
+	exitCameraDeviceIds?: number[]
+	cameraChannelId?: number
+	vehicleGroupIds?: number[]
+	logDisplayColumns?: string[]
 }
 
-/**
- * 地點系統
- */
+/** 工地實作系統的配置；其餘 systemType 由後端原樣保留 */
+export type ConstructionSystemConfig =
+	| EnvironmentSystemConfig
+	| PeopleCountingSystemConfig
+	| VehicleAccessSystemConfig
+
+export type SystemConfig = ConstructionSystemConfig | Record<string, unknown>
+
 export interface LocationSystem {
-	id: string;
-	systemType: SystemType;
-	config: SystemConfig;
+	id: string
+	systemType: SystemType
+	config: SystemConfig
 }
 
-/**
- * 統一區域
- */
 export interface UnifiedZone {
-	id: string;
-	name: string;
-	buildingId?: number;
-	imageUrl?: string; // 照明系統專用
-	description?: string;
-	/** 區域排序（小者在前），由後端與區域表單維護 */
-	sortOrder?: number;
-	locations: UnifiedLocation[];
+	id: string
+	name: string
+	buildingId?: number
+	imageUrl?: string
+	description?: string
+	sortOrder?: number
+	locations: UnifiedLocation[]
 }
 
-/**
- * 統一地點（支援多系統）
- */
 export interface UnifiedLocation {
-	id: string;
-	zoneId: string;
-	name: string;
-	description?: string;
-	/** 地點列建立時間（ISO 8601），供前端排序；未持久化前可由前端填入 */
-	createdAt?: string;
-	/** 同區域內地點排序（小者在前） */
-	sortOrder?: number;
-	systems: LocationSystem[];
+	id: string
+	zoneId: string
+	name: string
+	description?: string
+	createdAt?: string
+	sortOrder?: number
+	systems: LocationSystem[]
 }
 
-/**
- * 地點系統輸入類型（用於創建和更新，系統可能沒有 id）
- */
-export type LocationSystemInput = LocationSystem | Omit<LocationSystem, "id">;
+export type LocationSystemInput = LocationSystem | Omit<LocationSystem, "id">
 
-/**
- * 統一地點輸入類型（用於創建和更新，地點和系統可能沒有 id）
- */
 export type UnifiedLocationInput = Omit<UnifiedLocation, "zoneId" | "systems"> & {
-	systems: LocationSystemInput[];
-};
-
-/**
- * 各系統區域／地點檢視型別（`locationAdapter`、`useZoneSystemAdapter` 轉換用；
- * Construction 無對應監控 UI，但需與 Central 共用同一套 adapter 鏡像）
- */
-
-export interface LightingLocation {
-	id?: string;
-	systemId?: string;
-	sortOrder?: number;
-	name: string;
-	location?: { x: number; y: number };
-	description?: string;
-	deviceId?: number;
-	modbus?: LightingSystemConfig["modbus"];
-}
-
-export interface LightingZone {
-	id?: string;
-	name: string;
-	sortOrder?: number;
-	imageUrl?: string;
-	locations: LightingLocation[];
-	description?: string;
-}
-
-export interface HvacLocation {
-	id?: string;
-	systemId?: string;
-	sortOrder?: number;
-	createdAt?: string;
-	name: string;
-	location?: { x: number; y: number };
-	description?: string;
-	deviceId?: number;
-	modbus?: HvacSystemConfig["modbus"];
-	statusPoints?: HvacSystemConfig["statusPoints"];
-}
-
-export interface HvacZone {
-	id?: string;
-	name: string;
-	sortOrder?: number;
-	imageUrl?: string;
-	description?: string;
-	locations: HvacLocation[];
-}
-
-export interface AirCirculationLocation {
-	id?: string;
-	systemId?: string;
-	sortOrder?: number;
-	createdAt?: string;
-	name: string;
-	location?: { x: number; y: number };
-	description?: string;
-	deviceId?: number;
-	modbus?: AirCirculationSystemConfig["modbus"];
-	statusPoints?: AirCirculationSystemConfig["statusPoints"];
-	equipmentKind?: AirCirculationSystemConfig["equipmentKind"];
-	viewCategory?: string;
-}
-
-export interface AirCirculationZone {
-	id?: string;
-	name: string;
-	sortOrder?: number;
-	imageUrl?: string;
-	description?: string;
-	locations: AirCirculationLocation[];
-}
-
-export interface DrainageLocation {
-	id?: string;
-	systemId?: string;
-	sortOrder?: number;
-	createdAt?: string;
-	name: string;
-	location?: { x: number; y: number };
-	description?: string;
-	deviceId?: number;
-	modbus?: DrainageSystemConfig["modbus"];
-	equipmentKind?: DrainageSystemConfig["equipmentKind"];
-	viewCategory?: string;
-	statusPoints?: DrainageSystemConfig["statusPoints"];
-}
-
-export interface DrainageZone {
-	id?: string;
-	name: string;
-	imageUrl?: string;
-	sortOrder?: number;
-	locations: DrainageLocation[];
-	description?: string;
-}
-
-export interface PowerLocation {
-	id?: string;
-	systemId?: string;
-	sortOrder?: number;
-	createdAt?: string;
-	name: string;
-	location?: { x: number; y: number };
-	description?: string;
-	deviceId?: number;
-	modbus?: PowerSystemConfig["modbus"];
-	equipmentKind?: PowerSystemConfig["equipmentKind"];
-	viewCategory?: string;
-	statusPoints?: PowerSystemConfig["statusPoints"];
-}
-
-export interface PowerZone {
-	id?: string;
-	name: string;
-	imageUrl?: string;
-	sortOrder?: number;
-	locations: PowerLocation[];
-	description?: string;
-}
-
-export interface FireLocation {
-	id?: string;
-	systemId?: string;
-	sortOrder?: number;
-	createdAt?: string;
-	name: string;
-	location?: { x: number; y: number };
-	description?: string;
-	deviceId?: number;
-	modbus?: FireSystemConfig["modbus"];
-	equipmentKind?: DrainageSystemConfig["equipmentKind"];
-	viewCategory?: string;
-	statusPoints?: FireSystemConfig["statusPoints"];
-}
-
-export interface FireZone {
-	id?: string;
-	name: string;
-	imageUrl?: string;
-	sortOrder?: number;
-	locations: FireLocation[];
-	description?: string;
-}
-
-export interface EmergencyRescueLocation {
-	id?: string;
-	systemId?: string;
-	sortOrder?: number;
-	createdAt?: string;
-	name: string;
-	location?: { x: number; y: number };
-	description?: string;
-	deviceId?: number;
-	modbus?: EmergencyRescueSystemConfig["modbus"];
-	equipmentKind?: string;
-	viewCategory?: string;
-	statusPoints?: EmergencyRescueSystemConfig["statusPoints"];
-}
-
-export interface EmergencyRescueZone {
-	id?: string;
-	name: string;
-	imageUrl?: string;
-	sortOrder?: number;
-	locations: EmergencyRescueLocation[];
-	description?: string;
-}
-
-export interface SmokeAlarmLocation {
-	id?: string;
-	systemId?: string;
-	sortOrder?: number;
-	createdAt?: string;
-	name: string;
-	location?: { x: number; y: number };
-	description?: string;
-	deviceId?: number;
-	modbus?: SmokeAlarmSystemConfig["modbus"];
-	equipmentKind?: string;
-	viewCategory?: string;
-	statusPoints?: SmokeAlarmSystemConfig["statusPoints"];
-}
-
-export interface SmokeAlarmZone {
-	id?: string;
-	name: string;
-	imageUrl?: string;
-	sortOrder?: number;
-	locations: SmokeAlarmLocation[];
-	description?: string;
+	systems: LocationSystemInput[]
 }

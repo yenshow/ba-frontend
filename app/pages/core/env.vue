@@ -3,12 +3,12 @@
 		<header class="flex flex-wrap items-end justify-between gap-4 2xl:gap-6">
 			<div class="space-y-2 2xl:space-y-4">
 				<h1 class="page-title">環境設定</h1>
-				<p class="page-subtitle">管理平台備份排程與門禁資料匯出設定。</p>
+				<p class="page-subtitle">管理平台備份排程、ISAPI 設備校時與門禁資料匯出設定。</p>
 			</div>
 		</header>
 
 		<div class="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2 2xl:gap-8">
-			<BackupScheduleSection class="h-full" />
+			<RuntimeConfigSection class="h-full" />
 
 			<section class="section-card flex h-full flex-col">
 				<div class="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import BackupScheduleSection from "~/components/env/BackupScheduleSection.vue";
+import RuntimeConfigSection from "~/components/env/RuntimeConfigSection.vue";
 import ExternalDatabaseSyncSection from "~/components/env/ExternalDatabaseSyncSection.vue";
 import RecordExportRulesSection from "~/components/env/RecordExportRulesSection.vue";
 import PageTabs, { type PageTabItem } from "~/components/common/PageTabs.vue";

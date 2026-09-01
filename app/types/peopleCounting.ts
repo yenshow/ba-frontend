@@ -47,6 +47,8 @@ export interface PeopleCountingLocation {
 	accessControlGroups?: AccessControlGroup[]
 	/** 進出紀錄表格顯示欄位（順序固定，僅控制顯示與否） */
 	logDisplayColumns?: string[]
+	/** 人臉辨識：比對準確度下限（0–100，預設 50） */
+	faceSimilarityThreshold?: number
 
 	// 業務統計信息（來自業務 API）
 	locationId?: number // 業務層的地點 ID（數字格式，用於 API 調用）
@@ -126,6 +128,8 @@ export interface PeopleCountingLog {
 	eventLabel?: string
 	/** 驗證方式顯示（僅門禁：人臉/卡片/指紋） */
 	verifyMethod?: string | null
+	/** 人臉比對準確度（0–100，僅人臉辨識模式） */
+	similarity?: number | null
 	employeeId?: string // 工號（用於非名單人員）
 	personName?: string // 姓名
 	deviceScreenshotUrl?: string // 設備截圖

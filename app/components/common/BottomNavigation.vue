@@ -93,7 +93,7 @@
 					<!-- 1. 警示紀錄 -->
 					<button
 						:class="getButtonClasses(isActive('/core/alert-log'))"
-						@click.stop="navigateToRouteInNewTab('/core/alert-log')"
+						@click.stop="navigateToRoute('/core/alert-log')"
 						aria-label="警示紀錄"
 					>
 						<div class="relative">
@@ -150,7 +150,7 @@
 												? 'cursor-not-allowed text-white/50 opacity-60'
 												: 'text-white/80 hover:bg-white/10 hover:text-white'
 										]"
-										@click="handleOverviewModuleClick(module)"
+										@click="handleModuleClick(module)"
 										:aria-label="module.name"
 									>
 										<div class="relative flex h-8 w-8 flex-shrink-0 items-center justify-center">
@@ -224,7 +224,7 @@
 												<button
 													v-if="item.kind === 'route' && item.route"
 													class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
-													@click="navigateToRouteInNewTab(item.route)"
+													@click="navigateToRoute(item.route)"
 													:aria-label="item.label"
 												>
 													{{ item.label }}
@@ -300,9 +300,10 @@ import { MSG_PERMISSION_LOCKED } from "~/utils/apiError";
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 import {
 	useAppShellNavigation,
-	SYSTEM_SETTINGS_SECTION_LABELS
 } from "~/composables/core/useAppShellNavigation";
+import { SYSTEM_SETTINGS_SECTION_LABELS } from "~/utils/appShellNavigationUtils";
 import { useTheme } from "~/composables/core/useTheme";
+import { navigateConstructionRoute } from "~/utils/constructionNavigationUtils";
 
 const route = useRoute();
 const router = useRouter();
@@ -315,13 +316,8 @@ const toast = useToast();
 const accessGate = useAccessGate();
 const moduleRegistry = useModuleRegistry();
 
-// 未解決警報數量（參考 AppHeader 顯示）
-const {
-	unresolvedAlertCount,
-	loadUnresolvedAlertCount,
-	startAlertCountMonitoring,
-	stopAlertCountMonitoring
-} = useAlertMonitor();
+// 未解決警報數量（生命週期由 layout default/auxiliary 的 startMonitoring 管理）
+const { unresolvedAlertCount, loadUnresolvedAlertCount } = useAlertMonitor();
 
 const MAIN_NAV_ROUTE_ORDER = [
 	"/access-control/people-counting",
@@ -493,7 +489,7 @@ const toggleMoreFunctionsMenu = () => {
 
 const navigateToRoute = (routePath: string) => {
 	closeAllMenus();
-	router.push(routePath);
+	navigateConstructionRoute(route.path, routePath, path => router.push(path));
 };
 
 const isModuleLocked = (module: SystemModule) => accessGate.isModuleLocked(module);
@@ -502,29 +498,11 @@ const handleModuleClick = async (module: SystemModule) => {
 	await accessGate.ensureAccessReady();
 	if (!accessGate.canAccessModule(module)) {
 		toast.warning(MSG_PERMISSION_LOCKED);
-		return;
-	}
-
-	navigateToRoute(module.route);
-};
-
-const handleOverviewModuleClick = async (module: SystemModule) => {
-	await accessGate.ensureAccessReady();
-	if (!accessGate.canAccessModule(module)) {
-		toast.warning(MSG_PERMISSION_LOCKED);
 		closeAllMenus();
 		return;
 	}
 
-	navigateToRouteInNewTab(module.route);
-};
-
-const navigateToRouteInNewTab = (routePath: string) => {
-	closeAllMenus();
-	if (import.meta.client) {
-		const url = routePath.startsWith("http") ? routePath : `${window.location.origin}${routePath}`;
-		window.open(url, "_blank", "noopener,noreferrer");
-	}
+	navigateToRoute(module.route);
 };
 
 const handleThemeToggle = () => {
@@ -565,7 +543,6 @@ onMounted(() => {
 	if (process.client) {
 		document.addEventListener("click", handleClickOutside);
 		void loadUnresolvedAlertCount();
-		startAlertCountMonitoring();
 	}
 });
 
@@ -584,7 +561,6 @@ onBeforeUnmount(() => {
 		window.removeEventListener("resize", updateAllDropdownPositions);
 		window.removeEventListener("scroll", updateAllDropdownPositions, true);
 		if (collapseTimer) clearTimeout(collapseTimer);
-		stopAlertCountMonitoring();
 	}
 });
 </script>

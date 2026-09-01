@@ -110,6 +110,11 @@
 									formatLogVerifyMethod(log)
 								}}</span>
 							</template>
+							<template v-else-if="col === 'similarity'">
+								<span class="people-log-cell text-sm 2xl:text-base">{{
+									formatLogSimilarity(log)
+								}}</span>
+							</template>
 							<template v-else-if="col === 'event'">
 								<span
 									:class="[
@@ -178,11 +183,13 @@ import MonitoringLogEmptyState from "~/components/common/MonitoringLogEmptyState
 import type { PeopleCountingLog } from "~/types/peopleCounting"
 import { useResolvedMediaList } from "~/composables/core/useImageCenter"
 import {
+	buildRecordColumnLabels,
 	formatLogEventLabel,
 	formatLogVerifyMethod,
+	formatLogSimilarity,
 	formatLogText,
 	getLogEventBadgeClass,
-	normalizeLogDisplayColumns,
+	resolvePeopleCountingRecordColumns,
 	type PeopleCountingLogColumnKey,
 } from "~/utils/peopleCountingLogColumns"
 import {
@@ -190,21 +197,12 @@ import {
 	type PeopleCountingCameraMode,
 } from "~/utils/peopleCountingCameraMode"
 
-type PeopleCountingRecordColumnKey =
-	| "screenshot"
-	| "unit_group"
-	| "name"
-	| "device_name"
-	| "verify_method"
-	| "event"
-	| "time"
-
 interface Props {
 	logs: PeopleCountingLog[]
 	dataSource?: "yscp" | "access_control" | "isapi_camera"
 	/** isapi_camera：人臉模式欄位語意同門禁（人員群組），人流模式才標「分區」 */
 	cameraMode?: PeopleCountingCameraMode | string | null
-	/** 僅攝影機人流：套用區域表單勾選的欄位 */
+	/** 攝影機模式：套用地點表單勾選的欄位 */
 	displayColumns?: PeopleCountingLogColumnKey[] | string[] | null
 }
 
@@ -219,71 +217,17 @@ const isCameraRegionColumns = computed(
 		props.dataSource === "isapi_camera" && !isFaceRecognitionCameraMode(props.cameraMode)
 )
 
-const FIXED_RECORD_COLUMNS: PeopleCountingRecordColumnKey[] = [
-	"screenshot",
-	"unit_group",
-	"name",
-	"device_name",
-	"verify_method",
-	"event",
-	"time",
-]
+const recordColumns = computed(() =>
+	resolvePeopleCountingRecordColumns({
+		displayColumns: props.displayColumns,
+		dataSource: props.dataSource,
+		cameraMode: props.cameraMode,
+	})
+)
 
-/** 人臉辨識：顯示設備截圖（multipart 附圖落地後） */
-const FACE_RECORD_COLUMNS: PeopleCountingRecordColumnKey[] = [
-	"screenshot",
-	"unit_group",
-	"name",
-	"device_name",
-	"verify_method",
-	"event",
-	"time",
-]
-
-const recordColumnLabels = computed((): Record<PeopleCountingRecordColumnKey, string> => ({
-	screenshot: "設備截圖",
-	unit_group: isCameraRegionColumns.value ? "分區" : "人員群組",
-	name: "姓名",
-	device_name: "出入口名稱",
-	verify_method: "方式",
-	event: "事件",
-	time: "時間",
-}))
-
-const cameraColumnsFromZoneForm = computed((): PeopleCountingRecordColumnKey[] => {
-	// 區域表單存的是 PeopleCountingLogColumnKey（screenshot/unit/employee_id/name/verify_method...）
-	const picked = normalizeLogDisplayColumns(props.displayColumns)
-	const out: PeopleCountingRecordColumnKey[] = []
-	for (const k of picked) {
-		if (k === "screenshot") out.push("screenshot")
-		else if (k === "unit") out.push("unit_group")
-		if (k === "name") out.push("name")
-		else if (k === "device_name") out.push("device_name")
-		else if (k === "verify_method") out.push("verify_method")
-		// event/time 固定顯示（不受勾選影響）
-	}
-	// 若全部被忽略，至少給一個可用欄位，避免空表頭
-	const pickedCols: PeopleCountingRecordColumnKey[] = out.length ? out : ["screenshot", "name"]
-	return [...new Set<PeopleCountingRecordColumnKey>([...pickedCols, "event", "time"])]
-})
-
-const recordColumns = computed((): PeopleCountingRecordColumnKey[] => {
-	if (
-		props.dataSource === "isapi_camera" &&
-		isFaceRecognitionCameraMode(props.cameraMode)
-	) {
-		return FACE_RECORD_COLUMNS
-	}
-	// 僅人流分區模式吃地點勾選
-	if (
-		isCameraRegionColumns.value &&
-		Array.isArray(props.displayColumns) &&
-		props.displayColumns.length > 0
-	) {
-		return cameraColumnsFromZoneForm.value
-	}
-	return FIXED_RECORD_COLUMNS
-})
+const recordColumnLabels = computed(() =>
+	buildRecordColumnLabels(isCameraRegionColumns.value)
+)
 
 const parseTimestamp = (ts: string | null | undefined): { date: string; time: string } => {
 	const raw = (ts ?? "").trim()

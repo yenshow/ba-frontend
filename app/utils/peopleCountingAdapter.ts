@@ -63,6 +63,7 @@ export const convertApiLogToFrontend = (
 		eventType: "entry" | "exit" | "failed";
 		eventLabel?: string | null;
 		verifyMethod?: string | null;
+		similarity?: number | null;
 		timestamp: string;
 		deviceScreenshotUrl: string;
 		deviceName?: string;
@@ -82,6 +83,10 @@ export const convertApiLogToFrontend = (
 		verifyMethod:
 			log.verifyMethod != null && String(log.verifyMethod).trim() !== ""
 				? String(log.verifyMethod).trim()
+				: undefined,
+		similarity:
+			log.similarity != null && Number.isFinite(Number(log.similarity))
+				? Number(log.similarity)
 				: undefined,
 		count: typeof log.count === "number" && Number.isFinite(log.count) ? log.count : undefined,
 		employeeId:
