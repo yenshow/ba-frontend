@@ -1,20 +1,29 @@
 <template>
 	<div
-		class="flex flex-col gap-2 border-b border-white/10 p-3 sm:flex-row sm:items-center sm:justify-between"
+		class="flex flex-col gap-3 border-b border-white/10 p-3 lg:flex-row lg:items-end lg:justify-between"
 	>
-		<div v-if="showContextBlock" class="min-w-0 shrink-0">
-			<p v-if="contextLabel?.trim()" class="text-sm text-white/70">
-				{{ contextLabel }}
-			</p>
-			<p
-				class="truncate text-sm font-semibold text-white 2xl:text-base"
-				:class="{ 'mt-0.5': contextLabel?.trim() }"
+		<div
+			v-if="contextLabel?.trim() || contextValue?.trim() || $slots['context-trailing']"
+			class="flex min-w-0 flex-wrap items-end gap-x-5 gap-y-2"
+		>
+			<div
+				v-if="contextLabel?.trim() || contextValue?.trim()"
+				class="flex min-w-[10rem] max-w-[14rem] flex-col gap-0.5"
 			>
-				{{ resolvedContextValue }}
-			</p>
+				<span v-if="contextLabel?.trim()" class="text-sm text-white/70 2xl:text-base">
+					{{ contextLabel }}
+				</span>
+				<p
+					class="flex min-h-[2.625rem] w-full items-center truncate text-sm font-semibold text-white 2xl:min-h-[2.75rem] 2xl:text-base"
+					:title="resolvedContextValue"
+				>
+					{{ resolvedContextValue }}
+				</p>
+			</div>
+			<slot name="context-trailing" />
 		</div>
 
-		<div class="flex w-full shrink-0 items-center gap-2 sm:w-auto sm:max-w-xs">
+		<div class="flex w-full shrink-0 items-center gap-2 lg:w-auto lg:max-w-none">
 			<SearchInput
 				:model-value="query"
 				:input-id="searchInputId"
@@ -69,10 +78,6 @@ const props = withDefaults(
 
 const resolvedContextValue = computed(
 	() => props.contextValue?.trim() || props.contextPlaceholder,
-)
-
-const showContextBlock = computed(
-	() => Boolean(props.contextLabel?.trim()) || Boolean(props.contextValue?.trim()),
 )
 
 const emit = defineEmits<{

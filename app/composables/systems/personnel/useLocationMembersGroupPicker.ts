@@ -1,11 +1,5 @@
-import { computed, ref, unref, watch, type ComputedRef, type Ref } from "vue"
-import {
-	ALL_PERSON_GROUP_FILTER_ID,
-	UNGROUPED_PERSON_GROUP_ID,
-	resolvePersonGroupBrowseLabel,
-	resolvePersonGroupId,
-} from "~/utils/personnelUtils"
-import { usePersonnelGroupTree } from "~/composables/systems/personnel/usePersonnelGroupTree"
+import { computed, unref, type ComputedRef, type Ref } from "vue"
+import { usePersonnelCandidateGroupFilter } from "~/composables/systems/personnel/usePersonnelCandidateGroupFilter"
 import {
 	useLocationMembersPicker,
 	type LocationMembersPickerSync,
@@ -17,11 +11,6 @@ export const useLocationMembersGroupPicker = (params: {
 	locationId: MaybeRef<number | null>
 	membersSync: MaybeRef<LocationMembersPickerSync | undefined>
 }) => {
-	const { groupTree, isLoading: isGroupTreeLoading, errorMessage: groupTreeError, refresh } =
-		usePersonnelGroupTree()
-
-	const selectedChildGroupId = ref<number>(ALL_PERSON_GROUP_FILTER_ID)
-
 	const basePicker = useLocationMembersPicker({
 		locationId: params.locationId,
 		membersSync: params.membersSync,
@@ -34,80 +23,37 @@ export const useLocationMembersGroupPicker = (params: {
 		return sync.getLocationCandidatesItems(id)
 	})
 
-	const memberCountByChildId = computed(() => {
-		const counts: Record<number, number> = {
-			[ALL_PERSON_GROUP_FILTER_ID]: memberCandidates.value.length,
-		}
-		for (const person of memberCandidates.value) {
-			const gid = resolvePersonGroupId(person)
-			counts[gid] = (counts[gid] ?? 0) + 1
-		}
-		return counts
-	})
-
-	const hasUngroupedCandidates = computed(
-		() => (memberCountByChildId.value[UNGROUPED_PERSON_GROUP_ID] ?? 0) > 0,
-	)
-
-	const filteredCandidates = computed(() => {
-		if (selectedChildGroupId.value === ALL_PERSON_GROUP_FILTER_ID) {
-			return memberCandidates.value
-		}
-		return memberCandidates.value.filter(
-			(p) => resolvePersonGroupId(p) === selectedChildGroupId.value,
-		)
-	})
-
-	const hasFilteredCandidates = computed(() => filteredCandidates.value.length > 0)
-
-	const selectedGroupLabel = computed(() =>
-		resolvePersonGroupBrowseLabel(groupTree.value, selectedChildGroupId.value),
-	)
-
-	const pickDefaultChildGroup = () => {
-		selectedChildGroupId.value = ALL_PERSON_GROUP_FILTER_ID
-	}
-
-	const selectChildGroup = (childId: number) => {
-		selectedChildGroupId.value = childId
-	}
+	const groupFilter = usePersonnelCandidateGroupFilter({ candidates: memberCandidates })
 
 	const isAllFilteredKept = computed(() => {
-		if (filteredCandidates.value.length === 0) return false
-		return filteredCandidates.value.every((p) => basePicker.isMemberKept(p.id))
+		if (groupFilter.groupFilteredCandidates.value.length === 0) return false
+		return groupFilter.groupFilteredCandidates.value.every((p) => basePicker.isMemberKept(p.id))
 	})
 
 	const handleToggleSelectAllFiltered = () => {
 		const id = unref(params.locationId)
 		const sync = unref(params.membersSync)
 		if (id == null || !sync) return
-		const personIds = filteredCandidates.value.map((p) => p.id)
+		const personIds = groupFilter.groupFilteredCandidates.value.map((p) => p.id)
 		sync.toggleManyLocationMembers(id, personIds, !isAllFilteredKept.value)
 	}
 
 	const prepareGroupPicker = async () => {
-		await refresh()
-		pickDefaultChildGroup()
+		await groupFilter.prepareGroupFilter()
 	}
-
-	watch(memberCandidates, () => {
-		if (selectedChildGroupId.value === ALL_PERSON_GROUP_FILTER_ID) return
-		const count = memberCountByChildId.value[selectedChildGroupId.value] ?? 0
-		if (count === 0) pickDefaultChildGroup()
-	})
 
 	return {
 		...basePicker,
-		groupTree,
-		isGroupTreeLoading,
-		groupTreeError,
-		selectedChildGroupId,
-		selectedGroupLabel,
-		memberCountByChildId,
-		hasUngroupedCandidates,
-		filteredCandidates,
-		hasFilteredCandidates,
-		selectChildGroup,
+		groupTree: groupFilter.groupTree,
+		isGroupTreeLoading: groupFilter.isGroupTreeLoading,
+		groupTreeError: groupFilter.groupTreeError,
+		selectedChildGroupId: groupFilter.selectedChildGroupId,
+		selectedGroupLabel: groupFilter.selectedGroupLabel,
+		memberCountByChildId: groupFilter.memberCountByChildId,
+		hasUngroupedCandidates: groupFilter.hasUngroupedCandidates,
+		filteredCandidates: groupFilter.groupFilteredCandidates,
+		hasFilteredCandidates: groupFilter.hasGroupFilteredCandidates,
+		selectChildGroup: groupFilter.selectChildGroup,
 		isAllFilteredKept,
 		handleToggleSelectAllFiltered,
 		prepareGroupPicker,

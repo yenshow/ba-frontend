@@ -59,10 +59,10 @@ interface FilterOption {
 }
 
 interface Props {
-	modelValue: string;
-	options: FilterOption[];
-	placeholder?: string;
-	textSize?: string;
+	modelValue: string
+	options: FilterOption[]
+	placeholder?: string
+	textSize?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -115,9 +115,9 @@ const isSelected = (value: string): boolean => {
 
 // 計算顯示值
 const displayValue = computed(() => {
-	const selectedOption = props.options.find(opt => isSelected(opt.value));
-	return selectedOption?.label || props.placeholder;
-});
+	const selectedOption = props.options.find(opt => isSelected(opt.value))
+	return selectedOption?.label || props.placeholder
+})
 
 // 選擇選項
 const selectOption = (value: string) => {

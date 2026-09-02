@@ -15,7 +15,11 @@
 			@update:query="emit('update:query', $event)"
 			@search="emit('search')"
 			@toggle-select-all="emit('toggleSelectAll')"
-		/>
+		>
+			<template v-if="$slots['context-trailing']" #context-trailing>
+				<slot name="context-trailing" />
+			</template>
+		</PersonnelMemberPickerToolbar>
 
 		<AsyncPanel
 			class="min-h-0 flex-1"
