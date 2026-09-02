@@ -134,6 +134,29 @@
 						</td>
 					</tr>
 				</tbody>
+				<tbody v-if="placeholderRowCount > 0" aria-hidden="true">
+					<tr
+						v-for="n in placeholderRowCount"
+						:key="`placeholder-${n}`"
+						class="monitoring-log-row monitoring-log-row--placeholder pointer-events-none select-none"
+					>
+						<td
+							v-for="col in recordColumns"
+							:key="`placeholder-${n}-${col}`"
+							class="people-log-cell-pad p-2"
+							:class="col === 'screenshot' ? 'flex items-center justify-center' : ''"
+						>
+							<span
+								v-if="col === 'screenshot'"
+								class="block h-12 w-12 2xl:h-16 2xl:w-16"
+							/>
+							<span v-else-if="col === 'time'" class="block text-xs opacity-0 2xl:text-sm">
+								00:00:00
+							</span>
+							<span v-else class="block text-sm opacity-0 2xl:text-base">—</span>
+						</td>
+					</tr>
+				</tbody>
 			</table>
 		</div>
 	</div>
@@ -167,6 +190,7 @@ import {
 	isFaceRecognitionCameraMode,
 	type PeopleCountingCameraMode,
 } from "~/utils/peopleCountingCameraMode"
+import { ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE } from "~/utils/entryExitTimeRange"
 
 interface Props {
 	logs: PeopleCountingLog[]
@@ -199,6 +223,11 @@ const recordColumns = computed(() =>
 const recordColumnLabels = computed(() =>
 	buildRecordColumnLabels(isCameraRegionColumns.value)
 )
+
+const placeholderRowCount = computed(() => {
+	if (props.logs.length === 0) return 0
+	return Math.max(0, ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE - props.logs.length)
+})
 
 const parseTimestamp = (ts: string | null | undefined): { date: string; time: string } => {
 	const raw = (ts ?? "").trim()

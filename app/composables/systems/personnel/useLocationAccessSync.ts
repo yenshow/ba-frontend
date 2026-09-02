@@ -2,25 +2,11 @@ import { TOAST } from "~/config/toastCatalog"
 import { computed, reactive, ref, type Ref } from "vue"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import type { useLocationApi } from "~/composables/location/api/useLocationApi"
-import {
-	SYNC_WARNING_LABELS,
-	findSyncCandidateByEmployeeNo,
-	getOverallSyncDisplayLabel,
-	resolveOverallSyncStatus,
-	syncStepPillClass,
-	syncStepShortLabel,
-} from "~/utils/personnelUtils"
+import { SYNC_WARNING_LABELS } from "~/utils/personnelUtils"
 import { usePersonnelSyncEngine } from "~/composables/systems/personnel/usePersonnelSyncEngine"
-import {
-	clampOffset,
-	getNextOffset,
-	getPrevOffset,
-} from "~/composables/systems/personnel/personnelList"
 import { useLocationMembersOnly } from "~/composables/systems/personnel/useLocationMembersStep"
 import { useDeviceSyncObserver, indexSyncableLocationDevices } from "~/composables/systems/personnel/useDeviceSyncCore"
 import { enrichSyncWarningsWithLocation, finalizeSyncWarningsForDisplay } from "~/utils/personnelUtils"
-
-type LocationId = number
 
 export const useLocationAccessSync = (params: {
 	personnelApi: PersonnelApi
@@ -54,9 +40,6 @@ export const useLocationAccessSync = (params: {
 		}
 	}
 
-	const SYNC_CANDIDATES_PAGE_SIZE = 10
-	const syncCandidatesOffsetByLocation = reactive<Record<number, number>>({})
-
 	const syncEngine = usePersonnelSyncEngine({
 		personnelApi,
 		toast,
@@ -75,9 +58,7 @@ export const useLocationAccessSync = (params: {
 		activeSyncLocationId,
 		activeSyncJob,
 		isPollingSyncJob,
-		lastCompletedSyncByLocationId,
 		syncOneLocation,
-		getWarningsForLocation,
 		isLocationSyncJobRunning,
 		getSyncStepRowsForLocation,
 	} = syncEngine
@@ -134,68 +115,19 @@ export const useLocationAccessSync = (params: {
 
 	const prepareLocationDialog = async (locationId: number) => {
 		await loadLocationSyncDevicesLabels()
-		await membersOnly.loadAllLocationMembers(locationId)
+		await Promise.all([
+			membersOnly.loadAllLocationMembers(locationId),
+			ensureSyncCandidates(locationId),
+		])
 	}
 
-	const ensureStep2Data = async (locationId: number) => {
-		await loadLocationSyncDevicesLabels()
-		await ensureSyncCandidates(locationId)
+	const getSyncRowByEmployeeNo = (locationId: number, employeeNo: string) => {
+		const rows = getSyncStepRowsForLocation(locationId)
+		return rows.find((r) => String(r.employeeNo) === String(employeeNo)) ?? null
 	}
 
 	const isSyncLocationCandidatesLoading = (locationId: number) =>
 		isSyncCandidatesLoading(locationId)
-
-	const getSyncOffset = (locationId: number) =>
-		Math.max(0, Math.trunc(Number(syncCandidatesOffsetByLocation[locationId] ?? 0)))
-	const setSyncOffset = (locationId: number, nextOffset: number) => {
-		const total = (syncCandidatesByLocation[locationId] ?? []).length
-		syncCandidatesOffsetByLocation[locationId] = clampOffset({
-			offset: nextOffset,
-			total,
-			limit: SYNC_CANDIDATES_PAGE_SIZE,
-		})
-	}
-	const goPrevSyncPage = (locationId: number) => {
-		setSyncOffset(
-			locationId,
-			getPrevOffset({ offset: getSyncOffset(locationId), limit: SYNC_CANDIDATES_PAGE_SIZE })
-		)
-	}
-	const goNextSyncPage = (locationId: number) => {
-		const total = (syncCandidatesByLocation[locationId] ?? []).length
-		setSyncOffset(
-			locationId,
-			getNextOffset({ offset: getSyncOffset(locationId), total, limit: SYNC_CANDIDATES_PAGE_SIZE })
-		)
-	}
-	const getPagedSyncStepRowsForLocation = (locationId: number) => {
-		const all = getSyncStepRowsForLocation(locationId)
-		const total = all.length
-		const limit = SYNC_CANDIDATES_PAGE_SIZE
-		const offset = clampOffset({ offset: getSyncOffset(locationId), total, limit })
-		const rows = all.slice(offset, offset + limit)
-		return { rows, total, offset, limit }
-	}
-
-	const getSyncCandidatesForLocation = (locationId: number) =>
-		Object.prototype.hasOwnProperty.call(syncCandidatesByLocation, locationId)
-			? (syncCandidatesByLocation[locationId] ?? [])
-			: []
-
-	const getCandidateLastSyncLabel = (locationId: number, employeeNo: string) => {
-		const cand = findSyncCandidateByEmployeeNo(getSyncCandidatesForLocation(locationId), employeeNo)
-		const resolved = resolveOverallSyncStatus({
-			employeeNo,
-			candidate: cand,
-			warnings: getWarningsForLocation(locationId),
-			locationId,
-			activeSyncLocationId: activeSyncLocationId.value,
-			activeSyncJobStatus: activeSyncJob.value?.status ?? null,
-			activeSyncJobFinishedAt: activeSyncJob.value?.finishedAt,
-			lastCompletedCache: lastCompletedSyncByLocationId[locationId],
-		})
-		return getOverallSyncDisplayLabel(resolved, cand)
-	}
 
 	const isLocationCurrentlySyncing = (locationId: number) =>
 		isLocationSyncJobRunning(locationId) ||
@@ -220,21 +152,14 @@ export const useLocationAccessSync = (params: {
 		syncWarnings,
 		syncWarningTypeLabel,
 		openWarningsDialog,
-		loadLocationSyncDevicesLabels,
 		getLocationDevicesLabel,
 		prepareLocationDialog,
-		ensureStep2Data,
 		syncOneLocation,
-		ensureSyncCandidates,
 		isSyncLocationCandidatesLoading,
-		getPagedSyncStepRowsForLocation,
-		syncStepPillClass,
-		syncStepShortLabel,
-		getCandidateLastSyncLabel,
 		isLocationCurrentlySyncing,
 		isLocationSyncButtonDisabled,
-		goPrevSyncPage,
-		goNextSyncPage,
+		getSyncRowByEmployeeNo,
+		getSyncStepRowsForLocation,
 		...membersOnly,
 		applyLocationMembers,
 	}

@@ -46,7 +46,7 @@
 				</slot>
 			</div>
 
-			<div v-else key="content">
+			<div v-else key="content" class="flex min-h-0 flex-1 flex-col">
 				<slot />
 			</div>
 		</Transition>
@@ -114,7 +114,9 @@ const resolvedLoadingMin = computed(() => {
 });
 const resolvedEmptyMin = computed(() => props.emptyMinHeightClass ?? sizePreset.value.empty);
 
-const rootClass = computed(() => ["w-full", props.minHeightClass].filter(Boolean));
+const rootClass = computed(() =>
+	["flex w-full min-h-0 flex-col", props.minHeightClass].filter(Boolean),
+);
 
 const slots = useSlots();
 

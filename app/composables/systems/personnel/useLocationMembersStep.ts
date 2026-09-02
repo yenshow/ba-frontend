@@ -4,14 +4,14 @@ import type { Person } from "~/types/personnel"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { fetchAllPersonnelCandidates } from "~/composables/systems/personnel/personnelList"
 import { usePageSelectAll } from "~/composables/systems/personnel/usePageSelectAll"
-import { groupPersonsByPersonGroup } from "~/utils/personnelUtils"
 import { resolveFormApiError } from "~/utils/apiError"
 
 type LocationId = number
 type MaybeRef<T> = Ref<T> | ComputedRef<T>
 
-export const LOCATION_MEMBERS_PANEL_MIN_HEIGHT = "min-h-[min(360px,50vh)]"
-export const SYNC_TABLE_PANEL_MIN_HEIGHT = "min-h-[320px]"
+export const LOCATION_MEMBERS_PANEL_MIN_HEIGHT = "min-h-[min(480px,62vh)]"
+/** 雙欄 panel 固定高度（左右同高、內部捲動） */
+export const LOCATION_MEMBERS_PANEL_HEIGHT = "h-[min(480px,62vh)]"
 
 /** 地點可進出人員（person_location_access）— Step 1 SSOT，不含設備 sync */
 export const useLocationMembersOnly = (params: {
@@ -188,9 +188,6 @@ export const useLocationMembersPicker = (params: {
 		return ctx.sync.getLocationCandidatesItems(ctx.id)
 	})
 
-	const memberCandidateGroups = computed(() => groupPersonsByPersonGroup(memberCandidates.value))
-	const hasMemberCandidates = computed(() => memberCandidates.value.length > 0)
-
 	const membersQuery = computed({
 		get: () => pickerCtx.value?.sync.getLocationCandidatesQuery(pickerCtx.value.id) ?? "",
 		set: (v: string) => {
@@ -250,8 +247,6 @@ export const useLocationMembersPicker = (params: {
 	}
 
 	return {
-		memberCandidateGroups,
-		hasMemberCandidates,
 		membersQuery,
 		isApplyingMembers,
 		isLoadingMembers,

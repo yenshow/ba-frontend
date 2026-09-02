@@ -136,14 +136,14 @@ export function usePeopleCountingLocationValidation() {
 					: []
 				const effectiveEntry = entryCam.length > 0 ? entryCam : legacyCam
 				if (effectiveEntry.length === 0) {
-					errors.push("請選擇進場攝影機")
+					errors.push("請選擇入口攝影機")
 				}
 				if (exitCam.length === 0) {
-					errors.push("請選擇出場攝影機")
+					errors.push("請選擇出口攝影機")
 				}
 				const entrySet = new Set(effectiveEntry)
 				for (const id of exitCam) {
-					if (entrySet.has(id)) errors.push("進場與出場請勿選擇同一攝影機")
+					if (entrySet.has(id)) errors.push("入口與出口請勿選擇同一攝影機")
 				}
 			} else {
 				const cameraDeviceIds = Array.isArray(location.cameraDeviceIds)

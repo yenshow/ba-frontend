@@ -403,6 +403,10 @@ html:not(.dark) .select-filter option {
 	border-bottom: 1px solid var(--monitoring-log-row-border);
 }
 
+.monitoring-log-panel .monitoring-log-row--placeholder {
+	border-bottom-color: color-mix(in srgb, var(--monitoring-log-row-border) 40%, transparent);
+}
+
 /* 警示紀錄卡片內嵌資訊列（對齊警報設定表格列底） */
 .alert-meta-panel {
 	@apply monitoring-chip-bg;

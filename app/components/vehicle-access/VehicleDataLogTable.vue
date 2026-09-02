@@ -115,6 +115,29 @@
 						</td>
 					</tr>
 				</tbody>
+				<tbody v-if="placeholderRowCount > 0" aria-hidden="true">
+					<tr
+						v-for="n in placeholderRowCount"
+						:key="`placeholder-${n}`"
+						class="monitoring-log-row monitoring-log-row--placeholder pointer-events-none select-none"
+					>
+						<td
+							v-for="col in displayColumns"
+							:key="`placeholder-${n}-${col}`"
+							class="vehicle-log-cell-pad p-2"
+							:class="col === 'plate_image' ? 'flex items-center justify-center' : ''"
+						>
+							<span
+								v-if="col === 'plate_image'"
+								class="block h-12 w-12 2xl:h-16 2xl:w-16"
+							/>
+							<span v-else-if="col === 'time'" class="block text-xs opacity-0 2xl:text-sm">
+								00:00:00
+							</span>
+							<span v-else class="block text-sm opacity-0 2xl:text-base">—</span>
+						</td>
+					</tr>
+				</tbody>
 			</table>
 		</div>
 	</div>
@@ -144,6 +167,7 @@ import {
 	getVehiclePassResultTagClass,
 	type VehicleAccessLogColumnKey
 } from "~/utils/vehicleAccessLogColumns";
+import { ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE } from "~/utils/entryExitTimeRange";
 
 interface Props {
 	logs: VehicleDataLog[];
@@ -155,6 +179,11 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const displayColumns = computed(() => normalizeVehicleLogDisplayColumns(props.displayColumns));
+
+const placeholderRowCount = computed(() => {
+	if (props.logs.length === 0) return 0;
+	return Math.max(0, ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE - props.logs.length);
+});
 
 const {
 	urls: imageUrls,

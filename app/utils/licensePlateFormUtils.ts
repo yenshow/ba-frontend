@@ -3,11 +3,13 @@ import type {
 	PersonLicensePlateFormItem,
 	PersonLicensePlateListType,
 	PersonLicensePlateSyncStatus,
+	LocationLicensePlateRow,
 } from "~/types/personnel";
 import type {
 	VehicleLicensePlateAuditItem,
 	VehicleLicensePlateListType,
 } from "~/types/vehicleAccess";
+import type { SyncStepUiStatus } from "~/utils/personnelUtils";
 
 const VALID_PLATE_LIST_TYPES = new Set<string>(["allowList", "blockList"]);
 
@@ -213,37 +215,71 @@ export const isapiPlateFormFromLocationRow = (row: {
 	bindPersonId: String(row.person_id),
 });
 
-export type PlateSyncPill = { label: string; className: string };
-
-const PLATE_SYNC_PILL_CLASS: Record<string, string> = {
-	synced: "bg-emerald-500/25 text-emerald-100 ring-emerald-400/40",
-	pending: "bg-amber-500/20 text-amber-100 ring-amber-400/35",
-	partial: "bg-orange-500/20 text-orange-100 ring-orange-400/35",
-	failed: "bg-rose-500/25 text-rose-100 ring-rose-400/40",
-};
-
-const PLATE_SYNC_PILL_LABEL: Record<string, string> = {
-	synced: "已同步",
-	pending: "待同步",
-	partial: "部分失敗",
-	failed: "失敗",
-};
-
-export const getPlateSyncPill = (
+export const plateSyncStatusToUiStatus = (
 	status?: PersonLicensePlateSyncStatus | string | null,
-): PlateSyncPill => {
+): SyncStepUiStatus => {
 	const raw = String(status || "").trim().toLowerCase();
-	const key =
-		raw === "synced"
-			? "synced"
-			: raw === "partial"
-				? "partial"
-				: raw === "failed"
-					? "failed"
-					: "pending";
-	return {
-		label: PLATE_SYNC_PILL_LABEL[key] ?? "待同步",
-		className: `inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 2xl:text-sm ${PLATE_SYNC_PILL_CLASS[key]}`,
-	};
+	if (raw === "synced") return "success";
+	if (raw === "failed") return "failed";
+	if (raw === "partial" || raw === "pending") return "pending";
+	return "no_data";
+};
+
+/** 人員主檔是否已登記車牌（對齊人員列表「資料（平台）」欄） */
+export const personHasLicensePlates = (person: Person): boolean => {
+	const count = Number(person.license_plate_count ?? 0)
+	if (count > 0) return true
+	return (person.license_plates ?? []).some((p) => String(p.plate_number ?? "").trim())
+}
+
+type PlateSyncSource = { isapi_sync_status?: string | null }
+
+/** 地點名單 UI：優先用地點 API 列（含 ISAPI 狀態），否則回退人員主檔 */
+export const resolvePersonPlateSyncSources = (
+	person: Person,
+	locationRows: LocationLicensePlateRow[],
+): PlateSyncSource[] => {
+	if (locationRows.length > 0) {
+		return locationRows.map((row) => ({ isapi_sync_status: row.isapi_sync_status }))
+	}
+	const master = (person.license_plates ?? []).filter((p) => String(p.plate_number ?? "").trim())
+	if (master.length > 0) {
+		return master.map((p) => ({
+			isapi_sync_status: p.isapi_sync_status ?? "pending",
+		}))
+	}
+	const count = Number(person.license_plate_count ?? 0)
+	if (count > 0) {
+		return Array.from({ length: count }, () => ({ isapi_sync_status: "pending" }))
+	}
+	return []
+}
+
+/** 地點名單 UI：車牌列顯示（僅有完整資料時；count-only 不回傳假列） */
+export const resolvePersonPlateDisplayRows = (
+	person: Person,
+	locationRows: LocationLicensePlateRow[],
+): LocationLicensePlateRow[] => {
+	if (locationRows.length > 0) return locationRows
+	const master = (person.license_plates ?? []).filter((p) => String(p.plate_number ?? "").trim())
+	if (master.length === 0) return []
+	return master.map((plate) => ({
+		...plate,
+		employee_no: person.employee_no,
+		full_name: person.full_name,
+		person_status: person.status,
+		isapi_sync_status: plate.isapi_sync_status ?? "pending",
+	}))
+}
+
+/** 彙整人員多張車牌的同步 UI 狀態（失敗 > 待同步 > 成功） */
+export const aggregatePlateSyncUiStatus = (
+	statuses: Array<PersonLicensePlateSyncStatus | string | null | undefined>,
+): SyncStepUiStatus => {
+	const ui = statuses.map((s) => plateSyncStatusToUiStatus(s));
+	if (ui.some((s) => s === "failed")) return "failed";
+	if (ui.some((s) => s === "pending")) return "pending";
+	if (ui.some((s) => s === "success" || s === "unchanged")) return "success";
+	return "no_data";
 };
 

@@ -16,7 +16,6 @@ import {
 	filterWarningsForLocation,
 	isDeviceLevelSyncWarning,
 } from "~/utils/personnelUtils"
-import { clampOffset, getNextOffset, getPrevOffset } from "~/composables/systems/personnel/personnelList"
 
 export const usePersonnelSyncEngine = (params: {
 	personnelApi: PersonnelApi
@@ -190,7 +189,7 @@ export const usePersonnelSyncEngine = (params: {
 					syncWarnings.value = await finalizeSyncWarningsForDisplay(
 						syncWarnings.value,
 						syncCandidatesByLocation,
-						ensureSyncCandidates,
+						ensureSyncCandidates
 					)
 					updateLastCompletedCacheForLocation({
 						locationId: locId,
@@ -276,7 +275,7 @@ export const usePersonnelSyncEngine = (params: {
 					syncWarnings.value = await finalizeSyncWarningsForDisplay(
 						allWarnings,
 						syncCandidatesByLocation,
-						ensureSyncCandidates,
+						ensureSyncCandidates
 					)
 					if ((syncWarnings.value || []).length > 0) {
 						toast.error(TOAST.SYNC_ALL_COMPLETE_WITH_WARNINGS(syncWarnings.value.length))
@@ -298,10 +297,13 @@ export const usePersonnelSyncEngine = (params: {
 
 	// ---------- step rows + paging + pill ----------
 	const getItemsForLocation = (locationId: number): SyncLocationJobItem[] => {
-		if (activeSyncLocationId.value === locationId && activeSyncJob.value) return activeSyncJobTailItems.value ?? []
+		if (activeSyncLocationId.value === locationId && activeSyncJob.value)
+			return activeSyncJobTailItems.value ?? []
 		const j = activeSyncAllJob.value
 		if (j?.items?.length) {
-			return j.items.filter((it) => it.locationId == null || Number(it.locationId) === Number(locationId))
+			return j.items.filter(
+				(it) => it.locationId == null || Number(it.locationId) === Number(locationId)
+			)
 		}
 		return []
 	}
@@ -336,6 +338,9 @@ export const usePersonnelSyncEngine = (params: {
 		return buildSyncPersonStepRows({ candidates, items, warnings })
 	}
 
+	const getSyncCandidatesForLocation = (locationId: number) =>
+		syncCandidatesByLocation[locationId] ?? []
+
 	return {
 		// candidates
 		syncCandidatesByLocation,
@@ -362,6 +367,6 @@ export const usePersonnelSyncEngine = (params: {
 		getWarningsForLocation,
 		isLocationSyncJobRunning,
 		getSyncStepRowsForLocation,
+		getSyncCandidatesForLocation,
 	}
 }
-

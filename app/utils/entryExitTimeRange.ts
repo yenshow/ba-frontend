@@ -21,9 +21,7 @@ export interface OperationalDayRangeResponse {
 }
 
 /** UI TimeRangePicker preset → 後端 timeRange */
-export const mapUiPresetToBackend = (
-	preset: string
-): EntryExitBackendPreset | "custom" => {
+export const mapUiPresetToBackend = (preset: string): EntryExitBackendPreset | "custom" => {
 	if (preset === "today") return "today";
 	if (preset === "yesterday") return "yesterday";
 	if (preset === "last_7_days") return "last7days";
@@ -50,4 +48,3 @@ export const toSimulationTimeRange = (
 	endDate: range.end,
 	preset
 });
-

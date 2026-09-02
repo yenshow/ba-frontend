@@ -1,6 +1,6 @@
 import { TOAST } from "~/config/toastCatalog"
 import { computed, reactive, ref, type Ref } from "vue"
-import type { LocationLicensePlateRow, SyncWarning } from "~/types/personnel"
+import type { LocationLicensePlateRow, Person, SyncWarning } from "~/types/personnel"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import type { useLocationApi } from "~/composables/location/api/useLocationApi"
 import {
@@ -8,11 +8,6 @@ import {
 	formatPersonLabel,
 	locationPlateRowsToSyncWarnings,
 } from "~/utils/personnelUtils"
-import {
-	clampOffset,
-	getNextOffset,
-	getPrevOffset,
-} from "~/composables/systems/personnel/personnelList"
 import { useLocationMembersOnly } from "~/composables/systems/personnel/useLocationMembersStep"
 import { useDeviceSyncObserver, indexSyncableLocationDevices } from "~/composables/systems/personnel/useDeviceSyncCore"
 import { resolveUserFacingCatchMessage } from "~/utils/apiError"
@@ -21,11 +16,11 @@ import {
 	isapiPlateFormFromLocationRow,
 	licensePlateItemsToPayload,
 	mapPersonLicensePlatesToForm,
+	resolvePersonPlateDisplayRows,
 	validateLicensePlateFormItems,
 	type IsapiPlateFormModel,
 } from "~/utils/licensePlateFormUtils"
-
-const PLATES_PAGE_SIZE = 10
+import { buildLocationMemberPlateSyncIndicators } from "~/utils/syncCredentialIcons"
 
 export const useLocationPlateSync = (params: {
 	personnelApi: PersonnelApi
@@ -46,7 +41,6 @@ export const useLocationPlateSync = (params: {
 	const platesByLocationId = reactive<Record<number, LocationLicensePlateRow[]>>({})
 	const platesLoading = reactive<Record<number, boolean>>({})
 	const platesErrorByLocation = reactive<Record<number, string>>({})
-	const platesOffsetByLocation = reactive<Record<number, number>>({})
 	const activeSyncLocationId = ref<number | null>(null)
 	const isSyncingPlates = ref(false)
 	const showWarningsDialog = ref(false)
@@ -92,41 +86,6 @@ export const useLocationPlateSync = (params: {
 	const getPlatesForLocation = (locationId: number) => platesByLocationId[locationId] ?? []
 
 	const getPlatesError = (locationId: number) => (platesErrorByLocation[locationId] || "").trim()
-
-	const getPlatesOffset = (locationId: number) =>
-		Math.max(0, Math.trunc(Number(platesOffsetByLocation[locationId] ?? 0)))
-
-	const setPlatesOffset = (locationId: number, nextOffset: number) => {
-		const total = getPlatesForLocation(locationId).length
-		platesOffsetByLocation[locationId] = clampOffset({
-			offset: nextOffset,
-			total,
-			limit: PLATES_PAGE_SIZE,
-		})
-	}
-
-	const getPagedPlatesForLocation = (locationId: number) => {
-		const all = getPlatesForLocation(locationId)
-		const total = all.length
-		const limit = PLATES_PAGE_SIZE
-		const offset = clampOffset({ offset: getPlatesOffset(locationId), total, limit })
-		return { rows: all.slice(offset, offset + limit), total, offset, limit }
-	}
-
-	const goPrevPlatesPage = (locationId: number) => {
-		setPlatesOffset(
-			locationId,
-			getPrevOffset({ offset: getPlatesOffset(locationId), limit: PLATES_PAGE_SIZE }),
-		)
-	}
-
-	const goNextPlatesPage = (locationId: number) => {
-		const total = getPlatesForLocation(locationId).length
-		setPlatesOffset(
-			locationId,
-			getNextOffset({ offset: getPlatesOffset(locationId), total, limit: PLATES_PAGE_SIZE }),
-		)
-	}
 
 	const refreshSyncWarnings = (locationId: number, locationName?: string | null) => {
 		syncWarnings.value = locationPlateRowsToSyncWarnings(
@@ -221,8 +180,22 @@ export const useLocationPlateSync = (params: {
 
 	const prepareLocationDialog = async (locationId: number) => {
 		await loadLocationSyncDevicesLabels()
-		await membersOnly.loadAllLocationMembers(locationId)
+		await Promise.all([
+			membersOnly.loadAllLocationMembers(locationId),
+			ensurePlates(locationId),
+			loadPersonBindOptions(locationId),
+		])
+		refreshSyncWarnings(locationId)
 	}
+
+	const getPlatesForPerson = (locationId: number, personId: number) =>
+		getPlatesForLocation(locationId).filter((row) => row.person_id === personId)
+
+	const resolvePlatesForPerson = (locationId: number, person: Person) =>
+		resolvePersonPlateDisplayRows(person, getPlatesForPerson(locationId, person.id))
+
+	const plateSyncIndicatorsForPerson = (locationId: number, person: Person) =>
+		buildLocationMemberPlateSyncIndicators(person, getPlatesForPerson(locationId, person.id))
 
 	const setLocationDisplayName = (locationId: number, name: string) => {
 		locationNameById[locationId] = name
@@ -251,12 +224,6 @@ export const useLocationPlateSync = (params: {
 		} finally {
 			isLoadingPersonOptions.value = false
 		}
-	}
-
-	const ensureStep2Data = async (locationId: number) => {
-		await loadLocationSyncDevicesLabels()
-		await Promise.all([loadPersonBindOptions(locationId), ensurePlates(locationId)])
-		refreshSyncWarnings(locationId)
 	}
 
 	const pushPersonPlatesToDevices = async (locationId: number, personId: number, plates: ReturnType<typeof licensePlateItemsToPayload>) => {
@@ -364,12 +331,8 @@ export const useLocationPlateSync = (params: {
 		setLocationDisplayName,
 		prepareLocationDialog,
 		ensurePlates,
-		ensureStep2Data,
 		isPlatesLoading,
 		getPlatesError,
-		getPagedPlatesForLocation,
-		goPrevPlatesPage,
-		goNextPlatesPage,
 		syncOneLocation,
 		isLocationCurrentlySyncing,
 		isLocationSyncButtonDisabled,
@@ -386,6 +349,10 @@ export const useLocationPlateSync = (params: {
 		cancelPlateForm,
 		savePlate,
 		deletePlate,
+		getPlatesForPerson,
+		getPlatesForLocation,
+		resolvePlatesForPerson,
+		plateSyncIndicatorsForPerson,
 	}
 }
 

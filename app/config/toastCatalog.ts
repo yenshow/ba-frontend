@@ -73,6 +73,7 @@ export const TOAST = {
 
 	// elevator
 	ELEVATOR_FLOOR_ACCESS_APPLIED: "已套用樓層權限",
+	ELEVATOR_FLOOR_NAME_SAVED: "已更新樓層名稱",
 	ELEVATOR_COMMAND_SENT: "指令已送出",
 
 	// vehicle / access
