@@ -5,9 +5,8 @@ import type { ElevatorFloorAccessSlot } from "~/types/elevator"
 import type { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { fetchAllPersonnelCandidates } from "~/composables/systems/personnel/personnelList"
+import { usePersonnelCandidateGroupFilter } from "~/composables/systems/personnel/usePersonnelCandidateGroupFilter"
 import { resolveFormApiError } from "~/utils/apiError"
-import { useLocationApi } from "~/composables/location/api/useLocationApi"
-import { elevatorLocationToUnified } from "~/utils/locationAdapter"
 
 type ElevatorApi = ReturnType<typeof useElevatorApi>
 
@@ -18,15 +17,14 @@ export const useElevatorFloorAccess = (params: {
 	toast: { success: (msg: string) => void; warning: (msg: string, duration?: number) => void }
 }) => {
 	const { locationId, elevatorApi, personnelApi, toast } = params
-	const locationApi = useLocationApi()
 
 	const floors = ref<ElevatorFloorAccessSlot[]>([])
 	const defaultsApplied = ref(false)
 	const candidates = ref<Person[]>([])
 	const candidatesQuery = ref("")
+	const groupFilter = usePersonnelCandidateGroupFilter({ candidates })
 	const isLoading = ref(false)
 	const isApplying = ref(false)
-	const isSavingFloorName = ref(false)
 	const errorText = ref<string | null>(null)
 	const checkedByFloor = reactive<Record<number, Set<number>>>({})
 	const selectedFloorIndex = ref<number | null>(null)
@@ -46,8 +44,9 @@ export const useElevatorFloorAccess = (params: {
 
 	const filteredCandidates = computed(() => {
 		const q = candidatesQuery.value.trim().toLowerCase()
-		if (!q) return candidates.value
-		return candidates.value.filter((p) => {
+		const base = groupFilter.groupFilteredCandidates.value
+		if (!q) return base
+		return base.filter((p) => {
 			const emp = String(p.employee_no || "").toLowerCase()
 			const name = String(p.full_name || "").toLowerCase()
 			return emp.includes(q) || name.includes(q)
@@ -82,6 +81,7 @@ export const useElevatorFloorAccess = (params: {
 			const [accessRes] = await Promise.all([
 				elevatorApi.getFloorAccess(locId),
 				loadCandidates(),
+				groupFilter.prepareGroupFilter(),
 			])
 			floors.value = accessRes.floors || []
 			defaultsApplied.value = Boolean(accessRes.defaultsApplied)
@@ -145,58 +145,12 @@ export const useElevatorFloorAccess = (params: {
 		}
 	}
 
-	const updateFloorDisplayName = async (floorIndex: number, rawName: string) => {
-		const locId = locationId.value
-		if (locId == null) return false
-
-		const nextName = String(rawName ?? "").trim()
-		const current = floors.value.find((f) => f.index === floorIndex)
-		if (!current || current.name === nextName) return true
-
-		const previousName = current.name
-		floors.value = floors.value.map((floor) =>
-			floor.index === floorIndex ? { ...floor, name: nextName } : floor,
-		)
-
-		errorText.value = null
-		isSavingFloorName.value = true
-		try {
-			const detail = await elevatorApi.getLocationDetail(locId)
-			const configFloors = [...(detail.floors ?? [])]
-			const arrayIndex = floorIndex - 1
-			if (arrayIndex < 0 || arrayIndex >= configFloors.length) {
-				errorText.value = "找不到對應樓層"
-				return false
-			}
-
-			configFloors[arrayIndex] = { ...configFloors[arrayIndex], name: nextName }
-			const payload = elevatorLocationToUnified({
-				...detail,
-				id: String(locId),
-				floors: configFloors,
-			})
-			await locationApi.updateLocation(String(locId), payload, "elevator")
-
-			toast.success(TOAST.ELEVATOR_FLOOR_NAME_SAVED)
-			return true
-		} catch (err) {
-			floors.value = floors.value.map((floor) =>
-				floor.index === floorIndex ? { ...floor, name: previousName } : floor,
-			)
-			errorText.value = resolveFormApiError(err, "更新樓層名稱失敗")
-			return false
-		} finally {
-			isSavingFloorName.value = false
-		}
-	}
-
 	return {
 		floors,
 		defaultsApplied,
 		candidatesQuery,
 		isLoading,
 		isApplying,
-		isSavingFloorName,
 		errorText,
 		isPersonChecked,
 		togglePersonOnFloor,
@@ -209,6 +163,13 @@ export const useElevatorFloorAccess = (params: {
 		isAllSelectedFloorKept,
 		toggleSelectAllOnSelectedFloor,
 		filteredCandidates,
-		updateFloorDisplayName,
+		groupTree: groupFilter.groupTree,
+		isGroupTreeLoading: groupFilter.isGroupTreeLoading,
+		groupTreeError: groupFilter.groupTreeError,
+		selectedChildGroupId: groupFilter.selectedChildGroupId,
+		selectedGroupLabel: groupFilter.selectedGroupLabel,
+		memberCountByChildId: groupFilter.memberCountByChildId,
+		hasUngroupedCandidates: groupFilter.hasUngroupedCandidates,
+		selectChildGroup: groupFilter.selectChildGroup,
 	}
 }

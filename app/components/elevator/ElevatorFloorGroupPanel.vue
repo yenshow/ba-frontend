@@ -11,17 +11,15 @@
 		</p>
 
 		<div class="mt-4 grid min-h-0 flex-1 grid-cols-12 items-stretch gap-4 2xl:gap-5">
-			<ElevatorFloorBrowseList
-				:floors="floors"
-				:selected-floor-index="selectedFloorIndex"
-				:selected-count-for-floor="selectedCountForFloor"
-				:loading="isLoading"
-				:error="errorText"
-				:can-edit="canEditFloors"
-				:is-saving-floor-name="isSavingFloorName"
+			<PersonnelGroupBrowseTree
+				:group-tree="groupTree"
+				:selected-child-id="selectedChildGroupId"
+				:member-count-by-child-id="memberCountByChildId"
+				:loading="isGroupTreeLoading"
+				:error="groupTreeError"
+				:show-ungrouped="hasUngroupedCandidates"
 				:panel-height-class="panelHeightClass"
-				@select-floor="emit('selectFloor', $event)"
-				@update-floor-name="(floorIndex, name) => emit('updateFloorName', floorIndex, name)"
+				@select-child="emit('selectChildGroup', $event)"
 			/>
 
 			<section
@@ -37,13 +35,12 @@
 					:can-edit="canEditFloors && selectedFloorIndex != null"
 					:is-disabled="isApplying"
 					:is-loading="isLoading"
-					:is-empty="!isLoading && (selectedFloorIndex == null || filteredCandidates.length === 0)"
+					:is-empty="!isLoading && filteredCandidates.length === 0"
 					:empty-title="membersEmptyTitle"
-					:can-select-all="hasFilteredCandidates && canEditFloors && selectedFloorIndex != null"
+					:can-select-all="filteredCandidates.length > 0 && canEditFloors && selectedFloorIndex != null"
 					:is-all-selected="isAllSelectedFloorKept"
-					context-label="目前樓層"
-					:context-value="selectedFloorContextValue"
-					context-placeholder="請先選擇樓層"
+					context-label="目前群組"
+					:context-value="selectedGroupLabel ?? '全部'"
 					@update:query="emit('update:candidatesQuery', $event)"
 					@search="emit('search')"
 					@toggle-select-all="emit('toggleSelectAll')"
@@ -53,6 +50,16 @@
 						}
 					}"
 				>
+					<template #context-trailing>
+						<ElevatorFloorFilter
+							:floors="floors"
+							:selected-floor-index="selectedFloorIndex"
+							:selected-count-for-floor="selectedCountForFloor"
+							:loading="isLoading"
+							:disabled="isApplying"
+							@select="emit('selectFloor', $event)"
+						/>
+					</template>
 					<template #person-indicators="{ person }">
 						<slot name="person-indicators" :person="person" />
 					</template>
@@ -80,11 +87,13 @@
 
 <script setup lang="ts">
 import { computed } from "vue"
-import type { Person } from "~/types/personnel"
+import type { Person, PersonGroup } from "~/types/personnel"
 import type { ElevatorFloorAccessSlot } from "~/types/elevator"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
-import ElevatorFloorBrowseList from "~/components/elevator/ElevatorFloorBrowseList.vue"
+import ElevatorFloorFilter from "~/components/elevator/ElevatorFloorFilter.vue"
+import PersonnelGroupBrowseTree from "~/components/personnel/PersonnelGroupBrowseTree.vue"
 import PersonnelMemberPickerPanel from "~/components/personnel/PersonnelMemberPickerPanel.vue"
+import { ALL_PERSON_GROUP_FILTER_ID } from "~/utils/personnelUtils"
 import { LOCATION_MEMBERS_PANEL_HEIGHT } from "~/composables/systems/personnel/useLocationMembersStep"
 
 const props = withDefaults(
@@ -94,45 +103,44 @@ const props = withDefaults(
 		candidatesQuery: string
 		searchInputId: string
 		filteredCandidates: Person[]
-		hasFilteredCandidates: boolean
 		canEditFloors: boolean
 		isApplying: boolean
-		isSavingFloorName?: boolean
 		isLoading: boolean
 		errorText: string | null
 		defaultsApplied?: boolean
 		isAllSelectedFloorKept: boolean
 		isPersonChecked: (floorIndex: number, personId: number) => boolean
 		selectedCountForFloor: (floorIndex: number) => number
+		groupTree: PersonGroup[]
+		selectedChildGroupId: number
+		selectedGroupLabel?: string | null
+		memberCountByChildId: Record<number, number>
+		hasUngroupedCandidates: boolean
+		isGroupTreeLoading?: boolean
+		groupTreeError?: string | null
 		applyLabel?: string
 		panelHeightClass?: string
 	}>(),
 	{
 		applyLabel: "套用權限",
-		isSavingFloorName: false,
 		panelHeightClass: LOCATION_MEMBERS_PANEL_HEIGHT,
 	},
 )
 
-const selectedFloorContextValue = computed(() => {
-	if (props.selectedFloorIndex == null) return null
-	const floor = props.floors.find((f) => f.index === props.selectedFloorIndex)
-	if (!floor) return null
-	const name = String(floor.name ?? "").trim()
-	return name ? `${floor.code} ${name}` : floor.code
+const membersEmptyTitle = computed(() => {
+	if (props.selectedChildGroupId !== ALL_PERSON_GROUP_FILTER_ID && props.filteredCandidates.length === 0) {
+		return "此群組尚無人員"
+	}
+	return "尚無人員"
 })
-
-const membersEmptyTitle = computed(() =>
-	props.selectedFloorIndex == null ? "請先選擇左側樓層" : "此樓層尚無可選人員",
-)
 
 const emit = defineEmits<{
 	"update:candidatesQuery": [value: string]
 	search: []
 	selectFloor: [floorIndex: number]
+	selectChildGroup: [childId: number]
 	toggleSelectAll: []
 	togglePerson: [floorIndex: number, personId: number, checked: boolean]
-	updateFloorName: [floorIndex: number, name: string]
 	apply: []
 }>()
 </script>

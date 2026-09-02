@@ -16,22 +16,27 @@
 			:candidates-query="candidatesQuery"
 			search-input-id="elevator-floor-members-search"
 			:filtered-candidates="filteredCandidates"
-			:has-filtered-candidates="filteredCandidates.length > 0"
 			:can-edit-floors="canEditFloors"
 			:is-applying="isApplying"
-			:is-saving-floor-name="isSavingFloorName"
 			:is-loading="isLoading || isSyncCandidatesLoading"
 			:error-text="errorText"
 			:defaults-applied="defaultsApplied"
 			:is-all-selected-floor-kept="isAllSelectedFloorKept"
 			:is-person-checked="isPersonChecked"
 			:selected-count-for-floor="selectedCountForFloor"
+			:group-tree="groupTree"
+			:selected-child-group-id="selectedChildGroupId"
+			:selected-group-label="selectedGroupLabel"
+			:member-count-by-child-id="memberCountByChildId"
+			:has-ungrouped-candidates="hasUngroupedCandidates"
+			:is-group-tree-loading="isGroupTreeLoading"
+			:group-tree-error="groupTreeError"
 			@update:candidates-query="candidatesQuery = $event"
 			@search="handleSearchCandidates"
 			@select-floor="selectFloor"
+			@select-child-group="selectChildGroup"
 			@toggle-select-all="toggleSelectAllOnSelectedFloor"
 			@toggle-person="togglePersonOnFloor"
-			@update-floor-name="handleUpdateFloorName"
 			@apply="handleApplyFloorAccess"
 		>
 			<template #toolbar>
@@ -115,7 +120,6 @@ const {
 	candidatesQuery,
 	isLoading,
 	isApplying,
-	isSavingFloorName,
 	errorText,
 	isPersonChecked,
 	togglePersonOnFloor,
@@ -128,7 +132,14 @@ const {
 	isAllSelectedFloorKept,
 	toggleSelectAllOnSelectedFloor,
 	filteredCandidates,
-	updateFloorDisplayName,
+	groupTree,
+	isGroupTreeLoading,
+	selectedChildGroupId,
+	selectedGroupLabel,
+	memberCountByChildId,
+	hasUngroupedCandidates,
+	groupTreeError,
+	selectChildGroup,
 } = useElevatorFloorAccess({
 	locationId: toRef(props, "locationId"),
 	elevatorApi,
@@ -137,11 +148,6 @@ const {
 })
 
 const handleClose = () => emit("update:modelValue", false)
-
-const handleUpdateFloorName = async (floorIndex: number, name: string) => {
-	const ok = await updateFloorDisplayName(floorIndex, name)
-	if (ok) emit("floorsUpdated")
-}
 
 const handleApplyFloorAccess = async () => {
 	const result = await applyFloorAccess()
