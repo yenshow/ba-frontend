@@ -91,20 +91,16 @@
 										<FilterDropdown
 											v-model="localCaptureDeviceIdString"
 											:options="accessControlDeviceOptions"
-											placeholder="選擇門禁設備"
+											placeholder="選擇來源設備"
 											text-size="text-sm 2xl:text-base"
 										/>
 									</div>
 									<PermissionActionButton
 										native-type="button"
-										:allowed="
-											canCaptureFromDevice &&
-											!isCapturingFace &&
-											hasSelectedCaptureDevice &&
-											hasAccessControlDevices
-										"
+										:allowed="canShowCaptureActions"
+										:disabled="!localCaptureDeviceIdString || isCapturingFace"
 										aria-label="從設備截圖"
-										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white enabled:hover:bg-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-300/50"
+										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-300/50 enabled:hover:bg-cyan-400"
 										@click="handleCaptureFace"
 									>
 										{{ isCapturingFace ? "截圖中..." : "截圖" }}
@@ -230,18 +226,14 @@
 										<FilterDropdown
 											v-model="localCardDeviceIdString"
 											:options="accessControlDeviceOptions"
-											placeholder="選擇門禁設備"
+											placeholder="選擇來源設備"
 											text-size="text-sm 2xl:text-base"
 										/>
 									</div>
 									<PermissionActionButton
 										native-type="button"
-										:allowed="
-											canCaptureFromDevice &&
-											!isCapturingCard &&
-											hasSelectedCardDevice &&
-											hasAccessControlDevices
-										"
+										:allowed="canShowCaptureActions"
+										:disabled="!localCardDeviceIdString || isCapturingCard"
 										aria-label="從設備讀取卡號"
 										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white enabled:hover:bg-cyan-400 md:w-auto"
 										@click="handleCaptureCard"
@@ -305,18 +297,14 @@
 										<FilterDropdown
 											v-model="localFingerDeviceIdString"
 											:options="accessControlDeviceOptions"
-											placeholder="選擇門禁設備"
+											placeholder="選擇來源設備"
 											text-size="text-sm 2xl:text-base"
 										/>
 									</div>
 									<PermissionActionButton
 										native-type="button"
-										:allowed="
-											canCaptureFromDevice &&
-											!isCapturingFingerPrint &&
-											hasSelectedFingerDevice &&
-											hasAccessControlDevices
-										"
+										:allowed="canShowCaptureActions"
+										:disabled="!localFingerDeviceIdString || isCapturingFingerPrint"
 										aria-label="讀取指紋模板"
 										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white enabled:hover:bg-cyan-400"
 										@click="handleCaptureFingerPrint"
@@ -477,7 +465,7 @@ import {
 	MAX_PERSON_CARDS,
 	createEmptyCardFormItem,
 	sanitizeCardNoInput,
-	reconcileCardSourceAfterManualEdit,
+	reconcileCardSourceAfterManualEdit
 } from "~/utils/cardFormUtils";
 import {
 	MAX_PERSON_FINGERPRINTS,
@@ -507,9 +495,7 @@ const emit = defineEmits<{
 
 const isEditingPerson = computed(() => props.state.editingPerson.value != null);
 
-const formErrorText = computed(
-	() => (props.state.ui.errorMessage.value || "").trim() || null
-);
+const formErrorText = computed(() => (props.state.ui.errorMessage.value || "").trim() || null);
 
 const faceFileInputRef = ref<HTMLInputElement | null>(null);
 
@@ -589,10 +575,17 @@ const resolvedFaceUrl = computed(() => {
 	return trimmed ? trimmed : null;
 });
 
-const hasAccessControlDevices = computed(
-	() =>
-		Array.isArray(props.state.accessControl.accessControlDevices.value) &&
-		props.state.accessControl.accessControlDevices.value.length > 0
+const accessControlDeviceOptions = computed(() => {
+	return (props.state.accessControl.accessControlDevices.value || []).map(d => ({
+		value: String(d.id),
+		label: d.name
+	}));
+});
+
+const hasAccessControlDevices = computed(() => accessControlDeviceOptions.value.length > 0);
+
+const canShowCaptureActions = computed(
+	() => canCaptureFromDevice.value && hasAccessControlDevices.value
 );
 
 const isCapturingFace = computed(() => Boolean(props.state.capture.isCapturingFace.value));
@@ -609,32 +602,17 @@ const cardErrorText = computed(
 	() => (props.state.capture.cardErrorMessage.value || "").trim() || null
 );
 
-const accessControlDeviceOptions = computed(() => {
-	return (props.state.accessControl.accessControlDevices.value || []).map(d => ({
-		value: String(d.id),
-		label: d.name
-	}));
-});
+const bindNullableDeviceId = (deviceId: { value: number | null }) =>
+	computed<string>({
+		get: () => (deviceId.value == null ? "" : String(deviceId.value)),
+		set: v => {
+			deviceId.value = v ? Number(v) : null;
+		}
+	});
 
-const localCaptureDeviceIdString = computed<string>({
-	get: () =>
-		props.state.capture.captureDeviceId.value == null
-			? ""
-			: String(props.state.capture.captureDeviceId.value),
-	set: v => (props.state.capture.captureDeviceId.value = v ? Number(v) : null)
-});
+const localCaptureDeviceIdString = bindNullableDeviceId(props.state.capture.captureDeviceId);
 
-const hasSelectedCaptureDevice = computed(() => props.state.capture.captureDeviceId.value != null);
-
-const localCardDeviceIdString = computed<string>({
-	get: () =>
-		props.state.capture.cardDeviceId.value == null
-			? ""
-			: String(props.state.capture.cardDeviceId.value),
-	set: v => (props.state.capture.cardDeviceId.value = v ? Number(v) : null)
-});
-
-const hasSelectedCardDevice = computed(() => props.state.capture.cardDeviceId.value != null);
+const localCardDeviceIdString = bindNullableDeviceId(props.state.capture.cardDeviceId);
 
 const isGeneratingVirtualCard = computed(() => props.state.capture.isGeneratingVirtualCard.value);
 
@@ -650,15 +628,7 @@ const handleCaptureFingerPrint = () => {
 	emit("capture-fingerprint", activeFingerTab.value);
 };
 
-const localFingerDeviceIdString = computed<string>({
-	get: () =>
-		props.state.capture.fingerDeviceId.value == null
-			? ""
-			: String(props.state.capture.fingerDeviceId.value),
-	set: v => (props.state.capture.fingerDeviceId.value = v ? Number(v) : null)
-});
-
-const hasSelectedFingerDevice = computed(() => props.state.capture.fingerDeviceId.value != null);
+const localFingerDeviceIdString = bindNullableDeviceId(props.state.capture.fingerDeviceId);
 
 const localPassword = computed<string>({
 	get: () => props.state.accessControl.password.value || "",

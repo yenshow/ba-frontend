@@ -136,7 +136,16 @@
 								:key="`${row.key}-${idx}`"
 								class="border border-white/20 p-2"
 							>
-								{{ cell }}
+								<button
+									v-if="isPlateColumn(idx) && canPreviewPlateImage(row.log)"
+									type="button"
+									class="text-left font-medium text-cyan-300 underline-offset-2 hover:underline focus:outline-none focus:ring-2 focus:ring-cyan-400"
+									:aria-label="`檢視 ${cell} 車牌圖片`"
+									@click="handleOpenLogLightbox(row.log)"
+								>
+									{{ cell }}
+								</button>
+								<template v-else>{{ cell }}</template>
 							</td>
 						</tr>
 					</tbody>
@@ -172,10 +181,21 @@
 			</div>
 		</div>
 	</section>
+
+	<MediaLightbox
+		:image-url="lightboxImageUrl"
+		alt="車牌圖片"
+		aria-label="車牌圖片放大檢視"
+		@close="closeLightbox"
+	/>
 </template>
 
 <script setup lang="ts">
+import { ref, computed, watch, toRef } from "vue";
 import type { VehicleDataLog } from "~/types/vehicleAccess";
+import { canResolveMedia, useResolvedMediaList } from "~/composables/core/useImageCenter";
+import { useMediaLightbox } from "~/composables/core/useMediaLightbox";
+import MediaLightbox from "~/components/common/MediaLightbox.vue";
 import { formatDate, TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtils";
 import { buildCsvSection } from "~/utils/csvExport";
 import { getOnSitePassageLogIds, passageTransitionTotals } from "~/utils/vehicleAccessPassageStats";
@@ -369,6 +389,7 @@ type DetailRow = {
 	key: string;
 	isEntryOnly: boolean;
 	cells: string[];
+	log: VehicleDataLog;
 };
 
 const effectiveDisplayColumns = computed(() => {
@@ -383,6 +404,23 @@ const detailHeaders = computed(() => {
 	const dynamic = effectiveDisplayColumns.value.map(k => VEHICLE_ACCESS_LOG_COLUMN_LABELS[k]);
 	return [...fixed, ...dynamic];
 });
+
+const plateHeaderLabel = VEHICLE_ACCESS_LOG_COLUMN_LABELS.license_plate;
+const isPlateColumn = (idx: number): boolean => detailHeaders.value[idx] === plateHeaderLabel;
+
+const { urls: imageUrls, errors: imageErrors } = useResolvedMediaList(toRef(props, "logs"), {
+	getRaw: log => log.plate_license_image_url,
+	getId: log => log.id,
+});
+const { lightboxImageUrl, openLightbox, closeLightbox } = useMediaLightbox();
+
+const canPreviewPlateImage = (log: VehicleDataLog): boolean =>
+	canResolveMedia(log.id, log.plate_license_image_url, imageUrls.value, imageErrors.value);
+
+const handleOpenLogLightbox = (log: VehicleDataLog) => {
+	if (!canPreviewPlateImage(log)) return;
+	openLightbox(imageUrls.value[log.id]);
+};
 
 const dateKeysDesc = (m: Map<string, unknown>): string[] =>
 	[...m.keys()].sort((a, b) => b.localeCompare(a));
@@ -416,7 +454,8 @@ const detailTableRows = computed((): DetailRow[] => {
 			rows.push({
 				key: `log-${log.id}-${log.trigger_time}`,
 				isEntryOnly: onSiteIds.has(log.id),
-				cells
+				cells,
+				log,
 			});
 		}
 	}

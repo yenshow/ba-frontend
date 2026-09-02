@@ -290,7 +290,7 @@ export const usePeopleCountingApi = () => {
 			timeRange?: "today" | "yesterday" | "last7days"
 			offset?: number
 		}
-	): Promise<PeopleCountingLog[]> => {
+	): Promise<{ logs: PeopleCountingLog[]; total: number }> => {
 		try {
 			const q: Record<string, string> = {}
 			if (options?.limit) q.limit = String(options.limit)
@@ -302,8 +302,13 @@ export const usePeopleCountingApi = () => {
 			const queryString = new URLSearchParams(q).toString()
 			const url = `/people-counting/sites/${locationId}/logs${queryString ? `?${queryString}` : ""}`
 
-			const response = await request<{ logs: PeopleCountingApiLogRow[] }>(url)
-			return mapApiLogsToFrontend(response.logs || [], locationId)
+			const response = await request<{ logs: PeopleCountingApiLogRow[]; total?: number }>(url)
+			const logs = mapApiLogsToFrontend(response.logs || [], locationId)
+			const total =
+				response.total != null && Number.isFinite(Number(response.total))
+					? Number(response.total)
+					: logs.length
+			return { logs, total }
 		} catch (error) {
 			apiLogger.error("取得進出場記錄失敗", { locationId, options, error })
 			throw error

@@ -98,6 +98,15 @@
 										:camera-mode="selectedLocation?.cameraMode"
 										:display-columns="selectedLocation?.logDisplayColumns"
 									/>
+									<Pagination
+										:total="logsTotal"
+										:offset="logsOffset"
+										:limit="ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE"
+										:disabled="isLoadingLogs"
+										:show="logsTotal > ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE"
+										@previous="handleLogsPrevious"
+										@next="handleLogsNext"
+									/>
 								</div>
 								<LocationDetailPanel
 									v-model:show-door-panel="showDetailDoorPanel"
@@ -237,6 +246,7 @@ import type {
 import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue"
 import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue"
 import EntryExitLogTable from "~/components/people-counting/EntryExitLogTable.vue"
+import Pagination from "~/components/common/Pagination.vue"
 import LocationDetailPanel from "~/components/people-counting/LocationDetailPanel.vue"
 import UnitPersonnelDialog from "~/components/people-counting/UnitPersonnelDialog.vue"
 import LocationOverviewCard from "~/components/people-counting/LocationOverviewCard.vue"
@@ -244,6 +254,7 @@ import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue
 import SimulationFrame from "~/components/common/SimulationFrame.vue"
 import PeopleCountingSimulation from "~/components/people-counting/PeopleCountingSimulation.vue"
 import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState"
+import { ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE } from "~/utils/entryExitTimeRange"
 import { usePeopleCountingLocationApi } from "~/composables/location/api/usePeopleCountingLocationApi"
 import {
 	useZoneManagement,
@@ -311,11 +322,16 @@ const {
 	selectedLocation,
 	personnel,
 	logs,
+	logsOffset,
+	logsTotal,
+	isLoadingLogs,
 	peopleCountingZones,
 	selectedUnitId,
 	loadLocations,
 	loadLocationDetail,
 	loadZones,
+	handleLogsPrevious,
+	handleLogsNext,
 	refreshAfterZoneChange,
 	handleUnitSelect,
 	getLocationZone,

@@ -153,6 +153,15 @@ export const useResolvedMediaList = <T>(
 
 	const loadAll = async () => {
 		const list = toValue(items) ?? [];
+		const currentIds = new Set(list.map((item) => options.getId(item)));
+		for (const id of Object.keys(urls.value)) {
+			if (!currentIds.has(id as MediaId) && !currentIds.has(Number(id))) {
+				delete urls.value[id as MediaId];
+				delete loading.value[id as MediaId];
+				delete errors.value[id as MediaId];
+			}
+		}
+
 		const toLoad = list.filter(
 			(item) =>
 				Boolean(String(options.getRaw(item) || "").trim()) &&
@@ -162,7 +171,7 @@ export const useResolvedMediaList = <T>(
 		if (toLoad.length === 0) return;
 
 		const picUris: string[] = [];
-		const idByPicUri = new Map<string, MediaId>();
+		const idsByPicUri = new Map<string, MediaId[]>();
 
 		for (const item of toLoad) {
 			const raw = String(options.getRaw(item) || "").trim();
@@ -173,26 +182,37 @@ export const useResolvedMediaList = <T>(
 				continue;
 			}
 			picUris.push(raw);
-			idByPicUri.set(raw, id);
+			const bucket = idsByPicUri.get(raw) ?? [];
+			bucket.push(id);
+			idsByPicUri.set(raw, bucket);
 		}
 
 		if (picUris.length === 0) return;
 
-		for (const id of idByPicUri.values()) {
-			loading.value[id] = true;
-			errors.value[id] = false;
+		for (const ids of idsByPicUri.values()) {
+			for (const id of ids) {
+				loading.value[id] = true;
+				errors.value[id] = false;
+			}
 		}
 
 		try {
 			const resolved = await resolvePicUris(picUris);
-			for (const [picUri, id] of idByPicUri.entries()) {
+			for (const [picUri, ids] of idsByPicUri.entries()) {
 				const url = resolved.get(picUri);
-				if (url) urls.value[id] = url;
+				if (!url) continue;
+				for (const id of ids) {
+					urls.value[id] = url;
+				}
 			}
 		} catch {
-			for (const id of idByPicUri.values()) errors.value[id] = true;
+			for (const ids of idsByPicUri.values()) {
+				for (const id of ids) errors.value[id] = true;
+			}
 		} finally {
-			for (const id of idByPicUri.values()) loading.value[id] = false;
+			for (const ids of idsByPicUri.values()) {
+				for (const id of ids) loading.value[id] = false;
+			}
 		}
 	};
 
@@ -200,3 +220,11 @@ export const useResolvedMediaList = <T>(
 
 	return { urls, loading, errors, markError, onImageError, reload: loadAll };
 };
+
+export const canResolveMedia = (
+	id: MediaId,
+	raw: string | null | undefined,
+	urls: Record<MediaId, string>,
+	errors: Record<MediaId, boolean>,
+): boolean =>
+	Boolean(String(raw || "").trim()) && Boolean(urls[id]) && !errors[id];

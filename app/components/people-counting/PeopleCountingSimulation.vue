@@ -136,7 +136,16 @@
 								:key="`${row.key}-${idx}`"
 								class="border border-white/20 p-2"
 							>
-								{{ cell }}
+								<button
+									v-if="isNameColumn(idx) && canPreviewScreenshot(row.log)"
+									type="button"
+									class="text-left text-cyan-300 underline-offset-2 hover:underline focus:outline-none focus:ring-2 focus:ring-cyan-400"
+									:aria-label="`檢視 ${cell} 設備截圖`"
+									@click="handleOpenLogLightbox(row.log)"
+								>
+									{{ cell }}
+								</button>
+								<template v-else>{{ cell }}</template>
 							</td>
 						</tr>
 					</tbody>
@@ -172,10 +181,21 @@
 			</div>
 		</div>
 	</section>
+
+	<MediaLightbox
+		:image-url="lightboxImageUrl"
+		alt="設備截圖"
+		aria-label="設備截圖放大檢視"
+		@close="closeLightbox"
+	/>
 </template>
 
 <script setup lang="ts">
+import { ref, computed, watch, toRef } from "vue";
 import type { PeopleCountingLog } from "~/types/peopleCounting";
+import { canResolveMedia, useResolvedMediaList } from "~/composables/core/useImageCenter";
+import { useMediaLightbox } from "~/composables/core/useMediaLightbox";
+import MediaLightbox from "~/components/common/MediaLightbox.vue";
 import { formatDate, TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtils";
 import { buildCsvSection } from "~/utils/csvExport";
 import {
@@ -427,6 +447,7 @@ type DetailRow = {
 	key: string;
 	isEntryOnly: boolean;
 	cells: string[];
+	log: PeopleCountingLog;
 };
 
 const effectiveDisplayColumns = computed(() => {
@@ -441,6 +462,23 @@ const detailHeaders = computed(() => {
 	const dynamic = effectiveDisplayColumns.value.map(k => PEOPLE_COUNTING_LOG_COLUMN_LABELS[k]);
 	return [...fixed, ...dynamic];
 });
+
+const nameHeaderLabel = PEOPLE_COUNTING_LOG_COLUMN_LABELS.name;
+const isNameColumn = (idx: number): boolean => detailHeaders.value[idx] === nameHeaderLabel;
+
+const { urls: imageUrls, errors: imageErrors } = useResolvedMediaList(toRef(props, "logs"), {
+	getRaw: log => log.deviceScreenshotUrl,
+	getId: log => log.id,
+});
+const { lightboxImageUrl, openLightbox, closeLightbox } = useMediaLightbox();
+
+const canPreviewScreenshot = (log: PeopleCountingLog): boolean =>
+	canResolveMedia(log.id, log.deviceScreenshotUrl, imageUrls.value, imageErrors.value);
+
+const handleOpenLogLightbox = (log: PeopleCountingLog) => {
+	if (!canPreviewScreenshot(log)) return;
+	openLightbox(imageUrls.value[log.id]);
+};
 
 const dateKeysDesc = (m: Map<string, unknown>): string[] => [...m.keys()].sort((a, b) => b.localeCompare(a));
 
@@ -480,7 +518,8 @@ const detailTableRows = computed((): DetailRow[] => {
 			rows.push({
 				key: `log-${log.id ?? dateStr}-${personKey}-${log.timestamp}`,
 				isEntryOnly: isEntryOnly && lastEntryLog === log,
-				cells
+				cells,
+				log,
 			});
 		}
 	}

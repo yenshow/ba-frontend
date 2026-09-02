@@ -147,7 +147,7 @@ const loadLocationLogs = async (locationId: string) => {
 		return;
 	}
 	try {
-		const list = await peopleCountingApi.getLocationLogs(Number(locationId), {
+		const { logs: list } = await peopleCountingApi.getLocationLogs(Number(locationId), {
 			limit: MAX_DISPLAY_LOGS
 		});
 		const sorted = [...list].sort((a, b) => {
