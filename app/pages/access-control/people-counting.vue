@@ -93,9 +93,14 @@
 									:exit-count="selectedLocation?.exitCount || 0"
 									:current-count="currentCount"
 									:logs="logs"
+									:logs-offset="logsOffset"
+									:logs-total="logsTotal"
+									:logs-pagination-disabled="isLoadingLogs"
 									:data-source="selectedLocation?.dataSource"
 									:camera-mode="selectedLocation?.cameraMode"
 									:display-columns="selectedLocation?.logDisplayColumns"
+									@logs-previous="handleLogsPrevious"
+									@logs-next="handleLogsNext"
 								/>
 							</div>
 							<div class="ms-4 min-w-0 flex-1 border-l-2 border-white/30 ps-4">
@@ -304,11 +309,16 @@ const {
 	selectedLocation,
 	personnel,
 	logs,
+	logsOffset,
+	logsTotal,
+	isLoadingLogs,
 	peopleCountingZones,
 	selectedUnitId,
 	loadLocations,
 	loadLocationDetail,
 	loadZones,
+	handleLogsPrevious,
+	handleLogsNext,
 	refreshAfterZoneChange,
 	handleUnitSelect,
 	getLocationZone,

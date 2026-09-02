@@ -35,6 +35,15 @@
 			:camera-mode="cameraMode"
 			:display-columns="displayColumns"
 		/>
+		<Pagination
+			:total="logsTotal"
+			:offset="logsOffset"
+			:limit="logsPageSize"
+			:disabled="logsPaginationDisabled"
+			:show="logsTotal > logsPageSize"
+			@previous="emit('logs-previous')"
+			@next="emit('logs-next')"
+		/>
 	</div>
 </template>
 
@@ -42,18 +51,37 @@
 import type { PeopleCountingLog } from "~/types/peopleCounting"
 import type { PeopleCountingCameraMode } from "~/utils/peopleCountingCameraMode"
 import EntryExitLogTable from "~/components/people-counting/EntryExitLogTable.vue"
+import Pagination from "~/components/common/Pagination.vue"
+import { ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE } from "~/utils/entryExitTimeRange"
 
 interface Props {
 	entryCount: number
 	exitCount: number
 	currentCount: number
 	logs: PeopleCountingLog[]
+	logsOffset?: number
+	logsTotal?: number
+	logsPageSize?: number
+	logsPaginationDisabled?: boolean
 	dataSource?: "yscp" | "access_control" | "isapi_camera"
 	cameraMode?: PeopleCountingCameraMode | string | null
 	displayColumns?: string[] | null
 }
 
-defineProps<Props>()
+withDefaults(defineProps<Props>(), {
+	logsOffset: 0,
+	logsTotal: 0,
+	logsPageSize: ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE,
+	logsPaginationDisabled: false,
+	dataSource: undefined,
+	cameraMode: null,
+	displayColumns: null,
+})
+
+const emit = defineEmits<{
+	"logs-previous": []
+	"logs-next": []
+}>()
 
 const statusIndicatorSrc = "/people-counting/status-indicator-green.svg"
 </script>

@@ -127,51 +127,22 @@
 		</div>
 	</div>
 
-	<Teleport to="body">
-		<Transition name="lightbox-fade">
-			<div
-				v-if="lightboxImageUrl"
-				ref="lightboxRef"
-				class="fixed inset-0 z-[4000] flex items-center justify-center bg-black/80 p-4"
-				role="dialog"
-				aria-modal="true"
-				aria-label="車牌圖片放大檢視"
-				tabindex="-1"
-				@click.self="closeLightbox"
-				@keydown.escape="closeLightbox"
-			>
-				<button
-					type="button"
-					class="absolute right-4 top-4 z-10 rounded-full monitoring-chip-bg p-2 text-white transition-colors hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-					aria-label="關閉"
-					@click="closeLightbox"
-				>
-					<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M6 18L18 6M6 6l12 12"
-						/>
-					</svg>
-				</button>
-				<img
-					:src="lightboxImageUrl"
-					alt="車牌圖片"
-					class="max-h-[90vh] max-w-full object-contain"
-					@click.stop
-				/>
-			</div>
-		</Transition>
-	</Teleport>
+	<MediaLightbox
+		:image-url="lightboxImageUrl"
+		alt="車牌圖片"
+		aria-label="車牌圖片放大檢視"
+		@close="closeLightbox"
+	/>
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, toRef, computed } from "vue"
+import { toRef, computed } from "vue"
 import MonitoringLogEmptyState from "~/components/common/MonitoringLogEmptyState.vue"
+import MediaLightbox from "~/components/common/MediaLightbox.vue"
 import type { VehicleDataLog } from "~/types/vehicleAccess"
 import { formatDate, formatTime } from "~/utils/dateUtils"
 import { useResolvedMediaList } from "~/composables/core/useImageCenter"
+import { useMediaLightbox } from "~/composables/core/useMediaLightbox"
 import {
 	VEHICLE_ACCESS_LOG_COLUMN_LABELS,
 	normalizeVehicleLogDisplayColumns,
@@ -203,16 +174,5 @@ const {
 	getId: (log) => log.id,
 })
 
-const lightboxImageUrl = ref<string | null>(null)
-const lightboxRef = ref<HTMLElement | null>(null)
-
-const openLightbox = (url: string | undefined) => {
-	if (!url) return
-	lightboxImageUrl.value = url
-	nextTick(() => lightboxRef.value?.focus())
-}
-
-const closeLightbox = () => {
-	lightboxImageUrl.value = null
-}
+const { lightboxImageUrl, openLightbox, closeLightbox } = useMediaLightbox()
 </script>

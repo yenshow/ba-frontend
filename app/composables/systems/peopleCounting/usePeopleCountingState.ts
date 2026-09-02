@@ -25,6 +25,11 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { logger } from "~/utils/logger"
 import { firstFlatSiteMatchingSortedZoneLocations } from "~/utils/sortOrder"
 import { isFaceRecognitionCameraMode } from "~/utils/peopleCountingCameraMode"
+import {
+	ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE,
+	capEntryExitDashboardLogsTotal,
+	maxEntryExitDashboardLogsOffset,
+} from "~/utils/entryExitTimeRange"
 
 const stateLogger = logger.createLogger("PeopleCounting State")
 
@@ -52,6 +57,9 @@ export const usePeopleCountingState = () => {
 	const selectedLocation = ref<PeopleCountingLocation | null>(null)
 	const personnel = ref<PeopleCountingPersonnel[]>([])
 	const logs = ref<PeopleCountingLog[]>([])
+	const logsOffset = ref(0)
+	const logsTotal = ref(0)
+	const isLoadingLogs = ref(false)
 	const peopleCountingZones = ref<PeopleCountingZone[]>([])
 
 	// 載入狀態
@@ -112,11 +120,14 @@ export const usePeopleCountingState = () => {
 	 */
 	const loadLocationDetail = async (
 		locationId: number,
-		opts?: { preserveUnitId?: number | null }
+		opts?: { preserveUnitId?: number | null; preserveLogsOffset?: boolean }
 	): Promise<void> => {
 		isLoadingLocation.value = true
 		loadError.value = null
 		const keepUnitId = opts?.preserveUnitId
+		if (!opts?.preserveLogsOffset) {
+			logsOffset.value = 0
+		}
 		if (keepUnitId == null) {
 			selectedUnitId.value = null
 		}
@@ -170,15 +181,40 @@ export const usePeopleCountingState = () => {
 	}
 
 	/**
-	 * 載入地點進出場記錄
+	 * 載入地點進出場記錄（今日、分頁）
 	 */
 	const loadLocationLogs = async (locationId: number): Promise<void> => {
+		isLoadingLogs.value = true
+		const maxOffset = maxEntryExitDashboardLogsOffset()
+		if (logsOffset.value > maxOffset) logsOffset.value = maxOffset
 		try {
-			logs.value = await peopleCountingApi.getLocationLogs(locationId, { limit: 5 })
+			const { logs: rows, total } = await peopleCountingApi.getLocationLogs(locationId, {
+				limit: ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE,
+				offset: logsOffset.value,
+			})
+			logs.value = rows
+			logsTotal.value = capEntryExitDashboardLogsTotal(total)
 		} catch (error) {
 			handleError(error, "載入進出場記錄失敗")
 			throw error
+		} finally {
+			isLoadingLogs.value = false
 		}
+	}
+
+	const handleLogsPrevious = async (): Promise<void> => {
+		const locationId = selectedLocation.value?.locationId
+		if (locationId == null || logsOffset.value === 0) return
+		logsOffset.value = Math.max(0, logsOffset.value - ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE)
+		await loadLocationLogs(locationId)
+	}
+
+	const handleLogsNext = async (): Promise<void> => {
+		const locationId = selectedLocation.value?.locationId
+		if (locationId == null) return
+		if (logsOffset.value + ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE >= logsTotal.value) return
+		logsOffset.value += ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE
+		await loadLocationLogs(locationId)
 	}
 
 	/**
@@ -231,6 +267,7 @@ export const usePeopleCountingState = () => {
 		const locationId = selectedLocation.value?.locationId
 		if (locationId == null) return
 
+		logsOffset.value = 0
 		const unitId = selectedUnitId.value
 		const isCamera = selectedLocation.value?.dataSource === "isapi_camera"
 		const isCameraFace = isCamera && isFaceRecognitionCameraMode(selectedLocation.value?.cameraMode)
@@ -256,6 +293,7 @@ export const usePeopleCountingState = () => {
 			if (stillExists) {
 				await loadLocationDetail(selectedLocation.value.locationId, {
 					preserveUnitId: selectedUnitId.value,
+					preserveLogsOffset: true,
 				})
 				return
 			}
@@ -304,6 +342,9 @@ export const usePeopleCountingState = () => {
 		selectedLocation,
 		personnel,
 		logs,
+		logsOffset,
+		logsTotal,
+		isLoadingLogs,
 		peopleCountingZones,
 		isLoadingLocations,
 		isLoadingLocation,
@@ -316,6 +357,8 @@ export const usePeopleCountingState = () => {
 		loadLocationDetail,
 		loadUnitPersonnel,
 		loadLocationLogs,
+		handleLogsPrevious,
+		handleLogsNext,
 		loadZones,
 		refreshAfterZoneChange,
 		handleUnitSelect,

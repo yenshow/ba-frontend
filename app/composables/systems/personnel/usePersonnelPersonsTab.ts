@@ -83,14 +83,12 @@ export const PERSONNEL_FACE_OUTPUT_SIZE = 320
 /** 人員大頭照裁切 Dialog（PersonnelPersonsTab + ImageCropDialog） */
 export const PERSONNEL_FACE_CROP_DIALOG_PROPS = {
 	title: "上傳大頭照",
-	description:
-		"請上傳單人正臉、五官清晰的照片（≤ 200KB），用於門禁人臉比對。",
+	description: "請上傳單人正臉、五官清晰的照片（≤ 200KB），用於門禁人臉比對。",
 	canvasWidth: 520,
 	canvasHeight: 520,
 	mask: "rect" as const,
 	guideOverlay: "face" as const,
-	cropHint:
-		"拖曳與縮放調整構圖；藍框為儲存範圍，輪廓線僅供人臉大小參考，留白處儲存為白底。",
+	cropHint: "拖曳與縮放調整構圖；藍框為儲存範圍，輪廓線僅供人臉大小參考，留白處儲存為白底。",
 	initialFit: "cover" as const,
 	maxOutputBytes: PERSONNEL_FACE_MAX_BYTES,
 	outputMaxLongEdge: PERSONNEL_FACE_OUTPUT_SIZE,
@@ -124,17 +122,21 @@ const normalizeLicensePlatesForSnapshot = (items: PersonLicensePlateFormItem[]) 
 	items
 		.filter((i) => i.plateNumber.trim())
 		.map((i) => ({
-		plateNumber: i.plateNumber.trim(),
-		listType: i.listType,
-		effectiveBegin: i.effectiveBegin,
-		effectiveEnd: i.effectiveEnd,
-	}))
+			plateNumber: i.plateNumber.trim(),
+			listType: i.listType,
+			effectiveBegin: i.effectiveBegin,
+			effectiveEnd: i.effectiveEnd,
+		}))
 
 export const usePersonnelPersonsTab = (params: {
 	personnelApi: PersonnelApi
 	deviceApi: DeviceApi
 	accessControlApi: AccessControlApi
-	toast: { success: (msg: string) => void; error: (msg: string) => void; warning: (msg: string) => void }
+	toast: {
+		success: (msg: string) => void
+		error: (msg: string) => void
+		warning: (msg: string) => void
+	}
 	handleApiError: PersonnelHandleApiError
 }) => {
 	const { personnelApi, deviceApi, accessControlApi, toast, handleApiError } = params
@@ -202,7 +204,7 @@ export const usePersonnelPersonsTab = (params: {
 		const hasCard = Boolean(ac.cards?.length || ac.cardNo?.trim())
 		const hasFingerprint = Boolean(ac.fingerPrintItems?.length || ac.fingerPrintData?.trim())
 		const plateCount =
-			p.license_plate_count ?? p.license_plates?.filter(pl => pl.plate_number?.trim()).length ?? 0
+			p.license_plate_count ?? p.license_plates?.filter((pl) => pl.plate_number?.trim()).length ?? 0
 		const hasLicensePlate = plateCount > 0
 		const hasLadderCard = personHasLadderCard(p)
 		return { hasFace, hasPassword, hasCard, hasFingerprint, hasLicensePlate, hasLadderCard }
@@ -220,9 +222,7 @@ export const usePersonnelPersonsTab = (params: {
 	const isGeneratingVirtualCard = ref(false)
 
 	const fingerDeviceId = ref<number | null>(null)
-	const fingerPrintItems = ref<PersonFingerprintFormItem[]>([
-		createEmptyFingerprintFormItem(),
-	])
+	const fingerPrintItems = ref<PersonFingerprintFormItem[]>([createEmptyFingerprintFormItem()])
 	const isCapturingFingerPrint = ref(false)
 	const fingerPrintErrorMessage = ref<string | null>(null)
 
@@ -304,7 +304,7 @@ export const usePersonnelPersonsTab = (params: {
 		faceUrl: personForm.faceUrl.trim(),
 		personGroupId: personForm.personGroupId,
 		licensePlateItemsJson: JSON.stringify(
-			normalizeLicensePlatesForSnapshot(personForm.licensePlateItems),
+			normalizeLicensePlatesForSnapshot(personForm.licensePlateItems)
 		),
 		password: personPassword.value.trim(),
 		isLongTerm: isLongTerm.value,
@@ -348,9 +348,7 @@ export const usePersonnelPersonsTab = (params: {
 	})
 
 	const isAccessControlSectionDirty = computed(() =>
-		personChangedFieldsList.value.some((f) =>
-			["密碼設定", "有效期限", "卡號", "指紋"].includes(f),
-		),
+		personChangedFieldsList.value.some((f) => ["密碼設定", "有效期限", "卡號", "指紋"].includes(f))
 	)
 
 	const hasUnsavedPersonChanges = computed(() => personChangedFieldsList.value.length > 0)
@@ -492,8 +490,7 @@ export const usePersonnelPersonsTab = (params: {
 				: ""
 		resetCaptureState()
 		const plates = mapPersonLicensePlatesToForm(p)
-		personForm.licensePlateItems =
-			plates.length > 0 ? plates : [createEmptyLicensePlateFormItem()]
+		personForm.licensePlateItems = plates.length > 0 ? plates : [createEmptyLicensePlateFormItem()]
 		const ac = getAccessControlConfigSummary(p)
 		cardItems.value = mapAccessControlCardsToForm(p)
 		fingerPrintItems.value = mapAccessControlFingerprintsToForm(p)
@@ -523,7 +520,7 @@ export const usePersonnelPersonsTab = (params: {
 		captureErrorMessage.value = null
 		const deviceId = captureDeviceId.value
 		if (!deviceId) {
-			captureErrorMessage.value = "請先選擇門禁設備"
+			captureErrorMessage.value = "請先選擇來源設備"
 			return
 		}
 
@@ -533,8 +530,7 @@ export const usePersonnelPersonsTab = (params: {
 				captureInfrared: true,
 				readerID: 1,
 			})
-			if (result.dataType !== "binary" || !result.base64)
-				throw new Error("設備截圖回傳格式不正確")
+			if (result.dataType !== "binary" || !result.base64) throw new Error("設備截圖回傳格式不正確")
 
 			const file = base64ToFile({
 				base64: result.base64,
@@ -572,14 +568,10 @@ export const usePersonnelPersonsTab = (params: {
 	const resolveTargetTabIndex = (
 		itemsLength: number,
 		preferredIndex: number | undefined,
-		max: number,
+		max: number
 	): number | null => {
 		if (itemsLength >= max) return null
-		if (
-			preferredIndex != null &&
-			preferredIndex >= 0 &&
-			preferredIndex < itemsLength
-		) {
+		if (preferredIndex != null && preferredIndex >= 0 && preferredIndex < itemsLength) {
 			return preferredIndex
 		}
 		return itemsLength > 0 ? itemsLength - 1 : 0
@@ -589,7 +581,7 @@ export const usePersonnelPersonsTab = (params: {
 		cardErrorMessage.value = null
 		const deviceId = cardDeviceId.value
 		if (!deviceId) {
-			cardErrorMessage.value = "請先選擇門禁設備"
+			cardErrorMessage.value = "請先選擇來源設備"
 			return
 		}
 
@@ -604,7 +596,7 @@ export const usePersonnelPersonsTab = (params: {
 			let targetIdx = resolveTargetTabIndex(
 				cardItems.value.length,
 				preferredTabIndex,
-				MAX_PERSON_CARDS,
+				MAX_PERSON_CARDS
 			)
 			if (targetIdx == null) {
 				cardErrorMessage.value = `卡號最多 ${MAX_PERSON_CARDS} 張`
@@ -635,7 +627,7 @@ export const usePersonnelPersonsTab = (params: {
 			let targetIdx = resolveTargetTabIndex(
 				cardItems.value.length,
 				preferredTabIndex,
-				MAX_PERSON_CARDS,
+				MAX_PERSON_CARDS
 			)
 			if (targetIdx == null) {
 				cardErrorMessage.value = `卡號最多 ${MAX_PERSON_CARDS} 張`
@@ -647,8 +639,7 @@ export const usePersonnelPersonsTab = (params: {
 			}
 			cardItems.value[targetIdx] = { cardNo, source: "virtual" }
 		} catch (err) {
-			cardErrorMessage.value =
-				handleApiError(err, "虛擬卡號產生失敗") || "虛擬卡號產生失敗"
+			cardErrorMessage.value = handleApiError(err, "虛擬卡號產生失敗") || "虛擬卡號產生失敗"
 		} finally {
 			isGeneratingVirtualCard.value = false
 		}
@@ -658,7 +649,7 @@ export const usePersonnelPersonsTab = (params: {
 		fingerPrintErrorMessage.value = null
 		const deviceId = fingerDeviceId.value
 		if (!deviceId) {
-			fingerPrintErrorMessage.value = "請先選擇門禁設備"
+			fingerPrintErrorMessage.value = "請先選擇來源設備"
 			return
 		}
 
@@ -674,11 +665,7 @@ export const usePersonnelPersonsTab = (params: {
 				fingerPrintErrorMessage.value = "讀取指紋失敗：找不到指紋資料"
 				return
 			}
-			let targetIdx = resolveTargetTabIndex(
-				fingerPrintItems.value.length,
-				preferredTabIndex,
-				5,
-			)
+			let targetIdx = resolveTargetTabIndex(fingerPrintItems.value.length, preferredTabIndex, 5)
 			if (targetIdx == null) {
 				fingerPrintErrorMessage.value = "指紋最多 5 筆"
 				return
@@ -689,8 +676,7 @@ export const usePersonnelPersonsTab = (params: {
 			}
 			fingerPrintItems.value[targetIdx] = { fingerData: next, source: "captured" }
 		} catch (err) {
-			fingerPrintErrorMessage.value =
-				handleApiError(err, "讀取指紋失敗") || "讀取指紋失敗"
+			fingerPrintErrorMessage.value = handleApiError(err, "讀取指紋失敗") || "讀取指紋失敗"
 		} finally {
 			isCapturingFingerPrint.value = false
 		}
@@ -793,7 +779,7 @@ export const usePersonnelPersonsTab = (params: {
 			const personGroupId = parsedGroup.ok ? parsedGroup.personGroupId : null
 			const snap = personDialogSnapshot.value
 			const currentPlatesJson = JSON.stringify(
-				normalizeLicensePlatesForSnapshot(personForm.licensePlateItems),
+				normalizeLicensePlatesForSnapshot(personForm.licensePlateItems)
 			)
 			const licensePlatesDirty =
 				mode === "create"
@@ -828,7 +814,7 @@ export const usePersonnelPersonsTab = (params: {
 				try {
 					await personnelApi.replacePersonLicensePlates(
 						effectivePersonId,
-						licensePlateItemsToPayload(personForm.licensePlateItems),
+						licensePlateItemsToPayload(personForm.licensePlateItems)
 					)
 				} catch (err) {
 					fail(err, "儲存車牌設定失敗")
@@ -879,13 +865,11 @@ export const usePersonnelPersonsTab = (params: {
 			}
 
 			if (mode === "create") personsOffset.value = 0
-			const plateHint = licensePlatesDirty
-				? "車牌已存平台；請至車牌管理同步至攝影機。"
-				: ""
+			const plateHint = licensePlatesDirty ? "車牌已存平台；請至車牌管理同步至攝影機。" : ""
 			toast.success(
 				mode === "update"
 					? `已更新人員。${plateHint}請至門禁管理設定地點名單並同步門禁設備。`.trim()
-					: `已新增人員。${plateHint}請至門禁管理設定地點名單並同步門禁設備。`.trim(),
+					: `已新增人員。${plateHint}請至門禁管理設定地點名單並同步門禁設備。`.trim()
 			)
 			showPersonDialog.value = false
 			void loadPersons()
@@ -948,8 +932,7 @@ export const usePersonnelPersonsTab = (params: {
 				toast.warning(TOAST.PERSONNEL_IMPORT_NONE)
 			}
 		} catch (err) {
-			importError.value =
-				handleApiError(err, "匯入失敗", PERSONNEL_API_ERROR_OPTS) || "匯入失敗"
+			importError.value = handleApiError(err, "匯入失敗", PERSONNEL_API_ERROR_OPTS) || "匯入失敗"
 		} finally {
 			isImporting.value = false
 		}

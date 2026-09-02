@@ -95,6 +95,15 @@
 										:logs="logs"
 										:display-columns="selectedLocation?.logDisplayColumns"
 									/>
+									<Pagination
+										:total="logsTotal"
+										:offset="logsOffset"
+										:limit="ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE"
+										:disabled="isLoadingLogs"
+										:show="logsTotal > ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE"
+										@previous="handleLogsPrevious"
+										@next="handleLogsNext"
+									/>
 								</div>
 								<VehicleAccessDetailSidePanel
 									v-model:show-barrier-panel="showDetailBarrierPanel"
@@ -243,6 +252,8 @@ import type {
 import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue"
 import VehicleStatsPanel from "~/components/vehicle-access/VehicleStatsPanel.vue"
 import VehicleDataLogTable from "~/components/vehicle-access/VehicleDataLogTable.vue"
+import Pagination from "~/components/common/Pagination.vue"
+import { ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE } from "~/utils/entryExitTimeRange"
 import VehicleAccessDetailSidePanel from "~/components/vehicle-access/VehicleAccessDetailSidePanel.vue"
 import VehicleOverviewCard from "~/components/vehicle-access/VehicleOverviewCard.vue"
 import VehicleGroupDetailDialog from "~/components/vehicle-access/VehicleGroupDetailDialog.vue"
@@ -310,6 +321,11 @@ const {
 	isIsapiCamera,
 	isParkingMode,
 	logs,
+	logsOffset,
+	logsTotal,
+	isLoadingLogs,
+	handleLogsPrevious,
+	handleLogsNext,
 	overviewSummaries,
 	entryCount,
 	exitCount,

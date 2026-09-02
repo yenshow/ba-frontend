@@ -37,8 +37,12 @@ import type { UnifiedZone } from "~/types/location"
 import { compareZonesLoose } from "~/utils/sortOrder"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { isVehicleAccessLocationVisible } from "~/utils/vehicleAccessDataSource"
+import {
+	ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE,
+	capEntryExitDashboardLogsTotal,
+	maxEntryExitDashboardLogsOffset,
+} from "~/utils/entryExitTimeRange"
 
-const MAIN_LOG_LIMIT = 5
 const TODAY_TIME = { timeRange: "today" as const }
 
 const YSCP_VEHICLE_EVENT = "yscp:event:vehicle"
@@ -119,6 +123,9 @@ export const useVehicleAccessState = () => {
 	const filters = ref<VehicleAccessFilters>(getDefaultFilters())
 	const vehicleAccessZones = ref<VehicleAccessZone[]>([])
 	const logs = ref<VehicleDataLog[]>([])
+	const logsOffset = ref(0)
+	const logsTotal = ref(0)
+	const isLoadingLogs = ref(false)
 	const todayPassageLogs = ref<VehicleDataLog[]>([])
 	const todayPassageSiteId = ref<number | null>(null)
 	const overviewSummaries = ref<VehicleAccessLocationSummary[]>([])
@@ -312,13 +319,42 @@ export const useVehicleAccessState = () => {
 	}
 
 	const loadLogs = async (): Promise<void> => {
+		const siteId = resolveSiteId(selectedLocation.value)
+		if (siteId == null) {
+			logs.value = []
+			logsTotal.value = 0
+			return
+		}
+		isLoadingLogs.value = true
+		const maxOffset = maxEntryExitDashboardLogsOffset()
+		if (logsOffset.value > maxOffset) logsOffset.value = maxOffset
 		try {
-			await loadTodayPassageLogs()
-			logs.value = todayPassageLogs.value.slice(0, MAIN_LOG_LIMIT)
+			const timeQuery = isIsapiCamera.value && isParkingMode.value ? {} : TODAY_TIME
+			const result = await vehicleAccessApi.getSiteLogs(siteId, {
+				limit: ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE,
+				offset: logsOffset.value,
+				...timeQuery,
+			})
+			logs.value = result.logs || []
+			logsTotal.value = capEntryExitDashboardLogsTotal(result.total ?? 0)
 		} catch (error) {
 			handleError(error, "載入過車記錄失敗")
 			throw error
+		} finally {
+			isLoadingLogs.value = false
 		}
+	}
+
+	const handleLogsPrevious = async (): Promise<void> => {
+		if (logsOffset.value === 0) return
+		logsOffset.value = Math.max(0, logsOffset.value - ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE)
+		await loadLogs()
+	}
+
+	const handleLogsNext = async (): Promise<void> => {
+		if (logsOffset.value + ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE >= logsTotal.value) return
+		logsOffset.value += ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE
+		await loadLogs()
 	}
 
 	const loadEntryExitOnSiteCounts = async (): Promise<void> => {
@@ -584,6 +620,8 @@ export const useVehicleAccessState = () => {
 		onSiteCount.value = 0
 		onSiteCapacity.value = null
 		logs.value = []
+		logsOffset.value = 0
+		logsTotal.value = 0
 		todayPassageLogs.value = []
 		todayPassageSiteId.value = null
 		const siteId = resolveSiteId(selectedLocation.value)
@@ -600,6 +638,7 @@ export const useVehicleAccessState = () => {
 	/** 切換地點後載入詳情（統計、群組、過車表）；總覽摘要請另行 loadOverviewSummaries */
 	const loadLocationDetail = async (): Promise<void> => {
 		if (!filters.value.locationId) return
+		logsOffset.value = 0
 		try {
 			await Promise.all([loadEntryExitOnSiteCounts(), loadOrganizationData(), loadLogs()])
 		} catch {
@@ -610,6 +649,7 @@ export const useVehicleAccessState = () => {
 	/** WS 事件後輕量刷新：統計與過車表，不重拉群組資料 */
 	const refreshSelectedLocationLive = async (): Promise<void> => {
 		if (!filters.value.locationId) return
+		logsOffset.value = 0
 		await Promise.all([loadEntryExitOnSiteCounts(), loadLogs()])
 	}
 
@@ -668,6 +708,11 @@ export const useVehicleAccessState = () => {
 		isIsapiCamera,
 		isParkingMode,
 		logs,
+		logsOffset,
+		logsTotal,
+		isLoadingLogs,
+		handleLogsPrevious,
+		handleLogsNext,
 		overviewSummaries,
 		entryCount,
 		exitCount,
