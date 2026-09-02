@@ -10,7 +10,9 @@
 				>
 					<header class="flex items-center justify-between gap-3">
 						<div class="flex min-w-0 items-center gap-3">
-							<h3 class="min-w-0 truncate text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">
+							<h3
+								class="min-w-0 truncate text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl"
+							>
 								{{ isEditingPerson ? "編輯人員" : "新增人員" }}
 							</h3>
 							<FormChangeIndicator
@@ -28,7 +30,53 @@
 							&times;
 						</button>
 					</header>
-					<form class="grid grid-cols-2 gap-4 2xl:gap-6" @submit.prevent="handleSubmit">
+
+					<div
+						v-if="isEditingPerson"
+						class="flex gap-2 border-b border-white/10 pb-3"
+						role="tablist"
+						aria-label="人員編輯分頁"
+					>
+						<button
+							type="button"
+							role="tab"
+							class="rounded-lg px-3 py-1.5 text-sm transition-colors 2xl:text-base"
+							:class="
+								activeSection === 'form' || isFormSubSection
+									? 'bg-cyan-500/25 text-white'
+									: 'text-white/60 hover:bg-white/10 hover:text-white'
+							"
+							:aria-selected="activeSection === 'form' || isFormSubSection"
+							@click="setActiveSection('form')"
+						>
+							基本資料
+						</button>
+						<button
+							type="button"
+							role="tab"
+							class="rounded-lg px-3 py-1.5 text-sm transition-colors 2xl:text-base"
+							:class="
+								activeSection === 'permissions'
+									? 'bg-cyan-500/25 text-white'
+									: 'text-white/60 hover:bg-white/10 hover:text-white'
+							"
+							:aria-selected="activeSection === 'permissions'"
+							@click="setActiveSection('permissions')"
+						>
+							權限總覽
+						</button>
+					</div>
+
+					<PersonnelPermissionOverview
+						v-if="isEditingPerson && activeSection === 'permissions' && state.editingPerson.value"
+						:person="state.editingPerson.value"
+					/>
+
+					<form
+						v-show="!isEditingPerson || activeSection !== 'permissions'"
+						class="grid grid-cols-2 gap-4 2xl:gap-6"
+						@submit.prevent
+					>
 						<div
 							v-if="!hasAccessControlDevices"
 							class="col-span-2 rounded-lg border border-white/20 bg-white/5 p-3 text-xs text-white/70 2xl:text-sm"
@@ -100,14 +148,19 @@
 										:allowed="canShowCaptureActions"
 										:disabled="!localCaptureDeviceIdString || isCapturingFace"
 										aria-label="從設備截圖"
-										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-300/50 enabled:hover:bg-cyan-400"
+										class="whitespace-nowrap rounded-lg bg-cyan-500/80 px-3 py-2 text-sm text-white enabled:hover:bg-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-300/50"
 										@click="handleCaptureFace"
 									>
 										{{ isCapturingFace ? "截圖中..." : "截圖" }}
 									</PermissionActionButton>
 								</div>
 
-								<p v-if="captureErrorText" class="form-error-text-inline" role="alert" aria-live="polite">
+								<p
+									v-if="captureErrorText"
+									class="form-error-text-inline"
+									role="alert"
+									aria-live="polite"
+								>
 									{{ captureErrorText }}
 								</p>
 							</div>
@@ -116,7 +169,12 @@
 						<div class="flex flex-col justify-center gap-3">
 							<label class="flex flex-col gap-2 text-base text-white/80">
 								<span>姓名<span class="required-mark">*</span></span>
-								<input v-model="state.form.fullName" type="text" required class="form-input-small" />
+								<input
+									v-model="state.form.fullName"
+									type="text"
+									required
+									class="form-input-small"
+								/>
 							</label>
 
 							<label class="flex flex-col gap-2 text-base text-white/80">
@@ -132,7 +190,10 @@
 							</label>
 						</div>
 
-						<label class="flex flex-col gap-2 text-base text-white/80">
+						<label
+							id="personnel-section-password"
+							class="flex flex-col gap-2 text-base text-white/80"
+						>
 							<span>密碼設定</span>
 							<input
 								:value="localPassword"
@@ -199,7 +260,7 @@
 							</div>
 						</div>
 
-						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
+						<div id="personnel-section-card" class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
 							<div class="flex items-center justify-between gap-2">
 								<p>卡片設定</p>
 								<div class="flex items-center gap-2">
@@ -264,13 +325,21 @@
 									</button>
 								</div>
 
-								<p v-if="cardErrorText" class="form-error-text-inline" role="alert" aria-live="polite">
+								<p
+									v-if="cardErrorText"
+									class="form-error-text-inline"
+									role="alert"
+									aria-live="polite"
+								>
 									{{ cardErrorText }}
 								</p>
 							</div>
 						</div>
 
-						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
+						<div
+							id="personnel-section-fingerprint"
+							class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base"
+						>
 							<div class="flex items-center justify-between gap-2">
 								<p>指紋設定</p>
 								<div class="flex items-center gap-2">
@@ -340,7 +409,10 @@
 							</div>
 						</div>
 
-						<div class="col-span-2 flex flex-col gap-3 text-sm text-white/80 2xl:text-base">
+						<div
+							id="personnel-section-license-plate"
+							class="col-span-2 flex flex-col gap-3 text-sm text-white/80 2xl:text-base"
+						>
 							<div class="flex items-center justify-between gap-2">
 								<p>車牌設定</p>
 								<div class="flex items-center gap-2">
@@ -410,7 +482,9 @@
 							</div>
 						</div>
 
-						<div class="col-span-2 flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base">
+						<div
+							class="col-span-2 flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base"
+						>
 							<label class="relative inline-flex cursor-pointer items-center">
 								<input
 									v-model="state.form.status"
@@ -437,7 +511,12 @@
 						<footer class="col-span-2 mt-2 flex gap-3 2xl:gap-4">
 							<button type="button" class="btn-secondary" @click="handleClose">取消</button>
 							<div class="flex-1"></div>
-							<button type="submit" class="btn-primary" :disabled="isSubmitting">
+							<button
+								type="button"
+								class="btn-primary"
+								:disabled="isSubmitting"
+								@click="handleSubmit"
+							>
 								{{ isSubmitting ? "處理中..." : isEditingPerson ? "更新" : "建立" }}
 							</button>
 						</footer>
@@ -449,238 +528,282 @@
 </template>
 
 <script setup lang="ts">
-import type { PersonnelPersonDialogState, PersonGroup } from "~/types/personnel";
-import FilterDropdown from "~/components/common/FilterDropdown.vue";
-import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
-import IconTrashButton from "~/components/common/IconTrashButton.vue";
-import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
-import PersonnelFormItemTabs from "~/components/personnel/PersonnelFormItemTabs.vue";
-import { buildPersonnelChildGroupOptions } from "~/utils/personnelGroups";
+import type { PersonnelPersonDialogState, PersonGroup } from "~/types/personnel"
+import FilterDropdown from "~/components/common/FilterDropdown.vue"
+import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
+import IconTrashButton from "~/components/common/IconTrashButton.vue"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+import PersonnelFormItemTabs from "~/components/personnel/PersonnelFormItemTabs.vue"
+import { buildPersonnelChildGroupOptions } from "~/utils/personnelGroups"
 import {
 	createEmptyLicensePlateFormItem,
 	LICENSE_PLATE_LIST_TYPE_OPTIONS,
-	MAX_PERSON_LICENSE_PLATES
-} from "~/utils/licensePlateFormUtils";
+	MAX_PERSON_LICENSE_PLATES,
+} from "~/utils/licensePlateFormUtils"
 import {
 	MAX_PERSON_CARDS,
 	createEmptyCardFormItem,
 	sanitizeCardNoInput,
-	reconcileCardSourceAfterManualEdit
-} from "~/utils/cardFormUtils";
+	reconcileCardSourceAfterManualEdit,
+} from "~/utils/cardFormUtils"
 import {
 	MAX_PERSON_FINGERPRINTS,
-	createEmptyFingerprintFormItem
-} from "~/utils/fingerprintFormUtils";
-import { createFormItemTabHandlers } from "~/utils/personnelFormTabUtils";
-import { usePeopleCountingAccessRbac } from "~/composables/core/useAccessGate";
+	createEmptyFingerprintFormItem,
+} from "~/utils/fingerprintFormUtils"
+import { createFormItemTabHandlers } from "~/utils/personnelFormTabUtils"
+import PersonnelPermissionOverview from "~/components/personnel/PersonnelPermissionOverview.vue"
+import type { PersonnelPersonDialogSection } from "~/composables/systems/personnel/usePersonnelPersonForm"
+import { usePeopleCountingAccessRbac } from "~/composables/core/useAccessGate"
 
-const { canEditAccessMembers: canCaptureFromDevice } = usePeopleCountingAccessRbac();
+const { canEditAccessMembers: canCaptureFromDevice } = usePeopleCountingAccessRbac()
 
 const props = defineProps<{
-	modelValue: boolean;
-	state: PersonnelPersonDialogState;
-	groupTree: PersonGroup[];
-}>();
+	modelValue: boolean
+	state: PersonnelPersonDialogState
+	groupTree: PersonGroup[]
+	activeSection: PersonnelPersonDialogSection
+}>()
 
 const emit = defineEmits<{
-	"update:modelValue": [value: boolean];
-	submit: [];
-	"face-file-change": [file: File];
-	"clear-face": [];
-	"capture-face": [];
-	"capture-card": [tabIndex: number];
-	"generate-virtual-card": [tabIndex: number];
-	"capture-fingerprint": [tabIndex: number];
-}>();
+	"update:modelValue": [value: boolean]
+	"update:activeSection": [value: PersonnelPersonDialogSection]
+	submit: []
+	"face-file-change": [file: File]
+	"clear-face": []
+	"capture-face": []
+	"capture-card": [tabIndex: number]
+	"generate-virtual-card": [tabIndex: number]
+	"capture-fingerprint": [tabIndex: number]
+}>()
 
-const isEditingPerson = computed(() => props.state.editingPerson.value != null);
+const isEditingPerson = computed(() => props.state.editingPerson.value != null)
 
-const formErrorText = computed(() => (props.state.ui.errorMessage.value || "").trim() || null);
+const FORM_SUB_SECTIONS: PersonnelPersonDialogSection[] = [
+	"password",
+	"card",
+	"fingerprint",
+	"licensePlate",
+]
 
-const faceFileInputRef = ref<HTMLInputElement | null>(null);
+const isFormSubSection = computed(() => FORM_SUB_SECTIONS.includes(props.activeSection))
 
-const activeCardTab = ref(0);
-const activeFingerTab = ref(0);
-const activePlateTab = ref(0);
+const setActiveSection = (section: PersonnelPersonDialogSection) => {
+	emit("update:activeSection", section)
+}
+
+const sectionScrollTargetId = (section: PersonnelPersonDialogSection): string | null => {
+	switch (section) {
+		case "password":
+			return "personnel-section-password"
+		case "card":
+			return "personnel-section-card"
+		case "fingerprint":
+			return "personnel-section-fingerprint"
+		case "licensePlate":
+			return "personnel-section-license-plate"
+		default:
+			return null
+	}
+}
+
+watch(
+	() => props.activeSection,
+	(section) => {
+		if (section === "permissions" || section === "form") return
+		nextTick(() => {
+			const id = sectionScrollTargetId(section)
+			if (!id) return
+			document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" })
+		})
+	},
+)
+
+const formErrorText = computed(() => (props.state.ui.errorMessage.value || "").trim() || null)
+
+const faceFileInputRef = ref<HTMLInputElement | null>(null)
+
+const activeCardTab = ref(0)
+const activeFingerTab = ref(0)
+const activePlateTab = ref(0)
 
 const {
 	activeItem: activeCardItem,
 	handleAdd: handleAddCardTab,
-	handleRemove: handleRemoveCardTab
+	handleRemove: handleRemoveCardTab,
 } = createFormItemTabHandlers(props.state.accessControl.cardItems, activeCardTab, {
 	max: MAX_PERSON_CARDS,
 	createEmpty: createEmptyCardFormItem,
 	onClearLastItem: () => {
-		props.state.accessControl.cardItems.value[0] = createEmptyCardFormItem();
-	}
-});
+		props.state.accessControl.cardItems.value[0] = createEmptyCardFormItem()
+	},
+})
 
 const activeCardNoInput = computed({
 	get: () => activeCardItem.value?.cardNo ?? "",
 	set: (raw: string) => {
-		const item = activeCardItem.value;
-		if (!item) return;
-		const cardNo = sanitizeCardNoInput(raw);
-		item.cardNo = cardNo;
-		item.source = reconcileCardSourceAfterManualEdit(cardNo, item.source);
-	}
-});
+		const item = activeCardItem.value
+		if (!item) return
+		const cardNo = sanitizeCardNoInput(raw)
+		item.cardNo = cardNo
+		item.source = reconcileCardSourceAfterManualEdit(cardNo, item.source)
+	},
+})
 
 const {
 	activeItem: activeFingerItem,
 	handleAdd: handleAddFingerTab,
-	handleRemove: handleRemoveFingerTab
+	handleRemove: handleRemoveFingerTab,
 } = createFormItemTabHandlers(props.state.accessControl.fingerPrintItems, activeFingerTab, {
 	max: MAX_PERSON_FINGERPRINTS,
 	createEmpty: createEmptyFingerprintFormItem,
 	onClearLastItem: () => {
-		props.state.accessControl.fingerPrintItems.value[0] = createEmptyFingerprintFormItem();
-	}
-});
+		props.state.accessControl.fingerPrintItems.value[0] = createEmptyFingerprintFormItem()
+	},
+})
 
-const licensePlateItems = toRef(props.state.form, "licensePlateItems");
+const licensePlateItems = toRef(props.state.form, "licensePlateItems")
 
 const {
 	activeItem: activePlateItem,
 	handleAdd: handleAddPlateTab,
-	handleRemove: handleRemovePlateTab
+	handleRemove: handleRemovePlateTab,
 } = createFormItemTabHandlers(licensePlateItems, activePlateTab, {
 	max: MAX_PERSON_LICENSE_PLATES,
-	createEmpty: createEmptyLicensePlateFormItem
-});
+	createEmpty: createEmptyLicensePlateFormItem,
+})
 
 watch(
 	() => props.modelValue,
-	open => {
-		if (!open) return;
-		activeCardTab.value = 0;
-		activeFingerTab.value = 0;
-		activePlateTab.value = 0;
+	(open) => {
+		if (!open) return
+		activeCardTab.value = 0
+		activeFingerTab.value = 0
+		activePlateTab.value = 0
 	}
-);
+)
 
-const childGroupOptions = computed(() => buildPersonnelChildGroupOptions(props.groupTree || []));
+const childGroupOptions = computed(() => buildPersonnelChildGroupOptions(props.groupTree || []))
 
 const localPersonGroupId = computed<string>({
 	get: () => props.state.form.personGroupId || "",
-	set: v => {
-		props.state.form.personGroupId = v;
-	}
-});
+	set: (v) => {
+		props.state.form.personGroupId = v
+	},
+})
 
 const resolvedFaceUrl = computed(() => {
-	const url = props.state.ui.facePreviewUrl.value || props.state.form.faceUrl || null;
-	if (!url) return null;
-	const trimmed = String(url).trim();
-	return trimmed ? trimmed : null;
-});
+	const url = props.state.ui.facePreviewUrl.value || props.state.form.faceUrl || null
+	if (!url) return null
+	const trimmed = String(url).trim()
+	return trimmed ? trimmed : null
+})
 
 const accessControlDeviceOptions = computed(() => {
-	return (props.state.accessControl.accessControlDevices.value || []).map(d => ({
+	return (props.state.accessControl.accessControlDevices.value || []).map((d) => ({
 		value: String(d.id),
-		label: d.name
-	}));
-});
+		label: d.name,
+	}))
+})
 
-const hasAccessControlDevices = computed(() => accessControlDeviceOptions.value.length > 0);
+const hasAccessControlDevices = computed(() => accessControlDeviceOptions.value.length > 0)
 
 const canShowCaptureActions = computed(
 	() => canCaptureFromDevice.value && hasAccessControlDevices.value
-);
+)
 
-const isCapturingFace = computed(() => Boolean(props.state.capture.isCapturingFace.value));
-const isCapturingCard = computed(() => Boolean(props.state.capture.isCapturingCard.value));
+const isCapturingFace = computed(() => Boolean(props.state.capture.isCapturingFace.value))
+const isCapturingCard = computed(() => Boolean(props.state.capture.isCapturingCard.value))
 const isCapturingFingerPrint = computed(() =>
 	Boolean(props.state.capture.isCapturingFingerPrint.value)
-);
-const isSubmitting = computed(() => Boolean(props.state.ui.isSubmitting.value));
+)
+const isSubmitting = computed(() => Boolean(props.state.ui.isSubmitting.value))
 
 const captureErrorText = computed(
 	() => (props.state.capture.captureErrorMessage.value || "").trim() || null
-);
+)
 const cardErrorText = computed(
 	() => (props.state.capture.cardErrorMessage.value || "").trim() || null
-);
+)
 
 const bindNullableDeviceId = (deviceId: { value: number | null }) =>
 	computed<string>({
 		get: () => (deviceId.value == null ? "" : String(deviceId.value)),
-		set: v => {
-			deviceId.value = v ? Number(v) : null;
-		}
-	});
+		set: (v) => {
+			deviceId.value = v ? Number(v) : null
+		},
+	})
 
-const localCaptureDeviceIdString = bindNullableDeviceId(props.state.capture.captureDeviceId);
+const localCaptureDeviceIdString = bindNullableDeviceId(props.state.capture.captureDeviceId)
 
-const localCardDeviceIdString = bindNullableDeviceId(props.state.capture.cardDeviceId);
+const localCardDeviceIdString = bindNullableDeviceId(props.state.capture.cardDeviceId)
 
-const isGeneratingVirtualCard = computed(() => props.state.capture.isGeneratingVirtualCard.value);
+const isGeneratingVirtualCard = computed(() => props.state.capture.isGeneratingVirtualCard.value)
 
 const handleCaptureCard = () => {
-	emit("capture-card", activeCardTab.value);
-};
+	emit("capture-card", activeCardTab.value)
+}
 
 const handleGenerateVirtualCard = () => {
-	emit("generate-virtual-card", activeCardTab.value);
-};
+	emit("generate-virtual-card", activeCardTab.value)
+}
 
 const handleCaptureFingerPrint = () => {
-	emit("capture-fingerprint", activeFingerTab.value);
-};
+	emit("capture-fingerprint", activeFingerTab.value)
+}
 
-const localFingerDeviceIdString = bindNullableDeviceId(props.state.capture.fingerDeviceId);
+const localFingerDeviceIdString = bindNullableDeviceId(props.state.capture.fingerDeviceId)
 
 const localPassword = computed<string>({
 	get: () => props.state.accessControl.password.value || "",
-	set: v => (props.state.accessControl.password.value = v)
-});
+	set: (v) => (props.state.accessControl.password.value = v),
+})
 
 const handlePasswordInput = (e: Event) => {
-	const input = e.target as HTMLInputElement | null;
-	if (!input) return;
-	const next = String(input.value || "").replace(/\D+/g, "");
-	if (next !== input.value) input.value = next;
-	localPassword.value = next;
-};
+	const input = e.target as HTMLInputElement | null
+	if (!input) return
+	const next = String(input.value || "").replace(/\D+/g, "")
+	if (next !== input.value) input.value = next
+	localPassword.value = next
+}
 
 const localIsLongTerm = computed<boolean>({
 	get: () => Boolean(props.state.accessControl.isLongTerm.value),
-	set: v => (props.state.accessControl.isLongTerm.value = Boolean(v))
-});
+	set: (v) => (props.state.accessControl.isLongTerm.value = Boolean(v)),
+})
 
 const localValidBeginDate = computed<string>({
 	get: () => props.state.accessControl.validBeginDate.value || "",
-	set: v => (props.state.accessControl.validBeginDate.value = v)
-});
+	set: (v) => (props.state.accessControl.validBeginDate.value = v),
+})
 
 const localValidEndDate = computed<string>({
 	get: () => props.state.accessControl.validEndDate.value || "",
-	set: v => (props.state.accessControl.validEndDate.value = v)
-});
+	set: (v) => (props.state.accessControl.validEndDate.value = v),
+})
 
 const fingerPrintErrorText = computed(
 	() => (props.state.capture.fingerPrintErrorMessage.value || "").trim() || null
-);
+)
 
-const handleClose = () => props.state.ui.requestClose();
-const handleSubmit = () => emit("submit");
-const triggerFaceFileSelect = () => faceFileInputRef.value?.click();
-const handleCaptureFace = () => emit("capture-face");
+const handleClose = () => props.state.ui.requestClose()
+const handleSubmit = () => emit("submit")
+const triggerFaceFileSelect = () => faceFileInputRef.value?.click()
+const handleCaptureFace = () => emit("capture-face")
 
 const handleFaceFileChange = (e: Event) => {
-	const input = e.target as HTMLInputElement;
-	const file = input.files?.[0];
-	if (file) emit("face-file-change", file);
-	input.value = "";
-};
+	const input = e.target as HTMLInputElement
+	const file = input.files?.[0]
+	if (file) emit("face-file-change", file)
+	input.value = ""
+}
 
-const handleClearFace = () => emit("clear-face");
+const handleClearFace = () => emit("clear-face")
 
 watch(
 	() => props.modelValue,
-	open => {
-		if (open) return;
-		if (faceFileInputRef.value) faceFileInputRef.value.value = "";
+	(open) => {
+		if (open) return
+		if (faceFileInputRef.value) faceFileInputRef.value.value = ""
 	}
-);
+)
 </script>

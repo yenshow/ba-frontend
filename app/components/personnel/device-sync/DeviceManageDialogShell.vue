@@ -9,7 +9,7 @@
 				:aria-labelledby="titleId"
 			>
 				<div
-					class="dialog-panel-bg mx-4 flex max-h-[92vh] w-full max-w-7xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:max-w-[90rem] 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
+					class="dialog-panel-bg mx-4 flex max-h-[88vh] min-h-[min(520px,80vh)] w-full max-w-7xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
 					:aria-busy="isUiLocked || undefined"
 				>
 					<header class="flex items-center justify-between gap-3 pr-7 2xl:pr-8">
@@ -29,18 +29,16 @@
 						</div>
 						<button
 							type="button"
-							class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
+							class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70 disabled:cursor-not-allowed disabled:opacity-40"
+							:disabled="isUiLocked"
 							aria-label="關閉對話框"
-							tabindex="0"
 							@click="emit('close')"
-							@keydown.enter="emit('close')"
-							@keydown.space.prevent="emit('close')"
 						>
 							&times;
 						</button>
 					</header>
 
-					<div class="show-scrollbar relative flex min-h-[min(480px,62vh)] flex-1 flex-col overflow-y-auto pr-7 2xl:pr-8">
+					<div class="relative flex min-h-0 flex-1 flex-col overflow-hidden pr-7 2xl:pr-8">
 						<slot />
 						<div
 							v-if="isUiLocked"

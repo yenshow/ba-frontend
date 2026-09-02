@@ -24,7 +24,7 @@
 
 					<form
 						class="show-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto pb-4 pr-7 2xl:gap-6 2xl:pb-6 2xl:pr-8"
-						@submit.prevent="handleSubmit"
+						@submit.prevent
 					>
 						<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 							<span>系統<span class="required-mark">*</span></span>

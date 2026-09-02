@@ -139,7 +139,7 @@
 							</button>
 						</header>
 
-						<form class="flex flex-col gap-4 2xl:gap-6" @submit.prevent="handleSubmit">
+						<form class="flex flex-col gap-4 2xl:gap-6" @submit.prevent>
 							<fieldset
 								:disabled="!canAdmin"
 								class="flex min-w-0 flex-col gap-4 border-0 p-0 2xl:gap-6"
@@ -222,11 +222,12 @@
 								<button type="button" class="btn-secondary" @click="closeDialog">取消</button>
 								<div class="flex-1"></div>
 								<PermissionActionButton
-									native-type="submit"
+									native-type="button"
 									:allowed="canAdmin"
 									:disabled="isSubmitting"
 									aria-label="儲存用戶"
 									class="btn-primary"
+									@click="handleSubmit"
 								>
 									{{ isSubmitting ? "處理中…" : editingUser ? "更新" : "建立" }}
 								</PermissionActionButton>

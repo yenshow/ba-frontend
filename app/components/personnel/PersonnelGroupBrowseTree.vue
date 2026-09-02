@@ -9,7 +9,7 @@
 			<div class="show-scrollbar min-h-0 flex-1 overflow-y-auto p-2.5">
 				<div
 					v-if="loading"
-					class="py-10 text-center text-base text-white/60"
+					class="py-10 text-center text-sm text-white/60 2xl:text-base"
 					role="status"
 					aria-live="polite"
 				>
@@ -18,7 +18,7 @@
 				<p v-else-if="error" class="form-error-text px-1" role="alert">{{ error }}</p>
 				<div
 					v-else-if="groupTree.length === 0 && !showUngrouped"
-					class="py-10 text-center text-base text-white/60"
+					class="py-10 text-center text-sm text-white/60 2xl:text-base"
 				>
 					尚無群組
 				</div>
@@ -35,7 +35,7 @@
 						@click="emit('select-child', allGroupId)"
 					>
 						<span
-							class="min-w-0 flex-1 truncate text-base 2xl:text-lg"
+							class="min-w-0 flex-1 truncate text-sm text-white/90 2xl:text-base"
 							:class="
 								selectedChildId === allGroupId
 									? 'font-semibold text-white'
@@ -65,7 +65,7 @@
 						@click="emit('select-child', ungroupedId)"
 					>
 						<span
-							class="min-w-0 flex-1 truncate text-base 2xl:text-lg"
+							class="min-w-0 flex-1 truncate text-sm text-white/90 2xl:text-base"
 							:class="
 								selectedChildId === ungroupedId
 									? 'font-semibold text-white'
@@ -119,7 +119,7 @@
 									/>
 								</svg>
 							</span>
-							<span class="min-w-0 flex-1 truncate text-base font-medium text-white/90 2xl:text-lg">
+							<span class="min-w-0 flex-1 truncate text-sm font-medium text-white/90 2xl:text-base">
 								{{ main.name }}
 							</span>
 						</button>
@@ -139,7 +139,7 @@
 									v-for="child in main.children"
 									:key="child.id"
 									role="treeitem"
-									class="flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 transition-colors"
+									class="group/child flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 transition-colors"
 									:class="
 										selectedChildId === child.id
 											? 'bg-cyan-500/25 ring-1 ring-cyan-400/35'
@@ -149,7 +149,7 @@
 									@click="emit('select-child', child.id)"
 								>
 									<span
-										class="min-w-0 flex-1 truncate text-base 2xl:text-lg"
+										class="min-w-0 flex-1 truncate text-sm text-white/90 2xl:text-base"
 										:class="
 											selectedChildId === child.id
 												? 'font-semibold text-white'
@@ -197,6 +197,7 @@ const props = withDefaults(
 	}>(),
 	{
 		panelHeightClass: LOCATION_MEMBERS_PANEL_HEIGHT,
+		canAddGroupToMembers: false,
 	},
 )
 

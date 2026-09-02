@@ -2,16 +2,11 @@ import { reactive, ref, computed } from "vue"
 import { useWebSocketEventSubscription } from "~/composables/websocket/useWebSocket"
 import { useAccessGate } from "~/composables/core/useAccessGate"
 import { useLicense } from "~/composables/core/useLicense"
-import { useApiBase } from "~/composables/core/useApiBase"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { PERM } from "~/config/permissionCodes"
 import type { AccessEventCameraPopupItem } from "~/components/people-counting/AccessEventCameraPopup.vue"
 import type { CameraStreamState } from "~/components/alerts/AlertCameraStreamSlots.vue"
-import {
-	ACCESS_EVENT_CAMERA_POPUP_MS_DEFAULT,
-	ACCESS_EVENT_CAMERA_POPUP_SETTING_KEY,
-	parseAccessEventCameraPopupMs,
-} from "~/utils/realtimeTiming"
+import { ACCESS_EVENT_CAMERA_POPUP_MS } from "~/utils/realtimeTiming"
 
 const VEHICLE_ACCESS_EVENT = "vehicle-access:isapi-camera:event"
 
@@ -42,7 +37,6 @@ const state = reactive({
 	open: false,
 	item: null as AccessEventCameraPopupItem | null,
 	streams: [] as CameraStreamState[],
-	autoCloseMs: ACCESS_EVENT_CAMERA_POPUP_MS_DEFAULT,
 	autoCloseEpoch: 0,
 	isFullscreen: false,
 })
@@ -55,7 +49,6 @@ let streamLoadToken = 0
 
 export const useVehicleBarrierCameraPopup = () => {
 	const deviceApi = useDeviceApi()
-	const { request } = useApiBase()
 	const { hasFeature } = useLicense()
 	const { useWsModuleGate } = useAccessGate()
 	const canSubscribe = useWsModuleGate("vehicle_access", {
@@ -84,7 +77,7 @@ export const useVehicleBarrierCameraPopup = () => {
 		clearAutoCloseTimer()
 		if (!state.open || state.isFullscreen) return
 		state.autoCloseEpoch += 1
-		autoCloseTimer = setTimeout(() => handleClose(), state.autoCloseMs)
+		autoCloseTimer = setTimeout(() => handleClose(), ACCESS_EVENT_CAMERA_POPUP_MS)
 	}
 
 	const setFullscreen = (next: boolean) => {
@@ -94,17 +87,6 @@ export const useVehicleBarrierCameraPopup = () => {
 		}
 		state.isFullscreen = true
 		clearAutoCloseTimer()
-	}
-
-	const loadPopupDuration = async () => {
-		try {
-			const response = await request<{ setting: { value: string } | null }>(
-				`/settings/${ACCESS_EVENT_CAMERA_POPUP_SETTING_KEY}`
-			)
-			state.autoCloseMs = parseAccessEventCameraPopupMs(response?.setting?.value)
-		} catch {
-			state.autoCloseMs = ACCESS_EVENT_CAMERA_POPUP_MS_DEFAULT
-		}
 	}
 
 	const startStreamOnState = async (s: CameraStreamState, token: number) => {
@@ -211,7 +193,6 @@ export const useVehicleBarrierCameraPopup = () => {
 	const start = () => {
 		if (started.value) return
 		started.value = true
-		if (process.client) void loadPopupDuration()
 	}
 
 	const stop = () => {

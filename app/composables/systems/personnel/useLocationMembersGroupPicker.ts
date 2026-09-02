@@ -1,9 +1,9 @@
 import { computed, ref, unref, watch, type ComputedRef, type Ref } from "vue"
-import type { Person } from "~/types/personnel"
 import {
 	ALL_PERSON_GROUP_FILTER_ID,
 	UNGROUPED_PERSON_GROUP_ID,
 	resolvePersonGroupBrowseLabel,
+	resolvePersonGroupId,
 } from "~/utils/personnelUtils"
 import { usePersonnelGroupTree } from "~/composables/systems/personnel/usePersonnelGroupTree"
 import {
@@ -12,13 +12,6 @@ import {
 } from "~/composables/systems/personnel/useLocationMembersStep"
 
 type MaybeRef<T> = Ref<T> | ComputedRef<T>
-
-const resolvePersonGroupId = (person: Person): number => {
-	if (person.person_group_id != null && Number.isFinite(Number(person.person_group_id))) {
-		return Number(person.person_group_id)
-	}
-	return UNGROUPED_PERSON_GROUP_ID
-}
 
 export const useLocationMembersGroupPicker = (params: {
 	locationId: MaybeRef<number | null>

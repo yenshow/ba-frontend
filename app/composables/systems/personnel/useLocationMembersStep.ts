@@ -9,9 +9,9 @@ import { resolveFormApiError } from "~/utils/apiError"
 type LocationId = number
 type MaybeRef<T> = Ref<T> | ComputedRef<T>
 
-export const LOCATION_MEMBERS_PANEL_MIN_HEIGHT = "min-h-[min(480px,62vh)]"
-/** 雙欄 panel 固定高度（左右同高、內部捲動） */
-export const LOCATION_MEMBERS_PANEL_HEIGHT = "h-[min(480px,62vh)]"
+export const LOCATION_MEMBERS_PANEL_MIN_HEIGHT = "min-h-[280px]"
+/** 雙欄 panel：填滿 dialog 剩餘高度，內部捲動 */
+export const LOCATION_MEMBERS_PANEL_HEIGHT = "h-full min-h-[280px]"
 
 /** 地點可進出人員（person_location_access）— Step 1 SSOT，不含設備 sync */
 export const useLocationMembersOnly = (params: {
@@ -53,8 +53,15 @@ export const useLocationMembersOnly = (params: {
 		locationMembersKeptIds[locationId] = Array.from(set)
 	}
 
-	const toggleKeepLocationMember = (locationId: number, personId: number, e: Event) => {
-		const checked = (e.target as HTMLInputElement | null)?.checked ?? false
+	const toggleKeepLocationMember = (
+		locationId: number,
+		personId: number,
+		checkedOrEvent: boolean | Event,
+	) => {
+		const checked =
+			typeof checkedOrEvent === "boolean"
+				? checkedOrEvent
+				: ((checkedOrEvent.target as HTMLInputElement | null)?.checked ?? false)
 		const current = getLocationMemberKeptIds(locationId)
 		const set = new Set(current)
 		if (checked) set.add(personId)
@@ -217,10 +224,10 @@ export const useLocationMembersPicker = (params: {
 	const isMemberKept = (personId: number) =>
 		pickerCtx.value?.sync.isLocationMemberKept(pickerCtx.value.id, personId) ?? false
 
-	const toggleMember = (personId: number, e: Event) => {
+	const toggleMember = (personId: number, checkedOrEvent: boolean | Event) => {
 		const ctx = pickerCtx.value
 		if (!ctx) return
-		ctx.sync.toggleKeepLocationMember(ctx.id, personId, e)
+		ctx.sync.toggleKeepLocationMember(ctx.id, personId, checkedOrEvent)
 	}
 
 	const pageSelectAll = usePageSelectAll<Person>({

@@ -24,7 +24,7 @@
 			:has-filtered-candidates="hasFilteredCandidates"
 			:can-edit-members="canEditMembers"
 			:is-applying-members="isApplyingMembers"
-			:is-loading-members="isLoadingMembers || isSyncCandidatesLoading"
+			:is-loading-members="isLoadingMembersPanel"
 			:members-error="membersError"
 			:is-all-filtered-kept="isAllFilteredKept"
 			:is-member-kept="isMemberKept"
@@ -64,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, toRef, watch } from "vue"
+import { computed, toRef } from "vue"
 import type { Person } from "~/types/personnel"
 import DeviceManageDialogShell from "~/components/personnel/device-sync/DeviceManageDialogShell.vue"
 import DeviceSyncStep2Toolbar from "~/components/personnel/device-sync/DeviceSyncStep2Toolbar.vue"
@@ -72,7 +72,7 @@ import LocationMembersGroupPanel from "~/components/personnel/LocationMembersGro
 import PersonnelSyncCredentialIndicators from "~/components/personnel/PersonnelSyncCredentialIndicators.vue"
 import PersonnelSyncWarningsDialog from "~/components/personnel/dialogs/PersonnelSyncWarningsDialog.vue"
 import type { useLocationAccessSync } from "~/composables/systems/personnel/useLocationAccessSync"
-import { useLocationMembersGroupPicker } from "~/composables/systems/personnel/useLocationMembersGroupPicker"
+import { useLocationDeviceManageDialog } from "~/composables/systems/personnel/useLocationDeviceManageDialog"
 import { buildLocationMemberSyncIndicators } from "~/utils/syncCredentialIcons"
 
 const props = defineProps<{
@@ -102,23 +102,13 @@ const resyncAriaLabel = computed(() =>
 	isCameraSource.value ? "重新同步此地點至攝影機" : "重新同步此地點至門禁設備",
 )
 
+const { syncOneLocation } = props.accessSync
+
 const {
-	isSingleLocationSyncing,
 	showWarningsDialog,
 	syncWarnings,
 	syncWarningTypeLabel,
 	openWarningsDialog,
-	getLocationDevicesLabel,
-	prepareLocationDialog,
-	syncOneLocation,
-	isSyncLocationCandidatesLoading,
-	isLocationCurrentlySyncing,
-	isLocationSyncButtonDisabled,
-} = props.accessSync
-
-const handleClose = () => emit("update:modelValue", false)
-
-const {
 	groupTree,
 	isGroupTreeLoading,
 	groupTreeError,
@@ -131,7 +121,6 @@ const {
 	selectChildGroup,
 	membersQuery,
 	isApplyingMembers,
-	isLoadingMembers,
 	membersError,
 	isMemberKept,
 	toggleMember,
@@ -139,31 +128,18 @@ const {
 	handleToggleSelectAllFiltered,
 	handleSearchMembers,
 	applyMembers,
-	prepareGroupPicker,
-} = useLocationMembersGroupPicker({
+	deviceLabels,
+	isUiLocked,
+	isCurrentlySyncing,
+	isSyncButtonDisabled,
+	isLoadingMembersPanel,
+} = useLocationDeviceManageDialog({
+	modelValue: toRef(props, "modelValue"),
 	locationId: toRef(props, "locationId"),
-	membersSync: toRef(props, "accessSync"),
+	syncEngine: toRef(props, "accessSync"),
 })
 
-const deviceLabels = computed(() =>
-	props.locationId != null
-		? getLocationDevicesLabel(props.locationId)
-		: { entry: [], exit: [], cameras: [] },
-)
-
-const isUiLocked = computed(() => isSingleLocationSyncing.value)
-
-const isSyncCandidatesLoading = computed(() =>
-	props.locationId != null ? isSyncLocationCandidatesLoading(props.locationId) : false,
-)
-
-const isCurrentlySyncing = computed(() =>
-	props.locationId != null ? isLocationCurrentlySyncing(props.locationId) : false,
-)
-
-const isSyncButtonDisabled = computed(() =>
-	props.locationId != null ? isLocationSyncButtonDisabled(props.locationId) : true,
-)
+const handleClose = () => emit("update:modelValue", false)
 
 const locationSyncRows = computed(() =>
 	props.locationId != null ? props.accessSync.getSyncStepRowsForLocation(props.locationId) : [],
@@ -177,7 +153,7 @@ const syncIndicatorsForPerson = (person: Person) => {
 	return buildLocationMemberSyncIndicators({
 		row,
 		mode: isCameraSource.value ? "isapi_camera" : "access_control",
-		isKept: isMemberKept(person.id),
+		person,
 	})
 }
 
@@ -197,16 +173,4 @@ const handleSync = async () => {
 	}
 	emit("synced")
 }
-
-watch(
-	() => props.modelValue,
-	(open) => {
-		if (!open) return
-		if (props.locationId == null) return
-		void (async () => {
-			await prepareLocationDialog(props.locationId!)
-			await prepareGroupPicker()
-		})()
-	},
-)
 </script>

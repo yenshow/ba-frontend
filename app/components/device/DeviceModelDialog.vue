@@ -164,7 +164,7 @@
 							</header>
 
 							<form
-								@submit.prevent="handleFormSubmit"
+								@submit.prevent
 								class="show-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto pb-4 pr-7 2xl:gap-6 2xl:pb-6 2xl:pr-8"
 							>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
@@ -419,6 +419,7 @@ import { TOAST } from "~/config/toastCatalog"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useToast } from "~/composables/core/useToast"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
+import { FORM_UNSAVED_CLOSE_CONFIRM } from "~/utils/formDialog"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import IconTrashButton from "~/components/common/IconTrashButton.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
@@ -726,21 +727,8 @@ const confirmDialog = useConfirmDialog()
 const confirmAction = ref<"delete" | "closeForm" | "closeMain">("delete")
 const pendingDeleteModel = ref<DeviceModel | null>(null)
 
-const showConfirmDialog = computed({
-	get: () => confirmDialog.showDialog.value,
-	set: (value: boolean) => {
-		confirmDialog.showDialog.value = value
-	},
-})
-
-const confirmDialogConfig = computed(() => confirmDialog.config.value)
-
-const CONFIRM_CLOSE = {
-	title: "確定要離開？",
-	message: "您有尚未儲存的變更，確定要離開嗎？",
-	details: "未儲存的變更將會遺失。",
-	type: "warning" as const,
-}
+const showConfirmDialog = confirmDialog.showDialog
+const confirmDialogConfig = confirmDialog.config
 
 const handleConfirmDialogConfirm = () => {
 	if (confirmAction.value === "delete") handleConfirmDelete()
@@ -764,7 +752,7 @@ const closeMainDialog = () => {
 const handleCloseFormClick = () => {
 	if (formHasUnsavedChanges.value) {
 		confirmAction.value = "closeForm"
-		confirmDialog.show(CONFIRM_CLOSE)
+		confirmDialog.show(FORM_UNSAVED_CLOSE_CONFIRM)
 		return
 	}
 	closeFormInternal()
@@ -773,7 +761,7 @@ const handleCloseFormClick = () => {
 const handleClose = () => {
 	if (showForm.value && formHasUnsavedChanges.value) {
 		confirmAction.value = "closeMain"
-		confirmDialog.show(CONFIRM_CLOSE)
+		confirmDialog.show(FORM_UNSAVED_CLOSE_CONFIRM)
 		return
 	}
 	if (showForm.value) closeFormInternal()

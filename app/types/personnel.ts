@@ -264,6 +264,15 @@ export type PersonnelPersonForm = {
 	licensePlateItems: PersonLicensePlateFormItem[];
 };
 
+/** 人員編輯 Dialog 的 UI State（供 Container 與 Dialog 共用） */
+export type PersonnelPersonDialogState = {
+	editingPerson: Ref<Person | null>;
+	form: PersonnelPersonForm;
+	accessControl: PersonnelPersonAccessControlState;
+	capture: PersonnelPersonCaptureState;
+	ui: PersonnelPersonDialogUiState;
+};
+
 export type PersonnelPersonAccessControlState = {
 	accessControlDevices: Ref<Device[]>;
 	password: Ref<string>;
@@ -294,13 +303,4 @@ export type PersonnelPersonDialogUiState = {
 	hasUnsavedChanges: ComputedRef<boolean>;
 	changedFieldsList: ComputedRef<string[]>;
 	requestClose: () => void;
-};
-
-/** 人員編輯 Dialog 的 UI State（供 Container 與 Dialog 共用） */
-export type PersonnelPersonDialogState = {
-	editingPerson: Ref<Person | null>;
-	form: PersonnelPersonForm;
-	accessControl: PersonnelPersonAccessControlState;
-	capture: PersonnelPersonCaptureState;
-	ui: PersonnelPersonDialogUiState;
 };

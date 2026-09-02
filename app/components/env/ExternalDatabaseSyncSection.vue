@@ -76,7 +76,7 @@
 							</button>
 						</header>
 
-						<form class="grid grid-cols-2 gap-4 2xl:gap-6" @submit.prevent="requestSave">
+						<form class="grid grid-cols-2 gap-4 2xl:gap-6" @submit.prevent>
 							<label
 								v-if="dialog.mode === 'create'"
 								class="flex flex-col gap-2 text-base text-white/80"
@@ -335,7 +335,12 @@
 							<footer class="col-span-2 mt-2 flex items-center gap-3 2xl:gap-4">
 								<button type="button" class="btn-secondary" @click="handleCloseDialog">取消</button>
 								<div class="flex-1"></div>
-								<button type="submit" class="btn-primary" :disabled="dialogBusy">
+								<button
+									type="button"
+									class="btn-primary"
+									:disabled="dialogBusy"
+									@click="requestSave"
+								>
 									{{ isSaving ? "儲存中…" : "儲存" }}
 								</button>
 							</footer>
@@ -375,13 +380,8 @@ import {
 } from "~/utils/externalIntegration"
 
 const confirmDialog = useConfirmDialog()
-const showConfirmDialog = computed({
-	get: () => confirmDialog.showDialog.value,
-	set: (value: boolean) => {
-		confirmDialog.showDialog.value = value
-	},
-})
-const confirmDialogConfig = computed(() => confirmDialog.config.value)
+const showConfirmDialog = confirmDialog.showDialog
+const confirmDialogConfig = confirmDialog.config
 const confirmAction = ref<"delete" | "save">("delete")
 const pendingDeleteEventType = ref<string | null>(null)
 

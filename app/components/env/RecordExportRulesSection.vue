@@ -76,7 +76,7 @@
 							</button>
 						</header>
 
-						<form class="grid grid-cols-2 gap-4 2xl:gap-6" @submit.prevent="requestSaveDialog">
+						<form class="grid grid-cols-2 gap-4 2xl:gap-6" @submit.prevent>
 							<label class="flex flex-col gap-2 text-base text-white/80">
 								<span>事件類型<span class="required-mark">*</span></span>
 								<div
@@ -510,7 +510,12 @@
 							<footer class="col-span-2 mt-2 flex gap-3 2xl:gap-4">
 								<button type="button" class="btn-secondary" @click="handleCloseDialog">取消</button>
 								<div class="flex-1"></div>
-								<button type="submit" class="btn-primary" :disabled="dialogBusy">
+								<button
+									type="button"
+									class="btn-primary"
+									:disabled="dialogBusy"
+									@click="requestSaveDialog"
+								>
 									{{ isSaving ? "儲存中…" : "儲存" }}
 								</button>
 							</footer>
@@ -559,13 +564,8 @@ type RuleListItem = {
 };
 
 const confirmDialog = useConfirmDialog();
-const showConfirmDialog = computed({
-	get: () => confirmDialog.showDialog.value,
-	set: (value: boolean) => {
-		confirmDialog.showDialog.value = value;
-	}
-});
-const confirmDialogConfig = computed(() => confirmDialog.config.value);
+const showConfirmDialog = confirmDialog.showDialog;
+const confirmDialogConfig = confirmDialog.config;
 const confirmAction = ref<"delete" | "save">("delete");
 const pendingDeleteRuleId = ref<number | null>(null);
 

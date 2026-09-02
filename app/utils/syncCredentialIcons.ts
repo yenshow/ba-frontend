@@ -1,7 +1,10 @@
-import type { SyncPersonRow, SyncStepUiStatus } from "~/utils/personnelUtils"
+import {
+	getAccessControlConfigSummary,
+	type SyncPersonRow,
+	type SyncStepUiStatus,
+} from "~/utils/personnelUtils"
 import type { Person, LocationLicensePlateRow } from "~/types/personnel"
 import {
-	plateSyncStatusToUiStatus,
 	aggregatePlateSyncUiStatus,
 	resolvePersonPlateSyncSources,
 } from "~/utils/licensePlateFormUtils"
@@ -16,7 +19,6 @@ export type SyncCredentialIndicatorItem = {
 
 export type LocationMemberSyncMode = "access_control" | "isapi_camera"
 
-/** 人流／車牌地點名單同步 icon（Construction 無梯控，不含 ladderCard） */
 export const SYNC_CREDENTIAL_ICONS = {
 	face: {
 		viewBox: "0 0 24 24",
@@ -52,6 +54,29 @@ export const SYNC_CREDENTIAL_ICONS = {
 	},
 } as const
 
+const PLATFORM_ICON_SIZE = "h-4 w-4 2xl:h-[1.125rem] 2xl:w-[1.125rem]"
+
+/** 人員列表「平台資料」icon（boolean 有無）；path 與 SYNC_CREDENTIAL_ICONS 共用 */
+export const PERSONNEL_PLATFORM_ICONS = {
+	password: {
+		viewBox: "0 0 24 24",
+		iconClass: PLATFORM_ICON_SIZE,
+		path: {
+			fill: "none",
+			stroke: "currentColor",
+			"stroke-width": "2",
+			"stroke-linecap": "round",
+			"stroke-linejoin": "round",
+			d: "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z",
+		},
+	},
+	card: { ...SYNC_CREDENTIAL_ICONS.card, iconClass: PLATFORM_ICON_SIZE },
+	fingerprint: { ...SYNC_CREDENTIAL_ICONS.fingerprint, iconClass: PLATFORM_ICON_SIZE },
+	licensePlate: { ...SYNC_CREDENTIAL_ICONS.licensePlate, iconClass: PLATFORM_ICON_SIZE },
+} as const
+
+export type PersonnelPlatformIconKey = keyof typeof PERSONNEL_PLATFORM_ICONS
+
 const toIndicator = (
 	key: keyof typeof SYNC_CREDENTIAL_ICONS,
 	label: string,
@@ -77,21 +102,39 @@ const ACCESS_CREDENTIAL_LABELS: Record<AccessCredentialStep, string> = {
 	fingerprint: "指紋",
 }
 
-/** 人流／攝影機地點名單：狀態來自 buildSyncPersonStepRows（getSyncRowByEmployeeNo） */
+const resolveAccessCredentialPresence = (person: Person) => {
+	const ac = getAccessControlConfigSummary(person)
+	return {
+		face: Boolean(String(person.face_url || "").trim()),
+		card: Boolean(ac.cards?.length || ac.cardNo?.trim()),
+		fingerprint: Boolean(ac.fingerPrintItems?.length || ac.fingerPrintData?.trim()),
+	}
+}
+
+const resolveStepSyncStatus = (
+	row: SyncPersonRow | null,
+	step: AccessCredentialStep,
+): SyncStepUiStatus | null => {
+	const raw = row?.[step]?.status
+	if (!raw || raw === "no_data") return null
+	return raw
+}
+
+/** 人流／攝影機地點名單：人員主檔有憑證才顯示 icon，狀態優先取自 sync row */
 export const buildLocationMemberSyncIndicators = (params: {
 	row: SyncPersonRow | null
 	mode: LocationMemberSyncMode
-	isKept: boolean
+	person: Person
 }): SyncCredentialIndicatorItem[] => {
-	const { row, mode, isKept } = params
-	const steps = ACCESS_CREDENTIAL_STEPS[mode]
-	if (row) {
-		return steps.map((step) =>
-			toIndicator(step, ACCESS_CREDENTIAL_LABELS[step], row[step].status),
-		)
+	const { row, mode, person } = params
+	const presence = resolveAccessCredentialPresence(person)
+	const items: SyncCredentialIndicatorItem[] = []
+	for (const step of ACCESS_CREDENTIAL_STEPS[mode]) {
+		if (!presence[step]) continue
+		const status = resolveStepSyncStatus(row, step) ?? "pending"
+		items.push(toIndicator(step, ACCESS_CREDENTIAL_LABELS[step], status))
 	}
-	const fallbackStatus: SyncStepUiStatus = isKept ? "pending" : "no_data"
-	return steps.map((step) => toIndicator(step, ACCESS_CREDENTIAL_LABELS[step], fallbackStatus))
+	return items
 }
 
 export const buildPlateSyncIndicators = (status: SyncStepUiStatus): SyncCredentialIndicatorItem[] => [
@@ -109,5 +152,3 @@ export const buildLocationMemberPlateSyncIndicators = (
 		aggregatePlateSyncUiStatus(sources.map((p) => p.isapi_sync_status)),
 	)
 }
-
-export { plateSyncStatusToUiStatus }

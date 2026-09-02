@@ -31,7 +31,7 @@
 					</header>
 
 					<form
-						@submit.prevent="handleSubmit"
+						@submit.prevent
 						class="show-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto pb-4 pr-7 2xl:gap-6 2xl:pb-6 2xl:pr-8"
 					>
 						<fieldset :disabled="!canWrite" class="flex min-w-0 flex-col gap-4 border-0 p-0 2xl:gap-6">
@@ -494,6 +494,7 @@ import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
+import { FORM_UNSAVED_CLOSE_CONFIRM } from "~/utils/formDialog";
 import { computed } from "vue";
 import {
 	isHcnetSdkDeviceModel,
@@ -913,20 +914,8 @@ const changeSummary = computed(() => {
 
 // 確認對話框（關閉前未保存提示）
 const confirmDialog = useConfirmDialog();
-const showConfirmDialog = computed({
-	get: () => confirmDialog.showDialog.value,
-	set: (value: boolean) => {
-		confirmDialog.showDialog.value = value;
-	}
-});
-const confirmDialogConfig = computed(() => confirmDialog.config.value);
-
-const CONFIRM_CLOSE = {
-	title: "確認關閉",
-	message: "您有未保存的變更，確定要關閉嗎？",
-	details: "未保存的變更將會遺失。",
-	type: "warning" as const
-};
+const showConfirmDialog = confirmDialog.showDialog;
+const confirmDialogConfig = confirmDialog.config;
 
 const closeDialog = () => {
 	initialFormSnapshot.value = null;
@@ -1028,7 +1017,7 @@ watch(
 
 const handleClose = () => {
 	if (hasUnsavedChanges.value) {
-		confirmDialog.show(CONFIRM_CLOSE);
+		confirmDialog.show(FORM_UNSAVED_CLOSE_CONFIRM);
 		return;
 	}
 	closeDialog();

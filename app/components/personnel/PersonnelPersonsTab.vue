@@ -90,7 +90,10 @@
 							<td class="table-td">{{ p.full_name || "—" }}</td>
 							<td class="table-td">{{ p.group_name?.trim() || "未分組" }}</td>
 							<td class="table-td">
-								<PersonnelAccessDataIndicators :summary="getPersonAccessControlDataSummary(p)" />
+								<PersonnelAccessDataIndicators
+									:summary="getPersonAccessControlDataSummary(p)"
+									:on-icon-click="(tab) => handlePlatformIconClick(p, tab)"
+								/>
 							</td>
 							<td class="table-td">
 								<span
@@ -149,6 +152,7 @@
 
 		<PersonnelPersonDialog
 			v-model="showPersonDialog"
+			v-model:active-section="personDialogSection"
 			:group-tree="groupTree"
 			:state="personDialogState"
 			@submit="props.personsTab.submitPerson"
@@ -208,6 +212,7 @@ import PermissionActionButton from "~/components/common/PermissionActionButton.v
 import AsyncPanel from "~/components/common/AsyncPanel.vue"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import Pagination from "~/components/common/Pagination.vue"
+import SearchInput from "~/components/common/SearchInput.vue"
 import type { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePersonnelPersonsTab"
 import PersonnelImportDialog from "~/components/personnel/dialogs/PersonnelImportDialog.vue"
 import ImageCropDialog from "~/components/common/ImageCropDialog.vue"
@@ -216,7 +221,9 @@ import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import PersonnelPersonDialog from "~/components/personnel/dialogs/PersonnelPersonDialog.vue"
 import PersonnelCardQrDialog from "~/components/personnel/dialogs/PersonnelCardQrDialog.vue"
 import type { PersonnelPersonDialogState, Person } from "~/types/personnel"
-import SearchInput from "~/components/common/SearchInput.vue"
+import PersonnelAccessDataIndicators, {
+	type PersonnelAccessDataTabKey,
+} from "~/components/personnel/PersonnelAccessDataIndicators.vue"
 import type { PersonCardFormItem } from "~/utils/cardFormUtils"
 import { resolveAccessControlCardsFromPerson, personHasAnyAccessCard } from "~/utils/cardFormUtils"
 import { usePersonnelGroupTree } from "~/composables/systems/personnel/usePersonnelGroupTree"
@@ -250,6 +257,7 @@ const {
 	openPersonCreate,
 	editPerson,
 	showPersonDialog,
+	personDialogSection,
 	showImportDialog,
 	importError,
 	importResult,
@@ -339,6 +347,11 @@ const openCardQrDialog = (p: Person) => {
 		full_name: p.full_name,
 		cards,
 	}
+}
+
+const handlePlatformIconClick = (person: Person, tab: PersonnelAccessDataTabKey) => {
+	if (!props.canUpdatePerson) return
+	void editPerson(person, tab)
 }
 
 const confirmDeletePerson = (p: { id: number; employee_no: string; full_name?: string | null }) => {

@@ -4,7 +4,6 @@
 			<div
 				v-if="modelValue"
 				class="fixed inset-0 z-[2500] flex items-center justify-center bg-[rgba(5,24,40,0.8)] px-4 backdrop-blur-[10px]"
-				@click.self="handleClose"
 			>
 				<div
 					class="dialog-panel-bg flex w-full max-w-md flex-col gap-4 rounded-3xl p-6 2xl:max-w-lg 2xl:gap-6 2xl:p-8"
