@@ -293,7 +293,7 @@
 
 		<div v-else-if="dataSource === 'isapi_camera'" class="mt-3 border-t border-white/10 pt-3">
 			<p class="mb-3 text-xs text-white/60 2xl:text-sm">
-				「人流統計」顯示設備分區進／出；「人臉辨識」以進場／出場攝影機決定方向，並可至門禁管理同步臉庫。
+				「人流統計」顯示設備分區進／出；「人臉辨識」以入口／出口攝影機決定方向，並可至門禁管理同步臉庫。
 			</p>
 			<div class="mb-3">
 				<span class="text-sm font-medium text-white/80 2xl:text-base"
@@ -340,7 +340,7 @@
 
 				<div class="mb-3 mt-3">
 					<span class="text-sm font-medium text-white/80 2xl:text-base"
-						>進場攝影機（可複選）<span class="required-mark">*</span></span
+						>入口攝影機（可複選）<span class="required-mark">*</span></span
 					>
 				</div>
 				<div
@@ -369,12 +369,12 @@
 					</label>
 				</div>
 				<p v-if="isapiCameraDevices.length > 0 && !hasFaceEntryCamera" :class="warnHintClass">
-					至少需要選擇一台進場攝影機
+					至少需要選擇一台入口攝影機
 				</p>
 
 				<div class="mb-3 mt-3">
 					<span class="text-sm font-medium text-white/80 2xl:text-base"
-						>出場攝影機（可複選）<span class="required-mark">*</span></span
+						>出口攝影機（可複選）<span class="required-mark">*</span></span
 					>
 				</div>
 				<div v-if="isapiCameraDevices.length > 0" class="grid grid-cols-2 gap-2">
@@ -397,9 +397,9 @@
 					</label>
 				</div>
 				<p v-if="isapiCameraDevices.length > 0 && !hasFaceExitCamera" :class="warnHintClass">
-					至少需要選擇一台出場攝影機
+					至少需要選擇一台出口攝影機
 				</p>
-				<div v-if="hasFaceCameraOverlap" :class="dangerHintClass">進場與出場請勿選擇同一攝影機</div>
+				<div v-if="hasFaceCameraOverlap" :class="dangerHintClass">入口與出口請勿選擇同一攝影機</div>
 			</template>
 
 			<template v-else>

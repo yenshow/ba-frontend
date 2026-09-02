@@ -338,6 +338,9 @@ export const usePersonnelSyncEngine = (params: {
 		return buildSyncPersonStepRows({ candidates, items, warnings })
 	}
 
+	const getSyncCandidatesForLocation = (locationId: number) =>
+		syncCandidatesByLocation[locationId] ?? []
+
 	return {
 		// candidates
 		syncCandidatesByLocation,
@@ -364,5 +367,6 @@ export const usePersonnelSyncEngine = (params: {
 		getWarningsForLocation,
 		isLocationSyncJobRunning,
 		getSyncStepRowsForLocation,
+		getSyncCandidatesForLocation,
 	}
 }

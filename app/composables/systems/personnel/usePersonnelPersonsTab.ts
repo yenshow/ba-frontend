@@ -26,6 +26,7 @@ import {
 	createEmptyLicensePlateFormItem,
 	licensePlateItemsToPayload,
 	mapPersonLicensePlatesToForm,
+	personHasLicensePlates,
 	validateLicensePlateFormItems,
 } from "~/utils/licensePlateFormUtils"
 import {
@@ -203,9 +204,7 @@ export const usePersonnelPersonsTab = (params: {
 		const hasPassword = Boolean(ac.password?.trim())
 		const hasCard = Boolean(ac.cards?.length || ac.cardNo?.trim())
 		const hasFingerprint = Boolean(ac.fingerPrintItems?.length || ac.fingerPrintData?.trim())
-		const plateCount =
-			p.license_plate_count ?? p.license_plates?.filter((pl) => pl.plate_number?.trim()).length ?? 0
-		const hasLicensePlate = plateCount > 0
+		const hasLicensePlate = personHasLicensePlates(p)
 		const hasLadderCard = personHasLadderCard(p)
 		return { hasFace, hasPassword, hasCard, hasFingerprint, hasLicensePlate, hasLadderCard }
 	}

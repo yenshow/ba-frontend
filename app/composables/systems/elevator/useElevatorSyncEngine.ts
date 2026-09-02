@@ -1,8 +1,7 @@
 import { TOAST } from "~/config/toastCatalog"
 import { computed, reactive, ref, type Ref } from "vue"
-import type { ElevatorSyncCandidate, ElevatorSyncJob } from "~/types/elevator"
+import type { ElevatorSyncJob, ElevatorSyncCandidate } from "~/types/elevator"
 import type { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
-import { clampOffset, getNextOffset, getPrevOffset } from "~/composables/systems/personnel/personnelList"
 import { finalizeSyncWarningsForDisplay } from "~/utils/personnelUtils"
 import type { SyncWarning } from "~/types/personnel"
 import { useDeviceSyncObserver } from "~/composables/systems/personnel/useDeviceSyncCore"
@@ -11,8 +10,6 @@ import type { ElevatorSystemConfig } from "~/types/location"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 
 type ElevatorApi = ReturnType<typeof useElevatorApi>
-
-const SYNC_CANDIDATES_PAGE_SIZE = 10
 
 export const useElevatorSyncEngine = (params: {
 	elevatorApi: ElevatorApi
@@ -29,7 +26,6 @@ export const useElevatorSyncEngine = (params: {
 	const syncCandidatesByLocation = reactive<Record<number, ElevatorSyncCandidate[]>>({})
 	const hasAccessDevicesByLocation = reactive<Record<number, boolean>>({})
 	const syncCandidatesLoading = reactive<Record<number, boolean>>({})
-	const syncCandidatesOffsetByLocation = reactive<Record<number, number>>({})
 
 	const syncWarnings = ref<SyncWarning[]>([])
 	const showWarningsDialog = ref(false)
@@ -90,7 +86,7 @@ export const useElevatorSyncEngine = (params: {
 		}
 	}
 
-	const ensureStep2Data = async (locationId: number) => {
+	const prepareLocationDialog = async (locationId: number) => {
 		await loadLocationSyncDevicesLabels(locationId)
 		await ensureSyncCandidates(locationId)
 	}
@@ -111,26 +107,6 @@ export const useElevatorSyncEngine = (params: {
 
 	const getSyncCandidatesForLocation = (locationId: number) =>
 		syncCandidatesByLocation[locationId] ?? []
-
-	const getSyncOffset = (locationId: number) =>
-		Math.max(0, Math.trunc(Number(syncCandidatesOffsetByLocation[locationId] ?? 0)))
-
-	const setSyncOffset = (locationId: number, nextOffset: number) => {
-		const total = getSyncCandidatesForLocation(locationId).length
-		syncCandidatesOffsetByLocation[locationId] = clampOffset({
-			offset: nextOffset,
-			total,
-			limit: SYNC_CANDIDATES_PAGE_SIZE,
-		})
-	}
-
-	const getPagedSyncCandidates = (locationId: number) => {
-		const all = getSyncCandidatesForLocation(locationId)
-		const total = all.length
-		const limit = SYNC_CANDIDATES_PAGE_SIZE
-		const offset = clampOffset({ offset: getSyncOffset(locationId), total, limit })
-		return { rows: all.slice(offset, offset + limit), total, offset, limit }
-	}
 
 	const jobWarningsToSyncWarnings = (job: ElevatorSyncJob): SyncWarning[] =>
 		(job.result?.warnings ?? []).map((w) => ({
@@ -155,6 +131,7 @@ export const useElevatorSyncEngine = (params: {
 		if (syncWarnings.value.length > 0) {
 			toast.error(TOAST.SYNC_COMPLETE_WITH_WARNINGS(syncWarnings.value.length))
 			showWarningsDialog.value = true
+			if (locationId != null) await ensureSyncCandidates(locationId)
 			return
 		}
 		const hasAccess = locationId != null && hasAccessDevicesByLocation[locationId]
@@ -232,69 +209,6 @@ export const useElevatorSyncEngine = (params: {
 	const hasAccessDevicesForLocation = (locationId: number) =>
 		Boolean(hasAccessDevicesByLocation[locationId])
 
-	const accessStepShortLabel = (step?: { status?: string } | null) => {
-		const status = String(step?.status || "").trim()
-		if (status === "success" || status === "synced" || status === "unchanged") return "已同步"
-		if (status === "failed") return "失敗"
-		if (status === "no_data") return "無資料"
-		return "待同步"
-	}
-
-	const accessStepPillClass = (step?: { status?: string } | null) => {
-		const label = accessStepShortLabel(step)
-		if (label === "已同步") return "border-emerald-400/40 bg-emerald-500/15 text-emerald-100"
-		if (label === "失敗") return "border-rose-400/40 bg-rose-500/15 text-rose-100"
-		if (label === "無資料") return "border-white/20 bg-white/5 text-white/60"
-		return "border-amber-400/40 bg-amber-500/15 text-amber-100"
-	}
-
-	const getLastSyncLabel = (candidate: ElevatorSyncCandidate) => {
-		if (candidate.needs_sync) return "待同步"
-		const ladderStatus = String(candidate.last_sync?.card?.status || "").trim()
-		const ladderOk = ladderStatus === "success" || ladderStatus === "synced"
-		const access = candidate.last_sync?.access
-		const accessOk =
-			!candidate.needs_access_sync &&
-			(!access ||
-				["user_info", "face", "card", "fingerprint"].every((key) => {
-					const st = String(access[key as keyof typeof access]?.status || "").trim()
-					return st === "success" || st === "unchanged" || st === "no_data"
-				}))
-		if (ladderOk && accessOk) return "已同步"
-		if (ladderStatus === "failed") return "失敗"
-		if (!candidate.has_ladder_card && candidate.needs_ladder_sync) return "無梯控卡"
-		return "—"
-	}
-
-	const lastSyncPillClass = (label: string) => {
-		if (label === "已同步") return "border-emerald-400/40 bg-emerald-500/15 text-emerald-100"
-		if (label === "失敗") return "border-rose-400/40 bg-rose-500/15 text-rose-100"
-		if (label === "待同步") return "border-amber-400/40 bg-amber-500/15 text-amber-100"
-		if (label === "無梯控卡") return "border-white/20 bg-white/5 text-white/60"
-		return "border-white/20 bg-white/5 text-white/70"
-	}
-
-	const cardStepPillClass = (candidate: ElevatorSyncCandidate) => {
-		if (!candidate.has_ladder_card) return "border-white/20 bg-white/5 text-white/60"
-		const status = String(candidate.last_sync?.card?.status || "")
-		if (status === "success" || status === "synced") {
-			return (candidate.needs_ladder_sync ?? candidate.needs_sync)
-				? "border-amber-400/40 bg-amber-500/15 text-amber-100"
-				: "border-emerald-400/40 bg-emerald-500/15 text-emerald-100"
-		}
-		if (status === "failed") return "border-rose-400/40 bg-rose-500/15 text-rose-100"
-		return "border-amber-400/40 bg-amber-500/15 text-amber-100"
-	}
-
-	const cardStepLabel = (candidate: ElevatorSyncCandidate) => {
-		if (!candidate.has_ladder_card) return "無資料"
-		if (candidate.needs_ladder_sync ?? candidate.needs_sync) return "待同步"
-		const status = String(candidate.last_sync?.card?.status || "")
-		if (status === "success" || status === "synced") return "已同步"
-		if (status === "failed") return "失敗"
-		return "待同步"
-	}
-
 	const watchApplySyncJob = async (locationId: number, jobId: string) => {
 		activeSyncLocationId.value = locationId
 		try {
@@ -327,45 +241,17 @@ export const useElevatorSyncEngine = (params: {
 		openWarningsDialog,
 		syncWarningTypeLabel,
 		hasAccessDevicesForLocation,
-		accessStepShortLabel,
-		accessStepPillClass,
 		getLocationDevicesLabel,
-		ensureStep2Data,
+		prepareLocationDialog,
 		ensureSyncCandidates,
 		isSyncCandidatesLoading,
-		getPagedSyncCandidates,
-		getSyncOffset,
-		setSyncOffset,
-		goPrevSyncPage: (locationId: number) => {
-			setSyncOffset(
-				locationId,
-				getPrevOffset({
-					offset: getSyncOffset(locationId),
-					limit: SYNC_CANDIDATES_PAGE_SIZE,
-				}),
-			)
-		},
-		goNextSyncPage: (locationId: number) => {
-			const total = getSyncCandidatesForLocation(locationId).length
-			setSyncOffset(
-				locationId,
-				getNextOffset({
-					offset: getSyncOffset(locationId),
-					total,
-					limit: SYNC_CANDIDATES_PAGE_SIZE,
-				}),
-			)
-		},
 		syncOneLocation,
 		isPollingSyncJob,
 		isLocationSyncJobRunning,
 		isLocationSyncButtonDisabled,
-		getLastSyncLabel,
-		lastSyncPillClass,
-		cardStepPillClass,
-		cardStepLabel,
 		watchApplySyncJob,
 		isUiLocked,
+		getSyncCandidatesForLocation,
 	}
 }
 

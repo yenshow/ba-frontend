@@ -5,8 +5,9 @@ import type { ElevatorFloorAccessSlot } from "~/types/elevator"
 import type { useElevatorApi } from "~/composables/systems/elevator/useElevatorApi"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { fetchAllPersonnelCandidates } from "~/composables/systems/personnel/personnelList"
-import { groupPersonsByPersonGroup } from "~/utils/personnelUtils"
 import { resolveFormApiError } from "~/utils/apiError"
+import { useLocationApi } from "~/composables/location/api/useLocationApi"
+import { elevatorLocationToUnified } from "~/utils/locationAdapter"
 
 type ElevatorApi = ReturnType<typeof useElevatorApi>
 
@@ -17,16 +18,18 @@ export const useElevatorFloorAccess = (params: {
 	toast: { success: (msg: string) => void; warning: (msg: string, duration?: number) => void }
 }) => {
 	const { locationId, elevatorApi, personnelApi, toast } = params
+	const locationApi = useLocationApi()
 
 	const floors = ref<ElevatorFloorAccessSlot[]>([])
 	const defaultsApplied = ref(false)
 	const candidates = ref<Person[]>([])
 	const candidatesQuery = ref("")
-	const expandedFloorIndexes = ref<Set<number>>(new Set())
 	const isLoading = ref(false)
 	const isApplying = ref(false)
+	const isSavingFloorName = ref(false)
 	const errorText = ref<string | null>(null)
 	const checkedByFloor = reactive<Record<number, Set<number>>>({})
+	const selectedFloorIndex = ref<number | null>(null)
 
 	const syncCheckedFromFloors = (slots: ElevatorFloorAccessSlot[]) => {
 		for (const key of Object.keys(checkedByFloor)) {
@@ -51,42 +54,6 @@ export const useElevatorFloorAccess = (params: {
 		})
 	})
 
-	const candidateGroups = computed(() => groupPersonsByPersonGroup(filteredCandidates.value))
-
-	const filteredPersonIds = computed(() =>
-		filteredCandidates.value
-			.map((person) => Number(person.id))
-			.filter((id) => Number.isFinite(id) && id > 0)
-			.map((id) => Math.trunc(id)),
-	)
-
-	const canSelectAllOnExpandedFloors = computed(
-		() => expandedFloorIndexes.value.size > 0 && filteredPersonIds.value.length > 0,
-	)
-
-	const isAllExpandedFloorsKept = computed(() => {
-		if (!canSelectAllOnExpandedFloors.value) return false
-		for (const floorIndex of expandedFloorIndexes.value) {
-			for (const personId of filteredPersonIds.value) {
-				if (!isPersonChecked(floorIndex, personId)) return false
-			}
-		}
-		return true
-	})
-
-	const toggleSelectAllOnExpandedFloors = () => {
-		const personIds = filteredPersonIds.value
-		if (personIds.length === 0 || expandedFloorIndexes.value.size === 0) return
-		const checked = !isAllExpandedFloorsKept.value
-		for (const floorIndex of expandedFloorIndexes.value) {
-			if (!checkedByFloor[floorIndex]) checkedByFloor[floorIndex] = new Set()
-			for (const personId of personIds) {
-				if (checked) checkedByFloor[floorIndex].add(personId)
-				else checkedByFloor[floorIndex].delete(personId)
-			}
-		}
-	}
-
 	const isPersonChecked = (floorIndex: number, personId: number) =>
 		checkedByFloor[floorIndex]?.has(personId) ?? false
 
@@ -97,15 +64,6 @@ export const useElevatorFloorAccess = (params: {
 	}
 
 	const selectedCountForFloor = (floorIndex: number) => checkedByFloor[floorIndex]?.size ?? 0
-
-	const isFloorExpanded = (floorIndex: number) => expandedFloorIndexes.value.has(floorIndex)
-
-	const toggleFloorExpanded = (floorIndex: number) => {
-		const next = new Set(expandedFloorIndexes.value)
-		if (next.has(floorIndex)) next.delete(floorIndex)
-		else next.add(floorIndex)
-		expandedFloorIndexes.value = next
-	}
 
 	const loadCandidates = async () => {
 		candidates.value = await fetchAllPersonnelCandidates({
@@ -128,12 +86,10 @@ export const useElevatorFloorAccess = (params: {
 			floors.value = accessRes.floors || []
 			defaultsApplied.value = Boolean(accessRes.defaultsApplied)
 			syncCheckedFromFloors(floors.value)
-
-			if (expandedFloorIndexes.value.size === 0 && floors.value.length > 0) {
-				expandedFloorIndexes.value = new Set([floors.value[0]!.index])
-			}
+			selectedFloorIndex.value = floors.value[0]?.index ?? null
 		} catch (err) {
 			floors.value = []
+			selectedFloorIndex.value = null
 			errorText.value = resolveFormApiError(err, "載入樓層授權失敗")
 		} finally {
 			isLoading.value = false
@@ -170,24 +126,89 @@ export const useElevatorFloorAccess = (params: {
 		await loadCandidates()
 	}
 
+	const selectFloor = (floorIndex: number) => {
+		selectedFloorIndex.value = floorIndex
+	}
+
+	const isAllSelectedFloorKept = computed(() => {
+		if (selectedFloorIndex.value == null || filteredCandidates.value.length === 0) return false
+		return filteredCandidates.value.every((p) =>
+			isPersonChecked(selectedFloorIndex.value!, p.id),
+		)
+	})
+
+	const toggleSelectAllOnSelectedFloor = () => {
+		if (selectedFloorIndex.value == null) return
+		const checked = !isAllSelectedFloorKept.value
+		for (const person of filteredCandidates.value) {
+			togglePersonOnFloor(selectedFloorIndex.value, person.id, checked)
+		}
+	}
+
+	const updateFloorDisplayName = async (floorIndex: number, rawName: string) => {
+		const locId = locationId.value
+		if (locId == null) return false
+
+		const nextName = String(rawName ?? "").trim()
+		const current = floors.value.find((f) => f.index === floorIndex)
+		if (!current || current.name === nextName) return true
+
+		const previousName = current.name
+		floors.value = floors.value.map((floor) =>
+			floor.index === floorIndex ? { ...floor, name: nextName } : floor,
+		)
+
+		errorText.value = null
+		isSavingFloorName.value = true
+		try {
+			const detail = await elevatorApi.getLocationDetail(locId)
+			const configFloors = [...(detail.floors ?? [])]
+			const arrayIndex = floorIndex - 1
+			if (arrayIndex < 0 || arrayIndex >= configFloors.length) {
+				errorText.value = "找不到對應樓層"
+				return false
+			}
+
+			configFloors[arrayIndex] = { ...configFloors[arrayIndex], name: nextName }
+			const payload = elevatorLocationToUnified({
+				...detail,
+				id: String(locId),
+				floors: configFloors,
+			})
+			await locationApi.updateLocation(String(locId), payload, "elevator")
+
+			toast.success(TOAST.ELEVATOR_FLOOR_NAME_SAVED)
+			return true
+		} catch (err) {
+			floors.value = floors.value.map((floor) =>
+				floor.index === floorIndex ? { ...floor, name: previousName } : floor,
+			)
+			errorText.value = resolveFormApiError(err, "更新樓層名稱失敗")
+			return false
+		} finally {
+			isSavingFloorName.value = false
+		}
+	}
+
 	return {
 		floors,
 		defaultsApplied,
 		candidatesQuery,
-		candidateGroups,
-		canSelectAllOnExpandedFloors,
-		isAllExpandedFloorsKept,
-		toggleSelectAllOnExpandedFloors,
 		isLoading,
 		isApplying,
+		isSavingFloorName,
 		errorText,
 		isPersonChecked,
 		togglePersonOnFloor,
 		selectedCountForFloor,
-		isFloorExpanded,
-		toggleFloorExpanded,
 		loadFloorAccess,
 		applyFloorAccess,
 		handleSearchCandidates,
+		selectedFloorIndex,
+		selectFloor,
+		isAllSelectedFloorKept,
+		toggleSelectAllOnSelectedFloor,
+		filteredCandidates,
+		updateFloorDisplayName,
 	}
 }

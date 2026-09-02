@@ -1,5 +1,6 @@
 import type {
 	Person,
+	PersonGroup,
 	SyncLocationCandidate,
 	SyncLocationJobItem,
 	SyncWarning,
@@ -331,16 +332,48 @@ export const finalizeSyncWarningsForDisplay = async (
 	return enrichSyncWarningsWithPersonNames(warnings, candidatesByLocation)
 }
 
-const SYNC_STEP_PILL_CLASS: Record<SyncStepUiStatus, string> = {
-	pending: "bg-amber-500/15 text-amber-100 border border-amber-400/30",
-	success: "bg-emerald-500/15 text-emerald-100 border border-emerald-400/30",
-	failed: "bg-rose-500/15 text-rose-100 border border-rose-400/30",
-	unchanged: "bg-slate-500/15 text-slate-200 border border-slate-400/25",
-	no_data: "bg-white/5 text-white/45 border border-white/10",
+export const UNGROUPED_PERSON_GROUP_ID = 0
+export const UNGROUPED_PERSON_GROUP_NAME = "未分組"
+export const ALL_PERSON_GROUP_FILTER_ID = -1
+export const ALL_PERSON_GROUP_FILTER_NAME = "全部"
+
+/** 群組樹選取標籤（主群組 / 子群組；「全部」回傳 null） */
+export const resolvePersonGroupBrowseLabel = (
+	groupTree: PersonGroup[],
+	selectedChildId: number | null,
+): string | null => {
+	if (selectedChildId == null || selectedChildId === ALL_PERSON_GROUP_FILTER_ID) return null
+	if (selectedChildId === UNGROUPED_PERSON_GROUP_ID) return UNGROUPED_PERSON_GROUP_NAME
+	for (const main of groupTree) {
+		const child = (main.children || []).find((c) => c.id === selectedChildId)
+		if (child) return `${main.name} / ${child.name}`
+	}
+	return null
 }
 
-const UNGROUPED_PERSON_GROUP_ID = 0
-const UNGROUPED_PERSON_GROUP_NAME = "未分組"
+const SYNC_STEP_ICON_CLASS: Record<SyncStepUiStatus, string> = {
+	pending: "border-amber-300/80 bg-amber-500/40 text-amber-50 ring-1 ring-amber-400/50",
+	success: "border-emerald-300/80 bg-emerald-500/40 text-emerald-50 ring-1 ring-emerald-400/50",
+	failed: "border-rose-300/80 bg-rose-500/45 text-rose-50 ring-1 ring-rose-400/55",
+	unchanged: "border-emerald-300/80 bg-emerald-500/40 text-emerald-50 ring-1 ring-emerald-400/50",
+	no_data: "border-white/25 bg-white/12 text-white/55",
+}
+
+export const syncStepIconClass = (status: SyncStepUiStatus | string | null | undefined) =>
+	SYNC_STEP_ICON_CLASS[(status as SyncStepUiStatus) || "no_data"] ??
+	SYNC_STEP_ICON_CLASS.no_data
+
+export const syncStepAriaLabel = (
+	stepLabel: string,
+	status: SyncStepUiStatus | string | null | undefined,
+) => {
+	const s = String(status || "no_data") as SyncStepUiStatus
+	if (s === "pending") return `${stepLabel}：待同步`
+	if (s === "success") return `${stepLabel}：成功`
+	if (s === "failed") return `${stepLabel}：失敗`
+	if (s === "unchanged") return `${stepLabel}：未變更`
+	return `${stepLabel}：無資料`
+}
 
 export type PersonGroupMemberSection = {
 	groupId: number
@@ -375,25 +408,6 @@ export const groupPersonsByPersonGroup = (persons: Person[]): PersonGroupMemberS
 		if (b.groupId === UNGROUPED_PERSON_GROUP_ID) return -1
 		return a.groupName.localeCompare(b.groupName, "zh-Hant")
 	})
-}
-
-export const syncStepShortLabel = (cell: { status: SyncStepUiStatus }) => {
-	const s = cell.status
-	if (s === "pending") return "待同步"
-	if (s === "success") return "成功"
-	if (s === "unchanged") return "未變更"
-	if (s === "failed") return "失敗"
-	return "無資料"
-}
-
-export const syncStepPillClass = (status: SyncStepUiStatus) =>
-	SYNC_STEP_PILL_CLASS[status] ?? "bg-white/5 text-white/60 border border-white/10"
-
-export const lastSyncPillClass = (label: string) => {
-	if (label === "成功") return "border-emerald-400/30 bg-emerald-500/15 text-emerald-100"
-	if (label === "失敗") return "border-rose-400/30 bg-rose-500/15 text-rose-100"
-	if (label === "待同步") return "border-amber-400/30 bg-amber-500/15 text-amber-100"
-	return "border-white/15 bg-white/5 text-white/70"
 }
 
 export const formatSyncAt = (v: unknown): string | null => {

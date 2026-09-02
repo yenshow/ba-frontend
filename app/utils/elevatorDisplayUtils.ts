@@ -1,5 +1,11 @@
 import type { ElevatorDirection } from "~/types/elevator"
 
+/** 樓層授權列表：代碼 badge 旁僅顯示樓層名稱（無名稱則留白） */
+export const formatElevatorFloorAccessName = (floor: {
+	code?: string | null
+	name?: string | null
+}): string => String(floor.name ?? "").trim()
+
 export const formatElevatorLiveFloorText = (options: {
 	floorLabel?: string
 	currentFloor?: number | string | null
