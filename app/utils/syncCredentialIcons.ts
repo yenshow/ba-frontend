@@ -1,7 +1,11 @@
-import type { SyncPersonRow, SyncStepUiStatus } from "~/utils/personnelUtils"
-import type { Person, LocationLicensePlateRow } from "~/types/personnel"
 import {
-	plateSyncStatusToUiStatus,
+	getAccessControlConfigSummary,
+	type SyncPersonRow,
+	type SyncStepUiStatus,
+} from "~/utils/personnelUtils"
+import type { Person, LocationLicensePlateRow } from "~/types/personnel"
+import { personHasLadderCard } from "~/utils/ladderFloorFormUtils"
+import {
 	aggregatePlateSyncUiStatus,
 	resolvePersonPlateSyncSources,
 } from "~/utils/licensePlateFormUtils"
@@ -59,6 +63,30 @@ export const SYNC_CREDENTIAL_ICONS = {
 	},
 } as const
 
+const PLATFORM_ICON_SIZE = "h-4 w-4 2xl:h-[1.125rem] 2xl:w-[1.125rem]"
+
+/** 人員列表「平台資料」icon（boolean 有無）；path 與 SYNC_CREDENTIAL_ICONS 共用 */
+export const PERSONNEL_PLATFORM_ICONS = {
+	password: {
+		viewBox: "0 0 24 24",
+		iconClass: PLATFORM_ICON_SIZE,
+		path: {
+			fill: "none",
+			stroke: "currentColor",
+			"stroke-width": "2",
+			"stroke-linecap": "round",
+			"stroke-linejoin": "round",
+			d: "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z",
+		},
+	},
+	card: { ...SYNC_CREDENTIAL_ICONS.card, iconClass: PLATFORM_ICON_SIZE },
+	ladderCard: { ...SYNC_CREDENTIAL_ICONS.ladderCard, iconClass: PLATFORM_ICON_SIZE },
+	fingerprint: { ...SYNC_CREDENTIAL_ICONS.fingerprint, iconClass: PLATFORM_ICON_SIZE },
+	licensePlate: { ...SYNC_CREDENTIAL_ICONS.licensePlate, iconClass: PLATFORM_ICON_SIZE },
+} as const
+
+export type PersonnelPlatformIconKey = keyof typeof PERSONNEL_PLATFORM_ICONS
+
 const toIndicator = (
 	key: keyof typeof SYNC_CREDENTIAL_ICONS,
 	label: string,
@@ -84,21 +112,60 @@ const ACCESS_CREDENTIAL_LABELS: Record<AccessCredentialStep, string> = {
 	fingerprint: "指紋",
 }
 
-/** 人流／攝影機地點名單：狀態來自 buildSyncPersonStepRows（getSyncRowByEmployeeNo） */
+const ELEVATOR_ACCESS_LABELS: Record<AccessCredentialStep, string> = {
+	face: "人臉",
+	card: "門禁卡",
+	fingerprint: "指紋",
+}
+
+const resolveAccessCredentialPresence = (person: Person) => {
+	const ac = getAccessControlConfigSummary(person)
+	return {
+		face: Boolean(String(person.face_url || "").trim()),
+		card: Boolean(ac.cards?.length || ac.cardNo?.trim()),
+		fingerprint: Boolean(ac.fingerPrintItems?.length || ac.fingerPrintData?.trim()),
+	}
+}
+
+const resolveStepSyncStatus = (
+	row: SyncPersonRow | null,
+	step: AccessCredentialStep,
+): SyncStepUiStatus | null => {
+	const raw = row?.[step]?.status
+	if (!raw || raw === "no_data") return null
+	return raw
+}
+
+const buildAccessCredentialSyncIndicators = (params: {
+	presence: ReturnType<typeof resolveAccessCredentialPresence>
+	steps: AccessCredentialStep[]
+	labels: Record<AccessCredentialStep, string>
+	resolveStatus: (step: AccessCredentialStep) => SyncStepUiStatus | null
+	skipNoData?: boolean
+}): SyncCredentialIndicatorItem[] => {
+	const items: SyncCredentialIndicatorItem[] = []
+	for (const step of params.steps) {
+		if (!params.presence[step]) continue
+		const status = params.resolveStatus(step) ?? "pending"
+		if (params.skipNoData && status === "no_data") continue
+		items.push(toIndicator(step, params.labels[step], status))
+	}
+	return items
+}
+
+/** 人流／攝影機地點名單：人員主檔有憑證才顯示 icon，狀態優先取自 sync row */
 export const buildLocationMemberSyncIndicators = (params: {
 	row: SyncPersonRow | null
 	mode: LocationMemberSyncMode
-	isKept: boolean
+	person: Person
 }): SyncCredentialIndicatorItem[] => {
-	const { row, mode, isKept } = params
-	const steps = ACCESS_CREDENTIAL_STEPS[mode]
-	if (row) {
-		return steps.map((step) =>
-			toIndicator(step, ACCESS_CREDENTIAL_LABELS[step], row[step].status),
-		)
-	}
-	const fallbackStatus: SyncStepUiStatus = isKept ? "pending" : "no_data"
-	return steps.map((step) => toIndicator(step, ACCESS_CREDENTIAL_LABELS[step], fallbackStatus))
+	const { row, mode, person } = params
+	return buildAccessCredentialSyncIndicators({
+		presence: resolveAccessCredentialPresence(person),
+		steps: ACCESS_CREDENTIAL_STEPS[mode],
+		labels: ACCESS_CREDENTIAL_LABELS,
+		resolveStatus: (step) => resolveStepSyncStatus(row, step),
+	})
 }
 
 export const buildPlateSyncIndicators = (status: SyncStepUiStatus): SyncCredentialIndicatorItem[] => [
@@ -131,43 +198,40 @@ export const elevatorAccessStepToUiStatus = (
 
 export const buildElevatorLadderCardIndicator = (
 	candidate: ElevatorSyncCandidate | null | undefined,
+	person: Person,
 ): SyncCredentialIndicatorItem[] => {
-	if (!candidate?.has_ladder_card) return []
-	const needs = candidate.needs_ladder_sync ?? candidate.needs_sync
-	const status = elevatorAccessStepToUiStatus(candidate.last_sync?.card, needs)
+	const hasLadder = candidate?.has_ladder_card ?? personHasLadderCard(person)
+	if (!hasLadder) return []
+	const needs = candidate?.needs_ladder_sync ?? candidate?.needs_sync
+	const status = candidate?.last_sync?.card
+		? elevatorAccessStepToUiStatus(candidate.last_sync.card, needs)
+		: "pending"
 	return [toIndicator("ladderCard", "梯控卡", status)]
 }
 
 export const buildElevatorAccessSyncIndicators = (
 	candidate: ElevatorSyncCandidate | null | undefined,
+	person: Person,
 ): SyncCredentialIndicatorItem[] => {
 	const access = candidate?.last_sync?.access
-	if (!access) return []
-	const needs = candidate.needs_access_sync
-	const items: SyncCredentialIndicatorItem[] = []
-	const faceStatus = elevatorAccessStepToUiStatus(access.face, needs)
-	const cardStatus = elevatorAccessStepToUiStatus(access.card, needs)
-	const fpStatus = elevatorAccessStepToUiStatus(access.fingerprint, needs)
-	if (faceStatus !== "no_data") {
-		items.push(toIndicator("face", "人臉", faceStatus))
-	}
-	if (cardStatus !== "no_data") {
-		items.push(toIndicator("card", "門禁卡", cardStatus))
-	}
-	if (fpStatus !== "no_data") {
-		items.push(toIndicator("fingerprint", "指紋", fpStatus))
-	}
-	return items
+	const needs = candidate?.needs_access_sync
+	return buildAccessCredentialSyncIndicators({
+		presence: resolveAccessCredentialPresence(person),
+		steps: ACCESS_CREDENTIAL_STEPS.access_control,
+		labels: ELEVATOR_ACCESS_LABELS,
+		resolveStatus: (step) =>
+			access?.[step] ? elevatorAccessStepToUiStatus(access[step], needs) : null,
+		skipNoData: true,
+	})
 }
 
 /** 梯控樓層名單：梯控卡 + 門禁 credential（若有門禁設備） */
 export const buildElevatorMemberSyncIndicators = (
 	candidate: ElevatorSyncCandidate | null | undefined,
 	showAccess: boolean,
+	person: Person,
 ): SyncCredentialIndicatorItem[] => {
-	const ladder = buildElevatorLadderCardIndicator(candidate)
+	const ladder = buildElevatorLadderCardIndicator(candidate, person)
 	if (!showAccess) return ladder
-	return [...ladder, ...buildElevatorAccessSyncIndicators(candidate)]
+	return [...ladder, ...buildElevatorAccessSyncIndicators(candidate, person)]
 }
-
-export { plateSyncStatusToUiStatus }

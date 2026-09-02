@@ -77,15 +77,7 @@
 
 							<!-- 右側：開關在上、狀態徽章在下 -->
 							<div class="flex min-w-0 flex-1 flex-col items-center gap-2">
-								<div class="relative flex w-full justify-center">
-									<div
-										v-if="props.areaToggling.has(row.locationId)"
-										class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"
-									>
-										<div
-											class="h-6 w-6 animate-spin rounded-full border-2 border-white/30 border-t-white 2xl:h-7 2xl:w-7"
-										></div>
-									</div>
+								<div class="flex w-full justify-center">
 									<label
 										class="relative inline-flex select-none items-center"
 										:class="{

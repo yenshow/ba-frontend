@@ -30,7 +30,53 @@
 							&times;
 						</button>
 					</header>
-					<form class="grid grid-cols-2 gap-4 2xl:gap-6" @submit.prevent="handleSubmit">
+
+					<div
+						v-if="isEditingPerson"
+						class="flex gap-2 border-b border-white/10 pb-3"
+						role="tablist"
+						aria-label="人員編輯分頁"
+					>
+						<button
+							type="button"
+							role="tab"
+							class="rounded-lg px-3 py-1.5 text-sm transition-colors 2xl:text-base"
+							:class="
+								activeSection === 'form' || isFormSubSection
+									? 'bg-cyan-500/25 text-white'
+									: 'text-white/60 hover:bg-white/10 hover:text-white'
+							"
+							:aria-selected="activeSection === 'form' || isFormSubSection"
+							@click="setActiveSection('form')"
+						>
+							基本資料
+						</button>
+						<button
+							type="button"
+							role="tab"
+							class="rounded-lg px-3 py-1.5 text-sm transition-colors 2xl:text-base"
+							:class="
+								activeSection === 'permissions'
+									? 'bg-cyan-500/25 text-white'
+									: 'text-white/60 hover:bg-white/10 hover:text-white'
+							"
+							:aria-selected="activeSection === 'permissions'"
+							@click="setActiveSection('permissions')"
+						>
+							權限總覽
+						</button>
+					</div>
+
+					<PersonnelPermissionOverview
+						v-if="isEditingPerson && activeSection === 'permissions' && state.editingPerson.value"
+						:person="state.editingPerson.value"
+					/>
+
+					<form
+						v-show="!isEditingPerson || activeSection !== 'permissions'"
+						class="grid grid-cols-2 gap-4 2xl:gap-6"
+						@submit.prevent
+					>
 						<div
 							v-if="!hasAccessControlDevices"
 							class="col-span-2 rounded-lg border border-white/20 bg-white/5 p-3 text-xs text-white/70 2xl:text-sm"
@@ -144,7 +190,10 @@
 							</label>
 						</div>
 
-						<label class="flex flex-col gap-2 text-base text-white/80">
+						<label
+							id="personnel-section-password"
+							class="flex flex-col gap-2 text-base text-white/80"
+						>
 							<span>密碼設定</span>
 							<input
 								:value="localPassword"
@@ -211,7 +260,7 @@
 							</div>
 						</div>
 
-						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
+						<div id="personnel-section-card" class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
 							<div class="flex items-center justify-between gap-2">
 								<p>卡片設定</p>
 								<div class="flex items-center gap-2">
@@ -287,7 +336,10 @@
 							</div>
 						</div>
 
-						<div class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
+						<div
+							id="personnel-section-fingerprint"
+							class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base"
+						>
 							<div class="flex items-center justify-between gap-2">
 								<p>指紋設定</p>
 								<div class="flex items-center gap-2">
@@ -357,7 +409,10 @@
 							</div>
 						</div>
 
-						<div class="col-span-2 flex flex-col gap-3 text-sm text-white/80 2xl:text-base">
+						<div
+							id="personnel-section-license-plate"
+							class="col-span-2 flex flex-col gap-3 text-sm text-white/80 2xl:text-base"
+						>
 							<div class="flex items-center justify-between gap-2">
 								<p>車牌設定</p>
 								<div class="flex items-center gap-2">
@@ -429,6 +484,7 @@
 
 						<div
 							v-if="hasElevatorLicense"
+							id="personnel-section-ladder-card"
 							class="col-span-2 flex flex-col gap-3 text-sm text-white/80 2xl:text-base"
 						>
 							<div class="flex items-center justify-between gap-2">
@@ -537,7 +593,12 @@
 						<footer class="col-span-2 mt-2 flex gap-3 2xl:gap-4">
 							<button type="button" class="btn-secondary" @click="handleClose">取消</button>
 							<div class="flex-1"></div>
-							<button type="submit" class="btn-primary" :disabled="isSubmitting">
+							<button
+								type="button"
+								class="btn-primary"
+								:disabled="isSubmitting"
+								@click="handleSubmit"
+							>
 								{{ isSubmitting ? "處理中..." : isEditingPerson ? "更新" : "建立" }}
 							</button>
 						</footer>
@@ -576,6 +637,8 @@ import {
 	createEmptyFingerprintFormItem,
 } from "~/utils/fingerprintFormUtils"
 import { createFormItemTabHandlers } from "~/utils/personnelFormTabUtils"
+import PersonnelPermissionOverview from "~/components/personnel/PersonnelPermissionOverview.vue"
+import type { PersonnelPersonDialogSection } from "~/composables/systems/personnel/usePersonnelPersonForm"
 import { useLicense } from "~/composables/core/useLicense"
 import { usePeopleCountingAccessRbac } from "~/composables/core/useAccessGate"
 
@@ -587,10 +650,12 @@ const props = defineProps<{
 	modelValue: boolean
 	state: PersonnelPersonDialogState
 	groupTree: PersonGroup[]
+	activeSection: PersonnelPersonDialogSection
 }>()
 
 const emit = defineEmits<{
 	"update:modelValue": [value: boolean]
+	"update:activeSection": [value: PersonnelPersonDialogSection]
 	submit: []
 	"face-file-change": [file: File]
 	"clear-face": []
@@ -601,6 +666,49 @@ const emit = defineEmits<{
 }>()
 
 const isEditingPerson = computed(() => props.state.editingPerson.value != null)
+
+const FORM_SUB_SECTIONS: PersonnelPersonDialogSection[] = [
+	"password",
+	"card",
+	"fingerprint",
+	"licensePlate",
+	"ladderCard",
+]
+
+const isFormSubSection = computed(() => FORM_SUB_SECTIONS.includes(props.activeSection))
+
+const setActiveSection = (section: PersonnelPersonDialogSection) => {
+	emit("update:activeSection", section)
+}
+
+const sectionScrollTargetId = (section: PersonnelPersonDialogSection): string | null => {
+	switch (section) {
+		case "password":
+			return "personnel-section-password"
+		case "card":
+			return "personnel-section-card"
+		case "fingerprint":
+			return "personnel-section-fingerprint"
+		case "licensePlate":
+			return "personnel-section-license-plate"
+		case "ladderCard":
+			return "personnel-section-ladder-card"
+		default:
+			return null
+	}
+}
+
+watch(
+	() => props.activeSection,
+	(section) => {
+		if (section === "permissions" || section === "form") return
+		nextTick(() => {
+			const id = sectionScrollTargetId(section)
+			if (!id) return
+			document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" })
+		})
+	},
+)
 
 const formErrorText = computed(() => (props.state.ui.errorMessage.value || "").trim() || null)
 

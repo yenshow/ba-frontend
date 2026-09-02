@@ -96,16 +96,7 @@
 
 								<div class="flex items-center justify-center gap-2 2xl:gap-3">
 									<div class="flex flex-col items-center gap-2 px-4">
-										<div class="relative flex justify-center">
-											<div
-												v-if="props.areaToggling.has(row.locationId)"
-												class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"
-											>
-												<div
-													class="h-6 w-6 animate-spin rounded-full border-2 border-white/30 border-t-white 2xl:h-7 2xl:w-7"
-												></div>
-											</div>
-
+										<div class="flex justify-center">
 											<label
 												class="relative inline-flex select-none items-center"
 												:class="{

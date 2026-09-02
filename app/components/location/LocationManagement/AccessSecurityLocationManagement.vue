@@ -166,7 +166,6 @@
 								:placeholder="group.key === EMPTY_KEY ? '未分類' : '例如：1F'"
 								:aria-label="'樓層：' + group.displayLabel"
 								@blur="commitGroupRename(group)"
-								@keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
 							/>
 						</label>
 					</div>

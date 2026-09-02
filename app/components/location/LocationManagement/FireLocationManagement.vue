@@ -155,7 +155,6 @@
 								:placeholder="group.key === EMPTY_KEY ? '未分類' : ''"
 								:aria-label="'檢視分類：' + group.displayLabel"
 								@blur="commitGroupRename(group)"
-								@keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
 							/>
 						</label>
 					</div>

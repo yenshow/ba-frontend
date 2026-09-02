@@ -48,7 +48,7 @@
 					變更成功後將自動登出，請使用新密碼重新登入。
 				</p>
 
-				<form class="flex flex-1 flex-col gap-4 2xl:gap-6" @submit.prevent="handleSubmit">
+				<form class="flex flex-1 flex-col gap-4 2xl:gap-6" @submit.prevent>
 					<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
 						<span>舊密碼</span>
 						<input
@@ -90,7 +90,12 @@
 					</p>
 
 					<div class="mt-auto flex gap-3 pt-2">
-						<button type="submit" class="btn-primary" :disabled="isSubmitting">
+						<button
+							type="button"
+							class="btn-primary"
+							:disabled="isSubmitting"
+							@click="handleSubmit"
+						>
 							{{ isSubmitting ? "處理中..." : "更新密碼" }}
 						</button>
 					</div>

@@ -17,6 +17,7 @@ import {
 	type PersonnelGroupsChangedPayload,
 } from "~/utils/personnelGroups"
 import { resolveFormApiError } from "~/utils/apiError"
+import { FORM_UNSAVED_CLOSE_CONFIRM } from "~/utils/formDialog"
 
 const cloneMemberMap = (map: Record<number, number[]>): Record<number, number[]> =>
 	Object.fromEntries(Object.entries(map).map(([id, ids]) => [Number(id), [...ids]]))
@@ -35,13 +36,6 @@ const collectPersistedChildIds = (mains: PersonnelGroupDraftMain[]) => {
 		}
 	}
 	return ids
-}
-
-const UNSAVED_CLOSE_CONFIRM = {
-	title: "確定要離開？",
-	message: "您有尚未儲存的變更，確定要離開嗎？",
-	details: "未儲存的變更將會遺失。",
-	type: "warning" as const,
 }
 
 type ConfirmAction =
@@ -453,7 +447,7 @@ export const usePersonnelGroupsManageDialog = (params: {
 	const requestClose = () => {
 		if (hasUnsavedChanges.value) {
 			confirmAction.value = { type: "close" }
-			confirmDialog.show(UNSAVED_CLOSE_CONFIRM)
+			confirmDialog.show(FORM_UNSAVED_CLOSE_CONFIRM)
 			return
 		}
 		closePanel()

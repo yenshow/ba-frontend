@@ -147,7 +147,7 @@ import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi
 import {
 	PERSONNEL_FACE_IMPORT_SOURCE_MAX_BYTES,
 	PERSONNEL_FACE_MAX_BYTES,
-} from "~/composables/systems/personnel/usePersonnelPersonsTab"
+} from "~/composables/systems/personnel/usePersonnelPersonForm"
 import { formatImportErrorLine } from "~/utils/personnelUtils"
 
 const maxFaceSizeKb = PERSONNEL_FACE_MAX_BYTES / 1024

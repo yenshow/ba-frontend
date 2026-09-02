@@ -3,14 +3,14 @@
 		<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
 			<p
 				v-if="description"
-				class="min-w-0 flex-1 text-base leading-relaxed text-white/70 2xl:text-lg"
+				class="min-w-0 flex-1 text-sm leading-relaxed text-white/70 2xl:text-base"
 			>
 				{{ description }}
 			</p>
 			<div class="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:justify-start">
 				<button
 					type="button"
-					class="rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-base text-white/90 hover:bg-white/20 disabled:opacity-50 2xl:text-lg"
+					class="btn-dialog-muted"
 					:disabled="warningsCount === 0"
 					@click="emit('openWarnings')"
 				>
@@ -20,7 +20,7 @@
 				<PermissionActionButton
 					:allowed="canResync"
 					:disabled="isResyncDisabled"
-					class="rounded-xl border border-white/20 bg-emerald-500/85 px-4 py-2.5 text-base text-white enabled:hover:bg-emerald-500 2xl:text-lg"
+					class="btn-action-emerald"
 					:aria-label="resyncAriaLabel"
 					@click="emit('resync')"
 				>

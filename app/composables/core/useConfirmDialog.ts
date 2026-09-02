@@ -9,6 +9,7 @@ export interface ConfirmDialogConfig {
 	cancelText?: string;
 }
 
+/** `showDialog` 可直接用於 ConfirmDialog 的 `v-model`；`config` 可直接綁定 title／message 等 props。 */
 export function useConfirmDialog() {
 	const showDialog = ref(false);
 	const config = ref<ConfirmDialogConfig>({

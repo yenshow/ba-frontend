@@ -337,6 +337,14 @@ export const UNGROUPED_PERSON_GROUP_NAME = "未分組"
 export const ALL_PERSON_GROUP_FILTER_ID = -1
 export const ALL_PERSON_GROUP_FILTER_NAME = "全部"
 
+/** 人員所屬子群組 ID（無效值視為未分組） */
+export const resolvePersonGroupId = (person: Person): number => {
+	if (person.person_group_id != null && Number.isFinite(Number(person.person_group_id))) {
+		return Number(person.person_group_id)
+	}
+	return UNGROUPED_PERSON_GROUP_ID
+}
+
 /** 群組樹選取標籤（主群組 / 子群組；「全部」回傳 null） */
 export const resolvePersonGroupBrowseLabel = (
 	groupTree: PersonGroup[],
@@ -390,10 +398,7 @@ export const parseLocationNumericId = (raw: unknown): number | null => {
 export const groupPersonsByPersonGroup = (persons: Person[]): PersonGroupMemberSection[] => {
 	const byGroupId = new Map<number, PersonGroupMemberSection>()
 	for (const person of persons || []) {
-		const groupId =
-			person.person_group_id != null && Number.isFinite(Number(person.person_group_id))
-				? Number(person.person_group_id)
-				: UNGROUPED_PERSON_GROUP_ID
+		const groupId = resolvePersonGroupId(person)
 		const groupName =
 			groupId === UNGROUPED_PERSON_GROUP_ID
 				? UNGROUPED_PERSON_GROUP_NAME

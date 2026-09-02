@@ -277,6 +277,7 @@ import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import IconTrashButton from "~/components/common/IconTrashButton.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
+import { buildUnsavedCloseConfirm } from "~/utils/formDialog"
 import { nextTick, type Component } from "vue"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
@@ -376,14 +377,8 @@ const confirmAction = ref<"close" | "delete" | "deleteLocation">("close")
 
 const { handleError } = useErrorHandler()
 
-const showConfirmDialog = computed({
-	get: () => confirmDialog.showDialog.value,
-	set: (value: boolean) => {
-		confirmDialog.showDialog.value = value
-	},
-})
-
-const confirmDialogConfig = computed(() => confirmDialog.config.value)
+const showConfirmDialog = confirmDialog.showDialog
+const confirmDialogConfig = confirmDialog.config
 
 const changedFieldsList = computed(() => {
 	return buildChangedFieldsList({
@@ -686,16 +681,16 @@ const handleClose = () => {
 		const hasNewZones = Array.from(pendingChanges.value.keys()).some((id) => id.startsWith("temp-"))
 
 		confirmAction.value = "close"
-		confirmDialog.show({
-			title: "確定要離開？",
-			message: hasNewZones
-				? "您有尚未儲存的變更（含新增區域）。確定要離開嗎？"
-				: "您有尚未儲存的變更，確定要離開嗎？",
-			details: hasNewZones
-				? "未儲存的變更將會遺失，新增區域須儲存後才會寫入資料庫。"
-				: "未儲存的變更將會遺失。",
-			type: "warning",
-		})
+		confirmDialog.show(
+			buildUnsavedCloseConfirm(
+				hasNewZones
+					? {
+							contextHint: "含新增區域",
+							extraDetails: "新增區域須儲存後才會寫入資料庫。",
+						}
+					: {},
+			),
+		)
 		return
 	}
 

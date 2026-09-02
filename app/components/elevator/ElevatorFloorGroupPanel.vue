@@ -10,7 +10,7 @@
 			目前顯示人員主檔梯控卡預設樓層；套用後才會寫入此地點授權。
 		</p>
 
-		<div class="mt-4 grid min-h-0 grid-cols-12 items-stretch gap-4 2xl:gap-5">
+		<div class="mt-4 grid min-h-0 flex-1 grid-cols-12 items-stretch gap-4 2xl:gap-5">
 			<ElevatorFloorBrowseList
 				:floors="floors"
 				:selected-floor-index="selectedFloorIndex"
@@ -28,96 +28,39 @@
 				class="col-span-12 flex min-h-0 flex-col lg:col-span-8"
 				:class="panelHeightClass"
 			>
-				<div
-					class="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-white/15 bg-white/5"
+				<PersonnelMemberPickerPanel
+					:query="candidatesQuery"
+					:search-input-id="searchInputId"
+					:candidates="filteredCandidates"
+					:is-checked="(personId) =>
+						selectedFloorIndex != null && isPersonChecked(selectedFloorIndex, personId)"
+					:can-edit="canEditFloors && selectedFloorIndex != null"
+					:is-disabled="isApplying"
+					:is-loading="isLoading"
+					:is-empty="!isLoading && (selectedFloorIndex == null || filteredCandidates.length === 0)"
+					:empty-title="membersEmptyTitle"
+					:can-select-all="hasFilteredCandidates && canEditFloors && selectedFloorIndex != null"
+					:is-all-selected="isAllSelectedFloorKept"
+					context-label="目前樓層"
+					:context-value="selectedFloorContextValue"
+					context-placeholder="請先選擇樓層"
+					@update:query="emit('update:candidatesQuery', $event)"
+					@search="emit('search')"
+					@toggle-select-all="emit('toggleSelectAll')"
+					@toggle="(personId, checked) => {
+						if (selectedFloorIndex != null) {
+							emit('togglePerson', selectedFloorIndex, personId, checked)
+						}
+					}"
 				>
-					<div class="flex items-center gap-2 border-b border-white/10 p-3">
-						<SearchInput
-							:model-value="candidatesQuery"
-							:input-id="searchInputId"
-							label="搜尋人員"
-							placeholder="搜尋 ID / 姓名"
-							aria-label="搜尋人員"
-							wrapper-class="min-w-0 flex-1"
-							input-wrapper-class="min-w-0 flex-1"
-							input-class="!w-full min-w-0"
-							:disabled="isApplying"
-							:clearable="!isApplying"
-							@update:model-value="emit('update:candidatesQuery', $event)"
-							@search="emit('search')"
-							@clear="emit('search')"
-						/>
-						<button
-							type="button"
-							class="btn-secondary shrink-0 whitespace-nowrap text-sm 2xl:text-base"
-							:disabled="
-								!hasFilteredCandidates || !canEditFloors || isApplying || selectedFloorIndex == null
-							"
-							@click="emit('toggleSelectAll')"
-						>
-							{{ isAllSelectedFloorKept ? "取消" : "全選" }}
-						</button>
-					</div>
-
-					<AsyncPanel
-						class="min-h-0 flex-1"
-						panel-size="dense"
-						:loading="isLoading"
-						:empty="!isLoading && (selectedFloorIndex == null || filteredCandidates.length === 0)"
-						empty-title="此樓層尚無可選人員"
-						min-height-class="min-h-0"
-					>
-						<template #loading>
-							<p class="sr-only">載入人員清單</p>
-							<ContentSkeleton variant="member-list" />
-						</template>
-						<div
-							class="show-scrollbar min-h-0 flex-1 overflow-y-auto p-3 pe-1"
-						>
-							<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-								<div
-									v-for="person in filteredCandidates"
-									:key="person.id"
-									class="rounded-lg border border-white/10 bg-white/5 px-3 py-2.5"
-									:class="{
-										'ring-1 ring-cyan-400/35':
-											selectedFloorIndex != null && isPersonChecked(selectedFloorIndex, person.id),
-									}"
-								>
-									<label class="flex cursor-pointer items-center gap-2.5">
-										<input
-											type="checkbox"
-											class="h-[1.125rem] w-[1.125rem] shrink-0 accent-cyan-400 2xl:h-5 2xl:w-5"
-											:checked="
-												selectedFloorIndex != null && isPersonChecked(selectedFloorIndex, person.id)
-											"
-											:disabled="!canEditFloors || isApplying || selectedFloorIndex == null"
-											@change="
-												emit(
-													'togglePerson',
-													selectedFloorIndex!,
-													person.id,
-													($event.target as HTMLInputElement).checked,
-												)
-											"
-										/>
-										<span class="min-w-0 flex-1 truncate text-base text-white/90 2xl:text-lg">
-											<span class="font-mono">{{ person.employee_no }}</span>
-											<span class="ms-2">{{ person.full_name || "—" }}</span>
-										</span>
-										<div class="shrink-0">
-											<slot name="person-indicators" :person="person" />
-										</div>
-									</label>
-								</div>
-							</div>
-						</div>
-					</AsyncPanel>
-				</div>
+					<template #person-indicators="{ person }">
+						<slot name="person-indicators" :person="person" />
+					</template>
+				</PersonnelMemberPickerPanel>
 			</section>
 		</div>
 
-		<p v-if="errorText" class="form-error-text mt-3" role="alert">
+		<p v-if="errorText && floors.length > 0" class="form-error-text mt-3" role="alert">
 			{{ errorText }}
 		</p>
 
@@ -125,7 +68,7 @@
 			<PermissionActionButton
 				:allowed="canEditFloors"
 				:disabled="isApplying"
-				class="rounded-xl border border-white/20 bg-emerald-500/85 px-4 py-2 text-sm text-white enabled:hover:bg-emerald-500 2xl:text-base"
+				class="btn-action-emerald"
 				aria-label="套用權限"
 				@click="emit('apply')"
 			>
@@ -136,16 +79,15 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue"
 import type { Person } from "~/types/personnel"
 import type { ElevatorFloorAccessSlot } from "~/types/elevator"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
-import SearchInput from "~/components/common/SearchInput.vue"
-import AsyncPanel from "~/components/common/AsyncPanel.vue"
-import ContentSkeleton from "~/components/common/ContentSkeleton.vue"
 import ElevatorFloorBrowseList from "~/components/elevator/ElevatorFloorBrowseList.vue"
+import PersonnelMemberPickerPanel from "~/components/personnel/PersonnelMemberPickerPanel.vue"
 import { LOCATION_MEMBERS_PANEL_HEIGHT } from "~/composables/systems/personnel/useLocationMembersStep"
 
-withDefaults(
+const props = withDefaults(
 	defineProps<{
 		floors: ElevatorFloorAccessSlot[]
 		selectedFloorIndex: number | null
@@ -170,6 +112,18 @@ withDefaults(
 		isSavingFloorName: false,
 		panelHeightClass: LOCATION_MEMBERS_PANEL_HEIGHT,
 	},
+)
+
+const selectedFloorContextValue = computed(() => {
+	if (props.selectedFloorIndex == null) return null
+	const floor = props.floors.find((f) => f.index === props.selectedFloorIndex)
+	if (!floor) return null
+	const name = String(floor.name ?? "").trim()
+	return name ? `${floor.code} ${name}` : floor.code
+})
+
+const membersEmptyTitle = computed(() =>
+	props.selectedFloorIndex == null ? "請先選擇左側樓層" : "此樓層尚無可選人員",
 )
 
 const emit = defineEmits<{

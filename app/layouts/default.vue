@@ -20,7 +20,7 @@
 			:open="accessEventCameraPopup.state.open"
 			:item="accessEventCameraPopup.state.item"
 			:streams="accessEventCameraPopup.state.streams"
-			:auto-close-ms="accessEventCameraPopup.state.autoCloseMs"
+			:auto-close-ms="ACCESS_EVENT_CAMERA_POPUP_MS"
 			:auto-close-epoch="accessEventCameraPopup.state.autoCloseEpoch"
 			:is-fullscreen="accessEventCameraPopup.state.isFullscreen"
 			@close="accessEventCameraPopup.handleClose"
@@ -31,7 +31,7 @@
 			:open="vehicleBarrierCameraPopup.state.open"
 			:item="vehicleBarrierCameraPopup.state.item"
 			:streams="vehicleBarrierCameraPopup.state.streams"
-			:auto-close-ms="vehicleBarrierCameraPopup.state.autoCloseMs"
+			:auto-close-ms="ACCESS_EVENT_CAMERA_POPUP_MS"
 			:auto-close-epoch="vehicleBarrierCameraPopup.state.autoCloseEpoch"
 			:is-fullscreen="vehicleBarrierCameraPopup.state.isFullscreen"
 			title-prefix="車輛調閱"
@@ -57,6 +57,7 @@ import { useAccessEventCameraPopup } from "~/composables/monitoring/useAccessEve
 import { useVehicleBarrierCameraPopup } from "~/composables/monitoring/useVehicleBarrierCameraPopup";
 import { useWebSocket } from "~/composables/websocket/useWebSocket";
 import { useWebSocketLifecycle } from "~/composables/websocket/useWebSocketLifecycle";
+import { ACCESS_EVENT_CAMERA_POPUP_MS } from "~/utils/realtimeTiming";
 
 const { user } = useAuth();
 const { startMonitoring, stopMonitoring } = useAlertMonitor();

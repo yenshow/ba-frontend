@@ -24,7 +24,7 @@
 			:has-filtered-candidates="hasFilteredCandidates"
 			:can-edit-members="canEditMembers"
 			:is-applying-members="isApplyingMembers"
-			:is-loading-members="isLoadingMembers || isPlatesLoading"
+			:is-loading-members="isLoadingMembersPanel || isPlatesLoading"
 			:members-error="membersError"
 			:is-all-filtered-kept="isAllFilteredKept"
 			:is-member-kept="isMemberKept"
@@ -37,7 +37,7 @@
 		>
 			<template #toolbar>
 				<DeviceSyncStep2Toolbar
-					description="勾選允許進出此地點的人員；車牌同步狀態以圖示顯示，可於人員卡片管理車牌。"
+					:description="toolbarDescription"
 					:warnings-count="syncWarnings.length"
 					:can-resync="canResyncPlates"
 					:is-resync-disabled="isSyncButtonDisabled"
@@ -52,7 +52,7 @@
 						<PermissionActionButton
 							:allowed="canCreatePlate"
 							:disabled="isSavingPlate || isPlatesLoading"
-							class="rounded-xl border border-white/20 bg-cyan-600/80 px-4 py-2.5 text-base text-white enabled:hover:bg-cyan-500 2xl:text-lg"
+							class="btn-action-emerald"
 							aria-label="新增車牌"
 							@click="openPlateForm()"
 						>
@@ -128,7 +128,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, toRef, watch } from "vue"
+import { computed, toRef } from "vue"
 import type { VehicleAccessLocation } from "~/types/vehicleAccess"
 import type { LocationLicensePlateRow, Person } from "~/types/personnel"
 import DeviceManageDialogShell from "~/components/personnel/device-sync/DeviceManageDialogShell.vue"
@@ -139,7 +139,7 @@ import PersonnelSyncWarningsDialog from "~/components/personnel/dialogs/Personne
 import VehicleAccessIsapiPlateFormDialog from "~/components/vehicle-access/VehicleAccessIsapiPlateFormDialog.vue"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import type { LocationPlateSync } from "~/composables/systems/personnel/useLocationPlateSync"
-import { useLocationMembersGroupPicker } from "~/composables/systems/personnel/useLocationMembersGroupPicker"
+import { useLocationDeviceManageDialog } from "~/composables/systems/personnel/useLocationDeviceManageDialog"
 import { parseLocationNumericId } from "~/utils/personnelUtils"
 import { plateSyncStatusToUiStatus } from "~/utils/licensePlateFormUtils"
 import { buildPlateSyncIndicators } from "~/utils/syncCredentialIcons"
@@ -172,20 +172,18 @@ const locationTitleMeta = computed(() => {
 })
 const locationName = computed(() => props.location?.name ?? null)
 
+const toolbarDescription =
+	"勾選允許進出此地點的人員；車牌同步狀態以圖示顯示，可於人員卡片管理車牌。"
+
 const {
-	isSingleLocationSyncing,
 	showWarningsDialog,
 	syncWarnings,
 	syncWarningTypeLabel,
 	openWarningsDialog,
 	refreshSyncWarnings,
-	getLocationDevicesLabel,
 	setLocationDisplayName,
-	prepareLocationDialog,
 	syncOneLocation,
 	isPlatesLoading: isPlatesLoadingFn,
-	isLocationCurrentlySyncing,
-	isLocationSyncButtonDisabled,
 	getPlatesForLocation,
 	resolvePlatesForPerson,
 	plateSyncIndicatorsForPerson,
@@ -216,32 +214,29 @@ const {
 	selectChildGroup,
 	membersQuery,
 	isApplyingMembers,
-	isLoadingMembers,
 	membersError,
 	isMemberKept,
 	toggleMember,
 	isAllFilteredKept,
 	handleToggleSelectAllFiltered,
 	handleSearchMembers,
-	prepareGroupPicker,
-} = useLocationMembersGroupPicker({
+	deviceLabels,
+	isUiLocked,
+	isCurrentlySyncing,
+	isSyncButtonDisabled,
+	isLoadingMembersPanel,
+} = useLocationDeviceManageDialog({
+	modelValue: toRef(props, "modelValue"),
 	locationId,
-	membersSync: toRef(props, "plateSync"),
+	syncEngine: toRef(props, "plateSync"),
+	onDialogOpen: async (id) => {
+		if (locationName.value) setLocationDisplayName(id, locationName.value)
+		await props.plateSync.prepareLocationDialog(id)
+	},
 })
 
-const deviceLabels = computed(() =>
-	locationId.value != null ? getLocationDevicesLabel(locationId.value) : { entry: [], exit: [] },
-)
-
-const isUiLocked = computed(() => isSingleLocationSyncing.value)
 const isPlatesLoading = computed(() =>
 	locationId.value != null ? isPlatesLoadingFn(locationId.value) : false,
-)
-const isCurrentlySyncing = computed(() =>
-	locationId.value != null ? isLocationCurrentlySyncing(locationId.value) : false,
-)
-const isSyncButtonDisabled = computed(() =>
-	locationId.value != null ? isLocationSyncButtonDisabled(locationId.value) : true,
 )
 
 const locationPlates = computed(() =>
@@ -295,16 +290,4 @@ const handleClose = () => {
 	cancelPlateForm()
 	emit("update:modelValue", false)
 }
-
-watch(
-	() => props.modelValue,
-	async (open) => {
-		if (!open) return
-		const id = locationId.value
-		if (id == null) return
-		if (locationName.value) setLocationDisplayName(id, locationName.value)
-		await prepareLocationDialog(id)
-		await prepareGroupPicker()
-	},
-)
 </script>

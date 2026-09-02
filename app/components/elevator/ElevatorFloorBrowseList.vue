@@ -6,14 +6,10 @@
 		<div
 			class="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-white/15 bg-white/5"
 		>
-			<div class="border-b border-white/10 px-3 py-3">
-				<span class="text-base font-medium text-white/85 2xl:text-lg">樓層</span>
-			</div>
-
 			<div class="show-scrollbar min-h-0 flex-1 overflow-y-auto p-2.5">
 				<div
 					v-if="loading"
-					class="py-10 text-center text-sm text-white/60"
+					class="py-10 text-center text-sm text-white/60 2xl:text-base"
 					role="status"
 					aria-live="polite"
 				>
@@ -22,7 +18,7 @@
 				<p v-else-if="error" class="form-error-text px-1" role="alert">{{ error }}</p>
 				<div
 					v-else-if="floors.length === 0"
-					class="py-10 text-center text-sm text-white/60"
+					class="py-10 text-center text-sm text-white/60 2xl:text-base"
 				>
 					尚無樓層
 				</div>
@@ -41,7 +37,7 @@
 						@click="emit('select-floor', floor.index)"
 					>
 						<span
-							class="flex h-10 min-w-[2.75rem] items-center justify-center rounded-md border border-cyan-400/30 bg-cyan-500/15 font-mono text-base font-bold text-white 2xl:text-lg"
+							class="flex h-9 min-w-[2.5rem] items-center justify-center rounded-md border border-cyan-400/30 bg-cyan-500/15 font-mono text-sm font-bold text-white 2xl:text-base"
 						>
 							{{ floor.code }}
 						</span>
@@ -49,13 +45,12 @@
 							:value="floor.name"
 							type="text"
 							maxlength="32"
-							class="form-input-small min-w-0 flex-1 text-base 2xl:text-lg"
+							class="form-input-small min-w-0 flex-1 text-sm 2xl:text-base"
 							placeholder="樓層名稱"
 							title="同步至梯控設備的顯示名稱"
 							:disabled="!canEdit || isSavingFloorName"
 							:aria-label="`${floor.code} 樓層名稱`"
 							@click.stop
-							@keydown.enter="handleFloorNameCommit(floor, $event)"
 							@blur="handleFloorNameCommit(floor, $event)"
 						/>
 						<span

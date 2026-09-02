@@ -148,7 +148,6 @@ watch(
 				role="dialog"
 				aria-modal="true"
 				:aria-labelledby="titleId"
-				@click.self="handleClose"
 				@keydown.esc="handleClose"
 			>
 				<div

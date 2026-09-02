@@ -1086,6 +1086,60 @@ html:not(.dark) .select-filter option {
 	cursor: not-allowed;
 }
 
+/* 地點授權 dialog 次要操作（查看錯誤等） */
+.btn-dialog-muted {
+	border-radius: 0.75rem;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	background: rgba(255, 255, 255, 0.1);
+	padding: 0.5rem 1rem;
+	font-size: 0.875rem;
+	color: rgba(255, 255, 255, 0.9);
+	cursor: pointer;
+	transition: background-color 0.2s ease;
+}
+
+.btn-dialog-muted:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.2);
+}
+
+.btn-dialog-muted:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+@media (min-width: 1536px) {
+	.btn-dialog-muted {
+		font-size: 1rem;
+	}
+}
+
+/* 地點授權 dialog 主要操作（套用權限、重新同步、新增車牌） */
+.btn-action-emerald {
+	border-radius: 0.75rem;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	background: rgba(16, 185, 129, 0.85);
+	padding: 0.5rem 1rem;
+	font-size: 0.875rem;
+	color: #fff;
+	cursor: pointer;
+	transition: background-color 0.2s ease;
+}
+
+.btn-action-emerald:hover:not(:disabled) {
+	background: rgb(16, 185, 129);
+}
+
+.btn-action-emerald:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+@media (min-width: 1536px) {
+	.btn-action-emerald {
+		font-size: 1rem;
+	}
+}
+
 /* 工地監控（人流／環境／車輛）浮動操作鈕 */
 .btn-monitoring-overlay {
 	border-radius: 0.75rem;

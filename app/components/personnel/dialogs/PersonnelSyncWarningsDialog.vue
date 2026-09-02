@@ -7,7 +7,6 @@
 				aria-label="同步結果與警告"
 				role="dialog"
 				aria-modal="true"
-				@click.self="handleClose"
 			>
 				<div
 					class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-4xl flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:gap-6 2xl:p-8"

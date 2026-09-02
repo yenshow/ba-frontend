@@ -23,16 +23,13 @@
 							type="button"
 							class="shrink-0 cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
 							aria-label="關閉表單"
-							tabindex="0"
 							@click="emit('cancel')"
-							@keydown.enter="emit('cancel')"
-							@keydown.space.prevent="emit('cancel')"
 						>
 							&times;
 						</button>
 					</header>
 
-					<form class="flex min-h-0 flex-1 flex-col gap-4" @submit.prevent="emit('save')">
+					<form class="flex min-h-0 flex-1 flex-col gap-4" @submit.prevent>
 						<div class="show-scrollbar flex-1 overflow-y-auto">
 							<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 								<label
@@ -106,7 +103,12 @@
 						<footer class="mt-2 flex items-center gap-3 border-t border-white/20 pt-4 2xl:gap-4">
 							<button type="button" class="btn-secondary" @click="emit('cancel')">取消</button>
 							<div class="flex-1"></div>
-							<button type="submit" class="btn-primary" :disabled="isSaving">
+							<button
+								type="button"
+								class="btn-primary"
+								:disabled="isSaving"
+								@click="emit('save')"
+							>
 								{{ isSaving ? "處理中..." : "儲存" }}
 							</button>
 						</footer>

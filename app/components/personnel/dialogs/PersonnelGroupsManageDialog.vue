@@ -6,7 +6,7 @@
 				class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
 			>
 				<div
-					class="dialog-panel-bg flex max-h-[90vh] min-h-0 w-full max-w-5xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:max-w-6xl 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
+					class="dialog-panel-bg flex max-h-[90vh] min-h-0 w-full max-w-7xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
 				>
 					<header class="flex items-center justify-between pr-7 2xl:pr-8">
 						<h3
@@ -61,7 +61,7 @@
 									<div class="show-scrollbar min-h-0 flex-1 overflow-y-auto p-2.5">
 										<div
 											v-if="isLoading && pendingMains.length === 0"
-											class="py-10 text-center text-base text-white/60 2xl:text-lg"
+											class="py-10 text-center text-sm text-white/60 2xl:text-base"
 											role="status"
 											aria-live="polite"
 										>
@@ -216,167 +216,73 @@
 
 							<!-- 右：成員 -->
 							<section
-								class="col-span-12 flex min-h-[280px] flex-1 flex-col lg:col-span-8 lg:min-h-0"
+								class="col-span-12 flex h-full min-h-[280px] flex-1 flex-col lg:col-span-8 lg:min-h-0"
 							>
-								<div
-									class="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-white/15 bg-white/5"
+								<PersonnelMemberPickerPanel
+									v-model:query="candidatesQuery"
+									search-input-id="personnel-groups-manage-search"
+									:candidates="candidatesItems"
+									:is-checked="(personId) => isMemberSelected(personId)"
+									:can-edit="canEditMembers && activeChildId != null && !activeChildIsUnsaved"
+									:is-disabled="isSaving"
+									:is-loading="isLoadingCandidates"
+									:is-empty="showMembersEmptyState"
+									empty-title="尚無可選人員"
+									:can-select-all="hasCandidateItems && canEditMembers && activeChildId != null && !activeChildIsUnsaved"
+									:is-all-selected="isAllSelectedInActiveChild"
+									context-label="目前子群組"
+									:context-value="activeChild?.name?.trim() || null"
+									context-placeholder="請先選擇子群組"
+									compact-select-all
+									grid-variant="group"
+									:checkbox-aria-label="groupMemberCheckboxLabel"
+									@search="loadCandidates"
+									@toggle-select-all="toggleSelectAllInActiveChild"
+									@toggle="(personId, checked) => handleToggleMember(personId, checked)"
 								>
-									<div
-										class="flex flex-col gap-3 border-b border-white/10 p-3 sm:flex-row sm:items-end sm:justify-between"
-									>
-										<div class="min-w-0">
-											<p class="text-sm font-medium text-white/85">目前子群組</p>
-											<p class="mt-1 truncate text-base font-semibold text-white">
-												{{ activeChild?.name?.trim() || "請先選擇子群組" }}
-											</p>
+									<template v-if="showMembersCustomEmpty" #empty-state>
+										<div class="py-10 text-center text-sm text-white/60 2xl:text-base">
+											{{ membersEmptyMessage }}
 										</div>
-										<div class="flex min-w-0 flex-1 items-center justify-end gap-2 sm:max-w-xs">
-											<SearchInput
-												v-model="candidatesQuery"
-												input-id="personnel-groups-manage-search"
-												label="搜尋人員"
-												placeholder="搜尋 ID / 姓名"
-												aria-label="搜尋人員"
-												wrapper-class="min-w-0 flex-1"
-												input-wrapper-class="min-w-0 flex-1"
-												input-class="!w-full min-w-0"
-												:disabled="
-													isSaving ||
-													!canEditMembers ||
-													activeChildId == null ||
-													activeChildIsUnsaved
-												"
-												:clearable="!isSaving"
-												@search="loadCandidates"
-												@clear="loadCandidates"
-											/>
-											<button
-												type="button"
-												class="btn-secondary shrink-0 whitespace-nowrap text-xs 2xl:text-sm"
-												:disabled="
-													!hasCandidateItems ||
-													isSaving ||
-													!canEditMembers ||
-													activeChildId == null ||
-													activeChildIsUnsaved
-												"
-												:aria-label="
-													isAllSelectedInActiveChild ? '取消全選可見人員' : '全選可見人員'
-												"
-												@click="toggleSelectAllInActiveChild"
-											>
-												{{ isAllSelectedInActiveChild ? "取消" : "全選" }}
-											</button>
-										</div>
-									</div>
-
-									<div class="show-scrollbar min-h-0 flex-1 overflow-y-auto p-3">
-										<div
-											v-if="activeChildUiKey == null"
-											class="py-10 text-center text-sm text-white/60 2xl:text-base"
+									</template>
+									<template #person-badge="{ person }">
+										<span
+											v-if="conflictPersonIdSet.has(person.id)"
+											class="rounded bg-amber-500/20 px-2 py-0.5 text-xs text-amber-200"
 										>
-											請先在左側選擇要編輯的子群組
-										</div>
-										<div
-											v-else-if="activeChildIsUnsaved"
-											class="py-10 text-center text-sm text-white/60 2xl:text-base"
+											衝突
+										</span>
+										<span
+											v-else-if="
+												activeChildId != null &&
+												Number(person.person_group_id) === activeChildId &&
+												!isMemberSelected(person.id)
+											"
+											class="rounded bg-white/10 px-2 py-0.5 text-xs text-white/65"
 										>
-											請先儲存群組結構後再編輯成員
-										</div>
-										<div
-											v-else-if="!canEditMembers"
-											class="py-10 text-center text-sm text-white/60 2xl:text-base"
+											將變更：未分組
+										</span>
+										<span
+											v-else-if="
+												activeChild?.name &&
+												activeChildId != null &&
+												Number(person.person_group_id) !== activeChildId &&
+												isMemberSelected(person.id)
+											"
+											class="max-w-[9rem] truncate rounded bg-white/10 px-2 py-0.5 text-xs text-white/65"
+											:title="`將移至：${activeChild.name}`"
 										>
-											您沒有編輯群組成員的權限
-										</div>
-										<div
-											v-else-if="isLoadingCandidates && candidatesItems.length === 0"
-											class="py-10 text-center text-sm text-white/60 2xl:text-base"
-											role="status"
-											aria-live="polite"
+											將移至：{{ activeChild.name }}
+										</span>
+										<span
+											v-else-if="otherGroupLabel(person)"
+											class="max-w-[9rem] truncate rounded bg-white/10 px-2 py-0.5 text-xs text-white/60"
+											:title="`目前：${otherGroupLabel(person)}`"
 										>
-											載入人員中…
-										</div>
-										<p v-else-if="candidatesErrorText" class="form-error-text" role="alert">
-											{{ candidatesErrorText }}
-										</p>
-										<div
-											v-else-if="candidatesItems.length === 0"
-											class="py-10 text-center text-sm text-white/60 2xl:text-base"
-										>
-											尚無可選人員
-										</div>
-										<div v-else class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-											<label
-												v-for="p in candidatesItems"
-												:key="String(p.id)"
-												class="flex cursor-pointer items-center justify-between gap-2 rounded-lg border px-2.5 py-2 transition-colors hover:bg-white/10"
-												:class="
-													isMemberSelected(Number(p.id))
-														? 'border-cyan-400/50 bg-cyan-500/20'
-														: 'border-white/10 bg-white/[0.03]'
-												"
-											>
-												<span class="flex min-w-0 items-center gap-2">
-													<input
-														type="checkbox"
-														class="h-4 w-4 shrink-0 accent-cyan-400"
-														:checked="isMemberSelected(Number(p.id))"
-														:disabled="isSaving"
-														:aria-label="`子群組 ${activeChild?.name || ''}：${p.employee_no} ${p.full_name || ''}`"
-														@change="
-															handleToggleMember(
-																Number(p.id),
-																($event.target as HTMLInputElement).checked
-															)
-														"
-													/>
-													<span class="min-w-0 truncate text-sm text-white/90">
-														<span class="font-mono">{{ p.employee_no }}</span>
-														<span class="ms-2">{{ p.full_name || "—" }}</span>
-													</span>
-												</span>
-												<span class="flex shrink-0 flex-col items-end gap-1">
-													<span
-														v-if="conflictPersonIdSet.has(Number(p.id))"
-														class="rounded bg-amber-500/20 px-2 py-0.5 text-xs text-amber-200"
-													>
-														衝突
-													</span>
-													<span
-														v-else-if="
-															activeChildId != null &&
-															Number(p.person_group_id) === activeChildId &&
-															!isMemberSelected(Number(p.id))
-														"
-														class="rounded bg-white/10 px-2 py-0.5 text-xs text-white/65"
-													>
-														將變更：未分組
-													</span>
-													<span
-														v-else-if="
-															activeChild?.name &&
-															activeChildId != null &&
-															Number(p.person_group_id) !== activeChildId &&
-															isMemberSelected(Number(p.id))
-														"
-														class="max-w-[9rem] truncate rounded bg-white/10 px-2 py-0.5 text-xs text-white/65"
-														:title="`將移至：${activeChild.name}`"
-													>
-														將移至：{{ activeChild.name }}
-													</span>
-													<span
-														v-else-if="otherGroupLabel(p)"
-														class="max-w-[9rem] truncate rounded bg-white/10 px-2 py-0.5 text-xs text-white/60"
-														:title="`目前：${otherGroupLabel(p)}`"
-													>
-														目前：{{ otherGroupLabel(p) }}
-													</span>
-												</span>
-											</label>
-										</div>
-									</div>
-								</div>
+											目前：{{ otherGroupLabel(person) }}
+										</span>
+									</template>
+								</PersonnelMemberPickerPanel>
 							</section>
 						</div>
 					</div>
@@ -526,11 +432,13 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
 import IconTrashButton from "~/components/common/IconTrashButton.vue"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
-import SearchInput from "~/components/common/SearchInput.vue"
+import PersonnelMemberPickerPanel from "~/components/personnel/PersonnelMemberPickerPanel.vue"
+import type { Person } from "~/types/personnel"
 import { useToast } from "~/composables/core/useToast"
 import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import { usePersonnelGroupsManageDialog } from "~/composables/systems/personnel/usePersonnelGroupsManageDialog"
@@ -611,4 +519,28 @@ const {
 	dismissDialog: () => emit("update:modelValue", false),
 	toast: useToast(),
 })
+
+const showMembersCustomEmpty = computed(
+	() =>
+		activeChildUiKey.value == null ||
+		activeChildIsUnsaved.value ||
+		!canEditMembers.value ||
+		Boolean(candidatesErrorText.value),
+)
+
+const membersEmptyMessage = computed(() => {
+	if (activeChildUiKey.value == null) return "請先在左側選擇要編輯的子群組"
+	if (activeChildIsUnsaved.value) return "請先儲存群組結構後再編輯成員"
+	if (!canEditMembers.value) return "您沒有編輯群組成員的權限"
+	if (candidatesErrorText.value) return candidatesErrorText.value
+	return "尚無可選人員"
+})
+
+const showMembersEmptyState = computed(() => {
+	if (isLoadingCandidates.value) return false
+	return showMembersCustomEmpty.value || candidatesItems.value.length === 0
+})
+
+const groupMemberCheckboxLabel = (person: Person) =>
+	`子群組 ${activeChild.value?.name || ""}：${person.employee_no} ${person.full_name || ""}`
 </script>

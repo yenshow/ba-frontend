@@ -182,7 +182,7 @@ const syncIndicatorsForPerson = (person: Person) => {
 		locationSyncCandidates.value.find(
 			(c) => String(c.employee_no) === String(person.employee_no),
 		) ?? null
-	return buildElevatorMemberSyncIndicators(candidate, showAccessSyncColumns.value)
+	return buildElevatorMemberSyncIndicators(candidate, showAccessSyncColumns.value, person)
 }
 
 const handleSync = async () => {
