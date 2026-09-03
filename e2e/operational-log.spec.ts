@@ -13,7 +13,7 @@ test.describe("營運事件 /core/operational-log", () => {
 
 		await expect(page.getByRole("textbox", { name: "全部系統" })).toBeVisible()
 		await expect(page.getByRole("textbox", { name: "全部類型" })).toBeVisible()
-		await expect(page.getByRole("textbox", { name: /選擇時間範圍|近七天|今天/ })).toBeVisible()
+		await expect(page.getByRole("textbox", { name: /選擇時間範圍|今天|近七天/ })).toBeVisible()
 		await expect(
 			page.getByText("目前沒有營運事件").or(page.getByText(/總計|筆/)).first(),
 		).toBeVisible({ timeout: 20_000 })
