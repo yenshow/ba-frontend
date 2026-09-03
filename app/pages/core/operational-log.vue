@@ -92,7 +92,7 @@ const kindOptions = [...OPERATIONAL_KIND_OPTIONS];
 const timeRange = ref({
 	startDate: "",
 	endDate: "",
-	preset: "last_7_days"
+	preset: "today"
 });
 
 const timeRangePresets = [
@@ -138,11 +138,11 @@ const {
 const limit = 5;
 
 const initializeTimeRange = () => {
-	const { start, end } = getTimeRangeUTC("last_7_days");
+	const { start, end } = getTimeRangeUTC("today");
 	timeRange.value = {
 		startDate: start.toISOString(),
 		endDate: end.toISOString(),
-		preset: "last_7_days"
+		preset: "today"
 	};
 };
 
