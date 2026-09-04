@@ -1,12 +1,12 @@
 <template>
 	<div class="border-b border-white/10 pb-3">
 		<div class="flex items-center gap-3">
-		<span class="text-base font-medium text-white/80 2xl:text-lg whitespace-nowrap">區域名稱</span>
+		<span class="whitespace-nowrap text-base font-medium text-white/80 2xl:text-lg">區域名稱</span>
 		<input
 			v-model="localName"
 			type="text"
 			required
-			class="form-input-small flex-1 min-w-0"
+			class="form-input-small min-w-0 flex-1 text-sm 2xl:text-base"
 			placeholder="例如：1F、2F"
 			:readonly="readOnly"
 			@input="handleNameInput"
@@ -45,14 +45,14 @@
 						@click.stop="removeImage"
 						title="移除圖片"
 					>
-						<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M6 18L18 6M6 6l12 12"
-							/>
-						</svg>
+					<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M6 18L18 6M6 6l12 12"
+						/>
+					</svg>
 					</button>
 				</template>
 			</div>

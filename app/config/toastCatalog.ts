@@ -50,6 +50,8 @@ export const TOAST = {
 	LOCATION_REMOVED_FROM_LIST: "已從清單移除此地點",
 	VIEW_CATEGORY_NAME_REQUIRED: "請先輸入檢視分類名稱",
 	VIEW_CATEGORY_NAME_BLANK: "分類名稱不可為空白",
+	ACCESS_SECURITY_FLOOR_NAME_REQUIRED: "請先輸入樓層名稱",
+	ACCESS_SECURITY_FLOOR_NAME_BLANK: "樓層名稱不可為空白",
 	HOME_MODULE_ORDER_RESET: "已還原為預設順序",
 
 	// personnel
