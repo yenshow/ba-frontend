@@ -1,6 +1,6 @@
 <template>
 	<div class="flex w-full min-w-0 flex-col gap-3">
-		<!-- 與照明相同：點位名稱、控制器、類型、地址 -->
+		<!-- 上排：點位名稱、控制器、類型、地址（單一設備） -->
 		<div class="flex min-w-0 flex-wrap items-end gap-2">
 			<label
 				class="flex min-w-[7rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
@@ -75,71 +75,55 @@
 			</template>
 		</div>
 
+		<!-- 下方：2×2 類比卡片（偵測／設定／風速；第 4 格留空） -->
 		<template v-if="hasController">
-			<div class="flex min-w-0 flex-wrap items-end gap-2">
-				<span class="w-full text-xs tracking-wider text-white/60 2xl:text-sm">
-					空調類比（偵測溫度／設定溫度／風速，同一設備）
-				</span>
-				<!-- 勿用 label 包 FilterDropdown，避免點選選單時觸發 label 行為 -->
-				<div
-					class="flex min-w-[8rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-				>
-					<span>設備</span>
-					<FilterDropdown
-						v-model="tempDeviceIdStr"
-						:options="tempDeviceOptions"
-						placeholder="沿用主控制器"
-						@update:model-value="emitBuilt"
-					/>
-				</div>
-				<div
-					class="flex w-28 min-w-0 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-				>
-					<span>暫存器</span>
-					<FilterDropdown
-						v-model="tempRegisterType"
-						:options="registerTypeOptions"
-						text-size="text-sm 2xl:text-base"
-						@update:model-value="emitBuilt"
-					/>
-				</div>
-				<label
-					class="flex min-w-[5rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base sm:max-w-[8rem]"
-				>
-					<span>地址</span>
-					<input
-						v-model.number="tempAddress"
-						type="number"
-						min="0"
-						placeholder="選填"
-						class="form-input-small w-full"
-						@blur="handleAddressBlur('temp')"
-					/>
-				</label>
-				<label
-					class="flex min-w-[4rem] flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base sm:max-w-[6rem]"
-					title="顯示值 = 暫存器值 × 倍率（例 0.1：raw 260 → 26°C）"
-				>
-					<span>倍率</span>
-					<input
-						v-model.number="tempScale"
-						type="number"
-						step="any"
-						min="0"
-						placeholder="1"
-						class="form-input-small w-full"
-						@blur="handleScaleBlur('temp')"
-					/>
-				</label>
-			</div>
-
 			<div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
 				<div class="flex min-w-0 flex-col gap-2 rounded border border-white/10 bg-white/5 p-2">
-					<span class="text-xs tracking-wider text-white/60 2xl:text-sm">溫度（AO）</span>
+					<span class="text-xs tracking-wider text-white/60 2xl:text-sm">偵測溫度</span>
+					<div
+						class="flex w-full min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+					>
+						<span>暫存器</span>
+						<FilterDropdown
+							v-model="tempRegisterType"
+							:options="registerTypeOptions"
+							text-size="text-sm 2xl:text-base"
+							@update:model-value="emitBuilt"
+						/>
+					</div>
 					<label
 						class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 					>
-						<span>地址（holding）</span>
+						<span>地址</span>
+						<input
+							v-model.number="tempAddress"
+							type="number"
+							min="0"
+							placeholder="選填"
+							class="form-input-small w-full"
+							@blur="handleAddressBlur('temp')"
+						/>
+					</label>
+					<label
+						class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+					>
+						<span>轉換公式</span>
+						<input
+							v-model="tempTransform"
+							type="text"
+							class="form-input-small w-full"
+							placeholder="例如: - 1, / 10, * 2, + 5"
+							@blur="handleTransformBlur('temp')"
+						/>
+					</label>
+				</div>
+
+				<div class="flex min-w-0 flex-col gap-2 rounded border border-white/10 bg-white/5 p-2">
+					<span class="text-xs tracking-wider text-white/60 2xl:text-sm">設定溫度（AO）</span>
+					<label
+						class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+					>
+						<span>地址</span>
 						<input
 							v-model.number="setpointAddress"
 							type="number"
@@ -151,17 +135,14 @@
 					</label>
 					<label
 						class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-						title="寫入暫存器值 = round(設定溫度 ÷ 倍率）"
 					>
-						<span>倍率</span>
+						<span>轉換公式</span>
 						<input
-							v-model.number="setpointScale"
-							type="number"
-							step="any"
-							min="0"
-							placeholder="1"
+							v-model="setpointTransform"
+							type="text"
 							class="form-input-small w-full"
-							@blur="handleScaleBlur('setpoint')"
+							placeholder="例如: - 1, / 10, * 2, + 5"
+							@blur="handleTransformBlur('setpoint')"
 						/>
 					</label>
 				</div>
@@ -171,7 +152,7 @@
 					<label
 						class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 					>
-						<span>地址（holding）</span>
+						<span>地址</span>
 						<input
 							v-model.number="fanAddress"
 							type="number"
@@ -206,6 +187,7 @@ import type { Device } from "~/types/device"
 import type { ModbusStatusPointDef } from "~/types/location"
 import { useLightingLocationValidation } from "~/composables/location/validation/useLightingLocationValidation"
 import { useModbusValidation } from "~/composables/location/validation/useModbusValidation"
+import { hydrateTransformDisplay } from "~/utils/modbusTransform"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 
 interface Props {
@@ -213,7 +195,6 @@ interface Props {
 	allLocations?: HvacLocation[]
 	currentIndex?: number
 	devices?: Device[]
-	sensorDevices?: Device[]
 	isLoadingDevices?: boolean
 }
 
@@ -225,7 +206,6 @@ const props = withDefaults(defineProps<Props>(), {
 	allLocations: () => [],
 	currentIndex: -1,
 	devices: () => [],
-	sensorDevices: () => [],
 	isLoadingDevices: false,
 })
 
@@ -248,17 +228,16 @@ const registerTypeOptions = [
 const localLocation = ref<HvacLocation>({ ...props.location })
 const deviceIdString = ref("")
 
-const tempDeviceIdStr = ref("")
 /** 空調偵測溫度預設 input（AI）；holding 僅在設備規格需要時再改 */
 const tempRegisterType = ref("input")
 const tempAddress = ref<number | null>(null)
-const tempScale = ref<number | null>(null)
+const tempTransform = ref("")
 const setpointAddress = ref<number | null>(null)
-const setpointScale = ref<number | null>(null)
+const setpointTransform = ref("")
 const fanAddress = ref<number | null>(null)
 const fanLevelsStr = ref("1,2,3,4")
 
-/** 避免 emit → 父層回寫 → deep watch 把草稿欄位沖掉（設備下拉選了又跳回） */
+/** 避免 emit → 父層回寫 → deep watch 把草稿欄位沖掉 */
 let skipHydrateFromProps = false
 
 const hasController = computed(
@@ -276,17 +255,8 @@ const ensureModbusConfig = (location: HvacLocation) => {
 const isValidAddress = (v: number | null | undefined): v is number =>
 	v != null && Number.isFinite(v) && v >= 0
 
-const hydrateScale = (scale: number | undefined): number | null =>
-	scale != null && Number.isFinite(scale) && scale !== 0 && scale !== 1 ? Number(scale) : null
-
 const normalizeNonNeg = (refVal: Ref<number | null>) => {
 	if (refVal.value != null && (!Number.isFinite(refVal.value) || refVal.value < 0)) {
-		refVal.value = null
-	}
-}
-
-const normalizeScale = (refVal: Ref<number | null>) => {
-	if (refVal.value != null && (!Number.isFinite(refVal.value) || refVal.value === 0)) {
 		refVal.value = null
 	}
 }
@@ -301,30 +271,17 @@ const parseLevels = (raw: string): number[] | undefined => {
 	return nums
 }
 
-const applyOptionalScale = (def: ModbusStatusPointDef, scale: number | null) => {
-	if (scale != null && Number.isFinite(scale) && scale !== 0 && scale !== 1) {
-		def.scale = Number(scale)
-	}
-}
-
-const applyAnalogDevice = (def: ModbusStatusPointDef) => {
-	const tid = tempDeviceIdStr.value ? Number(tempDeviceIdStr.value) : 0
-	if (tid > 0) def.deviceId = tid
-}
-
 const hydrateStatusPoints = (location: HvacLocation) => {
 	const sp = location.statusPoints || {}
 	const temp = sp.temperatureC
-	tempDeviceIdStr.value =
-		temp?.deviceId != null && temp.deviceId > 0 ? String(temp.deviceId) : ""
 	tempRegisterType.value =
 		temp?.registerType === "holding" || temp?.registerType === "input" ? temp.registerType : "input"
 	tempAddress.value = isValidAddress(temp?.address) ? Number(temp.address) : null
-	tempScale.value = hydrateScale(temp?.scale)
+	tempTransform.value = hydrateTransformDisplay(temp)
 
 	const setp = sp.setpointC
 	setpointAddress.value = isValidAddress(setp?.address) ? Number(setp.address) : null
-	setpointScale.value = hydrateScale(setp?.scale)
+	setpointTransform.value = hydrateTransformDisplay(setp)
 
 	const fan = sp.fanSpeed
 	fanAddress.value = isValidAddress(fan?.address) ? Number(fan.address) : null
@@ -340,8 +297,8 @@ const buildStatusPoints = (): Record<string, ModbusStatusPointDef> | undefined =
 			registerType: tempRegisterType.value === "holding" ? "holding" : "input",
 			address: tempAddress.value,
 		}
-		applyAnalogDevice(def)
-		applyOptionalScale(def, tempScale.value)
+		const t = tempTransform.value.trim()
+		if (t) def.transform = t
 		next.temperatureC = def
 	}
 
@@ -350,8 +307,8 @@ const buildStatusPoints = (): Record<string, ModbusStatusPointDef> | undefined =
 			registerType: "holding",
 			address: setpointAddress.value,
 		}
-		applyAnalogDevice(def)
-		applyOptionalScale(def, setpointScale.value)
+		const t = setpointTransform.value.trim()
+		if (t) def.transform = t
 		next.setpointC = def
 	}
 
@@ -360,7 +317,6 @@ const buildStatusPoints = (): Record<string, ModbusStatusPointDef> | undefined =
 			registerType: "holding",
 			address: fanAddress.value,
 		}
-		applyAnalogDevice(def)
 		const levels = parseLevels(fanLevelsStr.value)
 		if (levels?.length) def.levels = levels
 		next.fanSpeed = def
@@ -422,24 +378,6 @@ const controllerOptions = computed(() => {
 	]
 })
 
-const tempDeviceOptions = computed(() => {
-	const opts = [{ value: "", label: "沿用主控制器" }]
-	const seen = new Set<string>()
-	for (const d of props.devices) {
-		const id = String(d.id)
-		if (seen.has(id)) continue
-		seen.add(id)
-		opts.push({ value: id, label: `${d.name}（控制器）` })
-	}
-	for (const d of props.sensorDevices) {
-		const id = String(d.id)
-		if (seen.has(id)) continue
-		seen.add(id)
-		opts.push({ value: id, label: `${d.name}（感測器）` })
-	}
-	return opts
-})
-
 const handleDeviceChange = (value: string) => {
 	const deviceId = value ? Number(value) : 0
 	localLocation.value.deviceId = deviceId > 0 ? deviceId : undefined
@@ -447,24 +385,15 @@ const handleDeviceChange = (value: string) => {
 	emitBuilt()
 }
 
-const addressByKey = {
-	temp: tempAddress,
-	setpoint: setpointAddress,
-	fan: fanAddress,
-} as const
-
-const scaleByKey = {
-	temp: tempScale,
-	setpoint: setpointScale,
-} as const
-
-const handleAddressBlur = (key: keyof typeof addressByKey) => {
-	normalizeNonNeg(addressByKey[key])
+const handleAddressBlur = (key: "temp" | "setpoint" | "fan") => {
+	const refVal = key === "temp" ? tempAddress : key === "setpoint" ? setpointAddress : fanAddress
+	normalizeNonNeg(refVal)
 	emitBuilt()
 }
 
-const handleScaleBlur = (key: keyof typeof scaleByKey) => {
-	normalizeScale(scaleByKey[key])
+const handleTransformBlur = (key: "temp" | "setpoint") => {
+	const refVal = key === "temp" ? tempTransform : setpointTransform
+	refVal.value = refVal.value.trim()
 	emitBuilt()
 }
 

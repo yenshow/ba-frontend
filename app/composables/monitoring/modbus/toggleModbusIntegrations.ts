@@ -16,6 +16,7 @@ import {
 	mapToggleBackendUiStatus,
 } from "~/composables/monitoring/modbus/modbusIntegrationShared"
 import { normalizeOptionalDeviceId } from "~/utils/deviceIdUtils"
+import { invertDefToRaw } from "~/utils/modbusTransform"
 import { useLightingApi } from "~/composables/systems/lighting/useLightingApi"
 import { useHvacApi } from "~/composables/systems/hvac/useHvacApi"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
@@ -235,22 +236,6 @@ export const useHvacModbusIntegration = (
 			loadAllLocationStatuses,
 			ensureStatus,
 		}) => {
-			const toWriteRaw = (displayValue: number, scale?: number): number => {
-				const s = scale != null && Number.isFinite(scale) && scale !== 0 ? scale : 1
-				return Math.round(displayValue / s)
-			}
-
-			const resolvePointDeviceConfig = async (
-				location: HvacLocation,
-				point: { deviceId?: number } | undefined
-			) => {
-				const overrideId = normalizeOptionalDeviceId(point?.deviceId)
-				if (overrideId) {
-					return getLocationDeviceConfig({ ...location, deviceId: overrideId })
-				}
-				return getLocationDeviceConfig(location)
-			}
-
 			const executeAnalogWrite = async (
 				locationUiKey: string,
 				pointKey: "setpointC" | "fanSpeed",
@@ -276,13 +261,14 @@ export const useHvacModbusIntegration = (
 				}
 
 				try {
-					const deviceConfig = await resolvePointDeviceConfig(location, point)
+					// 空調類比一律沿用地點層主控制器
+					const deviceConfig = await getLocationDeviceConfig(location)
 					if (!deviceConfig) {
 						rollback()
 						return
 					}
-					const raw = toWriteRaw(displayValue, point.scale)
-					if (!Number.isInteger(raw) || raw < 0 || raw > 65535) {
+					const raw = invertDefToRaw(displayValue, point)
+					if (raw == null || !Number.isInteger(raw) || raw < 0 || raw > 65535) {
 						rollback()
 						return
 					}

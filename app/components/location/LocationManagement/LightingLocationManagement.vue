@@ -1,145 +1,59 @@
 <template>
 	<div class="space-y-3">
-		<!-- 點位列表標題 -->
-		<div class="flex items-center justify-between">
-			<span class="text-base font-medium 2xl:text-lg">點位列表</span>
-			<PermissionActionButton
-				:allowed="allowCreateLocation"
-				aria-label="新增點位"
-				class="btn-secondary text-sm 2xl:text-base"
-				@click="handleAddLocation"
-			>
-				新增點位
-			</PermissionActionButton>
-		</div>
-
-		<!-- 點位項目 -->
 		<div
-			v-if="getLocations(zone).length === 0"
-			class="py-4 text-center text-sm text-white/60 2xl:text-base"
+			v-if="!selectedLocation"
+			class="py-8 text-center text-sm text-white/55 2xl:text-base"
 		>
-			尚無點位，請新增點位
+			請從左側選擇點位
 		</div>
-		<div v-else class="space-y-2">
-			<div
-				v-for="(location, locationIndex) in getLocations(zone)"
-				:key="getLocationId(location, locationIndex)"
-				class="flex min-w-0 items-start gap-2 rounded border border-white/10 bg-white/5 p-2"
-			>
-				<!-- 點位欄位（內容區塊：可多段、佔滿寬度） -->
-				<div class="min-w-0 flex-1">
-					<LightingLocationFields
-						:location="location"
-						:all-locations="getLocations(zone)"
-						:current-index="locationIndex"
-						:devices="devices"
-						:is-loading-devices="isLoadingDevices"
-						@update="handleLocationUpdate(locationIndex, $event)"
-					/>
-				</div>
-
-				<div v-if="reorderableLocations" class="btn-reorder-stack shrink-0 self-start">
-					<button
-						type="button"
-						class="btn-reorder-arrow"
-						:disabled="locationIndex === 0"
-						title="上移"
-						aria-label="此點位上移"
-						@click="emit('reorder-location', { index: locationIndex, direction: 'up' })"
-					>
-						↑
-					</button>
-					<button
-						type="button"
-						class="btn-reorder-arrow"
-						:disabled="locationIndex >= getLocations(zone).length - 1"
-						title="下移"
-						aria-label="此點位下移"
-						@click="emit('reorder-location', { index: locationIndex, direction: 'down' })"
-					>
-						↓
-					</button>
-				</div>
-
-				<!-- 刪除按鈕 -->
-				<IconTrashButton
-					:allowed="allowDeleteLocation"
-					button-class="ml-auto flex-shrink-0"
-					title="刪除點位"
-					aria-label="刪除此點位"
-					@click="handleRemoveLocation(locationIndex)"
-				/>
-			</div>
-		</div>
-
-		<!-- 設備提示 -->
-		<p v-if="devices.length === 0 && !isLoadingDevices" class="mt-1 text-xs text-amber-300">
-			{{ deviceHint }}
-		</p>
+		<template v-else>
+			<LightingLocationFields
+				:location="selectedLocation"
+				:all-locations="locations"
+				:current-index="selectedLocationIndex"
+				:devices="devices"
+				:is-loading-devices="isLoadingDevices"
+				@update="handleLocationUpdate"
+			/>
+			<p v-if="devices.length === 0 && !isLoadingDevices" class="mt-1 text-xs text-amber-300">
+				{{ deviceHint }}
+			</p>
+		</template>
 	</div>
 </template>
 
 <script setup lang="ts">
-import IconTrashButton from "~/components/common/IconTrashButton.vue"
-import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
-
 import type { LightingZone, LightingLocation } from "~/types/lighting"
 import type { Device } from "~/types/device"
 import LightingLocationFields from "../LocationFormFields/LightingLocationFields.vue"
-import { getLocationUiKey } from "~/utils/locationUiId"
 
 interface Props {
 	zone: LightingZone
+	selectedLocationIndex: number
 	devices: Device[]
 	isLoadingDevices: boolean
 	deviceHint?: string
-	reorderableLocations?: boolean
-	allowCreateLocation?: boolean
-	allowDeleteLocation?: boolean
 }
 
 interface Emits {
-	(e: "add-location"): void
-	(e: "remove-location", index: number): void
 	(e: "update-location", index: number, location: LightingLocation): void
-	(e: "reorder-location", payload: { index: number; direction: "up" | "down" }): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
-	allowCreateLocation: true,
-	allowDeleteLocation: true,
 	deviceHint: "請先在「設備管理」中建立控制器設備",
-	reorderableLocations: false,
 })
 
 const emit = defineEmits<Emits>()
 
-// 取得地點列表
-const getLocations = (zone: LightingZone): LightingLocation[] => {
-	return zone.locations || []
-}
+const locations = computed(() => props.zone.locations || [])
 
-// 取得地點 ID
-const getLocationId = (location: LightingLocation, index: number): string => {
-	return getLocationUiKey({
-		zone: props.zone as any,
-		location: location as any,
-		locationIndex: index,
-	})
-}
+const selectedLocation = computed(() => {
+	const idx = props.selectedLocationIndex
+	if (idx < 0 || idx >= locations.value.length) return null
+	return locations.value[idx] ?? null
+})
 
-// 處理新增地點
-const handleAddLocation = () => {
-	emit("add-location")
-}
-
-// 處理刪除地點
-const handleRemoveLocation = (locationIndex: number) => {
-	emit("remove-location", locationIndex)
-}
-
-// 處理地點更新
-const handleLocationUpdate = (locationIndex: number, updatedLocation: LightingLocation) => {
-	emit("update-location", locationIndex, updatedLocation)
+const handleLocationUpdate = (updatedLocation: LightingLocation) => {
+	emit("update-location", props.selectedLocationIndex, updatedLocation)
 }
 </script>

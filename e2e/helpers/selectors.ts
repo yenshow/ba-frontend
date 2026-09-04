@@ -195,17 +195,17 @@ export const openFloorZoneManagementDialog = (page: Page) =>
 export const zoneManagementPanel = (page: Page) =>
 	page.locator(".dialog-panel-bg").filter({ hasText: "區域管理" }).first()
 
-/** 區域管理 Dialog 內：刪除指定區域並確認 */
+/** 區域管理 Dialog 內：刪除指定區域並確認（左樹列：heading + 刪除區域） */
 export const deleteZoneInDialog = async (page: Page, zoneName: string) => {
 	await suppressAlertToasts(page)
 	const panel = zoneManagementPanel(page)
-	const card = panel
-		.locator("div")
+	const tree = panel.getByRole("tree", { name: "區域地點樹" })
+	const row = tree
+		.getByRole("treeitem")
 		.filter({ has: page.getByRole("heading", { name: zoneName, exact: true }) })
-		.filter({ has: page.getByRole("button", { name: "刪除區域" }) })
 		.first()
-	await expect(card).toBeVisible({ timeout: 15_000 })
-	await card.getByRole("button", { name: "刪除區域" }).click({ force: true })
+	await expect(row).toBeVisible({ timeout: 15_000 })
+	await row.getByRole("button", { name: "刪除區域" }).click({ force: true })
 	await confirmDangerDialog(page, "確定")
 	await expect(panel.getByRole("heading", { name: zoneName, exact: true })).toHaveCount(0, {
 		timeout: 20_000,

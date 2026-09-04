@@ -1,7 +1,7 @@
 <template>
-	<div class="flex min-w-0 flex-1 flex-wrap items-end gap-2">
+	<div class="flex w-full min-w-0 flex-col gap-3">
 		<label
-			class="flex min-w-[7rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+			class="flex w-full min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 		>
 			<span>點位名稱<span class="required-mark">*</span></span>
 			<input
@@ -15,7 +15,7 @@
 		</label>
 
 		<label
-			class="flex min-w-[8rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+			class="flex w-full min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 		>
 			<span>控制器</span>
 			<FilterDropdown
@@ -27,52 +27,54 @@
 		</label>
 
 		<template v-if="localLocation.deviceId && localLocation.deviceId > 0">
-			<label
-				class="flex w-24 min-w-0 flex-shrink-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-			>
-				<span>類型<span class="required-mark">*</span></span>
-				<FilterDropdown
-					v-model="runningType"
-					:options="[
-						{ value: 'DO', label: 'DO' },
-						{ value: 'DI', label: 'DI' },
-					]"
-					text-size="text-sm 2xl:text-base"
-					@update:model-value="handleChange"
-				/>
-			</label>
-
-			<label
-				class="flex min-w-[5rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base sm:max-w-[8rem]"
-			>
-				<span>地址<span class="required-mark">*</span></span>
-				<div class="relative w-full">
-					<input
-						v-model.number="runningAddress"
-						type="number"
-						min="0"
-						placeholder="地址"
-						required
-						class="form-input-small w-full transition-all"
-						:class="{ 'form-input-modbus-issue': !!pointAddressIssue }"
-						:title="pointAddressIssue?.msg ?? undefined"
-						@blur="handleChange"
+			<div class="flex w-full min-w-0 flex-wrap items-end gap-3">
+				<label
+					class="flex w-full max-w-[12rem] flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+				>
+					<span>類型<span class="required-mark">*</span></span>
+					<FilterDropdown
+						v-model="runningType"
+						:options="[
+							{ value: 'DO', label: 'DO' },
+							{ value: 'DI', label: 'DI' },
+						]"
+						text-size="text-sm 2xl:text-base"
+						@update:model-value="handleChange"
 					/>
-					<div
-						v-if="pointAddressIssue"
-						class="pointer-events-none absolute right-9 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-rose-500"
-						:title="pointAddressIssue.msg"
-					>
-						<svg class="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-							<path
-								fill-rule="evenodd"
-								d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-								clip-rule="evenodd"
-							/>
-						</svg>
+				</label>
+
+				<label
+					class="flex w-full max-w-[16rem] flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+				>
+					<span>地址<span class="required-mark">*</span></span>
+					<div class="relative w-full">
+						<input
+							v-model.number="runningAddress"
+							type="number"
+							min="0"
+							placeholder="地址"
+							required
+							class="form-input-small w-full transition-all"
+							:class="{ 'form-input-modbus-issue': !!pointAddressIssue }"
+							:title="pointAddressIssue?.msg ?? undefined"
+							@blur="handleChange"
+						/>
+						<div
+							v-if="pointAddressIssue"
+							class="pointer-events-none absolute right-9 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-rose-500"
+							:title="pointAddressIssue.msg"
+						>
+							<svg class="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+								<path
+									fill-rule="evenodd"
+									d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+									clip-rule="evenodd"
+								/>
+							</svg>
+						</div>
 					</div>
-				</div>
-			</label>
+				</label>
+			</div>
 		</template>
 	</div>
 </template>

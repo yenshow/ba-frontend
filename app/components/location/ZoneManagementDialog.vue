@@ -6,7 +6,7 @@
 				class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
 			>
 				<div
-					class="dialog-panel-bg flex max-h-[90vh] w-full max-w-5xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:max-w-6xl 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
+					class="dialog-panel-bg flex max-h-[90vh] min-h-0 w-full max-w-7xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
 				>
 					<header class="flex items-center justify-between pr-7 2xl:pr-8">
 						<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">區域管理</h3>
@@ -28,177 +28,57 @@
 						</div>
 					</header>
 
-					<div class="show-scrollbar flex-1 overflow-y-auto pr-7 2xl:pr-8">
-						<div class="min-h-[200px]">
-							<Transition name="fade" mode="out-in">
-								<div v-if="sortedZones.length > 0" :key="`zones-${sortedZones.length}`">
-									<div class="space-y-3">
-										<div
-											v-for="zone in sortedZones"
-											:key="getZoneId(zone)"
-											class="overflow-hidden rounded-lg border transition-all"
-											:class="[
-												isNewZone(zone)
-													? 'border-2 border-amber-400/90 bg-amber-500/10 shadow-[0_0_0_1px_rgba(251,191,36,0.4)]'
-													: 'border border-white/20 bg-white/10',
-												{ 'bg-white/15': !isNewZone(zone) && expandedZones.has(getZoneId(zone)) },
-												{
-													'bg-amber-500/15': isNewZone(zone) && expandedZones.has(getZoneId(zone)),
-												},
-											]"
-										>
-											<div
-												class="flex cursor-pointer items-center justify-between p-4 transition-colors hover:bg-white/10"
-												@click="toggleZone(getZoneId(zone))"
-											>
-												<div class="flex flex-1 items-center gap-4">
-													<svg
-														class="h-5 w-5 text-white/70 transition-transform"
-														:class="{ 'rotate-90': expandedZones.has(getZoneId(zone)) }"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M9 5l7 7-7 7"
-														/>
-													</svg>
-													<div
-														class="flex h-16 min-w-[80px] items-center justify-center rounded-xl border-2 border-cyan-300/50 bg-gradient-to-br from-cyan-400/30 to-blue-500/30 shadow-lg"
-													>
-														<h4
-															v-if="zone.name"
-															class="text-xl font-bold tracking-wider text-white 2xl:text-2xl"
-														>
-															{{ zone.name }}
-														</h4>
-														<span v-else class="text-sm text-white/60 2xl:text-base">未命名</span>
-													</div>
-
-													<div class="flex-1">
-														<div class="flex items-center gap-3">
-															<span
-																class="rounded-full bg-white/25 px-3 py-1 text-sm font-medium text-white 2xl:text-base"
-															>
-																{{ getZoneCountLabel(zone) }}
-															</span>
-														</div>
-													</div>
-												</div>
-												<div class="ml-4 flex gap-2 2xl:gap-3" @click.stop>
-													<div class="btn-reorder-stack">
-														<button
-															type="button"
-															class="btn-reorder-arrow"
-															:disabled="isFirstZoneInList(zone)"
-															title="上移"
-															aria-label="此區域上移"
-															@click.stop="moveZoneOrder(zone, -1)"
-														>
-															↑
-														</button>
-														<button
-															type="button"
-															class="btn-reorder-arrow"
-															:disabled="isLastZoneInList(zone)"
-															title="下移"
-															aria-label="此區域下移"
-															@click.stop="moveZoneOrder(zone, 1)"
-														>
-															↓
-														</button>
-													</div>
-													<IconTrashButton
-														:allowed="canRemoveZone"
-														title="刪除區域"
-														aria-label="刪除區域"
-														@click.stop="handleDeleteZone(getZoneId(zone))"
-													/>
-												</div>
-											</div>
-
-											<Transition name="expand">
-												<div
-													v-if="expandedZones.has(getZoneId(zone))"
-													class="space-y-3 border-t border-white/10 p-4"
-												>
-													<ZoneFormFields
-														:zone="getZoneForFormFields(zone)"
-														:require-image-url="requireImageUrl"
-														@update="handleZoneUpdate(getZoneId(zone), $event)"
-													/>
-
-													<component
-														:is="locationManagementComponent"
-														v-bind="drainageLikeProps"
-														:zone="zone"
-														:devices="devices"
-														:sensor-devices="sensorDevices"
-														:is-loading-devices="isLoadingDevices"
-														:device-hint="deviceHint"
-														:person-groups="personGroups"
-														:vehicle-custom-groups="vehicleCustomGroups"
-														:doors="doors"
-														:access-control-devices="accessControlDevices"
-														:isapi-camera-devices="isapiCameraDevices"
-						:surveillance-camera-devices="surveillanceCameraDevices"
-														:reorderable-locations="true"
-														:allow-create-location="canAddZone"
-														:allow-delete-location="canRemoveZone"
-														@add-location="
-															(payload?: { viewCategory?: string; floor?: string }) =>
-																addLocation(zone, payload)
-														"
-														@remove-location="
-															(index: number) => removeLocation(getZoneId(zone), index)
-														"
-														@rename-view-category="
-															(p: { oldCategory: string; newCategory: string }) =>
-																handleDrainageRenameViewCategory(getZoneId(zone), p)
-														"
-														@rename-floor="
-															(p: { oldFloor: string; newFloor: string }) =>
-																handleAccessSecurityRenameFloor(getZoneId(zone), p)
-														"
-														@reorder-location="
-															(payload: {
-																index: number
-																direction: 'up' | 'down'
-																swapWithIndex?: number
-															}) => handleReorderLocationRow(zone, payload)
-														"
-														@reorder-view-category-block="
-															(p: { categoryKey: string; direction: 'up' | 'down' }) =>
-																handleReorderDrainageViewCategoryBlock(getZoneId(zone), p)
-														"
-														@update-location="
-															(index: number, location: SystemLocationType) =>
-																handleLocationUpdate(getZoneId(zone), index, location)
-														"
-														@update-zone="
-															(updates: Partial<TZone>) =>
-																handleAccessSecurityZonePatch(getZoneId(zone), updates)
-														"
-													/>
-												</div>
-											</Transition>
-										</div>
-									</div>
-								</div>
-								<div v-else key="empty" class="py-8 text-center text-white/60">
-									<p class="text-base 2xl:text-lg">尚無區域資料</p>
-									<p class="mt-2 text-sm 2xl:text-base">點擊「新增區域」開始建立</p>
-								</div>
-							</Transition>
+					<div class="flex min-h-0 flex-1 flex-col overflow-hidden pr-7 2xl:pr-8">
+						<p v-if="errorMessage" class="mb-3 form-error-text-lg" role="alert">
+							{{ errorMessage }}
+						</p>
+						<div class="grid min-h-0 flex-1 grid-cols-12 gap-4 2xl:gap-5">
+							<ZoneLocationTreePanel
+								ref="treePanelRef"
+								:zones="sortedZones as any[]"
+								:system-type="systemType"
+								:selected-key="selectedKey"
+								:location-label="getLocationLabel()"
+								:allow-create-zone="canAddZone"
+								:allow-create-location="canAddZone"
+								:allow-delete-location="canRemoveZone"
+								:allow-delete-zone="canRemoveZone"
+								:reorderable="true"
+								@select="selectedKey = $event"
+								@add-zone="addNewZone"
+								@delete-zone="handleDeleteZone"
+								@reorder-zone="handleTreeReorderZone"
+								@add-location="handleTreeAddLocation"
+								@remove-location="removeLocation"
+								@reorder-location="handleTreeReorderLocation"
+								@reorder-group-block="handleTreeReorderGroupBlock"
+								@rename-view-category="handleTreeRenameViewCategory"
+								@rename-floor="handleTreeRenameFloor"
+							/>
+							<ZoneLocationDetailPanel
+								:selected-key="selectedKey"
+								:zones="sortedZones as any[]"
+								:system-type="systemType"
+								:location-label="getLocationLabel()"
+								:require-image-url="requireImageUrl"
+								:location-management-component="locationManagementComponent"
+								:get-zone-id="getZoneId"
+								:devices="devices"
+								:is-loading-devices="isLoadingDevices"
+								:device-hint="deviceHint"
+								:person-groups="personGroups"
+								:vehicle-custom-groups="vehicleCustomGroups"
+								:doors="doors"
+								:access-control-devices="accessControlDevices"
+								:isapi-camera-devices="isapiCameraDevices"
+								:surveillance-camera-devices="surveillanceCameraDevices"
+								@update-zone="handleZoneUpdate"
+								@patch-zone="handleAccessSecurityZonePatch"
+								@update-location="handleLocationUpdate"
+							/>
 						</div>
 					</div>
 
-					<p v-if="errorMessage" class="form-error-text-lg pr-7 2xl:pr-8">
-						{{ errorMessage }}
-					</p>
 					<footer
 						class="flex items-center gap-3 border-t border-white/20 pr-7 pt-4 2xl:gap-4 2xl:pr-8"
 					>
@@ -212,14 +92,6 @@
 							@click="saveAllChanges"
 						>
 							{{ isSaving ? "儲存中…" : "儲存變更" }}
-						</PermissionActionButton>
-						<PermissionActionButton
-							:allowed="canAddZone"
-							aria-label="新增區域"
-							class="btn-primary"
-							@click="addNewZone"
-						>
-							新增區域
 						</PermissionActionButton>
 					</footer>
 				</div>
@@ -259,7 +131,8 @@ import { useExternalDataApi } from "~/composables/systems/externalData/useExtern
 import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
-import ZoneFormFields from "./ZoneFormFields.vue"
+import ZoneLocationTreePanel from "./ZoneLocationTreePanel.vue"
+import ZoneLocationDetailPanel from "./ZoneLocationDetailPanel.vue"
 import EnvironmentLocationManagement from "./LocationManagement/EnvironmentLocationManagement.vue"
 import LightingLocationManagement from "./LocationManagement/LightingLocationManagement.vue"
 import HvacLocationManagement from "./LocationManagement/HvacLocationManagement.vue"
@@ -274,7 +147,6 @@ import FireLocationManagement from "./LocationManagement/FireLocationManagement.
 import SmokeAlarmLocationManagement from "./LocationManagement/SmokeAlarmLocationManagement.vue"
 import AccessSecurityLocationManagement from "./LocationManagement/AccessSecurityLocationManagement.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
-import IconTrashButton from "~/components/common/IconTrashButton.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { buildUnsavedCloseConfirm } from "~/utils/formDialog"
@@ -293,8 +165,13 @@ import {
 	getLocationDeleteSuccessToast,
 } from "~/utils/confirmCopy"
 import { getLocationUiKey, getZoneUiKey } from "~/utils/locationUiId"
-import { pickSortOrder, zoneSortOrderValue } from "~/utils/sortOrder"
+import { zoneSortOrderValue } from "~/utils/sortOrder"
 import { filterPeopleCountingCameraDevices } from "~/utils/cameraModelCategories"
+import {
+	buildLocationSelectionKey,
+	buildZoneSelectionKey,
+	parseZoneTreeSelectionKey,
+} from "~/composables/location/ui/useLocationGroupTree"
 
 interface Props {
 	modelValue: boolean
@@ -330,9 +207,12 @@ const canRemoveZone = computed(() => props.canDeleteZone !== false)
 
 const adapter = useZoneSystemAdapter<TZone, SystemLocationType>(props.systemType)
 
+const getZoneId = (zone: TZone): string => {
+	return getZoneUiKey(zone as any)
+}
+
 const {
 	pendingChanges,
-	expandedZones,
 	hasUnsavedChanges,
 	clearAllDrafts,
 	setDraft,
@@ -346,6 +226,10 @@ const {
 const toast = useToast()
 const errorMessage = ref("")
 const isSaving = ref(false)
+const selectedKey = ref<string | null>(null)
+const treePanelRef = ref<{ clearAllDrafts: () => void; expandZone: (zoneId: string) => void } | null>(
+	null
+)
 
 const pendingDeleteLocation = ref<{ zoneId: string; locationUiKey: string } | null>(null)
 
@@ -419,7 +303,6 @@ const doors = ref<
 const accessControlDevices = ref<Device[]>([])
 const isapiCameraDevices = ref<Device[]>([])
 const surveillanceCameraDevices = ref<Device[]>([])
-const sensorDevices = ref<Device[]>([])
 const vehicleCustomGroups = ref<Array<{ id: number; list_name: string }>>([])
 const vehicleAccessApi = useVehicleAccessApi()
 
@@ -443,15 +326,6 @@ const locationManagementComponent = computed(() => {
 	const c = locationManagementComponentMap[props.systemType]
 	return c ?? LightingLocationManagement
 })
-
-const drainageLikeVariant = computed(() => {
-	if (props.systemType === "drainage") return "drainage"
-	return null
-})
-
-const drainageLikeProps = computed(() =>
-	drainageLikeVariant.value ? { variant: drainageLikeVariant.value } : {}
-)
 
 const loadDevices = async () => {
 	isLoadingDevices.value = true
@@ -563,33 +437,11 @@ const loadIsapiCameraDevices = async () => {
 	}
 }
 
-const loadHvacSensorDevices = async () => {
-	if (props.systemType !== "hvac") {
-		sensorDevices.value = []
-		return
-	}
-	try {
-		const result = await deviceApi.getDevices({
-			type_code: "sensor",
-			limit: 100,
-		})
-		sensorDevices.value = result.devices || []
-	} catch (error) {
-		logger.error("載入感測器列表失敗:", error)
-		sensorDevices.value = []
-	}
-}
-
 watch(
 	() => props.modelValue,
 	async (newValue) => {
 		if (newValue) {
 			loadDevices()
-			if (props.systemType === "hvac") {
-				loadHvacSensorDevices()
-			} else {
-				sensorDevices.value = []
-			}
 			if (props.systemType === "people_counting") {
 				await ensureModuleRegistryLoaded()
 				if (enableYscpPeopleCounting.value) {
@@ -610,32 +462,26 @@ watch(
 				loadAccessControlDevices()
 			}
 			clearAllDrafts()
+			treePanelRef.value?.clearAllDrafts()
 			errorMessage.value = ""
+			await nextTick()
+			selectFirstZoneIfNeeded()
+		} else {
+			selectedKey.value = null
 		}
 	}
 )
 
-const getZoneId = (zone: TZone): string => {
-	return getZoneUiKey(zone as any)
-}
-
-const getLocationsCount = (zone: TZone): number => {
-	return adapter.getLocationsProperty(zone).length
-}
-
-const getZoneCountLabel = (zone: TZone): string => {
-	const n = getLocationsCount(zone)
-	if (props.systemType !== "access_security") {
-		return `${n} 個${getLocationLabel()}`
+watch(
+	() =>
+		sortedZones.value.map(
+			(z) => `${getZoneId(z)}:${adapter.getLocationsProperty(z).length}`
+		),
+	() => {
+		if (!props.modelValue) return
+		reconcileSelectedKey()
 	}
-	const floors = new Set(
-		adapter
-			.getLocationsProperty(zone)
-			.map((loc) => String((loc as { floor?: string }).floor || "").trim())
-			.filter(Boolean)
-	)
-	return `${n} 個戶別 · ${floors.size} 樓層`
-}
+)
 
 const getLocationLabel = (): string => {
 	const labelMap: Record<SystemType, string> = {
@@ -656,24 +502,95 @@ const getLocationLabel = (): string => {
 	return labelMap[props.systemType] || "地點"
 }
 
-const getZoneForFormFields = (zone: TZone): UnifiedZone => {
-	const zoneAny = zone as any
-	return {
-		id: getZoneId(zone),
-		name: zone.name,
-		imageUrl: zoneAny.imageUrl,
-		description: zoneAny.description,
-		...pickSortOrder(zoneAny.sortOrder),
-		locations: [],
-	} as UnifiedZone
+const selectFirstZoneIfNeeded = () => {
+	if (sortedZones.value.length === 0) {
+		selectedKey.value = null
+		return
+	}
+	const firstZone = sortedZones.value[0]!
+	const firstId = getZoneId(firstZone)
+	if (!firstId) return
+	treePanelRef.value?.expandZone(firstId)
+	const locs = adapter.getLocationsProperty(firstZone)
+	selectedKey.value =
+		locs.length > 0
+			? buildLocationSelectionKey(firstId, 0)
+			: buildZoneSelectionKey(firstId)
 }
 
-const toggleZone = (zoneId: string) => {
-	if (expandedZones.value.has(zoneId)) {
-		expandedZones.value.delete(zoneId)
-	} else {
-		expandedZones.value.add(zoneId)
+const reconcileSelectedKey = () => {
+	const sel = parseZoneTreeSelectionKey(selectedKey.value)
+	if (!sel) {
+		selectFirstZoneIfNeeded()
+		return
 	}
+	const zone = sortedZones.value.find((z) => getZoneId(z) === sel.zoneId)
+	if (!zone) {
+		selectFirstZoneIfNeeded()
+		return
+	}
+	if (sel.type === "location") {
+		const locs = adapter.getLocationsProperty(zone)
+		if (sel.index < 0 || sel.index >= locs.length) {
+			selectedKey.value =
+				locs.length > 0
+					? buildLocationSelectionKey(sel.zoneId, 0)
+					: buildZoneSelectionKey(sel.zoneId)
+		}
+	}
+}
+
+const handleTreeReorderZone = (payload: { fromZoneId: string; toZoneId: string }) => {
+	moveZoneOrderByIds(payload.fromZoneId, payload.toZoneId)
+}
+
+const handleTreeAddLocation = (
+	zoneId: string,
+	payload?: { viewCategory?: string; floor?: string }
+) => {
+	const zone = sortedZones.value.find((z) => getZoneId(z) === zoneId)
+	if (!zone) return
+	addLocation(zone, payload)
+}
+
+const handleTreeReorderLocation = (payload: {
+	zoneId: string
+	fromIndex: number
+	toIndex: number
+}) => {
+	const zone = sortedZones.value.find((z) => getZoneId(z) === payload.zoneId)
+	if (!zone) return
+	handleReorderLocationByIndex(zone, payload.fromIndex, payload.toIndex)
+}
+
+const handleTreeReorderGroupBlock = (payload: {
+	zoneId: string
+	fromCategoryKey: string
+	toCategoryKey: string
+}) => {
+	handleReorderGroupBlockByKeys(payload.zoneId, payload.fromCategoryKey, payload.toCategoryKey)
+}
+
+const handleTreeRenameViewCategory = (payload: {
+	zoneId: string
+	oldCategory: string
+	newCategory: string
+}) => {
+	handleDrainageRenameViewCategory(payload.zoneId, {
+		oldCategory: payload.oldCategory,
+		newCategory: payload.newCategory,
+	})
+}
+
+const handleTreeRenameFloor = (payload: {
+	zoneId: string
+	oldFloor: string
+	newFloor: string
+}) => {
+	handleAccessSecurityRenameFloor(payload.zoneId, {
+		oldFloor: payload.oldFloor,
+		newFloor: payload.newFloor,
+	})
 }
 
 const handleClose = () => {
@@ -699,6 +616,8 @@ const handleClose = () => {
 
 const closeDialog = () => {
 	clearAllDrafts()
+	treePanelRef.value?.clearAllDrafts()
+	selectedKey.value = null
 	errorMessage.value = ""
 	emit("update:modelValue", false)
 }
@@ -779,6 +698,12 @@ const addLocation = (zone: TZone, payload?: { viewCategory?: string; floor?: str
 	const locations = [...adapter.getLocationsProperty(zone), newLocation]
 	const updatedZone = adapter.setLocationsProperty(zone, locations)
 	updateZone(updatedZone)
+	const zoneId = getZoneId(updatedZone)
+	const newIndex = adapter.getLocationsProperty(updatedZone).length - 1
+	if (zoneId && newIndex >= 0) {
+		selectedKey.value = buildLocationSelectionKey(zoneId, newIndex)
+		treePanelRef.value?.expandZone(zoneId)
+	}
 }
 
 const handleDrainageRenameViewCategory = (
@@ -855,8 +780,27 @@ const commitLocalLocationRemoval = (
 	locations: SystemLocationType[],
 	index: number
 ) => {
+	const zoneId = getZoneId(zone)
+	const sel = parseZoneTreeSelectionKey(selectedKey.value)
 	locations.splice(index, 1)
 	updateZone(adapter.setLocationsProperty(zone, locations))
+
+	if (!sel || sel.zoneId !== zoneId) return
+	if (sel.type !== "location") return
+	if (locations.length === 0) {
+		selectedKey.value = buildZoneSelectionKey(zoneId)
+		return
+	}
+	if (sel.index === index) {
+		selectedKey.value = buildLocationSelectionKey(
+			zoneId,
+			Math.min(index, locations.length - 1)
+		)
+		return
+	}
+	if (sel.index > index) {
+		selectedKey.value = buildLocationSelectionKey(zoneId, sel.index - 1)
+	}
 }
 
 const handleConfirmDeleteLocation = async () => {
@@ -916,11 +860,6 @@ const handleConfirmDeleteLocation = async () => {
 	toast.success(TOAST.LOCATION_REMOVED_FROM_LIST)
 }
 
-const isNewZone = (zone: TZone): boolean => {
-	const zoneId = getZoneId(zone)
-	return Boolean(zoneId?.startsWith("temp-"))
-}
-
 const maxZoneSortOrder = (): number => {
 	let m = -1
 	for (const z of mergedZones.value) {
@@ -936,34 +875,22 @@ const snapshotZoneById = (zoneId: string): TZone | undefined => {
 	return fromProps ? (JSON.parse(JSON.stringify(fromProps)) as TZone) : undefined
 }
 
-const isFirstZoneInList = (zone: TZone) => {
-	const id = getZoneId(zone)
-	if (!id) return true
-	const i = sortedZones.value.findIndex((z) => getZoneId(z) === id)
-	return i <= 0
-}
-
-const isLastZoneInList = (zone: TZone) => {
-	const id = getZoneId(zone)
-	if (!id) return true
-	const i = sortedZones.value.findIndex((z) => getZoneId(z) === id)
-	return i < 0 || i >= sortedZones.value.length - 1
-}
-
-const moveZoneOrder = (zone: TZone, delta: number) => {
-	const id = getZoneId(zone)
-	if (!id) return
+const moveZoneOrderByIds = (fromZoneId: string, toZoneId: string) => {
+	if (!fromZoneId || !toZoneId || fromZoneId === toZoneId) return
 	const list = sortedZones.value
-	const i = list.findIndex((z) => getZoneId(z) === id)
-	const j = i + delta
-	if (i < 0 || j < 0 || j >= list.length) return
-
 	const orderedIds = list.map((z) => getZoneId(z)).filter(Boolean)
 	if (orderedIds.length !== list.length) return
-	;[orderedIds[i], orderedIds[j]] = [orderedIds[j]!, orderedIds[i]!]
+	const fromIndex = orderedIds.indexOf(fromZoneId)
+	const toIndex = orderedIds.indexOf(toZoneId)
+	if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return
 
-	for (let idx = 0; idx < orderedIds.length; idx += 1) {
-		const zoneId = orderedIds[idx]!
+	const nextIds = [...orderedIds]
+	const [moved] = nextIds.splice(fromIndex, 1)
+	if (!moved) return
+	nextIds.splice(toIndex, 0, moved)
+
+	for (let idx = 0; idx < nextIds.length; idx += 1) {
+		const zoneId = nextIds[idx]!
 		const snap = snapshotZoneById(zoneId)
 		if (!snap) continue
 		pendingChanges.value.set(zoneId, { ...snap, sortOrder: idx } as TZone)
@@ -974,10 +901,10 @@ const moveZoneOrder = (zone: TZone, delta: number) => {
 
 const DRAINAGE_CATEGORY_BLOCK_EMPTY_KEY = "__empty__"
 
-const reorderDrainageLocationsByCategoryBlock = (
+const reorderLocationsByCategoryBlockKeys = (
 	locs: SystemLocationType[],
-	categoryKey: string,
-	direction: "up" | "down",
+	fromCategoryKey: string,
+	toCategoryKey: string,
 	toKey: (loc: SystemLocationType) => string = (loc) => {
 		const raw = String((loc as { viewCategory?: string }).viewCategory ?? "").trim()
 		return raw === "" ? DRAINAGE_CATEGORY_BLOCK_EMPTY_KEY : raw
@@ -996,15 +923,16 @@ const reorderDrainageLocationsByCategoryBlock = (
 	if (keyOrder.includes(DRAINAGE_CATEGORY_BLOCK_EMPTY_KEY)) {
 		orderedKeys.push(DRAINAGE_CATEGORY_BLOCK_EMPTY_KEY)
 	}
-	const idx = orderedKeys.indexOf(categoryKey)
-	if (idx < 0) return null
-	const j = direction === "up" ? idx - 1 : idx + 1
-	if (j < 0 || j >= orderedKeys.length) return null
-	const swapped = [...orderedKeys]
-	;[swapped[idx], swapped[j]] = [swapped[j]!, swapped[idx]!]
+	const fromIndex = orderedKeys.indexOf(fromCategoryKey)
+	const toIndex = orderedKeys.indexOf(toCategoryKey)
+	if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return null
+	const nextKeys = [...orderedKeys]
+	const [moved] = nextKeys.splice(fromIndex, 1)
+	if (!moved) return null
+	nextKeys.splice(toIndex, 0, moved)
 
 	const buckets = new Map<string, SystemLocationType[]>()
-	for (const k of swapped) {
+	for (const k of nextKeys) {
 		buckets.set(k, [])
 	}
 	for (const loc of locs) {
@@ -1013,15 +941,16 @@ const reorderDrainageLocationsByCategoryBlock = (
 		buckets.get(k)!.push(loc)
 	}
 	const next: SystemLocationType[] = []
-	for (const k of swapped) {
+	for (const k of nextKeys) {
 		next.push(...(buckets.get(k) ?? []))
 	}
 	return next
 }
 
-const handleReorderDrainageViewCategoryBlock = (
+const handleReorderGroupBlockByKeys = (
 	zoneId: string,
-	payload: { categoryKey: string; direction: "up" | "down" }
+	fromCategoryKey: string,
+	toCategoryKey: string
 ) => {
 	if (
 		props.systemType !== "drainage" &&
@@ -1041,10 +970,10 @@ const handleReorderDrainageViewCategoryBlock = (
 					return raw === "" ? DRAINAGE_CATEGORY_BLOCK_EMPTY_KEY : raw
 				}
 			: undefined
-	const next = reorderDrainageLocationsByCategoryBlock(
+	const next = reorderLocationsByCategoryBlockKeys(
 		locs,
-		payload.categoryKey,
-		payload.direction,
+		fromCategoryKey,
+		toCategoryKey,
 		toKey
 	)
 	if (!next) return
@@ -1055,25 +984,39 @@ const handleReorderDrainageViewCategoryBlock = (
 	updateZone(updatedZone)
 }
 
-const handleReorderLocationRow = (
-	zone: TZone,
-	payload: { index: number; direction: "up" | "down"; swapWithIndex?: number }
-) => {
+const handleReorderLocationByIndex = (zone: TZone, fromIndex: number, toIndex: number) => {
 	const locs = [...adapter.getLocationsProperty(zone)] as SystemLocationType[]
-	const { index, direction, swapWithIndex } = payload
-	const j =
-		typeof swapWithIndex === "number" && Number.isFinite(swapWithIndex)
-			? swapWithIndex
-			: direction === "up"
-				? index - 1
-				: index + 1
-	if (j < 0 || j >= locs.length || index < 0 || index >= locs.length || j === index) return
-	;[locs[index], locs[j]] = [locs[j]!, locs[index]!]
+	if (
+		fromIndex < 0 ||
+		toIndex < 0 ||
+		fromIndex >= locs.length ||
+		toIndex >= locs.length ||
+		fromIndex === toIndex
+	)
+		return
+	const [moved] = locs.splice(fromIndex, 1)
+	if (!moved) return
+	locs.splice(toIndex, 0, moved)
 	locs.forEach((loc, idx) => {
 		;(loc as unknown as { sortOrder?: number }).sortOrder = idx
 	})
 	const updatedZone = adapter.setLocationsProperty(zone, locs)
 	updateZone(updatedZone)
+
+	const zoneId = getZoneId(zone)
+	const sel = parseZoneTreeSelectionKey(selectedKey.value)
+	if (!sel || sel.type !== "location" || sel.zoneId !== zoneId) return
+	if (sel.index === fromIndex) {
+		selectedKey.value = buildLocationSelectionKey(zoneId, toIndex)
+		return
+	}
+	if (fromIndex < sel.index && toIndex >= sel.index) {
+		selectedKey.value = buildLocationSelectionKey(zoneId, sel.index - 1)
+		return
+	}
+	if (fromIndex > sel.index && toIndex <= sel.index) {
+		selectedKey.value = buildLocationSelectionKey(zoneId, sel.index + 1)
+	}
 }
 
 const addNewZone = () => {
@@ -1088,8 +1031,10 @@ const addNewZone = () => {
 	// 僅加入待儲存表，不立即寫入資料庫
 	pendingChanges.value.set(tempId, JSON.parse(JSON.stringify(newZone)) as TZone)
 
-	// 自動展開新區域
-	expandedZones.value.add(tempId)
+	selectedKey.value = buildZoneSelectionKey(tempId)
+	nextTick(() => {
+		treePanelRef.value?.expandZone(tempId)
+	})
 }
 
 const flushFocusedFormControlInDialog = async () => {

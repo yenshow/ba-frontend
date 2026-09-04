@@ -1,7 +1,7 @@
 <template>
-	<div class="flex min-w-0 flex-1 flex-wrap items-end gap-2">
+	<div class="flex w-full min-w-0 flex-col gap-3">
 		<label
-			class="flex min-w-[7rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+			class="flex w-full min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 		>
 			<span>戶號<span class="required-mark">*</span></span>
 			<input
@@ -16,7 +16,7 @@
 		</label>
 
 		<label
-			class="flex min-w-[10rem] flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+			class="flex w-full min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 		>
 			<span>室內機<span class="required-mark">*</span></span>
 			<FilterDropdown

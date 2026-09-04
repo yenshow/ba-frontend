@@ -142,8 +142,13 @@ export interface ModbusStatusPointDef {
 	 */
 	levels?: number[];
 	/**
-	 * 顯示倍率：display = raw * scale（預設 1；例 0.1 表示 raw 260 → 26.0°C）。
-	 * 寫入時 raw = round(display / scale)。
+	 * 轉換公式（與設備型號感測器相同語意；例 `value / 10`、`/ 10`、`* 0.1`）。
+	 * 讀：套用公式得到顯示值；寫（可反解線性式）：raw = invert(display)。
+	 */
+	transform?: string;
+	/**
+	 * @deprecated 舊資料相容：無 transform 時視為 `value * scale`。新存檔請用 transform。
+	 * 顯示倍率：display = raw * scale（預設 1）。
 	 */
 	scale?: number;
 }
