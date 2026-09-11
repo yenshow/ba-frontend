@@ -31,10 +31,10 @@
 					<!-- 控制面板 -->
 					<div class="mb-4">
 						<SurveillanceControlPanel
-							v-model="gridLayout"
+							:model-value="gridLayout"
 							:total-cameras="cameras.length"
 							:view-count="monitorViews.length"
-							:max-views="parseInt(gridLayout)"
+							@update:model-value="handleLayoutChange"
 							@fullscreen="isFullscreenOpen = true"
 						/>
 					</div>
@@ -197,15 +197,14 @@
 		:cameras="cameras"
 		:views="monitorViews"
 		:layout="gridLayout"
-		@remove="handleRemoveView"
 		@reload="handleReloadView"
 	/>
 </template>
 
 <script setup lang="ts">
 import { TOAST } from "~/config/toastCatalog"
-import { onMounted, onBeforeUnmount, watch, ref } from "vue"
-import type { GridLayout, MonitorView } from "~/types/surveillance"
+import { onMounted, onBeforeUnmount, watch, ref, computed } from "vue"
+import type { GridLayout } from "~/types/surveillance"
 import type { CameraDeviceConfig } from "~/types/device"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
@@ -220,17 +219,17 @@ import SurveillanceFullscreenGridDialog from "~/components/surveillance/Surveill
 import { groupDevicesByModelCategory } from "~/utils/cameraModelCategories"
 import { useSurveillanceRbac } from "~/composables/core/useAccessGate"
 
+const LAYOUT_ORDER: readonly GridLayout[] = ["1", "4", "9", "16"]
+
+const layoutThatFits = (count: number): GridLayout =>
+	LAYOUT_ORDER.find((layout) => parseInt(layout, 10) >= count) ?? "16"
+
 const { canControlStream } = useSurveillanceRbac()
 const toast = useToast()
 const { handleError } = useErrorHandler()
 
-// 使用統一串流狀態管理
 const streamStatus = useStreamStatus()
-
-// 載入錯誤狀態
 const loadError = ref<string | null>(null)
-
-// 從統一串流狀態管理取得資料
 const cameras = computed(() => streamStatus.cameras.value)
 const monitorViews = computed(() => streamStatus.monitorViews.value)
 
@@ -260,13 +259,20 @@ const filteredCameraCategoryGroups = computed(() =>
 	groupDevicesByModelCategory([...filteredCameras.value])
 )
 
-// 布局管理
 const gridLayout = ref<GridLayout>("1")
 const selectedCameraIds = computed(() => monitorViews.value.map((view) => view.deviceId))
-
 const isFullscreenOpen = ref(false)
-
 const isOverviewCollapsed = ref(false)
+
+const syncLayoutToViewCount = () => {
+	gridLayout.value = layoutThatFits(monitorViews.value.length)
+}
+
+const trimNewestViewsToFit = (maxViews: number) => {
+	if (monitorViews.value.length <= maxViews) return
+	const sorted = [...monitorViews.value].sort((a, b) => a.position - b.position)
+	sorted.slice(maxViews).forEach((view) => streamStatus.removeMonitorView(view.deviceId))
+}
 
 const loadCameraGroups = async () => {
 	try {
@@ -279,7 +285,6 @@ const loadCameraGroups = async () => {
 
 const loadCameras = async () => {
 	loadError.value = null
-
 	try {
 		await streamStatus.loadCameras()
 	} catch (error) {
@@ -300,11 +305,14 @@ const handleReloadView = async (deviceId: number) => {
 	}
 }
 
-// 選擇攝影機會加入或移除監控畫面（呼叫 stream/start）
+const handleRemoveView = (deviceId: number) => {
+	streamStatus.removeMonitorView(deviceId)
+	syncLayoutToViewCount()
+}
+
 const handleCameraSelect = async (deviceId: number) => {
-	const existing = monitorViews.value.find((v) => v.deviceId === deviceId)
-	if (existing) {
-		streamStatus.removeMonitorView(deviceId)
+	if (monitorViews.value.some((v) => v.deviceId === deviceId)) {
+		handleRemoveView(deviceId)
 		return
 	}
 
@@ -313,10 +321,14 @@ const handleCameraSelect = async (deviceId: number) => {
 		return
 	}
 
-	const maxViews = parseInt(gridLayout.value)
-	if (monitorViews.value.length >= maxViews) {
-		toast.warning(TOAST.SURVEILLANCE_MAX_VIEWS(maxViews))
+	const needed = monitorViews.value.length + 1
+	if (needed > 16) {
+		toast.warning(TOAST.SURVEILLANCE_MAX_VIEWS(16))
 		return
+	}
+	const currentMax = parseInt(gridLayout.value, 10)
+	if (needed > currentMax) {
+		gridLayout.value = layoutThatFits(needed)
 	}
 
 	try {
@@ -327,35 +339,14 @@ const handleCameraSelect = async (deviceId: number) => {
 	}
 }
 
-const handleRemoveView = (deviceId: number) => {
-	streamStatus.removeMonitorView(deviceId)
+const handleLayoutChange = (newLayout: GridLayout) => {
+	if (newLayout === gridLayout.value) return
+	trimNewestViewsToFit(parseInt(newLayout, 10))
+	gridLayout.value = newLayout
 }
-
-// 當布局變更時，調整畫面數量
-watch(gridLayout, (newLayout) => {
-	const maxViews = parseInt(newLayout)
-	if (monitorViews.value.length > maxViews) {
-		// 移除超出上限的畫面
-		const viewsToRemove = monitorViews.value.slice(maxViews)
-		viewsToRemove.forEach((view) => {
-			streamStatus.removeMonitorView(view.deviceId)
-		})
-	}
-})
-
-watch(
-	() => isFullscreenOpen.value,
-	(isOpen) => {
-		if (!isOpen) return
-		if (gridLayout.value !== "9" && gridLayout.value !== "16") {
-			isFullscreenOpen.value = false
-		}
-	}
-)
 
 onMounted(async () => {
 	void loadCameraGroups()
-
 	try {
 		await loadCameras()
 	} catch (error) {
