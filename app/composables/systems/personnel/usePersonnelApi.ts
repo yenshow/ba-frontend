@@ -10,7 +10,6 @@ import type {
 	SyncLocationJobItemsPage,
 	SyncLocationCandidate,
 	PersonLicensePlateListType,
-	PersonLadderCard,
 	PersonCardPayload,
 	PersonFingerprintPayload,
 	PersonLicensePlate,
@@ -119,13 +118,6 @@ export type PersonnelApi = {
 		file: File
 	) => Promise<{ faceUrl: string; person: Person }>
 	deletePerson: (id: number) => Promise<{ ok: boolean }>
-	replacePersonLadderCard: (
-		id: number,
-		body: {
-			floors?: number[] | { byLocation?: Record<string, number[]> }
-			clear?: boolean
-		} | null
-	) => Promise<{ ladder_card: PersonLadderCard | null }>
 	replacePersonLicensePlates: (
 		personId: number,
 		licensePlates: PersonLicensePlatePayload[],
@@ -324,21 +316,6 @@ export const usePersonnelApi = (): PersonnelApi => {
 			request<{ ok: boolean }>(`${PERSONNEL_PREFIX}/persons/${id}`, {
 				method: "DELETE",
 			}),
-
-		replacePersonLadderCard: (
-			id: number,
-			body: {
-				floors?: number[] | { byLocation?: Record<string, number[]> }
-				clear?: boolean
-			} | null,
-		) =>
-			request<{ ladder_card: PersonLadderCard | null }>(
-				`${PERSONNEL_PREFIX}/persons/${id}/ladder-card`,
-				{
-					method: "PUT",
-					body: body ?? { clear: true },
-				},
-			),
 
 		// 可同步地點與同步
 		getSyncableLocations: () =>

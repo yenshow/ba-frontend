@@ -146,6 +146,7 @@ export const useLocationMembersOnly = (params: {
 		isLocationCandidatesLoading,
 		isLocationMembersApplying,
 		getLocationMembersError,
+		getLocationMemberKeptIds,
 		isLocationMemberKept,
 		toggleManyLocationMembers,
 		toggleKeepLocationMember,

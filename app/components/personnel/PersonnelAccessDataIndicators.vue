@@ -9,7 +9,7 @@
 			:key="item.key"
 			type="button"
 			class="inline-flex h-8 w-8 items-center justify-center rounded-md border 2xl:h-9 2xl:w-9"
-			:class="pillClass(item.active, item.key)"
+			:class="pillClass(item.active, item.key, Boolean(item.tabKey))"
 			:title="item.label"
 			:aria-label="item.label"
 			:disabled="!item.tabKey || !onIconClick"
@@ -35,7 +35,6 @@ import { PERSONNEL_PLATFORM_ICONS } from "~/utils/syncCredentialIcons"
 export type PersonnelAccessDataTabKey =
 	| "password"
 	| "card"
-	| "ladderCard"
 	| "fingerprint"
 	| "licensePlate"
 
@@ -69,9 +68,9 @@ const items = computed(() => {
 		},
 		{
 			key: "ladderCard",
-			tabKey: "ladderCard" as const,
+			tabKey: undefined,
 			active: s.hasLadderCard,
-			label: s.hasLadderCard ? "有設定梯控卡" : "未設定梯控卡",
+			label: s.hasLadderCard ? "有梯控樓層授權（請至電梯樓層管理）" : "未設定梯控樓層（請至電梯樓層管理）",
 			...PERSONNEL_PLATFORM_ICONS.ladderCard,
 		},
 		{
@@ -96,10 +95,11 @@ const handleIconClick = (item: { tabKey?: PersonnelAccessDataTabKey }) => {
 	props.onIconClick(item.tabKey)
 }
 
-const pillClass = (active: boolean, key: string) => {
-	const interactive = props.onIconClick
-		? "cursor-pointer transition-colors enabled:hover:border-cyan-400/40 enabled:hover:bg-cyan-500/10"
-		: ""
+const pillClass = (active: boolean, key: string, clickable: boolean) => {
+	const interactive =
+		props.onIconClick && clickable
+			? "cursor-pointer transition-colors enabled:hover:border-cyan-400/40 enabled:hover:bg-cyan-500/10"
+			: ""
 	return [
 		interactive,
 		active

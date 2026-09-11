@@ -4,7 +4,7 @@ import {
 	type SyncStepUiStatus,
 } from "~/utils/personnelUtils"
 import type { Person, LocationLicensePlateRow } from "~/types/personnel"
-import { personHasLadderCard } from "~/utils/ladderFloorFormUtils"
+import { personHasLadderCard } from "~/utils/ladderCardUtils"
 import {
 	aggregatePlateSyncUiStatus,
 	resolvePersonPlateSyncSources,

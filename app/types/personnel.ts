@@ -93,12 +93,6 @@ export interface PersonLadderCard {
 	sdk_synced_at?: string | null;
 }
 
-export type {
-	LadderFloorDefaultsByLocation,
-	PersonLadderLocationFormItem,
-	ElevatorLocationFloorOption,
-} from "~/utils/ladderFloorFormUtils";
-
 export interface VehiclePlateSyncResult {
 	status: "synced" | "partial" | "pending" | "failed" | "skipped" | string;
 	warnings: string[];
@@ -160,12 +154,6 @@ export interface SyncLocationCandidate {
 		card: { status: "success" | "failed" | "unchanged" | "no_data" | string; at: number | string | null };
 		fingerprint: { status: "success" | "failed" | "unchanged" | "no_data" | string; at: number | string | null };
 	};
-}
-
-/** 取得門禁權限回傳 */
-export interface AccessLocationsResponse {
-	person: { id: number; employeeNo: string; fullName: string | null };
-	locations: AccessLocation[];
 }
 
 /** 批次匯入回傳 */
@@ -292,15 +280,6 @@ export type PersonnelPersonForm = {
 	licensePlateItems: PersonLicensePlateFormItem[];
 };
 
-export type PersonnelPersonLadderCardState = {
-	elevatorLocationOptions: Ref<ElevatorLocationFloorOption[]>;
-	locationItems: Ref<PersonLadderLocationFormItem[]>;
-	toggleFloor: (locationId: number, floorIndex: number, checked: boolean) => void;
-	isFloorChecked: (locationId: number, floorIndex: number) => boolean;
-	addLocationRow: () => void;
-	removeLocationRow: (index: number) => void;
-};
-
 export type PersonnelPersonAccessControlState = {
 	accessControlDevices: Ref<Device[]>;
 	password: Ref<string>;
@@ -338,7 +317,6 @@ export type PersonnelPersonDialogState = {
 	editingPerson: Ref<Person | null>;
 	form: PersonnelPersonForm;
 	accessControl: PersonnelPersonAccessControlState;
-	ladderCard: PersonnelPersonLadderCardState;
 	capture: PersonnelPersonCaptureState;
 	ui: PersonnelPersonDialogUiState;
 };

@@ -1,7 +1,7 @@
 /**
  * 車輛進出 API：YSCP external-data + /vehicle-access sites／logs
  */
-import type { VehicleDataLog, LaneInfo, VehicleGroupFromApi } from "~/types/vehicleAccess"
+import type { VehicleDataLog, LaneInfo, VehicleGroupFromApi, LocationTemporaryLicensePlate } from "~/types/vehicleAccess"
 import { useExternalDataApi } from "~/composables/systems/externalData/useExternalDataApi"
 import { useApiBase } from "~/composables/core/useApiBase"
 
@@ -215,6 +215,39 @@ export const useVehicleAccessApi = () => {
 		return request(`/vehicle-access/sites/${siteId}/logs/latest${qs ? `?${qs}` : ""}`)
 	}
 
+	const getLocationTemporaryPlates = async (
+		locationId: number,
+	): Promise<{ items: LocationTemporaryLicensePlate[] }> =>
+		request(`/vehicle-access/locations/${locationId}/temporary-plates`)
+
+	const upsertLocationTemporaryPlate = async (
+		locationId: number,
+		plate: {
+			plateNumber: string
+			listType: string
+			effectiveBegin: string
+			effectiveEnd: string
+			displayName: string
+		},
+		mutation: "create" | "update",
+	): Promise<{
+		row: LocationTemporaryLicensePlate
+		created: boolean
+		sync?: { status?: string }
+	}> =>
+		request(`/vehicle-access/locations/${locationId}/temporary-plates?mutation=${mutation}`, {
+			method: "PUT",
+			body: plate,
+		})
+
+	const deleteLocationTemporaryPlate = async (
+		locationId: number,
+		plateId: number,
+	): Promise<{ row: LocationTemporaryLicensePlate; failures?: unknown[] }> =>
+		request(`/vehicle-access/locations/${locationId}/temporary-plates/${plateId}`, {
+			method: "DELETE",
+		})
+
 	return {
 		getVehicleDataLogList,
 		getVehicleDataLogById,
@@ -230,6 +263,9 @@ export const useVehicleAccessApi = () => {
 		getAllSiteLogs,
 		getSiteLogs,
 		getSiteLogsLatest,
+		getLocationTemporaryPlates,
+		upsertLocationTemporaryPlate,
+		deleteLocationTemporaryPlate,
 	}
 }
 

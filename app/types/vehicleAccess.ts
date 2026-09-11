@@ -208,4 +208,22 @@ export interface VehicleLicensePlateSearchResult {
 	totalMatches?: number;
 }
 
+/** 地點臨時車牌（不上人員主檔） */
+export interface LocationTemporaryLicensePlate {
+	id: number;
+	location_id: number;
+	plate_number: string;
+	plate_normalized: string;
+	list_type: VehicleLicensePlateListType;
+	effective_begin?: string | null;
+	effective_end?: string | null;
+	display_name: string;
+	isapi_sync_status?: string | null;
+	isapi_sync_error?: string | null;
+	isapi_synced_at?: string | null;
+	created_at?: string;
+	updated_at?: string;
+}
+
+
 export type BarrierGateCtrlMode = "open" | "close" | "lock" | "unlock";

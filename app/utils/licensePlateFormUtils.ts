@@ -6,8 +6,8 @@ import type {
 	LocationLicensePlateRow,
 } from "~/types/personnel";
 import type {
-	VehicleLicensePlateAuditItem,
 	VehicleLicensePlateListType,
+	LocationTemporaryLicensePlate,
 } from "~/types/vehicleAccess";
 import type { SyncStepUiStatus } from "~/utils/personnelUtils";
 
@@ -20,7 +20,14 @@ export const LICENSE_PLATE_LIST_TYPE_OPTIONS = [
 	{ value: "blockList", label: "拒絕名單" },
 ];
 
-/** 人員車牌表單：datetime-local ↔ ISO（含 ISAPI 時區偏移字串） */
+export type IsapiPlateBindMode = "bound" | "temporary";
+
+export const LICENSE_PLATE_BIND_MODE_OPTIONS = [
+	{ value: "bound", label: "綁定人員" },
+	{ value: "temporary", label: "臨時車輛" },
+];
+
+/** 人員車牌表單：datetime-local ↔ ISO */
 export const isoToDatetimeLocal = (iso?: string | null): string => {
 	if (!iso?.trim()) return "";
 	const d = new Date(iso);
@@ -29,25 +36,12 @@ export const isoToDatetimeLocal = (iso?: string | null): string => {
 	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-export const datetimeLocalToIsapi = (local: string): string | undefined => {
-	if (!local?.trim()) return undefined;
-	const d = new Date(local);
-	if (Number.isNaN(d.getTime())) return undefined;
-	const pad = (n: number) => String(n).padStart(2, "0");
-	const offMin = -d.getTimezoneOffset();
-	const sign = offMin >= 0 ? "+" : "-";
-	const abs = Math.abs(offMin);
-	const oh = pad(Math.floor(abs / 60));
-	const om = pad(abs % 60);
-	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}${sign}${oh}:${om}`;
-};
-
 export const defaultLicensePlateBeginLocal = (): string =>
 	isoToDatetimeLocal(new Date().toISOString());
 
 export const defaultLicensePlateEndLocal = (): string => {
 	const d = new Date();
-	d.setFullYear(d.getFullYear() + 5);
+	d.setFullYear(d.getFullYear() + 1);
 	return isoToDatetimeLocal(d.toISOString());
 };
 
@@ -101,19 +95,21 @@ export const licensePlateItemsToPayload = (items: PersonLicensePlateFormItem[]) 
 	items
 		.filter((row) => row.plateNumber.trim())
 		.map((i) => ({
-		plateNumber: i.plateNumber.trim(),
-		listType: i.listType,
-		effectiveBegin: new Date(i.effectiveBegin).toISOString(),
-		effectiveEnd: new Date(i.effectiveEnd).toISOString(),
-	}));
+			plateNumber: i.plateNumber.trim(),
+			listType: i.listType,
+			effectiveBegin: new Date(i.effectiveBegin).toISOString(),
+			effectiveEnd: new Date(i.effectiveEnd).toISOString(),
+		}));
 
-/** ISAPI 車牌管理：表單模型 */
+/** ISAPI 車牌管理：表單模型（雙模式） */
 export interface IsapiPlateFormModel {
+	bindMode: IsapiPlateBindMode;
 	licensePlate: string;
 	listType: VehicleLicensePlateListType;
-	createTimeLocal: string;
-	effectiveTimeLocal: string;
+	effectiveBeginLocal: string;
+	effectiveEndLocal: string;
 	bindPersonId: string;
+	displayName: string;
 }
 
 export const formatLicensePlateDisplayTime = (iso?: string | null): string => {
@@ -124,24 +120,33 @@ export const formatLicensePlateDisplayTime = (iso?: string | null): string => {
 	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-export const createDefaultIsapiPlateForm = (): IsapiPlateFormModel => ({
+export const createDefaultIsapiPlateForm = (
+	bindMode: IsapiPlateBindMode = "bound",
+): IsapiPlateFormModel => ({
+	bindMode,
 	licensePlate: "",
 	listType: "allowList",
-	createTimeLocal: defaultLicensePlateBeginLocal(),
-	effectiveTimeLocal: defaultLicensePlateEndLocal(),
+	effectiveBeginLocal: defaultLicensePlateBeginLocal(),
+	effectiveEndLocal: defaultLicensePlateEndLocal(),
 	bindPersonId: "",
+	displayName: "",
 });
 
-/** ISAPI 車牌管理 Dialog：車牌、名單類型、開始／結束時間必填 */
+/** ISAPI 車牌管理 Dialog：依模式驗證（類型／綁定欄位優先） */
 export const validateIsapiPlateForm = (form: IsapiPlateFormModel): string | null => {
+	if (form.bindMode === "bound") {
+		if (!form.bindPersonId?.trim()) return "請選擇綁定人員";
+	} else if (!form.displayName?.trim()) {
+		return "請填寫姓名";
+	}
 	if (!form.licensePlate.trim()) return "請填寫車牌";
 	if (!form.listType || !VALID_PLATE_LIST_TYPES.has(form.listType)) {
 		return "請選擇名單類型";
 	}
-	if (!form.createTimeLocal?.trim()) return "請填寫開始時間";
-	if (!form.effectiveTimeLocal?.trim()) return "請填寫結束時間";
-	const begin = new Date(form.createTimeLocal);
-	const end = new Date(form.effectiveTimeLocal);
+	if (!form.effectiveBeginLocal?.trim()) return "請填寫開始時間";
+	if (!form.effectiveEndLocal?.trim()) return "請填寫結束時間";
+	const begin = new Date(form.effectiveBeginLocal);
+	const end = new Date(form.effectiveEndLocal);
 	if (Number.isNaN(begin.getTime()) || Number.isNaN(end.getTime())) return "時間格式無效";
 	if (end <= begin) return "結束時間須晚於開始時間";
 	return null;
@@ -150,57 +155,7 @@ export const validateIsapiPlateForm = (form: IsapiPlateFormModel): string | null
 export const licensePlateListTypeShortLabel = (listType: VehicleLicensePlateListType): string =>
 	listType === "allowList" ? "授權" : "拒絕";
 
-export type IsapiPlateUpsertEntry = {
-	id: string;
-	licensePlate: string;
-	listType: VehicleLicensePlateListType;
-	operationType: "add" | "modify";
-	createTime: string;
-	effectiveTime: string;
-	bindPersonId?: number;
-};
-
-/** 驗證表單並組出 upsert API 單筆 payload；失敗回傳 error 訊息 */
-export const buildIsapiPlateUpsertEntry = (
-	form: IsapiPlateFormModel,
-	operationType: "add" | "modify",
-): { entry: IsapiPlateUpsertEntry } | { error: string } => {
-	const validationError = validateIsapiPlateForm(form);
-	if (validationError) return { error: validationError };
-
-	const createTime = datetimeLocalToIsapi(form.createTimeLocal);
-	const effectiveTime = datetimeLocalToIsapi(form.effectiveTimeLocal);
-	if (!createTime || !effectiveTime) return { error: "時間格式無效" };
-
-	const plate = form.licensePlate.trim();
-	const bindRaw = form.bindPersonId?.trim();
-	const bindPersonId = bindRaw ? Number.parseInt(bindRaw, 10) : Number.NaN;
-
-	return {
-		entry: {
-			id: plate,
-			licensePlate: plate,
-			listType: form.listType,
-			operationType,
-			createTime,
-			effectiveTime,
-			...(Number.isFinite(bindPersonId) ? { bindPersonId } : {}),
-		},
-	};
-};
-
-export const isapiPlateFormFromAuditRow = (row: VehicleLicensePlateAuditItem): IsapiPlateFormModel => ({
-	licensePlate: row.licensePlate,
-	listType: row.listType,
-	createTimeLocal: isoToDatetimeLocal(row.createTime) || defaultLicensePlateBeginLocal(),
-	effectiveTimeLocal: isoToDatetimeLocal(row.effectiveTime) || defaultLicensePlateEndLocal(),
-	bindPersonId:
-		row.bindPersonId != null && Number.isFinite(Number(row.bindPersonId))
-			? String(row.bindPersonId)
-			: "",
-});
-
-/** 平台地點車牌列 → ISAPI 表單（車牌管理 Step 2） */
+/** 平台地點車牌列 → 表單（綁定人員模式） */
 export const isapiPlateFormFromLocationRow = (row: {
 	plate_number: string;
 	list_type?: PersonLicensePlateListType;
@@ -208,11 +163,34 @@ export const isapiPlateFormFromLocationRow = (row: {
 	effective_end?: string | null;
 	person_id: number;
 }): IsapiPlateFormModel => ({
+	bindMode: "bound",
 	licensePlate: row.plate_number,
 	listType: row.list_type ?? "allowList",
-	createTimeLocal: isoToDatetimeLocal(row.effective_begin) || defaultLicensePlateBeginLocal(),
-	effectiveTimeLocal: isoToDatetimeLocal(row.effective_end) || defaultLicensePlateEndLocal(),
+	effectiveBeginLocal: isoToDatetimeLocal(row.effective_begin) || defaultLicensePlateBeginLocal(),
+	effectiveEndLocal: isoToDatetimeLocal(row.effective_end) || defaultLicensePlateEndLocal(),
 	bindPersonId: String(row.person_id),
+	displayName: "",
+});
+
+/** 臨時車牌列 → 表單 */
+export const isapiPlateFormFromTemporaryRow = (
+	row: LocationTemporaryLicensePlate,
+): IsapiPlateFormModel => ({
+	bindMode: "temporary",
+	licensePlate: row.plate_number,
+	listType: (row.list_type as VehicleLicensePlateListType) ?? "allowList",
+	effectiveBeginLocal: isoToDatetimeLocal(row.effective_begin) || defaultLicensePlateBeginLocal(),
+	effectiveEndLocal: isoToDatetimeLocal(row.effective_end) || defaultLicensePlateEndLocal(),
+	bindPersonId: "",
+	displayName: row.display_name || "",
+});
+
+export const temporaryPlatePayloadFromForm = (form: IsapiPlateFormModel) => ({
+	plateNumber: form.licensePlate.trim(),
+	listType: form.listType,
+	effectiveBegin: new Date(form.effectiveBeginLocal).toISOString(),
+	effectiveEnd: new Date(form.effectiveEndLocal).toISOString(),
+	displayName: form.displayName.trim(),
 });
 
 export const plateSyncStatusToUiStatus = (
@@ -227,12 +205,12 @@ export const plateSyncStatusToUiStatus = (
 
 /** 人員主檔是否已登記車牌（對齊人員列表「資料（平台）」欄） */
 export const personHasLicensePlates = (person: Person): boolean => {
-	const count = Number(person.license_plate_count ?? 0)
-	if (count > 0) return true
-	return (person.license_plates ?? []).some((p) => String(p.plate_number ?? "").trim())
-}
+	const count = Number(person.license_plate_count ?? 0);
+	if (count > 0) return true;
+	return (person.license_plates ?? []).some((p) => String(p.plate_number ?? "").trim());
+};
 
-type PlateSyncSource = { isapi_sync_status?: string | null }
+type PlateSyncSource = { isapi_sync_status?: string | null };
 
 /** 地點名單 UI：優先用地點 API 列（含 ISAPI 狀態），否則回退人員主檔 */
 export const resolvePersonPlateSyncSources = (
@@ -240,37 +218,37 @@ export const resolvePersonPlateSyncSources = (
 	locationRows: LocationLicensePlateRow[],
 ): PlateSyncSource[] => {
 	if (locationRows.length > 0) {
-		return locationRows.map((row) => ({ isapi_sync_status: row.isapi_sync_status }))
+		return locationRows.map((row) => ({ isapi_sync_status: row.isapi_sync_status }));
 	}
-	const master = (person.license_plates ?? []).filter((p) => String(p.plate_number ?? "").trim())
+	const master = (person.license_plates ?? []).filter((p) => String(p.plate_number ?? "").trim());
 	if (master.length > 0) {
 		return master.map((p) => ({
 			isapi_sync_status: p.isapi_sync_status ?? "pending",
-		}))
+		}));
 	}
-	const count = Number(person.license_plate_count ?? 0)
+	const count = Number(person.license_plate_count ?? 0);
 	if (count > 0) {
-		return Array.from({ length: count }, () => ({ isapi_sync_status: "pending" }))
+		return Array.from({ length: count }, () => ({ isapi_sync_status: "pending" }));
 	}
-	return []
-}
+	return [];
+};
 
 /** 地點名單 UI：車牌列顯示（僅有完整資料時；count-only 不回傳假列） */
 export const resolvePersonPlateDisplayRows = (
 	person: Person,
 	locationRows: LocationLicensePlateRow[],
 ): LocationLicensePlateRow[] => {
-	if (locationRows.length > 0) return locationRows
-	const master = (person.license_plates ?? []).filter((p) => String(p.plate_number ?? "").trim())
-	if (master.length === 0) return []
+	if (locationRows.length > 0) return locationRows;
+	const master = (person.license_plates ?? []).filter((p) => String(p.plate_number ?? "").trim());
+	if (master.length === 0) return [];
 	return master.map((plate) => ({
 		...plate,
 		employee_no: person.employee_no,
 		full_name: person.full_name,
 		person_status: person.status,
 		isapi_sync_status: plate.isapi_sync_status ?? "pending",
-	}))
-}
+	}));
+};
 
 /** 彙整人員多張車牌的同步 UI 狀態（失敗 > 待同步 > 成功） */
 export const aggregatePlateSyncUiStatus = (
@@ -282,4 +260,3 @@ export const aggregatePlateSyncUiStatus = (
 	if (ui.some((s) => s === "success" || s === "unchanged")) return "success";
 	return "no_data";
 };
-

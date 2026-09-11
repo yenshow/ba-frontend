@@ -31,49 +31,7 @@
 						</button>
 					</header>
 
-					<div
-						v-if="isEditingPerson"
-						class="flex gap-2 border-b border-white/10 pb-3"
-						role="tablist"
-						aria-label="人員編輯分頁"
-					>
-						<button
-							type="button"
-							role="tab"
-							class="rounded-lg px-3 py-1.5 text-sm transition-colors 2xl:text-base"
-							:class="
-								activeSection === 'form' || isFormSubSection
-									? 'bg-cyan-500/25 text-white'
-									: 'text-white/60 hover:bg-white/10 hover:text-white'
-							"
-							:aria-selected="activeSection === 'form' || isFormSubSection"
-							@click="setActiveSection('form')"
-						>
-							基本資料
-						</button>
-						<button
-							type="button"
-							role="tab"
-							class="rounded-lg px-3 py-1.5 text-sm transition-colors 2xl:text-base"
-							:class="
-								activeSection === 'permissions'
-									? 'bg-cyan-500/25 text-white'
-									: 'text-white/60 hover:bg-white/10 hover:text-white'
-							"
-							:aria-selected="activeSection === 'permissions'"
-							@click="setActiveSection('permissions')"
-						>
-							權限總覽
-						</button>
-					</div>
-
-					<PersonnelPermissionOverview
-						v-if="isEditingPerson && activeSection === 'permissions' && state.editingPerson.value"
-						:person="state.editingPerson.value"
-					/>
-
 					<form
-						v-show="!isEditingPerson || activeSection !== 'permissions'"
 						class="grid grid-cols-2 gap-4 2xl:gap-6"
 						@submit.prevent
 					>
@@ -483,88 +441,6 @@
 						</div>
 
 						<div
-							v-if="hasElevatorLicense"
-							id="personnel-section-ladder-card"
-							class="col-span-2 flex flex-col gap-3 text-sm text-white/80 2xl:text-base"
-						>
-							<div class="flex items-center justify-between gap-2">
-								<p>梯控卡設定</p>
-								<div v-if="elevatorLocationOptions.length > 0" class="flex items-center gap-2">
-									<PersonnelFormItemTabs
-										v-model:active-index="activeLadderTab"
-										:count="state.ladderCard.locationItems.value.length"
-										unlimited
-										aria-label="梯控地點"
-										@add="handleAddLadderTab"
-									/>
-									<IconTrashButton
-										v-if="state.ladderCard.locationItems.value.length > 1"
-										size="md"
-										button-class="flex-shrink-0"
-										title="移除目前地點"
-										:aria-label="`移除第 ${activeLadderTab + 1} 筆地點`"
-										@click="handleRemoveLadderTab"
-									/>
-								</div>
-							</div>
-
-							<div
-								v-if="elevatorLocationOptions.length === 0"
-								class="rounded-xl border border-dashed border-white/15 bg-white/5 px-3 py-4 text-sm text-white/50"
-							>
-								尚無電梯地點或地點尚未設定樓層，請先於電梯管理區域管理設定。
-							</div>
-
-							<div
-								v-else-if="activeLadderItem"
-								class="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3"
-							>
-								<label class="flex flex-col gap-2">
-									<span>地點</span>
-									<FilterDropdown
-										v-model="activeLadderItem.locationId"
-										:options="ladderLocationOptionsForRow(activeLadderTab)"
-										placeholder="選擇電梯地點"
-										text-size="text-sm 2xl:text-base"
-									/>
-								</label>
-
-								<div
-									v-if="resolveElevatorLocation(activeLadderItem.locationId)"
-									class="flex flex-col gap-2"
-								>
-									<span>授權樓層</span>
-									<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-										<label
-											v-for="floor in buildFloorOptionsForLocation(
-												resolveElevatorLocation(activeLadderItem.locationId)!
-											)"
-											:key="`ladder-floor-${activeLadderItem.locationId}-${floor.index}`"
-											class="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 hover:bg-white/10"
-										>
-											<input
-												type="checkbox"
-												class="h-4 w-4 shrink-0 accent-cyan-400"
-												:checked="
-													isLadderFloorChecked(Number(activeLadderItem.locationId), floor.index)
-												"
-												:aria-label="`授權樓層 ${floor.label}`"
-												@change="
-													state.ladderCard.toggleFloor(
-														Number(activeLadderItem.locationId),
-														floor.index,
-														($event.target as HTMLInputElement).checked
-													)
-												"
-											/>
-											<span class="text-sm text-white/90">{{ floor.label }}</span>
-										</label>
-									</div>
-								</div>
-							</div>
-						</div>
-
-						<div
 							class="col-span-2 flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base"
 						>
 							<label class="relative inline-flex cursor-pointer items-center">
@@ -623,10 +499,6 @@ import {
 	MAX_PERSON_LICENSE_PLATES,
 } from "~/utils/licensePlateFormUtils"
 import {
-	buildFloorOptionsForLocation,
-	createEmptyLadderLocationFormItem,
-} from "~/utils/ladderFloorFormUtils"
-import {
 	MAX_PERSON_CARDS,
 	createEmptyCardFormItem,
 	sanitizeCardNoInput,
@@ -637,13 +509,9 @@ import {
 	createEmptyFingerprintFormItem,
 } from "~/utils/fingerprintFormUtils"
 import { createFormItemTabHandlers } from "~/utils/personnelFormTabUtils"
-import PersonnelPermissionOverview from "~/components/personnel/PersonnelPermissionOverview.vue"
 import type { PersonnelPersonDialogSection } from "~/composables/systems/personnel/usePersonnelPersonForm"
-import { useLicense } from "~/composables/core/useLicense"
 import { usePeopleCountingAccessRbac } from "~/composables/core/useAccessGate"
 
-const { hasFeature } = useLicense()
-const hasElevatorLicense = computed(() => hasFeature("elevator"))
 const { canEditAccessMembers: canCaptureFromDevice } = usePeopleCountingAccessRbac()
 
 const props = defineProps<{
@@ -655,7 +523,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
 	"update:modelValue": [value: boolean]
-	"update:activeSection": [value: PersonnelPersonDialogSection]
 	submit: []
 	"face-file-change": [file: File]
 	"clear-face": []
@@ -667,20 +534,6 @@ const emit = defineEmits<{
 
 const isEditingPerson = computed(() => props.state.editingPerson.value != null)
 
-const FORM_SUB_SECTIONS: PersonnelPersonDialogSection[] = [
-	"password",
-	"card",
-	"fingerprint",
-	"licensePlate",
-	"ladderCard",
-]
-
-const isFormSubSection = computed(() => FORM_SUB_SECTIONS.includes(props.activeSection))
-
-const setActiveSection = (section: PersonnelPersonDialogSection) => {
-	emit("update:activeSection", section)
-}
-
 const sectionScrollTargetId = (section: PersonnelPersonDialogSection): string | null => {
 	switch (section) {
 		case "password":
@@ -691,8 +544,6 @@ const sectionScrollTargetId = (section: PersonnelPersonDialogSection): string | 
 			return "personnel-section-fingerprint"
 		case "licensePlate":
 			return "personnel-section-license-plate"
-		case "ladderCard":
-			return "personnel-section-ladder-card"
 		default:
 			return null
 	}
@@ -701,7 +552,7 @@ const sectionScrollTargetId = (section: PersonnelPersonDialogSection): string | 
 watch(
 	() => props.activeSection,
 	(section) => {
-		if (section === "permissions" || section === "form") return
+		if (section === "form") return
 		nextTick(() => {
 			const id = sectionScrollTargetId(section)
 			if (!id) return
@@ -716,7 +567,6 @@ const faceFileInputRef = ref<HTMLInputElement | null>(null)
 
 const activeCardTab = ref(0)
 const activeFingerTab = ref(0)
-const activeLadderTab = ref(0)
 const activePlateTab = ref(0)
 
 const {
@@ -765,26 +615,12 @@ const {
 	createEmpty: createEmptyLicensePlateFormItem,
 })
 
-const {
-	activeItem: activeLadderItem,
-	handleAdd: handleAddLadderTab,
-	handleRemove: handleRemoveLadderTab,
-} = createFormItemTabHandlers(props.state.ladderCard.locationItems, activeLadderTab, {
-	createEmpty: createEmptyLadderLocationFormItem,
-	onAdd: () => props.state.ladderCard.addLocationRow(),
-	onRemove: (index) => props.state.ladderCard.removeLocationRow(index),
-	onClearLastItem: () => {
-		props.state.ladderCard.locationItems.value[0] = createEmptyLadderLocationFormItem()
-	},
-})
-
 watch(
 	() => props.modelValue,
 	(open) => {
 		if (!open) return
 		activeCardTab.value = 0
 		activeFingerTab.value = 0
-		activeLadderTab.value = 0
 		activePlateTab.value = 0
 	}
 )
@@ -857,39 +693,6 @@ const handleGenerateVirtualCard = () => {
 const handleCaptureFingerPrint = () => {
 	emit("capture-fingerprint", activeFingerTab.value)
 }
-
-const elevatorLocationOptions = computed(
-	() => props.state.ladderCard.elevatorLocationOptions.value || []
-)
-
-const resolveElevatorLocation = (locationId: string) => {
-	const id = Number(locationId)
-	if (!Number.isFinite(id) || id <= 0) return null
-	return elevatorLocationOptions.value.find((loc) => loc.id === id) ?? null
-}
-
-const usedLadderLocationIds = (excludeRowIndex: number) => {
-	const used = new Set<string>()
-	for (let i = 0; i < props.state.ladderCard.locationItems.value.length; i++) {
-		if (i === excludeRowIndex) continue
-		const id = props.state.ladderCard.locationItems.value[i]?.locationId?.trim()
-		if (id) used.add(id)
-	}
-	return used
-}
-
-const ladderLocationOptionsForRow = (rowIndex: number) => {
-	const used = usedLadderLocationIds(rowIndex)
-	return elevatorLocationOptions.value
-		.filter((loc) => !used.has(String(loc.id)))
-		.map((loc) => ({
-			value: String(loc.id),
-			label: `${loc.zoneName} / ${loc.name}`,
-		}))
-}
-
-const isLadderFloorChecked = (locationId: number, floorIndex: number) =>
-	props.state.ladderCard.isFloorChecked(locationId, floorIndex)
 
 const localFingerDeviceIdString = bindNullableDeviceId(props.state.capture.fingerDeviceId)
 

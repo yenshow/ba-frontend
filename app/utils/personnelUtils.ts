@@ -336,6 +336,9 @@ export const UNGROUPED_PERSON_GROUP_ID = 0
 export const UNGROUPED_PERSON_GROUP_NAME = "未分組"
 export const ALL_PERSON_GROUP_FILTER_ID = -1
 export const ALL_PERSON_GROUP_FILTER_NAME = "全部"
+/** 車牌管理左欄：臨時車輛（不上人員群組） */
+export const TEMPORARY_VEHICLE_FILTER_ID = -2
+export const TEMPORARY_VEHICLE_FILTER_NAME = "臨時車輛"
 
 /** 人員所屬子群組 ID（無效值視為未分組） */
 export const resolvePersonGroupId = (person: Person): number => {
@@ -352,6 +355,7 @@ export const resolvePersonGroupBrowseLabel = (
 ): string | null => {
 	if (selectedChildId == null || selectedChildId === ALL_PERSON_GROUP_FILTER_ID) return null
 	if (selectedChildId === UNGROUPED_PERSON_GROUP_ID) return UNGROUPED_PERSON_GROUP_NAME
+	if (selectedChildId === TEMPORARY_VEHICLE_FILTER_ID) return TEMPORARY_VEHICLE_FILTER_NAME
 	for (const main of groupTree) {
 		const child = (main.children || []).find((c) => c.id === selectedChildId)
 		if (child) return `${main.name} / ${child.name}`

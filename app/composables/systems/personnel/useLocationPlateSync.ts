@@ -1,8 +1,10 @@
 import { TOAST } from "~/config/toastCatalog"
 import { computed, reactive, ref, type Ref } from "vue"
 import type { LocationLicensePlateRow, Person, SyncWarning } from "~/types/personnel"
+import type { LocationTemporaryLicensePlate } from "~/types/vehicleAccess"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import type { useLocationApi } from "~/composables/location/api/useLocationApi"
+import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi"
 import {
 	SYNC_WARNING_LABELS,
 	formatPersonLabel,
@@ -14,9 +16,12 @@ import { resolveUserFacingCatchMessage } from "~/utils/apiError"
 import {
 	createDefaultIsapiPlateForm,
 	isapiPlateFormFromLocationRow,
+	isapiPlateFormFromTemporaryRow,
 	licensePlateItemsToPayload,
 	mapPersonLicensePlatesToForm,
 	resolvePersonPlateDisplayRows,
+	temporaryPlatePayloadFromForm,
+	validateIsapiPlateForm,
 	validateLicensePlateFormItems,
 	type IsapiPlateFormModel,
 } from "~/utils/licensePlateFormUtils"
@@ -31,6 +36,7 @@ export const useLocationPlateSync = (params: {
 	toastError?: (msg: string) => void
 }) => {
 	const { personnelApi, locationApi, toast, handleApiError, canResyncPlates, toastError } = params
+	const vehicleAccessApi = useVehicleAccessApi()
 	const notifyError = (msg: string) => {
 		if (toastError) toastError(msg)
 		else handleApiError(new Error(msg), msg)
@@ -39,6 +45,7 @@ export const useLocationPlateSync = (params: {
 	const syncWarningTypeLabel = (type: string) => SYNC_WARNING_LABELS[type] ?? type
 	const syncDevicesByLocationId = reactive<Record<number, { entry: string[]; exit: string[] }>>({})
 	const platesByLocationId = reactive<Record<number, LocationLicensePlateRow[]>>({})
+	const tempPlatesByLocationId = reactive<Record<number, LocationTemporaryLicensePlate[]>>({})
 	const platesLoading = reactive<Record<number, boolean>>({})
 	const platesErrorByLocation = reactive<Record<number, string>>({})
 	const activeSyncLocationId = ref<number | null>(null)
@@ -69,29 +76,58 @@ export const useLocationPlateSync = (params: {
 
 	const isPlatesLoading = (locationId: number) => Boolean(platesLoading[locationId])
 
+	const ensureTemporaryPlates = async (locationId: number) => {
+		try {
+			const res = await vehicleAccessApi.getLocationTemporaryPlates(locationId)
+			tempPlatesByLocationId[locationId] = res.items ?? []
+		} catch {
+			// 保留既有列表，避免偶發失敗把剛存的資料從 UI 抹掉
+			if (!Array.isArray(tempPlatesByLocationId[locationId])) {
+				tempPlatesByLocationId[locationId] = []
+			}
+		}
+	}
+
 	const ensurePlates = async (locationId: number) => {
 		platesLoading[locationId] = true
 		platesErrorByLocation[locationId] = ""
 		try {
 			const res = await personnelApi.getLocationLicensePlates(locationId)
 			platesByLocationId[locationId] = res.items ?? []
+			await ensureTemporaryPlates(locationId)
 		} catch (e) {
 			platesByLocationId[locationId] = []
 			platesErrorByLocation[locationId] = resolveUserFacingCatchMessage(e, "載入車牌列表失敗")
+			await ensureTemporaryPlates(locationId)
 		} finally {
 			platesLoading[locationId] = false
 		}
 	}
 
 	const getPlatesForLocation = (locationId: number) => platesByLocationId[locationId] ?? []
+	const getTemporaryPlatesForLocation = (locationId: number) =>
+		tempPlatesByLocationId[locationId] ?? []
 
 	const getPlatesError = (locationId: number) => (platesErrorByLocation[locationId] || "").trim()
 
 	const refreshSyncWarnings = (locationId: number, locationName?: string | null) => {
-		syncWarnings.value = locationPlateRowsToSyncWarnings(
+		const personWarnings = locationPlateRowsToSyncWarnings(
 			getPlatesForLocation(locationId),
 			locationName ?? locationNameById[locationId] ?? null,
 		)
+		const tempWarnings: SyncWarning[] = getTemporaryPlatesForLocation(locationId)
+			.filter((row) => {
+				const s = String(row.isapi_sync_status || "").toLowerCase()
+				return s === "failed" || s === "partial" || Boolean(row.isapi_sync_error)
+			})
+			.map((row) => ({
+				type: "plate_sync",
+				locationName: locationName ?? locationNameById[locationId] ?? undefined,
+				message:
+					row.isapi_sync_error ||
+					`臨時車牌 ${row.plate_number}（${row.display_name}）同步異常`,
+			}))
+		syncWarnings.value = [...personWarnings, ...tempWarnings]
 	}
 
 	const openWarningsDialog = () => {
@@ -158,7 +194,7 @@ export const useLocationPlateSync = (params: {
 		const res = await membersOnly.applyLocationMembers(locationId, { silentSuccess: true })
 		if (res == null) return null
 
-		await ensurePlates(locationId)
+		await Promise.all([ensurePlates(locationId), loadPersonBindOptions(locationId)])
 
 		if (res.plateSync?.triggered) {
 			activeSyncLocationId.value = locationId
@@ -183,7 +219,6 @@ export const useLocationPlateSync = (params: {
 		await Promise.all([
 			membersOnly.loadAllLocationMembers(locationId),
 			ensurePlates(locationId),
-			loadPersonBindOptions(locationId),
 		])
 		refreshSyncWarnings(locationId)
 	}
@@ -208,13 +243,18 @@ export const useLocationPlateSync = (params: {
 	const plateForm = ref<IsapiPlateFormModel>(createDefaultIsapiPlateForm())
 	const plateFormError = ref("")
 	const editingPlateRow = ref<LocationLicensePlateRow | null>(null)
+	const editingTemporaryRow = ref<LocationTemporaryLicensePlate | null>(null)
 	const personBindOptions = ref<Array<{ value: string; label: string }>>([])
 	const isLoadingPersonOptions = ref(false)
 
 	const loadPersonBindOptions = async (locationId: number) => {
 		isLoadingPersonOptions.value = true
 		try {
-			const res = await personnelApi.getLocationMembers(locationId, { limit: 500, offset: 0 })
+			// 僅「已套用」進出名單可綁車牌（避免寫入主檔卻不在此地點可見）
+			const res = await personnelApi.getLocationMembers(locationId, {
+				limit: 500,
+				offset: 0,
+			})
 			personBindOptions.value = (res.items ?? []).map((p) => ({
 				value: String(p.id),
 				label: formatPersonLabel(p.employee_no, p.full_name) || `人員 #${p.id}`,
@@ -226,74 +266,148 @@ export const useLocationPlateSync = (params: {
 		}
 	}
 
-	const pushPersonPlatesToDevices = async (locationId: number, personId: number, plates: ReturnType<typeof licensePlateItemsToPayload>) => {
+	const pushPersonPlatesToDevices = async (
+		locationId: number,
+		personId: number,
+		plates: ReturnType<typeof licensePlateItemsToPayload>,
+	) => {
 		await personnelApi.replacePersonLicensePlates(personId, plates, { syncToDevices: true })
 		await ensurePlates(locationId)
 	}
 
-	const openPlateForm = (row?: LocationLicensePlateRow) => {
+	const openPlateForm = async (
+		row?: LocationLicensePlateRow,
+		locationId?: number,
+		temporaryRow?: LocationTemporaryLicensePlate,
+		addBindMode: "bound" | "temporary" = "bound",
+	) => {
 		plateFormError.value = ""
 		editingPlateRow.value = row ?? null
-		if (row) {
+		editingTemporaryRow.value = temporaryRow ?? null
+		if (temporaryRow) {
+			plateFormMode.value = "modify"
+			plateForm.value = isapiPlateFormFromTemporaryRow(temporaryRow)
+		} else if (row) {
 			plateFormMode.value = "modify"
 			plateForm.value = isapiPlateFormFromLocationRow(row)
 		} else {
 			plateFormMode.value = "add"
-			plateForm.value = createDefaultIsapiPlateForm()
+			plateForm.value = createDefaultIsapiPlateForm(addBindMode)
 		}
 		showPlateForm.value = true
+		if (locationId != null && plateForm.value.bindMode === "bound") {
+			await loadPersonBindOptions(locationId)
+		} else {
+			personBindOptions.value = []
+		}
 	}
+
+	/** 表單切換類型為綁定人員時重載選項 */
+	const ensurePersonBindOptions = loadPersonBindOptions
 
 	const cancelPlateForm = () => {
 		plateFormError.value = ""
 		showPlateForm.value = false
 		editingPlateRow.value = null
+		editingTemporaryRow.value = null
 	}
 
 	const resolvePersonIdFromForm = (): number | null => {
-		const raw = plateForm.value.bindPersonId?.trim()
-		if (!raw) return editingPlateRow.value?.person_id ?? null
-		const n = Number.parseInt(raw, 10)
-		return Number.isFinite(n) ? n : null
+		const n = Number.parseInt(plateForm.value.bindPersonId?.trim() || "", 10)
+		if (Number.isFinite(n)) return n
+		return editingPlateRow.value?.person_id ?? null
 	}
 
-	const savePlate = async (locationId: number) => {
-		plateFormError.value = ""
+	const openSyncWarningsAfterMutation = (locationId: number) => {
+		refreshSyncWarnings(locationId)
+		if (syncWarnings.value.length > 0) {
+			notifyError(`同步完成（含 ${syncWarnings.value.length} 筆警告）`)
+			showWarningsDialog.value = true
+			return true
+		}
+		return false
+	}
+
+	const saveBoundPlate = async (locationId: number) => {
+		const formError = validateIsapiPlateForm(plateForm.value)
+		if (formError) {
+			plateFormError.value = formError
+			return false
+		}
+
 		const personId = resolvePersonIdFromForm()
 		if (personId == null) {
 			plateFormError.value = "請選擇綁定人員"
 			return false
 		}
 
-		const plateItem = {
-			plateNumber: plateForm.value.licensePlate.trim(),
-			listType: plateForm.value.listType,
-			effectiveBegin: plateForm.value.createTimeLocal,
-			effectiveEnd: plateForm.value.effectiveTimeLocal,
-		}
-		const formError = validateLicensePlateFormItems([plateItem])
-		if (formError) {
-			plateFormError.value = formError
+		if (
+			plateFormMode.value === "modify" &&
+			editingPlateRow.value &&
+			editingPlateRow.value.person_id !== personId
+		) {
+			plateFormError.value = "編輯時不可更換綁定人員"
 			return false
 		}
 
+		const plateItem = {
+			plateNumber: plateForm.value.licensePlate.trim(),
+			listType: plateForm.value.listType,
+			effectiveBegin: plateForm.value.effectiveBeginLocal,
+			effectiveEnd: plateForm.value.effectiveEndLocal,
+		}
+
+		const person = await personnelApi.getPersonById(personId)
+		let items = mapPersonLicensePlatesToForm(person)
+
+		if (plateFormMode.value === "modify" && editingPlateRow.value) {
+			const norm = editingPlateRow.value.plate_normalized
+			items = items.filter(
+				(i) => i.plateNumber.trim().toUpperCase() !== norm && i.plateNumber.trim(),
+			)
+			items.push(plateItem)
+		} else {
+			items = [...items.filter((i) => i.plateNumber.trim()), plateItem]
+		}
+
+		const maxError = validateLicensePlateFormItems(items)
+		if (maxError) {
+			plateFormError.value = maxError
+			return false
+		}
+
+		await pushPersonPlatesToDevices(locationId, personId, licensePlateItemsToPayload(items))
+		return true
+	}
+
+	const saveTemporaryPlate = async (locationId: number) => {
+		const validationError = validateIsapiPlateForm(plateForm.value)
+		if (validationError) {
+			plateFormError.value = validationError
+			return false
+		}
+		const mutation = editingTemporaryRow.value ? "update" : "create"
+		await vehicleAccessApi.upsertLocationTemporaryPlate(
+			locationId,
+			temporaryPlatePayloadFromForm(plateForm.value),
+			mutation,
+		)
+		await ensureTemporaryPlates(locationId)
+		return true
+	}
+
+	const savePlate = async (locationId: number) => {
+		plateFormError.value = ""
 		isSavingPlate.value = true
 		try {
-			const person = await personnelApi.getPersonById(personId)
-			let items = mapPersonLicensePlatesToForm(person)
-
-			if (plateFormMode.value === "modify" && editingPlateRow.value) {
-				const norm = editingPlateRow.value.plate_normalized
-				items = items.filter(
-					(i) => i.plateNumber.trim().toUpperCase() !== norm && i.plateNumber.trim(),
-				)
-				items.push(plateItem)
-			} else {
-				items = [...items.filter((i) => i.plateNumber.trim()), plateItem]
+			const ok =
+				plateForm.value.bindMode === "temporary"
+					? await saveTemporaryPlate(locationId)
+					: await saveBoundPlate(locationId)
+			if (!ok) return false
+			if (!openSyncWarningsAfterMutation(locationId)) {
+				toast.success(TOAST.PERSONNEL_PLATE_SAVED)
 			}
-
-			await pushPersonPlatesToDevices(locationId, personId, licensePlateItemsToPayload(items))
-			toast.success(TOAST.PERSONNEL_PLATE_SAVED)
 			cancelPlateForm()
 			return true
 		} catch (e) {
@@ -312,10 +426,37 @@ export const useLocationPlateSync = (params: {
 				(i) => i.plateNumber.trim().toUpperCase() !== row.plate_normalized,
 			)
 			await pushPersonPlatesToDevices(locationId, row.person_id, licensePlateItemsToPayload(items))
-			toast.success(TOAST.PERSONNEL_PLATE_DELETED)
+			if (!openSyncWarningsAfterMutation(locationId)) {
+				toast.success(TOAST.PERSONNEL_PLATE_DELETED)
+			}
 			return true
 		} catch (e) {
 			handleApiError(e, "刪除車牌失敗")
+			return false
+		}
+	}
+
+	const deleteTemporaryPlate = async (
+		locationId: number,
+		row: LocationTemporaryLicensePlate,
+	) => {
+		if (!window.confirm(`確定刪除臨時車牌 ${row.plate_number}（${row.display_name}）？`)) {
+			return false
+		}
+		try {
+			const result = await vehicleAccessApi.deleteLocationTemporaryPlate(locationId, row.id)
+			await ensureTemporaryPlates(locationId)
+			const failureCount = Array.isArray(result?.failures) ? result.failures.length : 0
+			if (failureCount > 0) {
+				notifyError(`平台已刪除，但有 ${failureCount} 台設備移除失敗，請稍後重新同步`)
+				refreshSyncWarnings(locationId)
+				showWarningsDialog.value = true
+			} else if (!openSyncWarningsAfterMutation(locationId)) {
+				toast.success(TOAST.PERSONNEL_PLATE_DELETED)
+			}
+			return true
+		} catch (e) {
+			handleApiError(e, "刪除臨時車牌失敗")
 			return false
 		}
 	}
@@ -347,10 +488,13 @@ export const useLocationPlateSync = (params: {
 		isLoadingPersonOptions,
 		openPlateForm,
 		cancelPlateForm,
+		ensurePersonBindOptions,
 		savePlate,
 		deletePlate,
+		deleteTemporaryPlate,
 		getPlatesForPerson,
 		getPlatesForLocation,
+		getTemporaryPlatesForLocation,
 		resolvePlatesForPerson,
 		plateSyncIndicatorsForPerson,
 	}

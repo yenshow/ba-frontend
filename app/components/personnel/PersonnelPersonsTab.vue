@@ -152,7 +152,7 @@
 
 		<PersonnelPersonDialog
 			v-model="showPersonDialog"
-			v-model:active-section="personDialogSection"
+			:active-section="personDialogSection"
 			:group-tree="groupTree"
 			:state="personDialogState"
 			@submit="props.personsTab.submitPerson"
@@ -294,14 +294,6 @@ const personDialogState: PersonnelPersonDialogState = {
 		validEndDate: props.personsTab.validEndDate,
 		cardItems: props.personsTab.cardItems,
 		fingerPrintItems: props.personsTab.fingerPrintItems,
-	},
-	ladderCard: {
-		elevatorLocationOptions: props.personsTab.elevatorLocationOptions,
-		locationItems: props.personsTab.ladderLocationItems,
-		toggleFloor: props.personsTab.toggleLadderFloor,
-		isFloorChecked: props.personsTab.isLadderFloorChecked,
-		addLocationRow: props.personsTab.addLadderLocationRow,
-		removeLocationRow: props.personsTab.removeLadderLocationRow,
 	},
 	capture: {
 		captureDeviceId: props.personsTab.captureDeviceId,

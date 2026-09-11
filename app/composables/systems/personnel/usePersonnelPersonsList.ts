@@ -6,7 +6,7 @@ import { usePersonsList } from "~/composables/systems/personnel/usePersonsList"
 import { useImageCenter } from "~/composables/core/useImageCenter"
 import { getAccessControlConfigSummary } from "~/utils/personnelUtils"
 import { personHasLicensePlates } from "~/utils/licensePlateFormUtils"
-import { personHasLadderCard } from "~/utils/ladderFloorFormUtils"
+import { personHasLadderCard } from "~/utils/ladderCardUtils"
 
 /** 人員列表、篩選、分頁與批次匯入 */
 export const usePersonnelPersonsList = (params: {

@@ -7,7 +7,7 @@
 			class="mt-3 text-xs text-amber-200/90 2xl:text-sm"
 			role="status"
 		>
-			目前顯示人員主檔梯控卡預設樓層；套用後才會寫入此地點授權。
+			目前顯示尚未套用的預設勾選；套用後才會寫入此地點授權並同步設備。
 		</p>
 
 		<div class="mt-4 grid min-h-0 flex-1 grid-cols-12 items-stretch gap-4 2xl:gap-5">
