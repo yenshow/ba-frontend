@@ -338,67 +338,71 @@
 					<span class="text-xs text-white/50">未達此準確度的事件將標為失敗，不計入進出統計</span>
 				</label>
 
-				<div class="mb-3 mt-3">
-					<span class="text-sm font-medium text-white/80 2xl:text-base"
-						>入口攝影機（可複選）<span class="required-mark">*</span></span
-					>
-				</div>
-				<div
-					v-if="isapiCameraDevices.length === 0"
-					class="rounded border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60 2xl:text-sm"
-				>
-					請先在設備管理新增支援 ISAPI 的攝影機
-				</div>
-				<div v-else class="mb-3 grid grid-cols-2 gap-2">
-					<label
-						v-for="dev in isapiCameraDevices"
-						:key="`entry-cam-${dev.id}`"
-						:class="[
-							selectCardBaseClass,
-							isFaceCameraSelected('entry', dev.id) ? selectCardSelectedClass : '',
-							isFaceCameraOverlapped(dev.id) ? selectCardOverlapClass : '',
-						]"
-					>
-						<input
-							type="checkbox"
-							:checked="isFaceCameraSelected('entry', dev.id)"
-							class="h-4 w-4 cursor-pointer accent-cyan-400"
-							@change="handleToggleFaceCamera('entry', dev.id)"
-						/>
-						<span class="text-xs text-white/90 2xl:text-sm">{{ dev.name }}</span>
-					</label>
-				</div>
-				<p v-if="isapiCameraDevices.length > 0 && !hasFaceEntryCamera" :class="warnHintClass">
-					至少需要選擇一台入口攝影機
-				</p>
+				<div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+					<div :class="fieldLabelClass">
+						<span>入口攝影機（可複選）<span class="required-mark">*</span></span>
+						<div v-if="isapiCameraDevices.length === 0" :class="emptyHintClass">
+							請先在設備管理新增支援 ISAPI 的攝影機
+						</div>
+						<div v-else class="grid grid-cols-2 gap-2">
+							<label
+								v-for="dev in isapiCameraDevices"
+								:key="`entry-cam-${dev.id}`"
+								:class="[
+									selectCardBaseClass,
+									isFaceCameraSelected('entry', dev.id) ? selectCardSelectedClass : '',
+									isFaceCameraOverlapped(dev.id) ? selectCardOverlapClass : '',
+								]"
+							>
+								<input
+									type="checkbox"
+									:checked="isFaceCameraSelected('entry', dev.id)"
+									class="h-4 w-4 cursor-pointer accent-cyan-400"
+									@change="handleToggleFaceCamera('entry', dev.id)"
+								/>
+								<span class="text-xs text-white/90 2xl:text-sm">{{ dev.name }}</span>
+							</label>
+						</div>
+						<p
+							v-if="isapiCameraDevices.length > 0 && !hasFaceEntryCamera"
+							:class="warnHintClass"
+						>
+							至少需要選擇一台入口攝影機
+						</p>
+					</div>
 
-				<div class="mb-3 mt-3">
-					<span class="text-sm font-medium text-white/80 2xl:text-base"
-						>出口攝影機（可複選）<span class="required-mark">*</span></span
-					>
+					<div :class="fieldLabelClass">
+						<span>出口攝影機（可複選）<span class="required-mark">*</span></span>
+						<div v-if="isapiCameraDevices.length === 0" :class="emptyHintClass">
+							請先在設備管理新增支援 ISAPI 的攝影機
+						</div>
+						<div v-else class="grid grid-cols-2 gap-2">
+							<label
+								v-for="dev in isapiCameraDevices"
+								:key="`exit-cam-${dev.id}`"
+								:class="[
+									selectCardBaseClass,
+									isFaceCameraSelected('exit', dev.id) ? selectCardSelectedClass : '',
+									isFaceCameraOverlapped(dev.id) ? selectCardOverlapClass : '',
+								]"
+							>
+								<input
+									type="checkbox"
+									:checked="isFaceCameraSelected('exit', dev.id)"
+									class="h-4 w-4 cursor-pointer accent-cyan-400"
+									@change="handleToggleFaceCamera('exit', dev.id)"
+								/>
+								<span class="text-xs text-white/90 2xl:text-sm">{{ dev.name }}</span>
+							</label>
+						</div>
+						<p
+							v-if="isapiCameraDevices.length > 0 && !hasFaceExitCamera"
+							:class="warnHintClass"
+						>
+							至少需要選擇一台出口攝影機
+						</p>
+					</div>
 				</div>
-				<div v-if="isapiCameraDevices.length > 0" class="grid grid-cols-2 gap-2">
-					<label
-						v-for="dev in isapiCameraDevices"
-						:key="`exit-cam-${dev.id}`"
-						:class="[
-							selectCardBaseClass,
-							isFaceCameraSelected('exit', dev.id) ? selectCardSelectedClass : '',
-							isFaceCameraOverlapped(dev.id) ? selectCardOverlapClass : '',
-						]"
-					>
-						<input
-							type="checkbox"
-							:checked="isFaceCameraSelected('exit', dev.id)"
-							class="h-4 w-4 cursor-pointer accent-cyan-400"
-							@change="handleToggleFaceCamera('exit', dev.id)"
-						/>
-						<span class="text-xs text-white/90 2xl:text-sm">{{ dev.name }}</span>
-					</label>
-				</div>
-				<p v-if="isapiCameraDevices.length > 0 && !hasFaceExitCamera" :class="warnHintClass">
-					至少需要選擇一台出口攝影機
-				</p>
 				<div v-if="hasFaceCameraOverlap" :class="dangerHintClass">入口與出口請勿選擇同一攝影機</div>
 			</template>
 

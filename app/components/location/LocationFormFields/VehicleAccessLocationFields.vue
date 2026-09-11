@@ -118,7 +118,7 @@
 					<div v-if="cameraDevices.length === 0" class="mt-2 text-xs text-white/50">
 						請先在設備管理新增攝影機
 					</div>
-					<div v-else class="mt-2 grid grid-cols-1 gap-2">
+					<div v-else class="mt-2 grid grid-cols-2 gap-2">
 						<label
 							v-for="dev in cameraDevices"
 							:key="`entry-${dev.id}`"
@@ -144,7 +144,7 @@
 					<div v-if="cameraDevices.length === 0" class="mt-2 text-xs text-white/50">
 						請先在設備管理新增攝影機
 					</div>
-					<div v-else class="mt-2 grid grid-cols-1 gap-2">
+					<div v-else class="mt-2 grid grid-cols-2 gap-2">
 						<label
 							v-for="dev in cameraDevices"
 							:key="`exit-${dev.id}`"

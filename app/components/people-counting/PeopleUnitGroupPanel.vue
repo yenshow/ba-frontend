@@ -1,12 +1,12 @@
 <template>
-	<div class="people-unit-panel min-h-[220px] space-y-4">
+	<div class="people-unit-panel flex min-h-[220px] flex-1 flex-col space-y-4">
 		<h3
 			v-if="!hideTitle"
 			class="people-unit-title monitoring-chip-bg py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
 		>
 			{{ panelTitle }}
 		</h3>
-		<div class="grid grid-cols-3 gap-4 2xl:grid-cols-4">
+		<div class="grid min-h-0 flex-1 content-start grid-cols-3 gap-4 2xl:grid-cols-4">
 			<button
 				v-for="unit in units"
 				:key="unit.id"

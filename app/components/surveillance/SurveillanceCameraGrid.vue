@@ -1,21 +1,20 @@
 <template>
-	<div :class="isFullscreen ? 'h-full w-full min-h-0' : 'w-full'">
-		<div
-			:class="[
-				'grid',
-				isFullscreen ? 'h-full min-h-0 gap-px' : 'gap-2 sm:gap-3',
-				gridClass,
-			]"
-		>
+	<div
+		:class="[
+			'grid h-full min-h-0 w-full',
+			isFullscreen ? 'gap-px' : 'gap-2 sm:gap-3',
+			gridClass,
+		]"
+	>
 			<div
 				v-for="(view, index) in displayViews"
 				:key="`view-${view.deviceId}-${view.position}-${index}`"
 				:ref="(el: HTMLElement | null) => setViewRef(el, index)"
 				:class="[
-					'relative overflow-hidden bg-black',
+					'relative min-h-0 overflow-hidden bg-black',
 					isFullscreen
-						? 'h-full min-h-0 rounded-none border-0'
-						: 'aspect-video rounded-lg border-2 border-gray-300 dark:border-gray-700',
+						? 'rounded-none border-0'
+						: 'rounded-lg border-2 border-gray-300 dark:border-gray-700',
 				]"
 			>
 				<div
@@ -68,15 +67,14 @@
 				v-for="idx in emptySlots"
 				:key="`empty-${idx}`"
 				:class="[
-					'flex items-center justify-center',
+					'flex min-h-0 items-center justify-center',
 					isFullscreen
-						? 'h-full min-h-0 bg-black'
-						: 'aspect-video rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-800',
+						? 'bg-black'
+						: 'rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-800',
 				]"
 			>
 				<p v-if="!isFullscreen" class="text-sm text-gray-400 2xl:text-base dark:text-gray-500">空位</p>
 			</div>
-		</div>
 	</div>
 </template>
 
@@ -118,7 +116,7 @@ const isViewVisible = (index: number): boolean => visibleViews.value.has(index)
 
 const gridClass = computed(() => {
 	const g = GRID_CLASS[props.layout] || GRID_CLASS["1"]
-	return props.isFullscreen ? `${g.cols} ${g.rows}` : g.cols
+	return `${g.cols} ${g.rows}`
 })
 
 const maxViews = computed(() => parseInt(props.layout, 10))

@@ -2,10 +2,10 @@
 	<div>
 		<!-- 門禁管理頁面內容 -->
 		<div
-			class="flex min-w-0 flex-col items-stretch justify-center lg:flex-row"
+			class="monitoring-page-layout"
 			:class="isOverviewCollapsed ? 'gap-0' : 'gap-4 xl:gap-6 2xl:gap-8'"
 		>
-			<section class="relative min-w-0 flex-1 2xl:flex-[1.3]">
+			<section class="monitoring-detail-section">
 				<Transition name="fade" mode="out-in">
 					<button
 						v-if="isOverviewCollapsed"
@@ -26,7 +26,7 @@
 				</Transition>
 
 				<div
-					class="relative flex min-h-[664px] flex-col monitoring-panel overflow-hidden rounded-2xl p-4 2xl:min-h-[848px] 2xl:p-6"
+					class="monitoring-detail-panel monitoring-panel rounded-2xl p-4 2xl:p-6"
 				>
 					<!-- 位置標題與地點選擇 -->
 					<div class="monitoring-location-title">
@@ -81,11 +81,12 @@
 					<MonitoringDetailShell
 						:empty="detailEmpty"
 						:enlarged="isOverviewCollapsed"
-						content-class="flex min-h-0 flex-1 flex-col gap-12"
+						content-class="gap-12"
 					>
 						<template v-if="selectedLocation">
 							<!-- 上統計、下左紀錄／下右群組（對齊車輛進出） -->
 							<LocationStatsPanel
+								class="shrink-0"
 								:entry-count="selectedLocation?.entryCount || 0"
 								:exit-count="selectedLocation?.exitCount || 0"
 								:current-count="currentCount"
@@ -99,6 +100,7 @@
 										:display-columns="selectedLocation?.logDisplayColumns"
 									/>
 									<Pagination
+										class="shrink-0"
 										:total="logsTotal"
 										:offset="logsOffset"
 										:limit="ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE"

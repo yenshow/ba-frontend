@@ -1,10 +1,10 @@
 <template>
 	<div>
 		<div
-			class="flex min-w-0 flex-col items-stretch justify-center lg:flex-row"
+			class="monitoring-page-layout"
 			:class="isOverviewCollapsed ? 'gap-0' : 'gap-4 xl:gap-6 2xl:gap-8'"
 		>
-			<section class="relative min-w-0 flex-1 2xl:flex-[1.3]">
+			<section class="monitoring-detail-section">
 				<Transition name="fade" mode="out-in">
 					<button
 						v-if="isOverviewCollapsed"
@@ -25,7 +25,7 @@
 				</Transition>
 
 				<div
-					class="relative flex min-h-[664px] flex-col monitoring-panel overflow-hidden rounded-2xl p-4 2xl:min-h-[848px] 2xl:p-6"
+					class="monitoring-detail-panel monitoring-panel rounded-2xl p-4 2xl:p-6"
 				>
 					<!-- 位置標題與地點選擇 -->
 					<div class="monitoring-location-title">
@@ -65,8 +65,8 @@
 						empty-title="尚無環境地點"
 						empty-description="請在「地點管理」中新增含環境監測系統的地點"
 					>
-						<div v-if="currentLocationData" :aria-busy="isHydrating">
-							<div class="border-b border-white/80 pb-2">
+						<div v-if="currentLocationData" class="flex min-h-0 flex-1 flex-col" :aria-busy="isHydrating">
+							<div class="shrink-0 border-b border-white/80 pb-2">
 								<div
 									class="env-gauge-row grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:gap-6"
 								>
@@ -101,7 +101,7 @@
 							<!-- 環境參數網格 -->
 							<div
 								v-if="currentLocationData && currentLocationData.parameters.length > 0"
-								class="env-param-grid mt-8 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
+								class="env-param-grid show-scrollbar mt-8 grid min-h-0 flex-1 grid-cols-1 content-start gap-2 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
 							>
 								<EnvironmentParamCard
 									v-for="param in enabledParameters"
@@ -122,7 +122,7 @@
 							</div>
 							<div
 								v-else
-								class="flex min-h-[248px] flex-col items-center justify-center py-8 text-center text-white/60"
+								class="flex min-h-0 flex-1 flex-col items-center justify-center py-8 text-center text-white/60"
 							>
 								<p class="env-detail-empty text-base 2xl:text-lg">尚未配置感測器參數</p>
 								<p class="env-detail-empty mt-2 text-sm 2xl:text-base">

@@ -1,5 +1,5 @@
 <template>
-	<div class="flex min-h-0 min-w-0 flex-col overflow-hidden">
+	<div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
 		<!-- 標題一律外提，讓群組面板的 min-h 只撐卡片區（門禁／攝影機一致） -->
 		<div class="relative mb-3 shrink-0">
 			<h3
@@ -22,7 +22,6 @@
 		<AccessDoorGatePanel
 			v-if="isAccessControl && showDoorPanel"
 			hide-title
-			class="min-h-0"
 			:location="location"
 			:can-write="canWrite"
 		/>
@@ -30,7 +29,6 @@
 		<PeopleUnitGroupPanel
 			v-else
 			hide-title
-			class="min-h-0"
 			:units="location.units || []"
 			:selected-unit-id="selectedUnitId"
 			:show-region-stats="isCameraRegionMode"

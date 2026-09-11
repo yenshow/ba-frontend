@@ -1,5 +1,5 @@
 <template>
-	<div class="flex min-h-0 min-w-0 flex-col overflow-hidden">
+	<div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
 		<div v-if="isIsapiCamera" class="relative mb-3 shrink-0">
 			<h3
 				class="vehicle-detail-side-title monitoring-chip-bg py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
@@ -20,13 +20,11 @@
 		<VehicleBarrierGatePanel
 			v-if="isIsapiCamera && showBarrierPanel"
 			hide-title
-			class="min-h-0"
 			:location="location"
 			:can-write="canWrite"
 		/>
 		<VehicleOrganizationGroupPanel
 			v-else
-			class="min-h-0"
 			:hide-title="isIsapiCamera"
 			:groups="groups"
 			:selected-group-key="selectedGroupKey"

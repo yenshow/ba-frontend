@@ -2,10 +2,10 @@
 	<div>
 		<!-- 影像監控系統頁面內容 - 參考其他系統版面 -->
 		<div
-			class="flex min-w-0 flex-col items-stretch justify-center lg:flex-row"
+			class="monitoring-page-layout"
 			:class="isOverviewCollapsed ? 'gap-0' : 'gap-4 xl:gap-6 2xl:gap-8'"
 		>
-			<section class="relative min-w-0 flex-1 2xl:flex-[1.3]">
+			<section class="monitoring-detail-section">
 				<Transition name="fade" mode="out-in">
 					<button
 						v-if="isOverviewCollapsed"
@@ -26,10 +26,10 @@
 				</Transition>
 
 				<div
-					class="flex min-h-[664px] flex-col monitoring-panel overflow-hidden rounded-2xl p-6 2xl:min-h-[848px] 2xl:p-8"
+					class="monitoring-detail-panel monitoring-panel rounded-2xl p-6 2xl:p-8"
 				>
 					<!-- 控制面板 -->
-					<div class="mb-4">
+					<div class="mb-4 shrink-0">
 						<SurveillanceControlPanel
 							:model-value="gridLayout"
 							:total-cameras="cameras.length"
@@ -40,10 +40,10 @@
 					</div>
 
 					<!-- 監控網格區 -->
-					<div class="min-h-[400px] flex-1">
+					<div class="flex min-h-0 flex-1 flex-col">
 						<Transition name="fade" mode="out-in">
 							<!-- 錯誤狀態 -->
-							<div v-if="loadError" key="error" class="flex h-full items-center justify-center">
+							<div v-if="loadError" key="error" class="flex min-h-0 flex-1 items-center justify-center">
 								<div class="rounded-lg bg-red-50/90 p-6 text-center dark:bg-red-900/30">
 									<p class="text-red-600 dark:text-red-400">{{ loadError }}</p>
 									<button
@@ -56,7 +56,7 @@
 							</div>
 
 							<!-- 監控網格 -->
-							<div v-else-if="monitorViews.length > 0" key="grid">
+							<div v-else-if="monitorViews.length > 0" key="grid" class="min-h-0 flex-1">
 								<SurveillanceCameraGrid
 									:cameras="cameras"
 									:views="monitorViews"
@@ -70,7 +70,7 @@
 							<div
 								v-else
 								key="empty"
-								class="flex h-full min-h-[680px] items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
+								class="flex min-h-0 flex-1 items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
 							>
 								<div>
 									<svg
@@ -264,8 +264,18 @@ const selectedCameraIds = computed(() => monitorViews.value.map((view) => view.d
 const isFullscreenOpen = ref(false)
 const isOverviewCollapsed = ref(false)
 
+/** 移除後僅在剩餘路數「恰好」為 1／4／9／16 時降格；否則維持原布局（保留空位） */
 const syncLayoutToViewCount = () => {
-	gridLayout.value = layoutThatFits(monitorViews.value.length)
+	const count = monitorViews.value.length
+	if (count === 0) {
+		gridLayout.value = "1"
+		return
+	}
+	const exact = LAYOUT_ORDER.find((layout) => parseInt(layout, 10) === count)
+	if (!exact) return
+	if (parseInt(exact, 10) < parseInt(gridLayout.value, 10)) {
+		gridLayout.value = exact
+	}
 }
 
 const trimNewestViewsToFit = (maxViews: number) => {

@@ -1,10 +1,10 @@
 <template>
 	<div>
 		<div
-			class="flex min-w-0 flex-col items-stretch justify-center lg:flex-row"
+			class="monitoring-page-layout"
 			:class="isOverviewCollapsed ? 'gap-0' : 'gap-4 xl:gap-6 2xl:gap-8'"
 		>
-			<section class="relative min-w-0 flex-1 2xl:flex-[1.3]">
+			<section class="monitoring-detail-section">
 				<Transition name="fade" mode="out-in">
 					<button
 						v-if="isOverviewCollapsed"
@@ -25,7 +25,7 @@
 				</Transition>
 
 				<div
-					class="relative flex min-h-[664px] flex-col monitoring-panel overflow-hidden rounded-2xl p-4 2xl:min-h-[848px] 2xl:p-6"
+					class="monitoring-detail-panel monitoring-panel rounded-2xl p-4 2xl:p-6"
 				>
 					<div class="monitoring-location-title">
 						<div class="flex w-[200px] items-center justify-center">
@@ -78,21 +78,23 @@
 					<MonitoringDetailShell
 						:empty="detailEmpty"
 						:enlarged="isOverviewCollapsed"
-						:content-class="vehicleDetailContentClass"
+						content-class="gap-12"
 						empty-title="尚無車輛進出地點"
 						empty-description="請在「地點管理」中新增含車輛進出系統的地點"
 					>
 						<template v-if="selectedLocation">
 							<VehicleStatsPanel
+								class="shrink-0"
 								:entry-count="entryCount"
 								:exit-count="exitCount"
 								:current-count="onSiteCount"
 								:on-site-capacity="onSiteCapacity"
 							/>
-							<div class="grid min-w-0 grid-cols-2 items-stretch gap-4">
-								<div class="flex min-w-0 flex-col">
+							<div class="grid min-h-0 min-w-0 flex-1 grid-cols-2 items-stretch gap-4">
+								<div class="flex min-h-0 min-w-0 flex-col">
 									<VehicleDataLogTable :logs="logs" :display-columns="selectedLocation?.logDisplayColumns" />
 									<Pagination
+										class="shrink-0"
 										:total="logsTotal"
 										:offset="logsOffset"
 										:limit="ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE"
@@ -350,8 +352,6 @@ const detailEmpty = computed(
 		!isLoadingOverview.value &&
 		(locations.value.length === 0 || !selectedLocation.value)
 );
-
-const vehicleDetailContentClass = "flex flex-col gap-12"
 
 const { request } = useApiBase();
 

@@ -1,5 +1,5 @@
 <template>
-	<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+	<div class="grid grid-cols-1 gap-2" :class="{ 'sm:grid-cols-2': columns === 2 }">
 		<component
 			:is="variant === 'group' ? 'label' : 'div'"
 			v-for="person in candidates"
@@ -61,11 +61,14 @@ const props = withDefaults(
 		canEdit: boolean
 		isDisabled?: boolean
 		variant?: "default" | "group"
+		/** 預設 2 欄；傳 1 則一人一行 */
+		columns?: 1 | 2
 		checkboxAriaLabel?: (person: Person) => string
 	}>(),
 	{
 		isDisabled: false,
 		variant: "default",
+		columns: 2,
 		checkboxAriaLabel: (person: Person) =>
 			`${person.employee_no} ${person.full_name || ""}`.trim(),
 	},
