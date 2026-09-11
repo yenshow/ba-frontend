@@ -61,7 +61,9 @@ export const useApiBase = () => {
 	const fetcher = useRequestFetch()
 	const apiBase = config.public.apiBase || "/api"
 
-	const runWithNuxtContext = <T>(fn: () => T): T => nuxtApp.runWithContext(fn) as T
+	/** SSR 的 `runWithContext` 走 unctx `callAsync`，一律回傳 Promise，必須 await */
+	const runWithNuxtContext = async <T>(fn: () => T | Promise<T>): Promise<T> =>
+		await nuxtApp.runWithContext(fn)
 	const authToken = useState<string | null>("auth_token")
 
 	const getAuthHeaders = (): HeadersInit => {
@@ -87,9 +89,11 @@ export const useApiBase = () => {
 		const originalMessage = failure.message || extractBackendApiErrorText(error, path) || undefined
 
 		if (statusCode === 403 && failure.backendCode === "PERMISSION_DENIED" && process.client) {
-			const { fetchUser } = runWithNuxtContext(() => useAuth())
 			if (!permissionRefreshInFlight) {
-				permissionRefreshInFlight = fetchUser()
+				permissionRefreshInFlight = runWithNuxtContext(() => {
+					const { fetchUser } = useAuth()
+					return fetchUser()
+				})
 					.catch(() => undefined)
 					.finally(() => {
 						permissionRefreshInFlight = null
@@ -99,8 +103,10 @@ export const useApiBase = () => {
 		}
 
 		if (statusCode === 401 && path.split("?")[0] !== "/users/login") {
-			const { handleUnauthorized } = runWithNuxtContext(() => useAuthSession())
-			await handleUnauthorized()
+			await runWithNuxtContext(async () => {
+				const { handleUnauthorized } = useAuthSession()
+				await handleUnauthorized()
+			})
 		}
 
 		if (statusCode !== undefined && statusCode !== null) {
