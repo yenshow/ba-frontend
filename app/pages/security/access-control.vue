@@ -1,10 +1,10 @@
 <template>
 	<div>
 		<div
-			class="flex min-w-0 flex-col items-stretch justify-center lg:flex-row"
+			class="monitoring-page-layout"
 			:class="isOverviewCollapsed ? 'gap-0' : 'gap-4 xl:gap-6 2xl:gap-8'"
 		>
-			<section class="relative min-w-0 flex-1 2xl:flex-[1.3]">
+			<section class="monitoring-detail-section">
 				<Transition name="fade" mode="out-in">
 					<button
 						v-if="isOverviewCollapsed"
@@ -25,7 +25,7 @@
 				</Transition>
 
 				<div
-					class="relative flex min-h-[664px] flex-col monitoring-panel overflow-hidden rounded-2xl p-4 2xl:min-h-[848px] 2xl:p-6"
+					class="monitoring-detail-panel monitoring-panel rounded-2xl p-4 2xl:p-6"
 				>
 					<div class="monitoring-location-title">
 						<div class="flex w-[200px] items-center justify-center px-3">
@@ -49,10 +49,9 @@
 						:enlarged="isOverviewCollapsed"
 						empty-title="尚無戶別資料"
 						empty-description="請在「地點管理」中新增戶別並綁定室內機"
-						content-class="flex min-h-0 flex-1 flex-col"
 					>
 						<div v-if="selectedZone" class="flex min-h-0 flex-1">
-							<div class="flex min-w-0 flex-1 flex-col gap-8">
+							<div class="flex min-h-0 min-w-0 flex-1 flex-col gap-8">
 								<AccessSecurityMainStationPanel :station="zoneMainStation" />
 								<AccessSecurityIntercomLogTable :events="events" :locations="zoneLocations" />
 							</div>

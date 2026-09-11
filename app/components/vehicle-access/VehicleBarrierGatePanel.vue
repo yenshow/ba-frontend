@@ -1,7 +1,10 @@
 <template>
 	<div
 		class="vehicle-barrier-panel flex min-h-0 min-w-0 flex-col overflow-hidden"
-		:class="variant === 'panel' && !hideTitle ? 'space-y-3' : 'space-y-0'"
+		:class="[
+			variant === 'panel' && !hideTitle ? 'space-y-3' : 'space-y-0',
+			variant === 'panel' ? 'flex-1' : '',
+		]"
 		@click.stop
 		@keydown.stop
 	>
@@ -16,7 +19,7 @@
 		<template v-if="variant === 'panel'">
 			<div
 				v-if="devices.length === 0"
-				class="flex items-center justify-center rounded-lg border border-dashed border-white/20 p-6 text-center text-sm text-white/50 2xl:text-base"
+				class="flex min-h-0 flex-1 items-center justify-center rounded-lg border border-dashed border-white/20 p-6 text-center text-sm text-white/50 2xl:text-base"
 				role="status"
 			>
 				未設定攝影機
@@ -24,7 +27,7 @@
 
 			<div
 				v-else
-				class="show-scrollbar grid min-h-0 grid-cols-2 content-start gap-3 overflow-y-auto px-1 2xl:gap-4"
+				class="show-scrollbar grid min-h-0 flex-1 grid-cols-2 content-start gap-3 overflow-y-auto px-1 2xl:gap-4"
 			>
 				<article
 					v-for="dev in devices"

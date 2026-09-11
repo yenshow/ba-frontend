@@ -1,11 +1,14 @@
 <template>
 	<aside
-		class="col-span-12 flex min-h-0 flex-col lg:col-span-4"
-		:class="panelHeightClass"
+		class="flex min-h-0 flex-col"
+		:class="[panelHeightClass, columnClass]"
 	>
 		<div
 			class="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-white/15 bg-white/5"
 		>
+			<div v-if="headerLabel" class="border-b border-white/10 px-3 py-2.5">
+				<span class="text-sm text-white/70 2xl:text-base">{{ headerLabel }}</span>
+			</div>
 			<div class="show-scrollbar min-h-0 flex-1 overflow-y-auto p-2.5">
 				<div
 					v-if="loading"
@@ -227,10 +230,12 @@ const props = withDefaults(
 		/** 車牌管理：在「未分組」下方顯示臨時車輛 */
 		showTemporaryVehicles?: boolean
 		panelHeightClass?: string
+		columnClass?: string
+		headerLabel?: string | null
 	}>(),
 	{
 		panelHeightClass: LOCATION_MEMBERS_PANEL_HEIGHT,
-		canAddGroupToMembers: false,
+		columnClass: "col-span-12 lg:col-span-4",
 		showTemporaryVehicles: false,
 	},
 )

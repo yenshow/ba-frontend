@@ -1,7 +1,10 @@
 <template>
 	<div
 		class="access-door-panel flex min-h-0 min-w-0 flex-col overflow-hidden"
-		:class="variant === 'panel' && !hideTitle ? 'space-y-3' : 'space-y-0'"
+		:class="[
+			variant === 'panel' && !hideTitle ? 'space-y-3' : 'space-y-0',
+			variant === 'panel' ? 'flex-1' : '',
+		]"
 		@click.stop
 		@keydown.stop
 	>
@@ -16,7 +19,7 @@
 			v-if="devices.length === 0"
 			:class="
 				variant === 'panel'
-					? 'flex items-center justify-center rounded-lg border border-dashed border-white/20 p-6 text-center text-sm text-white/50 2xl:text-base'
+					? 'flex min-h-0 flex-1 items-center justify-center rounded-lg border border-dashed border-white/20 p-6 text-center text-sm text-white/50 2xl:text-base'
 					: 'mx-auto w-[75%] rounded-lg border border-dashed border-white/20 p-3 text-center text-xs text-white/50'
 			"
 			role="status"
@@ -28,7 +31,7 @@
 			v-else
 			:class="
 				variant === 'panel'
-					? 'show-scrollbar grid min-h-0 grid-cols-2 content-start gap-3 overflow-y-auto px-1 2xl:gap-4'
+					? 'show-scrollbar grid min-h-0 flex-1 grid-cols-2 content-start gap-3 overflow-y-auto px-1 2xl:gap-4'
 					: 'mx-auto flex w-[75%] flex-col gap-2'
 			"
 		>

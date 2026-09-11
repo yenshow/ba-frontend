@@ -14,7 +14,7 @@ export const useElevatorFloorAccess = (params: {
 	locationId: Ref<number | null> | ComputedRef<number | null>
 	elevatorApi: ElevatorApi
 	personnelApi: PersonnelApi
-	toast: { success: (msg: string) => void; warning: (msg: string, duration?: number) => void }
+	toast: { success: (msg: string) => void }
 }) => {
 	const { locationId, elevatorApi, personnelApi, toast } = params
 
@@ -27,7 +27,7 @@ export const useElevatorFloorAccess = (params: {
 	const isApplying = ref(false)
 	const errorText = ref<string | null>(null)
 	const checkedByFloor = reactive<Record<number, Set<number>>>({})
-	const selectedFloorIndex = ref<number | null>(null)
+	const selectedPersonIdSet = ref<Set<number>>(new Set())
 
 	const syncCheckedFromFloors = (slots: ElevatorFloorAccessSlot[]) => {
 		for (const key of Object.keys(checkedByFloor)) {
@@ -64,6 +64,71 @@ export const useElevatorFloorAccess = (params: {
 
 	const selectedCountForFloor = (floorIndex: number) => checkedByFloor[floorIndex]?.size ?? 0
 
+	const isPersonSelected = (personId: number) => selectedPersonIdSet.value.has(personId)
+
+	const selectedPersonCount = computed(() => selectedPersonIdSet.value.size)
+
+	const togglePersonSelection = (personId: number, checked: boolean) => {
+		const next = new Set(selectedPersonIdSet.value)
+		if (checked) next.add(personId)
+		else next.delete(personId)
+		selectedPersonIdSet.value = next
+	}
+
+	const isAllVisiblePeopleSelected = computed(() => {
+		if (filteredCandidates.value.length === 0) return false
+		return filteredCandidates.value.every((p) => selectedPersonIdSet.value.has(p.id))
+	})
+
+	const toggleSelectAllPeople = () => {
+		const checked = !isAllVisiblePeopleSelected.value
+		const next = new Set(selectedPersonIdSet.value)
+		for (const person of filteredCandidates.value) {
+			if (checked) next.add(person.id)
+			else next.delete(person.id)
+		}
+		selectedPersonIdSet.value = next
+	}
+
+	const selectedOnFloorCount = (floorIndex: number) => {
+		let hit = 0
+		for (const personId of selectedPersonIdSet.value) {
+			if (isPersonChecked(floorIndex, personId)) hit += 1
+		}
+		return hit
+	}
+
+	const isFloorFullyChecked = (floorIndex: number) => {
+		const total = selectedPersonIdSet.value.size
+		return total > 0 && selectedOnFloorCount(floorIndex) === total
+	}
+
+	const isFloorPartiallyChecked = (floorIndex: number) => {
+		const total = selectedPersonIdSet.value.size
+		if (total === 0) return false
+		const hit = selectedOnFloorCount(floorIndex)
+		return hit > 0 && hit < total
+	}
+
+	const toggleFloorForSelection = (floorIndex: number, checked: boolean) => {
+		for (const personId of selectedPersonIdSet.value) {
+			togglePersonOnFloor(floorIndex, personId, checked)
+		}
+	}
+
+	const isAllFloorsCheckedForSelection = computed(() => {
+		if (selectedPersonIdSet.value.size === 0 || floors.value.length === 0) return false
+		return floors.value.every((floor) => isFloorFullyChecked(floor.index))
+	})
+
+	const toggleSelectAllFloors = () => {
+		if (selectedPersonIdSet.value.size === 0) return
+		const checked = !isAllFloorsCheckedForSelection.value
+		for (const floor of floors.value) {
+			toggleFloorForSelection(floor.index, checked)
+		}
+	}
+
 	const loadCandidates = async () => {
 		candidates.value = await fetchAllPersonnelCandidates({
 			personnelApi,
@@ -77,6 +142,7 @@ export const useElevatorFloorAccess = (params: {
 
 		errorText.value = null
 		isLoading.value = true
+		selectedPersonIdSet.value = new Set()
 		try {
 			const [accessRes] = await Promise.all([
 				elevatorApi.getFloorAccess(locId),
@@ -86,10 +152,8 @@ export const useElevatorFloorAccess = (params: {
 			floors.value = accessRes.floors || []
 			defaultsApplied.value = Boolean(accessRes.defaultsApplied)
 			syncCheckedFromFloors(floors.value)
-			selectedFloorIndex.value = floors.value[0]?.index ?? null
 		} catch (err) {
 			floors.value = []
-			selectedFloorIndex.value = null
 			errorText.value = resolveFormApiError(err, "載入樓層授權失敗")
 		} finally {
 			isLoading.value = false
@@ -122,29 +186,6 @@ export const useElevatorFloorAccess = (params: {
 		}
 	}
 
-	const handleSearchCandidates = async () => {
-		await loadCandidates()
-	}
-
-	const selectFloor = (floorIndex: number) => {
-		selectedFloorIndex.value = floorIndex
-	}
-
-	const isAllSelectedFloorKept = computed(() => {
-		if (selectedFloorIndex.value == null || filteredCandidates.value.length === 0) return false
-		return filteredCandidates.value.every((p) =>
-			isPersonChecked(selectedFloorIndex.value!, p.id),
-		)
-	})
-
-	const toggleSelectAllOnSelectedFloor = () => {
-		if (selectedFloorIndex.value == null) return
-		const checked = !isAllSelectedFloorKept.value
-		for (const person of filteredCandidates.value) {
-			togglePersonOnFloor(selectedFloorIndex.value, person.id, checked)
-		}
-	}
-
 	return {
 		floors,
 		defaultsApplied,
@@ -152,17 +193,21 @@ export const useElevatorFloorAccess = (params: {
 		isLoading,
 		isApplying,
 		errorText,
-		isPersonChecked,
-		togglePersonOnFloor,
 		selectedCountForFloor,
 		loadFloorAccess,
 		applyFloorAccess,
-		handleSearchCandidates,
-		selectedFloorIndex,
-		selectFloor,
-		isAllSelectedFloorKept,
-		toggleSelectAllOnSelectedFloor,
+		handleSearchCandidates: loadCandidates,
 		filteredCandidates,
+		isPersonSelected,
+		togglePersonSelection,
+		selectedPersonCount,
+		isAllVisiblePeopleSelected,
+		toggleSelectAllPeople,
+		isFloorFullyChecked,
+		isFloorPartiallyChecked,
+		toggleFloorForSelection,
+		isAllFloorsCheckedForSelection,
+		toggleSelectAllFloors,
 		groupTree: groupFilter.groupTree,
 		isGroupTreeLoading: groupFilter.isGroupTreeLoading,
 		groupTreeError: groupFilter.groupTreeError,

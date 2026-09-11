@@ -1,16 +1,16 @@
 <template>
-	<div class="space-y-4">
-		<h3 class="monitoring-chip-bg py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
+	<div class="flex min-h-0 flex-1 flex-col">
+		<h3 class="monitoring-chip-bg shrink-0 py-1 text-center text-lg font-semibold text-white 2xl:text-xl">
 			人員名單
 		</h3>
 		<div
 			v-if="personnel.length === 0"
-			class="rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
+			class="mt-4 flex min-h-0 flex-1 items-center justify-center rounded-lg border-2 border-white/20 bg-white/5 p-8 text-center"
 		>
 			<p class="text-base text-white/60 2xl:text-lg">尚無人員資料</p>
 		</div>
 
-		<div v-else class="space-y-4">
+		<div v-else class="show-scrollbar mt-4 min-h-0 flex-1 space-y-4 overflow-y-auto">
 			<div
 				class="mx-auto grid gap-4"
 				:class="useTwoColumns ? 'grid-cols-2 w-full' : 'grid-cols-1 w-[240px]'"

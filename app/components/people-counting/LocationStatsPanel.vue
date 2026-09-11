@@ -1,7 +1,7 @@
 <template>
-	<div class="show-scrollbar flex h-full flex-col space-y-8 overflow-y-auto">
+	<div class="flex min-h-0 flex-1 flex-col gap-8">
 		<!-- 今日統計 -->
-		<div class="flex min-h-[220px] items-center justify-center gap-4">
+		<div class="flex min-h-[220px] shrink-0 items-center justify-center gap-4">
 			<div class="flex h-40 w-40 items-center justify-center 2xl:h-48 2xl:w-48">
 				<img :src="statusIndicatorSrc" alt="工地狀態" class="h-full w-full object-contain" />
 			</div>
@@ -36,6 +36,7 @@
 			:display-columns="displayColumns"
 		/>
 		<Pagination
+			class="shrink-0"
 			:total="logsTotal"
 			:offset="logsOffset"
 			:limit="logsPageSize"

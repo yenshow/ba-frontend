@@ -12,7 +12,6 @@
 		<ElevatorFloorGroupPanel
 			v-else
 			:floors="floors"
-			:selected-floor-index="selectedFloorIndex"
 			:candidates-query="candidatesQuery"
 			search-input-id="elevator-floor-members-search"
 			:filtered-candidates="filteredCandidates"
@@ -21,9 +20,13 @@
 			:is-loading="isLoading || isSyncCandidatesLoading"
 			:error-text="errorText"
 			:defaults-applied="defaultsApplied"
-			:is-all-selected-floor-kept="isAllSelectedFloorKept"
-			:is-person-checked="isPersonChecked"
+			:is-person-selected="isPersonSelected"
+			:is-all-visible-people-selected="isAllVisiblePeopleSelected"
+			:selected-person-count="selectedPersonCount"
+			:is-floor-fully-checked="isFloorFullyChecked"
+			:is-floor-partially-checked="isFloorPartiallyChecked"
 			:selected-count-for-floor="selectedCountForFloor"
+			:is-all-floors-checked-for-selection="isAllFloorsCheckedForSelection"
 			:group-tree="groupTree"
 			:selected-child-group-id="selectedChildGroupId"
 			:selected-group-label="selectedGroupLabel"
@@ -33,15 +36,16 @@
 			:group-tree-error="groupTreeError"
 			@update:candidates-query="candidatesQuery = $event"
 			@search="handleSearchCandidates"
-			@select-floor="selectFloor"
 			@select-child-group="selectChildGroup"
-			@toggle-select-all="toggleSelectAllOnSelectedFloor"
-			@toggle-person="togglePersonOnFloor"
+			@toggle-select-all-people="toggleSelectAllPeople"
+			@toggle-person="togglePersonSelection"
+			@toggle-select-all-floors="toggleSelectAllFloors"
+			@toggle-floor="toggleFloorForSelection"
 			@apply="handleApplyFloorAccess"
 		>
 			<template #toolbar>
 				<DeviceSyncStep2Toolbar
-					description="勾選各樓層允許使用的人員；套用後自動同步至設備，狀態以圖示顯示於右側。"
+					description="先選擇群組與人員，再勾選允許使用的樓層；套用後自動同步至設備，狀態以圖示顯示於人員右側。"
 					:warnings-count="syncWarnings.length"
 					:can-resync="canDeviceSync"
 					:is-resync-disabled="isSyncButtonDisabled"
@@ -121,17 +125,21 @@ const {
 	isLoading,
 	isApplying,
 	errorText,
-	isPersonChecked,
-	togglePersonOnFloor,
 	selectedCountForFloor,
 	loadFloorAccess,
 	applyFloorAccess,
 	handleSearchCandidates,
-	selectedFloorIndex,
-	selectFloor,
-	isAllSelectedFloorKept,
-	toggleSelectAllOnSelectedFloor,
 	filteredCandidates,
+	isPersonSelected,
+	togglePersonSelection,
+	selectedPersonCount,
+	isAllVisiblePeopleSelected,
+	toggleSelectAllPeople,
+	isFloorFullyChecked,
+	isFloorPartiallyChecked,
+	toggleFloorForSelection,
+	isAllFloorsCheckedForSelection,
+	toggleSelectAllFloors,
 	groupTree,
 	isGroupTreeLoading,
 	selectedChildGroupId,

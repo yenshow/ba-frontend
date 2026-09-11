@@ -1,12 +1,12 @@
 <template>
-	<div class="vehicle-org-panel min-h-0 space-y-3 overflow-hidden">
+	<div class="vehicle-org-panel flex min-h-0 flex-1 flex-col space-y-3 overflow-hidden">
 		<h3
 			v-if="!hideTitle"
 			class="vehicle-org-title monitoring-chip-bg py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
 		>
 			{{ panelTitle }}
 		</h3>
-		<div class="grid grid-cols-3 content-start gap-4 2xl:grid-cols-4">
+		<div class="show-scrollbar grid min-h-0 flex-1 content-start grid-cols-3 gap-4 overflow-y-auto 2xl:grid-cols-4">
 			<button
 				v-for="group in groups"
 				:key="group.groupKey"

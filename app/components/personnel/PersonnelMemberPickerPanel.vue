@@ -43,6 +43,7 @@
 					:can-edit="canEdit"
 					:is-disabled="isDisabled"
 					:variant="gridVariant"
+					:columns="gridColumns"
 					:checkbox-aria-label="checkboxAriaLabel"
 					@toggle="(personId, checked) => emit('toggle', personId, checked)"
 				>
@@ -86,6 +87,7 @@ withDefaults(
 		contextPlaceholder?: string
 		compactSelectAll?: boolean
 		gridVariant?: "default" | "group"
+		gridColumns?: 1 | 2
 		checkboxAriaLabel?: (person: Person) => string
 	}>(),
 	{
@@ -95,6 +97,7 @@ withDefaults(
 		contextPlaceholder: "請先選擇",
 		compactSelectAll: false,
 		gridVariant: "default",
+		gridColumns: 2,
 	},
 )
 

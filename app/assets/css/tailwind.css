@@ -333,6 +333,48 @@ html:not(.dark) .select-filter option {
 	}
 }
 
+/* 監控雙欄：lg+ 左右面板等高；左欄把高度傳入 panel，內層 flex-1 填滿 */
+.monitoring-page-layout {
+	display: flex;
+	min-width: 0;
+	flex-direction: column;
+	align-items: stretch;
+}
+
+@media (min-width: 1024px) {
+	.monitoring-page-layout {
+		flex-direction: row;
+	}
+}
+
+.monitoring-detail-section {
+	position: relative;
+	display: flex;
+	min-width: 0;
+	min-height: 0;
+	flex: 1 1 auto;
+	flex-direction: column;
+}
+
+.monitoring-detail-panel {
+	position: relative;
+	display: flex;
+	min-height: 664px;
+	flex: 1 1 auto;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+@media (min-width: 1536px) {
+	.monitoring-detail-section {
+		flex: 1.3 1 auto;
+	}
+
+	.monitoring-detail-panel {
+		min-height: 848px;
+	}
+}
+
 /* 工地監控：右側總覽（收合 w-0；與左欄 items-stretch 等高） */
 .overview-sidebar {
 	flex-shrink: 0;

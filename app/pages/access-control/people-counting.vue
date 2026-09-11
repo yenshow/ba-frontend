@@ -2,10 +2,10 @@
 	<div>
 		<!-- 門禁管理頁面內容 -->
 		<div
-			class="flex min-w-0 flex-col items-stretch justify-center lg:flex-row"
+			class="monitoring-page-layout"
 			:class="isOverviewCollapsed ? 'gap-0' : 'gap-4 xl:gap-6 2xl:gap-8'"
 		>
-			<section class="relative min-w-0 flex-1 2xl:flex-[1.3]">
+			<section class="monitoring-detail-section">
 				<Transition name="fade" mode="out-in">
 					<button
 						v-if="isOverviewCollapsed"
@@ -26,7 +26,7 @@
 				</Transition>
 
 				<div
-					class="relative flex min-h-[664px] flex-col monitoring-panel overflow-hidden rounded-2xl p-4 2xl:min-h-[848px] 2xl:p-6"
+					class="monitoring-detail-panel monitoring-panel rounded-2xl p-4 2xl:p-6"
 				>
 					<!-- 位置標題與地點選擇 -->
 					<div class="monitoring-location-title">
@@ -81,38 +81,35 @@
 					<MonitoringDetailShell
 						:empty="detailEmpty"
 						:enlarged="isOverviewCollapsed"
-						content-class="flex min-h-0 flex-1 flex-col"
 					>
 						<div
 							v-if="selectedLocation"
 							class="flex min-h-0 flex-1"
 						>
-							<div class="min-w-0 flex-1">
-								<LocationStatsPanel
-									:entry-count="selectedLocation?.entryCount || 0"
-									:exit-count="selectedLocation?.exitCount || 0"
-									:current-count="currentCount"
-									:logs="logs"
-									:logs-offset="logsOffset"
-									:logs-total="logsTotal"
-									:logs-pagination-disabled="isLoadingLogs"
-									:data-source="selectedLocation?.dataSource"
-									:camera-mode="selectedLocation?.cameraMode"
-									:display-columns="selectedLocation?.logDisplayColumns"
-									@logs-previous="handleLogsPrevious"
-									@logs-next="handleLogsNext"
-								/>
-							</div>
-							<div class="ms-4 min-w-0 flex-1 border-l-2 border-white/30 ps-4">
-								<LocationDetailPanel
-									v-model:show-door-panel="showDetailDoorPanel"
-									:location="selectedLocation"
-									:personnel="personnel"
-									:selected-unit-id="selectedUnitId"
-									:can-write="canDoorControl"
-									@unit-select="handleUnitSelect"
-								/>
-							</div>
+							<LocationStatsPanel
+								class="min-h-0 min-w-0 flex-1"
+								:entry-count="selectedLocation?.entryCount || 0"
+								:exit-count="selectedLocation?.exitCount || 0"
+								:current-count="currentCount"
+								:logs="logs"
+								:logs-offset="logsOffset"
+								:logs-total="logsTotal"
+								:logs-pagination-disabled="isLoadingLogs"
+								:data-source="selectedLocation?.dataSource"
+								:camera-mode="selectedLocation?.cameraMode"
+								:display-columns="selectedLocation?.logDisplayColumns"
+								@logs-previous="handleLogsPrevious"
+								@logs-next="handleLogsNext"
+							/>
+							<LocationDetailPanel
+								class="ms-4 min-h-0 min-w-0 flex-1 border-l-2 border-white/30 ps-4"
+								v-model:show-door-panel="showDetailDoorPanel"
+								:location="selectedLocation"
+								:personnel="personnel"
+								:selected-unit-id="selectedUnitId"
+								:can-write="canDoorControl"
+								@unit-select="handleUnitSelect"
+							/>
 						</div>
 					</MonitoringDetailShell>
 				</div>

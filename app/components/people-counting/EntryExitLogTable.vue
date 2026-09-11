@@ -1,5 +1,5 @@
 <template>
-	<div class="monitoring-log-panel flex min-h-[320px] w-full min-w-0 flex-col 2xl:min-h-[400px]">
+	<div class="monitoring-log-panel flex min-h-[320px] w-full min-w-0 flex-1 flex-col 2xl:min-h-[400px]">
 		<div
 			v-if="logs.length === 0"
 			class="monitoring-log-empty flex flex-1 items-center justify-center rounded-lg p-8"
@@ -8,7 +8,7 @@
 			<MonitoringLogEmptyState message="尚無進出場記錄" />
 		</div>
 
-		<div v-else>
+		<div v-else class="show-scrollbar min-h-0 flex-1 overflow-auto">
 			<table class="monitoring-log-table w-full">
 				<thead class="monitoring-chip-bg">
 					<tr class="people-log-th text-center text-xs font-semibold text-white/80 2xl:text-sm">

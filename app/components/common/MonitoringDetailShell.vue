@@ -2,7 +2,7 @@
 	<div class="flex min-h-0 flex-1 flex-col">
 		<div
 			v-if="empty"
-			class="mt-16 flex min-h-[560px] flex-1 w-full items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center 2xl:min-h-[720px]"
+			class="mt-16 flex min-h-0 flex-1 w-full items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
 		>
 			<slot name="empty">
 				<div>

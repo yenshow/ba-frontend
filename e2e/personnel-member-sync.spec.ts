@@ -271,9 +271,13 @@ test.describe("地點名單 — 修改 + 設備同步", () => {
 		const dialog = page.getByRole("dialog")
 		await expect(dialog.getByLabel("搜尋人員")).toBeVisible({ timeout: 20_000 })
 
-		const firstCheckbox = dialog.locator('input[type="checkbox"]').first()
-		await expect(firstCheckbox).toBeVisible({ timeout: 15_000 })
-		const wasChecked = await firstCheckbox.isChecked()
+		const firstPerson = dialog.locator('input[type="checkbox"]').first()
+		await expect(firstPerson).toBeVisible({ timeout: 15_000 })
+		await firstPerson.click({ force: true })
+
+		const firstFloor = dialog.getByRole("checkbox", { name: /^授權 / }).first()
+		await expect(firstFloor).toBeVisible({ timeout: 15_000 })
+		const wasChecked = await firstFloor.isChecked()
 
 		const floorPut = page.waitForResponse(
 			(res) =>
@@ -284,7 +288,7 @@ test.describe("地點名單 — 修改 + 設備同步", () => {
 			{ timeout: 60_000 },
 		)
 
-		await firstCheckbox.click({ force: true })
+		await firstFloor.click({ force: true })
 		await dialog.getByRole("button", { name: "套用權限" }).click({ force: true })
 
 		const putRes = await floorPut
@@ -314,8 +318,8 @@ test.describe("地點名單 — 修改 + 設備同步", () => {
 					res.ok(),
 				{ timeout: 60_000 },
 			)
-			if ((await firstCheckbox.isChecked()) !== wasChecked) {
-				await firstCheckbox.click({ force: true })
+			if ((await firstFloor.isChecked()) !== wasChecked) {
+				await firstFloor.click({ force: true })
 			}
 			await dialog.getByRole("button", { name: "套用權限" }).click({ force: true })
 			await restorePut

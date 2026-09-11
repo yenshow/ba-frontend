@@ -113,17 +113,15 @@ test.describe("地點名單 Dialog — Member Picker", () => {
 
 			await openDialogByButton(page, manageButton, dialogTitle)
 
-			if (dialogTitle === "樓層管理") {
-				const dialog = page.getByRole("dialog")
-				const selectedFloor = dialog.getByRole("option", { selected: true })
-				if ((await selectedFloor.count()) === 0) {
-					await dialog.getByRole("option").first().click({ force: true })
-				}
-			}
-
 			await assertMemberPickerInDialog(page)
 
 			const dialog = page.getByRole("dialog")
+			if (dialogTitle === "樓層管理") {
+				await expect(dialog.getByRole("region", { name: "群組" })).toBeVisible()
+				await expect(dialog.getByRole("region", { name: "人員" })).toBeVisible()
+				await expect(dialog.getByRole("region", { name: "樓層" })).toBeVisible()
+				await expect(dialog.getByText("請先選擇人員").first()).toBeVisible()
+			}
 			await expect(dialog.getByRole("button", { name: "套用權限" })).toBeVisible()
 
 			// 不點「重新同步」— 避免設備連線
