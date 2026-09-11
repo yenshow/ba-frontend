@@ -11,10 +11,13 @@
 
 		<LocationMembersGroupPanel
 			v-else
+			class="pr-7 2xl:pr-8"
 			:group-tree="groupTree"
 			:selected-child-group-id="selectedChildGroupId"
-			:member-count-by-child-id="memberCountByChildId"
+			:member-count-by-child-id="memberCountWithTemporary"
 			:has-ungrouped-candidates="hasUngroupedCandidates"
+			:show-temporary-vehicles="true"
+			:show-apply-footer="!isTemporaryVehiclesView"
 			:selected-group-label="selectedGroupLabel"
 			:is-group-tree-loading="isGroupTreeLoading"
 			:group-tree-error="groupTreeError"
@@ -54,20 +57,87 @@
 							:disabled="isSavingPlate || isPlatesLoading"
 							class="btn-action-emerald"
 							aria-label="新增車牌"
-							@click="openPlateForm()"
+							@click="handleOpenAddPlate"
 						>
 							新增車牌
 						</PermissionActionButton>
 					</template>
 				</DeviceSyncStep2Toolbar>
 			</template>
-			<template #person-indicators="{ person }">
+
+			<template v-if="isTemporaryVehiclesView" #right-panel>
+				<div
+					class="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-white/15 bg-white/5"
+				>
+					<div
+						class="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-4 py-3"
+					>
+						<p class="text-sm text-white/80 2xl:text-base">
+							目前群組
+							<span class="ms-2 font-medium text-white">臨時車輛</span>
+						</p>
+					</div>
+					<div class="show-scrollbar min-h-0 flex-1 overflow-y-auto p-4">
+						<p v-if="temporaryPlates.length === 0" class="py-10 text-center text-sm text-white/50">
+							尚無臨時車牌；點「新增車牌」並選「臨時車輛」填寫姓名。
+						</p>
+						<ul v-else class="space-y-2">
+							<li
+								v-for="plate in temporaryPlates"
+								:key="plate.id"
+								class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-sm text-white/80"
+							>
+								<div class="min-w-0 flex-1">
+									<div class="flex flex-wrap items-center gap-2">
+										<span class="font-mono text-white">{{ plate.plate_number }}</span>
+										<span class="text-white/90">{{ plate.display_name }}</span>
+										<span class="rounded bg-white/10 px-1.5 py-0.5 text-xs text-white/70">
+											{{ licensePlateListTypeShortLabel(plate.list_type) }}
+										</span>
+									</div>
+									<p class="mt-0.5 text-xs text-white/50">
+										{{ formatLicensePlateDisplayTime(plate.effective_begin) }}
+										～
+										{{ formatLicensePlateDisplayTime(plate.effective_end) }}
+									</p>
+								</div>
+								<div class="flex shrink-0 items-center gap-2">
+									<PersonnelSyncCredentialIndicators
+										:items="tempPlateRowIndicators(plate)"
+										aria-label="臨時車牌同步狀態"
+									/>
+									<button
+										v-if="canUpdatePlate"
+										type="button"
+										class="text-cyan-300 hover:text-cyan-200"
+										:aria-label="`編輯臨時車牌 ${plate.plate_number}`"
+										@click="handleOpenEditTemporaryPlate(plate)"
+									>
+										編輯
+									</button>
+									<button
+										v-if="canDeletePlate"
+										type="button"
+										class="text-rose-300 hover:text-rose-200"
+										:aria-label="`刪除臨時車牌 ${plate.plate_number}`"
+										@click="handleDeleteTemporaryPlate(plate)"
+									>
+										刪除
+									</button>
+								</div>
+							</li>
+						</ul>
+					</div>
+				</div>
+			</template>
+
+			<template v-if="!isTemporaryVehiclesView" #person-indicators="{ person }">
 				<PersonnelSyncCredentialIndicators
 					:items="plateIndicatorsForPerson(person)"
 					aria-label="車牌同步狀態"
 				/>
 			</template>
-			<template #person-extra="{ person }">
+			<template v-if="!isTemporaryVehiclesView" #person-extra="{ person }">
 				<ul
 					v-if="platesForPerson(person).length > 0"
 					class="mt-2 space-y-1 border-t border-white/10 pt-2 ps-6"
@@ -88,7 +158,7 @@
 								type="button"
 								class="text-cyan-300 hover:text-cyan-200"
 								:aria-label="`編輯車牌 ${plate.plate_number}`"
-								@click.stop="openPlateForm(plate)"
+								@click.stop="handleOpenEditBoundPlate(plate)"
 							>
 								編輯
 							</button>
@@ -124,12 +194,13 @@
 		:error-message="plateFormError"
 		@save="handleSavePlate"
 		@cancel="cancelPlateForm"
+		@bind-mode-change="handleBindModeChange"
 	/>
 </template>
 
 <script setup lang="ts">
 import { computed, toRef } from "vue"
-import type { VehicleAccessLocation } from "~/types/vehicleAccess"
+import type { LocationTemporaryLicensePlate, VehicleAccessLocation } from "~/types/vehicleAccess"
 import type { LocationLicensePlateRow, Person } from "~/types/personnel"
 import DeviceManageDialogShell from "~/components/personnel/device-sync/DeviceManageDialogShell.vue"
 import DeviceSyncStep2Toolbar from "~/components/personnel/device-sync/DeviceSyncStep2Toolbar.vue"
@@ -140,8 +211,12 @@ import VehicleAccessIsapiPlateFormDialog from "~/components/vehicle-access/Vehic
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import type { LocationPlateSync } from "~/composables/systems/personnel/useLocationPlateSync"
 import { useLocationDeviceManageDialog } from "~/composables/systems/personnel/useLocationDeviceManageDialog"
-import { parseLocationNumericId } from "~/utils/personnelUtils"
-import { plateSyncStatusToUiStatus } from "~/utils/licensePlateFormUtils"
+import { parseLocationNumericId, TEMPORARY_VEHICLE_FILTER_ID } from "~/utils/personnelUtils"
+import {
+	formatLicensePlateDisplayTime,
+	licensePlateListTypeShortLabel,
+	plateSyncStatusToUiStatus,
+} from "~/utils/licensePlateFormUtils"
 import { buildPlateSyncIndicators } from "~/utils/syncCredentialIcons"
 
 const props = defineProps<{
@@ -162,7 +237,7 @@ const emit = defineEmits<{
 }>()
 
 const locationId = computed(() =>
-	parseLocationNumericId(props.location?.id ?? props.location?.locationId),
+	parseLocationNumericId(props.location?.id ?? props.location?.locationId)
 )
 const locationTitleMeta = computed(() => {
 	const zone = String(props.location?.zoneName ?? "").trim()
@@ -172,8 +247,7 @@ const locationTitleMeta = computed(() => {
 })
 const locationName = computed(() => props.location?.name ?? null)
 
-const toolbarDescription =
-	"勾選允許進出此地點的人員；車牌同步狀態以圖示顯示，可於人員卡片管理車牌。"
+const toolbarDescription = "勾選允許進出此地點的人員；左欄「臨時車輛」管理不上人員主檔的車牌。"
 
 const {
 	showWarningsDialog,
@@ -185,6 +259,7 @@ const {
 	syncOneLocation,
 	isPlatesLoading: isPlatesLoadingFn,
 	getPlatesForLocation,
+	getTemporaryPlatesForLocation,
 	resolvePlatesForPerson,
 	plateSyncIndicatorsForPerson,
 	applyLocationMembers,
@@ -197,8 +272,10 @@ const {
 	isLoadingPersonOptions,
 	openPlateForm,
 	cancelPlateForm,
+	ensurePersonBindOptions,
 	savePlate,
 	deletePlate,
+	deleteTemporaryPlate,
 } = props.plateSync
 
 const {
@@ -236,12 +313,25 @@ const {
 })
 
 const isPlatesLoading = computed(() =>
-	locationId.value != null ? isPlatesLoadingFn(locationId.value) : false,
+	locationId.value != null ? isPlatesLoadingFn(locationId.value) : false
 )
 
 const locationPlates = computed(() =>
-	locationId.value != null ? getPlatesForLocation(locationId.value) : [],
+	locationId.value != null ? getPlatesForLocation(locationId.value) : []
 )
+
+const temporaryPlates = computed(() =>
+	locationId.value != null ? getTemporaryPlatesForLocation(locationId.value) : []
+)
+
+const isTemporaryVehiclesView = computed(
+	() => selectedChildGroupId.value === TEMPORARY_VEHICLE_FILTER_ID
+)
+
+const memberCountWithTemporary = computed(() => ({
+	...memberCountByChildId.value,
+	[TEMPORARY_VEHICLE_FILTER_ID]: temporaryPlates.value.length,
+}))
 
 const platesForPerson = (person: Person) => {
 	if (locationId.value == null) return []
@@ -258,8 +348,11 @@ const plateIndicatorsForPerson = (person: Person) => {
 const plateRowIndicators = (plate: LocationLicensePlateRow) =>
 	buildPlateSyncIndicators(plateSyncStatusToUiStatus(plate.isapi_sync_status))
 
+const tempPlateRowIndicators = (plate: LocationTemporaryLicensePlate) =>
+	buildPlateSyncIndicators(plateSyncStatusToUiStatus(plate.isapi_sync_status))
+
 const handleApplyMembers = async () => {
-	if (locationId.value == null) return
+	if (locationId.value == null || isTemporaryVehiclesView.value) return
 	const res = await applyLocationMembers(locationId.value, locationName.value)
 	if (res != null && !membersError.value) emit("membersUpdated")
 }
@@ -276,6 +369,27 @@ const handleResync = async () => {
 	emit("synced")
 }
 
+const handleOpenAddPlate = () => {
+	if (locationId.value == null) return
+	const mode = isTemporaryVehiclesView.value ? "temporary" : "bound"
+	void openPlateForm(undefined, locationId.value, undefined, mode)
+}
+
+const handleBindModeChange = (mode: "bound" | "temporary") => {
+	if (mode !== "bound" || locationId.value == null) return
+	void ensurePersonBindOptions(locationId.value)
+}
+
+const handleOpenEditBoundPlate = (plate: LocationLicensePlateRow) => {
+	if (locationId.value == null) return
+	void openPlateForm(plate, locationId.value)
+}
+
+const handleOpenEditTemporaryPlate = (plate: LocationTemporaryLicensePlate) => {
+	if (locationId.value == null) return
+	void openPlateForm(undefined, locationId.value, plate)
+}
+
 const handleSavePlate = async () => {
 	if (locationId.value == null) return
 	await savePlate(locationId.value)
@@ -284,6 +398,11 @@ const handleSavePlate = async () => {
 const handleDeletePlate = async (row: LocationLicensePlateRow) => {
 	if (locationId.value == null) return
 	await deletePlate(locationId.value, row)
+}
+
+const handleDeleteTemporaryPlate = async (row: LocationTemporaryLicensePlate) => {
+	if (locationId.value == null) return
+	await deleteTemporaryPlate(locationId.value, row)
 }
 
 const handleClose = () => {

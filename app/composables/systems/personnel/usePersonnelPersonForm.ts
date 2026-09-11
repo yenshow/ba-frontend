@@ -86,7 +86,6 @@ export type PersonDialogSnapshot = {
 
 export type PersonnelPersonDialogSection =
 	| "form"
-	| "permissions"
 	| "password"
 	| "card"
 	| "fingerprint"

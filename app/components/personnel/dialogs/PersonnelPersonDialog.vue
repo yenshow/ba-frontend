@@ -31,49 +31,7 @@
 						</button>
 					</header>
 
-					<div
-						v-if="isEditingPerson"
-						class="flex gap-2 border-b border-white/10 pb-3"
-						role="tablist"
-						aria-label="人員編輯分頁"
-					>
-						<button
-							type="button"
-							role="tab"
-							class="rounded-lg px-3 py-1.5 text-sm transition-colors 2xl:text-base"
-							:class="
-								activeSection === 'form' || isFormSubSection
-									? 'bg-cyan-500/25 text-white'
-									: 'text-white/60 hover:bg-white/10 hover:text-white'
-							"
-							:aria-selected="activeSection === 'form' || isFormSubSection"
-							@click="setActiveSection('form')"
-						>
-							基本資料
-						</button>
-						<button
-							type="button"
-							role="tab"
-							class="rounded-lg px-3 py-1.5 text-sm transition-colors 2xl:text-base"
-							:class="
-								activeSection === 'permissions'
-									? 'bg-cyan-500/25 text-white'
-									: 'text-white/60 hover:bg-white/10 hover:text-white'
-							"
-							:aria-selected="activeSection === 'permissions'"
-							@click="setActiveSection('permissions')"
-						>
-							權限總覽
-						</button>
-					</div>
-
-					<PersonnelPermissionOverview
-						v-if="isEditingPerson && activeSection === 'permissions' && state.editingPerson.value"
-						:person="state.editingPerson.value"
-					/>
-
 					<form
-						v-show="!isEditingPerson || activeSection !== 'permissions'"
 						class="grid grid-cols-2 gap-4 2xl:gap-6"
 						@submit.prevent
 					>
@@ -551,7 +509,6 @@ import {
 	createEmptyFingerprintFormItem,
 } from "~/utils/fingerprintFormUtils"
 import { createFormItemTabHandlers } from "~/utils/personnelFormTabUtils"
-import PersonnelPermissionOverview from "~/components/personnel/PersonnelPermissionOverview.vue"
 import type { PersonnelPersonDialogSection } from "~/composables/systems/personnel/usePersonnelPersonForm"
 import { usePeopleCountingAccessRbac } from "~/composables/core/useAccessGate"
 
@@ -566,7 +523,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
 	"update:modelValue": [value: boolean]
-	"update:activeSection": [value: PersonnelPersonDialogSection]
 	submit: []
 	"face-file-change": [file: File]
 	"clear-face": []
@@ -577,19 +533,6 @@ const emit = defineEmits<{
 }>()
 
 const isEditingPerson = computed(() => props.state.editingPerson.value != null)
-
-const FORM_SUB_SECTIONS: PersonnelPersonDialogSection[] = [
-	"password",
-	"card",
-	"fingerprint",
-	"licensePlate",
-]
-
-const isFormSubSection = computed(() => FORM_SUB_SECTIONS.includes(props.activeSection))
-
-const setActiveSection = (section: PersonnelPersonDialogSection) => {
-	emit("update:activeSection", section)
-}
 
 const sectionScrollTargetId = (section: PersonnelPersonDialogSection): string | null => {
 	switch (section) {
@@ -609,7 +552,7 @@ const sectionScrollTargetId = (section: PersonnelPersonDialogSection): string | 
 watch(
 	() => props.activeSection,
 	(section) => {
-		if (section === "permissions" || section === "form") return
+		if (section === "form") return
 		nextTick(() => {
 			const id = sectionScrollTargetId(section)
 			if (!id) return

@@ -10,6 +10,7 @@
 				:loading="isGroupTreeLoading"
 				:error="groupTreeError"
 				:show-ungrouped="hasUngroupedCandidates"
+				:show-temporary-vehicles="showTemporaryVehicles"
 				:panel-height-class="panelHeightClass"
 				@select-child="emit('selectChild', $event)"
 			/>
@@ -18,32 +19,34 @@
 				class="col-span-12 flex min-h-0 flex-col lg:col-span-8"
 				:class="panelHeightClass"
 			>
-				<PersonnelMemberPickerPanel
-					:query="membersQuery"
-					:search-input-id="searchInputId"
-					:candidates="filteredCandidates"
-					:is-checked="isMemberKept"
-					:can-edit="canEditMembers"
-					:is-disabled="isApplyingMembers"
-					:is-loading="isLoadingMembers"
-					:is-empty="!isLoadingMembers && filteredCandidates.length === 0"
-					:empty-title="emptyTitle"
-					:can-select-all="hasFilteredCandidates && canEditMembers"
-					:is-all-selected="isAllFilteredKept"
-					context-label="目前群組"
-					:context-value="selectedGroupLabel ?? '全部'"
-					@update:query="emit('update:membersQuery', $event)"
-					@search="emit('search')"
-					@toggle-select-all="emit('toggleSelectAll')"
-					@toggle="(personId, checked) => emit('toggleMember', personId, checked)"
-				>
-					<template #person-indicators="{ person }">
-						<slot name="person-indicators" :person="person" />
-					</template>
-					<template #person-extra="{ person }">
-						<slot name="person-extra" :person="person" />
-					</template>
-				</PersonnelMemberPickerPanel>
+				<slot name="right-panel">
+					<PersonnelMemberPickerPanel
+						:query="membersQuery"
+						:search-input-id="searchInputId"
+						:candidates="filteredCandidates"
+						:is-checked="isMemberKept"
+						:can-edit="canEditMembers"
+						:is-disabled="isApplyingMembers"
+						:is-loading="isLoadingMembers"
+						:is-empty="!isLoadingMembers && filteredCandidates.length === 0"
+						:empty-title="emptyTitle"
+						:can-select-all="hasFilteredCandidates && canEditMembers"
+						:is-all-selected="isAllFilteredKept"
+						context-label="目前群組"
+						:context-value="selectedGroupLabel ?? '全部'"
+						@update:query="emit('update:membersQuery', $event)"
+						@search="emit('search')"
+						@toggle-select-all="emit('toggleSelectAll')"
+						@toggle="(personId, checked) => emit('toggleMember', personId, checked)"
+					>
+						<template #person-indicators="{ person }">
+							<slot name="person-indicators" :person="person" />
+						</template>
+						<template #person-extra="{ person }">
+							<slot name="person-extra" :person="person" />
+						</template>
+					</PersonnelMemberPickerPanel>
+				</slot>
 			</section>
 		</div>
 
@@ -51,7 +54,7 @@
 			{{ membersError }}
 		</p>
 
-		<div class="mt-4 flex justify-end">
+		<div v-if="showApplyFooter" class="mt-4 flex justify-end">
 			<PermissionActionButton
 				:allowed="canEditMembers"
 				:disabled="isApplyingMembers"
@@ -95,12 +98,16 @@ withDefaults(
 		applyAriaLabel?: string
 		emptyTitle?: string
 		panelHeightClass?: string
+		showTemporaryVehicles?: boolean
+		showApplyFooter?: boolean
 	}>(),
 	{
 		applyLabel: "套用權限",
 		applyAriaLabel: "套用權限",
 		emptyTitle: "尚無人員",
 		panelHeightClass: LOCATION_MEMBERS_PANEL_HEIGHT,
+		showTemporaryVehicles: false,
+		showApplyFooter: true,
 	},
 )
 

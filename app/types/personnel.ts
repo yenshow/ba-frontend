@@ -134,12 +134,6 @@ export interface SyncLocationCandidate {
 	};
 }
 
-/** 取得門禁權限回傳 */
-export interface AccessLocationsResponse {
-	person: { id: number; employeeNo: string; fullName: string | null };
-	locations: AccessLocation[];
-}
-
 /** 批次匯入回傳 */
 export interface ImportResult {
 	created: number;

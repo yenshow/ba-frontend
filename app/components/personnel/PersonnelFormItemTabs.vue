@@ -18,7 +18,7 @@
 			{{ n }}
 		</button>
 		<button
-			v-if="unlimited || count < max"
+			v-if="count < max"
 			type="button"
 			role="tab"
 			aria-label="新增一筆"
@@ -37,12 +37,10 @@ withDefaults(
 		activeIndex: number
 		max?: number
 		ariaLabel?: string
-		unlimited?: boolean
 	}>(),
 	{
 		max: 5,
 		ariaLabel: "項目",
-		unlimited: false,
 	},
 )
 

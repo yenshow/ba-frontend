@@ -5,12 +5,9 @@ export const clampFormTabIndex = (index: number, length: number) =>
 	Math.min(Math.max(index, 0), Math.max(length - 1, 0))
 
 type FormItemTabHandlersOptions<T> = {
-	/** 未設定時不限制筆數 */
 	max?: MaybeRefOrGetter<number>
 	createEmpty: () => T
 	onClearLastItem?: () => void
-	onAdd?: () => void
-	onRemove?: (index: number) => void
 }
 
 /** 人員表單多筆 tab（卡片／指紋／車牌等）共用新增／移除邏輯 */
@@ -26,11 +23,7 @@ export const createFormItemTabHandlers = <T>(
 			const max = toValue(options.max)
 			if (items.value.length >= max) return
 		}
-		if (options.onAdd) {
-			options.onAdd()
-		} else {
-			items.value.push(options.createEmpty())
-		}
+		items.value.push(options.createEmpty())
 		activeTab.value = items.value.length - 1
 	}
 
@@ -40,11 +33,7 @@ export const createFormItemTabHandlers = <T>(
 			activeTab.value = 0
 			return
 		}
-		if (options.onRemove) {
-			options.onRemove(activeTab.value)
-		} else {
-			items.value.splice(activeTab.value, 1)
-		}
+		items.value.splice(activeTab.value, 1)
 		activeTab.value = clampFormTabIndex(activeTab.value, items.value.length)
 	}
 

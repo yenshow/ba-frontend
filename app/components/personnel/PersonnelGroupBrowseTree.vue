@@ -83,6 +83,35 @@
 					</li>
 
 					<li
+						v-if="showTemporaryVehicles"
+						role="treeitem"
+						class="flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2.5 transition-colors"
+						:class="
+							selectedChildId === temporaryVehicleId
+								? 'bg-cyan-500/25 ring-1 ring-cyan-400/35'
+								: 'hover:bg-white/[0.06]'
+						"
+						:aria-current="selectedChildId === temporaryVehicleId ? 'true' : undefined"
+						@click="emit('select-child', temporaryVehicleId)"
+					>
+						<span
+							class="min-w-0 flex-1 truncate text-sm text-white/90 2xl:text-base"
+							:class="
+								selectedChildId === temporaryVehicleId
+									? 'font-semibold text-white'
+									: 'text-white/85'
+							"
+						>
+							{{ temporaryVehicleName }}
+						</span>
+						<span
+							class="shrink-0 rounded-full bg-white/10 px-2.5 py-0.5 text-xs tabular-nums text-white/55 2xl:text-sm"
+						>
+							{{ memberCountByChildId[temporaryVehicleId] ?? 0 }}
+						</span>
+					</li>
+
+					<li
 						v-for="main in groupTree"
 						:key="main.id"
 						class="overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]"
@@ -182,6 +211,8 @@ import {
 	ALL_PERSON_GROUP_FILTER_NAME,
 	UNGROUPED_PERSON_GROUP_ID,
 	UNGROUPED_PERSON_GROUP_NAME,
+	TEMPORARY_VEHICLE_FILTER_ID,
+	TEMPORARY_VEHICLE_FILTER_NAME,
 } from "~/utils/personnelUtils"
 import { LOCATION_MEMBERS_PANEL_HEIGHT } from "~/composables/systems/personnel/useLocationMembersStep"
 
@@ -193,11 +224,14 @@ const props = withDefaults(
 		loading?: boolean
 		error?: string | null
 		showUngrouped?: boolean
+		/** 車牌管理：在「未分組」下方顯示臨時車輛 */
+		showTemporaryVehicles?: boolean
 		panelHeightClass?: string
 	}>(),
 	{
 		panelHeightClass: LOCATION_MEMBERS_PANEL_HEIGHT,
 		canAddGroupToMembers: false,
+		showTemporaryVehicles: false,
 	},
 )
 
@@ -209,6 +243,8 @@ const allGroupId = ALL_PERSON_GROUP_FILTER_ID
 const allGroupName = ALL_PERSON_GROUP_FILTER_NAME
 const ungroupedId = UNGROUPED_PERSON_GROUP_ID
 const ungroupedName = UNGROUPED_PERSON_GROUP_NAME
+const temporaryVehicleId = TEMPORARY_VEHICLE_FILTER_ID
+const temporaryVehicleName = TEMPORARY_VEHICLE_FILTER_NAME
 const expandedMainIds = ref<Set<number>>(new Set())
 
 const toggleMainExpanded = (mainId: number) => {
@@ -222,7 +258,8 @@ const ensureExpandedForSelection = () => {
 	if (
 		props.selectedChildId == null ||
 		props.selectedChildId === allGroupId ||
-		props.selectedChildId === ungroupedId
+		props.selectedChildId === ungroupedId ||
+		props.selectedChildId === temporaryVehicleId
 	) {
 		return
 	}

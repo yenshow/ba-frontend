@@ -152,7 +152,7 @@
 
 		<PersonnelPersonDialog
 			v-model="showPersonDialog"
-			v-model:active-section="personDialogSection"
+			:active-section="personDialogSection"
 			:group-tree="groupTree"
 			:state="personDialogState"
 			@submit="props.personsTab.submitPerson"

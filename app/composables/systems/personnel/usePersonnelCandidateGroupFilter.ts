@@ -2,6 +2,7 @@ import { computed, ref, unref, watch, type ComputedRef, type Ref } from "vue"
 import type { Person } from "~/types/personnel"
 import {
 	ALL_PERSON_GROUP_FILTER_ID,
+	TEMPORARY_VEHICLE_FILTER_ID,
 	UNGROUPED_PERSON_GROUP_ID,
 	resolvePersonGroupBrowseLabel,
 	resolvePersonGroupId,
@@ -36,6 +37,7 @@ export const usePersonnelCandidateGroupFilter = (params: { candidates: MaybeRef<
 	const groupFilteredCandidates = computed(() => {
 		const list = unref(params.candidates)
 		if (selectedChildGroupId.value === ALL_PERSON_GROUP_FILTER_ID) return list
+		if (selectedChildGroupId.value === TEMPORARY_VEHICLE_FILTER_ID) return []
 		return list.filter((p) => resolvePersonGroupId(p) === selectedChildGroupId.value)
 	})
 
@@ -61,7 +63,12 @@ export const usePersonnelCandidateGroupFilter = (params: { candidates: MaybeRef<
 	watch(
 		() => unref(params.candidates),
 		() => {
-			if (selectedChildGroupId.value === ALL_PERSON_GROUP_FILTER_ID) return
+			if (
+				selectedChildGroupId.value === ALL_PERSON_GROUP_FILTER_ID ||
+				selectedChildGroupId.value === TEMPORARY_VEHICLE_FILTER_ID
+			) {
+				return
+			}
 			const count = memberCountByChildId.value[selectedChildGroupId.value] ?? 0
 			if (count === 0) resetGroupFilter()
 		},
