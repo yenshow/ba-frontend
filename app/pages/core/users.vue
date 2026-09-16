@@ -122,17 +122,26 @@
 					class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
 				>
 					<div
-						class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full max-w-lg flex-col gap-4 overflow-y-auto rounded-3xl p-7 2xl:gap-6 2xl:p-8"
+						class="dialog-panel-bg show-scrollbar flex max-h-[90vh] w-full flex-col gap-4 overflow-y-auto rounded-3xl p-7 transition-[max-width] 2xl:gap-6 2xl:p-8"
+						:class="showPermissionEditor ? 'max-w-3xl' : 'max-w-md'"
 					>
-						<header class="flex items-center justify-between">
-							<h3 class="text-lg font-semibold tracking-[4px] text-white 2xl:text-xl">
-								{{ editingUser ? "編輯用戶" : "新增用戶" }}
-							</h3>
+						<header class="flex items-center justify-between gap-3">
+							<div class="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+								<h3 class="text-lg font-semibold tracking-[4px] text-white 2xl:text-xl">
+									{{ editingUser ? "編輯用戶" : "新增用戶" }}
+								</h3>
+								<FormChangeIndicator
+									v-if="hasUnsavedChanges"
+									:has-changes="hasUnsavedChanges"
+									:changed-fields="changedFieldsList"
+									:message="changeSummary"
+								/>
+							</div>
 							<button
 								type="button"
 								class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70"
 								aria-label="關閉對話框"
-								@click="closeDialog"
+								@click="handleCloseRequest"
 							>
 								&times;
 							</button>
@@ -141,45 +150,72 @@
 						<form class="flex flex-col gap-4 2xl:gap-6" @submit.prevent>
 							<fieldset
 								:disabled="!canAdmin"
-								class="flex min-w-0 flex-col gap-4 border-0 p-0 2xl:gap-6"
+								class="flex min-w-0 flex-col gap-4 border-0 p-0 2xl:gap-5"
 							>
-								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>用戶名</span>
-									<input v-model="formData.username" type="text" required class="form-input" />
-								</label>
-								<label
-									v-if="!editingUser"
-									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-								>
-									<span>密碼</span>
-									<input
-										v-model="formData.password"
-										type="password"
-										:required="!editingUser"
-										minlength="6"
-										class="form-input"
-									/>
-								</label>
-								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>角色</span>
-									<div
-										v-if="isRoleReadOnlyOnEdit"
-										class="form-input cursor-not-allowed bg-white/5 text-white/80"
-										aria-readonly="true"
-									>
-										{{ getUserRoleLabel(formData.role) }}
-									</div>
-									<FilterDropdown
-										v-else
-										v-model="formData.role"
-										:options="roleFormOptions"
-										placeholder="請選擇角色"
-										text-size="text-sm 2xl:text-base"
-										@update:model-value="handleRoleFilterChange"
-									/>
-								</label>
 								<div
-									v-show="formData.role !== 'admin'"
+									class="grid grid-cols-1 gap-4"
+									:class="showPermissionEditor ? 'sm:grid-cols-2' : ''"
+								>
+									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+										<span>用戶名</span>
+										<input v-model="formData.username" type="text" required class="form-input" />
+									</label>
+									<label
+										v-if="!editingUser"
+										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+									>
+										<span>密碼</span>
+										<input
+											v-model="formData.password"
+											type="password"
+											:required="!editingUser"
+											minlength="6"
+											class="form-input"
+										/>
+									</label>
+									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+										<span>角色</span>
+										<div
+											v-if="isRoleReadOnlyOnEdit"
+											class="form-input cursor-not-allowed bg-white/5 text-white/80"
+											aria-readonly="true"
+										>
+											{{ getUserRoleLabel(formData.role) }}
+										</div>
+										<FilterDropdown
+											v-else
+											v-model="formData.role"
+											:options="roleFormOptions"
+											placeholder="請選擇角色"
+											text-size="text-sm 2xl:text-base"
+											@update:model-value="handleRoleFilterChange"
+										/>
+									</label>
+									<label
+										v-show="!!editingUser"
+										class="flex items-end gap-3 pb-1 text-sm text-white/80 2xl:gap-4 2xl:text-base"
+									>
+										<span class="relative inline-flex cursor-pointer items-center">
+											<input
+												v-model="formData.status"
+												type="checkbox"
+												value="active"
+												true-value="active"
+												false-value="inactive"
+												class="peer sr-only"
+												aria-label="用戶啟用狀態"
+											/>
+											<div
+												class="peer h-6 w-11 rounded-full bg-white/20 after:absolute after:left-[4px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-emerald-500 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none 2xl:h-7 2xl:w-14 2xl:after:h-6 2xl:after:w-6"
+											></div>
+											<span class="ml-3 text-sm 2xl:text-base">{{
+												formData.status === "active" ? "已啟用" : "已停用"
+											}}</span>
+										</span>
+									</label>
+								</div>
+								<div
+									v-show="showPermissionEditor"
 									class="flex flex-col gap-2 border-t border-white/15 pt-4"
 								>
 									<span class="text-sm font-medium text-white/90 2xl:text-base">功能權限</span>
@@ -189,28 +225,6 @@
 										:loading="permissionLoading"
 									/>
 								</div>
-								<label
-									v-show="!!editingUser"
-									class="flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base"
-								>
-									<label class="relative inline-flex cursor-pointer items-center">
-										<input
-											v-model="formData.status"
-											type="checkbox"
-											value="active"
-											true-value="active"
-											false-value="inactive"
-											class="peer sr-only"
-											aria-label="用戶啟用狀態"
-										/>
-										<div
-											class="peer h-6 w-11 rounded-full bg-white/20 after:absolute after:left-[4px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-emerald-500 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none 2xl:h-7 2xl:w-14 2xl:after:h-6 2xl:after:w-6"
-										></div>
-										<span class="ml-3 text-sm 2xl:text-base">{{
-											formData.status === "active" ? "已啟用" : "已停用"
-										}}</span>
-									</label>
-								</label>
 							</fieldset>
 
 							<p v-if="errorMessage" class="form-error-text mt-4 2xl:mt-5">
@@ -218,12 +232,20 @@
 							</p>
 
 							<footer class="mt-2 flex items-center gap-3 2xl:mt-3 2xl:gap-4">
-								<button type="button" class="btn-secondary" @click="closeDialog">取消</button>
+								<button type="button" class="btn-secondary" @click="handleCloseRequest">
+									取消
+								</button>
 								<div class="flex-1"></div>
 								<PermissionActionButton
 									native-type="button"
 									:allowed="canAdmin"
-									:disabled="isSubmitting"
+									:disabled="
+										isSubmitting || (!!editingUser && !hasUnsavedChanges)
+									"
+									:class="{
+										'cursor-not-allowed opacity-50':
+											!!editingUser && !hasUnsavedChanges,
+									}"
 									aria-label="儲存用戶"
 									class="btn-primary"
 									@click="handleSubmit"
@@ -259,6 +281,7 @@ import Pagination from "~/components/common/Pagination.vue"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import UserPermissionEditor from "~/components/common/UserPermissionEditor.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
+import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
 import { formatDate } from "~/utils/dateUtils"
 import AsyncPanel from "~/components/common/AsyncPanel.vue"
 import { useDataLoader } from "~/composables/monitoring/useDataLoader"
@@ -267,6 +290,7 @@ import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useUserApi } from "~/composables/systems/users/useUserApi"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
+import { FORM_UNSAVED_CLOSE_CONFIRM } from "~/utils/formDialog"
 import { applyFormApiErrorToRef } from "~/utils/apiError"
 import { validateUserFormForSave } from "~/utils/userFormValidation"
 import {
@@ -310,17 +334,13 @@ const showConfirmDialog = computed({
 })
 const confirmDialogConfig = computed(() => confirmDialog.config.value)
 const pendingActionUserId = ref<number | null>(null)
-const confirmMode = ref<"delete" | "resetPassword">("delete")
+const confirmMode = ref<"delete" | "resetPassword" | "unsavedClose">("delete")
 
 const permissionDefinitions = ref<PermissionDefinition[]>([])
 const permissionGranted = ref<Record<number, boolean>>({})
 const permissionInitialGranted = ref<Record<number, boolean>>({})
 const permissionLoading = ref(false)
 const initialRoleOnEdit = ref<"admin" | "user" | null>(null)
-
-const isPermissionDirty = computed(
-	() => !permissionGrantedMapsEqual(permissionGranted.value, permissionInitialGranted.value)
-)
 
 // 使用 useDataLoader 統一管理列表載入
 const {
@@ -377,6 +397,60 @@ const formData = reactive({
 	password: "",
 	role: "user" as "admin" | "user",
 	status: "active" as "active" | "inactive",
+})
+
+/** 操作員才顯示權限編輯；管理員 Dialog 用窄版避免空白過大 */
+const showPermissionEditor = computed(() => formData.role !== "admin")
+
+type UserFormSnapshot = {
+	username: string
+	password: string
+	role: "admin" | "user"
+	status: "active" | "inactive"
+}
+
+const formInitialSnapshot = ref<UserFormSnapshot | null>(null)
+
+const captureFormBaseline = () => {
+	formInitialSnapshot.value = {
+		username: formData.username,
+		password: formData.password,
+		role: formData.role,
+		status: formData.status,
+	}
+}
+
+const isPermissionDirty = computed(
+	() => !permissionGrantedMapsEqual(permissionGranted.value, permissionInitialGranted.value)
+)
+
+const hasUnsavedChanges = computed(() => {
+	const initial = formInitialSnapshot.value
+	if (!initial) return false
+	if (formData.username !== initial.username) return true
+	if (formData.password !== initial.password) return true
+	if (formData.role !== initial.role) return true
+	if (formData.status !== initial.status) return true
+	if (formData.role !== "admin" && isPermissionDirty.value) return true
+	return false
+})
+
+const changedFieldsList = computed(() => {
+	if (!editingUser.value || !formInitialSnapshot.value) return []
+	const initial = formInitialSnapshot.value
+	const fields: string[] = []
+	if (formData.username !== initial.username) fields.push("用戶名")
+	if (formData.role !== initial.role) fields.push("角色")
+	if (formData.status !== initial.status) fields.push("狀態")
+	if (formData.role !== "admin" && isPermissionDirty.value) fields.push("功能權限")
+	return fields
+})
+
+const changeSummary = computed(() => {
+	if (!editingUser.value && hasUnsavedChanges.value) return "表單已填寫，尚未儲存"
+	const count = changedFieldsList.value.length
+	if (count === 0) return ""
+	return `有 ${count} 個欄位已修改`
 })
 
 const getRoleBadgeClass = (role: string) => {
@@ -474,21 +548,36 @@ const editUser = async (user: User) => {
 	formData.password = ""
 	initialRoleOnEdit.value = user.role
 	errorMessage.value = null
+	formInitialSnapshot.value = null
 	await loadPermissionDraft(user.id)
+	captureFormBaseline()
 }
 
 const closeDialog = () => {
 	showCreateDialog.value = false
 	editingUser.value = null
+	formInitialSnapshot.value = null
 	resetForm()
 	errorMessage.value = null
+}
+
+const handleCloseRequest = () => {
+	if (hasUnsavedChanges.value) {
+		confirmMode.value = "unsavedClose"
+		pendingActionUserId.value = null
+		confirmDialog.show(FORM_UNSAVED_CLOSE_CONFIRM)
+		return
+	}
+	closeDialog()
 }
 
 watch(showCreateDialog, async (open) => {
 	if (open) {
 		resetForm()
 		formData.role = "user"
+		formInitialSnapshot.value = null
 		await loadPermissionDraft()
+		captureFormBaseline()
 	}
 })
 
@@ -596,6 +685,11 @@ const confirmResetPassword = (user: User) => {
 }
 
 const handleConfirmDialog = async () => {
+	if (confirmMode.value === "unsavedClose") {
+		closeDialog()
+		return
+	}
+
 	const id = pendingActionUserId.value
 	if (id == null) return
 	const target = users.value.find((u) => u.id === id)
@@ -622,7 +716,7 @@ const handleConfirmDialog = async () => {
 		const result = await userApi.deleteUser(target.id)
 		users.value = users.value.filter((u) => u.id !== target.id)
 		total.value = Math.max(0, total.value - 1)
-			toast.success(result.message || "密碼已更新")
+		toast.success(result.message || "用戶已刪除")
 	} catch (error) {
 		handleApiError(error, "刪除用戶失敗")
 	} finally {

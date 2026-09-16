@@ -1,472 +1,257 @@
 <template>
-
 	<div class="flex flex-col gap-3">
-
 		<p v-if="loading || !isLoaded" class="text-sm text-white/60">載入權限清單中...</p>
-
 		<template v-else-if="groups.length">
-
-			<div class="overflow-hidden rounded-xl border border-white/15">
-
-				<div class="divide-y divide-white/10">
-
-					<section
-
+			<div
+				class="flex min-h-[280px] flex-col overflow-hidden rounded-xl border border-white/15 md:min-h-[320px] md:flex-row"
+			>
+				<nav
+					class="flex max-h-[40vh] w-full shrink-0 flex-col overflow-y-auto border-b border-white/10 md:max-h-none md:w-[42%] md:border-b-0 md:border-r"
+					aria-label="功能模組清單"
+				>
+					<div
 						v-for="group in groups"
-
 						:key="group.parent.id"
-
-						class="px-4 py-3.5 transition-colors 2xl:px-5 2xl:py-4"
-
-						:class="isExpanded(group.parent.id) ? 'bg-white/[0.03]' : ''"
-
+						class="flex w-full items-center gap-2.5 px-3 py-2.5 transition-colors 2xl:gap-3 2xl:px-4 2xl:py-3"
+						:class="
+							selectedParentId === group.parent.id
+								? 'bg-cyan-400/15 text-white'
+								: 'text-white/85 hover:bg-white/5'
+						"
 					>
-
-						<div class="flex items-start justify-between gap-3">
-
-							<div class="flex min-w-0 flex-1 items-center gap-2">
-
-								<button
-
-									v-if="group.children.length"
-
-									type="button"
-
-									class="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-white/60 transition-colors hover:bg-white/10 hover:text-white"
-
-									:aria-expanded="isExpanded(group.parent.id)"
-
-									:aria-label="`${isExpanded(group.parent.id) ? '收合' : '展開'}${group.parent.name || group.parent.code}細項`"
-
-									@click="toggleExpanded(group.parent.id)"
-
-								>
-
-									<svg
-
-										class="h-4 w-4 transition-transform"
-
-										:class="isExpanded(group.parent.id) ? 'rotate-90' : ''"
-
-										viewBox="0 0 24 24"
-
-										fill="none"
-
-										stroke="currentColor"
-
-										aria-hidden="true"
-
-									>
-
-										<path
-
-											stroke-linecap="round"
-
-											stroke-linejoin="round"
-
-											stroke-width="2"
-
-											d="M9 5l7 7-7 7"
-
-										/>
-
-									</svg>
-
-								</button>
-
-								<label class="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5">
-
-									<input
-
-										:ref="(el) => setParentCheckboxRef(group.parent.id, el)"
-
-										type="checkbox"
-
-										class="h-4 w-4 shrink-0 cursor-pointer rounded border-white/40 accent-cyan-400"
-
-										:checked="Boolean(modelValue[group.parent.id])"
-
-										:aria-label="`訪問權限：${group.parent.name || group.parent.code}`"
-
-										@change="
-
-											handleParentToggle(
-
-												group.parent.id,
-
-												($event.target as HTMLInputElement).checked,
-
-												group.children
-
-											)
-
-										"
-
-									/>
-
-									<span class="font-medium text-white 2xl:text-base">
-
-										{{ group.parent.name || group.parent.code }}
-
-									</span>
-
-								</label>
-
-							</div>
-
-
-
-							<div
-
-								v-if="group.children.length && isExpanded(group.parent.id)"
-
-								class="flex shrink-0 items-center gap-2 text-xs 2xl:text-sm"
-
-							>
-
-								<button
-
-									type="button"
-
-									class="cursor-pointer border-none bg-transparent text-cyan-300/90 transition-opacity hover:text-cyan-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-
-									:disabled="!modelValue[group.parent.id]"
-
-									:aria-label="`全選 ${group.parent.name || group.parent.code} 細項權限`"
-
-									@click="handleSelectAllChildren(group)"
-
-								>
-
-									全選
-
-								</button>
-
-								<span class="text-white/20" aria-hidden="true">|</span>
-
-								<button
-
-									type="button"
-
-									class="cursor-pointer border-none bg-transparent text-white/50 transition-opacity hover:text-white/80 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-
-									:disabled="!modelValue[group.parent.id]"
-
-									:aria-label="`清除 ${group.parent.name || group.parent.code} 細項權限`"
-
-									@click="handleDeselectAllChildren(group)"
-
-								>
-
-									清除
-
-								</button>
-
-							</div>
-
-						</div>
-
-
-
-						<div
-
-							v-if="group.children.length && isExpanded(group.parent.id)"
-
-							class="mt-3 grid grid-cols-1 gap-2 pl-9 sm:grid-cols-2"
-
-							role="group"
-
-							:aria-label="`${group.parent.name || group.parent.code} 細項權限`"
-
+						<input
+							:ref="(el) => setParentCheckboxRef(group.parent.id, el)"
+							type="checkbox"
+							class="h-4 w-4 shrink-0 cursor-pointer rounded border-white/40 accent-cyan-400"
+							:checked="Boolean(modelValue[group.parent.id])"
+							:aria-label="`訪問權限：${moduleLabel(group.parent)}`"
+							@change="
+								handleParentToggle(
+									group.parent.id,
+									($event.target as HTMLInputElement).checked,
+									group.children
+								)
+							"
+						/>
+						<button
+							type="button"
+							class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-none bg-transparent p-0 text-left text-inherit"
+							:aria-current="selectedParentId === group.parent.id ? 'true' : undefined"
+							:aria-label="`選擇模組 ${moduleLabel(group.parent)}`"
+							@click="handleSelectModule(group.parent.id)"
 						>
-
-							<label
-
-								v-for="item in group.children"
-
-								:key="item.id"
-
-								class="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors 2xl:gap-2.5 2xl:px-3.5 2xl:py-2.5 2xl:text-base"
-
-								:class="[
-
-									modelValue[item.id]
-
-										? 'border-cyan-400/35 bg-cyan-400/10 text-white'
-
-										: 'border-white/10 bg-white/[0.02] text-white/80 hover:border-white/20 hover:bg-white/5',
-
-									modelValue[group.parent.id]
-
-										? 'cursor-pointer'
-
-										: 'cursor-not-allowed opacity-60',
-
-								]"
-
+							<span class="min-w-0 flex-1 truncate text-sm font-medium 2xl:text-base">
+								{{ moduleLabel(group.parent) }}
+							</span>
+							<span
+								class="shrink-0 rounded-md px-1.5 py-0.5 text-xs tabular-nums 2xl:text-sm"
+								:class="childCountClass(group)"
+								:aria-label="`${moduleLabel(group.parent)} 已選 ${childCheckedCount(group)} / ${group.children.length}`"
 							>
+								{{ childCheckedCount(group) }}/{{ group.children.length }}
+							</span>
+						</button>
+					</div>
+				</nav>
 
-								<input
-
-									type="checkbox"
-
-									class="h-4 w-4 shrink-0 cursor-pointer rounded border-white/40 accent-cyan-400 disabled:cursor-not-allowed"
-
-									:checked="Boolean(modelValue[item.id])"
-
-									:disabled="!modelValue[group.parent.id]"
-
-									:aria-label="`${item.name || item.code}`"
-
-									@change="handleChildToggle(item, ($event.target as HTMLInputElement).checked)"
-
-								/>
-
-								<span class="min-w-0 leading-snug">{{ item.name || item.code }}</span>
-
-							</label>
-
+				<section
+					v-if="selectedGroup"
+					class="flex min-h-0 min-w-0 flex-1 flex-col bg-white/[0.02]"
+					:aria-label="`${moduleLabel(selectedGroup.parent)} 細項權限`"
+				>
+					<header
+						class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-4 py-3 2xl:px-5 2xl:py-3.5"
+					>
+						<div class="min-w-0">
+							<p class="truncate text-sm font-medium text-white 2xl:text-base">
+								{{ moduleLabel(selectedGroup.parent) }}
+							</p>
+							<p class="mt-0.5 text-xs text-white/50 2xl:text-sm">
+								<template v-if="!modelValue[selectedGroup.parent.id]">
+									請先啟用左側訪問權限
+								</template>
+								<template v-else>
+									已選 {{ childCheckedCount(selectedGroup) }} /
+									{{ selectedGroup.children.length }} 項
+								</template>
+							</p>
 						</div>
+						<div class="flex shrink-0 items-center gap-2 text-xs 2xl:text-sm">
+							<button
+								type="button"
+								class="cursor-pointer border-none bg-transparent text-cyan-300/90 transition-opacity hover:text-cyan-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+								:disabled="!modelValue[selectedGroup.parent.id]"
+								:aria-label="`全選 ${moduleLabel(selectedGroup.parent)} 細項權限`"
+								@click="handleSelectAllChildren(selectedGroup)"
+							>
+								全選
+							</button>
+							<span class="text-white/20" aria-hidden="true">|</span>
+							<button
+								type="button"
+								class="cursor-pointer border-none bg-transparent text-white/50 transition-opacity hover:text-white/80 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+								:disabled="!modelValue[selectedGroup.parent.id]"
+								:aria-label="`清除 ${moduleLabel(selectedGroup.parent)} 細項權限`"
+								@click="handleDeselectAllChildren(selectedGroup)"
+							>
+								清除
+							</button>
+						</div>
+					</header>
 
-					</section>
-
-				</div>
-
+					<div class="flex-1 overflow-y-auto p-3 2xl:p-4" role="group">
+						<label
+							v-for="item in selectedGroup.children"
+							:key="item.id"
+							class="mb-1.5 flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors last:mb-0 2xl:gap-3 2xl:px-3.5 2xl:py-3 2xl:text-base"
+							:class="[
+								modelValue[item.id]
+									? 'bg-cyan-400/10 text-white'
+									: 'text-white/80 hover:bg-white/5',
+								modelValue[selectedGroup.parent.id]
+									? 'cursor-pointer'
+									: 'cursor-not-allowed opacity-55',
+							]"
+						>
+							<input
+								type="checkbox"
+								class="h-4 w-4 shrink-0 cursor-pointer rounded border-white/40 accent-cyan-400 disabled:cursor-not-allowed"
+								:checked="Boolean(modelValue[item.id])"
+								:disabled="!modelValue[selectedGroup.parent.id]"
+								:aria-label="moduleLabel(item)"
+								@change="
+									handleChildToggle(item, ($event.target as HTMLInputElement).checked)
+								"
+							/>
+							<span class="min-w-0 leading-snug">{{ moduleLabel(item) }}</span>
+						</label>
+					</div>
+				</section>
 			</div>
-
 		</template>
-
 		<p v-else class="text-sm text-white/50">尚無可設定的模組權限</p>
-
 	</div>
-
 </template>
 
-
-
 <script setup lang="ts">
-
 import type { ComponentPublicInstance } from "vue"
-
 import type { PermissionDefinition } from "~/types/user"
-
 import {
-
 	usePermissionDefinitionsByCategory,
-
 	type PermissionModuleGroup,
-
 } from "~/composables/systems/users/usePermissionDefinitionsByCategory"
 
-
-
 const props = defineProps<{
-
 	modelValue: Record<number, boolean>
-
 	definitions: PermissionDefinition[]
-
 	loading?: boolean
-
 }>()
-
-
 
 const emit = defineEmits<{
-
 	"update:modelValue": [value: Record<number, boolean>]
-
 }>()
 
-
-
 const definitionsRef = toRef(props, "definitions")
-
 const { groups, isLoaded } = usePermissionDefinitionsByCategory(definitionsRef)
 
-
-
-const expandedParentIds = ref<Set<number>>(new Set())
-
+const selectedParentId = ref<number | null>(null)
 const parentCheckboxRefs = ref<Record<number, HTMLInputElement | null>>({})
 
+const moduleLabel = (item: Pick<PermissionDefinition, "name" | "code">) =>
+	item.name || item.code
 
-
-const isExpanded = (parentId: number) => expandedParentIds.value.has(parentId)
-
-
-
-const toggleExpanded = (parentId: number) => {
-
-	const next = new Set(expandedParentIds.value)
-
-	if (next.has(parentId)) next.delete(parentId)
-
-	else next.add(parentId)
-
-	expandedParentIds.value = next
-
-}
-
-
-
-const setParentCheckboxRef = (
-
-	parentId: number,
-
-	el: Element | ComponentPublicInstance | null
-
-) => {
-
-	parentCheckboxRefs.value[parentId] = el instanceof HTMLInputElement ? el : null
-
-}
-
-
-
-const syncParentIndeterminate = () => {
-
-	for (const group of groups.value) {
-
-		const el = parentCheckboxRefs.value[group.parent.id]
-
-		if (!el || group.children.length === 0) continue
-
-		const checkedCount = group.children.filter((child) => props.modelValue[child.id]).length
-
-		el.indeterminate = checkedCount > 0 && checkedCount < group.children.length
-
-	}
-
-}
-
-
-
-const seedExpandedFromModel = () => {
-
-	const next = new Set(expandedParentIds.value)
-
-	for (const group of groups.value) {
-
-		const hasGrant =
-
-			props.modelValue[group.parent.id] ||
-
-			group.children.some((child) => props.modelValue[child.id])
-
-		if (hasGrant) next.add(group.parent.id)
-
-	}
-
-	expandedParentIds.value = next
-
-}
-
-
-
-watch(
-
-	[groups, () => props.modelValue],
-
-	() => {
-
-		seedExpandedFromModel()
-
-		syncParentIndeterminate()
-
-	},
-
-	{ deep: true, immediate: true, flush: "post" },
-
+const selectedGroup = computed(
+	() => groups.value.find((g) => g.parent.id === selectedParentId.value) ?? null
 )
 
+const childCheckedCount = (group: PermissionModuleGroup) =>
+	group.children.filter((child) => props.modelValue[child.id]).length
 
+const childCountClass = (group: PermissionModuleGroup) => {
+	const checked = childCheckedCount(group)
+	if (checked === 0) return "bg-white/5 text-white/40"
+	if (checked === group.children.length) return "bg-cyan-400/20 text-cyan-200"
+	return "bg-amber-400/15 text-amber-200/90"
+}
+
+const handleSelectModule = (parentId: number) => {
+	selectedParentId.value = parentId
+}
+
+const setParentCheckboxRef = (
+	parentId: number,
+	el: Element | ComponentPublicInstance | null
+) => {
+	parentCheckboxRefs.value[parentId] = el instanceof HTMLInputElement ? el : null
+}
+
+const syncParentIndeterminate = () => {
+	for (const group of groups.value) {
+		const el = parentCheckboxRefs.value[group.parent.id]
+		if (!el) continue
+		const checkedCount = childCheckedCount(group)
+		el.indeterminate = checkedCount > 0 && checkedCount < group.children.length
+	}
+}
+
+const ensureSelectedModule = () => {
+	if (!groups.value.length) {
+		selectedParentId.value = null
+		return
+	}
+	const stillValid = groups.value.some((g) => g.parent.id === selectedParentId.value)
+	if (stillValid) return
+
+	const firstGranted = groups.value.find(
+		(g) =>
+			props.modelValue[g.parent.id] || g.children.some((c) => props.modelValue[c.id])
+	)
+	selectedParentId.value = (firstGranted ?? groups.value[0]).parent.id
+}
+
+watch(
+	[groups, () => props.modelValue],
+	() => {
+		ensureSelectedModule()
+		syncParentIndeterminate()
+	},
+	{ deep: true, immediate: true, flush: "post" }
+)
 
 const handleParentToggle = (
-
 	parentId: number,
-
 	checked: boolean,
-
 	children: PermissionDefinition[]
-
 ) => {
-
+	selectedParentId.value = parentId
 	const next = { ...props.modelValue, [parentId]: checked }
-
-	if (checked) {
-
-		expandedParentIds.value = new Set(expandedParentIds.value).add(parentId)
-
-	} else {
-
-		for (const child of children) {
-
-			next[child.id] = false
-
-		}
-
+	if (!checked) {
+		for (const child of children) next[child.id] = false
 	}
-
 	emit("update:modelValue", next)
-
 }
-
-
 
 const handleChildToggle = (item: PermissionDefinition, checked: boolean) => {
-
 	if (item.parent_id != null && !props.modelValue[item.parent_id]) return
-
 	const next = { ...props.modelValue, [item.id]: checked }
-
 	if (checked && item.parent_id != null) {
-
 		next[item.parent_id] = true
-
-		expandedParentIds.value = new Set(expandedParentIds.value).add(item.parent_id)
-
+		selectedParentId.value = item.parent_id
 	}
-
 	emit("update:modelValue", next)
-
 }
-
-
 
 const handleSelectAllChildren = (group: PermissionModuleGroup) => {
-
 	if (!props.modelValue[group.parent.id]) return
-
 	const next = { ...props.modelValue, [group.parent.id]: true }
-
-	for (const child of group.children) {
-
-		next[child.id] = true
-
-	}
-
+	for (const child of group.children) next[child.id] = true
 	emit("update:modelValue", next)
-
 }
-
-
 
 const handleDeselectAllChildren = (group: PermissionModuleGroup) => {
-
 	if (!props.modelValue[group.parent.id]) return
-
 	const next = { ...props.modelValue }
-
-	for (const child of group.children) {
-
-		next[child.id] = false
-
-	}
-
+	for (const child of group.children) next[child.id] = false
 	emit("update:modelValue", next)
-
 }
-
 </script>
-
