@@ -136,6 +136,8 @@ export interface CameraDeviceConfig extends DeviceConfigBase {
 	rtsp_url: string;
 	host?: string;
 	ip_address?: string;
+	/** RTSP 埠（預設 554；NAT 對外埠可覆寫） */
+	port?: number;
 	username?: string;
 	password?: string;
 	/** 攝影機群組（用於設備管理與影像監控篩選） */

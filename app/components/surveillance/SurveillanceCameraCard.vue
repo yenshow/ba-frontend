@@ -52,6 +52,7 @@
 <script setup lang="ts">
 import type { CameraDeviceConfig, DeviceConnectivityStatus } from "~/types/device"
 import type { SurveillanceCamera } from "~/types/surveillance"
+import { formatCameraHostPort, parseCameraRtspUrl } from "~/utils/cameraRtspUtils"
 
 interface Props {
 	camera: SurveillanceCamera
@@ -83,16 +84,13 @@ const displayModelName = computed(() => props.camera.model_name?.trim() || "")
 
 const displayAddress = computed(() => {
 	const config = props.camera.config as CameraDeviceConfig
-
-	if (config.host) return config.host
-	if (!config.rtsp_url) return ""
-
-	try {
-		const url = new URL(config.rtsp_url)
-		return url.hostname || url.host || ""
-	} catch {
-		return ""
+	if (config.rtsp_url) {
+		const parsed = parseCameraRtspUrl(config.rtsp_url)
+		const host = (config.host || parsed.host).trim()
+		return formatCameraHostPort(host, config.port ?? parsed.port)
 	}
+	if (config.host) return formatCameraHostPort(config.host, config.port)
+	return ""
 })
 
 const displayGroup = computed(() => {

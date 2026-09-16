@@ -683,49 +683,25 @@ export const buildSyncPersonStepRows = (params: {
 		return m
 	})()
 
+	/** idle（無本次 job 事件）：只顯示 last_sync，不看 needs_sync */
 	const stepStatusFromLastSync = (
 		c: SyncLocationCandidate,
-		step: "user_info" | "face" | "card" | "fingerprint"
+		step: "user_info" | "face" | "card" | "fingerprint",
 	): { status: SyncStepUiStatus; message: string | null } => {
-		const ls = (c as unknown as { last_sync?: unknown }).last_sync as
-			| {
-					user_info?: { status?: string }
-					face?: { status?: string }
-					card?: { status?: string }
-					fingerprint?: { status?: string }
-			  }
-			| undefined
-		const raw = String((ls as any)?.[step]?.status || "").trim()
-		if (raw === "success") return { status: "success", message: null }
+		const raw = String(c.last_sync?.[step]?.status || "").trim().toLowerCase()
+		if (raw === "success" || raw === "synced") return { status: "success", message: null }
 		if (raw === "failed") return { status: "failed", message: "上次同步失敗（可重新同步）" }
 		if (raw === "unchanged") return { status: "unchanged", message: "未變更" }
 		if (raw === "no_data") return { status: "no_data", message: "無資料" }
-		// unknown：不強行顯示失敗，避免誤解
-		return { status: "unchanged", message: raw ? `同步狀態：${raw}` : "尚無同步紀錄" }
-	}
-
-	/** 無本次 job 事件：失敗優先於待同步（與「已同步」欄一致） */
-	const stepStatusWhenIdle = (
-		c: SyncLocationCandidate,
-		step: "user_info" | "face" | "card" | "fingerprint",
-		needsSet: Set<string>,
-		needsStepKey: string
-	): { status: SyncStepUiStatus; message: string | null } => {
-		const fromLast = stepStatusFromLastSync(c, step)
-		if (fromLast.status === "failed") return fromLast
-		if (needsSet.has(needsStepKey)) return { status: "pending", message: "待同步" }
-		return fromLast
+		if (raw === "pending") return { status: "pending", message: "待同步" }
+		if (!raw) return { status: "pending", message: "尚無同步紀錄" }
+		return { status: "pending", message: `同步狀態：${raw}` }
 	}
 
 	return candidates.map((c) => {
 		const emp = String(c.employee_no)
 		const warning = warningByEmployee.get(emp) || null
 		const list = collectForEmployee(items, c.employee_no)
-		const needsSyncStepsRaw = (c as unknown as { needs_sync_steps?: unknown }).needs_sync_steps
-		const needsSyncSteps = Array.isArray(needsSyncStepsRaw)
-			? needsSyncStepsRaw.map((s) => String(s))
-			: []
-		const needsSet = new Set(needsSyncSteps)
 		const pUi = (() => {
 			const u = stageUserInfoItems(list)
 			const wrap = personWrapperItems(list)
@@ -744,7 +720,7 @@ export const buildSyncPersonStepRows = (params: {
 				}
 				return { status: m.status, message: m.message }
 			}
-			return stepStatusWhenIdle(c, "user_info", needsSet, "user_info")
+			return stepStatusFromLastSync(c, "user_info")
 		})()
 
 		const fFaceBase = (() => {
@@ -758,7 +734,7 @@ export const buildSyncPersonStepRows = (params: {
 			if (pUi.status === "failed") {
 				return { status: "unchanged" as SyncStepUiStatus, message: "基本資料未成功，人臉不處理" }
 			}
-			return stepStatusWhenIdle(c, "face", needsSet, "face")
+			return stepStatusFromLastSync(c, "face")
 		})()
 
 		const fCardBase = (() => {
@@ -771,7 +747,7 @@ export const buildSyncPersonStepRows = (params: {
 			}
 			if (pUi.status === "failed")
 				return { status: "unchanged" as SyncStepUiStatus, message: "基本資料未成功，卡片不處理" }
-			return stepStatusWhenIdle(c, "card", needsSet, "card")
+			return stepStatusFromLastSync(c, "card")
 		})()
 
 		const fFpBase = (() => {
@@ -784,7 +760,7 @@ export const buildSyncPersonStepRows = (params: {
 			}
 			if (pUi.status === "failed")
 				return { status: "unchanged" as SyncStepUiStatus, message: "基本資料未成功，指紋不處理" }
-			return stepStatusWhenIdle(c, "fingerprint", needsSet, "fingerprint")
+			return stepStatusFromLastSync(c, "fingerprint")
 		})()
 
 		const overrideFailed = (
@@ -800,25 +776,14 @@ export const buildSyncPersonStepRows = (params: {
 		let fCard = overrideFailed(fCardBase, warning?.card || [])
 		let fFp = overrideFailed(fFpBase, warning?.fingerprint || [])
 
-		// 一致性規則：若「人員(UserInfo)」非成功，則不應顯示其他步驟為成功（避免誤解）
-		// - 例：歷史上 face 可能 success，但若 userInfo 為 never/partial，代表設備整體狀態仍未完整
-		// - 例：本次同步 userInfo 略過/待同步，也不應讓 face/card/fingerprint 顯示成功
-		if (pFinal.status !== "success") {
-			const clamp = (
-				cell: { status: SyncStepUiStatus; message: string | null },
-				stepKey: string
-			) => {
-				// 若該步驟本身就是 pending/failed/unchanged/no_data，維持原狀
-				if (cell.status !== "success") return cell
-				// 若後端判定此步驟需要同步，維持 pending
-				if (needsSet.has(stepKey))
-					return { status: "pending" as SyncStepUiStatus, message: "待同步" }
-				// 否則視為未變更（依賴 userInfo 未完成）
-				return { status: "unchanged" as SyncStepUiStatus, message: "基本資料未同步完成" }
-			}
-			fFace = clamp(fFace, "face")
-			fCard = clamp(fCard, "card")
-			fFp = clamp(fFp, "fingerprint")
+		if (list.length > 0 && pFinal.status !== "success") {
+			const clampSuccess = (cell: { status: SyncStepUiStatus; message: string | null }) =>
+				cell.status === "success"
+					? { status: "unchanged" as SyncStepUiStatus, message: "基本資料未同步完成" }
+					: cell
+			fFace = clampSuccess(fFace)
+			fCard = clampSuccess(fCard)
+			fFp = clampSuccess(fFp)
 		}
 
 		// 設備/連線層級錯誤：如實呈現「本次該地點全部無法同步」

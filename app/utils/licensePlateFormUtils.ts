@@ -220,17 +220,9 @@ export const resolvePersonPlateSyncSources = (
 	if (locationRows.length > 0) {
 		return locationRows.map((row) => ({ isapi_sync_status: row.isapi_sync_status }));
 	}
-	const master = (person.license_plates ?? []).filter((p) => String(p.plate_number ?? "").trim());
-	if (master.length > 0) {
-		return master.map((p) => ({
-			isapi_sync_status: p.isapi_sync_status ?? "pending",
-		}));
-	}
-	const count = Number(person.license_plate_count ?? 0);
-	if (count > 0) {
-		return Array.from({ length: count }, () => ({ isapi_sync_status: "pending" }));
-	}
-	return [];
+	return (person.license_plates ?? [])
+		.filter((p) => String(p.plate_number ?? "").trim())
+		.map((p) => ({ isapi_sync_status: p.isapi_sync_status ?? null }));
 };
 
 /** 地點名單 UI：車牌列顯示（僅有完整資料時；count-only 不回傳假列） */

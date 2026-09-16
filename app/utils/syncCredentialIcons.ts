@@ -141,14 +141,11 @@ const buildAccessCredentialSyncIndicators = (params: {
 	steps: AccessCredentialStep[]
 	labels: Record<AccessCredentialStep, string>
 	resolveStatus: (step: AccessCredentialStep) => SyncStepUiStatus | null
-	skipNoData?: boolean
 }): SyncCredentialIndicatorItem[] => {
 	const items: SyncCredentialIndicatorItem[] = []
 	for (const step of params.steps) {
 		if (!params.presence[step]) continue
-		const status = params.resolveStatus(step) ?? "pending"
-		if (params.skipNoData && status === "no_data") continue
-		items.push(toIndicator(step, params.labels[step], status))
+		items.push(toIndicator(step, params.labels[step], params.resolveStatus(step) ?? "pending"))
 	}
 	return items
 }
@@ -186,13 +183,10 @@ export const buildLocationMemberPlateSyncIndicators = (
 
 export const elevatorAccessStepToUiStatus = (
 	step?: { status?: string } | null,
-	needsSync?: boolean,
 ): SyncStepUiStatus => {
-	if (needsSync) return "pending"
-	const raw = String(step?.status || "").trim()
+	const raw = String(step?.status || "").trim().toLowerCase()
 	if (raw === "success" || raw === "synced" || raw === "unchanged") return "success"
 	if (raw === "failed") return "failed"
-	if (raw === "no_data") return "no_data"
 	return "pending"
 }
 
@@ -202,9 +196,8 @@ export const buildElevatorLadderCardIndicator = (
 ): SyncCredentialIndicatorItem[] => {
 	const hasLadder = candidate?.has_ladder_card ?? personHasLadderCard(person)
 	if (!hasLadder) return []
-	const needs = candidate?.needs_ladder_sync ?? candidate?.needs_sync
 	const status = candidate?.last_sync?.card
-		? elevatorAccessStepToUiStatus(candidate.last_sync.card, needs)
+		? elevatorAccessStepToUiStatus(candidate.last_sync.card)
 		: "pending"
 	return [toIndicator("ladderCard", "梯控卡", status)]
 }
@@ -214,14 +207,12 @@ export const buildElevatorAccessSyncIndicators = (
 	person: Person,
 ): SyncCredentialIndicatorItem[] => {
 	const access = candidate?.last_sync?.access
-	const needs = candidate?.needs_access_sync
 	return buildAccessCredentialSyncIndicators({
 		presence: resolveAccessCredentialPresence(person),
 		steps: ACCESS_CREDENTIAL_STEPS.access_control,
 		labels: ELEVATOR_ACCESS_LABELS,
 		resolveStatus: (step) =>
-			access?.[step] ? elevatorAccessStepToUiStatus(access[step], needs) : null,
-		skipNoData: true,
+			access?.[step] ? elevatorAccessStepToUiStatus(access[step]) : null,
 	})
 }
 
