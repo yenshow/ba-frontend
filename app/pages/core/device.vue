@@ -234,6 +234,7 @@ import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import PageTabs from "~/components/common/PageTabs.vue";
 import AsyncPanel from "~/components/common/AsyncPanel.vue";
 import { formatDate } from "~/utils/dateUtils";
+import { formatCameraHostPort, formatDeviceHostPort, parseCameraRtspUrl } from "~/utils/cameraRtspUtils";
 import { useDataLoader } from "~/composables/monitoring/useDataLoader";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
@@ -397,32 +398,36 @@ const getCameraGroup = (device: Device): string => {
 const getCameraIp = (device: Device): string => {
 	const config = device.config as CameraDeviceConfig | undefined;
 	if (!config) return "-";
-	if (config.host) return config.host;
-	if (!config.rtsp_url) return "-";
-	try {
-		const url = new URL(config.rtsp_url);
-		return url.hostname || url.host || "-";
-	} catch {
-		return "-";
+	if (config.rtsp_url) {
+		const parsed = parseCameraRtspUrl(config.rtsp_url);
+		const host = (config.host || parsed.host).trim();
+		return formatCameraHostPort(host, config.port ?? parsed.port) || "-";
 	}
+	if (config.host) return formatCameraHostPort(config.host, config.port) || "-";
+	return "-";
 };
 
 const formatDeviceConfig = (config: DeviceConfig): string => {
 	if (!config) return "-";
 	switch (config.type) {
 		case "controller":
-			return `${config.host}`;
+			return formatDeviceHostPort(config.host, config.port) || "-";
 		case "camera": {
 			const c = config as CameraDeviceConfig;
-			return c.host || (c.rtsp_url ? "RTSP" : "-");
+			if (c.rtsp_url || c.host) {
+				const parsed = c.rtsp_url ? parseCameraRtspUrl(c.rtsp_url) : null;
+				const host = (c.host || parsed?.host || "").trim();
+				return formatCameraHostPort(host, c.port ?? parsed?.port) || (c.rtsp_url ? "RTSP" : "-");
+			}
+			return "-";
 		}
 		case "sensor":
 			if (config.protocol === "modbus") {
-				return `${config.host}`;
+				return formatDeviceHostPort(config.host, config.port) || "-";
 			}
 			return config.connection_string || config.api_endpoint || "-";
 		case "access_control":
-			return `${config.host}`;
+			return formatDeviceHostPort(config.host, config.port) || "-";
 		default:
 			return "-";
 	}

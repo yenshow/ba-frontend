@@ -1,4 +1,5 @@
 import type { DeviceTypeCode } from "~/types/device"
+import { DEFAULT_CAMERA_RTSP_PORT, DEVICE_IPV4_HOST_PATTERN } from "~/utils/cameraRtspUtils"
 
 export type DeviceFormValidationInput = {
 	name: string
@@ -10,12 +11,16 @@ export type DeviceFormValidationInput = {
 	sensorUnitId?: number
 	isSensorPortInherited: boolean
 	isSensorUnitIdInherited: boolean
+	/** 所選型號為電表時需填用途系統 */
+	isElectricityMeter?: boolean
+	energyUsageSystem?: string
 	controllerPort?: number
 	isControllerPortInherited: boolean
 	isHcnetSdkController: boolean
 	controllerUsername?: string
 	controllerPassword?: string
 	cameraIp: string
+	cameraPort?: number
 	cameraUsername: string
 	cameraPassword: string
 }
@@ -27,6 +32,15 @@ export type DeviceModelFormValidationInput = {
 	cameraRtspTemplateEffective: string
 	cameraRtspTemplatePresetKey: string
 	cameraRtspTemplateCustom: string
+}
+
+const IPV4_RE = new RegExp(DEVICE_IPV4_HOST_PATTERN)
+
+const isValidIpv4Host = (value: string): boolean => IPV4_RE.test(value.trim())
+
+const isValidTcpPort = (port: number | null | undefined): boolean => {
+	const n = Number(port)
+	return Number.isFinite(n) && n >= 1 && n <= 65535
 }
 
 /** 設備表單儲存前集中驗證；回傳第一個錯誤訊息或 null */
@@ -49,6 +63,12 @@ export const validateDeviceFormForSave = (input: DeviceFormValidationInput): str
 		if (!hasUnitId) return "請填寫 Unit ID，或選擇已設定 Unit ID 的設備型號"
 	}
 
+	if (input.deviceTypeCode === "sensor" && input.isElectricityMeter) {
+		if (!String(input.energyUsageSystem || "").trim()) {
+			return "請選擇電表用途系統"
+		}
+	}
+
 	if (input.deviceTypeCode === "controller") {
 		const hasPort =
 			input.isControllerPortInherited || (input.controllerPort != null && input.controllerPort > 0)
@@ -65,6 +85,10 @@ export const validateDeviceFormForSave = (input: DeviceFormValidationInput): str
 		const user = input.cameraUsername.trim()
 		const pwd = input.cameraPassword.trim()
 		if (!ip || !user || !pwd) return "請填寫設備 IP、登入帳號與密碼"
+		if (!isValidIpv4Host(ip)) return "設備 IP 須為有效 IPv4"
+		if (!isValidTcpPort(input.cameraPort ?? DEFAULT_CAMERA_RTSP_PORT)) {
+			return "RTSP 埠須為 1–65535"
+		}
 	}
 
 	return null

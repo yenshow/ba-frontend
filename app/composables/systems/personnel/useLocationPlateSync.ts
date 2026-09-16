@@ -224,7 +224,9 @@ export const useLocationPlateSync = (params: {
 	}
 
 	const getPlatesForPerson = (locationId: number, personId: number) =>
-		getPlatesForLocation(locationId).filter((row) => row.person_id === personId)
+		getPlatesForLocation(locationId).filter(
+			(row) => Number(row.person_id) === Number(personId),
+		)
 
 	const resolvePlatesForPerson = (locationId: number, person: Person) =>
 		resolvePersonPlateDisplayRows(person, getPlatesForPerson(locationId, person.id))

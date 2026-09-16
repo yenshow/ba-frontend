@@ -100,9 +100,10 @@
 										v-model="controllerConfig.host"
 										type="text"
 										required
-										pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
+										:pattern="DEVICE_IPV4_HOST_PATTERN"
 										class="form-input"
-										placeholder="例如：192.168.2.205"
+										placeholder="區網或公網 IP，例如：192.168.2.205"
+										aria-label="控制器主機位址"
 									/>
 								</label>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
@@ -118,6 +119,7 @@
 										:disabled="isControllerPortInherited"
 										:aria-label="isHcnetSdkController ? 'SDK 端口' : 'Modbus 端口'"
 									/>
+									<p class="text-xs text-white/50 2xl:text-sm">可填 NAT 對外埠（現場內部仍為 502／8000）</p>
 								</label>
 								<template v-if="isHcnetSdkController">
 									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
@@ -189,9 +191,23 @@
 										v-model="cameraIp"
 										type="text"
 										required
-										pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
+										:pattern="DEVICE_IPV4_HOST_PATTERN"
 										class="form-input"
-										placeholder="例如：192.168.2.102"
+										placeholder="區網或公網 IP，例如：192.168.2.102"
+										aria-label="攝影機設備 IP 位址"
+									/>
+								</label>
+								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<span>RTSP 埠<span class="required-mark">*</span></span>
+									<input
+										v-model.number="cameraPort"
+										type="number"
+										min="1"
+										max="65535"
+										required
+										class="form-input"
+										placeholder="預設 554；NAT 對外埠如 8554"
+										aria-label="攝影機 RTSP 埠"
 									/>
 								</label>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
@@ -321,9 +337,10 @@
 											v-model="sensorConfig.host"
 											type="text"
 											required
-											pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
+											:pattern="DEVICE_IPV4_HOST_PATTERN"
 											class="form-input"
-											placeholder="例如：192.168.2.204"
+											placeholder="區網或公網 IP，例如：192.168.2.204"
+											aria-label="感測器主機位址"
 										/>
 									</label>
 									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
@@ -389,7 +406,8 @@
 										type="text"
 										required
 										class="form-input"
-										placeholder="例如：192.168.2.34"
+										placeholder="區網或公網 IP，例如：192.168.2.34"
+										aria-label="門禁主機位址"
 									/>
 								</label>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
@@ -400,8 +418,10 @@
 										min="1"
 										max="65535"
 										class="form-input"
-										placeholder="80"
+										placeholder="80；NAT 可填對外埠"
+										aria-label="門禁 ISAPI 端口"
 									/>
+									<p class="text-xs text-white/50 2xl:text-sm">可填 NAT 對外埠（現場內部仍為 80）</p>
 								</label>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>密碼<span class="required-mark">*</span></span>
@@ -507,18 +527,21 @@ import {
 	type ControllerDeviceConfig,
 	type CameraDeviceConfig,
 	type SensorDeviceConfig,
-	type AccessControlDeviceConfig,
+	type AccessControlDeviceConfig
 } from "~/types/device";
 import {
 	DEFAULT_CAMERA_RTSP_TEMPLATE,
+	DEFAULT_CAMERA_RTSP_PORT,
+	DEVICE_IPV4_HOST_PATTERN,
 	buildCameraRtspUrl,
 	previewCameraRtspTemplate,
 	parseCameraRtspUrl,
+	normalizeCameraRtspPort,
 	isTpLinkStyleTemplate,
 	resolveTpLinkRtspTemplate,
 	detectTpLinkStreamPath,
 	detectRtspChannelQuery,
-	type TpLinkStreamPath,
+	type TpLinkStreamPath
 } from "~/utils/cameraRtspUtils";
 import { CAMERA_MODEL_CATEGORY_OPTIONS } from "~/utils/cameraModelCategories";
 import { validateDeviceFormForSave } from "~/utils/deviceFormValidation";
@@ -576,6 +599,7 @@ const cameraConfig = reactive<CameraDeviceConfig>({
 });
 
 const cameraIp = ref<string>("");
+const cameraPort = ref<number>(DEFAULT_CAMERA_RTSP_PORT);
 const cameraUsername = ref<string>("admin");
 const cameraPassword = ref<string>("");
 const cameraStreamPath = ref<TpLinkStreamPath>("stream1");
@@ -624,7 +648,8 @@ const cameraRtspPreview = computed(() =>
 		cameraIp.value,
 		cameraUsername.value,
 		cameraPassword.value,
-		cameraChannel.value
+		cameraChannel.value,
+		cameraPort.value
 	)
 );
 
@@ -795,6 +820,7 @@ const resetForm = () => {
 	cameraConfig.rtsp_url = "";
 
 	cameraIp.value = "";
+	cameraPort.value = DEFAULT_CAMERA_RTSP_PORT;
 	cameraUsername.value = "admin";
 	cameraPassword.value = "";
 	cameraStreamPath.value = "stream1";
@@ -960,12 +986,14 @@ const loadConfigFromDevice = (device: Device) => {
 			cameraGroup.value = camCfg.group ?? "";
 			if (!(cameraConfig.rtsp_url || "").trim()) {
 				cameraIp.value = "";
+				cameraPort.value = normalizeCameraRtspPort(camCfg.port);
 				cameraUsername.value = camCfg.username?.trim() || "admin";
 				cameraPassword.value = "";
 				break;
 			}
-			const { host, user, password } = parseCameraRtspUrl(cameraConfig.rtsp_url);
+			const { host, port, user, password } = parseCameraRtspUrl(cameraConfig.rtsp_url);
 			cameraIp.value = host;
+			cameraPort.value = normalizeCameraRtspPort(camCfg.port ?? port);
 			cameraUsername.value = camCfg.username?.trim() || user || "admin";
 			cameraPassword.value = password;
 			cameraStreamPath.value =
@@ -1047,6 +1075,7 @@ const getCurrentConfig = (): DeviceConfig => {
 			const ip = cameraIp.value.trim();
 			const user = cameraUsername.value.trim() || "admin";
 			const pwd = cameraPassword.value.trim();
+			const port = normalizeCameraRtspPort(cameraPort.value);
 			const rtspUrl =
 				ip && pwd
 					? buildCameraRtspUrl(
@@ -1054,13 +1083,15 @@ const getCurrentConfig = (): DeviceConfig => {
 							ip,
 							user,
 							pwd,
-							cameraChannel.value
+							cameraChannel.value,
+							port
 						)
 					: cameraConfig.rtsp_url;
 			return {
 				type: "camera",
 				rtsp_url: rtspUrl,
 				host: ip || cameraConfig.host,
+				port,
 				username: user,
 				password: pwd || cameraConfig.password,
 				group: cameraGroup.value.trim() || undefined
@@ -1104,8 +1135,9 @@ const handleSubmit = () => {
 		controllerUsername: controllerConfig.username,
 		controllerPassword: controllerConfig.password,
 		cameraIp: cameraIp.value,
+		cameraPort: cameraPort.value,
 		cameraUsername: cameraUsername.value,
-		cameraPassword: cameraPassword.value,
+		cameraPassword: cameraPassword.value
 	});
 	if (validationError) {
 		localErrorMessage.value = validationError;
