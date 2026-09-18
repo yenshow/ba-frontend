@@ -166,10 +166,10 @@ export const buildLocationMemberSyncIndicators = (params: {
 }
 
 export const buildPlateSyncIndicators = (status: SyncStepUiStatus): SyncCredentialIndicatorItem[] => [
-	toIndicator("licensePlate", "車牌", status),
+	toIndicator("licensePlate", "車牌", status === "no_data" ? "pending" : status),
 ]
 
-/** 車牌地點名單：有人員主檔或地點車牌時顯示彙整同步 icon；無車牌不顯示 */
+/** 車牌地點名單：有車牌才顯示 icon（待同步黃／成功綠／失敗紅）；無車牌不顯示，對齊門禁 */
 export const buildLocationMemberPlateSyncIndicators = (
 	person: Person,
 	locationRows: LocationLicensePlateRow[],

@@ -196,10 +196,19 @@
 		@cancel="cancelPlateForm"
 		@bind-mode-change="handleBindModeChange"
 	/>
+
+	<ConfirmDialog
+		v-model="showConfirmDialog"
+		:title="confirmDialogConfig.title"
+		:message="confirmDialogConfig.message"
+		:details="confirmDialogConfig.details"
+		:type="confirmDialogConfig.type"
+		@confirm="handleConfirmDeletePlate"
+	/>
 </template>
 
 <script setup lang="ts">
-import { computed, toRef } from "vue"
+import { computed, ref, toRef } from "vue"
 import type { LocationTemporaryLicensePlate, VehicleAccessLocation } from "~/types/vehicleAccess"
 import type { LocationLicensePlateRow, Person } from "~/types/personnel"
 import DeviceManageDialogShell from "~/components/personnel/device-sync/DeviceManageDialogShell.vue"
@@ -208,9 +217,11 @@ import LocationMembersGroupPanel from "~/components/personnel/LocationMembersGro
 import PersonnelSyncCredentialIndicators from "~/components/personnel/PersonnelSyncCredentialIndicators.vue"
 import PersonnelSyncWarningsDialog from "~/components/personnel/dialogs/PersonnelSyncWarningsDialog.vue"
 import VehicleAccessIsapiPlateFormDialog from "~/components/vehicle-access/VehicleAccessIsapiPlateFormDialog.vue"
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import type { LocationPlateSync } from "~/composables/systems/personnel/useLocationPlateSync"
 import { useLocationDeviceManageDialog } from "~/composables/systems/personnel/useLocationDeviceManageDialog"
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { parseLocationNumericId, TEMPORARY_VEHICLE_FILTER_ID } from "~/utils/personnelUtils"
 import {
 	formatLicensePlateDisplayTime,
@@ -218,6 +229,7 @@ import {
 	plateSyncStatusToUiStatus,
 } from "~/utils/licensePlateFormUtils"
 import { buildPlateSyncIndicators } from "~/utils/syncCredentialIcons"
+import { buildDeletePlateConfirmCopy } from "~/utils/confirmCopy"
 
 const props = defineProps<{
 	modelValue: boolean
@@ -247,7 +259,16 @@ const locationTitleMeta = computed(() => {
 })
 const locationName = computed(() => props.location?.name ?? null)
 
-const toolbarDescription = "勾選允許進出此地點的人員；左欄「臨時車輛」管理不上人員主檔的車牌。"
+const confirmDialog = useConfirmDialog()
+const showConfirmDialog = confirmDialog.showDialog
+const confirmDialogConfig = confirmDialog.config
+const pendingDeletePlate = ref<
+	| { kind: "bound"; row: LocationLicensePlateRow }
+	| { kind: "temporary"; row: LocationTemporaryLicensePlate }
+	| null
+>(null)
+
+const toolbarDescription = "勾選允許進出此地點的人員；套用後自動同步車牌至攝影機，狀態以圖示顯示於右側。左欄「臨時車輛」管理不上人員主檔的車牌。"
 
 const {
 	showWarningsDialog,
@@ -395,14 +416,32 @@ const handleSavePlate = async () => {
 	await savePlate(locationId.value)
 }
 
-const handleDeletePlate = async (row: LocationLicensePlateRow) => {
+const handleDeletePlate = (row: LocationLicensePlateRow) => {
 	if (locationId.value == null) return
-	await deletePlate(locationId.value, row)
+	pendingDeletePlate.value = { kind: "bound", row }
+	confirmDialog.show(buildDeletePlateConfirmCopy({ plateNumber: row.plate_number }))
 }
 
-const handleDeleteTemporaryPlate = async (row: LocationTemporaryLicensePlate) => {
+const handleDeleteTemporaryPlate = (row: LocationTemporaryLicensePlate) => {
 	if (locationId.value == null) return
-	await deleteTemporaryPlate(locationId.value, row)
+	pendingDeletePlate.value = { kind: "temporary", row }
+	confirmDialog.show(
+		buildDeletePlateConfirmCopy({
+			plateNumber: row.plate_number,
+			displayName: row.display_name,
+		}),
+	)
+}
+
+const handleConfirmDeletePlate = async () => {
+	if (locationId.value == null || !pendingDeletePlate.value) return
+	const pending = pendingDeletePlate.value
+	pendingDeletePlate.value = null
+	if (pending.kind === "bound") {
+		await deletePlate(locationId.value, pending.row)
+		return
+	}
+	await deleteTemporaryPlate(locationId.value, pending.row)
 }
 
 const handleClose = () => {

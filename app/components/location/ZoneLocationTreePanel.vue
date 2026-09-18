@@ -54,7 +54,14 @@
 								)
 						"
 					>
-						<div class="flex items-center gap-1 px-2 py-2">
+						<div
+							class="flex items-center gap-1 rounded-lg px-2 py-2"
+							:class="
+								isZoneSelected(getZoneId(zone))
+									? 'bg-cyan-500/25 ring-1 ring-cyan-400/35'
+									: ''
+							"
+						>
 							<button
 								v-if="reorderable"
 								type="button"

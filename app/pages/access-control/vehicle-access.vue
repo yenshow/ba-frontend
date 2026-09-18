@@ -240,6 +240,15 @@
 			@update:time-range="handleSimulationTimeRangeUpdate"
 		/>
 	</SimulationFrame>
+
+	<ConfirmDialog
+		v-model="showConfirmDialog"
+		:title="confirmDialogConfig.title"
+		:message="confirmDialogConfig.message"
+		:details="confirmDialogConfig.details"
+		:type="confirmDialogConfig.type"
+		@confirm="handleConfirmResetParkingStats"
+	/>
 </template>
 
 <script setup lang="ts">
@@ -261,10 +270,13 @@ import VehicleOverviewCard from "~/components/vehicle-access/VehicleOverviewCard
 import VehicleGroupDetailDialog from "~/components/vehicle-access/VehicleGroupDetailDialog.vue"
 import VehicleAccessIsapiManageDialog from "~/components/vehicle-access/VehicleAccessIsapiManageDialog.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import SimulationFrame from "~/components/common/SimulationFrame.vue"
 import VehicleAccessSimulation, {
 	type VehicleAccessSimulationLocationOption,
 } from "~/components/vehicle-access/VehicleAccessSimulation.vue"
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
+import { VEHICLE_ACCESS_RESET_STATS_CONFIRM } from "~/utils/confirmCopy"
 import { useVehicleAccessState } from "~/composables/systems/vehicleAccess/useVehicleAccessState"
 import { useVehicleAccessLocationApi } from "~/composables/location/api/useVehicleAccessLocationApi"
 import {
@@ -375,6 +387,9 @@ const handleVehicleMembersUpdated = async () => {
 }
 const isOverviewCollapsed = ref(false)
 const showLocationManagementDialog = ref(false)
+const confirmDialog = useConfirmDialog()
+const showConfirmDialog = confirmDialog.showDialog
+const confirmDialogConfig = confirmDialog.config
 
 const overviewListRef = ref<HTMLElement | null>(null)
 const simulationLogs = ref<VehicleDataLog[]>([])
@@ -534,12 +549,13 @@ const handleOverviewClick = (summary: VehicleAccessLocationSummary) => {
 	filters.value = { ...filters.value, locationId: nextId }
 }
 
-const handleResetParkingStats = async () => {
+const handleResetParkingStats = () => {
 	if (!isParkingMode.value) return
-	const confirmed = window.confirm(
-		"確定要重置此停車場的進場、出場與在場統計？過車紀錄不會刪除，完整報表仍可查詢歷史。"
-	)
-	if (!confirmed) return
+	confirmDialog.show(VEHICLE_ACCESS_RESET_STATS_CONFIRM)
+}
+
+const handleConfirmResetParkingStats = async () => {
+	if (!isParkingMode.value) return
 	try {
 		await resetParkingStatsForSelectedSite()
 		showToast("success", TOAST.PARKING_STATS_RESET)

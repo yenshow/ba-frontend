@@ -28,7 +28,7 @@
 				<p class="mt-1 text-xs text-white/55 2xl:text-sm">選取後即可於右側調整詳細設定</p>
 			</div>
 
-			<template v-else-if="selection.type === 'zone' && selectedZone">
+			<template v-else-if="selectedZone && selection">
 				<div class="space-y-4">
 					<ZoneFormFields
 						:zone="zoneForFormFields"
@@ -37,7 +37,7 @@
 					/>
 
 					<div
-						v-if="systemType === 'access_security'"
+						v-if="selection.type === 'zone' && systemType === 'access_security'"
 						class="rounded-lg border border-white/10 bg-white/[0.04] p-3"
 					>
 						<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
@@ -56,7 +56,7 @@
 					</div>
 
 					<div
-						v-if="zoneLocationCount === 0"
+						v-if="selection.type === 'zone' && zoneLocationCount === 0"
 						class="flex min-h-[10rem] flex-col items-center justify-center rounded-lg border border-dashed border-white/20 bg-white/[0.04] px-4 py-8 text-center"
 					>
 						<svg
@@ -80,32 +80,27 @@
 							請於左側展開此區域後按「＋」新增{{ locationLabel }}
 						</p>
 					</div>
-				</div>
-			</template>
 
-			<template
-				v-else-if="
-					selection.type === 'location' && selectedZone != null && selectedLocationIndex >= 0
-				"
-			>
-				<component
-					:is="locationManagementComponent"
-					:zone="selectedZone"
-					:selected-location-index="selectedLocationIndex"
-					:devices="devices"
-					:is-loading-devices="isLoadingDevices"
-					:device-hint="deviceHint"
-					:person-groups="personGroups"
-					:vehicle-custom-groups="vehicleCustomGroups"
-					:doors="doors"
-					:access-control-devices="accessControlDevices"
-					:isapi-camera-devices="isapiCameraDevices"
-					:surveillance-camera-devices="surveillanceCameraDevices"
-					@update-location="
-						(index: number, location: unknown) =>
-							emit('update-location', selection.zoneId, index, location)
-					"
-				/>
+					<component
+						v-if="selection.type === 'location' && selectedLocationIndex >= 0"
+						:is="locationManagementComponent"
+						:zone="selectedZone"
+						:selected-location-index="selectedLocationIndex"
+						:devices="devices"
+						:is-loading-devices="isLoadingDevices"
+						:device-hint="deviceHint"
+						:person-groups="personGroups"
+						:vehicle-custom-groups="vehicleCustomGroups"
+						:doors="doors"
+						:access-control-devices="accessControlDevices"
+						:isapi-camera-devices="isapiCameraDevices"
+						:surveillance-camera-devices="surveillanceCameraDevices"
+						@update-location="
+							(index: number, location: unknown) =>
+								emit('update-location', selection.zoneId, index, location)
+						"
+					/>
+				</div>
 			</template>
 
 			<div

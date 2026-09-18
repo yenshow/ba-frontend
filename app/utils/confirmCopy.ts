@@ -105,3 +105,32 @@ export const getLocationDeleteSuccessToast = (
 	}
 	return "地點刪除成功"
 }
+
+/** 人流統計主畫面「重置統計」確認（不刪進出紀錄） */
+export const PEOPLE_COUNTING_RESET_STATS_CONFIRM: DeleteConfirm = {
+	title: "確認重置",
+	message: "確定要重置此地點的進場、出場與在場統計？",
+	details: "進出紀錄不會刪除，完整報表仍可查詢歷史。",
+	type: "warning",
+}
+
+/** 車輛進出停車場模式「重置統計」確認（不刪過車紀錄） */
+export const VEHICLE_ACCESS_RESET_STATS_CONFIRM: DeleteConfirm = {
+	title: "確認重置",
+	message: "確定要重置此停車場的進場、出場與在場統計？",
+	details: "過車紀錄不會刪除，完整報表仍可查詢歷史。",
+	type: "warning",
+}
+
+/** 車牌管理：刪除綁定車牌或臨時車牌 */
+export const buildDeletePlateConfirmCopy = (args: {
+	plateNumber: string
+	displayName?: string
+}): DeleteConfirm => ({
+	title: "確認刪除",
+	message: args.displayName
+		? `確定要刪除臨時車牌 ${args.plateNumber}（${args.displayName}）？`
+		: `確定要刪除車牌 ${args.plateNumber}？`,
+	details: "此操作無法復原。",
+	type: "danger",
+})

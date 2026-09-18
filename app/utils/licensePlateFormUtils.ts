@@ -212,7 +212,7 @@ export const personHasLicensePlates = (person: Person): boolean => {
 
 type PlateSyncSource = { isapi_sync_status?: string | null };
 
-/** 地點名單 UI：優先用地點 API 列（含 ISAPI 狀態），否則回退人員主檔 */
+/** 地點名單 UI：優先用地點 API 列（含 ISAPI 狀態），否則回退人員主檔／count */
 export const resolvePersonPlateSyncSources = (
 	person: Person,
 	locationRows: LocationLicensePlateRow[],
@@ -220,9 +220,11 @@ export const resolvePersonPlateSyncSources = (
 	if (locationRows.length > 0) {
 		return locationRows.map((row) => ({ isapi_sync_status: row.isapi_sync_status }));
 	}
-	return (person.license_plates ?? [])
+	const master = (person.license_plates ?? [])
 		.filter((p) => String(p.plate_number ?? "").trim())
 		.map((p) => ({ isapi_sync_status: p.isapi_sync_status ?? null }));
+	if (master.length > 0) return master;
+	return personHasLicensePlates(person) ? [{ isapi_sync_status: null }] : [];
 };
 
 /** 地點名單 UI：車牌列顯示（僅有完整資料時；count-only 不回傳假列） */
