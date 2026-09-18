@@ -235,6 +235,15 @@
 			@update:time-range="handleSimulationTimeRangeUpdate"
 		/>
 	</SimulationFrame>
+
+	<ConfirmDialog
+		v-model="showConfirmDialog"
+		:title="confirmDialogConfig.title"
+		:message="confirmDialogConfig.message"
+		:details="confirmDialogConfig.details"
+		:type="confirmDialogConfig.type"
+		@confirm="handleConfirmResetStats"
+	/>
 </template>
 
 <script setup lang="ts">
@@ -253,8 +262,11 @@ import LocationDetailPanel from "~/components/people-counting/LocationDetailPane
 import UnitPersonnelDialog from "~/components/people-counting/UnitPersonnelDialog.vue"
 import LocationOverviewCard from "~/components/people-counting/LocationOverviewCard.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import SimulationFrame from "~/components/common/SimulationFrame.vue"
 import PeopleCountingSimulation from "~/components/people-counting/PeopleCountingSimulation.vue"
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
+import { PEOPLE_COUNTING_RESET_STATS_CONFIRM } from "~/utils/confirmCopy"
 import { usePeopleCountingState } from "~/composables/systems/peopleCounting/usePeopleCountingState"
 import { ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE } from "~/utils/entryExitTimeRange"
 import { usePeopleCountingLocationApi } from "~/composables/location/api/usePeopleCountingLocationApi"
@@ -419,6 +431,9 @@ const overviewListRef = ref<HTMLElement | null>(null)
 // 地點管理與模擬框狀態
 const showLocationManagementDialog = ref(false)
 const showSimulationFrame = ref(false)
+const confirmDialog = useConfirmDialog()
+const showConfirmDialog = confirmDialog.showDialog
+const confirmDialogConfig = confirmDialog.config
 
 const simulationTimeRange = ref({
 	startDate: "",
@@ -510,12 +525,13 @@ const handleSimulationTimeRangeUpdate = (v: {
 	void loadSimulationLogs()
 }
 
-const handleResetStats = async () => {
+const handleResetStats = () => {
 	if (!selectedLocation.value) return
-	const confirmed = window.confirm(
-		"確定要重置此地點的進場、出場與在場統計？進出紀錄不會刪除，完整報表仍可查詢歷史。"
-	)
-	if (!confirmed) return
+	confirmDialog.show(PEOPLE_COUNTING_RESET_STATS_CONFIRM)
+}
+
+const handleConfirmResetStats = async () => {
+	if (!selectedLocation.value) return
 	try {
 		await resetStatsForSelectedSite()
 		showToast("success", TOAST.PEOPLE_COUNTING_RESET)

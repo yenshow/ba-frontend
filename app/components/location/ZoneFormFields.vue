@@ -1,6 +1,6 @@
 <template>
 	<div class="border-b border-white/10 pb-3">
-		<div class="flex items-center gap-3">
+		<div class="flex flex-wrap items-center gap-3">
 		<span class="whitespace-nowrap text-base font-medium text-white/80 2xl:text-lg">區域名稱</span>
 		<input
 			v-model="localName"

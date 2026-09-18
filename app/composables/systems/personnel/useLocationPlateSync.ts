@@ -421,7 +421,6 @@ export const useLocationPlateSync = (params: {
 	}
 
 	const deletePlate = async (locationId: number, row: LocationLicensePlateRow) => {
-		if (!window.confirm(`確定刪除車牌 ${row.plate_number}？`)) return false
 		try {
 			const person = await personnelApi.getPersonById(row.person_id)
 			const items = mapPersonLicensePlatesToForm(person).filter(
@@ -442,9 +441,6 @@ export const useLocationPlateSync = (params: {
 		locationId: number,
 		row: LocationTemporaryLicensePlate,
 	) => {
-		if (!window.confirm(`確定刪除臨時車牌 ${row.plate_number}（${row.display_name}）？`)) {
-			return false
-		}
 		try {
 			const result = await vehicleAccessApi.deleteLocationTemporaryPlate(locationId, row.id)
 			await ensureTemporaryPlates(locationId)
