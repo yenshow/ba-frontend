@@ -170,7 +170,7 @@
 							</button>
 
 							<div v-if="expandedSections.linkage" class="mt-4 space-y-4">
-								<div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+								<div v-if="canUseCameraLinkage" class="rounded-2xl border border-white/10 bg-white/5 p-4">
 									<p class="mb-3 text-sm font-medium text-white/90">攝影機連動</p>
 									<label class="flex items-center gap-3 text-sm text-white/80">
 										<input v-model="cameraLinkage.enabled" type="checkbox" class="h-4 w-4" />
@@ -222,7 +222,7 @@
 									</div>
 								</div>
 
-								<div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+								<div v-if="canUseAccessDoorLinkage" class="rounded-2xl border border-white/10 bg-white/5 p-4">
 									<p class="mb-3 text-sm font-medium text-white/90">門禁連動</p>
 									<label class="flex items-center gap-3 text-sm text-white/80">
 										<input v-model="accessDoorLinkage.enabled" type="checkbox" class="h-4 w-4" />
@@ -454,6 +454,7 @@ import {
 	validateAlertRuleFormForSave
 } from "~/utils/alertRuleFormValidation";
 import { useEnvironmentParameterCatalog } from "~/composables/systems/environment/useEnvironmentParameterCatalog";
+import { useLicense } from "~/composables/core/useLicense";
 import { getParameterUnit } from "~/utils/sensorUtils";
 
 interface OptionItem {
@@ -687,8 +688,17 @@ const handleAccessDoorToggleDevice = (id: number, checked: boolean) => {
 	accessDoorLinkage.device_ids = [...set];
 };
 
+const { hasFeature } = useLicense();
 const { thresholdOptions, ensureLoaded: ensureEnvironmentCatalogLoaded } =
 	useEnvironmentParameterCatalog();
+
+const canUseCameraLinkage = computed(() => hasFeature("surveillance"));
+const canUseAccessDoorLinkage = computed(() => hasFeature("people_counting"));
+
+const loadEnvironmentCatalogIfNeeded = () => {
+	if (form.source !== "environment") return;
+	void ensureEnvironmentCatalogLoaded();
+};
 
 const parameterOptions = computed<OptionItem[]>(() => thresholdOptions.value);
 
@@ -877,6 +887,19 @@ const loadAccessDevices = async () => {
 	await accessDevicesLoadPromise;
 };
 
+const preloadLinkageDevices = () => {
+	if (canUseCameraLinkage.value && devices.value.length === 0 && !isDevicesLoading.value) {
+		void loadDevices();
+	}
+	if (
+		canUseAccessDoorLinkage.value &&
+		accessDevices.value.length === 0 &&
+		!isAccessDevicesLoading.value
+	) {
+		void loadAccessDevices();
+	}
+};
+
 const loadIntegrationsForRule = async (ruleId: number) => {
 	try {
 		const res = await alertApi.getAlertRuleIntegrations(ruleId);
@@ -952,6 +975,7 @@ watch(
 			return;
 		}
 		form.source = rule.source;
+		loadEnvironmentCatalogIfNeeded();
 		form.alert_type = rule.alert_type;
 		// 相容：舊資料若是 error severity，前端顯示成 critical（紅）
 		form.severity = rule.severity === "error" ? "critical" : rule.severity;
@@ -987,12 +1011,7 @@ watch(
 		}
 
 		if (import.meta.client) {
-			if (devices.value.length === 0 && !isDevicesLoading.value) {
-				void loadDevices();
-			}
-			if (accessDevices.value.length === 0 && !isAccessDevicesLoading.value) {
-				void loadAccessDevices();
-			}
+			preloadLinkageDevices();
 			if (rule.id) {
 				void loadIntegrationsForRule(rule.id);
 			}
@@ -1016,13 +1035,8 @@ watch(
 		smtpTestFeedback.ok = false;
 		smtpTestFeedback.message = "";
 		if (!import.meta.client) return;
-		void ensureEnvironmentCatalogLoaded();
-		if (devices.value.length === 0 && !isDevicesLoading.value) {
-			void loadDevices();
-		}
-		if (accessDevices.value.length === 0 && !isAccessDevicesLoading.value) {
-			void loadAccessDevices();
-		}
+		loadEnvironmentCatalogIfNeeded();
+		preloadLinkageDevices();
 	},
 	{ immediate: true }
 );
@@ -1031,11 +1045,11 @@ const buildAlertRuleValidationInput = () => ({
 	target_type: form.target_type || null,
 	target_id: form.target_id != null ? Number(form.target_id) : null,
 	cameraLinkage: {
-		enabled: cameraLinkage.enabled,
+		enabled: cameraLinkage.enabled && canUseCameraLinkage.value,
 		camera_device_ids: normalizeAlertRuleCameraDeviceIds(cameraDeviceIdsModel.value)
 	},
 	accessDoorLinkage: {
-		enabled: accessDoorLinkage.enabled,
+		enabled: accessDoorLinkage.enabled && canUseAccessDoorLinkage.value,
 		allDevices: accessDoorLinkage.allDevices,
 		device_ids: normalizeAlertRuleAccessDeviceIds(accessDoorLinkage.device_ids)
 	},
@@ -1112,13 +1126,13 @@ const handleSubmit = () => {
 	};
 
 	const integrations: IntegrationsDraft = {
-		cameraLinkage: cameraLinkage.enabled
+		cameraLinkage: cameraLinkage.enabled && canUseCameraLinkage.value
 			? {
 					enabled: true,
 					camera_device_ids: normalizeAlertRuleCameraDeviceIds(cameraDeviceIdsModel.value).slice(0, 4)
 				}
 			: null,
-		accessDoorLinkage: accessDoorLinkage.enabled
+		accessDoorLinkage: accessDoorLinkage.enabled && canUseAccessDoorLinkage.value
 			? {
 					enabled: true,
 					device_ids: accessDoorLinkage.allDevices
