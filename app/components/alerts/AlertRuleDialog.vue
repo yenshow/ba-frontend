@@ -1195,6 +1195,11 @@ const handleElevatorCallToggleLocation = (id: number, checked: boolean) => {
 const { thresholdOptions, ensureLoaded: ensureEnvironmentCatalogLoaded } =
 	useEnvironmentParameterCatalog()
 
+const loadEnvironmentCatalogIfNeeded = () => {
+	if (form.source !== "environment") return
+	void ensureEnvironmentCatalogLoaded()
+}
+
 const parameterOptions = computed<OptionItem[]>(() => thresholdOptions.value)
 
 const zonesCache = useZonesCache()
@@ -1421,6 +1426,29 @@ const loadElevatorSites = async () => {
 	}
 }
 
+const preloadLinkageDevices = () => {
+	if (devices.value.length === 0 && !isDevicesLoading.value) {
+		void loadDevices()
+	}
+	if (
+		canUseAccessDoorLinkage.value &&
+		accessDevices.value.length === 0 &&
+		!isAccessDevicesLoading.value
+	) {
+		void loadAccessDevices()
+	}
+	if (
+		canUseSipRingLinkage.value &&
+		indoorDevices.value.length === 0 &&
+		!isIndoorDevicesLoading.value
+	) {
+		void loadIndoorDevices()
+	}
+	if (canUseElevatorCallLinkage.value) {
+		void loadElevatorSites()
+	}
+}
+
 const loadIntegrationsForRule = async (ruleId: number) => {
 	try {
 		const res = await alertApi.getAlertRuleIntegrations(ruleId)
@@ -1536,6 +1564,7 @@ watch(
 			return
 		}
 		form.source = rule.source
+		loadEnvironmentCatalogIfNeeded()
 		form.alert_type = rule.alert_type
 		form.severity =
 			rule.source === "energy" && rule.severity === "error"
@@ -1594,18 +1623,7 @@ watch(
 		}
 
 		if (import.meta.client) {
-			if (devices.value.length === 0 && !isDevicesLoading.value) {
-				void loadDevices()
-			}
-			if (accessDevices.value.length === 0 && !isAccessDevicesLoading.value) {
-				void loadAccessDevices()
-			}
-			if (indoorDevices.value.length === 0 && !isIndoorDevicesLoading.value) {
-				void loadIndoorDevices()
-			}
-			if (canUseElevatorCallLinkage.value) {
-				void loadElevatorSites()
-			}
+			preloadLinkageDevices()
 			if (rule.id) {
 				void loadIntegrationsForRule(rule.id)
 			}
@@ -1629,19 +1647,8 @@ watch(
 		smtpTestFeedback.ok = false
 		smtpTestFeedback.message = ""
 		if (!import.meta.client) return
-		void ensureEnvironmentCatalogLoaded()
-		if (devices.value.length === 0 && !isDevicesLoading.value) {
-			void loadDevices()
-		}
-		if (accessDevices.value.length === 0 && !isAccessDevicesLoading.value) {
-			void loadAccessDevices()
-		}
-		if (indoorDevices.value.length === 0 && !isIndoorDevicesLoading.value) {
-			void loadIndoorDevices()
-		}
-		if (canUseElevatorCallLinkage.value) {
-			void loadElevatorSites()
-		}
+		loadEnvironmentCatalogIfNeeded()
+		preloadLinkageDevices()
 	},
 	{ immediate: true }
 )

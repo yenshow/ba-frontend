@@ -1,3 +1,4 @@
+import { useLicense } from "~/composables/core/useLicense"
 import { useEnvironmentApi } from "~/composables/systems/environment/useEnvironmentApi"
 import { ENVIRONMENT_PARAMETERS_FALLBACK } from "~/constants/environmentParameters.fallback"
 import type { EnvironmentParametersResponse } from "~/types/environmentCatalog"
@@ -16,6 +17,7 @@ export const useEnvironmentParameterCatalog = () => {
 	)
 	const isLoaded = useState<boolean>(CATALOG_LOADED_KEY, () => false)
 	const environmentApi = useEnvironmentApi()
+	const { hasFeature } = useLicense()
 
 	const applyCatalog = (data: EnvironmentParametersResponse) => {
 		catalog.value = data
@@ -24,6 +26,9 @@ export const useEnvironmentParameterCatalog = () => {
 	}
 
 	const load = async (force = false): Promise<EnvironmentParametersResponse> => {
+		if (!hasFeature("environment")) {
+			return catalog.value ?? getEffectiveEnvironmentCatalog()
+		}
 		if (catalog.value && !force) {
 			return catalog.value
 		}

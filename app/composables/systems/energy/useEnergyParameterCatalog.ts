@@ -3,6 +3,7 @@ import {
 	type EnergyMeterKind,
 	type EnergyParameterDef,
 } from "~/constants/energyParameters.fallback"
+import { useLicense } from "~/composables/core/useLicense"
 import { useApiBase } from "~/composables/core/useApiBase"
 
 type CatalogPayload = {
@@ -11,8 +12,7 @@ type CatalogPayload = {
 }
 
 /**
- * Central：嘗試 GET /energy/parameters；失敗則 fallback。
- * Construction 鏡像檔請改為僅 fallback（見 construction 同路徑）。
+ * Central 專用。未授權 energy 時不請求，沿用本機 fallback。
  */
 export const useEnergyParameterCatalog = () => {
 	const { request } = useApiBase()
@@ -22,8 +22,10 @@ export const useEnergyParameterCatalog = () => {
 	)
 	const loaded = useState<boolean>("energy-parameter-catalog-loaded", () => false)
 
+	const { hasFeature } = useLicense()
+
 	const ensureLoaded = async () => {
-		if (loaded.value) return
+		if (!hasFeature("energy") || loaded.value) return
 		try {
 			const data = await request<CatalogPayload>("/energy/parameters")
 			if (Array.isArray(data?.parameters) && data.parameters.length > 0) {
