@@ -114,6 +114,14 @@ export const PEOPLE_COUNTING_RESET_STATS_CONFIRM: DeleteConfirm = {
 	type: "warning",
 }
 
+/** 時段簽到主畫面「重置統計」確認（不刪歷史場次；工地頁） */
+export const ROLL_CALL_RESET_STATS_CONFIRM: DeleteConfirm = {
+	title: "確認重置",
+	message: "確定要重置此地點的應到、實到與未到統計？",
+	details: "今日已簽到狀態會清回尚未簽到；完整報表仍可查詢歷史場次。",
+	type: "warning",
+}
+
 /** 車輛進出停車場模式「重置統計」確認（不刪過車紀錄） */
 export const VEHICLE_ACCESS_RESET_STATS_CONFIRM: DeleteConfirm = {
 	title: "確認重置",

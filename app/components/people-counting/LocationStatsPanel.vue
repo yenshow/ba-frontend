@@ -1,88 +1,39 @@
 <template>
-	<div class="flex min-h-0 flex-1 flex-col gap-8">
-		<!-- 今日統計 -->
-		<div class="flex min-h-[220px] shrink-0 items-center justify-center gap-4">
-			<div class="flex h-40 w-40 items-center justify-center 2xl:h-48 2xl:w-48">
-				<img :src="statusIndicatorSrc" alt="工地狀態" class="h-full w-full object-contain" />
+	<div class="mx-auto grid w-full max-w-6xl grid-cols-3 gap-6 rounded-lg text-white xl:gap-8">
+		<div
+			v-for="card in cards"
+			:key="card.label"
+			class="flex flex-col items-center justify-center gap-4 monitoring-chip-bg py-4"
+		>
+			<div class="whitespace-nowrap text-[24px] font-semibold leading-none 2xl:text-[36px]">
+				{{ card.label }}
 			</div>
-			<div class="space-y-2 text-white">
-				<div class="flex items-center justify-center gap-4">
-					<div class="text-lg font-semibold 2xl:text-2xl">進場人數</div>
-					<div class="w-[100px] bg-black/20 text-center text-2xl 2xl:w-[120px] 2xl:text-3xl">
-						{{ entryCount || 0 }}
-					</div>
-				</div>
-
-				<div class="flex items-center justify-center gap-4">
-					<div class="text-lg font-semibold 2xl:text-2xl">出場人數</div>
-					<div class="w-[100px] bg-black/20 text-center text-2xl 2xl:w-[120px] 2xl:text-3xl">
-						{{ exitCount || 0 }}
-					</div>
-				</div>
-
-				<div class="flex items-center justify-center gap-4">
-					<div class="text-lg font-semibold 2xl:text-2xl">在場人數</div>
-					<div class="w-[100px] bg-black/20 text-center text-2xl 2xl:w-[120px] 2xl:text-3xl">
-						{{ currentCount || 0 }}
-					</div>
-				</div>
+			<div
+				class="vehicle-stats-value flex min-w-[120px] items-center justify-center bg-black/20 text-[48px] leading-none 2xl:min-w-[200px] 2xl:text-[96px]"
+			>
+				{{ card.value ?? 0 }}
 			</div>
 		</div>
-		<!-- 進出場記錄表 -->
-		<EntryExitLogTable
-			:logs="logs"
-			:data-source="dataSource"
-			:camera-mode="cameraMode"
-			:display-columns="displayColumns"
-		/>
-		<Pagination
-			class="shrink-0"
-			:total="logsTotal"
-			:offset="logsOffset"
-			:limit="logsPageSize"
-			:disabled="logsPaginationDisabled"
-			:show="logsTotal > logsPageSize"
-			@previous="emit('logs-previous')"
-			@next="emit('logs-next')"
-		/>
 	</div>
 </template>
 
 <script setup lang="ts">
-import type { PeopleCountingLog } from "~/types/peopleCounting"
-import type { PeopleCountingCameraMode } from "~/utils/peopleCountingCameraMode"
-import EntryExitLogTable from "~/components/people-counting/EntryExitLogTable.vue"
-import Pagination from "~/components/common/Pagination.vue"
-import { ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE } from "~/utils/entryExitTimeRange"
+import { computed } from "vue"
 
-interface Props {
-	entryCount: number
-	exitCount: number
-	currentCount: number
-	logs: PeopleCountingLog[]
-	logsOffset?: number
-	logsTotal?: number
-	logsPageSize?: number
-	logsPaginationDisabled?: boolean
-	dataSource?: "yscp" | "access_control" | "isapi_camera"
-	cameraMode?: PeopleCountingCameraMode | string | null
-	displayColumns?: string[] | null
-}
-
-withDefaults(defineProps<Props>(), {
-	logsOffset: 0,
-	logsTotal: 0,
-	logsPageSize: ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE,
-	logsPaginationDisabled: false,
-	dataSource: undefined,
-	cameraMode: null,
-	displayColumns: null,
-})
-
-const emit = defineEmits<{
-	"logs-previous": []
-	"logs-next": []
+const props = defineProps<{
+	entryCount?: number
+	exitCount?: number
+	currentCount?: number
+	/** 自訂三欄（時段簽到等）；有值時優先於 entry/exit/current */
+	items?: Array<{ label: string; value: number }>
 }>()
 
-const statusIndicatorSrc = "/people-counting/status-indicator-green.svg"
+const cards = computed(() => {
+	if (props.items && props.items.length > 0) return props.items
+	return [
+		{ label: "進場人數", value: props.entryCount ?? 0 },
+		{ label: "出場人數", value: props.exitCount ?? 0 },
+		{ label: "在場人數", value: props.currentCount ?? 0 },
+	]
+})
 </script>

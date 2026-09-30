@@ -136,12 +136,7 @@ export const useLocationMembersOnly = (params: {
 		}
 	}
 
-	const prepareLocationDialog = async (locationId: number) => {
-		await loadAllLocationMembers(locationId)
-	}
-
 	return {
-		prepareLocationDialog,
 		isLocationMembersLoading,
 		isLocationCandidatesLoading,
 		isLocationMembersApplying,

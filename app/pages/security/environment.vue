@@ -24,9 +24,7 @@
 					</button>
 				</Transition>
 
-				<div
-					class="monitoring-detail-panel monitoring-panel rounded-2xl p-4 2xl:p-6"
-				>
+				<div class="monitoring-detail-panel monitoring-panel rounded-2xl p-4 2xl:p-6">
 					<!-- 位置標題與地點選擇 -->
 					<div class="monitoring-location-title">
 						<div class="flex w-[200px] items-center justify-center">
@@ -65,7 +63,11 @@
 						empty-title="尚無環境地點"
 						empty-description="請在「地點管理」中新增含環境監測系統的地點"
 					>
-						<div v-if="currentLocationData" class="flex min-h-0 flex-1 flex-col" :aria-busy="isHydrating">
+						<div
+							v-if="currentLocationData"
+							class="flex min-h-0 flex-1 flex-col"
+							:aria-busy="isHydrating"
+						>
 							<div class="shrink-0 border-b border-white/80 pb-2">
 								<div
 									class="env-gauge-row grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:gap-6"
@@ -101,7 +103,7 @@
 							<!-- 環境參數網格 -->
 							<div
 								v-if="currentLocationData && currentLocationData.parameters.length > 0"
-								class="env-param-grid show-scrollbar mt-8 grid min-h-0 flex-1 grid-cols-1 content-start gap-2 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
+								class="env-param-grid show-scrollbar mt-4 grid min-h-0 flex-1 grid-cols-1 content-start gap-3 overflow-y-auto p-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
 							>
 								<EnvironmentParamCard
 									v-for="param in enabledParameters"

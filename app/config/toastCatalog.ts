@@ -86,6 +86,7 @@ export const TOAST = {
 	SURVEILLANCE_MAX_VIEWS: (max: number) => `最多只能顯示 ${max} 個畫面`,
 	SURVEILLANCE_VIEW_ADDED: "已加入監控畫面",
 	PEOPLE_COUNTING_RESET: "已重置人流統計",
+	ROLL_CALL_RESET: "已重置簽到統計",
 	STATS_RESET_FAILED: "重置失敗",
 	PARKING_STATS_RESET: "已重置停車場統計",
 

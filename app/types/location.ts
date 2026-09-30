@@ -22,6 +22,7 @@ export type SystemType =
 	| "emergency_rescue"
 	| "smoke_alarm"
 	| "people_counting"
+	| "roll_call"
 	| "vehicle_access"
 	| "elevator"
 	| "access_security";
@@ -37,6 +38,7 @@ export const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
 	emergency_rescue: "緊急求救",
 	smoke_alarm: "煙霧警報",
 	people_counting: "門禁管理",
+	roll_call: "時段簽到",
 	vehicle_access: "車輛進出",
 	elevator: "電梯管理",
 	access_security: "門禁保全",
@@ -59,9 +61,15 @@ export type SystemConfig =
 	| EmergencyRescueSystemConfig
 	| SmokeAlarmSystemConfig
 	| PeopleCountingSystemConfig
+	| RollCallSystemConfig
 	| VehicleAccessSystemConfig
 	| ElevatorSystemConfig
 	| AccessSecuritySystemConfig;
+
+/** 時段簽到僅工地頁使用；智慧管理平台保留設定以免覆寫門禁機綁定 */
+export interface RollCallSystemConfig {
+	deviceIds?: number[];
+}
 
 /**
  * 環境監測系統配置

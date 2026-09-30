@@ -42,9 +42,6 @@
 					:can-resync="canDeviceSync"
 					:is-resync-disabled="isSyncButtonDisabled"
 					:is-resyncing="isCurrentlySyncing"
-					:entry-devices="deviceLabels.entry"
-					:exit-devices="deviceLabels.exit"
-					:camera-devices="deviceLabels.cameras"
 					:resync-aria-label="resyncAriaLabel"
 					@open-warnings="openWarningsDialog"
 					@resync="handleSync"
@@ -128,7 +125,6 @@ const {
 	handleToggleSelectAllFiltered,
 	handleSearchMembers,
 	applyMembers,
-	deviceLabels,
 	isUiLocked,
 	isCurrentlySyncing,
 	isSyncButtonDisabled,
@@ -148,10 +144,15 @@ const locationSyncRows = computed(() =>
 const syncIndicatorsForPerson = (person: Person) => {
 	if (props.locationId == null) return []
 	void locationSyncRows.value
+	void props.accessSync.syncCandidatesEpoch?.value
 	void isCurrentlySyncing.value
 	const row = props.accessSync.getSyncRowByEmployeeNo(props.locationId, person.employee_no)
+	const candidate =
+		props.accessSync.getSyncCandidateByEmployeeNo?.(props.locationId, person.employee_no) ?? null
 	return buildLocationMemberSyncIndicators({
 		row,
+		candidate,
+		locationId: props.locationId,
 		mode: isCameraSource.value ? "isapi_camera" : "access_control",
 		person,
 	})

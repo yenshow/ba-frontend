@@ -553,24 +553,6 @@ html:not(.dark) .select-filter option {
 .monitoring-detail-enlarged .env-param-grid {
 	@apply gap-3 lg:!grid-cols-4 2xl:gap-4;
 }
-.monitoring-detail-enlarged .env-param-label {
-	@apply text-xl 2xl:text-2xl;
-}
-.monitoring-detail-enlarged .env-param-value {
-	@apply min-w-[96px] text-3xl 2xl:text-4xl;
-}
-.monitoring-detail-enlarged .env-param-unit {
-	@apply text-base 2xl:text-lg;
-}
-.monitoring-detail-enlarged .env-param-status {
-	@apply text-base 2xl:text-lg;
-}
-.monitoring-detail-enlarged .env-param-icon {
-	@apply h-20 w-20 2xl:h-24 2xl:w-24;
-}
-.monitoring-detail-enlarged .env-param-divider {
-	@apply h-24;
-}
 .monitoring-detail-enlarged .env-detail-empty {
 	@apply text-lg 2xl:text-xl;
 }

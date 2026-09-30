@@ -1,75 +1,62 @@
 <template>
 	<button
 		type="button"
-		class="env-param-card relative flex w-full cursor-pointer flex-col rounded-xl px-2 py-3 text-left transition-all hover:brightness-110"
-		:class="[backgroundClass, blinkAnimationClass, selected && 'ring-2 ring-sky-400/90']"
+		class="relative flex w-full items-center gap-2 rounded-xl px-3 py-3 text-left transition-all hover:brightness-110"
+		:class="[
+			backgroundClass,
+			blinkAnimationClass,
+			selected && 'ring-2 ring-sky-400/90',
+			showHazardBar && 'pb-5',
+		]"
 		:aria-label="`更換主顯示指標：${label}`"
 		:aria-pressed="selected"
 		@click="emit('select', type)"
 	>
-		<!-- 警告條（設備異常/離線時顯示） -->
 		<div
-			v-if="props.deviceError || statusText === '離線'"
-			class="offline-hazard-bar absolute bottom-0 left-0 right-0 h-2.5 rounded-b-xl"
+			v-if="showHazardBar"
+			class="offline-hazard-bar absolute inset-x-0 bottom-0 h-2.5 rounded-b-xl"
 			:style="warningBarStyle"
-		></div>
+			aria-hidden="true"
+		/>
 
-		<!-- 內容區域：水平排版（由左到右） -->
-		<div class="relative z-10 flex flex-1 items-center gap-2">
-			<!-- 左側：圖標 -->
-			<div
-				class="env-param-icon relative flex h-16 w-16 shrink-0 items-center justify-center 2xl:h-20 2xl:w-20"
-			>
-				<Transition name="fade">
-					<NuxtImg
-						v-if="iconSrc"
-						key="icon"
-						:src="iconSrc"
-						:alt="label"
-						class="env-param-icon absolute inset-0 h-16 w-16 object-contain 2xl:h-20 2xl:w-20"
-						width="80"
-						height="80"
-						quality="90"
-						loading="lazy"
-					/>
-				</Transition>
-			</div>
+		<div class="h-16 w-16 shrink-0 2xl:h-20 2xl:w-20">
+			<NuxtImg
+				v-if="iconSrc"
+				:src="iconSrc"
+				:alt="label"
+				class="h-full w-full object-contain"
+				width="80"
+				height="80"
+				quality="90"
+				loading="lazy"
+			/>
+		</div>
 
-			<!-- 分隔線 -->
-			<div class="env-param-divider h-20 w-[6px] bg-white/20"></div>
+		<div class="w-1.5 self-stretch bg-white/20" aria-hidden="true" />
 
-			<!-- 中間：參數標籤、數值和單位 -->
-			<div class="flex flex-col justify-center">
-				<!-- 參數標籤 -->
-				<div class="env-param-label mb-2 text-lg font-medium tracking-widest text-white">
+		<div class="min-w-0 flex-1">
+			<div class="flex items-center justify-between gap-2">
+				<div class="truncate text-lg font-medium tracking-widest text-white">
 					{{ label }}
 				</div>
-
-				<!-- 數值和單位 -->
-				<div class="flex items-baseline gap-2">
+				<div class="flex shrink-0 items-center gap-1 rounded-lg border border-white/30 p-0.5">
 					<div
-						class="env-param-value flex min-w-[80px] items-center justify-center rounded-lg bg-white/10 px-3 py-1 text-2xl text-white 2xl:text-3xl"
-					>
-						{{ displayValue }}
+						class="h-3 w-3 rounded-full border-2 border-white 2xl:h-4 2xl:w-4"
+						:style="statusDotStyle"
+					/>
+					<div class="text-sm font-medium text-white 2xl:text-base" :class="statusTextClass">
+						{{ statusText }}
 					</div>
-					<div class="env-param-unit text-sm text-white/80 2xl:text-base">{{ unit }}</div>
 				</div>
 			</div>
 
-			<!-- 右側：狀態指示器（圓點 + 狀態文字） -->
-			<div
-				class="absolute right-0 top-0 flex shrink-0 items-center gap-1 rounded-lg border border-white/30 p-[2px]"
-			>
+			<div class="mt-2 flex items-baseline gap-2">
 				<div
-					class="h-3 w-3 rounded-full border-2 border-white 2xl:h-4 2xl:w-4"
-					:style="statusDotStyle"
-				></div>
-				<div
-					class="env-param-status text-sm font-medium text-white 2xl:text-base"
-					:class="statusTextClass"
+					class="flex min-w-[80px] items-center justify-center rounded-lg bg-white/10 px-3 py-1 text-2xl text-white 2xl:text-3xl"
 				>
-					{{ statusText }}
+					{{ displayValue }}
 				</div>
+				<div class="text-sm text-white/80 2xl:text-base">{{ unit }}</div>
 			</div>
 		</div>
 	</button>
@@ -91,10 +78,8 @@ interface Props {
 	label: string
 	unit: string
 	fractionDigits?: number
-	deviceError?: boolean // 設備本身是否異常（用於顯示黃黑警告條）
+	deviceError?: boolean
 	selected?: boolean
-	// 注意：getStatusClass 和 getStatusDotClass 已不再使用，組件內部根據 statusText 決定樣式
-	// 保留這些 props 僅為了向後兼容，但實際上不會被使用
 	getStatusClass?: (type: string, value: number | null) => string
 	getStatusDotClass?: (type: string, value: number | null) => string
 	getStatusText: (type: string, value: number | null) => string
@@ -122,63 +107,28 @@ const statusText = computed(() =>
 )
 const statusTextClass = computed(() => props.getStatusTextClass(props.type, props.value))
 
-// 判斷狀態類型
-const statusType = computed<"normal" | "warning" | "alarm" | "device">(() => {
-	if (props.deviceError) return "device"
-
-	const text = statusText.value
-	if (text === "離線") return "device"
-	if (text === "正常") return "normal"
-	if (text === "異常") return "warning"
-	if (text === "警報") return "alarm"
-	return "normal"
+const uiStatus = computed(() => {
+	if (props.deviceError) return "offline" as const
+	return monitoringStatusTextToUiStatus(statusText.value)
 })
 
-const uiStatus = computed(() => monitoringStatusTextToUiStatus(statusText.value))
+const showHazardBar = computed(() => uiStatus.value === "offline")
 
-// 背景顏色類別
-const backgroundClass = computed(() => {
-	if (statusType.value === "device") {
-		return monitoringUiStatusToCardBackgroundClass("offline")
-	}
+const backgroundClass = computed(() =>
+	monitoringUiStatusToCardBackgroundClass(uiStatus.value)
+)
 
-	switch (statusType.value) {
-		case "normal":
-			return monitoringUiStatusToCardBackgroundClass("normal")
-		case "warning":
-			return monitoringUiStatusToCardBackgroundClass("warning")
-		case "alarm":
-			return monitoringUiStatusToCardBackgroundClass("alarm")
-		default:
-			return monitoringUiStatusToCardBackgroundClass("normal")
-	}
-})
+const blinkAnimationClass = computed(() =>
+	uiStatus.value === "offline" ? "" : monitoringUiStatusToBlinkClass(uiStatus.value)
+)
 
-// 閃爍動畫類別（根據狀態級別設置不同的閃爍頻率）
-const blinkAnimationClass = computed(() => {
-	if (statusType.value === "device") return ""
-	return monitoringUiStatusToBlinkClass(uiStatus.value)
-})
-
-// 警告條樣式（黃黑條紋）
 const warningBarStyle = computed(() => ({
 	backgroundImage:
 		"repeating-linear-gradient(90deg, #FFC801 0px, #FFC801 10px, #000000 10px, #000000 20px)",
 	backgroundSize: "40px 100%",
 }))
 
-// 狀態燈內聯樣式
-const statusDotStyle = computed(() => {
-	if (statusType.value === "device") {
-		return { backgroundColor: monitoringUiStatusToDotColor("offline") }
-	}
-
-	if (statusType.value === "normal")
-		return { backgroundColor: monitoringUiStatusToDotColor("normal") }
-	if (statusType.value === "warning")
-		return { backgroundColor: monitoringUiStatusToDotColor("warning") }
-	if (statusType.value === "alarm")
-		return { backgroundColor: monitoringUiStatusToDotColor("alarm") }
-	return { backgroundColor: monitoringUiStatusToDotColor("offline") }
-})
+const statusDotStyle = computed(() => ({
+	backgroundColor: monitoringUiStatusToDotColor(uiStatus.value),
+}))
 </script>

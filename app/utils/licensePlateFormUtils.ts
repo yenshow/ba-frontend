@@ -197,10 +197,10 @@ export const plateSyncStatusToUiStatus = (
 	status?: PersonLicensePlateSyncStatus | string | null,
 ): SyncStepUiStatus => {
 	const raw = String(status || "").trim().toLowerCase();
-	if (raw === "synced") return "success";
+	if (raw === "synced" || raw === "success" || raw === "unchanged") return "success";
 	if (raw === "failed") return "failed";
-	if (raw === "partial" || raw === "pending") return "pending";
-	return "no_data";
+	// pending / partial / 空值 → 待同步（黃）
+	return "pending";
 };
 
 /** 人員主檔是否已登記車牌（對齊人員列表「資料（平台）」欄） */
@@ -251,6 +251,6 @@ export const aggregatePlateSyncUiStatus = (
 	const ui = statuses.map((s) => plateSyncStatusToUiStatus(s));
 	if (ui.some((s) => s === "failed")) return "failed";
 	if (ui.some((s) => s === "pending")) return "pending";
-	if (ui.some((s) => s === "success" || s === "unchanged")) return "success";
-	return "no_data";
+	if (ui.some((s) => s === "success")) return "success";
+	return "pending";
 };

@@ -1,6 +1,7 @@
 /** 授權控管：與後端 `LICENSE_DEPLOYMENT_PROFILE=central` 時之 FEATURE_KEYS_CENTRAL 對齊 */
 export type FeatureKey =
 	| "people_counting"
+	| "roll_call"
 	| "elevator"
 	| "lighting"
 	| "hvac"
@@ -19,6 +20,7 @@ export type FeatureKey =
 
 export const LICENSE_FEATURE_KEYS: readonly FeatureKey[] = [
 	"people_counting",
+	"roll_call",
 	"elevator",
 	"lighting",
 	"hvac",
@@ -39,6 +41,7 @@ export const LICENSE_FEATURE_KEYS: readonly FeatureKey[] = [
 /** 授權頁／配額列表顯示名（與 LICENSE_FEATURE_KEYS 對齊） */
 export const FEATURE_KEY_LABELS: Record<FeatureKey, string> = {
 	people_counting: "門禁管理",
+	roll_call: "時段簽到",
 	elevator: "電梯管理",
 	lighting: "照明系統",
 	hvac: "空調系統",

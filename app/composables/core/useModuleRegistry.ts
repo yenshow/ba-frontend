@@ -78,12 +78,16 @@ export const useModuleRegistry = () => {
 		return registryFetchInFlight
 	}
 
+	const isCentralVisibleModule = (m: ModuleRegistryItem) =>
+		m.featureKey !== "roll_call" && m.routePrefix !== "/access-control/roll-call"
+
 	const getModuleByRoute = (routePath: string): ModuleRegistryItem | null => {
 		const r = registry.value
 		if (!r?.modules?.length) return null
 		if (!routePath || typeof routePath !== "string") return null
 
 		for (const m of toEntries(r.modules)) {
+			if (!isCentralVisibleModule(m)) continue
 			if (routePath === m.routePrefix || routePath.startsWith(m.routePrefix + "/")) return m
 		}
 		return null
@@ -112,6 +116,7 @@ export const useModuleRegistry = () => {
 	const modules = computed<SystemModule[]>(() => {
 		const list = registry.value?.modules ?? []
 		return list
+			.filter(isCentralVisibleModule)
 			.map(toSystemModule)
 			.filter((m) => !!m.route && !!m.icon && m.enabled !== false)
 	})

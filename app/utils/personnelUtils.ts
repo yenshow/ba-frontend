@@ -363,28 +363,32 @@ export const resolvePersonGroupBrowseLabel = (
 	return null
 }
 
-const SYNC_STEP_ICON_CLASS: Record<SyncStepUiStatus, string> = {
+const SYNC_STEP_ICON_CLASS: Record<"pending" | "success" | "failed", string> = {
 	pending: "border-amber-300/80 bg-amber-500/40 text-amber-50 ring-1 ring-amber-400/50",
 	success: "border-emerald-300/80 bg-emerald-500/40 text-emerald-50 ring-1 ring-emerald-400/50",
 	failed: "border-rose-300/80 bg-rose-500/45 text-rose-50 ring-1 ring-rose-400/55",
-	unchanged: "border-emerald-300/80 bg-emerald-500/40 text-emerald-50 ring-1 ring-emerald-400/50",
-	no_data: "border-white/25 bg-white/12 text-white/55",
+}
+
+const normalizeSyncIconStatus = (
+	status: SyncStepUiStatus | string | null | undefined,
+): "pending" | "success" | "failed" => {
+	const raw = String(status || "").trim().toLowerCase()
+	if (raw === "success" || raw === "synced" || raw === "unchanged") return "success"
+	if (raw === "failed") return "failed"
+	return "pending"
 }
 
 export const syncStepIconClass = (status: SyncStepUiStatus | string | null | undefined) =>
-	SYNC_STEP_ICON_CLASS[(status as SyncStepUiStatus) || "no_data"] ??
-	SYNC_STEP_ICON_CLASS.no_data
+	SYNC_STEP_ICON_CLASS[normalizeSyncIconStatus(status)]
 
 export const syncStepAriaLabel = (
 	stepLabel: string,
 	status: SyncStepUiStatus | string | null | undefined,
 ) => {
-	const s = String(status || "no_data") as SyncStepUiStatus
-	if (s === "pending") return `${stepLabel}：待同步`
+	const s = normalizeSyncIconStatus(status)
 	if (s === "success") return `${stepLabel}：成功`
 	if (s === "failed") return `${stepLabel}：失敗`
-	if (s === "unchanged") return `${stepLabel}：未變更`
-	return `${stepLabel}：無資料`
+	return `${stepLabel}：待同步`
 }
 
 export type PersonGroupMemberSection = {
@@ -506,6 +510,13 @@ export const resolveOverallSyncStatus = (input: {
 				.filter(Boolean)
 		: []
 	if (statuses.includes("failed")) return { status: "failed", at }
+
+	// last_sync 綠／紅優先於 needs_sync（契約：needs_sync 不得蓋成待同步黃）
+	if (
+		statuses.some((s) => s === "success" || s === "unchanged" || s === "synced")
+	) {
+		return { status: "success", at }
+	}
 
 	if (cand?.needs_sync) return { status: "pending", at }
 	if (!cand?.last_sync) return { status: "pending", at: null }

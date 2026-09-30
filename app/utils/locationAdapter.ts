@@ -281,6 +281,13 @@ function parseSystemConfig(systemType: SystemType, config: unknown): SystemConfi
 		case "people_counting":
 			if (isPeopleCountingSystemConfig(config)) return config
 			return { personGroupIds: [] }
+		case "roll_call": {
+			const raw = config && typeof config === "object" ? (config as { deviceIds?: unknown }) : {}
+			const deviceIds = Array.isArray(raw.deviceIds)
+				? raw.deviceIds.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+				: []
+			return { deviceIds }
+		}
 		case "vehicle_access":
 			if (isVehicleAccessSystemConfig(config)) return config
 			return { vehicleGroupIds: [] }
