@@ -1,17 +1,24 @@
 /**
- * 區域系統適配器（工地：environment、people_counting、vehicle_access）
+ * 區域系統適配器（工地：environment、people_counting、roll_call、vehicle_access）
  */
 
 import type { SystemType } from "~/types/location"
 import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment"
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting"
+import type { RollCallZone, RollCallLocation } from "~/types/rollCall"
+import { createRollCallRuleDraft } from "~/types/rollCall"
 import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess"
 import { getLocationUiKey } from "~/utils/locationUiId"
 
-export type SystemZoneType = EnvironmentZone | PeopleCountingZone | VehicleAccessZone
+export type SystemZoneType =
+	| EnvironmentZone
+	| PeopleCountingZone
+	| RollCallZone
+	| VehicleAccessZone
 export type SystemLocationType =
 	| EnvironmentLocation
 	| PeopleCountingLocation
+	| RollCallLocation
 	| VehicleAccessLocation
 
 export interface SystemConfig {
@@ -83,6 +90,29 @@ export function usePeopleCountingZoneAdapter(): ZoneSystemAdapter<
 	}
 }
 
+export function useRollCallZoneAdapter(): ZoneSystemAdapter<RollCallZone, RollCallLocation> {
+	return {
+		getLocationsProperty: (zone) => zone.locations || [],
+		setLocationsProperty: (zone, locations) => ({ ...zone, locations }),
+		createNewLocation: () => ({
+			name: "",
+			deviceIds: [],
+			rules: [createRollCallRuleDraft({ name: "規則 1" })],
+		}),
+		createNewZone: (name) => ({
+			name,
+			locations: [],
+		}),
+		filterEmptyLocations: (zone) => ({
+			...zone,
+			locations: (zone.locations || []).filter((loc) => loc.name && loc.name.trim().length > 0),
+		}),
+		systemConfig: { requireImageUrl: false },
+		getLocationId: ({ zone, location, locationIndex }) =>
+			getLocationUiKey({ zone, location, locationIndex }),
+	}
+}
+
 export function useVehicleAccessZoneAdapter(): ZoneSystemAdapter<
 	VehicleAccessZone,
 	VehicleAccessLocation
@@ -117,6 +147,8 @@ export function useZoneSystemAdapter<
 			return useEnvironmentZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		case "people_counting":
 			return usePeopleCountingZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
+		case "roll_call":
+			return useRollCallZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		case "vehicle_access":
 			return useVehicleAccessZoneAdapter() as ZoneSystemAdapter<TZone, TLocation>
 		default:

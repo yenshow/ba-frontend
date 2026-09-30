@@ -1,8 +1,14 @@
 /** 授權控管：與後端 `LICENSE_DEPLOYMENT_PROFILE=construction` 時之 FEATURE_KEYS_CONSTRUCTION 對齊 */
-export type FeatureKey = "people_counting" | "environment" | "surveillance" | "vehicle_access";
+export type FeatureKey =
+	| "people_counting"
+	| "roll_call"
+	| "environment"
+	| "surveillance"
+	| "vehicle_access";
 
 export const LICENSE_FEATURE_KEYS: readonly FeatureKey[] = [
 	"people_counting",
+	"roll_call",
 	"environment",
 	"surveillance",
 	"vehicle_access"

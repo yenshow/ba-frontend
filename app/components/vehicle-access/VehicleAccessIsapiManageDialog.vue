@@ -45,8 +45,6 @@
 					:can-resync="canResyncPlates"
 					:is-resync-disabled="isSyncButtonDisabled"
 					:is-resyncing="isCurrentlySyncing"
-					:entry-devices="deviceLabels.entry"
-					:exit-devices="deviceLabels.exit"
 					resync-aria-label="重新同步車牌至攝影機"
 					@open-warnings="handleOpenWarnings"
 					@resync="handleResync"
@@ -318,7 +316,6 @@ const {
 	isAllFilteredKept,
 	handleToggleSelectAllFiltered,
 	handleSearchMembers,
-	deviceLabels,
 	isUiLocked,
 	isCurrentlySyncing,
 	isSyncButtonDisabled,

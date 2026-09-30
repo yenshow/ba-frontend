@@ -1,7 +1,7 @@
 /**
- * 工地前端地點／區域轉換（environment、people_counting、vehicle_access）
+ * 工地前端地點／區域轉換（environment、people_counting、roll_call、vehicle_access）
  *
- * 與 Central 全檔鏡像不同：Construction 僅實作 4 鍵 feature 中具地點 SSOT 的 3 系統。
+ * 與 Central 全檔鏡像不同：Construction 實作工地地點系統；時段簽到頁僅工地。
  * 共用後端若同一地點含 Central 系統，`mergeFullZoneWithSystemUpdate` 會原樣保留其 systems。
  */
 
@@ -12,12 +12,14 @@ import type {
 	SystemConfig,
 	EnvironmentSystemConfig,
 	PeopleCountingSystemConfig,
+	RollCallSystemConfig,
 	VehicleAccessSystemConfig,
 	LocationSystem,
 	UnifiedLocationInput,
 } from "~/types/location"
 import type { EnvironmentZone, EnvironmentLocation } from "~/types/environment"
 import type { PeopleCountingZone, PeopleCountingLocation } from "~/types/peopleCounting"
+import type { RollCallZone, RollCallLocation } from "~/types/rollCall"
 import type { VehicleAccessZone, VehicleAccessLocation } from "~/types/vehicleAccess"
 import { pickSortOrder } from "~/utils/sortOrder"
 import {
@@ -167,6 +169,45 @@ export function peopleCountingToUnifiedZone(
 		name: zone.name,
 		...pickSortOrder(zone.sortOrder),
 		locations: zone.locations.map((loc) => peopleCountingLocationToUnified(loc, systemType)),
+	}
+}
+
+const positiveIds = (ids: unknown) =>
+	Array.isArray(ids)
+		? ids
+				.map((id) => Number(id))
+				.filter((id) => Number.isFinite(id) && id > 0)
+		: []
+
+export function unifiedToRollCallZone(zone: UnifiedZone): RollCallZone {
+	return {
+		id: zone.id,
+		name: zone.name,
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.flatMap((loc) => {
+			const system = loc.systems.find((item) => item.systemType === "roll_call")
+			if (!system) return []
+			const config = system.config as RollCallSystemConfig
+			return [
+				{
+					id: loc.id,
+					name: loc.name,
+					...pickSortOrder(loc.sortOrder),
+					deviceIds: positiveIds(config?.deviceIds),
+				} as RollCallLocation,
+			]
+		}),
+	}
+}
+
+export function rollCallToUnifiedZone(
+	zone: RollCallZone,
+	systemType: SystemType = "roll_call"
+): Omit<UnifiedZone, "id" | "locations"> & { locations: UnifiedLocationInput[] } {
+	return {
+		name: zone.name,
+		...pickSortOrder(zone.sortOrder),
+		locations: zone.locations.map((loc) => rollCallLocationToUnified(loc, systemType)),
 	}
 }
 
@@ -379,6 +420,26 @@ export function peopleCountingLocationToUnified(
 	}
 }
 
+export function rollCallLocationToUnified(
+	loc: RollCallLocation | Omit<RollCallLocation, "id">,
+	systemType: SystemType = "roll_call"
+): UnifiedLocationInput {
+	const hasId = "id" in loc && loc.id
+	return {
+		...(hasId && { id: loc.id! }),
+		name: loc.name,
+		...pickSortOrder((loc as { sortOrder?: unknown }).sortOrder),
+		systems: [
+			{
+				systemType,
+				config: {
+					deviceIds: positiveIds(loc.deviceIds),
+				} satisfies RollCallSystemConfig,
+			},
+		],
+	}
+}
+
 export function vehicleAccessLocationToUnified(
 	loc: VehicleAccessLocation | Omit<VehicleAccessLocation, "id">,
 	systemType: SystemType = "vehicle_access"
@@ -415,9 +476,11 @@ export function vehicleAccessLocationToUnified(
 type ConstructionLocationInput =
 	| EnvironmentLocation
 	| PeopleCountingLocation
+	| RollCallLocation
 	| VehicleAccessLocation
 	| Omit<EnvironmentLocation, "id">
 	| Omit<PeopleCountingLocation, "id">
+	| Omit<RollCallLocation, "id">
 	| Omit<VehicleAccessLocation, "id">
 
 export function buildUnifiedZoneUpdateData<TZone extends { name?: string; locations?: unknown[] }>(

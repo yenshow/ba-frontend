@@ -1,5 +1,5 @@
 import { TOAST } from "~/config/toastCatalog"
-import type { Ref } from "vue"
+import { ref, type Ref } from "vue"
 import type {
 	SyncAllLocationsJob,
 	SyncLocationCandidate,
@@ -16,6 +16,7 @@ import {
 	filterWarningsForLocation,
 	isDeviceLevelSyncWarning,
 } from "~/utils/personnelUtils"
+import { rememberLocationCredentialSyncStatuses } from "~/utils/syncCredentialIcons"
 
 export const usePersonnelSyncEngine = (params: {
 	personnelApi: PersonnelApi
@@ -29,6 +30,8 @@ export const usePersonnelSyncEngine = (params: {
 	// ---------- candidates cache + prefetch ----------
 	const syncCandidatesByLocation = reactive<Record<number, SyncLocationCandidate[]>>({})
 	const syncCandidatesLoading = reactive<Record<number, boolean>>({})
+	/** 強制門禁名單 UI 在 candidates 載入後重算狀態 icon */
+	const syncCandidatesEpoch = ref(0)
 	const isSyncCandidatesLoading = (locationId: number) => Boolean(syncCandidatesLoading[locationId])
 
 	const ensureSyncCandidates = async (locationId: number) => {
@@ -36,11 +39,13 @@ export const usePersonnelSyncEngine = (params: {
 		try {
 			const res = await personnelApi.getSyncLocationCandidates(locationId)
 			syncCandidatesByLocation[locationId] = res?.persons ?? []
+			rememberLocationCredentialSyncStatuses(locationId, syncCandidatesByLocation[locationId])
 		} catch (err) {
 			handleApiError(err, "載入可同步人員失敗")
 			syncCandidatesByLocation[locationId] = []
 		} finally {
 			syncCandidatesLoading[locationId] = false
+			syncCandidatesEpoch.value += 1
 		}
 	}
 
@@ -344,6 +349,7 @@ export const usePersonnelSyncEngine = (params: {
 	return {
 		// candidates
 		syncCandidatesByLocation,
+		syncCandidatesEpoch,
 		isSyncCandidatesLoading,
 		ensureSyncCandidates,
 		prefetchSyncSummaries,

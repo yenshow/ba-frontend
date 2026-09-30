@@ -321,6 +321,7 @@ const { unresolvedAlertCount, loadUnresolvedAlertCount } = useAlertMonitor();
 
 const MAIN_NAV_ROUTE_ORDER = [
 	"/access-control/people-counting",
+	"/access-control/roll-call",
 	"/security/environment",
 	"/access-control/surveillance",
 	"/access-control/vehicle-access"

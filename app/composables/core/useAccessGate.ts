@@ -258,6 +258,20 @@ export const usePeopleCountingAccessRbac = () => {
 	};
 };
 
+/** 時段簽到：門禁名單／設備同步／重置統計 */
+export const useRollCallAccessRbac = () => {
+	const { useHasPermission, useHasAnyPermission } = useAuth();
+	const p = PERM.rollCall;
+	const canDeviceSync = useHasPermission(p.deviceSync);
+	const canSyncEdit = useHasPermission(p.syncEdit);
+	return {
+		canOpenAccessManage: useHasAnyPermission(p.deviceSync, p.syncEdit),
+		canEditAccessMembers: canSyncEdit,
+		canResyncAccessDevices: canDeviceSync,
+		canResetStatistics: useHasPermission(p.statisticsReset),
+	};
+};
+
 /** 車輛進出「車牌管理」：名單、車牌 CRUD 與攝影機重新同步 */
 export const useVehiclePlateManageRbac = () => {
 	const { useHasAnyPermission } = useAuth();

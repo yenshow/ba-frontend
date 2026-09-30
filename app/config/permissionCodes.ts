@@ -44,6 +44,17 @@ export const PERM = {
 		statisticsReset: "system.people_counting.statistics.reset",
 		doorControl: "system.people_counting.door.control",
 	},
+	rollCall: {
+		module: "system.roll_call",
+		locationCreate: "system.roll_call.location.create",
+		locationUpdate: "system.roll_call.location.update",
+		locationDelete: "system.roll_call.location.delete",
+		ruleEdit: "system.roll_call.rule.edit",
+		attendanceMark: "system.roll_call.attendance.mark",
+		deviceSync: "system.roll_call.device_sync",
+		syncEdit: "system.roll_call.sync.edit",
+		statisticsReset: "system.roll_call.statistics.reset",
+	},
 	environment: {
 		module: "system.environment",
 		locationCreate: "system.environment.location.create",
@@ -73,6 +84,7 @@ export const PERM = {
 /** locationType（DB／API）→ 地點刪除權限碼；全區點位圖依系統刪除地點時使用 */
 export const LOCATION_DELETE_BY_SYSTEM_TYPE: Record<string, string> = {
 	people_counting: PERM.peopleCounting.locationDelete,
+	roll_call: PERM.rollCall.locationDelete,
 	environment: PERM.environment.locationDelete,
 	vehicle_access: PERM.vehicleAccess.locationDelete,
 }

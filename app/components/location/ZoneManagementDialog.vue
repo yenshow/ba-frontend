@@ -131,6 +131,7 @@ import ZoneLocationTreePanel from "./ZoneLocationTreePanel.vue"
 import ZoneLocationDetailPanel from "./ZoneLocationDetailPanel.vue"
 import EnvironmentLocationManagement from "./LocationManagement/EnvironmentLocationManagement.vue"
 import PeopleCountingLocationManagement from "./LocationManagement/PeopleCountingLocationManagement.vue"
+import RollCallLocationManagement from "./LocationManagement/RollCallLocationManagement.vue"
 import VehicleAccessLocationManagement from "./LocationManagement/VehicleAccessLocationManagement.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
@@ -290,6 +291,7 @@ const vehicleAccessApi = useVehicleAccessApi()
 const locationManagementComponentMap: Partial<Record<SystemType, Component>> = {
 	environment: EnvironmentLocationManagement,
 	people_counting: PeopleCountingLocationManagement,
+	roll_call: RollCallLocationManagement,
 	vehicle_access: VehicleAccessLocationManagement,
 }
 
@@ -343,7 +345,7 @@ const loadDoors = async () => {
 }
 
 const loadAccessControlDevices = async () => {
-	if (props.systemType !== "people_counting") return
+	if (props.systemType !== "people_counting" && props.systemType !== "roll_call") return
 
 	try {
 		const result = await deviceApi.getDevices({
@@ -410,6 +412,9 @@ watch(
 				}
 				loadAccessControlDevices()
 				loadIsapiCameraDevices()
+			}
+			if (props.systemType === "roll_call") {
+				loadAccessControlDevices()
 			}
 			if (props.systemType === "vehicle_access") {
 				await ensureModuleRegistryLoaded()

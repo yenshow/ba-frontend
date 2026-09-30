@@ -50,6 +50,7 @@ export const useLocationAccessSync = (params: {
 
 	const {
 		syncCandidatesByLocation,
+		syncCandidatesEpoch,
 		isSyncCandidatesLoading,
 		ensureSyncCandidates,
 		syncWarnings,
@@ -61,6 +62,7 @@ export const useLocationAccessSync = (params: {
 		syncOneLocation,
 		isLocationSyncJobRunning,
 		getSyncStepRowsForLocation,
+		getSyncCandidatesForLocation,
 	} = syncEngine
 
 	const deviceSyncObserver = useDeviceSyncObserver()
@@ -126,6 +128,11 @@ export const useLocationAccessSync = (params: {
 		return rows.find((r) => String(r.employeeNo) === String(employeeNo)) ?? null
 	}
 
+	const getSyncCandidateByEmployeeNo = (locationId: number, employeeNo: string) => {
+		const rows = getSyncCandidatesForLocation(locationId)
+		return rows.find((r) => String(r.employee_no) === String(employeeNo)) ?? null
+	}
+
 	const isSyncLocationCandidatesLoading = (locationId: number) =>
 		isSyncCandidatesLoading(locationId)
 
@@ -147,20 +154,23 @@ export const useLocationAccessSync = (params: {
 	}
 
 	return {
+		...membersOnly,
 		isSingleLocationSyncing,
 		showWarningsDialog,
 		syncWarnings,
 		syncWarningTypeLabel,
 		openWarningsDialog,
 		getLocationDevicesLabel,
+		// 必須覆寫 membersOnly.prepareLocationDialog（僅載入名單，不含 sync-candidates）
 		prepareLocationDialog,
 		syncOneLocation,
 		isSyncLocationCandidatesLoading,
 		isLocationCurrentlySyncing,
 		isLocationSyncButtonDisabled,
 		getSyncRowByEmployeeNo,
+		getSyncCandidateByEmployeeNo,
 		getSyncStepRowsForLocation,
-		...membersOnly,
+		syncCandidatesEpoch,
 		applyLocationMembers,
 	}
 }

@@ -1,5 +1,5 @@
 /**
- * 統一地點管理類型定義（工地：environment、people_counting、vehicle_access）
+ * 統一地點管理類型定義（工地：environment、people_counting、roll_call、vehicle_access）
  *
  * `SystemType` 仍含 Central 專用鍵，供共用後端 `/api/locations` payload 與 merge 保留其他系統；
  * 工地前端僅實作 `ConstructionLocationSystemType` 的轉換與 UI。
@@ -9,6 +9,7 @@
 export type ConstructionLocationSystemType =
 	| "environment"
 	| "people_counting"
+	| "roll_call"
 	| "vehicle_access"
 
 /** 後端 location_systems.system_type（共用 DB 可能含 Central 系統） */
@@ -28,6 +29,7 @@ export type SystemType =
 const CONSTRUCTION_SYSTEM_TYPE_LABELS: Record<ConstructionLocationSystemType, string> = {
 	environment: "環境監測",
 	people_counting: "人流統計",
+	roll_call: "時段簽到",
 	vehicle_access: "車輛進出",
 }
 
@@ -80,10 +82,15 @@ export interface VehicleAccessSystemConfig {
 	logDisplayColumns?: string[]
 }
 
+export interface RollCallSystemConfig {
+	deviceIds?: number[]
+}
+
 /** 工地實作系統的配置；其餘 systemType 由後端原樣保留 */
 export type ConstructionSystemConfig =
 	| EnvironmentSystemConfig
 	| PeopleCountingSystemConfig
+	| RollCallSystemConfig
 	| VehicleAccessSystemConfig
 
 export type SystemConfig = ConstructionSystemConfig | Record<string, unknown>

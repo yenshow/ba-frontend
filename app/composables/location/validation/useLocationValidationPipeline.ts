@@ -1,6 +1,7 @@
 import type { SystemType, UnifiedLocation, UnifiedZone } from "~/types/location";
 import type { EnvironmentLocation } from "~/types/environment";
 import type { PeopleCountingLocation } from "~/types/peopleCounting";
+import type { RollCallLocation } from "~/types/rollCall";
 import {
 	useZoneValidation,
 	useLocationValidation
@@ -110,6 +111,13 @@ export function useLocationValidationPipeline() {
 					}
 					if (r.warnings?.length) {
 						warnings.push(...r.warnings.map(w => `地點「${loc.name}」：${w}`));
+					}
+					break;
+				}
+				case "roll_call": {
+					const ids = (loc as RollCallLocation).deviceIds || [];
+					if (!ids.length) {
+						errors.push(`地點「${loc.name}」：請至少選擇一台簽到門禁機`);
 					}
 					break;
 				}

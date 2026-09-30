@@ -380,6 +380,7 @@ definePageMeta({
 
 const featureLabels: Record<string, string> = {
 	people_counting: "人流統計",
+	roll_call: "時段簽到",
 	environment: "環境品質",
 	surveillance: "影像監控",
 	vehicle_access: "車輛進出"

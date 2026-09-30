@@ -460,6 +460,7 @@ export const useLocationPlateSync = (params: {
 	}
 
 	return {
+		...membersOnly,
 		isSingleLocationSyncing,
 		showWarningsDialog,
 		syncWarnings,
@@ -468,6 +469,7 @@ export const useLocationPlateSync = (params: {
 		refreshSyncWarnings,
 		getLocationDevicesLabel,
 		setLocationDisplayName,
+		// 必須覆寫 membersOnly.prepareLocationDialog（僅載入名單，不含車牌同步狀態）
 		prepareLocationDialog,
 		ensurePlates,
 		isPlatesLoading,
@@ -475,7 +477,6 @@ export const useLocationPlateSync = (params: {
 		syncOneLocation,
 		isLocationCurrentlySyncing,
 		isLocationSyncButtonDisabled,
-		...membersOnly,
 		applyLocationMembers,
 		showPlateForm,
 		plateFormMode,

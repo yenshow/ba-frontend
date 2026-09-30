@@ -84,10 +84,84 @@ const toIndicator = (
 ): SyncCredentialIndicatorItem => ({
 	key,
 	label,
-	status,
+	status: normalizeCredentialSyncUiStatus(status),
 	viewBox: SYNC_CREDENTIAL_ICONS[key].viewBox,
 	path: SYNC_CREDENTIAL_ICONS[key].path as Record<string, string>,
 })
+
+/** 設備同步狀態統一三色：成功綠／待同步黃／失敗紅（DB SSOT：pending|success|failed，見後端 syncStatusCodes.js） */
+export const normalizeCredentialSyncUiStatus = (
+	status: SyncStepUiStatus | string | null | undefined,
+): "pending" | "success" | "failed" => {
+	const raw = String(status || "").trim().toLowerCase()
+	if (raw === "success" || raw === "synced" || raw === "unchanged") return "success"
+	if (raw === "failed") return "failed"
+	return "pending"
+}
+
+type RememberedCredentialStatuses = Partial<
+	Record<"face" | "card" | "fingerprint", "pending" | "success" | "failed">
+>
+
+const credentialSyncStorageKey = (locationId: number) =>
+	`ba.deviceSyncCredentialStatus.v1.${Math.trunc(locationId)}`
+
+/** 將 sync-candidates 的 last_sync 寫入 sessionStorage（重整後仍可顯示，直到下次 API 覆寫） */
+export const rememberLocationCredentialSyncStatuses = (
+	locationId: number,
+	candidates: Array<{
+		employee_no?: string | null
+		last_sync?: {
+			face?: { status?: string | null } | null
+			card?: { status?: string | null } | null
+			fingerprint?: { status?: string | null } | null
+		} | null
+	}>,
+) => {
+	if (!import.meta.client) return
+	const id = Number(locationId)
+	if (!Number.isFinite(id) || id <= 0) return
+	const map: Record<string, RememberedCredentialStatuses> = {}
+	for (const c of candidates || []) {
+		const emp = String(c.employee_no || "").trim()
+		if (!emp) continue
+		const next: RememberedCredentialStatuses = {}
+		const faceRaw = c.last_sync?.face?.status
+		const cardRaw = c.last_sync?.card?.status
+		const fpRaw = c.last_sync?.fingerprint?.status
+		if (faceRaw && faceRaw !== "no_data") next.face = normalizeCredentialSyncUiStatus(faceRaw)
+		if (cardRaw && cardRaw !== "no_data") next.card = normalizeCredentialSyncUiStatus(cardRaw)
+		if (fpRaw && fpRaw !== "no_data")
+			next.fingerprint = normalizeCredentialSyncUiStatus(fpRaw)
+		if (next.face || next.card || next.fingerprint) map[emp] = next
+	}
+	try {
+		sessionStorage.setItem(credentialSyncStorageKey(id), JSON.stringify(map))
+	} catch {
+		// ignore quota / private mode
+	}
+}
+
+export const readRememberedCredentialStepStatus = (
+	locationId: number,
+	employeeNo: string,
+	step: "face" | "card" | "fingerprint",
+): "pending" | "success" | "failed" | null => {
+	if (!import.meta.client) return null
+	const id = Number(locationId)
+	const emp = String(employeeNo || "").trim()
+	if (!Number.isFinite(id) || id <= 0 || !emp) return null
+	try {
+		const raw = sessionStorage.getItem(credentialSyncStorageKey(id))
+		if (!raw) return null
+		const map = JSON.parse(raw) as Record<string, RememberedCredentialStatuses>
+		const status = map?.[emp]?.[step]
+		if (status === "pending" || status === "success" || status === "failed") return status
+		return null
+	} catch {
+		return null
+	}
+}
 
 type AccessCredentialStep = "face" | "card" | "fingerprint"
 
@@ -117,28 +191,68 @@ const resolveStepSyncStatus = (
 ): SyncStepUiStatus | null => {
 	const raw = row?.[step]?.status
 	if (!raw || raw === "no_data") return null
-	return raw
+	return normalizeCredentialSyncUiStatus(raw)
 }
 
-/** 人流／攝影機地點名單：人員主檔有憑證才顯示 icon，狀態優先取自 sync row */
+const resolveCandidateStepStatus = (
+	candidate: {
+		last_sync?: {
+			face?: { status?: string | null } | null
+			card?: { status?: string | null } | null
+			fingerprint?: { status?: string | null } | null
+		} | null
+	} | null | undefined,
+	step: AccessCredentialStep,
+): SyncStepUiStatus | null => {
+	const raw = candidate?.last_sync?.[step]?.status
+	if (!raw || raw === "no_data") return null
+	return normalizeCredentialSyncUiStatus(raw)
+}
+
+/** 人流／攝影機地點名單：有憑證即顯示 icon；優先 sync-candidates.last_sync（DB），其次 step row，再次 sessionStorage */
 export const buildLocationMemberSyncIndicators = (params: {
 	row: SyncPersonRow | null
 	mode: LocationMemberSyncMode
 	person: Person
+	locationId?: number | null
+	candidate?: {
+		employee_no?: string | null
+		has_face?: boolean
+		has_card?: boolean
+		fingerprint_count?: number
+		last_sync?: {
+			face?: { status?: string | null } | null
+			card?: { status?: string | null } | null
+			fingerprint?: { status?: string | null } | null
+		} | null
+	} | null
 }): SyncCredentialIndicatorItem[] => {
-	const { row, mode, person } = params
+	const { row, mode, person, locationId, candidate } = params
 	const presence = resolveAccessCredentialPresence(person)
+	if (candidate) {
+		if (candidate.has_face) presence.face = true
+		if (candidate.has_card) presence.card = true
+		if ((candidate.fingerprint_count || 0) > 0) presence.fingerprint = true
+	}
 	const items: SyncCredentialIndicatorItem[] = []
 	for (const step of ACCESS_CREDENTIAL_STEPS[mode]) {
 		if (!presence[step]) continue
-		const status = resolveStepSyncStatus(row, step) ?? "pending"
+		const remembered =
+			locationId != null
+				? readRememberedCredentialStepStatus(locationId, person.employee_no, step)
+				: null
+		const status =
+			resolveCandidateStepStatus(candidate, step) ??
+			resolveStepSyncStatus(row, step) ??
+			remembered ??
+			"pending"
 		items.push(toIndicator(step, ACCESS_CREDENTIAL_LABELS[step], status))
 	}
 	return items
 }
 
 export const buildPlateSyncIndicators = (status: SyncStepUiStatus): SyncCredentialIndicatorItem[] => [
-	toIndicator("licensePlate", "車牌", status === "no_data" ? "pending" : status),
+	toIndicator("licensePlate", "車牌", normalizeCredentialSyncUiStatus(status)),
 ]
 
 /** 車牌地點名單：有車牌才顯示 icon（待同步黃／成功綠／失敗紅）；無車牌不顯示，對齊門禁 */

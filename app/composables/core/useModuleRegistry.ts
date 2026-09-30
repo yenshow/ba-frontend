@@ -11,6 +11,7 @@ const MODULE_CATEGORY_ORDER = [
 
 const CONSTRUCTION_SITE_FEATURE_KEYS = new Set<string>([
 	"people_counting",
+	"roll_call",
 	"environment",
 	"surveillance",
 	"vehicle_access",
@@ -47,6 +48,7 @@ let registryFetchInFlight: Promise<ModuleRegistryPayload | null> | null = null;
 /** Construction 前端展示名（與 central profileNames 無關；避免後端 profile 錯設時底欄顯示「門禁管理」） */
 const CONSTRUCTION_MODULE_DISPLAY_NAMES: Record<string, string> = {
 	"/access-control/people-counting": "人流統計",
+	"/access-control/roll-call": "時段簽到",
 };
 
 const isConstructionVisibleModule = (m: ModuleRegistryItem) => {
