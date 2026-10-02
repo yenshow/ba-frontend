@@ -78,6 +78,8 @@ export interface RollCallAttendanceRow {
 	checkedInAt: string | null
 	/** 與人流單位人員名單 photoUrl 同語意（persons.face_url） */
 	photoUrl?: string | null
+	/** 簽到當次門禁事件抓拍（isapi_access_events.picture_path） */
+	eventPhotoUrl?: string | null
 }
 
 export interface RollCallSessionDetail {
@@ -103,11 +105,39 @@ export interface RollCallHistoryItem {
 	sessionDate: string
 	status: string
 	ruleName: string
+	locationId?: number
 	locationName: string
 	zoneName: string
 	expectedCount: number
 	presentCount: number
 	absentCount: number
+}
+
+/** 完整報表場次列（對齊人流 Simulation 摘要） */
+export type RollCallReportSession = RollCallHistoryItem & {
+	locationId: number
+}
+
+/** 完整報表名單列 */
+export interface RollCallReportAttendanceRow {
+	sessionId: number
+	sessionDate: string
+	locationId: number
+	zoneName: string
+	locationName: string
+	ruleName: string
+	personId: number
+	employeeNo: string
+	fullName: string
+	groupId: number
+	groupName: string
+	status: "pending" | "present" | "absent" | string
+	source: "face" | "manual" | null
+	checkedInAt: string | null
+	/** 與人流單位人員名單 photoUrl 同語意（persons.face_url） */
+	photoUrl?: string | null
+	/** 簽到當次門禁事件抓拍（isapi_access_events.picture_path） */
+	eventPhotoUrl?: string | null
 }
 
 export const ROLL_CALL_WEEKDAY_OPTIONS = [

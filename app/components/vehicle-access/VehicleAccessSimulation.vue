@@ -71,7 +71,7 @@
 						<tr class="text-white/90">
 							<th class="whitespace-nowrap border border-white/20 p-2">日期</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">區域-地點</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">群組名稱</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">群組</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">進場車輛</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">出場車輛</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">在場車輛</th>
@@ -85,7 +85,7 @@
 						>
 							<td class="border border-white/20 p-2">{{ row.日期 }}</td>
 							<td class="border border-white/20 p-2">{{ row["區域-地點"] }}</td>
-							<td class="border border-white/20 p-2">{{ row.群組名稱 }}</td>
+							<td class="border border-white/20 p-2">{{ row.群組 }}</td>
 							<td class="border border-white/20 p-2">{{ row.進場車輛 }}</td>
 							<td class="border border-white/20 p-2">{{ row.出場車輛 }}</td>
 							<td
@@ -347,7 +347,7 @@ type GroupStatsRow = {
 	key: string;
 	日期: string;
 	"區域-地點": string;
-	群組名稱: string;
+	群組: string;
 	進場車輛: string;
 	出場車輛: string;
 	在場車輛: string;
@@ -374,7 +374,7 @@ const groupStatsTableRows = computed((): GroupStatsRow[] => {
 				key: `group-${groupKey}-${groupName}`,
 				日期: dateStr,
 				"區域-地點": zl,
-				群組名稱: groupName,
+				群組: groupName,
 				進場車輛: String(entry),
 				出場車輛: String(exit),
 				在場車輛: String(current),
@@ -395,13 +395,15 @@ type DetailRow = {
 const effectiveDisplayColumns = computed(() => {
 	const locId = selectedLocationIdNum.value;
 	const raw = locId == null ? null : (props.locationDisplayColumns?.[locId] ?? null);
-	// 完整報表：不顯示「車牌圖片」
-	return normalizeVehicleLogDisplayColumns(raw).filter(k => k !== "plate_image");
+	// 完整報表：固定欄已有「群組」；不重複顯示 person_group，亦不顯示車牌圖片
+	return normalizeVehicleLogDisplayColumns(raw).filter(
+		(k) => k !== "plate_image" && k !== "person_group",
+	);
 });
 
 const detailHeaders = computed(() => {
-	const fixed = ["區域-地點", "群組名稱"];
-	const dynamic = effectiveDisplayColumns.value.map(k => VEHICLE_ACCESS_LOG_COLUMN_LABELS[k]);
+	const fixed = ["區域-地點", "群組"];
+	const dynamic = effectiveDisplayColumns.value.map((k) => VEHICLE_ACCESS_LOG_COLUMN_LABELS[k]);
 	return [...fixed, ...dynamic];
 });
 
@@ -448,7 +450,7 @@ const detailTableRows = computed((): DetailRow[] => {
 			const labeled = buildVehicleLogDetailRow(log, effectiveDisplayColumns.value);
 			const cells = detailHeaders.value.map(h => {
 				if (h === "區域-地點") return zl;
-				if (h === "群組名稱") return groupName;
+				if (h === "群組") return groupName;
 				return labeled[h] ?? "—";
 			});
 			rows.push({
@@ -492,7 +494,7 @@ const handleDetailNextPage = () => {
 };
 
 const STATS_HEADERS = ["日期", "區域-地點", "進場車輛", "出場車輛", "在場車輛"];
-const GROUP_STATS_HEADERS = ["日期", "區域-地點", "群組名稱", "進場車輛", "出場車輛", "在場車輛"];
+const GROUP_STATS_HEADERS = ["日期", "區域-地點", "群組", "進場車輛", "出場車輛", "在場車輛"];
 
 const firstDateStr = computed(() =>
 	locationFilteredLogs.value.length > 0 ? getDateKey(locationFilteredLogs.value[0]!) : ""
@@ -512,7 +514,7 @@ const handleExportCsv = () => {
 			groupStatsTableRows.value.map(r => ({
 				日期: r.日期,
 				"區域-地點": r["區域-地點"],
-				群組名稱: r.群組名稱,
+				群組: r.群組,
 				進場車輛: r.進場車輛,
 				出場車輛: r.出場車輛,
 				在場車輛: r.在場車輛

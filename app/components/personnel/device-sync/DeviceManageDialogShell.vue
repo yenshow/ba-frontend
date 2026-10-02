@@ -9,7 +9,7 @@
 				:aria-labelledby="titleId"
 			>
 				<div
-					class="dialog-panel-bg mx-4 flex max-h-[88vh] min-h-[min(520px,80vh)] w-full max-w-7xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
+					class="dialog-panel-bg mx-4 flex h-[94vh] max-h-[94vh] w-full max-w-7xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
 					:aria-busy="isUiLocked || undefined"
 				>
 					<header class="flex items-center justify-between gap-3 pr-7 2xl:pr-8">

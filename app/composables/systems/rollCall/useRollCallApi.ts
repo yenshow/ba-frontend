@@ -1,6 +1,8 @@
 import { useApiBase } from "~/composables/core/useApiBase"
 import type {
 	RollCallHistoryItem,
+	RollCallReportAttendanceRow,
+	RollCallReportSession,
 	RollCallRule,
 	RollCallRuleDraft,
 	RollCallSessionDetail,
@@ -56,6 +58,22 @@ export const useRollCallApi = () => {
 			sessions: RollCallHistoryItem[]
 		}>(`/roll-call/history?limit=${limit}&offset=${offset}`)
 
+	const getReport = (params: { startDate: string; endDate: string; locationId?: number }) => {
+		const q = new URLSearchParams({
+			startDate: params.startDate,
+			endDate: params.endDate,
+		})
+		if (params.locationId != null && Number.isFinite(params.locationId)) {
+			q.set("locationId", String(params.locationId))
+		}
+		return request<{
+			startDate: string
+			endDate: string
+			sessions: RollCallReportSession[]
+			attendance: RollCallReportAttendanceRow[]
+		}>(`/roll-call/report?${q.toString()}`)
+	}
+
 	return {
 		getToday,
 		resetLocationStats,
@@ -64,5 +82,6 @@ export const useRollCallApi = () => {
 		getSession,
 		markAttendance,
 		getHistory,
+		getReport,
 	}
 }

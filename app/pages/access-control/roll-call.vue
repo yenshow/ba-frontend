@@ -65,9 +65,9 @@
 					</PermissionActionButton>
 					<PermissionActionButton
 						:allowed="true"
-						aria-label="完整報表"
+						aria-label="開啟完整報表"
 						class="absolute right-8 top-2 btn-monitoring-overlay"
-						@click="showHistoryDialog = true"
+						@click="handleOpenReport"
 					>
 						完整報表
 					</PermissionActionButton>
@@ -80,31 +80,17 @@
 					>
 						<template v-if="selected">
 							<LocationStatsPanel class="shrink-0" :items="statCards" />
-							<div class="grid min-h-0 min-w-0 flex-1 grid-cols-2 items-stretch gap-4">
-								<div class="flex min-h-0 min-w-0 flex-col">
-									<RollCallAttendanceLogTable
-										:rows="detail?.attendance || []"
-										:can-mark="canMark"
-										:can-mark-rows="Boolean(detail?.canMark && canMark)"
-										:empty-message="attendanceEmptyMessage"
-										@mark="handleMark"
-									/>
-								</div>
-								<div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-									<div class="relative mb-3 shrink-0">
-										<h3
-											class="people-detail-side-title monitoring-chip-bg py-1 text-center text-lg font-semibold text-white 2xl:text-xl"
-										>
-											人員群組
-										</h3>
-									</div>
-									<PeopleUnitGroupPanel
-										:units="unitSummaries"
-										:selected-unit-id="selectedUnitId"
-										hide-title
-										@select="handleUnitSelect"
-									/>
-								</div>
+							<div class="flex min-h-0 min-w-0 flex-1 gap-3 2xl:gap-4">
+								<RollCallGroupFilter
+									v-model:selected-group-id="selectedGroupId"
+									:filter-items="groupFilterItems"
+									:compact="!isOverviewCollapsed"
+								/>
+								<RollCallAttendanceCards
+									:rows="filteredAttendance"
+									:empty-message="attendanceEmptyMessage"
+									:compact="!isOverviewCollapsed"
+								/>
 							</div>
 						</template>
 					</MonitoringDetailShell>
@@ -198,12 +184,16 @@
 			@synced="handleAccessManageSynced"
 			@members-updated="handleAccessManageSynced"
 		/>
-		<RollCallHistoryDialog v-model="showHistoryDialog" />
-		<UnitPersonnelDialog
-			v-model="showUnitPersonnelDialog"
-			:unit-name="selectedUnitName"
-			:personnel="unitPersonnel"
-		/>
+		<SimulationFrame v-model="showReportFrame" title="時段簽到 - 完整報表">
+			<RollCallSimulation
+				:sessions="reportSessions"
+				:attendance="reportAttendance"
+				:location-options="reportLocationOptions"
+				:time-range="reportTimeRange"
+				:loading="reportLoading"
+				@update:time-range="handleReportTimeRangeUpdate"
+			/>
+		</SimulationFrame>
 		<ConfirmDialog
 			v-model="showConfirmDialog"
 			:title="confirmDialogConfig.title"
@@ -222,13 +212,12 @@ import PermissionActionButton from "~/components/common/PermissionActionButton.v
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
 import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue"
-import PeopleUnitGroupPanel from "~/components/people-counting/PeopleUnitGroupPanel.vue"
-import UnitPersonnelDialog from "~/components/people-counting/UnitPersonnelDialog.vue"
-import RollCallHistoryDialog from "~/components/roll-call/RollCallHistoryDialog.vue"
 import RollCallOverviewCard from "~/components/roll-call/RollCallOverviewCard.vue"
-import RollCallAttendanceLogTable from "~/components/roll-call/RollCallAttendanceLogTable.vue"
+import RollCallAttendanceCards from "~/components/roll-call/RollCallAttendanceCards.vue"
+import RollCallGroupFilter from "~/components/roll-call/RollCallGroupFilter.vue"
+import RollCallSimulation from "~/components/roll-call/RollCallSimulation.vue"
+import SimulationFrame from "~/components/common/SimulationFrame.vue"
 import PeopleCountingAccessManageDialog from "~/components/people-counting/PeopleCountingAccessManageDialog.vue"
-import { useAuth } from "~/composables/core/useAuth"
 import { useLocationModuleRbac, useRollCallAccessRbac } from "~/composables/core/useAccessGate"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import {
@@ -246,21 +235,20 @@ import { setupDebouncedRefetchListeners } from "~/composables/websocket/useWebSo
 import { PERM } from "~/config/permissionCodes"
 import { TOAST } from "~/config/toastCatalog"
 import { ROLL_CALL_RESET_STATS_CONFIRM } from "~/utils/confirmCopy"
+import { getTimeRangeUTC } from "~/utils/dateUtils"
 import { createRollCallRuleDraft, ruleToDraft } from "~/types/rollCall"
 import type {
 	RollCallAttendanceRow,
 	RollCallLocation,
+	RollCallReportAttendanceRow,
+	RollCallReportSession,
 	RollCallRuleDraft,
 	RollCallSessionDetail,
 	RollCallSessionSummary,
 	RollCallTodayLocation,
 	RollCallZone,
 } from "~/types/rollCall"
-import type { PeopleCountingPersonnel, PeopleCountingUnit } from "~/types/peopleCounting"
-import {
-	resolvePersonGroupId,
-	UNGROUPED_PERSON_GROUP_ID,
-} from "~/utils/personnelUtils"
+import { UNGROUPED_PERSON_GROUP_ID } from "~/utils/personnelUtils"
 
 const { canManageLocation, canCreateLocation, canUpdateLocation, canDeleteLocation } =
 	useLocationModuleRbac(PERM.rollCall)
@@ -270,8 +258,6 @@ const {
 	canResyncAccessDevices,
 	canResetStatistics,
 } = useRollCallAccessRbac()
-const { useHasPermission } = useAuth()
-const canMark = useHasPermission(PERM.rollCall.attendanceMark)
 
 const locationApi = useRollCallLocationApi()
 const rollCallApi = useRollCallApi()
@@ -297,13 +283,97 @@ const zones = ref<RollCallZone[]>([])
 const todayLocations = ref<RollCallTodayLocation[]>([])
 const selectedLocationId = ref<number | null>(null)
 const detail = ref<RollCallSessionDetail | null>(null)
-const selectedUnitId = ref<number | null>(null)
-const showUnitPersonnelDialog = ref(false)
-const unitPersonnel = ref<PeopleCountingPersonnel[]>([])
+const selectedGroupId = ref<number | null>(null)
 const isOverviewCollapsed = ref(false)
 const showLocationDialog = ref(false)
-const showHistoryDialog = ref(false)
+const showReportFrame = ref(false)
 const showAccessManageDialog = ref(false)
+const reportLoading = ref(false)
+const reportTimeRange = ref({
+	startDate: "",
+	endDate: "",
+	preset: "today",
+})
+const reportSessions = ref<RollCallReportSession[]>([])
+const reportAttendance = ref<RollCallReportAttendanceRow[]>([])
+
+const reportLocationOptions = computed(() => {
+	const opts: Array<{
+		locationId: number
+		label: string
+		zoneName: string
+		locationName: string
+	}> = []
+	for (const zone of zones.value) {
+		for (const loc of zone.locations || []) {
+			const locationId = loc.id != null ? Number(loc.id) : NaN
+			if (!Number.isFinite(locationId) || locationId <= 0) continue
+			const zoneName = zone.name || ""
+			const locationName = loc.name || ""
+			opts.push({
+				locationId,
+				label: [zoneName, locationName].filter(Boolean).join("-") || String(locationId),
+				zoneName,
+				locationName,
+			})
+		}
+	}
+	return opts
+})
+
+/** TimeRangePicker 的 ISO（結束為 exclusive）→ 本地日 YYYY-MM-DD 含頭含尾 */
+const isoRangeToInclusiveYmd = (startIso: string, endIso: string) => {
+	const start = new Date(startIso)
+	const endExclusive = new Date(endIso)
+	const ymd = (d: Date) => {
+		const y = d.getFullYear()
+		const m = String(d.getMonth() + 1).padStart(2, "0")
+		const day = String(d.getDate()).padStart(2, "0")
+		return `${y}-${m}-${day}`
+	}
+	const endInclusive = new Date(endExclusive)
+	endInclusive.setDate(endInclusive.getDate() - 1)
+	return { startDate: ymd(start), endDate: ymd(endInclusive) }
+}
+
+const loadReport = async () => {
+	reportLoading.value = true
+	try {
+		const { startDate, endDate } = isoRangeToInclusiveYmd(
+			reportTimeRange.value.startDate,
+			reportTimeRange.value.endDate,
+		)
+		const res = await rollCallApi.getReport({ startDate, endDate })
+		reportSessions.value = res.sessions || []
+		reportAttendance.value = res.attendance || []
+	} catch (error) {
+		handleApiError(error, "載入完整報表失敗")
+		reportSessions.value = []
+		reportAttendance.value = []
+	} finally {
+		reportLoading.value = false
+	}
+}
+
+const handleOpenReport = async () => {
+	const { start, end } = getTimeRangeUTC("today")
+	reportTimeRange.value = {
+		startDate: start.toISOString(),
+		endDate: end.toISOString(),
+		preset: "today",
+	}
+	showReportFrame.value = true
+	await loadReport()
+}
+
+const handleReportTimeRangeUpdate = (v: {
+	startDate: string
+	endDate: string
+	preset: string
+}) => {
+	reportTimeRange.value = v
+	void loadReport()
+}
 
 const pickPrimarySession = (sessions: RollCallSessionSummary[] = []) =>
 	sessions.find((item) => item.status === "open") ||
@@ -321,59 +391,78 @@ const statCards = computed(() => [
 	{ label: "未到人數", value: activeSummary.value?.absentCount ?? 0 },
 ])
 
-/** 對齊人流 PeopleUnitGroupPanel：直接使用 today.units */
-const unitSummaries = computed((): PeopleCountingUnit[] => {
-	const locationId = selected.value?.locationId ?? 0
-	return (selected.value?.units || []).map((u) => ({
-		id: u.id,
-		locationId,
-		name: u.name,
-		capacity: u.totalCount,
-		currentCount: u.currentCount,
-	}))
-})
-
-const selectedUnitName = computed(() => {
-	const unit = unitSummaries.value.find((u) => u.id === selectedUnitId.value)
-	return unit?.name || "人員群組"
-})
-
 const attendanceEmptyMessage = computed(() => {
 	if (activeSummary.value?.status === "not_started") return "時段尚未開始"
 	if (!activeSummary.value) return "今日無簽到時段"
+	if (selectedGroupId.value != null && filteredAttendance.value.length === 0) {
+		return "此群組尚無人員"
+	}
 	return "尚無簽到紀錄"
 })
 
-const formatCheckedInParts = (checkedInAt: string | null | undefined) => {
-	if (!checkedInAt) return { lastEntryDate: undefined as string | undefined, entryTime: undefined as string | undefined }
-	const d = new Date(checkedInAt)
-	if (Number.isNaN(d.getTime())) return { lastEntryDate: undefined, entryTime: undefined }
-	const pad = (n: number) => String(n).padStart(2, "0")
-	return {
-		lastEntryDate: `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}`,
-		entryTime: `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`,
-	}
-}
+const attendanceRows = computed((): RollCallAttendanceRow[] => detail.value?.attendance || [])
 
-const mapAttendanceToPersonnel = (
-	rows: RollCallAttendanceRow[],
-	unitId: number,
-): PeopleCountingPersonnel[] =>
-	rows
-		.filter((row) => (row.groupId ?? UNGROUPED_PERSON_GROUP_ID) === unitId)
-		.map((row) => {
-			const parts = formatCheckedInParts(row.checkedInAt)
-			return {
-				id: row.personId,
-				unitId,
-				employeeId: row.employeeNo,
-				name: row.fullName || row.employeeNo,
-				photoUrl: row.photoUrl || undefined,
-				isPresent: row.status === "present",
-				lastEntryDate: parts.lastEntryDate,
-				entryTime: parts.entryTime,
-			}
-		})
+const filteredAttendance = computed(() => {
+	const rows = attendanceRows.value
+	if (selectedGroupId.value == null) return rows
+	return rows.filter((row) => (row.groupId ?? UNGROUPED_PERSON_GROUP_ID) === selectedGroupId.value)
+})
+
+const groupFilterItems = computed(() => {
+	const rows = attendanceRows.value
+	const tallies = new Map<number, { name: string; presentCount: number; totalCount: number }>()
+	for (const row of rows) {
+		const id = row.groupId ?? UNGROUPED_PERSON_GROUP_ID
+		const cur = tallies.get(id) || {
+			name: row.groupName || "未分組",
+			presentCount: 0,
+			totalCount: 0,
+		}
+		cur.totalCount += 1
+		if (row.status === "present") cur.presentCount += 1
+		tallies.set(id, cur)
+	}
+
+	const units = selected.value?.units || []
+	const items =
+		units.length > 0
+			? units.map((unit) => {
+					const t = tallies.get(unit.id)
+					return {
+						id: unit.id,
+						name: unit.name,
+						presentCount: t?.presentCount ?? unit.currentCount ?? 0,
+						totalCount: t?.totalCount ?? unit.totalCount ?? 0,
+					}
+				})
+			: [...tallies.entries()]
+					.sort(([a], [b]) => {
+						if (a === UNGROUPED_PERSON_GROUP_ID) return 1
+						if (b === UNGROUPED_PERSON_GROUP_ID) return -1
+						return (tallies.get(a)?.name || "").localeCompare(
+							tallies.get(b)?.name || "",
+							"zh-Hant",
+						)
+					})
+					.map(([id, t]) => ({
+						id,
+						name: t.name,
+						presentCount: t.presentCount,
+						totalCount: t.totalCount,
+					}))
+
+	const allPresent = items.reduce((sum, item) => sum + item.presentCount, 0)
+	const allTotal = items.reduce((sum, item) => sum + item.totalCount, 0)
+	return [
+		{
+			id: null as number | null,
+			name: "全部",
+			presentCount: rows.length > 0 ? rows.filter((r) => r.status === "present").length : allPresent,
+			totalCount: rows.length > 0 ? rows.length : allTotal,
+		},
+		...items,
+	]
+})
 
 const attachRulesToZones = (
 	zoneList: RollCallZone[],
@@ -421,9 +510,6 @@ const persistLocationRules = async (
 }
 
 const loadSessionDetail = async (summary: RollCallSessionSummary | null) => {
-	selectedUnitId.value = null
-	showUnitPersonnelDialog.value = false
-	unitPersonnel.value = []
 	if (!summary?.id || summary.status === "not_started") {
 		detail.value = null
 		return
@@ -440,55 +526,16 @@ const loadToday = async () => {
 		!todayLocations.value.some((item) => item.locationId === selectedLocationId.value)
 	) {
 		selectedLocationId.value = todayLocations.value[0]?.locationId ?? null
+		selectedGroupId.value = null
 	}
 	await loadSessionDetail(activeSummary.value)
 }
 
 const handleSelectLocation = async (locationId: number) => {
 	selectedLocationId.value = locationId
+	selectedGroupId.value = null
 	const location = todayLocations.value.find((item) => item.locationId === locationId)
 	await loadSessionDetail(pickPrimarySession(location?.sessions))
-}
-
-const handleUnitSelect = async (unitId: number) => {
-	selectedUnitId.value = unitId
-	const attendanceRows = detail.value?.attendance || []
-	if (attendanceRows.length > 0) {
-		unitPersonnel.value = mapAttendanceToPersonnel(attendanceRows, unitId)
-		showUnitPersonnelDialog.value = true
-		return
-	}
-	const locationId = selectedLocationId.value
-	if (locationId == null) {
-		unitPersonnel.value = []
-		showUnitPersonnelDialog.value = true
-		return
-	}
-	try {
-		const res = await personnelApi.getLocationMembers(locationId, { limit: 500, status: "active" })
-		const items = res.items || []
-		unitPersonnel.value = items
-			.filter((person) => resolvePersonGroupId(person) === unitId)
-			.map((person) => ({
-				id: person.id,
-				unitId,
-				employeeId: person.employee_no,
-				name: person.full_name || person.employee_no,
-				photoUrl: person.face_url || undefined,
-				isPresent: false,
-			}))
-	} catch (error) {
-		handleApiError(error, "載入群組名單失敗")
-		unitPersonnel.value = []
-	}
-	showUnitPersonnelDialog.value = true
-}
-
-const handleMark = async (personId: number, status: "present" | "absent") => {
-	if (!detail.value?.canMark || !canMark.value) return
-	const res = await rollCallApi.markAttendance(detail.value.id, personId, status)
-	detail.value = res.session
-	await loadToday()
 }
 
 const handleResetStats = () => {

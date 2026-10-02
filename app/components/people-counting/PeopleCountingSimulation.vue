@@ -71,7 +71,7 @@
 						<tr class="text-white/90">
 							<th class="whitespace-nowrap border border-white/20 p-2">日期</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">區域-地點</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">群組名稱</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">群組</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">進場人數</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">出場人數</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">在場人數</th>
@@ -85,7 +85,7 @@
 						>
 							<td class="border border-white/20 p-2">{{ row.日期 }}</td>
 							<td class="border border-white/20 p-2">{{ row["區域-地點"] }}</td>
-							<td class="border border-white/20 p-2">{{ row.群組名稱 }}</td>
+							<td class="border border-white/20 p-2">{{ row.群組 }}</td>
 							<td class="border border-white/20 p-2">{{ row.進場人數 }}</td>
 							<td class="border border-white/20 p-2">{{ row.出場人數 }}</td>
 							<td
@@ -389,7 +389,7 @@ type UnitStatsRow = {
 	key: string;
 	日期: string;
 	"區域-地點": string;
-	群組名稱: string;
+	群組: string;
 	進場人數: string;
 	出場人數: string;
 	在場人數: string;
@@ -417,7 +417,7 @@ const unitStatsTableRows = computed((): UnitStatsRow[] => {
 					key: `unit-${groupKey}-${u.name}`,
 					日期: dateStr,
 					"區域-地點": zl,
-					群組名稱: u.name,
+					群組: u.name,
 					進場人數: String(u.entryCount ?? 0),
 					出場人數: String(u.exitCount ?? 0),
 					在場人數: String(u.currentCount ?? 0),
@@ -431,7 +431,7 @@ const unitStatsTableRows = computed((): UnitStatsRow[] => {
 					key: `unit-${groupKey}-${u.unitName}`,
 					日期: dateStr,
 					"區域-地點": zl,
-					群組名稱: u.unitName,
+					群組: u.unitName,
 					進場人數: String(u.entry),
 					出場人數: String(u.exit),
 					在場人數: String(u.current),
@@ -453,13 +453,13 @@ type DetailRow = {
 const effectiveDisplayColumns = computed(() => {
 	const locId = selectedLocationIdNum.value;
 	const raw = locId == null ? null : (props.locationDisplayColumns?.[locId] ?? null);
-	// 完整報表：不顯示「設備截圖」
-	return normalizeLogDisplayColumns(raw).filter(k => k !== "screenshot");
+	// 完整報表：固定欄已有「群組」；不重複顯示 unit，亦不顯示設備截圖
+	return normalizeLogDisplayColumns(raw).filter((k) => k !== "screenshot" && k !== "unit");
 });
 
 const detailHeaders = computed(() => {
-	const fixed = ["區域-地點", "群組名稱"];
-	const dynamic = effectiveDisplayColumns.value.map(k => PEOPLE_COUNTING_LOG_COLUMN_LABELS[k]);
+	const fixed = ["區域-地點", "群組"];
+	const dynamic = effectiveDisplayColumns.value.map((k) => PEOPLE_COUNTING_LOG_COLUMN_LABELS[k]);
 	return [...fixed, ...dynamic];
 });
 
@@ -511,7 +511,7 @@ const detailTableRows = computed((): DetailRow[] => {
 			const labeled = buildLogDetailRow(log, effectiveDisplayColumns.value);
 			const cells = detailHeaders.value.map(h => {
 				if (h === "區域-地點") return zl;
-				if (h === "群組名稱") return unitName;
+				if (h === "群組") return unitName;
 				return labeled[h] ?? "—";
 			});
 
@@ -563,7 +563,7 @@ const handleDetailNextPage = () => {
 };
 
 const STATS_HEADERS = ["日期", "區域-地點", "進場人數", "出場人數", "在場人數"];
-const UNIT_STATS_HEADERS = ["日期", "區域-地點", "群組名稱", "進場人數", "出場人數", "在場人數"];
+const UNIT_STATS_HEADERS = ["日期", "區域-地點", "群組", "進場人數", "出場人數", "在場人數"];
 
 const firstDateStr = computed(() =>
 	locationFilteredLogs.value.length > 0 ? getDateKey(locationFilteredLogs.value[0]!) : ""
@@ -583,7 +583,7 @@ const handleExportCsv = () => {
 			unitStatsTableRows.value.map(r => ({
 				日期: r.日期,
 				"區域-地點": r["區域-地點"],
-				群組名稱: r.群組名稱,
+				群組: r.群組,
 				進場人數: r.進場人數,
 				出場人數: r.出場人數,
 				在場人數: r.在場人數
