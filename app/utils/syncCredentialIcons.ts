@@ -90,7 +90,7 @@ export type PersonnelPlatformIconKey = keyof typeof PERSONNEL_PLATFORM_ICONS
 const toIndicator = (
 	key: keyof typeof SYNC_CREDENTIAL_ICONS,
 	label: string,
-	status: SyncStepUiStatus,
+	status: SyncStepUiStatus
 ): SyncCredentialIndicatorItem => ({
 	key,
 	label,
@@ -101,9 +101,11 @@ const toIndicator = (
 
 /** 設備同步狀態統一三色：成功綠／待同步黃／失敗紅（DB SSOT：pending|success|failed，見後端 syncStatusCodes.js） */
 export const normalizeCredentialSyncUiStatus = (
-	status: SyncStepUiStatus | string | null | undefined,
+	status: SyncStepUiStatus | string | null | undefined
 ): "pending" | "success" | "failed" => {
-	const raw = String(status || "").trim().toLowerCase()
+	const raw = String(status || "")
+		.trim()
+		.toLowerCase()
 	if (raw === "success" || raw === "synced" || raw === "unchanged") return "success"
 	if (raw === "failed") return "failed"
 	return "pending"
@@ -126,7 +128,7 @@ export const rememberLocationCredentialSyncStatuses = (
 			card?: { status?: string | null } | null
 			fingerprint?: { status?: string | null } | null
 		} | null
-	}>,
+	}>
 ) => {
 	if (!import.meta.client) return
 	const id = Number(locationId)
@@ -141,8 +143,7 @@ export const rememberLocationCredentialSyncStatuses = (
 		const fpRaw = c.last_sync?.fingerprint?.status
 		if (faceRaw && faceRaw !== "no_data") next.face = normalizeCredentialSyncUiStatus(faceRaw)
 		if (cardRaw && cardRaw !== "no_data") next.card = normalizeCredentialSyncUiStatus(cardRaw)
-		if (fpRaw && fpRaw !== "no_data")
-			next.fingerprint = normalizeCredentialSyncUiStatus(fpRaw)
+		if (fpRaw && fpRaw !== "no_data") next.fingerprint = normalizeCredentialSyncUiStatus(fpRaw)
 		if (next.face || next.card || next.fingerprint) map[emp] = next
 	}
 	try {
@@ -155,7 +156,7 @@ export const rememberLocationCredentialSyncStatuses = (
 export const readRememberedCredentialStepStatus = (
 	locationId: number,
 	employeeNo: string,
-	step: "face" | "card" | "fingerprint",
+	step: "face" | "card" | "fingerprint"
 ): "pending" | "success" | "failed" | null => {
 	if (!import.meta.client) return null
 	const id = Number(locationId)
@@ -203,7 +204,7 @@ const resolveAccessCredentialPresence = (person: Person) => {
 
 const resolveStepSyncStatus = (
 	row: SyncPersonRow | null,
-	step: AccessCredentialStep,
+	step: AccessCredentialStep
 ): SyncStepUiStatus | null => {
 	const raw = row?.[step]?.status
 	if (!raw || raw === "no_data") return null
@@ -211,14 +212,17 @@ const resolveStepSyncStatus = (
 }
 
 const resolveCandidateStepStatus = (
-	candidate: {
-		last_sync?: {
-			face?: { status?: string | null } | null
-			card?: { status?: string | null } | null
-			fingerprint?: { status?: string | null } | null
-		} | null
-	} | null | undefined,
-	step: AccessCredentialStep,
+	candidate:
+		| {
+				last_sync?: {
+					face?: { status?: string | null } | null
+					card?: { status?: string | null } | null
+					fingerprint?: { status?: string | null } | null
+				} | null
+		  }
+		| null
+		| undefined,
+	step: AccessCredentialStep
 ): SyncStepUiStatus | null => {
 	const raw = candidate?.last_sync?.[step]?.status
 	if (!raw || raw === "no_data") return null
@@ -282,29 +286,30 @@ export const buildLocationMemberSyncIndicators = (params: {
 	})
 }
 
-export const buildPlateSyncIndicators = (status: SyncStepUiStatus): SyncCredentialIndicatorItem[] => [
+export const buildPlateSyncIndicators = (
+	status: SyncStepUiStatus
+): SyncCredentialIndicatorItem[] => [
 	toIndicator("licensePlate", "車牌", normalizeCredentialSyncUiStatus(status)),
 ]
 
 /** 車牌地點名單：有車牌才顯示 icon（待同步黃／成功綠／失敗紅）；無車牌不顯示，對齊門禁 */
 export const buildLocationMemberPlateSyncIndicators = (
 	person: Person,
-	locationRows: LocationLicensePlateRow[],
+	locationRows: LocationLicensePlateRow[]
 ): SyncCredentialIndicatorItem[] => {
 	const sources = resolvePersonPlateSyncSources(person, locationRows)
 	if (sources.length === 0) return []
 	return buildPlateSyncIndicators(
-		aggregatePlateSyncUiStatus(sources.map((p) => p.isapi_sync_status)),
+		aggregatePlateSyncUiStatus(sources.map((p) => p.isapi_sync_status))
 	)
 }
 
-export const elevatorAccessStepToUiStatus = (
-	step?: { status?: string } | null,
-): SyncStepUiStatus => normalizeCredentialSyncUiStatus(step?.status)
+export const elevatorAccessStepToUiStatus = (step?: { status?: string } | null): SyncStepUiStatus =>
+	normalizeCredentialSyncUiStatus(step?.status)
 
 export const buildElevatorLadderCardIndicator = (
 	candidate: ElevatorSyncCandidate | null | undefined,
-	person: Person,
+	person: Person
 ): SyncCredentialIndicatorItem[] => {
 	const hasLadder = candidate?.has_ladder_card ?? personHasLadderCard(person)
 	if (!hasLadder) return []
@@ -316,15 +321,14 @@ export const buildElevatorLadderCardIndicator = (
 
 export const buildElevatorAccessSyncIndicators = (
 	candidate: ElevatorSyncCandidate | null | undefined,
-	person: Person,
+	person: Person
 ): SyncCredentialIndicatorItem[] => {
 	const access = candidate?.last_sync?.access
 	return buildAccessCredentialSyncIndicators({
 		presence: resolveAccessCredentialPresence(person),
 		steps: ACCESS_CREDENTIAL_STEPS.access_control,
 		labels: ELEVATOR_ACCESS_LABELS,
-		resolveStatus: (step) =>
-			access?.[step] ? elevatorAccessStepToUiStatus(access[step]) : null,
+		resolveStatus: (step) => (access?.[step] ? elevatorAccessStepToUiStatus(access[step]) : null),
 	})
 }
 
@@ -332,7 +336,7 @@ export const buildElevatorAccessSyncIndicators = (
 export const buildElevatorMemberSyncIndicators = (
 	candidate: ElevatorSyncCandidate | null | undefined,
 	showAccess: boolean,
-	person: Person,
+	person: Person
 ): SyncCredentialIndicatorItem[] => {
 	const ladder = buildElevatorLadderCardIndicator(candidate, person)
 	if (!showAccess) return ladder
