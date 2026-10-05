@@ -25,6 +25,7 @@
 				</Transition>
 
 				<div
+					ref="detailPanelRef"
 					class="monitoring-detail-panel monitoring-panel rounded-2xl p-4 2xl:p-6"
 				>
 					<div class="monitoring-location-title">
@@ -71,6 +72,7 @@
 			<aside
 				class="overview-sidebar"
 				:class="isOverviewCollapsed ? 'overview-sidebar--collapsed' : 'overview-sidebar--expanded'"
+				:style="asideHeightStyle"
 				:aria-hidden="isOverviewCollapsed"
 			>
 				<div
@@ -158,6 +160,7 @@ import { onMounted, onUnmounted, ref, type Ref } from "vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue"
+import { useMonitoringAsideHeightSync } from "~/composables/monitoring/useMonitoringAsideHeightSync"
 import AccessSecurityLocationOverviewCard from "~/components/access-security/AccessSecurityLocationOverviewCard.vue"
 import AccessSecurityMainStationPanel from "~/components/access-security/AccessSecurityMainStationPanel.vue"
 import AccessSecurityIntercomLogTable from "~/components/access-security/AccessSecurityIntercomLogTable.vue"
@@ -210,6 +213,7 @@ const {
 } = useAccessSecurityState()
 
 const isOverviewCollapsed = ref(false)
+const { detailPanelRef, asideHeightStyle } = useMonitoringAsideHeightSync()
 const showZoneDialog = ref(false)
 
 const handleRingClick = (locationId: number) => {

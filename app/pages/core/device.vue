@@ -79,6 +79,7 @@
 											{{ activeTab === "camera" ? "IP 位址" : "配置資訊" }}
 										</th>
 										<th class="table-th">狀態</th>
+										<th class="table-th">啟用</th>
 										<th class="table-th">
 											<FilterDropdown
 												:model-value="dateSortOrder"
@@ -96,6 +97,7 @@
 										v-for="device in devices"
 										:key="device.id"
 										class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
+										:class="{ 'opacity-60': device.enabled === false }"
 									>
 										<td class="table-td">{{ device.name }}</td>
 										<td v-if="activeTab === 'camera'" class="table-td">
@@ -137,6 +139,18 @@
 												<span v-else>
 													{{ connectivityLabels[deviceConnectivity.getStatus(device.id)] }}
 												</span>
+											</span>
+										</td>
+										<td class="table-td">
+											<span
+												:class="[
+													device.enabled === false
+														? 'bg-yellow-500/20 text-yellow-200'
+														: 'bg-emerald-500/20 text-emerald-200',
+													'rounded px-2 py-1 text-sm 2xl:px-3 2xl:py-1.5 2xl:text-base',
+												]"
+											>
+												{{ device.enabled === false ? "停用" : "啟用" }}
 											</span>
 										</td>
 										<td class="table-td text-white/70">

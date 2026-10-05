@@ -44,7 +44,7 @@
 							class="h-4 w-4 cursor-pointer accent-cyan-400"
 							:aria-label="`勾選感測器：${device.name}`"
 						/>
-						<span class="text-xs text-white/90 2xl:text-sm">{{ device.name }}</span>
+						<span class="text-xs text-white/90 2xl:text-sm">{{ formatDeviceSelectLabel(device) }}</span>
 					</label>
 				</div>
 				<p class="text-xs text-white/50 2xl:text-sm">可勾選多台設備，此地點數值將由所選設備提供</p>
@@ -113,6 +113,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDeviceSelectLabel } from "~/utils/deviceSelectLabel"
 import type { EnvironmentLocation, SensorParameterType } from "~/types/environment"
 import {
 	type Device,

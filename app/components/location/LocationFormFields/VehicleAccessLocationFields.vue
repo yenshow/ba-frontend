@@ -135,7 +135,7 @@
 								class="h-4 w-4 accent-cyan-400"
 								@change="handleToggleEntryCamera(dev.id)"
 							/>
-							<span class="text-xs text-white/90 2xl:text-sm">{{ dev.name }}</span>
+							<span class="text-xs text-white/90 2xl:text-sm">{{ formatDeviceSelectLabel(dev) }}</span>
 						</label>
 					</div>
 				</div>
@@ -161,7 +161,7 @@
 								class="h-4 w-4 accent-cyan-400"
 								@change="handleToggleExitCamera(dev.id)"
 							/>
-							<span class="text-xs text-white/90 2xl:text-sm">{{ dev.name }}</span>
+							<span class="text-xs text-white/90 2xl:text-sm">{{ formatDeviceSelectLabel(dev) }}</span>
 						</label>
 					</div>
 				</div>
@@ -229,6 +229,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDeviceSelectLabel } from "~/utils/deviceSelectLabel"
 import type { VehicleAccessLocation } from "~/types/vehicleAccess"
 import type { LaneInfo } from "~/types/vehicleAccess"
 import type { Device } from "~/types/device"

@@ -89,6 +89,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDeviceSelectLabel } from "~/utils/deviceSelectLabel"
 import type { LightingLocation } from "~/types/lighting"
 import type { Device } from "~/types/device"
 import { useLightingLocationValidation } from "~/composables/location/validation/useLightingLocationValidation"
@@ -175,7 +176,7 @@ const deviceOptions = computed(() => {
 	}
 	const options = props.devices.map((device) => ({
 		value: String(device.id),
-		label: device.name,
+		label: formatDeviceSelectLabel(device),
 	}))
 	// 添加空選項（用於清除選擇）
 	return [{ value: "", label: "請選擇控制器" }, ...options]

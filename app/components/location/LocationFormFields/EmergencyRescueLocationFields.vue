@@ -80,6 +80,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDeviceSelectLabel } from "~/utils/deviceSelectLabel"
 import type { EmergencyRescueLocation } from "~/types/emergency-rescue"
 import type { ModbusStatusPointDef } from "~/types/location"
 import type { Device } from "~/types/device"
@@ -169,7 +170,7 @@ const deviceOptions = computed(() => {
 	if (props.devices.length === 0) return [{ value: "", label: "尚無可用控制器" }]
 	return [
 		{ value: "", label: "請選擇控制器" },
-		...props.devices.map((d) => ({ value: String(d.id), label: d.name })),
+		...props.devices.map((d) => ({ value: String(d.id), label: formatDeviceSelectLabel(d) })),
 	]
 })
 

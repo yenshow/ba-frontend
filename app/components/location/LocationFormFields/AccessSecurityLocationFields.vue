@@ -31,6 +31,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDeviceSelectLabel } from "~/utils/deviceSelectLabel"
 import { computed, reactive, watch } from "vue"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import type { Device } from "~/types/device"
@@ -84,7 +85,7 @@ const deviceOptions = computed(() => [
 	{ value: "", label: "請選擇室內機" },
 	...indoorDevices.value.map((d) => ({
 		value: String(d.id),
-		label: d.name || `設備 ${d.id}`,
+		label: formatDeviceSelectLabel(d),
 	})),
 ])
 

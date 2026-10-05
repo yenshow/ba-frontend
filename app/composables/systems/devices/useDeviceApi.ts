@@ -46,6 +46,7 @@ export const useDeviceApi = () => {
 		getDevices: async (params?: {
 			type_code?: DeviceTypeCode;
 			group?: string;
+			enabled?: boolean;
 			limit?: number;
 			offset?: number;
 			orderBy?: string;
@@ -55,6 +56,7 @@ export const useDeviceApi = () => {
 			const filterParams: Record<string, unknown> = {};
 			if (params?.type_code) filterParams.type_code = params.type_code;
 			if (params?.group != null && params.group !== "") filterParams.group = params.group;
+			if (params?.enabled !== undefined) filterParams.enabled = params.enabled;
 
 			// 構建分頁參數
 			const paginationParams = buildPaginationParams({

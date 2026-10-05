@@ -25,6 +25,7 @@
 				</Transition>
 
 				<div
+					ref="detailPanelRef"
 					class="monitoring-detail-panel monitoring-panel rounded-2xl p-4 2xl:p-6"
 				>
 					<div class="monitoring-location-title">
@@ -95,6 +96,7 @@
 			<aside
 				class="overview-sidebar"
 				:class="isOverviewCollapsed ? 'overview-sidebar--collapsed' : 'overview-sidebar--expanded'"
+				:style="asideHeightStyle"
 				:aria-hidden="isOverviewCollapsed"
 			>
 				<div
@@ -206,6 +208,7 @@ import type {
 	MonitoringDeviceStatusEvent,
 } from "~/types/websocket"
 import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue"
+import { useMonitoringAsideHeightSync } from "~/composables/monitoring/useMonitoringAsideHeightSync"
 import SimulationFrame from "~/components/common/SimulationFrame.vue"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
@@ -284,6 +287,7 @@ const detailEmpty = computed(
 )
 
 const isOverviewCollapsed = ref(false)
+const { detailPanelRef, asideHeightStyle } = useMonitoringAsideHeightSync()
 const showLocationManagementDialog = ref(false)
 const showFloorManageDialog = ref(false)
 

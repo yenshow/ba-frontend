@@ -173,7 +173,7 @@
 								class="h-4 w-4 cursor-pointer accent-cyan-400"
 								@change="handleToggleAccessControl('entry', dev.id)"
 							/>
-							<span class="text-xs text-white/90 2xl:text-sm">{{ dev.name }}</span>
+							<span class="text-xs text-white/90 2xl:text-sm">{{ formatDeviceSelectLabel(dev) }}</span>
 						</label>
 					</div>
 				</div>
@@ -212,7 +212,7 @@
 								class="h-4 w-4 cursor-pointer accent-cyan-400"
 								@change="handleToggleAccessControl('exit', dev.id)"
 							/>
-							<span class="text-xs text-white/90 2xl:text-sm">{{ dev.name }}</span>
+							<span class="text-xs text-white/90 2xl:text-sm">{{ formatDeviceSelectLabel(dev) }}</span>
 						</label>
 					</div>
 					<p
@@ -360,7 +360,7 @@
 									class="h-4 w-4 cursor-pointer accent-cyan-400"
 									@change="handleToggleFaceCamera('entry', dev.id)"
 								/>
-								<span class="text-xs text-white/90 2xl:text-sm">{{ dev.name }}</span>
+								<span class="text-xs text-white/90 2xl:text-sm">{{ formatDeviceSelectLabel(dev) }}</span>
 							</label>
 						</div>
 						<p
@@ -392,7 +392,7 @@
 									class="h-4 w-4 cursor-pointer accent-cyan-400"
 									@change="handleToggleFaceCamera('exit', dev.id)"
 								/>
-								<span class="text-xs text-white/90 2xl:text-sm">{{ dev.name }}</span>
+								<span class="text-xs text-white/90 2xl:text-sm">{{ formatDeviceSelectLabel(dev) }}</span>
 							</label>
 						</div>
 						<p
@@ -433,7 +433,7 @@
 							class="h-4 w-4 cursor-pointer accent-cyan-400"
 							@change="handleToggleCamera(dev.id)"
 						/>
-						<span class="text-xs text-white/90 2xl:text-sm">{{ dev.name }}</span>
+						<span class="text-xs text-white/90 2xl:text-sm">{{ formatDeviceSelectLabel(dev) }}</span>
 					</label>
 				</div>
 				<p
@@ -478,6 +478,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDeviceSelectLabel } from "~/utils/deviceSelectLabel"
 import type { PeopleCountingLocation } from "~/types/peopleCounting"
 import type { Device } from "~/types/device"
 import {
@@ -559,7 +560,7 @@ const eventCameraDeviceOptions = computed(() => [
 	{ value: "", label: "不設定" },
 	...props.surveillanceCameraDevices.map((dev) => ({
 		value: String(dev.id),
-		label: dev.name?.trim() || `設備 #${dev.id}`,
+		label: formatDeviceSelectLabel(dev),
 	})),
 ])
 

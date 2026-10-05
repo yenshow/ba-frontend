@@ -24,7 +24,10 @@
 					</button>
 				</Transition>
 
-				<div class="monitoring-detail-panel monitoring-panel rounded-2xl p-4 2xl:p-6">
+				<div
+					ref="detailPanelRef"
+					class="monitoring-detail-panel monitoring-panel rounded-2xl p-4 2xl:p-6"
+				>
 					<!-- 位置標題與地點選擇 -->
 					<div class="monitoring-location-title">
 						<div class="flex w-[200px] items-center justify-center">
@@ -139,6 +142,7 @@
 			<aside
 				class="overview-sidebar"
 				:class="isOverviewCollapsed ? 'overview-sidebar--collapsed' : 'overview-sidebar--expanded'"
+				:style="asideHeightStyle"
 				:aria-hidden="isOverviewCollapsed"
 			>
 				<div
@@ -239,6 +243,7 @@
 
 <script setup lang="ts">
 import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue"
+import { useMonitoringAsideHeightSync } from "~/composables/monitoring/useMonitoringAsideHeightSync"
 import EnvironmentGauge from "~/components/environment/EnvironmentGauge.vue"
 import EnvironmentParamCard from "~/components/environment/EnvironmentParamCard.vue"
 import OverviewLocationCard from "~/components/environment/OverviewLocationCard.vue"
@@ -504,6 +509,7 @@ const formatParamDisplay = (value: number | null, fractionDigits = 0) =>
 	})
 
 const isOverviewCollapsed = ref(false)
+const { detailPanelRef, asideHeightStyle } = useMonitoringAsideHeightSync()
 const overviewListRef = ref<HTMLElement | null>(null)
 const scrollActiveOverviewIntoView = () => {
 	const id = selectedLocationId.value

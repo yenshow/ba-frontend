@@ -26,6 +26,7 @@
 				</Transition>
 
 				<div
+					ref="detailPanelRef"
 					class="monitoring-detail-panel monitoring-panel rounded-2xl p-6 2xl:p-8"
 				>
 					<!-- 控制面板 -->
@@ -100,6 +101,7 @@
 			<aside
 				class="overview-sidebar"
 				:class="isOverviewCollapsed ? 'overview-sidebar--collapsed' : 'overview-sidebar--expanded'"
+				:style="asideHeightStyle"
 				:aria-hidden="isOverviewCollapsed"
 			>
 				<div
@@ -209,6 +211,7 @@ import type { CameraDeviceConfig } from "~/types/device"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useStreamStatus } from "~/composables/monitoring/useStreamStatus"
+import { useMonitoringAsideHeightSync } from "~/composables/monitoring/useMonitoringAsideHeightSync"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
 import { useDeviceConnectivity } from "~/composables/systems/devices/useDeviceConnectivity"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
@@ -263,6 +266,7 @@ const gridLayout = ref<GridLayout>("1")
 const selectedCameraIds = computed(() => monitorViews.value.map((view) => view.deviceId))
 const isFullscreenOpen = ref(false)
 const isOverviewCollapsed = ref(false)
+const { detailPanelRef, asideHeightStyle } = useMonitoringAsideHeightSync()
 
 /** 移除後僅在剩餘路數「恰好」為 1／4／9／16 時降格；否則維持原布局（保留空位） */
 const syncLayoutToViewCount = () => {

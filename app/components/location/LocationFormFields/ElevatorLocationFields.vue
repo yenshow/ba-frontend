@@ -138,7 +138,7 @@
 							class="h-4 w-4 cursor-pointer accent-cyan-400"
 							@change="handleToggleAccessDevice(device.id)"
 						/>
-						<span class="text-xs text-white/90 2xl:text-sm">{{ device.name }}</span>
+						<span class="text-xs text-white/90 2xl:text-sm">{{ formatDeviceSelectLabel(device) }}</span>
 					</label>
 				</div>
 			</div>
@@ -292,6 +292,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDeviceSelectLabel } from "~/utils/deviceSelectLabel"
 import { computed, reactive, ref, watch } from "vue"
 import type { ElevatorLocation } from "~/types/elevator"
 import { isHcnetSdkDevice, type Device } from "~/types/device"
@@ -381,10 +382,10 @@ const modbusDevices = computed(() =>
 	(props.devices || []).filter((d) => d.type_code === "controller" && !isHcnetSdkDevice(d))
 )
 const ladderDeviceOptionsRequired = computed(() =>
-	ladderDevices.value.map((d) => ({ value: String(d.id), label: d.name }))
+	ladderDevices.value.map((d) => ({ value: String(d.id), label: formatDeviceSelectLabel(d) }))
 )
 const modbusDeviceOptionsRequired = computed(() =>
-	modbusDevices.value.map((d) => ({ value: String(d.id), label: d.name }))
+	modbusDevices.value.map((d) => ({ value: String(d.id), label: formatDeviceSelectLabel(d) }))
 )
 
 const accessControlDeviceOptions = computed(() =>

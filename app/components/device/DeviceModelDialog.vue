@@ -345,6 +345,44 @@
 									</p>
 								</template>
 
+								<template v-if="deviceTypeCode === 'access_control'">
+									<div class="border-t border-white/10 pt-4">
+										<h4 class="mb-3 text-base font-medium text-white 2xl:text-lg">同步憑證能力</h4>
+										<p class="mb-3 text-xs text-white/45 2xl:text-sm">
+											決定地點名單同步時是否下發人臉／卡號／指紋。純刷卡機請關閉人臉與指紋。
+										</p>
+										<div class="flex flex-col gap-2">
+											<label class="flex items-center gap-2 text-sm text-white/80">
+												<input
+													v-model="accessCredFace"
+													type="checkbox"
+													class="h-4 w-4 accent-emerald-400"
+													aria-label="支援人臉同步"
+												/>
+												<span>人臉</span>
+											</label>
+											<label class="flex items-center gap-2 text-sm text-white/80">
+												<input
+													v-model="accessCredCard"
+													type="checkbox"
+													class="h-4 w-4 accent-emerald-400"
+													aria-label="支援卡號同步"
+												/>
+												<span>卡號</span>
+											</label>
+											<label class="flex items-center gap-2 text-sm text-white/80">
+												<input
+													v-model="accessCredFingerprint"
+													type="checkbox"
+													class="h-4 w-4 accent-emerald-400"
+													aria-label="支援指紋同步"
+												/>
+												<span>指紋</span>
+											</label>
+										</div>
+									</div>
+								</template>
+
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>備註</span>
 									<textarea
@@ -596,6 +634,11 @@ const videoIntercomUnitType = ref<VideoIntercomUnitType>("indoor")
 const videoIntercomPort = ref<number>(8000)
 const videoIntercomSipPort = ref<number>(5060)
 
+/** 門禁型號憑證能力（缺省皆支援；純刷卡機關閉人臉／指紋） */
+const accessCredFace = ref(true)
+const accessCredCard = ref(true)
+const accessCredFingerprint = ref(true)
+
 const videoIntercomUnitTypeOptions = [
 	{ value: "manage", label: "管理中心主機" },
 	{ value: "indoor", label: "室內機" },
@@ -616,6 +659,17 @@ const applyVideoIntercomFieldsFromModel = (model: DeviceModel) => {
 			: 5060
 }
 
+const applyAccessControlFieldsFromModel = (model: DeviceModel) => {
+	const config =
+		(model.config as {
+			credentials?: { face?: boolean; fingerprint?: boolean; card?: boolean }
+		} | undefined) ?? {}
+	const cred = config.credentials
+	accessCredFace.value = cred?.face !== false
+	accessCredCard.value = cred?.card !== false
+	accessCredFingerprint.value = cred?.fingerprint !== false
+}
+
 const resetForm = () => {
 	formData.name = ""
 	formData.type_code = props.deviceTypeCode || "controller"
@@ -631,6 +685,9 @@ const resetForm = () => {
 	videoIntercomUnitType.value = "indoor"
 	videoIntercomPort.value = 8000
 	videoIntercomSipPort.value = 5060
+	accessCredFace.value = true
+	accessCredCard.value = true
+	accessCredFingerprint.value = true
 	formErrorMessage.value = null
 }
 
@@ -798,6 +855,14 @@ const editDeviceModel = (model: DeviceModel) => {
 		applyVideoIntercomFieldsFromModel(model)
 	}
 
+	if (props.deviceTypeCode === "access_control") {
+		applyAccessControlFieldsFromModel(model)
+	} else {
+		accessCredFace.value = true
+		accessCredCard.value = true
+		accessCredFingerprint.value = true
+	}
+
 	showForm.value = true
 	nextTick(() => {
 		formInitialSnapshot.value = getFormSnapshot()
@@ -818,6 +883,9 @@ interface FormSnapshot {
 	videoIntercomUnitType: VideoIntercomUnitType
 	videoIntercomPort: number
 	videoIntercomSipPort: number
+	accessCredFace: boolean
+	accessCredCard: boolean
+	accessCredFingerprint: boolean
 }
 const formInitialSnapshot = ref<FormSnapshot | null>(null)
 
@@ -834,6 +902,9 @@ const getFormSnapshot = (): FormSnapshot => ({
 	videoIntercomUnitType: videoIntercomUnitType.value,
 	videoIntercomPort: videoIntercomPort.value,
 	videoIntercomSipPort: videoIntercomSipPort.value,
+	accessCredFace: accessCredFace.value,
+	accessCredCard: accessCredCard.value,
+	accessCredFingerprint: accessCredFingerprint.value,
 })
 
 const formHasUnsavedChanges = computed(() => {
@@ -854,7 +925,10 @@ const formHasUnsavedChanges = computed(() => {
 			cur.cameraRtspTemplateCustom !== init.cameraRtspTemplateCustom ||
 			cur.videoIntercomUnitType !== init.videoIntercomUnitType ||
 			cur.videoIntercomPort !== init.videoIntercomPort ||
-			cur.videoIntercomSipPort !== init.videoIntercomSipPort
+			cur.videoIntercomSipPort !== init.videoIntercomSipPort ||
+			cur.accessCredFace !== init.accessCredFace ||
+			cur.accessCredCard !== init.accessCredCard ||
+			cur.accessCredFingerprint !== init.accessCredFingerprint
 		)
 	}
 	// 新增模式：任一欄位有值即視為有變更
@@ -884,6 +958,12 @@ const formChangedFieldsList = computed(() => {
 		cur.cameraRtspTemplateCustom !== init.cameraRtspTemplateCustom
 	)
 		fields.push("RTSP URL 模板")
+	if (
+		cur.accessCredFace !== init.accessCredFace ||
+		cur.accessCredCard !== init.accessCredCard ||
+		cur.accessCredFingerprint !== init.accessCredFingerprint
+	)
+		fields.push("同步憑證能力")
 	return fields
 })
 
@@ -1029,7 +1109,13 @@ const handleFormSubmit = async () => {
 			submitData.config = sensorConfig
 		}
 		if (props.deviceTypeCode === "access_control") {
-			submitData.config = {}
+			submitData.config = {
+				credentials: {
+					face: accessCredFace.value,
+					fingerprint: accessCredFingerprint.value,
+					card: accessCredCard.value,
+				},
+			}
 		}
 		if (props.deviceTypeCode === "video_intercom") {
 			submitData.port = videoIntercomPort.value || 8000
