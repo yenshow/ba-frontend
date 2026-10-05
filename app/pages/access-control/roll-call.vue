@@ -23,7 +23,10 @@
 						</span>
 					</button>
 				</Transition>
-				<div class="monitoring-detail-panel monitoring-panel rounded-2xl p-4 2xl:p-6">
+				<div
+					ref="detailPanelRef"
+					class="monitoring-detail-panel monitoring-panel rounded-2xl p-4 2xl:p-6"
+				>
 					<div class="monitoring-location-title">
 						<div class="flex w-[200px] items-center justify-center">
 							<span v-if="selected" class="ps-[12px] text-[24px] 2xl:text-[36px]">
@@ -99,6 +102,7 @@
 			<aside
 				class="overview-sidebar"
 				:class="isOverviewCollapsed ? 'overview-sidebar--collapsed' : 'overview-sidebar--expanded'"
+				:style="asideHeightStyle"
 				:aria-hidden="isOverviewCollapsed"
 			>
 				<div
@@ -208,6 +212,7 @@
 <script setup lang="ts">
 import { onScopeDispose, computed, ref } from "vue"
 import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue"
+import { useMonitoringAsideHeightSync } from "~/composables/monitoring/useMonitoringAsideHeightSync"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
@@ -285,6 +290,7 @@ const selectedLocationId = ref<number | null>(null)
 const detail = ref<RollCallSessionDetail | null>(null)
 const selectedGroupId = ref<number | null>(null)
 const isOverviewCollapsed = ref(false)
+const { detailPanelRef, asideHeightStyle } = useMonitoringAsideHeightSync()
 const showLocationDialog = ref(false)
 const showReportFrame = ref(false)
 const showAccessManageDialog = ref(false)

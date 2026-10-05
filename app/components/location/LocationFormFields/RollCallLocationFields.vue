@@ -39,7 +39,7 @@
 						:aria-label="`選擇門禁機 ${device.name}`"
 						@change="handleToggleDevice(device.id)"
 					/>
-					<span class="text-xs text-white/90 2xl:text-sm">{{ device.name }}</span>
+					<span class="text-xs text-white/90 2xl:text-sm">{{ formatDeviceSelectLabel(device) }}</span>
 				</label>
 			</div>
 		</div>
@@ -55,6 +55,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDeviceSelectLabel } from "~/utils/deviceSelectLabel"
 import type { Device } from "~/types/device"
 import type { RollCallLocation, RollCallRuleDraft } from "~/types/rollCall"
 import { useAuth } from "~/composables/core/useAuth"

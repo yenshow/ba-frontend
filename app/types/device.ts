@@ -215,6 +215,8 @@ export interface Device {
 	type_code: DeviceTypeCode;
 	model_id: number; // 必填：設備型號 ID
 	description?: string;
+	/** 設備啟用；停用後略過背景訂閱／佈防／連線探測（預設 true） */
+	enabled?: boolean;
 	config: DeviceConfig; // JSON 格式儲存，根據 type_code 解析
 	created_at?: string;
 	updated_at?: string;
@@ -239,6 +241,7 @@ export interface CreateDeviceData {
 	type_code?: DeviceTypeCode;
 	model_id: number; // 必填：設備型號 ID
 	description?: string;
+	enabled?: boolean;
 	config: DeviceConfig;
 }
 
@@ -248,6 +251,7 @@ export interface UpdateDeviceData {
 	type_code?: DeviceTypeCode;
 	model_id?: number; // 可選，但如果提供則必須是有效的 ID（不能為 0 或 null）
 	description?: string;
+	enabled?: boolean;
 	config?: Partial<DeviceConfig>;
 }
 

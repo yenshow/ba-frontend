@@ -26,6 +26,7 @@
 				</Transition>
 
 				<div
+					ref="detailPanelRef"
 					class="monitoring-detail-panel monitoring-panel rounded-2xl p-4 2xl:p-6"
 				>
 					<!-- 位置標題與地點選擇 -->
@@ -126,6 +127,7 @@
 			<aside
 				class="overview-sidebar"
 				:class="isOverviewCollapsed ? 'overview-sidebar--collapsed' : 'overview-sidebar--expanded'"
+				:style="asideHeightStyle"
 				:aria-hidden="isOverviewCollapsed"
 			>
 				<div
@@ -255,6 +257,7 @@ import type {
 	PeopleCountingLog,
 } from "~/types/peopleCounting"
 import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue"
+import { useMonitoringAsideHeightSync } from "~/composables/monitoring/useMonitoringAsideHeightSync"
 import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue"
 import EntryExitLogTable from "~/components/people-counting/EntryExitLogTable.vue"
 import Pagination from "~/components/common/Pagination.vue"
@@ -427,6 +430,7 @@ const currentCount = computed(() => {
 })
 
 const isOverviewCollapsed = ref(false)
+const { detailPanelRef, asideHeightStyle } = useMonitoringAsideHeightSync()
 const overviewListRef = ref<HTMLElement | null>(null)
 // 地點管理與模擬框狀態
 const showLocationManagementDialog = ref(false)

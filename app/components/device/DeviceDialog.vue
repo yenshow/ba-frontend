@@ -46,6 +46,27 @@
 								/>
 							</label>
 							<label
+								class="flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base"
+							>
+								<span class="relative inline-flex cursor-pointer items-center">
+									<input
+										v-model="localFormData.enabled"
+										type="checkbox"
+										class="peer sr-only"
+										aria-label="設備啟用狀態"
+									/>
+									<div
+										class="peer h-6 w-11 rounded-full bg-white/20 after:absolute after:left-[4px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-emerald-500 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none 2xl:h-7 2xl:w-14 2xl:after:h-6 2xl:after:w-6"
+									></div>
+									<span class="ml-3 text-sm 2xl:text-base">{{
+										localFormData.enabled ? "已啟用" : "已停用"
+									}}</span>
+								</span>
+								<span class="text-xs text-white/50 2xl:text-sm"
+									>停用後平台不再對此設備訂閱／佈防／探測</span
+								>
+							</label>
+							<label
 								v-if="deviceTypeCode === 'camera'"
 								class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 							>
@@ -580,7 +601,8 @@ const modelIdString = ref("");
 
 const localFormData = reactive({
 	name: "",
-	model_id: 0
+	model_id: 0,
+	enabled: true,
 });
 
 const controllerConfig = reactive<ControllerDeviceConfig>({
@@ -809,6 +831,7 @@ watch(deviceApi.modelsCacheGeneration, () => {
 const resetForm = () => {
 	localFormData.name = "";
 	localFormData.model_id = 0;
+	localFormData.enabled = true;
 	controllerConfig.host = "";
 	controllerConfig.port = undefined;
 	controllerConfig.unitId = undefined;
@@ -852,6 +875,7 @@ const displayErrorMessage = computed(() => {
 interface FormSnapshot {
 	name: string;
 	model_id: number;
+	enabled: boolean;
 	config: DeviceConfig;
 }
 const initialFormSnapshot = ref<FormSnapshot | null>(null);
@@ -859,6 +883,7 @@ const initialFormSnapshot = ref<FormSnapshot | null>(null);
 const getFormSnapshot = (): FormSnapshot => ({
 	name: localFormData.name,
 	model_id: localFormData.model_id,
+	enabled: localFormData.enabled,
 	config: getCurrentConfig()
 });
 
@@ -907,6 +932,7 @@ const hasUnsavedChanges = computed(() => {
 		return (
 			current.name !== initial.name ||
 			current.model_id !== initial.model_id ||
+			current.enabled !== initial.enabled ||
 			JSON.stringify(current.config) !== JSON.stringify(initial.config)
 		);
 	}
@@ -923,6 +949,11 @@ const changedFieldsList = computed(() => {
 	}
 	if (current.model_id !== initial.model_id) {
 		fields.push("設備型號");
+	}
+	if (current.enabled !== initial.enabled) {
+		fields.push(
+			`啟用: ${initial.enabled ? "啟用" : "停用"} → ${current.enabled ? "啟用" : "停用"}`
+		);
 	}
 	if (JSON.stringify(current.config) !== JSON.stringify(initial.config)) {
 		fields.push("連線設定");
@@ -1018,6 +1049,7 @@ watch(
 		if (device) {
 			localFormData.name = device.name;
 			localFormData.model_id = device.model_id; // model_id 現在是必填的
+			localFormData.enabled = device.enabled !== false;
 			cameraCategoryCode.value = String(device.model_category_code || "");
 			loadConfigFromDevice(device);
 		} else {
@@ -1150,6 +1182,7 @@ const handleSubmit = () => {
 		emit("submit", {
 			name: localFormData.name,
 			model_id: localFormData.model_id,
+			enabled: localFormData.enabled,
 			config: config
 		} as UpdateDeviceData);
 	} else {
@@ -1157,6 +1190,7 @@ const handleSubmit = () => {
 			name: localFormData.name,
 			type_code: props.deviceTypeCode,
 			model_id: localFormData.model_id,
+			enabled: localFormData.enabled,
 			config: config
 		};
 		emit("submit", submitData);

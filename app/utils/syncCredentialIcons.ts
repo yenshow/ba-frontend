@@ -228,12 +228,14 @@ export const buildLocationMemberSyncIndicators = (params: {
 	} | null
 }): SyncCredentialIndicatorItem[] => {
 	const { row, mode, person, locationId, candidate } = params
-	const presence = resolveAccessCredentialPresence(person)
-	if (candidate) {
-		if (candidate.has_face) presence.face = true
-		if (candidate.has_card) presence.card = true
-		if ((candidate.fingerprint_count || 0) > 0) presence.fingerprint = true
-	}
+	// 有 candidates 時以後端 has_* 為準（已依型號 credentials 過濾）
+	const presence = candidate
+		? {
+				face: Boolean(candidate.has_face),
+				card: Boolean(candidate.has_card),
+				fingerprint: (candidate.fingerprint_count || 0) > 0,
+			}
+		: resolveAccessCredentialPresence(person)
 	const items: SyncCredentialIndicatorItem[] = []
 	for (const step of ACCESS_CREDENTIAL_STEPS[mode]) {
 		if (!presence[step]) continue

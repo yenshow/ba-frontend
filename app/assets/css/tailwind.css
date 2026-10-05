@@ -323,7 +323,7 @@ html:not(.dark) .select-filter option {
 	}
 }
 
-/* 監控雙欄：lg+ 左右面板等高；左欄把高度傳入 panel，內層 flex-1 填滿 */
+/* 監控雙欄：lg+ 左右面板等高（左欄 ResizeObserver → --overview-aside-h） */
 .monitoring-page-layout {
 	display: flex;
 	min-width: 0;
@@ -365,7 +365,7 @@ html:not(.dark) .select-filter option {
 	}
 }
 
-/* 工地監控：右側總覽（收合 w-0；與左欄 items-stretch 等高） */
+/* 監控雙欄：右側總覽（收合 w-0；lg+ 以左欄 --overview-aside-h 等高並內捲） */
 .overview-sidebar {
 	flex-shrink: 0;
 	align-self: stretch;
@@ -374,6 +374,13 @@ html:not(.dark) .select-filter option {
 	transition:
 		width var(--motion-fast, 0.2s) ease,
 		opacity var(--motion-fast, 0.2s) ease;
+}
+
+@media (min-width: 1024px) {
+	.overview-sidebar[style*="--overview-aside-h"] {
+		height: var(--overview-aside-h);
+		max-height: var(--overview-aside-h);
+	}
 }
 
 .overview-sidebar--collapsed {

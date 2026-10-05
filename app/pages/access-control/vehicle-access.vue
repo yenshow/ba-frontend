@@ -25,6 +25,7 @@
 				</Transition>
 
 				<div
+					ref="detailPanelRef"
 					class="monitoring-detail-panel monitoring-panel rounded-2xl p-4 2xl:p-6"
 				>
 					<div class="monitoring-location-title">
@@ -122,6 +123,7 @@
 			<aside
 				class="overview-sidebar"
 				:class="isOverviewCollapsed ? 'overview-sidebar--collapsed' : 'overview-sidebar--expanded'"
+				:style="asideHeightStyle"
 				:aria-hidden="isOverviewCollapsed"
 			>
 				<div
@@ -252,7 +254,8 @@ import type {
 	VehicleAccessLocationSummary,
 	VehicleDataLog
 } from "~/types/vehicleAccess";
-import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue";
+import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue"
+import { useMonitoringAsideHeightSync } from "~/composables/monitoring/useMonitoringAsideHeightSync";
 import VehicleStatsPanel from "~/components/vehicle-access/VehicleStatsPanel.vue";
 import VehicleDataLogTable from "~/components/vehicle-access/VehicleDataLogTable.vue";
 import Pagination from "~/components/common/Pagination.vue";
@@ -381,6 +384,7 @@ const handleVehicleMembersUpdated = async () => {
 	await loadOrganizationData();
 };
 const isOverviewCollapsed = ref(false);
+const { detailPanelRef, asideHeightStyle } = useMonitoringAsideHeightSync();
 const showLocationManagementDialog = ref(false);
 const confirmDialog = useConfirmDialog();
 const showConfirmDialog = confirmDialog.showDialog;
