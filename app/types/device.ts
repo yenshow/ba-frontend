@@ -35,13 +35,23 @@ export interface DeviceType {
 /** Modbus 功能碼 / API 方法（對應後端 readCoils, readDiscreteInputs, readHoldingRegisters, readInputRegisters） */
 export type ModbusRegisterType = "coils" | "discrete" | "holding" | "input";
 
+/** Modbus 暫存器解碼型別（環境感測器／能源表計；與後端 energyParameterCatalog 對齊） */
+export type SensorModbusDataType =
+	| "uint16"
+	| "uint32_be"
+	| "uint32_le"
+	| "float32_be"
+	| "float32_le"
+	| "float64_be"
+	| "float64_le";
+
 // 感測器參數的 Modbus 配置（定義在設備型號中）
 export interface SensorParameterModbusConfig {
 	address: number; // Modbus 地址（必填）
-	/** 暫存器長度（uint32 通常為 2） */
+	/** 暫存器長度（uint32／float32 通常為 2；float64 為 4） */
 	length?: number;
 	/** 資料型別 */
-	dataType?: "uint16" | "uint32_be" | "uint32_le";
+	dataType?: SensorModbusDataType;
 	transform?: string; // 轉換公式（如：value / 10, value - 1）
 }
 
