@@ -159,3 +159,55 @@ export type EnergyNotificationsResponse = {
 	totalIncidents: number
 	totalInsights: number
 }
+
+/** GET /energy/dashboard/metering — 電表即時量測 */
+export type EnergyMeteringMeter = {
+	deviceId: number
+	deviceName: string
+	location: string | null
+	systemKey: string
+	systemName: string
+	online: boolean
+	lastReadingAt: string | null
+	voltage: {
+		v1: number | null
+		v2: number | null
+		v3: number | null
+		avg: number | null
+	}
+	current: {
+		i1: number | null
+		i2: number | null
+		i3: number | null
+		avg: number | null
+	}
+	powerFactor: {
+		pf1: number | null
+		pf2: number | null
+		pf3: number | null
+		avg: number | null
+	}
+	activePower: {
+		p1: number | null
+		p2: number | null
+		p3: number | null
+		psum: number | null
+	}
+	item: {
+		frequency: number | null
+		loadType: number | null
+		runHour: number | null
+		co2: number | null
+		cost: number | null
+	}
+	demandKw: number | null
+	/** 輸入有效電能（手冊 5121／0x1400） */
+	activeEnergyKwh: number | null
+	/** 總有效電能（手冊 5129／0x1408） */
+	totalActiveEnergyKwh: number | null
+}
+
+export type EnergyMeteringResponse = {
+	meters: EnergyMeteringMeter[]
+	generatedAt: string
+}

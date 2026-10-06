@@ -49,6 +49,10 @@ export interface PeopleCountingLocation {
 	logDisplayColumns?: string[]
 	/** 人臉辨識：比對準確度下限（0–100，預設 50） */
 	faceSimilarityThreshold?: number
+	/** 訂閱後短查設備歷史補齊漏推事件 */
+	eventBackfillEnabled?: boolean
+	/** 補查視窗秒數（1–30，預設 5） */
+	eventBackfillWindowSec?: number
 
 	// 業務統計信息（來自業務 API）
 	locationId?: number // 業務層的地點 ID（數字格式，用於 API 調用）

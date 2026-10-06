@@ -165,15 +165,17 @@ useEnergyReadingSubscription(() => {
 	void refreshNotifications()
 })
 
-/** 用電／用水趨勢各自開啟完整報表 */
+/** 用水趨勢仍開完整報表；用電改跳轉即時量測頁 */
 const handleOpenTrendReport = (mode: EnergyTrendReportMode) => {
+	if (mode === "energy") {
+		void navigateTo("/utilities/energy/metering")
+		return
+	}
 	trendReportMode.value = mode
 	showTrendReport.value = true
 }
 
-const trendReportTitle = computed(() =>
-	trendReportMode.value === "energy" ? "用電趨勢 - 完整報表" : "用水趨勢 - 完整報表"
-)
+const trendReportTitle = computed(() => "用水趨勢 - 完整報表")
 
 onMounted(async () => {
 	await refreshAll()
@@ -283,7 +285,11 @@ onMounted(async () => {
 							v-if="canReportFull"
 							type="button"
 							class="text-sm text-white/70 transition-colors hover:text-white 2xl:text-base"
-							:aria-label="`查看${panel.title}完整報表`"
+							:aria-label="
+								panel.mode === 'energy'
+									? '查看電表即時量測'
+									: '查看用水趨勢完整報表'
+							"
 							@click="handleOpenTrendReport(panel.mode)"
 						>
 							查看全部

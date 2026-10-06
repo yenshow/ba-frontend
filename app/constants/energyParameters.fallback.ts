@@ -3,8 +3,10 @@
  * SSOT：後端 energyParameterCatalog.js；GET /energy/parameters
  */
 
+import type { SensorModbusDataType } from "~/types/device"
+
 export type EnergyMeterKind = "electricity" | "water"
-export type EnergyModbusDataType = "uint16" | "uint32_be" | "uint32_le"
+export type EnergyModbusDataType = SensorModbusDataType
 
 export type EnergyParameterDef = {
 	key: string
@@ -14,17 +16,29 @@ export type EnergyParameterDef = {
 	meterKinds: EnergyMeterKind[]
 	fractionDigits: number
 	sortOrder: number
+	group?: string
 }
 
 export const ENERGY_PARAMETERS_FALLBACK: EnergyParameterDef[] = [
 	{
 		key: "active_energy",
-		label: "累積電能",
+		label: "輸入有效電能",
 		unit: "kWh",
 		semantics: "cumulative",
 		meterKinds: ["electricity"],
-		fractionDigits: 2,
+		fractionDigits: 3,
 		sortOrder: 10,
+		group: "Energy",
+	},
+	{
+		key: "total_energy",
+		label: "總有效電能",
+		unit: "kWh",
+		semantics: "cumulative",
+		meterKinds: ["electricity"],
+		fractionDigits: 3,
+		sortOrder: 11,
+		group: "Energy",
 	},
 	{
 		key: "water_volume",
@@ -34,15 +48,17 @@ export const ENERGY_PARAMETERS_FALLBACK: EnergyParameterDef[] = [
 		meterKinds: ["water"],
 		fractionDigits: 3,
 		sortOrder: 20,
+		group: "Energy",
 	},
 	{
 		key: "active_power",
-		label: "即時功率",
+		label: "總有效功率",
 		unit: "kW",
 		semantics: "instantaneous",
 		meterKinds: ["electricity"],
 		fractionDigits: 2,
 		sortOrder: 30,
+		group: "Active_Power",
 	},
 	{
 		key: "demand",
@@ -52,6 +68,207 @@ export const ENERGY_PARAMETERS_FALLBACK: EnergyParameterDef[] = [
 		meterKinds: ["electricity"],
 		fractionDigits: 2,
 		sortOrder: 40,
+		group: "Demand",
+	},
+	{
+		key: "voltage_v1",
+		label: "V1 相電壓",
+		unit: "V",
+		semantics: "instantaneous",
+		meterKinds: ["electricity"],
+		fractionDigits: 2,
+		sortOrder: 100,
+		group: "Voltage",
+	},
+	{
+		key: "voltage_v2",
+		label: "V2 相電壓",
+		unit: "V",
+		semantics: "instantaneous",
+		meterKinds: ["electricity"],
+		fractionDigits: 2,
+		sortOrder: 101,
+		group: "Voltage",
+	},
+	{
+		key: "voltage_v3",
+		label: "V3 相電壓",
+		unit: "V",
+		semantics: "instantaneous",
+		meterKinds: ["electricity"],
+		fractionDigits: 2,
+		sortOrder: 102,
+		group: "Voltage",
+	},
+	{
+		key: "voltage_avg",
+		label: "平均相電壓 VLN",
+		unit: "V",
+		semantics: "instantaneous",
+		meterKinds: ["electricity"],
+		fractionDigits: 2,
+		sortOrder: 103,
+		group: "Voltage",
+	},
+	{
+		key: "current_i1",
+		label: "I1 電流",
+		unit: "A",
+		semantics: "instantaneous",
+		meterKinds: ["electricity"],
+		fractionDigits: 3,
+		sortOrder: 110,
+		group: "Current",
+	},
+	{
+		key: "current_i2",
+		label: "I2 電流",
+		unit: "A",
+		semantics: "instantaneous",
+		meterKinds: ["electricity"],
+		fractionDigits: 3,
+		sortOrder: 111,
+		group: "Current",
+	},
+	{
+		key: "current_i3",
+		label: "I3 電流",
+		unit: "A",
+		semantics: "instantaneous",
+		meterKinds: ["electricity"],
+		fractionDigits: 3,
+		sortOrder: 112,
+		group: "Current",
+	},
+	{
+		key: "current_avg",
+		label: "平均電流",
+		unit: "A",
+		semantics: "instantaneous",
+		meterKinds: ["electricity"],
+		fractionDigits: 3,
+		sortOrder: 113,
+		group: "Current",
+	},
+	{
+		key: "pf_1",
+		label: "PF1 功率因數",
+		unit: "--",
+		semantics: "instantaneous",
+		meterKinds: ["electricity"],
+		fractionDigits: 3,
+		sortOrder: 120,
+		group: "Power_Factor",
+	},
+	{
+		key: "pf_2",
+		label: "PF2 功率因數",
+		unit: "--",
+		semantics: "instantaneous",
+		meterKinds: ["electricity"],
+		fractionDigits: 3,
+		sortOrder: 121,
+		group: "Power_Factor",
+	},
+	{
+		key: "pf_3",
+		label: "PF3 功率因數",
+		unit: "--",
+		semantics: "instantaneous",
+		meterKinds: ["electricity"],
+		fractionDigits: 3,
+		sortOrder: 122,
+		group: "Power_Factor",
+	},
+	{
+		key: "pf_avg",
+		label: "平均功率因數",
+		unit: "--",
+		semantics: "instantaneous",
+		meterKinds: ["electricity"],
+		fractionDigits: 3,
+		sortOrder: 123,
+		group: "Power_Factor",
+	},
+	{
+		key: "active_power_p1",
+		label: "P1 有效功率",
+		unit: "kW",
+		semantics: "instantaneous",
+		meterKinds: ["electricity"],
+		fractionDigits: 3,
+		sortOrder: 130,
+		group: "Active_Power",
+	},
+	{
+		key: "active_power_p2",
+		label: "P2 有效功率",
+		unit: "kW",
+		semantics: "instantaneous",
+		meterKinds: ["electricity"],
+		fractionDigits: 3,
+		sortOrder: 131,
+		group: "Active_Power",
+	},
+	{
+		key: "active_power_p3",
+		label: "P3 有效功率",
+		unit: "kW",
+		semantics: "instantaneous",
+		meterKinds: ["electricity"],
+		fractionDigits: 3,
+		sortOrder: 132,
+		group: "Active_Power",
+	},
+	{
+		key: "frequency",
+		label: "頻率",
+		unit: "Hz",
+		semantics: "instantaneous",
+		meterKinds: ["electricity"],
+		fractionDigits: 3,
+		sortOrder: 140,
+		group: "Item",
+	},
+	{
+		key: "load_type",
+		label: "負載特性",
+		unit: "--",
+		semantics: "instantaneous",
+		meterKinds: ["electricity"],
+		fractionDigits: 0,
+		sortOrder: 141,
+		group: "Item",
+	},
+	{
+		key: "run_hour",
+		label: "操作時間",
+		unit: "min",
+		semantics: "instantaneous",
+		meterKinds: ["electricity"],
+		fractionDigits: 0,
+		sortOrder: 142,
+		group: "Item",
+	},
+	{
+		key: "co2",
+		label: "CO2 排放",
+		unit: "Kg",
+		semantics: "instantaneous",
+		meterKinds: ["electricity"],
+		fractionDigits: 3,
+		sortOrder: 143,
+		group: "Item",
+	},
+	{
+		key: "cost",
+		label: "電費金額",
+		unit: "--",
+		semantics: "instantaneous",
+		meterKinds: ["electricity"],
+		fractionDigits: 2,
+		sortOrder: 144,
+		group: "Item",
 	},
 ]
 
@@ -59,7 +276,18 @@ export const ENERGY_DATA_TYPE_OPTIONS: Array<{ value: EnergyModbusDataType; labe
 	{ value: "uint16", label: "uint16（1 暫存器）" },
 	{ value: "uint32_be", label: "uint32 大端（2 暫存器）" },
 	{ value: "uint32_le", label: "uint32 小端（2 暫存器）" },
+	{ value: "float32_be", label: "float32 大端（2 暫存器）" },
+	{ value: "float32_le", label: "float32 小端（2 暫存器）" },
+	{ value: "float64_be", label: "float64 大端（4 暫存器）" },
+	{ value: "float64_le", label: "float64 小端（4 暫存器）" },
 ]
+
+export const lengthFromEnergyDataType = (dataType: string | undefined): number => {
+	const t = String(dataType || "uint16")
+	if (t === "uint16") return 1
+	if (t === "float64_be" || t === "float64_le") return 4
+	return 2
+}
 
 export const ENERGY_METER_KIND_OPTIONS: Array<{ value: EnergyMeterKind | ""; label: string }> = [
 	{ value: "", label: "一般感測器（無表計種類）" },

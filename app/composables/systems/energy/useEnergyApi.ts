@@ -3,6 +3,7 @@ import type {
 	EnergyBreakdownResponse,
 	EnergyDashboardSummary,
 	EnergyMeterRankingItem,
+	EnergyMeteringResponse,
 	EnergyReadingRow,
 	EnergySettingsResponse,
 	EnergySystemDistributionItem,
@@ -42,6 +43,9 @@ export const useEnergyApi = () => {
 
 	const getBreakdown = () =>
 		request<EnergyBreakdownResponse>("/energy/dashboard/breakdown")
+
+	const getMetering = () =>
+		request<EnergyMeteringResponse>("/energy/dashboard/metering")
 
 	const getNotifications = (opts?: { limit?: number; mock?: boolean }) => {
 		const q = new URLSearchParams()
@@ -96,6 +100,7 @@ export const useEnergyApi = () => {
 		getDistribution,
 		getRanking,
 		getBreakdown,
+		getMetering,
 		getNotifications,
 		getUsageAggregated,
 		getReadings,

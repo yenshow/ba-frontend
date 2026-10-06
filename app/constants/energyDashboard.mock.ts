@@ -11,7 +11,7 @@ import type {
 } from "~/types/energy"
 
 /** 設為 false 即改回打真實 API（告警 mock 改走 GET /energy/dashboard/notifications?mock=1） */
-export const ENERGY_DASHBOARD_USE_MOCK = true
+export const ENERGY_DASHBOARD_USE_MOCK = false
 
 export type EnergyMockTrendResult = {
 	bucketType: string

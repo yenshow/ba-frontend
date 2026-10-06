@@ -305,7 +305,9 @@
 								</label>
 
 								<template v-if="deviceTypeCode === 'video_intercom'">
-									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<label
+										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+									>
 										<span>設備角色<span class="required-mark">*</span></span>
 										<FilterDropdown
 											v-model="videoIntercomUnitType"
@@ -313,7 +315,9 @@
 											placeholder="請選擇設備角色"
 										/>
 									</label>
-									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
+									<label
+										class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+									>
 										<span>SDK／ISAPI 端口</span>
 										<input
 											v-model.number="videoIntercomPort"
@@ -554,6 +558,7 @@ import { useEnvironmentParameterCatalog } from "~/composables/systems/environmen
 import { useEnergyParameterCatalog } from "~/composables/systems/energy/useEnergyParameterCatalog"
 import {
 	ENERGY_DATA_TYPE_OPTIONS,
+	lengthFromEnergyDataType,
 	ENERGY_METER_KIND_OPTIONS,
 } from "~/constants/energyParameters.fallback"
 
@@ -649,9 +654,7 @@ const applyVideoIntercomFieldsFromModel = (model: DeviceModel) => {
 	const config = (model.config as { unitType?: string; sipPort?: number } | undefined) ?? {}
 	const unitType = String(config.unitType || "").trim()
 	videoIntercomUnitType.value =
-		unitType === "manage" || unitType === "indoor" || unitType === "outdoor"
-			? unitType
-			: "indoor"
+		unitType === "manage" || unitType === "indoor" || unitType === "outdoor" ? unitType : "indoor"
 	videoIntercomPort.value = model.port != null ? Number(model.port) : 8000
 	videoIntercomSipPort.value =
 		config.sipPort != null && Number.isFinite(Number(config.sipPort))
@@ -661,9 +664,11 @@ const applyVideoIntercomFieldsFromModel = (model: DeviceModel) => {
 
 const applyAccessControlFieldsFromModel = (model: DeviceModel) => {
 	const config =
-		(model.config as {
-			credentials?: { face?: boolean; fingerprint?: boolean; card?: boolean }
-		} | undefined) ?? {}
+		(model.config as
+			| {
+					credentials?: { face?: boolean; fingerprint?: boolean; card?: boolean }
+			  }
+			| undefined) ?? {}
 	const cred = config.credentials
 	accessCredFace.value = cred?.face !== false
 	accessCredCard.value = cred?.card !== false
@@ -718,9 +723,7 @@ const ALL_MODBUS_REGISTER_TYPE_OPTIONS: Array<{ value: ModbusRegisterType; label
 
 const modbusRegisterTypeOptions = computed(() =>
 	isMeterModel.value
-		? ALL_MODBUS_REGISTER_TYPE_OPTIONS.filter(
-				(o) => o.value === "holding" || o.value === "input"
-			)
+		? ALL_MODBUS_REGISTER_TYPE_OPTIONS.filter((o) => o.value === "holding" || o.value === "input")
 		: ALL_MODBUS_REGISTER_TYPE_OPTIONS
 )
 
@@ -738,7 +741,12 @@ const addSensorParameter = () => {
 	if (sensorMeterKind.value === "electricity") {
 		sensorParameters.value.push({
 			type: "active_energy",
-			modbusConfig: { address: 0, length: 2, dataType: "uint32_be", transform: "value / 100" },
+			modbusConfig: {
+				address: 0x1400,
+				length: 4,
+				dataType: "float64_be",
+				transform: "value",
+			},
 		})
 		return
 	}
@@ -755,10 +763,8 @@ const addSensorParameter = () => {
 	})
 }
 
-const lengthFromDataType = (dataType: string | undefined): number => {
-	if (dataType === "uint32_be" || dataType === "uint32_le") return 2
-	return 1
-}
+const lengthFromDataType = (dataType: string | undefined): number =>
+	lengthFromEnergyDataType(dataType)
 
 const syncParamLengthFromDataType = (param: SensorParameterDefinition, dataType: string) => {
 	param.modbusConfig.length = lengthFromDataType(dataType)
