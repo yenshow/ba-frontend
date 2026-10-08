@@ -1,12 +1,10 @@
 /**
  * 統一地點管理類型定義（多系統架構）
+ *
+ * 工地（YSOS）無電梯模組／UI；`SystemType` 仍含 Central 鍵供 API payload 與
+ * `mergeFullZoneWithSystemUpdate` 原樣保留共用後端其他 system。
+ * 見 docs/20-architecture/frontend-dual-sync.md §2.1／§2.2。
  */
-
-import type {
-	ElevatorDeviceRole,
-	ElevatorLogicalFloor,
-	ElevatorPanelConfig,
-} from "~/utils/elevatorFloorModel"
 
 /**
  * 系統類型
@@ -63,7 +61,6 @@ export type SystemConfig =
 	| PeopleCountingSystemConfig
 	| RollCallSystemConfig
 	| VehicleAccessSystemConfig
-	| ElevatorSystemConfig
 	| AccessSecuritySystemConfig;
 
 /** 時段簽到僅工地頁使用；智慧管理平台保留設定以免覆寫門禁機綁定 */
@@ -227,6 +224,8 @@ export interface PeopleCountingSystemConfig {
 	accessControlGroups?: Array<{ name: string; employeeNos: string[] }>;
 	/** 進出紀錄表格顯示欄位 keys */
 	logDisplayColumns?: string[];
+	/** 主畫面排版：events_groups｜group_cards */
+	dashboardLayout?: "events_groups" | "group_cards";
 	/** 人臉辨識：比對準確度下限（0–100，預設 50） */
 	faceSimilarityThreshold?: number;
 	/** 訂閱後短查設備歷史補齊漏推事件（門禁／人臉） */
@@ -260,22 +259,9 @@ export interface VehicleAccessSystemConfig {
 }
 
 /**
- * 電梯系統配置（邏輯樓層 SSOT；對齊 location_systems.system_config）
- */
-export interface ElevatorSystemConfig {
-	panel?: ElevatorPanelConfig;
-	floors?: ElevatorLogicalFloor[];
-	ladderDevice?: ElevatorDeviceRole | null;
-	callDevice?: ElevatorDeviceRole | null;
-	floorDetection?: ElevatorDeviceRole | null;
-	accessDeviceIds?: number[];
-	/** 固定 visitor（SDK command 5） */
-	callCommandType?: "visitor";
-}
-
-/**
  * 門禁保全（視訊對講）地點配置
  * 後端持久化為 system_config.indoor_device_id、system_config.floor、system_config.manage_device_id
+ * （工地無門禁保全／電梯 UI；型別保留供 merge 相容）
  */
 export interface AccessSecuritySystemConfig {
 	indoorDeviceId?: number;

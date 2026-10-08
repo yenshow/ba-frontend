@@ -271,6 +271,7 @@ import type { Device } from "~/types/device";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi";
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
+import { useDeviceEnableFeature } from "~/composables/core/useAuth";
 import { filterLicensePlateCameraDevices } from "~/utils/cameraModelCategories";
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
 import { storedVehicleAccessDataSource } from "~/utils/vehicleAccessDataSource";
@@ -306,6 +307,7 @@ const emit = defineEmits<Emits>();
 
 const vehicleAccessApi = useVehicleAccessApi();
 const deviceApi = useDeviceApi();
+const deviceEnableFeature = useDeviceEnableFeature();
 const { enableYscpVehicleAccess } = useModuleRegistry();
 
 const localLocation = ref<VehicleAccessLocation>({
@@ -359,7 +361,12 @@ onMounted(async () => {
 		}
 	}
 	try {
-		const res = await deviceApi.getDevices({ type_code: "camera", limit: 200, offset: 0 });
+		const res = await deviceApi.getDevices({
+			type_code: "camera",
+			...(deviceEnableFeature.value ? { enabled: true } : {}),
+			limit: 200,
+			offset: 0,
+		});
 		const devices = Array.isArray(res?.devices) ? res.devices : [];
 		cameraDevices.value = filterLicensePlateCameraDevices(devices);
 	} catch {

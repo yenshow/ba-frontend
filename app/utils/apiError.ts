@@ -223,7 +223,6 @@ const API_ERROR_PREFIX_MESSAGES: ReadonlyArray<{ prefix: string; message: string
 	{ prefix: "MODBUS_READ_TIMEOUT", message: USER_FACING_CONNECTION_ERROR },
 	{ prefix: "MODBUS_WRITE_TIMEOUT", message: USER_FACING_CONNECTION_ERROR },
 	{ prefix: "MODBUS_", message: "設備通訊失敗，請稍後再試" },
-	{ prefix: "ELEVATOR_", message: "電梯操作失敗，請稍後再試" },
 	{ prefix: "ENVIRONMENT_", message: "環境資料操作失敗，請稍後再試" },
 	{ prefix: "EXTERNAL_DATA_", message: USER_FACING_EXTERNAL_DB_ERROR },
 	{ prefix: "SETTINGS_", message: "設定操作失敗，請稍後再試" },

@@ -21,9 +21,6 @@ export const TOGGLE_ROUNDTRIP_DELAY_MS = 450
 export const TOGGLE_SNAPSHOT_HOLD_MS = 8000
 export const DEVICE_CONNECTIVITY_DEBOUNCE_MS = 150
 
-/** 電梯 UI 補間（≠ 後端 poll） */
-export const ELEVATOR_FLOOR_STEP_MS = 1500
-
 /** 環境讀數顯示過期門檻 */
 export const ENVIRONMENT_READING_STALE_MS = 10 * 60 * 1000
 

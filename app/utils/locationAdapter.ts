@@ -26,6 +26,7 @@ import {
 	normalizeLogDisplayColumns,
 	toStoredLogDisplayColumns,
 } from "~/utils/peopleCountingLogColumns"
+import { normalizeDashboardLayout } from "~/utils/peopleCountingDashboardLayout"
 import { normalizeFaceSimilarityThreshold } from "~/utils/peopleCountingFaceThreshold"
 import { toStoredEventBackfillConfig } from "~/utils/eventBackfillFields"
 import {
@@ -161,6 +162,7 @@ export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZo
 					logDisplayColumns: Array.isArray(config.logDisplayColumns)
 						? config.logDisplayColumns
 						: undefined,
+					dashboardLayout: normalizeDashboardLayout(config.dashboardLayout),
 				} as PeopleCountingLocation,
 			]
 		}),
@@ -428,6 +430,7 @@ export function peopleCountingLocationToUnified(
 						)
 						return stored.length > 0 ? stored : undefined
 					})(),
+					dashboardLayout: normalizeDashboardLayout(loc.dashboardLayout),
 				} as PeopleCountingSystemConfig,
 			},
 		],

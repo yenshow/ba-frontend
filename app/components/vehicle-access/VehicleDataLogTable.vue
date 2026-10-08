@@ -92,7 +92,7 @@
 							</template>
 							<template v-else-if="col === 'owner_name'">
 								<span class="vehicle-log-cell text-sm 2xl:text-base">{{
-									formatVehicleLogText(log.owner_name)
+									formatVehicleOwnerName(log)
 								}}</span>
 							</template>
 							<template v-else-if="col === 'pass_result'">
@@ -163,6 +163,7 @@ import {
 	normalizeVehicleLogDisplayColumns,
 	formatVehicleLogLane,
 	formatVehicleLogText,
+	formatVehicleOwnerName,
 	getVehiclePassResultLabel,
 	getVehiclePassResultTagClass,
 	type VehicleAccessLogColumnKey

@@ -166,6 +166,7 @@ export const formatLogEventLabel = (log: PeopleCountingLog): string => {
 export const getLogEventBadgeClass = (log: PeopleCountingLog): string => {
 	const label = formatLogEventLabel(log)
 	if (label === "飲酒" || label === "醉酒") return "bg-amber-500/40 text-amber-100"
+	if (label === "陌生") return "bg-amber-400/55 text-white font-semibold ring-1 ring-amber-200/60"
 	if (log.eventType === "entry") return "bg-green-500/30 text-green-200"
 	if (log.eventType === "exit") return "bg-blue-500/30 text-blue-200"
 	return "bg-red-500/70 text-red-200"

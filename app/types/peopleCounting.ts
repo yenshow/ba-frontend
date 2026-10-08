@@ -47,6 +47,12 @@ export interface PeopleCountingLocation {
 	accessControlGroups?: AccessControlGroup[]
 	/** 進出紀錄表格顯示欄位（順序固定，僅控制顯示與否） */
 	logDisplayColumns?: string[]
+	/**
+	 * 主畫面排版：
+	 * - events_groups：進出紀錄＋人員群組（預設）
+	 * - group_cards：群組篩選＋人員卡片（對齊時段簽到）
+	 */
+	dashboardLayout?: "events_groups" | "group_cards"
 	/** 人臉辨識：比對準確度下限（0–100，預設 50） */
 	faceSimilarityThreshold?: number
 	/** 訂閱後短查設備歷史補齊漏推事件 */

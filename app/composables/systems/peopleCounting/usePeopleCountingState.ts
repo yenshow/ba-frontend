@@ -26,6 +26,10 @@ import { logger } from "~/utils/logger"
 import { firstFlatSiteMatchingSortedZoneLocations } from "~/utils/sortOrder"
 import { isFaceRecognitionCameraMode } from "~/utils/peopleCountingCameraMode"
 import {
+	PEOPLE_COUNTING_DASHBOARD_LAYOUT,
+	resolveDashboardLayout,
+} from "~/utils/peopleCountingDashboardLayout"
+import {
 	ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE,
 	capEntryExitDashboardLogsTotal,
 	maxEntryExitDashboardLogsOffset,
@@ -97,6 +101,7 @@ export const usePeopleCountingState = () => {
 						dataSource: updatedLocation.dataSource,
 						cameraMode: updatedLocation.cameraMode,
 						logDisplayColumns: updatedLocation.logDisplayColumns,
+						dashboardLayout: updatedLocation.dashboardLayout,
 						entryCount: updatedLocation.entryCount,
 						exitCount: updatedLocation.exitCount,
 						currentCount: updatedLocation.currentCount,
@@ -140,8 +145,19 @@ export const usePeopleCountingState = () => {
 
 			const isCamera = selectedLocation.value.dataSource === "isapi_camera"
 			const isCameraFace = isCamera && isFaceRecognitionCameraMode(selectedLocation.value.cameraMode)
+			const useGroupCards =
+				resolveDashboardLayout({
+					dashboardLayout: selectedLocation.value.dashboardLayout,
+					dataSource: selectedLocation.value.dataSource,
+					cameraMode: selectedLocation.value.cameraMode,
+				}) === PEOPLE_COUNTING_DASHBOARD_LAYOUT.GROUP_CARDS
 			// 主畫面 logs 一律地點級（不依人員群組過濾）；攝影機人流模式不載入人員名單
-			if (isCamera && !isCameraFace) {
+			if (useGroupCards) {
+				selectedUnitId.value = null
+				logs.value = []
+				logsTotal.value = 0
+				await loadAllUnitsPersonnel()
+			} else if (isCamera && !isCameraFace) {
 				selectedUnitId.value = null
 				personnel.value = []
 				await loadLocationLogs(locationId)
@@ -176,6 +192,30 @@ export const usePeopleCountingState = () => {
 			personnel.value = await peopleCountingApi.getUnitPersonnel(unitId, locationId)
 		} catch (error) {
 			handleError(error, "載入單位人員失敗")
+			throw error
+		}
+	}
+
+	/** 群組＋人員卡片：並行載入各地點群組名單 */
+	const loadAllUnitsPersonnel = async (): Promise<void> => {
+		try {
+			const locationId = selectedLocation.value?.locationId
+			const units = selectedLocation.value?.units ?? []
+			if (locationId == null || units.length === 0) {
+				personnel.value = []
+				return
+			}
+			const results = await Promise.all(
+				units.map((unit) =>
+					peopleCountingApi.getUnitPersonnel(unit.id, locationId).catch((error) => {
+						handleError(error, `載入群組人員失敗（${unit.name}）`)
+						return [] as PeopleCountingPersonnel[]
+					})
+				)
+			)
+			personnel.value = results.flat()
+		} catch (error) {
+			handleError(error, "載入人員名單失敗")
 			throw error
 		}
 	}
@@ -268,6 +308,17 @@ export const usePeopleCountingState = () => {
 		if (locationId == null) return
 
 		logsOffset.value = 0
+
+		const useGroupCards =
+			resolveDashboardLayout({
+				dashboardLayout: selectedLocation.value?.dashboardLayout,
+				dataSource: selectedLocation.value?.dataSource,
+				cameraMode: selectedLocation.value?.cameraMode,
+			}) === PEOPLE_COUNTING_DASHBOARD_LAYOUT.GROUP_CARDS
+		if (useGroupCards) {
+			await loadAllUnitsPersonnel()
+			return
+		}
 
 		const unitId = selectedUnitId.value
 		const isCamera = selectedLocation.value?.dataSource === "isapi_camera"

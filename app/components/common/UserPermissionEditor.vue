@@ -3,10 +3,10 @@
 		<p v-if="loading || !isLoaded" class="text-sm text-white/60">載入權限清單中...</p>
 		<template v-else-if="groups.length">
 			<div
-				class="flex min-h-[280px] flex-col overflow-hidden rounded-xl border border-white/15 md:min-h-[320px] md:flex-row"
+				class="flex h-[min(360px,50vh)] flex-col overflow-hidden rounded-xl border border-white/15 md:h-[min(400px,55vh)] md:flex-row"
 			>
 				<nav
-					class="flex max-h-[40vh] w-full shrink-0 flex-col overflow-y-auto border-b border-white/10 md:max-h-none md:w-[42%] md:border-b-0 md:border-r"
+					class="flex max-h-[40%] min-h-0 w-full shrink-0 flex-col overflow-y-auto border-b border-white/10 md:h-full md:max-h-none md:w-[42%] md:border-b-0 md:border-r"
 					aria-label="功能模組清單"
 				>
 					<div

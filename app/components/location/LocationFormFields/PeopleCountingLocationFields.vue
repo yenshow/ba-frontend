@@ -64,7 +64,7 @@
 							:class="[
 								selectCardBaseClass,
 								isDoorSelected('entry', door.id) && selectCardSelectedClass,
-								isDoorOverlapped(door.id) && selectCardOverlapClass,
+								isDoorOverlapped(door.id) && selectCardOverlapClass
 							]"
 						>
 							<div
@@ -101,7 +101,7 @@
 							:class="[
 								selectCardBaseClass,
 								isDoorSelected('exit', door.id) && selectCardSelectedClass,
-								isDoorOverlapped(door.id) && selectCardOverlapClass,
+								isDoorOverlapped(door.id) && selectCardOverlapClass
 							]"
 						>
 							<div
@@ -151,7 +151,7 @@
 							:class="[
 								selectCardBaseClass,
 								isAccessControlSelected('entry', dev.id) && selectCardSelectedClass,
-								isAccessControlOverlapped(dev.id) && selectCardOverlapClass,
+								isAccessControlOverlapped(dev.id) && selectCardOverlapClass
 							]"
 						>
 							<div
@@ -190,7 +190,7 @@
 							:class="[
 								selectCardBaseClass,
 								isAccessControlSelected('exit', dev.id) && selectCardSelectedClass,
-								isAccessControlOverlapped(dev.id) && selectCardOverlapClass,
+								isAccessControlOverlapped(dev.id) && selectCardOverlapClass
 							]"
 						>
 							<div
@@ -215,10 +215,7 @@
 							<span class="text-xs text-white/90 2xl:text-sm">{{ formatDeviceSelectLabel(dev) }}</span>
 						</label>
 					</div>
-					<p
-						v-if="props.accessControlDevices.length > 0 && !hasExitSelected"
-						:class="warnHintClass"
-					>
+					<p v-if="props.accessControlDevices.length > 0 && !hasExitSelected" :class="warnHintClass">
 						至少需要選擇一個出口設備
 					</p>
 				</div>
@@ -256,10 +253,7 @@
 					>人員群組<span class="required-mark">*</span></span
 				>
 			</div>
-			<div
-				v-if="personGroups.length === 0"
-				class="py-2 text-center text-xs text-white/50 2xl:text-sm"
-			>
+			<div v-if="personGroups.length === 0" class="py-2 text-center text-xs text-white/50 2xl:text-sm">
 				載入中...
 			</div>
 			<div v-else class="grid grid-cols-2 gap-2">
@@ -268,7 +262,7 @@
 					:key="group.id"
 					class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
 					:class="{
-						'border-cyan-400/50 bg-cyan-500/20': isPersonGroupSelected(group.id),
+						'border-cyan-400/50 bg-cyan-500/20': isPersonGroupSelected(group.id)
 					}"
 				>
 					<input
@@ -305,7 +299,7 @@
 						:key="mode.value"
 						class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
 						:class="{
-							'border-cyan-400/50 bg-cyan-500/20': cameraMode === mode.value,
+							'border-cyan-400/50 bg-cyan-500/20': cameraMode === mode.value
 						}"
 					>
 						<input
@@ -335,7 +329,9 @@
 						placeholder="50"
 						@input="handleChange"
 					/>
-					<span class="text-xs text-white/50">未達此準確度的事件將標為失敗，不計入進出統計</span>
+					<span class="text-xs text-white/50"
+						>有比對結果但未達此準確度→標失敗；無候選人→陌生；皆不計入進出統計</span
+					>
 				</label>
 
 				<div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -351,7 +347,7 @@
 								:class="[
 									selectCardBaseClass,
 									isFaceCameraSelected('entry', dev.id) ? selectCardSelectedClass : '',
-									isFaceCameraOverlapped(dev.id) ? selectCardOverlapClass : '',
+									isFaceCameraOverlapped(dev.id) ? selectCardOverlapClass : ''
 								]"
 							>
 								<input
@@ -363,10 +359,7 @@
 								<span class="text-xs text-white/90 2xl:text-sm">{{ formatDeviceSelectLabel(dev) }}</span>
 							</label>
 						</div>
-						<p
-							v-if="isapiCameraDevices.length > 0 && !hasFaceEntryCamera"
-							:class="warnHintClass"
-						>
+						<p v-if="isapiCameraDevices.length > 0 && !hasFaceEntryCamera" :class="warnHintClass">
 							至少需要選擇一台入口攝影機
 						</p>
 					</div>
@@ -383,7 +376,7 @@
 								:class="[
 									selectCardBaseClass,
 									isFaceCameraSelected('exit', dev.id) ? selectCardSelectedClass : '',
-									isFaceCameraOverlapped(dev.id) ? selectCardOverlapClass : '',
+									isFaceCameraOverlapped(dev.id) ? selectCardOverlapClass : ''
 								]"
 							>
 								<input
@@ -395,10 +388,7 @@
 								<span class="text-xs text-white/90 2xl:text-sm">{{ formatDeviceSelectLabel(dev) }}</span>
 							</label>
 						</div>
-						<p
-							v-if="isapiCameraDevices.length > 0 && !hasFaceExitCamera"
-							:class="warnHintClass"
-						>
+						<p v-if="isapiCameraDevices.length > 0 && !hasFaceExitCamera" :class="warnHintClass">
 							至少需要選擇一台出口攝影機
 						</p>
 					</div>
@@ -424,7 +414,7 @@
 						:key="dev.id"
 						class="flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
 						:class="{
-							'border-cyan-400/50 bg-cyan-500/20': isCameraSelected(dev.id),
+							'border-cyan-400/50 bg-cyan-500/20': isCameraSelected(dev.id)
 						}"
 					>
 						<input
@@ -445,10 +435,7 @@
 			</template>
 		</div>
 
-		<div
-			v-if="showEventBackfillOptions"
-			class="mt-3 border-t border-white/10 pt-3"
-		>
+		<div v-if="showEventBackfillOptions" class="mt-3 border-t border-white/10 pt-3">
 			<label class="flex cursor-pointer items-center gap-2">
 				<input
 					v-model="eventBackfillEnabledInput"
@@ -461,10 +448,7 @@
 			<p class="mt-1 text-xs text-white/50">
 				設備訂閱成功後，主動查詢近期歷史事件並寫入平台，降低推送漏失造成的資料落差
 			</p>
-			<label
-				v-if="eventBackfillEnabledInput"
-				:class="[fieldLabelClass, 'mt-3 max-w-xs']"
-			>
+			<label v-if="eventBackfillEnabledInput" :class="[fieldLabelClass, 'mt-3 max-w-xs']">
 				<span>補齊時間窗（秒）</span>
 				<input
 					v-model.number="eventBackfillWindowSecInput"
@@ -478,6 +462,28 @@
 				/>
 				<span class="text-xs text-white/50">範圍 1–30 秒；預設 5</span>
 			</label>
+		</div>
+
+		<div v-if="showDashboardLayoutOptions" class="mt-3 border-t border-white/10 pt-3">
+			<span class="text-sm font-medium text-white/80 2xl:text-base"
+				>主畫面排版<span class="required-mark">*</span></span
+			>
+			<div class="mt-2 flex flex-wrap gap-4">
+				<label
+					v-for="(label, layoutKey) in PEOPLE_COUNTING_DASHBOARD_LAYOUT_LABELS"
+					:key="layoutKey"
+					class="flex cursor-pointer items-center gap-2"
+				>
+					<input
+						v-model="dashboardLayout"
+						type="radio"
+						:value="layoutKey"
+						class="h-4 w-4 accent-cyan-400"
+						@change="handleDashboardLayoutChange"
+					/>
+					<span class="text-sm text-white/90 2xl:text-base">{{ label }}</span>
+				</label>
+			</div>
 		</div>
 
 		<div class="mt-3 border-t border-white/10 pt-3">
@@ -513,67 +519,72 @@
 </template>
 
 <script setup lang="ts">
-import { formatDeviceSelectLabel } from "~/utils/deviceSelectLabel"
-import type { PeopleCountingLocation } from "~/types/peopleCounting"
-import type { Device } from "~/types/device"
+import { formatDeviceSelectLabel } from "~/utils/deviceSelectLabel";
+import type { PeopleCountingLocation } from "~/types/peopleCounting";
+import type { Device } from "~/types/device";
 import {
 	PEOPLE_COUNTING_LOG_COLUMN_LABELS,
 	TOGGLEABLE_LOG_COLUMN_KEYS,
 	normalizeLogDisplayColumns,
 	type PeopleCountingLogColumnKey,
-	toStoredLogDisplayColumns,
-} from "~/utils/peopleCountingLogColumns"
+	toStoredLogDisplayColumns
+} from "~/utils/peopleCountingLogColumns";
+import {
+	PEOPLE_COUNTING_DASHBOARD_LAYOUT,
+	PEOPLE_COUNTING_DASHBOARD_LAYOUT_LABELS,
+	normalizeDashboardLayout,
+	supportsGroupCardsDashboardLayout,
+	type PeopleCountingDashboardLayout
+} from "~/utils/peopleCountingDashboardLayout";
 import {
 	PEOPLE_COUNTING_CAMERA_MODE,
 	PEOPLE_COUNTING_CAMERA_MODE_LABELS,
 	normalizePeopleCountingCameraMode,
-	type PeopleCountingCameraMode,
-} from "~/utils/peopleCountingCameraMode"
-import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
-import { useLicense } from "~/composables/core/useLicense"
-import { storedPeopleCountingDataSource } from "~/utils/peopleCountingDataSource"
-import {
-	normalizeFaceSimilarityThreshold,
-} from "~/utils/peopleCountingFaceThreshold"
-import { useLocationEventBackfillFields } from "~/composables/location/useLocationEventBackfillFields"
-import FilterDropdown from "~/components/common/FilterDropdown.vue"
+	type PeopleCountingCameraMode
+} from "~/utils/peopleCountingCameraMode";
+import { useModuleRegistry } from "~/composables/core/useModuleRegistry";
+import { useLicense } from "~/composables/core/useLicense";
+import { storedPeopleCountingDataSource } from "~/utils/peopleCountingDataSource";
+import { normalizeFaceSimilarityThreshold } from "~/utils/peopleCountingFaceThreshold";
+import { useLocationEventBackfillFields } from "~/composables/location/useLocationEventBackfillFields";
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
 
 const CAMERA_MODE_OPTIONS: Array<{ value: PeopleCountingCameraMode; label: string }> = [
 	{
 		value: PEOPLE_COUNTING_CAMERA_MODE.PEOPLE_COUNTING,
-		label: PEOPLE_COUNTING_CAMERA_MODE_LABELS.people_counting,
+		label: PEOPLE_COUNTING_CAMERA_MODE_LABELS.people_counting
 	},
 	{
 		value: PEOPLE_COUNTING_CAMERA_MODE.FACE_RECOGNITION,
-		label: PEOPLE_COUNTING_CAMERA_MODE_LABELS.face_recognition,
-	},
-]
+		label: PEOPLE_COUNTING_CAMERA_MODE_LABELS.face_recognition
+	}
+];
 
 interface PersonGroup {
-	id: number
-	name: string
-	is_deleted?: number
+	id: number;
+	name: string;
+	is_deleted?: number;
 }
 
 interface Door {
-	id: number
-	device_id: number
-	dev_name: string
-	door_index: number
-	is_deleted?: number
+	id: number;
+	device_id: number;
+	dev_name: string;
+	door_index: number;
+	is_deleted?: number;
 }
 
 interface Props {
-	location: PeopleCountingLocation
-	personGroups?: PersonGroup[]
-	doors?: Door[]
-	accessControlDevices?: Device[]
-	isapiCameraDevices?: Device[]
-	surveillanceCameraDevices?: Device[]
+	location: PeopleCountingLocation;
+	personGroups?: PersonGroup[];
+	doors?: Door[];
+	accessControlDevices?: Device[];
+	isapiCameraDevices?: Device[];
+	surveillanceCameraDevices?: Device[];
 }
 
 interface Emits {
-	(e: "update", location: PeopleCountingLocation): void
+	(e: "update", location: PeopleCountingLocation): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -581,417 +592,446 @@ const props = withDefaults(defineProps<Props>(), {
 	doors: () => [],
 	accessControlDevices: () => [],
 	isapiCameraDevices: () => [],
-	surveillanceCameraDevices: () => [],
-})
+	surveillanceCameraDevices: () => []
+});
 
-const emit = defineEmits<Emits>()
+const emit = defineEmits<Emits>();
 
-const { enableYscpPeopleCounting } = useModuleRegistry()
-const { hasFeature } = useLicense()
+const { enableYscpPeopleCounting } = useModuleRegistry();
+const { hasFeature } = useLicense();
 const canUseEventCameraLinkage = computed(
 	() => hasFeature("surveillance") && dataSource.value === "access_control"
-)
+);
 
 const eventCameraDeviceOptions = computed(() => [
 	{ value: "", label: "不設定" },
-	...props.surveillanceCameraDevices.map((dev) => ({
+	...props.surveillanceCameraDevices.map(dev => ({
 		value: String(dev.id),
-		label: formatDeviceSelectLabel(dev),
-	})),
-])
+		label: formatDeviceSelectLabel(dev)
+	}))
+]);
 
 const toEventCameraSelectValue = (id: number | null | undefined): string => {
-	if (id == null || !Number.isFinite(Number(id)) || Number(id) <= 0) return ""
-	return String(Math.trunc(Number(id)))
-}
+	if (id == null || !Number.isFinite(Number(id)) || Number(id) <= 0) return "";
+	return String(Math.trunc(Number(id)));
+};
 
 const entryEventCameraSelect = computed({
 	get: () => toEventCameraSelectValue(localLocation.value.entryEventCameraDeviceId),
 	set: (raw: string) => {
-		localLocation.value.entryEventCameraDeviceId = parseEventCameraSelect(raw)
-		handleChange()
-	},
-})
+		localLocation.value.entryEventCameraDeviceId = parseEventCameraSelect(raw);
+		handleChange();
+	}
+});
 
 const exitEventCameraSelect = computed({
 	get: () => toEventCameraSelectValue(localLocation.value.exitEventCameraDeviceId),
 	set: (raw: string) => {
-		localLocation.value.exitEventCameraDeviceId = parseEventCameraSelect(raw)
-		handleChange()
-	},
-})
+		localLocation.value.exitEventCameraDeviceId = parseEventCameraSelect(raw);
+		handleChange();
+	}
+});
 
-const localLocation = ref<PeopleCountingLocation>({ ...props.location })
+const localLocation = ref<PeopleCountingLocation>({ ...props.location });
 
 const fieldLabelClass =
-	"flex min-w-0 flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
+	"flex min-w-0 flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base";
 const emptyHintClass =
-	"rounded border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60 2xl:text-sm"
+	"rounded border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60 2xl:text-sm";
 const selectCardBaseClass =
-	"relative flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 pr-10 transition-colors hover:bg-white/10"
-const selectCardSelectedClass = "border-cyan-400/50 bg-cyan-500/20"
+	"relative flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 pr-10 transition-colors hover:bg-white/10";
+const selectCardSelectedClass = "border-cyan-400/50 bg-cyan-500/20";
 const selectCardOverlapClass =
-	"border-rose-500 bg-rose-500/15 shadow-[0_0_0_3px_rgba(244,63,94,0.18)]"
+	"border-rose-500 bg-rose-500/15 shadow-[0_0_0_3px_rgba(244,63,94,0.18)]";
 const dangerHintClass =
-	"mt-3 rounded border border-rose-500/60 bg-rose-500/15 p-2 text-xs text-rose-200 2xl:text-sm"
-const warnHintClass = "mt-2 text-xs text-amber-300 2xl:text-sm"
-const dataSource = ref(storedPeopleCountingDataSource(props.location.dataSource))
+	"mt-3 rounded border border-rose-500/60 bg-rose-500/15 p-2 text-xs text-rose-200 2xl:text-sm";
+const warnHintClass = "mt-2 text-xs text-amber-300 2xl:text-sm";
+const dataSource = ref(storedPeopleCountingDataSource(props.location.dataSource));
 const cameraMode = ref<PeopleCountingCameraMode>(
 	normalizePeopleCountingCameraMode(props.location.cameraMode)
-)
+);
 
 const activeLogColumns = computed(() =>
 	normalizeLogDisplayColumns(localLocation.value.logDisplayColumns)
-)
+);
 
 const isLogColumnSelected = (key: PeopleCountingLogColumnKey): boolean =>
-	activeLogColumns.value.includes(key)
+	activeLogColumns.value.includes(key);
 
 const handleToggleLogColumn = (key: PeopleCountingLogColumnKey) => {
-	const next = new Set(activeLogColumns.value)
-	if (next.has(key)) next.delete(key)
-	else next.add(key)
+	const next = new Set(activeLogColumns.value);
+	if (next.has(key)) next.delete(key);
+	else next.add(key);
 	localLocation.value.logDisplayColumns = toStoredLogDisplayColumns(
 		normalizeLogDisplayColumns([...next])
-	)
-	handleChange()
-}
+	);
+	handleChange();
+};
+
+const showDashboardLayoutOptions = computed(() =>
+	supportsGroupCardsDashboardLayout({
+		dataSource: dataSource.value,
+		cameraMode: cameraMode.value
+	})
+);
+
+const dashboardLayout = ref<PeopleCountingDashboardLayout>(
+	normalizeDashboardLayout(props.location.dashboardLayout)
+);
+
+const handleDashboardLayoutChange = () => {
+	localLocation.value.dashboardLayout = dashboardLayout.value;
+	handleChange();
+};
+
+/** 切到不支援人員卡片的資料源／模式時，回落預設排版 */
+const resetDashboardLayoutIfUnsupported = () => {
+	if (showDashboardLayoutOptions.value) return;
+	dashboardLayout.value = PEOPLE_COUNTING_DASHBOARD_LAYOUT.EVENTS_GROUPS;
+	localLocation.value.dashboardLayout = dashboardLayout.value;
+};
 
 const getEffectiveCameraDeviceIds = (): number[] => {
 	return Array.isArray(localLocation.value.cameraDeviceIds)
 		? localLocation.value.cameraDeviceIds
-		: []
-}
+		: [];
+};
 
 const getEffectiveEntryCameraDeviceIds = (): number[] => {
 	const entry = Array.isArray(localLocation.value.entryCameraDeviceIds)
 		? localLocation.value.entryCameraDeviceIds
-		: []
-	if (entry.length > 0) return entry
+		: [];
+	if (entry.length > 0) return entry;
 	// 舊資料：僅有 cameraDeviceIds 時視為進場
 	if (cameraMode.value === PEOPLE_COUNTING_CAMERA_MODE.FACE_RECOGNITION) {
-		return getEffectiveCameraDeviceIds()
+		return getEffectiveCameraDeviceIds();
 	}
-	return []
-}
+	return [];
+};
 
 const getEffectiveExitCameraDeviceIds = (): number[] => {
 	return Array.isArray(localLocation.value.exitCameraDeviceIds)
 		? localLocation.value.exitCameraDeviceIds
-		: []
-}
+		: [];
+};
 
-const isFaceMode = computed(() => cameraMode.value === PEOPLE_COUNTING_CAMERA_MODE.FACE_RECOGNITION)
+const isFaceMode = computed(
+	() => cameraMode.value === PEOPLE_COUNTING_CAMERA_MODE.FACE_RECOGNITION
+);
 
 const showEventBackfillOptions = computed(
 	() =>
-		dataSource.value === "access_control" ||
-		(dataSource.value === "isapi_camera" && isFaceMode.value)
-)
+		dataSource.value === "access_control" || (dataSource.value === "isapi_camera" && isFaceMode.value)
+);
 
 const { eventBackfillEnabledInput, eventBackfillWindowSecInput } =
-	useLocationEventBackfillFields(localLocation)
+	useLocationEventBackfillFields(localLocation);
 
 const faceSimilarityThresholdInput = computed({
-	get: () =>
-		normalizeFaceSimilarityThreshold(localLocation.value.faceSimilarityThreshold),
+	get: () => normalizeFaceSimilarityThreshold(localLocation.value.faceSimilarityThreshold),
 	set: (raw: number) => {
-		localLocation.value.faceSimilarityThreshold = normalizeFaceSimilarityThreshold(raw)
-	},
-})
+		localLocation.value.faceSimilarityThreshold = normalizeFaceSimilarityThreshold(raw);
+	}
+});
 
-const hasSelectedCamera = computed(() => getEffectiveCameraDeviceIds().length > 0)
-const hasFaceEntryCamera = computed(() => getEffectiveEntryCameraDeviceIds().length > 0)
-const hasFaceExitCamera = computed(() => getEffectiveExitCameraDeviceIds().length > 0)
+const hasSelectedCamera = computed(() => getEffectiveCameraDeviceIds().length > 0);
+const hasFaceEntryCamera = computed(() => getEffectiveEntryCameraDeviceIds().length > 0);
+const hasFaceExitCamera = computed(() => getEffectiveExitCameraDeviceIds().length > 0);
 
 const faceCameraOverlapSet = computed(() => {
-	const entry = new Set(getEffectiveEntryCameraDeviceIds())
-	const exit = new Set(getEffectiveExitCameraDeviceIds())
-	const overlap = new Set<number>()
+	const entry = new Set(getEffectiveEntryCameraDeviceIds());
+	const exit = new Set(getEffectiveExitCameraDeviceIds());
+	const overlap = new Set<number>();
 	for (const id of entry) {
-		if (exit.has(id)) overlap.add(id)
+		if (exit.has(id)) overlap.add(id);
 	}
-	return overlap
-})
-const hasFaceCameraOverlap = computed(() => faceCameraOverlapSet.value.size > 0)
+	return overlap;
+});
+const hasFaceCameraOverlap = computed(() => faceCameraOverlapSet.value.size > 0);
 const isFaceCameraOverlapped = (deviceId: number): boolean =>
-	faceCameraOverlapSet.value.has(Number(deviceId))
+	faceCameraOverlapSet.value.has(Number(deviceId));
 
 const isFaceCameraSelected = (role: "entry" | "exit", deviceId: number): boolean => {
 	const ids =
-		role === "entry" ? getEffectiveEntryCameraDeviceIds() : getEffectiveExitCameraDeviceIds()
-	return ids.includes(deviceId)
-}
+		role === "entry" ? getEffectiveEntryCameraDeviceIds() : getEffectiveExitCameraDeviceIds();
+	return ids.includes(deviceId);
+};
 
 const handleToggleFaceCamera = (role: "entry" | "exit", deviceId: number) => {
-	const key = role === "entry" ? "entryCameraDeviceIds" : "exitCameraDeviceIds"
+	const key = role === "entry" ? "entryCameraDeviceIds" : "exitCameraDeviceIds";
 	const current =
 		role === "entry"
 			? [...getEffectiveEntryCameraDeviceIds()]
-			: [...getEffectiveExitCameraDeviceIds()]
-	const idx = current.indexOf(deviceId)
-	if (idx >= 0) current.splice(idx, 1)
-	else current.push(deviceId)
-	localLocation.value[key] = current
-	localLocation.value.cameraDeviceIds = undefined
-	handleChange()
-}
+			: [...getEffectiveExitCameraDeviceIds()];
+	const idx = current.indexOf(deviceId);
+	if (idx >= 0) current.splice(idx, 1);
+	else current.push(deviceId);
+	localLocation.value[key] = current;
+	localLocation.value.cameraDeviceIds = undefined;
+	handleChange();
+};
 
 const isPersonGroupSelected = (groupId: number): boolean => {
-	return localLocation.value.personGroupIds?.includes(groupId) || false
-}
+	return localLocation.value.personGroupIds?.includes(groupId) || false;
+};
 
 const togglePersonGroup = (groupId: number) => {
 	if (!localLocation.value.personGroupIds) {
-		localLocation.value.personGroupIds = []
+		localLocation.value.personGroupIds = [];
 	}
-	const index = localLocation.value.personGroupIds.indexOf(groupId)
+	const index = localLocation.value.personGroupIds.indexOf(groupId);
 	if (index > -1) {
-		localLocation.value.personGroupIds.splice(index, 1)
+		localLocation.value.personGroupIds.splice(index, 1);
 	} else {
-		localLocation.value.personGroupIds.push(groupId)
+		localLocation.value.personGroupIds.push(groupId);
 	}
-	handleChange()
-}
+	handleChange();
+};
 
 const handleDataSourceChange = () => {
-	localLocation.value.dataSource = dataSource.value
+	localLocation.value.dataSource = dataSource.value;
 	if (dataSource.value === "access_control") {
-		localLocation.value.entryDoorIds = []
-		localLocation.value.exitDoorIds = []
-		localLocation.value.cameraDeviceIds = undefined
-		localLocation.value.preferRegion = undefined
-		localLocation.value.cameraMode = undefined
-		cameraMode.value = PEOPLE_COUNTING_CAMERA_MODE.PEOPLE_COUNTING
-		if (!Array.isArray(localLocation.value.entryDeviceIds)) localLocation.value.entryDeviceIds = []
-		if (!Array.isArray(localLocation.value.exitDeviceIds)) localLocation.value.exitDeviceIds = []
+		localLocation.value.entryDoorIds = [];
+		localLocation.value.exitDoorIds = [];
+		localLocation.value.cameraDeviceIds = undefined;
+		localLocation.value.preferRegion = undefined;
+		localLocation.value.cameraMode = undefined;
+		cameraMode.value = PEOPLE_COUNTING_CAMERA_MODE.PEOPLE_COUNTING;
+		if (!Array.isArray(localLocation.value.entryDeviceIds)) localLocation.value.entryDeviceIds = [];
+		if (!Array.isArray(localLocation.value.exitDeviceIds)) localLocation.value.exitDeviceIds = [];
 	} else if (dataSource.value === "isapi_camera") {
-		localLocation.value.entryEventCameraDeviceId = undefined
-		localLocation.value.exitEventCameraDeviceId = undefined
-		localLocation.value.personGroupIds = []
-		localLocation.value.entryDoorIds = []
-		localLocation.value.exitDoorIds = []
-		localLocation.value.entryDeviceIds = []
-		localLocation.value.exitDeviceIds = []
+		localLocation.value.entryEventCameraDeviceId = undefined;
+		localLocation.value.exitEventCameraDeviceId = undefined;
+		localLocation.value.personGroupIds = [];
+		localLocation.value.entryDoorIds = [];
+		localLocation.value.exitDoorIds = [];
+		localLocation.value.entryDeviceIds = [];
+		localLocation.value.exitDeviceIds = [];
 		if (!Array.isArray(localLocation.value.cameraDeviceIds)) {
-			localLocation.value.cameraDeviceIds = []
+			localLocation.value.cameraDeviceIds = [];
 		}
 		if (!Array.isArray(localLocation.value.entryCameraDeviceIds)) {
-			localLocation.value.entryCameraDeviceIds = []
+			localLocation.value.entryCameraDeviceIds = [];
 		}
 		if (!Array.isArray(localLocation.value.exitCameraDeviceIds)) {
-			localLocation.value.exitCameraDeviceIds = []
+			localLocation.value.exitCameraDeviceIds = [];
 		}
-		localLocation.value.preferRegion = true
-		cameraMode.value = normalizePeopleCountingCameraMode(localLocation.value.cameraMode)
-		localLocation.value.cameraMode = cameraMode.value
+		localLocation.value.preferRegion = true;
+		cameraMode.value = normalizePeopleCountingCameraMode(localLocation.value.cameraMode);
+		localLocation.value.cameraMode = cameraMode.value;
 	} else {
-		localLocation.value.entryDeviceIds = []
-		localLocation.value.exitDeviceIds = []
-		localLocation.value.entryEventCameraDeviceId = undefined
-		localLocation.value.exitEventCameraDeviceId = undefined
-		localLocation.value.cameraDeviceIds = undefined
-		localLocation.value.preferRegion = undefined
-		localLocation.value.cameraMode = undefined
-		cameraMode.value = PEOPLE_COUNTING_CAMERA_MODE.PEOPLE_COUNTING
-		if (!Array.isArray(localLocation.value.entryDoorIds)) localLocation.value.entryDoorIds = []
-		if (!Array.isArray(localLocation.value.exitDoorIds)) localLocation.value.exitDoorIds = []
+		localLocation.value.entryDeviceIds = [];
+		localLocation.value.exitDeviceIds = [];
+		localLocation.value.entryEventCameraDeviceId = undefined;
+		localLocation.value.exitEventCameraDeviceId = undefined;
+		localLocation.value.cameraDeviceIds = undefined;
+		localLocation.value.preferRegion = undefined;
+		localLocation.value.cameraMode = undefined;
+		cameraMode.value = PEOPLE_COUNTING_CAMERA_MODE.PEOPLE_COUNTING;
+		if (!Array.isArray(localLocation.value.entryDoorIds)) localLocation.value.entryDoorIds = [];
+		if (!Array.isArray(localLocation.value.exitDoorIds)) localLocation.value.exitDoorIds = [];
 	}
-	handleChange()
-}
+	resetDashboardLayoutIfUnsupported();
+	handleChange();
+};
 
 const handleCameraModeChange = () => {
-	localLocation.value.cameraMode = cameraMode.value
+	localLocation.value.cameraMode = cameraMode.value;
 	if (cameraMode.value === PEOPLE_COUNTING_CAMERA_MODE.FACE_RECOGNITION) {
-		const legacy = getEffectiveCameraDeviceIds()
+		const legacy = getEffectiveCameraDeviceIds();
 		if (
 			(!Array.isArray(localLocation.value.entryCameraDeviceIds) ||
 				localLocation.value.entryCameraDeviceIds.length === 0) &&
 			legacy.length > 0
 		) {
-			localLocation.value.entryCameraDeviceIds = [...legacy]
+			localLocation.value.entryCameraDeviceIds = [...legacy];
 		}
 		if (!Array.isArray(localLocation.value.exitCameraDeviceIds)) {
-			localLocation.value.exitCameraDeviceIds = []
+			localLocation.value.exitCameraDeviceIds = [];
 		}
-		localLocation.value.cameraDeviceIds = undefined
+		localLocation.value.cameraDeviceIds = undefined;
 	} else {
-		localLocation.value.faceSimilarityThreshold = undefined
+		localLocation.value.faceSimilarityThreshold = undefined;
 		const union = [
 			...new Set([
 				...getEffectiveEntryCameraDeviceIds(),
 				...getEffectiveExitCameraDeviceIds(),
-				...getEffectiveCameraDeviceIds(),
-			]),
-		]
-		localLocation.value.cameraDeviceIds = union
-		localLocation.value.entryCameraDeviceIds = undefined
-		localLocation.value.exitCameraDeviceIds = undefined
+				...getEffectiveCameraDeviceIds()
+			])
+		];
+		localLocation.value.cameraDeviceIds = union;
+		localLocation.value.entryCameraDeviceIds = undefined;
+		localLocation.value.exitCameraDeviceIds = undefined;
 	}
-	handleChange()
-}
+	resetDashboardLayoutIfUnsupported();
+	handleChange();
+};
 
 watch(
 	() => [props.location, enableYscpPeopleCounting.value] as const,
 	([newLocation]) => {
-		localLocation.value = { ...newLocation }
-		const normalized = normalizeLogDisplayColumns(localLocation.value.logDisplayColumns)
-		localLocation.value.logDisplayColumns = toStoredLogDisplayColumns(normalized)
-		if (!localLocation.value.personGroupIds) localLocation.value.personGroupIds = []
-		if (!Array.isArray(localLocation.value.entryDoorIds)) localLocation.value.entryDoorIds = []
-		if (!Array.isArray(localLocation.value.exitDoorIds)) localLocation.value.exitDoorIds = []
-		if (!Array.isArray(localLocation.value.entryDeviceIds)) localLocation.value.entryDeviceIds = []
-		if (!Array.isArray(localLocation.value.exitDeviceIds)) localLocation.value.exitDeviceIds = []
+		localLocation.value = { ...newLocation };
+		const normalized = normalizeLogDisplayColumns(localLocation.value.logDisplayColumns);
+		localLocation.value.logDisplayColumns = toStoredLogDisplayColumns(normalized);
+		if (!localLocation.value.personGroupIds) localLocation.value.personGroupIds = [];
+		if (!Array.isArray(localLocation.value.entryDoorIds)) localLocation.value.entryDoorIds = [];
+		if (!Array.isArray(localLocation.value.exitDoorIds)) localLocation.value.exitDoorIds = [];
+		if (!Array.isArray(localLocation.value.entryDeviceIds)) localLocation.value.entryDeviceIds = [];
+		if (!Array.isArray(localLocation.value.exitDeviceIds)) localLocation.value.exitDeviceIds = [];
 		if (
 			(newLocation.dataSource as string) === "isapi_camera" &&
 			!Array.isArray(localLocation.value.cameraDeviceIds)
 		) {
-			localLocation.value.cameraDeviceIds = []
+			localLocation.value.cameraDeviceIds = [];
 		}
 		if (!Array.isArray(localLocation.value.entryCameraDeviceIds)) {
-			localLocation.value.entryCameraDeviceIds = []
+			localLocation.value.entryCameraDeviceIds = [];
 		}
 		if (!Array.isArray(localLocation.value.exitCameraDeviceIds)) {
-			localLocation.value.exitCameraDeviceIds = []
+			localLocation.value.exitCameraDeviceIds = [];
 		}
-		const next = storedPeopleCountingDataSource(newLocation.dataSource)
-		dataSource.value = next
-		localLocation.value.dataSource = next
+		const next = storedPeopleCountingDataSource(newLocation.dataSource);
+		dataSource.value = next;
+		localLocation.value.dataSource = next;
 		if ((newLocation.dataSource as string) === "isapi_camera") {
-			localLocation.value.preferRegion = true
-			cameraMode.value = normalizePeopleCountingCameraMode(newLocation.cameraMode)
-			localLocation.value.cameraMode = cameraMode.value
+			localLocation.value.preferRegion = true;
+			cameraMode.value = normalizePeopleCountingCameraMode(newLocation.cameraMode);
+			localLocation.value.cameraMode = cameraMode.value;
 			if (cameraMode.value === PEOPLE_COUNTING_CAMERA_MODE.FACE_RECOGNITION) {
 				const entry = Array.isArray(newLocation.entryCameraDeviceIds)
 					? newLocation.entryCameraDeviceIds
-					: []
-				const legacy = Array.isArray(newLocation.cameraDeviceIds) ? newLocation.cameraDeviceIds : []
-				localLocation.value.entryCameraDeviceIds = entry.length > 0 ? entry : [...legacy]
+					: [];
+				const legacy = Array.isArray(newLocation.cameraDeviceIds) ? newLocation.cameraDeviceIds : [];
+				localLocation.value.entryCameraDeviceIds = entry.length > 0 ? entry : [...legacy];
 				localLocation.value.exitCameraDeviceIds = Array.isArray(newLocation.exitCameraDeviceIds)
 					? newLocation.exitCameraDeviceIds
-					: []
-				localLocation.value.cameraDeviceIds = undefined
+					: [];
+				localLocation.value.cameraDeviceIds = undefined;
 			}
 		} else {
-			cameraMode.value = PEOPLE_COUNTING_CAMERA_MODE.PEOPLE_COUNTING
-			localLocation.value.cameraMode = undefined
+			cameraMode.value = PEOPLE_COUNTING_CAMERA_MODE.PEOPLE_COUNTING;
+			localLocation.value.cameraMode = undefined;
 		}
+		dashboardLayout.value = normalizeDashboardLayout(newLocation.dashboardLayout);
+		localLocation.value.dashboardLayout = dashboardLayout.value;
 	},
 	{ immediate: true, deep: true }
-)
+);
 
 const normalizeIdList = (value: number[] | undefined): number[] => {
-	if (!Array.isArray(value)) return []
+	if (!Array.isArray(value)) return [];
 	return value
-		.map((v) => Number(v))
-		.filter((n) => Number.isFinite(n) && n > 0)
-		.map((n) => Math.trunc(n))
-}
+		.map(v => Number(v))
+		.filter(n => Number.isFinite(n) && n > 0)
+		.map(n => Math.trunc(n));
+};
 
-const normalizedEntryDoorIds = computed(() => normalizeIdList(localLocation.value.entryDoorIds))
-const normalizedExitDoorIds = computed(() => normalizeIdList(localLocation.value.exitDoorIds))
-const normalizedEntryDeviceIds = computed(() => normalizeIdList(localLocation.value.entryDeviceIds))
-const normalizedExitDeviceIds = computed(() => normalizeIdList(localLocation.value.exitDeviceIds))
+const normalizedEntryDoorIds = computed(() => normalizeIdList(localLocation.value.entryDoorIds));
+const normalizedExitDoorIds = computed(() => normalizeIdList(localLocation.value.exitDoorIds));
+const normalizedEntryDeviceIds = computed(() =>
+	normalizeIdList(localLocation.value.entryDeviceIds)
+);
+const normalizedExitDeviceIds = computed(() => normalizeIdList(localLocation.value.exitDeviceIds));
 
 const doorOverlapSet = computed(() => {
-	const entry = new Set(normalizedEntryDoorIds.value)
-	const exit = new Set(normalizedExitDoorIds.value)
-	const overlap = new Set<number>()
+	const entry = new Set(normalizedEntryDoorIds.value);
+	const exit = new Set(normalizedExitDoorIds.value);
+	const overlap = new Set<number>();
 	for (const id of entry) {
-		if (exit.has(id)) overlap.add(id)
+		if (exit.has(id)) overlap.add(id);
 	}
-	return overlap
-})
+	return overlap;
+});
 
-const hasDoorOverlap = computed(() => doorOverlapSet.value.size > 0)
+const hasDoorOverlap = computed(() => doorOverlapSet.value.size > 0);
 
 const isDoorOverlapped = (doorId: number): boolean => {
-	return doorOverlapSet.value.has(Number(doorId))
-}
+	return doorOverlapSet.value.has(Number(doorId));
+};
 
 const isDoorSelected = (role: "entry" | "exit", doorId: number): boolean => {
-	const ids = role === "entry" ? normalizedEntryDoorIds.value : normalizedExitDoorIds.value
-	return ids.includes(doorId)
-}
+	const ids = role === "entry" ? normalizedEntryDoorIds.value : normalizedExitDoorIds.value;
+	return ids.includes(doorId);
+};
 
 const handleToggleDoor = (role: "entry" | "exit", doorId: number) => {
-	const key = role === "entry" ? "entryDoorIds" : "exitDoorIds"
+	const key = role === "entry" ? "entryDoorIds" : "exitDoorIds";
 	const current =
-		role === "entry" ? [...normalizedEntryDoorIds.value] : [...normalizedExitDoorIds.value]
-	const idx = current.indexOf(doorId)
-	if (idx >= 0) current.splice(idx, 1)
-	else current.push(doorId)
-	localLocation.value[key] = current
-	handleChange()
-}
+		role === "entry" ? [...normalizedEntryDoorIds.value] : [...normalizedExitDoorIds.value];
+	const idx = current.indexOf(doorId);
+	if (idx >= 0) current.splice(idx, 1);
+	else current.push(doorId);
+	localLocation.value[key] = current;
+	handleChange();
+};
 
 const isAccessControlSelected = (role: "entry" | "exit", deviceId: number): boolean => {
-	const ids = role === "entry" ? normalizedEntryDeviceIds.value : normalizedExitDeviceIds.value
-	return ids.includes(deviceId)
-}
+	const ids = role === "entry" ? normalizedEntryDeviceIds.value : normalizedExitDeviceIds.value;
+	return ids.includes(deviceId);
+};
 
 const handleToggleAccessControl = (role: "entry" | "exit", deviceId: number) => {
-	const key = role === "entry" ? "entryDeviceIds" : "exitDeviceIds"
+	const key = role === "entry" ? "entryDeviceIds" : "exitDeviceIds";
 	const current =
-		role === "entry" ? [...normalizedEntryDeviceIds.value] : [...normalizedExitDeviceIds.value]
-	const idx = current.indexOf(deviceId)
-	if (idx >= 0) current.splice(idx, 1)
-	else current.push(deviceId)
-	localLocation.value[key] = current
-	handleChange()
-}
+		role === "entry" ? [...normalizedEntryDeviceIds.value] : [...normalizedExitDeviceIds.value];
+	const idx = current.indexOf(deviceId);
+	if (idx >= 0) current.splice(idx, 1);
+	else current.push(deviceId);
+	localLocation.value[key] = current;
+	handleChange();
+};
 
 const accessControlOverlapSet = computed(() => {
-	const entry = new Set(normalizedEntryDeviceIds.value)
-	const exit = new Set(normalizedExitDeviceIds.value)
-	const overlap = new Set<number>()
+	const entry = new Set(normalizedEntryDeviceIds.value);
+	const exit = new Set(normalizedExitDeviceIds.value);
+	const overlap = new Set<number>();
 	for (const id of entry) {
-		if (exit.has(id)) overlap.add(id)
+		if (exit.has(id)) overlap.add(id);
 	}
-	return overlap
-})
+	return overlap;
+});
 
-const hasAccessControlOverlap = computed(() => accessControlOverlapSet.value.size > 0)
+const hasAccessControlOverlap = computed(() => accessControlOverlapSet.value.size > 0);
 
 const isAccessControlOverlapped = (deviceId: number): boolean => {
-	return accessControlOverlapSet.value.has(Number(deviceId))
-}
+	return accessControlOverlapSet.value.has(Number(deviceId));
+};
 
 const hasEntrySelected = computed(() => {
-	if (dataSource.value === "access_control") return normalizedEntryDeviceIds.value.length > 0
-	return normalizedEntryDoorIds.value.length > 0
-})
+	if (dataSource.value === "access_control") return normalizedEntryDeviceIds.value.length > 0;
+	return normalizedEntryDoorIds.value.length > 0;
+});
 
 const hasExitSelected = computed(() => {
-	if (dataSource.value === "access_control") return normalizedExitDeviceIds.value.length > 0
-	return normalizedExitDoorIds.value.length > 0
-})
+	if (dataSource.value === "access_control") return normalizedExitDeviceIds.value.length > 0;
+	return normalizedExitDoorIds.value.length > 0;
+});
 
 const isCameraSelected = (deviceId: number): boolean => {
-	return getEffectiveCameraDeviceIds().includes(deviceId)
-}
+	return getEffectiveCameraDeviceIds().includes(deviceId);
+};
 
 const handleToggleCamera = (deviceId: number) => {
 	if (!Array.isArray(localLocation.value.cameraDeviceIds)) {
-		localLocation.value.cameraDeviceIds = getEffectiveCameraDeviceIds()
+		localLocation.value.cameraDeviceIds = getEffectiveCameraDeviceIds();
 	}
-	const ids = localLocation.value.cameraDeviceIds
-	const idx = ids.indexOf(deviceId)
-	if (idx >= 0) ids.splice(idx, 1)
-	else ids.push(deviceId)
+	const ids = localLocation.value.cameraDeviceIds;
+	const idx = ids.indexOf(deviceId);
+	if (idx >= 0) ids.splice(idx, 1);
+	else ids.push(deviceId);
 
-	handleChange()
-}
+	handleChange();
+};
 
 const parseEventCameraSelect = (raw: string): number | null | undefined => {
-	const trimmed = String(raw || "").trim()
-	if (!trimmed) return null
-	const n = Number(trimmed)
-	if (!Number.isFinite(n) || n <= 0) return undefined
-	return Math.trunc(n)
-}
+	const trimmed = String(raw || "").trim();
+	if (!trimmed) return null;
+	const n = Number(trimmed);
+	if (!Number.isFinite(n) || n <= 0) return undefined;
+	return Math.trunc(n);
+};
 
 const handleChange = () => {
-	emit("update", { ...localLocation.value })
-}
+	emit("update", { ...localLocation.value });
+};
 </script>

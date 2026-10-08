@@ -20,6 +20,7 @@ import {
 	type UnitPersonnelApiRow,
 } from "~/utils/peopleCountingAdapter"
 import { normalizeLogDisplayColumns } from "~/utils/peopleCountingLogColumns"
+import { normalizeDashboardLayout } from "~/utils/peopleCountingDashboardLayout"
 import { normalizePeopleCountingCameraMode } from "~/utils/peopleCountingCameraMode"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { isPeopleCountingLocationVisible } from "~/utils/peopleCountingDataSource"
@@ -109,6 +110,7 @@ export const usePeopleCountingApi = () => {
 									)
 								: undefined,
 						logDisplayColumns: normalizeLogDisplayColumns(cfg?.logDisplayColumns),
+						dashboardLayout: normalizeDashboardLayout(cfg?.dashboardLayout),
 						entryDeviceIds: cfg?.entryDeviceIds,
 						exitDeviceIds: cfg?.exitDeviceIds,
 						entryEventCameraDeviceId: cfg?.entryEventCameraDeviceId,

@@ -79,7 +79,7 @@
 											{{ activeTab === "camera" ? "IP 位址" : "配置資訊" }}
 										</th>
 										<th class="table-th">狀態</th>
-										<th class="table-th">啟用</th>
+										<th v-if="deviceEnableFeature" class="table-th">啟用</th>
 										<th class="table-th">
 											<FilterDropdown
 												:model-value="dateSortOrder"
@@ -97,7 +97,9 @@
 										v-for="device in devices"
 										:key="device.id"
 										class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
-										:class="{ 'opacity-60': device.enabled === false }"
+										:class="{
+											'opacity-60': deviceEnableFeature && device.enabled === false
+										}"
 									>
 										<td class="table-td">{{ device.name }}</td>
 										<td v-if="activeTab === 'camera'" class="table-td">
@@ -137,7 +139,7 @@
 												</span>
 											</span>
 										</td>
-										<td class="table-td">
+										<td v-if="deviceEnableFeature" class="table-td">
 											<span
 												:class="[
 													device.enabled === false
@@ -259,7 +261,10 @@ import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import { applyFormApiErrorToRef } from "~/utils/apiError";
 import { getCameraModelCategoryLabel } from "~/utils/cameraModelCategories";
 import { useEquipmentRbac } from "~/composables/core/useAccessGate";
-import { useCanManageDeviceModels } from "~/composables/core/useAuth";
+import {
+	useCanManageDeviceModels,
+	useDeviceEnableFeature
+} from "~/composables/core/useAuth";
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
 
 definePageMeta({
@@ -268,6 +273,7 @@ definePageMeta({
 
 const { canCreateDevice, canUpdateDevice, canDeleteDevice } = useEquipmentRbac();
 const canManageDeviceModels = useCanManageDeviceModels();
+const deviceEnableFeature = useDeviceEnableFeature();
 const canWriteDevice = computed(() =>
 	editingDevice.value ? canUpdateDevice.value : canCreateDevice.value
 );

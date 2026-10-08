@@ -73,11 +73,6 @@ export const TOAST = {
 	PERSONNEL_IMPORT_WITH_ERRORS: (count: number) => `匯入完成，但有 ${count} 筆錯誤，請查看下方明細`,
 	PERSONNEL_SAVED: (label: string) => `已儲存${label}`,
 
-	// elevator
-	ELEVATOR_FLOOR_ACCESS_APPLIED: "已套用樓層權限",
-	ELEVATOR_FLOOR_NAME_SAVED: "已更新樓層名稱",
-	ELEVATOR_COMMAND_SENT: "指令已送出",
-
 	// vehicle / access
 	VEHICLE_BARRIER_SENT: "已送出道閘指令",
 	ACCESS_DOOR_SENT: "已送出門控指令",

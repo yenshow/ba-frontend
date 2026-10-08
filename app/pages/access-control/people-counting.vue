@@ -85,14 +85,29 @@
 						content-class="gap-12"
 					>
 						<template v-if="selectedLocation">
-							<!-- 上統計、下左紀錄／下右群組（對齊車輛進出） -->
+							<!-- 上統計；下依地點排版：事件＋群組｜群組＋人員卡片 -->
 							<LocationStatsPanel
 								class="shrink-0"
 								:entry-count="selectedLocation?.entryCount || 0"
 								:exit-count="selectedLocation?.exitCount || 0"
 								:current-count="currentCount"
 							/>
-							<div class="grid min-h-0 min-w-0 flex-1 grid-cols-2 items-stretch gap-4">
+							<div
+								v-if="isGroupCardsLayout"
+								class="flex min-h-0 min-w-0 flex-1 gap-3 2xl:gap-4"
+							>
+								<RollCallGroupFilter
+									v-model:selected-group-id="selectedCardGroupId"
+									:filter-items="groupFilterItems"
+									:compact="!isOverviewCollapsed"
+								/>
+								<PeopleCountingPersonnelCards
+									:rows="filteredPersonnelCards"
+									:empty-message="personnelCardsEmptyMessage"
+									:compact="!isOverviewCollapsed"
+								/>
+							</div>
+							<div v-else class="grid min-h-0 min-w-0 flex-1 grid-cols-2 items-stretch gap-4">
 								<div class="flex min-h-0 min-w-0 flex-col">
 									<EntryExitLogTable
 										:logs="logs"
@@ -262,7 +277,13 @@ import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.
 import EntryExitLogTable from "~/components/people-counting/EntryExitLogTable.vue"
 import Pagination from "~/components/common/Pagination.vue"
 import LocationDetailPanel from "~/components/people-counting/LocationDetailPanel.vue"
+import PeopleCountingPersonnelCards from "~/components/people-counting/PeopleCountingPersonnelCards.vue"
 import UnitPersonnelDialog from "~/components/people-counting/UnitPersonnelDialog.vue"
+import RollCallGroupFilter from "~/components/roll-call/RollCallGroupFilter.vue"
+import {
+	PEOPLE_COUNTING_DASHBOARD_LAYOUT,
+	resolveDashboardLayout,
+} from "~/utils/peopleCountingDashboardLayout"
 import LocationOverviewCard from "~/components/people-counting/LocationOverviewCard.vue"
 import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
@@ -428,6 +449,55 @@ const currentCount = computed(() => {
 	if (!selectedLocation.value.units) return 0
 	return selectedLocation.value.units.reduce((sum, unit) => sum + (unit.currentCount || 0), 0)
 })
+
+const isGroupCardsLayout = computed(
+	() =>
+		resolveDashboardLayout({
+			dashboardLayout: selectedLocation.value?.dashboardLayout,
+			dataSource: selectedLocation.value?.dataSource,
+			cameraMode: selectedLocation.value?.cameraMode,
+		}) === PEOPLE_COUNTING_DASHBOARD_LAYOUT.GROUP_CARDS
+)
+
+/** 人員卡片模式：左側群組篩選（null＝全部） */
+const selectedCardGroupId = ref<number | null>(null)
+
+const groupFilterItems = computed(() => {
+	const units = selectedLocation.value?.units ?? []
+	return [
+		{
+			id: null as number | null,
+			name: "全部",
+			presentCount: units.reduce((sum, unit) => sum + (unit.currentCount || 0), 0),
+			totalCount: units.reduce((sum, unit) => sum + (unit.capacity || 0), 0),
+		},
+		...units.map((unit) => ({
+			id: unit.id,
+			name: unit.name,
+			presentCount: unit.currentCount || 0,
+			totalCount: unit.capacity || 0,
+		})),
+	]
+})
+
+const filteredPersonnelCards = computed(() => {
+	const groupId = selectedCardGroupId.value
+	if (groupId == null) return personnel.value
+	return personnel.value.filter((row) => row.unitId === groupId)
+})
+
+const personnelCardsEmptyMessage = computed(() => {
+	if ((selectedLocation.value?.units?.length ?? 0) === 0) return "尚無人員群組"
+	if (selectedCardGroupId.value != null && personnel.value.length > 0) return "此群組尚無人員"
+	return "尚無人員資料"
+})
+
+watch(
+	() => selectedLocation.value?.locationId,
+	() => {
+		selectedCardGroupId.value = null
+	}
+)
 
 const isOverviewCollapsed = ref(false)
 const { detailPanelRef, asideHeightStyle } = useMonitoringAsideHeightSync()
