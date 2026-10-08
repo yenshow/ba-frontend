@@ -86,9 +86,31 @@ const buildChart = () => {
 	})
 }
 
+const syncChart = () => {
+	if (!canvasRef.value) return
+	const data = props.values.map((v) => (v != null && Number.isFinite(v) ? v : null))
+	if (data.every((v) => v == null)) {
+		chart?.destroy()
+		chart = null
+		return
+	}
+	if (!chart || chart.data.datasets.length !== 1) {
+		buildChart()
+		return
+	}
+	const stroke = `rgb(${rgb.value})`
+	chart.data.labels = data.map((_, i) => String(i))
+	const ds = chart.data.datasets[0]
+	if (ds) {
+		ds.data = data
+		ds.borderColor = stroke
+	}
+	chart.update("none")
+}
+
 watch(
 	() => [props.values, props.tone] as const,
-	() => buildChart(),
+	() => syncChart(),
 	{ deep: true }
 )
 

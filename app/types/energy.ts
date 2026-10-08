@@ -205,6 +205,12 @@ export type EnergyMeteringMeter = {
 	activeEnergyKwh: number | null
 	/** 總有效電能（手冊 5129／0x1408） */
 	totalActiveEnergyKwh: number | null
+	/** 輸出有效電能（手冊 5125／0x1404） */
+	exportEnergyKwh: number | null
+	/** 總無功功率 Qsum */
+	reactivePowerKvar: number | null
+	/** 總視在功率 Ssum */
+	apparentPowerKva: number | null
 }
 
 export type EnergyMeteringResponse = {

@@ -15,6 +15,7 @@ import {
 	MOCK_ENERGY_SUMMARY,
 	buildMockTrendSeries,
 } from "~/constants/energyDashboard.mock"
+import { sameEnergyTrendSeries } from "~/utils/energyTrendSeries"
 
 export const useEnergyHomeSummary = () => {
 	const api = useEnergyApi()
@@ -45,9 +46,18 @@ export const useEnergyHomeSummary = () => {
 				api.getTrends("day"),
 			])
 			summary.value = s
-			kpiDaySeries.value = dayT.series || []
-			distribution.value = d.items || []
-			distributionTotalKwh.value = d.totalEnergyKwh ?? 0
+			const daySeries = dayT.series || []
+			if (!sameEnergyTrendSeries(kpiDaySeries.value, daySeries)) {
+				kpiDaySeries.value = daySeries
+			}
+			const distItems = d.items || []
+			if (JSON.stringify(distribution.value) !== JSON.stringify(distItems)) {
+				distribution.value = distItems
+			}
+			const distTotal = d.totalEnergyKwh ?? 0
+			if (distributionTotalKwh.value !== distTotal) {
+				distributionTotalKwh.value = distTotal
+			}
 		} catch (err: unknown) {
 			errorMessage.value = err instanceof Error ? err.message : "載入能源首頁資料失敗"
 		}

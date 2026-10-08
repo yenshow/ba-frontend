@@ -49,6 +49,7 @@
 								/>
 							</label>
 							<label
+								v-if="deviceEnableFeature"
 								class="flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base"
 							>
 								<span class="relative inline-flex cursor-pointer items-center">
@@ -66,7 +67,7 @@
 									}}</span>
 								</span>
 								<span class="text-xs text-white/50 2xl:text-sm"
-									>停用後平台不再對此設備訂閱／佈防／探測</span
+									>停用後平台不再對此設備訂閱／佈防／探測（僅開發環境）</span
 								>
 							</label>
 							<label
@@ -708,7 +709,10 @@
 
 <script setup lang="ts">
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
-import { usePlatformAdmin } from "~/composables/core/useAuth"
+import {
+	usePlatformAdmin,
+	useDeviceEnableFeature,
+} from "~/composables/core/useAuth"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
@@ -776,6 +780,7 @@ const emit = defineEmits<Emits>()
 
 const deviceApi = useDeviceApi()
 const canPlatformAdmin = usePlatformAdmin()
+const deviceEnableFeature = useDeviceEnableFeature()
 const deviceModels = ref<DeviceModel[]>([])
 const isLoadingDeviceModels = ref(false)
 const localErrorMessage = ref<string | null>(null)
@@ -1179,7 +1184,7 @@ const hasUnsavedChanges = computed(() => {
 		return (
 			current.name !== initial.name ||
 			current.model_id !== initial.model_id ||
-			current.enabled !== initial.enabled ||
+			(deviceEnableFeature.value && current.enabled !== initial.enabled) ||
 			JSON.stringify(current.config) !== JSON.stringify(initial.config)
 		)
 	}
@@ -1197,7 +1202,7 @@ const changedFieldsList = computed(() => {
 	if (current.model_id !== initial.model_id) {
 		fields.push("設備型號")
 	}
-	if (current.enabled !== initial.enabled) {
+	if (deviceEnableFeature.value && current.enabled !== initial.enabled) {
 		fields.push(`啟用: ${initial.enabled ? "啟用" : "停用"} → ${current.enabled ? "啟用" : "停用"}`)
 	}
 	if (JSON.stringify(current.config) !== JSON.stringify(initial.config)) {
@@ -1459,7 +1464,7 @@ const handleSubmit = () => {
 		emit("submit", {
 			name: localFormData.name,
 			model_id: localFormData.model_id,
-			enabled: localFormData.enabled,
+			...(deviceEnableFeature.value ? { enabled: localFormData.enabled } : {}),
 			config: config,
 		} as UpdateDeviceData)
 	} else {
@@ -1467,7 +1472,7 @@ const handleSubmit = () => {
 			name: localFormData.name,
 			type_code: props.deviceTypeCode,
 			model_id: localFormData.model_id,
-			enabled: localFormData.enabled,
+			...(deviceEnableFeature.value ? { enabled: localFormData.enabled } : {}),
 			config: config,
 		}
 		emit("submit", submitData)

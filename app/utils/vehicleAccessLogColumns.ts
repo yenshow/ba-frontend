@@ -96,6 +96,14 @@ export const formatVehicleLogText = (value: string | null | undefined): string =
 	return s || "-";
 }
 
+/** 無車主且非放行／拒絕名單 → 顯示「陌生」 */
+export const formatVehicleOwnerName = (log: VehicleDataLog): string => {
+	const name = log.owner_name != null ? String(log.owner_name).trim() : "";
+	if (name) return name;
+	if (log.allow_result == null) return "陌生";
+	return "-";
+}
+
 export const buildVehicleLogDetailRow = (
 	log: VehicleDataLog,
 	columns: VehicleAccessLogColumnKey[]
@@ -121,7 +129,8 @@ export const buildVehicleLogDetailRow = (
 				row[VEHICLE_ACCESS_LOG_COLUMN_LABELS.lane] = formatVehicleLogLane(log);
 				break;
 			case "owner_name":
-				row[VEHICLE_ACCESS_LOG_COLUMN_LABELS.owner_name] = formatVehicleLogText(log.owner_name);
+				row[VEHICLE_ACCESS_LOG_COLUMN_LABELS.owner_name] =
+					formatVehicleOwnerName(log);
 				break;
 			case "pass_result":
 				row[VEHICLE_ACCESS_LOG_COLUMN_LABELS.pass_result] = getVehiclePassResultLabel(log);

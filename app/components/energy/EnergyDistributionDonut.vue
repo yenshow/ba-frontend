@@ -62,6 +62,7 @@ const buildChart = () => {
 		options: {
 			responsive: true,
 			maintainAspectRatio: false,
+			animation: false,
 			cutout: "60%",
 			plugins: { legend: { display: false } },
 		},
@@ -69,9 +70,27 @@ const buildChart = () => {
 	chart = new Chart(canvasRef.value, cfg)
 }
 
+const syncChart = () => {
+	if (!canvasRef.value) return
+	if (!chart || chart.data.datasets.length !== 1) {
+		buildChart()
+		return
+	}
+	const labels = props.items.map((i) => i.systemName)
+	const data = props.items.map((i) => i.energyKwh)
+	const colors = props.items.map((_, idx) => colorAt(idx))
+	chart.data.labels = labels
+	const ds = chart.data.datasets[0]
+	if (ds) {
+		ds.data = data
+		ds.backgroundColor = colors
+	}
+	chart.update("none")
+}
+
 watch(
 	() => props.items,
-	() => buildChart(),
+	() => syncChart(),
 	{ deep: true }
 )
 

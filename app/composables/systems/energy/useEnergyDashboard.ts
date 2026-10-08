@@ -16,6 +16,7 @@ import {
 	MOCK_ENERGY_SUMMARY,
 	buildMockTrendSeries,
 } from "~/constants/energyDashboard.mock"
+import { sameEnergyTrendSeries } from "~/utils/energyTrendSeries"
 
 export type EnergyTrendState = {
 	range: string
@@ -33,6 +34,19 @@ const emptyTrend = (): EnergyTrendState => ({
 	compareLabel: null,
 })
 
+const trendSig = (payload: {
+	bucketType?: string
+	series?: EnergyTrendPoint[]
+	compareSeries?: EnergyTrendPoint[] | null
+	compareLabel?: string | null
+}) =>
+	JSON.stringify({
+		bucketType: payload.bucketType || "hour",
+		series: payload.series || [],
+		compareSeries: payload.compareSeries ?? null,
+		compareLabel: payload.compareLabel ?? null,
+	})
+
 const applyTrendResult = (
 	state: Ref<EnergyTrendState>,
 	range: string,
@@ -43,13 +57,21 @@ const applyTrendResult = (
 		compareLabel?: string | null
 	}
 ) => {
-	state.value = {
+	const next = {
 		range,
 		bucketType: payload.bucketType || "hour",
 		series: payload.series || [],
 		compareSeries: payload.compareSeries ?? null,
 		compareLabel: payload.compareLabel ?? null,
 	}
+	// 背景刷新數值未變時不換 reference，避免圖表 deep watch
+	if (
+		state.value.range === next.range &&
+		trendSig(state.value) === trendSig(next)
+	) {
+		return
+	}
+	state.value = next
 }
 
 export const useEnergyDashboard = () => {
@@ -68,6 +90,7 @@ export const useEnergyDashboard = () => {
 	const ranking = ref<EnergyMeterRankingItem[]>([])
 	const loading = ref(false)
 	const errorMessage = ref<string | null>(null)
+	const hasLoadedOnce = ref(false)
 
 	const applyMockTrends = () => {
 		const elec = buildMockTrendSeries(energyTrend.value.range)
@@ -77,12 +100,14 @@ export const useEnergyDashboard = () => {
 	}
 
 	const applyKpiSparkSeries = (day: EnergyTrendPoint[], month: EnergyTrendPoint[]) => {
-		kpiDaySeries.value = day
-		kpiMonthSeries.value = month
+		if (!sameEnergyTrendSeries(kpiDaySeries.value, day)) kpiDaySeries.value = day
+		if (!sameEnergyTrendSeries(kpiMonthSeries.value, month)) kpiMonthSeries.value = month
 	}
 
-	const refreshAll = async () => {
-		loading.value = true
+	/** silent：背景／WS 刷新不開 loading，避免整頁閃爍 */
+	const refreshAll = async (opts?: { silent?: boolean }) => {
+		const silent = opts?.silent === true || (opts?.silent !== false && hasLoadedOnce.value)
+		if (!silent) loading.value = true
 		errorMessage.value = null
 		try {
 			if (ENERGY_DASHBOARD_USE_MOCK) {
@@ -117,14 +142,24 @@ export const useEnergyDashboard = () => {
 				series: waterT.series,
 			})
 			applyKpiSparkSeries(dayT.series || [], monthT.series || [])
-			distribution.value = d.items || []
-			distributionTotalKwh.value = d.totalEnergyKwh ?? 0
-			ranking.value = r.items || []
+			const distItems = d.items || []
+			const distTotal = d.totalEnergyKwh ?? 0
+			if (JSON.stringify(distribution.value) !== JSON.stringify(distItems)) {
+				distribution.value = distItems
+			}
+			if (distributionTotalKwh.value !== distTotal) {
+				distributionTotalKwh.value = distTotal
+			}
+			const rankItems = r.items || []
+			if (JSON.stringify(ranking.value) !== JSON.stringify(rankItems)) {
+				ranking.value = rankItems
+			}
 		} catch (err: unknown) {
 			errorMessage.value =
 				err instanceof Error ? err.message : "載入能源儀表板失敗"
 		} finally {
 			loading.value = false
+			hasLoadedOnce.value = true
 		}
 	}
 
@@ -151,7 +186,7 @@ export const useEnergyDashboard = () => {
 	const setWaterTrendRange = (range: string) => loadTrend("water", range)
 
 	useWsFallbackPolling({
-		callback: () => refreshAll(),
+		callback: () => refreshAll({ silent: true }),
 		interval: FALLBACK_POLL_MS,
 	})
 

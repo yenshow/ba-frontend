@@ -69,6 +69,14 @@ export const useCanManageDeviceModels = () => {
 	return computed(() => platformAdmin.value && !locked)
 }
 
+/** 設備啟用／停用：僅非產品環境（與 deviceModelsLocked 同依 NODE_ENV） */
+export const useDeviceEnableFeature = () => {
+	const config = useRuntimeConfig()
+	const locked =
+		String((config.public as { deviceModelsLocked?: string }).deviceModelsLocked ?? "") === "1"
+	return computed(() => !locked)
+}
+
 export const useAuth = () => {
 	const userApi = useUserApi()
 	const {

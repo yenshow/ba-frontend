@@ -127,6 +127,7 @@ import { useZoneSystemAdapter } from "~/composables/location/adapters/useZoneSys
 import { useLocationValidationPipeline } from "~/composables/location/validation/useLocationValidationPipeline"
 import { useZoneDrafts } from "~/composables/location/ui/useZoneDrafts"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { useDeviceEnableFeature } from "~/composables/core/useAuth"
 import { useExternalDataApi } from "~/composables/systems/externalData/useExternalDataApi"
 import { useVehicleAccessApi } from "~/composables/systems/vehicleAccess/useVehicleAccessApi"
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
@@ -281,6 +282,9 @@ const changeSummary = computed(() => {
 })
 
 const deviceApi = useDeviceApi()
+const deviceEnableFeature = useDeviceEnableFeature()
+const enabledDeviceQuery = () =>
+	deviceEnableFeature.value ? ({ enabled: true } as const) : {}
 const devices = ref<any[]>([])
 const isLoadingDevices = ref(false)
 
@@ -346,6 +350,7 @@ const loadDevices = async () => {
 					: "sensor"
 		const result = await deviceApi.getDevices({
 			type_code: deviceType,
+			...enabledDeviceQuery(),
 			limit: 100,
 		})
 		devices.value = result.devices
@@ -391,6 +396,7 @@ const loadAccessControlDevices = async () => {
 	try {
 		const result = await deviceApi.getDevices({
 			type_code: "access_control",
+			...enabledDeviceQuery(),
 			limit: 100,
 		})
 		accessControlDevices.value = result.devices || []
@@ -426,6 +432,7 @@ const loadIsapiCameraDevices = async () => {
 	try {
 		const result = await deviceApi.getDevices({
 			type_code: "camera",
+			...enabledDeviceQuery(),
 			limit: 200,
 		})
 		const all = result.devices || []
@@ -495,6 +502,7 @@ const getLocationLabel = (): string => {
 		smoke_alarm: "點位",
 		environment: "地點",
 		people_counting: "地點",
+		roll_call: "地點",
 		elevator: "地點",
 		vehicle_access: "地點",
 		access_security: "戶別",

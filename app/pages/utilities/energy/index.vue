@@ -15,9 +15,11 @@ import PageTabs from "~/components/common/PageTabs.vue"
 import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
 import { useEnergyDashboard } from "~/composables/systems/energy/useEnergyDashboard"
 import { useEnergyNotifications } from "~/composables/systems/energy/useEnergyNotifications"
-import { useEnergyReadingSubscription } from "~/composables/systems/energy/useEnergyLive"
 import { useAuth } from "~/composables/core/useAuth"
+import { useAccessGate } from "~/composables/core/useAccessGate"
+import { setupDebouncedRefetchListeners } from "~/composables/websocket/useWebSocket"
 import { PERM } from "~/config/permissionCodes"
+import { EVENT_COALESCE_MS } from "~/utils/realtimeTiming"
 
 const {
 	summary,
@@ -37,6 +39,10 @@ const {
 
 const { useHasPermission } = useAuth()
 const canManageEnergySettings = useHasPermission(PERM.energy.settingsUpdate)
+const { useWsModuleGate } = useAccessGate()
+const canSubscribeEnergy = useWsModuleGate("energy", {
+	permissionCode: PERM.energy.module,
+})
 
 const {
 	items: energyAlerts,
@@ -160,10 +166,17 @@ const trendPanels = computed(() => [
 	},
 ])
 
-useEnergyReadingSubscription(() => {
-	void refreshAll()
-	void refreshNotifications()
-})
+const stopWsRefetch = setupDebouncedRefetchListeners(
+	() => {
+		void refreshAll({ silent: true })
+		void refreshNotifications()
+	},
+	[{ event: "energy:reading:new" }],
+	EVENT_COALESCE_MS,
+	"energy-dashboard",
+	{ enabled: canSubscribeEnergy }
+)
+onScopeDispose(stopWsRefetch)
 
 /** 用水趨勢仍開完整報表；用電改跳轉即時量測頁 */
 const handleOpenTrendReport = (mode: EnergyTrendReportMode) => {
@@ -333,7 +346,7 @@ onMounted(async () => {
 			v-model="showSettings"
 			@saved="
 				() => {
-					void refreshAll()
+					void refreshAll({ silent: true })
 					void refreshNotifications()
 				}
 			"

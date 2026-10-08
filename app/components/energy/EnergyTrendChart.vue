@@ -77,8 +77,10 @@ const wrapRef = ref<HTMLElement | null>(null)
 const tipElRef = ref<HTMLElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const tip = ref<TipState>({ show: false, left: 0, top: 0, title: "", rows: [] })
-let chart: Chart | null = null
+let chart: Chart<"line", (number | null)[], string> | null = null
 let tipCaret = { x: 0, y: 0 }
+/** 避免 deep watch 在數值未變時仍觸發 update */
+let lastPayloadSig = ""
 
 const isEnergy = computed(() => props.mode === "energy")
 const unit = computed(() => (isEnergy.value ? "kWh" : "m³"))
@@ -166,6 +168,33 @@ const lineDataset = (
 			}),
 })
 
+const alignCompare = (values: (number | null)[], compareVals: (number | null)[]) =>
+	compareVals.length === values.length
+		? compareVals
+		: values.map((_, i) => compareVals[i] ?? null)
+
+const buildPayload = () => {
+	const total = props.series.length
+	const labels = props.series.map((p, i) => formatAxisLabel(p.timestamp, i, total))
+	const values = pickValues(props.series)
+	const dense = bucket.value === "day" && total > 8
+	const hasCompare = (props.compareSeries?.length ?? 0) > 0
+	const compareAligned =
+		hasCompare && props.compareSeries
+			? alignCompare(values, pickValues(props.compareSeries))
+			: null
+	const sig = [
+		props.mode,
+		bucket.value,
+		props.compareLabel ?? "",
+		hasCompare ? "1" : "0",
+		labels.join(","),
+		values.join(","),
+		compareAligned?.join(",") ?? "",
+	].join("|")
+	return { total, labels, values, dense, hasCompare, compareAligned, sig }
+}
+
 /** 避開父層 monitoring-panel 的 overflow:hidden 裁切 */
 const clampTipPosition = () => {
 	const wrap = wrapRef.value
@@ -211,16 +240,14 @@ const renderExternalTooltip = (context: { tooltip: TooltipModel<"line"> }) => {
 	nextTick(() => clampTipPosition())
 }
 
+/** 進頁／切 range／結構變：重建（保留預設繪圖動畫） */
 const buildChart = () => {
 	if (!canvasRef.value) return
 	chart?.destroy()
 	tip.value.show = false
 
-	const total = props.series.length
-	const labels = props.series.map((p, i) => formatAxisLabel(p.timestamp, i, total))
-	const values = pickValues(props.series)
-	const dense = bucket.value === "day" && total > 8
-	const hasCompare = (props.compareSeries?.length ?? 0) > 0
+	const { labels, values, dense, hasCompare, compareAligned, sig } = buildPayload()
+	lastPayloadSig = sig
 
 	const datasets: ChartDataset<"line", (number | null)[]>[] = [
 		lineDataset(seriesLabel(hasCompare ? "today" : "single"), values, {
@@ -229,14 +256,9 @@ const buildChart = () => {
 		}),
 	]
 
-	if (hasCompare && props.compareSeries) {
-		const compareVals = pickValues(props.compareSeries)
-		const aligned =
-			compareVals.length === values.length
-				? compareVals
-				: values.map((_, i) => compareVals[i] ?? null)
+	if (hasCompare && compareAligned) {
 		datasets.push(
-			lineDataset(seriesLabel("compare"), aligned, {
+			lineDataset(seriesLabel("compare"), compareAligned, {
 				color: COMPARE_STROKE,
 				dashed: true,
 			})
@@ -265,7 +287,8 @@ const buildChart = () => {
 						color: "rgba(255,255,255,0.55)",
 						autoSkip: false,
 						maxRotation: 0,
-						callback: (_val, index) => labels[index] || undefined,
+						callback: (_val, index) =>
+							(chart?.data.labels?.[index] as string | undefined) || undefined,
 					},
 					grid: { color: "rgba(255,255,255,0.06)" },
 				},
@@ -279,14 +302,53 @@ const buildChart = () => {
 	})
 }
 
+/** 定時／WS：結構相同就地更新（無動畫）；結構變才重建 */
+const syncChart = () => {
+	if (!canvasRef.value) return
+
+	const { total, labels, values, dense, hasCompare, compareAligned, sig } = buildPayload()
+	if (sig === lastPayloadSig && chart) return
+
+	const expectDatasets = hasCompare ? 2 : 1
+	const needRebuild =
+		!chart ||
+		chart.data.datasets.length !== expectDatasets ||
+		(chart.data.labels?.length ?? 0) !== total
+
+	if (needRebuild) {
+		buildChart()
+		return
+	}
+
+	lastPayloadSig = sig
+	chart.data.labels = labels
+	const todayDs = chart.data.datasets[0]
+	if (todayDs) {
+		todayDs.data = values
+		todayDs.label = seriesLabel(hasCompare ? "today" : "single")
+		todayDs.pointRadius = dense ? 2 : 3
+	}
+	if (hasCompare && compareAligned) {
+		const compareDs = chart.data.datasets[1]
+		if (compareDs) {
+			compareDs.data = compareAligned
+			compareDs.label = seriesLabel("compare")
+		}
+	}
+	chart.update("none")
+}
+
 watch(
 	() =>
 		[props.series, props.compareSeries, props.bucketType, props.mode, props.compareLabel] as const,
-	() => buildChart(),
+	() => syncChart(),
 	{ deep: true }
 )
 
-onMounted(() => buildChart())
+onMounted(() => {
+	// 有資料才建圖，避免空 series 先建一次再被資料覆蓋
+	if (props.series.length > 0) buildChart()
+})
 onBeforeUnmount(() => chart?.destroy())
 </script>
 

@@ -1,10 +1,9 @@
 import type { Device } from "~/types/device";
 
-/** 地點／表單設備下拉顯示名；停用機標示「已停用」但仍可選 */
+/** 地點／表單設備顯示名（開發環境選單另以 enabled=true 過濾） */
 export const formatDeviceSelectLabel = (
-	device: Pick<Device, "id" | "name" | "enabled">,
+	device: Pick<Device, "id" | "name">,
 	fallbackPrefix = "設備",
 ): string => {
-	const base = String(device.name || "").trim() || `${fallbackPrefix} ${device.id}`;
-	return device.enabled === false ? `${base}（已停用）` : base;
+	return String(device.name || "").trim() || `${fallbackPrefix} ${device.id}`;
 };
