@@ -299,7 +299,7 @@ export const usePersonnelApi = (): PersonnelApi => {
 					? PERSON_WITH_VEHICLE_SYNC_TIMEOUT_MS
 					: undefined,
 			}),
-		/** 上傳該人員大頭照（檔名由後端依姓名/工號組成，並自動更新 face_url） */
+		/** 上傳該人員大頭照（檔名由後端依工號組成，並自動更新 face_url） */
 		uploadFaceForPerson: (personId: number, file: File) => {
 			const form = new FormData()
 			form.append("file", file)

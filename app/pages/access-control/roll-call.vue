@@ -410,8 +410,16 @@ const attendanceRows = computed((): RollCallAttendanceRow[] => detail.value?.att
 
 const filteredAttendance = computed(() => {
 	const rows = attendanceRows.value
-	if (selectedGroupId.value == null) return rows
-	return rows.filter((row) => (row.groupId ?? UNGROUPED_PERSON_GROUP_ID) === selectedGroupId.value)
+	const filtered =
+		selectedGroupId.value == null
+			? [...rows]
+			: rows.filter((row) => (row.groupId ?? UNGROUPED_PERSON_GROUP_ID) === selectedGroupId.value)
+	// 已簽到（present）優先；其餘維持原相對順序
+	return filtered.sort((a, b) => {
+		const ap = a.status === "present" ? 0 : 1
+		const bp = b.status === "present" ? 0 : 1
+		return ap - bp
+	})
 })
 
 const groupFilterItems = computed(() => {

@@ -93,7 +93,6 @@ export interface RollCallSessionDetail {
 	windowStart: string
 	windowEnd: string
 	status: string
-	canMark: boolean
 	expectedCount: number
 	presentCount: number
 	absentCount: number

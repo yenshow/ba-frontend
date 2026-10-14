@@ -482,8 +482,14 @@ const groupFilterItems = computed(() => {
 
 const filteredPersonnelCards = computed(() => {
 	const groupId = selectedCardGroupId.value
-	if (groupId == null) return personnel.value
-	return personnel.value.filter((row) => row.unitId === groupId)
+	const rows =
+		groupId == null ? [...personnel.value] : personnel.value.filter((row) => row.unitId === groupId)
+	// 在場優先；其餘維持原相對順序
+	return rows.sort((a, b) => {
+		const ap = a.isPresent ? 0 : 1
+		const bp = b.isPresent ? 0 : 1
+		return ap - bp
+	})
 })
 
 const personnelCardsEmptyMessage = computed(() => {

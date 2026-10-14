@@ -44,12 +44,6 @@ export const useRollCallApi = () => {
 	const getSession = (id: number) =>
 		request<{ session: RollCallSessionDetail }>(`/roll-call/sessions/${id}`)
 
-	const markAttendance = (sessionId: number, personId: number, status: "present" | "absent") =>
-		request<{ session: RollCallSessionDetail }>(
-			`/roll-call/sessions/${sessionId}/attendance/${personId}`,
-			{ method: "PUT", body: { status } },
-		)
-
 	const getHistory = (limit = 50, offset = 0) =>
 		request<{
 			total: number
@@ -80,7 +74,6 @@ export const useRollCallApi = () => {
 		listRules,
 		replaceLocationRules,
 		getSession,
-		markAttendance,
 		getHistory,
 		getReport,
 	}

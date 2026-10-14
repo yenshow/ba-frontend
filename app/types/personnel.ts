@@ -137,7 +137,9 @@ export interface SyncLocationCandidate {
 /** 批次匯入回傳 */
 export interface ImportResult {
 	created: number;
+	updated: number;
 	createdIds?: Array<{ id: number; employeeNo: string }>;
+	updatedIds?: Array<{ id: number; employeeNo: string }>;
 	errors?: Array<{ row: number; employeeNo?: string; fullName?: string | null; message: string }>;
 }
 

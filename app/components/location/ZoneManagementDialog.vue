@@ -9,13 +9,15 @@
 					class="dialog-panel-bg flex max-h-[90vh] min-h-0 w-full max-w-7xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
 				>
 					<header class="flex items-center justify-between pr-7 2xl:pr-8">
-						<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">區域管理</h3>
+						<h3 class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl">地點管理</h3>
 						<div class="flex items-center gap-3">
 							<FormChangeIndicator
 								v-if="hasUnsavedChanges"
 								:has-changes="hasUnsavedChanges"
 								:changed-fields="changedFieldsList"
 								:message="changeSummary"
+								:show-reset="true"
+								@reset="handleDiscardDrafts"
 							/>
 							<button
 								type="button"
@@ -199,7 +201,7 @@ const {
 	pendingChanges,
 	hasUnsavedChanges,
 	clearAllDrafts,
-	setDraft,
+	commitDraft,
 	deleteDraft,
 	createMergedZones,
 	createSortedZones,
@@ -224,7 +226,8 @@ const updateZone = (zone: TZone) => {
 	if (!zoneId) return
 
 	errorMessage.value = ""
-	setDraft(zoneId, JSON.parse(JSON.stringify(zone)) as TZone)
+	const original = props.zones.find((z) => getZoneId(z) === zoneId) ?? null
+	commitDraft(zoneId, JSON.parse(JSON.stringify(zone)) as TZone, original)
 }
 
 const mergedZones = computed(() => {
@@ -260,8 +263,17 @@ const changedFieldsList = computed(() => {
 })
 
 const changeSummary = computed(() => {
-	return buildChangeSummary({ pendingChanges: pendingChanges.value })
+	return buildChangeSummary({
+		pendingChanges: pendingChanges.value,
+		changedFields: changedFieldsList.value,
+	})
 })
+
+const handleDiscardDrafts = () => {
+	clearAllDrafts()
+	treePanelRef.value?.clearAllDrafts()
+	errorMessage.value = ""
+}
 
 const deviceApi = useDeviceApi()
 const deviceEnableFeature = useDeviceEnableFeature()
@@ -733,7 +745,9 @@ const moveZoneOrderByIds = (fromZoneId: string, toZoneId: string) => {
 		const zoneId = nextIds[idx]!
 		const snap = snapshotZoneById(zoneId)
 		if (!snap) continue
-		pendingChanges.value.set(zoneId, { ...snap, sortOrder: idx } as TZone)
+		const next = { ...snap, sortOrder: idx } as TZone
+		const original = props.zones.find((z) => getZoneId(z) === zoneId) ?? null
+		commitDraft(zoneId, next, original)
 	}
 
 	errorMessage.value = ""

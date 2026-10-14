@@ -81,7 +81,7 @@ export const closeDialogByAria = async (page: Page) => {
 export const openZoneManagementByButton = async (page: Page, buttonName: string) => {
 	await suppressAlertToasts(page)
 	const btn = page.getByRole("button", { name: buttonName, exact: true })
-	const heading = page.getByRole("heading", { name: "區域管理" })
+	const heading = page.getByRole("heading", { name: "地點管理" })
 	await expect(btn).toBeVisible({ timeout: 15_000 })
 	await expect(async () => {
 		if (await heading.isVisible().catch(() => false)) return
@@ -118,7 +118,7 @@ export const confirmDangerDialog = async (
 }
 
 export const zoneManagementPanel = (page: Page) =>
-	page.locator(".dialog-panel-bg").filter({ hasText: "區域管理" }).first()
+	page.locator(".dialog-panel-bg").filter({ hasText: "地點管理" }).first()
 
 export const deleteZoneInDialog = async (page: Page, zoneName: string) => {
 	await suppressAlertToasts(page)
