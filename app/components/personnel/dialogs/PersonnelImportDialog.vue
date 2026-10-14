@@ -25,23 +25,13 @@
 						>
 							<p class="font-medium text-white/90">欄位說明</p>
 							<ul class="list-inside list-disc space-y-1">
-								<li>ID（必填）：<span class="text-white">工號</span></li>
-								<li>姓名（必填）：<span class="text-white">姓名</span></li>
+								<li>ID、姓名（必填）</li>
+								<li>有效起始日／結束日（yyyy-mm-dd；選填，未填為永久）</li>
+								<li>門禁密碼（選填，僅數字 4~12 碼）</li>
+								<li>卡號（選填，僅單卡）</li>
 								<li>
-									有效起始日（選填）：<span class="text-white">有效起始日</span>
-									<span class="text-white/70 text-sm 2xl:text-base">（yyyy-mm-ddThh:mm）</span>
-								</li>
-								<li>
-									有效結束日（選填）：<span class="text-white">有效結束日</span>
-									<span class="text-white/70 text-sm 2xl:text-base">（yyyy-mm-ddThh:mm）</span>
-								</li>
-								<li>
-									門禁密碼（選填）：<span class="text-white">門禁密碼</span>（僅數字 4~12 碼）
-								</li>
-								<li>卡號（選填）：<span class="text-white">卡號</span></li>
-								<li>
-									車牌（選填，可多筆）：<span class="text-white">車牌</span>
-									<span class="text-white/70 text-sm 2xl:text-base">（以逗號、分號分隔）</span>
+									車牌（選填，可多筆）
+									<span class="text-white/70 text-sm 2xl:text-base">（逗號／分號分隔）</span>
 								</li>
 							</ul>
 							<button
@@ -84,7 +74,8 @@
 								{{ maxFaceSizeKb }}KB）</span
 							>
 							<p class="text-white/60 text-xs 2xl:text-sm">
-								檔名須與 Excel 列對應：<span class="text-white/80">姓名_工號.jpeg</span>
+								檔名須與 Excel 的 ID 對應：<span class="text-white/80">工號.jpg</span>
+								（例如 A0001.jpg）
 							</p>
 							<div class="flex flex-wrap items-center gap-3">
 								<input
@@ -113,7 +104,7 @@
 						v-if="result"
 						class="rounded border border-white/20 bg-white/5 p-3 text-sm text-white/90"
 					>
-						<p>成功：{{ result.created }} 筆</p>
+						<p>新增：{{ result.created }} 筆　更新：{{ result.updated }} 筆</p>
 						<div v-if="result.errors?.length" class="mt-2" role="alert" aria-live="polite">
 							<p class="text-amber-300">錯誤：{{ result.errors.length }} 筆</p>
 							<ul class="show-scrollbar mt-1 max-h-40 space-y-1 overflow-y-auto text-amber-200/90">

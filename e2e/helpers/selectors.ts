@@ -174,7 +174,7 @@ export const searchByLabel = async (page: Page, label: string, query: string) =>
 export const openZoneManagementByButton = async (page: Page, buttonName: string) => {
 	await suppressAlertToasts(page)
 	const btn = page.getByRole("button", { name: buttonName, exact: true })
-	const heading = page.getByRole("heading", { name: "區域管理" })
+	const heading = page.getByRole("heading", { name: "地點管理" })
 	await expect(btn).toBeVisible({ timeout: 15_000 })
 	await expect(async () => {
 		if (await heading.isVisible().catch(() => false)) return
@@ -183,19 +183,19 @@ export const openZoneManagementByButton = async (page: Page, buttonName: string)
 	}).toPass({ timeout: 12_000 })
 }
 
-/** 門禁／車輛／電梯／環境：按鈕「地點管理」→「區域管理」 */
+/** 門禁／車輛／電梯／環境：按鈕「地點管理」→ Dialog「地點管理」 */
 export const openZoneManagementDialog = (page: Page) =>
 	openZoneManagementByButton(page, "地點管理")
 
-/** 水電／消防／緊急／煙霧：按鈕「樓層管理」→「區域管理」 */
+/** 水電／消防／緊急／煙霧：按鈕「樓層管理」→ Dialog「地點管理」 */
 export const openFloorZoneManagementDialog = (page: Page) =>
 	openZoneManagementByButton(page, "樓層管理")
 
-/** 區域管理 Dialog 面板 */
+/** 地點管理 Dialog 面板 */
 export const zoneManagementPanel = (page: Page) =>
-	page.locator(".dialog-panel-bg").filter({ hasText: "區域管理" }).first()
+	page.locator(".dialog-panel-bg").filter({ hasText: "地點管理" }).first()
 
-/** 區域管理 Dialog 內：刪除指定區域並確認（左樹列：heading + 刪除區域） */
+/** 地點管理 Dialog 內：刪除指定區域並確認（左樹列：heading + 刪除區域） */
 export const deleteZoneInDialog = async (page: Page, zoneName: string) => {
 	await suppressAlertToasts(page)
 	const panel = zoneManagementPanel(page)

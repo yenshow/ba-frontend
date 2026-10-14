@@ -32,7 +32,7 @@ test.describe("安防（環境／消防／緊急／煙霧）", () => {
 	})
 
 	for (const { path, title } of FLOOR_PAGES) {
-		test(`${title} ${path}：監控中心、樓層管理 → 區域管理`, async ({ page }) => {
+		test(`${title} ${path}：監控中心、樓層管理 → 地點管理`, async ({ page }) => {
 			const guards = attachPageGuards(page)
 			await visitSystemPage(page, {
 				path,

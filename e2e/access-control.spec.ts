@@ -28,7 +28,7 @@ const MONITORING_PAGES = [
 
 test.describe("門禁管制（監控頁）", () => {
 	for (const { path, title, report } of MONITORING_PAGES) {
-		test(`${title} ${path}：總覽、區域管理、完整報表`, async ({ page }) => {
+		test(`${title} ${path}：總覽、地點管理、完整報表`, async ({ page }) => {
 			const guards = attachPageGuards(page)
 			await visitSystemPage(page, {
 				path,

@@ -11,7 +11,7 @@ test.describe("門禁保全", () => {
 			expectManageButton: "地點管理",
 		})
 		await openZoneManagementDialog(page)
-		await expect(page.getByRole("heading", { name: "區域管理" })).toBeVisible()
+		await expect(page.getByRole("heading", { name: "地點管理" })).toBeVisible()
 		await guards.assertClean()
 	})
 })

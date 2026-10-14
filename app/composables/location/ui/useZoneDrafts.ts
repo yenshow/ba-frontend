@@ -1,4 +1,4 @@
-import { compareZoneRowsForDialog } from "~/utils/sortOrder"
+import { compareZoneRowsForDialog, zoneSortOrderValue } from "~/utils/sortOrder"
 import { stableEqual } from "~/utils/stableStringify"
 
 // ──────────────────────────────────────────
@@ -14,6 +14,19 @@ export type ZoneDraftsChangedFieldsArgs<TZone, TLocation> = {
 	getLocations: (zone: TZone) => TLocation[]
 	locationLabel: string
 }
+
+const stripLocationRules = (locations: unknown[]): unknown[] =>
+	(Array.isArray(locations) ? locations : []).map((loc) => {
+		if (!loc || typeof loc !== "object") return loc
+		const { rules: _rules, ...rest } = loc as Record<string, unknown>
+		return rest
+	})
+
+const locationRulesOf = (locations: unknown[]): unknown[] =>
+	(Array.isArray(locations) ? locations : []).map((loc) => {
+		if (!loc || typeof loc !== "object") return null
+		return (loc as { rules?: unknown }).rules ?? null
+	})
 
 export function useZoneDrafts<TZone extends { name: string }, TLocation>() {
 	const pendingChanges = ref<Map<string, TZone>>(new Map()) as Ref<Map<string, TZone>>
@@ -33,6 +46,19 @@ export function useZoneDrafts<TZone extends { name: string }, TLocation>() {
 		if (!zoneId) return
 		pendingChanges.value.delete(zoneId)
 		expandedZones.value.delete(zoneId)
+	}
+
+	/**
+	 * 寫入草稿；若與 original 深相等則清除（還原編輯後不再顯示「未儲存」）。
+	 * 新增區域（temp-）一律保留。
+	 */
+	const commitDraft = (zoneId: string, zone: TZone, original?: TZone | null) => {
+		if (!zoneId) return
+		if (!zoneId.startsWith("temp-") && original != null && stableEqual(original, zone)) {
+			deleteDraft(zoneId)
+			return
+		}
+		setDraft(zoneId, zone)
 	}
 
 	const hasUnsavedChanges = computed(() => pendingChanges.value.size > 0)
@@ -70,6 +96,8 @@ export function useZoneDrafts<TZone extends { name: string }, TLocation>() {
 		args: ZoneDraftsChangedFieldsArgs<T, L>
 	): string[] => {
 		const fields: string[] = []
+		let sortOrderChanged = false
+
 		args.pendingChanges.forEach((zone, zoneId) => {
 			const originalZone = args.originalZones.find((z) => args.getZoneId(z) === zoneId)
 			if (!originalZone) {
@@ -85,20 +113,76 @@ export function useZoneDrafts<TZone extends { name: string }, TLocation>() {
 				fields.push("區域示意圖")
 			}
 
+			if (
+				zoneSortOrderValue(zone as { sortOrder?: number | null }) !==
+				zoneSortOrderValue(originalZone as { sortOrder?: number | null })
+			) {
+				sortOrderChanged = true
+			}
+
 			const originalLocations = args.getLocations(originalZone)
 			const pendingLocations = args.getLocations(zone)
-			if (!stableEqual(originalLocations, pendingLocations)) {
+			if (stableEqual(originalLocations, pendingLocations)) return
+
+			const coreEqual = stableEqual(
+				stripLocationRules(originalLocations as unknown[]),
+				stripLocationRules(pendingLocations as unknown[]),
+			)
+			const rulesEqual = stableEqual(
+				locationRulesOf(originalLocations as unknown[]),
+				locationRulesOf(pendingLocations as unknown[]),
+			)
+
+			if (!coreEqual) {
+				fields.push(`${args.locationLabel}列表`)
+			}
+			if (!rulesEqual) {
+				fields.push("時段規則")
+			}
+			if (coreEqual && rulesEqual) {
 				fields.push(`${args.locationLabel}列表`)
 			}
 		})
-		return fields
+
+		if (sortOrderChanged) {
+			fields.push("區域排序")
+		}
+		return [...new Set(fields)]
 	}
 
-	const buildChangeSummary = (args: { pendingChanges: Map<string, unknown> }): string => {
+	const buildChangeSummary = (args: {
+		pendingChanges: Map<string, unknown>
+		changedFields: string[]
+	}): string => {
 		const count = args.pendingChanges.size
+		if (count <= 0) return ""
+
 		const hasNew = Array.from(args.pendingChanges.keys()).some((id) => id.startsWith("temp-"))
-		if (hasNew) return `有 ${count} 個區域已修改，包含新增的區域`
-		return `有 ${count} 個區域已修改`
+		const fields = args.changedFields
+
+		if (fields.length === 1 && fields[0] === "區域排序") {
+			return "區域排序尚未儲存"
+		}
+
+		if (hasNew && count === 1 && fields.some((f) => f.startsWith("新增區域"))) {
+			return "新增區域尚未儲存"
+		}
+
+		if (fields.length > 0 && fields.length <= 2 && !hasNew) {
+			return `尚未儲存：${fields.join("、")}`
+		}
+
+		if (hasNew) {
+			return count === 1
+				? "有未儲存的變更（含新增區域）"
+				: `${count} 個區域有未儲存的變更（含新增）`
+		}
+
+		if (count === 1) {
+			return fields.length > 0 ? `尚未儲存：${fields[0]}` : "有未儲存的變更"
+		}
+
+		return `${count} 個區域有未儲存的變更`
 	}
 
 	/** API 已持久化變更後，父頁重載 props 與草稿地點列表一致時清除草稿 */
@@ -137,6 +221,7 @@ export function useZoneDrafts<TZone extends { name: string }, TLocation>() {
 		hasUnsavedChanges,
 		clearAllDrafts,
 		setDraft,
+		commitDraft,
 		deleteDraft,
 		createMergedZones,
 		createSortedZones,

@@ -295,7 +295,7 @@ const zonePlanImage = computed(() => selectedZoneData.value?.imageUrl)
 
 const mapEmptyMessage = computed(() => {
 	if (!hasAnyReadableMapSystem.value || !selectedZoneData.value) return "沒有可檢視的地圖系統"
-	return "此區尚未上傳平面圖，請至對應系統頁的區域管理設定"
+	return "此區尚未上傳平面圖，請至對應系統頁的地點管理設定"
 })
 
 const firstMapZone = (zs: UnifiedZone[]) =>
