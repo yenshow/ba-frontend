@@ -24,7 +24,9 @@
 					>
 						{{ getDbTypeLabel(cfg.dbType) }}
 					</span>
-					<span class="text-sm text-white/60">每日 {{ cfg.pushTime }}</span>
+					<span class="text-sm text-white/60">{{
+						formatPushScheduleLabel(cfg.pushMode, cfg.pushTime, cfg.pushIntervalSeconds)
+					}}</span>
 					<span class="text-sm text-white/50">{{ cfg.host }}:{{ cfg.port }}</span>
 
 					<div class="flex flex-wrap items-center gap-2 ml-auto">
@@ -102,7 +104,37 @@
 								</p>
 							</div>
 
-							<label class="flex flex-col gap-2 text-base text-white/80">
+							<fieldset class="flex flex-col gap-2 border-0 p-0 text-base text-white/80">
+								<legend class="mb-0">
+									推播方式<span class="required-mark">*</span>
+								</legend>
+								<div
+									class="flex flex-wrap gap-4"
+									:class="{ 'pointer-events-none opacity-50': dialogBusy }"
+								>
+									<label
+										v-for="opt in DB_SYNC_PUSH_MODE_OPTIONS"
+										:key="opt.value"
+										class="flex cursor-pointer items-center gap-2"
+									>
+										<input
+											v-model="dialog.form.pushMode"
+											type="radio"
+											name="db-sync-push-mode"
+											:value="opt.value"
+											class="h-4 w-4 accent-emerald-400"
+											:aria-label="opt.label"
+											:disabled="dialogBusy"
+										/>
+										<span>{{ opt.label }}</span>
+									</label>
+								</div>
+							</fieldset>
+
+							<label
+								v-if="dialog.form.pushMode === 'fixed'"
+								class="flex flex-col gap-2 text-base text-white/80"
+							>
 								<span>固定推播時間<span class="required-mark">*</span></span>
 								<div
 									class="flex min-w-0 items-center gap-2"
@@ -120,6 +152,40 @@
 										text-size="text-sm 2xl:text-base"
 									/>
 								</div>
+							</label>
+
+							<label
+								v-else
+								class="flex flex-col gap-2 text-base text-white/80"
+							>
+								<span>推播間隔<span class="required-mark">*</span></span>
+								<div
+									class="flex min-w-0 items-center gap-2"
+									:class="{ 'pointer-events-none opacity-50': dialogBusy }"
+								>
+									<input
+										v-model="dialog.form.pushIntervalValue"
+										type="number"
+										class="form-input-small min-w-0 flex-1"
+										:min="pushIntervalInputAttrs.min"
+										:max="pushIntervalInputAttrs.max"
+										step="1"
+										inputmode="numeric"
+										:disabled="dialogBusy"
+										aria-label="推播間隔數值"
+										required
+									/>
+									<div class="w-28 shrink-0">
+										<FilterDropdown
+											v-model="dialog.form.pushIntervalUnit"
+											:options="pushIntervalUnitOptions"
+											text-size="text-sm 2xl:text-base"
+										/>
+									</div>
+								</div>
+								<p class="text-xs text-white/50 2xl:text-sm">
+									最短 3 秒，最長 30 分鐘
+								</p>
 							</label>
 
 							<label class="flex flex-col gap-2 text-base text-white/80">
@@ -376,8 +442,14 @@ import {
 import {
 	DAILY_TIME_HOUR_OPTIONS,
 	DAILY_TIME_MINUTE_OPTIONS,
+	DB_SYNC_PUSH_INTERVAL_UNIT_OPTIONS,
+	DB_SYNC_PUSH_MODE_OPTIONS,
+	formatPushScheduleLabel,
 	getFormatOptionsForField,
+	toDropdownOptions,
 } from "~/utils/externalIntegration"
+
+const pushIntervalUnitOptions = toDropdownOptions(DB_SYNC_PUSH_INTERVAL_UNIT_OPTIONS)
 
 const confirmDialog = useConfirmDialog()
 const showConfirmDialog = confirmDialog.showDialog
@@ -401,6 +473,7 @@ const {
 	createEventTypeOptions,
 	pushTimeHour,
 	pushTimeMinute,
+	pushIntervalInputAttrs,
 	eventTypeLabel,
 	getDbTypeLabel,
 	exportMode,

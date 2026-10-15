@@ -8,12 +8,21 @@ import type { ExportEventTypeInfo, ExportFieldCatalogItem } from "~/utils/extern
 import {
 	buildEventTypeOptions,
 	DB_SYNC_DB_TYPE_OPTIONS,
+	DB_SYNC_DEFAULT_PUSH_INTERVAL_SECONDS,
 	DB_SYNC_DEFAULT_PUSH_TIME,
+	DB_SYNC_MAX_PUSH_INTERVAL_SECONDS,
+	DB_SYNC_MIN_PUSH_INTERVAL_SECONDS,
 	eventTypeLabel,
 	getDefaultFormatForField,
+	joinPushIntervalSeconds,
 	normalizeDailyPushTime,
 	normalizeGrainBySchema,
+	normalizePushIntervalSeconds,
+	normalizePushMode,
 	resolveExportMode,
+	splitPushInterval,
+	type DbSyncPushIntervalUnit,
+	type DbSyncPushMode,
 } from "~/utils/externalIntegration"
 import { useDailyHHmmField } from "~/composables/core/useDailyHHmmField"
 import {
@@ -35,7 +44,9 @@ type SyncMapping = {
 export type SyncConfig = {
 	id: number
 	eventType: string
+	pushMode?: DbSyncPushMode
 	pushTime: string
+	pushIntervalSeconds?: number | null
 	dbType: "postgres" | "sqlserver" | "mysql"
 	host: string
 	port: number
@@ -48,7 +59,10 @@ export type SyncConfig = {
 
 type SyncForm = {
 	eventType: string
+	pushMode: DbSyncPushMode
 	pushTime: string
+	pushIntervalValue: string
+	pushIntervalUnit: DbSyncPushIntervalUnit
 	dbType: "postgres" | "sqlserver" | "mysql"
 	host: string
 	port: string
@@ -64,7 +78,10 @@ const DEFAULT_PORT: Record<string, string> = { postgres: "5432", sqlserver: "143
 
 const createEmptyForm = (): SyncForm => ({
 	eventType: "access_control",
+	pushMode: "fixed",
 	pushTime: DB_SYNC_DEFAULT_PUSH_TIME,
+	pushIntervalValue: String(DB_SYNC_DEFAULT_PUSH_INTERVAL_SECONDS),
+	pushIntervalUnit: "seconds",
 	dbType: "postgres",
 	host: "",
 	port: "5432",
@@ -210,9 +227,17 @@ export const useExternalDatabaseSyncForm = () => {
 	}
 
 	const applyConfigToDialog = (cfg: SyncConfig) => {
+		const pushMode = normalizePushMode(cfg.pushMode)
+		const interval = splitPushInterval(
+			normalizePushIntervalSeconds(cfg.pushIntervalSeconds) ??
+				DB_SYNC_DEFAULT_PUSH_INTERVAL_SECONDS,
+		)
 		dialog.form.eventType = cfg.eventType
+		dialog.form.pushMode = pushMode
 		dialog.form.pushTime =
 			normalizeDailyPushTime(cfg.pushTime) ?? DB_SYNC_DEFAULT_PUSH_TIME
+		dialog.form.pushIntervalValue = interval.value
+		dialog.form.pushIntervalUnit = interval.unit
 		dialog.form.dbType = cfg.dbType || "postgres"
 		dialog.form.host = cfg.host || ""
 		dialog.form.port = String(cfg.port ?? DEFAULT_PORT[cfg.dbType] ?? "5432")
@@ -322,8 +347,19 @@ export const useExternalDatabaseSyncForm = () => {
 		}
 	}
 
+	const resolveFormPushIntervalSeconds = (): number | null =>
+		joinPushIntervalSeconds(dialog.form.pushIntervalValue, dialog.form.pushIntervalUnit)
+
 	const validateDialogForSave = (): string | null => {
 		if (!canAdmin.value) return null
+		if (dialog.form.pushMode === "realtime") {
+			const seconds = resolveFormPushIntervalSeconds()
+			if (seconds == null) {
+				return `推播間隔須介於 ${DB_SYNC_MIN_PUSH_INTERVAL_SECONDS} 秒～${DB_SYNC_MAX_PUSH_INTERVAL_SECONDS / 60} 分鐘`
+			}
+		} else if (!normalizeDailyPushTime(dialog.form.pushTime)) {
+			return "請設定固定推播時間"
+		}
 		const mappings = buildMappingsPayload()
 		for (const f of fields.value) {
 			if (!f.required) continue
@@ -359,28 +395,35 @@ export const useExternalDatabaseSyncForm = () => {
 		isSaving.value = true
 		try {
 			const mappings = buildMappingsPayload()
+			const pushMode = normalizePushMode(dialog.form.pushMode)
+			const body: Record<string, unknown> = {
+				eventType: dialog.form.eventType,
+				pushMode,
+				dbType: dialog.form.dbType,
+				host: dialog.form.host,
+				port: Number(dialog.form.port),
+				database: dialog.form.database,
+				username: dialog.form.username,
+				password: dialog.form.password,
+				targetTable: dialog.form.targetTable,
+				mappings,
+				options: exportMode.value
+					? {
+							grain: normalizeGrainBySchema(
+								currentFilterSchema.value,
+								dialog.form.grain,
+							),
+						}
+					: {},
+			}
+			if (pushMode === "realtime") {
+				body.pushIntervalSeconds = resolveFormPushIntervalSeconds()
+			} else {
+				body.pushTime = dialog.form.pushTime
+			}
 			await request<{ id: number }>("/external-sync/configs", {
 				method: "PUT",
-				body: {
-					eventType: dialog.form.eventType,
-					pushTime: dialog.form.pushTime,
-					dbType: dialog.form.dbType,
-					host: dialog.form.host,
-					port: Number(dialog.form.port),
-					database: dialog.form.database,
-					username: dialog.form.username,
-					password: dialog.form.password,
-					targetTable: dialog.form.targetTable,
-					mappings,
-					options: exportMode.value
-						? {
-								grain: normalizeGrainBySchema(
-									currentFilterSchema.value,
-									dialog.form.grain,
-								),
-							}
-						: {},
-				},
+				body,
 			})
 			toast.success(TOAST.EXTERNAL_DB_SAVED)
 			dialog.open = false
@@ -414,6 +457,11 @@ export const useExternalDatabaseSyncForm = () => {
 		() => eventTypes.value.find((t) => t.id === dialog.form.eventType)?.filterSchema,
 	)
 	const exportMode = computed(() => resolveExportMode(currentFilterSchema.value))
+	const pushIntervalInputAttrs = computed(() =>
+		dialog.form.pushIntervalUnit === "minutes"
+			? { min: 1, max: DB_SYNC_MAX_PUSH_INTERVAL_SECONDS / 60 }
+			: { min: DB_SYNC_MIN_PUSH_INTERVAL_SECONDS, max: DB_SYNC_MAX_PUSH_INTERVAL_SECONDS },
+	)
 
 	onMounted(() => {
 		void fetchConfigs()
@@ -435,6 +483,7 @@ export const useExternalDatabaseSyncForm = () => {
 		createEventTypeOptions,
 		pushTimeHour,
 		pushTimeMinute,
+		pushIntervalInputAttrs,
 		eventTypeLabel,
 		getDbTypeLabel,
 		exportMode,

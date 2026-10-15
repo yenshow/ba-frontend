@@ -63,9 +63,6 @@
 										localFormData.enabled ? "已啟用" : "已停用"
 									}}</span>
 								</span>
-								<span class="text-xs text-white/50 2xl:text-sm"
-									>停用後平台不再對此設備訂閱／佈防／探測（僅開發環境）</span
-								>
 							</label>
 							<label
 								v-if="deviceTypeCode === 'camera'"
@@ -531,10 +528,7 @@
 
 <script setup lang="ts">
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
-import {
-	usePlatformAdmin,
-	useDeviceEnableFeature
-} from "~/composables/core/useAuth";
+import { usePlatformAdmin, useDeviceEnableFeature } from "~/composables/core/useAuth";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue";
@@ -607,7 +601,7 @@ const modelIdString = ref("");
 const localFormData = reactive({
 	name: "",
 	model_id: 0,
-	enabled: true,
+	enabled: true
 });
 
 const controllerConfig = reactive<ControllerDeviceConfig>({
@@ -956,9 +950,7 @@ const changedFieldsList = computed(() => {
 		fields.push("設備型號");
 	}
 	if (deviceEnableFeature.value && current.enabled !== initial.enabled) {
-		fields.push(
-			`啟用: ${initial.enabled ? "啟用" : "停用"} → ${current.enabled ? "啟用" : "停用"}`
-		);
+		fields.push(`啟用: ${initial.enabled ? "啟用" : "停用"} → ${current.enabled ? "啟用" : "停用"}`);
 	}
 	if (JSON.stringify(current.config) !== JSON.stringify(initial.config)) {
 		fields.push("連線設定");

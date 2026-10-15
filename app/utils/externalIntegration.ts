@@ -207,7 +207,81 @@ export const DB_SYNC_DB_TYPE_OPTIONS = [
 	{ value: "mysql", label: "MySQL" },
 ]
 
+export const DB_SYNC_PUSH_MODE_OPTIONS = [
+	{ value: "fixed", label: "固定推播" },
+	{ value: "realtime", label: "即時推播" },
+] as const
+
+export type DbSyncPushMode = (typeof DB_SYNC_PUSH_MODE_OPTIONS)[number]["value"]
+
+export const DB_SYNC_PUSH_INTERVAL_UNIT_OPTIONS = [
+	{ value: "seconds", label: "秒" },
+	{ value: "minutes", label: "分鐘" },
+] as const
+
+export type DbSyncPushIntervalUnit =
+	(typeof DB_SYNC_PUSH_INTERVAL_UNIT_OPTIONS)[number]["value"]
+
+/** 即時推播間隔：最短 3 秒、最長 30 分鐘 */
+export const DB_SYNC_MIN_PUSH_INTERVAL_SECONDS = 3
+export const DB_SYNC_MAX_PUSH_INTERVAL_SECONDS = 30 * 60
+export const DB_SYNC_DEFAULT_PUSH_INTERVAL_SECONDS = 30
+
 export const DB_SYNC_DEFAULT_PUSH_TIME = "18:00"
+
+export const normalizePushMode = (raw: unknown): DbSyncPushMode => {
+	const v = String(raw ?? "fixed").trim().toLowerCase()
+	return v === "realtime" ? "realtime" : "fixed"
+}
+
+export const normalizePushIntervalSeconds = (raw: unknown): number | null => {
+	const n = Number(raw)
+	if (!Number.isFinite(n)) return null
+	const sec = Math.trunc(n)
+	if (sec < DB_SYNC_MIN_PUSH_INTERVAL_SECONDS || sec > DB_SYNC_MAX_PUSH_INTERVAL_SECONDS) {
+		return null
+	}
+	return sec
+}
+
+export const splitPushInterval = (
+	seconds: number,
+): { value: string; unit: DbSyncPushIntervalUnit } => {
+	const sec = normalizePushIntervalSeconds(seconds) ?? DB_SYNC_DEFAULT_PUSH_INTERVAL_SECONDS
+	if (sec >= 60 && sec % 60 === 0) {
+		return { value: String(sec / 60), unit: "minutes" }
+	}
+	return { value: String(sec), unit: "seconds" }
+}
+
+export const joinPushIntervalSeconds = (
+	valueRaw: unknown,
+	unit: DbSyncPushIntervalUnit,
+): number | null => {
+	const n = Number(valueRaw)
+	if (!Number.isFinite(n)) return null
+	const value = Math.trunc(n)
+	if (value <= 0) return null
+	const seconds = unit === "minutes" ? value * 60 : value
+	return normalizePushIntervalSeconds(seconds)
+}
+
+export const formatPushScheduleLabel = (
+	modeRaw: unknown,
+	pushTimeRaw: unknown,
+	intervalSecondsRaw: unknown,
+): string => {
+	const mode = normalizePushMode(modeRaw)
+	if (mode === "realtime") {
+		const sec =
+			normalizePushIntervalSeconds(intervalSecondsRaw) ??
+			DB_SYNC_DEFAULT_PUSH_INTERVAL_SECONDS
+		if (sec >= 60 && sec % 60 === 0) return `每 ${sec / 60} 分鐘`
+		return `每 ${sec} 秒`
+	}
+	const time = String(pushTimeRaw ?? "").trim() || DB_SYNC_DEFAULT_PUSH_TIME
+	return `每日 ${time}`
+}
 
 export const RECORD_EXPORT_DEFAULT_EXPORT_TIME = "00:00"
 
