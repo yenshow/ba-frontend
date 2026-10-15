@@ -66,9 +66,6 @@
 										localFormData.enabled ? "已啟用" : "已停用"
 									}}</span>
 								</span>
-								<span class="text-xs text-white/50 2xl:text-sm"
-									>停用後平台不再對此設備訂閱／佈防／探測（僅開發環境）</span
-								>
 							</label>
 							<label
 								v-if="deviceTypeCode === 'camera'"
@@ -709,10 +706,7 @@
 
 <script setup lang="ts">
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
-import {
-	usePlatformAdmin,
-	useDeviceEnableFeature,
-} from "~/composables/core/useAuth"
+import { usePlatformAdmin, useDeviceEnableFeature } from "~/composables/core/useAuth"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"

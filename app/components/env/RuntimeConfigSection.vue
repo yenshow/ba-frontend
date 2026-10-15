@@ -1,6 +1,6 @@
 <template>
 	<section class="section-card h-full">
-		<div class="my-4 flex flex-wrap items-center gap-x-4">
+		<div class="mb-4 flex flex-wrap items-center gap-x-4">
 			<h2 class="text-lg font-semibold text-theme-primary 2xl:text-xl">營運設定</h2>
 			<span v-if="isSaving" class="text-sm text-theme-muted" aria-live="polite">儲存中…</span>
 		</div>
@@ -15,11 +15,7 @@
 			empty-min-height-class="min-h-[180px]"
 		>
 			<div v-if="schema" class="space-y-8">
-				<div
-					v-for="section in schema.sections"
-					:key="section.title"
-					class="space-y-4"
-				>
+				<div v-for="section in schema.sections" :key="section.title" class="space-y-4">
 					<h3 class="text-base font-medium text-white/90 2xl:text-lg">{{ section.title }}</h3>
 					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 						<template
@@ -49,7 +45,7 @@
 										@change="
 											form[item.field.key] = setRuntimeBooleanValue(
 												form[item.field.key],
-												($event.target as HTMLInputElement).checked,
+												($event.target as HTMLInputElement).checked
 											)
 										"
 									/>
@@ -72,10 +68,7 @@
 								/>
 							</div>
 
-							<div
-								v-else-if="item.type === 'dailyTime'"
-								class="flex min-w-0 flex-col gap-1"
-							>
+							<div v-else-if="item.type === 'dailyTime'" class="flex min-w-0 flex-col gap-1">
 								<label
 									class="text-sm font-medium text-white/85 2xl:text-base"
 									:for="`runtime-field-${item.binding.extraKey}`"
