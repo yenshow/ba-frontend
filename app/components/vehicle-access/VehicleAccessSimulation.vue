@@ -524,12 +524,18 @@ const handleExportCsv = () => {
 	);
 	parts.push("");
 	parts.push("過車紀錄");
+	const exportDetailHeaders = [...detailHeaders.value, "圖片路徑"];
 	parts.push(
 		buildCsvSection(
-			detailHeaders.value,
-			detailTableRows.value.map(r =>
-				Object.fromEntries(detailHeaders.value.map((h, i) => [h, r.cells[i] ?? ""]))
-			),
+			exportDetailHeaders,
+			detailTableRows.value.map(r => {
+				const row = Object.fromEntries(
+					detailHeaders.value.map((h, i) => [h, r.cells[i] ?? ""])
+				);
+				const pic = String(r.log?.plate_license_image_url ?? "").trim();
+				row["圖片路徑"] = pic || "—";
+				return row;
+			}),
 			{ backupStyle: true }
 		)
 	);

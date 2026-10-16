@@ -52,6 +52,16 @@
 
 				<div v-if="!isFullscreen" class="absolute right-0 top-0 z-20 flex shrink-0 gap-1 p-1.5">
 					<button
+						v-if="getPlaybackWebUrl(view.deviceId)"
+						type="button"
+						class="shrink-0 whitespace-nowrap rounded bg-cyan-600/80 px-1.5 py-0.5 text-xs text-white transition-colors hover:bg-cyan-500 2xl:px-2 2xl:py-1"
+						title="外開 NVR 回放"
+						aria-label="外開 NVR 回放"
+						@click.stop="handlePlayback(view.deviceId)"
+					>
+						回放
+					</button>
+					<button
 						type="button"
 						class="shrink-0 whitespace-nowrap rounded bg-gray-500/80 px-1.5 py-0.5 text-xs text-white transition-colors hover:bg-gray-600 2xl:px-2 2xl:py-1"
 						title="移除畫面"
@@ -80,22 +90,33 @@
 
 <script setup lang="ts">
 import type { SurveillanceCamera, MonitorView, GridLayout } from "~/types/surveillance"
+import { openNvrPlaybackPage } from "~/utils/nvrWebUrl"
 
 interface Props {
 	cameras: readonly SurveillanceCamera[]
 	views: readonly MonitorView[]
 	layout: GridLayout
 	isFullscreen?: boolean
+	/** camera deviceId → NVR web_url */
+	playbackUrlByDeviceId?: Readonly<Record<number, string>>
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	isFullscreen: false,
+	playbackUrlByDeviceId: () => ({}),
 })
 
 defineEmits<{
 	remove: [deviceId: number]
 	reload: [deviceId: number]
 }>()
+
+const getPlaybackWebUrl = (deviceId: number): string =>
+	String(props.playbackUrlByDeviceId?.[deviceId] || "").trim()
+
+const handlePlayback = (deviceId: number) => {
+	openNvrPlaybackPage(getPlaybackWebUrl(deviceId))
+}
 
 const GRID_CLASS: Record<GridLayout, { cols: string; rows: string }> = {
 	"1": { cols: "grid-cols-1", rows: "grid-rows-1" },

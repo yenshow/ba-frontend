@@ -3,9 +3,12 @@ import type { Device } from "~/types/device"
 export const CAMERA_MODEL_CATEGORY_PEOPLE_COUNTING = "people_counting"
 export const CAMERA_MODEL_CATEGORY_LICENSE_PLATE = "license_plate_recognition"
 
+export const CAMERA_MODEL_CATEGORY_NVR = "nvr"
+
 export const CAMERA_MODEL_CATEGORY_OPTIONS: Array<{ value: string; label: string }> = [
 	{ value: "people_counting", label: "人流統計" },
 	{ value: "license_plate_recognition", label: "車牌辨識" },
+	{ value: CAMERA_MODEL_CATEGORY_NVR, label: "NVR" },
 	{ value: "surveillance_2mp", label: "影像監控 - 2MP" },
 	{ value: "surveillance_4mp", label: "影像監控 - 4MP" },
 	{ value: "surveillance_5mp", label: "影像監控 - 5MP" },

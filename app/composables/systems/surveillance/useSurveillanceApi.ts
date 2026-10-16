@@ -36,7 +36,9 @@ export const useSurveillanceApi = () => {
 			return devices
 				.filter(
 					(device): device is Device & { config: CameraDeviceConfig } =>
-						device.config?.type === "camera"
+						device.config?.type === "camera" &&
+						(device.config as CameraDeviceConfig).is_nvr !== true &&
+						String(device.model_category_code || "").toLowerCase() !== "nvr"
 				)
 				.map(device => ({
 					...device,

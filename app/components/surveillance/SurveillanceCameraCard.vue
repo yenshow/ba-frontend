@@ -6,8 +6,8 @@
 		]"
 		@click="$emit('select', camera.id)"
 	>
-		<div class="flex items-start justify-between">
-			<div class="flex-1">
+		<div class="flex items-start justify-between gap-2">
+			<div class="min-w-0 flex-1">
 				<div class="flex items-center gap-2">
 					<h3 class="text-lg font-semibold text-white 2xl:text-xl">{{ camera.name }}</h3>
 					<span
@@ -38,6 +38,16 @@
 					</span>
 				</div>
 			</div>
+			<button
+				v-if="playbackWebUrl"
+				type="button"
+				class="shrink-0 rounded bg-cyan-600/80 px-2 py-1 text-xs text-white transition-colors hover:bg-cyan-500 2xl:text-sm"
+				aria-label="外開 NVR 回放"
+				title="外開 NVR 回放"
+				@click.stop="handlePlayback"
+			>
+				回放
+			</button>
 		</div>
 
 		<div
@@ -53,6 +63,7 @@
 import type { CameraDeviceConfig, DeviceConnectivityStatus } from "~/types/device"
 import type { SurveillanceCamera } from "~/types/surveillance"
 import { formatCameraHostPort, parseCameraRtspUrl } from "~/utils/cameraRtspUtils"
+import { openNvrPlaybackPage } from "~/utils/nvrWebUrl"
 
 interface Props {
 	camera: SurveillanceCamera
@@ -60,6 +71,8 @@ interface Props {
 	showThumbnail?: boolean
 	connectivityStatus?: DeviceConnectivityStatus
 	connectivityLoading?: boolean
+	/** 有掛 NVR 時的瀏覽器回放入口 */
+	playbackWebUrl?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -67,7 +80,12 @@ const props = withDefaults(defineProps<Props>(), {
 	showThumbnail: false,
 	connectivityStatus: "offline",
 	connectivityLoading: false,
+	playbackWebUrl: "",
 })
+
+const handlePlayback = () => {
+	openNvrPlaybackPage(props.playbackWebUrl)
+}
 
 const connectivityLabel = computed(() => {
 	if (props.connectivityStatus === "online") return "線上"

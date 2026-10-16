@@ -23,6 +23,10 @@ export type DeviceFormValidationInput = {
 	cameraPort?: number
 	cameraUsername: string
 	cameraPassword: string
+	isNvrCamera?: boolean
+	nvrHost?: string
+	nvrPort?: number
+	nvrWebUrl?: string
 }
 
 export type DeviceModelFormValidationInput = {
@@ -80,7 +84,21 @@ export const validateDeviceFormForSave = (input: DeviceFormValidationInput): str
 		}
 	}
 
-	if (input.deviceTypeCode === "camera") {
+	if (input.deviceTypeCode === "camera" && input.isNvrCamera) {
+		const host = String(input.nvrHost || "").trim()
+		if (!host) return "請填寫 NVR 主機位址"
+		if (!isValidIpv4Host(host)) return "NVR 主機位址須為有效 IPv4"
+		if (!isValidTcpPort(input.nvrPort ?? 80)) return "Web 管理埠須為 1–65535"
+		const webUrl = String(input.nvrWebUrl || "").trim()
+		if (webUrl) {
+			const lower = webUrl.toLowerCase()
+			if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
+				return "回放網址須以 http:// 或 https:// 開頭"
+			}
+		}
+	}
+
+	if (input.deviceTypeCode === "camera" && !input.isNvrCamera) {
 		const ip = input.cameraIp.trim()
 		const user = input.cameraUsername.trim()
 		const pwd = input.cameraPassword.trim()
