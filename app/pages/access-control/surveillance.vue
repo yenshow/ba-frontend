@@ -62,6 +62,7 @@
 									:cameras="cameras"
 									:views="monitorViews"
 									:layout="gridLayout"
+									:playback-url-by-device-id="playbackUrlByDeviceId"
 									@remove="handleRemoveView"
 									@reload="handleReloadView"
 								/>
@@ -183,6 +184,7 @@
 										:is-selected="selectedCameraIds.includes(camera.id)"
 										:connectivity-status="deviceConnectivity.getStatus(camera.id)"
 										:connectivity-loading="deviceConnectivity.isLoading(camera.id)"
+										:playback-web-url="playbackUrlByDeviceId[camera.id] || ''"
 										@select="handleCameraSelect"
 									/>
 								</section>
@@ -213,6 +215,7 @@ import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useStreamStatus } from "~/composables/monitoring/useStreamStatus"
 import { useMonitoringAsideHeightSync } from "~/composables/monitoring/useMonitoringAsideHeightSync"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { isNvrCamera, resolveNvrWebUrl } from "~/utils/nvrWebUrl"
 import { useDeviceConnectivity } from "~/composables/systems/devices/useDeviceConnectivity"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import SurveillanceControlPanel from "~/components/surveillance/SurveillanceControlPanel.vue"
@@ -247,6 +250,7 @@ watch(
 const deviceApi = useDeviceApi()
 const surveillanceGroupFilter = ref<string>("")
 const cameraGroups = ref<string[]>([])
+const nvrById = ref<Record<number, CameraDeviceConfig>>({})
 const surveillanceGroupFilterOptions = computed(() => [
 	{ value: "", label: "全部" },
 	...cameraGroups.value.map((g) => ({ value: g, label: g })),
@@ -261,6 +265,18 @@ const filteredCameras = computed(() => {
 const filteredCameraCategoryGroups = computed(() =>
 	groupDevicesByModelCategory([...filteredCameras.value])
 )
+
+/** camera deviceId → NVR web_url（僅已掛 NVR 者） */
+const playbackUrlByDeviceId = computed(() => {
+	const map: Record<number, string> = {}
+	for (const cam of cameras.value) {
+		const nvrId = Number((cam.config as CameraDeviceConfig)?.nvr_device_id)
+		if (!Number.isInteger(nvrId) || nvrId < 1) continue
+		const url = resolveNvrWebUrl(nvrById.value[nvrId])
+		if (url) map[cam.id] = url
+	}
+	return map
+})
 
 const gridLayout = ref<GridLayout>("1")
 const selectedCameraIds = computed(() => monitorViews.value.map((view) => view.deviceId))
@@ -297,10 +313,24 @@ const loadCameraGroups = async () => {
 	}
 }
 
+const loadNvrDevices = async () => {
+	try {
+		const res = await deviceApi.getDevices({ type_code: "camera", limit: 500 })
+		const next: Record<number, CameraDeviceConfig> = {}
+		for (const d of res.devices || []) {
+			if (!isNvrCamera(d) || d.config?.type !== "camera") continue
+			next[d.id] = d.config as CameraDeviceConfig
+		}
+		nvrById.value = next
+	} catch {
+		nvrById.value = {}
+	}
+}
+
 const loadCameras = async () => {
 	loadError.value = null
 	try {
-		await streamStatus.loadCameras()
+		await Promise.all([streamStatus.loadCameras(), loadNvrDevices()])
 	} catch (error) {
 		const errorMsg = handleError(error, "載入攝影機列表失敗")
 		loadError.value = errorMsg || "載入攝影機列表失敗"

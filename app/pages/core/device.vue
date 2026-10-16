@@ -439,6 +439,9 @@ const formatDeviceConfig = (config: DeviceConfig): string => {
 			return formatDeviceHostPort(config.host, config.port) || "-"
 		case "camera": {
 			const c = config as CameraDeviceConfig
+			if (c.is_nvr && c.host) {
+				return formatDeviceHostPort(c.host, c.port) || "-"
+			}
 			if (c.rtsp_url || c.host) {
 				const parsed = c.rtsp_url ? parseCameraRtspUrl(c.rtsp_url) : null
 				const host = (c.host || parsed?.host || "").trim()
