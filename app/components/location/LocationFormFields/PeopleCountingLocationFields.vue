@@ -173,7 +173,9 @@
 								class="h-4 w-4 cursor-pointer accent-cyan-400"
 								@change="handleToggleAccessControl('entry', dev.id)"
 							/>
-							<span class="text-xs text-white/90 2xl:text-sm">{{ formatDeviceSelectLabel(dev) }}</span>
+							<span class="text-xs text-white/90 2xl:text-sm">{{
+								formatDeviceSelectLabel(dev)
+							}}</span>
 						</label>
 					</div>
 				</div>
@@ -212,7 +214,9 @@
 								class="h-4 w-4 cursor-pointer accent-cyan-400"
 								@change="handleToggleAccessControl('exit', dev.id)"
 							/>
-							<span class="text-xs text-white/90 2xl:text-sm">{{ formatDeviceSelectLabel(dev) }}</span>
+							<span class="text-xs text-white/90 2xl:text-sm">{{
+								formatDeviceSelectLabel(dev)
+							}}</span>
 						</label>
 					</div>
 					<p
@@ -360,13 +364,12 @@
 									class="h-4 w-4 cursor-pointer accent-cyan-400"
 									@change="handleToggleFaceCamera('entry', dev.id)"
 								/>
-								<span class="text-xs text-white/90 2xl:text-sm">{{ formatDeviceSelectLabel(dev) }}</span>
+								<span class="text-xs text-white/90 2xl:text-sm">{{
+									formatDeviceSelectLabel(dev)
+								}}</span>
 							</label>
 						</div>
-						<p
-							v-if="isapiCameraDevices.length > 0 && !hasFaceEntryCamera"
-							:class="warnHintClass"
-						>
+						<p v-if="isapiCameraDevices.length > 0 && !hasFaceEntryCamera" :class="warnHintClass">
 							至少需要選擇一台入口攝影機
 						</p>
 					</div>
@@ -392,13 +395,12 @@
 									class="h-4 w-4 cursor-pointer accent-cyan-400"
 									@change="handleToggleFaceCamera('exit', dev.id)"
 								/>
-								<span class="text-xs text-white/90 2xl:text-sm">{{ formatDeviceSelectLabel(dev) }}</span>
+								<span class="text-xs text-white/90 2xl:text-sm">{{
+									formatDeviceSelectLabel(dev)
+								}}</span>
 							</label>
 						</div>
-						<p
-							v-if="isapiCameraDevices.length > 0 && !hasFaceExitCamera"
-							:class="warnHintClass"
-						>
+						<p v-if="isapiCameraDevices.length > 0 && !hasFaceExitCamera" :class="warnHintClass">
 							至少需要選擇一台出口攝影機
 						</p>
 					</div>
@@ -433,7 +435,9 @@
 							class="h-4 w-4 cursor-pointer accent-cyan-400"
 							@change="handleToggleCamera(dev.id)"
 						/>
-						<span class="text-xs text-white/90 2xl:text-sm">{{ formatDeviceSelectLabel(dev) }}</span>
+						<span class="text-xs text-white/90 2xl:text-sm">{{
+							formatDeviceSelectLabel(dev)
+						}}</span>
 					</label>
 				</div>
 				<p
@@ -445,10 +449,7 @@
 			</template>
 		</div>
 
-		<div
-			v-if="showEventBackfillOptions"
-			class="mt-3 border-t border-white/10 pt-3"
-		>
+		<div v-if="showEventBackfillOptions" class="mt-3 border-t border-white/10 pt-3">
 			<label class="flex cursor-pointer items-center gap-2">
 				<input
 					v-model="eventBackfillEnabledInput"
@@ -459,12 +460,10 @@
 				<span class="text-sm text-white/90 2xl:text-base">訂閱後補齊漏推事件</span>
 			</label>
 			<p class="mt-1 text-xs text-white/50">
-				設備訂閱成功後，主動查詢近期歷史事件並寫入平台，降低推送漏失造成的資料落差
+				設備訂閱成功後，主動查詢近期歷史事件並寫入平台，降低推送漏失造成的資料落差(設備需插入SD
+				此功能才有效)
 			</p>
-			<label
-				v-if="eventBackfillEnabledInput"
-				:class="[fieldLabelClass, 'mt-3 max-w-xs']"
-			>
+			<label v-if="eventBackfillEnabledInput" :class="[fieldLabelClass, 'mt-3 max-w-xs']">
 				<span>補齊時間窗（秒）</span>
 				<input
 					v-model.number="eventBackfillWindowSecInput"
@@ -478,6 +477,51 @@
 				/>
 				<span class="text-xs text-white/50">範圍 1–30 秒；預設 5</span>
 			</label>
+		</div>
+
+		<div class="mt-3 border-t border-white/10 pt-3">
+			<span class="text-sm font-medium text-white/80 2xl:text-base">統計顯示名稱</span>
+			<p class="mt-1 text-xs text-white/50">
+				留空則使用系統預設；最多 {{ STAT_LABEL_MAX_LEN }} 字；主畫面、完整報表與備份表頭會套用
+			</p>
+			<div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+				<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
+					<span>進場</span>
+					<input
+						v-model="statLabelEntry"
+						type="text"
+						:maxlength="STAT_LABEL_MAX_LEN"
+						class="form-input-small"
+						:placeholder="DEFAULT_PEOPLE_COUNTING_STAT_LABELS.entry"
+						aria-label="進場人數顯示名稱"
+						@input="handleStatLabelsChange"
+					/>
+				</label>
+				<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
+					<span>出場</span>
+					<input
+						v-model="statLabelExit"
+						type="text"
+						:maxlength="STAT_LABEL_MAX_LEN"
+						class="form-input-small"
+						:placeholder="DEFAULT_PEOPLE_COUNTING_STAT_LABELS.exit"
+						aria-label="出場人數顯示名稱"
+						@input="handleStatLabelsChange"
+					/>
+				</label>
+				<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
+					<span>在場</span>
+					<input
+						v-model="statLabelCurrent"
+						type="text"
+						:maxlength="STAT_LABEL_MAX_LEN"
+						class="form-input-small"
+						:placeholder="DEFAULT_PEOPLE_COUNTING_STAT_LABELS.current"
+						aria-label="在場人數顯示名稱"
+						@input="handleStatLabelsChange"
+					/>
+				</label>
+			</div>
 		</div>
 
 		<div class="mt-3 border-t border-white/10 pt-3">
@@ -532,10 +576,13 @@ import {
 import { useModuleRegistry } from "~/composables/core/useModuleRegistry"
 import { useLicense } from "~/composables/core/useLicense"
 import { storedPeopleCountingDataSource } from "~/utils/peopleCountingDataSource"
-import {
-	normalizeFaceSimilarityThreshold,
-} from "~/utils/peopleCountingFaceThreshold"
+import { normalizeFaceSimilarityThreshold } from "~/utils/peopleCountingFaceThreshold"
 import { useLocationEventBackfillFields } from "~/composables/location/useLocationEventBackfillFields"
+import {
+	DEFAULT_PEOPLE_COUNTING_STAT_LABELS,
+	draftEntryExitStatLabels,
+	STAT_LABEL_MAX_LEN,
+} from "~/utils/statLabels"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 
 const CAMERA_MODE_OPTIONS: Array<{ value: PeopleCountingCameraMode; label: string }> = [
@@ -623,6 +670,20 @@ const exitEventCameraSelect = computed({
 
 const localLocation = ref<PeopleCountingLocation>({ ...props.location })
 
+const draftStatLabels = () => draftEntryExitStatLabels(localLocation.value.statLabels)
+const statLabelEntry = ref(draftStatLabels().entry)
+const statLabelExit = ref(draftStatLabels().exit)
+const statLabelCurrent = ref(draftStatLabels().current)
+
+const handleStatLabelsChange = () => {
+	localLocation.value.statLabels = draftEntryExitStatLabels({
+		entry: statLabelEntry.value,
+		exit: statLabelExit.value,
+		current: statLabelCurrent.value,
+	})
+	handleChange()
+}
+
 const fieldLabelClass =
 	"flex min-w-0 flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
 const emptyHintClass =
@@ -693,8 +754,7 @@ const { eventBackfillEnabledInput, eventBackfillWindowSecInput } =
 	useLocationEventBackfillFields(localLocation)
 
 const faceSimilarityThresholdInput = computed({
-	get: () =>
-		normalizeFaceSimilarityThreshold(localLocation.value.faceSimilarityThreshold),
+	get: () => normalizeFaceSimilarityThreshold(localLocation.value.faceSimilarityThreshold),
 	set: (raw: number) => {
 		localLocation.value.faceSimilarityThreshold = normalizeFaceSimilarityThreshold(raw)
 	},
@@ -876,6 +936,11 @@ watch(
 			cameraMode.value = PEOPLE_COUNTING_CAMERA_MODE.PEOPLE_COUNTING
 			localLocation.value.cameraMode = undefined
 		}
+		const nextLabels = draftEntryExitStatLabels(newLocation.statLabels)
+		statLabelEntry.value = nextLabels.entry
+		statLabelExit.value = nextLabels.exit
+		statLabelCurrent.value = nextLabels.current
+		localLocation.value.statLabels = nextLabels
 	},
 	{ immediate: true, deep: true }
 )

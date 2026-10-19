@@ -43,21 +43,21 @@
 					class="flex min-w-[140px] flex-col gap-3 border-r-2 border-white/50 pr-8 text-white 2xl:min-w-[160px]"
 				>
 					<div class="flex items-center justify-center gap-3 monitoring-chip-bg p-2">
-						<div class="overview-stat-label">進場人數</div>
+						<div class="overview-stat-label">{{ labels.entry }}</div>
 						<div class="w-[80px] bg-black/20 text-center text-xl 2xl:w-[100px] 2xl:text-2xl">
 							{{ location.entryCount ?? 0 }}
 						</div>
 					</div>
 
 					<div class="flex items-center justify-center gap-3 monitoring-chip-bg p-2">
-						<div class="overview-stat-label">出場人數</div>
+						<div class="overview-stat-label">{{ labels.exit }}</div>
 						<div class="w-[80px] bg-black/20 text-center text-xl 2xl:w-[100px] 2xl:text-2xl">
 							{{ location.exitCount ?? 0 }}
 						</div>
 					</div>
 
 					<div class="flex items-center justify-center gap-3 monitoring-chip-bg p-2">
-						<div class="overview-stat-label">在場人數</div>
+						<div class="overview-stat-label">{{ labels.current }}</div>
 						<div class="w-[80px] bg-black/20 text-center text-xl 2xl:w-[100px] 2xl:text-2xl">
 							{{ currentCount }}
 						</div>
@@ -96,6 +96,7 @@ import {
 	isFaceRecognitionCameraMode,
 	PEOPLE_COUNTING_CAMERA_MODE_LABELS,
 } from "~/utils/peopleCountingCameraMode"
+import { normalizePeopleCountingStatLabels } from "~/utils/statLabels"
 
 const props = withDefaults(
 	defineProps<{
@@ -120,6 +121,9 @@ watch(
 )
 
 const regionText = computed(() => location.value.overviewZoneName || "未分類")
+const labels = computed(() =>
+	normalizePeopleCountingStatLabels(location.value.statLabels)
+)
 const isIsapiCamera = computed(() => location.value.dataSource === "isapi_camera")
 const isAccessControlLocation = computed(() => location.value.dataSource === "access_control")
 const cameraModeBadge = computed(() => {

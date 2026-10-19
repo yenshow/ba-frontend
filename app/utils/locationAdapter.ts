@@ -36,6 +36,11 @@ import {
 	normalizeVehicleLogDisplayColumns,
 	toStoredVehicleLogDisplayColumns,
 } from "~/utils/vehicleAccessLogColumns";
+import {
+	draftEntryExitStatLabels,
+	toStoredEntryExitStatLabels,
+	withStoredStatLabels,
+} from "~/utils/statLabels";
 import type { ElevatorZone, ElevatorLocation } from "~/types/elevator";
 import type { ElevatorSystemConfig } from "~/types/location";
 import type { AccessSecurityZone, AccessSecurityLocation } from "~/types/accessSecurity";
@@ -939,6 +944,7 @@ export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZo
 					logDisplayColumns: Array.isArray(config.logDisplayColumns)
 						? config.logDisplayColumns
 						: undefined,
+					statLabels: draftEntryExitStatLabels(config.statLabels),
 				} as PeopleCountingLocation,
 			]
 		}),
@@ -1004,6 +1010,7 @@ export function unifiedToVehicleAccessZone(zone: UnifiedZone): VehicleAccessZone
 					logDisplayColumns: normalizeVehicleLogDisplayColumns(
 						vaSystem.config.logDisplayColumns
 					),
+					statLabels: draftEntryExitStatLabels(vaSystem.config.statLabels),
 				} as VehicleAccessLocation,
 			]
 		}),
@@ -1057,6 +1064,7 @@ export function vehicleAccessLocationToUnified(
 					logDisplayColumns: toStoredVehicleLogDisplayColumns(
 						normalizeVehicleLogDisplayColumns(loc.logDisplayColumns)
 					),
+					...withStoredStatLabels(toStoredEntryExitStatLabels(loc.statLabels)),
 				} as VehicleAccessSystemConfig,
 			},
 		],
@@ -1424,6 +1432,7 @@ export function peopleCountingLocationToUnified(
 						)
 						return stored.length > 0 ? stored : undefined
 					})(),
+					...withStoredStatLabels(toStoredEntryExitStatLabels(loc.statLabels)),
 				} as PeopleCountingSystemConfig,
 			},
 		],

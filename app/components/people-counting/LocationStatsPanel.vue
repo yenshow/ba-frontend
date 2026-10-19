@@ -7,23 +7,23 @@
 			</div>
 			<div class="space-y-2 text-white">
 				<div class="flex items-center justify-center gap-4">
-					<div class="text-lg font-semibold 2xl:text-2xl">進場人數</div>
+					<div class="text-lg font-semibold 2xl:text-2xl">{{ labels.entry }}</div>
 					<div class="w-[100px] bg-black/20 text-center text-2xl 2xl:w-[120px] 2xl:text-3xl">
-						{{ entryCount || 0 }}
+						{{ props.entryCount || 0 }}
 					</div>
 				</div>
 
 				<div class="flex items-center justify-center gap-4">
-					<div class="text-lg font-semibold 2xl:text-2xl">出場人數</div>
+					<div class="text-lg font-semibold 2xl:text-2xl">{{ labels.exit }}</div>
 					<div class="w-[100px] bg-black/20 text-center text-2xl 2xl:w-[120px] 2xl:text-3xl">
-						{{ exitCount || 0 }}
+						{{ props.exitCount || 0 }}
 					</div>
 				</div>
 
 				<div class="flex items-center justify-center gap-4">
-					<div class="text-lg font-semibold 2xl:text-2xl">在場人數</div>
+					<div class="text-lg font-semibold 2xl:text-2xl">{{ labels.current }}</div>
 					<div class="w-[100px] bg-black/20 text-center text-2xl 2xl:w-[120px] 2xl:text-3xl">
-						{{ currentCount || 0 }}
+						{{ props.currentCount || 0 }}
 					</div>
 				</div>
 			</div>
@@ -49,11 +49,16 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue"
 import type { PeopleCountingLog } from "~/types/peopleCounting"
 import type { PeopleCountingCameraMode } from "~/utils/peopleCountingCameraMode"
 import EntryExitLogTable from "~/components/people-counting/EntryExitLogTable.vue"
 import Pagination from "~/components/common/Pagination.vue"
 import { ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE } from "~/utils/entryExitTimeRange"
+import {
+	normalizePeopleCountingStatLabels,
+	type EntryExitStatLabels,
+} from "~/utils/statLabels"
 
 interface Props {
 	entryCount: number
@@ -67,9 +72,10 @@ interface Props {
 	dataSource?: "yscp" | "access_control" | "isapi_camera"
 	cameraMode?: PeopleCountingCameraMode | string | null
 	displayColumns?: string[] | null
+	statLabels?: Partial<EntryExitStatLabels> | null
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
 	logsOffset: 0,
 	logsTotal: 0,
 	logsPageSize: ENTRY_EXIT_DASHBOARD_LOGS_PAGE_SIZE,
@@ -77,6 +83,7 @@ withDefaults(defineProps<Props>(), {
 	dataSource: undefined,
 	cameraMode: null,
 	displayColumns: null,
+	statLabels: null,
 })
 
 const emit = defineEmits<{
@@ -85,4 +92,5 @@ const emit = defineEmits<{
 }>()
 
 const statusIndicatorSrc = "/people-counting/status-indicator-green.svg"
+const labels = computed(() => normalizePeopleCountingStatLabels(props.statLabels))
 </script>

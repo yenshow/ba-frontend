@@ -165,6 +165,12 @@ export interface VehicleAccessLocation {
 	/** 訂閱後短查設備歷史補齊漏推 ANPR */
 	eventBackfillEnabled?: boolean;
 	eventBackfillWindowSec?: number;
+	/** 進場／出場／在場車輛顯示名稱（可選；空白＝系統預設） */
+	statLabels?: {
+		entry?: string;
+		exit?: string;
+		current?: string;
+	};
 	/** 業務層地點 ID（字串來自 loc.id，數字為舊版相容） */
 	locationId?: number | string;
 }

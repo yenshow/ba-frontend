@@ -109,6 +109,7 @@ export const usePeopleCountingApi = () => {
 									)
 								: undefined,
 						logDisplayColumns: normalizeLogDisplayColumns(cfg?.logDisplayColumns),
+						statLabels: cfg?.statLabels,
 						entryDeviceIds: cfg?.entryDeviceIds,
 						exitDeviceIds: cfg?.exitDeviceIds,
 						entryEventCameraDeviceId: cfg?.entryEventCameraDeviceId,

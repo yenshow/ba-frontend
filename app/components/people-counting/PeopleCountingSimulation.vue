@@ -39,50 +39,42 @@
 				<h3 class="mb-3 w-fit border-b-2 border-white/70 text-lg text-white/90 2xl:text-xl">
 					進出統計
 				</h3>
-				<table
-					class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base"
-				>
+				<table class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base">
 					<thead class="monitoring-chip-bg">
 						<tr class="text-white/90">
 							<th class="whitespace-nowrap border border-white/20 p-2">日期</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">區域-地點</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">進場人數</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">出場人數</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">在場人數</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">{{ reportLabels.entry }}</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">{{ reportLabels.exit }}</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">{{ reportLabels.current }}</th>
 						</tr>
 					</thead>
 					<tbody>
-						<tr
-							v-for="row in statsTableRows"
-							:key="row.key"
-							class="border-b border-white/10 text-white"
-						>
+						<tr v-for="row in statsTableRows" :key="row.key" class="border-b border-white/10 text-white">
 							<td class="border border-white/20 p-2">{{ row.日期 }}</td>
 							<td class="border border-white/20 p-2">{{ row["區域-地點"] }}</td>
-							<td class="border border-white/20 p-2">{{ row.進場人數 }}</td>
-							<td class="border border-white/20 p-2">{{ row.出場人數 }}</td>
-							<td class="border border-white/20 p-2">{{ row.在場人數 }}</td>
+							<td class="border border-white/20 p-2">{{ row.entryCount }}</td>
+							<td class="border border-white/20 p-2">{{ row.exitCount }}</td>
+							<td class="border border-white/20 p-2">{{ row.currentCount }}</td>
 						</tr>
 					</tbody>
 				</table>
 			</div>
 
-			<!-- 2. 單位統計 -->
+			<!-- 2. 群組統計 -->
 			<div class="show-scrollbar max-h-[40vh] overflow-y-auto">
 				<h3 class="mb-3 w-fit border-b-2 border-white/70 text-lg text-white/90 2xl:text-xl">
 					群組統計
 				</h3>
-				<table
-					class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base"
-				>
+				<table class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base">
 					<thead class="monitoring-chip-bg">
 						<tr class="text-white/90">
 							<th class="whitespace-nowrap border border-white/20 p-2">日期</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">區域-地點</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">群組</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">進場人數</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">出場人數</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">在場人數</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">{{ reportLabels.entry }}</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">{{ reportLabels.exit }}</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">{{ reportLabels.current }}</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -94,13 +86,13 @@
 							<td class="border border-white/20 p-2">{{ row.日期 }}</td>
 							<td class="border border-white/20 p-2">{{ row["區域-地點"] }}</td>
 							<td class="border border-white/20 p-2">{{ row.群組 }}</td>
-							<td class="border border-white/20 p-2">{{ row.進場人數 }}</td>
-							<td class="border border-white/20 p-2">{{ row.出場人數 }}</td>
+							<td class="border border-white/20 p-2">{{ row.entryCount }}</td>
+							<td class="border border-white/20 p-2">{{ row.exitCount }}</td>
 							<td
 								class="border border-white/20 p-2"
 								:class="row.hasOnSite ? 'bg-red-500/80 font-semibold' : ''"
 							>
-								{{ row.在場人數 }}
+								{{ row.currentCount }}
 							</td>
 						</tr>
 					</tbody>
@@ -110,9 +102,7 @@
 			<!-- 3. 進出紀錄 -->
 			<div class="max-h-[75vh] overflow-y-auto">
 				<div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-					<h3 class="w-fit border-b-2 border-white/70 text-lg text-white/90 2xl:text-xl">
-						進出紀錄
-					</h3>
+					<h3 class="w-fit border-b-2 border-white/70 text-lg text-white/90 2xl:text-xl">進出紀錄</h3>
 					<SearchInput
 						v-model="searchQuery"
 						input-id="people-counting-report-search"
@@ -122,9 +112,7 @@
 						type="search"
 					/>
 				</div>
-				<table
-					class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base"
-				>
+				<table class="w-full border-collapse border border-white/20 text-left text-sm 2xl:text-base">
 					<thead class="monitoring-chip-bg">
 						<tr class="text-white/90">
 							<th
@@ -203,171 +191,187 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, toRef } from "vue"
-import type { PeopleCountingLog } from "~/types/peopleCounting"
-import { canResolveMedia, useResolvedMediaList } from "~/composables/core/useImageCenter"
-import { useMediaLightbox } from "~/composables/core/useMediaLightbox"
-import MediaLightbox from "~/components/common/MediaLightbox.vue"
-import { formatDate, TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtils"
-import { downloadReportWorkbook } from "~/utils/xlsxExport"
+import { ref, computed, watch, toRef } from "vue";
+import type { PeopleCountingLog } from "~/types/peopleCounting";
+import { canResolveMedia, useResolvedMediaList } from "~/composables/core/useImageCenter";
+import { useMediaLightbox } from "~/composables/core/useMediaLightbox";
+import MediaLightbox from "~/components/common/MediaLightbox.vue";
+import { formatDate, TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtils";
+import { downloadReportWorkbook } from "~/utils/xlsxExport";
 import {
 	countingPersonKey,
 	countEntryExitForDay,
 	cumulativePresenceFromTotals,
 	getEntryOnlyPersonsForDay,
-	getUnitStatsForDay,
-} from "~/utils/peopleCountingTransition"
+	getUnitStatsForDay
+} from "~/utils/peopleCountingTransition";
 import {
 	normalizeLogDisplayColumns,
 	PEOPLE_COUNTING_LOG_COLUMN_LABELS,
-	buildLogDetailRow,
-} from "~/utils/peopleCountingLogColumns"
-import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
-import FilterDropdown from "~/components/common/FilterDropdown.vue"
-import SearchInput from "~/components/common/SearchInput.vue"
+	buildLogDetailRow
+} from "~/utils/peopleCountingLogColumns";
+import TimeRangePicker from "~/components/common/TimeRangePicker.vue";
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
+import SearchInput from "~/components/common/SearchInput.vue";
+import {
+	DEFAULT_PEOPLE_COUNTING_STAT_LABELS,
+	normalizePeopleCountingStatLabels,
+	resolveSharedEntryExitStatLabels,
+	type EntryExitStatLabels,
+} from "~/utils/statLabels";
 
 export type PeopleCountingSimulationLocationOption = {
-	locationId: number
-	label: string
-	zoneName: string
-	locationName: string
-	dataSource?: "yscp" | "access_control" | "isapi_camera"
-}
+	locationId: number;
+	label: string;
+	zoneName: string;
+	locationName: string;
+	dataSource?: "yscp" | "access_control" | "isapi_camera";
+	statLabels?: Partial<EntryExitStatLabels> | null;
+};
 
 export type PeopleCountingSimulationLocationSummary = {
-	entryCount: number
-	exitCount: number
+	entryCount: number;
+	exitCount: number;
 	units?: Array<{
-		name: string
-		entryCount?: number
-		exitCount?: number
-		currentCount?: number
-		[key: string]: unknown
-	}>
-	dataSource?: "yscp" | "access_control" | "isapi_camera"
-}
+		name: string;
+		entryCount?: number;
+		exitCount?: number;
+		currentCount?: number;
+		[key: string]: unknown;
+	}>;
+	dataSource?: "yscp" | "access_control" | "isapi_camera";
+};
 
 const props = defineProps<{
-	logs: PeopleCountingLog[]
-	locationOptions: PeopleCountingSimulationLocationOption[]
-	locationSummaries?: Record<number, PeopleCountingSimulationLocationSummary>
-	locationDisplayColumns?: Record<number, string[] | null | undefined>
-	timeRange: { startDate: string; endDate: string; preset: string }
-}>()
+	logs: PeopleCountingLog[];
+	locationOptions: PeopleCountingSimulationLocationOption[];
+	locationSummaries?: Record<number, PeopleCountingSimulationLocationSummary>;
+	locationDisplayColumns?: Record<number, string[] | null | undefined>;
+	timeRange: { startDate: string; endDate: string; preset: string };
+}>();
 
 const emit = defineEmits<{
-	"update:timeRange": [v: { startDate: string; endDate: string; preset: string }]
-}>()
+	"update:timeRange": [v: { startDate: string; endDate: string; preset: string }];
+}>();
 
 const timeRangeModel = computed({
 	get: () => props.timeRange,
-	set: (v) => emit("update:timeRange", v),
-})
+	set: v => emit("update:timeRange", v)
+});
 
-const filterLocationId = ref("")
-const searchQuery = ref("")
+const filterLocationId = ref("");
+const searchQuery = ref("");
 
 const locationLabelById = computed(() => {
-	const map = new Map<number, string>()
+	const map = new Map<number, string>();
 	for (const opt of props.locationOptions) {
-		map.set(opt.locationId, opt.label)
+		map.set(opt.locationId, opt.label);
 	}
-	return map
-})
+	return map;
+});
 
 const locationFilterOptions = computed(() => [
 	{ value: "", label: "全部" },
-	...props.locationOptions.map((opt) => ({
+	...props.locationOptions.map(opt => ({
 		value: String(opt.locationId),
-		label: opt.label,
-	})),
-])
+		label: opt.label
+	}))
+]);
 
 const getZoneLocationLabel = (log: PeopleCountingLog): string => {
-	const fromMap = locationLabelById.value.get(log.locationId)
-	if (fromMap) return fromMap
-	return String(log.locationId)
-}
+	const fromMap = locationLabelById.value.get(log.locationId);
+	if (fromMap) return fromMap;
+	return String(log.locationId);
+};
 
 const matchesSearch = (log: PeopleCountingLog, query: string): boolean => {
-	const q = query.trim().toLowerCase()
-	if (!q) return true
-	const emp = log.employeeId != null ? String(log.employeeId).trim().toLowerCase() : ""
-	const name = log.personName != null ? String(log.personName).trim().toLowerCase() : ""
-	return emp.includes(q) || name.includes(q)
-}
+	const q = query.trim().toLowerCase();
+	if (!q) return true;
+	const emp = log.employeeId != null ? String(log.employeeId).trim().toLowerCase() : "";
+	const name = log.personName != null ? String(log.personName).trim().toLowerCase() : "";
+	return emp.includes(q) || name.includes(q);
+};
 
 /** 地點篩選：影響全部區塊 */
 const locationFilteredLogs = computed(() => {
-	const locFilter = filterLocationId.value
-	return props.logs.filter((log) => {
-		if (locFilter && String(log.locationId) !== locFilter) return false
-		return true
-	})
-})
+	const locFilter = filterLocationId.value;
+	return props.logs.filter(log => {
+		if (locFilter && String(log.locationId) !== locFilter) return false;
+		return true;
+	});
+});
 
 /** 搜尋：僅影響進出紀錄 */
 const detailFilteredLogs = computed(() => {
-	const q = searchQuery.value
-	return locationFilteredLogs.value.filter((log) => matchesSearch(log, q))
-})
+	const q = searchQuery.value;
+	return locationFilteredLogs.value.filter(log => matchesSearch(log, q));
+});
 
 const selectedLocationIdNum = computed(() => {
-	const v = filterLocationId.value
-	if (!v) return null
-	const n = Number(v)
-	return Number.isFinite(n) ? n : null
-})
+	const v = filterLocationId.value;
+	if (!v) return null;
+	const n = Number(v);
+	return Number.isFinite(n) ? n : null;
+});
 
 const useIsapiSnapshotTotals = computed(() => {
-	if (props.timeRange.preset !== "today") return false
-	const locId = selectedLocationIdNum.value
-	if (locId == null) return false
-	const summary = props.locationSummaries?.[locId]
-	return summary?.dataSource === "isapi_camera" && summary != null
-})
+	if (props.timeRange.preset !== "today") return false;
+	const locId = selectedLocationIdNum.value;
+	if (locId == null) return false;
+	const summary = props.locationSummaries?.[locId];
+	return summary?.dataSource === "isapi_camera" && summary != null;
+});
 
 const effectiveSnapshot = computed(() => {
-	const locId = selectedLocationIdNum.value
-	if (locId == null) return null
-	return props.locationSummaries?.[locId] ?? null
-})
+	const locId = selectedLocationIdNum.value;
+	if (locId == null) return null;
+	return props.locationSummaries?.[locId] ?? null;
+});
 
 const getDateKey = (log: PeopleCountingLog): string => {
-	if (!log.timestamp) return ""
-	const s = log.timestamp
-	const i = s.indexOf(" ")
-	return i !== -1 ? s.slice(0, i) : formatDate(s)
-}
+	if (!log.timestamp) return "";
+	const s = log.timestamp;
+	const i = s.indexOf(" ");
+	return i !== -1 ? s.slice(0, i) : formatDate(s);
+};
 
 /** 依日期 + 地點分組 */
 const groupsByDateAndLocation = computed(() => {
-	const g = new Map<string, PeopleCountingLog[]>()
+	const g = new Map<string, PeopleCountingLog[]>();
 	for (const log of locationFilteredLogs.value) {
-		const d = getDateKey(log)
-		if (!d) continue
-		const key = `${d}::${log.locationId}`
-		if (!g.has(key)) g.set(key, [])
-		g.get(key)!.push(log)
+		const d = getDateKey(log);
+		if (!d) continue;
+		const key = `${d}::${log.locationId}`;
+		if (!g.has(key)) g.set(key, []);
+		g.get(key)!.push(log);
 	}
-	return g
-})
+	return g;
+});
 
 const groupKeysDesc = computed(() =>
 	[...groupsByDateAndLocation.value.keys()].sort((a, b) => b.localeCompare(a))
-)
+);
 
-const statsTableRows = computed(() => {
-	const rows: Array<Record<string, string> & { key: string }> = []
-	const keys = groupKeysDesc.value
+type StatsTableRow = {
+	key: string;
+	日期: string;
+	"區域-地點": string;
+	entryCount: string;
+	exitCount: string;
+	currentCount: string;
+};
+
+const statsTableRows = computed((): StatsTableRow[] => {
+	const rows: StatsTableRow[] = [];
+	const keys = groupKeysDesc.value;
 
 	for (const groupKey of keys) {
-		const dayLogs = groupsByDateAndLocation.value.get(groupKey)!
-		const dateStr = groupKey.split("::")[0] ?? ""
-		const zl = getZoneLocationLabel(dayLogs[0]!)
-		let entry: number
-		let exit: number
-		let current: number
+		const dayLogs = groupsByDateAndLocation.value.get(groupKey)!;
+		const dateStr = groupKey.split("::")[0] ?? "";
+		const zl = getZoneLocationLabel(dayLogs[0]!);
+		let entry: number;
+		let exit: number;
+		let current: number;
 
 		if (
 			useIsapiSnapshotTotals.value &&
@@ -375,48 +379,48 @@ const statsTableRows = computed(() => {
 			keys.length === 1 &&
 			selectedLocationIdNum.value === dayLogs[0]?.locationId
 		) {
-			entry = effectiveSnapshot.value.entryCount
-			exit = effectiveSnapshot.value.exitCount
-			current = cumulativePresenceFromTotals(entry, exit)
+			entry = effectiveSnapshot.value.entryCount;
+			exit = effectiveSnapshot.value.exitCount;
+			current = cumulativePresenceFromTotals(entry, exit);
 		} else {
-			const r = countEntryExitForDay(dayLogs)
-			entry = r.entry
-			exit = r.exit
-			current = r.current
+			const r = countEntryExitForDay(dayLogs);
+			entry = r.entry;
+			exit = r.exit;
+			current = r.current;
 		}
 
 		rows.push({
 			key: `stats-${groupKey}`,
 			日期: dateStr,
 			"區域-地點": zl,
-			進場人數: String(entry),
-			出場人數: String(exit),
-			在場人數: String(current),
-		})
+			entryCount: String(entry),
+			exitCount: String(exit),
+			currentCount: String(current)
+		});
 	}
-	return rows
-})
+	return rows;
+});
 
 type UnitStatsRow = {
-	key: string
-	日期: string
-	"區域-地點": string
-	群組: string
-	進場人數: string
-	出場人數: string
-	在場人數: string
-	hasOnSite: boolean
-}
+	key: string;
+	日期: string;
+	"區域-地點": string;
+	群組: string;
+	entryCount: string;
+	exitCount: string;
+	currentCount: string;
+	hasOnSite: boolean;
+};
 
 const unitStatsTableRows = computed((): UnitStatsRow[] => {
-	const rows: UnitStatsRow[] = []
-	const keys = groupKeysDesc.value
+	const rows: UnitStatsRow[] = [];
+	const keys = groupKeysDesc.value;
 
 	for (const groupKey of keys) {
-		const dayLogs = groupsByDateAndLocation.value.get(groupKey)!
-		const dateStr = groupKey.split("::")[0] ?? ""
-		const zl = getZoneLocationLabel(dayLogs[0]!)
-		const locId = dayLogs[0]?.locationId
+		const dayLogs = groupsByDateAndLocation.value.get(groupKey)!;
+		const dateStr = groupKey.split("::")[0] ?? "";
+		const zl = getZoneLocationLabel(dayLogs[0]!);
+		const locId = dayLogs[0]?.locationId;
 
 		if (
 			useIsapiSnapshotTotals.value &&
@@ -430,179 +434,231 @@ const unitStatsTableRows = computed((): UnitStatsRow[] => {
 					日期: dateStr,
 					"區域-地點": zl,
 					群組: u.name,
-					進場人數: String(u.entryCount ?? 0),
-					出場人數: String(u.exitCount ?? 0),
-					在場人數: String(u.currentCount ?? 0),
-					hasOnSite: (u.currentCount ?? 0) > 0,
-				})
+					entryCount: String(u.entryCount ?? 0),
+					exitCount: String(u.exitCount ?? 0),
+					currentCount: String(u.currentCount ?? 0),
+					hasOnSite: (u.currentCount ?? 0) > 0
+				});
 			}
 		} else {
-			const unitStats = getUnitStatsForDay(dayLogs)
+			const unitStats = getUnitStatsForDay(dayLogs);
 			for (const u of unitStats) {
 				rows.push({
 					key: `unit-${groupKey}-${u.unitName}`,
 					日期: dateStr,
 					"區域-地點": zl,
 					群組: u.unitName,
-					進場人數: String(u.entry),
-					出場人數: String(u.exit),
-					在場人數: String(u.current),
-					hasOnSite: u.current > 0,
-				})
+					entryCount: String(u.entry),
+					exitCount: String(u.exit),
+					currentCount: String(u.current),
+					hasOnSite: u.current > 0
+				});
 			}
 		}
 	}
-	return rows
-})
+	return rows;
+});
 
 type DetailRow = {
-	key: string
-	isEntryOnly: boolean
-	cells: string[]
-	log: PeopleCountingLog
-}
+	key: string;
+	isEntryOnly: boolean;
+	cells: string[];
+	log: PeopleCountingLog;
+};
 
 const effectiveDisplayColumns = computed(() => {
-	const locId = selectedLocationIdNum.value
-	const raw = locId == null ? null : (props.locationDisplayColumns?.[locId] ?? null)
+	const locId = selectedLocationIdNum.value;
+	const raw = locId == null ? null : (props.locationDisplayColumns?.[locId] ?? null);
 	// 完整報表：固定欄已有「群組」；不重複顯示 unit，亦不顯示設備截圖
-	return normalizeLogDisplayColumns(raw).filter((k) => k !== "screenshot" && k !== "unit")
-})
+	return normalizeLogDisplayColumns(raw).filter((k) => k !== "screenshot" && k !== "unit");
+});
 
 const detailHeaders = computed(() => {
-	const fixed = ["區域-地點", "群組"]
-	const dynamic = effectiveDisplayColumns.value.map((k) => PEOPLE_COUNTING_LOG_COLUMN_LABELS[k])
-	return [...fixed, ...dynamic]
-})
+	const fixed = ["區域-地點", "群組"];
+	const dynamic = effectiveDisplayColumns.value.map((k) => PEOPLE_COUNTING_LOG_COLUMN_LABELS[k]);
+	return [...fixed, ...dynamic];
+});
 
-const nameHeaderLabel = PEOPLE_COUNTING_LOG_COLUMN_LABELS.name
-const isNameColumn = (idx: number): boolean => detailHeaders.value[idx] === nameHeaderLabel
+const nameHeaderLabel = PEOPLE_COUNTING_LOG_COLUMN_LABELS.name;
+const isNameColumn = (idx: number): boolean => detailHeaders.value[idx] === nameHeaderLabel;
 
 const { urls: imageUrls, errors: imageErrors } = useResolvedMediaList(toRef(props, "logs"), {
-	getRaw: (log) => log.deviceScreenshotUrl,
-	getId: (log) => log.id,
-})
-const { lightboxImageUrl, openLightbox, closeLightbox } = useMediaLightbox()
+	getRaw: log => log.deviceScreenshotUrl,
+	getId: log => log.id,
+});
+const { lightboxImageUrl, openLightbox, closeLightbox } = useMediaLightbox();
 
 const canPreviewScreenshot = (log: PeopleCountingLog): boolean =>
-	canResolveMedia(log.id, log.deviceScreenshotUrl, imageUrls.value, imageErrors.value)
+	canResolveMedia(log.id, log.deviceScreenshotUrl, imageUrls.value, imageErrors.value);
 
 const handleOpenLogLightbox = (log: PeopleCountingLog) => {
-	if (!canPreviewScreenshot(log)) return
-	openLightbox(imageUrls.value[log.id])
-}
+	if (!canPreviewScreenshot(log)) return;
+	openLightbox(imageUrls.value[log.id]);
+};
 
-const dateKeysDesc = (m: Map<string, unknown>): string[] => [...m.keys()].sort((a, b) => b.localeCompare(a))
+const dateKeysDesc = (m: Map<string, unknown>): string[] => [...m.keys()].sort((a, b) => b.localeCompare(a));
 
 const detailTableRows = computed((): DetailRow[] => {
-	const rows: DetailRow[] = []
-	const byDate = new Map<string, PeopleCountingLog[]>()
+	const rows: DetailRow[] = [];
+	const byDate = new Map<string, PeopleCountingLog[]>();
 	for (const log of detailFilteredLogs.value) {
-		const d = getDateKey(log)
-		if (!d) continue
-		if (!byDate.has(d)) byDate.set(d, [])
-		byDate.get(d)!.push(log)
+		const d = getDateKey(log);
+		if (!d) continue;
+		if (!byDate.has(d)) byDate.set(d, []);
+		byDate.get(d)!.push(log);
 	}
-	const datesDesc = dateKeysDesc(byDate)
+	const datesDesc = dateKeysDesc(byDate);
 
 	for (const dateStr of datesDesc) {
-		const dayLogs = byDate.get(dateStr)!
-		const entryOnlyLastLogMap = new Map<string, PeopleCountingLog>()
+		const dayLogs = byDate.get(dateStr)!;
+		const entryOnlyLastLogMap = new Map<string, PeopleCountingLog>();
 		for (const log of getEntryOnlyPersonsForDay(dayLogs)) {
-			entryOnlyLastLogMap.set(countingPersonKey(log), log)
+			entryOnlyLastLogMap.set(countingPersonKey(log), log);
 		}
 		const sorted = [...dayLogs].sort(
 			(a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-		)
+		);
 		for (const log of sorted) {
-			const personKey = countingPersonKey(log)
-			const isEntryOnly = entryOnlyLastLogMap.has(personKey)
-			const lastEntryLog = entryOnlyLastLogMap.get(personKey)
-			const unitName = (log.unit?.name ?? log.unitName ?? "").trim() || "—"
-			const zl = getZoneLocationLabel(log)
-			const labeled = buildLogDetailRow(log, effectiveDisplayColumns.value)
-			const cells = detailHeaders.value.map((h) => {
-				if (h === "區域-地點") return zl
-				if (h === "群組") return unitName
-				return labeled[h] ?? "—"
-			})
+			const personKey = countingPersonKey(log);
+			const isEntryOnly = entryOnlyLastLogMap.has(personKey);
+			const lastEntryLog = entryOnlyLastLogMap.get(personKey);
+			const unitName = (log.unit?.name ?? log.unitName ?? "").trim() || "—";
+			const zl = getZoneLocationLabel(log);
+			const labeled = buildLogDetailRow(log, effectiveDisplayColumns.value);
+			const cells = detailHeaders.value.map(h => {
+				if (h === "區域-地點") return zl;
+				if (h === "群組") return unitName;
+				return labeled[h] ?? "—";
+			});
 
 			rows.push({
 				key: `log-${log.id ?? dateStr}-${personKey}-${log.timestamp}`,
 				isEntryOnly: isEntryOnly && lastEntryLog === log,
 				cells,
 				log,
-			})
+			});
 		}
 	}
-	const timeHeader = PEOPLE_COUNTING_LOG_COLUMN_LABELS.time
-	const timeIdx = detailHeaders.value.indexOf(timeHeader)
-	if (timeIdx < 0) return rows
+	const timeHeader = PEOPLE_COUNTING_LOG_COLUMN_LABELS.time;
+	const timeIdx = detailHeaders.value.indexOf(timeHeader);
+	if (timeIdx < 0) return rows;
 	return rows.sort((a, b) => {
-		const ta = a.cells[timeIdx] ?? ""
-		const tb = b.cells[timeIdx] ?? ""
-		return String(tb).localeCompare(String(ta))
-	})
-})
+		const ta = a.cells[timeIdx] ?? "";
+		const tb = b.cells[timeIdx] ?? "";
+		return String(tb).localeCompare(String(ta));
+	});
+});
 
-const DETAIL_PAGE_SIZE = 10
-const detailPage = ref(1)
+const DETAIL_PAGE_SIZE = 10;
+const detailPage = ref(1);
 
 watch([filterLocationId, searchQuery], () => {
-	detailPage.value = 1
-})
+	detailPage.value = 1;
+});
 
 const totalDetailPages = computed(() =>
 	Math.max(1, Math.ceil(detailTableRows.value.length / DETAIL_PAGE_SIZE))
-)
+);
 
 const detailTableRowsPaginated = computed(() => {
-	const rows = detailTableRows.value
-	const start = (detailPage.value - 1) * DETAIL_PAGE_SIZE
-	return rows.slice(start, start + DETAIL_PAGE_SIZE)
-})
+	const rows = detailTableRows.value;
+	const start = (detailPage.value - 1) * DETAIL_PAGE_SIZE;
+	return rows.slice(start, start + DETAIL_PAGE_SIZE);
+});
 
-watch(totalDetailPages, (total) => {
-	if (detailPage.value > total) detailPage.value = Math.max(1, total)
-})
+watch(totalDetailPages, total => {
+	if (detailPage.value > total) detailPage.value = Math.max(1, total);
+});
 
 const handleDetailPrevPage = () => {
-	if (detailPage.value > 1) detailPage.value -= 1
-}
+	if (detailPage.value > 1) detailPage.value -= 1;
+};
 
 const handleDetailNextPage = () => {
-	if (detailPage.value < totalDetailPages.value) detailPage.value += 1
-}
+	if (detailPage.value < totalDetailPages.value) detailPage.value += 1;
+};
 
-const STATS_HEADERS = ["日期", "區域-地點", "進場人數", "出場人數", "在場人數"]
-const UNIT_STATS_HEADERS = ["日期", "區域-地點", "群組", "進場人數", "出場人數", "在場人數"]
+const reportLabels = computed(() => {
+	const locFilter = filterLocationId.value
+	const opts = props.locationOptions
+	const scoped = locFilter
+		? opts.filter((o) => String(o.locationId) === locFilter)
+		: opts
+	const list = scoped.map((o) => normalizePeopleCountingStatLabels(o.statLabels))
+	return resolveSharedEntryExitStatLabels(list, DEFAULT_PEOPLE_COUNTING_STAT_LABELS)
+})
+
+const statsHeaders = computed(() => [
+	"日期",
+	"區域-地點",
+	reportLabels.value.entry,
+	reportLabels.value.exit,
+	reportLabels.value.current,
+])
+
+const unitStatsHeaders = computed(() => [
+	"日期",
+	"區域-地點",
+	"群組",
+	reportLabels.value.entry,
+	reportLabels.value.exit,
+	reportLabels.value.current,
+])
+
+const mapStatsRowForExport = (row: {
+	日期: string
+	"區域-地點": string
+	entryCount: string
+	exitCount: string
+	currentCount: string
+	群組?: string
+}) => {
+	const labels = reportLabels.value
+	const base: Record<string, string> = {
+		日期: row.日期,
+		"區域-地點": row["區域-地點"],
+		[labels.entry]: row.entryCount,
+		[labels.exit]: row.exitCount,
+		[labels.current]: row.currentCount,
+	}
+	if (row.群組 != null && row.群組 !== "") base["群組"] = row.群組
+	return base
+}
 
 const firstDateStr = computed(() =>
 	locationFilteredLogs.value.length > 0 ? getDateKey(locationFilteredLogs.value[0]!) : ""
-)
+);
 
 const handleExportXlsx = () => {
-	if (locationFilteredLogs.value.length === 0) return
-	const dateStr = firstDateStr.value.replace(/\//g, "-") || new Date().toISOString().slice(0, 10)
-	const exportDetailHeaders = [...detailHeaders.value, "圖片路徑"]
+	if (locationFilteredLogs.value.length === 0) return;
+	const dateStr = firstDateStr.value.replace(/\//g, "-") || new Date().toISOString().slice(0, 10);
+	const exportDetailHeaders = [...detailHeaders.value, "圖片路徑"];
 	downloadReportWorkbook(
 		[
-			{ title: "進出統計", headers: STATS_HEADERS, rows: statsTableRows.value },
-			{ title: "群組統計", headers: UNIT_STATS_HEADERS, rows: unitStatsTableRows.value },
+			{
+				title: "進出統計",
+				headers: statsHeaders.value,
+				rows: statsTableRows.value.map(mapStatsRowForExport),
+			},
+			{
+				title: "群組統計",
+				headers: unitStatsHeaders.value,
+				rows: unitStatsTableRows.value.map(mapStatsRowForExport),
+			},
 		],
 		{
 			title: "進出紀錄",
 			headers: exportDetailHeaders,
-			rows: detailTableRows.value.map((r) => {
+			rows: detailTableRows.value.map(r => {
 				const row: Record<string, string> = Object.fromEntries(
 					detailHeaders.value.map((h, i) => [h, r.cells[i] ?? ""])
-				)
-				const pic = String(r.log?.deviceScreenshotUrl ?? "").trim()
-				row["圖片路徑"] = pic || "—"
-				return row
-			}),
+				);
+				const pic = String(r.log?.deviceScreenshotUrl ?? "").trim();
+				row["圖片路徑"] = pic || "—";
+				return row;
+			})
 		},
 		`people_counting_logs_${dateStr}.xlsx`
-	)
-}
+	);
+};
 </script>

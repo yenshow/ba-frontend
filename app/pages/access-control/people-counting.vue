@@ -92,6 +92,7 @@
 								:entry-count="selectedLocation?.entryCount || 0"
 								:exit-count="selectedLocation?.exitCount || 0"
 								:current-count="currentCount"
+								:stat-labels="selectedLocation?.statLabels"
 								:logs="logs"
 								:logs-offset="logsOffset"
 								:logs-total="logsTotal"
@@ -435,6 +436,7 @@ type SimulationLocationOption = {
 	zoneName: string
 	locationName: string
 	dataSource?: PeopleCountingLocation["dataSource"]
+	statLabels?: PeopleCountingLocation["statLabels"]
 }
 
 const simulationLocationOptions = computed((): SimulationLocationOption[] => {
@@ -451,6 +453,7 @@ const simulationLocationOptions = computed((): SimulationLocationOption[] => {
 				zoneName,
 				locationName,
 				dataSource: loc.dataSource,
+				statLabels: loc.statLabels,
 			})
 		}
 	}

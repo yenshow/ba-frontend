@@ -53,6 +53,12 @@ export interface PeopleCountingLocation {
 	eventBackfillEnabled?: boolean
 	/** 補查視窗秒數（1–30，預設 5） */
 	eventBackfillWindowSec?: number
+	/** 進場／出場／在場人數顯示名稱（可選；空白＝系統預設） */
+	statLabels?: {
+		entry?: string
+		exit?: string
+		current?: string
+	}
 
 	// 業務統計信息（來自業務 API）
 	locationId?: number // 業務層的地點 ID（數字格式，用於 API 調用）
