@@ -139,29 +139,23 @@ export interface ControllerDeviceConfig extends DeviceConfigBase {
 	unitId?: number;
 }
 
-// 影像設備配置（串流機需 rtsp_url；NVR 分類用 is_nvr＋web_url，可無 rtsp_url）
+// 影像設備配置（串流機需 rtsp_url；NVR＝is_nvr＋host／帳密／ISAPI 埠，虛擬通道不建子設備）
 export interface CameraDeviceConfig extends DeviceConfigBase {
 	type: "camera";
 	/** RTSP URL（串流攝影機必填）；NVR（is_nvr）省略 */
 	rtsp_url?: string;
 	host?: string;
 	ip_address?: string;
-	/** 串流＝RTSP 埠（預設 554）；NVR＝Web 管理埠（預設 80） */
+	/** 串流＝RTSP 埠（預設 554）；NVR＝ISAPI HTTP 埠（預設 80） */
 	port?: number;
 	username?: string;
 	password?: string;
 	/** 攝影機群組（用於設備管理與影像監控篩選） */
 	group?: string;
-	/** 型號分類為 NVR 時為 true（建檔＋外開 Web 回放；無 rtsp_url） */
+	/** 型號分類為 NVR 時為 true（虛擬通道；無 rtsp_url） */
 	is_nvr?: boolean;
-	/** 瀏覽器可開的回放入口（僅 NVR） */
-	web_url?: string;
-	/** 自動組 web_url 時使用 https（僅 NVR） */
-	use_https?: boolean;
-	/** 所屬 NVR 攝影機 id（選填；有值時監看可外開回放） */
-	nvr_device_id?: number;
-	/** NVR 通道號（選填，顯示用） */
-	nvr_channel?: number;
+	/** NVR 即時 RTSP 埠（預設 554） */
+	rtsp_port?: number;
 }
 
 // 感測器配置

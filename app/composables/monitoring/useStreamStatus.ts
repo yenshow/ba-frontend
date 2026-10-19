@@ -1,109 +1,155 @@
 /**
  * 影像監視狀態統一管理（WebRTC 串流 + reference counting）
- * - 加入畫面：若該 deviceId 已有串流則共用 webrtcUrl，否則呼叫 stream/start
- * - 移除畫面：僅當無其他畫面使用同一 deviceId 時才呼叫 stream/stop
+ * - 一般攝影機：viewKey = cam:{deviceId}
+ * - NVR 虛擬通道：viewKey = nvr:{nvrId}:{proxyChannelId}
  */
 
-import type { MonitorView } from "~/types/surveillance";
-import { useCameraStreamStatus } from "./streamStatus/useCameraStreamStatus";
-import { useMonitorViews } from "./streamStatus/useMonitorViews";
-import { useSurveillanceApi } from "~/composables/systems/surveillance/useSurveillanceApi";
+import type { MonitorView } from "~/types/surveillance"
+import { useCameraStreamStatus } from "./streamStatus/useCameraStreamStatus"
+import { useMonitorViews } from "./streamStatus/useMonitorViews"
+import { useSurveillanceApi } from "~/composables/systems/surveillance/useSurveillanceApi"
+import { useNvrApi } from "~/composables/systems/surveillance/useNvrApi"
+import {
+	cameraViewKey,
+	nvrChannelViewKey,
+	parseSurveillanceViewKey,
+} from "~/utils/surveillanceViewKey"
+
+export type AddMonitorViewInput =
+	| { kind: "camera"; deviceId: number }
+	| {
+			kind: "nvr"
+			nvrId: number
+			proxyChannelId: number
+			title?: string
+	  }
 
 export const useStreamStatus = () => {
-	const surveillanceApi = useSurveillanceApi();
-	const cameraStream = useCameraStreamStatus();
-	const monitorViews = useMonitorViews();
+	const surveillanceApi = useSurveillanceApi()
+	const nvrApi = useNvrApi()
+	const cameraStream = useCameraStreamStatus()
+	const monitorViews = useMonitorViews()
 
-	/** 將監控畫面標為 error／清空 URL（共用） */
-	const markMonitorViewError = (deviceId: number) => {
-		monitorViews.updateMonitorView(deviceId, {
+	const markMonitorViewError = (viewKey: string) => {
+		monitorViews.updateMonitorView(viewKey, {
 			webrtcUrl: "",
 			webrtcPort: undefined,
 			streamId: undefined,
 			streamStatus: "error",
-		});
-	};
+		})
+	}
 
-	const STREAM_START_ERROR =
-		"啟動串流失敗，請確認攝影機已設定 rtsp_url 且 MediaMTX 已啟動";
+	const STREAM_START_ERROR = "啟動串流失敗，請確認設備設定與 MediaMTX 已啟動"
 
-	/** 加入監控畫面：啟動串流（或共用既有）並取得 webrtcUrl */
-	const addMonitorView = async (deviceId: number): Promise<void> => {
-		const views = monitorViews.monitorViews.value;
-		const existing = views.find((v) => v.deviceId === deviceId);
+	const resolveViewKey = (input: AddMonitorViewInput): string => {
+		if (input.kind === "camera") return cameraViewKey(input.deviceId)
+		return nvrChannelViewKey(input.nvrId, input.proxyChannelId)
+	}
+
+	const startStreamForInput = async (input: AddMonitorViewInput) => {
+		if (input.kind === "camera") {
+			return await surveillanceApi.startCameraStream(input.deviceId)
+		}
+		return await nvrApi.startChannelStream(input.nvrId, input.proxyChannelId)
+	}
+
+	const stopStreamForViewKey = async (viewKey: string) => {
+		const parsed = parseSurveillanceViewKey(viewKey)
+		if (!parsed) return
+		if (parsed.kind === "camera") {
+			await surveillanceApi.stopCameraStream(parsed.deviceId)
+			return
+		}
+		await nvrApi.stopChannelStream(parsed.nvrId, parsed.proxyChannelId)
+	}
+
+	const addMonitorView = async (input: AddMonitorViewInput): Promise<void> => {
+		const viewKey = resolveViewKey(input)
+		const views = monitorViews.monitorViews.value
+		const existing = views.find((v) => v.viewKey === viewKey)
 		if (existing?.webrtcUrl) {
 			monitorViews.addMonitorView({
-				deviceId,
+				viewKey,
+				deviceId: input.kind === "camera" ? input.deviceId : input.nvrId,
+				proxyChannelId: input.kind === "nvr" ? input.proxyChannelId : undefined,
+				title: input.kind === "nvr" ? input.title : undefined,
 				position: views.length,
 				webrtcUrl: existing.webrtcUrl,
 				webrtcPort: existing.webrtcPort,
 				streamId: existing.streamId,
-				streamStatus: "running"
-			});
-			return;
+				streamStatus: "running",
+			})
+			return
 		}
-		monitorViews.addMonitorView({
-			deviceId,
+
+		const base: MonitorView = {
+			viewKey,
+			deviceId: input.kind === "camera" ? input.deviceId : input.nvrId,
+			proxyChannelId: input.kind === "nvr" ? input.proxyChannelId : undefined,
+			title: input.kind === "nvr" ? input.title : undefined,
 			position: views.length,
-			streamStatus: "loading"
-		});
-		try {
-			const data = await surveillanceApi.startCameraStream(deviceId);
-			monitorViews.updateMonitorView(deviceId, {
-				webrtcUrl: data.webrtcUrl,
-				webrtcPort: data.webrtcPort,
-				streamId: data.streamId,
-				streamStatus: "running"
-			});
-		} catch {
-			markMonitorViewError(deviceId);
-			throw new Error(STREAM_START_ERROR);
-		}
-	};
-
-	/** 重新啟動單一監控畫面串流（保留格子，供失敗後重新載入） */
-	const reloadMonitorView = async (deviceId: number): Promise<void> => {
-		const existing = monitorViews.monitorViews.value.find((v) => v.deviceId === deviceId);
-		if (!existing) return;
-
-		monitorViews.updateMonitorView(deviceId, {
-			webrtcUrl: "",
-			webrtcPort: undefined,
-			streamId: undefined,
 			streamStatus: "loading",
-		});
+		}
+		monitorViews.addMonitorView(base)
 		try {
-			await surveillanceApi.stopCameraStream(deviceId).catch(() => {});
-			const data = await surveillanceApi.startCameraStream(deviceId);
-			monitorViews.updateMonitorView(deviceId, {
+			const data = await startStreamForInput(input)
+			monitorViews.updateMonitorView(viewKey, {
 				webrtcUrl: data.webrtcUrl,
 				webrtcPort: data.webrtcPort,
 				streamId: data.streamId,
 				streamStatus: "running",
-			});
+			})
 		} catch {
-			markMonitorViewError(deviceId);
-			throw new Error(STREAM_START_ERROR);
+			markMonitorViewError(viewKey)
+			throw new Error(STREAM_START_ERROR)
 		}
-	};
+	}
 
-	/** 移除監控畫面；若無其他畫面使用同一 deviceId 則停止串流 */
-	const removeMonitorView = (deviceId: number): void => {
-		monitorViews.removeMonitorView(deviceId);
-		const stillUsed = monitorViews.monitorViews.value.some((v) => v.deviceId === deviceId);
+	const reloadMonitorView = async (viewKey: string): Promise<void> => {
+		const existing = monitorViews.monitorViews.value.find((v) => v.viewKey === viewKey)
+		if (!existing) return
+		const parsed = parseSurveillanceViewKey(viewKey)
+		if (!parsed) return
+
+		monitorViews.updateMonitorView(viewKey, {
+			webrtcUrl: "",
+			webrtcPort: undefined,
+			streamId: undefined,
+			streamStatus: "loading",
+		})
+		try {
+			await stopStreamForViewKey(viewKey).catch(() => {})
+			const data =
+				parsed.kind === "camera"
+					? await surveillanceApi.startCameraStream(parsed.deviceId)
+					: await nvrApi.startChannelStream(parsed.nvrId, parsed.proxyChannelId)
+			monitorViews.updateMonitorView(viewKey, {
+				webrtcUrl: data.webrtcUrl,
+				webrtcPort: data.webrtcPort,
+				streamId: data.streamId,
+				streamStatus: "running",
+			})
+		} catch {
+			markMonitorViewError(viewKey)
+			throw new Error(STREAM_START_ERROR)
+		}
+	}
+
+	const removeMonitorView = (viewKey: string): void => {
+		monitorViews.removeMonitorView(viewKey)
+		const stillUsed = monitorViews.monitorViews.value.some((v) => v.viewKey === viewKey)
 		if (!stillUsed) {
-			surveillanceApi.stopCameraStream(deviceId).catch(() => {});
+			stopStreamForViewKey(viewKey).catch(() => {})
 		}
-	};
+	}
 
-	/** 清空所有監控畫面並停止後端串流（頁面卸載時呼叫） */
 	const clearAllMonitorViews = (): void => {
 		while (monitorViews.monitorViews.value.length > 0) {
-			const first = monitorViews.monitorViews.value[0];
-			if (!first) break;
-			removeMonitorView(first.deviceId);
+			const first = monitorViews.monitorViews.value[0]
+			if (!first) break
+			removeMonitorView(first.viewKey)
 		}
-	};
+	}
 
 	return {
 		cameras: cameraStream.cameras,
@@ -114,6 +160,6 @@ export const useStreamStatus = () => {
 		removeMonitorView,
 		clearAllMonitorViews,
 		updateMonitorView: monitorViews.updateMonitorView,
-		reorderMonitorViews: monitorViews.reorderMonitorViews
-	};
-};
+		reorderMonitorViews: monitorViews.reorderMonitorViews,
+	}
+}

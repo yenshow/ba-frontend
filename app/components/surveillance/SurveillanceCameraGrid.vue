@@ -6,117 +6,107 @@
 			gridClass,
 		]"
 	>
+		<div
+			v-for="(view, index) in displayViews"
+			:key="`view-${view.viewKey}-${view.position}-${index}`"
+			:ref="(el: HTMLElement | null) => setViewRef(el, index)"
+			:class="[
+				'relative min-h-0 overflow-hidden bg-black',
+				isFullscreen
+					? 'rounded-none border-0'
+					: 'rounded-lg border-2 border-gray-300 dark:border-gray-700',
+			]"
+		>
 			<div
-				v-for="(view, index) in displayViews"
-				:key="`view-${view.deviceId}-${view.position}-${index}`"
-				:ref="(el: HTMLElement | null) => setViewRef(el, index)"
-				:class="[
-					'relative min-h-0 overflow-hidden bg-black',
-					isFullscreen
-						? 'rounded-none border-0'
-						: 'rounded-lg border-2 border-gray-300 dark:border-gray-700',
-				]"
+				v-if="
+					(view.webrtcUrl ||
+						view.streamStatus === 'loading' ||
+						view.streamStatus === 'error') &&
+					(isViewVisible(index) || view.streamStatus === 'error')
+				"
+				class="absolute inset-0"
 			>
-				<div
-					v-if="
-						(view.webrtcUrl ||
-							view.streamStatus === 'loading' ||
-							view.streamStatus === 'error') &&
-						(isViewVisible(index) || view.streamStatus === 'error')
-					"
-					class="absolute inset-0"
-				>
-					<SurveillanceVideoPlayer
-						:key="`player-${view.deviceId}-${view.position}-${index}`"
-						:webrtc-url="view.webrtcUrl"
-						:webrtc-port="view.webrtcPort"
-						:stream-status="view.streamStatus"
-						class="h-full w-full"
-						@reload="$emit('reload', view.deviceId)"
-					/>
-				</div>
-
-				<div
-					v-else-if="!view.webrtcUrl && view.streamStatus !== 'loading'"
-					class="absolute inset-0 flex items-center justify-center bg-gray-900"
-				>
-					<p class="text-sm text-gray-400 2xl:text-base">無串流</p>
-				</div>
-
-				<div
-					v-if="!isFullscreen"
-					class="absolute left-0 top-0 z-20 max-w-[60%] overflow-hidden text-ellipsis whitespace-nowrap rounded-br bg-black/60 px-2 py-1 text-xs font-medium text-white 2xl:text-base"
-				>
-					{{ getCameraName(view.deviceId) }}
-				</div>
-
-				<div v-if="!isFullscreen" class="absolute right-0 top-0 z-20 flex shrink-0 gap-1 p-1.5">
-					<button
-						v-if="getPlaybackWebUrl(view.deviceId)"
-						type="button"
-						class="shrink-0 whitespace-nowrap rounded bg-cyan-600/80 px-1.5 py-0.5 text-xs text-white transition-colors hover:bg-cyan-500 2xl:px-2 2xl:py-1"
-						title="外開 NVR 回放"
-						aria-label="外開 NVR 回放"
-						@click.stop="handlePlayback(view.deviceId)"
-					>
-						回放
-					</button>
-					<button
-						type="button"
-						class="shrink-0 whitespace-nowrap rounded bg-gray-500/80 px-1.5 py-0.5 text-xs text-white transition-colors hover:bg-gray-600 2xl:px-2 2xl:py-1"
-						title="移除畫面"
-						aria-label="移除畫面"
-						@click.stop="$emit('remove', view.deviceId)"
-					>
-						移除
-					</button>
-				</div>
+				<SurveillanceVideoPlayer
+					:key="`player-${view.viewKey}-${view.position}-${index}`"
+					:webrtc-url="view.webrtcUrl"
+					:webrtc-port="view.webrtcPort"
+					:stream-status="view.streamStatus"
+					class="h-full w-full"
+					@reload="$emit('reload', view.viewKey)"
+				/>
 			</div>
 
 			<div
-				v-for="idx in emptySlots"
-				:key="`empty-${idx}`"
-				:class="[
-					'flex min-h-0 items-center justify-center',
-					isFullscreen
-						? 'bg-black'
-						: 'rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-800',
-				]"
+				v-else-if="!view.webrtcUrl && view.streamStatus !== 'loading'"
+				class="absolute inset-0 flex items-center justify-center bg-gray-900"
 			>
-				<p v-if="!isFullscreen" class="text-sm text-gray-400 2xl:text-base dark:text-gray-500">空位</p>
+				<p class="text-sm text-gray-400 2xl:text-base">無串流</p>
 			</div>
+
+			<div
+				v-if="!isFullscreen"
+				class="absolute left-0 top-0 z-20 max-w-[60%] overflow-hidden text-ellipsis whitespace-nowrap rounded-br bg-black/60 px-2 py-1 text-xs font-medium text-white 2xl:text-base"
+			>
+				{{ getViewTitle(view) }}
+			</div>
+
+			<div v-if="!isFullscreen" class="absolute right-0 top-0 z-20 flex shrink-0 gap-1 p-1.5">
+				<button
+					v-if="view.proxyChannelId != null"
+					type="button"
+					class="shrink-0 whitespace-nowrap rounded bg-cyan-600/80 px-1.5 py-0.5 text-xs text-white transition-colors hover:bg-cyan-500 2xl:px-2 2xl:py-1"
+					title="平台內回放"
+					aria-label="平台內回放"
+					@click.stop="$emit('playback', view)"
+				>
+					回放
+				</button>
+				<button
+					type="button"
+					class="shrink-0 whitespace-nowrap rounded bg-gray-500/80 px-1.5 py-0.5 text-xs text-white transition-colors hover:bg-gray-600 2xl:px-2 2xl:py-1"
+					title="移除畫面"
+					aria-label="移除畫面"
+					@click.stop="$emit('remove', view.viewKey)"
+				>
+					移除
+				</button>
+			</div>
+		</div>
+
+		<div
+			v-for="idx in emptySlots"
+			:key="`empty-${idx}`"
+			:class="[
+				'flex min-h-0 items-center justify-center',
+				isFullscreen
+					? 'bg-black'
+					: 'rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-800',
+			]"
+		>
+			<p v-if="!isFullscreen" class="text-sm text-gray-400 2xl:text-base dark:text-gray-500">空位</p>
+		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
 import type { SurveillanceCamera, MonitorView, GridLayout } from "~/types/surveillance"
-import { openNvrPlaybackPage } from "~/utils/nvrWebUrl"
 
 interface Props {
 	cameras: readonly SurveillanceCamera[]
 	views: readonly MonitorView[]
 	layout: GridLayout
 	isFullscreen?: boolean
-	/** camera deviceId → NVR web_url */
-	playbackUrlByDeviceId?: Readonly<Record<number, string>>
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	isFullscreen: false,
-	playbackUrlByDeviceId: () => ({}),
 })
 
 defineEmits<{
-	remove: [deviceId: number]
-	reload: [deviceId: number]
+	remove: [viewKey: string]
+	reload: [viewKey: string]
+	playback: [view: MonitorView]
 }>()
-
-const getPlaybackWebUrl = (deviceId: number): string =>
-	String(props.playbackUrlByDeviceId?.[deviceId] || "").trim()
-
-const handlePlayback = (deviceId: number) => {
-	openNvrPlaybackPage(getPlaybackWebUrl(deviceId))
-}
 
 const GRID_CLASS: Record<GridLayout, { cols: string; rows: string }> = {
 	"1": { cols: "grid-cols-1", rows: "grid-rows-1" },
@@ -154,8 +144,10 @@ const cameraMap = computed(() => {
 	return map
 })
 
-const getCameraName = (deviceId: number): string =>
-	cameraMap.value.get(deviceId)?.name || `設備 ${deviceId}`
+const getViewTitle = (view: MonitorView): string => {
+	if (view.title?.trim()) return view.title.trim()
+	return cameraMap.value.get(view.deviceId)?.name || `設備 ${view.deviceId}`
+}
 
 const initIntersectionObserver = () => {
 	if (typeof IntersectionObserver === "undefined") {

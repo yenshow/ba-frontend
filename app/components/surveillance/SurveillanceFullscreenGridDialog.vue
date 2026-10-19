@@ -54,7 +54,7 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
 	"update:modelValue": [value: boolean]
-	reload: [deviceId: number]
+	reload: [viewKey: string]
 }>()
 
 const CONTROLS_IDLE_MS = 2000

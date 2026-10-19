@@ -198,3 +198,45 @@ export function formatTime(dateString?: string | null): string {
 		hour12: false
 	});
 }
+
+/**
+ * 將內部值（YYYY-MM-DDTHH:mm）格式化為單一 input 顯示（24 小時制）
+ */
+export function formatDateTimeLocalDisplay(value: string): string {
+	const parsed = parseDateTimeLocalInput(value);
+	if (!parsed) return "";
+	return parsed.replace("T", " ");
+}
+
+/**
+ * 解析使用者輸入為 datetime-local 相容字串（YYYY-MM-DDTHH:mm）。
+ * 接受 `YYYY-MM-DD[T ]HH:mm`、`YYYY/MM/DD HH:mm`（可含秒，會捨去）。
+ */
+export function parseDateTimeLocalInput(raw: string): string | null {
+	const text = (raw || "").trim();
+	if (!text) return null;
+	const match =
+		/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})[T\s]+(\d{1,2}):(\d{1,2})(?::\d{1,2})?$/.exec(
+			text
+		);
+	if (!match) return null;
+	const year = match[1]!;
+	const month = Number(match[2]);
+	const day = Number(match[3]);
+	const hour = Number(match[4]);
+	const minute = Number(match[5]);
+	if (
+		month < 1 ||
+		month > 12 ||
+		day < 1 ||
+		day > 31 ||
+		hour < 0 ||
+		hour > 23 ||
+		minute < 0 ||
+		minute > 59
+	) {
+		return null;
+	}
+	const pad = (n: number) => String(n).padStart(2, "0");
+	return `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}`;
+}

@@ -362,103 +362,54 @@
 									RTSP URL 預覽：
 									<span class="break-all">{{ cameraRtspPreview }}</span>
 								</div>
-								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>所屬 NVR（選填）</span>
-									<FilterDropdown
-										v-model="cameraNvrDeviceIdString"
-										:options="nvrDeviceOptions"
-										placeholder="直連（不掛 NVR）"
-										text-size="text-sm 2xl:text-base"
-										aria-label="所屬 NVR"
-									/>
-									<p class="text-xs text-white/50 2xl:text-sm">
-										掛載後，影像監控可外開該 NVR 網頁做回放
-									</p>
-								</label>
-								<label
-									v-if="cameraNvrDeviceIdString"
-									class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base"
-								>
-									<span>NVR 通道號（選填）</span>
-									<input
-										v-model.number="cameraNvrChannel"
-										type="number"
-										min="1"
-										max="256"
-										class="form-input"
-										placeholder="例如：1"
-										aria-label="NVR 通道號"
-									/>
-								</label>
 							</template>
 
 							<template v-if="deviceTypeCode === 'camera' && isNvrCameraCategory">
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>主機位址<span class="required-mark">*</span></span>
+									<span>設備 IP 位址<span class="required-mark">*</span></span>
 									<input
 										v-model="nvrConfig.host"
 										type="text"
 										required
 										:pattern="DEVICE_IPV4_HOST_PATTERN"
 										class="form-input"
-										placeholder="操作者瀏覽器可達的 IP，例如：192.168.2.50"
-										aria-label="NVR 主機位址"
+										placeholder="區網或公網 IP，例如：192.168.2.50"
+										aria-label="NVR 設備 IP 位址"
 									/>
 								</label>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>Web 管理埠<span class="required-mark">*</span></span>
+									<span>RTSP 埠<span class="required-mark">*</span></span>
 									<input
-										v-model.number="nvrConfig.port"
+										v-model.number="nvrConfig.rtsp_port"
 										type="number"
 										min="1"
 										max="65535"
 										required
 										class="form-input"
-										placeholder="預設 80"
-										aria-label="NVR Web 管理埠"
+										placeholder="預設 554；NAT 對外埠如 8554"
+										aria-label="NVR RTSP 埠"
 									/>
-								</label>
-								<label class="flex items-center gap-3 text-sm text-white/80 2xl:gap-4 2xl:text-base">
-									<input
-										v-model="nvrConfig.use_https"
-										type="checkbox"
-										class="h-4 w-4 accent-emerald-400"
-										aria-label="使用 HTTPS"
-									/>
-									<span>使用 HTTPS 組回放網址</span>
 								</label>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>回放網址（選填）</span>
-									<input
-										v-model="nvrConfig.web_url"
-										type="text"
-										class="form-input"
-										placeholder="留空則自動組出；須為瀏覽器可開的網址"
-										aria-label="NVR 回放網址"
-									/>
-									<p class="text-xs text-white/50 2xl:text-sm">
-										預覽：
-										<span class="break-all text-white/70">{{ nvrWebUrlPreview }}</span>
-									</p>
-								</label>
-								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>帳號（選填）</span>
+									<span>帳號<span class="required-mark">*</span></span>
 									<input
 										v-model="nvrConfig.username"
 										type="text"
+										required
 										class="form-input"
-										placeholder="建檔用；外開網頁仍由 NVR 自行登入"
-										aria-label="NVR 帳號"
+										placeholder="預設 admin，可修改"
+										aria-label="NVR 登入帳號"
 									/>
 								</label>
 								<label class="flex flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
-									<span>密碼（選填）</span>
+									<span>密碼<span class="required-mark">*</span></span>
 									<div class="relative w-full">
 										<input
 											v-model="nvrConfig.password"
 											:type="showNvrPassword ? 'text' : 'password'"
 											class="form-input w-full pr-12"
-											placeholder="建檔用"
+											required
+											placeholder="請輸入設備登入密碼"
 											:aria-label="showNvrPassword ? 'NVR 密碼（已顯示）' : 'NVR 密碼（已隱藏）'"
 										/>
 										<button
@@ -872,7 +823,6 @@ import {
 	type VideoIntercomDeviceConfig,
 	type VideoIntercomUnitType,
 } from "~/types/device"
-import { isNvrCamera, resolveNvrWebUrl } from "~/utils/nvrWebUrl"
 import {
 	DEFAULT_CAMERA_RTSP_TEMPLATE,
 	DEFAULT_CAMERA_RTSP_PORT,
@@ -964,10 +914,6 @@ const isNvrCameraCategory = computed(
 		props.deviceTypeCode === "camera" && cameraCategoryCode.value === CAMERA_MODEL_CATEGORY_NVR
 )
 const showCameraPassword = ref(false)
-const cameraNvrDeviceIdString = ref("")
-const cameraNvrChannel = ref<number | undefined>(undefined)
-const nvrDeviceList = ref<Device[]>([])
-const isLoadingNvrDevices = ref(false)
 
 const cameraCategoryOptions = computed(() => [
 	{ value: "", label: "請選擇型號分類" },
@@ -1055,46 +1001,13 @@ const showVideoIntercomPassword = ref(false)
 
 const nvrConfig = reactive({
 	host: "",
+	/** ISAPI HTTP 埠：表單不顯示，固定預設 80 */
 	port: 80,
-	username: "",
+	rtsp_port: 554,
+	username: "admin",
 	password: "",
-	web_url: "",
-	use_https: false,
 })
 const showNvrPassword = ref(false)
-
-const nvrWebUrlPreview = computed(() =>
-	resolveNvrWebUrl({
-		host: nvrConfig.host,
-		port: nvrConfig.port,
-		web_url: nvrConfig.web_url,
-		use_https: nvrConfig.use_https,
-	})
-)
-
-const nvrDeviceOptions = computed(() => {
-	const options = [{ value: "", label: "直連（不掛 NVR）" }]
-	if (isLoadingNvrDevices.value) {
-		return [...options, { value: "_loading", label: "載入 NVR 中..." }]
-	}
-	for (const d of nvrDeviceList.value) {
-		options.push({ value: String(d.id), label: d.name })
-	}
-	return options
-})
-
-const loadNvrDevices = async () => {
-	isLoadingNvrDevices.value = true
-	try {
-		const result = await deviceApi.getDevices({ type_code: "camera", limit: 500 })
-		nvrDeviceList.value = (result.devices || []).filter(isNvrCamera)
-	} catch (error) {
-		logger.error("載入 NVR 設備失敗:", error)
-		nvrDeviceList.value = []
-	} finally {
-		isLoadingNvrDevices.value = false
-	}
-}
 
 // 追蹤當前載入的設備類型，確保切換類型時重新載入
 const currentLoadedTypeCode = ref<DeviceTypeCode | null>(null)
@@ -1205,8 +1118,6 @@ const inheritFromModel = () => {
 		if (model.port != null) videoIntercomConfig.port = model.port
 		const cfg = model.config as { sipPort?: number } | undefined
 		if (cfg?.sipPort != null) videoIntercomConfig.sipPort = cfg.sipPort
-	} else if (props.deviceTypeCode === "camera" && isNvrCameraCategory.value) {
-		if (model.port != null) nvrConfig.port = model.port
 	}
 }
 
@@ -1243,7 +1154,6 @@ watch(
 		currentLoadedTypeCode.value = null
 		if (!props.modelValue) return
 		void loadDeviceModels()
-		if (next === "camera") void loadNvrDevices()
 	}
 )
 
@@ -1283,8 +1193,6 @@ const resetForm = () => {
 	cameraGroup.value = ""
 	cameraCategoryCode.value = ""
 	showCameraPassword.value = false
-	cameraNvrDeviceIdString.value = ""
-	cameraNvrChannel.value = undefined
 
 	sensorConfig.protocol = "modbus"
 	sensorConfig.host = ""
@@ -1308,10 +1216,9 @@ const resetForm = () => {
 
 	nvrConfig.host = ""
 	nvrConfig.port = 80
-	nvrConfig.username = ""
+	nvrConfig.rtsp_port = 554
+	nvrConfig.username = "admin"
 	nvrConfig.password = ""
-	nvrConfig.web_url = ""
-	nvrConfig.use_https = false
 	showNvrPassword.value = false
 
 	localErrorMessage.value = null
@@ -1357,7 +1264,13 @@ const createModeHasContent = computed(() => {
 			return !!(c.host && hasPort)
 		}
 		if (c.type === "camera") {
-			if (isNvrCameraCategory.value) return !!nvrConfig.host.trim()
+			if (isNvrCameraCategory.value) {
+				return !!(
+					nvrConfig.host.trim() &&
+					nvrConfig.username.trim() &&
+					nvrConfig.password
+				)
+			}
 			const ip = cameraIp.value.trim()
 			const user = cameraUsername.value.trim()
 			const pwd = cameraPassword.value.trim()
@@ -1474,17 +1387,11 @@ const loadConfigFromDevice = (device: Device) => {
 			if (camCfg.is_nvr === true) {
 				nvrConfig.host = camCfg.host?.trim() || ""
 				nvrConfig.port = camCfg.port ?? 80
-				nvrConfig.username = camCfg.username?.trim() || ""
+				nvrConfig.rtsp_port = camCfg.rtsp_port ?? 554
+				nvrConfig.username = camCfg.username?.trim() || "admin"
 				nvrConfig.password = camCfg.password || ""
-				nvrConfig.web_url = camCfg.web_url || ""
-				nvrConfig.use_https = camCfg.use_https === true
 				break
 			}
-			cameraNvrDeviceIdString.value =
-				camCfg.nvr_device_id != null && camCfg.nvr_device_id > 0
-					? String(camCfg.nvr_device_id)
-					: ""
-			cameraNvrChannel.value = camCfg.nvr_channel
 			const existingRtspUrl = String(cameraConfig.rtsp_url || "").trim()
 			if (!existingRtspUrl) {
 				cameraIp.value = ""
@@ -1542,7 +1449,6 @@ watch(
 	(isOpen) => {
 		if (isOpen) {
 			loadDeviceModels()
-			if (props.deviceTypeCode === "camera") void loadNvrDevices()
 			nextTick(() => {
 				initialFormSnapshot.value = getFormSnapshot()
 			})
@@ -1584,17 +1490,15 @@ const getCurrentConfig = (): DeviceConfig => {
 		}
 		case "camera": {
 			if (isNvrCameraCategory.value) {
-				const webUrl = String(nvrConfig.web_url || "").trim()
 				const nvrCameraConfig: CameraDeviceConfig = {
 					type: "camera",
 					is_nvr: true,
 					host: nvrConfig.host.trim(),
-					port: nvrConfig.port || 80,
-					use_https: nvrConfig.use_https === true,
+					port: 80,
+					rtsp_port: nvrConfig.rtsp_port || 554,
 					group: cameraGroup.value.trim() || undefined,
-					username: String(nvrConfig.username || "").trim() || undefined,
-					password: nvrConfig.password || undefined,
-					...(webUrl ? { web_url: webUrl } : {}),
+					username: String(nvrConfig.username || "").trim() || "admin",
+					password: nvrConfig.password || "",
 				}
 				return nvrCameraConfig
 			}
@@ -1613,11 +1517,6 @@ const getCurrentConfig = (): DeviceConfig => {
 							port
 						)
 					: String(cameraConfig.rtsp_url || "")
-			const nvrId = Number(cameraNvrDeviceIdString.value)
-			const nvrChannel =
-				cameraNvrChannel.value != null && Number(cameraNvrChannel.value) > 0
-					? Number(cameraNvrChannel.value)
-					: undefined
 			const streamCameraConfig: CameraDeviceConfig = {
 				type: "camera",
 				rtsp_url: rtspUrl,
@@ -1626,8 +1525,6 @@ const getCurrentConfig = (): DeviceConfig => {
 				username: user,
 				password: pwd || cameraConfig.password,
 				group: cameraGroup.value.trim() || undefined,
-				...(Number.isInteger(nvrId) && nvrId > 0 ? { nvr_device_id: nvrId } : {}),
-				...(nvrChannel != null ? { nvr_channel: nvrChannel } : {}),
 			}
 			return streamCameraConfig
 		}
@@ -1699,8 +1596,10 @@ const handleSubmit = () => {
 		cameraPassword: cameraPassword.value,
 		isNvrCamera: isNvrCameraCategory.value,
 		nvrHost: nvrConfig.host,
-		nvrPort: nvrConfig.port,
-		nvrWebUrl: nvrConfig.web_url,
+		nvrPort: 80,
+		nvrRtspPort: nvrConfig.rtsp_port,
+		nvrUsername: nvrConfig.username,
+		nvrPassword: nvrConfig.password,
 	})
 	if (validationError) {
 		localErrorMessage.value = validationError
