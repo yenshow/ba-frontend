@@ -194,23 +194,19 @@
 								<div v-if="!localIsLongTerm" class="grid grid-cols-2 gap-3">
 									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
 										<span>起始日<span class="required-mark">*</span></span>
-										<input
+										<DateTimeLocal24Input
 											v-model="localValidBeginDate"
-											type="datetime-local"
-											step="60"
 											required
-											class="form-input-small"
+											input-class="form-input-small"
 											aria-label="有效期限起始時間（年/月/日/時/分）"
 										/>
 									</label>
 									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
 										<span>結束日<span class="required-mark">*</span></span>
-										<input
+										<DateTimeLocal24Input
 											v-model="localValidEndDate"
-											type="datetime-local"
-											step="60"
 											required
-											class="form-input-small"
+											input-class="form-input-small"
 											aria-label="有效期限結束時間（年/月/日/時/分）"
 										/>
 									</label>
@@ -418,21 +414,17 @@
 									</label>
 									<label class="flex flex-col gap-2">
 										<span>開始時間</span>
-										<input
+										<DateTimeLocal24Input
 											v-model="activePlateItem.effectiveBegin"
-											type="datetime-local"
-											step="60"
-											class="form-input-small"
+											input-class="form-input-small"
 											:aria-label="`第 ${activePlateTab + 1} 筆開始時間`"
 										/>
 									</label>
 									<label class="flex flex-col gap-2">
 										<span>結束時間</span>
-										<input
+										<DateTimeLocal24Input
 											v-model="activePlateItem.effectiveEnd"
-											type="datetime-local"
-											step="60"
-											class="form-input-small"
+											input-class="form-input-small"
 											:aria-label="`第 ${activePlateTab + 1} 筆結束時間`"
 										/>
 									</label>
@@ -487,6 +479,7 @@
 
 <script setup lang="ts">
 import type { PersonnelPersonDialogState, PersonGroup } from "~/types/personnel"
+import DateTimeLocal24Input from "~/components/common/DateTimeLocal24Input.vue"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
 import IconTrashButton from "~/components/common/IconTrashButton.vue"

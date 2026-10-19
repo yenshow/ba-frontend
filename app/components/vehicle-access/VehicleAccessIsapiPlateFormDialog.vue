@@ -102,24 +102,20 @@
 								</label>
 								<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>開始時間<span class="required-mark">*</span></span>
-									<input
+									<DateTimeLocal24Input
 										v-model="form.effectiveBeginLocal"
-										type="datetime-local"
-										step="60"
 										required
-										class="form-input-small"
-										aria-required="true"
+										input-class="form-input-small"
+										aria-label="開始時間"
 									/>
 								</label>
 								<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base">
 									<span>結束時間<span class="required-mark">*</span></span>
-									<input
+									<DateTimeLocal24Input
 										v-model="form.effectiveEndLocal"
-										type="datetime-local"
-										step="60"
 										required
-										class="form-input-small"
-										aria-required="true"
+										input-class="form-input-small"
+										aria-label="結束時間"
 									/>
 								</label>
 							</div>
@@ -148,6 +144,7 @@ import {
 	LICENSE_PLATE_BIND_MODE_OPTIONS,
 	LICENSE_PLATE_LIST_TYPE_OPTIONS
 } from "~/utils/licensePlateFormUtils";
+import DateTimeLocal24Input from "~/components/common/DateTimeLocal24Input.vue"
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 
 const form = defineModel<IsapiPlateFormModel>("form", { required: true });

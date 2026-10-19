@@ -1,6 +1,5 @@
 <template>
 	<div>
-		<!-- 影像監控系統頁面內容 - 參考其他系統版面 -->
 		<div
 			class="monitoring-page-layout"
 			:class="isOverviewCollapsed ? 'gap-0' : 'gap-4 xl:gap-6 2xl:gap-8'"
@@ -29,68 +28,51 @@
 					ref="detailPanelRef"
 					class="monitoring-detail-panel monitoring-panel rounded-2xl p-6 2xl:p-8"
 				>
-					<!-- 控制面板 -->
 					<div class="mb-4 shrink-0">
 						<SurveillanceControlPanel
 							:model-value="gridLayout"
-							:total-cameras="cameras.length"
+							:total-cameras="cameras.length + nvrDevices.length"
 							:view-count="monitorViews.length"
 							@update:model-value="handleLayoutChange"
 							@fullscreen="isFullscreenOpen = true"
 						/>
 					</div>
 
-					<!-- 監控網格區 -->
 					<div class="flex min-h-0 flex-1 flex-col">
 						<Transition name="fade" mode="out-in">
-							<!-- 錯誤狀態 -->
 							<div v-if="loadError" key="error" class="flex min-h-0 flex-1 items-center justify-center">
 								<div class="rounded-lg bg-red-50/90 p-6 text-center dark:bg-red-900/30">
 									<p class="text-red-600 dark:text-red-400">{{ loadError }}</p>
 									<button
-										@click="loadCameras"
+										type="button"
 										class="mt-4 rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600"
+										@click="loadCameras"
 									>
 										重試
 									</button>
 								</div>
 							</div>
 
-							<!-- 監控網格 -->
 							<div v-else-if="monitorViews.length > 0" key="grid" class="min-h-0 flex-1">
 								<SurveillanceCameraGrid
 									:cameras="cameras"
 									:views="monitorViews"
 									:layout="gridLayout"
-									:playback-url-by-device-id="playbackUrlByDeviceId"
 									@remove="handleRemoveView"
 									@reload="handleReloadView"
+									@playback="handleOpenPlayback"
 								/>
 							</div>
 
-							<!-- 提示：如何將攝影機加入監控畫面 -->
 							<div
 								v-else
 								key="empty"
 								class="flex min-h-0 flex-1 items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
 							>
 								<div>
-									<svg
-										class="mx-auto mb-4 h-16 w-16 text-white/60"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-										/>
-									</svg>
 									<p class="text-2xl text-white/90 2xl:text-3xl">尚未加入攝影機</p>
 									<p class="mt-2 text-base text-white/70 2xl:text-lg">
-										請於側邊列表點選攝影機以加入監控畫面
+										請於側邊列表點選攝影機或 NVR 通道以加入監控畫面
 									</p>
 								</div>
 							</div>
@@ -142,12 +124,12 @@
 								<div class="flex flex-col gap-4">
 									<div class="flex items-center justify-center">
 										<h2 class="text-xl font-semibold text-white xl:text-2xl 2xl:text-3xl">
-											攝影機列表
+											來源列表
 										</h2>
 										<span
 											class="ml-2 rounded-full bg-white/20 px-2.5 py-0.5 text-base font-medium text-white backdrop-blur-sm 2xl:text-lg"
 										>
-											{{ filteredCameras.length }}
+											{{ filteredCameras.length + nvrDevices.length }}
 										</span>
 									</div>
 									<FilterDropdown
@@ -160,33 +142,108 @@
 							</div>
 
 							<div class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4">
-								<div
-									v-if="filteredCameraCategoryGroups.length === 0"
-									class="py-8 text-center text-sm text-white/60 xl:text-base"
-								>
-									{{ cameras.length === 0 ? "沒有攝影機" : "此群組無攝影機" }}
-								</div>
-								<section
-									v-for="(group, groupIndex) in filteredCameraCategoryGroups"
-									:key="group.code"
-									:class="['space-y-3', groupIndex > 0 ? 'border-t border-white/20 pt-6' : '']"
-								>
+								<section class="space-y-3">
+									<h3 class="text-sm font-medium text-cyan-200/90 2xl:text-base">攝影機</h3>
+									<div
+										v-if="filteredCameraCategoryGroups.length === 0"
+										class="py-4 text-center text-sm text-white/60 xl:text-base"
+									>
+										{{ cameras.length === 0 ? "沒有攝影機" : "此群組無攝影機" }}
+									</div>
+									<section
+										v-for="(group, groupIndex) in filteredCameraCategoryGroups"
+										:key="group.code"
+										:class="['space-y-3', groupIndex > 0 ? 'border-t border-white/20 pt-4' : '']"
+									>
+										<h4 class="text-xs font-medium text-white/70 2xl:text-sm">
+											{{ group.label }}
+											<span class="ml-1.5 text-xs font-normal text-white/50">
+												({{ group.items.length }})
+											</span>
+										</h4>
+										<SurveillanceCameraCard
+											v-for="camera in group.items"
+											:key="camera.id"
+											:camera="camera"
+											:is-selected="selectedViewKeys.includes(cameraViewKey(camera.id))"
+											:connectivity-status="deviceConnectivity.getStatus(camera.id)"
+											:connectivity-loading="deviceConnectivity.isLoading(camera.id)"
+											@select="handleCameraSelect"
+										/>
+									</section>
+								</section>
+
+								<section class="space-y-3 border-t border-white/20 pt-6">
 									<h3 class="text-sm font-medium text-cyan-200/90 2xl:text-base">
-										{{ group.label }}
-										<span class="ml-1.5 text-xs font-normal text-white/50 2xl:text-sm">
-											({{ group.items.length }})
+										NVR
+										<span class="ml-1.5 text-xs font-normal text-white/50">
+											({{ nvrDevices.length }})
 										</span>
 									</h3>
-									<SurveillanceCameraCard
-										v-for="camera in group.items"
-										:key="camera.id"
-										:camera="camera"
-										:is-selected="selectedCameraIds.includes(camera.id)"
-										:connectivity-status="deviceConnectivity.getStatus(camera.id)"
-										:connectivity-loading="deviceConnectivity.isLoading(camera.id)"
-										:playback-web-url="playbackUrlByDeviceId[camera.id] || ''"
-										@select="handleCameraSelect"
-									/>
+									<div
+										v-if="nvrDevices.length === 0"
+										class="py-4 text-center text-sm text-white/60"
+									>
+										沒有 NVR 設備
+									</div>
+									<div
+										v-for="nvr in nvrDevices"
+										:key="nvr.id"
+										class="rounded-lg border border-white/20 bg-white/5"
+									>
+										<button
+											type="button"
+											class="flex w-full items-center justify-between px-3 py-2.5 text-left text-white hover:bg-white/10"
+											:aria-expanded="expandedNvrId === nvr.id"
+											@click="handleToggleNvr(nvr.id)"
+										>
+											<span class="font-medium">{{ nvr.name }}</span>
+											<span class="text-xs text-white/60">
+												{{ expandedNvrId === nvr.id ? "收合" : "展開通道" }}
+											</span>
+										</button>
+										<div v-if="expandedNvrId === nvr.id" class="space-y-2 border-t border-white/10 px-2 py-2">
+											<p v-if="nvrChannelsLoading" class="px-2 py-2 text-xs text-white/60">
+												載入通道中…
+											</p>
+											<p
+												v-else-if="nvrChannelsError"
+												class="px-2 py-2 text-xs text-red-300"
+											>
+												{{ nvrChannelsError }}
+											</p>
+											<button
+												v-for="ch in nvrChannels"
+												:key="`${nvr.id}-${ch.liveTrackId}`"
+												type="button"
+												:disabled="!ch.liveTrackId"
+												:class="[
+													'flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm transition-colors',
+													ch.liveTrackId &&
+													selectedViewKeys.includes(nvrChannelViewKey(nvr.id, ch.liveTrackId))
+														? 'bg-white/20 text-white'
+														: 'text-white/85 hover:bg-white/10',
+													!ch.liveTrackId ? 'cursor-not-allowed opacity-40' : '',
+												]"
+												@click="handleNvrChannelSelect(nvr, ch)"
+											>
+												<span>
+													{{ ch.name }}
+													<span v-if="ch.ipAddress" class="ml-1 text-xs text-white/50">
+														{{ ch.ipAddress }}
+													</span>
+												</span>
+												<span
+													:class="[
+														'rounded-full px-2 py-0.5 text-xs',
+														ch.online ? 'bg-green-500/30 text-green-100' : 'bg-white/15 text-white/60',
+													]"
+												>
+													{{ ch.online ? "線上" : "離線" }}
+												</span>
+											</button>
+										</div>
+									</div>
 								</section>
 							</div>
 						</div>
@@ -203,25 +260,38 @@
 		:layout="gridLayout"
 		@reload="handleReloadView"
 	/>
+
+	<SurveillanceNvrPlaybackDialog
+		v-model="playbackOpen"
+		:nvr-id="playbackNvrId"
+		:track-id="playbackTrackId"
+		:title="playbackTitle"
+	/>
 </template>
 
 <script setup lang="ts">
 import { TOAST } from "~/config/toastCatalog"
 import { onMounted, onBeforeUnmount, watch, ref, computed } from "vue"
-import type { GridLayout } from "~/types/surveillance"
-import type { CameraDeviceConfig } from "~/types/device"
+import type { GridLayout, MonitorView, NvrVirtualChannel } from "~/types/surveillance"
+import type { CameraDeviceConfig, Device } from "~/types/device"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { useStreamStatus } from "~/composables/monitoring/useStreamStatus"
 import { useMonitoringAsideHeightSync } from "~/composables/monitoring/useMonitoringAsideHeightSync"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
-import { isNvrCamera, resolveNvrWebUrl } from "~/utils/nvrWebUrl"
+import { useNvrApi } from "~/composables/systems/surveillance/useNvrApi"
+import { isNvrCamera } from "~/utils/nvrWebUrl"
+import {
+	cameraViewKey,
+	nvrChannelViewKey,
+} from "~/utils/surveillanceViewKey"
 import { useDeviceConnectivity } from "~/composables/systems/devices/useDeviceConnectivity"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import SurveillanceControlPanel from "~/components/surveillance/SurveillanceControlPanel.vue"
 import SurveillanceCameraGrid from "~/components/surveillance/SurveillanceCameraGrid.vue"
 import SurveillanceCameraCard from "~/components/surveillance/SurveillanceCameraCard.vue"
 import SurveillanceFullscreenGridDialog from "~/components/surveillance/SurveillanceFullscreenGridDialog.vue"
+import SurveillanceNvrPlaybackDialog from "~/components/surveillance/SurveillanceNvrPlaybackDialog.vue"
 import { groupDevicesByModelCategory } from "~/utils/cameraModelCategories"
 import { useSurveillanceRbac } from "~/composables/core/useAccessGate"
 
@@ -235,6 +305,7 @@ const toast = useToast()
 const { handleError } = useErrorHandler()
 
 const streamStatus = useStreamStatus()
+const nvrApi = useNvrApi()
 const loadError = ref<string | null>(null)
 const cameras = computed(() => streamStatus.cameras.value)
 const monitorViews = computed(() => streamStatus.monitorViews.value)
@@ -250,7 +321,17 @@ watch(
 const deviceApi = useDeviceApi()
 const surveillanceGroupFilter = ref<string>("")
 const cameraGroups = ref<string[]>([])
-const nvrById = ref<Record<number, CameraDeviceConfig>>({})
+const nvrDevices = ref<Device[]>([])
+const expandedNvrId = ref<number | null>(null)
+const nvrChannels = ref<NvrVirtualChannel[]>([])
+const nvrChannelsLoading = ref(false)
+const nvrChannelsError = ref<string | null>(null)
+
+const playbackOpen = ref(false)
+const playbackNvrId = ref(0)
+const playbackTrackId = ref(0)
+const playbackTitle = ref("")
+
 const surveillanceGroupFilterOptions = computed(() => [
 	{ value: "", label: "全部" },
 	...cameraGroups.value.map((g) => ({ value: g, label: g })),
@@ -266,25 +347,12 @@ const filteredCameraCategoryGroups = computed(() =>
 	groupDevicesByModelCategory([...filteredCameras.value])
 )
 
-/** camera deviceId → NVR web_url（僅已掛 NVR 者） */
-const playbackUrlByDeviceId = computed(() => {
-	const map: Record<number, string> = {}
-	for (const cam of cameras.value) {
-		const nvrId = Number((cam.config as CameraDeviceConfig)?.nvr_device_id)
-		if (!Number.isInteger(nvrId) || nvrId < 1) continue
-		const url = resolveNvrWebUrl(nvrById.value[nvrId])
-		if (url) map[cam.id] = url
-	}
-	return map
-})
-
 const gridLayout = ref<GridLayout>("1")
-const selectedCameraIds = computed(() => monitorViews.value.map((view) => view.deviceId))
+const selectedViewKeys = computed(() => monitorViews.value.map((view) => view.viewKey))
 const isFullscreenOpen = ref(false)
 const isOverviewCollapsed = ref(false)
 const { detailPanelRef, asideHeightStyle } = useMonitoringAsideHeightSync()
 
-/** 移除後僅在剩餘路數「恰好」為 1／4／9／16 時降格；否則維持原布局（保留空位） */
 const syncLayoutToViewCount = () => {
 	const count = monitorViews.value.length
 	if (count === 0) {
@@ -301,7 +369,7 @@ const syncLayoutToViewCount = () => {
 const trimNewestViewsToFit = (maxViews: number) => {
 	if (monitorViews.value.length <= maxViews) return
 	const sorted = [...monitorViews.value].sort((a, b) => a.position - b.position)
-	sorted.slice(maxViews).forEach((view) => streamStatus.removeMonitorView(view.deviceId))
+	sorted.slice(maxViews).forEach((view) => streamStatus.removeMonitorView(view.viewKey))
 }
 
 const loadCameraGroups = async () => {
@@ -316,14 +384,9 @@ const loadCameraGroups = async () => {
 const loadNvrDevices = async () => {
 	try {
 		const res = await deviceApi.getDevices({ type_code: "camera", limit: 500 })
-		const next: Record<number, CameraDeviceConfig> = {}
-		for (const d of res.devices || []) {
-			if (!isNvrCamera(d) || d.config?.type !== "camera") continue
-			next[d.id] = d.config as CameraDeviceConfig
-		}
-		nvrById.value = next
+		nvrDevices.value = (res.devices || []).filter(isNvrCamera)
 	} catch {
-		nvrById.value = {}
+		nvrDevices.value = []
 	}
 }
 
@@ -337,50 +400,104 @@ const loadCameras = async () => {
 	}
 }
 
-const handleReloadView = async (deviceId: number) => {
-	if (!canControlStream.value) {
-		toast.warning(TOAST.SURVEILLANCE_NO_STREAM_PERMISSION)
+const handleToggleNvr = async (nvrId: number) => {
+	if (expandedNvrId.value === nvrId) {
+		expandedNvrId.value = null
+		nvrChannels.value = []
+		nvrChannelsError.value = null
 		return
 	}
+	expandedNvrId.value = nvrId
+	nvrChannelsLoading.value = true
+	nvrChannelsError.value = null
+	nvrChannels.value = []
 	try {
-		await streamStatus.reloadMonitorView(deviceId)
+		nvrChannels.value = await nvrApi.listChannels(nvrId)
 	} catch (error) {
-		handleError(error, "重新載入串流失敗")
+		nvrChannelsError.value = handleError(error, "載入 NVR 通道失敗") || "載入 NVR 通道失敗"
+	} finally {
+		nvrChannelsLoading.value = false
 	}
 }
 
-const handleRemoveView = (deviceId: number) => {
-	streamStatus.removeMonitorView(deviceId)
-	syncLayoutToViewCount()
-}
-
-const handleCameraSelect = async (deviceId: number) => {
-	if (monitorViews.value.some((v) => v.deviceId === deviceId)) {
-		handleRemoveView(deviceId)
-		return
-	}
-
+const ensureCanAddView = (): boolean => {
 	if (!canControlStream.value) {
 		toast.warning(TOAST.SURVEILLANCE_NO_STREAM_PERMISSION)
-		return
+		return false
 	}
-
 	const needed = monitorViews.value.length + 1
 	if (needed > 16) {
 		toast.warning(TOAST.SURVEILLANCE_MAX_VIEWS(16))
-		return
+		return false
 	}
 	const currentMax = parseInt(gridLayout.value, 10)
 	if (needed > currentMax) {
 		gridLayout.value = layoutThatFits(needed)
 	}
+	return true
+}
 
+const handleReloadView = async (viewKey: string) => {
+	if (!canControlStream.value) {
+		toast.warning(TOAST.SURVEILLANCE_NO_STREAM_PERMISSION)
+		return
+	}
 	try {
-		await streamStatus.addMonitorView(deviceId)
+		await streamStatus.reloadMonitorView(viewKey)
+	} catch (error) {
+		handleError(error, "重新載入串流失敗")
+	}
+}
+
+const handleRemoveView = (viewKey: string) => {
+	streamStatus.removeMonitorView(viewKey)
+	syncLayoutToViewCount()
+}
+
+const handleCameraSelect = async (deviceId: number) => {
+	const viewKey = cameraViewKey(deviceId)
+	if (monitorViews.value.some((v) => v.viewKey === viewKey)) {
+		handleRemoveView(viewKey)
+		return
+	}
+	if (!ensureCanAddView()) return
+	try {
+		await streamStatus.addMonitorView({ kind: "camera", deviceId })
 		toast.success(TOAST.SURVEILLANCE_VIEW_ADDED)
 	} catch (error) {
 		handleError(error, "啟動串流失敗")
 	}
+}
+
+const handleNvrChannelSelect = async (nvr: Device, ch: NvrVirtualChannel) => {
+	const proxyChannelId = ch.liveTrackId
+	if (proxyChannelId == null) return
+	const viewKey = nvrChannelViewKey(nvr.id, proxyChannelId)
+	if (monitorViews.value.some((v) => v.viewKey === viewKey)) {
+		handleRemoveView(viewKey)
+		return
+	}
+	if (!ensureCanAddView()) return
+	const title = `${nvr.name} · ${ch.name}`
+	try {
+		await streamStatus.addMonitorView({
+			kind: "nvr",
+			nvrId: nvr.id,
+			proxyChannelId,
+			title,
+		})
+		toast.success(TOAST.SURVEILLANCE_VIEW_ADDED)
+	} catch (error) {
+		handleError(error, "啟動 NVR 通道串流失敗")
+	}
+}
+
+const handleOpenPlayback = (view: MonitorView) => {
+	if (view.proxyChannelId == null) return
+	playbackNvrId.value = view.deviceId
+	playbackTrackId.value = view.proxyChannelId
+	playbackTitle.value = view.title || `通道 ${view.proxyChannelId}`
+	playbackOpen.value = true
 }
 
 const handleLayoutChange = (newLayout: GridLayout) => {

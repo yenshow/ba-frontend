@@ -93,87 +93,165 @@
 									</tr>
 								</thead>
 								<tbody>
-									<tr
-										v-for="device in devices"
-										:key="device.id"
-										class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
-										:class="{
-											'opacity-60': deviceEnableFeature && device.enabled === false
-										}"
-									>
-										<td class="table-td">{{ device.name }}</td>
-										<td v-if="activeTab === 'camera'" class="table-td">
-											<span class="text-white/80">{{ getCameraGroup(device) }}</span>
-										</td>
-										<td v-if="activeTab === 'camera'" class="table-td">
-											<span class="text-sm text-white/80 2xl:text-base">{{
-												getModelCategoryLabel(device)
-											}}</span>
-										</td>
-										<td class="table-td">
-											<span v-if="device.model_name" class="text-white/90">{{ device.model_name }}</span>
-											<span v-else class="text-white/50">-</span>
-										</td>
-										<td class="table-td">
-											<span class="text-sm text-white/80 2xl:text-base">{{
-												activeTab === "camera" ? getCameraIp(device) : formatDeviceConfig(device.config)
-											}}</span>
-										</td>
-										<td class="table-td">
-											<span
-												:class="[
-													deviceConnectivity.getBadgeClass(deviceConnectivity.getStatus(device.id)),
-													'rounded px-2 py-1 text-sm 2xl:px-3 2xl:py-1.5 2xl:text-base'
-												]"
-											>
+									<template v-for="device in devices" :key="device.id">
+										<tr
+											class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
+											:class="{
+												'opacity-60': deviceEnableFeature && device.enabled === false,
+											}"
+										>
+											<td class="table-td">
+												<div class="flex items-center justify-center gap-2">
+													<button
+														v-if="isNvrCamera(device)"
+														type="button"
+														class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border border-white/30 text-white/80 transition-colors hover:bg-white/10"
+														:aria-expanded="expandedNvrId === device.id"
+														:aria-label="
+															expandedNvrId === device.id ? '收合通道' : '展開通道'
+														"
+														@click="handleToggleNvrChannels(device.id)"
+													>
+														<span
+															class="inline-block transition-transform"
+															:class="expandedNvrId === device.id ? 'rotate-90' : ''"
+															aria-hidden="true"
+															>›</span
+														>
+													</button>
+													<span>{{ device.name }}</span>
+												</div>
+											</td>
+											<td v-if="activeTab === 'camera'" class="table-td">
+												<span class="text-white/80">{{ getCameraGroup(device) }}</span>
+											</td>
+											<td v-if="activeTab === 'camera'" class="table-td">
+												<span class="text-sm text-white/80 2xl:text-base">{{
+													getModelCategoryLabel(device)
+												}}</span>
+											</td>
+											<td class="table-td">
+												<span v-if="device.model_name" class="text-white/90">{{
+													device.model_name
+												}}</span>
+												<span v-else class="text-white/50">-</span>
+											</td>
+											<td class="table-td">
+												<span class="text-sm text-white/80 2xl:text-base">{{
+													activeTab === "camera"
+														? getCameraIp(device)
+														: formatDeviceConfig(device.config)
+												}}</span>
+											</td>
+											<td class="table-td">
 												<span
-													v-if="deviceConnectivity.isLoading(device.id)"
-													class="inline-flex min-w-[32px] items-center justify-center gap-2"
+													:class="[
+														deviceConnectivity.getBadgeClass(
+															deviceConnectivity.getStatus(device.id)
+														),
+														'rounded px-2 py-1 text-sm 2xl:px-3 2xl:py-1.5 2xl:text-base',
+													]"
 												>
 													<span
-														class="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white/80"
-													></span>
+														v-if="deviceConnectivity.isLoading(device.id)"
+														class="inline-flex min-w-[32px] items-center justify-center gap-2"
+													>
+														<span
+															class="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white/80"
+														></span>
+													</span>
+													<span v-else>
+														{{ connectivityLabels[deviceConnectivity.getStatus(device.id)] }}
+													</span>
 												</span>
-												<span v-else>
-													{{ connectivityLabels[deviceConnectivity.getStatus(device.id)] }}
+											</td>
+											<td v-if="deviceEnableFeature" class="table-td">
+												<span
+													:class="[
+														device.enabled === false
+															? 'bg-yellow-500/20 text-yellow-200'
+															: 'bg-emerald-500/20 text-emerald-200',
+														'rounded px-2 py-1 text-sm 2xl:px-3 2xl:py-1.5 2xl:text-base',
+													]"
+												>
+													{{ device.enabled === false ? "停用" : "啟用" }}
 												</span>
-											</span>
-										</td>
-										<td v-if="deviceEnableFeature" class="table-td">
-											<span
-												:class="[
-													device.enabled === false
-														? 'bg-yellow-500/20 text-yellow-200'
-														: 'bg-emerald-500/20 text-emerald-200',
-													'rounded px-2 py-1 text-sm 2xl:px-3 2xl:py-1.5 2xl:text-base'
-												]"
-											>
-												{{ device.enabled === false ? "停用" : "啟用" }}
-											</span>
-										</td>
-										<td class="table-td text-white/70">
-											{{ formatDate(device.created_at) }}
-										</td>
-										<td class="table-td">
-											<div class="flex gap-2 2xl:gap-3">
-												<PermissionActionButton
-													:allowed="canUpdateDevice"
-													aria-label="編輯設備"
-													class="rounded bg-blue-500/80 px-3 py-1 text-white enabled:hover:bg-blue-400 2xl:px-4 2xl:py-2"
-													@click="editDevice(device)"
+											</td>
+											<td class="table-td text-white/70">
+												{{ formatDate(device.created_at) }}
+											</td>
+											<td class="table-td">
+												<div class="flex flex-wrap justify-center gap-2 2xl:gap-3">
+													<PermissionActionButton
+														:allowed="canUpdateDevice"
+														aria-label="編輯設備"
+														class="rounded bg-blue-500/80 px-3 py-1 text-white enabled:hover:bg-blue-400 2xl:px-4 2xl:py-2"
+														@click="editDevice(device)"
+													>
+														編輯
+													</PermissionActionButton>
+													<PermissionActionButton
+														:allowed="canDeleteDevice"
+														aria-label="刪除設備"
+														class="rounded bg-red-500/80 px-3 py-1 text-white enabled:hover:bg-red-400 2xl:px-4 2xl:py-2"
+														@click="confirmDeleteDevice(device)"
+														>刪除</PermissionActionButton
+													>
+												</div>
+											</td>
+										</tr>
+										<tr
+											v-if="isNvrCamera(device) && expandedNvrId === device.id"
+											class="border-b border-white/10 bg-white/[0.03]"
+										>
+											<td :colspan="deviceTableColspan" class="px-4 py-3 text-left">
+												<p
+													v-if="nvrChannelsLoading"
+													class="text-sm text-white/60 2xl:text-base"
 												>
-													編輯
-												</PermissionActionButton>
-												<PermissionActionButton
-													:allowed="canDeleteDevice"
-													aria-label="刪除設備"
-													class="rounded bg-red-500/80 px-3 py-1 text-white enabled:hover:bg-red-400 2xl:px-4 2xl:py-2"
-													@click="confirmDeleteDevice(device)"
-													>刪除</PermissionActionButton
+													載入通道中…
+												</p>
+												<p
+													v-else-if="nvrChannelsError"
+													class="text-sm text-red-300 2xl:text-base"
 												>
-											</div>
-										</td>
-									</tr>
+													{{ nvrChannelsError }}
+												</p>
+												<div
+													v-else-if="nvrChannels.length === 0"
+													class="text-sm text-white/50 2xl:text-base"
+												>
+													此 NVR 目前無通道資料
+												</div>
+												<ul v-else class="space-y-2">
+													<li
+														v-for="ch in nvrChannels"
+														:key="`${device.id}-${ch.channelId ?? ch.liveTrackId}`"
+														class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/5 px-3 py-2 text-sm text-white/90 2xl:text-base"
+													>
+														<span class="min-w-0">
+															<span class="font-medium">{{ ch.name }}</span>
+															<span
+																v-if="ch.ipAddress"
+																class="ml-2 text-white/55"
+																>{{ ch.ipAddress }}</span
+															>
+														</span>
+														<span
+															:class="[
+																'rounded-full px-2 py-0.5 text-xs 2xl:text-sm',
+																ch.online
+																	? 'bg-green-500/30 text-green-100'
+																	: 'bg-white/15 text-white/60',
+															]"
+														>
+															{{ ch.online ? "線上" : "離線" }}
+														</span>
+													</li>
+												</ul>
+											</td>
+										</tr>
+									</template>
 								</tbody>
 							</table>
 
@@ -236,6 +314,7 @@ import type {
 	DeviceConfig,
 	CameraDeviceConfig
 } from "~/types/device";
+import type { NvrVirtualChannel } from "~/types/surveillance";
 import type {
 	DeviceCreatedEvent,
 	DeviceUpdatedEvent,
@@ -251,11 +330,13 @@ import PageTabs from "~/components/common/PageTabs.vue";
 import AsyncPanel from "~/components/common/AsyncPanel.vue";
 import { formatDate } from "~/utils/dateUtils";
 import { formatCameraHostPort, formatDeviceHostPort, parseCameraRtspUrl } from "~/utils/cameraRtspUtils";
+import { isNvrCamera } from "~/utils/nvrWebUrl";
 import { useDataLoader } from "~/composables/monitoring/useDataLoader";
 import { useToast } from "~/composables/core/useToast";
 import { useErrorHandler } from "~/composables/core/useErrorHandler";
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
 import { useDeviceConnectivity } from "~/composables/systems/devices/useDeviceConnectivity";
+import { useNvrApi } from "~/composables/systems/surveillance/useNvrApi";
 import { useDeviceWebSocket } from "~/composables/websocket/subscribers/useDeviceWebSocket";
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import { applyFormApiErrorToRef } from "~/utils/apiError";
@@ -278,9 +359,43 @@ const canWriteDevice = computed(() =>
 	editingDevice.value ? canUpdateDevice.value : canCreateDevice.value
 );
 const deviceApi = useDeviceApi();
+const nvrApi = useNvrApi();
 const toast = useToast();
 const { handleError: handleApiError } = useErrorHandler();
 const { setupDeviceListeners, removeDeviceListeners } = useDeviceWebSocket();
+
+const expandedNvrId = ref<number | null>(null);
+const nvrChannels = ref<NvrVirtualChannel[]>([]);
+const nvrChannelsLoading = ref(false);
+const nvrChannelsError = ref<string | null>(null);
+
+const deviceTableColspan = computed(() => {
+	let n = 6; // name, model, config/ip, status, date, ops
+	if (activeTab.value === "camera") n += 2; // group filter col + model category
+	if (deviceEnableFeature.value) n += 1;
+	return n;
+});
+
+const handleToggleNvrChannels = async (nvrId: number) => {
+	if (expandedNvrId.value === nvrId) {
+		expandedNvrId.value = null;
+		nvrChannels.value = [];
+		nvrChannelsError.value = null;
+		return;
+	}
+	expandedNvrId.value = nvrId;
+	nvrChannelsLoading.value = true;
+	nvrChannelsError.value = null;
+	nvrChannels.value = [];
+	try {
+		nvrChannels.value = await nvrApi.listChannels(nvrId);
+	} catch (error) {
+		nvrChannelsError.value =
+			handleApiError(error, "載入 NVR 通道失敗") || "載入 NVR 通道失敗";
+	} finally {
+		nvrChannelsLoading.value = false;
+	}
+};
 
 const deviceTabs = [
 	{ name: "攝影機", code: "camera" },
@@ -470,6 +585,9 @@ const switchTab = (tabCode: DeviceTypeCode) => {
 	devices.value.length = 0;
 	total.value = 0;
 	deviceConnectivity.reset();
+	expandedNvrId.value = null;
+	nvrChannels.value = [];
+	nvrChannelsError.value = null;
 
 	activeTab.value = tabCode;
 	resetPage();
