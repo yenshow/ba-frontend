@@ -50,9 +50,9 @@
 							<th class="whitespace-nowrap border border-white/20 p-2">日期</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">區域-地點</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">規則</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">應到人數</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">實到人數</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">未到人數</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">{{ reportLabels.expected }}</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">{{ reportLabels.present }}</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">{{ reportLabels.absent }}</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -64,9 +64,9 @@
 							<td class="border border-white/20 p-2">{{ row.日期 }}</td>
 							<td class="border border-white/20 p-2">{{ row["區域-地點"] }}</td>
 							<td class="border border-white/20 p-2">{{ row.規則 }}</td>
-							<td class="border border-white/20 p-2">{{ row.應到人數 }}</td>
-							<td class="border border-white/20 p-2">{{ row.實到人數 }}</td>
-							<td class="border border-white/20 p-2">{{ row.未到人數 }}</td>
+							<td class="border border-white/20 p-2">{{ row.expectedCount }}</td>
+							<td class="border border-white/20 p-2">{{ row.presentCount }}</td>
+							<td class="border border-white/20 p-2">{{ row.absentCount }}</td>
 						</tr>
 					</tbody>
 				</table>
@@ -82,9 +82,9 @@
 							<th class="whitespace-nowrap border border-white/20 p-2">日期</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">區域-地點</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">群組</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">應到人數</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">實到人數</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">未到人數</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">{{ reportLabels.expected }}</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">{{ reportLabels.present }}</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">{{ reportLabels.absent }}</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -96,13 +96,13 @@
 							<td class="border border-white/20 p-2">{{ row.日期 }}</td>
 							<td class="border border-white/20 p-2">{{ row["區域-地點"] }}</td>
 							<td class="border border-white/20 p-2">{{ row.群組 }}</td>
-							<td class="border border-white/20 p-2">{{ row.應到人數 }}</td>
-							<td class="border border-white/20 p-2">{{ row.實到人數 }}</td>
+							<td class="border border-white/20 p-2">{{ row.expectedCount }}</td>
+							<td class="border border-white/20 p-2">{{ row.presentCount }}</td>
 							<td
 								class="border border-white/20 p-2"
 								:class="row.hasAbsent ? 'bg-red-500/80 font-semibold' : ''"
 							>
-								{{ row.未到人數 }}
+								{{ row.absentCount }}
 							</td>
 						</tr>
 					</tbody>
@@ -193,19 +193,23 @@ import { useMediaLightbox } from "~/composables/core/useMediaLightbox"
 import { downloadReportWorkbook } from "~/utils/xlsxExport"
 import { TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtils"
 import type { RollCallReportAttendanceRow, RollCallReportSession } from "~/types/rollCall"
+import {
+	normalizeRollCallStatLabels,
+	resolveSharedRollCallStatLabels,
+	type RollCallStatLabels,
+} from "~/utils/statLabels"
 
 export type RollCallReportLocationOption = {
 	locationId: number
 	label: string
 	zoneName: string
 	locationName: string
+	statLabels?: Partial<RollCallStatLabels> | null
 }
 
 const DETAIL_HEADERS = ["日期", "區域-地點", "群組", "姓名", "狀態", "簽到時間"] as const
 const NAME_COLUMN_INDEX = DETAIL_HEADERS.indexOf("姓名")
 const DETAIL_PAGE_SIZE = 10
-const STATS_HEADERS = ["日期", "區域-地點", "規則", "應到人數", "實到人數", "未到人數"]
-const GROUP_STATS_HEADERS = ["日期", "區域-地點", "群組", "應到人數", "實到人數", "未到人數"]
 
 const props = defineProps<{
 	sessions: RollCallReportSession[]
@@ -299,15 +303,44 @@ const formatDisplayDate = (ymd: string) => {
 	return `${m[1]}/${m[2]}/${m[3]}`
 }
 
+const reportLabels = computed(() => {
+	const locFilter = filterLocationId.value
+	const opts = props.locationOptions
+	const scoped = locFilter
+		? opts.filter((o) => String(o.locationId) === locFilter)
+		: opts
+	return resolveSharedRollCallStatLabels(
+		scoped.map((o) => normalizeRollCallStatLabels(o.statLabels)),
+	)
+})
+
+const statsHeaders = computed(() => [
+	"日期",
+	"區域-地點",
+	"規則",
+	reportLabels.value.expected,
+	reportLabels.value.present,
+	reportLabels.value.absent,
+])
+
+const groupStatsHeaders = computed(() => [
+	"日期",
+	"區域-地點",
+	"群組",
+	reportLabels.value.expected,
+	reportLabels.value.present,
+	reportLabels.value.absent,
+])
+
 const statsTableRows = computed(() =>
 	filteredSessions.value.map((s) => ({
 		key: `session-${s.id}`,
 		日期: formatDisplayDate(s.sessionDate),
 		"區域-地點": zoneLocationLabel(s.zoneName, s.locationName, s.locationId),
 		規則: s.ruleName || "—",
-		應到人數: String(s.expectedCount ?? 0),
-		實到人數: String(s.presentCount ?? 0),
-		未到人數: String(s.absentCount ?? 0),
+		expectedCount: String(s.expectedCount ?? 0),
+		presentCount: String(s.presentCount ?? 0),
+		absentCount: String(s.absentCount ?? 0),
 	})),
 )
 
@@ -339,9 +372,9 @@ const groupStatsTableRows = computed(() => {
 			日期: cur.日期,
 			"區域-地點": cur["區域-地點"],
 			群組: cur.群組,
-			應到人數: String(cur.expected),
-			實到人數: String(cur.present),
-			未到人數: String(absent),
+			expectedCount: String(cur.expected),
+			presentCount: String(cur.present),
+			absentCount: String(absent),
 			hasAbsent: absent > 0,
 		}
 	})
@@ -400,10 +433,39 @@ const handleExportXlsx = () => {
 	const dateStr =
 		filteredSessions.value[0]?.sessionDate?.replace(/\//g, "-") ||
 		new Date().toISOString().slice(0, 10)
+	const labels = reportLabels.value
+	const mapStatsExport = (row: {
+		日期: string
+		"區域-地點": string
+		規則?: string
+		群組?: string
+		expectedCount: string
+		presentCount: string
+		absentCount: string
+	}) => {
+		const base: Record<string, string> = {
+			日期: row.日期,
+			"區域-地點": row["區域-地點"],
+			[labels.expected]: row.expectedCount,
+			[labels.present]: row.presentCount,
+			[labels.absent]: row.absentCount,
+		}
+		if (row.規則 != null) base["規則"] = row.規則
+		if (row.群組 != null) base["群組"] = row.群組
+		return base
+	}
 	downloadReportWorkbook(
 		[
-			{ title: "簽到統計", headers: STATS_HEADERS, rows: statsTableRows.value },
-			{ title: "群組統計", headers: GROUP_STATS_HEADERS, rows: groupStatsTableRows.value },
+			{
+				title: "簽到統計",
+				headers: statsHeaders.value,
+				rows: statsTableRows.value.map(mapStatsExport),
+			},
+			{
+				title: "群組統計",
+				headers: groupStatsHeaders.value,
+				rows: groupStatsTableRows.value.map(mapStatsExport),
+			},
 		],
 		{
 			title: "簽到名單",

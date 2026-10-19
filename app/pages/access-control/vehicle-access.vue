@@ -90,6 +90,7 @@
 								:exit-count="exitCount"
 								:current-count="onSiteCount"
 								:on-site-capacity="onSiteCapacity"
+								:stat-labels="selectedLocation?.statLabels"
 							/>
 							<div class="grid min-h-0 min-w-0 flex-1 grid-cols-2 items-stretch gap-4">
 								<div class="flex min-h-0 min-w-0 flex-col">
@@ -430,7 +431,8 @@ const simulationLocationOptions = computed((): VehicleAccessSimulationLocationOp
 			locationId,
 			label: [zoneName, locationName].filter(Boolean).join("-") || String(locationId),
 			zoneName,
-			locationName
+			locationName,
+			statLabels: loc.statLabels,
 		});
 	}
 	return opts;

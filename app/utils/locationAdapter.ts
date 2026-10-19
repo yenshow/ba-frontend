@@ -33,6 +33,13 @@ import {
 	normalizeVehicleLogDisplayColumns,
 	toStoredVehicleLogDisplayColumns,
 } from "~/utils/vehicleAccessLogColumns"
+import {
+	draftEntryExitStatLabels,
+	draftRollCallStatLabels,
+	toStoredEntryExitStatLabels,
+	toStoredRollCallStatLabels,
+	withStoredStatLabels,
+} from "~/utils/statLabels"
 
 function isEnvironmentSystemConfig(config: unknown): config is EnvironmentSystemConfig {
 	if (!config || typeof config !== "object") return false
@@ -163,6 +170,7 @@ export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZo
 						? config.logDisplayColumns
 						: undefined,
 					dashboardLayout: normalizeDashboardLayout(config.dashboardLayout),
+					statLabels: draftEntryExitStatLabels(config.statLabels),
 				} as PeopleCountingLocation,
 			]
 		}),
@@ -202,6 +210,7 @@ export function unifiedToRollCallZone(zone: UnifiedZone): RollCallZone {
 					name: loc.name,
 					...pickSortOrder(loc.sortOrder),
 					deviceIds: positiveIds(config?.deviceIds),
+					statLabels: draftRollCallStatLabels(config?.statLabels),
 				} as RollCallLocation,
 			]
 		}),
@@ -254,6 +263,7 @@ export function unifiedToVehicleAccessZone(zone: UnifiedZone): VehicleAccessZone
 					logDisplayColumns: normalizeVehicleLogDisplayColumns(
 						vaSystem.config.logDisplayColumns
 					),
+					statLabels: draftEntryExitStatLabels(vaSystem.config.statLabels),
 				} as VehicleAccessLocation,
 			]
 		}),
@@ -431,6 +441,7 @@ export function peopleCountingLocationToUnified(
 						return stored.length > 0 ? stored : undefined
 					})(),
 					dashboardLayout: normalizeDashboardLayout(loc.dashboardLayout),
+					...withStoredStatLabels(toStoredEntryExitStatLabels(loc.statLabels)),
 				} as PeopleCountingSystemConfig,
 			},
 		],
@@ -451,6 +462,7 @@ export function rollCallLocationToUnified(
 				systemType,
 				config: {
 					deviceIds: positiveIds(loc.deviceIds),
+					...withStoredStatLabels(toStoredRollCallStatLabels(loc.statLabels)),
 				} satisfies RollCallSystemConfig,
 			},
 		],
@@ -487,6 +499,7 @@ export function vehicleAccessLocationToUnified(
 					logDisplayColumns: toStoredVehicleLogDisplayColumns(
 						normalizeVehicleLogDisplayColumns(loc.logDisplayColumns)
 					),
+					...withStoredStatLabels(toStoredEntryExitStatLabels(loc.statLabels)),
 				} as VehicleAccessSystemConfig,
 			},
 		],

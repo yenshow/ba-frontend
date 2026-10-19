@@ -15,6 +15,12 @@ export interface RollCallLocation {
 	deviceIds?: number[]
 	locationId?: number
 	zoneName?: string
+	/** 應到／實到／未到顯示名稱（可選；空白＝系統預設） */
+	statLabels?: {
+		expected?: string
+		present?: string
+		absent?: string
+	}
 	/** 地點表單草稿；儲存區域時一併落庫 */
 	rules?: RollCallRuleDraft[]
 }
@@ -62,6 +68,12 @@ export interface RollCallTodayLocation {
 	name: string
 	zoneName: string
 	deviceIds: number[]
+	/** 應到／實到／未到顯示名稱 */
+	statLabels?: {
+		expected?: string
+		present?: string
+		absent?: string
+	}
 	sessions: RollCallSessionSummary[]
 	/** 主場次單位格（對齊人流 units） */
 	units?: RollCallUnitSummary[]

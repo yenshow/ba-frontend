@@ -240,6 +240,51 @@
 		</div>
 
 		<div class="mt-3 border-t border-white/10 pt-3">
+			<span class="text-sm font-medium text-white/80 2xl:text-base">統計顯示名稱</span>
+			<p class="mt-1 text-xs text-white/50">
+				留空則使用系統預設；最多 {{ STAT_LABEL_MAX_LEN }} 字；主畫面、完整報表與備份表頭會套用
+			</p>
+			<div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+				<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
+					<span>進場</span>
+					<input
+						v-model="statLabelEntry"
+						type="text"
+						:maxlength="STAT_LABEL_MAX_LEN"
+						class="form-input-small"
+						:placeholder="DEFAULT_VEHICLE_ACCESS_STAT_LABELS.entry"
+						aria-label="進場車輛顯示名稱"
+						@input="handleStatLabelsChange"
+					/>
+				</label>
+				<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
+					<span>出場</span>
+					<input
+						v-model="statLabelExit"
+						type="text"
+						:maxlength="STAT_LABEL_MAX_LEN"
+						class="form-input-small"
+						:placeholder="DEFAULT_VEHICLE_ACCESS_STAT_LABELS.exit"
+						aria-label="出場車輛顯示名稱"
+						@input="handleStatLabelsChange"
+					/>
+				</label>
+				<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
+					<span>在場</span>
+					<input
+						v-model="statLabelCurrent"
+						type="text"
+						:maxlength="STAT_LABEL_MAX_LEN"
+						class="form-input-small"
+						:placeholder="DEFAULT_VEHICLE_ACCESS_STAT_LABELS.current"
+						aria-label="在場車輛顯示名稱"
+						@input="handleStatLabelsChange"
+					/>
+				</label>
+			</div>
+		</div>
+
+		<div class="mt-3 border-t border-white/10 pt-3">
 			<span class="text-sm font-medium text-white/80 2xl:text-base">過車紀錄顯示欄位</span>
 			<div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
 				<label
@@ -283,6 +328,11 @@ import {
 	toStoredVehicleLogDisplayColumns,
 	type VehicleAccessLogColumnKey
 } from "~/utils/vehicleAccessLogColumns";
+import {
+	DEFAULT_VEHICLE_ACCESS_STAT_LABELS,
+	draftEntryExitStatLabels,
+	STAT_LABEL_MAX_LEN,
+} from "~/utils/statLabels";
 import { ref, watch, computed, onMounted } from "vue";
 
 interface VehicleCustomGroupOption {
@@ -315,6 +365,21 @@ const localLocation = ref<VehicleAccessLocation>({
 	dataSource: storedVehicleAccessDataSource(props.location.dataSource),
 	vehicleGroupIds: props.location.vehicleGroupIds ?? []
 });
+
+const draftStatLabels = () => draftEntryExitStatLabels(localLocation.value.statLabels);
+const statLabelEntry = ref(draftStatLabels().entry);
+const statLabelExit = ref(draftStatLabels().exit);
+const statLabelCurrent = ref(draftStatLabels().current);
+
+const handleStatLabelsChange = () => {
+	localLocation.value.statLabels = draftEntryExitStatLabels({
+		entry: statLabelEntry.value,
+		exit: statLabelExit.value,
+		current: statLabelCurrent.value,
+	});
+	handleChange();
+};
+
 const dataSource = ref(storedVehicleAccessDataSource(props.location.dataSource));
 const operationMode = ref<"construction_flow" | "parking">(
 	props.location.operationMode === "parking" ? "parking" : "construction_flow"
@@ -431,6 +496,11 @@ watch(
 				: "";
 		entryLaneIdString.value = newLocation.entryLaneId != null ? String(newLocation.entryLaneId) : "";
 		exitLaneIdString.value = newLocation.exitLaneId != null ? String(newLocation.exitLaneId) : "";
+		const nextLabels = draftEntryExitStatLabels(newLocation.statLabels);
+		statLabelEntry.value = nextLabels.entry;
+		statLabelExit.value = nextLabels.exit;
+		statLabelCurrent.value = nextLabels.current;
+		localLocation.value.statLabels = nextLabels;
 	},
 	{ immediate: true, deep: true }
 );

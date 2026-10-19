@@ -45,6 +45,51 @@
 		</div>
 
 		<div class="border-t border-white/15 pt-4">
+			<span class="text-sm font-medium text-white/80 2xl:text-base">統計顯示名稱</span>
+			<p class="mt-1 text-xs text-white/50">
+				留空則使用系統預設；最多 {{ STAT_LABEL_MAX_LEN }} 字；主畫面與完整報表會套用
+			</p>
+			<div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+				<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
+					<span>應到</span>
+					<input
+						v-model="statLabelExpected"
+						type="text"
+						:maxlength="STAT_LABEL_MAX_LEN"
+						class="form-input-small"
+						:placeholder="DEFAULT_ROLL_CALL_STAT_LABELS.expected"
+						aria-label="應到人數顯示名稱"
+						@input="handleStatLabelsChange"
+					/>
+				</label>
+				<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
+					<span>實到</span>
+					<input
+						v-model="statLabelPresent"
+						type="text"
+						:maxlength="STAT_LABEL_MAX_LEN"
+						class="form-input-small"
+						:placeholder="DEFAULT_ROLL_CALL_STAT_LABELS.present"
+						aria-label="實到人數顯示名稱"
+						@input="handleStatLabelsChange"
+					/>
+				</label>
+				<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
+					<span>未到</span>
+					<input
+						v-model="statLabelAbsent"
+						type="text"
+						:maxlength="STAT_LABEL_MAX_LEN"
+						class="form-input-small"
+						:placeholder="DEFAULT_ROLL_CALL_STAT_LABELS.absent"
+						aria-label="未到人數顯示名稱"
+						@input="handleStatLabelsChange"
+					/>
+				</label>
+			</div>
+		</div>
+
+		<div class="border-t border-white/15 pt-4">
 			<RollCallRulesEditor
 				:model-value="localRules"
 				:can-edit="canEditRules"
@@ -61,6 +106,11 @@ import type { RollCallLocation, RollCallRuleDraft } from "~/types/rollCall"
 import { useAuth } from "~/composables/core/useAuth"
 import { PERM } from "~/config/permissionCodes"
 import RollCallRulesEditor from "~/components/roll-call/RollCallRulesEditor.vue"
+import {
+	DEFAULT_ROLL_CALL_STAT_LABELS,
+	draftRollCallStatLabels,
+	STAT_LABEL_MAX_LEN,
+} from "~/utils/statLabels"
 
 const props = defineProps<{
 	location: RollCallLocation
@@ -84,11 +134,27 @@ const localName = ref(props.location.name || "")
 const selectedIds = computed(() => props.location.deviceIds || [])
 const localRules = computed(() => props.location.rules || [])
 
+const draftLabels = () => draftRollCallStatLabels(props.location.statLabels)
+const statLabelExpected = ref(draftLabels().expected)
+const statLabelPresent = ref(draftLabels().present)
+const statLabelAbsent = ref(draftLabels().absent)
+
 watch(
 	() => props.location.name,
 	(name) => {
 		localName.value = name || ""
 	},
+)
+
+watch(
+	() => props.location.statLabels,
+	(labels) => {
+		const next = draftRollCallStatLabels(labels)
+		statLabelExpected.value = next.expected
+		statLabelPresent.value = next.present
+		statLabelAbsent.value = next.absent
+	},
+	{ deep: true },
 )
 
 const handleNameChange = () => {
@@ -104,5 +170,16 @@ const handleToggleDevice = (deviceId: number) => {
 
 const handleRulesChange = (rules: RollCallRuleDraft[]) => {
 	emit("update", { ...props.location, rules })
+}
+
+const handleStatLabelsChange = () => {
+	emit("update", {
+		...props.location,
+		statLabels: draftRollCallStatLabels({
+			expected: statLabelExpected.value,
+			present: statLabelPresent.value,
+			absent: statLabelAbsent.value,
+		}),
+	})
 }
 </script>

@@ -102,6 +102,7 @@ export const usePeopleCountingState = () => {
 						cameraMode: updatedLocation.cameraMode,
 						logDisplayColumns: updatedLocation.logDisplayColumns,
 						dashboardLayout: updatedLocation.dashboardLayout,
+						statLabels: updatedLocation.statLabels,
 						entryCount: updatedLocation.entryCount,
 						exitCount: updatedLocation.exitCount,
 						currentCount: updatedLocation.currentCount,

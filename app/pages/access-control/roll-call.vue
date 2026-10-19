@@ -237,6 +237,7 @@ import { useLocationAccessSync } from "~/composables/systems/personnel/useLocati
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
 import { setupDebouncedRefetchListeners } from "~/composables/websocket/useWebSocket"
+import { normalizeRollCallStatLabels } from "~/utils/statLabels"
 import { PERM } from "~/config/permissionCodes"
 import { TOAST } from "~/config/toastCatalog"
 import { ROLL_CALL_RESET_STATS_CONFIRM } from "~/utils/confirmCopy"
@@ -309,6 +310,7 @@ const reportLocationOptions = computed(() => {
 		label: string
 		zoneName: string
 		locationName: string
+		statLabels?: { expected?: string; present?: string; absent?: string }
 	}> = []
 	for (const zone of zones.value) {
 		for (const loc of zone.locations || []) {
@@ -321,6 +323,7 @@ const reportLocationOptions = computed(() => {
 				label: [zoneName, locationName].filter(Boolean).join("-") || String(locationId),
 				zoneName,
 				locationName,
+				statLabels: loc.statLabels,
 			})
 		}
 	}
@@ -391,11 +394,14 @@ const selected = computed(
 	() => todayLocations.value.find((item) => item.locationId === selectedLocationId.value) || null,
 )
 const activeSummary = computed(() => pickPrimarySession(selected.value?.sessions))
-const statCards = computed(() => [
-	{ label: "應到人數", value: activeSummary.value?.expectedCount ?? 0 },
-	{ label: "實到人數", value: activeSummary.value?.presentCount ?? 0 },
-	{ label: "未到人數", value: activeSummary.value?.absentCount ?? 0 },
-])
+const statCards = computed(() => {
+	const labels = normalizeRollCallStatLabels(selected.value?.statLabels)
+	return [
+		{ label: labels.expected, value: activeSummary.value?.expectedCount ?? 0 },
+		{ label: labels.present, value: activeSummary.value?.presentCount ?? 0 },
+		{ label: labels.absent, value: activeSummary.value?.absentCount ?? 0 },
+	]
+})
 
 const attendanceEmptyMessage = computed(() => {
 	if (activeSummary.value?.status === "not_started") return "時段尚未開始"

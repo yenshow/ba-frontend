@@ -44,18 +44,18 @@
 						<tr class="text-white/90">
 							<th class="whitespace-nowrap border border-white/20 p-2">日期</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">區域-地點</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">進場人數</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">出場人數</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">在場人數</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">{{ reportLabels.entry }}</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">{{ reportLabels.exit }}</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">{{ reportLabels.current }}</th>
 						</tr>
 					</thead>
 					<tbody>
 						<tr v-for="row in statsTableRows" :key="row.key" class="border-b border-white/10 text-white">
 							<td class="border border-white/20 p-2">{{ row.日期 }}</td>
 							<td class="border border-white/20 p-2">{{ row["區域-地點"] }}</td>
-							<td class="border border-white/20 p-2">{{ row.進場人數 }}</td>
-							<td class="border border-white/20 p-2">{{ row.出場人數 }}</td>
-							<td class="border border-white/20 p-2">{{ row.在場人數 }}</td>
+							<td class="border border-white/20 p-2">{{ row.entryCount }}</td>
+							<td class="border border-white/20 p-2">{{ row.exitCount }}</td>
+							<td class="border border-white/20 p-2">{{ row.currentCount }}</td>
 						</tr>
 					</tbody>
 				</table>
@@ -72,9 +72,9 @@
 							<th class="whitespace-nowrap border border-white/20 p-2">日期</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">區域-地點</th>
 							<th class="whitespace-nowrap border border-white/20 p-2">群組</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">進場人數</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">出場人數</th>
-							<th class="whitespace-nowrap border border-white/20 p-2">在場人數</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">{{ reportLabels.entry }}</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">{{ reportLabels.exit }}</th>
+							<th class="whitespace-nowrap border border-white/20 p-2">{{ reportLabels.current }}</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -86,13 +86,13 @@
 							<td class="border border-white/20 p-2">{{ row.日期 }}</td>
 							<td class="border border-white/20 p-2">{{ row["區域-地點"] }}</td>
 							<td class="border border-white/20 p-2">{{ row.群組 }}</td>
-							<td class="border border-white/20 p-2">{{ row.進場人數 }}</td>
-							<td class="border border-white/20 p-2">{{ row.出場人數 }}</td>
+							<td class="border border-white/20 p-2">{{ row.entryCount }}</td>
+							<td class="border border-white/20 p-2">{{ row.exitCount }}</td>
 							<td
 								class="border border-white/20 p-2"
 								:class="row.hasOnSite ? 'bg-red-500/80 font-semibold' : ''"
 							>
-								{{ row.在場人數 }}
+								{{ row.currentCount }}
 							</td>
 						</tr>
 					</tbody>
@@ -213,6 +213,12 @@ import {
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import SearchInput from "~/components/common/SearchInput.vue";
+import {
+	DEFAULT_PEOPLE_COUNTING_STAT_LABELS,
+	normalizePeopleCountingStatLabels,
+	resolveSharedEntryExitStatLabels,
+	type EntryExitStatLabels,
+} from "~/utils/statLabels";
 
 export type PeopleCountingSimulationLocationOption = {
 	locationId: number;
@@ -220,6 +226,7 @@ export type PeopleCountingSimulationLocationOption = {
 	zoneName: string;
 	locationName: string;
 	dataSource?: "yscp" | "access_control" | "isapi_camera";
+	statLabels?: Partial<EntryExitStatLabels> | null;
 };
 
 export type PeopleCountingSimulationLocationSummary = {
@@ -345,8 +352,17 @@ const groupKeysDesc = computed(() =>
 	[...groupsByDateAndLocation.value.keys()].sort((a, b) => b.localeCompare(a))
 );
 
-const statsTableRows = computed(() => {
-	const rows: Array<Record<string, string> & { key: string }> = [];
+type StatsTableRow = {
+	key: string;
+	日期: string;
+	"區域-地點": string;
+	entryCount: string;
+	exitCount: string;
+	currentCount: string;
+};
+
+const statsTableRows = computed((): StatsTableRow[] => {
+	const rows: StatsTableRow[] = [];
 	const keys = groupKeysDesc.value;
 
 	for (const groupKey of keys) {
@@ -377,9 +393,9 @@ const statsTableRows = computed(() => {
 			key: `stats-${groupKey}`,
 			日期: dateStr,
 			"區域-地點": zl,
-			進場人數: String(entry),
-			出場人數: String(exit),
-			在場人數: String(current)
+			entryCount: String(entry),
+			exitCount: String(exit),
+			currentCount: String(current)
 		});
 	}
 	return rows;
@@ -390,9 +406,9 @@ type UnitStatsRow = {
 	日期: string;
 	"區域-地點": string;
 	群組: string;
-	進場人數: string;
-	出場人數: string;
-	在場人數: string;
+	entryCount: string;
+	exitCount: string;
+	currentCount: string;
 	hasOnSite: boolean;
 };
 
@@ -418,9 +434,9 @@ const unitStatsTableRows = computed((): UnitStatsRow[] => {
 					日期: dateStr,
 					"區域-地點": zl,
 					群組: u.name,
-					進場人數: String(u.entryCount ?? 0),
-					出場人數: String(u.exitCount ?? 0),
-					在場人數: String(u.currentCount ?? 0),
+					entryCount: String(u.entryCount ?? 0),
+					exitCount: String(u.exitCount ?? 0),
+					currentCount: String(u.currentCount ?? 0),
 					hasOnSite: (u.currentCount ?? 0) > 0
 				});
 			}
@@ -432,9 +448,9 @@ const unitStatsTableRows = computed((): UnitStatsRow[] => {
 					日期: dateStr,
 					"區域-地點": zl,
 					群組: u.unitName,
-					進場人數: String(u.entry),
-					出場人數: String(u.exit),
-					在場人數: String(u.current),
+					entryCount: String(u.entry),
+					exitCount: String(u.exit),
+					currentCount: String(u.current),
 					hasOnSite: u.current > 0
 				});
 			}
@@ -562,8 +578,52 @@ const handleDetailNextPage = () => {
 	if (detailPage.value < totalDetailPages.value) detailPage.value += 1;
 };
 
-const STATS_HEADERS = ["日期", "區域-地點", "進場人數", "出場人數", "在場人數"];
-const UNIT_STATS_HEADERS = ["日期", "區域-地點", "群組", "進場人數", "出場人數", "在場人數"];
+const reportLabels = computed(() => {
+	const locFilter = filterLocationId.value
+	const opts = props.locationOptions
+	const scoped = locFilter
+		? opts.filter((o) => String(o.locationId) === locFilter)
+		: opts
+	const list = scoped.map((o) => normalizePeopleCountingStatLabels(o.statLabels))
+	return resolveSharedEntryExitStatLabels(list, DEFAULT_PEOPLE_COUNTING_STAT_LABELS)
+})
+
+const statsHeaders = computed(() => [
+	"日期",
+	"區域-地點",
+	reportLabels.value.entry,
+	reportLabels.value.exit,
+	reportLabels.value.current,
+])
+
+const unitStatsHeaders = computed(() => [
+	"日期",
+	"區域-地點",
+	"群組",
+	reportLabels.value.entry,
+	reportLabels.value.exit,
+	reportLabels.value.current,
+])
+
+const mapStatsRowForExport = (row: {
+	日期: string
+	"區域-地點": string
+	entryCount: string
+	exitCount: string
+	currentCount: string
+	群組?: string
+}) => {
+	const labels = reportLabels.value
+	const base: Record<string, string> = {
+		日期: row.日期,
+		"區域-地點": row["區域-地點"],
+		[labels.entry]: row.entryCount,
+		[labels.exit]: row.exitCount,
+		[labels.current]: row.currentCount,
+	}
+	if (row.群組 != null && row.群組 !== "") base["群組"] = row.群組
+	return base
+}
 
 const firstDateStr = computed(() =>
 	locationFilteredLogs.value.length > 0 ? getDateKey(locationFilteredLogs.value[0]!) : ""
@@ -575,8 +635,16 @@ const handleExportXlsx = () => {
 	const exportDetailHeaders = [...detailHeaders.value, "圖片路徑"];
 	downloadReportWorkbook(
 		[
-			{ title: "進出統計", headers: STATS_HEADERS, rows: statsTableRows.value },
-			{ title: "群組統計", headers: UNIT_STATS_HEADERS, rows: unitStatsTableRows.value }
+			{
+				title: "進出統計",
+				headers: statsHeaders.value,
+				rows: statsTableRows.value.map(mapStatsRowForExport),
+			},
+			{
+				title: "群組統計",
+				headers: unitStatsHeaders.value,
+				rows: unitStatsTableRows.value.map(mapStatsRowForExport),
+			},
 		],
 		{
 			title: "進出紀錄",

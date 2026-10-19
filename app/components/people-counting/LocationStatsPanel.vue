@@ -19,6 +19,10 @@
 
 <script setup lang="ts">
 import { computed } from "vue"
+import {
+	normalizePeopleCountingStatLabels,
+	type EntryExitStatLabels,
+} from "~/utils/statLabels"
 
 const props = defineProps<{
 	entryCount?: number
@@ -26,14 +30,17 @@ const props = defineProps<{
 	currentCount?: number
 	/** 自訂三欄（時段簽到等）；有值時優先於 entry/exit/current */
 	items?: Array<{ label: string; value: number }>
+	/** 進／出／在場顯示名稱（可選） */
+	statLabels?: Partial<EntryExitStatLabels> | null
 }>()
 
 const cards = computed(() => {
 	if (props.items && props.items.length > 0) return props.items
+	const labels = normalizePeopleCountingStatLabels(props.statLabels)
 	return [
-		{ label: "進場人數", value: props.entryCount ?? 0 },
-		{ label: "出場人數", value: props.exitCount ?? 0 },
-		{ label: "在場人數", value: props.currentCount ?? 0 },
+		{ label: labels.entry, value: props.entryCount ?? 0 },
+		{ label: labels.exit, value: props.exitCount ?? 0 },
+		{ label: labels.current, value: props.currentCount ?? 0 },
 	]
 })
 </script>

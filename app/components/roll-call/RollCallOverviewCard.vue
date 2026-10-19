@@ -22,19 +22,19 @@
 					class="flex min-w-[140px] flex-col gap-3 border-r-2 border-white/50 pr-8 text-white 2xl:min-w-[160px]"
 				>
 					<div class="flex items-center justify-center gap-3 monitoring-chip-bg p-2">
-						<div class="overview-stat-label">應到人數</div>
+						<div class="overview-stat-label">{{ labels.expected }}</div>
 						<div class="w-[80px] bg-black/20 text-center text-xl 2xl:w-[100px] 2xl:text-2xl">
 							{{ summary.expectedCount }}
 						</div>
 					</div>
 					<div class="flex items-center justify-center gap-3 monitoring-chip-bg p-2">
-						<div class="overview-stat-label">實到人數</div>
+						<div class="overview-stat-label">{{ labels.present }}</div>
 						<div class="w-[80px] bg-black/20 text-center text-xl 2xl:w-[100px] 2xl:text-2xl">
 							{{ summary.presentCount }}
 						</div>
 					</div>
 					<div class="flex items-center justify-center gap-3 monitoring-chip-bg p-2">
-						<div class="overview-stat-label">未到人數</div>
+						<div class="overview-stat-label">{{ labels.absent }}</div>
 						<div class="w-[80px] bg-black/20 text-center text-xl 2xl:w-[100px] 2xl:text-2xl">
 							{{ summary.absentCount }}
 						</div>
@@ -67,6 +67,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import type { RollCallTodayLocation } from "~/types/rollCall"
+import { normalizeRollCallStatLabels } from "~/utils/statLabels"
 
 const props = defineProps<{
 	location: RollCallTodayLocation
@@ -77,6 +78,8 @@ const emit = defineEmits<{
 }>()
 
 const TOTAL_GRID_CELLS = 12
+
+const labels = computed(() => normalizeRollCallStatLabels(props.location.statLabels))
 
 const primarySession = computed(() => {
 	const sessions = props.location.sessions || []

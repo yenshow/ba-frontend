@@ -446,7 +446,8 @@
 				<span class="text-sm text-white/90 2xl:text-base">訂閱後補齊漏推事件</span>
 			</label>
 			<p class="mt-1 text-xs text-white/50">
-				設備訂閱成功後，主動查詢近期歷史事件並寫入平台，降低推送漏失造成的資料落差
+				設備訂閱成功後，主動查詢近期歷史事件並寫入平台，降低推送漏失造成的資料落差(設備需插入SD
+				此功能才有效)
 			</p>
 			<label v-if="eventBackfillEnabledInput" :class="[fieldLabelClass, 'mt-3 max-w-xs']">
 				<span>補齊時間窗（秒）</span>
@@ -482,6 +483,51 @@
 						@change="handleDashboardLayoutChange"
 					/>
 					<span class="text-sm text-white/90 2xl:text-base">{{ label }}</span>
+				</label>
+			</div>
+		</div>
+
+		<div class="mt-3 border-t border-white/10 pt-3">
+			<span class="text-sm font-medium text-white/80 2xl:text-base">統計顯示名稱</span>
+			<p class="mt-1 text-xs text-white/50">
+				留空則使用系統預設；最多 {{ STAT_LABEL_MAX_LEN }} 字；主畫面、完整報表與備份表頭會套用
+			</p>
+			<div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+				<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
+					<span>進場</span>
+					<input
+						v-model="statLabelEntry"
+						type="text"
+						:maxlength="STAT_LABEL_MAX_LEN"
+						class="form-input-small"
+						:placeholder="DEFAULT_PEOPLE_COUNTING_STAT_LABELS.entry"
+						aria-label="進場人數顯示名稱"
+						@input="handleStatLabelsChange"
+					/>
+				</label>
+				<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
+					<span>出場</span>
+					<input
+						v-model="statLabelExit"
+						type="text"
+						:maxlength="STAT_LABEL_MAX_LEN"
+						class="form-input-small"
+						:placeholder="DEFAULT_PEOPLE_COUNTING_STAT_LABELS.exit"
+						aria-label="出場人數顯示名稱"
+						@input="handleStatLabelsChange"
+					/>
+				</label>
+				<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
+					<span>在場</span>
+					<input
+						v-model="statLabelCurrent"
+						type="text"
+						:maxlength="STAT_LABEL_MAX_LEN"
+						class="form-input-small"
+						:placeholder="DEFAULT_PEOPLE_COUNTING_STAT_LABELS.current"
+						aria-label="在場人數顯示名稱"
+						@input="handleStatLabelsChange"
+					/>
 				</label>
 			</div>
 		</div>
@@ -536,6 +582,11 @@ import {
 	supportsGroupCardsDashboardLayout,
 	type PeopleCountingDashboardLayout
 } from "~/utils/peopleCountingDashboardLayout";
+import {
+	DEFAULT_PEOPLE_COUNTING_STAT_LABELS,
+	draftEntryExitStatLabels,
+	STAT_LABEL_MAX_LEN,
+} from "~/utils/statLabels";
 import {
 	PEOPLE_COUNTING_CAMERA_MODE,
 	PEOPLE_COUNTING_CAMERA_MODE_LABELS,
@@ -633,6 +684,20 @@ const exitEventCameraSelect = computed({
 });
 
 const localLocation = ref<PeopleCountingLocation>({ ...props.location });
+
+const draftStatLabels = () => draftEntryExitStatLabels(localLocation.value.statLabels);
+const statLabelEntry = ref(draftStatLabels().entry);
+const statLabelExit = ref(draftStatLabels().exit);
+const statLabelCurrent = ref(draftStatLabels().current);
+
+const handleStatLabelsChange = () => {
+	localLocation.value.statLabels = draftEntryExitStatLabels({
+		entry: statLabelEntry.value,
+		exit: statLabelExit.value,
+		current: statLabelCurrent.value,
+	});
+	handleChange();
+};
 
 const fieldLabelClass =
 	"flex min-w-0 flex-1 flex-col gap-2 text-sm text-white/80 2xl:gap-2.5 2xl:text-base";
@@ -914,6 +979,11 @@ watch(
 		}
 		dashboardLayout.value = normalizeDashboardLayout(newLocation.dashboardLayout);
 		localLocation.value.dashboardLayout = dashboardLayout.value;
+		const nextLabels = draftEntryExitStatLabels(newLocation.statLabels);
+		statLabelEntry.value = nextLabels.entry;
+		statLabelExit.value = nextLabels.exit;
+		statLabelCurrent.value = nextLabels.current;
+		localLocation.value.statLabels = nextLabels;
 	},
 	{ immediate: true, deep: true }
 );

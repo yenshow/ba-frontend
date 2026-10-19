@@ -66,6 +66,12 @@ export type SystemConfig =
 /** 時段簽到僅工地頁使用；智慧管理平台保留設定以免覆寫門禁機綁定 */
 export interface RollCallSystemConfig {
 	deviceIds?: number[];
+	/** 應到／實到／未到顯示名稱（可選） */
+	statLabels?: {
+		expected?: string;
+		present?: string;
+		absent?: string;
+	};
 }
 
 /**
@@ -231,6 +237,12 @@ export interface PeopleCountingSystemConfig {
 	/** 訂閱後短查設備歷史補齊漏推事件（門禁／人臉） */
 	eventBackfillEnabled?: boolean;
 	eventBackfillWindowSec?: number;
+	/** 進場／出場／在場人數顯示名稱（可選） */
+	statLabels?: {
+		entry?: string;
+		exit?: string;
+		current?: string;
+	};
 }
 
 /**
@@ -256,6 +268,12 @@ export interface VehicleAccessSystemConfig {
 	/** 訂閱後短查設備歷史補齊漏推 ANPR */
 	eventBackfillEnabled?: boolean;
 	eventBackfillWindowSec?: number;
+	/** 進場／出場／在場車輛顯示名稱（可選） */
+	statLabels?: {
+		entry?: string;
+		exit?: string;
+		current?: string;
+	};
 }
 
 /**

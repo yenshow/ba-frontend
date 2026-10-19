@@ -41,7 +41,7 @@
 					class="flex min-w-[140px] flex-col gap-3 border-r-2 border-white/50 pr-8 2xl:min-w-[160px]"
 				>
 					<div class="flex items-center justify-center gap-3 monitoring-chip-bg p-2">
-						<div class="overview-stat-label">進場車輛</div>
+						<div class="overview-stat-label">{{ labels.entry }}</div>
 
 						<div class="w-[80px] bg-black/20 text-center text-xl 2xl:w-[100px] 2xl:text-2xl">
 							{{ summary.entryCount ?? 0 }}
@@ -49,7 +49,7 @@
 					</div>
 
 					<div class="flex items-center justify-center gap-3 monitoring-chip-bg p-2">
-						<div class="overview-stat-label">出場車輛</div>
+						<div class="overview-stat-label">{{ labels.exit }}</div>
 
 						<div class="w-[80px] bg-black/20 text-center text-xl 2xl:w-[100px] 2xl:text-2xl">
 							{{ summary.exitCount ?? 0 }}
@@ -107,6 +107,10 @@ import type {
 } from "~/types/vehicleAccess"
 
 import VehicleBarrierGatePanel from "~/components/vehicle-access/VehicleBarrierGatePanel.vue"
+import {
+	hasCustomStatLabel,
+	normalizeVehicleAccessStatLabels,
+} from "~/utils/statLabels"
 
 const OVERVIEW_GROUP_CELLS = 12
 
@@ -144,6 +148,10 @@ watch(
 	}
 )
 
+const labels = computed(() =>
+	normalizeVehicleAccessStatLabels(props.location?.statLabels)
+)
+
 const parkingCapacity = computed(() => {
 	const loc = props.location
 	if (loc?.operationMode !== "parking" || loc?.dataSource !== "isapi_camera") return null
@@ -154,11 +162,16 @@ const parkingCapacity = computed(() => {
 const thirdColumn = computed(() => {
 	const onSite = props.summary.currentCount ?? 0
 	const cap = parkingCapacity.value
+	const customCurrent = hasCustomStatLabel(props.location?.statLabels, "current")
 	if (cap == null) {
-		return { label: "在場車輛", display: onSite, isAtOrOverCapacity: false }
+		return {
+			label: labels.value.current,
+			display: onSite,
+			isAtOrOverCapacity: false,
+		}
 	}
 	return {
-		label: "剩餘車位",
+		label: customCurrent ? labels.value.current : "剩餘車位",
 		display: Math.max(0, cap - onSite),
 		isAtOrOverCapacity: onSite >= cap,
 	}
