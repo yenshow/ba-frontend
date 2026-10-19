@@ -18,10 +18,10 @@
 					type="button"
 					:disabled="filteredSessions.length === 0"
 					class="rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
-					aria-label="匯出 CSV"
-					@click="handleExportCsv"
+					aria-label="匯出 Excel"
+					@click="handleExportXlsx"
 				>
-					匯出 CSV
+					匯出 Excel
 				</button>
 			</div>
 		</div>
@@ -190,7 +190,7 @@ import SearchInput from "~/components/common/SearchInput.vue"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
 import { canResolveMedia, useResolvedMediaList } from "~/composables/core/useImageCenter"
 import { useMediaLightbox } from "~/composables/core/useMediaLightbox"
-import { buildCsvSection } from "~/utils/csvExport"
+import { downloadReportWorkbook } from "~/utils/xlsxExport"
 import { TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtils"
 import type { RollCallReportAttendanceRow, RollCallReportSession } from "~/types/rollCall"
 
@@ -395,50 +395,24 @@ const handleDetailNext = () => {
 	}
 }
 
-const handleExportCsv = () => {
+const handleExportXlsx = () => {
 	if (filteredSessions.value.length === 0) return
 	const dateStr =
 		filteredSessions.value[0]?.sessionDate?.replace(/\//g, "-") ||
 		new Date().toISOString().slice(0, 10)
-	const parts: string[] = []
-	parts.push("簽到統計")
-	parts.push(buildCsvSection(STATS_HEADERS, statsTableRows.value, { backupStyle: true }))
-	parts.push("")
-	parts.push("群組統計")
-	parts.push(
-		buildCsvSection(
-			GROUP_STATS_HEADERS,
-			groupStatsTableRows.value.map((r) => ({
-				日期: r.日期,
-				"區域-地點": r["區域-地點"],
-				群組: r.群組,
-				應到人數: r.應到人數,
-				實到人數: r.實到人數,
-				未到人數: r.未到人數,
-			})),
-			{ backupStyle: true },
-		),
-	)
-	parts.push("")
-	parts.push("簽到名單")
-	parts.push(
-		buildCsvSection(
-			[...DETAIL_HEADERS],
-			detailRows.value.map((r) =>
+	downloadReportWorkbook(
+		[
+			{ title: "簽到統計", headers: STATS_HEADERS, rows: statsTableRows.value },
+			{ title: "群組統計", headers: GROUP_STATS_HEADERS, rows: groupStatsTableRows.value },
+		],
+		{
+			title: "簽到名單",
+			headers: [...DETAIL_HEADERS],
+			rows: detailRows.value.map((r) =>
 				Object.fromEntries(DETAIL_HEADERS.map((h, i) => [h, r.cells[i] ?? ""])),
 			),
-			{ backupStyle: true },
-		),
+		},
+		`時段簽到報表_${dateStr}.xlsx`,
 	)
-	const csvContent = `\uFEFF${parts.join("\n")}`
-	const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" })
-	const url = URL.createObjectURL(blob)
-	const link = document.createElement("a")
-	link.href = url
-	link.download = `時段簽到報表_${dateStr}.csv`
-	document.body.appendChild(link)
-	link.click()
-	document.body.removeChild(link)
-	URL.revokeObjectURL(url)
 }
 </script>

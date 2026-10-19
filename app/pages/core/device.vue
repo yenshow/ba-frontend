@@ -223,23 +223,27 @@
 												>
 													此 NVR 目前無通道資料
 												</div>
-												<ul v-else class="space-y-2">
+												<ul
+													v-else
+													class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:gap-3"
+												>
 													<li
 														v-for="ch in nvrChannels"
 														:key="`${device.id}-${ch.channelId ?? ch.liveTrackId}`"
-														class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/5 px-3 py-2 text-sm text-white/90 2xl:text-base"
+														class="flex min-h-[4.5rem] flex-col justify-between gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-left text-base text-white/90 2xl:min-h-[5rem] 2xl:px-4 2xl:py-3 2xl:text-lg"
 													>
-														<span class="min-w-0">
-															<span class="font-medium">{{ ch.name }}</span>
-															<span
+														<div class="min-w-0">
+															<p class="truncate font-medium">{{ ch.name }}</p>
+															<p
 																v-if="ch.ipAddress"
-																class="ml-2 text-white/55"
-																>{{ ch.ipAddress }}</span
+																class="mt-0.5 truncate text-sm text-white/55 2xl:text-base"
 															>
-														</span>
+																{{ ch.ipAddress }}
+															</p>
+														</div>
 														<span
 															:class="[
-																'rounded-full px-2 py-0.5 text-xs 2xl:text-sm',
+																'self-start rounded-full px-2 py-0.5 text-sm 2xl:px-3 2xl:py-1 2xl:text-base',
 																ch.online
 																	? 'bg-green-500/30 text-green-100'
 																	: 'bg-white/15 text-white/60',

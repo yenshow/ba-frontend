@@ -1,6 +1,6 @@
 /**
  * 營運事件：型別、列表標籤／meta、API（單一入口）
- * 工地 UI 僅人流／車輛；「全部」篩選仍強制子集以免露出 Central 事件。
+ * 工地 UI 僅人流／車輛／時段簽到；「全部」篩選仍強制子集以免露出 Central 事件。
  */
 import { useApiBase } from "~/composables/core/useApiBase"
 import { buildPathWithQuery } from "~/utils/apiUtils"
@@ -64,23 +64,27 @@ type OperationalEventMetaItem = {
 
 /**
  * 工地營運事件來源篩選。
- * 實際寫入來源：people_counting／access（人流／門禁）、vehicle_access。
+ * 實際寫入來源：people_counting（人流／門禁）、vehicle_access、roll_call。
  */
 const OPERATIONAL_SOURCE_FILTER_KEYS = [
 	"people_counting",
 	"vehicle_access",
+	"roll_call",
 ] as const
 
 /** 「全部」時仍限制工地支援的來源；類型不預設鎖 access/vehicle（含門禁 control_write） */
-export const CONSTRUCTION_DEFAULT_SOURCES = "people_counting,vehicle_access"
+export const CONSTRUCTION_DEFAULT_SOURCES =
+	"people_counting,vehicle_access,roll_call"
 export const CONSTRUCTION_DEFAULT_KINDS = ""
 
 const SOURCE_FILTER_LABELS: Record<
 	(typeof OPERATIONAL_SOURCE_FILTER_KEYS)[number],
 	string
 > = {
+	// 工地導覽／篩選用語：人流統計（≠ Central「門禁管理」）
 	people_counting: "人流統計",
 	vehicle_access: "車輛進出",
+	roll_call: "時段簽到",
 }
 
 /** 歷史列 access_control 與 people_counting 同屬門禁／人流模組 */
@@ -106,7 +110,7 @@ export const buildOperationalSourceFilterOptions = () => [
 
 export const OPERATIONAL_KIND_OPTIONS = [
 	{ value: "", label: "全部類型" },
-	{ value: "access", label: "門禁／人流" },
+	{ value: "access", label: "門禁／人流／簽到" },
 	{ value: "vehicle", label: "車輛進出" },
 ] as const
 
