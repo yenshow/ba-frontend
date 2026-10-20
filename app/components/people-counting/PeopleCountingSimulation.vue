@@ -14,9 +14,17 @@
 			</div>
 			<div class="flex flex-wrap items-center gap-3 2xl:gap-4">
 				<TimeRangePicker v-model="timeRangeModel" :presets="[...TIME_RANGE_PRESETS_FULL_REPORT]" />
+				<div class="min-w-[12rem]">
+					<FilterDropdown
+						v-model="exportMode"
+						:options="exportModeOptions"
+						placeholder="匯出模式"
+						text-size="text-sm 2xl:text-base"
+					/>
+				</div>
 				<button
 					type="button"
-					:disabled="locationFilteredLogs.length === 0"
+					:disabled="!canExportXlsx"
 					class="rounded-xl border border-white/20 bg-green-500/80 px-4 py-2 text-sm text-white transition-colors hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50 2xl:px-6 2xl:py-3 2xl:text-base"
 					aria-label="匯出 Excel"
 					@click="handleExportXlsx"
@@ -199,6 +207,10 @@ import MediaLightbox from "~/components/common/MediaLightbox.vue";
 import { formatDate, TIME_RANGE_PRESETS_FULL_REPORT } from "~/utils/dateUtils";
 import { downloadReportWorkbook } from "~/utils/xlsxExport";
 import {
+	ATTENDANCE_EXPORT_HEADERS,
+	buildDailyAttendanceRows,
+} from "~/utils/peopleCountingAttendance";
+import {
 	countingPersonKey,
 	countEntryExitForDay,
 	cumulativePresenceFromTotals,
@@ -261,6 +273,12 @@ const timeRangeModel = computed({
 
 const filterLocationId = ref("");
 const searchQuery = ref("");
+/** 匯出模式：全部進出（預設）｜考勤（最早進入／最晚離開） */
+const exportMode = ref<"all" | "attendance">("all");
+const exportModeOptions = [
+	{ value: "all", label: "全部進出" },
+	{ value: "attendance", label: "考勤（最早進入／最晚離開）" },
+];
 
 const locationLabelById = computed(() => {
 	const map = new Map<number, string>();
@@ -301,10 +319,22 @@ const locationFilteredLogs = computed(() => {
 	});
 });
 
-/** 搜尋：僅影響進出紀錄 */
+/** 搜尋：僅影響進出紀錄／考勤列 */
 const detailFilteredLogs = computed(() => {
 	const q = searchQuery.value;
 	return locationFilteredLogs.value.filter(log => matchesSearch(log, q));
+});
+
+const attendanceTableRows = computed(() =>
+	buildDailyAttendanceRows(detailFilteredLogs.value, (locationId) =>
+		locationLabelById.value.get(locationId) || String(locationId),
+	),
+);
+
+const canExportXlsx = computed(() => {
+	if (locationFilteredLogs.value.length === 0) return false;
+	if (exportMode.value === "attendance") return attendanceTableRows.value.length > 0;
+	return true;
 });
 
 const selectedLocationIdNum = computed(() => {
@@ -630,22 +660,37 @@ const firstDateStr = computed(() =>
 );
 
 const handleExportXlsx = () => {
-	if (locationFilteredLogs.value.length === 0) return;
+	if (!canExportXlsx.value) return;
 	const dateStr = firstDateStr.value.replace(/\//g, "-") || new Date().toISOString().slice(0, 10);
+	const statsSections = [
+		{
+			title: "進出統計",
+			headers: statsHeaders.value,
+			rows: statsTableRows.value.map(mapStatsRowForExport),
+		},
+		{
+			title: "群組統計",
+			headers: unitStatsHeaders.value,
+			rows: unitStatsTableRows.value.map(mapStatsRowForExport),
+		},
+	];
+
+	if (exportMode.value === "attendance") {
+		downloadReportWorkbook(
+			statsSections,
+			{
+				title: "考勤",
+				headers: [...ATTENDANCE_EXPORT_HEADERS],
+				rows: attendanceTableRows.value,
+			},
+			`people_counting_attendance_${dateStr}.xlsx`,
+		);
+		return;
+	}
+
 	const exportDetailHeaders = [...detailHeaders.value, "圖片路徑"];
 	downloadReportWorkbook(
-		[
-			{
-				title: "進出統計",
-				headers: statsHeaders.value,
-				rows: statsTableRows.value.map(mapStatsRowForExport),
-			},
-			{
-				title: "群組統計",
-				headers: unitStatsHeaders.value,
-				rows: unitStatsTableRows.value.map(mapStatsRowForExport),
-			},
-		],
+		statsSections,
 		{
 			title: "進出紀錄",
 			headers: exportDetailHeaders,

@@ -4,16 +4,18 @@
 			<input
 				:value="displayValue"
 				readonly
-				@click="showDropdown = !showDropdown"
 				class="select-filter w-[250px] cursor-pointer text-center text-base"
 				placeholder="選擇時間範圍"
+				aria-label="選擇時間範圍"
+				@click="showDropdown = !showDropdown"
 			/>
 			<svg
 				class="h-5 w-5 cursor-pointer text-white/70"
-				@click="showDropdown = !showDropdown"
 				fill="none"
 				stroke="currentColor"
 				viewBox="0 0 24 24"
+				aria-hidden="true"
+				@click="showDropdown = !showDropdown"
 			>
 				<path
 					stroke-linecap="round"
@@ -25,16 +27,16 @@
 			<svg
 				class="h-4 w-4 cursor-pointer text-white/70 transition-transform"
 				:class="{ 'rotate-180': showDropdown }"
-				@click="showDropdown = !showDropdown"
 				fill="none"
 				stroke="currentColor"
 				viewBox="0 0 24 24"
+				aria-hidden="true"
+				@click="showDropdown = !showDropdown"
 			>
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
 			</svg>
 		</div>
 
-		<!-- 下拉選單 -->
 		<Transition name="fade">
 			<div
 				v-if="showDropdown"
@@ -45,11 +47,11 @@
 						v-for="preset in presets"
 						:key="preset.value"
 						type="button"
-						@click="selectPreset(preset.value)"
 						:class="[
 							'w-full rounded px-3 py-2 text-left text-sm text-white transition-colors',
-							selectedPreset === preset.value ? 'bg-blue-500/80 text-white' : 'hover:bg-white/10'
+							selectedPreset === preset.value ? 'bg-blue-500/80 text-white' : 'hover:bg-white/10',
 						]"
+						@click="handleSelectPreset(preset.value)"
 					>
 						{{ preset.label }}
 					</button>
@@ -73,8 +75,8 @@
 					</div>
 					<button
 						type="button"
-						@click="applyCustomRange"
 						class="w-full rounded bg-blue-500/80 px-3 py-2 text-sm text-white hover:bg-blue-500"
+						@click="handleApplyCustomRange"
 					>
 						套用
 					</button>
@@ -85,11 +87,12 @@
 </template>
 
 <script setup lang="ts">
-// 使用統一的時間工具函數（UTC）
 import {
+	formatDateInput,
+	formatInclusiveLocalRangeDisplay,
 	getTimeRangeUTC,
-	formatDateInput as formatDateInputUtil,
-	formatDateLocal
+	isoRangeToInclusiveYmd,
+	localDayRangeFromInclusiveYmd,
 } from "~/utils/dateUtils";
 
 interface TimeRangePreset {
@@ -117,66 +120,66 @@ const selectedPreset = ref(props.modelValue.preset || "today");
 const customStartDate = ref("");
 const customEndDate = ref("");
 
-// 使用統一的格式化函數
-const formatDateInput = formatDateInputUtil;
+watch(
+	() => props.modelValue.preset,
+	(preset) => {
+		if (preset) selectedPreset.value = preset;
+	},
+);
 
-// 計算顯示值
 const displayValue = computed(() => {
 	if (!props.modelValue.startDate || !props.modelValue.endDate) {
 		return "選擇時間範圍";
 	}
-
-	// 如果不是自訂選項，顯示選項名稱
 	if (selectedPreset.value !== "custom") {
-		const preset = props.presets.find(p => p.value === selectedPreset.value);
-		return preset?.label || "選擇時間範圍";
+		return props.presets.find((p) => p.value === selectedPreset.value)?.label || "選擇時間範圍";
 	}
-
-	// 自訂選項時，只顯示日期
-	return `${formatDateLocal(new Date(props.modelValue.startDate))} - ${formatDateLocal(new Date(props.modelValue.endDate))}`;
+	return formatInclusiveLocalRangeDisplay(props.modelValue.startDate, props.modelValue.endDate);
 });
 
-// 選擇預設選項
-const selectPreset = (preset: string) => {
+const syncCustomInputs = () => {
+	if (props.modelValue.preset === "custom" && props.modelValue.startDate && props.modelValue.endDate) {
+		const { startDate, endDate } = isoRangeToInclusiveYmd(
+			props.modelValue.startDate,
+			props.modelValue.endDate,
+		);
+		customStartDate.value = startDate;
+		customEndDate.value = endDate;
+		return;
+	}
+	if (!customStartDate.value || !customEndDate.value) {
+		const today = formatDateInput(new Date());
+		customStartDate.value = today;
+		customEndDate.value = today;
+	}
+};
+
+const handleSelectPreset = (preset: string) => {
 	selectedPreset.value = preset;
-
-	if (preset !== "custom") {
-		// 使用統一的 UTC 時間範圍計算
-		const { start, end } = getTimeRangeUTC(preset);
-		emit("update:modelValue", {
-			startDate: start.toISOString(),
-			endDate: end.toISOString(),
-			preset
-		});
-		showDropdown.value = false;
-	} else {
-		// 自訂模式，保持下拉選單開啟
-		if (!customStartDate.value || !customEndDate.value) {
-			const today = new Date();
-			customStartDate.value = formatDateInput(today);
-			customEndDate.value = formatDateInput(today);
-		}
+	if (preset === "custom") {
+		syncCustomInputs();
+		return;
 	}
+	const { start, end } = getTimeRangeUTC(preset);
+	emit("update:modelValue", {
+		startDate: start.toISOString(),
+		endDate: end.toISOString(),
+		preset,
+	});
+	showDropdown.value = false;
 };
 
-// 套用自訂時間範圍
-const applyCustomRange = () => {
-	if (customStartDate.value && customEndDate.value) {
-		// 使用 UTC 時間處理自訂日期
-		const startDate = new Date(customStartDate.value + "T00:00:00Z");
-		const endDate = new Date(customEndDate.value + "T00:00:00Z");
-		endDate.setUTCDate(endDate.getUTCDate() + 1); // 結束時間為下一天的開始（不包含）
-
-		emit("update:modelValue", {
-			startDate: startDate.toISOString(),
-			endDate: endDate.toISOString(),
-			preset: "custom"
-		});
-		showDropdown.value = false;
-	}
+const handleApplyCustomRange = () => {
+	const range = localDayRangeFromInclusiveYmd(customStartDate.value, customEndDate.value);
+	if (!range) return;
+	emit("update:modelValue", {
+		startDate: range.start.toISOString(),
+		endDate: range.end.toISOString(),
+		preset: "custom",
+	});
+	showDropdown.value = false;
 };
 
-// 點擊外部關閉下拉選單
 onMounted(() => {
 	const handleClickOutside = (event: MouseEvent) => {
 		const target = event.target as HTMLElement;

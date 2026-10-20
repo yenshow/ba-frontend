@@ -138,7 +138,7 @@ import {
 	getTypeLabel,
 	getSeverityLabel,
 } from "~/utils/alertUtils"
-import { getTodayDateRangeUTC, formatDateTime } from "~/utils/dateUtils"
+import { getTimeRangeUTC, formatDateTime } from "~/utils/dateUtils"
 import { exportCsv } from "~/utils/csvExport"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
@@ -583,9 +583,9 @@ watch(canManageRules, (canRules) => {
 	}
 })
 
-// 初始化時間範圍為「今天」（使用統一的時間工具）
+// 初始化時間範圍為「今天」（本地日界半開，與 TimeRangePicker 一致）
 const initializeTimeRange = () => {
-	const { start, end } = getTodayDateRangeUTC()
+	const { start, end } = getTimeRangeUTC("today")
 	timeRange.value = {
 		startDate: start.toISOString(),
 		endDate: end.toISOString(),
@@ -633,7 +633,7 @@ const handleAlertIdQuery = async () => {
 		const result = await alertApi.getAlertById(alertId)
 		const targetAlert = result.alert
 		const alertDate = new Date(targetAlert.updated_at)
-		const { start, end } = getTodayDateRangeUTC()
+		const { start, end } = getTimeRangeUTC("today")
 
 		// 如果警報不在今天，調整時間範圍
 		if (alertDate < start || alertDate >= end) {

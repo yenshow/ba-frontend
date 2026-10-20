@@ -1,25 +1,16 @@
 /**
  * 統一的時間處理工具函數
- * 使用 UTC 時間，與後端保持一致
+ *
+ * TimeRangePicker／一般報表自訂區間：瀏覽器**本地日曆** 00:00，半開 `[start, endExclusive)`。
+ * 人流／車輛 preset（today／yesterday／last7days）查詢請走後端營運日
+ * （`buildLogsTimeQuery` → `timeRange`；Asia/Taipei），勿只用此檔 ISO 當營運日。
+ *
+ * 函式名 `getTimeRangeUTC` 為歷史名稱：實際為本地日界，回傳 Date 再 `toISOString()` 送 API。
  */
 
 /**
- * 獲取當天的開始和結束時間（UTC）
- * 與後端 getTodayDateRange() 邏輯一致
- */
-export function getTodayDateRangeUTC(): { start: Date; end: Date } {
-	const now = new Date();
-	const todayStart = new Date(
-		Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0)
-	);
-	const todayEnd = new Date(todayStart);
-	todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);
-	return { start: todayStart, end: todayEnd };
-}
-
-/**
- * 獲取時間範圍（回傳 Date 以 toISOString() 送後端）
- * 以「使用者本地日曆 00:00」為日界，避免 UTC 午夜在台灣變成 08:00 換日的錯覺
+ * 本地日曆時間範圍（半開區間）。
+ * `last_7_days`＝含今天共 7 曆日（start＝today−6），與後端 last7days 天數對齊。
  */
 export function getTimeRangeUTC(preset: string): { start: Date; end: Date } {
 	const now = new Date();
@@ -27,8 +18,6 @@ export function getTimeRangeUTC(preset: string): { start: Date; end: Date } {
 	const m = now.getMonth();
 	const d = now.getDate();
 	const endDefault = new Date(y, m, d + 1, 0, 0, 0, 0);
-	let start = new Date(now);
-	let end = new Date(endDefault);
 
 	switch (preset) {
 		case "today":
@@ -36,35 +25,37 @@ export function getTimeRangeUTC(preset: string): { start: Date; end: Date } {
 		case "yesterday":
 			return {
 				start: new Date(y, m, d - 1, 0, 0, 0, 0),
-				end: new Date(y, m, d, 0, 0, 0, 0)
+				end: new Date(y, m, d, 0, 0, 0, 0),
 			};
 		case "this_week": {
 			const dayOfWeek = now.getDay();
 			const toMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-			start = new Date(y, m, d + toMonday, 0, 0, 0, 0);
-			end = endDefault;
-			break;
+			return {
+				start: new Date(y, m, d + toMonday, 0, 0, 0, 0),
+				end: endDefault,
+			};
 		}
 		case "last_week": {
 			const dayOfWeek = now.getDay();
 			const toMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-			start = new Date(y, m, d + toMonday - 7, 0, 0, 0, 0);
-			end = new Date(y, m, d + toMonday, 0, 0, 0, 0);
-			return { start, end };
+			return {
+				start: new Date(y, m, d + toMonday - 7, 0, 0, 0, 0),
+				end: new Date(y, m, d + toMonday, 0, 0, 0, 0),
+			};
 		}
 		case "last_7_days":
-			start = new Date(y, m, d - 7, 0, 0, 0, 0);
-			end = endDefault;
-			break;
+			return {
+				start: new Date(y, m, d - 6, 0, 0, 0, 0),
+				end: endDefault,
+			};
 		case "last_30_days":
-			start = new Date(y, m, d - 30, 0, 0, 0, 0);
-			end = endDefault;
-			break;
+			return {
+				start: new Date(y, m, d - 29, 0, 0, 0, 0),
+				end: endDefault,
+			};
 		default:
 			return { start: new Date(), end: new Date() };
 	}
-
-	return { start, end };
 }
 
 /**
@@ -123,6 +114,66 @@ export function formatDateLocal(date: Date): string {
 export function formatDateInput(date: Date): string {
 	const padZero = (n: number): string => String(n).padStart(2, "0");
 	return `${date.getFullYear()}-${padZero(date.getMonth() + 1)}-${padZero(date.getDate())}`;
+}
+
+/** YYYY-MM-DD → 本地日曆 00:00（勿接 `T00:00:00Z`，台灣會偏成當天 08:00） */
+export function parseLocalDateInput(ymd: string): Date | null {
+	const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || "").trim());
+	if (!m) return null;
+	const y = Number(m[1]);
+	const mo = Number(m[2]);
+	const d = Number(m[3]);
+	if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return null;
+	if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+	return new Date(y, mo - 1, d, 0, 0, 0, 0);
+}
+
+/**
+ * 含頭含尾日 → 本地半開區間 [start 00:00, endExclusive 次日 00:00)
+ * 與 getTimeRangeUTC／TimeRangePicker 自訂區間一致
+ */
+export function localDayRangeFromInclusiveYmd(
+	startYmd: string,
+	endYmd: string,
+): { start: Date; end: Date } | null {
+	const start = parseLocalDateInput(startYmd);
+	const endInclusive = parseLocalDateInput(endYmd);
+	if (!start || !endInclusive || endInclusive < start) return null;
+	const end = new Date(endInclusive);
+	end.setDate(end.getDate() + 1);
+	return { start, end };
+}
+
+/**
+ * ISO 區間 → 含頭含尾本地 YYYY-MM-DD（date input／簽到報表 API）
+ * - 半開 end（本地 00:00:00.000）→ 結束日＝前一日
+ * - 含尾 end（營運日 23:59:59.999 等非午夜）→ 結束日＝該曆日（勿再 −1）
+ */
+export function isoRangeToInclusiveYmd(
+	startIso: string,
+	endIso: string,
+): { startDate: string; endDate: string } {
+	const start = new Date(startIso);
+	const end = new Date(endIso);
+	const endInclusive = new Date(end);
+	const isLocalMidnight =
+		endInclusive.getHours() === 0 &&
+		endInclusive.getMinutes() === 0 &&
+		endInclusive.getSeconds() === 0 &&
+		endInclusive.getMilliseconds() === 0;
+	if (isLocalMidnight) {
+		endInclusive.setDate(endInclusive.getDate() - 1);
+	}
+	return {
+		startDate: formatDateInput(start),
+		endDate: formatDateInput(endInclusive),
+	};
+}
+
+/** 自訂區間按鈕顯示：YYYY/MM/DD - YYYY/MM/DD（含頭含尾） */
+export function formatInclusiveLocalRangeDisplay(startIso: string, endIso: string): string {
+	const { startDate, endDate } = isoRangeToInclusiveYmd(startIso, endIso);
+	return `${startDate.replace(/-/g, "/")} - ${endDate.replace(/-/g, "/")}`;
 }
 
 export type ClockDisplayParts = {
