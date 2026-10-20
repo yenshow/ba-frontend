@@ -241,7 +241,7 @@ import { normalizeRollCallStatLabels } from "~/utils/statLabels"
 import { PERM } from "~/config/permissionCodes"
 import { TOAST } from "~/config/toastCatalog"
 import { ROLL_CALL_RESET_STATS_CONFIRM } from "~/utils/confirmCopy"
-import { getTimeRangeUTC } from "~/utils/dateUtils"
+import { getTimeRangeUTC, isoRangeToInclusiveYmd } from "~/utils/dateUtils"
 import { createRollCallRuleDraft, ruleToDraft } from "~/types/rollCall"
 import type {
 	RollCallAttendanceRow,
@@ -329,21 +329,6 @@ const reportLocationOptions = computed(() => {
 	}
 	return opts
 })
-
-/** TimeRangePicker 的 ISO（結束為 exclusive）→ 本地日 YYYY-MM-DD 含頭含尾 */
-const isoRangeToInclusiveYmd = (startIso: string, endIso: string) => {
-	const start = new Date(startIso)
-	const endExclusive = new Date(endIso)
-	const ymd = (d: Date) => {
-		const y = d.getFullYear()
-		const m = String(d.getMonth() + 1).padStart(2, "0")
-		const day = String(d.getDate()).padStart(2, "0")
-		return `${y}-${m}-${day}`
-	}
-	const endInclusive = new Date(endExclusive)
-	endInclusive.setDate(endInclusive.getDate() - 1)
-	return { startDate: ymd(start), endDate: ymd(endInclusive) }
-}
 
 const loadReport = async () => {
 	reportLoading.value = true
