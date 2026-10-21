@@ -85,6 +85,7 @@ export const TOAST = {
 	SURVEILLANCE_NO_STREAM_PERMISSION: "無串流控制權限",
 	SURVEILLANCE_MAX_VIEWS: (max: number) => `最多只能顯示 ${max} 個畫面`,
 	SURVEILLANCE_VIEW_ADDED: "已加入監控畫面",
+	SURVEILLANCE_DOWNLOAD_SELECT_NVR: "請先選擇 NVR 或加入回放畫面",
 	PEOPLE_COUNTING_RESET: "已重置人流統計",
 	ROLL_CALL_RESET: "已重置簽到統計",
 	STATS_RESET_FAILED: "重置失敗",

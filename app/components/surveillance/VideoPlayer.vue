@@ -49,6 +49,7 @@ interface Props {
 	/** 父層啟動串流失敗訊息（與內部 WebRTC 錯誤合併顯示） */
 	externalError?: string
 	showReload?: boolean
+	paused?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -57,15 +58,18 @@ const props = withDefaults(defineProps<Props>(), {
 	streamStatus: "stopped",
 	externalError: "",
 	showReload: true,
+	paused: false,
 })
 
 const emit = defineEmits<{
 	reload: []
+	needPlay: []
 }>()
 
 const videoRef = ref<HTMLVideoElement | null>(null)
 const error = ref("")
 let pc: RTCPeerConnection | null = null
+let frameWaitGen = 0
 
 const showFailureUi = computed(
 	() => props.streamStatus === "error" || Boolean(error.value) || Boolean(props.externalError)
@@ -78,45 +82,119 @@ const failureMessage = computed(
 		"串流失敗"
 )
 
-const updatePausedByVisibility = () => {
-	if (!videoRef.value) return
-	if (document.hidden) {
-		videoRef.value.pause()
-	} else {
-		videoRef.value.play().catch(() => {})
+let sampleCanvas: HTMLCanvasElement | null = null
+
+const sampleIsPainted = (el: HTMLVideoElement) => {
+	if (el.videoWidth <= 0) return false
+	try {
+		if (!sampleCanvas) sampleCanvas = document.createElement("canvas")
+		sampleCanvas.width = 32
+		sampleCanvas.height = 18
+		const ctx = sampleCanvas.getContext("2d", { willReadFrequently: true })
+		if (!ctx) return false
+		ctx.drawImage(el, 0, 0, 32, 18)
+		const data = ctx.getImageData(0, 0, 32, 18).data
+		for (let i = 0; i < data.length; i += 4) {
+			if (data[i] + data[i + 1] + data[i + 2] > 24) return true
+		}
+		return false
+	} catch {
+		return el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && el.videoWidth > 0
 	}
 }
 
-const connectWhep = async (whepUrl: string) => {
+const holdFirstFrame = (el: HTMLVideoElement) => {
+	const gen = ++frameWaitGen
+	if (sampleIsPainted(el)) {
+		el.pause()
+		return
+	}
+	const finish = (painted: boolean) => {
+		if (gen !== frameWaitGen) return
+		if (painted) {
+			if (props.paused) el.pause()
+			return
+		}
+		emit("needPlay")
+	}
+	el.play().catch(() => {})
+	if ("requestVideoFrameCallback" in el) {
+		const onFrame = () => {
+			if (gen !== frameWaitGen) return
+			if (sampleIsPainted(el)) {
+				finish(true)
+				return
+			}
+			el.requestVideoFrameCallback(onFrame)
+		}
+		el.requestVideoFrameCallback(onFrame)
+	}
+	const timer = window.setInterval(() => {
+		if (gen !== frameWaitGen) {
+			window.clearInterval(timer)
+			return
+		}
+		if (sampleIsPainted(el)) {
+			window.clearInterval(timer)
+			finish(true)
+		}
+	}, 250)
+	window.setTimeout(() => {
+		window.clearInterval(timer)
+		finish(sampleIsPainted(el))
+	}, 6000)
+}
+
+const syncPauseState = () => {
+	const el = videoRef.value
+	if (!el) return
+	if (typeof document !== "undefined" && document.hidden) {
+		frameWaitGen += 1
+		el.pause()
+		return
+	}
+	if (props.paused) {
+		holdFirstFrame(el)
+		return
+	}
+	frameWaitGen += 1
+	el.play().catch(() => {})
+}
+
+const connectWhep = async (whepUrl: string, previousPc: RTCPeerConnection | null) => {
 	if (!videoRef.value) return
-	pc = new RTCPeerConnection()
-	pc.ontrack = (e) => {
+	const nextPc = new RTCPeerConnection()
+	nextPc.ontrack = (e) => {
 		if (videoRef.value && e.streams[0]) {
 			videoRef.value.srcObject = e.streams[0]
+			void nextTick(() => syncPauseState())
 		}
+		previousPc?.close()
 	}
-	pc.addTransceiver("video", { direction: "recvonly" })
-	pc.addTransceiver("audio", { direction: "recvonly" })
-	const offer = await pc.createOffer()
-	await pc.setLocalDescription(offer)
+	nextPc.addTransceiver("video", { direction: "recvonly" })
+	nextPc.addTransceiver("audio", { direction: "recvonly" })
+	const offer = await nextPc.createOffer()
+	await nextPc.setLocalDescription(offer)
 	const response = await fetch(whepUrl, {
 		method: "POST",
 		headers: { "Content-Type": "application/sdp" },
 		body: offer.sdp,
 	})
 	if (!response.ok) {
+		nextPc.close()
 		throw new Error(`WHEP 失敗: ${response.status}`)
 	}
 	const answerSdp = await response.text()
-	await pc.setRemoteDescription(new RTCSessionDescription({ type: "answer", sdp: answerSdp }))
+	await nextPc.setRemoteDescription(new RTCSessionDescription({ type: "answer", sdp: answerSdp }))
+	pc = nextPc
 }
 
-const teardownPc = () => {
+const teardownPc = (clearVideo = true) => {
 	if (pc) {
 		pc.close()
 		pc = null
 	}
-	if (videoRef.value) {
+	if (clearVideo && videoRef.value) {
 		videoRef.value.srcObject = null
 	}
 }
@@ -125,28 +203,44 @@ watch(
 	() => [props.webrtcUrl, props.webrtcPort] as const,
 	async ([url, port]) => {
 		error.value = ""
-		teardownPc()
-		if (!url) return
+		if (!url) {
+			teardownPc(true)
+			return
+		}
+		const previousPc = pc
+		pc = null
 		await nextTick()
-		if (!videoRef.value) return
+		if (!videoRef.value) {
+			previousPc?.close()
+			return
+		}
 		try {
-			await connectWhep(resolveWebrtcWhepUrl(url, port))
+			await connectWhep(resolveWebrtcWhepUrl(url, port), previousPc)
 		} catch (e) {
+			pc = previousPc
 			error.value = e instanceof Error ? e.message : "WebRTC 連線失敗，請檢查 MediaMTX"
 		}
 	},
 	{ immediate: true }
 )
 
+watch(
+	() => props.paused,
+	() => {
+		syncPauseState()
+	}
+)
+
 onMounted(() => {
 	if (typeof document === "undefined") return
-	document.addEventListener("visibilitychange", updatePausedByVisibility)
-	updatePausedByVisibility()
+	document.addEventListener("visibilitychange", syncPauseState)
+	syncPauseState()
 })
 
 onBeforeUnmount(() => {
+	frameWaitGen += 1
 	if (typeof document !== "undefined") {
-		document.removeEventListener("visibilitychange", updatePausedByVisibility)
+		document.removeEventListener("visibilitychange", syncPauseState)
 	}
 	teardownPc()
 })

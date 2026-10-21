@@ -3,37 +3,42 @@
 		<Transition name="dialog-fade">
 			<div
 				v-if="modelValue"
-				class="fixed inset-0 z-[3000] bg-black"
+				class="fixed inset-0 z-[3000] flex flex-col bg-black"
 				role="dialog"
 				aria-modal="true"
 				aria-label="全螢幕監控畫面"
-				@pointermove="handlePointerActivity"
-				@pointerdown="handlePointerActivity"
 			>
-				<div class="absolute inset-0 p-0.5">
+				<div class="flex shrink-0 items-center justify-end bg-black/80 px-4 py-3">
+					<button
+						type="button"
+						class="rounded bg-white/10 px-3 py-1.5 text-sm text-white/90 hover:bg-white/20"
+						aria-label="關閉全螢幕"
+						@click="handleClose"
+					>
+						關閉
+					</button>
+				</div>
+
+				<div class="flex min-h-0 flex-1 flex-col overflow-hidden">
 					<SurveillanceCameraGrid
 						:cameras="cameras"
 						:views="views"
 						:layout="layout"
 						:is-fullscreen="true"
-						class="h-full w-full"
+						:is-playback="isPlayback"
+						:is-playing="isPlaying"
+						:selected-view-key="selectedViewKey"
+						:covering-view-keys="coveringViewKeys"
+						class="min-h-0 w-full flex-1"
 						@reload="$emit('reload', $event)"
+						@select="$emit('select', $event)"
+						@need-play="$emit('needPlay')"
 					/>
 				</div>
 
-				<button
-					type="button"
-					:class="[
-						'absolute bottom-4 left-1/2 z-[1] -translate-x-1/2 rounded bg-black/60 px-4 py-2 text-sm text-white/90 backdrop-blur transition-opacity hover:bg-black/75 focus:outline-none focus:ring-2 focus:ring-white/60',
-						controlsVisible ? 'opacity-100' : 'pointer-events-none opacity-0',
-					]"
-					:aria-hidden="!controlsVisible"
-					:tabindex="controlsVisible ? 0 : -1"
-					aria-label="關閉全螢幕"
-					@click="handleClose"
-				>
-					關閉
-				</button>
+				<div v-if="$slots.timeline" class="shrink-0">
+					<slot name="timeline" />
+				</div>
 			</div>
 		</Transition>
 	</Teleport>
@@ -48,38 +53,25 @@ interface Props {
 	cameras: readonly SurveillanceCamera[]
 	views: readonly MonitorView[]
 	layout: GridLayout
+	isPlayback?: boolean
+	isPlaying?: boolean
+	selectedViewKey?: string | null
+	coveringViewKeys?: readonly string[]
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+	isPlayback: false,
+	isPlaying: false,
+	selectedViewKey: null,
+	coveringViewKeys: () => [],
+})
 
 const emit = defineEmits<{
 	"update:modelValue": [value: boolean]
 	reload: [viewKey: string]
+	select: [viewKey: string]
+	needPlay: []
 }>()
-
-const CONTROLS_IDLE_MS = 2000
-const controlsVisible = ref(true)
-let hideTimer: ReturnType<typeof setTimeout> | null = null
-
-const clearHideTimer = () => {
-	if (!hideTimer) return
-	clearTimeout(hideTimer)
-	hideTimer = null
-}
-
-const scheduleHideControls = () => {
-	clearHideTimer()
-	hideTimer = setTimeout(() => {
-		controlsVisible.value = false
-		hideTimer = null
-	}, CONTROLS_IDLE_MS)
-}
-
-const handlePointerActivity = () => {
-	if (!props.modelValue) return
-	controlsVisible.value = true
-	scheduleHideControls()
-}
 
 const handleClose = () => emit("update:modelValue", false)
 
@@ -94,19 +86,15 @@ watch(
 	(open) => {
 		if (typeof document === "undefined") return
 		if (open) {
-			controlsVisible.value = true
-			scheduleHideControls()
 			document.addEventListener("keydown", handleKeyDown)
 			return
 		}
-		clearHideTimer()
 		document.removeEventListener("keydown", handleKeyDown)
 	},
 	{ immediate: true }
 )
 
 onBeforeUnmount(() => {
-	clearHideTimer()
 	if (typeof document !== "undefined") {
 		document.removeEventListener("keydown", handleKeyDown)
 	}

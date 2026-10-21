@@ -1,8 +1,8 @@
 <template>
 	<div
 		:class="[
-			'grid h-full min-h-0 w-full',
-			isFullscreen ? 'gap-px' : 'gap-2 sm:gap-3',
+			'grid min-h-0 w-full flex-1',
+			isFullscreen || isPlayback ? 'gap-px' : 'gap-2 sm:gap-3',
 			gridClass,
 		]"
 	>
@@ -12,35 +12,37 @@
 			:ref="(el: HTMLElement | null) => setViewRef(el, index)"
 			:class="[
 				'relative min-h-0 overflow-hidden bg-black',
-				isFullscreen
-					? 'rounded-none border-0'
-					: 'rounded-lg border-2 border-gray-300 dark:border-gray-700',
+				isFullscreen || isPlayback ? 'rounded-none' : 'rounded-lg border-2 border-gray-300 dark:border-gray-700',
+				isPlayback && displayViews.length > 1 && selectedViewKey === view.viewKey
+					? 'ring-1 ring-inset ring-white/40'
+					: '',
 			]"
+			@click="isPlayback && $emit('select', view.viewKey)"
 		>
-			<div
-				v-if="
-					(view.webrtcUrl ||
-						view.streamStatus === 'loading' ||
-						view.streamStatus === 'error') &&
-					(isViewVisible(index) || view.streamStatus === 'error')
-				"
-				class="absolute inset-0"
-			>
+			<div v-if="canMountPlayer(view, index)" class="absolute inset-0">
 				<SurveillanceVideoPlayer
-					:key="`player-${view.viewKey}-${view.position}-${index}`"
+					:key="
+						isPlayback
+							? `pb-${view.viewKey}`
+							: `player-${view.viewKey}-${view.playbackSessionId || view.streamId || 'idle'}`
+					"
 					:webrtc-url="view.webrtcUrl"
 					:webrtc-port="view.webrtcPort"
 					:stream-status="view.streamStatus"
+					:paused="isPlayback && !isPlaying"
 					class="h-full w-full"
 					@reload="$emit('reload', view.viewKey)"
+					@need-play="$emit('needPlay')"
 				/>
 			</div>
 
 			<div
-				v-else-if="!view.webrtcUrl && view.streamStatus !== 'loading'"
+				v-else-if="showEmptyHint(view)"
 				class="absolute inset-0 flex items-center justify-center bg-gray-900"
 			>
-				<p class="text-sm text-gray-400 2xl:text-base">無串流</p>
+				<p class="text-sm text-gray-400 2xl:text-base">
+					{{ isPlayback ? "此時段無錄影" : "無串流" }}
+				</p>
 			</div>
 
 			<div
@@ -51,16 +53,6 @@
 			</div>
 
 			<div v-if="!isFullscreen" class="absolute right-0 top-0 z-20 flex shrink-0 gap-1 p-1.5">
-				<button
-					v-if="view.proxyChannelId != null"
-					type="button"
-					class="shrink-0 whitespace-nowrap rounded bg-cyan-600/80 px-1.5 py-0.5 text-xs text-white transition-colors hover:bg-cyan-500 2xl:px-2 2xl:py-1"
-					title="平台內回放"
-					aria-label="平台內回放"
-					@click.stop="$emit('playback', view)"
-				>
-					回放
-				</button>
 				<button
 					type="button"
 					class="shrink-0 whitespace-nowrap rounded bg-gray-500/80 px-1.5 py-0.5 text-xs text-white transition-colors hover:bg-gray-600 2xl:px-2 2xl:py-1"
@@ -78,7 +70,7 @@
 			:key="`empty-${idx}`"
 			:class="[
 				'flex min-h-0 items-center justify-center',
-				isFullscreen
+				isFullscreen || isPlayback
 					? 'bg-black'
 					: 'rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-800',
 			]"
@@ -96,16 +88,25 @@ interface Props {
 	views: readonly MonitorView[]
 	layout: GridLayout
 	isFullscreen?: boolean
+	isPlayback?: boolean
+	selectedViewKey?: string | null
+	coveringViewKeys?: readonly string[]
+	isPlaying?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	isFullscreen: false,
+	isPlayback: false,
+	selectedViewKey: null,
+	coveringViewKeys: () => [],
+	isPlaying: false,
 })
 
 defineEmits<{
 	remove: [viewKey: string]
 	reload: [viewKey: string]
-	playback: [view: MonitorView]
+	select: [viewKey: string]
+	needPlay: []
 }>()
 
 const GRID_CLASS: Record<GridLayout, { cols: string; rows: string }> = {
@@ -124,6 +125,26 @@ const setViewRef = (el: HTMLElement | null, index: number) => {
 }
 
 const isViewVisible = (index: number): boolean => visibleViews.value.has(index)
+
+const canMountPlayer = (view: MonitorView, index: number) => {
+	const active =
+		Boolean(view.webrtcUrl) ||
+		view.streamStatus === "loading" ||
+		view.streamStatus === "error"
+	if (!active) return false
+	return (
+		props.isPlayback ||
+		props.isFullscreen ||
+		view.streamStatus === "error" ||
+		isViewVisible(index)
+	)
+}
+
+const showEmptyHint = (view: MonitorView): boolean => {
+	if (view.webrtcUrl || view.streamStatus === "loading") return false
+	if (!props.isPlayback) return true
+	return !props.coveringViewKeys.includes(view.viewKey)
+}
 
 const gridClass = computed(() => {
 	const g = GRID_CLASS[props.layout] || GRID_CLASS["1"]

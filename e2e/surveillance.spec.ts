@@ -9,7 +9,7 @@ import {
  * 影像監控：畫面配置＋側欄／空態（不點攝影機，避免 stream/start）。
  */
 test.describe("影像監控 /access-control/surveillance", () => {
-	test("載入、畫面配置、攝影機列表／空態", async ({ page }) => {
+	test("載入、畫面配置、來源列表／空態、即時回放切換", async ({ page }) => {
 		const guards = attachPageGuards(page)
 
 		await page.goto("/access-control/surveillance", { waitUntil: "domcontentloaded" })
@@ -22,17 +22,27 @@ test.describe("影像監控 /access-control/surveillance", () => {
 
 		await expect(page.getByRole("button", { name: "1 畫面" })).toBeVisible({ timeout: 20_000 })
 		await expect(page.getByRole("button", { name: "4 畫面" })).toBeVisible()
-		await expect(page.getByRole("heading", { name: "攝影機列表" })).toBeVisible()
+		await expect(page.getByRole("button", { name: "即時" })).toBeVisible()
+		await expect(page.getByRole("button", { name: "回放" })).toBeVisible()
+		await expect(page.getByRole("heading", { name: "來源列表" })).toBeVisible()
 		await page.getByRole("button", { name: "4 畫面" }).click({ force: true })
 
 		await expect(
 			page
 				.getByText("尚未加入攝影機")
-				.or(page.getByText("請於側邊列表點選攝影機以加入監控畫面"))
+				.or(page.getByText("請於側邊列表點選攝影機或 NVR 通道以加入監控畫面"))
 				.or(page.getByText("沒有攝影機"))
 				.or(page.getByText("此群組無攝影機"))
 				.first(),
 		).toBeVisible({ timeout: 20_000 })
+
+		await page.getByRole("button", { name: "回放" }).click({ force: true })
+		await expect(page.getByRole("button", { name: "9 畫面" })).toHaveCount(0)
+		await expect(page.getByRole("button", { name: "16 畫面" })).toHaveCount(0)
+		await expect(page.getByRole("button", { name: "1 畫面" })).toBeVisible()
+		await expect(page.getByRole("button", { name: "4 畫面" })).toBeVisible()
+		await expect(page.getByLabel("錄影回放時間軸")).toBeVisible()
+		await expect(page.getByLabel("時間軸範圍")).toBeVisible()
 
 		await guards.assertClean()
 	})
