@@ -31,14 +31,19 @@
 					<div class="mb-4 shrink-0">
 						<SurveillanceControlPanel
 							:model-value="gridLayout"
-							:total-cameras="cameras.length + nvrDevices.length"
+							:view-mode="viewMode"
+							:total-cameras="sourceCount"
 							:view-count="monitorViews.length"
 							@update:model-value="handleLayoutChange"
+							@update:view-mode="handleViewModeChange"
 							@fullscreen="isFullscreenOpen = true"
 						/>
 					</div>
 
-					<div class="flex min-h-0 flex-1 flex-col">
+					<div
+						class="flex min-h-0 flex-1 flex-col"
+						:class="isPlayback ? 'overflow-hidden rounded-lg bg-black' : 'gap-3'"
+					>
 						<Transition name="fade" mode="out-in">
 							<div v-if="loadError" key="error" class="flex min-h-0 flex-1 items-center justify-center">
 								<div class="rounded-lg bg-red-50/90 p-6 text-center dark:bg-red-900/30">
@@ -53,30 +58,54 @@
 								</div>
 							</div>
 
-							<div v-else-if="monitorViews.length > 0" key="grid" class="min-h-0 flex-1">
+							<div
+								v-else-if="monitorViews.length > 0"
+								key="grid"
+								class="flex min-h-0 flex-1 flex-col overflow-hidden"
+							>
 								<SurveillanceCameraGrid
+									class="min-h-0 flex-1"
 									:cameras="cameras"
 									:views="monitorViews"
 									:layout="gridLayout"
+									:is-playback="isPlayback"
+									:is-playing="playback.isPlaying.value"
+									:selected-view-key="selectedViewKey"
+									:covering-view-keys="playback.coveringViewKeys.value"
 									@remove="handleRemoveView"
 									@reload="handleReloadView"
-									@playback="handleOpenPlayback"
+									@select="selectedViewKey = $event"
+									@need-play="void playback.play()"
 								/>
 							</div>
 
 							<div
 								v-else
 								key="empty"
-								class="flex min-h-0 flex-1 items-center justify-center rounded-lg border-2 border-dashed border-white/30 bg-white/5 p-12 text-center"
+								class="flex min-h-0 flex-1 items-center justify-center p-12 text-center"
+								:class="
+									isPlayback
+										? 'bg-black'
+										: 'rounded-lg border-2 border-dashed border-white/30 bg-white/5'
+								"
 							>
 								<div>
 									<p class="text-2xl text-white/90 2xl:text-3xl">尚未加入攝影機</p>
 									<p class="mt-2 text-base text-white/70 2xl:text-lg">
-										請於側邊列表點選攝影機或 NVR 通道以加入監控畫面
+										{{
+											isPlayback
+												? "請於側邊列表點選 NVR 通道以加入回放畫面"
+												: "請於側邊列表點選攝影機或 NVR 通道以加入監控畫面"
+										}}
 									</p>
 								</div>
 							</div>
 						</Transition>
+						<SurveillancePlaybackTimeline
+							v-if="isPlayback && !isFullscreenOpen"
+							v-bind="timelineBind"
+							v-on="timelineOn"
+						/>
 					</div>
 				</div>
 			</section>
@@ -129,10 +158,11 @@
 										<span
 											class="ml-2 rounded-full bg-white/20 px-2.5 py-0.5 text-base font-medium text-white backdrop-blur-sm 2xl:text-lg"
 										>
-											{{ filteredCameras.length + nvrDevices.length }}
+											{{ sourceCount }}
 										</span>
 									</div>
 									<FilterDropdown
+										v-if="!isPlayback"
 										v-model="surveillanceGroupFilter"
 										:options="surveillanceGroupFilterOptions"
 										placeholder="全部"
@@ -142,7 +172,7 @@
 							</div>
 
 							<div class="show-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4">
-								<section class="space-y-3">
+								<section v-if="!isPlayback" class="space-y-3">
 									<h3 class="text-sm font-medium text-cyan-200/90 2xl:text-base">攝影機</h3>
 									<div
 										v-if="filteredCameraCategoryGroups.length === 0"
@@ -173,7 +203,7 @@
 									</section>
 								</section>
 
-								<section class="space-y-3 border-t border-white/20 pt-6">
+								<section :class="isPlayback ? 'space-y-3' : 'space-y-3 border-t border-white/20 pt-6'">
 									<h3 class="text-sm font-medium text-cyan-200/90 2xl:text-base">
 										NVR
 										<span class="ml-1.5 text-xs font-normal text-white/50">
@@ -258,21 +288,35 @@
 		:cameras="cameras"
 		:views="monitorViews"
 		:layout="gridLayout"
+		:is-playback="isPlayback"
+		:is-playing="playback.isPlaying.value"
+		:selected-view-key="selectedViewKey"
+		:covering-view-keys="playback.coveringViewKeys.value"
 		@reload="handleReloadView"
-	/>
+		@select="selectedViewKey = $event"
+		@need-play="void playback.play()"
+	>
+		<template v-if="isPlayback" #timeline>
+			<SurveillancePlaybackTimeline
+				v-bind="timelineBind"
+				v-on="timelineOn"
+			/>
+		</template>
+	</SurveillanceFullscreenGridDialog>
 
-	<SurveillanceNvrPlaybackDialog
-		v-model="playbackOpen"
-		:nvr-id="playbackNvrId"
-		:track-id="playbackTrackId"
-		:title="playbackTitle"
+	<SurveillanceDownloadDialog
+		v-model="isDownloadDialogOpen"
+		:nvr-id="downloadNvrId"
+		:selected-date="playback.selectedDate.value"
+		:preselected-track-ids="downloadPreselectedTrackIds"
+		@update:running="isDownloadRunning = $event"
 	/>
 </template>
 
 <script setup lang="ts">
 import { TOAST } from "~/config/toastCatalog"
 import { onMounted, onBeforeUnmount, watch, ref, computed } from "vue"
-import type { GridLayout, MonitorView, NvrVirtualChannel } from "~/types/surveillance"
+import type { GridLayout, NvrVirtualChannel, SurveillanceViewMode } from "~/types/surveillance"
 import type { CameraDeviceConfig, Device } from "~/types/device"
 import { useToast } from "~/composables/core/useToast"
 import { useErrorHandler } from "~/composables/core/useErrorHandler"
@@ -291,14 +335,20 @@ import SurveillanceControlPanel from "~/components/surveillance/SurveillanceCont
 import SurveillanceCameraGrid from "~/components/surveillance/SurveillanceCameraGrid.vue"
 import SurveillanceCameraCard from "~/components/surveillance/SurveillanceCameraCard.vue"
 import SurveillanceFullscreenGridDialog from "~/components/surveillance/SurveillanceFullscreenGridDialog.vue"
-import SurveillanceNvrPlaybackDialog from "~/components/surveillance/SurveillanceNvrPlaybackDialog.vue"
+import SurveillancePlaybackTimeline from "~/components/surveillance/SurveillancePlaybackTimeline.vue"
+import SurveillanceDownloadDialog from "~/components/surveillance/SurveillanceDownloadDialog.vue"
+import { useNvrPlaybackSession } from "~/composables/systems/surveillance/useNvrPlaybackSession"
 import { groupDevicesByModelCategory } from "~/utils/cameraModelCategories"
 import { useSurveillanceRbac } from "~/composables/core/useAccessGate"
 
-const LAYOUT_ORDER: readonly GridLayout[] = ["1", "4", "9", "16"]
+const LIVE_LAYOUT_ORDER: readonly GridLayout[] = ["1", "4", "9", "16"]
+const PLAYBACK_LAYOUT_ORDER: readonly GridLayout[] = ["1", "4"]
+const PLAYBACK_MAX_VIEWS = 4
 
-const layoutThatFits = (count: number): GridLayout =>
-	LAYOUT_ORDER.find((layout) => parseInt(layout, 10) >= count) ?? "16"
+const layoutThatFits = (count: number, mode: SurveillanceViewMode): GridLayout => {
+	const order = mode === "playback" ? PLAYBACK_LAYOUT_ORDER : LIVE_LAYOUT_ORDER
+	return order.find((layout) => parseInt(layout, 10) >= count) ?? order[order.length - 1] ?? "1"
+}
 
 const { canControlStream } = useSurveillanceRbac()
 const toast = useToast()
@@ -327,10 +377,42 @@ const nvrChannels = ref<NvrVirtualChannel[]>([])
 const nvrChannelsLoading = ref(false)
 const nvrChannelsError = ref<string | null>(null)
 
-const playbackOpen = ref(false)
-const playbackNvrId = ref(0)
-const playbackTrackId = ref(0)
-const playbackTitle = ref("")
+const viewMode = ref<SurveillanceViewMode>("live")
+const isPlayback = computed(() => viewMode.value === "playback")
+const selectedViewKey = ref<string | null>(null)
+const playback = useNvrPlaybackSession({
+	views: monitorViews,
+	updateView: streamStatus.updateMonitorView,
+})
+
+const recordingDays = ref<string[]>([])
+const isDownloadDialogOpen = ref(false)
+const isDownloadRunning = ref(false)
+
+const downloadNvrId = computed(() => {
+	const fromView = monitorViews.value.find((view) => view.proxyChannelId != null)
+	return fromView?.deviceId ?? expandedNvrId.value
+})
+
+const downloadPreselectedTrackIds = computed(() =>
+	monitorViews.value
+		.map((view) => view.proxyChannelId)
+		.filter((id): id is number => id != null)
+)
+
+const timelineBind = computed(() => ({
+	selectedDate: playback.selectedDate.value,
+	playheadLabel: playback.playheadLabel.value,
+	playheadMs: playback.playheadMs.value,
+	dayStartMs: playback.dayStartMs.value,
+	isPlaying: playback.isPlaying.value,
+	isDownloading: isDownloadRunning.value,
+	canGoNextDay: playback.canGoNextDay.value,
+	searchError: playback.searchError.value,
+	zoomHours: playback.zoomHours.value,
+	unionSegments: playback.unionSegments.value,
+	recordingDays: recordingDays.value,
+}))
 
 const surveillanceGroupFilterOptions = computed(() => [
 	{ value: "", label: "全部" },
@@ -349,6 +431,9 @@ const filteredCameraCategoryGroups = computed(() =>
 
 const gridLayout = ref<GridLayout>("1")
 const selectedViewKeys = computed(() => monitorViews.value.map((view) => view.viewKey))
+const sourceCount = computed(() =>
+	isPlayback.value ? nvrDevices.value.length : filteredCameras.value.length + nvrDevices.value.length
+)
 const isFullscreenOpen = ref(false)
 const isOverviewCollapsed = ref(false)
 const { detailPanelRef, asideHeightStyle } = useMonitoringAsideHeightSync()
@@ -359,11 +444,16 @@ const syncLayoutToViewCount = () => {
 		gridLayout.value = "1"
 		return
 	}
-	const exact = LAYOUT_ORDER.find((layout) => parseInt(layout, 10) === count)
+	const order = isPlayback.value ? PLAYBACK_LAYOUT_ORDER : LIVE_LAYOUT_ORDER
+	const exact = order.find((layout) => parseInt(layout, 10) === count)
 	if (!exact) return
 	if (parseInt(exact, 10) < parseInt(gridLayout.value, 10)) {
 		gridLayout.value = exact
 	}
+}
+
+const selectFirstView = () => {
+	selectedViewKey.value = monitorViews.value[0]?.viewKey ?? null
 }
 
 const trimNewestViewsToFit = (maxViews: number) => {
@@ -425,19 +515,24 @@ const ensureCanAddView = (): boolean => {
 		toast.warning(TOAST.SURVEILLANCE_NO_STREAM_PERMISSION)
 		return false
 	}
+	const maxViews = isPlayback.value ? PLAYBACK_MAX_VIEWS : 16
 	const needed = monitorViews.value.length + 1
-	if (needed > 16) {
-		toast.warning(TOAST.SURVEILLANCE_MAX_VIEWS(16))
+	if (needed > maxViews) {
+		toast.warning(TOAST.SURVEILLANCE_MAX_VIEWS(maxViews))
 		return false
 	}
 	const currentMax = parseInt(gridLayout.value, 10)
 	if (needed > currentMax) {
-		gridLayout.value = layoutThatFits(needed)
+		gridLayout.value = layoutThatFits(needed, viewMode.value)
 	}
 	return true
 }
 
 const handleReloadView = async (viewKey: string) => {
+	if (isPlayback.value) {
+		await playback.previewOrPlay(true)
+		return
+	}
 	if (!canControlStream.value) {
 		toast.warning(TOAST.SURVEILLANCE_NO_STREAM_PERMISSION)
 		return
@@ -451,10 +546,12 @@ const handleReloadView = async (viewKey: string) => {
 
 const handleRemoveView = (viewKey: string) => {
 	streamStatus.removeMonitorView(viewKey)
+	if (selectedViewKey.value === viewKey) selectFirstView()
 	syncLayoutToViewCount()
 }
 
 const handleCameraSelect = async (deviceId: number) => {
+	if (isPlayback.value) return
 	const viewKey = cameraViewKey(deviceId)
 	if (monitorViews.value.some((v) => v.viewKey === viewKey)) {
 		handleRemoveView(viewKey)
@@ -485,26 +582,135 @@ const handleNvrChannelSelect = async (nvr: Device, ch: NvrVirtualChannel) => {
 			nvrId: nvr.id,
 			proxyChannelId,
 			title,
+			deferStart: isPlayback.value,
 		})
+		if (!selectedViewKey.value) selectedViewKey.value = viewKey
 		toast.success(TOAST.SURVEILLANCE_VIEW_ADDED)
+		if (isPlayback.value) {
+			await playback.searchViews([viewKey])
+			await playback.previewOrPlay()
+		}
 	} catch (error) {
 		handleError(error, "啟動 NVR 通道串流失敗")
 	}
 }
 
-const handleOpenPlayback = (view: MonitorView) => {
-	if (view.proxyChannelId == null) return
-	playbackNvrId.value = view.deviceId
-	playbackTrackId.value = view.proxyChannelId
-	playbackTitle.value = view.title || `通道 ${view.proxyChannelId}`
-	playbackOpen.value = true
+const enterPlayback = async () => {
+	await playback.pause()
+	await playback.stopAllSessions()
+	monitorViews.value
+		.filter((view) => view.proxyChannelId == null)
+		.forEach((view) => streamStatus.removeMonitorView(view.viewKey))
+	trimNewestViewsToFit(PLAYBACK_MAX_VIEWS)
+	if (parseInt(gridLayout.value, 10) > PLAYBACK_MAX_VIEWS) {
+		gridLayout.value = String(PLAYBACK_MAX_VIEWS) as GridLayout
+	}
+	monitorViews.value.forEach((view) => streamStatus.detachMonitorViewStream(view.viewKey))
+	viewMode.value = "playback"
+	selectFirstView()
+	await playback.searchViews()
+	await playback.previewOrPlay()
+}
+
+const enterLive = async () => {
+	await playback.pause()
+	await playback.stopAllSessions()
+	viewMode.value = "live"
+	for (const view of monitorViews.value) {
+		if (view.proxyChannelId == null) continue
+		try {
+			await streamStatus.reloadMonitorView(view.viewKey)
+		} catch (error) {
+			handleError(error, "啟動串流失敗")
+		}
+	}
+}
+
+const handleViewModeChange = async (mode: SurveillanceViewMode) => {
+	if (mode === viewMode.value) return
+	if (mode === "playback") {
+		await enterPlayback()
+		return
+	}
+	await enterLive()
+}
+
+const handlePlaybackPlay = async () => {
+	if (!canControlStream.value) {
+		toast.warning(TOAST.SURVEILLANCE_NO_STREAM_PERMISSION)
+		return
+	}
+	await playback.play()
+}
+
+const handlePlaybackDownload = () => {
+	if (!canControlStream.value) {
+		toast.warning(TOAST.SURVEILLANCE_NO_STREAM_PERMISSION)
+		return
+	}
+	if (!downloadNvrId.value) {
+		toast.warning(TOAST.SURVEILLANCE_DOWNLOAD_SELECT_NVR)
+		return
+	}
+	isDownloadDialogOpen.value = true
+}
+
+const handleLoadCalendar = async (payload: { year: number; month: number }) => {
+	const views = monitorViews.value.filter((view) => view.proxyChannelId != null)
+	if (views.length === 0) {
+		recordingDays.value = []
+		return
+	}
+	const byNvr = new Map<number, number[]>()
+	for (const view of views) {
+		const trackId = view.proxyChannelId
+		if (trackId == null) continue
+		const list = byNvr.get(view.deviceId) || []
+		if (!list.includes(trackId)) list.push(trackId)
+		byNvr.set(view.deviceId, list)
+	}
+	try {
+		const results = await Promise.all(
+			[...byNvr.entries()].map(([nvrId, trackIds]) =>
+				nvrApi.getCalendarDays(nvrId, {
+					year: payload.year,
+					month: payload.month,
+					trackIds,
+				})
+			)
+		)
+		recordingDays.value = [...new Set(results.flatMap((item) => item.days || []))]
+	} catch (error) {
+		recordingDays.value = []
+		handleError(error, "載入錄影日曆失敗")
+	}
+}
+
+const timelineOn = {
+	play: handlePlaybackPlay,
+	pause: playback.pause,
+	download: handlePlaybackDownload,
+	shiftDate: playback.shiftDate,
+	setDate: playback.setDate,
+	zoom: playback.setZoomHours,
+	seekOffset: playback.seekToOffset,
+	seekTime: playback.seekToClock,
+	loadCalendar: handleLoadCalendar,
+	scrubStart: playback.beginScrub,
+	scrubCancel: playback.endScrubWithoutSeek,
 }
 
 const handleLayoutChange = (newLayout: GridLayout) => {
 	if (newLayout === gridLayout.value) return
+	if (isPlayback.value && parseInt(newLayout, 10) > PLAYBACK_MAX_VIEWS) return
 	trimNewestViewsToFit(parseInt(newLayout, 10))
 	gridLayout.value = newLayout
 }
+
+watch(selectedViewKeys, (keys) => {
+	if (selectedViewKey.value && keys.includes(selectedViewKey.value)) return
+	selectFirstView()
+})
 
 onMounted(async () => {
 	void loadCameraGroups()
@@ -517,6 +723,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
 	isFullscreenOpen.value = false
+	void playback.stopAllSessions()
 	streamStatus.clearAllMonitorViews()
 })
 </script>

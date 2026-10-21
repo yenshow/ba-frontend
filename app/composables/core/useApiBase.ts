@@ -34,6 +34,7 @@ type RequestOptions = Omit<RequestInit, "body"> & {
 	body?: unknown
 	/** API 失敗時的操作情境，供錯誤文案 fallback */
 	errorContext?: ErrorContext
+	onProgress?: (loaded: number, total: number | null) => void
 }
 
 const toApiErrorCode = (code: string): ApiErrorCode => {
@@ -275,7 +276,7 @@ export const useApiBase = () => {
 			...(options.headers as Record<string, string>),
 		}
 		const timeout = options.timeout ?? 5000
-		const { timeout: _timeout, ...fetcherOptions } = options
+		const { timeout: _timeout, onProgress: _onProgress, ...fetcherOptions } = options
 		const contentType = String(headers["Content-Type"] || headers["content-type"] || "")
 		const shouldStringifyJsonBody =
 			!isFormData &&
@@ -375,7 +376,31 @@ export const useApiBase = () => {
 				await throwApiRequestError(fetchError, path, { fallbackStatus: response.status })
 			}
 
-			return await response.blob()
+			if (!options.onProgress || !response.body) {
+				return await response.blob()
+			}
+			const totalHeader = Number(response.headers.get("content-length") || "")
+			const total = Number.isFinite(totalHeader) && totalHeader > 0 ? totalHeader : null
+			const reader = response.body.getReader()
+			const chunks: Uint8Array[] = []
+			let loaded = 0
+			options.onProgress(0, total)
+			while (true) {
+				const { done, value } = await reader.read()
+				if (done) break
+				if (value) {
+					chunks.push(value)
+					loaded += value.byteLength
+					options.onProgress(loaded, total)
+				}
+			}
+			const merged = new Uint8Array(loaded)
+			let offset = 0
+			for (const chunk of chunks) {
+				merged.set(chunk, offset)
+				offset += chunk.byteLength
+			}
+			return new Blob([merged], { type: response.headers.get("content-type") || "video/mp4" })
 		} catch (error: unknown) {
 			if (error instanceof ApiRequestError) throw error
 			return await throwApiRequestError(error, path)

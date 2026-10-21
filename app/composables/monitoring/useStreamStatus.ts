@@ -22,6 +22,8 @@ export type AddMonitorViewInput =
 			nvrId: number
 			proxyChannelId: number
 			title?: string
+			/** 回放模式佔格，不啟動即時串流 */
+			deferStart?: boolean
 	  }
 
 export const useStreamStatus = () => {
@@ -66,6 +68,16 @@ export const useStreamStatus = () => {
 	const addMonitorView = async (input: AddMonitorViewInput): Promise<void> => {
 		const viewKey = resolveViewKey(input)
 		const views = monitorViews.monitorViews.value
+		if (input.kind === "nvr" && input.deferStart) {
+			monitorViews.addMonitorView({
+				viewKey,
+				deviceId: input.nvrId,
+				proxyChannelId: input.proxyChannelId,
+				title: input.title,
+				position: views.length,
+			})
+			return
+		}
 		const existing = views.find((v) => v.viewKey === viewKey)
 		if (existing?.webrtcUrl) {
 			monitorViews.addMonitorView({
@@ -151,6 +163,17 @@ export const useStreamStatus = () => {
 		}
 	}
 
+	const detachMonitorViewStream = (viewKey: string): void => {
+		stopStreamForViewKey(viewKey).catch(() => {})
+		monitorViews.updateMonitorView(viewKey, {
+			webrtcUrl: "",
+			webrtcPort: undefined,
+			streamId: undefined,
+			playbackSessionId: undefined,
+			streamStatus: undefined,
+		})
+	}
+
 	return {
 		cameras: cameraStream.cameras,
 		monitorViews: monitorViews.monitorViews,
@@ -159,6 +182,7 @@ export const useStreamStatus = () => {
 		reloadMonitorView,
 		removeMonitorView,
 		clearAllMonitorViews,
+		detachMonitorViewStream,
 		updateMonitorView: monitorViews.updateMonitorView,
 		reorderMonitorViews: monitorViews.reorderMonitorViews,
 	}

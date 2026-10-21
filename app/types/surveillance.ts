@@ -26,6 +26,10 @@ export interface NvrVirtualChannel {
  */
 export type GridLayout = "1" | "4" | "9" | "16"
 
+export type SurveillanceViewMode = "live" | "playback"
+
+export type PlaybackZoomHours = 24 | 12 | 6
+
 /**
  * 監控畫面配置（WebRTC：加入畫面時呼叫 stream/start 取得 webrtcUrl）
  * viewKey：`cam:{deviceId}` 或 `nvr:{nvrId}:{proxyChannelId}`
@@ -43,6 +47,8 @@ export interface MonitorView {
 	streamId?: string
 	/** 串流狀態 */
 	streamStatus?: "running" | "stopped" | "loading" | "error"
+	/** 回放 session（臨時 MediaMTX path） */
+	playbackSessionId?: string
 }
 
 export type NvrSearchMatch = {

@@ -39,7 +39,7 @@ type NvrPlaybackStartResponse = {
 }
 
 export const useNvrApi = () => {
-	const { request } = useApiBase()
+	const { request, requestBlob } = useApiBase()
 
 	const listChannels = async (nvrId: number): Promise<NvrVirtualChannel[]> => {
 		try {
@@ -113,7 +113,9 @@ export const useNvrApi = () => {
 
 	const startPlayback = async (
 		nvrId: number,
-		body: { playbackURI: string }
+		body:
+			| { playbackURI: string }
+			| { trackId: number; startTime: string; endTime: string }
 	): Promise<NvrPlaybackStartResponse> => {
 		try {
 			return await request<NvrPlaybackStartResponse>(
@@ -125,6 +127,46 @@ export const useNvrApi = () => {
 			)
 		} catch (error) {
 			nvrLogger.error("NVR 回放啟動失敗", { nvrId, error })
+			throw error
+		}
+	}
+
+	const getCalendarDays = async (
+		nvrId: number,
+		opts: { year: number; month: number; trackIds: number[] }
+	): Promise<{ days: string[] }> => {
+		try {
+			const params = new URLSearchParams({
+				year: String(opts.year),
+				month: String(opts.month),
+				trackIds: opts.trackIds.join(","),
+			})
+			return await request<{ days: string[] }>(`/devices/${nvrId}/nvr/calendar?${params}`)
+		} catch (error) {
+			nvrLogger.error("NVR 錄影日曆查詢失敗", { nvrId, error })
+			throw error
+		}
+	}
+
+	const downloadRecording = async (
+		nvrId: number,
+		body:
+			| { playbackURI: string; trackId?: number; startTime?: string; endTime?: string }
+			| { trackId: number; startTime: string; endTime: string },
+		opts?: {
+			signal?: AbortSignal
+			onProgress?: (loaded: number, total: number | null) => void
+		}
+	): Promise<Blob> => {
+		try {
+			return await requestBlob(`/devices/${nvrId}/nvr/download`, {
+				method: "POST",
+				body: JSON.stringify(body),
+				signal: opts?.signal ?? AbortSignal.timeout(10 * 60 * 1000),
+				onProgress: opts?.onProgress,
+			})
+		} catch (error) {
+			nvrLogger.error("NVR 錄影下載失敗", { nvrId, error })
 			throw error
 		}
 	}
@@ -146,7 +188,9 @@ export const useNvrApi = () => {
 		startChannelStream,
 		stopChannelStream,
 		searchRecordings,
+		getCalendarDays,
 		startPlayback,
 		stopPlayback,
+		downloadRecording,
 	}
 }

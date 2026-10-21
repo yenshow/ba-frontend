@@ -73,6 +73,11 @@ export const TOAST = {
 	PERSONNEL_IMPORT_WITH_ERRORS: (count: number) => `匯入完成，但有 ${count} 筆錯誤，請查看下方明細`,
 	PERSONNEL_SAVED: (label: string) => `已儲存${label}`,
 
+	// elevator
+	ELEVATOR_FLOOR_ACCESS_APPLIED: "已套用樓層權限",
+	ELEVATOR_FLOOR_NAME_SAVED: "已更新樓層名稱",
+	ELEVATOR_COMMAND_SENT: "指令已送出",
+
 	// vehicle / access
 	VEHICLE_BARRIER_SENT: "已送出道閘指令",
 	ACCESS_DOOR_SENT: "已送出門控指令",
@@ -80,6 +85,7 @@ export const TOAST = {
 	SURVEILLANCE_NO_STREAM_PERMISSION: "無串流控制權限",
 	SURVEILLANCE_MAX_VIEWS: (max: number) => `最多只能顯示 ${max} 個畫面`,
 	SURVEILLANCE_VIEW_ADDED: "已加入監控畫面",
+	SURVEILLANCE_DOWNLOAD_SELECT_NVR: "請先選擇 NVR 或加入回放畫面",
 	PEOPLE_COUNTING_RESET: "已重置人流統計",
 	ROLL_CALL_RESET: "已重置簽到統計",
 	STATS_RESET_FAILED: "重置失敗",
