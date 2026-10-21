@@ -27,10 +27,7 @@
 				<label
 					v-for="device in accessControlDevices"
 					:key="`rc-dev-${device.id}`"
-					:class="[
-						selectCardBaseClass,
-						selectedIds.includes(device.id) && selectCardSelectedClass,
-					]"
+					:class="[selectCardBaseClass, selectedIds.includes(device.id) && selectCardSelectedClass]"
 				>
 					<input
 						type="checkbox"
@@ -46,9 +43,6 @@
 
 		<div class="border-t border-white/15 pt-4">
 			<span class="text-sm font-medium text-white/80 2xl:text-base">統計顯示名稱</span>
-			<p class="mt-1 text-xs text-white/50">
-				留空則使用系統預設；最多 {{ STAT_LABEL_MAX_LEN }} 字；主畫面與完整報表會套用
-			</p>
 			<div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
 				<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
 					<span>應到</span>
@@ -100,77 +94,77 @@
 </template>
 
 <script setup lang="ts">
-import { formatDeviceSelectLabel } from "~/utils/deviceSelectLabel"
-import type { Device } from "~/types/device"
-import type { RollCallLocation, RollCallRuleDraft } from "~/types/rollCall"
-import { useAuth } from "~/composables/core/useAuth"
-import { PERM } from "~/config/permissionCodes"
-import RollCallRulesEditor from "~/components/roll-call/RollCallRulesEditor.vue"
+import { formatDeviceSelectLabel } from "~/utils/deviceSelectLabel";
+import type { Device } from "~/types/device";
+import type { RollCallLocation, RollCallRuleDraft } from "~/types/rollCall";
+import { useAuth } from "~/composables/core/useAuth";
+import { PERM } from "~/config/permissionCodes";
+import RollCallRulesEditor from "~/components/roll-call/RollCallRulesEditor.vue";
 import {
 	DEFAULT_ROLL_CALL_STAT_LABELS,
 	draftRollCallStatLabels,
-	STAT_LABEL_MAX_LEN,
-} from "~/utils/statLabels"
+	STAT_LABEL_MAX_LEN
+} from "~/utils/statLabels";
 
 const props = defineProps<{
-	location: RollCallLocation
-	accessControlDevices: Device[]
-}>()
+	location: RollCallLocation;
+	accessControlDevices: Device[];
+}>();
 
 const emit = defineEmits<{
-	update: [location: RollCallLocation]
-}>()
+	update: [location: RollCallLocation];
+}>();
 
-const { useHasPermission } = useAuth()
-const canEditRules = useHasPermission(PERM.rollCall.ruleEdit)
+const { useHasPermission } = useAuth();
+const canEditRules = useHasPermission(PERM.rollCall.ruleEdit);
 
 const emptyHintClass =
-	"rounded border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60 2xl:text-sm"
+	"rounded border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60 2xl:text-sm";
 const selectCardBaseClass =
-	"relative flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10"
-const selectCardSelectedClass = "border-cyan-400/50 bg-cyan-500/20"
+	"relative flex cursor-pointer items-center gap-2 rounded border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/10";
+const selectCardSelectedClass = "border-cyan-400/50 bg-cyan-500/20";
 
-const localName = ref(props.location.name || "")
-const selectedIds = computed(() => props.location.deviceIds || [])
-const localRules = computed(() => props.location.rules || [])
+const localName = ref(props.location.name || "");
+const selectedIds = computed(() => props.location.deviceIds || []);
+const localRules = computed(() => props.location.rules || []);
 
-const draftLabels = () => draftRollCallStatLabels(props.location.statLabels)
-const statLabelExpected = ref(draftLabels().expected)
-const statLabelPresent = ref(draftLabels().present)
-const statLabelAbsent = ref(draftLabels().absent)
+const draftLabels = () => draftRollCallStatLabels(props.location.statLabels);
+const statLabelExpected = ref(draftLabels().expected);
+const statLabelPresent = ref(draftLabels().present);
+const statLabelAbsent = ref(draftLabels().absent);
 
 watch(
 	() => props.location.name,
-	(name) => {
-		localName.value = name || ""
-	},
-)
+	name => {
+		localName.value = name || "";
+	}
+);
 
 watch(
 	() => props.location.statLabels,
-	(labels) => {
-		const next = draftRollCallStatLabels(labels)
-		statLabelExpected.value = next.expected
-		statLabelPresent.value = next.present
-		statLabelAbsent.value = next.absent
+	labels => {
+		const next = draftRollCallStatLabels(labels);
+		statLabelExpected.value = next.expected;
+		statLabelPresent.value = next.present;
+		statLabelAbsent.value = next.absent;
 	},
-	{ deep: true },
-)
+	{ deep: true }
+);
 
 const handleNameChange = () => {
-	emit("update", { ...props.location, name: localName.value })
-}
+	emit("update", { ...props.location, name: localName.value });
+};
 
 const handleToggleDevice = (deviceId: number) => {
-	const current = new Set(selectedIds.value)
-	if (current.has(deviceId)) current.delete(deviceId)
-	else current.add(deviceId)
-	emit("update", { ...props.location, deviceIds: [...current] })
-}
+	const current = new Set(selectedIds.value);
+	if (current.has(deviceId)) current.delete(deviceId);
+	else current.add(deviceId);
+	emit("update", { ...props.location, deviceIds: [...current] });
+};
 
 const handleRulesChange = (rules: RollCallRuleDraft[]) => {
-	emit("update", { ...props.location, rules })
-}
+	emit("update", { ...props.location, rules });
+};
 
 const handleStatLabelsChange = () => {
 	emit("update", {
@@ -178,8 +172,8 @@ const handleStatLabelsChange = () => {
 		statLabels: draftRollCallStatLabels({
 			expected: statLabelExpected.value,
 			present: statLabelPresent.value,
-			absent: statLabelAbsent.value,
-		}),
-	})
-}
+			absent: statLabelAbsent.value
+		})
+	});
+};
 </script>

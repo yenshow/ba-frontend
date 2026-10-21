@@ -14,6 +14,7 @@
 
 <script setup lang="ts">
 import type { Device } from "~/types/device"
+import type { PersonGroup } from "~/types/personnel"
 import type { RollCallLocation, RollCallZone } from "~/types/rollCall"
 import RollCallLocationFields from "../LocationFormFields/RollCallLocationFields.vue"
 
@@ -22,8 +23,9 @@ const props = withDefaults(
 		zone: RollCallZone
 		selectedLocationIndex: number
 		accessControlDevices?: Device[]
+		personGroups?: PersonGroup[]
 	}>(),
-	{ accessControlDevices: () => [] },
+	{ accessControlDevices: () => [], personGroups: () => [] },
 )
 
 const emit = defineEmits<{

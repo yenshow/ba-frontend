@@ -23,8 +23,6 @@
 			</div>
 		</div>
 
-		<p v-if="errorMessage" class="form-error-text" role="alert">{{ errorMessage }}</p>
-
 		<div v-if="activeRule" class="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
 			<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
 				<span>規則名稱<span class="required-mark">*</span></span>
@@ -99,6 +97,9 @@
 					</span>
 				</label>
 			</div>
+			<p v-if="isOvernight" class="text-xs text-cyan-200/90 2xl:text-sm">
+				結束早於開始＝跨日（場次日為開始日，例如 20:00–05:00）
+			</p>
 		</div>
 		<p class="text-xs text-white/60 2xl:text-sm">
 			時段規則會與地點一併在下方「儲存變更」時寫入。應到人員請至「門禁管理」維護地點名單。
@@ -128,9 +129,14 @@ const emit = defineEmits<{
 }>();
 
 const activeIndex = ref(0);
-const errorMessage = ref("");
 
 const activeRule = computed(() => props.modelValue[activeIndex.value] ?? null);
+
+const isOvernight = computed(() => {
+	const rule = activeRule.value;
+	if (!rule?.windowStart || !rule.windowEnd) return false;
+	return rule.windowEnd < rule.windowStart;
+});
 
 const ensureDefaultRule = () => {
 	if (props.modelValue.length > 0) return;
@@ -151,7 +157,6 @@ watch(
 );
 
 const emitList = (list: RollCallRuleDraft[]) => {
-	errorMessage.value = "";
 	emit("update:modelValue", list.length > 0 ? list : [createRollCallRuleDraft({ name: "規則 1" })]);
 };
 

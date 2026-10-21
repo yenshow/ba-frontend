@@ -17,7 +17,9 @@
 		</div>
 
 		<div>
-			<span class="text-sm font-medium text-white/80 2xl:text-base">資料來源<span class="required-mark">*</span></span>
+			<span class="text-sm font-medium text-white/80 2xl:text-base"
+				>資料來源<span class="required-mark">*</span></span
+			>
 			<div class="mt-2 flex flex-wrap gap-4">
 				<label v-if="enableYscpVehicleAccess" class="flex cursor-pointer items-center gap-2">
 					<input
@@ -43,7 +45,9 @@
 		</div>
 
 		<div v-if="dataSource === 'isapi_camera'">
-			<span class="text-sm font-medium text-white/80 2xl:text-base">營運模式<span class="required-mark">*</span></span>
+			<span class="text-sm font-medium text-white/80 2xl:text-base"
+				>營運模式<span class="required-mark">*</span></span
+			>
 			<div class="mt-2 flex flex-wrap gap-4">
 				<label class="flex cursor-pointer items-center gap-2">
 					<input
@@ -114,7 +118,9 @@
 		<template v-else>
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 				<div>
-					<span class="text-sm text-white/80 2xl:text-base">入口攝影機（可複選）<span class="required-mark">*</span></span>
+					<span class="text-sm text-white/80 2xl:text-base"
+						>入口攝影機（可複選）<span class="required-mark">*</span></span
+					>
 					<div v-if="cameraDevices.length === 0" class="mt-2 text-xs text-white/50">
 						請先在設備管理新增攝影機
 					</div>
@@ -204,10 +210,7 @@
 			</div>
 		</div>
 
-		<div
-			v-if="dataSource === 'isapi_camera'"
-			class="mt-3 border-t border-white/10 pt-3"
-		>
+		<div v-if="dataSource === 'isapi_camera'" class="mt-3 border-t border-white/10 pt-3">
 			<label class="flex cursor-pointer items-center gap-2">
 				<input
 					v-model="eventBackfillEnabledInput"
@@ -241,9 +244,6 @@
 
 		<div class="mt-3 border-t border-white/10 pt-3">
 			<span class="text-sm font-medium text-white/80 2xl:text-base">統計顯示名稱</span>
-			<p class="mt-1 text-xs text-white/50">
-				留空則使用系統預設；最多 {{ STAT_LABEL_MAX_LEN }} 字；主畫面、完整報表與備份表頭會套用
-			</p>
 			<div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
 				<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
 					<span>進場</span>
@@ -331,7 +331,7 @@ import {
 import {
 	DEFAULT_VEHICLE_ACCESS_STAT_LABELS,
 	draftEntryExitStatLabels,
-	STAT_LABEL_MAX_LEN,
+	STAT_LABEL_MAX_LEN
 } from "~/utils/statLabels";
 import { ref, watch, computed, onMounted } from "vue";
 
@@ -375,7 +375,7 @@ const handleStatLabelsChange = () => {
 	localLocation.value.statLabels = draftEntryExitStatLabels({
 		entry: statLabelEntry.value,
 		exit: statLabelExit.value,
-		current: statLabelCurrent.value,
+		current: statLabelCurrent.value
 	});
 	handleChange();
 };
@@ -430,7 +430,7 @@ onMounted(async () => {
 			type_code: "camera",
 			...(deviceEnableFeature.value ? { enabled: true } : {}),
 			limit: 200,
-			offset: 0,
+			offset: 0
 		});
 		const devices = Array.isArray(res?.devices) ? res.devices : [];
 		cameraDevices.value = filterLicensePlateCameraDevices(devices);

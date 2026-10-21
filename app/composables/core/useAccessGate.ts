@@ -254,11 +254,11 @@ export const usePeopleCountingAccessRbac = () => {
 		canEditAccessMembers: canSyncEdit,
 		canResyncAccessDevices: canDeviceSync,
 		canResetStatistics: useHasPermission(p.statisticsReset),
-		canDoorControl: useHasPermission(p.doorControl),
+		canDoorControl: useHasPermission(p.doorControl)
 	};
 };
 
-/** 時段簽到：門禁名單／設備同步／重置統計 */
+/** 時段簽到：門禁名單／設備同步／重置統計／排休 */
 export const useRollCallAccessRbac = () => {
 	const { useHasPermission, useHasAnyPermission } = useAuth();
 	const p = PERM.rollCall;
@@ -269,6 +269,7 @@ export const useRollCallAccessRbac = () => {
 		canEditAccessMembers: canSyncEdit,
 		canResyncAccessDevices: canDeviceSync,
 		canResetStatistics: useHasPermission(p.statisticsReset),
+		canMarkLeave: useHasPermission(p.attendanceLeave)
 	};
 };
 

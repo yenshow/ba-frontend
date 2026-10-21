@@ -150,9 +150,7 @@ export const useNvrApi = () => {
 
 	const downloadRecording = async (
 		nvrId: number,
-		body:
-			| { playbackURI: string; trackId?: number; startTime?: string; endTime?: string }
-			| { trackId: number; startTime: string; endTime: string },
+		body: { trackId: number; startTime: string; endTime: string },
 		opts?: {
 			signal?: AbortSignal
 			onProgress?: (loaded: number, total: number | null) => void

@@ -85,7 +85,7 @@ export interface RollCallAttendanceRow {
 	fullName: string
 	groupId: number
 	groupName: string
-	status: "pending" | "present" | "absent"
+	status: "pending" | "present" | "absent" | "leave"
 	source: "face" | "manual" | null
 	checkedInAt: string | null
 	/** 與人流單位人員名單 photoUrl 同語意（persons.face_url） */
@@ -142,7 +142,7 @@ export interface RollCallReportAttendanceRow {
 	fullName: string
 	groupId: number
 	groupName: string
-	status: "pending" | "present" | "absent" | string
+	status: "pending" | "present" | "absent" | "leave" | string
 	source: "face" | "manual" | null
 	checkedInAt: string | null
 	/** 與人流單位人員名單 photoUrl 同語意（persons.face_url） */

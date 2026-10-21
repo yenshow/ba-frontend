@@ -43,7 +43,7 @@
 					<PermissionActionButton
 						:allowed="canManageLocation"
 						aria-label="地點管理"
-						class="absolute left-8 top-2 btn-monitoring-overlay"
+						class="btn-monitoring-overlay absolute left-8 top-2"
 						@click="showLocationDialog = true"
 					>
 						地點管理
@@ -52,7 +52,7 @@
 						v-show="selected"
 						:allowed="canOpenAccessManage"
 						aria-label="門禁管理"
-						class="absolute left-32 2xl:left-36 top-2 btn-monitoring-overlay"
+						class="btn-monitoring-overlay absolute left-32 top-2 2xl:left-36"
 						@click="showAccessManageDialog = true"
 					>
 						門禁管理
@@ -61,7 +61,7 @@
 						v-show="selected"
 						:allowed="canResetStatistics"
 						aria-label="重置簽到統計"
-						class="absolute right-32 2xl:right-36 top-2 btn-monitoring-overlay"
+						class="btn-monitoring-overlay absolute right-32 top-2 2xl:right-36"
 						@click="handleResetStats"
 					>
 						重置統計
@@ -69,7 +69,7 @@
 					<PermissionActionButton
 						:allowed="true"
 						aria-label="開啟完整報表"
-						class="absolute right-8 top-2 btn-monitoring-overlay"
+						class="btn-monitoring-overlay absolute right-8 top-2"
 						@click="handleOpenReport"
 					>
 						完整報表
@@ -93,6 +93,8 @@
 									:rows="filteredAttendance"
 									:empty-message="attendanceEmptyMessage"
 									:compact="!isOverviewCollapsed"
+									:can-mark-leave="canMarkLeave && Boolean(activeSummary?.id)"
+									@leave="handleToggleLeave"
 								/>
 							</div>
 						</template>
@@ -129,12 +131,7 @@
 									viewBox="0 0 24 24"
 									aria-hidden="true"
 								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M9 5l7 7-7 7"
-									/>
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 								</svg>
 							</button>
 							<h2
@@ -151,7 +148,7 @@
 										:location="location"
 										class="cursor-pointer transition-all hover:ring-2 hover:ring-cyan-300/50"
 										:class="{
-											'ring-2 ring-cyan-400': selectedLocationId === location.locationId,
+											'ring-2 ring-cyan-400': selectedLocationId === location.locationId
 										}"
 										@click="handleSelectLocation(location.locationId)"
 									/>
@@ -210,39 +207,39 @@
 </template>
 
 <script setup lang="ts">
-import { onScopeDispose, computed, ref } from "vue"
-import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue"
-import { useMonitoringAsideHeightSync } from "~/composables/monitoring/useMonitoringAsideHeightSync"
-import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
-import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
-import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue"
-import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue"
-import RollCallOverviewCard from "~/components/roll-call/RollCallOverviewCard.vue"
-import RollCallAttendanceCards from "~/components/roll-call/RollCallAttendanceCards.vue"
-import RollCallGroupFilter from "~/components/roll-call/RollCallGroupFilter.vue"
-import RollCallSimulation from "~/components/roll-call/RollCallSimulation.vue"
-import SimulationFrame from "~/components/common/SimulationFrame.vue"
-import PeopleCountingAccessManageDialog from "~/components/people-counting/PeopleCountingAccessManageDialog.vue"
-import { useLocationModuleRbac, useRollCallAccessRbac } from "~/composables/core/useAccessGate"
-import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
+import { onScopeDispose, computed, ref } from "vue";
+import MonitoringDetailShell from "~/components/common/MonitoringDetailShell.vue";
+import { useMonitoringAsideHeightSync } from "~/composables/monitoring/useMonitoringAsideHeightSync";
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
+import ZoneManagementDialog from "~/components/location/ZoneManagementDialog.vue";
+import LocationStatsPanel from "~/components/people-counting/LocationStatsPanel.vue";
+import RollCallOverviewCard from "~/components/roll-call/RollCallOverviewCard.vue";
+import RollCallAttendanceCards from "~/components/roll-call/RollCallAttendanceCards.vue";
+import RollCallGroupFilter from "~/components/roll-call/RollCallGroupFilter.vue";
+import RollCallSimulation from "~/components/roll-call/RollCallSimulation.vue";
+import SimulationFrame from "~/components/common/SimulationFrame.vue";
+import PeopleCountingAccessManageDialog from "~/components/people-counting/PeopleCountingAccessManageDialog.vue";
+import { useLocationModuleRbac, useRollCallAccessRbac } from "~/composables/core/useAccessGate";
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import {
 	useZoneManagement,
-	ZONE_DIALOG_BATCH_SAVE_OPTIONS,
-} from "~/composables/location/management/useZoneManagement"
-import { useRollCallLocationApi } from "~/composables/location/api/useRollCallLocationApi"
-import { useRollCallApi } from "~/composables/systems/rollCall/useRollCallApi"
-import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
-import { useLocationApi } from "~/composables/location/api/useLocationApi"
-import { useLocationAccessSync } from "~/composables/systems/personnel/useLocationAccessSync"
-import { useToast } from "~/composables/core/useToast"
-import { useErrorHandler } from "~/composables/core/useErrorHandler"
-import { setupDebouncedRefetchListeners } from "~/composables/websocket/useWebSocket"
-import { normalizeRollCallStatLabels } from "~/utils/statLabels"
-import { PERM } from "~/config/permissionCodes"
-import { TOAST } from "~/config/toastCatalog"
-import { ROLL_CALL_RESET_STATS_CONFIRM } from "~/utils/confirmCopy"
-import { getTimeRangeUTC, isoRangeToInclusiveYmd } from "~/utils/dateUtils"
-import { createRollCallRuleDraft, ruleToDraft } from "~/types/rollCall"
+	ZONE_DIALOG_BATCH_SAVE_OPTIONS
+} from "~/composables/location/management/useZoneManagement";
+import { useRollCallLocationApi } from "~/composables/location/api/useRollCallLocationApi";
+import { useRollCallApi } from "~/composables/systems/rollCall/useRollCallApi";
+import { usePersonnelApi } from "~/composables/systems/personnel/usePersonnelApi";
+import { useLocationApi } from "~/composables/location/api/useLocationApi";
+import { useLocationAccessSync } from "~/composables/systems/personnel/useLocationAccessSync";
+import { useToast } from "~/composables/core/useToast";
+import { useErrorHandler } from "~/composables/core/useErrorHandler";
+import { setupDebouncedRefetchListeners } from "~/composables/websocket/useWebSocket";
+import { normalizeRollCallStatLabels } from "~/utils/statLabels";
+import { PERM } from "~/config/permissionCodes";
+import { TOAST } from "~/config/toastCatalog";
+import { ROLL_CALL_RESET_STATS_CONFIRM } from "~/utils/confirmCopy";
+import { getTimeRangeUTC, isoRangeToInclusiveYmd } from "~/utils/dateUtils";
+import { createRollCallRuleDraft, ruleToDraft } from "~/types/rollCall";
 import type {
 	RollCallAttendanceRow,
 	RollCallLocation,
@@ -252,382 +249,474 @@ import type {
 	RollCallSessionDetail,
 	RollCallSessionSummary,
 	RollCallTodayLocation,
-	RollCallZone,
-} from "~/types/rollCall"
-import { UNGROUPED_PERSON_GROUP_ID } from "~/utils/personnelUtils"
+	RollCallZone
+} from "~/types/rollCall";
+import { UNGROUPED_PERSON_GROUP_ID } from "~/utils/personnelUtils";
 
 const { canManageLocation, canCreateLocation, canUpdateLocation, canDeleteLocation } =
-	useLocationModuleRbac(PERM.rollCall)
+	useLocationModuleRbac(PERM.rollCall);
 const {
 	canOpenAccessManage,
 	canEditAccessMembers,
 	canResyncAccessDevices,
 	canResetStatistics,
-} = useRollCallAccessRbac()
+	canMarkLeave
+} = useRollCallAccessRbac();
 
-const locationApi = useRollCallLocationApi()
-const rollCallApi = useRollCallApi()
-const personnelApi = usePersonnelApi()
-const sharedLocationApi = useLocationApi()
-const { showToast } = useToast()
-const { handleError: handleApiError } = useErrorHandler()
-const confirmDialog = useConfirmDialog()
-const showConfirmDialog = confirmDialog.showDialog
-const confirmDialogConfig = confirmDialog.config
+const locationApi = useRollCallLocationApi();
+const rollCallApi = useRollCallApi();
+const personnelApi = usePersonnelApi();
+const sharedLocationApi = useLocationApi();
+const { showToast } = useToast();
+const { handleError: handleApiError } = useErrorHandler();
+const confirmDialog = useConfirmDialog();
+const showConfirmDialog = confirmDialog.showDialog;
+const confirmDialogConfig = confirmDialog.config;
 const accessSync = useLocationAccessSync({
 	personnelApi,
 	locationApi: sharedLocationApi,
 	toast: {
 		success: (m: string) => showToast("success", m),
-		error: (m: string) => showToast("error", m),
+		error: (m: string) => showToast("error", m)
 	},
 	handleApiError,
-	canDeviceSync: canResyncAccessDevices,
-})
+	canDeviceSync: canResyncAccessDevices
+});
 
-const zones = ref<RollCallZone[]>([])
-const todayLocations = ref<RollCallTodayLocation[]>([])
-const selectedLocationId = ref<number | null>(null)
-const detail = ref<RollCallSessionDetail | null>(null)
-const selectedGroupId = ref<number | null>(null)
-const isOverviewCollapsed = ref(false)
-const { detailPanelRef, asideHeightStyle } = useMonitoringAsideHeightSync()
-const showLocationDialog = ref(false)
-const showReportFrame = ref(false)
-const showAccessManageDialog = ref(false)
-const reportLoading = ref(false)
+const zones = ref<RollCallZone[]>([]);
+const todayLocations = ref<RollCallTodayLocation[]>([]);
+const selectedLocationId = ref<number | null>(null);
+const detail = ref<RollCallSessionDetail | null>(null);
+const selectedGroupId = ref<number | null>(null);
+const isOverviewCollapsed = ref(false);
+const { detailPanelRef, asideHeightStyle } = useMonitoringAsideHeightSync();
+const showLocationDialog = ref(false);
+const showReportFrame = ref(false);
+const showAccessManageDialog = ref(false);
+const reportLoading = ref(false);
 const reportTimeRange = ref({
 	startDate: "",
 	endDate: "",
-	preset: "today",
-})
-const reportSessions = ref<RollCallReportSession[]>([])
-const reportAttendance = ref<RollCallReportAttendanceRow[]>([])
+	preset: "today"
+});
+const reportSessions = ref<RollCallReportSession[]>([]);
+const reportAttendance = ref<RollCallReportAttendanceRow[]>([]);
 
 const reportLocationOptions = computed(() => {
 	const opts: Array<{
-		locationId: number
-		label: string
-		zoneName: string
-		locationName: string
-		statLabels?: { expected?: string; present?: string; absent?: string }
-	}> = []
+		locationId: number;
+		label: string;
+		zoneName: string;
+		locationName: string;
+		statLabels?: { expected?: string; present?: string; absent?: string };
+	}> = [];
 	for (const zone of zones.value) {
 		for (const loc of zone.locations || []) {
-			const locationId = loc.id != null ? Number(loc.id) : NaN
-			if (!Number.isFinite(locationId) || locationId <= 0) continue
-			const zoneName = zone.name || ""
-			const locationName = loc.name || ""
+			const locationId = loc.id != null ? Number(loc.id) : NaN;
+			if (!Number.isFinite(locationId) || locationId <= 0) continue;
+			const zoneName = zone.name || "";
+			const locationName = loc.name || "";
 			opts.push({
 				locationId,
 				label: [zoneName, locationName].filter(Boolean).join("-") || String(locationId),
 				zoneName,
 				locationName,
-				statLabels: loc.statLabels,
-			})
+				statLabels: loc.statLabels
+			});
 		}
 	}
-	return opts
-})
+	return opts;
+});
 
 const loadReport = async () => {
-	reportLoading.value = true
+	reportLoading.value = true;
 	try {
 		const { startDate, endDate } = isoRangeToInclusiveYmd(
 			reportTimeRange.value.startDate,
-			reportTimeRange.value.endDate,
-		)
-		const res = await rollCallApi.getReport({ startDate, endDate })
-		reportSessions.value = res.sessions || []
-		reportAttendance.value = res.attendance || []
+			reportTimeRange.value.endDate
+		);
+		const res = await rollCallApi.getReport({ startDate, endDate });
+		reportSessions.value = res.sessions || [];
+		reportAttendance.value = res.attendance || [];
 	} catch (error) {
-		handleApiError(error, "載入完整報表失敗")
-		reportSessions.value = []
-		reportAttendance.value = []
+		handleApiError(error, "載入完整報表失敗");
+		reportSessions.value = [];
+		reportAttendance.value = [];
 	} finally {
-		reportLoading.value = false
+		reportLoading.value = false;
 	}
-}
+};
 
 const handleOpenReport = async () => {
-	const { start, end } = getTimeRangeUTC("today")
+	const { start, end } = getTimeRangeUTC("today");
 	reportTimeRange.value = {
 		startDate: start.toISOString(),
 		endDate: end.toISOString(),
-		preset: "today",
-	}
-	showReportFrame.value = true
-	await loadReport()
-}
+		preset: "today"
+	};
+	showReportFrame.value = true;
+	await loadReport();
+};
 
-const handleReportTimeRangeUpdate = (v: {
-	startDate: string
-	endDate: string
-	preset: string
-}) => {
-	reportTimeRange.value = v
-	void loadReport()
-}
+const handleReportTimeRangeUpdate = (v: { startDate: string; endDate: string; preset: string }) => {
+	reportTimeRange.value = v;
+	void loadReport();
+};
 
 const pickPrimarySession = (sessions: RollCallSessionSummary[] = []) =>
-	sessions.find((item) => item.status === "open") ||
-	sessions.find((item) => item.status === "closed") ||
+	sessions.find(item => item.status === "open") ||
+	sessions.find(item => item.status === "closed") ||
 	sessions[0] ||
-	null
+	null;
 
 const selected = computed(
-	() => todayLocations.value.find((item) => item.locationId === selectedLocationId.value) || null,
-)
-const activeSummary = computed(() => pickPrimarySession(selected.value?.sessions))
+	() => todayLocations.value.find(item => item.locationId === selectedLocationId.value) || null
+);
+const activeSummary = computed(() => pickPrimarySession(selected.value?.sessions));
 const statCards = computed(() => {
-	const labels = normalizeRollCallStatLabels(selected.value?.statLabels)
+	const labels = normalizeRollCallStatLabels(selected.value?.statLabels);
 	return [
 		{ label: labels.expected, value: activeSummary.value?.expectedCount ?? 0 },
 		{ label: labels.present, value: activeSummary.value?.presentCount ?? 0 },
-		{ label: labels.absent, value: activeSummary.value?.absentCount ?? 0 },
-	]
-})
+		{ label: labels.absent, value: activeSummary.value?.absentCount ?? 0 }
+	];
+});
 
 const attendanceEmptyMessage = computed(() => {
-	if (activeSummary.value?.status === "not_started") return "時段尚未開始"
-	if (!activeSummary.value) return "今日無簽到時段"
+	if (activeSummary.value?.status === "not_started") return "時段尚未開始";
+	if (!activeSummary.value) return "今日無簽到時段";
 	if (selectedGroupId.value != null && filteredAttendance.value.length === 0) {
-		return "此群組尚無人員"
+		return "此群組尚無人員";
 	}
-	return "尚無簽到紀錄"
-})
+	return "尚無簽到紀錄";
+});
 
-const attendanceRows = computed((): RollCallAttendanceRow[] => detail.value?.attendance || [])
+const attendanceRows = computed((): RollCallAttendanceRow[] => detail.value?.attendance || []);
 
 const filteredAttendance = computed(() => {
-	const rows = attendanceRows.value
+	const rows = attendanceRows.value;
 	const filtered =
 		selectedGroupId.value == null
 			? [...rows]
-			: rows.filter((row) => (row.groupId ?? UNGROUPED_PERSON_GROUP_ID) === selectedGroupId.value)
+			: rows.filter(row => (row.groupId ?? UNGROUPED_PERSON_GROUP_ID) === selectedGroupId.value);
 	// 已簽到（present）優先；其餘維持原相對順序
 	return filtered.sort((a, b) => {
-		const ap = a.status === "present" ? 0 : 1
-		const bp = b.status === "present" ? 0 : 1
-		return ap - bp
-	})
-})
+		const rank = (status: RollCallAttendanceRow["status"]) => {
+			if (status === "present") return 0;
+			if (status === "leave") return 2;
+			return 1;
+		};
+		return rank(a.status) - rank(b.status);
+	});
+});
 
 const groupFilterItems = computed(() => {
-	const rows = attendanceRows.value
-	const tallies = new Map<number, { name: string; presentCount: number; totalCount: number }>()
+	const rows = attendanceRows.value;
+	const tallies = new Map<number, { name: string; presentCount: number; totalCount: number }>();
 	for (const row of rows) {
-		const id = row.groupId ?? UNGROUPED_PERSON_GROUP_ID
+		const id = row.groupId ?? UNGROUPED_PERSON_GROUP_ID;
 		const cur = tallies.get(id) || {
 			name: row.groupName || "未分組",
 			presentCount: 0,
-			totalCount: 0,
-		}
-		cur.totalCount += 1
-		if (row.status === "present") cur.presentCount += 1
-		tallies.set(id, cur)
+			totalCount: 0
+		};
+		if (row.status !== "leave") cur.totalCount += 1;
+		if (row.status === "present") cur.presentCount += 1;
+		tallies.set(id, cur);
 	}
 
-	const units = selected.value?.units || []
+	const units = selected.value?.units || [];
 	const items =
 		units.length > 0
-			? units.map((unit) => {
-					const t = tallies.get(unit.id)
+			? units.map(unit => {
+					const t = tallies.get(unit.id);
 					return {
 						id: unit.id,
 						name: unit.name,
 						presentCount: t?.presentCount ?? unit.currentCount ?? 0,
-						totalCount: t?.totalCount ?? unit.totalCount ?? 0,
-					}
+						totalCount: t?.totalCount ?? unit.totalCount ?? 0
+					};
 				})
 			: [...tallies.entries()]
 					.sort(([a], [b]) => {
-						if (a === UNGROUPED_PERSON_GROUP_ID) return 1
-						if (b === UNGROUPED_PERSON_GROUP_ID) return -1
-						return (tallies.get(a)?.name || "").localeCompare(
-							tallies.get(b)?.name || "",
-							"zh-Hant",
-						)
+						if (a === UNGROUPED_PERSON_GROUP_ID) return 1;
+						if (b === UNGROUPED_PERSON_GROUP_ID) return -1;
+						return (tallies.get(a)?.name || "").localeCompare(tallies.get(b)?.name || "", "zh-Hant");
 					})
 					.map(([id, t]) => ({
 						id,
 						name: t.name,
 						presentCount: t.presentCount,
-						totalCount: t.totalCount,
-					}))
+						totalCount: t.totalCount
+					}));
 
-	const allPresent = items.reduce((sum, item) => sum + item.presentCount, 0)
-	const allTotal = items.reduce((sum, item) => sum + item.totalCount, 0)
+	const allPresent = items.reduce((sum, item) => sum + item.presentCount, 0);
+	const allTotal = items.reduce((sum, item) => sum + item.totalCount, 0);
 	return [
 		{
 			id: null as number | null,
 			name: "全部",
-			presentCount: rows.length > 0 ? rows.filter((r) => r.status === "present").length : allPresent,
-			totalCount: rows.length > 0 ? rows.length : allTotal,
+			presentCount: rows.length > 0 ? rows.filter(r => r.status === "present").length : allPresent,
+			totalCount: rows.length > 0 ? rows.filter(r => r.status !== "leave").length : allTotal
 		},
-		...items,
-	]
-})
+		...items
+	];
+});
 
 const attachRulesToZones = (
 	zoneList: RollCallZone[],
-	rules: Awaited<ReturnType<typeof rollCallApi.listRules>>["rules"],
+	rules: Awaited<ReturnType<typeof rollCallApi.listRules>>["rules"]
 ): RollCallZone[] => {
-	const byLocation = new Map<number, RollCallRuleDraft[]>()
+	const byLocation = new Map<number, RollCallRuleDraft[]>();
 	for (const rule of rules || []) {
-		const list = byLocation.get(rule.locationId) || []
-		list.push(ruleToDraft(rule))
-		byLocation.set(rule.locationId, list)
+		const list = byLocation.get(rule.locationId) || [];
+		list.push(ruleToDraft(rule));
+		byLocation.set(rule.locationId, list);
 	}
-	return (zoneList || []).map((zone) => ({
+	return (zoneList || []).map(zone => ({
 		...zone,
-		locations: (zone.locations || []).map((loc) => {
-			const locId = Number(loc.id)
-			const existing = Number.isFinite(locId)
-				? byLocation.get(locId) || []
-				: loc.rules || []
+		locations: (zone.locations || []).map(loc => {
+			const locId = Number(loc.id);
+			const existing = Number.isFinite(locId) ? byLocation.get(locId) || [] : loc.rules || [];
 			return {
 				...loc,
-				rules: existing.length > 0 ? existing : [createRollCallRuleDraft({ name: "規則 1" })],
-			}
-		}),
-	}))
-}
+				rules: existing.length > 0 ? existing : [createRollCallRuleDraft({ name: "規則 1" })]
+			};
+		})
+	}));
+};
 
 const loadZones = async () => {
-	const [zoneRes, ruleRes] = await Promise.all([locationApi.getZones(), rollCallApi.listRules()])
-	zones.value = attachRulesToZones(zoneRes.zones || [], ruleRes.rules || [])
-}
+	const [zoneRes, ruleRes] = await Promise.all([locationApi.getZones(), rollCallApi.listRules()]);
+	zones.value = attachRulesToZones(zoneRes.zones || [], ruleRes.rules || []);
+};
 
 const persistLocationRules = async (
 	savedLocations: RollCallLocation[],
-	draftRulesByIndex: RollCallRuleDraft[][],
+	draftRulesByIndex: RollCallRuleDraft[][]
 ) => {
-	const saved: Awaited<ReturnType<typeof rollCallApi.listRules>>["rules"] = []
+	const saved: Awaited<ReturnType<typeof rollCallApi.listRules>>["rules"] = [];
 	for (let i = 0; i < savedLocations.length; i++) {
-		const locId = Number(savedLocations[i]?.id)
-		if (!Number.isFinite(locId) || locId <= 0) continue
-		const drafts = draftRulesByIndex[i] || []
-		const res = await rollCallApi.replaceLocationRules(locId, drafts)
-		saved.push(...(res.rules || []))
+		const locId = Number(savedLocations[i]?.id);
+		if (!Number.isFinite(locId) || locId <= 0) continue;
+		const drafts = draftRulesByIndex[i] || [];
+		const res = await rollCallApi.replaceLocationRules(locId, drafts);
+		saved.push(...(res.rules || []));
 	}
-	return saved
-}
+	return saved;
+};
 
 const loadSessionDetail = async (summary: RollCallSessionSummary | null) => {
 	if (!summary?.id || summary.status === "not_started") {
-		detail.value = null
-		return
+		detail.value = null;
+		return;
 	}
-	const res = await rollCallApi.getSession(summary.id)
-	detail.value = res.session
-}
+	const res = await rollCallApi.getSession(summary.id);
+	detail.value = res.session;
+};
 
 const loadToday = async () => {
-	const res = await rollCallApi.getToday()
-	todayLocations.value = res.locations || []
+	const res = await rollCallApi.getToday();
+	todayLocations.value = res.locations || [];
 	if (
 		selectedLocationId.value == null ||
-		!todayLocations.value.some((item) => item.locationId === selectedLocationId.value)
+		!todayLocations.value.some(item => item.locationId === selectedLocationId.value)
 	) {
-		selectedLocationId.value = todayLocations.value[0]?.locationId ?? null
-		selectedGroupId.value = null
+		selectedLocationId.value = todayLocations.value[0]?.locationId ?? null;
+		selectedGroupId.value = null;
 	}
-	await loadSessionDetail(activeSummary.value)
-}
+	await loadSessionDetail(activeSummary.value);
+};
 
 const handleSelectLocation = async (locationId: number) => {
-	selectedLocationId.value = locationId
-	selectedGroupId.value = null
-	const location = todayLocations.value.find((item) => item.locationId === locationId)
-	await loadSessionDetail(pickPrimarySession(location?.sessions))
-}
+	selectedLocationId.value = locationId;
+	selectedGroupId.value = null;
+	const location = todayLocations.value.find(item => item.locationId === locationId);
+	await loadSessionDetail(pickPrimarySession(location?.sessions));
+};
+
+const tallyAttendance = (attendance: RollCallAttendanceRow[]) => {
+	const expectedCount = attendance.filter(row => row.status !== "leave").length;
+	const presentCount = attendance.filter(row => row.status === "present").length;
+	return {
+		expectedCount,
+		presentCount,
+		absentCount: Math.max(0, expectedCount - presentCount)
+	};
+};
+
+const unitsFromAttendance = (attendance: RollCallAttendanceRow[]) => {
+	const map = new Map<number, { id: number; name: string; currentCount: number; totalCount: number }>();
+	for (const row of attendance) {
+		const id = row.groupId ?? UNGROUPED_PERSON_GROUP_ID;
+		const cur = map.get(id) || {
+			id,
+			name: row.groupName || "未分組",
+			currentCount: 0,
+			totalCount: 0
+		};
+		if (row.status !== "leave") cur.totalCount += 1;
+		if (row.status === "present") cur.currentCount += 1;
+		map.set(id, cur);
+	}
+	return [...map.values()].sort((a, b) => {
+		if (a.id === UNGROUPED_PERSON_GROUP_ID) return 1;
+		if (b.id === UNGROUPED_PERSON_GROUP_ID) return -1;
+		return a.name.localeCompare(b.name, "zh-Hant");
+	});
+};
+
+const applySessionToToday = (session: RollCallSessionDetail) => {
+	todayLocations.value = todayLocations.value.map(loc => {
+		if (loc.locationId !== session.locationId) return loc;
+		return {
+			...loc,
+			sessions: (loc.sessions || []).map(item =>
+				item.id === session.id
+					? {
+							...item,
+							expectedCount: session.expectedCount,
+							presentCount: session.presentCount,
+							absentCount: session.absentCount
+						}
+					: item
+			),
+			units: unitsFromAttendance(session.attendance || [])
+		};
+	});
+};
+
+const applyLocalLeave = (row: RollCallAttendanceRow, onLeave: boolean) => {
+	if (!detail.value) return;
+	const nextStatus: RollCallAttendanceRow["status"] = onLeave
+		? "leave"
+		: detail.value.status === "closed"
+			? "absent"
+			: "pending";
+	const attendance = detail.value.attendance.map(item =>
+		item.personId === row.personId
+			? {
+					...item,
+					status: nextStatus,
+					source: onLeave ? ("manual" as const) : null,
+					checkedInAt: null,
+					eventPhotoUrl: undefined
+				}
+			: item
+	);
+	const next = { ...detail.value, attendance, ...tallyAttendance(attendance) };
+	detail.value = next;
+	applySessionToToday(next);
+};
+
+const leaveBusy = ref(false);
+
+const handleToggleLeave = async (row: RollCallAttendanceRow, onLeave: boolean) => {
+	const sessionId = activeSummary.value?.id;
+	if (!sessionId || leaveBusy.value) return;
+	leaveBusy.value = true;
+	const snapshot = detail.value;
+	applyLocalLeave(row, onLeave);
+	try {
+		const res = await rollCallApi.setAttendanceLeave(sessionId, row.personId, onLeave);
+		if (res.session) {
+			detail.value = res.session;
+			applySessionToToday(res.session);
+		}
+		showToast("success", onLeave ? TOAST.ROLL_CALL_LEAVE : TOAST.ROLL_CALL_LEAVE_CLEAR);
+	} catch (error) {
+		if (snapshot) {
+			detail.value = snapshot;
+			applySessionToToday(snapshot);
+		}
+		handleApiError(error, onLeave ? "排休失敗" : "取消休假失敗");
+	} finally {
+		leaveBusy.value = false;
+	}
+};
 
 const handleResetStats = () => {
-	if (!selected.value) return
-	confirmDialog.show(ROLL_CALL_RESET_STATS_CONFIRM)
-}
+	if (!selected.value) return;
+	confirmDialog.show(ROLL_CALL_RESET_STATS_CONFIRM);
+};
 
 const handleConfirmResetStats = async () => {
-	if (!selectedLocationId.value) return
+	if (!selectedLocationId.value) return;
 	try {
-		await rollCallApi.resetLocationStats(selectedLocationId.value)
-		showToast("success", TOAST.ROLL_CALL_RESET)
-		await loadToday()
+		await rollCallApi.resetLocationStats(selectedLocationId.value);
+		showToast("success", TOAST.ROLL_CALL_RESET);
+		await loadToday();
 	} catch (error) {
-		showToast("error", error instanceof Error ? error.message : TOAST.STATS_RESET_FAILED)
+		showToast("error", error instanceof Error ? error.message : TOAST.STATS_RESET_FAILED);
 	}
-}
+};
 
 const handleAccessManageSynced = async () => {
-	await loadToday()
-}
+	await loadToday();
+};
 
 const { handleSaveZone: baseHandleSaveZone, handleDeleteZone: baseHandleDeleteZone } =
-	useZoneManagement<RollCallLocation, RollCallZone>()
+	useZoneManagement<RollCallLocation, RollCallZone>();
 
 const handleSaveZone = async (zone: RollCallZone) => {
-	const draftRulesByIndex = (zone.locations || []).map((loc) => loc.rules || [])
+	const draftRulesByIndex = (zone.locations || []).map(loc => loc.rules || []);
 	await baseHandleSaveZone(
 		zone,
 		zones,
 		async (item: RollCallZone) => {
-			const isValidId = item.id && !item.id.startsWith("temp-") && /^\d+$/.test(item.id)
+			const isValidId = item.id && !item.id.startsWith("temp-") && /^\d+$/.test(item.id);
 			const result = isValidId
 				? await locationApi.updateZone(item.id!, {
 						name: item.name,
 						sortOrder: item.sortOrder,
-						locations: item.locations,
+						locations: item.locations
 					})
 				: await locationApi.createZone({
 						name: item.name,
 						sortOrder: item.sortOrder,
-						locations: item.locations,
-					})
+						locations: item.locations
+					});
 			const savedZone = {
 				...result.zone,
-				id: result.zone.id || item.id,
-			} as RollCallZone & { id: string }
-			const savedRules = await persistLocationRules(
-				savedZone.locations || [],
-				draftRulesByIndex,
-			)
-			const withRules = attachRulesToZones([savedZone], savedRules)[0]
+				id: result.zone.id || item.id
+			} as RollCallZone & { id: string };
+			const savedRules = await persistLocationRules(savedZone.locations || [], draftRulesByIndex);
+			const withRules = attachRulesToZones([savedZone], savedRules)[0];
 			return {
 				merged: result.merged,
 				message: result.message,
-				zone: withRules as RollCallZone & { id: string },
-			}
+				zone: withRules as RollCallZone & { id: string }
+			};
 		},
-		{ ...ZONE_DIALOG_BATCH_SAVE_OPTIONS },
-	)
-}
+		{ ...ZONE_DIALOG_BATCH_SAVE_OPTIONS }
+	);
+};
 
 const handleDeleteZone = async (zoneId: string) => {
 	await baseHandleDeleteZone(zoneId, zones, locationApi.deleteZone, {
 		systemType: "roll_call",
 		onAfterDelete: async () => {
-			await loadZones()
-			await loadToday()
-		},
-	})
-}
+			await loadZones();
+			await loadToday();
+		}
+	});
+};
 
 const handleZonesSaved = async () => {
-	await loadZones()
-	await loadToday()
-}
+	await loadZones();
+	await loadToday();
+};
 
 const cleanupWebSocket = setupDebouncedRefetchListeners(
 	() => loadToday(),
 	[{ event: "people-counting:access-control:event" }],
 	500,
-	"RollCall",
-)
-onScopeDispose(cleanupWebSocket)
+	"RollCall"
+);
+onScopeDispose(cleanupWebSocket);
 
 onMounted(() => {
-	void loadZones()
-	void loadToday()
-})
+	void loadZones();
+	void loadToday();
+});
 </script>

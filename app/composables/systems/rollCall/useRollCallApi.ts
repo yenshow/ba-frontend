@@ -68,12 +68,19 @@ export const useRollCallApi = () => {
 		}>(`/roll-call/report?${q.toString()}`)
 	}
 
+	const setAttendanceLeave = (sessionId: number, personId: number, onLeave: boolean) =>
+		request<{ session: RollCallSessionDetail }>(
+			`/roll-call/sessions/${sessionId}/attendance/${personId}/leave`,
+			{ method: "POST", body: { onLeave } },
+		)
+
 	return {
 		getToday,
 		resetLocationStats,
 		listRules,
 		replaceLocationRules,
 		getSession,
+		setAttendanceLeave,
 		getHistory,
 		getReport,
 	}

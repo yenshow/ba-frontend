@@ -286,6 +286,7 @@ const isNameColumn = (idx: number) => idx === NAME_COLUMN_INDEX
 const statusLabel = (status: string) => {
 	if (status === "present") return "已簽到"
 	if (status === "absent") return "未到"
+	if (status === "leave") return "休假"
 	return "尚未簽到"
 }
 

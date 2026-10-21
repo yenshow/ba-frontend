@@ -489,9 +489,6 @@
 
 		<div class="mt-3 border-t border-white/10 pt-3">
 			<span class="text-sm font-medium text-white/80 2xl:text-base">統計顯示名稱</span>
-			<p class="mt-1 text-xs text-white/50">
-				留空則使用系統預設；最多 {{ STAT_LABEL_MAX_LEN }} 字；主畫面、完整報表與備份表頭會套用
-			</p>
 			<div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
 				<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
 					<span>進場</span>

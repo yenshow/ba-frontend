@@ -94,43 +94,6 @@ export const clockOffsetMs = (hour: number, minute: number, second: number): num
 	return Math.min(DAY_MS - 1, ((h * 60 + m) * 60 + s) * 1000)
 }
 
-const formatHikvisionTaipeiCompact = (value: Date | string): string => {
-	const date = value instanceof Date ? value : new Date(value)
-	if (!Number.isFinite(date.getTime())) return ""
-	const p = taipeiYmdParts(date)
-	const timeParts = new Intl.DateTimeFormat("en-CA", {
-		timeZone: "Asia/Taipei",
-		hour: "2-digit",
-		minute: "2-digit",
-		second: "2-digit",
-		hour12: false,
-	}).formatToParts(date)
-	const get = (type: string) => timeParts.find((part) => part.type === type)?.value || "00"
-	return `${p.year}${p.month}${p.day}T${get("hour")}${get("minute")}${get("second")}Z`
-}
-
-export const rewritePlaybackUriTimes = (
-	uri: string,
-	start: Date | string,
-	end: Date | string
-): string => {
-	const startAt = formatHikvisionTaipeiCompact(start)
-	const endAt = formatHikvisionTaipeiCompact(end)
-	if (!startAt || !endAt) return uri
-	let next = String(uri || "")
-	if (/starttime=/i.test(next)) {
-		next = next.replace(/starttime=[^&]*/i, `starttime=${startAt}`)
-	} else {
-		next += (next.includes("?") ? "&" : "?") + `starttime=${startAt}`
-	}
-	if (/endtime=/i.test(next)) {
-		next = next.replace(/endtime=[^&]*/i, `endtime=${endAt}`)
-	} else {
-		next += `&endtime=${endAt}`
-	}
-	return next
-}
-
 export const daysInTaipeiMonth = (year: number, month: number): number => {
 	const nextYear = month === 12 ? year + 1 : year
 	const nextMonth = month === 12 ? 1 : month + 1

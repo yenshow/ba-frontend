@@ -20,7 +20,9 @@
 						:class="[
 							row.status === 'present'
 								? 'monitoring-chip-bg border-cyan-300/50'
-								: 'border-white/25 bg-black/25',
+								: row.status === 'leave'
+									? 'border-amber-300/50 bg-amber-500/10'
+									: 'border-white/25 bg-black/25',
 							compact ? 'gap-3.5 p-3.5' : 'min-h-[120px] gap-4 p-4 2xl:min-h-[148px] 2xl:p-5'
 						]"
 						:aria-label="`${displayName(row)}，簽到時間 ${checkInDisplay(row)}`"
@@ -51,10 +53,37 @@
 
 						<div class="min-w-0 flex-1">
 							<div
-								class="truncate border-b border-white/35 font-semibold tracking-wide text-white"
-								:class="compact ? 'pb-1 text-lg' : 'pb-1.5 text-lg 2xl:text-2xl'"
+								class="flex items-center gap-2 border-b border-white/35"
+								:class="compact ? 'pb-1' : 'pb-1.5'"
 							>
-								{{ displayName(row) }}
+								<div
+									class="min-w-0 flex-1 truncate font-semibold tracking-wide text-white"
+									:class="compact ? 'text-lg' : 'text-lg 2xl:text-2xl'"
+								>
+									{{ displayName(row) }}
+								</div>
+								<span
+									v-if="row.status === 'leave' && !canMarkLeave"
+									class="shrink-0 text-sm font-medium text-amber-200 2xl:text-base"
+								>
+									休假中
+								</span>
+								<button
+									v-else-if="canMarkLeave"
+									type="button"
+									class="shrink-0 cursor-pointer whitespace-nowrap text-sm underline-offset-2 transition-colors hover:underline 2xl:text-base"
+									:class="
+										row.status === 'leave'
+											? 'font-medium text-amber-200 hover:text-amber-100'
+											: 'text-white/55 hover:text-white'
+									"
+									:aria-label="
+										row.status === 'leave' ? `取消 ${displayName(row)} 休假` : `標記 ${displayName(row)} 休假`
+									"
+									@click="handleToggleLeave(row)"
+								>
+									{{ row.status === "leave" ? "休假中" : "排休" }}
+								</button>
 							</div>
 							<div
 								class="mt-2 space-y-0.5 text-white/75"
@@ -68,7 +97,13 @@
 									<span class="shrink-0 text-white/55">簽到時間</span>
 									<span
 										class="truncate"
-										:class="checkedInTime(row) ? 'font-medium text-cyan-200' : 'text-white/50'"
+										:class="
+											row.status === 'leave'
+												? 'font-medium text-amber-200'
+												: checkedInTime(row)
+													? 'font-medium text-cyan-200'
+													: 'text-white/50'
+										"
 									>
 										{{ checkInDisplay(row) }}
 									</span>
@@ -106,12 +141,18 @@ const props = withDefaults(
 		emptyMessage?: string;
 		/** 總覽展開時縮小人臉與文字 */
 		compact?: boolean;
+		canMarkLeave?: boolean;
 	}>(),
 	{
 		emptyMessage: "尚無簽到紀錄",
-		compact: false
+		compact: false,
+		canMarkLeave: false
 	}
 );
+
+const emit = defineEmits<{
+	leave: [row: RollCallAttendanceRow, onLeave: boolean];
+}>();
 
 const { resolveUrl } = useImageCenter();
 const imageErrorStates = ref<Record<number, boolean>>({});
@@ -120,7 +161,10 @@ const offset = ref(0);
 const paginatedRows = computed(() => props.rows.slice(offset.value, offset.value + PAGE_SIZE));
 
 watch(
-	() => props.rows.map(row => row.personId).join(","),
+	() =>
+		[...new Set(props.rows.map(row => row.personId))]
+			.sort((a, b) => a - b)
+			.join(","),
 	() => {
 		imageErrorStates.value = {};
 		offset.value = 0;
@@ -137,7 +181,14 @@ const checkedInTime = (row: RollCallAttendanceRow) => {
 	return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 };
 
-const checkInDisplay = (row: RollCallAttendanceRow) => checkedInTime(row) || "未到";
+const checkInDisplay = (row: RollCallAttendanceRow) => {
+	if (row.status === "leave") return "休假";
+	return checkedInTime(row) || "未到";
+};
+
+const handleToggleLeave = (row: RollCallAttendanceRow) => {
+	emit("leave", row, row.status !== "leave");
+};
 
 /** 有簽到抓拍優先；否則用人臉大頭照 */
 const cardImageUrl = (row: RollCallAttendanceRow) =>
