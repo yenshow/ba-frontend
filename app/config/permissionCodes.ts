@@ -53,6 +53,7 @@ export const PERM = {
 		deviceSync: "system.roll_call.device_sync",
 		syncEdit: "system.roll_call.sync.edit",
 		statisticsReset: "system.roll_call.statistics.reset",
+		attendanceLeave: "system.roll_call.attendance.leave",
 	},
 	environment: {
 		module: "system.environment",

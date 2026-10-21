@@ -88,6 +88,8 @@ export const TOAST = {
 	SURVEILLANCE_DOWNLOAD_SELECT_NVR: "請先選擇 NVR 或加入回放畫面",
 	PEOPLE_COUNTING_RESET: "已重置人流統計",
 	ROLL_CALL_RESET: "已重置簽到統計",
+	ROLL_CALL_LEAVE: "已排休",
+	ROLL_CALL_LEAVE_CLEAR: "已取消休假",
 	STATS_RESET_FAILED: "重置失敗",
 	PARKING_STATS_RESET: "已重置停車場統計",
 

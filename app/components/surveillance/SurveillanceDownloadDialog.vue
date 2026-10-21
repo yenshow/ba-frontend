@@ -10,7 +10,7 @@
 				@click.self="handleClose"
 			>
 				<div
-					class="dialog-panel-bg flex max-h-[90vh] w-[min(92vw,86rem)] flex-col gap-4 overflow-hidden rounded-3xl p-7 2xl:gap-6 2xl:p-8"
+					class="dialog-panel-bg flex max-h-[90vh] w-[min(96vw,92rem)] flex-col gap-4 overflow-hidden rounded-3xl p-7 2xl:gap-6 2xl:p-8"
 				>
 					<header class="flex items-center justify-between gap-3">
 						<h3
@@ -33,9 +33,9 @@
 					<p v-else-if="loadError" class="form-error-text">{{ loadError }}</p>
 					<p v-else-if="channelsLoading" class="text-sm text-white/60 2xl:text-base">載入通道中…</p>
 
-					<div class="min-h-0 flex-1 overflow-auto">
+					<div class="show-scrollbar min-h-0 flex-1 overflow-auto">
 						<table class="w-max min-w-full border-collapse text-left">
-							<thead class="sticky top-0 bg-[rgba(5,24,40,0.92)]">
+							<thead class="sticky top-0 z-20 bg-[rgba(5,24,40,0.92)]">
 								<tr>
 									<th class="table-th w-12">
 										<input
@@ -49,8 +49,8 @@
 									</th>
 									<th class="table-th whitespace-nowrap">通道名稱</th>
 									<th class="table-th w-32 whitespace-nowrap">串流類型</th>
+									<th class="table-th w-[11rem] whitespace-nowrap">下載進度</th>
 									<th class="table-th min-w-[33rem] whitespace-nowrap">時間範圍</th>
-									<th class="table-th w-24 whitespace-nowrap">下載進度</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -74,6 +74,40 @@
 											<option value="main">主串流</option>
 											<option value="sub" :disabled="row.subTrackId == null">子串流</option>
 										</select>
+									</td>
+									<td class="table-td w-[11rem]">
+										<div
+											v-if="row.status === 'downloading'"
+											class="flex w-[10rem] flex-col gap-1.5"
+										>
+											<div
+												class="h-2.5 overflow-hidden rounded-full bg-white/12 ring-1 ring-inset ring-white/10"
+												role="progressbar"
+												:aria-valuenow="row.progress"
+												aria-valuemin="0"
+												aria-valuemax="100"
+												aria-label="下載進度"
+											>
+												<div
+													class="h-full rounded-full bg-gradient-to-r from-sky-500 to-teal-300"
+													:style="{ width: `${row.progress}%` }"
+												/>
+											</div>
+											<span class="text-xs tabular-nums tracking-wide text-white/65">
+												{{ row.progress }}%
+											</span>
+										</div>
+										<a
+											v-else-if="row.status === 'done' && row.objectUrl"
+											:href="row.objectUrl"
+											:download="row.filename"
+											class="btn-primary inline-flex !px-3.5 !py-1 !text-sm"
+										>
+											儲存
+										</a>
+										<span v-else class="text-sm text-white/70 2xl:text-base">{{
+											progressLabel(row)
+										}}</span>
 									</td>
 									<td class="table-td min-w-[33rem] overflow-visible whitespace-nowrap">
 										<div class="flex flex-nowrap items-center gap-1.5">
@@ -116,7 +150,6 @@
 											/>
 										</div>
 									</td>
-									<td class="table-td text-sm 2xl:text-base">{{ progressLabel(row) }}</td>
 								</tr>
 							</tbody>
 						</table>
@@ -150,7 +183,7 @@
 <script setup lang="ts">
 import type { NvrVirtualChannel } from "~/types/surveillance"
 import { useNvrApi } from "~/composables/systems/surveillance/useNvrApi"
-import { formatTaipeiYmd, rewritePlaybackUriTimes } from "~/utils/nvrPlaybackTime"
+import { formatTaipeiYmd } from "~/utils/nvrPlaybackTime"
 
 type StreamKind = "main" | "sub"
 type RowStatus = "idle" | "downloading" | "done" | "empty" | "error" | "cancelled"
@@ -166,9 +199,11 @@ type DownloadRow = {
 	startTime: string
 	endDate: string
 	endTime: string
-	progress: number | null
+	progress: number
 	status: RowStatus
 	message: string
+	objectUrl: string
+	filename: string
 }
 
 interface Props {
@@ -229,21 +264,17 @@ const handleClockBlur = (row: DownloadRow, key: "startTime" | "endTime", event: 
 	input.value = row[key]
 }
 
-const triggerBlobDownload = (blob: Blob, filename: string) => {
-	const url = URL.createObjectURL(blob)
-	const link = document.createElement("a")
-	link.href = url
-	link.download = filename
-	link.click()
-	URL.revokeObjectURL(url)
+const revokeRowFile = (row: DownloadRow) => {
+	if (!row.objectUrl) return
+	URL.revokeObjectURL(row.objectUrl)
+	row.objectUrl = ""
+}
+
+const revokeAllFiles = () => {
+	rows.value.forEach(revokeRowFile)
 }
 
 const progressLabel = (row: DownloadRow) => {
-	if (row.status === "downloading") {
-		if (row.progress == null) return "下載中"
-		return `${row.progress}%`
-	}
-	if (row.status === "done") return "完成"
 	if (row.status === "empty") return "此時段無錄影"
 	if (row.status === "cancelled") return "已停止"
 	if (row.status === "error") return row.message || "失敗"
@@ -251,6 +282,7 @@ const progressLabel = (row: DownloadRow) => {
 }
 
 const buildRows = (channels: NvrVirtualChannel[]) => {
+	revokeAllFiles()
 	const preselected = new Set(props.preselectedTrackIds)
 	const next: DownloadRow[] = []
 	for (const channel of channels) {
@@ -268,10 +300,12 @@ const buildRows = (channels: NvrVirtualChannel[]) => {
 			startTime: "00:00:00",
 			endDate: props.selectedDate,
 			endTime: "23:59:59",
-			progress: null,
+			progress: 0,
 			status: "idle",
 			stream: "main",
 			message: "",
+			objectUrl: "",
+			filename: "",
 		})
 	}
 	rows.value = next
@@ -279,6 +313,7 @@ const buildRows = (channels: NvrVirtualChannel[]) => {
 
 const loadChannels = async () => {
 	if (!props.nvrId) {
+		revokeAllFiles()
 		rows.value = []
 		loadError.value = null
 		return
@@ -289,6 +324,7 @@ const loadChannels = async () => {
 		const channels = await nvrApi.listChannels(props.nvrId)
 		buildRows(channels)
 	} catch (error) {
+		revokeAllFiles()
 		loadError.value = error instanceof Error ? error.message : "載入通道失敗"
 		rows.value = []
 	} finally {
@@ -317,7 +353,7 @@ const handleStartDownload = async () => {
 		for (const row of selectedRows.value) {
 			if (abortController.signal.aborted) {
 				row.status = "cancelled"
-				row.progress = null
+				row.progress = 0
 				continue
 			}
 			const trackId = row.stream === "sub" && row.subTrackId != null ? row.subTrackId : row.mainTrackId
@@ -328,41 +364,43 @@ const handleStartDownload = async () => {
 				row.message = "結束時間須晚於開始時間"
 				continue
 			}
+			revokeRowFile(row)
 			row.status = "downloading"
-			row.progress = null
+			row.progress = 0
 			row.message = ""
+			row.filename = ""
 			try {
 				const search = await nvrApi.searchRecordings(nvrId, { trackId, startTime, endTime })
-				const match = (search.matches || []).find((item) => item.playbackURI) || search.matches?.[0]
-				if (!match?.playbackURI) {
+				if (!(search.matches || []).length) {
 					row.status = "empty"
-					row.progress = null
+					row.progress = 0
 					continue
 				}
-				const playbackURI = rewritePlaybackUriTimes(match.playbackURI, startTime, endTime)
 				const blob = await nvrApi.downloadRecording(
 					nvrId,
-					{ playbackURI, trackId, startTime, endTime },
+					{ trackId, startTime, endTime },
 					{
 						signal: abortController.signal,
 						onProgress: (loaded, total) => {
-							row.progress = total && total > 0 ? Math.min(99, Math.round((loaded / total) * 100)) : null
+							row.progress =
+								total && total > 0 ? Math.min(99, Math.round((loaded / total) * 100)) : 0
 						},
 					}
 				)
 				const stamp = `${row.startDate}-${row.startTime.replace(/:/g, "")}`
-				triggerBlobDownload(blob, `nvr-${nvrId}-ch-${trackId}-${stamp}.mp4`)
+				row.filename = `nvr-${nvrId}-ch-${trackId}-${stamp}.mp4`
+				row.objectUrl = URL.createObjectURL(blob)
 				row.status = "done"
-				row.progress = 100
+				row.progress = 0
 			} catch (error) {
 				if (abortController.signal.aborted) {
 					row.status = "cancelled"
-					row.progress = null
+					row.progress = 0
 					continue
 				}
 				row.status = "error"
 				row.message = error instanceof Error ? error.message : "下載失敗"
-				row.progress = null
+				row.progress = 0
 			}
 		}
 	} finally {
@@ -376,6 +414,11 @@ const handleClose = () => {
 	if (isQueueRunning.value) handleStopDownload()
 	emit("update:modelValue", false)
 }
+
+onBeforeUnmount(() => {
+	handleStopDownload()
+	revokeAllFiles()
+})
 
 watch(
 	() => props.modelValue,
