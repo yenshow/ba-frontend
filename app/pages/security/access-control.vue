@@ -60,8 +60,12 @@
 								<AccessSecurityIndoorPanel
 									:locations="zoneLocations"
 									:ringing-location-id="ringingLocationId"
+									:talking-location-id="talkingLocationId"
+									:talk-phase="talkPhase"
 									:can-ring="canRing"
 									@ring="handleRingClick"
+									@talk="handleTalkClick"
+									@hangup="hangupTalk"
 								/>
 							</div>
 						</div>
@@ -147,7 +151,7 @@
 			:can-create-zone="canCreateLocation"
 			:can-update-zone="canUpdateLocation"
 			:can-delete-zone="canDeleteLocation"
-			device-hint="請先在「設備管理」建立視訊對講室內機與管理中心主機"
+			device-hint="請先在「設備管理」建立視訊對講室內機（管理中心主機選填）"
 			:on-save-zone="handleSaveZone"
 			@saved="handleZonesSaved"
 			@delete="handleDeleteZone"
@@ -166,6 +170,7 @@ import AccessSecurityMainStationPanel from "~/components/access-security/AccessS
 import AccessSecurityIntercomLogTable from "~/components/access-security/AccessSecurityIntercomLogTable.vue"
 import AccessSecurityIndoorPanel from "~/components/access-security/AccessSecurityIndoorPanel.vue"
 import { useAccessSecurityState } from "~/composables/systems/access-security/useAccessSecurityState"
+import { useAccessSecurityTalk } from "~/composables/systems/access-security/useAccessSecurityTalk"
 import { useAccessSecurityLocationApi } from "~/composables/location/api/useAccessSecurityLocationApi"
 import { useLocationModuleRbac } from "~/composables/core/useAccessGate"
 import { useAuth } from "~/composables/core/useAuth"
@@ -211,6 +216,7 @@ const {
 	handleRing,
 	setupOperationalEventListener,
 } = useAccessSecurityState()
+const { talkingLocationId, talkPhase, startTalk, hangupTalk } = useAccessSecurityTalk()
 
 const isOverviewCollapsed = ref(false)
 const { detailPanelRef, asideHeightStyle } = useMonitoringAsideHeightSync()
@@ -218,7 +224,14 @@ const showZoneDialog = ref(false)
 
 const handleRingClick = (locationId: number) => {
 	if (!canRing.value) return
+	if (talkingLocationId.value != null || ringingLocationId.value != null) return
 	void handleRing(locationId)
+}
+
+const handleTalkClick = (locationId: number) => {
+	if (!canRing.value) return
+	if (talkingLocationId.value != null || ringingLocationId.value != null) return
+	void startTalk(locationId)
 }
 
 const handleOpenZoneDialog = async () => {

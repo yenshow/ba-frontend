@@ -41,15 +41,18 @@
 						class="rounded-lg border border-white/10 bg-white/[0.04] p-3"
 					>
 						<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
-							<span>管理中心主機<span class="required-mark">*</span></span>
+							<span>管理中心主機（選填）</span>
 							<FilterDropdown
 								:model-value="manageDeviceIdString"
 								:options="manageDeviceOptions"
-								:placeholder="isLoadingDevices ? '載入中...' : '請選擇此區域主機'"
+								:placeholder="isLoadingDevices ? '載入中...' : '不綁定'"
 								aria-label="選擇管理中心主機"
 								@update:model-value="handleManageDeviceChange"
 							/>
 						</label>
+						<p class="mt-2 text-xs text-white/55">
+							對講與廣播直打室內機，不經主機。綁定後僅用於組網事件與頁面顯示。
+						</p>
 						<p v-if="devices.length === 0 && !isLoadingDevices" class="mt-2 text-xs text-amber-300">
 							{{ deviceHint }}
 						</p>
@@ -213,12 +216,13 @@ const manageDevices = computed(() =>
 	})
 )
 
-const manageDeviceOptions = computed(() =>
-	manageDevices.value.map((d) => ({
+const manageDeviceOptions = computed(() => [
+	{ value: "", label: "不綁定" },
+	...manageDevices.value.map((d) => ({
 		value: String(d.id),
 		label: d.name || `設備 ${d.id}`,
-	}))
-)
+	})),
+])
 
 const manageDeviceIdString = computed(() => {
 	const id = selectedZone.value?.manageDeviceId

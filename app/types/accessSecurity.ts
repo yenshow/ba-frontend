@@ -11,7 +11,7 @@ export type AccessSecurityLocation = {
 	deviceId?: number
 	createdAt?: string
 	sortOrder?: number
-	/** 區域綁定的管理中心主機（與 zone.manageDeviceId 同步寫入 system_config） */
+	/** 區域主機（選填；與 zone.manageDeviceId 同步；對講／廣播不經此欄） */
 	manageDeviceId?: number
 }
 
@@ -22,7 +22,7 @@ export type AccessSecurityZone = {
 	imageUrl?: string
 	description?: string
 	sortOrder?: number
-	/** 此區域綁定的管理中心主機（video_intercom + unitType=manage） */
+	/** 此區域主機（選填；video_intercom + unitType=manage） */
 	manageDeviceId?: number
 }
 

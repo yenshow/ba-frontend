@@ -117,13 +117,6 @@ export function useLocationValidationPipeline() {
 
 		const locations = Array.isArray(args.locations) ? args.locations : []
 
-		if (args.systemType === "access_security") {
-			const manageId = Number(args.zone?.manageDeviceId)
-			if (!Number.isFinite(manageId) || manageId <= 0) {
-				errors.push(`區域「${args.zone?.name || ""}」：必須綁定管理中心主機`)
-			}
-		}
-
 		for (let i = 0; i < locations.length; i++) {
 			const loc = locations[i]
 			const nameError = validateLocationName(loc?.name)

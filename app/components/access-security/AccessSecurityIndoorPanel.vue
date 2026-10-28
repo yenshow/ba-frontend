@@ -37,9 +37,7 @@
 						<div
 							class="mx-auto aspect-[300/188] w-full max-h-[150px] overflow-hidden rounded-lg 2xl:max-h-[170px]"
 						>
-							<AccessIntercomIndoorSvg
-								:status="ringingLocationId === loc.id ? 'ringing' : 'idle'"
-							/>
+							<AccessIntercomIndoorSvg :status="resolveIndoorStatus(loc.id)" />
 						</div>
 						<h4
 							class="line-clamp-2 shrink-0 text-center text-base font-semibold text-white 2xl:text-lg"
@@ -50,16 +48,37 @@
 						<p class="truncate text-center text-xs text-white/70 2xl:text-sm">
 							{{ loc.indoorDeviceName || "未綁定" }}
 						</p>
-						<button
-							type="button"
-							class="mx-auto flex h-8 min-w-[4.5rem] items-center justify-center rounded-lg border border-cyan-300/80 bg-cyan-500/50 px-2.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-cyan-500/65 disabled:opacity-50 2xl:h-9 2xl:min-w-[5rem] 2xl:px-3 2xl:text-sm"
-							:disabled="!canRing || ringingLocationId === loc.id"
-							:aria-busy="ringingLocationId === loc.id"
-							:aria-label="`${loc.displayName} 語音廣播`"
-							@click="emit('ring', loc.id)"
-						>
-							{{ ringingLocationId === loc.id ? "廣播中…" : "語音廣播" }}
-						</button>
+						<div class="flex flex-wrap items-center justify-center gap-1.5">
+							<button
+								type="button"
+								class="flex h-8 min-w-[4.5rem] items-center justify-center rounded-lg border border-cyan-300/80 bg-cyan-500/50 px-2.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-cyan-500/65 disabled:opacity-50 2xl:h-9 2xl:min-w-[5rem] 2xl:px-3 2xl:text-sm"
+								:disabled="!canRing || isBusy"
+								:aria-busy="ringingLocationId === loc.id"
+								:aria-label="`${loc.displayName} 語音廣播`"
+								@click="emit('ring', loc.id)"
+							>
+								{{ ringingLocationId === loc.id ? "廣播中…" : "語音廣播" }}
+							</button>
+							<button
+								v-if="talkingLocationId === loc.id"
+								type="button"
+								class="flex h-8 min-w-[4.5rem] items-center justify-center rounded-lg border border-rose-300/80 bg-rose-500/55 px-2.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-rose-500/70 2xl:h-9 2xl:min-w-[5rem] 2xl:px-3 2xl:text-sm"
+								:aria-label="`${loc.displayName} 掛斷對講`"
+								@click="emit('hangup')"
+							>
+								{{ talkPhase === "ringing" ? "取消" : "掛斷" }}
+							</button>
+							<button
+								v-else
+								type="button"
+								class="flex h-8 min-w-[4.5rem] items-center justify-center rounded-lg border border-emerald-300/80 bg-emerald-500/50 px-2.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-emerald-500/65 disabled:opacity-50 2xl:h-9 2xl:min-w-[5rem] 2xl:px-3 2xl:text-sm"
+								:disabled="!canRing || isBusy"
+								:aria-label="`${loc.displayName} 對講`"
+								@click="emit('talk', loc.id)"
+							>
+								對講
+							</button>
+						</div>
 					</article>
 				</div>
 			</div>
@@ -90,17 +109,35 @@ const props = withDefaults(
 	defineProps<{
 		locations: AccessSecuritySiteLocation[]
 		ringingLocationId?: number | null
+		talkingLocationId?: number | null
+		talkPhase?: "idle" | "ringing" | "talking"
 		canRing?: boolean
 	}>(),
 	{
 		ringingLocationId: null,
+		talkingLocationId: null,
+		talkPhase: "idle",
 		canRing: false,
 	}
 )
 
 const emit = defineEmits<{
 	ring: [locationId: number]
+	talk: [locationId: number]
+	hangup: []
 }>()
+
+const isBusy = computed(
+	() => props.ringingLocationId != null || props.talkingLocationId != null
+)
+
+const resolveIndoorStatus = (locationId: number) => {
+	if (props.talkingLocationId === locationId) {
+		return props.talkPhase === "talking" ? "talking" : "ringing"
+	}
+	if (props.ringingLocationId === locationId) return "ringing"
+	return "idle"
+}
 
 const selectedFloor = ref("")
 const pageOffset = ref(0)

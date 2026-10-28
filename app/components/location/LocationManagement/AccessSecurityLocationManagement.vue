@@ -39,7 +39,7 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-	deviceHint: "請先在「設備管理」建立視訊對講室內機與管理中心主機",
+	deviceHint: "請先在「設備管理」建立視訊對講室內機（管理中心主機選填）",
 })
 
 const emit = defineEmits<Emits>()

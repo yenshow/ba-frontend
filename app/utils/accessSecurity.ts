@@ -242,12 +242,14 @@ const formatIntercomUnitLabel = (
 export const getIntercomSourceBadgeClass = (source: string): string => {
 	if (source === "alert_linkage") return "bg-amber-500/80 text-white"
 	if (source === "access_security_ring") return "bg-cyan-500/80 text-white"
+	if (source === "access_security_talk") return "bg-emerald-500/80 text-white"
 	return "bg-slate-500/80 text-white"
 }
 
 export const getIntercomSourceLabel = (source: string): string => {
 	if (source === "alert_linkage") return "警報連動"
 	if (source === "access_security_ring") return "語音廣播"
+	if (source === "access_security_talk") return "網頁對講"
 	return source || "—"
 }
 

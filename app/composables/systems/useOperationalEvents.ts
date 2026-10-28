@@ -80,6 +80,7 @@ const OPERATIONAL_SOURCE_FILTER_KEYS = [
 	"alert_linkage",
 	"video_intercom",
 	"access_security_ring",
+	"access_security_talk",
 ] as const
 
 const EXTRA_SOURCE_LABELS: Record<string, string> = {
@@ -91,6 +92,7 @@ const EXTRA_SOURCE_LABELS: Record<string, string> = {
 	alert_linkage: "警報連動",
 	video_intercom: "組網對講",
 	access_security_ring: "語音廣播",
+	access_security_talk: "網頁對講",
 }
 
 export const getOperationalSourceLabel = (source: string): string =>
