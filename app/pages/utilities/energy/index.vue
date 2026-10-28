@@ -7,6 +7,7 @@ import EnergyAlertsPanel from "~/components/energy/EnergyAlertsPanel.vue"
 import EnergyAlertsDialog from "~/components/energy/EnergyAlertsDialog.vue"
 import EnergySettingsDialog from "~/components/energy/EnergySettingsDialog.vue"
 import EnergySystemBreakdownDialog from "~/components/energy/EnergySystemBreakdownDialog.vue"
+import EnergyReferenceBillBreakdown from "~/components/energy/EnergyReferenceBillBreakdown.vue"
 import EnergySimulation, {
 	type EnergyTrendReportMode,
 } from "~/components/energy/EnergySimulation.vue"
@@ -56,6 +57,7 @@ const openEnergySettings = () => {
 	showSettings.value = true
 }
 const showBreakdown = ref(false)
+const showBillBreakdown = ref(false)
 const showTrendReport = ref(false)
 const trendReportMode = ref<EnergyTrendReportMode>("energy")
 const showAlertsDialog = ref(false)
@@ -123,6 +125,7 @@ const kpiCards = computed(() => {
 			value: (s?.monthElectricityCost?.amount ?? 0).toLocaleString(),
 			unit: "NT$",
 			unitBefore: true,
+			detail: true,
 			spark: {
 				values: month.map((p) => p.energyKwh),
 				tone: "cost",
@@ -145,6 +148,13 @@ const kpiCards = computed(() => {
 	]
 })
 
+const trendHint = (bucketType: string) =>
+	bucketType === "hour"
+		? "每小時用量（不含進行中小時）"
+		: bucketType === "day"
+			? "每日用量"
+			: "每月用量"
+
 const trendPanels = computed(() => [
 	{
 		key: "energy",
@@ -154,6 +164,7 @@ const trendPanels = computed(() => [
 		setRange: setEnergyTrendRange,
 		idPrefix: "energy-trend-range-elec",
 		ariaLabel: "用電趨勢時間範圍",
+		hint: trendHint(energyTrend.value.bucketType),
 	},
 	{
 		key: "water",
@@ -163,6 +174,7 @@ const trendPanels = computed(() => [
 		setRange: setWaterTrendRange,
 		idPrefix: "energy-trend-range-water",
 		ariaLabel: "用水趨勢時間範圍",
+		hint: trendHint(waterTrend.value.bucketType),
 	},
 ])
 
@@ -262,6 +274,15 @@ onMounted(async () => {
 							{{ card.hint }}
 							<span v-if="card.warn"> · 超限</span>
 						</p>
+						<button
+							v-if="card.detail"
+							type="button"
+							class="mt-1 text-xs text-cyan-300/80 transition-colors hover:text-cyan-200 2xl:text-sm"
+							aria-label="查看本月參考電費明細"
+							@click="showBillBreakdown = true"
+						>
+							明細
+						</button>
 					</div>
 				</div>
 				<EnergyKpiSparkline
@@ -283,7 +304,12 @@ onMounted(async () => {
 				class="monitoring-panel overflow-hidden rounded-2xl p-4 text-white 2xl:p-6"
 			>
 				<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-					<h2 class="text-xl font-semibold tracking-[4px] 2xl:text-2xl">{{ panel.title }}</h2>
+					<div>
+						<h2 class="text-xl font-semibold tracking-[4px] 2xl:text-2xl">{{ panel.title }}</h2>
+						<p v-if="panel.hint" class="mt-1 text-xs tracking-wider text-white/40 2xl:text-sm">
+							{{ panel.hint }}
+						</p>
+					</div>
 					<div class="flex flex-wrap items-center gap-3">
 						<PageTabs
 							:model-value="panel.range"
@@ -352,6 +378,43 @@ onMounted(async () => {
 			"
 		/>
 		<EnergySystemBreakdownDialog v-model="showBreakdown" />
+		<Teleport to="body">
+			<Transition name="dialog-fade">
+				<div
+					v-if="showBillBreakdown"
+					class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] px-4 backdrop-blur-[10px]"
+					role="dialog"
+					aria-modal="true"
+					aria-labelledby="energy-bill-title"
+					@click.self="showBillBreakdown = false"
+					@keydown.esc="showBillBreakdown = false"
+				>
+					<div
+						class="dialog-panel-bg flex max-h-[90vh] w-full max-w-3xl flex-col gap-4 overflow-hidden rounded-3xl p-6 2xl:p-8"
+					>
+						<header class="flex items-center justify-between gap-4">
+							<h3
+								id="energy-bill-title"
+								class="text-xl font-semibold tracking-[4px] text-white 2xl:text-2xl"
+							>
+								本月參考電費明細
+							</h3>
+							<button
+								type="button"
+								class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white/70"
+								aria-label="關閉"
+								@click="showBillBreakdown = false"
+							>
+								&times;
+							</button>
+						</header>
+						<div class="show-scrollbar min-h-0 overflow-y-auto">
+							<EnergyReferenceBillBreakdown :cost="summary?.monthElectricityCost ?? null" />
+						</div>
+					</div>
+				</div>
+			</Transition>
+		</Teleport>
 		<SimulationFrame v-model="showTrendReport" :title="trendReportTitle">
 			<EnergySimulation :mode="trendReportMode" />
 		</SimulationFrame>

@@ -175,6 +175,26 @@
 							/>
 						</label>
 
+						<label
+							v-for="field in profileFields"
+							:key="field.key"
+							class="flex flex-col gap-2 text-base text-white/80"
+						>
+							<span>{{ field.label }}</span>
+							<input
+								:value="state.form.customFields[field.key] || ''"
+								type="text"
+								class="form-input-small"
+								:maxlength="valueMax"
+								:list="field.preset === 'blood_type' ? bloodTypeListId : undefined"
+								:aria-label="field.label"
+								@input="handleCustomFieldInput(field.key, ($event.target as HTMLInputElement).value)"
+							/>
+						</label>
+						<datalist v-if="hasBloodTypeField" :id="bloodTypeListId">
+							<option v-for="option in bloodTypeSuggestions" :key="option" :value="option" />
+						</datalist>
+
 						<div class="col-span-2 flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
 							<p>有效期限</p>
 							<div class="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
@@ -479,6 +499,11 @@
 
 <script setup lang="ts">
 import type { PersonnelPersonDialogState, PersonGroup } from "~/types/personnel"
+import {
+	PERSONNEL_BLOOD_TYPE_SUGGESTIONS,
+	PERSONNEL_PROFILE_VALUE_MAX,
+	type PersonnelProfileField,
+} from "~/utils/personnelProfileFields"
 import DateTimeLocal24Input from "~/components/common/DateTimeLocal24Input.vue"
 import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import FormChangeIndicator from "~/components/common/FormChangeIndicator.vue"
@@ -512,7 +537,22 @@ const props = defineProps<{
 	state: PersonnelPersonDialogState
 	groupTree: PersonGroup[]
 	activeSection: PersonnelPersonDialogSection
+	profileFields?: PersonnelProfileField[]
 }>()
+
+const profileFields = computed(() => props.profileFields ?? [])
+
+const valueMax = PERSONNEL_PROFILE_VALUE_MAX
+const bloodTypeSuggestions = PERSONNEL_BLOOD_TYPE_SUGGESTIONS
+const bloodTypeListId = "personnel-blood-type-suggestions"
+const hasBloodTypeField = computed(() =>
+	profileFields.value.some((field) => field.preset === "blood_type"),
+)
+
+const handleCustomFieldInput = (key: string, value: string) => {
+	if (!props.state.form.customFields) props.state.form.customFields = {}
+	props.state.form.customFields[key] = value
+}
 
 const emit = defineEmits<{
 	"update:modelValue": [value: boolean]

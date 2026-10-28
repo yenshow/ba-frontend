@@ -76,6 +76,34 @@ export const usePersonnelPersonsList = (params: {
 		importResult.value = null
 	})
 
+	const isExporting = ref(false)
+
+	const downloadPersonnelExport = (blob: Blob) => {
+		const url = URL.createObjectURL(blob)
+		const link = document.createElement("a")
+		link.href = url
+		link.download = "personnel_export.xlsx"
+		link.setAttribute("aria-label", "下載人員資料")
+		document.body.appendChild(link)
+		link.click()
+		link.remove()
+		URL.revokeObjectURL(url)
+	}
+
+	const exportPersons = async () => {
+		if (isExporting.value) return
+		isExporting.value = true
+		try {
+			const blob = await personnelApi.exportPersons(personsList.getListQuery())
+			downloadPersonnelExport(blob)
+			toast.success(TOAST.PERSONNEL_EXPORTED)
+		} catch (err) {
+			handleApiError(err, "匯出人員失敗", PERSONNEL_API_ERROR_OPTS)
+		} finally {
+			isExporting.value = false
+		}
+	}
+
 	return {
 		...personsList,
 		getFaceImageSrc,
@@ -85,5 +113,7 @@ export const usePersonnelPersonsList = (params: {
 		importResult,
 		isImporting,
 		submitImport,
+		isExporting,
+		exportPersons,
 	}
 }

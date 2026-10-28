@@ -122,7 +122,7 @@ onBeforeUnmount(() => chart?.destroy())
 				<div
 					class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center"
 				>
-					<div class="text-sm tracking-wider text-white/60 2xl:text-base">總用電量</div>
+					<div class="text-sm tracking-wider text-white/60 2xl:text-base">今日總用電</div>
 					<div
 						class="font-semibold text-white"
 						:class="fill ? 'text-lg 2xl:text-2xl' : 'text-base 2xl:text-xl'"

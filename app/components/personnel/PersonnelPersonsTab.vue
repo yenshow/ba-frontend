@@ -14,6 +14,23 @@
 					@search="handleSearch"
 				/>
 				<PermissionActionButton
+					:allowed="canUpdatePerson"
+					aria-label="管理欄位"
+					class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white enabled:hover:bg-white/30 2xl:px-6 2xl:py-3 2xl:text-base"
+					@click="openProfileFieldsDialog"
+				>
+					管理欄位
+				</PermissionActionButton>
+				<PermissionActionButton
+					:allowed="true"
+					:disabled="isExporting"
+					aria-label="匯出人員"
+					class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white enabled:hover:bg-white/30 2xl:px-6 2xl:py-3 2xl:text-base"
+					@click="exportPersons"
+				>
+					{{ isExporting ? "匯出中..." : "人員匯出" }}
+				</PermissionActionButton>
+				<PermissionActionButton
 					:allowed="canCreatePerson"
 					aria-label="批次匯入"
 					class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white enabled:hover:bg-white/30 2xl:px-6 2xl:py-3 2xl:text-base"
@@ -41,10 +58,10 @@
 			empty-title="尚無人員"
 		>
 			<div class="table-scroll">
-				<table class="w-full min-w-[720px] text-center">
+				<table class="w-full text-center" :style="{ minWidth: tableMinWidth }">
 					<thead>
 						<tr class="border-b border-white/20">
-							<th class="table-th">頭像</th>
+							<th v-if="showAvatarColumn" class="table-th">頭像</th>
 							<th class="table-th">
 								<div class="mx-auto max-w-[160px] 2xl:max-w-[200px]">
 									<FilterDropdown
@@ -56,9 +73,12 @@
 								</div>
 							</th>
 							<th class="table-th">姓名</th>
-							<th class="table-th">群組</th>
-							<th class="table-th">資料（平台）</th>
-							<th class="table-th">狀態</th>
+							<th v-if="showGroupColumn" class="table-th">群組</th>
+							<th v-for="field in visibleCustomFields" :key="`th-${field.key}`" class="table-th">
+								{{ field.label }}
+							</th>
+							<th v-if="showAccessDataColumn" class="table-th">資料（平台）</th>
+							<th v-if="showStatusColumn" class="table-th">狀態</th>
 							<th class="table-th">操作</th>
 						</tr>
 					</thead>
@@ -68,7 +88,7 @@
 							:key="p.id"
 							class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
 						>
-							<td class="table-td">
+							<td v-if="showAvatarColumn" class="table-td">
 								<div class="flex justify-center">
 									<img
 										v-if="getFaceImageSrc(p.face_url)"
@@ -88,14 +108,23 @@
 							</td>
 							<td class="table-td">{{ p.employee_no }}</td>
 							<td class="table-td">{{ p.full_name || "—" }}</td>
-							<td class="table-td">{{ p.group_name?.trim() || "未分組" }}</td>
-							<td class="table-td">
+							<td v-if="showGroupColumn" class="table-td">
+								{{ p.group_name?.trim() || "未分組" }}
+							</td>
+							<td
+								v-for="field in visibleCustomFields"
+								:key="`${p.id}-${field.key}`"
+								class="table-td"
+							>
+								{{ getPersonCustomFieldValue(p, field.key) || "—" }}
+							</td>
+							<td v-if="showAccessDataColumn" class="table-td">
 								<PersonnelAccessDataIndicators
 									:summary="getPersonAccessControlDataSummary(p)"
 									:on-icon-click="(tab) => handlePlatformIconClick(p, tab)"
 								/>
 							</td>
-							<td class="table-td">
+							<td v-if="showStatusColumn" class="table-td">
 								<span
 									:class="[
 										getPersonStatusBadgeClass(p.status),
@@ -154,6 +183,7 @@
 			v-model="showPersonDialog"
 			:active-section="personDialogSection"
 			:group-tree="groupTree"
+			:profile-fields="profileSchema.fields.value"
 			:state="personDialogState"
 			@submit="props.personsTab.submitPerson"
 			@face-file-change="props.personsTab.handleFaceFileChange"
@@ -178,6 +208,8 @@
 			:is-importing="isImporting"
 			@submit="submitImport"
 		/>
+
+		<PersonnelProfileFieldsDialog :dialog="profileFieldsDialog" />
 
 		<ConfirmDialog
 			v-model="showConfirmDialog"
@@ -215,6 +247,7 @@ import Pagination from "~/components/common/Pagination.vue"
 import SearchInput from "~/components/common/SearchInput.vue"
 import type { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePersonnelPersonsTab"
 import PersonnelImportDialog from "~/components/personnel/dialogs/PersonnelImportDialog.vue"
+import PersonnelProfileFieldsDialog from "~/components/personnel/dialogs/PersonnelProfileFieldsDialog.vue"
 import ImageCropDialog from "~/components/common/ImageCropDialog.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
@@ -227,6 +260,10 @@ import PersonnelAccessDataIndicators, {
 import type { PersonCardFormItem } from "~/utils/cardFormUtils"
 import { resolveAccessControlCardsFromPerson, personHasAnyAccessCard } from "~/utils/cardFormUtils"
 import { usePersonnelGroupTree } from "~/composables/systems/personnel/usePersonnelGroupTree"
+import {
+	getPersonCustomFieldValue,
+	personnelListTableMinWidth,
+} from "~/utils/personnelProfileFields"
 
 const props = defineProps<{
 	canCreatePerson: boolean
@@ -263,6 +300,8 @@ const {
 	importResult,
 	isImporting,
 	submitImport,
+	isExporting,
+	exportPersons,
 
 	showFaceCropDialog,
 	faceCropSourceFile,
@@ -271,7 +310,20 @@ const {
 	showPersonCloseConfirmDialog,
 	personCloseConfirmConfig,
 	confirmPersonDialogDismiss,
+	profileFieldsDialog,
+	profileSchema,
 } = props.personsTab
+
+const showAvatarColumn = computed(() => profileSchema.listColumns.value.avatar)
+const showGroupColumn = computed(() => profileSchema.listColumns.value.group)
+const showAccessDataColumn = computed(() => profileSchema.listColumns.value.accessData)
+const showStatusColumn = computed(() => profileSchema.listColumns.value.status)
+const visibleCustomFields = computed(() => profileSchema.visibleCustomFields.value)
+const tableMinWidth = computed(() => personnelListTableMinWidth(visibleCustomFields.value.length))
+
+const openProfileFieldsDialog = () => {
+	profileFieldsDialog.openDialog()
+}
 
 const openImportDialog = () => {
 	showImportDialog.value = true

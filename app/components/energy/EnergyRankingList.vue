@@ -10,7 +10,7 @@ const rankClass = (index: number) => (index < 3 ? "bg-amber-400" : "bg-white/10"
 
 <template>
 	<div>
-		<h3 class="mb-4 text-center text-xl font-semibold tracking-[4px] 2xl:text-2xl">用電排行榜</h3>
+		<h3 class="mb-4 text-center text-xl font-semibold tracking-[4px] 2xl:text-2xl">今日用電排行</h3>
 		<ol class="space-y-3">
 			<li
 				v-for="(item, index) in items"

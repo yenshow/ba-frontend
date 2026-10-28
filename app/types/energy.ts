@@ -6,6 +6,72 @@ export type EnergyLoadShedStage = {
 	actions: unknown[]
 }
 
+export type EnergyTouWindow = {
+	dow?: number | number[] | "all"
+	start: string
+	end: string
+}
+
+export type EnergyTouBand = {
+	summer_rate: number
+	non_summer_rate: number
+	summer_windows: EnergyTouWindow[]
+	non_summer_windows: EnergyTouWindow[]
+}
+
+export type EnergyTariffScheme = "two_stage" | "three_stage"
+
+export type EnergyElectricityTariff = {
+	currency: string
+	scheme: EnergyTariffScheme
+	summer_start: string
+	summer_end: string
+	excess_threshold_kwh: number
+	excess_surcharge_per_kwh: number
+	peak: EnergyTouBand
+	semi_peak: EnergyTouBand
+	off_peak: EnergyTouBand
+}
+
+export type EnergyPowerFactorAdjustment = {
+	enabled: boolean
+	baseline_pct: number
+	rate_per_point_pct: number
+	reward_cap_pct: number
+}
+
+export type EnergyTouLineItem = {
+	band: "peak" | "semi_peak" | "off_peak"
+	season: "summer" | "non_summer"
+	label: string
+	kwh: number
+	rate: number
+	subtotal: number
+}
+
+export type EnergyMonthElectricityCost = {
+	isReference: boolean
+	currency: string
+	amount: number
+	baseAmount?: number
+	excessKwh?: number
+	excessAmount?: number
+	peak_kwh?: number
+	semi_peak_kwh?: number
+	off_peak_kwh?: number
+	touLineItems?: EnergyTouLineItem[]
+	powerFactor?: {
+		enabled: boolean
+		avgPercent: number | null
+		baselinePercent: number
+		rewardCapPercent: number
+		billDeltaPercent: number
+		adjustmentAmount: number
+		sampleDeviceCount: number
+		applied: boolean
+	}
+}
+
 export type EnergySettingsConfig = {
 	contract_capacity_kw: number
 	meter_stale_enabled: boolean
@@ -23,12 +89,8 @@ export type EnergySettingsConfig = {
 	meter_share_pct: number
 	water_usage_vs_avg_enabled: boolean
 	include_device_ids: number[]
-	electricity_tariff: {
-		currency: string
-		peak: { rate: number; windows: Array<{ dow?: number | "all"; start: string; end: string }> }
-		semi_peak: { rate: number; windows: Array<{ dow?: number | "all"; start: string; end: string }> }
-		off_peak: { rate: number; windows: Array<{ dow?: number | "all"; start: string; end: string }> }
-	}
+	electricity_tariff: EnergyElectricityTariff
+	power_factor_adjustment: EnergyPowerFactorAdjustment
 	water_tariff: { rate: number }
 	load_shed_stages: EnergyLoadShedStage[]
 }
@@ -47,14 +109,7 @@ export type EnergyDashboardSummary = {
 	currentPowerKw: number
 	overContract: boolean
 	demandAlertEnabled: boolean
-	monthElectricityCost: {
-		isReference: boolean
-		currency: string
-		amount: number
-		peak_kwh?: number
-		semi_peak_kwh?: number
-		off_peak_kwh?: number
-	}
+	monthElectricityCost: EnergyMonthElectricityCost
 	monthWaterCost: { isReference: boolean; currency: string; amount: number }
 	includedDeviceCount: number
 }

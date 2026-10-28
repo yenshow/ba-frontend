@@ -44,6 +44,11 @@ import { resolveFormApiError } from "~/utils/apiError"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
 import { FORM_UNSAVED_CLOSE_CONFIRM } from "~/utils/formDialog"
 import type { Ref } from "vue"
+import {
+	emptyCustomFieldValues,
+	getPersonCustomFieldValue,
+	type PersonnelProfileField,
+} from "~/utils/personnelProfileFields"
 
 /** 人員大頭照大小上限（與後端 PERSONNEL_FACE_MAX_BYTES 一致） */
 export const PERSONNEL_FACE_MAX_BYTES = 200 * 1024
@@ -82,6 +87,7 @@ export type PersonDialogSnapshot = {
 	cardItemsJson: string
 	fingerPrintItemsJson: string
 	hasPendingFace: boolean
+	customFieldsJson: string
 }
 
 export type PersonnelPersonDialogSection =
@@ -118,6 +124,7 @@ export const usePersonnelPersonForm = (params: {
 	personsOffset: Ref<number>
 	loadPersons: () => Promise<void>
 	getFaceImageSrc: (url: string | null | undefined) => string | null
+	profileFields: Ref<PersonnelProfileField[]>
 }) => {
 	const {
 		personnelApi,
@@ -129,6 +136,7 @@ export const usePersonnelPersonForm = (params: {
 		personsOffset,
 		loadPersons,
 		getFaceImageSrc,
+		profileFields,
 	} = params
 
 	const showPersonDialog = ref(false)
@@ -144,6 +152,7 @@ export const usePersonnelPersonForm = (params: {
 		faceUrl: string
 		personGroupId: string
 		licensePlateItems: PersonLicensePlateFormItem[]
+		customFields: Record<string, string>
 	}>({
 		employeeNo: "",
 		fullName: "",
@@ -151,6 +160,7 @@ export const usePersonnelPersonForm = (params: {
 		faceUrl: "",
 		personGroupId: "",
 		licensePlateItems: [],
+		customFields: {},
 	})
 
 	const pendingFaceFile = ref<File | null>(null)
@@ -198,6 +208,7 @@ export const usePersonnelPersonForm = (params: {
 		cardItemsJson: cardsJsonForSnapshot(cardItems.value),
 		fingerPrintItemsJson: fingerprintsJsonForSnapshot(fingerPrintItems.value),
 		hasPendingFace: pendingFaceFile.value != null || facePreviewObjectUrl.value != null,
+		customFieldsJson: JSON.stringify(personForm.customFields),
 	})
 
 	const capturePersonDialogSnapshot = () => {
@@ -227,6 +238,13 @@ export const usePersonnelPersonForm = (params: {
 		if (cur.cardItemsJson !== snap.cardItemsJson) fields.push("卡號")
 		if (cur.fingerPrintItemsJson !== snap.fingerPrintItemsJson) fields.push("指紋")
 		if (cur.licensePlateItemsJson !== snap.licensePlateItemsJson) fields.push("車牌設定")
+		if (cur.customFieldsJson !== snap.customFieldsJson) {
+			const prev = JSON.parse(snap.customFieldsJson || "{}") as Record<string, string>
+			const next = JSON.parse(cur.customFieldsJson || "{}") as Record<string, string>
+			for (const field of profileFields.value) {
+				if ((prev[field.key] || "") !== (next[field.key] || "")) fields.push(field.label)
+			}
+		}
 		return fields
 	})
 
@@ -356,6 +374,7 @@ export const usePersonnelPersonForm = (params: {
 		personForm.faceUrl = ""
 		personForm.personGroupId = ""
 		personForm.licensePlateItems = [createEmptyLicensePlateFormItem()]
+		personForm.customFields = emptyCustomFieldValues(profileFields.value)
 		resetPersonDialogState()
 		void loadAccessControlDevices()
 		capturePersonDialogSnapshot()
@@ -375,6 +394,9 @@ export const usePersonnelPersonForm = (params: {
 		resetCaptureState()
 		const plates = mapPersonLicensePlatesToForm(p)
 		personForm.licensePlateItems = plates.length > 0 ? plates : [createEmptyLicensePlateFormItem()]
+		personForm.customFields = Object.fromEntries(
+			profileFields.value.map((field) => [field.key, getPersonCustomFieldValue(p, field.key)]),
+		)
 		const ac = getAccessControlConfigSummary(p)
 		cardItems.value = mapAccessControlCardsToForm(p)
 		fingerPrintItems.value = mapAccessControlFingerprintsToForm(p)
@@ -681,6 +703,7 @@ export const usePersonnelPersonForm = (params: {
 					status: personForm.status,
 					faceUrl: personForm.faceUrl.trim() || null,
 					personGroupId,
+					customFields: { ...personForm.customFields },
 				})
 			} else {
 				saved = await personnelApi.createPerson({
@@ -688,6 +711,7 @@ export const usePersonnelPersonForm = (params: {
 					fullName: personForm.fullName.trim(),
 					status: personForm.status,
 					personGroupId,
+					customFields: { ...personForm.customFields },
 				})
 			}
 

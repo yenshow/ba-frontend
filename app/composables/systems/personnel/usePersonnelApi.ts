@@ -17,6 +17,7 @@ import type {
 	LocationMembersReplaceMeta,
 	VehiclePlateSyncResult,
 } from "~/types/personnel"
+import type { PersonnelProfileSchema } from "~/utils/personnelProfileFields"
 import type { HandleErrorOptions } from "~/composables/core/useErrorHandler"
 import { useApiBase } from "~/composables/core/useApiBase"
 import { buildPathWithQuery } from "~/utils/apiUtils"
@@ -46,6 +47,27 @@ export type GetPersonsParams = {
 	sortOrder?: "asc" | "desc"
 	limit?: number
 	offset?: number
+}
+
+const toPersonsQuery = (
+	params?: GetPersonsParams,
+	options?: { includePaging?: boolean },
+): Record<string, string | number> => {
+	const query: Record<string, string | number> = {}
+	if (params?.mainGroupId != null) query.mainGroupId = params.mainGroupId
+	if (params?.personGroupId != null) query.personGroupId = params.personGroupId
+	if (params?.personGroupIds?.length) query.personGroupIds = params.personGroupIds.join(",")
+	if (params?.ungroupedOnly) query.ungroupedOnly = "true"
+	if (params?.status) query.status = params.status
+	if (params?.employeeNo) query.employeeNo = params.employeeNo
+	if (params?.fullName) query.fullName = params.fullName
+	if (params?.q) query.q = params.q
+	if (params?.sortOrder) query.sortOrder = params.sortOrder
+	if (options?.includePaging) {
+		if (params?.limit != null) query.limit = params.limit
+		if (params?.offset != null) query.offset = params.offset
+	}
+	return query
 }
 
 export type PersonnelHandleApiError = (
@@ -102,6 +124,7 @@ export type PersonnelApi = {
 		status?: "active" | "inactive"
 		faceUrl?: string | null
 		personGroupId?: number | null
+		customFields?: Record<string, string>
 	}) => Promise<Person>
 	updatePerson: (
 		id: number,
@@ -111,8 +134,11 @@ export type PersonnelApi = {
 			status: "active" | "inactive"
 			faceUrl: string | null
 			personGroupId: number | null
+			customFields: Record<string, string>
 		}>
 	) => Promise<Person>
+	getProfileSchema: () => Promise<PersonnelProfileSchema>
+	saveProfileSchema: (body: PersonnelProfileSchema) => Promise<PersonnelProfileSchema>
 	uploadFaceForPerson: (
 		personId: number,
 		file: File
@@ -155,6 +181,7 @@ export type PersonnelApi = {
 	// 批次匯入
 	importPersons: (form: FormData) => Promise<ImportResult>
 	downloadImportTemplate: () => Promise<Blob>
+	exportPersons: (params?: GetPersonsParams) => Promise<Blob>
 
 	// 人員門禁設定（僅存平台；一次寫入）
 	setPersonAccessControlConfig: (
@@ -238,18 +265,7 @@ export const usePersonnelApi = (): PersonnelApi => {
 
 		// 人員
 		getPersons: (params?: GetPersonsParams) => {
-			const query: Record<string, string | number> = {}
-			if (params?.mainGroupId != null) query.mainGroupId = params.mainGroupId
-			if (params?.personGroupId != null) query.personGroupId = params.personGroupId
-			if (params?.personGroupIds?.length) query.personGroupIds = params.personGroupIds.join(",")
-			if (params?.ungroupedOnly) query.ungroupedOnly = "true"
-			if (params?.status) query.status = params.status
-			if (params?.employeeNo) query.employeeNo = params.employeeNo
-			if (params?.fullName) query.fullName = params.fullName
-			if (params?.q) query.q = params.q
-			if (params?.sortOrder) query.sortOrder = params.sortOrder
-			if (params?.limit != null) query.limit = params.limit
-			if (params?.offset != null) query.offset = params.offset
+			const query = toPersonsQuery(params, { includePaging: true })
 			const path = Object.keys(query).length
 				? buildPathWithQuery(`${PERSONNEL_PREFIX}/persons`, query)
 				: `${PERSONNEL_PREFIX}/persons`
@@ -266,6 +282,7 @@ export const usePersonnelApi = (): PersonnelApi => {
 			status?: "active" | "inactive"
 			faceUrl?: string | null
 			personGroupId?: number | null
+			customFields?: Record<string, string>
 		}) => request<Person>(`${PERSONNEL_PREFIX}/persons`, personWriteRequestInit("POST", body)),
 		updatePerson: (
 			id: number,
@@ -275,12 +292,20 @@ export const usePersonnelApi = (): PersonnelApi => {
 				status: "active" | "inactive"
 				faceUrl: string | null
 				personGroupId: number | null
+				customFields: Record<string, string>
 			}>
 		) =>
 			request<Person>(
 				`${PERSONNEL_PREFIX}/persons/${id}`,
 				personWriteRequestInit("PUT", body)
 			),
+		getProfileSchema: () =>
+			request<PersonnelProfileSchema>(`${PERSONNEL_PREFIX}/profile-schema`),
+		saveProfileSchema: (body: PersonnelProfileSchema) =>
+			request<PersonnelProfileSchema>(`${PERSONNEL_PREFIX}/profile-schema`, {
+				method: "PUT",
+				body: JSON.stringify(body),
+			}),
 		replacePersonLicensePlates: (
 			personId: number,
 			licensePlates: PersonLicensePlatePayload[],
@@ -417,6 +442,13 @@ export const usePersonnelApi = (): PersonnelApi => {
 			}),
 
 		downloadImportTemplate: () => requestBlob(`${PERSONNEL_PREFIX}/import-template`),
+		exportPersons: (params?: GetPersonsParams) => {
+			const query = toPersonsQuery(params)
+			const path = Object.keys(query).length
+				? buildPathWithQuery(`${PERSONNEL_PREFIX}/export`, query)
+				: `${PERSONNEL_PREFIX}/export`
+			return requestBlob(path, { timeout: 120000 })
+		},
 
 		setPersonAccessControlConfig: (
 			personId: number,

@@ -11,6 +11,8 @@ import {
 } from "~/composables/systems/personnel/usePersonnelApi"
 import { getPrevOffset } from "~/composables/systems/personnel/personnelList"
 import { usePersonnelPersonForm } from "~/composables/systems/personnel/usePersonnelPersonForm"
+import { usePersonnelProfileSchema } from "~/composables/systems/personnel/usePersonnelProfileSchema"
+import { usePersonnelProfileFieldsDialog } from "~/composables/systems/personnel/usePersonnelProfileFieldsDialog"
 
 type DeviceApi = ReturnType<typeof useDeviceApi>
 type AccessControlApi = ReturnType<typeof useAccessControlApi>
@@ -50,12 +52,28 @@ export const usePersonnelPersonsTab = (params: {
 		getPersonAccessControlDataSummary,
 	} = personsList
 
+	const profileSchema = usePersonnelProfileSchema({
+		personnelApi,
+		handleApiError,
+	})
+
 	const personForm = usePersonnelPersonForm({
 		...params,
 		persons,
 		personsOffset,
 		loadPersons,
 		getFaceImageSrc,
+		profileFields: profileSchema.fields,
+	})
+
+	const profileFieldsDialog = usePersonnelProfileFieldsDialog({
+		personnelApi,
+		toast,
+		handleApiError,
+		schema: profileSchema.schema,
+		onSaved: () => {
+			void loadPersons()
+		},
 	})
 
 	const deletePerson = async (p: Person) => {
@@ -77,5 +95,7 @@ export const usePersonnelPersonsTab = (params: {
 		...personForm,
 		deletePerson,
 		handleImageError,
+		profileSchema,
+		profileFieldsDialog,
 	}
 }
