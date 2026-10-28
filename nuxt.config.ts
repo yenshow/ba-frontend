@@ -1,5 +1,9 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import { toLegacyRouteRedirectRules } from "./app/config/legacyRouteRedirects"
+import {
+	attachSocketIoUpgradeProxy,
+	socketIoUpgradeVitePlugin,
+} from "../scripts/nuxtSocketIoUpgradeProxy.mjs"
 
 export default defineNuxtConfig({
 	compatibilityDate: "2025-07-15",
@@ -32,8 +36,15 @@ export default defineNuxtConfig({
 
 	// cardQrUtils 使用 CJS 套件 qrcode；dev 預先 bundle 避免整頁重載
 	vite: {
+		plugins: [socketIoUpgradeVitePlugin()],
 		optimizeDeps: {
 			include: ["qrcode"]
+		}
+	},
+
+	hooks: {
+		listen(server) {
+			attachSocketIoUpgradeProxy(server)
 		}
 	},
 
@@ -75,7 +86,6 @@ export default defineNuxtConfig({
 			// 同機部署：同源 /api，由 Nitro routeRules 代理至後端
 			apiBase: "/api",
 			websocketUrl: "",
-			backendHttpPort: 4000,
 			secureCookie: undefined,
 			productCode: "YS One Site",
 			appVersion: "1.0.0",

@@ -39,6 +39,25 @@ const globalEventListeners = new Map<string, Set<Function>>();
 
 const stripTrailingApi = (u: string) => u.replace(/\/api\/?$/, "");
 
+/** 相對 apiBase 時走當前頁 origin（Nuxt 代理 `/socket.io`），勿直連後端 :4000。 */
+const resolveWebsocketConnectUrl = (): string => {
+	const config = useRuntimeConfig();
+	const explicit = String(config.public.websocketUrl || "").trim();
+	if (explicit) return explicit;
+
+	const apiBase = String(config.public.apiBase || "/api");
+	if (apiBase.startsWith("http")) {
+		try {
+			return new URL(stripTrailingApi(apiBase)).origin;
+		} catch {
+			return stripTrailingApi(apiBase);
+		}
+	}
+
+	if (process.client) return window.location.origin;
+	return "";
+};
+
 const reattachTrackedListeners = () => {
 	if (!globalSocket) return;
 	for (const [event, callbacks] of globalEventListeners.entries()) {
@@ -132,24 +151,8 @@ const establishGlobalConnection = (options?: { force?: boolean }) => {
 	globalConnectionError.value = null;
 
 	try {
-		const config = useRuntimeConfig();
 		const authToken = useState<string | null>("auth_token");
-
-		const explicit = String(config.public.websocketUrl || "").trim();
-		let url = explicit;
-		if (!url) {
-			const apiBase = String(config.public.apiBase || "/api");
-			if (apiBase.startsWith("http")) {
-				try {
-					url = new URL(stripTrailingApi(apiBase)).origin;
-				} catch {
-					url = stripTrailingApi(apiBase);
-				}
-			} else {
-				const port = Number(config.public.backendHttpPort) || 4000;
-				url = `${window.location.protocol}//${window.location.hostname}:${port}`;
-			}
-		}
+		const url = resolveWebsocketConnectUrl();
 
 		if (!url) {
 			globalStatus.value = "error";
@@ -198,31 +201,6 @@ export const reconnectGlobalWebSocket = () => {
 };
 
 export const useWebSocket = () => {
-	const config = useRuntimeConfig();
-
-	const resolveWebsocketConnectUrl = (): string => {
-		const explicit = String(config.public.websocketUrl || "").trim();
-		if (explicit) {
-			return explicit;
-		}
-
-		const apiBase = String(config.public.apiBase || "/api");
-		if (apiBase.startsWith("http")) {
-			try {
-				return new URL(stripTrailingApi(apiBase)).origin;
-			} catch {
-				return stripTrailingApi(apiBase);
-			}
-		}
-
-		if (process.client) {
-			const port = Number(config.public.backendHttpPort) || 4000;
-			return `${window.location.protocol}//${window.location.hostname}:${port}`;
-		}
-
-		return "";
-	};
-
 	const websocketUrl = computed(() => resolveWebsocketConnectUrl());
 
 	const on = (event: string, callback: Function) => {
@@ -244,6 +222,10 @@ export const useWebSocket = () => {
 			globalSocket?.off(event);
 			globalEventListeners.delete(event);
 		}
+	};
+
+	const emit = (event: string, ...args: unknown[]) => {
+		globalSocket?.emit(event, ...args);
 	};
 
 	const cleanup = () => {
@@ -270,6 +252,7 @@ export const useWebSocket = () => {
 
 		on,
 		off,
+		emit,
 		cleanup,
 	};
 };
