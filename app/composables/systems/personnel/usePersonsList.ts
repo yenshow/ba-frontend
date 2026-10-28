@@ -141,5 +141,6 @@ export const usePersonsList = (params: {
 		},
 		goPrevPage: () => prevPage(getLoadParams()),
 		goNextPage: () => nextPage(getLoadParams()),
+		getListQuery: getLoadParams,
 	}
 }

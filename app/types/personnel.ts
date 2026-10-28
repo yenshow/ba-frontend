@@ -92,6 +92,8 @@ export interface Person {
 	/** 後端 getPersonsPaged 會附上門禁權限摘要（JSON array） */
 	access_locations?: AccessLocation[] | null;
 	config?: Record<string, unknown> | null;
+	/** 平台自訂欄位值（key＝profile-schema fields[].key） */
+	custom_fields?: Record<string, unknown> | null;
 	created_by?: number | null;
 	user_id?: number | null;
 	created_at?: string;
@@ -258,6 +260,8 @@ export type PersonnelPersonForm = {
 	/** FilterDropdown value；空字串 = 未分組 */
 	personGroupId: string;
 	licensePlateItems: PersonLicensePlateFormItem[];
+	/** 啟用中的自訂欄位值（key＝profile-schema） */
+	customFields: Record<string, string>;
 };
 
 /** 人員編輯 Dialog 的 UI State（供 Container 與 Dialog 共用） */

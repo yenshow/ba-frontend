@@ -2,7 +2,7 @@
 	<section class="section-card flex h-full min-h-0 flex-col">
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 			<div class="flex items-center gap-2">
-				<h2 class="text-xl font-semibold text-theme-primary 2xl:text-2xl">人員列表</h2>
+				<h2 class="text-theme-primary text-xl font-semibold 2xl:text-2xl">人員列表</h2>
 			</div>
 			<div class="flex flex-wrap items-center gap-2">
 				<SearchInput
@@ -13,6 +13,23 @@
 					aria-label="搜尋 ID 或姓名"
 					@search="handleSearch"
 				/>
+				<PermissionActionButton
+					:allowed="canUpdatePerson"
+					aria-label="管理欄位"
+					class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white enabled:hover:bg-white/30 2xl:px-6 2xl:py-3 2xl:text-base"
+					@click="openProfileFieldsDialog"
+				>
+					管理欄位
+				</PermissionActionButton>
+				<PermissionActionButton
+					:allowed="true"
+					:disabled="isExporting"
+					aria-label="匯出人員"
+					class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white enabled:hover:bg-white/30 2xl:px-6 2xl:py-3 2xl:text-base"
+					@click="exportPersons"
+				>
+					{{ isExporting ? "匯出中..." : "人員匯出" }}
+				</PermissionActionButton>
 				<PermissionActionButton
 					:allowed="canCreatePerson"
 					aria-label="批次匯入"
@@ -41,10 +58,10 @@
 			empty-title="尚無人員"
 		>
 			<div class="table-scroll">
-				<table class="w-full min-w-[720px] text-center">
+				<table class="w-full text-center" :style="{ minWidth: tableMinWidth }">
 					<thead>
 						<tr class="border-b border-white/20">
-							<th class="table-th">頭像</th>
+							<th v-if="showAvatarColumn" class="table-th">頭像</th>
 							<th class="table-th">
 								<div class="mx-auto max-w-[160px] 2xl:max-w-[200px]">
 									<FilterDropdown
@@ -56,9 +73,12 @@
 								</div>
 							</th>
 							<th class="table-th">姓名</th>
-							<th class="table-th">群組</th>
-							<th class="table-th">資料（平台）</th>
-							<th class="table-th">狀態</th>
+							<th v-if="showGroupColumn" class="table-th">群組</th>
+							<th v-for="field in visibleCustomFields" :key="`th-${field.key}`" class="table-th">
+								{{ field.label }}
+							</th>
+							<th v-if="showAccessDataColumn" class="table-th">資料（平台）</th>
+							<th v-if="showStatusColumn" class="table-th">狀態</th>
 							<th class="table-th">操作</th>
 						</tr>
 					</thead>
@@ -68,7 +88,7 @@
 							:key="p.id"
 							class="border-b border-white/10 text-base text-white hover:bg-white/5 2xl:text-lg"
 						>
-							<td class="table-td">
+							<td v-if="showAvatarColumn" class="table-td">
 								<div class="flex justify-center">
 									<img
 										v-if="getFaceImageSrc(p.face_url)"
@@ -88,25 +108,28 @@
 							</td>
 							<td class="table-td">{{ p.employee_no }}</td>
 							<td class="table-td">{{ p.full_name || "—" }}</td>
-							<td class="table-td">{{ p.group_name?.trim() || "未分組" }}</td>
-							<td class="table-td">
+							<td v-if="showGroupColumn" class="table-td">{{ p.group_name?.trim() || "未分組" }}</td>
+							<td v-for="field in visibleCustomFields" :key="`${p.id}-${field.key}`" class="table-td">
+								{{ getPersonCustomFieldValue(p, field.key) || "—" }}
+							</td>
+							<td v-if="showAccessDataColumn" class="table-td">
 								<PersonnelAccessDataIndicators
 									:summary="getPersonAccessControlDataSummary(p)"
-									:on-icon-click="(tab) => handlePlatformIconClick(p, tab)"
+									:on-icon-click="tab => handlePlatformIconClick(p, tab)"
 								/>
 							</td>
-							<td class="table-td">
+							<td v-if="showStatusColumn" class="table-td">
 								<span
 									:class="[
 										getPersonStatusBadgeClass(p.status),
-										'rounded px-2 py-1 2xl:px-3 2xl:py-1.5 whitespace-nowrap',
+										'whitespace-nowrap rounded px-2 py-1 2xl:px-3 2xl:py-1.5'
 									]"
 								>
 									{{ personStatusLabels[p.status] }}
 								</span>
 							</td>
 							<td class="table-td">
-								<div class="flex justify-center gap-2 2xl:gap-3 whitespace-nowrap">
+								<div class="flex justify-center gap-2 whitespace-nowrap 2xl:gap-3">
 									<button
 										v-if="personHasAnyAccessCard(p)"
 										type="button"
@@ -154,14 +177,15 @@
 			v-model="showPersonDialog"
 			:active-section="personDialogSection"
 			:group-tree="groupTree"
+			:profile-fields="profileSchema.fields.value"
 			:state="personDialogState"
 			@submit="props.personsTab.submitPerson"
 			@face-file-change="props.personsTab.handleFaceFileChange"
 			@clear-face="props.personsTab.clearFaceUrl"
 			@capture-face="props.personsTab.handleCaptureFace"
-			@capture-card="(idx) => props.personsTab.handleCaptureCard(idx)"
-			@generate-virtual-card="(idx) => props.personsTab.handleGenerateVirtualCard(idx)"
-			@capture-fingerprint="(idx) => props.personsTab.handleCaptureFingerPrint(idx)"
+			@capture-card="idx => props.personsTab.handleCaptureCard(idx)"
+			@generate-virtual-card="idx => props.personsTab.handleGenerateVirtualCard(idx)"
+			@capture-fingerprint="idx => props.personsTab.handleCaptureFingerPrint(idx)"
 		/>
 
 		<ImageCropDialog
@@ -178,6 +202,8 @@
 			:is-importing="isImporting"
 			@submit="submitImport"
 		/>
+
+		<PersonnelProfileFieldsDialog :dialog="profileFieldsDialog" />
 
 		<ConfirmDialog
 			v-model="showConfirmDialog"
@@ -208,36 +234,41 @@
 </template>
 
 <script setup lang="ts">
-import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
-import AsyncPanel from "~/components/common/AsyncPanel.vue"
-import FilterDropdown from "~/components/common/FilterDropdown.vue"
-import Pagination from "~/components/common/Pagination.vue"
-import SearchInput from "~/components/common/SearchInput.vue"
-import type { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePersonnelPersonsTab"
-import PersonnelImportDialog from "~/components/personnel/dialogs/PersonnelImportDialog.vue"
-import ImageCropDialog from "~/components/common/ImageCropDialog.vue"
-import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
-import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
-import PersonnelPersonDialog from "~/components/personnel/dialogs/PersonnelPersonDialog.vue"
-import PersonnelCardQrDialog from "~/components/personnel/dialogs/PersonnelCardQrDialog.vue"
-import type { PersonnelPersonDialogState, Person } from "~/types/personnel"
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
+import AsyncPanel from "~/components/common/AsyncPanel.vue";
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
+import Pagination from "~/components/common/Pagination.vue";
+import SearchInput from "~/components/common/SearchInput.vue";
+import type { usePersonnelPersonsTab } from "~/composables/systems/personnel/usePersonnelPersonsTab";
+import PersonnelImportDialog from "~/components/personnel/dialogs/PersonnelImportDialog.vue";
+import PersonnelProfileFieldsDialog from "~/components/personnel/dialogs/PersonnelProfileFieldsDialog.vue";
+import ImageCropDialog from "~/components/common/ImageCropDialog.vue";
+import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
+import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
+import PersonnelPersonDialog from "~/components/personnel/dialogs/PersonnelPersonDialog.vue";
+import PersonnelCardQrDialog from "~/components/personnel/dialogs/PersonnelCardQrDialog.vue";
+import type { PersonnelPersonDialogState, Person } from "~/types/personnel";
 import PersonnelAccessDataIndicators, {
-	type PersonnelAccessDataTabKey,
-} from "~/components/personnel/PersonnelAccessDataIndicators.vue"
-import type { PersonCardFormItem } from "~/utils/cardFormUtils"
-import { resolveAccessControlCardsFromPerson, personHasAnyAccessCard } from "~/utils/cardFormUtils"
-import { usePersonnelGroupTree } from "~/composables/systems/personnel/usePersonnelGroupTree"
+	type PersonnelAccessDataTabKey
+} from "~/components/personnel/PersonnelAccessDataIndicators.vue";
+import type { PersonCardFormItem } from "~/utils/cardFormUtils";
+import { resolveAccessControlCardsFromPerson, personHasAnyAccessCard } from "~/utils/cardFormUtils";
+import { usePersonnelGroupTree } from "~/composables/systems/personnel/usePersonnelGroupTree";
+import {
+	getPersonCustomFieldValue,
+	personnelListTableMinWidth
+} from "~/utils/personnelProfileFields";
 
 const props = defineProps<{
-	canCreatePerson: boolean
-	canUpdatePerson: boolean
-	canDeletePerson: boolean
-	personStatusLabels: Record<string, string>
-	getPersonStatusBadgeClass: (status: string) => string
-	personsTab: ReturnType<typeof usePersonnelPersonsTab>
-}>()
+	canCreatePerson: boolean;
+	canUpdatePerson: boolean;
+	canDeletePerson: boolean;
+	personStatusLabels: Record<string, string>;
+	getPersonStatusBadgeClass: (status: string) => string;
+	personsTab: ReturnType<typeof usePersonnelPersonsTab>;
+}>();
 
-const { groupTree } = usePersonnelGroupTree()
+const { groupTree } = usePersonnelGroupTree();
 
 const {
 	persons,
@@ -263,6 +294,8 @@ const {
 	importResult,
 	isImporting,
 	submitImport,
+	isExporting,
+	exportPersons,
 
 	showFaceCropDialog,
 	faceCropSourceFile,
@@ -271,16 +304,29 @@ const {
 	showPersonCloseConfirmDialog,
 	personCloseConfirmConfig,
 	confirmPersonDialogDismiss,
-} = props.personsTab
+	profileFieldsDialog,
+	profileSchema
+} = props.personsTab;
+
+const showAvatarColumn = computed(() => profileSchema.listColumns.value.avatar);
+const showGroupColumn = computed(() => profileSchema.listColumns.value.group);
+const showAccessDataColumn = computed(() => profileSchema.listColumns.value.accessData);
+const showStatusColumn = computed(() => profileSchema.listColumns.value.status);
+const visibleCustomFields = computed(() => profileSchema.visibleCustomFields.value);
+const tableMinWidth = computed(() => personnelListTableMinWidth(visibleCustomFields.value.length));
+
+const openProfileFieldsDialog = () => {
+	profileFieldsDialog.openDialog();
+};
 
 const openImportDialog = () => {
-	showImportDialog.value = true
-}
+	showImportDialog.value = true;
+};
 
-const confirmDialog = useConfirmDialog()
-const showConfirmDialog = confirmDialog.showDialog
-const confirmDialogConfig = confirmDialog.config
-const pendingDeletePersonId = ref<number | null>(null)
+const confirmDialog = useConfirmDialog();
+const showConfirmDialog = confirmDialog.showDialog;
+const confirmDialogConfig = confirmDialog.config;
+const pendingDeletePersonId = ref<number | null>(null);
 
 // 以 composable 的 refs 為 SSOT，收斂成單一 state
 const personDialogState: PersonnelPersonDialogState = {
@@ -293,7 +339,7 @@ const personDialogState: PersonnelPersonDialogState = {
 		validBeginDate: props.personsTab.validBeginDate,
 		validEndDate: props.personsTab.validEndDate,
 		cardItems: props.personsTab.cardItems,
-		fingerPrintItems: props.personsTab.fingerPrintItems,
+		fingerPrintItems: props.personsTab.fingerPrintItems
 	},
 	capture: {
 		captureDeviceId: props.personsTab.captureDeviceId,
@@ -307,7 +353,7 @@ const personDialogState: PersonnelPersonDialogState = {
 
 		fingerDeviceId: props.personsTab.fingerDeviceId,
 		isCapturingFingerPrint: props.personsTab.isCapturingFingerPrint,
-		fingerPrintErrorMessage: props.personsTab.fingerPrintErrorMessage,
+		fingerPrintErrorMessage: props.personsTab.fingerPrintErrorMessage
 	},
 	ui: {
 		facePreviewUrl: props.personsTab.personFormFacePreview,
@@ -315,61 +361,61 @@ const personDialogState: PersonnelPersonDialogState = {
 		errorMessage: props.personsTab.errorMessage,
 		hasUnsavedChanges: props.personsTab.hasUnsavedPersonChanges,
 		changedFieldsList: props.personsTab.personChangedFieldsList,
-		requestClose: props.personsTab.requestClosePersonDialog,
-	},
-}
+		requestClose: props.personsTab.requestClosePersonDialog
+	}
+};
 
 const localEmployeeNoSort = computed<string>({
 	get: () => selectedEmployeeNoSort.value,
-	set: (v) => (selectedEmployeeNoSort.value = v),
-})
+	set: v => (selectedEmployeeNoSort.value = v)
+});
 
-const handleSearch = () => props.personsTab.handleSearch()
+const handleSearch = () => props.personsTab.handleSearch();
 
 const cardQrTarget = ref<{
-	employee_no: string
-	full_name?: string | null
-	cards: PersonCardFormItem[]
-} | null>(null)
+	employee_no: string;
+	full_name?: string | null;
+	cards: PersonCardFormItem[];
+} | null>(null);
 
 const showCardQrDialog = computed({
 	get: () => cardQrTarget.value !== null,
 	set: (open: boolean) => {
-		if (!open) cardQrTarget.value = null
-	},
-})
+		if (!open) cardQrTarget.value = null;
+	}
+});
 
 const openCardQrDialog = (p: Person) => {
-	const cards = resolveAccessControlCardsFromPerson(p)
-	if (!cards.length) return
+	const cards = resolveAccessControlCardsFromPerson(p);
+	if (!cards.length) return;
 	cardQrTarget.value = {
 		employee_no: p.employee_no,
 		full_name: p.full_name,
-		cards,
-	}
-}
+		cards
+	};
+};
 
 const handlePlatformIconClick = (person: Person, tab: PersonnelAccessDataTabKey) => {
-	if (!props.canUpdatePerson) return
-	void editPerson(person, tab)
-}
+	if (!props.canUpdatePerson) return;
+	void editPerson(person, tab);
+};
 
 const confirmDeletePerson = (p: { id: number; employee_no: string; full_name?: string | null }) => {
-	pendingDeletePersonId.value = p.id
+	pendingDeletePersonId.value = p.id;
 	confirmDialog.show({
 		title: "確認刪除",
 		message: `確定要刪除人員「${p.employee_no} ${p.full_name || ""}」嗎？`,
 		details: "此操作無法復原。",
-		type: "danger",
-	})
-}
+		type: "danger"
+	});
+};
 
 const handleConfirmDelete = async () => {
-	const id = pendingDeletePersonId.value
-	if (id == null) return
-	const p = persons.value.find((x) => x.id === id)
-	if (!p) return
-	await props.personsTab.deletePerson(p)
-	pendingDeletePersonId.value = null
-}
+	const id = pendingDeletePersonId.value;
+	if (id == null) return;
+	const p = persons.value.find(x => x.id === id);
+	if (!p) return;
+	await props.personsTab.deletePerson(p);
+	pendingDeletePersonId.value = null;
+};
 </script>

@@ -65,5 +65,6 @@ const personsTab = usePersonnelPersonsTab({
 
 onMounted(() => {
 	void personsTab.loadPersons();
+	void personsTab.profileSchema.refresh();
 });
 </script>

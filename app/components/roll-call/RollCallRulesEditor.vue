@@ -39,29 +39,42 @@
 				/>
 			</label>
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-				<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
-					<span>開始時間<span class="required-mark">*</span></span>
-					<input
-						:value="activeRule.windowStart"
-						type="time"
-						required
-						class="form-input-small"
-						:aria-label="`第 ${activeIndex + 1} 筆開始時間`"
-						:disabled="!canEdit"
-						@input="handleField('windowStart', ($event.target as HTMLInputElement).value)"
-					/>
-				</label>
-				<label class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base">
-					<span>結束時間<span class="required-mark">*</span></span>
-					<input
-						:value="activeRule.windowEnd"
-						type="time"
-						required
-						class="form-input-small"
-						:aria-label="`第 ${activeIndex + 1} 筆結束時間`"
-						:disabled="!canEdit"
-						@input="handleField('windowEnd', ($event.target as HTMLInputElement).value)"
-					/>
+				<label
+					v-for="field in TIME_FIELDS"
+					:key="field.key"
+					class="flex min-w-0 flex-col gap-2 text-sm text-white/80 2xl:text-base"
+				>
+					<span>
+						{{ field.label }}<span class="required-mark">*</span>
+						<span
+							v-if="field.key === 'windowEnd' && isOvernight"
+							class="ms-1 font-normal text-cyan-200/90"
+						>
+							（隔日）
+						</span>
+					</span>
+					<div
+						class="flex min-w-0 items-center gap-1.5"
+						:class="!canEdit && 'pointer-events-none opacity-50'"
+					>
+						<FilterDropdown
+							:model-value="timeParts(activeRule[field.key]).hour"
+							:options="HOUR_OPTIONS"
+							placeholder="時"
+							:aria-label="`第 ${activeIndex + 1} 筆${field.label}（時）`"
+							class="min-w-0 flex-1"
+							@update:model-value="handleTimePart(field.key, 'hour', $event)"
+						/>
+						<span class="shrink-0 text-white/60" aria-hidden="true">:</span>
+						<FilterDropdown
+							:model-value="timeParts(activeRule[field.key]).minute"
+							:options="MINUTE_OPTIONS"
+							placeholder="分"
+							:aria-label="`第 ${activeIndex + 1} 筆${field.label}（分）`"
+							class="min-w-0 flex-1"
+							@update:model-value="handleTimePart(field.key, 'minute', $event)"
+						/>
+					</div>
 				</label>
 				<fieldset class="min-w-0 text-sm text-white/80 2xl:text-base" :disabled="!canEdit">
 					<legend class="mb-2.5">星期<span class="required-mark">*</span></legend>
@@ -97,8 +110,12 @@
 					</span>
 				</label>
 			</div>
+			<p class="text-xs text-white/60 2xl:text-sm">
+				時間為 24 小時制。結束早於開始＝跨日至隔日，例如 20:00–05:00。
+			</p>
 			<p v-if="isOvernight" class="text-xs text-cyan-200/90 2xl:text-sm">
-				結束早於開始＝跨日（場次日為開始日，例如 20:00–05:00）
+				目前為跨日時段：{{ formatHHmm(activeRule.windowStart) }} → 隔日
+				{{ formatHHmm(activeRule.windowEnd) }}
 			</p>
 		</div>
 		<p class="text-xs text-white/60 2xl:text-sm">
@@ -110,6 +127,7 @@
 <script setup lang="ts">
 import PersonnelFormItemTabs from "~/components/personnel/PersonnelFormItemTabs.vue";
 import IconTrashButton from "~/components/common/IconTrashButton.vue";
+import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import { clampFormTabIndex } from "~/utils/personnelFormTabUtils";
 import {
 	ROLL_CALL_WEEKDAY_OPTIONS,
@@ -118,6 +136,34 @@ import {
 } from "~/types/rollCall";
 
 const MAX_RULES = 8;
+const TIME_FIELDS = [
+	{ key: "windowStart" as const, label: "開始時間" },
+	{ key: "windowEnd" as const, label: "結束時間" }
+];
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => {
+	const value = String(i).padStart(2, "0");
+	return { value, label: value };
+});
+const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => {
+	const value = String(i).padStart(2, "0");
+	return { value, label: value };
+});
+
+const formatHHmm = (value: string) => {
+	const match = /^(\d{1,2}):(\d{2})/.exec(String(value || "").trim());
+	if (!match) return "";
+	const hour = Number(match[1]);
+	const minute = Number(match[2]);
+	if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return "";
+	return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+};
+
+const timeParts = (value: string) => {
+	const hhmm = formatHHmm(value);
+	if (!hhmm) return { hour: "00", minute: "00" };
+	const [hour, minute] = hhmm.split(":");
+	return { hour: hour || "00", minute: minute || "00" };
+};
 
 const props = defineProps<{
 	modelValue: RollCallRuleDraft[];
@@ -133,9 +179,9 @@ const activeIndex = ref(0);
 const activeRule = computed(() => props.modelValue[activeIndex.value] ?? null);
 
 const isOvernight = computed(() => {
-	const rule = activeRule.value;
-	if (!rule?.windowStart || !rule.windowEnd) return false;
-	return rule.windowEnd < rule.windowStart;
+	const start = formatHHmm(activeRule.value?.windowStart || "");
+	const end = formatHHmm(activeRule.value?.windowEnd || "");
+	return Boolean(start && end && end < start);
 });
 
 const ensureDefaultRule = () => {
@@ -166,6 +212,16 @@ const handleField = <K extends keyof RollCallRuleDraft>(key: K, value: RollCallR
 	if (!current) return;
 	list[activeIndex.value] = { ...current, [key]: value };
 	emitList(list);
+};
+
+const handleTimePart = (
+	field: "windowStart" | "windowEnd",
+	part: "hour" | "minute",
+	value: string
+) => {
+	const current = timeParts(activeRule.value?.[field] || "");
+	const next = { ...current, [part]: value };
+	handleField(field, `${next.hour}:${next.minute}`);
 };
 
 const handleToggleWeekday = (day: number) => {
