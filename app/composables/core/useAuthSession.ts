@@ -20,10 +20,11 @@ export const useAuthSession = () => {
 
 	const apiBase = config.public.apiBase || "/api"
 	const secureOverride = (config.public as { secureCookie?: string }).secureCookie
+	const pageIsHttps = useRequestURL().protocol === "https:"
 	const isSecure =
 		secureOverride !== undefined && secureOverride !== ""
 			? secureOverride === "true"
-			: apiBase.startsWith("https://")
+			: apiBase.startsWith("https://") || pageIsHttps
 
 	const tokenCookie = useCookie<string | null>("auth_token", {
 		default: () => null,

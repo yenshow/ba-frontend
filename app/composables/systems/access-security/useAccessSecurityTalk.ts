@@ -293,6 +293,12 @@ export const useAccessSecurityTalk = () => {
 			toast.warning("即時連線未就緒，請稍後再試")
 			return
 		}
+		if (typeof window !== "undefined" && !window.isSecureContext) {
+			toast.warning(
+				"目前不是安全連線，瀏覽器無法開啟麥克風。請以 HTTPS 開啟系統（安裝精靈可啟用前端 HTTPS），或於伺服器本機使用 localhost 捷徑。"
+			)
+			return
+		}
 		const getUserMedia = navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices)
 		if (!getUserMedia) {
 			toast.warning("無法使用麥克風")
