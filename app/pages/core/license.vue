@@ -362,7 +362,13 @@
 
 <script setup lang="ts">
 import { TOAST } from "~/config/toastCatalog";
-import { LICENSE_FEATURE_KEYS, type FeatureKey, type LicenseState } from "~/types/license";
+import {
+	LICENSE_FEATURE_KEYS,
+	getFeatureQuotaKind,
+	type FeatureKey,
+	type LicenseQuotaEntry,
+	type LicenseState
+} from "~/types/license";
 import { useApiBase } from "~/composables/core/useApiBase";
 import { useAdminOnly, usePlatformAdmin } from "~/composables/core/useAuth";
 import { useLicense } from "~/composables/core/useLicense";
@@ -372,7 +378,7 @@ import { useConfirmDialog } from "~/composables/core/useConfirmDialog";
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue";
 import AsyncPanel from "~/components/common/AsyncPanel.vue";
 import PageTabs from "~/components/common/PageTabs.vue";
-import { formatMaxDevicesText, normalizeMaxDevices, toNonNegativeInt } from "~/utils/licenseFormat";
+import { formatQuotaMaxText, formatQuotaUsedText, isQuotaExceeded } from "~/utils/licenseFormat";
 
 definePageMeta({
 	layout: "auxiliary"
@@ -471,7 +477,7 @@ type QuotaDetailRow = {
 	key: FeatureKey;
 	label: string;
 	licensed: boolean;
-	used: number;
+	used: string;
 	maxText: string;
 	statusText: string;
 	statusKind: QuotaDetailStatusKind;
@@ -491,32 +497,40 @@ const quotaDetailRows = computed<QuotaDetailRow[]>(() => {
 	return LICENSE_FEATURE_KEYS.map(key => {
 		const label = featureLabels[key] ?? key;
 		const licensed = enabled.has(key);
-		const maxInfo = normalizeMaxDevices(quotas[key]?.maxDevices);
+		const kind = getFeatureQuotaKind(key);
 		const usedRaw = usage[key]?.usedDevices ?? 0;
-		const safeUsed = toNonNegativeInt(usedRaw) ?? 0;
+		const usedPoints = usage[key]?.usedPoints;
+		const usedText = formatQuotaUsedText(kind, usedRaw, usedPoints);
+		const maxText = formatQuotaMaxText(kind, quotas[key]?.maxDevices, quotas[key]?.maxPoints);
 
 		if (!licensed) {
 			return {
 				key,
 				label,
 				licensed: false,
-				used: safeUsed,
-				maxText: maxInfo.text,
+				used: usedText,
+				maxText,
 				statusText: "未授權",
 				statusKind: "muted" as const
 			};
 		}
 
-		const isExceeded = maxInfo.max != null ? safeUsed >= maxInfo.max : false;
-		const statusText = isExceeded ? "已滿" : "正常";
-		const statusKind: QuotaDetailStatusKind = isExceeded ? "rose" : "emerald";
+		const exceeded = isQuotaExceeded(
+			kind,
+			usedRaw,
+			quotas[key]?.maxDevices,
+			usedPoints,
+			quotas[key]?.maxPoints
+		);
+		const statusText = exceeded ? "已滿" : "正常";
+		const statusKind: QuotaDetailStatusKind = exceeded ? "rose" : "emerald";
 
 		return {
 			key,
 			label,
 			licensed: true,
-			used: safeUsed,
-			maxText: maxInfo.text,
+			used: usedText,
+			maxText,
 			statusText,
 			statusKind
 		};
@@ -524,7 +538,11 @@ const quotaDetailRows = computed<QuotaDetailRow[]>(() => {
 });
 
 const featureQuotaText = (entry: LicenseListRow, key: FeatureKey) => {
-	return formatMaxDevicesText(entry.quotas?.[key]?.maxDevices);
+	return formatQuotaMaxText(
+		getFeatureQuotaKind(key),
+		entry.quotas?.[key]?.maxDevices,
+		entry.quotas?.[key]?.maxPoints
+	);
 };
 
 type LicenseListRow = {
@@ -532,7 +550,7 @@ type LicenseListRow = {
 	licenseKey: string;
 	roleLabel: string;
 	features: FeatureKey[];
-	quotas?: Partial<Record<FeatureKey, { maxDevices: number }>>;
+	quotas?: Partial<Record<FeatureKey, LicenseQuotaEntry>>;
 	legacyMerged?: boolean;
 	legacyUnknown?: boolean;
 };

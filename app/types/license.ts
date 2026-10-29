@@ -14,10 +14,33 @@ export const LICENSE_FEATURE_KEYS: readonly FeatureKey[] = [
 	"vehicle_access"
 ];
 
+export type FeatureQuotaKind = "devices" | "points" | "none";
+
+export const FEATURE_QUOTA_KIND: Record<FeatureKey, FeatureQuotaKind> = {
+	people_counting: "devices",
+	roll_call: "devices",
+	environment: "points",
+	surveillance: "devices",
+	vehicle_access: "devices"
+};
+
+export const getFeatureQuotaKind = (key: FeatureKey | string): FeatureQuotaKind =>
+	FEATURE_QUOTA_KIND[key as FeatureKey] ?? "devices";
+
+export type LicenseQuotaEntry = {
+	maxDevices?: number;
+	maxPoints?: number;
+};
+
+export type LicenseUsageEntry = {
+	usedDevices: number;
+	usedPoints?: number;
+};
+
 export type LicenseEntitlementEntry = {
 	licenseKey: string;
 	features: FeatureKey[];
-	quotas?: Partial<Record<FeatureKey, { maxDevices: number }>>;
+	quotas?: Partial<Record<FeatureKey, LicenseQuotaEntry>>;
 };
 
 export type LicenseState = {
@@ -25,8 +48,8 @@ export type LicenseState = {
 	expiresAt: string | null;
 	expired: boolean;
 	canActivate: boolean;
-	quotas?: Partial<Record<FeatureKey, { maxDevices: number }>>;
-	usage?: Partial<Record<FeatureKey, { usedDevices: number }>>;
+	quotas?: Partial<Record<FeatureKey, LicenseQuotaEntry>>;
+	usage?: Partial<Record<FeatureKey, LicenseUsageEntry>>;
 	serialNumber?: string | null;
 	licenseKey?: string | null;
 	activationMethod?: string | null;
