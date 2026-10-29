@@ -248,8 +248,8 @@ export const getIntercomSourceBadgeClass = (source: string): string => {
 
 export const getIntercomSourceLabel = (source: string): string => {
 	if (source === "alert_linkage") return "警報連動"
-	if (source === "access_security_ring") return "語音廣播"
-	if (source === "access_security_talk") return "網頁對講"
+	if (source === "access_security_ring") return "廣播"
+	if (source === "access_security_talk") return "對講"
 	return source || "—"
 }
 

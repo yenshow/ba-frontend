@@ -91,8 +91,8 @@ const EXTRA_SOURCE_LABELS: Record<string, string> = {
 	elevator: SYSTEM_TYPE_LABELS.elevator,
 	alert_linkage: "警報連動",
 	video_intercom: "組網對講",
-	access_security_ring: "語音廣播",
-	access_security_talk: "網頁對講",
+	access_security_ring: "廣播",
+	access_security_talk: "對講",
 }
 
 export const getOperationalSourceLabel = (source: string): string =>
@@ -116,7 +116,7 @@ export const OPERATIONAL_KIND_OPTIONS = [
 	{ value: "access", label: "門禁／人流／簽到" },
 	{ value: "vehicle", label: "車輛進出" },
 	{ value: "elevator", label: "電梯管理" },
-	{ value: "intercom", label: "對講" },
+	{ value: "intercom", label: "對講／廣播" },
 ] as const
 
 export const getOperationalKindLabel = (kind: string): string => {

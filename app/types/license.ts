@@ -62,10 +62,45 @@ export const FEATURE_KEY_LABELS: Record<FeatureKey, string> = {
 export const getFeatureKeyLabel = (key: FeatureKey | string): string =>
 	FEATURE_KEY_LABELS[key as FeatureKey] ?? String(key)
 
+export type FeatureQuotaKind = "devices" | "points" | "elevator" | "none"
+
+export const FEATURE_QUOTA_KIND: Record<FeatureKey, FeatureQuotaKind> = {
+	people_counting: "devices",
+	roll_call: "devices",
+	elevator: "elevator",
+	lighting: "points",
+	hvac: "points",
+	air_circulation: "points",
+	drainage: "points",
+	power: "points",
+	energy: "points",
+	fire: "points",
+	emergency_rescue: "points",
+	smoke_alarm: "points",
+	environment: "points",
+	surveillance: "devices",
+	vehicle_access: "devices",
+	multimedia: "none",
+	access_security: "devices",
+}
+
+export const getFeatureQuotaKind = (key: FeatureKey | string): FeatureQuotaKind =>
+	FEATURE_QUOTA_KIND[key as FeatureKey] ?? "devices"
+
+export type LicenseQuotaEntry = {
+	maxDevices?: number
+	maxPoints?: number
+}
+
+export type LicenseUsageEntry = {
+	usedDevices: number
+	usedPoints?: number
+}
+
 export type LicenseEntitlementEntry = {
 	licenseKey: string
 	features: FeatureKey[]
-	quotas?: Partial<Record<FeatureKey, { maxDevices: number }>>
+	quotas?: Partial<Record<FeatureKey, LicenseQuotaEntry>>
 }
 
 export type LicenseState = {
@@ -73,8 +108,8 @@ export type LicenseState = {
 	expiresAt: string | null
 	expired: boolean
 	canActivate: boolean
-	quotas?: Partial<Record<FeatureKey, { maxDevices: number }>>
-	usage?: Partial<Record<FeatureKey, { usedDevices: number }>>
+	quotas?: Partial<Record<FeatureKey, LicenseQuotaEntry>>
+	usage?: Partial<Record<FeatureKey, LicenseUsageEntry>>
 	serialNumber?: string | null
 	licenseKey?: string | null
 	activationMethod?: string | null
