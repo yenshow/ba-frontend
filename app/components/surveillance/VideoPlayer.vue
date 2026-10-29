@@ -215,7 +215,7 @@ watch(
 			return
 		}
 		try {
-			await connectWhep(resolveWebrtcWhepUrl(url, port), previousPc)
+			await connectWhep(resolveWebrtcWhepUrl(url), previousPc)
 		} catch (e) {
 			pc = previousPc
 			error.value = e instanceof Error ? e.message : "WebRTC 連線失敗，請檢查 MediaMTX"

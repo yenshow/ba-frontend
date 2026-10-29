@@ -1,9 +1,17 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
-import { toLegacyRouteRedirectRules } from "./app/config/legacyRouteRedirects"
-import {
-	attachSocketIoUpgradeProxy,
-	socketIoUpgradeVitePlugin,
-} from "../scripts/nuxtSocketIoUpgradeProxy.mjs"
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { toLegacyRouteRedirectRules } from "./app/config/legacyRouteRedirects";
+
+/** 僅 monorepo `nuxt dev`；Vercel／獨立 frontend repo 沒有此檔，略過 */
+const socketIoProxyFile = resolve(process.cwd(), "../scripts/nuxtSocketIoUpgradeProxy.mjs");
+const {
+	attachSocketIoUpgradeProxy = () => false,
+	socketIoUpgradeVitePlugin = () => ({ name: "ba-socketio-upgrade-proxy-noop" }),
+} = existsSync(socketIoProxyFile)
+	? await import(pathToFileURL(socketIoProxyFile).href)
+	: {};
 
 export default defineNuxtConfig({
 	compatibilityDate: "2025-07-15",
