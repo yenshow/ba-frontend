@@ -99,6 +99,30 @@ const asRecord = (v: unknown): Record<string, unknown> | null => {
 	return v as Record<string, unknown>
 }
 
+/** 有效期限 UI 只選日期；寫入設備時再補時分秒。 */
+export const toValidityDateOnly = (value: string): string => {
+	const match = /^(\d{4}-\d{2}-\d{2})/.exec(String(value || "").trim())
+	return match ? match[1] : ""
+}
+
+export const toValidityBeginTime = (dateStr: string): string => {
+	const day = toValidityDateOnly(dateStr)
+	return day ? `${day}T00:00:00` : ""
+}
+
+export const toValidityEndTime = (dateStr: string): string => {
+	const day = toValidityDateOnly(dateStr)
+	return day ? `${day}T23:59:59` : ""
+}
+
+export const todayDateOnly = (): string => {
+	const d = new Date()
+	const y = d.getFullYear()
+	const m = String(d.getMonth() + 1).padStart(2, "0")
+	const day = String(d.getDate()).padStart(2, "0")
+	return `${y}-${m}-${day}`
+}
+
 export const getAccessControlConfigSummary = (
 	person: Person | null
 ): AccessControlConfigSummary => {
@@ -125,26 +149,6 @@ export const getAccessControlConfigSummary = (
 	const isLongTerm = validity?.longTerm === false ? false : true
 	const beginTime = typeof validity?.beginTime === "string" ? validity.beginTime.trim() : ""
 	const endTime = typeof validity?.endTime === "string" ? validity.endTime.trim() : ""
-	const toDateTimeLocal = (s: string, mode: "begin" | "end") => {
-		if (!s) return ""
-		// 支援後端常見格式：
-		// - "YYYY-MM-DD" -> "YYYY-MM-DDT00:00" or "YYYY-MM-DDT23:59"
-		// - "YYYY-MM-DDTHH:mm" -> 原樣
-		// - "YYYY-MM-DDTHH:mm:ss" -> 去秒
-		// - ISO string -> 盡量轉成本地 datetime-local（到分鐘）
-		if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T${mode === "begin" ? "00:00" : "23:59"}`
-		if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)) return s
-		if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(s)) return s.slice(0, 16)
-		const d = new Date(s)
-		if (Number.isNaN(d.getTime())) return ""
-		const y = d.getFullYear()
-		const m = String(d.getMonth() + 1).padStart(2, "0")
-		const day = String(d.getDate()).padStart(2, "0")
-		const hh = String(d.getHours()).padStart(2, "0")
-		const mm = String(d.getMinutes()).padStart(2, "0")
-		return `${y}-${m}-${day}T${hh}:${mm}`
-	}
-
 	const password = typeof ac.password === "string" ? ac.password.trim() : ""
 
 	return {
@@ -153,8 +157,8 @@ export const getAccessControlConfigSummary = (
 		fingerPrintItems,
 		fingerPrintData,
 		isLongTerm,
-		validBeginDate: isLongTerm ? "" : toDateTimeLocal(beginTime, "begin"),
-		validEndDate: isLongTerm ? "" : toDateTimeLocal(endTime, "end"),
+		validBeginDate: isLongTerm ? "" : toValidityDateOnly(beginTime),
+		validEndDate: isLongTerm ? "" : toValidityDateOnly(endTime),
 		password,
 	}
 }
