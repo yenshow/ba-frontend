@@ -214,20 +214,22 @@
 								<div v-if="!localIsLongTerm" class="grid grid-cols-2 gap-3">
 									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
 										<span>起始日<span class="required-mark">*</span></span>
-										<DateTimeLocal24Input
+										<input
 											v-model="localValidBeginDate"
+											type="date"
 											required
-											input-class="form-input-small"
-											aria-label="有效期限起始時間（年/月/日/時/分）"
+											class="form-input-small"
+											aria-label="有效期限起始日"
 										/>
 									</label>
 									<label class="flex flex-col gap-2 text-sm text-white/80 2xl:text-base">
 										<span>結束日<span class="required-mark">*</span></span>
-										<DateTimeLocal24Input
+										<input
 											v-model="localValidEndDate"
+											type="date"
 											required
-											input-class="form-input-small"
-											aria-label="有效期限結束時間（年/月/日/時/分）"
+											class="form-input-small"
+											aria-label="有效期限結束日"
 										/>
 									</label>
 								</div>

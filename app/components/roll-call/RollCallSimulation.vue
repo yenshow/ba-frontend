@@ -140,7 +140,7 @@
 							v-for="row in detailRowsPaginated"
 							:key="row.key"
 							class="border-b border-white/10 text-white"
-							:class="row.isAbsent ? 'bg-red-500/40' : ''"
+							:class="row.rowClass"
 						>
 							<td
 								v-for="(cell, idx) in row.cells"
@@ -283,6 +283,12 @@ const handleOpenPhotoLightbox = (row: RollCallReportAttendanceRow) => {
 
 const isNameColumn = (idx: number) => idx === NAME_COLUMN_INDEX
 
+const detailRowClass = (status: string) => {
+	if (status === "leave") return "bg-amber-400/50"
+	if (status !== "present") return "bg-red-500/40"
+	return ""
+}
+
 const statusLabel = (status: string) => {
 	if (status === "present") return "已簽到"
 	if (status === "absent") return "未到"
@@ -351,6 +357,7 @@ const groupStatsTableRows = computed(() => {
 		{ 日期: string; "區域-地點": string; 群組: string; expected: number; present: number }
 	>()
 	for (const row of filteredAttendance.value) {
+		if (row.status === "leave") continue
 		const date = formatDisplayDate(row.sessionDate)
 		const zl = zoneLocationLabel(row.zoneName, row.locationName, row.locationId)
 		const groupName = row.groupName || "未分組"
@@ -391,7 +398,7 @@ const detailRows = computed(() => {
 	})
 	return rows.map((row) => ({
 		key: reportRowKey(row),
-		isAbsent: row.status !== "present",
+		rowClass: detailRowClass(row.status),
 		record: row,
 		cells: [
 			formatDisplayDate(row.sessionDate),

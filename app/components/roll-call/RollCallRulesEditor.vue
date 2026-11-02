@@ -111,7 +111,7 @@
 				</label>
 			</div>
 			<p class="text-xs text-white/60 2xl:text-sm">
-				時間為 24 小時制。結束早於開始＝跨日至隔日，例如 20:00–05:00。
+				時間為 24 小時制。結束早於開始＝跨日（例如 20:00–05:00）。啟用中時段不可重疊，可首尾相接。
 			</p>
 			<p v-if="isOvernight" class="text-xs text-cyan-200/90 2xl:text-sm">
 				目前為跨日時段：{{ formatHHmm(activeRule.windowStart) }} → 隔日
@@ -119,7 +119,7 @@
 			</p>
 		</div>
 		<p class="text-xs text-white/60 2xl:text-sm">
-			時段規則會與地點一併在下方「儲存變更」時寫入。應到人員請至「門禁管理」維護地點名單。
+			時段規則與地點一併儲存。應到名單全地點共用；不同時段對象（如管理員）請另建簽到地點。
 		</p>
 	</div>
 </template>

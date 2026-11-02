@@ -37,6 +37,9 @@ import {
 	isPersonSaveRequestTimeout,
 	PERSON_SAVE_TIMEOUT_MESSAGE,
 	revokeObjectUrl,
+	todayDateOnly,
+	toValidityBeginTime,
+	toValidityEndTime,
 	updatePersonInList as updatePersonInListHelper,
 } from "~/utils/personnelUtils"
 import { parsePersonGroupIdFromForm } from "~/utils/personnelGroups"
@@ -587,35 +590,17 @@ export const usePersonnelPersonForm = (params: {
 		}
 	}
 
-	const toBeginTime = (dateStr: string) => {
-		const s = String(dateStr || "").trim()
-		if (!s) return ""
-		if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T00:00:00`
-		if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)) return `${s}:00`
-		return s
-	}
-
-	const toEndTime = (dateStr: string) => {
-		const s = String(dateStr || "").trim()
-		if (!s) return ""
-		if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T23:59:59`
-		if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)) return `${s}:59`
-		return s
-	}
-
-	const todayDateString = () => new Date().toISOString().slice(0, 10)
-
 	const saveAccessControlExtras = async (personId: number) => {
 		const validity = isLongTerm.value
 			? {
 					longTerm: true,
-					beginTime: toBeginTime(todayDateString()),
-					endTime: toEndTime("2035-12-31"),
+					beginTime: toValidityBeginTime(todayDateOnly()),
+					endTime: toValidityEndTime("2037-12-31"),
 				}
 			: {
 					longTerm: false,
-					beginTime: toBeginTime(validBeginDate.value),
-					endTime: toEndTime(validEndDate.value),
+					beginTime: toValidityBeginTime(validBeginDate.value),
+					endTime: toValidityEndTime(validEndDate.value),
 				}
 
 		if (!validity.beginTime || !validity.endTime) throw new Error("請設定有效的起始日與結束日")
