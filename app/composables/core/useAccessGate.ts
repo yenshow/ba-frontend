@@ -275,6 +275,7 @@ export const useRollCallAccessRbac = () => {
 		canResyncAccessDevices: canDeviceSync,
 		canResetStatistics: useHasPermission(p.statisticsReset),
 		canMarkLeave: useHasPermission(p.attendanceLeave),
+		canEditAssignments: useHasPermission(p.assignmentEdit),
 	}
 }
 

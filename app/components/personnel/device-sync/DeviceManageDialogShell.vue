@@ -9,7 +9,8 @@
 				:aria-labelledby="titleId"
 			>
 				<div
-					class="dialog-panel-bg mx-4 flex h-[94vh] max-h-[94vh] w-full max-w-7xl flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
+					class="dialog-panel-bg mx-4 flex h-[94vh] max-h-[94vh] w-full flex-col gap-4 overflow-hidden rounded-3xl pb-7 pl-7 pr-0 pt-7 2xl:gap-6 2xl:pb-8 2xl:pl-8 2xl:pr-0 2xl:pt-8"
+					:class="panelMaxWidthClass"
 					:aria-busy="isUiLocked || undefined"
 				>
 					<header class="flex items-center justify-between gap-3 pr-7 2xl:pr-8">
@@ -27,15 +28,18 @@
 								{{ titleMeta }}
 							</p>
 						</div>
-						<button
-							type="button"
-							class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70 disabled:cursor-not-allowed disabled:opacity-40"
-							:disabled="isUiLocked"
-							aria-label="關閉對話框"
-							@click="emit('close')"
-						>
-							&times;
-						</button>
+						<div class="flex shrink-0 items-center gap-3">
+							<slot name="header-actions" />
+							<button
+								type="button"
+								class="cursor-pointer border-none bg-transparent text-[1.75rem] leading-none text-white transition-opacity hover:opacity-70 disabled:cursor-not-allowed disabled:opacity-40"
+								:disabled="isUiLocked"
+								aria-label="關閉對話框"
+								@click="emit('close')"
+							>
+								&times;
+							</button>
+						</div>
 					</header>
 
 					<div class="relative flex min-h-0 flex-1 flex-col overflow-hidden pr-7 2xl:pr-8">
@@ -63,13 +67,20 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
-	modelValue: boolean
-	title: string
-	titleId: string
-	titleMeta?: string | null
-	isUiLocked?: boolean
-}>()
+withDefaults(
+	defineProps<{
+		modelValue: boolean
+		title: string
+		titleId: string
+		titleMeta?: string | null
+		isUiLocked?: boolean
+		/** Tailwind max-width（預設 max-w-7xl） */
+		panelMaxWidthClass?: string
+	}>(),
+	{
+		panelMaxWidthClass: "max-w-7xl",
+	},
+)
 
 const emit = defineEmits<{
 	close: []
