@@ -1,5 +1,6 @@
 import { useApiBase } from "~/composables/core/useApiBase"
 import type {
+	RollCallAssignment,
 	RollCallHistoryItem,
 	RollCallReportAttendanceRow,
 	RollCallReportSession,
@@ -19,7 +20,7 @@ const draftToPayload = (draft: RollCallRuleDraft) => ({
 })
 
 export const useRollCallApi = () => {
-	const { request } = useApiBase()
+	const { request, requestBlob } = useApiBase()
 
 	const getToday = () =>
 		request<{ date: string; locations: RollCallTodayLocation[] }>("/roll-call/today")
@@ -74,6 +75,43 @@ export const useRollCallApi = () => {
 			{ method: "POST", body: { onLeave } },
 		)
 
+	const listAssignments = (locationId: number, startDate: string, endDate: string) => {
+		const q = new URLSearchParams({ startDate, endDate })
+		return request<{ assignments: RollCallAssignment[] }>(
+			`/roll-call/locations/${locationId}/assignments?${q.toString()}`,
+		)
+	}
+
+	const replaceAssignments = (
+		locationId: number,
+		body: {
+			startDate: string
+			endDate: string
+			assignments: Array<{ personId: number; assignmentDate: string; ruleId: number }>
+		},
+	) =>
+		request<{ assignments: RollCallAssignment[] }>(
+			`/roll-call/locations/${locationId}/assignments`,
+			{ method: "PUT", body },
+		)
+
+	const downloadAssignmentTemplate = (locationId: number, weekStart?: string) => {
+		const q = weekStart ? `?weekStart=${encodeURIComponent(weekStart)}` : ""
+		return requestBlob(
+			`/roll-call/locations/${locationId}/assignments/import-template${q}`,
+		)
+	}
+
+	const importAssignments = (locationId: number, form: FormData) =>
+		request<{
+			weeks: Array<{ startDate: string; endDate: string; count: number }>
+			assignments: RollCallAssignment[]
+		}>(`/roll-call/locations/${locationId}/assignments/import`, {
+			method: "POST",
+			body: form,
+			timeout: 120000,
+		})
+
 	return {
 		getToday,
 		resetLocationStats,
@@ -83,5 +121,9 @@ export const useRollCallApi = () => {
 		setAttendanceLeave,
 		getHistory,
 		getReport,
+		listAssignments,
+		replaceAssignments,
+		downloadAssignmentTemplate,
+		importAssignments,
 	}
 }

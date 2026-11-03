@@ -23,7 +23,7 @@
 								: row.status === 'leave'
 									? 'border-amber-300/50 bg-amber-500/10'
 									: 'border-white/25 bg-black/25',
-							compact ? 'gap-3.5 p-3.5' : 'min-h-[120px] gap-4 p-4 2xl:min-h-[148px] 2xl:p-5'
+							compact ? 'gap-3.5 p-3.5' : 'min-h-[120px] gap-4 p-4 2xl:min-h-[148px] 2xl:p-5',
 						]"
 						:aria-label="`${displayName(row)}，簽到時間 ${checkInDisplay(row)}`"
 					>
@@ -53,37 +53,14 @@
 
 						<div class="min-w-0 flex-1">
 							<div
-								class="flex items-center gap-2 border-b border-white/35"
-								:class="compact ? 'pb-1' : 'pb-1.5'"
+								class="border-b border-white/35 font-semibold tracking-wide text-white"
+								:class="
+									compact
+										? 'truncate pb-1 text-lg'
+										: 'truncate pb-1.5 text-lg 2xl:text-2xl'
+								"
 							>
-								<div
-									class="min-w-0 flex-1 truncate font-semibold tracking-wide text-white"
-									:class="compact ? 'text-lg' : 'text-lg 2xl:text-2xl'"
-								>
-									{{ displayName(row) }}
-								</div>
-								<span
-									v-if="row.status === 'leave' && !canMarkLeave"
-									class="shrink-0 text-sm font-medium text-amber-200 2xl:text-base"
-								>
-									休假中
-								</span>
-								<button
-									v-else-if="canMarkLeave"
-									type="button"
-									class="shrink-0 cursor-pointer whitespace-nowrap text-sm underline-offset-2 transition-colors hover:underline 2xl:text-base"
-									:class="
-										row.status === 'leave'
-											? 'font-medium text-amber-200 hover:text-amber-100'
-											: 'text-white/55 hover:text-white'
-									"
-									:aria-label="
-										row.status === 'leave' ? `取消 ${displayName(row)} 休假` : `標記 ${displayName(row)} 休假`
-									"
-									@click="handleToggleLeave(row)"
-								>
-									{{ row.status === "leave" ? "休假中" : "排休" }}
-								</button>
+								{{ displayName(row) }}
 							</div>
 							<div
 								class="mt-2 space-y-0.5 text-white/75"
@@ -127,84 +104,74 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
-import MonitoringLogEmptyState from "~/components/common/MonitoringLogEmptyState.vue";
-import Pagination from "~/components/common/Pagination.vue";
-import { useImageCenter } from "~/composables/core/useImageCenter";
-import type { RollCallAttendanceRow } from "~/types/rollCall";
+import { computed, ref, watch } from "vue"
+import MonitoringLogEmptyState from "~/components/common/MonitoringLogEmptyState.vue"
+import Pagination from "~/components/common/Pagination.vue"
+import { useImageCenter } from "~/composables/core/useImageCenter"
+import type { RollCallAttendanceRow } from "~/types/rollCall"
 
-const PAGE_SIZE = 16;
+const PAGE_SIZE = 16
 
 const props = withDefaults(
 	defineProps<{
-		rows: RollCallAttendanceRow[];
-		emptyMessage?: string;
+		rows: RollCallAttendanceRow[]
+		emptyMessage?: string
 		/** 總覽展開時縮小人臉與文字 */
-		compact?: boolean;
-		canMarkLeave?: boolean;
+		compact?: boolean
 	}>(),
 	{
 		emptyMessage: "尚無簽到紀錄",
 		compact: false,
-		canMarkLeave: false
-	}
-);
+	},
+)
 
-const emit = defineEmits<{
-	leave: [row: RollCallAttendanceRow, onLeave: boolean];
-}>();
+const { resolveUrl } = useImageCenter()
+const imageErrorStates = ref<Record<number, boolean>>({})
+const offset = ref(0)
 
-const { resolveUrl } = useImageCenter();
-const imageErrorStates = ref<Record<number, boolean>>({});
-const offset = ref(0);
-
-const paginatedRows = computed(() => props.rows.slice(offset.value, offset.value + PAGE_SIZE));
+const paginatedRows = computed(() => props.rows.slice(offset.value, offset.value + PAGE_SIZE))
 
 watch(
 	() =>
-		[...new Set(props.rows.map(row => row.personId))]
+		[...new Set(props.rows.map((row) => row.personId))]
 			.sort((a, b) => a - b)
 			.join(","),
 	() => {
-		imageErrorStates.value = {};
-		offset.value = 0;
-	}
-);
+		imageErrorStates.value = {}
+		offset.value = 0
+	},
+)
 
-const displayName = (row: RollCallAttendanceRow) => row.fullName || row.employeeNo || "—";
+const displayName = (row: RollCallAttendanceRow) => row.fullName || row.employeeNo || "—"
 
 const checkedInTime = (row: RollCallAttendanceRow) => {
-	if (!row.checkedInAt) return "";
-	const d = new Date(row.checkedInAt);
-	if (Number.isNaN(d.getTime())) return "";
-	const pad = (n: number) => String(n).padStart(2, "0");
-	return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-};
+	if (!row.checkedInAt) return ""
+	const d = new Date(row.checkedInAt)
+	if (Number.isNaN(d.getTime())) return ""
+	const pad = (n: number) => String(n).padStart(2, "0")
+	return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
 
 const checkInDisplay = (row: RollCallAttendanceRow) => {
-	if (row.status === "leave") return "休假";
-	return checkedInTime(row) || "未到";
-};
-
-const handleToggleLeave = (row: RollCallAttendanceRow) => {
-	emit("leave", row, row.status !== "leave");
-};
+	if (row.status === "leave") return "休假"
+	return checkedInTime(row) || "未到"
+}
 
 /** 有簽到抓拍優先；否則用人臉大頭照 */
 const cardImageUrl = (row: RollCallAttendanceRow) =>
-	resolveUrl(row.eventPhotoUrl) || resolveUrl(row.photoUrl);
+	resolveUrl(row.eventPhotoUrl) || resolveUrl(row.photoUrl)
 
 const handleImageError = (personId: number) => {
-	imageErrorStates.value[personId] = true;
-};
+	imageErrorStates.value[personId] = true
+}
 
 const handlePrevious = () => {
-	offset.value = Math.max(0, offset.value - PAGE_SIZE);
-};
+	offset.value = Math.max(0, offset.value - PAGE_SIZE)
+}
 
 const handleNext = () => {
 	if (offset.value + PAGE_SIZE < props.rows.length) {
-		offset.value += PAGE_SIZE;
+		offset.value += PAGE_SIZE
 	}
-};
+}
 </script>

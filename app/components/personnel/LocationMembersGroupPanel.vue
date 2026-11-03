@@ -39,12 +39,15 @@
 						@toggle-select-all="emit('toggleSelectAll')"
 						@toggle="(personId, checked) => emit('toggleMember', personId, checked)"
 					>
-						<template #person-indicators="{ person }">
-							<slot name="person-indicators" :person="person" />
-						</template>
-						<template #person-extra="{ person }">
-							<slot name="person-extra" :person="person" />
-						</template>
+					<template #person-indicators="{ person }">
+						<slot name="person-indicators" :person="person" />
+					</template>
+					<template #person-extra="{ person }">
+						<slot name="person-extra" :person="person" />
+					</template>
+					<template #person-badge="{ person }">
+						<slot name="person-badge" :person="person" />
+					</template>
 					</PersonnelMemberPickerPanel>
 				</slot>
 			</section>

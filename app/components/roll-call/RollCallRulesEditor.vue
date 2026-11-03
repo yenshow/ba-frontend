@@ -118,9 +118,6 @@
 				{{ formatHHmm(activeRule.windowEnd) }}
 			</p>
 		</div>
-		<p class="text-xs text-white/60 2xl:text-sm">
-			時段規則與地點一併儲存。應到名單全地點共用；不同時段對象（如管理員）請另建簽到地點。
-		</p>
 	</div>
 </template>
 

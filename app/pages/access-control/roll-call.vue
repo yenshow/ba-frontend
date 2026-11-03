@@ -59,6 +59,15 @@
 					</PermissionActionButton>
 					<PermissionActionButton
 						v-show="selected"
+						:allowed="canEditAssignments"
+						aria-label="週曆排班"
+						class="btn-monitoring-overlay absolute left-56 top-2 2xl:left-64"
+						@click="showAssignmentDialog = true"
+					>
+						排班管理
+					</PermissionActionButton>
+					<PermissionActionButton
+						v-show="selected"
 						:allowed="canResetStatistics"
 						aria-label="重置簽到統計"
 						class="btn-monitoring-overlay absolute right-32 top-2 2xl:right-36"
@@ -93,8 +102,6 @@
 									:rows="filteredAttendance"
 									:empty-message="attendanceEmptyMessage"
 									:compact="!isOverviewCollapsed"
-									:can-mark-leave="canMarkLeave && Boolean(activeSummary?.id)"
-									@leave="handleToggleLeave"
 								/>
 							</div>
 						</template>
@@ -174,6 +181,13 @@
 			@delete="handleDeleteZone"
 			@saved="handleZonesSaved"
 		/>
+		<RollCallAssignmentDialog
+			v-if="showAssignmentDialog"
+			v-model="showAssignmentDialog"
+			:location-id="selectedLocationId"
+			:location-name="selected?.name"
+			@saved="handleAccessManageSynced"
+		/>
 		<PeopleCountingAccessManageDialog
 			v-model="showAccessManageDialog"
 			:location-id="selectedLocationId"
@@ -218,6 +232,7 @@ import RollCallOverviewCard from "~/components/roll-call/RollCallOverviewCard.vu
 import RollCallAttendanceCards from "~/components/roll-call/RollCallAttendanceCards.vue";
 import RollCallGroupFilter from "~/components/roll-call/RollCallGroupFilter.vue";
 import RollCallSimulation from "~/components/roll-call/RollCallSimulation.vue";
+import RollCallAssignmentDialog from "~/components/roll-call/RollCallAssignmentDialog.vue";
 import SimulationFrame from "~/components/common/SimulationFrame.vue";
 import PeopleCountingAccessManageDialog from "~/components/people-counting/PeopleCountingAccessManageDialog.vue";
 import { useLocationModuleRbac, useRollCallAccessRbac } from "~/composables/core/useAccessGate";
@@ -260,7 +275,7 @@ const {
 	canEditAccessMembers,
 	canResyncAccessDevices,
 	canResetStatistics,
-	canMarkLeave
+	canEditAssignments
 } = useRollCallAccessRbac();
 
 const locationApi = useRollCallLocationApi();
@@ -293,6 +308,7 @@ const { detailPanelRef, asideHeightStyle } = useMonitoringAsideHeightSync();
 const showLocationDialog = ref(false);
 const showReportFrame = ref(false);
 const showAccessManageDialog = ref(false);
+const showAssignmentDialog = ref(false);
 const reportLoading = ref(false);
 const reportTimeRange = ref({
 	startDate: "",
@@ -546,7 +562,10 @@ const tallyAttendance = (attendance: RollCallAttendanceRow[]) => {
 };
 
 const unitsFromAttendance = (attendance: RollCallAttendanceRow[]) => {
-	const map = new Map<number, { id: number; name: string; currentCount: number; totalCount: number }>();
+	const map = new Map<
+		number,
+		{ id: number; name: string; currentCount: number; totalCount: number }
+	>();
 	for (const row of attendance) {
 		const id = row.groupId ?? UNGROUPED_PERSON_GROUP_ID;
 		const cur = map.get(id) || {
@@ -584,55 +603,6 @@ const applySessionToToday = (session: RollCallSessionDetail) => {
 			units: unitsFromAttendance(session.attendance || [])
 		};
 	});
-};
-
-const applyLocalLeave = (row: RollCallAttendanceRow, onLeave: boolean) => {
-	if (!detail.value) return;
-	const nextStatus: RollCallAttendanceRow["status"] = onLeave
-		? "leave"
-		: detail.value.status === "closed"
-			? "absent"
-			: "pending";
-	const attendance = detail.value.attendance.map(item =>
-		item.personId === row.personId
-			? {
-					...item,
-					status: nextStatus,
-					source: onLeave ? ("manual" as const) : null,
-					checkedInAt: null,
-					eventPhotoUrl: undefined
-				}
-			: item
-	);
-	const next = { ...detail.value, attendance, ...tallyAttendance(attendance) };
-	detail.value = next;
-	applySessionToToday(next);
-};
-
-const leaveBusy = ref(false);
-
-const handleToggleLeave = async (row: RollCallAttendanceRow, onLeave: boolean) => {
-	const sessionId = activeSummary.value?.id;
-	if (!sessionId || leaveBusy.value) return;
-	leaveBusy.value = true;
-	const snapshot = detail.value;
-	applyLocalLeave(row, onLeave);
-	try {
-		const res = await rollCallApi.setAttendanceLeave(sessionId, row.personId, onLeave);
-		if (res.session) {
-			detail.value = res.session;
-			applySessionToToday(res.session);
-		}
-		showToast("success", onLeave ? TOAST.ROLL_CALL_LEAVE : TOAST.ROLL_CALL_LEAVE_CLEAR);
-	} catch (error) {
-		if (snapshot) {
-			detail.value = snapshot;
-			applySessionToToday(snapshot);
-		}
-		handleApiError(error, onLeave ? "排休失敗" : "取消休假失敗");
-	} finally {
-		leaveBusy.value = false;
-	}
 };
 
 const handleResetStats = () => {

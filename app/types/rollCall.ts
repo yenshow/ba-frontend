@@ -161,6 +161,28 @@ export const ROLL_CALL_WEEKDAY_OPTIONS = [
 	{ value: 7, label: "日" },
 ] as const
 
+/** 排班：人員 × 日期 → 規則（空白／休＝不應到） */
+export interface RollCallAssignment {
+	id?: number
+	locationId: number
+	personId: number
+	employeeNo: string
+	fullName: string
+	assignmentDate: string
+	ruleId: number
+	ruleName: string
+}
+
+export type RollCallAssignmentDayKey = "一" | "二" | "三" | "四" | "五" | "六" | "日"
+
+export interface RollCallAssignmentRowDraft {
+	personId: number
+	employeeNo: string
+	fullName: string
+	/** 規則 id；null＝休／不應到 */
+	days: Record<RollCallAssignmentDayKey, number | null>
+}
+
 export const createRollCallRuleDraft = (
 	partial?: Partial<RollCallRuleDraft>,
 ): RollCallRuleDraft => ({

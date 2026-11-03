@@ -50,6 +50,7 @@ export const PERM = {
 		locationUpdate: "system.roll_call.location.update",
 		locationDelete: "system.roll_call.location.delete",
 		ruleEdit: "system.roll_call.rule.edit",
+		assignmentEdit: "system.roll_call.assignment.edit",
 		deviceSync: "system.roll_call.device_sync",
 		syncEdit: "system.roll_call.sync.edit",
 		statisticsReset: "system.roll_call.statistics.reset",
