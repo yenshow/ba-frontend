@@ -111,13 +111,10 @@ export const usePersonnelSyncEngine = (params: {
 		})
 	}
 
-	const computeBasePollMs = (job: SyncLocationJob | null) => {
-		const totalOps = Number(job?.progress?.total ?? 0)
-		const target = Number(job?.progress?.targetPersonsTotal ?? 0)
-		if (totalOps >= 5000 || target >= 1000) return 5000
-		if (totalOps >= 2000 || target >= 500) return 4000
-		return 2000
-	}
+	const SYNC_TIMEOUT_MS = 60 * 60 * 1000
+	const SYNC_POLL_MS = 5_000
+	const SYNC_WAIT_TIMEOUT_MSG =
+		"同步等待逾時（背景可能仍在進行），請稍後重新開啟或於 Step 2 查看結果"
 
 	const updateLastCompletedCacheForLocation = (params: {
 		locationId: number
@@ -152,8 +149,6 @@ export const usePersonnelSyncEngine = (params: {
 		isPollingSyncJob.value = true
 		activeSyncJobTailItems.value = []
 		const startedAt = Date.now()
-		let lastCompleted = -1
-		let pollMs = 2000
 		let tick = 0
 		for (;;) {
 			await waitUntilVisible()
@@ -161,21 +156,18 @@ export const usePersonnelSyncEngine = (params: {
 			const job = await personnelApi.getSyncLocationJob(jobId)
 			activeSyncJob.value = job
 
-			// tail items：小 payload，供 UI 顯示逐步狀態；避免每次都拉，改成節流
-			{
-				tick += 1
-				const shouldFetchTail = tick === 1 || tick % 2 === 0 || job.status === "completed"
-				if (shouldFetchTail) {
-					try {
-						const page = await personnelApi.getSyncLocationJobItems(jobId, {
-							type: "tail",
-							limit: 200,
-							offset: 0,
-						})
-						activeSyncJobTailItems.value = page.items ?? []
-					} catch {
-						// ignore tail failure; keep polling summary
-					}
+			// tail：每隔一次 poll 或完成時拉
+			tick += 1
+			if (tick === 1 || tick % 2 === 0 || job.status === "completed") {
+				try {
+					const page = await personnelApi.getSyncLocationJobItems(jobId, {
+						type: "tail",
+						limit: 200,
+						offset: 0,
+					})
+					activeSyncJobTailItems.value = page.items ?? []
+				} catch {
+					// ignore tail failure; keep polling summary
 				}
 			}
 
@@ -212,23 +204,9 @@ export const usePersonnelSyncEngine = (params: {
 				}
 				break
 			}
-			if (Date.now() - startedAt > 10 * 60 * 1000) throw new Error("同步逾時，請稍後再試")
+			if (Date.now() - startedAt > SYNC_TIMEOUT_MS) throw new Error(SYNC_WAIT_TIMEOUT_MSG)
 
-			// backoff：
-			// - 若 progress.completed 沒變：逐步拉長（最多 5s）
-			// - 一旦有進度：回到 base（2~5s）
-			{
-				const base = computeBasePollMs(job)
-				const completed = Number(job.progress?.completed ?? 0)
-				if (completed === lastCompleted) {
-					pollMs = Math.min(5000, Math.round(Math.max(base, pollMs) * 1.35))
-				} else {
-					pollMs = base
-					lastCompleted = completed
-				}
-			}
-
-			await new Promise((r) => setTimeout(r, pollMs))
+			await new Promise((r) => setTimeout(r, SYNC_POLL_MS))
 		}
 		isPollingSyncJob.value = false
 	}
@@ -261,6 +239,7 @@ export const usePersonnelSyncEngine = (params: {
 			const { jobId } = await personnelApi.syncAllLocations()
 			const startedAt = Date.now()
 			for (;;) {
+				await waitUntilVisible()
 				const job = await personnelApi.getSyncAllLocationsJob(jobId)
 				activeSyncAllJob.value = job
 				if (job.status === "completed") {
@@ -290,8 +269,8 @@ export const usePersonnelSyncEngine = (params: {
 					}
 					break
 				}
-				if (Date.now() - startedAt > 10 * 60 * 1000) throw new Error("同步逾時，請稍後再試")
-				await new Promise((r) => setTimeout(r, 1000))
+				if (Date.now() - startedAt > SYNC_TIMEOUT_MS) throw new Error(SYNC_WAIT_TIMEOUT_MSG)
+				await new Promise((r) => setTimeout(r, SYNC_POLL_MS))
 			}
 		} catch (err) {
 			handleApiError(err, "同步全部失敗")

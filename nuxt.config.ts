@@ -43,6 +43,7 @@ export default defineNuxtConfig({
 	},
 
 	// cardQrUtils 使用 CJS 套件 qrcode；dev 預先 bundle 避免整頁重載
+	// Socket.IO：僅 scripts/nuxtSocketIoUpgradeProxy（勿再掛 vite.server.proxy，會搶 upgrade）
 	vite: {
 		plugins: [socketIoUpgradeVitePlugin()],
 		optimizeDeps: {
