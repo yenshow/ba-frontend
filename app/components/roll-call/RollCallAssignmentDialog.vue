@@ -44,9 +44,15 @@
 					>
 						<div class="mb-3 flex flex-nowrap items-end gap-2 overflow-x-auto">
 							<label class="flex w-[14.5rem] shrink-0 flex-col gap-1 text-sm text-white/70 2xl:text-base">
-								排班週次
+								<span class="inline-flex items-center gap-2">
+									排班週次
+									<span
+										v-if="loading"
+										class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/25 border-t-white/75"
+										aria-hidden="true"
+									/>
+								</span>
 								<select
-									:key="weekStart"
 									class="form-input-small form-select w-full"
 									:disabled="busy"
 									:value="weekStart"
@@ -101,11 +107,16 @@
 						</div>
 
 						<div
-							class="show-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-xl border border-white/10"
+							ref="tableScrollRef"
+							class="show-scrollbar relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-xl border border-white/10"
 							role="region"
 							aria-label="週曆排班表"
+							:aria-busy="loading || importing"
 						>
-							<table class="w-full table-fixed border-collapse text-base text-white/90">
+							<table
+								class="w-full table-fixed border-collapse text-base text-white/90 transition-opacity duration-200"
+								:class="tableDimmed ? 'pointer-events-none opacity-40' : 'opacity-100'"
+							>
 								<colgroup>
 									<col class="w-[11%]" />
 									<col class="w-[11%]" />
@@ -121,17 +132,20 @@
 											class="px-1 py-2 text-center font-medium"
 										>
 											<div>{{ day }}</div>
-											<div class="text-sm font-normal text-white/45">
+											<div
+												:key="`${weekStart}-${day}`"
+												class="text-sm font-normal text-white/45 transition-opacity duration-200"
+											>
 												{{ addDaysYmd(weekStart, index).slice(5) }}
 											</div>
 										</th>
 									</tr>
 								</thead>
 								<tbody>
-									<tr v-if="loading">
+									<tr v-if="showInitialLoading">
 										<td :colspan="9" class="px-3 py-10 text-center text-white/50">載入中…</td>
 									</tr>
-									<tr v-else-if="pagedRows.length === 0">
+									<tr v-else-if="!loading && pagedRows.length === 0">
 										<td :colspan="9" class="px-3 py-10 text-center text-white/50">
 											{{ members.length === 0 ? "此地點尚無門禁名單人員" : "目前篩選無人員，請改群組或搜尋" }}
 										</td>
@@ -170,6 +184,15 @@
 									</tr>
 								</tbody>
 							</table>
+							<div
+								v-if="tableDimmed"
+								class="pointer-events-none absolute inset-0 flex items-center justify-center"
+								aria-hidden="true"
+							>
+								<div
+									class="h-7 w-7 animate-spin rounded-full border-2 border-white/25 border-t-white/80"
+								/>
+							</div>
 						</div>
 
 						<div class="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-white/55">
@@ -376,6 +399,7 @@ const searchApplied = ref("");
 const page = ref(1);
 const baselineSerialized = ref("");
 const excelInputRef = ref<HTMLInputElement | null>(null);
+const tableScrollRef = ref<HTMLElement | null>(null);
 const pendingDiscardAction = ref<null | (() => void)>(null);
 
 const {
@@ -396,6 +420,16 @@ const busy = computed(
 );
 const canEdit = computed(() => !busy.value && rules.value.length > 0);
 const isDirty = computed(() => serializeRows(rows.value) !== baselineSerialized.value);
+/** 首次／無資料時的整表載入文案；切週時改淡出＋轉圈，避免表格閃掉 */
+const showInitialLoading = computed(() => loading.value && rows.value.length === 0);
+const tableDimmed = computed(
+	() => (loading.value || importing.value) && rows.value.length > 0
+);
+
+const scrollTableToTop = () => {
+	const el = tableScrollRef.value;
+	if (el) el.scrollTop = 0;
+};
 
 /** 例：2026/11/02–11/08（比完整 yyyy-mm-dd 短，避免下拉被截斷） */
 const formatWeekLabel = (start: string) => {
@@ -405,7 +439,8 @@ const formatWeekLabel = (start: string) => {
 
 const weekOptions = computed(() => {
 	const today = todayYmdTaipei();
-	const minStart = mondayOfYmd(addMonthsYmd(today, -2));
+	// 本週起往後兩個月（不含過去週）
+	const minStart = mondayOfYmd(today);
 	const maxStart = mondayOfYmd(addMonthsYmd(today, 2));
 	const byValue = new Map<string, string>();
 	let cursor = minStart;
@@ -496,11 +531,13 @@ const handleWeekSelect = (event: Event) => {
 const handleSearch = () => {
 	searchApplied.value = membersQuery.value;
 	page.value = 1;
+	scrollTableToTop();
 };
 
 const handleSelectChildGroup = (childId: number) => {
 	selectChildGroup(childId);
 	page.value = 1;
+	scrollTableToTop();
 };
 
 const handleDayChange = (personId: number, day: RollCallAssignmentDayKey, event: Event) => {
@@ -620,7 +657,7 @@ const handleDownloadTemplate = async () => {
 	if (!props.locationId) return;
 	downloadingTemplate.value = true;
 	try {
-		const blob = await rollCallApi.downloadAssignmentTemplate(props.locationId, weekStart.value);
+		const blob = await rollCallApi.downloadAssignmentTemplate(props.locationId);
 		const url = URL.createObjectURL(blob);
 		const anchor = document.createElement("a");
 		anchor.href = url;
@@ -671,10 +708,17 @@ watch(
 	}
 );
 
+watch(page, () => {
+	scrollTableToTop();
+});
+
 watch(
 	() => [props.modelValue, props.locationId, weekStart.value] as const,
 	([open]) => {
-		if (open && props.locationId) void loadData();
+		if (open && props.locationId) {
+			scrollTableToTop();
+			void loadData();
+		}
 	},
 	{ immediate: true }
 );

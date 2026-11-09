@@ -1,11 +1,13 @@
 import type { User, LoginCredentials } from "~/types/user";
 import { useAuthSession } from "~/composables/core/useAuthSession";
 import { useUserApi } from "~/composables/systems/users/useUserApi";
-import { isApiUnauthorizedError } from "~/utils/apiError";
+import { isApiRateLimitError, isApiUnauthorizedError } from "~/utils/apiError";
 
 const SESSION_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
 /** 與後端 config.js 寫死一致（24h） */
 const JWT_REFRESH_THRESHOLD_MS = 24 * 60 * 60 * 1000;
+/** hydrate 遇 429 時暫緩重試，避免守衛連打 /users/me */
+const PERMISSIONS_HYDRATE_RATE_LIMIT_BACKOFF_MS = 15_000;
 
 /** 登入成功或已登入時的安全站內導向路徑（防 open redirect） */
 export const sanitizeAuthRedirectPath = (raw: unknown): string => {
@@ -45,6 +47,7 @@ const isJwtDueForRefresh = (token: string): boolean => {
 
 let sessionRefreshInFlight: Promise<void> | null = null;
 let permissionsHydrateInFlight: Promise<void> | null = null;
+let permissionsHydrateBackoffUntil = 0;
 let stopSessionRefresh: (() => void) | null = null;
 
 const isAdminRole = (role: string | undefined | null): boolean => role === "admin";
@@ -147,13 +150,19 @@ export const useAuth = () => {
 	const ensurePermissionsHydrated = async () => {
 		if (isPermissionsHydrated.value) return;
 		if (!token.value) return;
+		if (Date.now() < permissionsHydrateBackoffUntil) return;
 		if (permissionsHydrateInFlight) return permissionsHydrateInFlight;
 
 		permissionsHydrateInFlight = (async () => {
 			try {
 				await fetchUser();
-			} catch {
-				// 401 已由 useApiBase 清 session；其餘暫時性錯誤保留未 hydrated
+				permissionsHydrateBackoffUntil = 0;
+			} catch (error) {
+				// 401 已由 useApiBase 清 session；429 退避避免 route-guard 連打
+				if (isApiRateLimitError(error)) {
+					permissionsHydrateBackoffUntil =
+						Date.now() + PERMISSIONS_HYDRATE_RATE_LIMIT_BACKOFF_MS;
+				}
 			} finally {
 				permissionsHydrateInFlight = null;
 			}

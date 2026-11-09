@@ -2,8 +2,10 @@ import { ref } from "vue"
 import type { PersonnelApi } from "~/composables/systems/personnel/usePersonnelApi"
 import type { LocationLicensePlateRow } from "~/types/personnel"
 
-const SYNC_TIMEOUT_MS = 10 * 60 * 1000
-const PLATE_POLL_MS = 2000
+/** 大批次含人臉寫入設備可遠超 10 分鐘 */
+const SYNC_TIMEOUT_MS = 60 * 60 * 1000
+const SYNC_POLL_MS = 5_000
+const SYNC_WAIT_TIMEOUT_MSG = "同步等待逾時（背景可能仍在進行），請稍後重新開啟或於 Step 2 查看結果"
 
 const waitUntilVisible = async () => {
 	if (!process.client) return
@@ -44,8 +46,6 @@ export const useDeviceSyncObserver = () => {
 	) => {
 		return runLocked(async () => {
 			const startedAt = Date.now()
-			let lastCompleted = -1
-			let pollMs = 2000
 			for (;;) {
 				await waitUntilVisible()
 				const job = await personnelApi.getSyncLocationJob(jobId)
@@ -55,16 +55,9 @@ export const useDeviceSyncObserver = () => {
 					return job
 				}
 				if (Date.now() - startedAt > SYNC_TIMEOUT_MS) {
-					throw new Error("同步逾時，請稍後再試")
+					throw new Error(SYNC_WAIT_TIMEOUT_MSG)
 				}
-				const completed = Number(job.progress?.completed ?? 0)
-				if (completed === lastCompleted) {
-					pollMs = Math.min(5000, Math.round(pollMs * 1.35))
-				} else {
-					pollMs = 2000
-					lastCompleted = completed
-				}
-				await new Promise((r) => setTimeout(r, pollMs))
+				await new Promise((r) => setTimeout(r, SYNC_POLL_MS))
 			}
 		})
 	}
@@ -76,8 +69,8 @@ export const useDeviceSyncObserver = () => {
 	) => {
 		return runLocked(async () => {
 			const startedAt = Date.now()
-			const maxRounds = options?.maxRounds ?? 120
-			for (let round = 0; round < maxRounds; round += 1) {
+			let round = 0
+			for (;;) {
 				await waitUntilVisible()
 				const res = await personnelApi.getLocationLicensePlates(locationId)
 				const rows = res.items ?? []
@@ -85,10 +78,12 @@ export const useDeviceSyncObserver = () => {
 				if (Date.now() - startedAt > SYNC_TIMEOUT_MS) {
 					throw new Error("車牌同步逾時，請稍後再試")
 				}
-				await new Promise((r) => setTimeout(r, PLATE_POLL_MS))
+				round += 1
+				if (options?.maxRounds != null && round >= options.maxRounds) {
+					return rows
+				}
+				await new Promise((r) => setTimeout(r, SYNC_POLL_MS))
 			}
-			const res = await personnelApi.getLocationLicensePlates(locationId)
-			return res.items ?? []
 		})
 	}
 

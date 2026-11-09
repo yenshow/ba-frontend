@@ -76,25 +76,6 @@
 						/>
 					</div>
 				</label>
-				<fieldset class="min-w-0 text-sm text-white/80 2xl:text-base" :disabled="!canEdit">
-					<legend class="mb-2.5">星期<span class="required-mark">*</span></legend>
-					<div class="flex flex-wrap items-center gap-3">
-						<label
-							v-for="day in ROLL_CALL_WEEKDAY_OPTIONS"
-							:key="day.value"
-							class="flex items-center gap-1.5 text-sm"
-						>
-							<input
-								type="checkbox"
-								class="h-4 w-4 accent-cyan-400"
-								:checked="activeRule.weekdays.includes(day.value)"
-								:aria-label="`星期${day.label}`"
-								@change="handleToggleWeekday(day.value)"
-							/>
-							{{ day.label }}
-						</label>
-					</div>
-				</fieldset>
 				<label class="min-w-0 text-sm text-white/80 2xl:text-base">
 					<span class="mb-2 block">啟用</span>
 					<span class="flex items-center gap-2">
@@ -111,7 +92,7 @@
 				</label>
 			</div>
 			<p class="text-xs text-white/60 2xl:text-sm">
-				時間為 24 小時制。結束早於開始＝跨日（例如 20:00–05:00）。啟用中時段不可重疊，可首尾相接。
+				時間為 24 小時制。結束早於開始＝跨日（例如 20:00–05:00）。同地點可設多班（時段可重疊）；誰哪天上哪班／休請至「排班」設定。
 			</p>
 			<p v-if="isOvernight" class="text-xs text-cyan-200/90 2xl:text-sm">
 				目前為跨日時段：{{ formatHHmm(activeRule.windowStart) }} → 隔日
@@ -126,11 +107,7 @@ import PersonnelFormItemTabs from "~/components/personnel/PersonnelFormItemTabs.
 import IconTrashButton from "~/components/common/IconTrashButton.vue";
 import FilterDropdown from "~/components/common/FilterDropdown.vue";
 import { clampFormTabIndex } from "~/utils/personnelFormTabUtils";
-import {
-	ROLL_CALL_WEEKDAY_OPTIONS,
-	createRollCallRuleDraft,
-	type RollCallRuleDraft
-} from "~/types/rollCall";
+import { createRollCallRuleDraft, type RollCallRuleDraft } from "~/types/rollCall";
 
 const MAX_RULES = 8;
 const TIME_FIELDS = [
@@ -219,18 +196,6 @@ const handleTimePart = (
 	const current = timeParts(activeRule.value?.[field] || "");
 	const next = { ...current, [part]: value };
 	handleField(field, `${next.hour}:${next.minute}`);
-};
-
-const handleToggleWeekday = (day: number) => {
-	const current = activeRule.value;
-	if (!current) return;
-	const set = new Set(current.weekdays);
-	if (set.has(day)) set.delete(day);
-	else set.add(day);
-	handleField(
-		"weekdays",
-		[...set].sort((a, b) => a - b)
-	);
 };
 
 const handleAdd = () => {

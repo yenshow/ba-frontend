@@ -844,8 +844,11 @@ const saveAllChanges = async () => {
 
 	isSaving.value = true
 	try {
-		const results = await Promise.allSettled(
-			zonesToSave.map(async ([, zone]) => {
+		// 依序儲存：避免多區域並行寫入同名地點／同 location rules 造成 409／unique 衝突
+		const succeededIds: string[] = []
+		const failures: PromiseRejectedResult[] = []
+		for (const [zoneId, zone] of zonesToSave) {
+			try {
 				const cleanedZone = adapter.filterEmptyLocations(zone as TZone)
 				const isNewZone = zoneAny(zone).id?.startsWith("temp-")
 				if (isNewZone) {
@@ -854,18 +857,11 @@ const saveAllChanges = async () => {
 				} else {
 					await props.onSaveZone(cleanedZone)
 				}
-			})
-		)
-
-		const succeededIds: string[] = []
-		const failures: PromiseRejectedResult[] = []
-		results.forEach((result, index) => {
-			if (result.status === "fulfilled") {
-				succeededIds.push(zonesToSave[index]![0])
-			} else {
-				failures.push(result)
+				succeededIds.push(zoneId)
+			} catch (reason) {
+				failures.push({ status: "rejected", reason })
 			}
-		})
+		}
 
 		for (const zoneId of succeededIds) {
 			deleteDraft(zoneId)

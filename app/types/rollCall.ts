@@ -4,7 +4,6 @@ export interface RollCallRuleDraft {
 	name: string
 	windowStart: string
 	windowEnd: string
-	weekdays: number[]
 	enabled: boolean
 }
 
@@ -38,7 +37,6 @@ export interface RollCallRule {
 	name: string
 	windowStart: string
 	windowEnd: string
-	weekdays: number[]
 	enabled: boolean
 }
 
@@ -151,16 +149,6 @@ export interface RollCallReportAttendanceRow {
 	eventPhotoUrl?: string | null
 }
 
-export const ROLL_CALL_WEEKDAY_OPTIONS = [
-	{ value: 1, label: "一" },
-	{ value: 2, label: "二" },
-	{ value: 3, label: "三" },
-	{ value: 4, label: "四" },
-	{ value: 5, label: "五" },
-	{ value: 6, label: "六" },
-	{ value: 7, label: "日" },
-] as const
-
 /** 排班：人員 × 日期 → 規則（空白／休＝不應到） */
 export interface RollCallAssignment {
 	id?: number
@@ -191,7 +179,6 @@ export const createRollCallRuleDraft = (
 	name: partial?.name ?? "",
 	windowStart: partial?.windowStart ?? "21:00",
 	windowEnd: partial?.windowEnd ?? "22:30",
-	weekdays: partial?.weekdays ? [...partial.weekdays] : [1, 2, 3, 4, 5],
 	enabled: partial?.enabled !== false,
 })
 
@@ -202,6 +189,5 @@ export const ruleToDraft = (rule: RollCallRule): RollCallRuleDraft =>
 		name: rule.name,
 		windowStart: rule.windowStart,
 		windowEnd: rule.windowEnd,
-		weekdays: [...rule.weekdays],
 		enabled: rule.enabled,
 	})

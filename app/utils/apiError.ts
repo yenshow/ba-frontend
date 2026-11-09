@@ -701,7 +701,6 @@ export const resolveFormApiError = (error: unknown, fallback: string): string =>
 	if (error instanceof ApiRequestError) {
 		const orig = clipText(error.originalMessage);
 		if (error.backendCode === "PERSONNEL_VALIDATION_FAILED" && orig) return orig;
-		if (error.backendCode === "ROLL_CALL_RULE_OVERLAP" && orig) return orig;
 	}
 	return resolveUserFacingCatchMessage(error, fallback);
 };

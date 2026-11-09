@@ -15,7 +15,6 @@ const draftToPayload = (draft: RollCallRuleDraft) => ({
 	name: draft.name,
 	windowStart: draft.windowStart,
 	windowEnd: draft.windowEnd,
-	weekdays: draft.weekdays,
 	enabled: draft.enabled,
 })
 
@@ -95,12 +94,10 @@ export const useRollCallApi = () => {
 			{ method: "PUT", body },
 		)
 
-	const downloadAssignmentTemplate = (locationId: number, weekStart?: string) => {
-		const q = weekStart ? `?weekStart=${encodeURIComponent(weekStart)}` : ""
-		return requestBlob(
-			`/roll-call/locations/${locationId}/assignments/import-template${q}`,
+	const downloadAssignmentTemplate = (locationId: number) =>
+		requestBlob(
+			`/roll-call/locations/${locationId}/assignments/import-template`,
 		)
-	}
 
 	const importAssignments = (locationId: number, form: FormData) =>
 		request<{
