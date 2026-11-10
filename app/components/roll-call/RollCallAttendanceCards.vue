@@ -53,14 +53,20 @@
 
 						<div class="min-w-0 flex-1">
 							<div
-								class="border-b border-white/35 font-semibold tracking-wide text-white"
+								class="flex min-w-0 items-baseline justify-between gap-2 border-b border-white/35 font-semibold tracking-wide text-white"
 								:class="
 									compact
-										? 'truncate pb-1 text-lg'
-										: 'truncate pb-1.5 text-lg 2xl:text-2xl'
+										? 'pb-1 text-lg'
+										: 'pb-1.5 text-lg 2xl:text-2xl'
 								"
 							>
-								{{ displayName(row) }}
+								<span class="min-w-0 truncate">{{ displayName(row) }}</span>
+								<span
+									v-if="row.status === 'leave'"
+									class="shrink-0 text-sm font-medium text-amber-200 2xl:text-base"
+								>
+									休假中
+								</span>
 							</div>
 							<div
 								class="mt-2 space-y-0.5 text-white/75"

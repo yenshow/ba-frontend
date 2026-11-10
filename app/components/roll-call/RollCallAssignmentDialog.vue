@@ -232,7 +232,7 @@
 
 			<footer class="flex flex-wrap items-center justify-between gap-3">
 				<p class="text-sm text-white/55">
-					每人每日一格；空週預設第一個班別，可改休。大量調班用群組／搜尋／分頁或 Excel。
+					每人每日一格；空週預設第一個班別，可改休（休假仍顯示、不計應到）。須「儲存本週」後主畫面才生效。大量調班用群組／搜尋／分頁或 Excel。
 				</p>
 				<div class="flex gap-3">
 					<button type="button" class="btn-secondary" :disabled="busy" @click="handleClose">取消</button>

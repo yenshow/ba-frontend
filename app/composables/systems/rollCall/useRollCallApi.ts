@@ -68,12 +68,6 @@ export const useRollCallApi = () => {
 		}>(`/roll-call/report?${q.toString()}`)
 	}
 
-	const setAttendanceLeave = (sessionId: number, personId: number, onLeave: boolean) =>
-		request<{ session: RollCallSessionDetail }>(
-			`/roll-call/sessions/${sessionId}/attendance/${personId}/leave`,
-			{ method: "POST", body: { onLeave } },
-		)
-
 	const listAssignments = (locationId: number, startDate: string, endDate: string) => {
 		const q = new URLSearchParams({ startDate, endDate })
 		return request<{ assignments: RollCallAssignment[] }>(
@@ -115,7 +109,6 @@ export const useRollCallApi = () => {
 		listRules,
 		replaceLocationRules,
 		getSession,
-		setAttendanceLeave,
 		getHistory,
 		getReport,
 		listAssignments,
