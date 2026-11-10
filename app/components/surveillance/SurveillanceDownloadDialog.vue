@@ -80,20 +80,11 @@
 											v-if="row.status === 'downloading'"
 											class="flex w-[10rem] flex-col gap-1.5"
 										>
-											<div
-												class="h-2.5 overflow-hidden rounded-full bg-white/12 ring-1 ring-inset ring-white/10"
-												role="progressbar"
-												:aria-valuenow="row.progress"
-												aria-valuemin="0"
-												aria-valuemax="100"
+											<ProgressMeter
+												:percent="row.progress"
 												aria-label="下載進度"
-											>
-												<div
-													class="h-full rounded-full bg-gradient-to-r from-sky-500 to-teal-300"
-													:style="{ width: `${row.progress}%` }"
-												/>
-											</div>
-											<span class="text-xs tabular-nums tracking-wide text-white/65">
+											/>
+											<span class="text-xs tabular-nums tracking-wide text-cyan-100/80">
 												{{ row.progress }}%
 											</span>
 										</div>
@@ -155,24 +146,58 @@
 						</table>
 					</div>
 
-					<footer class="flex items-center gap-3 border-t border-white/20 pt-4 2xl:gap-4">
-						<button
-							type="button"
-							class="btn-secondary"
-							:disabled="!isQueueRunning"
-							@click="handleStopDownload"
+					<footer class="flex flex-col gap-3 border-t border-white/20 pt-4">
+						<div
+							v-if="isQueueRunning"
+							class="rounded-2xl border border-white/15 bg-[#0a2230] px-4 py-3"
+							role="status"
+							aria-live="polite"
 						>
-							停止下載
-						</button>
-						<div class="flex-1" />
-						<button
-							type="button"
-							class="btn-primary"
-							:disabled="!canStartDownload"
-							@click="handleStartDownload"
-						>
-							下載
-						</button>
+							<div class="flex items-start gap-3">
+								<div
+									class="mt-0.5 h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-cyan-300/30 border-t-cyan-200"
+									aria-hidden="true"
+								/>
+								<div class="min-w-0 flex-1 space-y-0.5">
+									<p class="text-base font-semibold text-white">
+										{{ queueStatusPrimary }}
+									</p>
+									<p v-if="queueStatusDetail" class="truncate text-sm text-white/70">
+										{{ queueStatusDetail }}
+									</p>
+								</div>
+								<span
+									v-if="queueStatusPercent != null"
+									class="shrink-0 text-sm tabular-nums text-cyan-100/80"
+								>
+									{{ queueStatusPercent }}%
+								</span>
+							</div>
+							<ProgressMeter
+								class="mt-2.5"
+								:percent="queueStatusPercent"
+								aria-label="佇列下載進度"
+							/>
+						</div>
+						<div class="flex items-center gap-3 2xl:gap-4">
+							<button
+								type="button"
+								class="btn-secondary"
+								:disabled="!isQueueRunning"
+								@click="handleStopDownload"
+							>
+								停止下載
+							</button>
+							<div class="flex-1" />
+							<button
+								type="button"
+								class="btn-primary"
+								:disabled="!canStartDownload"
+								@click="handleStartDownload"
+							>
+								下載
+							</button>
+						</div>
 					</footer>
 				</div>
 			</div>
@@ -181,6 +206,8 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue"
+import ProgressMeter from "~/components/common/ProgressMeter.vue"
 import type { NvrVirtualChannel } from "~/types/surveillance"
 import { useNvrApi } from "~/composables/systems/surveillance/useNvrApi"
 import { formatTaipeiYmd } from "~/utils/nvrPlaybackTime"
@@ -238,6 +265,40 @@ const someSelected = computed(() => rows.value.some((row) => row.selected))
 const canStartDownload = computed(
 	() => !!props.nvrId && selectedRows.value.length > 0 && !isQueueRunning.value && !channelsLoading.value
 )
+
+/** 佇列摘要（與設備同步進度卡同語彙：N／總數、目前項目、百分比） */
+const queueActiveRow = computed(() => rows.value.find((row) => row.status === "downloading") ?? null)
+const queueDoneCount = computed(
+	() =>
+		rows.value.filter((row) =>
+			["done", "empty", "error", "cancelled"].includes(row.status),
+		).length,
+)
+const queueTotalCount = computed(() => {
+	if (!isQueueRunning.value) return 0
+	return Math.max(selectedRows.value.length, queueDoneCount.value + (queueActiveRow.value ? 1 : 0))
+})
+const queueStatusPrimary = computed(() => {
+	const total = queueTotalCount.value
+	const done = queueDoneCount.value
+	const current = queueActiveRow.value ? done + 1 : done
+	if (total <= 0) return "下載中…"
+	return `下載中 ${current}／${total}`
+})
+const queueStatusDetail = computed(() => {
+	const row = queueActiveRow.value
+	if (!row) return null
+	const stream = row.stream === "sub" ? "子串流" : "主串流"
+	return `${row.label} · ${stream}`
+})
+const queueStatusPercent = computed(() => {
+	const total = queueTotalCount.value
+	if (total <= 0) return null
+	const done = queueDoneCount.value
+	const activePct = Number(queueActiveRow.value?.progress) || 0
+	const overall = ((done + activePct / 100) / total) * 100
+	return Math.min(99, Math.max(0, Math.round(overall)))
+})
 
 const resolveSubTrackId = (channel: NvrVirtualChannel) =>
 	channel.streamingProxyChannelIds.find((id) => id % 100 === 2) ??

@@ -7,6 +7,11 @@ import { usePersonnelSyncEngine } from "~/composables/systems/personnel/usePerso
 import { useLocationMembersOnly } from "~/composables/systems/personnel/useLocationMembersStep"
 import { useDeviceSyncObserver, indexSyncableLocationDevices } from "~/composables/systems/personnel/useDeviceSyncCore"
 import { enrichSyncWarningsWithLocation, finalizeSyncWarningsForDisplay } from "~/utils/personnelUtils"
+import {
+	buildBootSyncOverlayProgress,
+	buildPersonnelJobOverlayProgress,
+	withOverlayWarningCount,
+} from "~/utils/deviceSyncProgress"
 
 export const useLocationAccessSync = (params: {
 	personnelApi: PersonnelApi
@@ -63,12 +68,19 @@ export const useLocationAccessSync = (params: {
 		isLocationSyncJobRunning,
 		getSyncStepRowsForLocation,
 		getSyncCandidatesForLocation,
+		refreshLiveSyncIssues,
 	} = syncEngine
 
 	const deviceSyncObserver = useDeviceSyncObserver()
 	const isSingleLocationSyncing = computed(
 		() => isPollingSyncJob.value || deviceSyncObserver.isUiLocked.value,
 	)
+	const syncOverlayProgress = computed(() => {
+		if (!isSingleLocationSyncing.value) return null
+		const base = buildPersonnelJobOverlayProgress(activeSyncJob.value)
+		if (!base) return buildBootSyncOverlayProgress(syncWarnings.value.length)
+		return withOverlayWarningCount(base, syncWarnings.value.length)
+	})
 
 	const membersOnly = useLocationMembersOnly({ personnelApi, toast, handleApiError })
 
@@ -79,10 +91,22 @@ export const useLocationAccessSync = (params: {
 		const jobId = res.deviceSync?.jobId
 		if (jobId) {
 			activeSyncLocationId.value = locationId
+			syncWarnings.value = []
+			let issueTick = 0
 			try {
 				const job = await deviceSyncObserver.watchPersonnelJob(personnelApi, jobId, {
-					onTick: (tickJob) => {
+					onTick: async (tickJob) => {
 						activeSyncJob.value = tickJob
+						issueTick += 1
+						const failed = Number(tickJob.progress?.failed) || 0
+						const issuesTotal = Number(tickJob.itemsMeta?.issuesTotal) || 0
+						if (
+							tickJob.status !== "completed" &&
+							(issueTick === 1 || issueTick % 2 === 0) &&
+							(failed > 0 || issuesTotal > 0 || syncWarnings.value.length > 0)
+						) {
+							await refreshLiveSyncIssues(jobId, locationId)
+						}
 					},
 				})
 				const rawWarnings = job.result?.warnings ?? []
@@ -156,6 +180,7 @@ export const useLocationAccessSync = (params: {
 	return {
 		...membersOnly,
 		isSingleLocationSyncing,
+		syncOverlayProgress,
 		showWarningsDialog,
 		syncWarnings,
 		syncWarningTypeLabel,

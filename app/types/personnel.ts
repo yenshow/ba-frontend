@@ -74,6 +74,25 @@ export type PersonFingerprintPayload = {
 	source: PersonFingerprintSource;
 };
 
+export type PersonLadderCardSyncStatus = "pending" | "synced" | "partial" | "failed";
+
+export interface PersonLadderCard {
+	id?: number;
+	person_id?: number;
+	card_no: string;
+	home_floor?: number;
+	floors?: number[] | { byLocation?: Record<string, number[]>; _legacy?: number[] };
+	card_type?: number;
+	floor_mode?: string;
+	card_password?: string | null;
+	valid_enabled?: boolean;
+	valid_begin?: string | null;
+	valid_end?: string | null;
+	sdk_sync_status?: PersonLadderCardSyncStatus;
+	sdk_sync_error?: string | null;
+	sdk_synced_at?: string | null;
+}
+
 export interface VehiclePlateSyncResult {
 	status: "synced" | "partial" | "pending" | "failed" | "skipped" | string;
 	warnings: string[];
@@ -101,6 +120,9 @@ export interface Person {
 	/** 列表 API（getPersonsPaged）附帶 */
 	license_plate_count?: number;
 	license_plates?: PersonLicensePlate[];
+	/** 列表 API（getPersonsPaged）附帶 */
+	has_ladder_card?: boolean;
+	ladder_card?: PersonLadderCard | null;
 }
 
 /** 門禁權限：人員可進出之地點 */
@@ -213,6 +235,7 @@ export interface SyncLocationJob {
 		completed: number;
 		succeeded: number;
 		failed: number;
+		skipped?: number;
 		deviceTotal: number;
 		currentDeviceIndex: number;
 		currentDeviceId: number | null;
@@ -264,15 +287,6 @@ export type PersonnelPersonForm = {
 	customFields: Record<string, string>;
 };
 
-/** 人員編輯 Dialog 的 UI State（供 Container 與 Dialog 共用） */
-export type PersonnelPersonDialogState = {
-	editingPerson: Ref<Person | null>;
-	form: PersonnelPersonForm;
-	accessControl: PersonnelPersonAccessControlState;
-	capture: PersonnelPersonCaptureState;
-	ui: PersonnelPersonDialogUiState;
-};
-
 export type PersonnelPersonAccessControlState = {
 	accessControlDevices: Ref<Device[]>;
 	password: Ref<string>;
@@ -303,4 +317,13 @@ export type PersonnelPersonDialogUiState = {
 	hasUnsavedChanges: ComputedRef<boolean>;
 	changedFieldsList: ComputedRef<string[]>;
 	requestClose: () => void;
+};
+
+/** 人員編輯 Dialog 的 UI State（供 Container 與 Dialog 共用） */
+export type PersonnelPersonDialogState = {
+	editingPerson: Ref<Person | null>;
+	form: PersonnelPersonForm;
+	accessControl: PersonnelPersonAccessControlState;
+	capture: PersonnelPersonCaptureState;
+	ui: PersonnelPersonDialogUiState;
 };

@@ -2,16 +2,18 @@ import { computed, unref, watch, type ComputedRef, type Ref } from "vue"
 import { useLocationMembersGroupPicker } from "~/composables/systems/personnel/useLocationMembersGroupPicker"
 import type { LocationMembersPickerSync } from "~/composables/systems/personnel/useLocationMembersStep"
 import type { SyncWarning } from "~/types/personnel"
+import type { DeviceSyncOverlayProgress } from "~/utils/deviceSyncProgress"
 import { resolvePersonGroupId } from "~/utils/personnelUtils"
 
 type MaybeRef<T> = Ref<T> | ComputedRef<T>
 
 export type LocationDeviceManageSyncEngine = LocationMembersPickerSync & {
 	isSingleLocationSyncing: Ref<boolean> | ComputedRef<boolean>
+	syncOverlayProgress?: Ref<DeviceSyncOverlayProgress | null> | ComputedRef<DeviceSyncOverlayProgress | null>
 	showWarningsDialog: Ref<boolean>
 	syncWarnings: Ref<SyncWarning[]>
 	syncWarningTypeLabel: (type: string) => string
-	openWarningsDialog: () => void
+	openWarningsDialog: () => void | Promise<void>
 	getLocationDevicesLabel: (locationId: number) => {
 		entry: string[]
 		exit: string[]
@@ -44,6 +46,10 @@ export const useLocationDeviceManageDialog = (params: {
 	})
 
 	const isUiLocked = computed(() => unref(params.syncEngine)?.isSingleLocationSyncing.value ?? false)
+
+	const syncOverlayProgress = computed(
+		() => unref(params.syncEngine)?.syncOverlayProgress?.value ?? null,
+	)
 
 	const isSyncCandidatesLoading = computed(() => {
 		const id = unref(params.locationId)
@@ -124,6 +130,7 @@ export const useLocationDeviceManageDialog = (params: {
 		...groupPicker,
 		deviceLabels,
 		isUiLocked,
+		syncOverlayProgress,
 		isCurrentlySyncing,
 		isSyncButtonDisabled,
 		isLoadingMembersPanel,

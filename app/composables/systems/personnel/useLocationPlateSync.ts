@@ -26,6 +26,11 @@ import {
 	type IsapiPlateFormModel,
 } from "~/utils/licensePlateFormUtils"
 import { buildLocationMemberPlateSyncIndicators } from "~/utils/syncCredentialIcons"
+import {
+	buildPlateSyncOverlayProgress,
+	withOverlayWarningCount,
+	type DeviceSyncOverlayProgress,
+} from "~/utils/deviceSyncProgress"
 
 export const useLocationPlateSync = (params: {
 	personnelApi: PersonnelApi
@@ -53,6 +58,8 @@ export const useLocationPlateSync = (params: {
 	const showWarningsDialog = ref(false)
 	const syncWarnings = ref<SyncWarning[]>([])
 	const locationNameById = reactive<Record<number, string>>({})
+	const syncOverlayProgress = ref<DeviceSyncOverlayProgress | null>(null)
+	const plateSyncStartedAt = ref<number | null>(null)
 
 	const membersOnly = useLocationMembersOnly({ personnelApi, toast, handleApiError })
 	const deviceSyncObserver = useDeviceSyncObserver()
@@ -107,6 +114,27 @@ export const useLocationPlateSync = (params: {
 	const getPlatesForLocation = (locationId: number) => platesByLocationId[locationId] ?? []
 	const getTemporaryPlatesForLocation = (locationId: number) =>
 		tempPlatesByLocationId[locationId] ?? []
+
+	const watchPlateSyncWithProgress = async (locationId: number) => {
+		plateSyncStartedAt.value = Date.now()
+		syncOverlayProgress.value = buildPlateSyncOverlayProgress({
+			rows: getPlatesForLocation(locationId),
+			startedAt: plateSyncStartedAt.value,
+		})
+		return deviceSyncObserver.watchPlateStatus(personnelApi, locationId, {
+			onTick: (rows) => {
+				platesByLocationId[locationId] = rows
+				refreshSyncWarnings(locationId)
+				syncOverlayProgress.value = withOverlayWarningCount(
+					buildPlateSyncOverlayProgress({
+						rows,
+						startedAt: plateSyncStartedAt.value,
+					}),
+					syncWarnings.value.length,
+				)
+			},
+		})
+	}
 
 	const getPlatesError = (locationId: number) => (platesErrorByLocation[locationId] || "").trim()
 
@@ -163,7 +191,7 @@ export const useLocationPlateSync = (params: {
 		isSyncingPlates.value = true
 		try {
 			await personnelApi.syncLocationLicensePlates(locationId)
-			await deviceSyncObserver.watchPlateStatus(personnelApi, locationId)
+			await watchPlateSyncWithProgress(locationId)
 			await ensurePlates(locationId)
 			refreshSyncWarnings(locationId, locationName)
 			if (syncWarnings.value.length > 0) {
@@ -177,6 +205,8 @@ export const useLocationPlateSync = (params: {
 		} finally {
 			isSyncingPlates.value = false
 			activeSyncLocationId.value = null
+			syncOverlayProgress.value = null
+			plateSyncStartedAt.value = null
 		}
 	}
 
@@ -199,13 +229,15 @@ export const useLocationPlateSync = (params: {
 		if (res.plateSync?.triggered) {
 			activeSyncLocationId.value = locationId
 			try {
-				await deviceSyncObserver.watchPlateStatus(personnelApi, locationId)
+				await watchPlateSyncWithProgress(locationId)
 				await ensurePlates(locationId)
 				finalizePlateSyncFeedback(locationId, locationName)
 			} catch (err) {
 				handleApiError(err, "車牌同步失敗")
 			} finally {
 				activeSyncLocationId.value = null
+				syncOverlayProgress.value = null
+				plateSyncStartedAt.value = null
 			}
 		} else {
 			toast.success(TOAST.PERSONNEL_LIST_APPLIED)
@@ -225,8 +257,8 @@ export const useLocationPlateSync = (params: {
 
 	const getPlatesForPerson = (locationId: number, personId: number) =>
 		getPlatesForLocation(locationId).filter(
-			(row) => Number(row.person_id) === Number(personId),
-		)
+		(row) => Number(row.person_id) === Number(personId),
+	)
 
 	const resolvePlatesForPerson = (locationId: number, person: Person) =>
 		resolvePersonPlateDisplayRows(person, getPlatesForPerson(locationId, person.id))
@@ -462,6 +494,7 @@ export const useLocationPlateSync = (params: {
 	return {
 		...membersOnly,
 		isSingleLocationSyncing,
+		syncOverlayProgress,
 		showWarningsDialog,
 		syncWarnings,
 		syncWarningTypeLabel,

@@ -17,6 +17,7 @@ import {
 	isDeviceLevelSyncWarning,
 } from "~/utils/personnelUtils"
 import { rememberLocationCredentialSyncStatuses } from "~/utils/syncCredentialIcons"
+import { syncJobIssueItemsToWarnings } from "~/utils/deviceSyncProgress"
 
 export const usePersonnelSyncEngine = (params: {
 	personnelApi: PersonnelApi
@@ -70,7 +71,13 @@ export const usePersonnelSyncEngine = (params: {
 	const isSyncingAll = ref(false)
 	const syncWarnings = ref<SyncWarning[]>([])
 	const showWarningsDialog = ref(false)
-	const openWarningsDialog = () => {
+	const openWarningsDialog = async () => {
+		if ((syncWarnings.value || []).length <= 0) {
+			const jobId = activeSyncJob.value?.jobId
+			if (jobId) {
+				await refreshLiveSyncIssues(jobId, activeSyncLocationId.value)
+			}
+		}
 		if ((syncWarnings.value || []).length <= 0) return
 		showWarningsDialog.value = true
 	}
@@ -145,6 +152,30 @@ export const usePersonnelSyncEngine = (params: {
 		}
 	}
 
+	const refreshLiveSyncIssues = async (jobId: string, locationId: number | null) => {
+		try {
+			const page = await personnelApi.getSyncLocationJobItems(jobId, {
+				type: "issues",
+				limit: 200,
+				offset: 0,
+			})
+			const loc =
+				locationId != null
+					? (syncableLocations.value || []).find((x) => x.id === locationId) || null
+					: null
+			const locLabel = loc ? `${loc.zone_name} / ${loc.name}` : undefined
+			syncWarnings.value = enrichSyncWarningsWithLocation(
+				syncJobIssueItemsToWarnings(page.items ?? [], locationId),
+				{
+					locationId,
+					locationName: locLabel,
+				},
+			)
+		} catch {
+			// ignore issues poll failure; keep previous warnings
+		}
+	}
+
 	const pollSyncLocationJob = async (jobId: string) => {
 		isPollingSyncJob.value = true
 		activeSyncJobTailItems.value = []
@@ -156,7 +187,7 @@ export const usePersonnelSyncEngine = (params: {
 			const job = await personnelApi.getSyncLocationJob(jobId)
 			activeSyncJob.value = job
 
-			// tail：每隔一次 poll 或完成時拉
+			// tail／issues：每隔一次 poll 或完成時拉（同步中即可「查看錯誤」）
 			tick += 1
 			if (tick === 1 || tick % 2 === 0 || job.status === "completed") {
 				try {
@@ -168,6 +199,13 @@ export const usePersonnelSyncEngine = (params: {
 					activeSyncJobTailItems.value = page.items ?? []
 				} catch {
 					// ignore tail failure; keep polling summary
+				}
+				if (job.status !== "completed") {
+					const failed = Number(job.progress?.failed) || 0
+					const issuesTotal = Number(job.itemsMeta?.issuesTotal) || 0
+					if (failed > 0 || issuesTotal > 0 || (syncWarnings.value || []).length > 0) {
+						await refreshLiveSyncIssues(jobId, activeSyncLocationId.value)
+					}
 				}
 			}
 
@@ -338,6 +376,7 @@ export const usePersonnelSyncEngine = (params: {
 		syncWarnings,
 		showWarningsDialog,
 		openWarningsDialog,
+		refreshLiveSyncIssues,
 		activeSyncAllJob,
 		activeSyncLocationId,
 		activeSyncJob,
