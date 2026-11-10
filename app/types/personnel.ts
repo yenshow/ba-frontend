@@ -235,6 +235,7 @@ export interface SyncLocationJob {
 		completed: number;
 		succeeded: number;
 		failed: number;
+		skipped?: number;
 		deviceTotal: number;
 		currentDeviceIndex: number;
 		currentDeviceId: number | null;

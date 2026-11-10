@@ -5,7 +5,9 @@
 		:title-meta="locationName"
 		title-id="pc-access-manage-title"
 		:is-ui-locked="isUiLocked"
+		:sync-progress="syncOverlayProgress"
 		@close="handleClose"
+		@open-warnings="openWarningsDialog"
 	>
 		<div v-if="locationId == null" class="py-12 text-center text-white/60">請先選擇地點</div>
 
@@ -126,6 +128,7 @@ const {
 	handleSearchMembers,
 	applyMembers,
 	isUiLocked,
+	syncOverlayProgress,
 	isCurrentlySyncing,
 	isSyncButtonDisabled,
 	isLoadingMembersPanel,

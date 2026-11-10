@@ -5,7 +5,9 @@
 		:title-meta="locationName"
 		title-id="elevator-floor-manage-title"
 		:is-ui-locked="isUiLocked"
+		:sync-progress="syncOverlayProgress"
 		@close="handleClose"
+		@open-warnings="openWarningsDialog"
 	>
 		<div v-if="locationId == null" class="py-12 text-center text-white/60">請先選擇地點</div>
 
@@ -111,6 +113,7 @@ const {
 	isSyncCandidatesLoading: isSyncLocationCandidatesLoading,
 	syncOneLocation,
 	isUiLocked: isFloorSyncUiLocked,
+	syncOverlayProgress,
 	isLocationSyncJobRunning,
 	watchApplySyncJob,
 	isLocationSyncButtonDisabled,

@@ -5,7 +5,9 @@
 		:title-meta="locationTitleMeta"
 		title-id="vehicle-isapi-manage-title"
 		:is-ui-locked="isUiLocked"
+		:sync-progress="syncOverlayProgress"
 		@close="handleClose"
+		@open-warnings="handleOpenWarnings"
 	>
 		<div v-if="locationId == null" class="py-12 text-center text-white/60">無法解析地點</div>
 
@@ -317,6 +319,7 @@ const {
 	handleToggleSelectAllFiltered,
 	handleSearchMembers,
 	isUiLocked,
+	syncOverlayProgress,
 	isCurrentlySyncing,
 	isSyncButtonDisabled,
 	isLoadingMembersPanel,

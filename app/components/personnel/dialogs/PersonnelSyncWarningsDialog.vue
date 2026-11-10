@@ -3,7 +3,7 @@
 		<Transition name="dialog-fade">
 			<div
 				v-if="modelValue"
-				class="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
+				class="fixed inset-0 z-[2100] flex items-center justify-center bg-[rgba(5,24,40,0.8)] backdrop-blur-[10px]"
 				aria-label="同步結果與警告"
 				role="dialog"
 				aria-modal="true"
@@ -90,8 +90,8 @@ const handleClose = () => emit("update:modelValue", false)
 
 const summaryText = computed(() => {
 	const total = props.syncWarnings.length
-	if (total === 0) return "同步完成，沒有警告"
-	return `共有 ${total} 筆警告`
+	if (total === 0) return "目前沒有警告"
+	return `共有 ${total} 筆警告（同步進行中亦可查看）`
 })
 
 const displayWarnings = computed(() =>

@@ -7,24 +7,27 @@
 			{{ description }}
 		</p>
 		<div class="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:justify-start">
-			<button
-				type="button"
-				class="btn-dialog-muted"
-				:disabled="warningsCount === 0"
-				@click="emit('openWarnings')"
-			>
-				查看錯誤
-				<span v-if="warningsCount > 0" class="ms-1 text-amber-200">({{ warningsCount }})</span>
-			</button>
-			<PermissionActionButton
-				:allowed="canResync"
-				:disabled="isResyncDisabled"
-				class="btn-action-emerald"
-				:aria-label="resyncAriaLabel"
-				@click="emit('resync')"
-			>
-				{{ isResyncing ? "同步中…" : "重新同步" }}
-			</PermissionActionButton>
+			<!-- 同步中改由底部進度卡顯示狀態／查看錯誤，避免雙入口 -->
+			<template v-if="!isResyncing">
+				<button
+					type="button"
+					class="btn-dialog-muted"
+					:disabled="warningsCount === 0"
+					@click="emit('openWarnings')"
+				>
+					查看錯誤
+					<span v-if="warningsCount > 0" class="ms-1 text-amber-200">({{ warningsCount }})</span>
+				</button>
+				<PermissionActionButton
+					:allowed="canResync"
+					:disabled="isResyncDisabled"
+					class="btn-action-emerald"
+					:aria-label="resyncAriaLabel"
+					@click="emit('resync')"
+				>
+					重新同步
+				</PermissionActionButton>
+			</template>
 			<slot name="actions" />
 		</div>
 	</div>

@@ -8,6 +8,10 @@ import { useDeviceSyncObserver } from "~/composables/systems/personnel/useDevice
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import type { ElevatorSystemConfig } from "~/types/location"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import {
+	buildBootSyncOverlayProgress,
+	buildElevatorJobOverlayProgress,
+} from "~/utils/deviceSyncProgress"
 
 type ElevatorApi = ReturnType<typeof useElevatorApi>
 
@@ -32,6 +36,15 @@ export const useElevatorSyncEngine = (params: {
 	const activeSyncLocationId = ref<number | null>(null)
 	const activeSyncJob = ref<ElevatorSyncJob | null>(null)
 	const isPollingSyncJob = ref(false)
+	const syncStartedAt = ref<number | null>(null)
+	const syncOverlayProgress = computed(() => {
+		if (!(isPollingSyncJob.value || deviceSyncObserver.isUiLocked.value)) return null
+		const base = buildElevatorJobOverlayProgress(activeSyncJob.value, {
+			startedAt: syncStartedAt.value,
+			warningCount: syncWarnings.value.length,
+		})
+		return base ?? buildBootSyncOverlayProgress(syncWarnings.value.length)
+	})
 
 	const isSyncCandidatesLoading = (locationId: number) =>
 		Boolean(syncCandidatesLoading[locationId])
@@ -142,6 +155,7 @@ export const useElevatorSyncEngine = (params: {
 
 	const pollFloorSyncJob = async (jobId: string) => {
 		isPollingSyncJob.value = true
+		syncStartedAt.value = Date.now()
 		try {
 			const job = await deviceSyncObserver.watchElevatorJob(elevatorApi, jobId, {
 				onTick: (tickJob) => {
@@ -151,6 +165,7 @@ export const useElevatorSyncEngine = (params: {
 			await finalizeCompletedJob(job, activeSyncLocationId.value)
 		} finally {
 			isPollingSyncJob.value = false
+			syncStartedAt.value = null
 		}
 	}
 
@@ -167,6 +182,7 @@ export const useElevatorSyncEngine = (params: {
 			handleApiError(err, "同步失敗")
 		} finally {
 			isPollingSyncJob.value = false
+			syncStartedAt.value = null
 		}
 	}
 
@@ -211,6 +227,9 @@ export const useElevatorSyncEngine = (params: {
 
 	const watchApplySyncJob = async (locationId: number, jobId: string) => {
 		activeSyncLocationId.value = locationId
+		activeSyncJob.value = null
+		syncWarnings.value = []
+		syncStartedAt.value = Date.now()
 		try {
 			const job = await deviceSyncObserver.watchElevatorJob(elevatorApi, jobId, {
 				onTick: (tickJob) => {
@@ -228,6 +247,7 @@ export const useElevatorSyncEngine = (params: {
 		} finally {
 			activeSyncLocationId.value = null
 			activeSyncJob.value = null
+			syncStartedAt.value = null
 		}
 	}
 
@@ -251,6 +271,7 @@ export const useElevatorSyncEngine = (params: {
 		isLocationSyncButtonDisabled,
 		watchApplySyncJob,
 		isUiLocked,
+		syncOverlayProgress,
 		getSyncCandidatesForLocation,
 	}
 }

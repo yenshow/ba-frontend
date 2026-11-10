@@ -42,7 +42,9 @@ export const useDeviceSyncObserver = () => {
 		personnelApi: PersonnelApi,
 		jobId: string,
 		options?: {
-			onTick?: (job: Awaited<ReturnType<PersonnelApi["getSyncLocationJob"]>>) => void
+			onTick?: (
+				job: Awaited<ReturnType<PersonnelApi["getSyncLocationJob"]>>,
+			) => void | Promise<void>
 		},
 	) => {
 		return runLocked(async () => {
@@ -50,7 +52,7 @@ export const useDeviceSyncObserver = () => {
 			for (;;) {
 				await waitUntilVisible()
 				const job = await personnelApi.getSyncLocationJob(jobId)
-				options?.onTick?.(job)
+				await options?.onTick?.(job)
 				if (job.status === "completed") {
 					if (job.error) throw new Error(job.error.message || "同步失敗")
 					return job
@@ -93,7 +95,10 @@ export const useDeviceSyncObserver = () => {
 	const watchPlateStatus = async (
 		personnelApi: PersonnelApi,
 		locationId: number,
-		options?: { maxRounds?: number },
+		options?: {
+			maxRounds?: number
+			onTick?: (rows: LocationLicensePlateRow[]) => void
+		},
 	) => {
 		return runLocked(async () => {
 			const startedAt = Date.now()
@@ -102,6 +107,7 @@ export const useDeviceSyncObserver = () => {
 				await waitUntilVisible()
 				const res = await personnelApi.getLocationLicensePlates(locationId)
 				const rows = res.items ?? []
+				options?.onTick?.(rows)
 				if (!hasPendingPlates(rows)) return rows
 				if (Date.now() - startedAt > SYNC_TIMEOUT_MS) {
 					throw new Error("車牌同步逾時，請稍後再試")
