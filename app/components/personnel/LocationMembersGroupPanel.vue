@@ -32,6 +32,7 @@
 						:empty-title="emptyTitle"
 						:can-select-all="hasFilteredCandidates && canEditMembers"
 						:is-all-selected="isAllFilteredKept"
+						:memo-token="memoToken"
 						context-label="目前群組"
 						:context-value="selectedGroupLabel ?? '全部'"
 						@update:query="emit('update:membersQuery', $event)"
@@ -39,12 +40,15 @@
 						@toggle-select-all="emit('toggleSelectAll')"
 						@toggle="(personId, checked) => emit('toggleMember', personId, checked)"
 					>
-						<template #person-indicators="{ person }">
-							<slot name="person-indicators" :person="person" />
-						</template>
-						<template #person-extra="{ person }">
-							<slot name="person-extra" :person="person" />
-						</template>
+					<template #person-indicators="{ person }">
+						<slot name="person-indicators" :person="person" />
+					</template>
+					<template #person-extra="{ person }">
+						<slot name="person-extra" :person="person" />
+					</template>
+					<template #person-badge="{ person }">
+						<slot name="person-badge" :person="person" />
+					</template>
 					</PersonnelMemberPickerPanel>
 				</slot>
 			</section>
@@ -100,6 +104,7 @@ withDefaults(
 		panelHeightClass?: string
 		showTemporaryVehicles?: boolean
 		showApplyFooter?: boolean
+		memoToken?: number | string
 	}>(),
 	{
 		applyLabel: "套用權限",
@@ -108,6 +113,7 @@ withDefaults(
 		panelHeightClass: LOCATION_MEMBERS_PANEL_HEIGHT,
 		showTemporaryVehicles: false,
 		showApplyFooter: true,
+		memoToken: 0,
 	},
 )
 

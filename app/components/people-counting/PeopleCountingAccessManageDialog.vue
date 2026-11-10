@@ -30,6 +30,7 @@
 			:members-error="membersError"
 			:is-all-filtered-kept="isAllFilteredKept"
 			:is-member-kept="isMemberKept"
+			:memo-token="membersListMemoToken"
 			@update:members-query="membersQuery = $event"
 			@search="handleSearchMembers"
 			@select-child="selectChildGroup"
@@ -142,6 +143,11 @@ const handleClose = () => emit("update:modelValue", false)
 
 const locationSyncRows = computed(() =>
 	props.locationId != null ? props.accessSync.getSyncStepRowsForLocation(props.locationId) : [],
+)
+
+/** 同步狀態變更時刷新人員卡圖示（配合 v-memo） */
+const membersListMemoToken = computed(
+	() => `${props.accessSync.syncCandidatesEpoch?.value ?? 0}:${isCurrentlySyncing.value ? 1 : 0}`,
 )
 
 const syncIndicatorsForPerson = (person: Person) => {

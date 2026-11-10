@@ -4,6 +4,7 @@
 			:is="variant === 'group' ? 'label' : 'div'"
 			v-for="person in candidates"
 			:key="person.id"
+			v-memo="[person.id, isChecked(person.id), canEdit, isDisabled, variant, memoToken]"
 			class="rounded-lg border transition-colors"
 			:class="cardClass(person)"
 		>
@@ -63,12 +64,15 @@ const props = withDefaults(
 		variant?: "default" | "group"
 		/** 預設 2 欄；傳 1 則一人一行 */
 		columns?: 1 | 2
+		/** 同步狀態等外部變更時遞增，讓 v-memo 卡片更新圖示 */
+		memoToken?: number | string
 		checkboxAriaLabel?: (person: Person) => string
 	}>(),
 	{
 		isDisabled: false,
 		variant: "default",
 		columns: 2,
+		memoToken: 0,
 		checkboxAriaLabel: (person: Person) =>
 			`${person.employee_no} ${person.full_name || ""}`.trim(),
 	},

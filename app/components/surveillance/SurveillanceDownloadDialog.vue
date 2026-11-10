@@ -93,8 +93,9 @@
 											:href="row.objectUrl"
 											:download="row.filename"
 											class="btn-primary inline-flex !px-3.5 !py-1 !text-sm"
+											:aria-label="`再次儲存 ${row.label}`"
 										>
-											儲存
+											再次儲存
 										</a>
 										<span v-else class="text-sm text-white/70 2xl:text-base">{{
 											progressLabel(row)
@@ -146,58 +147,27 @@
 						</table>
 					</div>
 
-					<footer class="flex flex-col gap-3 border-t border-white/20 pt-4">
-						<div
-							v-if="isQueueRunning"
-							class="rounded-2xl border border-white/15 bg-[#0a2230] px-4 py-3"
-							role="status"
-							aria-live="polite"
+					<footer class="flex items-center gap-3 border-t border-white/20 pt-4 2xl:gap-4">
+						<button
+							type="button"
+							class="btn-secondary"
+							:disabled="!isQueueRunning"
+							@click="handleStopDownload"
 						>
-							<div class="flex items-start gap-3">
-								<div
-									class="mt-0.5 h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-cyan-300/30 border-t-cyan-200"
-									aria-hidden="true"
-								/>
-								<div class="min-w-0 flex-1 space-y-0.5">
-									<p class="text-base font-semibold text-white">
-										{{ queueStatusPrimary }}
-									</p>
-									<p v-if="queueStatusDetail" class="truncate text-sm text-white/70">
-										{{ queueStatusDetail }}
-									</p>
-								</div>
-								<span
-									v-if="queueStatusPercent != null"
-									class="shrink-0 text-sm tabular-nums text-cyan-100/80"
-								>
-									{{ queueStatusPercent }}%
-								</span>
-							</div>
-							<ProgressMeter
-								class="mt-2.5"
-								:percent="queueStatusPercent"
-								aria-label="佇列下載進度"
-							/>
-						</div>
-						<div class="flex items-center gap-3 2xl:gap-4">
-							<button
-								type="button"
-								class="btn-secondary"
-								:disabled="!isQueueRunning"
-								@click="handleStopDownload"
-							>
-								停止下載
-							</button>
-							<div class="flex-1" />
-							<button
-								type="button"
-								class="btn-primary"
-								:disabled="!canStartDownload"
-								@click="handleStartDownload"
-							>
-								下載
-							</button>
-						</div>
+							停止下載
+						</button>
+						<p v-if="isQueueRunning" class="min-w-0 flex-1 truncate text-sm text-white/55">
+							{{ queueHint }}
+						</p>
+						<div v-else class="flex-1" />
+						<button
+							type="button"
+							class="btn-primary"
+							:disabled="!canStartDownload"
+							@click="handleStartDownload"
+						>
+							下載
+						</button>
 					</footer>
 				</div>
 			</div>
@@ -266,38 +236,15 @@ const canStartDownload = computed(
 	() => !!props.nvrId && selectedRows.value.length > 0 && !isQueueRunning.value && !channelsLoading.value
 )
 
-/** 佇列摘要（與設備同步進度卡同語彙：N／總數、目前項目、百分比） */
-const queueActiveRow = computed(() => rows.value.find((row) => row.status === "downloading") ?? null)
-const queueDoneCount = computed(
-	() =>
-		rows.value.filter((row) =>
-			["done", "empty", "error", "cancelled"].includes(row.status),
-		).length,
-)
-const queueTotalCount = computed(() => {
-	if (!isQueueRunning.value) return 0
-	return Math.max(selectedRows.value.length, queueDoneCount.value + (queueActiveRow.value ? 1 : 0))
-})
-const queueStatusPrimary = computed(() => {
-	const total = queueTotalCount.value
-	const done = queueDoneCount.value
-	const current = queueActiveRow.value ? done + 1 : done
-	if (total <= 0) return "下載中…"
-	return `下載中 ${current}／${total}`
-})
-const queueStatusDetail = computed(() => {
-	const row = queueActiveRow.value
-	if (!row) return null
-	const stream = row.stream === "sub" ? "子串流" : "主串流"
-	return `${row.label} · ${stream}`
-})
-const queueStatusPercent = computed(() => {
-	const total = queueTotalCount.value
-	if (total <= 0) return null
-	const done = queueDoneCount.value
-	const activePct = Number(queueActiveRow.value?.progress) || 0
-	const overall = ((done + activePct / 100) / total) * 100
-	return Math.min(99, Math.max(0, Math.round(overall)))
+/** 佇列進行中：僅一行提示，進度以各列進度條為準 */
+const queueHint = computed(() => {
+	const active = rows.value.find((row) => row.status === "downloading")
+	if (!active) return "下載佇列進行中…"
+	const done = rows.value.filter((row) =>
+		["done", "empty", "error", "cancelled"].includes(row.status),
+	).length
+	const total = Math.max(selectedRows.value.length, done + 1)
+	return `佇列 ${done + 1}／${total} · ${active.label}`
 })
 
 const resolveSubTrackId = (channel: NvrVirtualChannel) =>
@@ -333,6 +280,17 @@ const revokeRowFile = (row: DownloadRow) => {
 
 const revokeAllFiles = () => {
 	rows.value.forEach(revokeRowFile)
+}
+
+const triggerBrowserDownload = (objectUrl: string, filename: string) => {
+	if (!import.meta.client || !objectUrl || !filename) return
+	const anchor = document.createElement("a")
+	anchor.href = objectUrl
+	anchor.download = filename
+	anchor.rel = "noopener"
+	document.body.appendChild(anchor)
+	anchor.click()
+	anchor.remove()
 }
 
 const progressLabel = (row: DownloadRow) => {
@@ -453,6 +411,7 @@ const handleStartDownload = async () => {
 				row.objectUrl = URL.createObjectURL(blob)
 				row.status = "done"
 				row.progress = 0
+				triggerBrowserDownload(row.objectUrl, row.filename)
 			} catch (error) {
 				if (abortController.signal.aborted) {
 					row.status = "cancelled"

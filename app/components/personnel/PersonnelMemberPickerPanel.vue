@@ -44,6 +44,7 @@
 					:is-disabled="isDisabled"
 					:variant="gridVariant"
 					:columns="gridColumns"
+					:memo-token="memoToken"
 					:checkbox-aria-label="checkboxAriaLabel"
 					@toggle="(personId, checked) => emit('toggle', personId, checked)"
 				>
@@ -88,6 +89,7 @@ withDefaults(
 		compactSelectAll?: boolean
 		gridVariant?: "default" | "group"
 		gridColumns?: 1 | 2
+		memoToken?: number | string
 		checkboxAriaLabel?: (person: Person) => string
 	}>(),
 	{
@@ -98,6 +100,7 @@ withDefaults(
 		compactSelectAll: false,
 		gridVariant: "default",
 		gridColumns: 2,
+		memoToken: 0,
 	},
 )
 

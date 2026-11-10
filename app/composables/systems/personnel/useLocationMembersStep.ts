@@ -24,12 +24,20 @@ export const useLocationMembersOnly = (params: {
 	const locationMembersLoading = reactive<Record<LocationId, boolean>>({})
 	const locationMembersApplying = reactive<Record<LocationId, boolean>>({})
 	const locationMembersError = reactive<Record<LocationId, string | null>>({})
-	const locationMembersKeptIds = reactive<Record<LocationId, number[]>>({})
+	/** personId → true；O(1) 勾選查詢（避免 500+ 人每次 includes 掃陣列） */
+	const locationMembersKeptLookup = reactive<Record<LocationId, Record<number, true>>>({})
 
 	const locationCandidatesLoading = reactive<Record<LocationId, boolean>>({})
 	const locationCandidatesError = reactive<Record<LocationId, string | null>>({})
 	const locationCandidatesItems = reactive<Record<LocationId, Person[]>>({})
 	const locationCandidatesQuery = reactive<Record<LocationId, string>>({})
+
+	const ensureKeptLookup = (locationId: number) => {
+		if (!locationMembersKeptLookup[locationId]) {
+			locationMembersKeptLookup[locationId] = {}
+		}
+		return locationMembersKeptLookup[locationId]
+	}
 
 	const isLocationMembersLoading = (locationId: number) => Boolean(locationMembersLoading[locationId])
 	const isLocationCandidatesLoading = (locationId: number) =>
@@ -37,20 +45,22 @@ export const useLocationMembersOnly = (params: {
 	const isLocationMembersApplying = (locationId: number) => Boolean(locationMembersApplying[locationId])
 	const getLocationMembersError = (locationId: number) =>
 		(locationMembersError[locationId] || "").trim() || null
-	const getLocationMemberKeptIds = (locationId: number) => locationMembersKeptIds[locationId] ?? []
+	const getLocationMemberKeptIds = (locationId: number) =>
+		Object.keys(locationMembersKeptLookup[locationId] || {})
+			.map((k) => Number(k))
+			.filter((n) => Number.isFinite(n))
 	const isLocationMemberKept = (locationId: number, personId: number) =>
-		getLocationMemberKeptIds(locationId).includes(personId)
+		locationMembersKeptLookup[locationId]?.[personId] === true
 
 	const toggleManyLocationMembers = (locationId: number, personIds: number[], checked: boolean) => {
-		const current = getLocationMemberKeptIds(locationId)
-		const set = new Set(current)
+		const lookup = ensureKeptLookup(locationId)
 		for (const id of personIds || []) {
 			const n = Number(id)
 			if (!Number.isFinite(n)) continue
-			if (checked) set.add(Math.trunc(n))
-			else set.delete(Math.trunc(n))
+			const pid = Math.trunc(n)
+			if (checked) lookup[pid] = true
+			else delete lookup[pid]
 		}
-		locationMembersKeptIds[locationId] = Array.from(set)
 	}
 
 	const toggleKeepLocationMember = (
@@ -62,11 +72,9 @@ export const useLocationMembersOnly = (params: {
 			typeof checkedOrEvent === "boolean"
 				? checkedOrEvent
 				: ((checkedOrEvent.target as HTMLInputElement | null)?.checked ?? false)
-		const current = getLocationMemberKeptIds(locationId)
-		const set = new Set(current)
-		if (checked) set.add(personId)
-		else set.delete(personId)
-		locationMembersKeptIds[locationId] = Array.from(set)
+		const lookup = ensureKeptLookup(locationId)
+		if (checked) lookup[personId] = true
+		else delete lookup[personId]
 	}
 
 	const getLocationCandidatesItems = (locationId: number) => locationCandidatesItems[locationId] ?? []
@@ -100,11 +108,17 @@ export const useLocationMembersOnly = (params: {
 		try {
 			const res = await personnelApi.getLocationMemberIds(locationId)
 			const ids = Array.isArray(res?.ids) ? res.ids : []
-			locationMembersKeptIds[locationId] = ids
+			const lookup: Record<number, true> = {}
+			for (const raw of ids) {
+				const n = Number(raw)
+				if (!Number.isFinite(n)) continue
+				lookup[Math.trunc(n)] = true
+			}
+			locationMembersKeptLookup[locationId] = lookup
 			locationCandidatesQuery[locationId] = locationCandidatesQuery[locationId] ?? ""
 			await loadLocationCandidates(locationId)
 		} catch (err) {
-			locationMembersKeptIds[locationId] = []
+			locationMembersKeptLookup[locationId] = {}
 			locationMembersError[locationId] =
 				err instanceof Error ? err.message : "載入地點名單失敗"
 		} finally {
