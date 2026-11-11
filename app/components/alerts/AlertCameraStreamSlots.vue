@@ -42,6 +42,8 @@ import VideoPlayer from "~/components/surveillance/VideoPlayer.vue"
 export type CameraStreamState = {
 	deviceId: number
 	deviceName: string
+	/** >0＝NVR 虛擬通道 trackId；缺省＝一般攝影機 */
+	nvrTrackId?: number
 	webrtcUrl: string
 	webrtcPort?: number
 	streamStatus: "running" | "stopped" | "loading" | "error"

@@ -226,8 +226,6 @@ export interface PeopleCountingSystemConfig {
 	 */
 	cameraMode?: "people_counting" | "face_recognition";
 	preferRegion?: boolean;
-	/** 門禁人員群組（name + employeeNos），成員限為出入口皆有之人員 */
-	accessControlGroups?: Array<{ name: string; employeeNos: string[] }>;
 	/** 進出紀錄表格顯示欄位 keys */
 	logDisplayColumns?: string[];
 	/** 主畫面排版：events_groups｜group_cards */

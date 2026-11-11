@@ -116,7 +116,7 @@ const emit = defineEmits<{
 }>();
 
 const { useHasPermission } = useAuth();
-const canEditRules = useHasPermission(PERM.rollCall.ruleEdit);
+const canEditRules = useHasPermission(PERM.rollCall.locationUpdate);
 
 const emptyHintClass =
 	"rounded border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60 2xl:text-sm";

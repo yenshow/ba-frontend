@@ -208,6 +208,8 @@ export type CameraPopupItem = {
 	key: string
 	ruleId: number
 	cameraDeviceIds: number[]
+	/** 與 cameraDeviceIds 同序；0＝一般攝影機 */
+	nvrTrackIds?: number[]
 	createdAt: number
 	count: number
 	message?: string

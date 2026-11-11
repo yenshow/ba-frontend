@@ -15,6 +15,7 @@
 			:can-create-person="canCreatePerson"
 			:can-update-person="canUpdatePerson"
 			:can-delete-person="canDeletePerson"
+			:can-export-person="canExportPerson"
 			:person-status-labels="personStatusLabels"
 			:get-person-status-badge-class="getPersonStatusBadgeClass"
 			:persons-tab="personsTab"
@@ -50,7 +51,8 @@ const {
 	canDeleteGroup,
 	canCreatePerson,
 	canUpdatePerson,
-	canDeletePerson
+	canDeletePerson,
+	canExportPerson
 } = usePersonnelRbac();
 
 const personStatusLabels = PERSON_STATUS_LABELS;

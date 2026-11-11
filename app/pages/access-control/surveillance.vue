@@ -34,6 +34,7 @@
 							:view-mode="viewMode"
 							:total-cameras="sourceCount"
 							:view-count="monitorViews.length"
+							:can-playback="canPlayback"
 							@update:model-value="handleLayoutChange"
 							@update:view-mode="handleViewModeChange"
 							@fullscreen="isFullscreenOpen = true"
@@ -350,7 +351,7 @@ const layoutThatFits = (count: number, mode: SurveillanceViewMode): GridLayout =
 	return order.find((layout) => parseInt(layout, 10) >= count) ?? order[order.length - 1] ?? "1"
 }
 
-const { canControlStream } = useSurveillanceRbac()
+const { canControlStream, canPlayback, canDownloadPlayback } = useSurveillanceRbac()
 const toast = useToast()
 const { handleError } = useErrorHandler()
 
@@ -407,6 +408,7 @@ const timelineBind = computed(() => ({
 	dayStartMs: playback.dayStartMs.value,
 	isPlaying: playback.isPlaying.value,
 	isDownloading: isDownloadRunning.value,
+	canDownload: canDownloadPlayback.value,
 	canGoNextDay: playback.canGoNextDay.value,
 	searchError: playback.searchError.value,
 	zoomHours: playback.zoomHours.value,
@@ -511,7 +513,12 @@ const handleToggleNvr = async (nvrId: number) => {
 }
 
 const ensureCanAddView = (): boolean => {
-	if (!canControlStream.value) {
+	if (isPlayback.value) {
+		if (!canPlayback.value) {
+			toast.warning(TOAST.SURVEILLANCE_NO_PLAYBACK_PERMISSION)
+			return false
+		}
+	} else if (!canControlStream.value) {
 		toast.warning(TOAST.SURVEILLANCE_NO_STREAM_PERMISSION)
 		return false
 	}
@@ -629,6 +636,10 @@ const enterLive = async () => {
 const handleViewModeChange = async (mode: SurveillanceViewMode) => {
 	if (mode === viewMode.value) return
 	if (mode === "playback") {
+		if (!canPlayback.value) {
+			toast.warning(TOAST.SURVEILLANCE_NO_PLAYBACK_PERMISSION)
+			return
+		}
 		await enterPlayback()
 		return
 	}
@@ -636,16 +647,16 @@ const handleViewModeChange = async (mode: SurveillanceViewMode) => {
 }
 
 const handlePlaybackPlay = async () => {
-	if (!canControlStream.value) {
-		toast.warning(TOAST.SURVEILLANCE_NO_STREAM_PERMISSION)
+	if (!canPlayback.value) {
+		toast.warning(TOAST.SURVEILLANCE_NO_PLAYBACK_PERMISSION)
 		return
 	}
 	await playback.play()
 }
 
 const handlePlaybackDownload = () => {
-	if (!canControlStream.value) {
-		toast.warning(TOAST.SURVEILLANCE_NO_STREAM_PERMISSION)
+	if (!canDownloadPlayback.value) {
+		toast.warning(TOAST.SURVEILLANCE_NO_DOWNLOAD_PERMISSION)
 		return
 	}
 	if (!downloadNvrId.value) {

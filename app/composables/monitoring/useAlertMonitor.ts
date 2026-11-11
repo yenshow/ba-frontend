@@ -79,7 +79,9 @@ export const useAlertMonitor = () => {
 		onAlertNew: busOnAlertNew,
 		onAlertUpdated: busOnAlertUpdated,
 		onAlertDailyRollover: busOnAlertDailyRollover,
-		clearAll: clearEventBusHandlers
+		offAlertNew: busOffAlertNew,
+		offAlertUpdated: busOffAlertUpdated,
+		offAlertDailyRollover: busOffAlertDailyRollover
 	} = useAlertEventBus();
 	const {
 		unresolvedAlertCount,
@@ -278,7 +280,10 @@ export const useAlertMonitor = () => {
 		isMonitoring.value = false;
 		alertFallback.stop();
 		reset();
-		clearEventBusHandlers();
+		// 只卸載 Toast／badge 自身 handler，勿 clearAll（會誤清攝影機連動彈窗等訂閱）
+		busOffAlertNew(handleAlertNew);
+		busOffAlertUpdated(handleAlertUpdated);
+		busOffAlertDailyRollover(handleAlertDailyRollover);
 		teardownEventBus();
 		stopAlertCountMonitoring();
 

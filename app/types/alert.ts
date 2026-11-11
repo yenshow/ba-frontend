@@ -148,6 +148,8 @@ export interface AlertCameraLinkage {
 	enabled: boolean
 	rule_id: number
 	camera_device_ids: number[]
+	/** 與 camera_device_ids 同序；0＝一般攝影機；>0＝NVR 主碼流 trackId */
+	nvr_track_ids: number[]
 	created_by?: number | null
 	created_at: string
 	updated_at: string

@@ -40,11 +40,14 @@
 					type="button"
 					role="tab"
 					:aria-selected="viewMode === mode.value"
+					:disabled="mode.value === 'playback' && !canPlayback"
+					:title="mode.value === 'playback' && !canPlayback ? '無影像回放權限' : undefined"
 					:class="[
 						'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors xl:text-sm 2xl:text-lg',
 						viewMode === mode.value
 							? 'border-2 border-white/50 bg-white/20 text-white'
 							: 'border-2 border-white/30 bg-black/20 text-white/80 hover:border-white/40 hover:bg-white/15',
+						mode.value === 'playback' && !canPlayback ? 'cursor-not-allowed opacity-40' : '',
 					]"
 					@click="$emit('update:viewMode', mode.value)"
 				>
@@ -71,9 +74,12 @@ interface Props {
 	viewMode: SurveillanceViewMode
 	totalCameras: number
 	viewCount: number
+	canPlayback?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+	canPlayback: true,
+})
 
 defineEmits<{
 	"update:modelValue": [value: GridLayout]

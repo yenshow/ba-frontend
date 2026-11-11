@@ -59,7 +59,7 @@
 					</PermissionActionButton>
 					<PermissionActionButton
 						v-show="selected"
-						:allowed="canEditAssignments"
+						:allowed="canOpenAssignments"
 						aria-label="週曆排班"
 						class="btn-monitoring-overlay absolute left-56 top-2 2xl:left-64"
 						@click="showAssignmentDialog = true"
@@ -186,6 +186,7 @@
 			v-model="showAssignmentDialog"
 			:location-id="selectedLocationId"
 			:location-name="selected?.name"
+			:allow-edit="canEditAssignments"
 			@saved="handleAccessManageSynced"
 		/>
 		<PeopleCountingAccessManageDialog
@@ -275,6 +276,7 @@ const {
 	canEditAccessMembers,
 	canResyncAccessDevices,
 	canResetStatistics,
+	canOpenAssignments,
 	canEditAssignments
 } = useRollCallAccessRbac();
 

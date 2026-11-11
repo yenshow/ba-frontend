@@ -197,7 +197,7 @@
 												:key="`camera-slot-${index}`"
 												class="flex items-end gap-2"
 											>
-												<label class="flex flex-1 flex-col gap-2 text-sm text-white/80">
+												<label class="flex min-w-0 flex-1 flex-col gap-2 text-sm text-white/80">
 													<span>第 {{ index + 1 }} 台</span>
 													<FilterDropdown
 														:model-value="val ? String(val) : ''"
@@ -207,9 +207,28 @@
 														@update:model-value="(v: string) => handleUpdateCameraDeviceId(index, v)"
 													/>
 												</label>
+												<label
+													v-if="isCameraSlotNvr(index)"
+													class="flex min-w-0 flex-1 flex-col gap-2 text-sm text-white/80"
+												>
+													<span>NVR 通道<span class="required-mark">*</span></span>
+													<FilterDropdown
+														:model-value="
+															cameraLinkage.nvr_track_ids[index]
+																? String(cameraLinkage.nvr_track_ids[index])
+																: ''
+														"
+														:options="nvrChannelOptionsForSlot(index)"
+														:placeholder="
+															nvrChannelsLoading[val || 0] ? '載入通道中…' : '請選擇通道'
+														"
+														text-size="text-sm 2xl:text-base"
+														@update:model-value="(v: string) => handleUpdateNvrTrackId(index, v)"
+													/>
+												</label>
 												<button
 													type="button"
-													class="btn-secondary"
+													class="btn-secondary shrink-0"
 													:disabled="cameraDeviceIdsModel.length <= 1"
 													aria-label="移除此攝影機"
 													@click="handleRemoveCameraDeviceSlot(index)"
@@ -217,7 +236,9 @@
 													移除
 												</button>
 											</div>
-											<p class="text-xs text-white/60">提示：重複選擇會自動去除；僅會儲存前 4 台。</p>
+											<p class="text-xs text-white/60">
+												提示：重複選擇會自動去除；僅會儲存前 4 台；NVR 須指定通道。
+											</p>
 										</div>
 									</div>
 								</div>
@@ -445,6 +466,8 @@ import type { UnifiedZone } from "~/types/location";
 import { useZonesCache } from "~/composables/location/cache/useZonesCache";
 import { useAlertApi } from "~/composables/systems/alerts/useAlertApi";
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi";
+import { useNvrApi } from "~/composables/systems/surveillance/useNvrApi";
+import type { NvrVirtualChannel } from "~/types/surveillance";
 import { alertSourceToSystemType, isAllowedThresholdOperator } from "~/utils/alertUtils";
 import {
 	normalizeAlertRuleAccessDeviceIds,
@@ -496,6 +519,7 @@ interface IntegrationsDraft {
 	cameraLinkage: null | {
 		enabled: boolean;
 		camera_device_ids?: number[];
+		nvr_track_ids?: number[];
 	};
 	accessDoorLinkage: null | {
 		enabled: boolean;
@@ -573,8 +597,89 @@ const expandedSections = reactive({ linkage: false, notify: false });
 const cameraLinkage = reactive({
 	enabled: false,
 	/** 內部用 slots 表示（可為 null），送出時再轉成 number[] */
-	camera_device_ids: [null] as Array<number | null>
+	camera_device_ids: [null] as Array<number | null>,
+	nvr_track_ids: [0] as number[]
 });
+
+const nvrApi = useNvrApi();
+const nvrChannelsByDeviceId = ref<Record<number, NvrVirtualChannel[]>>({});
+const nvrChannelsLoading = reactive<Record<number, boolean>>({});
+
+const isNvrDevice = (deviceId: number | null | undefined) => {
+	if (deviceId == null || deviceId <= 0) return false;
+	const d = devices.value.find(x => Number(x.id) === Number(deviceId));
+	return Boolean(d?.config && (d.config as { is_nvr?: boolean }).is_nvr === true);
+};
+
+const slotDeviceId = (index: number) => {
+	const raw = cameraLinkage.camera_device_ids[index];
+	const n = raw == null ? null : Number(raw);
+	return n != null && Number.isFinite(n) && n > 0 ? n : null;
+};
+
+const isCameraSlotNvr = (index: number) => isNvrDevice(slotDeviceId(index));
+
+const ensureNvrChannelsLoaded = async (deviceId: number) => {
+	if (!(deviceId > 0)) return;
+	if (nvrChannelsByDeviceId.value[deviceId]) return;
+	if (nvrChannelsLoading[deviceId]) return;
+	nvrChannelsLoading[deviceId] = true;
+	try {
+		const channels = await nvrApi.listChannels(deviceId);
+		nvrChannelsByDeviceId.value = {
+			...nvrChannelsByDeviceId.value,
+			[deviceId]: channels.filter(ch => ch.liveTrackId != null && ch.liveTrackId > 0)
+		};
+	} catch {
+		nvrChannelsByDeviceId.value = { ...nvrChannelsByDeviceId.value, [deviceId]: [] };
+	} finally {
+		nvrChannelsLoading[deviceId] = false;
+	}
+};
+
+const nvrChannelOptionsForSlot = (index: number): OptionItem[] => {
+	const deviceId = slotDeviceId(index);
+	const base: OptionItem[] = [
+		{
+			value: "",
+			label: deviceId && nvrChannelsLoading[deviceId] ? "載入通道中…" : "請選擇通道"
+		}
+	];
+	if (!deviceId) return base;
+	const channels = nvrChannelsByDeviceId.value[deviceId] || [];
+	return base.concat(
+		channels.map(ch => ({
+			value: String(ch.liveTrackId),
+			label: ch.name || `通道 ${ch.channelId ?? ch.liveTrackId}`
+		}))
+	);
+};
+
+const syncNvrTrackIdsLength = () => {
+	const len = Math.max(1, cameraLinkage.camera_device_ids.length);
+	const next = cameraLinkage.camera_device_ids.map((id, i) => {
+		if (!isNvrDevice(id)) return 0;
+		const t = Number(cameraLinkage.nvr_track_ids[i]);
+		return Number.isInteger(t) && t > 0 ? t : 0;
+	});
+	while (next.length < len) next.push(0);
+	cameraLinkage.nvr_track_ids = next.slice(0, len);
+};
+
+/** 依目前 slots 組出送 API／驗證用的 device＋track（去重後） */
+const buildCameraLinkageIdsPayload = () => {
+	const camera_device_ids = normalizeAlertRuleCameraDeviceIds(
+		cameraDeviceIdsModel.value
+	).slice(0, 4);
+	const slots = cameraDeviceIdsModel.value;
+	const nvr_track_ids = camera_device_ids.map(id => {
+		if (!isNvrDevice(id)) return 0;
+		const idx = slots.findIndex(s => s === id);
+		const t = Number(cameraLinkage.nvr_track_ids[idx]);
+		return Number.isInteger(t) && t > 0 ? t : 0;
+	});
+	return { camera_device_ids, nvr_track_ids };
+};
 
 const accessDoorLinkage = reactive({
 	enabled: false,
@@ -652,6 +757,7 @@ const cameraDeviceIdsModel = computed<Array<number | null>>({
 
 		const trimmed = deduped.slice(0, 4);
 		cameraLinkage.camera_device_ids = trimmed.length > 0 ? trimmed : [null];
+		syncNvrTrackIdsLength();
 	}
 });
 
@@ -738,6 +844,7 @@ const resetForm = () => {
 
 	cameraLinkage.enabled = false;
 	cameraLinkage.camera_device_ids = [null];
+	cameraLinkage.nvr_track_ids = [0];
 
 	accessDoorLinkage.enabled = false;
 	accessDoorLinkage.allDevices = true;
@@ -762,12 +869,17 @@ const resetForm = () => {
 const handleAddCameraDeviceSlot = () => {
 	if (cameraDeviceIdsModel.value.length >= 4) return;
 	cameraDeviceIdsModel.value = [...cameraDeviceIdsModel.value, null];
+	syncNvrTrackIdsLength();
 };
 
 const handleRemoveCameraDeviceSlot = (index: number) => {
 	const next = [...cameraDeviceIdsModel.value];
 	next.splice(index, 1);
 	cameraDeviceIdsModel.value = next.length > 0 ? next : [null];
+	const tracks = [...cameraLinkage.nvr_track_ids];
+	tracks.splice(index, 1);
+	cameraLinkage.nvr_track_ids = tracks.length > 0 ? tracks : [0];
+	syncNvrTrackIdsLength();
 };
 
 const handleUpdateCameraDeviceId = (index: number, value: string) => {
@@ -775,6 +887,21 @@ const handleUpdateCameraDeviceId = (index: number, value: string) => {
 	const next = [...cameraDeviceIdsModel.value];
 	next[index] = Number.isFinite(n) && n > 0 ? n : null;
 	cameraDeviceIdsModel.value = next;
+	const tracks = [...cameraLinkage.nvr_track_ids];
+	while (tracks.length < next.length) tracks.push(0);
+	tracks[index] = 0;
+	cameraLinkage.nvr_track_ids = tracks;
+	syncNvrTrackIdsLength();
+	const deviceId = next[index];
+	if (deviceId && isNvrDevice(deviceId)) void ensureNvrChannelsLoaded(deviceId);
+};
+
+const handleUpdateNvrTrackId = (index: number, value: string) => {
+	const n = Number(value);
+	const tracks = [...cameraLinkage.nvr_track_ids];
+	while (tracks.length <= index) tracks.push(0);
+	tracks[index] = Number.isInteger(n) && n > 0 ? n : 0;
+	cameraLinkage.nvr_track_ids = tracks;
 };
 
 const handleSelectZone = (zoneId: string) => {
@@ -914,6 +1041,18 @@ const loadIntegrationsForRule = async (ruleId: number) => {
 			: [];
 		const merged = [...new Set(ids)].slice(0, 4);
 		cameraLinkage.camera_device_ids = merged.length > 0 ? merged : [null];
+		const tracksRaw = Array.isArray(c?.nvr_track_ids) ? c.nvr_track_ids : [];
+		const trackByDevice = new Map<number, number>();
+		ids.forEach((deviceId, i) => {
+			if (trackByDevice.has(deviceId)) return;
+			const t = Number(tracksRaw[i]);
+			trackByDevice.set(deviceId, Number.isInteger(t) && t > 0 ? t : 0);
+		});
+		cameraLinkage.nvr_track_ids =
+			merged.length > 0 ? merged.map(id => trackByDevice.get(id) || 0) : [0];
+		for (const id of merged) {
+			if (isNvrDevice(id)) void ensureNvrChannelsLoaded(id);
+		}
 
 		accessDoorLinkage.enabled = Boolean(res?.accessDoorLinkage?.enabled);
 		const accessMerged = normalizeAlertRuleAccessDeviceIds(
@@ -1044,10 +1183,15 @@ watch(
 const buildAlertRuleValidationInput = () => ({
 	target_type: form.target_type || null,
 	target_id: form.target_id != null ? Number(form.target_id) : null,
-	cameraLinkage: {
-		enabled: cameraLinkage.enabled && canUseCameraLinkage.value,
-		camera_device_ids: normalizeAlertRuleCameraDeviceIds(cameraDeviceIdsModel.value)
-	},
+	cameraLinkage: (() => {
+		const { camera_device_ids, nvr_track_ids } = buildCameraLinkageIdsPayload();
+		return {
+			enabled: cameraLinkage.enabled && canUseCameraLinkage.value,
+			camera_device_ids,
+			nvr_track_ids,
+			is_nvr_flags: camera_device_ids.map(id => isNvrDevice(id))
+		};
+	})(),
 	accessDoorLinkage: {
 		enabled: accessDoorLinkage.enabled && canUseAccessDoorLinkage.value,
 		allDevices: accessDoorLinkage.allDevices,
@@ -1127,10 +1271,7 @@ const handleSubmit = () => {
 
 	const integrations: IntegrationsDraft = {
 		cameraLinkage: cameraLinkage.enabled && canUseCameraLinkage.value
-			? {
-					enabled: true,
-					camera_device_ids: normalizeAlertRuleCameraDeviceIds(cameraDeviceIdsModel.value).slice(0, 4)
-				}
+			? { enabled: true, ...buildCameraLinkageIdsPayload() }
 			: null,
 		accessDoorLinkage: accessDoorLinkage.enabled && canUseAccessDoorLinkage.value
 			? {

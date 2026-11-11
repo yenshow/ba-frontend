@@ -10,6 +10,7 @@
 	>
 		<template #header-actions>
 			<FormChangeIndicator
+				v-if="allowEdit"
 				:has-changes="isDirty"
 				:changed-fields="[]"
 				message="有未儲存的變更"
@@ -79,31 +80,33 @@
 							<button type="button" class="btn-secondary shrink-0" :disabled="busy" @click="handleSearch">
 								搜尋
 							</button>
-							<div class="mx-0.5 h-8 w-px shrink-0 bg-white/20" aria-hidden="true" />
-							<button
-								type="button"
-								class="btn-secondary shrink-0"
-								:disabled="busy"
-								@click="handleDownloadTemplate"
-							>
-								{{ downloadingTemplate ? "下載中..." : "下載 Excel 範本" }}
-							</button>
-							<input
-								ref="excelInputRef"
-								type="file"
-								accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-								class="hidden"
-								aria-label="匯入排班 Excel"
-								@change="handleImportFile"
-							/>
-							<button
-								type="button"
-								class="btn-secondary shrink-0"
-								:disabled="busy"
-								@click="excelInputRef?.click()"
-							>
-								{{ importing ? "匯入中..." : "匯入 Excel" }}
-							</button>
+							<template v-if="allowEdit">
+								<div class="mx-0.5 h-8 w-px shrink-0 bg-white/20" aria-hidden="true" />
+								<button
+									type="button"
+									class="btn-secondary shrink-0"
+									:disabled="busy"
+									@click="handleDownloadTemplate"
+								>
+									{{ downloadingTemplate ? "下載中..." : "下載 Excel 範本" }}
+								</button>
+								<input
+									ref="excelInputRef"
+									type="file"
+									accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+									class="hidden"
+									aria-label="匯入排班 Excel"
+									@change="handleImportFile"
+								/>
+								<button
+									type="button"
+									class="btn-secondary shrink-0"
+									:disabled="busy"
+									@click="excelInputRef?.click()"
+								>
+									{{ importing ? "匯入中..." : "匯入 Excel" }}
+								</button>
+							</template>
 						</div>
 
 						<div
@@ -232,11 +235,17 @@
 
 			<footer class="flex flex-wrap items-center justify-between gap-3">
 				<p class="text-sm text-white/55">
-					每人每日一格；空週預設第一個班別，可改休（休假仍顯示、不計應到）。須「儲存本週」後主畫面才生效。大量調班用群組／搜尋／分頁或 Excel。
+					<template v-if="allowEdit">
+						每人每日一格；空週預設第一個班別，可改休（休假仍顯示、不計應到）。須「儲存本週」後主畫面才生效。大量調班用群組／搜尋／分頁或 Excel。
+					</template>
+					<template v-else>僅可確認排班（唯讀）；編輯／設休請另授「排班編輯」權限。</template>
 				</p>
 				<div class="flex gap-3">
-					<button type="button" class="btn-secondary" :disabled="busy" @click="handleClose">取消</button>
+					<button type="button" class="btn-secondary" :disabled="busy" @click="handleClose">
+						{{ allowEdit ? "取消" : "關閉" }}
+					</button>
 					<button
+						v-if="allowEdit"
 						type="button"
 						class="btn-primary"
 						:disabled="busy || rules.length === 0 || rows.length === 0"
@@ -366,11 +375,15 @@ const serializeRows = (list: RollCallAssignmentRowDraft[]) =>
 
 const ruleSelectValue = (ruleId: number | null) => (ruleId == null ? "" : String(ruleId));
 
-const props = defineProps<{
-	modelValue: boolean;
-	locationId: number | null;
-	locationName?: string;
-}>();
+const props = withDefaults(
+	defineProps<{
+		modelValue: boolean;
+		locationId: number | null;
+		locationName?: string;
+		allowEdit?: boolean;
+	}>(),
+	{ allowEdit: true }
+);
 
 const emit = defineEmits<{
 	"update:modelValue": [value: boolean];
@@ -418,7 +431,9 @@ const weekEnd = computed(() => addDaysYmd(weekStart.value, 6));
 const busy = computed(
 	() => loading.value || saving.value || importing.value || downloadingTemplate.value
 );
-const canEdit = computed(() => !busy.value && rules.value.length > 0);
+const canEdit = computed(
+	() => Boolean(props.allowEdit) && !busy.value && rules.value.length > 0
+);
 const isDirty = computed(() => serializeRows(rows.value) !== baselineSerialized.value);
 /** 首次／無資料時的整表載入文案；切週時改淡出＋轉圈，避免表格閃掉 */
 const showInitialLoading = computed(() => loading.value && rows.value.length === 0);

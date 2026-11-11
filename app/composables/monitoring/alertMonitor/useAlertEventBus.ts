@@ -3,7 +3,7 @@
  *
  * 唯一的 alert:new / alert:updated WS 訂閱層。
  * 消費者（Toast、alert-log 列表、badge 等）透過 onAlertNew / onAlertUpdated 註冊回呼，
- * 生命週期由 useAlertMonitor 統一管理。
+ * WS 訂閱由 useAlertMonitor setup／teardown；各消費者自行 on／off，勿 clearAll 誤傷其他模組。
  */
 
 import type {

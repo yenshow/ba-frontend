@@ -4,6 +4,8 @@ import { useAlertApi } from "~/composables/systems/alerts/useAlertApi"
 type CameraLinkageResult = {
 	enabled: boolean
 	cameraDeviceIds: number[]
+	/** 與 cameraDeviceIds 同序；0＝非 NVR；>0＝trackId */
+	nvrTrackIds: number[]
 }
 
 const FLUSH_DELAY_MS = 50
@@ -139,12 +141,29 @@ export const useAlertRuleIntegrationsStore = () => {
 		const id = Number(ruleId)
 		const integrations = integrationsByRuleId.value[id]
 		const enabled = Boolean(integrations?.cameraLinkage?.enabled)
-		const rawIds = integrations?.cameraLinkage?.camera_device_ids
-		const idsFromArray = Array.isArray(rawIds)
-			? rawIds.map((v) => Number(v)).filter((n) => Number.isFinite(n) && n > 0)
+		const rawIds = Array.isArray(integrations?.cameraLinkage?.camera_device_ids)
+			? integrations!.cameraLinkage!.camera_device_ids
 			: []
-		const merged = [...new Set(idsFromArray)].slice(0, 4)
-		return { enabled, cameraDeviceIds: merged }
+		const rawTracks = Array.isArray(integrations?.cameraLinkage?.nvr_track_ids)
+			? integrations!.cameraLinkage!.nvr_track_ids
+			: []
+		const seen = new Set<number>()
+		const merged: number[] = []
+		const tracks: number[] = []
+		for (let i = 0; i < rawIds.length; i++) {
+			const deviceId = Number(rawIds[i])
+			if (!Number.isFinite(deviceId) || deviceId <= 0) continue
+			if (seen.has(deviceId)) continue
+			seen.add(deviceId)
+			merged.push(deviceId)
+			const t = Number(rawTracks[i])
+			tracks.push(Number.isInteger(t) && t > 0 ? t : 0)
+		}
+		return {
+			enabled,
+			cameraDeviceIds: merged.slice(0, 4),
+			nvrTrackIds: tracks.slice(0, 4),
+		}
 	}
 
 	const ensureCameraLinkage = async (ruleId: number): Promise<CameraLinkageResult> => {

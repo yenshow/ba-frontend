@@ -28,17 +28,21 @@
 					<div class="flex items-center justify-between gap-4">
 						<div class="flex-1">
 							<div class="mb-2 flex flex-wrap items-center gap-2">
-								<span :class="[badgeBaseClass, 'bg-blue-500/80']">{{ getSourceLabel(alert.source) }}</span>
+								<span :class="[badgeBaseClass, 'bg-blue-500/80']">{{
+									getSourceLabel(alert.source)
+								}}</span>
 								<span :class="[badgeBaseClass, getSeverityBadgeClass(alert.severity)]">{{
 									getSeverityLabel(alert.severity)
 								}}</span>
 								<span :class="[badgeBaseClass, getTypeBadgeClass(alert.alert_type)]">{{
 									getTypeLabel(alert.alert_type)
 								}}</span>
-								<span v-if="isAlertResolved(alert)" :class="[badgeBaseClass, 'bg-green-500/80']"
-									>已解決</span
-								>
-								<span v-if="isAlertIgnored(alert)" :class="[badgeBaseClass, 'bg-gray-500/80']">已忽視</span>
+								<span v-if="isAlertResolved(alert)" :class="[badgeBaseClass, 'bg-green-500/80']">
+									已解決
+								</span>
+								<span v-if="isAlertIgnored(alert)" :class="[badgeBaseClass, 'bg-gray-500/80']">
+									已忽視
+								</span>
 							</div>
 
 							<p class="mb-4 text-base text-white 2xl:text-lg">{{ alert.message }}</p>
@@ -84,14 +88,23 @@
 							</div>
 						</div>
 
-						<div class="flex h-[160px] flex-col justify-center">
+						<div class="flex h-[160px] flex-col items-stretch justify-center gap-2">
+							<PermissionActionButton
+								v-if="canShowPlayback(alert)"
+								:allowed="canPlayback"
+								aria-label="回放連動 NVR 錄影"
+								class="rounded-lg bg-cyan-600/80 px-3 py-1.5 text-base text-white enabled:hover:opacity-80 2xl:px-4 2xl:py-2 2xl:text-lg"
+								@click="emit('playback', alert)"
+							>
+								回放
+							</PermissionActionButton>
 							<PermissionActionButton
 								v-if="!isAlertIgnored(alert)"
 								:allowed="canIgnore"
 								:disabled="alert.status !== 'active' || isIgnoring"
 								aria-label="忽視警示"
 								class="rounded-lg bg-gray-500/80 px-3 py-1.5 text-base text-white enabled:hover:opacity-80 2xl:px-4 2xl:py-2 2xl:text-lg"
-@click="emit('ignore', alert)"
+								@click="emit('ignore', alert)"
 							>
 								忽視
 							</PermissionActionButton>
@@ -101,33 +114,33 @@
 								:disabled="isIgnoring"
 								aria-label="取消忽視"
 								class="rounded-lg bg-blue-500/80 px-3 py-1.5 text-base text-white enabled:hover:opacity-80 2xl:px-4 2xl:py-2 2xl:text-lg"
-@click="emit('unignore', alert)"
+								@click="emit('unignore', alert)"
 							>
 								取消忽視
 							</PermissionActionButton>
 						</div>
 					</div>
 				</div>
-			</div>
 
-			<Pagination
-				v-if="totalAlerts > limit"
-				:total="totalAlerts"
-				:offset="offset"
-				:limit="limit"
-				:disabled="isLoading"
-				@previous="emit('previous')"
-				@next="emit('next')"
-			/>
+				<Pagination
+					v-if="totalAlerts > limit"
+					:total="totalAlerts"
+					:offset="offset"
+					:limit="limit"
+					:disabled="isLoading"
+					@previous="emit('previous')"
+					@next="emit('next')"
+				/>
+			</div>
 		</AsyncPanel>
 	</section>
 </template>
 
 <script setup lang="ts">
-import PermissionActionButton from "~/components/common/PermissionActionButton.vue";
-import type { Alert } from "~/types/alert";
-import AsyncPanel from "~/components/common/AsyncPanel.vue";
-import Pagination from "~/components/common/Pagination.vue";
+import PermissionActionButton from "~/components/common/PermissionActionButton.vue"
+import type { Alert } from "~/types/alert"
+import AsyncPanel from "~/components/common/AsyncPanel.vue"
+import Pagination from "~/components/common/Pagination.vue"
 import {
 	getSourceLabel,
 	getTypeLabel,
@@ -135,45 +148,81 @@ import {
 	getSeverityBadgeClass,
 	getTypeBadgeClass,
 	isAlertResolved,
-	isAlertIgnored
-} from "~/utils/alertUtils";
-import { formatDateTime } from "~/utils/dateUtils";
+	isAlertIgnored,
+} from "~/utils/alertUtils"
+import { formatDateTime } from "~/utils/dateUtils"
+import { useAlertRuleIntegrationsStore } from "~/composables/systems/alerts/useAlertRuleIntegrationsStore"
+import { useLicense } from "~/composables/core/useLicense"
+import { useAlertLogRbac } from "~/composables/core/useAccessGate"
 
-defineProps<{
-	alerts: Alert[];
-	totalAlerts: number;
-	unresolvedCount: number;
-	offset: number;
-	limit: number;
-	isLoading: boolean;
-	error?: string | null;
-	isIgnoring: boolean;
-	canIgnore: boolean;
-}>();
+const props = defineProps<{
+	alerts: Alert[]
+	totalAlerts: number
+	unresolvedCount: number
+	offset: number
+	limit: number
+	isLoading: boolean
+	error?: string | null
+	isIgnoring: boolean
+	canIgnore: boolean
+}>()
 
 const emit = defineEmits<{
-	(e: "ignore", alert: Alert): void;
-	(e: "unignore", alert: Alert): void;
-	(e: "previous"): void;
-	(e: "next"): void;
-}>();
+	(e: "ignore", alert: Alert): void
+	(e: "unignore", alert: Alert): void
+	(e: "playback", alert: Alert): void
+	(e: "previous"): void
+	(e: "next"): void
+}>()
+
+const integrationsStore = useAlertRuleIntegrationsStore()
+const { hasFeature } = useLicense()
+const { canPlayback: canAlertPlayback } = useAlertLogRbac()
+const canPlayback = computed(
+	() => Boolean(hasFeature("surveillance")) && Boolean(canAlertPlayback.value)
+)
+
+const hasNvrTrackForAlert = (alert: Alert) => {
+	const ruleId = alert.rule_id != null ? Number(alert.rule_id) : null
+	if (!ruleId || !Number.isFinite(ruleId)) return false
+	const link = integrationsStore.getCameraLinkage(ruleId)
+	if (!link.enabled) return false
+	return (link.nvrTrackIds || []).some((t) => Number(t) > 0)
+}
+
+const canShowPlayback = (alert: Alert) => canPlayback.value && hasNvrTrackForAlert(alert)
+
+watch(
+	() => props.alerts,
+	(list) => {
+		const ruleIds = [
+			...new Set(
+				(list || [])
+					.map((a) => (a.rule_id != null ? Number(a.rule_id) : null))
+					.filter((n): n is number => n != null && Number.isFinite(n) && n > 0)
+			),
+		]
+		if (ruleIds.length > 0) void integrationsStore.prefetch(ruleIds)
+	},
+	{ immediate: true }
+)
 
 const badgeBaseClass =
-	"inline-block rounded-full px-3 py-1 text-base font-semibold text-white 2xl:px-4 2xl:py-1.5";
+	"inline-block rounded-full px-3 py-1 text-base font-semibold text-white 2xl:px-4 2xl:py-1.5"
 
 const getSourceDisplayName = (alert: Alert): string =>
 	alert.source_display_name ||
 	alert.location_name ||
 	alert.source_name ||
-	`${getSourceLabel(alert.source)} #${alert.source_id}`;
+	`${getSourceLabel(alert.source)} #${alert.source_id}`
 
 const getAlertCardClass = (alert: Alert) => {
-	if (isAlertResolved(alert)) return "border-green-500/30 bg-green-500/5";
-	if (isAlertIgnored(alert)) return "border-gray-500/30 bg-gray-500/5";
+	if (isAlertResolved(alert)) return "border-green-500/30 bg-green-500/5"
+	if (isAlertIgnored(alert)) return "border-gray-500/30 bg-gray-500/5"
 	const severityClasses: Record<string, string> = {
 		warning: "border-yellow-500 bg-yellow-500/30",
-		critical: "border-red-500 bg-red-500/30"
-	};
-	return severityClasses[alert.severity] || "border-white/20 bg-white/5";
-};
+		critical: "border-red-500 bg-red-500/30",
+	}
+	return severityClasses[alert.severity] || "border-white/20 bg-white/5"
+}
 </script>

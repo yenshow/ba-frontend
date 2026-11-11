@@ -184,8 +184,9 @@
 				<button
 					type="button"
 					class="rounded bg-white/10 px-3 py-1 text-sm hover:bg-white/20 disabled:opacity-40"
-					:disabled="isDownloading"
+					:disabled="isDownloading || !canDownload"
 					:aria-busy="isDownloading"
+					:title="!canDownload ? '無回放下載權限' : undefined"
 					aria-label="下載錄影"
 					@click="emit('download')"
 				>
@@ -276,6 +277,7 @@ interface Props {
 	dayStartMs: number
 	isPlaying: boolean
 	isDownloading: boolean
+	canDownload?: boolean
 	canGoNextDay: boolean
 	searchError?: string | null
 	zoomHours: PlaybackZoomHours
@@ -284,6 +286,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+	canDownload: true,
 	searchError: null,
 	recordingDays: () => [],
 })
