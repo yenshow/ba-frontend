@@ -3,6 +3,7 @@ import type { Alert } from "~/types/alert"
 import { useAlertEventBus } from "~/composables/monitoring/alertMonitor/useAlertEventBus"
 import { useAlertRuleIntegrationsStore } from "~/composables/systems/alerts/useAlertRuleIntegrationsStore"
 import { useDeviceApi } from "~/composables/systems/devices/useDeviceApi"
+import { useNvrApi } from "~/composables/systems/surveillance/useNvrApi"
 import { useLocationApi } from "~/composables/location/api/useLocationApi"
 import { alertSourceToSystemType } from "~/utils/alertUtils"
 import { getSystemCoordinates } from "~/utils/locationAdapter"
@@ -55,6 +56,7 @@ let locationLoadToken = 0
 export const useAlertCameraLinkagePopup = () => {
 	const integrationsStore = useAlertRuleIntegrationsStore()
 	const deviceApi = useDeviceApi()
+	const nvrApi = useNvrApi()
 	const locationApi = useLocationApi()
 	const { onAlertNew, offAlertNew } = useAlertEventBus()
 
@@ -136,6 +138,15 @@ export const useAlertCameraLinkagePopup = () => {
 			const deviceRes = await deviceApi.getDevice(s.deviceId)
 			s.deviceName = deviceRes?.device?.name?.trim?.() || `設備 ${s.deviceId}`
 
+			const trackId = Number(s.nvrTrackId)
+			if (Number.isInteger(trackId) && trackId > 0) {
+				const startedRes = await nvrApi.startChannelStream(s.deviceId, trackId)
+				s.webrtcUrl = startedRes.webrtcUrl || ""
+				s.webrtcPort = startedRes.webrtcPort
+				s.streamStatus = "running"
+				return
+			}
+
 			const status = await deviceApi.getStreamStatus(s.deviceId)
 			if (status.status !== "running") {
 				const startedRes = await deviceApi.startStream(s.deviceId)
@@ -160,14 +171,20 @@ export const useAlertCameraLinkagePopup = () => {
 			return
 		}
 
-		state.streams = normalizeCameraDeviceIds(item.cameraDeviceIds).map((deviceId) => ({
-			deviceId,
-			deviceName: "",
-			webrtcUrl: "",
-			webrtcPort: undefined,
-			streamStatus: "loading" as const,
-			error: "",
-		}))
+		const ids = normalizeCameraDeviceIds(item.cameraDeviceIds)
+		const tracks = Array.isArray(item.nvrTrackIds) ? item.nvrTrackIds : []
+		state.streams = ids.map((deviceId, i) => {
+			const t = Number(tracks[i])
+			return {
+				deviceId,
+				deviceName: "",
+				nvrTrackId: Number.isInteger(t) && t > 0 ? t : undefined,
+				webrtcUrl: "",
+				webrtcPort: undefined,
+				streamStatus: "loading" as const,
+				error: "",
+			}
+		})
 
 		await Promise.all(state.streams.map((s) => startStreamOnState(s)))
 	}
@@ -211,9 +228,18 @@ export const useAlertCameraLinkagePopup = () => {
 		if (deviceName) item.deviceName = deviceName
 	}
 
-	const enqueue = async (cameraDeviceIds: number[], ruleId: number, alert?: AlertMeta) => {
+	const enqueue = async (
+		cameraDeviceIds: number[],
+		nvrTrackIds: number[],
+		ruleId: number,
+		alert?: AlertMeta
+	) => {
 		const ids = normalizeCameraDeviceIds(cameraDeviceIds)
 		if (ids.length === 0) return
+		const tracks = ids.map((_, i) => {
+			const t = Number(nvrTrackIds[i])
+			return Number.isInteger(t) && t > 0 ? t : 0
+		})
 
 		const now = Date.now()
 		const signature = buildSignature(ruleId, ids)
@@ -224,6 +250,7 @@ export const useAlertCameraLinkagePopup = () => {
 			const exist = state.items[existIndex]
 			exist.count = Math.max(1, Number(exist.count || 1)) + 1
 			exist.createdAt = now
+			exist.nvrTrackIds = tracks
 			applyAlertMeta(exist, alert)
 			state.items.splice(existIndex, 1)
 			state.items.unshift(exist)
@@ -232,6 +259,7 @@ export const useAlertCameraLinkagePopup = () => {
 				key: `${signature}:${now}`,
 				ruleId,
 				cameraDeviceIds: ids,
+				nvrTrackIds: tracks,
 				createdAt: now,
 				count: 1,
 				message: "",
@@ -249,7 +277,7 @@ export const useAlertCameraLinkagePopup = () => {
 	const maybeOpenByRule = async (ruleId: number, alert?: AlertMeta) => {
 		const next = await integrationsStore.ensureCameraLinkage(ruleId)
 		if (!next.enabled || next.cameraDeviceIds.length === 0) return
-		await enqueue(next.cameraDeviceIds, ruleId, alert)
+		await enqueue(next.cameraDeviceIds, next.nvrTrackIds || [], ruleId, alert)
 	}
 
 	const handleAlertNew = (alert: AlertNewEvent) => {
@@ -259,9 +287,9 @@ export const useAlertCameraLinkagePopup = () => {
 	}
 
 	const start = () => {
-		if (started) return
-		started = true
+		// Set.add 冪等；監控重啟若曾誤清 handler，這裡仍能補回
 		onAlertNew(handleAlertNew)
+		started = true
 	}
 
 	const stop = () => {

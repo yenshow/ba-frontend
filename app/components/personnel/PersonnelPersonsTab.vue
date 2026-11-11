@@ -22,7 +22,7 @@
 					管理欄位
 				</PermissionActionButton>
 				<PermissionActionButton
-					:allowed="true"
+					:allowed="canExportPerson"
 					:disabled="isExporting"
 					aria-label="匯出人員"
 					class="rounded-xl bg-white/20 px-4 py-2 text-sm text-white enabled:hover:bg-white/30 2xl:px-6 2xl:py-3 2xl:text-base"
@@ -269,6 +269,7 @@ const props = defineProps<{
 	canCreatePerson: boolean
 	canUpdatePerson: boolean
 	canDeletePerson: boolean
+	canExportPerson: boolean
 	personStatusLabels: Record<string, string>
 	getPersonStatusBadgeClass: (status: string) => string
 	personsTab: ReturnType<typeof usePersonnelPersonsTab>

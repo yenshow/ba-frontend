@@ -20,14 +20,17 @@ export const PERM = {
 		personCreate: "system.personnel.person.create",
 		personUpdate: "system.personnel.person.update",
 		personDelete: "system.personnel.person.delete",
+		personExport: "system.personnel.person.export",
 	},
 	alertLog: {
 		module: "system.alert_log",
 		ignore: "system.alert_log.alert.ignore",
 		export: "system.alert_log.report.export",
+		view: "system.alert_log.alert.view",
 		create: "system.alert_log.alert.create",
 		update: "system.alert_log.alert.update",
 		delete: "system.alert_log.alert.delete",
+		playback: "system.alert_log.playback",
 	},
 	operationalLog: {
 		module: "system.operational_log",
@@ -49,12 +52,11 @@ export const PERM = {
 		locationCreate: "system.roll_call.location.create",
 		locationUpdate: "system.roll_call.location.update",
 		locationDelete: "system.roll_call.location.delete",
-		ruleEdit: "system.roll_call.rule.edit",
+		assignmentView: "system.roll_call.assignment.view",
 		assignmentEdit: "system.roll_call.assignment.edit",
 		deviceSync: "system.roll_call.device_sync",
 		syncEdit: "system.roll_call.sync.edit",
 		statisticsReset: "system.roll_call.statistics.reset",
-		attendanceLeave: "system.roll_call.attendance.leave",
 	},
 	environment: {
 		module: "system.environment",
@@ -79,6 +81,8 @@ export const PERM = {
 	videoSurveillance: {
 		module: "system.video_surveillance",
 		streamControl: "system.video_surveillance.stream.control",
+		playback: "system.video_surveillance.playback",
+		playbackDownload: "system.video_surveillance.playback.download",
 	},
 	areaPointMap: {
 		module: "system.area_point_map",

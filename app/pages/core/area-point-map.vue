@@ -7,8 +7,13 @@
 				<div
 					class="flex monitoring-panel overflow-hidden rounded-2xl p-6 2xl:p-8"
 				>
-					<!-- 區域名稱與操作 -->
-					<div class="relative z-10 flex flex-col justify-between py-4 text-center text-white">
+					<!--
+						左側欄：上＝區域名＋地點管理（文件流）；下＝系統篩選（absolute，還原原版下段配置）。
+						max-h 避免篩選往上蓋住地點管理；shrink-0 + 地圖 flex-1 避免側欄被撐寬導致按鈕跑到圖上。
+					-->
+					<div
+						class="relative z-10 flex w-max min-w-[9rem] shrink-0 flex-col justify-between py-4 text-center text-white"
+					>
 						<div class="space-y-4">
 							<!-- 區域名稱 -->
 							<div class="py-4">
@@ -24,49 +29,49 @@
 									v-show="!isInitialLoading"
 									:allowed="canManageMapOperations"
 									aria-label="地點管理"
-									class="whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base text-white transition-all enabled:hover:bg-white/10 2xl:text-lg"
+									class="w-full whitespace-nowrap rounded-2xl border-2 border-white/30 bg-transparent p-3 text-base text-white transition-all enabled:hover:bg-white/10 2xl:text-lg"
 									@click="handleOpenZoneDialog"
 								>
 									地點管理
 								</PermissionActionButton>
 							</Transition>
-							<!-- 系統篩選（選中區域內的地圖型子系統） -->
-							<Transition name="fade-in">
-								<div
-									v-if="selectedZoneData && !isInitialLoading"
-									class="absolute bottom-1/4 left-0 mt-6 space-y-2"
-								>
-									<template v-if="mapFilterSystemTypes.length > 0">
-										<button
-											v-for="systemType in mapFilterSystemTypes"
-											:key="systemType"
-											type="button"
-											@click="handleSystemTypeToggle(systemType)"
-											:class="[
-												'w-full rounded-xl border-2 p-3 text-center text-base text-white transition-all 2xl:text-lg',
-												selectedSystemType === systemType
-													? 'border-white bg-white/20'
-													: 'border-white/20 bg-white/5 hover:bg-white/10',
-											]"
-										>
-											<div>
-												{{ getSystemTypeLabel(systemType) }}
-											</div>
-										</button>
-									</template>
-									<div
-										v-else
-										class="rounded-xl border-2 border-white/30 bg-white/5 p-2 text-center text-xs text-white/60 2xl:text-base"
-									>
-										尚無地圖系統
-									</div>
-								</div>
-							</Transition>
 						</div>
+						<!-- 系統篩選：原 absolute 下段；限制高度避免與上方重疊 -->
+						<Transition name="fade-in">
+							<div
+								v-if="selectedZoneData && !isInitialLoading"
+								class="absolute bottom-[12%] left-0 right-0 max-h-[50%] space-y-2 overflow-y-auto"
+							>
+								<template v-if="mapFilterSystemTypes.length > 0">
+									<button
+										v-for="systemType in mapFilterSystemTypes"
+										:key="systemType"
+										type="button"
+										@click="handleSystemTypeToggle(systemType)"
+										:class="[
+											'w-full rounded-xl border-2 p-3 text-center text-base text-white transition-all 2xl:text-lg',
+											selectedSystemType === systemType
+												? 'border-white bg-white/20'
+												: 'border-white/20 bg-white/5 hover:bg-white/10',
+										]"
+									>
+										<div>
+											{{ getSystemTypeLabel(systemType) }}
+										</div>
+									</button>
+								</template>
+								<div
+									v-else
+									class="rounded-xl border-2 border-white/30 bg-white/5 p-2 text-center text-xs text-white/60 2xl:text-base"
+								>
+									尚無地圖系統
+								</div>
+							</div>
+						</Transition>
 					</div>
 
-					<!-- 平面圖與地點點位 -->
-					<div class="map-location-dots relative h-[600px] w-full p-4 2xl:h-[780px]">
+					<!-- 平面圖與地點點位（flex-1／min-w-0：把剩餘寬度留給地圖，勿用 w-full 擠開側欄） -->
+					<div class="map-location-dots relative h-[600px] min-w-0 flex-1 p-4 2xl:h-[780px]">
 						<NuxtImg
 							v-if="zonePlanImage"
 							:src="zonePlanImage"

@@ -1,9 +1,3 @@
-/** 門禁人員群組（群組內成員限為入口與出口設備皆有之人員，以 employeeNo 識別） */
-export interface AccessControlGroup {
-	name: string
-	employeeNos: string[]
-}
-
 /**
  * 人流統計地點（工地位置）
  * 參考 EnvironmentLocation，用於地點管理系統
@@ -43,8 +37,6 @@ export interface PeopleCountingLocation {
 	cameraMode?: "people_counting" | "face_recognition"
 	/** 優先使用 RegionList 當作人員群組（true=依區域/單位統計與顯示） */
 	preferRegion?: boolean
-	/** 門禁人員群組（後端相容保留；門禁設備之人員與權限已改由「人員管理」處理，此地點表單不再編輯此欄） */
-	accessControlGroups?: AccessControlGroup[]
 	/** 進出紀錄表格顯示欄位（順序固定，僅控制顯示與否） */
 	logDisplayColumns?: string[]
 	/** 人臉辨識：比對準確度下限（0–100，預設 50） */

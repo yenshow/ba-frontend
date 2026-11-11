@@ -117,6 +117,7 @@
 				:can-create-person="canCreatePerson"
 				:can-update-person="canUpdatePerson"
 				:can-delete-person="canDeletePerson"
+				:can-export-person="canExportPerson"
 				:person-status-labels="personStatusLabels"
 				:get-person-status-badge-class="getPersonStatusBadgeClass"
 				:persons-tab="personsTab"
@@ -143,6 +144,7 @@ const props = defineProps<{
 	canCreatePerson: boolean
 	canUpdatePerson: boolean
 	canDeletePerson: boolean
+	canExportPerson: boolean
 	personStatusLabels: Record<string, string>
 	getPersonStatusBadgeClass: (status: string) => string
 	personsTab: ReturnType<typeof usePersonnelPersonsTab>

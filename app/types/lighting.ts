@@ -33,18 +33,8 @@ export interface CategoryModbusConfig {
 	doAddresses?: number[]
 }
 
-export type LightingCategory = {
-	id: string
-	name: string
-	zoneId: string
-	location?: { x: number; y: number }
-	modbus?: CategoryModbusConfig
-}
-
-// ========== 新的區域管理結構 ==========
-
 /**
- * 照明地點（原區域/分類點）
+ * 照明地點
  */
 export interface LightingLocation {
 	id?: string // 地點 ID (locations.id)

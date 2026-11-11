@@ -88,7 +88,16 @@
 							</div>
 						</div>
 
-						<div class="flex h-[160px] flex-col justify-center">
+						<div class="flex h-[160px] flex-col items-stretch justify-center gap-2">
+							<PermissionActionButton
+								v-if="canShowPlayback(alert)"
+								:allowed="canPlayback"
+								aria-label="回放連動 NVR 錄影"
+								class="rounded-lg bg-cyan-600/80 px-3 py-1.5 text-base text-white enabled:hover:opacity-80 2xl:px-4 2xl:py-2 2xl:text-lg"
+								@click="emit('playback', alert)"
+							>
+								回放
+							</PermissionActionButton>
 							<PermissionActionButton
 								v-if="!isAlertIgnored(alert)"
 								:allowed="canIgnore"
@@ -142,8 +151,11 @@ import {
 	isAlertIgnored,
 } from "~/utils/alertUtils"
 import { formatDateTime } from "~/utils/dateUtils"
+import { useAlertRuleIntegrationsStore } from "~/composables/systems/alerts/useAlertRuleIntegrationsStore"
+import { useLicense } from "~/composables/core/useLicense"
+import { useAlertLogRbac } from "~/composables/core/useAccessGate"
 
-defineProps<{
+const props = defineProps<{
 	alerts: Alert[]
 	totalAlerts: number
 	unresolvedCount: number
@@ -158,9 +170,42 @@ defineProps<{
 const emit = defineEmits<{
 	(e: "ignore", alert: Alert): void
 	(e: "unignore", alert: Alert): void
+	(e: "playback", alert: Alert): void
 	(e: "previous"): void
 	(e: "next"): void
 }>()
+
+const integrationsStore = useAlertRuleIntegrationsStore()
+const { hasFeature } = useLicense()
+const { canPlayback: canAlertPlayback } = useAlertLogRbac()
+const canPlayback = computed(
+	() => Boolean(hasFeature("surveillance")) && Boolean(canAlertPlayback.value)
+)
+
+const hasNvrTrackForAlert = (alert: Alert) => {
+	const ruleId = alert.rule_id != null ? Number(alert.rule_id) : null
+	if (!ruleId || !Number.isFinite(ruleId)) return false
+	const link = integrationsStore.getCameraLinkage(ruleId)
+	if (!link.enabled) return false
+	return (link.nvrTrackIds || []).some((t) => Number(t) > 0)
+}
+
+const canShowPlayback = (alert: Alert) => canPlayback.value && hasNvrTrackForAlert(alert)
+
+watch(
+	() => props.alerts,
+	(list) => {
+		const ruleIds = [
+			...new Set(
+				(list || [])
+					.map((a) => (a.rule_id != null ? Number(a.rule_id) : null))
+					.filter((n): n is number => n != null && Number.isFinite(n) && n > 0)
+			),
+		]
+		if (ruleIds.length > 0) void integrationsStore.prefetch(ruleIds)
+	},
+	{ immediate: true }
+)
 
 const badgeBaseClass =
 	"inline-block rounded-full px-3 py-1 text-base font-semibold text-white 2xl:px-4 2xl:py-1.5"

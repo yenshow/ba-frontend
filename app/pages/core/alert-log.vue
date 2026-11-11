@@ -92,6 +92,7 @@
 					:can-ignore="canIgnoreAlert"
 					@ignore="handleIgnore"
 					@unignore="handleUnignore"
+					@playback="handleNvrPlayback"
 					@previous="goToPreviousPage"
 					@next="goToNextPage"
 				/>
@@ -117,6 +118,12 @@
 		:cancel-text="confirmDialogConfig.cancelText"
 		@confirm="handleConfirmIgnoreAction"
 		@cancel="handleCancelIgnoreAction"
+	/>
+
+	<AlertNvrClipPlaybackDialog
+		v-model="nvrClipOpen"
+		:targets="nvrClipTargets"
+		:alert-at="nvrClipAlertAt"
 	/>
 </template>
 
@@ -144,11 +151,17 @@ import FilterDropdown from "~/components/common/FilterDropdown.vue"
 import TimeRangePicker from "~/components/common/TimeRangePicker.vue"
 import AlertListSection from "~/components/alerts/AlertListSection.vue"
 import AlertRuleManagement from "~/components/alerts/AlertRuleManagement.vue"
+import AlertNvrClipPlaybackDialog from "~/components/alerts/AlertNvrClipPlaybackDialog.vue"
 import ConfirmDialog from "~/components/common/ConfirmDialog.vue"
 import PageTabs from "~/components/common/PageTabs.vue"
 import { useDataLoader } from "~/composables/monitoring/useDataLoader"
 import { logger } from "~/utils/logger"
 import { useConfirmDialog } from "~/composables/core/useConfirmDialog"
+import { useAlertRuleIntegrationsStore } from "~/composables/systems/alerts/useAlertRuleIntegrationsStore"
+import {
+	buildAlertNvrClipTargets,
+	type AlertNvrClipTarget,
+} from "~/utils/alertNvrClip"
 
 const alertLogLogger = logger.createLogger("alert-log")
 
@@ -158,8 +171,30 @@ definePageMeta({
 
 const alertApi = useAlertApi()
 const toast = useToast()
-const { canIgnoreAlert, canExportReport, canCreateAlert, canManageRules } = useAlertLogRbac()
+const {
+	canIgnoreAlert,
+	canExportReport,
+	canCreateAlert,
+	canOpenRules,
+} = useAlertLogRbac()
+const integrationsStore = useAlertRuleIntegrationsStore()
 const { removeAlertToast } = useAlertMonitor()
+
+const nvrClipOpen = ref(false)
+const nvrClipTargets = ref<AlertNvrClipTarget[]>([])
+const nvrClipAlertAt = ref("")
+
+const handleNvrPlayback = (alert: Alert) => {
+	const ruleId = alert.rule_id != null ? Number(alert.rule_id) : null
+	if (!ruleId || !Number.isFinite(ruleId)) return
+	const link = integrationsStore.getCameraLinkage(ruleId)
+	if (!link.enabled) return
+	const targets = buildAlertNvrClipTargets(link)
+	if (targets.length === 0) return
+	nvrClipTargets.value = targets
+	nvrClipAlertAt.value = String(alert.created_at || "")
+	nvrClipOpen.value = true
+}
 const {
 	onAlertNew: busOnAlertNew,
 	onAlertUpdated: busOnAlertUpdated,
@@ -186,7 +221,7 @@ const currentMode = ref<"alerts" | "rules">("alerts")
 
 const alertModeTabs = computed(() => {
 	const tabs: { id: "alerts" | "rules"; label: string }[] = [{ id: "alerts", label: "警示紀錄" }]
-	if (canManageRules.value) {
+	if (canOpenRules.value) {
 		tabs.push({ id: "rules", label: "警報設定" })
 	}
 	return tabs
@@ -577,7 +612,7 @@ watch([filterStatus, filterSource, filterStartDate, filterEndDate], () => {
 	loadUnresolvedCount()
 })
 
-watch(canManageRules, (canRules) => {
+watch(canOpenRules, (canRules) => {
 	if (!canRules && currentMode.value !== "alerts") {
 		currentMode.value = "alerts"
 	}

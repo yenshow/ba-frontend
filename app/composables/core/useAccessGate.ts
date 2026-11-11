@@ -243,6 +243,7 @@ export const usePersonnelRbac = () => {
 		canCreatePerson: useHasPermission(p.personCreate),
 		canUpdatePerson: useHasPermission(p.personUpdate),
 		canDeletePerson: useHasPermission(p.personDelete),
+		canExportPerson: useHasPermission(p.personExport),
 		canManagePersons: useHasAnyPermission(p.personCreate, p.personUpdate, p.personDelete),
 	}
 }
@@ -263,7 +264,7 @@ export const usePeopleCountingAccessRbac = () => {
 	}
 }
 
-/** 時段簽到：門禁名單／設備同步／重置統計／排休（工地頁；Central 僅權限碼對齊） */
+/** 時段簽到：門禁名單／設備同步／重置統計／排班（工地頁；Central 僅權限碼對齊） */
 export const useRollCallAccessRbac = () => {
 	const { useHasPermission, useHasAnyPermission } = useAuth()
 	const p = PERM.rollCall
@@ -275,6 +276,7 @@ export const useRollCallAccessRbac = () => {
 		canResyncAccessDevices: canDeviceSync,
 		canResetStatistics: useHasPermission(p.statisticsReset),
 		canEditAssignments: useHasPermission(p.assignmentEdit),
+		canOpenAssignments: useHasAnyPermission(p.assignmentView, p.assignmentEdit),
 	}
 }
 
@@ -308,9 +310,10 @@ export const useAlertLogRbac = () => {
 		canIgnoreAlert: useHasPermission(p.ignore),
 		canExportReport: useHasPermission(p.export),
 		canCreateAlert: useHasPermission(p.create),
-		canManageRules: useHasAnyPermission(p.create, p.update, p.delete),
 		canUpdateRule: useHasPermission(p.update),
 		canDeleteRule: useHasPermission(p.delete),
+		canPlayback: useHasPermission(p.playback),
+		canOpenRules: useHasAnyPermission(p.view, p.create, p.update, p.delete),
 	}
 }
 
@@ -343,6 +346,8 @@ export const useSurveillanceRbac = () => {
 	return {
 		canViewModule: useHasPermission(p.module),
 		canControlStream: useHasPermission(p.streamControl),
+		canPlayback: useHasPermission(p.playback),
+		canDownloadPlayback: useHasPermission(p.playbackDownload),
 	}
 }
 

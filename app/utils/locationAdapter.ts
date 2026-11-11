@@ -938,7 +938,6 @@ export function unifiedToPeopleCountingZone(zone: UnifiedZone): PeopleCountingZo
 							? config.eventBackfillWindowSec
 							: undefined,
 					preferRegion: config.preferRegion ?? undefined,
-					accessControlGroups: config.accessControlGroups || [],
 					entryEventCameraDeviceId: config.entryEventCameraDeviceId ?? undefined,
 					exitEventCameraDeviceId: config.exitEventCameraDeviceId ?? undefined,
 					logDisplayColumns: Array.isArray(config.logDisplayColumns)
@@ -1412,7 +1411,6 @@ export function peopleCountingLocationToUnified(
 							}
 						: {}),
 					preferRegion: loc.dataSource === "isapi_camera" ? true : (loc.preferRegion ?? false),
-					accessControlGroups: loc.accessControlGroups ?? [],
 					...(loc.dataSource === "access_control" || isFace
 						? toStoredEventBackfillConfig(loc)
 						: {}),

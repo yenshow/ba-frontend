@@ -40,6 +40,10 @@ export type AlertRuleFormValidationInput = {
 	cameraLinkage: {
 		enabled: boolean
 		camera_device_ids: number[]
+		/** 與 camera_device_ids 同序；NVR 必須 >0 */
+		nvr_track_ids?: number[]
+		/** 與 ids 同序；true＝該台為 NVR */
+		is_nvr_flags?: boolean[]
 	}
 	accessDoorLinkage?: {
 		enabled: boolean
@@ -100,6 +104,19 @@ export const validateAlertRuleFormForSave = (input: AlertRuleFormValidationInput
 			(n) => Number.isFinite(n) && n > 0,
 		)
 		if (ids.length === 0) return "攝影機聯動：請至少選擇一台攝影機"
+		const tracks = Array.isArray(input.cameraLinkage.nvr_track_ids)
+			? input.cameraLinkage.nvr_track_ids
+			: []
+		const flags = Array.isArray(input.cameraLinkage.is_nvr_flags)
+			? input.cameraLinkage.is_nvr_flags
+			: []
+		for (let i = 0; i < ids.length; i++) {
+			if (!flags[i]) continue
+			const track = Number(tracks[i])
+			if (!Number.isInteger(track) || track <= 0) {
+				return "攝影機聯動：NVR 必須指定通道"
+			}
+		}
 	}
 
 	if (input.accessDoorLinkage?.enabled && !input.accessDoorLinkage.allDevices) {
